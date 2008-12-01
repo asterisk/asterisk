@@ -1,0 +1,27 @@
+#!/bin/sh
+
+cat << EOF
+SECTIONS {
+.text : { *(.text) }
+.data : { __${1}_data_start = . ; *(.data) __${1}_data_end = . ;}
+.rodata : { *(.rodata*) }
+.bss : { __${1}_bss_start = . ; *(.bss) __${1}_bss_end = . ;}
+.debug_abbrev : { *(.debug_abbrev) }
+.debug_info : { *(.debug_info) }
+.debug_line : { *(.debug_line) }
+.debug_macinfo : { *(.debug_macinfo) }
+.dtors : { *(.dtors) }
+.ctors : { *(.ctors) }
+.data.rel.local : { *(.data.rel.local) }
+.data.rel.ro.local : { *(.data.rel.ro.local) }
+.debug_frame : { *(.debug_frame) }
+.eh_frame : { *(.eh_frame) }
+.debug_loc : { *(.debug_loc) }
+.debug_pubname : { *(.debug_pubname) }
+.debug_aranges : { *(.debug_aranges) }
+.debug_ranges : { *(.debug_ranges) }
+.debug_str : { *(.debug_str) }
+.comment : { *(.comment) }
+.note.GNU-stack : { *(.note.GNU-stack) }
+}
+EOF

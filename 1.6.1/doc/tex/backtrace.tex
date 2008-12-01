@@ -1,0 +1,217 @@
+This document is intended to provide information on how to obtain the
+backtraces required on the asterisk bug tracker, available at
+\url{http://bugs.digium.com}. The information is required by developers to
+help fix problem with bugs of any kind. Backtraces provide information
+about what was wrong when a program crashed; in our case,
+Asterisk. There are two kind of backtraces (aka 'bt') which are
+useful: bt and bt full.
+
+First of all, when you start Asterisk, you MUST start it with option
+-g. This tells Asterisk to produce a core file if it crashes.
+
+If you start Asterisk with the safe\_asterisk script, it automatically
+starts using the option -g.
+
+If you're not sure if Asterisk is running with the -g option, type the
+following command in your shell:
+
+\begin{astlisting}
+\begin{verbatim}
+debian:/tmp# ps aux | grep asterisk
+root     17832  0.0  1.2   2348   788 pts/1    S    Aug12   0:00 /bin/sh /usr/sbin/safe_asterisk
+root     26686  0.0  2.8  15544  1744 pts/1    S    Aug13   0:02 asterisk -vvvg -c
+[...]
+\end{verbatim}
+\end{astlisting}
+
+The interesting information is located in the last column.
+
+Second, your copy of Asterisk must have been built without
+optimization or the backtrace will be (nearly) unusable. This can be
+done by selecting the 'DONT\_OPTIMIZE' option in the Compiler Flags
+submenu in the 'make menuselect' tree before building Asterisk.
+
+After Asterisk crashes, a core file will be "dumped" in your \path{/tmp/}
+directory. To make sure it's really there, you can just type the
+following command in your shell:
+
+\begin{astlisting}
+\begin{verbatim}
+debian:/tmp# ls -l /tmp/core.*
+-rw-------  1 root root 10592256 Aug 12 19:40 /tmp/core.26252
+-rw-------  1 root root  9924608 Aug 12 20:12 /tmp/core.26340
+-rw-------  1 root root 10862592 Aug 12 20:14 /tmp/core.26374
+-rw-------  1 root root  9105408 Aug 12 20:19 /tmp/core.26426
+-rw-------  1 root root  9441280 Aug 12 20:20 /tmp/core.26462
+-rw-------  1 root root  8331264 Aug 13 00:32 /tmp/core.26647
+debian:/tmp#
+\end{verbatim}
+\end{astlisting}
+
+In the event that there are multiple core files present (as in the
+above example), it is important to look at the file timestamps in
+order to determine which one you really intend to look at.
+
+Now that we've verified the core file has been written to disk, the
+final part is to extract 'bt' from the core file. Core files are
+pretty big, don't be scared, it's normal.
+
+\textbf{NOTE: Don't attach core files on the bug tracker, we only need the bt and bt full.}
+
+For extraction, we use a really nice tool, called gdb. To verify that
+you have gdb installed on your system:
+
+\begin{astlisting}
+\begin{verbatim}
+debian:/tmp# gdb -v
+GNU gdb 6.3-debian
+Copyright 2004 Free Software Foundation, Inc.
+GDB is free software, covered by the GNU General Public License, and you are
+welcome to change it and/or distribute copies of it under certain conditions.
+Type "show copying" to see the conditions.
+There is absolutely no warranty for GDB.  Type "show warranty" for details.
+This GDB was configured as "i386-linux".
+debian:/tmp#
+\end{verbatim}
+\end{astlisting}
+
+Which is great, we can continue. If you don't have gdb installed, go install gdb.
+
+Now load the core file in gdb, as follows:
+
+\begin{astlisting}
+\begin{verbatim}
+debian:/tmp# gdb asterisk /tmp/core.26252
+[...]
+(You would see a lot of output here.)
+[...]
+Reading symbols from /usr/lib/asterisk/modules/app_externalivr.so...done.
+Loaded symbols for /usr/lib/asterisk/modules/app_externalivr.so
+#0  0x29b45d7e in ?? ()
+(gdb)
+\end{verbatim}
+\end{astlisting}
+
+Now at the gdb prompt, type: bt
+You would see output similar to:
+
+\begin{astlisting}
+\begin{verbatim}
+(gdb) bt
+#0  0x29b45d7e in ?? ()
+#1  0x08180bf8 in ?? ()
+#2  0xbcdffa58 in ?? ()
+#3  0x08180bf8 in ?? ()
+#4  0xbcdffa60 in ?? ()
+#5  0x08180bf8 in ?? ()
+#6  0x180bf894 in ?? ()
+#7  0x0bf80008 in ?? ()
+#8  0x180b0818 in ?? ()
+#9  0x08068008 in ast_stopstream (tmp=0x40758d38) at file.c:180
+#10 0x000000a0 in ?? ()
+#11 0x000000a0 in ?? ()
+#12 0x00000000 in ?? ()
+#13 0x407513c3 in confcall_careful_stream (conf=0x8180bf8, filename=0x8181de8 "DAHDI/pseudo-1324221520") at app_meetme.c:262
+#14 0x40751332 in streamconfthread (args=0x8180bf8) at app_meetme.c:1965
+#15 0xbcdffbe0 in ?? ()
+#16 0x40028e51 in pthread_start_thread () from /lib/libpthread.so.0
+#17 0x401ec92a in clone () from /lib/libc.so.6
+(gdb)
+\end{verbatim}
+\end{astlisting}
+
+The bt's output is the information that we need on the bug tracker.
+
+\begin{astlisting}
+\begin{verbatim}
+Now do a bt full as follows:
+(gdb) bt full
+#0  0x29b45d7e in ?? ()
+No symbol table info available.
+#1  0x08180bf8 in ?? ()
+No symbol table info available.
+#2  0xbcdffa58 in ?? ()
+No symbol table info available.
+#3  0x08180bf8 in ?? ()
+No symbol table info available.
+#4  0xbcdffa60 in ?? ()
+No symbol table info available.
+#5  0x08180bf8 in ?? ()
+No symbol table info available.
+#6  0x180bf894 in ?? ()
+No symbol table info available.
+#7  0x0bf80008 in ?? ()
+No symbol table info available.
+#8  0x180b0818 in ?? ()
+No symbol table info available.
+#9  0x08068008 in ast_stopstream (tmp=0x40758d38) at file.c:180
+No locals.
+#10 0x000000a0 in ?? ()
+No symbol table info available.
+#11 0x000000a0 in ?? ()
+No symbol table info available.
+#12 0x00000000 in ?? ()
+No symbol table info available.
+#13 0x407513c3 in confcall_careful_stream (conf=0x8180bf8, filename=0x8181de8 "DAHDI/pseudo-1324221520") at app_meetme.c:262
+        f = (struct ast_frame *) 0x8180bf8
+        trans = (struct ast_trans_pvt *) 0x0
+#14 0x40751332 in streamconfthread (args=0x8180bf8) at app_meetme.c:1965
+No locals.
+#15 0xbcdffbe0 in ?? ()
+No symbol table info available.
+#16 0x40028e51 in pthread_start_thread () from /lib/libpthread.so.0
+No symbol table info available.
+#17 0x401ec92a in clone () from /lib/libc.so.6
+No symbol table info available.
+(gdb)
+\end{verbatim}
+\end{astlisting}
+
+We also need gdb's output. That output gives more details compared to
+the simple "bt". So we recommend that you use bt full instead of bt.
+But, if you could include both, we appreciate that.
+
+The final "extraction" would be to know all traces by all
+threads. Even if asterisk runs on the same thread for each call, it
+could have created some new threads.
+
+To make sure we have the correct information, just do:
+(gdb) thread apply all bt
+
+\begin{astlisting}
+\begin{verbatim}
+Thread 1 (process 26252):
+#0  0x29b45d7e in ?? ()
+#1  0x08180bf8 in ?? ()
+#2  0xbcdffa58 in ?? ()
+#3  0x08180bf8 in ?? ()
+#4  0xbcdffa60 in ?? ()
+#5  0x08180bf8 in ?? ()
+#6  0x180bf894 in ?? ()
+#7  0x0bf80008 in ?? ()
+#8  0x180b0818 in ?? ()
+#9  0x08068008 in ast_stopstream (tmp=0x40758d38) at file.c:180
+#10 0x000000a0 in ?? ()
+#11 0x000000a0 in ?? ()
+#12 0x00000000 in ?? ()
+#13 0x407513c3 in confcall_careful_stream (conf=0x8180bf8, filename=0x8181de8 "DAHDI/pseudo-1324221520") at app_meetme.c:262
+#14 0x40751332 in streamconfthread (args=0x8180bf8) at app_meetme.c:1965
+#15 0xbcdffbe0 in ?? ()
+#16 0x40028e51 in pthread_start_thread () from /lib/libpthread.so.0
+#17 0x401ec92a in clone () from /lib/libc.so.6
+(gdb)
+\end{verbatim}
+\end{astlisting}
+
+That output tells us crucial information about each thread.
+
+Now, just create an output.txt file and dump your "bt full"
+(and/or "bt") ALONG WITH "thread apply all bt" into it.
+
+Note: Please ATTACH your output, DO NOT paste it as a note.
+
+And you're ready for upload on the bug tracker.
+
+If you have questions or comments regarding this documentation, feel
+free to pass by the \#asterisk-bugs channel on irc.freenode.net.
+

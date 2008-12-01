@@ -1,0 +1,25 @@
+All modules must have at least the following:
+
+static int load_module():
+
+	Do what you need to do when you get started.  This function can return
+AST_MODULE_LOAD_FAILURE if an action fails and the module is prevented from loading,
+AST_MODULE_LOAD_DECLINE if the module can not load because of a non-critical failure
+(the configuration file was not found), or AST_MODULE_LOAD_SUCCESS if the module
+loaded fine.
+
+static int unload_module():
+	
+	The module will soon be unloaded.  If any channels are using your
+features, you should give them a softhangup in an effort to keep the
+program from crashing.  Generally, unload_module is only called when the
+usecount is 0 or less, but the user can force unloading at their
+discretion, and thus a module should do its best to comply (although in
+some cases there may be no way to avoid a crash).  This function should
+return 0 on success and non-zero on failure (i.e. it cannot yet be
+unloaded).
+
+AST_MODULE_INFO_STANDARD(keystr, desc);
+
+keystr: Applicable license for module. In most cases this is ASTERISK_GPL_KEY.
+desc: Description of module.

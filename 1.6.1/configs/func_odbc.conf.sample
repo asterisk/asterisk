@@ -1,0 +1,77 @@
+;
+; func_odbc.conf
+;
+; Each context is a separately defined function.  By convention, all
+; functions are entirely uppercase, so the defined contexts should also
+; be all-uppercase, but there is nothing that enforces this.  All functions
+; are case-sensitive, however.
+;
+; For substitution, you have ${ARG1}, ${ARG2} ... ${ARGn}
+; for the arguments to each SQL statement.
+;
+; In addition, for write statements, you have ${VAL1}, ${VAL2} ... ${VALn}
+; parsed, just like arguments, for the values.  In addition, if you want the
+; whole value, never mind the parsing, you can get that with ${VALUE}.
+;
+;
+; If you have data which may potentially contain single ticks, you may wish
+; to use the dialplan function SQL_ESC() to escape the data prior to its
+; inclusion in the SQL statement.
+;
+;
+; The following variables are available in this configuration file:
+;
+; readhandle   A comma-separated list of DSNs (from res_odbc.conf) to use when
+;              executing the readsql statement.  Each DSN is tried, in
+;              succession, until the statement succeeds.  You may specify up to
+;              5 DSNs per function class.  If not specified, it will default to
+;              the value of writehandle or dsn, if specified.
+; writehandle  A comma-separated list of DSNs (from res_odbc.conf) to use when
+;              executing the writesql statement.  The same rules apply as to
+;              readhandle.  "dsn" is a synonym for "writehandle".
+; readsql      The statement to execute when reading from the function class.
+; writesql     The statement to execute when writing to the function class.
+; prefix       Normally, all function classes are prefixed with "ODBC" to keep
+;              them uniquely named.  You may choose to change this prefix, which
+;              may be useful to segregate a collection of certain function
+;              classes from others.
+; escapecommas This option may be used to turn off the default behavior of
+;              escaping commas which occur within a field.  If commas are
+;              escaped (the default behavior), then fields containing commas
+;              will be treated as a single value when assigning to ARRAY() or
+;              HASH().  If commas are not escaped, then values will be separated
+;              at the comma within fields.  Please note that turning this option
+;              off is incompatible with the functionality of HASH().
+
+
+; ODBC_SQL - Allow an SQL statement to be built entirely in the dialplan
+[SQL]
+dsn=mysql1
+readsql=${ARG1}
+
+; ODBC_ANTIGF - A blacklist.
+[ANTIGF]
+dsn=mysql1,mysql2   ; Use mysql1 as the primary handle, but fall back to mysql2
+                    ; if mysql1 is down.  Supports up to 5 comma-separated
+                    ; DSNs.  "dsn" may also be specified as "readhandle" and
+                    ; "writehandle", if it is important to separate reads and
+                    ; writes to different databases.
+readsql=SELECT COUNT(*) FROM exgirlfriends WHERE callerid='${SQL_ESC(${ARG1})}'
+
+; ODBC_PRESENCE - Retrieve and update presence
+[PRESENCE]
+dsn=mysql1
+readsql=SELECT location FROM presence WHERE id='${SQL_ESC(${ARG1})}'
+writesql=UPDATE presence SET location='${SQL_ESC(${VAL1})}' WHERE id='${SQL_ESC(${ARG1})}'
+;prefix=OFFICE      ; Changes this function from ODBC_PRESENCE to OFFICE_PRESENCE
+;escapecommas=no    ; Normally, commas within a field are escaped such that each
+                    ; field may be separated into individual variables with ARRAY.
+                    ; This option turns that behavior off [default=yes].
+;mode=multirow      ; Enable multirow fetching.  Instead of returning results directly,
+                    ; mode=multirow queries will return a result-id, which can be passed
+                    ; multiple times to ODBC_FETCH, and that function will return each
+                    ; row, in order.  You can add to this the following parameter:
+;rowlimit=5         ; rowlimit will limit the number of rows retrieved and stored from
+                    ; the database.  If not specified, all rows, up to available memory,
+                    ; will be retrieved and stored.
+

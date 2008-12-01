@@ -1,0 +1,18 @@
+
+(If you find progress and other non-error messages irritating, you can use -q to suppress them)
+
+(You can use the -w option to dump extensions.conf format to extensions.conf.aeldump)
+LOG: lev:2 file:pbx_ael.c  line:115 func: pbx_load_module  Starting AEL load process.
+LOG: lev:2 file:pbx_ael.c  line:128 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 2-16: The macro testdial does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:671 func: check_macro_returns  Warning: file ./extensions.ael, line 18-25: The macro exten-gen does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:1362 func: check_goto  Warning: file ./extensions.ael, line 21-21: It's bad form to have a goto in a macro to a target outside the macro!
+LOG: lev:3 file:pval.c  line:1362 func: check_goto  Warning: file ./extensions.ael, line 23-23: It's bad form to have a goto in a macro to a target outside the macro!
+LOG: lev:3 file:pval.c  line:2284 func: check_switch_expr  Warning: file ./extensions.ael, line 58-58: A default case was automatically added to the switch.
+LOG: lev:3 file:pval.c  line:922 func: check_dow  Warning: file ./extensions.ael, line 67-67: The day (m0n) must be one of 'sun', 'mon', 'tue', 'wed', 'thu', 'fri', or 'sat'!
+LOG: lev:3 file:pval.c  line:880 func: check_timerange  Warning: file ./extensions.ael, line 78-78: The end time (25:00) is out of range!
+LOG: lev:2 file:pbx_ael.c  line:131 func: pbx_load_module  AEL load process: checked config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:134 func: pbx_load_module  AEL load process: compiled config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:139 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:142 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
+LOG: lev:4 file:ael2_parse  line:518 func: main  5 contexts, 16 extensions, 159 priorities

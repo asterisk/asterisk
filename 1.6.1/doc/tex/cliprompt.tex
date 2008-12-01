@@ -1,0 +1,29 @@
+\subsubsection{Changing the CLI Prompt}
+
+The CLI prompt is set with the ASTERISK\_PROMPT UNIX environment variable that
+you set from the Unix shell before starting Asterisk
+
+You may include the following variables, that will be replaced by
+the current value by Asterisk:
+
+\begin{itemize}
+    \item \%d - Date (year-month-date)
+    \item \%s - Asterisk system name (from asterisk.conf)
+    \item \%h - Full hostname
+    \item \%H - Short hostname
+    \item \%t - Time
+    \item \%u - Username
+    \item \%g - Groupname
+    \item \%\% - Percent sign
+    \item \%\# - '\#' if Asterisk is run in console mode, '$>$' if running as remote console
+    \item \%Cn[;n] - Change terminal foreground (and optional background) color to specified
+    A full list of colors may be found in \path{include/asterisk/term.h}
+\end{itemize}
+
+On systems which implement getloadavg(3), you may also use:
+
+\begin{itemize}
+    \item \%l1 - Load average over past minute
+    \item \%l2 - Load average over past 5 minutes
+    \item \%l3 - Load average over past 15 minutes
+\end{itemize}

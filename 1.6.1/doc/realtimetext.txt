@@ -1,0 +1,84 @@
+Real-time text in Asterisk 
+--------------------------
+The SIP channel has support for real-time text conversation calls in Asterisk (T.140).
+This is a way to perform text based conversations in combination with other media,
+most often video. The text is sent character by character as a media stream.
+
+During a call sometimes there are losses of T.140 packets and a solution to that is to 
+use redundancy in the media stream (RTP).
+See  "http://en.wikipedia.org/wiki/Text_over_IP"http://en.wikipedia.org/wiki/Text_over_IP
+and RFC 5194 for more information.
+
+The supported real-time text codec is t.140.
+Real-time text redundancy support is now available in Asterisk.
+
+ITU-T T.140 
+-----------
+You can find more information about T.140 at www.itu.int. RTP is used for the transport T.140,
+as specified in RFC 4103.
+
+How to enable T.140
+-------------------
+In order to enable real-time text with redundancy in Asterisk, modify sip.conf to add: 
+
+	[general]
+	disallow=all
+	allow=ulaw
+	allow = alaw
+	allow=t140
+	allow=t140red
+	textsupport=yes
+	videosupport=yes ; needed for proper SDP handling even if only text and voice calls are handled
+	allow=h263 ; at least one video codec as H.261, H.263 or H.263+ is needed. 
+
+The codec settings may change, depending on your phones. The important settings here are to allow
+t140 and 140red and enable text support.
+
+General information about real-time text support in Asterisk 
+------------------------------------------------------------
+With the configuration above, calls will be supported with any combination of real-time text, 
+audio and video. 
+
+Text for both t140 and t140red is handled on channel and application level in Asterisk conveyed in
+Text frames, with the subtype "t140". Text is conveyed in such frames usually only containing one or
+a few characters from the real-time text flow. The packetization interval is 300 ms, handled on lower
+RTP level, and transmission redundancy level is 2, causing one original and two redundant transmissions
+of all text so that it is reliable even in high packet loss situations. Transmitting applications do not
+need to bother about the transmission interval. The t140red support handles any buffering needed during
+the packetization intervals.
+
+Clients known to support text, audio/text or audio/video/text calls with Asterisk: 
+----------------------------------------------------------------------------------
+
+- Omnitor Allan eC - SIP audio/video/text softphone 
+- AuPix APS-50 - audio/video/text softphone.
+- France Telecom eConf –audio/video/text softphone.
+- SIPcon1 - open source SIP audio/text softphone available in Sourceforge. 
+
+
+Limitations
+-----------
+
+A known general problem with Asterisk is that when a client which uses audio/video/T.140 calls to 
+an Asterisk with T.140 media offered but video support not specified. In this case Asterisk handles
+the sdp media description (m=) incorrectly, and the sdp response is not created correctly. 
+To solve this problem, turn on video support in Asterisk. 
+
+Modify sip.conf to add
+	[general] 
+	videosupport=yes 
+	allow=h263 ; at least one video codec as H.261, H.263 or H.263+ is needed.
+
+The problem with sdp is a bug and is reported to Asterisk bugtracker, it has id 0012434. 
+
+Credits
+-------
+ - Asterisk real-time text support is developed by AuPix
+ - Asterisk real-time text redundancy support is developed by Omnitor
+
+The work with Asterisk real-time text redundancy was supported with funding from the National Institute
+on Disability and Rehabilitation Research (NIDRR), U.S. Department of Education, under grant number 
+H133E040013 as part of a co-operation between the Telecommunication Access Rehabilitation Engineering
+Research Center of the University of Wisconsin – Trace Center joint with Gallaudet University, and Omnitor.
+Olle E. Johansson, Edvina AB, has been a liason between the Asterisk project and this project.
+

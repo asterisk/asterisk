@@ -1,0 +1,69 @@
+Asterisk is distributed under the GNU General Public License version 2
+and is also available under alternative licenses negotiated directly
+with Digium, Inc. If you obtained Asterisk under the GPL, then the GPL
+applies to all loadable Asterisk modules used on your system as well,
+except as defined below. The GPL (version 2) is included in this
+source tree in the file COPYING.
+
+This package also includes various components that are not part of
+Asterisk itself; these components are in the 'contrib' directory
+and its subdirectories. Most of these components are also
+distributed under the GPL version 2 as well, except for the following:
+
+contrib/firmware/iax/iaxy.bin:
+	This file is Copyright (C) Digium, Inc. and is licensed for
+	use with Digium IAXy hardware devices only. It can be
+	distributed freely as long as the distribution is in the
+	original form present in this package (not reformatted or
+	modified).
+
+Digium, Inc. (formerly Linux Support Services) holds copyright
+and/or sufficient licenses to all components of the Asterisk
+package, and therefore can grant, at its sole discretion, the ability
+for companies, individuals, or organizations to create proprietary or
+Open Source (even if not GPL) modules which may be dynamically linked at
+runtime with the portions of Asterisk which fall under our
+copyright/license umbrella, or are distributed under more flexible
+licenses than GPL.
+
+If you wish to use our code in other GPL programs, don't worry --
+there is no requirement that you provide the same exception in your
+GPL'd products (although if you've written a module for Asterisk we
+would strongly encourage you to make the same exception that we do).
+
+Specific permission is also granted to link Asterisk with OpenSSL, OpenH323
+and/or the UW IMAP Toolkit and distribute the resulting binary files.
+
+In addition, Asterisk implements two management/control protocols: the
+Asterisk Manager Interface (AMI) and the Asterisk Gateway Interface
+(AGI). It is our belief that applications using these protocols to
+manage or control an Asterisk instance do not have to be licensed
+under the GPL or a compatible license, as we believe these protocols
+do not create a 'derivative work' as referred to in the GPL. However,
+should any court or other judiciary body find that these protocols do
+fall under the terms of the GPL, then we hereby grant you a license to
+use these protocols in combination with Asterisk in external
+applications licensed under any license you wish.
+
+The 'Asterisk' name and logos are trademarks owned by Digium, Inc.,
+and use of them is subject to our trademark licensing policies. If you
+wish to use these trademarks for purposes other than simple
+redistribution of Asterisk source code obtained from Digium, you
+should contact our licensing department to determine the necessary
+steps you must take. For more information on this policy, please read:
+
+http://www.digium.com/en/company/profile/trademarkpolicy.php
+
+If you have any questions regarding our licensing policy, please
+contact us:
+
++1.877.344.4861 (via telephone in the USA)
++1.256.428.6000 (via telephone outside the USA)
++1.256.864.0464 (via FAX inside or outside the USA)
+IAX2/pbx.digium.com (via IAX2)
+licensing@digium.com (via email)
+
+Digium, Inc.
+445 Jan Davis Drive
+Huntsville, AL  35806
+USA

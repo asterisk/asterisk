@@ -1,0 +1,47 @@
+Asterisk and Video telephony
+----------------------------
+
+Asterisk supports video telephony in the core infrastructure. Internally, it's one audio stream
+and one video stream in the same call. Some channel drivers and applications has video support,
+but not all.
+
+Codecs and formats
+------------------
+Asterisk supports the following video codecs and file formats. There's no video
+transcoding so you have to make sure that both ends support the same video format.
+
+		Codec	Format
+		-----	----------
+		H.263	read/write
+		H.264	read/write
+		H.261	-		Passthrough only
+
+Note that the file produced by Asterisk video format drivers is in no generic
+video format. Gstreamer has support for producing these files and converting from
+various video files to Asterisk video+audio files.
+
+Note that H.264 is not enabled by default. You need to add that in the channel
+configuration file.
+
+Channel drivers
+---------------
+SIP		The SIP channel driver (chan_sip.so) has support for video
+IAX2		Supports video calls (over trunks too)
+Local		Forwards video calls as a proxy channel
+Agent		Forwards video calls as a proxy channel
+oss		Has support for video display/decoding, see video_console.txt
+
+Applications
+------------
+This is not yet a complete list. These dialplan applications are known to handle video:
+
+voicemail	Video voicemail storage (does not attach video to e-mail)
+record		Records audio and video files (give audio format as argument)
+playback	Plays a video while being instructed to play audio
+echo		Echos audio and video back to the user
+
+There is a development group working on enhancing video support for Asterisk. 
+If you want to participate, join the asterisk-video mailing list on http://lists.digium.com
+
+---
+Updates to this file are more than welcome!

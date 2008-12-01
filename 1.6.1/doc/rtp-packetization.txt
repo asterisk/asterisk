@@ -1,0 +1,75 @@
+Overview
+-------
+Asterisk currently supports configurable RTP packetization per codec for 
+select RTP-based channels.
+
+Channels
+-------
+These channel drivers allow RTP packetization on a user/peer/friend
+or global level:
+    chan_sip
+    chan_skinny
+    chan_h323
+    chan_ooh323 (Asterisk-Addons)
+    chan_gtalk
+    chan_jingle
+
+Configuration
+-------
+To set a desired packetization interval on a specific codec,
+append that inteval to the allow= statement.
+
+Example:
+allow=ulaw:30,alaw,g729:60
+
+No packetization is specified in the case of alaw in this example,
+so the default of 20ms is used.
+
+Autoframing
+-------
+In addition, chan_sip has the ability to negotiate the desired
+framing at call establishment.
+
+In sip.conf if autoframing=yes is set in the global section, then
+all calls will try to set the packetization based on the remote
+endpoint's preferences.  This behaviour depends on the endpoints
+ability to present the desired packetization (ptime:) in the SDP.
+If the endpoint does not include a ptime attribute, the call will 
+be established with 20ms packetization.
+
+Autoframing can be set at the global level or on a user/peer/friend
+basis.  If it is enabled at the global level, it applies to all
+users/peers/friends regardless of their prefered codec packetization.
+
+Codec framing options
+-------
+The following table lists the minimum and maximum values that are
+valid per codec, as well as the increment value used for each.
+Please note that the maximum values here are only recommended
+maximums, and should not exceed the RTP MTU.
+
+Name		Min		Max		Default		Increment
+g723		30		300		30		30
+gsm		20		300		20		20
+ulaw		10		150		20		10
+alaw		10		150		20		10
+g726		10		300		20		10
+ADPCM		10		300		20		10
+SLIN		10		70		20		10
+lpc10		20		20		20		20
+g729		10		230		20		10
+speex		10		60		20		10
+ilbc		30		30		30		30
+g726_aal2	10		300		20		10
+
+Invalid framing options are handled based on the following rules:
+  1.  If the specified framing is less than the codec's minimum, then
+        the minimum value is used.
+  2.  If the specific framing is greater than the codec's maximum, then
+        the maximum value is used
+  3.  If the specificed framing does not meet the increment requirement,
+        the specified framing is rounded down to the closest valid
+        framing options.
+                example allow=ulaw:33 will set the codec to 30ms framing
+  4.  If no framing is specified in the allow= directive, then the
+        codec default is used.

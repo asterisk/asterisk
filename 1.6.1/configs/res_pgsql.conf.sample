@@ -1,0 +1,22 @@
+;
+; Sample configuration for res_config_pgsql
+;
+; The value of dbhost may be either a hostname or an IP address.
+; If dbhost is commented out or the string "localhost", a connection
+; to the local host is assumed and dbsock is used instead of TCP/IP
+; to connect to the server.
+;
+[general]
+dbhost=127.0.0.1
+dbport=5432
+dbname=asterisk
+dbuser=asterisk
+dbpass=password
+;
+; requirements - At startup, each realtime family will make requirements
+; on the backend.  There are several strategies for handling requirements:
+; warn        - Warn if the required column does not exist.
+; createclose - Create columns as close to the requirements as possible.
+; createchar  - Create char columns only
+;
+requirements=warn

@@ -1,0 +1,12 @@
+;
+; Asterisk CLI configuration
+;
+
+[startup_commands]
+;
+; Any commands listed in this section will get automatically executed
+; when Asterisk starts as a daemon or foreground process (-c).
+;
+;sip set debug on = yes
+;core set verbose 3 = yes
+;core set debug 1 = yes

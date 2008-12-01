@@ -1,0 +1,193 @@
+; Radio Repeater / Remote Base configuration file (for use with app_rpt)
+; As of app_rpt version 0.39, 12/20/2005
+;
+
+;[000]					; Node ID of first repeater
+
+;rxchannel = DAHDI/1			; Rx audio/signalling channel
+; Note: if you use a unified interface (tx/rx on one channel), only
+; specify the rxchannel and the txchannel will be assumed from the rxchannel
+;txchannel = DAHDI/2			; Tx audio/signalling channel
+;duplex = 2				; (Optional) set duplex operating mode
+;; 0 = half duplex (telemetry and courtesy tones do not transmit)
+;; 1 = semi-half duplex (telemetry and courtesy tones transmit, but not
+;;    repeated audio
+;; 2 = normal full-duplex mode (Default)
+;; 3 = full-duplex mode, without repeated audio from main input source
+;functions = functions-repeater		; DTMF function list
+;; specify this for a different function list then local when on link
+;;link_functions = functions-different	; DTMF function list for link
+;;phone_functions = functions-phone	; (optional) different functions for 'P' mode
+;;dphone_functions = functions-dphone	; (optional) different functions for 'D' mode
+;;nodes = nodes-different		; (optional) different node list
+;tonezone = us				; use US tones (default)
+;context = default			; dialing context for phone
+;callerid = "WB6NIL Repeater" <(213) 555-0123>  ; Callerid for phone calls
+;idrecording = wb6nil			; id recording
+;accountcode=RADIO			; account code (optional)
+;funcchar = *				; function lead-in character (defaults to '*')
+;endchar = #				; command mode end character (defaults to '#')
+;;nobusyout=yes				; (optional) Do not busy-out reverse-patch when
+					; normal patch in use
+;hangtime=1000				; squelch tail hang time (in ms) (optional)
+;totime=100000				; transmit time-out time (in ms) (optional)
+;idtime=30000				; id interval time (in ms) (optional)
+;politeid=30000				; time in milliseconds before ID timer
+					; expires to try and ID in the tail.
+					; (optional, default is 30000).
+;idtalkover=|iwb6nil/rpt		; Talkover ID (optional) default is none
+;unlinkedct=ct2				; unlinked courtesy tone (optional) default is none
+
+;; The tailmessagetime,tailsquashedtime, and tailmessages need to be set
+;; to support tail messages. They can be omitted otherwise.
+;tailmessagetime=300000			; Play a tail message every 5 mins
+;tailsquashedtime=30000			; If squashed by another user,
+;;					  try again after 30 seconds
+;tailmessages=msg1,msg2,msg3		;list of messages to be played for tail message
+
+; The default values for hangtime, time-out time, and id interval time are
+; 5 seconds (5000 ms),  3 minutes (180000 ms), and 5 minutes (300000 ms)
+; respectively
+
+;[001]					; Node ID of first repeater
+
+;rxchannel = DAHDI/3			; Rx audio/signalling channel
+; Note: if you use a unified interface (tx/rx on one channel), only
+; specify the rxchannel and the txchannel will be assumed from the rxchannel
+;txchannel = DAHDI/4			; Tx audio/signalling channel
+;functions = functions-repeater		; DTMF function list
+;; specify this for a different function list then local when on link
+;;link_functions = functions-different	; DTMF function list for link
+;;phone_functions = functions-phone	; (optional) different functions for 'P' mode
+;;dphone_functions = functions-dphone	; (optional) different functions for 'D' mode
+;;nodes = nodes-different		; (optional) different node list
+;tonezone = us				; use US tones (default)
+;context = default			; dialing context for phone
+;callerid = "WB6NIL Repeater" <(213) 555-0123>  ; Callerid for phone calls
+;idrecording = wb6nil			; id recording
+;accountcode=RADIO			; account code (optional)
+;funcchar = *				; function lead-in character (defaults to '*')
+;endchar = #				; command mode end character (defaults to '#')
+;;nobusyout=yes				; (optional) Do not busy-out reverse-patch when
+					; normal patch in use
+;hangtime=1000				; squelch tail hang time (in ms) (optional)
+;totime=100000				; transmit time-out time (in ms) (optional)
+;idtime=30000				; id interval time (in ms) (optional)
+;politeid=30000				; time in milliseconds before ID timer
+					; expires to try and ID in the tail.
+					; (optional, default is 30000).
+;idtalkover=|iwb6nil/rpt		; Talkover ID (optional) default is none
+;unlinkedct=ct2				; unlinked courtesy tone (optional) default is none
+
+;[002]					; Node ID of remote base
+
+;rxchannel = DAHDI/5			; Rx audio/signalling channel
+; Note: if you use a unified interface (tx/rx on one channel), only
+; specify the rxchannel and the txchannel will be assumed from the rxchannel
+;txchannel = DAHDI/6			; Tx audio/signalling channel
+;functions = functions-remote
+;remote = ft897				; Set remote=y for dumb remote or 
+					; remote=ft897 for Yaesu FT-897 or
+					; remote=rbi for Doug Hall RBI1
+;iobase = 0x378				; Specify IO port for parallel port (optional)
+
+;[functions-repeater]
+;1=ilink,1				; Specific link disconnect
+;2=ilink,2				; Specific Link connect -  monitor only
+;3=ilink,3				; Specific Link connect - transceive
+;4=ilink,4				; Enter command mode on a specific link
+;7=ilink,5				; Link status
+;;XX=ilink,6				; Disconnect all links (not used here)
+
+;80=status,1				; System info
+;81=status,2				; Time
+;82=status,3				; app_rpt.c Version
+
+;6=autopatchup				; Autopatch up
+;0=autopatchdn				; Autopatch down
+
+;90=cop,1				; System warm boot 
+;91=cop,2				; System enable
+;92=cop,3				; System disable
+
+;[functions-remote]
+
+;0=remote,1				; Retrieve Memory
+;1=remote,2				; Set freq.
+;2=remote,3				; Set Rx PL tone.
+;40=remote,100				; Rx PL off
+;41=remote,101				; Rx PL on
+;42=remote,102				; Tx PL off
+;43=remote,103				; Tx PL on
+;44=remote,104				; Low Pwr
+;45=remote,105				; Med Pwr
+;46=remote,106				; Hi Pwr
+;5=remote,5				; Status
+
+;[telemetry]
+
+; Telemetry entries are shared across all repeaters
+; Can be a tone sequence, morse string, or a file
+;
+; |t - Tone escape sequence
+;
+; Tone sequences consist of 1 or more 4-tuple entries (freq1, freq2, duration, amplitude)
+; Single frequencies are created by setting freq1 or freq2 to zero.
+;
+; |m - Morse escape sequence
+; 
+; Sends Morse code at the telemetry amplitude and telemetry frequency as defined in the
+; [morse] section.
+;
+; Follow with an alphanumeric string
+;
+; |i - Morse ID escape sequence
+;
+; Sends Morse code at the ID amplitude and ID frequency as defined in the
+; [morse] section.
+;
+; Follow with an alphanumeric string
+
+
+;ct1=|t(350,0,100,2048)(500,0,100,2048)(660,0,100,2048)
+;ct2=|t(660,880,150,2048)  
+;ct3=|t(440,0,150,2048) 
+;ct4=|t(550,0,150,2048)
+;ct5=|t(660,0,150,2048)
+;ct6=|t(880,0,150,2048)
+;ct7=|t(660,440,150,2048)
+;ct8=|t(700,1100,150,2048)
+;remotetx=|t(2000,0,75,2048)(0,0,75,0)(1600,0,75,2048); 
+;remotemon=|t(1600,0,75,2048) 
+;cmdmode=|t(900,903,200,2048)
+;functcomplete=|t(1000,0,100,2048)(0,0,100,0)(1000,0,100,2048)
+
+
+;[morse]
+
+;speed=20		; Approximate speed in WPM
+;frequency=800		; Morse Telemetry Frequency
+;amplitude=4096		; Morse Telemetry Amplitude
+;idfrequency=330		; Morse ID Frequency	
+;idamplitude=2048	; Morse ID Amplitude
+
+;[nodes]
+
+;000 = context_A@foo.bar.com/1234,foo.bar.com
+;001 = context_B@baz.waldo.com/4321,baz.waldo.com
+;002 = context_C@pepper.salt.com/5678,pepper.salt.com,y  ; this is a remote
+
+;of course, you can also specify these with domain names, but why rely
+;on DNS working unnecessarily?
+
+;[memory]
+
+;; this example gives you 146.460, simplex, 100.0 HZ PL, hi-power, transmit PL
+;00 = 146.460,100.0,sht
+;; this example gives you 146.940, minus offset, 100.0 HZ PL, low-power, no PL
+;01 = 146.940,100.0,-l
+
+; The format for these entries is:  Receive-Freq,Receive-PL,Attrbutes
+;     Attributes: l=low power, m=medium power, h=high power, -=minus offset,
+;	s=simplex, +=plus offset, t=tx PL enable, r=rx PL enable
+

@@ -1,0 +1,38 @@
+#!/bin/sh -e
+
+# This script is designed to remove all non-API global symbols from an object
+# file. The only global symbols that should be retained are those that belong
+# to the official namespace. Unfortunately doing this is platform-specific, as
+# the object file manipulation tools are not consistent across platforms.
+#
+# On platforms where this script does not know what to do, the object file
+# will retain non-API global symbols, and this may have unpleasant side effects.
+#
+# Prefixes that belong to the official namespace are:
+#	ast_
+#	_ast_
+#	__ast_
+#	astman_
+#	pbx_
+#	resample_
+
+FILTER="${GREP} -v -e ^ast_ -e ^_ast_ -e ^__ast_ -e ^astman_ -e ^pbx_ -e ^resample_"
+
+case "${PROC}" in
+	powerpc64)
+		TEXTSYM=" D "
+		;;
+	*)
+		TEXTSYM=" T "
+		;;
+esac
+
+case "${OSARCH}" in
+    linux-gnu|FreeBSD)
+	nm ${1} | ${GREP} -e "$TEXTSYM" | cut -d" " -f3 | ${FILTER} > striplist
+	sed -e "s/^/-N /" striplist | xargs -n 40 ${STRIP} ${1}
+	rm -f striplist
+	;;
+    *)
+	;;
+esac

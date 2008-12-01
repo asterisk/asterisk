@@ -1,0 +1,56 @@
+;;; odbc setup file 
+
+; ENV is a global set of environmental variables that will get set.
+; Note that all environmental variables can be seen by all connections,
+; so you can't have different values for different connections.
+[ENV]
+;INFORMIXSERVER => my_special_database
+;INFORMIXDIR => /opt/informix
+;ORACLE_HOME => /home/oracle
+
+; All other sections are arbitrary names for database connections.
+
+[asterisk]
+enabled => no
+dsn => asterisk
+;username => myuser
+;password => mypass
+pre-connect => yes
+;
+; What should we execute to ensure that our connection is still alive?  The
+; statement should return a non-zero value in the first field of its first
+; record.  The default is "select 1".
+;sanitysql => select 1
+
+
+[mysql2]
+enabled => no
+dsn => MySQL-asterisk
+username => myuser
+password => mypass
+pre-connect => yes
+;
+; On some databases, the connection times out and a reconnection will be
+; necessary.  This setting configures the amount of time a connection
+; may sit idle (in seconds) before a reconnection will be attempted.
+;idlecheck => 3600
+
+; Certain servers, such as MS SQL Server and Sybase use the TDS protocol, which
+; limits the number of active queries per connection to 1.  By telling res_odbc
+; not to share connections, Asterisk can be made to work with these servers.
+[sqlserver]
+enabled => no
+dsn => mickeysoft
+share_connections => no
+limit => 5
+username => oscar
+password => thegrouch
+pre-connect => yes
+sanitysql => select count(*) from systables
+;
+; Many databases have a default of '\' to escape special characters.  MS SQL
+; Server does not.
+backslash_is_escape => no
+
+
+

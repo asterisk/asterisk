@@ -1,0 +1,258 @@
+\section{The Asterisk Manager TCP/IP API}
+
+The manager is a client/server model over TCP. With the manager interface,
+you'll be able to control the PBX, originate calls, check mailbox status,
+monitor channels and queues as well as execute Asterisk commands.
+
+AMI is the standard management interface into your Asterisk server.
+You configure AMI in manager.conf. By default, AMI is available on
+TCP port 5038 if you enable it in manager.conf.
+
+AMI receive commands, called "actions". These generate a "response"
+from Asterisk. Asterisk will also send "Events" containing various
+information messages about changes within Asterisk. Some actions
+generate an initial response and data in the form list of events.
+This format is created to make sure that extensive reports do not
+block the manager interface fully.
+
+Management users are configured in the configuration file manager.conf and are
+given permissions for read and write, where write represents their ability
+to perform this class of "action", and read represents their ability to
+receive this class of "event".
+
+If you develop AMI applications, treat the headers
+in Actions, Events and Responses as local to that particular
+message. There is no cross-message standardization of headers.
+
+If you develop applications, please try to reuse existing manager
+headers and their interpretation. If you are unsure, discuss on
+the asterisk-dev mailing list.
+
+\section{Device status reports}
+
+Manager subscribes to extension status reports from all channels,
+to be able to generate events when an extension or device changes
+state. The level of details in these events may depend on the channel
+and device configuration. Please check each channel configuration
+file for more information. (in sip.conf, check the section on
+subscriptions and call limits)
+
+
+\section{Command Syntax}
+
+Management communication consists of tags of the form "header: value",
+terminated with an empty newline (\textbackslash r\textbackslash n) in 
+the style of SMTP, HTTP, and other headers.
+
+The first tag MUST be one of the following:
+
+\begin{itemize}
+    \item Action: An action requested by the CLIENT to the Asterisk SERVER. 
+        Only one "Action" may be outstanding at any time.
+    \item Response: A response to an action from the Asterisk SERVER to the CLIENT.
+    \item Event: An event reported by the Asterisk SERVER to the CLIENT
+\end{itemize}
+
+\section{Manager commands}
+
+To see all of the available manager commands, use the "manager show commands"
+CLI command.
+
+You can get more information about a manager command
+with the "manager show command $<$command$>$" CLI command in Asterisk.
+
+\section{Examples}
+
+Login - Log a user into the manager interface.
+
+\begin{verbatim}
+   Action: Login
+   Username: testuser
+   Secret: testsecret
+\end{verbatim}
+
+Originate - Originate a call from a channel to an extension.
+
+\begin{verbatim}
+   Action: Originate
+   Channel: sip/12345
+   Exten: 1234
+   Context: default
+\end{verbatim}
+
+Originate - Originate a call from a channel to an extension without waiting
+for call to complete.
+
+\begin{verbatim}
+   Action: Originate
+   Channel: sip/12345
+   Exten: 1234
+   Context: default
+   Async: yes
+\end{verbatim}
+
+Redirect with ExtraChannel:
+
+  Attempted goal:
+  Have a 'robot' program Redirect both ends of an already-connected call
+  to a meetme room using the ExtraChannel feature through the management interface.
+
+\begin{verbatim}
+  Action: Redirect
+  Channel: DAHDI/1-1
+  ExtraChannel: SIP/3064-7e00 (varies)
+  Exten: 680
+  Priority: 1
+\end{verbatim}
+
+Where 680 is an extension that sends you to a MeetMe room.
+
+There are a number of GUI tools that use the manager interface, please search
+the mailing list archives and the documentation page on the
+\url{http://www.asterisk.org} web site for more information.
+
+
+\section{Some standard AMI headers}
+\begin{verbatim}
+ Account:                 -- Account Code (Status)
+ AccountCode:             -- Account Code (cdr_manager)
+ ACL: <Y | N>             -- Does ACL exist for object ?
+ Action: <action>         -- Request or notification of a particular action
+ Address-IP:              -- IPaddress
+ Address-Port:            -- IP port number
+ Agent: <string>          -- Agent name
+ AMAflags:                -- AMA flag (cdr_manager, sippeers)
+ AnswerTime:              -- Time of answer (cdr_manager)
+ Append: <bool>           -- CDR userfield Append flag
+ Application:             -- Application to use
+ Async:                   -- Whether or not to use fast setup
+ AuthType:                -- Authentication type (for login or challenge)
+          "md5"
+ BillableSeconds:         -- Billable seconds for call (cdr_manager)
+ CallerID:                -- Caller id (name and number in Originate & cdr_manager)
+ CallerID:                -- CallerID number
+                             Number or "<unknown>" or "unknown"
+                             (should change to "<unknown>" in app_queue)
+ CallerID1:               -- Channel 1 CallerID (Link event)
+ CallerID2:               -- Channel 2 CallerID (Link event)
+ CallerIDName:            -- CallerID name
+                             Name or "<unknown>" or "unknown"
+                             (should change to "<unknown>" in app_queue)
+ Callgroup:               -- Call group for peer/user
+ CallsTaken: <num>        -- Queue status variable
+ Cause: <value>           -- Event change cause - "Expired"
+ Cause: <value>           -- Hangupcause (channel.c)
+ CID-CallingPres:         -- Caller ID calling presentation
+ Channel: <channel>       -- Channel specifier
+ Channel: <dialstring>    -- Dialstring in Originate
+ Channel: <tech/[peer/username]> -- Channel in Registry events (SIP, IAX2)
+ Channel: <tech>          -- Technology (SIP/IAX2 etc) in Registry events
+ ChannelType:             -- Tech: SIP, IAX2, DAHDI, MGCP etc
+ Channel1:                -- Link channel 1
+ Channel2:                -- Link channel 2
+ ChanObjectType:          -- "peer", "user"
+ Codecs:                  -- Codec list
+ CodecOrder:              -- Codec order, separated with comma ","
+ Command:                 -- Cli command to run
+ Context:                 -- Context
+ Count: <num>             -- Number of callers in queue
+ Data:                    -- Application data
+ Default-addr-IP:         -- IP address to use before registration
+ Default-Username:        -- Username part of URI to use before registration
+ Destination:             -- Destination for call (Dialstring ) (dial, cdr_manager)
+ DestinationContext:      -- Destination context (cdr_manager)
+ DestinationChannel:      -- Destination channel (cdr_manager)
+ DestUniqueID:            -- UniqueID of destination (dial event)
+ Disposition:             -- Call disposition (CDR manager)
+ Domain: <domain>         -- DNS domain
+ Duration: <secs>         -- Duration of call (cdr_manager)
+ Dynamic: <Y |  N>        -- Device registration supported?
+ Endtime:                 -- End time stamp of call (cdr_manager)
+ EventList: <flag>        -- Flag being "Start", "End", "Cancelled" or "ListObject"
+ Events: <eventmask>      -- Eventmask filter ("on", "off", "system", "call", "log")
+ Exten:                   -- Extension (Redirect command)
+ Extension:               -- Extension (Status)
+ Family: <string>         -- ASTdb key family
+ File: <filename>         -- Filename (monitor)
+ Format: <format>         -- Format of sound file (monitor)
+ From: <time>             --  Parking time (ParkedCall event)
+ Hint:                    -- Extension hint
+ Incominglimit:           -- SIP Peer incoming limit
+ Key:
+ Key:                     -- ASTdb Database key
+ LastApplication:         -- Last application executed (cdr_manager)
+ LastCall: <num>          -- Last call in queue
+ LastData:                -- Data for last application (cdr_manager)
+ Link:                    -- (Status)
+ ListItems: <number>      -- Number of items in Eventlist (Optionally sent in "end" packet)
+ Location:                -- Interface (whatever that is -maybe tech/name in app_queue )
+ Loginchan:               -- Login channel for agent
+ Logintime: <number>      -- Login time for agent
+ Mailbox:                 -- VM Mailbox (id@vmcontext) (mailboxstatus, mailboxcount)
+ MD5SecretExist: <Y | N>  -- Whether secret exists in MD5 format
+ Membership: <string>     -- "Dynamic" or "static" member in queue
+ Message: <text>          -- Text message in ACKs, errors (explanation)
+ Mix: <bool>              -- Boolean parameter (monitor)
+ NewMessages: <count>     -- Count of new Mailbox messages (mailboxcount)
+ Newname:
+ ObjectName:              -- Name of object in list
+ OldName:                 -- Something in Rename (channel.c)
+ OldMessages: <count>     -- Count of old mailbox messages (mailboxcount)
+ Outgoinglimit:           -- SIP Peer outgoing limit
+ Paused: <num>            -- Queue member paused status
+ Peer: <tech/name>        -- "channel" specifier :-)
+ PeerStatus: <tech/name>  -- Peer status code
+                           "Unregistered", "Registered", "Lagged", "Reachable"
+ Penalty: <num>           -- Queue penalty
+ Priority:                -- Extension priority
+ Privilege: <privilege>   -- AMI authorization class (system, call, log, verbose, command, agent, user)
+ Pickupgroup:             -- Pickup group for peer
+ Position: <num>          -- Position in Queue
+ Queue:                   -- Queue name
+ Reason:                  -- "Autologoff"
+ Reason:                  -- "Chanunavail"
+ Response: <response>     -- response code, like "200 OK"
+                           "Success", "Error", "Follows"
+ Restart:                 -- "True", "False"
+ RegExpire:               -- SIP registry expire
+ RegExpiry:               -- SIP registry expiry
+ Reason:                  -- Originate reason code
+ Seconds:                 -- Seconds (Status)
+ Secret: <password>       -- Authentication secret (for login)
+ SecretExist: <Y | N>     -- Whether secret exists
+ Shutdown:                -- "Uncleanly", "Cleanly"
+ SIP-AuthInsecure:
+ SIP-FromDomain:          -- Peer FromDomain
+ SIP-FromUser:            -- Peer FromUser
+ SIP-NatSupport:
+ SIPLastMsg:
+ Source:                  -- Source of call (dial event, cdr_manager)
+ SrcUniqueID:             -- UniqueID of source (dial event)
+ StartTime:               -- Start time of call (cdr_manager)
+ State:                   -- Channel state
+ Status:                  -- Registration status (Registry events SIP)
+ Status:                  -- Extension status (Extensionstate)
+ Status:                  -- Peer status (if monitored)  ** Will change name **
+                             "unknown", "lagged", "ok"
+ Status: <num>            -- Queue Status
+ Status:                  -- DND status (DNDState)
+ Time: <sec>              -- Roundtrip time (latency)
+ Timeout:                 -- Parking timeout time
+ Timeout:                 -- Timeout for call setup (Originate)
+ Timeout: <seconds>       -- Timeout for call
+ Uniqueid:                -- Channel Unique ID
+ Uniqueid1:               -- Channel 1 Unique ID (Link event)
+ Uniqueid2:               -- Channel 2 Unique ID (Link event)
+ User:                    -- Username (SIP registry)
+ UserField:               -- CDR userfield (cdr_manager)
+ Val:                     -- Value to set/read in ASTdb
+ Variable:                -- Variable AND value to set (multiple separated with | in Originate)
+ Variable: <name>         -- For channel variables
+ Value: <value>           -- Value to set
+ VoiceMailbox:            -- VM Mailbox in SIPpeers
+ Waiting:                 -- Count of mailbox messages (mailboxstatus)
+\end{verbatim}
+
+ ** Please try to re-use existing headers to simplify manager message parsing in clients.
+
+Read the CODING-GUIDELINES if you develop new manager commands or events.

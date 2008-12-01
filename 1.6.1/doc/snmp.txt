@@ -1,0 +1,53 @@
+Asterisk SNMP Support
+---------------------
+
+Rudimentary support for SNMP access to Asterisk is available.  To build
+this, one needs to have Net-SNMP development headers and libraries on
+the build system, including any libraries Net-SNMP depends on.
+
+Note that on some (many?) Linux-distributions the dependency list in
+the net-snmp-devel list is not complete, and additional packages will 
+need to be installed.  This is usually seen as configure failing to 
+detect net-snmp-devel as the configure script does a sanity check of 
+the net-snmp build environment, based on the output of 
+'net-snmp-config --agent-libs'.  
+
+To see what your distribution requires, run 'net-snmp-config --agent-libs'.
+
+You will receive a response similar to the following:
+-L/usr/lib -lnetsnmpmibs -lnetsnmpagent -lnetsnmphelpers -lnetsnmp -ldl 
+-lrpm -lrpmio -lpopt -lz -lcrypto -lm -lsensors -L/usr/lib/lib -lwrap 
+-Wl,-E -Wl,-rpath,/usr/lib/perl5/5.8.8/i386-linux-thread-multi/CORE 
+-L/usr/local/lib 
+/usr/lib/perl5/5.8.8/i386-linux-thread-multi/auto/DynaLoader/DynaLoader.a 
+-L/usr/lib/perl5/5.8.8/i386-linux-thread-multi/CORE -lperl -lresolv -lnsl 
+-ldl -lm -lcrypt -lutil -lpthread -lc
+
+The packages required may include the following:
+	* bzip2-devel
+	* lm_sensors-devel
+	* newt-devel
+
+SNMP support comes in two varieties -- as a sub-agent to a running SNMP
+daemon using the AgentX protocol, or as a full standalone agent.  If
+you wish to run a full standalone agent, Asterisk must run as root in
+order to bind to port 161.
+
+Configuring access when running as a full agent is something that is
+left as an exercise to the reader.
+
+To enable access to the Asterisk SNMP subagent from a master SNMP
+daemon, one will need to enable AgentX support, and also make sure that
+Asterisk will be able to access the Unix domain socket.  One way of
+doing this is to add the following to /etc/snmp/snmpd.conf:
+
+	# Enable AgentX support
+	master agentx
+
+	# Set permissions on AgentX socket and containing
+	# directory such that process in group 'asterisk'
+	# will be able to connect
+	agentXPerms  0660 0550 nobody asterisk
+
+This assumes that you run Asterisk under group 'asterisk' (and does
+not care what user you run as).

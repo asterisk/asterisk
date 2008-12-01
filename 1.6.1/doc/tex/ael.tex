@@ -1,0 +1,1305 @@
+\section{Introduction}
+
+AEL is a specialized language intended purely for
+describing Asterisk dial plans.
+
+The current version was written by Steve Murphy, and is a rewrite of
+the original version.
+
+This new version further extends AEL, and
+provides more flexible syntax, better error messages, and some missing
+functionality.
+
+AEL is really the merger of 4 different 'languages', or syntaxes:
+
+\begin{itemize}
+    \item The first and most obvious is the AEL syntax itself. A BNF is
+      provided near the end of this document.
+
+    \item The second syntax is the Expression Syntax, which is normally
+     handled by Asterisk extension engine, as expressions enclosed in
+     \$[...]. The right hand side of assignments are wrapped in \$[ ... ]
+     by AEL, and so are the if and while expressions, among others.
+
+    \item The third syntax is the Variable Reference Syntax, the stuff
+      enclosed in \$\{..\} curly braces. It's a bit more involved than just
+      putting a variable name in there. You can include one of dozens of
+      'functions', and their arguments, and there are even some string
+      manipulation notation in there.
+
+    \item The last syntax that underlies AEL, and is not used
+      directly in AEL, is the Extension Language Syntax. The
+      extension language is what you see in extensions.conf, and AEL
+      compiles the higher level AEL language into extensions and
+      priorities, and passes them via function calls into
+      Asterisk. Embedded in this language is the Application/AGI
+      commands, of which one application call per step, or priority
+      can be made. You can think of this as a "macro assembler"
+      language, that AEL will compile into.
+\end{itemize}
+
+Any programmer of AEL should be familiar with its syntax, of course,
+as well as the Expression syntax, and the Variable syntax.
+
+
+\section{Asterisk in a Nutshell}
+
+Asterisk acts as a server. Devices involved in telephony, like DAHDI
+cards, or Voip phones, all indicate some context that should be
+activated in their behalf. See the config file formats for IAX, SIP,
+dahdi.conf, etc. They all help describe a device, and they all
+specify a context to activate when somebody picks up a phone, or a
+call comes in from the phone company, or a voip phone, etc.
+
+\subsection{Contexts}
+
+Contexts are a grouping of extensions.
+
+Contexts can also include other contexts. Think of it as a sort of
+merge operation at runtime, whereby the included context's extensions
+are added to the contexts making the inclusion.
+
+\subsection{Extensions and priorities}
+
+A Context contains zero or more Extensions. There are several
+predefined extensions. The "s" extension is the "start" extension, and
+when a device activates a context the "s" extension is the one that is
+going to be run. Other extensions are the timeout "t" extension, the
+invalid response, or "i" extension, and there's a "fax" extension. For
+instance, a normal call will activate the "s" extension, but an
+incoming FAX call will come into the "fax" extension, if it
+exists. (BTW, asterisk can tell it's a fax call by the little "beep"
+that the calling fax machine emits every so many seconds.).
+
+Extensions contain several priorities, which are individual
+instructions to perform. Some are as simple as setting a variable to a
+value. Others are as complex as initiating the Voicemail application,
+for instance. Priorities are executed in order.
+
+When the 's" extension completes, asterisk waits until the timeout for
+a response. If the response matches an extension's pattern in the
+context, then control is transferred to that extension. Usually the
+responses are tones emitted when a user presses a button on their
+phone. For instance, a context associated with a desk phone might not
+have any "s" extension. It just plays a dialtone until someone starts
+hitting numbers on the keypad, gather the number, find a matching
+extension, and begin executing it. That extension might Dial out over
+a connected telephone line for the user, and then connect the two
+lines together.
+
+The extensions can also contain "goto" or "jump" commands to skip to
+extensions in other contexts. Conditionals provide the ability to
+react to different stimuli, and there you have it.
+
+\subsection{Macros}
+
+Think of a macro as a combination of a context with one nameless
+extension, and a subroutine. It has arguments like a subroutine
+might. A macro call can be made within an extension, and the
+individual statements there are executed until it ends. At this point,
+execution returns to the next statement after the macro call. Macros
+can call other macros. And they work just like function calls.
+
+\subsection{Applications}
+
+Application calls, like "Dial()", or "Hangup()", or "Answer()", are
+available for users to use to accomplish the work of the
+dialplan. There are over 145 of them at the moment this was written,
+and the list grows as new needs and wants are uncovered. Some
+applications do fairly simple things, some provide amazingly complex
+services.
+
+Hopefully, the above objects will allow you do anything you need to in
+the Asterisk environment!
+
+\section{Getting Started}
+
+The AEL parser (res\_ael.so) is completely separate from the module
+that parses extensions.conf (pbx\_config.so). To use AEL, the only
+thing that has to be done is the module res\_ael.so must be loaded by
+Asterisk. This will be done automatically if using 'autoload=yes' in
+\path{/etc/asterisk/modules.conf}. When the module is loaded, it will look
+for 'extensions.ael' in \path{/etc/asterisk/}. extensions.conf and
+extensions.ael can be used in conjunction with
+each other if that is what is desired. Some users may want to keep
+extensions.conf for the features that are configured in the 'general'
+section of extensions.conf.
+
+To reload extensions.ael, the following command can be issued at the
+CLI:
+
+    *CLI> ael reload
+
+\section{Debugging}
+
+Right at this moment, the following commands are available, but do
+nothing:
+
+Enable AEL contexts debug
+
+   *CLI$>$ ael debug contexts
+
+Enable AEL macros debug
+
+   *CLI$>$ ael debug macros
+
+Enable AEL read debug
+
+   *CLI$>$ ael debug read
+
+Enable AEL tokens debug
+
+   *CLI$>$ ael debug tokens
+
+Disable AEL debug messages
+
+   *CLI$>$ ael no debug
+
+If things are going wrong in your dialplan, you can use the following
+facilities to debug your file:
+
+1. The messages log in \path{/var/log/asterisk}. (from the checks done at load time).
+2. the "show dialplan" command in asterisk
+3. the standalone executable, "aelparse" built in the utils/ dir in the source.
+
+
+\section{About "aelparse"}
+
+You can use the "aelparse" program to check your extensions.ael
+file before feeding it to asterisk. Wouldn't it be nice to eliminate
+most errors before giving the file to asterisk?
+
+aelparse is compiled in the utils directory of the asterisk release.
+It isn't installed anywhere (yet). You can copy it to your favorite
+spot in your PATH.
+
+aelparse has two optional arguments:
+
+\begin{itemize}
+  \item -d
+  \begin{itemize}
+    \item Override the normal location of the config file dir, (usually
+       \path{/etc/asterisk}), and use the current directory instead as the
+       config file dir. Aelparse will then expect to find the file
+       "./extensions.ael" in the current directory, and any included
+       files in the current directory as well.
+  \end{itemize}
+  \item -n
+  \begin{itemize}
+    \item don't show all the function calls to set priorities and contexts
+       within asterisk. It will just show the errors and warnings from
+       the parsing and semantic checking phases.
+  \end{itemize}
+\end{itemize}
+
+\section{General Notes about Syntax}
+
+Note that the syntax and style are now a little more free-form. The
+opening '{' (curly-braces) do not have to be on the same line as the
+keyword that precedes them. Statements can be split across lines, as
+long as tokens are not broken by doing so. More than one statement can
+be included on a single line. Whatever you think is best!
+
+You can just as easily say,
+
+\begin{astlisting}
+\begin{verbatim}
+if(${x}=1) { NoOp(hello!); goto s,3; } else { NoOp(Goodbye!); goto s,12; }
+\end{verbatim}
+\end{astlisting}
+as you can say:
+\begin{astlisting}
+\begin{verbatim}
+if(${x}=1)
+{
+       NoOp(hello!);
+   goto s,3;
+}
+else
+{
+       NoOp(Goodbye!);
+       goto s,12;
+}
+\end{verbatim}
+\end{astlisting}
+
+or:
+
+\begin{astlisting}
+\begin{verbatim}
+if(${x}=1) {
+       NoOp(hello!);
+   goto s,3;
+} else {
+       NoOp(Goodbye!);
+       goto s,12;
+}
+\end{verbatim}
+\end{astlisting}
+
+or:
+
+\begin{astlisting}
+\begin{verbatim}
+if (${x}=1) {
+       NoOp(hello!); goto s,3;
+} else {
+       NoOp(Goodbye!); goto s,12;
+}
+\end{verbatim}
+\end{astlisting}
+
+\section{Keywords}
+
+The AEL keywords are case-sensitive. If an application name and a
+keyword overlap, there is probably good reason, and you should
+consider replacing the application call with an AEL statement. If you
+do not wish to do so, you can still use the application, by using a
+capitalized letter somewhere in its name. In the Asterisk extension
+language, application names are NOT case-sensitive.
+
+The following are keywords in the AEL language:
+\begin{itemize}
+    \item abstract
+    \item context
+    \item macro
+    \item globals
+    \item ignorepat
+    \item switch
+    \item if
+    \item ifTime
+    \item else
+    \item random
+    \item goto
+    \item jump
+    \item local
+    \item return
+    \item break
+    \item continue
+    \item regexten
+    \item hint
+    \item for
+    \item while
+    \item case
+    \item pattern
+    \item default   NOTE: the "default" keyword can be used as a context name,
+                      for those who would like to do so.
+    \item catch
+    \item switches
+    \item eswitches
+    \item includes
+\end{itemize}
+
+
+\section{Procedural Interface and Internals}
+
+AEL first parses the extensions.ael file into a memory structure representing the file.
+The entire file is represented by a tree of "pval" structures linked together.
+
+This tree is then handed to the semantic check routine.
+
+Then the tree is handed to the compiler.
+
+After that, it is freed from memory.
+
+A program could be written that could build a tree of pval structures, and
+a pretty printing function is provided, that would dump the data to a file,
+or the tree could be handed to the compiler to merge the data into the
+asterisk dialplan. The modularity of the design offers several opportunities
+for developers to simplify apps to generate dialplan data.
+
+
+\subsection{AEL version 2 BNF}
+
+(hopefully, something close to bnf).
+
+First, some basic objects
+
+\begin{astlisting}
+\begin{verbatim}
+------------------------
+<word>    a lexical token consisting of characters matching this pattern: [-a-zA-Z0-9"_/.\<\>\*\+!$#\[\]][-a-zA-Z0-9"_/.!\*\+\<\>\{\}$#\[\]]*
+
+<word3-list>  a concatenation of up to 3 <word>s.
+
+<collected-word>  all characters encountered until the character that follows the <collected-word> in the grammar.
+-------------------------
+
+<file> :== <objects>
+
+<objects> :== <object>
+           | <objects> <object>
+
+
+<object> :==  <context>
+         | <macro>
+         | <globals>
+         | ';'
+
+
+<context> :==  'context' <word> '{' <elements> '}'
+            | 'context' <word> '{' '}'
+            | 'context' 'default' '{' <elements> '}'
+            | 'context' 'default' '{' '}'
+            | 'abstract'  'context' <word> '{' <elements> '}'
+            | 'abstract'  'context' <word> '{' '}'
+            | 'abstract'  'context' 'default' '{' <elements> '}'
+            | 'abstract'  'context' 'default' '{' '}'
+
+
+<macro> :== 'macro' <word> '(' <arglist> ')' '{' <macro_statements> '}'
+       | 'macro' <word> '(' <arglist> ')' '{'  '}'
+       | 'macro' <word> '(' ')' '{' <macro_statements> '}'
+       | 'macro' <word> '(' ')' '{'  '}'
+
+
+<globals> :== 'globals' '{' <global_statements> '}'
+         | 'globals' '{' '}'
+
+
+<global_statements> :== <global_statement>
+                   | <global_statements> <global_statement>
+
+
+<global_statement> :== <word> '=' <collected-word> ';'
+
+
+<arglist> :== <word>
+         | <arglist> ',' <word>
+
+
+<elements> :==  <element>
+             | <elements> <element>
+
+
+<element> :== <extension>
+         | <includes>
+         | <switches>
+         | <eswitches>
+         | <ignorepat>
+         | <word> '='  <collected-word> ';'
+         | 'local' <word> '='  <collected-word> ';'
+         | ';'
+
+
+<ignorepat> :== 'ignorepat' '=>' <word> ';'
+
+
+<extension> :== <word> '=>' <statement>
+           | 'regexten' <word> '=>' <statement>
+           | 'hint' '(' <word3-list> ')' <word> '=>' <statement>
+           | 'regexten' 'hint' '(' <word3-list> ')' <word> '=>' <statement>
+
+
+<statements> :== <statement>
+            | <statements> <statement>
+
+<if_head> :== 'if' '('  <collected-word> ')'
+
+<random_head> :== 'random' '(' <collected-word> ')'
+
+<ifTime_head> :== 'ifTime' '(' <word3-list> ':' <word3-list> ':' <word3-list> '|' <word3-list> '|' <word3-list> '|' <word3-list> ')'
+                       | 'ifTime' '(' <word> '|' <word3-list> '|' <word3-list> '|' <word3-list> ')'
+
+
+<word3-list> :== <word>
+       | <word> <word>
+       | <word> <word> <word>
+
+<switch_head> :== 'switch' '(' <collected-word> ')'  '{'
+
+
+<statement> :== '{' <statements> '}'
+       | <word> '='  <collected-word> ';'
+       | 'local' <word> '='  <collected-word> ';'
+       | 'goto' <target> ';'
+       | 'jump' <jumptarget> ';'
+       | <word> ':'
+       | 'for' '('  <collected-word> ';'  <collected-word> ';' <collected-word> ')' <statement>
+       | 'while' '('  <collected-word> ')' <statement>
+       | <switch_head> '}'
+       | <switch_head> <case_statements> '}'
+       | '&' macro_call ';'
+       | <application_call> ';'
+       | <application_call> '='  <collected-word> ';'
+       | 'break' ';'
+       | 'return' ';'
+       | 'continue' ';'
+       | <random_head> <statement>
+       | <random_head> <statement> 'else' <statement>
+       | <if_head> <statement>
+       | <if_head> <statement> 'else' <statement>
+       | <ifTime_head> <statement>
+       | <ifTime_head> <statement> 'else' <statement>
+       | ';'
+
+<target> :== <word>
+       | <word> '|' <word>
+       | <word> '|' <word> '|' <word>
+       | 'default' '|' <word> '|' <word>
+       | <word> ',' <word>
+       | <word> ',' <word> ',' <word>
+       | 'default' ',' <word> ',' <word>
+
+<jumptarget> :== <word>
+               | <word> ',' <word>
+               | <word> ',' <word> '@' <word>
+               | <word> '@' <word>
+               | <word> ',' <word> '@' 'default'
+               | <word> '@' 'default'
+
+<macro_call> :== <word> '(' <eval_arglist> ')'
+       | <word> '(' ')'
+
+<application_call_head> :== <word>  '('
+
+<application_call> :== <application_call_head> <eval_arglist> ')'
+       | <application_call_head> ')'
+
+<eval_arglist> :==  <collected-word>
+       | <eval_arglist> ','  <collected-word>
+       |  /* nothing */
+       | <eval_arglist> ','  /* nothing */
+
+<case_statements> :== <case_statement>
+       | <case_statements> <case_statement>
+
+
+<case_statement> :== 'case' <word> ':' <statements>
+       | 'default' ':' <statements>
+       | 'pattern' <word> ':' <statements>
+       | 'case' <word> ':'
+       | 'default' ':'
+       | 'pattern' <word> ':'
+
+<macro_statements> :== <macro_statement>
+       | <macro_statements> <macro_statement>
+
+<macro_statement> :== <statement>
+       | 'catch' <word> '{' <statements> '}'
+
+<switches> :== 'switches' '{' <switchlist> '}'
+       | 'switches' '{' '}'
+
+<eswitches> :== 'eswitches' '{' <switchlist> '}'
+       | 'eswitches' '{'  '}'
+
+<switchlist> :== <word> ';'
+       | <switchlist> <word> ';'
+
+<includeslist> :== <includedname> ';'
+       | <includedname> '|' <word3-list> ':' <word3-list> ':' <word3-list> '|' <word3-list> '|' <word3-list> '|' <word3-list> ';'
+       | <includedname> '|' <word> '|' <word3-list> '|' <word3-list> '|' <word3-list> ';'
+       | <includeslist> <includedname> ';'
+       | <includeslist> <includedname> '|' <word3-list> ':' <word3-list> ':' <word3-list> '|' <word3-list> '|' <word3-list> '|' <word3-list> ';'
+       | <includeslist> <includedname> '|' <word> '|' <word3-list> '|' <word3-list> '|' <word3-list> ';'
+
+<includedname> :== <word>
+        | 'default'
+
+<includes> :== 'includes' '{' <includeslist> '}'
+       | 'includes' '{' '}'
+\end{verbatim}
+\end{astlisting}
+
+\section{AEL Example USAGE}
+
+\subsection{Comments}
+
+Comments begin with // and end with the end of the line.
+
+Comments are removed by the lexical scanner, and will not be
+recognized in places where it is busy gathering expressions to wrap in
+\$[] , or inside application call argument lists. The safest place to put
+comments is after terminating semicolons, or on otherwise empty lines.
+
+
+\subsection{Context}
+
+Contexts in AEL represent a set of extensions in the same way that
+they do in extensions.conf.
+\begin{astlisting}
+\begin{verbatim}
+context default {
+
+}
+\end{verbatim}
+\end{astlisting}
+
+A context can be declared to be "abstract", in which case, this
+declaration expresses the intent of the writer, that this context will
+only be included by another context, and not "stand on its own". The
+current effect of this keyword is to prevent "goto " statements from
+being checked.
+\begin{astlisting}
+\begin{verbatim}
+abstract context longdist {
+     _1NXXNXXXXXX => NoOp(generic long distance dialing actions in the US);
+}
+\end{verbatim}
+\end{astlisting}
+
+\subsection{Extensions}
+
+To specify an extension in a context, the following syntax is used. If
+more than one application is be called in an extension, they can be
+listed in order inside of a block.
+\begin{astlisting}
+\begin{verbatim}
+context default {
+    1234 => Playback(tt-monkeys);
+    8000 => {
+         NoOp(one);
+         NoOp(two);
+         NoOp(three);
+    };
+    _5XXX => NoOp(it's a pattern!);
+}
+\end{verbatim}
+\end{astlisting}
+
+Two optional items have been added to the AEL syntax, that allow the
+specification of hints, and a keyword, regexten, that will force the
+numbering of priorities to start at 2.
+
+The ability to make extensions match by CID is preserved in
+AEL; just use '/' and the CID number in the specification. See below.
+\begin{astlisting}
+\begin{verbatim}
+context default {
+
+    regexten _5XXX => NoOp(it's a pattern!);
+}
+\end{verbatim}
+\end{astlisting}
+
+\begin{astlisting}
+\begin{verbatim}
+context default {
+
+    hint(Sip/1) _5XXX => NoOp(it's a pattern!);
+}
+\end{verbatim}
+\end{astlisting}
+
+\begin{astlisting}
+\begin{verbatim}
+context default {
+
+    regexten hint(Sip/1) _5XXX => NoOp(it's a pattern!);
+}
+\end{verbatim}
+\end{astlisting}
+
+The regexten must come before the hint if they are both present.
+
+CID matching is done as with the extensions.conf file. Follow the extension
+name/number with a slash (/) and the number to match against the Caller ID:
+\begin{astlisting}
+\begin{verbatim}
+context zoombo
+{
+  819/7079953345 => { NoOp(hello, 3345); }
+}
+\end{verbatim}
+\end{astlisting}
+
+In the above,  the 819/7079953345 extension will only be matched if the
+CallerID is 7079953345, and the dialed number is 819. Hopefully you have
+another 819 extension defined for all those who wish 819, that are not so lucky
+as to have 7079953345 as their CallerID!
+
+
+\subsection{Includes}
+
+Contexts can be included in other contexts. All included contexts are
+listed within a single block.
+
+\begin{astlisting}
+\begin{verbatim}
+context default {
+    includes {
+         local;
+         longdistance;
+         international;
+    }
+}
+\end{verbatim}
+\end{astlisting}
+
+Time-limited inclusions can be specified, as in extensions.conf
+format, with the fields described in the wiki page Asterisk cmd
+GotoIfTime.
+
+\begin{astlisting}
+\begin{verbatim}
+context default {
+    includes {
+         local;
+         longdistance|16:00-23:59|mon-fri|*|*;
+         international;
+    }
+}
+\end{verbatim}
+\end{astlisting}
+
+\subsection{\#include}
+
+You can include other files with the \#include "filepath" construct.
+
+\begin{astlisting}
+\begin{verbatim}
+   #include "/etc/asterisk/testfor.ael"
+\end{verbatim}
+\end{astlisting}
+
+An interesting property of the \#include, is that you can use it almost
+anywhere in the .ael file. It is possible to include the contents of
+a file in a macro, context, or even extension.  The \#include does not
+have to occur at the beginning of a line. Included files can include
+other files, up to 50 levels deep. If the path provided in quotes is a
+relative path, the parser looks in the config file directory for the
+file (usually \path{/etc/asterisk}).
+
+
+
+\subsection{Dialplan Switches}
+
+Switches are listed in their own block within a context. For clues as
+to what these are used for, see Asterisk - dual servers, and Asterisk
+config extensions.conf.
+
+\begin{astlisting}
+\begin{verbatim}
+context default {
+    switches {
+         DUNDi/e164;
+         IAX2/box5;
+    };
+    eswitches {
+         IAX2/context@${CURSERVER};
+    }
+}
+\end{verbatim}
+\end{astlisting}
+
+\subsection{Ignorepat}
+
+ignorepat can be used to instruct channel drivers to not cancel
+dialtone upon receipt of a particular pattern. The most commonly used
+example is '9'.
+\begin{astlisting}
+\begin{verbatim}
+context outgoing {
+    ignorepat => 9;
+}
+\end{verbatim}
+\end{astlisting}
+
+\subsection{Variables}
+
+Variables in Asterisk do not have a type, so to define a variable, it
+just has to be specified with a value.
+
+Global variables are set in their own block.
+
+\begin{astlisting}
+\begin{verbatim}
+globals {
+    CONSOLE=Console/dsp;
+    TRUNK=DAHDI/g2;
+}
+\end{verbatim}
+\end{astlisting}
+
+Variables can be set within extensions as well.
+
+\begin{astlisting}
+\begin{verbatim}
+context foo {
+    555 => {
+         x=5;
+         y=blah;
+         divexample=10/2
+         NoOp(x is ${x} and y is ${y} !);
+    }
+}
+\end{verbatim}
+\end{astlisting}
+
+NOTE: AEL wraps the right hand side of an assignment with \$[ ] to allow
+expressions to be used If this is unwanted, you can protect the right hand
+side from being wrapped by using the Set() application.
+Read the README.variables about the requirements and behavior
+of \$[ ] expressions.
+
+NOTE: These things are wrapped up in a \$[ ] expression: The while() test;
+the if() test; the middle expression in the for( x; y; z) statement
+(the y expression); Assignments - the right hand side, so a = b -> Set(a=\$[b])
+
+Writing to a dialplan function is treated the same as writing to a variable.
+
+\begin{astlisting}
+\begin{verbatim}
+context blah {
+    s => {
+         CALLERID(name)=ChickenMan;
+         NoOp(My name is ${CALLERID(name)} !);
+    }
+}
+\end{verbatim}
+\end{astlisting}
+
+You can declare variables in Macros, as so:
+
+\begin{astlisting}
+\begin{verbatim}
+Macro myroutine(firstarg, secondarg)
+{
+  Myvar=1;
+  NoOp(Myvar is set to ${myvar});
+}
+\end{verbatim}
+\end{astlisting}
+
+\subsection{Local Variables}
+
+In 1.2, and 1.4, ALL VARIABLES are CHANNEL variables, including the function
+arguments and associated ARG1, ARG2, etc variables. Sorry.
+
+In trunk (1.6 and higher), we have made all arguments local variables to
+a macro call. They will not affect channel variables of the same name.
+This includes the ARG1, ARG2, etc variables.
+
+Users can declare their own local variables by using the keyword 'local'
+before setting them to a value;
+
+\begin{astlisting}
+\begin{verbatim}
+Macro myroutine(firstarg, secondarg)
+{
+  local Myvar=1;
+  NoOp(Myvar is set to ${Myvar}, and firstarg is ${firstarg}, and secondarg is ${secondarg});
+}
+\end{verbatim}
+\end{astlisting}
+
+In the above example, Myvar, firstarg, and secondarg are all local variables,
+and will not be visible to the calling code, be it an extension, or another Macro.
+
+If you need to make a local variable within the Set() application, you can do it this way:
+\begin{astlisting}
+\begin{verbatim}
+Macro myroutine(firstarg, secondarg)
+{
+  Set(LOCAL(Myvar)=1);
+  NoOp(Myvar is set to ${Myvar}, and firstarg is ${firstarg}, and secondarg is ${secondarg});
+}
+\end{verbatim}
+\end{astlisting}
+
+\subsection{Loops}
+
+AEL has implementations of 'for' and 'while' loops.
+\begin{astlisting}
+\begin{verbatim}
+context loops {
+    1 => {
+         for (x=0; ${x} < 3; x=${x} + 1) {
+              Verbose(x is ${x} !);
+         }
+    }
+    2 => {
+         y=10;
+         while (${y} >= 0) {
+              Verbose(y is ${y} !);
+              y=${y}-1;
+         }
+    }
+}
+\end{verbatim}
+\end{astlisting}
+
+NOTE: The conditional expression (the "\$\{y\} $>$= 0" above) is wrapped in
+      \$[ ] so it can be evaluated.  NOTE: The for loop test expression
+      (the "\${x} $<$ 3" above) is wrapped in \$[ ] so it can be evaluated.
+
+
+
+\subsection{Conditionals}
+
+AEL supports if and switch statements, like AEL, but adds ifTime, and
+random. Unlike the original AEL, though, you do NOT need to put curly
+braces around a single statement in the "true" branch of an if(), the
+random(), or an ifTime() statement. The if(), ifTime(), and random()
+statements allow optional else clause.
+
+\begin{astlisting}
+\begin{verbatim}
+context conditional {
+    _8XXX => {
+         Dial(SIP/${EXTEN});
+         if ("${DIALSTATUS}" = "BUSY")
+         {
+              NoOp(yessir);
+              Voicemail(${EXTEN},b);
+         }
+         else
+              Voicemail(${EXTEN},u);
+         ifTime (14:00-25:00,sat-sun,*,*)
+              Voicemail(${EXTEN},b);
+         else
+         {
+              Voicemail(${EXTEN},u);
+              NoOp(hi, there!);
+         }
+         random(51) NoOp(This should appear 51% of the time);
+
+         random( 60 )
+         {
+                       NoOp( This should appear 60% of the time );
+         }
+         else
+         {
+                       random(75)
+                       {
+                               NoOp( This should appear 30% of the time! );
+                       }
+                       else
+                       {
+                               NoOp( This should appear 10% of the time! );
+                       }
+          }
+    }
+    _777X => {
+         switch (${EXTEN}) {
+              case 7771:
+                   NoOp(You called 7771!);
+                   break;
+              case 7772:
+                   NoOp(You called 7772!);
+                   break;
+              case 7773:
+                   NoOp(You called 7773!);
+                   // fall thru-
+              pattern 777[4-9]:
+                    NoOp(You called 777 something!);
+              default:
+                   NoOp(In the default clause!);
+         }
+    }
+}
+\end{verbatim}
+\end{astlisting}
+
+NOTE: The conditional expression in if() statements (the
+      "\$\{DIALSTATUS\}" = "BUSY" above) is wrapped by the compiler in
+      \$[] for evaluation.
+
+NOTE: Neither the switch nor case values are wrapped in \$[ ]; they can
+      be constants, or \$\{var\} type references only.
+
+NOTE: AEL generates each case as a separate extension. case clauses
+      with no terminating 'break', or 'goto', have a goto inserted, to
+      the next clause, which creates a 'fall thru' effect.
+
+NOTE: AEL introduces the ifTime keyword/statement, which works just
+      like the if() statement, but the expression is a time value,
+      exactly like that used by the application GotoIfTime(). See
+      Asterisk cmd GotoIfTime
+
+NOTE: The pattern statement makes sure the new extension that is
+      created has an '\_' preceding it to make sure asterisk recognizes
+      the extension name as a pattern.
+
+NOTE: Every character enclosed by the switch expression's parenthesis
+      are included verbatim in the labels generated. So watch out for
+      spaces!
+
+NOTE: NEW: Previous to version 0.13, the random statement used the
+      "Random()" application, which has been deprecated. It now uses
+      the RAND() function instead, in the GotoIf application.
+
+
+\subsection{Break, Continue, and Return}
+
+Three keywords, break, continue, and return, are included in the
+syntax to provide flow of control to loops, and switches.
+
+The break can be used in switches and loops, to jump to the end of the
+loop or switch.
+
+The continue can be used in loops (while and for) to immediately jump
+to the end of the loop. In the case of a for loop, the increment and
+test will then be performed. In the case of the while loop, the
+continue will jump to the test at the top of the loop.
+
+The return keyword will cause an immediate jump to the end of the
+context, or macro, and can be used anywhere.
+
+
+
+\subsection{goto, jump, and labels}
+
+This is an example of how to do a goto in AEL.
+
+\begin{astlisting}
+\begin{verbatim}
+context gotoexample {
+    s => {
+begin:
+         NoOp(Infinite Loop!  yay!);
+         Wait(1);
+         goto begin;    // go to label in same extension
+    }
+    3 => {
+            goto s,begin;   // go to label in different extension
+     }
+     4 => {
+            goto gotoexample,s,begin;  // overkill go to label in same context
+     }
+}
+
+context gotoexample2 {
+     s =>  {
+   end:
+           goto gotoexample,s,begin;   // go to label in different context
+     }
+}
+\end{verbatim}
+\end{astlisting}
+
+You can use the special label of "1" in the goto and jump
+statements. It means the "first" statement in the extension. I would
+not advise trying to use numeric labels other than "1" in goto's or
+jumps, nor would I advise declaring a "1" label anywhere! As a matter
+of fact, it would be bad form to declare a numeric label, and it might
+conflict with the priority numbers used internally by asterisk.
+
+The syntax of the jump statement is: jump
+extension[,priority][@context] If priority is absent, it defaults to
+"1". If context is not present, it is assumed to be the same as that
+which contains the "jump".
+
+\begin{astlisting}
+\begin{verbatim}
+context gotoexample {
+    s => {
+begin:
+         NoOp(Infinite Loop!  yay!);
+         Wait(1);
+         jump s;    // go to first extension in same extension
+    }
+    3 => {
+            jump s,begin;   // go to label in different extension
+     }
+     4 => {
+            jump s,begin@gotoexample;  // overkill go to label in same context
+     }
+}
+
+context gotoexample2 {
+     s =>  {
+   end:
+           jump s@gotoexample;   // go to label in different context
+     }
+}
+\end{verbatim}
+\end{astlisting}
+
+NOTE: goto labels follow the same requirements as the Goto()
+      application, except the last value has to be a label. If the
+      label does not exist, you will have run-time errors. If the
+      label exists, but in a different extension, you have to specify
+      both the extension name and label in the goto, as in: goto s,z;
+      if the label is in a different context, you specify
+      context,extension,label. There is a note about using goto's in a
+      switch statement below...
+
+NOTE  AEL introduces the special label "1", which is the beginning
+      context number for most extensions.
+
+
+\subsection{Macros}
+
+A macro is defined in its own block like this. The arguments to the
+macro are specified with the name of the macro. They are then referred
+to by that same name. A catch block can be specified to catch special
+extensions.
+
+\begin{astlisting}
+\begin{verbatim}
+macro std-exten( ext , dev ) {
+       Dial(${dev}/${ext},20);
+       switch(${DIALSTATUS) {
+       case BUSY:
+               Voicemail(${ext},b);
+               break;
+       default:
+               Voicemail(${ext},u);
+
+       }
+       catch a {
+               VoiceMailMain(${ext});
+               return;
+       }
+}
+\end{verbatim}
+\end{astlisting}
+
+A macro is then called by preceding the macro name with an
+ampersand. Empty arguments can be passed simply with nothing between
+comments(0.11).
+
+\begin{astlisting}
+\begin{verbatim}
+context example {
+    _5XXX => &std-exten(${EXTEN}, "IAX2");
+    _6XXX => &std-exten(, "IAX2");
+    _7XXX => &std-exten(${EXTEN},);
+    _8XXX => &std-exten(,);
+}
+\end{verbatim}
+\end{astlisting}
+
+
+\section{Examples}
+
+\begin{astlisting}
+\begin{verbatim}
+context demo {
+    s => {
+         Wait(1);
+         Answer();
+         TIMEOUT(digit)=5;
+         TIMEOUT(response)=10;
+restart:
+         Background(demo-congrats);
+instructions:
+         for (x=0; ${x} < 3; x=${x} + 1) {
+              Background(demo-instruct);
+              WaitExten();
+         }
+    }
+    2 => {
+         Background(demo-moreinfo);
+         goto s,instructions;
+    }
+    3 => {
+         LANGUAGE()=fr;
+         goto s,restart;
+    }
+
+    500 => {
+         Playback(demo-abouttotry);
+         Dial(IAX2/guest@misery.digium.com);
+         Playback(demo-nogo);
+         goto s,instructions;
+    }
+    600 => {
+         Playback(demo-echotest);
+         Echo();
+         Playback(demo-echodone);
+         goto s,instructions;
+    }
+    # => {
+hangup:
+         Playback(demo-thanks);
+         Hangup();
+    }
+    t => goto #,hangup;
+    i => Playback(invalid);
+}
+\end{verbatim}
+\end{astlisting}
+
+
+\section{Semantic Checks}
+
+
+AEL, after parsing, but before compiling, traverses the dialplan
+tree, and makes several checks:
+
+\begin{itemize}
+    \item Macro calls to non-existent macros.
+    \item Macro calls to contexts.
+    \item Macro calls with argument count not matching the definition.
+    \item application call to macro. (missing the '\&')
+    \item application calls to "GotoIf", "GotoIfTime", "while",
+      "endwhile", "Random", and "execIf", will generate a message to
+      consider converting the call to AEL goto, while, etc. constructs.
+    \item goto a label in an empty extension.
+    \item goto a non-existent label, either a within-extension,
+      within-context, or in a different context, or in any included
+      contexts. Will even check "sister" context references.
+    \item All the checks done on the time values in the dial plan, are
+      done on the time values in the ifTime() and includes times:
+          o the time range has to have two times separated by a dash;
+          o the times have to be in range of 0 to 24 hours.
+          o The weekdays have to match the internal list, if they are provided;
+          o the day of the month, if provided, must be in range of 1 to 31;
+          o the month name or names have to match those in the internal list.
+    \item (0.5) If an expression is wrapped in \$[ ... ], and the compiler
+      will wrap it again, a warning is issued.
+    \item (0.5) If an expression had operators (you know,
+      +,-,*,/,%,!,etc), but no \${ } variables, a warning is
+      issued. Maybe someone forgot to wrap a variable name?
+    \item (0.12) check for duplicate context names.
+    \item (0.12) check for abstract contexts that are not included by any context.
+    \item (0.13) Issue a warning if a label is a numeric value.
+\end{itemize}
+
+There are a subset of checks that have been removed until the proposed
+AAL (Asterisk Argument Language) is developed and incorporated into Asterisk.
+These checks will be:
+
+\begin{itemize}
+    \item (if the application argument analyzer is working: the presence
+      of the 'j' option is reported as error.
+    \item if options are specified, that are not available in an
+      application.
+    \item if you specify too many arguments to an application.
+    \item a required argument is not present in an application call.
+    \item Switch-case using "known" variables that applications set, that
+      does not cover all the possible values. (a "default" case will
+      solve this problem. Each "unhandled" value is listed.
+    \item a Switch construct is used, which is uses a known variable, and
+      the application that would set that variable is not called in
+      the same extension. This is a warning only...
+    \item Calls to applications not in the "applist" database (installed
+      in \path{/var/lib/asterisk/applist}" on most systems).
+    \item In an assignment statement, if the assignment is to a function,
+      the function name used is checked to see if it one of the
+      currently known functions. A warning is issued if it is not.
+\end{itemize}
+
+\section{Differences with the original version of AEL}
+
+\begin{enumerate}
+   \item The \$[...] expressions have been enhanced to include the ==, $|$$|$,
+      and \&\& operators. These operators are exactly equivalent to the
+      =, $|$, and \& operators, respectively. Why? So the C, Java, C++
+      hackers feel at home here.
+   \item It is more free-form. The newline character means very little,
+      and is pulled out of the white-space only for line numbers in
+      error messages.
+   \item It generates more error messages -- by this I mean that any
+      difference between the input and the grammar are reported, by
+      file, line number, and column.
+   \item It checks the contents of \$[ ] expressions (or what will end up
+      being \$[ ] expressions!) for syntax errors. It also does
+      matching paren/bracket counts.
+   \item It runs several semantic checks after the parsing is over, but
+      before the compiling begins, see the list above.
+   \item It handles \#include "filepath" directives. -- ALMOST
+      anywhere, in fact. You could easily include a file in a context,
+      in an extension, or at the root level. Files can be included in
+      files that are included in files, down to 50 levels of hierarchy...
+   \item Local Goto's inside Switch statements automatically have the
+      extension of the location of the switch statement appended to them.
+   \item A pretty printer function is available within pbx\_ael.so.
+   \item In the utils directory, two standalone programs are supplied for
+      debugging AEL files. One is called "aelparse", and it reads in
+      the \path{/etc/asterisk/extensions.ael} file, and shows the results of
+      syntax and semantic checking on stdout, and also shows the
+      results of compilation to stdout. The other is "aelparse1",
+      which uses the original ael compiler to do the same work,
+      reading in "\path{/etc/asterisk/extensions.ael}", using the original
+      'pbx\_ael.so' instead.
+  \item AEL supports the "jump" statement, and the "pattern" statement
+      in switch constructs. Hopefully these will be documented in the
+      AEL README.
+  \item Added the "return" keyword, which will jump to the end of an
+      extension/Macro.
+  \item Added the ifTime ($<$time range$>$$|$$<$days of week$>$$|$$<$days of
+      month$>$$|$$<$months$>$ ) {} [else {}] construct, which executes much
+      like an if () statement, but the decision is based on the
+      current time, and the time spec provided in the ifTime. See the
+      example above. (Note: all the other time-dependent Applications
+      can be used via ifTime)
+  \item Added the optional time spec to the contexts in the includes
+      construct. See examples above.
+  \item You don't have to wrap a single "true" statement in curly
+      braces, as in the original AEL. An "else" is attached to the
+      closest if. As usual, be careful about nested if statements!
+      When in doubt, use curlies!
+  \item Added the syntax [regexten] [hint(channel)] to precede an
+      extension declaration. See examples above, under
+      "Extension". The regexten keyword will cause the priorities in
+      the extension to begin with 2 instead of 1. The hint keyword
+      will cause its arguments to be inserted in the extension under
+      the hint priority. They are both optional, of course, but the
+      order is fixed at the moment-- the regexten must come before the
+      hint, if they are both present.
+  \item Empty case/default/pattern statements will "fall thru" as
+      expected. (0.6)
+  \item A trailing label in an extension, will automatically have a
+      NoOp() added, to make sure the label exists in the extension on
+      Asterisk. (0.6)
+  \item (0.9) the semicolon is no longer required after a closing brace!
+      (i.e. "];" ===$>$ "\}". You can have them there if you like, but
+      they are not necessary. Someday they may be rejected as a syntax
+      error, maybe.
+  \item (0.9) the // comments are not recognized and removed in the
+      spots where expressions are gathered, nor in application call
+      arguments. You may have to move a comment if you get errors in
+      existing files.
+  \item (0.10) the random statement has been added. Syntax: random (
+      $<$expr$>$ ) $<$lucky-statement$>$ [ else $<$unlucky-statement$>$ ]. The
+      probability of the lucky-statement getting executed is $<$expr$>$,
+      which should evaluate to an integer between 0 and 100. If the
+      $<$lucky-statement$>$ isn't so lucky this time around, then the
+      $<$unlucky-statement$>$ gets executed, if it is present.
+\end{enumerate}
+
+
+\section{Hints and Bugs}
+
+     The safest way to check for a null strings is to say \$[ "\$\{x\}" =
+     "" ] The old way would do as shell scripts often do, and append
+     something on both sides, like this: \$[ \$\{x\}foo = foo ]. The
+     trouble with the old way, is that, if x contains any spaces, then
+     problems occur, usually syntax errors. It is better practice and
+     safer wrap all such tests with double quotes! Also, there are now
+     some functions that can be used in a variable reference,
+     ISNULL(), and LEN(), that can be used to test for an empty string:
+     \$\{ISNULL(\$\{x\})\} or \$[ \$\{LEN(\$\{x\})\} = 0 ].
+
+      Assignment vs. Set(). Keep in mind that setting a variable to
+      value can be done two different ways. If you choose say 'x=y;',
+      keep in mind that AEL will wrap the right-hand-side with
+      \$[]. So, when compiled into extension language format, the end
+      result will be 'Set(x=\$[y])'. If you don't want this effect,
+      then say "Set(x=y);" instead.
+
+
+\section{The Full Power of AEL}
+
+A newcomer to Asterisk will look at the above constructs and
+descriptions, and ask, "Where's the string manipulation functions?",
+"Where's all the cool operators that other languages have to offer?",
+etc.
+
+The answer is that the rich capabilities of Asterisk are made
+available through AEL, via:
+
+\begin{itemize}
+    \item Applications: See Asterisk - documentation of application
+      commands
+
+    \item Functions: Functions were implemented inside \$\{ .. \} variable
+      references, and supply many useful capabilities.
+
+    \item Expressions: An expression evaluation engine handles items
+      wrapped inside \$[...]. This includes some string manipulation
+      facilities, arithmetic expressions, etc.
+
+    \item Application Gateway Interface: Asterisk can fork external
+      processes that communicate via pipe. AGI applications can be
+      written in any language. Very powerful applications can be added
+      this way.
+
+    \item Variables: Channels of communication have variables associated
+      with them, and asterisk provides some global variables. These can be
+      manipulated and/or consulted by the above mechanisms.
+\end{itemize}

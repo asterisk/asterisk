@@ -1,0 +1,100 @@
+\subsection{Introduction}
+
+A PBX is only really useful if you can get calls into it.  Of course, you
+can use Asterisk with VoIP calls (SIP, H.323, IAX, etc.), but you can also 
+talk to the real PSTN through various cards.
+
+Supported Hardware is divided into two general groups:  DAHDI devices and 
+non-DAHDI devices.  The DAHDI compatible hardware supports pseudo-TDM 
+conferencing and all call features through chan\_dahdi, whereas non-DAHDI 
+compatible hardware may have different features.
+
+\subsection{DAHDI compatible hardware}
+
+\begin{itemize}
+\item Digium, Inc. (Primary Developer of Asterisk)
+      \url{http://www.digium.com}
+  \begin{itemize}
+     \item Analog Interfaces
+     \begin{itemize}
+       \item TDM400P - The TDM400P is a half-length PCI 2.2-compliant card that supports FXS and FXO station interfaces for connecting analog telephones and analog POTS lines through a PC.
+       \item TDM800P - The TDM800P is a half-length PCI 2.2-compliant, 8 port card using Digium's VoiceBus technology that supports FXS and FXO station interfaces for connecting analog telephones and analog POTS lines through a PC.
+       \item TDM2400P - The TDM2400P is a full-length PCI 2.2-compliant card for connecting analog telephones and analog POTS lines through a PC. It supports a combination of up to 6 FXS and/or FXO modules for a total of 24 lines.
+     \end{itemize}
+     \item Digital Interfaces
+     \begin{itemize}
+       \item TE412P - The TE412P offers an on-board DSP-based echo cancellation module. It supports E1, T1, and J1 environments and is selectable on a per-card or per-port basis.
+       \item TE410P - The TE410P improves performance and scalability through bus mastering architecture. It supports E1, T1, and J1 environments and is selectable on a per-card or per-port basis.
+       \item TE407P - The TE407P offers an on-board DSP-based echo cancellation module. It supports E1, T1, and J1 environments and is selectable on a per-card or per-port basis.
+       \item TE405P - The TE405P improves performance and scalability through bus mastering architecture. It supports both E1, T1, J1 environments and is selectable on a per-card or per-port basis.
+       \item TE212P - The TE212P offers an on-board DSP-based echo cancellation module. It supports E1, T1, and J1 environments and is selectable on a per-card or per-port basis.
+       \item TE210P - The TE210P improves performance and scalability through bus mastering architecture. It supports E1, T1, and J1 environments and is selectable on a per-card or per-port basis.
+       \item TE207P - The TE207P offers an on-board DSP-based echo cancellation module. It supports E1, T1, and J1 environments and is selectable on a per-card or per-port basis.
+       \item TE205P - The TE205P improves performance and scalability through bus mastering architecture. It supports both E1 and T1/J1 environments and is selectable on a per-card or per-port basis.
+       \item TE120P - The TE120P is a single span, selectable T1, E1, or J1 card and utilizes Digium's VoiceBus\texttrademark technology. It supports both voice and data modes.       
+       \item TE110P - The TE110P brings a high-performance, cost-effective, and flexible single span togglable T1, E1, J1 interface to the Digium line-up of telephony interface devices.
+     \end{itemize}
+  \end{itemize}
+\end{itemize}
+
+\subsection{Non-DAHDI compatible hardware}
+
+\begin{itemize}
+  \item QuickNet, Inc. 
+        \url{http://www.quicknet.net}
+  \begin{itemize}
+    \item Internet PhoneJack - Single FXS interface.  Supports Linux telephony
+          interface.  DSP compression built-in.
+
+    \item Internet LineJack - Single FXS or FXO interface.  Supports Linux 
+          telephony interface.
+  \end{itemize}
+\end{itemize}
+
+\subsection{mISDN compatible hardware}
+
+mISDN homepage:  \url{http://www.misdn.org/}
+
+Any adapter with an mISDN driver should be compatible with
+chan\_misdn. See the mISDN section for more information.
+
+\begin{itemize}
+  \item Digium, Inc. (Primary Developer of Asterisk) 
+  \url{http://www.digium.com}
+  \begin{itemize}
+    \item B410P - 4 Port BRI card (TE/NT)
+   \end{itemize}
+\end{itemize}
+
+\begin{itemize}
+  \item beroNet 
+  \url{http://www.beronet.com}
+  \begin{itemize}
+    \item BN4S0 - 4 Port BRI card (TE/NT)
+
+    \item BN8S0 - 8 Port BRI card (TE/NT)
+
+    \item Billion Card - Single Port BRI card (TE (/NT with crossed cable))
+   \end{itemize}
+\end{itemize}
+
+\subsection{Miscellaneous other interfaces}
+
+\begin{itemize}
+  \item Digium, Inc. (Primary Developer of Asterisk)
+  \begin{itemize}
+    \item TC400B - The TC400B is a half-length, low-profile PCI 2.2-compliant card for transforming complex VoIP codecs (G.729) into simple codecs.
+  \end{itemize}
+
+  \item ALSA
+        \url{http://www.alsa-project.org}
+  \begin{itemize}
+    \item Any ALSA compatible full-duplex sound card
+  \end{itemize}
+
+  \item OSS
+        \url{http://www.opensound.com}
+  \begin{itemize}
+    \item Any OSS compatible full-duplex sound card
+  \end{itemize}
+\end{itemize}

@@ -1,0 +1,27 @@
+context test11
+{
+_X. => {
+                Answer();
+                Dial(iax2/test11:nosecret@192.168.134.2522, 15,tTwW);
+                Hangup();
+		NoOp($[{GROUP_COUNT(${target_num}@agent_queue_b)}=1]);
+		NoOp($[1+0~~${DB(skip_group/${target_num}/agent_queue_b)}]);
+		NoOp($[0~~${DB(skip_group/${target_num}/agent_queue_b)}+1]);
+		NoOp($[${GROUP_COUNT(${target_num}@agent_queue_b)}=1+0~~${DB(skip_group/${target_num}/agent_queue_b)}]);
+		NoOp($[${GROUP_COUNT(${target_num}@agent_queue_b)}=0~~${DB(skip_group/${target_num}/agent_queue_b)}+1]);
+                if(${GROUP_COUNT(${target_num}@agent_queue_b)}==1+0~~${DB(skip_group/${target_num}/agent_queue_b)})
+                {
+			Set(testif=$[1+0~~${DB(skip_group/${target_num}/agent_queue_b)}]);
+                }
+                if(${GROUP_COUNT(${target_num}@agent_queue_b)}==0~~${DB(skip_group/${target_num}/agent_queue_b)}+1)
+                {
+			Set(testif=$[1+0~~${DB(skip_group/${target_num}/agent_queue_b)}]);
+                }
+                if(${GROUP_COUNT(${target_num}@agent_queue_b)}==1+0~~${DB(skip_group/${target_num}/agent_queue_b)})
+                {
+			Set(testif=$[1+0~~${DB(skip_group/${target_num}/agent_queue_b)}]);
+                }
+        }
+}
+
+

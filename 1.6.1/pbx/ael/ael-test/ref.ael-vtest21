@@ -1,0 +1,9 @@
+[globals]
+AXLHAFT=wow-to-the-tenth-power
+JibberWorthy=zinger3
+OFFICE_CODE=503
+
+
+[from-enum]
+exten => _${OFFICE_CODE}XXXX,1,Answer()
+exten => _${OFFICE_CODE}XXXX,2,Goto(${EXTEN:3},1)

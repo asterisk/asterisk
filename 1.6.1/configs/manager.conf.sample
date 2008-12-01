@@ -1,0 +1,99 @@
+;
+; AMI - The Asterisk Manager Interface
+; 
+; Third party application call management support and PBX event supervision
+;
+; This configuration file is read every time someone logs in
+;
+; Use the "manager show commands" at the CLI to list available manager commands
+; and their authorization levels.
+;
+; "manager show command <command>" will show a help text.
+;
+; ---------------------------- SECURITY NOTE -------------------------------
+; Note that you should not enable the AMI on a public IP address. If needed,
+; block this TCP port with iptables (or another FW software) and reach it
+; with IPsec, SSH, or SSL vpn tunnel.  You can also make the manager 
+; interface available over http/https if Asterisk's http server is enabled in
+; http.conf and if both "enabled" and "webenabled" are set to yes in
+; this file.  Both default to no.  httptimeout provides the maximum 
+; timeout in seconds before a web based session is discarded.  The 
+; default is 60 seconds.
+;
+[general]
+enabled = no
+;webenabled = yes
+port = 5038
+
+;httptimeout = 60
+; a) httptimeout sets the Max-Age of the http cookie
+; b) httptimeout is the amount of time the webserver waits 
+;    on a action=waitevent request (actually its httptimeout-10)
+; c) httptimeout is also the amount of time the webserver keeps 
+;    a http session alive after completing a successful action
+
+bindaddr = 0.0.0.0
+
+; Parameters that control AMI over TLS. ("enabled" must be set too).
+; You can open a connection to this socket with e.g.
+;
+;	openssl s_client -connect my_host:5039
+;
+;   sslenable=no		; set to YES to enable it
+;   sslbindport=5039		; the port to bind to
+;   sslbindaddr=0.0.0.0		; address to bind to, default to bindaddr
+;   sslcert=/tmp/asterisk.pem	; path to the certificate.
+;   sslcipher=<cipher string>   ; string specifying which SSL ciphers to use or not use
+
+
+;
+;allowmultiplelogin = yes		; IF set to no, rejects manager logins that are already in use.
+;                               ; The default is yes.
+;
+;displayconnects = yes
+;
+; Add a Unix epoch timestamp to events (not action responses)
+;
+;timestampevents = yes
+
+; debug = on	; enable some debugging info in AMI messages (default off).
+		; Also accessible through the "manager debug" CLI command.
+;[mark]
+;secret = mysecret
+;deny=0.0.0.0/0.0.0.0
+;permit=209.16.236.73/255.255.255.0
+;
+; If the device connected via this user accepts input slowly,
+; the timeout for writes to it can be increased to keep it
+; from being disconnected (value is in milliseconds)
+;
+; writetimeout = 100
+;
+;displayconnects = yes	; Display on CLI user login/logoff
+;
+; Authorization for various classes 
+;
+; Read authorization permits you to receive asynchronous events, in general.
+; Write authorization permits you to send commands and get back responses.  The
+; following classes exist:
+;
+; system    - General information about the system and ability to run system
+;             management commands, such as Shutdown, Restart, and Reload.
+; call      - Information about channels and ability to set information in a
+;             running channel.
+; log       - Logging information.  Read-only.
+; verbose   - Verbose information.  Read-only.
+; agent     - Information about queues and agents and ability to add queue
+;             members to a queue.
+; user      - Permission to send and receive UserEvent.
+; config    - Ability to read and write configuration files.
+; command   - Permission to run CLI commands.  Write-only.
+; dtmf      - Receive DTMF events.  Read-only.
+; reporting - Ability to get information about the system.
+; cdr       - Output of cdr_manager, if loaded.  Read-only.
+; dialplan  - Receive NewExten and VarSet events.  Read-only.
+; originate - Permission to originate new calls.  Write-only.
+;
+;read = system,call,log,verbose,agent,user,config,dtmf,reporting,cdr,dialplan
+;write = system,call,agent,user,config,command,reporting,originate
+

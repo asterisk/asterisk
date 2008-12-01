@@ -1,0 +1,448 @@
+//
+// Example AEL config file
+//
+//
+// Static extension configuration file, used by
+// the pbx_ael module. This is where you configure all your 
+// inbound and outbound calls in Asterisk. 
+// 
+// This configuration file is reloaded 
+// - With the "ael reload" command in the CLI
+// - With the "reload" command (that reloads everything) in the CLI
+
+// The "Globals" category contains global variables that can be referenced
+// in the dialplan by using the GLOBAL dialplan function:
+//  ${GLOBAL(VARIABLE)} 
+// ${${GLOBAL(VARIABLE)}} or ${text${GLOBAL(VARIABLE)}} or any hybrid
+// Unix/Linux environmental variables are reached with the ENV dialplan
+// function: ${ENV(VARIABLE)}
+//
+
+globals {
+	CONSOLE="Console/dsp"; 		// Console interface for demo
+	//CONSOLE=DAHDI/1
+	//CONSOLE=Phone/phone0
+	IAXINFO=guest;				// IAXtel username/password
+	//IAXINFO="myuser:mypass";
+	TRUNK="DAHDI/G2";					// Trunk interface
+	//
+	// Note the 'G2' in the TRUNK variable above. It specifies which group (defined
+	// in dahdi.conf) to dial, i.e. group 2, and how to choose a channel to use in
+	// the specified group. The four possible options are:
+	//
+	// g: select the lowest-numbered non-busy DAHDI channel
+	//    (aka. ascending sequential hunt group).
+	// G: select the highest-numbered non-busy DAHDI channel
+	//    (aka. descending sequential hunt group).
+	// r: use a round-robin search, starting at the next highest channel than last
+	//    time (aka. ascending rotary hunt group).
+	// R: use a round-robin search, starting at the next lowest channel than last
+	//    time (aka. descending rotary hunt group).
+	//
+	TRUNKMSD=1;					// MSD digits to strip (usually 1 or 0)
+	//TRUNK=IAX2/user:pass@provider
+};
+
+//
+// Any category other than "General" and "Globals" represent 
+// extension contexts, which are collections of extensions.  
+//
+// Extension names may be numbers, letters, or combinations
+// thereof. If an extension name is prefixed by a '_'
+// character, it is interpreted as a pattern rather than a
+// literal.  In patterns, some characters have special meanings:
+//
+//   X - any digit from 0-9
+//   Z - any digit from 1-9
+//   N - any digit from 2-9
+//   [1235-9] - any digit in the brackets (in this example, 1,2,3,5,6,7,8,9)
+//   . - wildcard, matches anything remaining (e.g. _9011. matches 
+//	anything starting with 9011 excluding 9011 itself)
+//   ! - wildcard, causes the matching process to complete as soon as
+//       it can unambiguously determine that no other matches are possible
+//
+// For example the extension _NXXXXXX would match normal 7 digit dialings, 
+// while _1NXXNXXXXXX would represent an area code plus phone number
+// preceded by a one.
+//
+// Each step of an extension is ordered by priority, which must
+// always start with 1 to be considered a valid extension.  The priority
+// "next" or "n" means the previous priority plus one, regardless of whether
+// the previous priority was associated with the current extension or not.
+// The priority "same" or "s" means the same as the previously specified
+// priority, again regardless of whether the previous entry was for the
+// same extension.  Priorities may be immediately followed by a plus sign
+// and another integer to add that amount (most useful with 's' or 'n').  
+// Priorities may then also have an alias, or label, in 
+// parenthesis after their name which can be used in goto situations
+//
+// Contexts contain several lines, one for each step of each
+// extension, which can take one of two forms as listed below,
+// with the first form being preferred.  One may include another
+// context in the current one as well, optionally with a
+// date and time.  Included contexts are included in the order
+// they are listed.
+//
+//context name {
+//	exten-name => {
+//		application(arg1,arg2,...);
+//
+// 	Timing list for includes is 
+//
+//   <time range>|<days of week>|<days of month>|<months>
+//
+//	includes { 
+//		daytime|9:00-17:00|mon-fri|*|*;
+//      };
+//
+// 	ignorepat can be used to instruct drivers to not cancel dialtone upon
+// 	receipt of a particular pattern.  The most commonly used example is
+// 	of course '9' like this:
+//
+//	ignorepat => 9;
+//
+// 	so that dialtone remains even after dialing a 9.
+//};
+
+
+//
+// Sample entries for extensions.conf
+//
+//
+context ael-dundi-e164-canonical {
+	//
+	// List canonical entries here
+	//
+	// 12564286000 => &ael-std-exten(6000,IAX2/foo);
+	// _125642860XX => Dial(IAX2/otherbox/${EXTEN:7});
+};
+
+context ael-dundi-e164-customers {
+	//
+	// If you are an ITSP or Reseller, list your customers here.
+	//
+	//_12564286000 => Dial(SIP/customer1);
+	//_12564286001 => Dial(IAX2/customer2);
+};
+
+context ael-dundi-e164-via-pstn {
+	//
+	// If you are freely delivering calls to the PSTN, list them here
+	//
+	//_1256428XXXX => Dial(DAHDI/G2/${EXTEN:7}); // Expose all of 256-428 
+	//_1256325XXXX => Dial(DAHDI/G2/${EXTEN:7}); // Ditto for 256-325
+};
+
+context ael-dundi-e164-local {
+	//
+	// Context to put your dundi IAX2 or SIP user in for
+	// full access
+	//
+	includes {
+	 ael-dundi-e164-canonical;
+	 ael-dundi-e164-customers;
+	 ael-dundi-e164-via-pstn;
+	};
+};
+
+context ael-dundi-e164-switch {
+	//
+	// Just a wrapper for the switch
+	//
+	
+	switches { 
+		DUNDi/e164;
+	};
+};
+
+context ael-dundi-e164-lookup {
+	//
+	// Locally to lookup, try looking for a local E.164 solution
+	// then try DUNDi if we don't have one.
+	//
+	includes {
+		ael-dundi-e164-local;
+		ael-dundi-e164-switch;
+	};
+	//
+};
+
+//
+// DUNDi can also be implemented as a Macro instead of using 
+// the Local channel driver. 
+//
+macro ael-dundi-e164(exten) {
+//
+// ARG1 is the extension to Dial
+//
+	goto ${exten}|1;
+	return;
+};
+
+//
+// Here are the entries you need to participate in the IAXTEL
+// call routing system.  Most IAXTEL numbers begin with 1-700, but
+// there are exceptions.  For more information, and to sign
+// up, please go to www.gnophone.com or www.iaxtel.com
+//
+context ael-iaxtel700 {
+	_91700XXXXXXX => Dial(IAX2/${IAXINFO}@iaxtel.com/${EXTEN:1}@iaxtel);
+};
+
+//
+// The SWITCH statement permits a server to share the dialplan with
+// another server. Use with care: Reciprocal switch statements are not
+// allowed (e.g. both A -> B and B -> A), and the switched server needs
+// to be on-line or else dialing can be severly delayed.
+//
+context ael-iaxprovider {
+	switches {
+	// IAX2/user:[key]@myserver/mycontext;
+	};
+};
+
+context ael-trunkint {
+	//
+	// International long distance through trunk
+	//
+	includes {
+		ael-dundi-e164-lookup;
+	};
+	_9011. => {
+		&ael-dundi-e164(${EXTEN:4});
+		Dial(${TRUNK}/${EXTEN:${TRUNKMSD}});
+	};
+};
+
+context ael-trunkld {
+	//
+	// Long distance context accessed through trunk
+	//
+	includes {
+		ael-dundi-e164-lookup;
+	};
+	_91NXXNXXXXXX => {
+		&ael-dundi-e164(${EXTEN:1});
+		Dial(${TRUNK}/${EXTEN:${TRUNKMSD}});
+	};
+};
+
+context ael-trunklocal {
+	//
+	// Local seven-digit dialing accessed through trunk interface
+	//
+	_9NXXXXXX => {
+		Dial(${TRUNK}/${EXTEN:${TRUNKMSD}});
+	};
+};
+
+context ael-trunktollfree {
+	//
+	// Long distance context accessed through trunk interface
+	//
+	
+	_91800NXXXXXX => Dial(${TRUNK}/${EXTEN:${TRUNKMSD}});
+	_91888NXXXXXX => Dial(${TRUNK}/${EXTEN:${TRUNKMSD}});
+	_91877NXXXXXX => Dial(${TRUNK}/${EXTEN:${TRUNKMSD}});
+	_91866NXXXXXX => Dial(${TRUNK}/${EXTEN:${TRUNKMSD}});
+};
+
+context ael-international {
+	//
+	// Master context for international long distance
+	//
+	ignorepat => 9;
+	includes {
+		ael-longdistance;
+		ael-trunkint;
+	};
+};
+
+context ael-longdistance {
+	//
+	// Master context for long distance
+	//
+	ignorepat => 9;
+	includes {
+		ael-local;
+		ael-trunkld;
+	};
+};
+
+context ael-local {
+	//
+	// Master context for local, toll-free, and iaxtel calls only
+	//
+	ignorepat => 9;
+	includes {
+		ael-default;
+		ael-trunklocal;
+		ael-iaxtel700;
+		ael-trunktollfree;
+		ael-iaxprovider;
+	};
+};
+
+//
+// You can use an alternative switch type as well, to resolve
+// extensions that are not known here, for example with remote 
+// IAX switching you transparently get access to the remote
+// Asterisk PBX
+// 
+// switch => IAX2/user:password@bigserver/local
+//
+// An "lswitch" is like a switch but is literal, in that
+// variable substitution is not performed at load time
+// but is passed to the switch directly (presumably to
+// be substituted in the switch routine itself)
+//
+// lswitch => Loopback/12${EXTEN}@othercontext
+//
+// An "eswitch" is like a switch but the evaluation of
+// variable substitution is performed at runtime before
+// being passed to the switch routine.
+//
+// eswitch => IAX2/context@${CURSERVER}
+
+
+macro ael-std-exten-ael( ext , dev ) {
+        Dial(${dev}/${ext},20);
+        switch(${DIALSTATUS}) {
+        case BUSY:
+                Voicemail(${ext},b);
+                break;
+        default:
+                Voicemail(${ext},u);
+        };
+        catch a {
+                VoiceMailMain(${ext});
+                return;
+        };
+	return;
+};
+
+context ael-demo {
+	s => {
+		Wait(1);
+		Answer();
+		Set(TIMEOUT(digit)=5);
+		Set(TIMEOUT(response)=10);
+restart:
+		Background(demo-congrats);
+instructions:
+		for (x=0; ${x} < 3; x=${x} + 1) {
+			Background(demo-instruct);
+			WaitExten();
+		};
+	};
+	2 => {
+		Background(demo-moreinfo);
+		goto s|instructions;
+	};
+	3 => {
+		Set(LANGUAGE()=fr);
+		goto s|restart;
+	};
+	1000 => {
+		goto ael-default|s|1;
+	};
+	500 => {
+		Playback(demo-abouttotry);
+		Dial(IAX2/guest@misery.digium.com/s@default);
+		Playback(demo-nogo);
+		goto s|instructions;
+	};
+	600 => {
+		Playback(demo-echotest);
+		Echo();
+		Playback(demo-echodone);
+		goto s|instructions;
+	};
+	_1234 => &ael-std-exten-ael(${EXTEN}, "IAX2");
+	8500 => {
+		VoicemailMain();
+		goto s|instructions;
+	};
+	# => {
+		Playback(demo-thanks);
+		Hangup();
+	};
+	t => goto #|1;
+	i => Playback(invalid);
+};
+
+
+//
+// If you wish to use AEL for your default context, remove it
+// from extensions.conf (or change its name or comment it out)
+// and then uncomment the one here.
+//
+
+context ael-default {
+
+// By default we include the demo.  In a production system, you 
+// probably don't want to have the demo there.
+
+	includes {
+		ael-demo;
+	};
+//
+// Extensions like the two below can be used for FWD, Nikotel, sipgate etc.
+// Note that you must have a [sipprovider] section in sip.conf whereas
+// the otherprovider.net example does not require such a peer definition
+//
+//_41X. => Dial(SIP/${EXTEN:2}@sipprovider,,r);
+//_42X. => Dial(SIP/user:passwd@${EXTEN:2}@otherprovider.net,30,rT);
+
+// Real extensions would go here. Generally you want real extensions to be
+// 4 or 5 digits long (although there is no such requirement) and start with a
+// single digit that is fairly large (like 6 or 7) so that you have plenty of
+// room to overlap extensions and menu options without conflict.  You can alias
+// them with names, too, and use global variables
+
+// 6245  => {
+//		hint(SIP/Grandstream1&SIP/Xlite1,Joe Schmoe); // Channel hints for presence
+// 		Dial(SIP/Grandstream1,20,rt);                 // permit transfer
+//        Dial(${HINT}/5245},20,rtT);                    // Use hint as listed
+//        switch(${DIALSTATUS}) {
+//        case BUSY:
+//                Voicemail(6245,b);
+//				return;
+//        default:
+//                Voicemail(6245,u);
+//				return;
+//        };
+//       };
+
+// 6361 => Dial(IAX2/JaneDoe,,rm);                // ring without time limit
+// 6389 => Dial(MGCP/aaln/1@192.168.0.14);
+// 6394 => Dial(Local/6275/n);                    // this will dial ${MARK}
+
+// 6275 => &ael-stdexten(6275,${MARK});           // assuming ${MARK} is something like DAHDI/2
+// mark => goto 6275|1;                          // alias mark to 6275
+// 6536 => &ael-stdexten(6236,${WIL});            // Ditto for wil
+// wil  => goto 6236|1;
+//
+// Some other handy things are an extension for checking voicemail via
+// voicemailmain
+//
+// 8500 => {
+//			VoicemailMain();
+//			Hangup();
+//	       };
+//
+// Or a conference room (you'll need to edit meetme.conf to enable this room)
+//
+// 8600 => Meetme(1234);
+//
+// Or playing an announcement to the called party, as soon it answers
+//
+// 8700 => Dial(${MARK},30,A(/path/to/my/announcemsg))
+//
+// For more information on applications, just type "show applications" at your
+// friendly Asterisk CLI prompt.
+//
+// 'show application <command>' will show details of how you
+// use that particular application in this file, the dial plan. 
+//
+}

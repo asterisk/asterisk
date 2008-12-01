@@ -1,0 +1,865 @@
+======================================================================
+===
+=== This file documents the new and/or enhanced functionality added in
+=== the Asterisk versions listed below. This file does NOT include
+=== changes in behavior that would not be backwards compatible with
+=== previous versions; for that information see the UPGRADE.txt file
+=== and the other UPGRADE files for older releases.
+===
+======================================================================
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 1.6.0 to Asterisk 1.6.1  -------------
+------------------------------------------------------------------------------
+
+Device State Handling
+---------------------
+ * The event infrastructure in Asterisk got another big update to help support
+    distributed events.  It currently supports distributed device state and
+    distributed Voicemail MWI (Message Waiting Indication).  A new module has
+    been merged, res_ais, which facilitates communicating events between servers.
+    It uses the SAForum AIS (Service Availability Forum Application Interface
+    Specification) CLM (Cluster Management) and EVT (Event) services to maintain
+    a cluster of Asterisk servers, and to share events between them.  For more
+    information on setting this up, see doc/distributed_devstate.txt.
+
+Dialplan Functions
+------------------
+ * Added a new dialplan function, AST_CONFIG(), which allows you to access
+   variables from an Asterisk configuration file.
+ * The JACK_HOOK function now has a c() option to supply a custom client name.
+ * Added two new dialplan functions from libspeex for audio gain control and 
+   denoise, AGC() and DENOISE(). Both functions can be applied to the tx and 
+   rx directions of a channel from the dialplan.
+ * The SMDI_MSG_RETRIEVE function now has the ability to search for SMDI messages
+   based on other parameters.  The default is still to search based on the
+   forwarding station ID.  However, there are new options that allow you to search
+   based on the message desk terminal ID, or the message desk number.
+ * TIMEOUT() has been modified to be accurate down to the millisecond.
+ * ENUM*() functions now include the following new options:
+     - 'u' returns the full URI and does not strip off the URI-scheme.
+     - 's' triggers ISN specific rewriting
+     - 'i' looks for branches into an Infrastructure ENUM tree
+     - 'd' for a direct DNS lookup without any flipping of digits.
+ * TXCIDNAME() has a new zone-suffix parameter (which defaults to 'e164.arpa')
+ * CHANNEL() now has options for the maximum, minimum, and standard or normal
+   deviation of jitter, rtt, and loss for a call using chan_sip.
+
+DAHDI channel driver (chan_dahdi) Changes
+----------------------------------------
+ * Channels can now be configured using named sections in chan_dahdi.conf, just
+   like other channel drivers, including the use of templates.
+ * The default for pridialplan has changed from 'national' to 'unknown'.
+
+PBX Changes
+-----------
+ * It is now possible to specify a pattern match as a hint. Once a phone subscribes
+   to something that matches the pattern a hint will be created using the contents
+   and variables evaluated.
+ * Dialplan matching has been extended to allow an extension to return to the
+   PBX core to wait for more digits.  This is done by using the new dialplan
+   application called "Incomplete".  This will permit a whole new level of
+   extension control, by giving the administrator more control over early
+   matches employing one of the short-circuit pattern match operators.  Note
+   that custom applications can trigger this same behavior by returning the
+   special value AST_PBX_INCOMPLETE.
+
+Application Changes
+-------------------
+ * Directory now permits both first and last names to be matched at the same
+   time.  In addition, the number of digits to enter of the name can be set in
+   the arguments to Directory; previously, you could enter only 3, regardless
+   of how many names are in your company.  For large companies, this should be
+   quite helpful.
+ * Voicemail now permits a mailbox setting to wrap around from first to last
+   messages, if the "messagewrap" option is set to a true value.
+ * Voicemail now permits an external script to be run, for password validation.
+   The script should output "VALID" or "INVALID" on stdout, depending upon the
+   wish to validate or invalidate the password given.  Arguments are:
+   "mailbox" "context" "oldpass" "newpass".  See the sample voicemail.conf for
+   more details
+ * The voicemail externnotify script now accepts an additional (last) parameter
+   containing the number of urgent messages in the INBOX.
+ * Dial has a new option: F(context^extension^pri), which permits a callee to
+   continue in the dialplan, at the specified label, if the caller hangs up.
+ * ChanSpy and ExtenSpy have a new option, 's' which suppresses speaking the
+   technology name (e.g. SIP, IAX, etc) of the channel being spied on.
+ * The Jack application now has a c() option to supply a custom client name.
+ * Chanspy has a new option, 'B', which can be used to "barge" on a call. This is
+   like the pre-existing whisper mode, except that the spy can also talk to the
+   participant on the bridged channel as well.
+ * Chanspy has a new option, 'n', which will allow for the spied-on party's name
+   to be spoken instead of the channel name or number. For more information on the
+   use of this option, issue the command "core show application ChanSpy" from the 
+   Asterisk CLI.
+ * Chanspy has a new option, 'd', which allows the spy to use DTMF to swap between
+   spy modes. Use of this feature overrides the typical use of numeric DTMF. In other
+   words, if using the 'd' option, it is not possible to enter a number to append to
+   the first argument to Chanspy(). Pressing 4 will change to spy mode, pressing 5 will
+   change to whisper mode, and pressing 6 will change to barge mode.
+ * ExternalIVR now takes several options that affect the way it performs, as
+   well as having several new commands.  Please see doc/externalivr.txt for the
+   complete documentation.
+ * Added ability to communicate over a TCP socket instead of forking a child process for the 
+   ExternalIVR application.
+ * ChanIsAvail has a new option, 'a', which will return all available channels instead
+   of just the first one if you give the function more then one channel to check.
+ * PrivacyManager now takes an option where you can specify a context where the 
+   given number will be matched. This way you have more control over who is allowed
+   and it stops the people who blindly enter 10 digits.
+ * ForkCDR has new options: 'a' updates the answer time on the new CDR; 'A' locks
+   answer times, disposition, on orig CDR against updates; 'D' Copies the disposition
+   from the orig CDR to the new CDR after reset; 'e' sets the 'end' time on the
+   original CDR; 'R' prevents the new CDR from being reset; 's(var=val)' adds/changes
+   the 'var' variable on the original CDR; 'T' forces ast_cdr_end(), ast_cdr_answer(),
+   obey the LOCKED flag on cdr's in the chain, and also the ast_cdr_setvar() func.
+ * The Dial() application no longer copies the language used by the caller to the callee's
+   channel. If you desire for the caller's channel's language to be used for file playback
+   to the callee, then the file specified may be prepended with "${CHANNEL(language)}/" .
+ * SendImage() no longer hangs up the channel on error; instead, it sets the
+   status variable SENDIMAGESTATUS to one of 'SUCCESS', 'FAILURE', or
+   'UNSUPPORTED'.  This change makes SendImage() more consistent with other
+   applications.
+ * Park has a new option, 's', which silences the announcement of the parking space number.
+ * A non-numeric, zero, or negative timeout specified to Dial() will now be interpreted as
+   invalid input and will be assumed to mean that no timeout is desired.
+
+SIP Changes
+-----------
+ * Added DNS manager support to registrations for peers referencing peer entries.
+   DNS manager runs in the background which allows DNS lookups to be run asynchronously 
+   as well as periodically updating the IP address. These properties allow for
+   better performance as well as recovery in the event of an IP change.
+ * Performance improvements via using hash tables (astobj2) and doubly-linked lists to improve 
+   load/reload of large numbers of peers/users by ~40x (for large lists of peers.
+   Initially, we saw 4x improvement in call setup/destruction, but at the time
+   of merging, this gain has disappeared; further research will be done to try
+   and restore this performance improvement. Astobj2 refcounting is now used
+   for users, peers, and dialogs.  Users are encouraged to assist in regression
+   testing and problem reporting!
+ * Added ability to specify registration expiry time on a per registration basis in
+   the register line.
+ * Added support for T140 RED - redundancy in T.140 to prevent text loss due to
+   lost packets.
+ * Added t38pt_usertpsource option. See sip.conf.sample for details.
+ * Added SIPnotify AMI command, for sending arbitrary SIP notify commands.
+ * 'sip show peers' and 'sip show users' display their entries sorted in
+    alphabetical order, as opposed to the order they were in, in the config 
+    file or database. 
+ * Videosupport now supports an additional option, "always", which always sets
+    up video RTP ports, even on clients that don't support it.  This helps with
+    callfiles and certain transfers to ensure that if two video phones are
+    connected, they will always share video feeds.
+
+IAX Changes
+-----------
+ * Existing DNS manager lookups extended to check for SRV records.
+ * IAX2 encryption support has been improved to support periodic key rotation
+   within a call for enhanced security.  The option "keyrotate" has been
+   provided to disable this functionality to preserve backwards compatibility
+   with older versions of IAX2 that do not support key rotation.
+
+CLI Changes
+-----------
+  * New CLI command, "config reload <file.conf>" which reloads any module that
+     references that particular configuration file.  Also added "config list"
+     which shows which configuration files are in use.
+  * New CLI commands, "pri show version" and "ss7 show version" that will
+     display which version of libpri and libss7 are being used, respectively.
+     A new API call was added so trunk will now have to be compiled against
+     a versions of libpri and libss7 that have them or it will not know that
+     these libraries exist.
+  * The commands "core show globals", "core set global" and "core set chanvar" has
+     been deprecated in favor of the more semanticly correct "dialplan show globals",
+     "dialplan set chanvar" and "dialplan set global".
+  * New CLI command "dialplan show chanvar" to list all variables associated
+    with a given channel.
+
+DNS manager changes
+-------------------
+  * Addresses managed by DNS manager now can check to see if there is a DNS
+    SRV record for a given domain and will use that hostname/port if present.
+
+AMI - The manager (TCP/TLS/HTTP)
+--------------------------------
+  * The Status command now takes an optional list of variables to display
+    along with channel status.
+
+ODBC Changes
+------------
+  * res_odbc no longer has a limit of 1023 total possible unshared connections,
+    as some people were running into this limit.  This limit has been increased
+    to 4.2 billion.
+
+Queue changes
+-------------
+  * The TRANSFER queue log entry now includes the the caller's original
+    position in the transferred-from queue.
+  * A new configuration option, "timeoutpriority" has been added. Please see the section labeled
+    "QUEUE TIMING OPTIONS" in configs/queues.conf.sample for a detailed explanation of the option
+    as well as an explanation about timeout options in general
+
+Realtime changes
+----------------
+  * Several (ODBC, Postgres, MySQL, SQLite) realtime drivers have been given
+    adaptive capabilities.  What this means in practical terms is that if your
+    realtime table lacks critical fields, Asterisk will now emit warnings to
+    that effect.  Also, some of the realtime drivers have the ability (if
+    configured) to automatically add those columns to the table with the
+    correct type and length.
+
+Miscellaneous
+-------------
+  * The channel variable ATTENDED_TRANSFER_COMPLETE_SOUND can now be set using
+    the 'setvar' option to cause a given audio file to be played upon completion
+    of an attended transfer.  Currently it works for DAHDI, IAX2, SIP, and
+    Skinny channels only.
+  * You can now compile Asterisk against the Hoard Memory Allocator, see doc/hoard.txt
+    for more information.
+  * Config file variables may now be appended to, by using the '+=' append
+    operator.  This is most helpful when working with long SQL queries in
+    func_odbc.conf, as the queries no longer need to be specified on a single
+    line.
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 1.4.X to Asterisk 1.6.0  -------------
+------------------------------------------------------------------------------
+
+AMI - The manager (TCP/TLS/HTTP)
+--------------------------------
+  * Manager has undergone a lot of changes, all of them documented
+    in doc/manager_1_1.txt
+  * Manager version has changed to 1.1
+  * Added a new action 'CoreShowChannels' to list currently defined channels
+     and some information about them. 
+  * Added a new action 'SIPshowregistry' to list SIP registrations.
+  * Added TLS support for the manager interface and HTTP server
+  * Added the URI redirect option for the built-in HTTP server
+  * The output of CallerID in Manager events is now more consistent.
+     CallerIDNum is used for number and CallerIDName for name.
+  * Enable https support for builtin web server.
+     See configs/http.conf.sample for details.
+  * Added a new action, GetConfigJSON, which can return the contents of an
+     Asterisk configuration file in JSON format.  This is intended to help
+     improve the performance of AJAX applications using the manager interface
+     over HTTP.
+  * SIP and IAX manager events now use "ChannelType" in all cases where we 
+     indicate channel driver. Previously, we used a mixture of "Channel"
+     and "ChannelDriver" headers.
+  * Added a "Bridge" action which allows you to bridge any two channels that
+     are currently active on the system.
+  * Added a "ListAllVoicemailUsers" action that allows you to get a list of all
+     the voicemail users setup.
+  * Added 'DBDel' and 'DBDelTree' manager commands.
+  * cdr_manager now reports events via the "cdr" level, separating it from
+     the very verbose "call" level.
+  * Manager users are now stored in memory. If you change the manager account
+    list (delete or add accounts) you need to reload manager.
+  * Added Masquerade manager event for when a masquerade happens between
+     two channels.
+  * Added "manager reload" command for the CLI
+  * Lots of commands that only provided information are now allowed under the
+     Reporting privilege, instead of only under Call or System.
+  * The IAX* commands now require either System or Reporting privilege, to
+     mirror the privileges of the SIP* commands.
+  * Added ability to retrieve list of categories in a config file.
+  * Added ability to retrieve the content of a particular category.
+  * Added ability to empty a context.
+  * Created new action to create a new file.
+  * Updated delete action to allow deletion by line number with respect to category.
+  * Added new action insert to add new variable to category at specified line.
+  * Updated action newcat to allow new category to be inserted in file above another
+    existing category.
+  * Added new event "JitterBufStats" in the IAX2 channel
+  * Originate now requires the Originate privilege and, if you want to call out
+    to a subshell, it requires the System privilege, as well.  This was done to
+    enhance manager security.
+  * Originate now accepts codec settings with "Codecs: alaw, ulaw, h264" 
+  * New command: Atxfer. See doc/manager_1_1.txt for more details or 
+    manager show command Atxfer from the CLI
+
+Dialplan functions
+------------------
+  * Added the DEVICE_STATE() dialplan function which allows retrieving any device
+     state in the dialplan, as well as creating custom device states that are
+     controllable from the dialplan.
+  * Extend CALLERID() function with "pres" and "ton" parameters to
+     fetch string representation of calling number presentation indicator
+     and numeric representation of type of calling number value.
+  * MailboxExists converted to dialplan function
+  * A new option to Dial() for telling IP phones not to count the call
+     as "missed" when dial times out and cancels.
+  * Added LOCK(), TRYLOCK(), and UNLOCK(), which provide a single level dialplan
+     mutex.  No deadlocks are possible, as LOCK() only allows a single lock to be
+     held for any given channel.  Also, locks are automatically freed when a
+     channel is hung up.
+  * Added HINT() dialplan function that allows retrieving hint information.
+     Hints are mappings between extensions and devices for the sake of 
+     determining the state of an extension.  This function can retrieve the list
+     of devices or the name associated with a hint.
+  * Added EXTENSION_STATE() dialplan function which allows retrieving the state
+    of any extension.
+  * Added SYSINFO() dialplan function which allows retrieval of system information
+  * Added a new dialplan function, DIALPLAN_EXISTS(), which allows you to check for
+     the existence of a dialplan target.
+  * Added two new dialplan functions, TOUPPER and TOLOWER, which convert a string to
+     upper and lower case, respectively.
+  * When bridging, Asterisk sets the BRIDGEPVTCALLID to the channel drivers unique
+     ID for the call (not the Asterisk call ID or unique ID), provided that the
+     channel driver supports this. For SIP, you get the SIP call-ID for the
+     bridged channel which you can store in the CDR with a custom field.
+
+CLI Changes
+-----------
+  * New CLI command "core show hint" (usage: core show hint <exten>)
+  * New CLI command "core show settings"
+  * Added 'core show channels count' CLI command.
+  * Added the ability to set the core debug and verbose values on a per-file basis.
+  * Added 'queue pause member' and 'queue unpause member' CLI commands
+  * Ability to set process limits ("ulimit") without restarting Asterisk
+  * Enhanced "agi debug" to print the channel name as a prefix to the debug
+     output to make debugging on busy systems much easier.
+  * New CLI commands "dialplan set extenpatternmatching true/false"
+  * New CLI command: "core set chanvar" to set a channel variable from the CLI.
+  * Added an easy way to execute Asterisk CLI commands at startup.  Any commands
+    listed in the startup_commands section of cli.conf will get executed.
+  * Added a CLI command, "devstate change", which allows you to set custom device
+     states from the func_devstate module that provides the DEVICE_STATE() function
+     and handling of the "Custom:" devices.
+  * New CLI command: "sip show sched" which shows all ast_sched entries for sip,
+    sorted into the different possible callbacks, with the number of entries
+    currently scheduled for each. Gives you a feel for how busy the sip channel
+    driver is.
+
+SIP changes
+-----------
+  * Improved NAT and STUN support.
+     chan_sip now can use port numbers in bindaddr, externip and externhost
+     options, as well as contact a STUN server to detect its external address
+     for the SIP socket. See sip.conf.sample, 'NAT' section.
+  * The default SIP useragent= identifier now includes the Asterisk version
+  * A new option, match_auth_username in sip.conf changes the matching of incoming requests.
+     If set, and the incoming request carries authentication info,
+     the username to match in the users list is taken from the Digest header
+     rather than from the From: field. This feature is considered experimental.
+  * The "musiconhold" and "musicclass" settings in sip.conf are now removed,
+     since they where replaced by "mohsuggest" and "mohinterpret" in version 1.4
+  * The "localmask" setting was removed in version 1.2 and the reminder about it
+     being removed is now also removed.
+  * A new option "busylevel" for setting a level of calls where asterisk reports
+     a device as busy, to separate it from call-limit. This value is also added
+     to the SIP_PEER dialplan function.
+  * A new realtime family called "sipregs" is now supported to store SIP registration
+     data. If this family is defined, "sippeers" will be used for configuration and
+     "sipregs" for registrations. If it's not defined, "sippeers" will be used for
+     registration data, as before.
+  * The SIPPEER function have new options for port address, call and pickup groups
+  * Added support for T.140 realtime text in SIP/RTP
+  * The "checkmwi" option has been removed from sip.conf, as it is no longer
+     required due to the restructuring of how MWI is handled.  See the descriptions 
+     in this file of the "pollmailboxes" and "pollfreq" options to voicemail.conf 
+     for more information.
+  * Added rtpdest option to CHANNEL() dialplan function.
+  * Added SIPREFERRINGCONTEXT and SIPREFERREDBYHDR variables which are set when a transfer takes place.
+  * SIP now adds a header to the CANCEL if the call was answered by another phone
+     in the same dial command, or if the new c option in dial() is used.
+  * The new default is that 100 Trying is not sent on REGISTER attempts as the RFC specifically
+     states it is not needed. For phones, however, that do require it the "registertrying" option
+     has been added so it can be enabled. 
+  * A new option called "callcounter" (global/peer/user level) enables call counters needed
+     for better status reports needed for queues and SIP subscriptions. (Call-Limit was previously
+     used to enable this functionality).
+  * New settings for timer T1 and timer B on a global level or per device. This makes it 
+     possible to force timeout faster on non-responsive SIP servers. These settings are
+     considered advanced, so don't use them unless you have a problem.
+  * Added a dial string option to be able to set the To: header in an INVITE to any
+     SIP uri.
+  * Added a new global and per-peer option, qualifyfreq, which allows you to configure
+     the qualify frequency.
+  * Added SIP Session Timers support (RFC 4028).  This prevents stuck SIP sessions that
+     were not properly torn down due to network or endpoint failures during an established
+     SIP session.
+  * Added experimental TCP and TLS support for SIP.  See doc/siptls.txt and 
+     configs/sip.conf.sample for more information on how it is used.
+  * Added a new configuration option "authfailureevents" that enables manager events when
+    a peer can't authenticate properly. 
+  * Added DNS manager support to registrations for peers not referencing a peer entry.
+
+IAX2 changes
+------------
+  * Added the trunkmaxsize configuration option to chan_iax2.
+  * Added the srvlookup option to iax.conf
+  * Added support for OSP.  The token is set and retrieved through the CHANNEL()
+     dialplan function.
+
+XMPP Google Talk/Jingle changes
+-------------------------------
+  * Added the bindaddr option to gtalk.conf.
+
+Skinny changes
+-------------
+  * Added skinny show device, skinny show line, and skinny show settings CLI commands.
+  * Proper codec support in chan_skinny.
+  * Added settings for IP and Ethernet QoS requests
+
+MGCP changes
+------------
+  * Added separate settings for media QoS in mgcp.conf
+
+Console Channel Driver changes
+------------------------------
+  * Added experimental support for video send & receive to chan_oss.
+    This requires SDL and ffmpeg/avcodec, plus Video4Linux or X11 to act as
+    a video source.
+
+Phone channel changes (chan_phone)
+----------------------------------
+  * Added G729 passthrough support to chan_phone for Sigma Designs boards.
+
+H.323 channel Changes
+---------------------
+  * H323 remote hold notification support added (by NOTIFY message
+     and/or H.450 supplementary service)
+
+Local channel changes
+---------------------
+  * The device state functionality in the Local channel driver has been updated
+     to indicate INUSE or NOT_INUSE when a Local channel is being used as opposed
+     to just UNKNOWN if the extension exists.
+  * Added jitterbuffer support for chan_local.  This allows you to use the
+     generic jitterbuffer on incoming calls going to Asterisk applications.
+     For example, this would allow you to use a jitterbuffer for an incoming
+     SIP call to Voicemail by putting a Local channel in the middle.  This
+     feature is enabled by using the 'j' option in the Dial string to the Local
+     channel in conjunction with the existing 'n' option for local channels.
+  * A 'b' option has been added which causes chan_local to return the actual channel
+     that is behind it when queried. This is useful for transfer scenarios as the
+     actual channel will be transferred, not the Local channel.
+
+Agent channel changes
+----------------------
+  * The ackcall and endcall options are now supplemented with options acceptdtmf
+    and enddtmf. These allow for the DTMF keypress to be configurable. The options
+	default to their old hard-coded values ('#' and '*' respectively) so this should
+	not break any existing agent installations.
+
+DAHDI channel driver (chan_dahdi) Changes
+----------------------------------------
+  * SS7 support (via libss7 library)
+  * In India, some carriers transmit CID via dtmf. Some code has been added
+     that will handle some situations. The cidstart=polarity_IN choice has been added for
+     those carriers that transmit CID via dtmf after a polarity change.
+  * CID matching information is now shown when doing 'dialplan show'.
+  * Added dahdi show version CLI command.
+  * Added setvar support to chan_dahdi.conf channel entries.
+  * Added two new options: mwimonitor and mwimonitornotify.  These options allow
+     you to enable MWI monitoring on FXO lines.  When the MWI state changes,
+     the script specified in the mwimonitornotify option is executed.  An internal
+     event indicating the new state of the mailbox is also generated, so that
+     the normal MWI facilities in Asterisk work as usual.
+  * Added signalling type 'auto', which attempts to use the same signalling type
+     for a channel as configured in DAHDI. This is primarily designed for analog
+     ports, but will also work for digital ports that are configured for FXS or FXO
+     signalling types. This mode is also the default now, so if your chan_dahdi.conf
+     does not specify signalling for a channel (which is unlikely as the sample
+     configuration file has always recommended specifying it for every channel) then
+     the 'auto' mode will be used for that channel if possible.
+  * Added a 'dahdi set dnd' command to allow CLI control of the Do-Not-Disturb
+     state for a channel; also ensured that the DNDState Manager event is
+     emitted no matter how the DND state is set or cleared.
+
+New Channel Drivers
+-------------------
+  * Added a new channel driver, chan_unistim.  See doc/unistim.txt and
+     configs/unistim.conf.sample for details.  This new channel driver allows
+     you to use Nortel i2002, i2004, and i2050 phones with Asterisk.
+  * Added a new channel driver, chan_console, which uses portaudio as a cross
+     platform audio interface.  It was written as a channel driver that would
+     work with Mac CoreAudio, but portaudio supports a number of other audio
+     interfaces, as well. Note that this channel driver requires v19 or higher
+     of portaudio; older versions have a different API.
+ 
+DUNDi changes
+-------------
+  * Added the ability to specify arguments to the Dial application when using
+     the DUNDi switch in the dialplan.
+  * Added the ability to set weights for responses dynamically.  This can be
+     done using a global variable or a dialplan function.  Using the SHELL()
+     function would allow you to have an external script set the weight for
+     each response.
+  * Added two new dialplan functions, DUNDIQUERY and DUNDIRESULT.  These
+     functions will allow you to initiate a DUNDi query from the dialplan,
+     find out how many results there are, and access each one.
+
+ENUM changes
+------------
+  * Added two new dialplan functions, ENUMQUERY and ENUMRESULT.  These
+     functions will allow you to initiate an ENUM lookup from the dialplan,
+     and Asterisk will cache the results.  ENUMRESULT can be used to access
+     the results without doing multiple DNS queries.
+
+Voicemail Changes
+-----------------
+  * Added the ability to customize which sound files are used for some of the
+     prompts within the Voicemail application by changing them in voicemail.conf
+  * Added the ability for the "voicemail show users" CLI command to show users
+     configured by the dynamic realtime configuration method.
+  * MWI (Message Waiting Indication) handling has been significantly
+     restructured internally to Asterisk.  It is now totally event based
+     instead of polling based.  The voicemail application will notify other
+     modules that have subscribed to MWI events when something in the mailbox
+     changes.
+    This also means that if any other entity outside of Asterisk is changing
+     the contents of mailboxes, then the voicemail application still needs to
+     poll for changes.  Examples of situations that would require this option
+     are web interfaces to voicemail or an email client in the case of using
+     IMAP storage.  So, two new options have been added to voicemail.conf
+     to account for this: "pollmailboxes" and "pollfreq".  See the sample
+     configuration file for details.
+  * Added "tw" language support
+  * Added support for storage of greetings using an IMAP server
+  * Added ability to customize forward, reverse, stop, and pause keys for message playback
+  * SMDI is now enabled in voicemail using the smdienable option.
+  * A "lockmode" option has been added to asterisk.conf to configure the file
+     locking method used for voicemail, and potentially other things in the
+     future.  The default is the old behavior, lockfile.  However, there is a
+     new method, "flock", that uses a different method for situations where the
+     lockfile will not work, such as on SMB/CIFS mounts.
+  * Added the ability to backup deleted messages, to ease recovery in the case
+     that a user accidentally deletes a message, and discovers that they need it.
+  * Reworked the SMDI interface in Asterisk.  The new way to access SMDI information
+     is through the new functions, SMDI_MSG_RETRIEVE() and SMDI_MSG().  The file
+     smdi.conf can now be configured with options to map SMDI station IDs to Asterisk
+     voicemail boxes.  The SMDI interface can also poll for MWI changes when some
+     outside entity is modifying the state of the mailbox (such as IMAP storage or
+     a web interface of some kind).
+  * Added the support for marking messages as "urgent." There are two methods to accomplish
+     this. One is to pass the 'U' option to VoiceMail(). Another way to mark a message as urgent
+     is to specify "review=yes" in voicemail.conf. Doing this will cause allow the user to mark
+     the message as urgent after he has recorded a voicemail by following the voice instructions.
+    When listening to voicemails using VoiceMailMain urgent messages will be presented before other
+     messages
+
+Queue changes
+-------------
+  * Added the general option 'shared_lastcall' so that member's wrapuptime may be
+     used across multiple queues.
+  * Added QUEUE_VARIABLES function to set queue variables added setqueuevar and 
+     setqueueentryvar options for each queue, see queues.conf.sample for details.
+  * Added keepstats option to queues.conf which will keep queue
+     statistics during a reload.
+  * setinterfacevar option in queues.conf also now sets a variable
+     called MEMBERNAME which contains the member's name.
+  * Added 'Strategy' field to manager event QueueParams which represents
+     the queue strategy in use. 
+  * Added option to run macro when a queue member is connected to a caller, 
+     see queues.conf.sample for details.
+  * app_queue now has a 'loose' option which is almost exactly like 'strict' except it
+     does not count paused queue members as unavailable.
+  * Added min-announce-frequency option to queues.conf which allows you to control the
+     minimum amount of time between queue announcements for use when the caller's queue
+     position changes frequently.
+  * Added additional information to EXITWITHTIMEOUT and EXITWITHKEY events in the
+     queue log.
+  * Added ability for non-realtime queues to have realtime members
+  * Added the "linear" strategy to queues.
+  * Added the "wrandom" strategy to queues.
+  * Added new channel variable QUEUE_MIN_PENALTY
+  * QUEUE_MAX_PENALTY and QUEUE_MIN_PENALTY may be adjusted in mid-call by defining
+     rules in queuerules.conf. See configs/queuerules.conf.sample for details
+  * Added a new parameter for member definition, called state_interface. This may be
+    used so that a member may be called via one interface but have a different interface's
+    device state reported.
+  * New configuration option: randomperiodicannounce. If a list of periodic announcements is
+    specified by the periodic-announce option, then one will be chosen randomly when it is time
+    to play a periodic announcment
+  * New configuration options: announce-position now takes two more values in addition to "yes" and
+    "no." Two new options, "limit" and "more," are allowed. These are tied to another option,
+    announce-position-limit. By setting announce-position to "limit" callers will only have their
+    position announced if their position is less than what is specified by announce-position-limit.
+    If announce-position is set to "more" then callers beyond the position specified by announce-position-limit
+    will be told that their are more than announce-position-limit callers waiting.
+  * Two new queue log events have been added. An ADDMEMBER event will be logged
+    when a realtime queue member is added and a REMOVEMEMBER event will be logged
+    when a realtime queue member is removed. Since there is no calling channel associated
+    with these events, the string "REALTIME" is placed where the channel's unique id
+    is typically placed.
+
+MeetMe Changes
+--------------
+  * The 'o' option to provide an optimization has been removed and its functionality 
+     has been enabled by default.
+  * When a conference is created, the UNIQUEID of the channel that caused it to be
+     created is stored.  Then, every channel that joins the conference will have the
+     MEETMEUNIQUEID channel variable set with this ID.  This can be used to relate
+     callers that come and go from long standing conferences.
+  * Added a new application, MeetMeChannelAdmin, which is similar to MeetMeAdmin,
+     except it does operations on a channel by name, instead of number in a conference.
+     This is a very useful feature in combination with the 'X' option to ChanSpy.
+  * Added 'C' option to Meetme which causes a caller to continue in the dialplan
+     when kicked out.
+  * Added new RealTime functionality to provide support for scheduled conferencing.
+     This includes optional messages to the caller if they attempt to join before
+     the schedule start time, or to allow the caller to join the conference early.
+     Also included is optional support for limiting the number of callers per
+     RealTime conference.
+  * Added the S() and L() options to the MeetMe application.  These are pretty
+     much identical to the S() and L() options to Dial().  They let you set
+     timeouts for the conference, as well as have warning sounds played to
+     let the caller know how much time is left, and when it is running out.
+  * Added the ability to do "meetme concise" with the "meetme" CLI command.
+     This extends the concise capabilities of this CLI command to include
+     listing all conferences, instead of an addition to the other sub commands
+     for the "meetme" command.
+  * Added the ability to specify the music on hold class used to play into the
+     conference when there is only one member and the M option is used.
+  * Added MEETME_INFO dialplan function which provides a way to query
+     various properties of a Meetme conference.
+
+Other Dialplan Application Changes
+----------------------------------
+  * Argument support for Gosub application
+  * From the to-do lists: straighten out the app timeout args:
+     Wait() app now really does 0.3 seconds- was truncating arg to an int.
+     WaitExten() same as Wait().
+     Congestion() - Now takes floating pt. argument.
+     Busy() - now takes floating pt. argument.
+     Read() - timeout now can be floating pt.
+     WaitForRing() now takes floating pt timeout arg.
+     SpeechBackground() -- clarified in the docstrings that the timeout is an integer seconds.
+  * Added 's' option to Page application.
+  * Added 'E', 'V', and 'P' commands to ExternalIVR.
+  * Added 'o' and 'X' options to Chanspy.
+  * Added a new dialplan application, Bridge, which allows you to bridge the
+     calling channel to any other active channel on the system.
+  * Added the ability to specify a music on hold class to play instead of ringing
+     for the SLATrunk application.
+  * The Read application no longer exits the dialplan on error.  Instead, it sets
+     READSTATUS to ERROR, which you can catch and handle separately.
+  * Added 'm' option to Directory, which lists out names, 8 at a time, instead
+     of asking for verification of each name, one at a time.
+  * Privacy() no longer uses privacy.conf, as all options are specifyable as
+     direct options to the app.
+  * AMD() has a new "maximum word length" option. "show application AMD" from the CLI
+     for more details
+  * GotoIfTime() now may branch based on a "false" condition, like other Goto-related applications
+  * The ChannelRedirect application no longer exits the dialplan if the given channel
+     does not exist. It will now set the CHANNELREDIRECT_STATUS variable to SUCCESS upon success
+     or NOCHANNEL if the given channel was not found.
+  * The silencethreshold setting that was previously configurable in multiple
+     applications is now settable globally via dsp.conf.
+
+Music On Hold Changes
+---------------------
+  * A new option, "digit", has been added for music on hold classes in 
+     musiconhold.conf.  If this is set for a music on hold class, a caller
+     listening to music on hold can press this digit to switch to listening
+     to this music on hold class.
+  * Support for realtime music on hold has been added.
+  * In conjunction with the realtime music on hold, a general section has
+     been added to musiconhold.conf, its sole variable is cachertclasses. If this
+     is set, then music on hold classes found in realtime will be cached in memory.
+
+AEL Changes
+-----------
+  * AEL upgraded to use the Gosub with Arguments instead
+     of Macro application, to hopefully reduce the problems
+     seen with the artificially low stack ceiling that 
+     Macro bumps into. Macros can only call other Macros
+     to a depth of 7. Tests run using gosub, show depths
+     limited only by virtual memory. A small test demonstrated
+     recursive call depths of 100,000 without problems.
+     -- in addition to this, all apps that allowed a macro
+     to be called, as in Dial, queues, etc, are now allowing
+     a gosub call in similar fashion.
+  * AEL now generates LOCAL(argname) declarations when it
+     Set()'s the each arg name to the value of ${ARG1}, ${ARG2),
+     etc. That makes the arguments local in scope. The user
+     can define their own local variables in macros, now,
+     by saying "local myvar=someval;"  or using Set() in this
+     fashion:  Set(LOCAL(myvar)=someval);  ("local" is now
+     an AEL keyword).
+  * utils/conf2ael introduced. Will convert an extensions.conf
+     file into extensions.ael. Very crude and unfinished, but 
+     will be improved as time goes by. Should be useful for a
+     first pass at conversion.
+  * aelparse will now read extensions.conf to see if a referenced
+     macro or context is there before issueing a warning.
+  * AEL parser sets a local channel variable ~~EXTEN~~, to 
+    preserve the value of ${EXTEN} thru switch statements.
+  * New operator in $[...] expressions: the ~~ operator serves
+    as a concatenation operator. AT THE MOMENT, it is really only
+    necessary and useful in AEL, especially in if() expressions.
+    Operation: ${a} ~~ ${b|  with force both a and b to strings, strip 
+    any enclosing double-quotes, and evaluate to the value of a
+    concatenated with the value of b.  For example if a is set to
+    "xyz"  and b has the value "abc", then ${a} ~~ ${b| would
+    evaluate to xyzabc .
+
+
+Call Features (res_features) Changes
+------------------------------------
+  * Added the parkedcalltransfers option to features.conf
+  * The built-in method for doing attended transfers has been updated to
+     include some new options that allow you to have the transferee sent
+     back to the person that did the transfer if the transfer is not successful.
+     See the options "atxferdropcall", "atxferloopdelay", and "atxfercallbackretries"
+     in features.conf.sample.
+  * Added support for configuring named groups of custom call features in
+     features.conf.  This means that features can be written a single time, and
+     then mapped into groups of features for different key mappings or easier
+     access control.
+  * Updated the ParkedCall application to allow you to not specify a parking
+     extension.  If you don't specify a parking space to pick up, it will grab
+     the first one available.
+  * Added cli command 'features reload' to reload call features from features.conf
+  * Moved into core asterisk binary.
+
+Language Support Changes
+------------------------
+  * Brazilian Portuguese (pt-BR) in VM, and say.c was added
+  * Added support for the Hungarian language for saying numbers, dates, and times.
+
+AGI Changes
+-----------
+  * Added SPEECH commands for speech recognition. A complete listing can be found
+     using agi show.
+  * If app_stack is loaded, GOSUB is a native AGI command that may be used to
+    invoke subroutines in the dialplan.  Note that calling EXEC with Gosub
+    does not behave as expected; the native command needs to be used, instead.
+
+Logger changes
+--------------
+  * Added rotatestrategy option to logger.conf, along with two new options:
+     "timestamp" which will use the time to name the logger files instead of
+     sequence number; and "rotate", which rotates the names of the logfiles,
+     similar to the way syslog rotates files.
+  * Added exec_after_rotate option to logger.conf, which allows a system
+     command to be run after rotation.  This is primarily useful with
+     rotatestrategry=rotate, to allow a limit on the number of logfiles kept
+     and to ensure that the oldest log file gets deleted.
+  * Added realtime support for the queue log
+
+Call Detail Records 
+-------------------
+  * The cdr_manager module has a [mappings] feature, like cdr_custom,
+    to add fields to the manager event from the CDR variables.
+  * Added cdr_adaptive_odbc, a new module that adapts to the structure of your
+     backend database CDR table.  Specifically, additional, non-standard
+     columns are supported, merely by setting the corresponding CDR variable in
+     your dialplan.  In addition, you may alias any column to another name (for
+     example, if you want the 'src' CDR variable to be column 'ANI' in the DB,
+     simply "alias src => ANI" in the configuration file).  Records may be
+     posted to more than one backend, simply by specifying multiple categories
+     in the configuration file.  And finally, you may filter which CDRs get
+     posted to each backend, by specifying a filter (which the record must
+     match) for the particular category.  Filters are additive (meaning all
+     rules must match to post that CDR).
+  * The Postgres CDR module now supports some features of the cdr_adaptive_odbc
+     module.  Specifically, you may add additional columns into the table and
+     they will be set, if you set the corresponding CDR variable name.  Also,
+     if you omit columns in your database table, they will be silently skipped
+     (but a record will still be inserted, based on what columns remain).  Note
+     that the other two features from cdr_adaptive_odbc (alias and filter) are
+     not currently supported.
+  * The ResetCDR application now has an 'e' option that re-enables a CDR if it
+     has been disabled using the NoCDR application.
+
+Miscellaneous New Modules
+-------------------------
+  * Added a new CDR module, cdr_sqlite3_custom.
+  * Added a new realtime configuration module, res_config_sqlite
+  * Added a new codec translation module, codec_resample, which re-samples
+     signed linear audio between 8 kHz and 16 kHz to help support wideband
+     codecs.
+  * Added a new module, res_phoneprov, which allows auto-provisioning of phones
+     based on configuration templates that use Asterisk dialplan function and
+     variable substitution.  It should be possible to create phone profiles and
+     templates that work for the majority of phones provisioned over http. It
+     is currently only intended to provision a single user account per phone.
+     An example profile and set of templates for Polycom phones is provided.
+     NOTE: Polycom firmware is not included, but should be placed in
+     AST_DATA_DIR/phoneprov/configs to match up with the included templates.
+  * Added a new module, app_jack, which provides interfaces to JACK, the Jack
+     Audio Connection Kit (http://www.jackaudio.org/).  Two interfaces are
+     provided; there is a JACK() application, and a JACK_HOOK() function.  Both
+     interfaces create an input and output JACK port.  The application makes
+     these ports the endpoint of the call.  The audio coming from the channel
+     goes out the output port and whatever comes back in on the input port is
+     what gets sent to the channel.  The JACK_HOOK() function turns on a JACK
+     audiohook on the channel.  This lets you run the audio coming from a
+     channel through JACK, and whatever comes back in is what gets forwarded
+     on as the channel's audio.  This is very useful for building custom
+     vocoders or doing recording or analysis of the channel's audio in another
+     application.
+  * Added a new module, res_config_curl, which permits using a HTTP POST url
+     to retrieve, create, update, and delete realtime information from a remote
+     web server.  Note that this module requires func_curl.so to be loaded for
+     backend functionality.
+  * Added a new module, res_config_ldap, which permits the use of an LDAP
+     server for realtime data access.
+  * Added support for writing and running your dialplan in lua using the pbx_lua
+     module.  See configs/extensions.lua.sample for examples of how to do this.
+
+Miscellaneous 
+-------------
+  * Ability to use libcap to set high ToS bits when non-root
+     on Linux. If configure is unable to find libcap then you
+     can use --with-cap to specify the path.
+  * Added maxfiles option to options section of asterisk.conf which allows you to specify
+     what Asterisk should set as the maximum number of open files when it loads.
+  * Added the jittertargetextra configuration option.
+  * Added support for setting the CoS for VLAN traffic (802.1p).  See the sample
+     configuration files for the IP channel drivers.  The new option is "cos".
+     This information is also documented in doc/qos.tex, or the IP Quality of Service
+     section of asterisk.pdf.
+  * When originating a call using AMI or pbx_spool that fails the reason for failure
+     will now be available in the failed extension using the REASON dialplan variable.
+  * Added support for reading the TOUCH_MONITOR_PREFIX channel variable.
+     It allows you to configure a prefix for auto-monitor recordings.
+  * A new extension pattern matching algorithm, based on a trie, is introduced
+     here, that could noticeably speed up mid-sized to large dialplans.
+     It is NOT used by default, as duplicating the behaviour of the old pattern
+     matcher is still under development. A config file option, in extensions.conf,
+     in the [general] section, called "extenpatternmatchingnew", is by default
+     set to false; setting that to true will force the use of the new algorithm.
+     Also, the cli commands "dialplan set extenpatternmatchingnew true/false" can
+     be used to switch the algorithms at run time.
+  * A new option when starting a remote asterisk (rasterisk, asterisk -r) for
+     specifying which socket to use to connect to the running Asterisk daemon
+     (-s)
+  * Performance enhancements to the sched facility, which is used in
+    the channel drivers, etc. Added hashtabs and doubly-linked lists
+    to speed up deletion; start at the beginning or end of list to
+    speed up insertion.
+  * Added Doubly-linked lists after the fashion of linkedlists.h. They are in
+    dlinkedlists.h. Doubly-linked lists feature fast deletion times.
+    Added regression tests to the tests/ dir, also.
+  * Added a refcount trace feature to astobj2 for those trying to balance
+    object creation, deletion; work, play; space and time. See the
+    notes in astobj2.h. Also, see utils/refcounter as well, as a
+    quick way to find unbalanced refcounts in what could be a sea
+    of objects that were balanced.
+  * Added logging to 'make update' command.  See update.log
+  * Added strictrtp option to rtp.conf. If enabled this will drop RTP packets that
+     do not come from the remote party.
+  * Added the 'n' option to the SpeechBackground application to tell it to not
+     answer the channel if it has not already been answered.
+  * Added a compiler flag, CHANNEL_TRACE, which permits channel tracing to be
+     turned on, via the CHANNEL(trace) dialplan function.  Could be useful for
+     dialplan debugging.
+  * iLBC source code no longer included (see UPGRADE.txt for details)
+  * If compiled with DETECT_DEADLOCKS enabled and if you have glibc, then if 
+     deadlock is detected, a backtrace of the stack which led to the lock calls
+     will be output to the CLI.
+  * If compiled with DEBUG_THREADS enabled and if you have glibc, then issuing
+     the "core show locks" CLI command will give lock information output as well
+     as a backtrace of the stack which led to the lock calls.
+  * users.conf now sports an optional alternateexts property, which permits
+    allocation of additional extensions which will reach the specified user.
+  * A new option for the configure script, --enable-internal-poll, has been added
+    for use with systems which may have a buggy implementation of the poll system
+	call. If you notice odd behavior such as the CLI being unresponsive on remote
+	consoles, you may want to try using this option. This option is enabled by default
+	on Darwin systems since it is known that the Darwin poll() implementation has
+	odd issues.

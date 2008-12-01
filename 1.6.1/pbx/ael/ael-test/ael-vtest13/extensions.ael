@@ -1,0 +1,3183 @@
+globals
+{
+	static=yes;
+	writeprotect=yes;
+	CONSOLE=Console/dsp;        // Console interface for demo
+	IAXINFO=murf:tlhfckoct;     // IAXtel username/password
+	FWDNUMBER=544788 ;          // your calling number
+	FWDCIDNAME="Joe-Worker";    // your caller id
+	FWDPASSWORD=zingledoodle ;  // your password
+	FWDRINGS=Zap/6 ;            // the phone to ring
+	FWDVMBOX=1 ;                // the VM box for this user
+}
+
+macro std-exten( ext , dev ) 
+{
+        Dial(${dev}/${ext},20);
+        switch(${DIALSTATUS}) 
+		{
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+	case NOANSWER:
+		Voicemail(u${ext});
+		break;
+	case ANSWER:
+		break;
+        default:
+                Voicemail(u${ext});
+        }
+        catch a {
+                VoiceMailMain(${ext});
+        }
+}
+
+macro std-priv-exten_1( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_2( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_3( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_4( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_5( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_6( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_7( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_8( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_9( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_10( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_11( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_12( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_13( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_14( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_15( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_16( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_17( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_18( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_19( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_20( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_21( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_22( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_23( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_24( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_25( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_26( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_27( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_28( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_29( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_30( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_31( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_32( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_33( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_34( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_35( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_36( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_37( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_38( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_39( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_40( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_41( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_42( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_43( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_44( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_45( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_46( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_47( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_48( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_49( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_50( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_51( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_52( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_53( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_54( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_55( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_56( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_57( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_58( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_59( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_60( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_61( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_62( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_63( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_64( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_65( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_66( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_67( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_68( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_69( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_70( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_71( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_72( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten_73( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+
+macro std-priv-exten( dev, ext , timeout, opts, torcont, dontcont ) 
+{
+        Dial(${dev},${timeout},${opts});
+	NoOp(${DIALSTATUS} was chosen);
+        switch(${DIALSTATUS}) 
+		{
+        case TORTURE:
+		goto ${torcont}|s|begin;
+                break;
+        case DONTCALL:
+		goto ${dontcont}|s|begin;
+                break;
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        case ANSWER:
+		break;
+        case NOANSWER:
+                Voicemail(u${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        }
+}
+
+macro fillcidname()
+{
+        if( "${CALLERID(num)}" = "" )   // nothing to work with, quit!!!
+                return;
+        Set(cidn=${DB(cidname/${CALLERID(num)})});
+        if( "${CALLERID(name)}" != "" )
+        {
+                if( ("${cidn}" = "Privacy Manager" & "${CALLERID(name)}" != "Privacy Manager") | "${cidn}" = "" ) // if the entry isn't in the database, 
+                                                                                // or if an entry exists, and it's "Privacy Manager", empty, (or add other useless possibilities).
+                { 
+                       Set(DB(cidname/${CALLERID(num)})=${CALLERID(name)});     // then set or override what's in the DB
+                }
+        }
+        // Now, we fill in the callerid info from the incoming entry, if it's stuff worth using
+        // Ignore fundamentally semi-anonymous information from local cell phones
+        // if the db has an entry for this number, and it's not a canned string from a cell phone company
+        if(  ( "${cidn}" != "" ) & ( "${CALLERID(name)}" = "" 
+                                                  | "${CALLERID(name)}" = "CODY,WY        "    
+                                                  | "${CALLERID(name)}" = "POWELL,WY      "    
+                                                  | "${CALLERID(name)}" = "WIRELESS CALLER"  
+                                                  | "${CALLERID(name)}" = "SUBSCRIBER,WIRE"  
+                                                  | "${CALLERID(name)}" = "CELLULAR ONE"  
+                                                  | "${CALLERID(name)}" = "Cellular One Customer"    
+                                                  | "${CALLERID(name)}" = "CELLULAR ONE   "    
+                                                  | "${CALLERID(name)}" = "Privacy Manager" 
+                                                  | "${CALLERID(name)}" = "RIVERTON,WY    "  
+                                                  | "${CALLERID(name)}" = "BASIN,WY       "  
+                                                  | "${CALLERID(name)}" = "BILLINGS,MT    "
+                                                  | "${CALLERID(name)}" = "PROVO,UT       "  
+                                                  | "${CALLERID(name)}" = "TOLL FREE      " ) )  // put stuff in the above, that the phone company tends to put in your callerid, 
+                                                                                                 // that you would rather override with DB info
+                                                                                                 // there's no way to guess them all, but you can get the most popular ones...
+                                                                                                 // why cell phones can't do CID like everybody else, ....?
+        {    
+                Set(CALLERID(name)=${cidn});  // Override what the phone company provides with what's in the DB for this number.
+        }
+}
+
+macro ciddial(dialnum, lookup, waittime, dialopts, ddev)
+{
+	Set(cidnu=${CALLERID(num)});
+	Set(cidn=${DB(cidname/${lookup})});
+	Set(CALLERID(name)=${cidn});
+	Dial(${ddev}/${dialnum}|${waittime}|${dialopts});
+	if( "${DIALSTATUS}" = "CHANUNAVAIL" )
+	{
+		BackGround(try_voip);
+		CALLERID(num)=7075679201;
+		Dial(SIP/1${lookup}@tctwest,${waittime},${dialopts});
+		if( "${DIALSTATUS}" = "CHANUNAVAIL" )
+		{
+			BackGround(try_cell);
+			CALLERID(num)=${cidnu}; // put the original number back 
+			Dial(Zap/2/${lookup},${waittime},${dialopts});
+		}
+	}
+}
+
+macro ciddial3(dialnum, lookup, waittime, dialopts, ddev)
+{
+	Set(cidnu=${CALLERID(num)});
+	Set(cidn=${DB(cidname/${lookup})});
+	Set(CALLERID(name)=${cidn});
+	Dial(${ddev}/${dialnum}|${waittime}|${dialopts});
+	if( "${DIALSTATUS}" = "CHANUNAVAIL" )
+	{
+		BackGround(try_cell);
+		Dial(Zap/2/${lookup},${waittime},${dialopts});
+	}
+}
+
+macro ciddial2(dialnum, lookup, waittime, dialopts, ddev) // give priority to tctwest, then the ZAP in emergencies
+{
+	Set(cidn=${DB(cidname/${lookup})});
+	Set(cidnu=${CALLERID(num)});
+	Set(CALLERID(name)=${cidn});
+	Set(CALLERID(num)=7075679201);
+	Dial(SIP/1${lookup}@tctwest,${waittime},${dialopts});
+	if( "${DIALSTATUS}" = "CHANUNAVAIL" )
+	{
+		Set(CALLERID(num)=${cidnu}); // put the original number back 
+		BackGround(try_zap);
+		Dial(${ddev}/${dialnum},${waittime}|${dialopts});
+		if( "${DIALSTATUS}" = "CHANUNAVAIL" )
+		{
+			BackGround(try_cell);
+			Dial(Zap/2/${lookup},${waittime},${dialopts});
+		}
+	}
+}
+
+macro callerid-liar()
+{
+	TrySystem(/usr/bin/play /var/lib/asterisk/sounds/priv-callerintros/LIAR.gsm&);
+	Background(priv-liar);  // Script: OOOps! Sorry! I don't allow men with ski masks pulled over their 
+                            //         faces to get in the front door, and unidentified callers won't fair
+                            //         any better. You entered *MY* phone number. That won't work.
+                            //         If you are telemarketing, cross me off the list, and don't call again.
+                            //         If you did this by mistake, forgive my defenses, and call again.
+                           // Alternate: (priv-liar2)
+				   // Script: You have chosen to try to deceive my system and withold your CallerID,
+                                   //           by entering my own phone number as YOUR CallerID. I find this 
+                                   //           offensive because you are being dishonest. I will not do business nor
+                                   //           waste my time talking to anyone who is less than honest and forthcoming.
+                                   //           Take me off your call list and do not call me again.
+	Hangup();
+}
+
+macro callerid-bad()
+{
+	mycid=${CALLERID(num)}:"1([0-9]+)";
+ 	Set(CALLERID(num)=${mycid});
+ 	Wait(0);
+}
+
+context privacyManagerFailed {
+ 	s => {
+		begin:
+ 		Background(PrivManInstructions);  // Script: OOps, that didn't go well. You need to enter *your* area code, and *your* 7 digit 
+                                               // phone number, for a total of 10 digits, or you'll be handed over to the monkeys. Let's
+                                               // try this again, and hopefully you can get past our front-line defenses!
+ 		PrivacyManager();
+ 		if( "${PRIVACYMGRSTATUS}" = "FAILED" )
+ 		{
+ 			Background(tt-allbusy);
+			Background(tt-somethingwrong);
+			Background(tt-monkeysintro);
+ 			Background(tt-monkeys);
+ 			Background(tt-weasels);
+ 			Hangup();
+ 		}
+ 		else
+ 		{
+ 			goto homeline|s|postPriv;
+ 		}
+ 	}
+}
+
+// Some comments
+// Some more comments
+
+context homeline {
+	s => {
+	begin:
+		Answer();
+		Set(repeatcount=0);
+		Zapateller(nocallerid);
+		PrivacyManager();
+		if( "${PRIVACYMGRSTATUS}" = "FAILED" )
+		{
+			TrySystem(/usr/bin/play /var/lib/asterisk/sounds/privmanfailed.gsm);
+			&std-priv-exten(Zap/3r1&Zap/5r1,2,25,mtw,telemarket,telemarket);
+			Hangup();
+			return;
+//			goto privacyManagerFailed|s|begin;
+		}
+	postPriv:
+		&fillcidname();
+		Set(CONFCIDNA=${CALLERID(name)});
+		Set(CONFCIDNU=${CALLERID(num)});
+		AGI(callall);
+		AGI(submit-announce.agi);
+		if( "${CALLERID(num)}" : "1" )
+		{
+			&callerid-bad();
+		}
+		if( "${CALLERID(num)}"  = "7077577685" & "${CALLERID(name)}" : "Privacy Manager" )
+		{
+			&callerid-liar();
+		}
+		TrySystem(/usr/local/bin/who-is-it ${CALLERID(num)} "${CALLERID(name)}"&);
+		Set(lds=${DB(playlds/${CALLERID(num)})});
+		if( "${lds}" = "1" )
+		{
+			SetMusicOnHold(mohlds);
+		}
+		direct=${DB(DirectCall/${CALLERID(num)})};
+		if( "${direct}" != "" & ${direct} != 0 )
+		{
+			verbose(direct is XXX#${direct}XXXX);
+			Playback(greetings/direct); // Welcome to the Murphy residence. This system will automatically try to connect you to...
+			Playback(/var/spool/asterisk/voicemail/default/${direct}/greet);
+			TrySystem(/usr/bin/play /var/lib/asterisk/sounds/call-for.gsm);
+			TrySystem(/usr/bin/play /var/spool/asterisk/voicemail/default/${direct}/greet.wav&);
+			switch(${direct})
+			{
+			case 1: //Steve
+				&std-priv-exten(Zap/6r3&Sip/murf,1,25,mpA(beep)tw,telemarket,telemarket);
+				goto s|loopback;
+			case 2: //Sonya
+		                &std-priv-exten(Zap/3r1&Zap/5r1,2,25,mtw,telemarket,telemarket);
+				goto s|loopback;
+			default: // all the kids
+				Set(z=${direct}-2);
+				goto homeline-kids|${z}|1;
+			}
+		}
+	loopback:
+		ifTime(*|*|20-25|dec) 
+		{ 
+			Playback(greetings/christmas); 
+		}
+		else ifTime(*|*|31|dec) 
+		{	 
+			Playback(greetings/newyear); 
+		}
+		else ifTime(*|*|1|jan)
+		{
+			Playback(greetings/newyear);
+		}
+		else ifTime(*|*|14|feb)
+		{
+			Playback(greetings/valentines);
+		}
+		else ifTime(*|*|17|mar) 
+		{
+			Playback(greetings/stPat);
+		}
+		else ifTime(*|*|31|oct) 
+		{
+			Playback(greetings/halloween);
+		}
+		else ifTime(*|mon|15-21|jan) 
+		{
+			Playback(greetings/mlkDay);
+		}
+		else ifTime(*|thu|22-28|nov)
+		{
+			Playback(greetings/thanksgiving);
+		}
+		else ifTime(*|mon|25-31|may)
+		{
+			Playback(greetings/memorial);
+		}
+		else ifTime(*|mon|1-7|sep)
+		{
+			Playback(greetings/labor);
+		}
+		else ifTime(*|mon|15-21|feb)
+		{
+			Playback(greetings/president);
+		}
+		else ifTime(*|sun|8-14|may)
+		{
+			Playback(greetings/mothers);
+		}
+		else ifTime(*|sun|15-21|jun)
+		{
+			Playback(greetings/fathers);
+		} 
+		else 
+		{
+			Playback(greetings/hello);   // None of the above? Just a plain hello will do
+		}  
+		Background(murphy-homeline-intro1);  // Script: Hello-- Welcome to the Murphy's! If you already know what
+                                                //  option you want, you don't have to wait for this entire spiel-- just
+                                                //  have at it.
+                                                //  If you are calling because this number is on a list of some sort, dial 6.
+                                                //  If you want Sonya, dial 1.
+                                                //  If you want one of the kids, dial 2.
+                                                //  If you want Steve, dial 3.
+						//  to play with your introduction, dial 5.
+                                                //  If we don't seem to be giving you the time of day, try 7.
+                                                //  Have a good day!
+		
+	}
+	1 => {  // Sonya
+			TrySystem(/usr/bin/play /var/lib/asterisk/sounds/call-for.gsm);
+			TrySystem(/usr/bin/play /var/spool/asterisk/voicemail/default/2/greet.wav&);
+			&std-priv-exten(Zap/3r1&Zap/5r1,2,25,mtw,telemarket,telemarket);
+			goto s|loopback;
+	}
+	2 => {  // Kids
+			goto homeline-kids|s|begin;
+	}
+	21 => {
+		Dial(IAX2/seaniax,20,T);
+		}
+	3 => {  // Steve
+			&std-priv-exten(Zap/6r3&Sip/murf,1,25,mpA(beep)tw,telemarket,telemarket);
+			goto s|loopback;
+	}
+	4 => {  // Voicemail 
+			VoicemailMain();
+			goto s|loopback;
+	}
+	5 => {   // play with intro
+			goto home-introduction|s|begin;
+	}
+	6 => {    // Telemarketers
+			goto telemarket|s|begin;
+	}
+	7 => {    // time of day, riddle
+			agi(tts-riddle.agi);
+			Background(gsm/what-time-it-is2);
+			SayUnixTime();
+			goto s|loopback;
+	}
+	792 => {   // Page All
+			goto pageall|s|begin;
+	}
+	793 => { // check the tone recognition
+			Read(zz,,0,,1,0);
+			SayDigits(${zz});
+	}
+	t => {
+		Set(repeatcount=${repeatcount} + 1);
+		if( ${repeatcount} < 3 )
+		{
+			goto s|loopback;  // just loopback isn't enough
+		}
+		Hangup();
+	}
+	i => {
+		Background(invalid);
+		goto s|loopback;
+	}
+	o => {
+		Congestion();
+	}
+	fax => {
+		Dial(Zap/4);
+	}
+}
+
+// Some comments
+// Some more comments
+
+context pageall {
+	s => {
+	begin:
+		AGI(callall);
+		MeetMe(5555,dtqp);
+		MeetMeAdmin(5555,K);
+		Hangup();
+	}
+
+	h => {
+	begin:
+		MeetMeAdmin(5555,K);
+		Background(conf-muted);
+		Hangup();
+	}
+}
+
+// Some comments
+// Some more comments
+
+context add-to-conference {
+	start => {
+		NoCDR();
+		MeetMe(5555,dmqp);
+	}
+	h => {
+		Hangup();
+	}
+}
+
+context home-introduction {
+	s => {
+	begin:
+		Background(intro-options);   // Script: To hear your Introduction, dial 1.
+						//         to record a new introduction, dial 2.
+						//         to return to the main menu, dial 3.
+						//         to hear what this is all about, dial 4.
+	}
+	1 => {
+		Playback(priv-callerintros/${CALLERID(num)});
+		goto s|begin;
+	}
+	2 => {
+		goto home-introduction-record|s|begin;
+	}
+	3 => {
+		goto homeline|s|loopback;
+	}
+	4 => {
+		Playback(intro-intro);     // Script:
+				// This may seem a little strange, but it really is a neat
+				// thing, both for you and for us. I've taped a short introduction
+				// for many of the folks who normally call us. Using the Caller ID
+				// from each incoming call, the system plays the introduction
+				// for that phone number over a speaker, just as the call comes in.
+				// This helps the folks
+				// here in the house more quickly determine who is calling.
+				// and gets the right ones to gravitate to the phone.
+				// You can listen to, and record a new intro for your phone number
+				// using this menu.
+		goto s|begin;
+	}
+	t => {
+		goto s|begin;
+	}
+	i => {
+		Background(invalid);
+		goto s|begin;
+	}
+	o => {
+		goto s|begin;
+	}
+}
+
+context home-introduction-record {
+	s => {
+	begin:
+		Background(intro-record-choices);    // Script:
+				//      If you want some advice about recording your
+				// 	introduction, dial 1. 
+				//      otherwise, dial 2, and introduce yourself after
+				//      the beep.
+	}
+	1 => {
+	Playback(intro-record);
+				//	Your introduction should be short and sweet and crisp.
+				//	Your introduction will be limited to 10 seconds.
+				//	This is NOT meant to be a voice mail message, so
+				//	please, don't say anything about why you are calling.
+				//	After we are done making the recording, your introduction
+				//	will be saved for playback. 
+				//	If you are the only person that would call from this number, 
+				//	please state your name.  Otherwise, state your business
+				//	or residence name instead. For instance, if you are 
+				//	friend of the family, say, Olie McPherson, and both
+				//	you and your kids might call here a lot, you might
+				//	say: "This is the distinguished Olie McPherson Residence!"
+				//	If you are the only person calling, you might say this:
+				//	"This is the illustrious Kermit McFrog! Pick up the Phone, someone!!"
+				//	If you are calling from a business, you might pronounce a more sedate introduction,like,
+				//	"Fritz from McDonalds calling.", or perhaps the more original introduction:
+				//	"John, from the Park County Morgue. You stab 'em, we slab 'em!".
+				//	Just one caution: the kids will hear what you record every time
+				//	you call. So watch your language!
+				//	I will begin recording after the tone. 
+				//	When you are done, hit the # key. Gather your thoughts and get 
+				//	ready. Remember, the # key will end the recording, and play back
+				//      your intro. Good Luck, and Thank you!"
+		goto 2|begin;
+	}
+	2 => {
+		begin:
+		Background(intro-start);
+				//  OK, here we go! After the beep, please give your introduction.
+		Background(beep);
+		Record(priv-callerintros/${CALLERID(num)}:gsm,3);
+		Background(priv-callerintros/${CALLERID(num)});
+		goto home-introduction|s|begin;
+	}
+	t => {
+		goto s|begin;
+	}
+	i => {
+		Background(invalid);
+		goto s|begin;
+	}
+	o => {
+		goto s|begin;
+	}
+}
+
+context homeline-kids {
+	s => {
+	begin:
+		Background(murphy-homeline-kids);        //  Which Kid? 1=Sean, 2:Eric, 3:Ryan, 4:Kyle, 5:Amber, 6:Alex, 7:Neal
+	}
+	1 => {  // SEAN
+			TrySystem(/usr/bin/play /var/lib/asterisk/sounds/call-for.gsm);
+			TrySystem(/usr/bin/play /var/spool/asterisk/voicemail/default/3/greet.wav&);
+			// &std-priv-exten(Zap/3r2&Zap/5r2,3,35,mtw,telemarket,telemarket);
+			&std-priv-exten(IAX2/seaniax&Zap/5r2,3,35,mtw,telemarket,telemarket);
+			goto homeline|s|loopback;
+	}
+	2 => {  // ERIC
+			TrySystem(/usr/bin/play /var/lib/asterisk/sounds/call-for.gsm);
+			TrySystem(/usr/bin/play /var/spool/asterisk/voicemail/default/4/greet.wav&);
+			Voicemail(u4);
+			goto homeline|s|loopback;
+			
+			// SetMusicOnHold(erics);
+			// TrySystem(/usr/bin/play /var/lib/asterisk/sounds/call-for.gsm);
+			// TrySystem(/usr/bin/play /var/spool/asterisk/voicemail/default/4/greet.wav&);
+			// &std-priv-exten(Zap/3r2&Zap/5r2,4,35,mtw,telemarket,telemarket);
+			// goto homeline|s|loopback;
+	}
+	3 => {  // RYAN
+			TrySystem(/usr/bin/play /var/lib/asterisk/sounds/call-for.gsm);
+			TrySystem(/usr/bin/play /var/spool/asterisk/voicemail/default/5/greet.wav&);
+			&std-priv-exten(Zap/3r2&Zap/5r2,5,35,mtw,telemarket,telemarket);
+			goto homeline|s|loopback;
+	}
+	4 => {  // KYLE
+			TrySystem(/usr/bin/play /var/lib/asterisk/sounds/call-for.gsm);
+			TrySystem(/usr/bin/play /var/spool/asterisk/voicemail/default/6/greet.wav&);
+			&std-priv-exten(Zap/3r2&Zap/5r2,6,35,mtw,telemarket,telemarket);
+			goto homeline|s|loopback;
+	}
+	5 => {
+			TrySystem(/usr/bin/play /var/lib/asterisk/sounds/call-for.gsm);
+			TrySystem(/usr/bin/play /var/spool/asterisk/voicemail/default/7/greet.wav&);
+			&std-priv-exten(Zap/3r2&Zap/5r2,7,35,mtw,telemarket,telemarket);
+			goto homeline|s|loopback;
+			
+	}
+	6 => {
+			TrySystem(/usr/bin/play /var/lib/asterisk/sounds/call-for.gsm);
+			TrySystem(/usr/bin/play /var/spool/asterisk/voicemail/default/8/greet.wav&);
+			&std-priv-exten(Zap/3r2&Zap/5r2,8,35,mtw,telemarket,telemarket);
+			goto homeline|s|loopback;
+	}
+	7 => {
+			TrySystem(/usr/bin/play /var/lib/asterisk/sounds/call-for.gsm);
+			TrySystem(/usr/bin/play /var/spool/asterisk/voicemail/default/9/greet.wav&);
+			&std-priv-exten(Zap/3r2&Zap/5r2,9,35,mtw,telemarket,telemarket);
+			goto homeline|s|loopback;
+	}
+	t => {
+		goto s|begin;
+	}
+	i => {
+		Background(invalid);
+		goto s|begin;
+	}
+	o => {
+		goto s|begin;
+	}
+}
+
+context voipworkline {
+	s => {
+	begin:
+		Answer();
+		TrySystem(/usr/local/bin/who-is-it ${CALLERID(num)} "${CALLERID(name)}"&);
+		goto workline|s|loopback;
+	}
+	7075679201 => {
+		Answer();
+		TrySystem(/usr/local/bin/who-is-it ${CALLERID(num)} "${CALLERID(name)}"&);
+		goto workline|s|loopback;
+	}
+}
+
+context workline {
+	s => {
+	begin:
+		Answer();
+		Wait(1);
+		Set(repeatcount=0);
+		Zapateller(nocallerid);
+//              PrivacyManager();
+//              if( "${PRIVACYMGRSTATUS}" = "FAILED" )
+//              {
+//                     goto privacyManagerFailed|s|begin;
+//              }
+		&fillcidname();
+		TrySystem(/usr/local/bin/who-is-it ${CALLERID(num)} "${CALLERID(name)}"&);
+	loopback:
+		Background(greetings/greeting);  //script: Hello
+		Background(murphy-office-intro1); //script: welcome to Steve Murphy's office. If you are dialing
+                                              //  this number because it was on a calling list of any sort, dial 6.
+                                              // Otherwise, dial 1, and hopefully, you will reach Steve.
+	}
+	1 => {
+		TrySystem(/usr/bin/play /var/lib/asterisk/sounds/call-for.gsm);
+		TrySystem(/usr/bin/play /var/spool/asterisk/voicemail/default/1/greet.wav&);
+		
+		&std-priv-exten(Zap/6&Sip/murf,1,30,mtw,telemarket,telemarket);
+		goto s|loopback;		
+	}
+	4 => {
+		VoicemailMain(); 
+		goto s|loopback;
+	}
+	6 => {
+		goto telemarket|s|begin;
+	}
+	793 => { // check the tone recognition
+			Read(zz,,0,,1,0);
+			SayDigits(${zz});
+	}
+	t => {
+		repeatcount=${repeatcount} + 1;
+		if( ${repeatcount} < 3 )
+		{
+			goto s|loopback;  // just loopback isn't enough
+		}
+		Hangup();
+	}
+	i => {
+		Background(invalid); 
+		goto s|loopback;
+	}
+	o => {
+		Congestion();
+	}
+	fax => {
+		Answer();
+		Dial(Zap/4);
+	}
+}
+
+context dialFWD {
+	ignorepat => 8;
+	ignorepat => 9;
+	_83. => {
+		Set(CALLERID(name)=${FWDCIDNAME});
+		Dial(IAX2/${FWDNUMBER}:${FWDPASSWORD}@iax2.fwdnet.net/${EXTEN:2},60,r);
+		Congestion();
+	}
+	_82NXX => {
+		Set(CALLERID(name)=${FWDCIDNAME});
+		Dial(IAX2/${FWDNUMBER}:${FWDPASSWORD}@iax2.fwdnet.net/${EXTEN:2},60,r);
+		Congestion();
+	}
+	_92NXX => {
+		Set(CALLERID(name)=${FWDCIDNAME});
+		Dial(IAX2/${FWDNUMBER}:${FWDPASSWORD}@iax2.fwdnet.net/${EXTEN:2},60,r);
+		Congestion();
+	}
+}
+
+context dialiaxtel {
+	ignorepat => 8;
+	ignorepat => 9;
+	_81700NXXXXXX => {
+		Dial(IAX2/zorch:zilchnoodle@iaxtel.com/${EXTEN:1}@iaxtel);
+	}
+	_81800NXXXXXX => {
+		Dial(IAX2/zorch:zilchnoodle@iaxtel.com/${EXTEN:1}@iaxtel);
+	}
+	_91700NXXXXXX => {
+		Dial(IAX2/zorch:zilchnoodle@iaxtel.com/${EXTEN:1}@iaxtel);
+	}
+	_91800NXXXXXX => {
+		Dial(IAX2/zorch:zilchnoodle@iaxtel.com/${EXTEN:1}@iaxtel);
+	}
+
+}
+
+context dialgoiax {
+	ignorepat => 9;
+	_93. => {
+		Set(CALLERID(name)="Joe Worker");
+		Dial(IAX2/878201007658:stickyfinger295@server1.goiax.com/${EXTEN:2},60,r);
+		Congestion();
+	}
+
+}
+
+context homefirst {
+	ignorepat => 9;
+	_91NXXNXXXXXX => {
+		&ciddial(${EXTEN:1},${EXTEN:2},30,TW,Zap/1);
+	}
+	_9754XXXX => {
+		&ciddial(${EXTEN:1},707${EXTEN:1},30,TW,Zap/1);
+	}
+	_9574XXXX => {
+		&ciddial(${EXTEN:1},707${EXTEN:1},30,TW,Zap/1);
+	}
+	_9202XXXX => {
+		&ciddial(${EXTEN:1},707${EXTEN:1},30,TW,Zap/1);
+	}
+	_9219XXXX => {
+		&ciddial(${EXTEN:1},707${EXTEN:1},30,TW,Zap/1);
+	}
+	_9254XXXX => {
+		&ciddial(${EXTEN:1},707${EXTEN:1},30,TW,Zap/1);
+	}
+	_9716XXXX => {
+		&ciddial(${EXTEN:1},707${EXTEN:1},30,TW,Zap/1);
+	}
+	_9NXXXXXX => {
+		&ciddial(1707${EXTEN:1},707${EXTEN:1},30,TW,Zap/1);
+	}
+	_9011. => {
+		&ciddial(${EXTEN:1},${EXTEN:1},30,TW,Zap/1);
+	}
+	_9911 => {
+		Dial(Zap/1/911,30,T);
+	}
+	_9411 => {
+		Dial(Zap/1/411,30,T);
+	}
+}
+
+context workfirst {
+	ignorepat => 9;
+	_91NXXNXXXXXX => {
+		&ciddial2(${EXTEN:1},${EXTEN:2},30,TW,Zap/1);
+	}
+	_9754XXXX => {
+		&ciddial2(${EXTEN:1},707${EXTEN:1},30,TW,Zap/1);
+	}
+	_9574XXXX => {
+		&ciddial2(${EXTEN:1},707${EXTEN:1},30,TW,Zap/1);
+	}
+	_9202XXXX => {
+		&ciddial2(${EXTEN:1},707${EXTEN:1},30,TW,Zap/1);
+	}
+	_9219XXXX => {
+		&ciddial2(${EXTEN:1},707${EXTEN:1},30,TW,Zap/1);
+	}
+	_9254XXXX => {
+		&ciddial2(${EXTEN:1},707${EXTEN:1},30,TW,Zap/1);
+	}
+	_9716XXXX => {
+		&ciddial2(${EXTEN:1},707${EXTEN:1},30,TW,Zap/1);
+	}
+	_9NXXXXXX => {
+		&ciddial2(1707${EXTEN:1},707${EXTEN:1},30,TW,Zap/1);
+	}
+	_9911 => {
+		Dial(Zap/1/911,30,T);
+	}
+	_9411 => {
+		Dial(Zap/1/411,30,T);
+	}
+}
+
+context force_cell {
+	ignorepat => 8;
+	_81NXXNXXXXXX => {
+		&ciddial(${EXTEN:1}#,${EXTEN:2},30,TW,Zap/2);
+	}
+	_8754XXXX => {
+		&ciddial(${EXTEN:1}#,707${EXTEN:1},30,TW,Zap/2);
+	}
+	_8574XXXX => {
+		&ciddial(${EXTEN:1}#,707${EXTEN:1},30,TW,Zap/2);
+	}
+	_8202XXXX => {
+		&ciddial(${EXTEN:1}#,707${EXTEN:1},30,TW,Zap/2);
+	}
+	_8219XXXX => {
+		&ciddial(${EXTEN:1}#,707${EXTEN:1},30,TW,Zap/2);
+	}
+	_8254XXXX => {
+		&ciddial(${EXTEN:1}#,707${EXTEN:1},30,TW,Zap/2);
+	}
+	_8716XXXX => {
+		&ciddial(${EXTEN:1}#,707${EXTEN:1},30,TW,Zap/2);
+	}
+	_8NXXXXXX => {
+		&ciddial(${EXTEN:1}#,707${EXTEN:1},30,TW,Zap/2);
+	}
+	_8911 => {
+		Dial(Zap/1/911|30|T);
+	}
+	_8411 => {
+		Dial(Zap/1/411|30|T);
+	}
+}
+
+context force_home {
+	ignorepat => 8;
+	_81NXXNXXXXXX => {
+		&ciddial3(${EXTEN:1}#,${EXTEN:2},30,TW,Zap/1);
+	}
+	_8754XXXX => {
+		&ciddial3(${EXTEN:1}#,707${EXTEN:1},30,TW,Zap/1);
+	}
+	_8574XXXX => {
+		&ciddial3(${EXTEN:1}#,707${EXTEN:1},30,TW,Zap/1);
+	}
+	_8202XXXX => {
+		&ciddial3(${EXTEN:1}#,707${EXTEN:1},30,TW,Zap/1);
+	}
+	_8219XXXX => {
+		&ciddial3(${EXTEN:1}#,707${EXTEN:1},30,TW,Zap/1);
+	}
+	_8254XXXX => {
+		&ciddial3(${EXTEN:1}#,707${EXTEN:1},30,TW,Zap/1);
+	}
+	_8716XXXX => {
+		&ciddial3(${EXTEN:1}#,707${EXTEN:1},30,TW,Zap/1);
+	}
+	_8NXXXXXX => {
+		&ciddial3(1707${EXTEN:1}#,707${EXTEN:1},30,TW,Zap/1);
+	}
+	_8911 => {
+		Dial(Zap/1/911|30|T);
+	}
+	_8411 => {
+		Dial(Zap/1/411|30|T);
+	}
+}
+
+context homeext {
+	ignorepat => 8;
+	ignorepat => 9;
+	includes {
+		 parkedcalls;
+		 homefirst;
+		 force_cell;
+	}
+	s => {
+	loopback:
+		Wait(0);
+	}
+	1 => {
+		&std-priv-exten(Zap/3&Zap/5,2,35,mtw,telemarket,telemarket);
+		goto s|loopback;
+	}
+	2 => {
+		&std-priv-exten(Zap/6&Zap/5,1,35,mpA(beep3)Tt,telemarket,telemarket);
+		goto s|loopback;
+	}
+	4 => {
+		VoicemailMain();
+	}
+	5 => {
+		Record(recording:gsm);
+		Background(recording);
+	}
+	6 => {
+		Background(recording);
+	}
+	760 => {
+		DateTime();
+		goto s|loopback;
+	}
+	761 => {
+		Record(announcement:gsm);
+		TrySystem(/usr/bin/play /var/lib/asterisk/sounds/announcement.gsm&);
+		goto s|loopback;
+	}
+	762 => {
+		agi(tts-riddle.agi);
+		Background(gsm/what-time-it-is2);
+		SayUnixTime();
+		goto s|loopback;
+	}
+	763 => {
+		Set(CALLERID(num)=);
+		Dial(Zap/6r3,35,mptA(beep3));   //results: it should ALWAYS ask for an intro; the intro should not be left behind
+		Hangup();
+	}
+	764 => {
+		Set(CALLERID(num)=);
+		Dial(Zap/6r3,35,mptnA(beep3));   //results: Don't save the intro; shouldn't anyway if no callerid
+		Hangup();
+	}
+	765 => {
+		Set(CALLERID(num)=);
+		Dial(Zap/6r3,35,mptNA(beep3));   //results: Don't screen if there's CALLERID; it should screen the call.
+		Hangup();
+	}
+	766 => {
+		Dial(Zap/6r3,35,mptNA(beep3));   //results: Don't screen if there's CALLERID; it should screen the call.
+		Hangup();
+	}
+	767 => {
+		Dial(Zap/6r3,35,mptnA(beep3));   //results: Don't save the intro; the interesting case, because callerID should be present.
+		Hangup();
+	}
+	769 => {
+		Playtones(dial);
+		Wait(2);
+		Playtones(busy);
+		Wait(2);
+		Playtones(ring);
+		Wait(2);
+		Playtones(congestion);
+		Wait(2);
+		Playtones(callwaiting);
+		Wait(2);
+		Playtones(dialrecall);
+		Wait(2);
+		Playtones(record);
+		Wait(2);
+		Playtones(info);
+		Wait(5);
+		Hangup();	
+	}
+	790 => {
+		MeetMe(790,p);
+	}
+	792 => {
+		goto pageall|s|begin;
+	}
+	795 => {
+		AGI(wakeup.agi);Congestion();
+	}
+	544716 => {  // Incoming call from FWD
+			TrySystem(/usr/local/bin/who-is-it ${CALLERID(num)} "${CALLERID(name)}"&);
+			goto s|loopback;
+	}
+
+	i => {
+		Background(invalid);
+		goto s|loopback;
+	}
+	o => {
+		goto s|loopback;
+	}
+	t => {
+		Congestion();
+	}
+}
+
+context fromvmhome {
+	1 => {
+		Dial(Zap/6&Sip/murf|20|Tt);
+	}
+	2 => {
+		Dial(Zap/3&Zap/5|20|Tt);
+	}
+	_707202XXXX => {
+		&ciddial(1${EXTEN:3},${EXTEN},30,TW,Zap/1);
+	}
+	_707219XXXX => {
+		&ciddial(1${EXTEN:3},${EXTEN},30,TW,Zap/1);
+	}
+	_707254XXXX => {
+		&ciddial(1${EXTEN:3},${EXTEN},30,TW,Zap/1);
+	}
+	_707716XXXX => {
+		&ciddial(1${EXTEN:3},${EXTEN},30,TW,Zap/1);
+	}
+	_707754XXXX => {
+		&ciddial(${EXTEN:3},${EXTEN},30,TW,Zap/1);
+	}
+	_707574XXXX => {
+		&ciddial(${EXTEN:3},${EXTEN},30,TW,Zap/1);
+	}
+	_NXXNXXXXXX => {
+		&ciddial(1${EXTEN},${EXTEN},30,TW,Zap/1);
+	}
+	_1NXXNXXXXXX => {                                // HAND DIALING
+		&ciddial(${EXTEN},${EXTEN:1},30,TW,Zap/1);
+	}
+	_754XXXX => {
+		&ciddial(${EXTEN},707${EXTEN},30,TW,Zap/1);
+	}
+	_574XXXX => {
+		&ciddial(${EXTEN},707${EXTEN},30,TW,Zap/1);
+	}
+	_NXXXXXX => {
+		&ciddial(1707${EXTEN},707${EXTEN},30,TW,Zap/1);
+	}
+	_911 => {
+		&ciddial(911,911,30,TW,Zap/1);
+	}
+	_411 => {
+		&ciddial(411,411,30,TW,Zap/1);
+	}
+}
+
+context fromvmwork {
+	1 => {
+		Dial(Zap/6&Sip/murf|20|Tt);
+	}
+	2 => {
+		Dial(Zap/3&Zap/5|20|Tt);
+	}
+	_707202XXXX => {
+		&ciddial(1${EXTEN:3},${EXTEN},30,TW,Zap/1);
+	}
+	_707219XXXX => {
+		&ciddial(1${EXTEN:3},${EXTEN},30,TW,Zap/1);
+	}
+	_707254XXXX => {
+		&ciddial(1${EXTEN:3},${EXTEN},30,TW,Zap/1);
+	}
+	_707716XXXX => {
+		&ciddial(1${EXTEN:3},${EXTEN},30,TW,Zap/1);
+	}
+	_707754XXXX => {
+		&ciddial(${EXTEN:3},${EXTEN},30,TW,Zap/1);
+	}
+	_707574XXXX => {
+		&ciddial(${EXTEN:3},${EXTEN},30,TW,Zap/1);
+	}
+	_NXXNXXXXXX => {
+		&ciddial(1${EXTEN},${EXTEN},30,TW,Zap/1);
+	}
+	_1NXXNXXXXXX => {                                // HAND DIALING
+		&ciddial(${EXTEN},${EXTEN:1},30,TW,Zap/1);
+	}
+	_754XXXX => {
+		&ciddial(${EXTEN},707${EXTEN},30,TW,Zap/1);
+	}
+	_574XXXX => {
+		&ciddial(${EXTEN},707${EXTEN},30,TW,Zap/1);
+	}
+	_NXXXXXX => {
+		&ciddial(1707${EXTEN},707${EXTEN},30,TW,Zap/1);
+	}
+	911 => {
+		&ciddial(911,911,30,TW,Zap/1);
+	}
+	411 => {
+		&ciddial(411,411,30,TW,Zap/1);
+	}
+}
+
+context fromSeanUniden {
+	includes
+	{
+		parkedcalls;
+	}
+	21 => {
+		Dial(IAX2/seaniax,20,T);
+		}
+	_707202XXXX => {
+		&ciddial(${EXTEN:3},${EXTEN},30,TW,Zap/1);
+	}
+	_707219XXXX => {
+		&ciddial(${EXTEN:3},${EXTEN},30,TW,Zap/1);
+	}
+	_707254XXXX => {
+		&ciddial(${EXTEN:3},${EXTEN},30,TW,Zap/1);
+	}
+	_707716XXXX => {
+		&ciddial(${EXTEN:3},${EXTEN},30,TW,Zap/1);
+	}
+	_707754XXXX => {
+		&ciddial(${EXTEN:3},${EXTEN},30,TW,Zap/1);
+	}
+	_707574XXXX => {
+		&ciddial(${EXTEN:3},${EXTEN},30,TW,Zap/1);
+	}
+	_NXXNXXXXXX => {
+		&ciddial(1${EXTEN},${EXTEN},30,TW,Zap/1);
+	}
+	_1NXXNXXXXXX => {
+		&ciddial(${EXTEN},${EXTEN:1},30,TW,Zap/1);
+	}
+	_754XXXX => {
+		&ciddial(${EXTEN},707${EXTEN},30,TW,Zap/1);
+	}
+	_574XXXX => {
+		&ciddial(${EXTEN},707${EXTEN},30,TW,Zap/1);
+	}
+	_NXXXXXX => {
+		&ciddial(1707${EXTEN},707${EXTEN},30,TW,Zap/1);
+	}
+	911 => {
+		&ciddial(911,911,30,TW,Zap/1);
+	}
+	411 => {
+		&ciddial(411,411,30,TW,Zap/1);
+	}
+}
+
+context workext {
+	ignorepat => 8;
+	ignorepat => 9;
+	includes {
+		 parkedcalls;
+		 workfirst;
+		 force_home;
+		 dialFWD;
+		 dialiaxtel;
+		 dialgoiax;
+	}
+	s => {
+	loopback:
+		Wait(0);
+	}
+	1 => {
+		Dial(Zap/3&Zap/5,20,tT);
+	}
+	2 => {
+		Dial(Zap/5&Zap/6,20,tT);
+	}
+	21 => {
+		Dial(IAX2/seaniax,20,T);
+		}
+	22 => {
+		Set(CALLERID(num)=1234567890);
+		Set(CALLERID(name)=TestCaller);
+		Dial(Zap/5,20,mP()A(beep)tw);
+		NoOp(here is dialstatus: ${DIALSTATUS}...);
+		goto s|loopback;
+	}
+	4 => {
+		VoicemailMain();
+		goto s|loopback;
+	}
+	5 => {
+		Record(recording:gsm);
+		Background(recording);
+	}
+	6 => {
+		ZapBarge();
+	}
+	760 => {
+		DateTime();
+		goto s|loopback;
+	}
+	761 => {
+		ZapBarge();
+		goto s|loopback;
+	}
+	765 => {
+		Playback(demo-echotest);
+		Echo();
+		Playback(demo-echodone);
+		goto s|loopback;
+	}
+	766 => {
+		Festival(The other thing to watch is neuro-electronics: the ability to interface technology with our neural system: My wife: Sigrid: has had a cochlear implant since 1996. This once profoundly deaf person now uses the phone: recognizes accents: and listens to movies and recorded books.);
+		goto s|loopback;
+	}
+	767 => {
+		agi(tts-riddle.agi);
+		Background(gsm/what-time-it-is2);
+		SayUnixTime();
+		goto s|loopback;
+	}
+	768 => {
+		agi(tts-computer.agi);
+	}
+	771 => {
+		eagi(eagi-test);
+		agi(my-agi-test);
+	}
+	772 => {
+		agi(wakeup.agi);
+	}
+	775 => {
+		if( ${EXTEN}=${EXTEN} )
+		{
+			BackGround(digits/1);
+		}
+		else
+		{
+			BackGround(digits/0);
+		}
+		if( ${EXTEN}=${LANGUAGE} )
+		{
+			BackGround(digits/1);
+		}
+		else
+		{
+			BackGround(digits/0);
+		}
+		BackGround(digits/2);
+	}
+	776 => {
+		Set(TEST=00359889811777);
+		if( ${TEST}= 00359889811777 )
+		{
+			BackGround(digits/1);
+		}
+		else
+		{
+			BackGround(digits/0);
+		}
+		if( ${TEST}= 00359889811888 )
+		{
+			BackGround(digits/1);
+		}
+		else
+		{
+			BackGround(digits/0);
+		}
+		Hangup();
+	}
+        790 => {
+                MeetMe(790,p);
+        }
+	792 => {
+		goto pageall|s|begin;
+	}
+	793 => {
+		#include "include1.ael2"
+	}
+	795 => {
+		AGI(wakeup.agi);
+		Congestion();
+	}
+	797 => {
+		Set(CONFCIDNA=${CALLERID(name)});
+		Set(CONFCIDNU=${CALLERID(num)});
+		AGI(callall);
+		AGI(submit-announce.agi);
+		Hangup();
+	}
+}
+
+context wakeup {
+	3 => {
+		Dial(Zap/3|30);
+	}
+	4 => {
+		Dial(Zap/4|30);
+
+	}
+	5 => {
+		Dial(Zap/5|30);
+
+	}
+	6 => {
+		Dial(Zap/6|30);
+
+	}
+	99 => {
+		Dial(IAX2/murfiaxphone|30);
+	}
+	97 => {
+		Dial(IAX2/ryaniax|30);
+	}
+	94 => {
+		Dial(IAX2/seaniax|30);
+	}
+}
+
+context announce-all {
+	s => {
+	begin:
+		MeetMe(5555,dtqp);
+		MeetMeAdmin(5555,K);
+		Hangup();
+	}
+	h => {
+		MeetMeAdmin(5555,K);
+		Hangup();
+	}
+}
+
+// now include the telemarketer torture scripts!
+
+#include "telemarket_torture.ael2"
+
+

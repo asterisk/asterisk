@@ -1,0 +1,23 @@
+
+(If you find progress and other non-error messages irritating, you can use -q to suppress them)
+
+(You can use the -w option to dump extensions.conf format to extensions.conf.aeldump)
+LOG: lev:2 file:pbx_ael.c  line:115 func: pbx_load_module  Starting AEL load process.
+LOG: lev:4 file:ael.flex  line:437 func: ael_yylex  File=./extensions.ael, line=165, column=49: Mismatched '}' in expression!
+LOG: lev:4 file:ael.y  line:777 func: ael_yyerror  ==== File: ./extensions.ael, Line 165, Cols: 52-52: Error: syntax error, unexpected '=', expecting ')'
+LOG: lev:4 file:ael.flex  line:437 func: ael_yylex  File=./extensions.ael, line=174, column=49: Mismatched '}' in expression!
+LOG: lev:4 file:ael.y  line:777 func: ael_yyerror  ==== File: ./extensions.ael, Line 174, Cols: 52-52: Error: syntax error, unexpected '=', expecting ')'
+LOG: lev:4 file:ael.flex  line:437 func: ael_yylex  File=./extensions.ael, line=222, column=41: Mismatched '}' in expression!
+LOG: lev:4 file:ael.y  line:777 func: ael_yyerror  ==== File: ./extensions.ael, Line 222, Cols: 44-44: Error: syntax error, unexpected '=', expecting ')'
+LOG: lev:4 file:ael.y  line:777 func: ael_yyerror  ==== File: ./extensions.ael, Line 291, Cols: 22-33: Error: syntax error, unexpected word, expecting '(' or ';' or '=' or ':'
+LOG: lev:2 file:pbx_ael.c  line:128 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
+LOG: lev:3 file:pval.c  line:672 func: check_macro_returns  Warning: file ./extensions.ael, line 116-125: The macro dialout does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:672 func: check_macro_returns  Warning: file ./extensions.ael, line 129-182: The macro stdexten does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:672 func: check_macro_returns  Warning: file ./extensions.ael, line 184-191: The macro uvm does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:672 func: check_macro_returns  Warning: file ./extensions.ael, line 193-200: The macro bvm does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:672 func: check_macro_returns  Warning: file ./extensions.ael, line 202-207: The macro checkdnd does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:672 func: check_macro_returns  Warning: file ./extensions.ael, line 209-216: The macro checkcf does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:672 func: check_macro_returns  Warning: file ./extensions.ael, line 218-230: The macro checkcfb does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:672 func: check_macro_returns  Warning: file ./extensions.ael, line 688-694: The macro check-psd-exists does not end with a return; I will insert one.
+LOG: lev:4 file:pbx_ael.c  line:144 func: pbx_load_module  Sorry, but 4 syntax errors and 0 semantic errors were detected. It doesn't make sense to compile.
+LOG: lev:4 file:ael2_parse  line:520 func: main  0 contexts, 0 extensions, 0 priorities
