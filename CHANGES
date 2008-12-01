@@ -402,6 +402,12 @@ Dialplan functions
 
 CLI Changes
 -----------
+  * Added CLI permissions, config file: cli_permissions.conf
+     default is to allow all commands for every local user/group.
+     Also this new feature added three new CLI commands:
+      - cli check permissions {<username>|@<groupname>|<username>@<groupname>} [<command>]
+      - cli reload permissions
+      - cli show permissions
   * New CLI command "core show hint" (usage: core show hint <exten>)
   * New CLI command "core show settings"
   * Added 'core show channels count' CLI command.

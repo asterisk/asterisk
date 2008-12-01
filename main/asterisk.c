@@ -176,6 +176,8 @@ struct console {
 	int p[2];			/*!< Pipe */
 	pthread_t t;			/*!< Thread of handler */
 	int mute;			/*!< Is the console muted for logs */
+	int uid;			/*!< Remote user ID. */
+	int gid;			/*!< Remote group ID. */
 	int levels[NUMLOGLEVELS];	/*!< Which log levels are enabled for the console */
 };
 
@@ -988,6 +990,48 @@ static void network_verboser(const char *s)
 
 static pthread_t lthread;
 
+/*!
+ * \brief read() function supporting the reception of user credentials.
+ *
+ * \param fd Socket file descriptor.
+ * \param buffer Receive buffer.
+ * \param size 'buffer' size.
+ * \param con Console structure to set received credentials
+ * \retval -1 on error
+ * \retval the number of bytes received on success.
+ */
+static int read_credentials(int fd, char *buffer, size_t size, struct console *con)
+{
+#if defined(SO_PEERCRED)
+	struct ucred cred;
+	socklen_t len = sizeof(cred);
+#endif
+	int result, uid, gid;
+
+	result = read(fd, buffer, size);
+	if (result < 0) {
+		return result;
+	}
+
+#if defined(SO_PEERCRED)
+	if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &cred, &len)) {
+		return result;
+	}
+	uid = cred.uid;
+	gid = cred.gid;
+#elif defined(HAVE_GETPEEREID)
+	if (getpeereid(fd, &uid, &gid)) {
+		return result;
+	}
+#else
+	return result;
+#endif
+	con->uid = uid;
+	con->gid = gid;
+
+	return result;
+}
+
 static void *netconsole(void *vconsole)
 {
 	struct console *con = vconsole;
@@ -1015,19 +1059,19 @@ static void *netconsole(void *vconsole)
 			continue;
 		}
 		if (fds[0].revents) {
-			res = read(con->fd, tmp, sizeof(tmp));
+			res = read_credentials(con->fd, tmp, sizeof(tmp), con);
 			if (res < 1) {
 				break;
 			}
 			tmp[res] = 0;
 			if (strncmp(tmp, "cli quit after ", 15) == 0) {
-				ast_cli_command_multiple(con->fd, res - 15, tmp + 15);
+				ast_cli_command_multiple_full(con->uid, con->gid, con->fd, res - 15, tmp + 15);
 				break;
 			}
-			ast_cli_command_multiple(con->fd, res, tmp);
+			ast_cli_command_multiple_full(con->uid, con->gid, con->fd, res, tmp);
 		}
 		if (fds[1].revents) {
-			res = read(con->p[0], tmp, sizeof(tmp));
+			res = read_credentials(con->p[0], tmp, sizeof(tmp), con);
 			if (res < 1) {
 				ast_log(LOG_ERROR, "read returned %d\n", res);
 				break;
@@ -1072,8 +1116,19 @@ static void *listener(void *unused)
 			if (errno != EINTR)
 				ast_log(LOG_WARNING, "Accept returned %d: %s\n", s, strerror(errno));
 		} else {
-			for (x = 0; x < AST_MAX_CONNECTS; x++) {
-				if (consoles[x].fd < 0) {
+#if !defined(SO_PASSCRED)
+			{
+#else
+			int sckopt = 1;
+			/* turn on socket credentials passing. */
+			if (setsockopt(s, SOL_SOCKET, SO_PASSCRED, &sckopt, sizeof(sckopt)) < 0) {
+				ast_log(LOG_WARNING, "Unable to turn on socket credentials passing\n");
+			} else {
+#endif
+				for (x = 0; x < AST_MAX_CONNECTS; x++) {
+					if (consoles[x].fd >= 0) {
+						continue;
+					}
 					if (socketpair(AF_LOCAL, SOCK_STREAM, 0, consoles[x].p)) {
 						ast_log(LOG_ERROR, "Unable to create pipe: %s\n", strerror(errno));
 						consoles[x].fd = -1;
@@ -1085,6 +1140,10 @@ static void *listener(void *unused)
 					fcntl(consoles[x].p[1], F_SETFL, flags | O_NONBLOCK);
 					consoles[x].fd = s;
 					consoles[x].mute = 1; /* Default is muted, we will un-mute if necessary */
+					/* Default uid and gid to -2, so then in cli.c/cli_has_permissions() we will be able
+					   to know if the user didn't send the credentials. */
+					consoles[x].uid = -2;
+					consoles[x].gid = -2;
 					if (ast_pthread_create_detached_background(&consoles[x].t, NULL, netconsole, &consoles[x])) {
 						ast_log(LOG_ERROR, "Unable to spawn thread to handle connection: %s\n", strerror(errno));
 						close(consoles[x].p[0]);
@@ -1095,13 +1154,13 @@ static void *listener(void *unused)
 					}
 					break;
 				}
+				if (x >= AST_MAX_CONNECTS) {
+					fdprint(s, "No more connections allowed\n");
+					ast_log(LOG_WARNING, "No more connections allowed\n");
+					close(s);
+				} else if (consoles[x].fd > -1) 
+					ast_verb(3, "Remote UNIX connection\n");
 			}
-			if (x >= AST_MAX_CONNECTS) {
-				fdprint(s, "No more connections allowed\n");
-				ast_log(LOG_WARNING, "No more connections allowed\n");
-				close(s);
-			} else if (consoles[x].fd > -1) 
-				ast_verb(3, "Remote UNIX connection\n");
 		}
 	}
 	return NULL;
@@ -3349,6 +3408,9 @@ int main(int argc, char *argv[])
 		printf("%s", term_quit());
 		exit(1);
 	}
+
+	/* loads the cli_permissoins.conf file needed to implement cli restrictions. */
+	ast_cli_perms_init(0);
 
 	/* AMI is initialized after loading modules because of a potential
 	 * conflict between issuing a module reload from manager and

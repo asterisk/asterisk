@@ -33,6 +33,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <signal.h>
 #include <ctype.h>
 #include <regex.h>
+#include <pwd.h>
+#include <grp.h>
 
 #include "asterisk/cli.h"
 #include "asterisk/linkedlists.h"
@@ -44,6 +46,35 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "editline/readline/readline.h"
 #include "asterisk/threadstorage.h"
+
+/*!
+ * \brief List of restrictions per user.
+ */
+struct cli_perm {
+	unsigned int permit:1;				/*!< 1=Permit 0=Deny */
+	char *command;				/*!< Command name (to apply restrictions) */
+	AST_LIST_ENTRY(cli_perm) list;
+};
+
+AST_LIST_HEAD_NOLOCK(cli_perm_head, cli_perm);
+
+/*! \brief list of users to apply restrictions. */
+struct usergroup_cli_perm {
+	int uid;				/*!< User ID (-1 disabled) */
+	int gid;				/*!< Group ID (-1 disabled) */
+	struct cli_perm_head *perms;		/*!< List of permissions. */
+	AST_LIST_ENTRY(usergroup_cli_perm) list;/*!< List mechanics */
+};
+/*! \brief CLI permissions config file. */
+static const char perms_config[] = "cli_permissions.conf";
+/*! \brief Default permissions value 1=Permit 0=Deny */
+static int cli_default_perm = 1;
+
+/*! \brief mutex used to prevent a user from running the 'cli reload permissions' command while
+ * it is already running. */
+AST_MUTEX_DEFINE_STATIC(permsconfiglock);
+/*! \brief  List of users and permissions. */
+AST_RWLIST_HEAD_STATIC(cli_perms, usergroup_cli_perm);
 
 /*!
  * \brief map a debug or verbose value to a filename
@@ -115,6 +146,74 @@ unsigned int ast_verbose_get_by_file(const char *file)
 	AST_RWLIST_UNLOCK(&verbose_files);
 
 	return res;
+}
+
+/*! \internal
+ *  \brief Check if the user with 'uid' and 'gid' is allow to execute 'command',
+ *	   if command starts with '_' then not check permissions, just permit
+ *	   to run the 'command'.
+ *	   if uid == -1 or gid == -1 do not check permissions.
+ *	   if uid == -2 and gid == -2 is because rasterisk client didn't send
+ *	   the credentials, so the cli_default_perm will be applied.
+ *  \param uid User ID.
+ *  \param gid Group ID.
+ *  \param command Command name to check permissions.
+ *  \retval 1 if has permission
+ *  \retval 0 if it is not allowed.
+ */
+static int cli_has_permissions(int uid, int gid, const char *command)
+{
+	struct usergroup_cli_perm *user_perm;
+	struct cli_perm *perm;
+	/* set to the default permissions general option. */
+	int isallowg = cli_default_perm, isallowu = -1, ispattern;
+	regex_t regexbuf;
+
+	/* if uid == -1 or gid == -1 do not check permissions.
+	   if uid == -2 and gid == -2 is because rasterisk client didn't send
+	   the credentials, so the cli_default_perm will be applied. */
+	if ((uid == CLI_NO_PERMS && gid == CLI_NO_PERMS) || command[0] == '_') {
+		return 1;
+	}
+
+	if (gid < 0 && uid < 0) {
+		return cli_default_perm;
+	}
+
+	AST_RWLIST_RDLOCK(&cli_perms);
+	AST_LIST_TRAVERSE(&cli_perms, user_perm, list) {
+		if (user_perm->gid != gid && user_perm->uid != uid) {
+			continue;
+		}
+		AST_LIST_TRAVERSE(user_perm->perms, perm, list) {
+			if (strcasecmp(perm->command, "all") && strncasecmp(perm->command, command, strlen(perm->command))) {
+				/* if the perm->command is a pattern, check it against command. */
+				ispattern = !regcomp(&regexbuf, perm->command, REG_EXTENDED | REG_NOSUB | REG_ICASE);
+				if (ispattern && regexec(&regexbuf, command, 0, NULL, 0)) {
+					regfree(&regexbuf);
+					continue;
+				}
+				if (!ispattern) {
+					continue;
+				}
+				regfree(&regexbuf);
+			}
+			if (user_perm->uid == uid) {
+				/* this is a user definition. */
+				isallowu = perm->permit;
+			} else {
+				/* otherwise is a group definition. */
+				isallowg = perm->permit;
+			}
+		}
+	}
+	AST_RWLIST_UNLOCK(&cli_perms);
+	if (isallowu > -1) {
+		/* user definition override group definition. */
+		isallowg = isallowu;
+	}
+
+	return isallowg;
 }
 
 static AST_RWLIST_HEAD_STATIC(helpers, ast_cli_entry);
@@ -479,6 +578,15 @@ static void print_uptimestr(int fd, struct timeval timeval, const char *prefix, 
 	ast_cli(fd, "%s: %s\n", prefix, out->str);
 }
 
+static struct ast_cli_entry *cli_next(struct ast_cli_entry *e)
+{
+	if (e) {
+		return AST_LIST_NEXT(e, list);
+	} else {
+		return AST_LIST_FIRST(&helpers);
+	}
+}
+
 static char * handle_showuptime(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct timeval curtime = ast_tvnow();
@@ -750,6 +858,146 @@ static char *handle_softhangup(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		ast_channel_unlock(c);
 	} else
 		ast_cli(a->fd, "%s is not a known channel\n", a->argv[3]);
+	return CLI_SUCCESS;
+}
+
+/*! \brief handles CLI command 'cli show permissions' */
+static char *handle_cli_show_permissions(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct usergroup_cli_perm *cp;
+	struct cli_perm *perm;
+	struct passwd *pw = NULL;
+	struct group *gr = NULL;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "cli show permissions";
+		e->usage =
+			"Usage: cli show permissions\n"
+			"       Shows CLI configured permissions.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	AST_RWLIST_RDLOCK(&cli_perms);
+	AST_LIST_TRAVERSE(&cli_perms, cp, list) {
+		if (cp->uid >= 0) {
+			pw = getpwuid(cp->uid);
+			if (pw) {
+				ast_cli(a->fd, "user: %s [uid=%d]\n", pw->pw_name, cp->uid);
+			}
+		} else {
+			gr = getgrgid(cp->gid);
+			if (gr) {
+				ast_cli(a->fd, "group: %s [gid=%d]\n", gr->gr_name, cp->gid);
+			}
+		}
+		ast_cli(a->fd, "Permissions:\n");
+		if (cp->perms) {
+			AST_LIST_TRAVERSE(cp->perms, perm, list) {
+				ast_cli(a->fd, "\t%s -> %s\n", perm->permit ? "permit" : "deny", perm->command);
+			}
+		}
+		ast_cli(a->fd, "\n");
+	}
+	AST_RWLIST_UNLOCK(&cli_perms);
+
+	return CLI_SUCCESS;
+}
+
+/*! \brief handles CLI command 'cli reload permissions' */
+static char *handle_cli_reload_permissions(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "cli reload permissions";
+		e->usage =
+			"Usage: cli reload permissions\n"
+			"       Reload the 'cli_permissions.conf' file.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	ast_cli_perms_init(1);
+
+	return CLI_SUCCESS;
+}
+
+/*! \brief handles CLI command 'cli check permissions' */
+static char *handle_cli_check_permissions(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct passwd *pw = NULL;
+	struct group *gr;
+	int gid = -1, uid = -1;
+	char command[AST_MAX_ARGS] = "";
+	struct ast_cli_entry *ce = NULL;
+	int found = 0;
+	char *group, *tmp;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "cli check permissions";
+		e->usage =
+			"Usage: cli check permissions {<username>|@<groupname>|<username>@<groupname>} [<command>]\n"
+			"       Check permissions config for a user@group or list the allowed commands for the specified user.\n"
+			"       The username or the groupname may be omitted.\n";
+		return NULL;
+	case CLI_GENERATE:
+		if (a->pos >= 4) {
+			return ast_cli_generator(a->line + strlen("cli check permissions") + strlen(a->argv[3]) + 1, a->word, a->n);
+		}
+		return NULL;
+	}
+
+	if (a->argc < 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	tmp = ast_strdupa(a->argv[3]);
+	group = strchr(tmp, '@');
+	if (group) {
+		gr = getgrnam(&group[1]);
+		if (!gr) {
+			ast_cli(a->fd, "Unknown group '%s'\n", &group[1]);
+			return CLI_FAILURE;
+		}
+		group[0] = '\0';
+		gid = gr->gr_gid;
+	}
+
+	if (!group && ast_strlen_zero(tmp)) {
+		ast_cli(a->fd, "You didn't supply a username\n");
+	} else if (!ast_strlen_zero(tmp) && !(pw = getpwnam(tmp))) {
+		ast_cli(a->fd, "Unknown user '%s'\n", tmp);
+		return CLI_FAILURE;
+	} else if (pw) {
+		uid = pw->pw_uid;
+	}
+
+	if (a->argc == 4) {
+		while ((ce = cli_next(ce))) {
+			/* Hide commands that start with '_' */
+			if (ce->_full_cmd[0] == '_') {
+				continue;
+			}
+			if (cli_has_permissions(uid, gid, ce->_full_cmd)) {
+				ast_cli(a->fd, "%30.30s %s\n", ce->_full_cmd, S_OR(ce->summary, "<no description available>"));
+				found++;
+			}
+		}
+		if (!found) {
+			ast_cli(a->fd, "You are not allowed to run any command on Asterisk\n");
+		}
+	} else {
+		ast_join(command, sizeof(command), a->argv + 4);
+		ast_cli(a->fd, "%s '%s%s%s' is %s to run command: '%s'\n", uid >= 0 ? "User" : "Group", tmp,
+			group && uid >= 0 ? "@" : "",
+			group ? &group[1] : "",
+			cli_has_permissions(uid, gid, command) ? "allowed" : "not allowed", command);
+	}
+
 	return CLI_SUCCESS;
 }
 
@@ -1176,6 +1424,12 @@ static struct ast_cli_entry cli_cli[] = {
 	AST_CLI_DEFINE(handle_showuptime, "Show uptime information"),
 
 	AST_CLI_DEFINE(handle_softhangup, "Request a hangup on a given channel"),
+
+	AST_CLI_DEFINE(handle_cli_reload_permissions, "Reload CLI permissions config"),
+
+	AST_CLI_DEFINE(handle_cli_show_permissions, "Show CLI permissions"),
+
+	AST_CLI_DEFINE(handle_cli_check_permissions, "Try a permissions config for a user"),
 };
 
 /*!
@@ -1205,19 +1459,149 @@ static int set_full_cmd(struct ast_cli_entry *e)
 	return 0;
 }
 
+/*! \brief cleanup (free) cli_perms linkedlist. */
+static void destroy_user_perms (void)
+{
+	struct cli_perm *perm;
+	struct usergroup_cli_perm *user_perm;
+
+	AST_RWLIST_WRLOCK(&cli_perms);
+	while ((user_perm = AST_LIST_REMOVE_HEAD(&cli_perms, list))) {
+		while ((perm = AST_LIST_REMOVE_HEAD(user_perm->perms, list))) {
+			ast_free(perm->command);
+			ast_free(perm);
+		}
+		ast_free(user_perm);
+	}
+	AST_RWLIST_UNLOCK(&cli_perms);
+}
+
+int ast_cli_perms_init(int reload) {
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	struct ast_config *cfg;
+	char *cat = NULL;
+	struct ast_variable *v;
+	struct usergroup_cli_perm *user_group, *cp_entry;
+	struct cli_perm *perm = NULL;
+	struct passwd *pw;
+	struct group *gr;
+
+	if (ast_mutex_trylock(&permsconfiglock)) {
+		ast_log(LOG_NOTICE, "You must wait until last 'cli reload permissions' command finish\n");
+		return 1;
+	}
+
+	cfg = ast_config_load2(perms_config, "" /* core, can't reload */, config_flags);
+	if (!cfg) {
+		ast_log (LOG_WARNING, "No cli permissions file found (%s)\n", perms_config);
+		ast_mutex_unlock(&permsconfiglock);
+		return 1;
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
+		ast_mutex_unlock(&permsconfiglock);
+		return 0;
+	}
+
+	/* free current structures. */
+	destroy_user_perms();
+
+	while ((cat = ast_category_browse(cfg, cat))) {
+		if (!strcasecmp(cat, "general")) {
+			/* General options */
+			for (v = ast_variable_browse(cfg, cat); v; v = v->next) {
+				if (!strcasecmp(v->name, "default_perm")) {
+					cli_default_perm = (!strcasecmp(v->value, "permit")) ? 1: 0;
+				}
+			}
+			continue;
+		}
+
+		/* users or groups */
+		gr = NULL, pw = NULL;
+		if (cat[0] == '@') {
+			/* This is a group */
+			gr = getgrnam(&cat[1]);
+			if (!gr) {
+				ast_log (LOG_WARNING, "Unknown group '%s'\n", &cat[1]);
+				continue;
+			}
+		} else {
+			/* This is a user */
+			pw = getpwnam(cat);
+			if (!pw) {
+				ast_log (LOG_WARNING, "Unknown user '%s'\n", cat);
+				continue;
+			}
+		}
+		user_group = NULL;
+		/* Check for duplicates */
+		AST_RWLIST_WRLOCK(&cli_perms);
+		AST_LIST_TRAVERSE(&cli_perms, cp_entry, list) {
+			if ((pw && cp_entry->uid == pw->pw_uid) || (gr && cp_entry->gid == gr->gr_gid)) {
+				/* if it is duplicated, just added this new settings, to 
+				the current list. */
+				user_group = cp_entry;
+				break;
+			}
+		}
+		AST_RWLIST_UNLOCK(&cli_perms);
+
+		if (!user_group) {
+			/* alloc space for the new user config. */
+			user_group = ast_calloc(1, sizeof(*user_group));
+			if (!user_group) {
+				continue;
+			}
+			user_group->uid = (pw ? pw->pw_uid : -1);
+			user_group->gid = (gr ? gr->gr_gid : -1);
+			user_group->perms = ast_calloc(1, sizeof(*user_group->perms));
+			if (!user_group->perms) {
+				ast_free(user_group);
+				continue;
+			}
+		}
+		for (v = ast_variable_browse(cfg, cat); v; v = v->next) {
+			if (ast_strlen_zero(v->value)) {
+				/* we need to check this condition cause it could break security. */
+				ast_log(LOG_WARNING, "Empty permit/deny option in user '%s'\n", cat);
+				continue;
+			}
+			if (!strcasecmp(v->name, "permit")) {
+				perm = ast_calloc(1, sizeof(*perm));
+				if (perm) {
+					perm->permit = 1;
+					perm->command = ast_strdup(v->value);
+				}
+			} else if (!strcasecmp(v->name, "deny")) {
+				perm = ast_calloc(1, sizeof(*perm));
+				if (perm) {
+					perm->permit = 0;
+					perm->command = ast_strdup(v->value);
+				}
+			} else {
+				/* up to now, only 'permit' and 'deny' are possible values. */
+				ast_log(LOG_WARNING, "Unknown '%s' option\n", v->name);
+				continue;
+			}
+			if (perm) {
+				/* Added the permission to the user's list. */
+				AST_LIST_INSERT_TAIL(user_group->perms, perm, list);
+				perm = NULL;
+			}
+		}
+		AST_RWLIST_WRLOCK(&cli_perms);
+		AST_RWLIST_INSERT_TAIL(&cli_perms, user_group, list);
+		AST_RWLIST_UNLOCK(&cli_perms);
+	}
+
+	ast_config_destroy(cfg);
+	ast_mutex_unlock(&permsconfiglock);
+	return 0;
+}
+
 /*! \brief initialize the _full_cmd string in * each of the builtins. */
 void ast_builtins_init(void)
 {
 	ast_cli_register_multiple(cli_cli, sizeof(cli_cli) / sizeof(struct ast_cli_entry));
-}
-
-static struct ast_cli_entry *cli_next(struct ast_cli_entry *e)
-{
-	if (e) {
-		return AST_LIST_NEXT(e, list);
-	} else {
-		return AST_LIST_FIRST(&helpers);
-	}
 }
 
 /*!
@@ -1795,12 +2179,13 @@ char *ast_cli_generator(const char *text, const char *word, int state)
 	return __ast_cli_generator(text, word, state, 1);
 }
 
-int ast_cli_command(int fd, const char *s)
+int ast_cli_command_full(int uid, int gid, int fd, const char *s)
 {
 	char *args[AST_MAX_ARGS + 1];
 	struct ast_cli_entry *e;
 	int x;
 	char *duplicate = parse_args(s, &x, args + 1, AST_MAX_ARGS, NULL);
+	char tmp[AST_MAX_ARGS + 1];
 	char *retval = NULL;
 	struct ast_cli_args a = {
 		.fd = fd, .argc = x, .argv = args+1 };
@@ -1820,6 +2205,15 @@ int ast_cli_command(int fd, const char *s)
 		ast_cli(fd, "No such command '%s' (type 'core show help %s' for other possible commands)\n", s, find_best(args + 1));
 		goto done;
 	}
+
+	ast_join(tmp, sizeof(tmp), args + 1);
+	/* Check if the user has rights to run this command. */
+	if (!cli_has_permissions(uid, gid, tmp)) {
+		ast_cli(fd, "You don't have permissions to run '%s' command\n", tmp);
+		ast_free(duplicate);
+		return 0;
+	}
+
 	/*
 	 * Within the handler, argv[-1] contains a pointer to the ast_cli_entry.
 	 * Remember that the array returned by parse_args is NULL-terminated.
@@ -1840,7 +2234,7 @@ done:
 	return 0;
 }
 
-int ast_cli_command_multiple(int fd, size_t size, const char *s)
+int ast_cli_command_multiple_full(int uid, int gid, int fd, size_t size, const char *s)
 {
 	char cmd[512];
 	int x, y = 0, count = 0;
@@ -1849,7 +2243,7 @@ int ast_cli_command_multiple(int fd, size_t size, const char *s)
 		cmd[y] = s[x];
 		y++;
 		if (s[x] == '\0') {
-			ast_cli_command(fd, cmd);
+			ast_cli_command_full(uid, gid, fd, cmd);
 			y = 0;
 			count++;
 		}
