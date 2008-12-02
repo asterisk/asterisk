@@ -122,14 +122,18 @@ static char *descrip =
 "           Optionally, an extension, or extension and context may be specified. \n"
 "           Otherwise, the current extension is used. You cannot use any additional\n"
 "           action post answer options in conjunction with this option.\n"
-"    h    - Allow the called party to hang up by sending the '*' DTMF digit.\n"
-"    H    - Allow the calling party to hang up by hitting the '*' DTMF digit.\n"
+"    h    - Allow the called party to hang up by sending the '*' DTMF digit, or\n"
+"           whatever sequence was defined in the featuremap section for\n"
+"           'disconnect' in features.conf\n"
+"    H    - Allow the calling party to hang up by hitting the '*' DTMF digit, or\n"
+"           whatever sequence was defined in the featuremap section for\n"
+"           'disconnect' in features.conf\n"
 "    i    - Asterisk will ignore any forwarding requests it may receive on this\n"
 "           dial attempt.\n"
 "    k    - Allow the called party to enable parking of the call by sending\n"
-"           the DTMF sequence defined for call parking in features.conf.\n"
+"           the DTMF sequence defined for call parking in the featuremap section of features.conf.\n"
 "    K    - Allow the calling party to enable parking of the call by sending\n"
-"           the DTMF sequence defined for call parking in features.conf.\n"
+"           the DTMF sequence defined for call parking in the featuremap section of features.conf.\n"
 "    L(x[:y][:z]) - Limit the call to 'x' ms. Play a warning when 'y' ms are\n"
 "           left. Repeat the warning every 'z' ms. The following special\n"
 "           variables can be used with this option:\n"
@@ -188,9 +192,11 @@ static char *descrip =
 "    S(x) - Hang up the call after 'x' seconds *after* the called party has\n"
 "           answered the call.\n"
 "    t    - Allow the called party to transfer the calling party by sending the\n"
-"           DTMF sequence defined in features.conf.\n"
+"           DTMF sequence defined in the blindxfer setting in the featuremap section\n"
+"           of features.conf.\n"
 "    T    - Allow the calling party to transfer the called party by sending the\n"
-"           DTMF sequence defined in features.conf.\n"
+"           DTMF sequence defined in the blindxfer setting in the featuremap section\n"
+"           of features.conf.\n"
 "    U(x[^arg]) - Execute via Gosub the routine 'x' for the *called* channel before connecting\n"
 "           to the calling channel. Arguments can be specified to the Gosub\n"
 "           using '^' as a delimeter. The Gosub routine can set the variable\n"
@@ -207,13 +213,17 @@ static char *descrip =
 "           with this option. Also, pbx services are not run on the peer (called) channel,\n"
 "           so you will not be able to set timeouts via the TIMEOUT() function in this routine.\n"
 "    w    - Allow the called party to enable recording of the call by sending\n"
-"           the DTMF sequence defined for one-touch recording in features.conf.\n"
+"           the DTMF sequence defined in the automon setting in the featuremap section\n"
+"           of features.conf.\n"
 "    W    - Allow the calling party to enable recording of the call by sending\n"
-"           the DTMF sequence defined for one-touch recording in features.conf.\n"
+"           the DTMF sequence defined in the automon setting in the featuremap section\n"
+"           of features.conf.\n"
 "    x    - Allow the called party to enable recording of the call by sending\n"
-"           the DTMF sequence defined for one-touch automixmonitor in features.conf\n"
+"           the DTMF sequence defined in the automixmon setting in the featuremap section\n"
+"           of features.conf.\n"
 "    X    - Allow the calling party to enable recording of the call by sending\n"
-"           the DTMF sequence defined for one-touch automixmonitor in features.conf\n";
+"           the DTMF sequence defined in the automixmon setting in the featuremap section\n"
+"           of features.conf.\n";
 
 /* RetryDial App by Anthony Minessale II <anthmct@yahoo.com> Jan/2005 */
 static char *rapp = "RetryDial";
@@ -1284,6 +1294,13 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	struct ast_datastore *ds_callee_features = NULL;
 	struct ast_dial_features *caller_features;
 	int fulldial = 0, num_dialed = 0;
+
+	/* Reset all DIAL variables back to blank, to prevent confusion (in case we don't reset all of them). */
+	pbx_builtin_setvar_helper(chan, "DIALSTATUS", "");
+	pbx_builtin_setvar_helper(chan, "DIALEDPEERNUMBER", "");
+	pbx_builtin_setvar_helper(chan, "DIALEDPEERNAME", "");
+	pbx_builtin_setvar_helper(chan, "ANSWEREDTIME", "");
+	pbx_builtin_setvar_helper(chan, "DIALEDTIME", "");
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Dial requires an argument (technology/number)\n");
