@@ -52,6 +52,9 @@ Dialplan Functions
    and FIELDQTY dialplan functions, which also manage lists.
  * Added REALTIME_FIELD and REALTIME_HASH, which should aid users in better
    obtaining realtime data from the dialplan.
+ * Added LOCAL_PEEK, which I have no idea how to use, but Leif Madsen wanted it.
+   Russell says it's, like, a scope resolution function for LOCAL variables.
+   Totally.  Hopefully, that means more to you than it does to me.
 
 Applications
 ------------
