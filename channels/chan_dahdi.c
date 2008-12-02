@@ -180,6 +180,13 @@ static struct ast_jb_conf global_jbconf;
  */
 /* #define DAHDI_CHECK_HOOKSTATE */
 
+/*! \note
+ * Define if you want to check the hook state for an FXO (FXS signalled) interface
+ * before dialing on it.  Certain FXO interfaces always think they're out of
+ * service with this method however.
+ */
+/* #define DAHDI_CHECK_HOOKSTATE */
+
 /*! \brief Typically, how many rings before we should send Caller*ID */
 #define DEFAULT_CIDRINGS 1
 
@@ -9097,7 +9104,11 @@ static inline int available(struct dahdi_pvt *p, int channelmatch, ast_group_t g
 			} else if (par.rxisoffhook) {
 				ast_debug(1, "Channel %d off hook, can't use\n", p->channel);
 				/* Not available when the other end is off hook */
+#ifdef DAHDI_CHECK_HOOKSTATE
 				return 0;
+#else
+				return 1;
+#endif
 			}
 		}
 		return 1;
