@@ -5747,7 +5747,7 @@ static void *accept_thread(void *ignore)
 		sessions = s;
 		ast_mutex_unlock(&sessionlock);
 
-		if (ast_pthread_create_detached(&tcp_thread, NULL, skinny_session, s)) {
+		if (ast_pthread_create(&tcp_thread, NULL, skinny_session, s)) {
 			destroy_session(s);
 		}
 	}

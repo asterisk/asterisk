@@ -2479,7 +2479,7 @@ static int misdn_indication(struct ast_channel *ast, int cond, const void *data,
 			}
 
 			chan_misdn_log(3, p->bc->port, " --> * SEND: State Ring pid:%d\n", p->bc ? p->bc->pid : -1);
-			ast_setstate(ast, AST_STATE_RINGING);
+			ast_setstate(ast, AST_STATE_RING);
 			
 			if ( !p->bc->nt && (p->originator == ORG_MISDN) && !p->incoming_early_audio ) 
 				chan_misdn_log(2, p->bc->port, " --> incoming_early_audio off\n");

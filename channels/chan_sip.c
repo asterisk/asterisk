@@ -4280,8 +4280,11 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 
 	res = update_call_counter(p, INC_CALL_RINGING);
 
-	if (res == -1)
+	if (res == -1) {
 		return res;
+	} else {
+		ast->hangupcause = AST_CAUSE_USER_BUSY;
+	}
 
 	p->callingpres = ast->cid.cid_pres;
 	p->jointcapability = ast_translate_available_formats(p->capability, p->prefcodec);
@@ -15266,7 +15269,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		break;
 	case 200:	/* 200 OK */
 		if (!r) {
-			ast_log(LOG_WARNING, "Got 200 OK on REGISTER that isn't a register\n");
+			ast_log(LOG_WARNING, "Got 200 OK on REGISTER, but there isn't a registry entry for '%s' (we probably already got the OK)\n", S_OR(p->peername, p->username));
 			p->needdestroy = 1;
 			return 0;
 		}
@@ -15445,6 +15448,20 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 	   Fix assigned to Rizzo :-)
 	*/
 	/* check_via_response(p, req); */
+
+	/* RFC 3261 Section 15 specifies that if we receive a 408 or 481
+	 * in response to a BYE, then we should end the current dialog
+	 * and session. There is no mention in the spec of other 4XX responses,
+	 * but it is known that at least one phone manufacturer potentially
+	 * will send a 404 in response to a BYE, so we'll be liberal in what
+	 * we accept and end the dialog and session if we receive any 4XX 
+	 * response to a BYE.
+	 */
+	if (resp >= 400 && resp < 500 && sipmethod == SIP_BYE) {
+		p->needdestroy = 1;
+		return;
+	}
+
 	if (p->relatedpeer && p->method == SIP_OPTIONS) {
 		/* We don't really care what the response is, just that it replied back. 
 		   Well, as long as it's not a 100 response...  since we might
@@ -20704,6 +20721,14 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				peer->maxms = default_qualify ? default_qualify : DEFAULT_MAXMS;
 			} else if (sscanf(v->value, "%d", &peer->maxms) != 1) {
 				ast_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", peer->name, v->lineno);
+				peer->maxms = 0;
+			}
+			if (realtime && !ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS) && peer->maxms > 0) {
+				/* This would otherwise cause a network storm, where the
+				 * qualify response refreshes the peer from the database,
+				 * which in turn causes another qualify to be sent, ad
+				 * infinitum. */
+				ast_log(LOG_WARNING, "Qualify is incompatible with dynamic uncached realtime.  Please either turn rtcachefriends on or turn qualify off on peer '%s'\n", peer->name);
 				peer->maxms = 0;
 			}
 		} else if (!strcasecmp(v->name, "qualifyfreq")) {

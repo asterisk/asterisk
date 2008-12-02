@@ -211,6 +211,7 @@ int ao2_unlock(void *a);
 #define ao2_unlock(a) _ao2_unlock(a, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
 int _ao2_unlock(void *a, const char *file, const char *func, int line, const char *var);
 #endif
+int ao2_trylock(void *user_data);
 
 /*! 
  *

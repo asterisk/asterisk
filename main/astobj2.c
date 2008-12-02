@@ -170,6 +170,21 @@ int _ao2_unlock(void *user_data, const char *file, const char *func, int line, c
 #endif
 }
 
+int ao2_trylock(void *user_data)
+{
+	struct astobj2 *p = INTERNAL_OBJ(user_data);
+	int ret;
+	
+	if (p == NULL)
+		return -1;
+	ret =  ast_mutex_trylock(&p->priv_data.lock);
+#ifdef AO2_DEBUG
+	if (!ret)
+		ast_atomic_fetchadd_int(&ao2.total_locked, 1);
+#endif
+	return ret;
+}
+
 /*
  * The argument is a pointer to the user portion.
  */

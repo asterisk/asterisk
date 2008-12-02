@@ -2609,7 +2609,7 @@ static int restart_monitor(void)
 		pthread_kill(monitor_thread, SIGURG);
 	} else {
 		/* Start a new monitor */
-		if (ast_pthread_create_detached_background(&monitor_thread, NULL, do_monitor, NULL) < 0) {
+		if (ast_pthread_create_background(&monitor_thread, NULL, do_monitor, NULL) < 0) {
 			monitor_thread = AST_PTHREADT_NULL;
 			ast_mutex_unlock(&monlock);
 			ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
@@ -3301,9 +3301,9 @@ static int unload_module(void)
 	}
 	if (!ast_mutex_lock(&monlock)) {
 		if ((monitor_thread != AST_PTHREADT_STOP) && (monitor_thread != AST_PTHREADT_NULL)) {
-			/* this causes a seg, anyone know why? */
-			if (monitor_thread != pthread_self())
+			if (monitor_thread != pthread_self()) {
 				pthread_cancel(monitor_thread);
+			}
 			pthread_kill(monitor_thread, SIGURG);
 			pthread_join(monitor_thread, NULL);
 		}

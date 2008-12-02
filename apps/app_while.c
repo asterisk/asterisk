@@ -160,11 +160,16 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 		return -1;
 	}
 
+#if 0
 	/* dont want run away loops if the chan isn't even up
 	   this is up for debate since it slows things down a tad ......
+
+	   Debate is over... this prevents While/EndWhile from working
+	   within the "h" extension.  Not good.
 	*/
 	if (ast_waitfordigit(chan,1) < 0)
 		return -1;
+#endif
 
 	for (x=0;;x++) {
 		if (get_index(chan, prefix, x)) {
