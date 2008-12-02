@@ -449,7 +449,11 @@ static struct ast_channel *features_new(struct feature_pvt *p, int state, int id
 	for (x=1;x<4;x++) {
 		if (b2)
 			ast_free(b2);
-		asprintf(&b2, "%s/%s-%d", p->tech, p->dest, x);
+		if (asprintf(&b2, "%s/%s-%d", p->tech, p->dest, x) < 0) {
+			ast_log(LOG_WARNING, "Unable to create channel name: %s\n", strerror(errno));
+			b2 = NULL;
+			continue;
+		}
 		for (y=0;y<3;y++) {
 			if (y == idx)
 				continue;
