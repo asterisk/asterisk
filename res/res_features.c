@@ -756,7 +756,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 			/* We return non-zero, but tell the PBX not to hang the channel when
 			   the thread dies -- We have to be careful now though.  We are responsible for 
 			   hanging up the channel, else it will never be hung up! */
-			return (transferer == peer) ? AST_PBX_KEEPALIVE : AST_PBX_NO_HANGUP_PEER_PARKED;
+			return 0;
 		} else {
 			ast_log(LOG_WARNING, "Unable to park call %s\n", transferee->name);
 		}
