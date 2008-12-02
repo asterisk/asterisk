@@ -180,13 +180,6 @@ static struct ast_jb_conf global_jbconf;
  */
 /* #define DAHDI_CHECK_HOOKSTATE */
 
-/*! \note
- * Define if you want to check the hook state for an FXO (FXS signalled) interface
- * before dialing on it.  Certain FXO interfaces always think they're out of
- * service with this method however.
- */
-/* #define DAHDI_CHECK_HOOKSTATE */
-
 /*! \brief Typically, how many rings before we should send Caller*ID */
 #define DEFAULT_CIDRINGS 1
 
