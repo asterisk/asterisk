@@ -3230,7 +3230,8 @@ static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu
 	pbx_builtin_setvar_helper(ast, "VM_MSGNUM", passdata);
 	pbx_builtin_setvar_helper(ast, "VM_CONTEXT", context);
 	pbx_builtin_setvar_helper(ast, "VM_MAILBOX", mailbox);
-	pbx_builtin_setvar_helper(ast, "VM_CALLERID", ast_callerid_merge(callerid, sizeof(callerid), cidname, cidnum, "Unknown Caller"));
+	pbx_builtin_setvar_helper(ast, "VM_CALLERID", (!ast_strlen_zero(cidname) || !ast_strlen_zero(cidnum)) ?
+		ast_callerid_merge(callerid, sizeof(callerid), cidname, cidnum, NULL) : "an unknown caller");
 	pbx_builtin_setvar_helper(ast, "VM_CIDNAME", (!ast_strlen_zero(cidname) ? cidname : "an unknown caller"));
 	pbx_builtin_setvar_helper(ast, "VM_CIDNUM", (!ast_strlen_zero(cidnum) ? cidnum : "an unknown caller"));
 	pbx_builtin_setvar_helper(ast, "VM_DATE", date);
@@ -3277,6 +3278,90 @@ static const struct ast_tm *vmu_tm(const struct ast_vm_user *vmu, struct ast_tm 
 	return tm;
 }
 
+/*!\brief Check if the string would need encoding within the MIME standard, to
+ * avoid confusing certain mail software that expects messages to be 7-bit
+ * clean.
+ */
+static int check_mime(const char *str)
+{
+	for (; *str; str++) {
+		if (*str > 126 || *str < 32 || strchr("()<>@,:;/\"[]?.=", *str)) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+/*!\brief Encode a string according to the MIME rules for encoding strings
+ * that are not 7-bit clean or contain control characters.
+ *
+ * Additionally, if the encoded string would exceed the MIME limit of 76
+ * characters per line, then the encoding will be broken up into multiple
+ * sections, separated by a space character, in order to facilitate
+ * breaking up the associated header across multiple lines.
+ *
+ * \param start A string to be encoded
+ * \param end An expandable buffer for holding the result
+ * \param preamble The length of the first line already used for this string,
+ * to ensure that each line maintains a maximum length of 76 chars.
+ * \param postamble the length of any additional characters appended to the
+ * line, used to ensure proper field wrapping.
+ * \retval The encoded string.
+ */
+static char *encode_mime_str(const char *start, char *end, size_t endsize, size_t preamble, size_t postamble)
+{
+	char tmp[80];
+	int first_section = 1;
+	size_t endlen = 0, tmplen = 0;
+	*end = '\0';
+
+	tmplen = snprintf(tmp, sizeof(tmp), "=?%s?Q?", charset);
+	for (; *start; start++) {
+		int need_encoding = 0;
+		if (*start < 33 || *start > 126 || strchr("()<>@,:;/\"[]?.=_", *start)) {
+			need_encoding = 1;
+		}
+		if ((first_section && need_encoding && preamble + tmplen > 70) ||
+			(first_section && !need_encoding && preamble + tmplen > 72) ||
+			(!first_section && need_encoding && tmplen > 70) ||
+			(!first_section && !need_encoding && tmplen > 72)) {
+			/* Start new line */
+			endlen += snprintf(end + endlen, endsize - endlen, "%s%s?=", first_section ? "" : " ", tmp);
+			tmplen = snprintf(tmp, sizeof(tmp), "=?%s?Q?", charset);
+			first_section = 0;
+		}
+		if (need_encoding && *start == ' ') {
+			tmplen += snprintf(tmp + tmplen, sizeof(tmp) - tmplen, "_");
+		} else if (need_encoding) {
+			tmplen += snprintf(tmp + tmplen, sizeof(tmp) - tmplen, "=%hhX", *start);
+		} else {
+			tmplen += snprintf(tmp + tmplen, sizeof(tmp) - tmplen, "%c", *start);
+		}
+	}
+	snprintf(end + endlen, endsize - endlen, "%s%s?=%s", first_section ? "" : " ", tmp, endlen + postamble > 74 ? " " : "");
+	return end;
+}
+
+/*!
+ * \brief Creates the email file to be sent to indicate a new voicemail exists for a user.
+ * \param p The output file to generate the email contents into.
+ * \param srcemail The email address to send the email to, presumably the email address for the owner of the mailbox.
+ * \param vmu The voicemail user who is sending the voicemail.
+ * \param msgnum The message index in the mailbox folder.
+ * \param context 
+ * \param mailbox The voicemail box to read the voicemail to be notified in this email.
+ * \param cidnum The caller ID number.
+ * \param cidname The caller ID name.
+ * \param attach the name of the sound file to be attached to the email, if attach_user_voicemail == 1.
+ * \param format The message sound file format. i.e. .wav
+ * \param duration The time of the message content, in seconds.
+ * \param attach_user_voicemail if 1, the sound file is attached to the email.
+ * \param chan
+ * \param category
+ * \param imap if == 1, indicates the target folder for the email notification to be sent to will be an IMAP mailstore. This causes additional mailbox headers to be set, which would facilitate searching for the email in the destination IMAP folder.
+ *
+ * The email body, and base 64 encoded attachement (if any) are stored to the file identified by *p. This method does not actually send the email.  That is done by invoking the configure 'mailcmd' and piping this generated file into it, or with the sendemail() function.
+ */
 static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, char *attach, char *format, int duration, int attach_user_voicemail, struct ast_channel *chan, const char *category, int imap)
 {
 	char date[256];
@@ -3288,8 +3373,8 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	char tmpcmd[256];
 	struct ast_tm tm;
 	char enc_cidnum[256] = "", enc_cidname[256] = "";
-	char *passdata2;
-	size_t len_passdata;
+	char *passdata = NULL, *passdata2;
+	size_t len_passdata = 0, len_passdata2, tmplen;
 	char *greeting_attachment;
 
 #ifdef IMAP_STORAGE
@@ -3297,6 +3382,17 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 #else
 #define ENDL "\n"
 #endif
+
+	/* One alloca for multiple fields */
+	len_passdata2 = strlen(vmu->fullname);
+	if (emailsubject && (tmplen = strlen(emailsubject)) > len_passdata2) {
+		len_passdata2 = tmplen;
+	}
+	if ((tmplen = strlen(fromstring)) > len_passdata2) {
+		len_passdata2 = tmplen;
+	}
+	len_passdata2 = len_passdata2 * 3 + 200;
+	passdata2 = alloca(len_passdata2);
 
 	if (!ast_strlen_zero(cidnum)) {
 		strip_control(cidnum, enc_cidnum, sizeof(enc_cidnum));
@@ -3325,15 +3421,25 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	if (!ast_strlen_zero(fromstring)) {
 		struct ast_channel *ast;
 		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, 0))) {
-			char *passdata;
-			int vmlen = strlen(fromstring) * 3 + 200;
-			passdata = alloca(vmlen);
-			memset(passdata, 0, vmlen);
-			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, enc_cidnum, enc_cidname, dur, date, passdata, vmlen, category);
-			pbx_substitute_variables_helper(ast, fromstring, passdata, vmlen);
-			len_passdata = strlen(passdata) * 2 + 3;
-			passdata2 = alloca(len_passdata);
-			fprintf(p, "From: %s <%s>" ENDL, quote(passdata, passdata2, len_passdata), who);
+			char *ptr;
+			memset(passdata2, 0, len_passdata2);
+			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, enc_cidnum, enc_cidname, dur, date, passdata2, len_passdata2, category);
+			pbx_substitute_variables_helper(ast, fromstring, passdata2, len_passdata2);
+			len_passdata = strlen(passdata2) * 3 + 300;
+			passdata = alloca(len_passdata);
+			if (check_mime(passdata2)) {
+				int first_line = 1;
+				encode_mime_str(passdata2, passdata, len_passdata, strlen("From: "), strlen(who) + 3);
+				while ((ptr = strchr(passdata, ' '))) {
+					*ptr = '\0';
+					fprintf(p, "%s %s" ENDL, first_line ? "From:" : "", passdata);
+					first_line = 0;
+					passdata = ptr + 1;
+				}
+				fprintf(p, "%s %s <%s>" ENDL, first_line ? "From:" : "", passdata, who);
+			} else {
+				fprintf(p, "From: %s <%s>" ENDL, quote(passdata, passdata2, len_passdata2), who);
+			}
 			ast_channel_free(ast);
 		} else {
 			ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
@@ -3341,19 +3447,48 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	} else {
 		fprintf(p, "From: Asterisk PBX <%s>" ENDL, who);
 	}
-	len_passdata = strlen(vmu->fullname) * 2 + 3;
-	passdata2 = alloca(len_passdata);
-	fprintf(p, "To: %s <%s>" ENDL, quote(vmu->fullname, passdata2, len_passdata), vmu->email);
+
+	if (check_mime(vmu->fullname)) {
+		int first_line = 1;
+		char *ptr;
+		encode_mime_str(vmu->fullname, passdata2, len_passdata2, strlen("To: "), strlen(vmu->email) + 3);
+		while ((ptr = strchr(passdata2, ' '))) {
+			*ptr = '\0';
+			fprintf(p, "%s %s" ENDL, first_line ? "To:" : "", passdata2);
+			first_line = 0;
+			passdata2 = ptr + 1;
+		}
+		fprintf(p, "%s %s <%s>" ENDL, first_line ? "To:" : "", passdata2, vmu->email);
+	} else {
+		fprintf(p, "To: %s <%s>" ENDL, quote(vmu->fullname, passdata2, len_passdata2), vmu->email);
+	}
 	if (!ast_strlen_zero(emailsubject)) {
 		struct ast_channel *ast;
 		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, 0))) {
-			char *passdata;
 			int vmlen = strlen(emailsubject) * 3 + 200;
-			passdata = alloca(vmlen);
-			memset(passdata, 0, vmlen);
-			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, enc_cidnum, enc_cidname, dur, date, passdata, vmlen, category);
-			pbx_substitute_variables_helper(ast, emailsubject, passdata, vmlen);
-			fprintf(p, "Subject: %s" ENDL, passdata);
+			/* Only allocate more space if the previous was not large enough */
+			if (vmlen > len_passdata) {
+				passdata = alloca(vmlen);
+				len_passdata = vmlen;
+			}
+
+			memset(passdata, 0, len_passdata);
+			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, len_passdata, category);
+			pbx_substitute_variables_helper(ast, emailsubject, passdata, len_passdata);
+			if (check_mime(passdata)) {
+				int first_line = 1;
+				char *ptr;
+				encode_mime_str(passdata, passdata2, len_passdata2, strlen("Subject: "), 0);
+				while ((ptr = strchr(passdata2, ' '))) {
+					*ptr = '\0';
+					fprintf(p, "%s %s" ENDL, first_line ? "Subject:" : "", passdata2);
+					first_line = 0;
+					passdata2 = ptr + 1;
+				}
+				fprintf(p, "%s %s" ENDL, first_line ? "Subject:" : "", passdata2);
+			} else {
+				fprintf(p, "Subject: %s" ENDL, passdata);
+			}
 			ast_channel_free(ast);
 		} else {
 			ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
@@ -6894,8 +7029,11 @@ static int vm_intro(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm
 	/* Notify the user that the temp greeting is set and give them the option to remove it */
 	snprintf(prefile, sizeof(prefile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, vms->username);
 	if (ast_test_flag(vmu, VM_TEMPGREETWARN)) {
-		if (ast_fileexists(prefile, NULL, NULL) > 0)
+		RETRIEVE(prefile, -1, vmu->mailbox, vmu->context);
+		if (ast_fileexists(prefile, NULL, NULL) > 0) {
 			ast_play_and_wait(chan, "vm-tempgreetactive");
+		}
+		DISPOSE(prefile, -1);
 	}
 
 	/* Play voicemail intro - syntax is different for different languages */
@@ -7186,9 +7324,11 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 		default: 
 			cmd = 0;
 			snprintf(prefile, sizeof(prefile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, vms->username);
+			RETRIEVE(prefile, -1, vmu->mailbox, vmu->context);
 			if (ast_fileexists(prefile, NULL, NULL)) {
 				cmd = ast_play_and_wait(chan, "vm-tmpexists");
 			}
+			DISPOSE(prefile, -1);
 			if (!cmd) {
 				cmd = ast_play_and_wait(chan, "vm-options");
 			}

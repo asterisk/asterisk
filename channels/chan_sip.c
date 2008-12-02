@@ -189,6 +189,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define XMIT_ERROR		-2
 
+#define SIP_RESERVED ";/?:@&=+$,# "
+
 /* #define VOCAL_DATA_HACK */
 
 #define DEFAULT_DEFAULT_EXPIRY  120
@@ -3499,8 +3501,10 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 			context = global_regcontext;
 		}
 		if (onoff) {
-			ast_add_extension(context, 1, ext, 1, NULL, NULL, "Noop",
-				 ast_strdup(peer->name), ast_free_ptr, "SIP");
+			if (!ast_exists_extension(NULL, context, ext, 1, NULL)) {
+				ast_add_extension(context, 1, ext, 1, NULL, NULL, "Noop",
+					 ast_strdup(peer->name), ast_free, "SIP");
+			}
 		} else if (pbx_find_extension(NULL, NULL, &q, context, ext, 1, NULL, "", E_MATCH)) {
 			ast_context_remove_extension(context, ext, 1, NULL);
 		}
@@ -6136,8 +6140,10 @@ static int sip_register(const char *value, int lineno)
 	enum sip_transport transport = SIP_TRANSPORT_UDP;
 	char buf[256] = "";
 	char *username = NULL;
+	char *port = NULL;
 	char *hostname=NULL, *secret=NULL, *authuser=NULL;
 	char *callback=NULL;
+	char *reserved = NULL;
 
 	if (!value)
 		return -1;
@@ -6162,12 +6168,34 @@ static int sip_register(const char *value, int lineno)
 		if (authuser)
 			*authuser++ = '\0';
 	}
+	if ((reserved = strpbrk(username, SIP_RESERVED))) {
+		goto invalid_char;
+	}
+	if (!ast_strlen_zero(secret) && (reserved = strpbrk(secret, SIP_RESERVED))) {
+		goto invalid_char;
+	}
+	if (!ast_strlen_zero(authuser) && (reserved = strpbrk(authuser, SIP_RESERVED))) {
+		goto invalid_char;
+	}
 	/* split host[:port][/contact] */
 	callback = strchr(hostname, '/');
 	if (callback)
 		*callback++ = '\0';
 	if (ast_strlen_zero(callback))
 		callback = "s";
+	/* Separate host from port when checking for reserved characters
+	 */
+	if ((port = strchr(hostname, ':'))) {
+		*port = '\0';
+	}
+	if ((reserved = strpbrk(hostname, SIP_RESERVED))) {
+		goto invalid_char;
+	}
+	/* And then re-merge the host and port so they are stored correctly
+	 */
+	if (port) {
+		*port = ':';
+	}
 	if (!(reg = ast_calloc(1, sizeof(*reg)))) {
 		ast_log(LOG_ERROR, "Out of memory. Can't allocate SIP registry entry\n");
 		return -1;
@@ -6201,6 +6229,10 @@ static int sip_register(const char *value, int lineno)
 	ASTOBJ_CONTAINER_LINK(&regl, reg);	/* Add the new registry entry to the list */
 	registry_unref(reg);	/* release the reference given by ASTOBJ_INIT. The container has another reference */
 	return 0;
+
+invalid_char:
+	ast_log(LOG_WARNING, "A reserved character ('%c') was used in a \"register\" line. This registration will not occur\n", *reserved);
+	return -1;
 }
 
 /*! \brief  Parse multiline SIP headers into one header
@@ -10063,11 +10095,11 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Registered\r\n", peer->name);
 
 	/* Is this a new IP address for us? */
-	if (inaddrcmp(&peer->addr, &oldsin)) {
-		sip_poke_peer(peer);
-		ast_verb(3, "Registered SIP '%s' at %s port %d expires %d\n", peer->name, ast_inet_ntoa(peer->addr.sin_addr), ntohs(peer->addr.sin_port), expiry);
-		register_peer_exten(peer, TRUE);
+	if (VERBOSITY_ATLEAST(2) && inaddrcmp(&peer->addr, &oldsin)) {
+		ast_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %d\n", peer->name, ast_inet_ntoa(peer->addr.sin_addr), ntohs(peer->addr.sin_port));
 	}
+	sip_poke_peer(peer);
+	register_peer_exten(peer, 1);
 	
 	/* Save User agent */
 	useragent = get_header(req, "User-Agent");

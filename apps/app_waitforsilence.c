@@ -69,7 +69,7 @@ static char *descrip =
 "TIMEOUT - if exited without silence detected after timeout\n";
 
 static int do_waiting(struct ast_channel *chan, int silencereqd, time_t waitstart, int timeout) {
-	struct ast_frame *f;
+	struct ast_frame *f = NULL;
 	int dspsilence = 0;
 	static int silencethreshold = 128;
 	int rfmt = 0;
@@ -78,48 +78,47 @@ static int do_waiting(struct ast_channel *chan, int silencereqd, time_t waitstar
  	time_t now;
 
 	rfmt = chan->readformat; /* Set to linear mode */
-	res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
-	if (res < 0) {
+	if ((res = ast_set_read_format(chan, AST_FORMAT_SLINEAR)) < 0) {
 		ast_log(LOG_WARNING, "Unable to set channel to linear mode, giving up\n");
 		return -1;
 	}
 
-	sildet = ast_dsp_new(); /* Create the silence detector */
-	if (!sildet) {
+	/* Create the silence detector */
+	if (!(sildet = ast_dsp_new())) {
 		ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
 		return -1;
 	}
 	ast_dsp_set_threshold(sildet, silencethreshold);
 
 	/* Await silence... */
-	f = NULL;
-	for(;;) {
+	for (;;) {
 		/* Start with no silence received */
 		dspsilence = 0;
 
 		res = ast_waitfor(chan, silencereqd);
 
 		/* Must have gotten a hangup; let's exit */
-		if (res <= 0) {
-			f = NULL;
+		if (res < 0) {
+			pbx_builtin_setvar_helper(chan, "WAITSTATUS", "HANGUP");
 			break;
 		}
 		
 		/* We waited and got no frame; sounds like digital silence or a muted digital channel */
-		if (!res) {
+		if (res == 0) {
 			dspsilence = silencereqd;
 		} else {
 			/* Looks like we did get a frame, so let's check it out */
-			f = ast_read(chan);
-			if (!f)
+			if (!(f = ast_read(chan))) {
+				pbx_builtin_setvar_helper(chan, "WAITSTATUS", "HANGUP");
 				break;
-			if (f && f->frametype == AST_FRAME_VOICE) {
-				ast_dsp_silence(sildet, f, &dspsilence);
-				ast_frfree(f);
 			}
+			if (f->frametype == AST_FRAME_VOICE) {
+				ast_dsp_silence(sildet, f, &dspsilence);
+			}
+			ast_frfree(f);
 		}
 
-		ast_verb(3, "Got %dms silence< %dms required\n", dspsilence, silencereqd);
+		ast_verb(6, "Got %dms silence< %dms required\n", dspsilence, silencereqd);
 
 		if (dspsilence >= silencereqd) {
 			ast_verb(3, "Exiting with %dms silence >= %dms required\n", dspsilence, silencereqd);
