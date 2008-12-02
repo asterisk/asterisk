@@ -752,7 +752,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		res = finishup(transferee);
 		if (res)
 			res = -1;
-		else if (!ast_park_call(transferee, transferer, 0, NULL)) {	/* success */
+		else if (!masq_park_call_announce(transferee, transferer, 0, NULL)) {	/* success */
 			/* We return non-zero, but tell the PBX not to hang the channel when
 			   the thread dies -- We have to be careful now though.  We are responsible for 
 			   hanging up the channel, else it will never be hung up! */
