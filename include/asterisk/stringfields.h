@@ -242,8 +242,10 @@ void __ast_string_field_index_build_va(struct ast_string_field_mgr *mgr,
       if ((__zz__[0] != 0) && (__dlen__ <= (strlen(__zz__) + 1))) { \
         memcpy(__zz__, data, __dlen__); \
       } else { \
-        if (((x)->__begin_field[index] = __ast_string_field_alloc_space(&(x)->__field_mgr, __dlen__, &(x)->__begin_field[0], ast_string_field_count(x)))) \
-          memcpy((char*) (x)->__begin_field[index], data, __dlen__); \
+        if (((x)->__begin_field[index] = __ast_string_field_alloc_space(&(x)->__field_mgr, __dlen__, &(x)->__begin_field[0], ast_string_field_count(x)))) { \
+          char *__yy__ = (char *) (x)->__begin_field[index]; \
+          memcpy(__yy__, data, __dlen__); \
+        } \
       } \
      } \
    } while (0)
