@@ -1769,7 +1769,8 @@ static int __ast_cli_unregister(struct ast_cli_entry *e, struct ast_cli_entry *e
 		e->_full_cmd = NULL;
 		if (e->handler) {
 			/* this is a new-style entry. Reset fields and free memory. */
-			memset((char **)(e->cmda), '\0', sizeof(e->cmda));
+			char *cmda = (char *) e->cmda;
+			memset(cmda, '\0', sizeof(e->cmda));
 			ast_free(e->command);
 			e->command = NULL;
 			e->usage = NULL;
