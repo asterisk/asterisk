@@ -957,7 +957,12 @@ static int do_timelimit(struct ast_channel *chan, struct ast_bridge_config *conf
 	*calldurationlimit = 0;
 	/* more efficient to do it like S(x) does since no advanced opts */
 	if (!config->play_warning && !config->start_sound && !config->end_sound && config->timelimit) {
-		*calldurationlimit = config->timelimit / 1000;
+		if (config->timelimit > 1000) {
+			*calldurationlimit = config->timelimit / 1000;
+		} else if (config->timelimit > 0) {
+			/* Not enough granularity to make it less, but we can't use the special value 0 */
+			*calldurationlimit = 1;
+		}
 		ast_verb(3, "Setting call duration limit to %d seconds.\n",
 			*calldurationlimit);
 		config->timelimit = play_to_caller = play_to_callee =
