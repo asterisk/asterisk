@@ -51,7 +51,6 @@ struct iax_template {
 	int dead;
 	char name[80];
 	char src[80];
-	struct iax_template *next;
 	char user[20];
 	char pass[20];
 	char lang[10];
@@ -61,8 +60,13 @@ struct iax_template {
 	unsigned int altserver;
 	unsigned int flags;
 	unsigned int format;
-	unsigned int tos;	
-} *templates;
+	unsigned int tos;
+	AST_LIST_ENTRY(iax_template) list;
+};
+
+static AST_LIST_HEAD_NOLOCK_STATIC(templates, iax_template);
+
+AST_MUTEX_DEFINE_STATIC(provlock);
 
 static struct iax_flag {
 	char *name;
@@ -132,20 +136,40 @@ static unsigned int iax_str2flags(const char *buf)
 	}
 	return flags;
 }
-AST_MUTEX_DEFINE_STATIC(provlock);
+
+static void iax_template_copy(struct iax_template *dst, struct iax_template *src)
+{
+	if (!dst || !src) {
+		return;
+	}
+
+	dst->dead = src->dead;
+	ast_copy_string(dst->name, src->name, sizeof(dst->name));
+	ast_copy_string(dst->src, src->src, sizeof(dst->src));
+	ast_copy_string(dst->user, src->user, sizeof(dst->user));
+	ast_copy_string(dst->pass, src->pass, sizeof(dst->pass));
+	ast_copy_string(dst->lang, src->lang, sizeof(dst->lang));
+	dst->port = src->port;
+	dst->server = src->server;
+	dst->altserver = src->altserver;
+	dst->flags = src->flags;
+	dst->format = src->format;
+	dst->tos = src->tos;
+}
 
 static struct iax_template *iax_template_find(const char *s, int allowdead)
 {
 	struct iax_template *cur;
-	cur = templates;
-	while(cur) {
+
+	AST_LIST_TRAVERSE(&templates, cur, list) {
 		if (!strcasecmp(s, cur->name)) {
-			if (!allowdead && cur->dead)
+			if (!allowdead && cur->dead) {
 				cur = NULL;
+			}
 			break;
 		}
-		cur = cur->next;
 	}
+
 	return cur;
 }
 
@@ -158,7 +182,7 @@ char *iax_prov_complete_template(const char *line, const char *word, int pos, in
 
 	if (pos == 3) {
 		ast_mutex_lock(&provlock);
-		for (c = templates; c; c = c->next) {
+		AST_LIST_TRAVERSE(&templates, c, list) {
 			if (!strncasecmp(word, c->name, wordlen) && ++which > state) {
 				ret = ast_strdup(c->name);
 				break;
@@ -278,16 +302,15 @@ static int iax_template_parse(struct iax_template *cur, struct ast_config *cfg, 
 		}
 		if (!src)
 			return -1;
-		ast_mutex_lock(&provlock);	
+		ast_mutex_lock(&provlock);
 		/* Backup old data */
-		memcpy(&tmp, cur, sizeof(tmp));
+		iax_template_copy(&tmp, cur);
 		/* Restore from src */
-		memcpy(cur, src, sizeof(tmp));
+		iax_template_copy(cur, src);
 		/* Restore important headers */
 		memcpy(cur->name, tmp.name, sizeof(cur->name));
 		cur->dead = tmp.dead;
-		cur->next = tmp.next;
-		ast_mutex_unlock(&provlock);	
+		ast_mutex_unlock(&provlock);
 	}
 	if (def)
 		strncpy(cur->src, def, sizeof(cur->src) - 1);
@@ -359,12 +382,8 @@ static int iax_process_template(struct ast_config *cfg, char *s, char *def)
 	/* Find an already existing one if there */
 	struct iax_template *cur;
 	int mallocd = 0;
-	cur = templates;
-	while(cur) {
-		if (!strcasecmp(cur->name, s))
-			break;
-		cur = cur->next;
-	}
+
+	cur = iax_template_find(s, 1 /* allow dead */);
 	if (!cur) {
 		mallocd = 1;
 		cur = ast_calloc(1, sizeof(*cur));
@@ -382,8 +401,7 @@ static int iax_process_template(struct ast_config *cfg, char *s, char *def)
 	/* Link if we're mallocd */
 	if (mallocd) {
 		ast_mutex_lock(&provlock);
-		cur->next = templates;
-		templates = cur;
+		AST_LIST_INSERT_HEAD(&templates, cur, list);
 		ast_mutex_unlock(&provlock);
 	}
 	return 0;
@@ -432,8 +450,9 @@ static char *iax_show_provisioning(struct ast_cli_entry *e, int cmd, struct ast_
 
 	if ((a->argc != 3) && (a->argc != 4))
 		return CLI_SHOWUSAGE;
+
 	ast_mutex_lock(&provlock);
-	for (cur = templates;cur;cur = cur->next) {
+	AST_LIST_TRAVERSE(&templates, cur, list) {
 		if ((a->argc == 3) || (!strcasecmp(a->argv[3], cur->name)))  {
 			if (found) 
 				ast_cli(a->fd, "\n");
@@ -475,17 +494,35 @@ static int iax_provision_init(void)
 	return 0;
 }
 
+static void iax_provision_free_templates(int dead)
+{
+	struct iax_template *cur;
+
+	/* Drop dead or not (depending on dead) entries while locked */
+	ast_mutex_lock(&provlock);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&templates, cur, list) {
+		if ((dead && cur->dead) || !dead) {
+			AST_LIST_REMOVE_CURRENT(list);
+			ast_free(cur);
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+	ast_mutex_unlock(&provlock);
+}
+
 int iax_provision_unload(void)
 {
 	provinit = 0;
 	ast_cli_unregister_multiple(cli_iax2_provision, sizeof(cli_iax2_provision) / sizeof(struct ast_cli_entry));
+	iax_provision_free_templates(0 /* Remove all templates. */);
+
 	return 0;
 }
 
 int iax_provision_reload(int reload)
 {
 	struct ast_config *cfg;
-	struct iax_template *cur, *prev, *next;
+	struct iax_template *cur;
 	char *cat;
 	int found = 0;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
@@ -495,10 +532,8 @@ int iax_provision_reload(int reload)
 	cfg = ast_config_load2("iaxprov.conf", "chan_iax2", config_flags);
 	if (cfg != NULL && cfg != CONFIG_STATUS_FILEUNCHANGED && cfg != CONFIG_STATUS_FILEINVALID) {
 		/* Mark all as dead.  No need for locking */
-		cur = templates;
-		while(cur) {
+		AST_LIST_TRAVERSE(&templates, cur, list) {
 			cur->dead = 1;
-			cur = cur->next;
 		}
 
 		/* Load as appropriate */
@@ -516,25 +551,10 @@ int iax_provision_reload(int reload)
 		return 0;
 	else
 		ast_log(LOG_NOTICE, "No IAX provisioning configuration found, IAX provisioning disabled.\n");
-	ast_mutex_lock(&provlock);
-	/* Drop dead entries while locked */
-	prev = NULL;
-	cur = templates;
-	while(cur) {
-		next = cur->next;
-		if (cur->dead) {
-			if (prev)
-				prev->next = next;
-			else
-				templates = next;
-			ast_free(cur);
-		} else 
-			prev = cur;
-		cur = next;
-	}
-	ast_mutex_unlock(&provlock);
+
+	iax_provision_free_templates(1 /* remove only marked as dead */);
+
 	/* Purge cached signature DB entries */
 	ast_db_deltree("iax/provisioning/cache", NULL);
 	return 0;
-	
 }
