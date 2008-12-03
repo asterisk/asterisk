@@ -735,7 +735,8 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 		ast_mutex_unlock(&p->lock);
 		return res;
 	}
-	ast_verbose( VERBOSE_PREFIX_3 "agent_call, call to agent '%s' call on '%s'\n", p->agent, p->chan->name);
+	if (option_verbose > 2)
+		ast_verbose(VERBOSE_PREFIX_3 "agent_call, call to agent '%s' call on '%s'\n", p->agent, p->chan->name);
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "Playing beep, lang '%s'\n", p->chan->language);
 	res = ast_streamfile(p->chan, beep, p->chan->language);
