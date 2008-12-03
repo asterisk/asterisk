@@ -151,11 +151,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="varname" required="true" />
 		</syntax>
 		<description>
-			<para>Read a variable <replaceable>varname</replaceable> hidden by 
+			<para>Read a variable <replaceable>varname</replaceable> hidden by
 			<replaceable>n</replaceable> levels of gosub stack frames.  Note that ${LOCAL_PEEK(0,foo)}
-			is the same as ${foo}, since the value of <replaceable>n</replaceable> peeks under 0 levels of
-			stack frames; in other words, 0 is the current level.  If <replaceable>n</replaceable> exceeds
-			the available number of stack frames, then an empty string is returned.</para>
+			is the same as <variable>foo</variable>, since the value of <replaceable>n</replaceable>
+			peeks under 0 levels of stack frames; in other words, 0 is the current level.  If
+			<replaceable>n</replaceable> exceeds the available number of stack frames, then an empty
+			string is returned.</para>
 		</description>
 		<see-also>
 			<ref type="application">Gosub</ref>
@@ -523,8 +524,6 @@ static int peek_read(struct ast_channel *chan, const char *cmd, char *data, char
 
 static struct ast_custom_function peek_function = {
 	.name = "LOCAL_PEEK",
-	.synopsis = "Peeks at variables within the variable stack",
-	.syntax = "LOCAL_PEEK(<n>|<varname>)",
 	.read = peek_read,
 };
 
