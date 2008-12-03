@@ -837,8 +837,18 @@ gmenuconfig: gmenuselect
 
 nmenuconfig: nmenuselect
 
-menuselect: menuselect/menuselect menuselect-tree
-	-@menuselect/menuselect menuselect.makeopts $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
+menuselect: menuselect/cmenuselect menuselect/nmenuselect menuselect/gmenuselect
+	@if [ -x menuselect/nmenuselect ]; then \
+		$(MAKE) nmenuselect; \
+	elif [ -x menuselect/cmenuselect ]; then \
+		$(MAKE) cmenuselect; \
+	elif [ -x menuselect/gmenuselect ]; then \
+		$(MAKE) gmenuselect; \
+	else \
+		echo "No menuselect user interface found. Install ncurses,"; \
+		echo "newt or GTK libraries to build one and re-rerun"; \
+		echo "'make menuselect'."; \
+	fi
 
 cmenuselect: menuselect/cmenuselect menuselect-tree
 	-@menuselect/cmenuselect menuselect.makeopts $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
