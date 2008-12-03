@@ -2081,14 +2081,16 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 				if (gosub_args) {
 					res9 = pbx_exec(peer, theapp, gosub_args);
-					ast_pbx_run(peer);
+					if (!res9) {
+						ast_pbx_run(peer);
+					}
 					ast_free(gosub_args);
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Gosub exited with status %d\n", res9);
-				} else
+				} else {
 					ast_log(LOG_ERROR, "Could not Allocate string for Gosub arguments -- Gosub Call Aborted!\n");
+				}
 
-				res9 = 0;
 			} else if (!res9) {
 				ast_log(LOG_ERROR, "Could not find application Gosub\n");
 				res9 = -1;

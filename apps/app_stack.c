@@ -373,11 +373,22 @@ static int gosub_exec(struct ast_channel *chan, void *data)
 	/* Create the return address, but don't save it until we know that the Gosub destination exists */
 	newframe = gosub_allocate_frame(chan->context, chan->exten, chan->priority + 1, args2.argc);
 
-	if (!newframe)
+	if (!newframe) {
 		return -1;
+	}
 
 	if (ast_parseable_goto(chan, label)) {
 		ast_log(LOG_ERROR, "Gosub address is invalid: '%s'\n", (char *)data);
+		ast_free(newframe);
+		return -1;
+	}
+
+	if (!ast_exists_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num)) {
+		ast_log(LOG_ERROR, "Attempt to reach a non-existent destination for gosub: (Context:%s, Extension:%s, Priority:%d)\n",
+				chan->context, chan->exten, chan->priority);
+		ast_copy_string(chan->context, newframe->context, sizeof(chan->context));
+		ast_copy_string(chan->exten, newframe->extension, sizeof(chan->exten));
+		chan->priority = newframe->priority;
 		ast_free(newframe);
 		return -1;
 	}
