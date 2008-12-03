@@ -1151,7 +1151,7 @@ static int action_getconfig(struct mansession *s, const struct message *m)
 		}
 	}
 	if (!ast_strlen_zero(category) && catcount == 0) /* TODO: actually, a config with no categories doesn't even get loaded */
-		astman_append(s, "No categories found");
+		astman_append(s, "No categories found\r\n");
 	ast_config_destroy(cfg);
 	astman_append(s, "\r\n");
 
@@ -1186,7 +1186,7 @@ static int action_listcategories(struct mansession *s, const struct message *m)
 		catcount++;
 	}
 	if (catcount == 0) /* TODO: actually, a config with no categories doesn't even get loaded */
-		astman_append(s, "Error: no categories found");
+		astman_append(s, "Error: no categories found\r\n");
 	ast_config_destroy(cfg);
 	astman_append(s, "\r\n");
 
