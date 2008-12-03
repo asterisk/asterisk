@@ -47,6 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/options.h"
 #include "asterisk/utils.h"
+#include "asterisk/options.h"
 
 /*
  * pbx_spool is similar in spirit to qcall, but with substantially enhanced functionality...
@@ -446,9 +447,15 @@ static void *scan_thread(void *unused)
 	char fn[256];
 	int res;
 	time_t last = 0, next = 0, now;
+	struct timespec ts = { .tv_sec = 1 };
+  
+	while (!ast_fully_booted) {
+		nanosleep(&ts, NULL);
+	}
+
 	for(;;) {
 		/* Wait a sec */
-		sleep(1);
+		nanosleep(&ts, NULL);
 		time(&now);
 		if (!stat(qdir, &st)) {
 			if ((st.st_mtime != last) || (next && (now > next))) {
