@@ -3760,9 +3760,9 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				char *gosub_args, *gosub_argstart;
 
 				/* Set where we came from */
-				ast_copy_string(qe->chan->context, "app_dial_gosub_virtual_context", sizeof(qe->chan->context));
-				ast_copy_string(qe->chan->exten, "s", sizeof(qe->chan->exten));
-				qe->chan->priority = 0;
+				ast_copy_string(peer->context, "app_queue_gosub_virtual_context", sizeof(peer->context));
+				ast_copy_string(peer->exten, "s", sizeof(peer->exten));
+				peer->priority = 0;
 
 				gosub_argstart = strchr(gosubexec, ',');
 				if (gosub_argstart) {
@@ -3779,8 +3779,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 					}
 				}
 				if (gosub_args) {
-					res = pbx_exec(qe->chan, app, gosub_args);
-					ast_pbx_run(qe->chan);
+					res = pbx_exec(peer, app, gosub_args);
+					ast_pbx_run(peer);
 					free(gosub_args);
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Gosub exited with status %d\n", res);
