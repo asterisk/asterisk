@@ -462,7 +462,7 @@ static void *scan_thread(void *unused)
 #if 0
 				printf("atime: %ld, mtime: %ld, ctime: %ld\n", st.st_atime, st.st_mtime, st.st_ctime);
 				printf("Ooh, something changed / timeout\n");
-#endif				
+#endif
 				next = 0;
 				last = st.st_mtime;
 				dir = opendir(qdir);
@@ -478,8 +478,12 @@ static void *scan_thread(void *unused)
 										if (!next || (res < next)) {
 											next = res;
 										}
-									} else if (res)
+									} else if (res) {
 										ast_log(LOG_WARNING, "Failed to scan service '%s'\n", fn);
+									} else if (!next) {
+										/* Expired entry: must recheck on the next go-around */
+										next = st.st_mtime;
+									}
 								} else {
 									/* Update "next" update if necessary */
 									if (!next || (st.st_mtime < next))
