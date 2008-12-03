@@ -3420,7 +3420,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 
 	if (!ast_strlen_zero(fromstring)) {
 		struct ast_channel *ast;
-		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, 0))) {
+		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "Substitution/voicemail"))) {
 			char *ptr;
 			memset(passdata2, 0, len_passdata2);
 			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, enc_cidnum, enc_cidname, dur, date, passdata2, len_passdata2, category);
@@ -3464,7 +3464,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	}
 	if (!ast_strlen_zero(emailsubject)) {
 		struct ast_channel *ast;
-		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, 0))) {
+		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "Substitution/voicemail"))) {
 			int vmlen = strlen(emailsubject) * 3 + 200;
 			/* Only allocate more space if the previous was not large enough */
 			if (vmlen > len_passdata) {
@@ -3539,7 +3539,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	fprintf(p, "Content-Type: text/plain; charset=%s" ENDL "Content-Transfer-Encoding: 8bit" ENDL ENDL, charset);
 	if (emailbody) {
 		struct ast_channel *ast;
-		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, 0))) {
+		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "Substitution/voicemail"))) {
 			char *passdata;
 			int vmlen = strlen(emailbody) * 3 + 200;
 			passdata = alloca(vmlen);
@@ -3662,7 +3662,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 
 	if (*pagerfromstring) {
 		struct ast_channel *ast;
-		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, 0))) {
+		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "Substitution/voicemail"))) {
 			char *passdata;
 			int vmlen = strlen(fromstring) * 3 + 200;
 			passdata = alloca(vmlen);
@@ -3678,7 +3678,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 	fprintf(p, "To: %s\n", pager);
 	if (pagersubject) {
 		struct ast_channel *ast;
-		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, 0))) {
+		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "Substitution/voicemail"))) {
 			char *passdata;
 			int vmlen = strlen(pagersubject) * 3 + 200;
 			passdata = alloca(vmlen);
@@ -3695,7 +3695,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 	ast_strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
 	if (pagerbody) {
 		struct ast_channel *ast;
-		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, 0))) {
+		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "Substitution/voicemail"))) {
 			char *passdata;
 			int vmlen = strlen(pagerbody) * 3 + 200;
 			passdata = alloca(vmlen);
