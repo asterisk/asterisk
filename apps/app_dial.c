@@ -1832,12 +1832,15 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 				if (gosub_args) {
 					res = pbx_exec(peer, theapp, gosub_args);
-					ast_pbx_run(peer);
+					if (!res) {
+						ast_pbx_run(peer);
+					}
 					ast_free(gosub_args);
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Gosub exited with status %d\n", res);
-				} else
+				} else {
 					ast_log(LOG_ERROR, "Could not Allocate string for Gosub arguments -- Gosub Call Aborted!\n");
+				}
 
 				res = 0;
 			} else {

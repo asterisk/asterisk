@@ -3771,7 +3771,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 						ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
 						gosub_args = NULL;
 					}
-					*gosub_argstart = '|';
+					*gosub_argstart = ',';
 				} else {
 					if (asprintf(&gosub_args, "%s,s,1", gosubexec) < 0) {
 						ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
@@ -3780,14 +3780,15 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				}
 				if (gosub_args) {
 					res = pbx_exec(peer, app, gosub_args);
-					ast_pbx_run(peer);
+					if (!res) {
+						ast_pbx_run(peer);
+					}
 					free(gosub_args);
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Gosub exited with status %d\n", res);
-				} else
+				} else {
 					ast_log(LOG_ERROR, "Could not Allocate string for Gosub arguments -- Gosub Call Aborted!\n");
-				
-				res = 0;
+				}
 			} else {
 				ast_log(LOG_ERROR, "Could not find application Gosub\n");
 				res = -1;
