@@ -3614,6 +3614,10 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 		iaxs[callno0]->bridgecallno = callno1;
 		iaxs[callno1]->bridgecallno = callno0;
 	}
+	/* If the bridge got retried, don't queue up more packets - the transfer request will be retransmitted as necessary */
+	if (iaxs[callno0]->transferring && iaxs[callno1]->transferring) {
+		transferstarted = 1;
+	}
 	unlock_both(callno0, callno1);
 
 	/* If not, try to bridge until we can execute a transfer, if we can */
