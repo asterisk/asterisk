@@ -16802,13 +16802,12 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 
 	/* RFC 3261 Section 15 specifies that if we receive a 408 or 481
 	 * in response to a BYE, then we should end the current dialog
-	 * and session. There is no mention in the spec of other 4XX responses,
-	 * but it is known that at least one phone manufacturer potentially
-	 * will send a 404 in response to a BYE, so we'll be liberal in what
-	 * we accept and end the dialog and session if we receive any 4XX 
-	 * response to a BYE.
+	 * and session.  It is known that at least one phone manufacturer
+	 * potentially will send a 404 in response to a BYE, so we'll be
+	 * liberal in what we accept and end the dialog and session if we
+	 * receive any of those responses to a BYE.
 	 */
-	if (resp >= 400 && resp < 500 && sipmethod == SIP_BYE) {
+	if ((resp == 404 || resp == 408 || resp == 481) && sipmethod == SIP_BYE) {
 		pvt_set_needdestroy(p, "received 4XX response to a BYE");
 		return;
 	}
