@@ -1460,7 +1460,7 @@ static int set_full_cmd(struct ast_cli_entry *e)
 }
 
 /*! \brief cleanup (free) cli_perms linkedlist. */
-static void destroy_user_perms (void)
+static void destroy_user_perms(void)
 {
 	struct cli_perm *perm;
 	struct usergroup_cli_perm *user_perm;
@@ -1476,7 +1476,8 @@ static void destroy_user_perms (void)
 	AST_RWLIST_UNLOCK(&cli_perms);
 }
 
-int ast_cli_perms_init(int reload) {
+int ast_cli_perms_init(int reload)
+{
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	struct ast_config *cfg;
 	char *cat = NULL;
