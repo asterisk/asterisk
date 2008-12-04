@@ -70,6 +70,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/indications.h"
 #include "asterisk/linkedlists.h"
 
+#ifdef SKINNY_DEVMODE
+#define SKINNY_DEVONLY(code)	\
+	code
+#else
+#define SKINNY_DEVONLY(code)
+#endif
+
 /*************************************
  * Skinny/Asterisk Protocol Settings *
  *************************************/
@@ -158,6 +165,11 @@ static struct ast_jb_conf default_jbconf =
 	.impl = ""
 };
 static struct ast_jb_conf global_jbconf;
+
+#ifdef SKINNY_DEVMODE
+AST_THREADSTORAGE(message2str_threadbuf);
+#define MESSAGE2STR_BUFSIZE   35
+#endif
 
 AST_THREADSTORAGE(device2str_threadbuf);
 #define DEVICE2STR_BUFSIZE   15
@@ -1874,6 +1886,137 @@ static int skinny_unregister(struct skinny_req *req, struct skinnysession *s)
 	return -1; /* main loop will destroy the session */
 }
 
+#ifdef SKINNY_DEVMODE
+static char *message2str(int type)
+{
+	char *tmp;
+
+	switch (type) {
+	case KEEP_ALIVE_MESSAGE:
+		return "KEEP_ALIVE_MESSAGE";
+	case REGISTER_MESSAGE:
+		return "REGISTER_MESSAGE";
+	case IP_PORT_MESSAGE:
+		return "IP_PORT_MESSAGE";
+	case KEYPAD_BUTTON_MESSAGE:
+		return "KEYPAD_BUTTON_MESSAGE";
+	case ENBLOC_CALL_MESSAGE:
+		return "ENBLOC_CALL_MESSAGE";
+	case STIMULUS_MESSAGE:
+		return "STIMULUS_MESSAGE";
+	case OFFHOOK_MESSAGE:
+		return "OFFHOOK_MESSAGE";
+	case ONHOOK_MESSAGE:
+		return "ONHOOK_MESSAGE";
+	case CAPABILITIES_RES_MESSAGE:
+		return "CAPABILITIES_RES_MESSAGE";
+	case SPEED_DIAL_STAT_REQ_MESSAGE:
+		return "SPEED_DIAL_STAT_REQ_MESSAGE";
+	case LINE_STATE_REQ_MESSAGE:
+		return "LINE_STATE_REQ_MESSAGE";
+	case TIME_DATE_REQ_MESSAGE:
+		return "TIME_DATE_REQ_MESSAGE";
+	case BUTTON_TEMPLATE_REQ_MESSAGE:
+		return "BUTTON_TEMPLATE_REQ_MESSAGE";
+	case VERSION_REQ_MESSAGE:
+		return "VERSION_REQ_MESSAGE";
+	case SERVER_REQUEST_MESSAGE:
+		return "SERVER_REQUEST_MESSAGE";
+	case ALARM_MESSAGE:
+		return "ALARM_MESSAGE";
+	case OPEN_RECEIVE_CHANNEL_ACK_MESSAGE:
+		return "OPEN_RECEIVE_CHANNEL_ACK_MESSAGE";
+	case SOFT_KEY_SET_REQ_MESSAGE:
+		return "SOFT_KEY_SET_REQ_MESSAGE";
+	case SOFT_KEY_EVENT_MESSAGE:
+		return "SOFT_KEY_EVENT_MESSAGE";
+	case UNREGISTER_MESSAGE:
+		return "UNREGISTER_MESSAGE";
+	case SOFT_KEY_TEMPLATE_REQ_MESSAGE:
+		return "SOFT_KEY_TEMPLATE_REQ_MESSAGE";
+	case HEADSET_STATUS_MESSAGE:
+		return "HEADSET_STATUS_MESSAGE";
+	case REGISTER_AVAILABLE_LINES_MESSAGE:
+		return "REGISTER_AVAILABLE_LINES_MESSAGE";
+	case REGISTER_ACK_MESSAGE:
+		return "REGISTER_ACK_MESSAGE";
+	case START_TONE_MESSAGE:
+		return "START_TONE_MESSAGE";
+	case STOP_TONE_MESSAGE:
+		return "STOP_TONE_MESSAGE";
+	case SET_RINGER_MESSAGE:
+		return "SET_RINGER_MESSAGE";
+	case SET_LAMP_MESSAGE:
+		return "SET_LAMP_MESSAGE";
+	case SET_SPEAKER_MESSAGE:
+		return "SET_SPEAKER_MESSAGE";
+	case SET_MICROPHONE_MESSAGE:
+		return "SET_MICROPHONE_MESSAGE";
+	case START_MEDIA_TRANSMISSION_MESSAGE:
+		return "START_MEDIA_TRANSMISSION_MESSAGE";
+	case STOP_MEDIA_TRANSMISSION_MESSAGE:
+		return "STOP_MEDIA_TRANSMISSION_MESSAGE";
+	case CALL_INFO_MESSAGE:
+		return "CALL_INFO_MESSAGE";
+	case FORWARD_STAT_MESSAGE:
+		return "FORWARD_STAT_MESSAGE";
+	case SPEED_DIAL_STAT_RES_MESSAGE:
+		return "SPEED_DIAL_STAT_RES_MESSAGE";
+	case LINE_STAT_RES_MESSAGE:
+		return "LINE_STAT_RES_MESSAGE";
+	case DEFINETIMEDATE_MESSAGE:
+		return "DEFINETIMEDATE_MESSAGE";
+	case BUTTON_TEMPLATE_RES_MESSAGE:
+		return "BUTTON_TEMPLATE_RES_MESSAGE";
+	case VERSION_RES_MESSAGE:
+		return "VERSION_RES_MESSAGE";
+	case DISPLAYTEXT_MESSAGE:
+		return "DISPLAYTEXT_MESSAGE";
+	case CLEAR_NOTIFY_MESSAGE:
+		return "CLEAR_NOTIFY_MESSAGE";
+	case CLEAR_DISPLAY_MESSAGE:
+		return "CLEAR_DISPLAY_MESSAGE";
+	case CAPABILITIES_REQ_MESSAGE:
+		return "CAPABILITIES_REQ_MESSAGE";
+	case REGISTER_REJ_MESSAGE:
+		return "REGISTER_REJ_MESSAGE";
+	case SERVER_RES_MESSAGE:
+		return "SERVER_RES_MESSAGE";
+	case RESET_MESSAGE:
+		return "RESET_MESSAGE";
+	case KEEP_ALIVE_ACK_MESSAGE:
+		return "KEEP_ALIVE_ACK_MESSAGE";
+	case OPEN_RECEIVE_CHANNEL_MESSAGE:
+		return "OPEN_RECEIVE_CHANNEL_MESSAGE";
+	case CLOSE_RECEIVE_CHANNEL_MESSAGE:
+		return "CLOSE_RECEIVE_CHANNEL_MESSAGE";
+	case SOFT_KEY_TEMPLATE_RES_MESSAGE:
+		return "SOFT_KEY_TEMPLATE_RES_MESSAGE";
+	case SOFT_KEY_SET_RES_MESSAGE:
+		return "SOFT_KEY_SET_RES_MESSAGE";
+	case SELECT_SOFT_KEYS_MESSAGE:
+		return "SELECT_SOFT_KEYS_MESSAGE";
+	case CALL_STATE_MESSAGE:
+		return "CALL_STATE_MESSAGE";
+	case DISPLAY_PROMPT_STATUS_MESSAGE:
+		return "DISPLAY_PROMPT_STATUS_MESSAGE";
+	case CLEAR_PROMPT_MESSAGE:
+		return "CLEAR_PROMPT_MESSAGE";
+	case DISPLAY_NOTIFY_MESSAGE:
+		return "DISPLAY_NOTIFY_MESSAGE";
+	case ACTIVATE_CALL_PLANE_MESSAGE:
+		return "ACTIVATE_CALL_PLANE_MESSAGE";
+	case DIALED_NUMBER_MESSAGE:
+		return "DIALED_NUMBER_MESSAGE";
+	default:
+		if (!(tmp = ast_threadstorage_get(&message2str_threadbuf, MESSAGE2STR_BUFSIZE)))
+			return "Unknown";
+		snprintf(tmp, MESSAGE2STR_BUFSIZE, "UNKNOWN_MESSAGE-%d", type);
+		return tmp;
+	}
+}
+#endif
+
 static int transmit_response(struct skinny_device *d, struct skinny_req *req)
 {
 	struct skinnysession *s = d->session;
@@ -1886,8 +2029,7 @@ static int transmit_response(struct skinny_device *d, struct skinny_req *req)
 
 	ast_mutex_lock(&s->lock);
 
-	if (skinnydebug)
-		ast_log(LOG_VERBOSE, "writing packet type %04X (%d bytes) to socket %d\n", letohl(req->e), letohl(req->len)+8, s->fd);
+	SKINNY_DEVONLY(if (skinnydebug>1) ast_verb(4, "Transmitting %s to %s\n", message2str(req->e), d->name);)
 
 	if (letohl(req->len > SKINNY_MAX_PACKET) || letohl(req->len < 0)) {
 		ast_log(LOG_WARNING, "transmit_response: the length of the request is out of bounds\n");
@@ -2544,10 +2686,17 @@ static char *handle_skinny_set_debug(struct ast_cli_entry *e, int cmd, struct as
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "skinny set debug {on|off}";
+#ifdef SKINNY_DEVMODE
+		e->command = "skinny set debug {off|on|packet}";
 		e->usage =
-			"Usage: skinny set debug {on|off}\n"
+			"Usage: skinny set debug {off|on|packet}\n"
 			"       Enables/Disables dumping of Skinny packets for debugging purposes\n";
+#else
+		e->command = "skinny set debug {off|on}";
+		e->usage =
+			"Usage: skinny set debug {off|on}\n"
+			"       Enables/Disables dumping of Skinny packets for debugging purposes\n";
+#endif
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
@@ -2564,6 +2713,12 @@ static char *handle_skinny_set_debug(struct ast_cli_entry *e, int cmd, struct as
 		skinnydebug = 0;
 		ast_cli(a->fd, "Skinny Debugging Disabled\n");
 		return CLI_SUCCESS;
+#ifdef SKINNY_DEVMODE
+	} else if (!strncasecmp(a->argv[e->args - 1], "packet", 6)) {
+		skinnydebug = 2;
+		ast_cli(a->fd, "Skinny Debugging Enabled including Packets\n");
+		return CLI_SUCCESS;
+#endif
 	} else {
 		return CLI_SHOWUSAGE;
 	}
@@ -5551,6 +5706,10 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 		ast_free(req);
 		return 0;
 	}
+
+	SKINNY_DEVONLY(if (skinnydebug > 1) {
+		ast_verb(4, "Received %s from %s\n", message2str(req->e), s->device->name);
+	})
 
 	switch(letohl(req->e)) {
 	case KEEP_ALIVE_MESSAGE:

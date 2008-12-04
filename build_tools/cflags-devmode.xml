@@ -18,4 +18,6 @@
 		</member>
 		<member name="CHANNEL_TRACE" displayname="Enable CHANNEL(trace) function">
 		</member>
+		<member name="SKINNY_DEVMODE" displayname="Enable Skinny Dev Mode">
+		</member>
 	</category>
