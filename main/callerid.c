@@ -1001,7 +1001,6 @@ int ast_is_shrinkable_phonenumber(const char *exten)
  * input                   location        name
  * " foo bar " <123>       123             ' foo bar ' (with spaces around)
  * " foo bar "             NULL            'foo bar' (without spaces around)
- * " foo bar  <123>"       123             '" foo bar'
  * The parsing of leading and trailing space/quotes should be more consistent.
  */
 int ast_callerid_parse(char *instr, char **name, char **location)
@@ -1015,6 +1014,15 @@ int ast_callerid_parse(char *instr, char **name, char **location)
 		if ((ns = strchr(instr, '"')) && (ne = strchr(ns + 1, '"'))) {
 			*ns = *ne = '\0';	/* trim off the quotes */
 			*name = ns + 1;		/* and this is the name */
+		} else if (ns) {
+			/* An opening quote was found but no closing quote was. The closing
+			 * quote may actually be after the end of the bracketed number
+			 */
+			if (strchr(le + 1, '\"')) {
+				*ns = '\0';
+				*name = ns + 1;
+				ast_trim_blanks(*name);
+			}
 		} else { /* no quotes, trim off leading and trailing spaces */
 			*name = ast_skip_blanks(instr);
 			ast_trim_blanks(*name);
