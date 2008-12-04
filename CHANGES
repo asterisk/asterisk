@@ -25,6 +25,9 @@ SIP Changes
    remote services. For backwards compatibility, "secret" still has the
    same function as before, but now you can configure both a remote secret and a
    local secret for mutual authentication.
+ * Added a new 'faxdetect=yes|no' configuration option to sip.conf.  When this
+   option is enabled, a SIP channel will go to the fax extension (if it exists)
+   after T38 is negotiated.  This option is disabled by default.
 
 Skinny Changes
 --------------

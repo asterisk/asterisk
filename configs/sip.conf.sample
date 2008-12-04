@@ -403,6 +403,11 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;
 ; t38pt_udptl = yes            ; Default false
 ;
+; Fax Detect will cause the SIP channel to jump to the 'fax' extension (if it exists)
+; after T.38 is successfully negotiated.
+; 
+; faxdetect = yes              ; Default false	
+;
 ;----------------------------------------- OUTBOUND SIP REGISTRATIONS  ------------------------
 ; Asterisk can register as a SIP user agent to a SIP proxy (provider)
 ; Format for the register statement is:

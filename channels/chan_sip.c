@@ -1334,6 +1334,7 @@ struct sip_auth {
 #define SIP_PAGE2_RFC2833_COMPENSATE    (1 << 25)	/*!< DP: Compensate for buggy RFC2833 implementations */
 #define SIP_PAGE2_BUGGY_MWI		(1 << 26)	/*!< DP: Buggy CISCO MWI fix */
 #define SIP_PAGE2_DIALOG_ESTABLISHED    (1 << 27)       /*!< 29: Has a dialog been established? */
+#define SIP_PAGE2_FAX_DETECT		(1 << 28)		/*!< DP: Fax Detection support */
 #define SIP_PAGE2_REGISTERTRYING        (1 << 29)       /*!< DP: Send 100 Trying on REGISTER attempts */
 #define SIP_PAGE2_UDPTL_DESTINATION     (1 << 30)       /*!< DP: Use source IP of RTP as destination if NAT is enabled */
 #define SIP_PAGE2_VIDEOSUPPORT_ALWAYS	(1 << 31)       /*!< DP: Always set up video, even if endpoints don't support it */
@@ -1341,7 +1342,7 @@ struct sip_auth {
 #define SIP_PAGE2_FLAGS_TO_COPY \
 	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_VIDEOSUPPORT | \
 	SIP_PAGE2_T38SUPPORT | SIP_PAGE2_RFC2833_COMPENSATE | SIP_PAGE2_BUGGY_MWI | \
-	SIP_PAGE2_TEXTSUPPORT | SIP_PAGE2_UDPTL_DESTINATION | \
+	SIP_PAGE2_TEXTSUPPORT | SIP_PAGE2_FAX_DETECT | SIP_PAGE2_UDPTL_DESTINATION | \
 	SIP_PAGE2_VIDEOSUPPORT_ALWAYS)
 
 /*@}*/ 
@@ -4528,6 +4529,28 @@ static void change_t38_state(struct sip_pvt *p, int state)
 	/* Woot we got a message, create a control frame and send it on! */
 	if (message)
 		ast_queue_control_data(chan, AST_CONTROL_T38, &message, sizeof(message));
+
+	if (ast_test_flag(&p->flags[1], SIP_PAGE2_FAX_DETECT)) {
+		/* fax detection is enabled */
+		ast_channel_lock(chan);
+		if (strcmp(chan->exten, "fax") && state == T38_ENABLED) {
+			const char *target_context = S_OR(chan->macrocontext, chan->context);
+			ast_channel_unlock(chan);
+			if (ast_exists_extension(chan, target_context, "fax", 1, chan->cid.cid_num)) {
+				/* save the DID/DNIS when we transfer the fax call to a 'fax' extension */
+				ast_verb(3, "Redirecting '%s' to fax extension\n", chan->name);
+				pbx_builtin_setvar_helper(chan, "FAXEXTEN", chan->exten);
+				if (ast_async_goto(chan, target_context, "fax", 1)) {
+					ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", chan->name, target_context);
+				}
+			} else {
+				ast_log(LOG_NOTICE, "Fax detected but no fax extension.\n");
+			}
+		} else {
+			ast_channel_unlock(chan);
+			ast_debug(1, "Already in a fax extension (or T38 was not enabled, state: '%d'), not redirecting.\n", state);
+		}
+	}
 }
 
 /*! \brief Set the global T38 capabilities on a SIP dialog structure */
@@ -21541,6 +21564,9 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 	} else if (!strcasecmp(v->name, "allowsubscribe")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_ALLOWSUBSCRIBE);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_ALLOWSUBSCRIBE);
+	} else if (!strcasecmp(v->name, "faxdetect")) {
+		ast_set_flag(&mask[1], SIP_PAGE2_FAX_DETECT);
+		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_FAX_DETECT);
 	} else if (!strcasecmp(v->name, "t38pt_udptl")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_T38SUPPORT_UDPTL);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_UDPTL);
@@ -22542,6 +22568,7 @@ static int reload_config(enum channelreloadreason reason)
 	/* Copy the default jb config over global_jbconf */
 	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
 
+	ast_clear_flag(&global_flags[1], SIP_PAGE2_FAX_DETECT);
 	ast_clear_flag(&global_flags[1], SIP_PAGE2_VIDEOSUPPORT | SIP_PAGE2_VIDEOSUPPORT_ALWAYS);
 	ast_clear_flag(&global_flags[1], SIP_PAGE2_TEXTSUPPORT);
 
