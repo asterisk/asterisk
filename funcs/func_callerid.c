@@ -137,7 +137,8 @@ static int callerid_read(struct ast_channel *chan, const char *cmd, char *data,
 			snprintf(buf, len, "\"%s\" <%s>", name, num);
 		} else if (!strncasecmp("name", data, 4)) {
 			ast_copy_string(buf, name, len);
-		} else if (!strncasecmp("num", data, 3)) {
+		} else if (!strncasecmp("num", data, 3)
+			|| !strncasecmp("number", data, 6)) {
 			ast_copy_string(buf, num, len);
 		} else {
 			ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
@@ -153,7 +154,8 @@ static int callerid_read(struct ast_channel *chan, const char *cmd, char *data,
 			if (chan->cid.cid_name) {
 				ast_copy_string(buf, chan->cid.cid_name, len);
 			}
-		} else if (!strncasecmp("num", data, 3)) {
+		} else if (!strncasecmp("num", data, 3)
+			|| !strncasecmp("number", data, 6)) {
 			if (chan->cid.cid_num) {
 				ast_copy_string(buf, chan->cid.cid_num, len);
 			}
@@ -197,36 +199,40 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 		char name[256];
 		char num[256];
 
-		if (!ast_callerid_split(value, name, sizeof(name), num, sizeof(num))) {
-			ast_set_callerid(chan, num, name, num);
-			if (chan->cdr)
-				ast_cdr_setcid(chan->cdr, chan);
+		ast_callerid_split(value, name, sizeof(name), num, sizeof(num));
+		ast_set_callerid(chan, num, name, num);
+		if (chan->cdr) {
+			ast_cdr_setcid(chan->cdr, chan);
 		}
 	} else if (!strncasecmp("name", data, 4)) {
 		ast_set_callerid(chan, NULL, value, NULL);
-		if (chan->cdr)
+		if (chan->cdr) {
 			ast_cdr_setcid(chan->cdr, chan);
-	} else if (!strncasecmp("num", data, 3) ||
-		   !strncasecmp("number", data, 6)) {
+		}
+	} else if (!strncasecmp("num", data, 3)
+		|| !strncasecmp("number", data, 6)) {
 		ast_set_callerid(chan, value, NULL, NULL);
-		if (chan->cdr)
+		if (chan->cdr) {
 			ast_cdr_setcid(chan->cdr, chan);
+		}
 	} else if (!strncasecmp("ani", data, 3)) {
 		if (!strncasecmp(data + 3, "2", 1)) {
 			chan->cid.cid_ani2 = atoi(value);
 		} else {
 			ast_set_callerid(chan, NULL, NULL, value);
 		}
-		if (chan->cdr)
+		if (chan->cdr) {
 			ast_cdr_setcid(chan->cdr, chan);
+		}
 	} else if (!strncasecmp("dnid", data, 4)) {
 		ast_channel_lock(chan);
 		if (chan->cid.cid_dnid) {
 			ast_free(chan->cid.cid_dnid);
 		}
 		chan->cid.cid_dnid = ast_strdup(value);
-		if (chan->cdr)
+		if (chan->cdr) {
 			ast_cdr_setcid(chan->cdr, chan);
+		}
 		ast_channel_unlock(chan);
 	} else if (!strncasecmp("rdnis", data, 5)) {
 		ast_channel_lock(chan);
@@ -234,8 +240,9 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 			ast_free(chan->cid.cid_rdnis);
 		}
 		chan->cid.cid_rdnis = ast_strdup(value);
-		if (chan->cdr)
+		if (chan->cdr) {
 			ast_cdr_setcid(chan->cdr, chan);
+		}
 		ast_channel_unlock(chan);
 	} else if (!strncasecmp("pres", data, 4)) {
 		int i;
