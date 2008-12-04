@@ -3583,8 +3583,10 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 			rtp->txcount++;
 			rtp->txoctetcount +=(res - hdrlen);
 			
-			if (rtp->rtcp && rtp->rtcp->schedid < 1) 
+			/* Do not schedule RR if RTCP isn't run */
+			if (rtp->rtcp && rtp->rtcp->them.sin_addr.s_addr && rtp->rtcp->schedid < 1) {
 				rtp->rtcp->schedid = ast_sched_add(rtp->sched, ast_rtcp_calc_interval(rtp), ast_rtcp_write, rtp);
+			}
 		}
 				
 		if (rtp_debug_test_addr(&rtp->them))
