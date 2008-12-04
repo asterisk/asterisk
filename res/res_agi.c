@@ -222,6 +222,57 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Example return code: 200 result=1 (testvariable)</para>
 		</description>
 	</agi>
+	<agi name="get option" language="en_US">
+		<synopsis>
+			Stream file, prompt for DTMF, with timeout.
+		</synopsis>
+		<syntax>
+			<parameter name="filename" required="true" />
+			<parameter name="escape_digits" required="true" />
+			<parameter name="timeout" />
+		</syntax>
+		<description>
+			<para>Behaves similar to STREAM FILE but used with a timeout option.</para>
+		</description>
+		<see-also>
+			<ref type="agi">stream file</ref>
+		</see-also>
+	</agi>
+	<agi name="get variable" language="en_US">
+		<synopsis>
+			Gets a channel variable.
+		</synopsis>
+		<syntax>
+			<parameter name="variablename" required="true" />
+		</syntax>
+		<description>
+			<para>Returns <literal>0</literal> if <replaceable>variablename</replaceable> is not set.
+			Returns <literal>1</literal> if <replaceable>variablename</replaceable> is set and returns
+			the variable in parentheses.</para>
+			<para>Example return code: 200 result=1 (testvariable)</para>
+		</description>
+	</agi>
+	<agi name="hangup" language="en_US">
+		<synopsis>
+			Hangup the current channel.
+		</synopsis>
+		<syntax>
+			<parameter name="channelname" />
+		</syntax>
+		<description>
+			<para>Hangs up the specified channel. If no channel name is given, hangs
+			up the current channel</para>
+		</description>
+	</agi>
+	<agi name="noop" language="en_US">
+		<synopsis>
+			Does nothing.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Does nothing.</para>
+		</description>
+	</agi>
 	<agi name="set music" language="en_US">
 		<synopsis>
 			Enable/Disable Music on hold generator
@@ -2190,23 +2241,12 @@ static char usage_verbose[] =
 " <level> is the the verbose level (1-4)\n"
 " Always returns 1.\n";
 
-static char usage_getvariable[] =
-" Usage: GET VARIABLE <variablename>\n"
-"	Returns 0 if <variablename> is not set.  Returns 1 if <variablename>\n"
-" is set and returns the variable in parentheses.\n"
-" example return code: 200 result=1 (testvariable)\n";
-
 static char usage_setvariable[] =
 " Usage: SET VARIABLE <variablename> <value>\n";
 
 static char usage_setcallerid[] =
 " Usage: SET CALLERID <number>\n"
 "	Changes the callerid of the current channel.\n";
-
-static char usage_hangup[] =
-" Usage: HANGUP [<channelname>]\n"
-"	Hangs up the specified channel.\n"
-" If no channel name is given, hangs up the current channel\n";
 
 static char usage_waitfordigit[] =
 " Usage: WAIT FOR DIGIT <timeout>\n"
@@ -2268,10 +2308,6 @@ static char usage_controlstreamfile[] =
 " or -1 on error or if the channel was disconnected. Remember, the file\n"
 " extension must not be included in the filename.\n\n"
 " Note: ffchar and rewchar default to * and # respectively.\n";
-
-static char usage_getoption[] =
-" Usage: GET OPTION <filename> <escape_digits> [timeout]\n"
-"	Behaves similar to STREAM FILE but used with a timeout option.\n";
 
 static char usage_saynumber[] =
 " Usage: SAY NUMBER <number> <escape digits> [gender]\n"
@@ -2363,10 +2399,6 @@ static char usage_break_aagi[] =
 " Usage: ASYNCAGI BREAK\n"
 "	Break the Async AGI loop.\n";
 
-static char usage_noop[] =
-" Usage: NoOp\n"
-"	Does nothing.\n";
-
 static char usage_speechcreate[] =
 " Usage: SPEECH CREATE <engine>\n"
 "       Create a speech object to be used by the other Speech AGI commands.\n";
@@ -2412,10 +2444,10 @@ static struct agi_command commands[] = {
 	{ { "exec", NULL }, handle_exec, NULL, NULL, 1 },
 	{ { "get", "data", NULL }, handle_getdata, NULL, NULL, 0 },
 	{ { "get", "full", "variable", NULL }, handle_getvariablefull, NULL, NULL, 1 },
-	{ { "get", "option", NULL }, handle_getoption, "Stream file, prompt for DTMF, with timeout", usage_getoption , 0 },
-	{ { "get", "variable", NULL }, handle_getvariable, "Gets a channel variable", usage_getvariable , 1 },
-	{ { "hangup", NULL }, handle_hangup, "Hangup the current channel", usage_hangup , 0 },
-	{ { "noop", NULL }, handle_noop, "Does nothing", usage_noop , 1 },
+	{ { "get", "option", NULL }, handle_getoption, NULL, NULL, 0 },
+	{ { "get", "variable", NULL }, handle_getvariable, NULL, NULL, 1 },
+	{ { "hangup", NULL }, handle_hangup, NULL, NULL, 0 },
+	{ { "noop", NULL }, handle_noop, NULL, NULL, 1 },
 	{ { "receive", "char", NULL }, handle_recvchar, "Receives one character from channels supporting it", usage_recvchar , 0 },
 	{ { "receive", "text", NULL }, handle_recvtext, "Receives text from channels supporting it", usage_recvtext , 0 },
 	{ { "record", "file", NULL }, handle_recordfile, "Records to a given file", usage_recordfile , 0 },
