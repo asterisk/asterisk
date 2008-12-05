@@ -334,7 +334,7 @@ static int hash_zero(const void *user_obj, const int flags)
  * A container is just an object, after all!
  */
 struct ao2_container *
-ao2_container_alloc(const uint n_buckets, ao2_hash_fn hash_fn,
+ao2_container_alloc(const unsigned int n_buckets, ao2_hash_fn hash_fn,
 		ao2_callback_fn cmp_fn)
 {
 	/* XXX maybe consistency check on arguments ? */
