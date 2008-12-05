@@ -7708,7 +7708,7 @@ static void *async_wait(void *data)
 static int ast_pbx_outgoing_cdr_failed(void)
 {
 	/* allocate a channel */
-	struct ast_channel *chan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, 0);
+	struct ast_channel *chan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "%s", "");
 
 	if (!chan)
 		return -1;  /* failure */
