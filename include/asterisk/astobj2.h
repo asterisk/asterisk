@@ -685,9 +685,9 @@ struct ao2_container;
 #define ao2_t_container_alloc(arg1,arg2,arg3,arg4) _ao2_container_alloc((arg1), (arg2), (arg3))
 #define ao2_container_alloc(arg1,arg2,arg3)        _ao2_container_alloc((arg1), (arg2), (arg3))
 #endif
-struct ao2_container *_ao2_container_alloc(const uint n_buckets,
+struct ao2_container *_ao2_container_alloc(const unsigned int n_buckets,
 										  ao2_hash_fn *hash_fn, ao2_callback_fn *cmp_fn);
-struct ao2_container *_ao2_container_alloc_debug(const uint n_buckets,
+struct ao2_container *_ao2_container_alloc_debug(const unsigned int n_buckets,
 												ao2_hash_fn *hash_fn, ao2_callback_fn *cmp_fn, 
 												char *tag, char *file, int line, const char *funcname);
 
@@ -983,11 +983,11 @@ struct ao2_iterator {
 	/*! current bucket */
 	int bucket;
 	/*! container version */
-	uint c_version;
+	unsigned int c_version;
 	/*! pointer to the current object */
 	void *obj;
 	/*! container version when the object was created */
-	uint version;
+	unsigned int version;
 };
 
 /* the flags field can contain F_AO2I_DONTLOCK, which will prevent 

@@ -409,7 +409,7 @@ static int hash_zero(const void *user_obj, const int flags)
 /*
  * A container is just an object, after all!
  */
-static struct ao2_container *__ao2_container_alloc(struct ao2_container *c, const uint n_buckets, ao2_hash_fn *hash_fn,
+static struct ao2_container *__ao2_container_alloc(struct ao2_container *c, const unsigned int n_buckets, ao2_hash_fn *hash_fn,
 											ao2_callback_fn *cmp_fn)
 {
 	/* XXX maybe consistency check on arguments ? */
@@ -430,7 +430,7 @@ static struct ao2_container *__ao2_container_alloc(struct ao2_container *c, cons
 	return c;
 }
 
-struct ao2_container *_ao2_container_alloc_debug(const uint n_buckets, ao2_hash_fn *hash_fn,
+struct ao2_container *_ao2_container_alloc_debug(const unsigned int n_buckets, ao2_hash_fn *hash_fn,
 		ao2_callback_fn *cmp_fn, char *tag, char *file, int line, const char *funcname)
 {
 	/* XXX maybe consistency check on arguments ? */
@@ -442,7 +442,7 @@ struct ao2_container *_ao2_container_alloc_debug(const uint n_buckets, ao2_hash_
 }
 
 struct ao2_container *
-_ao2_container_alloc(const uint n_buckets, ao2_hash_fn *hash_fn,
+_ao2_container_alloc(const unsigned int n_buckets, ao2_hash_fn *hash_fn,
 		ao2_callback_fn *cmp_fn)
 {
 	/* XXX maybe consistency check on arguments ? */
