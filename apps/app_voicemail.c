@@ -1421,7 +1421,7 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 	}
 	if (fread(buf, len, 1, p) < len) {
 		if (ferror(p)) {
-			ast_log(LOG_ERROR, 'Short read while reading in mail file.\n");
+			ast_log(LOG_ERROR, "Short read while reading in mail file.\n");
 			return -1;
 		}
 	}
