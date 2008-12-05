@@ -1398,7 +1398,7 @@ static int unload_module(void)
 	if (overrideswitch_config) {
 		ast_free(overrideswitch_config);
 	}
-	ast_cli_unregister_multiple(cli_pbx_config, sizeof(cli_pbx_config) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(cli_pbx_config, ARRAY_LEN(cli_pbx_config));
 	ast_context_destroy(NULL, registrar);
 	return 0;
 }
@@ -1738,7 +1738,7 @@ static int load_module(void)
  
 	if (static_config && !write_protect_config)
 		ast_cli_register(&cli_dialplan_save);
-	ast_cli_register_multiple(cli_pbx_config, sizeof(cli_pbx_config) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_pbx_config, ARRAY_LEN(cli_pbx_config));
 
 	return AST_MODULE_LOAD_SUCCESS;
 }

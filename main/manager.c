@@ -4014,7 +4014,7 @@ static int __init_manager(int reload)
 		ast_manager_register2("ModuleLoad", EVENT_FLAG_SYSTEM, manager_moduleload, "Module management", mandescr_moduleload);
 		ast_manager_register2("ModuleCheck", EVENT_FLAG_SYSTEM, manager_modulecheck, "Check if module is loaded", mandescr_modulecheck);
 
-		ast_cli_register_multiple(cli_manager, sizeof(cli_manager) / sizeof(struct ast_cli_entry));
+		ast_cli_register_multiple(cli_manager, ARRAY_LEN(cli_manager));
 		ast_extension_state_add(NULL, NULL, manager_state_cb, NULL);
 		registered = 1;
 		/* Append placeholder event so master_eventq never runs dry */

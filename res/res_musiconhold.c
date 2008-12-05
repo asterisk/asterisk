@@ -1619,7 +1619,7 @@ static int load_module(void)
 
 	res = ast_register_application(play_moh, play_moh_exec, play_moh_syn, play_moh_desc);
 	ast_register_atexit(ast_moh_destroy);
-	ast_cli_register_multiple(cli_moh, sizeof(cli_moh) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_moh, ARRAY_LEN(cli_moh));
 	if (!res)
 		res = ast_register_application(wait_moh, wait_moh_exec, wait_moh_syn, wait_moh_desc);
 	if (!res)
@@ -1671,7 +1671,7 @@ static int unload_module(void)
 	res |= ast_unregister_application(set_moh);
 	res |= ast_unregister_application(start_moh);
 	res |= ast_unregister_application(stop_moh);
-	ast_cli_unregister_multiple(cli_moh, sizeof(cli_moh) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(cli_moh, ARRAY_LEN(cli_moh));
 	ast_unregister_atexit(ast_moh_destroy);
 	return res;
 }

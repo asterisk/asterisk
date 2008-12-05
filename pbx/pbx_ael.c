@@ -214,13 +214,13 @@ static struct ast_cli_entry cli_ael[] = {
 static int unload_module(void)
 {
 	ast_context_destroy(NULL, registrar);
-	ast_cli_unregister_multiple(cli_ael, sizeof(cli_ael) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(cli_ael, ARRAY_LEN(cli_ael));
 	return 0;
 }
 
 static int load_module(void)
 {
-	ast_cli_register_multiple(cli_ael, sizeof(cli_ael) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_ael, ARRAY_LEN(cli_ael));
 	return (pbx_load_module());
 }
 

@@ -676,7 +676,7 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 			    ast_getformatname(1 << t->srcfmt), ast_getformatname(1 << t->dstfmt), t->cost);
 
 	if (!added_cli) {
-		ast_cli_register_multiple(cli_translate, sizeof(cli_translate) / sizeof(struct ast_cli_entry));
+		ast_cli_register_multiple(cli_translate, ARRAY_LEN(cli_translate));
 		added_cli++;
 	}
 

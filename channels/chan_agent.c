@@ -2600,7 +2600,7 @@ static int load_module(void)
 	ast_manager_register2("AgentLogoff", EVENT_FLAG_AGENT, action_agent_logoff, "Sets an agent as no longer logged in", mandescr_agent_logoff);
 
 	/* CLI Commands */
-	ast_cli_register_multiple(cli_agents, sizeof(cli_agents) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_agents, ARRAY_LEN(cli_agents));
 
 	/* Dialplan Functions */
 	ast_custom_function_register(&agent_function);
@@ -2632,7 +2632,7 @@ static int unload_module(void)
 	/* Unregister dialplan functions */
 	ast_custom_function_unregister(&agent_function);	
 	/* Unregister CLI commands */
-	ast_cli_unregister_multiple(cli_agents, sizeof(cli_agents) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(cli_agents, ARRAY_LEN(cli_agents));
 	/* Unregister dialplan applications */
 	ast_unregister_application(app);
 	ast_unregister_application(app3);

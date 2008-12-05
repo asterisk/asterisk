@@ -12437,7 +12437,7 @@ static int __unload_module(void)
 	ast_manager_unregister( "IAXnetstats" );
 	ast_manager_unregister( "IAXregistry" );
 	ast_unregister_application(papp);
-	ast_cli_unregister_multiple(cli_iax2, sizeof(cli_iax2) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(cli_iax2, ARRAY_LEN(cli_iax2));
 	ast_unregister_switch(&iax2_switch);
 	ast_channel_unregister(&iax2_tech);
 	delete_users();
@@ -12564,7 +12564,7 @@ static int load_module(void)
 	}
 	ast_netsock_init(outsock);
 
-	ast_cli_register_multiple(cli_iax2, sizeof(cli_iax2) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_iax2, ARRAY_LEN(cli_iax2));
 
 	ast_register_application_xml(papp, iax2_prov_app);
 	

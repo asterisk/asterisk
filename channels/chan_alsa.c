@@ -902,7 +902,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	ast_cli_register_multiple(cli_alsa, sizeof(cli_alsa) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_alsa, ARRAY_LEN(cli_alsa));
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
@@ -910,7 +910,7 @@ static int load_module(void)
 static int unload_module(void)
 {
 	ast_channel_unregister(&alsa_tech);
-	ast_cli_unregister_multiple(cli_alsa, sizeof(cli_alsa) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(cli_alsa, ARRAY_LEN(cli_alsa));
 
 	if (alsa.icard)
 		snd_pcm_close(alsa.icard);

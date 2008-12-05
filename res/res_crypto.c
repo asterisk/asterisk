@@ -587,7 +587,7 @@ static int crypto_init(void)
 {
 	SSL_library_init();
 	ERR_load_crypto_strings();
-	ast_cli_register_multiple(cli_crypto, sizeof(cli_crypto) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_crypto, ARRAY_LEN(cli_crypto));
 
 	/* Install ourselves into stubs */
 	ast_key_get = __ast_key_get;

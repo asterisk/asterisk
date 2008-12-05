@@ -942,7 +942,7 @@ static struct ast_cli_entry my_clis[] = {
 
 int init_framer(void)
 {
-	ast_cli_register_multiple(my_clis, sizeof(my_clis) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(my_clis, ARRAY_LEN(my_clis));
 	return 0;	
 }
 

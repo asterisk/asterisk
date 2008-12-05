@@ -1227,7 +1227,7 @@ static int load_module(void)
 
 	ast_config_engine_register(&pgsql_engine);
 	ast_verb(1, "PostgreSQL RealTime driver loaded.\n");
-	ast_cli_register_multiple(cli_realtime, sizeof(cli_realtime) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_realtime, ARRAY_LEN(cli_realtime));
 
 	return 0;
 }
@@ -1242,7 +1242,7 @@ static int unload_module(void)
 		PQfinish(pgsqlConn);
 		pgsqlConn = NULL;
 	}
-	ast_cli_unregister_multiple(cli_realtime, sizeof(cli_realtime) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(cli_realtime, ARRAY_LEN(cli_realtime));
 	ast_config_engine_deregister(&pgsql_engine);
 	ast_verb(1, "PostgreSQL RealTime unloaded.\n");
 

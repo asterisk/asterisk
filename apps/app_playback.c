@@ -519,7 +519,7 @@ static int unload_module(void)
 
 	res = ast_unregister_application(app);
 
-	ast_cli_unregister_multiple(cli_playback, sizeof(cli_playback) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(cli_playback, ARRAY_LEN(cli_playback));
 
 	if (say_cfg)
 		ast_config_destroy(say_cfg);
@@ -542,7 +542,7 @@ static int load_module(void)
 		}
 	}
 
-	ast_cli_register_multiple(cli_playback, sizeof(cli_playback) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_playback, ARRAY_LEN(cli_playback));
 	return ast_register_application_xml(app, playback_exec);
 }
 

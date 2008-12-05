@@ -3257,7 +3257,7 @@ static struct ast_cli_entry cli_agi[] = {
 
 static int unload_module(void)
 {
-	ast_cli_unregister_multiple(cli_agi, sizeof(cli_agi) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(cli_agi, ARRAY_LEN(cli_agi));
 	/* we can safely ignore the result of ast_agi_unregister_multiple() here, since it cannot fail, as
 	   we know that these commands were registered by this module and are still registered
 	*/
@@ -3270,7 +3270,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	ast_cli_register_multiple(cli_agi, sizeof(cli_agi) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_agi, ARRAY_LEN(cli_agi));
 	/* we can safely ignore the result of ast_agi_register_multiple() here, since it cannot fail, as
 	   no other commands have been registered yet
 	*/

@@ -2538,6 +2538,6 @@ static struct ast_cli_entry cli_config[] = {
 
 int register_config_cli() 
 {
-	ast_cli_register_multiple(cli_config, sizeof(cli_config) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_config, ARRAY_LEN(cli_config));
 	return 0;
 }

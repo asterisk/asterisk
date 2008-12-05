@@ -15108,8 +15108,7 @@ static int unload_module(void)
 	res = ast_unregister_application(app);
 
 #ifdef	NEW_ASTERISK
-	ast_cli_unregister_multiple(rpt_cli,sizeof(rpt_cli) / 
-		sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(rpt_cli, ARRAY_LEN(rpt_cli));
 #else
 	/* Unregister cli extensions */
 	ast_cli_unregister(&cli_debug);
@@ -15141,8 +15140,7 @@ static int load_module(void)
 	ast_pthread_create(&rpt_master_thread,NULL,rpt_master,NULL);
 
 #ifdef	NEW_ASTERISK
-	ast_cli_register_multiple(rpt_cli,sizeof(rpt_cli) / 
-		sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(rpt_cli, ARRAY_LEN(rpt_cli));
 	res = 0;
 #else
 	/* Register cli extensions */

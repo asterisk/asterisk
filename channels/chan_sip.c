@@ -23864,7 +23864,7 @@ static int load_module(void)
 	}
 
 	/* Register all CLI functions for SIP */
-	ast_cli_register_multiple(cli_sip, sizeof(cli_sip)/ sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_sip, ARRAY_LEN(cli_sip));
 
 	/* Tell the RTP subdriver that we're here */
 	ast_rtp_proto_register(&sip_rtp);
@@ -23938,7 +23938,7 @@ static int unload_module(void)
 	ast_unregister_application(app_sipaddheader);
 
 	/* Unregister CLI commands */
-	ast_cli_unregister_multiple(cli_sip, sizeof(cli_sip) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(cli_sip, ARRAY_LEN(cli_sip));
 
 	/* Disconnect from the RTP subsystem */
 	ast_rtp_proto_unregister(&sip_rtp);

@@ -10793,7 +10793,7 @@ static int unload_module(void)
 	res |= ast_unregister_application(app4);
 	res |= ast_custom_function_unregister(&mailbox_exists_acf);
 	res |= ast_manager_unregister("VoicemailUsersList");
-	ast_cli_unregister_multiple(cli_voicemail, sizeof(cli_voicemail) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(cli_voicemail, ARRAY_LEN(cli_voicemail));
 	ast_uninstall_vm_functions();
 
 	if (poll_thread != AST_PTHREADT_NULL)
@@ -10833,7 +10833,7 @@ static int load_module(void)
 	if (res)
 		return res;
 
-	ast_cli_register_multiple(cli_voicemail, sizeof(cli_voicemail) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_voicemail, ARRAY_LEN(cli_voicemail));
 
 	ast_install_vm_functions(has_voicemail, inboxcount, inboxcount2, messagecount, sayname);
 	ast_realtime_require_field("voicemail", "uniqueid", RQ_UINTEGER3, 11, "password", RQ_CHAR, 10, SENTINEL);

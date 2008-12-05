@@ -6803,7 +6803,7 @@ static int load_module(void)
 	}
 
 	ast_rtp_proto_register(&skinny_rtp);
-	ast_cli_register_multiple(cli_skinny, sizeof(cli_skinny) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_skinny, ARRAY_LEN(cli_skinny));
 	sched = sched_context_create();
 	if (!sched) {
 		ast_log(LOG_WARNING, "Unable to create schedule context\n");
@@ -6828,7 +6828,7 @@ static int unload_module(void)
 
 	ast_rtp_proto_unregister(&skinny_rtp);
 	ast_channel_unregister(&skinny_tech);
-	ast_cli_unregister_multiple(cli_skinny, sizeof(cli_skinny) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(cli_skinny, ARRAY_LEN(cli_skinny));
 	
 	AST_LIST_LOCK(&sessions);
 	/* Destroy all the interfaces and free their memory */

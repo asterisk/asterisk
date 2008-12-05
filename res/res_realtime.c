@@ -251,13 +251,13 @@ static struct ast_cli_entry cli_realtime[] = {
 
 static int unload_module(void)
 {
-	ast_cli_unregister_multiple(cli_realtime, sizeof(cli_realtime) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(cli_realtime, ARRAY_LEN(cli_realtime));
 	return 0;
 }
 
 static int load_module(void)
 {
-	ast_cli_register_multiple(cli_realtime, sizeof(cli_realtime) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_realtime, ARRAY_LEN(cli_realtime));
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

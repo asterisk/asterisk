@@ -1347,6 +1347,6 @@ struct ast_cli_entry cli_file[] = {
 
 int ast_file_init(void)
 {
-	ast_cli_register_multiple(cli_file, sizeof(cli_file) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_file, ARRAY_LEN(cli_file));
 	return 0;
 }

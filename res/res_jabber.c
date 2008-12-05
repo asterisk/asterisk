@@ -2973,7 +2973,7 @@ static int aji_reload(int reload)
 static int unload_module(void)
 {
 
-	ast_cli_unregister_multiple(aji_cli, sizeof(aji_cli) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(aji_cli, ARRAY_LEN(aji_cli));
 	ast_unregister_application(app_ajisend);
 	ast_unregister_application(app_ajistatus);
 	ast_manager_unregister("JabberSend");
@@ -3003,7 +3003,7 @@ static int load_module(void)
 			"Sends a message to a Jabber Client", mandescr_jabber_send);
 	ast_register_application(app_ajisend, aji_send_exec, ajisend_synopsis, ajisend_descrip);
 	ast_register_application(app_ajistatus, aji_status_exec, ajistatus_synopsis, ajistatus_descrip);
-	ast_cli_register_multiple(aji_cli, sizeof(aji_cli) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(aji_cli, ARRAY_LEN(aji_cli));
 	ast_custom_function_register(&jabberstatus_function);
 
 	return 0;

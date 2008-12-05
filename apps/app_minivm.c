@@ -3281,7 +3281,7 @@ static int load_module(void)
 	if ((res = load_config(0)))
 		return(res);
 
-	ast_cli_register_multiple(cli_minivm, sizeof(cli_minivm)/sizeof(cli_minivm[0]));
+	ast_cli_register_multiple(cli_minivm, ARRAY_LEN(cli_minivm));
 
 	/* compute the location of the voicemail spool directory */
 	snprintf(MVM_SPOOL_DIR, sizeof(MVM_SPOOL_DIR), "%s/voicemail/", ast_config_AST_SPOOL_DIR);
@@ -3325,7 +3325,7 @@ static int unload_module(void)
 	res |= ast_unregister_application(app_minivm_notify);
 	res |= ast_unregister_application(app_minivm_delete);
 	res |= ast_unregister_application(app_minivm_accmess);
-	ast_cli_unregister_multiple(cli_minivm, sizeof(cli_minivm)/sizeof(cli_minivm[0]));
+	ast_cli_unregister_multiple(cli_minivm, ARRAY_LEN(cli_minivm));
 	ast_custom_function_unregister(&minivm_account_function);
 	ast_custom_function_unregister(&minivm_counter_function);
 

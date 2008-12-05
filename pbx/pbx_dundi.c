@@ -4701,7 +4701,7 @@ static int unload_module(void)
 		pthread_join(previous_precachethreadid, NULL);
 	}
 
-	ast_cli_unregister_multiple(cli_dundi, sizeof(cli_dundi) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(cli_dundi, ARRAY_LEN(cli_dundi));
 	ast_unregister_switch(&dundi_switch);
 	ast_custom_function_unregister(&dundi_function);
 	ast_custom_function_unregister(&dundi_query_function);
@@ -4769,7 +4769,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	
-	ast_cli_register_multiple(cli_dundi, sizeof(cli_dundi) / sizeof(*cli_dundi));
+	ast_cli_register_multiple(cli_dundi, ARRAY_LEN(cli_dundi));
 	if (ast_register_switch(&dundi_switch))
 		ast_log(LOG_ERROR, "Unable to register DUNDi switch\n");
 	ast_custom_function_register(&dundi_function);

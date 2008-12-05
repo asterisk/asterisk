@@ -1024,7 +1024,7 @@ int ast_http_init(void)
 {
 	ast_http_uri_link(&statusuri);
 	ast_http_uri_link(&staticuri);
-	ast_cli_register_multiple(cli_http, sizeof(cli_http) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_http, ARRAY_LEN(cli_http));
 
 	return __ast_http_load(0);
 }

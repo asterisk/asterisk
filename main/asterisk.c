@@ -3443,7 +3443,7 @@ int main(int argc, char *argv[])
 #endif	
 
 	ast_lastreloadtime = ast_startuptime = ast_tvnow();
-	ast_cli_register_multiple(cli_asterisk, sizeof(cli_asterisk) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_asterisk, ARRAY_LEN(cli_asterisk));
 
 	run_startup_commands();
 

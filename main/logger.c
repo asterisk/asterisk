@@ -1013,7 +1013,7 @@ int init_logger(void)
 	}
 
 	/* register the logger cli commands */
-	ast_cli_register_multiple(cli_logger, sizeof(cli_logger) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_logger, ARRAY_LEN(cli_logger));
 
 	ast_mkdir(ast_config_AST_LOG_DIR, 0777);
   

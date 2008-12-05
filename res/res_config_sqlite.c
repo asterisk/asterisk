@@ -1735,7 +1735,7 @@ static char *handle_cli_sqlite_show_tables(struct ast_cli_entry *e, int cmd, str
 static int unload_module(void)
 {
 	if (cli_status_registered)
-		ast_cli_unregister_multiple(cli_status, sizeof(cli_status) / sizeof(struct ast_cli_entry));
+		ast_cli_unregister_multiple(cli_status, ARRAY_LEN(cli_status));
 
 	if (cdr_registered)
 		ast_cdr_unregister(RES_CONFIG_SQLITE_NAME);
@@ -1850,7 +1850,7 @@ static int load_module(void)
 		cdr_registered = 1;
 	}
 
-	error = ast_cli_register_multiple(cli_status, sizeof(cli_status) / sizeof(struct ast_cli_entry));
+	error = ast_cli_register_multiple(cli_status, ARRAY_LEN(cli_status));
 
 	if (error) {
 		unload_module();

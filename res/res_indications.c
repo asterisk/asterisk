@@ -420,7 +420,7 @@ static int unload_module(void)
 	ast_unregister_indication_country(NULL);
 
 	/* and the functions */
-	ast_cli_unregister_multiple(cli_indications, sizeof(cli_indications) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(cli_indications, ARRAY_LEN(cli_indications));
 	ast_unregister_application("PlayTones");
 	ast_unregister_application("StopPlayTones");
 	return 0;
@@ -432,7 +432,7 @@ static int load_module(void)
 {
 	if (ind_load_module(0))
 		return AST_MODULE_LOAD_DECLINE; 
-	ast_cli_register_multiple(cli_indications, sizeof(cli_indications) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_indications, ARRAY_LEN(cli_indications));
 	ast_register_application_xml("PlayTones", handle_playtones);
 	ast_register_application_xml("StopPlayTones", handle_stopplaytones);
 

@@ -924,7 +924,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	if (load_odbc_config() == -1)
 		return AST_MODULE_LOAD_DECLINE;
-	ast_cli_register_multiple(cli_odbc, sizeof(cli_odbc) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_odbc, ARRAY_LEN(cli_odbc));
 	ast_log(LOG_NOTICE, "res_odbc loaded.\n");
 	return 0;
 }

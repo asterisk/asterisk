@@ -452,7 +452,7 @@ static int unload_module(void)
 {
 	int res;
 
-	ast_cli_unregister_multiple(cli_mixmonitor, sizeof(cli_mixmonitor) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(cli_mixmonitor, ARRAY_LEN(cli_mixmonitor));
 	res = ast_unregister_application(stop_app);
 	res |= ast_unregister_application(app);
 	
@@ -463,7 +463,7 @@ static int load_module(void)
 {
 	int res;
 
-	ast_cli_register_multiple(cli_mixmonitor, sizeof(cli_mixmonitor) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_mixmonitor, ARRAY_LEN(cli_mixmonitor));
 	res = ast_register_application_xml(app, mixmonitor_exec);
 	res |= ast_register_application_xml(stop_app, stop_mixmonitor_exec);
 

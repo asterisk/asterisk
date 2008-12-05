@@ -6608,7 +6608,7 @@ static int unload_module(void)
 	struct ao2_iterator q_iter;
 	struct call_queue *q = NULL;
 
-	ast_cli_unregister_multiple(cli_queue, sizeof(cli_queue) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(cli_queue, ARRAY_LEN(cli_queue));
 	res = ast_manager_unregister("QueueStatus");
 	res |= ast_manager_unregister("Queues");
 	res |= ast_manager_unregister("QueueRule");
@@ -6669,7 +6669,7 @@ static int load_module(void)
 	if (queue_persistent_members)
 		reload_queue_members();
 
-	ast_cli_register_multiple(cli_queue, sizeof(cli_queue) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_queue, ARRAY_LEN(cli_queue));
 	res = ast_register_application_xml(app, queue_exec);
 	res |= ast_register_application_xml(app_aqm, aqm_exec);
 	res |= ast_register_application_xml(app_rqm, rqm_exec);

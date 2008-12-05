@@ -3984,7 +3984,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	ast_cli_register_multiple(cli_usbradio, sizeof(cli_usbradio) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_usbradio, ARRAY_LEN(cli_usbradio));
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
@@ -3997,7 +3997,7 @@ static int unload_module(void)
 	ast_log(LOG_WARNING, "unload_module() called\n");
 
 	ast_channel_unregister(&usbradio_tech);
-	ast_cli_unregister_multiple(cli_usbradio, sizeof(cli_usbradio) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(cli_usbradio, ARRAY_LEN(cli_usbradio));
 
 	for (o = usbradio_default.next; o; o = o->next) {
 

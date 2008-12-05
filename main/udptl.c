@@ -1245,6 +1245,6 @@ int ast_udptl_reload(void)
 
 void ast_udptl_init(void)
 {
-	ast_cli_register_multiple(cli_udptl, sizeof(cli_udptl) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_udptl, ARRAY_LEN(cli_udptl));
 	__ast_udptl_reload(0);
 }

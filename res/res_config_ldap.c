@@ -1515,7 +1515,7 @@ static int load_module(void)
 
 	ast_config_engine_register(&ldap_engine);
 	ast_verb(1, "LDAP RealTime driver loaded.\n");
-	ast_cli_register_multiple(ldap_cli, sizeof(ldap_cli) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(ldap_cli, ARRAY_LEN(ldap_cli));
 
 	ast_mutex_unlock(&ldap_lock);
 
@@ -1533,7 +1533,7 @@ static int unload_module(void)
 		ldap_unbind_ext_s(ldapConn, NULL, NULL);
 		ldapConn = NULL;
 	}
-	ast_cli_unregister_multiple(ldap_cli, sizeof(ldap_cli) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(ldap_cli, ARRAY_LEN(ldap_cli));
 	ast_config_engine_deregister(&ldap_engine);
 	ast_verb(1, "LDAP RealTime unloaded.\n");
 

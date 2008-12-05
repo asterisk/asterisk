@@ -4194,7 +4194,7 @@ int ast_features_init(void)
 
 	if ((res = load_config()))
 		return res;
-	ast_cli_register_multiple(cli_features, sizeof(cli_features) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_features, ARRAY_LEN(cli_features));
 	ast_pthread_create(&parking_thread, NULL, do_parking_thread, NULL);
 	res = ast_register_application2(parkedcall, park_exec, NULL, NULL, NULL);
 	if (!res)

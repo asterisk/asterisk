@@ -13616,10 +13616,10 @@ static int __unload_module(void)
 		if (linksets[i].master != AST_PTHREADT_NULL)
 			pthread_cancel(linksets[i].master);
 		}
-	ast_cli_unregister_multiple(dahdi_ss7_cli, sizeof(dahdi_ss7_cli) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(dahdi_ss7_cli, ARRAY_LEN(dahdi_ss7_cli));
 #endif
 
-	ast_cli_unregister_multiple(dahdi_cli, sizeof(dahdi_cli) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(dahdi_cli, ARRAY_LEN(dahdi_cli));
 	ast_manager_unregister( "DAHDIDialOffhook" );
 	ast_manager_unregister( "DAHDIHangup" );
 	ast_manager_unregister( "DAHDITransfer" );

@@ -487,7 +487,7 @@ void __ast_mm_init(void)
 		ast_log(LOG_ERROR, "struct ast_region has %d bytes of padding! This must be eliminated for low-fence checking to work properly!\n", (int) pad);
 	}
 
-	ast_cli_register_multiple(cli_memory, sizeof(cli_memory) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_memory, ARRAY_LEN(cli_memory));
 	
 	snprintf(filename, sizeof(filename), "%s/mmlog", ast_config_AST_LOG_DIR);
 	

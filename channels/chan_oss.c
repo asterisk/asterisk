@@ -1464,7 +1464,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	ast_cli_register_multiple(cli_oss, sizeof(cli_oss) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_oss, ARRAY_LEN(cli_oss));
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
@@ -1475,7 +1475,7 @@ static int unload_module(void)
 	struct chan_oss_pvt *o, *next;
 
 	ast_channel_unregister(&oss_tech);
-	ast_cli_unregister_multiple(cli_oss, sizeof(cli_oss) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(cli_oss, ARRAY_LEN(cli_oss));
 
 	o = oss_default.next;
 	while (o) {

@@ -1602,7 +1602,7 @@ int ast_cli_perms_init(int reload)
 /*! \brief initialize the _full_cmd string in * each of the builtins. */
 void ast_builtins_init(void)
 {
-	ast_cli_register_multiple(cli_cli, sizeof(cli_cli) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_cli, ARRAY_LEN(cli_cli));
 }
 
 /*!
