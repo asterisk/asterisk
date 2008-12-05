@@ -953,7 +953,9 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
  		if (*c++ != '(')
  			c = NULL;
 		catname = cur;
-		if (!(*cat = newcat = ast_category_new(catname, ast_strlen_zero(suggested_include_file)?configfile:suggested_include_file, lineno))) {
+		if (!(*cat = newcat = ast_category_new(catname,
+				S_OR(suggested_include_file, cfg->include_level == 1 ? "" : configfile),
+				lineno))) {
 			return -1;
 		}
 		(*cat)->lineno = lineno;
@@ -1076,7 +1078,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 		}
 		/* A #include */
 		/* record this inclusion */
-		inclu = ast_include_new(cfg, configfile, cur, !do_include, cur2, lineno, real_inclusion_name, sizeof(real_inclusion_name));
+		inclu = ast_include_new(cfg, cfg->include_level == 1 ? "" : configfile, cur, !do_include, cur2, lineno, real_inclusion_name, sizeof(real_inclusion_name));
 
 		do_include = ast_config_internal_load(cur, cfg, flags, real_inclusion_name, who_asked) ? 1 : 0;
 		if (!ast_strlen_zero(exec_file))
@@ -1133,7 +1135,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 				c++;
 			}
 set_new_variable:
-			if ((v = ast_variable_new(ast_strip(cur), ast_strip(c), S_OR(suggested_include_file, configfile)))) {
+			if ((v = ast_variable_new(ast_strip(cur), ast_strip(c), S_OR(suggested_include_file, cfg->include_level == 1 ? "" : configfile)))) {
 				v->lineno = lineno;
 				v->object = object;
 				*last_cat = 0;
