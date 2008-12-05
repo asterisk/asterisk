@@ -10086,6 +10086,51 @@ static void free_vm_zones(void)
 	AST_LIST_UNLOCK(&zones);
 }
 
+static char *substitute_escapes(const char *value)
+{
+	char *current, *result;
+
+	/* Add 16 for fudge factor */
+	struct ast_str *str = ast_str_create(strlen(value) + 16);
+
+	/* Substitute strings \r, \n, and \t into the appropriate characters */
+	for (current = (char *) value; *current; current++) {
+		if (*current == '\\') {
+			current++;
+			if (!*current) {
+				ast_log(AST_LOG_NOTICE, "Incomplete escape at end of value.\n");
+				break;
+			}
+			switch (*current) {
+			case 'r':
+				ast_str_append(&str, 0, "\r");
+				break;
+			case 'n':
+#ifdef IMAP_STORAGE
+				if (!str->used || str->str[str->used - 1] != '\r') {
+					ast_str_append(&str, 0, "\r");
+				}
+#endif
+				ast_str_append(&str, 0, "\n");
+				break;
+			case 't':
+				ast_str_append(&str, 0, "\t");
+				break;
+			default:
+				ast_log(AST_LOG_NOTICE, "Substitution routine does not support this character: \\%c\n", *current);
+				break;
+			}
+		} else {
+			ast_str_append(&str, 0, "%c", *current);
+		}
+	}
+
+	result = ast_strdup(str->str);
+	free(str);
+
+	return result;
+}
+
 static int load_config(int reload)
 {
 	struct ast_vm_user *current;
@@ -10690,61 +10735,17 @@ static int load_config(int reload)
 				adsiver = atoi(val);
 			}
 		}
-		if ((val = ast_variable_retrieve(cfg, "general", "emailsubject")))
+		if ((val = ast_variable_retrieve(cfg, "general", "emailsubject"))) {
 			emailsubject = ast_strdup(val);
-		if ((val = ast_variable_retrieve(cfg, "general", "emailbody"))) {
-			char *tmpread, *tmpwrite;
-			emailbody = ast_strdup(val);
-
-			/* substitute strings \t and \n into the appropriate characters */
-			tmpread = tmpwrite = emailbody;
-			while ((tmpwrite = strchr(tmpread,'\\'))) {
-				switch (tmpwrite[1]) {
-				case 'r':
-					memmove(tmpwrite + 1, tmpwrite + 2, strlen(tmpwrite + 2) + 1);
-					*tmpwrite = '\r';
-					break;
-				case 'n':
-					memmove(tmpwrite + 1, tmpwrite + 2, strlen(tmpwrite + 2) + 1);
-					*tmpwrite = '\n';
-					break;
-				case 't':
-					memmove(tmpwrite + 1, tmpwrite + 2, strlen(tmpwrite + 2) + 1);
-					*tmpwrite = '\t';
-					break;
-				default:
-					ast_log(AST_LOG_NOTICE, "Substitution routine does not support this character: %c\n", tmpwrite[1]);
-				}
-				tmpread = tmpwrite + 1;
-			}
 		}
-		if ((val = ast_variable_retrieve(cfg, "general", "pagersubject")))
+		if ((val = ast_variable_retrieve(cfg, "general", "emailbody"))) {
+			emailbody = substitute_escapes(val);
+		}
+		if ((val = ast_variable_retrieve(cfg, "general", "pagersubject"))) {
 			pagersubject = ast_strdup(val);
+		}
 		if ((val = ast_variable_retrieve(cfg, "general", "pagerbody"))) {
-			char *tmpread, *tmpwrite;
-			pagerbody = ast_strdup(val);
-
-			/* substitute strings \t and \n into the appropriate characters */
-			tmpread = tmpwrite = pagerbody;
-			while ((tmpwrite = strchr(tmpread, '\\'))) {
-				switch (tmpwrite[1]) {
-				case 'r':
-					memmove(tmpwrite + 1, tmpwrite + 2, strlen(tmpwrite + 2) + 1);
-					*tmpwrite = '\r';
-					break;
-				case 'n':
-					memmove(tmpwrite + 1, tmpwrite + 2, strlen(tmpwrite + 2) + 1);
-					*tmpwrite = '\n';
-					break;
-				case 't':
-					memmove(tmpwrite + 1, tmpwrite + 2, strlen(tmpwrite + 2) + 1);
-					*tmpwrite = '\t';
-					break;
-				default:
-					ast_log(AST_LOG_NOTICE, "Substitution routine does not support this character: %c\n", tmpwrite[1]);
-				}
-				tmpread = tmpwrite + 1;
-			}
+			pagerbody = substitute_escapes(val);
 		}
 		AST_LIST_UNLOCK(&users);
 		ast_config_destroy(cfg);
