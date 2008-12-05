@@ -356,7 +356,7 @@ struct ao2_container;
  *
  * destructor is set implicitly.
  */
-struct ao2_container *ao2_container_alloc(const uint n_buckets,
+struct ao2_container *ao2_container_alloc(const unsigned int n_buckets,
 		ao2_hash_fn *hash_fn, ao2_callback_fn *cmp_fn);
 
 /*! \brief
@@ -565,11 +565,11 @@ struct ao2_iterator {
 	/*! current bucket */
 	int bucket;
 	/*! container version */
-	uint c_version;
+	unsigned int c_version;
 	/*! pointer to the current object */
 	void *obj;
 	/*! container version when the object was created */
-	uint version;
+	unsigned int version;
 };
 
 struct ao2_iterator ao2_iterator_init(struct ao2_container *c, int flags);
