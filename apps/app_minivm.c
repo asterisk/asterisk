@@ -1106,7 +1106,7 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 		return -1;
 	}
 	/* Allocate channel used for chanvar substitution */
-	ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, 0);
+	ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "%s", "");
 
 
 	snprintf(dur, sizeof(dur), "%d:%02d", duration / 60, duration % 60);
