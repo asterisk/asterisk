@@ -10126,7 +10126,7 @@ static char *substitute_escapes(const char *value)
 	}
 
 	result = ast_strdup(str->str);
-	free(str);
+	ast_free(str);
 
 	return result;
 }
