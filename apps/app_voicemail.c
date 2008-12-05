@@ -1785,7 +1785,12 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 			*(vmu->email) = '\0';
 		return -1;
 	}
-	fread(buf, len, 1, p);
+	if (fread(buf, len, 1, p) < len) {
+		if (ferror(p)) {
+			ast_log(LOG_ERROR, "Short read while reading in mail file.\n");
+			return -1;
+		}
+	}
 	((char *)buf)[len] = '\0';
 	INIT(&str, mail_string, buf, len);
 	ret = init_mailstream(vms, NEW_FOLDER);
@@ -2132,7 +2137,11 @@ static void write_file(char *filename, char *buffer, unsigned long len)
 	FILE *output;
 
 	output = fopen (filename, "w");
-	fwrite (buffer, len, 1, output);
+	if (fwrite(buffer, len, 1, output) < len) {
+		if (ferror(output)) {
+			ast_log(LOG_ERROR, "Short write while writing e-mail body.\n");
+		}
+	}
 	fclose (output);
 }
 
