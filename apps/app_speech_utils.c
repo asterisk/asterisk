@@ -37,62 +37,213 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #include "asterisk/app.h"
 #include "asterisk/speech.h"
 
-/* Descriptions for each application */
-static char *speechcreate_descrip =
-"  SpeechCreate(engine name):\n"
-"This application creates information to be used by all the other applications.\n"
-"It must be called before doing any speech recognition activities such as activating a grammar.\n"
-"It takes the engine name to use as the argument, if not specified the default engine will be used.\n";
-
-static char *speechactivategrammar_descrip =
-"  SpeechActivateGrammar(Grammar Name):\n"
-"This activates the specified grammar to be recognized by the engine.\n"
-"A grammar tells the speech recognition engine what to recognize, and how to portray it back to you \n"
-"in the dialplan. The grammar name is the only argument to this application.\n";
-
-static char *speechstart_descrip =
-"  SpeechStart():\n"
-"Tell the speech recognition engine that it should start trying to get results from audio being \n"
-"fed to it. This has no arguments.\n";
-
-static char *speechbackground_descrip =
-"  SpeechBackground(<Sound File>[,Timeout[,options]]):\n"
-"This application plays a sound file and waits for the person to speak. Once they start speaking playback\n"
-"of the file stops, and silence is heard. Once they stop talking the processing sound is played to indicate\n"
-"the speech recognition engine is working. Once results are available the application returns and results \n"
-"(score and text) are available using dialplan functions.\n"
-"  The first text and score are ${SPEECH_TEXT(0)} AND ${SPEECH_SCORE(0)} while the second are ${SPEECH_TEXT(1)}\n"
-"and ${SPEECH_SCORE(1)}.\n"
-"  The first argument is the sound file and the second is the timeout integer in seconds. Note the timeout will\n"
-"only start once the sound file has stopped playing. The third argument specifies options:\n"
-"  Valid Options:\n"
-"    n - Don't answer the channel if it has not already been answered.\n";
-
-static char *speechdeactivategrammar_descrip =
-"  SpeechDeactivateGrammar(Grammar Name):\n"
-"This deactivates the specified grammar so that it is no longer recognized.\n"
-"The only argument is the grammar name to deactivate.\n";
-
-static char *speechprocessingsound_descrip =
-"  SpeechProcessingSound(Sound File):\n"
-"This changes the processing sound that SpeechBackground plays back when the speech recognition engine is\n"
-"processing and working to get results.\n"
-"It takes the sound file as the only argument.\n";
-
-static char *speechdestroy_descrip =
-"  SpeechDestroy():\n"
-"This destroys the information used by all the other speech recognition applications.\n"
-"If you call this application but end up wanting to recognize more speech, you must call SpeechCreate\n"
-	"again before calling any other application. It takes no arguments.\n";
-
-static char *speechload_descrip =
-"  SpeechLoadGrammar(Grammar Name,Path):\n"
-"Load a grammar only on the channel, not globally.\n"
-"It takes the grammar name as first argument and path as second.\n";
-
-static char *speechunload_descrip =
-"  SpeechUnloadGrammar(Grammar Name):\n"
-"Unload a grammar. It takes the grammar name as the only argument.\n";
+/*** DOCUMENTATION
+	<application name="SpeechCreate" language="en_US">
+		<synopsis>
+			Create a Speech Structure.
+		</synopsis>
+		<syntax>
+			<parameter name="engine_name" required="true" />
+		</syntax>
+		<description>
+			<para>This application creates information to be used by all the other applications.
+			It must be called before doing any speech recognition activities such as activating a grammar.
+			It takes the engine name to use as the argument, if not specified the default engine will be used.</para>
+		</description>
+	</application>
+	<application name="SpeechActivateGrammar" language="en_US">
+		<synopsis>
+			Activate a grammar.
+		</synopsis>
+		<syntax>
+			<parameter name="grammar_name" required="true" />
+		</syntax>
+		<description>
+			<para>This activates the specified grammar to be recognized by the engine.
+			A grammar tells the speech recognition engine what to recognize, and how to portray it back to you
+			in the dialplan. The grammar name is the only argument to this application.</para>
+		</description>
+	</application>
+	<application name="SpeechStart" language="en_US">
+		<synopsis>
+			Start recognizing voice in the audio stream.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Tell the speech recognition engine that it should start trying to get results from audio being
+			fed to it.</para>
+		</description>
+	</application>
+	<application name="SpeechBackground" language="en_US">
+		<synopsis>
+			Play a sound file and wait for speech to be recognized.
+		</synopsis>
+		<syntax>
+			<parameter name="sound_file" required="true" />
+			<parameter name="timeout">
+				<para>Timeout integer in seconds. Note the timeout will only start
+				once the sound file has stopped playing.</para>
+			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="n">
+						<para>Don't answer the channel if it has not already been answered.</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application plays a sound file and waits for the person to speak. Once they start speaking playback
+			of the file stops, and silence is heard. Once they stop talking the processing sound is played to indicate
+			the speech recognition engine is working. Once results are available the application returns and results
+			(score and text) are available using dialplan functions.</para>
+			<para>The first text and score are ${SPEECH_TEXT(0)} AND ${SPEECH_SCORE(0)} while the second are ${SPEECH_TEXT(1)}
+			and ${SPEECH_SCORE(1)}.</para>
+			<para>The first argument is the sound file and the second is the timeout integer in seconds.</para>
+			
+		</description>
+	</application>
+	<application name="SpeechDeactivateGrammar" language="en_US">
+		<synopsis>
+			Deactivate a grammar.
+		</synopsis>
+		<syntax>
+			<parameter name="grammar_name" required="true">
+				<para>The grammar name to deactivate</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This deactivates the specified grammar so that it is no longer recognized.</para>
+		</description>
+	</application>
+	<application name="SpeechProcessingSound" language="en_US">
+		<synopsis>
+			Change background processing sound.
+		</synopsis>
+		<syntax>
+			<parameter name="sound_file" required="true" />
+		</syntax>
+		<description>
+			<para>This changes the processing sound that SpeechBackground plays back when the speech recognition engine is
+			processing and working to get results.</para>
+		</description>
+	</application>
+	<application name="SpeechDestroy" language="en_US">
+		<synopsis>
+			End speech recognition.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>This destroys the information used by all the other speech recognition applications.
+			If you call this application but end up wanting to recognize more speech, you must call SpeechCreate()
+			again before calling any other application.</para>
+		</description>
+	</application>
+	<application name="SpeechLoadGrammar" language="en_US">
+		<synopsis>
+			Load a grammar.
+		</synopsis>
+		<syntax>
+			<parameter name="grammar_name" required="true" />
+			<parameter name="path" required="true" />
+		</syntax>
+		<description>
+			<para>Load a grammar only on the channel, not globally.</para>
+		</description>
+	</application>
+	<application name="SpeechUnloadGrammar" language="en_US">
+		<synopsis>
+			Unload a grammar.
+		</synopsis>
+		<syntax>
+			<parameter name="grammar_name" required="true" />
+		</syntax>
+		<description>
+			<para>Unload a grammar.</para>
+		</description>
+	</application>
+	<function name="SPEECH_SCORE" language="en_US">
+		<synopsis>
+			Gets the confidence score of a result.
+		</synopsis>
+		<syntax argsep="/">
+			<parameter name="nbest_number" />
+			<parameter name="result_number" required="true" />
+		</syntax>
+		<description>
+			<para>Gets the confidence score of a result.</para>
+		</description>
+	</function>
+	<function name="SPEECH_TEXT" language="en_US">
+		<synopsis>
+			Gets the recognized text of a result.
+		</synopsis>
+		<syntax argsep="/">
+			<parameter name="nbest_number" />
+			<parameter name="result_number" required="true" />
+		</syntax>
+		<description>
+			<para>Gets the recognized text of a result.</para>
+		</description>
+	</function>
+	<function name="SPEECH_GRAMMAR" language="en_US">
+		<synopsis>
+			Gets the matched grammar of a result if available.
+		</synopsis>
+		<syntax argsep="/">
+			<parameter name="nbest_number" />
+			<parameter name="result_number" required="true" />
+		</syntax>
+		<description>
+			<para>Gets the matched grammar of a result if available.</para>
+		</description>
+	</function>
+	<function name="SPEECH_ENGINE" language="en_US">
+		<synopsis>
+			Change a speech engine specific attribute.
+		</synopsis>
+		<syntax>
+			<parameter name="name" required="true" />
+		</syntax>
+		<description>
+			<para>Changes a speech engine specific attribute.</para>
+		</description>
+	</function>
+	<function name="SPEECH_RESULTS_TYPE" language="en_US">
+		<synopsis>
+			Sets the type of results that will be returned.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Sets the type of results that will be returned. Valid options are normal or nbest.</para>
+		</description>
+	</function>
+	<function name="SPEECH" language="en_US">
+		<synopsis>
+			Gets information about speech recognition results.
+		</synopsis>
+		<syntax>
+			<parameter name="argument" required="true">
+				<enumlist>
+					<enum name="status">
+						<para>Returns <literal>1</literal> upon speech object existing,
+						or <literal>0</literal> if not</para>
+					</enum>
+					<enum name="spoke">
+						<para>Returns <literal>1</literal> if spoker spoke,
+						or <literal>0</literal> if not</para>
+					</enum>
+					<enum name="results">
+						<para>Returns number of results that were recognized.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Gets information about speech recognition results.</para>
+		</description>
+	</function>
+ ***/
 
 /*! \brief Helper function used by datastores to destroy the speech structure upon hangup */
 static void destroy_callback(void *data)
@@ -181,10 +332,6 @@ static int speech_score(struct ast_channel *chan, const char *cmd, char *data,
 
 static struct ast_custom_function speech_score_function = {
 	.name = "SPEECH_SCORE",
-	.synopsis = "Gets the confidence score of a result.",
-	.syntax = "SPEECH_SCORE([nbest number/]result number)",
-	.desc =
-	"Gets the confidence score of a result.\n",
 	.read = speech_score,
 	.write = NULL,
 };
@@ -211,10 +358,6 @@ static int speech_text(struct ast_channel *chan, const char *cmd, char *data,
 
 static struct ast_custom_function speech_text_function = {
 	.name = "SPEECH_TEXT",
-	.synopsis = "Gets the recognized text of a result.",
-	.syntax = "SPEECH_TEXT([nbest number/]result number)",
-	.desc =
-	"Gets the recognized text of a result.\n",
 	.read = speech_text,
 	.write = NULL,
 };
@@ -241,10 +384,6 @@ static int speech_grammar(struct ast_channel *chan, const char *cmd, char *data,
 
 static struct ast_custom_function speech_grammar_function = {
 	.name = "SPEECH_GRAMMAR",
-	.synopsis = "Gets the matched grammar of a result if available.",
-	.syntax = "SPEECH_GRAMMAR([nbest number/]result number)",
-	.desc =
-	"Gets the matched grammar of a result if available.\n",
 	.read = speech_grammar,
 	.write = NULL,
 };
@@ -265,10 +404,6 @@ static int speech_engine_write(struct ast_channel *chan, const char *cmd, char *
 
 static struct ast_custom_function speech_engine_function = {
 	.name = "SPEECH_ENGINE",
-	.synopsis = "Change a speech engine specific attribute.",
-	.syntax = "SPEECH_ENGINE(name)=value",
-	.desc =
-	"Changes a speech engine specific attribute.\n",
 	.read = NULL,
 	.write = speech_engine_write,
 };
@@ -291,10 +426,6 @@ static int speech_results_type_write(struct ast_channel *chan, const char *cmd, 
 
 static struct ast_custom_function speech_results_type_function = {
 	.name = "SPEECH_RESULTS_TYPE",
-	.synopsis = "Sets the type of results that will be returned.",
-	.syntax = "SPEECH_RESULTS_TYPE()=results type",
-	.desc =
-	"Sets the type of results that will be returned. Valid options are normal or nbest.",
 	.read = NULL,
 	.write = speech_results_type_write,
 };
@@ -343,13 +474,6 @@ static int speech_read(struct ast_channel *chan, const char *cmd, char *data,
 
 static struct ast_custom_function speech_function = {
 	.name = "SPEECH",
-	.synopsis = "Gets information about speech recognition results.",
-	.syntax = "SPEECH(argument)",
-	.desc =
-	"Gets information about speech recognition results.\n"
-	"status:   Returns 1 upon speech object existing, or 0 if not\n"
-	"spoke:  Returns 1 if spoker spoke, or 0 if not\n"
-	"results:  Returns number of results that were recognized\n",
 	.read = speech_read,
 	.write = NULL,
 };
@@ -810,15 +934,15 @@ static int load_module(void)
 {
 	int res = 0;
 
-	res = ast_register_application("SpeechCreate", speech_create, "Create a Speech Structure", speechcreate_descrip);
-	res |= ast_register_application("SpeechLoadGrammar", speech_load, "Load a Grammar", speechload_descrip);
-	res |= ast_register_application("SpeechUnloadGrammar", speech_unload, "Unload a Grammar", speechunload_descrip);
-	res |= ast_register_application("SpeechActivateGrammar", speech_activate, "Activate a Grammar", speechactivategrammar_descrip);
-	res |= ast_register_application("SpeechDeactivateGrammar", speech_deactivate, "Deactivate a Grammar", speechdeactivategrammar_descrip);
-	res |= ast_register_application("SpeechStart", speech_start, "Start recognizing voice in the audio stream", speechstart_descrip);
-	res |= ast_register_application("SpeechBackground", speech_background, "Play a sound file and wait for speech to be recognized", speechbackground_descrip);
-	res |= ast_register_application("SpeechDestroy", speech_destroy, "End speech recognition", speechdestroy_descrip);
-	res |= ast_register_application("SpeechProcessingSound", speech_processing_sound, "Change background processing sound", speechprocessingsound_descrip);
+	res = ast_register_application_xml("SpeechCreate", speech_create);
+	res |= ast_register_application_xml("SpeechLoadGrammar", speech_load);
+	res |= ast_register_application_xml("SpeechUnloadGrammar", speech_unload);
+	res |= ast_register_application_xml("SpeechActivateGrammar", speech_activate);
+	res |= ast_register_application_xml("SpeechDeactivateGrammar", speech_deactivate);
+	res |= ast_register_application_xml("SpeechStart", speech_start);
+	res |= ast_register_application_xml("SpeechBackground", speech_background);
+	res |= ast_register_application_xml("SpeechDestroy", speech_destroy);
+	res |= ast_register_application_xml("SpeechProcessingSound", speech_processing_sound);
 	res |= ast_custom_function_register(&speech_function);
 	res |= ast_custom_function_register(&speech_score_function);
 	res |= ast_custom_function_register(&speech_text_function);
