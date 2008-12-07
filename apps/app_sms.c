@@ -53,6 +53,55 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 
+/*** DOCUMENTATION
+	<application name="SMS" language="en_US">
+		<synopsis>
+			Communicates with SMS service centres and SMS capable analogue phones.
+		</synopsis>
+		<syntax>
+			<parameter name="name" required="true">
+				<para>The name of the queue used in <filename>/var/spool/asterisk/sms</filename></para>
+			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="a">
+						<para>Answer, i.e. send initial FSK packet.</para>
+					</option>
+					<option name="s">
+						<para>Act as service centre talking to a phone.</para>
+					</option>
+					<option name="t">
+						<para>Use protocol 2 (default used is protocol 1).</para>
+					</option>
+					<option name="p">
+						<para>Set the initial delay to N ms (default is <literal>300</literal>).
+						addr and body are a deprecated format to send messages out.</para>
+					</option>
+					<option name="r">
+						<para>Set the Status Report Request (SRR) bit.</para>
+					</option>
+					<option name="o">
+						<para>The body should be coded as octets not 7-bit symbols.</para>
+					</option>
+				</optionlist>
+			</parameter>
+			<parameter name="addr" />
+			<parameter name="body" />
+		</syntax>
+		<description>
+			<para>SMS handles exchange of SMS data with a call to/from SMS capable phone or SMS PSTN service center.
+			Can send and/or receive SMS messages. Works to ETSI ES 201 912; compatible with BT SMS PSTN service in
+			UK and Telecom Italia in Italy.</para>
+			<para>Typical usage is to use to handle calls from the SMS service centre CLI, or to set up a call using
+			<literal>outgoing</literal> or manager interface to connect service centre to SMS().</para>
+			<para>"Messages are processed as per text file message queues. smsq (a separate software) is a command to
+			generate message queues and send messages.</para>
+			<note><para>The protocol has tight delay bounds. Please use short frames and disable/keep short the
+			jitter buffer on the ATA to make sure that respones (ACK etc.) are received in time.</para></note>
+		</description>
+	</application>
+ ***/
+
 /* #define OUTALAW */        /* enable this to output Alaw rather than linear */
 
 /* ToDo */
@@ -67,33 +116,6 @@ static volatile unsigned int seq;           /* arbitrary message sequence number
 static char log_file[255];
 
 static char *app = "SMS";
-
-static char *synopsis = "Communicates with SMS service centres and SMS capable analogue phones";
-
-static char *descrip =
-	"  SMS(name,[a][s][t][p(d)][r][o],addr,body):\n"
-	"SMS handles exchange of SMS data with a call to/from SMS capable\n"
-	"phone or SMS PSTN service center. Can send and/or receive SMS messages.\n"
-	"Works to ETSI ES 201 912; compatible with BT SMS PSTN service in UK\n"
-	"and Telecom Italia in Italy.\n"
-	"Typical usage is to use to handle calls from the SMS service centre CLI,\n"
-	"or to set up a call using 'outgoing' or manager interface to connect\n"
-	"service centre to SMS()\n"
-	"name is the name of the queue used in /var/spool/asterisk/sms\n"
-	"Arguments:\n"
-	" a  - answer, i.e. send initial FSK packet.\n"
-	" s  - act as service centre talking to a phone.\n"
-	" t  - use protocol 2 (default used is protocol 1).\n"
-	" p(N)  - set the initial delay to N ms (default is 300).\n"
-	"         addr and body are a deprecated format to send messages out.\n"
-	" r  - set the Status Report Request (SRR) bit.\n"
-	" o  - the body should be coded as octets not 7-bit symbols.\n"
-	"Messages are processed as per text file message queues.\n" 
-	"smsq (a separate software) is a command to generate message\n"
-	"queues and send messages.\n"
-	"NOTE: the protocol has tight delay bounds. Please use short frames\n"
-	"and disable/keep short the jitter buffer on the ATA to make sure that\n"
-	"respones (ACK etc.) are received in time.\n";
 
 /*
  * 80 samples of a single period of the wave. At 8000 Hz, it means these
@@ -2036,7 +2058,7 @@ static int load_module(void)
 	}
 #endif
 	snprintf(log_file, sizeof(log_file), "%s/sms", ast_config_AST_LOG_DIR);
-	return ast_register_application(app, sms_exec, synopsis, descrip);
+	return ast_register_application_xml(app, sms_exec);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "SMS/PSTN handler");
