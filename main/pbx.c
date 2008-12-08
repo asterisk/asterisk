@@ -4116,7 +4116,7 @@ static int collect_digits(struct ast_channel *c, int waittime, char *buf, int bu
 	while (ast_matchmore_extension(c, c->context, buf, 1, c->cid.cid_num)) {
 		/* As long as we're willing to wait, and as long as it's not defined,
 		   keep reading digits until we can't possibly get a right answer anymore.  */
-		digit = ast_waitfordigit(c, waittime * 1000);
+		digit = ast_waitfordigit(c, waittime);
 		if (c->_softhangup == AST_SOFTHANGUP_ASYNCGOTO) {
 			c->_softhangup = 0;
 		} else {
