@@ -117,6 +117,187 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/res_odbc.h"
 #endif
 
+/*** DOCUMENTATION
+	<application name="VoiceMail" language="en_US">
+		<synopsis>
+			Leave a Voicemail message.
+		</synopsis>
+		<syntax>
+			<parameter name="mailboxs" argsep="&amp;" required="true">
+				<argument name="mailbox1" argsep="@" required="true">
+					<argument name="mailbox" required="true" />
+					<argument name="context" />
+				</argument>
+				<argument name="mailbox2" argsep="@" multiple="true">
+					<argument name="mailbox" required="true" />
+					<argument name="context" />
+				</argument>
+			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="b">
+						<para>Play the <literal>busy</literal> greeting to the calling party.</para>
+					</option>
+					<option name="d">
+						<argument name="c" />
+						<para>Accept digits for a new extension in context <replaceable>c</replaceable>,
+						if played during the greeting. Context defaults to the current context.</para>
+					</option>
+					<option name="g">
+						<argument name="#" required="true" />
+						<para>Use the specified amount of gain when recording the voicemail
+						message. The units are whole-number decibels (dB). Only works on supported
+						technologies, which is DAHDI only.</para>
+					</option>
+					<option name="s">
+						<para>Skip the playback of instructions for leaving a message to the
+						calling party.</para>
+					</option>
+					<option name="u">
+						<para>Play the <literal>unavailable</literal> greeting.</para>
+					</option>
+					<option name="U">
+						<para>Mark message as <literal>URGENT</literal>.</para>
+					</option>
+					<option name="P">
+						<para>Mark message as <literal>PRIORITY</literal>.</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application allows the calling party to leave a message for the specified
+			list of mailboxes. When multiple mailboxes are specified, the greeting will be taken from
+			the first mailbox specified. Dialplan execution will stop if the specified mailbox does not
+			exist.</para>
+			<para>The Voicemail application will exit if any of the following DTMF digits are received:</para>
+			<enumlist>
+				<enum name="0">
+					<para>Jump to the <literal>o</literal> extension in the current dialplan context.</para>
+				</enum>
+				<enum name="*">
+					<para>Jump to the <literal>a</literal> extension in the current dialplan context.</para>
+				</enum>
+			</enumlist>
+			<para>This application will set the following channel variable upon completion:</para>
+			<variablelist>
+				<variable name="VMSTATUS">
+					<para>This indicates the status of the execution of the VoiceMail application.</para>
+					<value name="SUCCESS" />
+					<value name="USEREXIT" />
+					<value name="FAILED" />
+				</variable>
+			</variablelist>
+		</description>
+	</application>
+	<application name="VoiceMailMain" language="en_US">
+		<synopsis>
+			Check Voicemail messages.
+		</synopsis>
+		<syntax>
+			<parameter name="mailbox" required="true" argsep="@">
+				<argument name="mailbox" />
+				<argument name="context" />
+			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="p">
+						<para>Consider the <replaceable>mailbox</replaceable> parameter as a prefix to
+						the mailbox that is entered by the caller.</para>
+					</option>
+					<option name="g">
+						<argument name="#" required="true" />
+						<para>Use the specified amount of gain when recording a voicemail message.
+						The units are whole-number decibels (dB).</para>
+					</option>
+					<option name="s">
+						<para>Skip checking the passcode for the mailbox.</para>
+					</option>
+					<option name="a">
+						<argument name="folder" required="true" />
+						<para>Skip folder prompt and go directly to <replaceable>folder</replaceable> specified.
+						Defaults to <literal>INBOX</literal>.</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application allows the calling party to check voicemail messages. A specific
+			<replaceable>mailbox</replaceable>, and optional corresponding <replaceable>context</replaceable>,
+			may be specified. If a <replaceable>mailbox</replaceable> is not provided, the calling party will
+			be prompted to enter one. If a <replaceable>context</replaceable> is not specified, the
+			<literal>default</literal> context will be used.</para>
+		</description>
+	</application>
+	<application name="MailboxExists" language="en_US">
+		<synopsis>
+			Check to see if Voicemail mailbox exists.
+		</synopsis>
+		<syntax>
+			<parameter name="mailbox" required="true" argsep="@">
+				<argument name="mailbox" required="true" />
+				<argument name="context" />
+			</parameter>
+			<parameter name="options">
+				<para>None options.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Check to see if the specified <replaceable>mailbox</replaceable> exists. If no voicemail
+			<replaceable>context</replaceable> is specified, the <literal>default</literal> context
+			will be used.</para>
+			<para>This application will set the following channel variable upon completion:</para>
+			<variablelist>
+				<variable name="VMBOXEXISTSSTATUS">
+					<para>This will contain the status of the execution of the MailboxExists application.
+					Possible values include:</para>
+					<value name="SUCCESS" />
+					<value name="FAILED" />
+				</variable>
+			</variablelist>
+		</description>
+	</application>
+	<application name="VMAuthenticate" language="en_US">
+		<synopsis>
+			Authenticate with Voicemail passwords.
+		</synopsis>
+		<syntax>
+			<parameter name="mailbox" required="true" argsep="@">
+				<argument name="mailbox" />
+				<argument name="context" />
+			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="s">
+						<para>Skip playing the initial prompts.</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application behaves the same way as the Authenticate application, but the passwords
+			are taken from <filename>voicemail.conf</filename>. If the <replaceable>mailbox</replaceable> is
+			specified, only that mailbox's password will be considered valid. If the <replaceable>mailbox</replaceable>
+			is not specified, the channel variable <variable>AUTH_MAILBOX</variable> will be set with the authenticated
+			mailbox.</para>
+		</description>
+	</application>
+	<function name="MAILBOX_EXISTS" language="en_US">
+		<synopsis>
+			Tell if a mailbox is configured.
+		</synopsis>
+		<syntax argsep="@">
+			<parameter name="mailbox" required="true" />
+			<parameter name="context" />
+		</syntax>
+		<description>
+			<para>Returns a boolean of whether the corresponding <replaceable>mailbox</replaceable> exists.
+			If <replaceable>context</replaceable> is not specified, defaults to the <literal>default</literal>
+			context.</para>
+		</description>
+	</function>
+ ***/
+
 #ifdef IMAP_STORAGE
 static char imapserver[48];
 static char imapport[8];
@@ -496,77 +677,6 @@ static int pwdchange = PWDCHANGE_INTERNAL;
 static char userscontext[AST_MAX_EXTENSION] = "default";
 
 static char *addesc = "Comedian Mail";
-
-static char *synopsis_vm = "Leave a Voicemail message";
-
-static char *descrip_vm =
-	"  VoiceMail(mailbox[@context][&mailbox[@context]][...][,options]): This\n"
-	"application allows the calling party to leave a message for the specified\n"
-	"list of mailboxes. When multiple mailboxes are specified, the greeting will\n"
-	"be taken from the first mailbox specified. Dialplan execution will stop if the\n"
-	"specified mailbox does not exist.\n"
-	"  The Voicemail application will exit if any of the following DTMF digits are\n"
-	"received:\n"
-	"    0 - Jump to the 'o' extension in the current dialplan context.\n"
-	"    * - Jump to the 'a' extension in the current dialplan context.\n"
-	"  This application will set the following channel variable upon completion:\n"
-	"    VMSTATUS - This indicates the status of the execution of the VoiceMail\n"
-	"               application. The possible values are:\n"
-	"               SUCCESS | USEREXIT | FAILED\n\n"
-	"  Options:\n"
-	"    b    - Play the 'busy' greeting to the calling party.\n"
-	"    d([c]) - Accept digits for a new extension in context c, if played during\n"
-	"             the greeting.  Context defaults to the current context.\n"
-	"    g(#) - Use the specified amount of gain when recording the voicemail\n"
-	"           message. The units are whole-number decibels (dB).\n"
-	"           Only works on supported technologies, which is DAHDI only.\n"
-	"    s    - Skip the playback of instructions for leaving a message to the\n"
-	"           calling party.\n"
-	"    u    - Play the 'unavailable' greeting.\n"
-	"    U    - Mark message as Urgent.\n"
-	"    P    - Mark message as PRIORITY.\n";
-
-static char *synopsis_vmain = "Check Voicemail messages";
-
-static char *descrip_vmain =
-	"  VoiceMailMain([mailbox][@context][,options]): This application allows the\n"
-	"calling party to check voicemail messages. A specific mailbox, and optional\n"
-	"corresponding context, may be specified. If a mailbox is not provided, the\n"
-	"calling party will be prompted to enter one. If a context is not specified,\n"
-	"the 'default' context will be used.\n\n"
-	"  Options:\n"
-	"    p    - Consider the mailbox parameter as a prefix to the mailbox that\n"
-	"           is entered by the caller.\n"
-	"    g(#) - Use the specified amount of gain when recording a voicemail\n"
-	"           message. The units are whole-number decibels (dB).\n"
-	"    s    - Skip checking the passcode for the mailbox.\n"
-	"    a(#) - Skip folder prompt and go directly to folder specified.\n"
-	"           Defaults to INBOX\n";
-
-static char *synopsis_vm_box_exists =
-"Check to see if Voicemail mailbox exists";
-
-static char *descrip_vm_box_exists =
-	"  MailboxExists(mailbox[@context][,options]): Check to see if the specified\n"
-	"mailbox exists. If no voicemail context is specified, the 'default' context\n"
-	"will be used.\n"
-	"  This application will set the following channel variable upon completion:\n"
-	"    VMBOXEXISTSSTATUS - This will contain the status of the execution of the\n"
-	"                        MailboxExists application. Possible values include:\n"
-	"                        SUCCESS | FAILED\n\n"
-	"  Options: (none)\n";
-
-static char *synopsis_vmauthenticate = "Authenticate with Voicemail passwords";
-
-static char *descrip_vmauthenticate =
-	"  VMAuthenticate([mailbox][@context][,options]): This application behaves the\n"
-	"same way as the Authenticate application, but the passwords are taken from\n"
-	"voicemail.conf.\n"
-	"  If the mailbox is specified, only that mailbox's password will be considered\n"
-	"valid. If the mailbox is not specified, the channel variable AUTH_MAILBOX will\n"
-	"be set with the authenticated mailbox.\n\n"
-	"  Options:\n"
-	"    s - Skip playing the initial prompts.\n";
 
 /* Leave a message */
 static char *app = "VoiceMail";
@@ -9532,11 +9642,6 @@ static int acf_mailbox_exists(struct ast_channel *chan, const char *cmd, char *a
 
 static struct ast_custom_function mailbox_exists_acf = {
 	.name = "MAILBOX_EXISTS",
-	.synopsis = "Tell if a mailbox is configured",
-	.desc =
-"Returns a boolean of whether the corresponding mailbox exists.  If context\n"
-"is not specified, defaults to the \"default\" context.\n",
-	.syntax = "MAILBOX_EXISTS(<vmbox>[@<context>])",
 	.read = acf_mailbox_exists,
 };
 
@@ -10825,10 +10930,10 @@ static int load_module(void)
 	if ((res = load_config(0)))
 		return res;
 
-	res = ast_register_application(app, vm_exec, synopsis_vm, descrip_vm);
-	res |= ast_register_application(app2, vm_execmain, synopsis_vmain, descrip_vmain);
-	res |= ast_register_application(app3, vm_box_exists, synopsis_vm_box_exists, descrip_vm_box_exists);
-	res |= ast_register_application(app4, vmauthenticate, synopsis_vmauthenticate, descrip_vmauthenticate);
+	res = ast_register_application_xml(app, vm_exec);
+	res |= ast_register_application_xml(app2, vm_execmain);
+	res |= ast_register_application_xml(app3, vm_box_exists);
+	res |= ast_register_application_xml(app4, vmauthenticate);
 	res |= ast_custom_function_register(&mailbox_exists_acf);
 	res |= ast_manager_register("VoicemailUsersList", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, manager_list_voicemail_users, "List All Voicemail User Information");
 	if (res)
