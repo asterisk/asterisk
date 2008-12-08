@@ -10,7 +10,7 @@
 # License
 #
 
-OUTPUT=$HOME/digiuminfo
+OUTPUT=$HOME/digiuminfo.txt
 
 MYUID=$(id -u);
 

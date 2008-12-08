@@ -7,7 +7,7 @@
 .B autosupport
 
 .SH DESCRIPTION
-.B autoasupport
+.B autosupport
 is a script that is normally run by a user contacting Digium's support 
 to automate gathering support information.
 
@@ -15,14 +15,13 @@ It will probe the system for some configuration and run-time information,
 and will also prompt the user for some optional access information (IP 
 address, login and password).
 
-The information is written to /root/digiuminfo which the user is expected 
+The information is written to /root/digiuminfo.txt which the user is expected 
 to attach to a support ticket to Digium.
 
-The script must be run as root as it reads Asterisk's configuration and 
-the disk information using hdparm(8).
+The script must be run as root.
 
 .SH FILES
-.B /root/digiuminfo
+.B /root/digiuminfo.txt
 .RS
 The output of the script goes there
 .RE
