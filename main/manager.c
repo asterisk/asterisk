@@ -545,8 +545,8 @@ static char *handle_showmanager(struct ast_cli_entry *e, int cmd, struct ast_cli
 	struct ast_manager_user *user = NULL;
 	int l, which;
 	char *ret = NULL;
-	struct ast_str *rauthority = ast_str_alloca(80);
-	struct ast_str *wauthority = ast_str_alloca(80);
+	struct ast_str *rauthority = ast_str_alloca(128);
+	struct ast_str *wauthority = ast_str_alloca(128);
 
 	switch (cmd) {
 	case CLI_INIT:
