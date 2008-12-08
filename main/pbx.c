@@ -4105,6 +4105,7 @@ static void set_ext_pri(struct ast_channel *c, const char *exten, int pri)
 
 /*!
  * \brief collect digits from the channel into the buffer.
+ * \param waittime is in milliseconds
  * \retval 0 on timeout or done.
  * \retval -1 on error.
 */
