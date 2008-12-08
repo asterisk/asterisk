@@ -18927,11 +18927,15 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 			ast_clear_flag(&transferer->flags[0], SIP_DEFER_BYE_ON_TRANSFER);
 	} else {
 		/* Transfer succeeded! */
+		const char *xfersound = pbx_builtin_getvar_helper(target.chan1, "ATTENDED_TRANSFER_COMPLETE_SOUND");
 
 		/* Tell transferer that we're done. */
 		transmit_notify_with_sipfrag(transferer, seqno, "200 OK", TRUE);
 		append_history(transferer, "Xfer", "Refer succeeded");
 		transferer->refer->status = REFER_200OK;
+		if (target.chan2 && !ast_strlen_zero(xfersound) && ast_streamfile(target.chan2, xfersound, target.chan2->language) >= 0) {
+			ast_waitstream(target.chan2, "");
+		}
 		if (targetcall_pvt->owner) {
 			ast_debug(1, "SIP attended transfer: Unlocking channel %s\n", targetcall_pvt->owner->name);
 			ast_channel_unlock(targetcall_pvt->owner);

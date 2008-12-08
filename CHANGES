@@ -28,6 +28,8 @@ SIP Changes
  * Added a new 'faxdetect=yes|no' configuration option to sip.conf.  When this
    option is enabled, a SIP channel will go to the fax extension (if it exists)
    after T38 is negotiated.  This option is disabled by default.
+ * If ATTENDED_TRANSFER_COMPLETE_SOUND is set, the sound will be played to the
+   target of an attended transfer
 
 Skinny Changes
 --------------
