@@ -9601,7 +9601,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 				break;
 		}
 		/* If we have only digits, add ;user=phone to the uri */
-		if (*s)
+		if (!*s)
 			urioptions = ";user=phone";
 	}
 
