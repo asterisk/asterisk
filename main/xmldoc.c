@@ -553,8 +553,8 @@ static void __attribute__((format(printf, 4, 5))) xmldoc_reverse_helper(int reve
  *  \brief Check if the passed node has 'what' tags inside it.
  *  \param node Root node to search 'what' elements.
  *  \param what node name to search inside node.
- *  \retval 1 If a <argument> element is found inside 'node'.
- *  \retval 0 If no <argument> is found inside 'node'.
+ *  \retval 1 If a 'what' element is found inside 'node'.
+ *  \retval 0 If no 'what' is found inside 'node'.
  */
 static int xmldoc_has_inside(struct ast_xml_node *fixnode, const char *what)
 {
@@ -563,6 +563,45 @@ static int xmldoc_has_inside(struct ast_xml_node *fixnode, const char *what)
 	for (node = ast_xml_node_get_children(fixnode); node; node = ast_xml_node_get_next(node)) {
 		if (!strcasecmp(ast_xml_node_get_name(node), what)) {
 			return 1;
+		}
+	}
+	return 0;
+}
+
+/*! \internal
+ *  \brief Check if the passed node has at least one node inside it.
+ *  \param node Root node to search node elements.
+ *  \retval 1 If a node element is found inside 'node'.
+ *  \retval 0 If no node is found inside 'node'.
+ */
+static int xmldoc_has_nodes(struct ast_xml_node *fixnode)
+{
+	struct ast_xml_node *node = fixnode;
+
+	for (node = ast_xml_node_get_children(fixnode); node; node = ast_xml_node_get_next(node)) {
+		if (strcasecmp(ast_xml_node_get_name(node), "text")) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+/*! \internal
+ *  \brief Check if the passed node has at least one specialtag.
+ *  \param node Root node to search "specialtags" elements.
+ *  \retval 1 If a "specialtag" element is found inside 'node'.
+ *  \retval 0 If no "specialtag" is found inside 'node'.
+ */
+static int xmldoc_has_specialtags(struct ast_xml_node *fixnode)
+{
+	struct ast_xml_node *node = fixnode;
+	int i;
+
+	for (node = ast_xml_node_get_children(fixnode); node; node = ast_xml_node_get_next(node)) {
+		for (i = 0; i < ARRAY_LEN(special_tags); i++) {
+			if (!strcasecmp(ast_xml_node_get_name(node), special_tags[i].tagname)) {
+				return 1;
+			}
 		}
 	}
 	return 0;
@@ -1135,8 +1174,13 @@ static int xmldoc_parse_argument(struct ast_xml_node *fixnode, int insideparamet
 	if (!argname) {
 		return 0;
 	}
-	ast_str_append(buffer, 0, "%s%s%s", tabs, argname, (insideparameter ? "\n" : ""));
-	ast_xml_free_attr(argname);
+	if (xmldoc_has_inside(node, "para") || xmldoc_has_specialtags(node)) {
+		ast_str_append(buffer, 0, "%s%s%s", tabs, argname, (insideparameter ? "\n" : ""));
+		ast_xml_free_attr(argname);
+	} else {
+		ast_xml_free_attr(argname);
+		return 0;
+	}
 
 	for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
 		if (xmldoc_parse_para(node, (insideparameter ? paramtabs : (!count ? " - " : tabs)), "\n", buffer) == 2) {
@@ -1524,7 +1568,7 @@ static void xmldoc_parse_parameter(struct ast_xml_node *fixnode, const char *tab
 		return;
 	}
 
-	if (!hasarguments) {
+	if (!hasarguments && xmldoc_has_nodes(node)) {
 		ast_str_append(buffer, 0, "%s\n", paramname);
 		ast_xml_free_attr(paramname);
 		printed = 1;
@@ -1548,6 +1592,9 @@ static void xmldoc_parse_parameter(struct ast_xml_node *fixnode, const char *tab
 		} else if ((xmldoc_parse_specialtags(node, internaltabs, "\n", buffer))) {
 			continue;
 		}
+	}
+	if (!printed) {
+		ast_xml_free_attr(paramname);
 	}
 	ast_free(internaltabs);
 }
