@@ -303,8 +303,14 @@ static int disa_exec(struct ast_channel *chan, void *data)
 					continue;
 				}
 			} else {
-				if (j == '#') { /* end of extension */
-					break;
+				if (j == '#') { /* end of extension .. maybe */
+					if (i == 0 && 
+							(ast_matchmore_extension(chan, args.context, "#", 1, chan->cid.cid_num) ||
+							 ast_exists_extension(chan, args.context, "#", 1, chan->cid.cid_num)) ) {
+						/* Let the # be the part of, or the entire extension */
+					} else {
+						break;
+					}
 				}
 			}
 
