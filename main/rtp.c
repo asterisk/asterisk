@@ -3050,6 +3050,7 @@ int ast_rtp_senddigit_begin(struct ast_rtp *rtp, char digit)
 
 	rtp->dtmfmute = ast_tvadd(ast_tvnow(), ast_tv(0, 500000));
 	rtp->send_duration = 160;
+	rtp->lastdigitts = rtp->lastts + rtp->send_duration;
 	
 	/* Get a pointer to the header */
 	rtpheader = (unsigned int *)data;
@@ -3169,10 +3170,9 @@ int ast_rtp_senddigit_end(struct ast_rtp *rtp, char digit)
 				    ast_inet_ntoa(rtp->them.sin_addr),
 				    ntohs(rtp->them.sin_port), rtp->send_payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
 	}
+	rtp->lastts += rtp->send_duration;
 	rtp->sending_digit = 0;
 	rtp->send_digit = 0;
-	/* Increment lastdigitts */
-	rtp->lastdigitts += 960;
 	rtp->seqno++;
 
 	return res;
@@ -3497,6 +3497,10 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 	unsigned int ms;
 	int pred;
 	int mark = 0;
+
+	if (rtp->sending_digit) {
+		return 0;
+	}
 
 	ms = calc_txstamp(rtp, &f->delivery);
 	/* Default prediction */
