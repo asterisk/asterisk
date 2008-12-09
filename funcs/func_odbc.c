@@ -963,7 +963,7 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(field)[100];
 	);
-	struct ast_str *sql = ast_str_thread_get(&sql_buf, 16);
+	struct ast_str *sql;
 	char *char_args, varname[10];
 	struct acf_odbc_query *query;
 	struct ast_channel *chan;
@@ -1003,6 +1003,11 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 
 	if (a->argc < 4 || a->argc > 5) {
 		return CLI_SHOWUSAGE;
+	}
+
+	sql = ast_str_thread_get(&sql_buf, 16);
+	if (!sql) {
+		return CLI_FAILURE;
 	}
 
 	AST_RWLIST_RDLOCK(&queries);
@@ -1156,7 +1161,7 @@ static char *cli_odbc_write(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(field)[100];
 	);
-	struct ast_str *sql = ast_str_thread_get(&sql_buf, 16);
+	struct ast_str *sql;
 	char *char_args, *char_values, varname[10];
 	struct acf_odbc_query *query;
 	struct ast_channel *chan;
@@ -1196,6 +1201,11 @@ static char *cli_odbc_write(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 	if (a->argc < 5 || a->argc > 6) {
 		return CLI_SHOWUSAGE;
+	}
+
+	sql = ast_str_thread_get(&sql_buf, 16);
+	if (!sql) {
+		return CLI_FAILURE;
 	}
 
 	AST_RWLIST_RDLOCK(&queries);
