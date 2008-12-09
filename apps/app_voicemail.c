@@ -10842,7 +10842,7 @@ static int load_config(int reload)
 				adsiver = atoi(val);
 			}
 		}
-		if ((val = ast_variable_retrieve(cfg, "general", "zonetag"))) {
+		if ((val = ast_variable_retrieve(cfg, "general", "tz"))) {
 			ast_copy_string(zonetag, val, sizeof(zonetag));
 		}
 		if ((val = ast_variable_retrieve(cfg, "general", "emailsubject"))) {
