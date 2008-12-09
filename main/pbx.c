@@ -2645,6 +2645,7 @@ enum ast_pbx_result ast_pbx_start(struct ast_channel *c)
 	if (ast_pthread_create(&t, &attr, pbx_thread, c)) {
 		ast_log(LOG_WARNING, "Failed to create new channel thread\n");
 		pthread_attr_destroy(&attr);
+		decrease_call_count();
 		return AST_PBX_FAILED;
 	}
 	pthread_attr_destroy(&attr);
