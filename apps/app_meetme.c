@@ -518,6 +518,8 @@ enum {
 	CONFFLAG_KICK_CONTINUE = (1 << 28),
 	CONFFLAG_DURATION_STOP = (1 << 29),
 	CONFFLAG_DURATION_LIMIT = (1 << 30),
+	/*! Do not write any audio to this channel until the state is up. */
+	CONFFLAG_NO_AUDIO_UNTIL_UP = (1 << 31),
 };
 
 enum {
@@ -1947,6 +1949,15 @@ static void *announce_thread(void *data)
 	return NULL;
 }
 
+static int can_write(struct ast_channel *chan, int confflags)
+{
+	if (!(confflags & CONFFLAG_NO_AUDIO_UNTIL_UP)) {
+		return 1;
+	}
+
+	return (chan->_state == AST_STATE_UP);
+}
+
 static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int confflags, char *optargs[])
 {
 	struct ast_conf_user *user = NULL;
@@ -2296,7 +2307,10 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		}
 	}
 
-	ast_indicate(chan, -1);
+	if (!(confflags & CONFFLAG_NO_AUDIO_UNTIL_UP)) {
+		/* We're leaving this alone until the state gets changed to up */
+		ast_indicate(chan, -1);
+	}
 
 	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR) < 0) {
 		ast_log(LOG_WARNING, "Unable to set '%s' to write linear mode\n", chan->name);
@@ -3186,7 +3200,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						}
 						if (conf->transframe[idx]) {
  							if (conf->transframe[idx]->frametype != AST_FRAME_NULL) {
-	 							if (ast_write(chan, conf->transframe[idx])) {
+	 							if (can_write(chan, confflags) && ast_write(chan, conf->transframe[idx])) {
 									ast_log(LOG_WARNING, "Unable to write frame to channel %s\n", chan->name);
 								}
 							}
@@ -3200,7 +3214,7 @@ bailoutandtrynormal:
 						if (user->listen.actual) {
 							ast_frame_adjust_volume(&fr, user->listen.actual);
 						}
-						if (ast_write(chan, &fr) < 0) {
+						if (can_write(chan, confflags) && ast_write(chan, &fr) < 0) {
 							ast_log(LOG_WARNING, "Unable to write frame to channel %s\n", chan->name);
 						}
 					}
@@ -4572,6 +4586,12 @@ struct run_station_args {
 	ast_cond_t *cond;
 };
 
+static void answer_trunk_chan(struct ast_channel *chan)
+{
+	ast_answer(chan);
+	ast_indicate(chan, -1);
+}
+
 static void *run_station(void *data)
 {
 	struct sla_station *station;
@@ -4594,7 +4614,7 @@ static void *run_station(void *data)
 	ast_str_set(&conf_name, 0, "SLA_%s", trunk_ref->trunk->name);
 	ast_set_flag(&conf_flags, 
 		CONFFLAG_QUIET | CONFFLAG_MARKEDEXIT | CONFFLAG_PASS_DTMF | CONFFLAG_SLA_STATION);
-	ast_answer(trunk_ref->chan);
+	answer_trunk_chan(trunk_ref->chan);
 	conf = build_conf(conf_name->str, "", "", 0, 0, 1, trunk_ref->chan);
 	if (conf) {
 		conf_run(trunk_ref->chan, conf, conf_flags.flags, NULL);
@@ -4766,7 +4786,7 @@ static void sla_handle_dial_state_event(void)
 			/* Track the channel that answered this trunk */
 			s_trunk_ref->chan = ast_dial_answered(ringing_station->station->dial);
 			/* Actually answer the trunk */
-			ast_answer(ringing_trunk->trunk->chan);
+			answer_trunk_chan(ringing_trunk->trunk->chan);
 			sla_change_trunk_state(ringing_trunk->trunk, SLA_TRUNK_STATE_UP, ALL_TRUNK_REFS, NULL);
 			/* Now, start a thread that will connect this station to the trunk.  The rest of
 			 * the code here sets up the thread and ensures that it is able to save the arguments
@@ -5579,7 +5599,7 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 		ast_mutex_unlock(&sla.lock);
 
 		if (ringing_trunk) {
-			ast_answer(ringing_trunk->trunk->chan);
+			answer_trunk_chan(ringing_trunk->trunk->chan);
 			sla_change_trunk_state(ringing_trunk->trunk, SLA_TRUNK_STATE_UP, ALL_TRUNK_REFS, NULL);
 
 			free(ringing_trunk);
@@ -5778,7 +5798,7 @@ static int sla_trunk_exec(struct ast_channel *chan, void *data)
 		return 0;
 	}
 	ast_set_flag(&conf_flags, 
-		CONFFLAG_QUIET | CONFFLAG_MARKEDEXIT | CONFFLAG_MARKEDUSER | CONFFLAG_PASS_DTMF);
+		CONFFLAG_QUIET | CONFFLAG_MARKEDEXIT | CONFFLAG_MARKEDUSER | CONFFLAG_PASS_DTMF | CONFFLAG_NO_AUDIO_UNTIL_UP);
 
 	if (ast_test_flag(&opt_flags, SLA_TRUNK_OPT_MOH)) {
 		ast_indicate(chan, -1);
