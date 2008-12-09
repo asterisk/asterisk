@@ -3297,10 +3297,6 @@ int main(int argc, char *argv[])
 	}
 #endif
 
-	/* Test recursive mutex locking. */
-	if (test_for_thread_safety())
-		ast_verbose("Warning! Asterisk is not thread safe.\n");
-
 	ast_event_init();
 
 	ast_makesocket();
