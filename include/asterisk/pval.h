@@ -69,7 +69,6 @@ struct pval
 		struct pval *statements; /* used in case, default, catch, while's statement, CONTEXT elements, GLOBALS */
 		char *val;  /* used in VARDEC */
 		char *for_test; /* used in FOR */
-		int label_in_case; /* a boolean for LABELs */
 		struct pval *goto_target;  /* used in GOTO */
 	} u2;
 	

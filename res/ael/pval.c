@@ -695,7 +695,7 @@ static int extension_matches(pval *here, const char *exten, const char *pattern)
 	regex_t preg;
 	
 	/* simple case, they match exactly, the pattern and exten name */
-	if (!strcmp(pattern,exten) == 0)
+	if (strcmp(pattern,exten) == 0)
 		return 1;
 	
 	if (pattern[0] == '_') {
@@ -3441,7 +3441,7 @@ static void gen_prios(struct ael_extension *exten, char *label, pval *statement,
 			pr->type = AEL_APPCALL;
 			p->u2.goto_target = get_goto_target(p);
 			if( p->u2.goto_target ) {
-				p->u3.goto_target_in_case = p->u2.goto_target->u2.label_in_case = label_inside_case(p->u2.goto_target);
+				p->u3.goto_target_in_case = label_inside_case(p->u2.goto_target);
 			}
 			
 			if (!p->u1.list->next) /* just one */ {
@@ -5787,51 +5787,4 @@ pval * linku1(pval *head, pval *tail)
 	}
 	return head;
 }
-
-#ifdef HERE_BY_MISTAKE_I_THINK
-static char *config = "extensions.ael";
-int do_pbx_load_module(void)
-{
-	int errs, sem_err, sem_warn, sem_note;
-	char *rfilename;
-	struct ast_context *local_contexts=NULL, *con;
-	struct pval *parse_tree;
-
-	ast_log(LOG_NOTICE, "Starting AEL load process.\n");
-	if (config[0] == '/')
-		rfilename = (char *)config;
-	else {
-		rfilename = alloca(strlen(config) + strlen(ast_config_AST_CONFIG_DIR) + 2);
-		sprintf(rfilename, "%s/%s", ast_config_AST_CONFIG_DIR, config);
-	}
-	ast_log(LOG_NOTICE, "AEL load process: calculated config file name '%s'.\n", rfilename);
-
-	if (access(rfilename,R_OK) != 0) {
-		ast_log(LOG_NOTICE, "File %s not found; AEL declining load\n", rfilename);
-		return AST_MODULE_LOAD_DECLINE;
-	}
-	
-	parse_tree = ael2_parse(rfilename, &errs);
-	ast_log(LOG_DEBUG, "AEL load process: parsed config file name '%s'.\n", rfilename);
-	ael2_semantic_check(parse_tree, &sem_err, &sem_warn, &sem_note);
-	if (errs == 0 && sem_err == 0) {
-		ast_log(LOG_DEBUG, "AEL load process: checked config file name '%s'.\n", rfilename);
-		ast_compile_ael2(&local_contexts, parse_tree);
-		ast_log(LOG_DEBUG, "AEL load process: compiled config file name '%s'.\n", rfilename);
-		
-		ast_merge_contexts_and_delete(&local_contexts, registrar);
-		ast_log(LOG_DEBUG, "AEL load process: merged config file name '%s'.\n", rfilename);
-		for (con = ast_walk_contexts(NULL); con; con = ast_walk_contexts(con))
-			ast_context_verify_includes(con);
-		ast_log(LOG_DEBUG, "AEL load process: verified config file name '%s'.\n", rfilename);
-	} else {
-		ast_log(LOG_ERROR, "Sorry, but %d syntax errors and %d semantic errors were detected. It doesn't make sense to compile.\n", errs, sem_err);
-		destroy_pval(parse_tree); /* free up the memory */
-		return AST_MODULE_LOAD_FAILURE;
-	}
-	destroy_pval(parse_tree); /* free up the memory */
-	
-	return AST_MODULE_LOAD_SUCCESS;
-}
-#endif
 
