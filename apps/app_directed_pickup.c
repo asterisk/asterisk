@@ -115,7 +115,7 @@ static int pickup_do(struct ast_channel *chan, struct ast_channel *target)
 /* Helper function that determines whether a channel is capable of being picked up */
 static int can_pickup(struct ast_channel *chan)
 {
-	if (!chan->pbx && (chan->_state == AST_STATE_RINGING || chan->_state == AST_STATE_RING))
+	if (!chan->pbx && (chan->_state == AST_STATE_RINGING || chan->_state == AST_STATE_RING || chan->_state == AST_STATE_DOWN))
 		return 1;
 	else
 		return 0;
