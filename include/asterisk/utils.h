@@ -219,8 +219,6 @@ static force_inline void ast_slinear_saturated_divide(short *input, short *value
 	*input /= *value;
 }
 
-int test_for_thread_safety(void);
-
 /*!
  * \brief thread-safe replacement for inet_ntoa().
  *
