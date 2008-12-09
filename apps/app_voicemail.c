@@ -577,6 +577,7 @@ static char *app4 = "VMAuthenticate";
 
 static AST_LIST_HEAD_STATIC(users, ast_vm_user);
 static AST_LIST_HEAD_STATIC(zones, vm_zone);
+static char zonetag[80];
 static int maxsilence;
 static int maxmsg;
 static int maxdeletedmsg;
@@ -734,6 +735,7 @@ static void populate_defaults(struct ast_vm_user *vmu)
 	ast_copy_string(vmu->callback, callcontext, sizeof(vmu->callback));
 	ast_copy_string(vmu->dialout, dialcontext, sizeof(vmu->dialout));
 	ast_copy_string(vmu->exit, exitcontext, sizeof(vmu->exit));
+	ast_copy_string(vmu->zonetag, zonetag, sizeof(vmu->zonetag));
 	if (vmmaxsecs)
 		vmu->maxsecs = vmmaxsecs;
 	if (maxmsg)
@@ -10726,6 +10728,9 @@ static int load_config(int reload)
 			if (atoi(val)) {
 				adsiver = atoi(val);
 			}
+		}
+		if ((val = ast_variable_retrieve(cfg, "general", "zonetag"))) {
+			ast_copy_string(zonetag, val, sizeof(zonetag));
 		}
 		if ((val = ast_variable_retrieve(cfg, "general", "emailsubject"))) {
 			emailsubject = ast_strdup(val);
