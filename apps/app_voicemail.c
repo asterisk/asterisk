@@ -8667,7 +8667,7 @@ static int load_config(void)
 				tmpread = tmpwrite + 1;
 			}
 		}
-		if ((s = ast_variable_retrieve(cfg, "general", "zonetag"))) {
+		if ((s = ast_variable_retrieve(cfg, "general", "tz"))) {
 			ast_copy_string(zonetag, s, sizeof(zonetag));
 		}
 		if ((s = ast_variable_retrieve(cfg, "general", "pagersubject")))
