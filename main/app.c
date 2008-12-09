@@ -915,10 +915,15 @@ int ast_app_group_update(struct ast_channel *old, struct ast_channel *new)
 	struct ast_group_info *gi = NULL;
 
 	AST_LIST_LOCK(&groups);
-	AST_LIST_TRAVERSE(&groups, gi, list) {
-		if (gi->chan == old)
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&groups, gi, list) {
+		if (gi->chan == old) {
 			gi->chan = new;
+		} else if (gi->chan == new) {
+			AST_LIST_REMOVE_CURRENT(&groups, list);
+			free(gi);
+		}
 	}
+	AST_LIST_TRAVERSE_SAFE_END
 	AST_LIST_UNLOCK(&groups);
 
 	return 0;
