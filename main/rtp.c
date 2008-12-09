@@ -2056,18 +2056,18 @@ int ast_rtp_early_bridge(struct ast_channel *c0, struct ast_channel *c1)
 	}
 
 	/* Check if bridge is still possible (In SIP canreinvite=no stops this, like NAT) */
-	if (audio_dest_res != AST_RTP_TRY_NATIVE) {
+	if (audio_dest_res != AST_RTP_TRY_NATIVE || (video_dest_res != AST_RTP_GET_FAILED && video_dest_res != AST_RTP_TRY_NATIVE)) {
 		/* Somebody doesn't want to play... */
 		ast_channel_unlock(c0);
 		if (c1)
 			ast_channel_unlock(c1);
 		return -1;
 	}
-	if (audio_src_res == AST_RTP_TRY_NATIVE && srcpr->get_codec)
+	if (audio_src_res == AST_RTP_TRY_NATIVE && (video_src_res == AST_RTP_GET_FAILED || video_src_res == AST_RTP_TRY_NATIVE) && srcpr->get_codec)
 		srccodec = srcpr->get_codec(c1);
 	else
 		srccodec = 0;
-	if (audio_dest_res == AST_RTP_TRY_NATIVE && destpr->get_codec)
+	if (audio_dest_res == AST_RTP_TRY_NATIVE && (video_dest_res == AST_RTP_GET_FAILED || video_dest_res == AST_RTP_TRY_NATIVE) && destpr->get_codec)
 		destcodec = destpr->get_codec(c0);
 	else
 		destcodec = 0;
@@ -2144,7 +2144,7 @@ int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src, i
 		destcodec = 0;
 
 	/* Check if bridge is still possible (In SIP canreinvite=no stops this, like NAT) */
-	if (audio_dest_res != AST_RTP_TRY_NATIVE || audio_src_res != AST_RTP_TRY_NATIVE || !(srccodec & destcodec)) {
+	if (audio_dest_res != AST_RTP_TRY_NATIVE || (video_dest_res != AST_RTP_GET_FAILED && video_dest_res != AST_RTP_TRY_NATIVE) || audio_src_res != AST_RTP_TRY_NATIVE || (video_src_res != AST_RTP_GET_FAILED && video_src_res != AST_RTP_TRY_NATIVE) || !(srccodec & destcodec)) {
 		/* Somebody doesn't want to play... */
 		ast_channel_unlock(dest);
 		ast_channel_unlock(src);
