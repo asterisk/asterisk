@@ -1602,8 +1602,9 @@ YY_RULE_SETUP
 		/* a non-word constituent char, like a space, tab, curly, paren, etc */
 		char c = yytext[yyleng-1];
 		STORE_POS;
-		yylval->str = ast_malloc(yyleng);
-		ast_copy_string(yylval->str, yytext, yyleng);
+		yylval->str = malloc(yyleng);
+		strncpy(yylval->str, yytext, yyleng);
+		yylval->str[yyleng-1] = 0;
 		unput(c);  /* put this ending char back in the stream */
 		BEGIN(0);
 		prev_word = yylval->str;
@@ -1613,14 +1614,15 @@ YY_RULE_SETUP
 case 56:
 /* rule 56 can match eol */
 YY_RULE_SETUP
-#line 312 "ael.flex"
+#line 313 "ael.flex"
 {
 		if ( pbcpop2('}') ) {	/* error */
 			STORE_LOC;
 			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ')' in expression: %s !\n", my_file, my_lineno, my_col, yytext);
 			BEGIN(0);
-			yylval->str = ast_malloc(yyleng+1);
-			ast_copy_string(yylval->str, yytext, yyleng+1);
+			yylval->str = malloc(yyleng+1);
+			strncpy(yylval->str, yytext, yyleng);
+			yylval->str[yyleng] = 0;
 			return word;
 		}
 		parencount2--;
@@ -1635,7 +1637,7 @@ YY_RULE_SETUP
 case 57:
 /* rule 57 can match eol */
 YY_RULE_SETUP
-#line 330 "ael.flex"
+#line 332 "ael.flex"
 { 
 		char c = yytext[yyleng-1];
 		if (c == '{')
@@ -1647,7 +1649,7 @@ YY_RULE_SETUP
 case 58:
 /* rule 58 can match eol */
 YY_RULE_SETUP
-#line 338 "ael.flex"
+#line 340 "ael.flex"
 { 
 		char c = yytext[yyleng-1];
 		if ( pbcpop2(c))  { /* error */
@@ -1655,8 +1657,9 @@ YY_RULE_SETUP
 			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '%c' in expression!\n",
 				my_file, my_lineno, my_col, c);
 			BEGIN(0);
-			yylval->str = ast_malloc(yyleng+1);
-			ast_copy_string(yylval->str, yytext, yyleng+1);
+			yylval->str = malloc(yyleng+1);
+			strncpy(yylval->str, yytext, yyleng);
+			yylval->str[yyleng] = 0;
 			return word;
 		}
 		yymore();
@@ -1665,14 +1668,15 @@ YY_RULE_SETUP
 case 59:
 /* rule 59 can match eol */
 YY_RULE_SETUP
-#line 353 "ael.flex"
+#line 356 "ael.flex"
 {
 		if ( pbcpop3(']') ) {	/* error */
 			STORE_LOC;
 			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ')' in expression: %s !\n", my_file, my_lineno, my_col, yytext);
 			BEGIN(0);
-			yylval->str = ast_malloc(yyleng+1);
-			ast_copy_string(yylval->str, yytext, yyleng+1);
+			yylval->str = malloc(yyleng+1);
+			strncpy(yylval->str, yytext, yyleng);
+			yylval->str[yyleng] = 0;
 			return word;
 		}
 		parencount3--;
@@ -1687,7 +1691,7 @@ YY_RULE_SETUP
 case 60:
 /* rule 60 can match eol */
 YY_RULE_SETUP
-#line 371 "ael.flex"
+#line 375 "ael.flex"
 { 
 		char c = yytext[yyleng-1];
 		if (c == '[')
@@ -1699,7 +1703,7 @@ YY_RULE_SETUP
 case 61:
 /* rule 61 can match eol */
 YY_RULE_SETUP
-#line 379 "ael.flex"
+#line 383 "ael.flex"
 { 
 		char c = yytext[yyleng-1];
 		if ( pbcpop3(c))  { /* error */
@@ -1707,8 +1711,9 @@ YY_RULE_SETUP
 			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '%c' in expression!\n",
 				my_file, my_lineno, my_col, c);
 			BEGIN(0);
-			yylval->str = ast_malloc(yyleng+1);
-			ast_copy_string(yylval->str, yytext, yyleng+1);
+			yylval->str = malloc(yyleng+1);
+			strncpy(yylval->str, yytext, yyleng);
+			yylval->str[yyleng] = 0;
 			return word;
 		}
 		yymore();
@@ -1724,14 +1729,15 @@ YY_RULE_SETUP
 case 62:
 /* rule 62 can match eol */
 YY_RULE_SETUP
-#line 401 "ael.flex"
+#line 406 "ael.flex"
 {
 		if ( pbcpop(')') ) {	/* error */
 			STORE_LOC;
 			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ')' in expression: %s !\n", my_file, my_lineno, my_col, yytext);
 			BEGIN(0);
-			yylval->str = ast_malloc(yyleng+1);
-			ast_copy_string(yylval->str, yytext, yyleng+1);
+			yylval->str = malloc(yyleng+1);
+			strncpy(yylval->str, yytext, yyleng);
+			yylval->str[yyleng] = 0;
 			prev_word = 0;
 			return word;
 		}
@@ -1740,8 +1746,9 @@ YY_RULE_SETUP
 			yymore();
 		} else {
 			STORE_LOC;
-			yylval->str = ast_malloc(yyleng);
-			ast_copy_string(yylval->str, yytext, yyleng);
+			yylval->str = malloc(yyleng);
+			strncpy(yylval->str, yytext, yyleng);
+			yylval->str[yyleng-1] = 0;
 			unput(')');
 			BEGIN(0);
 			return word;
@@ -1751,7 +1758,7 @@ YY_RULE_SETUP
 case 63:
 /* rule 63 can match eol */
 YY_RULE_SETUP
-#line 424 "ael.flex"
+#line 431 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if (c == '(')
@@ -1763,7 +1770,7 @@ YY_RULE_SETUP
 case 64:
 /* rule 64 can match eol */
 YY_RULE_SETUP
-#line 432 "ael.flex"
+#line 439 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if ( pbcpop(c))  { /* error */
@@ -1771,9 +1778,10 @@ YY_RULE_SETUP
 			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '%c' in expression!\n",
 				my_file, my_lineno, my_col, c);
 			BEGIN(0);
-			yylval->str = ast_malloc(yyleng+1);
-			ast_copy_string(yylval->str, yytext, yyleng+1);
-			return word;
+				yylval->str = malloc(yyleng+1);
+				strncpy(yylval->str, yytext, yyleng);
+				yylval->str[yyleng] = 0;
+				return word;
 		}
 		yymore();
 	}
@@ -1789,7 +1797,7 @@ YY_RULE_SETUP
 case 65:
 /* rule 65 can match eol */
 YY_RULE_SETUP
-#line 455 "ael.flex"
+#line 463 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if (c == '(')
@@ -1801,14 +1809,15 @@ YY_RULE_SETUP
 case 66:
 /* rule 66 can match eol */
 YY_RULE_SETUP
-#line 463 "ael.flex"
+#line 471 "ael.flex"
 {
 		if ( pbcpop(')') ) { /* error */
 			STORE_LOC;
 			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ')' in expression!\n", my_file, my_lineno, my_col);
 			BEGIN(0);
-			yylval->str = ast_malloc(yyleng+1);
-			ast_copy_string(yylval->str, yytext, yyleng+1);
+			yylval->str = malloc(yyleng+1);
+			strncpy(yylval->str, yytext, yyleng);
+			yylval->str[yyleng] = 0;
 			return word;
 		}
 
@@ -1820,8 +1829,8 @@ YY_RULE_SETUP
 			BEGIN(0);
 			if ( !strcmp(yytext, ")") )
 				return RP;
-			yylval->str = ast_malloc(yyleng);
-			ast_copy_string(yylval->str, yytext, yyleng);
+			yylval->str = malloc(yyleng);
+			strncpy(yylval->str, yytext, yyleng);
 			yylval->str[yyleng-1] = '\0'; /* trim trailing ')' */
 			unput(')');
 			return word;
@@ -1831,7 +1840,7 @@ YY_RULE_SETUP
 case 67:
 /* rule 67 can match eol */
 YY_RULE_SETUP
-#line 489 "ael.flex"
+#line 498 "ael.flex"
 {
 		if( parencount != 0) { /* ast_log(LOG_NOTICE,"Folding in a comma!\n"); */
 			yymore();
@@ -1839,8 +1848,9 @@ YY_RULE_SETUP
 			STORE_LOC;
 			if( !strcmp(yytext,"," ) )
 				return COMMA;
-			yylval->str = ast_malloc(yyleng);
-			ast_copy_string(yylval->str, yytext, yyleng);
+			yylval->str = malloc(yyleng);
+			strncpy(yylval->str, yytext, yyleng);
+			yylval->str[yyleng-1] = '\0'; /* trim trailing ',' */
 			unput(',');
 			return word;
 		}
@@ -1849,15 +1859,16 @@ YY_RULE_SETUP
 case 68:
 /* rule 68 can match eol */
 YY_RULE_SETUP
-#line 503 "ael.flex"
+#line 513 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if ( pbcpop(c) ) { /* error */
 			STORE_LOC;
 			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '%c' in expression!\n", my_file, my_lineno, my_col, c);
 			BEGIN(0);
-			yylval->str = ast_malloc(yyleng+1);
-			ast_copy_string(yylval->str, yytext, yyleng+1);
+			yylval->str = malloc(yyleng+1);
+			strncpy(yylval->str, yytext, yyleng);
+			yylval->str[yyleng] = '\0';
 			return word;
 		}
 		yymore();
@@ -1871,7 +1882,7 @@ YY_RULE_SETUP
 case 69:
 /* rule 69 can match eol */
 YY_RULE_SETUP
-#line 521 "ael.flex"
+#line 532 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		yymore();
@@ -1881,15 +1892,16 @@ YY_RULE_SETUP
 case 70:
 /* rule 70 can match eol */
 YY_RULE_SETUP
-#line 527 "ael.flex"
+#line 538 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if ( pbcpop(c) ) { /* error */
 			STORE_LOC;
 			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '%c' in expression!\n", my_file, my_lineno, my_col, c);
 			BEGIN(0);
-			yylval->str = ast_malloc(yyleng+1);
-			ast_copy_string(yylval->str, yytext, yyleng+1);
+			yylval->str = malloc(yyleng+1);
+			strncpy(yylval->str, yytext, yyleng);
+			yylval->str[yyleng] = '\0';
 			return word;
 		}
 		yymore();
@@ -1898,11 +1910,12 @@ YY_RULE_SETUP
 case 71:
 /* rule 71 can match eol */
 YY_RULE_SETUP
-#line 540 "ael.flex"
+#line 552 "ael.flex"
 {
 		STORE_LOC;
-		yylval->str = ast_malloc(yyleng);
-		ast_copy_string(yylval->str, yytext, yyleng);
+		yylval->str = malloc(yyleng);
+		strncpy(yylval->str, yytext, yyleng);
+		yylval->str[yyleng-1] = '\0'; /* trim trailing ';' */
 		unput(';');
 		BEGIN(0);
 		return word;
@@ -1911,7 +1924,7 @@ YY_RULE_SETUP
 case 72:
 /* rule 72 can match eol */
 YY_RULE_SETUP
-#line 549 "ael.flex"
+#line 562 "ael.flex"
 {
 		char fnamebuf[1024],*p1,*p2;
 		int glob_ret;
@@ -1960,7 +1973,7 @@ case YY_STATE_EOF(comment):
 case YY_STATE_EOF(curlystate):
 case YY_STATE_EOF(wordstate):
 case YY_STATE_EOF(brackstate):
-#line 590 "ael.flex"
+#line 603 "ael.flex"
 {
 		char fnamebuf[2048];
 		if (include_stack_index > 0 && include_stack[include_stack_index-1].globbuf_pos < include_stack[include_stack_index-1].globbuf.gl_pathc-1) {
@@ -1995,10 +2008,10 @@ case YY_STATE_EOF(brackstate):
 	YY_BREAK
 case 73:
 YY_RULE_SETUP
-#line 622 "ael.flex"
+#line 635 "ael.flex"
 ECHO;
 	YY_BREAK
-#line 2001 "ael_lex.c"
+#line 2014 "ael_lex.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -3171,7 +3184,7 @@ void *ael_yyrealloc  (void * ptr, yy_size_t  size , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 622 "ael.flex"
+#line 635 "ael.flex"
 
 
 
