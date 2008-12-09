@@ -712,7 +712,7 @@ static int extension_matches(pval *here, const char *exten, const char *pattern)
 	regex_t preg;
 	
 	/* simple case, they match exactly, the pattern and exten name */
-	if( !strcmp(pattern,exten) == 0 )
+	if( strcmp(pattern,exten) == 0 )
 		return 1;
 	
 	if ( pattern[0] == '_' ) {
@@ -3267,7 +3267,7 @@ static void gen_prios(struct ael_extension *exten, char *label, pval *statement,
 			pr->type = AEL_APPCALL;
 			p->u2.goto_target = get_goto_target(p);
 			if( p->u2.goto_target ) {
-				p->u3.goto_target_in_case = p->u2.goto_target->u2.label_in_case = label_inside_case(p->u2.goto_target);
+				p->u3.goto_target_in_case = label_inside_case(p->u2.goto_target);
 			}
 			
 			if (!p->u1.list->next) /* just one */ {
