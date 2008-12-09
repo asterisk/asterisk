@@ -4481,6 +4481,7 @@ enum ast_pbx_result ast_pbx_start(struct ast_channel *c)
 	/* Start a new thread, and get something handling this channel. */
 	if (ast_pthread_create_detached(&t, NULL, pbx_thread, c)) {
 		ast_log(LOG_WARNING, "Failed to create new channel thread\n");
+		decrease_call_count();
 		return AST_PBX_FAILED;
 	}
 
