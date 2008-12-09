@@ -35,6 +35,14 @@
 %option prefix="ael_yy"
 %option noyywrap
 
+/* I specify this option to suppress flex generating code with ECHO
+  in it. This generates compiler warnings in some systems; We've
+  seen the fwrite generate Unused variable warnings with 4.1.2 gcc.
+  Some systems have tweaked flex ECHO macro to keep the compiler
+  happy.  To keep the warning message from getting output, I added
+  a default rule at the end of the patterns section */
+%option nodefault
+
 /* yyfree normally just frees its arg. It can be null sometimes,
    which some systems will complain about, so, we'll define our own version */
 %option noyyfree
@@ -282,6 +290,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 			yymore(); 
 		} 
 	} 
+
 <wordstate>[-a-zA-Z0-9'"_/.\<\>\*\+!$#\[\]] { yymore(); /* Keep going */ }
 <wordstate>(\\.)  { yymore(); /* Keep Going */ }
 <wordstate>(\$\{)  { /* the beginning of a ${} construct. prepare and pop into curlystate */
@@ -631,6 +640,8 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 			}
 		}
 	}
+
+<*>.|\n		{ /* default rule */ ast_log(LOG_ERROR,"Unhandled char(s): %s\n", yytext); }
 
 %%
 
