@@ -308,8 +308,8 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		/* a non-word constituent char, like a space, tab, curly, paren, etc */
 		char c = yytext[yyleng-1];
 		STORE_POS;
-		yylval->str = strdup(yytext);
-		yylval->str[yyleng-1] = 0;
+		yylval->str = ast_malloc(yyleng);
+		ast_copy_string(yylval->str, yytext, yyleng);
 		unput(c);  /* put this ending char back in the stream */
 		BEGIN(0);
 		return word;
@@ -321,7 +321,8 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 			STORE_LOC;
 			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ')' in expression: %s !\n", my_file, my_lineno, my_col, yytext);
 			BEGIN(0);
-			yylval->str = strdup(yytext);
+			yylval->str = ast_malloc(yyleng+1);
+			ast_copy_string(yylval->str, yytext, yyleng+1);
 			return word;
 		}
 		parencount2--;
@@ -348,7 +349,8 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '%c' in expression!\n",
 				my_file, my_lineno, my_col, c);
 			BEGIN(0);
-			yylval->str = strdup(yytext);
+			yylval->str = ast_malloc(yyleng+1);
+			ast_copy_string(yylval->str, yytext, yyleng+1);
 			return word;
 		}
 		yymore();
@@ -360,7 +362,8 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 			STORE_LOC;
 			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ')' in expression: %s !\n", my_file, my_lineno, my_col, yytext);
 			BEGIN(0);
-			yylval->str = strdup(yytext);
+			yylval->str = ast_malloc(yyleng+1);
+			ast_copy_string(yylval->str, yytext, yyleng+1);
 			return word;
 		}
 		parencount3--;
@@ -387,7 +390,8 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '%c' in expression!\n",
 				my_file, my_lineno, my_col, c);
 			BEGIN(0);
-			yylval->str = strdup(yytext);
+			yylval->str = ast_malloc(yyleng+1);
+			ast_copy_string(yylval->str, yytext, yyleng+1);
 			return word;
 		}
 		yymore();
@@ -406,7 +410,8 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 			STORE_LOC;
 			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ')' in expression: %s !\n", my_file, my_lineno, my_col, yytext);
 			BEGIN(0);
-			yylval->str = strdup(yytext);
+			yylval->str = ast_malloc(yyleng+1);
+			ast_copy_string(yylval->str, yytext, yyleng+1);
 			prev_word = 0;
 			return word;
 		}
@@ -415,8 +420,8 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 			yymore();
 		} else {
 			STORE_LOC;
-			yylval->str = strdup(yytext);
-			yylval->str[yyleng-1] = '\0'; /* trim trailing ')' */
+			yylval->str = ast_malloc(yyleng);
+			ast_copy_string(yylval->str, yytext, yyleng);
 			unput(')');
 			BEGIN(0);
 			return word;
@@ -438,7 +443,8 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '%c' in expression!\n",
 				my_file, my_lineno, my_col, c);
 			BEGIN(0);
-			yylval->str = strdup(yytext);
+			yylval->str = ast_malloc(yyleng+1);
+			ast_copy_string(yylval->str, yytext, yyleng+1);
 			return word;
 		}
 		yymore();
@@ -466,7 +472,8 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 			STORE_LOC;
 			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ')' in expression!\n", my_file, my_lineno, my_col);
 			BEGIN(0);
-			yylval->str = strdup(yytext);
+			yylval->str = ast_malloc(yyleng+1);
+			ast_copy_string(yylval->str, yytext, yyleng+1);
 			return word;
 		}
 
@@ -478,7 +485,8 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 			BEGIN(0);
 			if ( !strcmp(yytext, ")") )
 				return RP;
-			yylval->str = strdup(yytext);
+			yylval->str = ast_malloc(yyleng);
+			ast_copy_string(yylval->str, yytext, yyleng);
 			yylval->str[yyleng-1] = '\0'; /* trim trailing ')' */
 			unput(')');
 			return word;
@@ -486,14 +494,14 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 	}
 
 <argg>{NOARGG}\,	{
-		if( parencount != 0) { /* printf("Folding in a comma!\n"); */
+		if( parencount != 0) { /* ast_log(LOG_NOTICE,"Folding in a comma!\n"); */
 			yymore();
 		} else  {
 			STORE_LOC;
 			if( !strcmp(yytext,"," ) )
 				return COMMA;
-			yylval->str = strdup(yytext);
-			yylval->str[yyleng-1] = '\0';
+			yylval->str = ast_malloc(yyleng);
+			ast_copy_string(yylval->str, yytext, yyleng);
 			unput(',');
 			return word;
 		}
@@ -505,7 +513,8 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 			STORE_LOC;
 			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '%c' in expression!\n", my_file, my_lineno, my_col, c);
 			BEGIN(0);
-			yylval->str = strdup(yytext);
+			yylval->str = ast_malloc(yyleng+1);
+			ast_copy_string(yylval->str, yytext, yyleng+1);
 			return word;
 		}
 		yymore();
@@ -528,7 +537,8 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 			STORE_LOC;
 			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '%c' in expression!\n", my_file, my_lineno, my_col, c);
 			BEGIN(0);
-			yylval->str = strdup(yytext);
+			yylval->str = ast_malloc(yyleng+1);
+			ast_copy_string(yylval->str, yytext, yyleng+1);
 			return word;
 		}
 		yymore();
@@ -536,8 +546,8 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 
 <semic>{NOSEMIC};	{
 		STORE_LOC;
-		yylval->str = strdup(yytext);
-		yylval->str[yyleng-1] = '\0';
+		yylval->str = ast_malloc(yyleng);
+		ast_copy_string(yylval->str, yytext, yyleng);
 		unput(';');
 		BEGIN(0);
 		return word;
