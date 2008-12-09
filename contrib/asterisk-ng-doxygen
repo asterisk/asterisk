@@ -178,6 +178,7 @@ TAB_SIZE               = 3
 # You can put \n's in the value part of an alias to insert newlines.
 
 ALIASES                = "extref=\xrefitem extref \"ExtRef\" \"External references\""
+ALIASES += "AsteriskTrunkWarning=\note The information contained on this page may be out of date.  To make sure you get the most current information, please make sure that you are using the documentation generated from Asterisk trunk."
 
 # Set the OPTIMIZE_OUTPUT_FOR_C tag to YES if your project consists of C 
 # sources only. Doxygen will then generate output that is more tailored for C. 
