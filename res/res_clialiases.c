@@ -46,7 +46,6 @@ struct cli_alias {
 	struct ast_cli_entry cli_entry; /*!< Actual CLI structure used for this alias */
 	char *alias;                    /*!< CLI Alias */
 	char *real_cmd;                 /*!< Actual CLI command it is aliased to */
-	unsigned int marked:1;          /*!< Bit to indicate whether this CLI alias is marked for destruction or not */
 };
 
 static struct ao2_container *cli_aliases;
@@ -167,19 +166,10 @@ static struct ast_cli_entry cli_alias[] = {
 	AST_CLI_DEFINE(alias_show, "Show CLI command aliases"),
 };
 
-/*! \brief Function called to mark an alias for destruction */
-static int alias_mark(void *obj, void *arg, int flags)
-{
-	struct cli_alias *alias = obj;
-	alias->marked = 1;
-	return 0;
-}
-
-/*! \brief Function called to see if an alias is marked for destruction */
+/*! \brief Function called to to see if an alias is marked for destruction, they always are! */
 static int alias_marked(void *obj, void *arg, int flags)
 {
-	struct cli_alias *alias = obj;
-	return alias->marked ? CMP_MATCH : 0;
+	return CMP_MATCH;
 }
 
 /*! \brief Function called to load or reload the configuration file */
@@ -197,9 +187,9 @@ static void load_config(int reload)
 		return;
 	}
 
-	/* Mark CLI aliases for pruning */
+	/* Destroy any existing CLI aliases */
 	if (reload) {
-		ao2_callback(cli_aliases, OBJ_NODATA, alias_mark, NULL);
+		ao2_callback(cli_aliases, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE , alias_marked, NULL);
 	}
 
 	for (v = ast_variable_browse(cfg, "general"); v; v = v->next) {
@@ -225,11 +215,6 @@ static void load_config(int reload)
 			ast_verbose(VERBOSE_PREFIX_2 "Aliased CLI command '%s' to '%s'\n", v1->name, v1->value);
 			ao2_ref(alias, -1);
 		}
-	}
-
-	/* Drop any CLI aliases that should no longer exist */
-	if (reload) {
-		ao2_callback(cli_aliases, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE , alias_marked, NULL);
 	}
 
 	ast_config_destroy(cfg);
