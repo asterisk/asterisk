@@ -2750,7 +2750,7 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 	if (peername) {
 		var = ast_load_realtime("iaxpeers", "name", peername, "host", "dynamic", NULL);
 		if (!var && sin)
-			var = ast_load_realtime("iaxpeers", "name", peername, "host", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
+			var = ast_load_realtime("iaxpeers", "name", peername, "host", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), (char *) NULL);
 	} else if (sin) {
 		char porta[25];
 		ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr);
@@ -2874,7 +2874,7 @@ static struct iax2_user *realtime_user(const char *username, struct sockaddr_in 
 
 	var = ast_load_realtime("iaxusers", "name", username, "host", "dynamic", NULL);
 	if (!var && sin)
-		var = ast_load_realtime("iaxusers", "name", username, "host", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
+		var = ast_load_realtime("iaxusers", "name", username, "host", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), (char *) NULL);
 	if (!var && sin) {
 		char porta[6];
 		snprintf(porta, sizeof(porta), "%d", ntohs(sin->sin_port));
