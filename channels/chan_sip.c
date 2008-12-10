@@ -8252,6 +8252,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		peer->useragent[0] = '\0';
 		peer->sipoptions = 0;
 		peer->lastms = 0;
+		pvt->expiry = 0;
 
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Unregistered SIP '%s'\n", peer->name);
