@@ -47,6 +47,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define HAVE_DMALLOC_H 0	/* XXX we shouldn't do this */
 #endif
 
+#if defined(__OpenBSD__)
+/*
+ * OpenBSD uses old "legacy" cc which has a rather pedantic builtin preprocessor.
+ * Using a macro which is not #defined throws an error.
+ */
+#define __NetBSD_Version__ 0
+#endif
+
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
