@@ -319,6 +319,24 @@ void ast_unregister_file_version(const char *file)
 		ast_free(find);
 }
 
+char *ast_complete_source_filename(const char *partial, int n)
+{
+	struct file_version *find;
+	size_t len = strlen(partial);
+	int count = 0;
+	char *res = NULL;
+
+	AST_RWLIST_RDLOCK(&file_versions);
+	AST_RWLIST_TRAVERSE(&file_versions, find, list) {
+		if (!strncasecmp(find->file, partial, len) && ++count > n) {
+			res = ast_strdup(find->file);
+			break;
+		}
+	}
+	AST_RWLIST_UNLOCK(&file_versions);
+	return res;
+}
+
 /*! \brief Find version for given module name */
 const char *ast_file_version_find(const char *file)
 {

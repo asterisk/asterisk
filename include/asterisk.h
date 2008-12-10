@@ -89,6 +89,7 @@ void ast_unregister_file_version(const char *file);
  */
 const char *ast_file_version_find(const char *file);
 
+char *ast_complete_source_filename(const char *partial, int n);
 
 /*!
  * \brief Register/unregister a source code file with the core.
