@@ -371,7 +371,7 @@ static int spawn_mp3(struct mohclass *class)
 		files = 1;
 	} else {
 		dir = opendir(class->dir);
-		if (!dir && !strncasecmp(class->dir, "http://", 7)) {
+		if (!dir && strncasecmp(class->dir, "http://", 7)) {
 			ast_log(LOG_WARNING, "%s is not a valid directory\n", class->dir);
 			return -1;
 		}
