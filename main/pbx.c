@@ -7467,6 +7467,7 @@ int ast_add_extension2(struct ast_context *con,
 		ast_copy_string(c.exten, extension, sizeof(c.exten));
 		ast_copy_string(c.context, con->name, sizeof(c.context));
 		pbx_substitute_variables_helper(&c, application, expand_buf, sizeof(expand_buf));
+		application = expand_buf;
 	}
 
 	length = sizeof(struct ast_exten);
