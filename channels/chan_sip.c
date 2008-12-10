@@ -9174,7 +9174,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
  	} else {
  		if (sipmethod == SIP_NOTIFY && !ast_strlen_zero(p->theirtag)) { 
  			/* If this is a NOTIFY, use the From: tag in the subscribe (RFC 3265) */
-			snprintf(to, sizeof(to), "<%s%s>;tag=%s", (strncasecmp(p->uri, "sip:", 4) ? "sip:" : ""), p->uri, p->theirtag);
+			snprintf(to, sizeof(to), "<%s%s>;tag=%s", (!strncasecmp(p->uri, "sip:", 4) ? "sip:" : ""), p->uri, p->theirtag);
  		} else if (p->options && p->options->vxml_url) {
  			/* If there is a VXML URL append it to the SIP URL */
  			snprintf(to, sizeof(to), "<%s>;%s", p->uri, p->options->vxml_url);
@@ -18818,7 +18818,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	parse_ok_contact(p, req);
 
 	build_contact(p);
-	if (strcmp(event, "message-summary") && gotdest) {
+	if (gotdest) {
 		transmit_response(p, "404 Not Found", req);
 		p->needdestroy = 1;
 		if (authpeer)
