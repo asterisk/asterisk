@@ -10005,6 +10005,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		peer->useragent[0] = '\0';
 		peer->sipoptions = 0;
 		peer->lastms = 0;
+		pvt->expiry = 0;
 
 		ast_verb(3, "Unregistered SIP '%s'\n", peer->name);
 			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Unregistered\r\n", peer->name);
