@@ -9911,7 +9911,9 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 
 		/* Set transport and port so the correct contact is built */
 		p->socket.type = r->transport;
-		p->socket.port = htons(r->portno);
+		if (r->transport == SIP_TRANSPORT_TLS || r->transport == SIP_TRANSPORT_TCP) {
+			p->socket.port = sip_tcp_desc.local_address.sin_port;
+		}
 
 		/*
 		  check which address we should use in our contact header 
