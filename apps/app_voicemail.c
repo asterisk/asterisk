@@ -1422,7 +1422,7 @@ static const char *mbox(int id)
 		"Deleted",
 		"Urgent"
 	};
-	return (id >= 0 && id < (sizeof(msgs)/sizeof(msgs[0]))) ? msgs[id] : "Unknown";
+	return (id >= 0 && id < ARRAY_LEN(msgs)) ? msgs[id] : "Unknown";
 }
 
 static void free_user(struct ast_vm_user *vmu)
