@@ -211,6 +211,8 @@ NOARGG		([^(),\{\}\[\]]|\\[,()\[\]\{\}])*
 
 NOSEMIC		([^;()\{\}\[\]]|\\[;()\[\]\{\}])*
 
+HIBIT		[\x80-\xff]
+
 %%
 
 \{		{ STORE_POS; return LC;}
@@ -265,7 +267,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 [ ]+		{ my_col += yyleng; }
 [\t]+		{ my_col += (yyleng*8)-(my_col%8); }
 
-({KEYWORD}?[-a-zA-Z0-9'"_/.\<\>\*\+!$#\[\]]|(\\.)|(\$\{)|(\$\[)) {
+({KEYWORD}?[-a-zA-Z0-9'"_/.\<\>\*\+!$#\[\]]|{HIBIT}|(\\.)|(\$\{)|(\$\[)) {
 		/* boy did I open a can of worms when I changed the lexical token "word".
 		all the above keywords can be used as a beginning to a "word".-
 		before, a "word" would match a longer sequence than the above
@@ -292,6 +294,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 	} 
 
 <wordstate>[-a-zA-Z0-9'"_/.\<\>\*\+!$#\[\]] { yymore(); /* Keep going */ }
+<wordstate>{HIBIT} { yymore(); /* Keep going */ }
 <wordstate>(\\.)  { yymore(); /* Keep Going */ }
 <wordstate>(\$\{)  { /* the beginning of a ${} construct. prepare and pop into curlystate */
 		parencount2 = 0;
