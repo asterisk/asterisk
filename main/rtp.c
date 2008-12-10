@@ -2316,16 +2316,17 @@ int ast_rtp_senddigit_end(struct ast_rtp *rtp, char digit)
 	rtp->dtmfmute = ast_tvadd(ast_tvnow(), ast_tv(0, 500000));
 
 	rtpheader = (unsigned int *)data;
-	rtpheader[0] = htonl((2 << 30) | (1 << 23) | (rtp->send_payload << 16) | (rtp->seqno));
 	rtpheader[1] = htonl(rtp->lastdigitts);
 	rtpheader[2] = htonl(rtp->ssrc);
 	rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (rtp->send_duration));
 	/* Set end bit */
 	rtpheader[3] |= htonl((1 << 23));
-	rtpheader[0] = htonl((2 << 30) | (rtp->send_payload << 16) | (rtp->seqno));
+
 	/* Send 3 termination packets */
 	for (i = 0; i < 3; i++) {
+		rtpheader[0] = htonl((2 << 30) | (rtp->send_payload << 16) | (rtp->seqno));
 		res = sendto(rtp->s, (void *) rtpheader, hdrlen + 4, 0, (struct sockaddr *) &rtp->them, sizeof(rtp->them));
+		rtp->seqno++;
 		if (res < 0)
 			ast_log(LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
 				ast_inet_ntoa(rtp->them.sin_addr),
@@ -2338,7 +2339,6 @@ int ast_rtp_senddigit_end(struct ast_rtp *rtp, char digit)
 	rtp->lastts += rtp->send_duration;
 	rtp->sending_digit = 0;
 	rtp->send_digit = 0;
-	rtp->seqno++;
 
 	return res;
 }
