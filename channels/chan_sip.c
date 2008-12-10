@@ -6813,7 +6813,6 @@ static int sip_register(const char *value, int lineno)
 	char *port = NULL;
 	char *hostname=NULL, *secret=NULL, *authuser=NULL, *expire=NULL;
 	char *callback=NULL;
-	char *reserved = NULL;
 
 	if (!value)
 		return -1;
@@ -6838,15 +6837,7 @@ static int sip_register(const char *value, int lineno)
 		if (authuser)
 			*authuser++ = '\0';
 	}
-	if ((reserved = strpbrk(username, SIP_RESERVED))) {
-		goto invalid_char;
-	}
-	if (!ast_strlen_zero(secret) && (reserved = strpbrk(secret, SIP_RESERVED))) {
-		goto invalid_char;
-	}
-	if (!ast_strlen_zero(authuser) && (reserved = strpbrk(authuser, SIP_RESERVED))) {
-		goto invalid_char;
-	}
+
 	/* split host[:port][/contact] */
 	expire = strchr(hostname, '~');
 	if (expire)
@@ -6860,9 +6851,6 @@ static int sip_register(const char *value, int lineno)
 	 */
 	if ((port = strchr(hostname, ':'))) {
 		*port = '\0';
-	}
-	if ((reserved = strpbrk(hostname, SIP_RESERVED))) {
-		goto invalid_char;
 	}
 	/* And then re-merge the host and port so they are stored correctly
 	 */
@@ -6902,10 +6890,6 @@ static int sip_register(const char *value, int lineno)
 	ASTOBJ_CONTAINER_LINK(&regl, reg); /* Add the new registry entry to the list */
 	registry_unref(reg, "unref the reg pointer");	/* release the reference given by ASTOBJ_INIT. The container has another reference */
 	return 0;
-
-invalid_char:
-	ast_log(LOG_ERROR, "A reserved character ('%c') was used in a \"register\" line. This registration will not occur\n", *reserved);
-	return -1;
 }
 
 /*! \brief Parse mwi=> line in sip.conf and add to list */
