@@ -11118,6 +11118,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		ast_string_field_set(peer, useragent, "");
 		peer->sipoptions = 0;
 		peer->lastms = 0;
+		pvt->expiry = 0;
 
 		ast_verb(3, "Unregistered SIP '%s'\n", peer->name);
 
