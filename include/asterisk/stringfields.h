@@ -235,16 +235,17 @@ void __ast_string_field_index_build_va(struct ast_string_field_mgr *mgr,
 */
 #define ast_string_field_index_set(x, index, data) do { \
     char *__zz__ = (char*) (x)->__begin_field[index]; \
-    size_t __dlen__ = strlen(data) + 1; \
+    char *__data__ = (char*) data; \
+    size_t __dlen__ = strlen(__data__) + 1; \
     if ( __dlen__ == 1 ) {\
       (x)->__begin_field[index] = __ast_string_field_empty; \
     } else { \
       if ((__zz__[0] != 0) && (__dlen__ <= (strlen(__zz__) + 1))) { \
-        memcpy(__zz__, data, __dlen__); \
+        memcpy(__zz__, __data__, __dlen__); \
       } else { \
         if (((x)->__begin_field[index] = __ast_string_field_alloc_space(&(x)->__field_mgr, __dlen__, &(x)->__begin_field[0], ast_string_field_count(x)))) { \
           char *__yy__ = (char *) (x)->__begin_field[index]; \
-          memcpy(__yy__, data, __dlen__); \
+          memcpy(__yy__, __data__, __dlen__); \
         } \
       } \
      } \
@@ -252,17 +253,18 @@ void __ast_string_field_index_build_va(struct ast_string_field_mgr *mgr,
 
 #define ast_string_field_index_logset(x, index, data, logstr) do { \
     char *__zz__ = (char*) (x)->__begin_field[index]; \
-    size_t __dlen__ = strlen(data) + 1; \
+    char *__data__ = (char*) data; \
+    size_t __dlen__ = strlen(__data__) + 1; \
     if ( __dlen__ == 1 ) {\
       (x)->__begin_field[index] = __ast_string_field_empty; \
     } else { \
       if ((__zz__[0] != 0) && (__dlen__ <= strlen(__zz__) + 1)) { \
-        ast_verbose("%s: ======replacing '%s' with '%s'\n", logstr, __zz__, data); \
-        memcpy(__zz__, data, __dlen__); \
+        ast_verbose("%s: ======replacing '%s' with '%s'\n", logstr, __zz__, __data__); \
+        memcpy(__zz__, __data__, __dlen__); \
       } else { \
         if (((x)->__begin_field[index] = __ast_string_field_alloc_space(&(x)->__field_mgr, __dlen__, &(x)->__begin_field[0], ast_string_field_count(x)))) \
-          ast_verbose("%s: ++++++allocating room for '%s' to replace '%s'\n", logstr, data, __zz__); \
-          memcpy((char*) (x)->__begin_field[index], data, __dlen__); \
+          ast_verbose("%s: ++++++allocating room for '%s' to replace '%s'\n", logstr, __data__, __zz__); \
+          memcpy((char*) (x)->__begin_field[index], __data__, __dlen__); \
       } \
      } \
    } while (0)
