@@ -6942,18 +6942,10 @@ int ast_add_extension2(struct ast_context *con,
 	if (priority == PRIORITY_HINT && strstr(application, "${") && !strstr(extension, "_")) {
 		struct ast_channel c = {0, };
 
-		/* Start out with regular variables */
 		ast_copy_string(c.exten, extension, sizeof(c.exten));
 		ast_copy_string(c.context, con->name, sizeof(c.context));
 		pbx_substitute_variables_helper(&c, application, expand_buf, sizeof(expand_buf));
-
-		/* Move on to global variables if they exist */
-		ast_rwlock_rdlock(&globalslock);
-		if (AST_LIST_FIRST(&globals)) {
-			pbx_substitute_variables_varshead(&globals, application, expand_buf, sizeof(expand_buf));
-			application = expand_buf;
-		}
-		ast_rwlock_unlock(&globalslock);
+		application = expand_buf;
 	}
 
 	length = sizeof(struct ast_exten);
