@@ -1529,6 +1529,11 @@ static void __quit_handler(int num)
 	 * is going to exit */
 }
 
+static void __remote_quit_handler(int num)
+{
+	sig_flags.need_quit = 1;
+}
+
 static const char *fix_header(char *outbuf, int maxout, const char *s, char *cmp)
 {
 	const char *c;
@@ -2456,6 +2461,11 @@ static void ast_remotecontrol(char *data)
 	char *ebuf;
 	int num = 0;
 
+	memset(&sig_flags, 0, sizeof(sig_flags));
+	signal(SIGINT, __remote_quit_handler);
+	signal(SIGTERM, __remote_quit_handler);
+	signal(SIGHUP, __remote_quit_handler);
+
 	if (read(ast_consock, buf, sizeof(buf)) < 0) {
 		ast_log(LOG_ERROR, "read() failed: %s\n", strerror(errno));
 		return;
@@ -2466,6 +2476,9 @@ static void ast_remotecontrol(char *data)
 		sprintf(tmp, "%s%s", prefix, data);
 		if (write(ast_consock, tmp, strlen(tmp) + 1) < 0) {
 			ast_log(LOG_ERROR, "write() failed: %s\n", strerror(errno));
+			if (sig_flags.need_quit == 1) {
+				return;
+			}
 		}
 	}
 	stringp = buf;
@@ -2500,6 +2513,10 @@ static void ast_remotecontrol(char *data)
 		while (poll(&fds, 1, 500) > 0) {
 			char buffer[512] = "", *curline = buffer, *nextline;
 			int not_written = 1;
+
+			if (sig_flags.need_quit == 1) {
+				break;
+			}
 
 			if (read(ast_consock, buffer, sizeof(buffer) - 1) <= 0) {
 				break;
@@ -2544,6 +2561,10 @@ static void ast_remotecontrol(char *data)
 
 	for (;;) {
 		ebuf = (char *)el_gets(el, &num);
+
+		if (sig_flags.need_quit == 1) {
+			break;
+		}
 
 		if (!ebuf && write(1, "", 1) < 0)
 			break;
