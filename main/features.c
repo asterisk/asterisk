@@ -2033,6 +2033,7 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 		
 	if (ast_call(chan, data, timeout)) {
 		ast_log(LOG_NOTICE, "Unable to call channel %s/%s\n", type, (char *)data);
+		goto done;
 	}
 	
 	ast_indicate(caller, AST_CONTROL_RINGING);
