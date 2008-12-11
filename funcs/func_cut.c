@@ -254,7 +254,6 @@ static int acf_cut_exec(struct ast_channel *chan, char *cmd, char *data, char *b
 	struct ast_module_user *u = NULL;
 
 	if (chan) {
-		ast_autoservice_start(chan);
 		u = ast_module_user_add(chan);
 	}
 
@@ -277,7 +276,6 @@ static int acf_cut_exec(struct ast_channel *chan, char *cmd, char *data, char *b
 
 	if (chan) {
 		ast_module_user_remove(u);
-		ast_autoservice_stop(chan);
 	}
 
 	return ret;
