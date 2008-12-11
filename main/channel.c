@@ -462,8 +462,6 @@ int ast_check_hangup(struct ast_channel *chan)
 {
 	if (chan->_softhangup)		/* yes if soft hangup flag set */
 		return 1;
-	if (!chan->tech_pvt)		/* yes if no technology private data */
-		return 1;
 	if (ast_tvzero(chan->whentohangup))	/* no if no hangup scheduled */
 		return 0;
 	if (ast_tvdiff_ms(chan->whentohangup, ast_tvnow()) > 0) 	/* no if hangup time has not come yet. */
