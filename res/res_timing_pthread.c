@@ -151,6 +151,23 @@ static void pthread_timer_close(int handle)
 	ao2_ref(timer, -1);
 }
 
+static void set_state(struct pthread_timer *timer)
+{
+	unsigned int rate = timer->rate;
+
+	if (rate) {
+		timer->state = TIMER_STATE_TICKING;
+		timer->interval = roundf(1000.0 / ((float) rate));
+		timer->start = ast_tvnow();
+	} else {
+		timer->state = TIMER_STATE_IDLE;
+		timer->interval = 0;
+		timer->start = ast_tv(0, 0);
+	}
+
+	timer->tick_count = 0;
+}
+
 static int pthread_timer_set_rate(int handle, unsigned int rate)
 {
 	struct pthread_timer *timer;
@@ -169,10 +186,10 @@ static int pthread_timer_set_rate(int handle, unsigned int rate)
 
 	ao2_lock(timer);
 	timer->rate = rate;
-	timer->state = rate ? TIMER_STATE_TICKING : TIMER_STATE_IDLE;
-	timer->interval = rate ? roundf(1000.0 / ((float) rate)) : 0;
-	timer->start = rate ? ast_tvnow() : ast_tv(0, 0);
-	timer->tick_count = 0;
+	if (timer->state != TIMER_STATE_CONTINUOUS) {
+		set_state(timer);
+	}
+	
 	ao2_unlock(timer);
 
 	ao2_ref(timer, -1);
@@ -229,7 +246,7 @@ static int pthread_timer_disable_continuous(int handle)
 	}
 
 	ao2_lock(timer);
-	timer->state = timer->rate ? TIMER_STATE_TICKING : TIMER_STATE_IDLE;
+	set_state(timer);
 	read_pipe(timer->pipe[PIPE_READ], 0, 1);
 	ao2_unlock(timer);
 
