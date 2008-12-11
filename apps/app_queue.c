@@ -3155,8 +3155,8 @@ static void queue_transfer_fixup(void *data, struct ast_channel *old_chan, struc
 	struct ast_datastore *datastore;
 
 	ast_queue_log(qe->parent->name, qe->chan->uniqueid, member->membername, "TRANSFER", "%s|%s|%ld|%ld|%d",
-				new_chan->exten, new_chan->context, (time_t) (callstart - qe->start),
-				(time_t) (time(NULL) - callstart), qe->opos);
+				new_chan->exten, new_chan->context, (long) (callstart - qe->start),
+				(long) (time(NULL) - callstart), qe->opos);
 
 	update_queue(qe->parent, member, callcompletedinsl);
 	
