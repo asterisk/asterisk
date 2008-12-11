@@ -465,8 +465,6 @@ int ast_check_hangup(struct ast_channel *chan)
 {
 	if (chan->_softhangup)		/* yes if soft hangup flag set */
 		return 1;
-	if (!chan->tech_pvt)		/* yes if no technology private data */
-		return 1;
 	if (!chan->whentohangup)	/* no if no hangup scheduled */
 		return 0;
 	if (chan->whentohangup > time(NULL)) 	/* no if hangup time has not come yet. */
