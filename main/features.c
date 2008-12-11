@@ -1556,7 +1556,7 @@ static struct ast_call_feature builtin_features[] =
 };
 
 
-static AST_LIST_HEAD_STATIC(feature_list,ast_call_feature);
+static AST_RWLIST_HEAD_STATIC(feature_list, ast_call_feature);
 
 /*! \brief register new feature into feature_list*/
 void ast_register_feature(struct ast_call_feature *feature)
@@ -1566,9 +1566,9 @@ void ast_register_feature(struct ast_call_feature *feature)
 		return;
 	}
   
-	AST_LIST_LOCK(&feature_list);
-	AST_LIST_INSERT_HEAD(&feature_list,feature,feature_entry);
-	AST_LIST_UNLOCK(&feature_list);
+	AST_RWLIST_WRLOCK(&feature_list);
+	AST_RWLIST_INSERT_HEAD(&feature_list,feature,feature_entry);
+	AST_RWLIST_UNLOCK(&feature_list);
 
 	ast_verb(2, "Registered Feature '%s'\n",feature->sname);
 }
@@ -1649,12 +1649,14 @@ static void register_group_feature(struct feature_group *fg, const char *exten, 
 
 void ast_unregister_feature(struct ast_call_feature *feature)
 {
-	if (!feature)
+	if (!feature) {
 		return;
+	}
 
-	AST_LIST_LOCK(&feature_list);
-	AST_LIST_REMOVE(&feature_list,feature,feature_entry);
-	AST_LIST_UNLOCK(&feature_list);
+	AST_RWLIST_WRLOCK(&feature_list);
+	AST_RWLIST_REMOVE(&feature_list, feature, feature_entry);
+	AST_RWLIST_UNLOCK(&feature_list);
+
 	ast_free(feature);
 }
 
@@ -1663,10 +1665,11 @@ static void ast_unregister_features(void)
 {
 	struct ast_call_feature *feature;
 
-	AST_LIST_LOCK(&feature_list);
-	while ((feature = AST_LIST_REMOVE_HEAD(&feature_list,feature_entry)))
+	AST_RWLIST_WRLOCK(&feature_list);
+	while ((feature = AST_RWLIST_REMOVE_HEAD(&feature_list, feature_entry))) {
 		ast_free(feature);
-	AST_LIST_UNLOCK(&feature_list);
+	}
+	AST_RWLIST_UNLOCK(&feature_list);
 }
 
 /*! \brief find a call feature by name */
@@ -1674,9 +1677,10 @@ static struct ast_call_feature *find_dynamic_feature(const char *name)
 {
 	struct ast_call_feature *tmp;
 
-	AST_LIST_TRAVERSE(&feature_list, tmp, feature_entry) {
-		if (!strcasecmp(tmp->sname, name))
+	AST_RWLIST_TRAVERSE(&feature_list, tmp, feature_entry) {
+		if (!strcasecmp(tmp->sname, name)) {
 			break;
+		}
 	}
 
 	return tmp;
@@ -1917,10 +1921,11 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 		}
 
 		AST_RWLIST_UNLOCK(&feature_groups);
-		AST_LIST_LOCK(&feature_list);
 
-		if(!(feature = find_dynamic_feature(tok))) {
-			AST_LIST_UNLOCK(&feature_list);
+		AST_RWLIST_RDLOCK(&feature_list);
+
+		if (!(feature = find_dynamic_feature(tok))) {
+			AST_RWLIST_UNLOCK(&feature_list);
 			continue;
 		}
 			
@@ -1929,14 +1934,14 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 			ast_verb(3, " Feature Found: %s exten: %s\n",feature->sname, tok);
 			res = feature->operation(chan, peer, config, code, sense, feature);
 			if (res != AST_FEATURE_RETURN_KEEPTRYING) {
-				AST_LIST_UNLOCK(&feature_list);
+				AST_RWLIST_UNLOCK(&feature_list);
 				break;
 			}
 			res = AST_FEATURE_RETURN_PASSDIGITS;
 		} else if (!strncmp(feature->exten, code, strlen(code)))
 			res = AST_FEATURE_RETURN_STOREDIGITS;
 
-		AST_LIST_UNLOCK(&feature_list);
+		AST_RWLIST_UNLOCK(&feature_list);
 	}
 	
 	return res;
@@ -1971,14 +1976,14 @@ static void set_config_flags(struct ast_channel *chan, struct ast_channel *peer,
 
 			/* while we have a feature */
 			while ((tok = strsep(&tmp, "#"))) {
-				AST_LIST_LOCK(&feature_list);
+				AST_RWLIST_RDLOCK(&feature_list);
 				if ((feature = find_dynamic_feature(tok)) && ast_test_flag(feature, AST_FEATURE_FLAG_NEEDSDTMF)) {
 					if (ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLER))
 						ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_0);
 					if (ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLEE))
 						ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_1);
 				}
-				AST_LIST_UNLOCK(&feature_list);
+				AST_RWLIST_UNLOCK(&feature_list);
 			}
 		}
 	}
@@ -3451,13 +3456,13 @@ static int load_config(void)
 			continue;
 		}
 
-		AST_LIST_LOCK(&feature_list);
+		AST_RWLIST_RDLOCK(&feature_list);
 		if ((feature = find_dynamic_feature(var->name))) {
-			AST_LIST_UNLOCK(&feature_list);
+			AST_RWLIST_UNLOCK(&feature_list);
 			ast_log(LOG_WARNING, "Dynamic Feature '%s' specified more than once!\n", var->name);
 			continue;
 		}
-		AST_LIST_UNLOCK(&feature_list);
+		AST_RWLIST_UNLOCK(&feature_list);
 				
 		if (!(feature = ast_calloc(1, sizeof(*feature))))
 			continue;					
@@ -3535,14 +3540,14 @@ static int load_config(void)
 		for (var = ast_variable_browse(cfg, ctg); var; var = var->next) {
 			struct ast_call_feature *feature;
 
-			AST_LIST_LOCK(&feature_list);
-			if(!(feature = find_dynamic_feature(var->name)) && 
-			   !(feature = ast_find_call_feature(var->name))) {
-				AST_LIST_UNLOCK(&feature_list);
+			AST_RWLIST_RDLOCK(&feature_list);
+			if (!(feature = find_dynamic_feature(var->name)) && 
+			    !(feature = ast_find_call_feature(var->name))) {
+				AST_RWLIST_UNLOCK(&feature_list);
 				ast_log(LOG_WARNING, "Feature '%s' was not found.\n", var->name);
 				continue;
 			}
-			AST_LIST_UNLOCK(&feature_list);
+			AST_RWLIST_UNLOCK(&feature_list);
 
 			register_group_feature(fg, var->value, feature);
 		}
@@ -3614,13 +3619,14 @@ static char *handle_feature_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 	ast_cli(a->fd, "\n");
 	ast_cli(a->fd, HFS_FORMAT, "Dynamic Feature", "Default", "Current");
 	ast_cli(a->fd, HFS_FORMAT, "---------------", "-------", "-------");
-	if (AST_LIST_EMPTY(&feature_list))
+	if (AST_RWLIST_EMPTY(&feature_list)) {
 		ast_cli(a->fd, "(none)\n");
-	else {
-		AST_LIST_LOCK(&feature_list);
-		AST_LIST_TRAVERSE(&feature_list, feature, feature_entry)
+	} else {
+		AST_RWLIST_RDLOCK(&feature_list);
+		AST_RWLIST_TRAVERSE(&feature_list, feature, feature_entry) {
 			ast_cli(a->fd, HFS_FORMAT, feature->sname, "no def", feature->exten);
-		AST_LIST_UNLOCK(&feature_list);
+		}
+		AST_RWLIST_UNLOCK(&feature_list);
 	}
 
 	// loop through all the parking lots
