@@ -11124,7 +11124,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 		}
 	}
 	if (!res) {
-		ast_devstate_changed(AST_DEVICE_NOT_INUSE, "SIP/%s", peer->name);
+		ast_devstate_changed(AST_DEVICE_UNKNOWN, "SIP/%s", peer->name);
 	}
 	if (res < 0) {
 		switch (res) {
