@@ -3067,7 +3067,7 @@ static void send_agent_complete(const struct queue_ent *qe, const char *queuenam
 struct queue_transfer_ds {
 	struct queue_ent *qe;
 	struct member *member;
-	int starttime;
+	time_t starttime;
 	int callcompletedinsl;
 };
 
@@ -3094,28 +3094,26 @@ static const struct ast_datastore_info queue_transfer_info = {
  * At the end of this, we want to remove the datastore so that this fixup function is not called on any
  * future masquerades of the caller during the current call.
  */
-static void queue_transfer_fixup(void *data, struct ast_channel *old_chan, struct ast_channel *new_chan) 
+static void queue_transfer_fixup(void *data, struct ast_channel *old_chan, struct ast_channel *new_chan)
 {
 	struct queue_transfer_ds *qtds = data;
 	struct queue_ent *qe = qtds->qe;
 	struct member *member = qtds->member;
-	int callstart = qtds->starttime;
+	time_t callstart = qtds->starttime;
 	int callcompletedinsl = qtds->callcompletedinsl;
 	struct ast_datastore *datastore;
 
 	ast_queue_log(qe->parent->name, qe->chan->uniqueid, member->membername, "TRANSFER", "%s|%s|%ld|%ld",
-				new_chan->exten, new_chan->context, (long) (callstart - qe->start),
-				(long) (time(NULL) - callstart));
+				new_chan->exten, new_chan->context, (time_t) (callstart - qe->start),
+				(time_t) (time(NULL) - callstart));
 
 	update_queue(qe->parent, member, callcompletedinsl);
 	
-	if (!(datastore = ast_channel_datastore_find(new_chan, &queue_transfer_info, NULL))) {
+	if ((datastore = ast_channel_datastore_find(new_chan, &queue_transfer_info, NULL))) {
+		ast_channel_datastore_remove(new_chan, datastore);
+	} else {
 		ast_log(LOG_WARNING, "Can't find the queue_transfer datastore.\n");
-		return;
 	}
-
-	ast_channel_datastore_remove(new_chan, datastore);
-	ast_channel_datastore_free(datastore);
 }
 
 /*! \brief mechanism to tell if a queue caller was atxferred by a queue member.
@@ -3131,21 +3129,21 @@ static int attended_transfer_occurred(struct ast_channel *chan)
 
 /*! \brief create a datastore for storing relevant info to log attended transfers in the queue_log
  */
-static void setup_transfer_datastore(struct queue_ent *qe, struct member *member, int starttime, int callcompletedinsl)
+static struct ast_datastore *setup_transfer_datastore(struct queue_ent *qe, struct member *member, time_t starttime, int callcompletedinsl)
 {
 	struct ast_datastore *ds;
 	struct queue_transfer_ds *qtds = ast_calloc(1, sizeof(*qtds));
 
 	if (!qtds) {
 		ast_log(LOG_WARNING, "Memory allocation error!\n");
-		return;
+		return NULL;
 	}
 
 	ast_channel_lock(qe->chan);
 	if (!(ds = ast_channel_datastore_alloc(&queue_transfer_info, NULL))) {
 		ast_channel_unlock(qe->chan);
 		ast_log(LOG_WARNING, "Unable to create transfer datastore. queue_log will not show attended transfer\n");
-		return;
+		return NULL;
 	}
 
 	qtds->qe = qe;
@@ -3156,6 +3154,7 @@ static void setup_transfer_datastore(struct queue_ent *qe, struct member *member
 	ds->data = qtds;
 	ast_channel_datastore_add(qe->chan, ds);
 	ast_channel_unlock(qe->chan);
+	return ds;
 }
 
 static void end_bridge_callback(void *data)
@@ -3233,7 +3232,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	int forwardsallowed = 1;
 	int callcompletedinsl;
 	struct ao2_iterator memi;
-	struct ast_datastore *datastore;
+	struct ast_datastore *datastore, *transfer_ds;
 
 	ast_channel_lock(qe->chan);
 	datastore = ast_channel_datastore_find(qe->chan, &dialed_interface_info, NULL);
@@ -3831,14 +3830,14 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		ast_copy_string(oldcontext, qe->chan->context, sizeof(oldcontext));
 		ast_copy_string(oldexten, qe->chan->exten, sizeof(oldexten));
 		time(&callstart);
-		setup_transfer_datastore(qe, member, callstart, callcompletedinsl);
+		transfer_ds = setup_transfer_datastore(qe, member, callstart, callcompletedinsl);
 		bridge = ast_bridge_call(qe->chan,peer, &bridge_config);
 
 		/* If the queue member did an attended transfer, then the TRANSFER already was logged in the queue_log
 		 * when the masquerade occurred. These other "ending" queue_log messages are unnecessary
 		 */
 		if (!attended_transfer_occurred(qe->chan)) {
-			struct ast_datastore *transfer_ds;
+			struct ast_datastore *tds;
 			if (strcasecmp(oldcontext, qe->chan->context) || strcasecmp(oldexten, qe->chan->exten)) {
 				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "TRANSFER", "%s|%s|%ld|%ld",
 					qe->chan->exten, qe->chan->context, (long) (callstart - qe->start),
@@ -3854,15 +3853,16 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				send_agent_complete(qe, queuename, peer, member, callstart, vars, sizeof(vars), AGENT);
 			}
 			ast_channel_lock(qe->chan);
-			transfer_ds = ast_channel_datastore_find(qe->chan, &queue_transfer_info, NULL);
-			if (transfer_ds) {
-				ast_channel_datastore_remove(qe->chan, transfer_ds);
-				ast_channel_datastore_free(transfer_ds);
+			if ((tds = ast_channel_datastore_find(qe->chan, &queue_transfer_info, NULL))) {
+				ast_channel_datastore_remove(qe->chan, tds);
 			}
 			ast_channel_unlock(qe->chan);
 			update_queue(qe->parent, member, callcompletedinsl);
 		}
 
+		if (transfer_ds) {
+			ast_channel_datastore_free(transfer_ds);
+		}
 		if (bridge != AST_PBX_NO_HANGUP_PEER)
 			ast_hangup(peer);
 		res = bridge ? bridge : 1;
@@ -4202,7 +4202,7 @@ static int get_member_penalty(char *queuename, char *interface)
 /*! \brief Reload dynamic queue members persisted into the astdb */
 static void reload_queue_members(void)
 {
-	char *cur_ptr;	
+	char *cur_ptr;
 	const char *queue_name;
 	char *member;
 	char *interface;
