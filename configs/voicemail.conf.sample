@@ -55,6 +55,10 @@ maxlogins=3
 ; Move heard messages to the 'Old' folder automagically.  Defaults to on.
 ;moveheard=yes
 ;
+; Forward an urgent message as an urgent message.  Defaults to no so
+; sender can set the urgency on the envelope of the forwarded message.
+;forward_urgent_auto=no
+;
 ; User context is where entries from users.conf are registered.  The
 ; default value is 'default'
 ;
