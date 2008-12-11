@@ -101,6 +101,7 @@ static struct sched_context *sched;
 static int netsocket = -1;
 static pthread_t netthreadid = AST_PTHREADT_NULL;
 static pthread_t precachethreadid = AST_PTHREADT_NULL;
+static pthread_t clearcachethreadid = AST_PTHREADT_NULL;
 static unsigned int tos = 0;
 static int dundidebug = 0;
 static int authdebug = 0;
@@ -2112,6 +2113,40 @@ static void *network_thread(void *ignore)
 	return NULL;
 }
 
+static void *process_clearcache(void *ignore)
+{
+	struct ast_db_entry *db_entry, *db_tree;
+	int striplen = sizeof("/dundi/cache");
+	time_t now;
+	
+	while (!dundi_shutdown) {
+		pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
+
+		time(&now);
+
+		db_entry = db_tree = ast_db_gettree("dundi/cache", NULL);
+		for (; db_entry; db_entry = db_entry->next) {
+			time_t expiry;
+
+			if (!ast_get_time_t(db_entry->data, &expiry, 0, NULL)) {
+				if (expiry < now) {
+					ast_debug(1, "clearing expired DUNDI cache entry: %s\n", db_entry->key);
+					ast_db_del("dundi/cache", db_entry->key + striplen);
+				}
+			}
+		}
+		ast_db_freetree(db_tree);
+
+		pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+		pthread_testcancel();
+		sleep(60);
+		pthread_testcancel();
+	}
+	
+	clearcachethreadid = AST_PTHREADT_NULL;
+	return NULL;
+}
+
 static void *process_precache(void *ign)
 {
 	struct dundi_precache_queue *qe;
@@ -2153,6 +2188,7 @@ static int start_network_thread(void)
 {
 	ast_pthread_create_background(&netthreadid, NULL, network_thread, NULL);
 	ast_pthread_create_background(&precachethreadid, NULL, process_precache, NULL);
+	ast_pthread_create_background(&clearcachethreadid, NULL, process_clearcache, NULL);
 	return 0;
 }
 
@@ -4739,7 +4775,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
 
 static int unload_module(void)
 {
-	pthread_t previous_netthreadid = netthreadid, previous_precachethreadid = precachethreadid;
+	pthread_t previous_netthreadid = netthreadid, previous_precachethreadid = precachethreadid, previous_clearcachethreadid = clearcachethreadid;
 	ast_module_user_hangup_all();
 
 	/* Stop all currently running threads */
@@ -4752,6 +4788,10 @@ static int unload_module(void)
 		pthread_kill(previous_precachethreadid, SIGURG);
 		pthread_join(previous_precachethreadid, NULL);
 	}
+ 	if (previous_clearcachethreadid != AST_PTHREADT_NULL) {
+ 		pthread_cancel(previous_clearcachethreadid);
+ 		pthread_join(previous_clearcachethreadid, NULL);
+ 	}
 
 	ast_cli_unregister_multiple(cli_dundi, sizeof(cli_dundi) / sizeof(struct ast_cli_entry));
 	ast_unregister_switch(&dundi_switch);
