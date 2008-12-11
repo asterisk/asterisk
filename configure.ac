@@ -1521,7 +1521,9 @@ AST_EXT_LIB_CHECK([TERMCAP], [termcap], [tgetent], [])
 
 AST_EXT_LIB_CHECK([TINFO], [tinfo], [tgetent], [])
 
-if test "${host_os}" != "linux-gnu" ; then
+AC_CHECK_LIB([tonezone], [tone_zone_find_by_num], tonezone_does_not_need_lm=yes, tonezone_does_not_need_lm=no)
+
+if test "${tonezone_does_not_need_lm}" = "no" ; then
   tonezone_extra="-lm"
 fi
 
