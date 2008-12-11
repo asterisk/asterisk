@@ -407,6 +407,7 @@ static AST_LIST_HEAD_STATIC(vmstates, vmstate);
 #define VM_TEMPGREETWARN (1 << 15)  /*!< Remind user tempgreeting is set */
 #define VM_MOVEHEARD     (1 << 16)  /*!< Move a "heard" message to Old after listening to it */
 #define VM_MESSAGEWRAP   (1 << 17)  /*!< Wrap around from the last message to the first, and vice-versa */
+#define VM_FWDURGAUTO    (1 << 18)  /*!< Autoset of Urgent flag on forwarded Urgent messages set globally */
 #define ERROR_LOCK_PATH  -100
 
 
@@ -6267,7 +6268,9 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 	char urgent_str[7] = "";
 	char tmptxtfile[PATH_MAX];
 
-	ast_copy_string(urgent_str, urgent ? "Urgent" : "", sizeof(urgent_str));
+	if (ast_test_flag((&globalflags), VM_FWDURGAUTO)) {
+		ast_copy_string(urgent_str, urgent ? "Urgent" : "", sizeof(urgent_str));
+	}
 
 	if (vms == NULL) return -1;
 	dir = vms->curdir;
@@ -10662,6 +10665,12 @@ static int load_config(int reload)
 			val = "yes";
 		}
 		ast_set2_flag((&globalflags), ast_true(val), VM_MOVEHEARD);	
+
+		if (!(val = ast_variable_retrieve(cfg, "general", "forward_urgent_auto"))) {
+			ast_debug(1,"Autoset of Urgent flag on forwarded Urgent messages disabled globally\n");
+			val = "no";
+		}
+		ast_set2_flag((&globalflags), ast_true(val), VM_FWDURGAUTO);	
 
 		if (!(val = ast_variable_retrieve(cfg, "general", "sayduration"))) {
 			ast_debug(1,"Duration info before msg enabled globally\n");
