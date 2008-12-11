@@ -2009,131 +2009,11 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 	struct ast_channel *monitor_chans[2];
 	struct ast_channel *active_channel;
 	int res = 0, ready = 0;
+	struct timeval started;
+	int x, len = 0;
+	char *disconnect_code = NULL, *dialed_code = NULL;
 
-	if ((chan = ast_request(type, format, data, &cause))) {
-		ast_set_callerid(chan, cid_num, cid_name, cid_num);
-		ast_string_field_set(chan, language, language);
-		ast_channel_inherit_variables(caller, chan);	
-		pbx_builtin_setvar_helper(chan, "TRANSFERERNAME", caller->name);
-			
-		if (!ast_call(chan, data, timeout)) {
-			struct timeval started;
-			int x, len = 0;
-			char *disconnect_code = NULL, *dialed_code = NULL;
-
-			ast_indicate(caller, AST_CONTROL_RINGING);
-			/* support dialing of the featuremap disconnect code while performing an attended tranfer */
-			ast_rwlock_rdlock(&features_lock);
-			for (x = 0; x < FEATURES_COUNT; x++) {
-				if (strcasecmp(builtin_features[x].sname, "disconnect"))
-					continue;
-
-				disconnect_code = builtin_features[x].exten;
-				len = strlen(disconnect_code) + 1;
-				dialed_code = alloca(len);
-				memset(dialed_code, 0, len);
-				break;
-			}
-			ast_rwlock_unlock(&features_lock);
-			x = 0;
-			started = ast_tvnow();
-			to = timeout;
-
-			ast_poll_channel_add(caller, chan);
-
-			while (!((transferee && ast_check_hangup(transferee)) && (!igncallerstate && ast_check_hangup(caller))) && timeout && (chan->_state != AST_STATE_UP)) {
-				struct ast_frame *f = NULL;
-
-				monitor_chans[0] = caller;
-				monitor_chans[1] = chan;
-				active_channel = ast_waitfor_n(monitor_chans, 2, &to);
-
-				/* see if the timeout has been violated */
-				if(ast_tvdiff_ms(ast_tvnow(), started) > timeout) {
-					state = AST_CONTROL_UNHOLD;
-					ast_log(LOG_NOTICE, "We exceeded our AT-timeout\n");
-					break; /*doh! timeout*/
-				}
-
-				if (!active_channel)
-					continue;
-
-				if (chan && (chan == active_channel)){
-					f = ast_read(chan);
-					if (f == NULL) { /*doh! where'd he go?*/
-						state = AST_CONTROL_HANGUP;
-						res = 0;
-						break;
-					}
-					
-					if (f->frametype == AST_FRAME_CONTROL || f->frametype == AST_FRAME_DTMF || f->frametype == AST_FRAME_TEXT) {
-						if (f->subclass == AST_CONTROL_RINGING) {
-							state = f->subclass;
-							ast_verb(3, "%s is ringing\n", chan->name);
-							ast_indicate(caller, AST_CONTROL_RINGING);
-						} else if ((f->subclass == AST_CONTROL_BUSY) || (f->subclass == AST_CONTROL_CONGESTION)) {
-							state = f->subclass;
-							ast_verb(3, "%s is busy\n", chan->name);
-							ast_indicate(caller, AST_CONTROL_BUSY);
-							ast_frfree(f);
-							f = NULL;
-							break;
-						} else if (f->subclass == AST_CONTROL_ANSWER) {
-							/* This is what we are hoping for */
-							state = f->subclass;
-							ast_frfree(f);
-							f = NULL;
-							ready=1;
-							break;
-						} else if (f->subclass != -1) {
-							ast_log(LOG_NOTICE, "Don't know what to do about control frame: %d\n", f->subclass);
-						}
-						/* else who cares */
-					}
-
-				} else if (caller && (active_channel == caller)) {
-					f = ast_read(caller);
-					if (f == NULL) { /*doh! where'd he go?*/
-						if (!igncallerstate) {
-							if (ast_check_hangup(caller) && !ast_check_hangup(chan)) {
-								/* make this a blind transfer */
-								ready = 1;
-								break;
-							}
-							state = AST_CONTROL_HANGUP;
-							res = 0;
-							break;
-						}
-					} else {
-					
-						if (f->frametype == AST_FRAME_DTMF) {
-							dialed_code[x++] = f->subclass;
-							dialed_code[x] = '\0';
-							if (strlen(dialed_code) == len) {
-								x = 0;
-							} else if (x && strncmp(dialed_code, disconnect_code, x)) {
-								x = 0;
-								dialed_code[x] = '\0';
-							}
-							if (*dialed_code && !strcmp(dialed_code, disconnect_code)) {
-								/* Caller Canceled the call */
-								state = AST_CONTROL_UNHOLD;
-								ast_frfree(f);
-								f = NULL;
-								break;
-							}
-						}
-					}
-				}
-				if (f)
-					ast_frfree(f);
-			} /* end while */
-
-			ast_poll_channel_del(caller, chan);
-
-		} else
-			ast_log(LOG_NOTICE, "Unable to call channel %s/%s\n", type, (char *)data);
-	} else {
+	if (!(chan = ast_request(type, format, data, &cause))) {
 		ast_log(LOG_NOTICE, "Unable to request channel %s/%s\n", type, (char *)data);
 		switch(cause) {
 		case AST_CAUSE_BUSY:
@@ -2143,14 +2023,135 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 			state = AST_CONTROL_CONGESTION;
 			break;
 		}
+		goto done;
+	}
+
+	ast_set_callerid(chan, cid_num, cid_name, cid_num);
+	ast_string_field_set(chan, language, language);
+	ast_channel_inherit_variables(caller, chan);	
+	pbx_builtin_setvar_helper(chan, "TRANSFERERNAME", caller->name);
+		
+	if (ast_call(chan, data, timeout)) {
+		ast_log(LOG_NOTICE, "Unable to call channel %s/%s\n", type, (char *)data);
 	}
 	
+	ast_indicate(caller, AST_CONTROL_RINGING);
+	/* support dialing of the featuremap disconnect code while performing an attended tranfer */
+	ast_rwlock_rdlock(&features_lock);
+	for (x = 0; x < FEATURES_COUNT; x++) {
+		if (strcasecmp(builtin_features[x].sname, "disconnect"))
+			continue;
+
+		disconnect_code = builtin_features[x].exten;
+		len = strlen(disconnect_code) + 1;
+		dialed_code = alloca(len);
+		memset(dialed_code, 0, len);
+		break;
+	}
+	ast_rwlock_unlock(&features_lock);
+	x = 0;
+	started = ast_tvnow();
+	to = timeout;
+
+	ast_poll_channel_add(caller, chan);
+
+	while (!((transferee && ast_check_hangup(transferee)) && (!igncallerstate && ast_check_hangup(caller))) && timeout && (chan->_state != AST_STATE_UP)) {
+		struct ast_frame *f = NULL;
+
+		monitor_chans[0] = caller;
+		monitor_chans[1] = chan;
+		active_channel = ast_waitfor_n(monitor_chans, 2, &to);
+
+		/* see if the timeout has been violated */
+		if(ast_tvdiff_ms(ast_tvnow(), started) > timeout) {
+			state = AST_CONTROL_UNHOLD;
+			ast_log(LOG_NOTICE, "We exceeded our AT-timeout\n");
+			break; /*doh! timeout*/
+		}
+
+		if (!active_channel)
+			continue;
+
+		if (chan && (chan == active_channel)){
+			f = ast_read(chan);
+			if (f == NULL) { /*doh! where'd he go?*/
+				state = AST_CONTROL_HANGUP;
+				res = 0;
+				break;
+			}
+			
+			if (f->frametype == AST_FRAME_CONTROL || f->frametype == AST_FRAME_DTMF || f->frametype == AST_FRAME_TEXT) {
+				if (f->subclass == AST_CONTROL_RINGING) {
+					state = f->subclass;
+					ast_verb(3, "%s is ringing\n", chan->name);
+					ast_indicate(caller, AST_CONTROL_RINGING);
+				} else if ((f->subclass == AST_CONTROL_BUSY) || (f->subclass == AST_CONTROL_CONGESTION)) {
+					state = f->subclass;
+					ast_verb(3, "%s is busy\n", chan->name);
+					ast_indicate(caller, AST_CONTROL_BUSY);
+					ast_frfree(f);
+					f = NULL;
+					break;
+				} else if (f->subclass == AST_CONTROL_ANSWER) {
+					/* This is what we are hoping for */
+					state = f->subclass;
+					ast_frfree(f);
+					f = NULL;
+					ready=1;
+					break;
+				} else if (f->subclass != -1) {
+					ast_log(LOG_NOTICE, "Don't know what to do about control frame: %d\n", f->subclass);
+				}
+				/* else who cares */
+			}
+
+		} else if (caller && (active_channel == caller)) {
+			f = ast_read(caller);
+			if (f == NULL) { /*doh! where'd he go?*/
+				if (!igncallerstate) {
+					if (ast_check_hangup(caller) && !ast_check_hangup(chan)) {
+						/* make this a blind transfer */
+						ready = 1;
+						break;
+					}
+					state = AST_CONTROL_HANGUP;
+					res = 0;
+					break;
+				}
+			} else {
+			
+				if (f->frametype == AST_FRAME_DTMF) {
+					dialed_code[x++] = f->subclass;
+					dialed_code[x] = '\0';
+					if (strlen(dialed_code) == len) {
+						x = 0;
+					} else if (x && strncmp(dialed_code, disconnect_code, x)) {
+						x = 0;
+						dialed_code[x] = '\0';
+					}
+					if (*dialed_code && !strcmp(dialed_code, disconnect_code)) {
+						/* Caller Canceled the call */
+						state = AST_CONTROL_UNHOLD;
+						ast_frfree(f);
+						f = NULL;
+						break;
+					}
+				}
+			}
+		}
+		if (f)
+			ast_frfree(f);
+	} /* end while */
+
+	ast_poll_channel_del(caller, chan);
+		
+done:
 	ast_indicate(caller, -1);
 	if (chan && ready) {
 		if (chan->_state == AST_STATE_UP) 
 			state = AST_CONTROL_ANSWER;
 		res = 0;
-	} else if(chan) {
+	} else if (chan) {
 		res = -1;
 		ast_hangup(chan);
 		chan = NULL;
