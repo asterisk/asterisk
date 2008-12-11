@@ -1,23 +1,23 @@
 \subsubsection{Introduction}
 
-Asterisk support different QoS settings on application level on various protocol
-on any of signaling and media. Type of Service (TOS) byte can be set on
-outgoing IP packets for various protocols. The TOS byte is used by the network
-to provide some level of Quality of Service (QoS) even if the network is
-congested with other traffic.
+Asterisk supports different QoS settings at the application level for various
+protocols on both signaling and media. The Type of Service (TOS) byte can be
+set on outgoing IP packets for various protocols. The TOS byte is used by the
+network to provide some level of Quality of Service (QoS) even if the network
+is congested with other traffic.
 
-Also asterisk running on Linux can set 802.1p CoS marks in VLAN packets for all
-used VoIP protocols. It is useful when you are working in switched environment.
-In fact asterisk only set priority for Linux socket. For mapping this priority
+Asterisk running on Linux can also set 802.1p CoS marks in VLAN packets for the 
+VoIP protocols it uses. This is useful when working in a switched environment.
+In fact Asterisk only set priority for Linux socket. For mapping this priority
 and VLAN CoS mark you need to use this command:
 
 \begin{verbatim}
 vconfig set_egress_map [vlan-device] [skb-priority] [vlan-qos]
 \end{verbatim}
 
-In table behind shown all voice channels and other modules of asterisk, that
-support QoS settings for network traffic and type of traffic which can have
-QoS settings.
+The table below shows all VoIP channel drivers and other Asterisk modules that
+support QoS settings for network traffic. It also shows the type(s) of
+traffic for which each module can support setting QoS settings.
 
 \begin{verbatim}
  Channel Drivers
@@ -34,7 +34,7 @@ QoS settings.
 |--------------+-----------+-----+-----+-----+
 |chan_h323     |           |  +  |     |     |
 |--------------+-----------+-----+-----+-----+
-|chan_iax2     |            +                |
+|chan_iax2     |              +              |
 +==============+=============================+
  Other
 +==============+=============================+
@@ -46,26 +46,25 @@ QoS settings.
 
 
 \subsubsection{IP TOS values}
-
 The allowable values for any of the tos* parameters are: 
 CS0, CS1, CS2, CS3, CS4, CS5, CS6, CS7, AF11, AF12, AF13, AF21, AF22, AF23, 
 AF31, AF32, AF33, AF41, AF42, AF43 and ef (expedited forwarding),
 
 The tos* parameters also take numeric values.
 
-Note, that on Linux system you can use ef value in case your asterisk is running
-from a user other then root only when you have compiled asterisk with libcap.
+Note that on a Linux system, Asterisk must be compiled with libcap in order to
+use the ef tos setting if Asterisk is not run as root.
 
-The lowdelay, throughput, reliability, mincost, and none values are removed
+The lowdelay, throughput, reliability, mincost, and none values have been removed
 in current releases.
 
 \subsubsection{802.1p CoS values}
 
-As far as 802.1p uses 3 bites from VLAN header, there are parameter can take
-integer values from 0 to 7.
+Because 802.1p uses 3 bits of the VLAN header, this parameter can take integer
+values from 0 to 7.
 
 \subsubsection{Recommended values}
-Recommended values shown above and also included in sample configuration files:
+The recommended values shown below are also included in sample configuration files:
 \begin{verbatim}
 +============+=========+======+
 |            |  tos    |  cos |
@@ -93,20 +92,21 @@ have different TOS settings.
 
 \subsubsection{SIP}
 
-In sip.conf, there are three parameters that control the TOS settings:
+In sip.conf, there are four parameters that control the TOS settings:
 "tos\_sip", "tos\_audio", "tos\_video" and "tos\_text". tos\_sip controls
 what TOS SIP call signaling packets are set to. tos\_audio, tos\_video
-and tos\_text controls what TOS RTP audio, video or text accordingly
-packets are set to.
+and tos\_text control what TOS values are used for RTP audio, video, and text
+packets, respectively.
 
 There are four parameters to control 802.1p CoS: "cos\_sip", "cos\_audio",
-"cos\_video" and "cos\_text". It behavior the same as written above.
+"cos\_video" and "cos\_text". The behavior of these parameters is the
+same as for the SIP TOS settings described above.
 
 \subsubsection{Other RTP channels}
 
 chan\_mgcp, chan\_h323, chan\_skinny and chan\_unistim also support TOS and
-CoS via setting tos and cos parameters in correspond to module config 
-files. Naming style and behavior same as for chan\_sip.
+CoS via setting tos and cos parameters in their corresponding configuration
+files. Naming style and behavior are the same as for chan\_sip.
 
 \subsubsection{Reference}
 
