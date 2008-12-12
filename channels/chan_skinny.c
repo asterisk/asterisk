@@ -1170,7 +1170,10 @@ struct skinny_subchannel {
 	int instance;					\
 	int group;					\
 	int needdestroy;				\
+	int confcapability;				\
+	struct ast_codec_pref confprefs;		\
 	int capability;					\
+	struct ast_codec_pref prefs;			\
 	int nonCodecCapability;				\
 	int onhooktime;					\
 	int msgstate;					\
@@ -1183,7 +1186,6 @@ struct skinny_line {
 	SKINNY_LINE_OPTIONS
 	ast_mutex_t lock;
 	struct ast_event_sub *mwi_event_sub; /* Event based MWI */
-	struct ast_codec_pref prefs;
 	struct skinny_subchannel *activesub;
 	AST_LIST_HEAD(, skinny_subchannel) sub;
 	AST_LIST_ENTRY(skinny_line) list;
@@ -1204,6 +1206,7 @@ struct skinny_line_options{
  	.instance = 0,
  	.canreinvite = 0,
  	.nat = 0,
+ 	.confcapability = AST_FORMAT_ULAW | AST_FORMAT_ALAW,
  	.capability = 0,
 	.getforward = 0,
  	.needdestroy = 0,
@@ -1244,6 +1247,8 @@ struct skinny_addon {
 	int registered;						\
 	int lastlineinstance;					\
 	int lastcallreference;					\
+	int confcapability;					\
+	struct ast_codec_pref confprefs;			\
 	int capability;						\
 	int earlyrtp;						\
 	int transfer;						\
@@ -1255,7 +1260,6 @@ struct skinny_device {
 	SKINNY_DEVICE_OPTIONS
 	struct type *first;
 	struct type *last;
-	struct ast_codec_pref prefs;
 	ast_mutex_t lock;
 	struct sockaddr_in addr;
 	struct in_addr ourip;
@@ -1276,7 +1280,8 @@ struct skinny_device_options{
  	.callwaiting = 1,
  	.mwiblink = 0,
  	.dnd = 0,
- 	.capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW,
+ 	.confcapability = AST_FORMAT_ULAW | AST_FORMAT_ALAW,
+ 	.capability = 0,
 };
 struct skinny_device_options *default_device = &default_device_struct;
 	
@@ -1836,8 +1841,13 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 					ast_verb(1, "Line %s already connected to %s. Not connecting to %s.\n", l->name, l->device->name, d->name);
 				} else {
 					l->device = d;
-					l->capability = d->capability;
-					l->prefs = d->prefs;
+					l->capability = l->confcapability & d->capability;
+					l->prefs = l->confprefs;
+					if (!l->prefs.order[0]) {
+						l->prefs = d->confprefs;
+					}
+					/* l->capability = d->capability;
+					l->prefs = d->prefs; */
 					l->instance = instance;
 					set_callforwards(l, NULL, 0);
 					register_exten(l);
@@ -2999,7 +3009,10 @@ static char *handle_skinny_show_device(struct ast_cli_entry *e, int cmd, struct 
 			ast_cli(a->fd, "Ip address:  %s\n", (d->session ? ast_inet_ntoa(d->session->sin.sin_addr) : "Unknown"));
 			ast_cli(a->fd, "Port:        %d\n", (d->session ? ntohs(d->session->sin.sin_port) : 0));
 			ast_cli(a->fd, "Device Type: %s\n", device2str(d->type));
-			ast_cli(a->fd, "Codecs:     ");
+			ast_cli(a->fd, "Conf Codecs:");
+			ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, d->confcapability);
+			ast_cli(a->fd, "%s\n", codec_buf);
+			ast_cli(a->fd, "Neg Codecs: ");
 			ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, d->capability);
 			ast_cli(a->fd, "%s\n", codec_buf);
 			ast_cli(a->fd, "Registered:  %s\n", (d->registered ? "Yes" : "No"));
@@ -3145,7 +3158,10 @@ static char *handle_skinny_show_line(struct ast_cli_entry *e, int cmd, struct as
 			ast_cli(a->fd, "NAT:              %s\n", (l->nat ? "Yes" : "No"));
 			ast_cli(a->fd, "immediate:        %s\n", (l->immediate ? "Yes" : "No"));
 			ast_cli(a->fd, "Group:            %d\n", l->group);
-			ast_cli(a->fd, "Codecs:           ");
+			ast_cli(a->fd, "Conf Codecs:      ");
+			ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, l->confcapability);
+			ast_cli(a->fd, "%s\n", codec_buf);
+			ast_cli(a->fd, "Neg Codecs:       ");
 			ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, l->capability);
 			ast_cli(a->fd, "%s\n", codec_buf);
 			ast_cli(a->fd, "Codec Order:      (");
@@ -3953,6 +3969,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 		tmp->tech_pvt = sub;
 		tmp->nativeformats = l->capability;
 		if (!tmp->nativeformats)
+			// Should throw an error
 			tmp->nativeformats = default_capability;
 		fmt = ast_best_codec(tmp->nativeformats);
 		if (skinnydebug)
@@ -4876,11 +4893,11 @@ static int handle_capabilities_res_message(struct skinny_req *req, struct skinny
 		codecs |= acodec;
 	}
 
-	d->capability &= codecs;
+	d->capability = d->confcapability & codecs;
 	ast_verb(0, "Device capability set to '%d'\n", d->capability);
 	AST_LIST_TRAVERSE(&d->lines, l, list) {
 		ast_mutex_lock(&l->lock);
-		l->capability = d->capability;
+		l->capability = l->confcapability & d->capability;
 		ast_mutex_unlock(&l->lock);
 	}
 
@@ -6439,13 +6456,21 @@ static struct ast_channel *skinny_request(const char *type, int format, void *da
  				continue;
  			}
  		} else if (!strcasecmp(v->name, "allow")) {
- 			if (type & (TYPE_DEVICE)) {
- 				ast_parse_allow_disallow(&CDEV->prefs, &CDEV->capability, v->value, 1);
+ 			if (type & (TYPE_DEF_DEVICE | TYPE_DEVICE)) {
+ 				ast_parse_allow_disallow(&CDEV_OPTS->confprefs, &CDEV_OPTS->confcapability, v->value, 1);
+ 				continue;
+ 			}
+ 			if (type & (TYPE_DEF_LINE | TYPE_LINE)) {
+ 				ast_parse_allow_disallow(&CLINE_OPTS->confprefs, &CLINE_OPTS->confcapability, v->value, 1);
  				continue;
  			}
  		} else if (!strcasecmp(v->name, "disallow")) {
- 			if (type & (TYPE_DEVICE)) {
- 				ast_parse_allow_disallow(&CDEV->prefs, &CDEV->capability, v->value, 0);
+ 			if (type & (TYPE_DEF_DEVICE | TYPE_DEVICE)) {
+ 				ast_parse_allow_disallow(&CDEV_OPTS->confprefs, &CDEV_OPTS->confcapability, v->value, 0);
+ 				continue;
+ 			}
+ 			if (type & (TYPE_DEF_LINE | TYPE_LINE)) {
+ 				ast_parse_allow_disallow(&CLINE_OPTS->confprefs, &CLINE_OPTS->confcapability, v->value, 0);
  				continue;
  			}
  		} else if (!strcasecmp(v->name, "version")) {
@@ -6676,6 +6701,8 @@ static struct ast_channel *skinny_request(const char *type, int format, void *da
 	bindaddr.sin_family = AF_INET;
 
 	/* load the lines sections */
+	default_line->confcapability = default_capability;
+	default_line->confprefs = default_prefs;
 	config_parse_variables(TYPE_DEF_LINE, default_line, ast_variable_browse(cfg, "lines"));
 	cat = ast_category_browse(cfg, "lines");
 	while (cat && strcasecmp(cat, "general") && strcasecmp(cat, "devices")) {
@@ -6684,6 +6711,8 @@ static struct ast_channel *skinny_request(const char *type, int format, void *da
 	}
 		
 	/* load the devices sections */
+	default_device->confcapability = default_capability;
+	default_device->confprefs = default_prefs;
 	config_parse_variables(TYPE_DEF_DEVICE, default_device, ast_variable_browse(cfg, "devices"));
 	cat = ast_category_browse(cfg, "devices");
 	while (cat && strcasecmp(cat, "general") && strcasecmp(cat, "lines")) {
