@@ -1777,6 +1777,8 @@ static int ast_el_read_char(EditLine *el, char *cp)
 		}
 		res = poll(fds, max, -1);
 		if (res < 0) {
+			if (sig_flags.need_quit)
+				break;
 			if (errno == EINTR)
 				continue;
 			ast_log(LOG_ERROR, "poll failed: %s\n", strerror(errno));
