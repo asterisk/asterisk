@@ -184,6 +184,11 @@ static char *handle_redirect(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		e->usage = ""
 		"Usage: channel redirect <channel> <[[context,]exten,]priority>\n"
 		"    Redirect an active channel to a specified extension.\n";
+		/*! \todo It would be nice to be able to redirect 2 channels at the same
+		 *  time like you can with AMI redirect.  However, it is not possible to acquire
+		 *  two channels without the potential for a deadlock with how ast_channel structs
+		 *  are managed today.  Once ast_channel is a refcounted object, this command
+		 *  will be able to support that. */
 		return NULL;
 	case CLI_GENERATE:
 		return ast_complete_channels(a->line, a->word, a->pos, a->n, 2);
