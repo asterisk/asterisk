@@ -852,7 +852,7 @@ struct sip_socket {
 	enum sip_transport type;	/*!< UDP, TCP or TLS */
 	int fd;				/*!< Filed descriptor, the actual socket */
 	uint16_t port;
-	struct ast_tcptls_session_instance *ser;	/* If tcp or tls, a socket manager */
+	struct ast_tcptls_session_instance *tcptls_session;	/* If tcp or tls, a socket manager */
 };
 
 /*! \brief sip_request: The data grabbed from the UDP socket
@@ -1616,7 +1616,7 @@ struct sip_registry {
 struct sip_threadinfo {
 	int stop;
 	pthread_t threadid;
-	struct ast_tcptls_session_instance *ser;
+	struct ast_tcptls_session_instance *tcptls_session;
 	enum sip_transport type;	/*!< We keep a copy of the type here so we can display it in the connection list */
 	AST_LIST_ENTRY(sip_threadinfo) list;
 };
@@ -2133,7 +2133,7 @@ static int get_msg_text(char *buf, int len, struct sip_request *req, int addnewl
 static int transmit_state_notify(struct sip_pvt *p, int state, int full, int timeout);
 
 /*-- TCP connection handling ---*/
-static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_session_instance *ser);
+static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_session_instance *tcptls_session);
 static void *sip_tcp_worker_fn(void *);
 
 /*--- Constructing requests and responses */
@@ -2328,13 +2328,13 @@ static struct ast_rtp_protocol sip_rtp = {
 /*! \brief SIP TCP connection handler */
 static void *sip_tcp_worker_fn(void *data)
 {
-	struct ast_tcptls_session_instance *ser = data;
+	struct ast_tcptls_session_instance *tcptls_session = data;
 
-	return _sip_tcp_helper_thread(NULL, ser);
+	return _sip_tcp_helper_thread(NULL, tcptls_session);
 }
 
 /*! \brief SIP TCP thread management function */
-static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_session_instance *ser) 
+static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_session_instance *tcptls_session) 
 {
 	int res, cl;
 	struct sip_request req = { 0, } , reqcpy = { 0, };
@@ -2347,11 +2347,13 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 		goto cleanup2;
 
 	me->threadid = pthread_self();
-	me->ser = ser;
-	if (ser->ssl)
+	me->tcptls_session = tcptls_session;
+	if (tcptls_session->ssl)
 		me->type = SIP_TRANSPORT_TLS;
 	else
 		me->type = SIP_TRANSPORT_TCP;
+
+	ast_debug(2, "Starting thread for %s server\n", tcptls_session->ssl ? "SSL" : "TCP");
 
 	AST_LIST_LOCK(&threadl);
 	AST_LIST_INSERT_TAIL(&threadl, me, list);
@@ -2375,28 +2377,28 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 		reqcpy.data = str_save;
 		ast_str_reset(reqcpy.data);
 
-		req.socket.fd = ser->fd;
-		if (ser->ssl) {
+		req.socket.fd = tcptls_session->fd;
+		if (tcptls_session->ssl) {
 			req.socket.type = SIP_TRANSPORT_TLS;
 			req.socket.port = htons(ourport_tls);
 		} else {
 			req.socket.type = SIP_TRANSPORT_TCP;
 			req.socket.port = htons(ourport_tcp);
 		}
-		res = ast_wait_for_input(ser->fd, -1);
+		res = ast_wait_for_input(tcptls_session->fd, -1);
 		if (res < 0) {
-			ast_debug(1, "ast_wait_for_input returned %d\n", res);
+			ast_debug(2, "SIP %s server :: ast_wait_for_input returned %d\n", tcptls_session->ssl ? "SSL": "TCP", res);
 			goto cleanup;
 		}
 
 		/* Read in headers one line at a time */
 		while (req.len < 4 || strncmp((char *)&req.data->str + req.len - 4, "\r\n\r\n", 4)) {
-			ast_mutex_lock(&ser->lock);
-			if (!fgets(buf, sizeof(buf), ser->f)) {
-				ast_mutex_unlock(&ser->lock);
+			ast_mutex_lock(&tcptls_session->lock);
+			if (!fgets(buf, sizeof(buf), tcptls_session->f)) {
+				ast_mutex_unlock(&tcptls_session->lock);
 				goto cleanup;
 			}
-			ast_mutex_unlock(&ser->lock);
+			ast_mutex_unlock(&tcptls_session->lock);
 			if (me->stop) 
 				 goto cleanup;
 			ast_str_append(&req.data, 0, "%s", buf);
@@ -2406,12 +2408,12 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 		parse_request(&reqcpy);
 		if (sscanf(get_header(&reqcpy, "Content-Length"), "%d", &cl)) {
 			while (cl > 0) {
-				ast_mutex_lock(&ser->lock);
-				if (!fread(buf, (cl < sizeof(buf)) ? cl : sizeof(buf), 1, ser->f)) {
-					ast_mutex_unlock(&ser->lock);
+				ast_mutex_lock(&tcptls_session->lock);
+				if (!fread(buf, (cl < sizeof(buf)) ? cl : sizeof(buf), 1, tcptls_session->f)) {
+					ast_mutex_unlock(&tcptls_session->lock);
 					goto cleanup;
 				}
-				ast_mutex_unlock(&ser->lock);
+				ast_mutex_unlock(&tcptls_session->lock);
 				if (me->stop)
 					goto cleanup;
 				cl -= strlen(buf);
@@ -2419,8 +2421,8 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 				req.len = req.data->used;
 			}
 		}
-		req.socket.ser = ser;
-		handle_request_do(&req, &ser->remote_address);
+		req.socket.tcptls_session = tcptls_session;
+		handle_request_do(&req, &tcptls_session->remote_address);
 	}
 
 cleanup:
@@ -2429,9 +2431,9 @@ cleanup:
 	AST_LIST_UNLOCK(&threadl);
 	ast_free(me);
 cleanup2:
-	fclose(ser->f);
-	ser->f = NULL;
-	ser->fd = -1;
+	fclose(tcptls_session->f);
+	tcptls_session->f = NULL;
+	tcptls_session->fd = -1;
 	if (reqcpy.data) {
 		ast_free(reqcpy.data);
 	}
@@ -2440,10 +2442,11 @@ cleanup2:
 		ast_free(req.data);
 		req.data = NULL;
 	}
-	
 
-	ao2_ref(ser, -1);
-	ser = NULL;
+	ast_debug(2, "Shutting down thread for %s server\n", tcptls_session->ssl ? "SSL" : "TCP");
+
+	ao2_ref(tcptls_session, -1);
+	tcptls_session = NULL;
 
 	return NULL;
 }
@@ -2830,20 +2833,20 @@ static int __sip_xmit(struct sip_pvt *p, struct ast_str *data, int len)
 	if (sip_prepare_socket(p) < 0)
 		return XMIT_ERROR;
 
-	if (p->socket.ser)
-		ast_mutex_lock(&p->socket.ser->lock);
+	if (p->socket.tcptls_session)
+		ast_mutex_lock(&p->socket.tcptls_session->lock);
 
 	if (p->socket.type & SIP_TRANSPORT_UDP) 
 		res = sendto(p->socket.fd, data->str, len, 0, (const struct sockaddr *)dst, sizeof(struct sockaddr_in));
 	else {
-		if (p->socket.ser->f) 
-			res = ast_tcptls_server_write(p->socket.ser, data->str, len);
+		if (p->socket.tcptls_session->f) 
+			res = ast_tcptls_server_write(p->socket.tcptls_session, data->str, len);
 		else
-			ast_debug(1, "No p->socket.ser->f len=%d\n", len);
+			ast_debug(2, "No p->socket.tcptls_session->f len=%d\n", len);
 	} 
 
-	if (p->socket.ser)
-		ast_mutex_unlock(&p->socket.ser->lock);
+	if (p->socket.tcptls_session)
+		ast_mutex_unlock(&p->socket.tcptls_session->lock);
 
 	if (res == -1) {
 		switch (errno) {
@@ -3844,9 +3847,9 @@ static void sip_destroy_peer(struct sip_peer *peer)
 		ast_dnsmgr_release(peer->dnsmgr);
 	clear_peer_mailboxes(peer);
 
-	if (peer->socket.ser) {
-		ao2_ref(peer->socket.ser, -1);
-		peer->socket.ser = NULL;
+	if (peer->socket.tcptls_session) {
+		ao2_ref(peer->socket.tcptls_session, -1);
+		peer->socket.tcptls_session = NULL;
 	}
 }
 
@@ -4183,13 +4186,13 @@ static void set_t38_capabilities(struct sip_pvt *p)
 
 static void copy_socket_data(struct sip_socket *to_sock, const struct sip_socket *from_sock)
 {
-	if (to_sock->ser) {
-		ao2_ref(to_sock->ser, -1);
-		to_sock->ser = NULL;
+	if (to_sock->tcptls_session) {
+		ao2_ref(to_sock->tcptls_session, -1);
+		to_sock->tcptls_session = NULL;
 	}
 
-	if (from_sock->ser) {
-		ao2_ref(from_sock->ser, +1);
+	if (from_sock->tcptls_session) {
+		ao2_ref(from_sock->tcptls_session, +1);
 	}
 
 	*to_sock = *from_sock;
@@ -4673,9 +4676,9 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 
 	ast_string_field_free_memory(p);
 
-	if (p->socket.ser) {
-		ao2_ref(p->socket.ser, -1);
-		p->socket.ser = NULL;
+	if (p->socket.tcptls_session) {
+		ao2_ref(p->socket.tcptls_session, -1);
+		p->socket.tcptls_session = NULL;
 	}
 }
 
@@ -12441,10 +12444,10 @@ static char *sip_show_tcp(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	ast_cli(a->fd, FORMAT2, "Host", "Port", "Transport", "Type");
 	AST_LIST_LOCK(&threadl);
 	AST_LIST_TRAVERSE(&threadl, th, list) {
-		ast_cli(a->fd, FORMAT, ast_inet_ntoa(th->ser->remote_address.sin_addr), 
-			ntohs(th->ser->remote_address.sin_port), 
+		ast_cli(a->fd, FORMAT, ast_inet_ntoa(th->tcptls_session->remote_address.sin_addr), 
+			ntohs(th->tcptls_session->remote_address.sin_port), 
 			get_transport(th->type), 
-			(th->ser->client ? "Client" : "Server"));
+			(th->tcptls_session->client ? "Client" : "Server"));
 
 	}
 	AST_LIST_UNLOCK(&threadl);
@@ -15247,9 +15250,9 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 	} while(0);
 	s = remove_uri_parameters(s);
 
-	if (p->socket.ser) {
-		ao2_ref(p->socket.ser, -1);
-		p->socket.ser = NULL;
+	if (p->socket.tcptls_session) {
+		ao2_ref(p->socket.tcptls_session, -1);
+		p->socket.tcptls_session = NULL;
 	}
 
 	p->socket.fd = -1;
@@ -19338,7 +19341,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	req.len = res;
 	req.socket.fd 	= sipsock;
 	req.socket.type = SIP_TRANSPORT_UDP;
-	req.socket.ser	= NULL;
+	req.socket.tcptls_session	= NULL;
 	req.socket.port = bindaddr.sin_port;
 
 	handle_request_do(&req, &sin);
@@ -19468,10 +19471,10 @@ static struct ast_tcptls_session_instance *sip_tcp_locate(struct sockaddr_in *s)
 
 	AST_LIST_LOCK(&threadl);
 	AST_LIST_TRAVERSE(&threadl, th, list) {
-		if ((s->sin_family == th->ser->remote_address.sin_family) &&
-			(s->sin_addr.s_addr == th->ser->remote_address.sin_addr.s_addr) &&
-			(s->sin_port == th->ser->remote_address.sin_port))  {
-				tcptls_instance = (ao2_ref(th->ser, +1), th->ser);
+		if ((s->sin_family == th->tcptls_session->remote_address.sin_family) &&
+			(s->sin_addr.s_addr == th->tcptls_session->remote_address.sin_addr.s_addr) &&
+			(s->sin_port == th->tcptls_session->remote_address.sin_port))  {
+				tcptls_instance = (ao2_ref(th->tcptls_session, +1), th->tcptls_session);
 				break;
 			}
 	}
@@ -19485,7 +19488,7 @@ static int sip_prepare_socket(struct sip_pvt *p)
 {
 	struct sip_socket *s = &p->socket;
 	static const char name[] = "SIP socket";
-	struct ast_tcptls_session_instance *ser;
+	struct ast_tcptls_session_instance *tcptls_session;
 	struct ast_tcptls_session_args ca = {
 		.name = name,
 		.accept_fd = -1,
@@ -19505,18 +19508,18 @@ static int sip_prepare_socket(struct sip_pvt *p)
 
 	ca.remote_address = *(sip_real_dst(p));
 
-	if ((ser = sip_tcp_locate(&ca.remote_address))) {	/* Check if we have a thread handling a socket connected to this IP/port */
-		s->fd = ser->fd;
-		if (s->ser) {
-			ao2_ref(s->ser, -1);
-			s->ser = NULL;
+	if ((tcptls_session = sip_tcp_locate(&ca.remote_address))) {	/* Check if we have a thread handling a socket connected to this IP/port */
+		s->fd = tcptls_session->fd;
+		if (s->tcptls_session) {
+			ao2_ref(s->tcptls_session, -1);
+			s->tcptls_session = NULL;
 		}
-		s->ser = ser;
+		s->tcptls_session = tcptls_session;
 		return s->fd;
 	}
 
-	if (s->ser && s->ser->parent->tls_cfg) {
-		ca.tls_cfg = s->ser->parent->tls_cfg;
+	if (s->tcptls_session && s->tcptls_session->parent->tls_cfg) {
+		ca.tls_cfg = s->tcptls_session->parent->tls_cfg;
 	} else {
 		if (s->type & SIP_TRANSPORT_TLS) {
 			ca.tls_cfg = ast_calloc(1, sizeof(*ca.tls_cfg));
@@ -19528,13 +19531,13 @@ static int sip_prepare_socket(struct sip_pvt *p)
 		}
 	}
 	
-	if (s->ser) {
+	if (s->tcptls_session) {
 		/* the pvt socket already has a server instance ... */
 	} else {
-		s->ser = ast_tcptls_client_start(&ca);
+		s->tcptls_session = ast_tcptls_client_start(&ca); /* Start a client connection to this address */
 	}
 
-	if (!s->ser) {
+	if (!s->tcptls_session) {
 		if (ca.tls_cfg)
 			ast_free(ca.tls_cfg);
 		return -1;
@@ -19543,11 +19546,11 @@ static int sip_prepare_socket(struct sip_pvt *p)
 	s->fd = ca.accept_fd;
 
 	/* Give the new thread a reference */
-	ao2_ref(s->ser, +1);
+	ao2_ref(s->tcptls_session, +1);
 
-	if (ast_pthread_create_background(&ca.master, NULL, sip_tcp_worker_fn, s->ser)) {
+	if (ast_pthread_create_background(&ca.master, NULL, sip_tcp_worker_fn, s->tcptls_session)) {
 		ast_debug(1, "Unable to launch '%s'.", ca.name);
-		ao2_ref(s->ser, -1);
+		ao2_ref(s->tcptls_session, -1);
 		close(ca.accept_fd);
 		s->fd = ca.accept_fd = -1;
 	}
