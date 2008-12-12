@@ -4153,7 +4153,12 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state state)
 	}
 
 	chan->_state = state;
-	ast_devstate_changed_literal(ast_state_chan2dev(state), name);
+
+	/* We have to pass AST_DEVICE_UNKNOWN here because it is entirely possible that the channel driver
+	 * for this channel is using the callback method for device state. If we pass in an actual state here
+	 * we override what they are saying the state is and things go amuck. */
+	ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, name);
+
 	/* setstate used to conditionally report Newchannel; this is no more */
 	manager_event(EVENT_FLAG_CALL,
 		      "Newstate",
