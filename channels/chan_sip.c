@@ -20242,7 +20242,7 @@ static int sip_poke_peer(struct sip_peer *peer, int force)
 	
 	p->sa = peer->addr;
 	p->recv = peer->addr;
-	p->socket = peer->socket;
+	copy_socket_data(&p->socket, &peer->socket);
 	ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_FLAGS_TO_COPY);
 	ast_copy_flags(&p->flags[1], &peer->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
 
