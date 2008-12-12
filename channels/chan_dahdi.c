@@ -7996,7 +7996,8 @@ static void *do_monitor(void *data)
 								struct mwi_thread_data *mtd;
 								res2 = ioctl(last->subs[SUB_REAL].dfd, DAHDI_VMWI, res);
 								if (res2) {
-									ast_log(LOG_DEBUG, "Unable to control message waiting led on channel %d: %s\n", last->channel, strerror(errno));
+									/* TODO: This message will ALWAYS be generated on some cards; any way to restrict it to those cards where it is interesting? */
+									ast_debug(3, "Unable to control message waiting led on channel %d: %s\n", last->channel, strerror(errno));
 								}
 								pthread_attr_init(&attr);
 								pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
