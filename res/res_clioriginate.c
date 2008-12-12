@@ -172,17 +172,59 @@ static char *handle_orig(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 	return res;
 }
 
+static char *handle_redirect(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	const char *name, *dest;
+	struct ast_channel *chan;
+	int res;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "channel redirect";
+		e->usage = ""
+		"Usage: channel redirect <channel> <[[context,]exten,]priority>\n"
+		"    Redirect an active channel to a specified extension.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return ast_complete_channels(a->line, a->word, a->pos, a->n, 2);
+	}
+
+	if (a->argc != e->args + 2) {
+		return CLI_SHOWUSAGE;
+	}
+
+	name = a->argv[2];
+	dest = a->argv[3];
+
+	chan = ast_get_channel_by_name_locked(name);
+	if (!chan) {
+		ast_cli(a->fd, "Channel '%s' not found\n", name);
+		return CLI_FAILURE;
+	}
+
+	res = ast_async_parseable_goto(chan, dest);
+
+	ast_channel_unlock(chan);
+
+	if (!res) {
+		ast_cli(a->fd, "Channel '%s' successfully redirected to %s\n", name, dest);
+	} else {
+		ast_cli(a->fd, "Channel '%s' failed to be redirected to %s\n", name, dest);
+	}
+
+	return res ? CLI_FAILURE : CLI_SUCCESS;
+}
+
 static struct ast_cli_entry cli_cliorig[] = {
 	AST_CLI_DEFINE(handle_orig, "Originate a call"),
+	AST_CLI_DEFINE(handle_redirect, "Redirect a call"),
 };
 
-/*! \brief Unload orginate module */
 static int unload_module(void)
 {
 	return ast_cli_unregister_multiple(cli_cliorig, ARRAY_LEN(cli_cliorig));
 }
 
-/*! \brief Load orginate module */
 static int load_module(void)
 {
 	int res;
@@ -190,4 +232,4 @@ static int load_module(void)
 	return res ? AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Call origination from the CLI");
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Call origination and redirection from the CLI");
