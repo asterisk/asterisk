@@ -8167,7 +8167,8 @@ static void *do_monitor(void *data)
 								/* Set driver resources for signalling VMWI */
 								res2 = ioctl(last->subs[SUB_REAL].dfd, DAHDI_VMWI, res);
 								if (res2) {
-									ast_log(LOG_DEBUG, "Unable to control message waiting led on channel %d: %s\n", last->channel, strerror(errno));
+									/* TODO: This message will ALWAYS be generated on some cards; any way to restrict it to those cards where it is interesting? */
+									ast_debug(3, "Unable to control message waiting led on channel %d: %s\n", last->channel, strerror(errno));
 								}
 								/* This channel has a new voicemail state,
 								* initiate a mechanism to send an MWI message
