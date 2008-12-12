@@ -18744,22 +18744,28 @@ static int sip_standard_port(struct sip_socket s)
 		return s.port == htons(STANDARD_SIP_PORT);
 }
 
-/*! \todo document this function. */
+/*! 
+ * \brief Find thread for TCP/TLS session (based on IP/Port 
+ *
+ * \note This function returns an astobj2 reference
+ */
 static struct ast_tcptls_session_instance *sip_tcp_locate(struct sockaddr_in *s)
 {
 	struct sip_threadinfo *th;
+	struct ast_tcptls_session_instance *tcptls_instance = NULL;
 
 	AST_LIST_LOCK(&threadl);
 	AST_LIST_TRAVERSE(&threadl, th, list) {
 		if ((s->sin_family == th->ser->requestor.sin_family) &&
 			(s->sin_addr.s_addr == th->ser->requestor.sin_addr.s_addr) &&
 			(s->sin_port == th->ser->requestor.sin_port))  {
-				AST_LIST_UNLOCK(&threadl);
-				return th->ser;
+				tcptls_instance = (ao2_ref(th->ser, +1), th->ser);
+				break;
 			}
 	}
 	AST_LIST_UNLOCK(&threadl);
-	return NULL;
+
+	return tcptls_instance;
 }
 
 /*! \todo document this function. */
@@ -18793,7 +18799,6 @@ static int sip_prepare_socket(struct sip_pvt *p)
 			ao2_ref(s->ser, -1);
 			s->ser = NULL;
 		}
-		ao2_ref(ser, +1);
 		s->ser = ser;
 		return s->fd;
 	}
