@@ -87,6 +87,7 @@ static char *monitor_descrip = "  Monitor([file_format[:urlbase],[fname_base],[o
 "    b   - Don't begin recording unless a call is bridged to another channel\n"
 "    i   - Skip recording of input stream (disables m option)\n"
 "    o   - Skip recording of output stream (disables m option)\n"
+"\nBy default, files are stored to /var/spool/asterisk/monitor/.\n"
 "\nReturns -1 if monitor files can't be opened or if the channel is already\n"
 "monitored, otherwise 0.\n"
 ;
