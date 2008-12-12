@@ -61,6 +61,9 @@ struct asent {
 	 *  it gets stopped for the last time. */
 	unsigned int use_count;
 	unsigned int orig_end_dtmf_flag:1;
+	/*! Frames go on at the head of deferred_frames, so we have the frames
+	 *  from newest to oldest.  As we put them at the head of the readq, we'll
+	 *  end up with them in the right order for the channel's readq. */
 	AST_LIST_HEAD_NOLOCK(, ast_frame) deferred_frames;
 	AST_LIST_ENTRY(asent) list;
 };
@@ -166,7 +169,7 @@ static void *autoservice_run(void *ign)
 				}
 				
 				if ((dup_f = ast_frdup(defer_frame))) {
-					AST_LIST_INSERT_TAIL(&ents[i]->deferred_frames, dup_f, frame_list);
+					AST_LIST_INSERT_HEAD(&ents[i]->deferred_frames, dup_f, frame_list);
 				}
 				
 				break;
@@ -298,10 +301,12 @@ int ast_autoservice_stop(struct ast_channel *chan)
 		ast_clear_flag(chan, AST_FLAG_END_DTMF_ONLY);
 	}
 
+	ast_channel_lock(chan);
 	while ((f = AST_LIST_REMOVE_HEAD(&as->deferred_frames, frame_list))) {
-		ast_queue_frame(chan, f);
+		ast_queue_frame_head(chan, f);
 		ast_frfree(f);
 	}
+	ast_channel_unlock(chan);
 
 	free(as);
 
