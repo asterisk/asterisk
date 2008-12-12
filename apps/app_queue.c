@@ -1469,8 +1469,26 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 	} else if (!strcasecmp(param, "servicelevel")) {
 		q->servicelevel= atoi(val);
 	} else if (!strcasecmp(param, "strategy")) {
-		/* We already have set this, no need to do it again */
-		return;
+		int strategy;
+
+		/* We are a static queue and already have set this, no need to do it again */
+		if (failunknown) {
+			return;
+		}
+		strategy = strat2int(val);
+		if (strategy < 0) {
+			ast_log(LOG_WARNING, "'%s' isn't a valid strategy for queue '%s', using ringall instead\n",
+				val, q->name);
+			q->strategy = QUEUE_STRATEGY_RINGALL;
+		}
+		if (strategy == q->strategy) {
+			return;
+		}
+		if (strategy == QUEUE_STRATEGY_LINEAR) {
+			ast_log(LOG_WARNING, "Changing to the linear strategy currently requires asterisk to be restarted.\n");
+			return;
+		}
+		q->strategy = strategy;
 	} else if (!strcasecmp(param, "joinempty")) {
 		parse_empty_options(val, &q->joinempty);
 	} else if (!strcasecmp(param, "leavewhenempty")) {
