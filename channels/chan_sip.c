@@ -10492,6 +10492,11 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 
 	oldsin = peer->addr;
 
+	/* If we were already linked into the peers_by_ip container unlink ourselves so nobody can find us */
+	if (peer->addr.sin_addr.s_addr) {
+		ao2_t_unlink(peers_by_ip, peer, "ao2_unlink of peer from peers_by_ip table");
+	}
+
 	/* Check that they're allowed to register at this IP */
 	/* XXX This could block for a long time XXX */
 	hp = ast_gethostbyname(host, &ahp);
@@ -10519,6 +10524,9 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		   with */
 		peer->addr = pvt->recv;
 	}
+
+	/* Now that our address has been updated put ourselves back into the container for lookups */
+	ao2_t_link(peers_by_ip, peer, "ao2_link into peers_by_ip table");
 
 	/* Save SIP options profile */
 	peer->sipoptions = pvt->sipoptions;
