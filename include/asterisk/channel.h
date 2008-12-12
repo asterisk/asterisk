@@ -476,7 +476,7 @@ struct ast_channel {
 	enum ast_channel_state _state;			/*!< State of line -- Don't write directly, use ast_setstate() */
 	int rings;					/*!< Number of rings so far */
 	struct ast_callerid cid;			/*!< Caller ID, name, presentation etc */
-	char dtmfq[AST_MAX_EXTENSION];			/*!< Any/all queued DTMF characters */
+	char unused_old_dtmfq[AST_MAX_EXTENSION];			/*!< (deprecated, use the readq) Any/all queued DTMF characters */
 	struct ast_frame dtmff;				/*!< DTMF frame */
 
 	char context[AST_MAX_CONTEXT];			/*!< Dialplan: Current extension context */
@@ -735,6 +735,20 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
  * \note The channel does not need to be locked before calling this function.
  */
 int ast_queue_frame(struct ast_channel *chan, struct ast_frame *f);
+
+/*!
+ * \brief Queue an outgoing frame to the head of the frame queue
+ *
+ * \param chan the channel to queue the frame on
+ * \param f the frame to queue.  Note that this frame will be duplicated by
+ *        this function.  It is the responsibility of the caller to handle
+ *        freeing the memory associated with the frame being passed if
+ *        necessary.
+ *
+ * \retval 0 success
+ * \retval non-zero failure
+ */
+int ast_queue_frame_head(struct ast_channel *chan, struct ast_frame *f);
 
 /*! 
  * \brief Queue a hangup frame 
