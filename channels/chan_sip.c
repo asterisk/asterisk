@@ -10863,7 +10863,7 @@ static int expire_register(const void *data)
 	
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", peer->name);
 	register_peer_exten(peer, FALSE);	/* Remove regexten */
-	ast_devstate_changed(AST_DEVICE_UNAVAILABLE, "SIP/%s", peer->name);
+	ast_devstate_changed(AST_DEVICE_UNKNOWN, "SIP/%s", peer->name);
 
 	/* Do we need to release this peer from memory? 
 		Only for realtime peers and autocreated peers
@@ -11552,7 +11552,7 @@ static void sip_peer_hold(struct sip_pvt *p, int hold)
 	ast_atomic_fetchadd_int(&peer->onHold, (hold ? +1 : -1));
 
 	/* Request device state update */
-	ast_devstate_changed(hold ? AST_DEVICE_ONHOLD : AST_DEVICE_INUSE, "SIP/%s", peer->name);
+	ast_devstate_changed(AST_DEVICE_UNKNOWN, "SIP/%s", peer->name);
 	unref_peer(peer, "sip_peer_hold: from find_peer operation");
 	
 	return;
@@ -16730,7 +16730,7 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 
 		ast_log(LOG_NOTICE, "Peer '%s' is now %s. (%dms / %dms)\n",
 			peer->name, s, pingtime, peer->maxms);
-		ast_devstate_changed(is_reachable ? AST_DEVICE_NOT_INUSE : AST_DEVICE_UNAVAILABLE, "SIP/%s", peer->name);
+		ast_devstate_changed(AST_DEVICE_UNKNOWN, "SIP/%s", peer->name);
 		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
 			"ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: %s\r\nTime: %d\r\n",
 			peer->name, s, pingtime);
@@ -21055,7 +21055,7 @@ static int sip_poke_noanswer(const void *data)
 	}
 	
 	peer->lastms = -1;
-	ast_devstate_changed(AST_DEVICE_UNAVAILABLE, "SIP/%s", peer->name);
+	ast_devstate_changed(AST_DEVICE_UNKNOWN, "SIP/%s", peer->name);
 
 	/* Try again quickly */
 	AST_SCHED_REPLACE_UNREF(peer->pokeexpire, sched, 
