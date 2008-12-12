@@ -197,7 +197,7 @@ struct dundi_request {
 	int expiration;
 	int cbypass;
 	int pfds[2];
-	unsigned long crc32;                              /*!< CRC-32 of all but root EID's in avoid list */
+	uint32_t crc32;                              /*!< CRC-32 of all but root EID's in avoid list */
 	AST_LIST_HEAD_NOLOCK(, dundi_transaction) trans;  /*!< Transactions */
 	AST_LIST_ENTRY(dundi_request) list;
 };
@@ -229,10 +229,10 @@ struct dundi_peer {
 	int order;
 	unsigned char txenckey[256];           /*!< Transmitted encrypted key + sig */
 	unsigned char rxenckey[256];           /*!< Cache received encrypted key + sig */
-	unsigned long us_keycrc32;             /*!< CRC-32 of our key */
+	uint32_t us_keycrc32;                  /*!< CRC-32 of our key */
 	ast_aes_encrypt_key us_ecx;            /*!< Cached AES 128 Encryption context */
 	ast_aes_decrypt_key us_dcx;            /*!< Cached AES 128 Decryption context */
-	unsigned long them_keycrc32;           /*!< CRC-32 of our key */
+	uint32_t them_keycrc32;                /*!< CRC-32 of our key */
 	ast_aes_encrypt_key them_ecx;          /*!< Cached AES 128 Encryption context */
 	ast_aes_decrypt_key them_dcx;          /*!< Cached AES 128 Decryption context */
 	time_t keyexpire;                      /*!< When to expire/recreate key */
@@ -827,7 +827,7 @@ static int cache_save_hint(dundi_eid *eidpeer, struct dundi_request *req, struct
 
 	dundi_eid_to_str_short(eidpeer_str, sizeof(eidpeer_str), eidpeer);
 	dundi_eid_to_str_short(eidroot_str, sizeof(eidroot_str), &req->root_eid);
-	snprintf(key1, sizeof(key1), "hint/%s/%s/%s/e%08lx", eidpeer_str, hint->data, req->dcontext, unaffected ? 0 : req->crc32);
+	snprintf(key1, sizeof(key1), "hint/%s/%s/%s/e%08x", eidpeer_str, hint->data, req->dcontext, unaffected ? 0 : req->crc32);
 	snprintf(key2, sizeof(key2), "hint/%s/%s/%s/r%s", eidpeer_str, hint->data, req->dcontext, eidroot_str);
 
 	time(&timeout);
@@ -863,7 +863,7 @@ static int cache_save(dundi_eid *eidpeer, struct dundi_request *req, int start, 
 		expiration = 1;
 	dundi_eid_to_str_short(eidpeer_str, sizeof(eidpeer_str), eidpeer);
 	dundi_eid_to_str_short(eidroot_str, sizeof(eidroot_str), &req->root_eid);
-	snprintf(key1, sizeof(key1), "%s/%s/%s/e%08lx", eidpeer_str, req->number, req->dcontext, unaffected ? 0 : req->crc32);
+	snprintf(key1, sizeof(key1), "%s/%s/%s/e%08x", eidpeer_str, req->number, req->dcontext, unaffected ? 0 : req->crc32);
 	snprintf(key2, sizeof(key2), "%s/%s/%s/r%s", eidpeer_str, req->number, req->dcontext, eidroot_str);
 	/* Build request string */
 	time(&timeout);
@@ -1184,7 +1184,7 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 	return 0;
 }
 
-static int cache_lookup(struct dundi_request *req, dundi_eid *peer_eid, unsigned long crc32, int *lowexpiration)
+static int cache_lookup(struct dundi_request *req, dundi_eid *peer_eid, uint32_t crc32, int *lowexpiration)
 {
 	char key[256];
 	char eid_str[20];
@@ -1200,9 +1200,9 @@ static int cache_lookup(struct dundi_request *req, dundi_eid *peer_eid, unsigned
 	dundi_eid_to_str_short(eid_str, sizeof(eid_str), peer_eid);
 	dundi_eid_to_str_short(eidroot_str, sizeof(eidroot_str), &req->root_eid);
 	dundi_eid_to_str(eid_str_full, sizeof(eid_str_full), peer_eid);
-	snprintf(key, sizeof(key), "%s/%s/%s/e%08lx", eid_str, req->number, req->dcontext, crc32);
+	snprintf(key, sizeof(key), "%s/%s/%s/e%08x", eid_str, req->number, req->dcontext, crc32);
 	res |= cache_lookup_internal(now, req, key, eid_str_full, lowexpiration);
-	snprintf(key, sizeof(key), "%s/%s/%s/e%08lx", eid_str, req->number, req->dcontext, 0L);
+	snprintf(key, sizeof(key), "%s/%s/%s/e%08x", eid_str, req->number, req->dcontext, 0);
 	res |= cache_lookup_internal(now, req, key, eid_str_full, lowexpiration);
 	snprintf(key, sizeof(key), "%s/%s/%s/r%s", eid_str, req->number, req->dcontext, eidroot_str);
 	res |= cache_lookup_internal(now, req, key, eid_str_full, lowexpiration);
@@ -1215,9 +1215,9 @@ static int cache_lookup(struct dundi_request *req, dundi_eid *peer_eid, unsigned
 				break;
 			x++;
 			/* Check for hints */
-			snprintf(key, sizeof(key), "hint/%s/%s/%s/e%08lx", eid_str, tmp, req->dcontext, crc32);
+			snprintf(key, sizeof(key), "hint/%s/%s/%s/e%08x", eid_str, tmp, req->dcontext, crc32);
 			res2 |= cache_lookup_internal(now, req, key, eid_str_full, lowexpiration);
-			snprintf(key, sizeof(key), "hint/%s/%s/%s/e%08lx", eid_str, tmp, req->dcontext, 0L);
+			snprintf(key, sizeof(key), "hint/%s/%s/%s/e%08x", eid_str, tmp, req->dcontext, 0);
 			res2 |= cache_lookup_internal(now, req, key, eid_str_full, lowexpiration);
 			snprintf(key, sizeof(key), "hint/%s/%s/%s/r%s", eid_str, tmp, req->dcontext, eidroot_str);
 			res2 |= cache_lookup_internal(now, req, key, eid_str_full, lowexpiration);
@@ -1435,13 +1435,13 @@ static int dundi_encrypt(struct dundi_transaction *trans, struct dundi_packet *p
 	return -1;
 }
 
-static int check_key(struct dundi_peer *peer, unsigned char *newkey, unsigned char *newsig, unsigned long keycrc32)
+static int check_key(struct dundi_peer *peer, unsigned char *newkey, unsigned char *newsig, uint32_t keycrc32)
 {
 	unsigned char dst[128];
 	int res;
 	struct ast_key *key, *skey;
 	char eid_str[20];
-	ast_debug(1, "Expected '%08lx' got '%08lx'\n", peer->them_keycrc32, keycrc32);
+	ast_debug(1, "Expected '%08x' got '%08x'\n", peer->them_keycrc32, keycrc32);
 	if (peer->them_keycrc32 && (peer->them_keycrc32 == keycrc32)) {
 		/* A match */
 		return 1;
@@ -3537,7 +3537,7 @@ static int register_request(struct dundi_request *dr, struct dundi_request **pen
 		if (!strcasecmp(cur->dcontext, dr->dcontext) &&
 		    !strcasecmp(cur->number, dr->number) &&
 		    (!dundi_eid_cmp(&cur->root_eid, &dr->root_eid) || (cur->crc32 == dr->crc32))) {
-			ast_debug(1, "Found existing query for '%s@%s' for '%s' crc '%08lx'\n", 
+			ast_debug(1, "Found existing query for '%s@%s' for '%s' crc '%08x'\n", 
 				cur->dcontext, cur->number, dundi_eid_to_str(eid_str, sizeof(eid_str), &cur->root_eid), cur->crc32);
 			*pending = cur;
 			res = 1;
@@ -3545,7 +3545,7 @@ static int register_request(struct dundi_request *dr, struct dundi_request **pen
 		}
 	}
 	if (!res) {
-		ast_debug(1, "Registering request for '%s@%s' on behalf of '%s' crc '%08lx'\n", 
+		ast_debug(1, "Registering request for '%s@%s' on behalf of '%s' crc '%08x'\n", 
 				dr->number, dr->dcontext, dundi_eid_to_str(eid_str, sizeof(eid_str), &dr->root_eid), dr->crc32);
 		/* Go ahead and link us in since nobody else is searching for this */
 		AST_LIST_INSERT_HEAD(&requests, dr, list);
@@ -3580,7 +3580,7 @@ static unsigned long avoid_crc32(dundi_eid *avoid[])
 {
 	/* Idea is that we're calculating a checksum which is independent of
 	   the order that the EID's are listed in */
-	unsigned long acrc32 = 0;
+	uint32_t acrc32 = 0;
 	int x;
 	for (x=0;avoid[x];x++) {
 		/* Order doesn't matter */
