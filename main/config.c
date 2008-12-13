@@ -106,19 +106,23 @@ static void  CB_ADD_LEN(struct ast_str **cb, const char *str, int len)
 
 static void CB_RESET(struct ast_str *cb, struct ast_str *llb)  
 { 
-	if (cb)
-		cb->used = 0;
-	if (llb)
-		llb->used = 0;
+	if (cb) {
+		ast_str_reset(cb);
+	}
+	if (llb) {
+		ast_str_reset(llb);
+	}
 }
 
-static struct ast_comment *ALLOC_COMMENT(const struct ast_str *buffer)
+static struct ast_comment *ALLOC_COMMENT(struct ast_str *buffer)
 { 
 	struct ast_comment *x = NULL;
-	if (buffer && buffer->used)
-		x = ast_calloc(1, sizeof(*x) + buffer->used + 1);
-	if (x)
-		strcpy(x->cmt, buffer->str);
+	if (!buffer || !ast_str_strlen(buffer)) {
+		return NULL;
+	}
+	if ((x = ast_calloc(1, sizeof(*x) + ast_str_strlen(buffer) + 1))) {
+		strcpy(x->cmt, ast_str_buffer(buffer)); /* SAFE */
+	}
 	return x;
 }
 
@@ -132,20 +136,21 @@ struct inclfile {
 
 static int hash_string(const void *obj, const int flags)
 {
-	char *str = ((struct inclfile*)obj)->fname;
+	char *str = ((struct inclfile *) obj)->fname;
 	int total;
 
-	for (total=0; *str; str++) {
+	for (total = 0; *str; str++) {
 		unsigned int tmp = total;
 		total <<= 1; /* multiply by 2 */
 		total += tmp; /* multiply by 3 */
 		total <<= 2; /* multiply by 12 */
 		total += tmp; /* multiply by 13 */
 
-		total += ((unsigned int)(*str));
+		total += ((unsigned int) (*str));
 	}
-	if (total < 0)
+	if (total < 0) {
 		total = -total;
+	}
 	return total;
 }
 
@@ -1125,7 +1130,8 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 
 			ast_str_set(str, 0, "%s", replace->value);
 			ast_str_append(str, 0, "%s", c);
-			ast_variable_update(*cat, replace->name, ast_strip((*str)->str), replace->value, object);
+			ast_str_trim_blanks(*str);
+			ast_variable_update(*cat, replace->name, ast_skip_blanks(ast_str_buffer(*str)), replace->value, object);
 		} else if (c) {
 			*c = 0;
 			c++;
@@ -1320,9 +1326,9 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		while (!feof(f)) {
 			lineno++;
 			if (fgets(buf, sizeof(buf), f)) {
-				if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && lline_buffer && lline_buffer->used) {
-					CB_ADD(&comment_buffer, lline_buffer->str);       /* add the current lline buffer to the comment buffer */
-					lline_buffer->used = 0;        /* erase the lline buffer */
+				if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && lline_buffer && ast_str_strlen(lline_buffer)) {
+					CB_ADD(&comment_buffer, ast_str_buffer(lline_buffer));       /* add the current lline buffer to the comment buffer */
+					ast_str_reset(lline_buffer);        /* erase the lline buffer */
 				}
 				
 				new_buf = buf;
@@ -1331,14 +1337,14 @@ static struct ast_config *config_text_file_load(const char *database, const char
 				else
 					process_buf = buf;
 				
-				if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && comment_buffer->used && (ast_strlen_zero(buf) || strlen(buf) == strspn(buf," \t\n\r"))) {
+				if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && ast_str_strlen(comment_buffer) && (ast_strlen_zero(buf) || strlen(buf) == strspn(buf," \t\n\r"))) {
 					/* blank line? really? Can we add it to an existing comment and maybe preserve inter- and post- comment spacing? */
 					CB_ADD(&comment_buffer, "\n");       /* add a newline to the comment buffer */
 					continue; /* go get a new line, then */
 				}
 				
 				while ((comment_p = strchr(new_buf, COMMENT_META))) {
-					if ((comment_p > new_buf) && (*(comment_p-1) == '\\')) {
+					if ((comment_p > new_buf) && (*(comment_p - 1) == '\\')) {
 						/* Escaped semicolons aren't comments. */
 						new_buf = comment_p + 1;
 					} else if (comment_p[1] == COMMENT_TAG && comment_p[2] == COMMENT_TAG && (comment_p[3] != '-')) {
@@ -1403,30 +1409,30 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		}
 		/* end of file-- anything in a comment buffer? */
 		if (last_cat) {
-			if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && comment_buffer->used ) {
-				if (lline_buffer && lline_buffer->used) {
-					CB_ADD(&comment_buffer, lline_buffer->str);       /* add the current lline buffer to the comment buffer */
-					lline_buffer->used = 0;        /* erase the lline buffer */
+			if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && ast_str_strlen(comment_buffer)) {
+				if (lline_buffer && ast_str_strlen(lline_buffer)) {
+					CB_ADD(&comment_buffer, ast_str_buffer(lline_buffer));       /* add the current lline buffer to the comment buffer */
+					ast_str_reset(lline_buffer);        /* erase the lline buffer */
 				}
 				last_cat->trailing = ALLOC_COMMENT(comment_buffer);
 			}
 		} else if (last_var) {
-			if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && comment_buffer->used ) {
-				if (lline_buffer && lline_buffer->used) {
-					CB_ADD(&comment_buffer, lline_buffer->str);       /* add the current lline buffer to the comment buffer */
-					lline_buffer->used = 0;        /* erase the lline buffer */
+			if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && ast_str_strlen(comment_buffer)) {
+				if (lline_buffer && ast_str_strlen(lline_buffer)) {
+					CB_ADD(&comment_buffer, ast_str_buffer(lline_buffer));       /* add the current lline buffer to the comment buffer */
+					ast_str_reset(lline_buffer);        /* erase the lline buffer */
 				}
 				last_var->trailing = ALLOC_COMMENT(comment_buffer);
 			}
 		} else {
-			if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && comment_buffer->used) {
-				ast_debug(1, "Nothing to attach comments to, discarded: %s\n", comment_buffer->str);
+			if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && ast_str_strlen(comment_buffer)) {
+				ast_debug(1, "Nothing to attach comments to, discarded: %s\n", ast_str_buffer(comment_buffer));
 			}
 		}
 		if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS))
 			CB_RESET(comment_buffer, lline_buffer);
 
-		fclose(f);		
+		fclose(f);
 	} while (0);
 	if (comment) {
 		ast_log(LOG_WARNING,"Unterminated comment detected beginning on line %d\n", nest[comment - 1]);

@@ -1587,66 +1587,6 @@ int ast_get_time_t(const char *src, time_t *dst, time_t _default, int *consumed)
 		return -1;
 }
 
-/*!
- * core handler for dynamic strings.
- * This is not meant to be called directly, but rather through the
- * various wrapper macros
- *	ast_str_set(...)
- *	ast_str_append(...)
- *	ast_str_set_va(...)
- *	ast_str_append_va(...)
- */
-
-int __ast_str_helper(struct ast_str **buf, size_t max_len,
-	int append, const char *fmt, va_list ap)
-{
-	int res, need;
-	int offset = (append && (*buf)->len) ? (*buf)->used : 0;
-	va_list aq;
-
-	do {
-		if (max_len < 0) {
-			max_len = (*buf)->len;	/* don't exceed the allocated space */
-		}
-		/*
-		 * Ask vsnprintf how much space we need. Remember that vsnprintf
-		 * does not count the final '\0' so we must add 1.
-		 */
-		va_copy(aq, ap);
-		res = vsnprintf((*buf)->str + offset, (*buf)->len - offset, fmt, aq);
-
-		need = res + offset + 1;
-		/*
-		 * If there is not enough space and we are below the max length,
-		 * reallocate the buffer and return a message telling to retry.
-		 */
-		if (need > (*buf)->len && (max_len == 0 || (*buf)->len < max_len) ) {
-			if (max_len && max_len < need) {	/* truncate as needed */
-				need = max_len;
-			} else if (max_len == 0) {	/* if unbounded, give more room for next time */
-				need += 16 + need / 4;
-			}
-			if (0) {	/* debugging */
-				ast_verbose("extend from %d to %d\n", (int)(*buf)->len, need);
-			}
-			if (ast_str_make_space(buf, need)) {
-				ast_verbose("failed to extend from %d to %d\n", (int)(*buf)->len, need);
-				return AST_DYNSTR_BUILD_FAILED;
-			}
-			(*buf)->str[offset] = '\0';	/* Truncate the partial write. */
-
-			/* Restart va_copy before calling vsnprintf() again. */
-			va_end(aq);
-			continue;
-		}
-		break;
-	} while (1);
-	/* update space used, keep in mind the truncation */
-	(*buf)->used = (res + offset > (*buf)->len) ? (*buf)->len : res + offset;
-
-	return res;
-}
-
 void ast_enable_packet_fragmentation(int sock)
 {
 #if defined(HAVE_IP_MTU_DISCOVER)

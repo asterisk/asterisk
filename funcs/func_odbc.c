@@ -34,6 +34,7 @@
 	<use>iodbc</use>
  ***/
 
+#define USE_ODBC
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -46,6 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/res_odbc.h"
 #include "asterisk/app.h"
 #include "asterisk/cli.h"
+#include "asterisk/strings.h"
 
 /*** DOCUMENTATION
 	<function name="ODBC_FETCH" language="en_US">
@@ -281,8 +283,8 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 	/* Additionally set the value as a whole (but push an empty string if value is NULL) */
 	pbx_builtin_pushvar_helper(chan, "VALUE", value ? value : "");
 
-	pbx_substitute_variables_helper(chan, query->sql_write, buf->str, buf->len - 1);
-	pbx_substitute_variables_helper(chan, query->sql_insert, insertbuf->str, insertbuf->len - 1);
+	ast_str_substitute_variables(&buf, 0, chan, query->sql_write);
+	ast_str_substitute_variables(&insertbuf, 0, chan, query->sql_insert);
 
 	/* Restore prior values */
 	for (i = 0; i < args.argc; i++) {
@@ -300,7 +302,7 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 		if (!ast_strlen_zero(query->writehandle[dsn])) {
 			obj = ast_odbc_request_obj(query->writehandle[dsn], 0);
 			if (obj)
-				stmt = ast_odbc_direct_execute(obj, generic_execute, buf->str);
+				stmt = ast_odbc_direct_execute(obj, generic_execute, ast_str_buffer(buf));
 		}
 		if (stmt) {
 			status = "SUCCESS";
@@ -309,14 +311,14 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 		}
 	}
 
-	if (stmt && rows == 0 && !ast_strlen_zero(insertbuf->str)) {
+	if (stmt && rows == 0 && ast_str_strlen(insertbuf) != 0) {
 		SQLCloseCursor(stmt);
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		for (dsn = 0; dsn < 5; dsn++) {
 			if (!ast_strlen_zero(query->writehandle[dsn])) {
 				obj = ast_odbc_request_obj(query->writehandle[dsn], 0);
 				if (obj) {
-					stmt = ast_odbc_direct_execute(obj, generic_execute, insertbuf->str);
+					stmt = ast_odbc_direct_execute(obj, generic_execute, ast_str_buffer(insertbuf));
 				}
 			}
 			if (stmt) {
@@ -409,8 +411,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 		pbx_builtin_pushvar_helper(chan, varname, args.field[x]);
 	}
 
-	ast_str_make_space(&sql, strlen(query->sql_read) * 2 + 300);
-	pbx_substitute_variables_helper(chan, query->sql_read, sql->str, sql->len - 1);
+	ast_str_substitute_variables(&sql, 0, chan, query->sql_read);
 
 	/* Restore prior values */
 	for (x = 0; x < args.argc; x++) {
@@ -435,7 +436,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 		if (!ast_strlen_zero(query->readhandle[dsn])) {
 			obj = ast_odbc_request_obj(query->readhandle[dsn], 0);
 			if (obj) {
-				stmt = ast_odbc_direct_execute(obj, generic_execute, sql->str);
+				stmt = ast_odbc_direct_execute(obj, generic_execute, ast_str_buffer(sql));
 			}
 		}
 		if (stmt) {
@@ -444,7 +445,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 	}
 
 	if (!stmt) {
-		ast_log(LOG_ERROR, "Unable to execute query [%s]\n", sql->str);
+		ast_log(LOG_ERROR, "Unable to execute query [%s]\n", ast_str_buffer(sql));
 		if (obj) {
 			ast_odbc_release_obj(obj);
 		}
@@ -460,7 +461,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 
 	res = SQLNumResultCols(stmt, &colcount);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		ast_log(LOG_WARNING, "SQL Column Count error!\n[%s]\n\n", sql->str);
+		ast_log(LOG_WARNING, "SQL Column Count error!\n[%s]\n\n", ast_str_buffer(sql));
 		SQLCloseCursor(stmt);
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 		ast_odbc_release_obj(obj);
@@ -478,13 +479,13 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		int res1 = -1;
 		if (res == SQL_NO_DATA) {
-			ast_verb(4, "Found no rows [%s]\n", sql->str);
+			ast_verb(4, "Found no rows [%s]\n", ast_str_buffer(sql));
 			res1 = 0;
 			buf[0] = '\0';
 			ast_copy_string(rowcount, "0", sizeof(rowcount));
 			status = "NODATA";
 		} else {
-			ast_log(LOG_WARNING, "Error %d in FETCH [%s]\n", res, sql->str);
+			ast_log(LOG_WARNING, "Error %d in FETCH [%s]\n", res, ast_str_buffer(sql));
 			status = "FETCHERROR";
 		}
 		SQLCloseCursor(stmt);
@@ -505,6 +506,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 		for (x = 0; x < colcount; x++) {
 			int i;
 			struct ast_str *coldata = ast_str_thread_get(&coldata_buf, 16);
+			char *ptrcoldata;
 
 			if (y == 0) {
 				char colname[256];
@@ -516,30 +518,15 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 					snprintf(colname, sizeof(colname), "field%d", x);
 				}
 
-				if (coldata->len < maxcol + 1) {
-					ast_str_make_space(&coldata, maxcol + 1);
-				}
+				ast_str_make_space(&coldata, maxcol + 1);
 
-				if (colnames->used) {
+				if (ast_str_strlen(colnames)) {
 					ast_str_append(&colnames, 0, ",");
 				}
-				ast_str_make_space(&colnames, strlen(colname) * 2 + 1 + colnames->used);
-
-				/* Copy data, encoding '\' and ',' for the argument parser */
-				for (i = 0; i < sizeof(colname); i++) {
-					if (escapecommas && (colname[i] == '\\' || colname[i] == ',')) {
-						colnames->str[colnames->used++] = '\\';
-					}
-					colnames->str[colnames->used++] = colname[i];
-
-					if (colname[i] == '\0') {
-						colnames->used--;
-						break;
-					}
-				}
+				ast_str_append_escapecommas(&colnames, 0, colname, sizeof(colname));
 
 				if (resultset) {
-					void *tmp = ast_realloc(resultset, sizeof(*resultset) + colnames->used + 1);
+					void *tmp = ast_realloc(resultset, sizeof(*resultset) + ast_str_strlen(colnames) + 1);
 					if (!tmp) {
 						ast_log(LOG_ERROR, "No space for a new resultset?\n");
 						ast_free(resultset);
@@ -555,12 +542,12 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 						return -1;
 					}
 					resultset = tmp;
-					strcpy((char *)resultset + sizeof(*resultset), colnames->str);
+					strcpy((char *)resultset + sizeof(*resultset), ast_str_buffer(colnames));
 				}
 			}
 
 			buflen = strlen(buf);
-			res = SQLGetData(stmt, x + 1, SQL_CHAR, coldata->str, coldata->len, &indicator);
+			res = ast_str_SQLGetData(&coldata, -1, stmt, x + 1, SQL_CHAR, &indicator);
 			if (indicator == SQL_NULL_DATA) {
 				ast_debug(3, "Got NULL data\n");
 				ast_str_reset(coldata);
@@ -568,39 +555,42 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			}
 
 			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-				ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql->str);
+				ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", ast_str_buffer(sql));
 				y = -1;
 				buf[0] = '\0';
 				goto end_acf_read;
 			}
 
-			ast_debug(2, "Got coldata of '%s'\n", coldata->str);
-			coldata->used = strlen(coldata->str);
+			ast_debug(2, "Got coldata of '%s'\n", ast_str_buffer(coldata));
 
-			/* Copy data, encoding '\' and ',' for the argument parser */
-			for (i = 0; i < coldata->used; i++) {
-				if (escapecommas && (coldata->str[i] == '\\' || coldata->str[i] == ',')) {
-					buf[buflen++] = '\\';
-				}
-				buf[buflen++] = coldata->str[i];
-
-				if (buflen >= len - 2)
-					break;
-
-				if (coldata->str[i] == '\0')
-					break;
+			if (buflen) {
+				buf[buflen++] = ',';
 			}
 
-			buf[buflen++] = ',';
+			/* Copy data, encoding '\' and ',' for the argument parser */
+			ptrcoldata = ast_str_buffer(coldata);
+			for (i = 0; i < ast_str_strlen(coldata); i++) {
+				if (escapecommas && (ptrcoldata[i] == '\\' || ptrcoldata[i] == ',')) {
+					buf[buflen++] = '\\';
+				}
+				buf[buflen++] = ptrcoldata[i];
+
+				if (buflen >= len - 2) {
+					break;
+				}
+
+				if (ptrcoldata[i] == '\0') {
+					break;
+				}
+			}
+
 			buf[buflen] = '\0';
 			ast_debug(2, "buf is now set to '%s'\n", buf);
 		}
-		/* Trim trailing comma */
-		buf[buflen - 1] = '\0';
 		ast_debug(2, "buf is now set to '%s'\n", buf);
 
 		if (resultset) {
-			row = ast_calloc(1, sizeof(*row) + buflen);
+			row = ast_calloc(1, sizeof(*row) + buflen + 1);
 			if (!row) {
 				ast_log(LOG_ERROR, "Unable to allocate space for more rows in this resultset.\n");
 				status = "MEMERROR";
@@ -612,8 +602,10 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			/* Get next row */
 			res = SQLFetch(stmt);
 			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-				if (res != SQL_NO_DATA)
-					ast_log(LOG_WARNING, "Error %d in FETCH [%s]\n", res, sql->str);
+				if (res != SQL_NO_DATA) {
+					ast_log(LOG_WARNING, "Error %d in FETCH [%s]\n", res, ast_str_buffer(sql));
+				}
+				/* Number of rows in the resultset */
 				y++;
 				break;
 			}
@@ -624,7 +616,7 @@ end_acf_read:
 	snprintf(rowcount, sizeof(rowcount), "%d", y);
 	pbx_builtin_setvar_helper(chan, "ODBCROWS", rowcount);
 	pbx_builtin_setvar_helper(chan, "ODBCSTATUS", status);
-	pbx_builtin_setvar_helper(chan, "~ODBCFIELDS~", colnames->str);
+	pbx_builtin_setvar_helper(chan, "~ODBCFIELDS~", ast_str_buffer(colnames));
 	if (resultset) {
 		int uid;
 		struct ast_datastore *odbc_store;
@@ -1042,8 +1034,7 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 		pbx_builtin_pushvar_helper(chan, varname, args.field[i]);
 	}
 
-	/*!\note This does not set sql->used, so don't try to use that value. */
-	pbx_substitute_variables_helper(chan, query->sql_read, sql->str, sql->len - 1);
+	ast_str_substitute_variables(&sql, 0, chan, query->sql_read);
 	ast_channel_free(chan);
 
 	if (a->argc == 5 && !strcmp(a->argv[4], "exec")) {
@@ -1068,7 +1059,7 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 			}
 
 			ast_debug(1, "Got obj\n");
-			if (!(stmt = ast_odbc_direct_execute(obj, generic_execute, sql->str))) {
+			if (!(stmt = ast_odbc_direct_execute(obj, generic_execute, ast_str_buffer(sql)))) {
 				ast_odbc_release_obj(obj);
 				continue;
 			}
@@ -1077,7 +1068,7 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 
 			res = SQLNumResultCols(stmt, &colcount);
 			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-				ast_cli(a->fd, "SQL Column Count error!\n[%s]\n\n", sql->str);
+				ast_cli(a->fd, "SQL Column Count error!\n[%s]\n\n", ast_str_buffer(sql));
 				SQLCloseCursor(stmt);
 				SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 				ast_odbc_release_obj(obj);
@@ -1091,10 +1082,10 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 				ast_odbc_release_obj(obj);
 				if (res == SQL_NO_DATA) {
-					ast_cli(a->fd, "Returned %d rows.  Query executed on handle %d:%s [%s]\n", rows, dsn, query->readhandle[dsn], sql->str);
+					ast_cli(a->fd, "Returned %d rows.  Query executed on handle %d:%s [%s]\n", rows, dsn, query->readhandle[dsn], ast_str_buffer(sql));
 					break;
 				} else {
-					ast_cli(a->fd, "Error %d in FETCH [%s]\n", res, sql->str);
+					ast_cli(a->fd, "Error %d in FETCH [%s]\n", res, ast_str_buffer(sql));
 				}
 				AST_RWLIST_UNLOCK(&queries);
 				return CLI_SUCCESS;
@@ -1106,18 +1097,14 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 						snprintf(colname, sizeof(colname), "field%d", x);
 					}
 
-					if (coldata->len < maxcol + 1) {
-						ast_str_make_space(&coldata, maxcol + 1);
-					}
-
-					res = SQLGetData(stmt, x + 1, SQL_CHAR, coldata->str, coldata->len, &indicator);
+					res = ast_str_SQLGetData(&coldata, maxcol, stmt, x + 1, SQL_CHAR, &indicator);
 					if (indicator == SQL_NULL_DATA) {
 						ast_str_set(&coldata, 0, "(nil)");
 						res = SQL_SUCCESS;
 					}
 
 					if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-						ast_cli(a->fd, "SQL Get Data error %d!\n[%s]\n\n", res, sql->str);
+						ast_cli(a->fd, "SQL Get Data error %d!\n[%s]\n\n", res, ast_str_buffer(sql));
 						SQLCloseCursor(stmt);
 						SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 						ast_odbc_release_obj(obj);
@@ -1125,7 +1112,7 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 						return CLI_SUCCESS;
 					}
 
-					ast_cli(a->fd, "%-20.20s  %s\n", colname, coldata->str);
+					ast_cli(a->fd, "%-20.20s  %s\n", colname, ast_str_buffer(coldata));
 				}
 				/* Get next row */
 				res = SQLFetch(stmt);
@@ -1144,10 +1131,10 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 		ast_odbc_release_obj(obj);
 
 		if (!executed) {
-			ast_cli(a->fd, "Failed to execute query. [%s]\n", sql->str);
+			ast_cli(a->fd, "Failed to execute query. [%s]\n", ast_str_buffer(sql));
 		}
 	} else { /* No execution, just print out the resulting SQL */
-		ast_cli(a->fd, "%s\n", sql->str);
+		ast_cli(a->fd, "%s\n", ast_str_buffer(sql));
 	}
 	AST_RWLIST_UNLOCK(&queries);
 	return CLI_SUCCESS;
@@ -1250,8 +1237,8 @@ static char *cli_odbc_write(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 	/* Additionally set the value as a whole (but push an empty string if value is NULL) */
 	pbx_builtin_pushvar_helper(chan, "VALUE", S_OR(a->argv[4], ""));
-	pbx_substitute_variables_helper(chan, query->sql_write, sql->str, sql->len - 1);
-	ast_debug(1, "SQL is %s\n", sql->str);
+	ast_str_substitute_variables(&sql, 0, chan, query->sql_write);
+	ast_debug(1, "SQL is %s\n", ast_str_buffer(sql));
 	ast_channel_free(chan);
 
 	if (a->argc == 6 && !strcmp(a->argv[5], "exec")) {
@@ -1268,7 +1255,7 @@ static char *cli_odbc_write(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 			if (!(obj = ast_odbc_request_obj(query->writehandle[dsn], 0))) {
 				continue;
 			}
-			if (!(stmt = ast_odbc_direct_execute(obj, generic_execute, sql->str))) {
+			if (!(stmt = ast_odbc_direct_execute(obj, generic_execute, ast_str_buffer(sql)))) {
 				ast_odbc_release_obj(obj);
 				continue;
 			}
@@ -1286,7 +1273,7 @@ static char *cli_odbc_write(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 			ast_cli(a->fd, "Failed to execute query.\n");
 		}
 	} else { /* No execution, just print out the resulting SQL */
-		ast_cli(a->fd, "%s\n", sql->str);
+		ast_cli(a->fd, "%s\n", ast_str_buffer(sql));
 	}
 	AST_RWLIST_UNLOCK(&queries);
 	return CLI_SUCCESS;

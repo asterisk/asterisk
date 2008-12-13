@@ -1260,7 +1260,7 @@ static char *meetme_show_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 			min = ((now - cnf->start) % 3600) / 60;
 			sec = (now - cnf->start) % 60;
 			if (!concise) {
-				ast_cli(a->fd, MC_DATA_FORMAT, cnf->confno, cnf->users, cmdline->str, hr, min, sec, cnf->isdynamic ? "Dynamic" : "Static", cnf->locked ? "Yes" : "No");
+				ast_cli(a->fd, MC_DATA_FORMAT, cnf->confno, cnf->users, ast_str_buffer(cmdline), hr, min, sec, cnf->isdynamic ? "Dynamic" : "Static", cnf->locked ? "Yes" : "No");
 			} else {
 				ast_cli(a->fd, "%s!%d!%d!%02d:%02d:%02d!%d!%d\n",
 					cnf->confno,
@@ -1345,9 +1345,9 @@ static char *meetme_show_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		return CLI_SHOWUSAGE;
 	}
 
-	ast_debug(1, "Cmdline: %s\n", cmdline->str);
+	ast_debug(1, "Cmdline: %s\n", ast_str_buffer(cmdline));
 
-	admin_exec(NULL, cmdline->str);
+	admin_exec(NULL, ast_str_buffer(cmdline));
 	ast_free(cmdline);
 
 	return CLI_SUCCESS;
@@ -1435,9 +1435,9 @@ static char *meetme_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 		return CLI_SHOWUSAGE;
 	}
 
-	ast_debug(1, "Cmdline: %s\n", cmdline->str);
+	ast_debug(1, "Cmdline: %s\n", ast_str_buffer(cmdline));
 
-	admin_exec(NULL, cmdline->str);
+	admin_exec(NULL, ast_str_buffer(cmdline));
 	ast_free(cmdline);
 
 	return CLI_SUCCESS;
@@ -4615,7 +4615,7 @@ static void *run_station(void *data)
 	ast_set_flag(&conf_flags, 
 		CONFFLAG_QUIET | CONFFLAG_MARKEDEXIT | CONFFLAG_PASS_DTMF | CONFFLAG_SLA_STATION);
 	answer_trunk_chan(trunk_ref->chan);
-	conf = build_conf(conf_name->str, "", "", 0, 0, 1, trunk_ref->chan);
+	conf = build_conf(ast_str_buffer(conf_name), "", "", 0, 0, 1, trunk_ref->chan);
 	if (conf) {
 		conf_run(trunk_ref->chan, conf, conf_flags.flags, NULL);
 		dispose_conf(conf);
@@ -4625,7 +4625,7 @@ static void *run_station(void *data)
 	if (ast_atomic_dec_and_test((int *) &trunk_ref->trunk->active_stations) &&
 		trunk_ref->state != SLA_TRUNK_STATE_ONHOLD_BYME) {
 		ast_str_append(&conf_name, 0, ",K");
-		admin_exec(NULL, conf_name->str);
+		admin_exec(NULL, ast_str_buffer(conf_name));
 		trunk_ref->trunk->hold_stations = 0;
 		sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS, NULL);
 	}

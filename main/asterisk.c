@@ -2034,7 +2034,7 @@ static char *cli_prompt(EditLine *editline)
 	if (prompt == NULL) {
 		prompt = ast_str_create(100);
 	} else if (!cli_prompt_changes) {
-		return prompt->str;
+		return ast_str_buffer(prompt);
 	} else {
 		ast_str_reset(prompt);
 	}
@@ -2132,11 +2132,7 @@ static char *cli_prompt(EditLine *editline)
 				}
 				t++;
 			} else {
-				if (prompt->used + 5 > prompt->len) {
-					ast_str_make_space(&prompt, prompt->len + 5);
-				}
-				prompt->str[prompt->used++] = *t++;
-				prompt->str[prompt->used] = '\0';
+				ast_str_append(&prompt, 0, "%c", *t);
 			}
 		}
 		if (color_used) {
@@ -2149,7 +2145,7 @@ static char *cli_prompt(EditLine *editline)
 		ast_str_set(&prompt, 0, "%s", ASTERISK_PROMPT);
 	}
 
-	return(prompt->str);	
+	return ast_str_buffer(prompt);	
 }
 
 static char **ast_el_strtoarr(char *buf)

@@ -101,7 +101,7 @@ static char *cli_alias_passthrough(struct ast_cli_entry *e, int cmd, struct ast_
 		if (!ast_strlen_zero(a->word)) {
 			struct ast_str *real_cmd = ast_str_alloca(strlen(alias->real_cmd) + strlen(line) + 1);
 			ast_str_append(&real_cmd, 0, "%s%s", alias->real_cmd, line);
-			generator = ast_cli_generator(real_cmd->str, a->word, a->n);
+			generator = ast_cli_generator(ast_str_buffer(real_cmd), a->word, a->n);
 		} else {
 			generator = ast_cli_generator(alias->real_cmd, a->word, a->n);
 		}
@@ -121,7 +121,7 @@ static char *cli_alias_passthrough(struct ast_cli_entry *e, int cmd, struct ast_
 			ast_str_append(&real_cmd, 0, " %s", a->argv[i - 1]);
 		}
 
-		ast_cli_command(a->fd, real_cmd->str);
+		ast_cli_command(a->fd, ast_str_buffer(real_cmd));
 	} else {
 		ast_cli_command(a->fd, alias->real_cmd);
 	}

@@ -23,13 +23,16 @@
 #ifndef _ASTERISK_STRINGS_H
 #define _ASTERISK_STRINGS_H
 
+#define DEBUG_OPAQUE
+
 #include <ctype.h>
 
-#include "asterisk/inline_api.h"
 #include "asterisk/utils.h"
 #include "asterisk/threadstorage.h"
 
 /* You may see casts in this header that may seem useless but they ensure this file is C++ clean */
+
+#define AS_OR(a,b)	ast_str_strlen(a) ? ast_str_buffer(a) : (b)
 
 #ifdef AST_DEVMODE
 #define ast_strlen_zero(foo)	_ast_strlen_zero(foo, __FILE__, __PRETTY_FUNCTION__, __LINE__)
@@ -202,7 +205,6 @@ void ast_copy_string(char *dst, const char *src, size_t size),
 }
 )
 
-
 /*!
   \brief Build a string in a buffer, designed to be called repeatedly
   
@@ -338,13 +340,23 @@ int ast_get_timeval(const char *src, struct timeval *tv, struct timeval _default
  * struct ast_threadstorage pointer.
  */
 struct ast_str {
+#ifdef DEBUG_OPAQUE
+	size_t len2;
+	size_t used2;
+	struct ast_threadstorage *ts2;
+#else
 	size_t len;	/*!< The current maximum length of the string */
 	size_t used;	/*!< Amount of space used */
 	struct ast_threadstorage *ts;	/*!< What kind of storage is this ? */
+#endif
 #define DS_MALLOC	((struct ast_threadstorage *)1)
 #define DS_ALLOCA	((struct ast_threadstorage *)2)
 #define DS_STATIC	((struct ast_threadstorage *)3)	/* not supported yet */
+#ifdef DEBUG_OPAQUE
+	char str2[0];
+#else
 	char str[0];	/*!< The string buffer */
+#endif
 };
 
 /*!
@@ -366,10 +378,16 @@ struct ast_str * attribute_malloc ast_str_create(size_t init_len),
 	buf = (struct ast_str *)ast_calloc(1, sizeof(*buf) + init_len);
 	if (buf == NULL)
 		return NULL;
-	
+
+#ifdef DEBUG_OPAQUE
+	buf->len2 = init_len;
+	buf->used2 = 0;
+	buf->ts2 = DS_MALLOC;
+#else
 	buf->len = init_len;
 	buf->used = 0;
 	buf->ts = DS_MALLOC;
+#endif
 
 	return buf;
 }
@@ -382,9 +400,15 @@ AST_INLINE_API(
 void ast_str_reset(struct ast_str *buf),
 {
 	if (buf) {
+#ifdef DEBUG_OPAQUE
+		buf->used2 = 0;
+		if (buf->len2)
+			buf->str2[0] = '\0';
+#else
 		buf->used = 0;
 		if (buf->len)
 			buf->str[0] = '\0';
+#endif
 	}
 }
 )
@@ -398,12 +422,83 @@ void ast_str_trim_blanks(struct ast_str *buf),
 	if (!buf) {
 		return;
 	}
+#ifdef DEBUG_OPAQUE
+	while (buf->used2 && buf->str2[buf->used2 - 1] < 33) {
+		buf->str2[--(buf->used2)] = '\0';
+	}
+#else
 	while (buf->used && buf->str[buf->used - 1] < 33) {
 		buf->str[--(buf->used)] = '\0';
 	}
+#endif
 }
 )
 
+/*!\brief Returns the current length of the string stored within buf.
+ * \param A pointer to the ast_str string.
+ */
+AST_INLINE_API(
+size_t ast_str_strlen(struct ast_str *buf),
+{
+#ifdef DEBUG_OPAQUE
+	return buf->used2;
+#else
+	return buf->used;
+#endif
+}
+)
+
+/*!\brief Returns the current maximum length (without reallocation) of the current buffer.
+ * \param A pointer to the ast_str string.
+ */
+AST_INLINE_API(
+size_t ast_str_size(struct ast_str *buf),
+{
+#ifdef DEBUG_OPAQUE
+	return buf->len2;
+#else
+	return buf->len;
+#endif
+}
+)
+
+/*!\brief Returns the string buffer within the ast_str buf.
+ * \param A pointer to the ast_str string.
+ */
+AST_INLINE_API(
+attribute_pure char *ast_str_buffer(struct ast_str *buf),
+{
+#ifdef DEBUG_OPAQUE
+	return buf->str2;
+#else
+	return buf->str;
+#endif
+}
+)
+
+AST_INLINE_API(
+char *ast_str_truncate(struct ast_str *buf, size_t len),
+{
+#ifdef DEBUG_OPAQUE
+	if (len < 0) {
+		buf->used2 += len;
+	} else {
+		buf->used2 = len;
+	}
+	buf->str2[buf->used2] = '\0';
+	return buf->str2;
+#else
+	if (len < 0) {
+		buf->used += len;
+	} else {
+		buf->used = len;
+	}
+	buf->str[buf->used] = '\0';
+	return buf->str;
+#endif
+}
+)
+	
 /*
  * AST_INLINE_API() is a macro that takes a block of code as an argument.
  * Using preprocessor #directives in the argument is not supported by all
@@ -427,6 +522,23 @@ int _ast_str_make_space(struct ast_str **buf, size_t new_len, const char *file, 
 {
 	struct ast_str *old_buf = *buf;
 
+#ifdef DEBUG_OPAQUE
+	if (new_len <= (*buf)->len2) 
+		return 0;	/* success */
+	if ((*buf)->ts2 == DS_ALLOCA || (*buf)->ts2 == DS_STATIC)
+		return -1;	/* cannot extend */
+	*buf = (struct ast_str *)__ast_realloc(*buf, new_len + sizeof(struct ast_str), file, lineno, function);
+	if (*buf == NULL) {
+		*buf = old_buf;
+		return -1;
+	}
+	if ((*buf)->ts2 != DS_MALLOC) {
+		pthread_setspecific((*buf)->ts2->key, *buf);
+		_DB1(__ast_threadstorage_object_replace(old_buf, *buf, new_len + sizeof(struct ast_str));)
+	}
+
+	(*buf)->len2 = new_len;
+#else
 	if (new_len <= (*buf)->len) 
 		return 0;	/* success */
 	if ((*buf)->ts == DS_ALLOCA || (*buf)->ts == DS_STATIC)
@@ -442,6 +554,7 @@ int _ast_str_make_space(struct ast_str **buf, size_t new_len, const char *file, 
 	}
 
 	(*buf)->len = new_len;
+#endif
 	return 0;
 }
 )
@@ -452,6 +565,23 @@ int ast_str_make_space(struct ast_str **buf, size_t new_len),
 {
 	struct ast_str *old_buf = *buf;
 
+#ifdef DEBUG_OPAQUE
+	if (new_len <= (*buf)->len2) 
+		return 0;	/* success */
+	if ((*buf)->ts2 == DS_ALLOCA || (*buf)->ts2 == DS_STATIC)
+		return -1;	/* cannot extend */
+	*buf = (struct ast_str *)ast_realloc(*buf, new_len + sizeof(struct ast_str));
+	if (*buf == NULL) {
+		*buf = old_buf;
+		return -1;
+	}
+	if ((*buf)->ts2 != DS_MALLOC) {
+		pthread_setspecific((*buf)->ts2->key, *buf);
+		_DB1(__ast_threadstorage_object_replace(old_buf, *buf, new_len + sizeof(struct ast_str));)
+	}
+
+	(*buf)->len2 = new_len;
+#else
 	if (new_len <= (*buf)->len) 
 		return 0;	/* success */
 	if ((*buf)->ts == DS_ALLOCA || (*buf)->ts == DS_STATIC)
@@ -467,11 +597,24 @@ int ast_str_make_space(struct ast_str **buf, size_t new_len),
 	}
 
 	(*buf)->len = new_len;
+#endif
 	return 0;
 }
 )
 #endif
 
+#ifdef DEBUG_OPAQUE
+#define ast_str_alloca(init_len)			\
+	({						\
+		struct ast_str *__ast_str_buf;			\
+		__ast_str_buf = alloca(sizeof(*__ast_str_buf) + init_len);	\
+		__ast_str_buf->len2 = init_len;			\
+		__ast_str_buf->used2 = 0;				\
+		__ast_str_buf->ts2 = DS_ALLOCA;			\
+		__ast_str_buf->str2[0] = '\0';			\
+		(__ast_str_buf);					\
+	})
+#else
 #define ast_str_alloca(init_len)			\
 	({						\
 		struct ast_str *__ast_str_buf;			\
@@ -482,6 +625,7 @@ int ast_str_make_space(struct ast_str **buf, size_t new_len),
 		__ast_str_buf->str[0] = '\0';			\
 		(__ast_str_buf);					\
 	})
+#endif
 
 /*!
  * \brief Retrieve a thread locally stored dynamic string
@@ -524,12 +668,20 @@ struct ast_str *ast_str_thread_get(struct ast_threadstorage *ts,
 	buf = (struct ast_str *)ast_threadstorage_get(ts, sizeof(*buf) + init_len);
 	if (buf == NULL)
 		return NULL;
-	
+
+#ifdef DEBUG_OPAQUE
+	if (!buf->len2) {
+		buf->len2 = init_len;
+		buf->used2 = 0;
+		buf->ts2 = ts;
+	}
+#else
 	if (!buf->len) {
 		buf->len = init_len;
 		buf->used = 0;
 		buf->ts = ts;
 	}
+#endif
 
 	return buf;
 }
@@ -544,12 +696,20 @@ struct ast_str *__ast_str_thread_get(struct ast_threadstorage *ts,
 	buf = (struct ast_str *)__ast_threadstorage_get(ts, sizeof(*buf) + init_len, file, function, line);
 	if (buf == NULL)
 		return NULL;
-	
+
+#ifdef DEBUG_OPAQUE
+	if (!buf->len2) {
+		buf->len2 = init_len;
+		buf->used2 = 0;
+		buf->ts2 = ts;
+	}
+#else
 	if (!buf->len) {
 		buf->len = init_len;
 		buf->used = 0;
 		buf->ts = ts;
 	}
+#endif
 
 	return buf;
 }
@@ -599,6 +759,8 @@ enum {
  */
 int __attribute__((format(printf, 4, 0))) __ast_str_helper(struct ast_str **buf, size_t max_len,
 							   int append, const char *fmt, va_list ap);
+char *__ast_str_helper2(struct ast_str **buf, size_t max_len,
+	const char *src, size_t maxsrc, int append, int escapecommas);
 
 /*!
  * \brief Set a dynamic string from a va_list
@@ -654,6 +816,78 @@ AST_INLINE_API(int __attribute__((format(printf, 3, 0))) ast_str_append_va(struc
 	return __ast_str_helper(buf, max_len, 1, fmt, ap);
 }
 )
+
+/*!\brief Set a dynamic string to a non-NULL terminated substring. */
+AST_INLINE_API(char *ast_str_set_substr(struct ast_str **buf, size_t maxlen, const char *src, size_t maxsrc),
+{
+	return __ast_str_helper2(buf, maxlen, src, maxsrc, 0, 0);
+}
+)
+
+/*!\brief Append a non-NULL terminated substring to the end of a dynamic string. */
+AST_INLINE_API(char *ast_str_append_substr(struct ast_str **buf, size_t maxlen, const char *src, size_t maxsrc),
+{
+	return __ast_str_helper2(buf, maxlen, src, maxsrc, 1, 0);
+}
+)
+
+/*!\brief Set a dynamic string to a non-NULL terminated substring, with escaping of commas. */
+AST_INLINE_API(char *ast_str_set_escapecommas(struct ast_str **buf, size_t maxlen, const char *src, size_t maxsrc),
+{
+	return __ast_str_helper2(buf, maxlen, src, maxsrc, 0, 1);
+}
+)
+
+/*!\brief Append a non-NULL terminated substring to the end of a dynamic string, with escaping of commas. */
+AST_INLINE_API(char *ast_str_append_escapecommas(struct ast_str **buf, size_t maxlen, const char *src, size_t maxsrc),
+{
+	return __ast_str_helper2(buf, maxlen, src, maxsrc, 1, 1);
+}
+)
+
+/*!\brief Wrapper for SQLGetData to use with dynamic strings
+ * \param buf Address of the pointer to the ast_str structure.
+ * \param maxlen The maximum size of the resulting string, or 0 for no limit.
+ * \param StatementHandle The statement handle from which to retrieve data.
+ * \param ColumnNumber Column number (1-based offset) for which to retrieve data.
+ * \param TargetType The SQL constant indicating what kind of data is to be retrieved (usually SQL_CHAR)
+ * \param StrLen_or_Ind A pointer to a length indicator, specifying the total length of data.
+ */
+#ifdef USE_ODBC
+#include <sql.h>
+#include <sqlext.h>
+#include <sqltypes.h>
+
+AST_INLINE_API(SQLRETURN ast_str_SQLGetData(struct ast_str **buf, size_t maxlen, SQLHSTMT StatementHandle, SQLUSMALLINT ColumnNumber, SQLSMALLINT TargetType, SQLLEN *StrLen_or_Ind),
+{
+	SQLRETURN res;
+	if (maxlen == 0) {
+#ifdef DEBUG_OPAQUE
+		if (SQLGetData(StatementHandle, ColumnNumber, TargetType, (*buf)->str2, 0, StrLen_or_Ind) == SQL_SUCCESS_WITH_INFO) {
+			ast_str_make_space(buf, *StrLen_or_Ind + 1);
+		}
+		maxlen = (*buf)->len2;
+	} else if (maxlen > 0) {
+		ast_str_make_space(buf, maxlen);
+	}
+	res = SQLGetData(StatementHandle, ColumnNumber, TargetType, (*buf)->str2, maxlen, StrLen_or_Ind);
+	(*buf)->used2 = *StrLen_or_Ind;
+#else
+		if (SQLGetData(StatementHandle, ColumnNumber, TargetType, (*buf)->str, 0, StrLen_or_Ind) == SQL_SUCCESS_WITH_INFO) {
+			ast_str_make_space(buf, *StrLen_or_Ind + 1);
+		}
+		maxlen = (*buf)->len;
+	} else if (maxlen > 0) {
+		ast_str_make_space(buf, maxlen);
+	}
+	res = SQLGetData(StatementHandle, ColumnNumber, TargetType, (*buf)->str, maxlen, StrLen_or_Ind);
+	(*buf)->used = *StrLen_or_Ind;
+#endif
+	return res;
+}
+)
+#endif /* defined(USE_ODBC) */
+
 
 /*!
  * \brief Set a dynamic string using variable arguments

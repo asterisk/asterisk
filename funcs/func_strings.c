@@ -321,7 +321,7 @@ static int listfilter(struct ast_channel *chan, const char *cmd, char *parse, ch
 	);
 	const char *orig_list, *ptr;
 	const char *begin, *cur, *next;
-	int dlen, flen;
+	int dlen, flen, first = 1;
 	struct ast_str *result = ast_str_thread_get(&result_buf, 16);
 	char *delim;
 
@@ -385,15 +385,12 @@ static int listfilter(struct ast_channel *chan, const char *cmd, char *parse, ch
 			begin += flen + dlen;
 		} else {
 			/* Copy field to output */
-			if (result->used) {
+			if (!first) {
 				ast_str_append(&result, 0, "%s", delim);
 			}
 
-			/* Have to do it this way, since we're not null-terminated. */
-			strncpy(result->str + result->used, begin, cur - begin);
-			result->used += cur - begin;
-			result->str[result->used] = '\0';
-
+			ast_str_append_substr(&result, 0, begin, cur - begin + 1);
+			first = 0;
 			begin = cur + dlen;
 		}
 	} while (*cur != '\0');
@@ -401,7 +398,7 @@ static int listfilter(struct ast_channel *chan, const char *cmd, char *parse, ch
 		ast_channel_unlock(chan);
 	}
 
-	ast_copy_string(buf, result->str, len);
+	ast_copy_string(buf, ast_str_buffer(result), len);
 
 	return 0;
 }

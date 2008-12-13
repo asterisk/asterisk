@@ -268,8 +268,7 @@ static char *xmldoc_string_wrap(const char *text, int columns, int maxdiff)
 				backspace = xmldoc_foundspace_backward(text, i, maxdiff);
 				if (backspace) {
 					needtobreak = 1;
-					tmp->used -= backspace;
-					tmp->str[tmp->used] = '\0';
+					ast_str_truncate(tmp, -backspace);
 					i -= backspace + 1;
 					continue;
 				}
@@ -300,7 +299,7 @@ static char *xmldoc_string_wrap(const char *text, int columns, int maxdiff)
 		ast_str_append(&tmp, 0, "%c", text[i]);
 	}
 
-	ret = ast_strdup(tmp->str);
+	ret = ast_strdup(ast_str_buffer(tmp));
 	ast_free(tmp);
 
 	return ret;
@@ -403,7 +402,7 @@ char *ast_xmldoc_printable(const char *bwinput, int withcolors)
 	}
 
 	/* Wrap the text, notice that string wrap will avoid cutting an ESC sequence. */
-	wrapped = xmldoc_string_wrap(colorized->str, xmldoc_text_columns, xmldoc_max_diff);
+	wrapped = xmldoc_string_wrap(ast_str_buffer(colorized), xmldoc_text_columns, xmldoc_max_diff);
 
 	ast_free(colorized);
 
@@ -881,7 +880,7 @@ static char *xmldoc_parse_cmd_enumlist(struct ast_xml_node *fixnode)
 
 	ast_str_append(&paramname, 0, "}");
 
-	ret = ast_strdup(paramname->str);
+	ret = ast_strdup(ast_str_buffer(paramname));
 	ast_free(paramname);
 
 	return ret;
@@ -978,7 +977,7 @@ static char *xmldoc_get_syntax_cmd(struct ast_xml_node *fixnode, const char *nam
 	}
 
 	/* return a common string. */
-	ret = ast_strdup(syntax->str);
+	ret = ast_strdup(ast_str_buffer(syntax));
 	ast_free(syntax);
 
 	return ret;
@@ -1084,9 +1083,9 @@ static int xmldoc_parse_para(struct ast_xml_node *node, const char *tabs, const 
 			if (tmpstr) {
 				if (strcasecmp(ast_xml_node_get_name(tmp), "text")) {
 					ast_str_append(buffer, 0, "<%s>%s</%s>", ast_xml_node_get_name(tmp),
-							tmpstr->str, ast_xml_node_get_name(tmp));
+							ast_str_buffer(tmpstr), ast_xml_node_get_name(tmp));
 				} else {
-					ast_str_append(buffer, 0, "%s", tmpstr->str);
+					ast_str_append(buffer, 0, "%s", ast_str_buffer(tmpstr));
 				}
 				ast_free(tmpstr);
 				ret = 2;
@@ -1245,8 +1244,8 @@ static int xmldoc_parse_variable(struct ast_xml_node *node, const char *tabs, st
 			/* Cleanup text. */
 			xmldoc_string_cleanup(tmptext, &cleanstr, 1);
 			ast_xml_free_text(tmptext);
-			if (cleanstr && cleanstr->used > 0) {
-				ast_str_append(buffer, 0, ":%s", cleanstr->str);
+			if (cleanstr && ast_str_strlen(cleanstr) > 0) {
+				ast_str_append(buffer, 0, ":%s", ast_str_buffer(cleanstr));
 			}
 			ast_free(cleanstr);
 		}
@@ -1381,7 +1380,7 @@ char *ast_xmldoc_build_seealso(const char *type, const char *name)
 		ast_xml_free_text(content);
 	}
 
-	output = ast_strdup(outputstr->str);
+	output = ast_strdup(ast_str_buffer(outputstr));
 	ast_free(outputstr);
 
 	return output;
@@ -1631,13 +1630,13 @@ char *ast_xmldoc_build_arguments(const char *type, const char *name)
 		xmldoc_parse_parameter(node, "", &ret);
 	}
 
-	if (ret->used > 0) {
+	if (ast_str_strlen(ret) > 0) {
 		/* remove last '\n' */
-		if (ret->str[ret->used - 1] == '\n') {
-			ret->str[ret->used - 1] = '\0';
-			ret->used--;
+		char *buf = ast_str_buffer(ret);
+		if (buf[ast_str_strlen(ret) - 1] == '\n') {
+			ast_str_truncate(ret, -1);
 		}
-		retstr = ast_strdup(ret->str);
+		retstr = ast_strdup(ast_str_buffer(ret));
 	}
 	ast_free(ret);
 
@@ -1677,9 +1676,9 @@ static struct ast_str *xmldoc_get_formatted(struct ast_xml_node *node, int raw_o
 		}
 		/* remove last '\n' */
 		/* XXX Don't modify ast_str internals manually */
-		if (ret->str[ret->used-1] == '\n') {
-			ret->str[ret->used-1] = '\0';
-			ret->used--;
+		tmpstr = ast_str_buffer(ret);
+		if (tmpstr[ast_str_strlen(ret) - 1] == '\n') {
+			ast_str_truncate(ret, -1);
 		}
 	}
 	return ret;
@@ -1720,8 +1719,8 @@ static char *xmldoc_build_field(const char *type, const char *name, const char *
 	}
 
 	formatted = xmldoc_get_formatted(node, raw, raw);
-	if (formatted->used > 0) {
-		ret = ast_strdup(formatted->str);
+	if (ast_str_strlen(formatted) > 0) {
+		ret = ast_strdup(ast_str_buffer(formatted));
 	}
 	ast_free(formatted);
 

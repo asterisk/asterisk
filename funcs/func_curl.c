@@ -354,14 +354,11 @@ static size_t WriteMemoryCallback(void *ptr, size_t size, size_t nmemb, void *da
 	register int realsize = size * nmemb;
 	struct ast_str **pstr = (struct ast_str **)data;
 
-	ast_debug(3, "Called with data=%p, str=%p, realsize=%d, len=%zu, used=%zu\n", data, *pstr, realsize, (*pstr)->len, (*pstr)->used);
+	ast_debug(3, "Called with data=%p, str=%p, realsize=%d, len=%zu, used=%zu\n", data, *pstr, realsize, ast_str_size(*pstr), ast_str_strlen(*pstr));
 
-	if (ast_str_make_space(pstr, (((*pstr)->used + realsize + 1) / 512 + 1) * 512 + 230) == 0) {
-		memcpy(&((*pstr)->str[(*pstr)->used]), ptr, realsize);
-		(*pstr)->used += realsize;
-	}
+	ast_str_append_substr(pstr, 0, ptr, realsize);
 
-	ast_debug(3, "Now, len=%zu, used=%zu\n", (*pstr)->len, (*pstr)->used);
+	ast_debug(3, "Now, len=%zu, used=%zu\n", ast_str_size(*pstr), ast_str_strlen(*pstr));
 
 	return realsize;
 }
@@ -467,18 +464,15 @@ static int acf_curl_exec(struct ast_channel *chan, const char *cmd, char *info, 
 		curl_easy_setopt(*curl, CURLOPT_POST, 0);
 	}
 
-	if (str->used) {
-		str->str[str->used] = '\0';
-		if (str->str[str->used - 1] == '\n') {
-			str->str[str->used - 1] = '\0';
-		}
+	if (ast_str_strlen(str)) {
+		ast_str_trim_blanks(str);
 
-		ast_log(LOG_NOTICE, "str='%s'\n", str->str);
+		ast_debug(3, "str='%s'\n", ast_str_buffer(str));
 		if (hashcompat) {
-			char *remainder = str->str;
+			char *remainder = ast_str_buffer(str);
 			char *piece;
-			struct ast_str *fields = ast_str_create(str->used / 2);
-			struct ast_str *values = ast_str_create(str->used / 2);
+			struct ast_str *fields = ast_str_create(ast_str_strlen(str) / 2);
+			struct ast_str *values = ast_str_create(ast_str_strlen(str) / 2);
 			int rowcount = 0;
 			while ((piece = strsep(&remainder, "&"))) {
 				char *name = strsep(&piece, "=");
@@ -488,12 +482,12 @@ static int acf_curl_exec(struct ast_channel *chan, const char *cmd, char *info, 
 				ast_str_append(&values, 0, "%s%s", rowcount ? "," : "", piece);
 				rowcount++;
 			}
-			pbx_builtin_setvar_helper(chan, "~ODBCFIELDS~", fields->str);
-			ast_copy_string(buf, values->str, len);
+			pbx_builtin_setvar_helper(chan, "~ODBCFIELDS~", ast_str_buffer(fields));
+			ast_copy_string(buf, ast_str_buffer(values), len);
 			ast_free(fields);
 			ast_free(values);
 		} else {
-			ast_copy_string(buf, str->str, len);
+			ast_copy_string(buf, ast_str_buffer(str), len);
 		}
 		ret = 0;
 	}

@@ -377,13 +377,13 @@ int ast_agi_send(int fd, struct ast_channel *chan, char *fmt, ...)
 
 	if (agidebug) {
 		if (chan) {
-			ast_verbose("<%s>AGI Tx >> %s", chan->name, buf->str);
+			ast_verbose("<%s>AGI Tx >> %s", chan->name, ast_str_buffer(buf));
 		} else {
-			ast_verbose("AGI Tx >> %s", buf->str);
+			ast_verbose("AGI Tx >> %s", ast_str_buffer(buf));
 		}
 	}
 
-	return ast_carefulwrite(fd, buf->str, buf->used, 100);
+	return ast_carefulwrite(fd, ast_str_buffer(buf), ast_str_strlen(buf), 100);
 }
 
 /* linked list of AGI commands ready to be executed by Async AGI */

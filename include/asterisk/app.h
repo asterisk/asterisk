@@ -23,11 +23,16 @@
 #ifndef _ASTERISK_APP_H
 #define _ASTERISK_APP_H
 
+#include "asterisk/strings.h"
+#include "asterisk/threadstorage.h"
+
 struct ast_flags64;
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
+
+AST_THREADSTORAGE_EXTERNAL(global_app_buf);
 
 /* IVR stuff */
 

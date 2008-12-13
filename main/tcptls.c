@@ -97,7 +97,7 @@ HOOK_T ast_tcptls_server_read(struct ast_tcptls_session_instance *tcptls_session
 	return read(tcptls_session->fd, buf, count);
 }
 
-HOOK_T ast_tcptls_server_write(struct ast_tcptls_session_instance *tcptls_session, void *buf, size_t count)
+HOOK_T ast_tcptls_server_write(struct ast_tcptls_session_instance *tcptls_session, const void *buf, size_t count)
 {
 	if (tcptls_session->fd == -1) {
 		ast_log(LOG_ERROR, "server_write called with an fd of -1\n");

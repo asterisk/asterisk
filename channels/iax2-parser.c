@@ -929,7 +929,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 				for (var2 = ies->vars, prev = NULL; var2; prev = var2, var2 = var2->next) {
 					if (strcmp(tmp, var2->name) == 0) {
 						ast_str_set(&str, 0, "%s%s", var2->value, tmp2);
-						var = ast_variable_new(tmp, str->str, var2->file);
+						var = ast_variable_new(tmp, ast_str_buffer(str), var2->file);
 						var->next = var2->next;
 						if (prev) {
 							prev->next = var;

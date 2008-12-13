@@ -122,8 +122,8 @@ static void send_eivr_event(FILE *handle, const char event, const char *data,
 		ast_str_append(&tmp, 0, ",%s", data);
 	}
 
-	fprintf(handle, "%s\n", tmp->str);
-	ast_debug(1, "sent '%s'\n", tmp->str);
+	fprintf(handle, "%s\n", ast_str_buffer(tmp));
+	ast_debug(1, "sent '%s'\n", ast_str_buffer(tmp));
 }
 
 static void *gen_alloc(struct ast_channel *chan, void *params)
@@ -276,7 +276,7 @@ static void ast_eivr_getvariable(struct ast_channel *chan, char *data, char *out
 
 		ast_str_append(&newstring, 0, "%s=%s,", variable, value);
 		ast_channel_unlock(chan);
-		ast_copy_string(outbuf, newstring->str, outbuflen);
+		ast_copy_string(outbuf, ast_str_buffer(newstring), outbuflen);
 	}
 }
 
@@ -659,7 +659,8 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  				continue;
   
 			if (input[0] == 'P') {
- 				send_eivr_event(eivr_events, 'P', args->str, chan);
+				struct ast_str *tmp = (struct ast_str *) args;
+ 				send_eivr_event(eivr_events, 'P', ast_str_buffer(tmp), chan);
 			} else if ( input[0] == 'T' ) {
 				ast_chan_log(LOG_WARNING, chan, "Answering channel if needed and starting generator\n");
 				if (chan->_state != AST_STATE_UP) {

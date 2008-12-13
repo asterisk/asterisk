@@ -6102,12 +6102,12 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 		else	
 			ast_str_set(&chan_name, 0, "%d-%d", i->channel, y);
 		for (x = 0; x < 3; x++) {
-			if ((idx != x) && i->subs[x].owner && !strcasecmp(chan_name->str, i->subs[x].owner->name + 6))
+			if ((idx != x) && i->subs[x].owner && !strcasecmp(ast_str_buffer(chan_name), i->subs[x].owner->name + 6))
 				break;
 		}
 		y++;
 	} while (x < 3);
-	tmp = ast_channel_alloc(0, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, i->amaflags, "DAHDI/%s", chan_name->str);
+	tmp = ast_channel_alloc(0, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, i->amaflags, "DAHDI/%s", ast_str_buffer(chan_name));
 	if (!tmp)
 		return NULL;
 	tmp->tech = &dahdi_tech;

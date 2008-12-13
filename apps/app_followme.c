@@ -960,9 +960,8 @@ static struct call_followme *find_realtime(const char *name)
 		}
 		/* This one has to exist; it was part of the query */
 		ordstr = ast_variable_retrieve(cfg, catg, "ordinal");
-		ast_str_make_space(&str, strlen(numstr) + 1);
-		ast_copy_string(str->str, numstr, str->len);
-		if ((cur = create_followme_number(str->str, timeout, atoi(ordstr)))) {
+		ast_str_set(&str, 0, "%s", numstr);
+		if ((cur = create_followme_number(ast_str_buffer(str), timeout, atoi(ordstr)))) {
 			AST_LIST_INSERT_TAIL(&new->numbers, cur, entry);
 		}
 	}

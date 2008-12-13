@@ -141,24 +141,6 @@ AST_THREADSTORAGE(buf1);
 AST_THREADSTORAGE(buf2);
 AST_THREADSTORAGE(buf3);
 
-static char *hash_escape(struct ast_str **str, const char *value)
-{
-	int len;
-	ast_str_reset(*str);
-
-	if ((*str)->len < (len = strlen(value) * 2 + 1)) {
-		ast_str_make_space(str, len);
-	}
-	for (; *value; value++) {
-		if (*value == ',' || *value == '\\') {
-			(*str)->str[(*str)->used++] = '\\';
-		}
-		(*str)->str[(*str)->used++] = *value;
-	}
-	(*str)->str[(*str)->used] = '\0';
-	return (*str)->str;
-}
-
 static int function_realtime_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len) 
 {
 	struct ast_variable *var, *head;
@@ -206,7 +188,7 @@ static int function_realtime_read(struct ast_channel *chan, const char *cmd, cha
 	out = ast_str_alloca(resultslen);
 	for (var = head; var; var = var->next)
 		ast_str_append(&out, 0, "%s%s%s%s", var->name, args.delim2, var->value, args.delim1);
-	ast_copy_string(buf, out->str, len);
+	ast_copy_string(buf, ast_str_buffer(out), len);
 
 	if (chan)
 		ast_autoservice_stop(chan);
@@ -303,16 +285,16 @@ static int realtimefield_read(struct ast_channel *chan, const char *cmd, char *d
 			}
 		} else if (which == rthash) {
 			ast_debug(1, "Setting hash key %s to value %s\n", var->name, var->value);
-			ast_str_append(&fields, 0, "%s%s", first ? "" : ",", hash_escape(&escapebuf, var->name));
-			ast_str_append(&values, 0, "%s%s", first ? "" : ",", hash_escape(&escapebuf, var->value));
+			ast_str_append(&fields, 0, "%s%s", first ? "" : ",", ast_str_set_escapecommas(&escapebuf, 0, var->name, INT_MAX));
+			ast_str_append(&values, 0, "%s%s", first ? "" : ",", ast_str_set_escapecommas(&escapebuf, 0, var->value, INT_MAX));
 			first = 0;
 		}
 	}
 	ast_variables_destroy(head);
 
 	if (which == rthash) {
-		pbx_builtin_setvar_helper(chan, "~ODBCFIELDS~", fields->str);
-		ast_copy_string(buf, values->str, len);
+		pbx_builtin_setvar_helper(chan, "~ODBCFIELDS~", ast_str_buffer(fields));
+		ast_copy_string(buf, ast_str_buffer(values), len);
 	}
 
 	if (chan) {
@@ -418,7 +400,7 @@ static int function_realtime_readdestroy(struct ast_channel *chan, const char *c
 	for (var = head; var; var = var->next) {
 		ast_str_append(&out, 0, "%s%s%s%s", var->name, args.delim2, var->value, args.delim1);
 	}
-	ast_copy_string(buf, out->str, len);
+	ast_copy_string(buf, ast_str_buffer(out), len);
 
 	ast_destroy_realtime(args.family, args.fieldmatch, args.value, SENTINEL);
 

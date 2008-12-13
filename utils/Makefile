@@ -77,7 +77,7 @@ clean:
 	rm -f *.s *.i
 	rm -f md5.c strcompat.c ast_expr2.c ast_expr2f.c pbx_ael.c pval.c hashtab.c
 	rm -f aelparse.c aelbison.c conf2ael
-	rm -f utils.c threadstorage.c sha1.c astobj2.c hashtest2 hashtest refcounter
+	rm -f utils.c strings.c threadstorage.c sha1.c astobj2.c hashtest2 hashtest refcounter
 
 md5.c: $(ASTTOPDIR)/main/md5.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
@@ -149,6 +149,11 @@ utils.c: $(ASTTOPDIR)/main/utils.c
 	$(CMD_PREFIX) cp "$<" "$@"
 utils.o: ASTCFLAGS+=-DSTANDALONE
 
+strings.c: $(ASTTOPDIR)/main/strings.c
+	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
+	$(CMD_PREFIX) cp "$<" "$@"
+strings.o: ASTCFLAGS+=-DSTANDALONE
+
 sha1.c: $(ASTTOPDIR)/main/sha1.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
@@ -160,12 +165,12 @@ threadstorage.c: $(ASTTOPDIR)/main/threadstorage.c
 threadstorage.o: ASTCFLAGS+=-DSTANDALONE
 
 hashtest2.o: ASTCFLAGS+=-O0 -DSTANDALONE
-hashtest2: hashtest2.o md5.o utils.o astobj2.o sha1.o strcompat.o threadstorage.o clicompat.o
+hashtest2: hashtest2.o md5.o utils.o strings.o astobj2.o sha1.o strcompat.o threadstorage.o clicompat.o
 
-hashtest: hashtest.o md5.o hashtab.o utils.o sha1.o strcompat.o threadstorage.o clicompat.o
+hashtest: hashtest.o md5.o hashtab.o utils.o strings.o sha1.o strcompat.o threadstorage.o clicompat.o
 hashtest.o: ASTCFLAGS+=-O0 -DSTANDALONE
 
-refcounter: refcounter.o md5.o hashtab.o utils.o sha1.o strcompat.o threadstorage.o clicompat.o
+refcounter: refcounter.o md5.o hashtab.o utils.o strings.o sha1.o strcompat.o threadstorage.o clicompat.o
 refcounter.o: ASTCFLAGS+=-O0 -DSTANDALONE
 
 extconf.o: extconf.c

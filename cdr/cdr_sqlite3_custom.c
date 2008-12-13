@@ -101,13 +101,10 @@ static int load_column_config(const char *tmp)
 			ast_free(save);
 			return -1;
 		}
-		if (!column_string->used)
-			ast_str_set(&column_string, 0, "%s", escaped);
-		else
-			ast_str_append(&column_string, 0, ",%s", escaped);
+		ast_str_append(&column_string, 0, "%s%s", ast_str_strlen(column_string) ? "," : "", escaped);
 		sqlite3_free(escaped);
 	}
-	if (!(columns = ast_strdup(column_string->str))) {
+	if (!(columns = ast_strdup(ast_str_buffer(column_string)))) {
 		ast_log(LOG_ERROR, "Out of memory copying columns string for table '%s.'\n", table);
 		ast_free(column_string);
 		ast_free(save);
@@ -158,17 +155,16 @@ static int load_config(int reload)
 	struct ast_variable *mappingvar;
 	const char *tmp;
 
-	if (!(cfg = ast_config_load(config_file, config_flags)) || cfg == CONFIG_STATUS_FILEINVALID) {
-		if (reload)
-			ast_log(LOG_WARNING, "Failed to reload configuration file.\n");
-		else
-			ast_log(LOG_WARNING, "Failed to load configuration file. Module not activated.\n");
+	if ((cfg = ast_config_load(config_file, config_flags)) == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_WARNING, "Failed to %sload configuration file. %s\n", reload ? "re" : "", reload ? "" : "Module not activated.");
 		return -1;
-	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
 		return 0;
+	}
 
-	if (reload)
+	if (reload) {
 		free_config();
+	}
 
 	ast_mutex_lock(&lock);
 
@@ -180,17 +176,15 @@ static int load_config(int reload)
 	}
 
 	/* Mapping must have a table name */
-	tmp = ast_variable_retrieve(cfg, "master", "table");
-	if (!ast_strlen_zero(tmp))
+	if (!ast_strlen_zero(tmp = ast_variable_retrieve(cfg, "master", "table"))) {
 		ast_copy_string(table, tmp, sizeof(table));
-	else {
+	} else {
 		ast_log(LOG_WARNING, "Table name not specified.  Assuming cdr.\n");
 		strcpy(table, "cdr");
 	}
 
 	/* Columns */
-	tmp = ast_variable_retrieve(cfg, "master", "columns");
-	if (load_column_config(tmp)) {
+	if (load_column_config(ast_variable_retrieve(cfg, "master", "columns"))) {
 		ast_mutex_unlock(&lock);
 		ast_config_destroy(cfg);
 		free_config();
@@ -198,8 +192,7 @@ static int load_config(int reload)
 	}
 
 	/* Values */
-	tmp = ast_variable_retrieve(cfg, "master", "values");
-	if (load_values_config(tmp)) {
+	if (load_values_config(ast_variable_retrieve(cfg, "master", "values"))) {
 		ast_mutex_unlock(&lock);
 		ast_config_destroy(cfg);
 		free_config();
@@ -230,8 +223,9 @@ static int free_config(void)
 		columns = NULL;
 	}
 
-	while ((value = AST_LIST_REMOVE_HEAD(&sql_values, list)))
+	while ((value = AST_LIST_REMOVE_HEAD(&sql_values, list))) {
 		ast_free(value);
+	}
 
 	ast_mutex_unlock(&lock);
 
@@ -253,16 +247,12 @@ static int sqlite3_log(struct ast_cdr *cdr)
 		struct ast_str *value_string = ast_str_create(1024);
 		dummy.cdr = cdr;
 		AST_LIST_TRAVERSE(&sql_values, value, list) {
-			memset(subst_buf, 0, sizeof(subst_buf));
 			pbx_substitute_variables_helper(&dummy, value->expression, subst_buf, sizeof(subst_buf) - 1);
 			escaped = sqlite3_mprintf("%q", subst_buf);
-			if (!value_string->used)
-				ast_str_append(&value_string, 0, "'%s'", escaped);
-			else
-				ast_str_append(&value_string, 0, ",'%s'", escaped);
+			ast_str_append(&value_string, 0, "%s'%s'", ast_str_strlen(value_string) ? "," : "", escaped);
 			sqlite3_free(escaped);
 		}
-		sql = sqlite3_mprintf("INSERT INTO %q (%s) VALUES (%s)", table, columns, value_string->str);
+		sql = sqlite3_mprintf("INSERT INTO %q (%s) VALUES (%s)", table, columns, ast_str_buffer(value_string));
 		ast_debug(1, "About to log: %s\n", sql);
 		ast_free(value_string);
 	}
@@ -272,8 +262,9 @@ static int sqlite3_log(struct ast_cdr *cdr)
 	/* XXX This seems awful arbitrary... */
 	for (count = 0; count < 5; count++) {
 		res = sqlite3_exec(db, sql, NULL, NULL, &error);
-		if (res != SQLITE_BUSY && res != SQLITE_LOCKED)
+		if (res != SQLITE_BUSY && res != SQLITE_LOCKED) {
 			break;
+		}
 		usleep(200);
 	}
 
@@ -282,8 +273,9 @@ static int sqlite3_log(struct ast_cdr *cdr)
 		sqlite3_free(error);
 	}
 
-	if (sql)
+	if (sql) {
 		sqlite3_free(sql);
+	}
 
 	ast_mutex_unlock(&lock);
 
@@ -313,8 +305,9 @@ static int load_module(void)
 			free_config();
 			return AST_MODULE_LOAD_DECLINE;
 		}
-	} else
+	} else {
 		return AST_MODULE_LOAD_DECLINE;
+	}
 
 	/* is the database there? */
 	snprintf(filename, sizeof(filename), "%s/master.db", ast_config_AST_LOG_DIR);

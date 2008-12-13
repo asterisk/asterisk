@@ -390,7 +390,7 @@ static struct ast_str *http_post_callback(struct ast_tcptls_session_instance *se
 				      NULL, "The was an error parsing the request.");
 	}
 
-	if (!(message_count = process_message(message, post_dir->str))) {
+	if (!(message_count = process_message(message, ast_str_buffer(post_dir)))) {
 		ast_log(LOG_ERROR, "Invalid MIME data, found no parts!\n");
 		g_object_unref(message);
 		return ast_http_error((*status = 400),

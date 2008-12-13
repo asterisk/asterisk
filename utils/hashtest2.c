@@ -59,6 +59,11 @@ struct ht_element
 	char *val;
 };
 
+char *pbx_substitute_variables_helper_full(struct ast_channel *chan, struct varshead *head, const char *cp1, char *cp2, int maxlen, size_t *used);
+char *pbx_substitute_variables_helper_full(struct ast_channel *chan, struct varshead *head, const char *cp1, char *cp2, int maxlen, size_t *used)
+{
+	return NULL;
+}
 
 static int hash_string(const void *obj, const int flags)
 {

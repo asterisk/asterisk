@@ -10196,12 +10196,12 @@ static void free_vm_zones(void)
 	AST_LIST_UNLOCK(&zones);
 }
 
-static char *substitute_escapes(const char *value)
+static const char *substitute_escapes(const char *value)
 {
-	char *current, *result;
+	char *current;
 
 	/* Add 16 for fudge factor */
-	struct ast_str *str = ast_str_create(strlen(value) + 16);
+	struct ast_str *str = ast_str_thread_get(&global_app_buf, strlen(value) + 16);
 
 	/* Substitute strings \r, \n, and \t into the appropriate characters */
 	for (current = (char *) value; *current; current++) {
@@ -10235,10 +10235,7 @@ static char *substitute_escapes(const char *value)
 		}
 	}
 
-	result = ast_strdup(str->str);
-	ast_free(str);
-
-	return result;
+	return ast_str_buffer(str);
 }
 
 static int load_config(int reload)
@@ -10858,13 +10855,13 @@ static int load_config(int reload)
 			emailsubject = ast_strdup(val);
 		}
 		if ((val = ast_variable_retrieve(cfg, "general", "emailbody"))) {
-			emailbody = substitute_escapes(val);
+			emailbody = ast_strdup(substitute_escapes(val));
 		}
 		if ((val = ast_variable_retrieve(cfg, "general", "pagersubject"))) {
 			pagersubject = ast_strdup(val);
 		}
 		if ((val = ast_variable_retrieve(cfg, "general", "pagerbody"))) {
-			pagerbody = substitute_escapes(val);
+			pagerbody = ast_strdup(substitute_escapes(val));
 		}
 		AST_LIST_UNLOCK(&users);
 		ast_config_destroy(cfg);

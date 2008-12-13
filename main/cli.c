@@ -110,8 +110,9 @@ void ast_cli(int fd, const char *fmt, ...)
 	res = ast_str_set_va(&buf, 0, fmt, ap);
 	va_end(ap);
 
-	if (res != AST_DYNSTR_BUILD_FAILED)
-		ast_carefulwrite(fd, buf->str, strlen(buf->str), 100);
+	if (res != AST_DYNSTR_BUILD_FAILED) {
+		ast_carefulwrite(fd, ast_str_buffer(buf), ast_str_strlen(buf), 100);
+	}
 }
 
 unsigned int ast_debug_get_by_file(const char *file) 
@@ -637,9 +638,9 @@ static void print_uptimestr(int fd, struct timeval timeval, const char *prefix, 
 		ast_str_append(&out, 0, "%d minute%s%s ", x, ESS(x),NEEDCOMMA(timeval.tv_sec));
 	}
 	x = timeval.tv_sec;
-	if (x > 0 || out->used == 0)	/* if there is nothing, print 0 seconds */
+	if (x > 0 || ast_str_strlen(out) == 0)	/* if there is nothing, print 0 seconds */
 		ast_str_append(&out, 0, "%d second%s ", x, ESS(x));
-	ast_cli(fd, "%s: %s\n", prefix, out->str);
+	ast_cli(fd, "%s: %s\n", prefix, ast_str_buffer(out));
 }
 
 static struct ast_cli_entry *cli_next(struct ast_cli_entry *e)
@@ -1258,7 +1259,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 {
 	struct ast_channel *c=NULL;
 	struct timeval now;
-	struct ast_str *out = ast_str_alloca(2048);
+	struct ast_str *out = ast_str_thread_get(&global_app_buf, 16);
 	char cdrtime[256];
 	char nf[256], wf[256], rf[256];
 	long elapsed_seconds=0;
@@ -1347,14 +1348,14 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		(ast_test_flag(c, AST_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
 	
 	if (pbx_builtin_serialize_variables(c, &out))
-		ast_cli(a->fd,"      Variables:\n%s\n", out->str);
+		ast_cli(a->fd,"      Variables:\n%s\n", ast_str_buffer(out));
 	if (c->cdr && ast_cdr_serialize_variables(c->cdr, &out, '=', '\n', 1))
-		ast_cli(a->fd,"  CDR Variables:\n%s\n", out->str);
+		ast_cli(a->fd,"  CDR Variables:\n%s\n", ast_str_buffer(out));
 #ifdef CHANNEL_TRACE
 	trace_enabled = ast_channel_trace_is_enabled(c);
 	ast_cli(a->fd, "  Context Trace: %s\n", trace_enabled ? "Enabled" : "Disabled");
 	if (trace_enabled && ast_channel_trace_serialize(c, &out))
-		ast_cli(a->fd, "          Trace:\n%s\n", out->str);
+		ast_cli(a->fd, "          Trace:\n%s\n", ast_str_buffer(out));
 #endif
 	ast_channel_unlock(c);
 	return CLI_SUCCESS;

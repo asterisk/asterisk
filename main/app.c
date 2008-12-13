@@ -44,6 +44,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/indications.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/threadstorage.h"
+
+AST_THREADSTORAGE_PUBLIC(global_app_buf);
+
 
 #define MAX_OTHER_FORMATS 10
 

@@ -160,13 +160,13 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 				status = inuse = ast_device_state(trychan);
 			}
 			if ((inuse <= 1) && (tempchan = ast_request(tech, chan->nativeformats, number, &status))) {
-					ast_str_append(&tmp_availchan, 0, "%s%s", tmp_availchan->used ? "&" : "", tempchan->name);
+					ast_str_append(&tmp_availchan, 0, "%s%s", ast_str_strlen(tmp_availchan) ? "&" : "", tempchan->name);
 					
 					snprintf(tmp, sizeof(tmp), "%s/%s", tech, number);
-					ast_str_append(&tmp_availorig, 0, "%s%s", tmp_availorig->used ? "&" : "", tmp);
+					ast_str_append(&tmp_availorig, 0, "%s%s", ast_str_strlen(tmp_availorig) ? "&" : "", tmp);
 
 					snprintf(tmp, sizeof(tmp), "%d", status);
-					ast_str_append(&tmp_availstat, 0, "%s%s", tmp_availstat->used ? "&" : "", tmp);
+					ast_str_append(&tmp_availstat, 0, "%s%s", ast_str_strlen(tmp_availstat) ? "&" : "", tmp);
 
 					ast_hangup(tempchan);
 					tempchan = NULL;
@@ -176,16 +176,16 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 					}
 			} else {
 				snprintf(tmp, sizeof(tmp), "%d", status);
-				ast_str_append(&tmp_availstat, 0, "%s%s", tmp_availstat->used ? "&" : "", tmp);
+				ast_str_append(&tmp_availstat, 0, "%s%s", ast_str_strlen(tmp_availstat) ? "&" : "", tmp);
 			}
 			cur = rest;
 		} while (cur);
 	}
 
-	pbx_builtin_setvar_helper(chan, "AVAILCHAN", tmp_availchan->str);
+	pbx_builtin_setvar_helper(chan, "AVAILCHAN", ast_str_buffer(tmp_availchan));
 	/* Store the originally used channel too */
-	pbx_builtin_setvar_helper(chan, "AVAILORIGCHAN", tmp_availorig->str);
-	pbx_builtin_setvar_helper(chan, "AVAILSTATUS", tmp_availstat->str);
+	pbx_builtin_setvar_helper(chan, "AVAILORIGCHAN", ast_str_buffer(tmp_availorig));
+	pbx_builtin_setvar_helper(chan, "AVAILSTATUS", ast_str_buffer(tmp_availstat));
 
 	return 0;
 }

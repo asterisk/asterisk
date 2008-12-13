@@ -2284,7 +2284,7 @@ static void do_hang(struct callattempt *o)
 /*! \brief convert "\n" to "\nVariable: " ready for manager to use */
 static char *vars2manager(struct ast_channel *chan, char *vars, size_t len)
 {
-	struct ast_str *buf = ast_str_alloca(len + 1);
+	struct ast_str *buf = ast_str_thread_get(&global_app_buf, len + 1);
 	char *tmp;
 
 	if (pbx_builtin_serialize_variables(chan, &buf)) {
@@ -2292,7 +2292,7 @@ static char *vars2manager(struct ast_channel *chan, char *vars, size_t len)
 
 		/* convert "\n" to "\nVariable: " */
 		strcpy(vars, "Variable: ");
-		tmp = buf->str;
+		tmp = ast_str_buffer(buf);
 
 		for (i = 0, j = 10; (i < len - 1) && (j < len - 1); i++, j++) {
 			vars[j] = tmp[i];
@@ -2601,12 +2601,12 @@ static int say_periodic_announcement(struct queue_ent *qe, int ringing)
 	if (qe->parent->randomperiodicannounce) {
 		qe->last_periodic_announce_sound = ((unsigned long) ast_random()) % qe->parent->numperiodicannounce;
 	} else if (qe->last_periodic_announce_sound >= qe->parent->numperiodicannounce || 
-		ast_strlen_zero(qe->parent->sound_periodicannounce[qe->last_periodic_announce_sound]->str)) {
+		ast_str_strlen(qe->parent->sound_periodicannounce[qe->last_periodic_announce_sound]) == 0) {
 		qe->last_periodic_announce_sound = 0;
 	}
 	
 	/* play the announcement */
-	res = play_file(qe->chan, qe->parent->sound_periodicannounce[qe->last_periodic_announce_sound]->str);
+	res = play_file(qe->chan, ast_str_buffer(qe->parent->sound_periodicannounce[qe->last_periodic_announce_sound]));
 
 	if ((res > 0 && !valid_exit(qe, res)) || res < 0)
 		res = 0;
@@ -5734,7 +5734,7 @@ static char *__queues_show(struct mansession *s, int fd, int argc, char **argv)
 		ast_str_append(&out, 0, ") in '%s' strategy (%ds holdtime), W:%d, C:%d, A:%d, SL:%2.1f%% within %ds",
 			int2strat(q->strategy), q->holdtime, q->weight,
 			q->callscompleted, q->callsabandoned,sl,q->servicelevel);
-		do_print(s, fd, out->str);
+		do_print(s, fd, ast_str_buffer(out));
 		if (!ao2_container_count(q->members))
 			do_print(s, fd, "   No Members");
 		else {
@@ -5759,7 +5759,7 @@ static char *__queues_show(struct mansession *s, int fd, int argc, char **argv)
 						mem->calls, (long) (time(NULL) - mem->lastcall));
 				else
 					ast_str_append(&out, 0, " has taken no calls yet");
-				do_print(s, fd, out->str);
+				do_print(s, fd, ast_str_buffer(out));
 				ao2_ref(mem, -1);
 			}
 		}
@@ -5774,7 +5774,7 @@ static char *__queues_show(struct mansession *s, int fd, int argc, char **argv)
 				ast_str_set(&out, 0, "      %d. %s (wait: %ld:%2.2ld, prio: %d)",
 					pos++, qe->chan->name, (long) (now - qe->start) / 60,
 					(long) (now - qe->start) % 60, qe->prio);
-				do_print(s, fd, out->str);
+				do_print(s, fd, ast_str_buffer(out));
 			}
 		}
 		do_print(s, fd, "");	/* blank line between entries */
@@ -5795,7 +5795,7 @@ static char *__queues_show(struct mansession *s, int fd, int argc, char **argv)
 			ast_str_set(&out, 0, "No such queue: %s.", argv[2]);
 		else
 			ast_str_set(&out, 0, "No queues.");
-		do_print(s, fd, out->str);
+		do_print(s, fd, ast_str_buffer(out));
 	}
 	return CLI_SUCCESS;
 }

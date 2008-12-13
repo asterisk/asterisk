@@ -317,8 +317,8 @@ static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
 #define LENGTHEN_BUF1(size)														\
 			do {																\
 				/* Lengthen buffer, if necessary */								\
-				if (sql->used + size + 1 > sql->len) {                          \
-					if (ast_str_make_space(&sql, ((sql->len + size + 1) / 512 + 1) * 512) != 0) { \
+				if (ast_str_strlen(sql) + size + 1 > ast_str_size(sql)) {       \
+					if (ast_str_make_space(&sql, ((ast_str_size(sql) + size + 1) / 512 + 1) * 512) != 0) { \
 						ast_log(LOG_ERROR, "Unable to allocate sufficient memory.  Insert CDR '%s:%s' failed.\n", tableptr->connection, tableptr->table); \
 						ast_free(sql);											\
 						ast_free(sql2);											\
@@ -330,8 +330,8 @@ static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
 
 #define LENGTHEN_BUF2(size)														\
 			do {																\
-				if (sql2->used + size + 1 > sql2->len) {                        \
-					if (ast_str_make_space(&sql2, ((sql2->len + size + 3) / 512 + 1) * 512) != 0) { \
+				if (ast_str_strlen(sql2) + size + 1 > ast_str_size(sql2)) {     \
+					if (ast_str_make_space(&sql2, ((ast_str_size(sql2) + size + 3) / 512 + 1) * 512) != 0) { \
 						ast_log(LOG_ERROR, "Unable to allocate sufficient memory.  Insert CDR '%s:%s' failed.\n", tableptr->connection, tableptr->table); \
 						ast_free(sql);											\
 						ast_free(sql2);											\
@@ -368,12 +368,13 @@ static int odbc_log(struct ast_cdr *cdr)
 	}
 
 	AST_LIST_TRAVERSE(&odbc_tables, tableptr, list) {
+		int first = 1;
 		ast_str_set(&sql, 0, "INSERT INTO %s (", tableptr->table);
 		ast_str_set(&sql2, 0, " VALUES (");
 
 		/* No need to check the connection now; we'll handle any failure in prepare_and_execute */
 		if (!(obj = ast_odbc_request_obj(tableptr->connection, 0))) {
-			ast_log(LOG_WARNING, "cdr_adaptive_odbc: Unable to retrieve database handle for '%s:%s'.  CDR failed: %s\n", tableptr->connection, tableptr->table, sql->str);
+			ast_log(LOG_WARNING, "cdr_adaptive_odbc: Unable to retrieve database handle for '%s:%s'.  CDR failed: %s\n", tableptr->connection, tableptr->table, ast_str_buffer(sql));
 			continue;
 		}
 
@@ -442,11 +443,11 @@ static int odbc_log(struct ast_cdr *cdr)
 						}
 					}
 
-					ast_str_append(&sql, 0, "%s,", entry->name);
+					ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 					LENGTHEN_BUF2(strlen(colptr));
 
 					/* Encode value, with escaping */
-					ast_str_append(&sql2, 0, "'");
+					ast_str_append(&sql2, 0, "%s'", first ? "" : ",");
 					for (tmp = colptr; *tmp; tmp++) {
 						if (*tmp == '\'') {
 							ast_str_append(&sql2, 0, "''");
@@ -456,7 +457,7 @@ static int odbc_log(struct ast_cdr *cdr)
 							ast_str_append(&sql2, 0, "%c", *tmp);
 						}
 					}
-					ast_str_append(&sql2, 0, "',");
+					ast_str_append(&sql2, 0, "'");
 					break;
 				case SQL_TYPE_DATE:
 					{
@@ -469,16 +470,16 @@ static int odbc_log(struct ast_cdr *cdr)
 							(month == 2 && year % 4 == 0 && day > 29) ||
 							(month == 2 && year % 4 != 0 && day > 28)) {
 							ast_log(LOG_WARNING, "CDR variable %s is not a valid date ('%s').\n", entry->name, colptr);
-							break;
+							continue;
 						}
 
 						if (year > 0 && year < 100) {
 							year += 2000;
 						}
 
-						ast_str_append(&sql, 0, "%s,", entry->name);
+						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 						LENGTHEN_BUF2(17);
-						ast_str_append(&sql2, 0, "{ d '%04d-%02d-%02d' },", year, month, day);
+						ast_str_append(&sql2, 0, "%s{ d '%04d-%02d-%02d' }", first ? "" : ",", year, month, day);
 					}
 					break;
 				case SQL_TYPE_TIME:
@@ -488,12 +489,12 @@ static int odbc_log(struct ast_cdr *cdr)
 
 						if ((count != 2 && count != 3) || hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59) {
 							ast_log(LOG_WARNING, "CDR variable %s is not a valid time ('%s').\n", entry->name, colptr);
-							break;
+							continue;
 						}
 
-						ast_str_append(&sql, 0, "%s,", entry->name);
+						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 						LENGTHEN_BUF2(15);
-						ast_str_append(&sql2, 0, "{ t '%02d:%02d:%02d' },", hour, minute, second);
+						ast_str_append(&sql2, 0, "%s{ t '%02d:%02d:%02d' }", first ? "" : ",", hour, minute, second);
 					}
 					break;
 				case SQL_TYPE_TIMESTAMP:
@@ -511,16 +512,16 @@ static int odbc_log(struct ast_cdr *cdr)
 							(month == 2 && year % 4 != 0 && day > 28) ||
 							hour > 23 || minute > 59 || second > 59 || hour < 0 || minute < 0 || second < 0) {
 							ast_log(LOG_WARNING, "CDR variable %s is not a valid timestamp ('%s').\n", entry->name, colptr);
-							break;
+							continue;
 						}
 
 						if (year > 0 && year < 100) {
 							year += 2000;
 						}
 
-						ast_str_append(&sql, 0, "%s,", entry->name);
+						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 						LENGTHEN_BUF2(26);
-						ast_str_append(&sql2, 0, "{ ts '%04d-%02d-%02d %02d:%02d:%02d' },", year, month, day, hour, minute, second);
+						ast_str_append(&sql2, 0, "%s{ ts '%04d-%02d-%02d %02d:%02d:%02d' }", first ? "" : ",", year, month, day, hour, minute, second);
 					}
 					break;
 				case SQL_INTEGER:
@@ -528,12 +529,12 @@ static int odbc_log(struct ast_cdr *cdr)
 						int integer = 0;
 						if (sscanf(colptr, "%d", &integer) != 1) {
 							ast_log(LOG_WARNING, "CDR variable %s is not an integer.\n", entry->name);
-							break;
+							continue;
 						}
 
-						ast_str_append(&sql, 0, "%s,", entry->name);
+						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 						LENGTHEN_BUF2(12);
-						ast_str_append(&sql2, 0, "%d,", integer);
+						ast_str_append(&sql2, 0, "%s%d", first ? "" : ",", integer);
 					}
 					break;
 				case SQL_BIGINT:
@@ -541,12 +542,12 @@ static int odbc_log(struct ast_cdr *cdr)
 						long long integer = 0;
 						if (sscanf(colptr, "%lld", &integer) != 1) {
 							ast_log(LOG_WARNING, "CDR variable %s is not an integer.\n", entry->name);
-							break;
+							continue;
 						}
 
-						ast_str_append(&sql, 0, "%s,", entry->name);
+						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 						LENGTHEN_BUF2(24);
-						ast_str_append(&sql2, 0, "%lld,", integer);
+						ast_str_append(&sql2, 0, "%s%lld", first ? "" : ",", integer);
 					}
 					break;
 				case SQL_SMALLINT:
@@ -554,12 +555,12 @@ static int odbc_log(struct ast_cdr *cdr)
 						short integer = 0;
 						if (sscanf(colptr, "%hd", &integer) != 1) {
 							ast_log(LOG_WARNING, "CDR variable %s is not an integer.\n", entry->name);
-							break;
+							continue;
 						}
 
-						ast_str_append(&sql, 0, "%s,", entry->name);
+						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 						LENGTHEN_BUF2(6);
-						ast_str_append(&sql2, 0, "%d,", integer);
+						ast_str_append(&sql2, 0, "%s%d", first ? "" : ",", integer);
 					}
 					break;
 				case SQL_TINYINT:
@@ -567,12 +568,12 @@ static int odbc_log(struct ast_cdr *cdr)
 						char integer = 0;
 						if (sscanf(colptr, "%hhd", &integer) != 1) {
 							ast_log(LOG_WARNING, "CDR variable %s is not an integer.\n", entry->name);
-							break;
+							continue;
 						}
 
-						ast_str_append(&sql, 0, "%s,", entry->name);
+						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 						LENGTHEN_BUF2(4);
-						ast_str_append(&sql2, 0, "%d,", integer);
+						ast_str_append(&sql2, 0, "%s%d", first ? "" : ",", integer);
 					}
 					break;
 				case SQL_BIT:
@@ -580,14 +581,14 @@ static int odbc_log(struct ast_cdr *cdr)
 						char integer = 0;
 						if (sscanf(colptr, "%hhd", &integer) != 1) {
 							ast_log(LOG_WARNING, "CDR variable %s is not an integer.\n", entry->name);
-							break;
+							continue;
 						}
 						if (integer != 0)
 							integer = 1;
 
-						ast_str_append(&sql, 0, "%s,", entry->name);
+						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 						LENGTHEN_BUF2(2);
-						ast_str_append(&sql2, 0, "%d,", integer);
+						ast_str_append(&sql2, 0, "%s%d", first ? "" : ",", integer);
 					}
 					break;
 				case SQL_NUMERIC:
@@ -596,12 +597,12 @@ static int odbc_log(struct ast_cdr *cdr)
 						double number = 0.0;
 						if (sscanf(colptr, "%lf", &number) != 1) {
 							ast_log(LOG_WARNING, "CDR variable %s is not an numeric type.\n", entry->name);
-							break;
+							continue;
 						}
 
-						ast_str_append(&sql, 0, "%s,", entry->name);
+						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 						LENGTHEN_BUF2(entry->decimals);
-						ast_str_append(&sql2, 0, "%*.*lf,", entry->decimals, entry->radix, number);
+						ast_str_append(&sql2, 0, "%s%*.*lf", first ? "" : ",", entry->decimals, entry->radix, number);
 					}
 					break;
 				case SQL_FLOAT:
@@ -611,35 +612,37 @@ static int odbc_log(struct ast_cdr *cdr)
 						double number = 0.0;
 						if (sscanf(colptr, "%lf", &number) != 1) {
 							ast_log(LOG_WARNING, "CDR variable %s is not an numeric type.\n", entry->name);
-							break;
+							continue;
 						}
 
-						ast_str_append(&sql, 0, "%s,", entry->name);
+						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 						LENGTHEN_BUF2(entry->decimals);
-						ast_str_append(&sql2, 0, "%lf,", number);
+						ast_str_append(&sql2, 0, "%s%lf", first ? "" : ",", number);
 					}
 					break;
 				default:
 					ast_log(LOG_WARNING, "Column type %d (field '%s:%s:%s') is unsupported at this time.\n", entry->type, tableptr->connection, tableptr->table, entry->name);
+					continue;
 				}
+				first = 0;
 			}
 		}
 
 		/* Concatenate the two constructed buffers */
-		LENGTHEN_BUF1(sql2->used);
-		sql->str[sql->used - 1] = ')';
-		sql2->str[sql2->used - 1] = ')';
-		ast_str_append(&sql, 0, "%s", sql2->str);
+		LENGTHEN_BUF1(ast_str_strlen(sql2));
+		ast_str_append(&sql, 0, ")");
+		ast_str_append(&sql2, 0, ")");
+		ast_str_append(&sql, 0, "%s", ast_str_buffer(sql2));
 
-		ast_verb(11, "[%s]\n", sql->str);
+		ast_verb(11, "[%s]\n", ast_str_buffer(sql));
 
-		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, sql->str);
+		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, ast_str_buffer(sql));
 		if (stmt) {
 			SQLRowCount(stmt, &rows);
 			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		}
 		if (rows == 0) {
-			ast_log(LOG_WARNING, "cdr_adaptive_odbc: Insert failed on '%s:%s'.  CDR failed: %s\n", tableptr->connection, tableptr->table, sql->str);
+			ast_log(LOG_WARNING, "cdr_adaptive_odbc: Insert failed on '%s:%s'.  CDR failed: %s\n", tableptr->connection, tableptr->table, ast_str_buffer(sql));
 		}
 early_release:
 		ast_odbc_release_obj(obj);
@@ -647,11 +650,11 @@ early_release:
 	AST_RWLIST_UNLOCK(&odbc_tables);
 
 	/* Next time, just allocate buffers that are that big to start with. */
-	if (sql->used > maxsize) {
-		maxsize = sql->used;
+	if (ast_str_strlen(sql) > maxsize) {
+		maxsize = ast_str_strlen(sql);
 	}
-	if (sql2->used > maxsize2) {
-		maxsize2 = sql2->used;
+	if (ast_str_strlen(sql2) > maxsize2) {
+		maxsize2 = ast_str_strlen(sql2);
 	}
 
 	ast_free(sql);

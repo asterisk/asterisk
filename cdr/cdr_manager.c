@@ -95,7 +95,7 @@ static int load_config(int reload)
 			v = ast_variable_browse(cfg, cat);
 			while (v) {
 				if (customfields && !ast_strlen_zero(v->name) && !ast_strlen_zero(v->value)) {
-					if( (customfields->used + strlen(v->value) + strlen(v->name) + 14) < customfields->len) {
+					if ((ast_str_strlen(customfields) + strlen(v->value) + strlen(v->name) + 14) < ast_str_size(customfields)) {
 						ast_str_append(&customfields, -1, "%s: ${CDR(%s)}\r\n", v->value, v->name);
 						ast_log(LOG_NOTICE, "Added mapping %s: ${CDR(%s)}\n", v->value, v->name);
 					} else {
@@ -145,10 +145,10 @@ static int manager_log(struct ast_cdr *cdr)
 
 	buf[0] = 0;
 	/* Custom fields handling */
-	if (customfields != NULL && customfields->used > 0) {
+	if (customfields != NULL && ast_str_strlen(customfields)) {
 		memset(&dummy, 0, sizeof(dummy));
 		dummy.cdr = cdr;
-		pbx_substitute_variables_helper(&dummy, customfields->str, buf, sizeof(buf) - 1);
+		pbx_substitute_variables_helper(&dummy, ast_str_buffer(customfields), buf, sizeof(buf) - 1);
 	}
 
 	manager_event(EVENT_FLAG_CDR, "Cdr",

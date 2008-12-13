@@ -367,8 +367,7 @@ int ast_cdr_serialize_variables(struct ast_cdr *cdr, struct ast_str **buf, char 
 	char workspace[256];
 	int total = 0, x = 0, i;
 
-	(*buf)->used = 0;
-	(*buf)->str[0] = '\0';
+	ast_str_reset(*buf);
 
 	for (; cdr; cdr = recur ? cdr->next : NULL) {
 		if (++x > 1)
@@ -776,7 +775,7 @@ void ast_cdr_setdestchan(struct ast_cdr *cdr, const char *chann)
 	}
 }
 
-void ast_cdr_setapp(struct ast_cdr *cdr, char *app, char *data)
+void ast_cdr_setapp(struct ast_cdr *cdr, const char *app, const char *data)
 {
 
 	for (; cdr; cdr = cdr->next) {

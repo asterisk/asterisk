@@ -157,6 +157,6 @@ void ast_tcptls_server_stop(struct ast_tcptls_session_args *desc);
 int ast_ssl_setup(struct ast_tls_config *cfg);
 
 HOOK_T ast_tcptls_server_read(struct ast_tcptls_session_instance *ser, void *buf, size_t count);
-HOOK_T ast_tcptls_server_write(struct ast_tcptls_session_instance *ser, void *buf, size_t count);
+HOOK_T ast_tcptls_server_write(struct ast_tcptls_session_instance *ser, const void *buf, size_t count);
 
 #endif /* _ASTERISK_TCPTLS_H */

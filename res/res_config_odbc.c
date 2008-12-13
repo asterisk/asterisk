@@ -555,9 +555,9 @@ static SQLHSTMT update2_prepare(struct odbc_obj *obj, void *data)
 	/* Done with the table metadata */
 	ast_odbc_release_table(tableptr);
 
-	res = SQLPrepare(stmt, (unsigned char *)sql->str, SQL_NTS);
+	res = SQLPrepare(stmt, (unsigned char *)ast_str_buffer(sql), SQL_NTS);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql->str);
+		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", ast_str_buffer(sql));
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		return NULL;
 	}
@@ -606,7 +606,7 @@ static int update2_odbc(const char *database, const char *table, va_list ap)
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		/* Since only a single thread can access this memory, we can retrieve what would otherwise be lost. */
 		sql = ast_str_thread_get(&sql_buf, 16);
-		ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n", sql->str);
+		ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n", ast_str_buffer(sql));
 		return -1;
 	}
 

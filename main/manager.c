@@ -347,7 +347,7 @@ static char *authority_to_str(int authority, struct ast_str **res)
 	int i;
 	char *sep = "";
 
-	(*res)->used = 0;
+	ast_str_reset(*res);
 	for (i = 0; i < ARRAY_LEN(perms) - 1; i++) {
 		if (authority & perms[i].num) {
 			ast_str_append(res, 0, "%s%s", sep, perms[i].label);
@@ -355,10 +355,10 @@ static char *authority_to_str(int authority, struct ast_str **res)
 		}
 	}
 
-	if ((*res)->used == 0)	/* replace empty string with something sensible */
+	if (ast_str_strlen(*res) == 0)	/* replace empty string with something sensible */
 		ast_str_append(res, 0, "<none>");
 
-	return (*res)->str;
+	return ast_str_buffer(*res);
 }
 
 /*! Tells you if smallstr exists inside bigstr
@@ -950,10 +950,11 @@ void astman_append(struct mansession *s, const char *fmt, ...)
 	ast_str_set_va(&buf, 0, fmt, ap);
 	va_end(ap);
 
-	if (s->f != NULL)
-		send_string(s, buf->str);
-	else
+	if (s->f != NULL) {
+		send_string(s, ast_str_buffer(buf));
+	} else {
 		ast_verbose("fd == -1 in astman_append, should not happen\n");
+	}
 }
 
 /*! \note NOTE: XXX this comment is unclear and possibly wrong.
@@ -1525,11 +1526,12 @@ static int action_createconfig(struct mansession *s, const struct message *m)
 	ast_str_set(&filepath, 0, "%s/", ast_config_AST_CONFIG_DIR);
 	ast_str_append(&filepath, 0, "%s", fn);
 
-	if ((fd = open(filepath->str, O_CREAT | O_EXCL, AST_FILE_MODE)) != -1) {
+	if ((fd = open(ast_str_buffer(filepath), O_CREAT | O_EXCL, AST_FILE_MODE)) != -1) {
 		close(fd);
 		astman_send_ack(s, m, "New configuration file created successfully");
-	} else 
+	} else {
 		astman_send_error(s, m, strerror(errno));
+	}
 
 	return 0;
 }
@@ -1939,7 +1941,7 @@ static int action_status(struct mansession *s, const struct message *m)
 			c->accountcode,
 			c->_state,
 			ast_state2str(c->_state), c->context,
-			c->exten, c->priority, (long)elapsed_seconds, bridge, c->uniqueid, str->str, idText);
+			c->exten, c->priority, (long)elapsed_seconds, bridge, c->uniqueid, ast_str_buffer(str), idText);
 		} else {
 			astman_append(s,
 			"Event: Status\r\n"
@@ -1958,7 +1960,7 @@ static int action_status(struct mansession *s, const struct message *m)
 			S_OR(c->cid.cid_num, "<unknown>"),
 			S_OR(c->cid.cid_name, "<unknown>"),
 			c->accountcode,
-			ast_state2str(c->_state), bridge, c->uniqueid, str->str, idText);
+			ast_state2str(c->_state), bridge, c->uniqueid, ast_str_buffer(str), idText);
 		}
 		ast_channel_unlock(c);
 		if (!all)
@@ -3268,7 +3270,7 @@ int __manager_event(int category, const char *event,
 
 	ast_str_append(&buf, 0, "\r\n");
 
-	append_event(buf->str, category);
+	append_event(ast_str_buffer(buf), category);
 
 	/* Wake up any sleeping sessions */
 	AST_LIST_LOCK(&sessions);
@@ -3289,7 +3291,7 @@ int __manager_event(int category, const char *event,
 
 	AST_RWLIST_RDLOCK(&manager_hooks);
 	AST_RWLIST_TRAVERSE(&manager_hooks, hook, list) {
-		hook->helper(category, event, buf->str);
+		hook->helper(category, event, ast_str_buffer(buf));
 	}
 	AST_RWLIST_UNLOCK(&manager_hooks);
 

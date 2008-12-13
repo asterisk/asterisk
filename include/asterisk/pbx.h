@@ -114,11 +114,11 @@ struct ast_switch {
 };
 
 struct ast_timing {
-	int hastime;				/*!< If time construct exists */
-	unsigned int monthmask;			/*!< Mask for month */
-	unsigned int daymask;			/*!< Mask for date */
-	unsigned int dowmask;			/*!< Mask for day of week (mon-sun) */
-	unsigned int minmask[24];		/*!< Mask for minute */
+	int hastime;                    /*!< If time construct exists */
+	unsigned int monthmask;         /*!< Mask for month */
+	unsigned int daymask;           /*!< Mask for date */
+	unsigned int dowmask;           /*!< Mask for day of week (sun-sat) */
+	unsigned int minmask[48];       /*!< Mask for minute */
 };
 
 int ast_build_timing(struct ast_timing *i, const char *info);
@@ -866,6 +866,8 @@ int pbx_builtin_raise_exception(struct ast_channel *chan, void *data);
 
 void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char *cp2,int count);
 void pbx_substitute_variables_varshead(struct varshead *headp, const char *cp1, char *cp2, int count);
+void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead *headp, const char *cp1, char *cp2, int cp2_size, size_t *used);
+void ast_str_substitute_variables(struct ast_str **buf, size_t maxlen, struct ast_channel *chan, const char *templ);
 
 int ast_extension_patmatch(const char *pattern, const char *data);
 

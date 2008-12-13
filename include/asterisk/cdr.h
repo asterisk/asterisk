@@ -282,7 +282,7 @@ void ast_cdr_setdestchan(struct ast_cdr *cdr, const char *chan);
  * Changes the value of the last executed app
  * Returns nothing
  */
-void ast_cdr_setapp(struct ast_cdr *cdr, char *app, char *data);
+void ast_cdr_setapp(struct ast_cdr *cdr, const char *app, const char *data);
 
 /*! 
  * \brief Convert a string to a detail record AMA flag 
