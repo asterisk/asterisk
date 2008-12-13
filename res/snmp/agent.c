@@ -483,7 +483,7 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		break;
 	case ASTCHANVARIABLES:
 		if (pbx_builtin_serialize_variables(chan, &out)) {
-			*var_len = strlen(ast_str_buffer(out));
+			*var_len = ast_str_strlen(out);
 			ret = (u_char *)ast_str_buffer(out);
 		}
 		break;
