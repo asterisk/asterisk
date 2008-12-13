@@ -876,7 +876,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	char numsubst[256];
 	char cidname[AST_MAX_EXTENSION] = "";
 	int privdb_val = 0;
-	unsigned int calldurationlimit = 0;
+	unsigned int calldurationlimit = -1;
 	long timelimit = 0;
 	long play_warning = 0;
 	long warning_freq = 0;
@@ -1017,7 +1017,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		start_sound = S_OR(var, NULL);	/* XXX not much of a point in doing this! */
 
 		/* undo effect of S(x) in case they are both used */
-		calldurationlimit = 0;
+		calldurationlimit = -1;
 		/* more efficient to do it like S(x) does since no advanced opts */
 		if (!play_warning && !start_sound && !end_sound && timelimit) {
 			calldurationlimit = timelimit / 1000;
@@ -1751,7 +1751,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		if (!res) {
 			if (calldurationlimit > 0) {
 				peer->whentohangup = time(NULL) + calldurationlimit;
-			} else if (timelimit > 0) {
+			} else if (calldurationlimit != -1 && timelimit > 0) {
 				/* Not enough granularity to make it less, but we can't use the special value 0 */
 				peer->whentohangup = time(NULL) + 1;
 			}
