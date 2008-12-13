@@ -19,31 +19,35 @@ The table below shows all VoIP channel drivers and other Asterisk modules that
 support QoS settings for network traffic. It also shows the type(s) of
 traffic for which each module can support setting QoS settings.
 
-\begin{verbatim}
- Channel Drivers
-+==============+===========+=====+=====+=====+
-|              | Signaling |Audio|Video| Text|
-+==============+===========+=====+=====+=====+
-|chan_sip      |     +     |  +  |  +  |  +  |
-|--------------+-----------+-----+-----+-----+
-|chan_skinny   |     +     |  +  |  +  |     |
-|--------------+-----------+-----+-----+-----+
-|chan_mgcp     |     +     |  +  |     |     |
-|--------------+-----------+-----+-----+-----+
-|chan_unistim  |     +     |  +  |     |     |
-|--------------+-----------+-----+-----+-----+
-|chan_h323     |           |  +  |     |     |
-|--------------+-----------+-----+-----+-----+
-|chan_iax2     |              +              |
-+==============+=============================+
- Other
-+==============+=============================+
-| dundi.conf   |     + (tos setting)         |
-|--------------+-----------------------------+
-| iaxprov.conf |     + (tos setting)         |
-+==============+=============================+
-\end{verbatim}
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{ | l || c | c | c | c | }
+ \hline
+              & Signaling & Audio & Video & Text \\ \hline \hline
+ chan\_sip    &     +     &   +   &   +   &   +  \\ \hline
+ chan\_skinny &     +     &   +   &   +   &      \\ \hline
+ chan\_mgcp   &     +     &   +   &       &      \\ \hline
+ chan\_unistm &     +     &   +   &       &      \\ \hline
+ chan\_h323   &           &   +   &       &      \\ \hline
+ chan\_iax2   & \multicolumn{4}{|c|}{+}          \\
+ \hline
+\end{tabular}
+\end{center}
+\caption{Channel Driver QoS Settings}
+\end{table}
 
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{ | l || c | c | c | c | }
+ \hline
+              & Signaling & Audio & Video & Text          \\ \hline \hline
+ dundi.conf   & \multicolumn{4}{ | c | }{+ (tos setting)} \\ \hline
+ iaxprov.conf & \multicolumn{4}{ | c | }{+ (tos setting)} \\ \hline
+ \hline
+\end{tabular}
+\end{center}
+\caption{Other ToS Settings}
+\end{table}
 
 \subsubsection{IP TOS values}
 The allowable values for any of the tos* parameters are: 
@@ -65,17 +69,22 @@ values from 0 to 7.
 
 \subsubsection{Recommended values}
 The recommended values shown below are also included in sample configuration files:
-\begin{verbatim}
-+============+=========+======+
-|            |  tos    |  cos |
-+============+=========+======+
-|Signaling   |  cs3    |  3   |
-|Audio       |  ef     |  5   |
-|Video       |  af41   |  4   |
-|Text        |  af41   |  3   |
-|Other       |  ef     |      |
-+============+=========+======+
-\end{verbatim}
+
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{ | l || l | l | }
+\hline
+          & tos  & cos \\ \hline \hline
+Signaling & cs3  & 3   \\ \hline
+Audio     & ef   & 5   \\ \hline
+Video     & af41 & 4   \\ \hline
+Text      & af41 & 3   \\ \hline
+Other     & ef   &     \\
+\hline
+\end{tabular}
+\end{center}
+\caption{Recommended QoS Settings}
+\end{table}
 
 \subsubsection{IAX2}
 
