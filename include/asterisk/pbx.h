@@ -493,6 +493,10 @@ int ast_extension_cmp(const char *a, const char *b);
  *
  * This adds a new extension to the asterisk extension list.
  *
+ * \note It is possible for autoservice to be started and stopped on c during this
+ * function call, it is important that c is not locked prior to calling this. Otherwise
+ * a deadlock may occur
+ *
  * \retval 0 on success 
  * \retval -1 on failure.
  */
