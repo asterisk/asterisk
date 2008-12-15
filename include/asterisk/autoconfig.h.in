@@ -498,6 +498,9 @@
 /* Define to 1 if you have the <termios.h> header file. */
 #undef HAVE_TERMIOS_H
 
+/* Define to 1 if your system has timersub in time.h */
+#undef HAVE_TIMERSUB
+
 /* Define to indicate the ${TINFO_DESCRIP} library */
 #undef HAVE_TINFO
 
