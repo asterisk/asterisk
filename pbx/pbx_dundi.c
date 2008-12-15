@@ -4681,7 +4681,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
 	struct ast_variable *v;
 	char *cat;
 	int x;
-	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	struct ast_flags config_flags = { 0 };
 	char hn[MAXHOSTNAMELEN] = "";
 	struct ast_hostent he;
 	struct hostent *hp;
@@ -4693,8 +4693,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
 	if (!(cfg = ast_config_load(config_file, config_flags))) {
 		ast_log(LOG_ERROR, "Unable to load config %s\n", config_file);
 		return -1;
-	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
-		return 0;
+	}
 
 	dundi_ttl = DUNDI_DEFAULT_TTL;
 	dundi_cache_time = DUNDI_DEFAULT_CACHE_TIME;
