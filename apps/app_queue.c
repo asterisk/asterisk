@@ -1691,6 +1691,7 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 			/* Delete if unused (else will be deleted when last caller leaves). */
 			ao2_unlink(queues, q);
 			ao2_unlock(q);
+			queue_unref(q);
 		}
 		return NULL;
 	}
@@ -5697,14 +5698,20 @@ static char *__queues_show(struct mansession *s, int fd, int argc, char **argv)
 		return CLI_SHOWUSAGE;
 
 	if (argc == 3)	{ /* specific queue */
-		load_realtime_queue(argv[2]);
-	}
-	else if (ast_check_realtime("queues")) {
+		if ((q = load_realtime_queue(argv[2]))) {
+			queue_unref(q);
+		}
+	} else if (ast_check_realtime("queues")) {
+		/* This block is to find any queues which are defined in realtime but
+		 * which have not yet been added to the in-core container
+		 */
 		struct ast_config *cfg = ast_load_realtime_multientry("queues", "name LIKE", "%", SENTINEL);
 		char *queuename;
 		if (cfg) {
 			for (queuename = ast_category_browse(cfg, NULL); !ast_strlen_zero(queuename); queuename = ast_category_browse(cfg, queuename)) {
-				load_realtime_queue(queuename);
+				if ((q = load_realtime_queue(queuename))) {
+					queue_unref(q);
+				}
 			}
 			ast_config_destroy(cfg);
 		}
@@ -5714,8 +5721,20 @@ static char *__queues_show(struct mansession *s, int fd, int argc, char **argv)
 	ao2_lock(queues);
 	while ((q = ao2_iterator_next(&queue_iter))) {
 		float sl;
+		struct call_queue *realtime_queue;
 
 		ao2_lock(q);
+		/* This check is to make sure we don't print information for realtime
+		 * queues which have been deleted from realtime but which have not yet
+		 * been deleted from the in-core container
+		 */
+		if (q->realtime && !(realtime_queue = load_realtime_queue(q->name))) {
+			ao2_unlock(q);
+			queue_unref(q);
+			continue;
+		} else {
+			queue_unref(realtime_queue);
+		}
 		if (argc == 3 && strcasecmp(q->name, argv[2])) {
 			ao2_unlock(q);
 			queue_unref(q);
@@ -5779,14 +5798,6 @@ static char *__queues_show(struct mansession *s, int fd, int argc, char **argv)
 		}
 		do_print(s, fd, "");	/* blank line between entries */
 		ao2_unlock(q);
-		if (q->realtime || argc == 3) {
-			/* If a queue is realtime, then that means we used load_realtime_queue() above
-			 * to get its information. This means we have an extra reference we need to
-			 * remove at this point. If a specific queue was requested, then it also needs
-			 * to be unreffed here even if it is not a realtime queue.
-			 */
-			queue_unref(q);
-		}
 		queue_unref(q); /* Unref the iterator's reference */
 	}
 	ao2_unlock(queues);
