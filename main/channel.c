@@ -2837,64 +2837,126 @@ int ast_indicate(struct ast_channel *chan, int condition)
 	return ast_indicate_data(chan, condition, NULL, 0);
 }
 
-int ast_indicate_data(struct ast_channel *chan, int condition, const void *data, size_t datalen)
+static int attribute_const is_visible_indication(enum ast_control_frame_type condition)
 {
+	/* Don't include a default case here so that we get compiler warnings
+	 * when a new type is added. */
+
+	switch (condition) {
+	case AST_CONTROL_PROGRESS:
+	case AST_CONTROL_PROCEEDING:
+	case AST_CONTROL_VIDUPDATE:
+	case AST_CONTROL_SRCUPDATE:
+	case AST_CONTROL_RADIO_KEY:
+	case AST_CONTROL_RADIO_UNKEY:
+	case AST_CONTROL_OPTION:
+	case AST_CONTROL_WINK:
+	case AST_CONTROL_FLASH:
+	case AST_CONTROL_OFFHOOK:
+	case AST_CONTROL_TAKEOFFHOOK:
+	case AST_CONTROL_ANSWER:
+	case AST_CONTROL_HANGUP:
+	case AST_CONTROL_T38:
+		return 0;
+
+	case AST_CONTROL_CONGESTION:
+	case AST_CONTROL_BUSY:
+	case AST_CONTROL_RINGING:
+	case AST_CONTROL_RING:
+	case AST_CONTROL_HOLD:
+	case AST_CONTROL_UNHOLD:
+		return 1;
+	}
+
+	return 0;
+}
+
+int ast_indicate_data(struct ast_channel *chan, int _condition,
+		const void *data, size_t datalen)
+{
+	/* By using an enum, we'll get compiler warnings for values not handled 
+	 * in switch statements. */
+	enum ast_control_frame_type condition = _condition;
+	const struct ind_tone_zone_sound *ts = NULL;
 	int res = -1;
 
 	ast_channel_lock(chan);
-	/* Stop if we're a zombie or need a soft hangup */
+
+	/* Don't bother if the channel is about to go away, anyway. */
 	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
 		ast_channel_unlock(chan);
 		return -1;
 	}
-	if (chan->tech->indicate)
+
+	if (chan->tech->indicate) {
+		/* See if the channel driver can handle this condition. */
 		res = chan->tech->indicate(chan, condition, data, datalen);
+	}
+
 	ast_channel_unlock(chan);
-	if (!chan->tech->indicate || res) {
-		/*
-		 * Device does not support (that) indication, lets fake
-		 * it by doing our own tone generation. (PM2002)
-		 */
-		if (condition < 0)
-			ast_playtones_stop(chan);
-		else {
-			const struct ind_tone_zone_sound *ts = NULL;
-			switch (condition) {
-			case AST_CONTROL_RINGING:
-				ts = ast_get_indication_tone(chan->zone, "ring");
-				break;
-			case AST_CONTROL_BUSY:
-				ts = ast_get_indication_tone(chan->zone, "busy");
-				break;
-			case AST_CONTROL_CONGESTION:
-				ts = ast_get_indication_tone(chan->zone, "congestion");
-				break;
-			}
-			if (ts && ts->data[0]) {
-				ast_debug(1, "Driver for channel '%s' does not support indication %d, emulating it\n", chan->name, condition);
-				ast_playtones_start(chan,0,ts->data, 1);
-				res = 0;
-				chan->visible_indication = condition;
-			} else if (condition == AST_CONTROL_PROGRESS) {
-				/* ast_playtones_stop(chan); */
-			} else if (condition == AST_CONTROL_PROCEEDING) {
-				/* Do nothing, really */
-			} else if (condition == AST_CONTROL_HOLD) {
-				/* Do nothing.... */
-			} else if (condition == AST_CONTROL_UNHOLD) {
-				/* Do nothing.... */
-			} else if (condition == AST_CONTROL_VIDUPDATE) {
-				/* Do nothing.... */
-			} else if (condition == AST_CONTROL_SRCUPDATE) {
-				/* Do nothing... */
-			} else {
-				/* not handled */
-				ast_log(LOG_WARNING, "Unable to handle indication %d for '%s'\n", condition, chan->name);
-				res = -1;
-			}
+
+	if (chan->tech->indicate && !res) {
+		/* The channel driver successfully handled this indication */
+		if (is_visible_indication(condition)) {
+			chan->visible_indication = condition;
 		}
-	} else
+		return 0;
+	}
+
+	/* The channel driver does not support this indication, let's fake
+	 * it by doing our own tone generation if applicable. */
+
+	if (condition < 0) {
+		/* Stop any tones that are playing */
+		ast_playtones_stop(chan);
+		return 0;
+	}
+
+	/* Handle conditions that we have tones for. */
+	switch (condition) {
+	case AST_CONTROL_RINGING:
+		ts = ast_get_indication_tone(chan->zone, "ring");
+		break;
+	case AST_CONTROL_BUSY:
+		ts = ast_get_indication_tone(chan->zone, "busy");
+		break;
+	case AST_CONTROL_CONGESTION:
+		ts = ast_get_indication_tone(chan->zone, "congestion");
+		break;
+	case AST_CONTROL_PROGRESS:
+	case AST_CONTROL_PROCEEDING:
+	case AST_CONTROL_VIDUPDATE:
+	case AST_CONTROL_SRCUPDATE:
+	case AST_CONTROL_RADIO_KEY:
+	case AST_CONTROL_RADIO_UNKEY:
+	case AST_CONTROL_OPTION:
+	case AST_CONTROL_WINK:
+	case AST_CONTROL_FLASH:
+	case AST_CONTROL_OFFHOOK:
+	case AST_CONTROL_TAKEOFFHOOK:
+	case AST_CONTROL_ANSWER:
+	case AST_CONTROL_HANGUP:
+	case AST_CONTROL_RING:
+	case AST_CONTROL_HOLD:
+	case AST_CONTROL_UNHOLD:
+	case AST_CONTROL_T38:
+		/* Nothing left to do for these. */
+		res = 0;
+		break;
+	}
+
+	if (ts && ts->data[0]) {
+		/* We have a tone to play, yay. */
+		ast_debug(1, "Driver for channel '%s' does not support indication %d, emulating it\n", chan->name, condition);
+		ast_playtones_start(chan, 0, ts->data, 1);
+		res = 0;
 		chan->visible_indication = condition;
+	}
+
+	if (res) {
+		/* not handled */
+		ast_log(LOG_WARNING, "Unable to handle indication %d for '%s'\n", condition, chan->name);
+	}
 
 	return res;
 }
@@ -4022,7 +4084,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	/* XXX What about blocking, softhangup, blocker, and lock and blockproc? XXX */
 	/* Application and data remain the same */
 	/* Clone exception  becomes real one, as with fdno */
-	ast_copy_flags(original, clonechan, AST_FLAG_EXCEPTION);
+	ast_copy_flags(original, clonechan, AST_FLAG_EXCEPTION | AST_FLAG_OUTGOING);
 	original->fdno = clonechan->fdno;
 	/* Schedule context remains the same */
 	/* Stream stuff stays the same */
@@ -4068,10 +4130,18 @@ int ast_do_masquerade(struct ast_channel *original)
 		ast_log(LOG_WARNING, "Channel type '%s' does not have a fixup routine (for %s)!  Bad things may happen.\n",
 			original->tech->type, original->name);
 
-	/* If an indication is currently playing maintain it on the channel that is taking the place of original */
-	if (original->visible_indication)
+	/* 
+	 * If an indication is currently playing, maintain it on the channel 
+	 * that is taking the place of original 
+	 *
+	 * This is needed because the masquerade is swapping out in the internals
+	 * of this channel, and the new channel private data needs to be made
+	 * aware of the current visible indication (RINGING, CONGESTION, etc.)
+	 */
+	if (original->visible_indication) {
 		ast_indicate(original, original->visible_indication);
-
+	}
+	
 	/* Now, at this point, the "clone" channel is totally F'd up.  We mark it as
 	   a zombie so nothing tries to touch it.  If it's already been marked as a
 	   zombie, then free it now (since it already is considered invalid). */
