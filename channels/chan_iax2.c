@@ -10662,7 +10662,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 			} else if (!strcasecmp(v->name, "trunk")) {
 				ast_set2_flag(peer, ast_true(v->value), IAX_TRUNK);	
 				if (ast_test_flag(peer, IAX_TRUNK) && (timingfd < 0)) {
-					ast_log(LOG_WARNING, "Unable to support trunking on peer '%s' without DAHDI timing\n", peer->name);
+					ast_log(LOG_WARNING, "Unable to support trunking on peer '%s' without a timing interface\n", peer->name);
 					ast_clear_flag(peer, IAX_TRUNK);
 				}
 			} else if (!strcasecmp(v->name, "auth")) {
