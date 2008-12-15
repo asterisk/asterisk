@@ -911,7 +911,7 @@ int ast_streamfile(struct ast_channel *chan, const char *filename, const char *p
 	 * return the file had no data. */
 	seekattempt = fseek(fs->f, -1, SEEK_END);
 	if (!seekattempt)
-		fseek(fs->f, 0, SEEK_SET);
+		ast_seekstream(fs, 0, SEEK_SET);
 	else
 		return 0;
 
