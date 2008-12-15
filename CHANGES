@@ -87,6 +87,8 @@ Miscellaneous
    which are interpreted as relative to the astvarlibdir setting in asterisk.conf.
  * All deprecated CLI commands are removed from the sourcecode. They are now handled
    by the new clialiases module. See cli_aliases.conf.sample file.
+ * The realtime switch now supports an option flag, 'p', which disables searches for
+   pattern matches.
 
 Asterisk Manager Interface
 --------------------------

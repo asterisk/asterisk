@@ -60,4 +60,17 @@
 ;queue_members => odbc,asterisk
 ;musiconhold => mysql,asterisk
 ;queue_log => mysql,aasterisk
+;
+;
+; While most dynamic realtime engines are automatically used when defined in
+; this file, 'extensions', distinctively, is not.  To activate dynamic realtime
+; extensions, you must turn them on in each respective context within
+; extensions.conf with a switch statement.  The syntax is:
+;      switch => Realtime/[[db_context@]tablename]/<opts>
+; The only option available currently is the 'p' option, which disallows
+; extension pattern queries to the database.  If you have no patterns defined
+; in a particular context, this will save quite a bit of CPU time.  However,
+; note that using dynamic realtime extensions is not recommended anymore as a
+; best practice; instead, you should consider writing a static dialplan with
+; proper data abstraction via a tool like func_odbc.
 

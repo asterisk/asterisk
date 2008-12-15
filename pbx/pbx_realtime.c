@@ -46,12 +46,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/crypto.h"
 #include "asterisk/astdb.h"
+#include "asterisk/app.h"
 
 #define MODE_MATCH 		0
 #define MODE_MATCHMORE 	1
 #define MODE_CANMATCH 	2
 
 #define EXT_DATA_SIZE 256
+
+enum {
+	OPTION_PATTERNS_DISABLED = (1 << 0),
+} option_flags;
+
+AST_APP_OPTIONS(switch_opts, {
+	AST_APP_OPTION('p', OPTION_PATTERNS_DISABLED),
+});
 
 /* Realtime switch looks up extensions in the supplied realtime table.
 
@@ -67,7 +76,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 */
 
 
-static struct ast_variable *realtime_switch_common(const char *table, const char *context, const char *exten, int priority, int mode)
+static struct ast_variable *realtime_switch_common(const char *table, const char *context, const char *exten, int priority, int mode, struct ast_flags flags)
 {
 	struct ast_variable *var;
 	struct ast_config *cfg;
@@ -97,7 +106,7 @@ static struct ast_variable *realtime_switch_common(const char *table, const char
 		ast_copy_string(rexten, exten, sizeof(rexten));
 	}
 	var = ast_load_realtime(table, ematch, rexten, "context", context, "priority", pri, SENTINEL);
-	if (!var) {
+	if (!var && !ast_test_flag(&flags, OPTION_PATTERNS_DISABLED)) {
 		cfg = ast_load_realtime_multientry(table, "exten LIKE", "\\_%", "context", context, "priority", pri, SENTINEL);	
 		if (cfg) {
 			char *cat = ast_category_browse(cfg, NULL);
@@ -131,8 +140,11 @@ static struct ast_variable *realtime_common(const char *context, const char *ext
 	const char *ctx = NULL;
 	char *table;
 	struct ast_variable *var=NULL;
+	struct ast_flags flags = { 0, };
 	char *buf = ast_strdupa(data);
 	if (buf) {
+		/* "Realtime" prefix is stripped off in the parent engine.  The
+		 * remaining string is: [[context@]table][/opts] */
 		char *opts = strchr(buf, '/');
 		if (opts)
 			*opts++ = '\0';
@@ -143,7 +155,10 @@ static struct ast_variable *realtime_common(const char *context, const char *ext
 		}
 		ctx = S_OR(ctx, context);
 		table = S_OR(table, "extensions");
-		var = realtime_switch_common(table, ctx, exten, priority, mode);
+		if (!ast_strlen_zero(opts)) {
+			ast_app_parse_options(switch_opts, &flags, NULL, opts);
+		}
+		var = realtime_switch_common(table, ctx, exten, priority, mode, flags);
 	}
 	return var;
 }
