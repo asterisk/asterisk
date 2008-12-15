@@ -1937,8 +1937,16 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	if (chan && peer) {
 		pbx_builtin_setvar_helper(chan, "BRIDGEPEER", peer->name);
 		pbx_builtin_setvar_helper(peer, "BRIDGEPEER", chan->name);
-	} else if (chan)
+	} else if (chan) {
 		pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", NULL);
+	}
+
+	/* This is an interesting case.  One example is if a ringing channel gets redirected to
+	 * an extension that picks up a parked call.  This will make sure that the call taken
+	 * out of parking gets told that the channel it just got bridged to is still ringing. */
+	if (chan->_state == AST_STATE_RINGING && peer->visible_indication != AST_CONTROL_RINGING) {
+		ast_indicate(peer, AST_CONTROL_RINGING);
+	}
 
 	if (monitor_ok) {
 		const char *monitor_exec;
