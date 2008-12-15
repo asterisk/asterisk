@@ -381,6 +381,10 @@ int ast_get_hint(char *hint, int maxlen, char *name, int maxnamelen,
  * \param priority priority of the action within the extension
  * \param callerid callerid to search for
  *
+ * \note It is possible for autoservice to be started and stopped on c during this
+ * function call, it is important that c is not locked prior to calling this. Otherwise
+ * a deadlock may occur
+ *
  * \return If an extension within the given context(or callerid) with the given priority 
  *         is found a non zero value will be returned. Otherwise, 0 is returned.
  */
@@ -396,6 +400,10 @@ int ast_exists_extension(struct ast_channel *c, const char *context, const char 
  * \param label label of the action within the extension to match to priority
  * \param callerid callerid to search for
  *
+ * \note It is possible for autoservice to be started and stopped on c during this
+ * function call, it is important that c is not locked prior to calling this. Otherwise
+ * a deadlock may occur
+ *
  * \retval the priority which matches the given label in the extension
  * \retval -1 if not found.
  */
@@ -404,6 +412,10 @@ int ast_findlabel_extension(struct ast_channel *c, const char *context,
 
 /*!
  * \brief Find the priority of an extension that has the specified label
+ *
+ * \note It is possible for autoservice to be started and stopped on c during this
+ * function call, it is important that c is not locked prior to calling this. Otherwise
+ * a deadlock may occur
  *
  * \note This function is the same as ast_findlabel_extension, except that it accepts
  * a pointer to an ast_context structure to specify the context instead of the
@@ -421,6 +433,10 @@ int ast_findlabel_extension2(struct ast_channel *c, struct ast_context *con,
  * \param priority priority of extension path
  * \param callerid callerid of extension being searched for
  *
+ * \note It is possible for autoservice to be started and stopped on c during this
+ * function call, it is important that c is not locked prior to calling this. Otherwise
+ * a deadlock may occur
+ *
  * \return If "exten" *could be* a valid extension in this context with or without
  * some more digits, return non-zero.  Basically, when this returns 0, no matter
  * what you add to exten, it's not going to be a valid extension anymore
@@ -436,6 +452,10 @@ int ast_canmatch_extension(struct ast_channel *c, const char *context,
  * \param exten extension to check
  * \param priority priority of extension path
  * \param callerid callerid of extension being searched for
+ *
+ * \note It is possible for autoservice to be started and stopped on c during this
+ * function call, it is important that c is not locked prior to calling this. Otherwise
+ * a deadlock may occur
  *
  * \return If "exten" *could match* a valid extension in this context with
  * some more digits, return non-zero.  Does NOT return non-zero if this is
