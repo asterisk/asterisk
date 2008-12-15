@@ -182,7 +182,7 @@ static void log_jack_status(const char *prefix, jack_status_t status)
 			ast_str_append(&str, 0, ", %s", jack_status_to_str((1 << i)));
 	}
 	
-	ast_log(LOG_NOTICE, "%s: %s\n", prefix, str->str);
+	ast_log(LOG_NOTICE, "%s: %s\n", prefix, ast_str_buffer(str));
 }
 
 static int alloc_resampler(struct jack_data *jack_data, int input)
