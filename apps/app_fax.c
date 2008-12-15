@@ -29,6 +29,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <tiffio.h>
 
 #include <spandsp.h>
+#ifdef HAVE_SPANDSP_EXPOSE_H
+#include <spandsp/expose.h>
+#endif
 
 #include "asterisk/lock.h"
 #include "asterisk/file.h"

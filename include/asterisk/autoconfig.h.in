@@ -736,6 +736,9 @@
 /* Define this to indicate the ${SPANDSP_DESCRIP} library */
 #undef HAVE_SPANDSP
 
+/* Define to 1 if spandsp/expose.h is available. */
+#undef HAVE_SPANDSP_EXPOSE_H
+
 /* Define to indicate the ${SPANDSP_DESCRIP} library version */
 #undef HAVE_SPANDSP_VERSION
 
