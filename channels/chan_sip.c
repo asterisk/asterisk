@@ -14313,7 +14313,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			ast_mutex_unlock(&p->lock);
 			if (p->refer->refer_call) {
 				ast_mutex_unlock(&p->refer->refer_call->lock);
-				ast_channel_unlock(p->refer->refer_call->owner);
+				if (p->refer->refer_call->owner) {
+					ast_channel_unlock(p->refer->refer_call->owner);
+				}
 			}
 			p->invitestate = INV_COMPLETED;
 			return -1;
