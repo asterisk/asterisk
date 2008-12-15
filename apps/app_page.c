@@ -68,6 +68,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="d">
 						<para>Full duplex audio</para>
 					</option>
+					<option name="i">
+						<para>Ignore attempts to forward the call</para>
+					</option>
 					<option name="q">
 						<para>Quiet, do not play beep to caller</para>
 					</option>
@@ -103,6 +106,7 @@ enum {
 	PAGE_QUIET = (1 << 1),
 	PAGE_RECORD = (1 << 2),
 	PAGE_SKIP = (1 << 3),
+	PAGE_IGNORE_FORWARDS = (1 << 4),
 } page_opt_flags;
 
 AST_APP_OPTIONS(page_opts, {
@@ -110,6 +114,7 @@ AST_APP_OPTIONS(page_opts, {
 	AST_APP_OPTION('q', PAGE_QUIET),
 	AST_APP_OPTION('r', PAGE_RECORD),
 	AST_APP_OPTION('s', PAGE_SKIP),
+	AST_APP_OPTION('i', PAGE_IGNORE_FORWARDS),
 });
 
 #define MAX_DIALS 128
@@ -207,6 +212,10 @@ static int page_exec(struct ast_channel *chan, void *data)
 
 		if (timeout) {
 			ast_dial_set_global_timeout(dial, timeout * 1000);
+		}
+
+		if (ast_test_flag(&flags, PAGE_IGNORE_FORWARDS)) {
+			ast_dial_option_global_enable(dial, AST_DIAL_OPTION_DISABLE_CALL_FORWARDING, NULL);
 		}
 
 		/* Run this dial in async mode */
