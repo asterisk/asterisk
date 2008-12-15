@@ -476,6 +476,8 @@ struct ast_frame *ast_frdup(const struct ast_frame *f)
 	if (out->datalen) {
 		out->data.ptr = buf + sizeof(*out) + AST_FRIENDLY_OFFSET;
 		memcpy(out->data.ptr, f->data.ptr, out->datalen);	
+	} else {
+		out->data.uint32 = f->data.uint32;
 	}
 	if (srclen > 0) {
 		/* This may seem a little strange, but it's to avoid a gcc (4.2.4) compiler warning */
