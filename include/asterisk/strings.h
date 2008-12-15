@@ -481,7 +481,7 @@ char *ast_str_truncate(struct ast_str *buf, ssize_t len),
 {
 #ifdef DEBUG_OPAQUE
 	if (len < 0) {
-		buf->used2 += (ssize_t) abs(len) > buf->used2 ? -buf->used2 : len;
+		buf->used2 += ((ssize_t) abs(len)) > buf->used2 ? -buf->used2 : len;
 	} else {
 		buf->used2 = len;
 	}
@@ -489,7 +489,7 @@ char *ast_str_truncate(struct ast_str *buf, ssize_t len),
 	return buf->str2;
 #else
 	if (len < 0) {
-		buf->used += (ssize_t) abs(len) > buf->used ? -buf->used : len;
+		buf->used += ((ssize_t) abs(len)) > buf->used ? -buf->used : len;
 	} else {
 		buf->used = len;
 	}
