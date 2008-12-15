@@ -5558,7 +5558,7 @@ static char *__queues_show(struct mansession *s, int fd, int argc, char **argv)
 	ao2_lock(queues);
 	while ((q = ao2_iterator_next(&queue_iter))) {
 		float sl;
-		struct call_queue *realtime_queue;
+		struct call_queue *realtime_queue = NULL;
 
 		ao2_lock(q);
 		/* This check is to make sure we don't print information for realtime
@@ -5569,7 +5569,7 @@ static char *__queues_show(struct mansession *s, int fd, int argc, char **argv)
 			ao2_unlock(q);
 			queue_unref(q);
 			continue;
-		} else {
+		} else if (q->realtime) {
 			queue_unref(realtime_queue);
 		}
 		if (argc == 3 && strcasecmp(q->name, argv[2])) {
