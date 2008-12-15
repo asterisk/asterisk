@@ -820,7 +820,7 @@ void log_show_lock(void *this_lock_addr)
 			   it's acquired... */
 			if (lock_info->locks[i].lock_addr == this_lock_addr) {
 				append_lock_information(&str, lock_info, i);
-				ast_log(LOG_NOTICE, "%s", str->str);
+				ast_log(LOG_NOTICE, "%s", ast_str_buffer(str));
 				break;
 			}
 		}
@@ -893,7 +893,7 @@ static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	if (!str)
 		return CLI_FAILURE;
 
-	ast_cli(a->fd, "%s", str->str);
+	ast_cli(a->fd, "%s", ast_str_buffer(str));
 
 	ast_free(str);
 
