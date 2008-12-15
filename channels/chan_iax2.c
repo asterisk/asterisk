@@ -12573,12 +12573,13 @@ static int load_module(void)
 	ast_manager_register( "IAXnetstats", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_netstats, "Show IAX Netstats" );
 	ast_manager_register( "IAXregistry", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_registry, "Show IAX registrations");
 
-	if(set_config(config, 0) == -1)
-		return AST_MODULE_LOAD_DECLINE;
-
 	timingfd = ast_timer_open();
 	if (timingfd > -1) {
 		ast_timer_set_rate(timingfd, trunkfreq);
+	}
+
+	if (set_config(config, 0) == -1) {
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
  	if (ast_channel_register(&iax2_tech)) {
