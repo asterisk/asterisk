@@ -23,7 +23,7 @@
 #ifndef _ASTERISK_STRINGS_H
 #define _ASTERISK_STRINGS_H
 
-#define DEBUG_OPAQUE
+/* #define DEBUG_OPAQUE */
 
 #include <ctype.h>
 
@@ -32,7 +32,7 @@
 
 /* You may see casts in this header that may seem useless but they ensure this file is C++ clean */
 
-#define AS_OR(a,b)	ast_str_strlen(a) ? ast_str_buffer(a) : (b)
+#define AS_OR(a,b)	(a && ast_str_strlen(a)) ? ast_str_buffer(a) : (b)
 
 #ifdef AST_DEVMODE
 #define ast_strlen_zero(foo)	_ast_strlen_zero(foo, __FILE__, __PRETTY_FUNCTION__, __LINE__)
