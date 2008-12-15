@@ -1187,6 +1187,11 @@ int ast_autoservice_start(struct ast_channel *chan);
 /*! 
  * \brief Stop servicing a channel for us...  
  *
+ * \note if chan is locked prior to calling ast_autoservice_stop, it
+ * is likely that there will be a deadlock between the thread that calls
+ * ast_autoservice_stop and the autoservice thread. It is important
+ * that chan is not locked prior to this call
+ *
  * \retval 0 success
  * \retval -1 error, or the channel has been hungup 
  */
