@@ -9386,7 +9386,9 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 
 	/* exit if we are already in process with this registrar ?*/
 	if ( r == NULL || ((auth==NULL) && (r->regstate==REG_STATE_REGSENT || r->regstate==REG_STATE_AUTHSENT))) {
-		ast_log(LOG_NOTICE, "Strange, trying to register %s@%s when registration already pending\n", r->username, r->hostname);
+		if (r) {
+			ast_log(LOG_NOTICE, "Strange, trying to register %s@%s when registration already pending\n", r->username, r->hostname);
+		}
 		return 0;
 	}
 
