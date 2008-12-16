@@ -1620,8 +1620,6 @@ static void destroy_pattern_tree(struct match_char *pattern_tree) /* pattern tre
  * Special characters used in patterns:
  *	'_'	underscore is the leading character of a pattern.
  *		In other position it is treated as a regular char.
- *	' ' '-'	space and '-' are separator and ignored. Why? so
- *	        patterns like NXX-XXX-XXXX or NXX XXX XXXX will work.
  *	.	one or more of any character. Only allowed at the end of
  *		a pattern.
  *	!	zero or more of anything. Also impacts the result of CANMATCH
@@ -1644,8 +1642,7 @@ static void destroy_pattern_tree(struct match_char *pattern_tree) /* pattern tre
  *		considered specially.
  *
  * When we compare a pattern with a specific extension, all characters in the extension
- * itself are considered literally with the only exception of '-' which is considered
- * as a separator and thus ignored.
+ * itself are considered literally.
  * XXX do we want to consider space as a separator as well ?
  * XXX do we want to consider the separators in non-patterns as well ?
  */
@@ -1682,8 +1679,7 @@ static int ext_cmp1(const char **p)
 	/* load, sign extend and advance pointer until we find
 	 * a valid character.
 	 */
-	while ( (c = *(*p)++) && (c == ' ' || c == '-') )
-		;	/* ignore some characters */
+	c = *(*p)++;
 
 	/* always return unless we have a set of chars */
 	switch (toupper(c)) {
