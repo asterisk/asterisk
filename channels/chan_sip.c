@@ -21297,6 +21297,9 @@ static int reload_config(enum channelreloadreason reason)
 			if (ast_parse_arg(externhost, PARSE_INADDR, &externip))
 				ast_log(LOG_WARNING, "Invalid address for externhost keyword: %s\n", externhost);
 			externexpire = time(NULL);
+			/* If no port was specified use the value of bindport */
+			if (!externip.sin_port)
+				externip.sin_port = bindaddr.sin_port;
 		} else if (!strcasecmp(v->name, "externrefresh")) {
 			if (sscanf(v->value, "%d", &externrefresh) != 1) {
 				ast_log(LOG_WARNING, "Invalid externrefresh value '%s', must be an integer >0 at line %d\n", v->value, v->lineno);
