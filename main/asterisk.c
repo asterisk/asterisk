@@ -78,6 +78,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/stat.h>
 #if defined(HAVE_SYSINFO)
 #include <sys/sysinfo.h>
+#elif defined(HAVE_SYSCTL)
+#include <sys/param.h>
+#include <sys/sysctl.h>
+#include <sys/swap.h>
 #endif
 #include <regex.h>
 
@@ -497,11 +501,114 @@ static char *handle_show_threads(struct ast_cli_entry *e, int cmd, struct ast_cl
 	return CLI_SUCCESS;
 }
 
-#if defined(HAVE_SYSINFO)
+#if defined (HAVE_SYSCTL) && defined(HAVE_SWAPCTL)
+/*
+ * swapmode is rewritten by Tobias Weingartner <weingart@openbsd.org>
+ * to be based on the new swapctl(2) system call.
+ */
+static int swapmode(int *used, int *total)
+{
+	struct swapent *swdev;
+	int nswap, rnswap, i;
+
+	nswap = swapctl(SWAP_NSWAP, 0, 0);
+	if (nswap == 0)
+		return 0;
+
+	swdev = ast_calloc(nswap, sizeof(*swdev));
+	if (swdev == NULL)
+		return 0;
+
+	rnswap = swapctl(SWAP_STATS, swdev, nswap);
+	if (rnswap == -1) {
+		ast_free(swdev);
+		return 0;
+	}
+
+	/* if rnswap != nswap, then what? */
+
+	/* Total things up */
+	*total = *used = 0;
+	for (i = 0; i < nswap; i++) {
+		if (swdev[i].se_flags & SWF_ENABLE) {
+			*used += (swdev[i].se_inuse / (1024 / DEV_BSIZE));
+			*total += (swdev[i].se_nblks / (1024 / DEV_BSIZE));
+		}
+	}
+	ast_free(swdev);
+	return 1;
+}
+#elif defined(HAVE_SYSCTL)
+static int swapmode(int *used, int *total)
+{
+	used = total = 0;
+	return 1;
+}
+#endif
+
 /*! \brief Give an overview of system statistics */
 static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
+	int64_t physmem, freeram;
+	int totalswap, freeswap, nprocs;
+	long uptime = 0;
+#if defined(HAVE_SYSINFO)
 	struct sysinfo sys_info;
+	sysinfo(&sys_info)
+	uptime = sys_info.uptime/3600;
+	physmem = sys_info.totalram * sys_info.mem_unit;
+	freeram = (sys_info.freeram * sys_info.mem_unit) / 1024;
+	totalswap = (sys_info.totalswap * sys_info.mem_unit) / 1024;
+	freeswap = (sys_info.freeswap * sys_info.mem_unit) / 1024;
+	nprocs = sys_info.nprocs;
+#elif defined(HAVE_SYSCTL)
+	static int pageshift;
+	struct vmtotal vmtotal;
+	struct timeval	boottime;
+	time_t	now;
+	int mib[2], pagesize, usedswap;
+	size_t len;
+	/* calculate the uptime by looking at boottime */
+	time(&now);
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_BOOTTIME;
+	len = sizeof(boottime);
+	if (sysctl(mib, 2, &boottime, &len, NULL, 0) != -1) {
+		uptime = now - boottime.tv_sec;
+	}
+	uptime = uptime/3600;
+	/* grab total physical memory  */
+	mib[0] = CTL_HW;
+	mib[1] = HW_PHYSMEM64;
+	len = sizeof(physmem);
+	sysctl(mib, 2, &physmem, &len, NULL, 0);
+
+	pagesize = getpagesize();
+	pageshift = 0;
+	while (pagesize > 1) {
+		pageshift++;
+		pagesize >>= 1;
+	}
+
+	/* we only need the amount of log(2)1024 for our conversion */
+	pageshift -= 10;
+
+	/* grab vm totals */
+	mib[0] = CTL_VM;
+	mib[1] = VM_METER;
+	len = sizeof(vmtotal);
+	sysctl(mib, 2, &vmtotal, &len, NULL, 0);
+	freeram = (vmtotal.t_free << pageshift);
+	/* generate swap usage and totals */
+	swapmode(&usedswap, &totalswap); 
+	freeswap = (totalswap - usedswap);
+	/* grab number of processes */
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_NPROCS;
+	len = sizeof(nprocs);
+	sysctl(mib, 2, &nprocs, &len, NULL, 0);
+#endif
+
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "core show sysinfo";
@@ -512,22 +619,20 @@ static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cl
 	case CLI_GENERATE:
 		return NULL;
 	}
-	if (sysinfo(&sys_info)) {
-		ast_cli(a->fd, "FAILED to retrieve system information\n\n");
-		return CLI_FAILURE;
-	}
+
 	ast_cli(a->fd, "\nSystem Statistics\n");
 	ast_cli(a->fd, "-----------------\n");
-	ast_cli(a->fd, "  System Uptime:             %ld hours\n", sys_info.uptime/3600);
-	ast_cli(a->fd, "  Total RAM:                 %ld KiB\n", (sys_info.totalram * sys_info.mem_unit)/1024);
-	ast_cli(a->fd, "  Free RAM:                  %ld KiB\n", (sys_info.freeram * sys_info.mem_unit)/1024);
+	ast_cli(a->fd, "  System Uptime:             %ld hours\n", uptime);
+	ast_cli(a->fd, "  Total RAM:                 %ld KiB\n", (long)physmem/1024);
+	ast_cli(a->fd, "  Free RAM:                  %ld KiB\n", (long)freeram);
+#if defined(HAVE_SYSINFO)
 	ast_cli(a->fd, "  Buffer RAM:                %ld KiB\n", (sys_info.bufferram * sys_info.mem_unit)/1024);
-	ast_cli(a->fd, "  Total Swap Space:          %ld KiB\n", (sys_info.totalswap * sys_info.mem_unit)/1024);
-	ast_cli(a->fd, "  Free Swap Space:           %ld KiB\n\n", (sys_info.freeswap * sys_info.mem_unit)/1024);
-	ast_cli(a->fd, "  Number of Processes:       %d \n\n", sys_info.procs);
+#endif
+	ast_cli(a->fd, "  Total Swap Space:          %ld KiB\n", (long)totalswap);
+	ast_cli(a->fd, "  Free Swap Space:           %ld KiB\n\n", (long)freeswap);
+	ast_cli(a->fd, "  Number of Processes:       %d \n\n", nprocs);
 	return CLI_SUCCESS;
 }
-#endif
 
 struct profile_entry {
 	const char *name;
@@ -1913,7 +2018,7 @@ static struct ast_cli_entry cli_asterisk[] = {
 #if !defined(LOW_MEMORY)
 	AST_CLI_DEFINE(handle_show_version_files, "List versions of files used to build Asterisk"),
 	AST_CLI_DEFINE(handle_show_threads, "Show running threads"),
-#if defined(HAVE_SYSINFO)
+#if defined(HAVE_SYSINFO) || defined(HAVE_SYSCTL)
 	AST_CLI_DEFINE(handle_show_sysinfo, "Show System Information"),
 #endif
 	AST_CLI_DEFINE(handle_show_profile, "Display profiling info"),

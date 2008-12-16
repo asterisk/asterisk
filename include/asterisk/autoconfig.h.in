@@ -934,6 +934,12 @@
 /* Define to indicate the ${SUPPSERV_DESCRIP} library version */
 #undef HAVE_SUPPSERV_VERSION
 
+/* Define to 1 if you have the `swapctl' function. */
+#undef HAVE_SWAPCTL
+
+/* Define to 1 if you have the `sysctl' function. */
+#undef HAVE_SYSCTL
+
 /* Define to 1 if your system has sysinfo support */
 #undef HAVE_SYSINFO
 
