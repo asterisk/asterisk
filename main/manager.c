@@ -138,6 +138,7 @@ static struct {
 } command_blacklist[] = {
 	{{ "module", "load", NULL }},
 	{{ "module", "unload", NULL }},
+	{{ "restart", "gracefully", NULL }},
 };
 
 struct mansession {
