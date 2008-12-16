@@ -481,7 +481,7 @@ static int spawn_mp3(struct mohclass *class)
 			}
 		}
 		/* Child */
-		if (chdir(class->dir) < 0) {
+		if (strcasecmp(class->dir, "nodir") && chdir(class->dir) < 0) {
 			ast_log(LOG_WARNING, "chdir() failed: %s\n", strerror(errno));
 			_exit(1);
 		}
