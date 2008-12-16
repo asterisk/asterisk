@@ -11443,8 +11443,10 @@ static enum check_auth_result check_user_ok(struct sip_pvt *p, char *of,
 
 	ast_copy_flags(&p->flags[0], &user->flags[0], SIP_FLAGS_TO_COPY);
 	ast_copy_flags(&p->flags[1], &user->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
-	/* copy channel vars */
-	p->chanvars = copy_vars(user->chanvars);
+	if (sipmethod == SIP_INVITE) {
+		/* copy channel vars */
+		p->chanvars = copy_vars(user->chanvars);
+	}
 	p->prefs = user->prefs;
 	/* Set Frame packetization */
 	if (p->rtp) {
@@ -11599,8 +11601,11 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 		ast_string_field_set(p, peername, peer->name);
 		ast_string_field_set(p, authname, peer->name);
 
-		/* copy channel vars */
-		p->chanvars = copy_vars(peer->chanvars);
+		if (sipmethod == SIP_INVITE) {
+			/* copy channel vars */
+			p->chanvars = copy_vars(peer->chanvars);
+		}
+
 		if (authpeer) {
 			(*authpeer) = ASTOBJ_REF(peer);	/* Add a ref to the object here, to keep it in memory a bit longer if it is realtime */
 		}
