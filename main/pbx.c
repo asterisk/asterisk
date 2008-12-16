@@ -212,6 +212,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<argument name="weekdays" required="true" />
 				<argument name="mdays" required="true" />
 				<argument name="months" required="true" />
+				<argument name="timezone" required="false" />
 			</parameter>
 			<parameter name="appname" required="true" hasparams="optional">
 				<argument name="appargs" required="true" />
@@ -306,6 +307,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<argument name="weekdays" required="true" />
 				<argument name="mdays" required="true" />
 				<argument name="months" required="true" />
+				<argument name="timezone" required="false" />
 			</parameter>
 			<parameter name="destination" required="true" argsep=":">
 				<argument name="labeliftrue" />
@@ -4613,6 +4615,7 @@ int ast_context_remove_include2(struct ast_context *con, const char *include, co
 			else
 				con->includes = i->next;
 			/* free include and return */
+			ast_destroy_timing(&(i->timing));
 			ast_free(i);
 			ret = 0;
 			break;
@@ -6793,15 +6796,32 @@ static char *months[] =
 
 int ast_build_timing(struct ast_timing *i, const char *info_in)
 {
-	char info_save[256];
-	char *info;
+	char *info_save, *info;
+	int j, num_fields, last_sep = -1;
 
 	/* Check for empty just in case */
-	if (ast_strlen_zero(info_in))
+	if (ast_strlen_zero(info_in)) {
 		return 0;
+	}
+
 	/* make a copy just in case we were passed a static string */
-	ast_copy_string(info_save, info_in, sizeof(info_save));
-	info = info_save;
+	info_save = info = ast_strdupa(info_in);
+
+	/* count the number of fields in the timespec */
+	for (j = 0, num_fields = 1; info[j] != '\0'; j++) {
+		if (info[j] == ',') {
+			last_sep = j;
+			num_fields++;
+		}
+	}
+
+	/* save the timezone, if it is specified */
+	if (num_fields == 5) {
+		i->timezone = ast_strdup(info + last_sep + 1);
+	} else {
+		i->timezone = NULL;
+	}
+
 	/* Assume everything except time */
 	i->monthmask = 0xfff;	/* 12 bits */
 	i->daymask = 0x7fffffffU; /* 31 bits */
@@ -6822,7 +6842,7 @@ int ast_check_timing(const struct ast_timing *i)
 	struct ast_tm tm;
 	struct timeval now = ast_tvnow();
 
-	ast_localtime(&now, &tm, NULL);
+	ast_localtime(&now, &tm, i->timezone);
 
 	/* If it's not the right month, return */
 	if (!(i->monthmask & (1 << tm.tm_mon)))
@@ -6852,6 +6872,14 @@ int ast_check_timing(const struct ast_timing *i)
 	return 1;
 }
 
+int ast_destroy_timing(struct ast_timing *i)
+{
+	if (i->timezone) {
+		ast_free(i->timezone);
+		i->timezone = NULL;
+	}
+	return 0;
+}
 /*
  * errno values
  *  ENOMEM - out of memory
@@ -6896,6 +6924,7 @@ int ast_context_add_include2(struct ast_context *con, const char *value,
 	/* ... go to last include and check if context is already included too... */
 	for (i = con->includes; i; i = i->next) {
 		if (!strcasecmp(i->name, new_include->name)) {
+			ast_destroy_timing(&(new_include->timing));
 			ast_free(new_include);
 			ast_unlock_context(con);
 			errno = EEXIST;
@@ -8380,7 +8409,7 @@ static int pbx_builtin_gotoiftime(struct ast_channel *chan, void *data)
 	struct ast_timing timing;
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "GotoIfTime requires an argument:\n  <time range>,<days of week>,<days of month>,<months>?'labeliftrue':'labeliffalse'\n");
+		ast_log(LOG_WARNING, "GotoIfTime requires an argument:\n  <time range>,<days of week>,<days of month>,<months>[,<timezone>]?'labeliftrue':'labeliffalse'\n");
 		return -1;
 	}
 
@@ -8396,6 +8425,7 @@ static int pbx_builtin_gotoiftime(struct ast_channel *chan, void *data)
 		branch = branch1;
 	else
 		branch = branch2;
+	ast_destroy_timing(&timing);
 
 	if (ast_strlen_zero(branch)) {
 		ast_debug(1, "Not taking any branch\n");
@@ -8413,7 +8443,7 @@ static int pbx_builtin_execiftime(struct ast_channel *chan, void *data)
 	char *s, *appname;
 	struct ast_timing timing;
 	struct ast_app *app;
-	static const char *usage = "ExecIfTime requires an argument:\n  <time range>,<days of week>,<days of month>,<months>?<appname>[(<appargs>)]";
+	static const char *usage = "ExecIfTime requires an argument:\n  <time range>,<days of week>,<days of month>,<months>[,<timezone>]?<appname>[(<appargs>)]";
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "%s\n", usage);
@@ -8430,11 +8460,15 @@ static int pbx_builtin_execiftime(struct ast_channel *chan, void *data)
 
 	if (!ast_build_timing(&timing, s)) {
 		ast_log(LOG_WARNING, "Invalid Time Spec: %s\nCorrect usage: %s\n", s, usage);
+		ast_destroy_timing(&timing);
 		return -1;
 	}
 
-	if (!ast_check_timing(&timing))	/* outside the valid time window, just return */
+	if (!ast_check_timing(&timing))	{ /* outside the valid time window, just return */
+		ast_destroy_timing(&timing);
 		return 0;
+	}
+	ast_destroy_timing(&timing);
 
 	/* now split appname(appargs) */
 	if ((s = strchr(appname, '('))) {

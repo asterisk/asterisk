@@ -1,0 +1,6 @@
+PBX changes
+-----------
+ * If you use ast_build_timing() in your application, you should start calling
+   ast_destroy_timing() upon destruction of the structure, to avoid a memory
+   leak.
+

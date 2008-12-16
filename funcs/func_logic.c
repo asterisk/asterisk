@@ -148,6 +148,7 @@ static int iftime(struct ast_channel *chan, const char *cmd, char *data, char *b
 
 	if (!ast_build_timing(&timing, expr)) {
 		ast_log(LOG_WARNING, "Invalid Time Spec.\n");
+		ast_destroy_timing(&timing);
 		return -1;
 	}
 
@@ -157,6 +158,7 @@ static int iftime(struct ast_channel *chan, const char *cmd, char *data, char *b
 		iffalse = ast_strip_quoted(iffalse, "\"", "\"");
 
 	ast_copy_string(buf, ast_check_timing(&timing) ? iftrue : iffalse, len);
+	ast_destroy_timing(&timing);
 
 	return 0;
 }

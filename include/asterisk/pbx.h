@@ -119,10 +119,27 @@ struct ast_timing {
 	unsigned int daymask;           /*!< Mask for date */
 	unsigned int dowmask;           /*!< Mask for day of week (sun-sat) */
 	unsigned int minmask[48];       /*!< Mask for minute */
+	char *timezone;                 /*!< NULL, or zoneinfo style timezone */
 };
 
+/*!\brief Construct a timing bitmap, for use in time-based conditionals.
+ * \param i Pointer to an ast_timing structure.
+ * \param info Standard string containing a timerange, weekday range, monthday range, and month range, as well as an optional timezone.
+ * \retval Returns 1 on success or 0 on failure.
+ */
 int ast_build_timing(struct ast_timing *i, const char *info);
+
+/*!\brief Evaluate a pre-constructed bitmap as to whether the current time falls within the range specified.
+ * \param i Pointer to an ast_timing structure.
+ * \retval Returns 1, if the time matches or 0, if the current time falls outside of the specified range.
+ */
 int ast_check_timing(const struct ast_timing *i);
+
+/*!\brief Deallocates memory structures associated with a timing bitmap.
+ * \param i Pointer to an ast_timing structure.
+ * \retval Returns 0 on success or a number suitable for passing into strerror, otherwise.
+ */
+int ast_destroy_timing(struct ast_timing *i);
 
 struct ast_pbx {
 	int dtimeoutms;				/*!< Timeout between digits (milliseconds) */

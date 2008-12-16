@@ -90,8 +90,16 @@ Miscellaneous
    which are interpreted as relative to the astvarlibdir setting in asterisk.conf.
  * All deprecated CLI commands are removed from the sourcecode. They are now handled
    by the new clialiases module. See cli_aliases.conf.sample file.
+ * Times within timespecs are now accurate down to the minute.  This is a change
+   from historical Asterisk, which only provided timespecs rounded to the nearest
+   even (read: evenly divisible by 2) minute mark.
  * The realtime switch now supports an option flag, 'p', which disables searches for
    pattern matches.
+ * In addition to a time range and date range, timespecs now accept a 5th optional
+   argument, timezone.  This allows you to perform time checks on alternate
+   timezones, especially if those daylight savings time ranges vary from your
+   machine's native timezone.  See GotoIfTime, ExecIfTime, IFTIME(), and timed
+   includes.
 
 Asterisk Manager Interface
 --------------------------

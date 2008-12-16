@@ -3061,20 +3061,24 @@ int localized_pbx_builtin_setvar(struct ast_channel *chan, void *data)
  * return the index of the matching entry, starting from 1.
  * If names is not supplied, try numeric values.
  */
-
 static int lookup_name(const char *s, char *const names[], int max)
 {
 	int i;
 
-	if (names) {
+	if (names && *s > '9') {
 		for (i = 0; names[i]; i++) {
-			if (!strcasecmp(s, names[i]))
-				return i+1;
+			if (!strcasecmp(s, names[i])) {
+				return i;
+			}
 		}
-	} else if (sscanf(s, "%d", &i) == 1 && i >= 1 && i <= max) {
-		return i;
 	}
-	return 0; /* error return */
+
+	/* Allow months and weekdays to be specified as numbers, as well */
+	if (sscanf(s, "%d", &i) == 1 && i >= 1 && i <= max) {
+		/* What the array offset would have been: "1" would be at offset 0 */
+		return i - 1;
+	}
+	return -1; /* error return */
 }
 
 /*! \brief helper function to return a range up to max (7, 12, 31 respectively).
@@ -3082,44 +3086,42 @@ static int lookup_name(const char *s, char *const names[], int max)
  */
 static unsigned get_range(char *src, int max, char *const names[], const char *msg)
 {
-	int s, e; /* start and ending position */
+	int start, end; /* start and ending position */
 	unsigned int mask = 0;
+	char *part;
 
 	/* Check for whole range */
 	if (ast_strlen_zero(src) || !strcmp(src, "*")) {
-		s = 0;
-		e = max - 1;
-	} else {
-		/* Get start and ending position */
-		char *c = strchr(src, '-');
-		if (c)
-			*c++ = '\0';
-		/* Find the start */
-		s = lookup_name(src, names, max);
-		if (!s) {
-			ast_log(LOG_WARNING, "Invalid %s '%s', assuming none\n", msg, src);
-			return 0;
-		}
-		s--;
-		if (c) { /* find end of range */
-			e = lookup_name(c, names, max);
-			if (!e) {
-				ast_log(LOG_WARNING, "Invalid end %s '%s', assuming none\n", msg, c);
-				return 0;
-			}
-			e--;
-		} else
-			e = s;
+		return (1 << max) - 1;
 	}
-	/* Fill the mask. Remember that ranges are cyclic */
-	mask = 1 << e;	/* initialize with last element */
-	while (s != e) {
-		if (s >= max) {
-			s = 0;
-			mask |= (1 << s);
+
+	while ((part = strsep(&src, "&"))) {
+		/* Get start and ending position */
+		char *endpart = strchr(part, '-');
+		if (endpart) {
+			*endpart++ = '\0';
+		}
+		/* Find the start */
+		if ((start = lookup_name(part, names, max)) < 0) {
+			ast_log(LOG_WARNING, "Invalid %s '%s', skipping element\n", msg, part);
+			continue;
+		}
+		if (endpart) { /* find end of range */
+			if ((end = lookup_name(endpart, names, max)) < 0) {
+				ast_log(LOG_WARNING, "Invalid end %s '%s', skipping element\n", msg, endpart);
+				continue;
+			}
 		} else {
-			mask |= (1 << s);
-			s++;
+			end = start;
+		}
+		/* Fill the mask. Remember that ranges are cyclic */
+		mask |= (1 << end);   /* initialize with last element */
+		while (start != end) {
+			if (start >= max) {
+				start = 0;
+			}
+			mask |= (1 << start);
+			start++;
 		}
 	}
 	return mask;
@@ -3128,85 +3130,60 @@ static unsigned get_range(char *src, int max, char *const names[], const char *m
 /*! \brief store a bitmask of valid times, one bit each 2 minute */
 static void get_timerange(struct ast_timing *i, char *times)
 {
-	char *e;
+	char *endpart, *part;
 	int x;
-	int s1, s2;
-	int e1, e2;
-	/*	int cth, ctm; */
+	int st_h, st_m;
+	int endh, endm;
+	int minute_start, minute_end;
 
 	/* start disabling all times, fill the fields with 0's, as they may contain garbage */
 	memset(i->minmask, 0, sizeof(i->minmask));
 
-	/* 2-minutes per bit, since the mask has only 32 bits :( */
+	/* 1-minute per bit */
 	/* Star is all times */
 	if (ast_strlen_zero(times) || !strcmp(times, "*")) {
-		for (x=0; x<24; x++)
+		/* 48, because each hour takes 2 integers; 30 bits each */
+		for (x = 0; x < 48; x++) {
 			i->minmask[x] = 0x3fffffff; /* 30 bits */
+		}
 		return;
 	}
 	/* Otherwise expect a range */
-	e = strchr(times, '-');
-	if (!e) {
-		ast_log(LOG_WARNING, "Time range is not valid. Assuming no restrictions based on time.\n");
-		return;
-	}
-	*e++ = '\0';
-	/* XXX why skip non digits ? */
-	while (*e && !isdigit(*e))
-		e++;
-	if (!*e) {
-		ast_log(LOG_WARNING, "Invalid time range.  Assuming no restrictions based on time.\n");
-		return;
-	}
-	if (sscanf(times, "%d:%d", &s1, &s2) != 2) {
-		ast_log(LOG_WARNING, "%s isn't a time.  Assuming no restrictions based on time.\n", times);
-		return;
-	}
-	if (sscanf(e, "%d:%d", &e1, &e2) != 2) {
-		ast_log(LOG_WARNING, "%s isn't a time.  Assuming no restrictions based on time.\n", e);
-		return;
-	}
-	/* XXX this needs to be optimized */
-#if 1
-	s1 = s1 * 30 + s2/2;
-	if ((s1 < 0) || (s1 >= 24*30)) {
-		ast_log(LOG_WARNING, "%s isn't a valid start time. Assuming no time.\n", times);
-		return;
-	}
-	e1 = e1 * 30 + e2/2;
-	if ((e1 < 0) || (e1 >= 24*30)) {
-		ast_log(LOG_WARNING, "%s isn't a valid end time. Assuming no time.\n", e);
-		return;
-	}
-	/* Go through the time and enable each appropriate bit */
-	for (x=s1;x != e1;x = (x + 1) % (24 * 30)) {
-		i->minmask[x/30] |= (1 << (x % 30));
-	}
-	/* Do the last one */
-	i->minmask[x/30] |= (1 << (x % 30));
-#else
-	for (cth=0; cth<24; cth++) {
-		/* Initialize masks to blank */
-		i->minmask[cth] = 0;
-		for (ctm=0; ctm<30; ctm++) {
-			if (
-			/* First hour with more than one hour */
-			      (((cth == s1) && (ctm >= s2)) &&
-			       ((cth < e1)))
-			/* Only one hour */
-			||    (((cth == s1) && (ctm >= s2)) &&
-			       ((cth == e1) && (ctm <= e2)))
-			/* In between first and last hours (more than 2 hours) */
-			||    ((cth > s1) &&
-			       (cth < e1))
-			/* Last hour with more than one hour */
-			||    ((cth > s1) &&
-			       ((cth == e1) && (ctm <= e2)))
-			)
-				i->minmask[cth] |= (1 << (ctm / 2));
+	while ((part = strsep(&times, "&"))) {
+		if (!(endpart = strchr(part, '-'))) {
+			if (sscanf(part, "%d:%d", &st_h, &st_m) != 2 || st_h < 0 || st_h > 23 || st_m < 0 || st_m > 59) {
+				ast_log(LOG_WARNING, "%s isn't a valid time.\n", part);
+				continue;
+			}
+			i->minmask[st_h * 2 + (st_m >= 30 ? 1 : 0)] |= (1 << (st_m % 30));
+			continue;
 		}
+		*endpart++ = '\0';
+		/* why skip non digits? Mostly to skip spaces */
+		while (*endpart && !isdigit(*endpart)) {
+			endpart++;
+		}
+		if (!*endpart) {
+			ast_log(LOG_WARNING, "Invalid time range starting with '%s-'.\n", part);
+			continue;
+		}
+		if (sscanf(part, "%d:%d", &st_h, &st_m) != 2 || st_h < 0 || st_h > 23 || st_m < 0 || st_m > 59) {
+			ast_log(LOG_WARNING, "'%s' isn't a valid start time.\n", part);
+			continue;
+		}
+		if (sscanf(endpart, "%d:%d", &endh, &endm) != 2 || endh < 0 || endh > 23 || endm < 0 || endm > 59) {
+			ast_log(LOG_WARNING, "'%s' isn't a valid end time.\n", endpart);
+			continue;
+		}
+		minute_start = st_h * 60 + st_m;
+		minute_end = endh * 60 + endm;
+		/* Go through the time and enable each appropriate bit */
+		for (x = minute_start; x != minute_end; x = (x + 1) % (24 * 60)) {
+			i->minmask[x / 30] |= (1 << (x % 30));
+		}
+		/* Do the last one */
+		i->minmask[x / 30] |= (1 << (x % 30));
 	}
-#endif
 	/* All done */
 	return;
 }
@@ -4313,29 +4290,46 @@ char *months[] =
 	NULL,
 };
 
-static int ast_build_timing(struct ast_timing *i, const char *info_in)
+int ast_build_timing(struct ast_timing *i, const char *info_in)
 {
-	char info_save[256];
-	char *info;
+	char *info_save, *info;
+	int j, num_fields, last_sep = -1;
 
 	/* Check for empty just in case */
-	if (ast_strlen_zero(info_in))
+	if (ast_strlen_zero(info_in)) {
 		return 0;
+	}
+
 	/* make a copy just in case we were passed a static string */
-	ast_copy_string(info_save, info_in, sizeof(info_save));
-	info = info_save;
+	info_save = info = ast_strdupa(info_in);
+
+	/* count the number of fields in the timespec */
+	for (j = 0, num_fields = 1; info[j] != '\0'; j++) {
+		if (info[j] == ',') {
+			last_sep = j;
+			num_fields++;
+		}
+	}
+
+	/* save the timezone, if it is specified */
+	if (num_fields == 5) {
+		i->timezone = ast_strdup(info + last_sep + 1);
+	} else {
+		i->timezone = NULL;
+	}
+
 	/* Assume everything except time */
 	i->monthmask = 0xfff;	/* 12 bits */
 	i->daymask = 0x7fffffffU; /* 31 bits */
 	i->dowmask = 0x7f; /* 7 bits */
 	/* on each call, use strsep() to move info to the next argument */
-	get_timerange(i, strsep(&info, "|"));
+	get_timerange(i, strsep(&info, "|,"));
 	if (info)
-		i->dowmask = get_range(strsep(&info, "|"), 7, days, "day of week");
+		i->dowmask = get_range(strsep(&info, "|,"), 7, days, "day of week");
 	if (info)
-		i->daymask = get_range(strsep(&info, "|"), 31, NULL, "day");
+		i->daymask = get_range(strsep(&info, "|,"), 31, NULL, "day");
 	if (info)
-		i->monthmask = get_range(strsep(&info, "|"), 12, months, "month");
+		i->monthmask = get_range(strsep(&info, "|,"), 12, months, "month");
 	return 1;
 }
 
@@ -4488,12 +4482,12 @@ static int ext_strncpy(char *dst, const char *src, int len)
  * Wrapper around _extension_match_core() to do performance measurement
  * using the profiling code.
  */
-static int ast_check_timing(const struct ast_timing *i)
+int ast_check_timing(const struct ast_timing *i)
 {
-	struct tm tm;
-	time_t t = time(NULL);
+	struct ast_tm tm;
+	struct timeval now = ast_tvnow();
 
-	localtime_r(&t,&tm);
+	ast_localtime(&now, &tm, i->timezone);
 
 	/* If it's not the right month, return */
 	if (!(i->monthmask & (1 << tm.tm_mon)))
@@ -4516,7 +4510,7 @@ static int ast_check_timing(const struct ast_timing *i)
 
 	/* Now the tough part, we calculate if it fits
 	   in the right time based on min/hour */
-	if (!(i->minmask[tm.tm_hour] & (1 << (tm.tm_min / 2))))
+	if (!(i->minmask[tm.tm_hour * 2 + (tm.tm_min >= 30 ? 1 : 0)] & (1 << (tm.tm_min >= 30 ? tm.tm_min - 30 : tm.tm_min))))
 		return 0;
 
 	/* If we got this far, then we're good */
@@ -5005,7 +4999,7 @@ static int ast_context_add_include2(struct ast_context *con, const char *value,
 	/* Strip off timing info, and process if it is there */
 	if ( (c = strchr(p, '|')) ) {
 		*c++ = '\0';
-	        new_include->hastime = ast_build_timing(&(new_include->timing), c);
+		new_include->hastime = ast_build_timing(&(new_include->timing), c);
 	}
 	new_include->next      = NULL;
 	new_include->registrar = registrar;
