@@ -24,6 +24,10 @@ PRIORITY=0
 # set system filemax on supported OSes if this variable is set
 # SYSMAXFILES=262144
 
+# Asterisk allows full permissions by default, so set a umask, if you want
+# restricted permissions.
+#UMASK=022
+
 # set max files open with ulimit. On linux systems, this will be automatically
 # set to the system's maximum files open devided by two, if not set here.
 # MAXFILES=32768
@@ -87,6 +91,10 @@ else
 	# set the process's filemax to whatever set above
 	ulimit -n $MAXFILES
 
+fi
+
+if test "x$UMASK" != "x"; then
+	umask $UMASK
 fi
 
 #
