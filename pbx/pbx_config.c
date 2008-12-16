@@ -1557,7 +1557,31 @@ process_extension:
 			} else if (!strcasecmp(v->name, "include")) {
 				pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
 				if (ast_context_add_include2(con, realvalue, registrar)) {
-					ast_log(LOG_WARNING, "Unable to include context '%s' in context '%s'\n", v->value, cxt);
+					switch (errno) {
+						case ENOMEM:
+							ast_log(LOG_WARNING, "Out of memory for context addition\n");
+							break;
+
+						case EBUSY:
+							ast_log(LOG_WARNING, "Failed to lock context(s) list, please try again later\n");
+							break;
+
+						case EEXIST:
+							ast_log(LOG_WARNING, "Context '%s' already included in '%s' context\n",
+									v->value, cxt);
+							break;
+
+						case ENOENT:
+						case EINVAL:
+							ast_log(LOG_WARNING, "There is no existence of context '%s'\n",
+									errno == ENOENT ? v->value : cxt);
+							break;
+
+						default:
+							ast_log(LOG_WARNING, "Failed to include '%s' in '%s' context\n",
+									v->value, cxt);
+							break;
+					}
 				}
 			} else if (!strcasecmp(v->name, "ignorepat")) {
 				pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
