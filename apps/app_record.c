@@ -356,6 +356,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 	if (!f) {
 		ast_debug(1, "Got hangup\n");
 		res = -1;
+		ast_filedelete(args.filename, NULL);
 	}
 
 	if (gotsilence) {
