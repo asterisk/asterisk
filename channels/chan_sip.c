@@ -38,6 +38,8 @@
  * \todo Better support of forking
  * \todo VIA branch tag transaction checking
  * \todo Transaction support
+ * \todo Asterisk should send a non-100 provisional response every minute to keep proxies
+ *  from cancelling the transaction (RFC 3261 13.3.1.1). See bug #11157.
  *
  * \ingroup channel_drivers
  *
