@@ -595,7 +595,8 @@ static void pbx_destroy(struct ast_pbx *p)
  * Special characters used in patterns:
  *	'_'	underscore is the leading character of a pattern.
  *		In other position it is treated as a regular char.
- *	' ' '-'	space and '-' are separator and ignored.
+ *	' ' '-'	space and '-' are separator and ignored. Why? so
+ *	        patterns like NXX-XXX-XXXX or NXX XXX XXXX will work.
  *	.	one or more of any character. Only allowed at the end of
  *		a pattern.
  *	!	zero or more of anything. Also impacts the result of CANMATCH
