@@ -514,6 +514,12 @@ static void lock_info_destroy(void *data)
 
 
 	for (i = 0; i < lock_info->num_locks; i++) {
+		if (lock_info->locks[i].pending == -1) {
+			/* This just means that the last lock this thread went for was by
+			 * using trylock, and it failed.  This is fine. */
+			break;
+		}
+
 		ast_log(LOG_ERROR, 
 			"Thread '%s' still has a lock! - '%s' (%p) from '%s' in %s:%d!\n", 
 			lock_info->thread_name,
