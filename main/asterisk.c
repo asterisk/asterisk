@@ -538,7 +538,7 @@ static int swapmode(int *used, int *total)
 	ast_free(swdev);
 	return 1;
 }
-#elif defined(HAVE_SYSCTL)
+#elif defined(HAVE_SYSCTL) && !defined(HAVE_SYSINFO)
 static int swapmode(int *used, int *total)
 {
 	used = total = 0;
@@ -554,13 +554,13 @@ static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cl
 	long uptime = 0;
 #if defined(HAVE_SYSINFO)
 	struct sysinfo sys_info;
-	sysinfo(&sys_info)
+	sysinfo(&sys_info);
 	uptime = sys_info.uptime/3600;
 	physmem = sys_info.totalram * sys_info.mem_unit;
 	freeram = (sys_info.freeram * sys_info.mem_unit) / 1024;
 	totalswap = (sys_info.totalswap * sys_info.mem_unit) / 1024;
 	freeswap = (sys_info.freeswap * sys_info.mem_unit) / 1024;
-	nprocs = sys_info.nprocs;
+	nprocs = sys_info.procs;
 #elif defined(HAVE_SYSCTL)
 	static int pageshift;
 	struct vmtotal vmtotal;
