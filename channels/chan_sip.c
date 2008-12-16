@@ -491,6 +491,12 @@ static int max_expiry = DEFAULT_MAX_EXPIRY;        /*!< Maximum accepted registr
 static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 static int mwi_expiry = DEFAULT_MWI_EXPIRY;
 
+#define DEFAULT_POKE_GAP   100
+#define DEFAULT_POKE_PEERS 1
+
+static int global_poke_gap = DEFAULT_POKE_GAP;              /*!< Time between our group of peer pokes */
+static int global_poke_peers = DEFAULT_POKE_PEERS;          /*!< Number of peers to poke at a given time */
+
 #define CALLERID_UNKNOWN        "Unknown"
 
 #define DEFAULT_MAXMS                2000             /*!< Qualification: Must be faster than 2 seconds by default */
@@ -22544,6 +22550,10 @@ static int reload_config(enum channelreloadreason reason)
 	global_min_se  = DEFAULT_MIN_SE;
 	global_max_se  = DEFAULT_MAX_SE;
 
+	/* Peer poking settings */
+	global_poke_gap = DEFAULT_POKE_GAP;
+	global_poke_peers = DEFAULT_POKE_PEERS;
+
 	/* Initialize some reasonable defaults at SIP reload (used both for channel and as default for devices */
 	ast_copy_string(default_context, DEFAULT_CONTEXT, sizeof(default_context));
 	default_subscribecontext[0] = '\0';
@@ -23000,6 +23010,16 @@ static int reload_config(enum channelreloadreason reason)
 				global_st_refresher = SESSION_TIMER_REFRESHER_UAS;
 			} else {
 				global_st_refresher = i;
+			}
+		} else if (!strcasecmp(v->name, "pokegap")) {
+			if (sscanf(v->value, "%d", &global_poke_gap) != 1) {
+				ast_log(LOG_WARNING, "Invalid pokegap '%s' at line %d of %s\n", v->value, v->lineno, config);
+				global_poke_gap = DEFAULT_POKE_GAP;
+			}
+		} else if (!strcasecmp(v->name, "pokepeers")) {
+			if (sscanf(v->value, "%d", &global_poke_peers) != 1) {
+				ast_log(LOG_WARNING, "Invalid pokepeers '%s' at line %d of %s\n", v->value, v->lineno, config);
+				global_poke_peers = DEFAULT_POKE_PEERS;
 			}
 		}
 	}
@@ -23675,13 +23695,10 @@ static int sip_get_codec(struct ast_channel *chan)
 	return p->jointcapability ? p->jointcapability : p->capability;	
 }
 
-/*! \brief Send a poke to all known peers 
-	Space them out 100 ms apart
-	XXX We might have a cool algorithm for this or use random - any suggestions?
-*/
+/*! \brief Send a poke to all known peers */
 static void sip_poke_all_peers(void)
 {
-	int ms = 0;
+	int ms = 0, num = 0;
 	struct ao2_iterator i;
 	struct sip_peer *peer;
 
@@ -23692,7 +23709,12 @@ static void sip_poke_all_peers(void)
 
 	while ((peer = ao2_t_iterator_next(&i, "iterate thru peers table"))) {
 		ao2_lock(peer);
-		ms += 100;
+		if (num == global_poke_peers) {
+			ms += global_poke_gap;
+			num = 0;
+		} else {
+			num++;
+		}
 		AST_SCHED_REPLACE_UNREF(peer->pokeexpire, sched, ms, sip_poke_peer_s, peer,
 				unref_peer(_data, "removing poke peer ref"),
 				unref_peer(peer, "removing poke peer ref"),
