@@ -12704,8 +12704,11 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 		ast_string_field_set(p, peername, peer->name);
 		ast_string_field_set(p, authname, peer->name);
 
-		/* copy channel vars */
-		p->chanvars = copy_vars(peer->chanvars);
+		if (sipmethod == SIP_INVITE) {
+			/* copy channel vars */
+			p->chanvars = copy_vars(peer->chanvars);
+		}
+
 		if (authpeer) {
 			ao2_t_ref(peer, 1, "copy pointer into (*authpeer)");
 			(*authpeer) = peer;	/* Add a ref to the object here, to keep it in memory a bit longer if it is realtime */
