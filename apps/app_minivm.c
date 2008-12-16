@@ -2194,7 +2194,6 @@ static int minivm_accmess_exec(struct ast_channel *chan, void *data)
 {
 	int argc = 0;
 	char *argv[2];
-	int res = 0;
 	char filename[PATH_MAX];
 	char tmp[PATH_MAX];
 	char *domain;
@@ -2236,8 +2235,10 @@ static int minivm_accmess_exec(struct ast_channel *chan, void *data)
 		error = TRUE;
 	}
 
-	if (error)
+	if (error) {
+		pbx_builtin_setvar_helper(chan, "MINIVM_ACCMESS_STATUS", "FAILED");
 		return -1;
+	}
 
 	ast_copy_string(tmp, argv[0], sizeof(tmp));
 	username = tmp;
@@ -2248,6 +2249,7 @@ static int minivm_accmess_exec(struct ast_channel *chan, void *data)
 	} 
 	if (ast_strlen_zero(domain) || ast_strlen_zero(username)) {
 		ast_log(LOG_ERROR, "Need username@domain as argument. Sorry. Argument 0 %s\n", argv[0]);
+		pbx_builtin_setvar_helper(chan, "MINIVM_ACCMESS_STATUS", "FAILED");
 		return -1;
 	}
 
@@ -2285,10 +2287,10 @@ static int minivm_accmess_exec(struct ast_channel *chan, void *data)
 	if(ast_test_flag(vmu, MVM_ALLOCED))
 		free_user(vmu);
 
+	pbx_builtin_setvar_helper(chan, "MINIVM_NOTIFY_STATUS", "SUCCESS");
 
 	/* Ok, we're ready to rock and roll. Return to dialplan */
-	return res;
-
+	return 0;
 }
 
 /*! \brief Append new mailbox to mailbox list from configuration file */
