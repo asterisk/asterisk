@@ -491,11 +491,11 @@ static int max_expiry = DEFAULT_MAX_EXPIRY;        /*!< Maximum accepted registr
 static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 static int mwi_expiry = DEFAULT_MWI_EXPIRY;
 
-#define DEFAULT_POKE_GAP   100
-#define DEFAULT_POKE_PEERS 1
+#define DEFAULT_QUALIFY_GAP   100
+#define DEFAULT_QUALIFY_PEERS 1
 
-static int global_poke_gap = DEFAULT_POKE_GAP;              /*!< Time between our group of peer pokes */
-static int global_poke_peers = DEFAULT_POKE_PEERS;          /*!< Number of peers to poke at a given time */
+static int global_qualify_gap = DEFAULT_QUALIFY_GAP;              /*!< Time between our group of peer pokes */
+static int global_qualify_peers = DEFAULT_QUALIFY_PEERS;          /*!< Number of peers to poke at a given time */
 
 #define CALLERID_UNKNOWN        "Unknown"
 
@@ -22551,8 +22551,8 @@ static int reload_config(enum channelreloadreason reason)
 	global_max_se  = DEFAULT_MAX_SE;
 
 	/* Peer poking settings */
-	global_poke_gap = DEFAULT_POKE_GAP;
-	global_poke_peers = DEFAULT_POKE_PEERS;
+	global_qualify_gap = DEFAULT_QUALIFY_GAP;
+	global_qualify_peers = DEFAULT_QUALIFY_PEERS;
 
 	/* Initialize some reasonable defaults at SIP reload (used both for channel and as default for devices */
 	ast_copy_string(default_context, DEFAULT_CONTEXT, sizeof(default_context));
@@ -23011,15 +23011,15 @@ static int reload_config(enum channelreloadreason reason)
 			} else {
 				global_st_refresher = i;
 			}
-		} else if (!strcasecmp(v->name, "pokegap")) {
-			if (sscanf(v->value, "%d", &global_poke_gap) != 1) {
-				ast_log(LOG_WARNING, "Invalid pokegap '%s' at line %d of %s\n", v->value, v->lineno, config);
-				global_poke_gap = DEFAULT_POKE_GAP;
+		} else if (!strcasecmp(v->name, "qualifygap")) {
+			if (sscanf(v->value, "%d", &global_qualify_gap) != 1) {
+				ast_log(LOG_WARNING, "Invalid qualifygap '%s' at line %d of %s\n", v->value, v->lineno, config);
+				global_qualify_gap = DEFAULT_QUALIFY_GAP;
 			}
-		} else if (!strcasecmp(v->name, "pokepeers")) {
-			if (sscanf(v->value, "%d", &global_poke_peers) != 1) {
+		} else if (!strcasecmp(v->name, "qualifypeers")) {
+			if (sscanf(v->value, "%d", &global_qualify_peers) != 1) {
 				ast_log(LOG_WARNING, "Invalid pokepeers '%s' at line %d of %s\n", v->value, v->lineno, config);
-				global_poke_peers = DEFAULT_POKE_PEERS;
+				global_qualify_peers = DEFAULT_QUALIFY_PEERS;
 			}
 		}
 	}
@@ -23709,8 +23709,8 @@ static void sip_poke_all_peers(void)
 
 	while ((peer = ao2_t_iterator_next(&i, "iterate thru peers table"))) {
 		ao2_lock(peer);
-		if (num == global_poke_peers) {
-			ms += global_poke_gap;
+		if (num == global_qualify_peers) {
+			ms += global_qualify_gap;
 			num = 0;
 		} else {
 			num++;

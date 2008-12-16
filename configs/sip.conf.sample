@@ -148,8 +148,8 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; host to be up in seconds
                                 ; Set to low value if you use low timeout for
                                 ; NAT of UDP sessions
-;pokegap=100			; Number of milliseconds between each group of peers being poked
-;pokepeers=1			; Number of peers in a group to be poked at the same time
+;qualifygap=100			; Number of milliseconds between each group of peers being qualified
+;qualifypeers=1			; Number of peers in a group to be qualified at the same time
 ;notifymimetype=text/plain      ; Allow overriding of mime type in MWI NOTIFY
 ;buggymwi=no                    ; Cisco SIP firmware doesn't support the MWI RFC
                                 ; fully. Enable this option to not get error messages

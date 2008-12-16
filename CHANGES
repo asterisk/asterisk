@@ -30,9 +30,9 @@ SIP Changes
    after T38 is negotiated.  This option is disabled by default.
  * If ATTENDED_TRANSFER_COMPLETE_SOUND is set, the sound will be played to the
    target of an attended transfer
- * Added two new configuration options, "pokegap" and "pokepeers", which allow
-   finer control over how many peers Asterisk will poke and the gap between them
-   when all peers need to be poked at the same time.
+ * Added two new configuration options, "qualifygap" and "qualifypeers", which allow
+   finer control over how many peers Asterisk will qualify and the gap between them
+   when all peers need to be qualified at the same time.
 
 Skinny Changes
 --------------
