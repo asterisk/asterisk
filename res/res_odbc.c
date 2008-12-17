@@ -750,6 +750,7 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 	}
 #endif
 
+	ao2_ref(class, -1);
 	return obj;
 }
 
