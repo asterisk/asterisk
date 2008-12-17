@@ -1756,7 +1756,7 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 	}
 
 	if (!vms_p) {
-		create_vm_state_from_user(vmu);
+		vms_p = create_vm_state_from_user(vmu);
 	}
 	ret = init_mailstream(vms_p, fold);
 	if (!vms_p->mailstream) {
