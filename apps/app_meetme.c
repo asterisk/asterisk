@@ -1828,7 +1828,7 @@ static int rt_extend_conf(char *confno)
 		confno, "startTime<= ", currenttime,
 		"endtime>= ", currenttime, NULL);
 
-	origvar = var;
+	orig_var = var;
 
 	/* Identify the specific RealTime conference */
 	while (var) {

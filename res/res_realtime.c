@@ -43,7 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static char *cli_realtime_load(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a) 
 {
 #define CRL_HEADER_FORMAT "%30s  %-30s\n"
-	struct ast_variable *var = NULL, orig_var = NULL;
+	struct ast_variable *var = NULL, *orig_var = NULL;
 
 	switch (cmd) {
 	case CLI_INIT:
