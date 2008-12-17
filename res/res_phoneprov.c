@@ -446,7 +446,12 @@ static struct ast_str *phoneprov_callback(struct ast_tcptls_session_instance *se
 
 		while ((len = read(fd, buf, sizeof(buf))) > 0) {
 			if (fwrite(buf, 1, len, ser->f) != len) {
-				ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
+				if (errno != EPIPE) {
+					ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
+				} else {
+					ast_debug(3, "Requester closed the connection while downloading '%s'\n", path);
+				}
+				break;
 			}
 		}
 
