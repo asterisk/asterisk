@@ -85,6 +85,7 @@ enum ast_lock_type {
 	        AST_WRLOCK,
 };
 #endif
+
 #if !defined(LOW_MEMORY)
 #ifdef HAVE_BKTR
 void ast_store_lock_info(enum ast_lock_type type, const char *filename,

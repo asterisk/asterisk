@@ -24,6 +24,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/ael_structs.h"
 #include "asterisk/extconf.h"
 
+int option_debug = 0;
+int option_verbose = 0;
+void ast_register_file_version(const char *file, const char *version) { }
+void ast_unregister_file_version(const char *file) { }
+
 struct ast_flags ast_compat = { 7 };
 
 /*** MODULEINFO
