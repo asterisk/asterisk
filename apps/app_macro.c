@@ -122,7 +122,6 @@ static void macro_fixup(void *data, struct ast_channel *old_chan, struct ast_cha
 	}
 }
 
->>>>>>> .merge-right.r165319
 static struct ast_exten *find_matching_priority(struct ast_context *c, const char *exten, int priority, const char *callerid)
 {
 	struct ast_exten *e;
