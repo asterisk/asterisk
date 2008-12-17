@@ -49,6 +49,7 @@
   <!ATTLIST argument multiple (yes|no|true|false) "false">
   <!ATTLIST argument required (yes|no|true|false) "false">
   <!ATTLIST argument hasparams (yes|no|true|false|optional) "false">
+  <!ATTLIST argument argsep CDATA ",">
 
   <!ELEMENT para (#PCDATA|astcli|literal|emphasis|filename|directory|replaceable|variable)*>
   <!ELEMENT literal (#PCDATA)>
