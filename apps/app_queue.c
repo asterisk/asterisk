@@ -2004,8 +2004,12 @@ static void leave_queue(struct queue_ent *qe)
 
 	/*If the queue is a realtime queue, check to see if it's still defined in real time*/
 	if (q->realtime) {
-		if (!ast_load_realtime("queues", "name", q->name, NULL))
+		struct ast_variable *var;
+		if (!(var = ast_load_realtime("queues", "name", q->name, NULL))) {
 			q->dead = 1;
+		} else {
+			ast_variables_destroy(var);
+		}
 	}
 
 	if (q->dead) {	
