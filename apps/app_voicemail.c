@@ -1702,6 +1702,12 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 	int fold = folder_int(folder);
 	int urgent = 0;
 	
+	/* If URGENT, then look at INBOX */
+	if (fold == 11) {
+		fold = NEW_FOLDER;
+		urgent = 1;
+	}
+
 	if (ast_strlen_zero(mailbox))
 		return 0;
 
@@ -1749,25 +1755,8 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 		vms_p = get_vm_state_by_mailbox(mailbox, context, 0);
 	}
 
-	/* If URGENT, then look at INBOX */
-	if (fold == 11) {
-		fold = NEW_FOLDER;
-		urgent = 1;
-	}
-
 	if (!vms_p) {
-		ast_debug(3,"Adding new vmstate for %s\n",vmu->imapuser);
-		if (!(vms_p = ast_calloc(1, sizeof(*vms_p)))) {
-			return -1;
-		}
-		ast_copy_string(vms_p->imapuser,vmu->imapuser, sizeof(vms_p->imapuser));
-		ast_copy_string(vms_p->username, mailbox, sizeof(vms_p->username)); /* save for access from interactive entry point */
-		vms_p->mailstream = NIL; /* save for access from interactive entry point */
-		ast_debug(3, "Copied %s to %s\n",vmu->imapuser,vms_p->imapuser);
-		vms_p->updated = 1;
-		ast_copy_string(vms_p->curbox, mbox(fold), sizeof(vms_p->curbox));
-		init_vm_state(vms_p);
-		vmstate_insert(vms_p);
+		create_vm_state_from_user(vmu);
 	}
 	ret = init_mailstream(vms_p, fold);
 	if (!vms_p->mailstream) {
