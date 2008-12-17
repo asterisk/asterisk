@@ -2979,7 +2979,7 @@ struct ast_sw {
 struct ast_ignorepat {
 	const char *registrar;
 	struct ast_ignorepat *next;
-	const char pattern[0];
+	char pattern[0];
 };
 
 /*! \brief ast_context: An extension context */
