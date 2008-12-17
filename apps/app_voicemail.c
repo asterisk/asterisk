@@ -9709,6 +9709,8 @@ static char *show_users_realtime(int fd, const char *context)
 		"=============================================================\n"
 		"\n");
 
+	ast_config_destroy(cfg);
+
 	return CLI_SUCCESS;
 }
 

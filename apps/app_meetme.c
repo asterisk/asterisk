@@ -1812,7 +1812,7 @@ static int rt_extend_conf(char *confno)
 	char endtime[32];
 	struct timeval now;
 	struct ast_tm tm;
-	struct ast_variable *var;
+	struct ast_variable *var, *orig_var;
 	char bookid[8]; 
 
 	if (!extendby) {
@@ -1828,6 +1828,8 @@ static int rt_extend_conf(char *confno)
 		confno, "startTime<= ", currenttime,
 		"endtime>= ", currenttime, NULL);
 
+	origvar = var;
+
 	/* Identify the specific RealTime conference */
 	while (var) {
 		if (!strcasecmp(var->name, "bookid")) {
@@ -1839,7 +1841,7 @@ static int rt_extend_conf(char *confno)
 
 		var = var->next;
 	}
-	ast_variables_destroy(var);
+	ast_variables_destroy(orig_var);
 
 	ast_strptime(endtime, DATE_FORMAT, &tm);
 	now = ast_mktime(&tm, NULL);

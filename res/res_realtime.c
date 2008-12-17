@@ -43,7 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static char *cli_realtime_load(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a) 
 {
 #define CRL_HEADER_FORMAT "%30s  %-30s\n"
-	struct ast_variable *var=NULL;
+	struct ast_variable *var = NULL, orig_var = NULL;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -66,6 +66,7 @@ static char *cli_realtime_load(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	if (var) {
 		ast_cli(a->fd, CRL_HEADER_FORMAT, "Column Name", "Column Value");
 		ast_cli(a->fd, CRL_HEADER_FORMAT, "--------------------", "--------------------");
+		orig_var = var;
 		while (var) {
 			ast_cli(a->fd, CRL_HEADER_FORMAT, var->name, var->value);
 			var = var->next;
@@ -73,6 +74,7 @@ static char *cli_realtime_load(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	} else {
 		ast_cli(a->fd, "No rows found matching search criteria.\n");
 	}
+	ast_variables_destroy(orig_var);
 	return CLI_SUCCESS;
 }
 
