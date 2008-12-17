@@ -21850,6 +21850,8 @@ static int reload_config(enum channelreloadreason reason)
 			}
 
 			ast_copy_string(global_outboundproxy.name, proxyname, sizeof(global_outboundproxy.name));
+
+			proxy_update(&global_outboundproxy);
 		} else if (!strcasecmp(v->name, "autocreatepeer")) {
 			autocreatepeer = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "match_auth_username")) {
