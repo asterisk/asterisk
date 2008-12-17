@@ -389,6 +389,9 @@ static struct ast_config *realtime_directory(char *context)
 		if (!cat) {
 			ast_log(LOG_WARNING, "Out of memory\n");
 			ast_config_destroy(cfg);
+			if (rtdata) {
+				ast_config_destroy(rtdata);
+			}
 			return NULL;
 		}
 		ast_category_append(cfg, cat);

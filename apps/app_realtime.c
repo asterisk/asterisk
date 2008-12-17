@@ -72,22 +72,24 @@ static char *udesc = "Use the RealTime config handler system to update a value\n
 static int cli_realtime_load(int fd, int argc, char **argv) 
 {
 	char *header_format = "%30s  %-30s\n";
-	struct ast_variable *var=NULL;
+	struct ast_variable *var = NULL, *save = NULL;
 
-	if(argc<5) {
+	if (argc < 5) {
 		ast_cli(fd, "You must supply a family name, a column to match on, and a value to match to.\n");
 		return RESULT_FAILURE;
 	}
 
 	var = ast_load_realtime(argv[2], argv[3], argv[4], NULL);
 
-	if(var) {
+	if (var) {
+		save = var;
 		ast_cli(fd, header_format, "Column Name", "Column Value");
 		ast_cli(fd, header_format, "--------------------", "--------------------");
-		while(var) {
+		while (var) {
 			ast_cli(fd, header_format, var->name, var->value);
 			var = var->next;
 		}
+		ast_variables_destroy(save);
 	} else {
 		ast_cli(fd, "No rows found matching search criteria.\n");
 	}

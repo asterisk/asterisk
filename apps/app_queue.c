@@ -1301,11 +1301,12 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 
 static int update_realtime_member_field(struct member *mem, const char *queue_name, const char *field, const char *value)
 {
-	struct ast_variable *var;
+	struct ast_variable *var, *save;
 	int ret = -1;
 
 	if (!(var = ast_load_realtime("queue_members", "interface", mem->interface, "queue_name", queue_name, NULL))) 
 		return ret;
+	save = var;
 	while (var) {
 		if (!strcmp(var->name, "uniqueid"))
 			break;
@@ -1315,6 +1316,7 @@ static int update_realtime_member_field(struct member *mem, const char *queue_na
 		if ((ast_update_realtime("queue_members", "uniqueid", var->value, field, value, NULL)) > -1)
 			ret = 0;
 	}
+	ast_variables_destroy(save);
 	return ret;
 }
 

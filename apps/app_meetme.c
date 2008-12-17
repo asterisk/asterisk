@@ -2477,7 +2477,7 @@ bailoutandtrynormal:
 static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char *confno, int make, int dynamic,
 						 char *dynamic_pin, size_t pin_buf_len, int refcount, struct ast_flags *confflags)
 {
-	struct ast_variable *var;
+	struct ast_variable *var, *save;
 	struct ast_conference *cnf;
 
 	/* Check first in the conference list */
@@ -2499,6 +2499,7 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 		if (!var)
 			return NULL;
 
+		save = var;
 		while (var) {
 			if (!strcasecmp(var->name, "pin")) {
 				pin = ast_strdupa(var->value);
@@ -2507,7 +2508,7 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 			}
 			var = var->next;
 		}
-		ast_variables_destroy(var);
+		ast_variables_destroy(save);
 		
 		cnf = build_conf(confno, pin ? pin : "", pinadmin ? pinadmin : "", make, dynamic, refcount);
 	}
