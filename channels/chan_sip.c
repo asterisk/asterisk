@@ -1328,6 +1328,7 @@ struct sip_auth {
 #define SIP_PAGE2_ALLOWSUBSCRIBE	(1 << 16)	/*!< GP: Allow subscriptions from this peer? */
 #define SIP_PAGE2_ALLOWOVERLAP		(1 << 17)	/*!< DP: Allow overlap dialing ? */
 #define SIP_PAGE2_SUBSCRIBEMWIONLY	(1 << 18)	/*!< GP: Only issue MWI notification if subscribed to */
+#define SIP_PAGE2_IGNORESDPVERSION	(1 << 19)	/*!< GDP: Ignore the SDP session version number we receive and treat all sessions as new */
 
 #define SIP_PAGE2_T38SUPPORT		(7 << 20)	/*!< GDP: T38 Fax Passthrough Support */
 #define SIP_PAGE2_T38SUPPORT_UDPTL	(1 << 20)	/*!< GDP: T38 Fax Passthrough Support */
@@ -1348,10 +1349,10 @@ struct sip_auth {
 #define SIP_PAGE2_VIDEOSUPPORT_ALWAYS	(1 << 31)       /*!< DP: Always set up video, even if endpoints don't support it */
 
 #define SIP_PAGE2_FLAGS_TO_COPY \
-	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_VIDEOSUPPORT | \
-	SIP_PAGE2_T38SUPPORT | SIP_PAGE2_RFC2833_COMPENSATE | SIP_PAGE2_BUGGY_MWI | \
-	SIP_PAGE2_TEXTSUPPORT | SIP_PAGE2_FAX_DETECT | SIP_PAGE2_UDPTL_DESTINATION | \
-	SIP_PAGE2_VIDEOSUPPORT_ALWAYS)
+	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_IGNORESDPVERSION | \
+	SIP_PAGE2_VIDEOSUPPORT | SIP_PAGE2_T38SUPPORT | SIP_PAGE2_RFC2833_COMPENSATE | \
+	SIP_PAGE2_BUGGY_MWI | SIP_PAGE2_TEXTSUPPORT | SIP_PAGE2_FAX_DETECT | \
+	SIP_PAGE2_UDPTL_DESTINATION | SIP_PAGE2_VIDEOSUPPORT_ALWAYS)
 
 /*@}*/ 
 
@@ -7341,8 +7342,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		return -1;
 	}
 
-	if (p->sessionversion_remote < 0 || p->sessionversion_remote != rua_version) {
- 		p->sessionversion_remote = rua_version;
+	if (ast_test_flag(&p->flags[1], SIP_PAGE2_IGNORESDPVERSION)
+		|| p->sessionversion_remote < 0
+		|| p->sessionversion_remote != rua_version) {
+ 		
+		p->sessionversion_remote = rua_version;
 		p->session_modify = TRUE;
 	} else if (p->sessionversion_remote == rua_version) {
 		p->session_modify = FALSE;
@@ -14056,6 +14060,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  User=Phone   : %s\n", cli_yesno(ast_test_flag(&peer->flags[0], SIP_USEREQPHONE)));
 		ast_cli(fd, "  Video Support: %s\n", cli_yesno(ast_test_flag(&peer->flags[1], SIP_PAGE2_VIDEOSUPPORT)));
 		ast_cli(fd, "  Text Support : %s\n", cli_yesno(ast_test_flag(&peer->flags[1], SIP_PAGE2_TEXTSUPPORT)));
+		ast_cli(fd, "  Ign SDP ver  : %s\n", cli_yesno(ast_test_flag(&peer->flags[1], SIP_PAGE2_IGNORESDPVERSION)));
 		ast_cli(fd, "  Trust RPID   : %s\n", cli_yesno(ast_test_flag(&peer->flags[0], SIP_TRUSTRPID)));
 		ast_cli(fd, "  Send RPID    : %s\n", cli_yesno(ast_test_flag(&peer->flags[0], SIP_SENDRPID)));
 		ast_cli(fd, "  Subscriptions: %s\n", cli_yesno(ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)));
@@ -14459,6 +14464,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	}
 	ast_cli(a->fd, "  Videosupport:           %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_VIDEOSUPPORT)));
 	ast_cli(a->fd, "  Textsupport:            %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_TEXTSUPPORT)));
+	ast_cli(a->fd, "  Ignore SDP sess. ver.:  %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_IGNORESDPVERSION)));
 	ast_cli(a->fd, "  AutoCreate Peer:        %s\n", cli_yesno(sip_cfg.autocreatepeer));
 	ast_cli(a->fd, "  Match Auth Username:    %s\n", cli_yesno(global_match_auth_username));
 	ast_cli(a->fd, "  Allow unknown access:   %s\n", cli_yesno(sip_cfg.allowguest));
@@ -21583,6 +21589,9 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 	} else if (!strcasecmp(v->name, "allowsubscribe")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_ALLOWSUBSCRIBE);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_ALLOWSUBSCRIBE);
+	} else if (!strcasecmp(v->name, "ignoresdpversion")) {
+		ast_set_flag(&mask[1], SIP_PAGE2_IGNORESDPVERSION);
+		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_IGNORESDPVERSION);
 	} else if (!strcasecmp(v->name, "faxdetect")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_FAX_DETECT);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_FAX_DETECT);
@@ -22594,6 +22603,7 @@ static int reload_config(enum channelreloadreason reason)
 	ast_clear_flag(&global_flags[1], SIP_PAGE2_FAX_DETECT);
 	ast_clear_flag(&global_flags[1], SIP_PAGE2_VIDEOSUPPORT | SIP_PAGE2_VIDEOSUPPORT_ALWAYS);
 	ast_clear_flag(&global_flags[1], SIP_PAGE2_TEXTSUPPORT);
+	ast_clear_flag(&global_flags[1], SIP_PAGE2_IGNORESDPVERSION);
 
 
 	/* Read the [general] config section of sip.conf (or from realtime config) */

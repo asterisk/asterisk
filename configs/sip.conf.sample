@@ -589,6 +589,15 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; instead of INVITE. This can be combined with 'nonat', as
                                 ; 'canreinvite=update,nonat'. It implies 'yes'.
 
+;ignoresdpversion=yes           ; By default, Asterisk will honor the session version
+                                ; number in SDP packets and will only modify the SDP
+                                ; session if the version number changes. This option will
+                                ; force asterisk to ignore the SDP session version number
+                                ; and treat all SDP data as new data.  This is required
+                                ; for devices that send us non standard SDP packets
+                                ; (observed with Microsoft OCS). By default this option is
+                                ; off.
+
 ;----------------------------------------- REALTIME SUPPORT ------------------------
 ; For additional information on ARA, the Asterisk Realtime Architecture,
 ; please read realtime.txt and extconfig.txt in the /doc directory of the
@@ -763,6 +772,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; allowoverlap
 ; allowsubscribe
 ; allowtransfer
+; ignoresdpversion
 ; subscribecontext
 ; template
 ; videosupport
