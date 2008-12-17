@@ -251,7 +251,7 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 		if (macro_store) {
 			break;
 		}
-		if (!(macro_store = ast_channel_datastore_alloc(&macro_ds_info, NULL))) {
+		if (!(macro_store = ast_datastore_alloc(&macro_ds_info, NULL))) {
 			ast_log(LOG_WARNING, "Unable to allocate new datastore.\n");
 			break;
 		}
