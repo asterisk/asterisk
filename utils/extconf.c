@@ -50,6 +50,9 @@
 #include <netdb.h>
 #include <sys/param.h>
 
+static void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__((format(printf, 5, 6)));
+void ast_verbose(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+
 #define ASINCLUDE_GLOB 1
 #ifdef AST_INCLUDE_GLOB
 
@@ -148,6 +151,8 @@ void ast_console_puts(const char *string);
 #ifndef	HAVE_MTX_PROFILE
 #define	__MTX_PROF(a)	return pthread_mutex_lock((a))
 #else
+int mtx_prof = -1;
+
 #define	__MTX_PROF(a)	do {			\
 	int i;					\
 	/* profile only non-blocking events */	\
@@ -885,6 +890,136 @@ int ast_channel_trylock(struct ast_channel *chan);
 
 /* from utils.h */
 
+#define ast_free free
+
+#define MALLOC_FAILURE_MSG \
+	ast_log(LOG_ERROR, "Memory Allocation Failure in function %s at line %d of %s\n", func, lineno, file);
+#ifndef __AST_DEBUG_MALLOC
+
+/*!
+ * \brief A wrapper for malloc()
+ *
+ * ast_malloc() is a wrapper for malloc() that will generate an Asterisk log
+ * message in the case that the allocation fails.
+ *
+ * The argument and return value are the same as malloc()
+ */
+#define ast_malloc(len) \
+	_ast_malloc((len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+#define ast_calloc(num, len) \
+	_ast_calloc((num), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+#define ast_calloc_cache(num, len) \
+	_ast_calloc((num), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+#define ast_realloc(p, len) \
+	_ast_realloc((p), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+#define ast_strdup(str) \
+	_ast_strdup((str), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+#define ast_strndup(str, len) \
+	_ast_strndup((str), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+#define ast_asprintf(ret, fmt, ...) \
+	_ast_asprintf((ret), __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, __VA_ARGS__)
+
+#define ast_vasprintf(ret, fmt, ap) \
+	_ast_vasprintf((ret), __FILE__, __LINE__, __PRETTY_FUNCTION__, (fmt), (ap))
+
+#else
+
+/* If astmm is in use, let it handle these.  Otherwise, it will report that
+   all allocations are coming from this header file */
+
+#undef __ast_calloc
+#undef calloc
+#undef ast_calloc
+
+#define ast_malloc(a)		malloc(a)
+#define ast_calloc(a,b)		calloc(a,b)
+#define ast_realloc(a,b)	realloc(a,b)
+#define ast_strdup(a)		strdup(a)
+#define ast_strndup(a,b)	strndup(a,b)
+#define ast_asprintf(a,b,...)	asprintf(a,b,__VA_ARGS__)
+#define ast_vasprintf(a,b,c)	vasprintf(a,b,c)
+
+void * attribute_malloc __ast_malloc(size_t len, const char *file, int lineno, const char *func)
+{
+	void *p;
+
+	if (!(p = malloc(len)))
+		MALLOC_FAILURE_MSG;
+
+	return p;
+}
+
+void * attribute_malloc __ast_calloc(size_t num, size_t len, const char *file, int lineno, const char *func)
+{
+	void *p;
+
+	if (!(p = calloc(num, len)))
+		MALLOC_FAILURE_MSG;
+
+	return p;
+}
+
+void * attribute_malloc _ast_calloc(size_t num, size_t len, const char *file, int lineno, const char *func);
+
+void * attribute_malloc _ast_calloc(size_t num, size_t len, const char *file, int lineno, const char *func)
+{
+	void *p;
+
+	if (!(p = calloc(num, len)))
+		MALLOC_FAILURE_MSG;
+
+	return p;
+}
+
+void * attribute_malloc __ast_realloc(void *p, size_t len, const char *file, int lineno, const char *func)
+{
+	void *newp;
+
+	if (!(newp = realloc(p, len)))
+		MALLOC_FAILURE_MSG;
+
+	return newp;
+}
+
+char * attribute_malloc __ast_strdup(const char *str, const char *file, int lineno, const char *func)
+{
+	char *newstr = NULL;
+
+	if (str) {
+		if (!(newstr = strdup(str)))
+			MALLOC_FAILURE_MSG;
+	}
+
+	return newstr;
+}
+
+char * attribute_malloc __ast_strndup(const char *str, size_t len, const char *file, int lineno, const char *func)
+{
+	char *newstr = NULL;
+
+	if (str) {
+		if (!(newstr = strndup(str, len)))
+			MALLOC_FAILURE_MSG;
+	}
+
+	return newstr;
+}
+
+void __ast_free(void *ptr, const char *file, int lineno, const char *func)
+{
+#undef free
+	free(ptr);
+}
+
+#endif /* AST_DEBUG_MALLOC */
+
+
 static unsigned int __unsigned_int_flags_dummy;
 
 struct ast_flags {  /* stolen from utils.h */
@@ -908,15 +1043,6 @@ struct ast_flags {  /* stolen from utils.h */
 					} while (0)
 
 
-#ifdef __AST_DEBUG_MALLOC
-static void ast_free(void *ptr) attribute_unused;
-static void ast_free(void *ptr)
-{
-	free(ptr);
-}
-#else
-#define ast_free free
-#endif
 
 #ifndef __AST_DEBUG_MALLOC
 
@@ -1123,7 +1249,6 @@ int _ast_vasprintf(char **ret, const char *file, int lineno, const char *func, c
 #define ast_realloc(a,b)	realloc(a,b)
 #define ast_strdup(a)		strdup(a)
 #define ast_strndup(a,b)	strndup(a,b)
-#define ast_asprintf(a,b,c)	asprintf(a,b,c)
 #define ast_vasprintf(a,b,c)	vasprintf(a,b,c)
 
 #endif /* AST_DEBUG_MALLOC */
@@ -1757,14 +1882,71 @@ static void ast_config_destroy(struct ast_config *cfg)
 	free(cfg);
 }
 
+enum ast_option_flags {
+	/*! Allow \#exec in config files */
+	AST_OPT_FLAG_EXEC_INCLUDES = (1 << 0),
+	/*! Do not fork() */
+	AST_OPT_FLAG_NO_FORK = (1 << 1),
+	/*! Keep quiet */
+	AST_OPT_FLAG_QUIET = (1 << 2),
+	/*! Console mode */
+	AST_OPT_FLAG_CONSOLE = (1 << 3),
+	/*! Run in realtime Linux priority */
+	AST_OPT_FLAG_HIGH_PRIORITY = (1 << 4),
+	/*! Initialize keys for RSA authentication */
+	AST_OPT_FLAG_INIT_KEYS = (1 << 5),
+	/*! Remote console */
+	AST_OPT_FLAG_REMOTE = (1 << 6),
+	/*! Execute an asterisk CLI command upon startup */
+	AST_OPT_FLAG_EXEC = (1 << 7),
+	/*! Don't use termcap colors */
+	AST_OPT_FLAG_NO_COLOR = (1 << 8),
+	/*! Are we fully started yet? */
+	AST_OPT_FLAG_FULLY_BOOTED = (1 << 9),
+	/*! Trascode via signed linear */
+	AST_OPT_FLAG_TRANSCODE_VIA_SLIN = (1 << 10),
+	/*! Dump core on a seg fault */
+	AST_OPT_FLAG_DUMP_CORE = (1 << 12),
+	/*! Cache sound files */
+	AST_OPT_FLAG_CACHE_RECORD_FILES = (1 << 13),
+	/*! Display timestamp in CLI verbose output */
+	AST_OPT_FLAG_TIMESTAMP = (1 << 14),
+	/*! Override config */
+	AST_OPT_FLAG_OVERRIDE_CONFIG = (1 << 15),
+	/*! Reconnect */
+	AST_OPT_FLAG_RECONNECT = (1 << 16),
+	/*! Transmit Silence during Record() and DTMF Generation */
+	AST_OPT_FLAG_TRANSMIT_SILENCE = (1 << 17),
+	/*! Suppress some warnings */
+	AST_OPT_FLAG_DONT_WARN = (1 << 18),
+	/*! End CDRs before the 'h' extension */
+	AST_OPT_FLAG_END_CDR_BEFORE_H_EXTEN = (1 << 19),
+	/*! Use DAHDI Timing for generators if available */
+	AST_OPT_FLAG_INTERNAL_TIMING = (1 << 20),
+	/*! Always fork, even if verbose or debug settings are non-zero */
+	AST_OPT_FLAG_ALWAYS_FORK = (1 << 21),
+	/*! Disable log/verbose output to remote consoles */
+	AST_OPT_FLAG_MUTE = (1 << 22),
+	/*! There is a per-file debug setting */
+	AST_OPT_FLAG_DEBUG_FILE = (1 << 23),
+	/*! There is a per-file verbose setting */
+	AST_OPT_FLAG_VERBOSE_FILE = (1 << 24),
+	/*! Terminal colors should be adjusted for a light-colored background */
+	AST_OPT_FLAG_LIGHT_BACKGROUND = (1 << 25),
+	/*! Count Initiated seconds in CDR's */
+	AST_OPT_FLAG_INITIATED_SECONDS = (1 << 26),
+	/*! Force black background */
+	AST_OPT_FLAG_FORCE_BLACK_BACKGROUND = (1 << 27),
+};
 
-/* options.h declars ast_options extern; I need it static? */
-
+/* options.h declares ast_options extern; I need it static? */
 #define AST_CACHE_DIR_LEN 	512
 #define AST_FILENAME_MAX	80
 
 /*! These are the options that set by default when Asterisk starts */
 #define AST_DEFAULT_OPTIONS AST_OPT_FLAG_TRANSCODE_VIA_SLIN
+
+struct ast_flags ast_options = { AST_DEFAULT_OPTIONS };
 
 #define ast_opt_exec_includes		ast_test_flag(&ast_options, AST_OPT_FLAG_EXEC_INCLUDES)
 #define ast_opt_no_fork			ast_test_flag(&ast_options, AST_OPT_FLAG_NO_FORK)
@@ -1790,8 +1972,8 @@ static void ast_config_destroy(struct ast_config *cfg)
 #define ast_opt_always_fork		ast_test_flag(&ast_options, AST_OPT_FLAG_ALWAYS_FORK)
 #define ast_opt_mute			ast_test_flag(&ast_options, AST_OPT_FLAG_MUTE)
 
-/*  IN CONFLICT: extern int option_verbose; */
-/*  IN CONFLICT: extern int option_debug;	*/	/*!< Debugging */
+extern int option_verbose;
+extern int option_debug;		/*!< Debugging */
 extern int option_maxcalls;		/*!< Maximum number of simultaneous channels */
 extern double option_maxload;
 extern char defaultlanguage[];
@@ -2768,6 +2950,7 @@ struct ast_timing {
 	unsigned int daymask;			/*!< Mask for date */
 	unsigned int dowmask;			/*!< Mask for day of week (mon-sun) */
 	unsigned int minmask[24];		/*!< Mask for minute */
+	char *timezone;                 /*!< NULL, or zoneinfo style timezone */
 };
 /* end of pbx.h */
 /*! \brief ast_include: include= support in extensions.conf */
@@ -4290,6 +4473,8 @@ char *months[] =
 	NULL,
 };
 
+int ast_build_timing(struct ast_timing *i, const char *info_in);
+
 int ast_build_timing(struct ast_timing *i, const char *info_in)
 {
 	char *info_save, *info;
@@ -4482,39 +4667,13 @@ static int ext_strncpy(char *dst, const char *src, int len)
  * Wrapper around _extension_match_core() to do performance measurement
  * using the profiling code.
  */
+int ast_check_timing(const struct ast_timing *i);
+
 int ast_check_timing(const struct ast_timing *i)
 {
-	struct ast_tm tm;
-	struct timeval now = ast_tvnow();
-
-	ast_localtime(&now, &tm, i->timezone);
-
-	/* If it's not the right month, return */
-	if (!(i->monthmask & (1 << tm.tm_mon)))
-		return 0;
-
-	/* If it's not that time of the month.... */
-	/* Warning, tm_mday has range 1..31! */
-	if (!(i->daymask & (1 << (tm.tm_mday-1))))
-		return 0;
-
-	/* If it's not the right day of the week */
-	if (!(i->dowmask & (1 << tm.tm_wday)))
-		return 0;
-
-	/* Sanity check the hour just to be safe */
-	if ((tm.tm_hour < 0) || (tm.tm_hour > 23)) {
-		ast_log(LOG_WARNING, "Insane time...\n");
-		return 0;
-	}
-
-	/* Now the tough part, we calculate if it fits
-	   in the right time based on min/hour */
-	if (!(i->minmask[tm.tm_hour * 2 + (tm.tm_min >= 30 ? 1 : 0)] & (1 << (tm.tm_min >= 30 ? tm.tm_min - 30 : tm.tm_min))))
-		return 0;
-
-	/* If we got this far, then we're good */
-	return 1;
+	/* sorry, but this feature will NOT be available
+	   in the standalone version */
+	return 0;
 }
 
 #ifdef NOT_ANYMORE
@@ -5830,7 +5989,6 @@ static int pbx_load_config(const char *config_file)
 	if ((aft = ast_variable_retrieve(cfg, "general", "autofallthrough")))
 		autofallthrough_config = ast_true(aft);
 	clearglobalvars_config = ast_true(ast_variable_retrieve(cfg, "general", "clearglobalvars"));
-	ast_set2_flag(&ast_options, ast_true(ast_variable_retrieve(cfg, "general", "priorityjumping")), AST_OPT_FLAG_PRIORITY_JUMPING);
 
 	if ((cxt = ast_variable_retrieve(cfg, "general", "userscontext"))) 
 		ast_copy_string(userscontext, cxt, sizeof(userscontext));

@@ -34,6 +34,23 @@ enum ast_lock_type {
 	        AST_WRLOCK,
 };
 #endif
+#ifdef DEBUG_THREADLOCALS
+#define MALLOC_FAILURE_MSG \
+	ast_log(LOG_ERROR, "Memory Allocation Failure in function %s at line %d of %s\n", func, lineno, file);
+
+void * attribute_malloc _ast_calloc(size_t num, size_t len, const char *file, int lineno, const char *func);
+
+void * attribute_malloc _ast_calloc(size_t num, size_t len, const char *file, int lineno, const char *func)
+{
+	void *p;
+
+	if (!(p = calloc(num, len)))
+		MALLOC_FAILURE_MSG;
+
+	return p;
+}
+#endif
+
 #if !defined(LOW_MEMORY)
 #ifdef HAVE_BKTR
 void ast_store_lock_info(enum ast_lock_type type, const char *filename,

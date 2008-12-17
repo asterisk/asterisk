@@ -16,9 +16,7 @@ ASTTOPDIR?=..
 
 .PHONY: clean all uninstall
 
-ALL_UTILS:=astman smsq stereorize streamplayer muted check_expr hashtest2 hashtest astcanary refcounter
-# aelparse and conf2ael currently not being built because they rely on extconf, which is horribly broken
-# ALL_UTILS:=aelparse conf2ael
+ALL_UTILS:=astman smsq stereorize streamplayer muted check_expr hashtest2 hashtest astcanary refcounter aelparse conf2ael
 UTILS:=$(ALL_UTILS)
 
 LIBS += $(BKTR_LIB)	# astobj2 with devmode uses backtrace
