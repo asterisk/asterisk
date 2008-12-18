@@ -164,7 +164,7 @@ static char *handle_cli_ael_set_debug(struct ast_cli_entry *e, int cmd, struct a
 	case CLI_INIT:
 		e->command = "ael set debug {read|tokens|macros|contexts|off}";
 		e->usage =
-			"Usage: ael debug {read|tokens|macros|contexts|off}\n"
+			"Usage: ael set debug {read|tokens|macros|contexts|off}\n"
 			"       Enable AEL read, token, macro, or context debugging,\n"
 			"       or disable all AEL debugging messages.  Note: this\n"
 			"       currently does nothing.\n";

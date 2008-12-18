@@ -13673,9 +13673,9 @@ static char *sip_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli
 	if (cmd == CLI_INIT) {
 		e->command = "sip prune realtime [peer|all]";
 		e->usage =
-		"Usage: sip prune realtime [peer [<name>|all|like <pattern>]|all]\n"
-		"       Prunes object(s) from the cache.\n"
-		"       Optional regular expression pattern is used to filter the objects.\n";
+			"Usage: sip prune realtime [peer [<name>|all|like <pattern>]|all]\n"
+			"       Prunes object(s) from the cache.\n"
+			"       Optional regular expression pattern is used to filter the objects.\n";
 		return NULL;
 	} else if (cmd == CLI_GENERATE) {
 		if (a->pos == 4 && !strcasecmp(a->argv[3], "peer")) {
@@ -14745,10 +14745,10 @@ static char *sip_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	if (cmd == CLI_INIT) {
 		e->command = "sip show {channels|subscriptions}";
 		e->usage =
-		"Usage: sip show channels\n"
-		"       Lists all currently active SIP calls (dialogs).\n"
-		"Usage: sip show subscriptions\n"
-		"       Lists active SIP subscriptions.\n";
+			"Usage: sip show channels\n"
+			"       Lists all currently active SIP calls (dialogs).\n"
+			"Usage: sip show subscriptions\n"
+			"       Lists active SIP subscriptions.\n";
 		return NULL;
 	} else if (cmd == CLI_GENERATE)
 		return NULL;
@@ -15463,7 +15463,7 @@ static char *sip_set_history(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	case CLI_INIT:
 		e->command = "sip set history {on|off}";
 		e->usage =
-			"Usage: sip history {on|off}\n"
+			"Usage: sip set history {on|off}\n"
 			"       Enables/Disables recording of SIP dialog history for debugging purposes.\n"
 			"       Use 'sip show history' to view the history of a call number.\n";
 		return NULL;

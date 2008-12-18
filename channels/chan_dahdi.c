@@ -12030,7 +12030,9 @@ static char *handle_pri_show_debug(struct ast_cli_entry *e, int cmd, struct ast_
 	switch (cmd) {
 	case CLI_INIT:	
 		e->command = "pri show debug";
-		e->usage = "Show the debug state of pri spans\n";
+		e->usage = 
+			"Usage: pri show debug\n"
+			"	Show the debug state of pri spans\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;	
@@ -12064,7 +12066,9 @@ static char *handle_pri_version(struct ast_cli_entry *e, int cmd, struct ast_cli
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "pri show version";
-		e->usage = "Show libpri version information\n";
+		e->usage = 
+			"Usage: pri show version\n"
+			"Show libpri version information\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
@@ -12888,10 +12892,10 @@ static char *dahdi_set_dnd(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 		e->command = "dahdi set dnd";
 		e->usage = 
 			"Usage: dahdi set dnd <chan#> <on|off>\n"
-			"   Sets/resets DND (Do Not Disturb) mode on a channel.\n"
-			"   Changes take effect immediately.\n"
-			"   <chan num> is the channel number\n"
-			"   <on|off> Enable or disable DND mode?\n"
+			"	Sets/resets DND (Do Not Disturb) mode on a channel.\n"
+			"	Changes take effect immediately.\n"
+			"	<chan num> is the channel number\n"
+			" 	<on|off> Enable or disable DND mode?\n"
 			;
 		return NULL;
 	case CLI_GENERATE:
@@ -13572,7 +13576,9 @@ static char *handle_ss7_version(struct ast_cli_entry *e, int cmd, struct ast_cli
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "ss7 show version";
-		e->usage = "Show the libss7 version\n";
+		e->usage = 
+			"Usage: ss7 show version\n"
+			"	Show the libss7 version\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;

@@ -996,7 +996,7 @@ static char *handle_cli_misdn_show_config(struct ast_cli_entry *e, int cmd, stru
 		e->command = "misdn show config";
 		e->usage =
 			"Usage: misdn show config [<port> | description <config element> | descriptions [general|ports]]\n"
-	        "       Use 0 for <port> to only print the general config.\n";
+		        "       Use 0 for <port> to only print the general config.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return complete_show_config(a);

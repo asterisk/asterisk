@@ -877,8 +877,9 @@ static char *console_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = CONSOLE_VIDEO_CMDS;
-		e->usage = "Usage: " CONSOLE_VIDEO_CMDS "...\n"
-		"       Generic handler for console commands.\n";
+		e->usage = 
+			"Usage: " CONSOLE_VIDEO_CMDS "...\n"
+			"       Generic handler for console commands.\n";
 		return NULL;
 
 	case CLI_GENERATE:
