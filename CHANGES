@@ -81,6 +81,8 @@ Applications
  * app_directory now pays attention to the searchcontexts setting in
    voicemail.conf and will look through all contexts, if no context is
    specified in the initial argument.
+ * A new application, Originate, has been introduced, that allows asynchronous
+   call origination from the dialplan.
 
 Miscellaneous
 -------------
