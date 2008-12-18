@@ -6363,9 +6363,9 @@ static char *handle_queue_pause_member(struct ast_cli_entry *e, int cmd, struct 
 		e->command = "queue {pause|unpause} member";
 		e->usage = 
 			"Usage: queue {pause|unpause} member <member> [queue <queue> [reason <reason>]]\n"
-			"		Pause or unpause a queue member. Not specifying a particular queue\n"
-			"		will pause or unpause a member across all queues to which the member\n"
-			"		belongs.\n";
+			"	Pause or unpause a queue member. Not specifying a particular queue\n"
+			"	will pause or unpause a member across all queues to which the member\n"
+			"	belongs.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return complete_queue_pause_member(a->line, a-> word, a->pos, a->n);
@@ -6437,8 +6437,8 @@ static char *handle_queue_set_member_penalty(struct ast_cli_entry *e, int cmd, s
 		e->command = "queue set penalty";
 		e->usage = 
 		"Usage: queue set penalty <penalty> on <interface> [in <queue>]\n"
-		"Set a member's penalty in the queue specified. If no queue is specified\n"
-		"then that interface's penalty is set in all queues to which that interface is a member\n";
+		"	Set a member's penalty in the queue specified. If no queue is specified\n"
+		"	then that interface's penalty is set in all queues to which that interface is a member\n";
 		return NULL;
 	case CLI_GENERATE:
 		return complete_queue_set_member_penalty(a->line, a->word, a->pos, a->n);
@@ -6499,8 +6499,8 @@ static char *handle_queue_rule_show(struct ast_cli_entry *e, int cmd, struct ast
 		e->command = "queue rules show";
 		e->usage =
 		"Usage: queue rules show [rulename]\n"
-		"Show the list of rules associated with rulename. If no\n"
-		"rulename is specified, list all rules defined in queuerules.conf\n";
+		"	Show the list of rules associated with rulename. If no\n"
+		"	rulename is specified, list all rules defined in queuerules.conf\n";
 		return NULL;
 	case CLI_GENERATE:
 		return complete_queue_rule_show(a->line, a->word, a->pos, a->n);
@@ -6530,7 +6530,7 @@ static char *handle_queue_rule_reload(struct ast_cli_entry *e, int cmd, struct a
 			e->command = "queue rules reload";
 			e->usage = 
 				"Usage: queue rules reload\n"
-				"Reloads rules defined in queuerules.conf\n";
+				"	Reloads rules defined in queuerules.conf\n";
 			return NULL;
 		case CLI_GENERATE:
 			return NULL;
