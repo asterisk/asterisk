@@ -699,15 +699,19 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 			ast_mutex_init(&obj->lock);
 			/* obj inherits the outstanding reference to class */
 			obj->parent = class;
+			class = NULL;
 			if (odbc_obj_connect(obj) == ODBC_FAIL) {
 				ast_log(LOG_WARNING, "Failed to connect to %s\n", name);
 				ao2_ref(obj, -1);
 				obj = NULL;
-				class->count--;
 			} else {
 				obj->used = 1;
 				ao2_link(class->obj_container, obj);
 			}
+		} else {
+			/* Object is not constructed, so delete outstanding reference to class. */
+			ao2_ref(class, -1);
+			class = NULL;
 		}
 	} else {
 		/* Non-pooled connection: multiple modules can use the same connection. */
@@ -717,7 +721,11 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 			break;
 		}
 
-		if (!obj) {
+		if (obj) {
+			/* Object is not constructed, so delete outstanding reference to class. */
+			ao2_ref(class, -1);
+			class = NULL;
+		} else {
 			/* No entry: build one */
 			obj = ao2_alloc(sizeof(*obj), odbc_obj_destructor);
 			if (!obj) {
@@ -727,6 +735,7 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 			ast_mutex_init(&obj->lock);
 			/* obj inherits the outstanding reference to class */
 			obj->parent = class;
+			class = NULL;
 			if (odbc_obj_connect(obj) == ODBC_FAIL) {
 				ast_log(LOG_WARNING, "Failed to connect to %s\n", name);
 				ao2_ref(obj, -1);
@@ -749,8 +758,8 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 		obj->lineno = lineno;
 	}
 #endif
+	ast_assert(class == NULL);
 
-	ao2_ref(class, -1);
 	return obj;
 }
 
