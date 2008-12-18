@@ -5448,7 +5448,6 @@ static int has_voicemail(const char *mailbox, const char *folder)
 				int old_priority;
 				struct ast_app* app;
 
-				
 				app = pbx_findapp("Directory");
 				if (app) {
 					char vmcontext[256];
@@ -5494,6 +5493,9 @@ static int has_voicemail(const char *mailbox, const char *folder)
 					AST_LIST_INSERT_HEAD(&extensions, receiver, list);
 					found++;
 				} else {
+					while ((receiver = AST_LIST_REMOVE_HEAD(&extensions, list))) {
+						free_user(receiver);
+					}
 					valid_extensions = 0;
 					break;
 				}
@@ -5508,10 +5510,9 @@ static int has_voicemail(const char *mailbox, const char *folder)
 						return res;
 					}
 				} else {
-					/* Dispose just in case */
-					DISPOSE(fn, -1);
 					res = ast_say_digit_str(chan, s, ecodes, chan->language);
 				}
+				DISPOSE(fn, -1);
 
 				s = strsep(&stringp, "*");
 			}
