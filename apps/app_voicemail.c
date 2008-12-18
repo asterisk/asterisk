@@ -6314,7 +6314,6 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 			int old_priority;
 			struct ast_app* directory_app;
 
-			
 			directory_app = pbx_findapp("Directory");
 			if (directory_app) {
 				char vmcontext[256];
@@ -6324,7 +6323,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 				old_priority = chan->priority;
 				
 				/* call the the Directory, changes the channel */
-				snprintf(vmcontext, sizeof(vmcontext), "%s||v", context ? context : "default");
+				snprintf(vmcontext, sizeof(vmcontext), "%s,,v", context ? context : "default");
 				res = pbx_exec(chan, directory_app, vmcontext);
 				
 				ast_copy_string(username, chan->exten, sizeof(username));
@@ -6333,7 +6332,6 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 				memcpy(chan->context, old_context, sizeof(chan->context));
 				memcpy(chan->exten, old_exten, sizeof(chan->exten));
 				chan->priority = old_priority;
-				
 			} else {
 				ast_log(AST_LOG_WARNING, "Could not find the Directory application, disabling directory_forward\n");
 				ast_clear_flag((&globalflags), VM_DIRECFORWARD);
@@ -6359,6 +6357,14 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 				AST_LIST_INSERT_HEAD(&extensions, receiver, list);
 				found++;
 			} else {
+				/* XXX Optimization for the future.  When we encounter a single bad extension,
+				 * bailing out on all of the extensions may not be the way to go.  We should
+				 * probably just bail on that single extension, then allow the user to enter
+				 * several more. XXX
+				 */
+				while ((receiver = AST_LIST_REMOVE_HEAD(&extensions, list))) {
+					free_user(receiver);
+				}
 				valid_extensions = 0;
 				break;
 			}
@@ -6373,10 +6379,9 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 					return res;
 				}
 			} else {
-				/* Dispose just in case */
-				DISPOSE(fn, -1);
 				res = ast_say_digit_str(chan, s, ecodes, chan->language);
 			}
+			DISPOSE(fn, -1);
 
 			s = strsep(&stringp, "*");
 		}
