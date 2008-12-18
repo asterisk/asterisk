@@ -288,7 +288,6 @@ static int pbx_builtin_background(struct ast_channel *, void *);
 static int pbx_builtin_wait(struct ast_channel *, void *);
 static int pbx_builtin_waitexten(struct ast_channel *, void *);
 static int pbx_builtin_incomplete(struct ast_channel *, void *);
-static int pbx_builtin_keepalive(struct ast_channel *, void *);
 static int pbx_builtin_resetcdr(struct ast_channel *, void *);
 static int pbx_builtin_setamaflags(struct ast_channel *, void *);
 static int pbx_builtin_ringing(struct ast_channel *, void *);
@@ -581,12 +580,6 @@ static struct pbx_builtin {
 	"in order to receive DTMF.\n"
 	},
 
-	{ "KeepAlive", pbx_builtin_keepalive,
-	"returns AST_PBX_KEEPALIVE value",
-	"  KeepAlive(): This application is chiefly meant for internal use with Gosubs.\n"
-	"Please do not run it alone from the dialplan!\n"
-	},
-
 	{ "NoOp", pbx_builtin_noop,
 	"Do Nothing (No Operation)",
 	"  NoOp(): This application does nothing. However, it is useful for debugging\n"
@@ -722,7 +715,6 @@ static struct pbx_builtin {
 	"               Optionally, specify the class for music on hold within parenthesis.\n"
 	"See Also: Playback(application), Background(application).\n"
 	},
-
 };
 
 static struct ast_context *contexts;
@@ -3662,7 +3654,8 @@ static int collect_digits(struct ast_channel *c, int waittime, char *buf, int bu
 	return 0;
 }
 
-static int __ast_pbx_run(struct ast_channel *c)
+static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c, 
+		struct ast_pbx_args *args)
 {
 	int found = 0;	/* set if we find at least one match */
 	int res = 0;
@@ -3875,11 +3868,18 @@ static int __ast_pbx_run(struct ast_channel *c)
 			}
 		}
 	}
-	if (!found && !error)
+
+	if (!found && !error) {
 		ast_log(LOG_WARNING, "Don't know what to do with '%s'\n", c->name);
-	if (res != AST_PBX_KEEPALIVE)
+	}
+
+	if (!args || !args->no_hangup_chan) {
 		ast_softhangup(c, c->hangupcause ? c->hangupcause : AST_CAUSE_NORMAL_CLEARING);
-	if ((res != AST_PBX_KEEPALIVE) && !ast_test_flag(c, AST_FLAG_BRIDGE_HANGUP_RUN) && ast_exists_extension(c, c->context, "h", 1, c->cid.cid_num)) {
+	}
+
+	if ((!args || !args->no_hangup_chan) &&
+			!ast_test_flag(c, AST_FLAG_BRIDGE_HANGUP_RUN) && 
+			ast_exists_extension(c, c->context, "h", 1, c->cid.cid_num)) {
 		set_ext_pri(c, "h", 1);
 		while ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->cid.cid_num, &found, 1)) == 0) {
 			c->priority++;
@@ -3894,8 +3894,11 @@ static int __ast_pbx_run(struct ast_channel *c)
 	ast_clear_flag(c, AST_FLAG_BRIDGE_HANGUP_RUN); /* from one round to the next, make sure this gets cleared */
 	pbx_destroy(c->pbx);
 	c->pbx = NULL;
-	if (res != AST_PBX_KEEPALIVE)
+
+	if (!args || !args->no_hangup_chan) {
 		ast_hangup(c);
+	}
+
 	return 0;
 }
 
@@ -3985,7 +3988,7 @@ static void *pbx_thread(void *data)
 	 */
 	struct ast_channel *c = data;
 
-	__ast_pbx_run(c);
+	__ast_pbx_run(c, NULL);
 	decrease_call_count();
 
 	pthread_exit(NULL);
@@ -4015,17 +4018,24 @@ enum ast_pbx_result ast_pbx_start(struct ast_channel *c)
 	return AST_PBX_SUCCESS;
 }
 
-enum ast_pbx_result ast_pbx_run(struct ast_channel *c)
+enum ast_pbx_result ast_pbx_run_args(struct ast_channel *c, struct ast_pbx_args *args)
 {
 	enum ast_pbx_result res = AST_PBX_SUCCESS;
 
-	if (increase_call_count(c))
+	if (increase_call_count(c)) {
 		return AST_PBX_CALL_LIMIT;
+	}
 
-	res = __ast_pbx_run(c);
+	res = __ast_pbx_run(c, args);
+
 	decrease_call_count();
 
 	return res;
+}
+
+enum ast_pbx_result ast_pbx_run(struct ast_channel *c)
+{
+	return ast_pbx_run_args(c, NULL);
 }
 
 int ast_active_calls(void)
@@ -7774,11 +7784,6 @@ static int pbx_builtin_answer(struct ast_channel *chan, void *data)
 	}
 
 	return __ast_answer(chan, delay);
-}
-
-static int pbx_builtin_keepalive(struct ast_channel *chan, void *data)
-{
-	return AST_PBX_KEEPALIVE;
 }
 
 static int pbx_builtin_incomplete(struct ast_channel *chan, void *data)
