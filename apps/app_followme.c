@@ -960,22 +960,26 @@ static int app_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(options);
 	);
 	
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "%s requires an argument (followmeid)\n",app);
+		return -1;
+	}
+
 	if (!(argstr = ast_strdupa((char *)data))) {
 		ast_log(LOG_ERROR, "Out of memory!\n");
 		return -1;
 	}
 
-	if (!data) {
-		ast_log(LOG_WARNING, "%s requires an argument (followmeid)\n",app);
+
+	AST_STANDARD_APP_ARGS(args, argstr);
+	if (ast_strlen_zero(args.followmeid)) {
+		ast_log(LOG_WARNING, "%s requires an argument (followmeid)\n", app);
 		return -1;
 	}
 
 	u = ast_module_user_add(chan);
 
-	AST_STANDARD_APP_ARGS(args, argstr);
-
-	if (!ast_strlen_zero(args.followmeid)) 
-		AST_LIST_LOCK(&followmes);
+	AST_LIST_LOCK(&followmes);
 	AST_LIST_TRAVERSE(&followmes, f, entry) {
 		if (!strcasecmp(f->name, args.followmeid) && (f->active))
 			break;
