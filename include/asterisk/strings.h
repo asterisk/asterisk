@@ -30,6 +30,18 @@
 #include "asterisk/utils.h"
 #include "asterisk/threadstorage.h"
 
+#if defined(DEBUG_OPAQUE)
+#define __AST_STR_USED used2
+#define __AST_STR_LEN len2
+#define __AST_STR_STR str2
+#define __AST_STR_TS ts2
+#else
+#define __AST_STR_USED used
+#define __AST_STR_LEN len
+#define __AST_STR_STR str
+#define __AST_STR_TS ts
+#endif
+
 /* You may see casts in this header that may seem useless but they ensure this file is C++ clean */
 
 #define AS_OR(a,b)	(a && ast_str_strlen(a)) ? ast_str_buffer(a) : (b)
@@ -340,23 +352,13 @@ int ast_get_timeval(const char *src, struct timeval *tv, struct timeval _default
  * struct ast_threadstorage pointer.
  */
 struct ast_str {
-#ifdef DEBUG_OPAQUE
-	size_t len2;
-	size_t used2;
-	struct ast_threadstorage *ts2;
-#else
-	size_t len;	/*!< The current maximum length of the string */
-	size_t used;	/*!< Amount of space used */
-	struct ast_threadstorage *ts;	/*!< What kind of storage is this ? */
-#endif
+	size_t __AST_STR_LEN;			/*!< The current maximum length of the string */
+	size_t __AST_STR_USED;			/*!< Amount of space used */
+	struct ast_threadstorage *__AST_STR_TS;	/*!< What kind of storage is this ? */
 #define DS_MALLOC	((struct ast_threadstorage *)1)
 #define DS_ALLOCA	((struct ast_threadstorage *)2)
 #define DS_STATIC	((struct ast_threadstorage *)3)	/* not supported yet */
-#ifdef DEBUG_OPAQUE
-	char str2[0];
-#else
-	char str[0];	/*!< The string buffer */
-#endif
+	char __AST_STR_STR[0];			/*!< The string buffer */
 };
 
 /*!
@@ -379,15 +381,9 @@ struct ast_str * attribute_malloc ast_str_create(size_t init_len),
 	if (buf == NULL)
 		return NULL;
 
-#ifdef DEBUG_OPAQUE
-	buf->len2 = init_len;
-	buf->used2 = 0;
-	buf->ts2 = DS_MALLOC;
-#else
-	buf->len = init_len;
-	buf->used = 0;
-	buf->ts = DS_MALLOC;
-#endif
+	buf->__AST_STR_LEN = init_len;
+	buf->__AST_STR_USED = 0;
+	buf->__AST_STR_TS = DS_MALLOC;
 
 	return buf;
 }
@@ -400,15 +396,9 @@ AST_INLINE_API(
 void ast_str_reset(struct ast_str *buf),
 {
 	if (buf) {
-#ifdef DEBUG_OPAQUE
-		buf->used2 = 0;
-		if (buf->len2)
-			buf->str2[0] = '\0';
-#else
-		buf->used = 0;
-		if (buf->len)
-			buf->str[0] = '\0';
-#endif
+		buf->__AST_STR_USED = 0;
+		if (buf->__AST_STR_LEN)
+			buf->__AST_STR_STR[0] = '\0';
 	}
 }
 )
@@ -422,15 +412,9 @@ void ast_str_trim_blanks(struct ast_str *buf),
 	if (!buf) {
 		return;
 	}
-#ifdef DEBUG_OPAQUE
-	while (buf->used2 && buf->str2[buf->used2 - 1] < 33) {
-		buf->str2[--(buf->used2)] = '\0';
+	while (buf->__AST_STR_USED && buf->__AST_STR_STR[buf->__AST_STR_USED - 1] < 33) {
+		buf->__AST_STR_STR[--(buf->__AST_STR_USED)] = '\0';
 	}
-#else
-	while (buf->used && buf->str[buf->used - 1] < 33) {
-		buf->str[--(buf->used)] = '\0';
-	}
-#endif
 }
 )
 
@@ -440,11 +424,7 @@ void ast_str_trim_blanks(struct ast_str *buf),
 AST_INLINE_API(
 size_t ast_str_strlen(struct ast_str *buf),
 {
-#ifdef DEBUG_OPAQUE
-	return buf->used2;
-#else
-	return buf->used;
-#endif
+	return buf->__AST_STR_USED;
 }
 )
 
@@ -454,11 +434,7 @@ size_t ast_str_strlen(struct ast_str *buf),
 AST_INLINE_API(
 size_t ast_str_size(struct ast_str *buf),
 {
-#ifdef DEBUG_OPAQUE
-	return buf->len2;
-#else
-	return buf->len;
-#endif
+	return buf->__AST_STR_LEN;
 }
 )
 
@@ -468,34 +444,20 @@ size_t ast_str_size(struct ast_str *buf),
 AST_INLINE_API(
 attribute_pure char *ast_str_buffer(struct ast_str *buf),
 {
-#ifdef DEBUG_OPAQUE
-	return buf->str2;
-#else
-	return buf->str;
-#endif
+	return buf->__AST_STR_STR;
 }
 )
 
 AST_INLINE_API(
 char *ast_str_truncate(struct ast_str *buf, ssize_t len),
 {
-#ifdef DEBUG_OPAQUE
 	if (len < 0) {
-		buf->used2 += ((ssize_t) abs(len)) > (ssize_t) buf->used2 ? -buf->used2 : len;
+		buf->__AST_STR_USED += ((ssize_t) abs(len)) > (ssize_t) buf->__AST_STR_USED ? -buf->__AST_STR_USED : len;
 	} else {
-		buf->used2 = len;
+		buf->__AST_STR_USED = len;
 	}
-	buf->str2[buf->used2] = '\0';
-	return buf->str2;
-#else
-	if (len < 0) {
-		buf->used += ((ssize_t) abs(len)) > (ssize_t) buf->used ? -buf->used : len;
-	} else {
-		buf->used = len;
-	}
-	buf->str[buf->used] = '\0';
-	return buf->str;
-#endif
+	buf->__AST_STR_STR[buf->__AST_STR_USED] = '\0';
+	return buf->__AST_STR_STR;
 }
 )
 	
@@ -522,39 +484,21 @@ int _ast_str_make_space(struct ast_str **buf, size_t new_len, const char *file, 
 {
 	struct ast_str *old_buf = *buf;
 
-#ifdef DEBUG_OPAQUE
-	if (new_len <= (*buf)->len2) 
+	if (new_len <= (*buf)->__AST_STR_LEN) 
 		return 0;	/* success */
-	if ((*buf)->ts2 == DS_ALLOCA || (*buf)->ts2 == DS_STATIC)
+	if ((*buf)->__AST_STR_TS == DS_ALLOCA || (*buf)->__AST_STR_TS == DS_STATIC)
 		return -1;	/* cannot extend */
 	*buf = (struct ast_str *)__ast_realloc(*buf, new_len + sizeof(struct ast_str), file, lineno, function);
 	if (*buf == NULL) {
 		*buf = old_buf;
 		return -1;
 	}
-	if ((*buf)->ts2 != DS_MALLOC) {
-		pthread_setspecific((*buf)->ts2->key, *buf);
+	if ((*buf)->__AST_STR_TS != DS_MALLOC) {
+		pthread_setspecific((*buf)->__AST_STR_TS->key, *buf);
 		_DB1(__ast_threadstorage_object_replace(old_buf, *buf, new_len + sizeof(struct ast_str));)
 	}
 
-	(*buf)->len2 = new_len;
-#else
-	if (new_len <= (*buf)->len) 
-		return 0;	/* success */
-	if ((*buf)->ts == DS_ALLOCA || (*buf)->ts == DS_STATIC)
-		return -1;	/* cannot extend */
-	*buf = (struct ast_str *)__ast_realloc(*buf, new_len + sizeof(struct ast_str), file, lineno, function);
-	if (*buf == NULL) {
-		*buf = old_buf;
-		return -1;
-	}
-	if ((*buf)->ts != DS_MALLOC) {
-		pthread_setspecific((*buf)->ts->key, *buf);
-		_DB1(__ast_threadstorage_object_replace(old_buf, *buf, new_len + sizeof(struct ast_str));)
-	}
-
-	(*buf)->len = new_len;
-#endif
+	(*buf)->__AST_STR_LEN = new_len;
 	return 0;
 }
 )
@@ -565,67 +509,36 @@ int ast_str_make_space(struct ast_str **buf, size_t new_len),
 {
 	struct ast_str *old_buf = *buf;
 
-#ifdef DEBUG_OPAQUE
-	if (new_len <= (*buf)->len2) 
+	if (new_len <= (*buf)->__AST_STR_LEN) 
 		return 0;	/* success */
-	if ((*buf)->ts2 == DS_ALLOCA || (*buf)->ts2 == DS_STATIC)
+	if ((*buf)->__AST_STR_TS == DS_ALLOCA || (*buf)->__AST_STR_TS == DS_STATIC)
 		return -1;	/* cannot extend */
 	*buf = (struct ast_str *)ast_realloc(*buf, new_len + sizeof(struct ast_str));
 	if (*buf == NULL) {
 		*buf = old_buf;
 		return -1;
 	}
-	if ((*buf)->ts2 != DS_MALLOC) {
-		pthread_setspecific((*buf)->ts2->key, *buf);
+	if ((*buf)->__AST_STR_TS != DS_MALLOC) {
+		pthread_setspecific((*buf)->__AST_STR_TS->key, *buf);
 		_DB1(__ast_threadstorage_object_replace(old_buf, *buf, new_len + sizeof(struct ast_str));)
 	}
 
-	(*buf)->len2 = new_len;
-#else
-	if (new_len <= (*buf)->len) 
-		return 0;	/* success */
-	if ((*buf)->ts == DS_ALLOCA || (*buf)->ts == DS_STATIC)
-		return -1;	/* cannot extend */
-	*buf = (struct ast_str *)ast_realloc(*buf, new_len + sizeof(struct ast_str));
-	if (*buf == NULL) {
-		*buf = old_buf;
-		return -1;
-	}
-	if ((*buf)->ts != DS_MALLOC) {
-		pthread_setspecific((*buf)->ts->key, *buf);
-		_DB1(__ast_threadstorage_object_replace(old_buf, *buf, new_len + sizeof(struct ast_str));)
-	}
-
-	(*buf)->len = new_len;
-#endif
+	(*buf)->__AST_STR_LEN = new_len;
 	return 0;
 }
 )
 #endif
 
-#ifdef DEBUG_OPAQUE
 #define ast_str_alloca(init_len)			\
 	({						\
 		struct ast_str *__ast_str_buf;			\
 		__ast_str_buf = alloca(sizeof(*__ast_str_buf) + init_len);	\
-		__ast_str_buf->len2 = init_len;			\
-		__ast_str_buf->used2 = 0;				\
-		__ast_str_buf->ts2 = DS_ALLOCA;			\
-		__ast_str_buf->str2[0] = '\0';			\
+		__ast_str_buf->__AST_STR_LEN = init_len;			\
+		__ast_str_buf->__AST_STR_USED = 0;				\
+		__ast_str_buf->__AST_STR_TS = DS_ALLOCA;			\
+		__ast_str_buf->__AST_STR_STR[0] = '\0';			\
 		(__ast_str_buf);					\
 	})
-#else
-#define ast_str_alloca(init_len)			\
-	({						\
-		struct ast_str *__ast_str_buf;			\
-		__ast_str_buf = alloca(sizeof(*__ast_str_buf) + init_len);	\
-		__ast_str_buf->len = init_len;			\
-		__ast_str_buf->used = 0;				\
-		__ast_str_buf->ts = DS_ALLOCA;			\
-		__ast_str_buf->str[0] = '\0';			\
-		(__ast_str_buf);					\
-	})
-#endif
 
 /*!
  * \brief Retrieve a thread locally stored dynamic string
@@ -669,19 +582,11 @@ struct ast_str *ast_str_thread_get(struct ast_threadstorage *ts,
 	if (buf == NULL)
 		return NULL;
 
-#ifdef DEBUG_OPAQUE
-	if (!buf->len2) {
-		buf->len2 = init_len;
-		buf->used2 = 0;
-		buf->ts2 = ts;
+	if (!buf->__AST_STR_LEN) {
+		buf->__AST_STR_LEN = init_len;
+		buf->__AST_STR_USED = 0;
+		buf->__AST_STR_TS = ts;
 	}
-#else
-	if (!buf->len) {
-		buf->len = init_len;
-		buf->used = 0;
-		buf->ts = ts;
-	}
-#endif
 
 	return buf;
 }
@@ -697,19 +602,11 @@ struct ast_str *__ast_str_thread_get(struct ast_threadstorage *ts,
 	if (buf == NULL)
 		return NULL;
 
-#ifdef DEBUG_OPAQUE
-	if (!buf->len2) {
-		buf->len2 = init_len;
-		buf->used2 = 0;
-		buf->ts2 = ts;
+	if (!buf->__AST_STR_LEN) {
+		buf->__AST_STR_LEN = init_len;
+		buf->__AST_STR_USED = 0;
+		buf->__AST_STR_TS = ts;
 	}
-#else
-	if (!buf->len) {
-		buf->len = init_len;
-		buf->used = 0;
-		buf->ts = ts;
-	}
-#endif
 
 	return buf;
 }
@@ -862,27 +759,15 @@ AST_INLINE_API(SQLRETURN ast_str_SQLGetData(struct ast_str **buf, size_t maxlen,
 {
 	SQLRETURN res;
 	if (maxlen == 0) {
-#ifdef DEBUG_OPAQUE
-		if (SQLGetData(StatementHandle, ColumnNumber, TargetType, (*buf)->str2, 0, StrLen_or_Ind) == SQL_SUCCESS_WITH_INFO) {
+		if (SQLGetData(StatementHandle, ColumnNumber, TargetType, (*buf)->__AST_STR_STR, 0, StrLen_or_Ind) == SQL_SUCCESS_WITH_INFO) {
 			ast_str_make_space(buf, *StrLen_or_Ind + 1);
 		}
-		maxlen = (*buf)->len2;
+		maxlen = (*buf)->__AST_STR_LEN;
 	} else if (maxlen > 0) {
 		ast_str_make_space(buf, maxlen);
 	}
-	res = SQLGetData(StatementHandle, ColumnNumber, TargetType, (*buf)->str2, maxlen, StrLen_or_Ind);
-	(*buf)->used2 = *StrLen_or_Ind;
-#else
-		if (SQLGetData(StatementHandle, ColumnNumber, TargetType, (*buf)->str, 0, StrLen_or_Ind) == SQL_SUCCESS_WITH_INFO) {
-			ast_str_make_space(buf, *StrLen_or_Ind + 1);
-		}
-		maxlen = (*buf)->len;
-	} else if (maxlen > 0) {
-		ast_str_make_space(buf, maxlen);
-	}
-	res = SQLGetData(StatementHandle, ColumnNumber, TargetType, (*buf)->str, maxlen, StrLen_or_Ind);
-	(*buf)->used = *StrLen_or_Ind;
-#endif
+	res = SQLGetData(StatementHandle, ColumnNumber, TargetType, (*buf)->__AST_STR_STR, maxlen, StrLen_or_Ind);
+	(*buf)->__AST_STR_USED = *StrLen_or_Ind;
 	return res;
 }
 )
@@ -977,4 +862,5 @@ static force_inline int ast_str_case_hash(const char *str)
 
 	return abs(hash);
 }
+
 #endif /* _ASTERISK_STRINGS_H */

@@ -52,67 +52,39 @@ int __ast_str_helper(struct ast_str **buf, size_t max_len,
 	int append, const char *fmt, va_list ap)
 {
 	int res, need;
-#ifdef DEBUG_OPAQUE
-	int offset = (append && (*buf)->len2) ? (*buf)->used2 : 0;
-#else
-	int offset = (append && (*buf)->len) ? (*buf)->used : 0;
-#endif
+	int offset = (append && (*buf)->__AST_STR_LEN) ? (*buf)->__AST_STR_USED : 0;
 	va_list aq;
 
 	do {
 		if (max_len < 0) {
-#ifdef DEBUG_OPAQUE
-			max_len = (*buf)->len2;	/* don't exceed the allocated space */
-#else
-			max_len = (*buf)->len;	/* don't exceed the allocated space */
-#endif
+			max_len = (*buf)->__AST_STR_LEN;	/* don't exceed the allocated space */
 		}
 		/*
 		 * Ask vsnprintf how much space we need. Remember that vsnprintf
 		 * does not count the final '\0' so we must add 1.
 		 */
 		va_copy(aq, ap);
-#ifdef DEBUG_OPAQUE
-		res = vsnprintf((*buf)->str2 + offset, (*buf)->len2 - offset, fmt, aq);
-#else
-		res = vsnprintf((*buf)->str + offset, (*buf)->len - offset, fmt, aq);
-#endif
+		res = vsnprintf((*buf)->__AST_STR_STR + offset, (*buf)->__AST_STR_LEN - offset, fmt, aq);
 
 		need = res + offset + 1;
 		/*
 		 * If there is not enough space and we are below the max length,
 		 * reallocate the buffer and return a message telling to retry.
 		 */
-#ifdef DEBUG_OPAQUE
-		if (need > (*buf)->len2 && (max_len == 0 || (*buf)->len2 < max_len) ) {
-#else
-		if (need > (*buf)->len && (max_len == 0 || (*buf)->len < max_len) ) {
-#endif
+		if (need > (*buf)->__AST_STR_LEN && (max_len == 0 || (*buf)->__AST_STR_LEN < max_len) ) {
 			if (max_len && max_len < need) {	/* truncate as needed */
 				need = max_len;
 			} else if (max_len == 0) {	/* if unbounded, give more room for next time */
 				need += 16 + need / 4;
 			}
 			if (0) {	/* debugging */
-#ifdef DEBUG_OPAQUE
-				ast_verbose("extend from %d to %d\n", (int)(*buf)->len2, need);
-#else
-				ast_verbose("extend from %d to %d\n", (int)(*buf)->len, need);
-#endif
+				ast_verbose("extend from %d to %d\n", (int)(*buf)->__AST_STR_LEN, need);
 			}
 			if (ast_str_make_space(buf, need)) {
-#ifdef DEBUG_OPAQUE
-				ast_verbose("failed to extend from %d to %d\n", (int)(*buf)->len2, need);
-#else
-				ast_verbose("failed to extend from %d to %d\n", (int)(*buf)->len, need);
-#endif
+				ast_verbose("failed to extend from %d to %d\n", (int)(*buf)->__AST_STR_LEN, need);
 				return AST_DYNSTR_BUILD_FAILED;
 			}
-#ifdef DEBUG_OPAQUE
-			(*buf)->str2[offset] = '\0';	/* Truncate the partial write. */
-#else
-			(*buf)->str[offset] = '\0';	/* Truncate the partial write. */
-#endif
+			(*buf)->__AST_STR_STR[offset] = '\0';	/* Truncate the partial write. */
 
 			/* Restart va_copy before calling vsnprintf() again. */
 			va_end(aq);
@@ -121,11 +93,7 @@ int __ast_str_helper(struct ast_str **buf, size_t max_len,
 		break;
 	} while (1);
 	/* update space used, keep in mind the truncation */
-#ifdef DEBUG_OPAQUE
-	(*buf)->used2 = (res + offset > (*buf)->len2) ? (*buf)->len2 : res + offset;
-#else
-	(*buf)->used = (res + offset > (*buf)->len) ? (*buf)->len : res + offset;
-#endif
+	(*buf)->__AST_STR_USED = (res + offset > (*buf)->__AST_STR_LEN) ? (*buf)->__AST_STR_LEN : res + offset;
 
 	return res;
 }
@@ -133,73 +101,41 @@ int __ast_str_helper(struct ast_str **buf, size_t max_len,
 void ast_str_substitute_variables(struct ast_str **buf, size_t maxlen, struct ast_channel *chan, const char *template)
 {
 	int first = 1;
-#ifdef DEBUG_OPAQUE
 	do {
 		ast_str_make_space(buf, maxlen ? maxlen :
-			(first ? strlen(template) * 2 : (*buf)->len2 * 2));
-		pbx_substitute_variables_helper_full(chan, NULL, template, (*buf)->str2, (*buf)->len2 - 1, &((*buf)->used2));
+			(first ? strlen(template) * 2 : (*buf)->__AST_STR_LEN * 2));
+		pbx_substitute_variables_helper_full(chan, NULL, template, (*buf)->__AST_STR_STR, (*buf)->__AST_STR_LEN - 1, &((*buf)->__AST_STR_USED));
 		first = 0;
-	} while (maxlen == 0 && (*buf)->len2 - 5 < (*buf)->used2);
-#else
-	do {
-		ast_str_make_space(buf, maxlen ? maxlen :
-			(first ? strlen(template) * 2 : (*buf)->len * 2));
-		pbx_substitute_variables_helper_full(chan, NULL, template, (*buf)->str, (*buf)->len - 1, &((*buf)->used));
-		first = 0;
-	} while (maxlen == 0 && (*buf)->len - 5 < (*buf)->used);
-#endif
+	} while (maxlen == 0 && (*buf)->__AST_STR_LEN - 5 < (*buf)->__AST_STR_USED);
 }
 
 char *__ast_str_helper2(struct ast_str **buf, size_t maxlen, const char *src, size_t maxsrc, int append, int escapecommas)
 {
 	int dynamic = 0;
-#ifdef DEBUG_OPAQUE
-	char *ptr = append ? &((*buf)->str2[(*buf)->used2]) : (*buf)->str2;
-#else
-	char *ptr = append ? &((*buf)->str[(*buf)->used]) : (*buf)->str;
-#endif
+	char *ptr = append ? &((*buf)->__AST_STR_STR[(*buf)->__AST_STR_USED]) : (*buf)->__AST_STR_STR;
 
 	if (!maxlen) {
 		dynamic = 1;
-#ifdef DEBUG_OPAQUE
-		maxlen = (*buf)->len2;
-#else
-		maxlen = (*buf)->len;
-#endif
+		maxlen = (*buf)->__AST_STR_LEN;
 	}
 
 	while (*src && maxsrc && maxlen && (!escapecommas || (maxlen - 1))) {
 		if (escapecommas && (*src == '\\' || *src == ',')) {
 			*ptr++ = '\\';
 			maxlen--;
-#ifdef DEBUG_OPAQUE
-			(*buf)->used2++;
-#else
-			(*buf)->used++;
-#endif
+			(*buf)->__AST_STR_USED++;
 		}
 		*ptr++ = *src++;
 		maxsrc--;
 		maxlen--;
-#ifdef DEBUG_OPAQUE
-		(*buf)->used2++;
-#else
-		(*buf)->used++;
-#endif
+		(*buf)->__AST_STR_USED++;
+
 		if (dynamic && (!maxlen || (escapecommas && !(maxlen - 1)))) {
-#ifdef DEBUG_OPAQUE
-			size_t old = (*buf)->len2;
-			if (ast_str_make_space(buf, (*buf)->len2 * 2)) {
+			size_t old = (*buf)->__AST_STR_LEN;
+			if (ast_str_make_space(buf, (*buf)->__AST_STR_LEN * 2)) {
 				/* If the buffer can't be extended, end it. */
 				break;
 			}
-#else
-			size_t old = (*buf)->len;
-			if (ast_str_make_space(buf, (*buf)->len * 2)) {
-				/* If the buffer can't be extended, end it. */
-				break;
-			}
-#endif
 			/* What we extended the buffer by */
 			maxlen = old;
 		}
@@ -208,12 +144,7 @@ char *__ast_str_helper2(struct ast_str **buf, size_t maxlen, const char *src, si
 		ptr--;
 	}
 	*ptr = '\0';
-#ifdef DEBUG_OPAQUE
-	(*buf)->used2--;
-	return (*buf)->str2;
-#else
-	(*buf)->used--;
-	return (*buf)->str;
-#endif
+	(*buf)->__AST_STR_USED--;
+	return (*buf)->__AST_STR_STR;
 }
 
