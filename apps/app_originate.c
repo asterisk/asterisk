@@ -26,6 +26,10 @@
  * \author Russell Bryant <russell@digium.com>
  *
  * \ingroup applications
+ *
+ * \todo Make a way to be able to set variables (and functions) on the outbound
+ *       channel, similar to the Variable headers for the AMI Originate, and the
+ *       Set options for call files.
  */
 
 #include "asterisk.h"
