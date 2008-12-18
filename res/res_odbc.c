@@ -699,7 +699,6 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 			ast_mutex_init(&obj->lock);
 			/* obj inherits the outstanding reference to class */
 			obj->parent = class;
-			class = NULL;
 			if (odbc_obj_connect(obj) == ODBC_FAIL) {
 				ast_log(LOG_WARNING, "Failed to connect to %s\n", name);
 				ao2_ref(obj, -1);
@@ -708,6 +707,7 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 				obj->used = 1;
 				ao2_link(class->obj_container, obj);
 			}
+			class = NULL;
 		} else {
 			/* Object is not constructed, so delete outstanding reference to class. */
 			ao2_ref(class, -1);
@@ -735,7 +735,6 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 			ast_mutex_init(&obj->lock);
 			/* obj inherits the outstanding reference to class */
 			obj->parent = class;
-			class = NULL;
 			if (odbc_obj_connect(obj) == ODBC_FAIL) {
 				ast_log(LOG_WARNING, "Failed to connect to %s\n", name);
 				ao2_ref(obj, -1);
@@ -743,6 +742,7 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 			} else {
 				ao2_link(class->obj_container, obj);
 			}
+			class = NULL;
 		}
 	}
 
