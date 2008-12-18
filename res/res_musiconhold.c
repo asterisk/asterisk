@@ -516,6 +516,7 @@ static int spawn_mp3(struct mohclass *class)
 			ast_log(LOG_WARNING, "chdir() failed: %s\n", strerror(errno));
 			_exit(1);
 		}
+		setpgid(0, getpid());
 		if (ast_test_flag(class, MOH_CUSTOM)) {
 			execv(argv[0], argv);
 		} else {
@@ -597,11 +598,11 @@ static void *monmp3thread(void *data)
 				class->srcfd = -1;
 				pthread_testcancel();
 				if (class->pid > 1) {
-					kill(class->pid, SIGHUP);
+					killpg(class->pid, SIGHUP);
 					usleep(100000);
-					kill(class->pid, SIGTERM);
+					killpg(class->pid, SIGTERM);
 					usleep(100000);
-					kill(class->pid, SIGKILL);
+					killpg(class->pid, SIGKILL);
 					class->pid = 0;
 				}
 			} else {
@@ -1465,11 +1466,11 @@ static int ast_moh_destroy_one(struct mohclass *moh)
 			/* Back when this was just mpg123, SIGKILL was fine.  Now we need
 			 * to give the process a reason and time enough to kill off its
 			 * children. */
-			kill(pid, SIGHUP);
+			killpg(pid, SIGHUP);
 			usleep(100000);
-			kill(pid, SIGTERM);
+			killpg(pid, SIGTERM);
 			usleep(100000);
-			kill(pid, SIGKILL);
+			killpg(pid, SIGKILL);
 			while ((ast_wait_for_input(moh->srcfd, 100) > 0) && (bytes = read(moh->srcfd, buff, 8192)) && time(NULL) < stop_time)
 				tbytes = tbytes + bytes;
 			ast_debug(1, "mpg123 pid %d and child died after %d bytes read\n", pid, tbytes);
