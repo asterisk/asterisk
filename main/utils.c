@@ -1074,29 +1074,54 @@ int ast_wait_for_input(int fd, int ms)
  */
 int ast_carefulwrite(int fd, char *s, int len, int timeoutms) 
 {
-	/* Try to write string, but wait no more than ms milliseconds
-	   before timing out */
 	int res = 0;
-	struct pollfd fds[1];
+
 	while (len) {
+		struct pollfd pfd = {
+			.fd = fd,
+			.events = POLLOUT,
+		};
+
+		/* poll() until the fd is writable without blocking */
+		while ((res = poll(&pfd, 1, timeoutms)) <= 0) {
+			if (res == 0) {
+				/* timed out. */
+				ast_log(LOG_NOTICE, "Timed out trying to write\n");
+				return -1;
+			} else if (res == -1) {
+				/* poll() returned an error, check to see if it was fatal */
+
+				if (errno == EINTR || errno == EAGAIN) {
+					/* This was an acceptable error, go back into poll() */
+					continue;
+				}
+
+				/* Fatal error, bail. */
+				ast_log(LOG_ERROR, "poll returned error: %s\n", strerror(errno));
+
+				return -1;
+			}
+		}
+
 		res = write(fd, s, len);
-		if ((res < 0) && (errno != EAGAIN)) {
+
+		if (res < 0 && errno != EAGAIN && errno != EINTR) {
+			/* fatal error from write() */
+			ast_log(LOG_ERROR, "write() returned error: %s\n", strerror(errno));
 			return -1;
 		}
-		if (res < 0)
+
+		if (res < 0) {
+			/* It was an acceptable error */
 			res = 0;
+		}
+
+		/* Update how much data we have left to write */
 		len -= res;
 		s += res;
 		res = 0;
-		if (len) {
-			fds[0].fd = fd;
-			fds[0].events = POLLOUT;
-			/* Wait until writable again */
-			res = poll(fds, 1, timeoutms);
-			if (res < 1)
-				return -1;
-		}
 	}
+
 	return res;
 }
 
