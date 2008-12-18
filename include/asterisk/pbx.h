@@ -291,6 +291,37 @@ enum ast_pbx_result ast_pbx_start(struct ast_channel *c);
  */
 enum ast_pbx_result ast_pbx_run(struct ast_channel *c);
 
+/*!
+ * \brief Options for ast_pbx_run()
+ */
+struct ast_pbx_args {
+	union {
+		/*! Pad this out so that we have plenty of room to add options
+		 *  but still maintain ABI compatibility over time. */
+		uint64_t __padding;
+		struct {
+			/*! Do not hangup the channel when the PBX is complete. */
+			unsigned int no_hangup_chan:1;
+		};
+	};
+};
+
+/*!
+ * \brief Execute the PBX in the current thread
+ *
+ * \param c channel to run the pbx on
+ * \param args options for the pbx
+ *
+ * This executes the PBX on a given channel. It allocates a new
+ * PBX structure for the channel, and provides all PBX functionality.
+ * See ast_pbx_start for an asynchronous function to run the PBX in a
+ * new thread as opposed to the current one.
+ * 
+ * \retval Zero on success
+ * \retval non-zero on failure
+ */
+enum ast_pbx_result ast_pbx_run_args(struct ast_channel *c, struct ast_pbx_args *args);
+
 /*! 
  * \brief Add and extension to an extension context.  
  * 

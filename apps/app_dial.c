@@ -2082,7 +2082,11 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				if (gosub_args) {
 					res9 = pbx_exec(peer, theapp, gosub_args);
 					if (!res9) {
-						ast_pbx_run(peer);
+						struct ast_pbx_args args;
+						/* A struct initializer fails to compile for this case ... */
+						memset(&args, 0, sizeof(args));
+						args.no_hangup_chan = 1;
+						ast_pbx_run_args(peer, &args);
 					}
 					ast_free(gosub_args);
 					if (option_debug)
@@ -2428,7 +2432,7 @@ static int load_module(void)
 	if (!con)
 		ast_log(LOG_ERROR, "Dial virtual context 'app_dial_gosub_virtual_context' does not exist and unable to create\n");
 	else
-		ast_add_extension2(con, 1, "s", 1, NULL, NULL, "KeepAlive", ast_strdup(""), ast_free_ptr, "app_dial");
+		ast_add_extension2(con, 1, "s", 1, NULL, NULL, "NoOp", ast_strdup(""), ast_free_ptr, "app_dial");
 
 	res = ast_register_application_xml(app, dial_exec);
 	res |= ast_register_application_xml(rapp, retrydial_exec);
