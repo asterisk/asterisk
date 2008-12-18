@@ -2072,10 +2072,9 @@ int ast_rtp_early_bridge(struct ast_channel *c0, struct ast_channel *c1)
 	else
 		destcodec = 0;
 	/* Ensure we have at least one matching codec */
-	if (!(srccodec & destcodec)) {
+	if (srcp && !(srccodec & destcodec)) {
 		ast_channel_unlock(c0);
-		if (c1)
-			ast_channel_unlock(c1);
+		ast_channel_unlock(c1);
 		return 0;
 	}
 	/* Consider empty media as non-existent */
