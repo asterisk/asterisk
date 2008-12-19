@@ -23,7 +23,7 @@
  *
  * \brief Audiohook inheritance function
  *
- * \author \verbatim Mark Michelson <mmichelson@digium.com> \endverbatim
+ * \author Mark Michelson <mmichelson@digium.com>
  *
  * \ingroup functions
  */
