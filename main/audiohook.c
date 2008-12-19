@@ -412,6 +412,11 @@ int ast_audiohook_detach_list(struct ast_audiohook_list *audiohook_list)
 	return 0;
 }
 
+/*! \brief find an audiohook based on its source
+ * \param audiohook_list The list of audiohooks to search in
+ * \param source The source of the audiohook we wish to find
+ * \return Return the corresponding audiohook or NULL if it cannot be found.
+ */
 static struct ast_audiohook *find_audiohook_by_source(struct ast_audiohook_list *audiohook_list, const char *source)
 {
 	struct ast_audiohook *audiohook = NULL;
@@ -432,6 +437,25 @@ static struct ast_audiohook *find_audiohook_by_source(struct ast_audiohook_list 
 	}
 
 	return NULL;
+}
+
+void ast_audiohook_move_by_source (struct ast_channel *old_chan, struct ast_channel *new_chan, const char *source)
+{
+	struct ast_audiohook *audiohook = find_audiohook_by_source(old_chan->audiohooks, source);
+
+	if (!audiohook) {
+		return;
+	}
+	
+	/* By locking both channels and the audiohook, we can assure that
+	 * another thread will not have a chance to read the audiohook's status
+	 * as done, even though ast_audiohook_remove signals the trigger
+	 * condition
+	 */
+	ast_audiohook_lock(audiohook);
+	ast_audiohook_remove(old_chan, audiohook);
+	ast_audiohook_attach(new_chan, audiohook);
+	ast_audiohook_unlock(audiohook);
 }
 
 /*! \brief Detach specified source audiohook from channel

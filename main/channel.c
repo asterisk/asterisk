@@ -4086,11 +4086,11 @@ int ast_do_masquerade(struct ast_channel *original)
 	/* Move data stores over */
 	if (AST_LIST_FIRST(&clonechan->datastores)) {
 		struct ast_datastore *ds;
-		AST_LIST_APPEND_LIST(&original->datastores, &clonechan->datastores, entry);
-		AST_LIST_TRAVERSE(&original->datastores, ds, entry) {
+		AST_LIST_TRAVERSE(&clonechan->datastores, ds, entry) {
 			if (ds->info->chan_fixup)
 				ds->info->chan_fixup(ds->data, clonechan, original);
 		}
+		AST_LIST_APPEND_LIST(&original->datastores, &clonechan->datastores, entry);
 	}
 
 	clone_variables(original, clonechan);
