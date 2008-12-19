@@ -3155,7 +3155,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		transfer_ds = setup_transfer_datastore(qe, member, callstart, callcompletedinsl);
 		bridge = ast_bridge_call(qe->chan,peer, &bridge_config);
 
-		if (bridge != AST_PBX_KEEPALIVE && !attended_transfer_occurred(qe->chan)) {
+		if (!attended_transfer_occurred(qe->chan)) {
 			struct ast_datastore *tds;
 			if (strcasecmp(oldcontext, qe->chan->context) || strcasecmp(oldexten, qe->chan->exten)) {
 				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "TRANSFER", "%s|%s|%ld|%ld",
@@ -3164,7 +3164,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			} else if (qe->chan->_softhangup) {
 				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "COMPLETECALLER", "%ld|%ld|%d",
 					(long) (callstart - qe->start), (long) (time(NULL) - callstart), qe->opos);
-				if (bridge != AST_PBX_NO_HANGUP_PEER && bridge != AST_PBX_NO_HANGUP_PEER_PARKED && qe->parent->eventwhencalled)
+				if (qe->parent->eventwhencalled)
 					manager_event(EVENT_FLAG_AGENT, "AgentComplete",
 							"Queue: %s\r\n"
 							"Uniqueid: %s\r\n"
@@ -3181,7 +3181,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			} else {
 				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "COMPLETEAGENT", "%ld|%ld|%d",
 					(long) (callstart - qe->start), (long) (time(NULL) - callstart), qe->opos);
-				if (bridge != AST_PBX_NO_HANGUP_PEER && bridge != AST_PBX_NO_HANGUP_PEER_PARKED && qe->parent->eventwhencalled)
+				if (qe->parent->eventwhencalled)
 					manager_event(EVENT_FLAG_AGENT, "AgentComplete",
 							"Queue: %s\r\n"
 							"Uniqueid: %s\r\n"
@@ -3206,8 +3206,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		if (transfer_ds) {
 			ast_channel_datastore_free(transfer_ds);
 		}
-		if (bridge != AST_PBX_NO_HANGUP_PEER && bridge != AST_PBX_NO_HANGUP_PEER_PARKED)
-			ast_hangup(peer);
+		ast_hangup(peer);
 		res = bridge ? bridge : 1;
 		ao2_ref(member, -1);
 	}
@@ -4079,7 +4078,7 @@ stop:
 		}
 
 		/* Don't allow return code > 0 */
-		if (res >= 0 && res != AST_PBX_KEEPALIVE) {
+		if (res >= 0) {
 			res = 0;	
 			if (ringing) {
 				ast_indicate(chan, -1);

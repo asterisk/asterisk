@@ -1837,37 +1837,29 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			res = -1;
 		}
 
-		if (res != AST_PBX_NO_HANGUP_PEER && res != AST_PBX_NO_HANGUP_PEER_PARKED) {
-			if (res != AST_PBX_KEEPALIVE && !chan->_softhangup)
-				chan->hangupcause = peer->hangupcause;
-			ast_hangup(peer);
-		}
+		if (!chan->_softhangup)
+			chan->hangupcause = peer->hangupcause;
+		ast_hangup(peer);
 	}	
 out:
-	/* cleaning up chan is not a good idea here if AST_PBX_KEEPALIVE
-	   is returned; chan will get the love it needs from another
-	   thread */
-	if (res != AST_PBX_KEEPALIVE) {
-		if (moh) {
-			moh = 0;
-			ast_moh_stop(chan);
-		} else if (sentringing) {
-			sentringing = 0;
-			ast_indicate(chan, -1);
-		}
-		ast_rtp_early_bridge(chan, NULL);
-		hanguptree(outgoing, NULL);
-		pbx_builtin_setvar_helper(chan, "DIALSTATUS", status);
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Exiting with DIALSTATUS=%s.\n", status);
-		
-		if ((ast_test_flag(peerflags, OPT_GO_ON)) && (!chan->_softhangup) && (res != AST_PBX_KEEPALIVE)) {
-			if (timelimit)
-				chan->whentohangup = 0;
-			res = 0;
-		}
+	if (moh) {
+		moh = 0;
+		ast_moh_stop(chan);
+	} else if (sentringing) {
+		sentringing = 0;
+		ast_indicate(chan, -1);
 	}
-
+	ast_rtp_early_bridge(chan, NULL);
+	hanguptree(outgoing, NULL);
+	pbx_builtin_setvar_helper(chan, "DIALSTATUS", status);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Exiting with DIALSTATUS=%s.\n", status);
+	
+	if (ast_test_flag(peerflags, OPT_GO_ON) && !chan->_softhangup) {
+		if (calldurationlimit)
+			chan->whentohangup = 0;
+		res = 0;
+	}
 done:
 	ast_module_user_remove(u);    
 	return res;

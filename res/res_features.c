@@ -535,12 +535,8 @@ static int masq_park_call_announce(struct ast_channel *rchan, struct ast_channel
 {
 	return masq_park_call(rchan, peer, timeout, extout, 1);
 }
-
 #define FEATURE_RETURN_HANGUP                  -1
 #define FEATURE_RETURN_SUCCESSBREAK             0
-#define FEATURE_RETURN_PBX_KEEPALIVE            AST_PBX_KEEPALIVE
-#define FEATURE_RETURN_NO_HANGUP_PEER           AST_PBX_NO_HANGUP_PEER
-#define FEATURE_RETURN_NO_HANGUP_PEER_PARKED    AST_PBX_NO_HANGUP_PEER_PARKED
 #define FEATURE_RETURN_PASSDIGITS               21
 #define FEATURE_RETURN_STOREDIGITS              22
 #define FEATURE_RETURN_SUCCESS                  23
@@ -575,30 +571,22 @@ static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, 
 	u = ast_module_user_add(chan);
 
 	set_peers(&parker, &parkee, peer, chan, sense);
-	/* Setup the exten/priority to be s/1 since we don't know
-	   where this call should return */
-	strcpy(chan->exten, "s");
-	chan->priority = 1;
+	/* we used to set chan's exten and priority to "s" and 1
+	   here, but this generates (in some cases) an invalid
+	   extension, and if "s" exists, could errantly
+	   cause execution of extensions you don't expect It
+	   makes more sense to let nature take its course
+	   when chan finishes, and let the pbx do its thing
+	   and hang up when the park is over.
+	*/
 	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
 	if (!res)
 		res = ast_safe_sleep(chan, 1000);
 
-	if (!res) {
-		if (sense == FEATURE_SENSE_CHAN) {
-			res = ast_park_call(parkee, parker, 0, NULL);
-			if (!res) {
-				if (sense == FEATURE_SENSE_CHAN) {
-					res = AST_PBX_NO_HANGUP_PEER_PARKED;
-				} else {
-					res = AST_PBX_KEEPALIVE;
-				}
-			}
-		}
-		else if (sense == FEATURE_SENSE_PEER) {
-			masq_park_call_announce(parkee, parker, 0, NULL);
-			res = 0; /* PBX should hangup zombie channel */
-		}
+	if (!res) { /* one direction used to call park_call.... */
+		masq_park_call_announce(parkee, parker, 0, NULL);
+		res = 0; /* PBX should hangup zombie channel */
 	}
 
 	ast_module_user_remove(u);
@@ -1118,17 +1106,7 @@ static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, 
 
 	ast_autoservice_stop(idle);
 
-	if (res == AST_PBX_KEEPALIVE) {
-		/* do not hangup peer if feature is to be activated on it */
-		if ((ast_test_flag(feature, AST_FEATURE_FLAG_ONPEER) && sense == FEATURE_SENSE_CHAN) || (ast_test_flag(feature, AST_FEATURE_FLAG_ONSELF) && sense == FEATURE_SENSE_PEER)) {
-			return FEATURE_RETURN_NO_HANGUP_PEER;
-		} else
-			return FEATURE_RETURN_PBX_KEEPALIVE;
-	} else if (res == AST_PBX_NO_HANGUP_PEER) {
-		return FEATURE_RETURN_NO_HANGUP_PEER;
-	} else if (res == AST_PBX_NO_HANGUP_PEER_PARKED) {
-		return FEATURE_RETURN_NO_HANGUP_PEER_PARKED;
-	} else if (res)
+	if (res)
 		return FEATURE_RETURN_SUCCESSBREAK;
 	
 	return FEATURE_RETURN_SUCCESS;	/*! \todo XXX should probably return res */
@@ -1729,13 +1707,13 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 
 	}
   before_you_go:
-	if (res != AST_PBX_KEEPALIVE && config->end_bridge_callback) {
+	if (config->end_bridge_callback) {
 		config->end_bridge_callback(config->end_bridge_callback_data);
 	}
 
 	autoloopflag = ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP);
 	ast_set_flag(chan, AST_FLAG_IN_AUTOLOOP);
-	if (res != AST_PBX_KEEPALIVE && !ast_test_flag(&(config->features_caller),AST_FEATURE_NO_H_EXTEN) && ast_exists_extension(chan, chan->context, "h", 1, chan->cid.cid_num)) {
+	if (!ast_test_flag(&(config->features_caller),AST_FEATURE_NO_H_EXTEN) && ast_exists_extension(chan, chan->context, "h", 1, chan->cid.cid_num)) {
 		struct ast_cdr *swapper = NULL;
 		char savelastapp[AST_MAX_EXTENSION];
 		char savelastdata[AST_MAX_EXTENSION];
@@ -1787,10 +1765,9 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	ast_set2_flag(chan, autoloopflag, AST_FLAG_IN_AUTOLOOP);
 
 	/* obey the NoCDR() wishes. -- move the DISABLED flag to the bridge CDR if it was set on the channel during the bridge... */
-	if (res != AST_PBX_KEEPALIVE) {
-		new_chan_cdr = pick_unlocked_cdr(chan->cdr); /* the proper chan cdr, if there are forked cdrs */
-		if (bridge_cdr && new_chan_cdr && ast_test_flag(new_chan_cdr, AST_CDR_FLAG_POST_DISABLED))
-			ast_set_flag(bridge_cdr, AST_CDR_FLAG_POST_DISABLED);
+	new_chan_cdr = pick_unlocked_cdr(chan->cdr); /* the proper chan cdr, if there are forked cdrs */
+	if (bridge_cdr && new_chan_cdr && ast_test_flag(new_chan_cdr, AST_CDR_FLAG_POST_DISABLED)) {
+		ast_set_flag(bridge_cdr, AST_CDR_FLAG_POST_DISABLED);
 	}
 
 	/* we can post the bridge CDR at this point */
@@ -1821,23 +1798,9 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	   5. After a bridge occurs, we have 2 or 3 channels' CDRs
 	      to attend to; if the chan or peer changed names,
 	      we have the before and after attached CDR's.
-	   6. Parking has to be accounted for in the code:
-	      a. Parking will cause ast_bridge_call to return
-	         either AST_PBX_NO_HANGUP_PEER or AST_PBX_NO_HANGUP_PEER_PARKED;
-			 in the latter case, peer is (most likely) a bad
-			 pointer, you can no longer deref it. If it does still
-			 exist, it is under another's thread control, and
-			 could be destroyed at any time.
-          b. The same applies to AST_PBX_KEEPALIVE, in which
-		     case, the chan ptr cannot be used, as another thread
-			 owns it and may have destroyed the channel.
-	      c. In the former case, you need to check peer to see if it 
-	         still exists before you deref it, and obtain a lock.
-	      d. In neither case should you do an ast_hangup(peer).
-		  e. Do not overwrite the result code from ast_bridge_call.
 	*/
 	
-	if (res != AST_PBX_KEEPALIVE && new_chan_cdr) {
+	if (new_chan_cdr) {
 		struct ast_channel *chan_ptr = NULL;
 		
 		if (strcasecmp(orig_channame, chan->name) != 0) { 
@@ -1863,7 +1826,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		}
 	}
 
-	if (res != AST_PBX_NO_HANGUP_PEER_PARKED) { /* if the peer was involved in a park, don't even touch it; it's probably gone */
+	{
 		struct ast_channel *chan_ptr = NULL;
 		new_peer_cdr = pick_unlocked_cdr(peer->cdr); /* the proper chan cdr, if there are forked cdrs */
 		if (new_chan_cdr && ast_test_flag(new_chan_cdr, AST_CDR_FLAG_POST_DISABLED) && new_peer_cdr && !ast_test_flag(new_peer_cdr, AST_CDR_FLAG_POST_DISABLED))
@@ -2121,14 +2084,19 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 		res = ast_safe_sleep(chan, 1000);
 	/* Park the call */
 	if (!res) {
-		res = park_call_full(chan, chan, 0, NULL, orig_chan_name);
+		res = park_call_full(chan, chan, 0, NULL, orig_chan_name);  /* In experiments, using the masq_park_call
+																	   func here yielded no difference with 
+																	   current implementation. I saw no advantage
+																	   in calling it instead.
+																	 */
 		/* Continue on in the dialplan */
 		if (res == 1) {
 			ast_copy_string(chan->exten, orig_exten, sizeof(chan->exten));
 			chan->priority = orig_priority;
 			res = 0;
-		} else if (!res)
-			res = AST_PBX_KEEPALIVE;
+		} else if (!res) {
+			res = 1;
+		}
 	}
 
 	ast_module_user_remove(u);
@@ -2261,8 +2229,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 		ast_cdr_setdestchan(chan->cdr, peer->name);
 
 		/* Simulate the PBX hanging up */
-		if (res != AST_PBX_NO_HANGUP_PEER && res != AST_PBX_NO_HANGUP_PEER_PARKED)
-			ast_hangup(peer);
+		ast_hangup(peer);
 		ast_module_user_remove(u);
 		return res;
 	} else {
