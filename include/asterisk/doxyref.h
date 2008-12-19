@@ -100,7 +100,7 @@
  * \section releasestatustypes Release Status Types
  *
  * Release management is a essentially an agreement between the development
- * community and the user community on what kind of updates can be expected
+ * community and the %user community on what kind of updates can be expected
  * for Asterisk releases, and what types of changes these updates will contain.
  * Once these policies are established, the development community works very
  * hard to adhere to them.  However, the development community does reserve
@@ -118,7 +118,7 @@
  * \arg <b>Full-Support</b> - This release series is receiving updates for all
  *      types of bugs.
  * \arg <b>Full-Development</b> - Changes in this part of Asterisk include bug
- *      fixes, as well as new features and architectural improvements.
+ *      fixes, as well as new %features and architectural improvements.
  *
  * \section AsteriskReleases Asterisk Maintenance Levels
  *
@@ -188,7 +188,7 @@
  *
  * To monitor commits to Asterisk and related projects, visit 
  * <a href="http://lists.digium.com/">http://lists.digium.com</a>.  The Digium
- * mailing list server hosts a number of mailing lists for commits.
+ * mailing list server hosts a %number of mailing lists for commits.
  *
  * <hr/>
  *
@@ -240,9 +240,9 @@
  * significant.  1.4.X releases go through a release candidate testing cycle to help
  * catch any regressions that may have been introduced.
  *
- * Commits to Asterisk 1.4 must be to address bugs only.  No new features should be
- * introduced into Asterisk 1.4 to reduce the number of changes to this established
- * release series.  The only exceptions to this rule are for cases where something
+ * Commits to Asterisk 1.4 must be to address bugs only.  No new %features should be
+ * introduced into Asterisk 1.4 to reduce the %number of changes to this established
+ * release series.  The only exceptions to this %rule are for cases where something
  * that may be considered a feature is needed to address a bug or security issue.
  *
  * <hr/>
@@ -289,7 +289,7 @@
  *
  * Asterisk trunk is used as the main development area for upcoming Asterisk 1.6 
  * releases.  Commits to Asterisk trunk are not limited.  They can be bug fixes,
- * new features, and architectural improvements.  However, for larger sets
+ * new %features, and architectural improvements.  However, for larger sets
  * of changes, developers should work with the Asterisk project leaders to
  * schedule them for inclusion.  Care is taken not to include too many invasive
  * sets of changes for each new Asterisk 1.6 release.
@@ -312,8 +312,8 @@
  *
  * The Asterisk subversion repository has a special directory called "team"
  * where developers can make their own personal development branches.  This is
- * where new features, bug fixes, and architectural improvements are developed
- * while they are in progress.
+ * where new %features, bug fixes, and architectural improvements are developed
+ * while they are in %progress.
  *
  * Just about anything goes as far as commits to this area goes.  However,
  * developers should keep in mind that anything committed here, as well as
@@ -321,7 +321,7 @@
  * agreement.
  *
  * In addition to each developer having their own space for working on projects,
- * there is also a team/group folder where group development efforts take place.
+ * there is also a team/group folder where %group development efforts take place.
  *
  * Finally, in each developer folder, there is a folder called "private".  This
  * is where developers can create branches for working on things that they are
