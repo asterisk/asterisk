@@ -36,58 +36,6 @@
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 
-/*** DOCUMENTATION
- 	<function name = "AUDIOHOOK_INHERIT" language="en_US">
-		<synopsis>
-			Set whether an audiohook may be inherited to another channel
-		</snopsis>
-		<syntax>
-			<parameter name="source" required="true">
-				<para>The built-in sources in Asterisk are</para>
-				<enumlist>
-					<enum name="MixMonitor" />
-					<enum name="Chanspy" />
-					<enum name="Volume" />
-					<enum name="Speex" />
-					<enum name="JACK_HOOK" />
-				</enumlist>
-				<para>Note that the names are not case-sensitive</para>
-			</parameter>
-		</syntax>
-		<description>
-			<para>By enabling audiohook inheritance on the channel, you are giving
-			permission for an audiohook to be inherited by a descendent channel.
-			Inheritance may be be disabled at any point as well.</para>
-
-			<para>Example scenario:</para>
-			<para>exten => 2000,1,MixMonitor(blah.wav)</para>
-			<para>exten => 2000,n,Set(AUDIOHOOK_INHERIT(MixMonitor)=yes)</para>
-			<para>exten => 2000,n,Dial(SIP/2000)</para>
-			<para>
-			</para>
-			<para>exten => 4000,1,Dial(SIP/4000)</para>
-			<para>
-			</para>
-			<para>exten => 5000,1,MixMonitor(blah2.wav)</para>
-			<para>exten => 5000,n,Dial(SIP/5000)</para>
-			<para>
-			</para>
-			<para>In this basic dialplan scenario, let's consider the following sample calls</para>
-			<para>Call 1: Caller dials 2000. The person who answers then executes an attended</para>
-			<para>        transfer to 4000.</para>
-			<para>Result: Since extension 2000 set MixMonitor to be inheritable, after the</para>
-			<para>        transfer to 4000 has completed, the call will continue to be recorded
-			to blah.wav</para>
-			<para>
-			</para>
-			<para>Call 2: Caller dials 5000. The person who answers then executes an attended</para>
-			<para>        transfer to 4000.</para>
-			<para>Result: Since extension 5000 did not set MixMonitor to be inheritable, the</para>
-			<para>        recording will stop once the call has been transferred to 4000.</para>
-		</description>
-	</function>
- ***/
-
 struct inheritable_audiohook {
 	AST_LIST_ENTRY(inheritable_audiohook) list;
 	char source[1];
@@ -274,6 +222,34 @@ static int func_inheritance_write(struct ast_channel *chan, const char *function
 
 static struct ast_custom_function inheritance_function = {
 	.name = "AUDIOHOOK_INHERIT",
+	.synopsis = "Set whether an audiohook may be inherited to another channel",
+	.syntax = "AUDIOHOOK_INHERIT(source)",
+	.desc =
+		"By enabling audiohook inheritance on the channel, you are giving\n"
+		"permission for an audiohook to be inherited by a descendent channel.\n"
+		"Inheritance may be be disabled at any point as well.\n"
+		"\n"
+		"	Example scenario:\n"
+		"	exten => 2000,1,MixMonitor(blah.wav)\n"
+		"	exten => 2000,n,Set(AUDIOHOOK_INHERIT(MixMonitor)=yes)\n"
+		"	exten => 2000,n,Dial(SIP/2000)\n"
+		"\n"
+		"	exten => 4000,1,Dial(SIP/4000)\n"
+		"\n"
+		"	exten => 5000,1,MixMonitor(blah2.wav)\n"
+		"	exten => 5000,n,Dial(SIP/5000)\n"
+		"\n"
+		"	In this basic dialplan scenario, let's consider the following sample calls\n"
+		"	Call 1: Caller dials 2000. The person who answers then executes an attended\n"
+		"	        transfer to 4000.\n"
+		"	Result: Since extension 2000 set MixMonitor to be inheritable, after the\n"
+		"	        transfer to 400 has completed, the call will continue to be recorded\n"
+		"           to blah.wav\n"
+		"\n"
+		"	Call 2: Caller dials 5000. The person who answers then executes an attended\n"
+		"	        transfer to 4000.\n"
+		"	Result: Since extension 5000 did not set MixMonitor to be inheritable, the\n"
+		"	        recording will stop once the call has been transferred to 4000.\n",
 	.write = func_inheritance_write,
 };
 
