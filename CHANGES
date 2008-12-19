@@ -120,6 +120,7 @@ Changes since Asterisk 1.2:
         19. SQL_ESC()
         20. STAT()
         21. STRPTIME()
+		22. AUDIOHOOK_INHERIT()
     * Apps that have changes to their interface:
          1. Authenticate() -- optional maxdigits argument added.
          2. ChanSpy() -- new options:

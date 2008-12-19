@@ -14189,7 +14189,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			char *uri = ast_strdupa(req->rlPart2);
 			char *at = strchr(uri, '@');
 			char *peerorhost;
-			struct sip_pkt *pkt = NULL;
 			if (option_debug > 2) {
 				ast_log(LOG_DEBUG, "Potential spiral detected. Original RURI was %s, new RURI is %s\n", p->initreq.rlPart2, req->rlPart2);
 			}
@@ -14200,14 +14199,12 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			if ((peerorhost = strchr(uri, ':'))) {
 				*peerorhost++ = '\0';
 			}
-			create_addr(p, peerorhost);
 			ast_string_field_free(p, theirtag);
-			for (pkt = p->packets; pkt; pkt = pkt->next) {
-				if (pkt->seqno == p->icseq && pkt->method == SIP_INVITE) {
-					AST_SCHED_DEL(sched, pkt->retransid);
-				}
-			}
-			return transmit_invite(p, SIP_INVITE, 1, 3);
+			/* Treat this as if there were a call forward instead...
+			 */
+			ast_string_field_set(p->owner, call_forward, peerorhost);
+			ast_queue_control(p->owner, AST_CONTROL_BUSY);
+			return 0;
 		}
 	}
 	
