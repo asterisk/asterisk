@@ -915,11 +915,7 @@ static int dahdi_open(char *fn)
 			ast_log(LOG_WARNING, "Invalid channel number '%s'\n", fn);
 			return -1;
 		}
-#ifdef HAVE_ZAPTEL
-		fn = "/dev/zap/channel";
-#else
-		fn = "/dev/dahdi/channel";
-#endif
+		fn = DAHDI_FILE_CHANNEL;
 	}
 	fd = open(fn, O_RDWR | O_NONBLOCK);
 	if (fd < 0) {
@@ -981,11 +977,7 @@ static int alloc_sub(struct dahdi_pvt *p, int x)
 	struct dahdi_bufferinfo bi;
 	int res;
 	if (p->subs[x].dfd < 0) {
-#ifdef HAVE_ZAPTEL
-		p->subs[x].dfd = dahdi_open("/dev/zap/pseudo");
-#else
-		p->subs[x].dfd = dahdi_open("/dev/dahdi/pseudo");
-#endif
+		p->subs[x].dfd = dahdi_open(DAHDI_FILE_PSEUDO);
 		if (p->subs[x].dfd > -1) {
 			res = ioctl(p->subs[x].dfd, DAHDI_GET_BUFINFO, &bi);
 			if (!res) {
@@ -7222,11 +7214,7 @@ static int pri_create_trunkgroup(int trunkgroup, int *channels)
 			break;
 		memset(&si, 0, sizeof(si));
 		memset(&p, 0, sizeof(p));
-#ifdef HAVE_ZAPTEL
-		fd = open("/dev/zap/channel", O_RDWR);
-#else
-		fd = open("/dev/dahdi/channel", O_RDWR);
-#endif
+		fd = open(DAHDI_FILE_CHANNEL, O_RDWR);
 		if (fd < 0) {
 			ast_log(LOG_WARNING, "Failed to open channel: %s\n", strerror(errno));
 			return -1;
@@ -7886,11 +7874,7 @@ static struct dahdi_pvt *chandup(struct dahdi_pvt *src)
 	if ((p = ast_malloc(sizeof(*p)))) {
 		memcpy(p, src, sizeof(struct dahdi_pvt));
 		ast_mutex_init(&p->lock);
-#ifdef HAVE_ZAPTEL
-		p->subs[SUB_REAL].dfd = dahdi_open("/dev/zap/pseudo");
-#else
-		p->subs[SUB_REAL].dfd = dahdi_open("/dev/dahdi/pseudo");
-#endif
+		p->subs[SUB_REAL].dfd = dahdi_open(DAHDI_FILE_PSEUDO);
 		/* Allocate a DAHDI structure */
 		if (p->subs[SUB_REAL].dfd < 0) {
 			ast_log(LOG_ERROR, "Unable to dup channel: %s\n",  strerror(errno));
@@ -9638,11 +9622,7 @@ static int start_pri(struct dahdi_pri *pri)
 	for (i = 0; i < NUM_DCHANS; i++) {
 		if (!pri->dchannels[i])
 			break;
-#ifdef HAVE_ZAPTEL
-		pri->fds[i] = open("/dev/zap/channel", O_RDWR, 0600);
-#else
-		pri->fds[i] = open("/dev/dahdi/channel", O_RDWR, 0600);
-#endif
+		pri->fds[i] = open(DAHDI_FILE_CHANNEL, O_RDWR, 0600);
 		x = pri->dchannels[i];
 		if ((pri->fds[i] < 0) || (ioctl(pri->fds[i],DAHDI_SPECIFY,&x) == -1)) {
 			ast_log(LOG_ERROR, "Unable to open D-channel %d (%s)\n", x, strerror(errno));
@@ -10417,19 +10397,11 @@ static int dahdi_show_status(int fd, int argc, char *argv[]) {
 	int ctl;
 	struct dahdi_spaninfo s;
 
-#ifdef HAVE_ZAPTEL
-	if ((ctl = open("/dev/zap/ctl", O_RDWR)) < 0) {
-		ast_log(LOG_WARNING, "Unable to open /dev/zap/ctl: %s\n", strerror(errno));
-		ast_cli(fd, "No Zaptel interface found.\n");
+	if ((ctl = open(DAHDI_FILE_CTL, O_RDWR)) < 0) {
+		ast_log(LOG_WARNING, "Unable to open " DAHDI_FILE_CTL ": %s\n", strerror(errno));
+		ast_cli(fd, "No " DAHDI_NAME " interface found.\n");
 		return RESULT_FAILURE;
 	}
-#else
-	if ((ctl = open("/dev/dahdi/ctl", O_RDWR)) < 0) {
-		ast_log(LOG_WARNING, "Unable to open /dev/dahdi/ctl: %s\n", strerror(errno));
-		ast_cli(fd, "No DAHDI interface found.\n");
-		return RESULT_FAILURE;
-	}
-#endif
 	ast_cli(fd, FORMAT2, "Description", "Alarms", "IRQ", "bpviol", "CRC4");
 
 	for (span = 1; span < DAHDI_MAX_SPANS; ++span) {
@@ -11616,14 +11588,10 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				int res;
 				struct dahdi_dialparams dps;
 
-#ifdef HAVE_ZAPTEL
-				ctlfd = open("/dev/zap/ctl", O_RDWR);
-#else
-				ctlfd = open("/dev/dahdi/ctl", O_RDWR);
-#endif
+				ctlfd = open(DAHDI_FILE_CTL, O_RDWR);
 
 				if (ctlfd == -1) {
-					ast_log(LOG_ERROR, "Unable to open /dev/dahdi/ctl to set toneduration\n");
+					ast_log(LOG_ERROR, "Unable to open " DAHDI_FILE_CTL " to set toneduration\n");
 					return -1;
 				}
 

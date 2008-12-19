@@ -744,11 +744,7 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 
 #ifdef HAVE_DAHDI
 
-#ifdef HAVE_ZAPTEL
-	tmp->timingfd = open("/dev/zap/timer", O_RDWR);
-#else
-	tmp->timingfd = open("/dev/dahdi/timer", O_RDWR);
-#endif
+	tmp->timingfd = open(DAHDI_FILE_TIMER, O_RDWR);
 
 	if (tmp->timingfd > -1) {
 		/* Check if timing interface supports new

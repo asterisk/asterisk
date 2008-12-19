@@ -923,11 +923,7 @@ static int moh_register(struct mohclass *moh, int reload)
 #ifdef HAVE_DAHDI
 		/* Open /dev/zap/pseudo for timing...  Is
 		   there a better, yet reliable way to do this? */
-#ifdef HAVE_ZAPTEL
-		moh->pseudofd = open("/dev/zap/pseudo", O_RDONLY);
-#else
-		moh->pseudofd = open("/dev/dahdi/pseudo", O_RDONLY);
-#endif
+		moh->pseudofd = open(DAHDI_FILE_PSEUDO, O_RDONLY);
 		if (moh->pseudofd < 0) {
 			ast_log(LOG_WARNING, "Unable to open pseudo channel for timing...  Sound may be choppy.\n");
 		} else {

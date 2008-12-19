@@ -26,9 +26,15 @@
 
 #include <dahdi/user.h>
 
+#define DAHDI_DIR_NAME "/dev/dahdi"
+#define DAHDI_NAME "DAHDI"
+
 #elif defined(HAVE_ZAPTEL)
 
 #include <zaptel/zaptel.h>
+
+#define DAHDI_DIR_NAME "/dev/zap"
+#define DAHDI_NAME "DAHDI"
 
 /* Compiling against Zaptel instead of DAHDI */
 
@@ -442,5 +448,11 @@
 #define dahdi_transcoder_formats zt_transcoder_formats
 
 #endif
+
+#define DAHDI_FILE_CHANNEL   DAHDI_DIR_NAME "/channel"
+#define DAHDI_FILE_CTL       DAHDI_DIR_NAME "/ctl"
+#define DAHDI_FILE_PSEUDO    DAHDI_DIR_NAME "/pseudo"
+#define DAHDI_FILE_TIMER     DAHDI_DIR_NAME "/timer"
+#define DAHDI_FILE_TRANSCODE DAHDI_DIR_NAME "/transcode"
 
 #endif /* DAHDI_COMPAT_H */

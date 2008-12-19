@@ -134,11 +134,7 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 zapretry:
 	origfd = chan->fds[0];
 	if (retryzap) {
-#ifdef HAVE_ZAPTEL
-		fd = open("/dev/zap/pseudo", O_RDWR);
-#else
-		fd = open("/dev/dahdi/pseudo", O_RDWR);
-#endif
+		fd = open(DAHDI_FILE_PSEUDO, O_RDWR);
 		if (fd < 0) {
 			ast_log(LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
 			goto outrun;

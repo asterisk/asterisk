@@ -11231,23 +11231,13 @@ static int load_module(void)
 	iax_set_error(iax_error_output);
 	jb_setoutput(jb_error_output, jb_warning_output, NULL);
 	
-#ifdef HAVE_ZAPTEL
-#ifdef ZAPTEL_TIMERACK
-	timingfd = open("/dev/zap/timer", O_RDWR);
-	if (timingfd < 0)
-#endif
-		timingfd = open("/dev/zap/pseudo", O_RDWR);
-	if (timingfd < 0) 
-		ast_log(LOG_WARNING, "Unable to open IAX timing interface: %s\n", strerror(errno));
-#elif defined(HAVE_DAHDI)
 #ifdef DAHDI_TIMERACK
-	timingfd = open("/dev/dahdi/timer", O_RDWR);
+	timingfd = open(DAHDI_FILE_TIMER, O_RDWR);
 	if (timingfd < 0)
 #endif
-		timingfd = open("/dev/dahdi/pseudo", O_RDWR);
+		timingfd = open(DAHDI_FILE_PSEUDO, O_RDWR);
 	if (timingfd < 0) 
 		ast_log(LOG_WARNING, "Unable to open IAX timing interface: %s\n", strerror(errno));
-#endif
 
 	memset(iaxs, 0, sizeof(iaxs));
 

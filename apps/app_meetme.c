@@ -795,11 +795,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 	/* Setup a new zap conference */
 	ztc.confno = -1;
 	ztc.confmode = DAHDI_CONF_CONFANN | DAHDI_CONF_CONFANNMON;
-#ifdef HAVE_ZAPTEL
-	cnf->fd = open("/dev/zap/pseudo", O_RDWR);
-#else
-	cnf->fd = open("/dev/dahdi/pseudo", O_RDWR);
-#endif
+	cnf->fd = open(DAHDI_FILE_PSEUDO, O_RDWR);
 	if (cnf->fd < 0 || ioctl(cnf->fd, DAHDI_SETCONF, &ztc)) {
 		ast_log(LOG_WARNING, "Unable to open pseudo device\n");
 		if (cnf->fd >= 0)
@@ -1732,11 +1728,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
  zapretry:
 	origfd = chan->fds[0];
 	if (retryzap) {
-#ifdef HAVE_ZAPTEL
-		fd = open("/dev/zap/pseudo", O_RDWR);
-#else
-		fd = open("/dev/dahdi/pseudo", O_RDWR);
-#endif
+		fd = open(DAHDI_FILE_PSEUDO, O_RDWR);
 		if (fd < 0) {
 			ast_log(LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
 			goto outrun;
