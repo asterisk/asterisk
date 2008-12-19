@@ -615,6 +615,8 @@ fi
 
 AST_C_DEFINE_CHECK([DAHDI], [DAHDI_CODE], [dahdi/user.h])
 
+AST_C_DEFINE_CHECK([DAHDI_HALF_FULL], [DAHDI_POLICY_HALF_FULL], [dahdi/user.h])
+
 # BSD might not have exp2, and/or log2
 AST_EXT_LIB_CHECK([EXP2L], [m], [exp2l])
 AST_EXT_LIB_CHECK([LOG2L], [m], [log2l])

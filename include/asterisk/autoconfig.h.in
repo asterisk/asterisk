@@ -183,6 +183,12 @@
 /* Define if your system has the DAHDI headers. */
 #undef HAVE_DAHDI
 
+/* Define if your system has the DAHDI_HALF_FULL headers. */
+#undef HAVE_DAHDI_HALF_FULL
+
+/* Define DAHDI_HALF_FULL headers version */
+#undef HAVE_DAHDI_HALF_FULL_VERSION
+
 /* Define DAHDI headers version */
 #undef HAVE_DAHDI_VERSION
 

@@ -13890,6 +13890,10 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				confp->chan.buf_policy = DAHDI_POLICY_WHEN_FULL;
 			} else if (!strcasecmp(policy, "immediate")) {
 				confp->chan.buf_policy = DAHDI_POLICY_IMMEDIATE;
+#ifdef HAVE_DAHDI_HALF_FULL
+			} else if (!strcasecmp(policy, "half_full")) {
+				confp->chan.buf_policy = DAHDI_POLICY_HALF_FULL;
+#endif
 			} else {
 				ast_log(LOG_WARNING, "Invalid policy name given (%s).\n", policy);
 			}
