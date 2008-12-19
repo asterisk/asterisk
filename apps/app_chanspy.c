@@ -760,7 +760,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 	char *ptr;
 	int num;
 	int num_spyed_upon = 1;
-	struct chanspy_ds chanspy_ds;
+	struct chanspy_ds chanspy_ds = { 0, };
 
 	if (ast_test_flag(flags, OPTION_EXIT)) {
 		const char *c;
