@@ -90,12 +90,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</variable>
 				<variable name="RECORD_STATUS">
 					<para>This is the final status of the command</para>
-					<value name="DTMF"><para>A terminating DTMF was received ('#' or '*', depending upon option 't')</para></value>
-					<value name="SILENCE"><para>The maximum silence occurred in the recording.</para></value>
-					<value name="SKIP"><para>The line was not yet answered and the 's' option was specified.</para></value>
-					<value name="TIMEOUT"><para>The maximum length was reached.</para></value>
-					<value name="HANGUP"><para>The channel was hung up.</para></value>
-					<value name="ERROR"><para>An unrecoverable error occurred, which resulted in a WARNING to the logs.</para></value>
+					<value name="DTMF">A terminating DTMF was received ('#' or '*', depending upon option 't')</value>
+					<value name="SILENCE">The maximum silence occurred in the recording.</value>
+					<value name="SKIP">The line was not yet answered and the 's' option was specified.</value>
+					<value name="TIMEOUT">The maximum length was reached.</value>
+					<value name="HANGUP">The channel was hung up.</value>
+					<value name="ERROR">An unrecoverable error occurred, which resulted in a WARNING to the logs.</value>
 				</variable>
 			</variablelist>
 		</description>
