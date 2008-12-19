@@ -92,6 +92,10 @@ Dialplan functions
      ID for the call (not the Asterisk call ID or unique ID), provided that the
      channel driver supports this. For SIP, you get the SIP call-ID for the
      bridged channel which you can store in the CDR with a custom field.
+  * Added the function AUDIOHOOK_INHERIT. This actually is already in Asterisk
+    1.4, but since it was added late in the release cycle, I felt it was a good
+	idea to list it here as well. See the CLI output for "core show function
+	AUDIOHOOK_INHERIT" for more details
 
 CLI Changes
 -----------
