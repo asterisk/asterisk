@@ -150,6 +150,21 @@ int ast_audiohook_detach(struct ast_audiohook *audiohook);
  */
 int ast_audiohook_detach_list(struct ast_audiohook_list *audiohook_list);
 
+/*! \brief Move an audiohook from one channel to a new one
+ *
+ * \todo Currently only the first audiohook of a specific source found will be moved.
+ * We should add the capability to move multiple audiohooks from a single source as well.
+ *
+ * \note It is required that both old_chan and new_chan are locked prior to calling
+ * this function. Besides needing to protect the data within the channels, not locking
+ * these channels can lead to a potential deadlock
+ *
+ * \param old_chan The source of the audiohook to move
+ * \param new_chan The destination to which we want the audiohook to move
+ * \param source The source of the audiohook we want to move
+ */
+void ast_audiohook_move_by_source(struct ast_channel *old_chan, struct ast_channel *new_chan, const char *source);
+
 /*! 
  * \brief Detach specified source audiohook from channel
  *
