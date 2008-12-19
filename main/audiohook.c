@@ -439,7 +439,7 @@ static struct ast_audiohook *find_audiohook_by_source(struct ast_audiohook_list 
 	return NULL;
 }
 
-void ast_audiohook_move_by_source (struct ast_channel *old_chan, struct ast_channel *new_chan, const char *source)
+void ast_audiohook_move_by_source(struct ast_channel *old_chan, struct ast_channel *new_chan, const char *source)
 {
 	struct ast_audiohook *audiohook = find_audiohook_by_source(old_chan->audiohooks, source);
 
