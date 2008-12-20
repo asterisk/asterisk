@@ -409,6 +409,8 @@
  * to the review request.  For example:
  * \arg Review: %http://reviewboard.digium.com/r/95/
  *
+ * \note The trailing slash in the review URL is required.
+ *
  * <hr/>
  *
  * \section CommitMsgSvnmerge Commit Messages with svnmerge
