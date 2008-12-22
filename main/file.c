@@ -43,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/module.h"
+#include "asterisk/astobj2.h"
 
 /*
  * The following variable controls the layout of localized sound files.
@@ -279,12 +280,57 @@ static int exts_compare(const char *exts, const char *type)
 	return 0;
 }
 
+static void filestream_destructor(void *arg)
+{
+	char *cmd = NULL;
+	size_t size = 0;
+	struct ast_filestream *f = arg;
+
+	/* Stop a running stream if there is one */
+	if (f->owner) {
+		if (f->fmt->format < AST_FORMAT_AUDIO_MASK) {
+			f->owner->stream = NULL;
+			AST_SCHED_DEL(f->owner->sched, f->owner->streamid);
+#ifdef HAVE_DAHDI
+			ast_settimeout(f->owner, 0, NULL, NULL);
+#endif			
+		} else {
+			f->owner->vstream = NULL;
+			AST_SCHED_DEL(f->owner->sched, f->owner->vstreamid);
+		}
+	}
+	/* destroy the translator on exit */
+	if (f->trans)
+		ast_translator_free_path(f->trans);
+
+	if (f->realfilename && f->filename) {
+			size = strlen(f->filename) + strlen(f->realfilename) + 15;
+			cmd = alloca(size);
+			memset(cmd,0,size);
+			snprintf(cmd,size,"/bin/mv -f %s %s",f->filename,f->realfilename);
+			ast_safe_system(cmd);
+	}
+
+	if (f->filename)
+		free(f->filename);
+	if (f->realfilename)
+		free(f->realfilename);
+	if (f->fmt->close)
+		f->fmt->close(f);
+	fclose(f->f);
+	if (f->vfs)
+		ast_closestream(f->vfs);
+	if (f->orig_chan_name)
+		free((void *) f->orig_chan_name);
+	ast_module_unref(f->fmt->module);
+}
+
 static struct ast_filestream *get_filestream(struct ast_format *fmt, FILE *bfile)
 {
 	struct ast_filestream *s;
 
 	int l = sizeof(*s) + fmt->buf_size + fmt->desc_size;	/* total allocation size */
-	if ( (s = ast_calloc(1, l)) == NULL)
+	if ( (s = ao2_alloc(l, filestream_destructor)) == NULL)
 		return NULL;
 	s->fmt = fmt;
 	s->f = bfile;
@@ -637,6 +683,10 @@ struct ast_frame *ast_readframe(struct ast_filestream *s)
 	int whennext = 0;	
 	if (s && s->fmt)
 		f = s->fmt->read(s, &whennext);
+	if (f) {
+		ast_set_flag(f, AST_FRFLAG_FROM_FILESTREAM);
+		ao2_ref(s, +1);
+	}
 	return f;
 }
 
@@ -659,6 +709,10 @@ static enum fsread_res ast_readaudio_callback(struct ast_filestream *s)
 			goto return_failure;
 		
 		fr = s->fmt->read(s, &whennext);
+		if (fr) {
+			ast_set_flag(fr, AST_FRFLAG_FROM_FILESTREAM);
+			ao2_ref(s, +1);
+		}
 		if (!fr /* stream complete */ || ast_write(s->owner, fr) /* error writing */) {
 			if (fr)
 				ast_log(LOG_WARNING, "Failed to write frame\n");
@@ -715,6 +769,10 @@ static enum fsread_res ast_readvideo_callback(struct ast_filestream *s)
 
 	while (!whennext) {
 		struct ast_frame *fr = s->fmt->read(s, &whennext);
+		if (fr) {
+			ast_set_flag(fr, AST_FRFLAG_FROM_FILESTREAM);
+			ao2_ref(s, +1);
+		}
 		if (!fr || ast_write(s->owner, fr)) { /* no stream or error, as above */
 			if (fr)
 				ast_log(LOG_WARNING, "Failed to write frame\n");
@@ -792,46 +850,21 @@ int ast_stream_rewind(struct ast_filestream *fs, off_t ms)
 
 int ast_closestream(struct ast_filestream *f)
 {
-	char *cmd = NULL;
-	size_t size = 0;
-	/* Stop a running stream if there is one */
-	if (f->owner) {
-		if (f->fmt->format & AST_FORMAT_AUDIO_MASK) {
-			f->owner->stream = NULL;
-			AST_SCHED_DEL(f->owner->sched, f->owner->streamid);
-#ifdef HAVE_DAHDI
-			ast_settimeout(f->owner, 0, NULL, NULL);
-#endif			
-		} else {
-			f->owner->vstream = NULL;
-			AST_SCHED_DEL(f->owner->sched, f->owner->vstreamid);
-		}
+	if (ast_test_flag(&f->fr, AST_FRFLAG_FROM_FILESTREAM)) {
+		/* If this flag is still set, it essentially means that the reference
+		 * count of f is non-zero. We can't destroy this filestream until
+		 * whatever is using the filestream's frame has finished.
+		 *
+		 * Since this was called, however, we need to remove the reference from
+		 * when this filestream was first allocated. That way, when the embedded
+		 * frame is freed, the refcount will reach 0 and we can finish destroying
+		 * this filestream properly.
+		 */
+		ao2_ref(f, -1);
+		return 0;
 	}
-	/* destroy the translator on exit */
-	if (f->trans)
-		ast_translator_free_path(f->trans);
-
-	if (f->realfilename && f->filename) {
-			size = strlen(f->filename) + strlen(f->realfilename) + 15;
-			cmd = alloca(size);
-			memset(cmd, 0, size);
-			snprintf(cmd, size, "/bin/mv -f %s %s", f->filename, f->realfilename);
-			ast_safe_system(cmd);
-	}
-
-	if (f->filename)
-		ast_free(f->filename);
-	if (f->realfilename)
-		ast_free(f->realfilename);
-	if (f->fmt->close)
-		f->fmt->close(f);
-	fclose(f->f);
-	if (f->vfs)
-		ast_closestream(f->vfs);
-	if (f->orig_chan_name)
-		free((void *) f->orig_chan_name);
-	ast_module_unref(f->fmt->module);
-	ast_free(f);
+	
+	ao2_ref(f, -1);
 	return 0;
 }
 
@@ -1235,6 +1268,17 @@ int ast_waitstream_exten(struct ast_channel *c, const char *context)
 		context = c->context;
 	return waitstream_core(c, NULL, NULL, NULL, 0,
 		-1, -1, context);
+}
+
+void ast_filestream_frame_freed(struct ast_frame *fr)
+{
+	struct ast_filestream *fs;
+
+	ast_clear_flag(fr, AST_FRFLAG_FROM_FILESTREAM);
+
+	fs = (struct ast_filestream *) (((char *) fr) - offsetof(struct ast_filestream, fr));
+
+	ao2_ref(fs, -1);
 }
 
 /*
