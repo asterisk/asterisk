@@ -859,7 +859,7 @@ static struct ast_generator mohgen = {
 	.alloc    = moh_alloc,
 	.release  = moh_release,
 	.generate = moh_generate,
-	digit: moh_handle_digit
+	.digit    = moh_handle_digit,
 };
 
 static int moh_add_file(struct mohclass *class, const char *filepath)
