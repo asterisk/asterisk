@@ -2794,25 +2794,34 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 	/* how many times we'll retry if ast_waitfor_nandfs will return without either
 	  channel or file descriptor in case select is interrupted by a system call (EINTR) */
 	int retry = AGI_NANDFS_RETRY;
-	const char *sighup;
+	int send_sighup;
+	const char *sighup_str;
+	
+	ast_channel_lock(chan);
+	sighup_str = pbx_builtin_getvar_helper(chan, "AGISIGHUP");
+	send_sighup = ast_strlen_zero(sighup_str) || !ast_false(sighup_str);
+	ast_channel_unlock(chan);
 
 	if (!(readf = fdopen(agi->ctrl, "r"))) {
 		ast_log(LOG_WARNING, "Unable to fdopen file descriptor\n");
-		if (pid > -1)
+		if (send_sighup && pid > -1)
 			kill(pid, SIGHUP);
 		close(agi->ctrl);
 		return AGI_RESULT_FAILURE;
 	}
+	
 	setlinebuf(readf);
 	setup_env(chan, request, agi->fd, (agi->audio > -1), argc, argv);
 	for (;;) {
 		if (needhup) {
 			needhup = 0;
 			dead = 1;
-			if (pid > -1) {
-				kill(pid, SIGHUP);
-			} else if (agi->fast) {
-				send(agi->ctrl, "HANGUP\n", 7, MSG_OOB);
+			if (send_sighup) {
+				if (pid > -1) {
+					kill(pid, SIGHUP);
+				} else if (agi->fast) {
+					send(agi->ctrl, "HANGUP\n", 7, MSG_OOB);
+				}
 			}
 		}
 		ms = -1;
@@ -2897,8 +2906,7 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 		}
 	}
 	/* Notify process */
-	sighup = pbx_builtin_getvar_helper(chan, "AGISIGHUP");
-	if (ast_strlen_zero(sighup) || !ast_false(sighup)) {
+	if (send_sighup) {
 		if (pid > -1) {
 			if (kill(pid, SIGHUP)) {
 				ast_log(LOG_WARNING, "unable to send SIGHUP to AGI process %d: %s\n", pid, strerror(errno));
