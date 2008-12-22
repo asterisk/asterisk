@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <ctype.h>
 
 #include "asterisk/inline_api.h"
 #include "asterisk/compiler.h"
@@ -278,6 +279,24 @@ static force_inline int ast_str_hash(const char *str)
 
 	while (*str)
 		hash = hash * 33 ^ *str++;
+
+	return abs(hash);
+}
+
+/*!
+ * \brief Compute a hash value on a case-insensitive string
+ *
+ * Uses the same hash algorithm as ast_str_hash, but converts
+ * all characters to lowercase prior to computing a hash. This
+ * allows for easy case-insensitive lookups in a hash table.
+ */
+static force_inline int ast_str_case_hash(const char *str)
+{
+	int hash = 5381;
+
+	while (*str) {
+		hash = hash * 33 ^ tolower(*str++);
+	}
 
 	return abs(hash);
 }
