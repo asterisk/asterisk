@@ -119,11 +119,12 @@ static int timeout_read(struct ast_channel *chan, const char *cmd, char *data,
 static int timeout_write(struct ast_channel *chan, const char *cmd, char *data,
 			 const char *value)
 {
-	double x;
-	long sec;
+	double x = 0.0;
+	long sec = 0L;
 	char timestr[64];
 	struct ast_tm myt;
-	struct timeval when;
+	struct timeval when = {0,};
+	int res;
 
 	if (!chan)
 		return -1;
@@ -136,9 +137,13 @@ static int timeout_write(struct ast_channel *chan, const char *cmd, char *data,
 	if (!value)
 		return -1;
 
-	if ((sscanf(value, "%ld%lf", &sec, &x) == 0) || sec < 0)
+	res = sscanf(value, "%ld%lf", &sec, &x);
+	if (res == 0 || sec < 0) {
 		when.tv_sec = 0;
-	else {
+		when.tv_usec = 0;
+	} else if (res == 1) {
+		when.tv_sec = sec;
+	} else if (res == 2) {
 		when.tv_sec = sec;
 		when.tv_usec = x * 1000000;
 	}
