@@ -1064,9 +1064,11 @@ static int ast_wait_for_output(int fd, int timeoutms)
 		.events = POLLOUT,
 	};
 	int res;
+	struct timeval start = ast_tvnow();
+	int elapsed = 0;
 
 	/* poll() until the fd is writable without blocking */
-	while ((res = poll(&pfd, 1, timeoutms)) <= 0) {
+	while ((res = poll(&pfd, 1, timeoutms - elapsed)) <= 0) {
 		if (res == 0) {
 			/* timed out. */
 			ast_log(LOG_NOTICE, "Timed out trying to write\n");
@@ -1075,6 +1077,10 @@ static int ast_wait_for_output(int fd, int timeoutms)
 			/* poll() returned an error, check to see if it was fatal */
 
 			if (errno == EINTR || errno == EAGAIN) {
+				elapsed = ast_tvdiff_ms(ast_tvnow(), start);
+				if (elapsed >= timeoutms) {
+					return -1;
+				}
 				/* This was an acceptable error, go back into poll() */
 				continue;
 			}
@@ -1082,6 +1088,10 @@ static int ast_wait_for_output(int fd, int timeoutms)
 			/* Fatal error, bail. */
 			ast_log(LOG_ERROR, "poll returned error: %s\n", strerror(errno));
 
+			return -1;
+		}
+		elapsed = ast_tvdiff_ms(ast_tvnow(), start);
+		if (elapsed >= timeoutms) {
 			return -1;
 		}
 	}
@@ -1097,19 +1107,15 @@ static int ast_wait_for_output(int fd, int timeoutms)
  * have a need to wait.  This way, we get better performance.
  * If the descriptor is blocking, all assumptions on the guaranteed
  * detail do not apply anymore.
- * Also note that in the current implementation, the delay is per-write,
- * so you still have no guarantees, anyways.
- * Fortunately the routine is only used in a few places (cli.c, manager.c,
- * res_agi.c) so it is reasonably easy to check how it behaves there.
- *
- * XXX We either need to fix the code, or fix the documentation.
  */
 int ast_carefulwrite(int fd, char *s, int len, int timeoutms) 
 {
+	struct timeval start = ast_tvnow();
 	int res = 0;
+	int elapsed = 0;
 
 	while (len) {
-		if (ast_wait_for_output(fd, timeoutms)) {
+		if (ast_wait_for_output(fd, timeoutms - elapsed)) {
 			return -1;
 		}
 
@@ -1130,6 +1136,14 @@ int ast_carefulwrite(int fd, char *s, int len, int timeoutms)
 		len -= res;
 		s += res;
 		res = 0;
+
+		elapsed = ast_tvdiff_ms(ast_tvnow(), start);
+		if (elapsed >= timeoutms) {
+			/* We've taken too long to write 
+			 * This is only an error condition if we haven't finished writing. */
+			res = len ? -1 : 0;
+			break;
+		}
 	}
 
 	return res;
@@ -1139,11 +1153,10 @@ int ast_careful_fwrite(FILE *f, int fd, const char *src, size_t len, int timeout
 {
 	struct timeval start = ast_tvnow();
 	int n = 0;
+	int elapsed = 0;
 
 	while (len) {
-		int elapsed;
-
-		if (ast_wait_for_output(fd, timeoutms)) {
+		if (ast_wait_for_output(fd, timeoutms - elapsed)) {
 			/* poll returned a fatal error, so bail out immediately. */
 			return -1;
 		}
@@ -1168,7 +1181,7 @@ int ast_careful_fwrite(FILE *f, int fd, const char *src, size_t len, int timeout
 		src += n;
 
 		elapsed = ast_tvdiff_ms(ast_tvnow(), start);
-		if (elapsed > timeoutms) {
+		if (elapsed >= timeoutms) {
 			/* We've taken too long to write 
 			 * This is only an error condition if we haven't finished writing. */
 			n = len ? -1 : 0;
