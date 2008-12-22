@@ -4425,18 +4425,31 @@ static void dahdi_handle_dtmfup(struct ast_channel *ast, int idx, struct ast_fra
 			if (strcmp(ast->exten, "fax")) {
 				const char *target_context = S_OR(ast->macrocontext, ast->context);
 
+				/* We need to unlock 'ast' here because ast_exists_extension has the
+				 * potential to start autoservice on the channel. Such action is prone
+				 * to deadlock.
+				 */
+				ast_mutex_unlock(&p->lock);
+				ast_channel_unlock(ast);
 				if (ast_exists_extension(ast, target_context, "fax", 1, ast->cid.cid_num)) {
+					ast_channel_lock(ast);
+					ast_mutex_lock(&p->lock);
 					ast_verb(3, "Redirecting %s to fax extension\n", ast->name);
 					/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
 					pbx_builtin_setvar_helper(ast, "FAXEXTEN", ast->exten);
 					if (ast_async_goto(ast, target_context, "fax", 1))
 						ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast->name, target_context);
-				} else
+				} else {
+					ast_channel_lock(ast);
+					ast_mutex_lock(&p->lock);
 					ast_log(LOG_NOTICE, "Fax detected, but no fax extension\n");
-			} else
+				}
+			} else {
 				ast_debug(1, "Already in a fax extension, not redirecting\n");
-		} else
+			}
+		} else {
 			ast_debug(1, "Fax already handled\n");
+		}
 		dahdi_confmute(p, 0);
 		p->subs[idx].f.frametype = AST_FRAME_NULL;
 		p->subs[idx].f.subclass = 0;
