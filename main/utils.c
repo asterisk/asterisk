@@ -921,7 +921,9 @@ int ast_wait_for_input(int fd, int ms)
 
 int ast_carefulwrite(int fd, char *s, int len, int timeoutms) 
 {
+	struct timeval start = ast_tvnow();
 	int res = 0;
+	int elapsed = 0;
 
 	while (len) {
 		struct pollfd pfd = {
@@ -930,7 +932,7 @@ int ast_carefulwrite(int fd, char *s, int len, int timeoutms)
 		};
 
 		/* poll() until the fd is writable without blocking */
-		while ((res = poll(&pfd, 1, timeoutms)) <= 0) {
+		while ((res = poll(&pfd, 1, timeoutms - elapsed)) <= 0) {
 			if (res == 0) {
 				/* timed out. */
 				ast_log(LOG_NOTICE, "Timed out trying to write\n");
@@ -939,6 +941,13 @@ int ast_carefulwrite(int fd, char *s, int len, int timeoutms)
 				/* poll() returned an error, check to see if it was fatal */
 
 				if (errno == EINTR || errno == EAGAIN) {
+					elapsed = ast_tvdiff_ms(ast_tvnow(), start);
+					if (elapsed > timeoutms) {
+						/* We've taken too long to write 
+						 * This is only an error condition if we haven't finished writing. */
+						res = len ? -1 : 0;
+						break;
+					}
 					/* This was an acceptable error, go back into poll() */
 					continue;
 				}
@@ -967,6 +976,14 @@ int ast_carefulwrite(int fd, char *s, int len, int timeoutms)
 		len -= res;
 		s += res;
 		res = 0;
+
+		elapsed = ast_tvdiff_ms(ast_tvnow(), start);
+		if (elapsed > timeoutms) {
+			/* We've taken too long to write 
+			 * This is only an error condition if we haven't finished writing. */
+			res = len ? -1 : 0;
+			break;
+		}
 	}
 
 	return res;
