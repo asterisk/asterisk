@@ -1046,7 +1046,7 @@ static int init_app_class(struct mohclass *class)
 #ifdef HAVE_DAHDI
 	/* Open /dev/zap/pseudo for timing...  Is
 	   there a better, yet reliable way to do this? */
-	class->pseudofd = open("/dev/dahdi/psuedo", O_RDONLY);
+	class->pseudofd = open("/dev/dahdi/pseudo", O_RDONLY);
 	if (class->pseudofd < 0) {
 		ast_log(LOG_WARNING, "Unable to open pseudo channel for timing...  Sound may be choppy.\n");
 	} else {
