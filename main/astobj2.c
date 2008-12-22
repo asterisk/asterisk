@@ -567,7 +567,6 @@ void *_ao2_unlink(struct ao2_container *c, void *user_data)
  */ 
 static int cb_true(void *user_data, void *arg, int flags)
 {
-	ast_log(LOG_ERROR, "Using default callback (cb_true).  If you see this, something is strange!\n");
 	return CMP_MATCH;
 }
 
@@ -576,7 +575,6 @@ static int cb_true(void *user_data, void *arg, int flags)
  */
 static int cb_true_data(void *user_data, void *arg, void *data, int flags)
 {
-	ast_log(LOG_ERROR, "Using default callback (cb_true_data).  If you see this, something is strange!\n");
 	return CMP_MATCH;
 }
 
