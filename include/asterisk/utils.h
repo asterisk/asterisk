@@ -326,6 +326,25 @@ int ast_wait_for_input(int fd, int ms);
 */
 int ast_carefulwrite(int fd, char *s, int len, int timeoutms);
 
+/*!
+ * \brief Write data to a file stream with a timeout
+ *
+ * \param f the file stream to write to
+ * \param fd the file description to poll on to know when the file stream can
+ *        be written to without blocking.
+ * \param s the buffer to write from
+ * \param len the number of bytes to write
+ * \param timeoutms The maximum amount of time to block in this function trying
+ *        to write, specified in milliseconds.
+ *
+ * \note This function assumes that the associated file stream has been set up
+ *       as non-blocking.
+ *
+ * \retval 0 success
+ * \retval -1 error
+ */
+int ast_careful_fwrite(FILE *f, int fd, const char *s, size_t len, int timeoutms);
+
 /*
  * Thread management support (should be moved to lock.h or a different header)
  */
