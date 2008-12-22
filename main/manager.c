@@ -899,30 +899,7 @@ struct ast_variable *astman_get_variables(const struct message *m)
  */
 static int send_string(struct mansession *s, char *string)
 {
-	int len = strlen(string);	/* residual length */
-	char *src = string;
-	struct timeval start = ast_tvnow();
-	int n = 0;
-
-	for (;;) {
-		int elapsed;
-		struct pollfd fd;
-		n = fwrite(src, 1, len, s->f);	/* try to write the string, non blocking */
-		if (n == len /* ok */ || n < 0 /* error */)
-			break;
-		len -= n;	/* skip already written data */
-		src += n;
-		fd.fd = s->fd;
-		fd.events = POLLOUT;
-		n = -1;		/* error marker */
-		elapsed = ast_tvdiff_ms(ast_tvnow(), start);
-		if (elapsed > s->writetimeout)
-			break;
-		if (poll(&fd, 1, s->writetimeout - elapsed) < 1)
-			break;
-	}
-	fflush(s->f);
-	return n < 0 ? -1 : 0;
+	return ast_careful_fwrite(s->f, s->fd, string, strlen(string), s->writetimeout);
 }
 
 /*!

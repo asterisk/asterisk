@@ -1057,6 +1057,38 @@ int ast_wait_for_input(int fd, int ms)
 	return poll(pfd, 1, ms);
 }
 
+static int ast_wait_for_output(int fd, int timeoutms)
+{
+	struct pollfd pfd = {
+		.fd = fd,
+		.events = POLLOUT,
+	};
+	int res;
+
+	/* poll() until the fd is writable without blocking */
+	while ((res = poll(&pfd, 1, timeoutms)) <= 0) {
+		if (res == 0) {
+			/* timed out. */
+			ast_log(LOG_NOTICE, "Timed out trying to write\n");
+			return -1;
+		} else if (res == -1) {
+			/* poll() returned an error, check to see if it was fatal */
+
+			if (errno == EINTR || errno == EAGAIN) {
+				/* This was an acceptable error, go back into poll() */
+				continue;
+			}
+
+			/* Fatal error, bail. */
+			ast_log(LOG_ERROR, "poll returned error: %s\n", strerror(errno));
+
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 /*!
  * Try to write string, but wait no more than ms milliseconds before timing out.
  *
@@ -1077,30 +1109,8 @@ int ast_carefulwrite(int fd, char *s, int len, int timeoutms)
 	int res = 0;
 
 	while (len) {
-		struct pollfd pfd = {
-			.fd = fd,
-			.events = POLLOUT,
-		};
-
-		/* poll() until the fd is writable without blocking */
-		while ((res = poll(&pfd, 1, timeoutms)) <= 0) {
-			if (res == 0) {
-				/* timed out. */
-				ast_log(LOG_NOTICE, "Timed out trying to write\n");
-				return -1;
-			} else if (res == -1) {
-				/* poll() returned an error, check to see if it was fatal */
-
-				if (errno == EINTR || errno == EAGAIN) {
-					/* This was an acceptable error, go back into poll() */
-					continue;
-				}
-
-				/* Fatal error, bail. */
-				ast_log(LOG_ERROR, "poll returned error: %s\n", strerror(errno));
-
-				return -1;
-			}
+		if (ast_wait_for_output(fd, timeoutms)) {
+			return -1;
 		}
 
 		res = write(fd, s, len);
@@ -1123,6 +1133,62 @@ int ast_carefulwrite(int fd, char *s, int len, int timeoutms)
 	}
 
 	return res;
+}
+
+int ast_careful_fwrite(FILE *f, int fd, const char *src, size_t len, int timeoutms)
+{
+	struct timeval start = ast_tvnow();
+	int n = 0;
+
+	while (len) {
+		int elapsed;
+
+		if (ast_wait_for_output(fd, timeoutms)) {
+			/* poll returned a fatal error, so bail out immediately. */
+			return -1;
+		}
+
+		/* Clear any errors from a previous write */
+		clearerr(f);
+
+		n = fwrite(src, 1, len, f);
+
+		if (ferror(f) && errno != EINTR && errno != EAGAIN) {
+			/* fatal error from fwrite() */
+			if (!feof(f)) {
+				/* Don't spam the logs if it was just that the connection is closed. */
+				ast_log(LOG_ERROR, "fwrite() returned error: %s\n", strerror(errno));
+			}
+			n = -1;
+			break;
+		}
+
+		/* Update for data already written to the socket */
+		len -= n;
+		src += n;
+
+		elapsed = ast_tvdiff_ms(ast_tvnow(), start);
+		if (elapsed > timeoutms) {
+			/* We've taken too long to write 
+			 * This is only an error condition if we haven't finished writing. */
+			n = len ? -1 : 0;
+			break;
+		}
+	}
+
+	while (fflush(f)) {
+		if (errno == EAGAIN || errno == EINTR) {
+			continue;
+		}
+		if (!feof(f)) {
+			/* Don't spam the logs if it was just that the connection is closed. */
+			ast_log(LOG_ERROR, "fflush() returned error: %s\n", strerror(errno));
+		}
+		n = -1;
+		break;
+	}
+
+	return n < 0 ? -1 : 0;
 }
 
 char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes)
