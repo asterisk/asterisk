@@ -562,7 +562,6 @@ void *_ao2_unlink(struct ao2_container *c, void *user_data)
  */ 
 static int cb_true(void *user_data, void *arg, int flags)
 {
-	ast_log(LOG_ERROR,"If you see this, something is strange!\n");
 	return CMP_MATCH;
 }
 
