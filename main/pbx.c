@@ -4202,10 +4202,6 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 				pos = 0;
 				dst_exten[pos++] = digit = res;
 				dst_exten[pos] = '\0';
-			} else if (res == AST_PBX_KEEPALIVE) {
-				ast_debug(1, "Spawn extension (%s,%s,%d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
-				ast_verb(2, "Spawn extension (%s, %s, %d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
-				error = 1;
 			} else if (res == AST_PBX_INCOMPLETE) {
 				ast_debug(1, "Spawn extension (%s,%s,%d) exited INCOMPLETE on '%s'\n", c->context, c->exten, c->priority, c->name);
 				ast_verb(2, "Spawn extension (%s, %s, %d) exited INCOMPLETE on '%s'\n", c->context, c->exten, c->priority, c->name);

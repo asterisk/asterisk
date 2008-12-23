@@ -61,17 +61,12 @@ struct ast_call_feature {
 	AST_LIST_ENTRY(ast_call_feature) feature_entry;
 };
 
-
 #define AST_FEATURE_RETURN_HANGUP                   -1
 #define AST_FEATURE_RETURN_SUCCESSBREAK             0
-#define AST_FEATURE_RETURN_PBX_KEEPALIVE            AST_PBX_KEEPALIVE
-#define AST_FEATURE_RETURN_NO_HANGUP_PEER           AST_PBX_NO_HANGUP_PEER
-#define AST_FEATURE_RETURN_NO_HANGUP_PEER_PARKED    AST_PBX_NO_HANGUP_PEER_PARKED
 #define AST_FEATURE_RETURN_PASSDIGITS               21
 #define AST_FEATURE_RETURN_STOREDIGITS              22
 #define AST_FEATURE_RETURN_SUCCESS                  23
 #define AST_FEATURE_RETURN_KEEPTRYING               24
-
 
 /*!
  * \brief Park a call and read back parked location 

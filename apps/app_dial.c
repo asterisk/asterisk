@@ -2215,14 +2215,9 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			res = ast_bridge_call(chan, peer, &config);
 		}
 
-		if (res != AST_PBX_NO_HANGUP_PEER_PARKED && ast_test_flag64(&opts, OPT_PEER_H)) {
-			ast_log(LOG_NOTICE, "PEER context: %s; PEER exten: %s;  PEER priority: %d\n",
-				peer->context, peer->exten, peer->priority);
-		}
-		if (res != AST_PBX_NO_HANGUP_PEER_PARKED)
-			strcpy(peer->context, chan->context);
+		strcpy(peer->context, chan->context);
 
-		if (res != AST_PBX_NO_HANGUP_PEER_PARKED && ast_test_flag64(&opts, OPT_PEER_H) && ast_exists_extension(peer, peer->context, "h", 1, peer->cid.cid_num)) {
+		if (ast_test_flag64(&opts, OPT_PEER_H) && ast_exists_extension(peer, peer->context, "h", 1, peer->cid.cid_num)) {
 			int autoloopflag;
 			int found;
 			int res9;
@@ -2242,41 +2237,34 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			}
 			ast_set2_flag(peer, autoloopflag, AST_FLAG_IN_AUTOLOOP);  /* set it back the way it was */
 		}
-		if (res != AST_PBX_NO_HANGUP_PEER && res != AST_PBX_NO_HANGUP_PEER_PARKED) {
-			if (!ast_check_hangup(peer) && ast_test_flag64(&opts, OPT_CALLEE_GO_ON) && !ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GO_ON])) {		
-				replace_macro_delimiter(opt_args[OPT_ARG_CALLEE_GO_ON]);
-				ast_parseable_goto(peer, opt_args[OPT_ARG_CALLEE_GO_ON]);
-				ast_pbx_start(peer);
-			} else {
-				if (!ast_check_hangup(chan))
-					chan->hangupcause = peer->hangupcause;
-				ast_hangup(peer);
-			}
+		if (!ast_check_hangup(peer) && ast_test_flag64(&opts, OPT_CALLEE_GO_ON) && !ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GO_ON])) {		
+			replace_macro_delimiter(opt_args[OPT_ARG_CALLEE_GO_ON]);
+			ast_parseable_goto(peer, opt_args[OPT_ARG_CALLEE_GO_ON]);
+			ast_pbx_start(peer);
+		} else {
+			if (!ast_check_hangup(chan))
+				chan->hangupcause = peer->hangupcause;
+			ast_hangup(peer);
 		}
 	}
 out:
-	/* cleaning up chan is not a good idea here if AST_PBX_KEEPALIVE
-	   is returned; chan will get the love it needs from another
-	   thread */
-	if (res != AST_PBX_KEEPALIVE) {
-		if (moh) {
-			moh = 0;
-			ast_moh_stop(chan);
-		} else if (sentringing) {
-			sentringing = 0;
-			ast_indicate(chan, -1);
-		}
-		ast_channel_early_bridge(chan, NULL);
-		hanguptree(outgoing, NULL, 0); /* In this case, there's no answer anywhere */
-		pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
-		senddialendevent(chan, pa.status);
-		ast_debug(1, "Exiting with DIALSTATUS=%s.\n", pa.status);
-
-		if ((ast_test_flag64(peerflags, OPT_GO_ON)) && !ast_check_hangup(chan) && (res != AST_PBX_KEEPALIVE) && (res != AST_PBX_INCOMPLETE)) {
-			if (!ast_tvzero(calldurationlimit))
-				memset(&chan->whentohangup, 0, sizeof(chan->whentohangup));
-			res = 0;
-		}
+	if (moh) {
+		moh = 0;
+		ast_moh_stop(chan);
+	} else if (sentringing) {
+		sentringing = 0;
+		ast_indicate(chan, -1);
+	}
+	ast_channel_early_bridge(chan, NULL);
+	hanguptree(outgoing, NULL, 0); /* In this case, there's no answer anywhere */
+	pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
+	senddialendevent(chan, pa.status);
+	ast_debug(1, "Exiting with DIALSTATUS=%s.\n", pa.status);
+	
+	if ((ast_test_flag64(peerflags, OPT_GO_ON)) && !ast_check_hangup(chan) && (res != AST_PBX_INCOMPLETE)) {
+		if (!ast_tvzero(calldurationlimit))
+			memset(&chan->whentohangup, 0, sizeof(chan->whentohangup));
+		res = 0;
 	}
 
 done:

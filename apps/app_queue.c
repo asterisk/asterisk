@@ -4069,24 +4069,21 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		/* If the queue member did an attended transfer, then the TRANSFER already was logged in the queue_log
 		 * when the masquerade occurred. These other "ending" queue_log messages are unnecessary
 		 */
-		if (bridge != AST_PBX_KEEPALIVE && !attended_transfer_occurred(qe->chan)) {
+		if (!attended_transfer_occurred(qe->chan)) {
 			struct ast_datastore *tds;
 			if (strcasecmp(oldcontext, qe->chan->context) || strcasecmp(oldexten, qe->chan->exten)) {
 				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "TRANSFER", "%s|%s|%ld|%ld|%d",
 					qe->chan->exten, qe->chan->context, (long) (callstart - qe->start),
 					(long) (time(NULL) - callstart), qe->opos);
-				if (bridge != AST_PBX_NO_HANGUP_PEER && bridge != AST_PBX_NO_HANGUP_PEER_PARKED)
-					send_agent_complete(qe, queuename, peer, member, callstart, vars, sizeof(vars), TRANSFER);
+				send_agent_complete(qe, queuename, peer, member, callstart, vars, sizeof(vars), TRANSFER);
 			} else if (ast_check_hangup(qe->chan)) {
 				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "COMPLETECALLER", "%ld|%ld|%d",
 					(long) (callstart - qe->start), (long) (time(NULL) - callstart), qe->opos);
-				if (bridge != AST_PBX_NO_HANGUP_PEER && bridge != AST_PBX_NO_HANGUP_PEER_PARKED)
-					send_agent_complete(qe, queuename, peer, member, callstart, vars, sizeof(vars), CALLER);
+				send_agent_complete(qe, queuename, peer, member, callstart, vars, sizeof(vars), CALLER);
 			} else {
 				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "COMPLETEAGENT", "%ld|%ld|%d",
 					(long) (callstart - qe->start), (long) (time(NULL) - callstart), qe->opos);
-				if (bridge != AST_PBX_NO_HANGUP_PEER && bridge != AST_PBX_NO_HANGUP_PEER_PARKED)
-					send_agent_complete(qe, queuename, peer, member, callstart, vars, sizeof(vars), AGENT);
+				send_agent_complete(qe, queuename, peer, member, callstart, vars, sizeof(vars), AGENT);
 			}
 			ast_channel_lock(qe->chan);
 			if ((tds = ast_channel_datastore_find(qe->chan, &queue_transfer_info, NULL))) {
@@ -4099,8 +4096,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		if (transfer_ds) {
 			ast_datastore_free(transfer_ds);
 		}
-		if (bridge != AST_PBX_NO_HANGUP_PEER && bridge != AST_PBX_NO_HANGUP_PEER_PARKED)
-			ast_hangup(peer);
+		ast_hangup(peer);
 		res = bridge ? bridge : 1;
 		ao2_ref(member, -1);
 	}
@@ -5065,7 +5061,7 @@ stop:
 	}
 
 	/* Don't allow return code > 0 */
-	if (res >= 0 && res != AST_PBX_KEEPALIVE) {
+	if (res >= 0) {
 		res = 0;	
 		if (ringing) {
 			ast_indicate(chan, -1);

@@ -406,10 +406,6 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 			case MACRO_EXIT_RESULT:
 				res = 0;
 				goto out;
-			case AST_PBX_KEEPALIVE:
-				ast_debug(2, "Spawn extension (%s,%s,%d) exited KEEPALIVE in macro %s on '%s'\n", chan->context, chan->exten, chan->priority, macro, chan->name);
-				ast_verb(2, "Spawn extension (%s, %s, %d) exited KEEPALIVE in macro '%s' on '%s'\n", chan->context, chan->exten, chan->priority, macro, chan->name);
-				goto out;
 			default:
 				ast_debug(2, "Spawn extension (%s,%s,%d) exited non-zero on '%s' in macro '%s'\n", chan->context, chan->exten, chan->priority, chan->name, macro);
 				ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s' in macro '%s'\n", chan->context, chan->exten, chan->priority, chan->name, macro);
