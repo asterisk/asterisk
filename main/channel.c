@@ -2923,7 +2923,10 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	/* The channel driver does not support this indication, let's fake
 	 * it by doing our own tone generation if applicable. */
 
-	if (condition < 0) {
+	/*!\note If we compare the enumeration type, which does not have any
+	 * negative constants, the compiler may optimize this code away.
+	 * Therefore, we must perform an integer comparison here. */
+	if (_condition < 0) {
 		/* Stop any tones that are playing */
 		ast_playtones_stop(chan);
 		return 0;
