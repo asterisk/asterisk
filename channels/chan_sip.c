@@ -23616,7 +23616,7 @@ static int sip_addheader(struct ast_channel *chan, void *data)
 	int no = 0;
 	int ok = FALSE;
 	char varbuf[30];
-	char *inbuf = data;
+	char *inbuf = data, *subbuf;
 	
 	if (ast_strlen_zero(inbuf)) {
 		ast_log(LOG_WARNING, "This application requires the argument: Header\n");
@@ -23630,13 +23630,18 @@ static int sip_addheader(struct ast_channel *chan, void *data)
 		snprintf(varbuf, sizeof(varbuf), "__SIPADDHEADER%.2d", no);
 
 		/* Compare without the leading underscores */
-		if( (pbx_builtin_getvar_helper(chan, (const char *) varbuf + 2) == (const char *) NULL) )
+		if ((pbx_builtin_getvar_helper(chan, (const char *) varbuf + 2) == (const char *) NULL)) {
 			ok = TRUE;
+		}
 	}
 	if (ok) {
-		pbx_builtin_setvar_helper (chan, varbuf, inbuf);
-		if (sipdebug)
+		size_t len = strlen(inbuf);
+		subbuf = alloca(len + 1);
+		ast_get_encoded_str(inbuf, subbuf, len + 1);
+		pbx_builtin_setvar_helper(chan, varbuf, subbuf);
+		if (sipdebug) {
 			ast_debug(1, "SIP Header added \"%s\" as %s\n", inbuf, varbuf);
+		}
 	} else {
 		ast_log(LOG_WARNING, "Too many SIP headers added, max 50\n");
 	}
