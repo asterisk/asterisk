@@ -1427,7 +1427,7 @@ int ast_channel_datastore_inherit(struct ast_channel *from, struct ast_channel *
 		if (datastore->inheritance > 0) {
 			datastore2 = ast_datastore_alloc(datastore->info, datastore->uid);
 			if (datastore2) {
-				datastore2->data = datastore->info->duplicate(datastore->data);
+				datastore2->data = datastore->info->duplicate ? datastore->info->duplicate(datastore->data) : NULL;
 				datastore2->inheritance = datastore->inheritance == DATASTORE_INHERIT_FOREVER ? DATASTORE_INHERIT_FOREVER : datastore->inheritance - 1;
 				AST_LIST_INSERT_TAIL(&to->datastores, datastore2, entry);
 			}
