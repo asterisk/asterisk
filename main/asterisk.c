@@ -3034,6 +3034,7 @@ int main(int argc, char *argv[])
 	dahdi_chan_name_len = &_dahdi_chan_name_len;
 	dahdi_chan_mode = &_dahdi_chan_mode;
 
+#ifdef HAVE_DAHDI
 	{
 		int fd;
 		int x = 160;
@@ -3070,6 +3071,7 @@ int main(int argc, char *argv[])
 			close(fd);
 		}
 	}
+#endif
 	threadstorage_init();
 
 	astobj2_init();

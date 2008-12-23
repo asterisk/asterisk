@@ -11231,6 +11231,7 @@ static int load_module(void)
 	iax_set_error(iax_error_output);
 	jb_setoutput(jb_error_output, jb_warning_output, NULL);
 	
+#ifdef HAVE_DAHDI
 #ifdef DAHDI_TIMERACK
 	timingfd = open(DAHDI_FILE_TIMER, O_RDWR);
 	if (timingfd < 0)
@@ -11238,6 +11239,7 @@ static int load_module(void)
 		timingfd = open(DAHDI_FILE_PSEUDO, O_RDWR);
 	if (timingfd < 0) 
 		ast_log(LOG_WARNING, "Unable to open IAX timing interface: %s\n", strerror(errno));
+#endif
 
 	memset(iaxs, 0, sizeof(iaxs));
 
