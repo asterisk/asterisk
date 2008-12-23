@@ -480,6 +480,9 @@ int ast_record_review(struct ast_channel *chan, const char *playfile, const char
 /*! \brief Decode an encoded control or extended ASCII character */
 int ast_get_encoded_char(const char *stream, char *result, size_t *consumed);
 
+/*! \brief Decode a string which may contain multiple encoded control or extended ASCII characters */
+int ast_get_encoded_str(const char *stream, char *result, size_t result_size);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
