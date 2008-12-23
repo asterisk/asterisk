@@ -44,7 +44,7 @@ SIP Changes
 
 Skinny Changes
 --------------
- * The configuration file now holds seperate sections for devices and lines.
+ * The configuration file now holds separate sections for devices and lines.
    Please have a look at configs/skinny.conf.sample and change your skinny.conf
    accordingly.
 
