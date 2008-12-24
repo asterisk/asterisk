@@ -47,7 +47,6 @@ struct ast_call_feature {
 };
 
 
-
 /*!
  * \brief Park a call and read back parked location 
  * \param chan the channel to actually be parked

@@ -40,8 +40,6 @@ extern "C" {
 #define AST_PBX_HANGUP	        -1	/*!< Jump to the 'h' exten */
 #define AST_PBX_OK	        0	/*!< No errors */
 #define AST_PBX_ERROR	        1	/*!< Jump to the 'e' exten */
-#define AST_PBX_KEEPALIVE	10	/*!< Destroy the thread, but don't hang up the channel */
-#define AST_PBX_NO_HANGUP_PEER	11
 /*! } */
 
 #define PRIORITY_HINT	-1	/*!< Special Priority for a hint */

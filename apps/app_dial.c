@@ -1966,11 +1966,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			res = ast_bridge_call(chan, peer, &config);
 		}
 
-		if (ast_test_flag64(&opts, OPT_PEER_H)) {
-			ast_log(LOG_NOTICE, "PEER context: %s; PEER exten: %s;  PEER priority: %d\n",
-				peer->context, peer->exten, peer->priority);
-		}
-
 		strcpy(peer->context, chan->context);
 
 		if (ast_test_flag64(&opts, OPT_PEER_H) && ast_exists_extension(peer, peer->context, "h", 1, peer->cid.cid_num)) {
@@ -1991,11 +1986,9 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			}
 			ast_set2_flag(peer, autoloopflag, AST_FLAG_IN_AUTOLOOP);  /* set it back the way it was */
 		}
-		if (res != AST_PBX_NO_HANGUP_PEER) {
-			if (!ast_check_hangup(chan))
-				chan->hangupcause = peer->hangupcause;
-			ast_hangup(peer);
-		}
+		if (!ast_check_hangup(chan))
+			chan->hangupcause = peer->hangupcause;
+		ast_hangup(peer);
 	}
 out:
 	if (moh) {
@@ -2010,13 +2003,12 @@ out:
 	pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
 	senddialendevent(chan, pa.status);
 	ast_debug(1, "Exiting with DIALSTATUS=%s.\n", pa.status);
-
-	if ((ast_test_flag64(peerflags, OPT_GO_ON)) && !ast_check_hangup(chan) && (res != AST_PBX_KEEPALIVE)) {
-		if (calldurationlimit)
-			chan->whentohangup = 0;
-		res = 0;
-	}
-
+	
+        if (ast_test_flag64(peerflags, OPT_GO_ON) && !ast_check_hangup(chan)) {
+                if (calldurationlimit)
+                        chan->whentohangup = 0;
+                res = 0;
+        }
 done:
 	return res;
 }

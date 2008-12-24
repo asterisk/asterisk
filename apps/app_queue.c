@@ -3886,8 +3886,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		if (transfer_ds) {
 			ast_channel_datastore_free(transfer_ds);
 		}
-		if (bridge != AST_PBX_NO_HANGUP_PEER)
-			ast_hangup(peer);
+		ast_hangup(peer);
 		res = bridge ? bridge : 1;
 		ao2_ref(member, -1);
 	}
@@ -4865,7 +4864,7 @@ stop:
 	}
 
 	/* Don't allow return code > 0 */
-	if (res >= 0 && res != AST_PBX_KEEPALIVE) {
+	if (res >= 0) {
 		res = 0;	
 		if (ringing) {
 			ast_indicate(chan, -1);
