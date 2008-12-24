@@ -117,7 +117,7 @@
  *       specially to communication with other peers (proxies).
  * \todo We need to test TCP sessions with SIP proxies and in regards
  *       to the SIP outbound specs.
- * \todo transport=tls was deprecated in RFC3261 and should not be used at all. See section 22.2.2.
+ * \todo ;transport=tls was deprecated in RFC3261 and should not be used at all. See section 26.2.2.
  *
  * \todo If the message is smaller than the given Content-length, the request should get a 400 Bad request
  *       message. If it's a response, it should be dropped. (RFC 3261, Section 18.3)
