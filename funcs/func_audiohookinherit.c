@@ -40,7 +40,7 @@
  	<function name = "AUDIOHOOK_INHERIT" language="en_US">
 		<synopsis>
 			Set whether an audiohook may be inherited to another channel
-		</snopsis>
+		</synopsis>
 		<syntax>
 			<parameter name="source" required="true">
 				<para>The built-in sources in Asterisk are</para>
