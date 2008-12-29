@@ -3803,9 +3803,12 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				if (gosub_args) {
 					res = pbx_exec(peer, app, gosub_args);
 					if (!res) {
-						ast_pbx_run(peer);
+						struct ast_pbx_args args;
+						memset(&args, 0, sizeof(args));
+						args.no_hangup_chan = 1;
+						ast_pbx_run_args(peer, &args);
 					}
-					free(gosub_args);
+					ast_free(gosub_args);
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Gosub exited with status %d\n", res);
 				} else {
@@ -6536,7 +6539,7 @@ static int load_module(void)
 	if (!con)
 		ast_log(LOG_ERROR, "Queue virtual context 'app_queue_gosub_virtual_context' does not exist and unable to create\n");
 	else
-		ast_add_extension2(con, 1, "s", 1, NULL, NULL, "KeepAlive", ast_strdup(""), ast_free_ptr, "app_queue");
+		ast_add_extension2(con, 1, "s", 1, NULL, NULL, "NoOp", ast_strdup(""), ast_free_ptr, "app_queue");
 
 	if (queue_persistent_members)
 		reload_queue_members();
