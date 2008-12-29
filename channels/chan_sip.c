@@ -4087,6 +4087,11 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 	return peer;
 }
 
+/* The first element here must *always* be tmp_peer. This is because the user of this function
+ * passes it in using OBJ_POINTER which causes astobj2 to perform hashing on the name to find
+ * where the peer is. Since tmp_peer is at the beginning this just magically works. Move it and it
+ * will break. People will be angry. Just don't do it.
+ */
 struct peer_finding_info {
 	struct sip_peer tmp_peer;
 	int forcenamematch;
