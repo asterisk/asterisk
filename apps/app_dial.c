@@ -2089,8 +2089,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 						ast_pbx_run_args(peer, &args);
 					}
 					ast_free(gosub_args);
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Gosub exited with status %d\n", res9);
+					ast_debug(1, "Gosub exited with status %d\n", res9);
 				} else {
 					ast_log(LOG_ERROR, "Could not Allocate string for Gosub arguments -- Gosub Call Aborted!\n");
 				}
