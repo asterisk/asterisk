@@ -128,7 +128,7 @@
 
 
 /* Copy the first part of user declarations.  */
-#line 1 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 1 "ast_expr2.y"
 
 /* Written by Pace Willisson (pace@blitz.com) 
  * and placed in the public domain.
@@ -372,7 +372,7 @@ enum valtype {
 } ;
 
 #ifdef STANDALONE
-void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__ ((format (printf,5,6)));
+void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__((format(printf,5,6)));
 #endif
 
 struct val {
@@ -485,13 +485,13 @@ int		ast_yyerror(const char *,YYLTYPE *, struct parse_io *);
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 344 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 342 "ast_expr2.y"
 {
 	struct val *val;
 	struct expr_node *arglist;
 }
 /* Line 187 of yacc.c.  */
-#line 495 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 493 "ast_expr2.c"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -513,13 +513,13 @@ typedef struct YYLTYPE
 
 
 /* Copy the second part of user declarations.  */
-#line 349 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 347 "ast_expr2.y"
 
 extern int		ast_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
 
 
 /* Line 216 of yacc.c.  */
-#line 523 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 521 "ast_expr2.c"
 
 #ifdef short
 # undef short
@@ -816,9 +816,9 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   373,   373,   381,   388,   389,   398,   404,   405,   409,
-     413,   417,   421,   425,   429,   433,   437,   441,   445,   449,
-     453,   457,   461,   465,   469,   473,   477,   482
+       0,   371,   371,   379,   386,   387,   396,   402,   403,   407,
+     411,   415,   419,   423,   427,   431,   435,   439,   443,   447,
+     451,   455,   459,   463,   467,   471,   475,   480
 };
 #endif
 
@@ -1471,119 +1471,119 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp)
   switch (yytype)
     {
       case 4: /* "TOK_COLONCOLON" */
-#line 367 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 365 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1477 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 1475 "ast_expr2.c"
 	break;
       case 5: /* "TOK_COND" */
-#line 367 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 365 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1482 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 1480 "ast_expr2.c"
 	break;
       case 6: /* "TOK_OR" */
-#line 367 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 365 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1487 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 1485 "ast_expr2.c"
 	break;
       case 7: /* "TOK_AND" */
-#line 367 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 365 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1492 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 1490 "ast_expr2.c"
 	break;
       case 8: /* "TOK_NE" */
-#line 367 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 365 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1497 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 1495 "ast_expr2.c"
 	break;
       case 9: /* "TOK_LE" */
-#line 367 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 365 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1502 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 1500 "ast_expr2.c"
 	break;
       case 10: /* "TOK_GE" */
-#line 367 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 365 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1507 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 1505 "ast_expr2.c"
 	break;
       case 11: /* "TOK_LT" */
-#line 367 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 365 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1512 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 1510 "ast_expr2.c"
 	break;
       case 12: /* "TOK_GT" */
-#line 367 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 365 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1517 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 1515 "ast_expr2.c"
 	break;
       case 13: /* "TOK_EQ" */
-#line 367 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 365 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1522 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 1520 "ast_expr2.c"
 	break;
       case 14: /* "TOK_MINUS" */
-#line 367 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 365 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1527 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 1525 "ast_expr2.c"
 	break;
       case 15: /* "TOK_PLUS" */
-#line 367 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 365 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1532 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 1530 "ast_expr2.c"
 	break;
       case 16: /* "TOK_MOD" */
-#line 367 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 365 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1537 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 1535 "ast_expr2.c"
 	break;
       case 17: /* "TOK_DIV" */
-#line 367 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 365 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1542 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 1540 "ast_expr2.c"
 	break;
       case 18: /* "TOK_MULT" */
-#line 367 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 365 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1547 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 1545 "ast_expr2.c"
 	break;
       case 19: /* "TOK_COMPL" */
-#line 367 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 365 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1552 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 1550 "ast_expr2.c"
 	break;
       case 20: /* "TOK_TILDETILDE" */
-#line 367 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 365 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1557 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 1555 "ast_expr2.c"
 	break;
       case 21: /* "TOK_EQTILDE" */
-#line 367 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 365 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1562 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 1560 "ast_expr2.c"
 	break;
       case 22: /* "TOK_COLON" */
-#line 367 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 365 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1567 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 1565 "ast_expr2.c"
 	break;
       case 23: /* "TOK_LP" */
-#line 367 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 365 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1572 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 1570 "ast_expr2.c"
 	break;
       case 24: /* "TOK_RP" */
-#line 367 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 365 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1577 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 1575 "ast_expr2.c"
 	break;
       case 25: /* "TOKEN" */
-#line 367 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 365 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1582 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 1580 "ast_expr2.c"
 	break;
       case 29: /* "expr" */
-#line 367 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 365 "ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1587 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 1585 "ast_expr2.c"
 	break;
 
       default:
@@ -1906,7 +1906,7 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 373 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 371 "ast_expr2.y"
     { ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(struct val),1);
               ((struct parse_io *)parseio)->val->type = (yyvsp[(1) - (1)].val)->type;
               if( (yyvsp[(1) - (1)].val)->type == AST_EXPR_number )
@@ -1918,7 +1918,7 @@ yyreduce:
     break;
 
   case 3:
-#line 381 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 379 "ast_expr2.y"
     {/* nothing */ ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(struct val),1);
               ((struct parse_io *)parseio)->val->type = AST_EXPR_string;
 			  ((struct parse_io *)parseio)->val->u.s = strdup(""); 
@@ -1926,12 +1926,12 @@ yyreduce:
     break;
 
   case 4:
-#line 388 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 386 "ast_expr2.y"
     { (yyval.arglist) = alloc_expr_node(AST_EXPR_NODE_VAL); (yyval.arglist)->val = (yyvsp[(1) - (1)].val);;}
     break;
 
   case 5:
-#line 389 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 387 "ast_expr2.y"
     {struct expr_node *x = alloc_expr_node(AST_EXPR_NODE_VAL);
                                  struct expr_node *t;
 								 DESTROY((yyvsp[(2) - (3)].val));
@@ -1941,7 +1941,7 @@ yyreduce:
     break;
 
   case 6:
-#line 398 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 396 "ast_expr2.y"
     { (yyval.val) = op_func((yyvsp[(1) - (4)].val),(yyvsp[(3) - (4)].arglist), ((struct parse_io *)parseio)->chan);
 		                            DESTROY((yyvsp[(2) - (4)].val));
 									DESTROY((yyvsp[(4) - (4)].val));
@@ -1951,12 +1951,12 @@ yyreduce:
     break;
 
   case 7:
-#line 404 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 402 "ast_expr2.y"
     {(yyval.val) = (yyvsp[(1) - (1)].val);;}
     break;
 
   case 8:
-#line 405 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 403 "ast_expr2.y"
     { (yyval.val) = (yyvsp[(2) - (3)].val);
 	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
 						   (yyloc).first_line=0; (yyloc).last_line=0;
@@ -1964,7 +1964,7 @@ yyreduce:
     break;
 
   case 9:
-#line 409 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 407 "ast_expr2.y"
     { (yyval.val) = op_or ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));	
                          (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -1972,7 +1972,7 @@ yyreduce:
     break;
 
   case 10:
-#line 413 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 411 "ast_expr2.y"
     { (yyval.val) = op_and ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -1980,7 +1980,7 @@ yyreduce:
     break;
 
   case 11:
-#line 417 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 415 "ast_expr2.y"
     { (yyval.val) = op_eq ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                     (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
@@ -1988,7 +1988,7 @@ yyreduce:
     break;
 
   case 12:
-#line 421 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 419 "ast_expr2.y"
     { (yyval.val) = op_gt ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));	
                          (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
@@ -1996,7 +1996,7 @@ yyreduce:
     break;
 
   case 13:
-#line 425 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 423 "ast_expr2.y"
     { (yyval.val) = op_lt ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                     (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2004,7 +2004,7 @@ yyreduce:
     break;
 
   case 14:
-#line 429 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 427 "ast_expr2.y"
     { (yyval.val) = op_ge ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2012,7 +2012,7 @@ yyreduce:
     break;
 
   case 15:
-#line 433 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 431 "ast_expr2.y"
     { (yyval.val) = op_le ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2020,7 +2020,7 @@ yyreduce:
     break;
 
   case 16:
-#line 437 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 435 "ast_expr2.y"
     { (yyval.val) = op_ne ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2028,7 +2028,7 @@ yyreduce:
     break;
 
   case 17:
-#line 441 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 439 "ast_expr2.y"
     { (yyval.val) = op_plus ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2036,7 +2036,7 @@ yyreduce:
     break;
 
   case 18:
-#line 445 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 443 "ast_expr2.y"
     { (yyval.val) = op_minus ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2044,7 +2044,7 @@ yyreduce:
     break;
 
   case 19:
-#line 449 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 447 "ast_expr2.y"
     { (yyval.val) = op_negate ((yyvsp[(2) - (2)].val)); 
 						DESTROY((yyvsp[(1) - (2)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (2)]).first_column; (yyloc).last_column = (yylsp[(2) - (2)]).last_column; 
@@ -2052,7 +2052,7 @@ yyreduce:
     break;
 
   case 20:
-#line 453 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 451 "ast_expr2.y"
     { (yyval.val) = op_compl ((yyvsp[(2) - (2)].val)); 
 						DESTROY((yyvsp[(1) - (2)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (2)]).first_column; (yyloc).last_column = (yylsp[(2) - (2)]).last_column; 
@@ -2060,7 +2060,7 @@ yyreduce:
     break;
 
   case 21:
-#line 457 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 455 "ast_expr2.y"
     { (yyval.val) = op_times ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2068,7 +2068,7 @@ yyreduce:
     break;
 
   case 22:
-#line 461 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 459 "ast_expr2.y"
     { (yyval.val) = op_div ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2076,7 +2076,7 @@ yyreduce:
     break;
 
   case 23:
-#line 465 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 463 "ast_expr2.y"
     { (yyval.val) = op_rem ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2084,7 +2084,7 @@ yyreduce:
     break;
 
   case 24:
-#line 469 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 467 "ast_expr2.y"
     { (yyval.val) = op_colon ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2092,7 +2092,7 @@ yyreduce:
     break;
 
   case 25:
-#line 473 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 471 "ast_expr2.y"
     { (yyval.val) = op_eqtilde ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2100,7 +2100,7 @@ yyreduce:
     break;
 
   case 26:
-#line 477 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 475 "ast_expr2.y"
     { (yyval.val) = op_cond ((yyvsp[(1) - (5)].val), (yyvsp[(3) - (5)].val), (yyvsp[(5) - (5)].val)); 
 						DESTROY((yyvsp[(2) - (5)].val));	
 						DESTROY((yyvsp[(4) - (5)].val));	
@@ -2109,7 +2109,7 @@ yyreduce:
     break;
 
   case 27:
-#line 482 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 480 "ast_expr2.y"
     { (yyval.val) = op_tildetilde ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2118,7 +2118,7 @@ yyreduce:
 
 
 /* Line 1267 of yacc.c.  */
-#line 2122 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.c"
+#line 2120 "ast_expr2.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -2338,7 +2338,7 @@ yyreturn:
 }
 
 
-#line 488 "/home/tilghman/Asterisk/asterisk-trunk/main/ast_expr2.y"
+#line 486 "ast_expr2.y"
 
 
 static struct expr_node *alloc_expr_node(enum node_type nt)
