@@ -11875,9 +11875,9 @@ static char *handle_pri_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	int level = 0;
 	switch (cmd) {
 	case CLI_INIT:	
-		e->command = "pri set debug [on|off] span";
+		e->command = "pri set debug {on|off} span";
 		e->usage = 
-			"Usage: pri set debug <level|on|off> span <span>\n"
+			"Usage: pri set debug {<level>|on|off} span <span>\n"
 			"       Enables debugging on a given PRI span\n";
 		return NULL;
 	case CLI_GENERATE:	
@@ -13333,7 +13333,7 @@ static char *handle_ss7_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		return CLI_SUCCESS;
 	}
 	if (linksets[span-1].ss7) {
-		if (strcasecmp(a->argv[4], "on")) {
+		if (strcasecmp(a->argv[3], "on")) {
 			ss7_set_debug(linksets[span-1].ss7, SS7_DEBUG_MTP2 | SS7_DEBUG_MTP3 | SS7_DEBUG_ISUP);
 			ast_cli(a->fd, "Enabled debugging on linkset %d\n", span);
 		} else {
