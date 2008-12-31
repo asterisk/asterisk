@@ -522,6 +522,7 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 	p->chan->cid.cid_tns = p->owner->cid.cid_tns;
 	ast_string_field_set(p->chan, language, p->owner->language);
 	ast_string_field_set(p->chan, accountcode, p->owner->accountcode);
+	ast_string_field_set(p->chan, musicclass, p->owner->musicclass);
 	ast_cdr_update(p->chan);
 	p->chan->cdrflags = p->owner->cdrflags;
 
