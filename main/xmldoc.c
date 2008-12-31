@@ -1378,6 +1378,7 @@ char *ast_xmldoc_build_seealso(const char *type, const char *name)
 		}
 		first = 0;
 		ast_xml_free_text(content);
+		ast_xml_free_attr(typename);
 	}
 
 	output = ast_strdup(ast_str_buffer(outputstr));
