@@ -11,7 +11,7 @@ Please read it to the end to understand in detail how the asterisk
 code is organized, and to know how to extend asterisk or contribute
 new code.
 
-We are looking forward to your contributions to Asterisk - the 
+We are looking forward to your contributions to Asterisk - the
 Open Source PBX! As Asterisk is a large and in some parts very
 time-sensitive application, the code base needs to conform to
 a common set of coding rules so that many developers can enhance
@@ -56,7 +56,7 @@ can list them in the "svn diff" command:
 
 - Try to match the existing formatting of the file you are working on.
 
-- Use spaces instead of tabs when aligning in-line comments or #defines (this makes 
+- Use spaces instead of tabs when aligning in-line comments or #defines (this makes
   your comments aligned even if the code is viewed with another tabsize)
 
 * File structure and header inclusion
@@ -73,7 +73,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 set of unix functions (data types, system calls, basic I/O
 libraries) and the basic Asterisk APIs.
 ASTERISK_FILE_VERSION() stores in the executable information
-about the file.   
+about the file.
 
 Next, you should #include extra headers according to the functionality
 that your file uses or implements. For each group of functions that
@@ -146,7 +146,7 @@ explain why you need it.
 * Code formatting
 -----------------
 
-Roughly, Asterisk code formatting guidelines are generally equivalent to the 
+Roughly, Asterisk code formatting guidelines are generally equivalent to the
 following:
 
 # indent -i4 -ts4 -br -brs -cdw -lp -ce -nbfda -npcs -nprs -npsl -nbbo -saf -sai -saw -cs -l90 foo.c
@@ -167,7 +167,7 @@ this means in verbose:
  -sai:   space after if
  -saw:   space after while
  -cs:    space after cast
- -ln90:  line length 90 columns
+ -l90:  line length 90 columns
 
 Function calls and arguments should be spaced in a consistent way across
 the codebase.
@@ -219,7 +219,7 @@ case OTHER:
 - No nested statements without braces, e.g.:
 
 for (x = 0; x < 5; x++)
-	if (foo) 
+	if (foo)
 		if (bar)
 			baz();
 
@@ -265,9 +265,9 @@ label/goto combination so that error/failure conditions can exit the
 function while still performing proper cleanup. This is not a bad thing!
 Use of goto in this situation is encouraged, since it removes the need
 for excess code indenting without requiring duplication of cleanup code.
-       
+
 - Never use an uninitialized variable
-Make sure you never use an uninitialized variable.  The compiler will 
+Make sure you never use an uninitialized variable.  The compiler will
 usually warn you if you do so. However, do not go too far the other way,
 and needlessly initialize variables that do not require it. If the first
 time you use a variable in a function is to store a value there, then
@@ -292,7 +292,7 @@ and have a descriptive name.
 
 As an example, suppose you wanted to take a local function "find_feature", defined
 as static in a file, and used only in that file, and make it public, and use it
-in other files. You will have to remove the "static" declaration and define a 
+in other files. You will have to remove the "static" declaration and define a
 prototype in an appropriate header file (usually in include/asterisk). A more
 specific name should be given, such as "ast_find_call_feature".
 
@@ -311,7 +311,7 @@ This one is defined in include/asterisk/compiler.h
 - Global variables
 Name global variables (or local variables when you have a lot of them or
 are in a long function) something that will make sense to aliens who
-find your code in 100 years.  All variable names should be in lower 
+find your code in 100 years.  All variable names should be in lower
 case, except when following external APIs or specifications that normally
 use upper- or mixed-case variable names; in that situation, it is
 preferable to follow the external API/specification for ease of
@@ -321,7 +321,7 @@ Make some indication in the name of global variables which represent
 options that they are in fact intended to be global.
  e.g.: static char global_something[80]
 
-- Don't use un-necessary typedef's
+- Don't use unnecessary typedef's
 Don't use 'typedef' just to shorten the amount of typing; there is no substantial
 benefit in this:
 struct foo { int bar; }; typedef struct foo foo_t;
@@ -368,7 +368,7 @@ that has been allocated in the function doing the copying. In that case, you
 know at the time you are writing the code whether the buffer is large enough
 for the fixed string or not, and if it's not, your code won't work anyway!
 Use strcpy() for this operation, or directly set the first two characters
-of the buffer if you are just trying to store a one-character string in the
+of the buffer if you are just trying to store a one character string in the
 buffer. If you are trying to 'empty' the buffer, just store a single
 NULL character ('\0') in the first byte of the buffer; nothing else is
 needed, and any other method is wasteful.
@@ -382,14 +382,13 @@ processor operations, unlike ast_copy_string().
 * Use of functions
 ------------------
 
-For the sake of uclibc, do not use index, bcopy or bzero; use 
-strchr(), memset(), and memmove() instead. uclibc can be configured
-to supply these functions, but we can save these users
-time and consternation if we abstain from using these
+For the sake of uclibc, do not use index, bcopy or bzero; use strchr(), memset(),
+and memmove() instead. uclibc can be configured to supply these functions, but
+we can save these users time and consternation if we abstain from using these
 functions.
 
-When making applications, always ast_strdupa(data) to a local pointer if
-you intend to parse the incoming data string.
+When making applications, always ast_strdupa(data) to a local pointer if you
+intend to parse the incoming data string.
 
 	if (data)
 		mydata = ast_strdupa(data);
@@ -410,8 +409,8 @@ If you do the same or a similar operation more than one time, make it a
 function or macro.
 
 Make sure you are not duplicating any functionality already found in an
-API call somewhere.  If you are duplicating functionality found in 
-another static function, consider the value of creating a new API call 
+API call somewhere.  If you are duplicating functionality found in
+another static function, consider the value of creating a new API call
 which can be shared.
 
 * Handling of pointers and allocations
@@ -419,12 +418,12 @@ which can be shared.
 
 - Dereference or localize pointers
 Always dereference or localize pointers to things that are not yours like
-channel members in a channel that is not associated with the current 
+channel members in a channel that is not associated with the current
 thread and for which you do not have a lock.
 	channame = ast_strdupa(otherchan->name);
 
 - Use const on pointer arguments if possible
-Use const on pointer arguments which your function will not be modifying, as this 
+Use const on pointer arguments which your function will not be modifying, as this
 allows the compiler to make certain optimizations. In general, use 'const'
 on any argument that you have no direct intention of modifying, as it can
 catch logic/typing errors in your code when you use the argument variable
@@ -449,7 +448,7 @@ alloca(), ast_strdupa() or similar functions in the argument list
 of a function you are calling; this can cause very strange stack
 arrangements and produce unexpected behavior.
 
--Allocations for structures
+- Allocations for structures
 When allocating/zeroing memory for a structure, use code like this:
 
 struct foo *tmp;
@@ -459,12 +458,12 @@ struct foo *tmp;
 tmp = ast_calloc(1, sizeof(*tmp));
 
 Avoid the combination of ast_malloc() and memset().  Instead, always use
-ast_calloc(). This will allocate and zero the memory in a single operation. 
+ast_calloc(). This will allocate and zero the memory in a single operation.
 In the case that uninitialized memory is acceptable, there should be a comment
 in the code that states why this is the case.
 
-Using sizeof(*tmp) instead of sizeof(struct foo) eliminates duplication of the 
-'struct foo' identifier, which makes the code easier to read and also ensures 
+Using sizeof(*tmp) instead of sizeof(struct foo) eliminates duplication of the
+'struct foo' identifier, which makes the code easier to read and also ensures
 that if it is copy-and-pasted it won't require as much editing.
 
 The ast_* family of functions for memory allocation are functionally the same.
@@ -472,7 +471,7 @@ They just add an Asterisk log error message in the case that the allocation
 fails for some reason. This eliminates the need to generate custom messages
 throughout the code to log that this has occurred.
 
--String Duplications
+- String Duplications
 
 The functions strdup and strndup can *not* accept a NULL argument. This results
 in having code like this:
@@ -484,7 +483,7 @@ in having code like this:
 
 However, the ast_strdup and ast_strdupa functions will happily accept a NULL
 argument without generating an error.  The same code can be written as:
-	
+
 	newstr = ast_strdup(str);
 
 Furthermore, it is unnecessary to have code that malloc/calloc's for the length
@@ -591,28 +590,28 @@ When you achieve your desired functionality, make another few refactor
 passes over the code to optimize it.
 
 - Read the patch
-Before submitting a patch, *read* the actual patch file to be sure that 
-all the changes you expect to be there are, and that there are no 
+Before submitting a patch, *read* the actual patch file to be sure that
+all the changes you expect to be there are, and that there are no
 surprising changes you did not expect. During your development, that
 part of Asterisk may have changed, so make sure you compare with the
-latest CVS.
+latest SVN.
 
 - Listen to advice
 If you are asked to make changes to your patch, there is a good chance
 the changes will introduce bugs, check it even more at this stage.
-Also remember that the bug marshal or co-developer that adds comments 
+Also remember that the bug marshal or co-developer that adds comments
 is only human, they may be in error :-)
 
 - Optimize, optimize, optimize
 If you are going to reuse a computed value, save it in a variable
-instead of recomputing it over and over.  This can prevent you from 
+instead of recomputing it over and over.  This can prevent you from
 making a mistake in subsequent computations, making it easier to correct
-if the formula has an error and may or may not help optimization but 
+if the formula has an error and may or may not help optimization but
 will at least help readability.
 
 Just an example (so don't over analyze it, that'd be a shame):
 
-const char *prefix = "pre";	
+const char *prefix = "pre";
 const char *postfix = "post";
 char *newname;
 char *name = "data";
@@ -895,7 +894,7 @@ The first step, usually to be done soon after a checkout, is running
 	for each package detected.
 	These are normally of the form FOO_INCLUDE=... FOO_LIB=...
 	FOO_DIR=... indicating, for each package, the useful libraries
-	and header files. 
+	and header files.
 
 The next step is to run "make menuselect", to extract the dependencies existing
 between files and modules, and to store build options.
@@ -921,10 +920,10 @@ binary (main/ pbx/).
 
 TO BE COMPLETED
 
-    
+
 -----------------------------------------------
 Welcome to the Asterisk development community!
-Meet you on the asterisk-dev mailing list. 
+Meet you on the asterisk-dev mailing list.
 Subscribe at http://lists.digium.com!
 
 -- The Asterisk.org Development Team

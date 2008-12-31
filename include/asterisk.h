@@ -2,7 +2,7 @@
  * Asterisk -- A telephony toolkit for Linux.
  *
  * General Definitions for Asterisk top level program
- * 
+ *
  * Copyright (C) 1999-2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
@@ -54,9 +54,9 @@ int ast_set_priority(int);			/*!< Provided by asterisk.c */
  */
 int ast_register_atexit(void (*func)(void));
 
-/*!   
+/*!
  * \brief Unregister a function registered with ast_register_atexit().
- * \param func The callback function to unregister.   
+ * \param func The callback function to unregister.
  */
 void ast_unregister_atexit(void (*func)(void));
 
@@ -64,7 +64,7 @@ void ast_unregister_atexit(void (*func)(void));
 /*!
  * \brief Register the version of a source code file with the core.
  * \param file the source file name
- * \param version the version string (typically a CVS revision keyword string)
+ * \param version the version string (typically a SVN revision keyword string)
  * \return nothing
  *
  * This function should not be called directly, but instead the
@@ -94,7 +94,7 @@ char *ast_complete_source_filename(const char *partial, int n);
 /*!
  * \brief Register/unregister a source code file with the core.
  * \param file the source file name
- * \param version the version string (typically a CVS revision keyword string)
+ * \param version the version string (typically a SVN revision keyword string)
  *
  * This macro will place a file-scope constructor and destructor into the
  * source of the module using it; this will cause the version of this file
@@ -108,8 +108,8 @@ char *ast_complete_source_filename(const char *partial, int n);
  * \endcode
  *
  * \note The dollar signs above have been protected with backslashes to keep
- * CVS from modifying them in this file; under normal circumstances they would
- * not be present and CVS would expand the Revision keyword into the file's
+ * SVN from modifying them in this file; under normal circumstances they would
+ * not be present and SVN would expand the Revision keyword into the file's
  * revision number.
  */
 #ifdef MTX_PROFILE

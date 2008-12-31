@@ -76,7 +76,7 @@ envrionment can pick up the new variables.
 
 Upgrading Asterisk
 -----------------
-After you cvs update (or make update) Asterisk you have to go into
+After you svn update (or make update) Asterisk you have to go into
 asterisk/channels/h323 and issue a make clean all, before compiling the
 rest of asterisk. Doing this process every time you upgrade Asterisk
 will ensure a sane build.
