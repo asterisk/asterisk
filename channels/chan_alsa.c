@@ -266,7 +266,9 @@ static int send_sound(void)
 	state = snd_pcm_state(alsa.ocard);
 	if (state == SND_PCM_STATE_XRUN)
 		snd_pcm_prepare(alsa.ocard);
-	res = snd_pcm_writei(alsa.ocard, frame, res);
+	while ((res = snd_pcm_writei(alsa.ocard, frame, res)) == -EAGAIN) {
+		usleep(1);
+	}
 	if (res > 0)
 		return 0;
 	return 0;
@@ -629,13 +631,17 @@ static int alsa_write(struct ast_channel *chan, struct ast_frame *f)
 		state = snd_pcm_state(alsa.ocard);
 		if (state == SND_PCM_STATE_XRUN)
 			snd_pcm_prepare(alsa.ocard);
-		res = snd_pcm_writei(alsa.ocard, sizbuf, len / 2);
+		while ((res = snd_pcm_writei(alsa.ocard, sizbuf, len / 2)) == -EAGAIN) {
+			usleep(1);
+		}
 		if (res == -EPIPE) {
 #if DEBUG
 			ast_log(LOG_DEBUG, "XRUN write\n");
 #endif
 			snd_pcm_prepare(alsa.ocard);
-			res = snd_pcm_writei(alsa.ocard, sizbuf, len / 2);
+			while ((res = snd_pcm_writei(alsa.ocard, sizbuf, len / 2)) == -EAGAIN) {
+				usleep(1);
+			}
 			if (res != len / 2) {
 				ast_log(LOG_ERROR, "Write error: %s\n", snd_strerror(res));
 				res = -1;
