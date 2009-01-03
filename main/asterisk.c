@@ -2235,10 +2235,10 @@ static char *cli_prompt(EditLine *editline)
 					t--;
 					break;
 				}
-				t++;
 			} else {
 				ast_str_append(&prompt, 0, "%c", *t);
 			}
+			t++;
 		}
 		if (color_used) {
 			/* Force colors back to normal at end */
