@@ -5436,7 +5436,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				found = 1;
 				if (option_debug > 2)
 					ast_log(LOG_DEBUG, "MaxBufferSize:%d\n",x);
-			} else if ((sscanf(a, "T38MaxBitRate:%d", &x) == 1)) {
+			} else if ((sscanf(a, "T38MaxBitRate:%d", &x) == 1) || (sscanf(a, "T38FaxMaxRate:%d", &x) == 1)) {
 				found = 1;
 				if (option_debug > 2)
 					ast_log(LOG_DEBUG,"T38MaxBitRate: %d\n",x);
@@ -5468,31 +5468,48 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 					peert38capability |= T38FAX_VERSION_0;
 				else if (x == 1)
 					peert38capability |= T38FAX_VERSION_1;
-			} else if ((sscanf(a, "T38FaxMaxDatagram:%d", &x) == 1)) {
+			} else if ((sscanf(a, "T38FaxMaxDatagram:%d", &x) == 1) || (sscanf(a, "T38MaxDatagram:%d", &x) == 1)) {
 				found = 1;
 				if (option_debug > 2)
 					ast_log(LOG_DEBUG, "FaxMaxDatagram: %d\n",x);
 				ast_udptl_set_far_max_datagram(p->udptl, x);
 				ast_udptl_set_local_max_datagram(p->udptl, x);
-			} else if ((sscanf(a, "T38FaxFillBitRemoval:%d", &x) == 1)) {
+			} else if ((strncmp(a, "T38FaxFillBitRemoval", 20) == 0)) {
 				found = 1;
-				if (option_debug > 2)
-					ast_log(LOG_DEBUG, "FillBitRemoval: %d\n",x);
-				if (x == 1)
-					peert38capability |= T38FAX_FILL_BIT_REMOVAL;
-			} else if ((sscanf(a, "T38FaxTranscodingMMR:%d", &x) == 1)) {
+				if ((sscanf(a, "T38FaxFillBitRemoval:%d", &x) == 1)) {
+				    if (option_debug > 2)
+					    ast_log(LOG_DEBUG, "FillBitRemoval: %d\n",x);
+				    if (x == 1)
+					    peert38capability |= T38FAX_FILL_BIT_REMOVAL;
+				} else {
+				    if (option_debug > 2)
+					    ast_log(LOG_DEBUG, "FillBitRemoval\n");
+				    peert38capability |= T38FAX_FILL_BIT_REMOVAL;
+				}
+			} else if ((strncmp(a, "T38FaxTranscodingMMR", 20) == 0)) {
 				found = 1;
-				if (option_debug > 2)
-					ast_log(LOG_DEBUG, "Transcoding MMR: %d\n",x);
-				if (x == 1)
-					peert38capability |= T38FAX_TRANSCODING_MMR;
-			}
-			if ((sscanf(a, "T38FaxTranscodingJBIG:%d", &x) == 1)) {
+				if ((sscanf(a, "T38FaxTranscodingMMR:%d", &x) == 1)) {
+				    if (option_debug > 2)
+					    ast_log(LOG_DEBUG, "Transcoding MMR: %d\n",x);
+				    if (x == 1)
+					    peert38capability |= T38FAX_TRANSCODING_MMR;
+				} else {
+				    if (option_debug > 2)
+					    ast_log(LOG_DEBUG, "Transcoding MMR\n");
+				    peert38capability |= T38FAX_TRANSCODING_MMR;
+				}
+			} else if ((strncmp(a, "T38FaxTranscodingJBIG", 21) == 0)) {
 				found = 1;
-				if (option_debug > 2)
-					ast_log(LOG_DEBUG, "Transcoding JBIG: %d\n",x);
-				if (x == 1)
-					peert38capability |= T38FAX_TRANSCODING_JBIG;
+				if ((sscanf(a, "T38FaxTranscodingJBIG:%d", &x) == 1)) {
+				    if (option_debug > 2)
+					    ast_log(LOG_DEBUG, "Transcoding JBIG: %d\n",x);
+				    if (x == 1)
+					    peert38capability |= T38FAX_TRANSCODING_JBIG;
+				} else {
+				    if (option_debug > 2)
+					    ast_log(LOG_DEBUG, "Transcoding JBIG\n");
+				    peert38capability |= T38FAX_TRANSCODING_JBIG;
+				}
 			} else if ((sscanf(a, "T38FaxRateManagement:%255s", s) == 1)) {
 				found = 1;
 				if (option_debug > 2)
@@ -6354,31 +6371,31 @@ static int t38_get_rate(int t38cap)
 	
 	if (maxrate & T38FAX_RATE_14400) {
 		if (option_debug > 1)
-			ast_log(LOG_DEBUG, "T38MaxFaxRate 14400 found\n");
+			ast_log(LOG_DEBUG, "T38MaxBitRate 14400 found\n");
 		return 14400;
 	} else if (maxrate & T38FAX_RATE_12000) {
 		if (option_debug > 1)
-			ast_log(LOG_DEBUG, "T38MaxFaxRate 12000 found\n");
+			ast_log(LOG_DEBUG, "T38MaxBitRate 12000 found\n");
 		return 12000;
 	} else if (maxrate & T38FAX_RATE_9600) {
 		if (option_debug > 1)
-			ast_log(LOG_DEBUG, "T38MaxFaxRate 9600 found\n");
+			ast_log(LOG_DEBUG, "T38MaxBitRate 9600 found\n");
 		return 9600;
 	} else if (maxrate & T38FAX_RATE_7200) {
 		if (option_debug > 1)
-			ast_log(LOG_DEBUG, "T38MaxFaxRate 7200 found\n");
+			ast_log(LOG_DEBUG, "T38MaxBitRate 7200 found\n");
 		return 7200;
 	} else if (maxrate & T38FAX_RATE_4800) {
 		if (option_debug > 1)
-			ast_log(LOG_DEBUG, "T38MaxFaxRate 4800 found\n");
+			ast_log(LOG_DEBUG, "T38MaxBitRate 4800 found\n");
 		return 4800;
 	} else if (maxrate & T38FAX_RATE_2400) {
 		if (option_debug > 1)
-			ast_log(LOG_DEBUG, "T38MaxFaxRate 2400 found\n");
+			ast_log(LOG_DEBUG, "T38MaxBitRate 2400 found\n");
 		return 2400;
 	} else {
 		if (option_debug > 1)
-			ast_log(LOG_DEBUG, "Strange, T38MaxFaxRate NOT found in peers T38 SDP.\n");
+			ast_log(LOG_DEBUG, "Strange, T38MaxBitRate NOT found in peers T38 SDP.\n");
 		return 0;
 	}
 }
@@ -6453,9 +6470,12 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 		ast_build_string(&a_modem_next, &a_modem_left, "a=T38FaxVersion:1\r\n");
 	if ((x = t38_get_rate(p->t38.jointcapability)))
 		ast_build_string(&a_modem_next, &a_modem_left, "a=T38MaxBitRate:%d\r\n",x);
-	ast_build_string(&a_modem_next, &a_modem_left, "a=T38FaxFillBitRemoval:%d\r\n", (p->t38.jointcapability & T38FAX_FILL_BIT_REMOVAL) ? 1 : 0);
-	ast_build_string(&a_modem_next, &a_modem_left, "a=T38FaxTranscodingMMR:%d\r\n", (p->t38.jointcapability & T38FAX_TRANSCODING_MMR) ? 1 : 0);
-	ast_build_string(&a_modem_next, &a_modem_left, "a=T38FaxTranscodingJBIG:%d\r\n", (p->t38.jointcapability & T38FAX_TRANSCODING_JBIG) ? 1 : 0);
+	if ((p->t38.jointcapability & T38FAX_FILL_BIT_REMOVAL) == T38FAX_FILL_BIT_REMOVAL)
+		ast_build_string(&a_modem_next, &a_modem_left, "a=T38FaxFillBitRemoval\r\n");
+	if ((p->t38.jointcapability & T38FAX_TRANSCODING_MMR) == T38FAX_TRANSCODING_MMR)
+		ast_build_string(&a_modem_next, &a_modem_left, "a=T38FaxTranscodingMMR\r\n");
+	if ((p->t38.jointcapability & T38FAX_TRANSCODING_JBIG) == T38FAX_TRANSCODING_JBIG)
+		ast_build_string(&a_modem_next, &a_modem_left, "a=T38FaxTranscodingJBIG\r\n");
 	ast_build_string(&a_modem_next, &a_modem_left, "a=T38FaxRateManagement:%s\r\n", (p->t38.jointcapability & T38FAX_RATE_MANAGEMENT_LOCAL_TCF) ? "localTCF" : "transferredTCF");
 	x = ast_udptl_get_local_max_datagram(p->udptl);
 	ast_build_string(&a_modem_next, &a_modem_left, "a=T38FaxMaxBuffer:%d\r\n",x);
