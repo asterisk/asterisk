@@ -66,6 +66,11 @@ Core:
   arguments of AGI applications.  After converting to use the ',' delimiter,
   change this option to res_agi=1.6.
 
+* As a side effect of the application delimiter change, many places that used
+  to need quotes in order to get the proper meaning are no longer required.
+  You now only need to quote strings in configuration files if you literally
+  want quotation marks within a string.
+
 * The logger.conf option 'rotatetimestamp' has been deprecated in favor of
   'rotatestrategy'.  This new option supports a 'rotate' strategy that more
   closely mimics the system logger in terms of file rotation.
