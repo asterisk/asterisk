@@ -407,7 +407,7 @@ struct ast_db_entry *ast_db_gettree(const char *family, const char *keytree)
 	if (!ast_strlen_zero(family)) {
 		if (!ast_strlen_zero(keytree)) {
 			/* Family and key tree */
-			snprintf(prefix, sizeof(prefix), "/%s/%s", family, prefix);
+			snprintf(prefix, sizeof(prefix), "/%s/%s", family, keytree);
 		} else {
 			/* Family only */
 			snprintf(prefix, sizeof(prefix), "/%s", family);
