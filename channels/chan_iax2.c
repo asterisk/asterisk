@@ -164,6 +164,7 @@ static int trunkfreq = 20;
 static int authdebug = 1;
 static int autokill = 0;
 static int iaxcompat = 0;
+static int lastauthmethod = 0;
 
 static int iaxdefaultdpcache=10 * 60;	/* Cache dialplan entries for 10 minutes by default */
 
@@ -6087,23 +6088,34 @@ static int registry_authrequest(char *name, int callno)
 {
 	struct iax_ie_data ied;
 	struct iax2_peer *p;
+	int authmethods;
+
+	if (!iaxs[callno]) {
+		return 0;
+	}
+
 	/* SLD: third call to find_peer in registration */
-	p = find_peer(name, 1);
-	if (p) {
-		memset(&ied, 0, sizeof(ied));
-		iax_ie_append_short(&ied, IAX_IE_AUTHMETHODS, p->authmethods);
-		if (p->authmethods & (IAX_AUTH_RSA | IAX_AUTH_MD5)) {
-			/* Build the challenge */
-			snprintf(iaxs[callno]->challenge, sizeof(iaxs[callno]->challenge), "%d", rand());
-			iax_ie_append_str(&ied, IAX_IE_CHALLENGE, iaxs[callno]->challenge);
-		}
-		iax_ie_append_str(&ied, IAX_IE_USERNAME, name);
-		if (ast_test_flag(p, IAX_TEMPONLY))
-			destroy_peer(p);
-		return send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_REGAUTH, 0, ied.buf, ied.pos, -1);;
-	} 
-	ast_log(LOG_WARNING, "No such peer '%s'\n", name);
-	return 0;
+	if ((p = find_peer(name, 1))) {
+		lastauthmethod = p->authmethods;
+	}
+
+	authmethods = p ? p->authmethods : lastauthmethod ? lastauthmethod : (IAX_AUTH_PLAINTEXT | IAX_AUTH_MD5);
+	if (p && ast_test_flag(p, IAX_TEMPONLY)) {
+		destroy_peer(p);
+	} else if (!delayreject) {
+		ast_log(LOG_WARNING, "No such peer '%s'\n", name);
+		return 0;
+	}
+	
+	memset(&ied, 0, sizeof(ied));
+	iax_ie_append_short(&ied, IAX_IE_AUTHMETHODS, p->authmethods);
+	if (authmethods & (IAX_AUTH_RSA | IAX_AUTH_MD5)) {
+		/* Build the challenge */
+		snprintf(iaxs[callno]->challenge, sizeof(iaxs[callno]->challenge), "%d", rand());
+		iax_ie_append_str(&ied, IAX_IE_CHALLENGE, iaxs[callno]->challenge);
+	}
+	iax_ie_append_str(&ied, IAX_IE_USERNAME, name);
+	return send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_REGAUTH, 0, ied.buf, ied.pos, -1);;
 }
 
 static int registry_rerequest(struct iax_ies *ies, int callno, struct sockaddr_in *sin)
