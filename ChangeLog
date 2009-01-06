@@ -1,3 +1,9 @@
+2009-01-06  Tilghman Lesher <tlesher@digium.com>
+
+	* Released 1.6.0.3
+
+	* channels/chan_iax2.c: Security fix AST-2009-001
+
 2008-12-03  Tilghman Lesher <tlesher@digium.com>
 
 	* Released 1.6.0.3-rc1
