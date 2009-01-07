@@ -7824,6 +7824,17 @@ static int mwi_send_process_event(struct dahdi_pvt * pvt, int event)
 				}
 			}
 			break;
+		/* Going off hook, I need to punt this spill */
+		case DAHDI_EVENT_RINGOFFHOOK:
+			if (pvt->cidspill) {
+				ast_free(pvt->cidspill);
+				pvt->cidspill = NULL;
+				pvt->cidpos = 0; 
+				pvt->cidlen = 0;
+			}
+			pvt->mwisend_data.mwisend_current = MWI_SEND_DONE;
+			pvt->mwisendactive = 0;
+			break;
 		case DAHDI_EVENT_RINGERON:
 		case DAHDI_EVENT_HOOKCOMPLETE:
 			break;
@@ -8271,7 +8282,7 @@ static void *do_monitor(void *data)
 					ast_debug(1, "Monitor doohicky got event %s on channel %d\n", event2str(res), i->channel);
 					/* Don't hold iflock while handling init events */
 					ast_mutex_unlock(&iflock);
-					if (0 == i->mwisendactive || 0 != mwi_send_process_event(i, res)) {
+					if (0 == i->mwisendactive || 0 == mwi_send_process_event(i, res)) {
 						handle_init_event(i, res);
 					}
 					ast_mutex_lock(&iflock);
