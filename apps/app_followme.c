@@ -1073,6 +1073,11 @@ static int app_exec(struct ast_channel *chan, void *data)
 	}
 	ast_mutex_unlock(&f->lock);
 
+	/* Answer the call */
+	if (chan->_state != AST_STATE_UP) {
+		ast_answer(chan);
+	}
+
 	if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_STATUSMSG)) 
 		ast_stream_and_wait(chan, targs.statusprompt, "");
 
