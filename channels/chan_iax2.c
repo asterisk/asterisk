@@ -6316,7 +6316,7 @@ static int registry_authrequest(int callno)
 
 	/* SLD: third call to find_peer in registration */
 	ast_mutex_unlock(&iaxsl[callno]);
-	if (p = find_peer(peer_name, 1)) {
+	if ((p = find_peer(peer_name, 1))) {
 		last_authmethod = p->authmethods;
 	}
 
