@@ -334,7 +334,8 @@ static void filestream_destructor(void *arg)
 		free(f->realfilename);
 	if (f->fmt->close)
 		f->fmt->close(f);
-	fclose(f->f);
+	if (f->f)
+		fclose(f->f);
 	if (f->vfs)
 		ast_closestream(f->vfs);
 	if (f->orig_chan_name)
