@@ -447,7 +447,6 @@ static int ast_filehelper(const char *filename, const void *arg2, const char *fm
 					continue;
 				}
 				if (open_wrapper(s)) {
-					fclose(bfile);
 					ast_free(fn);
 					ast_closestream(s);
 					continue;	/* cannot run open on file */
