@@ -383,11 +383,8 @@ struct ind_tone_zone *ast_get_indication_zone(const char *country)
 
 	AST_RWLIST_RDLOCK(&tone_zones);
 
-	if (!country) {
-		if (current_tonezone)
-			tz = current_tonezone;
-		else
-			tz = AST_LIST_FIRST(&tone_zones);
+	if (ast_strlen_zero(country)) {
+		tz = current_tonezone ? current_tonezone : AST_LIST_FIRST(&tone_zones);
 	} else {
 		do {
 			AST_RWLIST_TRAVERSE(&tone_zones, tz, list) {
