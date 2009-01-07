@@ -373,13 +373,10 @@ struct ind_tone_zone *ast_get_indication_zone(const char *country)
 	struct ind_tone_zone *tz;
 	int alias_loop = 0;
 
-	/* we need some tonezone, pick the first */
-	if (country == NULL && current_tonezone)
-		return current_tonezone;	/* default country? */
-	if (country == NULL && ind_tone_zones)
-		return ind_tone_zones;		/* any country? */
-	if (country == NULL)
-		return 0;	/* not a single country insight */
+	if (ast_strlen_zero(country)) {
+		/* No country specified?  Return the default or the first in the list */
+		return current_tonezone ? current_tonezone : ind_tone_zones;
+	}
 
 	ast_mutex_lock(&tzlock);
 	do {
