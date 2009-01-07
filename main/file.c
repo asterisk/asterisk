@@ -965,11 +965,11 @@ struct ast_filestream *ast_readfile(const char *filename, const char *type, cons
 
 		if (!bfile || (fs = get_filestream(f, bfile)) == NULL || open_wrapper(fs) ) {
 			ast_log(LOG_WARNING, "Unable to open %s\n", fn);
-			if (fs)
-				ast_free(fs);
+			if (fs) {
+				ast_closestream(fs);
+			}
 			fs = NULL;
-			if (bfile)
-				fclose(bfile);
+			bfile = NULL;
 			ast_free(fn);
 			break;				
 		}
@@ -1079,9 +1079,10 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 					unlink(fn);
 					unlink(orig_fn);
 				}
-				if (fs)
-					ast_free(fs);
-				fs = NULL;
+				if (fs) {
+					ast_closestream(fs);
+					fs = NULL;
+				}
 				continue;
 			}
 			fs->trans = NULL;
