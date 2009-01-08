@@ -1849,16 +1849,32 @@ static int handle_verbose(struct ast_channel *chan, AGI *agi, int argc, char **a
 static int handle_dbget(struct ast_channel *chan, AGI *agi, int argc, char **argv)
 {
 	int res;
-	char tmp[256];
+	struct ast_str *buf;
 
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	res = ast_db_get(argv[2], argv[3], tmp, sizeof(tmp));
+
+	if (!(buf = ast_str_create(16))) {
+		ast_agi_send(agi->fd, chan, "200 result=-1\n");
+		return RESULT_SUCCESS;
+	}
+
+	do {
+		res = ast_db_get(argv[2], argv[3], ast_str_buffer(buf), ast_str_size(buf));
+		if (ast_str_strlen(buf) < ast_str_size(buf) - 1) {
+			break;
+		}
+		if (ast_str_make_space(&buf, ast_str_size(buf) * 2)) {
+			break;
+		}
+	} while (1);
+	
 	if (res)
 		ast_agi_send(agi->fd, chan, "200 result=0\n");
 	else
-		ast_agi_send(agi->fd, chan, "200 result=1 (%s)\n", tmp);
+		ast_agi_send(agi->fd, chan, "200 result=1 (%s)\n", ast_str_buffer(buf));
 
+	ast_free(buf);
 	return RESULT_SUCCESS;
 }
 
