@@ -20287,7 +20287,7 @@ static int scheduler_process_request_queue(const void *data)
 	return 0;
 }
 
-static int queue_request(struct sip_pvt *p, const struct sip_request *req, const struct sockaddr_in *sin)
+static int queue_request(struct sip_pvt *p, const struct sip_request *req)
 {
 	struct sip_request *newreq;
 
@@ -20425,7 +20425,7 @@ static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
 		append_history(p, "Rx", "%s / %s / %s", req->data->str, get_header(req, "CSeq"), req->rlPart2);
 
 	if (!lockretry) {
-		if (!queue_request(p, req, sin)) {
+		if (!queue_request(p, req)) {
 			/* the request has been queued for later handling */
 			sip_pvt_unlock(p);
 			ao2_t_ref(p, -1, "release p (from find_call) after queueing request");
