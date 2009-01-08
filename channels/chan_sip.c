@@ -15995,7 +15995,7 @@ static int scheduler_process_request_queue(const void *data)
 	return 0;
 }
 
-static int queue_request(struct sip_pvt *p, const struct sip_request *req, const struct sockaddr_in *sin)
+static int queue_request(struct sip_pvt *p, const struct sip_request *req)
 {
 	struct sip_request *newreq;
 
@@ -16092,7 +16092,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 		append_history(p, "Rx", "%s / %s / %s", req.data, get_header(&req, "CSeq"), req.rlPart2);
 
 	if (!lockretry) {
-		if (!queue_request(p, &req, &sin)) {
+		if (!queue_request(p, &req)) {
 			/* the request has been queued for later handling */
 			ast_mutex_unlock(&p->lock);
 			ast_mutex_unlock(&netlock);
