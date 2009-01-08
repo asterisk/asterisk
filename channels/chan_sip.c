@@ -828,6 +828,7 @@ struct sip_request {
 	char data[SIP_MAX_PACKET];
 	/* XXX Do we need to unref socket.ser when the request goes away? */
 	struct sip_socket socket;	/*!< The socket used for this request */
+	AST_LIST_ENTRY(sip_request) next;
 };
 
 /*! \brief structure used in transfers */
@@ -1300,6 +1301,8 @@ struct sip_pvt {
 	struct sip_history_head *history;	/*!< History of this SIP dialog */
 	size_t history_entries;			/*!< Number of entires in the history */
 	struct ast_variable *chanvars;		/*!< Channel variables to set for inbound call */
+	AST_LIST_HEAD_NOLOCK(request_queue, sip_request) request_queue; /*!< Requests that arrived but could not be processed immediately */
+	int request_queue_sched_id;		/*!< Scheduler ID of any scheduled action to process queued requests */
 	struct sip_invite_param *options;	/*!< Options for INVITE */
 	int autoframing;			/*!< The number of Asters we group in a Pyroflax
 							before strolling to the Grokyzpå
@@ -4343,6 +4346,7 @@ static int __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 {
 	struct sip_pvt *cur, *prev = NULL;
 	struct sip_pkt *cp;
+	struct sip_request *req;
 
 	/* We absolutely cannot destroy the rtp struct while a bridge is active or we WILL crash */
 	if (p->rtp && ast_rtp_get_bridged(p->rtp)) {
@@ -4393,6 +4397,7 @@ static int __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	AST_SCHED_DEL(sched, p->initid);
 	AST_SCHED_DEL(sched, p->waitid);
 	AST_SCHED_DEL(sched, p->autokillid);
+	AST_SCHED_DEL(sched, p->request_queue_sched_id);
 
 	if (p->rtp) {
 		ast_rtp_destroy(p->rtp);
@@ -4435,6 +4440,10 @@ static int __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		}
 		ast_free(p->history);
 		p->history = NULL;
+	}
+
+	while ((req = AST_LIST_REMOVE_HEAD(&p->request_queue, next))) {
+		ast_free(req);
 	}
 
 	/* Lock dialog list before removing ourselves from the list */
@@ -5885,6 +5894,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	p->initid = -1;
 	p->waitid = -1;
 	p->autokillid = -1;
+	p->request_queue_sched_id = -1;
 	p->subscribed = NONE;
 	p->stateid = -1;
 	p->sessionversion_remote = -1;
@@ -5991,6 +6001,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	}
 	ast_string_field_set(p, context, default_context);
 
+	AST_LIST_HEAD_INIT_NOLOCK(&p->request_queue);
 
 	/* Add to active dialog list */
 	dialoglist_lock();
@@ -18638,6 +18649,88 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 	return res;
 }
 
+static void process_request_queue(struct sip_pvt *p, int *recount, int *nounlock)
+{
+	struct sip_request *req;
+
+	while ((req = AST_LIST_REMOVE_HEAD(&p->request_queue, next))) {
+		if (handle_incoming(p, req, &p->recv, recount, nounlock) == -1) {
+			/* Request failed */
+			if (option_debug) {
+				ast_log(LOG_DEBUG, "SIP message could not be handled, bad request: %-70.70s\n", p->callid[0] ? p->callid : "<no callid>");
+			}
+		}
+		ast_free(req);
+	}
+}
+
+static int scheduler_process_request_queue(const void *data)
+{
+	struct sip_pvt *p = (struct sip_pvt *) data;
+	int recount = 0;
+	int nounlock = 0;
+	int lockretry;
+
+	for (lockretry = 10; lockretry > 0; lockretry--) {
+		sip_pvt_lock(p);
+
+		/* lock the owner if it has one -- we may need it */
+		/* because this is deadlock-prone, we need to try and unlock if failed */
+		if (!p->owner || !ast_channel_trylock(p->owner)) {
+			break;	/* locking succeeded */
+		}
+
+		if (lockretry != 1) {
+			sip_pvt_unlock(p);
+			/* Sleep for a very short amount of time */
+			usleep(1);
+		}
+	}
+
+	if (!lockretry) {
+		int retry = !AST_LIST_EMPTY(&p->request_queue);
+
+		/* we couldn't get the owner lock, which is needed to process
+		   the queued requests, so return a non-zero value, which will
+		   cause the scheduler to run this request again later if there
+		   still requests to be processed
+		*/
+		sip_pvt_unlock(p);
+		return retry;
+	};
+
+	process_request_queue(p, &recount, &nounlock);
+	p->request_queue_sched_id = -1;
+
+	if (p->owner && !nounlock) {
+		ast_channel_unlock(p->owner);
+	}
+	sip_pvt_unlock(p);
+
+	if (recount) {
+		ast_update_use_count();
+	}
+
+	return 0;
+}
+
+static int queue_request(struct sip_pvt *p, const struct sip_request *req, const struct sockaddr_in *sin)
+{
+	struct sip_request *newreq;
+
+	if (!(newreq = ast_calloc(1, sizeof(*newreq)))) {
+		return -1;
+	}
+
+	copy_request(newreq, req);
+	AST_LIST_INSERT_TAIL(&p->request_queue, newreq, next);
+	if (p->request_queue_sched_id == -1) {
+		p->request_queue_sched_id = ast_sched_add(sched, 10, scheduler_process_request_queue, p);
+	}
+
+	return 0;
+}
+
 /*! \brief Read data from SIP socket
 \note sipsock_read locks the owner channel while we are processing the SIP message
 \return 1 on error, 0 on success
@@ -18709,7 +18802,7 @@ static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
 		return 1;
 
 	/* Process request, with netlock held, and with usual deadlock avoidance */
-	for (lockretry = 100; lockretry > 0; lockretry--) {
+	for (lockretry = 10; lockretry > 0; lockretry--) {
 		ast_mutex_lock(&netlock);
 
 		/* Find the active SIP dialog or create a new one */
@@ -18726,11 +18819,12 @@ static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
 		/* becaues this is deadlock-prone, we need to try and unlock if failed */
 		if (!p->owner || !ast_channel_trylock(p->owner))
 			break;	/* locking succeeded */
-		ast_debug(1, "Failed to grab owner channel lock, trying again. (SIP call %s)\n", p->callid);
-		sip_pvt_unlock(p);
-		ast_mutex_unlock(&netlock);
-		/* Sleep for a very short amount of time */
-		usleep(1);
+		if (lockretry != 1) {
+			sip_pvt_unlock(p);
+			ast_mutex_unlock(&netlock);
+			/* Sleep for a very short amount of time */
+			usleep(1);
+		}
 	}
 	p->recv = *sin;
 
@@ -18738,17 +18832,34 @@ static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
 		append_history(p, "Rx", "%s / %s / %s", req->data, get_header(req, "CSeq"), req->rlPart2);
 
 	if (!lockretry) {
+		if (!queue_request(p, req, sin)) {
+			/* the request has been queued for later handling */
+			sip_pvt_unlock(p);
+			ast_mutex_unlock(&netlock);
+			return 1;
+		}
+
+		/* This is unsafe, since p->owner is not locked. */
 		if (p->owner)
-			ast_log(LOG_ERROR, "We could NOT get the channel lock for %s! \n", S_OR(p->owner->name, "- no channel name ??? - "));
+			ast_log(LOG_ERROR, "Channel lock for %s could not be obtained, and request was unable to be queued.\n", S_OR(p->owner->name, "- no channel name ??? - "));
 		ast_log(LOG_ERROR, "SIP transaction failed: %s \n", p->callid);
 		if (req->method != SIP_ACK)
 			transmit_response(p, "503 Server error", req);	/* We must respond according to RFC 3261 sec 12.2 */
 		/* XXX We could add retry-after to make sure they come back */
 		append_history(p, "LockFail", "Owner lock failed, transaction failed.");
+		sip_pvt_unlock(p);
+		ast_mutex_unlock(&netlock);
 		return 1;
 	}
 
-	nounlock = 0;
+	/* if there are queued requests on this sip_pvt, process them first, so that everything is
+	   handled in order
+	*/
+	if (!AST_LIST_EMPTY(&p->request_queue)) {
+		AST_SCHED_DEL(sched, p->request_queue_sched_id);
+		process_request_queue(p, &recount, &nounlock);
+	}
+
 	if (handle_incoming(p, req, sin, &recount, &nounlock) == -1) {
 		/* Request failed */
 		ast_debug(1, "SIP message could not be handled, bad request: %-70.70s\n", p->callid[0] ? p->callid : "<no callid>");
