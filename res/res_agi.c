@@ -1262,16 +1262,35 @@ static int handle_verbose(struct ast_channel *chan, AGI *agi, int argc, char **a
 static int handle_dbget(struct ast_channel *chan, AGI *agi, int argc, char **argv)
 {
 	int res;
-	char tmp[256];
+	size_t bufsize = 16;
+	char *buf, *tmp;
 
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	res = ast_db_get(argv[2], argv[3], tmp, sizeof(tmp));
+
+	if (!(buf = ast_malloc(bufsize))) {
+		fdprintf(agi->fd, "200 result=-1\n");
+		return RESULT_SUCCESS;
+	}
+
+	do {
+		res = ast_db_get(argv[2], argv[3], buf, bufsize);
+		if (strlen(buf) < bufsize - 1) {
+			break;
+		}
+		bufsize *= 2;
+		if (!(tmp = ast_realloc(buf, bufsize))) {
+			break;
+		}
+		buf = tmp;
+	} while (1);
+	
 	if (res) 
 		fdprintf(agi->fd, "200 result=0\n");
 	else
-		fdprintf(agi->fd, "200 result=1 (%s)\n", tmp);
+		fdprintf(agi->fd, "200 result=1 (%s)\n", buf);
 
+	ast_free(buf);
 	return RESULT_SUCCESS;
 }
 
