@@ -5,7 +5,7 @@
 CREATE TABLE `sipfriends` (
   `name` varchar(40) NOT NULL default '',
   `type` varchar(10) NOT NULL default '',
-  `defaultname` varchar(40),
+  `defaultuser` varchar(40),
   `fromuser` varchar(40),
   `fromdomain` varchar(40),
   `secret` varchar(40),
