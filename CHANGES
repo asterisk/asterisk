@@ -723,8 +723,12 @@ Queue changes
     is typically placed.
   * The configuration method for the "joinempty" and "leavewhenempty" options has
     changed to a comma-separated list of methods of determining member availability
-	instead of vague terms such as "yes," "loose," "no," and "strict." These old four
-	values are still accepted for backwards-compatibility, though.
+    instead of vague terms such as "yes," "loose," "no," and "strict." These old four
+    values are still accepted for backwards-compatibility, though.
+  * The average talktime is now calculated on queues. This information is reported via the
+    CLI commands "queue show" and "queues show"; through the AMI events AgentComplete, QueueSummary,
+    and QueueParams; and through the channelvariable QUEUETALKTIME if setinterfacevar=yes is set for
+    the queue.
 
 MeetMe Changes
 --------------

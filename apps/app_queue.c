@@ -764,6 +764,7 @@ struct call_queue {
 	int randomperiodicannounce;         /*!< Are periodic announcments randomly chosen */
 	int roundingseconds;                /*!< How many seconds do we round to? */
 	int holdtime;                       /*!< Current avg holdtime, based on an exponential average */
+	int talktime;                       /*!< Current avg talktime, based on the same exponential average */
 	int callscompleted;                 /*!< Number of queue calls completed */
 	int callsabandoned;                 /*!< Number of queue calls abandoned */
 	int servicelevel;                   /*!< seconds setting for servicelevel*/
@@ -885,8 +886,8 @@ static void set_queue_variables(struct queue_ent *qe)
 			sl = 100 * ((float) qe->parent->callscompletedinsl / (float) qe->parent->callscompleted);
 
 		snprintf(interfacevar, sizeof(interfacevar),
-			"QUEUENAME=%s,QUEUEMAX=%d,QUEUESTRATEGY=%s,QUEUECALLS=%d,QUEUEHOLDTIME=%d,QUEUECOMPLETED=%d,QUEUEABANDONED=%d,QUEUESRVLEVEL=%d,QUEUESRVLEVELPERF=%2.1f",
-			qe->parent->name, qe->parent->maxlen, int2strat(qe->parent->strategy), qe->parent->count, qe->parent->holdtime, qe->parent->callscompleted,
+			"QUEUENAME=%s,QUEUEMAX=%d,QUEUESTRATEGY=%s,QUEUECALLS=%d,QUEUEHOLDTIME=%d,QUEUETALKTIME=%d,QUEUECOMPLETED=%d,QUEUEABANDONED=%d,QUEUESRVLEVEL=%d,QUEUESRVLEVELPERF=%2.1f",
+			qe->parent->name, qe->parent->maxlen, int2strat(qe->parent->strategy), qe->parent->count, qe->parent->holdtime, qe->parent->talktime, qe->parent->callscompleted,
 			qe->parent->callsabandoned,  qe->parent->servicelevel, sl);
 	
 		pbx_builtin_setvar_multiple(qe->chan, interfacevar); 
@@ -3139,8 +3140,10 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
  * \brief update the queue status
  * \retval Always 0
 */
-static int update_queue(struct call_queue *q, struct member *member, int callcompletedinsl)
+static int update_queue(struct call_queue *q, struct member *member, int callcompletedinsl, int newtalktime)
 {
+	int oldtalktime;
+
 	struct member *mem;
 	struct call_queue *qtmp;
 	struct ao2_iterator queue_iter;	
@@ -3169,6 +3172,9 @@ static int update_queue(struct call_queue *q, struct member *member, int callcom
 	q->callscompleted++;
 	if (callcompletedinsl)
 		q->callscompletedinsl++;
+	/* Calculate talktime using the same exponential average as holdtime code*/
+	oldtalktime = q->talktime;
+	q->talktime = (((oldtalktime << 2) - oldtalktime) + newtalktime) >> 2;
 	ao2_unlock(q);
 	return 0;
 }
@@ -3324,7 +3330,7 @@ static void queue_transfer_fixup(void *data, struct ast_channel *old_chan, struc
 				new_chan->exten, new_chan->context, (long) (callstart - qe->start),
 				(long) (time(NULL) - callstart), qe->opos);
 
-	update_queue(qe->parent, member, callcompletedinsl);
+	update_queue(qe->parent, member, callcompletedinsl, (time(NULL) - callstart));
 	
 	if ((datastore = ast_channel_datastore_find(new_chan, &queue_transfer_info, NULL))) {
 		ast_channel_datastore_remove(new_chan, datastore);
@@ -4093,7 +4099,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ast_channel_datastore_remove(qe->chan, tds);
 			}
 			ast_channel_unlock(qe->chan);
-			update_queue(qe->parent, member, callcompletedinsl);
+			update_queue(qe->parent, member, callcompletedinsl, (time(NULL) - callstart));
 		}
 
 		if (transfer_ds) {
@@ -5114,8 +5120,8 @@ static int queue_function_var(struct ast_channel *chan, const char *cmd, char *d
 			}
 
 			snprintf(interfacevar, sizeof(interfacevar),
-				"QUEUEMAX=%d,QUEUESTRATEGY=%s,QUEUECALLS=%d,QUEUEHOLDTIME=%d,QUEUECOMPLETED=%d,QUEUEABANDONED=%d,QUEUESRVLEVEL=%d,QUEUESRVLEVELPERF=%2.1f",
-				q->maxlen, int2strat(q->strategy), q->count, q->holdtime, q->callscompleted, q->callsabandoned,  q->servicelevel, sl);
+				"QUEUEMAX=%d,QUEUESTRATEGY=%s,QUEUECALLS=%d,QUEUEHOLDTIME=%d,QUEUETALKTIME=%d,QUEUECOMPLETED=%d,QUEUEABANDONED=%d,QUEUESRVLEVEL=%d,QUEUESRVLEVELPERF=%2.1f",
+				q->maxlen, int2strat(q->strategy), q->count, q->holdtime, q->talktime, q->callscompleted, q->callsabandoned,  q->servicelevel, sl);
 
 			pbx_builtin_setvar_multiple(chan, interfacevar);
 		}
@@ -5753,8 +5759,8 @@ static char *__queues_show(struct mansession *s, int fd, int argc, char **argv)
 		sl = 0;
 		if (q->callscompleted > 0)
 			sl = 100 * ((float) q->callscompletedinsl / (float) q->callscompleted);
-		ast_str_append(&out, 0, ") in '%s' strategy (%ds holdtime), W:%d, C:%d, A:%d, SL:%2.1f%% within %ds",
-			int2strat(q->strategy), q->holdtime, q->weight,
+		ast_str_append(&out, 0, ") in '%s' strategy (%ds holdtime, %ds talktime), W:%d, C:%d, A:%d, SL:%2.1f%% within %ds",
+			int2strat(q->strategy), q->holdtime, q->talktime, q->weight,
 			q->callscompleted, q->callsabandoned,sl,q->servicelevel);
 		do_print(s, fd, ast_str_buffer(out));
 		if (!ao2_container_count(q->members))
@@ -5951,10 +5957,11 @@ static int manager_queues_summary(struct mansession *s, const struct message *m)
 				"Available: %d\r\n"
 				"Callers: %d\r\n" 
 				"HoldTime: %d\r\n"
+				"TalkTime: %d\r\n"
 				"LongestHoldTime: %d\r\n"
 				"%s"
 				"\r\n",
-				q->name, qmemcount, qmemavail, qchancount, q->holdtime, qlongestholdtime, idText);
+				q->name, qmemcount, qmemavail, qchancount, q->holdtime, q->talktime, qlongestholdtime, idText);
 		}
 		ao2_unlock(q);
 		queue_unref(q);
@@ -6001,6 +6008,7 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 				"Strategy: %s\r\n"
 				"Calls: %d\r\n"
 				"Holdtime: %d\r\n"
+				"TalkTime: %d\r\n"
 				"Completed: %d\r\n"
 				"Abandoned: %d\r\n"
 				"ServiceLevel: %d\r\n"
@@ -6008,7 +6016,7 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 				"Weight: %d\r\n"
 				"%s"
 				"\r\n",
-				q->name, q->maxlen, int2strat(q->strategy), q->count, q->holdtime, q->callscompleted,
+				q->name, q->maxlen, int2strat(q->strategy), q->count, q->holdtime, q->talktime, q->callscompleted,
 				q->callsabandoned, q->servicelevel, sl, q->weight, idText);
 			/* List Queue Members */
 			mem_iter = ao2_iterator_init(q->members, 0);
