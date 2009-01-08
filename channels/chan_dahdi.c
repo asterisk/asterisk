@@ -118,7 +118,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<synopsis>
 			Send QSIG call rerouting facility over a PRI.
 		</synopsis>
-		<syntax argsep="|">
+		<syntax argsep=",">
 			<parameter name="destination" required="true">
 				<para>Destination number.</para>	
 			</parameter>
@@ -3014,11 +3014,13 @@ static int dahdi_send_callrerouting_facility_exec(struct ast_channel *chan, void
 {
 	/* Data will be our digit string */
 	struct dahdi_pvt *p;
-	char *parse, *tok, *tokb;
-	char *dest = NULL;
-	char *original = NULL;
-	char *reason = NULL;
+	char *parse;
 	int res = -1;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(destination);
+		AST_APP_ARG(original);
+		AST_APP_ARG(reason);
+	);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_DEBUG, "No data sent to application!\n");
@@ -3032,28 +3034,22 @@ static int dahdi_send_callrerouting_facility_exec(struct ast_channel *chan, void
 		return -1;
 	}
 
-
 	parse = ast_strdupa(data);
-	tok = strtok_r(parse, "|", &tokb);
+	AST_STANDARD_APP_ARGS(args, parse);
 
-	if (!tok) {
+	if (ast_strlen_zero(args.destination)) {
 		ast_log(LOG_WARNING, "callrerouting facility requires at least destination number argument\n");
 		return -1;
 	}
-	dest = tok;	
 
-	tok = strtok_r(NULL, "|", &tokb);
-	if (!tok) {
+	if (ast_strlen_zero(args.original)) {
 		ast_log(LOG_WARNING, "Callrerouting Facility without original called number argument\n");
-	} else {
-		original = tok;
+		args.original = NULL;
 	}
 
-	tok = strtok_r(NULL, "|", &tokb);
-	if (!tok) {
+	if (ast_strlen_zero(args.reason)) {
 		ast_log(LOG_NOTICE, "Callrerouting Facility without diversion reason argument, defaulting to unknown\n");
-	} else {
-		reason = tok;
+		args.reason = NULL;
 	}
 
 	ast_mutex_lock(&p->lock);
@@ -3067,8 +3063,9 @@ static int dahdi_send_callrerouting_facility_exec(struct ast_channel *chan, void
 	switch (p->sig) {
 	case SIG_PRI:
 		if (!pri_grab(p, p->pri)) {
-			if (chan->_state == AST_STATE_RING)
-				res = pri_callrerouting_facility(p->pri->pri, p->call, dest, original, reason);
+			if (chan->_state == AST_STATE_RING) {
+				res = pri_callrerouting_facility(p->pri->pri, p->call, args.destination, args.original, args.reason);
+			}
 			pri_rel(p->pri);
 		} else {
 			ast_log(LOG_DEBUG, "Unable to grab pri to send callrerouting facility on span %d!\n", p->span);
