@@ -403,6 +403,16 @@ void ast_str_reset(struct ast_str *buf),
 }
 )
 
+/*! \brief Update the length of the buffer, after using ast_str merely as a buffer.
+ *  \param buf A pointer to the ast_str string.
+ */
+AST_INLINE_API(
+void ast_str_update(struct ast_str *buf),
+{
+	buf->__AST_STR_USED = strlen(buf->__AST_STR_STR);
+}
+)
+
 /*! \brief Trims trailing whitespace characters from an ast_str string.
  *  \param buf A pointer to the ast_str string.
  */

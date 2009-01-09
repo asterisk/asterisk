@@ -1861,6 +1861,7 @@ static int handle_dbget(struct ast_channel *chan, AGI *agi, int argc, char **arg
 
 	do {
 		res = ast_db_get(argv[2], argv[3], ast_str_buffer(buf), ast_str_size(buf));
+		ast_str_update(buf);
 		if (ast_str_strlen(buf) < ast_str_size(buf) - 1) {
 			break;
 		}
