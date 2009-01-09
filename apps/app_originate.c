@@ -168,29 +168,29 @@ static int originate_exec(struct ast_channel *chan, void *data)
 
 return_cleanup:
 	if (res) {
-		pbx_builtin_setvar_helper(chan, "OUTGOING_STATUS", "FAILED");
+		pbx_builtin_setvar_helper(chan, "ORIGINATE_STATUS", "FAILED");
 	} else {
 		switch (outgoing_status) {
 		case 0:
 		case AST_CONTROL_ANSWER:
-			pbx_builtin_setvar_helper(chan, "OUTGOING_STATUS", "SUCCESS");
+			pbx_builtin_setvar_helper(chan, "ORIGINATE_STATUS", "SUCCESS");
 			break;
 		case AST_CONTROL_BUSY:
-			pbx_builtin_setvar_helper(chan, "OUTGOING_STATUS", "BUSY");
+			pbx_builtin_setvar_helper(chan, "ORIGINATE_STATUS", "BUSY");
 			break;
 		case AST_CONTROL_CONGESTION:
-			pbx_builtin_setvar_helper(chan, "OUTGOING_STATUS", "CONGESTION");
+			pbx_builtin_setvar_helper(chan, "ORIGINATE_STATUS", "CONGESTION");
 			break;
 		case AST_CONTROL_HANGUP:
-			pbx_builtin_setvar_helper(chan, "OUTGOING_STATUS", "HANGUP");
+			pbx_builtin_setvar_helper(chan, "ORIGINATE_STATUS", "HANGUP");
 			break;
 		case AST_CONTROL_RINGING:
-			pbx_builtin_setvar_helper(chan, "OUTGOING_STATUS", "RINGING");
+			pbx_builtin_setvar_helper(chan, "ORIGINATE_STATUS", "RINGING");
 			break;
 		default:
 			ast_log(LOG_WARNING, "Unknown originate status result of '%d'\n",
 					outgoing_status);
-			pbx_builtin_setvar_helper(chan, "OUTGOING_STATUS", "UNKNOWN");
+			pbx_builtin_setvar_helper(chan, "ORIGINATE_STATUS", "UNKNOWN");
 			break;
 		}
 	}
