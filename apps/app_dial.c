@@ -1783,6 +1783,10 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			theapp = pbx_findapp("Macro");
 
 			if (theapp && !res) { /* XXX why check res here ? */
+				/* Set peer->exten and peer->context so that MACRO_EXTEN and MACRO_CONTEXT get set */
+				ast_copy_string(peer->context, chan->context, sizeof(peer->context));
+				ast_copy_string(peer->exten, chan->exten, sizeof(peer->exten));
+
 				replace_macro_delimiter(opt_args[OPT_ARG_CALLEE_MACRO]);
 				res = pbx_exec(peer, theapp, opt_args[OPT_ARG_CALLEE_MACRO]);
 				ast_debug(1, "Macro exited with status %d\n", res);
