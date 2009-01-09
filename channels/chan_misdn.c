@@ -142,83 +142,272 @@ enum misdn_chan_state {
 #define ORG_MISDN 2
 
 struct hold_info {
+	/*!
+	 * \brief Logical port the channel call record is HOLDED on 
+	 * because the B channel is no longer associated. 
+	 */
 	int port;
+
+	/*!
+	 * \brief Original B channel number the HOLDED call was using. 
+	 * \note Used only for debug display messages.
+	 */
 	int channel;
 };
 
+/*!
+ * \brief Channel call record structure
+ */
 struct chan_list {
-  
+	/*! 
+	 * \brief The "allowed_bearers" string read in from /etc/asterisk/misdn.conf
+	 */
 	char allowed_bearers[BUFFERSIZE + 1];
 	
+	/*! 
+	 * \brief State of the channel
+	 */
 	enum misdn_chan_state state;
+
+	/*! 
+	 * \brief TRUE if a hangup needs to be queued 
+	 * \note This is a debug flag only used to catch calls to hangup_chan() that are already hungup.
+	 */
 	int need_queue_hangup;
+
+	/*!
+	 * \brief TRUE if a channel can be hung up by calling asterisk directly when done.
+	 */
 	int need_hangup;
+
+	/*!
+	 * \brief TRUE if we could send an AST_CONTROL_BUSY if needed.
+	 */
 	int need_busy;
 	
+	/*!
+	 * \brief Who originally created this channel. ORG_AST or ORG_MISDN
+	 */
 	int originator;
+
+	/*! 
+	 * \brief TRUE of we are not to respond immediately to a SETUP message.  Check the dialplan first.
+	 * \note The "noautorespond_on_setup" boolean read in from /etc/asterisk/misdn.conf
+	 */
 	int noautorespond_on_setup;
 	
-	int norxtone;
+	int norxtone;	/* Boolean assigned values but the value is not used. */
+
+	/*!
+	 * \brief TRUE if we are not to generate tones (Playtones)
+	 */
 	int notxtone; 
 
+	/*!
+	 * \brief TRUE if echo canceller is enabled.  Value is toggled.
+	 */
 	int toggle_ec;
 	
+	/*!
+	 * \brief TRUE if you want to send Tone Indications to an incoming
+	 * ISDN channel on a TE Port.
+	 * \note The "incoming_early_audio" boolean read in from /etc/asterisk/misdn.conf
+	 */
 	int incoming_early_audio;
 
+	/*!
+	 * \brief TRUE if DTMF digits are to be passed inband only.
+	 * \note It is settable by the misdn_set_opt() application.
+	 */
 	int ignore_dtmf;
 
+	/*!
+	 * \brief Pipe file descriptor handles array. 
+	 * Read from pipe[0], write to pipe[1] 
+	 */
 	int pipe[2];
+
+	/*!
+	 * \brief Read buffer for inbound audio from pipe[0]
+	 */
 	char ast_rd_buf[4096];
+
+	/*!
+	 * \brief Inbound audio frame returned by misdn_read().
+	 */
 	struct ast_frame frame;
 
-	int faxdetect; /*!<  0:no 1:yes 2:yes+nojump */
+	/*!
+	 * \brief Fax detection option. (0:no 1:yes 2:yes+nojump)
+	 * \note The "faxdetect" option string read in from /etc/asterisk/misdn.conf
+	 * \note It is settable by the misdn_set_opt() application.
+	 */
+	int faxdetect;
+
+	/*!
+	 * \brief Number of seconds to detect a Fax machine when detection enabled.
+	 * \note 0 disables the timeout.
+	 * \note The "faxdetect_timeout" value read in from /etc/asterisk/misdn.conf
+	 */
 	int faxdetect_timeout;
+
+	/*!
+	 * \brief Starting time of fax detection with timeout when nonzero.
+	 */
 	struct timeval faxdetect_tv;
+
+	/*!
+	 * \brief TRUE if a fax has been detected.
+	 */
 	int faxhandled;
 
+	/*!
+	 * \brief TRUE if we will use the Asterisk DSP to detect DTMF/Fax
+	 * \note The "astdtmf" boolean read in from /etc/asterisk/misdn.conf
+	 */
 	int ast_dsp;
 
+	/*!
+	 * \brief Jitterbuffer length
+	 * \note The "jitterbuffer" value read in from /etc/asterisk/misdn.conf
+	 */
 	int jb_len;
+
+	/*!
+	 * \brief Jitterbuffer upper threshold
+	 * \note The "jitterbuffer_upper_threshold" value read in from /etc/asterisk/misdn.conf
+	 */
 	int jb_upper_threshold;
+
+	/*!
+	 * \brief Allocated jitterbuffer controller
+	 * \note misdn_jb_init() creates the jitterbuffer.
+	 * \note Must use misdn_jb_destroy() to clean up. 
+	 */
 	struct misdn_jb *jb;
 	
+	/*!
+	 * \brief Allocated DSP controller
+	 * \note ast_dsp_new() creates the DSP controller.
+	 * \note Must use ast_dsp_free() to clean up. 
+	 */
 	struct ast_dsp *dsp;
+
+	/*!
+	 * \brief Allocated audio frame sample translator
+	 * \note ast_translator_build_path() creates the translator path.
+	 * \note Must use ast_translator_free_path() to clean up. 
+	 */
 	struct ast_trans_pvt *trans;
   
+	/*!
+	 * \brief Associated Asterisk channel structure.
+	 */
 	struct ast_channel * ast;
 
-	int dummy;
+	//int dummy;	/* Not used */
   
+	/*!
+	 * \brief Associated B channel structure.
+	 */
 	struct misdn_bchannel *bc;
 
+	/*!
+	 * \brief HOLDED channel information
+	 */
 	struct hold_info hold_info;
 
+	/*! 
+	 * \brief From associated B channel: Layer 3 process ID 
+	 * \note Used to find the HOLDED channel call record when retrieving a call. 
+	 */
 	unsigned int l3id;
+
+	/*! 
+	 * \brief From associated B channel: B Channel mISDN driver layer ID from mISDN_get_layerid()
+	 * \note Used only for debug display messages.
+	 */
 	int addr;
 
-	char context[BUFFERSIZE];
+	/*!
+	 * \brief Incoming call dialplan context identifier.
+	 * \note The "context" string read in from /etc/asterisk/misdn.conf
+	 */
+	char context[AST_MAX_CONTEXT];
 
-	int zero_read_cnt;
+	/*!
+	 * \brief The configured music-on-hold class to use for this call.
+	 * \note The "musicclass" string read in from /etc/asterisk/misdn.conf
+	 */
+	char mohinterpret[MAX_MUSICCLASS];
+
+	//int zero_read_cnt;	/* Not used */
+
+	/*!
+	 * \brief Number of outgoing audio frames dropped since last debug gripe message.
+	 */
 	int dropped_frame_cnt;
 
+	/*!
+	 * \brief TRUE if we must do the ringback tones.
+	 * \note The "far_alerting" boolean read in from /etc/asterisk/misdn.conf
+	 */
 	int far_alerting;
 
+	/*!
+	 * \brief TRUE if NT should disconnect an overlap dialing call when a timeout occurs.
+	 * \note The "nttimeout" boolean read in from /etc/asterisk/misdn.conf
+	 */
 	int nttimeout;
 
+	/*!
+	 * \brief Other channel call record PID 
+	 * \note Value imported from Asterisk environment variable MISDN_PID 
+	 */
 	int other_pid;
+
+	/*!
+	 * \brief Bridged other channel call record
+	 * \note Pointer set when other_pid imported from Asterisk environment 
+	 * variable MISDN_PID by either side.
+	 */
 	struct chan_list *other_ch;
 
+	/*!
+	 * \brief Tone zone sound used for dialtone generation.
+	 * \note Used as a boolean.  Non-NULL to prod generation if enabled. 
+	 */
 	const struct ind_tone_zone_sound *ts;
 	
+	/*!
+	 * \brief Enables overlap dialing for the set amount of seconds.  (0 = Disabled)
+	 * \note The "overlapdial" value read in from /etc/asterisk/misdn.conf
+	 */
 	int overlap_dial;
+
+	/*!
+	 * \brief Overlap dialing timeout Task ID.  -1 if not running.
+	 */
 	int overlap_dial_task;
+
+	/*!
+	 * \brief overlap_tv access lock.
+	 */
 	ast_mutex_t overlap_tv_lock;
+
+	/*!
+	 * \brief Overlap timer start time.  Timer restarted for every digit received.
+	 */
 	struct timeval overlap_tv;
   
-	struct chan_list *peer;
+	//struct chan_list *peer;	/* Not used */
+
+	/*!
+	 * \brief Next channel call record in the list.
+	 */
 	struct chan_list *next;
-	struct chan_list *prev;
-	struct chan_list *first;
+	//struct chan_list *prev;		/* Not used */
+	//struct chan_list *first;	/* Not used */
 };
 
 
@@ -317,6 +506,9 @@ static int *misdn_out_calls;
 
 struct chan_list dummy_cl;
 
+/*!
+ * \brief Global channel call record list head.
+ */
 struct chan_list *cl_te=NULL;
 ast_mutex_t cl_te_lock;
 
@@ -441,49 +633,50 @@ static void print_facility(struct FacParm *fac, struct misdn_bchannel *bc)
 {
 	switch (fac->Function) {
 #ifdef HAVE_MISDN_FAC_RESULT
-		case Fac_RESULT:
-			chan_misdn_log(0, bc->port," --> Received RESULT Operation\n");
-			break;
+	case Fac_RESULT:
+		chan_misdn_log(0, bc->port," --> Received RESULT Operation\n");
+		break;
 #endif
 #ifdef HAVE_MISDN_FAC_ERROR
-		case Fac_ERROR:
-			chan_misdn_log(0, bc->port," --> Received Error Operation\n");
-			chan_misdn_log(0, bc->port," --> Value:%d Error:%s\n",fac->u.ERROR.errorValue, fac->u.ERROR.error);
-			break;
+	case Fac_ERROR:
+		chan_misdn_log(0, bc->port," --> Received Error Operation\n");
+		chan_misdn_log(0, bc->port," --> Value:%d Error:%s\n",fac->u.ERROR.errorValue, fac->u.ERROR.error);
+		break;
 #endif
-		case Fac_CD:
-			chan_misdn_log(1,bc->port," --> calldeflect to: %s, screened: %s\n", fac->u.CDeflection.DeflectedToNumber,
-					fac->u.CDeflection.PresentationAllowed ? "yes" : "no");
-			break;
-		case Fac_AOCDCurrency:
-			if (fac->u.AOCDcur.chargeNotAvailable)
-				chan_misdn_log(1,bc->port," --> AOCD currency: charge not available\n");
-			else if (fac->u.AOCDcur.freeOfCharge)
-				chan_misdn_log(1,bc->port," --> AOCD currency: free of charge\n");
-			else if (fac->u.AOCDchu.billingId >= 0)
-				chan_misdn_log(1,bc->port," --> AOCD currency: currency:%s amount:%d multiplier:%d typeOfChargingInfo:%s billingId:%d\n",
-						fac->u.AOCDcur.currency, fac->u.AOCDcur.currencyAmount, fac->u.AOCDcur.multiplier,
-						(fac->u.AOCDcur.typeOfChargingInfo == 0) ? "subTotal" : "total", fac->u.AOCDcur.billingId);
-			else
-				chan_misdn_log(1,bc->port," --> AOCD currency: currency:%s amount:%d multiplier:%d typeOfChargingInfo:%s\n",
-						fac->u.AOCDcur.currency, fac->u.AOCDcur.currencyAmount, fac->u.AOCDcur.multiplier,
-						(fac->u.AOCDcur.typeOfChargingInfo == 0) ? "subTotal" : "total");
-			break;
-		case Fac_AOCDChargingUnit:
-			if (fac->u.AOCDchu.chargeNotAvailable)
-				chan_misdn_log(1,bc->port," --> AOCD charging unit: charge not available\n");
-			else if (fac->u.AOCDchu.freeOfCharge)
-				chan_misdn_log(1,bc->port," --> AOCD charging unit: free of charge\n");
-			else if (fac->u.AOCDchu.billingId >= 0)
-				chan_misdn_log(1,bc->port," --> AOCD charging unit: recordedUnits:%d typeOfChargingInfo:%s billingId:%d\n",
-						fac->u.AOCDchu.recordedUnits, (fac->u.AOCDchu.typeOfChargingInfo == 0) ? "subTotal" : "total", fac->u.AOCDchu.billingId);
-			else
-				chan_misdn_log(1,bc->port," --> AOCD charging unit: recordedUnits:%d typeOfChargingInfo:%s\n",
-						fac->u.AOCDchu.recordedUnits, (fac->u.AOCDchu.typeOfChargingInfo == 0) ? "subTotal" : "total");
-			break;
-		case Fac_None:
-		default:
-			chan_misdn_log(1,bc->port," --> unknown facility\n");
+	case Fac_CD:
+		chan_misdn_log(1,bc->port," --> calldeflect to: %s, presentable: %s\n", fac->u.CDeflection.DeflectedToNumber,
+			fac->u.CDeflection.PresentationAllowed ? "yes" : "no");
+		break;
+	case Fac_AOCDCurrency:
+		if (fac->u.AOCDcur.chargeNotAvailable)
+			chan_misdn_log(1,bc->port," --> AOCD currency: charge not available\n");
+		else if (fac->u.AOCDcur.freeOfCharge)
+			chan_misdn_log(1,bc->port," --> AOCD currency: free of charge\n");
+		else if (fac->u.AOCDchu.billingId >= 0)
+			chan_misdn_log(1,bc->port," --> AOCD currency: currency:%s amount:%d multiplier:%d typeOfChargingInfo:%s billingId:%d\n",
+				fac->u.AOCDcur.currency, fac->u.AOCDcur.currencyAmount, fac->u.AOCDcur.multiplier,
+				(fac->u.AOCDcur.typeOfChargingInfo == 0) ? "subTotal" : "total", fac->u.AOCDcur.billingId);
+		else
+			chan_misdn_log(1,bc->port," --> AOCD currency: currency:%s amount:%d multiplier:%d typeOfChargingInfo:%s\n",
+				fac->u.AOCDcur.currency, fac->u.AOCDcur.currencyAmount, fac->u.AOCDcur.multiplier,
+				(fac->u.AOCDcur.typeOfChargingInfo == 0) ? "subTotal" : "total");
+		break;
+	case Fac_AOCDChargingUnit:
+		if (fac->u.AOCDchu.chargeNotAvailable)
+			chan_misdn_log(1,bc->port," --> AOCD charging unit: charge not available\n");
+		else if (fac->u.AOCDchu.freeOfCharge)
+			chan_misdn_log(1,bc->port," --> AOCD charging unit: free of charge\n");
+		else if (fac->u.AOCDchu.billingId >= 0)
+			chan_misdn_log(1,bc->port," --> AOCD charging unit: recordedUnits:%d typeOfChargingInfo:%s billingId:%d\n",
+				fac->u.AOCDchu.recordedUnits, (fac->u.AOCDchu.typeOfChargingInfo == 0) ? "subTotal" : "total", fac->u.AOCDchu.billingId);
+		else
+			chan_misdn_log(1,bc->port," --> AOCD charging unit: recordedUnits:%d typeOfChargingInfo:%s\n",
+				fac->u.AOCDchu.recordedUnits, (fac->u.AOCDchu.typeOfChargingInfo == 0) ? "subTotal" : "total");
+		break;
+	case Fac_None:
+	default:
+		chan_misdn_log(1,bc->port," --> unknown facility\n");
+		break;
 	}
 }
 
@@ -1006,7 +1199,7 @@ static char *handle_cli_misdn_show_config(struct ast_cli_entry *e, int cmd, stru
 		e->command = "misdn show config";
 		e->usage =
 			"Usage: misdn show config [<port> | description <config element> | descriptions [general|ports]]\n"
-		        "       Use 0 for <port> to only print the general config.\n";
+			"       Use 0 for <port> to only print the general config.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return complete_show_config(a);
@@ -1771,6 +1964,7 @@ static struct ast_cli_entry chan_misdn_clis[] = {
 	AST_CLI_DEFINE(handle_cli_misdn_toggle_echocancel, "Toggle EchoCancel on mISDN Channel"),
 };
 
+/*! \brief Updates caller ID information from config */
 static int update_config(struct chan_list *ch, int orig) 
 {
 	struct ast_channel *ast;
@@ -1960,10 +2154,14 @@ static int read_config(struct chan_list *ch, int orig)
 {
 	struct ast_channel *ast;
 	struct misdn_bchannel *bc;
-	int port, hdlc = 0;
-	char lang[BUFFERSIZE + 1], localmusicclass[BUFFERSIZE + 1], faxdetect[BUFFERSIZE + 1];
-	char buf[256], buf2[256];
-	ast_group_t pg, cg;
+	int port;
+	int hdlc = 0;
+	char lang[BUFFERSIZE + 1];
+	char faxdetect[BUFFERSIZE + 1];
+	char buf[256];
+	char buf2[256];
+	ast_group_t pg;
+	ast_group_t cg;
 
 	if (!ch) {
 		ast_log(LOG_WARNING, "Cannot configure without chanlist\n");
@@ -1983,8 +2181,7 @@ static int read_config(struct chan_list *ch, int orig)
 	misdn_cfg_get(port, MISDN_CFG_LANGUAGE, lang, sizeof(lang));
 	ast_string_field_set(ast, language, lang);
 
-	misdn_cfg_get(port, MISDN_CFG_MUSICCLASS, localmusicclass, sizeof(localmusicclass));
-	ast_string_field_set(ast, musicclass, localmusicclass);
+	misdn_cfg_get(port, MISDN_CFG_MUSICCLASS, ch->mohinterpret, sizeof(ch->mohinterpret));
 
 	misdn_cfg_get(port, MISDN_CFG_TXGAIN, &bc->txgain, sizeof(bc->txgain));
 	misdn_cfg_get(port, MISDN_CFG_RXGAIN, &bc->rxgain, sizeof(bc->rxgain));
@@ -2050,6 +2247,8 @@ static int read_config(struct chan_list *ch, int orig)
 	if (orig == ORG_AST) {
 		char callerid[BUFFERSIZE + 1];
 
+		/* ORIGINATOR Asterisk (outgoing call) */
+
 		misdn_cfg_get(port, MISDN_CFG_TE_CHOOSE_CHANNEL, &(bc->te_choose_channel), sizeof(bc->te_choose_channel));
 
  		if (strstr(faxdetect, "outgoing") || strstr(faxdetect, "both")) {
@@ -2073,7 +2272,8 @@ static int read_config(struct chan_list *ch, int orig)
 		debug_numplan(port, bc->cpnnumplan, "CTON");
 
 		ch->overlap_dial = 0;
-	} else { /** ORIGINATOR MISDN **/
+	} else {
+		/* ORIGINATOR MISDN (incoming call) */
 		char prefix[BUFFERSIZE + 1] = "";
 
  		if (strstr(faxdetect, "incoming") || strstr(faxdetect, "both")) {
@@ -2319,7 +2519,7 @@ static int misdn_answer(struct ast_channel *ast)
 	}
 
 	if (!p->bc) {
-		chan_misdn_log(1, 0, " --> Got Answer, but theres no bc obj ??\n");
+		chan_misdn_log(1, 0, " --> Got Answer, but there is no bc obj ??\n");
 
 		ast_queue_hangup_with_cause(ast, AST_CAUSE_PROTOCOL_ERROR);
 	}
@@ -2528,7 +2728,7 @@ static int misdn_indication(struct ast_channel *ast, int cond, const void *data,
 			start_bc_tones(p);
 		break;
 	case AST_CONTROL_HOLD:
-		ast_moh_start(ast,data,ast->musicclass); 
+		ast_moh_start(ast, data, p->mohinterpret); 
 		chan_misdn_log(1, p->bc->port, " --> *\tHOLD pid:%d\n", p->bc ? p->bc->pid : -1);
 		break;
 	case AST_CONTROL_UNHOLD:
@@ -3232,6 +3432,8 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 		char cfg_group[BUFFERSIZE + 1];
 		struct robin_list *rr = NULL;
 
+		/* Group dial */
+
 		if (misdn_cfg_is_group_method(group, METHOD_ROUND_ROBIN)) {
 			chan_misdn_log(4, port, " --> STARTING ROUND ROBIN...\n");
 			rr = get_robin_position(group);
@@ -3324,7 +3526,8 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 					, group);
 			return NULL;
 		}
-	} else { /* 'Normal' Port dial * Port dial */
+	} else {
+		/* 'Normal' Port dial * Port dial */
 		if (channel)
 			chan_misdn_log(1, port, " --> preselected_channel: %d\n", channel);
 		newbc = misdn_lib_get_free_bc(port, channel, 0, dec);
@@ -3866,6 +4069,7 @@ static void send_cause2ast(struct ast_channel *ast, struct misdn_bchannel *bc, s
 }
 
 
+/*! \brief Import parameters from the dialplan environment variables */
 void import_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_list *ch)
 {
 	const char *tmp = pbx_builtin_getvar_helper(chan, "MISDN_PID");
@@ -3896,6 +4100,7 @@ void import_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_
 		ast_copy_string(bc->keypad, tmp, sizeof(bc->keypad));
 }
 
+/*! \brief Export parameters to the dialplan environment variables */
 void export_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_list *ch)
 {
 	char tmp[32];
@@ -4381,9 +4586,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		}
 
 		/*
-		   added support for s extension hope it will help those poor cretains
-		   which haven't overlap dial.
-		   */
+		 * added support for s extension hope it will help those poor cretains
+		 * which haven't overlap dial.
+		 */
 		misdn_cfg_get(bc->port, MISDN_CFG_ALWAYS_IMMEDIATE, &ai, sizeof(ai));
 		if (ai) {
 			do_immediate_setup(bc, ch, chan);
@@ -5117,20 +5322,31 @@ static int load_module(void)
 	ast_cli_register_multiple(chan_misdn_clis, sizeof(chan_misdn_clis) / sizeof(struct ast_cli_entry));
 
 	ast_register_application("misdn_set_opt", misdn_set_opt_exec, "misdn_set_opt",
-				 "misdn_set_opt(:<opt><optarg>:<opt><optarg>..):\n"
-				 "Sets mISDN opts. and optargs\n"
-				 "\n"
-				 "The available options are:\n"
-				 "    d - Send display text on called phone, text is the optparam\n"
-				 "    n - don't detect dtmf tones on called channel\n"
-				 "    h - make digital outgoing call\n" 
-				 "    c - make crypted outgoing call, param is keyindex\n"
-				 "    e - perform echo cancelation on this channel,\n"
-				 "        takes taps as arguments (32,64,128,256)\n"
-				 "    s - send Non Inband DTMF as inband\n"
-				 "   vr - rxgain control\n"
-				 "   vt - txgain control\n"
-				 "    i - Ignore detected dtmf tones, don't signal them to asterisk, they will be transported inband.\n"
+		"misdn_set_opt(:<opt><optarg>:<opt><optarg>...):\n"
+		"Sets mISDN opts. and optargs\n"
+		"\n"
+		"The available options are:\n"
+		"    a - Have Asterisk detect DTMF tones on called channel\n"
+		"    c - Make crypted outgoing call, optarg is keyindex\n"
+		"    d - Send display text to called phone, text is the optarg\n"
+		"    e - Perform echo cancelation on this channel,\n"
+		"        takes taps as optarg (32,64,128,256)\n"
+		"   e! - Disable echo cancelation on this channel\n"
+		"    f - Enable fax detection\n"
+		"    h - Make digital outgoing call\n"
+		"   h1 - Make HDLC mode digital outgoing call\n"
+		"    i - Ignore detected DTMF tones, don't signal them to Asterisk,\n"
+		"        they will be transported inband.\n"
+		"   jb - Set jitter buffer length, optarg is length\n"
+		"   jt - Set jitter buffer upper threshold, optarg is threshold\n"
+		"   jn - Disable jitter buffer\n"
+		"    n - Disable mISDN DSP on channel.\n"
+		"        Disables: echo cancel, DTMF detection, and volume control.\n"
+		"    p - Caller ID presentation,\n"
+		"        optarg is either 'allowed' or 'restricted'\n"
+		"    s - Send Non-inband DTMF as inband\n"
+		"   vr - Rx gain control, optarg is gain\n"
+		"   vt - Tx gain control, optarg is gain\n"
 		);
 
 	
