@@ -943,6 +943,7 @@ static int set_config(void)
 
 	if (!(phoneprov_cfg = ast_config_load("phoneprov.conf", config_flags))) {
 		ast_log(LOG_ERROR, "Unable to load config phoneprov.conf\n");
+		ast_config_destroy(cfg);
 		return -1;
 	}
 
