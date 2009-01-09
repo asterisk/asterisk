@@ -633,49 +633,50 @@ static void print_facility(struct FacParm *fac, struct misdn_bchannel *bc)
 {
 	switch (fac->Function) {
 #ifdef HAVE_MISDN_FAC_RESULT
-		case Fac_RESULT:
-			chan_misdn_log(0, bc->port," --> Received RESULT Operation\n");
-			break;
+	case Fac_RESULT:
+		chan_misdn_log(0, bc->port," --> Received RESULT Operation\n");
+		break;
 #endif
 #ifdef HAVE_MISDN_FAC_ERROR
-		case Fac_ERROR:
-			chan_misdn_log(0, bc->port," --> Received Error Operation\n");
-			chan_misdn_log(0, bc->port," --> Value:%d Error:%s\n",fac->u.ERROR.errorValue, fac->u.ERROR.error);
-			break;
+	case Fac_ERROR:
+		chan_misdn_log(0, bc->port," --> Received Error Operation\n");
+		chan_misdn_log(0, bc->port," --> Value:%d Error:%s\n",fac->u.ERROR.errorValue, fac->u.ERROR.error);
+		break;
 #endif
-		case Fac_CD:
-			chan_misdn_log(1,bc->port," --> calldeflect to: %s, screened: %s\n", fac->u.CDeflection.DeflectedToNumber,
-					fac->u.CDeflection.PresentationAllowed ? "yes" : "no");
-			break;
-		case Fac_AOCDCurrency:
-			if (fac->u.AOCDcur.chargeNotAvailable)
-				chan_misdn_log(1,bc->port," --> AOCD currency: charge not available\n");
-			else if (fac->u.AOCDcur.freeOfCharge)
-				chan_misdn_log(1,bc->port," --> AOCD currency: free of charge\n");
-			else if (fac->u.AOCDchu.billingId >= 0)
-				chan_misdn_log(1,bc->port," --> AOCD currency: currency:%s amount:%d multiplier:%d typeOfChargingInfo:%s billingId:%d\n",
-						fac->u.AOCDcur.currency, fac->u.AOCDcur.currencyAmount, fac->u.AOCDcur.multiplier,
-						(fac->u.AOCDcur.typeOfChargingInfo == 0) ? "subTotal" : "total", fac->u.AOCDcur.billingId);
-			else
-				chan_misdn_log(1,bc->port," --> AOCD currency: currency:%s amount:%d multiplier:%d typeOfChargingInfo:%s\n",
-						fac->u.AOCDcur.currency, fac->u.AOCDcur.currencyAmount, fac->u.AOCDcur.multiplier,
-						(fac->u.AOCDcur.typeOfChargingInfo == 0) ? "subTotal" : "total");
-			break;
-		case Fac_AOCDChargingUnit:
-			if (fac->u.AOCDchu.chargeNotAvailable)
-				chan_misdn_log(1,bc->port," --> AOCD charging unit: charge not available\n");
-			else if (fac->u.AOCDchu.freeOfCharge)
-				chan_misdn_log(1,bc->port," --> AOCD charging unit: free of charge\n");
-			else if (fac->u.AOCDchu.billingId >= 0)
-				chan_misdn_log(1,bc->port," --> AOCD charging unit: recordedUnits:%d typeOfChargingInfo:%s billingId:%d\n",
-						fac->u.AOCDchu.recordedUnits, (fac->u.AOCDchu.typeOfChargingInfo == 0) ? "subTotal" : "total", fac->u.AOCDchu.billingId);
-			else
-				chan_misdn_log(1,bc->port," --> AOCD charging unit: recordedUnits:%d typeOfChargingInfo:%s\n",
-						fac->u.AOCDchu.recordedUnits, (fac->u.AOCDchu.typeOfChargingInfo == 0) ? "subTotal" : "total");
-			break;
-		case Fac_None:
-		default:
-			chan_misdn_log(1,bc->port," --> unknown facility\n");
+	case Fac_CD:
+		chan_misdn_log(1,bc->port," --> calldeflect to: %s, presentable: %s\n", fac->u.CDeflection.DeflectedToNumber,
+			fac->u.CDeflection.PresentationAllowed ? "yes" : "no");
+		break;
+	case Fac_AOCDCurrency:
+		if (fac->u.AOCDcur.chargeNotAvailable)
+			chan_misdn_log(1,bc->port," --> AOCD currency: charge not available\n");
+		else if (fac->u.AOCDcur.freeOfCharge)
+			chan_misdn_log(1,bc->port," --> AOCD currency: free of charge\n");
+		else if (fac->u.AOCDchu.billingId >= 0)
+			chan_misdn_log(1,bc->port," --> AOCD currency: currency:%s amount:%d multiplier:%d typeOfChargingInfo:%s billingId:%d\n",
+				fac->u.AOCDcur.currency, fac->u.AOCDcur.currencyAmount, fac->u.AOCDcur.multiplier,
+				(fac->u.AOCDcur.typeOfChargingInfo == 0) ? "subTotal" : "total", fac->u.AOCDcur.billingId);
+		else
+			chan_misdn_log(1,bc->port," --> AOCD currency: currency:%s amount:%d multiplier:%d typeOfChargingInfo:%s\n",
+				fac->u.AOCDcur.currency, fac->u.AOCDcur.currencyAmount, fac->u.AOCDcur.multiplier,
+				(fac->u.AOCDcur.typeOfChargingInfo == 0) ? "subTotal" : "total");
+		break;
+	case Fac_AOCDChargingUnit:
+		if (fac->u.AOCDchu.chargeNotAvailable)
+			chan_misdn_log(1,bc->port," --> AOCD charging unit: charge not available\n");
+		else if (fac->u.AOCDchu.freeOfCharge)
+			chan_misdn_log(1,bc->port," --> AOCD charging unit: free of charge\n");
+		else if (fac->u.AOCDchu.billingId >= 0)
+			chan_misdn_log(1,bc->port," --> AOCD charging unit: recordedUnits:%d typeOfChargingInfo:%s billingId:%d\n",
+				fac->u.AOCDchu.recordedUnits, (fac->u.AOCDchu.typeOfChargingInfo == 0) ? "subTotal" : "total", fac->u.AOCDchu.billingId);
+		else
+			chan_misdn_log(1,bc->port," --> AOCD charging unit: recordedUnits:%d typeOfChargingInfo:%s\n",
+				fac->u.AOCDchu.recordedUnits, (fac->u.AOCDchu.typeOfChargingInfo == 0) ? "subTotal" : "total");
+		break;
+	case Fac_None:
+	default:
+		chan_misdn_log(1,bc->port," --> unknown facility\n");
+		break;
 	}
 }
 
@@ -1198,7 +1199,7 @@ static char *handle_cli_misdn_show_config(struct ast_cli_entry *e, int cmd, stru
 		e->command = "misdn show config";
 		e->usage =
 			"Usage: misdn show config [<port> | description <config element> | descriptions [general|ports]]\n"
-	        "       Use 0 for <port> to only print the general config.\n";
+			"       Use 0 for <port> to only print the general config.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return complete_show_config(a);
@@ -5328,8 +5329,8 @@ static int load_module(void)
 		"        takes taps as optarg (32,64,128,256)\n"
 		"   e! - Disable echo cancelation on this channel\n"
 		"    f - Enable fax detection\n"
-		"    h - Make digital outgoing call\n" 
-		"   h1 - Make HDLC mode digital outgoing call\n" 
+		"    h - Make digital outgoing call\n"
+		"   h1 - Make HDLC mode digital outgoing call\n"
 		"    i - Ignore detected DTMF tones, don't signal them to Asterisk,\n"
 		"        they will be transported inband.\n"
 		"   jb - Set jitter buffer length, optarg is length\n"
