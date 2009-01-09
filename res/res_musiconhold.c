@@ -186,7 +186,7 @@ static struct ao2_container *mohclasses;
 static int reload(void);
 
 #define mohclass_ref(class)   (ao2_ref((class), +1), class)
-#define mohclass_unref(class) (ao2_ref((class), -1), NULL)
+#define mohclass_unref(class) (ao2_ref((class), -1), (struct mohclass *) NULL)
 
 static void moh_files_release(struct ast_channel *chan, void *data)
 {
