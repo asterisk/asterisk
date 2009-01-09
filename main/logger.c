@@ -35,6 +35,10 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+/*
+ * WARNING: additional #include directives should NOT be placed here, they 
+ * should be placed AFTER '#undef _ASTERISK_LOGGER_H' below
+ */
 #include "asterisk/_private.h"
 #include "asterisk/paths.h"	/* use ast_config_AST_LOG_DIR */
 #include <signal.h>
