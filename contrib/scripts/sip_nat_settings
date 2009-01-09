@@ -1,0 +1,72 @@
+#!/bin/sh
+
+# sip_nat_settings: generate NAT settings for sip.conf of an Asterisk system
+#                   that is behind a NAT router.
+#
+# This is a script to generate sane defaults for externip and localnet 
+# of sip.conf. The output should be included in the [general] section of 
+# sip.conf .
+#
+# Multiple network interfaces: If you have multiple network interfaces, 
+# this script will generate a 'localnet' line for each of them that has a 
+# broadcast (ipv4) address, except the loopback interface (lo). You can 
+# later rem-out all of those you don't need.
+# 
+# Alternatively, provide a network interface as a parameter an a localnet 
+# line will only be generated for its network.
+#
+# Copyright (C) 2005 by Tzafrir Cohen <tzafrir.cohen@xorcom.com>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+WGET=`which wget`
+FETCH=`which fetch`
+if [ -x ${WGET} ]; then
+	externip=`${WGET} -q -O- http://www.whatismyip.org`
+elif [ -x ${FETCH} ]; then
+	externip=`${FETCH} -q -o - http://www.whatismyip.org`
+else
+	echo "no binary found to contact http://www.whatismyip.org"
+	exit 1
+fi
+
+# optional parameter: network interface to use. By default: none.
+IFACE="$1"
+
+OS=`uname -s`
+case "$OS" in
+Linux)
+  echo "externip = $externip"
+  /sbin/ifconfig $IFACE | grep 'inet addr:' | grep Bcast \
+  | sed -e 's/^.*Bcast:\([0-9.]*\)\s*Mask:\([0-9.]*\)\s*$/localnet = \1\/\2/'
+  ;;
+OpenBSD|FreeBSD)
+  if [ "${OS}" = "FreeBSD" ]; then
+	  VER=`uname -r | cut -d . -f 1`
+	  if [ ${VER} -lt 7 ]; then
+		  echo "Unsupported OS"
+		  exit 1
+	  fi
+  fi
+  echo "externip = $externip"
+  ip=`/sbin/ifconfig $IFACE | awk '/\tinet .* broadcast/{print $6}'`
+  x=`/sbin/ifconfig $IFACE | awk '/\tinet .* broadcast/{print $4}'`
+  printf 'localnet = %s/%u.%u.%u.%u\n' $ip $(($x>>24&0xff)) $(($x>>16&0xff)) $(($x>>8&0xff)) $(($x&0xff))
+  ;;
+*)
+  echo >&2 "$0: Unsupported OS $OS"
+  exit 1
+  ;;
+esac
