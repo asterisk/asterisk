@@ -22050,7 +22050,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	struct sip_peer tmp_peer;
 	const char *srvlookup = NULL;
 	static int deprecation_warning = 1;
-	struct ast_str *fullcontact = ast_str_alloca(sizeof(peer->fullcontact));
+	struct ast_str *fullcontact = ast_str_alloca(512);
 	
 	if (!realtime || ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS)) {
 		/* Note we do NOT use find_peer here, to avoid realtime recursion */
