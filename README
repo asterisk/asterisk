@@ -11,7 +11,7 @@ and other copyright holders.
 the security information file (doc/security.txt) before you attempt 
 to configure and run an Asterisk server.
 
-* WHAT IS ASTERISK ?
+* WHAT IS ASTERISK?
   Asterisk is an Open Source PBX and telephony toolkit.  It is, in a
 sense, middleware between Internet and telephony channels on the bottom,
 and Internet and telephony applications at the top.  For more information
