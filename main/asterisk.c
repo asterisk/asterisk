@@ -81,7 +81,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #elif defined(HAVE_SYSCTL)
 #include <sys/param.h>
 #include <sys/sysctl.h>
+#if defined(HAVE_SWAPCTL)
 #include <sys/swap.h>
+#endif
 #endif
 #include <regex.h>
 
