@@ -2024,7 +2024,7 @@ static int minivm_accmess_exec(struct ast_channel *chan, void *data)
 	if(!(vmu = find_account(domain, username, TRUE))) {
 		/* We could not find user, let's exit */
 		ast_log(LOG_WARNING, "Could not allocate temporary memory for '%s@%s'\n", username, domain);
-		pbx_builtin_setvar_helper(chan, "MINIVM_NOTIFY_STATUS", "FAILED");
+		pbx_builtin_setvar_helper(chan, "MINIVM_ACCMESS_STATUS", "FAILED");
 		return -1;
 	}
 
@@ -2055,7 +2055,7 @@ static int minivm_accmess_exec(struct ast_channel *chan, void *data)
 	if(ast_test_flag(vmu, MVM_ALLOCED))
 		free_user(vmu);
 
-	pbx_builtin_setvar_helper(chan, "MINIVM_NOTIFY_STATUS", "SUCCESS");
+	pbx_builtin_setvar_helper(chan, "MINIVM_ACCMESS_STATUS", "SUCCESS");
 
 	/* Ok, we're ready to rock and roll. Return to dialplan */
 	return 0;
