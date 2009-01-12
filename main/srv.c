@@ -224,7 +224,7 @@ int ast_get_srv(struct ast_channel *chan, char *host, int hostlen, int *port, co
 		ast_copy_string(host, current->host, hostlen);
 		*port = current->port;
 		ast_free(current);
-		ast_verb(3, "ast_get_srv: SRV lookup for '%s' mapped to host %s, port %d\n",
+		ast_verb(4, "ast_get_srv: SRV lookup for '%s' mapped to host %s, port %d\n",
 				    service, host, *port);
 	} else {
 		host[0] = '\0';
