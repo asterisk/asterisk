@@ -174,7 +174,8 @@ struct agent_pvt {
 	char name[AST_MAX_AGENT];
 	int inherited_devicestate;     /*!< Does the underlying channel have a devicestate to pass? */
 	ast_mutex_t app_lock;          /**< Synchronization between owning applications */
-	volatile pthread_t owning_app; /**< Owning application thread id */
+	int app_lock_flag;
+	ast_cond_t app_complete_cond;
 	volatile int app_sleep_cond;   /**< Sleep condition for the login app */
 	struct ast_channel *owner;     /**< Agent */
 	char loginchan[80];            /**< channel they logged in from */
@@ -369,7 +370,8 @@ static struct agent_pvt *add_agent(const char *agent, int pending)
 		ast_copy_string(p->agent, agt, sizeof(p->agent));
 		ast_mutex_init(&p->lock);
 		ast_mutex_init(&p->app_lock);
-		p->owning_app = (pthread_t) -1;
+		ast_cond_init(&p->app_complete_cond, NULL);
+		p->app_lock_flag = 0;
 		p->app_sleep_cond = 1;
 		p->group = group;
 		p->pending = pending;
@@ -421,12 +423,14 @@ static int agent_cleanup(struct agent_pvt *p)
 	chan->tech_pvt = NULL;
 	p->app_sleep_cond = 1;
 	/* Release ownership of the agent to other threads (presumably running the login app). */
-	ast_mutex_unlock(&p->app_lock);
+	p->app_lock_flag = 0;
+	ast_cond_signal(&p->app_complete_cond);
 	if (chan)
 		ast_channel_free(chan);
 	if (p->dead) {
 		ast_mutex_destroy(&p->lock);
 		ast_mutex_destroy(&p->app_lock);
+		ast_cond_destroy(&p->app_complete_cond);
 		ast_free(p);
         }
 	return 0;
@@ -913,6 +917,7 @@ static int agent_hangup(struct ast_channel *ast)
 	} else if (p->dead) {
 		ast_mutex_destroy(&p->lock);
 		ast_mutex_destroy(&p->app_lock);
+		ast_cond_destroy(&p->app_complete_cond);
 		ast_free(p);
 	} else {
 		if (p->chan) {
@@ -923,8 +928,10 @@ static int agent_hangup(struct ast_channel *ast)
 			ast_mutex_unlock(&p->lock);
 		}
 		/* Release ownership of the agent to other threads (presumably running the login app). */
-		if (ast_strlen_zero(p->loginchan))
-			ast_mutex_unlock(&p->app_lock);
+		if (ast_strlen_zero(p->loginchan)) {
+			p->app_lock_flag = 0;
+			ast_cond_signal(&p->app_complete_cond);
+		}
 	}
 	return 0;
 }
@@ -1011,6 +1018,7 @@ static struct ast_channel *agent_bridgedchannel(struct ast_channel *chan, struct
 static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 {
 	struct ast_channel *tmp;
+	int alreadylocked;
 #if 0
 	if (!p->chan) {
 		ast_log(LOG_WARNING, "No channel? :(\n");
@@ -1056,11 +1064,15 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 	 * implemented in the kernel for this.
 	 */
 	p->app_sleep_cond = 0;
-	if(ast_strlen_zero(p->loginchan) && ast_mutex_trylock(&p->app_lock)) {
+
+	alreadylocked = p->app_lock_flag;
+	p->app_lock_flag = 1;
+
+	if(ast_strlen_zero(p->loginchan) && alreadylocked) {
 		if (p->chan) {
 			ast_queue_frame(p->chan, &ast_null_frame);
 			ast_mutex_unlock(&p->lock);	/* For other thread to read the condition. */
-			ast_mutex_lock(&p->app_lock);
+			p->app_lock_flag = 1;
 			ast_mutex_lock(&p->lock);
 		} else {
 			ast_log(LOG_WARNING, "Agent disconnected while we were connecting the call\n");
@@ -1069,7 +1081,8 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 			p->app_sleep_cond = 1;
 			ast_channel_free( tmp );
 			ast_mutex_unlock(&p->lock);	/* For other thread to read the condition. */
-			ast_mutex_unlock(&p->app_lock);
+			p->app_lock_flag = 0;
+			ast_cond_signal(&p->app_complete_cond);
 			return NULL;
 		}
 	} else if (!ast_strlen_zero(p->loginchan)) {
@@ -1087,14 +1100,6 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 	} 
 	if (p->chan)
 		ast_indicate(p->chan, AST_CONTROL_UNHOLD);
-	p->owning_app = pthread_self();
-	/* After the above step, there should not be any blockers. */
-	if (p->chan) {
-		if (ast_test_flag(p->chan, AST_FLAG_BLOCKING)) {
-			ast_log( LOG_ERROR, "A blocker exists after agent channel ownership acquired\n" );
-			ast_assert(ast_test_flag(p->chan, AST_FLAG_BLOCKING) == 0);
-		}
-	}
 	return tmp;
 }
 
@@ -1241,6 +1246,7 @@ static int read_agent_config(int reload)
 				if (!p->chan) {
 					ast_mutex_destroy(&p->lock);
 					ast_mutex_destroy(&p->app_lock);
+					ast_cond_destroy(&p->app_complete_cond);
 					ast_free(p);
 				} else {
 					/* Cause them to hang up */
@@ -2109,15 +2115,17 @@ static int login_exec(struct ast_channel *chan, void *data)
 							ast_mutex_unlock(&p->lock);
 							AST_LIST_UNLOCK(&agents);
 							/*	Synchronize channel ownership between call to agent and itself. */
-							ast_mutex_lock( &p->app_lock );
+							ast_mutex_lock(&p->app_lock);
+							if (p->app_lock_flag == 1) {
+								ast_cond_wait(&p->app_complete_cond, &p->app_lock);
+							}
+							ast_mutex_unlock(&p->app_lock);
 							ast_mutex_lock(&p->lock);
-							p->owning_app = pthread_self();
 							ast_mutex_unlock(&p->lock);
 							if (p->ackcall > 1) 
 								res = agent_ack_sleep(p);
 							else
 								res = ast_safe_sleep_conditional( chan, 1000, agent_cont_sleep, p );
-							ast_mutex_unlock( &p->app_lock );
 							if ((p->ackcall > 1)  && (res == 1)) {
 								AST_LIST_LOCK(&agents);
 								ast_mutex_lock(&p->lock);
@@ -2152,6 +2160,7 @@ static int login_exec(struct ast_channel *chan, void *data)
 						if (p->dead && !p->owner) {
 							ast_mutex_destroy(&p->lock);
 							ast_mutex_destroy(&p->app_lock);
+							ast_cond_destroy(&p->app_complete_cond);
 							ast_free(p);
 						}
 					}
