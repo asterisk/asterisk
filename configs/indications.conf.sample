@@ -117,7 +117,7 @@ ringmobile = 400+450/400,0/200,400+450/400,0/2000
 [bg]
 ; Reference: http://www.itu.int/ITU-T/inr/forms/files/tones-0203.pdf
 description = Bulgaria
-ringdance = 1000,4000
+ringcadence = 1000,4000
 ;
 dial = 425
 busy = 425/500,0/500
