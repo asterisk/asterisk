@@ -13820,7 +13820,6 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 	unsigned int event;
 	const char *c = get_header(req, "Content-Type");
 
-	check_via(p, req);
 	/* Need to check the media/type */
 	if (!strcasecmp(c, "application/dtmf-relay") ||
 	    !strcasecmp(c, "application/vnd.nortelnetworks.digits")) {
@@ -16141,7 +16140,6 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 	char *eventid = NULL;
 	char *sep;
 
-	check_via(p, req);
 	if( (sep = strchr(event, ';')) ) {	/* XXX bug here - overwriting string ? */
 		*sep++ = '\0';
 		eventid = sep;
@@ -16280,7 +16278,6 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req)
 			(this needs to be fixed in 1.4 as well)
 	*/
 
-	check_via(p, req);
 	if (p->lastinvite) {
 		/* if this is a request in an active dialog, just confirm that the dialog exists. */
 		transmit_response_with_allow(p, "200 OK", req, 0);
@@ -17576,7 +17573,6 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 
 	int res = 0;
 
-	check_via(p, req);
 	if (req->debug)
 		ast_verbose("Call %s got a SIP call transfer from %s: (REFER)!\n", p->callid, ast_test_flag(&p->flags[0], SIP_OUTGOING) ? "callee" : "caller");
 
@@ -18063,7 +18059,6 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 static int handle_request_message(struct sip_pvt *p, struct sip_request *req)
 {
 	if (!req->ignore) {
-		check_via(p, req);
 		if (req->debug)
 			ast_verbose("Receiving message!\n");
 		receive_message(p, req);
