@@ -83,7 +83,7 @@ static int iftime(struct ast_channel *chan, char *cmd, char *data, char *buf,
 	if (iffalse)
 		iffalse = ast_strip_quoted(iffalse, "\"", "\"");
 
-	ast_copy_string(buf, ast_check_timing(&timing) ? iftrue : iffalse, len);
+	ast_copy_string(buf, ast_check_timing(&timing) ? S_OR(iftrue, "") : S_OR(iffalse, ""), len);
 
 	return 0;
 }
