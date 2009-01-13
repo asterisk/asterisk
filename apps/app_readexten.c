@@ -79,7 +79,7 @@ static int readexten_exec(struct ast_channel *chan, void *data)
 	int maxdigits = sizeof(exten) - 1;
 	int timeout = 0, digit_timeout = 0, x = 0;
 	char *argcopy = NULL, *status = "";
-	struct ind_tone_zone_sound *ts = NULL;
+	struct tone_zone_sound *ts = NULL;
 	struct ast_flags flags = {0};
 
 	 AST_DECLARE_APP_ARGS(arglist,
