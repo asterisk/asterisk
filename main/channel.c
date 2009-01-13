@@ -2483,7 +2483,7 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	/* By using an enum, we'll get compiler warnings for values not handled 
 	 * in switch statements. */
 	enum ast_control_frame_type condition = _condition;
-	const struct ind_tone_zone_sound *ts = NULL;
+	const struct tone_zone_sound *ts = NULL;
 	int res = -1;
 
 	ast_channel_lock(chan);
