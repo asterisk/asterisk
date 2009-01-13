@@ -69,7 +69,7 @@ static void post_raw(GMimePart *part, const char *post_dir, const char *fn)
 
 	ast_debug(1, "Posting raw data to %s\n", filename);
 
-	if ((fd = open(filename, O_CREAT | O_WRONLY, 0666)) == -1) {
+	if ((fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC, 0666)) == -1) {
 		ast_log(LOG_WARNING, "Unable to open %s for writing file from a POST!\n", filename);
 
 		return;
