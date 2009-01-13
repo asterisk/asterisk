@@ -41,6 +41,9 @@ SIP Changes
    option is required to interoperate with devices that have non-standard SDP
    session version implementations (observed with Microsoft OCS).  This option
    is diabled by default.
+ * The parsing of register => lines in sip.conf has been modified to allow a port
+   to be present in the "user" portion. Please see the sip.conf.sample file for more
+   information
 
 Skinny Changes
 --------------

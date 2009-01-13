@@ -432,6 +432,14 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; and more readable because you don't have to write the parameters in two places
 ; (note that the "port" is ignored - this is a bug that should be fixed).
 ;
+; Beginning with Asterisk version 1.6.2, the "user" portion of the register line may
+; contain a port number. Since the logical separator between a host and port number is a
+; ':' character, and this character is already used to separate between the optional "secret"
+; and "authuser" portions of the line, there is a bit of a hoop to jump through if you wish
+; to use a port here. That is, you must explicitly provide a "secret" and "authuser" even if
+; they are blank. See the third example below for an illustration.
+;
+;
 ; Examples:
 ;
 ;register => 1234:password@mysipprovider.com        
@@ -448,6 +456,11 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;    Tip 1: Avoid assigning hostname to a sip.conf section like [provider.com]
 ;    Tip 2: Use separate inbound and outbound sections for SIP providers
 ;           (instead of type=friend) if you have calls in both directions
+;
+;register => 3456@mydomain:5082::@mysipprovider.com
+;
+;    Note that in this example, the optional authuser and secret portions have
+;    been left blank because we have specified a port in the user section
   
 ;registertimeout=20             ; retry registration calls every 20 seconds (default)
 ;registerattempts=10            ; Number of registration attempts before we give up

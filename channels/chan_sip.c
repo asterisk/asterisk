@@ -6852,14 +6852,23 @@ static int sip_register(const char *value, int lineno)
 		ast_log(LOG_WARNING, "Format for registration is [transport://]user[:secret[:authuser]]@host[:port][/contact][~expiry] at line %d\n", lineno);
 		return -1;
 	}
-	/* split user[:secret[:authuser]] */
-	secret = strchr(username, ':');
-	if (secret) {
-		*secret++ = '\0';
-		authuser = strchr(secret, ':');
-		if (authuser)
-			*authuser++ = '\0';
+
+	/* split user[:secret[:authuser]] from the end to allow : character in user portion*/
+	authuser = strrchr(username, ':');
+	if (authuser) {
+		*authuser++ = '\0';
+		secret = strrchr(username, ':');
+		if (secret)
+			*secret++ = '\0';
+		else {
+			secret = authuser;
+			authuser = NULL;
+		}
 	}
+ 	if ((authuser) && (ast_strlen_zero(authuser)))
+		authuser = NULL;
+ 	if ((secret) && (ast_strlen_zero(secret)))
+		secret = NULL;
 
 	/* split host[:port][/contact] */
 	expire = strchr(hostname, '~');
@@ -10475,6 +10484,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 	struct sip_pvt *p;
 	int res;
 	char *fromdomain;
+	char *domainport = NULL;
 
 	/* exit if we are already in process with this registrar ?*/
 	if (r == NULL || ((auth == NULL) && (r->regstate == REG_STATE_REGSENT || r->regstate == REG_STATE_AUTHSENT))) {
@@ -10622,10 +10632,23 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 	/* Fromdomain is what we are registering to, regardless of actual
 	   host name from SRV */
 	if (!ast_strlen_zero(p->fromdomain)) {
-		if (r->portno && r->portno != STANDARD_SIP_PORT)
-			snprintf(addr, sizeof(addr), "sip:%s:%d", p->fromdomain, r->portno);
-		else
-			snprintf(addr, sizeof(addr), "sip:%s", p->fromdomain);
+		domainport = strrchr(p->fromdomain, ':');
+		if (domainport) {
+			*domainport++ = '\0'; /* trim off domainport from p->fromdomain */
+			if (ast_strlen_zero(domainport))
+				domainport = NULL;
+		}		
+		if (domainport) {			
+			if (atoi(domainport) != STANDARD_SIP_PORT)
+				snprintf(addr, sizeof(addr), "sip:%s:%s", p->fromdomain, domainport);
+			else
+				snprintf(addr, sizeof(addr), "sip:%s", p->fromdomain);
+		} else {
+			if (r->portno && r->portno != STANDARD_SIP_PORT)
+				snprintf(addr, sizeof(addr), "sip:%s:%d", p->fromdomain, r->portno);
+			else
+				snprintf(addr, sizeof(addr), "sip:%s", p->fromdomain);
+		}
 	} else {
 		if (r->portno && r->portno != STANDARD_SIP_PORT)
 			snprintf(addr, sizeof(addr), "sip:%s:%d", r->hostname, r->portno);
