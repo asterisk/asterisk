@@ -2516,7 +2516,8 @@ static int misdn_answer(struct ast_channel *ast)
 		ast_queue_hangup_with_cause(ast, AST_CAUSE_PROTOCOL_ERROR);
 	}
 
-	tmp = pbx_builtin_getvar_helper(p->ast, "CRYPT_KEY");
+	ast_channel_lock(ast);
+	tmp = pbx_builtin_getvar_helper(ast, "CRYPT_KEY");
 	if (!ast_strlen_zero(tmp)) {
 		chan_misdn_log(1, p->bc->port, " --> Connection will be BF crypted\n");
 		ast_copy_string(p->bc->crypt_key, tmp, sizeof(p->bc->crypt_key));
@@ -2531,6 +2532,7 @@ static int misdn_answer(struct ast_channel *ast)
 		p->bc->hdlc = 0;
 		p->bc->nojitter = 1;
 	}
+	ast_channel_unlock(ast);
 
 	p->state = MISDN_CONNECTED;
 	stop_indicate(p);
@@ -2751,12 +2753,14 @@ static int misdn_hangup(struct ast_channel *ast)
 	bc = p->bc;
 
 	if (bc) {
-		const char *tmp=pbx_builtin_getvar_helper(ast,"MISDN_USERUSER");
-		if (tmp) {
+		const char *tmp;
+		ast_channel_lock(ast);
+		if ((tmp = pbx_builtin_getvar_helper(ast, "MISDN_USERUSER"))) {
 			ast_log(LOG_NOTICE, "MISDN_USERUSER: %s\n", tmp);
 			strcpy(bc->uu, tmp);
 			bc->uulen=strlen(bc->uu);
 		}
+		ast_channel_unlock(ast);
 	}
 
 	MISDN_ASTERISK_TECH_PVT(ast) = NULL;
@@ -2801,11 +2805,13 @@ static int misdn_hangup(struct ast_channel *ast)
 
 	bc->out_cause = ast->hangupcause ? ast->hangupcause : AST_CAUSE_NORMAL_CLEARING;
 
+	ast_channel_lock(ast);
 	if ((varcause = pbx_builtin_getvar_helper(ast, "HANGUPCAUSE")) ||
 		(varcause = pbx_builtin_getvar_helper(ast, "PRI_CAUSE"))) {
 		int tmpcause = atoi(varcause);
 		bc->out_cause = tmpcause ? tmpcause : AST_CAUSE_NORMAL_CLEARING;
 	}
+	ast_channel_unlock(ast);
 
 	chan_misdn_log(1, bc->port, "* IND : HANGUP\tpid:%d ctx:%s dad:%s oad:%s State:%s\n", p->bc ? p->bc->pid : -1, ast->context, ast->exten, ast->cid.cid_num, misdn_get_ch_state(p));
 	chan_misdn_log(3, bc->port, " --> l3id:%x\n", p->l3id);
@@ -4060,6 +4066,7 @@ void import_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_
 {
 	const char *tmp;
 
+	ast_channel_lock(chan);
 	tmp = pbx_builtin_getvar_helper(chan, "MISDN_PID");
 	if (tmp) {
 		ch->other_pid = atoi(tmp);
@@ -4087,6 +4094,7 @@ void import_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_
 	if (tmp) {
 		ast_copy_string(bc->keypad, tmp, sizeof(bc->keypad));
 	}
+	ast_channel_unlock(chan);
 }
 
 /*! \brief Export parameters to the dialplan environment variables */
