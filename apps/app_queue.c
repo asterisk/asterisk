@@ -2761,7 +2761,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 			if (numlines == (numbusies + numnochan)) {
 				ast_debug(1, "Everyone is busy at this time\n");
 			} else {
-				ast_log(LOG_NOTICE, "No one is answering queue '%s' (%d/%d/%d)\n", queue, numlines, numbusies, numnochan);
+				ast_debug(3, "No one is answering queue '%s' (%d numlines / %d busies / %d failed channels)\n", queue, numlines, numbusies, numnochan);
 			}
 			*to = 0;
 			return NULL;
