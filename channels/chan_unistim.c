@@ -439,7 +439,7 @@ static struct unistim_device {
 	char datetimeformat;	    /*!< format used for displaying time/date */
 	char contrast;			  /*!< contrast */
 	char country[3];			/*!< country used for dial tone frequency */
-	struct ind_tone_zone *tz;	       /*!< Tone zone for res_indications (ring, busy, congestion) */
+	struct tone_zone *tz;	       /*!< Tone zone for res_indications (ring, busy, congestion) */
 	char ringvolume;			/*!< Ring volume */
 	char ringstyle;			 /*!< Ring melody */
 	int rtp_port;			   /*!< RTP port used by the phone */
@@ -4057,10 +4057,10 @@ static char *control2str(int ind)
 	return "UNKNOWN";
 }
 
-static void in_band_indication(struct ast_channel *ast, const struct ind_tone_zone *tz,
+static void in_band_indication(struct ast_channel *ast, const struct tone_zone *tz,
 	const char *indication)
 {
-	const struct ind_tone_zone_sound *ts = NULL;
+	const struct tone_zone_sound *ts = NULL;
 
 	ts = ast_get_indication_tone(tz, indication);
 

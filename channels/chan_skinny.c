@@ -3768,7 +3768,7 @@ static int skinny_transfer(struct skinny_subchannel *sub)
 {
 	struct skinny_subchannel *xferor; /* the sub doing the transferring */
 	struct skinny_subchannel *xferee; /* the sub being transferred */
-	const struct ind_tone_zone_sound *ts = NULL;
+	const struct tone_zone_sound *ts = NULL;
 		
 	if (ast_bridged_channel(sub->owner) || ast_bridged_channel(sub->related->owner)) {
 		if (sub->xferor) {
