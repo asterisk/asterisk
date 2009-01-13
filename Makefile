@@ -726,6 +726,7 @@ samples: adsi
 		echo ";rungroup = asterisk ; The group to run as" ; \
 		echo ";lightbackground = yes ; If your terminal is set for a light-colored background" ; \
 		echo "documentation_language = en_US ; Set the Language you want Documentation displayed in. Value is in the same format as locale names" ; \
+		echo ";hideconnect = yes ; Hide messages displayed when a remote console connects and disconnects" ; \
 		echo "" ; \
 		echo "; Changing the following lines may compromise your security." ; \
 		echo ";[files]" ; \

@@ -1212,7 +1212,9 @@ static void *netconsole(void *vconsole)
 				break;
 		}
 	}
-	ast_verb(3, "Remote UNIX connection disconnected\n");
+	if (!ast_opt_hide_connect) {
+		ast_verb(3, "Remote UNIX connection disconnected\n");
+	}
 	close(con->fd);
 	close(con->p[0]);
 	close(con->p[1]);
@@ -1289,8 +1291,9 @@ static void *listener(void *unused)
 					fdprint(s, "No more connections allowed\n");
 					ast_log(LOG_WARNING, "No more connections allowed\n");
 					close(s);
-				} else if (consoles[x].fd > -1) 
+				} else if ((consoles[x].fd > -1) && (!ast_opt_hide_connect)) {
 					ast_verb(3, "Remote UNIX connection\n");
+				}
 			}
 		}
 	}
@@ -2953,6 +2956,8 @@ static void ast_readconfig(void)
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_LIGHT_BACKGROUND);
 		} else if (!strcasecmp(v->name, "forceblackbackground")) {
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_FORCE_BLACK_BACKGROUND);
+		} else if (!strcasecmp(v->name, "hideconnect")) {
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_HIDE_CONSOLE_CONNECT);
 		}
 	}
 	for (v = ast_variable_browse(cfg, "compat"); v; v = v->next) {
