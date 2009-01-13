@@ -296,7 +296,7 @@ static int func_channel_write(struct ast_channel *chan, const char *function,
 	}
 #endif
 	else if (!strcasecmp(data, "tonezone")) {
-		struct ind_tone_zone *new_zone;
+		struct tone_zone *new_zone;
 		if (!(new_zone = ast_get_indication_zone(value))) {
 			ast_log(LOG_ERROR, "Unknown country code '%s' for tonezone. Check indications.conf for available country codes.\n", value);
 			ret = -1;	

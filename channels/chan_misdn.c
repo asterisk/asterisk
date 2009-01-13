@@ -377,7 +377,7 @@ struct chan_list {
 	 * \brief Tone zone sound used for dialtone generation.
 	 * \note Used as a boolean.  Non-NULL to prod generation if enabled. 
 	 */
-	const struct ind_tone_zone_sound *ts;
+	const struct tone_zone_sound *ts;
 	
 	/*!
 	 * \brief Enables overlap dialing for the set amount of seconds.  (0 = Disabled)
@@ -3280,7 +3280,7 @@ static enum ast_bridge_result  misdn_bridge (struct ast_channel *c0,
 
 static int dialtone_indicate(struct chan_list *cl)
 {
-	const struct ind_tone_zone_sound *ts = NULL;
+	const struct tone_zone_sound *ts = NULL;
 	struct ast_channel *ast = cl->ast;
 	int nd = 0;
 

@@ -332,12 +332,12 @@ void ast_playtones_stop(struct ast_channel *chan)
 
 /*--------------------------------------------*/
 
-static AST_RWLIST_HEAD_STATIC(tone_zones, ind_tone_zone);
-static struct ind_tone_zone *current_tonezone;
+static AST_RWLIST_HEAD_STATIC(tone_zones, tone_zone);
+static struct tone_zone *current_tonezone;
 
-struct ind_tone_zone *ast_walk_indications(const struct ind_tone_zone *cur)
+struct tone_zone *ast_walk_indications(const struct tone_zone *cur)
 {
-	struct ind_tone_zone *tz = NULL;
+	struct tone_zone *tz = NULL;
 
 	AST_RWLIST_RDLOCK(&tone_zones);
 	/* If cur is not NULL, then we have to iterate through - otherwise just return the first entry */
@@ -358,7 +358,7 @@ struct ind_tone_zone *ast_walk_indications(const struct ind_tone_zone *cur)
 /* Set global indication country */
 int ast_set_indication_country(const char *country)
 {
-	struct ind_tone_zone *zone = NULL;
+	struct tone_zone *zone = NULL;
 
 	/* If no country is specified or we are unable to find the zone, then return not found */
 	if (!country || !(zone = ast_get_indication_zone(country)))
@@ -376,9 +376,9 @@ int ast_set_indication_country(const char *country)
 }
 
 /* locate tone_zone, given the country. if country == NULL, use the default country */
-struct ind_tone_zone *ast_get_indication_zone(const char *country)
+struct tone_zone *ast_get_indication_zone(const char *country)
 {
-	struct ind_tone_zone *tz = NULL;
+	struct tone_zone *tz = NULL;
 	int alias_loop = 0;
 
 	AST_RWLIST_RDLOCK(&tone_zones);
@@ -411,9 +411,9 @@ struct ind_tone_zone *ast_get_indication_zone(const char *country)
 }
 
 /* locate a tone_zone_sound, given the tone_zone. if tone_zone == NULL, use the default tone_zone */
-struct ind_tone_zone_sound *ast_get_indication_tone(const struct ind_tone_zone *zone, const char *indication)
+struct tone_zone_sound *ast_get_indication_tone(const struct tone_zone *zone, const char *indication)
 {
-	struct ind_tone_zone_sound *ts = NULL;
+	struct tone_zone_sound *ts = NULL;
 
 	AST_RWLIST_RDLOCK(&tone_zones);
 
@@ -439,7 +439,7 @@ struct ind_tone_zone_sound *ast_get_indication_tone(const struct ind_tone_zone *
 	return ts;
 }
 
-static inline void clear_zone_sound(struct ind_tone_zone_sound *ts)
+static inline void clear_zone_sound(struct tone_zone_sound *ts)
 {
 	/* Deconstify the 'const char *'s so the compiler doesn't complain. (but it's safe) */
 	ast_free((char *) ts->name);
@@ -447,9 +447,9 @@ static inline void clear_zone_sound(struct ind_tone_zone_sound *ts)
 }
 
 /*! \brief deallocate the passed tone zone */
-void ast_destroy_indication_zone(struct ind_tone_zone *zone)
+void ast_destroy_indication_zone(struct tone_zone *zone)
 {
-	struct ind_tone_zone_sound *current;
+	struct tone_zone_sound *current;
 
 	while ((current = AST_LIST_REMOVE_HEAD(&zone->tones, list))) {
 		clear_zone_sound(current);
@@ -465,9 +465,9 @@ void ast_destroy_indication_zone(struct ind_tone_zone *zone)
 /*--------------------------------------------*/
 
 /* add a new country, if country exists, it will be replaced. */
-int ast_register_indication_country(struct ind_tone_zone *zone)
+int ast_register_indication_country(struct tone_zone *zone)
 {
-	struct ind_tone_zone *tz = NULL;
+	struct tone_zone *tz = NULL;
 
 	AST_RWLIST_WRLOCK(&tone_zones);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&tone_zones, tz, list) {
@@ -500,7 +500,7 @@ int ast_register_indication_country(struct ind_tone_zone *zone)
  * Also, all countries which are an alias for the specified country are removed. */
 int ast_unregister_indication_country(const char *country)
 {
-	struct ind_tone_zone *tz = NULL;
+	struct tone_zone *tz = NULL;
 	int res = -1;
 
 	AST_RWLIST_WRLOCK(&tone_zones);
@@ -526,9 +526,9 @@ int ast_unregister_indication_country(const char *country)
 
 /* add a new indication to a tone_zone. tone_zone must exist. if the indication already
  * exists, it will be replaced. */
-int ast_register_indication(struct ind_tone_zone *zone, const char *indication, const char *tonelist)
+int ast_register_indication(struct tone_zone *zone, const char *indication, const char *tonelist)
 {
-	struct ind_tone_zone_sound *ts;
+	struct tone_zone_sound *ts;
 	int found = 0;
 
 	/* is it an alias? stop */
@@ -566,9 +566,9 @@ int ast_register_indication(struct ind_tone_zone *zone, const char *indication, 
 }
 
 /* remove an existing country's indication. Both country and indication must exist */
-int ast_unregister_indication(struct ind_tone_zone *zone, const char *indication)
+int ast_unregister_indication(struct tone_zone *zone, const char *indication)
 {
-	struct ind_tone_zone_sound *ts;
+	struct tone_zone_sound *ts;
 	int res = -1;
 
 	/* is it an alias? stop */

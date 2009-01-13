@@ -92,7 +92,7 @@ static const char config[] = "indications.conf";
  */
 static char *handle_cli_indication_add(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct ind_tone_zone *tz;
+	struct tone_zone *tz;
 	int created_country = 0;
 
 	switch (cmd) {
@@ -142,7 +142,7 @@ static char *handle_cli_indication_add(struct ast_cli_entry *e, int cmd, struct 
  */
 static char *handle_cli_indication_remove(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct ind_tone_zone *tz;
+	struct tone_zone *tz;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -187,7 +187,7 @@ static char *handle_cli_indication_remove(struct ast_cli_entry *e, int cmd, stru
  */
 static char *handle_cli_indication_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct ind_tone_zone *tz = NULL;
+	struct tone_zone *tz = NULL;
 	char buf[256];
 	int found_country = 0;
 
@@ -216,7 +216,7 @@ static char *handle_cli_indication_show(struct ast_cli_entry *e, int cmd, struct
 		int i, j;
 		for (i = 2; i < a->argc; i++) {
 			if (strcasecmp(tz->country, a->argv[i]) == 0 && !tz->alias[0]) {
-				struct ind_tone_zone_sound *ts;
+				struct tone_zone_sound *ts;
 				if (!found_country) {
 					found_country = 1;
 					ast_cli(a->fd, "Country Indication      PlayList\n");
@@ -249,7 +249,7 @@ static char *handle_cli_indication_show(struct ast_cli_entry *e, int cmd, struct
  */
 static int handle_playtones(struct ast_channel *chan, void *data)
 {
-	struct ind_tone_zone_sound *ts;
+	struct tone_zone_sound *ts;
 	int res;
 
 	if (!data || !((char*)data)[0]) {
@@ -284,7 +284,7 @@ static int ind_load_module(int reload)
 	struct ast_variable *v;
 	char *cxt;
 	char *c;
-	struct ind_tone_zone *tones;
+	struct tone_zone *tones;
 	const char *country = NULL;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
@@ -345,7 +345,7 @@ static int ind_load_module(int reload)
 				c = countries;
 				country = strsep(&c,",");
 				while (country) {
-					struct ind_tone_zone* azone;
+					struct tone_zone* azone;
 					if (!(azone = ast_calloc(1, sizeof(*azone)))) {
 						ast_config_destroy(cfg);
 						ast_destroy_indication_zone(tones);
@@ -361,7 +361,7 @@ static int ind_load_module(int reload)
 					country = strsep(&c,",");
 				}
 			} else {
-				struct ind_tone_zone_sound *ts;
+				struct tone_zone_sound *ts;
 
 				/* add tone to country */
 				AST_LIST_TRAVERSE(&tones->tones, ts, list) {

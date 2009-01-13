@@ -132,7 +132,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 	int tries = 1, to = 0, x = 0;
 	double tosec;
 	char *argcopy = NULL;
-	struct ind_tone_zone_sound *ts = NULL;
+	struct tone_zone_sound *ts = NULL;
 	struct ast_flags flags = {0};
 	const char *status = "ERROR";
 
