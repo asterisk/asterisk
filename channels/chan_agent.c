@@ -1401,15 +1401,17 @@ static int allow_multiple_login(char *chan, char *context)
 	struct agent_pvt *p;
 	char loginchan[80];
 
-	if(multiplelogin)
+	if (multiplelogin) {
 		return 1;
-	if(!chan) 
+	}
+	if (!chan) {
 		return 0;
+	}
 
 	snprintf(loginchan, sizeof(loginchan), "%s@%s", chan, S_OR(context, "default"));
 	
 	AST_LIST_TRAVERSE(&agents, p, list) {
-		if(!strcasecmp(chan, p->loginchan))
+		if(!strcasecmp(loginchan, p->loginchan))
 			return 0;
 	}
 	return -1;
