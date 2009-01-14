@@ -12542,6 +12542,76 @@ static char *sip_show_tcp(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 #undef FORMAT2
 }
 
+/*! \brief  CLI Command 'SIP Show Users' */
+static char *sip_show_users(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	regex_t regexbuf;
+	int havepattern = FALSE;
+	struct ao2_iterator user_iter;
+	struct sip_peer *user;
+
+#define FORMAT  "%-25.25s  %-15.15s  %-15.15s  %-15.15s  %-5.5s%-10.10s\n"
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "sip show users";
+		e->usage =
+			"Usage: sip show users [like <pattern>]\n"
+			"       Lists all known SIP users.\n"
+			"       Optional regular expression pattern is used to filter the user list.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	switch (a->argc) {
+	case 5:
+		if (!strcasecmp(a->argv[3], "like")) {
+			if (regcomp(&regexbuf, a->argv[4], REG_EXTENDED | REG_NOSUB))
+				return CLI_SHOWUSAGE;
+			havepattern = TRUE;
+		} else
+			return CLI_SHOWUSAGE;
+	case 3:
+		break;
+	default:
+		return CLI_SHOWUSAGE;
+	}
+
+	ast_cli(a->fd, FORMAT, "Username", "Secret", "Accountcode", "Def.Context", "ACL", "NAT");
+
+	user_iter = ao2_iterator_init(peers, 0);
+	while ((user = ao2_iterator_next(&user_iter))) {
+		ao2_lock(user);
+		if (user->onlymatchonip == TRUE) {
+			ao2_unlock(user);
+			unref_peer(user, "sip show users");
+			continue;
+		}
+
+		if (havepattern && regexec(&regexbuf, user->name, 0, NULL, 0)) {
+			ao2_unlock(user);
+			unref_peer(user, "sip show users");
+			continue;
+		}
+
+		ast_cli(a->fd, FORMAT, user->name, 
+			user->secret, 
+			user->accountcode,
+			user->context,
+			cli_yesno(user->ha != NULL),
+			nat2str(ast_test_flag(&user->flags[0], SIP_NAT)));
+		ao2_unlock(user);
+		unref_peer(user, "sip show users");
+	}
+
+	if (havepattern)
+		regfree(&regexbuf);
+
+	return CLI_SUCCESS;
+#undef FORMAT
+}
+
 /*! \brief Manager Action SIPShowRegistry description */
 static char mandescr_show_registry[] =
 "Description: Lists all registration requests and status\n"
@@ -12704,6 +12774,13 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 	i = ao2_iterator_init(peers, 0);
 	while ((peer = ao2_t_iterator_next(&i, "iterate thru peers table"))) {	
 		ao2_lock(peer);
+
+		if (peer->onlymatchonip == FALSE) {
+			ao2_unlock(peer);
+			unref_peer(peer, "unref peer because it's actually a user");
+			continue;
+		}
+
 		if (havepattern && regexec(&regexbuf, peer->name, 0, NULL, 0)) {
 			objcount--;
 			ao2_unlock(peer);
@@ -13554,6 +13631,117 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 
 	return CLI_SUCCESS;
 }
+
+/*! \brief Do completion on user name */
+static char *complete_sip_user(const char *word, int state)
+{
+	char *result = NULL;
+	int wordlen = strlen(word);
+	int which = 0;
+	struct ao2_iterator user_iter;
+	struct sip_peer *user;
+
+	user_iter = ao2_iterator_init(peers, 0);
+	while ((user = ao2_iterator_next(&user_iter))) {
+		ao2_lock(user);
+		if (user->onlymatchonip == TRUE) {
+			ao2_unlock(user);
+			unref_peer(user, "complete sip user");
+			continue;
+		}
+		/* locking of the object is not required because only the name and flags are being compared */
+		if (!strncasecmp(word, user->name, wordlen) && ++which > state) {
+			result = ast_strdup(user->name);
+		}
+		ao2_unlock(user);
+		unref_peer(user, "complete sip user");
+	}
+	return result;
+}
+/*! \brief Support routine for 'sip show user' CLI */
+static char *complete_sip_show_user(const char *line, const char *word, int pos, int state)
+{
+	if (pos == 3)
+		return complete_sip_user(word, state);
+
+	return NULL;
+}
+
+/*! \brief Show one user in detail */
+static char *sip_show_user(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char cbuf[256];
+	struct sip_peer *user;
+	struct ast_variable *v;
+	int load_realtime;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "sip show user";
+		e->usage =
+			"Usage: sip show user <name> [load]\n"
+			"       Shows all details on one SIP user and the current status.\n"
+			"       Option \"load\" forces lookup of peer in realtime storage.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_sip_show_user(a->line, a->word, a->pos, a->n);
+	}
+
+	if (a->argc < 4)
+		return CLI_SHOWUSAGE;
+
+	/* Load from realtime storage? */
+	load_realtime = (a->argc == 5 && !strcmp(a->argv[4], "load")) ? TRUE : FALSE;
+
+	if ((user = find_peer(a->argv[3], NULL, load_realtime, TRUE, FALSE))) {
+		ao2_lock(user);
+		ast_cli(a->fd, "\n\n");
+		ast_cli(a->fd, "  * Name       : %s\n", user->name);
+		ast_cli(a->fd, "  Secret       : %s\n", ast_strlen_zero(user->secret)?"<Not set>":"<Set>");
+		ast_cli(a->fd, "  MD5Secret    : %s\n", ast_strlen_zero(user->md5secret)?"<Not set>":"<Set>");
+		ast_cli(a->fd, "  Context      : %s\n", user->context);
+		ast_cli(a->fd, "  Language     : %s\n", user->language);
+		if (!ast_strlen_zero(user->accountcode))
+			ast_cli(a->fd, "  Accountcode  : %s\n", user->accountcode);
+		ast_cli(a->fd, "  AMA flags    : %s\n", ast_cdr_flags2str(user->amaflags));
+		ast_cli(a->fd, "  Transfer mode: %s\n", transfermode2str(user->allowtransfer));
+		ast_cli(a->fd, "  MaxCallBR    : %d kbps\n", user->maxcallbitrate);
+		ast_cli(a->fd, "  CallingPres  : %s\n", ast_describe_caller_presentation(user->callingpres));
+		ast_cli(a->fd, "  Call limit   : %d\n", user->call_limit);
+		ast_cli(a->fd, "  Callgroup    : ");
+		print_group(a->fd, user->callgroup, 0);
+		ast_cli(a->fd, "  Pickupgroup  : ");
+		print_group(a->fd, user->pickupgroup, 0);
+		ast_cli(a->fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), user->cid_name, user->cid_num, "<unspecified>"));
+		ast_cli(a->fd, "  ACL          : %s\n", cli_yesno(user->ha != NULL));
+ 		ast_cli(a->fd, "  Sess-Timers  : %s\n", stmode2str(user->stimer.st_mode_oper));
+ 		ast_cli(a->fd, "  Sess-Refresh : %s\n", strefresher2str(user->stimer.st_ref));
+ 		ast_cli(a->fd, "  Sess-Expires : %d secs\n", user->stimer.st_max_se);
+ 		ast_cli(a->fd, "  Sess-Min-SE  : %d secs\n", user->stimer.st_min_se);
+
+		ast_cli(a->fd, "  Codec Order  : (");
+		print_codec_to_cli(a->fd, &user->prefs);
+		ast_cli(a->fd, ")\n");
+
+		ast_cli(a->fd, "  Auto-Framing:  %s \n", cli_yesno(user->autoframing));
+		if (user->chanvars) {
+ 			ast_cli(a->fd, "  Variables    :\n");
+			for (v = user->chanvars ; v ; v = v->next)
+ 				ast_cli(a->fd, "                 %s = %s\n", v->name, v->value);
+		}
+
+		ast_cli(a->fd, "\n");
+
+		ao2_unlock(user);
+		unref_peer(user, "sip show user");
+	} else {
+		ast_cli(a->fd, "User %s not found.\n", a->argv[3]);
+		ast_cli(a->fd, "\n");
+	}
+
+	return CLI_SUCCESS;
+}
+
 
 static char *sip_show_sched(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -23057,6 +23245,8 @@ static struct ast_cli_entry cli_sip[] = {
 	AST_CLI_DEFINE(sip_show_channel, "Show detailed SIP channel info"),
 	AST_CLI_DEFINE(sip_show_history, "Show SIP dialog history"),
 	AST_CLI_DEFINE(sip_show_peer, "Show details on specific SIP peer"),
+	AST_CLI_DEFINE(sip_show_users, "List defined SIP users"),
+	AST_CLI_DEFINE(sip_show_user, "Show details on specific SIP user"),
 	AST_CLI_DEFINE(sip_qualify_peer, "Send an OPTIONS packet to a peer"),
 	AST_CLI_DEFINE(sip_show_sched, "Present a report on the status of the sched queue"),
 	AST_CLI_DEFINE(sip_prune_realtime, "Prune cached Realtime users/peers"),
