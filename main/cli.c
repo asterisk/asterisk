@@ -415,7 +415,7 @@ static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	 * we are guaranteed to be called with argc >= e->args;
 	 */
 
-	if (argc < e->args)
+	if (argc <= e->args)
 		return CLI_SHOWUSAGE;
 	if (!strcasecmp(argv[e->args - 1], "debug")) {
 		dst = &option_debug;
