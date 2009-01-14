@@ -73,17 +73,17 @@ AST_APP_OPTIONS(page_opts, {
 	AST_APP_OPTION('s', PAGE_SKIP),
 });
 
-#define MAX_DIALS 128
 
 static int page_exec(struct ast_channel *chan, void *data)
 {
-	char *options, *tech, *resource, *tmp;
+	char *options, *tech, *resource, *tmp, *tmp2;
 	char meetmeopts[88], originator[AST_CHANNEL_NAME], *opts[0];
 	struct ast_flags flags = { 0 };
 	unsigned int confid = ast_random();
 	struct ast_app *app;
 	int res = 0, pos = 0, i = 0;
-	struct ast_dial *dials[MAX_DIALS];
+	struct ast_dial **dial_list;
+	unsigned int num_dials;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "This application requires at least one argument (destination(s) to page)\n");
@@ -107,6 +107,18 @@ static int page_exec(struct ast_channel *chan, void *data)
 
 	snprintf(meetmeopts, sizeof(meetmeopts), "MeetMe,%ud,%s%sqxdw(5)", confid, (ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "m"),
 		(ast_test_flag(&flags, PAGE_RECORD) ? "r" : "") );
+
+	/* Count number of extensions in list by number of ampersands + 1 */
+	num_dials = 1;
+	tmp2 = tmp;
+	while (*tmp2 && *tmp2++ == '&') {
+		num_dials++;
+	}
+
+	if (!(dial_list = ast_calloc(num_dials, sizeof(void *)))) {
+		ast_log(LOG_ERROR, "Can't allocate %ld bytes for dial list\n", (sizeof(void *) * num_dials));
+		return -1;
+	}
 
 	/* Go through parsing/calling each device */
 	while ((tech = strsep(&tmp, "&"))) {
@@ -152,7 +164,7 @@ static int page_exec(struct ast_channel *chan, void *data)
 		ast_dial_run(dial, chan, 1);
 
 		/* Put in our dialing array */
-		dials[pos++] = dial;
+		dial_list[pos++] = dial;
 	}
 
 	if (!ast_test_flag(&flags, PAGE_QUIET)) {
@@ -169,7 +181,7 @@ static int page_exec(struct ast_channel *chan, void *data)
 
 	/* Go through each dial attempt cancelling, joining, and destroying */
 	for (i = 0; i < pos; i++) {
-		struct ast_dial *dial = dials[i];
+		struct ast_dial *dial = dial_list[i];
 
 		/* We have to wait for the async thread to exit as it's possible Meetme won't throw them out immediately */
 		ast_dial_join(dial);
