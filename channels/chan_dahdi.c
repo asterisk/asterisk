@@ -728,6 +728,7 @@ static struct dahdi_pvt {
 	struct ast_event_sub *mwi_event_sub;
 	char dialdest[256];
 	int onhooktime;
+	int fxsoffhookstate;
 	int msgstate;
 	int distinctivering;				/*!< Which distinctivering to use */
 	int cidrings;					/*!< Which ring to deliver CID on */
@@ -3433,6 +3434,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 					tone_zone_play_tone(p->subs[SUB_REAL].dfd, DAHDI_TONE_CONGESTION);
 				else
 					tone_zone_play_tone(p->subs[SUB_REAL].dfd, -1);
+				p->fxsoffhookstate = par.rxisoffhook;
 			}
 			break;
 		case SIG_FXSGS:
@@ -4648,6 +4650,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 			case SIG_FXOGS:
 			case SIG_FXOKS:
 				p->onhooktime = time(NULL);
+				p->fxsoffhookstate = 0;
 				p->msgstate = -1;
 				/* Check for some special conditions regarding call waiting */
 				if (idx == SUB_REAL) {
@@ -4799,6 +4802,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 			case SIG_FXOLS:
 			case SIG_FXOGS:
 			case SIG_FXOKS:
+				p->fxsoffhookstate = 1;
 				switch (ast->_state) {
 				case AST_STATE_RINGING:
 					dahdi_enable_ec(p);
@@ -7887,6 +7891,7 @@ static int handle_init_event(struct dahdi_pvt *i, int event)
 		case SIG_FXOGS:
 		case SIG_FXOKS:
 			res = dahdi_set_hook(i->subs[SUB_REAL].dfd, DAHDI_OFFHOOK);
+			i->fxsoffhookstate = 1;
 			if (res && (errno == EBUSY))
 				break;
 			if (i->cidspill) {
@@ -8040,6 +8045,9 @@ static int handle_init_event(struct dahdi_pvt *i, int event)
 			res = tone_zone_play_tone(i->subs[SUB_REAL].dfd, -1);
 			return -1;
 		}
+		if (i->sig == SIG_FXOLS || i->sig == SIG_FXOGS || i->sig == SIG_FXOKS) {
+			i->fxsoffhookstate = 0;
+		}
 		break;
 	case DAHDI_EVENT_POLARITY:
 		switch (i->sig) {
@@ -8182,7 +8190,10 @@ static void *do_monitor(void *data)
 				if (!found && ((i == last) || ((i == iflist) && !last))) {
 					last = i;
 					if (last) {
-						if (!last->mwisendactive &&	 last->sig & __DAHDI_SIG_FXO) {
+						/* Only allow MWI to be initiated on a quiescent fxs port */
+						if (!last->mwisendactive &&	last->sig & __DAHDI_SIG_FXO &&
+								!last->fxsoffhookstate && !last->owner &&
+								!ast_strlen_zero(last->mailbox) && (thispass - last->onhooktime > 3)) {
 							res = has_voicemail(last);
 							if (last->msgstate != res) {
 								/* Set driver resources for signalling VMWI */
@@ -8948,6 +8959,14 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				AST_EVENT_IE_END);
 		}
 		tmp->msgstate = -1;
+		if ((chan_sig == SIG_FXOKS) || (chan_sig == SIG_FXOLS) || (chan_sig == SIG_FXOGS)) {
+			memset(&p, 0, sizeof(p));
+			res = ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &p);
+			if (!res) {
+				tmp->fxsoffhookstate = p.rxisoffhook;
+			}
+		}
+		tmp->onhooktime = time(NULL);
 		tmp->group = conf->chan.group;
 		tmp->callgroup = conf->chan.callgroup;
 		tmp->pickupgroup= conf->chan.pickupgroup;
@@ -8958,7 +8977,6 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		tmp->rxgain = conf->chan.rxgain;
 		tmp->txgain = conf->chan.txgain;
 		tmp->tonezone = conf->chan.tonezone;
-		tmp->onhooktime = time(NULL);
 		if (tmp->subs[SUB_REAL].dfd > -1) {
 			set_actual_gain(tmp->subs[SUB_REAL].dfd, 0, tmp->rxgain, tmp->txgain, tmp->law);
 			if (tmp->dsp)
