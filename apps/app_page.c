@@ -125,7 +125,7 @@ static int page_exec(struct ast_channel *chan, void *data)
 	}
 
 	if (!(dial_list = ast_calloc(num_dials, sizeof(void *)))) {
-		ast_log(LOG_ERROR, "Can't allocate %ld bytes for dial list\n", (sizeof(void *) * num_dials));
+		ast_log(LOG_ERROR, "Can't allocate %ld bytes for dial list\n", (long)(sizeof(void *) * num_dials));
 		ast_module_user_remove(u);
 		return -1;
 	}
