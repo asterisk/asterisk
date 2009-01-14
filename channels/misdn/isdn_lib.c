@@ -769,7 +769,7 @@ static void clear_l3(struct misdn_stack *stack)
 	} 
 }
 
-static int newteid=0;
+static int new_te_id = 0;
 
 #define MAXPROCS 0x100
 
@@ -885,68 +885,64 @@ static int misdn_lib_get_short_status(struct misdn_stack *stack)
 
 
 
-static int create_process (int midev, struct misdn_bchannel *bc) {
+static int create_process(int midev, struct misdn_bchannel *bc)
+{
 	iframe_t ncr;
 	int l3_id;
-	int i;
-	struct misdn_stack *stack=get_stack_by_bc(bc);
-  
+	int proc_id;
+	struct misdn_stack *stack;
+
+	stack = get_stack_by_bc(bc);
 	if (stack->nt) {
-		if (find_free_chan_in_stack(stack, bc, bc->channel_preselected?bc->channel:0, 0)<0) return -1;
-		cb_log(4,stack->port, " -->  found channel: %d\n",bc->channel);
-    
-		for (i=0; i <= MAXPROCS; i++)
-			if (stack->procids[i]==0) break;
-    
-		if (i== MAXPROCS) {
+		if (find_free_chan_in_stack(stack, bc, bc->channel_preselected ? bc->channel : 0, 0) < 0) {
+			return -1;
+		}
+		cb_log(4, stack->port, " -->  found channel: %d\n", bc->channel);
+
+		for (proc_id = 0; proc_id < MAXPROCS; ++proc_id) {
+			if (stack->procids[proc_id] == 0) {
+				break;
+			}
+		}	/* end for */
+		if (proc_id == MAXPROCS) {
 			cb_log(0, stack->port, "Couldn't Create New ProcId.\n");
 			return -1;
 		}
-		stack->procids[i]=1;
 
-		l3_id = 0xff00 | i;
-    
-		ncr.prim = CC_NEW_CR | REQUEST; 
+		stack->procids[proc_id] = 1;
 
-		ncr.addr = (stack->upper_id | FLG_MSG_DOWN)  ;
-
-		ncr.dinfo = l3_id;
-		ncr.len = 0;
-
+		l3_id = 0xff00 | proc_id;
 		bc->l3_id = l3_id;
-		cb_log(3, stack->port, " --> new_l3id %x\n",l3_id);
-    
-	} else { 
+		cb_log(3, stack->port, " --> new_l3id %x\n", l3_id);
+	} else {
 		if (stack->ptp || bc->te_choose_channel) {
 			/* we know exactly which channels are in use */
-			if (find_free_chan_in_stack(stack, bc, bc->channel_preselected?bc->channel:0, bc->dec)<0) return -1;
-			cb_log(2,stack->port, " -->  found channel: %d\n",bc->channel);
+			if (find_free_chan_in_stack(stack, bc, bc->channel_preselected ? bc->channel : 0, bc->dec) < 0) {
+				return -1;
+			}
+			cb_log(2, stack->port, " -->  found channel: %d\n", bc->channel);
 		} else {
 			/* other phones could have made a call also on this port (ptmp) */
-			bc->channel=0xff;
+			bc->channel = 0xff;
 		}
-    
-    
+
 		/* if we are in te-mode, we need to create a process first */
-		if (newteid++ > 0xffff)
-			newteid = 0x0001;
-    
-		l3_id = (entity<<16) | newteid;
-		/* preparing message */
-		ncr.prim = CC_NEW_CR | REQUEST; 
+		if (++new_te_id > 0xffff) {
+			new_te_id = 0x0001;
+		}
 
-		ncr.addr = (stack->upper_id | FLG_MSG_DOWN)  ;
-
-		ncr.dinfo =l3_id;
-		ncr.len = 0;
-		/* send message */
-
+		l3_id = (entity << 16) | new_te_id;
 		bc->l3_id = l3_id;
-		cb_log(3, stack->port, "--> new_l3id %x\n",l3_id);
-    
-		mISDN_write(midev, &ncr, mISDN_HEADER_LEN+ncr.len, TIMEOUT_1SEC);
+		cb_log(3, stack->port, "--> new_l3id %x\n", l3_id);
+
+		/* send message */
+		ncr.prim = CC_NEW_CR | REQUEST;
+		ncr.addr = (stack->upper_id | FLG_MSG_DOWN);
+		ncr.dinfo = l3_id;
+		ncr.len = 0;
+		mISDN_write(midev, &ncr, mISDN_HEADER_LEN + ncr.len, TIMEOUT_1SEC);
 	}
-  
+
 	return l3_id;
 }
 
