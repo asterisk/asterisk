@@ -156,15 +156,15 @@ static inline int udptl_debug_test_addr(struct sockaddr_in *addr)
 
 static int decode_length(uint8_t *buf, int limit, int *len, int *pvalue)
 {
+	if (*len >= limit)
+		return -1;
 	if ((buf[*len] & 0x80) == 0) {
-		if (*len >= limit)
-			return -1;
 		*pvalue = buf[*len];
 		(*len)++;
 		return 0;
 	}
 	if ((buf[*len] & 0x40) == 0) {
-		if (*len >= limit - 1)
+		if (*len == limit - 1)
 			return -1;
 		*pvalue = (buf[*len] & 0x3F) << 8;
 		(*len)++;
@@ -172,8 +172,6 @@ static int decode_length(uint8_t *buf, int limit, int *len, int *pvalue)
 		(*len)++;
 		return 0;
 	}
-	if (*len >= limit)
-		return -1;
 	*pvalue = (buf[*len] & 0x3F) << 14;
 	(*len)++;
 	/* Indicate we have a fragment */
