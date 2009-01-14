@@ -81,6 +81,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #elif defined(HAVE_SYSCTL)
 #include <sys/param.h>
 #include <sys/sysctl.h>
+#if !defined(__OpenBSD__)
+#include <sys/vmmeter.h>
+#if defined(__FreeBSD__)
+#include <vm/vm_param.h>
+#endif
+#endif
 #if defined(HAVE_SWAPCTL)
 #include <sys/swap.h>
 #endif
@@ -552,7 +558,7 @@ static int swapmode(int *used, int *total)
 static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int64_t physmem, freeram;
-	int totalswap, freeswap, nprocs;
+	int totalswap = 0, freeswap = 0, nprocs = 0;
 	long uptime = 0;
 #if defined(HAVE_SYSINFO)
 	struct sysinfo sys_info;
@@ -568,7 +574,7 @@ static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cl
 	struct vmtotal vmtotal;
 	struct timeval	boottime;
 	time_t	now;
-	int mib[2], pagesize, usedswap;
+	int mib[2], pagesize, usedswap = 0;
 	size_t len;
 	/* calculate the uptime by looking at boottime */
 	time(&now);
@@ -581,7 +587,11 @@ static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cl
 	uptime = uptime/3600;
 	/* grab total physical memory  */
 	mib[0] = CTL_HW;
+#if defined(__OpenBSD__)
 	mib[1] = HW_PHYSMEM64;
+#else
+	mib[1] = HW_PHYSMEM;
+#endif
 	len = sizeof(physmem);
 	sysctl(mib, 2, &physmem, &len, NULL, 0);
 
@@ -605,10 +615,12 @@ static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cl
 	swapmode(&usedswap, &totalswap); 
 	freeswap = (totalswap - usedswap);
 	/* grab number of processes */
+#if defined(__OpenBSD__)
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_NPROCS;
 	len = sizeof(nprocs);
 	sysctl(mib, 2, &nprocs, &len, NULL, 0);
+#endif
 #endif
 
 	switch (cmd) {
@@ -1137,7 +1149,13 @@ static int read_credentials(int fd, char *buffer, size_t size, struct console *c
 	struct ucred cred;
 	socklen_t len = sizeof(cred);
 #endif
-	int result, uid, gid;
+#if defined(HAVE_GETPEEREID)
+	uid_t uid;
+	gid_t gid;
+#else
+	int uid, gid;
+#endif
+	int result;
 
 	result = read(fd, buffer, size);
 	if (result < 0) {
