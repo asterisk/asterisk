@@ -5377,6 +5377,12 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		ast_log(LOG_NOTICE, "Empty registration from %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 		return -1;
 	}
+
+	ast_copy_string(iaxs[callno]->peer, peer, sizeof(iaxs[callno]->peer));
+	/* Choose lowest expiry number */
+	if (expire && (expire < iaxs[callno]->expiry)) 
+		iaxs[callno]->expiry = expire;
+
 	/* We release the lock for the call to prevent a deadlock, but it's okay because
 	   only the current thread could possibly make it go away or make changes */
 	ast_mutex_unlock(&iaxsl[callno]);
@@ -5387,6 +5393,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	if (!p) {
 		if (authdebug)
 			ast_log(LOG_NOTICE, "No registration for peer '%s' (from %s)\n", peer, ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
+		ast_copy_string(iaxs[callno]->secret, "invalidpassword", sizeof(iaxs[callno]->secret));
 		return -1;
 	}
 
@@ -5474,18 +5481,13 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 				destroy_peer(p);
 			return -1;
 		}
-	} else if (!ast_strlen_zero(md5secret) || !ast_strlen_zero(secret)) {
+	} else if (!ast_strlen_zero(p->secret) || !ast_strlen_zero(p->inkeys)) {
 		if (authdebug)
-			ast_log(LOG_NOTICE, "Inappropriate authentication received\n");
+			ast_log(LOG_NOTICE, "Inappropriate authentication received for '%s'\n", p->name);
 		if (ast_test_flag(p, IAX_TEMPONLY))
 			destroy_peer(p);
 		return -1;
 	}
-	ast_copy_string(iaxs[callno]->peer, peer, sizeof(iaxs[callno]->peer));
-	/* Choose lowest expiry number */
-	if (expire && (expire < iaxs[callno]->expiry)) 
-		iaxs[callno]->expiry = expire;
-
 	ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
 
 	if (ast_test_flag(p, IAX_TEMPONLY))
@@ -6102,7 +6104,7 @@ static int registry_authrequest(char *name, int callno)
 	authmethods = p ? p->authmethods : lastauthmethod ? lastauthmethod : (IAX_AUTH_PLAINTEXT | IAX_AUTH_MD5);
 	if (p && ast_test_flag(p, IAX_TEMPONLY)) {
 		destroy_peer(p);
-	} else if (!delayreject) {
+	} else if (!p && !delayreject) {
 		ast_log(LOG_WARNING, "No such peer '%s'\n", name);
 		return 0;
 	}
@@ -7845,11 +7847,7 @@ retryowner2:
 				/* For security, always ack immediately */
 				if (delayreject)
 					send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
-				if (register_verify(fr->callno, &sin, &ies)) {
-					/* Send delayed failure */
-					auth_fail(fr->callno, IAX_COMMAND_REGREJ);
-					break;
-				}
+				register_verify(fr->callno, &sin, &ies);
 				if ((ast_strlen_zero(iaxs[fr->callno]->secret) && ast_strlen_zero(iaxs[fr->callno]->inkeys)) || ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_AUTHENTICATED)) {
 					if (f.subclass == IAX_COMMAND_REGREL)
 						memset(&sin, 0, sizeof(sin));
