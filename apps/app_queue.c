@@ -2620,8 +2620,9 @@ static void queue_transfer_fixup(void *data, struct ast_channel *old_chan, struc
 
 	update_queue(qe->parent, member, callcompletedinsl);
 	
-	if ((datastore = ast_channel_datastore_find(new_chan, &queue_transfer_info, NULL))) {
-		ast_channel_datastore_remove(new_chan, datastore);
+	/* No need to lock the channels because they are already locked in ast_do_masquerade */
+	if ((datastore = ast_channel_datastore_find(old_chan, &queue_transfer_info, NULL))) {
+		ast_channel_datastore_remove(old_chan, datastore);
 	} else {
 		ast_log(LOG_WARNING, "Can't find the queue_transfer datastore.\n");
 	}
@@ -2632,6 +2633,8 @@ static void queue_transfer_fixup(void *data, struct ast_channel *old_chan, struc
  * When a caller is atxferred, then the queue_transfer_info datastore
  * is removed from the channel. If it's still there after the bridge is
  * broken, then the caller was not atxferred.
+ *
+ * \note Only call this with chan locked
  */
 static int attended_transfer_occurred(struct ast_channel *chan)
 {
@@ -2906,9 +2909,11 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	 * to which the datastore was moved hangs up, it will attempt to free this
 	 * datastore again, causing a crash
 	 */
+	ast_channel_lock(qe->chan);
 	if (datastore && !ast_channel_datastore_remove(qe->chan, datastore)) {
 		ast_channel_datastore_free(datastore);
 	}
+	ast_channel_unlock(qe->chan);
 	ast_mutex_lock(&qe->parent->lock);
 	if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY) {
 		store_next(qe, outgoing);
@@ -3155,6 +3160,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		transfer_ds = setup_transfer_datastore(qe, member, callstart, callcompletedinsl);
 		bridge = ast_bridge_call(qe->chan,peer, &bridge_config);
 
+		ast_channel_lock(qe->chan);
 		if (!attended_transfer_occurred(qe->chan)) {
 			struct ast_datastore *tds;
 			if (strcasecmp(oldcontext, qe->chan->context) || strcasecmp(oldexten, qe->chan->exten)) {
@@ -3195,17 +3201,16 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 							(long)(time(NULL) - callstart),
 							qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
 			}
-			ast_channel_lock(qe->chan);
-			if ((tds = ast_channel_datastore_find(qe->chan, &queue_transfer_info, NULL))) {
+			if ((tds = ast_channel_datastore_find(qe->chan, &queue_transfer_info, NULL))) {	
 				ast_channel_datastore_remove(qe->chan, tds);
 			}
-			ast_channel_unlock(qe->chan);
 			update_queue(qe->parent, member, callcompletedinsl);
 		}
 
 		if (transfer_ds) {
 			ast_channel_datastore_free(transfer_ds);
 		}
+		ast_channel_unlock(qe->chan);
 		ast_hangup(peer);
 		res = bridge ? bridge : 1;
 		ao2_ref(member, -1);
