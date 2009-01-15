@@ -386,12 +386,18 @@ start: expr { ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(st
 	;
 
 arglist: expr { $$ = alloc_expr_node(AST_EXPR_NODE_VAL); $$->val = $1;}
-       | arglist TOK_COMMA expr %prec TOK_RP{struct expr_node *x = alloc_expr_node(AST_EXPR_NODE_VAL);
+       | arglist TOK_COMMA expr %prec TOK_RP {struct expr_node *x = alloc_expr_node(AST_EXPR_NODE_VAL);
                                  struct expr_node *t;
 								 DESTROY($2);
                                  for (t=$1;t->right;t=t->right)
 						         	  ;
                                  $$ = $1; t->right = x; x->val = $3;}
+       | arglist TOK_COMMA %prec TOK_RP {struct expr_node *x = alloc_expr_node(AST_EXPR_NODE_VAL);
+                                 struct expr_node *t;  /* NULL args should OK */
+								 DESTROY($2);
+                                 for (t=$1;t->right;t=t->right)
+						         	  ;
+                                 $$ = $1; t->right = x; x->val = make_str("");}
        ;
 
 expr: 
@@ -702,7 +708,7 @@ static char *compose_func_args(struct expr_node *arglist)
 		char numbuf[30];
 		
 		if (t != arglist)
-			strcat(argbuf,"|");
+			strcat(argbuf,",");
 		
 		if (t->val) {
 			if (t->val->type == AST_EXPR_number) {
