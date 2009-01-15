@@ -55,4 +55,5 @@
 ;extensions => odbc,asterisk
 ;queues => odbc,asterisk
 ;queue_members => odbc,asterisk
+;meetme => mysql,conferences
 
