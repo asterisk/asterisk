@@ -301,6 +301,32 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Always returns <literal>0</literal>.</para>
 		</description>
 	</application>
+	<application name="SIPRemoveHeader" language="en_US">
+		<synopsis>
+			Remove SIP headers previously added with SIPAddHeader
+		</synopsis>
+		<syntax>
+			<parameter name="Header" required="false" />
+		</syntax>
+		<description>
+			<para>SIPRemoveHeader() allows you to remove headers which were previously 
+			added with SIPAddHeader(). If no parameter is supplied, all previously added 
+			headers will be removed. If a parameter is supplied, only the matching headers 
+			will be removed.</para>
+			<para>For example you have added these 2 headers:</para>
+			<para>SIPAddHeader(P-Asserted-Identity: sip:foo@bar);</para>
+			<para>SIPAddHeader(P-Preferred-Identity: sip:bar@foo);</para>
+			<para></para>
+			<para>// remove all headers</para>
+			<para>SIPRemoveHeader();</para>
+			<para>// remove all P- headers</para>
+			<para>SIPRemoveHeader(P-);</para>
+			<para>// remove only the PAI header (note the : at the end)</para>
+			<para>SIPRemoveHeader(P-Asserted-Identity:);</para>
+			<para></para>
+			<para>Always returns <literal>0</literal>.</para>
+		</description>
+	</application>
 	<function name="SIP_HEADER" language="en_US">
 		<synopsis>
 			Gets the specified SIP header.
@@ -23901,6 +23927,7 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 
 static char *app_dtmfmode = "SIPDtmfMode";
 static char *app_sipaddheader = "SIPAddHeader";
+static char *app_sipremoveheader = "SIPRemoveHeader";
 
 /*! \brief Set the DTMFmode for an outbound SIP call (application) */
 static int sip_dtmfmode(struct ast_channel *chan, void *data)
@@ -23995,6 +24022,38 @@ static int sip_addheader(struct ast_channel *chan, void *data)
 	} else {
 		ast_log(LOG_WARNING, "Too many SIP headers added, max 50\n");
 	}
+	ast_channel_unlock(chan);
+	return 0;
+}
+
+/*! \brief Remove SIP headers added previously with SipAddHeader application */
+static int sip_removeheader(struct ast_channel *chan, void *data)
+{
+	struct ast_var_t *newvariable;
+	struct varshead *headp;
+ 	int removeall = 0;
+	char *inbuf = (char *) data;
+
+	if (ast_strlen_zero(inbuf)) {
+		removeall = 1;
+	}
+	ast_channel_lock(chan);
+ 
+	headp=&chan->varshead;
+	AST_LIST_TRAVERSE_SAFE_BEGIN (headp, newvariable, entries) {
+		if (strncasecmp(ast_var_name(newvariable), "SIPADDHEADER", strlen("SIPADDHEADER")) == 0) {
+			if (removeall || (!strncasecmp(ast_var_value(newvariable),inbuf,strlen(inbuf)))) {
+				if (sipdebug)
+					ast_log(LOG_DEBUG,"removing SIP Header \"%s\" as %s\n",
+						ast_var_value(newvariable),
+						ast_var_name(newvariable));
+				AST_LIST_REMOVE_CURRENT(entries);
+				ast_var_delete(newvariable);
+			}
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+ 
 	ast_channel_unlock(chan);
 	return 0;
 }
@@ -24282,6 +24341,7 @@ static int load_module(void)
 	/* Register dialplan applications */
 	ast_register_application_xml(app_dtmfmode, sip_dtmfmode);
 	ast_register_application_xml(app_sipaddheader, sip_addheader);
+	ast_register_application_xml(app_sipremoveheader, sip_removeheader);
 
 	/* Register dialplan functions */
 	ast_custom_function_register(&sip_header_function);
@@ -24343,6 +24403,7 @@ static int unload_module(void)
 	/* Unregister dial plan applications */
 	ast_unregister_application(app_dtmfmode);
 	ast_unregister_application(app_sipaddheader);
+	ast_unregister_application(app_sipremoveheader);
 
 	/* Unregister CLI commands */
 	ast_cli_unregister_multiple(cli_sip, ARRAY_LEN(cli_sip));
