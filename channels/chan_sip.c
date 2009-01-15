@@ -7594,10 +7594,6 @@ static int add_line(struct sip_request *req, const char *line)
 	if (!req->lines)
 		/* Add extra empty return */
 		req->len += ast_str_append(&req->data, 0, "\r\n");
-	if (req->len >= sizeof(req->data->str) - 4) {
-		ast_log(LOG_WARNING, "Out of space, can't add anymore\n");
-		return -1;
-	}
 	req->line[req->lines] = req->data->str + req->len;
 	ast_str_append(&req->data, 0, "%s", line);
 	req->len += strlen(req->line[req->lines]);
