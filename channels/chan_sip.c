@@ -8057,6 +8057,7 @@ static int add_header(struct sip_request *req, const char *var, const char *valu
 
 	if (sip_cfg.compactheaders) {
 		var = find_alias(var, var);
+	}
 
 	ast_str_append(&req->data, 0, "%s: %s\r\n", var, value);
 	req->header[req->headers] = req->data->str + req->len;
