@@ -44,6 +44,8 @@ SIP Changes
  * The parsing of register => lines in sip.conf has been modified to allow a port
    to be present in the "user" portion. Please see the sip.conf.sample file for more
    information
+ * Added a function to remove SIP headers added in the dialplan before the
+   first INVITE is generated - SIPRemoveHeader()
 
 Skinny Changes
 --------------
