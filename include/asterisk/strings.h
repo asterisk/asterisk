@@ -765,17 +765,18 @@ AST_INLINE_API(char *ast_str_append_escapecommas(struct ast_str **buf, size_t ma
 #include <sqlext.h>
 #include <sqltypes.h>
 
-AST_INLINE_API(SQLRETURN ast_str_SQLGetData(struct ast_str **buf, size_t maxlen, SQLHSTMT StatementHandle, SQLUSMALLINT ColumnNumber, SQLSMALLINT TargetType, SQLLEN *StrLen_or_Ind),
+AST_INLINE_API(SQLRETURN ast_str_SQLGetData(struct ast_str **buf, int pmaxlen, SQLHSTMT StatementHandle, SQLUSMALLINT ColumnNumber, SQLSMALLINT TargetType, SQLLEN *StrLen_or_Ind),
 {
 	SQLRETURN res;
-	if (maxlen == 0) {
+	size_t maxlen;
+	if (pmaxlen == 0) {
 		if (SQLGetData(StatementHandle, ColumnNumber, TargetType, (*buf)->__AST_STR_STR, 0, StrLen_or_Ind) == SQL_SUCCESS_WITH_INFO) {
 			ast_str_make_space(buf, *StrLen_or_Ind + 1);
 		}
-		maxlen = (*buf)->__AST_STR_LEN;
-	} else if (maxlen > 0) {
-		ast_str_make_space(buf, maxlen);
+	} else if (pmaxlen > 0) {
+		ast_str_make_space(buf, pmaxlen);
 	}
+	maxlen = (*buf)->__AST_STR_LEN;
 	res = SQLGetData(StatementHandle, ColumnNumber, TargetType, (*buf)->__AST_STR_STR, maxlen, StrLen_or_Ind);
 	(*buf)->__AST_STR_USED = *StrLen_or_Ind;
 	return res;
