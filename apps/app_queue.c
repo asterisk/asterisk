@@ -2228,9 +2228,13 @@ static void hangupcalls(struct callattempt *outgoing, struct ast_channel *except
 	struct callattempt *oo;
 
 	while (outgoing) {
+		/* If someone else answered the call we should indicate this in the CANCEL */
 		/* Hangup any existing lines we have open */
-		if (outgoing->chan && (outgoing->chan != exception))
+		if (outgoing->chan && (outgoing->chan != exception)) {
+			if (exception)
+				ast_set_flag(outgoing->chan, AST_FLAG_ANSWERED_ELSEWHERE);
 			ast_hangup(outgoing->chan);
+		}
 		oo = outgoing;
 		outgoing = outgoing->q_next;
 		if (oo->member)
