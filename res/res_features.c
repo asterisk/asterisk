@@ -176,8 +176,6 @@ struct ast_bridge_thread_obj
 	struct ast_channel *peer;
 };
 
-
-
 /*! \brief store context, priority and extension */
 static void set_c_e_p(struct ast_channel *chan, const char *context, const char *ext, int pri)
 {
@@ -510,6 +508,10 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, i
 	/* Make the masq execute */
 	if ((f = ast_read(chan))) {
 		ast_frfree(f);
+	}
+
+	if (peer == rchan) {
+		peer = chan;
 	}
 
 	if (!play_announcement) {
@@ -1927,6 +1929,10 @@ static void *do_parking_thread(void *ignore)
 
 						ast_channel_unlock(chan);
 
+						if (!strncmp(peername, "Parked/", 7)) {
+							peername += 7;
+						}
+
 						if (dialfeatures)
 							snprintf(returnexten, sizeof(returnexten), "%s|30|%s", peername, dialfeatures->options);
 						else /* Existing default */
@@ -2059,7 +2065,6 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 	/* Cache the original channel name in case we get masqueraded in the middle
 	 * of a park--it is still theoretically possible for a transfer to happen before
 	 * we get here, but it is _really_ unlikely */
-	char *orig_chan_name = ast_strdupa(chan->name);
 	char orig_exten[AST_MAX_EXTENSION];
 	int orig_priority = chan->priority;
 
@@ -2084,11 +2089,7 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 		res = ast_safe_sleep(chan, 1000);
 	/* Park the call */
 	if (!res) {
-		res = park_call_full(chan, chan, 0, NULL, orig_chan_name);  /* In experiments, using the masq_park_call
-																	   func here yielded no difference with 
-																	   current implementation. I saw no advantage
-																	   in calling it instead.
-																	 */
+		res = masq_park_call_announce(chan, chan, 0, NULL);
 		/* Continue on in the dialplan */
 		if (res == 1) {
 			ast_copy_string(chan->exten, orig_exten, sizeof(chan->exten));
