@@ -404,16 +404,20 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;----------------------------------------- OUTBOUND SIP REGISTRATIONS  ------------------------
 ; Asterisk can register as a SIP user agent to a SIP proxy (provider)
 ; Format for the register statement is:
-;       register => [transport://]user[:secret[:authuser]]@host[:port][/extension][~expiry]
+;       register => [transport://]user[:secret[:authuser]]@domain[:port][/extension][~expiry]
 ;
 ; 
+;
+; domain is either 
+;	- domain in DNS
+; 	- host name in DNS
+;	- the name of a peer defined below or in realtime
+; The domain is where you register your username, so your SIP uri you are registering to 
+; is username@domain
 ;
 ; If no extension is given, the 's' extension is used. The extension needs to
 ; be defined in extensions.conf to be able to accept calls from this SIP proxy
 ; (provider).
-;
-; host is either a host name defined in DNS or the name of a section defined
-; below.
 ;
 ; A similar effect can be achieved by adding a "callbackextension" option in a peer section.
 ; this is equivalent to having the following line in the general section:
