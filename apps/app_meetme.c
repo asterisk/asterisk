@@ -2187,10 +2187,12 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		user->user_no = AST_LIST_LAST(&conf->userlist)->user_no + 1;
 
 	if (rt_schedule && conf->maxusers)
-		if (user->user_no > conf->maxusers) {
+		if (conf->users >= conf->maxusers) {
 			/* Sorry, but this confernce has reached the participant limit! */	
 			if (!ast_streamfile(chan, "conf-full", chan->language))
 				ast_waitstream(chan, "");
+			ast_mutex_unlock(&conf->playlock);
+			user->user_no = 0;
 			goto outrun;
 		}
 
