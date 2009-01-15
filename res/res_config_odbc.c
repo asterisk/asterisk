@@ -29,11 +29,7 @@
  */
 
 /*** MODULEINFO
-	<depend>odbc</depend>
-	<depend>ltdl</depend>
 	<depend>res_odbc</depend>
-	<use>unixodbc</use>
-	<use>iodbc</use>
  ***/
 
 #include "asterisk.h"

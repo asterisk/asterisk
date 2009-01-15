@@ -25,9 +25,8 @@
  */
 
 /*** MODULEINFO
-	<depend>odbc</depend>
-	<use>unixodbc</use>
-	<use>iodbc</use>
+	<depend>generic_odbc</depend>
+	<depend>ltdl</depend>
  ***/
 
 #include "asterisk.h"

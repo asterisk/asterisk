@@ -47,10 +47,8 @@ c-client (http://www.washington.edu/imap/
 /*** MAKEOPTS
 <category name="MENUSELECT_OPTS_app_voicemail" displayname="Voicemail Build Options" positive_output="yes" remove_on_change="apps/app_voicemail.o apps/app_voicemail.so apps/app_directory.o apps/app_directory.so">
 	<member name="ODBC_STORAGE" displayname="Storage of Voicemail using ODBC">
-		<depend>odbc</depend>
+		<depend>generic_odbc</depend>
 		<depend>ltdl</depend>
-		<use>unixodbc</use>
-		<use>iodbc</use>
 		<conflict>IMAP_STORAGE</conflict>
 		<defaultenabled>no</defaultenabled>
 	</member>

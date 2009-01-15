@@ -1319,12 +1319,6 @@ AST_EXT_LIB_CHECK([NEWT], [newt], [newtBell], [newt.h])
 
 AST_EXT_LIB_CHECK([UNIXODBC], [odbc], [SQLConnect], [sql.h], [])
 
-PBX_ODBC=0
-if test "$PBX_IODBC" = "1" -o "$PBX_UNIXODBC" = "1"; then
-   PBX_ODBC=1
-fi
-AC_SUBST(PBX_ODBC)
-
 AST_EXT_LIB_CHECK([OGG], [ogg], [ogg_sync_init], [])
 
 # Non-glibc platforms require libexecinfo for backtrace support
@@ -1681,6 +1675,25 @@ if test "${USE_CURL}" != "no"; then
       fi
    fi
 fi
+
+# build a GENERIC_ODBC result based on the presence of either UnixODBC (preferred)
+# or iODBC
+
+PBX_GENERIC_ODBC=0
+
+if test "${PBX_UNIXODBC}" = 1; then
+   PBX_GENERIC_ODBC=1
+   GENERIC_ODBC_LIB="${UNIXODBC_LIB}"
+   GENERIC_ODBC_INCLUDE="${UNIXODBC_INCLUDE}"
+elif test "${PBX_IODBC}" = 1; then
+   PBX_GENERIC_ODBC=1
+   GENERIC_ODBC_LIB="${IODBC_LIB}"
+   GENERIC_ODBC_INCLUDE="${IODBC_INCLUDE}"
+fi
+
+AC_SUBST([GENERIC_ODBC_LIB])
+AC_SUBST([GENERIC_ODBC_INCLUDE])
+AC_SUBST([PBX_GENERIC_ODBC])
 
 AC_CONFIG_FILES([build_tools/menuselect-deps makeopts channels/h323/Makefile])
 AST_CHECK_MANDATORY
