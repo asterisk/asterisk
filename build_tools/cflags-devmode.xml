@@ -1,0 +1,17 @@
+	<category name="MENUSELECT_CFLAGS" displayname="Compiler Flags - Development">
+		<member name="DEBUG_SCHEDULER" displayname="Enable Scheduler Debugging Output">
+		</member>
+		<member name="DEBUG_THREADLOCALS" displayname="Enable Thread-Local-Storage Debugging">
+		</member>
+		<member name="DETECT_DEADLOCKS" displayname="Detect Deadlocks">
+			<depend>DEBUG_THREADS</depend>
+		</member>
+		<member name="DO_CRASH" displayname="Crash on fatal errors">
+		</member>
+		<member name="DUMP_SCHEDULER" displayname="Dump Scheduler Contents for Debugging">
+		</member>
+		<member name="MTX_PROFILE" displayname="Enable Code Profiling Using TSC Counters">
+		</member>
+		<member name="TRACE_FRAMES" displayname="Trace Frame Allocations">
+		</member>
+	</category>

@@ -1,0 +1,18 @@
+PLEASE NOTE
+
+The cdr_tds module is NOT compatible with version 0.63 of FreeTDS.
+
+The cdr_tds module is known to work with FreeTDS version 0.62.1;
+it should also work with 0.62.2, 0.62.3 and 0.62.4, which are bug
+fix releases.
+
+The cdr_tds module uses the raw "libtds" API of FreeTDS. It appears
+that from 0.63 onwards, this is not considered a published API
+of FreeTDS and is subject to change without notice.
+
+Between 0.62.x and 0.63 of FreeTDS, many incompatible changes
+have been made to the libtds API.
+
+For newer versions of FreeTDS, it is recommended that you use the
+ODBC driver.
+
