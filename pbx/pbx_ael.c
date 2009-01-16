@@ -762,6 +762,7 @@ static int extension_matches(pval *here, const char *exten, const char *pattern)
 				while ( *p && *p != ']' ) {
 					*r++ = *p++;
 				}
+				*r++ = ']';
 				if ( *p != ']') {
 					ast_log(LOG_WARNING, "Warning: file %s, line %d-%d: The extension pattern '%s' is missing a closing bracket \n",
 							here->filename, here->startline, here->endline, pattern);
