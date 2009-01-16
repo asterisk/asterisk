@@ -15267,7 +15267,11 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		break;
 	case 408:	/* Request timeout */
 		/* Got a timeout response, so reset the counter of failed responses */
-		r->regattempts = 0;
+		if (r) {
+			r->regattempts = 0;
+		} else {
+			ast_log(LOG_WARNING, "Got a 408 response to our REGISTER on call %s after we had destroyed the registry object\n", p->callid);
+		}
 		break;
 	case 423:	/* Interval too brief */
 		r->expiry = atoi(get_header(req, "Min-Expires"));
