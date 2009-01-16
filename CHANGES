@@ -40,7 +40,7 @@ SIP Changes
    version received is different from the current SDP session version.  This
    option is required to interoperate with devices that have non-standard SDP
    session version implementations (observed with Microsoft OCS).  This option
-   is diabled by default.
+   is disabled by default.
  * The parsing of register => lines in sip.conf has been modified to allow a port
    to be present in the "user" portion. Please see the sip.conf.sample file for more
    information
