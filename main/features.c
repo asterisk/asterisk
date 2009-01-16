@@ -732,12 +732,13 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 	return ast_park_call_full(chan, peer, &args);
 }
 
-static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout, int play_announcement)
+static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout, int play_announcement, struct ast_park_call_args *args)
 {
 	struct ast_channel *chan;
 	struct ast_frame *f;
 	char *orig_chan_name = NULL;
 	int park_status;
+	struct ast_park_call_args park_args = {0,};
 
 	/* Make a new, fake channel that we'll use to masquerade in the real one */
 	if (!(chan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, rchan->accountcode, rchan->exten, rchan->context, rchan->amaflags, "Parked/%s",rchan->name))) {
@@ -761,19 +762,22 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, i
 		orig_chan_name = ast_strdupa(chan->name);
 	}
 
-	{
-		struct ast_park_call_args args = {
-			.timeout = timeout,
-			.extout = extout,
-			.orig_chan_name = orig_chan_name,
-		};
+	if (peer == rchan) {
+		peer = chan;
+	}
 
-		park_status = ast_park_call_full(chan, peer, &args);
-		if (park_status == 1) {
-		/* would be nice to play "invalid parking extension" */
-			ast_hangup(chan);
-			return -1;
-		}
+	if (!args) {
+		args = &park_args;
+		args->timeout = timeout,
+		args->extout = extout,
+		args->orig_chan_name = orig_chan_name;
+	} 
+
+	park_status = ast_park_call_full(chan, peer, args);
+	if (park_status == 1) {
+	/* would be nice to play "invalid parking extension" */
+		ast_hangup(chan);
+		return -1;
 	}
 
 	return 0;
@@ -782,15 +786,18 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, i
 /* Park call via masquraded channel */
 int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout)
 {
-	return masq_park_call(rchan, peer, timeout, extout, 0);
+	return masq_park_call(rchan, peer, timeout, extout, 0, NULL);
+}
+
+static int masq_park_call_announce_args(struct ast_channel *rchan, struct ast_channel *peer, struct ast_park_call_args *args)
+{
+	return masq_park_call(rchan, peer, 0, NULL, 1, args);
 }
 
 static int masq_park_call_announce(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout)
 {
-	return masq_park_call(rchan, peer, timeout, extout, 1);
+	return masq_park_call(rchan, peer, timeout, extout, 1, NULL);
 }
-
-
 
 #define FEATURE_SENSE_CHAN	(1 << 0)
 #define FEATURE_SENSE_PEER	(1 << 1)
@@ -2677,6 +2684,10 @@ int manage_parkinglot(struct ast_parkinglot *curlot, fd_set *rfds, fd_set *efds,
 
 					ast_channel_unlock(chan);
 
+					if (!strncmp(peername, "Parked/", 7)) {
+						peername += 7;
+					}
+
 					if (dialfeatures)
 						snprintf(returnexten, sizeof(returnexten), "%s,,%s", peername, dialfeatures->options);
 					else /* Existing default */
@@ -2922,11 +2933,7 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 		ast_app_parse_options(park_call_options, &flags, NULL, app_args.options);
 		args.flags = flags.flags;
 
-		res = ast_park_call_full(chan, chan, &args); /* In experiments, using the masq_park_call
-													   func here yielded no difference with 
-													   current implementation. I saw no advantage
-													   in calling it instead.
-													 */
+		res = masq_park_call_announce_args(chan, chan, &args);
 		/* Continue on in the dialplan */
 		if (res == 1) {
 			ast_copy_string(chan->exten, orig_exten, sizeof(chan->exten));
