@@ -163,6 +163,10 @@ SAY_EXTERN int (* ast_say_datetime_from_now)(struct ast_channel *chan, time_t t,
 
 SAY_EXTERN int (* ast_say_date_with_format)(struct ast_channel *chan, time_t t, const char *ints, const char *lang, const char *format, const char *timezone) SAY_INIT(ast_say_date_with_format);
 
+int ast_say_counted_noun(struct ast_channel *chan, int num, const char *noun);
+
+int ast_say_counted_adjective(struct ast_channel *chan, int num, const char *adjective, const char *gender);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
