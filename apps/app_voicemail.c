@@ -7072,7 +7072,102 @@ static int vm_intro_gr(struct ast_channel *chan, struct vm_state *vms)
 	return res;
 }
 
-/* Hebrew syntax */
+/* Version of vm_intro() designed to work for many languages.
+ *
+ * It is hoped that this function can prevent the proliferation of 
+ * language-specific vm_intro() functions and in time replace the language-
+ * specific functions which already exist.  An examination of the language-
+ * specific functions revealed that they all corrected the same deficiencies
+ * in vm_intro_en() (which was the default function). Namely:
+ *
+ *  1) The vm-Old and vm-INBOX sound files were overloaded.  The English 
+ *     wording of the voicemail greeting hides this problem.  For example,
+ *     vm-INBOX contains only the word "new".  This means that both of these
+ *     sequences produce valid utterances:
+ *      * vm-youhave digit/1 vm-INBOX vm-message (you have one new message)
+ *      * vm-press digit/1 vm-for vm-INBOX vm-messages (press 1 for new messages)
+ *     However, if we rerecord vm-INBOX to say "the new" (which is unavoidable
+ *     in many languages) the first utterance becomes "you have 1 the new message".
+ *  2) The function contains hardcoded rules for pluralizing the word "message".
+ *     These rules are correct for English, but not for many other languages.
+ *  3) No attempt is made to pluralize the adjectives ("old" and "new") as
+ *     required in many languages.
+ *  4) The gender of the word for "message" is not specified. This is a problem
+ *     because in many languages the gender of the number in phrases such
+ *     as "you have one new message" must match the gender of the word
+ *     meaning "message".
+ *
+ * Fixing these problems for each new language has meant duplication of effort.
+ * This new function solves the problems in the following general ways:
+ *  1) Add new sound files vm-new and vm-old.  These can be linked to vm-INBOX
+ *     and vm-Old respectively for those languages where it makes sense.
+ *  2) Call ast_say_counted_noun() to put the proper gender and number prefix
+ *     on vm-message.
+ *  3) Call ast_say_counted_adjective() to put the proper gender and number
+ *     prefix on vm-new and vm-old (none for English).
+ *  4) Pass the gender of the language's word for "message" as an agument to
+ *     this function which is can in turn pass on to the functions which 
+ *     say numbers and put endings on nounds and adjectives.
+ *
+ * All languages require these messages:
+ *  vm-youhave		"You have..."
+ *  vm-and		"and"
+ *  vm-no		"no" (in the sense of "none", as in "you have no messages")
+ *
+ * To use it for English, you will need these additional sound files:
+ *  vm-new		"new"
+ *  vm-message		"message", singular
+ *  vm-messages		"messages", plural
+ *
+ * If you use it for Russian and other slavic languages, you will need these additional sound files:
+ *
+ *  vm-newn		"novoye" (singular, neuter)
+ *  vm-newx		"novikh" (counting plural form, genative plural)
+ *  vm-message		"sobsheniye" (singular form)
+ *  vm-messagex1	"sobsheniya" (first counting plural form, genative singular)
+ *  vm-messagex2	"sobsheniy" (second counting plural form, genative plural)
+ *  digits/1n		"odno" (neuter singular for phrases such as "one message" or "thirty one messages")
+ *  digits/2n		"dva" (neuter singular)
+ */
+static int vm_intro_multilang(struct ast_channel *chan, struct vm_state *vms, const char message_gender[])
+{
+	int res;
+	int lastnum = 0;
+
+	res = ast_play_and_wait(chan, "vm-youhave");
+
+	if (!res && vms->newmessages) {
+		lastnum = vms->newmessages;
+
+		if (!(res = ast_say_number(chan, lastnum, AST_DIGIT_ANY, chan->language, message_gender))) {
+			res = ast_say_counted_adjective(chan, lastnum, "vm-new", message_gender);
+		}
+
+		if (!res && vms->oldmessages) {
+			res = ast_play_and_wait(chan, "vm-and");
+		}
+	}
+
+	if (!res && vms->oldmessages) {
+		lastnum = vms->oldmessages;
+
+		if (!(res = ast_say_number(chan, lastnum, AST_DIGIT_ANY, chan->language, message_gender))) {
+			res = ast_say_counted_adjective(chan, lastnum, "vm-old", message_gender);
+		}
+	}
+
+	if (!res) {
+		if (lastnum == 0) {
+			res = ast_play_and_wait(chan, "vm-no");
+		} else {
+			res = ast_say_counted_noun(chan, lastnum, "vm-message");
+		}
+	}
+
+	return res;
+}
+
+/* Default Hebrew syntax */
 static int vm_intro_he(struct ast_channel *chan, struct vm_state *vms)
 {
 	int res = 0;
@@ -7755,78 +7850,6 @@ static int vm_intro_cz(struct ast_channel *chan,struct vm_state *vms)
 	return res;
 }
 
-static int get_lastdigits(int num)
-{
-	num %= 100;
-	return (num < 20) ? num : num % 10;
-}
-
-static int vm_intro_ru(struct ast_channel *chan,struct vm_state *vms)
-{
-	int res;
-	int lastnum = 0;
-	int dcnum;
-
-	res = ast_play_and_wait(chan, "vm-youhave");
-	if (!res && vms->newmessages) {
-		lastnum = get_lastdigits(vms->newmessages);
-		dcnum = vms->newmessages - lastnum;
-		if (dcnum)
-			res = say_and_wait(chan, dcnum, chan->language);
-		if (!res && lastnum) {
-			if (lastnum == 1) 
-				res = ast_play_and_wait(chan, "digits/odno");
-			else
-				res = say_and_wait(chan, lastnum, chan->language);
-		}
-
-		if (!res)
-			res = ast_play_and_wait(chan, (lastnum == 1) ? "vm-novoe" : "vm-novyh");
-
-		if (!res && vms->oldmessages)
-			res = ast_play_and_wait(chan, "vm-and");
-	}
-
-	if (!res && vms->oldmessages) {
-		lastnum = get_lastdigits(vms->oldmessages);
-		dcnum = vms->oldmessages - lastnum;
-		if (dcnum)
-			res = say_and_wait(chan, dcnum, chan->language);
-		if (!res && lastnum) {
-			if (lastnum == 1) 
-				res = ast_play_and_wait(chan, "digits/odno");
-			else
-				res = say_and_wait(chan, lastnum, chan->language);
-		}
-
-		if (!res)
-			res = ast_play_and_wait(chan, (lastnum == 1) ? "vm-staroe" : "vm-staryh");
-	}
-
-	if (!res && !vms->newmessages && !vms->oldmessages) {
-		lastnum = 0;
-		res = ast_play_and_wait(chan, "vm-no");
-	}
-
-	if (!res) {
-		switch (lastnum) {
-		case 1:
-			res = ast_play_and_wait(chan, "vm-soobshenie");
-			break;
-		case 2:
-		case 3:
-		case 4:
-			res = ast_play_and_wait(chan, "vm-soobsheniya");
-			break;
-		default:
-			res = ast_play_and_wait(chan, "vm-soobsheniy");
-			break;
-		}
-	}
-
-	return res;
-}
-
 /* CHINESE (Taiwan) syntax */
 static int vm_intro_tw(struct ast_channel *chan, struct vm_state *vms)
 {
@@ -7863,77 +7886,6 @@ static int vm_intro_tw(struct ast_channel *chan, struct vm_state *vms)
 		if (!res)
 			res = ast_play_and_wait(chan, "vm-messages");
 	}
-	return res;
-}
-
-/* UKRAINIAN syntax */
-/* in ukrainian the syntax is different so we need the following files
- * --------------------------------------------------------
- * /digits/ua/1e 'odne'
- * vm-nove       'nove'
- * vm-stare      'stare'
- */
-static int vm_intro_ua(struct ast_channel *chan,struct vm_state *vms)
-{
-	int res;
-	int lastnum = 0;
-	int dcnum;
-
-	res = ast_play_and_wait(chan, "vm-youhave");
-	if (!res && vms->newmessages) {
-		lastnum = get_lastdigits(vms->newmessages);
-		dcnum = vms->newmessages - lastnum;
-		if (dcnum)
-			res = say_and_wait(chan, dcnum, chan->language);
-		if (!res && lastnum) {
-			if (lastnum == 1) 
-				res = ast_play_and_wait(chan, "digits/ua/1e");
-			else
-				res = say_and_wait(chan, lastnum, chan->language);
-		}
-
-		if (!res)
-			res = ast_play_and_wait(chan, (lastnum == 1) ? "vm-nove" : "vm-INBOX");
-
-		if (!res && vms->oldmessages)
-			res = ast_play_and_wait(chan, "vm-and");
-	}
-
-	if (!res && vms->oldmessages) {
-		lastnum = get_lastdigits(vms->oldmessages);
-		dcnum = vms->oldmessages - lastnum;
-		if (dcnum)
-			res = say_and_wait(chan, dcnum, chan->language);
-		if (!res && lastnum) {
-			if (lastnum == 1) 
-				res = ast_play_and_wait(chan, "digits/ua/1e");
-			else
-				res = say_and_wait(chan, lastnum, chan->language);
-		}
-
-		if (!res)
-			res = ast_play_and_wait(chan, (lastnum == 1) ? "vm-stare" : "vm-Old");
-	}
-
-	if (!res && !vms->newmessages && !vms->oldmessages) {
-		lastnum = 0;
-		res = ast_play_and_wait(chan, "vm-no");
-	}
-
-	if (!res) {
-		switch (lastnum) {
-		case 1:
-		case 2:
-		case 3:
-		case 4:
-			res = ast_play_and_wait(chan, "vm-message");
-			break;
-		default:
-			res = ast_play_and_wait(chan, "vm-messages");
-			break;
-		}
-	}
-
 	return res;
 }
 
@@ -7977,11 +7929,11 @@ static int vm_intro(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm
 	} else if (!strcasecmp(chan->language, "no")) {	/* NORWEGIAN syntax */
 		return vm_intro_no(chan, vms);
 	} else if (!strcasecmp(chan->language, "ru")) { /* RUSSIAN syntax */
-		return vm_intro_ru(chan, vms);
+		return vm_intro_multilang(chan, vms, "n");
 	} else if (!strcasecmp(chan->language, "tw")) { /* CHINESE (Taiwan) syntax */
 		return vm_intro_tw(chan, vms);
 	} else if (!strcasecmp(chan->language, "ua")) { /* UKRAINIAN syntax */
-		return vm_intro_ua(chan, vms);
+		return vm_intro_multilang(chan, vms, "n");
 	} else if (!strcasecmp(chan->language, "he")) { /* HEBREW syntax */
 		 return vm_intro_he(chan, vms);
 	} else {					/* Default to ENGLISH */
