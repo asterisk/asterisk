@@ -1,0 +1,7 @@
+#!/bin/bash
+
+for i in res.*; do
+	refname=`echo $i | sed 's/^res/ref/'`
+	echo $refname
+	mv $i $refname
+done

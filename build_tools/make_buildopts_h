@@ -1,0 +1,29 @@
+#!/bin/sh
+
+cat << END
+/*
+ * buildopts.h 
+ * Automatically generated
+ */
+
+END
+TMP=`${GREP} MENUSELECT_CFLAGS menuselect.makeopts | sed 's/MENUSELECT_CFLAGS\=//g' | sed 's/-D//g'`
+for x in ${TMP}; do
+     echo "#define ${x} 1"
+done
+if ${GREP} AST_DEVMODE makeopts | ${GREP} -q yes
+then
+	echo "#define AST_DEVMODE 1"
+	TMP="${TMP} AST_DEVMODE"
+fi
+
+case ${OSARCH} in	# actually we should check build_os
+*BSD|mingw|darwin*)
+	BUILDSUM=`echo ${TMP} | md5 | cut -c1-32`
+	;;
+*)
+	BUILDSUM=`echo ${TMP} | md5sum | cut -c1-32`
+	;;
+esac
+
+echo "#define AST_BUILDOPT_SUM \"${BUILDSUM}\""

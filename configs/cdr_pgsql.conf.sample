@@ -1,0 +1,9 @@
+; Sample Asterisk config file for CDR logging to PostgresSQL
+
+[global]
+;hostname=localhost
+;port=5432
+;dbname=asterisk
+;password=password
+;user=postgres
+;table=cdr		;SQL table where CDRs will be inserted

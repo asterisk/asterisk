@@ -1,0 +1,163 @@
+
+macro testdial(number, timeout) {
+    Dial(IAX2/vpconnect-t02/${number},${timeout},${OG_DIAL_FLAGS});
+    switch (${DIALSTATUS}) {
+    case CHANUNAVAIL:
+        goto dial-trunk2;
+        break;
+    default:
+        NoOp(t02 Unavailable - ${DIALSTATUS});
+        return;
+    }
+
+dial-trunk2:
+    Dial(IAX2/vpconnect-t01/${number},${timeout},${OG_DIAL_FLAGS});
+
+}
+
+macro exten-gen(name,pword)
+{
+	if( ${DB_EXISTS(org/${GroupID}/${name}/secret)} = 0 )
+		goto other|nomatch|begin;
+	if( ${DB(org/${GroupID}/${name}/secret)}foo != ${pword}foo )
+		goto other|nomatch|begin;
+
+};
+
+context what {
+        who =>
+        {
+                random(51) NoOp(This should appear 51% of the time);
+
+                random( 60 )
+                {
+                        NoOp( This should appear 60% of the time );
+                }
+                else
+                {
+                        random(75)
+                        {
+                                NoOp( This should appear 30% of the time! );
+                        }
+                        else
+                        {
+                                NoOp( This should appear 10% of the time! );
+                        }
+                }
+        }
+}
+
+context other {
+	nomatch => {
+		begin:
+		NoOp(Hello!);
+		switch(${DIALSTATUS})
+		{
+		case BUSY:
+			NoOp(wow);
+		case TORTURE:
+			NoOp(woow);
+		};
+		NoOp(woohoo);
+	};
+};
+
+context testloop {
+        includes {
+                other|16:00-23:59|m0n-fri|*|*;
+        };
+	
+    1 => {
+         for (x=0; ${x} < 3; x=${x} + 1) {
+              Verbose(x is ${x} !);
+		 if( ${x} = 1 )
+			continue;
+		 if( ${x} = 2 )
+			break;
+         };
+         ifTime(14:00-25:00|sat-sun|*|*) {
+                BackGround(Hello);
+         } else
+                BackGround(Sorry);
+         NoOp(This is a totally useless NOOP);
+    };
+    2 => {
+         y=10;
+         while (${y} >= 0) {
+              Verbose(y is ${y} !);
+		if( ${y} = 1 )
+			continue;
+		if( ${y} = 2 )
+			break;
+		if( ${y} = 3 )
+			return;
+              y=${y}-1;
+         };
+    }; 
+    regexten hint(nasty/Thingy&nasty/Thingamabob) 3 => {
+        for (x=0; ${x} < 3; x=${x} + 1) 
+		{
+            	Verbose(x is ${x} !);
+		if( ${x} = 4 )
+			break;
+		if( ${x} = 5 )
+			continue;
+		if( ${x} = 6 )
+			return;
+
+        	y=10;
+	        while (${y} >= 0) 
+			{
+            			Verbose(y is ${y} !);
+				if( ${y} = 4 )
+					break;
+				if( ${y} = 5 )
+					continue;
+				if( ${y} = 6 )
+					return;
+	   		         y=${y}-1;
+			};
+        };
+    }; 
+    4 => {
+       	y=10;
+        while (${y} >= 0) 
+	{
+            	Verbose(y is ${y} !);
+		if( ${y} = 4 )
+			break;
+		if( ${y} = 5 )
+			continue;
+		if( ${y} = 6 )
+			return;
+       		for (x=0; ${x} < 3; x=${x} + 1) 
+		{
+            		Verbose(x is ${x} !);
+			if( ${x} = 4 )
+				break;
+			if( ${x} = 5 )
+				continue;
+			if( ${x} = 6 )
+				return;
+		        for (z=0; ${z} < 17; z=${z} + 1) 
+			{
+              			Verbose(z is ${z} !);
+              			Verbose(z is ${z} !);
+				if( ${z} = 4 )
+					break;
+				if( ${z} = 5 )
+					continue;
+				if( ${z} = 6 )
+					return;
+              			Verbose(z is ${z} !);
+              			Verbose(z is ${z} !);
+         		};
+				
+		};
+	        y=${y}-1;
+        };
+    }; 
+    5 => {
+		&exten-gen(axel,brain);
+    };
+};

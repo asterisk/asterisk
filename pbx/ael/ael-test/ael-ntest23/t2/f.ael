@@ -1,0 +1,9 @@
+#include "qq.ael"
+
+context f
+{
+	567 => NoOp(hi there, f);
+}
+
+#include "t3/*.ael"
+

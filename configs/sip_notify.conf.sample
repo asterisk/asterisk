@@ -1,0 +1,22 @@
+[polycom-check-cfg]
+Event=>check-sync
+Content-Length=>0
+
+; Untested
+[sipura-check-cfg]
+Event=>resync
+Content-Length=>0
+
+; Untested
+[grandstream-check-cfg]
+Event=>sys-control
+
+; Untested
+[cisco-check-cfg]
+Event=>check-sync
+Content-Length=>0
+
+; Tested
+[snom-check-cfg]
+Event=>check-sync\;reboot=false
+Content-Length=>0

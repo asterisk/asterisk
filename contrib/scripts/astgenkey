@@ -1,0 +1,61 @@
+#!/bin/sh
+#
+# Usage: astgenkey [ -q ] [ -n ] [keyname]
+#
+DES3=-des3
+if [ "$1" = "-q" ]; then
+	QUIET='y'
+	if [ "$2" = "-n" ]; then
+		DES3=
+		KEY=$3
+	else
+		KEY=$2
+	fi
+elif [ "$1" = "-n" ]; then
+	DES3=
+	if [ "$2" = "-q" ]; then
+		QUIET='y'
+		KEY=$3
+	else
+		KEY=$2
+	fi
+else
+	KEY=$1
+fi
+
+if [ "$QUIET" != 'y' ]; then
+	echo ""
+	echo "This script generates an RSA private and public key pair"
+	echo "in PEM format for use by Asterisk.  You will be asked to"
+	echo "enter a passcode for your key multiple times.  Please"
+	echo "enter the same code each time.  The resulting files will"
+	echo "need to be moved to /var/lib/asterisk/keys if you want"
+	echo "to use them, and any private keys (.key files) will"
+	echo "need to be initialized at runtime either by running"
+	echo "Asterisk with the '-i' option, or with the 'init keys'"
+	echo "command once Asterisk is running."
+	echo ""
+	echo "Press ENTER to continue or ^C to cancel."
+	read BLAH
+fi
+
+while [ "$KEY" = "" ]; do
+	echo -n "Enter key name: "
+	read KEY
+done
+
+rm -f ${KEY}.key ${KEY}.pub
+
+echo "Generating SSL key '$KEY': "
+openssl genrsa -out ${KEY}.key ${DES3} 1024
+openssl rsa -in ${KEY}.key -pubout -out ${KEY}.pub
+
+if [ -f "${KEY}.key" ] && [ -f "${KEY}.pub" ]; then
+	if [ "$QUIET" != 'y' ]; then
+		echo "Key creation successful."
+		echo "Public key:  ${KEY}.pub"
+		echo "Private key: ${KEY}.key"
+	fi
+else
+	echo "Unknown error creating keys."
+fi
