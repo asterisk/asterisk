@@ -131,13 +131,21 @@ static void timerfd_timer_close(int handle)
 
 static int timerfd_timer_set_rate(int handle, unsigned int rate)
 {
-	struct itimerspec itspec;
-	itspec.it_value.tv_sec = 0;
-	itspec.it_value.tv_nsec = rate ? (long) (1000000000 / rate) : 0L;
-	itspec.it_interval.tv_sec = itspec.it_value.tv_sec;
-	itspec.it_interval.tv_nsec = itspec.it_value.tv_nsec;
+	struct timerfd_timer *our_timer, find_helper = {
+		.handle = handle,
+	};
 
-	return timerfd_settime(handle, 0, &itspec, NULL);
+	if (!(our_timer = ao2_find(timerfd_timers, &find_helper, OBJ_POINTER))) {
+		ast_log(LOG_ERROR, "Couldn't find timer with handle %d\n", handle);
+		return -1;
+	}
+
+	our_timer->saved_timer.it_value.tv_sec = 0;
+	our_timer->saved_timer.it_value.tv_nsec = rate ? (long) (1000000000 / rate) : 0L;
+	our_timer->saved_timer.it_interval.tv_sec = our_timer->saved_timer.it_value.tv_sec;
+	our_timer->saved_timer.it_interval.tv_nsec = our_timer->saved_timer.it_value.tv_nsec;
+
+	return timerfd_settime(handle, 0, &our_timer->saved_timer, NULL);
 }
 
 static void timerfd_timer_ack(int handle, unsigned int quantity)
