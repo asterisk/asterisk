@@ -4163,42 +4163,47 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 	dialog->outboundproxy = obproxy_get(dialog, NULL);
 
 	/* If we have an outbound proxy, don't bother with DNS resolution at all */
-	if (dialog->outboundproxy)
-		return 0;
+	if (dialog->outboundproxy) {
+		/* If we have an outbound proxy, don't bother with DNS resolution at all, but set the port */
+		portno = port ? atoi(port) : (dialog->socket.type & SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT;
+	} else {
 
-	/* Let's see if we can find the host in DNS. First try DNS SRV records,
-   	   then hostname lookup */
-	/*! \todo Fix this function. When we ask SRC, we should check all transports 
-		  In the future, we should first check NAPTR to find out transport preference
-	 */
+		/* Let's see if we can find the host in DNS. First try DNS SRV records,
+		   then hostname lookup */
+		/*! \todo Fix this function. When we ask SRC, we should check all transports 
+			  In the future, we should first check NAPTR to find out transport preference
+		 */
 
-	hostn = peername;
+		hostn = peername;
+		if (global_srvlookup) {
+			char service[MAXHOSTNAMELEN];
+			int tportno;
+			int ret;
+
+			snprintf(service, sizeof(service), "_sip._%s.%s", get_transport(dialog->socket.type), peername);
+			ret = ast_get_srv(NULL, host, sizeof(host), &tportno, service);
+			if (ret > 0) {
+				hostn = host;
+				portno = tportno;
+			}
+		}
+		hp = ast_gethostbyname(hostn, &ahp);
+		if (!hp) {
+			ast_log(LOG_WARNING, "No such host: %s\n", peername);
+			return -1;
+		}
+		memcpy(&dialog->sa.sin_addr, hp->h_addr, sizeof(dialog->sa.sin_addr));
+		if (ast_strlen_zero(port) || sscanf(port, "%u", &portno) != 1) {
+			portno = (dialog->socket.type & SIP_TRANSPORT_TLS) ? 
+				STANDARD_TLS_PORT : STANDARD_SIP_PORT;
+		}
+	}
+
 	if (!dialog->socket.type)
 		dialog->socket.type = SIP_TRANSPORT_UDP;
 	if (!dialog->socket.port)
 		dialog->socket.port = bindaddr.sin_port;
-	if (ast_strlen_zero(port) || sscanf(port, "%u", &portno) != 1) {
-		portno = (dialog->socket.type & SIP_TRANSPORT_TLS) ? 
-			STANDARD_TLS_PORT : STANDARD_SIP_PORT;
-	}
-	if (global_srvlookup) {
-		char service[MAXHOSTNAMELEN];
-		int tportno;
-		int ret;
 
-		snprintf(service, sizeof(service), "_sip._%s.%s", get_transport(dialog->socket.type), peername);
-		ret = ast_get_srv(NULL, host, sizeof(host), &tportno, service);
-		if (ret > 0) {
-			hostn = host;
-			portno = tportno;
-		}
-	}
-	hp = ast_gethostbyname(hostn, &ahp);
-	if (!hp) {
-		ast_log(LOG_WARNING, "No such host: %s\n", peername);
-		return -1;
-	}
-	memcpy(&dialog->sa.sin_addr, hp->h_addr, sizeof(dialog->sa.sin_addr));
 	dialog->sa.sin_port = htons(portno);
 	dialog->recv = dialog->sa;
 	return 0;
