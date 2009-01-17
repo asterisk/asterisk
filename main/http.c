@@ -257,13 +257,13 @@ static struct ast_str *httpstatus_callback(struct ast_tcptls_session_instance *s
 		       "<h2>&nbsp;&nbsp;Asterisk&trade; HTTP Status</h2></td></tr>\r\n");
 	ast_str_append(&out, 0, "<tr><td><i>Prefix</i></td><td><b>%s</b></td></tr>\r\n", prefix);
 	ast_str_append(&out, 0, "<tr><td><i>Bind Address</i></td><td><b>%s</b></td></tr>\r\n",
-		       ast_inet_ntoa(http_desc.old_local_address.sin_addr));
+		       ast_inet_ntoa(http_desc.old_address.sin_addr));
 	ast_str_append(&out, 0, "<tr><td><i>Bind Port</i></td><td><b>%d</b></td></tr>\r\n",
-		       ntohs(http_desc.old_local_address.sin_port));
+		       ntohs(http_desc.old_address.sin_port));
 
 	if (http_tls_cfg.enabled) {
 		ast_str_append(&out, 0, "<tr><td><i>SSL Bind Port</i></td><td><b>%d</b></td></tr>\r\n",
-			       ntohs(https_desc.old_local_address.sin_port));
+			       ntohs(https_desc.old_address.sin_port));
 	}
 
 	ast_str_append(&out, 0, "<tr><td colspan=\"2\"><hr></td></tr>\r\n");
@@ -974,16 +974,16 @@ static char *handle_show_http(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	}
 	ast_cli(a->fd, "HTTP Server Status:\n");
 	ast_cli(a->fd, "Prefix: %s\n", prefix);
-	if (!http_desc.old_local_address.sin_family) {
+	if (!http_desc.old_address.sin_family) {
 		ast_cli(a->fd, "Server Disabled\n\n");
 	} else {
 		ast_cli(a->fd, "Server Enabled and Bound to %s:%d\n\n",
-			ast_inet_ntoa(http_desc.old_local_address.sin_addr),
-			ntohs(http_desc.old_local_address.sin_port));
+			ast_inet_ntoa(http_desc.old_address.sin_addr),
+			ntohs(http_desc.old_address.sin_port));
 		if (http_tls_cfg.enabled) {
 			ast_cli(a->fd, "HTTPS Server Enabled and Bound to %s:%d\n\n",
-				ast_inet_ntoa(https_desc.old_local_address.sin_addr),
-				ntohs(https_desc.old_local_address.sin_port));
+				ast_inet_ntoa(https_desc.old_address.sin_addr),
+				ntohs(https_desc.old_address.sin_port));
 		}
 	}
 
