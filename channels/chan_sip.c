@@ -4806,12 +4806,11 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 	/* Get the outbound proxy information */
 	ref_proxy(dialog, obproxy_get(dialog, NULL));
 
-	/* If we have an outbound proxy, don't bother with DNS resolution at all */
-	if (dialog->outboundproxy)
-		return 0;
-
-	/* This address should be updated using dnsmgr */
-	if (sin) {
+	if (dialog->outboundproxy) {
+		/* If we have an outbound proxy, don't bother with DNS resolution at all, but set the port */
+		portno = port ? atoi(port) : (dialog->socket.type & SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT;
+	} else if (sin) {
+		/* This address should be updated using dnsmgr */
 		memcpy(&dialog->sa.sin_addr, &sin->sin_addr, sizeof(dialog->sa.sin_addr));
 		if (!sin->sin_port) {
 			if (ast_strlen_zero(port) || sscanf(port, "%u", &portno) != 1) {
