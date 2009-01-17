@@ -4569,14 +4569,13 @@ static int dundi_matchmore(struct ast_channel *chan, const char *context, const 
 	return dundi_helper(chan, context, exten, priority, data, DUNDI_FLAG_MATCHMORE);
 }
 
-static struct ast_switch dundi_switch =
-{
-        name:                   "DUNDi",
-        description:    		"DUNDi Discovered Dialplan Switch",
-        exists:                 dundi_exists,
-        canmatch:               dundi_canmatch,
-        exec:                   dundi_exec,
-        matchmore:              dundi_matchmore,
+static struct ast_switch dundi_switch = {
+	.name        = "DUNDi",
+	.description = "DUNDi Discovered Dialplan Switch",
+	.exists      = dundi_exists,
+	.canmatch    = dundi_canmatch,
+	.exec        = dundi_exec,
+	.matchmore   = dundi_matchmore,
 };
 
 static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
