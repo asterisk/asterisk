@@ -578,6 +578,7 @@ static struct dahdi_pvt {
 	unsigned int transfertobusy:1;			/*!< allow flash-transfers to busy channels */
 	unsigned int mwimonitor_neon:1;			/*!< monitor this FXO port for neon type MWI indication from other end */
 	unsigned int mwimonitor_fsk:1;			/*!< monitor this FXO port for fsk MWI indication from other end */
+	unsigned int mwimonitor_rpas:1;			/*!< monitor this FXO port for rpas precursor to fsk MWI indication */
 	unsigned int mwimonitoractive:1;		/*!< an MWI monitor thread is currently active */
 	unsigned int mwisendactive:1; 			/*!< a MWI message sending thread is active */
 	/* Channel state or unavilability flags */
@@ -7306,12 +7307,18 @@ static void *ss_thread(void *data)
 		if (flags & CID_MSGWAITING) {
 			ast_log(LOG_NOTICE, "MWI: Channel %d message waiting!\n", p->channel);
 			notify_message(p->mailbox, 1);
-			ast_hangup(chan);
+			/* If generated using Ring Pulse Alert, then ring has been answered as a call and needs to be hungup */
+			if (p->mwimonitor_rpas) {
+				ast_hangup(chan);
+			}
 			return NULL;
 		} else if (flags & CID_NOMSGWAITING) {
 			ast_log(LOG_NOTICE, "MWI: Channel %d no message waiting!\n", p->channel);
 			notify_message(p->mailbox, 0);
-			ast_hangup(chan);
+			/* If generated using Ring Pulse Alert, then ring has been answered as a call and needs to be hungup */
+			if (p->mwimonitor_rpas) {
+				ast_hangup(chan);
+			}
 			return NULL;
 		}
 
@@ -8657,6 +8664,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		if (chan_sig & __DAHDI_SIG_FXS) {
 			tmp->mwimonitor_fsk = conf->chan.mwimonitor_fsk;
 			tmp->mwimonitor_neon = conf->chan.mwimonitor_neon;
+			tmp->mwimonitor_rpas = conf->chan.mwimonitor_rpas;
 		}
 		tmp->sig = chan_sig;
 		tmp->outsigmod = conf->chan.outsigmod;
@@ -13984,16 +13992,22 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 		} else if (!strcasecmp(v->name, "transfertobusy")) {
 			confp->chan.transfertobusy = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "mwimonitor")) {
-			if (!strcasecmp(v->value, "neon")) {
-				confp->chan.mwimonitor_neon = 1;
-				confp->chan.mwimonitor_fsk = 0;
-			} else {
-				confp->chan.mwimonitor_neon = 0;
-				if (!strcasecmp(v->value, "fsk"))
-					confp->chan.mwimonitor_fsk = 1;
-				else 
-					confp->chan.mwimonitor_fsk = ast_true(v->value) ? 1 : 0;
+			confp->chan.mwimonitor_neon = 0;
+			confp->chan.mwimonitor_fsk  = 0;
+			confp->chan.mwimonitor_rpas = 0;
+			if (strcasestr(v->value, "fsk")) {
+				confp->chan.mwimonitor_fsk = 1;
 			}
+			if (strcasestr(v->value, "rpas")) {
+				confp->chan.mwimonitor_rpas = 1;
+			}
+			if (strcasestr(v->value, "neon")) {
+				confp->chan.mwimonitor_neon = 1;
+			}
+			/* If set to true or yes, assume that simple fsk is desired */
+			if (ast_true(v->value)) {
+				confp->chan.mwimonitor_fsk = 1;
+			} 
 		} else if (!strcasecmp(v->name, "cid_rxgain")) {
 			if (sscanf(v->value, "%f", &confp->chan.cid_rxgain) != 1) {
 				ast_log(LOG_WARNING, "Invalid cid_rxgain: %s at line %d.\n", v->value, v->lineno);
