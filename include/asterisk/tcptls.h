@@ -114,7 +114,7 @@ struct ast_tls_config {
  */
 struct ast_tcptls_session_args {
 	struct sockaddr_in local_address;
-	struct sockaddr_in old_local_address;
+	struct sockaddr_in old_address; /*!< copy of the local or remote address depending on if its a client or server session */
 	struct sockaddr_in remote_address;
 	char hostname[MAXHOSTNAMELEN]; /*!< only necessary for SSL clients so we can compare to common name */
 	struct ast_tls_config *tls_cfg; /*!< points to the SSL configuration if any */
