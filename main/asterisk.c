@@ -549,7 +549,7 @@ static int swapmode(int *used, int *total)
 #elif defined(HAVE_SYSCTL) && !defined(HAVE_SYSINFO)
 static int swapmode(int *used, int *total)
 {
-	used = total = 0;
+	*used = *total = 0;
 	return 1;
 }
 #endif
