@@ -1192,6 +1192,7 @@ struct skinny_line {
 	AST_LIST_ENTRY(skinny_line) all;
 	struct skinny_device *device;
 	struct ast_variable *chanvars; /*!< Channel variables to set for inbound call */
+	int newmsgs;
 };
 
 struct skinny_line_options{
@@ -1321,6 +1322,7 @@ static int skinny_fixup(struct ast_channel *oldchan, struct ast_channel *newchan
 static int skinny_senddigit_begin(struct ast_channel *ast, char digit);
 static int skinny_senddigit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static int handle_time_date_req_message(struct skinny_req *req, struct skinnysession *s);
+static void mwi_event_cb(const struct ast_event *event, void *userdata);
 
 static const struct ast_channel_tech skinny_tech = {
 	.type = "Skinny",
@@ -1849,8 +1851,11 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 					/* l->capability = d->capability;
 					l->prefs = d->prefs; */
 					l->instance = instance;
+					l->newmsgs = ast_app_has_voicemail(l->mailbox, NULL);
 					set_callforwards(l, NULL, 0);
 					register_exten(l);
+					/* initialize MWI on line and device */
+					mwi_event_cb(0, l);
 					ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Skinny/%s@%s", l->name, d->name);
 				}
 				--instance;
@@ -2503,65 +2508,44 @@ static int skinny_extensionstate_cb(char *context, char *exten, int state, void 
 
 static void mwi_event_cb(const struct ast_event *event, void *userdata)
 {
-	/* This module does not handle MWI in an event-based manner.  However, it
-	 * subscribes to MWI for each mailbox that is configured so that the core
-	 * knows that we care about it.  Then, chan_skinny will get the MWI from the
-	 * event cache instead of checking the mailbox directly. */
-}
+	struct skinny_line *l = userdata;
+	struct skinny_device *d = l->device;
+	struct skinnysession *s = d->session;
+	struct skinny_line *l2;
+	int new_msgs = 0;
+	int dev_msgs = 0;
 
-static int has_voicemail(struct skinny_line *l)
-{
-	int new_msgs;
-	struct ast_event *event;
-	char *mbox, *context;
+	if (s) {
+		if (event) {
+			l->newmsgs = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
+		}
 
-	context = mbox = ast_strdupa(l->mailbox);
-	strsep(&context, "@");
-	if (ast_strlen_zero(context))
-		context = "default";
+		if (l->newmsgs) {
+			transmit_lamp_indication(d, STIMULUS_VOICEMAIL, l->instance, l->mwiblink?SKINNY_LAMP_BLINK:SKINNY_LAMP_ON);
+		} else {
+			transmit_lamp_indication(d, STIMULUS_VOICEMAIL, l->instance, SKINNY_LAMP_OFF);
+		}
 
-	event = ast_event_get_cached(AST_EVENT_MWI,
-		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mbox,
-		AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
-		AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
-		AST_EVENT_IE_END);
+		/* find out wether the device lamp should be on or off */
+		AST_LIST_TRAVERSE(&d->lines, l2, list) {
+			if (l2->newmsgs) {
+				dev_msgs++;
+			}
+		}
 
-	if (event) {
-		new_msgs = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
-		ast_event_destroy(event);
-	} else
-		new_msgs = ast_app_has_voicemail(l->mailbox, NULL);
-
-	return new_msgs;
+		if (dev_msgs) {
+			transmit_lamp_indication(d, STIMULUS_VOICEMAIL, 0, d->mwiblink?SKINNY_LAMP_BLINK:SKINNY_LAMP_ON);
+		} else {
+			transmit_lamp_indication(d, STIMULUS_VOICEMAIL, 0, SKINNY_LAMP_OFF);
+		}
+		ast_verb(3, "Skinny mwi_event_cb found %d new messages\n", new_msgs);
+	}
 }
 
 static void do_housekeeping(struct skinnysession *s)
 {
-	int device_lamp = 0;
-	struct skinny_device *d = s->device;
-	struct skinny_line *l;
-
 	/* Update time on device */
 	handle_time_date_req_message(NULL, s);
-
-	/* Set MWI on individual lines */
-	AST_LIST_TRAVERSE(&d->lines, l, list) {
-		if (has_voicemail(l)) {
-			if (skinnydebug)
-				ast_verb(1, "Checking for voicemail Skinny %s@%s\n", l->name, d->name);
-			if (skinnydebug)
-				ast_verb(1, "Skinny %s@%s has voicemail!\n", l->name, d->name);
-			transmit_lamp_indication(d, STIMULUS_VOICEMAIL, l->instance, l->mwiblink?SKINNY_LAMP_BLINK:SKINNY_LAMP_ON);
-			device_lamp++;
-		} else {
-			transmit_lamp_indication(d, STIMULUS_VOICEMAIL, l->instance, SKINNY_LAMP_OFF);
-		}
-	}
-	/* If at least one line has VM, turn the device level lamp on */
-	if (device_lamp)
-		transmit_lamp_indication(d, STIMULUS_VOICEMAIL, 0, SKINNY_LAMP_ON);
-	else
-		transmit_lamp_indication(d, STIMULUS_VOICEMAIL, 0, SKINNY_LAMP_OFF);
 }
 
 /* I do not believe skinny can deal with video.
@@ -6599,7 +6583,7 @@ static struct ast_channel *skinny_request(const char *type, int format, void *da
  		strsep(&cfg_context, "@");
  		if (ast_strlen_zero(cfg_context))
  			 cfg_context = "default";
- 		l->mwi_event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, NULL,
+		l->mwi_event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, l,
  			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, cfg_mailbox,
  			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, cfg_context,
  			AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
