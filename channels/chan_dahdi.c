@@ -8258,10 +8258,10 @@ static void *do_monitor(void *data)
 								}
 #else
 								/* New DAHDI_VMWI ioctl supports upto 65535 messages*/
-								if (res > 0xffff) {
-									res2 = (last->mwisendtype | 0xffff);
+								if (res > DAHDI_VMWI_NUMBER_MASK) {
+									res2 = (last->mwisendtype | DAHDI_VMWI_NUMBER_MASK);
 								} else {
-									res2 = (last->mwisendtype | (res & 0xffff));
+									res2 = (last->mwisendtype | (res & DAHDI_VMWI_NUMBER_MASK));
 								}
 								res2 = ioctl(last->subs[SUB_REAL].dfd, DAHDI_VMWI, &res2);
 								if (res2) {
