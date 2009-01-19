@@ -252,7 +252,6 @@ static const char config[] = "chan_dahdi.conf";
 #define DAHDI_OVERLAPDIAL_INCOMING 2
 #define DAHDI_OVERLAPDIAL_BOTH (DAHDI_OVERLAPDIAL_INCOMING|DAHDI_OVERLAPDIAL_OUTGOING)
 
-
 #define CALLPROGRESS_PROGRESS		1
 #define CALLPROGRESS_FAX_OUTGOING	2
 #define CALLPROGRESS_FAX_INCOMING	4
@@ -265,7 +264,9 @@ static char parkinglot[AST_MAX_EXTENSION] = "";		/*!< Default parking lot for th
 
 /*! Run this script when the MWI state changes on an FXO line, if mwimonitor is enabled */
 static char mwimonitornotify[PATH_MAX] = "";
+#ifndef DAHDI_VMWI_FSK
 static int  mwisend_rpas = 0;
+#endif
 
 static char progzone[10] = "";
 
@@ -731,6 +732,7 @@ static struct dahdi_pvt {
 	int onhooktime;
 	int fxsoffhookstate;
 	int msgstate;
+	int mwisendtype;				/*!< Which VMWI methods to use */
 	int distinctivering;				/*!< Which distinctivering to use */
 	int cidrings;					/*!< Which ring to deliver CID on */
 	int dtmfrelax;					/*!< whether to run in relaxed DTMF mode */
@@ -869,7 +871,9 @@ static struct dahdi_chan_conf dahdi_chan_conf_default(void) {
 
 			.mailbox = "",
 
-
+#ifdef DAHDI_VMWI_FSK
+			.mwisendtype = DAHDI_VMWI_FSK,
+#endif
 			.polarityonanswerdelay = 600,
 
 			.sendcalleridafter = DEFAULT_CIDRINGS,
@@ -7712,13 +7716,34 @@ static int mwi_send_init(struct dahdi_pvt * pvt)
 {
 	int x, res;
 
-	pvt->mwisendactive = 1;
-	pvt->mwisend_data.mwisend_current = MWI_SEND_SPILL; /*Assume FSK only */
+#ifdef DAHDI_VMWI_FSK
 	/* Determine how this spill is to be sent */
-	if(mwisend_rpas) {
+	if (pvt->mwisendtype & DAHDI_VMWI_RPAS) {
 		pvt->mwisend_data.mwisend_current = MWI_SEND_SA;
+		pvt->mwisendactive = 1;
+	} else if (pvt->mwisendtype & DAHDI_VMWI_FSK) {
+		pvt->mwisend_data.mwisend_current = MWI_SEND_SPILL;
+		pvt->mwisendactive = 1;
+	} else {
+		pvt->mwisendactive = 0;
+		return 0;
 	}
-
+#else
+	if (mwisend_rpas) {
+		pvt->mwisend_data.mwisend_current = MWI_SEND_SA;
+	} else {
+		pvt->mwisend_data.mwisend_current = MWI_SEND_SPILL;
+	}
+	pvt->mwisendactive = 1;
+#endif
+	
+	if (pvt->cidspill) {
+		ast_log(LOG_WARNING, "cidspill already exists when trying to send FSK MWI\n");
+		ast_free(pvt->cidspill);
+		pvt->cidspill = NULL;
+		pvt->cidpos = 0;
+		pvt->cidlen = 0;
+	}
 	pvt->cidspill = ast_calloc(1, MAX_CALLERID_SIZE);
 	if (!pvt->cidspill) {
 		pvt->mwisendactive = 0;
@@ -7728,9 +7753,15 @@ static int mwi_send_init(struct dahdi_pvt * pvt)
 	res = ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_FLUSH, &x);
 	x = 3000;
 	ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_ONHOOKTRANSFER, &x);
-	pvt->cidlen = vmwi_generate(pvt->cidspill, has_voicemail(pvt), CID_MWI_TYPE_MDMF_FULL,
+#ifdef DAHDI_VMWI_FSK
+	if (pvt->mwisendtype & DAHDI_VMWI_FSK) {
+#endif
+		pvt->cidlen = vmwi_generate(pvt->cidspill, has_voicemail(pvt), CID_MWI_TYPE_MDMF_FULL,
 								AST_LAW(pvt), pvt->cid_name, pvt->cid_num, 0);
-	pvt->cidpos = 0;
+		pvt->cidpos = 0;
+#ifdef DAHDI_VMWI_FSK
+	}
+#endif
 	return 0;
 }
 
@@ -7747,54 +7778,62 @@ static int mwi_send_process_buffer(struct dahdi_pvt * pvt, int num_read)
 	} else if (MWI_SEND_DONE != pvt->mwisend_data.mwisend_current) {
 		/* Normal processing -- Perform mwi send action */
 		switch ( pvt->mwisend_data.mwisend_current) {
-			case MWI_SEND_SA:
-				/* Send the Ring Pulse Signal Alert */
-				res = ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_SETCADENCE, &AS_RP_cadence);
-				if (res) {
-					ast_log(LOG_WARNING, "Unable to set RP-AS ring cadence: %s\n", strerror(errno));
-					goto quit;
-				}
-				res = dahdi_set_hook(pvt->subs[SUB_REAL].dfd, DAHDI_RING);
-				pvt->mwisend_data.mwisend_current = MWI_SEND_SA_WAIT;
-				break;
-			case MWI_SEND_SA_WAIT:  /* do nothing until I get RINGEROFF event */
-				break;
-			case MWI_SEND_PAUSE:  /* Wait between alert and spill - min of 500 mS*/
+		case MWI_SEND_SA:
+			/* Send the Ring Pulse Signal Alert */
+			res = ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_SETCADENCE, &AS_RP_cadence);
+			if (res) {
+				ast_log(LOG_WARNING, "Unable to set RP-AS ring cadence: %s\n", strerror(errno));
+				goto quit;
+			}
+			res = dahdi_set_hook(pvt->subs[SUB_REAL].dfd, DAHDI_RING);
+			pvt->mwisend_data.mwisend_current = MWI_SEND_SA_WAIT;
+			break;
+		case MWI_SEND_SA_WAIT:  /* do nothing until I get RINGEROFF event */
+			break;
+		case MWI_SEND_PAUSE:  /* Wait between alert and spill - min of 500 mS*/
+#ifdef DAHDI_VMWI_FSK
+			if (pvt->mwisendtype & DAHDI_VMWI_FSK) {
+#endif
 				gettimeofday(&now, NULL);
 				if ((int)(now.tv_sec - pvt->mwisend_data.pause.tv_sec) * 1000000 + (int)now.tv_usec - (int)pvt->mwisend_data.pause.tv_usec > 500000) {
 					pvt->mwisend_data.mwisend_current = MWI_SEND_SPILL;
 				}
-				break;
-			case MWI_SEND_SPILL:
-				/* We read some number of bytes.  Write an equal amount of data */
-				if(0 < num_read) {
-					if (num_read > pvt->cidlen - pvt->cidpos)
-						num_read = pvt->cidlen - pvt->cidpos;
-					res = write(pvt->subs[SUB_REAL].dfd, pvt->cidspill + pvt->cidpos, num_read);
-					if (res > 0) {
-						pvt->cidpos += res;
-						if (pvt->cidpos >= pvt->cidlen) {
-							pvt->mwisend_data.mwisend_current = MWI_SEND_CLEANUP;
-						}
-					} else {
-						ast_log(LOG_WARNING, "MWI Send Write failed: %s\n", strerror(errno));
-						goto quit;
+#ifdef DAHDI_VMWI_FSK
+			} else { /* support for mwisendtype=nofsk */
+				pvt->mwisend_data.mwisend_current = MWI_SEND_CLEANUP;
+			}
+#endif
+			break;
+		case MWI_SEND_SPILL:
+			/* We read some number of bytes.  Write an equal amount of data */
+			if(0 < num_read) {
+				if (num_read > pvt->cidlen - pvt->cidpos)
+					num_read = pvt->cidlen - pvt->cidpos;
+				res = write(pvt->subs[SUB_REAL].dfd, pvt->cidspill + pvt->cidpos, num_read);
+				if (res > 0) {
+					pvt->cidpos += res;
+					if (pvt->cidpos >= pvt->cidlen) {
+						pvt->mwisend_data.mwisend_current = MWI_SEND_CLEANUP;
 					}
+				} else {
+					ast_log(LOG_WARNING, "MWI FSK Send Write failed: %s\n", strerror(errno));
+					goto quit;
 				}
-				break;
-			case MWI_SEND_CLEANUP:
-				/* For now, do nothing */
-				pvt->mwisend_data.mwisend_current = MWI_SEND_DONE;
-				break;
-			default:
-				/* Should not get here, punt*/
-				goto quit;
-				break;
+			}
+			break;
+		case MWI_SEND_CLEANUP:
+			/* For now, do nothing */
+			pvt->mwisend_data.mwisend_current = MWI_SEND_DONE;
+			break;
+		default:
+			/* Should not get here, punt*/
+			goto quit;
+			break;
 		}
 	}
 
 	if (MWI_SEND_DONE == pvt->mwisend_data.mwisend_current) {
-		if(pvt->cidspill) {
+		if (pvt->cidspill) {
 			ast_free(pvt->cidspill);
 			pvt->cidspill = NULL;
 			pvt->cidpos = 0;
@@ -7804,6 +7843,13 @@ static int mwi_send_process_buffer(struct dahdi_pvt * pvt, int num_read)
 	}
 	return 0;
 quit:
+	if (pvt->cidspill) {
+		ast_free(pvt->cidspill);
+		pvt->cidspill = NULL;
+		pvt->cidpos = 0;
+		pvt->cidlen = 0;
+	}
+	pvt->mwisendactive = 0;
 	return -1;
 }
 
@@ -8052,7 +8098,7 @@ static int handle_init_event(struct dahdi_pvt *i, int event)
 			res = tone_zone_play_tone(i->subs[SUB_REAL].dfd, -1);
 			return -1;
 		}
-		if (i->sig == SIG_FXOLS || i->sig == SIG_FXOGS || i->sig == SIG_FXOKS) {
+		if (i->sig & __DAHDI_SIG_FXO) {
 			i->fxsoffhookstate = 0;
 		}
 		break;
@@ -8203,15 +8249,27 @@ static void *do_monitor(void *data)
 								!ast_strlen_zero(last->mailbox) && (thispass - last->onhooktime > 3)) {
 							res = has_voicemail(last);
 							if (last->msgstate != res) {
+#ifndef DAHDI_VMWI_FSK
 								/* Set driver resources for signalling VMWI */
 								res2 = ioctl(last->subs[SUB_REAL].dfd, DAHDI_VMWI, &res);
 								if (res2) {
 									/* TODO: This message will ALWAYS be generated on some cards; any way to restrict it to those cards where it is interesting? */
 									ast_debug(3, "Unable to control message waiting led on channel %d: %s\n", last->channel, strerror(errno));
 								}
-								/* This channel has a new voicemail state,
-								* initiate a mechanism to send an MWI message
-								*/
+#else
+								/* New DAHDI_VMWI ioctl supports upto 65535 messages*/
+								if (res > 0xffff) {
+									res2 = (last->mwisendtype | 0xffff);
+								} else {
+									res2 = (last->mwisendtype | (res & 0xffff));
+								}
+								res2 = ioctl(last->subs[SUB_REAL].dfd, DAHDI_VMWI, &res2);
+								if (res2) {
+									/* TODO: This message will ALWAYS be generated on some cards; any way to restrict it to those cards where it is interesting? */
+									ast_debug(3, "Unable to control MWI on channel %d: %s\n", last->channel, strerror(errno));
+								}
+#endif
+								/* If enabled for FSK spill then initiate it */
 								if (mwi_send_init(last)) {
 									ast_log(LOG_WARNING, "Unable to initiate mwi send sequence on channel %d\n", last->channel);
 								}
@@ -8967,7 +9025,8 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				AST_EVENT_IE_END);
 		}
 		tmp->msgstate = -1;
-		if ((chan_sig == SIG_FXOKS) || (chan_sig == SIG_FXOLS) || (chan_sig == SIG_FXOGS)) {
+		tmp->mwisendtype = conf->chan.mwisendtype;
+		if (chan_sig & __DAHDI_SIG_FXO) {
 			memset(&p, 0, sizeof(p));
 			res = ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &p);
 			if (!res) {
@@ -14179,11 +14238,32 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 		} else if (!strcasecmp(v->name, "mwimonitornotify")) {
 			ast_copy_string(mwimonitornotify, v->value, sizeof(mwimonitornotify));
 		} else if (!strcasecmp(v->name, "mwisendtype")) {
+#ifndef DAHDI_VMWI_FSK  /* backward compatibility for older dahdi VMWI implementation */
 			if (!strcasecmp(v->value, "rpas")) { /* Ring Pulse Alert Signal */
 				mwisend_rpas = 1;
 			} else {
 				mwisend_rpas = 0;
 			}
+#else
+			/* Default is fsk, to turn it off you must specify nofsk */
+			if (strcasestr(v->value, "nofsk")) { 		/* NoFSK */
+				confp->chan.mwisendtype = 0;
+			} else {					/* Default FSK */
+				confp->chan.mwisendtype = DAHDI_VMWI_FSK;
+			}
+			if (strcasestr(v->value, "rpas")) { 		/* Ring Pulse Alert Signal, normally followed by FSK */
+				confp->chan.mwisendtype |= DAHDI_VMWI_RPAS;
+			}
+			if (strcasestr(v->value, "lrev")) { 		/* Line Reversal */
+				confp->chan.mwisendtype |= DAHDI_VMWI_LREV;
+			}
+			if (strcasestr(v->value, "hvdc")) { 		/* HV 90VDC */
+				confp->chan.mwisendtype |= DAHDI_VMWI_HVDC;
+			}
+			if ( (strcasestr(v->value, "neon")) || (strcasestr(v->value, "hvac")) ){ 	/* 90V DC pulses */
+				confp->chan.mwisendtype |= DAHDI_VMWI_HVAC;
+			}
+#endif
 		} else if (reload != 1) {
 			 if (!strcasecmp(v->name, "signalling") || !strcasecmp(v->name, "signaling")) {
 				int orig_radio = confp->chan.radio;

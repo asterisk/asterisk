@@ -394,6 +394,17 @@ usecallerid=yes
 ;
 ;mwimonitornotify=/usr/local/bin/dahdinotify.sh
 ;
+; The following keyword 'mwisendtype' enables various VMWI methods on FXS lines (if supported).
+; The default is to send FSK only.
+; The following options are available;
+; 'rpas' Ring Pulse Alert Signal, alerts intelligent phones that a FSK message is about to be sent.
+; 'lrev' Line reversed to indicate messages waiting.
+; 'hvdc' 90Vdc OnHook DC voltage to indicate messages waiting.
+; 'hvac' or 'neon' 90Vac OnHook AC voltage to light Neon bulb.
+; 'nofsk' Disables FSK MWI spills from being sent out.
+; It is feasible that multiple options can be enabled.
+;mwisendtype=rpas,lrev
+;
 ; Whether or not to enable call waiting on internal extensions
 ; With this set to 'yes', busy extensions will hear the call-waiting
 ; tone, and can use hook-flash to switch between callers. The Dial()
