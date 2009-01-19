@@ -60,7 +60,7 @@ static force_inline int _ast_strlen_zero(const char *s, const char *file, const 
 }
 
 #else
-static force_inline int ast_strlen_zero(const char *s)
+static force_inline int attribute_pure ast_strlen_zero(const char *s)
 {
 	return (!s || (*s == '\0'));
 }
@@ -83,11 +83,11 @@ static force_inline int ast_strlen_zero(const char *s)
   \return a pointer to the first non-whitespace character
  */
 AST_INLINE_API(
-char *ast_skip_blanks(const char *str),
+char * attribute_pure ast_skip_blanks(const char *str),
 {
 	while (*str && ((unsigned char) *str) < 33)
 		str++;
-	return (char *)str;
+	return (char *) str;
 }
 )
 
@@ -122,11 +122,11 @@ char *ast_trim_blanks(char *str),
   \return a pointer to the first whitespace character
  */
 AST_INLINE_API(
-char *ast_skip_nonblanks(char *str),
+char * attribute_pure ast_skip_nonblanks(const char *str),
 {
 	while (*str && ((unsigned char) *str) > 32)
 		str++;
-	return str;
+	return (char *) str;
 }
 )
   
@@ -142,9 +142,9 @@ char *ast_skip_nonblanks(char *str),
 AST_INLINE_API(
 char *ast_strip(char *s),
 {
-	s = ast_skip_blanks(s);
-	if (s)
+	if ((s = ast_skip_blanks(s))) {
 		ast_trim_blanks(s);
+	}
 	return s;
 } 
 )
@@ -257,7 +257,7 @@ int ast_build_string_va(char **buffer, size_t *space, const char *fmt, va_list a
  * \retval -1 if "true".
  * \retval 0 otherwise.
  */
-int ast_true(const char *val);
+int attribute_pure ast_true(const char *val);
 
 /*! 
  * \brief Make sure something is false.
@@ -269,7 +269,7 @@ int ast_true(const char *val);
  * \retval -1 if "true".
  * \retval 0 otherwise.
  */
-int ast_false(const char *val);
+int attribute_pure ast_false(const char *val);
 
 /*
  *  \brief Join an array of strings into a single string.
@@ -397,8 +397,9 @@ void ast_str_reset(struct ast_str *buf),
 {
 	if (buf) {
 		buf->__AST_STR_USED = 0;
-		if (buf->__AST_STR_LEN)
+		if (buf->__AST_STR_LEN) {
 			buf->__AST_STR_STR[0] = '\0';
+		}
 	}
 }
 )
@@ -432,7 +433,7 @@ void ast_str_trim_blanks(struct ast_str *buf),
  * \param A pointer to the ast_str string.
  */
 AST_INLINE_API(
-size_t ast_str_strlen(struct ast_str *buf),
+size_t attribute_pure ast_str_strlen(struct ast_str *buf),
 {
 	return buf->__AST_STR_USED;
 }
@@ -442,7 +443,7 @@ size_t ast_str_strlen(struct ast_str *buf),
  * \param A pointer to the ast_str string.
  */
 AST_INLINE_API(
-size_t ast_str_size(struct ast_str *buf),
+size_t attribute_pure ast_str_size(struct ast_str *buf),
 {
 	return buf->__AST_STR_LEN;
 }
@@ -452,7 +453,7 @@ size_t ast_str_size(struct ast_str *buf),
  * \param A pointer to the ast_str string.
  */
 AST_INLINE_API(
-attribute_pure char *ast_str_buffer(struct ast_str *buf),
+char * attribute_pure ast_str_buffer(struct ast_str *buf),
 {
 	return buf->__AST_STR_STR;
 }
@@ -752,39 +753,6 @@ AST_INLINE_API(char *ast_str_append_escapecommas(struct ast_str **buf, size_t ma
 }
 )
 
-/*!\brief Wrapper for SQLGetData to use with dynamic strings
- * \param buf Address of the pointer to the ast_str structure.
- * \param maxlen The maximum size of the resulting string, or 0 for no limit.
- * \param StatementHandle The statement handle from which to retrieve data.
- * \param ColumnNumber Column number (1-based offset) for which to retrieve data.
- * \param TargetType The SQL constant indicating what kind of data is to be retrieved (usually SQL_CHAR)
- * \param StrLen_or_Ind A pointer to a length indicator, specifying the total length of data.
- */
-#ifdef USE_ODBC
-#include <sql.h>
-#include <sqlext.h>
-#include <sqltypes.h>
-
-AST_INLINE_API(SQLRETURN ast_str_SQLGetData(struct ast_str **buf, int pmaxlen, SQLHSTMT StatementHandle, SQLUSMALLINT ColumnNumber, SQLSMALLINT TargetType, SQLLEN *StrLen_or_Ind),
-{
-	SQLRETURN res;
-	size_t maxlen;
-	if (pmaxlen == 0) {
-		if (SQLGetData(StatementHandle, ColumnNumber, TargetType, (*buf)->__AST_STR_STR, 0, StrLen_or_Ind) == SQL_SUCCESS_WITH_INFO) {
-			ast_str_make_space(buf, *StrLen_or_Ind + 1);
-		}
-	} else if (pmaxlen > 0) {
-		ast_str_make_space(buf, pmaxlen);
-	}
-	maxlen = (*buf)->__AST_STR_LEN;
-	res = SQLGetData(StatementHandle, ColumnNumber, TargetType, (*buf)->__AST_STR_STR, maxlen, StrLen_or_Ind);
-	(*buf)->__AST_STR_USED = *StrLen_or_Ind;
-	return res;
-}
-)
-#endif /* defined(USE_ODBC) */
-
-
 /*!
  * \brief Set a dynamic string using variable arguments
  *
@@ -846,7 +814,7 @@ int __attribute__((format(printf, 3, 4))) ast_str_append(
  *
  * http://www.cse.yorku.ca/~oz/hash.html
  */
-static force_inline int ast_str_hash(const char *str)
+static force_inline int attribute_pure ast_str_hash(const char *str)
 {
 	int hash = 5381;
 
@@ -863,7 +831,7 @@ static force_inline int ast_str_hash(const char *str)
  * all characters to lowercase prior to computing a hash. This
  * allows for easy case-insensitive lookups in a hash table.
  */
-static force_inline int ast_str_case_hash(const char *str)
+static force_inline int attribute_pure ast_str_case_hash(const char *str)
 {
 	int hash = 5381;
 

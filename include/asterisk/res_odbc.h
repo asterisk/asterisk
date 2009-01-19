@@ -31,6 +31,7 @@
 #include <sqlext.h>
 #include <sqltypes.h>
 #include "asterisk/linkedlists.h"
+#include "asterisk/strings.h"
 
 typedef enum { ODBC_SUCCESS=0, ODBC_FAIL=-1} odbc_status;
 
@@ -182,5 +183,15 @@ int ast_odbc_clear_cache(const char *database, const char *tablename);
  * \brief Release a table returned from ast_odbc_find_table
  */
 #define ast_odbc_release_table(ptr) if (ptr) { AST_RWLIST_UNLOCK(&(ptr)->columns); }
+
+/*!\brief Wrapper for SQLGetData to use with dynamic strings
+ * \param buf Address of the pointer to the ast_str structure.
+ * \param maxlen The maximum size of the resulting string, or 0 for no limit.
+ * \param StatementHandle The statement handle from which to retrieve data.
+ * \param ColumnNumber Column number (1-based offset) for which to retrieve data.
+ * \param TargetType The SQL constant indicating what kind of data is to be retrieved (usually SQL_CHAR)
+ * \param StrLen_or_Ind A pointer to a length indicator, specifying the total length of data.
+ */
+SQLRETURN ast_odbc_ast_str_SQLGetData(struct ast_str **buf, int pmaxlen, SQLHSTMT StatementHandle, SQLUSMALLINT ColumnNumber, SQLSMALLINT TargetType, SQLLEN *StrLen_or_Ind);
 
 #endif /* _ASTERISK_RES_ODBC_H */

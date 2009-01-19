@@ -30,7 +30,6 @@
 	<depend>res_odbc</depend>
  ***/
 
-#define USE_ODBC
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -543,7 +542,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			}
 
 			buflen = strlen(buf);
-			res = ast_str_SQLGetData(&coldata, -1, stmt, x + 1, SQL_CHAR, &indicator);
+			res = ast_odbc_ast_str_SQLGetData(&coldata, -1, stmt, x + 1, SQL_CHAR, &indicator);
 			if (indicator == SQL_NULL_DATA) {
 				ast_debug(3, "Got NULL data\n");
 				ast_str_reset(coldata);
@@ -1093,7 +1092,7 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 						snprintf(colname, sizeof(colname), "field%d", x);
 					}
 
-					res = ast_str_SQLGetData(&coldata, maxcol, stmt, x + 1, SQL_CHAR, &indicator);
+					res = ast_odbc_ast_str_SQLGetData(&coldata, maxcol, stmt, x + 1, SQL_CHAR, &indicator);
 					if (indicator == SQL_NULL_DATA) {
 						ast_str_set(&coldata, 0, "(nil)");
 						res = SQL_SUCCESS;

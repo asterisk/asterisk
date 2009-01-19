@@ -48,6 +48,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/res_odbc.h"
 #include "asterisk/time.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/strings.h"
 
 struct odbc_class
 {
@@ -366,6 +367,22 @@ int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt)
 	return res;
 }
 
+SQLRETURN ast_odbc_ast_str_SQLGetData(struct ast_str **buf, int pmaxlen, SQLHSTMT StatementHandle, SQLUSMALLINT ColumnNumber, SQLSMALLINT TargetType, SQLLEN *StrLen_or_Ind)
+{
+	SQLRETURN res;
+
+	if (pmaxlen == 0) {
+		if (SQLGetData(StatementHandle, ColumnNumber, TargetType, ast_str_buffer(*buf), 0, StrLen_or_Ind) == SQL_SUCCESS_WITH_INFO) {
+			ast_str_make_space(buf, *StrLen_or_Ind + 1);
+		}
+	} else if (pmaxlen > 0) {
+		ast_str_make_space(buf, pmaxlen);
+	}
+	res = SQLGetData(StatementHandle, ColumnNumber, TargetType, ast_str_buffer(*buf), ast_str_size(*buf), StrLen_or_Ind);
+	ast_str_update(*buf);
+
+	return res;
+}
 
 int ast_odbc_sanity_check(struct odbc_obj *obj) 
 {
