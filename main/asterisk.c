@@ -587,7 +587,7 @@ static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cl
 	uptime = uptime/3600;
 	/* grab total physical memory  */
 	mib[0] = CTL_HW;
-#if defined(__OpenBSD__)
+#if defined(HW_PHYSMEM64)
 	mib[1] = HW_PHYSMEM64;
 #else
 	mib[1] = HW_PHYSMEM;
