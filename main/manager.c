@@ -910,6 +910,8 @@ static int send_string(struct mansession *s, char *string)
  *       initialize the thread local storage key.
  */
 AST_THREADSTORAGE(astman_append_buf);
+AST_THREADSTORAGE(userevent_buf);
+
 /*! \brief initial allocated size for the astman_append_buf */
 #define ASTMAN_APPEND_BUF_INITSIZE   256
 
@@ -2592,18 +2594,15 @@ static char mandescr_userevent[] =
 static int action_userevent(struct mansession *s, const struct message *m)
 {
 	const char *event = astman_get_header(m, "UserEvent");
-	char body[2048] = "";
-	int x, bodylen = 0;
+	struct ast_str *body = ast_str_thread_get(&userevent_buf, 16);
+	int x;
 	for (x = 0; x < m->hdrcount; x++) {
 		if (strncasecmp("UserEvent:", m->headers[x], strlen("UserEvent:"))) {
-			ast_copy_string(body + bodylen, m->headers[x], sizeof(body) - bodylen - 3);
-			bodylen += strlen(m->headers[x]);
-			ast_copy_string(body + bodylen, "\r\n", 3);
-			bodylen += 2;
+			ast_str_append(&body, 0, "%s\r\n", m->headers[x]);
 		}
 	}
 
-	manager_event(EVENT_FLAG_USER, "UserEvent", "UserEvent: %s\r\n%s", event, body);
+	manager_event(EVENT_FLAG_USER, "UserEvent", "UserEvent: %s\r\n%s", event, body->str);
 	return 0;
 }
 
