@@ -59,7 +59,7 @@ static int userevent_exec(struct ast_channel *chan, void *data)
 {
 	struct ast_module_user *u;
 	char *parse, buf[2048] = "";
-	int x, buflen = 0;
+	int x, buflen = 0, xlen;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(eventname);
 		AST_APP_ARG(extra)[100];
@@ -77,8 +77,13 @@ static int userevent_exec(struct ast_channel *chan, void *data)
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	for (x = 0; x < args.argc - 1; x++) {
-		ast_copy_string(buf + buflen, args.extra[x], sizeof(buf) - buflen - 2);
-		buflen += strlen(args.extra[x]);
+		/* Stop once a header comes up that exceeds our buffer. */
+		if (sizeof(buf) <= buflen + (xlen = strlen(args.extra[x])) + 3) {
+			ast_log(LOG_WARNING, "UserEvent exceeds our buffer length!  Truncating.\n");
+			break;
+		}
+		ast_copy_string(buf + buflen, args.extra[x], sizeof(buf) - buflen - 3);
+		buflen += xlen;
 		ast_copy_string(buf + buflen, "\r\n", 3);
 		buflen += 2;
 	}
