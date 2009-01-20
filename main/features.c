@@ -647,8 +647,30 @@ static int ast_park_call_full(struct ast_channel *chan, struct ast_channel *peer
 	if (args->extout)
 		*(args->extout) = x;
 
-	if (peer) 
-		ast_copy_string(pu->peername, S_OR(args->orig_chan_name, peer->name), sizeof(pu->peername));
+	if (peer) { 
+		/* This is so ugly that it hurts, but implementing get_base_channel() on local channels
+			could have ugly side effects.  We could have transferer<->local,1<->local,2<->parking
+			and we need the callback name to be that of transferer.  Since local,1/2 have the same
+			name we can be tricky and just grab the bridged channel from the other side of the local
+		*/
+		if (!strcasecmp(peer->tech->type, "Local")) {
+			struct ast_channel *tmpchan, *base_peer;
+			char other_side[AST_CHANNEL_NAME];
+			char *c;
+			ast_copy_string(other_side, S_OR(args->orig_chan_name, peer->name), sizeof(other_side));
+			if ((c = strrchr(other_side, ';'))) {
+				*++c = '1';
+			}
+			if ((tmpchan = ast_get_channel_by_name_locked(other_side))) {
+				if ((base_peer = ast_bridged_channel(tmpchan))) {
+					ast_copy_string(pu->peername, base_peer->name, sizeof(pu->peername));
+				}
+				ast_channel_unlock(tmpchan);
+			}
+		} else {
+			ast_copy_string(pu->peername, S_OR(args->orig_chan_name, peer->name), sizeof(pu->peername));
+		}
+	}
 
 	/* Remember what had been dialed, so that if the parking
 	   expires, we try to come back to the same place */
