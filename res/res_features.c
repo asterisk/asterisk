@@ -568,10 +568,12 @@ static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, 
 	struct ast_channel *parkee;
 	int res = 0;
 	struct ast_module_user *u;
+	const char *orig_chan_name;
 
 	u = ast_module_user_add(chan);
 
 	set_peers(&parker, &parkee, peer, chan, sense);
+	orig_chan_name = ast_strdupa(parker->name);
 	/* we used to set chan's exten and priority to "s" and 1
 	   here, but this generates (in some cases) an invalid
 	   extension, and if "s" exists, could errantly
@@ -586,7 +588,7 @@ static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, 
 		res = ast_safe_sleep(chan, 1000);
 
 	if (!res) { /* one direction used to call park_call.... */
-		masq_park_call_announce(parkee, parker, 0, NULL, NULL);
+		masq_park_call_announce(parkee, parker, 0, NULL, orig_chan_name);
 		res = 0; /* PBX should hangup zombie channel */
 	}
 
