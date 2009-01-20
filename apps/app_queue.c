@@ -888,7 +888,7 @@ static void init_queue(struct call_queue *q)
 
 	q->dead = 0;
 	q->retry = DEFAULT_RETRY;
-	q->timeout = -1;
+	q->timeout = DEFAULT_TIMEOUT;
 	q->maxlen = 0;
 	q->announcefrequency = 0;
 	q->minannouncefrequency = DEFAULT_MIN_ANNOUNCE_FREQUENCY;
