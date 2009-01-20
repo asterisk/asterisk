@@ -884,8 +884,8 @@ struct sip_socket {
  * \endverbatim
  */
 struct sip_request {
-	char *rlPart1; 	        /*!< SIP Method Name or "SIP/2.0" protocol version */
-	char *rlPart2; 	        /*!< The Request URI or Response Status */
+	ptrdiff_t rlPart1; 	        /*!< Offset of the SIP Method Name or "SIP/2.0" protocol version */
+	ptrdiff_t rlPart2; 	        /*!< Offset of the Request URI or Response Status */
 	int len;                /*!< bytes used in data[], excluding trailing null terminator. Rarely used. */
 	int headers;            /*!< # of SIP Headers */
 	int method;             /*!< Method of this request */
@@ -895,13 +895,24 @@ struct sip_request {
 	char debug;		/*!< print extra debugging if non zero */
 	char has_to_tag;	/*!< non-zero if packet has To: tag */
 	char ignore;		/*!< if non-zero This is a re-transmit, ignore it */
-	char *header[SIP_MAX_HEADERS];
-	char *line[SIP_MAX_LINES];
+	/* Array of offsets into the request string of each SIP header*/
+	ptrdiff_t header[SIP_MAX_HEADERS];
+	/* Array of offsets into the request string of each SDP line*/
+	ptrdiff_t line[SIP_MAX_LINES];
 	struct ast_str *data;	
 	/* XXX Do we need to unref socket.ser when the request goes away? */
 	struct sip_socket socket;	/*!< The socket used for this request */
 	AST_LIST_ENTRY(sip_request) next;
 };
+
+/* \brief given a sip_request and an offset, return the char * that resides there
+ *
+ * It used to be that rlPart1, rlPart2, and the header and line arrays were character
+ * pointers. They are now offsets into the ast_str portion of the sip_request structure.
+ * To avoid adding a bunch of redundant pointer arithmetic to the code, this macro is
+ * provided to retrieve the string at a particular offset within the request's buffer
+ */
+#define REQ_OFFSET_TO_STR(req,offset) ((req)->data->str + ((req)->offset))
 
 /*! \brief structure used in transfers */
 struct sip_dual {
@@ -2402,7 +2413,7 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 		}
 
 		/* Read in headers one line at a time */
-		while (req.len < 4 || strncmp((char *)&req.data->str + req.len - 4, "\r\n\r\n", 4)) {
+		while (req.len < 4 || strncmp(REQ_OFFSET_TO_STR(&req, len - 4), "\r\n\r\n", 4)) {
 			ast_mutex_lock(&tcptls_session->lock);
 			if (!fgets(buf, sizeof(buf), tcptls_session->f)) {
 				ast_mutex_unlock(&tcptls_session->lock);
@@ -3413,10 +3424,10 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 			ntohs(dst->sin_port), req->data->str);
 	}
 	if (p->do_history) {
-		struct sip_request tmp = { .rlPart1 = NULL, };
+		struct sip_request tmp = { .rlPart1 = 0, };
 		parse_copy(&tmp, req);
 		append_history(p, reliable ? "TxRespRel" : "TxResp", "%s / %s - %s", tmp.data->str, get_header(&tmp, "CSeq"), 
-			(tmp.method == SIP_RESPONSE || tmp.method == SIP_UNKNOWN) ? tmp.rlPart2 : sip_methods[tmp.method].text);
+			(tmp.method == SIP_RESPONSE || tmp.method == SIP_UNKNOWN) ? REQ_OFFSET_TO_STR(&tmp, rlPart2) : sip_methods[tmp.method].text);
 		ast_free(tmp.data);
 	}
 	res = (reliable) ?
@@ -3449,7 +3460,7 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittyp
 			ast_verbose("%sTransmitting (no NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", ast_inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port), req->data->str);
 	}
 	if (p->do_history) {
-		struct sip_request tmp = { .rlPart1 = NULL, };
+		struct sip_request tmp = { .rlPart1 = 0, };
 		parse_copy(&tmp, req);
 		append_history(p, reliable ? "TxReqRel" : "TxReq", "%s / %s - %s", tmp.data->str, get_header(&tmp, "CSeq"), sip_methods[tmp.method].text);
 		ast_free(tmp.data);
@@ -5836,7 +5847,7 @@ static const char *get_sdp_iterate(int *start, struct sip_request *req, const ch
 	int len = strlen(name);
 
 	while (*start < req->sdp_end) {
-		const char *r = get_body_by_line(req->line[(*start)++], name, len);
+		const char *r = get_body_by_line(REQ_OFFSET_TO_STR(req, line[(*start)++]), name, len);
 		if (r[0] != '\0')
 			return r;
 	}
@@ -5860,7 +5871,7 @@ static char *get_body(struct sip_request *req, char *name)
 	char *r;
 
 	for (x = 0; x < req->lines; x++) {
-		r = get_body_by_line(req->line[x], name, len);
+		r = get_body_by_line(REQ_OFFSET_TO_STR(req, line[x]), name, len);
 		if (r[0] != '\0')
 			return r;
 	}
@@ -5922,9 +5933,10 @@ static const char *__get_header(const struct sip_request *req, const char *name,
 	 */
 	for (pass = 0; name && pass < 2;pass++) {
 		int x, len = strlen(name);
-		for (x=*start; x<req->headers; x++) {
-			if (!strncasecmp(req->header[x], name, len)) {
-				char *r = req->header[x] + len;	/* skip name */
+		for (x = *start; x < req->headers; x++) {
+			char *header = REQ_OFFSET_TO_STR(req, header[x]);
+			if (!strncasecmp(header, name, len)) {
+				char *r = header + len;	/* skip name */
 				if (pedanticsipchecking)
 					r = ast_skip_blanks(r);
 
@@ -6586,33 +6598,38 @@ static int lws2sws(char *msgbuf, int len)
 */
 static int parse_request(struct sip_request *req)
 {
-	char *c = req->data->str, **dst = req->header;
+	char *c = req->data->str;
+	ptrdiff_t *dst = req->header;
 	int i = 0, lim = SIP_MAX_HEADERS - 1;
 	unsigned int skipping_headers = 0;
+	ptrdiff_t current_header_offset = 0;
+	char *previous_header = "";
 
-	req->header[0] = c;
+	req->header[0] = 0;
 	req->headers = -1;	/* mark that we are working on the header */
 	for (; *c; c++) {
 		if (*c == '\r') {		/* remove \r */
 			*c = '\0';
 		} else if (*c == '\n') { 	/* end of this line */
 			*c = '\0';
+			current_header_offset = (c + 1) - req->data->str;
+			previous_header = req->data->str + dst[i];
 			if (skipping_headers) {
 				/* check to see if this line is blank; if so, turn off
 				   the skipping flag, so the next line will be processed
 				   as a body line */
-				if (ast_strlen_zero(dst[i])) {
+				if (ast_strlen_zero(previous_header)) {
 					skipping_headers = 0;
 				}
-				dst[i] = c + 1; /* record start of next line */
+				dst[i] = current_header_offset; /* record start of next line */
 				continue;
 			}
 			if (sipdebug) {
 				ast_debug(4, "%7s %2d [%3d]: %s\n",
 					  req->headers < 0 ? "Header" : "Body",
-					  i, (int) strlen(dst[i]), dst[i]);
+					  i, (int) strlen(previous_header), previous_header);
 			}
-			if (ast_strlen_zero(dst[i]) && req->headers < 0) {
+			if (ast_strlen_zero(previous_header) && req->headers < 0) {
 				req->headers = i;	/* record number of header lines */
 				dst = req->line;	/* start working on the body */
 				i = 0;
@@ -6633,20 +6650,21 @@ static int parse_request(struct sip_request *req)
 					}
 				}
 			}
-			dst[i] = c + 1; /* record start of next line */
+			dst[i] = current_header_offset; /* record start of next line */
 		}
-        }
+	}
 
 	/* Check for last header or body line without CRLF. The RFC for SDP requires CRLF,
 	   but since some devices send without, we'll be generous in what we accept. However,
 	   if we've already reached the maximum number of lines for portion of the message
 	   we were parsing, we can't accept any more, so just ignore it.
 	*/
-	if ((i < lim) && !ast_strlen_zero(dst[i])) {
+	previous_header = req->data->str + dst[i];
+	if ((i < lim) && !ast_strlen_zero(previous_header)) {
 		if (sipdebug) {
 			ast_debug(4, "%7s %2d [%3d]: %s\n",
 				  req->headers < 0 ? "Header" : "Body",
-				  i, (int) strlen(dst[i]), dst[i]);
+				  i, (int) strlen(previous_header), previous_header );
 		}
 		i++;
 	}
@@ -6657,7 +6675,8 @@ static int parse_request(struct sip_request *req)
 	} else {			/* no body */
 		req->headers = i;
 		req->lines = 0;
-		req->line[0] = "";
+		/* req->data->used will be a NULL byte */
+		req->line[0] = req->data->used;
 	}
 
 	if (*c) {
@@ -6742,25 +6761,26 @@ static int find_sdp(struct sip_request *req)
 	/* search for the boundary marker, the empty line delimiting headers from
 	   sdp part and the end boundry if it exists */
 
-	for (x = 0; x < (req->lines ); x++) {
-		if(!strncasecmp(req->line[x], boundary, strlen(boundary))){
-			if(found_application_sdp && found_end_of_headers){
+	for (x = 0; x < (req->lines); x++) {
+		char *line = REQ_OFFSET_TO_STR(req, line[x]);
+		if (!strncasecmp(line, boundary, strlen(boundary))){
+			if (found_application_sdp && found_end_of_headers) {
 				req->sdp_end = x-1;
 				return 1;
 			}
 			found_application_sdp = FALSE;
 		}
-		if(!strcasecmp(req->line[x], "Content-Type: application/sdp"))
+		if (!strcasecmp(line, "Content-Type: application/sdp"))
 			found_application_sdp = TRUE;
 		
-		if (ast_strlen_zero(req->line[x])) {
-			if(found_application_sdp && !found_end_of_headers){
+		if (ast_strlen_zero(line)) {
+			if (found_application_sdp && !found_end_of_headers){
 				req->sdp_start = x;
 				found_end_of_headers = TRUE;
 			}
 		}
 	}
-	if(found_application_sdp && found_end_of_headers) {
+	if (found_application_sdp && found_end_of_headers) {
 		req->sdp_end = x;
 		return TRUE;
 	}
@@ -7567,9 +7587,9 @@ static int add_header(struct sip_request *req, const char *var, const char *valu
 		var = find_alias(var, var);
 
 	ast_str_append(&req->data, 0, "%s: %s\r\n", var, value);
-	req->header[req->headers] = req->data->str + req->len;
+	req->header[req->headers] = req->len;
 
-	req->len += strlen(req->header[req->headers]);
+	req->len = req->data->used;
 	req->headers++;
 
 	return 0;	
@@ -7594,9 +7614,9 @@ static int add_line(struct sip_request *req, const char *line)
 	if (!req->lines)
 		/* Add extra empty return */
 		req->len += ast_str_append(&req->data, 0, "\r\n");
-	req->line[req->lines] = req->data->str + req->len;
+	req->line[req->lines] = req->len;
 	ast_str_append(&req->data, 0, "%s", line);
-	req->len += strlen(req->line[req->lines]);
+	req->len = req->data->used;
 	req->lines++;
 	return 0;	
 }
@@ -7801,9 +7821,9 @@ static int init_resp(struct sip_request *resp, const char *msg)
 	resp->method = SIP_RESPONSE;
 	if (!(resp->data = ast_str_create(SIP_MIN_PACKET)))
 		return -1;
-	resp->header[0] = resp->data->str;
+	resp->header[0] = 0;
 	ast_str_set(&resp->data, 0, "SIP/2.0 %s\r\n", msg);
-	resp->len = strlen(resp->header[0]);
+	resp->len = resp->data->used;
 	resp->headers++;
 	return 0;
 }
@@ -7816,9 +7836,9 @@ static int init_req(struct sip_request *req, int sipmethod, const char *recip)
 	if (!(req->data = ast_str_create(SIP_MIN_PACKET)))
 		return -1;
 	req->method = sipmethod;
-	req->header[0] = req->data->str;
+	req->header[0] = 0;
 	ast_str_set(&req->data, 0, "%s %s SIP/2.0\r\n", sip_methods[sipmethod].text, recip);
-	req->len = strlen(req->header[0]);
+	req->len = req->data->used;
 	req->headers++;
 	return 0;
 }
@@ -7925,14 +7945,14 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	}
 	
 	if (sipmethod == SIP_CANCEL)
-		c = p->initreq.rlPart2;	/* Use original URI */
+		c = REQ_OFFSET_TO_STR(&p->initreq, rlPart2);	/* Use original URI */
 	else if (sipmethod == SIP_ACK) {
 		/* Use URI from Contact: in 200 OK (if INVITE) 
 		(we only have the contacturi on INVITEs) */
 		if (!ast_strlen_zero(p->okcontacturi))
 			c = is_strict ? p->route->hop : p->okcontacturi;
  		else
- 			c = p->initreq.rlPart2;
+ 			c = REQ_OFFSET_TO_STR(&p->initreq, rlPart2);
 	} else if (!ast_strlen_zero(p->okcontacturi)) 
 		c = is_strict ? p->route->hop : p->okcontacturi; /* Use for BYE or REINVITE */
 	else if (!ast_strlen_zero(p->uri)) 
@@ -8861,8 +8881,6 @@ static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct s
 /*! \brief copy SIP request (mostly used to save request for responses) */
 static void copy_request(struct sip_request *dst, const struct sip_request *src)
 {
-	long offset;
-	int x;
 	struct ast_str *duplicate = dst->data;
 
 	/* First copy stuff */
@@ -8882,17 +8900,6 @@ static void copy_request(struct sip_request *dst, const struct sip_request *src)
 		
 	memcpy(dst->data->str, src->data->str, src->data->used + 1);
 	dst->data->used = src->data->used;
-	offset = ((void *)dst->data->str) - ((void *)src->data->str);
-	/* Now fix pointer arithmetic */
-	for (x = 0; x < src->headers; x++)
-		dst->header[x] += offset;
-	for (x = 0; x < src->lines; x++)
-		dst->line[x] += offset;
-	/* On some occasions this function is called without parse_request being called first so lets not create an invalid pointer */
-	if (src->rlPart1)
-		dst->rlPart1 += offset;
-	if (src->rlPart2)
-		dst->rlPart2 += offset;
 }
 
 /*! \brief Used for 200 OK and 183 early media 
@@ -8924,11 +8931,13 @@ static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, const 
 /*! \brief Parse first line of incoming SIP request */
 static int determine_firstline_parts(struct sip_request *req) 
 {
-	char *e = ast_skip_blanks(req->header[0]);	/* there shouldn't be any */
+	char *e = ast_skip_blanks(req->data->str);	/* there shouldn't be any */
+	char *local_rlPart1;
 
 	if (!*e)
 		return -1;
-	req->rlPart1 = e;	/* method or protocol */
+	req->rlPart1 = e - req->data->str;	/* method or protocol */
+	local_rlPart1 = e;
 	e = ast_skip_nonblanks(e);
 	if (*e)
 		*e++ = '\0';
@@ -8938,10 +8947,10 @@ static int determine_firstline_parts(struct sip_request *req)
 		return -1;
 	ast_trim_blanks(e);
 
-	if (!strcasecmp(req->rlPart1, "SIP/2.0") ) { /* We have a response */
+	if (!strcasecmp(local_rlPart1, "SIP/2.0") ) { /* We have a response */
 		if (strlen(e) < 3)	/* status code is 3 digits */
 			return -1;
-		req->rlPart2 = e;
+		req->rlPart2 = e - req->data->str;
 	} else { /* We have a request */
 		if ( *e == '<' ) { /* XXX the spec says it must not be in <> ! */
 			ast_debug(3, "Oops. Bogus uri in <> %s\n", e);
@@ -8949,7 +8958,7 @@ static int determine_firstline_parts(struct sip_request *req)
 			if (!*e)
 				return -1; 
 		}
-		req->rlPart2 = e;	/* URI */
+		req->rlPart2 = e - req->data->str;	/* URI */
 		e = ast_skip_nonblanks(e);
 		if (*e)
 			*e++ = '\0';
@@ -11368,7 +11377,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 
 	/* Find the request URI */
 	if (req->rlPart2)
-		ast_copy_string(tmp, req->rlPart2, sizeof(tmp));
+		ast_copy_string(tmp, REQ_OFFSET_TO_STR(req, rlPart2), sizeof(tmp));
 	
 	if (pedanticsipchecking)
 		ast_uri_decode(tmp);
@@ -12270,12 +12279,14 @@ static int get_msg_text(char *buf, int len, struct sip_request *req, int addnewl
 	int y;
 
 	buf[0] = '\0';
+	/*XXX isn't strlen(buf) going to always be 0? */
 	y = len - strlen(buf) - 5;
 	if (y < 0)
 		y = 0;
-	for (x=0; x < req->lines; x++) {
-		strncat(buf, req->line[x], y); /* safe */
-		y -= strlen(req->line[x]) + 1;
+	for (x = 0; x < req->lines; x++) {
+		char *line = REQ_OFFSET_TO_STR(req, line[x]);
+		strncat(buf, line, y); /* safe */
+		y -= strlen(line) + 1;
 		if (y < 0)
 			y = 0;
 		if (y != 0 && addnewline)
@@ -17633,10 +17644,12 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		/* If pedantic is on, we need to check the tags. If they're different, this is
 	   	in fact a forked call through a SIP proxy somewhere. */
 		int different;
+		char *initial_rlPart2 = REQ_OFFSET_TO_STR(&p->initreq, rlPart2);
+		char *this_rlPart2 = REQ_OFFSET_TO_STR(req, rlPart2);
 		if (pedanticsipchecking)
-			different = sip_uri_cmp(p->initreq.rlPart2, req->rlPart2);
+			different = sip_uri_cmp(initial_rlPart2, this_rlPart2);
 		else
-			different = strcmp(p->initreq.rlPart2, req->rlPart2);
+			different = strcmp(initial_rlPart2, this_rlPart2);
 		if (!different) {
 			transmit_response(p, "482 Loop Detected", req);
 			p->invitestate = INV_COMPLETED;
@@ -17650,12 +17663,12 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
  			 * \todo XXX This needs to be reviewed.  YOu don't change the request URI really, you route the packet
 			 * correctly instead...
 			 */
-			char *uri = ast_strdupa(req->rlPart2);
+			char *uri = ast_strdupa(this_rlPart2);
 			char *at = strchr(uri, '@');
 			char *peerorhost;
 			struct sip_pkt *pkt = NULL;
 			if (option_debug > 2) {
-				ast_log(LOG_DEBUG, "Potential spiral detected. Original RURI was %s, new RURI is %s\n", p->initreq.rlPart2, req->rlPart2);
+				ast_log(LOG_DEBUG, "Potential spiral detected. Original RURI was %s, new RURI is %s\n", initial_rlPart2, this_rlPart2);
 			}
 			if (at) {
 				*at = '\0';
@@ -19382,7 +19395,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 
 	/* Get Method and Cseq */
 	cseq = get_header(req, "Cseq");
-	cmd = req->header[0];
+	cmd = REQ_OFFSET_TO_STR(req, header[0]);
 
 	/* Must have Cseq */
 	if (ast_strlen_zero(cmd) || ast_strlen_zero(cseq)) {
@@ -19400,8 +19413,8 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 	}
 	/* Get the command XXX */
 
-	cmd = req->rlPart1;
-	e = req->rlPart2;
+	cmd = REQ_OFFSET_TO_STR(req, rlPart1);
+	e = REQ_OFFSET_TO_STR(req, rlPart2);
 
 	/* Save useragent of the client */
 	useragent = get_header(req, "User-Agent");
@@ -19742,7 +19755,7 @@ static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
 		ast_str_reset(req->data); /* nulling this out is NOT a good idea here. */
 		return 1;
 	}
-	req->method = find_sip_method(req->rlPart1);
+	req->method = find_sip_method(REQ_OFFSET_TO_STR(req, rlPart1));
 
 	if (req->debug)
 		ast_verbose("--- (%d headers %d lines)%s ---\n", req->headers, req->lines, (req->headers + req->lines == 0) ? " Nat keepalive" : "");
@@ -19782,7 +19795,7 @@ static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
 	p->recv = *sin;
 
 	if (p->do_history) /* This is a request or response, note what it was for */
-		append_history(p, "Rx", "%s / %s / %s", req->data->str, get_header(req, "CSeq"), req->rlPart2);
+		append_history(p, "Rx", "%s / %s / %s", req->data->str, get_header(req, "CSeq"), REQ_OFFSET_TO_STR(req, rlPart2));
 
 	if (!lockretry) {
 		if (!queue_request(p, req)) {
