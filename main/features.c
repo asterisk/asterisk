@@ -375,7 +375,7 @@ static enum ast_device_state metermaidstate(const char *data)
 }
 
 /* Park a call */
-static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, int timeout, int *extout, char *orig_chan_name)
+static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, int timeout, int *extout, const char *orig_chan_name)
 {
 	struct parkeduser *pu, *cur;
 	int i, x = -1, parking_range;
@@ -455,7 +455,7 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 		*extout = x;
 
 	if (peer) 
-		ast_copy_string(pu->peername, peer->name, sizeof(pu->peername));
+		ast_copy_string(pu->peername, S_OR(orig_chan_name, peer->name), sizeof(pu->peername));
 
 	/* Remember what had been dialed, so that if the parking
 	   expires, we try to come back to the same place */
@@ -523,11 +523,10 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 	return park_call_full(chan, peer, timeout, extout, NULL);
 }
 
-static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout, int play_announcement)
+static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout, int play_announcement, const char *orig_chan_name)
 {
 	struct ast_channel *chan;
 	struct ast_frame *f;
-	char *orig_chan_name = NULL;
 	int park_status;
 
 	/* Make a new, fake channel that we'll use to masquerade in the real one */
@@ -552,7 +551,7 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, i
 		peer = chan;
 	}
 
-	if (!play_announcement) {
+	if (!play_announcement || !orig_chan_name) {
 		orig_chan_name = ast_strdupa(chan->name);
 	}
 
@@ -568,12 +567,12 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, i
 /* Park call via masquraded channel */
 int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout)
 {
-	return masq_park_call(rchan, peer, timeout, extout, 0);
+	return masq_park_call(rchan, peer, timeout, extout, 0, NULL);
 }
 
-static int masq_park_call_announce(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout)
+static int masq_park_call_announce(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout, const char *orig_chan_name)
 {
-	return masq_park_call(rchan, peer, timeout, extout, 1);
+	return masq_park_call(rchan, peer, timeout, extout, 1, orig_chan_name);
 }
 
 #define FEATURE_RETURN_HANGUP		-1
@@ -639,7 +638,7 @@ static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, 
 		res = ast_safe_sleep(chan, 1000);
 
 	if (!res) { /* one direction used to call park_call.... */
-		masq_park_call_announce(parkee, parker, 0, NULL);
+		masq_park_call_announce(parkee, parker, 0, NULL, NULL);
 		res = 0; /* PBX should hangup zombie channel */
 	}
 	return res;
@@ -940,7 +939,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		res = finishup(transferee);
 		if (res)
 			res = -1;
-		else if (!masq_park_call_announce(transferee, transferer, 0, NULL)) {	/* success */
+		else if (!masq_park_call_announce(transferee, transferer, 0, NULL, NULL)) {	/* success */
 			/* We return non-zero, but tell the PBX not to hang the channel when
 			   the thread dies -- We have to be careful now though.  We are responsible for 
 			   hanging up the channel, else it will never be hung up! */
@@ -2544,6 +2543,7 @@ std:					for (x=0; x<AST_MAX_FDS; x++) {	/* mark fds for next round */
 /*! \brief Park a call */
 static int park_call_exec(struct ast_channel *chan, void *data)
 {
+ 	char *orig_chan_name = ast_strdupa(chan->name);
 	char orig_exten[AST_MAX_EXTENSION];
 	int orig_priority = chan->priority;
 
@@ -2565,7 +2565,7 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 		res = ast_safe_sleep(chan, 1000);
 	/* Park the call */
 	if (!res) {
- 		res = masq_park_call_announce(chan, chan, 0, NULL);
+ 		res = masq_park_call_announce(chan, chan, 0, NULL, orig_chan_name);
 		/* Continue on in the dialplan */
 		if (res == 1) {
 			ast_copy_string(chan->exten, orig_exten, sizeof(chan->exten));
