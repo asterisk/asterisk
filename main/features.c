@@ -648,7 +648,7 @@ static int ast_park_call_full(struct ast_channel *chan, struct ast_channel *peer
 		*(args->extout) = x;
 
 	if (peer) 
-		ast_copy_string(pu->peername, peer->name, sizeof(pu->peername));
+		ast_copy_string(pu->peername, S_OR(args->orig_chan_name, peer->name), sizeof(pu->peername));
 
 	/* Remember what had been dialed, so that if the parking
 	   expires, we try to come back to the same place */
