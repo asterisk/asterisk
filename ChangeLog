@@ -2,6 +2,16 @@
 
 	* Asterisk 1.4.23 released.
 
+2009-01-20 18:49 -0500 [r169581]  Terry Wilson <twilson@digium.com>
+
+	* One-touch parking was calling back the wrong channel on timeout
+
+2009-01-20 13:40 -0500 [r169485]  Terry Wilson <twilson@digium.com>
+
+	* Don't play audio to the channel if we've masqueraded  (closes 
+	  issue #14066) Reported by: bluefox Tested by: otherwiseguy, 
+	  bluefox
+
 2009-01-16  Russell Bryant <russell@digium.com>
 
 	* Asterisk 1.4.23-rc4 released.
