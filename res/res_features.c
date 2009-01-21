@@ -715,8 +715,10 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	const char *transferer_real_context;
 	char xferto[256];
 	int res;
+	const char *orig_chan_name;
 
 	set_peers(&transferer, &transferee, peer, chan, sense);
+	orig_chan_name = ast_strdupa(transferer->name);
 	transferer_real_context = real_ctx(transferer, transferee);
 	/* Start autoservice on chan while we talk to the originator */
 	ast_autoservice_start(transferee);
@@ -743,7 +745,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		res = finishup(transferee);
 		if (res)
 			res = -1;
-		else if (!masq_park_call_announce(transferee, transferer, 0, NULL, NULL)) {	/* success */
+		else if (!masq_park_call_announce(transferee, transferer, 0, NULL, orig_chan_name)) {	/* success */
 			/* We return non-zero, but tell the PBX not to hang the channel when
 			   the thread dies -- We have to be careful now though.  We are responsible for 
 			   hanging up the channel, else it will never be hung up! */
