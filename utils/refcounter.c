@@ -161,7 +161,7 @@ int main(int argc,char **argv)
 		} else {
 			/* NO obj at ALL? -- better make one! */
 			if (*(t+1) != '=') {
-				printf("BAD: object %x appears without previous allocation marker!\n", count1_obj->addr);
+				printf("BAD: object %x appears without previous allocation marker!\n", un);
 			}
 			curr_obj = count1_obj = alloc_obj(un, 1);
 			/* put it in the hashtable */
