@@ -302,7 +302,7 @@ static int metermaidstate(const char *data)
 		return AST_DEVICE_INUSE;
 }
 
-static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, int timeout, int *extout, char *orig_chan_name)
+static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, int timeout, int *extout, const char *orig_chan_name)
 {
 	struct parkeduser *pu, *cur;
 	int i, x = -1, parking_range, parkingnum_copy;
@@ -393,7 +393,7 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 			struct ast_channel *tmpchan, *base_peer;
 			char other_side[AST_CHANNEL_NAME];
 			char *c;
-			ast_copy_string(other_side, peer->name, sizeof(other_side));
+			ast_copy_string(other_side, S_OR(orig_chan_name, peer->name), sizeof(other_side));
 			if ((c = strrchr(other_side, ','))) {
 				*++c = '1';
 			}
@@ -404,7 +404,7 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 				ast_channel_unlock(tmpchan);
 			}
 		} else {
-			ast_copy_string(pu->peername, peer->name, sizeof(pu->peername));
+			ast_copy_string(pu->peername, S_OR(orig_chan_name, peer->name), sizeof(pu->peername));
 		}
 	}
 
@@ -484,11 +484,10 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 	return park_call_full(chan, peer, timeout, extout, NULL);
 }
 
-static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout, int play_announcement)
+static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout, int play_announcement, const char *orig_chan_name)
 {
 	struct ast_channel *chan;
 	struct ast_frame *f;
-	char *orig_chan_name = NULL;
 	int park_status;
 
 	/* Make a new, fake channel that we'll use to masquerade in the real one */
@@ -514,7 +513,7 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, i
 		peer = chan;
 	}
 
-	if (!play_announcement) {
+	if (!play_announcement || !orig_chan_name) {
 		orig_chan_name = ast_strdupa(chan->name);
 	}
 
@@ -530,12 +529,12 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, i
 
 int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout)
 {
-	return masq_park_call(rchan, peer, timeout, extout, 0);
+	return masq_park_call(rchan, peer, timeout, extout, 0, NULL);
 }
 
-static int masq_park_call_announce(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout)
+static int masq_park_call_announce(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout, const char *orig_chan_name)
 {
-	return masq_park_call(rchan, peer, timeout, extout, 1);
+	return masq_park_call(rchan, peer, timeout, extout, 1, orig_chan_name);
 }
 #define FEATURE_RETURN_HANGUP                  -1
 #define FEATURE_RETURN_SUCCESSBREAK             0
@@ -569,10 +568,12 @@ static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, 
 	struct ast_channel *parkee;
 	int res = 0;
 	struct ast_module_user *u;
+	const char *orig_chan_name;
 
 	u = ast_module_user_add(chan);
 
 	set_peers(&parker, &parkee, peer, chan, sense);
+	orig_chan_name = ast_strdupa(parker->name);
 	/* we used to set chan's exten and priority to "s" and 1
 	   here, but this generates (in some cases) an invalid
 	   extension, and if "s" exists, could errantly
@@ -587,7 +588,7 @@ static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, 
 		res = ast_safe_sleep(chan, 1000);
 
 	if (!res) { /* one direction used to call park_call.... */
-		masq_park_call_announce(parkee, parker, 0, NULL);
+		masq_park_call_announce(parkee, parker, 0, NULL, orig_chan_name);
 		res = 0; /* PBX should hangup zombie channel */
 	}
 
@@ -742,7 +743,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		res = finishup(transferee);
 		if (res)
 			res = -1;
-		else if (!masq_park_call_announce(transferee, transferer, 0, NULL)) {	/* success */
+		else if (!masq_park_call_announce(transferee, transferer, 0, NULL, NULL)) {	/* success */
 			/* We return non-zero, but tell the PBX not to hang the channel when
 			   the thread dies -- We have to be careful now though.  We are responsible for 
 			   hanging up the channel, else it will never be hung up! */
@@ -2065,6 +2066,7 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 	/* Cache the original channel name in case we get masqueraded in the middle
 	 * of a park--it is still theoretically possible for a transfer to happen before
 	 * we get here, but it is _really_ unlikely */
+	char *orig_chan_name = ast_strdupa(chan->name);
 	char orig_exten[AST_MAX_EXTENSION];
 	int orig_priority = chan->priority;
 
@@ -2089,7 +2091,7 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 		res = ast_safe_sleep(chan, 1000);
 	/* Park the call */
 	if (!res) {
-		res = masq_park_call_announce(chan, chan, 0, NULL);
+		res = masq_park_call_announce(chan, chan, 0, NULL, orig_chan_name);
 		/* Continue on in the dialplan */
 		if (res == 1) {
 			ast_copy_string(chan->exten, orig_exten, sizeof(chan->exten));
