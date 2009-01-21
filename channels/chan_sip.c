@@ -1802,6 +1802,11 @@ struct sip_mailbox {
 	AST_LIST_ENTRY(sip_mailbox) entry;
 };
 
+enum sip_peer_type {
+	SIP_TYPE_PEER = (1 << 0),
+	SIP_TYPE_USER = (1 << 1),
+};
+
 /*! \brief Structure for SIP peer data, we place calls to peers if registered  or fixed IP address (host) 
 */
 /* XXX field 'name' must be first otherwise sip_addrcmp() will fail, as will astobj2 hashing of the structure */
@@ -1885,6 +1890,7 @@ struct sip_peer {
 	int timer_t1;			/*!<  The maximum T1 value for the peer */
 	int timer_b;			/*!<  The maximum timer B (transaction timeouts) */
 	int deprecated_username; /*!< If it's a realtime peer, are they using the deprecated "username" instead of "defaultuser" */
+	enum sip_peer_type type; /*!< Distinguish between "user" and "peer" types. This is used solely for CLI and manager commands */
 };
 
 
@@ -13321,7 +13327,7 @@ static char *sip_show_users(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	user_iter = ao2_iterator_init(peers, 0);
 	while ((user = ao2_iterator_next(&user_iter))) {
 		ao2_lock(user);
-		if (user->onlymatchonip == TRUE) {
+		if (!(user->type & SIP_TYPE_USER)) {
 			ao2_unlock(user);
 			unref_peer(user, "sip show users");
 			continue;
@@ -13513,7 +13519,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 	while ((peer = ao2_t_iterator_next(&i, "iterate thru peers table"))) {	
 		ao2_lock(peer);
 
-		if (peer->onlymatchonip == FALSE) {
+		if (!(peer->type & SIP_TYPE_PEER)) {
 			ao2_unlock(peer);
 			unref_peer(peer, "unref peer because it's actually a user");
 			continue;
@@ -14392,7 +14398,7 @@ static char *complete_sip_user(const char *word, int state)
 	user_iter = ao2_iterator_init(peers, 0);
 	while ((user = ao2_iterator_next(&user_iter))) {
 		ao2_lock(user);
-		if (user->onlymatchonip == TRUE) {
+		if (!(user->type & SIP_TYPE_USER)) {
 			ao2_unlock(user);
 			unref_peer(user, "complete sip user");
 			continue;
@@ -22392,8 +22398,16 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_str_set(&fullcontact, 0, "%s", v->value);
 			}
 		} else if (!strcasecmp(v->name, "type")) {
-			if (!strcasecmp(v->value, "peer")) 
+			if (!strcasecmp(v->value, "peer")) {
 				peer->onlymatchonip = TRUE;		/* For realtime support, add type=peer in the table */
+				peer->type = SIP_TYPE_PEER;
+			} else if (!strcasecmp(v->value, "user")) {
+				peer->onlymatchonip = FALSE;
+				peer->type = SIP_TYPE_USER;
+			} else if (!strcasecmp(v->value, "friend")) {
+				peer->onlymatchonip = FALSE;
+				peer->type = SIP_TYPE_USER | SIP_TYPE_PEER;
+			}
 		} else if (!strcasecmp(v->name, "remotesecret")) {
 			ast_string_field_set(peer, remotesecret, v->value);
 		} else if (!strcasecmp(v->name, "secret")) {
