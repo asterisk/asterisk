@@ -706,8 +706,8 @@ static int update_status(const char *interface, const int status)
 			char *tmp_interface;
 			char *slash_pos;
 			tmp_interface = ast_strdupa(cur->state_interface);
-			if ((slash_pos = strchr(interface, '/')))
-				if ((slash_pos = strchr(slash_pos + 1, '/')))
+			if ((slash_pos = strchr(tmp_interface, '/')))
+				if (!strncasecmp(tmp_interface, "Local", 5) && (slash_pos = strchr(slash_pos + 1, '/')))
 					*slash_pos = '\0';
 
 			if (strcasecmp(interface, tmp_interface)) {
