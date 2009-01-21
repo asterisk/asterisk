@@ -1032,7 +1032,7 @@ static int handle_statechange(void *datap)
 			ast_copy_string(interface, m->state_interface, sizeof(interface));
 
 			if ((slash_pos = strchr(interface, '/')))
-				if ((slash_pos = strchr(slash_pos + 1, '/')))
+				if (!strncasecmp(interface, "Local/", 6) && (slash_pos = strchr(slash_pos + 1, '/')))
 					*slash_pos = '\0';
 
 			if (!strcasecmp(interface, sc->dev)) {
