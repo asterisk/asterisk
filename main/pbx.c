@@ -3302,6 +3302,8 @@ static int handle_statechange(void *datap)
 {
 	struct ast_hint *hint;
 	struct statechange *sc = datap;
+
+	ast_rdlock_contexts();
 	AST_RWLIST_RDLOCK(&hints);
 
 	AST_RWLIST_TRAVERSE(&hints, hint, list) {
@@ -3340,6 +3342,7 @@ static int handle_statechange(void *datap)
 		hint->laststate = state;	/* record we saw the change */
 	}
 	AST_RWLIST_UNLOCK(&hints);
+	ast_unlock_contexts();
 	ast_free(sc);
 	return 0;
 }
