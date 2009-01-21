@@ -2142,15 +2142,11 @@ static int action_userevent(struct mansession *s, const struct message *m)
 {
 	const char *event = astman_get_header(m, "UserEvent");
 	char body[2048] = "";
-	int x, bodylen = 0, xlen;
+	int x, bodylen = 0;
 	for (x = 0; x < m->hdrcount; x++) {
 		if (strncasecmp("UserEvent:", m->headers[x], strlen("UserEvent:"))) {
-			if (sizeof(body) < bodylen + (xlen = strlen(m->headers[x])) + 3) {
-				ast_log(LOG_WARNING, "UserEvent exceeds our buffer length.  Truncating.\n");
-				break;
-			}
 			ast_copy_string(body + bodylen, m->headers[x], sizeof(body) - bodylen - 3);
-			bodylen += xlen;
+			bodylen += strlen(m->headers[x]);
 			ast_copy_string(body + bodylen, "\r\n", 3);
 			bodylen += 2;
 		}
