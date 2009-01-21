@@ -383,7 +383,7 @@ struct ast_tcptls_session_instance *ast_tcptls_client_start(struct ast_tcptls_se
 	tcptls_session->fd = desc->accept_fd;
 	tcptls_session->parent = desc;
 	tcptls_session->parent->worker_fn = NULL;
-	memcpy(&tcptls_session->remote_address, &desc->local_address, sizeof(tcptls_session->remote_address));
+	memcpy(&tcptls_session->remote_address, &desc->remote_address, sizeof(tcptls_session->remote_address));
 
 	tcptls_session->client = 1;
 
