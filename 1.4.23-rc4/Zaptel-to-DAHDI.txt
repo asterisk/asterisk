@@ -1,0 +1,105 @@
+=========================================================
+=== Information for upgrading from Zaptel to DAHDI    ===
+=========================================================
+
+As announced in early 2008, Digium is renaming the Zaptel telephony
+interface project to DAHDI (Digium Asterisk Hardware Device Interface)
+to accommodate the desires of the owner of the Zaptel trademark for
+telephony purposes.
+
+This version of Asterisk can be built using either Zaptel or DAHDI,
+and has many changes to make the use of DAHDI as easy as possible for
+existing users with dialplans, CDR parsers, AMI applications, and
+others that expect Zaptel to be in use.
+
+First, the modules that directly use services from Zaptel/DAHDI have been
+renamed; the new names are:
+
+  chan_zap.so -> chan_dahdi.so
+  app_zapbarge.so -> app_dahdibarge.so
+  app_zapras.so -> app_dahdiras.so
+  app_zapscan.so -> app_dahdiscan.so
+  codec_zap.so -> codec_dahdi.so
+
+However, in spite of the file name changes, the channels and
+applications provided by these modules can still be used with 'Zap'
+style names; see below for more information.
+
+Second, there are have been a number of efforts made to ensure that
+existing systems will not have to have any major configuration changes
+made solely because Asterisk was built against DAHDI instead of
+Zaptel. This includes:
+
+chan_dahdi.so:
+
+  This module will determine which channel name ('Zap' or 'DAHDI')
+  should be used for incoming and outgoing channels based on the
+  build-time choice of telephony drivers. However, if you wish to
+  continue using the 'Zap' channel name even though you built Asterisk
+  against the DAHDI drivers, you can add the following line to the
+  [options] section of your /etc/asterisk/asterisk.conf file:
+
+    dahdichanname = no
+
+  All CLI commands that begin with 'zap' are now available as 'dahdi'
+  commands as well; the 'zap' variants will report that they are
+  deprecated the first time you use each one in an Asterisk instance,
+  but they will otherwise operate just as they did in previous versions.
+
+  All Asterisk Manager Interface (AMI) actions that begin with 'Zap'
+  are also available with 'DAHDI' prefixes.
+
+  The ZapSendKeypadFacility dialplan application is now available as
+  DAHDISendKeypadFacility as well; the Zap variant will report a deprecation
+  warning but will otherwise operate as it did it in previous
+  versions.
+
+  The configuration for the channel driver will be read from
+  /etc/asterisk/chan_dahdi.conf unless 'dahdichanname' has been set to
+  'no' in asterisk.conf; if that is done, then the configuration will
+  be read from /etc/asterisk/zapata.conf, just as it was in previous
+  versions.
+
+app_dahdibarge.so:
+
+  The ZapBarge application is now available as DAHDIBarge as well; the
+  ZapBarge variant will report a deprecation warning when used, but
+  will otherwise operate as it did in previous versions. Regardless of
+  which application name is used, the application will restrict itself
+  to channels of the proper type, based on the 'dahdichanname' setting
+  in asterisk.conf.
+
+app_dahdiras.so:
+
+  The ZapRAS application is now available as DAHDIRAS as well; the
+  ZapRAS variant will report a deprecation warning when used, but will
+  otherwise operate as it did in previous versions. Regardless of
+  which application name is used, the application will restrict itself
+  to channels of the proper type, based on the 'dahdichanname' setting
+  in asterisk.conf.
+
+app_dahdiscan.so:
+
+  The ZapScan application is now available as DAHDIScan as well; the
+  ZapScan variant will report a deprecation warning when used, but will
+  otherwise operate as it did in previous versions. Regardless of
+  which application name is used, the application will restrict itself
+  to channels of the proper type, based on the 'dahdichanname' setting
+  in asterisk.conf.
+
+app_flash.so:
+
+  This application has not had any name changes, but will report its
+  usage (via 'show application flash') as being for either DAHDI or
+  Zaptel channels based on the 'dahdichanname' setting in
+  asterisk.conf.
+
+app_chanspy.so:
+
+  This application will transparently create 'DAHDI' or 'Zap' channels
+  as needed, based on the 'dahdichanname' setting in asterisk.conf.
+
+app_meetme.so:
+
+  This application will transparently create 'DAHDI' or 'Zap' channels
+  as needed, based on the 'dahdichanname' setting in asterisk.conf.

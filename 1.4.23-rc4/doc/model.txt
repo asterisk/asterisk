@@ -1,0 +1,15 @@
+Description of call model:
+
+Incoming Call:
+
+	Channel backend waits for a RING or equivalent on some sort of
+interface. Typically this is done in its own thread.  When a RING is
+detected, the backend should create a channel structure and then call
+ast_pbx_start() on that channel, which will create a thread to monitor
+that interface.  At this point, the PBX and/or applications it launches
+will manage the interface, and it need not be monitored by the
+aforementioned thread.  When the applications are finished, the requisite
+hangup function will be called, at which the channel can be considered to
+be no longer valid, and the thread that controls it will imminently be
+terminated. 
+
