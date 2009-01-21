@@ -1832,6 +1832,7 @@ static int ast_el_read_char(EditLine *el, char *cp)
 				if (*tmp == 127) {
 					memmove(tmp, tmp + 1, strlen(tmp));
 					tmp--;
+					res--;
 				}
 			}
 
