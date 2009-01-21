@@ -2216,11 +2216,6 @@ static int ast_say_number_full_tw(struct ast_channel *chan, int num, const char 
 					num -= ((num / 100) * 100);
 				} else if (num < 10000){
 					snprintf(buf, 10, "%d", num);
-					if (last_length - strlen(buf) > 1 && last_length != 0 && last_length % strlen(buf) > 0) {
-						last_length = strlen(buf);
-						playz++;
-						continue;
-					}
 					snprintf(fn, sizeof(fn), "digits/%d", (num / 1000));
 					playt++;
 					snprintf(buf, 10, "%d", num);
@@ -2231,9 +2226,6 @@ static int ast_say_number_full_tw(struct ast_channel *chan, int num, const char 
 						res = ast_say_number_full_tw(chan, num / 10000, ints, language, audiofd, ctrlfd);
 						if (res)
 							return res;
-						if (((num / 10000) % (num/100000)) == 0)
-							playz++;
-
 						snprintf(buf, 10, "%d", num);
 						ast_log(LOG_DEBUG, "Number '%d' %d %d\n", num, (int)strlen(buf), last_length);
 						num -= ((num / 10000) * 10000);
