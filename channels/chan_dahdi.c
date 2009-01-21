@@ -693,7 +693,7 @@ static struct dahdi_pvt {
 	time_t guardtime;				/*!< Must wait this much time before using for new call */
 	int cid_signalling;				/*!< CID signalling type bell202 or v23 */
 	int cid_start;					/*!< CID start indicator, polarity or ring */
-	int callingpres;				/*!< The value of callling presentation that we're going to use when placing a PRI call */
+	int callingpres;				/*!< The value of calling presentation that we're going to use when placing a PRI call */
 	int callwaitingrepeat;				/*!< How many samples to wait before repeating call waiting */
 	int cidcwexpire;				/*!< When to expire our muting for CID/CW */
 	unsigned char *cidspill;
