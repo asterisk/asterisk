@@ -484,6 +484,8 @@ static int create_jb(struct ast_channel *chan, struct ast_frame *frr)
 	
 	/* Create a frame log file */
 	if (ast_test_flag(jbconf, AST_JB_LOG)) {
+		char safe_logfile[30] = "/tmp/logfile-XXXXXX";
+		int safe_fd;
 		snprintf(name2, sizeof(name2), "%s", chan->name);
 		tmp = strchr(name2, '/');
 		if (tmp)
@@ -497,14 +499,17 @@ static int create_jb(struct ast_channel *chan, struct ast_frame *frr)
 		tmp = strchr(name1, '/');
 		if (tmp)
 			*tmp = '#';
-		
+
 		snprintf(logfile_pathname, sizeof(logfile_pathname),
 			"/tmp/ast_%s_jb_%s--%s.log", jbimpl->name, name1, name2);
-		jb->logfile = fopen(logfile_pathname, "w+b");
-		
-		if (!jb->logfile)
-			ast_log(LOG_ERROR, "Failed to create frame log file with pathname '%s'\n", logfile_pathname);
-		
+		if (!(safe_fd = mkstemp(safe_logfile)) > -1 || unlink(logfile_pathname) || link(safe_logfile, logfile_pathname) || unlink(safe_logfile) || !(jb->logfile = fdopen(safe_fd, "w+b"))) {
+			jb->logfile = NULL;
+			if (safe_fd > -1) {
+				close(safe_fd);
+			}
+			ast_log(LOG_ERROR, "Failed to create frame log file with pathname '%s': %s\n", logfile_pathname, strerror(errno));
+		}
+
 		if (res == JB_IMPL_OK)
 			jb_framelog("JB_PUT_FIRST {now=%ld}: Queued frame with ts=%ld and len=%ld\n",
 				now, frr->ts, frr->len);
