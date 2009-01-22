@@ -2245,7 +2245,11 @@ static int pbx_load_config(const char *config_file)
 	struct ast_config *cfg;
 	char *end;
 	char *label;
+#ifdef LOW_MEMORY
 	char realvalue[256];
+#else
+	char realvalue[8192];
+#endif
 	int lastpri = -2;
 	struct ast_context *con;
 	struct ast_variable *v;
