@@ -102,8 +102,10 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	dialtech = strsep(&args.dial, "/");
 	ast_verb(3, "Dial Tech,String: (%s,%s)\n", dialtech, args.dial);
 
-	if (!ast_strlen_zero(args.return_context))
+	if (!ast_strlen_zero(args.return_context)) {
+		ast_clear_flag(chan, AST_FLAG_IN_AUTOLOOP);
 		ast_parseable_goto(chan, args.return_context);
+	}
 
 	ast_verb(3, "Return Context: (%s,%s,%d) ID: %s\n", chan->context, chan->exten, chan->priority, chan->cid.cid_num);
 		if (!ast_exists_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num)) {
