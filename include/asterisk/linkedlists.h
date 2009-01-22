@@ -277,7 +277,7 @@ struct name {								\
   This would define \c struct \c entry_list, intended to hold a list of
   type \c struct \c entry.
 */
-#ifndef AST_RWLOCK_INIT_VALUE
+#ifndef HAVE_PTHREAD_RWLOCK_INITIALIZER
 #define AST_RWLIST_HEAD_STATIC(name, type)                              \
 struct name {                                                           \
         struct type *first;                                             \
