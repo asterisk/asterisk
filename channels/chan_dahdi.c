@@ -1033,11 +1033,7 @@ static int dahdi_get_index(struct ast_channel *ast, struct dahdi_pvt *p, int nul
 	return res;
 }
 
-#ifdef HAVE_PRI
 static void wakeup_sub(struct dahdi_pvt *p, int a, struct dahdi_pri *pri)
-#else
-static void wakeup_sub(struct dahdi_pvt *p, int a, void *pri)
-#endif
 {
 #ifdef HAVE_PRI
 	if (pri)
@@ -7830,7 +7826,6 @@ static int mwi_send_process_buffer(struct dahdi_pvt * pvt, int num_read)
 		default:
 			/* Should not get here, punt*/
 			goto quit;
-			break;
 		}
 	}
 
@@ -11351,11 +11346,13 @@ static void *pri_dchannel(void *vpri)
 						} else
 							ast_debug(1, "Deferring ringing notification because of extra digits to dial...\n");
 
+						if (
 #ifdef PRI_PROGRESS_MASK
-						if (e->ringing.progressmask & PRI_PROG_INBAND_AVAILABLE) {
+							e->ringing.progressmask & PRI_PROG_INBAND_AVAILABLE
 #else
-						if (e->ringing.progress == 8) {
+							e->ringing.progress == 8
 #endif
+							) {
 							/* Now we can do call progress detection */
 							if (pri->pvts[chanpos]->dsp && pri->pvts[chanpos]->dsp_features) {
 								/* RINGING detection isn't required because we got ALERTING signal */
@@ -11381,11 +11378,13 @@ static void *pri_dchannel(void *vpri)
 				/* Get chan value if e->e is not PRI_EVNT_RINGING */
 				chanpos = pri_find_principle(pri, e->proceeding.channel);
 				if (chanpos > -1) {
+					if ((!pri->pvts[chanpos]->progress)
 #ifdef PRI_PROGRESS_MASK
-					if ((!pri->pvts[chanpos]->progress) || (e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE)) {
+						|| (e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE)
 #else
-					if ((!pri->pvts[chanpos]->progress) || (e->proceeding.progress == 8)) {
+						|| (e->proceeding.progress == 8)
 #endif
+						) {
 						struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, };
 
 						if (e->proceeding.cause > -1) {
@@ -11406,11 +11405,13 @@ static void *pri_dchannel(void *vpri)
 						ast_debug(1, "Queuing frame from PRI_EVENT_PROGRESS on channel %d/%d span %d\n",
 							pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset,pri->span);
 						dahdi_queue_frame(pri->pvts[chanpos], &f, pri);
+						if (
 #ifdef PRI_PROGRESS_MASK
-						if (e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE) {
+							e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE
 #else
-						if (e->proceeding.progress == 8) {
+							e->proceeding.progress == 8
 #endif
+							) {
 							/* Now we can do call progress detection */
 							if (pri->pvts[chanpos]->dsp && pri->pvts[chanpos]->dsp_features) {
 								ast_dsp_set_features(pri->pvts[chanpos]->dsp, pri->pvts[chanpos]->dsp_features);
@@ -11432,11 +11433,13 @@ static void *pri_dchannel(void *vpri)
 						ast_debug(1, "Queuing frame from PRI_EVENT_PROCEEDING on channel %d/%d span %d\n",
 							pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset,pri->span);
 						dahdi_queue_frame(pri->pvts[chanpos], &f, pri);
+						if (
 #ifdef PRI_PROGRESS_MASK
-						if (e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE) {
+							e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE
 #else
-						if (e->proceeding.progress == 8) {
+							e->proceeding.progress == 8
 #endif
+							) {
 							/* Now we can do call progress detection */
 							if (pri->pvts[chanpos]->dsp && pri->pvts[chanpos]->dsp_features) {
 								ast_dsp_set_features(pri->pvts[chanpos]->dsp, pri->pvts[chanpos]->dsp_features);
@@ -11636,6 +11639,7 @@ static void *pri_dchannel(void *vpri)
 									break;
 								default:
 									pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+									break;
 								}
 							}
 							ast_verb(3, "Channel %d/%d, span %d got hangup request, cause %d\n", PRI_SPAN(e->hangup.channel), PRI_CHANNEL(e->hangup.channel), pri->span, e->hangup.cause);
@@ -11859,6 +11863,7 @@ static int start_pri(struct dahdi_pri *pri)
 			break;
 		default:
 			pri->dchans[i] = pri_new(pri->fds[i], pri->nodetype, pri->switchtype);
+			break;
 		}
 		/* Force overlap dial if we're doing GR-303! */
 		if (pri->switchtype == PRI_SWITCH_GR303_TMC)
