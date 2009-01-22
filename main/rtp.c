@@ -2945,17 +2945,17 @@ void ast_rtp_destroy(struct ast_rtp *rtp)
 		ast_verbose("* Our Receiver:\n");
 		ast_verbose("  SSRC:		 %u\n", rtp->themssrc);
 		ast_verbose("  Received packets: %u\n", rtp->rxcount);
-		ast_verbose("  Lost packets:	 %u\n", rtp->rtcp->expected_prior - rtp->rtcp->received_prior);
+		ast_verbose("  Lost packets:	 %u\n", rtp->rtcp ? (rtp->rtcp->expected_prior - rtp->rtcp->received_prior) : 0);
 		ast_verbose("  Jitter:		 %.4f\n", rtp->rxjitter);
 		ast_verbose("  Transit:		 %.4f\n", rtp->rxtransit);
-		ast_verbose("  RR-count:	 %u\n", rtp->rtcp->rr_count);
+		ast_verbose("  RR-count:	 %u\n", rtp->rtcp ? rtp->rtcp->rr_count : 0);
 		ast_verbose("* Our Sender:\n");
 		ast_verbose("  SSRC:		 %u\n", rtp->ssrc);
 		ast_verbose("  Sent packets:	 %u\n", rtp->txcount);
-		ast_verbose("  Lost packets:	 %u\n", rtp->rtcp->reported_lost);
-		ast_verbose("  Jitter:		 %u\n", rtp->rtcp->reported_jitter / (unsigned int)65536.0);
-		ast_verbose("  SR-count:	 %u\n", rtp->rtcp->sr_count);
-		ast_verbose("  RTT:		 %f\n", rtp->rtcp->rtt);
+		ast_verbose("  Lost packets:	 %u\n", rtp->rtcp ? rtp->rtcp->reported_lost : 0);
+		ast_verbose("  Jitter:		 %u\n", rtp->rtcp ? (rtp->rtcp->reported_jitter / (unsigned int)65536.0) : 0);
+		ast_verbose("  SR-count:	 %u\n", rtp->rtcp ? rtp->rtcp->sr_count : 0);
+		ast_verbose("  RTT:		 %f\n", rtp->rtcp ? rtp->rtcp->rtt : 0);
 	}
 
 	manager_event(EVENT_FLAG_REPORTING, "RTPReceiverStat", "SSRC: %u\r\n"
@@ -2966,10 +2966,10 @@ void ast_rtp_destroy(struct ast_rtp *rtp)
 					    "RRCount: %u\r\n",
 					    rtp->themssrc,
 					    rtp->rxcount,
-					    rtp->rtcp->expected_prior - rtp->rtcp->received_prior,
+					    rtp->rtcp ? (rtp->rtcp->expected_prior - rtp->rtcp->received_prior) : 0,
 					    rtp->rxjitter,
 					    rtp->rxtransit,
-					    rtp->rtcp->rr_count);
+					    rtp->rtcp ? rtp->rtcp->rr_count : 0);
 	manager_event(EVENT_FLAG_REPORTING, "RTPSenderStat", "SSRC: %u\r\n"
 					    "SentPackets: %u\r\n"
 					    "LostPackets: %u\r\n"
@@ -2978,10 +2978,10 @@ void ast_rtp_destroy(struct ast_rtp *rtp)
 					    "RTT: %f\r\n",
 					    rtp->ssrc,
 					    rtp->txcount,
-					    rtp->rtcp->reported_lost,
-					    rtp->rtcp->reported_jitter,
-					    rtp->rtcp->sr_count,
-					    rtp->rtcp->rtt);
+					    rtp->rtcp ? rtp->rtcp->reported_lost : 0,
+					    rtp->rtcp ? rtp->rtcp->reported_jitter : 0,
+					    rtp->rtcp ? rtp->rtcp->sr_count : 0,
+					    rtp->rtcp ? rtp->rtcp->rtt : 0);
 	if (rtp->smoother)
 		ast_smoother_free(rtp->smoother);
 	if (rtp->ioid)
