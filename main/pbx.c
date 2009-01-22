@@ -5722,7 +5722,7 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 			ast_stopstream(chan);
 		}
 	}
-	if (args.context != chan->context && res) {
+	if (strcmp(args.context, chan->context) && res) {
 		snprintf(chan->exten, sizeof(chan->exten), "%c", res);
 		ast_copy_string(chan->context, args.context, sizeof(chan->context));
 		chan->priority = 0;
