@@ -264,7 +264,7 @@ static char parkinglot[AST_MAX_EXTENSION] = "";		/*!< Default parking lot for th
 
 /*! Run this script when the MWI state changes on an FXO line, if mwimonitor is enabled */
 static char mwimonitornotify[PATH_MAX] = "";
-#ifndef DAHDI_VMWI_FSK
+#ifndef HAVE_DAHDI_LINEREVERSE_VMWI
 static int  mwisend_rpas = 0;
 #endif
 
@@ -732,7 +732,11 @@ static struct dahdi_pvt {
 	int onhooktime;
 	int fxsoffhookstate;
 	int msgstate;
-	int mwisendtype;				/*!< Which VMWI methods to use */
+#ifdef HAVE_DAHDI_LINEREVERSE_VMWI
+	struct dahdi_vmwi_info mwisend_setting;				/*!< Which VMWI methods to use */
+	unsigned int mwisend_fsk: 1;		/*! Variable for enabling FSK MWI handling in chan_dahdi */
+	unsigned int mwisend_rpas:1;		/*! Variable for enabling Ring Pulse Alert before MWI FSK Spill */
+#endif
 	int distinctivering;				/*!< Which distinctivering to use */
 	int cidrings;					/*!< Which ring to deliver CID on */
 	int dtmfrelax;					/*!< whether to run in relaxed DTMF mode */
@@ -872,8 +876,8 @@ static struct dahdi_chan_conf dahdi_chan_conf_default(void)
 
 			.mailbox = "",
 
-#ifdef DAHDI_VMWI_FSK
-			.mwisendtype = DAHDI_VMWI_FSK,
+#ifdef HAVE_DAHDI_LINEREVERSE_VMWI
+			.mwisend_fsk = 1,
 #endif
 			.polarityonanswerdelay = 600,
 
@@ -7714,12 +7718,12 @@ static int mwi_send_init(struct dahdi_pvt * pvt)
 {
 	int x, res;
 
-#ifdef DAHDI_VMWI_FSK
+#ifdef HAVE_DAHDI_LINEREVERSE_VMWI
 	/* Determine how this spill is to be sent */
-	if (pvt->mwisendtype & DAHDI_VMWI_RPAS) {
+	if (pvt->mwisend_rpas) {
 		pvt->mwisend_data.mwisend_current = MWI_SEND_SA;
 		pvt->mwisendactive = 1;
-	} else if (pvt->mwisendtype & DAHDI_VMWI_FSK) {
+	} else if (pvt->mwisend_fsk) {
 		pvt->mwisend_data.mwisend_current = MWI_SEND_SPILL;
 		pvt->mwisendactive = 1;
 	} else {
@@ -7751,13 +7755,13 @@ static int mwi_send_init(struct dahdi_pvt * pvt)
 	res = ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_FLUSH, &x);
 	x = 3000;
 	ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_ONHOOKTRANSFER, &x);
-#ifdef DAHDI_VMWI_FSK
-	if (pvt->mwisendtype & DAHDI_VMWI_FSK) {
+#ifdef HAVE_DAHDI_LINEREVERSE_VMWI
+	if (pvt->mwisend_fsk) {
 #endif
 		pvt->cidlen = vmwi_generate(pvt->cidspill, has_voicemail(pvt), CID_MWI_TYPE_MDMF_FULL,
 								AST_LAW(pvt), pvt->cid_name, pvt->cid_num, 0);
 		pvt->cidpos = 0;
-#ifdef DAHDI_VMWI_FSK
+#ifdef HAVE_DAHDI_LINEREVERSE_VMWI
 	}
 #endif
 	return 0;
@@ -7789,14 +7793,14 @@ static int mwi_send_process_buffer(struct dahdi_pvt * pvt, int num_read)
 		case MWI_SEND_SA_WAIT:  /* do nothing until I get RINGEROFF event */
 			break;
 		case MWI_SEND_PAUSE:  /* Wait between alert and spill - min of 500 mS*/
-#ifdef DAHDI_VMWI_FSK
-			if (pvt->mwisendtype & DAHDI_VMWI_FSK) {
+#ifdef HAVE_DAHDI_LINEREVERSE_VMWI
+			if (pvt->mwisend_fsk) {
 #endif
 				gettimeofday(&now, NULL);
 				if ((int)(now.tv_sec - pvt->mwisend_data.pause.tv_sec) * 1000000 + (int)now.tv_usec - (int)pvt->mwisend_data.pause.tv_usec > 500000) {
 					pvt->mwisend_data.mwisend_current = MWI_SEND_SPILL;
 				}
-#ifdef DAHDI_VMWI_FSK
+#ifdef HAVE_DAHDI_LINEREVERSE_VMWI
 			} else { /* support for mwisendtype=nofsk */
 				pvt->mwisend_data.mwisend_current = MWI_SEND_CLEANUP;
 			}
@@ -8245,7 +8249,7 @@ static void *do_monitor(void *data)
 								!ast_strlen_zero(last->mailbox) && (thispass - last->onhooktime > 3)) {
 							res = has_voicemail(last);
 							if (last->msgstate != res) {
-#ifndef DAHDI_VMWI_FSK
+#ifndef HAVE_DAHDI_LINEREVERSE_VMWI
 								/* Set driver resources for signalling VMWI */
 								res2 = ioctl(last->subs[SUB_REAL].dfd, DAHDI_VMWI, &res);
 								if (res2) {
@@ -8253,13 +8257,8 @@ static void *do_monitor(void *data)
 									ast_debug(3, "Unable to control message waiting led on channel %d: %s\n", last->channel, strerror(errno));
 								}
 #else
-								/* New DAHDI_VMWI ioctl supports upto 65535 messages*/
-								if (res > DAHDI_VMWI_NUMBER_MASK) {
-									res2 = (last->mwisendtype | DAHDI_VMWI_NUMBER_MASK);
-								} else {
-									res2 = (last->mwisendtype | (res & DAHDI_VMWI_NUMBER_MASK));
-								}
-								res2 = ioctl(last->subs[SUB_REAL].dfd, DAHDI_VMWI, &res2);
+								last->mwisend_setting.messages = res;
+								res2 = ioctl(last->subs[SUB_REAL].dfd, DAHDI_VMWI, &last->mwisend_setting);
 								if (res2) {
 									/* TODO: This message will ALWAYS be generated on some cards; any way to restrict it to those cards where it is interesting? */
 									ast_debug(3, "Unable to control MWI on channel %d: %s\n", last->channel, strerror(errno));
@@ -9021,7 +9020,11 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				AST_EVENT_IE_END);
 		}
 		tmp->msgstate = -1;
-		tmp->mwisendtype = conf->chan.mwisendtype;
+#ifdef HAVE_DAHDI_LINEREVERSE_VMWI
+		tmp->mwisend_setting = conf->chan.mwisend_setting;
+		tmp->mwisend_fsk  = conf->chan.mwisend_fsk;
+		tmp->mwisend_rpas = conf->chan.mwisend_rpas;
+#endif
 		if (chan_sig & __DAHDI_SIG_FXO) {
 			memset(&p, 0, sizeof(p));
 			res = ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &p);
@@ -14243,7 +14246,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 		} else if (!strcasecmp(v->name, "mwimonitornotify")) {
 			ast_copy_string(mwimonitornotify, v->value, sizeof(mwimonitornotify));
 		} else if (!strcasecmp(v->name, "mwisendtype")) {
-#ifndef DAHDI_VMWI_FSK  /* backward compatibility for older dahdi VMWI implementation */
+#ifndef HAVE_DAHDI_LINEREVERSE_VMWI  /* backward compatibility for older dahdi VMWI implementation */
 			if (!strcasecmp(v->value, "rpas")) { /* Ring Pulse Alert Signal */
 				mwisend_rpas = 1;
 			} else {
@@ -14251,22 +14254,25 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			}
 #else
 			/* Default is fsk, to turn it off you must specify nofsk */
+			memset(&confp->chan.mwisend_setting, 0, sizeof(confp->chan.mwisend_setting));
 			if (strcasestr(v->value, "nofsk")) { 		/* NoFSK */
-				confp->chan.mwisendtype = 0;
+				confp->chan.mwisend_fsk = 0;
 			} else {					/* Default FSK */
-				confp->chan.mwisendtype = DAHDI_VMWI_FSK;
+				confp->chan.mwisend_fsk = 1;
 			}
 			if (strcasestr(v->value, "rpas")) { 		/* Ring Pulse Alert Signal, normally followed by FSK */
-				confp->chan.mwisendtype |= DAHDI_VMWI_RPAS;
+				confp->chan.mwisend_rpas = 1;
+			} else {
+				confp->chan.mwisend_rpas = 0;
 			}
 			if (strcasestr(v->value, "lrev")) { 		/* Line Reversal */
-				confp->chan.mwisendtype |= DAHDI_VMWI_LREV;
+				confp->chan.mwisend_setting.vmwi_type |= DAHDI_VMWI_LREV;
 			}
 			if (strcasestr(v->value, "hvdc")) { 		/* HV 90VDC */
-				confp->chan.mwisendtype |= DAHDI_VMWI_HVDC;
+				confp->chan.mwisend_setting.vmwi_type |= DAHDI_VMWI_HVDC;
 			}
 			if ( (strcasestr(v->value, "neon")) || (strcasestr(v->value, "hvac")) ){ 	/* 90V DC pulses */
-				confp->chan.mwisendtype |= DAHDI_VMWI_HVAC;
+				confp->chan.mwisend_setting.vmwi_type |= DAHDI_VMWI_HVAC;
 			}
 #endif
 		} else if (reload != 1) {

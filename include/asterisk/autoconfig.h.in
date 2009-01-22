@@ -192,6 +192,12 @@
 /* Define DAHDI_HALF_FULL headers version */
 #undef HAVE_DAHDI_HALF_FULL_VERSION
 
+/* Define if your system has the DAHDI_LINEREVERSE_VMWI headers. */
+#undef HAVE_DAHDI_LINEREVERSE_VMWI
+
+/* Define DAHDI_LINEREVERSE_VMWI headers version */
+#undef HAVE_DAHDI_LINEREVERSE_VMWI_VERSION
+
 /* Define DAHDI headers version */
 #undef HAVE_DAHDI_VERSION
 
