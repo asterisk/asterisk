@@ -1578,6 +1578,7 @@ int ast_answer(struct ast_channel *chan)
 	default:
 		break;
 	}
+	ast_indicate(chan, -1);
 	chan->visible_indication = 0;
 	ast_channel_unlock(chan);
 	return res;
