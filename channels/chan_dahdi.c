@@ -7517,16 +7517,16 @@ static void *ss_thread(void *data)
 			/* If generated using Ring Pulse Alert, then ring has been answered as a call and needs to be hungup */
 			if (p->mwimonitor_rpas) {
 				ast_hangup(chan);
+				return NULL;
 			}
-			return NULL;
 		} else if (flags & CID_NOMSGWAITING) {
 			ast_log(LOG_NOTICE, "MWI: Channel %d no message waiting!\n", p->channel);
 			notify_message(p->mailbox, 0);
 			/* If generated using Ring Pulse Alert, then ring has been answered as a call and needs to be hungup */
 			if (p->mwimonitor_rpas) {
 				ast_hangup(chan);
+				return NULL;
 			}
-			return NULL;
 		}
 
 		ast_setstate(chan, AST_STATE_RING);
