@@ -1759,6 +1759,7 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay)
 		break;
 	}
 
+	ast_indicate(chan, -1);
 	chan->visible_indication = 0;
 
 	return res;
