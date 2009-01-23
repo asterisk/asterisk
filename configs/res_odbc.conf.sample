@@ -33,6 +33,11 @@ pre-connect => yes
 ; On some databases, the connection times out and a reconnection will be
 ; necessary.  This setting configures the amount of time a connection
 ; may sit idle (in seconds) before a reconnection will be attempted.
+; Note: The reconnection is not done in the background, but is triggered by
+; a new query. Thus, if you set idlecheck => X, every time you perform a
+; query res_odbc will check how long these connection was idle, and if it was
+; idle for more than X seconds it will close the current connection and 
+; establish a new one even if the current connection is still working.
 ;idlecheck => 3600
 
 ; Certain servers, such as MS SQL Server and Sybase use the TDS protocol, which
