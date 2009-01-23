@@ -4087,7 +4087,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	/* XXX What about blocking, softhangup, blocker, and lock and blockproc? XXX */
 	/* Application and data remain the same */
 	/* Clone exception  becomes real one, as with fdno */
-	ast_copy_flags(original, clonechan, AST_FLAG_EXCEPTION | AST_FLAG_OUTGOING);
+	ast_set_flag(original, ast_test_flag(clonechan, AST_FLAG_OUTGOING | AST_FLAG_EXCEPTION));
 	original->fdno = clonechan->fdno;
 	/* Schedule context remains the same */
 	/* Stream stuff stays the same */
