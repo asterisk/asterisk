@@ -564,6 +564,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 							ast_set_callerid(c, S_OR(in->macroexten, in->exten), get_cid_name(cidname, sizeof(cidname), in), NULL);
 						}
 					}
+					if (single) {
+						ast_indicate(in, -1);
+					}
 				}
 				/* Hangup the original channel now, in case we needed it */
 				ast_hangup(winner);
