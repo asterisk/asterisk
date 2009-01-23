@@ -1,6 +1,6 @@
 2009-01-23  Tilghman Lesher <tlesher@digium.com>
 
-	* Released 1.6.0.3.1
+	* Released 1.6.0.5
 
 	* channels/chan_iax2.c: Regression fixes for security fix AST-2009-001
 
