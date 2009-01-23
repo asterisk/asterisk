@@ -10766,7 +10766,7 @@ static void *pri_dchannel(void *vpri)
 		numdchans = i;
 		time(&t);
 		ast_mutex_lock(&pri->lock);
-		if (pri->switchtype != PRI_SWITCH_GR303_TMC && (pri->resetinterval > 0)) {
+		if ((pri->switchtype != PRI_SWITCH_GR303_TMC) && (pri->sig != SIG_BRI_PTMP) && (pri->resetinterval > 0)) {
 			if (pri->resetting && pri_is_up(pri)) {
 				if (pri->resetpos < 0)
 					pri_check_restart(pri);
