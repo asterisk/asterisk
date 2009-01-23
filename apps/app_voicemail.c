@@ -10191,6 +10191,8 @@ static const char *substitute_escapes(const char *value)
 	/* Add 16 for fudge factor */
 	struct ast_str *str = ast_str_thread_get(&global_app_buf, strlen(value) + 16);
 
+	ast_str_reset(str);
+	
 	/* Substitute strings \r, \n, and \t into the appropriate characters */
 	for (current = (char *) value; *current; current++) {
 		if (*current == '\\') {
