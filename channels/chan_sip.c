@@ -16287,7 +16287,7 @@ restartsearch:
 					/* Might be a timeout now -- see if we're on hold */
 					struct sockaddr_in sin;
 					ast_rtp_get_peer(sip->rtp, &sin);
-					if (sin.sin_addr.s_addr || 
+					if (!ast_test_flag(&sip->flags[1], SIP_PAGE2_CALL_ONHOLD) || 
 					    (ast_rtp_get_rtpholdtimeout(sip->rtp) &&
 					     (t > sip->lastrtprx + ast_rtp_get_rtpholdtimeout(sip->rtp)))) {
 						/* Needs a hangup */
