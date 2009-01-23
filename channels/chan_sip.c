@@ -19164,7 +19164,7 @@ static void check_rtp_timeout(struct sip_pvt *dialog, time_t t)
 		/* Might be a timeout now -- see if we're on hold */
 		struct sockaddr_in sin;
 		ast_rtp_get_peer(dialog->rtp, &sin);
-		if (sin.sin_addr.s_addr || (ast_rtp_get_rtpholdtimeout(dialog->rtp) &&
+		if (!ast_test_flag(&dialog->flags[1], SIP_PAGE2_CALL_ONHOLD) || (ast_rtp_get_rtpholdtimeout(dialog->rtp) &&
 		     (t > dialog->lastrtprx + ast_rtp_get_rtpholdtimeout(dialog->rtp)))) {
 			/* Needs a hangup */
 			if (ast_rtp_get_rtptimeout(dialog->rtp)) {
