@@ -568,6 +568,9 @@ static void do_forward(struct chanlist *o,
 			/* Hangup the original channel now, in case we needed it */
 			ast_hangup(original);
 		}
+		if (single) {
+			ast_indicate(in, -1);
+		}
 	}
 }
 
