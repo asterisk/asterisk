@@ -5482,8 +5482,11 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 			return -1;
 		}
 	} else if (!ast_strlen_zero(p->secret) || !ast_strlen_zero(p->inkeys)) {
-		if (authdebug)
+		if (authdebug &&
+				((!ast_strlen_zero(p->secret) && (p->authmethods & IAX_AUTH_MD5) && !ast_strlen_zero(iaxs[callno]->challenge)) ||
+				 (!ast_strlen_zero(p->inkeys) && (p->authmethods & IAX_AUTH_RSA) && !ast_strlen_zero(iaxs[callno]->challenge)))) {
 			ast_log(LOG_NOTICE, "Inappropriate authentication received for '%s'\n", p->name);
+		}
 		if (ast_test_flag(p, IAX_TEMPONLY))
 			destroy_peer(p);
 		return -1;
@@ -6092,7 +6095,7 @@ static int registry_authrequest(char *name, int callno)
 	struct iax2_peer *p;
 	int authmethods;
 
-	if (!iaxs[callno]) {
+	if (!callno || !iaxs[callno]) {
 		return 0;
 	}
 
@@ -6110,7 +6113,7 @@ static int registry_authrequest(char *name, int callno)
 	}
 	
 	memset(&ied, 0, sizeof(ied));
-	iax_ie_append_short(&ied, IAX_IE_AUTHMETHODS, p->authmethods);
+	iax_ie_append_short(&ied, IAX_IE_AUTHMETHODS, authmethods);
 	if (authmethods & (IAX_AUTH_RSA | IAX_AUTH_MD5)) {
 		/* Build the challenge */
 		snprintf(iaxs[callno]->challenge, sizeof(iaxs[callno]->challenge), "%d", rand());
