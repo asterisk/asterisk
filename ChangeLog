@@ -1,3 +1,10 @@
+2009-01-23  Tilghman Lesher <tlesher@digium.com>
+
+	* Asterisk 1.4.23.1 released.
+
+	* channels/chan_iax2.c: Regression fix for AST-2009-001 security
+	fix.
+
 2009-01-21  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.4.23 released.
