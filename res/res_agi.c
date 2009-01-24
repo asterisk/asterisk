@@ -21,6 +21,8 @@
  * \brief AGI - the Asterisk Gateway Interface
  *
  * \author Mark Spencer <markster@digium.com>
+ *
+ * \todo Convert the rest of the AGI commands over to XML documentation
  */
 
 #include "asterisk.h"
