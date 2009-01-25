@@ -120,12 +120,15 @@ static int page_exec(struct ast_channel *chan, void *data)
 	/* Count number of extensions in list by number of ampersands + 1 */
 	num_dials = 1;
 	tmp2 = tmp;
-	while (*tmp2 && *tmp2++ == '&') {
-		num_dials++;
+	while (*tmp2) {
+		if (*tmp2 == '&') {
+			num_dials++;
+		}
+		tmp2++;
 	}
 
-	if (!(dial_list = ast_calloc(num_dials, sizeof(void *)))) {
-		ast_log(LOG_ERROR, "Can't allocate %ld bytes for dial list\n", (long)(sizeof(void *) * num_dials));
+	if (!(dial_list = ast_calloc(num_dials, sizeof(struct ast_dial *)))) {
+		ast_log(LOG_ERROR, "Can't allocate %ld bytes for dial list\n", (long)(sizeof(struct ast_dial *) * num_dials));
 		ast_module_user_remove(u);
 		return -1;
 	}
