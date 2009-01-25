@@ -657,7 +657,7 @@ void ast_enable_packet_fragmentation(int sock);
  */
 int ast_mkdir(const char *path, int mode);
 
-#define ARRAY_LEN(a) (sizeof(a) / sizeof(a[0]))
+#define ARRAY_LEN(a) (sizeof(a) / sizeof(0[a]))
 
 #ifdef AST_DEVMODE
 #define ast_assert(a) _ast_assert(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
