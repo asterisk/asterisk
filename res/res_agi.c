@@ -1982,7 +1982,7 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 		 * it allows the main thread to proceed, even without the child PID
 		 * dying immediately (the child may be doing cleanup, etc.).  Without
 		 * this code, zombie processes accumulate for as long as child
-		 * processes exist (which on busy systems may be never, filling up the
+		 * processes exist (which on busy systems may be always, filling up the
 		 * process table).
 		 *
 		 * Note that in trunk, we don't stop interaction at the hangup event
