@@ -2513,35 +2513,37 @@ static void mwi_event_cb(const struct ast_event *event, void *userdata)
 {
 	struct skinny_line *l = userdata;
 	struct skinny_device *d = l->device;
-	struct skinnysession *s = d->session;
-	struct skinny_line *l2;
-	int new_msgs = 0;
-	int dev_msgs = 0;
+	if (d) {
+		struct skinnysession *s = d->session;
+		struct skinny_line *l2;
+		int new_msgs = 0;
+		int dev_msgs = 0;
 
-	if (s) {
-		if (event) {
-			l->newmsgs = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
-		}
-
-		if (l->newmsgs) {
-			transmit_lamp_indication(d, STIMULUS_VOICEMAIL, l->instance, l->mwiblink?SKINNY_LAMP_BLINK:SKINNY_LAMP_ON);
-		} else {
-			transmit_lamp_indication(d, STIMULUS_VOICEMAIL, l->instance, SKINNY_LAMP_OFF);
-		}
-
-		/* find out wether the device lamp should be on or off */
-		AST_LIST_TRAVERSE(&d->lines, l2, list) {
-			if (l2->newmsgs) {
-				dev_msgs++;
+		if (s) {
+			if (event) {
+				l->newmsgs = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
 			}
-		}
 
-		if (dev_msgs) {
-			transmit_lamp_indication(d, STIMULUS_VOICEMAIL, 0, d->mwiblink?SKINNY_LAMP_BLINK:SKINNY_LAMP_ON);
-		} else {
-			transmit_lamp_indication(d, STIMULUS_VOICEMAIL, 0, SKINNY_LAMP_OFF);
+			if (l->newmsgs) {
+				transmit_lamp_indication(d, STIMULUS_VOICEMAIL, l->instance, l->mwiblink?SKINNY_LAMP_BLINK:SKINNY_LAMP_ON);
+			} else {
+				transmit_lamp_indication(d, STIMULUS_VOICEMAIL, l->instance, SKINNY_LAMP_OFF);
+			}
+
+			/* find out wether the device lamp should be on or off */
+			AST_LIST_TRAVERSE(&d->lines, l2, list) {
+				if (l2->newmsgs) {
+					dev_msgs++;
+				}
+			}
+
+			if (dev_msgs) {
+				transmit_lamp_indication(d, STIMULUS_VOICEMAIL, 0, d->mwiblink?SKINNY_LAMP_BLINK:SKINNY_LAMP_ON);
+			} else {
+				transmit_lamp_indication(d, STIMULUS_VOICEMAIL, 0, SKINNY_LAMP_OFF);
+			}
+			ast_verb(3, "Skinny mwi_event_cb found %d new messages\n", new_msgs);
 		}
-		ast_verb(3, "Skinny mwi_event_cb found %d new messages\n", new_msgs);
 	}
 }
 
