@@ -63,59 +63,6 @@ keepalive=120
 ;jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
 ;-----------------------------------------------------------------------------------
 
-
-[devices]
-;---------------------------------- DEVICES SECTION -------------------------------
-; Options set under [devices] apply to all devices unless explicitly set for a particular
-; device. The options that can be set under devices are specified in GENERAL DEVICE OPTIONS.
-; These options can also be set for each individual device as well as those under SPECIFIC
-; DEVICE OPTIONS.
-;
-; Each label below [devices] in [] is a new device with the specific options specified below
-; it. Config stop reading new devices when one of the following is found: [general], [lines]
-; or the end of skinny.conf.
-;
-; Where options are common to both lines and devices, the results typically take that of
-; the least permission. ie if a no is set for either line or device, the call will not be
-; able to use that permission
-;------------------------------- GENERAL DEVICE OPTIONS ----------------------------
-;earlyrtp=1                  ; whether audio signalling should be provided by asterisk
-;                            ; (earlyrtp=1) or device generated (earlyrtp=0). default=yes
-;transfer=1                  ; whether the device is allowed to transfer. default=yes
-;------------------------------ SPECIFIC DEVICE OPTIONS ----------------------------
-;device="SEPxxxxxxxxxxxx     ; id of the device. Must be set.
-;version=P002G204	     ; firmware version to be loaded. If this version is different
-;                            ; to the one on the device, the device will try to load this
-;                            ; version from the tftp server. Set to device firmware version.
-;-----------------------------------------------------------------------------------
-
-; Typical config for 12SP+
-;[florian]
-;device=SEP00D0BA847E6B
-;version=P002G204	; Thanks critch
-;context=did
-;canreinvite=yes	; Allow media to go directly between two RTP endpoints.
-;line=120		; Dial(Skinny/120@florian)
-
-; Typical config for a 7910
-;[duba]			; Device name
-;device=SEP0007EB463101	; Official identifier
-;version=P002F202	; Firmware version identifier
-;host=192.168.1.144
-;permit=192.168.0/24	; Optional, used for authentication
-;line=500
-
-
-; Typical config for a 7940 with dual 7914s
-;[support]
-;device=SEP0007EB463121
-;line=100
-;line=110
-;speeddial => 111,Jack Smith         ; Adds a speeddial button to a device.
-;speeddial => 112@hints,Bob Peterson ; When a context is specified, the speeddial watches a dialplan hint.
-;addon => 7914
-;addon => 7914
-
 [lines]
 ;----------------------------------- LINES SECTION --------------------------------
 ; Options set under [lines] apply to all lines unless explicitly set for a particular
@@ -178,3 +125,57 @@ keepalive=120
 ;mohsuggest=default	; This option specifies which music on hold class to suggest to the peer channel
 			; when this channel places the peer on hold. It may be specified globally or on
 			; a per-user or per-peer basis.
+
+
+[devices]
+;---------------------------------- DEVICES SECTION -------------------------------
+; Options set under [devices] apply to all devices unless explicitly set for a particular
+; device. The options that can be set under devices are specified in GENERAL DEVICE OPTIONS.
+; These options can also be set for each individual device as well as those under SPECIFIC
+; DEVICE OPTIONS.
+;
+; Each label below [devices] in [] is a new device with the specific options specified below
+; it. Config stop reading new devices when one of the following is found: [general], [lines]
+; or the end of skinny.conf.
+;
+; Where options are common to both lines and devices, the results typically take that of
+; the least permission. ie if a no is set for either line or device, the call will not be
+; able to use that permission
+;------------------------------- GENERAL DEVICE OPTIONS ----------------------------
+;earlyrtp=1                  ; whether audio signalling should be provided by asterisk
+;                            ; (earlyrtp=1) or device generated (earlyrtp=0). default=yes
+;transfer=1                  ; whether the device is allowed to transfer. default=yes
+;------------------------------ SPECIFIC DEVICE OPTIONS ----------------------------
+;device="SEPxxxxxxxxxxxx     ; id of the device. Must be set.
+;version=P002G204	     ; firmware version to be loaded. If this version is different
+;                            ; to the one on the device, the device will try to load this
+;                            ; version from the tftp server. Set to device firmware version.
+;-----------------------------------------------------------------------------------
+
+; Typical config for 12SP+
+;[florian]
+;device=SEP00D0BA847E6B
+;version=P002G204	; Thanks critch
+;context=did
+;canreinvite=yes	; Allow media to go directly between two RTP endpoints.
+;line=120		; Dial(Skinny/120@florian)
+
+; Typical config for a 7910
+;[duba]			; Device name
+;device=SEP0007EB463101	; Official identifier
+;version=P002F202	; Firmware version identifier
+;host=192.168.1.144
+;permit=192.168.0/24	; Optional, used for authentication
+;line=500
+
+
+; Typical config for a 7940 with dual 7914s
+;[support]
+;device=SEP0007EB463121
+;line=100
+;line=110
+;speeddial => 111,Jack Smith         ; Adds a speeddial button to a device.
+;speeddial => 112@hints,Bob Peterson ; When a context is specified, the speeddial watches a dialplan hint.
+;addon => 7914
+;addon => 7914
+
