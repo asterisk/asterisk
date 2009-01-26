@@ -522,8 +522,6 @@ static int mwi_expiry = DEFAULT_MWI_EXPIRY;
 #define DEFAULT_QUALIFY_GAP   100
 #define DEFAULT_QUALIFY_PEERS 1
 
-static int global_qualify_gap = DEFAULT_QUALIFY_GAP;              /*!< Time between our group of peer pokes */
-static int global_qualify_peers = DEFAULT_QUALIFY_PEERS;          /*!< Number of peers to poke at a given time */
 
 #define CALLERID_UNKNOWN        "Unknown"
 
@@ -1101,6 +1099,8 @@ static int global_timer_b;    			/*!< Timer B - RFC 3261 Section 17.1.1.2 */
 static int global_autoframing;          	/*!< Turn autoframing on or off. */
 static struct sip_proxy global_outboundproxy;	/*!< Outbound proxy */
 static int global_qualifyfreq;			/*!< Qualify frequency */
+static int global_qualify_gap;              /*!< Time between our group of peer pokes */
+static int global_qualify_peers;          /*!< Number of peers to poke at a given time */
 
 
 /*! \brief Codecs that we support by default: */
