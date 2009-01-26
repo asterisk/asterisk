@@ -986,8 +986,10 @@ static int iax2_sched_add(struct sched_context *con, int when, ast_sched_cb call
 {
 	int res;
 
+	ast_mutex_lock(&sched_lock);
 	res = ast_sched_add(con, when, callback, data);
-	signal_condition(&sched_lock, &sched_cond);
+	ast_cond_signal(&sched_cond);
+	ast_mutex_unlock(&sched_lock);
 
 	return res;
 }
@@ -3467,7 +3469,7 @@ static int iax2_hangup(struct ast_channel *c)
 				ast_log(LOG_DEBUG, "Really destroying %s now...\n", c->name);
 			iax2_destroy(callno);
 		} else if (iaxs[callno]) {
-			ast_sched_add(sched, 10000, scheduled_destroy, CALLNO_TO_PTR(callno));
+			iax2_sched_add(sched, 10000, scheduled_destroy, CALLNO_TO_PTR(callno));
 		}
 	} else if (c->tech_pvt) {
 		/* If this call no longer exists, but the channel still
@@ -9163,28 +9165,36 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 
 static void *sched_thread(void *ignore)
 {
-	int count;
-	int res;
-	struct timeval tv;
-	struct timespec ts;
-
 	for (;;) {
+		int ms, count;
+		struct timespec ts;
+
 		pthread_testcancel();
+
 		ast_mutex_lock(&sched_lock);
-		res = ast_sched_wait(sched);
-		if ((res > 1000) || (res < 0))
-			res = 1000;
-		tv = ast_tvadd(ast_tvnow(), ast_samp2tv(res, 1000));
-		ts.tv_sec = tv.tv_sec;
-		ts.tv_nsec = tv.tv_usec * 1000;
-		ast_cond_timedwait(&sched_cond, &sched_lock, &ts);
+
+		ms = ast_sched_wait(sched);
+
+		if (ms == -1) {
+			ast_cond_wait(&sched_cond, &sched_lock);
+		} else {
+			struct timeval tv;
+			tv = ast_tvadd(ast_tvnow(), ast_samp2tv(ms, 1000));
+			ts.tv_sec = tv.tv_sec;
+			ts.tv_nsec = tv.tv_usec * 1000;
+			ast_cond_timedwait(&sched_cond, &sched_lock, &ts);
+		}
+
 		ast_mutex_unlock(&sched_lock);
+
 		pthread_testcancel();
 
 		count = ast_sched_runq(sched);
-		if (option_debug && count >= 20)
+		if (option_debug && count >= 20) {
 			ast_log(LOG_DEBUG, "chan_iax2: ast_sched_runq ran %d scheduled tasks all at once\n", count);
+		}
 	}
+
 	return NULL;
 }
 
