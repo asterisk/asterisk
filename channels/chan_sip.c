@@ -541,6 +541,7 @@ static int mwi_expiry = DEFAULT_MWI_EXPIRY;
 #define SIP_MAX_HEADERS              64               /*!< Max amount of SIP headers to read */
 #define SIP_MAX_LINES                64               /*!< Max amount of lines in SIP attachment (like SDP) */
 #define SIP_MIN_PACKET               4096             /*!< Initialize size of memory to allocate for packets */
+#define MAX_HISTORY_ENTRIES 	     50	              /*!< Max entires in the history list for a sip_pvt */
 
 #define INITIAL_CSEQ                 101              /*!< Our initial sip sequence number */
 
@@ -1708,8 +1709,6 @@ struct sip_pvt {
 	struct sip_subscription_mwi *mwi;       /*!< If this is a subscription MWI dialog, to which subscription */
 };
 
-/*! Max entires in the history list for a sip_pvt */
-#define MAX_HISTORY_ENTRIES 50
 
 /*! \brief
  * Here we implement the container for dialogs (sip_pvt), defining
