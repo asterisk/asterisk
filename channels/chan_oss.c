@@ -255,9 +255,9 @@ struct chan_oss_pvt {
 	int total_blocks;			/*!< total blocks in the output device */
 	int sounddev;
 	enum { M_UNSET, M_FULL, M_READ, M_WRITE } duplex;
-	int autoanswer;
-	int autohangup;
-	int hookstate;
+	int autoanswer;             /*!< Boolean: whether to answer the immediately upon calling */
+	int autohangup;             /*!< Boolean: whether to hangup the call when the remote end hangs up */
+	int hookstate;              /*!< Boolean: 1 if offhook; 0 if onhook */
 	char *mixer_cmd;			/*!< initial command to issue to the mixer */
 	unsigned int queuesize;		/*!< max fragments in queue */
 	unsigned int frags;			/*!< parameter for SETFRAGMENT */
@@ -289,8 +289,8 @@ struct chan_oss_pvt {
 	char ext[AST_MAX_EXTENSION];
 	char ctx[AST_MAX_CONTEXT];
 	char language[MAX_LANGUAGE];
-	char cid_name[256];			/*XXX */
-	char cid_num[256];			/*XXX */
+	char cid_name[256];         /*!< Initial CallerID name */
+	char cid_num[256];          /*!< Initial CallerID number  */
 	char mohinterpret[MAX_MUSICCLASS];
 
 	/*! buffers used in oss_write */
@@ -332,8 +332,7 @@ static struct chan_oss_pvt oss_default = {
 
 static int setformat(struct chan_oss_pvt *o, int mode);
 
-static struct ast_channel *oss_request(const char *type, int format, void *data
-, int *cause);
+static struct ast_channel *oss_request(const char *type, int format, void *data, int *cause);
 static int oss_digit_begin(struct ast_channel *c, char digit);
 static int oss_digit_end(struct ast_channel *c, char digit, unsigned int duration);
 static int oss_text(struct ast_channel *c, const char *text);
@@ -622,6 +621,7 @@ static int oss_call(struct ast_channel *c, char *dest, int timeout)
 		f.frametype = AST_FRAME_CONTROL;
 		f.subclass = AST_CONTROL_ANSWER;
 		ast_queue_frame(c, &f);
+		o->hookstate = 1;
 	} else {
 		ast_verbose("<< Type 'answer' to answer, or use 'autoanswer' for future calls >> \n");
 		f.frametype = AST_FRAME_CONTROL;
@@ -637,8 +637,10 @@ static int oss_call(struct ast_channel *c, char *dest, int timeout)
  */
 static int oss_answer(struct ast_channel *c)
 {
+	struct chan_oss_pvt *o = c->tech_pvt;
 	ast_verbose(" << Console call has been answered >> \n");
 	ast_setstate(c, AST_STATE_UP);
+	o->hookstate = 1;
 	return 0;
 }
 
@@ -821,7 +823,6 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", c->name);
 			ast_hangup(c);
 			o->owner = c = NULL;
-			/* XXX what about the channel itself ? */
 		}
 	}
 	console_video_start(get_video_desc(c), c); /* XXX cleanup */
@@ -1067,7 +1068,7 @@ static char *console_flash(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 		return CLI_FAILURE;
 	}
 	o->hookstate = 0;
-	if (o->owner)				/* XXX must be true, right ? */
+	if (o->owner)
 		ast_queue_frame(o->owner, &f);
 	return CLI_SUCCESS;
 }
@@ -1480,7 +1481,7 @@ static int unload_module(void)
 		close(o->sounddev);
 		if (o->owner)
 			ast_softhangup(o->owner, AST_SOFTHANGUP_APPUNLOAD);
-		if (o->owner)			/* XXX how ??? */
+		if (o->owner)
 			return -1;
 		next = o->next;
 		ast_free(o->name);
