@@ -939,6 +939,8 @@ alertpipe_failed:
 			"CallerIDNum: %s\r\n"
 			"CallerIDName: %s\r\n"
 			"AccountCode: %s\r\n"
+			"Exten: %s\r\n"
+			"Context: %s\r\n"
 			"Uniqueid: %s\r\n",
 			tmp->name, 
 			state, 
@@ -946,6 +948,8 @@ alertpipe_failed:
 			S_OR(cid_num, ""),
 			S_OR(cid_name, ""),
 			tmp->accountcode,
+			S_OR(exten, ""),
+			S_OR(context, ""),
 			tmp->uniqueid);
 	}
 
