@@ -7200,7 +7200,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 		if (init > 1)
 			initreqprep(&req, p, sipmethod);
 		else
-			reqprep(&req, p, sipmethod, 0, 1);
+			reqprep(&req, p, sipmethod, 0, 0);	
 	} else
 		reqprep(&req, p, sipmethod, 0, 1);
 		
