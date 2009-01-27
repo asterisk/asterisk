@@ -143,7 +143,6 @@ static char urlprefix[AST_MAX_BUF] = "";
 static char savecallsin[AST_MAX_BUF] = "";
 static int updatecdr = 0;
 static char beep[AST_MAX_BUF] = "beep";
-struct ast_event_sub *agent_devicestate_sub = NULL;
 
 #define GETAGENTBYCALLERID	"AGENTBYCALLERID"
 
@@ -172,7 +171,6 @@ struct agent_pvt {
 	char agent[AST_MAX_AGENT];     /*!< Agent ID */
 	char password[AST_MAX_AGENT];  /*!< Password for Agent login */
 	char name[AST_MAX_AGENT];
-	int inherited_devicestate;     /*!< Does the underlying channel have a devicestate to pass? */
 	ast_mutex_t app_lock;          /**< Synchronization between owning applications */
 	int app_lock_flag;
 	ast_cond_t app_complete_cond;
@@ -265,53 +263,6 @@ static const struct ast_channel_tech agent_tech = {
 	.set_base_channel = agent_set_base_channel,
 };
 
-static void agent_devicestate_cb(const struct ast_event *event, void *unused)
-{
-	int res, i;
-	struct agent_pvt *p;
-	char basename[AST_CHANNEL_NAME], *tmp;
-	const char *device;
-	enum ast_device_state state;
-
-	state = ast_event_get_ie_uint(event, AST_EVENT_IE_STATE);
-	device = ast_event_get_ie_str(event, AST_EVENT_IE_DEVICE);
-
-	if (ast_strlen_zero(device)) {
-		return;
-	}
-
-	/* Skip Agent status */
-	if (!strncasecmp(device, "Agent/", 6)) {
-		return;
-	}
-
-	/* Try to be safe, but don't deadlock */
-	for (i = 0; i < 10; i++) {
-		if ((res = AST_LIST_TRYLOCK(&agents)) == 0) {
-			break;
-		}
-	}
-	if (res) {
-		return;
-	}
-
-	AST_LIST_TRAVERSE(&agents, p, list) {
-		ast_mutex_lock(&p->lock);
-		if (p->chan) {
-			ast_copy_string(basename, p->chan->name, sizeof(basename));
-			if ((tmp = strrchr(basename, '-'))) {
-				*tmp = '\0';
-			}
-			if (strcasecmp(p->chan->name, device) == 0 || strcasecmp(basename, device) == 0) {
-				p->inherited_devicestate = state;
-				ast_device_state_changed("Agent/%s", p->agent);
-			}
-		}
-		ast_mutex_unlock(&p->lock);
-	}
-	AST_LIST_UNLOCK(&agents);
-}
-
 /*!
  * Adds an agent to the global list of agents.
  *
@@ -375,7 +326,6 @@ static struct agent_pvt *add_agent(const char *agent, int pending)
 		p->app_sleep_cond = 1;
 		p->group = group;
 		p->pending = pending;
-		p->inherited_devicestate = -1;
 		AST_LIST_INSERT_TAIL(&agents, p, list);
 	}
 	
@@ -523,7 +473,6 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 					p->lastdisc = ast_tvadd(ast_tvnow(), ast_samp2tv(p->wrapuptime, 1000));
 			}
 			p->chan = NULL;
-			p->inherited_devicestate = -1;
 			ast_device_state_changed("Agent/%s", p->agent);
 			p->acknowledged = 0;
 		}
@@ -745,7 +694,6 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 	} else {
 		/* Agent hung-up */
 		p->chan = NULL;
-		p->inherited_devicestate = -1;
 		ast_device_state_changed("Agent/%s", p->agent);
 	}
 
@@ -867,7 +815,6 @@ static int agent_hangup(struct ast_channel *ast)
 				/* Recognize the hangup and pass it along immediately */
 				ast_hangup(p->chan);
 				p->chan = NULL;
-				p->inherited_devicestate = -1;
 				ast_device_state_changed("Agent/%s", p->agent);
 			}
 			ast_debug(1, "Hungup, howlong is %d, autologoff is %d\n", howlong, p->autologoff);
@@ -1589,7 +1536,6 @@ static void agent_logoff_maintenance(struct agent_pvt *p, char *loginchan, long 
 	set_agentbycallerid(p->logincallerid, NULL);
 	p->loginchan[0] ='\0';
 	p->logincallerid[0] = '\0';
-	p->inherited_devicestate = -1;
 	ast_device_state_changed("Agent/%s", p->agent);
 	if (persistent_agents)
 		dump_agents();	
@@ -2142,7 +2088,6 @@ static int login_exec(struct ast_channel *chan, void *data)
 						/* Log us off if appropriate */
 						if (p->chan == chan) {
 							p->chan = NULL;
-							p->inherited_devicestate = -1;
 						}
 						p->acknowledged = 0;
 						logintime = time(NULL) - p->loginstart;
@@ -2357,8 +2302,6 @@ static int agent_devicestate(void *data)
 			if (p->owner) {
 				if (res != AST_DEVICE_INUSE)
 					res = AST_DEVICE_BUSY;
-			} else if (p->inherited_devicestate > -1) {
-				res = p->inherited_devicestate;
 			} else {
 				if (res == AST_DEVICE_BUSY)
 					res = AST_DEVICE_INUSE;
@@ -2500,9 +2443,6 @@ static int load_module(void)
 	/* Dialplan Functions */
 	ast_custom_function_register(&agent_function);
 
-	agent_devicestate_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE,
-		agent_devicestate_cb, NULL, AST_EVENT_IE_END);
-
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
@@ -2520,11 +2460,6 @@ static int unload_module(void)
 	struct agent_pvt *p;
 	/* First, take us out of the channel loop */
 	ast_channel_unregister(&agent_tech);
-	/* Delete devicestate subscription */
-	if (agent_devicestate_sub) {
-		ast_event_unsubscribe(agent_devicestate_sub);
-		agent_devicestate_sub = NULL;
-	}
 	/* Unregister dialplan functions */
 	ast_custom_function_unregister(&agent_function);	
 	/* Unregister CLI commands */
