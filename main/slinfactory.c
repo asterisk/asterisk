@@ -59,6 +59,16 @@ int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 	struct ast_frame *begin_frame = f, *duped_frame = NULL, *frame_ptr;
 	unsigned int x;
 
+	/* In some cases, we can be passed a frame which has no data in it, but
+	 * which has a positive number of samples defined. Once such situation is
+	 * when a jitter buffer is in use and the jitter buffer interpolates a frame.
+	 * The frame it produces has data set to NULL, datalen set to 0, and samples
+	 * set to either 160 or 240.
+	 */
+	if (!f->data) {
+		return 0;
+	}
+
 	if (f->subclass != AST_FORMAT_SLINEAR) {
 		if (sf->trans && f->subclass != sf->format) {
 			ast_translator_free_path(sf->trans);
