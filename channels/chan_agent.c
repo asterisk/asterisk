@@ -199,7 +199,10 @@ struct agent_pvt {
 	ast_cond_t app_complete_cond;
 	volatile int app_sleep_cond;   /**< Sleep condition for the login app */
 	struct ast_channel *owner;     /**< Agent */
-	char loginchan[80];            /**< channel they logged in from */
+	/**! channel they logged in from. This may also be used to tell if an agent
+	 * is a callback agent or not. If this field is not zero-length, then this is
+	 * a callback agent */
+	char loginchan[80];
 	char logincallerid[80];        /**< Caller ID they had when they logged in */
 	struct ast_channel *chan;      /**< Channel we use */
 	AST_LIST_ENTRY(agent_pvt) list;	/**< Next Agent in the linked list. */
@@ -307,7 +310,7 @@ static int agent_devicestate_cb(const char *dev, int state, void *data)
 
 	AST_LIST_TRAVERSE(&agents, p, list) {
 		ast_mutex_lock(&p->lock);
-		if (p->chan) {
+		if (p->chan && !ast_strlen_zero(p->loginchan)) {
 			ast_copy_string(basename, p->chan->name, sizeof(basename));
 			if ((tmp = strrchr(basename, '-'))) {
 				*tmp = '\0';
