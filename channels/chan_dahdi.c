@@ -10520,7 +10520,11 @@ static void *pri_dchannel(void *vpri)
 								} else if (p->owner)
 									p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							}
-							p->inalarm = 1;
+							/* For PTMP connections with non persistent layer 2 we want
+							 * to *not* declare inalarm unless there actually is an alarm */
+							if (p->sig != SIG_BRI_PTMP) {
+								p->inalarm = 1;
+							}
 						}
 					}
 				}
