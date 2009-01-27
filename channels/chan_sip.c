@@ -9817,7 +9817,8 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 	if (init > 1)
 		initreqprep(&req, p, sipmethod);
 	else
-		reqprep(&req, p, sipmethod, 0, 1);
+		/* If init=1, we should not generate a new branch. If it's 0, we need a new branch. */
+		reqprep(&req, p, sipmethod, 0, init ? 0 : 1);
 		
 	if (p->options && p->options->auth)
 		add_header(&req, p->options->authheader, p->options->auth);
