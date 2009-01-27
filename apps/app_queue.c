@@ -875,22 +875,21 @@ static inline struct call_queue *queue_unref(struct call_queue *q)
 }
 
 /*! \brief Set variables of queue */
-static void set_queue_variables(struct queue_ent *qe)
+static void set_queue_variables(struct call_queue *q, struct ast_channel *chan)
 {
 	char interfacevar[256]="";
 	float sl = 0;
 
-	if (qe->parent->setqueuevar) {
+	if (q->setqueuevar) {
 		sl = 0;
-		if (qe->parent->callscompleted > 0) 
-			sl = 100 * ((float) qe->parent->callscompletedinsl / (float) qe->parent->callscompleted);
+		if (q->callscompleted > 0) 
+			sl = 100 * ((float) q->callscompletedinsl / (float) q->callscompleted);
 
 		snprintf(interfacevar, sizeof(interfacevar),
 			"QUEUENAME=%s,QUEUEMAX=%d,QUEUESTRATEGY=%s,QUEUECALLS=%d,QUEUEHOLDTIME=%d,QUEUETALKTIME=%d,QUEUECOMPLETED=%d,QUEUEABANDONED=%d,QUEUESRVLEVEL=%d,QUEUESRVLEVELPERF=%2.1f",
-			qe->parent->name, qe->parent->maxlen, int2strat(qe->parent->strategy), qe->parent->count, qe->parent->holdtime, qe->parent->talktime, qe->parent->callscompleted,
-			qe->parent->callsabandoned,  qe->parent->servicelevel, sl);
+			q->name, q->maxlen, int2strat(q->strategy), q->count, q->holdtime, q->talktime, q->callscompleted, q->callsabandoned,  q->servicelevel, sl);
 	
-		pbx_builtin_setvar_multiple(qe->chan, interfacevar); 
+		pbx_builtin_setvar_multiple(chan, interfacevar); 
 	}
 }
 
@@ -2644,7 +2643,7 @@ static int say_periodic_announcement(struct queue_ent *qe, int ringing)
 static void record_abandoned(struct queue_ent *qe)
 {
 	ao2_lock(qe->parent);
-	set_queue_variables(qe);
+	set_queue_variables(qe->parent, qe->chan);
 	manager_event(EVENT_FLAG_AGENT, "QueueCallerAbandon",
 		"Queue: %s\r\n"
 		"Uniqueid: %s\r\n"
@@ -3387,13 +3386,31 @@ static struct ast_datastore *setup_transfer_datastore(struct queue_ent *qe, stru
 	return ds;
 }
 
+struct queue_end_bridge {
+	struct call_queue *q;
+	struct ast_channel *chan;
+};
+
+static void end_bridge_callback_data_fixup(struct ast_bridge_config *bconfig, struct ast_channel *originator, struct ast_channel *terminator)
+{
+	struct queue_end_bridge *qeb = bconfig->end_bridge_callback_data;
+	ao2_ref(qeb, +1);
+	qeb->chan = originator;
+}
+
 static void end_bridge_callback(void *data)
 {
-	struct queue_ent *qe = data;
+	struct queue_end_bridge *qeb = data;
+	struct call_queue *q = qeb->q;
+	struct ast_channel *chan = qeb->chan;
 
-	ao2_lock(qe->parent);
-	set_queue_variables(qe);
-	ao2_unlock(qe->parent);
+	if (ao2_ref(qeb, -1) == 1) {
+		ao2_lock(q);
+		set_queue_variables(q, chan);
+		ao2_unlock(q);
+		/* This unrefs the reference we made in try_calling when we allocated qeb */
+		queue_unref(q);
+	}
 }
 
 /*! \brief A large function which calls members, updates statistics, and bridges the caller and a member
@@ -3463,6 +3480,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	int callcompletedinsl;
 	struct ao2_iterator memi;
 	struct ast_datastore *datastore, *transfer_ds;
+	struct queue_end_bridge *queue_end_bridge = NULL;
 
 	ast_channel_lock(qe->chan);
 	datastore = ast_channel_datastore_find(qe->chan, &dialed_interface_info, NULL);
@@ -3533,8 +3551,18 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 
 		}
 
-	bridge_config.end_bridge_callback = end_bridge_callback;
-	bridge_config.end_bridge_callback_data = qe;
+	if ((queue_end_bridge = ao2_alloc(sizeof(*queue_end_bridge), NULL))) {
+		queue_end_bridge->q = qe->parent;
+		queue_end_bridge->chan = qe->chan;
+		bridge_config.end_bridge_callback = end_bridge_callback;
+		bridge_config.end_bridge_callback_data = queue_end_bridge;
+		bridge_config.end_bridge_callback_data_fixup = end_bridge_callback_data_fixup;
+		/* Since queue_end_bridge can survive beyond the life of this call to Queue, we need
+		 * to make sure to increase the refcount of this queue so it cannot be freed until we
+		 * are done with it. We remove this reference in end_bridge_callback.
+		 */
+		queue_ref(qe->parent);
+	}
 
 	/* Hold the lock while we setup the outgoing calls */
 	if (use_weight)
@@ -3822,7 +3850,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		}
 	
 		/* try to set queue variables if configured to do so*/
-		set_queue_variables(qe);
+		set_queue_variables(qe->parent, qe->chan);
 		ao2_unlock(qe->parent);
 		
 		ast_channel_lock(qe->chan);
@@ -5089,7 +5117,7 @@ stop:
 		ast_stopstream(chan);
 	}
 
-	set_queue_variables(&qe);
+	set_queue_variables(qe.parent, qe.chan);
 
 	leave_queue(&qe);
 	if (reason != QUEUE_UNKNOWN)
