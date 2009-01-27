@@ -78,6 +78,10 @@ Dialplan Functions
    Totally.  Hopefully, that means more to you than it does to me.
  * Added AUDIOHOOK_INHERIT. For information on its use, please see the output
    of "core show function AUDIOHOOK_INHERIT" from the CLI
+ * Added AES_ENCRYPT. For information on its use, please see the output
+   of "core show function AES_ENCRYPT" from the CLI
+ * Added AES_DECRYPT. For information on its use, please see the output
+   of "core show function AES_DECRYPT" from the CLI
 
 Applications
 ------------
