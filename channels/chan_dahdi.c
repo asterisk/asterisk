@@ -8249,21 +8249,12 @@ static void *do_monitor(void *data)
 								!ast_strlen_zero(last->mailbox) && (thispass - last->onhooktime > 3)) {
 							res = has_voicemail(last);
 							if (last->msgstate != res) {
-#ifndef HAVE_DAHDI_LINEREVERSE_VMWI
 								/* Set driver resources for signalling VMWI */
 								res2 = ioctl(last->subs[SUB_REAL].dfd, DAHDI_VMWI, &res);
 								if (res2) {
 									/* TODO: This message will ALWAYS be generated on some cards; any way to restrict it to those cards where it is interesting? */
 									ast_debug(3, "Unable to control message waiting led on channel %d: %s\n", last->channel, strerror(errno));
 								}
-#else
-								last->mwisend_setting.messages = res;
-								res2 = ioctl(last->subs[SUB_REAL].dfd, DAHDI_VMWI, &last->mwisend_setting);
-								if (res2) {
-									/* TODO: This message will ALWAYS be generated on some cards; any way to restrict it to those cards where it is interesting? */
-									ast_debug(3, "Unable to control MWI on channel %d: %s\n", last->channel, strerror(errno));
-								}
-#endif
 								/* If enabled for FSK spill then initiate it */
 								if (mwi_send_init(last)) {
 									ast_log(LOG_WARNING, "Unable to initiate mwi send sequence on channel %d\n", last->channel);
@@ -9031,6 +9022,9 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 			if (!res) {
 				tmp->fxsoffhookstate = p.rxisoffhook;
 			}
+#ifdef HAVE_DAHDI_LINEREVERSE_VMWI
+			res = ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_VMWI_CONFIG, &tmp->mwisend_setting);
+#endif
 		}
 		tmp->onhooktime = time(NULL);
 		tmp->group = conf->chan.group;
