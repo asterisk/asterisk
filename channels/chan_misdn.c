@@ -5493,7 +5493,7 @@ static int misdn_facility_exec(struct ast_channel *chan, void *data)
 		}
 
 		if (strlen(args.arg[0]) >= sizeof(ch->bc->fac_out.u.CDeflection.DeflectedToNumber)) {
-			ast_log(LOG_WARNING, "Facility: Number argument too long (up to %ld digits are allowed). Ignoring.\n", sizeof(ch->bc->fac_out.u.CDeflection.DeflectedToNumber));
+			ast_log(LOG_WARNING, "Facility: Number argument too long (up to %d digits are allowed). Ignoring.\n", sizeof(ch->bc->fac_out.u.CDeflection.DeflectedToNumber));
 			return 0;
 		}
 		ch->bc->fac_out.Function = Fac_CD;
