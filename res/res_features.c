@@ -758,16 +758,18 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		pbx_builtin_setvar_helper(transferer, "BLINDTRANSFER", transferee->name);
 		pbx_builtin_setvar_helper(transferee, "BLINDTRANSFER", transferer->name);
 		res=finishup(transferee);
-		if (!transferer->cdr) {
+		if (!transferer->cdr) { /* this code should never get called (in a perfect world) */
 			transferer->cdr=ast_cdr_alloc();
-			if (transferer) {
+			if (transferer->cdr) {
 				ast_cdr_init(transferer->cdr, transferer); /* initilize our channel's cdr */
 				ast_cdr_start(transferer->cdr);
 			}
 		}
 		if (transferer->cdr) {
-			ast_cdr_setdestchan(transferer->cdr, transferee->name);
-			ast_cdr_setapp(transferer->cdr, "BLINDTRANSFER","");
+			struct ast_cdr *swap = transferer->cdr;
+			/* swap cdrs-- it will save us some time & work */
+			transferer->cdr = transferee->cdr;
+			transferee->cdr = swap;
 		}
 		if (!transferee->pbx) {
 			/* Doh!  Use our handy async_goto functions */
@@ -779,6 +781,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 			res = -1;
 		} else {
 			/* Set the channel's new extension, since it exists, using transferer context */
+			ast_set_flag(transferee, AST_FLAG_BRIDGE_HANGUP_DONT); /* don't let the after-bridge code run the h-exten */
 			set_c_e_p(transferee, transferer_real_context, xferto, 0);
 		}
 		check_goto_on_transfer(transferer);
@@ -1541,9 +1544,11 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			ast_cdr_answer(bridge_cdr);
 			ast_cdr_answer(chan_cdr); /* for the sake of cli status checks */
 		}
-		ast_set_flag(chan_cdr, AST_CDR_FLAG_BRIDGED);
-		if (peer_cdr) {
-			ast_set_flag(peer_cdr, AST_CDR_FLAG_BRIDGED);
+		if (ast_test_flag(chan,AST_FLAG_BRIDGE_HANGUP_DONT)) {
+			ast_set_flag(chan_cdr, AST_CDR_FLAG_BRIDGED);
+			if (peer_cdr) {
+				ast_set_flag(peer_cdr, AST_CDR_FLAG_BRIDGED);
+			}
 		}
 	}
 	
@@ -1712,19 +1717,30 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 
 	}
   before_you_go:
+
+	if (ast_test_flag(chan,AST_FLAG_BRIDGE_HANGUP_DONT)) {
+		ast_clear_flag(chan,AST_FLAG_BRIDGE_HANGUP_DONT); /* its job is done */
+		if (bridge_cdr) {
+			ast_cdr_discard(bridge_cdr);
+			/* QUESTION: should we copy bridge_cdr fields to the peer before we throw it away? */
+		}
+		return res; /* if we shouldn't do the h-exten, we shouldn't do the bridge cdr, either! */
+	}
+
 	if (config->end_bridge_callback) {
 		config->end_bridge_callback(config->end_bridge_callback_data);
 	}
 
-	autoloopflag = ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP);
-	ast_set_flag(chan, AST_FLAG_IN_AUTOLOOP);
-	if (!ast_test_flag(&(config->features_caller),AST_FEATURE_NO_H_EXTEN) && ast_exists_extension(chan, chan->context, "h", 1, chan->cid.cid_num)) {
+	if (!ast_test_flag(&(config->features_caller),AST_FEATURE_NO_H_EXTEN) && 
+	    ast_exists_extension(chan, chan->context, "h", 1, chan->cid.cid_num)) {
 		struct ast_cdr *swapper = NULL;
 		char savelastapp[AST_MAX_EXTENSION];
 		char savelastdata[AST_MAX_EXTENSION];
 		char save_exten[AST_MAX_EXTENSION];
 		int  save_prio;
 		
+		autoloopflag = ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP);
+		ast_set_flag(chan, AST_FLAG_IN_AUTOLOOP);
 		if (bridge_cdr && ast_opt_end_cdr_before_h_exten) {
 			ast_cdr_end(bridge_cdr);
 		}
@@ -1766,9 +1782,9 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			ast_copy_string(bridge_cdr->lastapp, savelastapp, sizeof(bridge_cdr->lastapp));
 			ast_copy_string(bridge_cdr->lastdata, savelastdata, sizeof(bridge_cdr->lastdata));
 		}
+		ast_set2_flag(chan, autoloopflag, AST_FLAG_IN_AUTOLOOP);
 	}
-	ast_set2_flag(chan, autoloopflag, AST_FLAG_IN_AUTOLOOP);
-
+	
 	/* obey the NoCDR() wishes. -- move the DISABLED flag to the bridge CDR if it was set on the channel during the bridge... */
 	new_chan_cdr = pick_unlocked_cdr(chan->cdr); /* the proper chan cdr, if there are forked cdrs */
 	if (bridge_cdr && new_chan_cdr && ast_test_flag(new_chan_cdr, AST_CDR_FLAG_POST_DISABLED)) {
@@ -1858,6 +1874,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			ast_cdr_specialized_reset(peer_cdr,0); /* nothing changed, reset the peer_cdr  */
 		}
 	}
+	
 	return res;
 }
 	

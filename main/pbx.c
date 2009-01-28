@@ -2544,6 +2544,9 @@ static int __ast_pbx_run(struct ast_channel *c)
 		ast_softhangup(c, c->hangupcause ? c->hangupcause : AST_CAUSE_NORMAL_CLEARING);
 	if ((res != AST_PBX_KEEPALIVE) && !ast_test_flag(c, AST_FLAG_BRIDGE_HANGUP_RUN) && ast_exists_extension(c, c->context, "h", 1, c->cid.cid_num)) {
 		set_ext_pri(c, "h", 1);
+		if (c->cdr && ast_opt_end_cdr_before_h_exten) {
+			ast_cdr_end(c->cdr);
+		}
 		while(ast_exists_extension(c, c->context, c->exten, c->priority, c->cid.cid_num)) {
 			if ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->cid.cid_num))) {
 				/* Something bad happened, or a hangup has been requested. */

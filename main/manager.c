@@ -1672,13 +1672,24 @@ static int action_redirect(struct mansession *s, const struct message *m)
 		ast_channel_unlock(chan2);
 		return 0;
 	}
+	if (chan->pbx) {
+		ast_channel_lock(chan);
+		ast_set_flag(chan, AST_FLAG_BRIDGE_HANGUP_DONT); /* don't let the after-bridge code run the h-exten */
+		ast_channel_unlock(chan);
+	}
 	res = ast_async_goto(chan, context, exten, pi);
 	if (!res) {
 		if (!ast_strlen_zero(name2)) {
-			if (chan2)
+			if (chan2) {
+				if (chan2->pbx) {
+					ast_channel_lock(chan2);
+					ast_set_flag(chan2, AST_FLAG_BRIDGE_HANGUP_DONT); /* don't let the after-bridge code run the h-exten */
+					ast_channel_unlock(chan2);
+				}
 				res = ast_async_goto(chan2, context, exten, pi);
-			else
+			} else {
 				res = -1;
+			}
 			if (!res)
 				astman_send_ack(s, m, "Dual Redirect successful");
 			else
