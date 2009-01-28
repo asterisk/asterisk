@@ -11624,7 +11624,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				ast_copy_string(defaultozz, v->value, sizeof(defaultozz));
 			} 
 		} else if (!skipchannels)
-			ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
+			ast_log(LOG_WARNING, "Ignoring any changes to '%s' (on reload)\n", v->name);
 	}
 	if (dahdichan[0]) { 
 		/* The user has set 'dahdichan' */
