@@ -93,6 +93,9 @@ static int asyncgoto_exec(struct ast_channel *chan, void *data)
 		return 0;
 	}
 
+	if (chan2->pbx) {
+		ast_set_flag(chan2, AST_FLAG_BRIDGE_HANGUP_DONT); /* don't let the after-bridge code run the h-exten */
+	}
 	res = ast_async_parseable_goto(chan2, args.label);
 	pbx_builtin_setvar_helper(chan, "CHANNELREDIRECT_STATUS", "SUCCESS");
 	ast_channel_unlock(chan2);
