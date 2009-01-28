@@ -118,6 +118,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="queuename" required="true" />
 			<parameter name="options">
 				<optionlist>
+					<option name="C">
+						<para>Mark all calls as "answered elsewhere" when cancelled.</para>
+					</option>
 					<option name="c">
 						<para>Continue in the dialplan if the callee hangs up.</para>
 					</option>
@@ -2222,15 +2225,15 @@ static void leave_queue(struct queue_ent *qe)
 }
 
 /*! \brief Hang up a list of outgoing calls */
-static void hangupcalls(struct callattempt *outgoing, struct ast_channel *exception)
+static void hangupcalls(struct callattempt *outgoing, struct ast_channel *exception, int cancel_answered_elsewhere)
 {
 	struct callattempt *oo;
 
 	while (outgoing) {
 		/* If someone else answered the call we should indicate this in the CANCEL */
 		/* Hangup any existing lines we have open */
-		if (outgoing->chan && (outgoing->chan != exception)) {
-			if (exception)
+		if (outgoing->chan && (outgoing->chan != exception || cancel_answered_elsewhere)) {
+			if (exception || cancel_answered_elsewhere)
 				ast_set_flag(outgoing->chan, AST_FLAG_ANSWERED_ELSEWHERE);
 			ast_hangup(outgoing->chan);
 		}
@@ -3481,6 +3484,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	struct ao2_iterator memi;
 	struct ast_datastore *datastore, *transfer_ds;
 	struct queue_end_bridge *queue_end_bridge = NULL;
+	int cancel_answered_elsewhere = 0;
 
 	ast_channel_lock(qe->chan);
 	datastore = ast_channel_datastore_find(qe->chan, &dialed_interface_info, NULL);
@@ -3547,6 +3551,9 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			break;
 		case 'X':
 			ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_AUTOMIXMON);
+			break;
+		case 'C':
+			cancel_answered_elsewhere = 1;
 			break;
 
 		}
@@ -3744,7 +3751,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		member = lpeer->member;
 		/* Increment the refcount for this member, since we're going to be using it for awhile in here. */
 		ao2_ref(member, 1);
-		hangupcalls(outgoing, peer);
+		hangupcalls(outgoing, peer, cancel_answered_elsewhere);
 		outgoing = NULL;
 		if (announce || qe->parent->reportholdtime || qe->parent->memberdelay) {
 			int res2;
@@ -4147,7 +4154,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		ao2_ref(member, -1);
 	}
 out:
-	hangupcalls(outgoing, NULL);
+	hangupcalls(outgoing, NULL, cancel_answered_elsewhere);
 
 	return res;
 }
