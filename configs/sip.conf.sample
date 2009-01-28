@@ -56,12 +56,18 @@
 ;	1. Asterisk checks the SIP From: address username and matches against
 ;	   names of devices with type=user 
 ;	   The name is the text between square brackets [name]
-;	2. Asterisk checks the IP address (and port number) that the INVITE
+;	2. Asterisk checks the From: addres and matches the list of devices
+;	   with a type=peer
+;	3. Asterisk checks the IP address (and port number) that the INVITE
 ;	   was sent from and matches against any devices with type=peer
 ;
 ; Don't mix extensions with the names of the devices. Devices need a unique
 ; name. The device name is *not* used as phone numbers. Phone numbers are
 ; anything you declare as an extension in the dialplan (extensions.conf).
+; 
+; When setting up trunks, make sure there's no risk that any From: username
+; (caller ID) will match any of your device names, because then Asterisk 
+; might match the wrong device.
 ;
 ; Note: The parameter "username" is not the username and in most cases is
 ;       not needed at all. Check below. In later releases, it's renamed
@@ -454,6 +460,12 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;
 ; and more readable because you don't have to write the parameters in two places
 ; (note that the "port" is ignored - this is a bug that should be fixed).
+;
+; Note that a register= line doesn't mean that we will match the incoming call in any
+; other way than described above. If you want to control where the call enters your
+; dialplan, which context, you want to define a peer with the hostname of the provider's
+; server. If the provider has multiple servers to place calls to your system, you need
+; a peer for each server.
 ;
 ; Beginning with Asterisk version 1.6.2, the "user" portion of the register line may
 ; contain a port number. Since the logical separator between a host and port number is a
