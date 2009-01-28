@@ -556,6 +556,10 @@ enum {
 	 *  a message aimed at preventing a subsequent hangup exten being run at the pbx_run
 	 *  level */
 	AST_FLAG_BRIDGE_HANGUP_RUN = (1 << 17),
+	/*! This flag indicates that the hangup exten should NOT be run when the 
+	 *  bridge terminates, this will allow the hangup in the pbx loop to be run instead.
+	 *  */
+	AST_FLAG_BRIDGE_HANGUP_DONT = (1 << 17),
 };
 
 /*! \brief ast_bridge_config flags */
