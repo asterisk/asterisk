@@ -14319,7 +14319,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, struct ast_variable *v, 
 				mwilevel = atoi(v->value);
 			}
 		} else if (!skipchannels)
-			ast_log(LOG_WARNING, "Ignoring %s at line %d.\n", v->name, v->lineno);
+			ast_log(LOG_WARNING, "Ignoring any changes to '%s' (on reload) at line %d.\n", v->name, v->lineno);
 	}
 	if (dahdichan[0]) { 
 		/* The user has set 'dahdichan' */
