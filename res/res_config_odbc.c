@@ -70,6 +70,8 @@ static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
 		return NULL;
 	}
 
+	ast_debug(1, "Skip: %lld; SQL: %s\n", cps->skip, cps->sql);
+
 	res = SQLPrepare(stmt, (unsigned char *)cps->sql, SQL_NTS);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", cps->sql);
@@ -79,9 +81,11 @@ static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
 
 	while ((newparam = va_arg(ap, const char *))) {
 		newval = va_arg(ap, const char *);
-		if ((1 << count) & cps->skip) {
+		if ((1LL << count++) & cps->skip) {
+			ast_debug(1, "Skipping field '%s'='%s' (%llo/%llo)\n", newparam, newval, 1LL << (count - 1), cps->skip);
 			continue;
 		}
+		ast_debug(1, "Parameter %d ('%s') = '%s'\n", x, newparam, newval);
 		SQLBindParameter(stmt, x++, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(newval), 0, (void *)newval, 0, NULL);
 	}
 	va_end(ap);
@@ -404,7 +408,7 @@ static int update_odbc(const char *database, const char *table, const char *keyf
 	char sql[256];
 	SQLLEN rowcount=0;
 	const char *newparam, *newval;
-	int res, count = 0;
+	int res, count = 1;
 	va_list aq;
 	struct custom_prepare_struct cps = { .sql = sql, .extra = lookup };
 	struct odbc_cache_tables *tableptr = ast_odbc_find_table(database, table);
@@ -438,11 +442,11 @@ static int update_odbc(const char *database, const char *table, const char *keyf
 
 	snprintf(sql, sizeof(sql), "UPDATE %s SET %s=?", table, newparam);
 	while((newparam = va_arg(aq, const char *))) {
+		newval = va_arg(aq, const char *);
 		if ((tableptr && (column = ast_odbc_find_column(tableptr, newparam))) || count > 63) {
 			snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), ", %s=?", newparam);
-			newval = va_arg(aq, const char *);
-		} else { /* the column does not exist in the table OR we've exceeded the space in our flag field */
-			cps.skip |= (((long long)1) << count);
+		} else { /* the column does not exist in the table */
+			cps.skip |= (1LL << count);
 		}
 		count++;
 	}
