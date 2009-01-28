@@ -331,6 +331,9 @@ Queue changes
   * A new configuration option, "timeoutpriority" has been added. Please see the section labeled
     "QUEUE TIMING OPTIONS" in configs/queues.conf.sample for a detailed explanation of the option
     as well as an explanation about timeout options in general
+  * Added a new option - C - for forcing the "answered elsewhere" flag on
+    cancellation of calls in to members of the queue. This is to avoid the
+    call to a member of a queue having the call listed as a "missed call".
 
 Realtime changes
 ----------------
