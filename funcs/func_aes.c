@@ -98,8 +98,8 @@ static int aes_helper(struct ast_channel *chan, const char *cmd, char *data,
 		return -1;
 	}
 
-	ast_aes_encrypt_key(args.key, &ecx);   /* encryption:  plaintext -> encryptedtext -> base64 */
-	ast_aes_decrypt_key(args.key, &dcx);   /* decryption:  base64 -> encryptedtext -> plaintext */
+	ast_aes_encrypt_key((unsigned char *) args.key, &ecx);   /* encryption:  plaintext -> encryptedtext -> base64 */
+	ast_aes_decrypt_key((unsigned char *) args.key, &dcx);   /* decryption:  base64 -> encryptedtext -> plaintext */
 	tmp = ast_calloc(1, len);                     /* requires a tmp buffer for the base64 decode */
 	tmpP = tmp;
 	encrypt = strcmp("AES_DECRYPT", cmd);           /* -1 if encrypting, 0 if decrypting */
@@ -120,9 +120,9 @@ static int aes_helper(struct ast_channel *chan, const char *cmd, char *data,
 		memset(curblock, 0, AES_BLOCK_SIZE);
 		memcpy(curblock, tmpP, (data_len < AES_BLOCK_SIZE) ? data_len : AES_BLOCK_SIZE);
 		if (encrypt) {
-			ast_aes_encrypt(curblock, tmpP, &ecx);
+			ast_aes_encrypt(curblock, (unsigned char *) tmpP, &ecx);
 		} else {
-			ast_aes_decrypt(curblock, tmpP, &dcx);
+			ast_aes_decrypt(curblock, (unsigned char *) tmpP, &dcx);
 		}
 		tmpP += AES_BLOCK_SIZE;
 		data_len -= AES_BLOCK_SIZE;
