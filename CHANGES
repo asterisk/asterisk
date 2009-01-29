@@ -28,8 +28,8 @@ SIP Changes
  * Added a new 'faxdetect=yes|no' configuration option to sip.conf.  When this
    option is enabled, a SIP channel will go to the fax extension (if it exists)
    after T38 is negotiated.  This option is disabled by default.
- * If ATTENDED_TRANSFER_COMPLETE_SOUND is set, the sound will be played to the
-   target of an attended transfer
+ * If the channel variable  ATTENDED_TRANSFER_COMPLETE_SOUND is set, 
+   the sound will be played to the target of an attended transfer
  * Added two new configuration options, "qualifygap" and "qualifypeers", which allow
    finer control over how many peers Asterisk will qualify and the gap between them
    when all peers need to be qualified at the same time.
@@ -46,6 +46,8 @@ SIP Changes
    information
  * Added a function to remove SIP headers added in the dialplan before the
    first INVITE is generated - SIPRemoveHeader()
+ * Channel variables set with setvar= in a device configuration is now 
+   set both for inbound and outbound calls.
 
 Skinny Changes
 --------------
