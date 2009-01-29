@@ -415,12 +415,14 @@ callwaiting=yes
 ; Whether or not restrict outgoing caller ID (will be sent as ANI only, not
 ; available for the user)
 ; Mostly use with FXS ports
+; Does nothing.  Use hidecallerid instead.
 ;
 ;restrictcid=no
 ;
-; Whether or not use the caller ID presentation for the outgoing call that the
-; calling switch is sending.
-; See README.callingpres. FIXME: file no longer exists.
+; Whether or not to use the caller ID presentation from the Asterisk channel
+; for outgoing calls.
+; See dialplan function CALLERID(pres) for more information.
+; Only applies to PRI and SS7 channels.
 ;
 usecallingpres=yes
 ;
