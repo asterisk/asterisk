@@ -35,6 +35,8 @@
  *
  */
 
+#include "asterisk/autoconfig.h"
+
 #ifdef __Darwin__
 #include <CoreAudio/AudioHardware.h> 
 #elif defined(__linux__) || defined(__FreeBSD__)
