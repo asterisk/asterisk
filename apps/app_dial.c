@@ -568,8 +568,12 @@ static void hanguptree(struct chanlist *outgoing, struct ast_channel *exception,
 	while (outgoing) {
 		/* Hangup any existing lines we have open */
 		if (outgoing->chan && (outgoing->chan != exception)) {
-			if (answered_elsewhere)
+			if (answered_elsewhere) {
+				/* The flag is used for local channel inheritance and stuff */
 				ast_set_flag(outgoing->chan, AST_FLAG_ANSWERED_ELSEWHERE);
+				/* This is for the channel drivers */
+				outgoing->chan->hangupcause = AST_CAUSE_ANSWERED_ELSEWHERE;
+			}
 			ast_hangup(outgoing->chan);
 		}
 		oo = outgoing;
@@ -1567,6 +1571,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		goto done;
 	}
 
+
 	if (ast_test_flag64(&opts, OPT_OPERMODE)) {
 		opermode = ast_strlen_zero(opt_args[OPT_ARG_OPERMODE]) ? 1 : atoi(opt_args[OPT_ARG_OPERMODE]);
 		ast_verb(3, "Setting operator services mode to %d.\n", opermode);
@@ -1780,6 +1785,14 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		/* If we have an outbound group, set this peer channel to it */
 		if (outbound_group)
 			ast_app_group_set_channel(tc, outbound_group);
+		/* If the calling channel has the ANSWERED_ELSEWHERE flag set, inherit it. This is to support local channels */
+		if (ast_test_flag(chan, AST_FLAG_ANSWERED_ELSEWHERE))
+			ast_set_flag(tc, AST_FLAG_ANSWERED_ELSEWHERE);
+
+		/* Check if we're forced by configuration */
+		if (ast_test_flag64(&opts, OPT_CANCEL_ELSEWHERE))
+			 ast_set_flag(tc, AST_FLAG_ANSWERED_ELSEWHERE);
+
 
 		/* Inherit context and extension */
 		ast_string_field_set(tc, dialcontext, ast_strlen_zero(chan->macrocontext) ? chan->context : chan->macrocontext);

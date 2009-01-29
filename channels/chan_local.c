@@ -532,6 +532,11 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 		return -1;
 	}
 
+	/* Make sure we inherit the ANSWERED_ELSEWHERE flag if it's set on the queue/dial call request in the dialplan */
+	if (ast_test_flag(ast, AST_FLAG_ANSWERED_ELSEWHERE)) {
+		ast_set_flag(p->chan, AST_FLAG_ANSWERED_ELSEWHERE);
+	}
+
 	/* copy the channel variables from the incoming channel to the outgoing channel */
 	/* Note that due to certain assumptions, they MUST be in the same order */
 	AST_LIST_TRAVERSE(&p->owner->varshead, varptr, entries) {
@@ -567,9 +572,14 @@ static int local_hangup(struct ast_channel *ast)
 
 	ast_mutex_lock(&p->lock);
 
-	if (p->chan && ast_test_flag(ast, AST_FLAG_ANSWERED_ELSEWHERE)) 
-		ast_set_flag(p->chan, AST_FLAG_ANSWERED_ELSEWHERE);
 	isoutbound = IS_OUTBOUND(ast, p);
+
+	if (p->chan && ast_test_flag(ast, AST_FLAG_ANSWERED_ELSEWHERE)) {
+		ast_set_flag(p->chan, AST_FLAG_ANSWERED_ELSEWHERE);
+		ast_debug(2, "This local call has the ANSWERED_ELSEWHERE flag set.\n");
+	}
+	/* Make sure the hangupcause follows down the chain of channels */
+
 	if (isoutbound) {
 		const char *status = pbx_builtin_getvar_helper(p->chan, "DIALSTATUS");
 		if ((status) && (p->owner)) {
@@ -600,6 +610,7 @@ static int local_hangup(struct ast_channel *ast)
 			DEADLOCK_AVOIDANCE(&p->lock);
 		}
 		if (p->chan) {
+			p->chan->hangupcause = ast->hangupcause;
 			ast_queue_hangup(p->chan);
 			ast_channel_unlock(p->chan);
 		}

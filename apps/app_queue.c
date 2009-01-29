@@ -646,6 +646,7 @@ struct queue_ent {
 	int linwrapped;                        /*!< Is the linpos wrapped? */
 	time_t start;                          /*!< When we started holding */
 	time_t expire;                         /*!< When this entry should expire (time out of queue) */
+	int cancel_answered_elsewhere;	       /*!< Whether we should force the CAE flag on this call (C) option*/
 	struct ast_channel *chan;              /*!< Our channel */
 	AST_LIST_HEAD_NOLOCK(,penalty_rule) qe_rules; /*!< Local copy of the queue's penalty rules */
 	struct penalty_rule *pr;               /*!< Pointer to the next penalty rule to implement */
@@ -2412,6 +2413,9 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		return 0;
 	}
 	
+	if (qe->cancel_answered_elsewhere) {
+		ast_set_flag(tmp->chan, AST_FLAG_ANSWERED_ELSEWHERE);
+	}
 	tmp->chan->appl = "AppQueue";
 	tmp->chan->data = "(Outgoing Line)";
 	memset(&tmp->chan->whentohangup, 0, sizeof(tmp->chan->whentohangup));
@@ -3484,7 +3488,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	struct ao2_iterator memi;
 	struct ast_datastore *datastore, *transfer_ds;
 	struct queue_end_bridge *queue_end_bridge = NULL;
-	int cancel_answered_elsewhere = 0;
 
 	ast_channel_lock(qe->chan);
 	datastore = ast_channel_datastore_find(qe->chan, &dialed_interface_info, NULL);
@@ -3553,7 +3556,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_AUTOMIXMON);
 			break;
 		case 'C':
-			cancel_answered_elsewhere = 1;
+			qe->cancel_answered_elsewhere = 1;
 			break;
 
 		}
@@ -3569,6 +3572,13 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		 * are done with it. We remove this reference in end_bridge_callback.
 		 */
 		queue_ref(qe->parent);
+	}
+
+	/* if the calling channel has the ANSWERED_ELSEWHERE flag set, make sure this is inherited. 
+		(this is mainly to support chan_local)
+	*/
+	if (ast_test_flag(qe->chan, AST_FLAG_ANSWERED_ELSEWHERE)) {
+		qe->cancel_answered_elsewhere = 1;
 	}
 
 	/* Hold the lock while we setup the outgoing calls */
@@ -3751,7 +3761,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		member = lpeer->member;
 		/* Increment the refcount for this member, since we're going to be using it for awhile in here. */
 		ao2_ref(member, 1);
-		hangupcalls(outgoing, peer, cancel_answered_elsewhere);
+		hangupcalls(outgoing, peer, qe->cancel_answered_elsewhere);
 		outgoing = NULL;
 		if (announce || qe->parent->reportholdtime || qe->parent->memberdelay) {
 			int res2;
@@ -4154,7 +4164,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		ao2_ref(member, -1);
 	}
 out:
-	hangupcalls(outgoing, NULL, cancel_answered_elsewhere);
+	hangupcalls(outgoing, NULL, qe->cancel_answered_elsewhere);
 
 	return res;
 }

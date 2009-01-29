@@ -81,6 +81,10 @@ specification:
 	- AST_CAUSE_PROTOCOL_ERROR			111
 	- AST_CAUSE_INTERWORKING				127
 
+The range 128-255 is private cause codes. Our private causes are:
+
+	- AST_CAUSE_ANSWERED_ELSEWHERE			200
+
 For more information:
 - \ref app_dial.c
 */
@@ -135,6 +139,9 @@ For more information:
 #define AST_CAUSE_MANDATORY_IE_LENGTH_ERROR		103
 #define AST_CAUSE_PROTOCOL_ERROR			111
 #define AST_CAUSE_INTERWORKING				127
+
+/* Private Cause codes for Asterisk */
+#define AST_CAUSE_ANSWERED_ELSEWHERE			200
 
 /* Special Asterisk aliases */
 #define AST_CAUSE_BUSY 					AST_CAUSE_USER_BUSY
