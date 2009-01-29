@@ -578,7 +578,6 @@ static int local_hangup(struct ast_channel *ast)
 		ast_set_flag(p->chan, AST_FLAG_ANSWERED_ELSEWHERE);
 		ast_debug(2, "This local call has the ANSWERED_ELSEWHERE flag set.\n");
 	}
-	/* Make sure the hangupcause follows down the chain of channels */
 
 	if (isoutbound) {
 		const char *status = pbx_builtin_getvar_helper(p->chan, "DIALSTATUS");
@@ -610,7 +609,6 @@ static int local_hangup(struct ast_channel *ast)
 			DEADLOCK_AVOIDANCE(&p->lock);
 		}
 		if (p->chan) {
-			p->chan->hangupcause = ast->hangupcause;
 			ast_queue_hangup(p->chan);
 			ast_channel_unlock(p->chan);
 		}
