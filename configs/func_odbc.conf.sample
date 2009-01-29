@@ -19,7 +19,7 @@
 ; inclusion in the SQL statement.
 ;
 ;
-; The following variables are available in this configuration file:
+; The following options are available in this configuration file:
 ;
 ; readhandle   A comma-separated list of DSNs (from res_odbc.conf) to use when
 ;              executing the readsql statement.  Each DSN is tried, in
@@ -44,6 +44,28 @@
 ;              HASH().  If commas are not escaped, then values will be separated
 ;              at the comma within fields.  Please note that turning this option
 ;              off is incompatible with the functionality of HASH().
+; synopsis     Appears in the synopsis field for the command
+;              'core show function <function name>'
+; mode         This option may be set to 'multirow' to allow the function
+;              specified to return more than a single row.  However, this
+;              changes the way that func_odbc normally works.  Instead of the
+;              invocation of the function returning a row, it returns an opaque
+;              ID, which may be passed to ODBC_FETCH() to return each row in
+;              turn.  ODBC_FETCH_STATUS returns SUCCESS or FAILURE, to indicate
+;              whether any results were stored, and you should call ODBC_Finish
+;              on the ID to clean up any remaining results when you are done
+;              with the query.  Also, the variable ODBCROWS is set initially,
+;              which may be used in an iterative fashion to return each row in
+;              the result.
+;              Please note that multirow queries are isolated to the channel,
+;              and rows may not be fetched outside of the channel where the
+;              query was initially performed.  Additionally, as the results are
+;              associated with a channel, mode=multirow is incompatible with
+;              the global space.
+; rowlimit     An additional option for within mode=multirow, rowlimit limits
+;              the total number of rows which can be stored for that query.
+;              Otherwise, func_odbc will attempt to store all rows in the
+;              resultset, up to the maximum amount of memory.
 
 
 ; ODBC_SQL - Allow an SQL statement to be built entirely in the dialplan
@@ -67,15 +89,4 @@ synopsis=Check if a specified callerid is contained in the ex-gf database
 dsn=mysql1
 readsql=SELECT location FROM presence WHERE id='${SQL_ESC(${ARG1})}'
 writesql=UPDATE presence SET location='${SQL_ESC(${VAL1})}' WHERE id='${SQL_ESC(${ARG1})}'
-;prefix=OFFICE      ; Changes this function from ODBC_PRESENCE to OFFICE_PRESENCE
-;escapecommas=no    ; Normally, commas within a field are escaped such that each
-                    ; field may be separated into individual variables with ARRAY.
-                    ; This option turns that behavior off [default=yes].
-;mode=multirow      ; Enable multirow fetching.  Instead of returning results directly,
-                    ; mode=multirow queries will return a result-id, which can be passed
-                    ; multiple times to ODBC_FETCH, and that function will return each
-                    ; row, in order.  You can add to this the following parameter:
-;rowlimit=5         ; rowlimit will limit the number of rows retrieved and stored from
-                    ; the database.  If not specified, all rows, up to available memory,
-                    ; will be retrieved and stored.
 
