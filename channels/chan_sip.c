@@ -1705,9 +1705,10 @@ struct sip_pvt {
 	struct sip_st_dlg *stimer;		/*!< SIP Session-Timers */              
   
 	int red; 				/*!< T.140 RTP Redundancy */
+	int hangupcause;			/*!< Storage of hangupcause copied from our owner before we disconnect from the AST channel (only used at hangup) */
 
 	struct sip_subscription_mwi *mwi;       /*!< If this is a subscription MWI dialog, to which subscription */
-};
+}; 
 
 
 /*! \brief
@@ -5495,6 +5496,10 @@ static int sip_hangup(struct ast_channel *ast)
 		p->answered_elsewhere = TRUE;
 	}
 
+	/* Store hangupcause locally in PVT so we still have it before disconnect */
+	if (p->owner)
+		p->hangupcause = p->owner->hangupcause;
+
 	if (ast_test_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER)) {
 		if (ast_test_flag(&p->flags[0], SIP_INC_COUNT) || ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD)) {
 			if (sipdebug)
@@ -5544,7 +5549,7 @@ static int sip_hangup(struct ast_channel *ast)
 
 	stop_media_flows(p); /* Immediately stop RTP, VRTP and UDPTL as applicable */
 
-	append_history(p, needcancel ? "Cancel" : "Hangup", "Cause %s", p->owner ? ast_cause2str(p->owner->hangupcause) : "Unknown");
+	append_history(p, needcancel ? "Cancel" : "Hangup", "Cause %s", p->owner ? ast_cause2str(p->hangupcause) : "Unknown");
 
 	/* Disconnect */
 	if (p->vad)
@@ -5595,7 +5600,7 @@ static int sip_hangup(struct ast_channel *ast)
 				}
 			} else {	/* Incoming call, not up */
 				const char *res;
-				if (ast->hangupcause && (res = hangup_cause2sip(ast->hangupcause)))
+				if (p->hangupcause && (res = hangup_cause2sip(p->hangupcause)))
 					transmit_response_reliable(p, res, &p->initreq);
 				else 
 					transmit_response_reliable(p, "603 Declined", &p->initreq);
@@ -10930,11 +10935,11 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqn
 	}
 	/* If we are hanging up and know a cause for that, send it in clear text to make
 		debugging easier. */
-	if (sipmethod == SIP_BYE && p->owner && p->owner->hangupcause)	{
+	if (sipmethod == SIP_BYE)	{
 		char buf[10];
 
-		add_header(&resp, "X-Asterisk-HangupCause", ast_cause2str(p->owner->hangupcause));
-		snprintf(buf, sizeof(buf), "%d", p->owner->hangupcause);
+		add_header(&resp, "X-Asterisk-HangupCause", ast_cause2str(p->hangupcause));
+		snprintf(buf, sizeof(buf), "%d", p->hangupcause);
 		add_header(&resp, "X-Asterisk-HangupCauseCode", buf);
 	}
 
