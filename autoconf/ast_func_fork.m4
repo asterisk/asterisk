@@ -39,6 +39,8 @@ else
 fi
 if test "x$ac_cv_func_fork_works" = xyes; then
   AC_DEFINE(HAVE_WORKING_FORK, 1, [Define to 1 if `fork' works.])
+  PBX_WORKING_FORK=1
+  AC_SUBST(PBX_WORKING_FORK)
 fi
 ])# AST_FUNC_FORK
 

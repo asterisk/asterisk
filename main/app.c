@@ -33,6 +33,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <regex.h>
 #include <sys/file.h> /* added this to allow to compile, sorry! */
 #include <signal.h>
+#ifdef HAVE_CAP
+#include <sys/capability.h>
+#endif /* HAVE_CAP */
 
 #include "asterisk/paths.h"	/* use ast_config_AST_DATA_DIR */
 #include "asterisk/channel.h"
@@ -1870,6 +1873,14 @@ int ast_safe_fork(int stop_reaper)
 		return pid;
 	} else {
 		/* Child */
+#ifdef HAVE_CAP
+		cap_t cap = cap_from_text("cap_net_admin-eip");
+
+		if (cap_set_proc(cap)) {
+			ast_log(LOG_WARNING, "Unable to remove capabilities.\n");
+		}
+		cap_free(cap);
+#endif
 
 		/* Before we unblock our signals, return our trapped signals back to the defaults */
 		signal(SIGHUP, SIG_DFL);

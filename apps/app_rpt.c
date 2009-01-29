@@ -359,6 +359,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cdr.h"
 #include "asterisk/options.h"
 #include "asterisk/manager.h"
+#include "asterisk/app.h"
+
 #include <termios.h>
 
 #ifdef	NEW_ASTERISK
@@ -1966,7 +1968,7 @@ unsigned int seq;
 	sprintf(str,"%s?node=%s&time=%u&seqno=%u",myrpt->p.statpost_url,
 		myrpt->name,(unsigned int) now,seq);
 	if (pairs) sprintf(str + strlen(str),"&%s",pairs);
-	if (!(pid = fork()))
+	if (!(pid = ast_safe_fork(0)))
 	{
 		execv(astrs[0],astrs);
 		ast_log(LOG_ERROR, "exec of %s failed.\n", astrs[0]);
