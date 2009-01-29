@@ -1676,10 +1676,10 @@ void ast_builtins_init(void)
  * 1 on match of a full word.
  *
  * The pattern can be
- *   any_word		match for equal
- *   [foo|bar|baz]	optionally, one of these words
- *   {foo|bar|baz}	exactly, one of these words
- *   %			any word
+ *   any_word           match for equal
+ *   [foo|bar|baz]      optionally, one of these words
+ *   {foo|bar|baz}      exactly, one of these words
+ *   %                  any word
  */
 static int word_match(const char *cmd, const char *cli_word)
 {
