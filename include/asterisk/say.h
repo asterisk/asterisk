@@ -66,13 +66,14 @@ static int say_stub(struct ast_channel *chan, ...)
 #define	SAY_EXTERN	extern
 #endif
 
-/* 
+/*!
  * \brief says a number
  * \param chan channel to say them number on
  * \param num number to say on the channel
  * \param ints which dtmf to interrupt on
  * \param lang language to speak the number
  * \param options set to 'f' for female, 'm' for male, 'c' for commune, 'n' for neuter, 'p' for plural
+ * \details
  * Vocally says a number on a given channel
  * \retval 0 on success
  * \retval DTMF digit on interrupt
@@ -84,15 +85,16 @@ int ast_say_number(struct ast_channel *chan, int num,
 /* Same as above with audiofd for received audio and returns 1 on ctrlfd being readable */
 SAY_EXTERN int (* ast_say_number_full)(struct ast_channel *chan, int num, const char *ints, const char *lang, const char *options, int audiofd, int ctrlfd) SAY_INIT(ast_say_number_full);
 
-/* 
+/*!
  * \brief says an enumeration
  * \param chan channel to say them enumeration on
  * \param num number to say on the channel
  * \param ints which dtmf to interrupt on
  * \param lang language to speak the enumeration
  * \param options set to 'f' for female, 'm' for male, 'c' for commune, 'n' for neuter, 'p' for plural
- * Vocally says a enumeration on a given channel (first, sencond, third, forth, thirtyfirst, hundredth, ....) 
- * especially useful for dates and messages. says 'last' if num equals to INT_MAX
+ * \details
+ * Vocally says an enumeration on a given channel (first, sencond, third, forth, thirtyfirst, hundredth, ....)
+ * Especially useful for dates and messages. Says 'last' if num equals to INT_MAX
  * \retval 0 on success
  * \retval DTMF digit on interrupt
  * \retval -1 on failure
@@ -102,12 +104,13 @@ int ast_say_enumeration(struct ast_channel *chan, int num,
 
 SAY_EXTERN int (* ast_say_enumeration_full)(struct ast_channel *chan, int num, const char *ints, const char *lang, const char *options, int audiofd, int ctrlfd) SAY_INIT(ast_say_enumeration_full);
 
-/* 
+/*!
  * \brief says digits
  * \param chan channel to act upon
  * \param num number to speak
  * \param ints which dtmf to interrupt on
  * \param lang language to speak
+ * \details
  * Vocally says digits of a given number
  * \retval 0 on success
  * \retval DTMF if interrupted
@@ -119,12 +122,13 @@ int ast_say_digits(struct ast_channel *chan, int num,
 int ast_say_digits_full(struct ast_channel *chan, int num,
 	const char *ints, const char *lang, int audiofd, int ctrlfd);
 
-/* 
+/*!
  * \brief says digits of a string
  * \param chan channel to act upon
  * \param num string to speak
  * \param ints which dtmf to interrupt on
  * \param lang language to speak in
+ * \details
  * Vocally says the digits of a given string
  * \retval 0 on succes
  * \retval DTMF if interrupted
