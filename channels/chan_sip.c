@@ -6880,7 +6880,6 @@ static int sip_register(const char *value, int lineno)
 	enum sip_transport transport = SIP_TRANSPORT_UDP;
 	char buf[256] = "";
 	char *username = NULL;
-	char *port = NULL;
 	char *hostname=NULL, *secret=NULL, *authuser=NULL, *expire=NULL;
 	char *callback=NULL;
 
@@ -6888,6 +6887,16 @@ static int sip_register(const char *value, int lineno)
 		return -1;
 
 	ast_copy_string(buf, value, sizeof(buf));
+
+	/* split [/contact][~expiry] */
+	expire = strchr(buf, '~');
+	if (expire)
+		*expire++ = '\0';
+	callback = strchr(buf, '/');
+	if (callback)
+		*callback++ = '\0';
+	if (ast_strlen_zero(callback))
+		callback = "s";
 
 	sip_parse_host(buf, lineno, &username, &portnum, &transport);
 
@@ -6917,25 +6926,6 @@ static int sip_register(const char *value, int lineno)
  	if ((secret) && (ast_strlen_zero(secret)))
 		secret = NULL;
 
-	/* split host[:port][/contact] */
-	expire = strchr(hostname, '~');
-	if (expire)
-		*expire++ = '\0';
-	callback = strchr(hostname, '/');
-	if (callback)
-		*callback++ = '\0';
-	if (ast_strlen_zero(callback))
-		callback = "s";
-	/* Separate host from port when checking for reserved characters
-	 */
-	if ((port = strchr(hostname, ':'))) {
-		*port = '\0';
-	}
-	/* And then re-merge the host and port so they are stored correctly
-	 */
-	if (port) {
-		*port = ':';
-	}
 	if (!(reg = ast_calloc(1, sizeof(*reg)))) {
 		ast_log(LOG_ERROR, "Out of memory. Can't allocate SIP registry entry\n");
 		return -1;
