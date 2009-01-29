@@ -27,6 +27,10 @@
  * \ingroup applications
  */
 
+/*** MODULEINFO
+	<depend>working_fork</depend>
+ ***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -39,6 +43,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <fcntl.h>
 #include <ctype.h>
 #include <errno.h>
+#ifdef HAVE_CAP
+#include <sys/capability.h>
+#endif /* HAVE_CAP */
 
 #include "asterisk/file.h"
 #include "asterisk/channel.h"
@@ -123,6 +130,9 @@ static int send_waveform_to_fd(char *waveform, int length, int fd)
 	char c;
 #endif
 	sigset_t fullset, oldset;
+#ifdef HAVE_CAP
+	cap_t cap;
+#endif
 
 	sigfillset(&fullset);
 	pthread_sigmask(SIG_BLOCK, &fullset, &oldset);
@@ -134,6 +144,15 @@ static int send_waveform_to_fd(char *waveform, int length, int fd)
 		pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 		return res;
 	}
+#ifdef HAVE_CAP
+	cap = cap_from_text("cap_net_admin-eip");
+
+	if (cap_set_proc(cap)) {
+		/* Careful with order! Logging cannot happen after we close FDs */
+		ast_log(LOG_WARNING, "Unable to remove capabilities.\n");
+	}
+	cap_free(cap);
+#endif
 	for (x = 0; x < 256; x++) {
 		if (x != fd)
 			close(x);
