@@ -118,6 +118,7 @@ memberdelay int8,
 weight int8,
 timeoutrestart bool,
 setinterfacevar bool,
+autopause varchar(128),
 PRIMARY KEY (name)
 ) WITHOUT OIDS;
 ALTER TABLE queue_table OWNER TO asterisk;
@@ -125,9 +126,11 @@ ALTER TABLE queue_table OWNER TO asterisk;
 drop table queue_member_table;
 CREATE TABLE queue_member_table
 (
+uniqueid serial,
 queue_name varchar(128),
 interface varchar(128),
 penalty int8,
+paused int8,
 PRIMARY KEY (queue_name, interface)
 ) WITHOUT OIDS;
 
