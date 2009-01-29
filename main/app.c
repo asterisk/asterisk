@@ -1827,7 +1827,7 @@ int ast_get_encoded_char(const char *stream, char *result, size_t *consumed)
 	return 0;
 }
 
-int ast_get_encoded_str(const char *stream, char *result, size_t result_size)
+char *ast_get_encoded_str(const char *stream, char *result, size_t result_size)
 {
 	char *cur = result;
 	size_t consumed;
@@ -1837,7 +1837,7 @@ int ast_get_encoded_str(const char *stream, char *result, size_t result_size)
 		stream += consumed;
 	}
 	*cur = '\0';
-	return 0;
+	return result;
 }
 
 void ast_close_fds_above_n(int n)

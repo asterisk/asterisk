@@ -2317,6 +2317,7 @@ static int expire_register(const void *data);
 static void *do_monitor(void *data);
 static int restart_monitor(void);
 static void peer_mailboxes_to_str(struct ast_str **mailbox_str, struct sip_peer *peer);
+static struct ast_variable *copy_vars(struct ast_variable *src);
 /* static int sip_addrcmp(char *name, struct sockaddr_in *sin);	Support for peer matching */
 static int sip_refer_allocate(struct sip_pvt *p);
 static void ast_quiet_chan(struct ast_channel *chan);
@@ -2692,6 +2693,21 @@ static struct ast_rtp_protocol sip_rtp = {
 	.get_codec = sip_get_codec,
 };
 
+/*!
+ * duplicate a list of channel variables, \return the copy.
+ */
+static struct ast_variable *copy_vars(struct ast_variable *src)
+{
+	struct ast_variable *res = NULL, *tmp, *v = NULL;
+
+	for (v = src ; v ; v = v->next) {
+		if ((tmp = ast_variable_new(v->name, v->value, v->file))) {
+			tmp->next = res;
+			res = tmp;
+		}
+	}
+	return res;
+}
 
 /*! \brief SIP TCP connection handler */
 static void *sip_tcp_worker_fn(void *data)
@@ -4650,6 +4666,7 @@ static void copy_socket_data(struct sip_socket *to_sock, const struct sip_socket
  */
 static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 {
+
 	/* this checks that the dialog is contacting the peer on a valid
 	 * transport type based on the peers transport configuration,
 	 * otherwise, this function bails out */
@@ -4778,6 +4795,8 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	if (peer->call_limit)
 		ast_set_flag(&dialog->flags[0], SIP_CALL_LIMIT);
 	
+	dialog->chanvars = copy_vars(peer->chanvars);
+
 	return 0;
 }
 
@@ -6222,8 +6241,10 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		pbx_builtin_setvar_helper(tmp, "_T38CALL", "1");
 
 	/* Set channel variables for this call from configuration */
-	for (v = i->chanvars ; v ; v = v->next)
-		pbx_builtin_setvar_helper(tmp, v->name, v->value);
+	for (v = i->chanvars ; v ; v = v->next) {
+		char valuebuf[1024];
+		pbx_builtin_setvar_helper(tmp, v->name, ast_get_encoded_str(v->value, valuebuf, sizeof(valuebuf)));
+	}
 
 	if (state != AST_STATE_DOWN && ast_pbx_start(tmp)) {
 		ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
@@ -12688,21 +12709,6 @@ static int get_rpid_num(const char *input, char *output, int maxlen)
 	return 0;
 }
 
-/*!
- * duplicate a list of channel variables, \return the copy.
- */
-static struct ast_variable *copy_vars(struct ast_variable *src)
-{
-	struct ast_variable *res = NULL, *tmp, *v = NULL;
-
-	for (v = src ; v ; v = v->next) {
-		if ((tmp = ast_variable_new(v->name, v->value, v->file))) {
-			tmp->next = res;
-			res = tmp;
-		}
-	}
-	return res;
-}
 
 /*! \brief helper function for check_{user|peer}_ok() */
 static void replace_cid(struct sip_pvt *p, const char *rpid_num, const char *calleridname)
@@ -16109,9 +16115,11 @@ static int function_sippeer(struct ast_channel *chan, const char *cmd, char *dat
 		struct ast_variable *v;
 	
 		chanvar = strsep(&chanvar, "]");
-		for (v = peer->chanvars ; v ; v = v->next)
-			if (!strcasecmp(v->name, chanvar))
+		for (v = peer->chanvars ; v ; v = v->next) {
+			if (!strcasecmp(v->name, chanvar)) {
 				ast_copy_string(buf, v->value, len);
+			}
+		}
 	} else  if (!strncasecmp(colname, "codec[", 6)) {
 		char *codecnum;
 		int codec = 0;

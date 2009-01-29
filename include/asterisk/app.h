@@ -490,11 +490,13 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
 /*! \brief Allow to record message and have a review option */
 int ast_record_review(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, const char *path);
 
-/*! \brief Decode an encoded control or extended ASCII character */
+/*! \brief Decode an encoded control or extended ASCII character 
+    \return Returns a pointer to the result string
+*/
 int ast_get_encoded_char(const char *stream, char *result, size_t *consumed);
 
 /*! \brief Decode a stream of encoded control or extended ASCII characters */
-int ast_get_encoded_str(const char *stream, char *result, size_t result_len);
+char *ast_get_encoded_str(const char *stream, char *result, size_t result_len);
 
 /*! \brief Common routine for child processes, to close all fds prior to exec(2) */
 void ast_close_fds_above_n(int n);
