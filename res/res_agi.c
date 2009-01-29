@@ -23,6 +23,10 @@
  * \author Mark Spencer <markster@digium.com> 
  */
 
+/*** MODULEINFO
+	<depend>working_fork</depend>
+ ***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -44,6 +48,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/wait.h>
+#ifdef HAVE_CAP
+#include <sys/capability.h>
+#endif /* HAVE_CAP */
 
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
@@ -308,6 +315,16 @@ static enum agi_result launch_script(char *script, char *argv[], int *fds, int *
 		return AGI_RESULT_FAILURE;
 	}
 	if (!pid) {
+#ifdef HAVE_CAP
+		cap_t cap = cap_from_text("cap_net_admin-eip");
+
+		if (cap_set_proc(cap)) {
+			/* Careful with order! Logging cannot happen after we close FDs */
+			ast_log(LOG_WARNING, "Unable to remove capabilities.\n");
+		}
+		cap_free(cap);
+#endif
+
 		/* Pass paths to AGI via environmental variables */
 		setenv("AST_CONFIG_DIR", ast_config_AST_CONFIG_DIR, 1);
 		setenv("AST_CONFIG_FILE", ast_config_AST_CONFIG_FILE, 1);

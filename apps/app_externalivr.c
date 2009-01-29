@@ -31,6 +31,10 @@
  * \ingroup applications
  */
 
+/*** MODULEINFO
+	<depend>working_fork</depend>
+ ***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -41,6 +45,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <unistd.h>
 #include <errno.h>
 #include <signal.h>
+#ifdef HAVE_CAP
+#include <sys/capability.h>
+#endif /* HAVE_CAP */
 
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
@@ -317,6 +324,15 @@ static int app_exec(struct ast_channel *chan, void *data)
 	if (!pid) {
 		/* child process */
 		int i;
+#ifdef HAVE_CAP
+		cap_t cap = cap_from_text("cap_net_admin-eip");
+
+		if (cap_set_proc(cap)) {
+			/* Careful with order! Logging cannot happen after we close FDs */
+			ast_log(LOG_WARNING, "Unable to remove capabilities.\n");
+		}
+		cap_free(cap);
+#endif
 
 		signal(SIGPIPE, SIG_DFL);
 		pthread_sigmask(SIG_UNBLOCK, &fullset, NULL);

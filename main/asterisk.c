@@ -818,6 +818,15 @@ int ast_safe_system(const char *s)
 #endif	
 
 	if (pid == 0) {
+#ifdef HAVE_CAP
+		cap_t cap = cap_from_text("cap_net_admin-eip");
+
+		if (cap_set_proc(cap)) {
+			/* Careful with order! Logging cannot happen after we close FDs */
+			ast_log(LOG_WARNING, "Unable to remove capabilities.\n");
+		}
+		cap_free(cap);
+#endif
 #ifdef HAVE_WORKING_FORK
 		if (ast_opt_high_priority)
 			ast_set_priority(0);
@@ -842,7 +851,7 @@ int ast_safe_system(const char *s)
 	}
 
 	ast_unreplace_sigchld();
-#else
+#else /* !defined(HAVE_WORKING_FORK) && !defined(HAVE_WORKING_VFORK) */
 	res = -1;
 #endif
 
@@ -2914,7 +2923,7 @@ int main(int argc, char *argv[])
 		if (has_cap) {
 			cap_t cap;
 
-			cap = cap_from_text("cap_net_admin=ep");
+			cap = cap_from_text("cap_net_admin=eip");
 
 			if (cap_set_proc(cap))
 				ast_log(LOG_WARNING, "Unable to install capabilities.\n");

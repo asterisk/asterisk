@@ -28,6 +28,7 @@
 /*** MODULEINFO
 	<conflict>win32</conflict>
 	<use>dahdi</use>
+	<depend>working_fork</depend>
  ***/
 
 #include "asterisk.h"
@@ -51,6 +52,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #ifdef SOLARIS
 #include <thread.h>
 #endif
+#ifdef HAVE_CAP
+#include <sys/capability.h>
+#endif /* HAVE_CAP */
 
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
@@ -450,7 +454,15 @@ static int spawn_mp3(struct mohclass *class)
 		return -1;
 	}
 	if (!class->pid) {
+		/* Child */
 		int x;
+#ifdef HAVE_CAP
+		cap_t cap;
+#endif
+		if (strcasecmp(class->dir, "nodir") && chdir(class->dir) < 0) {
+			ast_log(LOG_WARNING, "chdir() failed: %s\n", strerror(errno));
+			_exit(1);
+		}
 
 		if (ast_opt_high_priority)
 			ast_set_priority(0);
@@ -459,6 +471,14 @@ static int spawn_mp3(struct mohclass *class)
 		signal(SIGPIPE, SIG_DFL);
 		pthread_sigmask(SIG_UNBLOCK, &signal_set, NULL);
 
+#ifdef HAVE_CAP
+		cap = cap_from_text("cap_net_admin-eip");
+
+		if (cap_set_proc(cap)) {
+			ast_log(LOG_WARNING, "Unable to remove capabilities.\n");
+		}
+		cap_free(cap);
+#endif
 		close(fds[0]);
 		/* Stdout goes to pipe */
 		dup2(fds[1], STDOUT_FILENO);
@@ -468,12 +488,8 @@ static int spawn_mp3(struct mohclass *class)
 				close(x);
 			}
 		}
-		/* Child */
-		if (strcasecmp(class->dir, "nodir") && chdir(class->dir) < 0) {
-			ast_log(LOG_WARNING, "chdir() failed: %s\n", strerror(errno));
-			_exit(1);
-		}
 		setpgid(0, getpid());
+
 		if (ast_test_flag(class, MOH_CUSTOM)) {
 			execv(argv[0], argv);
 		} else {
