@@ -232,6 +232,10 @@ Changes since Asterisk 1.2:
                       o parkcall variable added (one step parking)
                       o improved documentation for dynamic feature declarations!
                       o added parkedcallltransfers option to control builtin transfers with parking
+                      o added parkedcallparking option to control one touch parking w/ parking pickup
+                      o added parkedcallhangup option to control disconnect feature w/ parking pickup
+                      o added parkedcallrecording option to control one-touch record w/ parking pickup
+                      o added BRIDGE_FEATURES variable to set available features for a channel
                9. iax.conf
                       o adsi variable added
                       o mohinterpret variable added

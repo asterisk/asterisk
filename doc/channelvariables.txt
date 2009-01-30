@@ -565,6 +565,7 @@ ignored.
 ${ACCOUNTCODE} 	 	* Account code (if specified) (Deprecated; use ${CDR(accountcode)})
 ${BLINDTRANSFER} 	The name of the channel on the other side of a blind transfer
 ${BRIDGEPEER}	 	Bridged peer
+${BRIDGE_FEATURES}  * Combination of 't', 'k', 'w', 'h' Dial() features that this channel should have
 ${CALLERANI}	 	* Caller ANI (PRI channels) (Deprecated; use ${CALLERID(ani)})
 ${CALLERID}	 	* Caller ID (Deprecated; use ${CALLERID(all)})
 ${CALLERIDNAME}	 	* Caller ID Name only (Deprecated; use ${CALLERID(name)})

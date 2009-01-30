@@ -17,6 +17,12 @@ context => parkedcalls		; Which context parked calls are in
 				; one of: parked, caller, both  (default is caller)
 ;parkedcalltransfers = caller   ; Enables or disables DTMF based transfers when picking up a parked call.
                                 ; one of: callee, caller, both, no (default is both)
+;parkedcallparking = caller     ; Enables or disables DTMF based one-touch parking when picking up a parked call.
+                                ; one of: callee, caller, both, no (default is no)
+;parkedcallhangup = caller      ; Enables or disables DTMF based hangups when picking up a parked call.
+                                ; one of: callee, caller, both, no (default is no)
+;parkedcallrecording = caller   ; Enables or disables DTMF based one-touch recording when picking up a parked call.
+                                ; one of: callee, caller, both, no (default is no)
 ;adsipark = yes			; if you want ADSI parking announcements
 ;findslot => next		; Continue to the 'next' free parking space. 
 				; Defaults to 'first' available

@@ -79,35 +79,8 @@ static void *dialed_interface_duplicate(void *data)
 	return new_list;
 }
 
-
-static void *dial_features_duplicate(void *data)
-{
-	struct ast_dial_features *df = data, *df_copy;
-
-	if (!(df_copy = ast_calloc(1, sizeof(*df)))) {
-		return NULL;
-	}
-
-	memcpy(df_copy, df, sizeof(*df));
-
-	return df_copy;
-}
-
-static void dial_features_destroy(void *data) {
-	struct ast_dial_features *df = data;
-	if (df) {
-		ast_free(df);
-	}
-}
-
 const struct ast_datastore_info dialed_interface_info = {
 	.type = "dialed-interface",
 	.destroy = dialed_interface_destroy,
 	.duplicate = dialed_interface_duplicate,
-};
-
-const struct ast_datastore_info dial_features_info = {
-	.type = "dial-features",
-	.destroy = dial_features_destroy,
-	.duplicate = dial_features_duplicate,
 };
