@@ -40,11 +40,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			Encrypt a string with AES given a 16 character key.
 		</synopsis>
 		<syntax>
-			<parameter name="string" required="true">
-				<para>Input string</para>
-			</parameter>
 			<parameter name="key" required="true">
 				<para>AES Key</para>
+			</parameter>
+			<parameter name="string" required="true">
+				<para>Input string</para>
 			</parameter>
 		</syntax>
 		<description>
@@ -56,13 +56,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			Decrypt a string encoded in base64 with AES given a 16 character key.
 		</synopsis>
 		<syntax>
-			<parameter name="string" required="true">
-				<para>Input string.</para>
-			</parameter>
 			<parameter name="key" required="true">
 				<para>AES Key</para>
 			</parameter>
-
+			<parameter name="string" required="true">
+				<para>Input string.</para>
+			</parameter>
 		</syntax>
 		<description>
 			<para>Returns the plain text string.</para>
