@@ -64,8 +64,33 @@ PBX Changes
    that custom applications can trigger this same behavior by returning the
    special value AST_PBX_INCOMPLETE.
 
-Application Changes
--------------------
+The dial() application
+----------------------
+ * Dial has a new option: F(context^extension^pri), which permits a callee to
+   continue in the dialplan, at the specified label, if the caller hangs up.
+ * The Dial() application no longer copies the language used by the caller to the callee's
+   channel. If you desire for the caller's channel's language to be used for file playback
+   to the callee, then the file specified may be prepended with "${CHANNEL(language)}/" .
+
+The chanspy() application
+-------------------------
+ * ChanSpy and ExtenSpy have a new option, 's' which suppresses speaking the
+   technology name (e.g. SIP, IAX, etc) of the channel being spied on.
+ * Chanspy has a new option, 'B', which can be used to "barge" on a call. This is
+   like the pre-existing whisper mode, except that the spy can also talk to the
+   participant on the bridged channel as well.
+ * Chanspy has a new option, 'n', which will allow for the spied-on party's name
+   to be spoken instead of the channel name or number. For more information on the
+   use of this option, issue the command "core show application ChanSpy" from the 
+   Asterisk CLI.
+ * Chanspy has a new option, 'd', which allows the spy to use DTMF to swap between
+   spy modes. Use of this feature overrides the typical use of numeric DTMF. In other
+   words, if using the 'd' option, it is not possible to enter a number to append to
+   the first argument to Chanspy(). Pressing 4 will change to spy mode, pressing 5 will
+   change to whisper mode, and pressing 6 will change to barge mode.
+
+Other Application Changes
+-------------------------
  * Directory now permits both first and last names to be matched at the same
    time.  In addition, the number of digits to enter of the name can be set in
    the arguments to Directory; previously, you could enter only 3, regardless
@@ -80,23 +105,7 @@ Application Changes
    more details
  * The voicemail externnotify script now accepts an additional (last) parameter
    containing the number of urgent messages in the INBOX.
- * Dial has a new option: F(context^extension^pri), which permits a callee to
-   continue in the dialplan, at the specified label, if the caller hangs up.
- * ChanSpy and ExtenSpy have a new option, 's' which suppresses speaking the
-   technology name (e.g. SIP, IAX, etc) of the channel being spied on.
  * The Jack application now has a c() option to supply a custom client name.
- * Chanspy has a new option, 'B', which can be used to "barge" on a call. This is
-   like the pre-existing whisper mode, except that the spy can also talk to the
-   participant on the bridged channel as well.
- * Chanspy has a new option, 'n', which will allow for the spied-on party's name
-   to be spoken instead of the channel name or number. For more information on the
-   use of this option, issue the command "core show application ChanSpy" from the 
-   Asterisk CLI.
- * Chanspy has a new option, 'd', which allows the spy to use DTMF to swap between
-   spy modes. Use of this feature overrides the typical use of numeric DTMF. In other
-   words, if using the 'd' option, it is not possible to enter a number to append to
-   the first argument to Chanspy(). Pressing 4 will change to spy mode, pressing 5 will
-   change to whisper mode, and pressing 6 will change to barge mode.
  * ExternalIVR now takes several options that affect the way it performs, as
    well as having several new commands.  Please see doc/externalivr.txt for the
    complete documentation.
@@ -113,9 +122,6 @@ Application Changes
    original CDR; 'R' prevents the new CDR from being reset; 's(var=val)' adds/changes
    the 'var' variable on the original CDR; 'T' forces ast_cdr_end(), ast_cdr_answer(),
    obey the LOCKED flag on cdr's in the chain, and also the ast_cdr_setvar() func.
- * The Dial() application no longer copies the language used by the caller to the callee's
-   channel. If you desire for the caller's channel's language to be used for file playback
-   to the callee, then the file specified may be prepended with "${CHANNEL(language)}/" .
  * SendImage() no longer hangs up the channel on error; instead, it sets the
    status variable SENDIMAGESTATUS to one of 'SUCCESS', 'FAILURE', or
    'UNSUPPORTED'.  This change makes SendImage() more consistent with other
@@ -139,17 +145,17 @@ SIP Changes
    testing and problem reporting!
  * Added ability to specify registration expiry time on a per registration basis in
    the register line.
- * Added support for T140 RED - redundancy in T.140 to prevent text loss due to
-   lost packets.
+ * Added support for Realtime Text redundancy - T140 RED - in T.140 to 
+   prevent text loss due to lost packets.
  * Added t38pt_usertpsource option. See sip.conf.sample for details.
  * Added SIPnotify AMI command, for sending arbitrary SIP notify commands.
  * 'sip show peers' and 'sip show users' display their entries sorted in
-    alphabetical order, as opposed to the order they were in, in the config 
-    file or database. 
+   alphabetical order, as opposed to the order they were in, in the config 
+   file or database. 
  * Videosupport now supports an additional option, "always", which always sets
-    up video RTP ports, even on clients that don't support it.  This helps with
-    callfiles and certain transfers to ensure that if two video phones are
-    connected, they will always share video feeds.
+   up video RTP ports, even on clients that don't support it.  This helps with
+   callfiles and certain transfers to ensure that if two video phones are
+   connected, they will always share video feeds.
 
 IAX Changes
 -----------
@@ -162,16 +168,16 @@ IAX Changes
 CLI Changes
 -----------
   * New CLI command, "config reload <file.conf>" which reloads any module that
-     references that particular configuration file.  Also added "config list"
-     which shows which configuration files are in use.
+    references that particular configuration file.  Also added "config list"
+    which shows which configuration files are in use.
   * New CLI commands, "pri show version" and "ss7 show version" that will
-     display which version of libpri and libss7 are being used, respectively.
-     A new API call was added so trunk will now have to be compiled against
-     a versions of libpri and libss7 that have them or it will not know that
-     these libraries exist.
+    display which version of libpri and libss7 are being used, respectively.
+    A new API call was added so trunk will now have to be compiled against
+    a versions of libpri and libss7 that have them or it will not know that
+    these libraries exist.
   * The commands "core show globals", "core set global" and "core set chanvar" has
-     been deprecated in favor of the more semanticly correct "dialplan show globals",
-     "dialplan set chanvar" and "dialplan set global".
+    been deprecated in favor of the more semanticly correct "dialplan show globals",
+    "dialplan set chanvar" and "dialplan set global".
   * New CLI command "dialplan show chanvar" to list all variables associated
     with a given channel.
 
@@ -182,7 +188,7 @@ DNS manager changes
 
 AMI - The manager (TCP/TLS/HTTP)
 --------------------------------
-  * The Status command now takes an optional list of variables to display
+  * The Status action now takes an optional list of variables to display
     along with channel status.
 
 ODBC Changes
@@ -193,11 +199,11 @@ ODBC Changes
 
 Queue changes
 -------------
-  * The TRANSFER queue log entry now includes the the caller's original
-    position in the transferred-from queue.
-  * A new configuration option, "timeoutpriority" has been added. Please see the section labeled
-    "QUEUE TIMING OPTIONS" in configs/queues.conf.sample for a detailed explanation of the option
-    as well as an explanation about timeout options in general
+  * The TRANSFER queue log entry now includes the caller's original position in 
+    the transferred-from queue.
+  * A new configuration option, "timeoutpriority" has been added. Please see the section 
+    labeled "QUEUE TIMING OPTIONS" in configs/queues.conf.sample for a detailed explanation
+    of the option as well as an explanation about timeout options in general
 
 Realtime changes
 ----------------
