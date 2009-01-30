@@ -863,6 +863,13 @@ AEL Changes
 Call Features (res_features) Changes
 ------------------------------------
   * Added the parkedcalltransfers option to features.conf
+  * Added parkedcallparking option to control one touch parking w/ parking
+    pickup
+  * Added parkedcallhangup option to control disconnect feature w/ parking
+    pickup
+  * Added parkedcallrecording option to control one-touch record w/ parking
+    pickup
+  * Added BRIDGE_FEATURES variable to set available features for a channel
   * The built-in method for doing attended transfers has been updated to
      include some new options that allow you to have the transferee sent
      back to the person that did the transfer if the transfer is not successful.

@@ -166,6 +166,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define DEFAULT_ATXFER_CALLBACK_RETRIES 2
 
 #define AST_MAX_WATCHERS 256
+#define MAX_DIAL_FEATURE_OPTIONS 30
 
 struct feature_group_exten {
 	AST_LIST_ENTRY(feature_group_exten) entry;
@@ -222,6 +223,8 @@ struct ast_parkinglot {
 	int parkaddhints;                               /*!< Add parking hints automatically */
 	int parkedcalltransfers;                        /*!< Enable DTMF based transfers on bridge when picking up parked calls */
 	int parkedcallreparking;                        /*!< Enable DTMF based parking on bridge when picking up parked calls */
+	int parkedcallhangup;                           /*!< Enable DTMF based hangup on a bridge when pickup up parked calls */
+	int parkedcallrecording;                        /*!< Enable DTMF based recording on a bridge when picking up parked calls */
 	AST_LIST_HEAD(parkinglot_parklist, parkeduser) parkings; /*!< List of active parkings in this parkinglot */
 };
 
@@ -262,7 +265,39 @@ static struct ast_app *stopmixmonitor_app = NULL;
 static int stopmixmonitor_ok = 1;
 
 static pthread_t parking_thread;
+struct ast_dial_features {
+	struct ast_flags features_caller;
+	struct ast_flags features_callee;
+	int is_caller;
+};
 
+static void *dial_features_duplicate(void *data)
+{
+	struct ast_dial_features *df = data, *df_copy;
+ 
+ 	if (!(df_copy = ast_calloc(1, sizeof(*df)))) {
+ 		return NULL;
+ 	}
+ 
+ 	memcpy(df_copy, df, sizeof(*df));
+ 
+ 	return df_copy;
+ }
+ 
+ static void dial_features_destroy(void *data)
+ {
+ 	struct ast_dial_features *df = data;
+ 	if (df) {
+ 		ast_free(df);
+ 	}
+ }
+ 
+ const struct ast_datastore_info dial_features_info = {
+ 	.type = "dial-features",
+ 	.destroy = dial_features_destroy,
+ 	.duplicate = dial_features_duplicate,
+ };
+ 
 /* Forward declarations */
 static struct ast_parkinglot *parkinglot_addref(struct ast_parkinglot *parkinglot);
 static void parkinglot_unref(struct ast_parkinglot *parkinglot);
@@ -368,7 +403,7 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
  * bridge call, check if we're going back to dialplan
  * if not hangup both legs of the call
 */
-static void *ast_bridge_call_thread(void *data) 
+static void *ast_bridge_call_thread(void *data)
 {
 	struct ast_bridge_thread_obj *tobj = data;
 	int res;
@@ -880,7 +915,6 @@ static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, 
 	}
 
 	return res;
-
 }
 
 /*! \brief Play message to both caller and callee in bridged call, plays synchronously, autoservicing the
@@ -1193,7 +1227,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	ast_indicate(transferee, AST_CONTROL_HOLD);
 
 	memset(xferto, 0, sizeof(xferto));
-	
+
 	/* Transfer */
 	res = ast_stream_and_wait(transferer, "pbx-transfer", AST_DIGIT_ANY);
 	if (res < 0) {
@@ -1323,6 +1357,8 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	struct ast_bridge_config bconfig;
 	struct ast_frame *f;
 	int l;
+	struct ast_datastore *features_datastore;
+	struct ast_dial_features *dialfeatures = NULL;
 
 	ast_debug(1, "Executing Attended Transfer %s, %s (sense=%d) \n", chan->name, peer->name, sense);
 	set_peers(&transferer, &transferee, peer, chan, sense);
@@ -1362,6 +1398,13 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 			return -1;
 		return AST_FEATURE_RETURN_SUCCESS;
 	}
+
+ 	/* If we are attended transfering to parking, just use builtin_parkcall instead of trying to track all of
+ 	 * the different variables for handling this properly with a builtin_atxfer */
+ 	if (!strcmp(xferto, ast_parking_ext())) {
+ 		finishup(transferee);
+ 		return builtin_parkcall(chan, peer, config, code, sense, data);
+ 	}
 
 	l = strlen(xferto);
 	snprintf(xferto + l, sizeof(xferto) - l, "@%s/n", transferer_real_context);	/* append context */
@@ -1452,6 +1495,30 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 			ast_hangup(newchan);
 			return -1;
 		}
+
+		ast_channel_lock(newchan);
+		if ((features_datastore = ast_channel_datastore_find(newchan, &dial_features_info, NULL))) {
+				dialfeatures = features_datastore->data;
+		}
+		ast_channel_unlock(newchan);
+
+		if (dialfeatures) {
+			/* newchan should always be the callee and shows up as callee in dialfeatures, but for some reason
+			   I don't currently understand, the abilities of newchan seem to be stored on the caller side */
+			ast_copy_flags(&(config->features_callee), &(dialfeatures->features_caller), AST_FLAGS_ALL);
+			dialfeatures = NULL;
+		}
+
+		ast_channel_lock(xferchan);
+		if ((features_datastore = ast_channel_datastore_find(xferchan, &dial_features_info, NULL))) {
+			dialfeatures = features_datastore->data;
+		}
+		ast_channel_unlock(xferchan);
+	 
+		if (dialfeatures) {
+			ast_copy_flags(&(config->features_caller), &(dialfeatures->features_caller), AST_FLAGS_ALL);
+		}
+	 
 		tobj->chan = newchan;
 		tobj->peer = xferchan;
 		tobj->bconfig = *config;
@@ -2201,6 +2268,92 @@ static struct ast_cdr *pick_unlocked_cdr(struct ast_cdr *cdr)
 	return cdr_orig; /* everybody LOCKED or some other weirdness, like a NULL */
 }
 
+static void set_bridge_features_on_config(struct ast_bridge_config *config, const char *features)
+{
+	const char *feature;
+
+	if (ast_strlen_zero(features)) {
+		return;
+	}
+
+	for (feature = features; *feature; feature++) {
+		switch (*feature) {
+		case 'T' :
+		case 't' :
+			ast_set_flag(&(config->features_caller), AST_FEATURE_REDIRECT);
+			break;
+		case 'K' :
+		case 'k' :
+			ast_set_flag(&(config->features_caller), AST_FEATURE_PARKCALL);
+			break;
+		case 'H' :
+		case 'h' :
+			ast_set_flag(&(config->features_caller), AST_FEATURE_DISCONNECT);
+			break;
+		case 'W' :
+		case 'w' :
+			ast_set_flag(&(config->features_caller), AST_FEATURE_AUTOMON);
+			break;
+		default :
+			ast_log(LOG_WARNING, "Skipping unknown feature code '%c'\n", *feature);
+		}
+	}
+}
+
+static void add_features_datastores(struct ast_channel *caller, struct ast_channel *callee, struct ast_bridge_config *config)
+{
+	struct ast_datastore *ds_callee_features = NULL, *ds_caller_features = NULL;
+	struct ast_dial_features *callee_features = NULL, *caller_features = NULL;
+
+	ast_channel_lock(caller);
+	ds_caller_features = ast_channel_datastore_find(caller, &dial_features_info, NULL);
+	ast_channel_unlock(caller);
+	if (!ds_caller_features) {
+		if (!(ds_caller_features = ast_datastore_alloc(&dial_features_info, NULL))) {
+			ast_log(LOG_WARNING, "Unable to create channel datastore for caller features. Aborting!\n");
+			return;
+		}
+		if (!(caller_features = ast_calloc(1, sizeof(*caller_features)))) {
+			ast_log(LOG_WARNING, "Unable to allocate memory for callee feature flags. Aborting!\n");
+			ast_datastore_free(ds_caller_features);
+			return;
+		}
+		ds_caller_features->inheritance = DATASTORE_INHERIT_FOREVER;
+		caller_features->is_caller = 1;
+		ast_copy_flags(&(caller_features->features_callee), &(config->features_callee), AST_FLAGS_ALL);
+		ast_copy_flags(&(caller_features->features_caller), &(config->features_caller), AST_FLAGS_ALL);
+		ds_caller_features->data = caller_features;
+		ast_channel_lock(caller);
+		ast_channel_datastore_add(caller, ds_caller_features);
+		ast_channel_unlock(caller);
+	}
+
+	ast_channel_lock(callee);
+	ds_callee_features = ast_channel_datastore_find(callee, &dial_features_info, NULL);
+	ast_channel_unlock(callee);
+	if (!ds_callee_features) {
+		if (!(ds_callee_features = ast_datastore_alloc(&dial_features_info, NULL))) {
+			ast_log(LOG_WARNING, "Unable to create channel datastore for callee features. Aborting!\n");
+			return;
+		}
+		if (!(callee_features = ast_calloc(1, sizeof(*callee_features)))) {
+			ast_log(LOG_WARNING, "Unable to allocate memory for callee feature flags. Aborting!\n");
+			ast_datastore_free(ds_callee_features);
+			return;
+		}
+		ds_callee_features->inheritance = DATASTORE_INHERIT_FOREVER;
+		callee_features->is_caller = 0;
+		ast_copy_flags(&(callee_features->features_callee), &(config->features_caller), AST_FLAGS_ALL);
+		ast_copy_flags(&(callee_features->features_caller), &(config->features_callee), AST_FLAGS_ALL);
+		ds_callee_features->data = callee_features;
+		ast_channel_lock(callee);
+		ast_channel_datastore_add(callee, ds_callee_features);
+		ast_channel_unlock(callee);
+	}
+
+	return;
+}
+
 /*!
  * \brief bridge the call and set CDR
  * \param chan,peer,config
@@ -2245,6 +2398,9 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", NULL);
 	}
 
+	set_bridge_features_on_config(config, pbx_builtin_getvar_helper(chan, "BRIDGE_FEATURES"));
+	add_features_datastores(chan, peer, config);
+
 	/* This is an interesting case.  One example is if a ringing channel gets redirected to
 	 * an extension that picks up a parked call.  This will make sure that the call taken
 	 * out of parking gets told that the channel it just got bridged to is still ringing. */
@@ -2268,7 +2424,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			pbx_exec(src, monitor_app, tmp);
 		}
 	}
-	
+
 	set_config_flags(chan, peer, config);
 	config->firstpass = 1;
 
@@ -2335,7 +2491,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	}
 	for (;;) {
 		struct ast_channel *other;	/* used later */
-		
+	
 		res = ast_channel_bridge(chan, peer, config, &f, &who);
 
 		if (config->feature_timer) {
@@ -2677,6 +2833,50 @@ static void post_manager_event(const char *s, struct parkeduser *pu)
 		);
 }
 
+static char *callback_dialoptions(struct ast_flags *features_callee, struct ast_flags *features_caller, char *options, size_t len)
+{
+	int i = 0;
+	enum {
+		OPT_CALLEE_REDIRECT   = 't',
+		OPT_CALLER_REDIRECT   = 'T',
+		OPT_CALLEE_AUTOMON    = 'w',
+		OPT_CALLER_AUTOMON    = 'W',
+		OPT_CALLEE_DISCONNECT = 'h',
+		OPT_CALLER_DISCONNECT = 'H',
+		OPT_CALLEE_PARKCALL   = 'k',
+		OPT_CALLER_PARKCALL   = 'K',
+	};
+
+	memset(options, 0, len);
+	if (ast_test_flag(features_caller, AST_FEATURE_REDIRECT) && i < len) {
+		options[i++] = OPT_CALLER_REDIRECT;
+	}
+	if (ast_test_flag(features_caller, AST_FEATURE_AUTOMON) && i < len) {
+		options[i++] = OPT_CALLER_AUTOMON;
+	}
+	if (ast_test_flag(features_caller, AST_FEATURE_DISCONNECT) && i < len) {
+		options[i++] = OPT_CALLER_DISCONNECT;
+	}
+	if (ast_test_flag(features_caller, AST_FEATURE_PARKCALL) && i < len) {
+		options[i++] = OPT_CALLER_PARKCALL;
+	}
+
+	if (ast_test_flag(features_callee, AST_FEATURE_REDIRECT) && i < len) {
+		options[i++] = OPT_CALLEE_REDIRECT;
+	}
+	if (ast_test_flag(features_callee, AST_FEATURE_AUTOMON) && i < len) {
+		options[i++] = OPT_CALLEE_AUTOMON;
+	}
+	if (ast_test_flag(features_callee, AST_FEATURE_DISCONNECT) && i < len) {
+		options[i++] = OPT_CALLEE_DISCONNECT;
+	}
+	if (ast_test_flag(features_callee, AST_FEATURE_PARKCALL) && i < len) {
+		options[i++] = OPT_CALLEE_PARKCALL;
+	}
+
+	return options;
+}
+
 /*! \brief Run management on parkinglots, called once per parkinglot */
 int manage_parkinglot(struct ast_parkinglot *curlot, fd_set *rfds, fd_set *efds, fd_set *nrfds, fd_set *nefds, int *ms, int *max)
 {
@@ -2734,10 +2934,13 @@ int manage_parkinglot(struct ast_parkinglot *curlot, fd_set *rfds, fd_set *efds,
 						peername += 7;
 					}
 
-					if (dialfeatures)
-						snprintf(returnexten, sizeof(returnexten), "%s,,%s", peername, dialfeatures->options);
-					else /* Existing default */
-						snprintf(returnexten, sizeof(returnexten), "%s,,t", peername);
+					if (dialfeatures) {
+						char buf[MAX_DIAL_FEATURE_OPTIONS] = {0,};
+						snprintf(returnexten, sizeof(returnexten), "%s|30|%s", peername, callback_dialoptions(&(dialfeatures->features_callee), &(dialfeatures->features_caller), buf, sizeof(buf)));
+					} else { /* Existing default */
+						ast_log(LOG_WARNING, "Dialfeatures not found on %s, using default!\n", chan->name);
+						snprintf(returnexten, sizeof(returnexten), "%s|30|t", peername);
+					}
 
 					ast_add_extension2(con, 1, peername_flat, 1, NULL, NULL, "Dial", ast_strdup(returnexten), ast_free_ptr, registrar);
 				}
@@ -3057,8 +3260,11 @@ static int park_exec_full(struct ast_channel *chan, void *data, struct ast_parki
 	//ASTOBJ_UNLOCK(parkinglot);
 
 	if (peer) {
+		struct ast_datastore *features_datastore;
+		struct ast_dial_features *dialfeatures = NULL;
+
 		/* Play a courtesy to the source(s) configured to prefix the bridge connecting */
-		
+
 		if (!ast_strlen_zero(courtesytone)) {
 			int error = 0;
 			ast_indicate(peer, AST_CONTROL_UNHOLD);
@@ -3083,7 +3289,7 @@ static int park_exec_full(struct ast_channel *chan, void *data, struct ast_parki
 				return -1;
 			}
 		} else
-			ast_indicate(peer, AST_CONTROL_UNHOLD); 
+			ast_indicate(peer, AST_CONTROL_UNHOLD);
 
 		res = ast_channel_make_compatible(chan, peer);
 		if (res < 0) {
@@ -3098,14 +3304,43 @@ static int park_exec_full(struct ast_channel *chan, void *data, struct ast_parki
 		pbx_builtin_setvar_helper(chan, "PARKEDCHANNEL", peer->name);
 		ast_cdr_setdestchan(chan->cdr, peer->name);
 		memset(&config, 0, sizeof(struct ast_bridge_config));
-		if ((parkinglot->parkedcalltransfers == AST_FEATURE_FLAG_BYCALLEE) || (parkinglot->parkedcalltransfers == AST_FEATURE_FLAG_BYBOTH))
+
+		/* Get datastore for peer and apply it's features to the callee side of the bridge config */
+		ast_channel_lock(peer);
+		if ((features_datastore = ast_channel_datastore_find(peer, &dial_features_info, NULL))) {
+			dialfeatures = features_datastore->data;
+		}
+		ast_channel_unlock(peer);
+
+		if (dialfeatures) {
+			ast_copy_flags(&(config.features_callee), dialfeatures->is_caller ? &(dialfeatures->features_caller) : &(dialfeatures->features_callee), AST_FLAGS_ALL);
+		}
+
+		if ((parkinglot->parkedcalltransfers == AST_FEATURE_FLAG_BYCALLEE) || (parkinglot->parkedcalltransfers == AST_FEATURE_FLAG_BYBOTH)) {
 			ast_set_flag(&(config.features_callee), AST_FEATURE_REDIRECT);
-		if ((parkinglot->parkedcalltransfers == AST_FEATURE_FLAG_BYCALLER) || (parkinglot->parkedcalltransfers == AST_FEATURE_FLAG_BYBOTH))
+		}
+		if ((parkinglot->parkedcalltransfers == AST_FEATURE_FLAG_BYCALLER) || (parkinglot->parkedcalltransfers == AST_FEATURE_FLAG_BYBOTH)) {
 			ast_set_flag(&(config.features_caller), AST_FEATURE_REDIRECT);
-		if ((parkinglot->parkedcallreparking == AST_FEATURE_FLAG_BYCALLEE) || (parkinglot->parkedcallreparking == AST_FEATURE_FLAG_BYBOTH))
+		}
+		if ((parkinglot->parkedcallreparking == AST_FEATURE_FLAG_BYCALLEE) || (parkinglot->parkedcallreparking == AST_FEATURE_FLAG_BYBOTH)) {
 			ast_set_flag(&(config.features_callee), AST_FEATURE_PARKCALL);
-		if ((parkinglot->parkedcallreparking == AST_FEATURE_FLAG_BYCALLER) || (parkinglot->parkedcallreparking == AST_FEATURE_FLAG_BYBOTH))
+		}
+		if ((parkinglot->parkedcallreparking == AST_FEATURE_FLAG_BYCALLER) || (parkinglot->parkedcallreparking == AST_FEATURE_FLAG_BYBOTH)) {
 			ast_set_flag(&(config.features_caller), AST_FEATURE_PARKCALL);
+		}
+		if ((parkinglot->parkedcallhangup == AST_FEATURE_FLAG_BYCALLEE) || (parkinglot->parkedcallhangup == AST_FEATURE_FLAG_BYBOTH)) {
+			ast_set_flag(&(config.features_callee), AST_FEATURE_DISCONNECT);
+		}
+		if ((parkinglot->parkedcallhangup == AST_FEATURE_FLAG_BYCALLER) || (parkinglot->parkedcallhangup == AST_FEATURE_FLAG_BYBOTH)) {
+			ast_set_flag(&(config.features_caller), AST_FEATURE_DISCONNECT);
+		}
+		if ((parkinglot->parkedcallrecording == AST_FEATURE_FLAG_BYCALLEE) || (parkinglot->parkedcallrecording == AST_FEATURE_FLAG_BYBOTH)) {
+			ast_set_flag(&(config.features_callee), AST_FEATURE_AUTOMON);
+		}
+		if ((parkinglot->parkedcallrecording == AST_FEATURE_FLAG_BYCALLER) || (parkinglot->parkedcallrecording == AST_FEATURE_FLAG_BYBOTH)) {
+			ast_set_flag(&(config.features_caller), AST_FEATURE_AUTOMON);
+		}
+
 		res = ast_bridge_call(chan, peer, &config);
 
 		pbx_builtin_setvar_helper(chan, "PARKEDCHANNEL", peer->name);
@@ -3352,6 +3587,8 @@ static int load_config(void)
 	default_parkinglot->parkaddhints = 0;
 	default_parkinglot->parkedcalltransfers = 0;
 	default_parkinglot->parkedcallreparking = 0;
+	default_parkinglot->parkedcallrecording = 0;
+	default_parkinglot->parkedcallhangup = 0;
 
 	transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
 	featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
@@ -3403,6 +3640,20 @@ static int load_config(void)
 				default_parkinglot->parkedcallreparking = AST_FEATURE_FLAG_BYCALLER;
 			else if (!strcasecmp(var->value, "callee"))
 				default_parkinglot->parkedcallreparking = AST_FEATURE_FLAG_BYCALLEE;
+		} else if (!strcasecmp(var->name, "parkedcallhangup")) {
+			if (!strcasecmp(var->value, "both"))
+				default_parkinglot->parkedcallhangup = AST_FEATURE_FLAG_BYBOTH;
+			else if (!strcasecmp(var->value, "caller"))
+				default_parkinglot->parkedcallhangup = AST_FEATURE_FLAG_BYCALLER;
+			else if (!strcasecmp(var->value, "callee"))
+				default_parkinglot->parkedcallhangup = AST_FEATURE_FLAG_BYCALLEE;
+		} else if (!strcasecmp(var->name, "parkedcallrecording")) {
+			if (!strcasecmp(var->value, "both"))
+				default_parkinglot->parkedcallrecording = AST_FEATURE_FLAG_BYBOTH;
+			else if (!strcasecmp(var->value, "caller"))
+				default_parkinglot->parkedcallrecording = AST_FEATURE_FLAG_BYCALLER;
+			else if (!strcasecmp(var->value, "callee"))
+				default_parkinglot->parkedcallrecording = AST_FEATURE_FLAG_BYCALLEE;
 		} else if (!strcasecmp(var->name, "adsipark")) {
 			adsipark = ast_true(var->value);
 		} else if (!strcasecmp(var->name, "transferdigittimeout")) {
