@@ -94,7 +94,7 @@ static int parking_start;                                  /*!< First available 
 static int parking_stop;                                   /*!< Last available extension for parking */
 
 static int parkedcalltransfers;                            /*!< Who can REDIRECT after picking up a parked a call */
-static int parkedcallparking;                              /*!< Who can PARKCALL after picking up a parked call */
+static int parkedcallreparking;                            /*!< Who can PARKCALL after picking up a parked call */
 static int parkedcallhangup;                               /*!< Who can DISCONNECT after picking up a parked call */
 static int parkedcallrecording;                            /*!< Who can AUTOMON after picking up a parked call */
 
@@ -2433,10 +2433,10 @@ static int park_exec(struct ast_channel *chan, void *data)
 		if ((parkedcalltransfers == AST_FEATURE_FLAG_BYCALLER) || (parkedcalltransfers == AST_FEATURE_FLAG_BYBOTH)) {
 			ast_set_flag(&(config.features_caller), AST_FEATURE_REDIRECT);
 		}
-		if ((parkedcallparking == AST_FEATURE_FLAG_BYCALLEE) || (parkedcallparking == AST_FEATURE_FLAG_BYBOTH)) {
+		if ((parkedcallreparking == AST_FEATURE_FLAG_BYCALLEE) || (parkedcallreparking == AST_FEATURE_FLAG_BYBOTH)) {
 			ast_set_flag(&(config.features_callee), AST_FEATURE_PARKCALL);
 		}
-		if ((parkedcallparking == AST_FEATURE_FLAG_BYCALLER) || (parkedcallparking == AST_FEATURE_FLAG_BYBOTH)) {
+		if ((parkedcallreparking == AST_FEATURE_FLAG_BYCALLER) || (parkedcallreparking == AST_FEATURE_FLAG_BYBOTH)) {
 			ast_set_flag(&(config.features_caller), AST_FEATURE_PARKCALL);
 		}
 		if ((parkedcallhangup == AST_FEATURE_FLAG_BYCALLEE) || (parkedcallhangup == AST_FEATURE_FLAG_BYBOTH)) {
@@ -2742,7 +2742,7 @@ static int load_config(void)
 	adsipark = 0;
 	parkaddhints = 0;
 	parkedcalltransfers = AST_FEATURE_FLAG_BYBOTH;
-	parkedcallparking = 0;
+	parkedcallreparking = 0;
 	parkedcallhangup = 0;
 	parkedcallrecording = 0;
 
@@ -2786,15 +2786,15 @@ static int load_config(void)
 				parkedcalltransfers = AST_FEATURE_FLAG_BYCALLEE;
 			else if (!strcasecmp(var->value, "both"))
 				parkedcalltransfers = AST_FEATURE_FLAG_BYBOTH;
-		} else if (!strcasecmp(var->name, "parkedcallparking")) {
+		} else if (!strcasecmp(var->name, "parkedcallreparking")) {
 			if (!strcasecmp(var->value, "no"))
-				parkedcallparking = 0;
+				parkedcallreparking = 0;
 			else if (!strcasecmp(var->value, "caller"))
-				parkedcallparking = AST_FEATURE_FLAG_BYCALLER;
+				parkedcallreparking = AST_FEATURE_FLAG_BYCALLER;
 			else if (!strcasecmp(var->value, "callee"))
-				parkedcallparking = AST_FEATURE_FLAG_BYCALLEE;
+				parkedcallreparking = AST_FEATURE_FLAG_BYCALLEE;
 			else if (!strcasecmp(var->value, "both"))
-				parkedcallparking = AST_FEATURE_FLAG_BYBOTH;
+				parkedcallreparking = AST_FEATURE_FLAG_BYBOTH;
 		} else if (!strcasecmp(var->name, "parkedcallhangup")) {
 			if (!strcasecmp(var->value, "no"))
 				parkedcallhangup = 0;
