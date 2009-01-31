@@ -427,7 +427,7 @@ static int filter(struct ast_channel *chan, const char *cmd, char *parse, char *
 	}
 
 	/* Expand ranges */
-	for (; *(args.allowed) && allowedlen < sizeof(allowed); (args.allowed)++) {
+	for (; *(args.allowed) && allowedlen < sizeof(allowed); ) {
 		char c1 = 0, c2 = 0;
 		size_t consumed = 0;
 
