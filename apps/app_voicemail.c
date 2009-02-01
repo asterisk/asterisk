@@ -9627,6 +9627,11 @@ static int acf_mailbox_exists(struct ast_channel *chan, const char *cmd, char *a
 
 	AST_NONSTANDARD_APP_ARGS(arg, args, '@');
 
+	if (ast_strlen_zero(arg.mbox)) {
+		ast_log(LOG_ERROR, "MAILBOX_EXISTS requires an argument (<mailbox>[@<context>])\n");
+		return -1;
+	}
+
 	ast_copy_string(buf, find_user(&svm, ast_strlen_zero(arg.context) ? "default" : arg.context, arg.mbox) ? "1" : "0", len);
 	return 0;
 }
