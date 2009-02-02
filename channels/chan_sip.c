@@ -1864,7 +1864,6 @@ struct sip_peer {
 	char rt_fromcontact;		/*!< copy fromcontact from realtime */
 	char host_dynamic;		/*!< Dynamic Peers register with Asterisk */
 	char selfdestruct;		/*!< Automatic peers need to destruct themselves */
-	char onlymatchonip;		/*!< Only match on IP for incoming calls (old type=peer) */
 	char the_mark;			/*!< moved out of ASTOBJ into struct proper; That which bears the_mark should be deleted! */
 
 	int expire;			/*!<  When to expire this peer registration */
@@ -1896,7 +1895,10 @@ struct sip_peer {
 	int timer_t1;			/*!<  The maximum T1 value for the peer */
 	int timer_b;			/*!<  The maximum timer B (transaction timeouts) */
 	int deprecated_username; /*!< If it's a realtime peer, are they using the deprecated "username" instead of "defaultuser" */
+	
+	/*XXX Seems like we suddenly have two flags with the same content. Why? To be continued... */
 	enum sip_peer_type type; /*!< Distinguish between "user" and "peer" types. This is used solely for CLI and manager commands */
+	char onlymatchonip;		/*!< Only match on IP for incoming calls (old type=peer) */
 };
 
 
