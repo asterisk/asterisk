@@ -2326,6 +2326,10 @@ static void add_features_datastores(struct ast_channel *caller, struct ast_chann
 		ast_channel_lock(caller);
 		ast_channel_datastore_add(caller, ds_caller_features);
 		ast_channel_unlock(caller);
+	} else {
+		/* If we don't return here, then when we do a builtin_atxfer we will copy the disconnect
+		 * flags over from the atxfer to the caller */
+		return;
 	}
 
 	ast_channel_lock(callee);
