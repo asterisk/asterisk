@@ -56,7 +56,7 @@ additionalFilter=(objectClass=AstExtension)
 ; Sip Users Table
 ;
 [sip]
-name = uid
+name = cn
 amaflags = AstAccountAMAFlags
 callgroup = AstAccountCallGroup
 callerid = AstAccountCallerID
@@ -91,7 +91,7 @@ CanCallForward = AstAccountCanCallForward
 ipaddr = AstAccountIPAddress
 defaultuser = AstAccountDefaultUser
 regserver = AstAccountRegistrationServer
-additionalFilter=(objectClass=AstAccountSIP)
+additionalFilter=(objectClass=AsteriskSIPUser)
 
 ;
 ; IAX Users Table
