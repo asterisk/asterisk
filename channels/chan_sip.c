@@ -44,7 +44,7 @@
  * ******** Wishlist: Improvements
  * - Support of SIP domains for devices, so that we match on username@domain in the From: header
  * - Connect registrations with a specific device on the incoming call. It's not done
- *   automatically in Asdterisk
+ *   automatically in Asterisk
  *
  * \ingroup channel_drivers
  *
