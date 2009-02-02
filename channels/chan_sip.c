@@ -10207,7 +10207,8 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 		ast_str_append(&tmp, 0, "<?xml version=\"1.0\"?>\n");
 		ast_str_append(&tmp, 0, "<dialog-info xmlns=\"urn:ietf:params:xml:ns:dialog-info\" version=\"%d\" state=\"%s\" entity=\"%s\">\n", p->dialogver++, full ? "full" : "partial", mto);
 		if ((state & AST_EXTENSION_RINGING) && sip_cfg.notifyringing) {
-			const char *local_display = p->exten, *local_target = mto;
+			const char *local_display = p->exten;
+			char *local_target = mto;
 
 			/* There are some limitations to how this works.  The primary one is that the
 			   callee must be dialing the same extension that is being monitored.  Simply dialing
@@ -10216,8 +10217,10 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 				struct ast_channel *caller = ast_channel_search_locked(find_calling_channel, p);
 
 				if (caller) {
+					int need = strlen(caller->cid.cid_num) + strlen(p->fromdomain) + sizeof("sip:@");
+					local_target = alloca(need);
+					snprintf(local_target, need, "sip:%s@%s", caller->cid.cid_num, p->fromdomain);
 					local_display = ast_strdupa(caller->cid.cid_name);
-					local_target = ast_strdupa(caller->cid.cid_num);
 					ast_channel_unlock(caller);
 					caller = NULL;
 				}
