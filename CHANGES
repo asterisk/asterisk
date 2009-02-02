@@ -128,8 +128,6 @@ Miscellaneous
  * The contrib/scripts/ directory now has a script called sip_nat_settings that will
    give you the correct output for an asterisk box behind nat. It will give you the
    externhost and localnet settings.
- * The 'one-touch' disconnect feature is now available during Dial,
-   instead of just when a call is connected.
 
 Asterisk Manager Interface
 --------------------------
