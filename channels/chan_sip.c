@@ -490,7 +490,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define	FINDALLDEVICES	FALSE
 #define FINDONLYUSERS	TRUE
 
-
 #define	SIPBUFSIZE		512		/*!< Buffer size for many operations */
 
 #define XMIT_ERROR		-2
@@ -1862,10 +1861,10 @@ struct sip_peer {
 
 	/* things that don't belong in flags */
 	char is_realtime;		/*!< this is a 'realtime' peer */
-	char rt_fromcontact;		/*!< P: copy fromcontact from realtime */
-	char host_dynamic;		/*!< P: Dynamic Peers register with Asterisk */
-	char selfdestruct;		/*!< P: Automatic peers need to destruct themselves */
-	char onlymatchonip;		/*!< P: Only match on IP for incoming calls (old type=peer) */
+	char rt_fromcontact;		/*!< copy fromcontact from realtime */
+	char host_dynamic;		/*!< Dynamic Peers register with Asterisk */
+	char selfdestruct;		/*!< Automatic peers need to destruct themselves */
+	char onlymatchonip;		/*!< Only match on IP for incoming calls (old type=peer) */
 	char the_mark;			/*!< moved out of ASTOBJ into struct proper; That which bears the_mark should be deleted! */
 
 	int expire;			/*!<  When to expire this peer registration */
