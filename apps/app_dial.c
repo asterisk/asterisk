@@ -560,6 +560,7 @@ struct chanlist {
 	uint64_t flags;
 };
 
+static int detect_disconnect(struct ast_channel *chan, char code);
 
 static void hanguptree(struct chanlist *outgoing, struct ast_channel *exception, int answered_elsewhere)
 {
@@ -1054,8 +1055,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				}
 
 				if (ast_test_flag64(peerflags, OPT_CALLER_HANGUP) &&
-						(f->subclass == '*')) { /* hmm it it not guaranteed to be '*' anymore. */
-					ast_verb(3, "User hit %c to disconnect call.\n", f->subclass);
+						detect_disconnect(in, f->subclass)) {
+					ast_verb(3, "User requested call disconnect.\n");
 					*to = 0;
 					strcpy(pa->status, "CANCEL");
 					ast_cdr_noanswer(in->cdr);
@@ -1098,6 +1099,58 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 
 	return peer;
 }
+
+static char featurecode[FEATURE_MAX_LEN + 1] = "";
+
+static int detect_disconnect(struct ast_channel *chan, char code)
+{
+	struct feature_interpret_result result;
+	int x;
+	struct ast_flags features;
+	int res = FEATURE_RETURN_PASSDIGITS;
+	struct ast_call_feature *feature;
+	char *cptr;
+	const char *dynamic_features = pbx_builtin_getvar_helper(chan, "DYNAMIC_FEATURES");
+	int len;
+
+	len = strlen(featurecode);
+	if (len >= FEATURE_MAX_LEN) {
+		featurecode[0] = '\0';
+	}
+	cptr = &featurecode[strlen(featurecode)];
+	cptr[0] = code;
+	cptr[1] = '\0';
+
+	memset(&features, 0, sizeof(struct ast_flags));
+	ast_set_flag(&features, AST_FEATURE_DISCONNECT);
+
+	ast_features_lock();
+
+	res = ast_feature_detect(chan, &features, featurecode, &result, dynamic_features);
+
+	if (res != FEATURE_RETURN_STOREDIGITS)
+		featurecode[0] = '\0';
+
+
+	if (result.builtin_feature && result.builtin_feature->feature_mask & AST_FEATURE_DISCONNECT) {
+		ast_features_unlock();
+		return 1;
+	}
+		
+	for (x = 0; x < result.num_dyn_features; ++x) {
+		feature = result.dynamic_features[x];
+		if (feature->feature_mask & AST_FEATURE_DISCONNECT) {
+			ast_features_unlock();
+			return 1;
+		}
+	}
+
+	ast_features_unlock();
+
+	return 0;
+}
+
+
 
 static void replace_macro_delimiter(char *s)
 {

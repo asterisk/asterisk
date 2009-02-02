@@ -36,6 +36,15 @@
 
 #define PARK_APP_NAME "Park"
 
+#define FEATURE_RETURN_HANGUP		-1
+#define FEATURE_RETURN_SUCCESSBREAK	 0
+#define FEATURE_RETURN_PASSDIGITS	 21
+#define FEATURE_RETURN_STOREDIGITS	 22
+#define FEATURE_RETURN_SUCCESS	 	 23
+#define FEATURE_RETURN_KEEPTRYING    24
+
+typedef int (*feature_operation)(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data);
+
 /*! \brief main call feature structure */
 
 enum {
@@ -53,7 +62,7 @@ struct ast_call_feature {
 	char sname[FEATURE_SNAME_LEN];
 	char exten[FEATURE_MAX_LEN];
 	char default_exten[FEATURE_MAX_LEN];
-	int (*operation)(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data);
+	feature_operation operation;
 	unsigned int flags;
 	char app[FEATURE_APP_LEN];		
 	char app_args[FEATURE_APP_ARGS_LEN];
@@ -61,12 +70,20 @@ struct ast_call_feature {
 	AST_LIST_ENTRY(ast_call_feature) feature_entry;
 };
 
-#define AST_FEATURE_RETURN_HANGUP                   -1
-#define AST_FEATURE_RETURN_SUCCESSBREAK             0
-#define AST_FEATURE_RETURN_PASSDIGITS               21
-#define AST_FEATURE_RETURN_STOREDIGITS              22
-#define AST_FEATURE_RETURN_SUCCESS                  23
-#define AST_FEATURE_RETURN_KEEPTRYING               24
+#define AST_FEATURE_RETURN_HANGUP                   FEATURE_RETURN_HANGUP
+#define AST_FEATURE_RETURN_SUCCESSBREAK             FEATURE_RETURN_SUCCESSBREAK
+#define AST_FEATURE_RETURN_PASSDIGITS               FEATURE_RETURN_PASSDIGITS
+#define AST_FEATURE_RETURN_STOREDIGITS              FEATURE_RETURN_STOREDIGITS
+#define AST_FEATURE_RETURN_SUCCESS                  FEATURE_RETURN_SUCCESS
+#define AST_FEATURE_RETURN_KEEPTRYING               FEATURE_RETURN_KEEPTRYING
+
+struct feature_interpret_result {
+    struct ast_call_feature *builtin_feature;
+    struct ast_call_feature *dynamic_features[20];
+    struct ast_call_feature *group_features[20];
+    int num_dyn_features;
+    int num_grp_features;
+};
 
 /*!
  * \brief Park a call and read back parked location 
@@ -121,6 +138,12 @@ void ast_register_feature(struct ast_call_feature *feature);
 /*! \brief unregister feature from feature_set
     \param feature the ast_call_feature object which was registered before*/
 void ast_unregister_feature(struct ast_call_feature *feature);
+
+int ast_feature_detect(struct ast_channel *chan, const struct ast_flags *features, char *code, struct feature_interpret_result *result, const char *dynamic_features);
+
+void ast_features_lock(void);
+void ast_features_unlock(void);
+
 
 /*! \brief look for a call feature entry by its sname
 	\param name a string ptr, should match "automon", "blindxfer", "atxfer", etc. */

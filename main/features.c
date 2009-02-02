@@ -856,8 +856,8 @@ static int masq_park_call_announce(struct ast_channel *rchan, struct ast_channel
 	return masq_park_call(rchan, peer, timeout, extout, 1, NULL);
 }
 
-#define FEATURE_SENSE_CHAN	(1 << 0)
-#define FEATURE_SENSE_PEER	(1 << 1)
+#define FEATURE_SENSE_CHAN     (1 << 0)
+#define FEATURE_SENSE_PEER     (1 << 1)
 
 /*! 
  * \brief set caller and callee according to the direction 
@@ -1935,44 +1935,40 @@ static int remap_feature(const char *name, const char *value)
 	return res;
 }
 
-/*!
- * \brief Check the dynamic features
- * \param chan,peer,config,code,sense
- *
- * Lock features list, browse for code, unlock list
- * \retval res on success.
- * \retval -1 on failure.
-*/
-static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
+void ast_features_lock(void)
+{
+	ast_rwlock_rdlock(&features_lock);
+	AST_RWLIST_WRLOCK(&feature_list);
+	AST_RWLIST_RDLOCK(&feature_groups);
+}
+
+void ast_features_unlock(void)
+{
+	AST_RWLIST_UNLOCK(&feature_groups);
+	AST_RWLIST_UNLOCK(&feature_list);
+	ast_rwlock_unlock(&features_lock);
+}
+
+int ast_feature_detect(struct ast_channel *chan, const struct ast_flags *features, char *code, struct feature_interpret_result *result, const char *dynamic_features)
 {
 	int x;
-	struct ast_flags features;
+	int res = FEATURE_RETURN_PASSDIGITS;
 	struct ast_call_feature *feature;
 	struct feature_group *fg = NULL;
 	struct feature_group_exten *fge;
-	const char *dynamic_features;
 	char *tmp, *tok;
-	int res = AST_FEATURE_RETURN_PASSDIGITS;
-	int feature_detected = 0;
-
-	if (sense == FEATURE_SENSE_CHAN) {
-		ast_copy_flags(&features, &(config->features_caller), AST_FLAGS_ALL);
-		dynamic_features = pbx_builtin_getvar_helper(chan, "DYNAMIC_FEATURES");
-	}
-	else {
-		ast_copy_flags(&features, &(config->features_callee), AST_FLAGS_ALL);
-		dynamic_features = pbx_builtin_getvar_helper(peer, "DYNAMIC_FEATURES");
-	}
-	ast_debug(3, "Feature interpret: chan=%s, peer=%s, code=%s, sense=%d, features=%d, dynamic=%s\n", chan->name, peer->name, code, sense, features.flags, dynamic_features);
-
-	ast_rwlock_rdlock(&features_lock);
+	
+	result->builtin_feature = NULL;
+	result->num_dyn_features = 0;
+	result->num_grp_features = 0;
+	
+	
 	for (x = 0; x < FEATURES_COUNT; x++) {
-		if ((ast_test_flag(&features, builtin_features[x].feature_mask)) &&
+		if ((ast_test_flag(features, builtin_features[x].feature_mask)) &&
 		    !ast_strlen_zero(builtin_features[x].exten)) {
 			/* Feature is up for consideration */
 			if (!strcmp(builtin_features[x].exten, code)) {
-				res = builtin_features[x].operation(chan, peer, config, code, sense, NULL);
-				feature_detected = 1;
+				result->builtin_feature = &builtin_features[x];
 				break;
 			} else if (!strncmp(builtin_features[x].exten, code, strlen(code))) {
 				if (res == AST_FEATURE_RETURN_PASSDIGITS)
@@ -1980,15 +1976,13 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 			}
 		}
 	}
-	ast_rwlock_unlock(&features_lock);
 
-	if (ast_strlen_zero(dynamic_features) || feature_detected)
+	if (ast_strlen_zero(dynamic_features))
 		return res;
 
 	tmp = ast_strdupa(dynamic_features);
 
 	while ((tok = strsep(&tmp, "#"))) {
-		AST_RWLIST_RDLOCK(&feature_groups);
 
 		fg = find_group(tok);
 
@@ -1996,10 +1990,9 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 			AST_LIST_TRAVERSE(&fg->features, fge, entry) {
 				if (strcasecmp(fge->exten, code))
 					continue;
-
-				res = fge->feature->operation(chan, peer, config, code, sense, fge->feature);
-				if (res != AST_FEATURE_RETURN_KEEPTRYING) {
-					AST_RWLIST_UNLOCK(&feature_groups);
+				
+				result->group_features[result->num_grp_features++] = fge->feature;
+				if (result->num_grp_features >= (sizeof(result->group_features) / sizeof(result->group_features[0]))) {
 					break;
 				}
 				res = AST_FEATURE_RETURN_PASSDIGITS;
@@ -2008,29 +2001,74 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 				break;
 		}
 
-		AST_RWLIST_UNLOCK(&feature_groups);
-
-		AST_RWLIST_RDLOCK(&feature_list);
-
 		if (!(feature = find_dynamic_feature(tok))) {
-			AST_RWLIST_UNLOCK(&feature_list);
 			continue;
 		}
 			
 		/* Feature is up for consideration */
 		if (!strcmp(feature->exten, code)) {
 			ast_verb(3, " Feature Found: %s exten: %s\n",feature->sname, tok);
-			res = feature->operation(chan, peer, config, code, sense, feature);
-			if (res != AST_FEATURE_RETURN_KEEPTRYING) {
-				AST_RWLIST_UNLOCK(&feature_list);
+			result->dynamic_features[result->num_dyn_features++] = feature;
+			if (result->num_dyn_features >= (sizeof(result->dynamic_features) / sizeof(result->dynamic_features[0]))) {
 				break;
 			}
 			res = AST_FEATURE_RETURN_PASSDIGITS;
 		} else if (!strncmp(feature->exten, code, strlen(code)))
 			res = AST_FEATURE_RETURN_STOREDIGITS;
-
-		AST_RWLIST_UNLOCK(&feature_list);
 	}
+	return res;
+}
+
+ /*!
+  * \brief Check the dynamic features
+  * \param chan,peer,config,code,sense
+  *
+  * Lock features list, browse for code, unlock list
+  * \retval res on success.
+  * \retval -1 on failure.
+ */
+static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
+{
+	struct feature_interpret_result result;
+	int x;
+	struct ast_flags features;
+	int res = AST_FEATURE_RETURN_PASSDIGITS;
+	struct ast_call_feature *feature;
+	const char *dynamic_features;
+	
+	if (sense == FEATURE_SENSE_CHAN) {
+		ast_copy_flags(&features, &(config->features_caller), AST_FLAGS_ALL);
+		dynamic_features = pbx_builtin_getvar_helper(chan, "DYNAMIC_FEATURES");
+	} else {
+		ast_copy_flags(&features, &(config->features_callee), AST_FLAGS_ALL);
+		dynamic_features = pbx_builtin_getvar_helper(peer, "DYNAMIC_FEATURES");
+	}
+	ast_debug(3, "Feature interpret: chan=%s, peer=%s, code=%s, sense=%d, features=%d, dynamic=%s\n", chan->name, peer->name, code, sense, features.flags, dynamic_features);
+	
+	ast_features_lock();
+	res = ast_feature_detect(chan, &features, code, &result, dynamic_features);
+	
+	if (result.builtin_feature) {
+		res = result.builtin_feature->operation(chan, peer, config, code, sense, NULL);
+	}
+
+	for (x = 0; x < result.num_grp_features; ++x) {
+		feature = result.group_features[x];
+		res = feature->operation(chan, peer, config, code, sense, feature);
+		if (res != FEATURE_RETURN_KEEPTRYING) {
+			break;
+		}
+		res = FEATURE_RETURN_PASSDIGITS;
+	}
+	for (x = 0; x < result.num_dyn_features; ++x) {
+		feature = result.dynamic_features[x];
+		res = feature->operation(chan, peer, config, code, sense, feature);
+		if (res != FEATURE_RETURN_KEEPTRYING) {
+			break;
+		}
+		res = FEATURE_RETURN_PASSDIGITS;
+	}
+	ast_features_unlock();
 	
 	return res;
 }
