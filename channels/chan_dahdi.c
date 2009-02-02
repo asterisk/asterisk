@@ -287,6 +287,10 @@ static inline int dahdi_wait_event(int fd)
 
 struct dahdi_pvt;
 
+/*!
+ * \brief Configured ring timeout base.
+ * \note Value computed from "ringtimeout" read in from chan_dahdi.conf if it exists.
+ */
 static int ringt_base = DEFAULT_RINGT;
 
 #ifdef HAVE_PRI
@@ -324,11 +328,16 @@ struct dahdi_pri {
 	struct pri *dchans[NUM_DCHANS];					/*!< Actual d-channels */
 	int dchanavail[NUM_DCHANS];					/*!< Whether each channel is available */
 	struct pri *pri;						/*!< Currently active D-channel */
+	/*! \brief TRUE if to dump PRI event info (Tested but never set) */
 	int debug;
 	int fds[NUM_DCHANS];						/*!< FD's for d-channels */
+	/*! \brief Value set but not used */
 	int offset;
+	/*! \brief Span number put into user output messages */
 	int span;
+	/*! \brief TRUE if span is being reset/restarted */
 	int resetting;
+	/*! \brief Current position during a reset (-1 if not started) */
 	int resetpos;
 #ifdef HAVE_PRI_INBANDDISCONNECT
 	unsigned int inbanddisconnect:1;				/*!< Should we support inband audio after receiving DISCONNECT? */
@@ -427,103 +436,325 @@ static struct dahdi_pvt {
 	int buf_no;					/*!< Number of buffers */
 	int buf_policy;				/*!< Buffer policy */
 	int sig;					/*!< Signalling style */
-	int radio;					/*!< radio type */
+	/*!
+	 * \brief Nonzero if the signaling type is sent over a radio.
+	 * \note Set to a couple of nonzero values but it is only tested like a boolean.
+	 */
+	int radio;
 	int outsigmod;					/*!< Outbound Signalling style (modifier) */
 	int oprmode;					/*!< "Operator Services" mode */
 	struct dahdi_pvt *oprpeer;				/*!< "Operator Services" peer tech_pvt ptr */
+	/*! \brief Rx gain set by chan_dahdi.conf */
 	float rxgain;
+	/*! \brief Tx gain set by chan_dahdi.conf */
 	float txgain;
 	int tonezone;					/*!< tone zone for this chan, or -1 for default */
 	struct dahdi_pvt *next;				/*!< Next channel in list */
 	struct dahdi_pvt *prev;				/*!< Prev channel in list */
 
 	/* flags */
+
+	/*!
+	 * \brief TRUE if ADSI (Analog Display Services Interface) available
+	 * \note Set from the "adsi" value read in from chan_dahdi.conf
+	 */
 	unsigned int adsi:1;
+	/*!
+	 * \brief TRUE if we can use a polarity reversal to mark when an outgoing
+	 * call is answered by the remote party.
+	 * \note Set from the "answeronpolarityswitch" value read in from chan_dahdi.conf
+	 */
 	unsigned int answeronpolarityswitch:1;
+	/*!
+	 * \brief TRUE if busy detection is enabled.
+	 * (Listens for the beep-beep busy pattern.)
+	 * \note Set from the "busydetect" value read in from chan_dahdi.conf
+	 */
 	unsigned int busydetect:1;
+	/*!
+	 * \brief TRUE if call return is enabled.
+	 * (*69, if your dialplan doesn't catch this first)
+	 * \note Set from the "callreturn" value read in from chan_dahdi.conf
+	 */
 	unsigned int callreturn:1;
+	/*!
+	 * \brief TRUE if busy extensions will hear the call-waiting tone
+	 * and can use hook-flash to switch between callers.
+	 * \note Can be disabled by dialing *70.
+	 * \note Initialized with the "callwaiting" value read in from chan_dahdi.conf
+	 */
 	unsigned int callwaiting:1;
+	/*!
+	 * \brief TRUE if send caller ID for Call Waiting
+	 * \note Set from the "callwaitingcallerid" value read in from chan_dahdi.conf
+	 */
 	unsigned int callwaitingcallerid:1;
+	/*!
+	 * \brief TRUE if support for call forwarding enabled.
+	 * Dial *72 to enable call forwarding.
+	 * Dial *73 to disable call forwarding.
+	 * \note Set from the "cancallforward" value read in from chan_dahdi.conf
+	 */
 	unsigned int cancallforward:1;
+	/*!
+	 * \brief TRUE if support for call parking is enabled.
+	 * \note Set from the "canpark" value read in from chan_dahdi.conf
+	 */
 	unsigned int canpark:1;
-	unsigned int confirmanswer:1;			/*!< Wait for '#' to confirm answer */
+	/*! \brief TRUE if to wait for a DTMF digit to confirm answer */
+	unsigned int confirmanswer:1;
+	/*!
+	 * \brief TRUE if the channel is to be destroyed on hangup.
+	 * (Used by pseudo channels.)
+	 */
 	unsigned int destroy:1;
 	unsigned int didtdd:1;				/*!< flag to say its done it once */
+	/*! \brief TRUE if analog type line dialed no digits in Dial() */
 	unsigned int dialednone:1;
+	/*! \brief TRUE if in the process of dialing digits or sending something. */
 	unsigned int dialing:1;
+	/*! \brief TRUE if the transfer capability of the call is digital. */
 	unsigned int digital:1;
+	/*! \brief TRUE if Do-Not-Disturb is enabled. */
 	unsigned int dnd:1;
+	/*! \brief XXX BOOLEAN Purpose??? */
 	unsigned int echobreak:1;
+	/*!
+	 * \brief TRUE if echo cancellation enabled when bridged.
+	 * \note Initialized with the "echocancelwhenbridged" value read in from chan_dahdi.conf
+	 * \note Disabled if the echo canceller is not setup.
+	 */
 	unsigned int echocanbridged:1;
+	/*! \brief TRUE if echo cancellation is turned on. */
 	unsigned int echocanon:1;
-	unsigned int faxhandled:1;			/*!< Has a fax tone already been handled? */
+	/*! \brief TRUE if a fax tone has already been handled. */
+	unsigned int faxhandled:1;
+	/*! \brief TRUE if over a radio and dahdi_read() has been called. */
 	unsigned int firstradio:1;
+	/*!
+	 * \brief TRUE if the call will be considered "hung up" on a polarity reversal.
+	 * \note Set from the "hanguponpolarityswitch" value read in from chan_dahdi.conf
+	 */
 	unsigned int hanguponpolarityswitch:1;
+	/*! \brief TRUE if DTMF detection needs to be done by hardware. */
 	unsigned int hardwaredtmf:1;
+	/*!
+	 * \brief TRUE if the outgoing caller ID is blocked/hidden.
+	 * \note Caller ID can be disabled by dialing *67.
+	 * \note Caller ID can be enabled by dialing *82.
+	 * \note Initialized with the "hidecallerid" value read in from chan_dahdi.conf
+	 */
 	unsigned int hidecallerid:1;
-	unsigned int hidecalleridname:1;      /*!< Hide just the name not the number for legacy PBX use */
+	/*!
+	 * \brief TRUE if hide just the name not the number for legacy PBX use.
+	 * \note Only applies to PRI channels.
+	 * \note Set from the "hidecalleridname" value read in from chan_dahdi.conf
+	 */
+	unsigned int hidecalleridname:1;
+	/*! \brief TRUE if DTMF detection is disabled. */
 	unsigned int ignoredtmf:1;
-	unsigned int immediate:1;			/*!< Answer before getting digits? */
+	/*!
+	 * \brief TRUE if the channel should be answered immediately
+	 * without attempting to gather any digits.
+	 * \note Set from the "immediate" value read in from chan_dahdi.conf
+	 */
+	unsigned int immediate:1;
+	/*! \brief TRUE if in an alarm condition. */
 	unsigned int inalarm:1;
 	unsigned int unknown_alarm:1;
-	unsigned int mate:1;				/*!< flag to say its in MATE mode */
+	/*! \brief TRUE if TDD in MATE mode */
+	unsigned int mate:1;
+	/*! \brief TRUE if we originated the call leg. */
 	unsigned int outgoing:1;
-	unsigned int overlapdial:1;
+	/* unsigned int overlapdial:1; 			unused and potentially confusing */
+	/*!
+	 * \brief TRUE if busy extensions will hear the call-waiting tone
+	 * and can use hook-flash to switch between callers.
+	 * \note Set from the "callwaiting" value read in from chan_dahdi.conf
+	 */
 	unsigned int permcallwaiting:1;
-	unsigned int permhidecallerid:1;		/*!< Whether to hide our outgoing caller ID or not */
+	/*!
+	 * \brief TRUE if the outgoing caller ID is blocked/restricted/hidden.
+	 * \note Set from the "hidecallerid" value read in from chan_dahdi.conf
+	 */
+	unsigned int permhidecallerid:1;
+	/*!
+	 * \brief TRUE if PRI congestion/busy indications are sent out-of-band.
+	 * \note Set from the "priindication" value read in from chan_dahdi.conf
+	 */
 	unsigned int priindication_oob:1;
+	/*!
+	 * \brief TRUE if PRI B channels are always exclusively selected.
+	 * \note Set from the "priexclusive" value read in from chan_dahdi.conf
+	 */
 	unsigned int priexclusive:1;
+	/*!
+	 * \brief TRUE if we will pulse dial.
+	 * \note Set from the "pulsedial" value read in from chan_dahdi.conf
+	 */
 	unsigned int pulse:1;
-	unsigned int pulsedial:1;			/*!< whether a pulse dial phone is detected */
+	/*! \brief TRUE if a pulsed digit was detected. (Pulse dial phone detected) */
+	unsigned int pulsedial:1;
 	unsigned int restartpending:1;		/*!< flag to ensure counted only once for restart */
-	unsigned int restrictcid:1;			/*!< Whether restrict the callerid -> only send ANI */
+	/*!
+	 * \brief TRUE if caller ID is restricted.
+	 * \note Set but not used.  Should be deleted.  Redundant with permhidecallerid.
+	 * \note Set from the "restrictcid" value read in from chan_dahdi.conf
+	 */
+	unsigned int restrictcid:1;
+	/*!
+	 * \brief TRUE if three way calling is enabled
+	 * \note Set from the "threewaycalling" value read in from chan_dahdi.conf
+	 */
 	unsigned int threewaycalling:1;
+	/*!
+	 * \brief TRUE if call transfer is enabled
+	 * \note For FXS ports (either direct analog or over T1/E1):
+	 *   Support flash-hook call transfer
+	 * \note For digital ports using ISDN PRI protocols:
+	 *   Support switch-side transfer (called 2BCT, RLT or other names)
+	 * \note Set from the "transfer" value read in from chan_dahdi.conf
+	 */
 	unsigned int transfer:1;
-	unsigned int use_callerid:1;			/*!< Whether or not to use caller id on this channel */
-	unsigned int use_callingpres:1;			/*!< Whether to use the callingpres the calling switch sends */
+	/*!
+	 * \brief TRUE if caller ID is used on this channel.
+	 * \note PRI spans will save caller ID from the networking peer.
+	 * \note FXS ports will generate the caller ID spill.
+	 * \note FXO ports will listen for the caller ID spill.
+	 * \note Set from the "usecallerid" value read in from chan_dahdi.conf
+	 */
+	unsigned int use_callerid:1;
+	/*!
+	 * \brief TRUE if we will use the calling presentation setting
+	 * from the Asterisk channel for outgoing calls.
+	 * \note Only applies to PRI channels.
+	 * \note Set from the "usecallingpres" value read in from chan_dahdi.conf
+	 */
+	unsigned int use_callingpres:1;
+	/*!
+	 * \brief TRUE if distinctive rings are to be detected.
+	 * \note For FXO lines
+	 * \note Set indirectly from the "usedistinctiveringdetection" value read in from chan_dahdi.conf
+	 */
 	unsigned int usedistinctiveringdetection:1;
-	unsigned int dahditrcallerid:1;			/*!< should we use the callerid from incoming call on dahdi transfer or not */
-	unsigned int transfertobusy:1;			/*!< allow flash-transfers to busy channels */
+	/*!
+	 * \brief TRUE if we should use the callerid from incoming call on dahdi transfer.
+	 * \note Set from the "useincomingcalleridondahditransfer" value read in from chan_dahdi.conf
+	 */
+	unsigned int dahditrcallerid:1;
+	/*!
+	 * \brief TRUE if allowed to flash-transfer to busy channels.
+	 * \note Set from the "transfertobusy" value read in from chan_dahdi.conf
+	 */
+	unsigned int transfertobusy:1;
 #if defined(HAVE_PRI)
+	/*! \brief TRUE if channel is alerting/ringing */
 	unsigned int alerting:1;
+	/*! \brief TRUE if the call has already gone/hungup */
 	unsigned int alreadyhungup:1;
+	/*!
+	 * \brief TRUE if this is an idle call
+	 * \note Applies to PRI channels.
+	 */
 	unsigned int isidlecall:1;
+	/*!
+	 * \brief TRUE if call is in a proceeding state.
+	 * The call has started working its way through the network.
+	 */
 	unsigned int proceeding:1;
+	/*! \brief TRUE if the call has seen progress through the network. */
 	unsigned int progress:1;
+	/*!
+	 * \brief TRUE if this channel is being reset/restarted
+	 * \note Applies to PRI channels.
+	 */
 	unsigned int resetting:1;
+	/*!
+	 * \brief TRUE if this channel has received a SETUP_ACKNOWLEDGE
+	 * \note Applies to PRI channels.
+	 */
 	unsigned int setup_ack:1;
 #endif
-	unsigned int use_smdi:1;		/* Whether to use SMDI on this channel */
-	struct ast_smdi_interface *smdi_iface;	/* The serial port to listen for SMDI data on */
+	/*!
+	 * \brief TRUE if SMDI (Simplified Message Desk Interface) is enabled
+	 * \note Set from the "usesmdi" value read in from chan_dahdi.conf
+	 */
+	unsigned int use_smdi:1;
+	/*! \brief The serial port to listen for SMDI data on */
+	struct ast_smdi_interface *smdi_iface;
 
+	/*! \brief Distinctive Ring data */
 	struct dahdi_distRings drings;
 
+	/*!
+	 * \brief The configured context for incoming calls.
+	 * \note The "context" string read in from chan_dahdi.conf
+	 */
 	char context[AST_MAX_CONTEXT];
+	/*!
+	 * \brief Saved context string.
+	 */
 	char defcontext[AST_MAX_CONTEXT];
+	/*! \brief Extension to use in the dialplan. */
 	char exten[AST_MAX_EXTENSION];
+	/*!
+	 * \brief Language configured for calls.
+	 * \note The "language" string read in from chan_dahdi.conf
+	 */
 	char language[MAX_LANGUAGE];
+	/*!
+	 * \brief The configured music-on-hold class to use for calls.
+	 * \note The "musicclass" or "mohinterpret" or "musiconhold" string read in from chan_dahdi.conf
+	 */
 	char mohinterpret[MAX_MUSICCLASS];
+	/*!
+	 * \brief Sugggested music-on-hold class for peer channel to use for calls.
+	 * \note The "mohsuggest" string read in from chan_dahdi.conf
+	 */
 	char mohsuggest[MAX_MUSICCLASS];
 #ifdef PRI_ANI
+	/*! \brief Automatic Number Identification number (Alternate PRI caller ID number) */
 	char cid_ani[AST_MAX_EXTENSION];
 #endif
+	/*! \brief Caller ID number from an incoming call. */
 	char cid_num[AST_MAX_EXTENSION];
-	int cid_ton;					/*!< Type Of Number (TON) */
+	/*! \brief Caller ID Q.931 TON/NPI field values.  Set by PRI. Zero otherwise. */
+	int cid_ton;
+	/*! \brief Caller ID name from an incoming call. */
 	char cid_name[AST_MAX_EXTENSION];
+	/*! \brief Last Caller ID number from an incoming call. */
 	char lastcid_num[AST_MAX_EXTENSION];
+	/*! \brief Last Caller ID name from an incoming call. */
 	char lastcid_name[AST_MAX_EXTENSION];
 	char *origcid_num;				/*!< malloced original callerid */
 	char *origcid_name;				/*!< malloced original callerid */
+	/*! \brief Call waiting number. */
 	char callwait_num[AST_MAX_EXTENSION];
+	/*! \brief Call waiting name. */
 	char callwait_name[AST_MAX_EXTENSION];
+	/*! \brief Redirecting Directory Number Information Service (RDNIS) number */
 	char rdnis[AST_MAX_EXTENSION];
+	/*! \brief Dialed Number Identifier */
 	char dnid[AST_MAX_EXTENSION];
+	/*!
+	 * \brief Bitmapped groups this belongs to.
+	 * \note The "group" bitmapped group string read in from chan_dahdi.conf
+	 */
 	ast_group_t group;
+	/*! \brief Active PCM encoding format: DAHDI_LAW_ALAW or DAHDI_LAW_MULAW */
 	int law;
 	int confno;					/*!< Our conference */
 	int confusers;					/*!< Who is using our conference */
 	int propconfno;					/*!< Propagated conference number */
+	/*!
+	 * \brief Bitmapped call groups this belongs to.
+	 * \note The "callgroup" bitmapped group string read in from chan_dahdi.conf
+	 */
 	ast_group_t callgroup;
+	/*!
+	 * \brief Bitmapped pickup groups this belongs to.
+	 * \note The "pickupgroup" bitmapped group string read in from chan_dahdi.conf
+	 */
 	ast_group_t pickupgroup;
 	int channel;					/*!< Channel Number or CRV */
 	int span;					/*!< Span number */
@@ -533,52 +764,120 @@ static struct dahdi_pvt {
 	int callingpres;				/*!< The value of callling presentation that we're going to use when placing a PRI call */
 	int callwaitingrepeat;				/*!< How many samples to wait before repeating call waiting */
 	int cidcwexpire;				/*!< When to expire our muting for CID/CW */
+	/*! \brief Analog caller ID waveform sample buffer */
 	unsigned char *cidspill;
+	/*! \brief Position in the cidspill buffer to send out next. */
 	int cidpos;
+	/*! \brief Length of the cidspill buffer containing samples. */
 	int cidlen;
+	/*! \brief Ring timeout timer?? */
 	int ringt;
+	/*!
+	 * \brief Ring timeout base.
+	 * \note Value computed indirectly from "ringtimeout" read in from chan_dahdi.conf
+	 */
 	int ringt_base;
+	/*!
+	 * \brief Number of most significant digits/characters to strip from the dialed number.
+	 * \note Feature is deprecated.  Use dialplan logic.
+	 * \note The characters are stripped before the PRI TON/NPI prefix
+	 * characters are processed.
+	 */
 	int stripmsd;
+	/*! \brief BOOLEAN. XXX Meaning what?? */
 	int callwaitcas;
+	/*! \brief Number of call waiting rings. */
 	int callwaitrings;
+	/*! \brief Number of echo cancel taps.  0 if echo canceller not requested. */
 	int echocancel;
+	/*!
+	 * \brief Echo training time. 0 = disabled
+	 * \note Set from the "echotraining" value read in from chan_dahdi.conf
+	 */
 	int echotraining;
+	/*! \brief Filled with 'w'.  XXX Purpose?? */
 	char echorest[20];
+	/*!
+	 * \brief Number of times to see "busy" tone before hanging up.
+	 * \note Set from the "busycount" value read in from chan_dahdi.conf
+	 */
 	int busycount;
+	/*!
+	 * \brief Length of "busy" tone on time.
+	 * \note Set from the "busypattern" value read in from chan_dahdi.conf
+	 */
 	int busy_tonelength;
+	/*!
+	 * \brief Length of "busy" tone off time.
+	 * \note Set from the "busypattern" value read in from chan_dahdi.conf
+	 */
 	int busy_quietlength;
+	/*!
+	 * \brief Bitmapped call progress detection flags. CALLPROGRESS_xxx values.
+	 * \note Bits set from the "callprogress" and "faxdetect" values read in from chan_dahdi.conf
+	 */
 	int callprogress;
 	struct timeval flashtime;			/*!< Last flash-hook time */
+	/*! \brief Opaque DSP configuration structure. */
 	struct ast_dsp *dsp;
-	int cref;					/*!< Call reference number */
+	//int cref;					/*!< Call reference number (Not used) */
+	/*! \brief DAHDI dial operation command struct for ioctl() call. */
 	struct dahdi_dialoperation dop;
 	int whichwink;					/*!< SIG_FEATDMF_TA Which wink are we on? */
+	/*! \brief Second part of SIG_FEATDMF_TA wink operation. */
 	char finaldial[64];
 	char accountcode[AST_MAX_ACCOUNT_CODE];		/*!< Account code */
 	int amaflags;					/*!< AMA Flags */
 	struct tdd_state *tdd;				/*!< TDD flag */
+	/*! \brief Accumulated call forwarding number. */
 	char call_forward[AST_MAX_EXTENSION];
+	/*!
+	 * \brief Voice mailbox location.
+	 * \note Set from the "mailbox" string read in from chan_dahdi.conf
+	 */
 	char mailbox[AST_MAX_EXTENSION];
+	/*! \brief Delayed dialing for E911.  Overlap digits for ISDN. */
 	char dialdest[256];
+	/*! \brief Time the interface went on-hook. */
 	int onhooktime;
+	/*! \brief -1 = unknown, 0 = no messages, 1 = new messages available */
 	int msgstate;
 	int distinctivering;				/*!< Which distinctivering to use */
 	int cidrings;					/*!< Which ring to deliver CID on */
 	int dtmfrelax;					/*!< whether to run in relaxed DTMF mode */
+	/*! \brief Holding place for event injected from outside normal operation. */
 	int fake_event;
+	/*!
+	 * \brief Minimal time period (ms) between the answer polarity
+	 * switch and hangup polarity switch.
+	 */
 	int polarityonanswerdelay;
+	/*! \brief Start delay time if polarityonanswerdelay is nonzero. */
 	struct timeval polaritydelaytv;
+	/*!
+	 * \brief Send caller ID after this many rings.
+	 * \note Set from the "sendcalleridafter" value read in from chan_dahdi.conf
+	 */
 	int sendcalleridafter;
 #ifdef HAVE_PRI
+	/*! \brief DAHDI PRI control parameters */
 	struct dahdi_pri *pri;
+	/*! \brief XXX Purpose??? */
 	struct dahdi_pvt *bearer;
+	/*! \brief XXX Purpose??? */
 	struct dahdi_pvt *realcall;
+	/*! \brief Opaque libpri call control structure */
 	q931_call *call;
+	/*! \brief Channel number in span. */
 	int prioffset;
+	/*! \brief Logical span number within trunk group */
 	int logicalspan;
 #endif	
+	/*! \brief Current line interface polarity. POLARITY_IDLE, POLARITY_REV */
 	int polarity;
+	/*! \brief DSP feature flags: DSP_FEATURE_xxx */
 	int dsp_features;
+	/*! \brief DTMF digit in progress.  0 when no digit in progress. */
 	char begindigit;
 } *iflist = NULL, *ifend = NULL;
 
@@ -599,6 +898,10 @@ struct dahdi_chan_conf {
 #endif
 	struct dahdi_params timing;
 
+	/*!
+	 * \brief The serial port to listen for SMDI data on
+	 * \note Set from the "smdiport" string read in from chan_dahdi.conf
+	 */
 	char smdi_port[SMDI_MAX_FILENAME_LEN];
 };
 
@@ -2100,14 +2403,14 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 		int redirect_reason;
 
 		c = strchr(dest, '/');
-		if (c)
+		if (c) {
 			c++;
-		else
-			c = dest;
+		} else {
+			c = "";
+		}
 
 		l = NULL;
 		n = NULL;
-
 		if (!p->hidecallerid) {
 			l = ast->cid.cid_num;
 			if (!p->hidecalleridname) {
@@ -2535,8 +2838,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 	}	
 	if (p->dsp)
 		ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);
-	if (p->exten)
-		p->exten[0] = '\0';
+	p->exten[0] = '\0';
 
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Hangup: channel: %d index = %d, normal = %d, callwait = %d, thirdcall = %d\n",
@@ -2986,7 +3288,8 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 		dahdi_disable_ec(p);
 		/* otherwise, turn it on */
 		if (!p->didtdd) { /* if havent done it yet */
-			unsigned char mybuf[41000], *buf;
+			unsigned char mybuf[41000];/*! \todo XXX This is an abuse of the stack!! */
+			unsigned char *buf;
 			int size, res, fd, len;
 			struct pollfd fds[1];
 
@@ -3723,7 +4026,7 @@ static void dahdi_handle_dtmfup(struct ast_channel *ast, int index, struct ast_f
 	} else if (f->subclass == 'f') {
 		/* Fax tone -- Handle and return NULL */
 		if ((p->callprogress & 0x6) && !p->faxhandled) {
-			p->faxhandled++;
+			p->faxhandled = 1;
 			if (strcmp(ast->exten, "fax")) {
 				const char *target_context = S_OR(ast->macrocontext, ast->context);
 
@@ -4344,14 +4647,16 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 					}
 					p->subs[SUB_REAL].needunhold = 1;
 				} else if (!p->subs[SUB_THREEWAY].owner) {
-					char cid_num[256];
-					char cid_name[256];
-
 					if (!p->threewaycalling) {
 						/* Just send a flash if no 3-way calling */
 						p->subs[SUB_REAL].needflash = 1;
 						goto winkflashdone;
 					} else if (!check_for_conference(p)) {
+						char cid_num[256];
+						char cid_name[256];
+
+						cid_num[0] = 0;
+						cid_name[0] = 0;
 						if (p->dahditrcallerid && p->owner) {
 							if (p->owner->cid.cid_num)
 								ast_copy_string(cid_num, p->owner->cid.cid_num, sizeof(cid_num));
@@ -6392,7 +6697,7 @@ static void *ss_thread(void *data)
 	
 					/* We must have a ring by now, so, if configured, lets try to listen for
 					 * distinctive ringing */ 
-					if (p->usedistinctiveringdetection == 1) {
+					if (p->usedistinctiveringdetection) {
 						len = 0;
 						distMatches = 0;
 						/* Clear the current ring data array so we dont have old data in it. */
@@ -6625,7 +6930,7 @@ static void *ss_thread(void *data)
 						}
 					}
 				}
-				if (p->usedistinctiveringdetection == 1) {
+				if (p->usedistinctiveringdetection) {
 					if (option_verbose > 2)
 						/* this only shows up if you have n of the dring patterns filled in */
 						ast_verbose( VERBOSE_PREFIX_3 "Detected ring pattern: %d,%d,%d\n",curRingData[0],curRingData[1],curRingData[2]);
@@ -7967,6 +8272,23 @@ static struct ast_channel *dahdi_request(const char *type, int format, void *dat
 	int channelmatched = 0;
 	int groupmatched = 0;
 	
+	/*
+	 * data is ---v
+	 * Dial(DAHDI/pseudo[/extension])
+	 * Dial(DAHDI/<channel#>[c|r<cadance#>|d][/extension])
+	 * Dial(DAHDI/<trunk_group#>:<crv#>[c|r<cadance#>|d][/extension])
+	 * Dial(DAHDI/(g|G|r|R)<group#(0-63)>[c|r<cadance#>|d][/extension])
+	 *
+	 * g - channel group allocation search forward
+	 * G - channel group allocation search backward
+	 * r - channel group allocation round robin search forward
+	 * R - channel group allocation round robin search backward
+	 *
+	 * c - Wait for DTMF digit to confirm answer
+	 * r<cadance#> - Set distintive ring cadance number
+	 * d - Force bearer capability for ISDN call to digital.
+	 */
+
 	/* Assume we're locking the iflock */
 	lock = &iflock;
 	start = iflist;
@@ -7979,8 +8301,9 @@ static struct ast_channel *dahdi_request(const char *type, int format, void *dat
 	}
 	if (toupper(dest[0]) == 'G' || toupper(dest[0])=='R') {
 		/* Retrieve the group number */
-		char *stringp=NULL;
-		stringp=dest + 1;
+		char *stringp;
+
+		stringp = dest + 1;
 		s = strsep(&stringp, "/");
 		if ((res = sscanf(s, "%d%c%d", &x, &opt, &y)) < 1) {
 			ast_log(LOG_WARNING, "Unable to determine group for data %s\n", (char *)data);
@@ -8007,8 +8330,9 @@ static struct ast_channel *dahdi_request(const char *type, int format, void *dat
 			roundrobin = 1;
 		}
 	} else {
-		char *stringp=NULL;
-		stringp=dest;
+		char *stringp;
+
+		stringp = dest;
 		s = strsep(&stringp, "/");
 		p = iflist;
 		if (!strcasecmp(s, "pseudo")) {
