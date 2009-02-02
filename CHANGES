@@ -295,6 +295,8 @@ IAX Changes
 
 CLI Changes
 -----------
+  * New CLI command, "manager logout <username> [from <ipaddress>]" that will logout a
+     user manager based on the username and also (optional) on the ip address.
   * New CLI command, "config reload <file.conf>" which reloads any module that
      references that particular configuration file.  Also added "config list"
      which shows which configuration files are in use.

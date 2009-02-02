@@ -209,6 +209,8 @@ static AST_RWLIST_HEAD_STATIC(actions, manager_action);
 /*! \brief list of hooks registered */
 static AST_RWLIST_HEAD_STATIC(manager_hooks, manager_custom_hook);
 
+static void free_session(struct mansession *s);
+
 /*! \brief Add a custom hook to be called when an event is fired */
 void ast_manager_register_hook(struct manager_custom_hook *hook)
 {
@@ -646,6 +648,74 @@ static char *handle_showmanagers(struct ast_cli_entry *e, int cmd, struct ast_cl
 	return CLI_SUCCESS;
 }
 
+/*! \brief Implement CLI command 'manager logout <user>' */
+static char *handle_managerlogout(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct mansession *s = NULL;
+	char *ret = NULL;
+	size_t l;
+	int which = 0;
+	/*
+	char *choice[] = { "from", NULL };
+	*/
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "manager logout";
+		e->usage =
+			"Usage: manager logout <user> [from <ipaddress>]\n"
+			"       Logout a connected manager user.\n";
+		return NULL;
+	case CLI_GENERATE:
+		/*
+		if (a->pos == 3) {
+			return ast_cli_complete(a->word, choice, a->n);
+		}
+		*/
+		if (a->pos == 2) {
+			l = strlen(a->word);
+			AST_LIST_LOCK(&sessions);
+			AST_LIST_TRAVERSE(&sessions, s, list) {
+				if (!strncasecmp(a->word, s->username, l) && ++which > a->n ) {
+					ret = ast_strdup(s->username);
+					break;
+				}
+			}
+			AST_LIST_UNLOCK(&sessions);
+		}
+		return ret;
+	}
+
+	if (a->argc != 3 && a->argc != 5) {
+		return CLI_SHOWUSAGE;
+	} else if (a->argc == 5 && strcasecmp(a->argv[3], "from")) {
+		return CLI_SHOWUSAGE;
+	}
+
+	AST_LIST_LOCK(&sessions);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&sessions, s, list) {
+		if (!strcasecmp(s->username, a->argv[2])) {
+			if (a->argc == 5) {
+				/* compare ip address. */
+				if (strcmp(ast_inet_ntoa(s->sin.sin_addr), a->argv[4])) {
+					continue;
+				}
+			}
+			AST_LIST_REMOVE_CURRENT(list);
+			ast_mutex_lock(&s->__lock);
+			if (s->waiting_thread != AST_PTHREADT_NULL) {
+				pthread_kill(s->waiting_thread, SIGURG);
+			}
+			ast_mutex_unlock(&s->__lock);
+			ast_atomic_fetchadd_int(&num_sessions, -1);
+			free_session(s);
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+	AST_LIST_UNLOCK(&sessions);
+
+	return CLI_SUCCESS;
+}
 
 /*! \brief  CLI command  manager list commands */
 static char *handle_showmancmds(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -762,6 +832,7 @@ static struct ast_cli_entry cli_manager[] = {
 	AST_CLI_DEFINE(handle_showmanconn, "List connected manager interface users"),
 	AST_CLI_DEFINE(handle_showmaneventq, "List manager interface queued events"),
 	AST_CLI_DEFINE(handle_showmanagers, "List configured manager users"),
+	AST_CLI_DEFINE(handle_managerlogout, "Logout a manager user"),
 	AST_CLI_DEFINE(handle_showmanager, "Display information on a specific manager user"),
 	AST_CLI_DEFINE(handle_mandebug, "Show, enable, disable debugging of the manager code"),
 	AST_CLI_DEFINE(handle_manager_reload, "Reload manager configurations"),
