@@ -40,6 +40,11 @@
  * \todo Transaction support
  * \todo Asterisk should send a non-100 provisional response every minute to keep proxies
  *  from cancelling the transaction (RFC 3261 13.3.1.1). See bug #11157.
+ * 
+ * ******** Wishlist: Improvements
+ * - Support of SIP domains for devices, so that we match on username@domain in the From: header
+ * - Connect registrations with a specific device on the incoming call. It's not done
+ *   automatically in Asdterisk
  *
  * \ingroup channel_drivers
  *
@@ -1038,6 +1043,8 @@ static unsigned int default_primary_transport;		/*!< Default primary Transport (
 /*@{*/ 
 /*! \brief a place to store all global settings for the sip channel driver 
 	These are settings that will be possibly to apply on a group level later on.
+	\note Do not add settings that only apply to the channel itself and can't
+	      be applied to devices (trunks, services, phones)
 */
 struct sip_settings {
 	int peer_rtupdate;		/*!< G: Update database with registration data for peer? */
