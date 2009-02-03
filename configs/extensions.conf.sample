@@ -104,7 +104,13 @@ TRUNK=Zap/G2					; Trunk interface
 ;
 TRUNKMSD=1					; MSD digits to strip (usually 1 or 0)
 ;TRUNK=IAX2/user:pass@provider
-
+;
+; WARNING WARNING WARNING WARNING
+; If you load any other extension configuration engine, such as pbx_ael.so,
+; your global variables may be overridden by that file.  Please take care to
+; use only one location to set global variables, and you will likely save
+; yourself a ton of grief.
+; WARNING WARNING WARNING WARNING
 ;
 ; Any category other than "General" and "Globals" represent 
 ; extension contexts, which are collections of extensions.  
