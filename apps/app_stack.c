@@ -640,7 +640,7 @@ static int unload_module(void)
 {
 	struct ast_context *con;
 
-	if (ast_agi_unregister(ast_module_info->self, &gosub_agi_command) == 1) {
+	if (ast_agi_unregister && ast_agi_unregister(ast_module_info->self, &gosub_agi_command) == 1) {
 		if ((con = ast_context_find("app_stack_gosub_virtual_context"))) {
 			ast_context_remove_extension2(con, "s", 1, NULL, 0);
 			ast_context_destroy(con, "app_stack"); /* leave nothing behind */
@@ -661,7 +661,7 @@ static int load_module(void)
 {
 	struct ast_context *con;
 
-	if (ast_agi_register(ast_module_info->self, &gosub_agi_command) == 1) {
+	if (ast_agi_register && ast_agi_register(ast_module_info->self, &gosub_agi_command) == 1) {
 		if (!(con = ast_context_find_or_create(NULL, NULL, "app_stack_gosub_virtual_context", "app_stack"))) {
 			ast_log(LOG_ERROR, "Virtual context 'app_stack_gosub_virtual_context' does not exist and unable to create\n");
 			return AST_MODULE_LOAD_DECLINE;

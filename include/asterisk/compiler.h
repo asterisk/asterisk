@@ -74,4 +74,10 @@
 #define attribute_weak
 #endif
 
+#ifdef HAVE_ATTRIBUTE_weak_import
+#define attribute_weak_import __attribute__((weak_import))
+#else
+#define attribute_weak_import
+#endif
+
 #endif /* _ASTERISK_COMPILER_H */

@@ -83,7 +83,10 @@
  */
 #define AST_OPTIONAL_API_UNAVAILABLE	INT_MIN
 
-#if defined(HAVE_ATTRIBUTE_weak) && defined(HAVE_ATTRIBUTE_alias) && !defined(AST_API_MODULE)
+#if defined(HAVE_ATTRIBUTE_weak_import) && !defined(AST_API_MODULE)
+#define AST_OPTIONAL_API(result, name, proto, stub)	result name proto __attribute__((weak_import));
+#define AST_OPTIONAL_API_ATTR(result, attr, name, proto, stub)	result name proto __attribute__((weak_import,attr));
+#elif defined(HAVE_ATTRIBUTE_weak) && defined(HAVE_ATTRIBUTE_alias) && !defined(AST_API_MODULE) && !defined(HAVE_ATTRIBUTE_weak_import)
 #define AST_OPTIONAL_API(result, name, proto, stub)	\
 	static result __##name proto stub;		\
 	result __attribute__((weak, alias("__" __stringify(name)))) name proto;

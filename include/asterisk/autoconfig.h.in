@@ -123,6 +123,9 @@
 /* Define to 1 if your GCC C compiler supports the 'weak' attribute. */
 #undef HAVE_ATTRIBUTE_weak
 
+/* Define to 1 if your GCC C compiler supports the 'weak_import' attribute. */
+#undef HAVE_ATTRIBUTE_weak_import
+
 /* Define this to indicate the ${BKTR_DESCRIP} library */
 #undef HAVE_BKTR
 

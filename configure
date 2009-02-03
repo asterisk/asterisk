@@ -710,6 +710,7 @@ DIRNAME
 LN
 DOT
 WGET
+CURL
 RUBBER
 KPATHSEA
 XMLSTARLET
@@ -7250,6 +7251,47 @@ echo "${ECHO_T}no" >&6; }
 fi
 
 
+# Extract the first word of "curl", so it can be a program name with args.
+set dummy curl; ac_word=$2
+{ echo "$as_me:$LINENO: checking for $ac_word" >&5
+echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6; }
+if test "${ac_cv_path_CURL+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  case $CURL in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_CURL="$CURL" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+  for ac_exec_ext in '' $ac_executable_extensions; do
+  if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
+    ac_cv_path_CURL="$as_dir/$ac_word$ac_exec_ext"
+    echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+done
+IFS=$as_save_IFS
+
+  test -z "$ac_cv_path_CURL" && ac_cv_path_CURL=":"
+  ;;
+esac
+fi
+CURL=$ac_cv_path_CURL
+if test -n "$CURL"; then
+  { echo "$as_me:$LINENO: result: $CURL" >&5
+echo "${ECHO_T}$CURL" >&6; }
+else
+  { echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+fi
+
+
 # Extract the first word of "rubber", so it can be a program name with args.
 set dummy rubber; ac_word=$2
 { echo "$as_me:$LINENO: checking for $ac_word" >&5
@@ -7375,6 +7417,8 @@ fi
 
 if test "${WGET}" != ":" ; then
   DOWNLOAD=${WGET}
+else if test "${CURL}" != ":" ; then
+  DOWNLOAD="${CURL} -O --progress-bar -w \"%{url_effective}\n\""
 else
   # Extract the first word of "fetch", so it can be a program name with args.
 set dummy fetch; ac_word=$2
@@ -7418,6 +7462,7 @@ fi
 
 
   DOWNLOAD=${FETCH}
+fi
 fi
 
 
@@ -18125,6 +18170,118 @@ echo "${ECHO_T}yes" >&6; }
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_weak 1
+_ACEOF
+
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	{ echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+
+CFLAGS="$saved_CFLAGS"
+
+
+
+{ echo "$as_me:$LINENO: checking for compiler 'attribute weak_import' support" >&5
+echo $ECHO_N "checking for compiler 'attribute weak_import' support... $ECHO_C" >&6; }
+saved_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -Werror"
+
+if test "x" = "x"
+then
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+void __attribute__((weak_import)) *test(void *muffin, ...) {}
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  { echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_ATTRIBUTE_weak_import 1
+_ACEOF
+
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	{ echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+else
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+void __attribute__(()) *test(void *muffin, ...) {}
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  { echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_ATTRIBUTE_weak_import 1
 _ACEOF
 
 else
@@ -53333,12 +53490,12 @@ DIRNAME!$DIRNAME$ac_delim
 LN!$LN$ac_delim
 DOT!$DOT$ac_delim
 WGET!$WGET$ac_delim
+CURL!$CURL$ac_delim
 RUBBER!$RUBBER$ac_delim
 KPATHSEA!$KPATHSEA$ac_delim
 XMLSTARLET!$XMLSTARLET$ac_delim
 FETCH!$FETCH$ac_delim
 DOWNLOAD!$DOWNLOAD$ac_delim
-SOXMIX!$SOXMIX$ac_delim
 _ACEOF
 
   if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 97; then
@@ -53380,6 +53537,7 @@ _ACEOF
 ac_delim='%!_!# '
 for ac_last_try in false false false false false :; do
   cat >conf$$subs.sed <<_ACEOF
+SOXMIX!$SOXMIX$ac_delim
 MD5!$MD5$ac_delim
 acx_pthread_config!$acx_pthread_config$ac_delim
 PTHREAD_CC!$PTHREAD_CC$ac_delim
@@ -53476,7 +53634,6 @@ LTDL_DIR!$LTDL_DIR$ac_delim
 PBX_LTDL!$PBX_LTDL$ac_delim
 LUA_LIB!$LUA_LIB$ac_delim
 LUA_INCLUDE!$LUA_INCLUDE$ac_delim
-LUA_DIR!$LUA_DIR$ac_delim
 _ACEOF
 
   if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 97; then
@@ -53518,6 +53675,7 @@ _ACEOF
 ac_delim='%!_!# '
 for ac_last_try in false false false false false :; do
   cat >conf$$subs.sed <<_ACEOF
+LUA_DIR!$LUA_DIR$ac_delim
 PBX_LUA!$PBX_LUA$ac_delim
 MISDN_LIB!$MISDN_LIB$ac_delim
 MISDN_INCLUDE!$MISDN_INCLUDE$ac_delim
@@ -53614,7 +53772,6 @@ PBX_SPEEX_PREPROCESS!$PBX_SPEEX_PREPROCESS$ac_delim
 SPEEXDSP_LIB!$SPEEXDSP_LIB$ac_delim
 SPEEXDSP_INCLUDE!$SPEEXDSP_INCLUDE$ac_delim
 SPEEXDSP_DIR!$SPEEXDSP_DIR$ac_delim
-PBX_SPEEXDSP!$PBX_SPEEXDSP$ac_delim
 _ACEOF
 
   if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 97; then
@@ -53656,6 +53813,7 @@ _ACEOF
 ac_delim='%!_!# '
 for ac_last_try in false false false false false :; do
   cat >conf$$subs.sed <<_ACEOF
+PBX_SPEEXDSP!$PBX_SPEEXDSP$ac_delim
 SQLITE_LIB!$SQLITE_LIB$ac_delim
 SQLITE_INCLUDE!$SQLITE_INCLUDE$ac_delim
 SQLITE_DIR!$SQLITE_DIR$ac_delim
@@ -53752,7 +53910,6 @@ PBX_AIS!$PBX_AIS$ac_delim
 AIS_INCLUDE!$AIS_INCLUDE$ac_delim
 AIS_LIB!$AIS_LIB$ac_delim
 CONFIG_GMIME!$CONFIG_GMIME$ac_delim
-EDITLINE_LIB!$EDITLINE_LIB$ac_delim
 _ACEOF
 
   if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 97; then
@@ -53794,6 +53951,7 @@ _ACEOF
 ac_delim='%!_!# '
 for ac_last_try in false false false false false :; do
   cat >conf$$subs.sed <<_ACEOF
+EDITLINE_LIB!$EDITLINE_LIB$ac_delim
 PBX_H323!$PBX_H323$ac_delim
 PBX_IXJUSER!$PBX_IXJUSER$ac_delim
 CONFIG_SDL!$CONFIG_SDL$ac_delim
@@ -53806,7 +53964,7 @@ PBX_GENERIC_ODBC!$PBX_GENERIC_ODBC$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 10; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 11; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5
