@@ -1298,7 +1298,7 @@ static const struct ast_channel_tech dahdi_tech = {
 
 struct dahdi_pvt *round_robin[32];
 
-#ifdef HAVE_PRI
+#if defined(HAVE_PRI)
 static inline int pri_grab(struct dahdi_pvt *pvt, struct dahdi_pri *pri)
 {
 	int res;
@@ -1314,14 +1314,16 @@ static inline int pri_grab(struct dahdi_pvt *pvt, struct dahdi_pri *pri)
 		pthread_kill(pri->master, SIGURG);
 	return 0;
 }
-#endif
+#endif	/* defined(HAVE_PRI) */
 
-#ifdef HAVE_SS7
+#if defined(HAVE_SS7)
 static inline void ss7_rel(struct dahdi_ss7 *ss7)
 {
 	ast_mutex_unlock(&ss7->lock);
 }
+#endif	/* defined(HAVE_SS7) */
 
+#if defined(HAVE_SS7)
 static inline int ss7_grab(struct dahdi_pvt *pvt, struct dahdi_ss7 *pri)
 {
 	int res;
@@ -1337,7 +1339,7 @@ static inline int ss7_grab(struct dahdi_pvt *pvt, struct dahdi_ss7 *pri)
 		pthread_kill(pri->master, SIGURG);
 	return 0;
 }
-#endif
+#endif	/* defined(HAVE_SS7) */
 #define NUM_CADENCE_MAX 25
 static int num_cadence = 4;
 static int user_has_defined_cadences = 0;
@@ -1562,21 +1564,21 @@ static void dahdi_close_sub(struct dahdi_pvt *chan_pvt, int sub_num)
 	chan_pvt->subs[sub_num].dfd = -1;
 }
 
-#ifdef HAVE_PRI
+#if defined(HAVE_PRI)
 static void dahdi_close_pri_fd(struct dahdi_pri *pri, int fd_num)
 {
 	dahdi_close(pri->fds[fd_num]);
 	pri->fds[fd_num] = -1;
 }
-#endif
+#endif	/* defined(HAVE_PRI) */
 
-#ifdef HAVE_SS7
+#if defined(HAVE_SS7)
 static void dahdi_close_ss7_fd(struct dahdi_ss7 *ss7, int fd_num)
 {
 	dahdi_close(ss7->fds[fd_num]);
 	ss7->fds[fd_num] = -1;
 }
-#endif
+#endif	/* defined(HAVE_SS7) */
 
 static int dahdi_setlinear(int dfd, int linear)
 {
@@ -2505,17 +2507,19 @@ static int dahdi_callwait(struct ast_channel *ast)
 	return 0;
 }
 
-#ifdef HAVE_SS7
+#if defined(HAVE_SS7)
 static unsigned char cid_pres2ss7pres(int cid_pres)
 {
 	 return (cid_pres >> 5) & 0x03;
 }
+#endif	/* defined(HAVE_SS7) */
 
+#if defined(HAVE_SS7)
 static unsigned char cid_pres2ss7screen(int cid_pres)
 {
 	return cid_pres & 0x03;
 }
-#endif
+#endif	/* defined(HAVE_SS7) */
 
 static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 {
@@ -3330,7 +3334,7 @@ static void destroy_all_channels(void)
 	ast_mutex_unlock(&iflock);
 }
 
-#ifdef HAVE_PRI
+#if defined(HAVE_PRI)
 static char *dahdi_send_keypad_facility_app = "DAHDISendKeypadFacility";
 
 static int dahdi_send_keypad_facility_exec(struct ast_channel *chan, void *data)
@@ -3372,9 +3376,10 @@ static int dahdi_send_keypad_facility_exec(struct ast_channel *chan, void *data)
 
 	return 0;
 }
+#endif	/* defined(HAVE_PRI) */
 
-#ifdef HAVE_PRI_PROG_W_CAUSE
-
+#if defined(HAVE_PRI)
+#if defined(HAVE_PRI_PROG_W_CAUSE)
 static char *dahdi_send_callrerouting_facility_app = "DAHDISendCallreroutingFacility";
 
 static int dahdi_send_callrerouting_facility_exec(struct ast_channel *chan, void *data)
@@ -3446,9 +3451,10 @@ static int dahdi_send_callrerouting_facility_exec(struct ast_channel *chan, void
 
 	return res;
 }
+#endif	/* defined(HAVE_PRI_PROG_W_CAUSE) */
+#endif	/* defined(HAVE_PRI) */
 
-#endif
-
+#if defined(HAVE_PRI)
 static int pri_is_up(struct dahdi_pri *pri)
 {
 	int x;
@@ -3458,7 +3464,9 @@ static int pri_is_up(struct dahdi_pri *pri)
 	}
 	return 0;
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static int pri_assign_bearer(struct dahdi_pvt *crv, struct dahdi_pri *pri, struct dahdi_pvt *bearer)
 {
 	bearer->owner = &inuse;
@@ -3471,7 +3479,9 @@ static int pri_assign_bearer(struct dahdi_pvt *crv, struct dahdi_pri *pri, struc
 	crv->pri = pri;
 	return 0;
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static char *pri_order(int level)
 {
 	switch (level) {
@@ -3487,7 +3497,9 @@ static char *pri_order(int level)
 		return "<Unknown>";
 	}
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 /* Returns fd of the active dchan */
 static int pri_active_dchan_fd(struct dahdi_pri *pri)
 {
@@ -3500,7 +3512,9 @@ static int pri_active_dchan_fd(struct dahdi_pri *pri)
 
 	return pri->fds[x];
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static int pri_find_dchan(struct dahdi_pri *pri)
 {
 	int oldslot = -1;
@@ -3529,7 +3543,7 @@ static int pri_find_dchan(struct dahdi_pri *pri)
 	pri->pri = pri->dchans[newslot];
 	return 0;
 }
-#endif
+#endif	/* defined(HAVE_PRI) */
 
 static int dahdi_hangup(struct ast_channel *ast)
 {
@@ -8749,7 +8763,7 @@ static int restart_monitor(void)
 	return 0;
 }
 
-#ifdef HAVE_PRI
+#if defined(HAVE_PRI)
 static int pri_resolve_span(int *span, int channel, int offset, struct dahdi_spaninfo *si)
 {
 	int x;
@@ -8795,7 +8809,9 @@ static int pri_resolve_span(int *span, int channel, int offset, struct dahdi_spa
 	}
 	return 0;
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static int pri_create_trunkgroup(int trunkgroup, int *channels)
 {
 	struct dahdi_spaninfo si;
@@ -8858,7 +8874,9 @@ static int pri_create_trunkgroup(int trunkgroup, int *channels)
 	}
 	return 0;
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static int pri_create_spanmap(int span, int trunkgroup, int logicalspan)
 {
 	if (pris[span].mastertrunkgroup) {
@@ -8869,11 +8887,9 @@ static int pri_create_spanmap(int span, int trunkgroup, int logicalspan)
 	pris[span].prilogicalspan = logicalspan;
 	return 0;
 }
+#endif	/* defined(HAVE_PRI) */
 
-#endif
-
-#ifdef HAVE_SS7
-
+#if defined(HAVE_SS7)
 static unsigned int parse_pointcode(const char *pcstring)
 {
 	unsigned int code1, code2, code3;
@@ -8887,7 +8903,9 @@ static unsigned int parse_pointcode(const char *pcstring)
 
 	return 0;
 }
+#endif	/* defined(HAVE_SS7) */
 
+#if defined(HAVE_SS7)
 static struct dahdi_ss7 * ss7_resolve_linkset(int linkset)
 {
 	if ((linkset < 0) || (linkset >= NUM_SPANS))
@@ -8895,7 +8913,7 @@ static struct dahdi_ss7 * ss7_resolve_linkset(int linkset)
 	else
 		return &linksets[linkset - 1];
 }
-#endif /* HAVE_SS7 */
+#endif	/* defined(HAVE_SS7) */
 
 /* converts a DAHDI sigtype to signalling as can be configured from
  * chan_dahdi.conf.
@@ -9642,8 +9660,7 @@ static struct dahdi_pvt *duplicate_pseudo(struct dahdi_pvt *src)
 	return p;
 }
 
-
-#ifdef HAVE_PRI
+#if defined(HAVE_PRI)
 static int pri_find_empty_chan(struct dahdi_pri *pri, int backwards)
 {
 	int x;
@@ -9668,7 +9685,7 @@ static int pri_find_empty_chan(struct dahdi_pri *pri, int backwards)
 	}
 	return -1;
 }
-#endif
+#endif	/* defined(HAVE_PRI) */
 
 static struct ast_channel *dahdi_request(const char *type, int format, void *data, int *cause)
 {
@@ -9915,10 +9932,9 @@ static int dahdi_setlaw(int dfd, int law)
 {
 	return ioctl(dfd, DAHDI_SETLAW, &law);
 }
-#endif
+#endif	/* defined(HAVE_PRI) || defined(HAVE_SS7) */
 
-#ifdef HAVE_SS7
-
+#if defined(HAVE_SS7)
 static int ss7_find_cic(struct dahdi_ss7 *linkset, int cic, unsigned int dpc)
 {
 	int i;
@@ -9931,7 +9947,9 @@ static int ss7_find_cic(struct dahdi_ss7 *linkset, int cic, unsigned int dpc)
 	}
 	return winner;
 }
+#endif	/* defined(HAVE_SS7) */
 
+#if defined(HAVE_SS7)
 static void ss7_handle_cqm(struct dahdi_ss7 *linkset, int startcic, int endcic, unsigned int dpc)
 {
 	unsigned char status[32];
@@ -9963,7 +9981,9 @@ static void ss7_handle_cqm(struct dahdi_ss7 *linkset, int startcic, int endcic, 
 		ast_log(LOG_WARNING, "Could not find any equipped circuits within CQM CICs\n");
 
 }
+#endif	/* defined(HAVE_SS7) */
 
+#if defined(HAVE_SS7)
 static inline void ss7_hangup_cics(struct dahdi_ss7 *linkset, int startcic, int endcic, unsigned int dpc)
 {
 	int i;
@@ -9977,7 +9997,9 @@ static inline void ss7_hangup_cics(struct dahdi_ss7 *linkset, int startcic, int 
 		}
 	}
 }
+#endif	/* defined(HAVE_SS7) */
 
+#if defined(HAVE_SS7)
 static inline void ss7_block_cics(struct dahdi_ss7 *linkset, int startcic, int endcic, unsigned int dpc, unsigned char state[], int block)
 {
 	int i;
@@ -9992,7 +10014,9 @@ static inline void ss7_block_cics(struct dahdi_ss7 *linkset, int startcic, int e
 		}
 	}
 }
+#endif	/* defined(HAVE_SS7) */
 
+#if defined(HAVE_SS7)
 static void ss7_inservice(struct dahdi_ss7 *linkset, int startcic, int endcic, unsigned int dpc)
 {
 	int i;
@@ -10002,7 +10026,9 @@ static void ss7_inservice(struct dahdi_ss7 *linkset, int startcic, int endcic, u
 			linkset->pvts[i]->inservice = 1;
 	}
 }
+#endif	/* defined(HAVE_SS7) */
 
+#if defined(HAVE_SS7)
 static void ss7_reset_linkset(struct dahdi_ss7 *linkset)
 {
 	int i, startcic = -1, endcic, dpc;
@@ -10030,7 +10056,9 @@ static void ss7_reset_linkset(struct dahdi_ss7 *linkset)
 		}
 	}
 }
+#endif	/* defined(HAVE_SS7) */
 
+#if defined(HAVE_SS7)
 static void dahdi_loopback(struct dahdi_pvt *p, int enable)
 {
 	if (p->loopedback != enable) {
@@ -10041,7 +10069,9 @@ static void dahdi_loopback(struct dahdi_pvt *p, int enable)
 		p->loopedback = enable;
 	}
 }
+#endif	/* defined(HAVE_SS7) */
 
+#if defined(HAVE_SS7)
 /* XXX: This function is assumed to be called with the private channel lock and linkset lock held */
 static void ss7_start_call(struct dahdi_pvt *p, struct dahdi_ss7 *linkset)
 {
@@ -10158,7 +10188,9 @@ static void ss7_start_call(struct dahdi_pvt *p, struct dahdi_ss7 *linkset)
 	ast_mutex_lock(&p->lock);
 	ast_mutex_lock(&linkset->lock);
 }
+#endif	/* defined(HAVE_SS7) */
 
+#if defined(HAVE_SS7)
 static void ss7_apply_plan_to_number(char *buf, size_t size, const struct dahdi_ss7 *ss7, const char *number, const unsigned nai)
 {
 	switch (nai) {
@@ -10179,11 +10211,16 @@ static void ss7_apply_plan_to_number(char *buf, size_t size, const struct dahdi_
 		break;
 	}
 }
+#endif	/* defined(HAVE_SS7) */
+
+#if defined(HAVE_SS7)
 static int ss7_pres_scr2cid_pres(char presentation_ind, char screening_ind)
 {
 	return ((presentation_ind & 0x3) << 5) | (screening_ind & 0x3);
 }
+#endif	/* defined(HAVE_SS7) */
 
+#if defined(HAVE_SS7)
 static void *ss7_linkset(void *data)
 {
 	int res, i;
@@ -10712,7 +10749,9 @@ static void *ss7_linkset(void *data)
 
 	return 0;
 }
+#endif	/* defined(HAVE_SS7) */
 
+#if defined(HAVE_SS7)
 static void dahdi_ss7_message(struct ss7 *ss7, char *s)
 {
 #if 0
@@ -10727,7 +10766,9 @@ static void dahdi_ss7_message(struct ss7 *ss7, char *s)
 	ast_verbose("%s", s);
 #endif
 }
+#endif	/* defined(HAVE_SS7) */
 
+#if defined(HAVE_SS7)
 static void dahdi_ss7_error(struct ss7 *ss7, char *s)
 {
 #if 0
@@ -10741,10 +10782,9 @@ static void dahdi_ss7_error(struct ss7 *ss7, char *s)
 	ast_log(LOG_ERROR, "%s", s);
 #endif
 }
+#endif	/* defined(HAVE_SS7) */
 
-#endif /* HAVE_SS7 */
-
-#ifdef HAVE_PRI
+#if defined(HAVE_PRI)
 static struct dahdi_pvt *pri_find_crv(struct dahdi_pri *pri, int crv)
 {
 	struct dahdi_pvt *p;
@@ -10756,8 +10796,9 @@ static struct dahdi_pvt *pri_find_crv(struct dahdi_pri *pri, int crv)
 	}
 	return NULL;
 }
+#endif	/* defined(HAVE_PRI) */
 
-
+#if defined(HAVE_PRI)
 static int pri_find_principle(struct dahdi_pri *pri, int channel)
 {
 	int x;
@@ -10784,7 +10825,9 @@ static int pri_find_principle(struct dahdi_pri *pri, int channel)
 
 	return principle;
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static int pri_fixup_principle(struct dahdi_pri *pri, int principle, q931_call *c)
 {
 	int x;
@@ -10867,7 +10910,9 @@ static int pri_fixup_principle(struct dahdi_pri *pri, int principle, q931_call *
 	ast_log(LOG_WARNING, "Call specified, but not found?\n");
 	return -1;
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static void *do_idle_thread(void *vchan)
 {
 	struct ast_channel *chan = vchan;
@@ -10915,7 +10960,9 @@ static void *do_idle_thread(void *vchan)
 	ast_hangup(chan);
 	return NULL;
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 #ifndef PRI_RESTART
 #error "Upgrade your libpri"
 #endif
@@ -10957,7 +11004,9 @@ static void dahdi_pri_message(struct pri *pri, char *s)
 
 	ast_mutex_unlock(&pridebugfdlock);
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static void dahdi_pri_error(struct pri *pri, char *s)
 {
 	int x, y;
@@ -10996,7 +11045,9 @@ static void dahdi_pri_error(struct pri *pri, char *s)
 
 	ast_mutex_unlock(&pridebugfdlock);
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static int pri_check_restart(struct dahdi_pri *pri)
 {
 	do {
@@ -11015,7 +11066,9 @@ static int pri_check_restart(struct dahdi_pri *pri)
 	}
 	return 0;
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static int pri_hangup_all(struct dahdi_pvt *p, struct dahdi_pri *pri)
 {
 	int x;
@@ -11039,7 +11092,9 @@ static int pri_hangup_all(struct dahdi_pvt *p, struct dahdi_pri *pri)
 	ast_mutex_lock(&pri->lock);
 	return 0;
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static char * redirectingreason2str(int redirectingreason)
 {
 	switch (redirectingreason) {
@@ -11055,7 +11110,9 @@ static char * redirectingreason2str(int redirectingreason)
 		return "NOREDIRECT";
 	}
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static void apply_plan_to_number(char *buf, size_t size, const struct dahdi_pri *pri, const char *number, const int plan)
 {
 	if (pri->dialplan == -2) { /* autodetect the TON but leave the number untouched */
@@ -11083,8 +11140,9 @@ static void apply_plan_to_number(char *buf, size_t size, const struct dahdi_pri 
 		break;
 	}
 }
+#endif	/* defined(HAVE_PRI) */
 
-
+#if defined(HAVE_PRI)
 static void *pri_dchannel(void *vpri)
 {
 	struct dahdi_pri *pri = vpri;
@@ -12193,7 +12251,9 @@ static void *pri_dchannel(void *vpri)
 	/* Never reached */
 	return NULL;
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static int start_pri(struct dahdi_pri *pri)
 {
 	int res, x;
@@ -12293,7 +12353,9 @@ static int start_pri(struct dahdi_pri *pri)
 	}
 	return 0;
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static char *complete_span_helper(const char *line, const char *word, int pos, int state, int rpos)
 {
 	int which, span;
@@ -12312,12 +12374,16 @@ static char *complete_span_helper(const char *line, const char *word, int pos, i
 	}
 	return ret;
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static char *complete_span_4(const char *line, const char *word, int pos, int state)
 {
 	return complete_span_helper(line,word,pos,state,3);
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static char *handle_pri_set_debug_file(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int myfd;
@@ -12353,7 +12419,9 @@ static char *handle_pri_set_debug_file(struct ast_cli_entry *e, int cmd, struct 
 	ast_cli(a->fd, "PRI debug output will be sent to '%s'\n", a->argv[4]);
 	return CLI_SUCCESS;
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static char *handle_pri_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int span;
@@ -12414,7 +12482,9 @@ static char *handle_pri_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	}
 	return CLI_SUCCESS;
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static void build_status(char *s, size_t len, int status, int active)
 {
 	if (!s || len < 1) {
@@ -12435,7 +12505,9 @@ static void build_status(char *s, size_t len, int status, int active)
 		strncat(s, ", Standby", len - strlen(s) - 1);
 	s[len - 1] = '\0';
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static char *handle_pri_show_spans(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int span;
@@ -12468,7 +12540,9 @@ static char *handle_pri_show_spans(struct ast_cli_entry *e, int cmd, struct ast_
 	}
 	return CLI_SUCCESS;
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static char *handle_pri_show_span(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int span;
@@ -12518,7 +12592,9 @@ static char *handle_pri_show_span(struct ast_cli_entry *e, int cmd, struct ast_c
 	}
 	return CLI_SUCCESS;
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static char *handle_pri_show_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int x;
@@ -12559,7 +12635,9 @@ static char *handle_pri_show_debug(struct ast_cli_entry *e, int cmd, struct ast_
 		ast_cli(a->fd, "No debug set or no PRI running\n");
 	return CLI_SUCCESS;
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static char *handle_pri_version(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
@@ -12577,7 +12655,9 @@ static char *handle_pri_version(struct ast_cli_entry *e, int cmd, struct ast_cli
 
 	return CLI_SUCCESS;
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static struct ast_cli_entry dahdi_pri_cli[] = {
 	AST_CLI_DEFINE(handle_pri_debug, "Enables PRI debugging on a span"),
 	AST_CLI_DEFINE(handle_pri_show_spans, "Displays PRI Information"),
@@ -12586,8 +12666,7 @@ static struct ast_cli_entry dahdi_pri_cli[] = {
 	AST_CLI_DEFINE(handle_pri_set_debug_file, "Sends PRI debug output to the specified file"),
 	AST_CLI_DEFINE(handle_pri_version, "Displays libpri version"),
 };
-
-#endif /* HAVE_PRI */
+#endif	/* defined(HAVE_PRI) */
 
 static char *dahdi_destroy_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -13673,7 +13752,7 @@ static int action_dahdishowchannels(struct mansession *s, const struct message *
 	return 0;
 }
 
-#ifdef HAVE_SS7
+#if defined(HAVE_SS7)
 static int linkset_addsigchan(int sigchan)
 {
 	struct dahdi_ss7 *link;
@@ -13792,7 +13871,9 @@ static int linkset_addsigchan(int sigchan)
 
 	return 0;
 }
+#endif	/* defined(HAVE_SS7) */
 
+#if defined(HAVE_SS7)
 static char *handle_ss7_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int span;
@@ -13829,7 +13910,9 @@ static char *handle_ss7_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 
 	return CLI_SUCCESS;
 }
+#endif	/* defined(HAVE_SS7) */
 
+#if defined(HAVE_SS7)
 static char *handle_ss7_block_cic(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int linkset, cic;
@@ -13892,7 +13975,9 @@ static char *handle_ss7_block_cic(struct ast_cli_entry *e, int cmd, struct ast_c
 
 	return CLI_SUCCESS;
 }
+#endif	/* defined(HAVE_SS7) */
 
+#if defined(HAVE_SS7)
 static char *handle_ss7_block_linkset(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int linkset;
@@ -13934,7 +14019,9 @@ static char *handle_ss7_block_linkset(struct ast_cli_entry *e, int cmd, struct a
 
 	return CLI_SUCCESS;
 }
+#endif	/* defined(HAVE_SS7) */
 
+#if defined(HAVE_SS7)
 static char *handle_ss7_unblock_cic(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int linkset, cic;
@@ -13991,7 +14078,9 @@ static char *handle_ss7_unblock_cic(struct ast_cli_entry *e, int cmd, struct ast
 
 	return CLI_SUCCESS;
 }
+#endif	/* defined(HAVE_SS7) */
 
+#if defined(HAVE_SS7)
 static char *handle_ss7_unblock_linkset(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int linkset;
@@ -14034,7 +14123,9 @@ static char *handle_ss7_unblock_linkset(struct ast_cli_entry *e, int cmd, struct
 
 	return CLI_SUCCESS;
 }
+#endif	/* defined(HAVE_SS7) */
 
+#if defined(HAVE_SS7)
 static char *handle_ss7_show_linkset(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int linkset;
@@ -14068,7 +14159,9 @@ static char *handle_ss7_show_linkset(struct ast_cli_entry *e, int cmd, struct as
 
 	return CLI_SUCCESS;
 }
+#endif	/* defined(HAVE_SS7) */
 
+#if defined(HAVE_SS7)
 static char *handle_ss7_version(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
@@ -14086,7 +14179,9 @@ static char *handle_ss7_version(struct ast_cli_entry *e, int cmd, struct ast_cli
 
 	return CLI_SUCCESS;
 }
+#endif	/* defined(HAVE_SS7) */
 
+#if defined(HAVE_SS7)
 static struct ast_cli_entry dahdi_ss7_cli[] = {
 	AST_CLI_DEFINE(handle_ss7_debug, "Enables SS7 debugging on a linkset"),
 	AST_CLI_DEFINE(handle_ss7_block_cic, "Blocks the given CIC"),
@@ -14096,7 +14191,7 @@ static struct ast_cli_entry dahdi_ss7_cli[] = {
 	AST_CLI_DEFINE(handle_ss7_show_linkset, "Shows the status of a linkset"),
 	AST_CLI_DEFINE(handle_ss7_version, "Displays libss7 version"),
 };
-#endif /* HAVE_SS7 */
+#endif	/* defined(HAVE_SS7) */
 
 static int __unload_module(void)
 {
