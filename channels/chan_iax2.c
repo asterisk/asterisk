@@ -882,6 +882,13 @@ static ast_mutex_t iaxsl[ARRAY_LEN(iaxs)];
  */
 static struct timeval lastused[ARRAY_LEN(iaxs)];
 
+/*!
+ *  * \brief Another container of iax2_pvt structures
+ *  
+ *  Active IAX2 pvt stucts used during transfering a call are stored here.  
+ */
+static struct ao2_container *iax_transfercallno_pvts;
+
 /* Flag to use with trunk calls, keeping these calls high up.  It halves our effective use
    but keeps the division between trunked and non-trunked better. */
 #define TRUNK_CALL_START	ARRAY_LEN(iaxs) / 2
@@ -1610,6 +1617,25 @@ static int make_trunk(unsigned short callno, int locked)
 	return res;
 }
 
+static void store_by_transfercallno(struct chan_iax2_pvt *pvt)
+{
+	if (!pvt->transfercallno) {
+		ast_log(LOG_ERROR, "This should not be called without a transfer call number.\n");
+		return;
+	}
+
+	ao2_link(iax_transfercallno_pvts, pvt);
+}
+
+static void remove_by_transfercallno(struct chan_iax2_pvt *pvt)
+{
+	if (!pvt->transfercallno) {
+		ast_log(LOG_ERROR, "This should not be called without a transfer call number.\n");
+		return;
+	}
+
+	ao2_unlink(iax_transfercallno_pvts, pvt);
+}
 static void store_by_peercallno(struct chan_iax2_pvt *pvt)
 {
 	if (!pvt->peercallno) {
@@ -1646,12 +1672,13 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 			struct chan_iax2_pvt tmp_pvt = {
 				.callno = dcallno,
 				.peercallno = callno,
+				.transfercallno = callno,
 				/* hack!! */
 				.frames_received = check_dcallno,
 			};
 
 			memcpy(&tmp_pvt.addr, sin, sizeof(tmp_pvt.addr));
-
+			/* this works for finding normal call numbers not involving transfering */ 
 			if ((pvt = ao2_find(iax_peercallno_pvts, &tmp_pvt, OBJ_POINTER))) {
 				if (return_locked) {
 					ast_mutex_lock(&iaxsl[pvt->callno]);
@@ -1661,9 +1688,20 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 				pvt = NULL;
 				return res;
 			}
+			/* this searches for transfer call numbers that might not get caught otherwise */
+			memset(&tmp_pvt.addr, 0, sizeof(tmp_pvt.addr));
+			memcpy(&tmp_pvt.transfer, sin, sizeof(tmp_pvt.addr));
+			if ((pvt = ao2_find(iax_transfercallno_pvts, &tmp_pvt, OBJ_POINTER))) {
+				if (return_locked) {
+					ast_mutex_lock(&iaxsl[pvt->callno]);
+				}
+				res = pvt->callno;
+				ao2_ref(pvt, -1);
+				pvt = NULL;
+				return res;
+			}
 		}
-
-		/* This will occur on the first response to a message that we initiated,
+			/* This will occur on the first response to a message that we initiated,
 		 * such as a PING. */
 		if (dcallno) {
 			ast_mutex_lock(&iaxsl[dcallno]);
@@ -1680,7 +1718,6 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 		if (dcallno) {
 			ast_mutex_unlock(&iaxsl[dcallno]);
 		}
-
 #ifdef IAX_OLD_FIND
 		/* If we get here, we SHOULD NOT find a call structure for this
 		   callno; if we do, it means that there is a call structure that
@@ -2308,6 +2345,10 @@ retry:
 
 		if (pvt->peercallno) {
 			remove_by_peercallno(pvt);
+		}
+
+		if (pvt->transfercallno) {
+			remove_by_transfercallno(pvt);
 		}
 
 		if (!owner) {
@@ -6571,10 +6612,11 @@ static int try_transfer(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 	pvt->transfer.sin_family = AF_INET;
 	pvt->transferring = TRANSFER_BEGIN;
 	pvt->transferid = ies->transferid;
+	store_by_transfercallno(pvt);
 	if (ies->transferid)
 		iax_ie_append_int(&ied, IAX_IE_TRANSFERID, ies->transferid);
 	send_command_transfer(pvt, AST_FRAME_IAX, IAX_COMMAND_TXCNT, 0, ied.buf, ied.pos);
-	return 0; 
+	return 0;
 }
 
 static int complete_dpreply(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
@@ -6638,6 +6680,7 @@ static int complete_transfer(int callno, struct iax_ies *ies)
 		ast_log(LOG_WARNING, "Invalid transfer request\n");
 		return -1;
 	}
+	remove_by_transfercallno(pvt);
 	memcpy(&pvt->addr, &pvt->transfer, sizeof(pvt->addr));
 	memset(&pvt->transfer, 0, sizeof(pvt->transfer));
 	/* Reset sequence numbers */
@@ -6650,8 +6693,8 @@ static int complete_transfer(int callno, struct iax_ies *ies)
 		remove_by_peercallno(pvt);
 	}
 	pvt->peercallno = peercallno;
+	/*this is where the transfering call swiches hash tables */
 	store_by_peercallno(pvt);
-
 	pvt->transferring = TRANSFER_NONE;
 	pvt->svoiceformat = -1;
 	pvt->voiceformat = 0;
@@ -12136,7 +12179,7 @@ static int __unload_module(void)
 	ao2_ref(peers, -1);
 	ao2_ref(users, -1);
 	ao2_ref(iax_peercallno_pvts, -1);
-	
+	ao2_ref(iax_transfercallno_pvts, -1);	
 	con = ast_context_find(regcontext);
 	if (con)
 		ast_context_destroy(con, "IAX2");
@@ -12179,6 +12222,23 @@ static int pvt_cmp_cb(void *obj, void *arg, int flags)
 		pvt2->frames_received) ? CMP_MATCH : 0;
 }
 
+static int transfercallno_pvt_hash_cb(const void *obj, const int flags)
+{
+	const struct chan_iax2_pvt *pvt = obj;
+
+	return pvt->transfercallno;
+}
+
+static int transfercallno_pvt_cmp_cb(void *obj, void *arg, int flags)
+{
+	struct chan_iax2_pvt *pvt = obj, *pvt2 = arg;
+
+	/* The frames_received field is used to hold whether we're matching
+	 * against a full frame or not ... */
+
+	return match(&pvt2->transfer, pvt2->transfercallno, pvt2->callno, pvt,
+		pvt2->frames_received) ? CMP_MATCH | CMP_STOP : 0;
+}
 /*! \brief Load IAX2 module, load configuraiton ---*/
 static int load_module(void)
 {
@@ -12200,7 +12260,13 @@ static int load_module(void)
 		ao2_ref(users, -1);
 		return AST_MODULE_LOAD_FAILURE;
 	}
-
+	iax_transfercallno_pvts = ao2_container_alloc(IAX_MAX_CALLS, transfercallno_pvt_hash_cb, transfercallno_pvt_cmp_cb);
+	if (!iax_transfercallno_pvts) {
+		ao2_ref(peers, -1);
+		ao2_ref(users, -1);
+		ao2_ref(iax_peercallno_pvts, -1);
+		return AST_MODULE_LOAD_FAILURE;
+	}
 	ast_custom_function_register(&iaxpeer_function);
 	ast_custom_function_register(&iaxvar_function);
 
