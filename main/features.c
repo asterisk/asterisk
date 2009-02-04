@@ -66,6 +66,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define AST_MAX_WATCHERS 256
 #define MAX_DIAL_FEATURE_OPTIONS 30
 
+#define FEATURE_RETURN_HANGUP                  -1
+#define FEATURE_RETURN_SUCCESSBREAK             0
+#define FEATURE_RETURN_PASSDIGITS               21
+#define FEATURE_RETURN_STOREDIGITS              22
+#define FEATURE_RETURN_SUCCESS                  23
+#define FEATURE_RETURN_KEEPTRYING               24
+#define FEATURE_RETURN_PARKFAILED               25
+
 enum {
 	AST_FEATURE_FLAG_NEEDSDTMF = (1 << 0),
 	AST_FEATURE_FLAG_ONPEER =    (1 << 1),
@@ -409,17 +417,15 @@ static enum ast_device_state metermaidstate(const char *data)
 	return AST_DEVICE_INUSE;
 }
 
-/* Park a call */
-static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, int timeout, int *extout, const char *orig_chan_name)
+static struct parkeduser *park_space_reserve(struct ast_channel *chan)
 {
 	struct parkeduser *pu, *cur;
-	int i, x = -1, parking_range;
-	struct ast_context *con;
+	int i, parking_space = -1, parking_range;
 	const char *parkingexten;
 	
 	/* Allocate memory for parking data */
 	if (!(pu = ast_calloc(1, sizeof(*pu)))) 
-		return -1;
+		return NULL;
 
 	/* Lock parking lot */
 	AST_LIST_LOCK(&parkinglot);
@@ -432,27 +438,27 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 		 * limitation here.  If extout was not numeric, we could permit
 		 * arbitrary non-numeric extensions.
 		 */
-        if (sscanf(parkingexten, "%d", &x) != 1 || x < 0) {
+        if (sscanf(parkingexten, "%d", &parking_space) != 1 || parking_space < 0) {
 			AST_LIST_UNLOCK(&parkinglot);
             ast_free(pu);
             ast_log(LOG_WARNING, "PARKINGEXTEN does not indicate a valid parking slot: '%s'.\n", parkingexten);
-            return 1;   /* Continue execution if possible */
+            return NULL;
         }
-        snprintf(pu->parkingexten, sizeof(pu->parkingexten), "%d", x);
+        snprintf(pu->parkingexten, sizeof(pu->parkingexten), "%d", parking_space);
 
 		if (ast_exists_extension(NULL, parking_con, pu->parkingexten, 1, NULL)) {
 			AST_LIST_UNLOCK(&parkinglot);
 			ast_free(pu);
 			ast_log(LOG_WARNING, "Requested parking extension already exists: %s@%s\n", parkingexten, parking_con);
-			return 1;	/* Continue execution if possible */
+			return NULL;
 		}
 	} else {
 		/* Select parking space within range */
 		parking_range = parking_stop - parking_start+1;
 		for (i = 0; i < parking_range; i++) {
-			x = (i + parking_offset) % parking_range + parking_start;
+			parking_space = (i + parking_offset) % parking_range + parking_start;
 			AST_LIST_TRAVERSE(&parkinglot, cur, list) {
-				if (cur->parkingnum == x)
+				if (cur->parkingnum == parking_space)
 					break;
 			}
 			if (!cur)
@@ -463,14 +469,35 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 			ast_log(LOG_WARNING, "No more parking spaces\n");
 			ast_free(pu);
 			AST_LIST_UNLOCK(&parkinglot);
-			return -1;
+			return NULL;
 		}
 		/* Set pointer for next parking */
 		if (parkfindnext) 
-			parking_offset = x - parking_start + 1;
-		snprintf(pu->parkingexten, sizeof(pu->parkingexten), "%d", x);
+			parking_offset = parking_space - parking_start + 1;
+		snprintf(pu->parkingexten, sizeof(pu->parkingexten), "%d", parking_space);
 	}
-	
+
+	pu->notquiteyet = 1;
+	pu->parkingnum = parking_space;
+	AST_LIST_INSERT_TAIL(&parkinglot, pu, list);	
+	AST_LIST_UNLOCK(&parkinglot);
+
+	return pu;
+}
+
+/* Park a call */
+static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, int timeout, int *extout, const char *orig_chan_name, struct parkeduser *pu)
+{	
+	struct ast_context *con;
+
+	/* Get a valid space if not already done */
+	if (pu == NULL)
+		pu = park_space_reserve(chan);
+	if (pu == NULL)
+		return 1; /* Continue execution if possible */
+
+	snprintf(pu->parkingexten, sizeof(pu->parkingexten), "%d", pu->parkingnum);
+
 	chan->appl = "Parked Call";
 	chan->data = NULL; 
 
@@ -484,10 +511,9 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 	}
 	
 	pu->start = ast_tvnow();
-	pu->parkingnum = x;
 	pu->parkingtime = (timeout > 0) ? timeout : parkingtime;
 	if (extout)
-		*extout = x;
+		*extout = pu->parkingnum;
 
 	if (peer) { 
 		/* This is so ugly that it hurts, but implementing get_base_channel() on local channels
@@ -519,12 +545,12 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 	ast_copy_string(pu->context, S_OR(chan->macrocontext, chan->context), sizeof(pu->context));
 	ast_copy_string(pu->exten, S_OR(chan->macroexten, chan->exten), sizeof(pu->exten));
 	pu->priority = chan->macropriority ? chan->macropriority : chan->priority;
-	AST_LIST_INSERT_TAIL(&parkinglot, pu, list);
 
-	/* If parking a channel directly, don't quiet yet get parking running on it */
-	if (peer == chan) 
-		pu->notquiteyet = 1;
-	AST_LIST_UNLOCK(&parkinglot);
+	/* If parking a channel directly, don't quiet yet get parking running on it.
+	 * All parking lot entries are put into the parking lot with notquiteyet on. */
+	if (peer != chan) 
+		pu->notquiteyet = 0;
+
 	/* Wake up the (presumably select()ing) thread */
 	pthread_kill(parking_thread, SIGURG);
 	ast_verb(2, "Parked %s on %d@%s. Will timeout back to extension [%s] %s, %d in %d seconds\n", pu->chan->name, pu->parkingnum, parking_con, pu->context, pu->exten, pu->priority, (pu->parkingtime/1000));
@@ -577,14 +603,20 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 /*! \brief Park a call */
 int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeout, int *extout)
 {
-	return park_call_full(chan, peer, timeout, extout, NULL);
+	return park_call_full(chan, peer, timeout, extout, NULL, NULL);
 }
 
 static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout, int play_announcement, const char *orig_chan_name)
 {
 	struct ast_channel *chan;
 	struct ast_frame *f;
+	struct parkeduser *pu;
 	int park_status;
+
+	if ((pu = park_space_reserve(rchan)) == NULL) {
+		ast_stream_and_wait(peer, "beeperr", "");
+		return FEATURE_RETURN_PARKFAILED;
+	}
 
 	/* Make a new, fake channel that we'll use to masquerade in the real one */
 	if (!(chan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, rchan->accountcode, rchan->exten, rchan->context, rchan->amaflags, "Parked/%s",rchan->name))) {
@@ -612,7 +644,7 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, i
 		orig_chan_name = ast_strdupa(chan->name);
 	}
 
-	park_status = park_call_full(chan, peer, timeout, extout, orig_chan_name);
+	park_status = park_call_full(chan, peer, timeout, extout, orig_chan_name, pu);
 	if (park_status == 1) {
 	/* would be nice to play "invalid parking extension" */
 		ast_hangup(chan);
@@ -631,15 +663,6 @@ static int masq_park_call_announce(struct ast_channel *rchan, struct ast_channel
 {
 	return masq_park_call(rchan, peer, timeout, extout, 1, orig_chan_name);
 }
-
-#define FEATURE_RETURN_HANGUP		-1
-#define FEATURE_RETURN_SUCCESSBREAK	 0
-#define FEATURE_RETURN_PBX_KEEPALIVE	AST_PBX_KEEPALIVE
-#define FEATURE_RETURN_NO_HANGUP_PEER	AST_PBX_NO_HANGUP_PEER
-#define FEATURE_RETURN_PASSDIGITS	 21
-#define FEATURE_RETURN_STOREDIGITS	 22
-#define FEATURE_RETURN_SUCCESS	 	 23
-#define FEATURE_RETURN_KEEPTRYING    24
 
 #define FEATURE_SENSE_CHAN	(1 << 0)
 #define FEATURE_SENSE_PEER	(1 << 1)
@@ -695,8 +718,8 @@ static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, 
 		res = ast_safe_sleep(chan, 1000);
 
 	if (!res) { /* one direction used to call park_call.... */
-		masq_park_call_announce(parkee, parker, 0, NULL, NULL);
-		res = 0; /* PBX should hangup zombie channel */
+		res = masq_park_call_announce(parkee, parker, 0, NULL, NULL);
+		/* PBX should hangup zombie channel if a masquerade actually occurred (res=0) */
 	}
 	return res;
 }
@@ -968,6 +991,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	const char *transferer_real_context;
 	char xferto[256];
 	int res;
+	int parkstatus = 0;
 
 	set_peers(&transferer, &transferee, peer, chan, sense);
 	transferer_real_context = real_ctx(transferer, transferee);
@@ -996,14 +1020,14 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		res = finishup(transferee);
 		if (res)
 			res = -1;
-		else if (!masq_park_call_announce(transferee, transferer, 0, NULL, NULL)) {	/* success */
+		else if (!(parkstatus = masq_park_call_announce(transferee, transferer, 0, NULL, NULL))) {	/* success */
 			/* We return non-zero, but tell the PBX not to hang the channel when
 			   the thread dies -- We have to be careful now though.  We are responsible for 
 			   hanging up the channel, else it will never be hung up! */
 
 			return 0;
 		} else {
-			ast_log(LOG_WARNING, "Unable to park call %s\n", transferee->name);
+			ast_log(LOG_WARNING, "Unable to park call %s, parkstatus = %d\n", transferee->name, parkstatus);
 		}
 		/*! \todo XXX Maybe we should have another message here instead of invalid extension XXX */
 	} else if (ast_exists_extension(transferee, transferer_real_context, xferto, 1, transferer->cid.cid_num)) {
@@ -1046,7 +1070,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	} else {
 		ast_verb(3, "Unable to find extension '%s' in context '%s'\n", xferto, transferer_real_context);
 	}
-	if (ast_stream_and_wait(transferer, xferfailsound, AST_DIGIT_ANY) < 0) {
+	if (parkstatus != FEATURE_RETURN_PARKFAILED && ast_stream_and_wait(transferer, xferfailsound, AST_DIGIT_ANY) < 0) {
 		finishup(transferee);
 		return -1;
 	}
@@ -1704,6 +1728,9 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 		    !ast_strlen_zero(builtin_features[x].exten)) {
 			/* Feature is up for consideration */
 			if (!strcmp(builtin_features[x].exten, code)) {
+				if (option_debug > 2) {
+					ast_log(LOG_DEBUG, "Feature detected: fname=%s sname=%s exten=%s\n", builtin_features[x].fname, builtin_features[x].sname, builtin_features[x].exten);
+				}
 				res = builtin_features[x].operation(chan, peer, config, code, sense, NULL);
 				feature_detected = 1;
 				break;
