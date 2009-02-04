@@ -2270,7 +2270,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		ast_verb(3, "Couldn't call %s\n", tmp->interface);
 		do_hang(tmp);
 		(*busies)++;
-		update_status(tmp->member->interface, ast_device_state(tmp->member->interface));
+		update_status(tmp->member->state_interface, ast_device_state(tmp->member->state_interface));
 		return 0;
 	} else if (qe->parent->eventwhencalled) {
 		char vars[2048];
@@ -2296,7 +2296,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		ast_verb(3, "Called %s\n", tmp->interface);
 	}
 
-	update_status(tmp->member->interface, ast_device_state(tmp->member->interface));
+	update_status(tmp->member->state_interface, ast_device_state(tmp->member->state_interface));
 	return 1;
 }
 
@@ -5623,7 +5623,7 @@ static int reload_queues(int reload)
 			while ((cur = ao2_iterator_next(&mem_iter))) {
 				if (cur->dynamic)
 					q->membercount++;
-				cur->status = ast_device_state(cur->interface);
+				cur->status = ast_device_state(cur->state_interface);
 				ao2_ref(cur, -1);
 			}
 			ao2_unlock(q);
