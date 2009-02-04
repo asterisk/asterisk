@@ -135,8 +135,10 @@ static void *handle_tls_connection(void *data)
 	/*
 	* open a FILE * as appropriate.
 	*/
-	if (!tcptls_session->parent->tls_cfg)
+	if (!tcptls_session->parent->tls_cfg) {
 		tcptls_session->f = fdopen(tcptls_session->fd, "w+");
+		setvbuf(tcptls_session->f, NULL, _IONBF, 0);
+	}
 #ifdef DO_SSL
 	else if ( (tcptls_session->ssl = SSL_new(tcptls_session->parent->tls_cfg->ssl_ctx)) ) {
 		SSL_set_fd(tcptls_session->ssl, tcptls_session->fd);
