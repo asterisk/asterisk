@@ -456,8 +456,10 @@ static int channel_spy(struct ast_channel *chan, struct chanspy_ds *spyee_chansp
 	}
 	ast_mutex_unlock(&spyee_chanspy_ds->lock);
 
-	if (!spyee)
+	if (!spyee) {
+		ast_channel_unlock(spyee);
 		return 0;
+	}
 
 	/* We now hold the channel lock on spyee */
 
