@@ -59,6 +59,115 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astdb.h"
 #include "asterisk/manager.h"
 
+/*** DOCUMENTATION
+	<application name="JabberSend" language="en_US">
+		<synopsis>
+			Send a Jabber Message
+		</synopsis>
+		<syntax>
+			<parameter name="Jabber" required="true">
+				<para>Client or transport Asterisk uses to connect to Jabber.</para>
+			</parameter>
+			<parameter name="JID" required="true">
+				<para>XMPP/Jabber JID (Name) of recipient.</para>
+			</parameter>
+			<parameter name="Message" required="true">
+				<para>Message to be sent to the buddy.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Allows user to send a message to a receipent via XMPP.</para>
+		</description>
+	</application>
+	<application name="JabberStatus" language="en_US">
+		<synopsis>
+			<para>Retrieve the status of a jabber list member</para>
+		</synopsis>
+		<syntax>
+			<parameter name="Jabber" required="true">
+				<para>Client or transport Asterisk users to connect to Jabber.</para>
+			</parameter>
+			<parameter name="JID" required="true">
+				<para>XMPP/Jabber JID (Name) of recipient.</para>
+			</parameter>
+			<parameter name="Variable" required="true">
+				<para>Variable to store the status of requested user.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<note>This application is deprecated. Please use the JABBER_STATUS() function instead.</note>
+			<para>Retrieves the numeric status associated with the specified buddy <replaceable>JID</replaceable>.
+			The return value in the <replaceable>Variable</replaceable>will be one of the following.</para>
+			<enumlist>
+				<enum name="1">
+					<para>Online.</para>
+				</enum>
+				<enum name="2">
+					<para>Chatty.</para>
+				</enum>
+				<enum name="3">
+					<para>Away.</para>
+				</enum>
+				<enum name="4">
+					<para>Extended Away.</para>
+				</enum>
+				<enum name="5">
+					<para>Do Not Disturb.</para>
+				</enum>
+				<enum name="6">
+					<para>Offline.</para>
+				</enum>
+				<enum name="7">
+					<para>Not In Roster.</para>
+				</enum>
+			</enumlist>
+		</description>
+	</application>
+	<function name="JABBER_STATUS" language="en_US">
+		<synopsis>
+			<para>Retrieve the status of a jabber list member</para>
+		</synopsis>
+		<syntax>
+			<parameter name="sender" required="true">
+				<para>XMPP/Jabber ID (Name) of sender.</para>
+			</parameter>
+			<parameter name="buddy" required="true">
+				<para>XMPP/Jabber JID (Name) of recipient.</para>
+			</parameter>
+			<parameter name="resource">
+				<para>Client or transport Asterisk users to connect to Jabber.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Retrieves the numeric status associated with the specified buddy <replaceable>JID</replaceable>.
+			The return value will be one of the following.</para>
+			<enumlist>
+				<enum name="1">
+					<para>Online.</para>
+				</enum>
+				<enum name="2">
+					<para>Chatty.</para>
+				</enum>
+				<enum name="3">
+					<para>Away.</para>
+				</enum>
+				<enum name="4">
+					<para>Extended Away.</para>
+				</enum>
+				<enum name="5">
+					<para>Do Not Disturb.</para>
+				</enum>
+				<enum name="6">
+					<para>Offline.</para>
+				</enum>
+				<enum name="7">
+					<para>Not In Roster.</para>
+				</enum>
+			</enumlist>
+		</description>
+	</function>
+ ***/
+
 /*! \todo This should really be renamed to xmpp.conf. For backwards compatibility, we
  	need to read both files */
 #define JABBER_CONFIG "jabber.conf"
@@ -132,26 +241,7 @@ static struct ast_cli_entry aji_cli[] = {
 
 static char *app_ajisend = "JabberSend";
 
-static char *ajisend_synopsis = "JabberSend(Jabber,JID,Message)";
-
-static char *ajisend_descrip =
-"JabberSend(Jabber,JID,Message)\n"
-"  Jabber   - Client or transport Asterisk uses to connect to Jabber\n" 
-"  JID      - XMPP/Jabber JID (Name) of recipient\n" 
-"  Message  - Message to be sent to the buddy\n";
-
 static char *app_ajistatus = "JabberStatus";
-
-static char *ajistatus_synopsis = "JabberStatus(Jabber,JID,Variable)";
-
-static char *ajistatus_descrip =
-"JabberStatus(Jabber,JID,Variable)\n"
-"  Jabber   - Client or transport Asterisk uses to connect to Jabber\n"
-"  JID      - User Name to retrieve status from.\n"
-"  Variable - Variable to store presence in will be 1-6.\n" 
-"             In order, 1=Online, 2=Chatty, 3=Away, 4=XAway, 5=DND, 6=Offline\n" 
-"             If not in roster variable will be set to 7\n\n"
-"Note: This application is deprecated. Please use the JABBER_STATUS() function instead.\n";
 
 struct aji_client_container clients;
 struct aji_capabilities *capabilities = NULL;
@@ -446,15 +536,7 @@ static int acf_jabberstatus_read(struct ast_channel *chan, const char *name, cha
 
 static struct ast_custom_function jabberstatus_function = {
 	.name = "JABBER_STATUS",
-	.synopsis = "Retrieve buddy status",
-	.syntax = "JABBER_STATUS(<sender>,<buddy>[/<resource>])",
 	.read = acf_jabberstatus_read,
-	.desc =
-"Retrieves the numeric status associated with the specified buddy (jid). If the\n"
-"buddy does not exist in the buddylist, returns 7.\n"
-"Status will be 1-7.\n" 
-"             1=Online, 2=Chatty, 3=Away, 4=XAway, 5=DND, 6=Offline\n" 
-"             If not in roster variable will be set to 7\n\n",
 };
 
 /*!
@@ -3001,8 +3083,8 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	ast_manager_register2("JabberSend", EVENT_FLAG_SYSTEM, manager_jabber_send,
 			"Sends a message to a Jabber Client", mandescr_jabber_send);
-	ast_register_application(app_ajisend, aji_send_exec, ajisend_synopsis, ajisend_descrip);
-	ast_register_application(app_ajistatus, aji_status_exec, ajistatus_synopsis, ajistatus_descrip);
+	ast_register_application_xml(app_ajisend, aji_send_exec);
+	ast_register_application_xml(app_ajistatus, aji_status_exec);
 	ast_cli_register_multiple(aji_cli, ARRAY_LEN(aji_cli));
 	ast_custom_function_register(&jabberstatus_function);
 
