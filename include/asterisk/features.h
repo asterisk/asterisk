@@ -67,6 +67,7 @@ struct ast_call_feature {
 #define AST_FEATURE_RETURN_STOREDIGITS              22
 #define AST_FEATURE_RETURN_SUCCESS                  23
 #define AST_FEATURE_RETURN_KEEPTRYING               24
+#define AST_FEATURE_RETURN_PARKFAILED               25
 
 /*!
  * \brief Park a call and read back parked location 
