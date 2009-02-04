@@ -1900,6 +1900,9 @@ static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, str
 						*s2++ = s3;
 					}
 					s1++; s1++;
+				} else if (*s1 == '\0') {
+					ast_log(LOG_WARNING, "A matching ']' was not found for '[' in pattern string '%s'\n", extenbuf);
+					break;
 				} else {
 					*s2++ = *s1++;
 				}

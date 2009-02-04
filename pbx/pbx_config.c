@@ -1403,6 +1403,36 @@ static int unload_module(void)
 	return 0;
 }
 
+/*!\note Protect against misparsing based upon commas in the middle of fields
+ * like character classes.  We've taken steps to permit pretty much every other
+ * printable character in a character class, so properly handling a comma at
+ * this level is a natural extension.  This is almost like the standard
+ * application parser in app.c, except that it handles square brackets. */
+static char *pbx_strsep(char **destructible, const char *delim)
+{
+	int square = 0;
+	char *res = *destructible;
+	for (; destructible && *destructible && **destructible; (*destructible)++) {
+		if (**destructible == '[' && !strchr(delim, '[')) {
+			square++;
+		} else if (**destructible == ']' && !strchr(delim, ']')) {
+			if (square) {
+				square--;
+			}
+		} else if (**destructible == '\\' && !strchr(delim, '\\')) {
+			(*destructible)++;
+		} else if (strchr(delim, **destructible) && !square) {
+			**destructible = '\0';
+			(*destructible)++;
+			break;
+		}
+	}
+	if (destructible && *destructible && **destructible == '\0') {
+		*destructible = NULL;
+	}
+	return res;
+}
+
 static int pbx_load_config(const char *config_file)
 {
 	struct ast_config *cfg;
@@ -1488,7 +1518,7 @@ static int pbx_load_config(const char *config_file)
 					continue;
 				}
 
-				ext = S_OR(strsep(&stringp, ","), "");
+				ext = S_OR(pbx_strsep(&stringp, ","), "");
 				pbx_substitute_variables_helper(NULL, ext, realext, sizeof(realext) - 1);
 				ast_copy_string(lastextension, realext, sizeof(lastextension));
 process_extension:
