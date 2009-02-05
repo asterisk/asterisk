@@ -261,6 +261,8 @@ static void *mixmonitor_thread(void *obj)
 		ast_cond_wait(&mixmonitor->mixmonitor_ds->destruction_condition, &mixmonitor->mixmonitor_ds->lock);
 	}
 	ast_mutex_unlock(&mixmonitor->mixmonitor_ds->lock);
+	ast_mutex_destroy(&mixmonitor->mixmonitor_ds->lock);
+	ast_cond_destroy(&mixmonitor->mixmonitor_ds->destruction_condition);
 	ast_free(mixmonitor->mixmonitor_ds);
 	free(mixmonitor);
 
