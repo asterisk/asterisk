@@ -1174,6 +1174,7 @@ struct sip_registry {
 	int refresh;			/*!< How often to refresh */
 	struct sip_pvt *call;		/*!< create a sip_pvt structure for each outbound "registration dialog" in progress */
 	enum sipregistrystate regstate;	/*!< Registration state (see above) */
+	unsigned int needdns:1; /*!< Set if we need a new dns lookup before we try to transmit */
 	time_t regtime;		/*!< Last succesful registration time */
 	int callid_valid;		/*!< 0 means we haven't chosen callid for this registry yet. */
 	unsigned int ocseq;		/*!< Sequence number we got to for REGISTERs for this registry */
@@ -1512,7 +1513,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 static const struct sockaddr_in *sip_real_dst(const struct sip_pvt *p);
 static void build_via(struct sip_pvt *p);
 static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer);
-static int create_addr(struct sip_pvt *dialog, const char *opeer);
+static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockaddr_in *sin);
 static char *generate_random_string(char *buf, size_t size);
 static void build_callid_pvt(struct sip_pvt *pvt);
 static void build_callid_registry(struct sip_registry *reg, struct in_addr ourip, const char *fromdomain);
@@ -1800,7 +1801,14 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 		case ECONNREFUSED:      /* ICMP port unreachable */ 
 			res = XMIT_ERROR;	/* Don't bother with trying to transmit again */
 		}
+
+		if (p->registry && p->registry->regstate < REG_STATE_REGISTERED) {
+			AST_SCHED_DEL(sched, p->registry->timeout);
+			p->registry->needdns = TRUE;
+			p->registry->timeout = ast_sched_add(sched, 1, sip_reg_timeout, p->registry);
+		}
 	}
+
 	if (res != len)
 		ast_log(LOG_WARNING, "sip_xmit of %p (len %d) to %s:%d returned %d: %s\n", data, len, ast_inet_ntoa(dst->sin_addr), ntohs(dst->sin_port), res, strerror(errno));
 	return res;
@@ -2907,7 +2915,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 /*! \brief create address structure from peer name
  *      Or, if peer not found, find it in the global DNS 
  *      returns TRUE (-1) on failure, FALSE on success */
-static int create_addr(struct sip_pvt *dialog, const char *opeer)
+static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockaddr_in *sin)
 {
 	struct hostent *hp;
 	struct ast_hostent ahp;
@@ -2934,27 +2942,40 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 		ASTOBJ_UNREF(p, sip_destroy_peer);
 		return res;
 	}
-	hostn = peer;
-	portno = port ? atoi(port) : STANDARD_SIP_PORT;
-	if (srvlookup) {
-		char service[MAXHOSTNAMELEN];
-		int tportno;
-		int ret;
-
-		snprintf(service, sizeof(service), "_sip._udp.%s", peer);
-		ret = ast_get_srv(NULL, host, sizeof(host), &tportno, service);
-		if (ret > 0) {
-			hostn = host;
-			portno = tportno;
-		}
-	}
-	hp = ast_gethostbyname(hostn, &ahp);
-	if (!hp) {
-		ast_log(LOG_WARNING, "No such host: %s\n", peer);
-		return -1;
-	}
+	
 	ast_string_field_set(dialog, tohost, peer);
-	memcpy(&dialog->sa.sin_addr, hp->h_addr, sizeof(dialog->sa.sin_addr));
+
+	if (sin) {
+		memcpy(&dialog->sa.sin_addr, &sin->sin_addr, sizeof(dialog->sa.sin_addr));
+		if (!sin->sin_port) {
+			if (ast_strlen_zero(port) || sscanf(port, "%u", &portno) != 1) {
+				portno = STANDARD_SIP_PORT;
+			}
+		} else {
+			portno = ntohs(sin->sin_port);
+		}
+	} else {
+		hostn = peer;
+		portno = port ? atoi(port) : STANDARD_SIP_PORT;
+		if (srvlookup) {
+			char service[MAXHOSTNAMELEN];
+			int tportno;
+			int ret;
+
+			snprintf(service, sizeof(service), "_sip._udp.%s", peer);
+			ret = ast_get_srv(NULL, host, sizeof(host), &tportno, service);
+			if (ret > 0) {
+				hostn = host;
+				portno = tportno;
+			}
+		}
+		hp = ast_gethostbyname(hostn, &ahp);
+		if (!hp) {
+			ast_log(LOG_WARNING, "No such host: %s\n", peer);
+			return -1;
+		}
+		memcpy(&dialog->sa.sin_addr, hp->h_addr, sizeof(dialog->sa.sin_addr));
+	}
 	dialog->sa.sin_port = htons(portno);
 	dialog->recv = dialog->sa;
 	return 0;
@@ -4814,6 +4835,7 @@ static int sip_register(char *value, int lineno)
 	reg->portno = portnum;
 	reg->callid_valid = FALSE;
 	reg->ocseq = INITIAL_CSEQ;
+	reg->needdns = TRUE;
 	ASTOBJ_CONTAINER_LINK(&regl, reg);	/* Add the new registry entry to the list */
 	ASTOBJ_UNREF(reg,sip_registry_destroy);
 	return 0;
@@ -7644,6 +7666,7 @@ static int sip_reg_timeout(const void *data)
 	} else {
 		r->regstate = REG_STATE_UNREGISTERED;
 		r->timeout = -1;
+		r->needdns = TRUE;
 		res=transmit_register(r, SIP_REGISTER, NULL, NULL);
 	}
 	manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelDriver: SIP\r\nUsername: %s\r\nDomain: %s\r\nStatus: %s\r\n", r->username, r->hostname, regstate2str(r->regstate));
@@ -7692,8 +7715,9 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		}
 		if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY))
 			append_history(p, "RegistryInit", "Account: %s@%s", r->username, r->hostname);
-		/* Find address to hostname */
-		if (create_addr(p, r->hostname)) {
+		/* Find address to hostname if we haven't tried to connect
+		 * or a connection error has occurred */
+		if (create_addr(p, r->hostname, r->needdns ? NULL : &r->us)) {
 			/* we have what we hope is a temporary network error,
 			 * probably DNS.  We need to reschedule a registration try */
 			sip_destroy(p);
@@ -7708,6 +7732,10 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			r->regattempts++;
 			return 0;
 		}
+		if (r->needdns) {
+			memcpy(&r->us, &p->sa, sizeof(r->us));
+		}
+		r->needdns = FALSE;
 		/* Copy back Call-ID in case create_addr changed it */
 		ast_string_field_set(r, callid, p->callid);
 		if (r->portno) {
@@ -11563,7 +11591,7 @@ static int sip_notify(int fd, int argc, char *argv[])
 			return RESULT_FAILURE;
 		}
 
-		if (create_addr(p, argv[i])) {
+		if (create_addr(p, argv[i], NULL)) {
 			/* Maybe they're not registered, etc. */
 			sip_destroy(p);
 			ast_cli(fd, "Could not create address for '%s'\n", argv[i]);
@@ -16682,7 +16710,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 		host = tmp;
 	}
 
-	if (create_addr(p, host)) {
+	if (create_addr(p, host, NULL)) {
 		*cause = AST_CAUSE_UNREGISTERED;
 		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Cant create SIP call - target device not registred\n");
