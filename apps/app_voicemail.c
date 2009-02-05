@@ -5388,9 +5388,12 @@ static int save_to_folder(struct ast_vm_user *vmu, struct vm_state *vms, int msg
 	
 	ast_debug(3, "Copying sequence %s to mailbox %s\n", sequence, mbox(box));
 	ast_mutex_lock(&vms->lock);
+	/* if save to Old folder, put in INBOX as read */
 	if (box == OLD_FOLDER) {
 		mail_setflag(vms->mailstream, sequence, "\\Seen");
+		mail_clearflag(vms->mailstream, sequence, "\\Unseen");
 	} else if (box == NEW_FOLDER) {
+		mail_setflag(vms->mailstream, sequence, "\\Unseen");
 		mail_clearflag(vms->mailstream, sequence, "\\Seen");
 	}
 	if (!strcasecmp(mbox(NEW_FOLDER), vms->curbox) && (box == NEW_FOLDER || box == OLD_FOLDER)) {
