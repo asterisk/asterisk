@@ -2069,12 +2069,12 @@ static void record_abandoned(struct queue_ent *qe)
 }
 
 /*! \brief RNA == Ring No Answer. Common code that is executed when we try a queue member and they don't answer. */
-static void rna(int rnatime, struct queue_ent *qe, char *interface, char *membername)
+static void rna(int rnatime, struct queue_ent *qe, char *interface, char *membername, int pause)
 {
 	if (option_verbose > 2)
 		ast_verbose( VERBOSE_PREFIX_3 "Nobody picked up in %d ms\n", rnatime);
 	ast_queue_log(qe->parent->name, qe->chan->uniqueid, membername, "RINGNOANSWER", "%d", rnatime);
-	if (qe->parent->autopause) {
+	if (qe->parent->autopause && pause) {
 		if (!set_member_paused(qe->parent->name, interface, 1)) {
 			if (option_verbose > 2)
 				ast_verbose( VERBOSE_PREFIX_3 "Auto-Pausing Queue Member %s in queue %s since they failed to answer.\n", interface, qe->parent->name);
@@ -2251,7 +2251,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							do_hang(o);
 							endtime = (long)time(NULL);
 							endtime -= starttime;
-							rna(endtime*1000, qe, on, membername);
+							rna(endtime * 1000, qe, on, membername, 0);
 							if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
 								if (qe->parent->timeoutrestart)
 									*to = orig;
@@ -2266,7 +2266,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 								ast_cdr_busy(in->cdr);
 							endtime = (long)time(NULL);
 							endtime -= starttime;
-							rna(endtime*1000, qe, on, membername);
+							rna(endtime * 1000, qe, on, membername, 0);
 							do_hang(o);
 							if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
 								if (qe->parent->timeoutrestart)
@@ -2289,7 +2289,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 					ast_frfree(f);
 				} else {
 					endtime = (long) time(NULL) - starttime;
-					rna(endtime * 1000, qe, on, membername);
+					rna(endtime * 1000, qe, on, membername, 1);
 					do_hang(o);
 					if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
 						if (qe->parent->timeoutrestart)
@@ -2327,7 +2327,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 		}
 		if (!*to) {
 			for (o = start; o; o = o->call_next)
-				rna(orig, qe, o->interface, o->member->membername);
+				rna(orig, qe, o->interface, o->member->membername, 1);
 		}
 	}
 
