@@ -574,6 +574,7 @@ struct ast_vm_user {
 #ifdef IMAP_STORAGE
 	char imapuser[80];               /*!< IMAP server login */
 	char imappassword[80];           /*!< IMAP server password if authpassword not defined */
+	char imapvmshareid[80];          /*!< Shared mailbox ID to use rather than the dialed one */
 #endif
 	double volgain;                  /*!< Volume gain for voicemails sent via email */
 	AST_LIST_ENTRY(ast_vm_user) list;
@@ -882,6 +883,8 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 		ast_copy_string(vmu->imapuser, value, sizeof(vmu->imapuser));
 	} else if (!strcasecmp(var, "imappassword") || !strcasecmp(var, "imapsecret")) {
 		ast_copy_string(vmu->imappassword, value, sizeof(vmu->imappassword));
+	} else if (!strcasecmp(var, "imapvmshareid")) {
+		ast_copy_string(vmu->imapvmshareid, value, sizeof(vmu->imapvmshareid));
 #endif
 	} else if (!strcasecmp(var, "delete") || !strcasecmp(var, "deletevoicemail")) {
 		ast_set2_flag(vmu, ast_true(value), VM_DELETE);	
@@ -1114,6 +1117,8 @@ static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *
 			ast_copy_string(retval->imapuser, var->value, sizeof(retval->imapuser));
 		} else if (!strcasecmp(var->name, "imappassword") || !strcasecmp(var->name, "imapsecret")) {
 			ast_copy_string(retval->imappassword, var->value, sizeof(retval->imappassword));
+		} else if (!strcasecmp(tmp->name, "imapvmshareid")) {
+			ast_copy_string(retval->imapvmshareid, tmp->value, sizeof(retval->imapvmshareid));
 #endif
 		} else
 			apply_option(retval, var->name, var->value);
@@ -1775,7 +1780,7 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 	if (ret == 0) {
 		ast_mutex_lock(&vms_p->lock);
 		pgm = mail_newsearchpgm ();
-		hdr = mail_newsearchheader ("X-Asterisk-VM-Extension", (char *)mailbox);
+		hdr = mail_newsearchheader ("X-Asterisk-VM-Extension", (char *)(!ast_strlen_zero(vmu->imapvmshareid) ? vmu->imapvmshareid : mailbox));
 		pgm->header = hdr;
 		if (fold != 1) {
 			pgm->unseen = 1;
@@ -2222,7 +2227,7 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 	pgm = mail_newsearchpgm();
 
 	/* Check IMAP folder for Asterisk messages only... */
-	hdr = mail_newsearchheader("X-Asterisk-VM-Extension", vmu->mailbox);
+	hdr = mail_newsearchheader("X-Asterisk-VM-Extension", (!ast_strlen_zero(vmu->imapvmshareid) ? vmu->imapvmshareid : vmu->mailbox));
 	pgm->header = hdr;
 	pgm->deleted = 0;
 	pgm->undeleted = 1;
@@ -4104,8 +4109,12 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 		/* fprintf(p, "X-Asterisk-VM-Orig-Mailbox: %s" ENDL, ext); */
 		fprintf(p, "X-Asterisk-VM-Server-Name: %s" ENDL, fromstring);
 		fprintf(p, "X-Asterisk-VM-Context: %s" ENDL, context);
+#ifdef IMAP_STORAGE
+		fprintf(p, "X-Asterisk-VM-Extension: %s" ENDL, (!ast_strlen_zero(vmu->imapvmshareid) ? vmu->imapvmshareid : mailbox));
+#else
 		fprintf(p, "X-Asterisk-VM-Extension: %s" ENDL, mailbox);
-                /* flag added for Urgent */
+#endif
+		/* flag added for Urgent */
 		fprintf(p, "X-Asterisk-VM-Flag: %s" ENDL, flag);
 		fprintf(p, "X-Asterisk-VM-Priority: %d" ENDL, chan->priority);
 		fprintf(p, "X-Asterisk-VM-Caller-channel: %s" ENDL, chan->name);
