@@ -812,6 +812,7 @@ static int cdr_handler(struct ast_cdr *cdr)
 			ast_str_append(&sql2, 0, "%s,", tmp);
 			sqlite_freemem(tmp);
 		}
+		first = 0;
 	}
 	release_table(tbl);
 
