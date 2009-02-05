@@ -4634,8 +4634,10 @@ static int has_voicemail(const char *mailbox, const char *folder)
 
 		if (box == OLD_FOLDER) {
 			mail_setflag(vms->mailstream, sequence, "\\Seen");
+			mail_clearflag(vms->mailstream, sequence, "\\Unseen");
 		} else if (box == NEW_FOLDER) {
 			mail_clearflag(vms->mailstream, sequence, "\\Seen");
+			mail_setflag(vms->mailstream, sequence, "\\Unseen");
 		}
 		if (!strcasecmp(mbox(NEW_FOLDER), vms->curbox) && (box == NEW_FOLDER || box == OLD_FOLDER)) {
 			ast_mutex_unlock(&vms->lock);
