@@ -1,24 +1,23 @@
-/* A Bison parser, made by GNU Bison 2.3.  */
+
+/* A Bison parser, made by GNU Bison 2.4.1.  */
 
 /* Skeleton implementation for Bison's Yacc-like parsers in C
-
-   Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
+   
+      Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
    Free Software Foundation, Inc.
-
-   This program is free software; you can redistribute it and/or modify
+   
+   This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
-   any later version.
-
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+   
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-
+   
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02110-1301, USA.  */
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /* As a special exception, you may create a larger work that contains
    part or all of the Bison parser skeleton and distribute that work
@@ -29,7 +28,7 @@
    special exception, which will cause the skeleton and the resulting
    Bison output files to be licensed under the GNU General Public
    License without this special exception.
-
+   
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
@@ -47,7 +46,7 @@
 #define YYBISON 1
 
 /* Bison version.  */
-#define YYBISON_VERSION "2.3"
+#define YYBISON_VERSION "2.4.1"
 
 /* Skeleton name.  */
 #define YYSKELETON_NAME "yacc.c"
@@ -55,80 +54,29 @@
 /* Pure parsers.  */
 #define YYPURE 1
 
+/* Push parsers.  */
+#define YYPUSH 0
+
+/* Pull parsers.  */
+#define YYPULL 1
+
 /* Using locations.  */
 #define YYLSP_NEEDED 1
 
 /* Substitute the variable and function names.  */
-#define yyparse ast_yyparse
-#define yylex   ast_yylex
-#define yyerror ast_yyerror
-#define yylval  ast_yylval
-#define yychar  ast_yychar
-#define yydebug ast_yydebug
-#define yynerrs ast_yynerrs
-#define yylloc ast_yylloc
-
-/* Tokens.  */
-#ifndef YYTOKENTYPE
-# define YYTOKENTYPE
-   /* Put the tokens into the symbol table, so that GDB and other debuggers
-      know about them.  */
-   enum yytokentype {
-     TOK_COMMA = 258,
-     TOK_COLONCOLON = 259,
-     TOK_COND = 260,
-     TOK_OR = 261,
-     TOK_AND = 262,
-     TOK_NE = 263,
-     TOK_LE = 264,
-     TOK_GE = 265,
-     TOK_LT = 266,
-     TOK_GT = 267,
-     TOK_EQ = 268,
-     TOK_MINUS = 269,
-     TOK_PLUS = 270,
-     TOK_MOD = 271,
-     TOK_DIV = 272,
-     TOK_MULT = 273,
-     TOK_COMPL = 274,
-     TOK_TILDETILDE = 275,
-     TOK_EQTILDE = 276,
-     TOK_COLON = 277,
-     TOK_LP = 278,
-     TOK_RP = 279,
-     TOKEN = 280
-   };
-#endif
-/* Tokens.  */
-#define TOK_COMMA 258
-#define TOK_COLONCOLON 259
-#define TOK_COND 260
-#define TOK_OR 261
-#define TOK_AND 262
-#define TOK_NE 263
-#define TOK_LE 264
-#define TOK_GE 265
-#define TOK_LT 266
-#define TOK_GT 267
-#define TOK_EQ 268
-#define TOK_MINUS 269
-#define TOK_PLUS 270
-#define TOK_MOD 271
-#define TOK_DIV 272
-#define TOK_MULT 273
-#define TOK_COMPL 274
-#define TOK_TILDETILDE 275
-#define TOK_EQTILDE 276
-#define TOK_COLON 277
-#define TOK_LP 278
-#define TOK_RP 279
-#define TOKEN 280
-
-
-
+#define yyparse         ast_yyparse
+#define yylex           ast_yylex
+#define yyerror         ast_yyerror
+#define yylval          ast_yylval
+#define yychar          ast_yychar
+#define yydebug         ast_yydebug
+#define yynerrs         ast_yynerrs
+#define yylloc          ast_yylloc
 
 /* Copy the first part of user declarations.  */
-#line 1 "ast_expr2.y"
+
+/* Line 189 of yacc.c  */
+#line 1 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 
 /* Written by Pace Willisson (pace@blitz.com) 
  * and placed in the public domain.
@@ -465,6 +413,9 @@ int		ast_yyerror(const char *,YYLTYPE *, struct parse_io *);
 #define DESTROY(x) {if((x)->type == AST_EXPR_numeric_string || (x)->type == AST_EXPR_string) free((x)->u.s); (x)->u.s = 0; free(x);}
 
 
+/* Line 189 of yacc.c  */
+#line 418 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
+
 /* Enabling traces.  */
 #ifndef YYDEBUG
 # define YYDEBUG 0
@@ -483,19 +434,59 @@ int		ast_yyerror(const char *,YYLTYPE *, struct parse_io *);
 # define YYTOKEN_TABLE 0
 #endif
 
+
+/* Tokens.  */
+#ifndef YYTOKENTYPE
+# define YYTOKENTYPE
+   /* Put the tokens into the symbol table, so that GDB and other debuggers
+      know about them.  */
+   enum yytokentype {
+     TOK_COMMA = 258,
+     TOK_COLONCOLON = 259,
+     TOK_COND = 260,
+     TOK_OR = 261,
+     TOK_AND = 262,
+     TOK_NE = 263,
+     TOK_LE = 264,
+     TOK_GE = 265,
+     TOK_LT = 266,
+     TOK_GT = 267,
+     TOK_EQ = 268,
+     TOK_MINUS = 269,
+     TOK_PLUS = 270,
+     TOK_MOD = 271,
+     TOK_DIV = 272,
+     TOK_MULT = 273,
+     TOK_COMPL = 274,
+     TOK_TILDETILDE = 275,
+     TOK_EQTILDE = 276,
+     TOK_COLON = 277,
+     TOK_LP = 278,
+     TOK_RP = 279,
+     TOKEN = 280
+   };
+#endif
+
+
+
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 344 "ast_expr2.y"
 {
+
+/* Line 214 of yacc.c  */
+#line 344 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
+
 	struct val *val;
 	struct expr_node *arglist;
-}
-/* Line 187 of yacc.c.  */
-#line 495 "ast_expr2.c"
-	YYSTYPE;
+
+
+
+/* Line 214 of yacc.c  */
+#line 486 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
+} YYSTYPE;
+# define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
-# define YYSTYPE_IS_TRIVIAL 1
 #endif
 
 #if ! defined YYLTYPE && ! defined YYLTYPE_IS_DECLARED
@@ -513,13 +504,15 @@ typedef struct YYLTYPE
 
 
 /* Copy the second part of user declarations.  */
-#line 349 "ast_expr2.y"
+
+/* Line 264 of yacc.c  */
+#line 349 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 
 extern int		ast_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
 
 
-/* Line 216 of yacc.c.  */
-#line 523 "ast_expr2.c"
+/* Line 264 of yacc.c  */
+#line 516 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
 
 #ifdef short
 # undef short
@@ -594,14 +587,14 @@ typedef short int yytype_int16;
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static int
-YYID (int i)
+YYID (int yyi)
 #else
 static int
-YYID (i)
-    int i;
+YYID (yyi)
+    int yyi;
 #endif
 {
-  return i;
+  return yyi;
 }
 #endif
 
@@ -683,9 +676,9 @@ void free (void *); /* INFRINGES ON USER NAME SPACE */
 /* A type that is properly aligned for any stack member.  */
 union yyalloc
 {
-  yytype_int16 yyss;
-  YYSTYPE yyvs;
-    YYLTYPE yyls;
+  yytype_int16 yyss_alloc;
+  YYSTYPE yyvs_alloc;
+  YYLTYPE yyls_alloc;
 };
 
 /* The size of the maximum gap between one aligned stack and the next.  */
@@ -720,12 +713,12 @@ union yyalloc
    elements in the stack, and YYPTR gives the new location of the
    stack.  Advance YYPTR to a properly aligned location for the next
    stack.  */
-# define YYSTACK_RELOCATE(Stack)					\
+# define YYSTACK_RELOCATE(Stack_alloc, Stack)				\
     do									\
       {									\
 	YYSIZE_T yynewbytes;						\
-	YYCOPY (&yyptr->Stack, Stack, yysize);				\
-	Stack = &yyptr->Stack;						\
+	YYCOPY (&yyptr->Stack_alloc, Stack, yysize);			\
+	Stack = &yyptr->Stack_alloc;					\
 	yynewbytes = yystacksize * sizeof (*Stack) + YYSTACK_GAP_MAXIMUM; \
 	yyptr += yynewbytes / sizeof (*yyptr);				\
       }									\
@@ -1145,17 +1138,20 @@ yy_symbol_print (yyoutput, yytype, yyvaluep, yylocationp)
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static void
-yy_stack_print (yytype_int16 *bottom, yytype_int16 *top)
+yy_stack_print (yytype_int16 *yybottom, yytype_int16 *yytop)
 #else
 static void
-yy_stack_print (bottom, top)
-    yytype_int16 *bottom;
-    yytype_int16 *top;
+yy_stack_print (yybottom, yytop)
+    yytype_int16 *yybottom;
+    yytype_int16 *yytop;
 #endif
 {
   YYFPRINTF (stderr, "Stack now");
-  for (; bottom <= top; ++bottom)
-    YYFPRINTF (stderr, " %d", *bottom);
+  for (; yybottom <= yytop; yybottom++)
+    {
+      int yybot = *yybottom;
+      YYFPRINTF (stderr, " %d", yybot);
+    }
   YYFPRINTF (stderr, "\n");
 }
 
@@ -1190,11 +1186,11 @@ yy_reduce_print (yyvsp, yylsp, yyrule)
   /* The symbols being reduced.  */
   for (yyi = 0; yyi < yynrhs; yyi++)
     {
-      fprintf (stderr, "   $%d = ", yyi + 1);
+      YYFPRINTF (stderr, "   $%d = ", yyi + 1);
       yy_symbol_print (stderr, yyrhs[yyprhs[yyrule] + yyi],
 		       &(yyvsp[(yyi + 1) - (yynrhs)])
 		       , &(yylsp[(yyi + 1) - (yynrhs)])		       );
-      fprintf (stderr, "\n");
+      YYFPRINTF (stderr, "\n");
     }
 }
 
@@ -1472,129 +1468,219 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp)
   switch (yytype)
     {
       case 4: /* "TOK_COLONCOLON" */
-#line 367 "ast_expr2.y"
+
+/* Line 1000 of yacc.c  */
+#line 367 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1478 "ast_expr2.c"
+
+/* Line 1000 of yacc.c  */
+#line 1478 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
 	break;
       case 5: /* "TOK_COND" */
-#line 367 "ast_expr2.y"
+
+/* Line 1000 of yacc.c  */
+#line 367 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1483 "ast_expr2.c"
+
+/* Line 1000 of yacc.c  */
+#line 1487 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
 	break;
       case 6: /* "TOK_OR" */
-#line 367 "ast_expr2.y"
+
+/* Line 1000 of yacc.c  */
+#line 367 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1488 "ast_expr2.c"
+
+/* Line 1000 of yacc.c  */
+#line 1496 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
 	break;
       case 7: /* "TOK_AND" */
-#line 367 "ast_expr2.y"
+
+/* Line 1000 of yacc.c  */
+#line 367 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1493 "ast_expr2.c"
+
+/* Line 1000 of yacc.c  */
+#line 1505 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
 	break;
       case 8: /* "TOK_NE" */
-#line 367 "ast_expr2.y"
+
+/* Line 1000 of yacc.c  */
+#line 367 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1498 "ast_expr2.c"
+
+/* Line 1000 of yacc.c  */
+#line 1514 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
 	break;
       case 9: /* "TOK_LE" */
-#line 367 "ast_expr2.y"
+
+/* Line 1000 of yacc.c  */
+#line 367 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1503 "ast_expr2.c"
+
+/* Line 1000 of yacc.c  */
+#line 1523 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
 	break;
       case 10: /* "TOK_GE" */
-#line 367 "ast_expr2.y"
+
+/* Line 1000 of yacc.c  */
+#line 367 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1508 "ast_expr2.c"
+
+/* Line 1000 of yacc.c  */
+#line 1532 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
 	break;
       case 11: /* "TOK_LT" */
-#line 367 "ast_expr2.y"
+
+/* Line 1000 of yacc.c  */
+#line 367 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1513 "ast_expr2.c"
+
+/* Line 1000 of yacc.c  */
+#line 1541 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
 	break;
       case 12: /* "TOK_GT" */
-#line 367 "ast_expr2.y"
+
+/* Line 1000 of yacc.c  */
+#line 367 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1518 "ast_expr2.c"
+
+/* Line 1000 of yacc.c  */
+#line 1550 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
 	break;
       case 13: /* "TOK_EQ" */
-#line 367 "ast_expr2.y"
+
+/* Line 1000 of yacc.c  */
+#line 367 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1523 "ast_expr2.c"
+
+/* Line 1000 of yacc.c  */
+#line 1559 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
 	break;
       case 14: /* "TOK_MINUS" */
-#line 367 "ast_expr2.y"
+
+/* Line 1000 of yacc.c  */
+#line 367 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1528 "ast_expr2.c"
+
+/* Line 1000 of yacc.c  */
+#line 1568 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
 	break;
       case 15: /* "TOK_PLUS" */
-#line 367 "ast_expr2.y"
+
+/* Line 1000 of yacc.c  */
+#line 367 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1533 "ast_expr2.c"
+
+/* Line 1000 of yacc.c  */
+#line 1577 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
 	break;
       case 16: /* "TOK_MOD" */
-#line 367 "ast_expr2.y"
+
+/* Line 1000 of yacc.c  */
+#line 367 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1538 "ast_expr2.c"
+
+/* Line 1000 of yacc.c  */
+#line 1586 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
 	break;
       case 17: /* "TOK_DIV" */
-#line 367 "ast_expr2.y"
+
+/* Line 1000 of yacc.c  */
+#line 367 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1543 "ast_expr2.c"
+
+/* Line 1000 of yacc.c  */
+#line 1595 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
 	break;
       case 18: /* "TOK_MULT" */
-#line 367 "ast_expr2.y"
+
+/* Line 1000 of yacc.c  */
+#line 367 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1548 "ast_expr2.c"
+
+/* Line 1000 of yacc.c  */
+#line 1604 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
 	break;
       case 19: /* "TOK_COMPL" */
-#line 367 "ast_expr2.y"
+
+/* Line 1000 of yacc.c  */
+#line 367 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1553 "ast_expr2.c"
+
+/* Line 1000 of yacc.c  */
+#line 1613 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
 	break;
       case 20: /* "TOK_TILDETILDE" */
-#line 367 "ast_expr2.y"
+
+/* Line 1000 of yacc.c  */
+#line 367 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1558 "ast_expr2.c"
+
+/* Line 1000 of yacc.c  */
+#line 1622 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
 	break;
       case 21: /* "TOK_EQTILDE" */
-#line 367 "ast_expr2.y"
+
+/* Line 1000 of yacc.c  */
+#line 367 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1563 "ast_expr2.c"
+
+/* Line 1000 of yacc.c  */
+#line 1631 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
 	break;
       case 22: /* "TOK_COLON" */
-#line 367 "ast_expr2.y"
+
+/* Line 1000 of yacc.c  */
+#line 367 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1568 "ast_expr2.c"
+
+/* Line 1000 of yacc.c  */
+#line 1640 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
 	break;
       case 23: /* "TOK_LP" */
-#line 367 "ast_expr2.y"
+
+/* Line 1000 of yacc.c  */
+#line 367 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1573 "ast_expr2.c"
+
+/* Line 1000 of yacc.c  */
+#line 1649 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
 	break;
       case 24: /* "TOK_RP" */
-#line 367 "ast_expr2.y"
+
+/* Line 1000 of yacc.c  */
+#line 367 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1578 "ast_expr2.c"
+
+/* Line 1000 of yacc.c  */
+#line 1658 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
 	break;
       case 25: /* "TOKEN" */
-#line 367 "ast_expr2.y"
+
+/* Line 1000 of yacc.c  */
+#line 367 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1583 "ast_expr2.c"
+
+/* Line 1000 of yacc.c  */
+#line 1667 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
 	break;
       case 29: /* "expr" */
-#line 367 "ast_expr2.y"
+
+/* Line 1000 of yacc.c  */
+#line 367 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1588 "ast_expr2.c"
+
+/* Line 1000 of yacc.c  */
+#line 1676 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
 	break;
 
       default:
 	break;
     }
 }
-
 
 /* Prevent warnings from -Wmissing-prototypes.  */
-
 #ifdef YYPARSE_PARAM
 #if defined __STDC__ || defined __cplusplus
 int yyparse (void *YYPARSE_PARAM);
@@ -1613,10 +1699,9 @@ int yyparse ();
 
 
 
-
-/*----------.
-| yyparse.  |
-`----------*/
+/*-------------------------.
+| yyparse or yypush_parse.  |
+`-------------------------*/
 
 #ifdef YYPARSE_PARAM
 #if (defined __STDC__ || defined __C99__FUNC__ \
@@ -1640,24 +1725,59 @@ yyparse ()
 #endif
 #endif
 {
-  /* The look-ahead symbol.  */
+/* The lookahead symbol.  */
 int yychar;
 
-/* The semantic value of the look-ahead symbol.  */
+/* The semantic value of the lookahead symbol.  */
 YYSTYPE yylval;
 
-/* Number of syntax errors so far.  */
-int yynerrs;
-/* Location data for the look-ahead symbol.  */
+/* Location data for the lookahead symbol.  */
 YYLTYPE yylloc;
 
-  int yystate;
+    /* Number of syntax errors so far.  */
+    int yynerrs;
+
+    int yystate;
+    /* Number of tokens to shift before error messages enabled.  */
+    int yyerrstatus;
+
+    /* The stacks and their tools:
+       `yyss': related to states.
+       `yyvs': related to semantic values.
+       `yyls': related to locations.
+
+       Refer to the stacks thru separate pointers, to allow yyoverflow
+       to reallocate them elsewhere.  */
+
+    /* The state stack.  */
+    yytype_int16 yyssa[YYINITDEPTH];
+    yytype_int16 *yyss;
+    yytype_int16 *yyssp;
+
+    /* The semantic value stack.  */
+    YYSTYPE yyvsa[YYINITDEPTH];
+    YYSTYPE *yyvs;
+    YYSTYPE *yyvsp;
+
+    /* The location stack.  */
+    YYLTYPE yylsa[YYINITDEPTH];
+    YYLTYPE *yyls;
+    YYLTYPE *yylsp;
+
+    /* The locations where the error started and ended.  */
+    YYLTYPE yyerror_range[2];
+
+    YYSIZE_T yystacksize;
+
   int yyn;
   int yyresult;
-  /* Number of tokens to shift before error messages enabled.  */
-  int yyerrstatus;
-  /* Look-ahead token as an internal (translated) token number.  */
-  int yytoken = 0;
+  /* Lookahead token as an internal (translated) token number.  */
+  int yytoken;
+  /* The variables used to return semantic value and location from the
+     action routines.  */
+  YYSTYPE yyval;
+  YYLTYPE yyloc;
+
 #if YYERROR_VERBOSE
   /* Buffer for error messages, and its allocated size.  */
   char yymsgbuf[128];
@@ -1665,63 +1785,37 @@ YYLTYPE yylloc;
   YYSIZE_T yymsg_alloc = sizeof yymsgbuf;
 #endif
 
-  /* Three stacks and their tools:
-     `yyss': related to states,
-     `yyvs': related to semantic values,
-     `yyls': related to locations.
-
-     Refer to the stacks thru separate pointers, to allow yyoverflow
-     to reallocate them elsewhere.  */
-
-  /* The state stack.  */
-  yytype_int16 yyssa[YYINITDEPTH];
-  yytype_int16 *yyss = yyssa;
-  yytype_int16 *yyssp;
-
-  /* The semantic value stack.  */
-  YYSTYPE yyvsa[YYINITDEPTH];
-  YYSTYPE *yyvs = yyvsa;
-  YYSTYPE *yyvsp;
-
-  /* The location stack.  */
-  YYLTYPE yylsa[YYINITDEPTH];
-  YYLTYPE *yyls = yylsa;
-  YYLTYPE *yylsp;
-  /* The locations where the error started and ended.  */
-  YYLTYPE yyerror_range[2];
-
 #define YYPOPSTACK(N)   (yyvsp -= (N), yyssp -= (N), yylsp -= (N))
-
-  YYSIZE_T yystacksize = YYINITDEPTH;
-
-  /* The variables used to return semantic value and location from the
-     action routines.  */
-  YYSTYPE yyval;
-  YYLTYPE yyloc;
 
   /* The number of symbols on the RHS of the reduced rule.
      Keep to zero when no symbol should be popped.  */
   int yylen = 0;
+
+  yytoken = 0;
+  yyss = yyssa;
+  yyvs = yyvsa;
+  yyls = yylsa;
+  yystacksize = YYINITDEPTH;
 
   YYDPRINTF ((stderr, "Starting parse\n"));
 
   yystate = 0;
   yyerrstatus = 0;
   yynerrs = 0;
-  yychar = YYEMPTY;		/* Cause a token to be read.  */
+  yychar = YYEMPTY; /* Cause a token to be read.  */
 
   /* Initialize stack pointers.
      Waste one element of value and location stack
      so that they stay on the same level as the state stack.
      The wasted elements are never initialized.  */
-
   yyssp = yyss;
   yyvsp = yyvs;
   yylsp = yyls;
+
 #if YYLTYPE_IS_TRIVIAL
   /* Initialize the default location before parsing starts.  */
   yylloc.first_line   = yylloc.last_line   = 1;
-  yylloc.first_column = yylloc.last_column = 0;
+  yylloc.first_column = yylloc.last_column = 1;
 #endif
 
   goto yysetstate;
@@ -1760,6 +1854,7 @@ YYLTYPE yylloc;
 		    &yyvs1, yysize * sizeof (*yyvsp),
 		    &yyls1, yysize * sizeof (*yylsp),
 		    &yystacksize);
+
 	yyls = yyls1;
 	yyss = yyss1;
 	yyvs = yyvs1;
@@ -1781,9 +1876,9 @@ YYLTYPE yylloc;
 	  (union yyalloc *) YYSTACK_ALLOC (YYSTACK_BYTES (yystacksize));
 	if (! yyptr)
 	  goto yyexhaustedlab;
-	YYSTACK_RELOCATE (yyss);
-	YYSTACK_RELOCATE (yyvs);
-	YYSTACK_RELOCATE (yyls);
+	YYSTACK_RELOCATE (yyss_alloc, yyss);
+	YYSTACK_RELOCATE (yyvs_alloc, yyvs);
+	YYSTACK_RELOCATE (yyls_alloc, yyls);
 #  undef YYSTACK_RELOCATE
 	if (yyss1 != yyssa)
 	  YYSTACK_FREE (yyss1);
@@ -1804,6 +1899,9 @@ YYLTYPE yylloc;
 
   YYDPRINTF ((stderr, "Entering state %d\n", yystate));
 
+  if (yystate == YYFINAL)
+    YYACCEPT;
+
   goto yybackup;
 
 /*-----------.
@@ -1812,16 +1910,16 @@ YYLTYPE yylloc;
 yybackup:
 
   /* Do appropriate processing given the current state.  Read a
-     look-ahead token if we need one and don't already have one.  */
+     lookahead token if we need one and don't already have one.  */
 
-  /* First try to decide what to do without reference to look-ahead token.  */
+  /* First try to decide what to do without reference to lookahead token.  */
   yyn = yypact[yystate];
   if (yyn == YYPACT_NINF)
     goto yydefault;
 
-  /* Not known => get a look-ahead token if don't already have one.  */
+  /* Not known => get a lookahead token if don't already have one.  */
 
-  /* YYCHAR is either YYEMPTY or YYEOF or a valid look-ahead symbol.  */
+  /* YYCHAR is either YYEMPTY or YYEOF or a valid lookahead symbol.  */
   if (yychar == YYEMPTY)
     {
       YYDPRINTF ((stderr, "Reading a token: "));
@@ -1853,20 +1951,16 @@ yybackup:
       goto yyreduce;
     }
 
-  if (yyn == YYFINAL)
-    YYACCEPT;
-
   /* Count tokens shifted since error; after three, turn off error
      status.  */
   if (yyerrstatus)
     yyerrstatus--;
 
-  /* Shift the look-ahead token.  */
+  /* Shift the lookahead token.  */
   YY_SYMBOL_PRINT ("Shifting", yytoken, &yylval, &yylloc);
 
-  /* Discard the shifted token unless it is eof.  */
-  if (yychar != YYEOF)
-    yychar = YYEMPTY;
+  /* Discard the shifted token.  */
+  yychar = YYEMPTY;
 
   yystate = yyn;
   *++yyvsp = yylval;
@@ -1907,7 +2001,9 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 373 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 373 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     { ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(struct val),1);
               ((struct parse_io *)parseio)->val->type = (yyvsp[(1) - (1)].val)->type;
               if( (yyvsp[(1) - (1)].val)->type == AST_EXPR_number )
@@ -1919,7 +2015,9 @@ yyreduce:
     break;
 
   case 3:
-#line 381 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 381 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     {/* nothing */ ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(struct val),1);
               ((struct parse_io *)parseio)->val->type = AST_EXPR_string;
 			  ((struct parse_io *)parseio)->val->u.s = strdup(""); 
@@ -1927,12 +2025,16 @@ yyreduce:
     break;
 
   case 4:
-#line 388 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 388 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     { (yyval.arglist) = alloc_expr_node(AST_EXPR_NODE_VAL); (yyval.arglist)->val = (yyvsp[(1) - (1)].val);;}
     break;
 
   case 5:
-#line 389 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 389 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     {struct expr_node *x = alloc_expr_node(AST_EXPR_NODE_VAL);
                                  struct expr_node *t;
 								 DESTROY((yyvsp[(2) - (3)].val));
@@ -1942,7 +2044,9 @@ yyreduce:
     break;
 
   case 6:
-#line 395 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 395 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     {struct expr_node *x = alloc_expr_node(AST_EXPR_NODE_VAL);
                                  struct expr_node *t;  /* NULL args should OK */
 								 DESTROY((yyvsp[(2) - (2)].val));
@@ -1952,7 +2056,9 @@ yyreduce:
     break;
 
   case 7:
-#line 404 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 404 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     { (yyval.val) = op_func((yyvsp[(1) - (4)].val),(yyvsp[(3) - (4)].arglist), ((struct parse_io *)parseio)->chan);
 		                            DESTROY((yyvsp[(2) - (4)].val));
 									DESTROY((yyvsp[(4) - (4)].val));
@@ -1962,12 +2068,16 @@ yyreduce:
     break;
 
   case 8:
-#line 410 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 410 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     {(yyval.val) = (yyvsp[(1) - (1)].val);;}
     break;
 
   case 9:
-#line 411 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 411 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     { (yyval.val) = (yyvsp[(2) - (3)].val);
 	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
 						   (yyloc).first_line=0; (yyloc).last_line=0;
@@ -1975,7 +2085,9 @@ yyreduce:
     break;
 
   case 10:
-#line 415 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 415 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     { (yyval.val) = op_or ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));	
                          (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -1983,7 +2095,9 @@ yyreduce:
     break;
 
   case 11:
-#line 419 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 419 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     { (yyval.val) = op_and ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -1991,7 +2105,9 @@ yyreduce:
     break;
 
   case 12:
-#line 423 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 423 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     { (yyval.val) = op_eq ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                     (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
@@ -1999,7 +2115,9 @@ yyreduce:
     break;
 
   case 13:
-#line 427 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 427 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     { (yyval.val) = op_gt ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));	
                          (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
@@ -2007,7 +2125,9 @@ yyreduce:
     break;
 
   case 14:
-#line 431 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 431 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     { (yyval.val) = op_lt ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                     (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2015,7 +2135,9 @@ yyreduce:
     break;
 
   case 15:
-#line 435 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 435 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     { (yyval.val) = op_ge ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2023,7 +2145,9 @@ yyreduce:
     break;
 
   case 16:
-#line 439 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 439 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     { (yyval.val) = op_le ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2031,7 +2155,9 @@ yyreduce:
     break;
 
   case 17:
-#line 443 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 443 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     { (yyval.val) = op_ne ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2039,7 +2165,9 @@ yyreduce:
     break;
 
   case 18:
-#line 447 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 447 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     { (yyval.val) = op_plus ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2047,7 +2175,9 @@ yyreduce:
     break;
 
   case 19:
-#line 451 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 451 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     { (yyval.val) = op_minus ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2055,7 +2185,9 @@ yyreduce:
     break;
 
   case 20:
-#line 455 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 455 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     { (yyval.val) = op_negate ((yyvsp[(2) - (2)].val)); 
 						DESTROY((yyvsp[(1) - (2)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (2)]).first_column; (yyloc).last_column = (yylsp[(2) - (2)]).last_column; 
@@ -2063,7 +2195,9 @@ yyreduce:
     break;
 
   case 21:
-#line 459 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 459 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     { (yyval.val) = op_compl ((yyvsp[(2) - (2)].val)); 
 						DESTROY((yyvsp[(1) - (2)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (2)]).first_column; (yyloc).last_column = (yylsp[(2) - (2)]).last_column; 
@@ -2071,7 +2205,9 @@ yyreduce:
     break;
 
   case 22:
-#line 463 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 463 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     { (yyval.val) = op_times ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2079,7 +2215,9 @@ yyreduce:
     break;
 
   case 23:
-#line 467 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 467 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     { (yyval.val) = op_div ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2087,7 +2225,9 @@ yyreduce:
     break;
 
   case 24:
-#line 471 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 471 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     { (yyval.val) = op_rem ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2095,7 +2235,9 @@ yyreduce:
     break;
 
   case 25:
-#line 475 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 475 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     { (yyval.val) = op_colon ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2103,7 +2245,9 @@ yyreduce:
     break;
 
   case 26:
-#line 479 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 479 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     { (yyval.val) = op_eqtilde ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2111,7 +2255,9 @@ yyreduce:
     break;
 
   case 27:
-#line 483 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 483 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     { (yyval.val) = op_cond ((yyvsp[(1) - (5)].val), (yyvsp[(3) - (5)].val), (yyvsp[(5) - (5)].val)); 
 						DESTROY((yyvsp[(2) - (5)].val));	
 						DESTROY((yyvsp[(4) - (5)].val));	
@@ -2120,7 +2266,9 @@ yyreduce:
     break;
 
   case 28:
-#line 488 "ast_expr2.y"
+
+/* Line 1455 of yacc.c  */
+#line 488 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
     { (yyval.val) = op_tildetilde ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2128,8 +2276,9 @@ yyreduce:
     break;
 
 
-/* Line 1267 of yacc.c.  */
-#line 2133 "ast_expr2.c"
+
+/* Line 1455 of yacc.c  */
+#line 2282 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -2205,7 +2354,7 @@ yyerrlab:
 
   if (yyerrstatus == 3)
     {
-      /* If just tried and failed to reuse look-ahead token after an
+      /* If just tried and failed to reuse lookahead token after an
 	 error, discard it.  */
 
       if (yychar <= YYEOF)
@@ -2222,7 +2371,7 @@ yyerrlab:
 	}
     }
 
-  /* Else will try to reuse look-ahead token after shifting the error
+  /* Else will try to reuse lookahead token after shifting the error
      token.  */
   goto yyerrlab1;
 
@@ -2280,14 +2429,11 @@ yyerrlab1:
       YY_STACK_PRINT (yyss, yyssp);
     }
 
-  if (yyn == YYFINAL)
-    YYACCEPT;
-
   *++yyvsp = yylval;
 
   yyerror_range[1] = yylloc;
   /* Using YYLLOC is tempting, but would change the location of
-     the look-ahead.  YYLOC is available though.  */
+     the lookahead.  YYLOC is available though.  */
   YYLLOC_DEFAULT (yyloc, (yyerror_range - 1), 2);
   *++yylsp = yyloc;
 
@@ -2312,7 +2458,7 @@ yyabortlab:
   yyresult = 1;
   goto yyreturn;
 
-#ifndef yyoverflow
+#if !defined(yyoverflow) || YYERROR_VERBOSE
 /*-------------------------------------------------.
 | yyexhaustedlab -- memory exhaustion comes here.  |
 `-------------------------------------------------*/
@@ -2323,7 +2469,7 @@ yyexhaustedlab:
 #endif
 
 yyreturn:
-  if (yychar != YYEOF && yychar != YYEMPTY)
+  if (yychar != YYEMPTY)
      yydestruct ("Cleanup: discarding lookahead",
 		 yytoken, &yylval, &yylloc);
   /* Do not reclaim the symbols of the rule which action triggered
@@ -2349,7 +2495,9 @@ yyreturn:
 }
 
 
-#line 494 "ast_expr2.y"
+
+/* Line 1675 of yacc.c  */
+#line 494 "/home/mnicholson/Projects/bugs/bad_contact_13602/1.6.1/main/ast_expr2.y"
 
 
 static struct expr_node *alloc_expr_node(enum node_type nt)
