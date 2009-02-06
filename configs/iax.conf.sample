@@ -469,3 +469,15 @@ host=216.207.245.47
 ;context=default
 ;permit=0.0.0.0/0.0.0.0
 
+;
+; With immediate=yes, an IAX phone or a phone on an IAXy acts as a hot-line
+; which goes immediately to the s extension when picked up.  Useful for
+; elevator phones, manual service, or other similar applications.
+;
+;[manual]
+;type=friend
+;host=dynamic
+;immediate=yes  ; go immediately to s extension when picked up
+;secret=moofoo	; when immediate=yes is specified, secret is required
+;context=number-please ; we start at the s extension in this context
+;

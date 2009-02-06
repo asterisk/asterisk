@@ -369,13 +369,14 @@ enum iax2_flags {
 	IAX_FORCEJITTERBUF =	(1 << 20),	/*!< Force jitterbuffer, even when bridged to a channel that can take jitter */ 
 	IAX_RTIGNOREREGEXPIRE =	(1 << 21),	/*!< When using realtime, ignore registration expiration */
 	IAX_TRUNKTIMESTAMPS =	(1 << 22),	/*!< Send trunk timestamps */
-	IAX_TRANSFERMEDIA = 	(1 << 23),      /*!< When doing IAX2 transfers, transfer media only */
+	IAX_TRANSFERMEDIA =     (1 << 23),      /*!< When doing IAX2 transfers, transfer media only */
 	IAX_MAXAUTHREQ =        (1 << 24),      /*!< Maximum outstanding AUTHREQ restriction is in place */
 	IAX_DELAYPBXSTART =	(1 << 25),	/*!< Don't start a PBX on the channel until the peer sends us a
 						     response, so that we've achieved a three-way handshake with
 						     them before sending voice or anything else*/
-	IAX_ALLOWFWDOWNLOAD = (1 << 26),	/*!< Allow the FWDOWNL command? */
-	IAX_NOKEYROTATE = (1 << 27), /*!< Disable key rotation with encryption */
+	IAX_ALLOWFWDOWNLOAD =   (1 << 26),	/*!< Allow the FWDOWNL command? */
+	IAX_NOKEYROTATE =       (1 << 27),	/*!< Disable key rotation with encryption */
+	IAX_IMMEDIATE =		(1 << 28),      /*!< Allow immediate off-hook to extension s */
 };
 
 static int global_rtautoclear = 120;
@@ -6221,6 +6222,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 			ast_set_flag(iaxs[callno], IAX_MAXAUTHREQ);
 		iaxs[callno]->prefs = user->prefs;
 		ast_copy_flags(iaxs[callno], user, IAX_CODEC_USER_FIRST);
+		ast_copy_flags(iaxs[callno], user, IAX_IMMEDIATE);
 		ast_copy_flags(iaxs[callno], user, IAX_CODEC_NOPREFS);
 		ast_copy_flags(iaxs[callno], user, IAX_CODEC_NOCAP);
 		ast_copy_flags(iaxs[callno], user, IAX_NOKEYROTATE);
@@ -9465,11 +9467,15 @@ retryowner2:
 							ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_TBD);
 							/* If this is a TBD call, we're ready but now what...  */
 							ast_verb(3, "Accepted AUTHENTICATED TBD call from %s\n", ast_inet_ntoa(sin.sin_addr));
+							if (ast_test_flag(iaxs[fr->callno], IAX_IMMEDIATE)) {
+								goto immediatedial;
+							}
 						}
 					}
 				}
 				break;
 			case IAX_COMMAND_DIAL:
+immediatedial:
 				if (ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_TBD)) {
 					ast_clear_flag(&iaxs[fr->callno]->state, IAX_STATE_TBD);
 					ast_string_field_set(iaxs[fr->callno], exten, ies.called_number ? ies.called_number : "s");
@@ -10984,6 +10990,8 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 					ast_set_flag(user, IAX_CODEC_NOCAP);
 					ast_set_flag(user, IAX_CODEC_NOPREFS);
 				}
+			} else if (!strcasecmp(v->name, "immediate")) {
+				ast_set2_flag(user, ast_true(v->value), IAX_IMMEDIATE);
 			} else if (!strcasecmp(v->name, "jitterbuffer")) {
 				ast_set2_flag(user, ast_true(v->value), IAX_USEJITTERBUF);
 			} else if (!strcasecmp(v->name, "forcejitterbuffer")) {

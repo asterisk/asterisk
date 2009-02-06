@@ -545,6 +545,7 @@ IAX2 changes
   * Added the srvlookup option to iax.conf
   * Added support for OSP.  The token is set and retrieved through the CHANNEL()
      dialplan function.
+  * Added immediate option to iax.conf
 
 XMPP Google Talk/Jingle changes
 -------------------------------
