@@ -18221,19 +18221,32 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
  */
 static int sip_uri_params_cmp(const char *input1, const char *input2) 
 {
-	char *params1 = ast_strdupa(input1);
-	char *params2 = ast_strdupa(input2);
+	char *params1 = NULL;
+	char *params2 = NULL;
 	char *pos1;
 	char *pos2;
+	int zerolength1 = 0;
+	int zerolength2 = 0;
 	int maddrmatch = 0;
 	int ttlmatch = 0;
 	int usermatch = 0;
 	int methodmatch = 0;
 
+	if (ast_strlen_zero(input1)) {
+		zerolength1 = 1;
+	} else {
+		params1 = ast_strdupa(input1);
+	}
+	if (ast_strlen_zero(input2)) {
+		zerolength2 = 1;
+	} else {
+		params2 = ast_strdupa(input2);
+	}
+
 	/*Quick optimization. If both params are zero-length, then
 	 * they match
 	 */
-	if (ast_strlen_zero(params1) && ast_strlen_zero(params2)) {
+	if (zerolength1 && zerolength2) {
 		return 0;
 	}
 
@@ -18348,12 +18361,24 @@ fail:
  */
 static int sip_uri_headers_cmp(const char *input1, const char *input2)
 {
-	char *headers1 = ast_strdupa(input1);
-	char *headers2 = ast_strdupa(input2);
-	int zerolength1 = ast_strlen_zero(headers1);
-	int zerolength2 = ast_strlen_zero(headers2);
+	char *headers1 = NULL;
+	char *headers2 = NULL;
+	int zerolength1 = 0;
+	int zerolength2 = 0;
 	int different = 0;
 	char *header1;
+
+	if (ast_strlen_zero(input1)) {
+		zerolength1 = 1;
+	} else {
+		headers1 = ast_strdupa(input1);
+	}
+	
+	if (ast_strlen_zero(input2)) {
+		zerolength2 = 1;
+	} else {
+		headers2 = ast_strdupa(input2);
+	}
 
 	if ((zerolength1 && !zerolength2) ||
 			(zerolength2 && !zerolength1))
