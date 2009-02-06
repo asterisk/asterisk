@@ -12450,49 +12450,46 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 	}
 
 	/* Check for arguments in the refer_to header */
-	if ((ptr = strchr(refer_to, '?'))) { /* Search for arguments */
-		*ptr++ = '\0';
-		if (!strncasecmp(ptr, "REPLACES=", 9)) {
-			char *to = NULL, *from = NULL;
-
-			/* This is an attended transfer */
-			referdata->attendedtransfer = 1;
-			ast_copy_string(referdata->replaces_callid, ptr+9, sizeof(referdata->replaces_callid));
-			ast_uri_decode(referdata->replaces_callid);
-			if ((ptr = strchr(referdata->replaces_callid, ';'))) 	/* Find options */ {
-				*ptr++ = '\0';
-			}
-
-			if (ptr) {
-				/* Find the different tags before we destroy the string */
-				to = strcasestr(ptr, "to-tag=");
-				from = strcasestr(ptr, "from-tag=");
-			}
-
-			/* Grab the to header */
-			if (to) {
-				ptr = to + 7;
-				if ((to = strchr(ptr, '&')))
-					*to = '\0';
-				if ((to = strchr(ptr, ';')))
-					*to = '\0';
-				ast_copy_string(referdata->replaces_callid_totag, ptr, sizeof(referdata->replaces_callid_totag));
-			}
-
-			if (from) {
-				ptr = from + 9;
-				if ((to = strchr(ptr, '&')))
-					*to = '\0';
-				if ((to = strchr(ptr, ';')))
-					*to = '\0';
-				ast_copy_string(referdata->replaces_callid_fromtag, ptr, sizeof(referdata->replaces_callid_fromtag));
-			}
-
-			if (!sip_cfg.pedanticsipchecking)
-				ast_debug(2, "Attended transfer: Will use Replace-Call-ID : %s (No check of from/to tags)\n", referdata->replaces_callid );
-			else
-				ast_debug(2, "Attended transfer: Will use Replace-Call-ID : %s F-tag: %s T-tag: %s\n", referdata->replaces_callid, referdata->replaces_callid_fromtag ? referdata->replaces_callid_fromtag : "<none>", referdata->replaces_callid_totag ? referdata->replaces_callid_totag : "<none>" );
+	if ((ptr = strcasestr(refer_to, "replaces="))) {
+		char *to = NULL, *from = NULL;
+		
+		/* This is an attended transfer */
+		referdata->attendedtransfer = 1;
+		ast_copy_string(referdata->replaces_callid, ptr+9, sizeof(referdata->replaces_callid));
+		ast_uri_decode(referdata->replaces_callid);
+		if ((ptr = strchr(referdata->replaces_callid, ';'))) 	/* Find options */ {
+			*ptr++ = '\0';
 		}
+		
+		if (ptr) {
+			/* Find the different tags before we destroy the string */
+			to = strcasestr(ptr, "to-tag=");
+			from = strcasestr(ptr, "from-tag=");
+		}
+		
+		/* Grab the to header */
+		if (to) {
+			ptr = to + 7;
+			if ((to = strchr(ptr, '&')))
+				*to = '\0';
+			if ((to = strchr(ptr, ';')))
+				*to = '\0';
+			ast_copy_string(referdata->replaces_callid_totag, ptr, sizeof(referdata->replaces_callid_totag));
+		}
+		
+		if (from) {
+			ptr = from + 9;
+			if ((to = strchr(ptr, '&')))
+				*to = '\0';
+			if ((to = strchr(ptr, ';')))
+				*to = '\0';
+			ast_copy_string(referdata->replaces_callid_fromtag, ptr, sizeof(referdata->replaces_callid_fromtag));
+		}
+		
+		if (!sip_cfg.pedanticsipchecking)
+			ast_debug(2, "Attended transfer: Will use Replace-Call-ID : %s (No check of from/to tags)\n", referdata->replaces_callid );
+		else
+			ast_debug(2, "Attended transfer: Will use Replace-Call-ID : %s F-tag: %s T-tag: %s\n", referdata->replaces_callid, referdata->replaces_callid_fromtag ? referdata->replaces_callid_fromtag : "<none>", referdata->replaces_callid_totag ? referdata->replaces_callid_totag : "<none>" );
 	}
 	
 	if ((ptr = strchr(refer_to, '@'))) {	/* Separate domain */
