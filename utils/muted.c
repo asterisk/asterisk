@@ -52,6 +52,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include "asterisk/autoconfig.h"
+
 static char *config = "/etc/asterisk/muted.conf";
 
 static char host[256] = "";
