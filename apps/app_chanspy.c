@@ -611,19 +611,15 @@ static int channel_spy(struct ast_channel *chan, struct chanspy_ds *spyee_chansp
 	ast_clear_flag(chan, AST_FLAG_END_DTMF_ONLY);
 	ast_channel_unlock(chan);
 
-	if (ast_test_flag(flags, OPTION_WHISPER)) {
-		ast_audiohook_lock(&csth.whisper_audiohook);
-		ast_audiohook_detach(&csth.whisper_audiohook);
-		ast_audiohook_unlock(&csth.whisper_audiohook);
-		ast_audiohook_destroy(&csth.whisper_audiohook);
-	}
-
-	if (ast_test_flag(flags, OPTION_BARGE)) {
-		ast_audiohook_lock(&csth.bridge_whisper_audiohook);
-		ast_audiohook_detach(&csth.bridge_whisper_audiohook);
-		ast_audiohook_unlock(&csth.bridge_whisper_audiohook);
-		ast_audiohook_destroy(&csth.bridge_whisper_audiohook);
-	}
+	ast_audiohook_lock(&csth.whisper_audiohook);
+	ast_audiohook_detach(&csth.whisper_audiohook);
+	ast_audiohook_unlock(&csth.whisper_audiohook);
+	ast_audiohook_destroy(&csth.whisper_audiohook);
+	
+	ast_audiohook_lock(&csth.bridge_whisper_audiohook);
+	ast_audiohook_detach(&csth.bridge_whisper_audiohook);
+	ast_audiohook_unlock(&csth.bridge_whisper_audiohook);
+	ast_audiohook_destroy(&csth.bridge_whisper_audiohook);
 
 	ast_audiohook_lock(&csth.spy_audiohook);
 	ast_audiohook_detach(&csth.spy_audiohook);
