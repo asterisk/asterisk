@@ -49,15 +49,17 @@ extern "C" {
  * and not a copy of the value of the id.
  */
 #define AST_SCHED_DEL(sched, id) \
-	do { \
+	({ \
 		int _count = 0; \
-		while (id > -1 && ast_sched_del(sched, id) && ++_count < 10) { \
+		int _sched_res = -1; \
+		while (id > -1 && (_sched_res = ast_sched_del(sched, id)) && ++_count < 10) \
 			usleep(1); \
+		if (_count == 10 && option_debug > 2) { \
+			ast_log(LOG_DEBUG, "Unable to cancel schedule ID %d.\n", id); \
 		} \
-		if (_count == 10) \
-			ast_debug(3, "Unable to cancel schedule ID %d.\n", id); \
 		id = -1; \
-	} while (0);
+		(_sched_res); \
+	})
 
 #define AST_SCHED_DEL_UNREF(sched, id, refcall)			\
 	do { \
@@ -281,6 +283,114 @@ long ast_sched_when(struct sched_context *con,int id);
 		ASTOBJ_UNREF((obj),(destructor)); \
 	} \
 } while(0)
+
+/*!
+ * \brief An opaque type representing a scheduler thread
+ *
+ * The purpose of the ast_sched_thread API is to provide a common implementation
+ * of the case where a module wants to have a dedicated thread for handling the
+ * scheduler.
+ */
+struct ast_sched_thread;
+
+/*!
+ * \brief Create a scheduler with a dedicated thread
+ *
+ * This function should be used to allocate a scheduler context and a dedicated
+ * thread for processing scheduler entries.  The thread is started immediately.
+ *
+ * \retval NULL error
+ * \retval non-NULL a handle to the scheduler and its dedicated thread.
+ */
+struct ast_sched_thread *ast_sched_thread_create(void);
+
+/*!
+ * \brief Destroy a scheduler and its thread
+ *
+ * This function is used to destroy a scheduler context and the dedicated thread
+ * that was created for handling scheduler entries.  Any entries in the scheduler
+ * that have not yet been processed will be thrown away.  Once this function is
+ * called, the handle must not be used again.
+ *
+ * \param st the handle to the scheduler and thread
+ *
+ * \return NULL for convenience
+ */
+struct ast_sched_thread *ast_sched_thread_destroy(struct ast_sched_thread *st);
+
+/*!
+ * \brief Add a scheduler entry
+ *
+ * \param st the handle to the scheduler and thread
+ * \param when the number of ms in the future to run the task.  A value <= 0
+ *        is treated as "run now".
+ * \param cb the function to call when the scheduled time arrives
+ * \param data the parameter to pass to the scheduler callback
+ *
+ * \retval 0 success
+ * \retval non-zero failure
+ */
+int ast_sched_thread_add(struct ast_sched_thread *st, int when, ast_sched_cb cb,
+		const void *data);
+
+/*!
+ * \brief Add a variable reschedule time scheduler entry
+ *
+ * \param st the handle to the scheduler and thread
+ * \param when the number of ms in the future to run the task.  A value <= 0
+ *        is treated as "run now".
+ * \param cb the function to call when the scheduled time arrives
+ * \param data the parameter to pass to the scheduler callback
+ * \param variable If this value is non-zero, then the scheduler will use the return
+ *        value of the scheduler as the amount of time in the future to run the
+ *        task again.  Normally, a return value of 0 means do not re-schedule, and
+ *        non-zero means re-schedule using the time provided when the scheduler
+ *        entry was first created.
+ *
+ * \retval 0 success
+ * \retval non-zero failure
+ */
+int ast_sched_thread_add_variable(struct ast_sched_thread *st, int when, ast_sched_cb cb,
+		const void *data, int variable);
+
+/*!
+ * \brief Get the scheduler context for a given ast_sched_thread
+ *
+ * This function should be used only when direct access to the scheduler context
+ * is required.  Its use is discouraged unless necessary.  The cases where 
+ * this is currently required is when you want to take advantage of one of the 
+ * AST_SCHED macros.
+ *
+ * \param st the handle to the scheduler and thread
+ *
+ * \return the sched_context associated with an ast_sched_thread
+ */
+struct sched_context *ast_sched_thread_get_context(struct ast_sched_thread *st);
+
+/*!
+ * \brief Delete a scheduler entry
+ *
+ * This uses the AST_SCHED_DEL macro internally.
+ *
+ * \param st the handle to the scheduler and thread
+ * \param id scheduler entry id to delete
+ *
+ * \retval 0 success
+ * \retval non-zero failure
+ */
+#define ast_sched_thread_del(st, id) ({ \
+	struct sched_context *__tmp_context = ast_sched_thread_get_context(st); \
+	AST_SCHED_DEL(__tmp_context, id); \
+})
+
+/*!
+ * \brief Force re-processing of the scheduler context
+ *
+ * \param st the handle to the scheduler and thread
+ *
+ * \return nothing
+ */
+void ast_sched_thread_poke(struct ast_sched_thread *st);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

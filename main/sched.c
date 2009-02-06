@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2008, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -70,6 +70,148 @@ struct sched_context {
 #endif
 };
 
+struct ast_sched_thread {
+	pthread_t thread;
+	ast_mutex_t lock;
+	ast_cond_t cond;
+	struct sched_context *context;
+	unsigned int stop:1;
+};
+
+static void *sched_run(void *data)
+{
+	struct ast_sched_thread *st = data;
+
+	while (!st->stop) {
+		int ms;
+		struct timespec ts = {
+			.tv_sec = 0,	
+		};
+
+		ast_mutex_lock(&st->lock);
+
+		if (st->stop) {
+			ast_mutex_unlock(&st->lock);
+			return NULL;
+		}
+
+		ms = ast_sched_wait(st->context);
+
+		if (ms == -1) {
+			ast_cond_wait(&st->cond, &st->lock);
+		} else {	
+			struct timeval tv;
+			tv = ast_tvadd(ast_tvnow(), ast_samp2tv(ms, 1000));
+			ts.tv_sec = tv.tv_sec;
+			ts.tv_nsec = tv.tv_usec * 1000;
+			ast_cond_timedwait(&st->cond, &st->lock, &ts);
+		}
+
+		ast_mutex_unlock(&st->lock);
+
+		if (st->stop) {
+			return NULL;
+		}
+
+		ast_sched_runq(st->context);
+	}
+
+	return NULL;
+}
+
+void ast_sched_thread_poke(struct ast_sched_thread *st)
+{
+	ast_mutex_lock(&st->lock);
+	ast_cond_signal(&st->cond);
+	ast_mutex_unlock(&st->lock);
+}
+
+struct sched_context *ast_sched_thread_get_context(struct ast_sched_thread *st)
+{
+	return st->context;
+}
+
+struct ast_sched_thread *ast_sched_thread_destroy(struct ast_sched_thread *st)
+{
+	if (st->thread != AST_PTHREADT_NULL) {
+		ast_mutex_lock(&st->lock);
+		st->stop = 1;
+		ast_cond_signal(&st->cond);
+		ast_mutex_unlock(&st->lock);
+		pthread_join(st->thread, NULL);
+		st->thread = AST_PTHREADT_NULL;
+	}
+
+	ast_mutex_destroy(&st->lock);
+	ast_cond_destroy(&st->cond);
+
+	if (st->context) {
+		sched_context_destroy(st->context);
+		st->context = NULL;
+	}
+
+	ast_free(st);
+
+	return NULL;
+}
+
+struct ast_sched_thread *ast_sched_thread_create(void)
+{
+	struct ast_sched_thread *st;
+
+	if (!(st = ast_calloc(1, sizeof(*st)))) {
+		return NULL;
+	}
+
+	ast_mutex_init(&st->lock);
+	ast_cond_init(&st->cond, NULL);
+
+	st->thread = AST_PTHREADT_NULL;
+
+	if (!(st->context = sched_context_create())) {
+		ast_log(LOG_ERROR, "Failed to create scheduler\n");
+		ast_sched_thread_destroy(st);
+		return NULL;
+	}
+	
+	if (ast_pthread_create_background(&st->thread, NULL, sched_run, st)) {
+		ast_log(LOG_ERROR, "Failed to create scheduler thread\n");
+		ast_sched_thread_destroy(st);
+		return NULL;
+	}
+
+	return st;
+}
+
+int ast_sched_thread_add_variable(struct ast_sched_thread *st, int when, ast_sched_cb cb,
+		const void *data, int variable)
+{
+	int res;
+
+	ast_mutex_lock(&st->lock);
+	res = ast_sched_add_variable(st->context, when, cb, data, variable);
+	if (res != -1) {
+		ast_cond_signal(&st->cond);
+	}
+	ast_mutex_unlock(&st->lock);
+
+	return res;
+}
+
+int ast_sched_thread_add(struct ast_sched_thread *st, int when, ast_sched_cb cb,
+		const void *data)
+{
+	int res;
+
+	ast_mutex_lock(&st->lock);
+	res = ast_sched_add(st->context, when, cb, data);
+	if (res != -1) {
+		ast_cond_signal(&st->cond);
+	}
+	ast_mutex_unlock(&st->lock);
+
+	return res;
+}
 
 /* hash routines for sched */
 
