@@ -9383,7 +9383,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		tmp->cid_ton = 0;
 		ast_copy_string(tmp->cid_name, conf->chan.cid_name, sizeof(tmp->cid_name));
 		ast_copy_string(tmp->mailbox, conf->chan.mailbox, sizeof(tmp->mailbox));
-		if (!ast_strlen_zero(tmp->mailbox)) {
+		if (channel != CHAN_PSEUDO && !ast_strlen_zero(tmp->mailbox)) {
 			char *mailbox, *context;
 			mailbox = context = ast_strdupa(tmp->mailbox);
 			strsep(&context, "@");
