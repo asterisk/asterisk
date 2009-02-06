@@ -1509,6 +1509,7 @@ static int init_req(struct sip_request *req, int sipmethod, const char *recip);
 static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, int seqno, int newbranch);
 static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod);
 static int init_resp(struct sip_request *resp, const char *msg);
+static inline int resp_needs_contact(const char *msg, enum sipmethod method);
 static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg, const struct sip_request *req);
 static const struct sockaddr_in *sip_real_dst(const struct sip_pvt *p);
 static void build_via(struct sip_pvt *p);
@@ -5999,6 +6000,66 @@ static int init_req(struct sip_request *req, int sipmethod, const char *recip)
 	return 0;
 }
 
+/*! \brief Test if this response needs a contact header */
+static inline int resp_needs_contact(const char *msg, enum sipmethod method) {
+	/* Requirements for Contact header inclusion in responses generated
+	 * from the header tables found in the following RFCs.  Where the
+	 * Contact header was marked mandatory (m) or optional (o) this
+	 * function returns 1.
+	 *
+	 * - RFC 3261 (ACK, BYE, CANCEL, INVITE, OPTIONS, REGISTER)
+	 * - RFC 2976 (INFO)
+	 * - RFC 3262 (PRACK)
+	 * - RFC 3265 (SUBSCRIBE, NOTIFY)
+	 * - RFC 3311 (UPDATE)
+	 * - RFC 3428 (MESSAGE)
+	 * - RFC 3515 (REFER)
+	 * - RFC 3903 (PUBLISH)
+	 */
+
+	switch (method) {
+		/* 1xx, 2xx, 3xx, 485 */
+		case SIP_INVITE:
+		case SIP_UPDATE:
+		case SIP_SUBSCRIBE:
+		case SIP_NOTIFY:
+			if ((msg[0] >= '1' && msg[0] <= '3') || !strncmp(msg, "485", 3))
+				return 1;
+			break;
+
+		/* 2xx, 3xx, 485 */
+		case SIP_REGISTER:
+		case SIP_OPTIONS:
+			if (msg[0] == '2' || msg[0] == '3' || !strncmp(msg, "485", 3))
+				return 1;
+			break;
+
+		/* 3xx, 485 */
+		case SIP_BYE:
+		case SIP_PRACK:
+		case SIP_MESSAGE:
+		case SIP_PUBLISH:
+			if (msg[0] == '3' || !strncmp(msg, "485", 3))
+				return 1;
+			break;
+
+		/* 2xx, 3xx, 4xx, 5xx, 6xx */
+		case SIP_REFER:
+			if (msg[0] >= '2' && msg[0] <= '6')
+				return 1;
+			break;
+
+		/* contact will not be included for everything else */
+		case SIP_ACK:
+		case SIP_CANCEL:
+		case SIP_INFO:
+		case SIP_PING:
+		default:
+			return 0;
+	}
+	return 0;
+}
+
 
 /*! \brief Prepare SIP response packet */
 static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg, const struct sip_request *req)
@@ -6042,7 +6103,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 			snprintf(contact, sizeof(contact), "%s;expires=%d", p->our_contact, p->expiry);
 			add_header(resp, "Contact", contact);	/* Not when we unregister */
 		}
-	} else if (msg[0] != '4' && !ast_strlen_zero(p->our_contact)) {
+	} else if (!ast_strlen_zero(p->our_contact) && resp_needs_contact(msg, p->method)) {
 		add_header(resp, "Contact", p->our_contact);
 	}
 	return 0;
