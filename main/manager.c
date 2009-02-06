@@ -1862,6 +1862,7 @@ static int action_status(struct mansession *s, const struct message *m)
 		c = ast_get_channel_by_name_locked(name);
 		if (!c) {
 			astman_send_error(s, m, "No such channel");
+			ast_free(str);
 			return 0;
 		}
 	}
