@@ -354,7 +354,7 @@ int ast_audiohook_attach(struct ast_channel *chan, struct ast_audiohook *audioho
  */
 int ast_audiohook_detach(struct ast_audiohook *audiohook)
 {
-	if (audiohook->status == AST_AUDIOHOOK_STATUS_DONE)
+	if (audiohook->status == AST_AUDIOHOOK_STATUS_NEW || audiohook->status == AST_AUDIOHOOK_STATUS_DONE)
 		return 0;
 
 	audiohook->status = AST_AUDIOHOOK_STATUS_SHUTDOWN;
