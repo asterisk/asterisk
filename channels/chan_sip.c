@@ -9322,7 +9322,6 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 	}
 
 	/* Check for arguments in the refer_to header */
-	ast_log(LOG_NOTICE, "refer to = %s\n", refer_to);
 	if ((ptr = strcasestr(refer_to, "replaces="))) {
 		char *to = NULL, *from = NULL;
 		
