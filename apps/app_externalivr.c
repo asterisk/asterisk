@@ -322,7 +322,7 @@ static struct playlist_entry *make_entry(const char *filename)
 
 static int app_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_flags flags;
+	struct ast_flags flags = { 0, };
 	char *opts[0];
 	struct playlist_entry *entry;
 	int child_stdin[2] = { 0, 0 };
