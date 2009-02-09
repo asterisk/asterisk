@@ -4818,7 +4818,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 	struct ast_hostent ahp;
 	struct sip_peer *peer;
 	char *port;
-	int portno;
+	int portno = 0;
 	char host[MAXHOSTNAMELEN], *hostn;
 	char peername[256];
 	int srv_ret = 0;
@@ -4873,8 +4873,10 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 			  In the future, we should first check NAPTR to find out transport preference
 		 */
 		hostn = peername;
-		portno = port ? atoi(port) : (dialog->socket.type & SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT;
-		if (sip_cfg.srvlookup) {
+ 		/* Section 4.2 of RFC 3263 specifies that if a port number is specified, then
+		 * an A record lookup should be used instead of SRV.
+		 */
+		if (!port && sip_cfg.srvlookup) {
 			char service[MAXHOSTNAMELEN];
 			int tportno;
 	
@@ -4885,7 +4887,8 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 				portno = tportno;
 			}
 		}
-
+	 	if (!portno)
+	 		portno = port ? atoi(port) : STANDARD_SIP_PORT;
 		hp = ast_gethostbyname(hostn, &ahp);
 		if (!hp) {
 			ast_log(LOG_WARNING, "No such host: %s\n", peername);
