@@ -4888,7 +4888,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 			}
 		}
 	 	if (!portno)
-	 		portno = port ? atoi(port) : STANDARD_SIP_PORT;
+			portno = port ? atoi(port) : (dialog->socket.type & SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT;
 		hp = ast_gethostbyname(hostn, &ahp);
 		if (!hp) {
 			ast_log(LOG_WARNING, "No such host: %s\n", peername);
