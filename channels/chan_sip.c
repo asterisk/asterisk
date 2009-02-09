@@ -2922,7 +2922,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 	struct ast_hostent ahp;
 	struct sip_peer *p;
 	char *port;
-	int portno;
+	int portno = 0;
 	char host[MAXHOSTNAMELEN], *hostn;
 	char peer[256];
 
@@ -2957,8 +2957,10 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 		}
 	} else {
 		hostn = peer;
-		portno = port ? atoi(port) : STANDARD_SIP_PORT;
-		if (srvlookup) {
+ 		/* Section 4.2 of RFC 3263 specifies that if a port number is specified, then
+		 * an A record lookup should be used instead of SRV.
+		 */
+		if (!port && srvlookup) {
 			char service[MAXHOSTNAMELEN];
 			int tportno;
 			int ret;
@@ -2970,6 +2972,9 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 				portno = tportno;
 			}
 		}
+	 	if (!portno)
+	 		portno = port ? atoi(port) : STANDARD_SIP_PORT;
+	 
 		hp = ast_gethostbyname(hostn, &ahp);
 		if (!hp) {
 			ast_log(LOG_WARNING, "No such host: %s\n", peer);
