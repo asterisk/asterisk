@@ -214,7 +214,7 @@ static void moh_files_release(struct ast_channel *chan, void *data)
 
 	state->save_pos = state->pos;
 
-	state->class = mohclass_unref(state->class);
+	mohclass_unref(state->class);
 }
 
 static int ast_moh_files_next(struct ast_channel *chan) 
@@ -315,8 +315,6 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 
 	if (!chan->music_state && (state = ast_calloc(1, sizeof(*state)))) {
 		chan->music_state = state;
-		state->class = mohclass_ref(class);
-		state->save_pos = -1;
 	} else {
 		state = chan->music_state;
 	}
@@ -326,17 +324,13 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 	}
 
 	if (state->class != class) {
-		/* (re-)initialize */
-		if (state->class) {
-			state->class = mohclass_unref(state->class);
-		}
 		memset(state, 0, sizeof(*state));
-		state->class = mohclass_ref(class);
-		if (ast_test_flag(state->class, MOH_RANDOMIZE) && class->total_files) {
+		if (ast_test_flag(class, MOH_RANDOMIZE) && class->total_files) {
 			state->pos = ast_random() % class->total_files;
 		}
 	}
 
+	state->class = mohclass_ref(class);
 	state->origwfmt = chan->writeformat;
 
 	ast_verb(3, "Started music on hold, class '%s', on %s\n", class->name, chan->name);
