@@ -149,7 +149,39 @@ static struct {
 	{{ "restart", "gracefully", NULL }},
 };
 
-struct mansession {
+/* In order to understand what the heck is going on with the
+ * mansession_session and mansession structs, we need to have a bit of a history
+ * lesson.
+ *
+ * In the beginning, there was the mansession. The mansession contained data that was
+ * intrinsic to a manager session, such as the time that it started, the name of the logged-in
+ * user, etc. In addition to these parameters were the f and fd parameters. For typical manager
+ * sessions, these were used to represent the TCP socket over which the AMI session was taking
+ * place. It makes perfect sense for these fields to be a part of the session-specific data since
+ * the session actually defines this information.
+ *
+ * Then came the HTTP AMI sessions. With these, the f and fd fields need to be opened and closed
+ * for every single action that occurs. Thus the f and fd fields aren't really specific to the session
+ * but rather to the action that is being executed. Because a single session may execute many commands
+ * at once, some sort of safety needed to be added in order to be sure that we did not end up with fd
+ * leaks from one action overwriting the f and fd fields used by a previous action before the previous action
+ * has had a chance to properly close its handles.
+ *
+ * The initial idea to solve this was to use thread synchronization, but this prevented multiple actions
+ * from being run at the same time in a single session. Some manager actions may block for a long time, thus
+ * creating a large queue of actions to execute. In addition, this fix did not address the basic architectural
+ * issue that for HTTP manager sessions, the f and fd variables are not really a part of the session, but are
+ * part of the action instead.
+ *
+ * The new idea was to create a structure on the stack for each HTTP Manager action. This structure would
+ * contain the action-specific information, such as which file to write to. In order to maintain expectations
+ * of action handlers and not have to change the public API of the manager code, we would need to name this
+ * new stacked structure 'mansession' and contain within it the old mansession struct that we used to use.
+ * We renamed the old mansession struct 'mansession_session' to hopefully convey that what is in this structure
+ * is session-specific data. The structure that it is wrapped in, called a 'mansession' really contains action-specific
+ * data.
+ */
+struct mansession_session {
 	pthread_t ms_t;		/*!< Execution thread, basically useless */
 	ast_mutex_t __lock;	/*!< Thread lock -- don't use in action callbacks, it's already taken care of  */
 				/* XXX need to document which fields it is protecting */
@@ -175,12 +207,23 @@ struct mansession {
 	int writetimeout;	/*!< Timeout for ast_carefulwrite() */
 	int pending_event;         /*!< Pending events indicator in case when waiting_thread is NULL */
 	AST_LIST_HEAD_NOLOCK(mansession_datastores, ast_datastore) datastores; /*!< Data stores on the session */
-	AST_LIST_ENTRY(mansession) list;
+	AST_LIST_ENTRY(mansession_session) list;
 };
 
-#define NEW_EVENT(m)	(AST_LIST_NEXT(m->last_ev, eq_next))
+/* In case you didn't read that giant block of text above the mansession_session struct, the
+ * 'mansession' struct is named this solely to keep the API the same in Asterisk. This structure really
+ * represents data that is different from Manager action to Manager action. The mansession_session pointer
+ * contained within points to session-specific data.
+ */
+struct mansession {
+	struct mansession_session *session;
+	FILE *f;
+	int fd;
+};
 
-static AST_LIST_HEAD_STATIC(sessions, mansession);
+#define NEW_EVENT(m)	(AST_LIST_NEXT(m->session->last_ev, eq_next))
+
+static AST_LIST_HEAD_STATIC(sessions, mansession_session);
 
 /*! \brief user descriptor, as read from the config file.
  *
@@ -428,7 +471,7 @@ static int strings_to_mask(const char *string)
 
 static int check_manager_session_inuse(const char *name)
 {
-	struct mansession *session = NULL;
+	struct mansession_session *session = NULL;
 
 	AST_LIST_LOCK(&sessions);
 	AST_LIST_TRAVERSE(&sessions, session, list) {
@@ -459,13 +502,13 @@ static struct ast_manager_user *get_manager_by_name_locked(const char *name)
  *  \param s manager session to get parameter from.
  *  \return displayconnects config option value.
  */
-static int manager_displayconnects (struct mansession *s)
+static int manager_displayconnects (struct mansession_session *session)
 {
 	struct ast_manager_user *user = NULL;
 	int ret = 0;
 
 	AST_RWLIST_RDLOCK(&users);
-	if ((user = get_manager_by_name_locked (s->username)))
+	if ((user = get_manager_by_name_locked (session->username)))
 		ret = user->displayconnects;
 	AST_RWLIST_UNLOCK(&users);
 	
@@ -678,7 +721,7 @@ static char *handle_showmancmds(struct ast_cli_entry *e, int cmd, struct ast_cli
 /*! \brief CLI command manager list connected */
 static char *handle_showmanconn(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct mansession *s;
+	struct mansession_session *session;
 	time_t now = time(NULL);
 #define HSMCONN_FORMAT1 "  %-15.15s  %-15.15s  %-10.10s  %-10.10s  %-8.8s  %-8.8s  %-5.5s  %-5.5s\n"
 #define HSMCONN_FORMAT2 "  %-15.15s  %-15.15s  %-10d  %-10d  %-8d  %-8d  %-5.5d  %-5.5d\n"
@@ -698,8 +741,8 @@ static char *handle_showmanconn(struct ast_cli_entry *e, int cmd, struct ast_cli
 	ast_cli(a->fd, HSMCONN_FORMAT1, "Username", "IP Address", "Start", "Elapsed", "FileDes", "HttpCnt", "Read", "Write");
 
 	AST_LIST_LOCK(&sessions);
-	AST_LIST_TRAVERSE(&sessions, s, list) {
-		ast_cli(a->fd, HSMCONN_FORMAT2, s->username, ast_inet_ntoa(s->sin.sin_addr), (int)(s->sessionstart), (int)(now - s->sessionstart), s->fd, s->inuse, s->readperm, s->writeperm);
+	AST_LIST_TRAVERSE(&sessions, session, list) {
+		ast_cli(a->fd, HSMCONN_FORMAT2, session->username, ast_inet_ntoa(session->sin.sin_addr), (int)(session->sessionstart), (int)(now - session->sessionstart), session->fd, session->inuse, session->readperm, session->writeperm);
 		count++;
 	}
 	AST_LIST_UNLOCK(&sessions);
@@ -787,30 +830,30 @@ static void ref_event(struct eventqent *e)
 /*
  * destroy a session, leaving the usecount
  */
-static void free_session(struct mansession *s)
+static void free_session(struct mansession_session *session)
 {
-	struct eventqent *eqe = s->last_ev;
+	struct eventqent *eqe = session->last_ev;
 	struct ast_datastore *datastore;
 
 	/* Get rid of each of the data stores on the session */
-	while ((datastore = AST_LIST_REMOVE_HEAD(&s->datastores, entry))) {
+	while ((datastore = AST_LIST_REMOVE_HEAD(&session->datastores, entry))) {
 		/* Free the data store */
 		ast_datastore_free(datastore);
 	}
 
-	if (s->f != NULL)
-		fclose(s->f);
-	ast_mutex_destroy(&s->__lock);
-	ast_free(s);
+	if (session->f != NULL)
+		fclose(session->f);
+	ast_mutex_destroy(&session->__lock);
+	ast_free(session);
 	unref_event(eqe);
 }
 
-static void destroy_session(struct mansession *s)
+static void destroy_session(struct mansession_session *session)
 {
 	AST_LIST_LOCK(&sessions);
-	AST_LIST_REMOVE(&sessions, s, list);
+	AST_LIST_REMOVE(&sessions, session, list);
 	ast_atomic_fetchadd_int(&num_sessions, -1);
-	free_session(s);
+	free_session(session);
 	AST_LIST_UNLOCK(&sessions);
 }
 
@@ -899,7 +942,11 @@ struct ast_variable *astman_get_variables(const struct message *m)
  */
 static int send_string(struct mansession *s, char *string)
 {
-	return ast_careful_fwrite(s->f, s->fd, string, strlen(string), s->writetimeout);
+	if (s->f) {
+		return ast_careful_fwrite(s->f, s->fd, string, strlen(string), s->session->writetimeout);
+	} else {
+		return ast_careful_fwrite(s->session->f, s->session->fd, string, strlen(string), s->session->writetimeout);
+	}
 }
 
 /*!
@@ -930,7 +977,7 @@ void astman_append(struct mansession *s, const char *fmt, ...)
 	ast_str_set_va(&buf, 0, fmt, ap);
 	va_end(ap);
 
-	if (s->f != NULL) {
+	if (s->f != NULL || s->session->f != NULL) {
 		send_string(s, ast_str_buffer(buf));
 	} else {
 		ast_verbose("fd == -1 in astman_append, should not happen\n");
@@ -939,7 +986,7 @@ void astman_append(struct mansession *s, const char *fmt, ...)
 
 /*! \note NOTE: XXX this comment is unclear and possibly wrong.
    Callers of astman_send_error(), astman_send_response() or astman_send_ack() must EITHER
-   hold the session lock _or_ be running in an action callback (in which case s->busy will
+   hold the session lock _or_ be running in an action callback (in which case s->session->busy will
    be non-zero). In either of these cases, there is no need to lock-protect the session's
    fd, since no other output will be sent (events will be queued), and no input will
    be read until either the current action finishes or get_input() obtains the session
@@ -1005,10 +1052,10 @@ static int set_eventmask(struct mansession *s, const char *eventmask)
 {
 	int maskint = strings_to_mask(eventmask);
 
-	ast_mutex_lock(&s->__lock);
+	ast_mutex_lock(&s->session->__lock);
 	if (maskint >= 0)
-		s->send_events = maskint;
-	ast_mutex_unlock(&s->__lock);
+		s->session->send_events = maskint;
+	ast_mutex_unlock(&s->session->__lock);
 
 	return maskint;
 }
@@ -1034,12 +1081,12 @@ static int authenticate(struct mansession *s, const struct message *m)
 	AST_RWLIST_WRLOCK(&users);
 
 	if (!(user = get_manager_by_name_locked(username))) {
-		ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_inet_ntoa(s->sin.sin_addr), username);
-	} else if (user->ha && !ast_apply_ha(user->ha, &(s->sin))) {
-		ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", ast_inet_ntoa(s->sin.sin_addr), username);
+		ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_inet_ntoa(s->session->sin.sin_addr), username);
+	} else if (user->ha && !ast_apply_ha(user->ha, &(s->session->sin))) {
+		ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", ast_inet_ntoa(s->session->sin.sin_addr), username);
 	} else if (!strcasecmp(astman_get_header(m, "AuthType"), "MD5")) {
 		const char *key = astman_get_header(m, "Key");
-		if (!ast_strlen_zero(key) && !ast_strlen_zero(s->challenge) && user->secret) {
+		if (!ast_strlen_zero(key) && !ast_strlen_zero(s->session->challenge) && user->secret) {
 			int x;
 			int len = 0;
 			char md5key[256] = "";
@@ -1047,7 +1094,7 @@ static int authenticate(struct mansession *s, const struct message *m)
 			unsigned char digest[16];
 
 			MD5Init(&md5);
-			MD5Update(&md5, (unsigned char *) s->challenge, strlen(s->challenge));
+			MD5Update(&md5, (unsigned char *) s->session->challenge, strlen(s->session->challenge));
 			MD5Update(&md5, (unsigned char *) user->secret, strlen(user->secret));
 			MD5Final(digest, &md5);
 			for (x = 0; x < 16; x++)
@@ -1056,24 +1103,24 @@ static int authenticate(struct mansession *s, const struct message *m)
 				error = 0;
 		} else {
 			ast_debug(1, "MD5 authentication is not possible.  challenge: '%s'\n", 
-				S_OR(s->challenge, ""));
+				S_OR(s->session->challenge, ""));
 		}
 	} else if (password && user->secret && !strcmp(password, user->secret))
 		error = 0;
 
 	if (error) {
-		ast_log(LOG_NOTICE, "%s failed to authenticate as '%s'\n", ast_inet_ntoa(s->sin.sin_addr), username);
+		ast_log(LOG_NOTICE, "%s failed to authenticate as '%s'\n", ast_inet_ntoa(s->session->sin.sin_addr), username);
 		AST_RWLIST_UNLOCK(&users);
 		return -1;
 	}
 
 	/* auth complete */
 	
-	ast_copy_string(s->username, username, sizeof(s->username));
-	s->readperm = user->readperm;
-	s->writeperm = user->writeperm;
-	s->writetimeout = user->writetimeout;
-	s->sessionstart = time(NULL);
+	ast_copy_string(s->session->username, username, sizeof(s->session->username));
+	s->session->readperm = user->readperm;
+	s->session->writeperm = user->writeperm;
+	s->session->writetimeout = user->writetimeout;
+	s->session->sessionstart = time(NULL);
 	set_eventmask(s, astman_get_header(m, "Events"));
 	
 	AST_RWLIST_UNLOCK(&users);
@@ -1549,76 +1596,76 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 		/* XXX maybe put an upper bound, or prevent the use of 0 ? */
 	}
 
-	ast_mutex_lock(&s->__lock);
-	if (s->waiting_thread != AST_PTHREADT_NULL)
-		pthread_kill(s->waiting_thread, SIGURG);
+	ast_mutex_lock(&s->session->__lock);
+	if (s->session->waiting_thread != AST_PTHREADT_NULL)
+		pthread_kill(s->session->waiting_thread, SIGURG);
 
-	if (s->managerid) { /* AMI-over-HTTP session */
+	if (s->session->managerid) { /* AMI-over-HTTP session */
 		/*
 		 * Make sure the timeout is within the expire time of the session,
 		 * as the client will likely abort the request if it does not see
 		 * data coming after some amount of time.
 		 */
 		time_t now = time(NULL);
-		int max = s->sessiontimeout - now - 10;
+		int max = s->session->sessiontimeout - now - 10;
 
 		if (max < 0)	/* We are already late. Strange but possible. */
 			max = 0;
 		if (timeout < 0 || timeout > max)
 			timeout = max;
-		if (!s->send_events)	/* make sure we record events */
-			s->send_events = -1;
+		if (!s->session->send_events)	/* make sure we record events */
+			s->session->send_events = -1;
 	}
-	ast_mutex_unlock(&s->__lock);
+	ast_mutex_unlock(&s->session->__lock);
 
 	/* XXX should this go inside the lock ? */
-	s->waiting_thread = pthread_self();	/* let new events wake up this thread */
+	s->session->waiting_thread = pthread_self();	/* let new events wake up this thread */
 	ast_debug(1, "Starting waiting for an event!\n");
 
 	for (x = 0; x < timeout || timeout < 0; x++) {
-		ast_mutex_lock(&s->__lock);
+		ast_mutex_lock(&s->session->__lock);
 		if (NEW_EVENT(s))
 			needexit = 1;
 		/* We can have multiple HTTP session point to the same mansession entry.
 		 * The way we deal with it is not very nice: newcomers kick out the previous
 		 * HTTP session. XXX this needs to be improved.
 		 */
-		if (s->waiting_thread != pthread_self())
+		if (s->session->waiting_thread != pthread_self())
 			needexit = 1;
-		if (s->needdestroy)
+		if (s->session->needdestroy)
 			needexit = 1;
-		ast_mutex_unlock(&s->__lock);
+		ast_mutex_unlock(&s->session->__lock);
 		if (needexit)
 			break;
-		if (s->managerid == 0) {	/* AMI session */
-			if (ast_wait_for_input(s->fd, 1000))
+		if (s->session->managerid == 0) {	/* AMI session */
+			if (ast_wait_for_input(s->session->fd, 1000))
 				break;
 		} else {	/* HTTP session */
 			sleep(1);
 		}
 	}
 	ast_debug(1, "Finished waiting for an event!\n");
-	ast_mutex_lock(&s->__lock);
-	if (s->waiting_thread == pthread_self()) {
+	ast_mutex_lock(&s->session->__lock);
+	if (s->session->waiting_thread == pthread_self()) {
 		struct eventqent *eqe;
 		astman_send_response(s, m, "Success", "Waiting for Event completed.");
 		while ( (eqe = NEW_EVENT(s)) ) {
 			ref_event(eqe);
-			if (((s->readperm & eqe->category) == eqe->category) &&
-			    ((s->send_events & eqe->category) == eqe->category)) {
+			if (((s->session->readperm & eqe->category) == eqe->category) &&
+			    ((s->session->send_events & eqe->category) == eqe->category)) {
 				astman_append(s, "%s", eqe->eventdata);
 			}
-			s->last_ev = unref_event(s->last_ev);
+			s->session->last_ev = unref_event(s->session->last_ev);
 		}
 		astman_append(s,
 			"Event: WaitEventComplete\r\n"
 			"%s"
 			"\r\n", idText);
-		s->waiting_thread = AST_PTHREADT_NULL;
+		s->session->waiting_thread = AST_PTHREADT_NULL;
 	} else {
 		ast_debug(1, "Abandoning event request!\n");
 	}
-	ast_mutex_unlock(&s->__lock);
+	ast_mutex_unlock(&s->session->__lock);
 	return 0;
 }
 
@@ -1635,7 +1682,7 @@ static int action_listcommands(struct mansession *s, const struct message *m)
 
 	astman_start_ack(s, m);
 	AST_RWLIST_TRAVERSE(&actions, cur, list) {
-		if (s->writeperm & cur->authority || cur->authority == 0)
+		if (s->session->writeperm & cur->authority || cur->authority == 0)
 			astman_append(s, "%s: %s (Priv: %s)\r\n",
 				cur->action, cur->synopsis, authority_to_str(cur->authority, &temp));
 	}
@@ -1684,10 +1731,10 @@ static int action_login(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Authentication failed");
 		return -1;
 	}
-	s->authenticated = 1;
-	if (manager_displayconnects(s))
-		ast_verb(2, "%sManager '%s' logged on from %s\n", (s->managerid ? "HTTP " : ""), s->username, ast_inet_ntoa(s->sin.sin_addr));
-	ast_log(LOG_EVENT, "%sManager '%s' logged on from %s\n", (s->managerid ? "HTTP " : ""), s->username, ast_inet_ntoa(s->sin.sin_addr));
+	s->session->authenticated = 1;
+	if (manager_displayconnects(s->session))
+		ast_verb(2, "%sManager '%s' logged on from %s\n", (s->session->managerid ? "HTTP " : ""), s->session->username, ast_inet_ntoa(s->session->sin.sin_addr));
+	ast_log(LOG_EVENT, "%sManager '%s' logged on from %s\n", (s->session->managerid ? "HTTP " : ""), s->session->username, ast_inet_ntoa(s->session->sin.sin_addr));
 	astman_send_ack(s, m, "Authentication accepted");
 	return 0;
 }
@@ -1697,12 +1744,12 @@ static int action_challenge(struct mansession *s, const struct message *m)
 	const char *authtype = astman_get_header(m, "AuthType");
 
 	if (!strcasecmp(authtype, "MD5")) {
-		if (ast_strlen_zero(s->challenge))
-			snprintf(s->challenge, sizeof(s->challenge), "%ld", ast_random());
-		ast_mutex_lock(&s->__lock);
+		if (ast_strlen_zero(s->session->challenge))
+			snprintf(s->session->challenge, sizeof(s->session->challenge), "%ld", ast_random());
+		ast_mutex_lock(&s->session->__lock);
 		astman_start_ack(s, m);
-		astman_append(s, "Challenge: %s\r\n\r\n", s->challenge);
-		ast_mutex_unlock(&s->__lock);
+		astman_append(s, "Challenge: %s\r\n\r\n", s->session->challenge);
+		ast_mutex_unlock(&s->session->__lock);
 	} else {
 		astman_send_error(s, m, "Must specify AuthType");
 	}
@@ -2412,7 +2459,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 		}
 	} else if (!ast_strlen_zero(app)) {
 		/* To run the System application (or anything else that goes to shell), you must have the additional System privilege */
-		if (!(s->writeperm & EVENT_FLAG_SYSTEM)
+		if (!(s->session->writeperm & EVENT_FLAG_SYSTEM)
 			&& (
 				strcasestr(app, "system") == 0 || /* System(rm -rf /)
 				                                     TrySystem(rm -rf /)       */
@@ -2584,22 +2631,22 @@ static int process_events(struct mansession *s)
 {
 	int ret = 0;
 
-	ast_mutex_lock(&s->__lock);
-	if (s->f != NULL) {
+	ast_mutex_lock(&s->session->__lock);
+	if (s->session->f != NULL) {
 		struct eventqent *eqe;
 
 		while ( (eqe = NEW_EVENT(s)) ) {
 			ref_event(eqe);
-			if (!ret && s->authenticated &&
-			    (s->readperm & eqe->category) == eqe->category &&
-			    (s->send_events & eqe->category) == eqe->category) {
+			if (!ret && s->session->authenticated &&
+			    (s->session->readperm & eqe->category) == eqe->category &&
+			    (s->session->send_events & eqe->category) == eqe->category) {
 				if (send_string(s, eqe->eventdata) < 0)
 					ret = -1;	/* don't send more */
 			}
-			s->last_ev = unref_event(s->last_ev);
+			s->session->last_ev = unref_event(s->session->last_ev);
 		}
 	}
-	ast_mutex_unlock(&s->__lock);
+	ast_mutex_unlock(&s->session->__lock);
 	return ret;
 }
 
@@ -2924,26 +2971,26 @@ static int process_message(struct mansession *s, const struct message *m)
 	ast_debug(1, "Manager received command '%s'\n", action);
 
 	if (ast_strlen_zero(action)) {
-		ast_mutex_lock(&s->__lock);
+		ast_mutex_lock(&s->session->__lock);
 		astman_send_error(s, m, "Missing action in request");
-		ast_mutex_unlock(&s->__lock);
+		ast_mutex_unlock(&s->session->__lock);
 		return 0;
 	}
 
-	if (!s->authenticated && strcasecmp(action, "Login") && strcasecmp(action, "Logoff") && strcasecmp(action, "Challenge")) {
-		ast_mutex_lock(&s->__lock);
+	if (!s->session->authenticated && strcasecmp(action, "Login") && strcasecmp(action, "Logoff") && strcasecmp(action, "Challenge")) {
+		ast_mutex_lock(&s->session->__lock);
 		astman_send_error(s, m, "Permission denied");
-		ast_mutex_unlock(&s->__lock);
+		ast_mutex_unlock(&s->session->__lock);
 		return 0;
 	}
 
-	if (!allowmultiplelogin && !s->authenticated && user &&
+	if (!allowmultiplelogin && !s->session->authenticated && user &&
 		(!strcasecmp(action, "Login") || !strcasecmp(action, "Challenge"))) {
 		if (check_manager_session_inuse(user)) {
 			sleep(1);
-			ast_mutex_lock(&s->__lock);
+			ast_mutex_lock(&s->session->__lock);
 			astman_send_error(s, m, "Login Already In Use");
-			ast_mutex_unlock(&s->__lock);
+			ast_mutex_unlock(&s->session->__lock);
 			return -1;
 		}
 	}
@@ -2952,7 +2999,7 @@ static int process_message(struct mansession *s, const struct message *m)
 	AST_RWLIST_TRAVERSE(&actions, tmp, list) {
 		if (strcasecmp(action, tmp->action))
 			continue;
-		if (s->writeperm & tmp->authority || tmp->authority == 0)
+		if (s->session->writeperm & tmp->authority || tmp->authority == 0)
 			ret = tmp->func(s, m);
 		else
 			astman_send_error(s, m, "Permission denied");
@@ -2963,9 +3010,9 @@ static int process_message(struct mansession *s, const struct message *m)
 	if (!tmp) {
 		char buf[512];
 		snprintf(buf, sizeof(buf), "Invalid/unknown command: %s. Use Action: ListCommands to show available commands.", action);
-		ast_mutex_lock(&s->__lock);
+		ast_mutex_lock(&s->session->__lock);
 		astman_send_error(s, m, buf);
-		ast_mutex_unlock(&s->__lock);
+		ast_mutex_unlock(&s->session->__lock);
 	}
 	if (ret)
 		return ret;
@@ -2991,16 +3038,16 @@ static int process_message(struct mansession *s, const struct message *m)
 static int get_input(struct mansession *s, char *output)
 {
 	int res, x;
-	int maxlen = sizeof(s->inbuf) - 1;
-	char *src = s->inbuf;
+	int maxlen = sizeof(s->session->inbuf) - 1;
+	char *src = s->session->inbuf;
 
 	/*
 	 * Look for \r\n within the buffer. If found, copy to the output
 	 * buffer and return, trimming the \r\n (not used afterwards).
 	 */
-	for (x = 0; x < s->inlen; x++) {
+	for (x = 0; x < s->session->inlen; x++) {
 		int cr;	/* set if we have \r */
-		if (src[x] == '\r' && x+1 < s->inlen && src[x+1] == '\n')
+		if (src[x] == '\r' && x+1 < s->session->inlen && src[x+1] == '\n')
 			cr = 2;	/* Found. Update length to include \r\n */
 		else if (src[x] == '\n')
 			cr = 1;	/* also accept \n only */
@@ -3009,32 +3056,32 @@ static int get_input(struct mansession *s, char *output)
 		memmove(output, src, x);	/*... but trim \r\n */
 		output[x] = '\0';		/* terminate the string */
 		x += cr;			/* number of bytes used */
-		s->inlen -= x;			/* remaining size */
-		memmove(src, src + x, s->inlen); /* remove used bytes */
+		s->session->inlen -= x;			/* remaining size */
+		memmove(src, src + x, s->session->inlen); /* remove used bytes */
 		return 1;
 	}
-	if (s->inlen >= maxlen) {
+	if (s->session->inlen >= maxlen) {
 		/* no crlf found, and buffer full - sorry, too long for us */
-		ast_log(LOG_WARNING, "Dumping long line with no return from %s: %s\n", ast_inet_ntoa(s->sin.sin_addr), src);
-		s->inlen = 0;
+		ast_log(LOG_WARNING, "Dumping long line with no return from %s: %s\n", ast_inet_ntoa(s->session->sin.sin_addr), src);
+		s->session->inlen = 0;
 	}
 	res = 0;
 	while (res == 0) {
 		/* XXX do we really need this locking ? */
-		ast_mutex_lock(&s->__lock);
-		if (s->pending_event) {
-			s->pending_event = 0;
-			ast_mutex_unlock(&s->__lock);
+		ast_mutex_lock(&s->session->__lock);
+		if (s->session->pending_event) {
+			s->session->pending_event = 0;
+			ast_mutex_unlock(&s->session->__lock);
 			return 0;
 		}
-		s->waiting_thread = pthread_self();
-		ast_mutex_unlock(&s->__lock);
+		s->session->waiting_thread = pthread_self();
+		ast_mutex_unlock(&s->session->__lock);
 
-		res = ast_wait_for_input(s->fd, -1);	/* return 0 on timeout ? */
+		res = ast_wait_for_input(s->session->fd, -1);	/* return 0 on timeout ? */
 
-		ast_mutex_lock(&s->__lock);
-		s->waiting_thread = AST_PTHREADT_NULL;
-		ast_mutex_unlock(&s->__lock);
+		ast_mutex_lock(&s->session->__lock);
+		s->session->waiting_thread = AST_PTHREADT_NULL;
+		ast_mutex_unlock(&s->session->__lock);
 	}
 	if (res < 0) {
 		/* If we get a signal from some other thread (typically because
@@ -3045,23 +3092,23 @@ static int get_input(struct mansession *s, char *output)
 		ast_log(LOG_WARNING, "poll() returned error: %s\n", strerror(errno));
 		return -1;
 	}
-	ast_mutex_lock(&s->__lock);
-	res = fread(src + s->inlen, 1, maxlen - s->inlen, s->f);
+	ast_mutex_lock(&s->session->__lock);
+	res = fread(src + s->session->inlen, 1, maxlen - s->session->inlen, s->session->f);
 	if (res < 1)
 		res = -1;	/* error return */
 	else {
-		s->inlen += res;
-		src[s->inlen] = '\0';
+		s->session->inlen += res;
+		src[s->session->inlen] = '\0';
 		res = 0;
 	}
-	ast_mutex_unlock(&s->__lock);
+	ast_mutex_unlock(&s->session->__lock);
 	return res;
 }
 
 static int do_message(struct mansession *s)
 {
 	struct message m = { 0 };
-	char header_buf[sizeof(s->inbuf)] = { '\0' };
+	char header_buf[sizeof(s->session->inbuf)] = { '\0' };
 	int res;
 
 	for (;;) {
@@ -3093,15 +3140,16 @@ static int do_message(struct mansession *s)
 static void *session_do(void *data)
 {
 	struct ast_tcptls_session_instance *ser = data;
-	struct mansession *s = ast_calloc(1, sizeof(*s));
+	struct mansession_session *session = ast_calloc(1, sizeof(*session));
+	struct mansession s = {.session = NULL, };
 	int flags;
 	int res;
 
-	if (s == NULL)
+	if (session == NULL)
 		goto done;
 
-	s->writetimeout = 100;
-	s->waiting_thread = AST_PTHREADT_NULL;
+	session->writetimeout = 100;
+	session->waiting_thread = AST_PTHREADT_NULL;
 
 	flags = fcntl(ser->fd, F_GETFL);
 	if (!block_sockets) /* make sure socket is non-blocking */
@@ -3110,37 +3158,38 @@ static void *session_do(void *data)
 		flags &= ~O_NONBLOCK;
 	fcntl(ser->fd, F_SETFL, flags);
 
-	ast_mutex_init(&s->__lock);
-	s->send_events = -1;
+	ast_mutex_init(&session->__lock);
+	session->send_events = -1;
 	/* Hook to the tail of the event queue */
-	s->last_ev = grab_last();
+	session->last_ev = grab_last();
 
 	/* these fields duplicate those in the 'ser' structure */
-	s->fd = ser->fd;
-	s->f = ser->f;
-	s->sin = ser->remote_address;
+	session->fd = ser->fd;
+	session->f = ser->f;
+	session->sin = ser->remote_address;
+	s.session = session;
 
-	AST_LIST_HEAD_INIT_NOLOCK(&s->datastores);
+	AST_LIST_HEAD_INIT_NOLOCK(&session->datastores);
 
 	AST_LIST_LOCK(&sessions);
-	AST_LIST_INSERT_HEAD(&sessions, s, list);
+	AST_LIST_INSERT_HEAD(&sessions, session, list);
 	ast_atomic_fetchadd_int(&num_sessions, 1);
 	AST_LIST_UNLOCK(&sessions);
 
-	astman_append(s, "Asterisk Call Manager/%s\r\n", AMI_VERSION);	/* welcome prompt */
+	astman_append(&s, "Asterisk Call Manager/%s\r\n", AMI_VERSION);	/* welcome prompt */
 	for (;;) {
-		if ((res = do_message(s)) < 0)
+		if ((res = do_message(&s)) < 0)
 			break;
 	}
 	/* session is over, explain why and terminate */
-	if (s->authenticated) {
-			if (manager_displayconnects(s))
-			ast_verb(2, "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
-		ast_log(LOG_EVENT, "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
+	if (session->authenticated) {
+			if (manager_displayconnects(session))
+			ast_verb(2, "Manager '%s' logged off from %s\n", session->username, ast_inet_ntoa(session->sin.sin_addr));
+		ast_log(LOG_EVENT, "Manager '%s' logged off from %s\n", session->username, ast_inet_ntoa(session->sin.sin_addr));
 	} else {
 			if (displayconnects)
-			ast_verb(2, "Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(s->sin.sin_addr));
-		ast_log(LOG_EVENT, "Failed attempt from %s\n", ast_inet_ntoa(s->sin.sin_addr));
+			ast_verb(2, "Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(session->sin.sin_addr));
+		ast_log(LOG_EVENT, "Failed attempt from %s\n", ast_inet_ntoa(session->sin.sin_addr));
 	}
 
 	/* It is possible under certain circumstances for this session thread
@@ -3156,7 +3205,7 @@ static void *session_do(void *data)
 	*/
 	usleep(1);
 
-	destroy_session(s);
+	destroy_session(session);
 
 done:
 	ao2_ref(ser, -1);
@@ -3167,19 +3216,19 @@ done:
 /*! \brief remove at most n_max stale session from the list. */
 static void purge_sessions(int n_max)
 {
-	struct mansession *s;
+	struct mansession_session *session;
 	time_t now = time(NULL);
 
 	AST_LIST_LOCK(&sessions);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&sessions, s, list) {
-		if (s->sessiontimeout && (now > s->sessiontimeout) && !s->inuse) {
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&sessions, session, list) {
+		if (session->sessiontimeout && (now > session->sessiontimeout) && !session->inuse) {
 			AST_LIST_REMOVE_CURRENT(list);
 			ast_atomic_fetchadd_int(&num_sessions, -1);
-			if (s->authenticated && (VERBOSITY_ATLEAST(2)) && manager_displayconnects(s)) {
+			if (session->authenticated && (VERBOSITY_ATLEAST(2)) && manager_displayconnects(session)) {
 				ast_verb(2, "HTTP Manager '%s' timed out from %s\n",
-					s->username, ast_inet_ntoa(s->sin.sin_addr));
+					session->username, ast_inet_ntoa(session->sin.sin_addr));
 			}
-			free_session(s);	/* XXX outside ? */
+			free_session(session);	/* XXX outside ? */
 			if (--n_max <= 0)
 				break;
 		}
@@ -3222,7 +3271,7 @@ AST_THREADSTORAGE(manager_event_buf);
 int __manager_event(int category, const char *event,
 	const char *file, int line, const char *func, const char *fmt, ...)
 {
-	struct mansession *s;
+	struct mansession_session *session;
 	struct manager_custom_hook *hook;
 	struct ast_str *auth = ast_str_alloca(80);
 	const char *cat_str;
@@ -3267,18 +3316,18 @@ int __manager_event(int category, const char *event,
 
 	/* Wake up any sleeping sessions */
 	AST_LIST_LOCK(&sessions);
-	AST_LIST_TRAVERSE(&sessions, s, list) {
-		ast_mutex_lock(&s->__lock);
-		if (s->waiting_thread != AST_PTHREADT_NULL)
-			pthread_kill(s->waiting_thread, SIGURG);
+	AST_LIST_TRAVERSE(&sessions, session, list) {
+		ast_mutex_lock(&session->__lock);
+		if (session->waiting_thread != AST_PTHREADT_NULL)
+			pthread_kill(session->waiting_thread, SIGURG);
 		else
 			/* We have an event to process, but the mansession is
 			 * not waiting for it. We still need to indicate that there
 			 * is an event waiting so that get_input processes the pending
 			 * event instead of polling.
 			 */
-			s->pending_event = 1;
-		ast_mutex_unlock(&s->__lock);
+			session->pending_event = 1;
+		ast_mutex_unlock(&session->__lock);
 	}
 	AST_LIST_UNLOCK(&sessions);
 
@@ -3404,38 +3453,38 @@ static char *contenttype[] = {
  * the value of the mansession_id cookie (0 is not valid and means
  * a session on the AMI socket).
  */
-static struct mansession *find_session(uint32_t ident, int incinuse)
+static struct mansession_session *find_session(uint32_t ident, int incinuse)
 {
-	struct mansession *s;
+	struct mansession_session *session;
 
 	if (ident == 0)
 		return NULL;
 
 	AST_LIST_LOCK(&sessions);
-	AST_LIST_TRAVERSE(&sessions, s, list) {
-		ast_mutex_lock(&s->__lock);
-		if (s->managerid == ident && !s->needdestroy) {
-			ast_atomic_fetchadd_int(&s->inuse, incinuse ? 1 : 0);
+	AST_LIST_TRAVERSE(&sessions, session, list) {
+		ast_mutex_lock(&session->__lock);
+		if (session->managerid == ident && !session->needdestroy) {
+			ast_atomic_fetchadd_int(&session->inuse, incinuse ? 1 : 0);
 			break;
 		}
-		ast_mutex_unlock(&s->__lock);
+		ast_mutex_unlock(&session->__lock);
 	}
 	AST_LIST_UNLOCK(&sessions);
 
-	return s;
+	return session;
 }
 
 int astman_is_authed(uint32_t ident) 
 {
 	int authed;
-	struct mansession *s;
+	struct mansession_session *session;
 
-	if (!(s = find_session(ident, 0)))
+	if (!(session = find_session(ident, 0)))
 		return 0;
 
-	authed = (s->authenticated != 0);
+	authed = (session->authenticated != 0);
 
-	ast_mutex_unlock(&s->__lock);
+	ast_mutex_unlock(&session->__lock);
 
 	return authed;
 }
@@ -3443,17 +3492,17 @@ int astman_is_authed(uint32_t ident)
 int astman_verify_session_readpermissions(uint32_t ident, int perm)
 {
 	int result = 0;
-	struct mansession *s;
+	struct mansession_session *session;
 
 	AST_LIST_LOCK(&sessions);
-	AST_LIST_TRAVERSE(&sessions, s, list) {
-		ast_mutex_lock(&s->__lock);
-		if ((s->managerid == ident) && (s->readperm & perm)) {
+	AST_LIST_TRAVERSE(&sessions, session, list) {
+		ast_mutex_lock(&session->__lock);
+		if ((session->managerid == ident) && (session->readperm & perm)) {
 			result = 1;
-			ast_mutex_unlock(&s->__lock);
+			ast_mutex_unlock(&session->__lock);
 			break;
 		}
-		ast_mutex_unlock(&s->__lock);
+		ast_mutex_unlock(&session->__lock);
 	}
 	AST_LIST_UNLOCK(&sessions);
 	return result;
@@ -3462,17 +3511,17 @@ int astman_verify_session_readpermissions(uint32_t ident, int perm)
 int astman_verify_session_writepermissions(uint32_t ident, int perm)
 {
 	int result = 0;
-	struct mansession *s;
+	struct mansession_session *session;
 
 	AST_LIST_LOCK(&sessions);
-	AST_LIST_TRAVERSE(&sessions, s, list) {
-		ast_mutex_lock(&s->__lock);
-		if ((s->managerid == ident) && (s->writeperm & perm)) {
+	AST_LIST_TRAVERSE(&sessions, session, list) {
+		ast_mutex_lock(&session->__lock);
+		if ((session->managerid == ident) && (session->writeperm & perm)) {
 			result = 1;
-			ast_mutex_unlock(&s->__lock);
+			ast_mutex_unlock(&session->__lock);
 			break;
 		}
-		ast_mutex_unlock(&s->__lock);
+		ast_mutex_unlock(&session->__lock);
 	}
 	AST_LIST_UNLOCK(&sessions);
 	return result;
@@ -3713,7 +3762,8 @@ static struct ast_str *generic_http_callback(enum output_format format,
 					     struct ast_variable *params, int *status,
 					     char **title, int *contentlength)
 {
-	struct mansession *s = NULL;
+	struct mansession s = {.session = NULL, };
+	struct mansession_session *session = NULL;
 	uint32_t ident = 0;
 	int blastaway = 0;
 	struct ast_variable *v;
@@ -3730,45 +3780,47 @@ static struct ast_str *generic_http_callback(enum output_format format,
 		}
 	}
 
-	if (!(s = find_session(ident, 1))) {
+	if (!(session = find_session(ident, 1))) {
 		/* Create new session.
 		 * While it is not in the list we don't need any locking
 		 */
-		if (!(s = ast_calloc(1, sizeof(*s)))) {
+		if (!(session = ast_calloc(1, sizeof(*session)))) {
 			*status = 500;
 			goto generic_callback_out;
 		}
-		s->sin = *remote_address;
-		s->fd = -1;
-		s->waiting_thread = AST_PTHREADT_NULL;
-		s->send_events = 0;
-		ast_mutex_init(&s->__lock);
-		ast_mutex_lock(&s->__lock);
-		s->inuse = 1;
+		session->sin = *remote_address;
+		session->fd = -1;
+		session->waiting_thread = AST_PTHREADT_NULL;
+		session->send_events = 0;
+		ast_mutex_init(&session->__lock);
+		ast_mutex_lock(&session->__lock);
+		session->inuse = 1;
 		/*!\note There is approximately a 1 in 1.8E19 chance that the following
 		 * calculation will produce 0, which is an invalid ID, but due to the
 		 * properties of the rand() function (and the constantcy of s), that
 		 * won't happen twice in a row.
 		 */
-		while ((s->managerid = rand() ^ (unsigned long) s) == 0);
-		s->last_ev = grab_last();
-		AST_LIST_HEAD_INIT_NOLOCK(&s->datastores);
+		while ((session->managerid = rand() ^ (unsigned long) session) == 0);
+		session->last_ev = grab_last();
+		AST_LIST_HEAD_INIT_NOLOCK(&session->datastores);
 		AST_LIST_LOCK(&sessions);
-		AST_LIST_INSERT_HEAD(&sessions, s, list);
+		AST_LIST_INSERT_HEAD(&sessions, session, list);
 		ast_atomic_fetchadd_int(&num_sessions, 1);
 		AST_LIST_UNLOCK(&sessions);
 	}
 
-	ast_mutex_unlock(&s->__lock);
+	s.session = session;
+
+	ast_mutex_unlock(&session->__lock);
 
 	if (!(out = ast_str_create(1024))) {
 		*status = 500;
 		goto generic_callback_out;
 	}
 
-	s->fd = mkstemp(template);	/* create a temporary file for command output */
+	s.fd = mkstemp(template);	/* create a temporary file for command output */
 	unlink(template);
-	s->f = fdopen(s->fd, "w+");
+	s.f = fdopen(s.fd, "w+");
 
 	for (x = 0, v = params; v && (x < AST_MAX_MANHEADERS); x++, v = v->next) {
 		hdrlen = strlen(v->name) + strlen(v->value) + 3;
@@ -3778,19 +3830,19 @@ static struct ast_str *generic_http_callback(enum output_format format,
 		m.hdrcount = x + 1;
 	}
 
-	if (process_message(s, &m)) {
-		if (s->authenticated) {
-			if (manager_displayconnects(s)) {
-				ast_verb(2, "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
+	if (process_message(&s, &m)) {
+		if (session->authenticated) {
+			if (manager_displayconnects(session)) {
+				ast_verb(2, "HTTP Manager '%s' logged off from %s\n", session->username, ast_inet_ntoa(session->sin.sin_addr));
 			}
-			ast_log(LOG_EVENT, "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
+			ast_log(LOG_EVENT, "HTTP Manager '%s' logged off from %s\n", session->username, ast_inet_ntoa(session->sin.sin_addr));
 		} else {
 			if (displayconnects) {
-				ast_verb(2, "HTTP Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(s->sin.sin_addr));
+				ast_verb(2, "HTTP Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(session->sin.sin_addr));
 			}
-			ast_log(LOG_EVENT, "HTTP Failed attempt from %s\n", ast_inet_ntoa(s->sin.sin_addr));
+			ast_log(LOG_EVENT, "HTTP Failed attempt from %s\n", ast_inet_ntoa(session->sin.sin_addr));
 		}
-		s->needdestroy = 1;
+		session->needdestroy = 1;
 	}
 
 	ast_str_append(&out, 0,
@@ -3800,7 +3852,7 @@ static struct ast_str *generic_http_callback(enum output_format format,
 		       "Pragma: SuppressEvents\r\n"
 		       "\r\n",
 			contenttype[format],
-			s->managerid, httptimeout);
+			session->managerid, httptimeout);
 
 	if (format == FORMAT_XML) {
 		ast_str_append(&out, 0, "<ajax-response>\n");
@@ -3832,12 +3884,12 @@ static struct ast_str *generic_http_callback(enum output_format format,
 		ast_str_append(&out, 0, ROW_FMT, TEST_STRING);
 	}
 
-	if (s->f != NULL) {	/* have temporary output */
+	if (s.f != NULL) {	/* have temporary output */
 		char *buf;
-		size_t l = ftell(s->f);
+		size_t l = ftell(s.f);
 		
 		if (l) {
-			if ((buf = mmap(NULL, l, PROT_READ | PROT_WRITE, MAP_SHARED, s->fd, 0))) {
+			if ((buf = mmap(NULL, l, PROT_READ | PROT_WRITE, MAP_SHARED, s.fd, 0))) {
 				if (format == FORMAT_XML || format == FORMAT_HTML)
 					xml_translate(&out, buf, params, format);
 				else
@@ -3847,9 +3899,9 @@ static struct ast_str *generic_http_callback(enum output_format format,
 		} else if (format == FORMAT_XML || format == FORMAT_HTML) {
 			xml_translate(&out, "", params, format);
 		}
-		fclose(s->f);
-		s->f = NULL;
-		s->fd = -1;
+		fclose(s.f);
+		s.f = NULL;
+		s.fd = -1;
 	}
 
 	if (format == FORMAT_XML) {
@@ -3857,26 +3909,26 @@ static struct ast_str *generic_http_callback(enum output_format format,
 	} else if (format == FORMAT_HTML)
 		ast_str_append(&out, 0, "</table></body>\r\n");
 
-	ast_mutex_lock(&s->__lock);
+	ast_mutex_lock(&session->__lock);
 	/* Reset HTTP timeout.  If we're not authenticated, keep it extremely short */
-	s->sessiontimeout = time(NULL) + ((s->authenticated || httptimeout < 5) ? httptimeout : 5);
+	session->sessiontimeout = time(NULL) + ((session->authenticated || httptimeout < 5) ? httptimeout : 5);
 
-	if (s->needdestroy) {
-		if (s->inuse == 1) {
+	if (session->needdestroy) {
+		if (session->inuse == 1) {
 			ast_debug(1, "Need destroy, doing it now!\n");
 			blastaway = 1;
 		} else {
 			ast_debug(1, "Need destroy, but can't do it yet!\n");
-			if (s->waiting_thread != AST_PTHREADT_NULL)
-				pthread_kill(s->waiting_thread, SIGURG);
-			s->inuse--;
+			if (session->waiting_thread != AST_PTHREADT_NULL)
+				pthread_kill(session->waiting_thread, SIGURG);
+			session->inuse--;
 		}
 	} else
-		s->inuse--;
-	ast_mutex_unlock(&s->__lock);
+		session->inuse--;
+	ast_mutex_unlock(&session->__lock);
 
 	if (blastaway)
-		destroy_session(s);
+		destroy_session(session);
 generic_callback_out:
 	if (*status != 200)
 		return ast_http_error(500, "Server Error", NULL, "Internal Server Error (out of memory)\n");
@@ -4286,14 +4338,14 @@ int reload_manager(void)
 
 int astman_datastore_add(struct mansession *s, struct ast_datastore *datastore)
 {
-	AST_LIST_INSERT_HEAD(&s->datastores, datastore, entry);
+	AST_LIST_INSERT_HEAD(&s->session->datastores, datastore, entry);
 
 	return 0;
 }
 
 int astman_datastore_remove(struct mansession *s, struct ast_datastore *datastore)
 {
-	return AST_LIST_REMOVE(&s->datastores, datastore, entry) ? 0 : -1;
+	return AST_LIST_REMOVE(&s->session->datastores, datastore, entry) ? 0 : -1;
 }
 
 struct ast_datastore *astman_datastore_find(struct mansession *s, const struct ast_datastore_info *info, const char *uid)
@@ -4303,7 +4355,7 @@ struct ast_datastore *astman_datastore_find(struct mansession *s, const struct a
 	if (info == NULL)
 		return NULL;
 
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&s->datastores, datastore, entry) {
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&s->session->datastores, datastore, entry) {
 		if (datastore->info != info) {
 			continue;
 		}
