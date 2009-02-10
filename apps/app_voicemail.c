@@ -1009,8 +1009,8 @@ static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *
 			ast_copy_string(retval->imapuser, tmp->value, sizeof(retval->imapuser));
 		} else if (!strcasecmp(tmp->name, "imappassword") || !strcasecmp(tmp->name, "imapsecret")) {
 			ast_copy_string(retval->imappassword, tmp->value, sizeof(retval->imappassword));
-		} else if (!strcasecmp(tmp->name, "imapvmshareid")) {
-			ast_copy_string(retval->imapvmshareid, tmp->value, sizeof(retval->imapvmshareid));
+		} else if (!strcasecmp(var->name, "imapvmshareid")) {
+			ast_copy_string(retval->imapvmshareid, var->value, sizeof(retval->imapvmshareid));
 #endif
 		} else
 			apply_option(retval, tmp->name, tmp->value);
