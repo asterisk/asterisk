@@ -32,30 +32,31 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/slinfactory.h"
 #include "asterisk/translate.h"
 
-/*!
- * \brief Initialize an slinfactory
- *
- * \arg sf The slinfactory to initialize
- *
- * \return Nothing
- */
 void ast_slinfactory_init(struct ast_slinfactory *sf) 
 {
 	memset(sf, 0, sizeof(*sf));
 	sf->offset = sf->hold;
+	sf->output_format = AST_FORMAT_SLINEAR;
 }
 
-/*!
- * \brief Destroy the contents of a slinfactory
- *
- * \arg sf The slinfactory that is no longer needed
- *
- * This function will free any memory allocated for the contents of the
- * slinfactory.  It does not free the slinfactory itself.  If the sf is
- * malloc'd, then it must be explicitly free'd after calling this function.
- *
- * \return Nothing
- */
+int ast_slinfactory_init_rate(struct ast_slinfactory *sf, unsigned int sample_rate) 
+{
+	memset(sf, 0, sizeof(*sf));
+	sf->offset = sf->hold;
+	switch (sample_rate) {
+	case 8000:
+		sf->output_format = AST_FORMAT_SLINEAR;
+		break;
+	case 16000:
+		sf->output_format = AST_FORMAT_SLINEAR16;
+		break;
+	default:
+		return -1;
+	}
+
+	return 0;
+}
+
 void ast_slinfactory_destroy(struct ast_slinfactory *sf) 
 {
 	struct ast_frame *f;
@@ -69,14 +70,6 @@ void ast_slinfactory_destroy(struct ast_slinfactory *sf)
 		ast_frfree(f);
 }
 
-/*!
- * \brief Feed audio into an slinfactory
- *
- * \arg sf The slinfactory to feed into
- * \arg f Frame containing audio to feed in
- *
- * \return Number of frames currently in factory
- */
 int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 {
 	struct ast_frame *begin_frame = f, *duped_frame = NULL, *frame_ptr;
@@ -92,15 +85,16 @@ int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 		return 0;
 	}
 
-	if (f->subclass != AST_FORMAT_SLINEAR && f->subclass != AST_FORMAT_SLINEAR16) {
+	if (f->subclass != sf->output_format) {
 		if (sf->trans && f->subclass != sf->format) {
 			ast_translator_free_path(sf->trans);
 			sf->trans = NULL;
 		}
 
 		if (!sf->trans) {
-			if (!(sf->trans = ast_translator_build_path((f->subclass == AST_FORMAT_G722 ? AST_FORMAT_SLINEAR16 : AST_FORMAT_SLINEAR), f->subclass))) {
-				ast_log(LOG_WARNING, "Cannot build a path from %s to slin\n", ast_getformatname(f->subclass));
+			if (!(sf->trans = ast_translator_build_path(sf->output_format, f->subclass))) {
+				ast_log(LOG_WARNING, "Cannot build a path from %s to %s\n", ast_getformatname(f->subclass),
+					ast_getformatname(sf->output_format));
 				return 0;
 			}
 			sf->format = f->subclass;
@@ -125,8 +119,9 @@ int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 	}
 
 	x = 0;
-	AST_LIST_TRAVERSE(&sf->queue, frame_ptr, frame_list)
+	AST_LIST_TRAVERSE(&sf->queue, frame_ptr, frame_list) {
 		x++;
+	}
 
 	AST_LIST_INSERT_TAIL(&sf->queue, duped_frame, frame_list);
 
@@ -135,15 +130,6 @@ int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 	return x;
 }
 
-/*!
- * \brief Read samples from an slinfactory
- *
- * \arg sf The slinfactory to read from
- * \arg buf Buffer to put samples into
- * \arg samples Number of samples wanted
- *
- * \return Number of samples read
- */
 int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t samples) 
 {
 	struct ast_frame *frame_ptr;
@@ -198,25 +184,11 @@ int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t samples)
 	return sofar;
 }
 
-/*!
- * \brief Retrieve number of samples currently in an slinfactory
- *
- * \arg sf The slinfactory to peek into
- *
- * \return Number of samples in slinfactory
- */
 unsigned int ast_slinfactory_available(const struct ast_slinfactory *sf)
 {
 	return sf->size;
 }
 
-/*!
- * \brief Flush the contents of an slinfactory
- *
- * \arg sf The slinfactory to flush
- *
- * \return Nothing
- */
 void ast_slinfactory_flush(struct ast_slinfactory *sf)
 {
 	struct ast_frame *fr = NULL;

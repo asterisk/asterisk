@@ -38,16 +38,27 @@ struct ast_slinfactory {
 	size_t holdlen;                          /*!< Number of samples currently in the hold */
 	unsigned int size;                       /*!< Number of samples currently in the factory */
 	unsigned int format;                     /*!< Current format the translation path is converting from */
+	unsigned int output_format;		 /*!< The output format desired */
 };
 
 /*!
- * \brief Initialize an slinfactory
+ * \brief Initialize a slinfactory
  *
  * \param sf The slinfactory to initialize
  *
  * \return Nothing
  */
 void ast_slinfactory_init(struct ast_slinfactory *sf);
+
+/*!
+ * \brief Initialize a slinfactory
+ *
+ * \param sf The slinfactory to initialize
+ * \param sample_rate The output sample rate desired
+ *
+ * \return 0 on success, non-zero on failure
+ */
+int ast_slinfactory_init_rate(struct ast_slinfactory *sf, unsigned int sample_rate);
 
 /*!
  * \brief Destroy the contents of a slinfactory
@@ -63,7 +74,7 @@ void ast_slinfactory_init(struct ast_slinfactory *sf);
 void ast_slinfactory_destroy(struct ast_slinfactory *sf);
 
 /*!
- * \brief Feed audio into an slinfactory
+ * \brief Feed audio into a slinfactory
  *
  * \param sf The slinfactory to feed into
  * \param f Frame containing audio to feed in
@@ -73,7 +84,7 @@ void ast_slinfactory_destroy(struct ast_slinfactory *sf);
 int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f);
 
 /*!
- * \brief Read samples from an slinfactory
+ * \brief Read samples from a slinfactory
  *
  * \param sf The slinfactory to read from
  * \param buf Buffer to put samples into
@@ -84,7 +95,7 @@ int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f);
 int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t samples);
 
 /*!
- * \brief Retrieve number of samples currently in an slinfactory
+ * \brief Retrieve number of samples currently in a slinfactory
  *
  * \param sf The slinfactory to peek into
  *
@@ -93,7 +104,7 @@ int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t samples)
 unsigned int ast_slinfactory_available(const struct ast_slinfactory *sf);
 
 /*!
- * \brief Flush the contents of an slinfactory
+ * \brief Flush the contents of a slinfactory
  *
  * \param sf The slinfactory to flush
  *
