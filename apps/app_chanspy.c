@@ -613,18 +613,9 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 			 chanspy_ds_free(peer_chanspy_ds), prev = peer,
 		     peer_chanspy_ds = next_chanspy_ds ? next_chanspy_ds : 
 			 	next_channel(chan, prev, spec, exten, context, &chanspy_ds), next_chanspy_ds = NULL) {
-			const char *group;
 			int igrp = !mygroup;
-			char *groups[25];
-			int num_groups = 0;
-			char dup_group[512];
-			int x;
-			char *s;
-			char *buffer;
-			char *end;
-			char *ext;
-			char *form_enforced;
 			int ienf = !myenforced;
+			char *s;
 
 			peer = peer_chanspy_ds->chan;
 
@@ -653,6 +644,11 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 			}
 
 			if (mygroup) {
+				int num_groups = 0;
+				char dup_group[512];
+				char *groups[25];
+				const char *group;
+				int x;
 				if ((group = pbx_builtin_getvar_helper(peer, "SPYGROUP"))) {
 					ast_copy_string(dup_group, group, sizeof(dup_group));
 					num_groups = ast_app_separate_args(dup_group, ':', groups,
@@ -673,35 +669,28 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 			}
 
 			if (myenforced) {
+				char ext[AST_CHANNEL_NAME + 3];
+				char buffer[512];
+				char *end;
 
-				/* We don't need to allocate more space than just the
-				length of (peer->name) for ext as we will cut the
-				channel name's ending before copying into ext */
+				snprintf(buffer, sizeof(buffer) - 1, ":%s:", myenforced);
 
-				ext = alloca(strlen(peer->name));
-
-				form_enforced = alloca(strlen(myenforced) + 3);
-
-				strcpy(form_enforced, ":");
-				strcat(form_enforced, myenforced);
-				strcat(form_enforced, ":");
-
-				buffer = ast_strdupa(peer->name);
-				
-				if ((end = strchr(buffer, '-'))) {
+				ast_copy_string(ext + 1, peer->name, sizeof(ext) - 1);
+				if ((end = strchr(ext, '-'))) {
 					*end++ = ':';
 					*end = '\0';
 				}
 
-				strcpy(ext, ":");
-				strcat(ext, buffer);
+				ext[0] = ':';
 
-				if (strcasestr(form_enforced, ext))
+				if (strcasestr(buffer, ext)) {
 					ienf = 1;
+				}
 			}
 
-			if (!ienf)
+			if (!ienf) {
 				continue;
+			}
 
 			strcpy(peer_name, "spy-");
 			strncat(peer_name, peer->name, AST_NAME_STRLEN - 4 - 1);
