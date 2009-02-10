@@ -21394,6 +21394,7 @@ static void set_peer_defaults(struct sip_peer *peer)
 		peer->socket.type = SIP_TRANSPORT_UDP;
 		peer->socket.fd = -1;
 	}
+	peer->type = SIP_TYPE_PEER;
 	ast_copy_flags(&peer->flags[0], &global_flags[0], SIP_FLAGS_TO_COPY);
 	ast_copy_flags(&peer->flags[1], &global_flags[1], SIP_PAGE2_FLAGS_TO_COPY);
 	strcpy(peer->context, default_context);
