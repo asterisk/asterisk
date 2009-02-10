@@ -4556,9 +4556,11 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 		if (inuse) {
 			sip_pvt_lock(fup);
 			ast_mutex_lock(pu_lock);
-			if ((*inuse > 0) && ast_test_flag(&fup->flags[0], SIP_INC_COUNT)) {
-				(*inuse)--;
-				ast_clear_flag(&fup->flags[0], SIP_INC_COUNT);
+			if (*inuse > 0) {
+				if (ast_test_flag(&fup->flags[0], SIP_INC_COUNT)) {
+					(*inuse)--;
+					ast_clear_flag(&fup->flags[0], SIP_INC_COUNT);
+				}
 			} else {
 				*inuse = 0;
 			}
@@ -4570,9 +4572,11 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 		if (inringing) {
 			sip_pvt_lock(fup);
 			ast_mutex_lock(pu_lock);
-			if ((*inringing > 0)&& ast_test_flag(&fup->flags[0], SIP_INC_RINGING)) {
-				(*inringing)--;
-				ast_clear_flag(&fup->flags[0], SIP_INC_RINGING);
+			if (*inringing > 0) {
+				if (ast_test_flag(&fup->flags[0], SIP_INC_RINGING)) {
+					(*inringing)--;
+					ast_clear_flag(&fup->flags[0], SIP_INC_RINGING);
+				}
 			} else {
 			   *inringing = 0;
 			}
