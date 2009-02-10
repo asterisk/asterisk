@@ -13664,7 +13664,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 			donodelog(myrpt,str);
 		}
 		if (!phone_mode) send_newkey(chan);
-		return AST_PBX_KEEPALIVE;
+		return 0;
 	}
 	/* well, then it is a remote */
 	rpt_mutex_lock(&myrpt->lock);
