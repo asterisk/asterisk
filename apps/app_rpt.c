@@ -7070,7 +7070,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		if (chan->_state != AST_STATE_UP) {
 			ast_answer(chan);
 		}
-		return AST_PBX_KEEPALIVE;
+		return 0;
 	}
 	rpt_mutex_lock(&myrpt->lock);
 	/* if remote, error if anyone else already linked */
