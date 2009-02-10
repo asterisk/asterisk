@@ -14521,8 +14521,12 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				/* Some devices signal they want to be put off hold by sending a re-invite
 				   *without* an SDP, which is supposed to mean "Go back to your state"
 				   and since they put os on remote hold, we go back to off hold */
-				if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD))
+				if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD)) {
+					ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
+					/* Activate a re-invite */
+					ast_queue_frame(p->owner, &ast_null_frame);
 					change_hold_state(p, req, FALSE, 0);
+				}
 			}
 			if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY)) /* This is a response, note what it was for */
 				append_history(p, "ReInv", "Re-invite received");
