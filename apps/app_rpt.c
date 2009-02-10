@@ -601,7 +601,7 @@ struct rpt_tele
 	struct rpt_link mylink;
 	char param[TELEPARAMSIZE];
 	intptr_t submode;
-	unsigned int parrot;
+	uintptr_t  parrot;
 	pthread_t threadid;
 } ;
 
@@ -4972,7 +4972,7 @@ struct dahdi_params par;
 
 	    case PARROT: /* Repeat stuff */
 
-		sprintf(mystr,PARROTFILE,myrpt->name,mytele->parrot);
+		sprintf(mystr,PARROTFILE,myrpt->name,(unsigned int)mytele->parrot);
 		if (ast_fileexists(mystr,NULL,mychannel->language) <= 0)
 		{
 			imdone = 1;
@@ -4980,14 +4980,14 @@ struct dahdi_params par;
 			break;
 		}
 		wait_interval(myrpt, DLY_PARROT, mychannel);
-		sprintf(mystr,PARROTFILE,myrpt->name,mytele->parrot);
+		sprintf(mystr,PARROTFILE,myrpt->name,(unsigned int)mytele->parrot);
 		res = ast_streamfile(mychannel, mystr, mychannel->language);
 		if (!res) 
 			res = ast_waitstream(mychannel, "");
 		else
 			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
 		ast_stopstream(mychannel);
-		sprintf(mystr,PARROTFILE,myrpt->name,mytele->parrot);
+		sprintf(mystr,PARROTFILE,myrpt->name,(unsigned int)mytele->parrot);
 		strcat(mystr,".wav");
 		unlink(mystr);			
 		imdone = 1;
@@ -5255,7 +5255,7 @@ char *v1, *v2;
 	memset((char *)tele,0,sizeof(struct rpt_tele));
 	tele->rpt = myrpt;
 	tele->mode = mode;
-	if (mode == PARROT) tele->parrot = (unsigned int) data;
+	if (mode == PARROT) tele->parrot = (uintptr_t) data;
 	else mylink = (struct rpt_link *) data;
 	rpt_mutex_lock(&myrpt->lock);
 	if((mode == CONNFAIL) || (mode == REMDISC) || (mode == CONNECTED) ||
@@ -11991,7 +11991,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 				ast_closestream(myrpt->parrotstream);
 			myrpt->parrotstream = NULL;
 			myrpt->parrotstate = 2;
-			rpt_telemetry(myrpt,PARROT,(struct rpt_link *) myrpt->parrotcnt++); 
+			rpt_telemetry(myrpt,PARROT,(void *) ((intptr_t)myrpt->parrotcnt++)); 
 		}			
 		if (myrpt->cmdAction.state == CMD_STATE_READY)
 		{ /* there is a command waiting to be processed */
