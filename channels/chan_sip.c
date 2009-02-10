@@ -5314,7 +5314,9 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 			sip_pvt_lock(fup);
 			ao2_lock(p);
 			if (ast_test_flag(&fup->flags[0], SIP_INC_RINGING)) {
-				(*inringing)--;
+				if (*inringing > 0) {
+					(*inringing)--;
+				}
 				ast_clear_flag(&fup->flags[0], SIP_INC_RINGING);
 			}
 			ao2_unlock(p);
