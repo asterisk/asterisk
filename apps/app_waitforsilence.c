@@ -153,7 +153,9 @@ static int waitforsilence_exec(struct ast_channel *chan, void *data)
 	int iterations = 1, i;
 	time_t waitstart;
 
-	res = ast_answer(chan); /* Answer the channel */
+	if (chan->_state != AST_STATE_UP) {
+		res = ast_answer(chan); /* Answer the channel */
+	}
 
 	if (!data || ( (sscanf(data, "%d,%d,%d", &silencereqd, &iterations, &timeout) != 3) &&
 		(sscanf(data, "%d|%d", &silencereqd, &iterations) != 2) &&

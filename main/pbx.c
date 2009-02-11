@@ -7576,7 +7576,7 @@ static int pbx_builtin_answer(struct ast_channel *chan, void *data)
 		delay = 0;
 	}
 
-	return __ast_answer(chan, delay);
+	return __ast_answer(chan, delay, 1);
 }
 
 AST_APP_OPTIONS(resetcdr_opts, {

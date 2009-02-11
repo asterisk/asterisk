@@ -985,7 +985,7 @@ void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset);
  * \retval non-zero on failure
  */
 int ast_answer(struct ast_channel *chan);
-int __ast_answer(struct ast_channel *chan, unsigned int delay);
+int __ast_answer(struct ast_channel *chan, unsigned int delay, int cdr_answer);
 
 /*! \brief Make a call 
  * \param chan which channel to make the call on
