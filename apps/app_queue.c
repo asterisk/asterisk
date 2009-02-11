@@ -2126,11 +2126,11 @@ static int say_position(struct queue_ent *qe, int ringing)
 	}
 
 posout:
-	if (announceposition == 1 || say_thanks) {
-		if (qe->parent->announceposition) {
-			ast_verb(3, "Told %s in %s their queue position (which was %d)\n",
-				qe->chan->name, qe->parent->name, qe->pos);
-		}
+	if (qe->parent->announceposition) {
+		ast_verb(3, "Told %s in %s their queue position (which was %d)\n",
+			qe->chan->name, qe->parent->name, qe->pos);
+	}
+	if (say_thanks) {
 		res = play_file(qe->chan, qe->parent->sound_thanks);
 	}
 playout:
