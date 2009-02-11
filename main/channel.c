@@ -1676,7 +1676,7 @@ int ast_hangup(struct ast_channel *chan)
 }
 
 #define ANSWER_WAIT_MS 500
-int __ast_answer(struct ast_channel *chan, unsigned int delay)
+int __ast_answer(struct ast_channel *chan, unsigned int delay,  int cdr_answer)
 {
 	int res = 0;
 
@@ -1704,7 +1704,9 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay)
 			res = chan->tech->answer(chan);
 		}
 		ast_setstate(chan, AST_STATE_UP);
-		ast_cdr_answer(chan->cdr);
+		if (cdr_answer) {
+			ast_cdr_answer(chan->cdr);
+		}
 		ast_channel_unlock(chan);
 		if (delay) {
 			ast_safe_sleep(chan, delay);
@@ -1740,6 +1742,12 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay)
 		}
 		break;
 	case AST_STATE_UP:
+		/* Calling ast_cdr_answer when it it has previously been called
+		 * is essentially a no-op, so it is safe.
+		 */
+		if (cdr_answer) {
+			ast_cdr_answer(chan->cdr);
+		}
 		break;
 	default:
 		break;
@@ -1753,7 +1761,7 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay)
 
 int ast_answer(struct ast_channel *chan)
 {
-	return __ast_answer(chan, 0);
+	return __ast_answer(chan, 0, 1);
 }
 
 void ast_deactivate_generator(struct ast_channel *chan)

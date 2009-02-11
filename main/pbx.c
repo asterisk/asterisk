@@ -7788,7 +7788,7 @@ static int pbx_builtin_answer(struct ast_channel *chan, void *data)
 		delay = 0;
 	}
 
-	return __ast_answer(chan, delay);
+	return __ast_answer(chan, delay, 1);
 }
 
 static int pbx_builtin_incomplete(struct ast_channel *chan, void *data)
@@ -7805,7 +7805,7 @@ static int pbx_builtin_incomplete(struct ast_channel *chan, void *data)
 	if (ast_check_hangup(chan)) {
 		return -1;
 	} else if (chan->_state != AST_STATE_UP && answer) {
-		__ast_answer(chan, 0);
+		__ast_answer(chan, 0, 1);
 	}
 
 	return AST_PBX_INCOMPLETE;
