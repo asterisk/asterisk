@@ -477,6 +477,23 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 		chan->macropriority = 0;
 	}
 
+	/*!\note
+	 * This section is used to restore a behavior that we mistakenly
+	 * changed in issue #6176, then mistakenly reverted in #13962 and
+	 * #13363.  A corresponding change is made in main/pbx.c, where we
+	 * check this variable for existence, then look for the "h" extension
+	 * in that context.
+	 */
+	if (ast_check_hangup(chan) || res < 0) {
+		/* Don't need to lock the channel, as we aren't dereferencing emc.
+		 * The intent here is to grab the deepest context, without overwriting
+		 * in any above context. */
+		const char *emc = pbx_builtin_getvar_helper(chan, "EXIT_MACRO_CONTEXT");
+		if (!emc) {
+			pbx_builtin_setvar_helper(chan, "EXIT_MACRO_CONTEXT", fullmacro);
+		}
+	}
+
 	if (!strcasecmp(chan->context, fullmacro)) {
   		/* If we're leaving the macro normally, restore original information */
 		chan->priority = oldpriority;

@@ -2365,6 +2365,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 	int res = 0;
 	int autoloopflag;
 	int error = 0;		/* set an error conditions */
+	const char *emc;
 
 	/* A little initial setup here */
 	if (c->pbx) {
@@ -2542,7 +2543,15 @@ static int __ast_pbx_run(struct ast_channel *c)
 		ast_log(LOG_WARNING, "Don't know what to do with '%s'\n", c->name);
 	if (res != AST_PBX_KEEPALIVE)
 		ast_softhangup(c, c->hangupcause ? c->hangupcause : AST_CAUSE_NORMAL_CLEARING);
-	if ((res != AST_PBX_KEEPALIVE) && !ast_test_flag(c, AST_FLAG_BRIDGE_HANGUP_RUN) && ast_exists_extension(c, c->context, "h", 1, c->cid.cid_num)) {
+	ast_channel_lock(c);
+	if ((emc = pbx_builtin_getvar_helper(c, "EXIT_MACRO_CONTEXT"))) {
+		emc = ast_strdupa(emc);
+	}
+	ast_channel_unlock(c);
+	if ((res != AST_PBX_KEEPALIVE) && !ast_test_flag(c, AST_FLAG_BRIDGE_HANGUP_RUN) &&
+			((emc && ast_exists_extension(c, emc, "h", 1, c->cid.cid_num)) ||
+			 (ast_exists_extension(c, c->context, "h", 1, c->cid.cid_num) && (emc = c->context)))) {
+		ast_copy_string(c->context, emc, sizeof(c->context));
 		set_ext_pri(c, "h", 1);
 		if (c->cdr && ast_opt_end_cdr_before_h_exten) {
 			ast_cdr_end(c->cdr);
