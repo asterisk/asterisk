@@ -2012,6 +2012,7 @@ static int valid_exit(struct queue_ent *qe, char digit)
 static int say_position(struct queue_ent *qe, int ringing)
 {
 	int res = 0, avgholdmins, avgholdsecs, announceposition = 0;
+	int say_thanks = 1;
 	time_t now;
 
 	/* Let minannouncefrequency seconds pass between the start of each position announcement */
@@ -2120,11 +2121,12 @@ static int say_position(struct queue_ent *qe, int ringing)
 			if (res)
 				goto playout;
 		}
-
+	} else if (qe->parent->announceholdtime && !qe->parent->announceposition) {
+		say_thanks = 0;
 	}
 
 posout:
-	if (announceposition == 1){
+	if (announceposition == 1 || say_thanks) {
 		if (qe->parent->announceposition) {
 			ast_verb(3, "Told %s in %s their queue position (which was %d)\n",
 				qe->chan->name, qe->parent->name, qe->pos);
