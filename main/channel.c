@@ -1410,7 +1410,10 @@ void ast_channel_free(struct ast_channel *chan)
 	ast_free(chan);
 	AST_RWLIST_UNLOCK(&channels);
 
-	ast_devstate_changed_literal(AST_DEVICE_NOT_INUSE, name);
+	/* Queue an unknown state, because, while we know that this particular
+	 * instance is dead, we don't know the state of all other possible
+	 * instances. */
+	ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, name);
 }
 
 struct ast_datastore *ast_channel_datastore_alloc(const struct ast_datastore_info *info, const char *uid)
