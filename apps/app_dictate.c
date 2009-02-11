@@ -127,7 +127,9 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	ast_answer(chan);
+	if (chan->_state != AST_STATE_UP) {
+		ast_answer(chan);
+	}
 	ast_safe_sleep(chan, 200);
 	for (res = 0; !res;) {
 		if (ast_strlen_zero(filename)) {

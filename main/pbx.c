@@ -97,6 +97,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<para>Asterisk will wait this number of milliseconds before returning to
 				the dialplan after answering the call.</para>
 			</parameter>
+			<parameter name="nocdr">
+				<para>Asterisk will send an answer signal to the calling phone, but will not
+				set the disposition or answer time in the CDR for this call.
+			</parameter>
 		</syntax>
 		<description>
 			<para>If the call has not been answered, this application will
@@ -8310,15 +8314,33 @@ static int pbx_builtin_congestion(struct ast_channel *chan, void *data)
 static int pbx_builtin_answer(struct ast_channel *chan, void *data)
 {
 	int delay = 0;
+	int answer_cdr = 1;
+	char *parse;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(delay);
+		AST_APP_ARG(answer_cdr);
+	);
 
-	if ((chan->_state != AST_STATE_UP) && !ast_strlen_zero(data))
+	if (ast_strlen_zero(data)) {
+		return __ast_answer(chan, 0, 1);
+	}
+
+	parse = ast_strdupa(data);
+
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (!ast_strlen_zero(args.delay) && (chan->_state != AST_STATE_UP))
 		delay = atoi(data);
 
 	if (delay < 0) {
 		delay = 0;
 	}
 
-	return __ast_answer(chan, delay);
+	if (!ast_strlen_zero(args.answer_cdr) && !strcasecmp(args.answer_cdr, "nocdr")) {
+		answer_cdr = 0;
+	}
+
+	return __ast_answer(chan, delay, answer_cdr);
 }
 
 static int pbx_builtin_incomplete(struct ast_channel *chan, void *data)
@@ -8335,7 +8357,7 @@ static int pbx_builtin_incomplete(struct ast_channel *chan, void *data)
 	if (ast_check_hangup(chan)) {
 		return -1;
 	} else if (chan->_state != AST_STATE_UP && answer) {
-		__ast_answer(chan, 0);
+		__ast_answer(chan, 0, 1);
 	}
 
 	return AST_PBX_INCOMPLETE;

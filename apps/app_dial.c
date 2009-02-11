@@ -1593,6 +1593,10 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		res = -1; /* reset default */
 	}
 
+	if (ast_test_flag64(&opts, OPT_DTMF_EXIT)) {
+		__ast_answer(chan, 0, 0);
+	}
+
 	if (continue_exec)
 		*continue_exec = 0;
 
