@@ -1299,6 +1299,18 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	/* Record received timestamp as last received now */
 	rtp->lastrxts = timestamp;
 
+	if (rtp->dtmfcount) {
+		rtp->dtmfcount -= (timestamp - rtp->lastrxts);
+
+		if (rtp->dtmfcount < 0) {
+			rtp->dtmfcount = 0;
+		}
+
+		if (rtp->resp && !rtp->dtmfcount) {
+			return send_dtmf(rtp, AST_FRAME_DTMF_END);
+		}
+	}
+
 	rtp->f.mallocd = 0;
 	rtp->f.datalen = res - hdrlen;
 	rtp->f.data = rtp->rawdata + hdrlen + AST_FRIENDLY_OFFSET;
