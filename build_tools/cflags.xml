@@ -22,7 +22,6 @@
 			<defaultenabled>no</defaultenabled>
 		</member>
 		<member name="G711_REDUCED_BRANCHING" displayname="New ulaw/alaw codec, reduced branching (might help it run faster in some architectures)">
-			<defaultenabled>yes</defaultenabled>
 			<depend>G711_NEW_ALGORITHM</depend>
 		</member>
 		<member name="TEST_CODING_TABLES" displayname="New ulaw/alaw codec, turn on table tests on init">
