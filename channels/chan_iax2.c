@@ -11238,7 +11238,7 @@ static int set_config(char *config_file, int reload)
 	/* Reset Global Flags */
 	memset(&globalflags, 0, sizeof(globalflags));
 	ast_set_flag(&globalflags, IAX_RTUPDATE);
-
+	ast_set_flag(&globalflags, IAX_NOKEYROTATE); /* turn off key rotate by default since it breaks backwards compatibility at the moment. */
 #ifdef SO_NO_CHECK
 	nochecksums = 0;
 #endif
