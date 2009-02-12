@@ -570,7 +570,7 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 		"CallerIDNum: %s\r\n"
 		"CallerIDName: %s\r\n"
 		"Uniqueid: %s\r\n",
-		pu->parkingexten, pu->chan->name, pu->parkinglot->name, event_from ? event_from : "",
+		pu->parkingexten, pu->chan->name, event_from ? event_from : "",
 		(long)pu->start.tv_sec + (long)(pu->parkingtime/1000) - (long)time(NULL),
 		S_OR(pu->chan->cid.cid_num, "<unknown>"),
 		S_OR(pu->chan->cid.cid_name, "<unknown>"),
