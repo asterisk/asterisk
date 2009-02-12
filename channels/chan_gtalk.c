@@ -43,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/signal.h>
 #include <iksemel.h>
 #include <pthread.h>
+#include <ctype.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/channel.h"
@@ -381,6 +382,7 @@ static int gtalk_invite(struct gtalk_pvt *p, char *to, char *from, char *sid, in
 	int pref_codec = 0;
 	int alreadysent = 0;
 	int codecs_num = 0;
+	char *lowerto = NULL;
 
 	iq = iks_new("iq");
 	gtalk = iks_new("session");
@@ -427,7 +429,14 @@ static int gtalk_invite(struct gtalk_pvt *p, char *to, char *from, char *sid, in
 
 	iks_insert_attrib(gtalk, "xmlns", "http://www.google.com/session");
 	iks_insert_attrib(gtalk, "type",initiator ? "initiate": "accept");
-	iks_insert_attrib(gtalk, "initiator", initiator ? from : to);
+	/* put the initiator attribute to lower case if we receive the call 
+	 * otherwise GoogleTalk won't establish the session */
+	if (!initiator) {
+	        char c;
+	        char *t = lowerto = ast_strdupa(to);
+		while (((c = *t) != '/') && (*t++ = tolower(c)));
+	}
+	iks_insert_attrib(gtalk, "initiator", initiator ? from : lowerto);
 	iks_insert_attrib(gtalk, "id", sid);
 	iks_insert_node(iq, gtalk);
 	iks_insert_node(gtalk, dcodecs);
@@ -447,6 +456,8 @@ static int gtalk_invite(struct gtalk_pvt *p, char *to, char *from, char *sid, in
 static int gtalk_invite_response(struct gtalk_pvt *p, char *to , char *from, char *sid, int initiator)
 {
 	iks *iq, *session, *transport;
+	char *lowerto = NULL;
+
 	iq = iks_new("iq");
 	session = iks_new("session");
 	transport = iks_new("transport");
@@ -464,7 +475,14 @@ static int gtalk_invite_response(struct gtalk_pvt *p, char *to , char *from, cha
 	ast_aji_increment_mid(p->parent->connection->mid);
 	iks_insert_attrib(session, "type", "transport-accept");
 	iks_insert_attrib(session, "id", sid);
-	iks_insert_attrib(session, "initiator", initiator ? from : to);
+	/* put the initiator attribute to lower case if we receive the call 
+	 * otherwise GoogleTalk won't establish the session */
+	if (!initiator) {
+	        char c;
+		char *t = lowerto = ast_strdupa(to);
+		while (((c = *t) != '/') && (*t++ = tolower(c)));
+	}
+	iks_insert_attrib(session, "initiator", initiator ? from : lowerto);
 	iks_insert_attrib(session, "xmlns", "http://www.google.com/session");
 	iks_insert_attrib(transport, "xmlns", "http://www.google.com/transport/p2p");
 	iks_insert_node(iq,session);
@@ -760,6 +778,7 @@ static int gtalk_create_candidates(struct gtalk *client, struct gtalk_pvt *p, ch
 	struct in_addr us;
 	iks *iq, *gtalk, *candidate, *transport;
 	char user[17], pass[17], preference[5], port[7];
+	char *lowerfrom = NULL;
 
 
 	iq = iks_new("iq");
@@ -838,7 +857,14 @@ static int gtalk_create_candidates(struct gtalk *client, struct gtalk_pvt *p, ch
 		ast_aji_increment_mid(c->mid);
 		iks_insert_attrib(gtalk, "type", "transport-info");
 		iks_insert_attrib(gtalk, "id", sid);
-		iks_insert_attrib(gtalk, "initiator", (p->initiator) ? to : from);
+		/* put the initiator attribute to lower case if we receive the call 
+		 * otherwise GoogleTalk won't establish the session */
+		if (!p->initiator) {
+		        char c;
+			char *t = lowerfrom = ast_strdupa(from);
+			while (((c = *t) != '/') && (*t++ = tolower(c)));
+		}
+		iks_insert_attrib(gtalk, "initiator", (p->initiator) ? to : lowerfrom);
 		iks_insert_attrib(gtalk, "xmlns", GOOGLE_NS);
 		iks_insert_attrib(candidate, "name", tmp->name);
 		iks_insert_attrib(candidate, "address", tmp->ip);
@@ -1046,6 +1072,7 @@ static int gtalk_action(struct gtalk *client, struct gtalk_pvt *p, const char *a
 {
 	iks *request, *session = NULL;
 	int res = -1;
+	char *lowerthem = NULL;
 
 	request = iks_new("iq");
 	if (request) {
@@ -1058,7 +1085,14 @@ static int gtalk_action(struct gtalk *client, struct gtalk_pvt *p, const char *a
 		if (session) {
 			iks_insert_attrib(session, "type", action);
 			iks_insert_attrib(session, "id", p->sid);
-			iks_insert_attrib(session, "initiator", p->initiator ? p->us : p->them);
+			/* put the initiator attribute to lower case if we receive the call 
+			 * otherwise GoogleTalk won't establish the session */
+			if (!p->initiator) {
+			        char c;
+				char *t = lowerthem = ast_strdupa(p->them);
+				while (((c = *t) != '/') && (*t++ = tolower(c)));
+			}
+			iks_insert_attrib(session, "initiator", p->initiator ? p->us : lowerthem);
 			iks_insert_attrib(session, "xmlns", "http://www.google.com/session");
 			iks_insert_node(request, session);
 			ast_aji_send(client->connection, request);
@@ -1474,6 +1508,7 @@ static int gtalk_digit(struct ast_channel *ast, char digit, unsigned int duratio
 	struct gtalk *client = p->parent;
 	iks *iq, *gtalk, *dtmf;
 	char buffer[2] = {digit, '\0'};
+	char *lowerthem = NULL;
 	iq = iks_new("iq");
 	gtalk = iks_new("gtalk");
 	dtmf = iks_new("dtmf");
@@ -1492,7 +1527,14 @@ static int gtalk_digit(struct ast_channel *ast, char digit, unsigned int duratio
 	ast_aji_increment_mid(client->connection->mid);
 	iks_insert_attrib(gtalk, "xmlns", "http://jabber.org/protocol/gtalk");
 	iks_insert_attrib(gtalk, "action", "session-info");
-	iks_insert_attrib(gtalk, "initiator", p->initiator ? p->us: p->them);
+	/* put the initiator attribute to lower case if we receive the call 
+	 * otherwise GoogleTalk won't establish the session */
+	if (!p->initiator) {
+	        char c;
+	        char *t = lowerthem = ast_strdupa(p->them);
+	        while (((c = *t) != '/') && (*t++ = tolower(c)));
+	}
+	iks_insert_attrib(gtalk, "initiator", p->initiator ? p->us: lowerthem);
 	iks_insert_attrib(gtalk, "sid", p->sid);
 	iks_insert_attrib(dtmf, "xmlns", "http://jabber.org/protocol/gtalk/info/dtmf");
 	iks_insert_attrib(dtmf, "code", buffer);
