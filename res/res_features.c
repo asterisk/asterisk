@@ -555,7 +555,8 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, i
 	int park_status;
 
 	if ((pu = park_space_reserve(rchan)) == NULL) {
-		ast_stream_and_wait(peer, "beeperr", peer->language, "");
+		if (peer)
+			ast_stream_and_wait(peer, "beeperr", peer->language, "");
 		return FEATURE_RETURN_PARKFAILED;
 	}
 
