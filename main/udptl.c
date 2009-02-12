@@ -67,7 +67,7 @@ static int udptlfecentries;
 static int udptlfecspan;
 static int udptlmaxdatagram;
 
-#define LOCAL_FAX_MAX_DATAGRAM      400
+#define LOCAL_FAX_MAX_DATAGRAM      1400
 #define MAX_FEC_ENTRIES             5
 #define MAX_FEC_SPAN                5
 
@@ -139,7 +139,7 @@ struct ast_udptl {
 static struct ast_udptl_protocol *protos;
 
 static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, int len);
-static int udptl_build_packet(struct ast_udptl *s, uint8_t *buf, uint8_t *ifp, int ifp_len);
+static int udptl_build_packet(struct ast_udptl *s, uint8_t *buf, int buflen, uint8_t *ifp, int ifp_len);
 
 static inline int udptl_debug_test_addr(struct sockaddr_in *addr)
 {
@@ -237,7 +237,7 @@ static int encode_length(uint8_t *buf, int *len, int value)
 }
 /*- End of function --------------------------------------------------------*/
 
-static int encode_open_type(uint8_t *buf, int *len, const uint8_t *data, int num_octets)
+static int encode_open_type(uint8_t *buf, int buflen, int *len, const uint8_t *data, int num_octets)
 {
 	int enclen;
 	int octet_idx;
@@ -253,6 +253,10 @@ static int encode_open_type(uint8_t *buf, int *len, const uint8_t *data, int num
 	for (octet_idx = 0; ; num_octets -= enclen, octet_idx += enclen) {
 		if ((enclen = encode_length(buf, len, num_octets)) < 0)
 			return -1;
+		if (enclen + *len > buflen) {
+			ast_log(LOG_ERROR, "Buffer overflow detected (%d + %d > %d)\n", enclen, *len, buflen);
+			return -1;
+		}
 		if (enclen > 0) {
 			memcpy(&buf[*len], &data[octet_idx], enclen);
 			*len += enclen;
@@ -473,9 +477,9 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, int len)
 }
 /*- End of function --------------------------------------------------------*/
 
-static int udptl_build_packet(struct ast_udptl *s, uint8_t *buf, uint8_t *ifp, int ifp_len)
+static int udptl_build_packet(struct ast_udptl *s, uint8_t *buf, int buflen, uint8_t *ifp, int ifp_len)
 {
-	uint8_t fec[LOCAL_FAX_MAX_DATAGRAM];
+	uint8_t fec[LOCAL_FAX_MAX_DATAGRAM * 2];
 	int i;
 	int j;
 	int seq;
@@ -505,7 +509,7 @@ static int udptl_build_packet(struct ast_udptl *s, uint8_t *buf, uint8_t *ifp, i
 	buf[len++] = seq & 0xFF;
 
 	/* Encode the primary IFP packet */
-	if (encode_open_type(buf, &len, ifp, ifp_len) < 0)
+	if (encode_open_type(buf, buflen, &len, ifp, ifp_len) < 0)
 		return -1;
 
 	/* Encode the appropriate type of error recovery information */
@@ -533,8 +537,12 @@ static int udptl_build_packet(struct ast_udptl *s, uint8_t *buf, uint8_t *ifp, i
 		/* Encode the elements */
 		for (i = 0; i < entries; i++) {
 			j = (entry - i - 1) & UDPTL_BUF_MASK;
-			if (encode_open_type(buf, &len, s->tx[j].buf, s->tx[j].buf_len) < 0)
+			if (encode_open_type(buf, buflen, &len, s->tx[j].buf, s->tx[j].buf_len) < 0) {
+				if (option_debug) {
+					ast_log(LOG_DEBUG, "Encoding failed at i=%d, j=%d\n", i, j);
+				}
 				return -1;
+			}
 		}
 		break;
 	case UDPTL_ERROR_CORRECTION_FEC:
@@ -571,7 +579,7 @@ static int udptl_build_packet(struct ast_udptl *s, uint8_t *buf, uint8_t *ifp, i
 						fec[j] ^= s->tx[i].buf[j];
 				}
 			}
-			if (encode_open_type(buf, &len, fec, high_tide) < 0)
+			if (encode_open_type(buf, buflen, &len, fec, high_tide) < 0)
 				return -1;
 		}
 		break;
@@ -872,7 +880,7 @@ int ast_udptl_write(struct ast_udptl *s, struct ast_frame *f)
 	int seq;
 	int len;
 	int res;
-	uint8_t buf[LOCAL_FAX_MAX_DATAGRAM];
+	uint8_t buf[LOCAL_FAX_MAX_DATAGRAM * 2];
 
 	/* If we have no peer, return immediately */	
 	if (s->them.sin_addr.s_addr == INADDR_ANY)
@@ -891,7 +899,7 @@ int ast_udptl_write(struct ast_udptl *s, struct ast_frame *f)
 	seq = s->tx_seq_no & 0xFFFF;
 
 	/* Cook up the UDPTL packet, with the relevant EC info. */
-	len = udptl_build_packet(s, buf, f->data, f->datalen);
+	len = udptl_build_packet(s, buf, sizeof(buf), f->data, f->datalen);
 
 	if (len > 0 && s->them.sin_port && s->them.sin_addr.s_addr) {
 		if ((res = sendto(s->fd, buf, len, 0, (struct sockaddr *) &s->them, sizeof(s->them))) < 0)
@@ -1179,17 +1187,25 @@ void ast_udptl_reload(void)
 	if ((cfg = ast_config_load("udptl.conf"))) {
 		if ((s = ast_variable_retrieve(cfg, "general", "udptlstart"))) {
 			udptlstart = atoi(s);
-			if (udptlstart < 1024)
+			if (udptlstart < 1024) {
+				ast_log(LOG_WARNING, "Ports under 1024 are not allowed for T.38.\n");
 				udptlstart = 1024;
-			if (udptlstart > 65535)
+			}
+			if (udptlstart > 65535) {
+				ast_log(LOG_WARNING, "Ports over 65535 are invalid.\n");
 				udptlstart = 65535;
+			}
 		}
 		if ((s = ast_variable_retrieve(cfg, "general", "udptlend"))) {
 			udptlend = atoi(s);
-			if (udptlend < 1024)
+			if (udptlend < 1024) {
+				ast_log(LOG_WARNING, "Ports under 1024 are not allowed for T.38.\n");
 				udptlend = 1024;
-			if (udptlend > 65535)
+			}
+			if (udptlend > 65535) {
+				ast_log(LOG_WARNING, "Ports over 65535 are invalid.\n");
 				udptlend = 65535;
+			}
 		}
 		if ((s = ast_variable_retrieve(cfg, "general", "udptlchecksums"))) {
 #ifdef SO_NO_CHECK
@@ -1210,24 +1226,36 @@ void ast_udptl_reload(void)
 		}
 		if ((s = ast_variable_retrieve(cfg, "general", "T38FaxMaxDatagram"))) {
 			udptlmaxdatagram = atoi(s);
-			if (udptlmaxdatagram < 0)
-				udptlmaxdatagram = 0;
-			if (udptlmaxdatagram > LOCAL_FAX_MAX_DATAGRAM)
+			if (udptlmaxdatagram < 100) {
+				ast_log(LOG_WARNING, "Too small T38FaxMaxDatagram size.  Defaulting to 100.\n");
+				udptlmaxdatagram = 100;
+			}
+			if (udptlmaxdatagram > LOCAL_FAX_MAX_DATAGRAM) {
+				ast_log(LOG_WARNING, "Too large T38FaxMaxDatagram size.  Defaulting to %d.\n", LOCAL_FAX_MAX_DATAGRAM);
 				udptlmaxdatagram = LOCAL_FAX_MAX_DATAGRAM;
+			}
 		}
 		if ((s = ast_variable_retrieve(cfg, "general", "UDPTLFECentries"))) {
 			udptlfecentries = atoi(s);
-			if (udptlfecentries < 0)
-				udptlfecentries = 0;
-			if (udptlfecentries > MAX_FEC_ENTRIES)
+			if (udptlfecentries < 1) {
+				ast_log(LOG_WARNING, "Too small UDPTLFECentries value.  Defaulting to 1.\n");
+				udptlfecentries = 1;
+			}
+			if (udptlfecentries > MAX_FEC_ENTRIES) {
+				ast_log(LOG_WARNING, "Too large UDPTLFECentries value.  Defaulting to %d.\n", MAX_FEC_ENTRIES);
 				udptlfecentries = MAX_FEC_ENTRIES;
+			}
 		}
 		if ((s = ast_variable_retrieve(cfg, "general", "UDPTLFECspan"))) {
 			udptlfecspan = atoi(s);
-			if (udptlfecspan < 0)
-				udptlfecspan = 0;
-			if (udptlfecspan > MAX_FEC_SPAN)
+			if (udptlfecspan < 1) {
+				ast_log(LOG_WARNING, "Too small UDPTLFECspan value.  Defaulting to 1.\n");
+				udptlfecspan = 1;
+			}
+			if (udptlfecspan > MAX_FEC_SPAN) {
+				ast_log(LOG_WARNING, "Too large UDPTLFECspan value.  Defaulting to %d.\n", MAX_FEC_SPAN);
 				udptlfecspan = MAX_FEC_SPAN;
+			}
 		}
 		ast_config_destroy(cfg);
 	}
