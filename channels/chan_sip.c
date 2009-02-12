@@ -7670,7 +7670,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	/* XXX This needs to be done per media stream, since it's media stream specific */
 	iterator = req->sdp_start;
 	while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
-		char* mimeSubtype = ast_strdupa(a); /* ensures we have enough space */
+		char mimeSubtype[128];
+		ast_copy_string(mimeSubtype, a, sizeof(mimeSubtype));
 		if (option_debug > 1) {
 			int breakout = FALSE;
 		
