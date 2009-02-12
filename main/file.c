@@ -729,10 +729,19 @@ static enum fsread_res ast_readaudio_callback(struct ast_filestream *s)
 			goto return_failure;
 		
 		fr = s->fmt->read(s, &whennext);
+		if (fr) {
+			ast_set_flag(fr, AST_FRFLAG_FROM_FILESTREAM);
+			ao2_ref(s, +1);
+		}
 		if (!fr /* stream complete */ || ast_write(s->owner, fr) /* error writing */) {
-			if (fr)
+			if (fr) {
 				ast_log(LOG_WARNING, "Failed to write frame\n");
+				ast_frfree(fr);
+			}
 			goto return_failure;
+		}
+		if (fr) {
+			ast_frfree(fr);
 		}
 	}
 	if (whennext != s->lasttimeout) {
