@@ -377,6 +377,7 @@ enum iax2_flags {
 	IAX_ALLOWFWDOWNLOAD =   (1 << 26),	/*!< Allow the FWDOWNL command? */
 	IAX_NOKEYROTATE =       (1 << 27),	/*!< Disable key rotation with encryption */
 	IAX_IMMEDIATE =		(1 << 28),      /*!< Allow immediate off-hook to extension s */
+	IAX_FORCE_ENCRYPT =	(1 << 29),      /*!< Forces call encryption, if encryption not possible hangup */
 };
 
 static int global_rtautoclear = 120;
@@ -1939,8 +1940,7 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 			iaxs[x]->pingid = iax2_sched_add(sched, ping_time * 1000, send_ping, (void *)(long)x);
 			iaxs[x]->lagid = iax2_sched_add(sched, lagrq_time * 1000, send_lagrq, (void *)(long)x);
 			iaxs[x]->amaflags = amaflags;
-			ast_copy_flags(iaxs[x], &globalflags, IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_NOKEYROTATE);
-			
+			ast_copy_flags(iaxs[x], &globalflags, IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_NOKEYROTATE | IAX_FORCE_ENCRYPT);	
 			ast_string_field_set(iaxs[x], accountcode, accountcode);
 			ast_string_field_set(iaxs[x], mohinterpret, mohinterpret);
 			ast_string_field_set(iaxs[x], mohsuggest, mohsuggest);
@@ -3556,7 +3556,7 @@ static int create_addr(const char *peername, struct ast_channel *c, struct socka
 	if (peer->maxms && ((peer->lastms > peer->maxms) || (peer->lastms < 0)))
 		goto return_unref;
 
-	ast_copy_flags(cai, peer, IAX_SENDANI | IAX_TRUNK | IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_NOKEYROTATE);
+	ast_copy_flags(cai, peer, IAX_SENDANI | IAX_TRUNK | IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_NOKEYROTATE | IAX_FORCE_ENCRYPT);
 	cai->maxtime = peer->maxms;
 	cai->capability = peer->capability;
 	cai->encmethods = peer->encmethods;
@@ -3756,16 +3756,17 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		ast_log(LOG_WARNING, "No peer provided in the IAX2 dial string '%s'\n", dest);
 		return -1;
 	}
-
 	if (!pds.exten) {
 		pds.exten = defaultrdest;
 	}
-
 	if (create_addr(pds.peer, c, &sin, &cai)) {
 		ast_log(LOG_WARNING, "No address associated with '%s'\n", pds.peer);
 		return -1;
 	}
-
+	if (ast_strlen_zero(cai.secret) && ast_test_flag(iaxs[callno], IAX_FORCE_ENCRYPT)) {
+		ast_log(LOG_WARNING, "Call terminated. No secret given and force encrypt enabled\n");
+		return -1;
+	}
 	if (!pds.username && !ast_strlen_zero(cai.username))
 		pds.username = cai.username;
 	if (!pds.password && !ast_strlen_zero(cai.secret))
@@ -6221,11 +6222,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		if (user->maxauthreq > 0)
 			ast_set_flag(iaxs[callno], IAX_MAXAUTHREQ);
 		iaxs[callno]->prefs = user->prefs;
-		ast_copy_flags(iaxs[callno], user, IAX_CODEC_USER_FIRST);
-		ast_copy_flags(iaxs[callno], user, IAX_IMMEDIATE);
-		ast_copy_flags(iaxs[callno], user, IAX_CODEC_NOPREFS);
-		ast_copy_flags(iaxs[callno], user, IAX_CODEC_NOCAP);
-		ast_copy_flags(iaxs[callno], user, IAX_NOKEYROTATE);
+		ast_copy_flags(iaxs[callno], user, IAX_CODEC_USER_FIRST | IAX_IMMEDIATE | IAX_CODEC_NOPREFS | IAX_CODEC_NOCAP | IAX_NOKEYROTATE | IAX_FORCE_ENCRYPT);
 		iaxs[callno]->encmethods = user->encmethods;
 		/* Store the requested username if not specified */
 		if (ast_strlen_zero(iaxs[callno]->username))
@@ -6403,7 +6400,10 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 		ast_string_field_set(p, host, user->name);
 		user = user_unref(user);
 	}
-
+	if (ast_test_flag(p, IAX_FORCE_ENCRYPT) && !p->encmethods) { 
+		ast_log(LOG_NOTICE, "Call Terminated, Incomming call is unencrypted while force encrypt is enabled.");
+		return res;
+	}
 	if (!ast_test_flag(&p->state, IAX_STATE_AUTHENTICATED))
 		return res;
 	if (ies->password)
@@ -6723,8 +6723,13 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 			}
 		}
 	}
-	if (ies->encmethods)
+
+	if (ies->encmethods) {
 		ast_set_flag(p, IAX_ENCRYPTED | IAX_KEYPOPULATED);
+	} else if (ast_test_flag(iaxs[callno], IAX_FORCE_ENCRYPT)) {
+		ast_log(LOG_NOTICE, "Call initiated without encryption while forceencryption=yes option is set");
+		return -1;             /* if force encryption is yes, and no encryption methods, then return -1 to hangup */
+	}
 	if (!res) {
 		struct ast_datastore *variablestore;
 		struct ast_variable *var, *prev = NULL;
@@ -8841,6 +8846,11 @@ retryowner:
 						ast_log(LOG_NOTICE, "Rejected connect attempt from %s, who was trying to reach '%s@%s'\n", ast_inet_ntoa(sin.sin_addr), iaxs[fr->callno]->exten, iaxs[fr->callno]->context);
 					break;
 				}
+				if (ast_strlen_zero(iaxs[fr->callno]->secret) && ast_test_flag(iaxs[fr->callno], IAX_FORCE_ENCRYPT)) {
+					auth_fail(fr->callno, IAX_COMMAND_REJECT);
+					ast_log(LOG_WARNING, "Rejected connect attempt.  No secret present while force encrypt enabled.\n");
+					break;
+				}
 				if (strcasecmp(iaxs[fr->callno]->exten, "TBD")) {
 					const char *context, *exten, *cid_num;
 
@@ -10659,7 +10669,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 			if (ast_test_flag(&globalflags, IAX_NOKEYROTATE)) {
 				ast_copy_flags(peer, &globalflags, IAX_NOKEYROTATE);
 			}
-			ast_copy_flags(peer, &globalflags, IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);
+			ast_copy_flags(peer, &globalflags, IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_FORCE_ENCRYPT);
 			peer->encmethods = iax2_encryption;
 			peer->adsi = adsi;
 			ast_string_field_set(peer,secret,"");
@@ -10709,6 +10719,18 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 				peer->authmethods = get_auth_methods(v->value);
 			} else if (!strcasecmp(v->name, "encryption")) {
 				peer->encmethods = get_encrypt_methods(v->value);
+				if (!peer->encmethods) {
+					ast_clear_flag(peer, IAX_FORCE_ENCRYPT);
+				}
+			} else if (!strcasecmp(v->name, "forceencryption")) {
+				if (ast_false(v->value)) {
+					ast_clear_flag(peer, IAX_FORCE_ENCRYPT);
+				} else {
+					peer->encmethods = get_encrypt_methods(v->value);
+					if (peer->encmethods) {
+						ast_set_flag(peer, IAX_FORCE_ENCRYPT);
+					}
+				}
 			} else if (!strcasecmp(v->name, "keyrotate")) {
 				if (ast_false(v->value))
 					ast_set_flag(peer, IAX_NOKEYROTATE);
@@ -10923,7 +10945,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 			user->adsi = adsi;
 			ast_string_field_set(user, name, name);
 			ast_string_field_set(user, language, language);
-			ast_copy_flags(user, &globalflags, IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_CODEC_USER_FIRST | IAX_CODEC_NOPREFS | IAX_CODEC_NOCAP | IAX_NOKEYROTATE);	
+			ast_copy_flags(user, &globalflags, IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_CODEC_USER_FIRST | IAX_CODEC_NOPREFS | IAX_CODEC_NOCAP | IAX_NOKEYROTATE | IAX_FORCE_ENCRYPT);	
 			ast_clear_flag(user, IAX_HASCALLERID);
 			ast_string_field_set(user, cid_name, "");
 			ast_string_field_set(user, cid_num, "");
@@ -10969,6 +10991,18 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 				user->authmethods = get_auth_methods(v->value);
 			} else if (!strcasecmp(v->name, "encryption")) {
 				user->encmethods = get_encrypt_methods(v->value);
+				if (!user->encmethods) {
+					ast_clear_flag(user, IAX_FORCE_ENCRYPT);
+				}
+			} else if (!strcasecmp(v->name, "forceencryption")) {
+				if (ast_false(v->value)) {
+					ast_clear_flag(user, IAX_FORCE_ENCRYPT);
+				} else {
+					user->encmethods = get_encrypt_methods(v->value);
+					if (user->encmethods) {
+						ast_set_flag(user, IAX_FORCE_ENCRYPT);
+					}
+				}
 			} else if (!strcasecmp(v->name, "keyrotate")) {
 				if (ast_false(v->value))
 					ast_set_flag(user, IAX_NOKEYROTATE);
@@ -11344,11 +11378,23 @@ static int set_config(char *config_file, int reload)
 					ast_netsock_unref(ns);
 				}
 			}
-		} else if (!strcasecmp(v->name, "authdebug"))
+		} else if (!strcasecmp(v->name, "authdebug")) {
 			authdebug = ast_true(v->value);
-		else if (!strcasecmp(v->name, "encryption"))
-			iax2_encryption = get_encrypt_methods(v->value);
-		else if (!strcasecmp(v->name, "keyrotate")) {
+		} else if (!strcasecmp(v->name, "encryption")) {
+				iax2_encryption = get_encrypt_methods(v->value);
+				if (!iax2_encryption) {
+					ast_clear_flag((&globalflags), IAX_FORCE_ENCRYPT);
+				}
+		} else if (!strcasecmp(v->name, "forceencryption")) {
+			if (ast_false(v->value)) {
+				ast_clear_flag((&globalflags), IAX_FORCE_ENCRYPT);
+			} else {
+				iax2_encryption = get_encrypt_methods(v->value);
+				if (iax2_encryption) {
+					ast_set_flag((&globalflags), IAX_FORCE_ENCRYPT);
+				}
+			}
+		} else if (!strcasecmp(v->name, "keyrotate")) {
 			if (ast_false(v->value))
 				ast_set_flag((&globalflags), IAX_NOKEYROTATE);
 			else

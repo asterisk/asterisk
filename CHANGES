@@ -546,6 +546,7 @@ IAX2 changes
   * Added support for OSP.  The token is set and retrieved through the CHANNEL()
      dialplan function.
   * Added immediate option to iax.conf
+  * Added forceencryption option to iax.conf
 
 XMPP Google Talk/Jingle changes
 -------------------------------

@@ -176,6 +176,11 @@ forcejitterbuffer=no
 ;
 ; encryption = yes
 ;
+; Force encryption insures no connection is established unless both sides support
+; encryption.  By turning this option on, encryption is automatically turned on as well.  
+;
+; forceencryption = yes
+;
 ; This is a compatibility option for older versions of IAX2 that do not support
 ; key rotation with encryption.  This option will disable the IAX_COMMAND_RTENC message.
 ; default is on
