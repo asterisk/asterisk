@@ -1307,7 +1307,10 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		}
 
 		if (rtp->resp && !rtp->dtmfcount) {
-			return send_dtmf(rtp, AST_FRAME_DTMF_END);
+			struct ast_frame *f;
+			f = send_dtmf(rtp, AST_FRAME_DTMF_END);
+			rtp->resp = 0;
+			return f;
 		}
 	}
 
