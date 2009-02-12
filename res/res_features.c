@@ -421,7 +421,8 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 {
 	struct ast_context *con;
 	int parkingnum_copy;
-	
+	const char *event_from;
+
 	/* Get a valid space if not already done */
 	if (pu == NULL)
 		pu = park_space_reserve(chan);
@@ -487,6 +488,12 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 	if (option_verbose > 1) 
 		ast_verbose(VERBOSE_PREFIX_2 "Parked %s on %d@%s. Will timeout back to extension [%s] %s, %d in %d seconds\n", pu->chan->name, pu->parkingnum, parking_con, pu->context, pu->exten, pu->priority, (pu->parkingtime/1000));
 
+	if (peer) {
+		event_from = peer->name;
+	} else {
+		event_from = pbx_builtin_getvar_helper(chan, "BLINDTRANSFER");
+	}
+
 	manager_event(EVENT_FLAG_CALL, "ParkedCall",
 		"Exten: %s\r\n"
 		"Channel: %s\r\n"
@@ -494,7 +501,7 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 		"Timeout: %ld\r\n"
 		"CallerID: %s\r\n"
 		"CallerIDName: %s\r\n",
-		pu->parkingexten, pu->chan->name, peer ? peer->name : "",
+		pu->parkingexten, pu->chan->name, event_from ? event_from : "",
 		(long)pu->start.tv_sec + (long)(pu->parkingtime/1000) - (long)time(NULL),
 		S_OR(pu->chan->cid.cid_num, "<unknown>"),
 		S_OR(pu->chan->cid.cid_name, "<unknown>")
