@@ -7671,7 +7671,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	iterator = req->sdp_start;
 	while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
 		char mimeSubtype[128];
-		ast_copy_string(mimeSubtype, a, sizeof(mimeSubtype));
 		if (option_debug > 1) {
 			int breakout = FALSE;
 		
@@ -7759,7 +7758,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			}
 			red_cp = red_fmtp;
 
-		} else if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) == 2) {
+		} else if (sscanf(a, "rtpmap: %u %127[^/]/", &codec, mimeSubtype) == 2) {
 			/* We have a rtpmap to handle */
 
 			if (last_rtpmap_codec < SDP_MAX_RTPMAP_CODECS) {
