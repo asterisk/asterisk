@@ -812,6 +812,9 @@ static int gtalk_create_candidates(struct gtalk *client, struct gtalk_pvt *p, ch
 
 	ast_rtp_get_us(p->rtp, &sin);
 	ast_find_ourip(&us, bindaddr);
+	if (!strcmp(ast_inet_ntoa(us), "127.0.0.1")) {
+		ast_log(LOG_WARNING, "Found a loopback IP on the system, check your network configuration or set the bindaddr attribute.");
+	}
 
 	/* Setup our gtalk candidates */
 	ast_copy_string(ours1->name, "rtp", sizeof(ours1->name));
