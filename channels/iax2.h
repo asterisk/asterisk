@@ -187,6 +187,7 @@ enum {
 #define IAX_AUTH_RSA				(1 << 2)
 
 #define IAX_ENCRYPT_AES128			(1 << 0)
+#define IAX_ENCRYPT_KEYROTATE			(1 << 15)       /*!< Keyrotation support */
 
 #define IAX_META_TRUNK				1		/*!< Trunk meta-message */
 #define IAX_META_VIDEO				2		/*!< Video frame */

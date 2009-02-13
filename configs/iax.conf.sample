@@ -180,12 +180,6 @@ forcejitterbuffer=no
 ; encryption.  By turning this option on, encryption is automatically turned on as well.  
 ;
 ; forceencryption = yes
-;
-; This is a compatibility option for older versions of IAX2 that do not support
-; key rotation with encryption.  This option will disable the IAX_COMMAND_RTENC message.
-; default is on
-;
-; keyrotate=off
 
 ; This option defines the maximum size an IAX2 trunk can grow to. The default value is 128000 bytes which
 ; represents 40ms uncompressed linear with 200 channels. Depending on different things though

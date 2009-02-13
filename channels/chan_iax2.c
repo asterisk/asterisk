@@ -375,9 +375,8 @@ enum iax2_flags {
 						     response, so that we've achieved a three-way handshake with
 						     them before sending voice or anything else*/
 	IAX_ALLOWFWDOWNLOAD =   (1 << 26),	/*!< Allow the FWDOWNL command? */
-	IAX_NOKEYROTATE =       (1 << 27),	/*!< Disable key rotation with encryption */
-	IAX_IMMEDIATE =		(1 << 28),      /*!< Allow immediate off-hook to extension s */
-	IAX_FORCE_ENCRYPT =	(1 << 29),      /*!< Forces call encryption, if encryption not possible hangup */
+	IAX_IMMEDIATE =		(1 << 27),      /*!< Allow immediate off-hook to extension s */
+	IAX_FORCE_ENCRYPT =	(1 << 28),      /*!< Forces call encryption, if encryption not possible hangup */
 };
 
 static int global_rtautoclear = 120;
@@ -1940,7 +1939,7 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 			iaxs[x]->pingid = iax2_sched_add(sched, ping_time * 1000, send_ping, (void *)(long)x);
 			iaxs[x]->lagid = iax2_sched_add(sched, lagrq_time * 1000, send_lagrq, (void *)(long)x);
 			iaxs[x]->amaflags = amaflags;
-			ast_copy_flags(iaxs[x], &globalflags, IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_NOKEYROTATE | IAX_FORCE_ENCRYPT);	
+			ast_copy_flags(iaxs[x], &globalflags, IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_FORCE_ENCRYPT);	
 			ast_string_field_set(iaxs[x], accountcode, accountcode);
 			ast_string_field_set(iaxs[x], mohinterpret, mohinterpret);
 			ast_string_field_set(iaxs[x], mohsuggest, mohsuggest);
@@ -3556,7 +3555,7 @@ static int create_addr(const char *peername, struct ast_channel *c, struct socka
 	if (peer->maxms && ((peer->lastms > peer->maxms) || (peer->lastms < 0)))
 		goto return_unref;
 
-	ast_copy_flags(cai, peer, IAX_SENDANI | IAX_TRUNK | IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_NOKEYROTATE | IAX_FORCE_ENCRYPT);
+	ast_copy_flags(cai, peer, IAX_SENDANI | IAX_TRUNK | IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_FORCE_ENCRYPT);
 	cai->maxtime = peer->maxms;
 	cai->capability = peer->capability;
 	cai->encmethods = peer->encmethods;
@@ -4042,9 +4041,8 @@ static int iax2_key_rotate(const void *vpvt)
 	struct iax_ie_data ied = {
 		.pos = 0,	
 	};
-
+	
 	ast_mutex_lock(&iaxsl[pvt->callno]);
-
 	pvt->keyrotateid = 
 		ast_sched_thread_add(sched, 120000 + (ast_random() % 180001), iax2_key_rotate, vpvt);
 
@@ -5006,13 +5004,8 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 		pvt->keyrotateid != -1 ? "" : "no "
 	);
 #endif
-
 	if (pvt->keyrotateid == -1 && f->frametype == AST_FRAME_VOICE && IAX_CALLENCRYPTED(pvt)) {
-		if (ast_test_flag(pvt, IAX_NOKEYROTATE)) {
-			pvt->keyrotateid = -2;
-		} else {
-			iax2_key_rotate(pvt);
-		}
+		iax2_key_rotate(pvt);
 	}
 
 	if ((ast_test_flag(pvt, IAX_TRUNK) || 
@@ -6222,7 +6215,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		if (user->maxauthreq > 0)
 			ast_set_flag(iaxs[callno], IAX_MAXAUTHREQ);
 		iaxs[callno]->prefs = user->prefs;
-		ast_copy_flags(iaxs[callno], user, IAX_CODEC_USER_FIRST | IAX_IMMEDIATE | IAX_CODEC_NOPREFS | IAX_CODEC_NOCAP | IAX_NOKEYROTATE | IAX_FORCE_ENCRYPT);
+		ast_copy_flags(iaxs[callno], user, IAX_CODEC_USER_FIRST | IAX_IMMEDIATE | IAX_CODEC_NOPREFS | IAX_CODEC_NOCAP | IAX_FORCE_ENCRYPT);
 		iaxs[callno]->encmethods = user->encmethods;
 		/* Store the requested username if not specified */
 		if (ast_strlen_zero(iaxs[callno]->username))
@@ -6313,6 +6306,9 @@ static void merge_encryption(struct chan_iax2_pvt *p, unsigned int enc)
 	/* Select exactly one common encryption if there are any */
 	p->encmethods &= enc;
 	if (p->encmethods) {
+		if (!(p->encmethods & IAX_ENCRYPT_KEYROTATE)){ /* if key rotation is not supported, turn off keyrotation. */
+			p->keyrotateid = -2;
+		}
 		if (p->encmethods & IAX_ENCRYPT_AES128)
 			p->encmethods = IAX_ENCRYPT_AES128;
 		else
@@ -10336,7 +10332,7 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 	memset(&cai, 0, sizeof(cai));
 	cai.capability = iax2_capability;
 
-	ast_copy_flags(&cai, &globalflags, IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_NOKEYROTATE);
+	ast_copy_flags(&cai, &globalflags, IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);
 	
 	/* Populate our address from the given */
 	if (create_addr(pds.peer, NULL, &sin, &cai)) {
@@ -10355,7 +10351,7 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 	}
 
 	/* If this is a trunk, update it now */
-	ast_copy_flags(iaxs[callno], &cai, IAX_TRUNK | IAX_SENDANI | IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_NOKEYROTATE);
+	ast_copy_flags(iaxs[callno], &cai, IAX_TRUNK | IAX_SENDANI | IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);
 	if (ast_test_flag(&cai, IAX_TRUNK)) {
 		int new_callno;
 		if ((new_callno = make_trunk(callno, 1)) != -1)
@@ -10666,9 +10662,6 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 
 	if (peer) {
 		if (firstpass) {
-			if (ast_test_flag(&globalflags, IAX_NOKEYROTATE)) {
-				ast_copy_flags(peer, &globalflags, IAX_NOKEYROTATE);
-			}
 			ast_copy_flags(peer, &globalflags, IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_FORCE_ENCRYPT);
 			peer->encmethods = iax2_encryption;
 			peer->adsi = adsi;
@@ -10718,7 +10711,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 			} else if (!strcasecmp(v->name, "auth")) {
 				peer->authmethods = get_auth_methods(v->value);
 			} else if (!strcasecmp(v->name, "encryption")) {
-				peer->encmethods = get_encrypt_methods(v->value);
+				peer->encmethods |= get_encrypt_methods(v->value);
 				if (!peer->encmethods) {
 					ast_clear_flag(peer, IAX_FORCE_ENCRYPT);
 				}
@@ -10726,16 +10719,11 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 				if (ast_false(v->value)) {
 					ast_clear_flag(peer, IAX_FORCE_ENCRYPT);
 				} else {
-					peer->encmethods = get_encrypt_methods(v->value);
+					peer->encmethods |= get_encrypt_methods(v->value);
 					if (peer->encmethods) {
 						ast_set_flag(peer, IAX_FORCE_ENCRYPT);
 					}
 				}
-			} else if (!strcasecmp(v->name, "keyrotate")) {
-				if (ast_false(v->value))
-					ast_set_flag(peer, IAX_NOKEYROTATE);
-				else
-					ast_clear_flag(peer, IAX_NOKEYROTATE);
 			} else if (!strcasecmp(v->name, "transfer")) {
 				if (!strcasecmp(v->value, "mediaonly")) {
 					ast_set_flags_to(peer, IAX_NOTRANSFER|IAX_TRANSFERMEDIA, IAX_TRANSFERMEDIA);	
@@ -10945,7 +10933,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 			user->adsi = adsi;
 			ast_string_field_set(user, name, name);
 			ast_string_field_set(user, language, language);
-			ast_copy_flags(user, &globalflags, IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_CODEC_USER_FIRST | IAX_CODEC_NOPREFS | IAX_CODEC_NOCAP | IAX_NOKEYROTATE | IAX_FORCE_ENCRYPT);	
+			ast_copy_flags(user, &globalflags, IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_CODEC_USER_FIRST | IAX_CODEC_NOPREFS | IAX_CODEC_NOCAP | IAX_FORCE_ENCRYPT);	
 			ast_clear_flag(user, IAX_HASCALLERID);
 			ast_string_field_set(user, cid_name, "");
 			ast_string_field_set(user, cid_num, "");
@@ -10990,7 +10978,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 			} else if (!strcasecmp(v->name, "auth")) {
 				user->authmethods = get_auth_methods(v->value);
 			} else if (!strcasecmp(v->name, "encryption")) {
-				user->encmethods = get_encrypt_methods(v->value);
+				user->encmethods |= get_encrypt_methods(v->value);
 				if (!user->encmethods) {
 					ast_clear_flag(user, IAX_FORCE_ENCRYPT);
 				}
@@ -10998,16 +10986,11 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 				if (ast_false(v->value)) {
 					ast_clear_flag(user, IAX_FORCE_ENCRYPT);
 				} else {
-					user->encmethods = get_encrypt_methods(v->value);
+					user->encmethods |= get_encrypt_methods(v->value);
 					if (user->encmethods) {
 						ast_set_flag(user, IAX_FORCE_ENCRYPT);
 					}
 				}
-			} else if (!strcasecmp(v->name, "keyrotate")) {
-				if (ast_false(v->value))
-					ast_set_flag(user, IAX_NOKEYROTATE);
-				else
-					ast_clear_flag(user, IAX_NOKEYROTATE);
 			} else if (!strcasecmp(v->name, "transfer")) {
 				if (!strcasecmp(v->value, "mediaonly")) {
 					ast_set_flags_to(user, IAX_NOTRANSFER|IAX_TRANSFERMEDIA, IAX_TRANSFERMEDIA);	
@@ -11272,7 +11255,9 @@ static int set_config(char *config_file, int reload)
 	/* Reset Global Flags */
 	memset(&globalflags, 0, sizeof(globalflags));
 	ast_set_flag(&globalflags, IAX_RTUPDATE);
-	ast_set_flag(&globalflags, IAX_NOKEYROTATE); /* turn off key rotate by default since it breaks backwards compatibility at the moment. */
+	
+	/* Turns on support for key rotation during encryption. */
+	iax2_encryption |= IAX_ENCRYPT_KEYROTATE;
 #ifdef SO_NO_CHECK
 	nochecksums = 0;
 #endif
@@ -11381,7 +11366,7 @@ static int set_config(char *config_file, int reload)
 		} else if (!strcasecmp(v->name, "authdebug")) {
 			authdebug = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "encryption")) {
-				iax2_encryption = get_encrypt_methods(v->value);
+				iax2_encryption |= get_encrypt_methods(v->value);
 				if (!iax2_encryption) {
 					ast_clear_flag((&globalflags), IAX_FORCE_ENCRYPT);
 				}
@@ -11389,16 +11374,11 @@ static int set_config(char *config_file, int reload)
 			if (ast_false(v->value)) {
 				ast_clear_flag((&globalflags), IAX_FORCE_ENCRYPT);
 			} else {
-				iax2_encryption = get_encrypt_methods(v->value);
+				iax2_encryption |= get_encrypt_methods(v->value);
 				if (iax2_encryption) {
 					ast_set_flag((&globalflags), IAX_FORCE_ENCRYPT);
 				}
 			}
-		} else if (!strcasecmp(v->name, "keyrotate")) {
-			if (ast_false(v->value))
-				ast_set_flag((&globalflags), IAX_NOKEYROTATE);
-			else
-				ast_clear_flag((&globalflags), IAX_NOKEYROTATE);
 		} else if (!strcasecmp(v->name, "transfer")) {
 			if (!strcasecmp(v->value, "mediaonly")) {
 				ast_set_flags_to((&globalflags), IAX_NOTRANSFER|IAX_TRANSFERMEDIA, IAX_TRANSFERMEDIA);	
