@@ -59,6 +59,13 @@ DAHDI Changes
 -------------
  * The UK option waitfordialtone has been added for use with BT analog
    lines.
+ * Added a 'faxbuffers' configuration option to chan_dahdi.conf.  This option
+   is used in conjunction with the 'faxdetect' configuration option.  When
+   'faxbuffers' is used and fax tones are detected, the channel will dynamically
+   switch to the configured faxbuffers policy.  For example, to use 6 buffers
+   and a 'full' buffer policy for a fax transmission, add:
+     faxbuffers=>6,full
+   The faxbuffers configuration will be in affect until the call is torn down.
 
 Dialplan Functions
 ------------------
