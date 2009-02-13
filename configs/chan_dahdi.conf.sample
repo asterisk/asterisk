@@ -735,6 +735,15 @@ pickupgroup=1
 ;faxdetect=outgoing
 ;faxdetect=no
 ;
+; When 'faxdetect' is used, one could use 'faxbuffers' to configure the DAHDI
+; transmit buffer policy.  The default is *OFF*.  When this configuration 
+; option is used, the faxbuffer policy will be used for the life of the call
+; after a fax tone is detected.  The faxbuffer policy is reverted after the
+; call is torn down.  The sample below will result in 6 buffers and a full
+; buffer policy.
+;
+;faxbuffers=>6,full
+;
 ; This option specifies a preference for which music on hold class this channel
 ; should listen to when put on hold if the music class has not been set on the
 ; channel with Set(CHANNEL(musicclass)=whatever) in the dialplan, and the peer

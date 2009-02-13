@@ -583,8 +583,11 @@ static struct dahdi_pvt {
 	struct dahdi_pvt *master;				/*!< Master to us (we follow their conferencing) */
 	int inconference;				/*!< If our real should be in the conference */
 
+	int bufsize;                /*!< Size of the buffers */
 	int buf_no;					/*!< Number of buffers */
 	int buf_policy;				/*!< Buffer policy */
+	int faxbuf_no;              /*!< Number of Fax buffers */
+	int faxbuf_policy;          /*!< Fax buffer policy */
 	int sig;					/*!< Signalling style */
 	/*!
 	 * \brief Nonzero if the signaling type is sent over a radio.
@@ -681,6 +684,10 @@ static struct dahdi_pvt {
 	unsigned int echocanon:1;
 	/*! \brief TRUE if a fax tone has already been handled. */
 	unsigned int faxhandled:1;
+	/*! \brief TRUE if dynamic faxbuffers are configured for use, default is OFF */
+	unsigned int usefaxbuffers:1;
+	/*! \brief TRUE while dynamic faxbuffers are in use */
+	unsigned int faxbuffersinuse:1;
 	/*! \brief TRUE if over a radio and dahdi_read() has been called. */
 	unsigned int firstradio:1;
 	/*!
@@ -1233,7 +1240,10 @@ static struct dahdi_chan_conf dahdi_chan_conf_default(void)
 			.sendcalleridafter = DEFAULT_CIDRINGS,
 
 			.buf_policy = DAHDI_POLICY_IMMEDIATE,
-			.buf_no = numbufs
+			.buf_no = numbufs,
+			.usefaxbuffers = 0,
+			.faxbuf_policy = DAHDI_POLICY_IMMEDIATE,
+			.faxbuf_no = numbufs,
 		},
 		.timing = {
 			.prewinktime = -1,
@@ -3715,6 +3725,22 @@ static int dahdi_hangup(struct ast_channel *ast)
 			p->dsp = NULL;
 		}
 
+		if (p->faxbuffersinuse) {
+			/* faxbuffers are in use, revert them */
+			struct dahdi_bufferinfo bi = {
+				.txbufpolicy = p->buf_policy,
+				.rxbufpolicy = p->buf_policy,
+				.bufsize = p->bufsize,
+				.numbufs = p->buf_no
+			};
+			int bpres;
+
+			if ((bpres = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SET_BUFINFO, &bi)) < 0) {
+				ast_log(LOG_WARNING, "Channel '%s' unable to revert faxbuffer policy: %s\n", ast->name, strerror(errno));
+			}
+			p->faxbuffersinuse = 0;	
+		}
+
 		law = DAHDI_LAW_DEFAULT;
 		res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETLAW, &law);
 		if (res < 0)
@@ -4803,6 +4829,21 @@ static void dahdi_handle_dtmfup(struct ast_channel *ast, int idx, struct ast_fra
 	} else if (f->subclass == 'f') {
 		/* Fax tone -- Handle and return NULL */
 		if ((p->callprogress & CALLPROGRESS_FAX) && !p->faxhandled) {
+			/* If faxbuffers are configured, use them for the fax transmission */
+			if (p->usefaxbuffers && !p->faxbuffersinuse) {
+				struct dahdi_bufferinfo bi = {
+					.txbufpolicy = p->faxbuf_policy,
+					.bufsize = p->bufsize,
+					.numbufs = p->faxbuf_no
+				};
+				int res;
+			
+				if ((res = ioctl(p->subs[idx].dfd, DAHDI_SET_BUFINFO, &bi)) < 0) {
+					ast_log(LOG_WARNING, "Channel '%s' unable to set faxbuffer policy, reason: %s\n", ast->name, strerror(errno));
+				} else {
+					p->faxbuffersinuse = 1;
+				}
+			}
 			p->faxhandled = 1;
 			if (strcmp(ast->exten, "fax")) {
 				const char *target_context = S_OR(ast->macrocontext, ast->context);
@@ -9276,8 +9317,19 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				if (res < 0) {
 					ast_log(LOG_WARNING, "Unable to set buffer policy on channel %d: %s\n", channel, strerror(errno));
 				}
-			} else
+			} else {
 				ast_log(LOG_WARNING, "Unable to check buffer policy on channel %d: %s\n", channel, strerror(errno));
+			}
+			tmp->buf_policy = conf->chan.buf_policy;
+			tmp->buf_no = conf->chan.buf_no;
+			tmp->usefaxbuffers = conf->chan.usefaxbuffers;
+			tmp->faxbuf_policy = conf->chan.faxbuf_policy;
+			tmp->faxbuf_no = conf->chan.faxbuf_no;
+			/* This is not as gnarly as it may first appear.  If the ioctl above failed, we'd be setting
+			 * tmp->bufsize to zero which would cause subsequent faxbuffer-related ioctl calls to fail.
+			 * The reason the ioctl call above failed should to be determined before worrying about the
+			 * faxbuffer-related ioctl calls */
+			tmp->bufsize = bi.bufsize;
 		}
 #endif
 		tmp->immediate = conf->chan.immediate;
@@ -14489,6 +14541,27 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 #endif
 			} else {
 				ast_log(LOG_WARNING, "Invalid policy name given (%s).\n", policy);
+			}
+		} else if (!strcasecmp(v->name, "faxbuffers")) {
+			int res;
+			char policy[21] = "";
+
+			res = sscanf(v->value, "%d,%20s", &confp->chan.faxbuf_no, policy);
+			if (res != 2) {
+				ast_log(LOG_WARNING, "Parsing faxbuffers option data failed, using defaults.\n");
+				confp->chan.faxbuf_no = numbufs;
+				continue;
+			}
+			confp->chan.usefaxbuffers = 1;
+			if (confp->chan.faxbuf_no < 0)
+				confp->chan.faxbuf_no = numbufs;
+			if (!strcasecmp(policy, "full")) {
+				confp->chan.faxbuf_policy = DAHDI_POLICY_WHEN_FULL;
+			} else if (!strcasecmp(policy, "immediate")) {
+				confp->chan.faxbuf_policy = DAHDI_POLICY_IMMEDIATE;
+			} else {
+				ast_log(LOG_WARNING, "Invalid policy name given (%s).\n", policy);
+				confp->chan.usefaxbuffers = 0;
 			}
  		} else if (!strcasecmp(v->name, "dahdichan")) {
  			ast_copy_string(dahdichan, v->value, sizeof(dahdichan));
