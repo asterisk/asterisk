@@ -46,6 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/say.h"
 #include "asterisk/pbx.h"
 #include "asterisk/translate.h"
+#include "asterisk/manager.h"
 #include "asterisk/module.h"
 #include "asterisk/lock.h"
 #include "asterisk/options.h"
@@ -456,8 +457,9 @@ static int channel_spy(struct ast_channel *chan, struct chanspy_ds *spyee_chansp
 	}
 	ast_mutex_unlock(&spyee_chanspy_ds->lock);
 
-	if (!spyee)
+	if (!spyee) {
 		return 0;
+	}
 
 	/* We now hold the channel lock on spyee */
 
@@ -467,7 +469,12 @@ static int channel_spy(struct ast_channel *chan, struct chanspy_ds *spyee_chansp
 	}
 
 	name = ast_strdupa(spyee->name);
+
 	ast_verb(2, "Spying on channel %s\n", name);
+	manager_event(EVENT_FLAG_CALL, "ChanSpyStart",
+			"SpyerChannel: %s\r\n"
+			"SpyeeChannel: %s\r\n",
+			spyer_name, name);
 
 	memset(&csth, 0, sizeof(csth));
 
@@ -627,6 +634,7 @@ static int channel_spy(struct ast_channel *chan, struct chanspy_ds *spyee_chansp
 	ast_audiohook_destroy(&csth.spy_audiohook);
 	
 	ast_verb(2, "Done Spying on channel %s\n", name);
+	manager_event(EVENT_FLAG_CALL, "ChanSpyStop", "SpyeeChannel: %s\r\n", name);
 
 	return running;
 }

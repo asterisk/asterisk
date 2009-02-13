@@ -337,6 +337,21 @@ Changes to manager version 1.1:
 	If an actionID was specified for the SipShowRegistry action, it will be appended as the
 	last line of the RegistrationsComplete event.
 
+- Event: ChanSpyStart
+	Modules: app_chanspy
+	Purpose: Reports when an active channel starts to be monitored by someone.
+	Example:
+		Event: ChanSpyStart
+		SpyerChannel: SIP/4321-13bba124
+		SpyeeChannel: SIP/1234-56ecc098
+
+- Event: ChanSpyStop
+	Modules: app_chanspy
+	Purpose: Reports when an active channel stops to be monitored by someone.
+	Example:
+		Event: ChanSpyStop
+		SpyeeChannel: SIP/1234-56ecc098
+
 * TODO
 ------
 
