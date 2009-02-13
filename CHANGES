@@ -736,6 +736,9 @@ Queue changes
   * Added a new parameter for member definition, called state_interface. This may be
     used so that a member may be called via one interface but have a different interface's
     device state reported.
+  * Added new CLI and Manager commands relating to reloading queues. From the CLI, see
+    "queue reload", "queue reset stats". Also see "manager show command QueueReload" and
+    "manager show command QueueReset."
   * New configuration option: randomperiodicannounce. If a list of periodic announcements is
     specified by the periodic-announce option, then one will be chosen randomly when it is time
     to play a periodic announcment

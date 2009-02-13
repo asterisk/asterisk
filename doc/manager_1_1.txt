@@ -202,6 +202,23 @@ Changes to manager version 1.1:
 	Variables:
 	  ActionId: <id>		Action ID for this transaction. Will be returned.
 
+- Action: QueueReload
+	Modules: app_queue
+	Purpose:
+		To reload queue rules, a queue's members, a queue's parameters, or all of the aforementioned
+	Variable:
+		Queuename: <name> The name of the queue to take action on. If no queue name is specified, then all queues are affected
+		Rules: <yes or no> Whether to reload queue_rules.conf
+		Members: <yes or no> Whether to reload the queue's members
+		Parameters: <yes or no> Whether to reload the other queue options
+
+- Action: QueueReset
+	Modules: app_queue
+	Purpose:
+		Reset the statistics for a queue
+	Variables:
+		Queuename: <name> The name of the queue on which to reset statistics
+
 * NEW EVENTS
 ------------
 

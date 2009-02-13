@@ -497,6 +497,13 @@ enum {
 	QUEUE_STRATEGY_WRANDOM
 };
 
+enum queue_reload_mask {
+	QUEUE_RELOAD_PARAMETERS = (1 << 0),
+	QUEUE_RELOAD_MEMBER = (1 << 1),
+	QUEUE_RELOAD_RULES = (1 << 2),
+	QUEUE_RESET_STATS = (1 << 3),
+};
+
 static const struct strategy {
 	int strategy;
 	const char *name;
@@ -543,9 +550,6 @@ static char *app_ql = "QueueLog" ;
 static const char *pm_family = "Queue/PersistentMembers";
 /* The maximum length of each persistent member queue database entry */
 #define PM_MAX_LEN 8192
-
-/*! \brief queues.conf [general] option */
-static int queue_keep_stats = 0;
 
 /*! \brief queues.conf [general] option */
 static int queue_persistent_members = 0;
@@ -1185,7 +1189,6 @@ static void init_queue(struct call_queue *q)
 		else
 			q->members = ao2_container_alloc(37, member_hash_fn, member_cmp_fn);
 	}
-	q->membercount = 0;
 	q->found = 1;
 
 	ast_string_field_set(q, sound_next, "queue-youarenext");
@@ -1238,7 +1241,6 @@ static int insert_penaltychange (const char *list_name, const char *content, con
 	int penaltychangetime, inserted = 0;
 
 	if (!(rule = ast_calloc(1, sizeof(*rule)))) {
-		ast_log(LOG_ERROR, "Cannot allocate memory for penaltychange rule at line %d!\n", linenum);
 		return -1;
 	}
 
@@ -1511,10 +1513,6 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		q->memberdelay = atoi(val);
 	} else if (!strcasecmp(param, "weight")) {
 		q->weight = atoi(val);
-		if (q->weight)
-			use_weight++;
-		/* With Realtime queues, if the last queue using weights is deleted in realtime,
-		   we will not see any effect on use_weight until next reload. */
 	} else if (!strcasecmp(param, "timeoutrestart")) {
 		q->timeoutrestart = ast_true(val);
 	} else if (!strcasecmp(param, "defaultrule")) {
@@ -1708,6 +1706,7 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 		ao2_lock(q);
 		clear_queue(q);
 		q->realtime = 1;
+		q->membercount = 0;
 		/*Before we initialize the queue, we need to set the strategy, so that linear strategy
 		 * will allocate the members properly
 		 */
@@ -1789,6 +1788,7 @@ static struct call_queue *load_realtime_queue(const char *queuename)
 	struct call_queue *q = NULL, tmpq = {
 		.name = queuename,	
 	};
+	int prev_weight = 0;
 
 	/* Find the queue in the in-core list first. */
 	q = ao2_find(queues, &tmpq, OBJ_POINTER);
@@ -1812,13 +1812,27 @@ static struct call_queue *load_realtime_queue(const char *queuename)
 				return NULL;
 			}
 		}
+		if (q) {
+			prev_weight = q->weight ? 1 : 0;
+		}
 
 		ao2_lock(queues);
+
 		q = find_queue_by_name_rt(queuename, queue_vars, member_config);
-		if (member_config)
+		if (member_config) {
 			ast_config_destroy(member_config);
-		if (queue_vars)
+		}
+		if (queue_vars) {
 			ast_variables_destroy(queue_vars);
+		}
+		/* update the use_weight value if the queue's has gained or lost a weight */ 
+		if (!q->weight && prev_weight) {
+			ast_atomic_fetchadd_int(&use_weight, -1);
+		}
+		if (q->weight && !prev_weight) {
+			ast_atomic_fetchadd_int(&use_weight, +1);
+		}
+		/* Other cases will end up with the proper value for use_weight */
 		ao2_unlock(queues);
 
 	} else {
@@ -5473,6 +5487,12 @@ static struct ast_custom_function queuememberpenalty_function = {
 	.write = queue_function_memberpenalty_write,
 };
 
+/*! \brief Reload the rules defined in queuerules.conf
+ *
+ * \param reload If 1, then only process queuerules.conf if the file
+ * has changed since the last time we inspected it.
+ * \return Always returns AST_MODULE_LOAD_SUCCESS
+ */
 static int reload_queue_rules(int reload)
 {
 	struct ast_config *cfg;
@@ -5484,59 +5504,80 @@ static int reload_queue_rules(int reload)
 	
 	if (!(cfg = ast_config_load("queuerules.conf", config_flags))) {
 		ast_log(LOG_NOTICE, "No queuerules.conf file found, queues will not follow penalty rules\n");
+		return AST_MODULE_LOAD_SUCCESS;
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
 		ast_log(LOG_NOTICE, "queuerules.conf has not changed since it was last loaded. Not taking any action.\n");
 		return AST_MODULE_LOAD_SUCCESS;
 	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_ERROR, "Config file queuerules.conf is in an invalid format.  Aborting.\n");
 		return AST_MODULE_LOAD_SUCCESS;
-	} else {
-		AST_LIST_LOCK(&rule_lists);
-		while ((rl_iter = AST_LIST_REMOVE_HEAD(&rule_lists, list))) {
-			while ((pr_iter = AST_LIST_REMOVE_HEAD(&rl_iter->rules, list)))
-				ast_free(pr_iter);
-			ast_free(rl_iter);
-		}
-		while ((rulecat = ast_category_browse(cfg, rulecat))) {
-			if (!(new_rl = ast_calloc(1, sizeof(*new_rl)))) {
-				ast_log(LOG_ERROR, "Memory allocation error while loading queuerules.conf! Aborting!\n");
-				AST_LIST_UNLOCK(&rule_lists);
-				return AST_MODULE_LOAD_FAILURE;
-			} else {
-				ast_copy_string(new_rl->name, rulecat, sizeof(new_rl->name));
-				AST_LIST_INSERT_TAIL(&rule_lists, new_rl, list);
-				for (rulevar = ast_variable_browse(cfg, rulecat); rulevar; rulevar = rulevar->next)
-					if(!strcasecmp(rulevar->name, "penaltychange"))
-						insert_penaltychange(new_rl->name, rulevar->value, rulevar->lineno);
-					else
-						ast_log(LOG_WARNING, "Don't know how to handle rule type '%s' on line %d\n", rulevar->name, rulevar->lineno);
-			}
-		}
-		AST_LIST_UNLOCK(&rule_lists);
 	}
+
+	AST_LIST_LOCK(&rule_lists);
+	while ((rl_iter = AST_LIST_REMOVE_HEAD(&rule_lists, list))) {
+		while ((pr_iter = AST_LIST_REMOVE_HEAD(&rl_iter->rules, list)))
+			ast_free(pr_iter);
+		ast_free(rl_iter);
+	}
+	while ((rulecat = ast_category_browse(cfg, rulecat))) {
+		if (!(new_rl = ast_calloc(1, sizeof(*new_rl)))) {
+			AST_LIST_UNLOCK(&rule_lists);
+			return AST_MODULE_LOAD_FAILURE;
+		} else {
+			ast_copy_string(new_rl->name, rulecat, sizeof(new_rl->name));
+			AST_LIST_INSERT_TAIL(&rule_lists, new_rl, list);
+			for (rulevar = ast_variable_browse(cfg, rulecat); rulevar; rulevar = rulevar->next)
+				if(!strcasecmp(rulevar->name, "penaltychange"))
+					insert_penaltychange(new_rl->name, rulevar->value, rulevar->lineno);
+				else
+					ast_log(LOG_WARNING, "Don't know how to handle rule type '%s' on line %d\n", rulevar->name, rulevar->lineno);
+		}
+	}
+	AST_LIST_UNLOCK(&rule_lists);
 
 	ast_config_destroy(cfg);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-
-static int reload_queues(int reload)
+/*! Set the global queue parameters as defined in the "general" section of queues.conf */
+static void queue_set_global_params(struct ast_config *cfg)
 {
-	struct call_queue *q;
-	struct ast_config *cfg;
-	char *cat, *tmp;
-	struct ast_variable *var;
-	struct member *cur, *newm;
-	struct ao2_iterator mem_iter;
-	int new;
 	const char *general_val = NULL;
-	char parse[80];
-	char *interface, *state_interface;
-	char *membername = NULL;
+	queue_persistent_members = 0;
+	if ((general_val = ast_variable_retrieve(cfg, "general", "persistentmembers")))
+		queue_persistent_members = ast_true(general_val);
+	autofill_default = 0;
+	if ((general_val = ast_variable_retrieve(cfg, "general", "autofill")))
+		autofill_default = ast_true(general_val);
+	montype_default = 0;
+	if ((general_val = ast_variable_retrieve(cfg, "general", "monitor-type"))) {
+		if (!strcasecmp(general_val, "mixmonitor"))
+			montype_default = 1;
+	}
+	update_cdr = 0;
+	if ((general_val = ast_variable_retrieve(cfg, "general", "updatecdr")))
+		update_cdr = ast_true(general_val);
+	shared_lastcall = 0;
+	if ((general_val = ast_variable_retrieve(cfg, "general", "shared_lastcall")))
+		shared_lastcall = ast_true(general_val);
+}
+
+/*! \brief reload information pertaining to a single member
+ *
+ * This function is called when a member = line is encountered in
+ * queues.conf.
+ *
+ * \param memberdata The part after member = in the config file
+ * \param q The queue to which this member belongs
+ */
+static void reload_single_member(const char *memberdata, struct call_queue *q)
+{
+	char *membername, *interface, *state_interface, *tmp;
+	char *parse;
+	struct member *cur, *newm;
+	struct member tmpmem;
 	int penalty;
-	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
-	struct ao2_iterator queue_iter;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(interface);
 		AST_APP_ARG(penalty);
@@ -5544,195 +5585,323 @@ static int reload_queues(int reload)
 		AST_APP_ARG(state_interface);
 	);
 
-	/*First things first. Let's load queuerules.conf*/
-	if (reload_queue_rules(reload) == AST_MODULE_LOAD_FAILURE)
-		return AST_MODULE_LOAD_FAILURE;
-		
+	/* Add a new member */
+	parse = ast_strdupa(memberdata);
+				
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	interface = args.interface;
+	if (!ast_strlen_zero(args.penalty)) {
+		tmp = args.penalty;
+		ast_strip(tmp);
+		penalty = atoi(tmp);
+		if (penalty < 0) {
+			penalty = 0;
+		}
+	} else {
+		penalty = 0;
+	}
+
+	if (!ast_strlen_zero(args.membername)) {
+		membername = args.membername;
+		ast_strip(membername);
+	} else {
+		membername = interface;
+	}
+
+	if (!ast_strlen_zero(args.state_interface)) {
+		state_interface = args.state_interface;
+		ast_strip(state_interface);
+	} else {
+		state_interface = interface;
+	}
+
+	/* Find the old position in the list */
+	ast_copy_string(tmpmem.interface, interface, sizeof(tmpmem.interface));
+	cur = ao2_find(q->members, &tmpmem, OBJ_POINTER | OBJ_UNLINK);
+	if ((newm = create_queue_member(interface, membername, penalty, cur ? cur->paused : 0, state_interface))) {
+		ao2_link(q->members, newm);
+		ao2_ref(newm, -1);
+	}
+	newm = NULL;
+
+	if (cur) {
+		ao2_ref(cur, -1);
+	} else {
+		q->membercount++;
+	}
+}
+
+static int mark_member_dead(void *obj, void *arg, int flags)
+{
+	struct member *member = obj;
+	if (!member->dynamic) {
+		member->delme = 1;
+	}
+	return 0;
+}
+
+static int kill_dead_members(void *obj, void *arg, int flags)
+{
+	struct member *member = obj;
+	struct call_queue *q = arg;
+
+	if (!member->delme) {
+		if (member->dynamic) {
+			/* dynamic members were not counted toward the member count
+			 * when reloading members from queues.conf, so we do that here
+			 */
+			q->membercount++;
+		}
+		member->status = ast_device_state(member->state_interface);
+		return 0;
+	} else {
+		q->membercount--;
+		return CMP_MATCH;
+	}
+}
+
+/*! \brief Reload information pertaining to a particular queue
+ *
+ * Once we have isolated a queue within reload_queues, we call this. This will either
+ * reload information for the queue or if we're just reloading member information, we'll just
+ * reload that without touching other settings within the queue 
+ *
+ * \param cfg The configuration which we are reading
+ * \param mask Tells us what information we need to reload
+ * \param queuename The name of the queue we are reloading information from
+ * \retval void
+ */
+static void reload_single_queue(struct ast_config *cfg, struct ast_flags *mask, const char *queuename)
+{
+	int new;
+	struct call_queue *q = NULL;
+	/*We're defining a queue*/
+	struct call_queue tmpq = {
+		.name = queuename,
+	};
+	const char *tmpvar;
+	const int queue_reload = ast_test_flag(mask, QUEUE_RELOAD_PARAMETERS);
+	const int member_reload = ast_test_flag(mask, QUEUE_RELOAD_MEMBER);
+	int prev_weight = 0;
+	struct ast_variable *var;
+	if (!(q = ao2_find(queues, &tmpq, OBJ_POINTER))) {
+		if (queue_reload) {
+			/* Make one then */
+			if (!(q = alloc_queue(queuename))) {
+				return;
+			}
+		} else {
+			/* Since we're not reloading queues, this means that we found a queue
+			 * in the configuration file which we don't know about yet. Just return.
+			 */
+			return;
+		}
+		new = 1;
+	} else {
+		new = 0;
+	}
+	
+	if (!new) {
+		ao2_lock(q);
+		prev_weight = q->weight ? 1 : 0;
+	}
+	/* Check if we already found a queue with this name in the config file */
+	if (q->found) {
+		ast_log(LOG_WARNING, "Queue '%s' already defined! Skipping!\n", queuename);
+		if (!new) {
+			/* It should be impossible to *not* hit this case*/
+			ao2_unlock(q);
+		}
+		queue_unref(q);
+		return;
+	}
+	/* Due to the fact that the "linear" strategy will have a different allocation
+	 * scheme for queue members, we must devise the queue's strategy before other initializations.
+	 * To be specific, the linear strategy needs to function like a linked list, meaning the ao2
+	 * container used will have only a single bucket instead of the typical number.
+	 */
+	if (queue_reload) {
+		if ((tmpvar = ast_variable_retrieve(cfg, queuename, "strategy"))) {
+			q->strategy = strat2int(tmpvar);
+			if (q->strategy < 0) {
+				ast_log(LOG_WARNING, "'%s' isn't a valid strategy for queue '%s', using ringall instead\n",
+				tmpvar, q->name);
+				q->strategy = QUEUE_STRATEGY_RINGALL;
+			}
+		} else {
+			q->strategy = QUEUE_STRATEGY_RINGALL;
+		}
+		init_queue(q);
+	}
+	if (member_reload) {
+		q->membercount = 0;
+		ao2_callback(q->members, OBJ_NODATA, mark_member_dead, NULL);
+	}
+	for (var = ast_variable_browse(cfg, queuename); var; var = var->next) {
+		if (member_reload && !strcasecmp(var->name, "member")) {
+			reload_single_member(var->value, q);
+		} else if (queue_reload) {
+			queue_set_param(q, var->name, var->value, var->lineno, 1);
+		}
+	}
+	/* At this point, we've determined if the queue has a weight, so update use_weight
+	 * as appropriate
+	 */
+	if (!q->weight && prev_weight) {
+		ast_atomic_fetchadd_int(&use_weight, -1);
+	}
+	else if (q->weight && !prev_weight) {
+		ast_atomic_fetchadd_int(&use_weight, +1);
+	}
+
+	/* Free remaining members marked as delme */
+	if (member_reload) {
+		ao2_callback(q->members, OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK, kill_dead_members, q);
+	}
+
+	if (new) {
+		ao2_link(queues, q);
+	} else {
+		ao2_unlock(q);
+	}
+	queue_unref(q);
+}
+
+static int mark_dead_and_unfound(void *obj, void *arg, int flags)
+{
+	struct call_queue *q = obj;
+	char *queuename = arg;
+	if (!q->realtime && (ast_strlen_zero(queuename) || !strcasecmp(queuename, q->name))) {
+		q->dead = 1;
+		q->found = 0;
+	}
+	return 0;
+}
+
+static int kill_dead_queues(void *obj, void *arg, int flags)
+{
+	struct call_queue *q = obj;
+	char *queuename = arg;
+	if ((ast_strlen_zero(queuename) || !strcasecmp(queuename, q->name)) && q->dead) {
+		return CMP_MATCH;
+	} else {
+		return 0;
+	}
+}
+
+/*! \brief reload the queues.conf file
+ *
+ * This function reloads the information in the general section of the queues.conf
+ * file and potentially more, depending on the value of mask.
+ *
+ * \param reload 0 if we are calling this the first time, 1 every other time
+ * \param mask Gives flags telling us what information to actually reload
+ * \param queuename If set to a non-zero string, then only reload information from
+ * that particular queue. Otherwise inspect all queues
+ * \retval -1 Failure occurred 
+ * \retval 0 All clear!
+ */
+static int reload_queues(int reload, struct ast_flags *mask, const char *queuename)
+{
+	struct ast_config *cfg;
+	char *cat;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	const int queue_reload = ast_test_flag(mask, QUEUE_RELOAD_PARAMETERS);
+
 	if (!(cfg = ast_config_load("queues.conf", config_flags))) {
 		ast_log(LOG_NOTICE, "No call queueing config file (queues.conf), so no call queues\n");
-		return 0;
+		return -1;
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
 		return 0;
 	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_ERROR, "Config file queues.conf is in an invalid format.  Aborting.\n");
-		return 0;
+		return -1;
 	}
+
+	/* We've made it here, so it looks like we're doing operations on all queues. */
 	ao2_lock(queues);
-	use_weight=0;
-	/* Mark all queues as dead for the moment */
-	queue_iter = ao2_iterator_init(queues, F_AO2I_DONTLOCK);
-	while ((q = ao2_iterator_next(&queue_iter))) {
-		if (!q->realtime) {
-			q->dead = 1;
-			q->found = 0;
-		}
-		queue_unref(q);
+	
+	/* Mark all queues as dead for the moment if we're reloading queues.
+	 * For clarity, we could just be reloading members, in which case we don't want to mess
+	 * with the other queue parameters at all*/
+	if (queue_reload) {
+		ao2_callback(queues, OBJ_NODATA, mark_dead_and_unfound, (char *) queuename);
 	}
 
 	/* Chug through config file */
 	cat = NULL;
 	while ((cat = ast_category_browse(cfg, cat)) ) {
-		if (!strcasecmp(cat, "general")) {	
-			/* Initialize global settings */
-			queue_keep_stats = 0;
-			if ((general_val = ast_variable_retrieve(cfg, "general", "keepstats")))
-				queue_keep_stats = ast_true(general_val);
-			queue_persistent_members = 0;
-			if ((general_val = ast_variable_retrieve(cfg, "general", "persistentmembers")))
-				queue_persistent_members = ast_true(general_val);
-			autofill_default = 0;
-			if ((general_val = ast_variable_retrieve(cfg, "general", "autofill")))
-				autofill_default = ast_true(general_val);
-			montype_default = 0;
-			if ((general_val = ast_variable_retrieve(cfg, "general", "monitor-type"))) {
-				if (!strcasecmp(general_val, "mixmonitor"))
-					montype_default = 1;
-			}
-			update_cdr = 0;
-			if ((general_val = ast_variable_retrieve(cfg, "general", "updatecdr")))
-				update_cdr = ast_true(general_val);
-			shared_lastcall = 0;
-			if ((general_val = ast_variable_retrieve(cfg, "general", "shared_lastcall")))
-				shared_lastcall = ast_true(general_val);
-		} else {	/* Define queue */
-			/* Look for an existing one */
-			struct call_queue tmpq = {
-				.name = cat,
-			};
-			if (!(q = ao2_find(queues, &tmpq, OBJ_POINTER))) {
-				/* Make one then */
-				if (!(q = alloc_queue(cat))) {
-					/* TODO: Handle memory allocation failure */
-				}
-				new = 1;
-			} else
-				new = 0;
-			if (q) {
-				const char *tmpvar = NULL;
-				if (!new)
-					ao2_lock(q);
-				/* Check if a queue with this name already exists */
-				if (q->found) {
-					ast_log(LOG_WARNING, "Queue '%s' already defined! Skipping!\n", cat);
-					if (!new) {
-						ao2_unlock(q);
-						queue_unref(q);
-					}
-					continue;
-				}
-				/* Due to the fact that the "linear" strategy will have a different allocation
-				 * scheme for queue members, we must devise the queue's strategy before other initializations
-				 */
-				if ((tmpvar = ast_variable_retrieve(cfg, cat, "strategy"))) {
-					q->strategy = strat2int(tmpvar);
-					if (q->strategy < 0) {
-						ast_log(LOG_WARNING, "'%s' isn't a valid strategy for queue '%s', using ringall instead\n",
-						tmpvar, q->name);
-						q->strategy = QUEUE_STRATEGY_RINGALL;
-					}
-				} else
-					q->strategy = QUEUE_STRATEGY_RINGALL;
-				/* Re-initialize the queue, and clear statistics */
-				init_queue(q);
-				if (!queue_keep_stats) 
-					clear_queue(q);
-				mem_iter = ao2_iterator_init(q->members, 0);
-				while ((cur = ao2_iterator_next(&mem_iter))) {
-					if (!cur->dynamic) {
-						cur->delme = 1;
-					}
-					ao2_ref(cur, -1);
-				}
-				for (var = ast_variable_browse(cfg, cat); var; var = var->next) {
-					if (!strcasecmp(var->name, "member")) {
-						struct member tmpmem;
-						membername = NULL;
-
-						/* Add a new member */
-						ast_copy_string(parse, var->value, sizeof(parse));
-						
-						AST_STANDARD_APP_ARGS(args, parse);
-
-						interface = args.interface;
-						if (!ast_strlen_zero(args.penalty)) {
-							tmp = args.penalty;
-							while (*tmp && *tmp < 33) tmp++;
-							penalty = atoi(tmp);
-							if (penalty < 0) {
-								penalty = 0;
-							}
-						} else
-							penalty = 0;
-
-						if (!ast_strlen_zero(args.membername)) {
-							membername = args.membername;
-							while (*membername && *membername < 33) membername++;
-						}
-
-						if (!ast_strlen_zero(args.state_interface)) {
-							state_interface = args.state_interface;
-							while (*state_interface && *state_interface < 33) state_interface++;
-						} else
-							state_interface = interface;
-
-						/* Find the old position in the list */
-						ast_copy_string(tmpmem.interface, interface, sizeof(tmpmem.interface));
-						cur = ao2_find(q->members, &tmpmem, OBJ_POINTER | OBJ_UNLINK);
-						newm = create_queue_member(interface, membername, penalty, cur ? cur->paused : 0, state_interface);
-						ao2_link(q->members, newm);
-						ao2_ref(newm, -1);
-						newm = NULL;
-
-						if (cur)
-							ao2_ref(cur, -1);
-						else {
-							q->membercount++;
-						}
-					} else {
-						queue_set_param(q, var->name, var->value, var->lineno, 1);
-					}
-				}
-
-				/* Free remaining members marked as delme */
-				mem_iter = ao2_iterator_init(q->members, 0);
-				while ((cur = ao2_iterator_next(&mem_iter))) {
-					if (! cur->delme) {
-						ao2_ref(cur, -1);
-						continue;
-					}
-					q->membercount--;
-					ao2_unlink(q->members, cur);
-					ao2_ref(cur, -1);
-				}
-
-				if (new) {
-					ao2_link(queues, q);
-				} else 
-					ao2_unlock(q);
-				queue_unref(q);
-			}
+		if (!strcasecmp(cat, "general") && queue_reload) {
+			queue_set_global_params(cfg);
+			continue;
 		}
+		if (ast_strlen_zero(queuename) || !strcasecmp(cat, queuename))
+			reload_single_queue(cfg, mask, cat);
 	}
+
 	ast_config_destroy(cfg);
-	queue_iter = ao2_iterator_init(queues, 0);
-	while ((q = ao2_iterator_next(&queue_iter))) {
-		if (q->dead) {
-			ao2_unlink(queues, q);
-		} else {
-			ao2_lock(q);
-			mem_iter = ao2_iterator_init(q->members, 0);
-			while ((cur = ao2_iterator_next(&mem_iter))) {
-				if (cur->dynamic)
-					q->membercount++;
-				cur->status = ast_device_state(cur->state_interface);
-				ao2_ref(cur, -1);
-			}
-			ao2_unlock(q);
-		}
-		queue_unref(q);
+	/* Unref all the dead queues if we were reloading queues */
+	if (queue_reload) {
+		ao2_callback(queues, OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK, kill_dead_queues, (char *) queuename);
 	}
 	ao2_unlock(queues);
-	return 1;
+	return 0;
+}
+  
+/*! \brief Facilitates resetting statistics for a queue
+ *
+ * This function actually does not reset any statistics, but
+ * rather finds a call_queue struct which corresponds to the
+ * passed-in queue name and passes that structure to the 
+ * clear_queue function. If no queuename is passed in, then
+ * all queues will have their statistics reset.
+ *
+ * \param queuename The name of the queue to reset the statistics
+ * for. If this is NULL or zero-length, then this means to reset
+ * the statistics for all queues
+ * \retval void
+ */
+static int clear_stats(const char *queuename)
+{
+	struct call_queue *q;
+	struct ao2_iterator queue_iter = ao2_iterator_init(queues, 0);
+	while ((q = ao2_iterator_next(&queue_iter))) {
+		ao2_lock(q);
+		if (ast_strlen_zero(queuename) || !strcasecmp(q->name, queuename))
+			clear_queue(q);
+		ao2_unlock(q);
+	}
+	return 0;
+}
+
+/*! \brief The command center for all reload operations
+ *
+ * Whenever any piece of queue information is to be reloaded, this function
+ * is called. It interprets the flags set in the mask parameter and acts
+ * based on how they are set.
+ *
+ * \param reload True if we are reloading information, false if we are loading
+ * information for the first time.
+ * \param mask A bitmask which tells the handler what actions to take
+ * \param queuename The name of the queue on which we wish to take action
+ * \retval 0 All reloads were successful
+ * \retval non-zero There was a failure
+ */
+static int reload_handler(int reload, struct ast_flags *mask, const char *queuename)
+{
+	int res = 0;
+
+	if (ast_test_flag(mask, QUEUE_RELOAD_RULES)) {
+		res |= reload_queue_rules(reload);
+	}
+	if (ast_test_flag(mask, QUEUE_RESET_STATS)) {
+		res |= clear_stats(queuename);
+	}
+	if (ast_test_flag(mask, (QUEUE_RELOAD_PARAMETERS | QUEUE_RELOAD_MEMBER))) {
+		res |= reload_queues(reload, mask, queuename);
+	}
+	return res;
 }
 
 /*! \brief direct ouput to manager or cli with proper terminator */
@@ -6256,6 +6425,53 @@ static int manager_queue_log_custom(struct mansession *s, const struct message *
 	return 0;
 }
 
+static int manager_queue_reload(struct mansession *s, const struct message *m)
+{
+	struct ast_flags mask = {0,};
+	const char *queuename = NULL;
+	int header_found = 0;
+
+	queuename = astman_get_header(m, "Queue");
+	if (!strcasecmp(S_OR(astman_get_header(m, "Members"), ""), "yes")) {
+		ast_set_flag(&mask, QUEUE_RELOAD_MEMBER);
+		header_found = 1;
+	}
+	if (!strcasecmp(S_OR(astman_get_header(m, "Rules"), ""), "yes")) {
+		ast_set_flag(&mask, QUEUE_RELOAD_RULES);
+		header_found = 1;
+	}
+	if (!strcasecmp(S_OR(astman_get_header(m, "Parameters"), ""), "yes")) {
+		ast_set_flag(&mask, QUEUE_RELOAD_PARAMETERS);
+		header_found = 1;
+	}
+
+	if (!header_found) {
+		ast_set_flag(&mask, AST_FLAGS_ALL);
+	}
+
+	if (!reload_handler(1, &mask, queuename)) {
+		astman_send_ack(s, m, "Queue reloaded successfully");
+	} else {
+		astman_send_error(s, m, "Error encountered while reloading queue");
+	}
+	return 0;
+}
+
+static int manager_queue_reset(struct mansession *s, const struct message *m)
+{
+	const char *queuename = NULL;
+	struct ast_flags mask = {QUEUE_RESET_STATS,};
+	
+	queuename = astman_get_header(m, "Queue");
+
+	if (!reload_handler(1, &mask, queuename)) {
+		astman_send_ack(s, m, "Queue stats reset successfully");
+	} else {
+		astman_send_error(s, m, "Error encountered while resetting queue stats");
+	}
+	return 0;
+}
+
 static char *complete_queue_add_member(const char *line, const char *word, int pos, int state)
 {
 	/* 0 - queue; 1 - add; 2 - member; 3 - <interface>; 4 - to; 5 - <queue>; 6 - penalty; 7 - <penalty>; 8 - as; 9 - <membername> */
@@ -6662,19 +6878,100 @@ static char *handle_queue_rule_show(struct ast_cli_entry *e, int cmd, struct ast
 	return CLI_SUCCESS; 
 }
 
-static char *handle_queue_rule_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+static char *handle_queue_reset(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
+	struct ast_flags mask = {QUEUE_RESET_STATS,};
+	int i;
+
 	switch (cmd) {
 		case CLI_INIT:
-			e->command = "queue reload rules";
-			e->usage = 
-				"Usage: queue reload rules\n"
-				"	Reloads rules defined in queuerules.conf\n";
+			e->command = "queue reset stats";
+			e->usage =
+				"Usage: queue reset stats [<queuenames>]\n"
+				"\n"
+				"Issuing this command will reset statistics for\n"
+				"<queuenames>, or for all queues if no queue is\n"
+				"specified.\n";
 			return NULL;
 		case CLI_GENERATE:
-			return NULL;
+			if (a->pos >= 3) {
+				return complete_queue(a->line, a->word, a->pos, a->n);
+			} else {
+				return NULL;
+			}
 	}
-	reload_queue_rules(1);
+
+	if (a->argc < 3) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (a->argc == 3) {
+		reload_handler(1, &mask, NULL);
+		return CLI_SUCCESS;
+	}
+
+	for (i = 3; i < a->argc; ++i) {
+		reload_handler(1, &mask, a->argv[i]);
+	}
+
+	return CLI_SUCCESS;
+}
+
+static char *handle_queue_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ast_flags mask = {0,};
+	int i;
+
+	switch (cmd) {
+		case CLI_INIT:
+			e->command = "queue reload {parameters|members|rules|all}";
+			e->usage =
+				"Usage: queue reload {parameters|members|rules|all} [<queuenames>]\n"
+				"Reload queues. If <queuenames> are specified, only reload information pertaining\n"
+				"to <queuenames>. One of 'parameters,' 'members,' 'rules,' or 'all' must be\n"
+				"specified in order to know what information to reload. Below is an explanation\n"
+				"of each of these qualifiers.\n"
+				"\n"
+				"\t'members' - reload queue members from queues.conf\n"
+				"\t'parameters' - reload all queue options except for queue members\n"
+				"\t'rules' - reload the queuerules.conf file\n"
+				"\t'all' - reload queue rules, parameters, and members\n"
+				"\n"
+				"Note: the 'rules' qualifier here cannot actually be applied to a specific queue.\n"
+				"Use of the 'rules' qualifier causes queuerules.conf to be reloaded. Even if only\n"
+				"one queue is specified when using this command, reloading queue rules may cause\n"
+				"other queues to be affected\n";
+			return NULL;
+		case CLI_GENERATE:
+			if (a->pos >= 3) {
+				return complete_queue(a->line, a->word, a->pos, a->n);
+			} else {
+				return NULL;
+			}
+	}
+
+	if (a->argc < 3)
+		return CLI_SHOWUSAGE;
+
+	if (!strcasecmp(a->argv[2], "rules")) {
+		ast_set_flag(&mask, QUEUE_RELOAD_RULES);
+	} else if (!strcasecmp(a->argv[2], "members")) {
+		ast_set_flag(&mask, QUEUE_RELOAD_MEMBER);
+	} else if (!strcasecmp(a->argv[2], "parameters")) {
+		ast_set_flag(&mask, QUEUE_RELOAD_PARAMETERS);
+	} else if (!strcasecmp(a->argv[2], "all")) {
+		ast_set_flag(&mask, AST_FLAGS_ALL);
+	}
+
+	if (a->argc == 3) {
+		reload_handler(1, &mask, NULL);
+		return CLI_SUCCESS;
+	}
+
+	for (i = 3; i < a->argc; ++i) {
+		reload_handler(1, &mask, a->argv[i]);
+	}
+
 	return CLI_SUCCESS;
 }
 
@@ -6694,7 +6991,8 @@ static struct ast_cli_entry cli_queue[] = {
 	AST_CLI_DEFINE(handle_queue_pause_member, "Pause or unpause a queue member"),
 	AST_CLI_DEFINE(handle_queue_set_member_penalty, "Set penalty for a channel of a specified queue"),
 	AST_CLI_DEFINE(handle_queue_rule_show, "Show the rules defined in queuerules.conf"),
-	AST_CLI_DEFINE(handle_queue_rule_reload, "Reload the rules defined in queuerules.conf"),
+	AST_CLI_DEFINE(handle_queue_reload, "Reload queues, members, queue rules, or parameters"),
+	AST_CLI_DEFINE(handle_queue_reset, "Reset statistics for a queue"),
 };
 
 static int unload_module(void)
@@ -6750,10 +7048,13 @@ static int load_module(void)
 {
 	int res;
 	struct ast_context *con;
+	struct ast_flags mask = {AST_FLAGS_ALL, };
 
 	queues = ao2_container_alloc(MAX_QUEUE_BUCKETS, queue_hash_cb, queue_cmp_cb);
 
-	if (!reload_queues(0))
+	use_weight = 0;
+
+	if (reload_handler(0, &mask, NULL))
 		return AST_MODULE_LOAD_DECLINE;
 
 	con = ast_context_find_or_create(NULL, NULL, "app_queue_gosub_virtual_context", "app_queue");
@@ -6781,6 +7082,8 @@ static int load_module(void)
 	res |= ast_manager_register("QueueLog", EVENT_FLAG_AGENT, manager_queue_log_custom, "Adds custom entry in queue_log");
 	res |= ast_manager_register("QueuePenalty", EVENT_FLAG_AGENT, manager_queue_member_penalty, "Set the penalty for a queue member"); 
 	res |= ast_manager_register("QueueRule", 0, manager_queue_rule_show, "Queue Rules");
+	res |= ast_manager_register("QueueReload", 0, manager_queue_reload, "Reload a queue, queues, or any sub-section of a queue or queues");
+	res |= ast_manager_register("QueueReset", 0, manager_queue_reset, "Reset queue statistics");
 	res |= ast_custom_function_register(&queuevar_function);
 	res |= ast_custom_function_register(&queuemembercount_function);
 	res |= ast_custom_function_register(&queuemembercount_dep);
@@ -6803,8 +7106,9 @@ static int load_module(void)
 
 static int reload(void)
 {
+	struct ast_flags mask = {AST_FLAGS_ALL,};
 	ast_unload_realtime("queue_members");
-	reload_queues(1);
+	reload_handler(1, &mask, NULL);
 	return 0;
 }
 
