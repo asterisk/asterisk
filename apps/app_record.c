@@ -75,6 +75,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="x">
 						<para>Ignore all terminator keys (DTMF) and keep recording until hangup.</para>
 					</option>
+					<option name="k">
+					        <para>Keep recording if channel hangs up.</para>
+					</option>	
 				</optionlist>
 			</parameter>
 		</syntax>
@@ -112,11 +115,13 @@ enum {
 	OPTION_SKIP = (1 << 3),
 	OPTION_STAR_TERMINATE = (1 << 4),
 	OPTION_IGNORE_TERMINATE = (1 << 5),
-	FLAG_HAS_PERCENT = (1 << 6),
+	OPTION_KEEP = (1 << 6),
+	FLAG_HAS_PERCENT = (1 << 7),
 };
 
 AST_APP_OPTIONS(app_opts,{
 	AST_APP_OPTION('a', OPTION_APPEND),
+	AST_APP_OPTION('k', OPTION_KEEP),	
 	AST_APP_OPTION('n', OPTION_NOANSWER),
 	AST_APP_OPTION('q', OPTION_QUIET),
 	AST_APP_OPTION('s', OPTION_SKIP),
@@ -378,7 +383,9 @@ static int record_exec(struct ast_channel *chan, void *data)
 		ast_debug(1, "Got hangup\n");
 		res = -1;
 		pbx_builtin_setvar_helper(chan, "RECORD_STATUS", "HANGUP");
-		ast_filedelete(args.filename, NULL);
+		if (!ast_test_flag(&flags, OPTION_KEEP)) {
+			ast_filedelete(args.filename, NULL);
+		}
 	}
 
 	if (gotsilence) {
