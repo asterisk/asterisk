@@ -81,7 +81,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</application>
 	<application name="JabberStatus" language="en_US">
 		<synopsis>
-			<para>Retrieve the status of a jabber list member</para>
+			Retrieve the status of a jabber list member
 		</synopsis>
 		<syntax>
 			<parameter name="Jabber" required="true">
@@ -95,7 +95,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</parameter>
 		</syntax>
 		<description>
-			<note>This application is deprecated. Please use the JABBER_STATUS() function instead.</note>
+			<para>This application is deprecated. Please use the JABBER_STATUS() function instead.</para>
 			<para>Retrieves the numeric status associated with the specified buddy <replaceable>JID</replaceable>.
 			The return value in the <replaceable>Variable</replaceable>will be one of the following.</para>
 			<enumlist>
@@ -125,7 +125,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</application>
 	<function name="JABBER_STATUS" language="en_US">
 		<synopsis>
-			<para>Retrieve the status of a jabber list member</para>
+			Retrieve the status of a jabber list member
 		</synopsis>
 		<syntax>
 			<parameter name="sender" required="true">
