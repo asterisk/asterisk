@@ -1922,15 +1922,6 @@ static struct rtp_info *external_rtp_create(unsigned call_reference, const char 
 	return info;
 }
 
-/* 
- * Definition taken from rtp.c for rtpPayloadType because we need it here.
- */
-
-struct rtpPayloadType {
-	int isAstFormat;	/* whether the following code is an AST_FORMAT */
-	int code;
-};
-
 /*! \brief
   * Call-back function passing remote ip/port information from H.323 to asterisk
   *

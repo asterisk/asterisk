@@ -2286,10 +2286,10 @@ static const char* get_sdp_iterate(int* start, struct sip_request *req, const ch
 static const char *get_sdp(struct sip_request *req, const char *name);
 static int find_sdp(struct sip_request *req);
 static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action);
-static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate,
+static void add_codec_to_sdp(const struct sip_pvt *p, int codec,
 			     struct ast_str **m_buf, struct ast_str **a_buf,
 			     int debug, int *min_packet_size);
-static void add_noncodec_to_sdp(const struct sip_pvt *p, int format, int sample_rate,
+static void add_noncodec_to_sdp(const struct sip_pvt *p, int format,
 				struct ast_str **m_buf, struct ast_str **a_buf,
 				int debug);
 static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int oldsdp);
@@ -7671,21 +7671,16 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	iterator = req->sdp_start;
 	while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
 		char mimeSubtype[128];
+		char fmtp_string[64];
+		unsigned int sample_rate;
+
 		if (option_debug > 1) {
 			int breakout = FALSE;
-		
+
 			/* If we're debugging, check for unsupported sdp options */
 			if (!strncasecmp(a, "rtcp:", (size_t) 5)) {
 				if (debug)
 					ast_verbose("Got unsupported a:rtcp in SDP offer \n");
-				breakout = TRUE;
-			} else if (!strncasecmp(a, "fmtp:", (size_t) 5)) {
-				/* Format parameters:  Not supported */
-				/* Note: This is used for codec parameters, like bitrate for
-					G722 and video formats for H263 and H264 
-					See RFC2327 for an example */
-				if (debug)
-					ast_verbose("Got unsupported a:fmtp in SDP offer \n");
 				breakout = TRUE;
 			} else if (!strncasecmp(a, "framerate:", (size_t) 10)) {
 				/* Video stuff:  Not supported */
@@ -7706,21 +7701,29 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			if (breakout)	/* We have a match, skip to next header */
 				continue;
 		}
+
 		if (!strcasecmp(a, "sendonly")) {
 			if (sendonly == -1)
 				sendonly = 1;
 			continue;
-		} else if (!strcasecmp(a, "inactive")) {
+		}
+
+		if (!strcasecmp(a, "inactive")) {
 			if (sendonly == -1)
 				sendonly = 2;
 			continue;
-		}  else if (!strcasecmp(a, "sendrecv")) {
+		}
+
+		if (!strcasecmp(a, "sendrecv")) {
 			if (sendonly == -1)
 				sendonly = 0;
 			continue;
-		} else if (strlen(a) > 5 && !strncasecmp(a, "ptime", 5)) {
+		}
+
+		if (!strncasecmp(a, "ptime", 5)) {
 			char *tmp = strrchr(a, ':');
 			long int framing = 0;
+
 			if (tmp) {
 				tmp++;
 				framing = strtol(tmp, NULL, 10);
@@ -7744,8 +7747,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				ast_rtp_codec_setpref(p->rtp, pref);
 			}
 			continue;
-			
-		} else if (!strncmp(a, red_fmtp, strlen(red_fmtp))) {
+		}
+
+		if (!strncmp(a, red_fmtp, strlen(red_fmtp))) {
 			/* count numbers of generations in fmtp */
 			red_cp = &red_fmtp[strlen(red_fmtp)];
 			strncpy(red_fmtp, a, 100);
@@ -7757,15 +7761,59 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				red_cp = strtok(NULL, "/");
 			}
 			red_cp = red_fmtp;
+			continue;
+		}
 
-		} else if (sscanf(a, "rtpmap: %u %127[^/]/", &codec, mimeSubtype) == 2) {
+		if (sscanf(a, "fmtp: %u %63s", &codec, fmtp_string) == 2) {
+			struct rtpPayloadType payload;
+			unsigned int handled = 0;
+
+			payload = ast_rtp_lookup_pt(newaudiortp, codec);
+			if (!payload.code) {
+				/* it wasn't found, try the video rtp */
+				payload = ast_rtp_lookup_pt(newvideortp, codec);
+			}
+			if (payload.code && payload.isAstFormat) {
+				unsigned int bit_rate;
+
+				switch (payload.code) {
+				case AST_FORMAT_SIREN7:
+					if (sscanf(fmtp_string, "bitrate=%u", &bit_rate) == 1) {
+						if (bit_rate != 32000) {
+							ast_log(LOG_WARNING, "Got Siren7 offer at %d bps, but only 32000 bps supported; ignoring.\n", bit_rate);
+							ast_rtp_unset_m_type(newaudiortp, codec);
+						} else {
+							handled = 1;
+						}
+					}
+					break;
+				case AST_FORMAT_SIREN14:
+					if (sscanf(fmtp_string, "bitrate=%u", &bit_rate) == 1) {
+						if (bit_rate != 48000) {
+							ast_log(LOG_WARNING, "Got Siren14 offer at %d bps, but only 48000 bps supported; ignoring.\n", bit_rate);
+							ast_rtp_unset_m_type(newaudiortp, codec);
+						} else {
+							handled = 1;
+						}
+					}
+					break;
+				}
+			}
+
+			if (!handled) {
+				ast_debug(1, "Got unsupported a:%s in SDP offer\n", a);
+			}
+			continue;
+		}
+
+		if (sscanf(a, "rtpmap: %u %127[^/]/%u", &codec, mimeSubtype, &sample_rate) == 3) {
 			/* We have a rtpmap to handle */
 
 			if (last_rtpmap_codec < SDP_MAX_RTPMAP_CODECS) {
-				/* Note: should really look at the 'freq' and '#chans' params too */
+				/* Note: should really look at the '#chans' params too */
 				/* Note: This should all be done in the context of the m= above */
 				if (!strncasecmp(mimeSubtype, "H26", 3) || !strncasecmp(mimeSubtype, "MP4", 3)) {         /* Video */
-					if(ast_rtp_set_rtpmap_type(newvideortp, codec, "video", mimeSubtype, 0) != -1) {
+					if (ast_rtp_set_rtpmap_type_rate(newvideortp, codec, "video", mimeSubtype, 0, sample_rate) != -1) {
 						if (debug)
 							ast_verbose("Found video description format %s for ID %d\n", mimeSubtype, codec);
 						found_rtpmap_codecs[last_rtpmap_codec] = codec;
@@ -7787,11 +7835,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 						sprintf(red_fmtp, "fmtp:%d ", red_pt); 
 
 						if (debug)
-							ast_verbose("Red submimetype has payload type: %d\n", red_pt);
+							ast_verbose("RED submimetype has payload type: %d\n", red_pt);
 					}
 				} else {                                          /* Must be audio?? */
-					if(ast_rtp_set_rtpmap_type(newaudiortp, codec, "audio", mimeSubtype,
-								   ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0) != -1) {
+					if (ast_rtp_set_rtpmap_type_rate(newaudiortp, codec, "audio", mimeSubtype,
+									 ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0,
+									 sample_rate) != -1) {
 						if (debug)
 							ast_verbose("Found audio description format %s for ID %d\n", mimeSubtype, codec);
 						found_rtpmap_codecs[last_rtpmap_codec] = codec;
@@ -8895,7 +8944,7 @@ static int add_vidupdate(struct sip_request *req)
 }
 
 /*! \brief Add codec offer to SDP offer/answer body in INVITE or 200 OK */
-static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate,
+static void add_codec_to_sdp(const struct sip_pvt *p, int codec,
 			     struct ast_str **m_buf, struct ast_str **a_buf,
 			     int debug, int *min_packet_size)
 {
@@ -8915,18 +8964,31 @@ static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate
 		return;
 	ast_str_append(m_buf, 0, " %d", rtp_code);
 	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%d\r\n", rtp_code,
-			 ast_rtp_lookup_mime_subtype(1, codec,
-						     ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0),
-			 sample_rate);
-	if (codec == AST_FORMAT_G729A) {
+		       ast_rtp_lookup_mime_subtype(1, codec,
+						   ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0),
+		       ast_rtp_lookup_sample_rate(1, codec));
+
+	switch (codec) {
+	case AST_FORMAT_G729A:
 		/* Indicate that we don't support VAD (G.729 annex B) */
 		ast_str_append(a_buf, 0, "a=fmtp:%d annexb=no\r\n", rtp_code);
-	} else if (codec == AST_FORMAT_G723_1) {
+		break;
+	case AST_FORMAT_G723_1:
 		/* Indicate that we don't support VAD (G.723.1 annex A) */
 		ast_str_append(a_buf, 0, "a=fmtp:%d annexa=no\r\n", rtp_code);
-	} else if (codec == AST_FORMAT_ILBC) {
+		break;
+	case AST_FORMAT_ILBC:
 		/* Add information about us using only 20/30 ms packetization */
 		ast_str_append(a_buf, 0, "a=fmtp:%d mode=%d\r\n", rtp_code, fmt.cur_ms);
+		break;
+	case AST_FORMAT_SIREN7:
+		/* Indicate that we only expect 32Kbps */
+		ast_str_append(a_buf, 0, "a=fmtp:%d bitrate=32000\r\n", rtp_code);
+		break;
+	case AST_FORMAT_SIREN14:
+		/* Indicate that we only expect 48Kbps */
+		ast_str_append(a_buf, 0, "a=fmtp:%d bitrate=48000\r\n", rtp_code);
+		break;
 	}
 
 	if (fmt.cur_ms && (fmt.cur_ms < *min_packet_size))
@@ -8939,7 +9001,7 @@ static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate
 
 /*! \brief Add video codec offer to SDP offer/answer body in INVITE or 200 OK */
 /* This is different to the audio one now so we can add more caps later */
-static void add_vcodec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate,
+static void add_vcodec_to_sdp(const struct sip_pvt *p, int codec,
 			     struct ast_str **m_buf, struct ast_str **a_buf,
 			     int debug, int *min_packet_size)
 {
@@ -8956,12 +9018,13 @@ static void add_vcodec_to_sdp(const struct sip_pvt *p, int codec, int sample_rat
 
 	ast_str_append(m_buf, 0, " %d", rtp_code);
 	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%d\r\n", rtp_code,
-			 ast_rtp_lookup_mime_subtype(1, codec, 0), sample_rate);
+		       ast_rtp_lookup_mime_subtype(1, codec, 0),
+		       ast_rtp_lookup_sample_rate(1, codec));
 	/* Add fmtp code here */
 }
 
 /*! \brief Add text codec offer to SDP offer/answer body in INVITE or 200 OK */
-static void add_tcodec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate,
+static void add_tcodec_to_sdp(const struct sip_pvt *p, int codec,
 			     struct ast_str **m_buf, struct ast_str **a_buf,
 			     int debug, int *min_packet_size)
 {
@@ -8978,11 +9041,12 @@ static void add_tcodec_to_sdp(const struct sip_pvt *p, int codec, int sample_rat
 
 	ast_str_append(m_buf, 0, " %d", rtp_code);
 	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%d\r\n", rtp_code,
-			 ast_rtp_lookup_mime_subtype(1, codec, 0), sample_rate);
+		       ast_rtp_lookup_mime_subtype(1, codec, 0),
+		       ast_rtp_lookup_sample_rate(1, codec));
 	/* Add fmtp code here */
 
 	if (codec == AST_FORMAT_T140RED) {
-		ast_str_append(a_buf, 0, "a=fmtp:%d %d/%d/%d\r\n", rtp_code, 
+		ast_str_append(a_buf, 0, "a=fmtp:%d %d/%d/%d\r\n", rtp_code,
 			 ast_rtp_lookup_code(p->trtp, 1, AST_FORMAT_T140),
 			 ast_rtp_lookup_code(p->trtp, 1, AST_FORMAT_T140),
 			 ast_rtp_lookup_code(p->trtp, 1, AST_FORMAT_T140));
@@ -9107,7 +9171,7 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 
 
 /*! \brief Add RFC 2833 DTMF offer to SDP */
-static void add_noncodec_to_sdp(const struct sip_pvt *p, int format, int sample_rate,
+static void add_noncodec_to_sdp(const struct sip_pvt *p, int format,
 				struct ast_str **m_buf, struct ast_str **a_buf,
 				int debug)
 {
@@ -9120,8 +9184,8 @@ static void add_noncodec_to_sdp(const struct sip_pvt *p, int format, int sample_
 
 	ast_str_append(m_buf, 0, " %d", rtp_code);
 	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%d\r\n", rtp_code,
-			 ast_rtp_lookup_mime_subtype(0, format, 0),
-			 sample_rate);
+		       ast_rtp_lookup_mime_subtype(0, format, 0),
+		       ast_rtp_lookup_sample_rate(0, format));
 	if (format == AST_RTP_DTMF)	/* Indicate we support DTMF and FLASH... */
 		ast_str_append(a_buf, 0, "a=fmtp:%d 0-16\r\n", rtp_code);
 }
@@ -9161,13 +9225,6 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo,
 	}
 
 }
-
-/*!
- * \note G.722 actually is supposed to specified as 8 kHz, even though it is
- * really 16 kHz.  Update this macro for other formats as they are added in
- * the future.
- */
-#define SDP_SAMPLE_RATE(x) 8000
 
 /*! \brief Add Session Description Protocol message 
 
@@ -9340,9 +9397,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 	if (capability & p->prefcodec) {
 		int codec = p->prefcodec & AST_FORMAT_AUDIO_MASK;
 
-		add_codec_to_sdp(p, codec, SDP_SAMPLE_RATE(codec),
-				 &m_audio, &a_audio,
-				 debug, &min_audio_packet_size);
+		add_codec_to_sdp(p, codec, &m_audio, &a_audio, debug, &min_audio_packet_size);
 		alreadysent |= codec;
 	}
 
@@ -9359,9 +9414,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		if (alreadysent & codec)
 			continue;
 
-		add_codec_to_sdp(p, codec, SDP_SAMPLE_RATE(codec),
-				 &m_audio, &a_audio,
-				 debug, &min_audio_packet_size);
+		add_codec_to_sdp(p, codec, &m_audio, &a_audio, debug, &min_audio_packet_size);
 		alreadysent |= codec;
 	}
 
@@ -9374,14 +9427,11 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 			continue;
 
 		if (x & AST_FORMAT_AUDIO_MASK)
-			add_codec_to_sdp(p, x, SDP_SAMPLE_RATE(x),
-				 &m_audio, &a_audio, debug, &min_audio_packet_size);
-		else if (x & AST_FORMAT_VIDEO_MASK) 
-			add_vcodec_to_sdp(p, x, 90000,
-				 &m_video, &a_video, debug, &min_video_packet_size);
+			add_codec_to_sdp(p, x, &m_audio, &a_audio, debug, &min_audio_packet_size);
+		else if (x & AST_FORMAT_VIDEO_MASK)
+			add_vcodec_to_sdp(p, x, &m_video, &a_video, debug, &min_video_packet_size);
 		else if (x & AST_FORMAT_TEXT_MASK)
-			add_tcodec_to_sdp(p, x, 1000,
-				 &m_text, &a_text, debug, &min_text_packet_size);
+			add_tcodec_to_sdp(p, x, &m_text, &a_text, debug, &min_text_packet_size);
 	}
 
 	/* Now add DTMF RFC2833 telephony-event as a codec */
@@ -9389,7 +9439,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		if (!(p->jointnoncodeccapability & x))
 			continue;
 
-		add_noncodec_to_sdp(p, x, 8000, &m_audio, &a_audio, debug);
+		add_noncodec_to_sdp(p, x, &m_audio, &a_audio, debug);
 	}
 
 	ast_debug(3, "-- Done with adding codecs to SDP\n");

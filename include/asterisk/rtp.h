@@ -84,6 +84,12 @@ struct ast_rtp;
 /*! T.140 Redundancy structure*/
 struct rtp_red;
 
+/*! \brief The value of each payload format mapping: */
+struct rtpPayloadType {
+	int isAstFormat;		/*!< whether the following code is an AST_FORMAT */
+	int code;
+};
+
 /*! \brief This is the structure that binds a channel (SIP/Jingle/H.323) to the RTP subsystem 
 */
 struct ast_rtp_protocol {
@@ -136,7 +142,7 @@ size_t ast_rtp_alloc_size(void);
  * \param io
  * \param rtcpenable
  * \param callbackmode
- * \returns A representation (structure) of an RTP session.
+ * \return A representation (structure) of an RTP session.
  */
 struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode);
 
@@ -150,7 +156,7 @@ struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io, 
  * \param rtcpenable
  * \param callbackmode
  * \param in
- * \returns A representation (structure) of an RTP session.
+ * \return A representation (structure) of an RTP session.
  */
 struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode, struct in_addr in);
 
@@ -209,21 +215,65 @@ void ast_rtp_set_m_type(struct ast_rtp* rtp, int pt);
 /*! \brief clear payload type */
 void ast_rtp_unset_m_type(struct ast_rtp* rtp, int pt);
 
-/*! \brief Initiate payload type to a known MIME media type for a codec */
+/*! \brief Set payload type to a known MIME media type for a codec
+ *
+ * \param rtp RTP structure to modify
+ * \param pt Payload type entry to modify
+ * \param mimeType top-level MIME type of media stream (typically "audio", "video", "text", etc.)
+ * \param mimeSubtype MIME subtype of media stream (typically a codec name)
+ * \param options Zero or more flags from the ast_rtp_options enum
+ *
+ * This function 'fills in' an entry in the list of possible formats for
+ * a media stream associated with an RTP structure.
+ *
+ * \retval 0 on success
+ * \retval -1 if the payload type is out of range
+ * \retval -2 if the mimeType/mimeSubtype combination was not found
+ */
 int ast_rtp_set_rtpmap_type(struct ast_rtp* rtp, int pt,
 			     char *mimeType, char *mimeSubtype,
 			     enum ast_rtp_options options);
+
+/*! \brief Set payload type to a known MIME media type for a codec with a specific sample rate
+ *
+ * \param rtp RTP structure to modify
+ * \param pt Payload type entry to modify
+ * \param mimeType top-level MIME type of media stream (typically "audio", "video", "text", etc.)
+ * \param mimeSubtype MIME subtype of media stream (typically a codec name)
+ * \param options Zero or more flags from the ast_rtp_options enum
+ * \param sample_rate The sample rate of the media stream
+ *
+ * This function 'fills in' an entry in the list of possible formats for
+ * a media stream associated with an RTP structure.
+ *
+ * \retval 0 on success
+ * \retval -1 if the payload type is out of range
+ * \retval -2 if the mimeType/mimeSubtype combination was not found
+ */
+int ast_rtp_set_rtpmap_type_rate(struct ast_rtp* rtp, int pt,
+				 char *mimeType, char *mimeSubtype,
+				 enum ast_rtp_options options,
+				 unsigned int sample_rate);
 
 /*! \brief  Mapping between RTP payload format codes and Asterisk codes: */
 struct rtpPayloadType ast_rtp_lookup_pt(struct ast_rtp* rtp, int pt);
 int ast_rtp_lookup_code(struct ast_rtp* rtp, int isAstFormat, int code);
 
 void ast_rtp_get_current_formats(struct ast_rtp* rtp,
-			     int* astFormats, int* nonAstFormats);
+				 int* astFormats, int* nonAstFormats);
 
 /*! \brief  Mapping an Asterisk code into a MIME subtype (string): */
 const char *ast_rtp_lookup_mime_subtype(int isAstFormat, int code,
 					enum ast_rtp_options options);
+
+/*! \brief Get the sample rate associated with known RTP payload types
+ *
+ * \param isAstFormat True if the value in the 'code' parameter is an AST_FORMAT value
+ * \param code Format code, either from AST_FORMAT list or from AST_RTP list
+ *
+ * \return the sample rate if the format was found, zero if it was not found
+ */
+unsigned int ast_rtp_lookup_sample_rate(int isAstFormat, int code);
 
 /*! \brief Build a string of MIME subtype names from a capability list */
 char *ast_rtp_lookup_mime_multiple(char *buf, size_t size, const int capability,

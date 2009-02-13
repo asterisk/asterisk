@@ -259,6 +259,10 @@ extern struct ast_frame ast_null_frame;
 #define AST_FORMAT_G726		(1 << 11)
 /*! G.722 */
 #define AST_FORMAT_G722		(1 << 12)
+/*! G.722.1 (also known as Siren7, 32kbps assumed) */
+#define AST_FORMAT_SIREN7	(1 << 13)
+/*! G.722.1 Annex C (also known as Siren14, 48kbps assumed) */
+#define AST_FORMAT_SIREN14	(1 << 14)
 /*! Raw 16-bit Signed Linear (16000 Hz) PCM */
 #define AST_FORMAT_SLINEAR16	(1 << 15)
 /*! Maximum audio mask */
@@ -523,8 +527,8 @@ struct ast_frame *ast_smoother_read(struct ast_smoother *s);
 #endif
 /*@} Doxygen marker */
 
-struct ast_format_list *ast_get_format_list_index(int index);
-struct ast_format_list *ast_get_format_list(size_t *size);
+const struct ast_format_list *ast_get_format_list_index(int index);
+const struct ast_format_list *ast_get_format_list(size_t *size);
 void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix);
 
 /*! \page AudioCodecPref Audio Codec Preferences
@@ -630,10 +634,16 @@ int ast_frame_slinear_sum(struct ast_frame *f1, struct ast_frame *f2);
  */
 static force_inline int ast_format_rate(int format)
 {
-	if (format == AST_FORMAT_G722 || format == AST_FORMAT_SLINEAR16)
+	switch (format) {
+	case AST_FORMAT_G722:
+	case AST_FORMAT_SLINEAR16:
+	case AST_FORMAT_SIREN7:
 		return 16000;
-
-	return 8000;
+	case AST_FORMAT_SIREN14:
+		return 32000;
+	default:
+		return 8000;
+	}
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)

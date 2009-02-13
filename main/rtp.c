@@ -97,12 +97,6 @@ enum strict_rtp_state {
  * RTP session is defined on page 9 of RFC 3550: "An association among a set of participants communicating with RTP.  A participant may be involved in multiple RTP sessions at the same time [...]"
  *
  */
-/*! \brief The value of each payload format mapping: */
-struct rtpPayloadType {
-	int isAstFormat; 	/*!< whether the following code is an AST_FORMAT */
-	int code;
-};
-
 
 /*! \brief RTP session description */
 struct ast_rtp {
@@ -1832,7 +1826,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		/* Add timing data to let ast_generic_bridge() put the frame into a jitterbuf */
 		ast_set_flag(&rtp->f, AST_FRFLAG_HAS_TIMING_INFO);
 		rtp->f.ts = timestamp / 8;
-		rtp->f.len = rtp->f.samples / ( (ast_format_rate(rtp->f.subclass) == 16000) ? 16 : 8 );
+		rtp->f.len = rtp->f.samples / ((ast_format_rate(rtp->f.subclass) / 1000));
 	} else if (rtp->f.subclass & AST_FORMAT_VIDEO_MASK) {
 		/* Video -- samples is # of samples vs. 90000 */
 		if (!rtp->lastividtimestamp)
@@ -1863,40 +1857,46 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 
 /* The following array defines the MIME Media type (and subtype) for each
    of our codecs, or RTP-specific data type. */
-static struct {
+static const struct mimeType {
 	struct rtpPayloadType payloadType;
-	char* type;
-	char* subtype;
+	char *type;
+	char *subtype;
+	unsigned int sample_rate;
 } mimeTypes[] = {
-	{{1, AST_FORMAT_G723_1}, "audio", "G723"},
-	{{1, AST_FORMAT_GSM}, "audio", "GSM"},
-	{{1, AST_FORMAT_ULAW}, "audio", "PCMU"},
-	{{1, AST_FORMAT_ULAW}, "audio", "G711U"},
-	{{1, AST_FORMAT_ALAW}, "audio", "PCMA"},
-	{{1, AST_FORMAT_ALAW}, "audio", "G711A"},
-	{{1, AST_FORMAT_G726}, "audio", "G726-32"},
-	{{1, AST_FORMAT_ADPCM}, "audio", "DVI4"},
-	{{1, AST_FORMAT_SLINEAR}, "audio", "L16"},
-	{{1, AST_FORMAT_LPC10}, "audio", "LPC"},
-	{{1, AST_FORMAT_G729A}, "audio", "G729"},
-	{{1, AST_FORMAT_G729A}, "audio", "G729A"},
-	{{1, AST_FORMAT_G729A}, "audio", "G.729"},
-	{{1, AST_FORMAT_SPEEX}, "audio", "speex"},
-	{{1, AST_FORMAT_ILBC}, "audio", "iLBC"},
-	{{1, AST_FORMAT_G722}, "audio", "G722"},
-	{{1, AST_FORMAT_G726_AAL2}, "audio", "AAL2-G726-32"},
-	{{0, AST_RTP_DTMF}, "audio", "telephone-event"},
-	{{0, AST_RTP_CISCO_DTMF}, "audio", "cisco-telephone-event"},
-	{{0, AST_RTP_CN}, "audio", "CN"},
-	{{1, AST_FORMAT_JPEG}, "video", "JPEG"},
-	{{1, AST_FORMAT_PNG}, "video", "PNG"},
-	{{1, AST_FORMAT_H261}, "video", "H261"},
-	{{1, AST_FORMAT_H263}, "video", "H263"},
-	{{1, AST_FORMAT_H263_PLUS}, "video", "h263-1998"},
-	{{1, AST_FORMAT_H264}, "video", "H264"},
-	{{1, AST_FORMAT_MP4_VIDEO}, "video", "MP4V-ES"},
-	{{1, AST_FORMAT_T140RED}, "text", "RED"},
-	{{1, AST_FORMAT_T140}, "text", "T140"},
+	{{1, AST_FORMAT_G723_1}, "audio", "G723", 8000},
+	{{1, AST_FORMAT_GSM}, "audio", "GSM", 8000},
+	{{1, AST_FORMAT_ULAW}, "audio", "PCMU", 8000},
+	{{1, AST_FORMAT_ULAW}, "audio", "G711U", 8000},
+	{{1, AST_FORMAT_ALAW}, "audio", "PCMA", 8000},
+	{{1, AST_FORMAT_ALAW}, "audio", "G711A", 8000},
+	{{1, AST_FORMAT_G726}, "audio", "G726-32", 8000},
+	{{1, AST_FORMAT_ADPCM}, "audio", "DVI4", 8000},
+	{{1, AST_FORMAT_SLINEAR}, "audio", "L16", 8000},
+	{{1, AST_FORMAT_LPC10}, "audio", "LPC", 8000},
+	{{1, AST_FORMAT_G729A}, "audio", "G729", 8000},
+	{{1, AST_FORMAT_G729A}, "audio", "G729A", 8000},
+	{{1, AST_FORMAT_G729A}, "audio", "G.729", 8000},
+	{{1, AST_FORMAT_SPEEX}, "audio", "speex", 8000},
+	{{1, AST_FORMAT_ILBC}, "audio", "iLBC", 8000},
+	/* this is the sample rate listed in the RTP profile for the G.722
+	   codec, *NOT* the actual sample rate of the media stream
+	*/
+	{{1, AST_FORMAT_G722}, "audio", "G722", 8000},
+	{{1, AST_FORMAT_G726_AAL2}, "audio", "AAL2-G726-32", 8000},
+	{{0, AST_RTP_DTMF}, "audio", "telephone-event", 8000},
+	{{0, AST_RTP_CISCO_DTMF}, "audio", "cisco-telephone-event", 8000},
+	{{0, AST_RTP_CN}, "audio", "CN", 8000},
+	{{1, AST_FORMAT_JPEG}, "video", "JPEG", 90000},
+	{{1, AST_FORMAT_PNG}, "video", "PNG", 90000},
+	{{1, AST_FORMAT_H261}, "video", "H261", 90000},
+	{{1, AST_FORMAT_H263}, "video", "H263", 90000},
+	{{1, AST_FORMAT_H263_PLUS}, "video", "h263-1998", 90000},
+	{{1, AST_FORMAT_H264}, "video", "H264", 90000},
+	{{1, AST_FORMAT_MP4_VIDEO}, "video", "MP4V-ES", 90000},
+	{{1, AST_FORMAT_T140RED}, "text", "RED", 1000},
+	{{1, AST_FORMAT_T140}, "text", "T140", 1000},
+	{{1, AST_FORMAT_SIREN7}, "audio", "G7221", 16000},
+	{{1, AST_FORMAT_SIREN14}, "audio", "G7221", 32000},
 };
 
 /*! 
@@ -1909,7 +1909,7 @@ static struct {
  * See http://www.iana.org/assignments/rtp-parameters for a list of
  * assigned values
  */
-static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
+static const struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
 	[0] = {1, AST_FORMAT_ULAW},
 #ifdef USE_DEPRECATED_G726
 	[2] = {1, AST_FORMAT_G726}, /* Technically this is G.721, but if Cisco can do it, so can we... */
@@ -1935,6 +1935,7 @@ static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
 	[98] = {1, AST_FORMAT_H263_PLUS},
 	[99] = {1, AST_FORMAT_H264},
 	[101] = {0, AST_RTP_DTMF},
+	[102] = {1, AST_FORMAT_SIREN7},
 	[103] = {1, AST_FORMAT_H263_PLUS},
 	[104] = {1, AST_FORMAT_MP4_VIDEO},
 	[105] = {1, AST_FORMAT_T140RED},	/* Real time text chat (with redundancy encoding) */
@@ -1942,6 +1943,7 @@ static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
 	[110] = {1, AST_FORMAT_SPEEX},
 	[111] = {1, AST_FORMAT_G726},
 	[112] = {1, AST_FORMAT_G726_AAL2},
+	[115] = {1, AST_FORMAT_SIREN14},
 	[121] = {0, AST_RTP_CISCO_DTMF}, /* Must be type 121 */
 };
 
@@ -2211,35 +2213,61 @@ void ast_rtp_unset_m_type(struct ast_rtp* rtp, int pt)
  * an SDP "a=rtpmap:" line.
  * \return 0 if the MIME type was found and set, -1 if it wasn't found
  */
-int ast_rtp_set_rtpmap_type(struct ast_rtp *rtp, int pt,
-			     char *mimeType, char *mimeSubtype,
-			     enum ast_rtp_options options)
+int ast_rtp_set_rtpmap_type_rate(struct ast_rtp *rtp, int pt,
+				 char *mimeType, char *mimeSubtype,
+				 enum ast_rtp_options options,
+				 unsigned int sample_rate)
 {
 	unsigned int i;
 	int found = 0;
 
-	if (pt < 0 || pt > MAX_RTP_PT) 
+	if (pt < 0 || pt > MAX_RTP_PT)
 		return -1; /* bogus payload type */
-	
+
 	rtp_bridge_lock(rtp);
 
 	for (i = 0; i < ARRAY_LEN(mimeTypes); ++i) {
-		if (strcasecmp(mimeSubtype, mimeTypes[i].subtype) == 0 &&
-		    strcasecmp(mimeType, mimeTypes[i].type) == 0) {
-			found = 1;
-			rtp->current_RTP_PT[pt] = mimeTypes[i].payloadType;
-			if ((mimeTypes[i].payloadType.code == AST_FORMAT_G726) &&
-			    mimeTypes[i].payloadType.isAstFormat &&
-			    (options & AST_RTP_OPT_G726_NONSTANDARD))
-				rtp->current_RTP_PT[pt].code = AST_FORMAT_G726_AAL2;
-			break;
+		const struct mimeType *t = &mimeTypes[i];
+
+		if (strcasecmp(mimeSubtype, t->subtype)) {
+			continue;
 		}
+
+		if (strcasecmp(mimeType, t->type)) {
+			continue;
+		}
+
+		/* if both sample rates have been supplied, and they don't match,
+		   then this not a match; if one has not been supplied, then the
+		   rates are not compared */
+		if (sample_rate && t->sample_rate &&
+		    (sample_rate != t->sample_rate)) {
+			continue;
+		}
+
+		found = 1;
+		rtp->current_RTP_PT[pt] = t->payloadType;
+
+		if ((t->payloadType.code == AST_FORMAT_G726) &&
+		    t->payloadType.isAstFormat &&
+		    (options & AST_RTP_OPT_G726_NONSTANDARD)) {
+			rtp->current_RTP_PT[pt].code = AST_FORMAT_G726_AAL2;
+		}
+
+		break;
 	}
 
 	rtp_bridge_unlock(rtp);
 
-	return (found ? 0 : -1);
-} 
+	return (found ? 0 : -2);
+}
+
+int ast_rtp_set_rtpmap_type(struct ast_rtp *rtp, int pt,
+			    char *mimeType, char *mimeSubtype,
+			    enum ast_rtp_options options)
+{
+	return ast_rtp_set_rtpmap_type_rate(rtp, pt, mimeType, mimeSubtype, options, 0);
+}
 
 /*! \brief Return the union of all of the codecs that were set by rtp_set...() calls 
  * They're returned as two distinct sets: AST_FORMATs, and AST_RTPs */
@@ -2342,6 +2370,19 @@ const char *ast_rtp_lookup_mime_subtype(const int isAstFormat, const int code,
 	}
 
 	return "";
+}
+
+unsigned int ast_rtp_lookup_sample_rate(int isAstFormat, int code)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_LEN(mimeTypes); ++i) {
+		if ((mimeTypes[i].payloadType.code == code) && (mimeTypes[i].payloadType.isAstFormat == isAstFormat)) {
+			return mimeTypes[i].sample_rate;
+		}
+	}
+
+	return 0;
 }
 
 char *ast_rtp_lookup_mime_multiple(char *buf, size_t size, const int capability,
@@ -4773,9 +4814,8 @@ void red_buffer_t140(struct ast_rtp *rtp, struct ast_frame *f)
 {
 	if (f->datalen > -1) {
 		struct rtp_red *red = rtp->red;
-		memcpy(&red->buf_data[red->t140.datalen], f->data.ptr, f->datalen); 
+		memcpy(&red->buf_data[red->t140.datalen], f->data.ptr, f->datalen);
 		red->t140.datalen += f->datalen;
 		red->t140.ts = f->ts;
 	}
 }
-
