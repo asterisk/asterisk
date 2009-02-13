@@ -99,7 +99,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</parameter>
 			<parameter name="nocdr">
 				<para>Asterisk will send an answer signal to the calling phone, but will not
-				set the disposition or answer time in the CDR for this call.
+				set the disposition or answer time in the CDR for this call.</para>
 			</parameter>
 		</syntax>
 		<description>
