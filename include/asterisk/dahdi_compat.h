@@ -34,7 +34,7 @@
 #include <zaptel/zaptel.h>
 
 #define DAHDI_DIR_NAME "/dev/zap"
-#define DAHDI_NAME "DAHDI"
+#define DAHDI_NAME "Zaptel"
 
 /* Compiling against Zaptel instead of DAHDI */
 
