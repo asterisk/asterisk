@@ -11871,7 +11871,8 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
  		auth = find_realm_authentication(authl, p->realm);	/* If not, global list */
 
  	if (auth) {
-		ast_log(LOG_DEBUG, "use realm [%s] from peer [%s][%s]\n", auth->username, p->peername, p->username);
+		if (sipdebug && option_debug > 1)
+			ast_log(LOG_DEBUG, "use realm [%s] from peer [%s][%s]\n", auth->username, p->peername, p->username);
  		username = auth->username;
  		secret = auth->secret;
  		md5secret = auth->md5secret;
