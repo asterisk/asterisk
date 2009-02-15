@@ -257,7 +257,7 @@ int ast_sched_runq(struct sched_context *con);
  * Debugging: Dump the contents of the scheduler to stderr
  * \param con Context to dump
  */
-void ast_sched_dump(const struct sched_context *con);
+void ast_sched_dump(struct sched_context *con);
 
 /*! \brief Returns the number of seconds before an event takes place
  * \param con Context to use

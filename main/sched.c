@@ -536,6 +536,7 @@ void ast_sched_report(struct sched_context *con, struct ast_str **buf, struct as
 	
 	ast_str_set(buf, 0, " Highwater = %d\n schedcnt = %d\n", con->highwater, con->schedcnt);
 
+	ast_mutex_lock(&con->lock);
 	AST_DLLIST_TRAVERSE(&con->schedq, cur, list) {
 		/* match the callback to the cblist */
 		for (i = 0; i < cbnames->numassocs; i++) {
@@ -549,6 +550,7 @@ void ast_sched_report(struct sched_context *con, struct ast_str **buf, struct as
 			countlist[cbnames->numassocs]++;
 		}
 	}
+	ast_mutex_unlock(&con->lock);
 
 	for (i = 0; i < cbnames->numassocs; i++) {
 		ast_str_append(buf, 0, "    %s : %d\n", cbnames->list[i], countlist[i]);
@@ -558,7 +560,7 @@ void ast_sched_report(struct sched_context *con, struct ast_str **buf, struct as
 }
 	
 /*! \brief Dump the contents of the scheduler to LOG_DEBUG */
-void ast_sched_dump(const struct sched_context *con)
+void ast_sched_dump(struct sched_context *con)
 {
 	struct sched *q;
 	struct timeval when = ast_tvnow();
@@ -571,6 +573,7 @@ void ast_sched_dump(const struct sched_context *con)
 	ast_debug(1, "=============================================================\n");
 	ast_debug(1, "|ID    Callback          Data              Time  (sec:ms)   |\n");
 	ast_debug(1, "+-----+-----------------+-----------------+-----------------+\n");
+	ast_mutex_lock(&con->lock);
 	AST_DLLIST_TRAVERSE(&con->schedq, q, list) {
 		struct timeval delta = ast_tvsub(q->when, when);
 
@@ -581,8 +584,8 @@ void ast_sched_dump(const struct sched_context *con)
 			(long)delta.tv_sec,
 			(long int)delta.tv_usec);
 	}
+	ast_mutex_unlock(&con->lock);
 	ast_debug(1, "=============================================================\n");
-	
 }
 
 /*! \brief
