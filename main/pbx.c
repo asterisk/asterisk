@@ -3256,7 +3256,7 @@ static int handle_show_application(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*! \brief  handle_show_hints: CLI support for listing registred dial plan hints */
+/*! \brief  handle_show_hints: CLI support for listing registered dial plan hints */
 static int handle_show_hints(int fd, int argc, char *argv[])
 {
 	struct ast_hint *hint;
@@ -3288,7 +3288,7 @@ static int handle_show_hints(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*! \brief  handle_show_switches: CLI support for listing registred dial plan switches */
+/*! \brief  handle_show_switches: CLI support for listing registered dial plan switches */
 static int handle_show_switches(int fd, int argc, char *argv[])
 {
 	struct ast_switch *sw;

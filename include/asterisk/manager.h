@@ -100,8 +100,8 @@ int ast_manager_register2(
 	const char *synopsis,
 	const char *description);
 
-/*! Unregister a registred manager command */
-/*!	\param action Name of registred Action:
+/*! Unregister a registered manager command */
+/*!	\param action Name of registered Action:
 */
 int ast_manager_unregister( char *action );
 

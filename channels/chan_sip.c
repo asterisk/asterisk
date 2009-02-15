@@ -355,10 +355,10 @@ enum check_auth_result {
 
 /*! \brief States for outbound registrations (with register= lines in sip.conf */
 enum sipregistrystate {
-	REG_STATE_UNREGISTERED = 0,	/*!< We are not registred */
+	REG_STATE_UNREGISTERED = 0,	/*!< We are not registered */
 	REG_STATE_REGSENT,	/*!< Registration request sent */
 	REG_STATE_AUTHSENT,	/*!< We have tried to authenticate */
-	REG_STATE_REGISTERED,	/*!< Registred and done */
+	REG_STATE_REGISTERED,	/*!< Registered and done */
 	REG_STATE_REJECTED,	/*!< Registration rejected */
 	REG_STATE_TIMEOUT,	/*!< Registration timed out */
 	REG_STATE_NOAUTH,	/*!< We have no accepted credentials */
@@ -16806,7 +16806,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	if (create_addr(p, host, NULL)) {
 		*cause = AST_CAUSE_UNREGISTERED;
 		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "Cant create SIP call - target device not registred\n");
+			ast_log(LOG_DEBUG, "Cant create SIP call - target device not registered\n");
 		sip_destroy(p);
 		return NULL;
 	}
