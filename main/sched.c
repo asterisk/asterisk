@@ -528,41 +528,34 @@ int _ast_sched_del(struct sched_context *con, int id, const char *file, int line
 	return 0;
 }
 
-
-char *ast_sched_report(struct sched_context *con, char *buf, int bufsiz, struct ast_cb_names *cbnames)
+void ast_sched_report(struct sched_context *con, struct ast_str **buf, struct ast_cb_names *cbnames)
 {
-	int *countlist,i;
+	int i;
 	struct sched *cur;
-	char buf2[1200];
-	ast_sched_cb xxx = NULL;
+	int countlist[cbnames->numassocs + 1];
 	
-	buf[0] = 0;
-	sprintf(buf, " Highwater = %d\n schedcnt = %d\n", con->highwater, con->schedcnt);
-	countlist = ast_calloc(sizeof(int),cbnames->numassocs+1);
-	
+	ast_str_set(buf, 0, " Highwater = %d\n schedcnt = %d\n", con->highwater, con->schedcnt);
+
 	AST_DLLIST_TRAVERSE(&con->schedq, cur, list) {
 		/* match the callback to the cblist */
-		for (i=0;i<cbnames->numassocs;i++) {
-			if (cur->callback == cbnames->cblist[i])
+		for (i = 0; i < cbnames->numassocs; i++) {
+			if (cur->callback == cbnames->cblist[i]) {
 				break;
+			}
 		}
-		if (i < cbnames->numassocs)
+		if (i < cbnames->numassocs) {
 			countlist[i]++;
-		else {
-			xxx = cur->callback;
+		} else {
 			countlist[cbnames->numassocs]++;
 		}
 	}
-	for (i=0;i<cbnames->numassocs;i++) {
-		sprintf(buf2,"    %s : %d\n", cbnames->list[i], countlist[i]);
-		strcat(buf, buf2);
+
+	for (i = 0; i < cbnames->numassocs; i++) {
+		ast_str_append(buf, 0, "    %s : %d\n", cbnames->list[i], countlist[i]);
 	}
-	sprintf(buf2,"   <unknown:%p> : %d\n", xxx, countlist[cbnames->numassocs]);
-	strcat( buf, buf2);
-	return buf;
+
+	ast_str_append(buf, 0, "   <unknown> : %d\n", countlist[cbnames->numassocs]);
 }
-
-
 	
 /*! \brief Dump the contents of the scheduler to LOG_DEBUG */
 void ast_sched_dump(const struct sched_context *con)

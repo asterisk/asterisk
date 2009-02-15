@@ -14631,7 +14631,7 @@ static char *sip_show_user(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 
 static char *sip_show_sched(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char cbuf[2256];
+	struct ast_str *cbuf;
 	struct ast_cb_names cbnames = {9, { "retrans_pkt",
                                         "__sip_autodestruct",
                                         "expire_register",
@@ -14661,9 +14661,13 @@ static char *sip_show_sched(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	case CLI_GENERATE:
 		return NULL;
 	}
+
+	cbuf = ast_str_alloca(2048);
+
 	ast_cli(a->fd, "\n");
-	ast_sched_report(sched, cbuf, sizeof(cbuf), &cbnames);
-	ast_cli(a->fd, "%s", cbuf);
+	ast_sched_report(sched, &cbuf, &cbnames);
+	ast_cli(a->fd, "%s", cbuf->str);
+
 	return CLI_SUCCESS;
 }
 

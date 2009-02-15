@@ -147,13 +147,12 @@ void sched_context_destroy(struct sched_context *c);
 typedef int (*ast_sched_cb)(const void *data);
 #define AST_SCHED_CB(a) ((ast_sched_cb)(a))
 
-struct ast_cb_names
-{
+struct ast_cb_names {
 	int numassocs;
 	char *list[10];
 	ast_sched_cb cblist[10];
 };
-char *ast_sched_report(struct sched_context *con, char *buf, int bufsiz, struct ast_cb_names *cbnames);
+void ast_sched_report(struct sched_context *con, struct ast_str **buf, struct ast_cb_names *cbnames);
 		
 /*! \brief Adds a scheduled event
  * Schedule an event to take place at some point in the future.  callback
