@@ -64,7 +64,7 @@ Autoprovisioning :
 - This feature must only be used on a trusted network. It's very insecure : all unistim phones
   will be able to use your asterisk pbx.
 - You must add an entry called [template]. Each new phones will be based on this profile.
-- You must set a least line=>. This value will be incremented when a new phone is registred.
+- You must set a least line=>. This value will be incremented when a new phone is registered.
   device= must not be specified. By default, the phone will asks for a number. It will be added into
   the dialplan. Add extension=line for using the generated line number instead.
  Example :
