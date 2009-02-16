@@ -12481,7 +12481,7 @@ static char *handle_pri_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	int level = 0;
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "pri set debug {on|off} span";
+		e->command = "pri set debug {on|off|0|1|2} span";
 		e->usage =
 			"Usage: pri set debug {<level>|on|off} span <span>\n"
 			"       Enables debugging on a given PRI span\n";
