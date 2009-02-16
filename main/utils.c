@@ -1587,38 +1587,58 @@ int __ast_string_field_ptr_grow(struct ast_string_field_mgr *mgr, size_t needed,
 
 void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 				     struct ast_string_field_pool **pool_head,
-				     const ast_string_field *ptr, const char *format, va_list ap1, va_list ap2)
+				     ast_string_field *ptr, const char *format, va_list ap1, va_list ap2)
 {
 	size_t needed;
-	char *dst = (*pool_head)->base + mgr->used;
-	const char **p = (const char **) ptr;
+	size_t available;
 	size_t space = mgr->size - mgr->used;
+	char *target;
 
-	/* try to write using available space */
-	needed = vsnprintf(dst, space, format, ap1) + 1;
+	/* if the field already has space allocated, try to reuse it;
+	   otherwise, use the empty space at the end of the current
+	   pool
+	*/
+	if ((*ptr)[0] != '0') {
+		target = (char *) *ptr;
+		available = strlen(target);
+	} else {
+		target = (*pool_head)->base + mgr->used;
+		available = space;
+	}
+
+	needed = vsnprintf(target, available, format, ap1) + 1;
 
 	va_end(ap1);
 
-	if (needed > space) {	/* if it fails, reallocate */
-		size_t new_size = mgr->size * 2;
+	if (needed > available) {
+		/* if the space needed can be satisfied by using the current
+		   pool (which could only occur if we tried to use the field's
+		   allocated space and failed), then use that space; otherwise
+		   allocate a new pool
+		*/
+		if (needed > space) {
+			size_t new_size = mgr->size * 2;
 
-		while (new_size < needed)
-			new_size *= 2;
+			while (new_size < needed)
+				new_size *= 2;
+			
+			if (add_string_pool(mgr, pool_head, new_size))
+				return;
+		}
 
-		if (add_string_pool(mgr, pool_head, new_size))
-			return;
-
-		dst = (*pool_head)->base + mgr->used;
-		vsprintf(dst, format, ap2);
+		target = (*pool_head)->base + mgr->used;
+		vsprintf(target, format, ap2);
 	}
 
-	mgr->last_alloc = *p = dst;
-	mgr->used += needed;
+	if (*ptr != target) {
+		mgr->last_alloc = *ptr = target;
+		mgr->used += needed;
+	}
 }
 
 void __ast_string_field_ptr_build(struct ast_string_field_mgr *mgr,
 				  struct ast_string_field_pool **pool_head,
-				  const ast_string_field *ptr, const char *format, ...)
+				  ast_string_field *ptr, const char *format, ...)
 {
 	va_list ap1, ap2;
 
