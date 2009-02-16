@@ -5869,9 +5869,9 @@ static void destroy_session(struct skinnysession *s)
 {
 	struct skinnysession *cur;
 	AST_LIST_LOCK(&sessions);
-	AST_LIST_TRAVERSE(&sessions, cur, list) {
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&sessions, cur, list) {
 		if (cur == s) {
-			AST_LIST_REMOVE(&sessions, s, list);
+			AST_LIST_REMOVE_CURRENT(list);
 			if (s->fd > -1) 
 				close(s->fd);
 			
@@ -5882,6 +5882,7 @@ static void destroy_session(struct skinnysession *s)
 			ast_log(LOG_WARNING, "Trying to delete nonexistent session %p?\n", s);
 		}
 	}
+	AST_LIST_TRAVERSE_SAFE_END
 	AST_LIST_UNLOCK(&sessions);
 }
 
