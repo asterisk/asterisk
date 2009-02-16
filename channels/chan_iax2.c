@@ -3757,10 +3757,11 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 		}
 		other = (who == c0) ? c1 : c0;  /* the 'other' channel */
 		if ((f->frametype == AST_FRAME_VOICE) ||
-		    (f->frametype == AST_FRAME_TEXT) ||
-		    (f->frametype == AST_FRAME_VIDEO) || 
-		    (f->frametype == AST_FRAME_IMAGE) ||
-		    (f->frametype == AST_FRAME_DTMF)) {
+			(f->frametype == AST_FRAME_TEXT) ||
+			(f->frametype == AST_FRAME_VIDEO) || 
+			(f->frametype == AST_FRAME_IMAGE) ||
+			(f->frametype == AST_FRAME_DTMF) ||
+			(f->frametype == AST_FRAME_CONTROL)) {
 			/* monitored dtmf take out of the bridge.
 			 * check if we monitor the specific source.
 			 */
