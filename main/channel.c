@@ -131,7 +131,7 @@ static AST_RWLIST_HEAD_STATIC(channels, ast_channel);
  *
  * \ref causes.h
 */
-const struct ast_cause {
+static const struct {
 	int cause;
 	const char *name;
 	const char *desc;
