@@ -1728,24 +1728,13 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
  zapretry:
 	origfd = chan->fds[0];
 	if (retryzap) {
-		fd = open(DAHDI_FILE_PSEUDO, O_RDWR);
+		/* open pseudo in non-blocking mode */
+		fd = open(DAHDI_FILE_PSEUDO, O_RDWR | O_NONBLOCK);
 		if (fd < 0) {
 			ast_log(LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
 			goto outrun;
 		}
 		using_pseudo = 1;
-		/* Make non-blocking */
-		flags = fcntl(fd, F_GETFL);
-		if (flags < 0) {
-			ast_log(LOG_WARNING, "Unable to get flags: %s\n", strerror(errno));
-			close(fd);
-			goto outrun;
-		}
-		if (fcntl(fd, F_SETFL, flags | O_NONBLOCK)) {
-			ast_log(LOG_WARNING, "Unable to set flags: %s\n", strerror(errno));
-			close(fd);
-			goto outrun;
-		}
 		/* Setup buffering information */
 		memset(&bi, 0, sizeof(bi));
 		bi.bufsize = CONF_SIZE/2;
