@@ -183,7 +183,7 @@ ast_string_field __ast_string_field_alloc_space(struct ast_string_field_mgr *mgr
 */
 void __ast_string_field_ptr_build(struct ast_string_field_mgr *mgr,
 				  struct ast_string_field_pool **pool_head,
-				  const ast_string_field *ptr, const char *format, ...) __attribute__((format(printf, 4, 5)));
+				  ast_string_field *ptr, const char *format, ...) __attribute__((format(printf, 4, 5)));
 
 /*!
   \internal
@@ -198,7 +198,7 @@ void __ast_string_field_ptr_build(struct ast_string_field_mgr *mgr,
 */
 void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 				     struct ast_string_field_pool **pool_head,
-				     const ast_string_field *ptr, const char *format, va_list a1, va_list a2) __attribute__((format(printf, 4, 0)));
+				     ast_string_field *ptr, const char *format, va_list a1, va_list a2) __attribute__((format(printf, 4, 0)));
 
 /*!
   \brief Declare a string field
@@ -287,7 +287,7 @@ int __ast_string_field_init(struct ast_string_field_mgr *mgr,
   \return nothing
 */
 #define ast_string_field_ptr_build(x, ptr, fmt, args...) \
-	__ast_string_field_ptr_build(&(x)->__field_mgr, &(x)->__field_mgr_pool, ptr, fmt, args)
+	__ast_string_field_ptr_build(&(x)->__field_mgr, &(x)->__field_mgr_pool, (ast_string_field *) ptr, fmt, args)
 
 /*!
   \brief Set a field to a complex (built) value
@@ -298,7 +298,7 @@ int __ast_string_field_init(struct ast_string_field_mgr *mgr,
   \return nothing
 */
 #define ast_string_field_build(x, field, fmt, args...) \
-	__ast_string_field_ptr_build(&(x)->__field_mgr, &(x)->__field_mgr_pool, &(x)->field, fmt, args)
+	__ast_string_field_ptr_build(&(x)->__field_mgr, &(x)->__field_mgr_pool, (ast_string_field *) &(x)->field, fmt, args)
 
 /*!
   \brief Set a field to a complex (built) value with prebuilt va_lists.
@@ -310,7 +310,7 @@ int __ast_string_field_init(struct ast_string_field_mgr *mgr,
   \return nothing
 */
 #define ast_string_field_ptr_build_va(x, ptr, fmt, args1, args2) \
-	__ast_string_field_ptr_build_va(&(x)->__field_mgr, &(x)->__field_mgr_pool, ptr, fmt, args1, args2)
+	__ast_string_field_ptr_build_va(&(x)->__field_mgr, &(x)->__field_mgr_pool, (ast_string_field *) ptr, fmt, args1, args2)
 
 /*!
   \brief Set a field to a complex (built) value
@@ -322,6 +322,6 @@ int __ast_string_field_init(struct ast_string_field_mgr *mgr,
   \return nothing
 */
 #define ast_string_field_build_va(x, field, fmt, args1, args2) \
-	__ast_string_field_ptr_build_va(&(x)->__field_mgr, &(x)->__field_mgr_pool, &(x)->field, fmt, args1, args2)
+	__ast_string_field_ptr_build_va(&(x)->__field_mgr, &(x)->__field_mgr_pool, (ast_string_field *) &(x)->field, fmt, args1, args2)
 
 #endif /* _ASTERISK_STRINGFIELDS_H */
