@@ -49,12 +49,10 @@
 ;              changes the way that func_odbc normally works.  Instead of the
 ;              invocation of the function returning a row, it returns an opaque
 ;              ID, which may be passed to ODBC_FETCH() to return each row in
-;              turn.  ODBC_FETCH_STATUS returns SUCCESS or FAILURE, to indicate
-;              whether any results were stored, and you should call ODBC_Finish
-;              on the ID to clean up any remaining results when you are done
-;              with the query.  Also, the variable ODBCROWS is set initially,
-;              which may be used in an iterative fashion to return each row in
-;              the result.
+;              turn.  The variable ODBCROWS is set initially, which may be used
+;              in an iterative fashion to return each row in the result.  You
+;              should call ODBC_Finish on the ID to clean up any remaining
+;              results when you are done with the query.
 ;              Please note that multirow queries are isolated to the channel,
 ;              and rows may not be fetched outside of the channel where the
 ;              query was initially performed.  Additionally, as the results are
