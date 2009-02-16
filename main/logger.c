@@ -973,8 +973,13 @@ static void *logger_thread(void *data)
 	for (;;) {
 		/* We lock the message list, and see if any message exists... if not we wait on the condition to be signalled */
 		AST_LIST_LOCK(&logmsgs);
-		if (AST_LIST_EMPTY(&logmsgs))
-			ast_cond_wait(&logcond, &logmsgs.lock);
+		if (AST_LIST_EMPTY(&logmsgs)) {
+			if (close_logger_thread) {
+				break;
+			} else {
+				ast_cond_wait(&logcond, &logmsgs.lock);
+			}
+		}
 		next = AST_LIST_FIRST(&logmsgs);
 		AST_LIST_HEAD_INIT_NOLOCK(&logmsgs);
 		AST_LIST_UNLOCK(&logmsgs);
