@@ -363,7 +363,7 @@ enum check_auth_result {
 
 /*! \brief States for outbound registrations (with register= lines in sip.conf */
 enum sipregistrystate {
-	REG_STATE_UNREGISTERED = 0,	/*!< We are not registred 
+	REG_STATE_UNREGISTERED = 0,	/*!< We are not registered 
 		 *  \note Initial state. We should have a timeout scheduled for the initial
 		 * (or next) registration transmission, calling sip_reregister
 		 */
@@ -20047,7 +20047,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	*/
 	if (create_addr(p, host)) {
 		*cause = AST_CAUSE_UNREGISTERED;
-		ast_debug(3, "Cant create SIP call - target device not registred\n");
+		ast_debug(3, "Cant create SIP call - target device not registered\n");
 		sip_destroy(p);
 		return NULL;
 	}
