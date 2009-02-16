@@ -1298,9 +1298,11 @@ void __ast_string_field_index_build_va(struct ast_string_field_mgr *mgr,
 		vsprintf(target, format, ap2);
 	}
 
-	fields[index] = target;
-	mgr->used += needed;
-	mgr->space -= needed;
+	if (fields[index] != target) {
+		fields[index] = target;
+		mgr->used += needed;
+		mgr->space -= needed;
+	}
 }
 
 void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
