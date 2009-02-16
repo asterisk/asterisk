@@ -1602,7 +1602,6 @@ struct sip_pvt {
 		AST_STRING_FIELD(peermd5secret);
 		AST_STRING_FIELD(cid_num);	/*!< Caller*ID number */
 		AST_STRING_FIELD(cid_name);	/*!< Caller*ID name */
-		AST_STRING_FIELD(via);		/*!< Via: header */
 		AST_STRING_FIELD(fullcontact);	/*!< The Contact: that the UA registers with us */
 			/* we only store the part in <brackets> in this field. */
 		AST_STRING_FIELD(our_contact);	/*!< Our contact header */
@@ -1611,6 +1610,7 @@ struct sip_pvt {
 		AST_STRING_FIELD(url);		/*!< URL to be sent with next message to peer */
 		AST_STRING_FIELD(parkinglot);		/*!< Parkinglot */
 	);
+	char via[128];                          /*!< Via: header */
 	struct sip_socket socket;		/*!< The socket used for this dialog */
 	unsigned int ocseq;			/*!< Current outgoing seqno */
 	unsigned int icseq;			/*!< Current incoming seqno */
@@ -3290,10 +3290,10 @@ static void build_via(struct sip_pvt *p)
 	const char *rport = ast_test_flag(&p->flags[0], SIP_NAT) & SIP_NAT_RFC3581 ? ";rport" : "";
 
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
-	ast_string_field_build(p, via, "SIP/2.0/%s %s:%d;branch=z9hG4bK%08x%s",
-			       get_transport_pvt(p),
-			       ast_inet_ntoa(p->ourip.sin_addr),
-			       ntohs(p->ourip.sin_port), (int) p->branch, rport);
+	snprintf(p->via, sizeof(p->via), "SIP/2.0/%s %s:%d;branch=z9hG4bK%08x%s",
+		 get_transport_pvt(p),
+		 ast_inet_ntoa(p->ourip.sin_addr),
+		 ntohs(p->ourip.sin_port), (int) p->branch, rport);
 }
 
 /*! \brief NAT fix - decide which IP address to use for Asterisk server?
