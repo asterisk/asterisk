@@ -1256,24 +1256,49 @@ void __ast_string_field_index_build_va(struct ast_string_field_mgr *mgr,
 				       int index, const char *format, va_list ap1, va_list ap2)
 {
 	size_t needed;
+	size_t available;
+	char *target;
 
-	needed = vsnprintf(mgr->pool->base + mgr->used, mgr->space, format, ap1) + 1;
+	/* if the field already has space allocated, try to reuse it;
+	   otherwise, use the empty space at the end of the current
+	   pool
+	*/
+	if (fields[index][0] != '0') {
+		target = (char *) fields[index];
+		available = strlen(fields[index]);
+	} else {
+		target = mgr->pool->base + mgr->used;
+		available = mgr->space;
+	}
+
+	needed = vsnprintf(target, available, format, ap1) + 1;
 
 	va_end(ap1);
 
-	if (needed > mgr->space) {
-		size_t new_size = mgr->size * 2;
+	if (needed > available) {
+		/* if the space needed can be satisfied by using the current
+		   pool (which could only occur if we tried to use the field's
+		   allocated space and failed), then use that space; otherwise
+		   allocate a new pool
+		*/
+		if (needed <= mgr->space) {
+			target = mgr->pool->base + mgr->used;
+		} else {
+			size_t new_size = mgr->size * 2;
 
-		while (new_size < needed)
-			new_size *= 2;
+			while (new_size < needed)
+				new_size *= 2;
+			
+			if (add_string_pool(mgr, new_size))
+				return;
+			
+			target = mgr->pool->base + mgr->used;
+		}
 
-		if (add_string_pool(mgr, new_size))
-			return;
-
-		vsprintf(mgr->pool->base + mgr->used, format, ap2);
+		vsprintf(target, format, ap2);
 	}
 
-	fields[index] = mgr->pool->base + mgr->used;
+	fields[index] = target;
 	mgr->used += needed;
 	mgr->space -= needed;
 }
