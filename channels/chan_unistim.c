@@ -1117,7 +1117,7 @@ static void close_client(struct unistimsession *s)
 		cur = cur->next;
 	}
 	if (cur) {				      /* Session found ? */
-		if (cur->device) {	      /* This session was registred ? */
+		if (cur->device) {	      /* This session was registered ? */
 			s->state = STATE_CLEANING;
 			if (unistimdebug)
 				ast_verb(0, "close_client session %p device %p lines %p sub %p\n",
@@ -3324,7 +3324,7 @@ static void init_phone_step2(struct unistimsession *pte)
 			for (i = 1; i < 6; i++)
 				send_favorite(i, 0, pte, "");
 			send_text(TEXT_LINE0, TEXT_NORMAL, pte, "Sorry, this phone is not");
-			send_text(TEXT_LINE1, TEXT_NORMAL, pte, "registred in unistim.cfg");
+			send_text(TEXT_LINE1, TEXT_NORMAL, pte, "registered in unistim.cfg");
 			strcpy(tmp, "MAC = ");
 			strcat(tmp, pte->macaddr);
 			send_text(TEXT_LINE2, TEXT_NORMAL, pte, tmp);
@@ -3419,7 +3419,7 @@ static void process_request(int size, unsigned char *buf, struct unistimsession 
 	if (memcmp(buf + SIZE_HEADER, packet_recv_pick_up, sizeof(packet_recv_pick_up)) == 0) {
 		if (unistimdebug)
 			ast_verb(0, "Handset off hook\n");
-		if (!pte->device)	       /* We are not yet registred (asking for a TN in AUTOPROVISIONING_TN) */
+		if (!pte->device)	       /* We are not yet registered (asking for a TN in AUTOPROVISIONING_TN) */
 			return;
 		pte->device->receiver_state = STATE_OFFHOOK;
 		if (pte->device->output == OUTPUT_HEADPHONE)
