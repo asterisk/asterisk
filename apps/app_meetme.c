@@ -1502,7 +1502,6 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	int ms;
 	int nfds;
 	int res;
-	int flags;
 	int retryzap;
 	int origfd;
 	int musiconhold = 0;
