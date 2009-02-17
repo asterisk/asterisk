@@ -194,9 +194,17 @@ struct ast_frame {
     for this purpose instead of having to declare one on the stack */
 extern struct ast_frame ast_null_frame;
 
-#define AST_FRIENDLY_OFFSET 	64	/*! It's polite for a a new frame to
-					  have this number of bytes for additional
-					  headers.  */
+/*! \brief Offset into a frame's data buffer.
+ *
+ * By providing some "empty" space prior to the actual data of an ast_frame,
+ * this gives any consumer of the frame ample space to prepend other necessary
+ * information without having to create a new buffer.
+ *
+ * As an example, RTP can use the data from an ast_frame and simply prepend the
+ * RTP header information into the space provided by AST_FRIENDLY_OFFSET instead
+ * of having to create a new buffer with the necessary space allocated.
+ */
+#define AST_FRIENDLY_OFFSET 	64	
 #define AST_MIN_OFFSET 		32	/*! Make sure we keep at least this much handy */
 
 /*! Need the header be free'd? */
