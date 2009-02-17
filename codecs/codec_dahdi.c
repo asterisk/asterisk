@@ -38,7 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <netinet/in.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-
+#include <sys/poll.h>
 #include <dahdi/user.h>
 
 #include "asterisk/lock.h"
@@ -49,8 +49,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/utils.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/ulaw.h"
 
-#define BUFFER_SAMPLES	8000
+#define BUFFER_SIZE 8000
+
+#define G723_SAMPLES 240
+#define G729_SAMPLES 160
 
 static unsigned int global_useplc = 0;
 
@@ -79,12 +83,52 @@ struct translator {
 
 static AST_LIST_HEAD_STATIC(translators, translator);
 
-struct pvt {
+struct codec_dahdi_pvt {
 	int fd;
-	int fake;
 	struct dahdi_transcoder_formats fmts;
-	int samples;
+	unsigned int softslin:1;
+	unsigned int fake:2;
+	uint16_t required_samples;
+	uint16_t samples_in_buffer;
+	uint8_t ulaw_buffer[1024];
 };
+
+/* Only used by a decoder */
+static int ulawtolin(struct ast_trans_pvt *pvt)
+{
+	struct codec_dahdi_pvt *dahdip = pvt->pvt;
+	int i = dahdip->required_samples;
+	uint8_t *src = &dahdip->ulaw_buffer[0];
+	int16_t *dst = pvt->outbuf.i16 + pvt->datalen;
+
+	/* convert and copy in outbuf */
+	while (i--) {
+		*dst++ = AST_MULAW(*src++);
+	}
+
+	return 0;
+}
+
+/* Only used by an encoder. */
+static int lintoulaw(struct ast_trans_pvt *pvt, struct ast_frame *f)
+{
+	struct codec_dahdi_pvt *dahdip = pvt->pvt;
+	int i = f->samples;
+	uint8_t *dst = &dahdip->ulaw_buffer[dahdip->samples_in_buffer];
+	int16_t *src = f->data.ptr;
+
+	if (dahdip->samples_in_buffer + i > sizeof(dahdip->ulaw_buffer)) {
+		ast_log(LOG_ERROR, "Out of buffer space!\n");
+		return -i;
+	}
+
+	while (i--) {
+		*dst++ = AST_LIN2MU(*src++);
+	}
+
+	dahdip->samples_in_buffer += f->samples;
+	return 0;
+}
 
 static char *handle_cli_transcoder_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -114,68 +158,79 @@ static char *handle_cli_transcoder_show(struct ast_cli_entry *e, int cmd, struct
 	return CLI_SUCCESS;
 }
 
-static int dahdi_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
+static void dahdi_write_frame(struct codec_dahdi_pvt *dahdip, const uint8_t *buffer, const ssize_t count)
 {
 	int res;
-	struct pvt *dahdip = pvt->pvt;
-
-	if (f->subclass) {
-		/* Give the frame to the hardware transcoder... */
-		res = write(dahdip->fd, f->data.ptr, f->datalen); 
+	struct pollfd p = {0};
+	if (!count) return;
+	res = write(dahdip->fd, buffer, count);
+	if (option_verbose > 10) {
 		if (-1 == res) {
-			ast_log(LOG_ERROR, "Failed to write to /dev/dahdi/transcode: %s\n", strerror(errno));
+			ast_log(LOG_ERROR, "Failed to write to transcoder: %s\n", strerror(errno));
 		}
-		if (f->datalen != res) {
-			ast_log(LOG_ERROR, "Requested write of %d bytes, but only wrote %d bytes.\n", f->datalen, res);
+		if (count != res) {
+			ast_log(LOG_ERROR, "Requested write of %zd bytes, but only wrote %d bytes.\n", count, res);
 		}
-		res = -1;
-		pvt->samples += f->samples;
-	} else {
-		/* Fake a return frame for calculation purposes */
-		dahdip->fake = 2;
-		pvt->samples = f->samples;
-		res = 0;
 	}
-	return res;
+	p.fd = dahdip->fd;
+	p.events = POLLOUT;
+	res = poll(&p, 1, 50);
 }
 
-static struct ast_frame *dahdi_frameout(struct ast_trans_pvt *pvt)
+static int dahdi_encoder_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
-	struct pvt *dahdip = pvt->pvt;
+	struct codec_dahdi_pvt *dahdip = pvt->pvt;
 
-	if (0 == dahdip->fake) {
-		int res;
-		/* Let's check to see if there is a new frame for us.... */
-		res = read(dahdip->fd, pvt->outbuf.uc + pvt->datalen, pvt->t->buf_size - pvt->datalen);
-		if (-1 == res) {
-			if (EWOULDBLOCK == errno) {
-				/* Nothing waiting... */
-				return NULL;
-			} else {
-				ast_log(LOG_ERROR, "Failed to read from /dev/dahdi/transcode: %s\n", strerror(errno));
-				return NULL;
-			}
-		} else {
-			pvt->f.samples = dahdip->samples;
-			pvt->f.datalen = res;
-			pvt->datalen = 0;
-			pvt->f.frametype = AST_FRAME_VOICE;
-			pvt->f.subclass = 1 <<  (pvt->t->dstfmt);
-			pvt->f.mallocd = 0;
-			pvt->f.offset = AST_FRIENDLY_OFFSET;
-			pvt->f.src = pvt->t->name;
-			pvt->f.data.ptr = pvt->outbuf.uc;
-			ast_set_flag(&pvt->f, AST_FRFLAG_FROM_TRANSLATOR);
+	if (!f->subclass) {
+		/* We're just faking a return for calculation purposes. */
+		dahdip->fake = 2;
+		pvt->samples = f->samples;
+		return 0;
+	}
 
-			return &pvt->f;
+	/* Buffer up the packets and send them to the hardware if we
+	 * have enough samples set up. */
+	if (dahdip->softslin) {
+		if (lintoulaw(pvt, f)) {
+			 return -1;
 		}
+	} else {
+		/* NOTE:  If softslin support is not needed, and the sample
+		 * size is equal to the required sample size, we wouldn't
+		 * need this copy operation.  But at the time this was
+		 * written, only softslin is supported. */
+		if (dahdip->samples_in_buffer + f->samples > sizeof(dahdip->ulaw_buffer)) {
+			ast_log(LOG_ERROR, "Out of buffer space.\n");
+			return -1;
+		}
+		memcpy(&dahdip->ulaw_buffer[dahdip->samples_in_buffer], f->data.ptr, f->samples);
+		dahdip->samples_in_buffer += f->samples;
+	}
 
-	} else if (2 == dahdip->fake) {
+	while (dahdip->samples_in_buffer > dahdip->required_samples) {
+		dahdi_write_frame(dahdip, dahdip->ulaw_buffer, dahdip->required_samples);
+		dahdip->samples_in_buffer -= dahdip->required_samples;
+		if (dahdip->samples_in_buffer) {
+			/* Shift any remaining bytes down. */
+			memmove(dahdip->ulaw_buffer, &dahdip->ulaw_buffer[dahdip->required_samples],
+				dahdip->samples_in_buffer);
+		}
+	}
+	pvt->samples += f->samples;
+	pvt->datalen = 0;
+	return -1;
+}
 
+static struct ast_frame *dahdi_encoder_frameout(struct ast_trans_pvt *pvt)
+{
+	struct codec_dahdi_pvt *dahdip = pvt->pvt;
+	int res;
+
+	if (2 == dahdip->fake) {
 		dahdip->fake = 1;
 		pvt->f.frametype = AST_FRAME_VOICE;
 		pvt->f.subclass = 0;
-		pvt->f.samples = 160;
+		pvt->f.samples = dahdip->required_samples;
 		pvt->f.data.ptr = NULL;
 		pvt->f.offset = 0;
 		pvt->f.datalen = 0;
@@ -186,17 +241,128 @@ static struct ast_frame *dahdi_frameout(struct ast_trans_pvt *pvt)
 		return &pvt->f;
 
 	} else if (1 == dahdip->fake) {
-
+		dahdip->fake = 0;
 		return NULL;
-
 	}
+
+	res = read(dahdip->fd, pvt->outbuf.c + pvt->datalen, pvt->t->buf_size - pvt->datalen);
+	if (-1 == res) {
+		if (EWOULDBLOCK == errno) {
+			/* Nothing waiting... */
+			return NULL;
+		} else {
+			ast_log(LOG_ERROR, "Failed to read from transcoder: %s\n", strerror(errno));
+			return NULL;
+		}
+	} else {
+		pvt->f.datalen = res;
+		pvt->f.samples = dahdip->required_samples;
+		pvt->f.frametype = AST_FRAME_VOICE;
+		pvt->f.subclass = 1 <<  (pvt->t->dstfmt);
+		pvt->f.mallocd = 0;
+		pvt->f.offset = AST_FRIENDLY_OFFSET;
+		pvt->f.src = pvt->t->name;
+		pvt->f.data.ptr = pvt->outbuf.c;
+		ast_set_flag(&pvt->f, AST_FRFLAG_FROM_TRANSLATOR);
+
+		pvt->samples = 0;
+		pvt->datalen = 0;
+		return &pvt->f;
+	}
+
 	/* Shouldn't get here... */
 	return NULL;
 }
 
+static int dahdi_decoder_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
+{
+	struct codec_dahdi_pvt *dahdip = pvt->pvt;
+
+	if (!f->subclass) {
+		/* We're just faking a return for calculation purposes. */
+		dahdip->fake = 2;
+		pvt->samples = f->samples;
+		return 0;
+	}
+
+	if (!f->datalen) {
+		if (f->samples != dahdip->required_samples) {
+			ast_log(LOG_ERROR, "%d != %d %d\n", f->samples, dahdip->required_samples, f->datalen);
+		}
+	}
+	dahdi_write_frame(dahdip, f->data.ptr, f->datalen);
+	pvt->samples += f->samples;
+	pvt->datalen = 0;
+	return -1;
+}
+
+static struct ast_frame *dahdi_decoder_frameout(struct ast_trans_pvt *pvt)
+{
+	int res;
+	struct codec_dahdi_pvt *dahdip = pvt->pvt;
+
+	if (2 == dahdip->fake) {
+		dahdip->fake = 1;
+		pvt->f.frametype = AST_FRAME_VOICE;
+		pvt->f.subclass = 0;
+		pvt->f.samples = dahdip->required_samples;
+		pvt->f.data.ptr = NULL;
+		pvt->f.offset = 0;
+		pvt->f.datalen = 0;
+		pvt->f.mallocd = 0;
+		ast_set_flag(&pvt->f, AST_FRFLAG_FROM_TRANSLATOR);
+		pvt->samples = 0;
+		return &pvt->f;
+	} else if (1 == dahdip->fake) {
+		pvt->samples = 0;
+		dahdip->fake = 0;
+		return NULL;
+	}
+
+	/* Let's check to see if there is a new frame for us.... */
+	if (dahdip->softslin) {
+		res = read(dahdip->fd, dahdip->ulaw_buffer, sizeof(dahdip->ulaw_buffer));
+	} else {
+		res = read(dahdip->fd, pvt->outbuf.c + pvt->datalen, pvt->t->buf_size - pvt->datalen);
+	}
+
+	if (-1 == res) {
+		if (EWOULDBLOCK == errno) {
+			/* Nothing waiting... */
+			return NULL;
+		} else {
+			ast_log(LOG_ERROR, "Failed to read from transcoder: %s\n", strerror(errno));
+			return NULL;
+		}
+	} else {
+		if (dahdip->softslin) {
+			ulawtolin(pvt);
+			pvt->f.datalen = res * 2;
+		} else {
+			pvt->f.datalen = res;
+		}
+		pvt->datalen = 0;
+		pvt->f.frametype = AST_FRAME_VOICE;
+		pvt->f.subclass = 1 <<  (pvt->t->dstfmt);
+		pvt->f.mallocd = 0;
+		pvt->f.offset = AST_FRIENDLY_OFFSET;
+		pvt->f.src = pvt->t->name;
+		pvt->f.data.ptr = pvt->outbuf.c;
+		pvt->f.samples = dahdip->required_samples;
+		ast_set_flag(&pvt->f, AST_FRFLAG_FROM_TRANSLATOR);
+		pvt->samples = 0;
+
+		return &pvt->f;
+	}
+
+	/* Shouldn't get here... */
+	return NULL;
+}
+
+
 static void dahdi_destroy(struct ast_trans_pvt *pvt)
 {
-	struct pvt *dahdip = pvt->pvt;
+	struct codec_dahdi_pvt *dahdip = pvt->pvt;
 
 	switch (dahdip->fmts.dstfmt) {
 	case AST_FORMAT_G729A:
@@ -215,20 +381,44 @@ static int dahdi_translate(struct ast_trans_pvt *pvt, int dest, int source)
 {
 	/* Request translation through zap if possible */
 	int fd;
-	struct pvt *dahdip = pvt->pvt;
+	struct codec_dahdi_pvt *dahdip = pvt->pvt;
 	int flags;
-	
-	if ((fd = open("/dev/dahdi/transcode", O_RDWR)) < 0) {
-		ast_log(LOG_ERROR, "Failed to open /dev/dahdi/transcode: %s\n", strerror(errno));
+	int tried_once = 0;
+	const char *dev_filename = "/dev/dahdi/transcode";
+
+	if ((fd = open(dev_filename, O_RDWR)) < 0) {
+		ast_log(LOG_ERROR, "Failed to open %s: %s\n", dev_filename, strerror(errno));
 		return -1;
 	}
-	
+
 	dahdip->fmts.srcfmt = (1 << source);
 	dahdip->fmts.dstfmt = (1 << dest);
 
-	ast_log(LOG_VERBOSE, "Opening transcoder channel from %d to %d.\n", source, dest);
+	ast_log(LOG_DEBUG, "Opening transcoder channel from %d to %d.\n", source, dest);
 
+retry:
 	if (ioctl(fd, DAHDI_TC_ALLOCATE, &dahdip->fmts)) {
+		if ((ENODEV == errno) && !tried_once) {
+			/* We requested to translate to/from an unsupported
+			 * format.  Most likely this is because signed linear
+			 * was not supported by any hardware devices even
+			 * though this module always registers signed linear
+			 * support. In this case we'll retry, requesting
+			 * support for ULAW instead of signed linear and then
+			 * we'll just convert from ulaw to signed linear in
+			 * software. */
+			if (AST_FORMAT_SLINEAR == dahdip->fmts.srcfmt) {
+				ast_log(LOG_DEBUG, "Using soft_slin support on source\n");
+				dahdip->softslin = 1;
+				dahdip->fmts.srcfmt = AST_FORMAT_ULAW;
+			} else if (AST_FORMAT_SLINEAR == dahdip->fmts.dstfmt) {
+				ast_log(LOG_DEBUG, "Using soft_slin support on destination\n");
+				dahdip->softslin = 1;
+				dahdip->fmts.dstfmt = AST_FORMAT_ULAW;
+			}
+			tried_once = 1;
+			goto retry;
+		}
 		ast_log(LOG_ERROR, "Unable to attach to transcoder: %s\n", strerror(errno));
 		close(fd);
 
@@ -243,16 +433,16 @@ static int dahdi_translate(struct ast_trans_pvt *pvt, int dest, int source)
 
 	dahdip->fd = fd;
 
+	dahdip->required_samples = ((dahdip->fmts.dstfmt|dahdip->fmts.srcfmt)&AST_FORMAT_G723_1) ? G723_SAMPLES : G729_SAMPLES;
+
 	switch (dahdip->fmts.dstfmt) {
 	case AST_FORMAT_G729A:
-		dahdip->samples = 160;
+		ast_atomic_fetchadd_int(&channels.encoders, +1);
 		break;
 	case AST_FORMAT_G723_1:
-		dahdip->samples = 240;
 		ast_atomic_fetchadd_int(&channels.encoders, +1);
 		break;
 	default:
-		dahdip->samples = 160;
 		ast_atomic_fetchadd_int(&channels.decoders, +1);
 		break;
 	}
@@ -277,33 +467,65 @@ static struct ast_frame *fakesrc_sample(void)
 	return &f;
 }
 
+static int is_encoder(struct translator *zt)
+{
+	if (zt->t.srcfmt&(AST_FORMAT_ULAW|AST_FORMAT_ALAW|AST_FORMAT_SLINEAR)) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
 static int register_translator(int dst, int src)
 {
-	struct translator *dahdi;
+	struct translator *zt;
 	int res;
 
-	if (!(dahdi = ast_calloc(1, sizeof(*dahdi))))
+	if (!(zt = ast_calloc(1, sizeof(*zt)))) {
 		return -1;
+	}
 
-	snprintf((char *) (dahdi->t.name), sizeof(dahdi->t.name), "dahdi%sto%s", 
+	snprintf((char *) (zt->t.name), sizeof(zt->t.name), "zap%sto%s",
 		 ast_getformatname((1 << src)), ast_getformatname((1 << dst)));
-	dahdi->t.srcfmt = (1 << src);
-	dahdi->t.dstfmt = (1 << dst);
-	dahdi->t.newpvt = dahdi_new;
-	dahdi->t.framein = dahdi_framein;
-	dahdi->t.frameout = dahdi_frameout;
-	dahdi->t.destroy = dahdi_destroy;
-	dahdi->t.sample = fakesrc_sample;
-	dahdi->t.useplc = global_useplc;
-	dahdi->t.buf_size = BUFFER_SAMPLES * 2;
-	dahdi->t.desc_size = sizeof(struct pvt);
-	if ((res = ast_register_translator(&dahdi->t))) {
-		ast_free(dahdi);
+	zt->t.srcfmt = (1 << src);
+	zt->t.dstfmt = (1 << dst);
+	zt->t.buf_size = BUFFER_SIZE;
+	if (is_encoder(zt)) {
+		zt->t.framein = dahdi_encoder_framein;
+		zt->t.frameout = dahdi_encoder_frameout;
+#if 0
+		zt->t.buffer_samples = 0;
+#endif
+	} else {
+		zt->t.framein = dahdi_decoder_framein;
+		zt->t.frameout = dahdi_decoder_frameout;
+#if 0
+		if (AST_FORMAT_G723_1 == zt->t.srcfmt) {
+			zt->t.plc_samples = G723_SAMPLES;
+		} else {
+			zt->t.plc_samples = G729_SAMPLES;
+		}
+		zt->t.buffer_samples = zt->t.plc_samples * 8;
+#endif
+	}
+	zt->t.destroy = dahdi_destroy;
+	zt->t.buffer_samples = 0;
+	zt->t.newpvt = dahdi_new;
+	zt->t.sample = fakesrc_sample;
+#if 0
+	zt->t.useplc = global_useplc;
+#endif
+	zt->t.useplc = 0;
+	zt->t.native_plc = 0;
+
+	zt->t.desc_size = sizeof(struct codec_dahdi_pvt);
+	if ((res = ast_register_translator(&zt->t))) {
+		ast_free(zt);
 		return -1;
 	}
 
 	AST_LIST_LOCK(&translators);
-	AST_LIST_INSERT_HEAD(&translators, dahdi, entry);
+	AST_LIST_INSERT_HEAD(&translators, zt, entry);
 	AST_LIST_UNLOCK(&translators);
 
 	global_format_map.map[dst][src] = 1;
@@ -335,12 +557,12 @@ static void drop_translator(int dst, int src)
 
 static void unregister_translators(void)
 {
-	struct translator *current;
+	struct translator *cur;
 
 	AST_LIST_LOCK(&translators);
-	while ((current = AST_LIST_REMOVE_HEAD(&translators, entry))) {
-		ast_unregister_translator(&current->t);
-		ast_free(current);
+	while ((cur = AST_LIST_REMOVE_HEAD(&translators, entry))) {
+		ast_unregister_translator(&cur->t);
+		ast_free(cur);
 	}
 	AST_LIST_UNLOCK(&translators);
 }
@@ -357,10 +579,11 @@ static int parse_config(int reload)
 	for (var = ast_variable_browse(cfg, "plc"); var; var = var->next) {
 	       if (!strcasecmp(var->name, "genericplc")) {
 		       global_useplc = ast_true(var->value);
-			   ast_verb(3, "codec_dahdi: %susing generic PLC\n",
-					   global_useplc ? "" : "not ");
+		       ast_verb(3, "codec_dahdi: %susing generic PLC\n",
+				global_useplc ? "" : "not ");
 	       }
 	}
+
 	ast_config_destroy(cfg);
 	return 0;
 }
@@ -401,8 +624,25 @@ static int find_transcoders(void)
 	for (info.tcnum = 0; !(res = ioctl(fd, DAHDI_TC_GETINFO, &info)); info.tcnum++) {
 		if (option_verbose > 1)
 			ast_verbose(VERBOSE_PREFIX_2 "Found transcoder '%s'.\n", info.name);
+
+		/* Complex codecs need to support signed linear.  If the
+		 * hardware transcoder does not natively support signed linear
+		 * format, we will emulate it in software directly in this
+		 * module. Also, do not allow direct ulaw/alaw to complex
+		 * codec translation, since that will prevent the generic PLC
+		 * functions from working. */
+		if (info.dstfmts & (AST_FORMAT_ULAW | AST_FORMAT_ALAW)) {
+			info.dstfmts |= AST_FORMAT_SLINEAR;
+			info.dstfmts &= ~(AST_FORMAT_ULAW | AST_FORMAT_ALAW);
+		}
+		if (info.srcfmts & (AST_FORMAT_ULAW | AST_FORMAT_ALAW)) {
+			info.srcfmts |= AST_FORMAT_SLINEAR;
+			info.srcfmts &= ~(AST_FORMAT_ULAW | AST_FORMAT_ALAW);
+		}
+
 		build_translators(&map, info.dstfmts, info.srcfmts);
 		ast_atomic_fetchadd_int(&channels.total, info.numchannels / 2);
+
 	}
 
 	close(fd);
@@ -445,6 +685,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+	ast_ulaw_init();
 	if (parse_config(0))
 		return AST_MODULE_LOAD_DECLINE;
 	find_transcoders();
@@ -456,4 +697,4 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Generic DAHDI Transcoder
 		.load = load_module,
 		.unload = unload_module,
 		.reload = reload,
-		);
+	       );
