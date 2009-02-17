@@ -25,8 +25,6 @@
 
 /*** MODULEINFO
 	<depend>dahdi</depend>
-	<conflict>res_timing_timerfd</conflict>
-	<conflict>res_timing_pthread</conflict>
  ***/
 
 #include "asterisk.h"
@@ -52,10 +50,12 @@ static int dahdi_timer_set_rate(int handle, unsigned int rate);
 static void dahdi_timer_ack(int handle, unsigned int quantity);
 static int dahdi_timer_enable_continuous(int handle);
 static int dahdi_timer_disable_continuous(int handle);
-static enum ast_timing_event dahdi_timer_get_event(int handle);
+static enum ast_timer_event dahdi_timer_get_event(int handle);
 static unsigned int dahdi_timer_get_max_rate(int handle);
 
-static struct ast_timing_functions dahdi_timing_functions = {
+static struct ast_timing_interface dahdi_timing = {
+	.name = "DAHDI",
+	.priority = 100,
 	.timer_open = dahdi_timer_open,
 	.timer_close = dahdi_timer_close,
 	.timer_set_rate = dahdi_timer_set_rate,
@@ -112,7 +112,7 @@ static int dahdi_timer_disable_continuous(int handle)
 	return ioctl(handle, DAHDI_TIMERPONG, &flags) ? -1 : 0;
 }
 
-static enum ast_timing_event dahdi_timer_get_event(int handle)
+static enum ast_timer_event dahdi_timer_get_event(int handle)
 {
 	int res;
 	int event;
@@ -184,17 +184,13 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	return (timing_funcs_handle = ast_install_timing_functions(&dahdi_timing_functions)) ?
+	return (timing_funcs_handle = ast_register_timing_interface(&dahdi_timing)) ?
 		AST_MODULE_LOAD_SUCCESS : AST_MODULE_LOAD_DECLINE;
 }
 
 static int unload_module(void)
 {
-	/* ast_uninstall_timing_functions(timing_funcs_handle); */
-
-	/* This module can not currently be unloaded.  No use count handling is being done. */
-
-	return -1;
+	return ast_unregister_timing_interface(timing_funcs_handle);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "DAHDI Timing Interface");

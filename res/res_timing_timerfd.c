@@ -25,8 +25,6 @@
 
 /*** MODULEINFO
 	<depend>timerfd</depend>
-	<conflict>res_timing_pthread</conflict>
-	<conflict>res_timing_dahdi</conflict>
  ***/
 
 #include "asterisk.h"
@@ -48,10 +46,12 @@ static int timerfd_timer_set_rate(int handle, unsigned int rate);
 static void timerfd_timer_ack(int handle, unsigned int quantity);
 static int timerfd_timer_enable_continuous(int handle);
 static int timerfd_timer_disable_continuous(int handle);
-static enum ast_timing_event timerfd_timer_get_event(int handle);
+static enum ast_timer_event timerfd_timer_get_event(int handle);
 static unsigned int timerfd_timer_get_max_rate(int handle);
 
-static struct ast_timing_functions timerfd_timing_functions = {
+static struct ast_timing_interface timerfd_timing = {
+	.name = "timerfd",
+	.priority = 200,
 	.timer_open = timerfd_timer_open,
 	.timer_close = timerfd_timer_close,
 	.timer_set_rate = timerfd_timer_set_rate,
@@ -226,9 +226,9 @@ static int timerfd_timer_disable_continuous(int handle)
 	return res;
 }
 
-static enum ast_timing_event timerfd_timer_get_event(int handle)
+static enum ast_timer_event timerfd_timer_get_event(int handle)
 {
-	enum ast_timing_event res;
+	enum ast_timer_event res;
 	struct timerfd_timer *our_timer, find_helper = {
 		.handle = handle,
 	};
@@ -259,7 +259,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	if (!(timing_funcs_handle = ast_install_timing_functions(&timerfd_timing_functions))) {
+	if (!(timing_funcs_handle = ast_register_timing_interface(&timerfd_timing))) {
 		ao2_ref(timerfd_timers, -1);
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -269,11 +269,14 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	/* ast_uninstall_timing_functions(timing_funcs_handle); */
+	int res;
 
-	/* This module can not currently be unloaded.  No use count handling is being done. */
+	if (!(res = ast_unregister_timing_interface(timing_funcs_handle))) {
+		ao2_ref(timerfd_timers, -1);
+		timerfd_timers = NULL;
+	}
 
-	return -1;
+	return res;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Timerfd Timing Interface");

@@ -23,11 +23,6 @@
  * \brief pthread timing interface 
  */
 
-/*** MODULEINFO
-	<conflict>res_timing_timerfd</conflict>
-	<conflict>res_timing_dahdi</conflict>
- ***/
-
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
@@ -50,10 +45,12 @@ static int pthread_timer_set_rate(int handle, unsigned int rate);
 static void pthread_timer_ack(int handle, unsigned int quantity);
 static int pthread_timer_enable_continuous(int handle);
 static int pthread_timer_disable_continuous(int handle);
-static enum ast_timing_event pthread_timer_get_event(int handle);
+static enum ast_timer_event pthread_timer_get_event(int handle);
 static unsigned int pthread_timer_get_max_rate(int handle);
 
-static struct ast_timing_functions pthread_timing_functions = {
+static struct ast_timing_interface pthread_timing = {
+	.name = "pthread",
+	.priority = 0, /* use this as a last resort */
 	.timer_open = pthread_timer_open,
 	.timer_close = pthread_timer_close,
 	.timer_set_rate = pthread_timer_set_rate,
@@ -255,10 +252,10 @@ static int pthread_timer_disable_continuous(int handle)
 	return 0;
 }
 
-static enum ast_timing_event pthread_timer_get_event(int handle)
+static enum ast_timer_event pthread_timer_get_event(int handle)
 {
 	struct pthread_timer *timer;
-	enum ast_timing_event res = AST_TIMING_EVENT_EXPIRED;
+	enum ast_timer_event res = AST_TIMING_EVENT_EXPIRED;
 
 	if (!(timer = find_timer(handle, 0))) {
 		return res;
@@ -491,22 +488,26 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	return (timing_funcs_handle = ast_install_timing_functions(&pthread_timing_functions)) ?
+	return (timing_funcs_handle = ast_register_timing_interface(&pthread_timing)) ?
 		AST_MODULE_LOAD_SUCCESS : AST_MODULE_LOAD_DECLINE;
 }
 
 static int unload_module(void)
 {
-#if 0
-	/* XXX code to stop the timing thread ... */
+	int res;
 
-	ast_uninstall_timing_functions(timing_funcs_handle);
-	ao2_ref(pthread_timers, -1);
-#endif
+	ast_mutex_lock(&timing_thread.lock);
+	timing_thread.stop = 1;
+	ast_cond_signal(&timing_thread.cond);
+	ast_mutex_unlock(&timing_thread.lock);
+	pthread_join(timing_thread.thread, NULL);
 
-	/* This module can not currently be unloaded.  No use count handling is being done. */
+	if (!(res = ast_unregister_timing_interface(timing_funcs_handle))) {
+		ao2_ref(pthread_timers, -1);
+		pthread_timers = NULL;
+	}
 
-	return -1;
+	return res;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "pthread Timing Interface");
