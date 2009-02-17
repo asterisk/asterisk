@@ -7095,7 +7095,7 @@ static int load_module(void)
 		ast_log(LOG_WARNING, "devicestate taskprocessor reference failed - devicestate notifications will not occur\n");
 	}
 
-	if (!(device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE_CHANGE, device_state_cb, NULL, AST_EVENT_IE_END))) {
+	if (!(device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE, device_state_cb, NULL, AST_EVENT_IE_END))) {
 		res = -1;
 	}
 
