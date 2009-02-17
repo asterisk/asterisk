@@ -106,8 +106,8 @@ struct local_pvt {
 	char exten[AST_MAX_EXTENSION];		/* Extension to call */
 	int reqformat;				/* Requested format */
 	struct ast_jb_conf jb_conf;		/*!< jitterbuffer configuration for this local channel */
-	struct ast_channel *owner;		/* Master Channel */
-	struct ast_channel *chan;		/* Outbound channel */
+	struct ast_channel *owner;		/* Master Channel - Bridging happens here */
+	struct ast_channel *chan;		/* Outbound channel - PBX is run here */
 	struct ast_module_user *u_owner;	/*! reference to keep the module loaded while in use */
 	struct ast_module_user *u_chan;		/*! reference to keep the module loaded while in use */
 	AST_LIST_ENTRY(local_pvt) list;		/* Next entity */
@@ -303,6 +303,7 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 							p->chan->audiohooks = p->owner->audiohooks;
 							p->owner->audiohooks = audiohooks_swapper;
 						}
+						ast_app_group_update(p->chan, p->owner);
 						ast_channel_masquerade(p->owner, p->chan->_bridge);
 						ast_set_flag(p, LOCAL_ALREADY_MASQED);
 					}
