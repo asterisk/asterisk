@@ -257,10 +257,11 @@ int ast_realtime_require_field(const char *family, ...) attribute_sentinel;
 /*! 
  * \brief Retrieve realtime configuration 
  * \param family which family/config to lookup
+ *
  * This will use builtin configuration backends to look up a particular 
  * entity in realtime and return a variable list of its parameters. Unlike
  * the ast_load_realtime, this function can return more than one entry and
- * is thus stored inside a taditional ast_config structure rather than 
+ * is thus stored inside a traditional ast_config structure rather than 
  * just returning a linked list of variables.
  *
  * Note that you should use the constant SENTINEL to terminate arguments, in
