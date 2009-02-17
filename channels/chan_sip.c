@@ -4158,18 +4158,15 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 		ast_update_realtime(tablename, "name", peername, "ipaddr", ipaddr,
 			"port", port, "regseconds", regseconds,
 			deprecated_username ? "username" : "defaultuser", defaultuser,
-			"useragent", useragent,
+			"useragent", useragent, "lastms", str_lastms,
 			fc, fullcontact, syslabel, sysname, SENTINEL); /* note fc and syslabel _can_ be NULL */
 	} else {
 		ast_update_realtime(tablename, "name", peername, "ipaddr", ipaddr,
 			"port", port, "regseconds", regseconds,
-			"useragent", useragent,
+			"useragent", useragent, "lastms", str_lastms,
 			deprecated_username ? "username" : "defaultuser", defaultuser,
 			syslabel, sysname, SENTINEL); /* note syslabel _can_ be NULL */
 	}
-	/* We cannot do this in the same statement as above, because the lack of
-	 * this field could cause the whole statement to fail. */
-	ast_update_realtime("sippeers", "name", peername, "lastms", str_lastms, NULL);
 }
 
 /*! \brief Automatically add peer extension to dial plan */
