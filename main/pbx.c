@@ -8562,11 +8562,13 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 	} else if (ast_test_flag(&flags, WAITEXTEN_MOH)) {
 		ast_indicate_data(chan, AST_CONTROL_HOLD, opts[0], strlen(opts[0]));
 	} else if (ast_test_flag(&flags, WAITEXTEN_DIALTONE)) {
-		const struct tone_zone_sound *ts = ast_get_indication_tone(chan->zone, "dial");
-		if (ts)
+		struct ast_tone_zone_sound *ts = ast_get_indication_tone(chan->zone, "dial");
+		if (ts) {
 			ast_playtones_start(chan, 0, ts->data, 0);
-		else
+			ts = ast_tone_zone_sound_unref(ts);
+		} else {
 			ast_tonepair_start(chan, 350, 440, 0, 0);
+		}
 	}
 	/* Wait for "n" seconds */
 	if (args.timeout && (s = atof(args.timeout)) > 0)

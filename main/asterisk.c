@@ -3566,6 +3566,11 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	if (ast_indications_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
 	ast_features_init();
 
 	if (init_framer()) {

@@ -379,7 +379,7 @@ struct chan_list {
 	 * \brief Tone zone sound used for dialtone generation.
 	 * \note Used as a boolean.  Non-NULL to prod generation if enabled. 
 	 */
-	const struct tone_zone_sound *ts;
+	struct ast_tone_zone_sound *ts;
 	
 	/*!
 	 * \brief Enables overlap dialing for the set amount of seconds.  (0 = Disabled)
@@ -3357,7 +3357,6 @@ static enum ast_bridge_result  misdn_bridge (struct ast_channel *c0,
 
 static int dialtone_indicate(struct chan_list *cl)
 {
-	const struct tone_zone_sound *ts = NULL;
 	struct ast_channel *ast = cl->ast;
 	int nd = 0;
 
@@ -3374,14 +3373,14 @@ static int dialtone_indicate(struct chan_list *cl)
 	}
 	
 	chan_misdn_log(3, cl->bc->port, " --> Dial\n");
-	ts = ast_get_indication_tone(ast->zone, "dial");
-	cl->ts = ts;	
+
+	cl->ts = ast_get_indication_tone(ast->zone, "dial");
 	
-	if (ts) {
+	if (cl->ts) {
 		cl->notxtone = 0;
 		cl->norxtone = 0;
 		/* This prods us in misdn_write */
-		ast_playtones_start(ast, 0, ts->data, 0);
+		ast_playtones_start(ast, 0, cl->ts->data, 0);
 	}
 
 	return 0;
@@ -3406,8 +3405,9 @@ static int stop_indicate(struct chan_list *cl)
 	misdn_lib_tone_generator_stop(cl->bc);
 	ast_playtones_stop(ast);
 
-	cl->ts = NULL;
-	/*ast_deactivate_generator(ast);*/
+	if (cl->ts) {
+		cl->ts = ast_tone_zone_sound_unref(cl->ts);
+	}
 
 	return 0;
 }

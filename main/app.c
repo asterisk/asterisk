@@ -75,21 +75,24 @@ static AST_RWLIST_HEAD_STATIC(groups, ast_group_info);
 */
 int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, size_t size, int maxlen, int timeout) 
 {
-	struct tone_zone_sound *ts;
+	struct ast_tone_zone_sound *ts;
 	int res = 0, x = 0;
 
 	if (maxlen > size)
 		maxlen = size;
 	
-	if (!timeout && chan->pbx)
+	if (!timeout && chan->pbx) {
 		timeout = chan->pbx->dtimeoutms / 1000.0;
-	else if (!timeout)
+	} else if (!timeout) {
 		timeout = 5;
+	}
 
-	if ((ts = ast_get_indication_tone(chan->zone, "dial")) && ts->data[0])
+	if ((ts = ast_get_indication_tone(chan->zone, "dial"))) {
 		res = ast_playtones_start(chan, 0, ts->data, 0);
-	else 
+		ts = ast_tone_zone_sound_unref(ts);
+	} else {
 		ast_log(LOG_NOTICE, "Huh....? no dial for indications?\n");
+	}
 	
 	for (x = strlen(collect); x < maxlen; ) {
 		res = ast_waitfordigit(chan, timeout);

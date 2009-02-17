@@ -124,15 +124,20 @@ AST_APP_OPTIONS(app_opts, {
 
 static void play_dialtone(struct ast_channel *chan, char *mailbox)
 {
-	const struct tone_zone_sound *ts = NULL;
-	if(ast_app_has_voicemail(mailbox, NULL))
+	struct ast_tone_zone_sound *ts = NULL;
+
+	if (ast_app_has_voicemail(mailbox, NULL)) {
 		ts = ast_get_indication_tone(chan->zone, "dialrecall");
-	else
+	} else {
 		ts = ast_get_indication_tone(chan->zone, "dial");
-	if (ts)
+	}
+
+	if (ts) {
 		ast_playtones_start(chan, 0, ts->data, 0);
-	else
+		ts = ast_tone_zone_sound_unref(ts);
+	} else {
 		ast_tonepair_start(chan, 350, 440, 0, 0);
+	}
 }
 
 static int disa_exec(struct ast_channel *chan, void *data)

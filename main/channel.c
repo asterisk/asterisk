@@ -1403,7 +1403,11 @@ void ast_channel_free(struct ast_channel *chan)
 		ast_cdr_discard(chan->cdr);
 		chan->cdr = NULL;
 	}
-	
+
+	if (chan->zone) {
+		chan->zone = ast_tone_zone_unref(chan->zone);
+	}
+
 	ast_mutex_destroy(&chan->lock_dont_use);
 
 	ast_string_field_free_memory(chan);
@@ -2910,7 +2914,7 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	/* By using an enum, we'll get compiler warnings for values not handled 
 	 * in switch statements. */
 	enum ast_control_frame_type condition = _condition;
-	const struct tone_zone_sound *ts = NULL;
+	struct ast_tone_zone_sound *ts = NULL;
 	int res = -1;
 
 	ast_channel_lock(chan);
@@ -2981,10 +2985,11 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 		break;
 	}
 
-	if (ts && ts->data[0]) {
+	if (ts) {
 		/* We have a tone to play, yay. */
 		ast_debug(1, "Driver for channel '%s' does not support indication %d, emulating it\n", chan->name, condition);
 		ast_playtones_start(chan, 0, ts->data, 1);
+		ts = ast_tone_zone_sound_unref(ts);
 		res = 0;
 		chan->visible_indication = condition;
 	}

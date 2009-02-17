@@ -3751,7 +3751,7 @@ static int skinny_transfer(struct skinny_subchannel *sub)
 {
 	struct skinny_subchannel *xferor; /* the sub doing the transferring */
 	struct skinny_subchannel *xferee; /* the sub being transferred */
-	const struct tone_zone_sound *ts = NULL;
+	struct ast_tone_zone_sound *ts = NULL;
 		
 	if (ast_bridged_channel(sub->owner) || ast_bridged_channel(sub->related->owner)) {
 		if (sub->xferor) {
@@ -3774,8 +3774,10 @@ static int skinny_transfer(struct skinny_subchannel *sub)
 			}
 			if (xferor->owner->_state == AST_STATE_RING) {
 				/* play ringing inband */
-				ts = ast_get_indication_tone(xferor->owner->zone, "ring");
-				ast_playtones_start(xferor->owner, 0, ts->data, 1);
+				if ((ts = ast_get_indication_tone(xferor->owner->zone, "ring"))) {
+					ast_playtones_start(xferor->owner, 0, ts->data, 1);
+					ts = ast_tone_zone_sound_unref(ts);
+				}
 			}
 			if (skinnydebug)
 				ast_debug(1, "Transfer Masquerading %s to %s\n",
@@ -3789,8 +3791,10 @@ static int skinny_transfer(struct skinny_subchannel *sub)
 			ast_queue_control(xferee->owner, AST_CONTROL_UNHOLD);
 			if (xferor->owner->_state == AST_STATE_RING) {
 				/* play ringing inband */
-				ts = ast_get_indication_tone(xferor->owner->zone, "ring");
-				ast_playtones_start(xferor->owner, 0, ts->data, 1);
+				if ((ts = ast_get_indication_tone(xferor->owner->zone, "ring"))) {
+					ast_playtones_start(xferor->owner, 0, ts->data, 1);
+					ts = ast_tone_zone_sound_unref(ts);
+				}
 			}
 			if (skinnydebug)
 				ast_debug(1, "Transfer Masquerading %s to %s\n",

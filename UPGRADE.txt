@@ -18,6 +18,13 @@
 ===
 ===========================================================
 
+From 1.6.1 to 1.6.2:
+
+* The res_indications module has been removed.  Its functionality was important
+  enough that most of it has been moved into the Asterisk core.
+  Two applications previously provided by res_indications, PlayTones and
+  StopPlayTones, have been moved into a new module, app_playtones.
+
 From 1.6.0.1 to 1.6.1:
 
 * The ast_agi_register_multiple() and ast_agi_unregister_multiple()

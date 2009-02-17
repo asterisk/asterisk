@@ -439,7 +439,7 @@ static struct unistim_device {
 	char datetimeformat;	    /*!< format used for displaying time/date */
 	char contrast;			  /*!< contrast */
 	char country[3];			/*!< country used for dial tone frequency */
-	struct tone_zone *tz;	       /*!< Tone zone for res_indications (ring, busy, congestion) */
+	struct ast_tone_zone *tz;	       /*!< Tone zone for res_indications (ring, busy, congestion) */
 	char ringvolume;			/*!< Ring volume */
 	char ringstyle;			 /*!< Ring melody */
 	int rtp_port;			   /*!< RTP port used by the phone */
@@ -4057,17 +4057,17 @@ static char *control2str(int ind)
 	return "UNKNOWN";
 }
 
-static void in_band_indication(struct ast_channel *ast, const struct tone_zone *tz,
+static void in_band_indication(struct ast_channel *ast, const struct ast_tone_zone *tz,
 	const char *indication)
 {
-	const struct tone_zone_sound *ts = NULL;
+	struct ast_tone_zone_sound *ts = NULL;
 
-	ts = ast_get_indication_tone(tz, indication);
-
-	if (ts && ts->data[0])
+	if ((ts = ast_get_indication_tone(tz, indication))) {
 		ast_playtones_start(ast, 0, ts->data, 1);
-	else
+		ts = ast_tone_zone_sound_unref(ts);
+	} else {
 		ast_log(LOG_WARNING, "Unable to get indication tone for %s\n", indication);
+	}
 }
 
 static int unistim_indicate(struct ast_channel *ast, int ind, const void *data, 
@@ -5223,6 +5223,9 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 		ast_log(LOG_ERROR, "An Unistim device must have at least one line!\n");
 		ast_mutex_destroy(&l->lock);
 		ast_free(l);
+		if (d->tz) {
+			d->tz = ast_tone_zone_unref(d->tz);
+		}
 		ast_free(d);
 		return NULL;
 	}
@@ -5240,6 +5243,9 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 			ast_log(LOG_ERROR, "You must specify the mac address with device=\n");
 			ast_mutex_destroy(&l->lock);
 			ast_free(l);
+			if (d->tz) {
+				d->tz = ast_tone_zone_unref(d->tz);
+			}
 			ast_free(d);
 			return NULL;
 		} else
@@ -5460,6 +5466,9 @@ static int reload_config(void)
 					}
 					d2 = d2->next;
 				}
+			}
+			if (d->tz) {
+				d->tz = ast_tone_zone_unref(d->tz);
 			}
 			ast_free(d);
 			d = devices;

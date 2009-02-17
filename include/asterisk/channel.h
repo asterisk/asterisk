@@ -424,7 +424,7 @@ struct ast_channel {
 	struct ast_trans_pvt *readtrans;		/*!< Read translation path */
 	struct ast_audiohook_list *audiohooks;
 	struct ast_cdr *cdr;				/*!< Call Detail Record */
-	struct tone_zone *zone;			/*!< Tone zone as set in indications.conf or
+	struct ast_tone_zone *zone;			/*!< Tone zone as set in indications.conf or
 							     in the CHANNEL dialplan function */
 	struct ast_channel_monitor *monitor;		/*!< Channel monitoring */
 #ifdef HAVE_EPOLL

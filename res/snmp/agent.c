@@ -644,23 +644,34 @@ static u_char *ast_var_indications(struct variable *vp, oid *name, size_t *lengt
 								  int exact, size_t *var_len, WriteMethod **write_method)
 {
 	static unsigned long long_ret;
-	struct tone_zone *tz = NULL;
+	static char ret_buf[128];
+	struct ast_tone_zone *tz = NULL;
 
 	if (header_generic(vp, name, length, exact, var_len, write_method))
 		return NULL;
 
 	switch (vp->magic) {
 	case ASTINDCOUNT:
-		long_ret = 0;
-		while ( (tz = ast_walk_indications(tz)) )
-			long_ret++;
+	{
+		struct ao2_iterator i;
 
-		return (u_char *)&long_ret;
+		long_ret = 0;
+
+		i = ast_tone_zone_iterator_init();
+		while ((tz = ao2_iterator_next(&i))) {
+			tz = ast_tone_zone_unref(tz);
+			long_ret++;
+		}
+
+		return (u_char *) &long_ret;
+	}
 	case ASTINDCURRENT:
 		tz = ast_get_indication_zone(NULL);
 		if (tz) {
-			*var_len = strlen(tz->country);
-			return (u_char *)tz->country;
+			ast_copy_string(ret_buf, tz->country, sizeof(ret_buf));
+			*var_len = strlen(ret_buf);
+			tz = ast_tone_zone_unref(tz);
+			return (u_char *) ret_buf;
 		}
 		*var_len = 0;
 		return NULL;
@@ -674,34 +685,47 @@ static u_char *ast_var_indications_table(struct variable *vp, oid *name, size_t 
 									   int exact, size_t *var_len, WriteMethod **write_method)
 {
 	static unsigned long long_ret;
-	struct tone_zone *tz = NULL;
+	static char ret_buf[256];
+	struct ast_tone_zone *tz = NULL;
 	int i;
+	struct ao2_iterator iter;
 
-	if (header_simple_table(vp, name, length, exact, var_len, write_method, -1))
+	if (header_simple_table(vp, name, length, exact, var_len, write_method, -1)) {
 		return NULL;
+	}
 
 	i = name[*length - 1] - 1;
-	while ( (tz = ast_walk_indications(tz)) && i )
-	i--;
-	if (tz == NULL)
+
+	iter = ast_tone_zone_iterator_init();
+
+	while ((tz = ao2_iterator_next(&iter)) && i) {
+		tz = ast_tone_zone_unref(tz);
+		i--;
+	}
+
+	if (tz == NULL) {
 		return NULL;
+	}
 
 	switch (vp->magic) {
 	case ASTINDINDEX:
 		long_ret = name[*length - 1];
 		return (u_char *)&long_ret;
 	case ASTINDCOUNTRY:
-		*var_len = strlen(tz->country);
-		return (u_char *)tz->country;
+		ast_copy_string(ret_buf, tz->country, sizeof(ret_buf));
+		tz = ast_tone_zone_unref(tz);
+		*var_len = strlen(ret_buf);
+		return (u_char *) ret_buf;
 	case ASTINDALIAS:
-		if (tz->alias) {
-			*var_len = strlen(tz->alias);
-			return (u_char *)tz->alias;
-		}
+		/* No longer exists */
 		return NULL;
 	case ASTINDDESCRIPTION:
-		*var_len = strlen(tz->description);
-		return (u_char *)tz->description;
+		ast_tone_zone_lock(tz);
+		ast_copy_string(ret_buf, tz->description, sizeof(ret_buf));
+		ast_tone_zone_unlock(tz);
+		tz = ast_tone_zone_unref(tz);
+		*var_len = strlen(ret_buf);
+		return (u_char *) ret_buf;
 	default:
 		break;
 	}

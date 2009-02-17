@@ -132,7 +132,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 	int tries = 1, to = 0, x = 0;
 	double tosec;
 	char *argcopy = NULL;
-	struct tone_zone_sound *ts = NULL;
+	struct ast_tone_zone_sound *ts = NULL;
 	struct ast_flags flags = {0};
 	const char *status = "ERROR";
 
@@ -188,7 +188,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 		return 0;
 	}
 	if (ast_test_flag(&flags, OPT_INDICATION)) {
-		if (! ast_strlen_zero(arglist.filename)) {
+		if (!ast_strlen_zero(arglist.filename)) {
 			ts = ast_get_indication_tone(chan->zone, arglist.filename);
 		}
 	}
@@ -256,6 +256,10 @@ static int read_exec(struct ast_channel *chan, void *data)
 				ast_verb(3, "User disconnected\n");
 			}
 		}
+	}
+
+	if (ts) {
+		ts = ast_tone_zone_sound_unref(ts);
 	}
 
 	if (ast_check_hangup(chan))

@@ -1,6 +1,9 @@
+;
 ; indications.conf
+;
 ; Configuration file for location specific tone indications
-; used by the pbx_indications module.
+;
+
 ;
 ; NOTE:
 ;    When adding countries to this file, please keep them in alphabetical
@@ -9,7 +12,7 @@
 ; The [general] category is for certain global variables.
 ; All other categories are interpreted as location specific indications
 ;
-;
+
 [general]
 country=us		; default location
 
@@ -17,9 +20,6 @@ country=us		; default location
 ; [example]
 ; description = string
 ;      The full name of your country, in English.
-; alias = iso[,iso]*
-;      List of other countries 2-letter iso codes, which have the same
-;      tone indications.
 ; ringcadence = num[,num]*
 ;      List of durations the physical bell rings.
 ; dial = tonelist
@@ -55,8 +55,6 @@ country=us		; default location
 ; concisely:
 ;   element = [!]freq[+|*freq2][/duration]
 ;   tonelist = element[,element]*
-;
-; Please note that SPACES ARE NOT ALLOWED in tone lists!
 ;
 
 [at]

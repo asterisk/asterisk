@@ -132,7 +132,7 @@ static int readexten_exec(struct ast_channel *chan, void *data)
 	int maxdigits = sizeof(exten) - 1;
 	int timeout = 0, digit_timeout = 0, x = 0;
 	char *argcopy = NULL, *status = "";
-	struct tone_zone_sound *ts = NULL;
+	struct ast_tone_zone_sound *ts = NULL;
 	struct ast_flags flags = {0};
 
 	 AST_DECLARE_APP_ARGS(arglist,
@@ -179,8 +179,9 @@ static int readexten_exec(struct ast_channel *chan, void *data)
 	if (digit_timeout <= 0)
 		digit_timeout = chan->pbx ? chan->pbx->dtimeoutms : 5000;
 
-	if (ast_test_flag(&flags, OPT_INDICATION) && !ast_strlen_zero(arglist.filename))
+	if (ast_test_flag(&flags, OPT_INDICATION) && !ast_strlen_zero(arglist.filename)) {
 		ts = ast_get_indication_tone(chan->zone, arglist.filename);
+	}
 
 	do {
 		if (chan->_state != AST_STATE_UP) {
@@ -249,6 +250,10 @@ static int readexten_exec(struct ast_channel *chan, void *data)
 			status = "INVALID";
 		}
 	} while (0);
+
+	if (ts) {
+		ts = ast_tone_zone_sound_unref(ts);
+	}
 
 	pbx_builtin_setvar_helper(chan, "READEXTENSTATUS", status);
 
