@@ -270,6 +270,7 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 							p->chan->audiohooks = p->owner->audiohooks;
 							p->owner->audiohooks = audiohooks_swapper;
 						}
+						ast_app_group_update(p->chan, p->owner);
 						ast_channel_masquerade(p->owner, p->chan->_bridge);
 						ast_set_flag(p, LOCAL_ALREADY_MASQED);
 					}
