@@ -100,9 +100,11 @@ static int null_hash_fn(const void *obj, const int flags)
 static void odbc_obj_destructor(void *data)
 {
 	struct odbc_obj *obj = data;
+	struct odbc_class *class = obj->parent;
+	obj->parent = NULL;
 	odbc_obj_disconnect(obj);
 	ast_mutex_destroy(&obj->lock);
-	ao2_ref(obj->parent, -1);
+	ao2_ref(class, -1);
 }
 
 static void destroy_table_cache(struct odbc_cache_tables *table) {
@@ -573,10 +575,11 @@ static char *handle_cli_odbc_show(struct ast_cli_entry *e, int cmd, struct ast_c
 		while ((class = ao2_iterator_next(&aoi))) {
 			if (!strncasecmp(a->word, class->name, length) && ++which > a->n) {
 				ret = ast_strdup(class->name);
-				ao2_ref(class, -1);
-				break;
 			}
 			ao2_ref(class, -1);
+			if (ret) {
+				break;
+			}
 		}
 		if (!ret && !strncasecmp(a->word, "all", length) && ++which > a->n) {
 			ret = ast_strdup("all");
@@ -691,6 +694,8 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 	if (!class)
 		return NULL;
 
+	ast_assert(ao2_ref(class, 0) > 1);
+
 	if (class->haspool) {
 		/* Recycle connections before building another */
 		aoi = ao2_iterator_init(class->obj_container, 0);
@@ -704,6 +709,10 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 			ao2_ref(obj, -1);
 		}
 
+		if (obj) {
+			ast_assert(ao2_ref(obj, 0) > 1);
+		}
+
 		if (!obj && (class->count < class->limit)) {
 			class->count++;
 			obj = ao2_alloc(sizeof(*obj), odbc_obj_destructor);
@@ -711,12 +720,14 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 				ao2_ref(class, -1);
 				return NULL;
 			}
+			ast_assert(ao2_ref(obj, 0) == 1);
 			ast_mutex_init(&obj->lock);
 			/* obj inherits the outstanding reference to class */
 			obj->parent = class;
 			if (odbc_obj_connect(obj) == ODBC_FAIL) {
 				ast_log(LOG_WARNING, "Failed to connect to %s\n", name);
 				ao2_ref(obj, -1);
+				ast_assert(ao2_ref(class, 0) > 0);
 				obj = NULL;
 			} else {
 				obj->used = 1;
@@ -738,12 +749,14 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 
 		if (obj) {
 			/* Object is not constructed, so delete outstanding reference to class. */
+			ast_assert(ao2_ref(class, 0) > 1);
 			ao2_ref(class, -1);
 			class = NULL;
 		} else {
 			/* No entry: build one */
 			obj = ao2_alloc(sizeof(*obj), odbc_obj_destructor);
 			if (!obj) {
+				ast_assert(ao2_ref(class, 0) > 1);
 				ao2_ref(class, -1);
 				return NULL;
 			}
@@ -756,6 +769,7 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 				obj = NULL;
 			} else {
 				ao2_link(class->obj_container, obj);
+				ast_assert(ao2_ref(obj, 0) > 1);
 			}
 			class = NULL;
 		}
@@ -775,6 +789,9 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 #endif
 	ast_assert(class == NULL);
 
+	if (obj) {
+		ast_assert(ao2_ref(obj, 0) > 1);
+	}
 	return obj;
 }
 
@@ -794,10 +811,12 @@ static odbc_status odbc_obj_disconnect(struct odbc_obj *obj)
 
 	res = SQLDisconnect(obj->con);
 
-	if (res == SQL_SUCCESS || res == SQL_SUCCESS_WITH_INFO) {
-		ast_log(LOG_DEBUG, "Disconnected %d from %s [%s]\n", res, obj->parent->name, obj->parent->dsn);
-	} else {
-		ast_log(LOG_DEBUG, "res_odbc: %s [%s] already disconnected\n", obj->parent->name, obj->parent->dsn);
+	if (obj->parent) {
+		if (res == SQL_SUCCESS || res == SQL_SUCCESS_WITH_INFO) {
+			ast_log(LOG_DEBUG, "Disconnected %d from %s [%s]\n", res, obj->parent->name, obj->parent->dsn);
+		} else {
+			ast_log(LOG_DEBUG, "res_odbc: %s [%s] already disconnected\n", obj->parent->name, obj->parent->dsn);
+		}
 	}
 
 	if ((res = SQLFreeHandle(SQL_HANDLE_DBC, obj->con) == SQL_SUCCESS)) {
