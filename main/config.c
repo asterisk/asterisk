@@ -2137,6 +2137,9 @@ struct ast_variable *ast_load_realtime(const char *family, ...)
 int ast_check_realtime(const char *family)
 {
 	struct ast_config_engine *eng;
+	if (!ast_realtime_enabled()) {
+		return 0;	/* There are no engines at all so fail early */
+	}
 
 	eng = find_engine(family, NULL, 0, NULL, 0);
 	if (eng)
