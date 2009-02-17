@@ -25,6 +25,8 @@
 
 #include "asterisk.h"
 
+#include <inttypes.h>
+
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/module.h"
@@ -86,7 +88,7 @@ static char *handle_cli_sched_test(struct ast_cli_entry *e, int cmd, struct ast_
 		}
 	}
 
-	ast_cli(a->fd, "Test complete - %ld us\n", ast_tvdiff_us(ast_tvnow(), start));
+	ast_cli(a->fd, "Test complete - %" PRIi64 " us\n", ast_tvdiff_us(ast_tvnow(), start));
 
 	ast_cli(a->fd, "Testing ast_sched_del() performance - timing how long it takes "
 			"to delete %u entries with random time intervals from 0 to 60 seconds\n", num);
@@ -100,7 +102,7 @@ static char *handle_cli_sched_test(struct ast_cli_entry *e, int cmd, struct ast_
 		}
 	}
 
-	ast_cli(a->fd, "Test complete - %ld us\n", ast_tvdiff_us(ast_tvnow(), start));
+	ast_cli(a->fd, "Test complete - %" PRIi64 " us\n", ast_tvdiff_us(ast_tvnow(), start));
 
 return_cleanup:
 	sched_context_destroy(con);
