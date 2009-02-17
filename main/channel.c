@@ -2474,7 +2474,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	}
 
 	if (chan->timingfd > -1 && chan->fdno == AST_TIMING_FD) {
-		enum ast_timing_event res;
+		enum ast_timer_event res;
 
 		ast_clear_flag(chan, AST_FLAG_EXCEPTION);
 

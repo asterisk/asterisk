@@ -1,9 +1,10 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2008, Digium, Inc.
+ * Copyright (C) 2008 - 2009, Digium, Inc.
  *
  * Kevin P. Fleming <kpfleming@digium.com>
+ * Russell Bryant <russell@digium.com>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -21,6 +22,7 @@
  * \brief Timing source management
  *
  * \author Kevin P. Fleming <kpfleming@digium.com>
+ * \author Russell Bryant <russell@digium.com>
  */
 
 #include "asterisk.h"
@@ -34,13 +36,37 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/utils.h"
 #include "asterisk/time.h"
+#include "asterisk/heap.h"
+#include "asterisk/module.h"
 
-AST_RWLOCK_DEFINE_STATIC(lock);
+struct timing_holder {
+	/*! Do _not_ move this from the beginning of the struct. */
+	ssize_t __heap_index;
+	struct ast_module *mod;
+	struct ast_timing_interface *iface;
+};
 
-static struct ast_timing_functions timer_funcs;
+static struct ast_heap *timing_interfaces;
 
-void *ast_install_timing_functions(struct ast_timing_functions *funcs)
+static int timing_holder_cmp(void *_h1, void *_h2)
 {
+	struct timing_holder *h1 = _h1;
+	struct timing_holder *h2 = _h2;
+
+	if (h1->iface->priority > h2->iface->priority) {
+		return 1;
+	} else if (h1->iface->priority == h2->iface->priority) {
+		return 0;
+	} else {
+		return -1;
+	}
+}
+
+void *_ast_register_timing_interface(struct ast_timing_interface *funcs, 
+		struct ast_module *mod)
+{
+	struct timing_holder *h;
+
 	if (!funcs->timer_open ||
 	    !funcs->timer_close ||
 		!funcs->timer_set_rate ||
@@ -52,162 +78,158 @@ void *ast_install_timing_functions(struct ast_timing_functions *funcs)
 		return NULL;
 	}
 
-	ast_rwlock_wrlock(&lock);
-
-	if (timer_funcs.timer_open) {
-		ast_rwlock_unlock(&lock);
-		ast_log(LOG_NOTICE, "Multiple timing modules are loaded.  You should only load one.\n");
+	if (!(h = ast_calloc(1, sizeof(*h)))) {
 		return NULL;
 	}
-	
-	timer_funcs = *funcs;
 
-	ast_rwlock_unlock(&lock);
+	h->iface = funcs;
+	h->mod = mod;
 
-	return &timer_funcs;
+	ast_heap_wrlock(timing_interfaces);
+	ast_heap_push(timing_interfaces, h);
+	ast_heap_unlock(timing_interfaces);
+
+	return h;
 }
 
-void ast_uninstall_timing_functions(void *handle)
+int ast_unregister_timing_interface(void *handle)
 {
-	ast_rwlock_wrlock(&lock);
+	struct timing_holder *h = handle;
+	int res = -1;
 
-	if (handle != &timer_funcs) {
-		ast_rwlock_unlock(&lock);
-		return;
+	ast_heap_wrlock(timing_interfaces);
+	h = ast_heap_remove(timing_interfaces, h);
+	ast_heap_unlock(timing_interfaces);
+
+	if (h) {
+		ast_free(h);
+		h = NULL;
+		res = 0;
 	}
 
-	memset(&timer_funcs, 0, sizeof(timer_funcs));
-
-	ast_rwlock_unlock(&lock);
+	return res;
 }
 
 int ast_timer_open(void)
 {
-	int timer;
+	int fd = -1;
+	struct timing_holder *h;
 
-	ast_rwlock_rdlock(&lock);
+	ast_heap_rdlock(timing_interfaces);
 
-	if (!timer_funcs.timer_open) {
-		ast_rwlock_unlock(&lock);
-		return -1;
+	if ((h = ast_heap_peek(timing_interfaces, 1))) {
+		fd = h->iface->timer_open();
+		ast_module_ref(h->mod);
 	}
 
-	timer = timer_funcs.timer_open();
+	ast_heap_unlock(timing_interfaces);
 
-	ast_rwlock_unlock(&lock);
-
-	return timer;
+	return fd;
 }
 
 void ast_timer_close(int timer)
 {
-	ast_rwlock_rdlock(&lock);
+	struct timing_holder *h;
 
-	if (!timer_funcs.timer_close) {
-		ast_rwlock_unlock(&lock);
-		return;
+	ast_heap_rdlock(timing_interfaces);
+
+	if ((h = ast_heap_peek(timing_interfaces, 1))) {
+		h->iface->timer_close(timer);
+		ast_module_unref(h->mod);
 	}
 
-	timer_funcs.timer_close(timer);
-
-	ast_rwlock_unlock(&lock);
+	ast_heap_unlock(timing_interfaces);
 }
 
 int ast_timer_set_rate(int handle, unsigned int rate)
 {
-	int res;
+	struct timing_holder *h;
+	int res = -1;
 
-	ast_rwlock_rdlock(&lock);
+	ast_heap_rdlock(timing_interfaces);
 
-	if (!timer_funcs.timer_set_rate) {
-		ast_rwlock_unlock(&lock);
-		return -1;
+	if ((h = ast_heap_peek(timing_interfaces, 1))) {
+		res = h->iface->timer_set_rate(handle, rate);
 	}
 
-	res = timer_funcs.timer_set_rate(handle, rate);
-
-	ast_rwlock_unlock(&lock);
+	ast_heap_unlock(timing_interfaces);
 
 	return res;
 }
 
 void ast_timer_ack(int handle, unsigned int quantity)
 {
-	ast_rwlock_rdlock(&lock);
+	struct timing_holder *h;
 
-	if (!timer_funcs.timer_ack) {
-		ast_rwlock_unlock(&lock);
-		return;
+	ast_heap_rdlock(timing_interfaces);
+
+	if ((h = ast_heap_peek(timing_interfaces, 1))) {
+		h->iface->timer_ack(handle, quantity);
 	}
 
-	timer_funcs.timer_ack(handle, quantity);
-
-	ast_rwlock_unlock(&lock);
+	ast_heap_unlock(timing_interfaces);
 }
 
 int ast_timer_enable_continuous(int handle)
 {
-	int result;
+	struct timing_holder *h;
+	int res = -1;
 
-	ast_rwlock_rdlock(&lock);
+	ast_heap_rdlock(timing_interfaces);
 
-	if (!timer_funcs.timer_enable_continuous) {
-		ast_rwlock_unlock(&lock);
-		return -1;
+	if ((h = ast_heap_peek(timing_interfaces, 1))) {
+		res = h->iface->timer_enable_continuous(handle);
 	}
 
-	result = timer_funcs.timer_enable_continuous(handle);
+	ast_heap_unlock(timing_interfaces);
 
-	ast_rwlock_unlock(&lock);
-
-	return result;
+	return res;
 }
 
 int ast_timer_disable_continuous(int handle)
 {
-	int result;
+	struct timing_holder *h;
+	int res = -1;
 
-	ast_rwlock_rdlock(&lock);
+	ast_heap_rdlock(timing_interfaces);
 
-	if (!timer_funcs.timer_disable_continuous) {
-		ast_rwlock_unlock(&lock);
-		return -1;
+	if ((h = ast_heap_peek(timing_interfaces, 1))) {
+		res = h->iface->timer_disable_continuous(handle);
 	}
 
-	result = timer_funcs.timer_disable_continuous(handle);
+	ast_heap_unlock(timing_interfaces);
 
-	ast_rwlock_unlock(&lock);
-
-	return result;
+	return res;
 }
 
-enum ast_timing_event ast_timer_get_event(int handle)
+enum ast_timer_event ast_timer_get_event(int handle)
 {
-	enum ast_timing_event result;
+	struct timing_holder *h;
+	enum ast_timer_event res = -1;
 
-	ast_rwlock_rdlock(&lock);
+	ast_heap_rdlock(timing_interfaces);
 
-	if (!timer_funcs.timer_get_event) {
-		ast_rwlock_unlock(&lock);
-		return -1;
+	if ((h = ast_heap_peek(timing_interfaces, 1))) {
+		res = h->iface->timer_get_event(handle);
 	}
 
-	result = timer_funcs.timer_get_event(handle);
+	ast_heap_unlock(timing_interfaces);
 
-	ast_rwlock_unlock(&lock);
-
-	return result;
+	return res;
 }
 
 unsigned int ast_timer_get_max_rate(int handle)
 {
-	unsigned int res;
+	struct timing_holder *h;
+	unsigned int res = 0;
 
-	ast_rwlock_rdlock(&lock);
+	ast_heap_rdlock(timing_interfaces);
 
-	res = timer_funcs.timer_get_max_rate(handle);
+	if ((h = ast_heap_peek(timing_interfaces, 1))) {
+		res = h->iface->timer_get_max_rate(handle);
+	}
 
-	ast_rwlock_unlock(&lock);
+	ast_heap_unlock(timing_interfaces);
 
 	return res;
 }
@@ -217,6 +239,7 @@ static char *timing_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 	int fd, count = 0;
 	struct timeval start, end;
 	unsigned int test_rate = 50;
+	struct timing_holder *h;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -242,12 +265,19 @@ static char *timing_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 		}
 	}
 
-	ast_cli(a->fd, "Attempting to test a timer with %u ticks per second ...\n", test_rate);
+	ast_cli(a->fd, "Attempting to test a timer with %u ticks per second.\n", test_rate);
 
 	if ((fd = ast_timer_open()) == -1) {
 		ast_cli(a->fd, "Failed to open timing fd\n");
 		return CLI_FAILURE;
 	}
+
+	ast_heap_rdlock(timing_interfaces);
+	if ((h = ast_heap_peek(timing_interfaces, 1))) {
+		ast_cli(a->fd, "Using the '%s' timing module for this test.\n", h->iface->name);
+		h = NULL;
+	}
+	ast_heap_unlock(timing_interfaces);
 
 	start = ast_tvnow();
 
@@ -286,5 +316,9 @@ static struct ast_cli_entry cli_timing[] = {
 
 int ast_timing_init(void)
 {
+	if (!(timing_interfaces = ast_heap_create(2, timing_holder_cmp, 0))) {
+		return -1;
+	}
+
 	return ast_cli_register_multiple(cli_timing, ARRAY_LEN(cli_timing));
 }
