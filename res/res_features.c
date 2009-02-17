@@ -1730,7 +1730,15 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		if (config->feature_timer) {
 			/* Update time limit for next pass */
 			diff = ast_tvdiff_ms(ast_tvnow(), config->start_time);
-			config->feature_timer -= diff;
+			if (res == AST_BRIDGE_RETRY) {
+				/* The feature fully timed out but has not been updated. Skip
+				 * the potential round error from the diff calculation and
+				 * explicitly set to expired. */
+				config->feature_timer = -1;
+			} else {
+				config->feature_timer -= diff;
+			}
+
 			if (hasfeatures) {
 				/* Running on backup config, meaning a feature might be being
 				   activated, but that's no excuse to keep things going 

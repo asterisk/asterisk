@@ -529,12 +529,14 @@ enum {
 	AST_FEATURE_AUTOMON =      (1 << 4),
 	AST_FEATURE_PARKCALL =     (1 << 5),
 	AST_FEATURE_NO_H_EXTEN =   (1 << 6),
+	AST_FEATURE_WARNING_ACTIVE = (1 << 7),
 };
 
 struct ast_bridge_config {
 	struct ast_flags features_caller;
 	struct ast_flags features_callee;
 	struct timeval start_time;
+	struct timeval nexteventts;
 	long feature_timer;
 	long timelimit;
 	long play_warning;
