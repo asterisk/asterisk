@@ -1858,7 +1858,8 @@ static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, str
 	int l1 = strlen(e1->exten) + strlen(e1->cidmatch) + 2;
 	
 
-	strncpy(extenbuf,e1->exten,sizeof(extenbuf));
+	ast_copy_string(extenbuf, e1->exten, sizeof(extenbuf));
+
 	if (e1->matchcid &&  l1 <= sizeof(extenbuf)) {
 		strcat(extenbuf,"/");
 		strcat(extenbuf,e1->cidmatch);
@@ -2386,7 +2387,9 @@ struct ast_context *ast_context_find(const char *name)
 {
 	struct ast_context *tmp = NULL;
 	struct fake_context item;
-	strncpy(item.name,name,256);
+
+	ast_copy_string(item.name, name, sizeof(item.name));
+
 	ast_rdlock_contexts();
 	if( contexts_table ) {
 		tmp = ast_hashtab_lookup(contexts_table,&item);
@@ -2458,8 +2461,10 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 		tmp = bypass;
 	else {	/* look in contexts */
 		struct fake_context item;
-		strncpy(item.name,context,256);
-		tmp = ast_hashtab_lookup(contexts_table,&item);
+
+		ast_copy_string(item.name, context, sizeof(item.name));
+
+		tmp = ast_hashtab_lookup(contexts_table, &item);
 #ifdef NOTNOW
 		tmp = NULL;
 		while ((tmp = ast_walk_contexts(tmp)) ) {
@@ -4900,7 +4905,8 @@ int ast_context_lockmacro(const char *context)
 
 	ast_rdlock_contexts();
 
-	strncpy(item.name,context,256);
+	ast_copy_string(item.name, context, sizeof(item.name));
+
 	c = ast_hashtab_lookup(contexts_table,&item);
 	if (c)
 		ret = 0;
@@ -4938,7 +4944,8 @@ int ast_context_unlockmacro(const char *context)
 
 	ast_rdlock_contexts();
 
-	strncpy(item.name, context, 256);
+	ast_copy_string(item.name, context, sizeof(item.name));
+
 	c = ast_hashtab_lookup(contexts_table,&item);
 	if (c)
 		ret = 0;
@@ -6309,7 +6316,7 @@ struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts,
 										   0);
 	}
 	
-	strncpy(search.name,name,sizeof(search.name));
+	ast_copy_string(search.name, name, sizeof(search.name));
 	if (!extcontexts) {
 		ast_rdlock_contexts();
 		local_contexts = &contexts;
@@ -7540,7 +7547,7 @@ int ast_add_extension2(struct ast_context *con,
 	
 	if (con->pattern_tree) { /* usually, on initial load, the pattern_tree isn't formed until the first find_exten; so if we are adding
 								an extension, and the trie exists, then we need to incrementally add this pattern to it. */
-		strncpy(dummy_name,extension,sizeof(dummy_name));
+		ast_copy_string(dummy_name, extension, sizeof(dummy_name));
 		dummy_exten.exten = dummy_name;
 		dummy_exten.matchcid = 0;
 		dummy_exten.cidmatch = 0;
