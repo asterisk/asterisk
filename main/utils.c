@@ -1598,7 +1598,7 @@ void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 	   otherwise, use the empty space at the end of the current
 	   pool
 	*/
-	if ((*ptr)[0] != '0') {
+	if ((*ptr)[0] != '\0') {
 		target = (char *) *ptr;
 		available = strlen(target) + 1;
 	} else {
