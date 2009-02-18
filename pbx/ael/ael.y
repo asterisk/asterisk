@@ -155,7 +155,7 @@ static pval *update_last(pval *, YYLTYPE *);
 
 /* there will be two shift/reduce conflicts, they involve the if statement, where a single statement occurs not wrapped in curlies in the "true" section
    the default action to shift will attach the else to the preceeding if. */
-%expect 3
+%expect 28
 %error-verbose
 
 /*
@@ -231,7 +231,7 @@ globals : KW_GLOBALS LC global_statements RC {
 	;
 
 global_statements : { $$ = NULL; }
-	| assignment global_statements {$$ = linku1($1, $2); }
+	| global_statements assignment {$$ = linku1($1, $2); }
 	| error global_statements {$$=$2;}
 	;
 
@@ -249,7 +249,7 @@ arglist : /* empty */ { $$ = NULL; }
 	;
 
 elements : {$$=0;}
-	| element elements { $$ = linku1($1, $2); }
+	| elements element { $$ = linku1($1, $2); }
 	| error elements  { $$=$2;}
 	;
 
@@ -293,7 +293,7 @@ extension : word EXTENMARK statement {
 
 /* list of statements in a block or after a case label - can be empty */
 statements : /* empty */ { $$ = NULL; }
-	| statement statements { $$ = linku1($1, $2); }
+	| statements statement { $$ = linku1($1, $2); }
 	| error statements {$$=$2;}
 	;
 
@@ -603,7 +603,7 @@ eval_arglist :  word_list { $$ = nword($1, &@1); }
 	;
 
 case_statements: /* empty */ { $$ = NULL; }
-	| case_statement case_statements { $$ = linku1($1, $2); }
+	| case_statements case_statement { $$ = linku1($1, $2); }
 	;
 
 case_statement: KW_CASE word COLON statements {
@@ -621,7 +621,7 @@ case_statement: KW_CASE word COLON statements {
 	;
 
 macro_statements: /* empty */ { $$ = NULL; }
-	| macro_statement macro_statements { $$ = linku1($1, $2); }
+	| macro_statements macro_statement { $$ = linku1($1, $2); }
 	;
 
 macro_statement : statement {$$=$1;}
@@ -643,16 +643,16 @@ eswitches : KW_ESWITCHES LC switchlist RC {
 	;
 
 switchlist : /* empty */ { $$ = NULL; }
-	| word SEMI switchlist { $$ = linku1(nword($1, &@1), $3); }
-	| word AT word SEMI switchlist {
+	| switchlist word SEMI { $$ = linku1($1,nword($2, &@2)); }
+	| switchlist word AT word SEMI {
 	  char *x;
-	  if (asprintf(&x,"%s@%s", $1, $3) < 0) {
+	  if (asprintf(&x,"%s@%s", $2, $4) < 0) {
 		ast_log(LOG_WARNING, "asprintf() failed\n");
 		$$ = NULL;
 	  } else {
-		free($1);
-		free($3);
-		$$ = linku1(nword(x, &@1), $5);
+		free($2);
+		free($4);
+		$$ = linku1($1,nword(x, &@2));
 	  }
 	}
 	| error switchlist {$$=$2;}
