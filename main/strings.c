@@ -114,8 +114,10 @@ char *__ast_str_helper2(struct ast_str **buf, size_t maxlen, const char *src, si
 	int dynamic = 0;
 	char *ptr = append ? &((*buf)->__AST_STR_STR[(*buf)->__AST_STR_USED]) : (*buf)->__AST_STR_STR;
 
-	if (!maxlen) {
-		dynamic = 1;
+	if (maxlen < 1) {
+		if (maxlen == 0) {
+			dynamic = 1;
+		}
 		maxlen = (*buf)->__AST_STR_LEN;
 	}
 
@@ -140,10 +142,7 @@ char *__ast_str_helper2(struct ast_str **buf, size_t maxlen, const char *src, si
 			/* What we extended the buffer by */
 			maxlen = old;
 
-			/* Update ptr, if necessary */
-			if ((*buf)->__AST_STR_STR != oldbase) {
-				ptr = ptr - oldbase + (*buf)->__AST_STR_STR;
-			}
+			ptr += (*buf)->__AST_STR_STR - oldbase;
 		}
 	}
 	if (__builtin_expect(!(maxsrc && maxlen), 0)) {
