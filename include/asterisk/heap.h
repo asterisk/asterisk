@@ -155,6 +155,28 @@ void *ast_heap_remove(struct ast_heap *h, void *elm);
  * \note If this function is being used in combination with ast_heap_size() for
  *       purposes of traversing the heap, the heap must be locked for the entire
  *       duration of the traversal.
+ *
+ * Example code for a traversal:
+ * \code
+ *
+ * struct ast_heap *h;
+ *
+ * ...
+ *
+ * size_t size, i;
+ * void *cur_obj;
+ *
+ * ast_heap_rdlock(h);
+ *
+ * size = ast_heap_size(h);
+ *
+ * for (i = 1; i <= size && (cur_obj = ast_heap_peek(h, i)); i++) {
+ *     ... Do stuff with cur_obj ...
+ * }
+ *
+ * ast_heap_unlock(h);
+ *
+ * \endcode
  */
 void *ast_heap_peek(struct ast_heap *h, unsigned int index);
 
