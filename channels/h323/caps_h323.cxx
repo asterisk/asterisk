@@ -159,7 +159,7 @@ H323Codec * AST_G711Capability::CreateCodec(H323Codec::Direction direction) cons
 /*
  * Capability: G.723.1
  */
-AST_G7231Capability::AST_G7231Capability(int rx_frames, BOOL annexA_)
+AST_G7231Capability::AST_G7231Capability(int rx_frames, PBoolean annexA_)
 	: H323AudioCapability(rx_frames, 4)
 {
 	annexA = annexA_;
@@ -196,7 +196,7 @@ unsigned AST_G7231Capability::GetSubType() const
 	return H245_AudioCapability::e_g7231;
 }
 
-BOOL AST_G7231Capability::OnSendingPDU(H245_AudioCapability & cap,
+PBoolean AST_G7231Capability::OnSendingPDU(H245_AudioCapability & cap,
 										unsigned packetSize) const
 {
 	cap.SetTag(H245_AudioCapability::e_g7231);
@@ -206,7 +206,7 @@ BOOL AST_G7231Capability::OnSendingPDU(H245_AudioCapability & cap,
 	return TRUE;
 }
 
-BOOL AST_G7231Capability::OnReceivedPDU(const H245_AudioCapability & cap,
+PBoolean AST_G7231Capability::OnReceivedPDU(const H245_AudioCapability & cap,
 										unsigned & packetSize)
 {
 	if (cap.GetTag() != H245_AudioCapability::e_g7231) {
@@ -299,7 +299,7 @@ unsigned AST_GSM0610Capability::GetSubType() const
 	return H245_AudioCapability::e_gsmFullRate;
 }
 
-BOOL AST_GSM0610Capability::OnSendingPDU(H245_AudioCapability & cap,
+PBoolean AST_GSM0610Capability::OnSendingPDU(H245_AudioCapability & cap,
 										unsigned packetSize) const
 {
 	cap.SetTag(H245_AudioCapability::e_gsmFullRate);
@@ -310,7 +310,7 @@ BOOL AST_GSM0610Capability::OnSendingPDU(H245_AudioCapability & cap,
 	return TRUE;
 }
 
-BOOL AST_GSM0610Capability::OnReceivedPDU(const H245_AudioCapability & cap,
+PBoolean AST_GSM0610Capability::OnReceivedPDU(const H245_AudioCapability & cap,
 										unsigned & packetSize)
 {
 	if (cap.GetTag() != H245_AudioCapability::e_gsmFullRate)
