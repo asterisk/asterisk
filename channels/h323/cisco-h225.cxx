@@ -61,7 +61,7 @@ PINDEX CISCO_H225_RedirectIEinfo::GetDataLength() const
 }
 
 
-BOOL CISCO_H225_RedirectIEinfo::Decode(PASN_Stream & strm)
+PBoolean CISCO_H225_RedirectIEinfo::Decode(PASN_Stream & strm)
 {
   if (!PreambleDecode(strm))
     return FALSE;
@@ -137,7 +137,7 @@ PINDEX CISCO_H225_ProgIndIEinfo::GetDataLength() const
 }
 
 
-BOOL CISCO_H225_ProgIndIEinfo::Decode(PASN_Stream & strm)
+PBoolean CISCO_H225_ProgIndIEinfo::Decode(PASN_Stream & strm)
 {
   if (!PreambleDecode(strm))
     return FALSE;
@@ -217,7 +217,7 @@ PINDEX CISCO_H225_QsigNonStdInfo::GetDataLength() const
 }
 
 
-BOOL CISCO_H225_QsigNonStdInfo::Decode(PASN_Stream & strm)
+PBoolean CISCO_H225_QsigNonStdInfo::Decode(PASN_Stream & strm)
 {
   if (!PreambleDecode(strm))
     return FALSE;
@@ -300,7 +300,7 @@ PINDEX CISCO_H225_CallMgrParam::GetDataLength() const
 }
 
 
-BOOL CISCO_H225_CallMgrParam::Decode(PASN_Stream & strm)
+PBoolean CISCO_H225_CallMgrParam::Decode(PASN_Stream & strm)
 {
   if (!PreambleDecode(strm))
     return FALSE;
@@ -379,7 +379,7 @@ PINDEX CISCO_H225_CallPreserveParam::GetDataLength() const
 }
 
 
-BOOL CISCO_H225_CallPreserveParam::Decode(PASN_Stream & strm)
+PBoolean CISCO_H225_CallPreserveParam::Decode(PASN_Stream & strm)
 {
   if (!PreambleDecode(strm))
     return FALSE;
@@ -458,7 +458,7 @@ PINDEX CISCO_H225_CallSignallingParam::GetDataLength() const
 }
 
 
-BOOL CISCO_H225_CallSignallingParam::Decode(PASN_Stream & strm)
+PBoolean CISCO_H225_CallSignallingParam::Decode(PASN_Stream & strm)
 {
   if (!PreambleDecode(strm))
     return FALSE;
@@ -535,7 +535,7 @@ PINDEX CISCO_H225_CommonParam::GetDataLength() const
 }
 
 
-BOOL CISCO_H225_CommonParam::Decode(PASN_Stream & strm)
+PBoolean CISCO_H225_CommonParam::Decode(PASN_Stream & strm)
 {
   if (!PreambleDecode(strm))
     return FALSE;
@@ -611,7 +611,7 @@ PINDEX CISCO_H225_ProgIndParam::GetDataLength() const
 }
 
 
-BOOL CISCO_H225_ProgIndParam::Decode(PASN_Stream & strm)
+PBoolean CISCO_H225_ProgIndParam::Decode(PASN_Stream & strm)
 {
   if (!PreambleDecode(strm))
     return FALSE;
@@ -687,7 +687,7 @@ PINDEX CISCO_H225_ProtoParam::GetDataLength() const
 }
 
 
-BOOL CISCO_H225_ProtoParam::Decode(PASN_Stream & strm)
+PBoolean CISCO_H225_ProtoParam::Decode(PASN_Stream & strm)
 {
   if (!PreambleDecode(strm))
     return FALSE;
@@ -789,7 +789,7 @@ PINDEX CISCO_H225_H323_UU_NonStdInfo::GetDataLength() const
 }
 
 
-BOOL CISCO_H225_H323_UU_NonStdInfo::Decode(PASN_Stream & strm)
+PBoolean CISCO_H225_H323_UU_NonStdInfo::Decode(PASN_Stream & strm)
 {
   if (!PreambleDecode(strm))
     return FALSE;
