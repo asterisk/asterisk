@@ -14,6 +14,7 @@
 #endif
 
 #include <ptclib/asner.h>
+#include "ast_ptlib.h"
 
 //
 // RedirectIEinfo
@@ -30,7 +31,7 @@ class CISCO_H225_RedirectIEinfo : public PASN_Sequence
     PASN_OctetString m_redirectIE;
 
     PINDEX GetDataLength() const;
-    BOOL Decode(PASN_Stream & strm);
+    PBoolean Decode(PASN_Stream & strm);
     void Encode(PASN_Stream & strm) const;
 #ifndef PASN_NOPRINTON
     void PrintOn(ostream & strm) const;
@@ -55,7 +56,7 @@ class CISCO_H225_ProgIndIEinfo : public PASN_Sequence
     PASN_OctetString m_progIndIE;
 
     PINDEX GetDataLength() const;
-    BOOL Decode(PASN_Stream & strm);
+    PBoolean Decode(PASN_Stream & strm);
     void Encode(PASN_Stream & strm) const;
 #ifndef PASN_NOPRINTON
     void PrintOn(ostream & strm) const;
@@ -81,7 +82,7 @@ class CISCO_H225_QsigNonStdInfo : public PASN_Sequence
     PASN_OctetString m_rawMesg;
 
     PINDEX GetDataLength() const;
-    BOOL Decode(PASN_Stream & strm);
+    PBoolean Decode(PASN_Stream & strm);
     void Encode(PASN_Stream & strm) const;
 #ifndef PASN_NOPRINTON
     void PrintOn(ostream & strm) const;
@@ -107,7 +108,7 @@ class CISCO_H225_CallMgrParam : public PASN_Sequence
     PASN_OctetString m_enterpriseID;
 
     PINDEX GetDataLength() const;
-    BOOL Decode(PASN_Stream & strm);
+    PBoolean Decode(PASN_Stream & strm);
     void Encode(PASN_Stream & strm) const;
 #ifndef PASN_NOPRINTON
     void PrintOn(ostream & strm) const;
@@ -132,7 +133,7 @@ class CISCO_H225_CallPreserveParam : public PASN_Sequence
     PASN_Boolean m_callPreserveIE;
 
     PINDEX GetDataLength() const;
-    BOOL Decode(PASN_Stream & strm);
+    PBoolean Decode(PASN_Stream & strm);
     void Encode(PASN_Stream & strm) const;
 #ifndef PASN_NOPRINTON
     void PrintOn(ostream & strm) const;
@@ -161,7 +162,7 @@ class CISCO_H225_CallSignallingParam : public PASN_Sequence
     PASN_OctetString m_connectedNumber;
 
     PINDEX GetDataLength() const;
-    BOOL Decode(PASN_Stream & strm);
+    PBoolean Decode(PASN_Stream & strm);
     void Encode(PASN_Stream & strm) const;
 #ifndef PASN_NOPRINTON
     void PrintOn(ostream & strm) const;
@@ -186,7 +187,7 @@ class CISCO_H225_CommonParam : public PASN_Sequence
     CISCO_H225_RedirectIEinfo m_redirectIEinfo;
 
     PINDEX GetDataLength() const;
-    BOOL Decode(PASN_Stream & strm);
+    PBoolean Decode(PASN_Stream & strm);
     void Encode(PASN_Stream & strm) const;
 #ifndef PASN_NOPRINTON
     void PrintOn(ostream & strm) const;
@@ -211,7 +212,7 @@ class CISCO_H225_ProgIndParam : public PASN_Sequence
     CISCO_H225_ProgIndIEinfo m_progIndIEinfo;
 
     PINDEX GetDataLength() const;
-    BOOL Decode(PASN_Stream & strm);
+    PBoolean Decode(PASN_Stream & strm);
     void Encode(PASN_Stream & strm) const;
 #ifndef PASN_NOPRINTON
     void PrintOn(ostream & strm) const;
@@ -236,7 +237,7 @@ class CISCO_H225_ProtoParam : public PASN_Sequence
     CISCO_H225_QsigNonStdInfo m_qsigNonStdInfo;
 
     PINDEX GetDataLength() const;
-    BOOL Decode(PASN_Stream & strm);
+    PBoolean Decode(PASN_Stream & strm);
     void Encode(PASN_Stream & strm) const;
 #ifndef PASN_NOPRINTON
     void PrintOn(ostream & strm) const;
@@ -281,7 +282,7 @@ class CISCO_H225_H323_UU_NonStdInfo : public PASN_Sequence
     CISCO_H225_CallPreserveParam m_callPreserveParam;
 
     PINDEX GetDataLength() const;
-    BOOL Decode(PASN_Stream & strm);
+    PBoolean Decode(PASN_Stream & strm);
     void Encode(PASN_Stream & strm) const;
 #ifndef PASN_NOPRINTON
     void PrintOn(ostream & strm) const;
