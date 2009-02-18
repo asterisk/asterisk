@@ -1273,7 +1273,7 @@ if test "${USE_PWLIB}" != "no"; then
 		PWLIBDIR="${PWLIB_DIR}"
 	fi
 	AST_CHECK_PWLIB()
-	AST_CHECK_PWLIB_VERSION([PWLib], [PWLIB], [ptbuildopts.h], [1], [9], [2])
+	AST_CHECK_PWLIB_VERSION([PWLib], [PWLIB], [ptbuildopts.h], [1], [9], [2], [P[[WT]]LIB_VERSION])
 		
 	if test "${HAS_PWLIB:-unset}" != "unset"; then
 		AST_CHECK_PWLIB_PLATFORM()
@@ -1283,7 +1283,7 @@ if test "${USE_PWLIB}" != "no"; then
 		AST_CHECK_PWLIB_BUILD([PWLib], [PWLIB],
 			[Define if your system has the PWLib libraries.],
 			[#include "ptlib.h"],
-			[BOOL q = PTime::IsDaylightSavings();])
+			[int q = (int) PTime::IsDaylightSavings();])
 	fi
 fi
 

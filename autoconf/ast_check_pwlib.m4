@@ -103,12 +103,12 @@ if test "${HAS_PWLIB:-unset}" = "unset" ; then
     else
       AC_CHECK_HEADER(/usr/local/include/ptlib.h, HAS_PWLIB=1, )
       if test "${HAS_PWLIB:-unset}" != "unset" ; then
-        AC_PATH_PROG(PTLIB_CONFIG, ptlib-config, , /usr/local/bin)
-        if test "${PTLIB_CONFIG:-unset}" = "unset" ; then
-          AC_PATH_PROG(PTLIB_CONFIG, ptlib-config, , /usr/local/share/pwlib/make)
-        fi
+        AC_PATH_PROG(PTLIB_CONFIG, ptlib-config, , /usr/local/bin$PATH_SEPARATOR/usr/local/share/pwlib/make)
         PWLIB_INCDIR="/usr/local/include"
-        PWLIB_LIBDIR=`${PTLIB_CONFIG} --pwlibdir`
+        PWLIB_LIBDIR=`${PTLIB_CONFIG} --pwlibdir 2>/dev/null`
+        if test "${PWLIB_LIBDIR:-unset}" = "unset"; then
+          PWLIB_LIBDIR=`${PTLIB_CONFIG} --ptlibdir 2>/dev/null`
+        fi
         if test "${PWLIB_LIBDIR:-unset}" = "unset"; then
           if test "x$LIB64" != "x"; then
             PWLIB_LIBDIR="/usr/local/lib64"
@@ -121,9 +121,12 @@ if test "${HAS_PWLIB:-unset}" = "unset" ; then
       else
         AC_CHECK_HEADER(/usr/include/ptlib.h, HAS_PWLIB=1, )
         if test "${HAS_PWLIB:-unset}" != "unset" ; then
-          AC_PATH_PROG(PTLIB_CONFIG, ptlib-config, , /usr/share/pwlib/make)
+          AC_PATH_PROG(PTLIB_CONFIG, ptlib-config, , /usr/bin$PATH_SEPARATOR/usr/share/pwlib/make)
           PWLIB_INCDIR="/usr/include"
-          PWLIB_LIBDIR=`${PTLIB_CONFIG} --pwlibdir`
+          PWLIB_LIBDIR=`${PTLIB_CONFIG} --pwlibdir 2>/dev/null`
+          if test "${PWLIB_LIBDIR:-unset}" = "unset"; then
+            PWLIB_LIBDIR=`${PTLIB_CONFIG} --ptlibdir 2>/dev/null`
+          fi
           if test "${PWLIB_LIBDIR:-unset}" = "unset"; then
             if test "x$LIB64" != "x"; then
               PWLIB_LIBDIR="/usr/lib64"
@@ -188,8 +191,14 @@ fi
 ])
 
 AC_DEFUN([AST_CHECK_PWLIB_VERSION], [
+	if test "x$7" != "x"; then
+	   	VNAME="$7"
+       	else
+	   	VNAME="$2_VERSION"
+	fi
+
 	if test "${HAS_$2:-unset}" != "unset"; then
-		$2_VERSION=`grep "$2_VERSION" ${$2_INCDIR}/$3 | sed -e 's/[[[:space:]]]\{1,\}/ /g' | cut -f3 -d ' ' | sed -e 's/"//g'`
+		$2_VERSION=`grep "$VNAME" ${$2_INCDIR}/$3 | sed -e 's/[[[:space:]]]\{1,\}/ /g' | cut -f3 -d ' ' | sed -e 's/"//g'`
 		$2_MAJOR_VERSION=`echo ${$2_VERSION} | cut -f1 -d.`
 		$2_MINOR_VERSION=`echo ${$2_VERSION} | cut -f2 -d.`
 		$2_BUILD_NUMBER=`echo ${$2_VERSION} | cut -f3 -d.`

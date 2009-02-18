@@ -26,17 +26,17 @@ class AST_G7231Capability : public H323AudioCapability
 	PCLASSINFO(AST_G7231Capability, H323AudioCapability);
 
 public:
-	AST_G7231Capability(int rx_frames = 7, BOOL annexA = TRUE);
+	AST_G7231Capability(int rx_frames = 7, PBoolean annexA = TRUE);
 	Comparison Compare(const PObject & obj) const;
 	virtual PObject * Clone() const;
 	virtual H323Codec * CreateCodec(H323Codec::Direction direction) const;
 	virtual unsigned GetSubType() const;
 	virtual PString GetFormatName() const;
-	virtual BOOL OnSendingPDU(H245_AudioCapability & pdu, unsigned packetSize) const;
-	virtual BOOL OnReceivedPDU(const H245_AudioCapability & pdu, unsigned & packetSize);
+	virtual PBoolean OnSendingPDU(H245_AudioCapability & pdu, unsigned packetSize) const;
+	virtual PBoolean OnReceivedPDU(const H245_AudioCapability & pdu, unsigned & packetSize);
 
 protected:
-	BOOL annexA;
+	PBoolean annexA;
 };
 
 /**This class describes the (fake) G729 codec capability.
@@ -114,8 +114,8 @@ public:
 	/* Get the name of the media data format this class represents. */
 	virtual PString GetFormatName() const;
 
-	BOOL OnSendingPDU(H245_AudioCapability & pdu, unsigned packetSize) const;
-	BOOL OnReceivedPDU(const H245_AudioCapability & pdu, unsigned & packetSize);
+	PBoolean OnSendingPDU(H245_AudioCapability & pdu, unsigned packetSize) const;
+	PBoolean OnReceivedPDU(const H245_AudioCapability & pdu, unsigned & packetSize);
 
 protected:
 	int comfortNoise;

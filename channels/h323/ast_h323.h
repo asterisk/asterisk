@@ -29,6 +29,8 @@
 #ifndef AST_H323_H
 #define AST_H323_H
 
+#include "ast_ptlib.h"
+
 #define VERSION(a,b,c) ((a)*10000+(b)*100+(c))
 
 class MyH323EndPoint : public H323EndPoint
@@ -38,16 +40,16 @@ class MyH323EndPoint : public H323EndPoint
 public:
 	MyH323EndPoint();
 	int MyMakeCall(const PString &, PString &, void *_callReference, void *_opts);
-	BOOL ClearCall(const PString &, H323Connection::CallEndReason reason);
-	BOOL ClearCall(const PString &);
+	PBoolean ClearCall(const PString &, H323Connection::CallEndReason reason);
+	PBoolean ClearCall(const PString &);
 
 	void OnClosedLogicalChannel(H323Connection &, const H323Channel &);
 	void OnConnectionEstablished(H323Connection &, const PString &);
 	void OnConnectionCleared(H323Connection &, const PString &);
 	virtual H323Connection * CreateConnection(unsigned, void *, H323Transport *, H323SignalPDU *);
 	void SendUserTone(const PString &, char);
-	BOOL OnConnectionForwarded(H323Connection &, const PString &, const H323SignalPDU &);
-	BOOL ForwardConnection(H323Connection &, const PString &, const H323SignalPDU &);
+	PBoolean OnConnectionForwarded(H323Connection &, const PString &, const H323SignalPDU &);
+	PBoolean ForwardConnection(H323Connection &, const PString &, const H323SignalPDU &);
 	void SetEndpointTypeInfo( H225_EndpointType & info ) const;
 	void SetGateway(void);
 	PStringArray SupportedPrefixes;
@@ -69,31 +71,31 @@ public:
 			const H323SignalPDU &,
 			H323SignalPDU &);
 	void OnReceivedReleaseComplete(const H323SignalPDU &);
-	BOOL OnAlerting(const H323SignalPDU &, const PString &);
-	BOOL OnSendReleaseComplete(H323SignalPDU &);
-	BOOL OnReceivedSignalSetup(const H323SignalPDU &);
-	BOOL OnReceivedFacility(const H323SignalPDU &);
-	BOOL OnSendSignalSetup(H323SignalPDU &);
-	BOOL OnStartLogicalChannel(H323Channel &);
-	BOOL OnClosingLogicalChannel(H323Channel &);
+	PBoolean OnAlerting(const H323SignalPDU &, const PString &);
+	PBoolean OnSendReleaseComplete(H323SignalPDU &);
+	PBoolean OnReceivedSignalSetup(const H323SignalPDU &);
+	PBoolean OnReceivedFacility(const H323SignalPDU &);
+	PBoolean OnSendSignalSetup(H323SignalPDU &);
+	PBoolean OnStartLogicalChannel(H323Channel &);
+	PBoolean OnClosingLogicalChannel(H323Channel &);
 	virtual void SendUserInputTone(char tone, unsigned duration = 0, unsigned logicalChannel = 0, unsigned rtpTimestamp = 0);
 	virtual void OnUserInputTone(char, unsigned, unsigned, unsigned);
 	virtual void OnUserInputString(const PString &value);
-	BOOL OnReceivedProgress(const H323SignalPDU &);
-	BOOL MySendProgress();
+	PBoolean OnReceivedProgress(const H323SignalPDU &);
+	PBoolean MySendProgress();
 	void OnSendCapabilitySet(H245_TerminalCapabilitySet &);
 	void OnSetLocalCapabilities();
 	void SetCapabilities(int, int, void *, int);
-	BOOL OnReceivedCapabilitySet(const H323Capabilities &, const H245_MultiplexCapability *,
+	PBoolean OnReceivedCapabilitySet(const H323Capabilities &, const H245_MultiplexCapability *,
 			H245_TerminalCapabilitySetReject &);
 	void SetCause(int _cause) { cause = _cause; };
-	virtual BOOL StartControlChannel(const H225_TransportAddress & h245Address);
-	void SetCallOptions(void *opts, BOOL isIncoming);
-	void SetCallDetails(void *callDetails, const H323SignalPDU &setupPDU, BOOL isIncoming);
+	virtual PBoolean StartControlChannel(const H225_TransportAddress & h245Address);
+	void SetCallOptions(void *opts, PBoolean isIncoming);
+	void SetCallDetails(void *callDetails, const H323SignalPDU &setupPDU, PBoolean isIncoming);
 	virtual H323Connection::CallEndReason SendSignalSetup(const PString&, const H323TransportAddress&);
 #ifdef TUNNELLING
-	virtual BOOL HandleSignalPDU(H323SignalPDU &pdu);
-	BOOL EmbedTunneledInfo(H323SignalPDU &pdu);
+	virtual PBoolean HandleSignalPDU(H323SignalPDU &pdu);
+	PBoolean EmbedTunneledInfo(H323SignalPDU &pdu);
 #endif
 
 	PString sourceAliases;
@@ -107,7 +109,7 @@ public:
 	int transfer_capability;
 
 	WORD sessionId;
-	BOOL bridging;
+	PBoolean bridging;
 #ifdef TUNNELLING
 	int remoteTunnelOptions;
 	int tunnelOptions;
@@ -135,8 +137,8 @@ public:
 	~MyH323_ExternalRTPChannel();
 
 	/* Overrides */
-	BOOL Start(void);
-	BOOL OnReceivedAckPDU(const H245_H2250LogicalChannelAckParameters & param);
+	PBoolean Start(void);
+	PBoolean OnReceivedAckPDU(const H245_H2250LogicalChannelAckParameters & param);
 
 protected:
 	BYTE payloadCode;
