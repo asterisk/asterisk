@@ -1600,7 +1600,7 @@ void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 	*/
 	if ((*ptr)[0] != '0') {
 		target = (char *) *ptr;
-		available = strlen(target);
+		available = strlen(target) + 1;
 	} else {
 		target = (*pool_head)->base + mgr->used;
 		available = space;
