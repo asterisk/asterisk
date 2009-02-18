@@ -3735,16 +3735,27 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 		rtp->smoother = NULL;
 	}
 
-	if (!rtp->smoother && subclass != AST_FORMAT_SPEEX && subclass != AST_FORMAT_G723_1) {
+	if (!rtp->smoother) {
 		struct ast_format_list fmt = ast_codec_pref_getsize(&rtp->pref, subclass);
-		if (fmt.inc_ms) { /* if codec parameters is set / avoid division by zero */
-			if (!(rtp->smoother = ast_smoother_new((fmt.cur_ms * fmt.fr_len) / fmt.inc_ms))) {
-				ast_log(LOG_WARNING, "Unable to create smoother: format: %d ms: %d len: %d\n", subclass, fmt.cur_ms, ((fmt.cur_ms * fmt.fr_len) / fmt.inc_ms));
-				return -1;
+
+		switch (subclass) {
+		case AST_FORMAT_SPEEX:
+		case AST_FORMAT_G723_1:
+		case AST_FORMAT_SIREN7:
+		case AST_FORMAT_SIREN14:
+			/* these are all frame-based codecs and cannot be safely run through
+			   a smoother */
+			break;
+		default:
+			if (fmt.inc_ms) { /* if codec parameters is set / avoid division by zero */
+				if (!(rtp->smoother = ast_smoother_new((fmt.cur_ms * fmt.fr_len) / fmt.inc_ms))) {
+					ast_log(LOG_WARNING, "Unable to create smoother: format: %d ms: %d len: %d\n", subclass, fmt.cur_ms, ((fmt.cur_ms * fmt.fr_len) / fmt.inc_ms));
+					return -1;
+				}
+				if (fmt.flags)
+					ast_smoother_set_flags(rtp->smoother, fmt.flags);
+				ast_debug(1, "Created smoother: format: %d ms: %d len: %d\n", subclass, fmt.cur_ms, ((fmt.cur_ms * fmt.fr_len) / fmt.inc_ms));
 			}
-			if (fmt.flags)
-				ast_smoother_set_flags(rtp->smoother, fmt.flags);
-			ast_debug(1, "Created smoother: format: %d ms: %d len: %d\n", subclass, fmt.cur_ms, ((fmt.cur_ms * fmt.fr_len) / fmt.inc_ms));
 		}
 	}
 	if (rtp->smoother) {
