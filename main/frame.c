@@ -112,7 +112,7 @@ static const struct ast_format_list AST_FORMAT_LIST[] = {
 	{ AST_FORMAT_ILBC, "ilbc", 8000, "iLBC", 50, 30, 30, 30, 30 },                                         /*!< codec_ilbc.c */ /* inc=30ms - workaround */
 	{ AST_FORMAT_G726_AAL2, "g726aal2", 8000, "G.726 AAL2", 40, 10, 300, 10, 20 },                         /*!< codec_g726.c */
 	{ AST_FORMAT_G722, "g722", 16000, "G722", 80, 10, 150, 10, 20 },                                       /*!< codec_g722.c */
-	{ AST_FORMAT_SLINEAR16, "slin16", 16000, "16 bit Signed Linear PCM (16kHz)", 320, 10, 70, 10, 20 },    /*!< Signed linear (16kHz) */
+	{ AST_FORMAT_SLINEAR16, "slin16", 16000, "16 bit Signed Linear PCM (16kHz)", 320, 10, 70, 10, 20, AST_SMOOTHER_FLAG_BE },    /*!< Signed linear (16kHz) */
 	{ AST_FORMAT_JPEG, "jpeg", 0, "JPEG image"},                                                           /*!< See format_jpeg.c */
 	{ AST_FORMAT_PNG, "png", 0, "PNG image"},                                                              /*!< PNG Image format */
 	{ AST_FORMAT_H261, "h261", 0, "H.261 Video" },                                                         /*!< H.261 Video Passthrough */
@@ -248,7 +248,7 @@ struct ast_frame *ast_smoother_read(struct ast_smoother *s)
 		memmove(s->data, s->data + len, s->len);
 		if (!ast_tvzero(s->delivery)) {
 			/* If we have delivery time, increment it, otherwise, leave it at 0 */
-			s->delivery = ast_tvadd(s->delivery, ast_samp2tv(s->f.samples, 8000));
+			s->delivery = ast_tvadd(s->delivery, ast_samp2tv(s->f.samples, ast_format_rate(s->format)));
 		}
 	}
 	/* Return frame */
