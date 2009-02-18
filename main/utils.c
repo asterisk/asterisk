@@ -1263,7 +1263,7 @@ void __ast_string_field_index_build_va(struct ast_string_field_mgr *mgr,
 	   otherwise, use the empty space at the end of the current
 	   pool
 	*/
-	if (fields[index][0] != '0') {
+	if (fields[index][0] != '\0') {
 		target = (char *) fields[index];
 		available = strlen(fields[index]) + 1;
 	} else {
