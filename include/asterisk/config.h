@@ -152,7 +152,7 @@ struct ast_config *ast_load_realtime_multientry(const char *family, ...);
  * \param keyfield which field to use as the key
  * \param lookup which value to look for in the key field to match the entry.
  * This function is used to update a parameter in realtime configuration space.
- *
+ * \return Number of rows affected, or -1 on error.
  */
 int ast_update_realtime(const char *family, const char *keyfield, const char *lookup, ...);
 
