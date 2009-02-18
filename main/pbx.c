@@ -967,6 +967,15 @@ static unsigned int hashtab_hash_extens(const void *obj);
 static unsigned int hashtab_hash_priority(const void *obj);
 static unsigned int hashtab_hash_labels(const void *obj);
 static void __ast_internal_context_destroy( struct ast_context *con);
+static int ast_add_extension_nolock(const char *context, int replace, const char *extension,
+	int priority, const char *label, const char *callerid,
+	const char *application, void *data, void (*datad)(void *), const char *registrar);
+static int add_pri_lockopt(struct ast_context *con, struct ast_exten *tmp,
+	struct ast_exten *el, struct ast_exten *e, int replace, int lockhints);
+static int ast_add_extension2_lockopt(struct ast_context *con,
+	int replace, const char *extension, int priority, const char *label, const char *callerid,
+	const char *application, void *data, void (*datad)(void *),
+	const char *registrar, int lockconts, int lockhints);
 
 /* a func for qsort to use to sort a char array */
 static int compare_char(const void *a, const void *b)
@@ -1150,6 +1159,7 @@ void check_contexts_trouble(void)
 }
 
 static struct ast_context *find_context_locked(const char *context);
+static struct ast_context *find_context(const char *context);
 int check_contexts(char *, int);
 
 int check_contexts(char *file, int line )
@@ -3965,20 +3975,18 @@ int ast_extension_state_del(int id, ast_state_cb_type callback)
 	return ret;
 }
 
-/*! \brief Add hint to hint list, check initial extension state */
-static int ast_add_hint(struct ast_exten *e)
+
+/*! \brief Add hint to hint list, check initial extension state; the hints had better be WRLOCKED already! */
+static int ast_add_hint_nolock(struct ast_exten *e)
 {
 	struct ast_hint *hint;
 
 	if (!e)
 		return -1;
 
-	AST_RWLIST_WRLOCK(&hints);
-
 	/* Search if hint exists, do nothing */
 	AST_RWLIST_TRAVERSE(&hints, hint, list) {
 		if (hint->exten == e) {
-			AST_RWLIST_UNLOCK(&hints);
 			ast_debug(2, "HINTS: Not re-adding existing hint %s: %s\n", ast_get_extension_name(e), ast_get_extension_app(e));
 			return -1;
 		}
@@ -3987,7 +3995,6 @@ static int ast_add_hint(struct ast_exten *e)
 	ast_debug(2, "HINTS: Adding hint %s: %s\n", ast_get_extension_name(e), ast_get_extension_app(e));
 
 	if (!(hint = ast_calloc(1, sizeof(*hint)))) {
-		AST_RWLIST_UNLOCK(&hints);
 		return -1;
 	}
 	/* Initialize and insert new item at the top */
@@ -3995,8 +4002,19 @@ static int ast_add_hint(struct ast_exten *e)
 	hint->laststate = ast_extension_state2(e);
 	AST_RWLIST_INSERT_HEAD(&hints, hint, list);
 
-	AST_RWLIST_UNLOCK(&hints);
 	return 0;
+}
+
+/*! \brief Add hint to hint list, check initial extension state */
+static int ast_add_hint(struct ast_exten *e)
+{
+	int ret;
+
+	AST_RWLIST_WRLOCK(&hints);
+	ret = ast_add_hint_nolock(e);
+	AST_RWLIST_UNLOCK(&hints);
+	
+	return ret;
 }
 
 /*! \brief Change hint for an extension */
@@ -4559,6 +4577,22 @@ void pbx_set_overrideswitch(const char *newval)
 	} else {
 		overrideswitch = NULL;
 	}
+}
+
+/*!
+ * \brief lookup for a context with a given name,
+ * \retval found context or NULL if not found.
+*/
+static struct ast_context *find_context(const char *context)
+{
+	struct ast_context *c = NULL;
+	struct fake_context item;
+
+	ast_copy_string(item.name, context, sizeof(item.name));
+
+	c = ast_hashtab_lookup(contexts_table,&item);
+
+	return c;
 }
 
 /*!
@@ -6533,13 +6567,13 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 	}
 	ast_hashtab_end_traversal(iter);
 	wrlock_ver = ast_wrlock_contexts_version();
-
+	
 	ast_unlock_contexts(); /* this feels real retarded, but you must do
 							  what you must do If this isn't done, the following 
 						      wrlock is a guraranteed deadlock */
 	ast_wrlock_contexts();
 	if (ast_wrlock_contexts_version() > wrlock_ver+1) {
-		ast_log(LOG_WARNING,"Something changed the contexts in the middle of merging contexts!\n");
+		ast_log(LOG_WARNING,"==================!!!!!!!!!!!!!!!Something changed the contexts in the middle of merging contexts!\n");
 	}
 	
 	AST_RWLIST_WRLOCK(&hints);
@@ -6580,7 +6614,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 		 * individual extension, because the pattern will no longer match first.
 		 */
 		if (exten && exten->exten[0] == '_') {
-			ast_add_extension(exten->parent->name, 0, this->exten, PRIORITY_HINT, NULL,
+			ast_add_extension_nolock(exten->parent->name, 0, this->exten, PRIORITY_HINT, NULL,
 				0, exten->app, ast_strdup(exten->data), ast_free_ptr, registrar);
 			/* rwlocks are not recursive locks */
 			exten = ast_hint_extension_nolock(NULL, this->context, this->exten);
@@ -7159,6 +7193,25 @@ int ast_ignore_pattern(const char *context, const char *pattern)
 }
 
 /*
+ * ast_add_extension_nolock -- use only in situations where the conlock is already held
+ * ENOENT  - no existence of context
+ *
+ */
+static int ast_add_extension_nolock(const char *context, int replace, const char *extension,
+	int priority, const char *label, const char *callerid,
+	const char *application, void *data, void (*datad)(void *), const char *registrar)
+{
+	int ret = -1;
+	struct ast_context *c = find_context(context);
+
+	if (c) {
+		ret = ast_add_extension2_lockopt(c, replace, extension, priority, label, callerid,
+			application, data, datad, registrar, 0, 0);
+	}
+	
+	return ret;
+}
+/*
  * EBUSY   - can't lock
  * ENOENT  - no existence of context
  *
@@ -7301,6 +7354,17 @@ static int ext_strncpy(char *dst, const char *src, int len)
 static int add_pri(struct ast_context *con, struct ast_exten *tmp,
 	struct ast_exten *el, struct ast_exten *e, int replace)
 {
+	return add_pri_lockopt(con, tmp, el, e, replace, 1);
+}
+
+/*! 
+ * \brief add the extension in the priority chain.
+ * \retval 0 on success.
+ * \retval -1 on failure.
+*/
+static int add_pri_lockopt(struct ast_context *con, struct ast_exten *tmp,
+	struct ast_exten *el, struct ast_exten *e, int replace, int lockhints)
+{
 	struct ast_exten *ep;
 	struct ast_exten *eh=e;
 
@@ -7435,8 +7499,13 @@ static int add_pri(struct ast_context *con, struct ast_exten *tmp,
 			e->next = NULL;	/* e is no more at the head, so e->next must be reset */
 		}
 		/* And immediately return success. */
-		if (tmp->priority == PRIORITY_HINT)
-			 ast_add_hint(tmp);
+		if (tmp->priority == PRIORITY_HINT) {
+			if (lockhints) {
+				ast_add_hint(tmp);
+			} else {
+				ast_add_hint_nolock(tmp);
+			}
+		}
 	}
 	return 0;
 }
@@ -7470,6 +7539,19 @@ int ast_add_extension2(struct ast_context *con,
 	int replace, const char *extension, int priority, const char *label, const char *callerid,
 	const char *application, void *data, void (*datad)(void *),
 	const char *registrar)
+{
+	return ast_add_extension2_lockopt(con, replace, extension, priority, label, callerid, application, data, datad, registrar, 1, 1);
+}
+
+/*! \brief
+ * Does all the work of ast_add_extension2, but adds two args, to determine if 
+ * context and hint locking should be done. In merge_and_delete, we need to do
+ * this without locking, as the locks are already held.
+ */
+static int ast_add_extension2_lockopt(struct ast_context *con,
+	int replace, const char *extension, int priority, const char *label, const char *callerid,
+	const char *application, void *data, void (*datad)(void *),
+	const char *registrar, int lockconts, int lockhints)
 {
 	/*
 	 * Sort extensions (or patterns) according to the rules indicated above.
@@ -7543,7 +7625,9 @@ int ast_add_extension2(struct ast_context *con,
 	tmp->datad = datad;
 	tmp->registrar = registrar;
 
-	ast_wrlock_context(con);
+	if (lockconts) {
+		ast_wrlock_context(con);
+	}
 	
 	if (con->pattern_tree) { /* usually, on initial load, the pattern_tree isn't formed until the first find_exten; so if we are adding
 								an extension, and the trie exists, then we need to incrementally add this pattern to it. */
@@ -7576,7 +7660,9 @@ int ast_add_extension2(struct ast_context *con,
 	}
 	if (e && res == 0) { /* exact match, insert in the pri chain */
 		res = add_pri(con, tmp, el, e, replace);
-		ast_unlock_context(con);
+		if (lockconts) {
+			ast_unlock_context(con);
+		}
 		if (res < 0) {
 			errno = EEXIST;	/* XXX do we care ? */
 			return 0; /* XXX should we return -1 maybe ? */
@@ -7633,9 +7719,16 @@ int ast_add_extension2(struct ast_context *con,
 				
 		}
 		ast_hashtab_insert_safe(con->root_table, tmp);
-		ast_unlock_context(con);
-		if (tmp->priority == PRIORITY_HINT)
-			ast_add_hint(tmp);
+		if (lockconts) {
+			ast_unlock_context(con);
+		}
+		if (tmp->priority == PRIORITY_HINT) {
+			if (lockhints) {
+				ast_add_hint(tmp);
+			} else {
+				ast_add_hint_nolock(tmp);
+			}
+		}
 	}
 	if (option_debug) {
 		if (tmp->matchcid) {
