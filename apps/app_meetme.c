@@ -145,6 +145,8 @@ enum {
 	CONFFLAG_EMPTY = (1 << 18),
 	CONFFLAG_EMPTYNOPIN = (1 << 19),
 	CONFFLAG_ALWAYSPROMPT = (1 << 20),
+	/*! If set, treat talking users as muted users */
+	CONFFLAG_OPTIMIZETALKER = (1 << 21),
 	/*! If set, won't speak the extra prompt when the first person 
 	 *  enters the conference */
 	CONFFLAG_NOONLYPERSON = (1 << 22),
@@ -189,6 +191,7 @@ AST_APP_OPTIONS(meetme_opts, BEGIN_OPTIONS
 	AST_APP_OPTION('I', CONFFLAG_INTROUSERNOREVIEW ),
 	AST_APP_OPTION_ARG('M', CONFFLAG_MOH, OPT_ARG_MOH_CLASS ),
 	AST_APP_OPTION('m', CONFFLAG_STARTMUTED ),
+	AST_APP_OPTION('o', CONFFLAG_OPTIMIZETALKER ),
 	AST_APP_OPTION('P', CONFFLAG_ALWAYSPROMPT ),
 	AST_APP_OPTION_ARG('p', CONFFLAG_KEYEXIT, OPT_ARG_EXITKEYS ),
 	AST_APP_OPTION('q', CONFFLAG_QUIET ),
@@ -2093,7 +2096,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			x = 1;
 			ast_channel_setoption(chan, AST_OPTION_TONE_VERIFY, &x, sizeof(char), 0);
 		}	
-		if (!(confflags & CONFFLAG_MONITOR) && !(dsp = ast_dsp_new())) {
+		if ((confflags & CONFFLAG_OPTIMIZETALKER) && !(confflags & CONFFLAG_MONITOR) && !(dsp = ast_dsp_new())) {
 			ast_log(LOG_WARNING, "Unable to allocate DSP!\n");
 			res = -1;
 		}
@@ -2410,7 +2413,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					if (user->talk.actual)
 						ast_frame_adjust_volume(f, user->talk.actual);
 
-					if (!(confflags & CONFFLAG_MONITOR)) {
+					if ((confflags & CONFFLAG_OPTIMIZETALKER) && !(confflags & CONFFLAG_MONITOR)) {
 						int totalsilence;
 
 						if (user->talking == -1)
@@ -2453,8 +2456,9 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						   don't want to block, but we do want to at least *try*
 						   to write out all the samples.
 						 */
-						if (user->talking)
+						if (user->talking && !(confflags & CONFFLAG_OPTIMIZETALKER)) {
 							careful_write(fd, f->data, f->datalen, 0);
+						}
 					}
 				} else if (((f->frametype == AST_FRAME_DTMF) && (f->subclass == '*') && (confflags & CONFFLAG_STARMENU)) || ((f->frametype == AST_FRAME_DTMF) && menu_active)) {
 					if (confflags & CONFFLAG_PASS_DTMF)
@@ -2672,10 +2676,11 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					fr.samples = res / 2;
 					fr.data = buf;
 					fr.offset = AST_FRIENDLY_OFFSET;
-					if (!user->listen.actual && 
-						((confflags & CONFFLAG_MONITOR) || 
+					if (!user->listen.actual &&
+						((confflags & CONFFLAG_MONITOR) ||
 						 (user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED)) ||
-						 (!user->talking)) ) {
+						 (!user->talking && (confflags & CONFFLAG_OPTIMIZETALKER))
+						 )) {
 						int index;
 						for (index = 0; index < AST_FRAME_BITS; index++)
 							if (chan->rawwriteformat & (1 << index))
