@@ -4064,55 +4064,69 @@ static int action_bridge(struct mansession *s, const struct message *m)
 	struct ast_bridge_thread_obj *tobj = NULL;
 
 	/* make sure valid channels were specified */
-	if (!ast_strlen_zero(channela) && !ast_strlen_zero(channelb)) {
-		chana = ast_get_channel_by_name_prefix_locked(channela, strlen(channela));
-		chanb = ast_get_channel_by_name_prefix_locked(channelb, strlen(channelb));
-		if (chana)
-			ast_channel_unlock(chana);
-		if (chanb)
-			ast_channel_unlock(chanb);
-
-		/* send errors if any of the channels could not be found/locked */
-		if (!chana) {
-			char buf[256];
-			snprintf(buf, sizeof(buf), "Channel1 does not exists: %s", channela);
-			astman_send_error(s, m, buf);
-			return 0;
-		}
-		if (!chanb) {
-			char buf[256];
-			snprintf(buf, sizeof(buf), "Channel2 does not exists: %s", channelb);
-			astman_send_error(s, m, buf);
-			return 0;
-		}
-	} else {
+	if (ast_strlen_zero(channela) || ast_strlen_zero(channelb)) {
 		astman_send_error(s, m, "Missing channel parameter in request");
+		return 0;
+	}
+
+	/* The same code must be executed for chana and chanb.  To avoid a
+	 * theoretical deadlock, this code is separated so both chana and chanb will
+	 * not hold locks at the same time. */
+
+	/* Start with chana */
+	chana = ast_get_channel_by_name_prefix_locked(channela, strlen(channela));
+
+	/* send errors if any of the channels could not be found/locked */
+	if (!chana) {
+		char buf[256];
+		snprintf(buf, sizeof(buf), "Channel1 does not exists: %s", channela);
+		astman_send_error(s, m, buf);
 		return 0;
 	}
 
 	/* Answer the channels if needed */
 	if (chana->_state != AST_STATE_UP)
 		ast_answer(chana);
-	if (chanb->_state != AST_STATE_UP)
-		ast_answer(chanb);
 
 	/* create the placeholder channels and grab the other channels */
 	if (!(tmpchana = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, 
 		NULL, NULL, 0, "Bridge/%s", chana->name))) {
 		astman_send_error(s, m, "Unable to create temporary channel!");
-		return 1;
-	}
-
-	if (!(tmpchanb = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, 
-		NULL, NULL, 0, "Bridge/%s", chanb->name))) {
-		astman_send_error(s, m, "Unable to create temporary channels!");
-		ast_channel_free(tmpchana);
+		ast_channel_unlock(chana);
 		return 1;
 	}
 
 	do_bridge_masquerade(chana, tmpchana);
+	ast_channel_unlock(chana);
+	chana = NULL;
+
+	/* now do chanb */
+	chanb = ast_get_channel_by_name_prefix_locked(channelb, strlen(channelb));
+	/* send errors if any of the channels could not be found/locked */
+	if (!chanb) {
+		char buf[256];
+		snprintf(buf, sizeof(buf), "Channel2 does not exists: %s", channelb);
+		ast_hangup(tmpchana);
+		astman_send_error(s, m, buf);
+		return 0;
+	}
+
+	/* Answer the channels if needed */
+	if (chanb->_state != AST_STATE_UP)
+		ast_answer(chanb);
+
+	/* create the placeholder channels and grab the other channels */
+	if (!(tmpchanb = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, 
+		NULL, NULL, 0, "Bridge/%s", chanb->name))) {
+		astman_send_error(s, m, "Unable to create temporary channels!");
+		ast_hangup(tmpchana);
+		ast_channel_unlock(chanb);
+		return 1;
+	}
 	do_bridge_masquerade(chanb, tmpchanb);
-	
+	ast_channel_unlock(chanb);
+	chanb = NULL;
+
 	/* make the channels compatible, send error if we fail doing so */
 	if (ast_channel_make_compatible(tmpchana, tmpchanb)) {
 		ast_log(LOG_WARNING, "Could not make channels %s and %s compatible for manager bridge\n", tmpchana->name, tmpchanb->name);
@@ -4134,7 +4148,7 @@ static int action_bridge(struct mansession *s, const struct message *m)
 	tobj->chan = tmpchana;
 	tobj->peer = tmpchanb;
 	tobj->return_to_pbx = 1;
-	
+
 	if (ast_true(playtone)) {
 		if (!ast_strlen_zero(xfersound) && !ast_streamfile(tmpchanb, xfersound, tmpchanb->language)) {
 			if (ast_waitstream(tmpchanb, "") < 0)
@@ -4452,7 +4466,6 @@ static int bridge_exec(struct ast_channel *chan, void *data)
 		pbx_builtin_setvar_helper(chan, "BRIDGERESULT", "NONEXISTENT");
 		return 0;
 	}
-	ast_channel_unlock(current_dest_chan);
 
 	/* answer the channel if needed */
 	if (current_dest_chan->_state != AST_STATE_UP)
@@ -4469,6 +4482,8 @@ static int bridge_exec(struct ast_channel *chan, void *data)
 					"Channel2: %s\r\n", chan->name, args.dest_chan);
 	}
 	do_bridge_masquerade(current_dest_chan, final_dest_chan);
+
+	ast_channel_unlock(current_dest_chan);
 
 	/* now current_dest_chan is a ZOMBIE and with softhangup set to 1 and final_dest_chan is our end point */
 	/* try to make compatible, send error if we fail */
