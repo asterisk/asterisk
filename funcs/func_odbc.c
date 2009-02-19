@@ -2,6 +2,7 @@
  * Asterisk -- An open source telephony toolkit.
  *
  * Copyright (c) 2005, 2006 Tilghman Lesher
+ * Copyright (c) 2008 Digium, Inc.
  *
  * Tilghman Lesher <func_odbc__200508@the-tilghman.com>
  *
@@ -205,6 +206,7 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 	struct acf_odbc_query *query;
 	char *t, varname[15];
 	int i, dsn, bogus_chan = 0;
+	int transactional = 0;
 	AST_DECLARE_APP_ARGS(values,
 		AST_APP_ARG(field)[100];
 	);
@@ -293,16 +295,32 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 	}
 	pbx_builtin_setvar_helper(chan, "VALUE", NULL);
 
+	/*!\note
+	 * Okay, this part is confusing.  Transactions belong to a single database
+	 * handle.  Therefore, when working with transactions, we CANNOT failover
+	 * to multiple DSNs.  We MUST have a single handle all the way through the
+	 * transaction, or else we CANNOT enforce atomicity.
+	 */
 	for (dsn = 0; dsn < 5; dsn++) {
-		if (!ast_strlen_zero(query->writehandle[dsn])) {
-			obj = ast_odbc_request_obj(query->writehandle[dsn], 0);
-			if (obj)
-				stmt = ast_odbc_direct_execute(obj, generic_execute, ast_str_buffer(buf));
+		if (transactional) {
+			/* This can only happen second time through or greater. */
+			ast_log(LOG_WARNING, "Transactions do not work well with multiple DSNs for 'writehandle'\n");
 		}
-		if (stmt) {
-			status = "SUCCESS";
-			SQLRowCount(stmt, &rows);
-			break;
+
+		if (!ast_strlen_zero(query->writehandle[dsn])) {
+			if ((obj = ast_odbc_retrieve_transaction_obj(chan, query->writehandle[dsn]))) {
+				transactional = 1;
+			} else {
+				obj = ast_odbc_request_obj(query->writehandle[dsn], 0);
+				transactional = 0;
+			}
+			if (obj && (stmt = ast_odbc_direct_execute(obj, generic_execute, ast_str_buffer(buf)))) {
+				break;
+			}
+		}
+
+		if (obj && !transactional) {
+			ast_odbc_release_obj(obj);
 		}
 	}
 
@@ -322,6 +340,9 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 				break;
 			}
 		}
+	} else if (stmt) {
+		status = "SUCCESS";
+		SQLRowCount(stmt, &rows);
 	}
 
 	AST_RWLIST_UNLOCK(&queries);
@@ -338,7 +359,7 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 		SQLCloseCursor(stmt);
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 	}
-	if (obj) {
+	if (obj && !transactional) {
 		ast_odbc_release_obj(obj);
 		obj = NULL;
 	}

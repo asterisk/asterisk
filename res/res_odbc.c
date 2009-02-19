@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2008, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -25,6 +25,7 @@
  * 
  * \author Mark Spencer <markster@digium.com>
  * \author Anthony Minessale II <anthmct@yahoo.com>
+ * \author Tilghman Lesher <tilghman@digium.com>
  *
  * \arg See also: \ref cdr_odbc
  */
@@ -48,7 +49,69 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/res_odbc.h"
 #include "asterisk/time.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/app.h"
 #include "asterisk/strings.h"
+#include "asterisk/threadstorage.h"
+
+/*** DOCUMENTATION
+	<function name="ODBC" language="en_US">
+		<synopsis>
+			Controls ODBC transaction properties.
+		</synopsis>
+		<syntax>
+			<parameter name="property" required="true">
+				<enumlist>
+					<enum name="transaction">
+						<para>Gets or sets the active transaction ID.  If set, and the transaction ID does not
+						exist and a <replaceable>database name</replaceable> is specified as an argument, it will be created.</para>
+					</enum>
+					<enum name="forcecommit">
+						<para>Controls whether a transaction will be automatically committed when the channel
+						hangs up.  Defaults to false.  If a <replaceable>transaction ID</replaceable> is specified in the optional argument,
+						the property will be applied to that ID, otherwise to the current active ID.</para>
+					</enum>
+					<enum name="isolation">
+						<para>Controls the data isolation on uncommitted transactions.  May be one of the
+						following: <literal>read_committed</literal>, <literal>read_uncommitted</literal>,
+						<literal>repeatable_read</literal>, or <literal>serializable</literal>.  Defaults to the
+						database setting in <filename>res_odbc.conf</filename> or <literal>read_committed</literal>
+						if not specified.  If a <replaceable>transaction ID</replaceable> is specified as an optional argument, it will be
+						applied to that ID, otherwise the current active ID.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+			<parameter name="argument" required="false" />
+		</syntax>
+		<description>
+			<para>The ODBC() function allows setting several properties to influence how a connected
+			database processes transactions.</para>
+		</description>
+	</function>
+	<application name="ODBC_Commit" language="en_US">
+		<synopsis>
+			Commits a currently open database transaction.
+		</synopsis>
+		<syntax>
+			<parameter name="transaction ID" required="no" />
+		</syntax>
+		<description>
+			<para>Commits the database transaction specified by <replaceable>transaction ID</replaceable>
+			or the current active transaction, if not specified.</para>
+		</description>
+	</application>
+	<application name="ODBC_Rollback" language="en_US">
+		<synopsis>
+			Rollback a currently open database transaction.
+		</synopsis>
+		<syntax>
+			<parameter name="transaction ID" required="no" />
+		</syntax>
+		<description>
+			<para>Rolls back the database transaction specified by <replaceable>transaction ID</replaceable>
+			or the current active transaction, if not specified.</para>
+		</description>
+	</application>
+ ***/
 
 struct odbc_class
 {
@@ -59,12 +122,14 @@ struct odbc_class
 	char *password;
 	char *sanitysql;
 	SQLHENV env;
-	unsigned int haspool:1;              /* Boolean - TDS databases need this */
-	unsigned int delme:1;                /* Purge the class */
-	unsigned int backslash_is_escape:1;  /* On this database, the backslash is a native escape sequence */
-	unsigned int limit;                  /* 1023 wasn't enough for some people */
-	unsigned int count;                  /* Running count of pooled connections */
-	unsigned int idlecheck;              /* Recheck the connection if it is idle for this long */
+	unsigned int haspool:1;              /*!< Boolean - TDS databases need this */
+	unsigned int delme:1;                /*!< Purge the class */
+	unsigned int backslash_is_escape:1;  /*!< On this database, the backslash is a native escape sequence */
+	unsigned int forcecommit:1;          /*!< Should uncommitted transactions be auto-committed on handle release? */
+	unsigned int isolation;              /*!< Flags for how the DB should deal with data in other, uncommitted transactions */
+	unsigned int limit;                  /*!< Maximum number of database handles we will allow */
+	int count;                           /*!< Running count of pooled connections */
+	unsigned int idlecheck;              /*!< Recheck the connection if it is idle for this long (in seconds) */
 	struct ao2_container *obj_container;
 };
 
@@ -75,6 +140,232 @@ static AST_RWLIST_HEAD_STATIC(odbc_tables, odbc_cache_tables);
 static odbc_status odbc_obj_connect(struct odbc_obj *obj);
 static odbc_status odbc_obj_disconnect(struct odbc_obj *obj);
 static int odbc_register_class(struct odbc_class *class, int connect);
+static void odbc_txn_free(void *data);
+static void odbc_release_obj2(struct odbc_obj *obj, struct odbc_txn_frame *tx);
+
+AST_THREADSTORAGE(errors_buf);
+
+static struct ast_datastore_info txn_info = {
+	.type = "ODBC_Transaction",
+	.destroy = odbc_txn_free,
+};
+
+struct odbc_txn_frame {
+	AST_LIST_ENTRY(odbc_txn_frame) list;
+	struct ast_channel *owner;
+	struct odbc_obj *obj;        /*!< Database handle within which transacted statements are run */
+	/*!\brief Is this record the current active transaction within the channel?
+	 * Note that the active flag is really only necessary for statements which
+	 * are triggered from the dialplan, as there isn't a direct correlation
+	 * between multiple statements.  Applications wishing to use transactions
+	 * may simply perform each statement on the same odbc_obj, which keeps the
+	 * transaction persistent.
+	 */
+	unsigned int active:1;
+	unsigned int forcecommit:1;     /*!< Should uncommitted transactions be auto-committed on handle release? */
+	unsigned int isolation;         /*!< Flags for how the DB should deal with data in other, uncommitted transactions */
+	char name[0];                   /*!< Name of this transaction ID */
+};
+
+static const char *isolation2text(int iso)
+{
+	if (iso == SQL_TXN_READ_COMMITTED) {
+		return "read_committed";
+	} else if (iso == SQL_TXN_READ_UNCOMMITTED) {
+		return "read_uncommitted";
+	} else if (iso == SQL_TXN_SERIALIZABLE) {
+		return "serializable";
+	} else if (iso == SQL_TXN_REPEATABLE_READ) {
+		return "repeatable_read";
+	} else {
+		return "unknown";
+	}
+}
+
+static int text2isolation(const char *txt)
+{
+	if (strncasecmp(txt, "read_", 5) == 0) {
+		if (strncasecmp(txt + 5, "c", 1) == 0) {
+			return SQL_TXN_READ_COMMITTED;
+		} else if (strncasecmp(txt + 5, "u", 1) == 0) {
+			return SQL_TXN_READ_UNCOMMITTED;
+		} else {
+			return 0;
+		}
+	} else if (strncasecmp(txt, "ser", 3) == 0) {
+		return SQL_TXN_SERIALIZABLE;
+	} else if (strncasecmp(txt, "rep", 3) == 0) {
+		return SQL_TXN_REPEATABLE_READ;
+	} else {
+		return 0;
+	}
+}
+
+static struct odbc_txn_frame *find_transaction(struct ast_channel *chan, struct odbc_obj *obj, const char *name, int active)
+{
+	struct ast_datastore *txn_store;
+	AST_LIST_HEAD(, odbc_txn_frame) *oldlist;
+	struct odbc_txn_frame *txn = NULL;
+
+	if (!chan && obj && obj->txf && obj->txf->owner) {
+		chan = obj->txf->owner;
+	} else if (!chan) {
+		/* No channel == no transaction */
+		return NULL;
+	}
+
+	ast_channel_lock(chan);
+	if ((txn_store = ast_channel_datastore_find(chan, &txn_info, NULL))) {
+		oldlist = txn_store->data;
+	} else {
+		/* Need to create a new datastore */
+		if (!(txn_store = ast_datastore_alloc(&txn_info, NULL))) {
+			ast_log(LOG_ERROR, "Unable to allocate a new datastore.  Cannot create a new transaction.\n");
+			ast_channel_unlock(chan);
+			return NULL;
+		}
+
+		if (!(oldlist = ast_calloc(1, sizeof(*oldlist)))) {
+			ast_log(LOG_ERROR, "Unable to allocate datastore list head.  Cannot create a new transaction.\n");
+			ast_datastore_free(txn_store);
+			ast_channel_unlock(chan);
+			return NULL;
+		}
+
+		txn_store->data = oldlist;
+		AST_LIST_HEAD_INIT(oldlist);
+		ast_channel_datastore_add(chan, txn_store);
+	}
+
+	AST_LIST_LOCK(oldlist);
+	ast_channel_unlock(chan);
+
+	/* Scanning for an object is *fast*.  Scanning for a name is much slower. */
+	if (obj != NULL || active == 1) {
+		AST_LIST_TRAVERSE(oldlist, txn, list) {
+			if (txn->obj == obj || txn->active) {
+				AST_LIST_UNLOCK(oldlist);
+				return txn;
+			}
+		}
+	}
+
+	if (name != NULL) {
+		AST_LIST_TRAVERSE(oldlist, txn, list) {
+			if (!strcasecmp(txn->name, name)) {
+				AST_LIST_UNLOCK(oldlist);
+				return txn;
+			}
+		}
+	}
+
+	/* Nothing found, create one */
+	if (name && obj && (txn = ast_calloc(1, sizeof(*txn) + strlen(name) + 1))) {
+		struct odbc_txn_frame *otxn;
+
+		strcpy(txn->name, name); /* SAFE */
+		txn->obj = obj;
+		txn->isolation = obj->parent->isolation;
+		txn->forcecommit = obj->parent->forcecommit;
+		txn->owner = chan;
+		txn->active = 1;
+
+		/* On creation, the txn becomes active, and all others inactive */
+		AST_LIST_TRAVERSE(oldlist, otxn, list) {
+			otxn->active = 0;
+		}
+		AST_LIST_INSERT_TAIL(oldlist, txn, list);
+
+		obj->txf = txn;
+		obj->tx = 1;
+	}
+	AST_LIST_UNLOCK(oldlist);
+
+	return txn;
+}
+
+static struct odbc_txn_frame *release_transaction(struct odbc_txn_frame *tx)
+{
+	if (!tx) {
+		return NULL;
+	}
+
+	ast_debug(2, "release_transaction(%p) called (tx->obj = %p, tx->obj->txf = %p)\n", tx, tx->obj, tx->obj ? tx->obj->txf : NULL);
+
+	/* If we have an owner, disassociate */
+	if (tx->owner) {
+		struct ast_datastore *txn_store;
+		AST_LIST_HEAD(, odbc_txn_frame) *oldlist;
+
+		ast_channel_lock(tx->owner);
+		if ((txn_store = ast_channel_datastore_find(tx->owner, &txn_info, NULL))) {
+			oldlist = txn_store->data;
+			AST_LIST_LOCK(oldlist);
+			AST_LIST_REMOVE(oldlist, tx, list);
+			AST_LIST_UNLOCK(oldlist);
+		}
+		ast_channel_unlock(tx->owner);
+		tx->owner = NULL;
+	}
+
+	if (tx->obj) {
+		/* If we have any uncommitted transactions, they are handled when we release the object */
+		struct odbc_obj *obj = tx->obj;
+		/* Prevent recursion during destruction */
+		tx->obj->txf = NULL;
+		tx->obj = NULL;
+		odbc_release_obj2(obj, tx);
+	}
+	ast_free(tx);
+	return NULL;
+}
+
+static void odbc_txn_free(void *vdata)
+{
+	struct odbc_txn_frame *tx;
+	AST_LIST_HEAD(, odbc_txn_frame) *oldlist = vdata;
+
+	ast_debug(2, "odbc_txn_free(%p) called\n", vdata);
+
+	AST_LIST_LOCK(oldlist);
+	while ((tx = AST_LIST_REMOVE_HEAD(oldlist, list))) {
+		release_transaction(tx);
+	}
+	AST_LIST_UNLOCK(oldlist);
+	AST_LIST_HEAD_DESTROY(oldlist);
+	ast_free(oldlist);
+}
+
+static int mark_transaction_active(struct ast_channel *chan, struct odbc_txn_frame *tx)
+{
+	struct ast_datastore *txn_store;
+	AST_LIST_HEAD(, odbc_txn_frame) *oldlist;
+	struct odbc_txn_frame *active = NULL, *txn;
+
+	if (!chan && tx && tx->owner) {
+		chan = tx->owner;
+	}
+
+	ast_channel_lock(chan);
+	if (!(txn_store = ast_channel_datastore_find(chan, &txn_info, NULL))) {
+		ast_channel_unlock(chan);
+		return -1;
+	}
+
+	oldlist = txn_store->data;
+	AST_LIST_LOCK(oldlist);
+	AST_LIST_TRAVERSE(oldlist, txn, list) {
+		if (txn == tx) {
+			txn->active = 1;
+			active = txn;
+		} else {
+			txn->active = 0;
+		}
+	}
+	AST_LIST_UNLOCK(oldlist);
+	ast_channel_unlock(chan);
+	return active ? 0 : -1;
+}
 
 static void odbc_class_destructor(void *data)
 {
@@ -82,12 +373,15 @@ static void odbc_class_destructor(void *data)
 	/* Due to refcounts, we can safely assume that any objects with a reference
 	 * to us will prevent our destruction, so we don't need to worry about them.
 	 */
-	if (class->username)
+	if (class->username) {
 		ast_free(class->username);
-	if (class->password)
+	}
+	if (class->password) {
 		ast_free(class->password);
-	if (class->sanitysql)
+	}
+	if (class->sanitysql) {
 		ast_free(class->sanitysql);
+	}
 	ao2_ref(class->obj_container, -1);
 	SQLFreeHandle(SQL_HANDLE_ENV, class->env);
 }
@@ -154,18 +448,18 @@ struct odbc_cache_tables *ast_odbc_find_table(const char *database, const char *
 
 	if (!obj) {
 		ast_log(LOG_WARNING, "Unable to retrieve database handle for table description '%s@%s'\n", tablename, database);
+		AST_RWLIST_UNLOCK(&odbc_tables);
 		return NULL;
 	}
 
 	/* Table structure not already cached; build it now. */
 	do {
-retry:
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			if (try == 0) {
 				try = 1;
 				ast_odbc_sanity_check(obj);
-				goto retry;
+				continue;
 			}
 			ast_log(LOG_WARNING, "SQL Alloc Handle failed on connection '%s'!\n", database);
 			break;
@@ -177,7 +471,7 @@ retry:
 				try = 1;
 				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 				ast_odbc_sanity_check(obj);
-				goto retry;
+				continue;
 			}
 			ast_log(LOG_ERROR, "Unable to query database columns on connection '%s'.\n", database);
 			break;
@@ -227,7 +521,8 @@ retry:
 
 		AST_RWLIST_INSERT_TAIL(&odbc_tables, tableptr, list);
 		AST_RWLIST_RDLOCK(&(tableptr->columns));
-	} while (0);
+		break;
+	} while (1);
 
 	AST_RWLIST_UNLOCK(&odbc_tables);
 
@@ -279,6 +574,9 @@ SQLHSTMT ast_odbc_direct_execute(struct odbc_obj *obj, SQLHSTMT (*exec_cb)(struc
 
 		if (stmt) {
 			break;
+		} else if (obj->tx) {
+			ast_log(LOG_WARNING, "Failed to execute, but unable to reconnect, as we're transactional.\n");
+			break;
 		} else {
 			obj->up = 0;
 			ast_log(LOG_WARNING, "SQL Exec Direct failed.  Attempting a reconnect...\n");
@@ -322,22 +620,29 @@ SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_c
 					}
 				}
 
-				ast_log(LOG_WARNING, "SQL Execute error %d! Attempting a reconnect...\n", res);
-				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-				stmt = NULL;
+				if (obj->tx) {
+					ast_log(LOG_WARNING, "SQL Execute error, but unable to reconnect, as we're transactional.\n");
+					break;
+				} else {
+					ast_log(LOG_WARNING, "SQL Execute error %d! Attempting a reconnect...\n", res);
+					SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+					stmt = NULL;
 
-				obj->up = 0;
-				/*
-				 * While this isn't the best way to try to correct an error, this won't automatically
-				 * fail when the statement handle invalidates.
-				 */
-				ast_odbc_sanity_check(obj);
-				continue;
-			} else
+					obj->up = 0;
+					/*
+					 * While this isn't the best way to try to correct an error, this won't automatically
+					 * fail when the statement handle invalidates.
+					 */
+					ast_odbc_sanity_check(obj);
+					continue;
+				}
+			} else {
 				obj->last_used = ast_tvnow();
+			}
 			break;
-		} else if (attempt == 0)
+		} else if (attempt == 0) {
 			ast_odbc_sanity_check(obj);
+		}
 	}
 
 	return stmt;
@@ -413,7 +718,7 @@ int ast_odbc_sanity_check(struct odbc_obj *obj)
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 	}
 
-	if (!obj->up) { /* Try to reconnect! */
+	if (!obj->up && !obj->tx) { /* Try to reconnect! */
 		ast_log(LOG_WARNING, "Connection is down attempting to reconnect...\n");
 		odbc_obj_disconnect(obj);
 		odbc_obj_connect(obj);
@@ -428,7 +733,7 @@ static int load_odbc_config(void)
 	struct ast_variable *v;
 	char *cat;
 	const char *dsn, *username, *password, *sanitysql;
-	int enabled, pooling, limit, bse;
+	int enabled, pooling, limit, bse, forcecommit, isolation;
 	unsigned int idlecheck;
 	int preconnect = 0, res = 0;
 	struct ast_flags config_flags = { 0 };
@@ -454,6 +759,8 @@ static int load_odbc_config(void)
 			pooling = 0;
 			limit = 0;
 			bse = 1;
+			forcecommit = 0;
+			isolation = SQL_TXN_READ_COMMITTED;
 			for (v = ast_variable_browse(config, cat); v; v = v->next) {
 				if (!strcasecmp(v->name, "pooling")) {
 					if (ast_true(v->value))
@@ -488,6 +795,13 @@ static int load_odbc_config(void)
 					sanitysql = v->value;
 				} else if (!strcasecmp(v->name, "backslash_is_escape")) {
 					bse = ast_true(v->value);
+				} else if (!strcasecmp(v->name, "forcecommit")) {
+					forcecommit = ast_true(v->value);
+				} else if (!strcasecmp(v->name, "isolation")) {
+					if ((isolation = text2isolation(v->value)) == 0) {
+						ast_log(LOG_ERROR, "Unrecognized value for 'isolation': '%s' in section '%s'\n", v->value, cat);
+						isolation = SQL_TXN_READ_COMMITTED;
+					}
 				}
 			}
 
@@ -521,6 +835,8 @@ static int load_odbc_config(void)
 				}
 
 				new->backslash_is_escape = bse ? 1 : 0;
+				new->forcecommit = forcecommit ? 1 : 0;
+				new->isolation = isolation;
 				new->idlecheck = idlecheck;
 
 				if (cat)
@@ -616,10 +932,11 @@ static char *handle_cli_odbc_show(struct ast_cli_entry *e, int cmd, struct ast_c
 					ao2_ref(current, -1);
 				}
 			} else {
-				/* Should only ever be one of these */
+				/* Should only ever be one of these (unless there are transactions) */
 				struct ao2_iterator aoi2 = ao2_iterator_init(class->obj_container, 0);
 				while ((current = ao2_iterator_next(&aoi2))) {
-					ast_cli(a->fd, "  Pooled: No\n  Connected: %s\n", current->up && ast_odbc_sanity_check(current) ? "Yes" : "No");
+					ast_cli(a->fd, "  Pooled: No\n  Connected: %s\n", current->used ? "In use" :
+						current->up && ast_odbc_sanity_check(current) ? "Yes" : "No");
 					ao2_ref(current, -1);
 				}
 			}
@@ -645,8 +962,9 @@ static int odbc_register_class(struct odbc_class *class, int preconnect)
 		if (preconnect) {
 			/* Request and release builds a connection */
 			obj = ast_odbc_request_obj(class->name, 0);
-			if (obj)
+			if (obj) {
 				ast_odbc_release_obj(obj);
+			}
 		}
 
 		return 0;
@@ -656,17 +974,69 @@ static int odbc_register_class(struct odbc_class *class, int preconnect)
 	}
 }
 
-void ast_odbc_release_obj(struct odbc_obj *obj)
+static void odbc_release_obj2(struct odbc_obj *obj, struct odbc_txn_frame *tx)
 {
-	/* For pooled connections, this frees the connection to be
-	 * reused.  For non-pooled connections, it does nothing. */
-	obj->used = 0;
+	SQLINTEGER nativeerror=0, numfields=0;
+	SQLSMALLINT diagbytes=0, i;
+	unsigned char state[10], diagnostic[256];
+
+	ast_debug(2, "odbc_release_obj2(%p) called (obj->txf = %p)\n", obj, obj->txf);
+	if (tx) {
+		ast_debug(1, "called on a transactional handle with %s\n", tx->forcecommit ? "COMMIT" : "ROLLBACK");
+		if (SQLEndTran(SQL_HANDLE_DBC, obj->con, tx->forcecommit ? SQL_COMMIT : SQL_ROLLBACK) == SQL_ERROR) {
+			/* Handle possible transaction commit failure */
+			SQLGetDiagField(SQL_HANDLE_DBC, obj->con, 1, SQL_DIAG_NUMBER, &numfields, SQL_IS_INTEGER, &diagbytes);
+			for (i = 0; i < numfields; i++) {
+				SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, i + 1, state, &nativeerror, diagnostic, sizeof(diagnostic), &diagbytes);
+				ast_log(LOG_WARNING, "SQLEndTran returned an error: %s: %s\n", state, diagnostic);
+				if (!strcmp((char *)state, "25S02") || !strcmp((char *)state, "08007")) {
+					/* These codes mean that a commit failed and a transaction
+					 * is still active. We must rollback, or things will get
+					 * very, very weird for anybody using the handle next. */
+					SQLEndTran(SQL_HANDLE_DBC, obj->con, SQL_ROLLBACK);
+				}
+				if (i > 10) {
+					ast_log(LOG_WARNING, "Oh, that was good.  There are really %d diagnostics?\n", (int)numfields);
+					break;
+				}
+			}
+		}
+
+		/* Transaction is done, reset autocommit */
+		if (SQLSetConnectAttr(obj->con, SQL_ATTR_AUTOCOMMIT, (void *)SQL_AUTOCOMMIT_ON, 0) == SQL_ERROR) {
+			SQLGetDiagField(SQL_HANDLE_DBC, obj->con, 1, SQL_DIAG_NUMBER, &numfields, SQL_IS_INTEGER, &diagbytes);
+			for (i = 0; i < numfields; i++) {
+				SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, i + 1, state, &nativeerror, diagnostic, sizeof(diagnostic), &diagbytes);
+				ast_log(LOG_WARNING, "SetConnectAttr (Autocommit) returned an error: %s: %s\n", state, diagnostic);
+				if (i > 10) {
+					ast_log(LOG_WARNING, "Oh, that was good.  There are really %d diagnostics?\n", (int)numfields);
+					break;
+				}
+			}
+		}
+	}
+
 #ifdef DEBUG_THREADS
 	obj->file[0] = '\0';
 	obj->function[0] = '\0';
 	obj->lineno = 0;
 #endif
+
+	/* For pooled connections, this frees the connection to be
+	 * reused.  For non-pooled connections, it does nothing. */
+	obj->used = 0;
+	if (obj->txf) {
+		/* Prevent recursion -- transaction is already closed out. */
+		obj->txf->obj = NULL;
+		obj->txf = release_transaction(obj->txf);
+	}
 	ao2_ref(obj, -1);
+}
+
+void ast_odbc_release_obj(struct odbc_obj *obj)
+{
+	struct odbc_txn_frame *tx = find_transaction(NULL, obj, NULL, 0);
+	odbc_release_obj2(obj, tx);
 }
 
 int ast_odbc_backslash_is_escape(struct odbc_obj *obj)
@@ -674,47 +1044,134 @@ int ast_odbc_backslash_is_escape(struct odbc_obj *obj)
 	return obj->parent->backslash_is_escape;
 }
 
+static int commit_exec(struct ast_channel *chan, void *data)
+{
+	struct odbc_txn_frame *tx;
+	SQLINTEGER nativeerror=0, numfields=0;
+	SQLSMALLINT diagbytes=0, i;
+	unsigned char state[10], diagnostic[256];
+
+	if (ast_strlen_zero(data)) {
+		tx = find_transaction(chan, NULL, NULL, 1);
+	} else {
+		tx = find_transaction(chan, NULL, data, 0);
+	}
+
+	pbx_builtin_setvar_helper(chan, "COMMIT_RESULT", "OK");
+
+	if (tx) {
+		if (SQLEndTran(SQL_HANDLE_DBC, tx->obj->con, SQL_COMMIT) == SQL_ERROR) {
+			struct ast_str *errors = ast_str_thread_get(&errors_buf, 16);
+			ast_str_reset(errors);
+
+			/* Handle possible transaction commit failure */
+			SQLGetDiagField(SQL_HANDLE_DBC, tx->obj->con, 1, SQL_DIAG_NUMBER, &numfields, SQL_IS_INTEGER, &diagbytes);
+			for (i = 0; i < numfields; i++) {
+				SQLGetDiagRec(SQL_HANDLE_DBC, tx->obj->con, i + 1, state, &nativeerror, diagnostic, sizeof(diagnostic), &diagbytes);
+				ast_str_append(&errors, 0, "%s%s", ast_str_strlen(errors) ? "," : "", state);
+				ast_log(LOG_WARNING, "SQLEndTran returned an error: %s: %s\n", state, diagnostic);
+				if (i > 10) {
+					ast_log(LOG_WARNING, "Oh, that was good.  There are really %d diagnostics?\n", (int)numfields);
+					break;
+				}
+			}
+			pbx_builtin_setvar_helper(chan, "COMMIT_RESULT", ast_str_buffer(errors));
+		}
+	}
+	return 0;
+}
+
+static int rollback_exec(struct ast_channel *chan, void *data)
+{
+	struct odbc_txn_frame *tx;
+	SQLINTEGER nativeerror=0, numfields=0;
+	SQLSMALLINT diagbytes=0, i;
+	unsigned char state[10], diagnostic[256];
+
+	if (ast_strlen_zero(data)) {
+		tx = find_transaction(chan, NULL, NULL, 1);
+	} else {
+		tx = find_transaction(chan, NULL, data, 0);
+	}
+
+	pbx_builtin_setvar_helper(chan, "ROLLBACK_RESULT", "OK");
+
+	if (tx) {
+		if (SQLEndTran(SQL_HANDLE_DBC, tx->obj->con, SQL_ROLLBACK) == SQL_ERROR) {
+			struct ast_str *errors = ast_str_thread_get(&errors_buf, 16);
+			ast_str_reset(errors);
+
+			/* Handle possible transaction commit failure */
+			SQLGetDiagField(SQL_HANDLE_DBC, tx->obj->con, 1, SQL_DIAG_NUMBER, &numfields, SQL_IS_INTEGER, &diagbytes);
+			for (i = 0; i < numfields; i++) {
+				SQLGetDiagRec(SQL_HANDLE_DBC, tx->obj->con, i + 1, state, &nativeerror, diagnostic, sizeof(diagnostic), &diagbytes);
+				ast_str_append(&errors, 0, "%s%s", ast_str_strlen(errors) ? "," : "", state);
+				ast_log(LOG_WARNING, "SQLEndTran returned an error: %s: %s\n", state, diagnostic);
+				if (i > 10) {
+					ast_log(LOG_WARNING, "Oh, that was good.  There are really %d diagnostics?\n", (int)numfields);
+					break;
+				}
+			}
+			pbx_builtin_setvar_helper(chan, "ROLLBACK_RESULT", ast_str_buffer(errors));
+		}
+	}
+	return 0;
+}
+
+static int aoro2_class_cb(void *obj, void *arg, int flags)
+{
+	struct odbc_class *class = obj;
+	char *name = arg;
+	if (!strcmp(class->name, name) && !class->delme) {
+		return CMP_MATCH | CMP_STOP;
+	}
+	return 0;
+}
+
+#define USE_TX (void *)(long)1
+#define NO_TX  (void *)(long)2
+#define EOR_TX (void *)(long)3
+
+static int aoro2_obj_cb(void *vobj, void *arg, int flags)
+{
+	struct odbc_obj *obj = vobj;
+	ast_mutex_lock(&obj->lock);
+	if ((arg == NO_TX && !obj->tx) || (arg == EOR_TX && !obj->used) || (arg == USE_TX && obj->tx && !obj->used)) {
+		obj->used = 1;
+		ast_mutex_unlock(&obj->lock);
+		return CMP_MATCH | CMP_STOP;
+	}
+	ast_mutex_unlock(&obj->lock);
+	return 0;
+}
+
 #ifdef DEBUG_THREADS
-struct odbc_obj *_ast_odbc_request_obj(const char *name, int check, const char *file, const char *function, int lineno)
+struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags, const char *file, const char *function, int lineno)
 #else
-struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
+struct odbc_obj *ast_odbc_request_obj2(const char *name, struct ast_flags flags)
 #endif
 {
 	struct odbc_obj *obj = NULL;
 	struct odbc_class *class;
-	struct ao2_iterator aoi = ao2_iterator_init(class_container, 0);
+	SQLINTEGER nativeerror=0, numfields=0;
+	SQLSMALLINT diagbytes=0, i;
+	unsigned char state[10], diagnostic[256];
 
-	while ((class = ao2_iterator_next(&aoi))) {
-		if (!strcmp(class->name, name) && !class->delme) {
-			break;
-		}
-		ao2_ref(class, -1);
-	}
-
-	if (!class)
+	if (!(class = ao2_callback(class_container, 0, aoro2_class_cb, (char *) name))) {
 		return NULL;
+	}
 
 	ast_assert(ao2_ref(class, 0) > 1);
 
 	if (class->haspool) {
 		/* Recycle connections before building another */
-		aoi = ao2_iterator_init(class->obj_container, 0);
-		while ((obj = ao2_iterator_next(&aoi))) {
-			if (! obj->used) {
-				ast_mutex_lock(&obj->lock);
-				obj->used = 1;
-				ast_mutex_unlock(&obj->lock);
-				break;
-			}
-			ao2_ref(obj, -1);
-		}
+		obj = ao2_callback(class->obj_container, 0, aoro2_obj_cb, EOR_TX);
 
 		if (obj) {
 			ast_assert(ao2_ref(obj, 0) > 1);
 		}
 
 		if (!obj && (class->count < class->limit)) {
-			class->count++;
 			obj = ao2_alloc(sizeof(*obj), odbc_obj_destructor);
 			if (!obj) {
 				ao2_ref(class, -1);
@@ -724,6 +1181,7 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 			ast_mutex_init(&obj->lock);
 			/* obj inherits the outstanding reference to class */
 			obj->parent = class;
+			class = NULL;
 			if (odbc_obj_connect(obj) == ODBC_FAIL) {
 				ast_log(LOG_WARNING, "Failed to connect to %s\n", name);
 				ao2_ref(obj, -1);
@@ -731,31 +1189,73 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 				obj = NULL;
 			} else {
 				obj->used = 1;
-				ao2_link(class->obj_container, obj);
+				ao2_link(obj->parent->obj_container, obj);
+				ast_atomic_fetchadd_int(&obj->parent->count, +1);
 			}
-			class = NULL;
 		} else {
 			/* Object is not constructed, so delete outstanding reference to class. */
 			ao2_ref(class, -1);
 			class = NULL;
 		}
-	} else {
-		/* Non-pooled connection: multiple modules can use the same connection. */
-		aoi = ao2_iterator_init(class->obj_container, 0);
-		while ((obj = ao2_iterator_next(&aoi))) {
-			/* Non-pooled connection: if there is an entry, return it */
-			break;
+
+		if (obj && ast_test_flag(&flags, RES_ODBC_INDEPENDENT_CONNECTION)) {
+			/* Ensure this connection has autocommit turned off. */
+			if (SQLSetConnectAttr(obj->con, SQL_ATTR_AUTOCOMMIT, (void *)SQL_AUTOCOMMIT_OFF, 0) == SQL_ERROR) {
+				SQLGetDiagField(SQL_HANDLE_DBC, obj->con, 1, SQL_DIAG_NUMBER, &numfields, SQL_IS_INTEGER, &diagbytes);
+				for (i = 0; i < numfields; i++) {
+					SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, i + 1, state, &nativeerror, diagnostic, sizeof(diagnostic), &diagbytes);
+					ast_log(LOG_WARNING, "SQLSetConnectAttr (Autocommit) returned an error: %s: %s\n", state, diagnostic);
+					if (i > 10) {
+						ast_log(LOG_WARNING, "Oh, that was good.  There are really %d diagnostics?\n", (int)numfields);
+						break;
+					}
+				}
+			}
+		}
+	} else if (ast_test_flag(&flags, RES_ODBC_INDEPENDENT_CONNECTION)) {
+		/* Non-pooled connections -- but must use a separate connection handle */
+		if (!(obj = ao2_callback(class->obj_container, 0, aoro2_obj_cb, USE_TX))) {
+			obj = ao2_alloc(sizeof(*obj), odbc_obj_destructor);
+			if (!obj) {
+				ao2_ref(class, -1);
+				return NULL;
+			}
+			ast_mutex_init(&obj->lock);
+			/* obj inherits the outstanding reference to class */
+			obj->parent = class;
+			class = NULL;
+			if (odbc_obj_connect(obj) == ODBC_FAIL) {
+				ast_log(LOG_WARNING, "Failed to connect to %s\n", name);
+				ao2_ref(obj, -1);
+				obj = NULL;
+			} else {
+				obj->used = 1;
+				ao2_link(obj->parent->obj_container, obj);
+				ast_atomic_fetchadd_int(&obj->parent->count, +1);
+			}
 		}
 
-		if (obj) {
+		if (obj && SQLSetConnectAttr(obj->con, SQL_ATTR_AUTOCOMMIT, (void *)SQL_AUTOCOMMIT_OFF, 0) == SQL_ERROR) {
+			SQLGetDiagField(SQL_HANDLE_DBC, obj->con, 1, SQL_DIAG_NUMBER, &numfields, SQL_IS_INTEGER, &diagbytes);
+			for (i = 0; i < numfields; i++) {
+				SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, i + 1, state, &nativeerror, diagnostic, sizeof(diagnostic), &diagbytes);
+				ast_log(LOG_WARNING, "SetConnectAttr (Autocommit) returned an error: %s: %s\n", state, diagnostic);
+				if (i > 10) {
+					ast_log(LOG_WARNING, "Oh, that was good.  There are really %d diagnostics?\n", (int)numfields);
+					break;
+				}
+			}
+		}
+	} else {
+		/* Non-pooled connection: multiple modules can use the same connection. */
+		if (!(obj = ao2_callback(class->obj_container, 0, aoro2_obj_cb, NO_TX))) {
 			/* Object is not constructed, so delete outstanding reference to class. */
 			ast_assert(ao2_ref(class, 0) > 1);
 			ao2_ref(class, -1);
 			class = NULL;
 		} else {
 			/* No entry: build one */
-			obj = ao2_alloc(sizeof(*obj), odbc_obj_destructor);
-			if (!obj) {
+			if (!(obj = ao2_alloc(sizeof(*obj), odbc_obj_destructor))) {
 				ast_assert(ao2_ref(class, 0) > 1);
 				ao2_ref(class, -1);
 				return NULL;
@@ -763,19 +1263,44 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 			ast_mutex_init(&obj->lock);
 			/* obj inherits the outstanding reference to class */
 			obj->parent = class;
+			class = NULL;
 			if (odbc_obj_connect(obj) == ODBC_FAIL) {
 				ast_log(LOG_WARNING, "Failed to connect to %s\n", name);
 				ao2_ref(obj, -1);
 				obj = NULL;
 			} else {
-				ao2_link(class->obj_container, obj);
+				ao2_link(obj->parent->obj_container, obj);
 				ast_assert(ao2_ref(obj, 0) > 1);
 			}
-			class = NULL;
+		}
+
+		if (obj && SQLSetConnectAttr(obj->con, SQL_ATTR_AUTOCOMMIT, (void *)SQL_AUTOCOMMIT_ON, 0) == SQL_ERROR) {
+			SQLGetDiagField(SQL_HANDLE_DBC, obj->con, 1, SQL_DIAG_NUMBER, &numfields, SQL_IS_INTEGER, &diagbytes);
+			for (i = 0; i < numfields; i++) {
+				SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, i + 1, state, &nativeerror, diagnostic, sizeof(diagnostic), &diagbytes);
+				ast_log(LOG_WARNING, "SetConnectAttr (Autocommit) returned an error: %s: %s\n", state, diagnostic);
+				if (i > 10) {
+					ast_log(LOG_WARNING, "Oh, that was good.  There are really %d diagnostics?\n", (int)numfields);
+					break;
+				}
+			}
 		}
 	}
 
-	if (obj && check) {
+	/* Set the isolation property */
+	if (obj && SQLSetConnectAttr(obj->con, SQL_ATTR_TXN_ISOLATION, (void *)(long)obj->parent->isolation, 0) == SQL_ERROR) {
+		SQLGetDiagField(SQL_HANDLE_DBC, obj->con, 1, SQL_DIAG_NUMBER, &numfields, SQL_IS_INTEGER, &diagbytes);
+		for (i = 0; i < numfields; i++) {
+			SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, i + 1, state, &nativeerror, diagnostic, sizeof(diagnostic), &diagbytes);
+			ast_log(LOG_WARNING, "SetConnectAttr (Txn isolation) returned an error: %s: %s\n", state, diagnostic);
+			if (i > 10) {
+				ast_log(LOG_WARNING, "Oh, that was good.  There are really %d diagnostics?\n", (int)numfields);
+				break;
+			}
+		}
+	}
+
+	if (obj && ast_test_flag(&flags, RES_ODBC_SANITY_CHECK)) {
 		ast_odbc_sanity_check(obj);
 	} else if (obj && obj->parent->idlecheck > 0 && ast_tvdiff_sec(ast_tvnow(), obj->last_used) > obj->parent->idlecheck)
 		odbc_obj_connect(obj);
@@ -793,6 +1318,52 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 		ast_assert(ao2_ref(obj, 0) > 1);
 	}
 	return obj;
+}
+
+#ifdef DEBUG_THREADS
+struct odbc_obj *_ast_odbc_request_obj(const char *name, int check, const char *file, const char *function, int lineno)
+#else
+struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
+#endif
+{
+	struct ast_flags flags = { check ? RES_ODBC_SANITY_CHECK : 0 };
+#ifdef DEBUG_THREADS
+	return _ast_odbc_request_obj2(name, flags, file, function, lineno);
+#else
+	return ast_odbc_request_obj2(name, flags);
+#endif
+}
+
+struct odbc_obj *ast_odbc_retrieve_transaction_obj(struct ast_channel *chan, const char *objname)
+{
+	struct ast_datastore *txn_store;
+	AST_LIST_HEAD(, odbc_txn_frame) *oldlist;
+	struct odbc_txn_frame *txn = NULL;
+
+	if (!chan) {
+		/* No channel == no transaction */
+		return NULL;
+	}
+
+	ast_channel_lock(chan);
+	if ((txn_store = ast_channel_datastore_find(chan, &txn_info, NULL))) {
+		oldlist = txn_store->data;
+	} else {
+		ast_channel_unlock(chan);
+		return NULL;
+	}
+
+	AST_LIST_LOCK(oldlist);
+	ast_channel_unlock(chan);
+
+	AST_LIST_TRAVERSE(oldlist, txn, list) {
+		if (txn->obj && txn->obj->parent && !strcmp(txn->obj->parent->name, objname)) {
+			AST_LIST_UNLOCK(oldlist);
+			return txn->obj;
+		}
+	}
+	AST_LIST_UNLOCK(oldlist);
+	return NULL;
 }
 
 static odbc_status odbc_obj_disconnect(struct odbc_obj *obj)
@@ -885,6 +1456,146 @@ static odbc_status odbc_obj_connect(struct odbc_obj *obj)
 	return ODBC_SUCCESS;
 }
 
+static int acf_transaction_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(property);
+		AST_APP_ARG(opt);
+	);
+	struct odbc_txn_frame *tx;
+
+	AST_STANDARD_APP_ARGS(args, data);
+	if (strcasecmp(args.property, "transaction") == 0) {
+		if ((tx = find_transaction(chan, NULL, NULL, 1))) {
+			ast_copy_string(buf, tx->name, len);
+			return 0;
+		}
+	} else if (strcasecmp(args.property, "isolation") == 0) {
+		if (!ast_strlen_zero(args.opt)) {
+			tx = find_transaction(chan, NULL, args.opt, 0);
+		} else {
+			tx = find_transaction(chan, NULL, NULL, 1);
+		}
+		if (tx) {
+			ast_copy_string(buf, isolation2text(tx->isolation), len);
+			return 0;
+		}
+	} else if (strcasecmp(args.property, "forcecommit") == 0) {
+		if (!ast_strlen_zero(args.opt)) {
+			tx = find_transaction(chan, NULL, args.opt, 0);
+		} else {
+			tx = find_transaction(chan, NULL, NULL, 1);
+		}
+		if (tx) {
+			ast_copy_string(buf, tx->forcecommit ? "1" : "0", len);
+			return 0;
+		}
+	}
+	return -1;
+}
+
+static int acf_transaction_write(struct ast_channel *chan, const char *cmd, char *s, const char *value)
+{
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(property);
+		AST_APP_ARG(opt);
+	);
+	struct odbc_txn_frame *tx;
+	SQLINTEGER nativeerror=0, numfields=0;
+	SQLSMALLINT diagbytes=0, i;
+	unsigned char state[10], diagnostic[256];
+
+	AST_STANDARD_APP_ARGS(args, s);
+	if (strcasecmp(args.property, "transaction") == 0) {
+		/* Set active transaction */
+		struct odbc_obj *obj;
+		if ((tx = find_transaction(chan, NULL, value, 0))) {
+			mark_transaction_active(chan, tx);
+		} else {
+			/* No such transaction, create one */
+			struct ast_flags flags = { RES_ODBC_INDEPENDENT_CONNECTION };
+			if (ast_strlen_zero(args.opt) || !(obj = ast_odbc_request_obj2(args.opt, flags))) {
+				ast_log(LOG_ERROR, "Could not create transaction: invalid database specification '%s'\n", S_OR(args.opt, ""));
+				pbx_builtin_setvar_helper(chan, "ODBC_RESULT", "INVALID_DB");
+				return -1;
+			}
+			if (!(tx = find_transaction(chan, obj, value, 0))) {
+				pbx_builtin_setvar_helper(chan, "ODBC_RESULT", "FAILED_TO_CREATE");
+				return -1;
+			}
+			obj->tx = 1;
+		}
+		pbx_builtin_setvar_helper(chan, "ODBC_RESULT", "OK");
+		return 0;
+	} else if (strcasecmp(args.property, "forcecommit") == 0) {
+		/* Set what happens when an uncommitted transaction ends without explicit Commit or Rollback */
+		if (ast_strlen_zero(args.opt)) {
+			tx = find_transaction(chan, NULL, NULL, 1);
+		} else {
+			tx = find_transaction(chan, NULL, args.opt, 0);
+		}
+		if (!tx) {
+			pbx_builtin_setvar_helper(chan, "ODBC_RESULT", "FAILED_TO_CREATE");
+			return -1;
+		}
+		if (ast_true(value)) {
+			tx->forcecommit = 1;
+		} else if (ast_false(value)) {
+			tx->forcecommit = 0;
+		} else {
+			ast_log(LOG_ERROR, "Invalid value for forcecommit: '%s'\n", S_OR(value, ""));
+			pbx_builtin_setvar_helper(chan, "ODBC_RESULT", "INVALID_VALUE");
+			return -1;
+		}
+
+		pbx_builtin_setvar_helper(chan, "ODBC_RESULT", "OK");
+		return 0;
+	} else if (strcasecmp(args.property, "isolation") == 0) {
+		/* How do uncommitted transactions affect reads? */
+		int isolation = text2isolation(value);
+		if (ast_strlen_zero(args.opt)) {
+			tx = find_transaction(chan, NULL, NULL, 1);
+		} else {
+			tx = find_transaction(chan, NULL, args.opt, 0);
+		}
+		if (!tx) {
+			pbx_builtin_setvar_helper(chan, "ODBC_RESULT", "FAILED_TO_CREATE");
+			return -1;
+		}
+		if (isolation == 0) {
+			pbx_builtin_setvar_helper(chan, "ODBC_RESULT", "INVALID_VALUE");
+			ast_log(LOG_ERROR, "Invalid isolation specification: '%s'\n", S_OR(value, ""));
+		} else if (SQLSetConnectAttr(tx->obj->con, SQL_ATTR_TXN_ISOLATION, (void *)(long)isolation, 0) == SQL_ERROR) {
+			pbx_builtin_setvar_helper(chan, "ODBC_RESULT", "SQL_ERROR");
+			SQLGetDiagField(SQL_HANDLE_DBC, tx->obj->con, 1, SQL_DIAG_NUMBER, &numfields, SQL_IS_INTEGER, &diagbytes);
+			for (i = 0; i < numfields; i++) {
+				SQLGetDiagRec(SQL_HANDLE_DBC, tx->obj->con, i + 1, state, &nativeerror, diagnostic, sizeof(diagnostic), &diagbytes);
+				ast_log(LOG_WARNING, "SetConnectAttr (Txn isolation) returned an error: %s: %s\n", state, diagnostic);
+				if (i > 10) {
+					ast_log(LOG_WARNING, "Oh, that was good.  There are really %d diagnostics?\n", (int)numfields);
+					break;
+				}
+			}
+		} else {
+			pbx_builtin_setvar_helper(chan, "ODBC_RESULT", "OK");
+			tx->isolation = isolation;
+		}
+		return 0;
+	} else {
+		ast_log(LOG_ERROR, "Unknown property: '%s'\n", args.property);
+		return -1;
+	}
+}
+
+static struct ast_custom_function odbc_function = {
+	.name = "ODBC",
+	.read = acf_transaction_read,
+	.write = acf_transaction_write,
+};
+
+static const char *app_commit = "ODBC_Commit";
+static const char *app_rollback = "ODBC_Rollback";
+
 static int reload(void)
 {
 	struct odbc_cache_tables *table;
@@ -969,6 +1680,9 @@ static int load_module(void)
 	if (load_odbc_config() == -1)
 		return AST_MODULE_LOAD_DECLINE;
 	ast_cli_register_multiple(cli_odbc, ARRAY_LEN(cli_odbc));
+	ast_register_application_xml(app_commit, commit_exec);
+	ast_register_application_xml(app_rollback, rollback_exec);
+	ast_custom_function_register(&odbc_function);
 	ast_log(LOG_NOTICE, "res_odbc loaded.\n");
 	return 0;
 }

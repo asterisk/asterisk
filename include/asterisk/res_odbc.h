@@ -35,25 +35,30 @@
 
 typedef enum { ODBC_SUCCESS=0, ODBC_FAIL=-1} odbc_status;
 
+/*! \brief Flags for use with ast_odbc_request_obj2 */
+enum {
+	RES_ODBC_SANITY_CHECK = (1 << 0),
+	RES_ODBC_INDEPENDENT_CONNECTION = (1 << 1),
+};
+
 /*! \brief ODBC container */
 struct odbc_obj {
 	ast_mutex_t lock;
-	SQLHDBC  con;                   /* ODBC Connection Handle */
-	struct odbc_class *parent;      /* Information about the connection is protected */
-	struct timeval last_used;
+	SQLHDBC  con;                   /*!< ODBC Connection Handle */
+	struct odbc_class *parent;      /*!< Information about the connection is protected */
+	struct timeval last_used;       /*!< Used by idlecheck to determine if the connection should be renegotiated */
 #ifdef DEBUG_THREADS
 	char file[80];
 	char function[80];
 	int lineno;
 #endif
-	unsigned int used:1;
+	unsigned int used:1;            /*!< Is this connection currently in use? */
 	unsigned int up:1;
+	unsigned int tx:1;              /*!< Should this connection be unshared, regardless of the class setting? */
+	struct odbc_txn_frame *txf;     /*!< Reference back to the transaction frame, if applicable */
 	AST_LIST_ENTRY(odbc_obj) list;
 };
 
-/*!\brief These aren't used in any API calls, but they are kept in a common
- * location, simply for convenience and to avoid duplication.
- */
 struct odbc_cache_columns {
 	char *name;
 	SQLSMALLINT type;
@@ -107,11 +112,30 @@ int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt) __attribute__((d
  * when the thread is done by calling odbc_release_obj(), below.
  */
 #ifdef DEBUG_THREADS
+struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags, const char *file, const char *function, int lineno);
+#define ast_odbc_request_obj2(a, b)	_ast_odbc_request_obj2(a, b, __FILE__, __PRETTY_FUNCTION__, __LINE__)
+#else
+struct odbc_obj *ast_odbc_request_obj2(const char *name, struct ast_flags flags);
+#endif
+
+#ifdef DEBUG_THREADS
 struct odbc_obj *_ast_odbc_request_obj(const char *name, int check, const char *file, const char *function, int lineno);
 #define ast_odbc_request_obj(a, b)	_ast_odbc_request_obj(a, b, __FILE__, __PRETTY_FUNCTION__, __LINE__)
 #else
 struct odbc_obj *ast_odbc_request_obj(const char *name, int check);
 #endif
+
+/*!
+ * \brief Retrieve a stored ODBC object, if a transaction has been started.
+ * \param chan Channel associated with the transaction.
+ * \param objname Name of the database handle.  This name corresponds to the name passed
+ * to ast_odbc_request_obj2 (or formerly, to ast_odbc_request_obj).  Note that the
+ * existence of this parameter name explicitly allows for multiple transactions to be open
+ * at once, albeit to different databases.
+ * \retval A stored ODBC object, if a transaction was already started.
+ * \retval NULL, if no transaction yet exists.
+ */
+struct odbc_obj *ast_odbc_retrieve_transaction_obj(struct ast_channel *chan, const char *objname);
 
 /*! 
  * \brief Releases an ODBC object previously allocated by odbc_request_obj()

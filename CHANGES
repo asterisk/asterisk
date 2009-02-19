@@ -94,6 +94,7 @@ Dialplan Functions
    of "core show function AES_ENCRYPT" from the CLI
  * Added AES_DECRYPT. For information on its use, please see the output
    of "core show function AES_DECRYPT" from the CLI
+ * func_odbc now supports database transactions across multiple queries.
 
 Applications
 ------------
