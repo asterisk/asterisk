@@ -572,7 +572,7 @@ enum {
 	AST_FEATURE_PARKCALL =     (1 << 5),
 	AST_FEATURE_AUTOMIXMON =   (1 << 6),
 	AST_FEATURE_NO_H_EXTEN =   (1 << 7),
-	AST_FEATURE_WARNING_ACTIVE = (1 << 7),
+	AST_FEATURE_WARNING_ACTIVE = (1 << 8),
 };
 
 /*! \brief bridge configuration */
