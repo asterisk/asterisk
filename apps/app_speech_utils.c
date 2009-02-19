@@ -500,6 +500,7 @@ static int speech_create(struct ast_channel *chan, void *data)
 		pbx_builtin_setvar_helper(chan, "ERROR", "1");
 		return 0;
 	}
+	pbx_builtin_setvar_helper(chan, "ERROR", NULL);
 	datastore->data = speech;
 	ast_channel_datastore_add(chan, datastore);
 
