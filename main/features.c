@@ -2542,7 +2542,6 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				config->feature_timer -= diff;
 			}
 
-			config->feature_timer -= diff;
 			if (hasfeatures) {
 				/* Running on backup config, meaning a feature might be being
 				   activated, but that's no excuse to keep things going 
