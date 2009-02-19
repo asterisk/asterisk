@@ -115,6 +115,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 
 #ifdef IMAP_STORAGE
+#include "asterisk/threadstorage.h"
+
+AST_MUTEX_DEFINE_STATIC(imaptemp_lock);
+static char imaptemp[1024];
 static char imapserver[48];
 static char imapport[8];
 static char imapflags[128];
@@ -130,6 +134,8 @@ static char delimiter = '\0';
 
 struct vm_state;
 struct ast_vm_user;
+
+AST_THREADSTORAGE(ts_vmstate, ts_vmstate_init);
 
 /* Forward declarations for IMAP */
 static int init_mailstream(struct vm_state *vms, int box);
@@ -2093,7 +2099,7 @@ static void mm_parsequota(MAILSTREAM *stream, unsigned char *msg, QUOTALIST *pqu
 		pquota = pquota->next;
 	}
 	
-	if (!(user = get_user_by_mailbox(mailbox, buf, sizeof(buf))) || !(vms = get_vm_state_by_imapuser(user, 2))) {
+	if (!(user = get_user_by_mailbox(mailbox, buf, sizeof(buf))) || (!(vms = get_vm_state_by_imapuser(user, 2)) && !(vms = get_vm_state_by_imapuser(user, 0)))) {
 		ast_log(LOG_ERROR, "No state found.\n");
 		return;
 	}
@@ -2156,6 +2162,9 @@ static struct vm_state *create_vm_state_from_user(struct ast_vm_user *vmu)
 {
 	struct vm_state *vms_p;
 
+	if ((vms_p = pthread_getspecific(ts_vmstate.key)) && !strcmp(vms_p->imapuser, vmu->imapuser) && !strcmp(vms_p->username, vmu->mailbox)) {
+		return vms_p;
+	}
 	if (option_debug > 4)
 		ast_log(LOG_DEBUG,"Adding new vmstate for %s\n",vmu->imapuser);
 	if (!(vms_p = ast_calloc(1, sizeof(*vms_p))))
@@ -2176,6 +2185,12 @@ static struct vm_state *create_vm_state_from_user(struct ast_vm_user *vmu)
 static struct vm_state *get_vm_state_by_imapuser(char *user, int interactive)
 {
 	struct vmstate *vlist = NULL;
+
+	if (interactive) {
+		struct vm_state *vms;
+		vms = pthread_getspecific(ts_vmstate.key);
+		return vms;
+	}
 
 	AST_LIST_LOCK(&vmstates);
 	AST_LIST_TRAVERSE(&vmstates, vlist, list) {
@@ -2204,6 +2219,12 @@ static struct vm_state *get_vm_state_by_mailbox(const char *mailbox, int interac
 {
 
 	struct vmstate *vlist = NULL;
+
+	if (interactive) {
+		struct vm_state *vms;
+		vms = pthread_getspecific(ts_vmstate.key);
+		return vms;
+	}
 
 	AST_LIST_LOCK(&vmstates);
 	AST_LIST_TRAVERSE(&vmstates, vlist, list) {
@@ -2251,9 +2272,13 @@ static void vmstate_insert(struct vm_state *vms)
 			/* get a pointer to the persistent store */
 			vms->persist_vms = altvms;
 			/* Reuse the mailstream? */
+#ifdef REALLY_FAST_EVEN_IF_IT_MEANS_RESOURCE_LEAKS
 			vms->mailstream = altvms->mailstream;
-			/* vms->mailstream = NIL; */
+#else
+			vms->mailstream = NIL;
+#endif
 		}
+		return;
 	}
 
 	if (!(v = ast_calloc(1, sizeof(*v))))
@@ -2280,6 +2305,10 @@ static void vmstate_delete(struct vm_state *vms)
 		altvms->newmessages = vms->newmessages;
 		altvms->oldmessages = vms->oldmessages;
 		altvms->updated = 1;
+		vms->mailstream = mail_close(vms->mailstream);
+
+		/* Interactive states are not stored within the persistent list */
+		return;
 	}
 	
 	ast_debug(3, "Removing vm_state for user:%s, mailbox %s\n", vms->imapuser, vms->username);
@@ -7775,6 +7804,9 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	adsi_begin(chan, &useadsi);
 
 #ifdef IMAP_STORAGE
+	pthread_once(&ts_vmstate.once, ts_vmstate.key_init);
+	pthread_setspecific(ts_vmstate.key, &vms);
+
 	vms.interactive = 1;
 	vms.updated = 1;
 	vmstate_insert(&vms);
@@ -8200,6 +8232,9 @@ out:
 	if (vms.heard)
 		ast_free(vms.heard);
 
+#ifdef IMAP_STORAGE
+	pthread_setspecific(ts_vmstate.key, NULL);
+#endif
 	return res;
 }
 
