@@ -15977,8 +15977,6 @@ static void *sip_park_thread(void *stuff)
 
 	if (!transferee || !transferer) {
 		ast_log(LOG_ERROR, "Missing channels for parking! Transferer %s Transferee %s\n", transferer ? "<available>" : "<missing>", transferee ? "<available>" : "<missing>" );
-		if (d->req.data)
-			ast_free(d->req.data);
 		free(d);
 		return NULL;
 	}
@@ -15989,8 +15987,6 @@ static void *sip_park_thread(void *stuff)
 		ast_log(LOG_WARNING, "Masquerade failed.\n");
 		transmit_response(transferer->tech_pvt, "503 Internal error", &req);
 		ast_channel_unlock(transferee);
-		if (d->req.data)
-			ast_free(d->req.data);
 		free(d);
 		return NULL;
 	} 
@@ -16025,8 +16021,6 @@ static void *sip_park_thread(void *stuff)
 		ast_debug(1, "SIP Call parked failed \n");
 		/* Do not hangup call */
 	}
-	if (d->req.data)
-		ast_free(d->req.data);
 	free(d);
 	return NULL;
 }
