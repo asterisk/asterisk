@@ -102,6 +102,8 @@ static char *expr2_token_subst(const char *mess);
 %option noyyfree
 %x var trail
 
+HIBIT           [\x80-\xff]
+
 %%
 
 \|	{ SET_COLUMNS; SET_STRING; return TOK_OR;}
@@ -150,7 +152,7 @@ static char *expr2_token_subst(const char *mess);
 		return TOKEN;
 	}
 
-[a-zA-Z0-9,.';\\_^$#@]+	{
+[a-zA-Z0-9,.';\\_^$#@{HIBIT}]+	{
 		SET_COLUMNS;
 		SET_STRING;
 		return TOKEN;
