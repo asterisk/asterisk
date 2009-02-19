@@ -378,6 +378,8 @@ static int speech_create(struct ast_channel *chan, void *data)
 	datastore->data = speech;
 	ast_channel_datastore_add(chan, datastore);
 
+	pbx_builtin_setvar_helper(chan, "ERROR", NULL);
+
 	ast_module_user_remove(u);
 
 	return 0;
