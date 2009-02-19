@@ -1283,7 +1283,7 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittyp
 static void copy_request(struct sip_request *dst, const struct sip_request *src);
 static void receive_message(struct sip_pvt *p, struct sip_request *req);
 static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req);
-static int sip_send_mwi_to_peer(struct sip_peer *peer);
+static int sip_send_mwi_to_peer(struct sip_peer *peer, int force);
 static int does_peer_need_mwi(struct sip_peer *peer);
 
 /*--- Dialog management */
@@ -1355,7 +1355,6 @@ static int reload_config(enum channelreloadreason reason);
 static int expire_register(const void *data);
 static void *do_monitor(void *data);
 static int restart_monitor(void);
-static int sip_send_mwi_to_peer(struct sip_peer *peer);
 static int sip_addrcmp(char *name, struct sockaddr_in *sin);	/* Support for peer matching */
 static int sip_refer_allocate(struct sip_pvt *p);
 static void ast_quiet_chan(struct ast_channel *chan);
@@ -15747,7 +15746,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			transmit_response(p, "200 OK", req);
 			if (p->relatedpeer) {	/* Send first notification */
 				ASTOBJ_WRLOCK(p->relatedpeer);
-				sip_send_mwi_to_peer(p->relatedpeer);
+				sip_send_mwi_to_peer(p->relatedpeer, TRUE);
 				ASTOBJ_UNLOCK(p->relatedpeer);
 			}
 		} else {
@@ -16278,7 +16277,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 }
 
 /*! \brief Send message waiting indication to alert peer that they've got voicemail */
-static int sip_send_mwi_to_peer(struct sip_peer *peer)
+static int sip_send_mwi_to_peer(struct sip_peer *peer, int force)
 {
 	/* Called with peerl lock, but releases it */
 	struct sip_pvt *p;
@@ -16294,7 +16293,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 	peer->lastmsgcheck = time(NULL);
 	
 	/* Return now if it's the same thing we told them last time */
-	if (((newmsgs > 0x7fff ? 0x7fff0000 : (newmsgs << 16)) | (oldmsgs > 0xffff ? 0xffff : oldmsgs)) == peer->lastmsgssent) {
+	if (!force && ((newmsgs > 0x7fff ? 0x7fff0000 : (newmsgs << 16)) | (oldmsgs > 0xffff ? 0xffff : oldmsgs)) == peer->lastmsgssent) {
 		return 0;
 	}
 	
@@ -16506,7 +16505,7 @@ restartsearch:
 		/* Send MWI to the peer */
 		if (peer) {
 			ASTOBJ_WRLOCK(peer);
-			sip_send_mwi_to_peer(peer);
+			sip_send_mwi_to_peer(peer, FALSE);
 			ASTOBJ_UNLOCK(peer);
 			ASTOBJ_UNREF(peer,sip_destroy_peer);
 		} else {
