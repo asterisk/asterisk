@@ -5069,15 +5069,15 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 		
 		if (option_debug && c->pattern_tree)
 		{
-			ast_cli(fd,"\r\n     In-mem exten Trie for Fast Extension Pattern Matching:\r\n\r\n");
+			ast_cli(fd,"\n     In-mem exten Trie for Fast Extension Pattern Matching:\n\n");
 
-			ast_cli(fd,"\r\n           Explanation: Node Contents Format = <char(s) to match>:<pattern?>:<specif>:[matched extension]\r\n");
-			ast_cli(fd,    "                        Where <char(s) to match> is a set of chars, any one of which should match the current character\r\n");
-			ast_cli(fd,    "                              <pattern?>: Y if this a pattern match (eg. _XZN[5-7]), N otherwise\r\n");
-			ast_cli(fd,    "                              <specif>: an assigned 'exactness' number for this matching char. The lower the number, the more exact the match\r\n");
-			ast_cli(fd,    "                              [matched exten]: If all chars matched to this point, which extension this matches. In form: EXTEN:<exten string> \r\n");
-			ast_cli(fd,    "                        In general, you match a trie node to a string character, from left to right. All possible matching chars\r\n");
-			ast_cli(fd,    "                        are in a string vertically, separated by an unbroken string of '+' characters.\r\n\r\n");
+			ast_cli(fd,"\n           Explanation: Node Contents Format = <char(s) to match>:<pattern?>:<specif>:[matched extension]\n");
+			ast_cli(fd,    "                        Where <char(s) to match> is a set of chars, any one of which should match the current character\n");
+			ast_cli(fd,    "                              <pattern?>: Y if this a pattern match (eg. _XZN[5-7]), N otherwise\n");
+			ast_cli(fd,    "                              <specif>: an assigned 'exactness' number for this matching char. The lower the number, the more exact the match\n");
+			ast_cli(fd,    "                              [matched exten]: If all chars matched to this point, which extension this matches. In form: EXTEN:<exten string>\n");
+			ast_cli(fd,    "                        In general, you match a trie node to a string character, from left to right. All possible matching chars\n");
+			ast_cli(fd,    "                        are in a string vertically, separated by an unbroken string of '+' characters.\n\n");
 			cli_match_char_tree(c->pattern_tree, " ", fd);
 		}
 
@@ -5085,7 +5085,7 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 
 		/* if we print something in context, make an empty line */
 		if (context_info_printed)
-			ast_cli(fd, "\r\n");
+			ast_cli(fd, "\n");
 	}
 	ast_unlock_contexts();
 
