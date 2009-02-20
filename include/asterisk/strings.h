@@ -347,6 +347,11 @@ struct ast_str {
 	char str[0];	/*!< The string buffer */
 };
 
+#define ast_str_size(a)	((a)->len)
+#define	ast_str_strlen(a)	((a)->used)
+#define	ast_str_buffer(a)	((a)->str)
+#define	ast_str_update(a)	(a)->used = strlen((a)->str)
+
 /*!
  * \brief Create a malloc'ed dynamic length string
  *
