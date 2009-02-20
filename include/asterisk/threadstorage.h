@@ -60,12 +60,6 @@ struct ast_threadstorage {
 	int (*custom_init)(void *); /*!< Custom initialization function specific to the object */
 };
 
-#ifdef SOLARIS
-#define THREADSTORAGE_ONCE_INIT {PTHREAD_ONCE_INIT}
-#else
-#define THREADSTORAGE_ONCE_INIT PTHREAD_ONCE_INIT
-#endif
-
 #if defined(DEBUG_THREADLOCALS)
 void __ast_threadstorage_object_add(void *key, size_t len, const char *file, const char *function, unsigned int line);
 void __ast_threadstorage_object_remove(void *key);
@@ -111,32 +105,32 @@ void __ast_threadstorage_object_replace(void *key_old, void *key_new, size_t len
 
 #if !defined(DEBUG_THREADLOCALS)
 #define AST_THREADSTORAGE_CUSTOM_SCOPE(name, c_init, c_cleanup, scope)	\
-static void __init_##name(void);				\
-scope struct ast_threadstorage name = {			\
-	.once = THREADSTORAGE_ONCE_INIT,			\
-	.key_init = __init_##name,				\
-	.custom_init = c_init,					\
-};								\
-static void __init_##name(void)					\
-{								\
-	pthread_key_create(&(name).key, c_cleanup);		\
+static void __init_##name(void);                \
+scope struct ast_threadstorage name = {         \
+	.once = PTHREAD_ONCE_INIT,                  \
+	.key_init = __init_##name,                  \
+	.custom_init = c_init,                      \
+};                                              \
+static void __init_##name(void)                 \
+{                                               \
+	pthread_key_create(&(name).key, c_cleanup); \
 }
 #else /* defined(DEBUG_THREADLOCALS) */
-#define AST_THREADSTORAGE_CUSTOM_SCOPE(name, c_init, c_cleanup, scope)	\
-static void __init_##name(void);				\
-scope struct ast_threadstorage name = {			\
-	.once = THREADSTORAGE_ONCE_INIT,			\
-	.key_init = __init_##name,				\
-	.custom_init = c_init,					\
-};								\
-static void __cleanup_##name(void *data)			\
-{								\
-	__ast_threadstorage_object_remove(data);		\
-	c_cleanup(data);					\
-}								\
-static void __init_##name(void)					\
-{								\
-	pthread_key_create(&(name).key, __cleanup_##name);	\
+#define AST_THREADSTORAGE_CUSTOM_SCOPE(name, c_init, c_cleanup, scope) \
+static void __init_##name(void);                \
+scope struct ast_threadstorage name = {         \
+	.once = PTHREAD_ONCE_INIT,                  \
+	.key_init = __init_##name,                  \
+	.custom_init = c_init,                      \
+};                                              \
+static void __cleanup_##name(void *data)        \
+{                                               \
+	__ast_threadstorage_object_remove(data);    \
+	c_cleanup(data);                            \
+}                                               \
+static void __init_##name(void)                 \
+{                                               \
+	pthread_key_create(&(name).key, __cleanup_##name); \
 }
 #endif /* defined(DEBUG_THREADLOCALS) */
 
