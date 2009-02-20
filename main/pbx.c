@@ -3660,7 +3660,7 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 
 		/* if we print something in context, make an empty line */
 		if (context_info_printed)
-			ast_cli(fd, "\r\n");
+			ast_cli(fd, "\n");
 	}
 	ast_unlock_contexts();
 
