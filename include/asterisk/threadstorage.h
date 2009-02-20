@@ -43,12 +43,6 @@ struct ast_threadstorage {
 	void (*key_init)(void);
 };
 
-#ifdef SOLARIS
-#define THREADSTORAGE_ONCE_INIT {PTHREAD_ONCE_INIT}
-#else
-#define THREADSTORAGE_ONCE_INIT PTHREAD_ONCE_INIT
-#endif
-
 #if defined(DEBUG_THREADLOCALS)
 void __ast_threadstorage_object_add(void *key, size_t len, const char *file, const char *function, unsigned int line);
 void __ast_threadstorage_object_remove(void *key);
@@ -77,28 +71,28 @@ void __ast_threadstorage_object_replace(void *key_old, void *key_new, size_t len
 #define AST_THREADSTORAGE_CUSTOM(name, name_init, cleanup)  \
 static void name_init(void);                                \
 static struct ast_threadstorage name = {                    \
-	.once = THREADSTORAGE_ONCE_INIT,                    \
-	.key_init = name_init,                              \
+	.once = PTHREAD_ONCE_INIT,                              \
+	.key_init = name_init,                                  \
 };                                                          \
 static void name_init(void)                                 \
 {                                                           \
-	pthread_key_create(&(name).key, cleanup);           \
+	pthread_key_create(&(name).key, cleanup);               \
 }
 #else /* defined(DEBUG_THREADLOCALS) */
 #define AST_THREADSTORAGE_CUSTOM(name, name_init, cleanup)  \
 static void name_init(void);                                \
 static struct ast_threadstorage name = {                    \
-	.once = THREADSTORAGE_ONCE_INIT,                    \
-	.key_init = name_init,                              \
+	.once = PTHREAD_ONCE_INIT,                              \
+	.key_init = name_init,                                  \
 };                                                          \
-static void __cleanup_##name(void *data)		    \
-{							    \
-	__ast_threadstorage_object_remove(data);	    \
-	cleanup(data);					    \
-}							    \
+static void __cleanup_##name(void *data)                    \
+{                                                           \
+	__ast_threadstorage_object_remove(data);                \
+	cleanup(data);                                          \
+}                                                           \
 static void name_init(void)                                 \
 {                                                           \
-	pthread_key_create(&(name).key, __cleanup_##name);  \
+	pthread_key_create(&(name).key, __cleanup_##name);      \
 }
 #endif /* defined(DEBUG_THREADLOCALS) */
 
