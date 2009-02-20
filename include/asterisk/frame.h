@@ -267,6 +267,8 @@ extern struct ast_frame ast_null_frame;
 #define AST_FORMAT_G726		(1 << 11)
 /*! G.722 */
 #define AST_FORMAT_G722		(1 << 12)
+/*! Unsupported audio bits */
+#define AST_FORMAT_AUDIO_UNDEFINED	((1 << 13) | (1 << 14))
 /*! Raw 16-bit Signed Linear (16000 Hz) PCM */
 #define AST_FORMAT_SLINEAR16	(1 << 15)
 /*! Maximum audio mask */
