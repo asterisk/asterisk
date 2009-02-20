@@ -175,7 +175,7 @@ static int defaultsockfd = -1;
 int (*iax2_regfunk)(const char *username, int onoff) = NULL;
 
 /* Ethernet, etc */
-#define IAX_CAPABILITY_FULLBANDWIDTH 	0xFFFF
+#define IAX_CAPABILITY_FULLBANDWIDTH 	(0xFFFF & ~AST_FORMAT_AUDIO_UNDEFINED)
 /* T1, maybe ISDN */
 #define IAX_CAPABILITY_MEDBANDWIDTH 	(IAX_CAPABILITY_FULLBANDWIDTH & 	\
 					 ~AST_FORMAT_SLINEAR &			\
