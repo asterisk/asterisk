@@ -161,6 +161,7 @@ static void phase_e_handler(t30_state_t *f, void *user_data, int result)
 	char buf[20];
 	fax_session *s = (fax_session *) user_data;
 	t30_stats_t stat;
+	int pages_transferred;
 
 	ast_debug(1, "Fax phase E handler. result=%d\n", result);
 
@@ -186,7 +187,12 @@ static void phase_e_handler(t30_state_t *f, void *user_data, int result)
 	pbx_builtin_setvar_helper(s->chan, "FAXSTATUS", "SUCCESS"); 
 	pbx_builtin_setvar_helper(s->chan, "FAXERROR", NULL); 
 	pbx_builtin_setvar_helper(s->chan, "REMOTESTATIONID", far_ident);
-	snprintf(buf, sizeof(buf), "%d", stat.pages_transferred);
+#if SPANDSP_RELEASE_DATE >= 20090220
+	pages_transferred = (s->direction) ? stat.pages_tx : stat.pages_rx;
+#else
+	pages_transferred = stat.pages_transferred;
+#endif
+	snprintf(buf, sizeof(buf), "%d", pages_transferred);
 	pbx_builtin_setvar_helper(s->chan, "FAXPAGES", buf);
 	snprintf(buf, sizeof(buf), "%d", stat.y_resolution);
 	pbx_builtin_setvar_helper(s->chan, "FAXRESOLUTION", buf);
@@ -195,7 +201,7 @@ static void phase_e_handler(t30_state_t *f, void *user_data, int result)
 	
 	ast_debug(1, "Fax transmitted successfully.\n");
 	ast_debug(1, "  Remote station ID: %s\n", far_ident);
-	ast_debug(1, "  Pages transferred: %d\n", stat.pages_transferred);
+	ast_debug(1, "  Pages transferred: %d\n", pages_transferred);
 	ast_debug(1, "  Image resolution:  %d x %d\n", stat.x_resolution, stat.y_resolution);
 	ast_debug(1, "  Transfer Rate:     %d\n", stat.bit_rate);
 	
@@ -215,7 +221,7 @@ static void phase_e_handler(t30_state_t *f, void *user_data, int result)
 		      S_OR(s->chan->cid.cid_num, ""),
 		      far_ident,
 		      local_ident,
-		      stat.pages_transferred,
+		      pages_transferred,
 		      stat.y_resolution,
 		      stat.bit_rate,
 		      s->file_name);
