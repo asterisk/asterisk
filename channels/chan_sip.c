@@ -19497,6 +19497,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 					/* Chan2: Call between asterisk and transferee */
 
 	int res = 0;
+	current.req.data = NULL;
 
 	if (req->debug)
 		ast_verbose("Call %s got a SIP call transfer from %s: (REFER)!\n", p->callid, ast_test_flag(&p->flags[0], SIP_OUTGOING) ? "callee" : "caller");
