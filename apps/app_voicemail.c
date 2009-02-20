@@ -301,8 +301,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  ***/
 
 #ifdef IMAP_STORAGE
-AST_MUTEX_DEFINE_STATIC(imaptemp_lock);
-static char imaptemp[1024];
 static char imapserver[48];
 static char imapport[8];
 static char imapflags[128];
@@ -319,7 +317,7 @@ static char delimiter = '\0';
 struct vm_state;
 struct ast_vm_user;
 
-AST_THREADSTORAGE(ts_vmstate, ts_vmstate_init);
+AST_THREADSTORAGE(ts_vmstate);
 
 /* Forward declarations for IMAP */
 static int init_mailstream(struct vm_state *vms, int box);
