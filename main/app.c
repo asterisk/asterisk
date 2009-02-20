@@ -1846,6 +1846,33 @@ char *ast_get_encoded_str(const char *stream, char *result, size_t result_size)
 	return result;
 }
 
+int ast_str_get_encoded_str(struct ast_str **str, int maxlen, const char *stream)
+{
+	char next, *buf;
+	size_t offset = 0;
+	size_t consumed;
+
+	if (strchr(stream, '\\')) {
+		while (!ast_get_encoded_char(stream, &next, &consumed)) {
+			if (offset + 2 > ast_str_size(*str) && maxlen > -1) {
+				ast_str_make_space(str, maxlen > 0 ? maxlen : (ast_str_size(*str) + 48) * 2 - 48);
+			}
+			if (offset + 2 > ast_str_size(*str)) {
+				break;
+			}
+			buf = ast_str_buffer(*str);
+			buf[offset++] = next;
+			stream += consumed;
+		}
+		buf = ast_str_buffer(*str);
+		buf[offset++] = '\0';
+		ast_str_update(*str);
+	} else {
+		ast_str_set(str, maxlen, "%s", stream);
+	}
+	return 0;
+}
+
 void ast_close_fds_above_n(int n)
 {
 #ifdef HAVE_CLOSEFROM

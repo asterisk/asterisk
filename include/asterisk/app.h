@@ -498,6 +498,9 @@ int ast_get_encoded_char(const char *stream, char *result, size_t *consumed);
 /*! \brief Decode a stream of encoded control or extended ASCII characters */
 char *ast_get_encoded_str(const char *stream, char *result, size_t result_len);
 
+/*! \brief Decode a stream of encoded control or extended ASCII characters */
+int ast_str_get_encoded_str(struct ast_str **str, int maxlen, const char *stream);
+
 /*! \brief Common routine for child processes, to close all fds prior to exec(2) */
 void ast_close_fds_above_n(int n);
 
