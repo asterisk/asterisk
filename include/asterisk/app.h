@@ -483,6 +483,9 @@ int ast_get_encoded_char(const char *stream, char *result, size_t *consumed);
 /*! \brief Decode a string which may contain multiple encoded control or extended ASCII characters */
 int ast_get_encoded_str(const char *stream, char *result, size_t result_size);
 
+/*! \brief Decode a stream of encoded control or extended ASCII characters */
+int ast_str_get_encoded_str(struct ast_str **str, int maxlen, const char *stream);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

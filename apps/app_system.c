@@ -33,6 +33,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/app.h"
 #include "asterisk/channel.h"	/* autoservice */
+#include "asterisk/strings.h"
+#include "asterisk/threadstorage.h"
+
+AST_THREADSTORAGE(buf_buf);
 
 static char *app = "System";
 
@@ -62,6 +66,7 @@ static char *descrip2 =
 static int system_exec_helper(struct ast_channel *chan, void *data, int failmode)
 {
 	int res = 0;
+	struct ast_str *buf = ast_str_thread_get(&buf_buf, 16);
 	
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "System requires an argument(command)\n");
@@ -72,7 +77,9 @@ static int system_exec_helper(struct ast_channel *chan, void *data, int failmode
 	ast_autoservice_start(chan);
 
 	/* Do our thing here */
-	res = ast_safe_system((char *)data);
+	ast_str_get_encoded_str(&buf, 0, (char *) data);
+	res = ast_safe_system(ast_str_buffer(buf));
+
 	if ((res < 0) && (errno != ECHILD)) {
 		ast_log(LOG_WARNING, "Unable to execute '%s'\n", (char *)data);
 		pbx_builtin_setvar_helper(chan, chanvar, "FAILURE");
