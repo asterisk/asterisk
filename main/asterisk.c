@@ -554,6 +554,7 @@ static int swapmode(int *used, int *total)
 }
 #endif
 
+#if defined(HAVE_SYSINFO) || defined(HAVE_SYSCTL)
 /*! \brief Give an overview of system statistics */
 static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -647,6 +648,7 @@ static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cl
 	ast_cli(a->fd, "  Number of Processes:       %d \n\n", nprocs);
 	return CLI_SUCCESS;
 }
+#endif
 
 struct profile_entry {
 	const char *name;
