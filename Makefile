@@ -146,7 +146,7 @@ else
   ASTSBINDIR=$(sbindir)
   ASTSPOOLDIR=$(localstatedir)/spool/asterisk
   ASTLOGDIR=$(localstatedir)/log/asterisk
-  ASTVARRUNDIR=$(localstatedir)/run
+  ASTVARRUNDIR=$(localstatedir)/run/asterisk
   ASTMANDIR=$(mandir)
 ifneq ($(findstring BSD,$(OSARCH)),)
   ASTVARLIBDIR=$(prefix)/share/asterisk
@@ -805,22 +805,28 @@ install-logrotate:
 config:
 	@if [ "${OSARCH}" = "linux-gnu" ]; then \
 		if [ -f /etc/redhat-release -o -f /etc/fedora-release ]; then \
-			$(INSTALL) -m 755 contrib/init.d/rc.redhat.asterisk $(DESTDIR)/etc/rc.d/init.d/asterisk; \
+			cat contrib/init.d/rc.redhat.asterisk | sed 's|__ASTERISK_ETC_DIR__|$(ASTETCDIR);s|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;s|__ASTERISK_VARRUN_DIR__|$(ASTVARRUNDIR)|;' > $(DESTDIR)/etc/rc.d/init.d/asterisk ;\
+			chmod 755 $(DESTDIR)/etc/rc.d/init.d/asterisk;\
 			if [ -z "$(DESTDIR)" ]; then /sbin/chkconfig --add asterisk; fi; \
 		elif [ -f /etc/debian_version ]; then \
-			$(INSTALL) -m 755 contrib/init.d/rc.debian.asterisk $(DESTDIR)/etc/init.d/asterisk; \
+			cat contrib/init.d/rc.debian.asterisk | sed 's|__ASTERISK_ETC_DIR__|$(ASTETCDIR);s|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;s|__ASTERISK_VARRUN_DIR__|$(ASTVARRUNDIR)|;' > $(DESTDIR)/etc/init.d/asterisk ;\
+			chmod 755 $(DESTDIR)/etc/init.d/asterisk;\
 			if [ -z "$(DESTDIR)" ]; then /usr/sbin/update-rc.d asterisk start 50 2 3 4 5 . stop 91 2 3 4 5 .; fi; \
 		elif [ -f /etc/gentoo-release ]; then \
-			$(INSTALL) -m 755 contrib/init.d/rc.gentoo.asterisk $(DESTDIR)/etc/init.d/asterisk; \
+			cat contrib/init.d/rc.gentoo.asterisk | sed 's|__ASTERISK_ETC_DIR__|$(ASTETCDIR);s|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;s|__ASTERISK_VARRUN_DIR__|$(ASTVARRUNDIR)|;' > $(DESTDIR)/etc/init.d/asterisk ;\
+			chmod 755 $(DESTDIR)/etc/init.d/asterisk;\
 			if [ -z "$(DESTDIR)" ]; then /sbin/rc-update add asterisk default; fi; \
 		elif [ -f /etc/mandrake-release -o -f /etc/mandriva-release ]; then \
-			$(INSTALL) -m 755 contrib/init.d/rc.mandriva.asterisk $(DESTDIR)/etc/rc.d/init.d/asterisk; \
+			cat contrib/init.d/rc.mandriva.asterisk | sed 's|__ASTERISK_ETC_DIR__|$(ASTETCDIR);s|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;s|__ASTERISK_VARRUN_DIR__|$(ASTVARRUNDIR)|;' > $(DESTDIR)/etc/rc.d/init.d/asterisk ;\
+			chmod 755 $(DESTDIR)/etc/rc.d/init.d/asterisk;\
 			if [ -z "$(DESTDIR)" ]; then /sbin/chkconfig --add asterisk; fi; \
 		elif [ -f /etc/SuSE-release -o -f /etc/novell-release ]; then \
-			$(INSTALL) -m 755 contrib/init.d/rc.suse.asterisk $(DESTDIR)/etc/init.d/asterisk; \
+			cat contrib/init.d/rc.suse.asterisk | sed 's|__ASTERISK_ETC_DIR__|$(ASTETCDIR);s|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;s|__ASTERISK_VARRUN_DIR__|$(ASTVARRUNDIR)|;' > $(DESTDIR)/etc/init.d/asterisk ;\
+			chmod 755 $(DESTDIR)/etc/init.d/asterisk;\
 			if [ -z "$(DESTDIR)" ]; then /sbin/chkconfig --add asterisk; fi; \
 		elif [ -f /etc/arch-release -o -f /etc/arch-release ]; then \
-			$(INSTALL) -m 755 contrib/init.d/rc.archlinux.asterisk $(DESTDIR)/etc/rc.d/asterisk; \
+			cat contrib/init.d/rc.archlinux.asterisk | sed 's|__ASTERISK_ETC_DIR__|$(ASTETCDIR);s|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;s|__ASTERISK_VARRUN_DIR__|$(ASTVARRUNDIR)|;' > $(DESTDIR)/etc/rc.d/asterisk ;\
+			chmod 755 $(DESTDIR)/etc/rc.d/asterisk;\
 		elif [ -f /etc/slackware-version ]; then \
 			echo "Slackware is not currently supported, although an init script does exist for it." \
 		else \

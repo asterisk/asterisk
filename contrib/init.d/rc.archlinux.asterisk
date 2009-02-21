@@ -8,26 +8,31 @@
 #
 . /etc/rc.conf
 . /etc/rc.d/functions
+DAEMON=__ASTERISK_SBIN_DIR__/asterisk
+ASTVARRUNDIR=__ASTERISK_VARRUN_DIR__
 
 case "$1" in
   start)
     stat_busy "Starting Asterisk..."
-    if [ -x /usr/sbin/asterisk ]; then
+	if [ ! -d $ASTVARRUNDIR ]; then
+		mkdir -p $ASTVARRUNDIR
+	fi
+    if [ -x $DAEMON ]; then
       # Check if Asterisk is already running.  If it is, then bug out, because
       # starting safe_asterisk when Asterisk is running is very bad.
-      VERSION=`/usr/sbin/asterisk -rx 'core show version'`
+      VERSION=`${DAEMON} -rx 'core show version'`
       if [ "`echo $VERSION | cut -c 1-8`" = "Asterisk" ]; then
          echo "Asterisk is already running.  $0 will exit now."
          exit 1
       fi
-      /usr/sbin/asterisk
+	  ${DAEMON}
       stat_done
     fi
     ;;
   stop)
-    if [ -r /var/run/asterisk.pid ]; then
+    if [ -r ${ASTVARRUNDIR}/asterisk.pid ]; then
       stat_busy "Stoping Asterisk..."
-      asterisk -rx "core stop now" > /dev/null 2&>1
+      ${DAEMON} -rx "core stop now" > /dev/null 2&>1
       if [ $? -gt 0 ]; then
         stat_fail
       else

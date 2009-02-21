@@ -12,7 +12,8 @@ MACHINE=`hostname`			# To specify which machine has crashed when getting the mai
 DUMPDROP=/tmp
 SLEEPSECS=4
 ASTSBINDIR=__ASTERISK_SBIN_DIR__
-ASTPIDFILE=__ASTERISK_VARRUN_DIR__/asterisk.pid
+ASTVARRUNDIR=__ASTERISK_VARRUN_DIR__
+ASTPIDFILE=${ASTVARRUNDIR}/asterisk.pid
 
 # comment this line out to have this script _not_ kill all mpg123 processes when
 # asterisk exits
@@ -90,6 +91,11 @@ else
 
 	# set the process's filemax to whatever set above
 	ulimit -n $MAXFILES
+
+	if [ ! -d ${ASTVARRUNDIR} ]; then
+		mkdir -p ${ASTVARRUNDIR}
+		chmod 770 ${ASTVARRUNDIR}
+	fi
 
 fi
 

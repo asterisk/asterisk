@@ -21,7 +21,9 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 NAME=asterisk
 DESC="Asterisk PBX"
 # Full path to asterisk binary
-DAEMON=/usr/sbin/asterisk
+DAEMON=__ASTERISK_SBIN_DIR__/asterisk
+ASTVARRUNDIR=__ASTERISK_VARRUN_DIR__
+ASTETCDIR=__ASTERISK_ETC_DIR__
 TRUE=/bin/true
 
 # Uncomment this ONLY if you know what you are doing.
@@ -42,8 +44,8 @@ if ! [ -x $DAEMON ] ; then
         exit 0
 fi
 
-if ! [ -d /etc/asterisk ] ; then
-        echo "ERROR: /etc/asterisk directory not found"
+if ! [ -d $ASTETCDIR ] ; then
+        echo "ERROR: $ASTETCDIR directory not found"
         exit 0
 fi
 
@@ -61,12 +63,18 @@ case "$1" in
 	fi
 
 	log_begin_msg "Starting $DESC: $NAME"
-        if [ $AST_USER ] ; then
-                ASTARGS="-U $AST_USER"
-        fi
-        if [ $AST_GROUP ] ; then
-                ASTARGS="$ASTARGS -G $AST_GROUP"
-        fi
+	if [ ! -d $ASTVARRUNDIR ]; then
+		mkdir -p $ASTVARRUNDIR
+	fi
+
+	if [ $AST_USER ] ; then
+		ASTARGS="-U $AST_USER"
+		chown $AST_USER $ASTVARRUNDIR
+	fi
+	if [ $AST_GROUP ] ; then
+		ASTARGS="$ASTARGS -G $AST_GROUP"
+		chown $AST_GROUP $ASTVARRUNDIR
+	fi
 	# "start-stop-daemon --oknodo" returns 0 even if Asterisk was already running (as LSB expects):
 	start-stop-daemon --start --oknodo --exec $DAEMON -- $ASTARGS
 	log_end_msg $?
