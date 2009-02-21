@@ -178,17 +178,6 @@ int ast_tone_zone_count(void);
  */
 struct ao2_iterator ast_tone_zone_iterator_init(void);
 
-extern struct ast_tone_zone __fake_tone_zone;
-extern struct ast_tone_zone_sound __fake_tone_zone_sound;
-
-#define AST_CHECK_TONE_ZONE(tz) do { \
-	(void) ((tz) == (&__fake_tone_zone)); \
-} while (0)
-
-#define AST_CHECK_TONE_ZONE_SOUND(ts) do { \
-	(void) ((ts) == (&__fake_tone_zone_sound)); \
-} while (0)
-
 /*!
  * \brief Lock an ast_tone_zone
  */
@@ -209,43 +198,43 @@ extern struct ast_tone_zone_sound __fake_tone_zone_sound;
  *
  * \return NULL
  */
-#define ast_tone_zone_unref(tz) ({  \
-	AST_CHECK_TONE_ZONE(tz); \
-	ao2_ref(tz, -1); \
-	(NULL); \
-})
+static inline struct ast_tone_zone *ast_tone_zone_unref(struct ast_tone_zone *tz)
+{
+	ao2_ref(tz, -1);
+	return NULL;
+}
 
 /*!
  * \brief Increase the reference count on an ast_tone_zone
  *
  * \return The tone zone provided as an argument
  */
-#define ast_tone_zone_ref(tz) ({ \
-	AST_CHECK_TONE_ZONE(tz); \
-	ao2_ref(tz, +1); \
-	(tz); \
-})
+static inline struct ast_tone_zone *ast_tone_zone_ref(struct ast_tone_zone *tz)
+{
+	ao2_ref(tz, +1);
+	return tz;
+}
 
 /*!
  * \brief Release a reference to an ast_tone_zone_sound
  *
  * \return NULL
  */
-#define ast_tone_zone_sound_unref(ts) ({ \
-	AST_CHECK_TONE_ZONE_SOUND(ts); \
-	ao2_ref(ts, -1); \
-	(NULL); \
-})
+static inline struct ast_tone_zone_sound *ast_tone_zone_sound_unref(struct ast_tone_zone_sound *ts)
+{
+	ao2_ref(ts, -1);
+	return NULL;
+}
 
 /*!
  * \brief Increase the reference count on an ast_tone_zone_sound
  *
  * \return The tone zone sound provided as an argument
  */
-#define ast_tone_zone_sound_ref(ts) ({ \
-	AST_CHECK_TONE_ZONE_SOUND(ts); \
-	ao2_ref(ts, +1); \
-	(ts); \
-})
+static inline struct ast_tone_zone_sound *ast_tone_zone_sound_ref(struct ast_tone_zone_sound *ts)
+{
+	ao2_ref(ts, +1);
+	return ts;
+}
 
 #endif /* _ASTERISK_INDICATIONS_H */
