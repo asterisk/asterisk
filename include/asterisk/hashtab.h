@@ -81,12 +81,12 @@ struct ast_hashtab
 {
 	struct ast_hashtab_bucket **array;
 	struct ast_hashtab_bucket *tlist;		/*!< the head of a DLList of all the hashbuckets in the table (for traversal). */
-	
-	int (*compare) (const void *a, const void *b);	/*!< a ptr to func that returns int, and take two void* ptrs, compares them, 
+
+	int (*compare) (const void *a, const void *b);	/*!< a ptr to func that returns int, and take two void* ptrs, compares them,
 													 rets -1 if a < b; rets 0 if a==b; rets 1 if a>b */
 	int (*newsize) (struct ast_hashtab *tab);	/*!< a ptr to func that returns int, a new size for hash tab, based on curr_size */
 	int (*resize) (struct ast_hashtab *tab);	/*!< a function to decide whether this hashtable should be resized now */
-	unsigned int (*hash) (const void *obj);         /*!< a hash func ptr for this table. Given a raw ptr to an obj, 
+	unsigned int (*hash) (const void *obj);         /*!< a hash func ptr for this table. Given a raw ptr to an obj,
 													 it calcs a hash.*/
 	int hash_tab_size;                            /*!< the size of the bucket array */
 	int hash_tab_elements;                        /*!< the number of objects currently stored in the table */
@@ -108,47 +108,87 @@ struct ast_hashtab_iter
 
 /* some standard, default routines for general use */
 
-/*! \brief For sizing the hash table, tells if num is prime or not */
+/*!
+ * \brief Determines if the specified number is prime.
+ *
+ * \param num the number to test
+ * \retval 0 if the number is not prime
+ * \retval 1 if the number is prime
+ */
 int ast_is_prime(int num);
 
-/*! 
- * \brief assumes a and b are char * 
- * \return 0 if they match 
-*/
+/*!
+ * \brief Compares two strings for equality.
+ *
+ * \param a a character string
+ * \param b a character string
+ * \retval 0 if the strings match
+ * \retval <0 if string a is less than string b
+ * \retval >0 if string a is greather than string b
+ */
 int ast_hashtab_compare_strings(const void *a, const void *b);
 
 /*!
- * \brief assumes a & b are strings
- * \return 0 if they match (strcasecmp) 
-*/
+ * \brief Compares two strings for equality, ignoring case.
+ *
+ * \param a a character string
+ * \param b a character string
+ * \retval 0 if the strings match
+ * \retval <0 if string a is less than string b
+ * \retval >0 if string a is greather than string b
+ */
 int ast_hashtab_compare_strings_nocase(const void *a, const void *b);
 
 /*!
- * \brief assumes a & b are int *
- * \retval 0 if match
- * \retval 1 a > b
- * \retval -1 a < b
-*/
+ * \brief Compares two integers for equality.
+ *
+ * \param a an integer pointer (int *)
+ * \param b an integer pointer (int *)
+ * \retval 0 if the integers pointed to are equal
+ * \retval 1 if a is greater than b
+ * \retval -1 if a is less than b
+ */
 int ast_hashtab_compare_ints(const void *a, const void *b);
 
 /*!
- * \brief assumes a & b are short *
- * \retval 0 if match
- * \retval 1 a > b
- * \retval -1 a < b
-*/
+ * \brief Compares two shorts for equality.
+ *
+ * \param a a short pointer (short *)
+ * \param b a short pointer (short *)
+ * \retval 0 if the shorts pointed to are equal
+ * \retval 1 if a is greater than b
+ * \retval -1 if a is less than b
+ */
 int ast_hashtab_compare_shorts(const void *a, const void *b);
 
 /*!
- * \brief determine if resize should occur
- * \returns 1 if the table is 75% full or more
-*/
+ * \brief Determines if a table resize should occur using the Java algorithm
+ *        (if the table load factor is 75% or higher).
+ *
+ * \param tab the hash table to operate on
+ * \retval 0 if the table load factor is less than or equal to 75%
+ * \retval 1 if the table load factor is greater than 75%
+ */
 int ast_hashtab_resize_java(struct ast_hashtab *tab);
 
-/*! \brief no resizing; always return 0 */
+/*! \brief Causes a resize whenever the number of elements stored in the table
+ *         exceeds the number of buckets in the table.
+ *
+ * \param tab the hash table to operate on
+ * \retval 0 if the number of elements in the table is less than or equal to
+ *           the number of buckets
+ * \retval 1 if the number of elements in the table exceeds the number of
+ *           buckets
+ */
 int ast_hashtab_resize_tight(struct ast_hashtab *tab);
 
-/*! \brief no resizing; always return 0 */
+/*!
+ * \brief Effectively disables resizing by always returning 0, regardless of
+ *        of load factor.
+ *
+ * \param tab the hash table to operate on
+ * \return 0 is always returned
+ */
 int ast_hashtab_resize_none(struct ast_hashtab *tab);
 
 /*! \brief Create a prime number roughly 2x the current table size */
@@ -160,18 +200,37 @@ int ast_hashtab_newsize_tight(struct ast_hashtab *tab);
 /*! \brief always return current size -- no resizing */
 int ast_hashtab_newsize_none(struct ast_hashtab *tab);
 
-/*! 
+/*!
  * \brief Hashes a string to a number
- * \param obj
- * \note A modulus is applied so it in the range 0 to mod-1 
-*/
+ *
+ * \param obj the string to hash
+ * \return Integer hash of the specified string
+ * \sa ast_hashtable_hash_string_nocase
+ * \sa ast_hashtab_hash_string_sax
+ * \note A modulus will be applied to the return value of this function
+ */
 unsigned int ast_hashtab_hash_string(const void *obj);
 
-/*! \brief Upperases each char before using them for a hash */
+/*!
+ * \brief Hashes a string to a number ignoring case
+ *
+ * \param obj the string to hash
+ * \return Integer hash of the specified string
+ * \sa ast_hashtable_hash_string
+ * \sa ast_hashtab_hash_string_sax
+ * \note A modulus will be applied to the return value of this function
+ */
 unsigned int ast_hashtab_hash_string_nocase(const void *obj);
 
-
-unsigned int ast_hashtab_hash_string_sax(const void *obj); /* from Josh */
+/*!
+ * \brief Hashes a string to a number using a modified Shift-And-XOR algorithm
+ *
+ * \param obj the string to hash
+ * \return Integer has of the specified string
+ * \sa ast_hastable_hash_string
+ * \sa ast_hastable_hash_string_nocase
+ */
+unsigned int ast_hashtab_hash_string_sax(const void *obj);
 
 
 unsigned int ast_hashtab_hash_int(const int num);  /* right now, both these funcs are just result = num%modulus; */
@@ -183,7 +242,7 @@ unsigned int ast_hashtab_hash_short(const short num);
 /*!
  * \brief Create the hashtable list
  * \param initial_buckets starting number of buckets
- * \param compare a func ptr to compare two elements in the hash -- cannot be null 
+ * \param compare a func ptr to compare two elements in the hash -- cannot be null
  * \param resize a func ptr to decide if the table needs to be resized, a NULL ptr here will cause a default to be used
  * \param newsize a func ptr that returns a new size of the array. A NULL will cause a default to be used
  * \param hash a func ptr to do the hashing
@@ -191,23 +250,23 @@ unsigned int ast_hashtab_hash_short(const short num);
 */
 #if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
 struct ast_hashtab * _ast_hashtab_create(int initial_buckets,
-					int (*compare)(const void *a, const void *b), 
-					int (*resize)(struct ast_hashtab *),	
+					int (*compare)(const void *a, const void *b),
+					int (*resize)(struct ast_hashtab *),
 					int (*newsize)(struct ast_hashtab *tab),
-					unsigned int (*hash)(const void *obj), 
+					unsigned int (*hash)(const void *obj),
 					int do_locking, const char *file, int lineno, const char *function);
 #define ast_hashtab_create(a,b,c,d,e,f)	_ast_hashtab_create(a,b,c,d,e,f,__FILE__,__LINE__,__PRETTY_FUNCTION__)
 #else
 struct ast_hashtab * ast_hashtab_create(int initial_buckets,
-					int (*compare)(const void *a, const void *b), 
-					int (*resize)(struct ast_hashtab *),	
+					int (*compare)(const void *a, const void *b),
+					int (*resize)(struct ast_hashtab *),
 					int (*newsize)(struct ast_hashtab *tab),
-					unsigned int (*hash)(const void *obj), 
+					unsigned int (*hash)(const void *obj),
 					int do_locking );
 #endif
 
 /*!
- * \brief This func will free the hash table and all its memory. 
+ * \brief This func will free the hash table and all its memory.
  * \note It doesn't touch the objects stored in it, unless you
  *       specify a destroy func; it will call that func for each
  *       object in the hashtab, remove all the objects, and then
@@ -220,14 +279,14 @@ void ast_hashtab_destroy( struct ast_hashtab *tab, void (*objdestroyfunc)(void *
 
 
 /*!
- * \brief Insert without checking 
+ * \brief Insert without checking
  * \param tab
  * \param obj
  *
  * Normally, you'd insert "safely" by checking to see if the element is
  * already there; in this case, you must already have checked. If an element
  * is already in the hashtable, that matches this one, most likely this one
- * will be found first. 
+ * will be found first.
  * \note will force a resize if the resize func returns 1
  * \retval 1 on success
  * \retval 0 if there's a problem
@@ -239,7 +298,7 @@ int ast_hashtab_insert_immediate(struct ast_hashtab *tab, const void *obj);
  * \param tab
  * \param obj
  * \param h hashed index value
- * 
+ *
  * \note Will force a resize if the resize func returns 1
  * \retval 1 on success
  * \retval 0 if there's a problem
@@ -250,14 +309,14 @@ int ast_hashtab_insert_immediate_bucket(struct ast_hashtab *tab, const void *obj
  * \brief Check and insert new object only if it is not there.
  * \note Will force a resize if the resize func returns 1
  * \retval 1 on success
- * \retval  0 if there's a problem, or it's already there. 
+ * \retval  0 if there's a problem, or it's already there.
 */
 int ast_hashtab_insert_safe(struct ast_hashtab *tab, const void *obj);
 
 /*!
- * \brief Lookup this object in the hash table. 
- * \param tab 
- * \param obj 
+ * \brief Lookup this object in the hash table.
+ * \param tab
+ * \param obj
  * \retval a ptr if found
  * \retval NULL if not found
 */
@@ -324,15 +383,15 @@ void *ast_hashtab_remove_this_object_nolock(struct ast_hashtab *tab, void *obj);
    following locking routines yourself to lock the table between threads. */
 
 /*! \brief Call this after you create the table to init the lock */
-void ast_hashtab_initlock(struct ast_hashtab *tab); 
+void ast_hashtab_initlock(struct ast_hashtab *tab);
 /*! \brief Request a write-lock on the table. */
-void ast_hashtab_wrlock(struct ast_hashtab *tab); 
+void ast_hashtab_wrlock(struct ast_hashtab *tab);
 /*! \brief Request a read-lock on the table -- don't change anything! */
-void ast_hashtab_rdlock(struct ast_hashtab *tab); 
+void ast_hashtab_rdlock(struct ast_hashtab *tab);
 /*! \brief release a read- or write- lock. */
-void ast_hashtab_unlock(struct ast_hashtab *tab); 
+void ast_hashtab_unlock(struct ast_hashtab *tab);
 /*! \brief Call this before you destroy the table. */
-void ast_hashtab_destroylock(struct ast_hashtab *tab); 
+void ast_hashtab_destroylock(struct ast_hashtab *tab);
 
 
 #endif

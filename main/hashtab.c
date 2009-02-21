@@ -38,7 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/linkedlists.h"
 #include "asterisk/hashtab.h"
 
-static void ast_hashtab_resize( struct ast_hashtab *tab);
+static void ast_hashtab_resize(struct ast_hashtab *tab);
 static void *ast_hashtab_lookup_internal(struct ast_hashtab *tab, const void *obj, unsigned int h);
 
 /* some standard, default routines for general use */
@@ -60,7 +60,7 @@ int ast_hashtab_compare_ints(const void *a, const void *b)
 
 	if (ai < bi)
 		return -1;
-	
+
 	return !(ai == bi);
 }
 
@@ -68,7 +68,7 @@ int ast_hashtab_compare_shorts(const void *a, const void *b)
 {
 	short as = *((short *) a);
 	short bs = *((short *) b);
-	
+
 	if (as < bs)
 		return -1;
 
@@ -95,10 +95,10 @@ int ast_hashtab_resize_none(struct ast_hashtab *tab) /* always return 0 -- no re
 int ast_is_prime(int num)
 {
 	int tnum, limit;
-	    
+
 	if (!(num & 0x1)) /* even number -- not prime */
 		return 0;
-		    
+
 	/* Loop through ODD numbers starting with 3 */
 
 	tnum = 3;
@@ -109,20 +109,19 @@ int ast_is_prime(int num)
 
 		/* really, we only need to check sqrt(num) numbers */
 		limit = num / tnum;
-		
+
 		/* we only check odd numbers */
 		tnum = tnum + 2;
 	}
 
 	/* if we made it through the loop, the number is a prime */
-
 	return 1;
 }
 
 int ast_hashtab_newsize_java(struct ast_hashtab *tab)
 {
 	int i = (tab->hash_tab_size << 1); /* multiply by two */
-	
+
 	while (!ast_is_prime(i))
 		i++;
 
@@ -133,7 +132,7 @@ int ast_hashtab_newsize_tight(struct ast_hashtab *tab)
 {
 	int x = (tab->hash_tab_size << 1);
 	int i = (tab->hash_tab_size + x);
-	
+
 	while (!ast_is_prime(i))
 		i++;
 
@@ -150,14 +149,13 @@ unsigned int ast_hashtab_hash_string(const void *obj)
 	unsigned char *str = (unsigned char *) obj;
 	unsigned int total;
 
-	for (total = 0; *str; str++)
-	{
+	for (total = 0; *str; str++) {
 		unsigned int tmp = total;
 		total <<= 1; /* multiply by 2 */
 		total += tmp; /* multiply by 3 */
 		total <<= 2; /* multiply by 12 */
 		total += tmp; /* multiply by 13 */
-		
+
 		total += ((unsigned int)(*str));
 	}
 	return total;
@@ -184,14 +182,14 @@ unsigned int ast_hashtab_hash_string_nocase(const void *obj)
 		unsigned int charval = toupper(*str);
 
 		/* hopefully, the following is faster than multiplication by 7 */
-		/* why do I go to this bother? A good compiler will do this 
+		/* why do I go to this bother? A good compiler will do this
 		   anyway, if I say total *= 13 */
 		/* BTW, tried *= 7, and it doesn't do as well in spreading things around! */
 		total <<= 1; /* multiply by 2 */
 		total += tmp; /* multiply by 3 */
 		total <<= 2; /* multiply by 12 */
 		total += tmp; /* multiply by 13 */
-		
+
 		total += (charval);
 	}
 
@@ -215,11 +213,11 @@ _ast_hashtab_create
 #else
 ast_hashtab_create
 #endif
-(int initial_buckets, 
-	int (*compare)(const void *a, const void *b), 
-	int (*resize)(struct ast_hashtab *), 
+(int initial_buckets,
+	int (*compare)(const void *a, const void *b),
+	int (*resize)(struct ast_hashtab *),
 	int (*newsize)(struct ast_hashtab *tab),
-	unsigned int (*hash)(const void *obj), 
+	unsigned int (*hash)(const void *obj),
 	int do_locking
 #if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
 	, const char *file, int lineno, const char *function
@@ -363,12 +361,12 @@ void ast_hashtab_unlock(struct ast_hashtab *tab)
 	ast_rwlock_unlock(&tab->lock);
 }
 
-void ast_hashtab_destroy( struct ast_hashtab *tab, void (*objdestroyfunc)(void *obj))
+void ast_hashtab_destroy(struct ast_hashtab *tab, void (*objdestroyfunc)(void *obj))
 {
 	/* this func will free the hash table and all its memory. It
 	   doesn't touch the objects stored in it */
 	if (tab) {
-		
+
 		if (tab->do_locking)
 			ast_rwlock_wrlock(&tab->lock);
 
@@ -376,19 +374,24 @@ void ast_hashtab_destroy( struct ast_hashtab *tab, void (*objdestroyfunc)(void *
 			/* go thru and destroy the buckets */
 			struct ast_hashtab_bucket *t;
 			int i;
-			
+
 			while (tab->tlist) {
 				t = tab->tlist;
-				if (t->object && objdestroyfunc)
-					(*objdestroyfunc)((void *) t->object); /* I cast this because I'm not going to MOD it, I'm going to DESTROY it */
-				
+				if (t->object && objdestroyfunc) {
+					/* I cast this because I'm not going to MOD it, I'm going to DESTROY
+					 * it.
+					 */
+					(*objdestroyfunc)((void *) t->object);
+				}
+
 				tlist_del_item(&(tab->tlist), tab->tlist);
 				free(t);
 			}
-			
-			for (i = 0; i < tab->hash_tab_size; i++)
-				tab->array[i] = NULL; /* not totally necc., but best to destroy old ptrs */
-			
+
+			for (i = 0; i < tab->hash_tab_size; i++) {
+				/* Not totally necessary, but best to destroy old pointers */
+				tab->array[i] = NULL;
+			}
 			free(tab->array);
 		}
 		if (tab->do_locking) {
@@ -403,7 +406,7 @@ int ast_hashtab_insert_immediate(struct ast_hashtab *tab, const void *obj)
 {
 	unsigned int h;
 	int res=0;
-	
+
 	if (!tab || !obj)
 		return res;
 
@@ -424,10 +427,10 @@ int ast_hashtab_insert_immediate_bucket(struct ast_hashtab *tab, const void *obj
 {
 	int c;
 	struct ast_hashtab_bucket *b;
-	
+
 	if (!tab || !obj)
 		return 0;
-	
+
 	for (c = 0, b = tab->array[h]; b; b= b->next)
 		c++;
 
@@ -469,13 +472,13 @@ int ast_hashtab_insert_safe(struct ast_hashtab *tab, const void *obj)
 
 		if (tab->do_locking)
 			ast_rwlock_unlock(&tab->lock);
-		
+
 		return ret2;
 	}
 
 	if (tab->do_locking)
 		ast_rwlock_unlock(&tab->lock);
-		
+
 	return 0;
 }
 
@@ -487,7 +490,7 @@ void *ast_hashtab_lookup(struct ast_hashtab *tab, const void *obj)
 
 	if (!tab || !obj)
 		return 0;
-	
+
 	if (tab->do_locking)
 		ast_rwlock_rdlock(&tab->lock);
 
@@ -510,14 +513,14 @@ void *ast_hashtab_lookup_with_hash(struct ast_hashtab *tab, const void *obj, uns
 
 	if (!tab || !obj)
 		return 0;
-	
+
 	if (tab->do_locking)
 		ast_rwlock_rdlock(&tab->lock);
-		
+
 	h = hashval % tab->hash_tab_size;
 
 	ret = ast_hashtab_lookup_internal(tab,obj,h);
-	
+
 	if (tab->do_locking)
 		ast_rwlock_unlock(&tab->lock);
 
@@ -532,13 +535,13 @@ void *ast_hashtab_lookup_bucket(struct ast_hashtab *tab, const void *obj, unsign
 
 	if (!tab || !obj)
 		return 0;
-	
+
 	h = (*tab->hash)(obj) % tab->hash_tab_size;
-	
+
 	ret = ast_hashtab_lookup_internal(tab,obj,h);
-	
-	*bucket = h; 
-	
+
+	*bucket = h;
+
 	return ret;
 }
 
@@ -548,14 +551,15 @@ static void *ast_hashtab_lookup_internal(struct ast_hashtab *tab, const void *ob
 
 	for (b = tab->array[h]; b; b = b->next) {
 		if (!(*tab->compare)(obj,b->object)) {
-			return (void*) b->object; /* I can't touch obj in this func, but the outside world is welcome to */
+			/* I can't touch obj in this func, but the outside world is welcome to */
+			return (void*) b->object;
 		}
 	}
 
 	return NULL;
 }
 
-void ast_hashtab_get_stats( struct ast_hashtab *tab, int *biggest_bucket_size, int *resize_count, int *num_objects, int *num_buckets)
+void ast_hashtab_get_stats(struct ast_hashtab *tab, int *biggest_bucket_size, int *resize_count, int *num_objects, int *num_buckets)
 {
 	/* returns key stats for the table */
 	if (tab->do_locking)
@@ -568,23 +572,20 @@ void ast_hashtab_get_stats( struct ast_hashtab *tab, int *biggest_bucket_size, i
 		ast_rwlock_unlock(&tab->lock);
 }
 
-	/* this function returns the number of elements stored in the hashtab */
-int  ast_hashtab_size( struct ast_hashtab *tab)
+/* this function returns the number of elements stored in the hashtab */
+int ast_hashtab_size(struct ast_hashtab *tab)
 {
 	return tab->hash_tab_elements;
 }
 
-	/* this function returns the size of the bucket array in the hashtab */
-int  ast_hashtab_capacity( struct ast_hashtab *tab)
+/* this function returns the size of the bucket array in the hashtab */
+int ast_hashtab_capacity( struct ast_hashtab *tab)
 {
 	return tab->hash_tab_size;
 }
 
-
-
 /* the insert operation calls this, and is wrlock'd when it does. */
 /* if you want to call it, you should set the wrlock yourself */
-
 
 static void ast_hashtab_resize( struct ast_hashtab *tab)
 {
@@ -593,10 +594,10 @@ static void ast_hashtab_resize( struct ast_hashtab *tab)
 	int newsize = (*tab->newsize)(tab), i, c;
 	unsigned int h;
 	struct ast_hashtab_bucket *b,*bn;
-	
+
 	/* Since we keep a DLL of all the buckets in tlist,
 	   all we have to do is free the array, malloc a new one,
-	   and then go thru the tlist array and reassign them into 
+	   and then go thru the tlist array and reassign them into
 	   the bucket arrayj.
 	*/
 	for (i = 0; i < tab->hash_tab_size; i++) { /* don't absolutely have to do this, but
@@ -634,7 +635,7 @@ struct ast_hashtab_iter *ast_hashtab_start_traversal(struct ast_hashtab *tab)
 {
 	/* returns an iterator */
 	struct ast_hashtab_iter *it;
-	
+
 	if (!(it = ast_calloc(1, sizeof(*it))))
 		return NULL;
 
@@ -651,7 +652,7 @@ struct ast_hashtab_iter *ast_hashtab_start_write_traversal(struct ast_hashtab *t
 {
 	/* returns an iterator */
 	struct ast_hashtab_iter *it;
-	
+
 	if (!(it = ast_calloc(1, sizeof(*it))))
 		return NULL;
 
@@ -674,7 +675,7 @@ void *ast_hashtab_next(struct ast_hashtab_iter *it)
 {
 	/* returns the next object in the list, advances iter one step */
 	struct ast_hashtab_bucket *retval;
-	
+
 	if (it && it->next) { /* there's a next in the bucket list */
 		retval = it->next;
 		it->next = retval->tnext;
@@ -687,17 +688,17 @@ void *ast_hashtab_next(struct ast_hashtab_iter *it)
 static void *ast_hashtab_remove_object_internal(struct ast_hashtab *tab, struct ast_hashtab_bucket *b, int h)
 {
 	const void *obj2;
-	
+
 	if (b->prev)
 		b->prev->next = b->next;
 	else
 		tab->array[h] = b->next;
-	
+
 	if (b->next)
 		b->next->prev = b->prev;
-	
+
 	tlist_del_item(&(tab->tlist), b);
-	
+
 	obj2 = b->object;
 	b->object = b->next = (void*)2;
 	free(b); /* free up the hashbucket */
@@ -763,12 +764,12 @@ void *ast_hashtab_remove_object_via_lookup_nolock(struct ast_hashtab *tab, void 
 
 	h = (*tab->hash)(obj) % tab->hash_tab_size;
 	for (b = tab->array[h]; b; b = b->next) {
-		
+
 		if (!(*tab->compare)(obj, b->object)) {
 			const void *obj2;
 
 			obj2 = ast_hashtab_remove_object_internal(tab, b, h);
-			
+
 			return (void *) obj2; /* inside this code, the obj's are untouchable, but outside, they aren't */
 		}
 	}
@@ -785,12 +786,12 @@ void *ast_hashtab_remove_this_object(struct ast_hashtab *tab, void *obj)
 
 	if (!tab || !obj)
 		return 0;
- 
+
 	if (tab->do_locking)
 		ast_rwlock_wrlock(&tab->lock);
 
 	obj2 = ast_hashtab_remove_this_object_nolock(tab,obj);
-	
+
 	if (tab->do_locking)
 		ast_rwlock_unlock(&tab->lock);
 
@@ -807,14 +808,14 @@ void *ast_hashtab_remove_this_object_nolock(struct ast_hashtab *tab, void *obj)
 
 	if (!tab || !obj)
 		return 0;
- 
+
 	h = (*tab->hash)(obj) % tab->hash_tab_size;
 	for (b = tab->array[h]; b; b = b->next) {
-		
+
 		if (obj == b->object) {
 			const void *obj2;
 			obj2 = ast_hashtab_remove_object_internal(tab, b, h);
-			
+
 			return (void *) obj2; /* inside this code, the obj's are untouchable, but outside, they aren't */
 		}
 	}
