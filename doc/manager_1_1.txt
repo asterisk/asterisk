@@ -219,6 +219,34 @@ Changes to manager version 1.1:
 	Variables:
 		Queuename: <name> The name of the queue on which to reset statistics
 
+- Action: SKINNYdevices
+	Modules: chan_skinny
+	Purpose:
+		To list all SKINNY devices configured.
+	Variables:
+		ActionId: <id> Action ID for this transaction. Will be returned.
+
+- Action: SKINNYlines
+	Modules: chan_skinny
+	Purpose:
+		To list all SKINNY lines configured.
+	Variables:
+		ActionId: <id> Action ID for this transaction. Will be returned.
+
+- Action SKINNYshowdevice
+	Modules: chan_skinny
+	Purpose:
+		To list the information about a specific SKINNY device.
+	Variables:
+		Device: <device> Device to show information about.
+
+- Action SKINNYshowline
+	Modules: chan_skinny
+	Purpose:
+		To list the information about a specific SKINNY line.
+	Variables:
+		Line: <line> Line to show information about.
+		
 * NEW EVENTS
 ------------
 

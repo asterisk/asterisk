@@ -54,6 +54,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/acl.h"
 #include "asterisk/callerid.h"
 #include "asterisk/cli.h"
+#include "asterisk/manager.h"
 #include "asterisk/say.h"
 #include "asterisk/cdr.h"
 #include "asterisk/astdb.h"
@@ -2913,10 +2914,109 @@ static void print_codec_to_cli(int fd, struct ast_codec_pref *pref)
 		ast_cli(fd, "none");
 }
 
-static char *handle_skinny_show_devices(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+static char *_skinny_show_devices(int fd, int *total, struct mansession *s, const struct message *m, int argc, const char *argv[])
 {
 	struct skinny_device *d;
 	struct skinny_line *l;
+	const char *id;
+	char idtext[256] = "";
+	int total_devices = 0;
+
+	if (s) {	/* Manager - get ActionID */
+		id = astman_get_header(m, "ActionID");
+		if (!ast_strlen_zero(id))
+			snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
+	}
+
+	switch (argc) {
+	case 3:
+		break;
+	default:
+		return CLI_SHOWUSAGE;
+	}
+
+	if (!s) {
+		ast_cli(fd, "Name                 DeviceId         IP              Type            R NL\n");
+		ast_cli(fd, "-------------------- ---------------- --------------- --------------- - --\n");
+	}
+
+	AST_LIST_LOCK(&devices);
+	AST_LIST_TRAVERSE(&devices, d, list) {
+		int numlines = 0;
+		total_devices++;
+		AST_LIST_TRAVERSE(&d->lines, l, list) {
+			numlines++;
+		}
+		if (!s) {
+			ast_cli(fd, "%-20s %-16s %-15s %-15s %c %2d\n",
+				d->name,
+				d->id,
+				d->session?ast_inet_ntoa(d->session->sin.sin_addr):"",
+				device2str(d->type),
+				d->registered?'Y':'N',
+				numlines);
+		} else {
+			astman_append(s,
+				"Event: DeviceEntry\r\n%s"
+				"Channeltype: SKINNY\r\n"
+				"ObjectName: %s\r\n"
+				"ChannelObjectType: device\r\n"
+				"DeviceId: %s\r\n"
+				"IPaddress: %s\r\n"
+				"Type: %s\r\n"
+				"Registered: %s\r\n"
+				"NumberOfLines: %d\r\n",
+				idtext,
+				d->name,
+				d->id,
+				d->session?ast_inet_ntoa(d->session->sin.sin_addr):"-none-",
+				device2str(d->type),
+				d->registered?"yes":"no",
+				numlines);
+		}
+	}
+	AST_LIST_UNLOCK(&devices);
+
+	if (total)
+		*total = total_devices;
+	
+	return CLI_SUCCESS;
+}
+
+static char mandescr_show_devices[] =
+"Description: Lists Skinny devices in text format with details on current status.\n"
+"Devicelist will follow as separate events, followed by a final event called\n"
+"DevicelistComplete.\n"
+"Variables: \n"
+"  ActionID: <id>	Action ID for this transaction. Will be returned.\n";
+
+/*! \brief  Show SKINNY devices in the manager API */
+/*    Inspired from chan_sip */
+static int manager_skinny_show_devices(struct mansession *s, const struct message *m)
+{
+	const char *id = astman_get_header(m, "ActionID");
+	const char *a[] = {"skinny", "show", "devices"};
+	char idtext[256] = "";
+	int total = 0;
+
+	if (!ast_strlen_zero(id))
+		snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
+
+	astman_send_listack(s, m, "Device status list will follow", "start");
+	/* List the devices in separate manager events */
+	_skinny_show_devices(-1, &total, s, m, 3, a);
+	/* Send final confirmation */
+	astman_append(s,
+	"Event: DevicelistComplete\r\n"
+	"EventList: Complete\r\n"
+	"ListItems: %d\r\n"
+	"%s"
+	"\r\n", total, idtext);
+	return 0;
+}
+
+static char *handle_skinny_show_devices(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -2929,33 +3029,10 @@ static char *handle_skinny_show_devices(struct ast_cli_entry *e, int cmd, struct
 		return NULL;
 	}
 
-	if (a->argc != 3)
-		return CLI_SHOWUSAGE;
-
-	ast_cli(a->fd, "Name                 DeviceId         IP              Type            R NL\n");
-	ast_cli(a->fd, "-------------------- ---------------- --------------- --------------- - --\n");
-
-	AST_LIST_LOCK(&devices); 
-	AST_LIST_TRAVERSE(&devices, d, list) {
-		int numlines = 0;
-		AST_LIST_TRAVERSE(&d->lines, l, list) {
-			numlines++;
-		}
-		
-		ast_cli(a->fd, "%-20s %-16s %-15s %-15s %c %2d\n",
-			d->name,
-			d->id,
-			d->session?ast_inet_ntoa(d->session->sin.sin_addr):"",
-			device2str(d->type),
-			d->registered?'Y':'N',
-			numlines);
-	}
-	AST_LIST_UNLOCK(&devices);
-	return CLI_SUCCESS;
+	return _skinny_show_devices(a->fd, NULL, NULL, NULL, a->argc, (const char **) a->argv);
 }
 
-/*! \brief Show device information */
-static char *handle_skinny_show_device(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+static char *_skinny_show_device(int type, int fd, struct mansession *s, const struct message *m, int argc, const char *argv[])
 {
 	struct skinny_device *d;
 	struct skinny_line *l;
@@ -2963,6 +3040,123 @@ static char *handle_skinny_show_device(struct ast_cli_entry *e, int cmd, struct 
 	struct skinny_addon *sa;
 	char codec_buf[512];
 
+	if (argc < 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	AST_LIST_LOCK(&devices);
+	AST_LIST_TRAVERSE(&devices, d, list) {
+		if (!strcasecmp(argv[3], d->id) || !strcasecmp(argv[3], d->name)) {
+			int numlines = 0, numaddons = 0, numspeeddials = 0;
+
+			AST_LIST_TRAVERSE(&d->lines, l, list){
+				numlines++;
+			}
+
+			AST_LIST_TRAVERSE(&d->addons, sa, list) {
+				numaddons++;
+			}
+
+			AST_LIST_TRAVERSE(&d->speeddials, sd, list) {
+				numspeeddials++;
+			}
+
+			if (type == 0) { /* CLI */
+				ast_cli(fd, "Name:        %s\n", d->name);
+				ast_cli(fd, "Id:          %s\n", d->id);
+				ast_cli(fd, "version:     %s\n", S_OR(d->version_id, "Unknown"));
+				ast_cli(fd, "Ip address:  %s\n", (d->session ? ast_inet_ntoa(d->session->sin.sin_addr) : "Unknown"));
+				ast_cli(fd, "Port:        %d\n", (d->session ? ntohs(d->session->sin.sin_port) : 0));
+				ast_cli(fd, "Device Type: %s\n", device2str(d->type));
+				ast_cli(fd, "Conf Codecs:");
+				ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, d->confcapability);
+				ast_cli(fd, "%s\n", codec_buf);
+				ast_cli(fd, "Neg Codecs: ");
+				ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, d->capability);
+				ast_cli(fd, "%s\n", codec_buf);
+				ast_cli(fd, "Registered:  %s\n", (d->registered ? "Yes" : "No"));
+				ast_cli(fd, "Lines:       %d\n", numlines);
+				AST_LIST_TRAVERSE(&d->lines, l, list) {
+					ast_cli(fd, "  %s (%s)\n", l->name, l->label);
+				}
+				AST_LIST_TRAVERSE(&d->addons, sa, list) {
+					numaddons++;
+				}	
+				ast_cli(fd, "Addons:      %d\n", numaddons);
+				AST_LIST_TRAVERSE(&d->addons, sa, list) {
+					ast_cli(fd, "  %s\n", sa->type);
+				}
+				AST_LIST_TRAVERSE(&d->speeddials, sd, list) {
+					numspeeddials++;
+				}
+				ast_cli(fd, "Speeddials:  %d\n", numspeeddials);
+				AST_LIST_TRAVERSE(&d->speeddials, sd, list) {
+					ast_cli(fd, "  %s (%s) ishint: %d\n", sd->exten, sd->label, sd->isHint);
+				}
+			} else { /* manager */
+				astman_append(s, "Channeltype: SKINNY\r\n");
+				astman_append(s, "ObjectName: %s\r\n", d->name);
+				astman_append(s, "ChannelObjectType: device\r\n");
+				astman_append(s, "Id: %s\r\n", d->id);
+				astman_append(s, "version: %s\r\n", S_OR(d->version_id, "Unknown"));
+				astman_append(s, "Ipaddress: %s\r\n", (d->session ? ast_inet_ntoa(d->session->sin.sin_addr) : "Unknown"));
+				astman_append(s, "Port: %d\r\n", (d->session ? ntohs(d->session->sin.sin_port) : 0));
+				astman_append(s, "DeviceType: %s\r\n", device2str(d->type));
+				astman_append(s, "Codecs: ");
+				ast_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, d->confcapability);
+				astman_append(s, "%s\r\n", codec_buf);
+				astman_append(s, "CodecOrder: ");
+				ast_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, d->capability);
+				astman_append(s, "%s\r\n", codec_buf);
+				astman_append(s, "Registered: %s\r\n", (d->registered?"yes":"no"));
+				astman_append(s, "NumberOfLines: %d\r\n", numlines);
+				AST_LIST_TRAVERSE(&d->lines, l, list) {
+					astman_append(s, "Line: %s (%s)\r\n", l->name, l->label);
+				}
+				astman_append(s, "NumberOfAddons: %d\r\n", numaddons);
+				AST_LIST_TRAVERSE(&d->addons, sa, list) {
+					astman_append(s, "Addon: %s\r\n", sa->type);
+				}
+				astman_append(s, "NumberOfSpeeddials: %d\r\n", numspeeddials);
+				AST_LIST_TRAVERSE(&d->speeddials, sd, list) {
+					astman_append(s, "Speeddial: %s (%s) ishint: %d\r\n", sd->exten, sd->label, sd->isHint);
+				}
+			}
+		}
+	}
+	AST_LIST_UNLOCK(&devices);
+	return CLI_SUCCESS;
+}
+
+static char mandescr_show_device[] =
+"Description: Show one SKINNY device with details on current status.\n"
+"Variables: \n"
+"  Device: <name>           The device name you want to check.\n"
+"  ActionID: <id>	  Optional action ID for this AMI transaction.\n";
+
+static int manager_skinny_show_device(struct mansession *s, const struct message *m)
+{
+	const char *a[4];
+	const char *device;
+
+	device = astman_get_header(m, "Device");
+	if (ast_strlen_zero(device)) {
+		astman_send_error(s, m, "Device: <name> missing.");
+		return 0;
+	}
+	a[0] = "skinny";
+	a[1] = "show";
+	a[2] = "device";
+	a[3] = device;
+
+	_skinny_show_device(1, -1, s, m, 4, a);
+	astman_append(s, "\r\n\r\n" );
+	return 0;
+}
+
+/*! \brief Show device information */
+static char *handle_skinny_show_device(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "skinny show device";
@@ -2974,59 +3168,116 @@ static char *handle_skinny_show_device(struct ast_cli_entry *e, int cmd, struct 
 		return complete_skinny_show_device(a->line, a->word, a->pos, a->n);
 	}
 
-	if (a->argc < 4)
-		return CLI_SHOWUSAGE;
+	return _skinny_show_device(0, a->fd, NULL, NULL, a->argc, (const char **) a->argv);
+}
 
-	AST_LIST_LOCK(&devices);
-	AST_LIST_TRAVERSE(&devices, d, list) {
-		if (!strcasecmp(a->argv[3], d->id) || !strcasecmp(a->argv[3], d->name)) {
-			int numlines = 0, numaddons = 0, numspeeddials = 0;
+static char *_skinny_show_lines(int fd, int *total, struct mansession *s, const struct message *m, int argc, const char *argv[])
+{
+	struct skinny_line *l;
+	struct skinny_subchannel *sub;
+	int total_lines = 0;
+	int verbose = 0;
+	const char *id;
+	char idtext[256] = "";
 
-			AST_LIST_TRAVERSE(&d->lines, l, list){
-				numlines++;
-			}
-
-			ast_cli(a->fd, "Name:        %s\n", d->name);
-			ast_cli(a->fd, "Id:          %s\n", d->id);
-			ast_cli(a->fd, "version:     %s\n", S_OR(d->version_id, "Unknown"));
-			ast_cli(a->fd, "Ip address:  %s\n", (d->session ? ast_inet_ntoa(d->session->sin.sin_addr) : "Unknown"));
-			ast_cli(a->fd, "Port:        %d\n", (d->session ? ntohs(d->session->sin.sin_port) : 0));
-			ast_cli(a->fd, "Device Type: %s\n", device2str(d->type));
-			ast_cli(a->fd, "Conf Codecs:");
-			ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, d->confcapability);
-			ast_cli(a->fd, "%s\n", codec_buf);
-			ast_cli(a->fd, "Neg Codecs: ");
-			ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, d->capability);
-			ast_cli(a->fd, "%s\n", codec_buf);
-			ast_cli(a->fd, "Registered:  %s\n", (d->registered ? "Yes" : "No"));
-			ast_cli(a->fd, "Lines:       %d\n", numlines);
-			AST_LIST_TRAVERSE(&d->lines, l, list) {
-				ast_cli(a->fd, "  %s (%s)\n", l->name, l->label);
-			}
-			AST_LIST_TRAVERSE(&d->addons, sa, list) {
-				numaddons++;
-			}	
-			ast_cli(a->fd, "Addons:      %d\n", numaddons);
-			AST_LIST_TRAVERSE(&d->addons, sa, list) {
-				ast_cli(a->fd, "  %s\n", sa->type);
-			}
-			AST_LIST_TRAVERSE(&d->speeddials, sd, list) {
-				numspeeddials++;
-			}
-			ast_cli(a->fd, "Speeddials:  %d\n", numspeeddials);
-			AST_LIST_TRAVERSE(&d->speeddials, sd, list) {
-				ast_cli(a->fd, "  %s (%s) ishint: %d\n", sd->exten, sd->label, sd->isHint);
-			}
-		}
+	if (s) {	/* Manager - get ActionID */
+		id = astman_get_header(m, "ActionID");
+		if (!ast_strlen_zero(id))
+			snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
 	}
-	AST_LIST_UNLOCK(&devices);
+
+	switch (argc) {
+	case 4:
+		verbose = 1;
+		break;
+	case 3:
+		verbose = 0;
+		break;
+	default:
+		return CLI_SHOWUSAGE;
+	}
+
+	if (!s) {
+	 	ast_cli(fd, "Name                 Device Name          Instance Label               \n");
+		ast_cli(fd, "-------------------- -------------------- -------- --------------------\n");
+	}
+	AST_LIST_LOCK(&lines);
+	AST_LIST_TRAVERSE(&lines, l, all) {
+		total_lines++;
+		if (!s) {
+			ast_cli(fd, "%-20s %-20s %8d %-20s\n",
+				l->name,
+				(l->device ? l->device->name : "Not connected"),
+				l->instance,
+				l->label);
+			if (verbose) {
+				AST_LIST_TRAVERSE(&l->sub, sub, list) {
+					ast_cli(fd, "  %s> %s to %s\n",
+						(sub == l->activesub?"Active  ":"Inactive"),
+						sub->owner->name,
+						(ast_bridged_channel(sub->owner)?ast_bridged_channel(sub->owner)->name:"")
+					);
+				}
+			}
+		} else {
+			astman_append(s,
+				"Event: LineEntry\r\n%s"
+				"Channeltype: SKINNY\r\n"
+				"ObjectName: %s\r\n"
+				"ChannelObjectType: line\r\n"
+				"Device: %s\r\n"
+				"Instance: %d\r\n"
+				"Label: %s\r\n",
+				idtext,
+				l->name,
+				(l->device?l->device->name:"None"),
+				l->instance,
+				l->label);
+		}
+		AST_LIST_UNLOCK(&lines);
+	}
+
+	if (total) {
+		*total = total_lines;
+	}
+
 	return CLI_SUCCESS;
+}
+
+static char mandescr_show_lines[] =
+"Description: Lists Skinny lines in text format with details on current status.\n"
+"Linelist will follow as separate events, followed by a final event called\n"
+"LinelistComplete.\n"
+"Variables: \n"
+"  ActionID: <id>	Action ID for this transaction. Will be returned.\n";
+
+/*! \brief  Show Skinny lines in the manager API */
+/*    Inspired from chan_sip */
+static int manager_skinny_show_lines(struct mansession *s, const struct message *m)
+{
+	const char *id = astman_get_header(m, "ActionID");
+	const char *a[] = {"skinny", "show", "lines"};
+	char idtext[256] = "";
+	int total = 0;
+
+	if (!ast_strlen_zero(id))
+		snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
+
+	astman_send_listack(s, m, "Line status list will follow", "start");
+	/* List the lines in separate manager events */
+	_skinny_show_lines(-1, &total, s, m, 3, a);
+	/* Send final confirmation */
+	astman_append(s,
+	"Event: LinelistComplete\r\n"
+	"EventList: Complete\r\n"
+	"ListItems: %d\r\n"
+	"%s"
+	"\r\n", total, idtext);
+	return 0;
 }
 
 static char *handle_skinny_show_lines(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct skinny_line *l;
-	struct skinny_subchannel *sub;
 	int verbose = 0;
 
 	switch (cmd) {
@@ -3042,7 +3293,6 @@ static char *handle_skinny_show_lines(struct ast_cli_entry *e, int cmd, struct a
 		return NULL;
 	}
 
-
 	if (a->argc == e->args) {
 		if (!strcasecmp(a->argv[e->args-1], "verbose")) {
 			verbose = 1;
@@ -3052,39 +3302,169 @@ static char *handle_skinny_show_lines(struct ast_cli_entry *e, int cmd, struct a
 	} else if (a->argc != e->args - 1) {
 		return CLI_SHOWUSAGE;
 	}
-	
-	
- 	ast_cli(a->fd, "Name                 Device Name          Instance Label               \n");
- 	ast_cli(a->fd, "-------------------- -------------------- -------- --------------------\n");
- 	AST_LIST_LOCK(&lines);
- 	AST_LIST_TRAVERSE(&lines, l, all) {
- 		ast_cli(a->fd, "%-20s %-20s %8d %-20s\n",
- 			l->name,
- 			(l->device ? l->device->name : "Not connected"),
- 			l->instance,
- 			l->label);
-			if (verbose) {
-			AST_LIST_TRAVERSE(&l->sub, sub, list) {
-				ast_cli(a->fd, "  %s> %s to %s\n",
-					(sub == l->activesub?"Active  ":"Inactive"),
-					sub->owner->name,
-					(ast_bridged_channel(sub->owner)?ast_bridged_channel(sub->owner)->name:"")
-				);
+
+	return _skinny_show_lines(a->fd, NULL, NULL, NULL, a->argc, (const char **) a->argv);
+}
+
+static char *_skinny_show_line(int type, int fd, struct mansession *s, const struct message *m, int argc, const char *argv[])
+{
+	struct skinny_device *d;
+	struct skinny_line *l;
+	struct ast_codec_pref *pref;
+	int x = 0, codec = 0;
+	char codec_buf[512];
+	char group_buf[256];
+	char cbuf[256];
+
+	switch (argc) {
+	case 4:
+		break;
+	case 6:
+		break;
+	default:
+		return CLI_SHOWUSAGE;
+	}
+
+	AST_LIST_LOCK(&devices);
+
+	/* Show all lines matching the one supplied */
+	AST_LIST_TRAVERSE(&devices, d, list) {
+		if (argc == 6 && (strcasecmp(argv[5], d->id) && strcasecmp(argv[5], d->name))) {
+			continue;
+		}
+		AST_LIST_TRAVERSE(&d->lines, l, list) {
+			if (strcasecmp(argv[3], l->name)) {
+				continue;
+			}
+			if (type == 0) { /* CLI */
+				ast_cli(fd, "Line:             %s\n", l->name);
+				ast_cli(fd, "On Device:        %s\n", d->name);
+				ast_cli(fd, "Line Label:       %s\n", l->label);
+				ast_cli(fd, "Extension:        %s\n", S_OR(l->exten, "<not set>"));
+				ast_cli(fd, "Context:          %s\n", l->context);
+				ast_cli(fd, "CallGroup:        %s\n", ast_print_group(group_buf, sizeof(group_buf), l->callgroup));
+				ast_cli(fd, "PickupGroup:      %s\n", ast_print_group(group_buf, sizeof(group_buf), l->pickupgroup));
+				ast_cli(fd, "Language:         %s\n", S_OR(l->language, "<not set>"));
+				ast_cli(fd, "Accountcode:      %s\n", S_OR(l->accountcode, "<not set>"));
+				ast_cli(fd, "AmaFlag:          %s\n", ast_cdr_flags2str(l->amaflags));
+				ast_cli(fd, "CallerId Number:  %s\n", S_OR(l->cid_num, "<not set>"));
+				ast_cli(fd, "CallerId Name:    %s\n", S_OR(l->cid_name, "<not set>"));
+				ast_cli(fd, "Hide CallerId:    %s\n", (l->hidecallerid ? "Yes" : "No"));
+				ast_cli(fd, "CFwdAll:          %s\n", S_COR((l->cfwdtype & SKINNY_CFWD_ALL), l->call_forward_all, "<not set>"));
+				ast_cli(fd, "CFwdBusy:         %s\n", S_COR((l->cfwdtype & SKINNY_CFWD_BUSY), l->call_forward_busy, "<not set>"));
+				ast_cli(fd, "CFwdNoAnswer:     %s\n", S_COR((l->cfwdtype & SKINNY_CFWD_NOANSWER), l->call_forward_noanswer, "<not set>"));
+				ast_cli(fd, "VoicemailBox:     %s\n", S_OR(l->mailbox, "<not set>"));
+				ast_cli(fd, "VoicemailNumber:  %s\n", S_OR(l->vmexten, "<not set>"));
+				ast_cli(fd, "MWIblink:         %d\n", l->mwiblink);
+				ast_cli(fd, "Regextension:     %s\n", S_OR(l->regexten, "<not set>"));
+				ast_cli(fd, "Regcontext:       %s\n", S_OR(l->regcontext, "<not set>"));
+				ast_cli(fd, "MoHInterpret:     %s\n", S_OR(l->mohinterpret, "<not set>"));
+				ast_cli(fd, "MoHSuggest:       %s\n", S_OR(l->mohsuggest, "<not set>"));
+				ast_cli(fd, "Last dialed nr:   %s\n", S_OR(l->lastnumberdialed, "<no calls made yet>"));
+				ast_cli(fd, "Last CallerID:    %s\n", S_OR(l->lastcallerid, "<not set>"));
+				ast_cli(fd, "Transfer enabled: %s\n", (l->transfer ? "Yes" : "No"));
+				ast_cli(fd, "Callwaiting:      %s\n", (l->callwaiting ? "Yes" : "No"));
+				ast_cli(fd, "3Way Calling:     %s\n", (l->threewaycalling ? "Yes" : "No"));
+				ast_cli(fd, "Can forward:      %s\n", (l->cancallforward ? "Yes" : "No"));
+				ast_cli(fd, "Do Not Disturb:   %s\n", (l->dnd ? "Yes" : "No"));
+				ast_cli(fd, "NAT:              %s\n", (l->nat ? "Yes" : "No"));
+				ast_cli(fd, "immediate:        %s\n", (l->immediate ? "Yes" : "No"));
+				ast_cli(fd, "Group:            %d\n", l->group);
+				ast_cli(fd, "Conf Codecs:      ");
+				ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, l->confcapability);
+				ast_cli(fd, "%s\n", codec_buf);
+				ast_cli(fd, "Neg Codecs:       ");
+				ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, l->capability);
+				ast_cli(fd, "%s\n", codec_buf);
+				ast_cli(fd, "Codec Order:      (");
+				print_codec_to_cli(fd, &l->prefs);
+				ast_cli(fd, ")\n");
+				ast_cli(fd, "\n");
+			} else { /* manager */
+				astman_append(s, "Channeltype: SKINNY\r\n");
+				astman_append(s, "ObjectName: %s\r\n", l->name);
+				astman_append(s, "ChannelObjectType: line\r\n");
+				astman_append(s, "Device: %s\r\n", d->name);
+				astman_append(s, "LineLabel: %s\r\n", l->label);
+				astman_append(s, "Extension: %s\r\n", S_OR(l->exten, "<not set>"));
+				astman_append(s, "Context: %s\r\n", l->context);
+				astman_append(s, "CallGroup: %s\r\n", ast_print_group(group_buf, sizeof(group_buf), l->callgroup));
+				astman_append(s, "PickupGroup: %s\r\n", ast_print_group(group_buf, sizeof(group_buf), l->pickupgroup));
+				astman_append(s, "Language: %s\r\n", S_OR(l->language, "<not set>"));
+				astman_append(s, "Accountcode: %s\r\n", S_OR(l->accountcode, "<not set>"));
+				astman_append(s, "AmaFlag: %s\r\n", ast_cdr_flags2str(l->amaflags));
+				astman_append(s, "Callerid: %s\r\n", ast_callerid_merge(cbuf, sizeof(cbuf), l->cid_name, l->cid_num, ""));
+				astman_append(s, "HideCallerId: %s\r\n", (l->hidecallerid ? "Yes" : "No"));
+				astman_append(s, "CFwdAll: %s\r\n", S_COR((l->cfwdtype & SKINNY_CFWD_ALL), l->call_forward_all, "<not set>"));
+				astman_append(s, "CFwdBusy: %s\r\n", S_COR((l->cfwdtype & SKINNY_CFWD_BUSY), l->call_forward_busy, "<not set>"));
+				astman_append(s, "CFwdNoAnswer: %s\r\n", S_COR((l->cfwdtype & SKINNY_CFWD_NOANSWER), l->call_forward_noanswer, "<not set>"));
+				astman_append(s, "VoicemailBox: %s\r\n", S_OR(l->mailbox, "<not set>"));
+				astman_append(s, "VoicemailNumber: %s\r\n", S_OR(l->vmexten, "<not set>"));
+				astman_append(s, "MWIblink: %d\r\n", l->mwiblink);
+				astman_append(s, "Regextension: %s\r\n", S_OR(l->regexten, "<not set>"));
+				astman_append(s, "Regcontext: %s\r\n", S_OR(l->regcontext, "<not set>"));
+				astman_append(s, "MoHInterpret: %s\r\n", S_OR(l->mohinterpret, "<not set>"));
+				astman_append(s, "MoHSuggest: %s\r\n", S_OR(l->mohsuggest, "<not set>"));
+				astman_append(s, "LastDialedNr: %s\r\n", S_OR(l->lastnumberdialed, "<no calls made yet>"));
+				astman_append(s, "LastCallerID: %s\r\n", S_OR(l->lastcallerid, "<not set>"));
+				astman_append(s, "Transfer: %s\r\n", (l->transfer ? "Yes" : "No"));
+				astman_append(s, "Callwaiting: %s\r\n", (l->callwaiting ? "Yes" : "No"));
+				astman_append(s, "3WayCalling: %s\r\n", (l->threewaycalling ? "Yes" : "No"));
+				astman_append(s, "CanForward: %s\r\n", (l->cancallforward ? "Yes" : "No"));
+				astman_append(s, "DoNotDisturb: %s\r\n", (l->dnd ? "Yes" : "No"));
+				astman_append(s, "NAT: %s\r\n", (l->nat ? "Yes" : "No"));
+				astman_append(s, "immediate: %s\r\n", (l->immediate ? "Yes" : "No"));
+				astman_append(s, "Group: %d\r\n", l->group);
+				ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, l->confcapability);
+				astman_append(s, "Codecs: %s\r\n", codec_buf);
+				astman_append(s, "CodecOrder: ");
+				pref = &l->prefs;
+				for(x = 0; x < 32 ; x++) {
+					codec = ast_codec_pref_index(pref, x);
+					if (!codec)
+						break;
+					astman_append(s, "%s", ast_getformatname(codec));
+					if (x < 31 && ast_codec_pref_index(pref, x+1))
+						astman_append(s, ",");
+				}
+				astman_append(s, "\r\n");
 			}
 		}
-  	}
- 	AST_LIST_UNLOCK(&lines);
+	}
+	
+	AST_LIST_UNLOCK(&devices);
 	return CLI_SUCCESS;
+}
+
+static char mandescr_show_line[] =
+"Description: Show one SKINNY line with details on current status.\n"
+"Variables: \n"
+"  Line: <name>           The line name you want to check.\n"
+"  ActionID: <id>	  Optional action ID for this AMI transaction.\n";
+
+static int manager_skinny_show_line(struct mansession *s, const struct message *m)
+{
+	const char *a[4];
+	const char *line;
+
+	line = astman_get_header(m, "Line");
+	if (ast_strlen_zero(line)) {
+		astman_send_error(s, m, "Line: <name> missing.");
+		return 0;
+	}
+	a[0] = "skinny";
+	a[1] = "show";
+	a[2] = "line";
+	a[3] = line;
+
+	_skinny_show_line(1, -1, s, m, 4, a);
+	astman_append(s, "\r\n\r\n" );
+	return 0;
 }
 
 /*! \brief List line information. */
 static char *handle_skinny_show_line(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct skinny_device *d;
-	struct skinny_line *l;
-	char codec_buf[512];
-	char group_buf[256];
-
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "skinny show line";
@@ -3096,66 +3476,7 @@ static char *handle_skinny_show_line(struct ast_cli_entry *e, int cmd, struct as
 		return complete_skinny_show_line(a->line, a->word, a->pos, a->n);
 	}
 
-	if (a->argc < 4)
-		return CLI_SHOWUSAGE;
-	
-	AST_LIST_LOCK(&devices);
-
-	/* Show all lines matching the one supplied */
-	AST_LIST_TRAVERSE(&devices, d, list) {
-		if (a->argc == 6 && (strcasecmp(a->argv[5], d->id) && strcasecmp(a->argv[5], d->name)))
-			continue;
-		AST_LIST_TRAVERSE(&d->lines, l, list) {
-			if (strcasecmp(a->argv[3], l->name))
-				continue;
-			ast_cli(a->fd, "Line:             %s\n", l->name);
-			ast_cli(a->fd, "On Device:        %s\n", d->name);
-			ast_cli(a->fd, "Line Label:       %s\n", l->label);
-			ast_cli(a->fd, "Extension:        %s\n", S_OR(l->exten, "<not set>"));
-			ast_cli(a->fd, "Context:          %s\n", l->context);
-			ast_cli(a->fd, "CallGroup:        %s\n", ast_print_group(group_buf, sizeof(group_buf), l->callgroup));
-			ast_cli(a->fd, "PickupGroup:      %s\n", ast_print_group(group_buf, sizeof(group_buf), l->pickupgroup));
-			ast_cli(a->fd, "Language:         %s\n", S_OR(l->language, "<not set>"));
-			ast_cli(a->fd, "Accountcode:      %s\n", S_OR(l->accountcode, "<not set>"));
-			ast_cli(a->fd, "AmaFlag:          %s\n", ast_cdr_flags2str(l->amaflags));
-			ast_cli(a->fd, "CallerId Number:  %s\n", S_OR(l->cid_num, "<not set>"));
-			ast_cli(a->fd, "CallerId Name:    %s\n", S_OR(l->cid_name, "<not set>"));
-			ast_cli(a->fd, "Hide CallerId:    %s\n", (l->hidecallerid ? "Yes" : "No"));
-			ast_cli(a->fd, "CFwdAll:          %s\n", S_COR((l->cfwdtype & SKINNY_CFWD_ALL), l->call_forward_all, "<not set>"));
-			ast_cli(a->fd, "CFwdBusy:         %s\n", S_COR((l->cfwdtype & SKINNY_CFWD_BUSY), l->call_forward_busy, "<not set>"));
-			ast_cli(a->fd, "CFwdNoAnswer:     %s\n", S_COR((l->cfwdtype & SKINNY_CFWD_NOANSWER), l->call_forward_noanswer, "<not set>"));
-			ast_cli(a->fd, "VoicemailBox:     %s\n", S_OR(l->mailbox, "<not set>"));
-			ast_cli(a->fd, "VoicemailNumber:  %s\n", S_OR(l->vmexten, "<not set>"));
-			ast_cli(a->fd, "MWIblink:         %d\n", l->mwiblink);
-			ast_cli(a->fd, "Regextension:     %s\n", S_OR(l->regexten, "<not set>"));
-			ast_cli(a->fd, "Regcontext:       %s\n", S_OR(l->regcontext, "<not set>"));
-			ast_cli(a->fd, "MoHInterpret:     %s\n", S_OR(l->mohinterpret, "<not set>"));
-			ast_cli(a->fd, "MoHSuggest:       %s\n", S_OR(l->mohsuggest, "<not set>"));
-			ast_cli(a->fd, "Last dialed nr:   %s\n", S_OR(l->lastnumberdialed, "<no calls made yet>"));
-			ast_cli(a->fd, "Last CallerID:    %s\n", S_OR(l->lastcallerid, "<not set>"));
-			ast_cli(a->fd, "Transfer enabled: %s\n", (l->transfer ? "Yes" : "No"));
-			ast_cli(a->fd, "Callwaiting:      %s\n", (l->callwaiting ? "Yes" : "No"));
-			ast_cli(a->fd, "3Way Calling:     %s\n", (l->threewaycalling ? "Yes" : "No"));
-			ast_cli(a->fd, "Can forward:      %s\n", (l->cancallforward ? "Yes" : "No"));
-			ast_cli(a->fd, "Do Not Disturb:   %s\n", (l->dnd ? "Yes" : "No"));
-			ast_cli(a->fd, "NAT:              %s\n", (l->nat ? "Yes" : "No"));
-			ast_cli(a->fd, "immediate:        %s\n", (l->immediate ? "Yes" : "No"));
-			ast_cli(a->fd, "Group:            %d\n", l->group);
-			ast_cli(a->fd, "Conf Codecs:      ");
-			ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, l->confcapability);
-			ast_cli(a->fd, "%s\n", codec_buf);
-			ast_cli(a->fd, "Neg Codecs:       ");
-			ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, l->capability);
-			ast_cli(a->fd, "%s\n", codec_buf);
-			ast_cli(a->fd, "Codec Order:      (");
-			print_codec_to_cli(a->fd, &l->prefs);
-			ast_cli(a->fd, ")\n");
-			ast_cli(a->fd, "\n");
-		}
-	}
-	
-	AST_LIST_UNLOCK(&devices);
-	return CLI_SUCCESS;
+	return _skinny_show_line(0, a->fd, NULL, NULL, a->argc, (const char **) a->argv);
 }
 
 /*! \brief List global settings for the Skinny subsystem. */
@@ -6816,6 +7137,16 @@ static int load_module(void)
 
 	ast_rtp_proto_register(&skinny_rtp);
 	ast_cli_register_multiple(cli_skinny, ARRAY_LEN(cli_skinny));
+
+	ast_manager_register2("SKINNYdevices", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_skinny_show_devices,
+			"List SKINNY devices (text format)", mandescr_show_devices);
+	ast_manager_register2("SKINNYshowdevice", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_skinny_show_device,
+			"Show SKINNY device (text format)", mandescr_show_device);
+	ast_manager_register2("SKINNYlines", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_skinny_show_lines,
+			"List SKINNY lines (text format)", mandescr_show_lines);
+	ast_manager_register2("SKINNYshowline", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_skinny_show_line,
+			"Show SKINNY line (text format)", mandescr_show_line);
+
 	sched = sched_context_create();
 	if (!sched) {
 		ast_log(LOG_WARNING, "Unable to create schedule context\n");
@@ -6841,6 +7172,11 @@ static int unload_module(void)
 	ast_rtp_proto_unregister(&skinny_rtp);
 	ast_channel_unregister(&skinny_tech);
 	ast_cli_unregister_multiple(cli_skinny, ARRAY_LEN(cli_skinny));
+
+	ast_manager_unregister("SKINNYdevices");
+	ast_manager_unregister("SKINNYshowdevice");
+	ast_manager_unregister("SKINNYlines");
+	ast_manager_unregister("SKINNYshowline");
 	
 	AST_LIST_LOCK(&sessions);
 	/* Destroy all the interfaces and free their memory */
