@@ -2964,14 +2964,14 @@ static char *_skinny_show_devices(int fd, int *total, struct mansession *s, cons
 				"DeviceId: %s\r\n"
 				"IPaddress: %s\r\n"
 				"Type: %s\r\n"
-				"Registered: %s\r\n"
+				"Devicestatus: %s\r\n"
 				"NumberOfLines: %d\r\n",
 				idtext,
 				d->name,
 				d->id,
 				d->session?ast_inet_ntoa(d->session->sin.sin_addr):"-none-",
 				device2str(d->type),
-				d->registered?"yes":"no",
+				d->registered?"registered":"unregistered",
 				numlines);
 		}
 	}
@@ -3108,7 +3108,7 @@ static char *_skinny_show_device(int type, int fd, struct mansession *s, const s
 				astman_append(s, "CodecOrder: ");
 				ast_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, d->capability);
 				astman_append(s, "%s\r\n", codec_buf);
-				astman_append(s, "Registered: %s\r\n", (d->registered?"yes":"no"));
+				astman_append(s, "Devicestatus: %s\r\n", (d->registered?"registered":"unregistered"));
 				astman_append(s, "NumberOfLines: %d\r\n", numlines);
 				AST_LIST_TRAVERSE(&d->lines, l, list) {
 					astman_append(s, "Line: %s (%s)\r\n", l->name, l->label);
@@ -3392,7 +3392,7 @@ static char *_skinny_show_line(int type, int fd, struct mansession *s, const str
 				astman_append(s, "PickupGroup: %s\r\n", ast_print_group(group_buf, sizeof(group_buf), l->pickupgroup));
 				astman_append(s, "Language: %s\r\n", S_OR(l->language, "<not set>"));
 				astman_append(s, "Accountcode: %s\r\n", S_OR(l->accountcode, "<not set>"));
-				astman_append(s, "AmaFlag: %s\r\n", ast_cdr_flags2str(l->amaflags));
+				astman_append(s, "AMAflags: %s\r\n", ast_cdr_flags2str(l->amaflags));
 				astman_append(s, "Callerid: %s\r\n", ast_callerid_merge(cbuf, sizeof(cbuf), l->cid_name, l->cid_num, ""));
 				astman_append(s, "HideCallerId: %s\r\n", (l->hidecallerid ? "Yes" : "No"));
 				astman_append(s, "CFwdAll: %s\r\n", S_COR((l->cfwdtype & SKINNY_CFWD_ALL), l->call_forward_all, "<not set>"));
@@ -3401,7 +3401,7 @@ static char *_skinny_show_line(int type, int fd, struct mansession *s, const str
 				astman_append(s, "VoicemailBox: %s\r\n", S_OR(l->mailbox, "<not set>"));
 				astman_append(s, "VoicemailNumber: %s\r\n", S_OR(l->vmexten, "<not set>"));
 				astman_append(s, "MWIblink: %d\r\n", l->mwiblink);
-				astman_append(s, "Regextension: %s\r\n", S_OR(l->regexten, "<not set>"));
+				astman_append(s, "RegExtension: %s\r\n", S_OR(l->regexten, "<not set>"));
 				astman_append(s, "Regcontext: %s\r\n", S_OR(l->regcontext, "<not set>"));
 				astman_append(s, "MoHInterpret: %s\r\n", S_OR(l->mohinterpret, "<not set>"));
 				astman_append(s, "MoHSuggest: %s\r\n", S_OR(l->mohsuggest, "<not set>"));
