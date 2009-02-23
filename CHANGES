@@ -157,6 +157,12 @@ Asterisk Manager Interface
 
    If this is included, the server supports event suppression.
 
+ * Added 4 new Actions to list skinny device(s) and line(s)
+   SKINNYdevices
+   SKINNYshowdevice
+   SKINNYlines
+   SKINNYshowline
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.0 to Asterisk 1.6.1  -------------
 ------------------------------------------------------------------------------
