@@ -1310,9 +1310,9 @@ static int get_encrypt_methods(const char *s)
 {
 	int e;
 	if (!strcasecmp(s, "aes128"))
-		e = IAX_ENCRYPT_AES128;
+		e = IAX_ENCRYPT_AES128 | IAX_ENCRYPT_KEYROTATE;
 	else if (ast_true(s))
-		e = IAX_ENCRYPT_AES128;
+		e = IAX_ENCRYPT_AES128 | IAX_ENCRYPT_KEYROTATE;
 	else
 		e = 0;
 	return e;
@@ -5310,7 +5310,7 @@ static int __iax2_show_peers(int manager, int fd, struct mansession *s, int argc
 			unmonitored_peers++;
 		
 		ast_copy_string(nm, ast_inet_ntoa(peer->mask), sizeof(nm));
-		
+
 		snprintf(srch, sizeof(srch), FORMAT, name, 
 			 peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
 			 ast_test_flag(peer, IAX_DYNAMIC) ? "(D)" : "(S)",
@@ -11257,8 +11257,6 @@ static int set_config(char *config_file, int reload)
 	memset(&globalflags, 0, sizeof(globalflags));
 	ast_set_flag(&globalflags, IAX_RTUPDATE);
 	
-	/* Turns on support for key rotation during encryption. */
-	iax2_encryption |= IAX_ENCRYPT_KEYROTATE;
 #ifdef SO_NO_CHECK
 	nochecksums = 0;
 #endif
