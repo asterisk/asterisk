@@ -562,6 +562,8 @@ struct ast_vm_user {
 	char password[80];               /*!< Secret pin code, numbers only */
 	char fullname[80];               /*!< Full name, for directory app */
 	char email[80];                  /*!< E-mail address */
+	char *emailsubject;              /*!< E-mail subject */
+	char *emailbody;                 /*!< E-mail body */
 	char pager[80];                  /*!< E-mail address to pager (no attachment) */
 	char serveremail[80];            /*!< From: Mail address */
 	char mailcmd[160];               /*!< Configurable mail command */
@@ -861,6 +863,8 @@ static void populate_defaults(struct ast_vm_user *vmu)
 	if (maxdeletedmsg)
 		vmu->maxdeletedmsg = maxdeletedmsg;
 	vmu->volgain = volgain;
+	vmu->emailsubject = NULL;
+	vmu->emailbody = NULL;
 }
 
 /*!
@@ -1118,6 +1122,10 @@ static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *
 			ast_copy_string(retval->fullname, var->value, sizeof(retval->fullname));
 		} else if (!strcasecmp(var->name, "context")) {
 			ast_copy_string(retval->context, var->value, sizeof(retval->context));
+		} else if (!strcasecmp(var->name, "emailsubject")) {
+			retval->emailsubject = ast_strdup(var->value);
+		} else if (!strcasecmp(var->name, "emailbody")) {
+			retval->emailbody = ast_strdup(var->value);
 #ifdef IMAP_STORAGE
 		} else if (!strcasecmp(var->name, "imapuser")) {
 			ast_copy_string(retval->imapuser, var->value, sizeof(retval->imapuser));
@@ -1437,8 +1445,17 @@ static const char *mbox(int id)
 
 static void free_user(struct ast_vm_user *vmu)
 {
-	if (ast_test_flag(vmu, VM_ALLOCED))
+	if (ast_test_flag(vmu, VM_ALLOCED)) {
+		if (vmu->emailbody != NULL) {
+			ast_free(vmu->emailbody);
+			vmu->emailbody = NULL;
+		}
+		if (vmu->emailsubject != NULL) {
+			ast_free(vmu->emailsubject);
+			vmu->emailsubject = NULL;
+		}
 		ast_free(vmu);
+	}
 }
 
 /* All IMAP-specific functions should go in this block. This
@@ -4086,10 +4103,11 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	} else {
 		fprintf(p, "To: %s <%s>" ENDL, quote(vmu->fullname, passdata2, len_passdata2), vmu->email);
 	}
-	if (!ast_strlen_zero(emailsubject)) {
+	if (!ast_strlen_zero(emailsubject) || !ast_strlen_zero(vmu->emailsubject)) {
+		char *e_subj = !ast_strlen_zero(vmu->emailsubject) ? vmu->emailsubject : emailsubject;
 		struct ast_channel *ast;
 		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "Substitution/voicemail"))) {
-			int vmlen = strlen(emailsubject) * 3 + 200;
+			int vmlen = strlen(e_subj) * 3 + 200;
 			/* Only allocate more space if the previous was not large enough */
 			if (vmlen > len_passdata) {
 				passdata = alloca(vmlen);
@@ -4098,7 +4116,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 
 			memset(passdata, 0, len_passdata);
 			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, len_passdata, category, flag);
-			pbx_substitute_variables_helper(ast, emailsubject, passdata, len_passdata);
+			pbx_substitute_variables_helper(ast, e_subj, passdata, len_passdata);
 			if (check_mime(passdata)) {
 				int first_line = 1;
 				char *ptr;
@@ -4175,15 +4193,16 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 		fprintf(p, "--%s" ENDL, bound);
 	}
 	fprintf(p, "Content-Type: text/plain; charset=%s" ENDL "Content-Transfer-Encoding: 8bit" ENDL ENDL, charset);
-	if (emailbody) {
+	if (emailbody || vmu->emailbody) {
+		char* e_body = vmu->emailbody ? vmu->emailbody : emailbody;
 		struct ast_channel *ast;
 		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "Substitution/voicemail"))) {
 			char *passdata;
-			int vmlen = strlen(emailbody)*3 + 200;
+			int vmlen = strlen(e_body) * 3 + 200;
 			passdata = alloca(vmlen);
 			memset(passdata, 0, vmlen);
 			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category, flag);
-			pbx_substitute_variables_helper(ast, emailbody, passdata, vmlen);
+			pbx_substitute_variables_helper(ast, e_body, passdata, vmlen);
 			fprintf(p, "%s" ENDL, passdata);
 			ast_channel_free(ast);
 		} else

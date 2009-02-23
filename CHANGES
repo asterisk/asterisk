@@ -109,6 +109,8 @@ Applications
    specified in the initial argument.
  * A new application, Originate, has been introduced, that allows asynchronous
    call origination from the dialplan.
+ * Voicemail now permits setting the emailsubject and emailbody per mailbox,
+   in addition to the setting in the "general" context.
 
 Miscellaneous
 -------------
