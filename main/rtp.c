@@ -1735,13 +1735,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	rtp->lastrxformat = rtp->f.subclass = rtpPT.code;
 	rtp->f.frametype = (rtp->f.subclass & AST_FORMAT_AUDIO_MASK) ? AST_FRAME_VOICE : (rtp->f.subclass & AST_FORMAT_VIDEO_MASK) ? AST_FRAME_VIDEO : AST_FRAME_TEXT;
 
-	if (!rtp->lastrxts)
-		rtp->lastrxts = timestamp;
-
 	rtp->rxseqno = seqno;
-
-	/* Record received timestamp as last received now */
-	rtp->lastrxts = timestamp;
 
 	if (rtp->dtmfcount) {
 		rtp->dtmfcount -= (timestamp - rtp->lastrxts);
@@ -1757,6 +1751,9 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			return f;
 		}
 	}
+
+	/* Record received timestamp as last received now */
+	rtp->lastrxts = timestamp;
 
 	rtp->f.mallocd = 0;
 	rtp->f.datalen = res - hdrlen;
