@@ -140,7 +140,6 @@ struct ast_rtp {
 	char resp;
 	unsigned int lastevent;
 	int dtmfcount;
-	unsigned int dtmfsamples;
 	/* DTMF Transmission Variables */
 	unsigned int lastdigitts;
 	char sending_digit;	/*!< boolean - are we sending digits */
@@ -620,7 +619,6 @@ static struct ast_frame *send_dtmf(struct ast_rtp *rtp, enum ast_frame_type type
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Ignore potential DTMF echo from '%s'\n", ast_inet_ntoa(rtp->them.sin_addr));
 		rtp->resp = 0;
-		rtp->dtmfsamples = 0;
 		return &ast_null_frame;
 	}
 	if (option_debug)
@@ -764,7 +762,6 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 	}
 
 	rtp->dtmfcount = dtmftimeout;
-	rtp->dtmfsamples = samples;
 
 	return f;
 }
@@ -1291,13 +1288,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	rtp->lastrxformat = rtp->f.subclass = rtpPT.code;
 	rtp->f.frametype = (rtp->f.subclass < AST_FORMAT_MAX_AUDIO) ? AST_FRAME_VOICE : AST_FRAME_VIDEO;
 
-	if (!rtp->lastrxts)
-		rtp->lastrxts = timestamp;
-
 	rtp->rxseqno = seqno;
-
-	/* Record received timestamp as last received now */
-	rtp->lastrxts = timestamp;
 
 	if (rtp->dtmfcount) {
 		rtp->dtmfcount -= (timestamp - rtp->lastrxts);
@@ -1313,6 +1304,9 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			return f;
 		}
 	}
+
+	/* Record received timestamp as last received now */
+	rtp->lastrxts = timestamp;
 
 	rtp->f.mallocd = 0;
 	rtp->f.datalen = res - hdrlen;
@@ -2092,7 +2086,6 @@ void ast_rtp_reset(struct ast_rtp *rtp)
 	rtp->lasttxformat = 0;
 	rtp->lastrxformat = 0;
 	rtp->dtmfcount = 0;
-	rtp->dtmfsamples = 0;
 	rtp->seqno = 0;
 	rtp->rxseqno = 0;
 }
