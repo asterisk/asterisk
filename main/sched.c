@@ -233,7 +233,7 @@ static unsigned int sched_hash(const void *obj)
 
 static int sched_time_cmp(void *a, void *b)
 {
-	return ast_tvcmp(((struct sched *) a)->when, ((struct sched *) b)->when);
+	return ast_tvcmp(((struct sched *) b)->when, ((struct sched *) a)->when);
 }
 
 struct sched_context *sched_context_create(void)

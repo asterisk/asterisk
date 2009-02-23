@@ -42,13 +42,127 @@ static int sched_cb(const void *data)
 static char *handle_cli_sched_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct sched_context *con;
+	char *res = CLI_FAILURE;
+	int id1, id2, id3, wait;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "sched test";
+		e->usage = ""
+			"Usage: sched test\n"
+			"   Test scheduler entry ordering.\n"
+			"";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != e->args) {
+		return CLI_SHOWUSAGE;
+	}
+
+	ast_cli(a->fd, "Testing scheduler entry ordering ...\n");
+
+	if (!(con = sched_context_create())) {
+		ast_cli(a->fd, "Test failed - could not create scheduler context\n");
+		return CLI_FAILURE;
+	}
+
+	/* Add 3 scheduler entries, and then remove them, ensuring that the result
+	 * of ast_sched_wait() looks appropriate at each step along the way. */
+
+	if ((wait = ast_sched_wait(con)) != -1) {
+		ast_cli(a->fd, "ast_sched_wait() should have returned -1, returned '%d'\n",
+				wait);
+		goto return_cleanup;
+	}
+
+	if ((id1 = ast_sched_add(con, 100000, sched_cb, NULL)) == -1) {
+		ast_cli(a->fd, "Failed to add scheduler entry\n");
+		goto return_cleanup;
+	}
+
+	if ((wait = ast_sched_wait(con)) > 100000) {
+		ast_cli(a->fd, "ast_sched_wait() should have returned <= 100000, returned '%d'\n",
+				wait);
+		goto return_cleanup;
+	}
+
+	if ((id2 = ast_sched_add(con, 10000, sched_cb, NULL)) == -1) {
+		ast_cli(a->fd, "Failed to add scheduler entry\n");
+		goto return_cleanup;
+	}
+
+	if ((wait = ast_sched_wait(con)) > 10000) {
+		ast_cli(a->fd, "ast_sched_wait() should have returned <= 10000, returned '%d'\n",
+				wait);
+		goto return_cleanup;
+	}
+
+	if ((id3 = ast_sched_add(con, 1000, sched_cb, NULL)) == -1) {
+		ast_cli(a->fd, "Failed to add scheduler entry\n");
+		goto return_cleanup;
+	}
+
+	if ((wait = ast_sched_wait(con)) > 1000) {
+		ast_cli(a->fd, "ast_sched_wait() should have returned <= 1000, returned '%d'\n",
+				wait);
+		goto return_cleanup;
+	}
+
+	if (ast_sched_del(con, id3) == -1) {
+		ast_cli(a->fd, "Failed to remove scheduler entry\n");
+		goto return_cleanup;
+	}
+
+	if ((wait = ast_sched_wait(con)) <= 1000) {
+		ast_cli(a->fd, "ast_sched_wait() should have returned > 1000, returned '%d'\n",
+				wait);
+		goto return_cleanup;
+	}
+
+	if (ast_sched_del(con, id2) == -1) {
+		ast_cli(a->fd, "Failed to remove scheduler entry\n");
+		goto return_cleanup;
+	}
+
+	if ((wait = ast_sched_wait(con)) <= 10000) {
+		ast_cli(a->fd, "ast_sched_wait() should have returned > 10000, returned '%d'\n",
+				wait);
+		goto return_cleanup;
+	}
+
+	if (ast_sched_del(con, id1) == -1) {
+		ast_cli(a->fd, "Failed to remove scheduler entry\n");
+		goto return_cleanup;
+	}
+
+	if ((wait = ast_sched_wait(con)) != -1) {
+		ast_cli(a->fd, "ast_sched_wait() should have returned -1, returned '%d'\n",
+				wait);
+		goto return_cleanup;
+	}
+
+	res = CLI_SUCCESS;
+
+	ast_cli(a->fd, "Test passed!\n");
+
+return_cleanup:
+	sched_context_destroy(con);
+
+	return res;
+}
+
+static char *handle_cli_sched_bench(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct sched_context *con;
 	struct timeval start;
 	unsigned int num, i;
 	int *sched_ids = NULL;
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "sched test";
+		e->command = "sched benchmark";
 		e->usage = ""
 			"Usage: sched test <num>\n"
 			"";
@@ -114,7 +228,8 @@ return_cleanup:
 }
 
 static struct ast_cli_entry cli_sched[] = {
-	AST_CLI_DEFINE(handle_cli_sched_test, "Test ast_sched add/del performance"),
+	AST_CLI_DEFINE(handle_cli_sched_bench, "Benchmark ast_sched add/del performance"),
+	AST_CLI_DEFINE(handle_cli_sched_test, "Test scheduler entry ordering"),
 };
 
 static int unload_module(void)
