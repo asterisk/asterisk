@@ -42,12 +42,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <signal.h>
 #endif /* __linux__ */
 
+#include <dahdi/user.h>
+
 #include <fcntl.h>
 #ifdef HAVE_CAP
 #include <sys/capability.h>
 #endif /* HAVE_CAP */
-
-#include <dahdi/user.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
