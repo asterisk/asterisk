@@ -274,6 +274,7 @@ static int restartnow;
 static pthread_t consolethread = AST_PTHREADT_NULL;
 static int canary_pid = 0;
 static char canary_filename[128];
+static int canary_pipe = -1;
 
 static char randompool[256];
 
@@ -3298,7 +3299,16 @@ int main(int argc, char *argv[])
 	if (isroot) {
 		ast_set_priority(ast_opt_high_priority);
 		if (ast_opt_high_priority) {
+			int cpipe[2];
+
+			/* PIPE signal ensures that astcanary dies when Asterisk dies */
+			pipe(cpipe);
+			canary_pipe = cpipe[0];
+
 			snprintf(canary_filename, sizeof(canary_filename), "%s/alt.asterisk.canary.tweet.tweet.tweet", ast_config_AST_RUN_DIR);
+
+			/* Don't let the canary child kill Asterisk, if it dies immediately */
+			signal(SIGPIPE, SIG_IGN);
 
 			canary_pid = fork();
 			if (canary_pid == 0) {
@@ -3307,9 +3317,14 @@ int main(int argc, char *argv[])
 
 				/* Reset signal handler */
 				signal(SIGCHLD, SIG_DFL);
+				signal(SIGPIPE, SIG_DFL);
 
-				for (fd = 0; fd < 100; fd++)
+				dup2(cpipe[1], 100);
+				close(cpipe[1]);
+
+				for (fd = 0; fd < 100; fd++) {
 					close(fd);
+				}
 
 				execlp("astcanary", "astcanary", canary_filename, (char *)NULL);
 
@@ -3324,6 +3339,7 @@ int main(int argc, char *argv[])
 				_exit(1);
 			} else if (canary_pid > 0) {
 				pthread_t dont_care;
+				close(cpipe[1]);
 				ast_pthread_create_detached(&dont_care, NULL, canary_thread, NULL);
 			}
 
