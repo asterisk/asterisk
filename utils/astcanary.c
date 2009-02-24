@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
 	int fd;
 	/* Run at normal priority */
 	setpriority(PRIO_PROCESS, 0, 0);
-	for (; getppid() != 1;) {
+	for (;;) {
 		/* Update the modification times (checked from Asterisk) */
 		if (utime(argv[1], NULL)) {
 			/* Recreate the file if it doesn't exist */
@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
 		sleep(5);
 	}
 
-	/* Reached if asterisk (our parent process) dies - its chldren are inherited by the init process (pid is 1). */
+	/* Never reached */
 	return 0;
 }
 
