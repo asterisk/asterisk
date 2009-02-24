@@ -49,6 +49,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <errno.h>
 #include <stdio.h>
 #include <fcntl.h>
+
+#include "asterisk/dahdi_compat.h"
+
 #ifdef HAVE_CAP
 #include <sys/capability.h>
 #endif /* HAVE_CAP */
@@ -60,8 +63,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/options.h"
-
-#include "asterisk/dahdi_compat.h"
 
 static char *dahdi_app = "DAHDIRAS";
 static char *zap_app = "ZapRAS";

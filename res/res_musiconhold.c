@@ -42,6 +42,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
+
 #include <sys/time.h>
 #include <sys/signal.h>
 #include <netinet/in.h>
@@ -52,6 +53,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #ifdef SOLARIS
 #include <thread.h>
 #endif
+
+#include "asterisk/dahdi_compat.h"
+
 #ifdef HAVE_CAP
 #include <sys/capability.h>
 #endif /* HAVE_CAP */
@@ -73,7 +77,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/linkedlists.h"
 #include "asterisk/astobj2.h"
 
-#include "asterisk/dahdi_compat.h"
 
 #define INITIAL_NUM_FILES   8
 
