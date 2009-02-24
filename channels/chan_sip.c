@@ -15504,7 +15504,7 @@ static int handle_request_message(struct sip_pvt *p, struct sip_request *req)
 /*! \brief  Handle incoming SUBSCRIBE request */
 static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int seqno, char *e)
 {
-	int gotdest;
+	int gotdest = 0;
 	int res = 0;
 	int firststate = AST_EXTENSION_REMOVED;
 	struct sip_peer *authpeer = NULL;
@@ -15612,8 +15612,10 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		return 0;
 	}
 
-	/* Get destination right away */
-	gotdest = get_destination(p, NULL);
+	if (strcmp(event, "message-summary")) {
+		/* Get destination right away */
+		gotdest = get_destination(p, NULL);
+	}
 
 	/* Get full contact header - this needs to be used as a request URI in NOTIFY's */
 	parse_ok_contact(p, req);
