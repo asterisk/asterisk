@@ -3302,7 +3302,7 @@ int main(int argc, char *argv[])
 			int cpipe[2];
 
 			/* PIPE signal ensures that astcanary dies when Asterisk dies */
-			pipe(cpipe);
+			(void) pipe(cpipe);
 			canary_pipe = cpipe[0];
 
 			snprintf(canary_filename, sizeof(canary_filename), "%s/alt.asterisk.canary.tweet.tweet.tweet", ast_config_AST_RUN_DIR);
