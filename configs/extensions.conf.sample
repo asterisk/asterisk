@@ -106,6 +106,14 @@ clearglobalvars=no
 ; that includes contexts within other contexts. The #include command works
 ; in all asterisk configuration files.
 ;#include "filename.conf"
+;
+; You can execute a program or script that produces config files, and they
+; will be inserted where you insert the #exec command. The #exec command 
+; works on all asterisk configuration files.  However, you will need to
+; activate them within asterisk.conf with the "execincludes" option.  They
+; are otherwise considered a security risk.
+;#exec /opt/bin/build-extra-contexts.sh
+;
 
 ; The "Globals" category contains global variables that can be referenced
 ; in the dialplan with the GLOBAL dialplan function:
