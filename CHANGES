@@ -52,6 +52,12 @@ SIP Changes
    set both for inbound and outbound calls.
  * Added support for ITU G.722.1 and G.722.1C (Siren7 and Siren14) media streams.
 
+IAX2 changes
+------------
+  * Added immediate option to iax.conf
+  * Added forceencryption option to iax.conf
+  * Added Encryption and Trunk status to manager command "iaxpeers"
+
 Skinny Changes
 --------------
  * The configuration file now holds separate sections for devices and lines.
@@ -566,8 +572,6 @@ IAX2 changes
   * Added the srvlookup option to iax.conf
   * Added support for OSP.  The token is set and retrieved through the CHANNEL()
      dialplan function.
-  * Added immediate option to iax.conf
-  * Added forceencryption option to iax.conf
 
 XMPP Google Talk/Jingle changes
 -------------------------------

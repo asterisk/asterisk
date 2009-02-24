@@ -127,6 +127,12 @@ Changes to manager version 1.1:
 
 - Event QueueEntry now also returns the Uniqueid field like other events from app_queue.
 
+- Action IAXpeerlist
+	Now includes if the IAX link is a trunk or not
+
+- Action IAXpeers
+	Now includes if the IAX link is a trunk or not
+
 * NEW ACTIONS
 -------------
 - Action: ModuleLoad

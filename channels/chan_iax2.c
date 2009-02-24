@@ -1306,6 +1306,22 @@ static int send_ping(const void *data)
 	return 0;
 }
 
+static void encmethods_to_str(int e, struct ast_str *buf)
+{
+	ast_str_set(&buf, 0, "(");
+	if (e & IAX_ENCRYPT_AES128) {
+		ast_str_append(&buf, 0, "aes128");
+	}
+	if (e & IAX_ENCRYPT_KEYROTATE) {
+		ast_str_append(&buf, 0, ",keyrotate");
+	}
+	if (ast_str_strlen(buf) > 1) {
+		ast_str_append(&buf, 0, ")");
+	} else {
+		ast_str_set(&buf, 0, "No");
+	}
+}
+
 static int get_encrypt_methods(const char *s)
 {
 	int e;
@@ -2762,6 +2778,7 @@ static char *handle_cli_iax2_show_peer(struct ast_cli_entry *e, int cmd, struct 
 	char cbuf[256];
 	struct iax2_peer *peer;
 	char codec_buf[512];
+	struct ast_str *encmethods = ast_str_alloca(256);
 	int x = 0, codec = 0, load_realtime = 0;
 
 	switch (cmd) {
@@ -2784,6 +2801,7 @@ static char *handle_cli_iax2_show_peer(struct ast_cli_entry *e, int cmd, struct 
 
 	peer = find_peer(a->argv[3], load_realtime);
 	if (peer) {
+		encmethods_to_str(peer->encmethods, encmethods);
 		ast_cli(a->fd, "\n\n");
 		ast_cli(a->fd, "  * Name       : %s\n", peer->name);
 		ast_cli(a->fd, "  Secret       : %s\n", ast_strlen_zero(peer->secret) ? "<Not set>" : "<Set>");
@@ -2791,6 +2809,8 @@ static char *handle_cli_iax2_show_peer(struct ast_cli_entry *e, int cmd, struct 
  		ast_cli(a->fd, "  Parking lot  : %s\n", peer->parkinglot);
 		ast_cli(a->fd, "  Mailbox      : %s\n", peer->mailbox);
 		ast_cli(a->fd, "  Dynamic      : %s\n", ast_test_flag(peer, IAX_DYNAMIC) ? "Yes" : "No");
+		ast_cli(a->fd, "  Trunk        : %s\n", ast_test_flag(peer, IAX_TRUNK) ? "Yes" : "No");
+		ast_cli(a->fd, "  Encryption   : %s\n", peer->encmethods ? ast_str_buffer(encmethods) : "No");
 		ast_cli(a->fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "<unspecified>"));
 		ast_cli(a->fd, "  Expire       : %d\n", peer->expire);
 		ast_cli(a->fd, "  ACL          : %s\n", (peer->ha ? "Yes" : "No"));
@@ -5243,6 +5263,7 @@ static int __iax2_show_peers(int manager, int fd, struct mansession *s, int argc
 
 	struct iax2_peer *peer = NULL;
 	char name[256];
+	struct ast_str *encmethods = ast_str_alloca(256);
 	int registeredonly=0;
 	char *term = manager ? "\r\n" : "\n";
 	char idtext[256] = "";
@@ -5288,7 +5309,6 @@ static int __iax2_show_peers(int manager, int fd, struct mansession *s, int argc
 		peer_unref(peer), peer = ao2_iterator_next(&i)) {
 		char nm[20];
 		char status[20];
-		char srch[2000];
 		int retstatus;
 
 		if (registeredonly && !peer->addr.sin_addr.s_addr)
@@ -5300,7 +5320,8 @@ static int __iax2_show_peers(int manager, int fd, struct mansession *s, int argc
 			snprintf(name, sizeof(name), "%s/%s", peer->name, peer->username);
 		else
 			ast_copy_string(name, peer->name, sizeof(name));
-		
+
+		encmethods_to_str(peer->encmethods, encmethods);
 		retstatus = peer_status(peer, status, sizeof(status));
 		if (retstatus > 0)
 			online_peers++;
@@ -5308,18 +5329,11 @@ static int __iax2_show_peers(int manager, int fd, struct mansession *s, int argc
 			offline_peers++;
 		else
 			unmonitored_peers++;
-		
+
 		ast_copy_string(nm, ast_inet_ntoa(peer->mask), sizeof(nm));
 
-		snprintf(srch, sizeof(srch), FORMAT, name, 
-			 peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
-			 ast_test_flag(peer, IAX_DYNAMIC) ? "(D)" : "(S)",
-			 nm,
-			 ntohs(peer->addr.sin_port), ast_test_flag(peer, IAX_TRUNK) ? "(T)" : "   ",
-			 peer->encmethods ? "(E)" : "   ", status, term);
-		
-		if (s)
-			astman_append(s, 
+		if (s) {
+			astman_append(s,
 				"Event: PeerEntry\r\n%s"
 				"Channeltype: IAX2\r\n"
 				"ChanObjectType: peer\r\n"
@@ -5327,21 +5341,28 @@ static int __iax2_show_peers(int manager, int fd, struct mansession *s, int argc
 				"IPaddress: %s\r\n"
 				"IPport: %d\r\n"
 				"Dynamic: %s\r\n"
+				"Trunk: %s\r\n"
+				"Encryption: %s\r\n"
 				"Status: %s\r\n\r\n",
 				idtext,
 				name,
 				peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "-none-",
 				ntohs(peer->addr.sin_port),
 				ast_test_flag(peer, IAX_DYNAMIC) ? "yes" : "no",
+				ast_test_flag(peer, IAX_TRUNK) ? "yes" : "no",
+				peer->encmethods ? ast_str_buffer(encmethods) : "no",
 				status);
-		
-		else
-			ast_cli(fd, FORMAT, name, 
+		} else {
+			ast_cli(fd, FORMAT, name,
 				peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
 				ast_test_flag(peer, IAX_DYNAMIC) ? "(D)" : "(S)",
 				nm,
-				ntohs(peer->addr.sin_port), ast_test_flag(peer, IAX_TRUNK) ? "(T)" : "   ",
-				peer->encmethods ? "(E)" : "   ", status, term);
+				ntohs(peer->addr.sin_port),
+				ast_test_flag(peer, IAX_TRUNK) ? "(T)" : "   ",
+				peer->encmethods ? "(E)" : "   ",
+				status,
+				term);
+		}
 		total_peers++;
 	}
 
@@ -5577,6 +5598,7 @@ static int manager_iax2_show_peer_list(struct mansession *s, const struct messag
 	char status[20];
 	const char *id = astman_get_header(m,"ActionID");
 	char idtext[256] = "";
+	struct ast_str *encmethods = ast_str_alloca(256);
 	struct ao2_iterator i;
 
 	if (!ast_strlen_zero(id))
@@ -5587,7 +5609,7 @@ static int manager_iax2_show_peer_list(struct mansession *s, const struct messag
 
 	i = ao2_iterator_init(peers, 0);
 	for (peer = ao2_iterator_next(&i); peer; peer_unref(peer), peer = ao2_iterator_next(&i)) {
-
+		encmethods_to_str(peer->encmethods, encmethods);
 		astman_append(s, "Event: PeerEntry\r\n%sChanneltype: IAX\r\n", idtext);
 		if (!ast_strlen_zero(peer->username)) {
 			astman_append(s, "ObjectName: %s\r\nObjectUsername: %s\r\n", peer->name, peer->username);
@@ -5600,6 +5622,8 @@ static int manager_iax2_show_peer_list(struct mansession *s, const struct messag
 		astman_append(s, "Mask: %s\r\n", nm);
 		astman_append(s, "Port: %d\r\n", ntohs(peer->addr.sin_port));
 		astman_append(s, "Dynamic: %s\r\n", ast_test_flag(peer, IAX_DYNAMIC) ? "Yes" : "No");
+		astman_append(s, "Trunk: %s\r\n", ast_test_flag(peer, IAX_TRUNK) ? "Yes" : "No");
+		astman_append(s, "Encryption: %s\r\n", peer->encmethods ? ast_str_buffer(encmethods) : "No");
 		peer_status(peer, status, sizeof(status));
 		astman_append(s, "Status: %s\r\n\r\n", status);
 		peer_count++;
