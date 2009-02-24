@@ -234,7 +234,7 @@ endif
 ASTCFLAGS+=-Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG)
 
 ifeq ($(AST_DEVMODE),yes)
-  ASTCFLAGS+=-Werror
+  #ASTCFLAGS+=-Werror
   ASTCFLAGS+=-Wunused
   ASTCFLAGS+=$(AST_DECLARATION_AFTER_STATEMENT)
   ASTCFLAGS+=$(AST_FORTIFY_SOURCE)
