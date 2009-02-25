@@ -1248,7 +1248,7 @@ struct odbc_obj *ast_odbc_request_obj2(const char *name, struct ast_flags flags)
 		}
 	} else {
 		/* Non-pooled connection: multiple modules can use the same connection. */
-		if (!(obj = ao2_callback(class->obj_container, 0, aoro2_obj_cb, NO_TX))) {
+		if ((obj = ao2_callback(class->obj_container, 0, aoro2_obj_cb, NO_TX))) {
 			/* Object is not constructed, so delete outstanding reference to class. */
 			ast_assert(ao2_ref(class, 0) > 1);
 			ao2_ref(class, -1);
