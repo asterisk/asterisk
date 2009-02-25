@@ -256,7 +256,7 @@ static void *inotify_daemon(void *data)
 		/* This read should block, most of the time. */
 		if ((res = read(inotify_fd, &buf, sizeof(buf))) < sizeof(buf.iev) && res > 0) {
 			/* This should never happen */
-			ast_log(LOG_ERROR, "Inotify read less than a full event (%d < %d)?!!\n", res, sizeof(buf.iev));
+			ast_log(LOG_ERROR, "Inotify read less than a full event (%zd < %zd)?!!\n", res, sizeof(buf.iev));
 			break;
 		} else if (res < 0) {
 			if (errno == EINTR || errno == EAGAIN) {
