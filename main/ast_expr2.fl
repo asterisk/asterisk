@@ -91,8 +91,8 @@ int ast_yyget_column(yyscan_t yyscanner);
 static int curlycount = 0;
 static char *expr2_token_subst(const char *mess);
 %}
-
 %option prefix="ast_yy"
+%option 8bit
 %option batch
 %option outfile="ast_expr2f.c"
 %option reentrant
@@ -152,7 +152,7 @@ HIBIT           [\x80-\xff]
 		return TOKEN;
 	}
 
-[a-zA-Z0-9,.';\\_^$#@{HIBIT}]+	{
+([a-zA-Z0-9\.';\\_^#@]|{HIBIT}|($[^{]))+	{
 		SET_COLUMNS;
 		SET_STRING;
 		return TOKEN;
