@@ -37,7 +37,7 @@
  *
  * \section copyright Copyright and Author
  *
- * Copyright (C) 1999 - 2008, Digium, Inc.
+ * Copyright (C) 1999 - 2009, Digium, Inc.
  * Asterisk is a <a href="http://www.digium.com/en/company/view-policy.php?id=Trademark-Policy">registered trademark</a>
  * of <a href="http://www.digium.com">Digium, Inc</a>.
  *
