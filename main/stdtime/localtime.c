@@ -51,6 +51,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <float.h>
+#ifdef HAVE_INOTIFY
+#include <sys/inotify.h>
+#endif
 
 #include "private.h"
 #include "tzfile.h"
@@ -147,6 +150,11 @@ struct state {
 	char		chars[BIGGEST(BIGGEST(TZ_MAX_CHARS + 1, sizeof gmt),
 				(2 * (MY_TZNAME_MAX + 1)))];
 	struct lsinfo	lsis[TZ_MAX_LEAPS];
+#ifdef HAVE_INOTIFY
+	int wd[2];
+#else
+	time_t  mtime[2];
+#endif
 	AST_LIST_ENTRY(state) list;
 };
 
@@ -216,6 +224,156 @@ static AST_LIST_HEAD_STATIC(zonelist, state);
 #ifndef TZ_STRLEN_MAX
 #define TZ_STRLEN_MAX 255
 #endif /* !defined TZ_STRLEN_MAX */
+
+static pthread_t inotify_thread = AST_PTHREADT_NULL;
+static ast_cond_t initialization;
+static ast_mutex_t initialization_lock;
+#ifdef HAVE_INOTIFY
+static int inotify_fd = -1;
+
+static void *inotify_daemon(void *data)
+{
+	struct {
+		struct inotify_event iev;
+		char name[FILENAME_MAX + 1];
+	} buf;
+	ssize_t res;
+	struct state *cur;
+
+	inotify_fd = inotify_init();
+
+	ast_mutex_lock(&initialization_lock);
+	ast_cond_signal(&initialization);
+	ast_mutex_unlock(&initialization_lock);
+
+	if (inotify_fd < 0) {
+		ast_log(LOG_ERROR, "Cannot initialize file notification service: %s (%d)\n", strerror(errno), errno);
+		inotify_thread = AST_PTHREADT_NULL;
+		return NULL;
+	}
+
+	for (;/*ever*/;) {
+		/* This read should block, most of the time. */
+		if ((res = read(inotify_fd, &buf, sizeof(buf))) < sizeof(buf.iev) && res > 0) {
+			/* This should never happen */
+			ast_log(LOG_ERROR, "Inotify read less than a full event (%d < %d)?!!\n", res, sizeof(buf.iev));
+			break;
+		} else if (res < 0) {
+			if (errno == EINTR || errno == EAGAIN) {
+				/* If read fails, then wait a bit, then continue */
+				poll(NULL, 0, 10000);
+				continue;
+			}
+			/* Sanity check -- this should never happen, either */
+			ast_log(LOG_ERROR, "Inotify failed: %s\n", strerror(errno));
+			break;
+		}
+		AST_LIST_LOCK(&zonelist);
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&zonelist, cur, list) {
+			if (cur->wd[0] == buf.iev.wd || cur->wd[1] == buf.iev.wd) {
+				AST_LIST_REMOVE_CURRENT(list);
+				ast_free(cur);
+				break;
+			}
+		}
+		AST_LIST_TRAVERSE_SAFE_END
+		AST_LIST_UNLOCK(&zonelist);
+	}
+	close(inotify_fd);
+	inotify_thread = AST_PTHREADT_NULL;
+	return NULL;
+}
+
+static void add_notify(struct state *sp, const char *path)
+{
+	if (inotify_thread == AST_PTHREADT_NULL) {
+		ast_cond_init(&initialization, NULL);
+		ast_mutex_init(&initialization_lock);
+		ast_mutex_lock(&initialization_lock);
+		if (!(ast_pthread_create_background(&inotify_thread, NULL, inotify_daemon, NULL))) {
+			/* Give the thread a chance to initialize */
+			ast_cond_wait(&initialization, &initialization_lock);
+		} else {
+			ast_log(LOG_ERROR, "Unable to start notification thread\n");
+			ast_mutex_unlock(&initialization_lock);
+			return;
+		}
+		ast_mutex_unlock(&initialization_lock);
+	}
+
+	if (inotify_fd > -1) {
+		char fullpath[FILENAME_MAX + 1] = "";
+		if (readlink(path, fullpath, sizeof(fullpath) - 1) != -1) {
+			/* If file the symlink points to changes */
+			sp->wd[1] = inotify_add_watch(inotify_fd, fullpath, IN_ATTRIB | IN_DELETE_SELF | IN_MODIFY | IN_MOVE_SELF | IN_CLOSE_WRITE );
+		} else {
+			sp->wd[1] = -1;
+		}
+		/* or if the symlink itself changes (or the real file is here, if path is not a symlink) */
+		sp->wd[0] = inotify_add_watch(inotify_fd, path, IN_ATTRIB | IN_DELETE_SELF | IN_MODIFY | IN_MOVE_SELF | IN_CLOSE_WRITE | IN_DONT_FOLLOW);
+	}
+}
+#else
+static void *notify_daemon(void *data)
+{
+	struct stat st, lst;
+	struct state *cur;
+
+	ast_mutex_lock(&initialization_lock);
+	ast_cond_signal(&initialization);
+	ast_mutex_unlock(&initialization_lock);
+
+	for (;/*ever*/;) {
+		char		fullname[FILENAME_MAX + 1];
+
+		poll(NULL, 0, 60000);
+		AST_LIST_LOCK(&zonelist);
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&zonelist, cur, list) {
+			char *name = cur->name;
+
+			if (name[0] == ':')
+				++name;
+			if (name[0] != '/') {
+				(void) strcpy(fullname, TZDIR "/");
+				(void) strcat(fullname, name);
+				name = fullname;
+			}
+			stat(name, &st);
+			lstat(name, &lst);
+			if (st.st_mtime > cur->mtime[0] || lst.st_mtime > cur->mtime[1]) {
+				AST_LIST_REMOVE_CURRENT(list);
+				ast_free(cur);
+				continue;
+			}
+		}
+		AST_LIST_TRAVERSE_SAFE_END
+		AST_LIST_UNLOCK(&zonelist);
+	}
+	inotify_thread = AST_PTHREADT_NULL;
+	return NULL;
+}
+
+static void add_notify(struct state *sp, const char *path)
+{
+	struct stat st;
+
+	if (inotify_thread == AST_PTHREADT_NULL) {
+		ast_cond_init(&initialization, NULL);
+		ast_mutex_init(&initialization_lock);
+		ast_mutex_lock(&initialization_lock);
+		if (!(ast_pthread_create_background(&inotify_thread, NULL, notify_daemon, NULL))) {
+			/* Give the thread a chance to initialize */
+			ast_cond_wait(&initialization, &initialization_lock);
+		}
+		ast_mutex_unlock(&initialization_lock);
+	}
+
+	stat(path, &st);
+	sp->mtime[0] = st.st_mtime;
+	lstat(path, &st);
+	sp->mtime[1] = st.st_mtime;
+}
+#endif
 
 /*! \note
 ** Section 4.12.3 of X3.159-1989 requires that
@@ -305,6 +463,7 @@ static int tzload(const char *name, struct state * const sp, const int doextend)
 			return -1;
 		if ((fid = open(name, OPEN_MODE)) == -1)
 			return -1;
+		add_notify(sp, name);
 	}
 	nread = read(fid, u.buf, sizeof u.buf);
 	if (close(fid) < 0 || nread <= 0)

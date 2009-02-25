@@ -398,6 +398,12 @@
 /* Define to 1 if you have the `inet_ntoa' function. */
 #undef HAVE_INET_NTOA
 
+/* Define this to indicate the ${INOTIFY_DESCRIP} library */
+#undef HAVE_INOTIFY
+
+/* Define to indicate the ${INOTIFY_DESCRIP} library version */
+#undef HAVE_INOTIFY_VERSION
+
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
