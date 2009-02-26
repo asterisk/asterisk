@@ -374,6 +374,11 @@ int ast_playtones_start(struct ast_channel *chan, int vol, const char *playlst, 
 		d.nitems++;
 	}
 
+	if (!d.nitems) {
+		ast_log(LOG_ERROR, "No valid tone parts\n");
+		return -1;
+	}
+
 	if (ast_activate_generator(chan, &playtones, &d)) {
 		ast_free(d.items);
 		return -1;
