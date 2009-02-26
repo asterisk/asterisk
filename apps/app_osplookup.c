@@ -713,7 +713,7 @@ static int osp_auth(
 	unsigned int* timelimit)
 {
 	int res;
-	struct osp_provider* p;
+	struct osp_provider* p = NULL;
 	char dest[OSP_NORSTR_SIZE];
 
 	*transaction = OSP_INVALID_HANDLE;
@@ -861,7 +861,7 @@ static int osp_lookup(
 	struct osp_result* result)
 {
 	int res;
-	struct osp_provider* p;
+	struct osp_provider* p = NULL;
 	char source[OSP_NORSTR_SIZE];
 	char callingnum[OSP_NORSTR_SIZE];
 	char callednum[OSP_NORSTR_SIZE];
@@ -1076,7 +1076,7 @@ static int osp_next(
 	struct osp_result* result)
 {
 	int res;
-	struct osp_provider* p;
+	struct osp_provider* p = NULL;
 	char callingnum[OSP_NORSTR_SIZE];
 	char callednum[OSP_NORSTR_SIZE];
 	char destination[OSP_NORSTR_SIZE];
