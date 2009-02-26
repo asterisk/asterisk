@@ -1726,8 +1726,15 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		struct ast_channel *other;	/* used later */
 
 		res = ast_channel_bridge(chan, peer, config, &f, &who);
-
-		if (config->feature_timer) {
+		
+		/* When frame is not set, we are probably involved in a situation
+		   where we've timed out.
+		   When frame is set, we'll come thru this code twice; once for DTMF_BEGIN
+		   and also for DTMF_END. If we flow into the following 'if' for both, then 
+		   our wait times are cut in half, as both will subtract from the
+		   feature_timer. Not good!
+		*/
+		if (config->feature_timer && (!f || f->frametype == AST_FRAME_DTMF_END)) {
 			/* Update time limit for next pass */
 			diff = ast_tvdiff_ms(ast_tvnow(), config->start_time);
 			if (res == AST_BRIDGE_RETRY) {
