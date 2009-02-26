@@ -1052,8 +1052,9 @@ static struct ast_frame *iax2_read(struct ast_channel *c);
 static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, struct ast_variable *alt, int temponly);
 static struct iax2_user *build_user(const char *name, struct ast_variable *v, struct ast_variable *alt, int temponly);
 static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, time_t regtime);
-static void prune_peers(void);
 static void *iax2_dup_variable_datastore(void *);
+static void prune_peers(void);
+static void prune_users(void);
 static void iax2_free_variable_datastore(void *);
 
 static int acf_channel_read(struct ast_channel *chan, const char *funcname, char *preparse, char *buf, size_t buflen);
@@ -1473,6 +1474,14 @@ static inline struct iax2_peer *peer_unref(struct iax2_peer *peer)
 	return NULL;
 }
 
+static struct iax2_user *find_user(const char *name)
+{
+	struct iax2_user tmp_user = {
+		.name = name,
+	};
+
+	return ao2_find(users, &tmp_user, OBJ_POINTER);
+}
 static inline struct iax2_user *user_ref(struct iax2_user *user)
 {
 	ao2_ref(user, +1);
@@ -2616,7 +2625,8 @@ static int attempt_transmit(const void *data)
 
 static char *handle_cli_iax2_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct iax2_peer *peer;
+	struct iax2_peer *peer = NULL;
+	struct iax2_user *user = NULL;
 	static char *choices[] = { "all", NULL };
 	char *cmplt;
 
@@ -2636,25 +2646,40 @@ static char *handle_cli_iax2_prune_realtime(struct ast_cli_entry *e, int cmd, st
 		}
 		return NULL;
 	}
-
 	if (a->argc != 4)
 		return CLI_SHOWUSAGE;
 	if (!strcmp(a->argv[3], "all")) {
-		reload_config();
+		prune_users();
+		prune_peers();
 		ast_cli(a->fd, "Cache flushed successfully.\n");
-	} else if ((peer = find_peer(a->argv[3], 0))) {
-		if (ast_test_flag(peer, IAX_RTCACHEFRIENDS)) {
-			ast_set_flag(peer, IAX_RTAUTOCLEAR);
-			expire_registry(peer_ref(peer));
-			ast_cli(a->fd, "Peer %s was removed from the cache.\n", a->argv[3]);
-		} else {
-			ast_cli(a->fd, "Peer %s is not eligible for this operation.\n", a->argv[3]);
-		}
-		peer_unref(peer);
-	} else {
-		ast_cli(a->fd, "Peer %s was not found in the cache.\n", a->argv[3]);
 	}
-	
+	peer = find_peer(a->argv[3], 0);
+	user = find_user(a->argv[3]);
+	if (peer || user) {
+		if (peer) {
+			if (ast_test_flag(peer, IAX_RTCACHEFRIENDS)) {
+				ast_set_flag(peer, IAX_RTAUTOCLEAR);
+				expire_registry(peer_ref(peer));
+				ast_cli(a->fd, "Peer %s was removed from the cache.\n", a->argv[3]);
+			} else {
+				ast_cli(a->fd, "Peer %s is not eligible for this operation.\n", a->argv[3]);
+			}
+			peer_unref(peer);
+		}
+		if (user) {
+			if (ast_test_flag(user, IAX_RTCACHEFRIENDS)) {
+				ast_set_flag(user, IAX_RTAUTOCLEAR);
+				ast_cli(a->fd, "User %s was removed from the cache.\n", a->argv[3]);
+			} else {
+				ast_cli(a->fd, "User %s is not eligible for this operation.\n", a->argv[3]);
+			}
+			ao2_unlink(users,user);
+			user_unref(user);
+		}
+	} else {
+		ast_cli(a->fd, "%s was not found in the cache.\n", a->argv[3]);
+	}
+
 	return CLI_SUCCESS;
 }
 
@@ -11184,8 +11209,9 @@ static void prune_users(void)
 
 	i = ao2_iterator_init(users, 0);
 	while ((user = ao2_iterator_next(&i))) {
-		if (ast_test_flag(user, IAX_DELME))
+		if (ast_test_flag(user, IAX_DELME) || ast_test_flag(user, IAX_RTCACHEFRIENDS)) {
 			ao2_unlink(users, user);
+		}
 		user_unref(user);
 	}
 }
@@ -11198,8 +11224,9 @@ static void prune_peers(void)
 
 	i = ao2_iterator_init(peers, 0);
 	while ((peer = ao2_iterator_next(&i))) {
-		if (ast_test_flag(peer, IAX_DELME))
+		if (ast_test_flag(peer, IAX_DELME) || ast_test_flag(peer, IAX_RTCACHEFRIENDS)) {
 			unlink_peer(peer);
+		}
 		peer_unref(peer);
 	}
 }
