@@ -292,9 +292,7 @@ static void filestream_destructor(void *arg)
 		if (f->fmt->format < AST_FORMAT_AUDIO_MASK) {
 			f->owner->stream = NULL;
 			AST_SCHED_DEL(f->owner->sched, f->owner->streamid);
-#ifdef HAVE_DAHDI
 			ast_settimeout(f->owner, 0, NULL, NULL);
-#endif			
 		} else {
 			f->owner->vstream = NULL;
 			AST_SCHED_DEL(f->owner->sched, f->owner->vstreamid);
