@@ -2652,6 +2652,7 @@ static char *handle_cli_iax2_prune_realtime(struct ast_cli_entry *e, int cmd, st
 		prune_users();
 		prune_peers();
 		ast_cli(a->fd, "Cache flushed successfully.\n");
+		return CLI_SUCCESS;
 	}
 	peer = find_peer(a->argv[3], 0);
 	user = find_user(a->argv[3]);
