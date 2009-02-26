@@ -149,6 +149,8 @@ Miscellaneous
    externhost and localnet settings.
  * The Asterisk core now supports ITU G.722.1 and G.722.1C media streams, and
    can connect calls in passthrough mode, as well as record and play back files.
+ * Successful and unsuccessful call pickup can now be alerted through sounds, by
+   using pickupsound and pickupfailsound in features.conf.
 
 Asterisk Manager Interface
 --------------------------

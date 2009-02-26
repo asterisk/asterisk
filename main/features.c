@@ -238,6 +238,8 @@ static char courtesytone[256];                             /*!< Courtesy tone */
 static int parkedplay = 0;                                 /*!< Who to play the courtesy tone to */
 static char xfersound[256];                                /*!< Call transfer sound */
 static char xferfailsound[256];                            /*!< Call transfer failure sound */
+static char pickupsound[256];                              /*!< Pickup sound */
+static char pickupfailsound[256];                          /*!< Pickup failure sound */
 
 static int adsipark;
 
@@ -3634,6 +3636,8 @@ static int load_config(void)
 	courtesytone[0] = '\0';
 	strcpy(xfersound, "beep");
 	strcpy(xferfailsound, "pbx-invalid");
+	pickupsound[0] = '\0';
+	pickupfailsound[0] = '\0';
 	adsipark = 0;
 	comebacktoorigin = 1;
 
@@ -3754,6 +3758,10 @@ static int load_config(void)
 			ast_copy_string(xferfailsound, var->value, sizeof(xferfailsound));
 		} else if (!strcasecmp(var->name, "pickupexten")) {
 			ast_copy_string(pickup_ext, var->value, sizeof(pickup_ext));
+		} else if (!strcasecmp(var->name, "pickupsound")) {
+			ast_copy_string(pickupsound, var->value, sizeof(pickupsound));
+		} else if (!strcasecmp(var->name, "pickupfailsound")) {
+			ast_copy_string(pickupfailsound, var->value, sizeof(pickupfailsound));
 		} else if (!strcasecmp(var->name, "comebacktoorigin")) {
 			comebacktoorigin = ast_true(var->value);
 		} else if (!strcasecmp(var->name, "parkedmusicclass")) {
@@ -4395,10 +4403,16 @@ int ast_pickup_call(struct ast_channel *chan)
 		res = ast_channel_masquerade(cur, chan);
 		if (res)
 			ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, cur->name);		/* Done */
+		if (!ast_strlen_zero(pickupsound)) {
+			ast_stream_and_wait(cur, pickupsound, "");
+		}
 		ast_channel_unlock(cur);
 		return res;
 	} else	{
 		ast_debug(1, "No call pickup possible...\n");
+		if (!ast_strlen_zero(pickupfailsound)) {
+			ast_stream_and_wait(chan, pickupfailsound, "");
+		}
 	}
 	return -1;
 }
