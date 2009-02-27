@@ -26,6 +26,10 @@
  *
  * This file contains the common code between the uses of the different AIS
  * services.
+ *
+ * \note This module is still considered experimental, as it exposes the
+ * internal binary format of events between Asterisk servers over a network.
+ * However, this format is still subject to change between 1.6.X releases.
  */
 
 /*** MODULEINFO

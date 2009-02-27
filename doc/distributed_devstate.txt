@@ -8,6 +8,16 @@
 ===============================================================================
 
 -------------------------------------------------------------------------------
+--- IMPORTANT NOTE
+-------------------------------------------------------------------------------
+
+This document includes some information about using the res_ais module for
+distributed events.  However, it is important to note that res_ais is still
+considered experimental, as the module exposes the binary format of events
+over the network between servers.  This format is still subject to change
+between 1.6.X releases.
+
+-------------------------------------------------------------------------------
 --- INTRODUCTION
 -------------------------------------------------------------------------------
 
