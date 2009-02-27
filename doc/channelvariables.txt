@@ -734,8 +734,8 @@ The Dial() application uses the following variables:
 ---------------------------------------------------------
 ${DIALEDPEERNAME} 		* Dialed peer name
 ${DIALEDPEERNUMBER} 		* Dialed peer number
-${DIALEDTIME}   		* Time for the call (seconds)
-${ANSWEREDTIME} 		* Time from dial to answer (seconds)
+${DIALEDTIME}   		* Time for the call (seconds). Is only set if call was answered.
+${ANSWEREDTIME} 		* Time from answer to hangup (seconds)
 ${DIALSTATUS}   		* Status of the call, one of:
                 		(CHANUNAVAIL | CONGESTION | BUSY | NOANSWER 
 					| ANSWER | CANCEL | DONTCALL | TORTURE)
