@@ -970,6 +970,7 @@ int skinny_header_size = 12;
  *****************************/
 
 static int skinnydebug = 0;
+static int skinnyreload = 0;
 
 /* a hostname, portnumber, socket and such is usefull for VoIP protocols */
 static struct sockaddr_in bindaddr;
@@ -1181,7 +1182,8 @@ struct skinny_subchannel {
 	int immediate;					\
 	int hookstate;					\
 	int nat;					\
-	int canreinvite;
+	int canreinvite;				\
+	int prune;
 
 struct skinny_line {
 	SKINNY_LINE_OPTIONS
@@ -1212,6 +1214,7 @@ struct skinny_line_options{
  	.capability = 0,
 	.getforward = 0,
  	.needdestroy = 0,
+	.prune = 0,
 	.hookstate = SKINNY_ONHOOK,
 };
 struct skinny_line_options *default_line = &default_line_struct;
@@ -1256,7 +1259,8 @@ struct skinny_addon {
 	int transfer;						\
 	int callwaiting;					\
 	int mwiblink;						\
-	int dnd;
+	int dnd;						\
+	int prune;
 
 struct skinny_device {
 	SKINNY_DEVICE_OPTIONS
@@ -1284,6 +1288,7 @@ struct skinny_device_options{
  	.dnd = 0,
  	.confcapability = AST_FORMAT_ULAW | AST_FORMAT_ALAW,
  	.capability = 0,
+	.prune = 0,
 };
 struct skinny_device_options *default_device = &default_device_struct;
 	
@@ -1324,6 +1329,7 @@ static int skinny_senddigit_begin(struct ast_channel *ast, char digit);
 static int skinny_senddigit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static int handle_time_date_req_message(struct skinny_req *req, struct skinnysession *s);
 static void mwi_event_cb(const struct ast_event *event, void *userdata);
+static int skinny_reload(void);
 
 static const struct ast_channel_tech skinny_tech = {
 	.type = "Skinny",
@@ -2718,6 +2724,27 @@ static char *handle_skinny_set_debug(struct ast_cli_entry *e, int cmd, struct as
 	}
 }
 
+static char *handle_skinny_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "skinny reload";
+		e->usage =
+			"Usage: skinny reload\n"
+			"       Reloads the chan_skinny configuration\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	
+	if (a->argc != e->args)
+		return CLI_SHOWUSAGE;
+
+	skinny_reload();
+	return CLI_SUCCESS;
+
+}
+
 static char *complete_skinny_devices(const char *word, int state)
 {
 	struct skinny_device *d;
@@ -3521,6 +3548,7 @@ static struct ast_cli_entry cli_skinny[] = {
 	AST_CLI_DEFINE(handle_skinny_show_settings, "List global Skinny settings"),
 	AST_CLI_DEFINE(handle_skinny_set_debug, "Enable/Disable Skinny debugging"),
 	AST_CLI_DEFINE(handle_skinny_reset, "Reset Skinny device(s)"),
+	AST_CLI_DEFINE(handle_skinny_reload, "Reload Skinny config"),
 };
 
 static void start_rtp(struct skinny_subchannel *sub)
@@ -6786,7 +6814,7 @@ static struct ast_channel *skinny_request(const char *type, int format, void *da
  			if (type & (TYPE_DEVICE)) {
  				struct skinny_line *l;
  				AST_LIST_TRAVERSE(&lines, l, all) {
- 					if (!strcasecmp(v->value, l->name)) {
+ 					if (!strcasecmp(v->value, l->name) && !l->prune) {
 
 						/* FIXME: temp solution about line conflicts */
 						struct skinny_device *d;
@@ -6794,7 +6822,7 @@ static struct ast_channel *skinny_request(const char *type, int format, void *da
 						int lineinuse = 0;
 						AST_LIST_TRAVERSE(&devices, d, list) {
 							AST_LIST_TRAVERSE(&d->lines, l2, list) {
-								if (l2 == l) {
+								if (l2 == l && strcasecmp(d->id, CDEV->id)) {
 									ast_log(LOG_WARNING, "Line %s already used by %s. Not connecting to %s.\n", l->name, d->name, CDEV->name);
 									lineinuse++;
 								}
@@ -6868,32 +6896,35 @@ static struct ast_channel *skinny_request(const char *type, int format, void *da
  
  static struct skinny_line *config_line(const char *lname, struct ast_variable *v)
  {
- 	struct skinny_line *l;
+ 	struct skinny_line *l, *temp;
+	int update = 0;
  
  	ast_log(LOG_NOTICE, "Configuring skinny line %s.\n", lname);
- 	
+
+	/* We find the old line and remove it just before the new
+	   line is created */
  	AST_LIST_LOCK(&lines);
- 	AST_LIST_TRAVERSE(&lines, l, all) {
- 		if (!strcasecmp(lname, l->name)) {
- 			ast_log(LOG_NOTICE, "Line %s already exists. Reconfiguring.\n", lname);
+ 	AST_LIST_TRAVERSE(&lines, temp, all) {
+ 		if (!strcasecmp(lname, temp->name) && temp->prune) {
+			update = 1;
  			break;
  		}
  	}
- 	if (!l) {
- 		ast_log(LOG_NOTICE, "Creating line %s.\n", lname);
- 		if (!(l=ast_calloc(1, sizeof(*l)))) {
- 			ast_verb(1, "Unable to allocate memory for line %s.\n", lname);
- 			AST_LIST_UNLOCK(&lines);
- 			return NULL;
- 		}
- 		memcpy(l, default_line, sizeof(*default_line));
- 		ast_mutex_init(&l->lock);
- 		ast_copy_string(l->name, lname, sizeof(l->name));
- 		AST_LIST_INSERT_TAIL(&lines, l, all);
+
+ 	if (!(l=ast_calloc(1, sizeof(*l)))) {
+ 		ast_verb(1, "Unable to allocate memory for line %s.\n", lname);
+ 		AST_LIST_UNLOCK(&lines);
+ 		return NULL;
  	}
+
+ 	memcpy(l, default_line, sizeof(*default_line));
+ 	ast_mutex_init(&l->lock);
+ 	ast_copy_string(l->name, lname, sizeof(l->name));
+ 	AST_LIST_INSERT_TAIL(&lines, l, all);
+
  	ast_mutex_lock(&l->lock);
  	AST_LIST_UNLOCK(&lines);
- 
+
  	config_parse_variables(TYPE_LINE, l, v);
  			
  	if (!ast_strlen_zero(l->mailbox)) {
@@ -6911,32 +6942,43 @@ static struct ast_channel *skinny_request(const char *type, int format, void *da
  	}
  
  	ast_mutex_unlock(&l->lock);
+	
+	/* We do not want to unlink or free the line yet, it needs
+	   to be available to detect a device reconfig when we load the
+	   devices.  Old lines will be pruned after the reload completes */
+
+	ast_verb(3, "%s config for line '%s'\n", update ? "Updated" : (skinnyreload ? "Reloaded" : "Created"), l->name);
+
  	return l;
  }
  
  static struct skinny_device *config_device(const char *dname, struct ast_variable *v)
  {
- 	struct skinny_device *d;
+ 	struct skinny_device *d, *temp;
+ 	struct skinny_line *l, *ltemp;
+	struct skinny_subchannel *sub;
+	int update = 0;
  
  	ast_log(LOG_NOTICE, "Configuring skinny device %s.\n", dname);
- 	
+
  	AST_LIST_LOCK(&devices);
- 	AST_LIST_TRAVERSE(&devices, d, list) {
- 		if (!strcasecmp(dname, d->name)) {
+ 	AST_LIST_TRAVERSE(&devices, temp, list) {
+ 		if (!strcasecmp(dname, temp->name) && temp->prune) {
+			update = 1;
  			break;
  		}
  	}
- 	if (!d) {
- 		if (!(d = ast_calloc(1, sizeof(*d)))) {
- 			ast_verb(1, "Unable to allocate memory for device %s.\n", dname);
- 			AST_LIST_UNLOCK(&devices);
- 			return NULL;
- 		}
- 		memcpy(d, default_device, sizeof(*default_device));
- 		ast_mutex_init(&d->lock);
- 		ast_copy_string(d->name, dname, sizeof(d->name));
- 		AST_LIST_INSERT_HEAD(&devices, d, list);
+
+ 	if (!(d = ast_calloc(1, sizeof(*d)))) {
+ 		ast_verb(1, "Unable to allocate memory for device %s.\n", dname);
+ 		AST_LIST_UNLOCK(&devices);
+ 		return NULL;
  	}
+ 	memcpy(d, default_device, sizeof(*default_device));
+ 	ast_mutex_init(&d->lock);
+ 	ast_copy_string(d->name, dname, sizeof(d->name));
+ 	AST_LIST_INSERT_TAIL(&devices, d, list);
+
  	ast_mutex_lock(&d->lock);
  	AST_LIST_UNLOCK(&devices);
  
@@ -6951,8 +6993,52 @@ static struct ast_channel *skinny_request(const char *type, int format, void *da
  		d->addr.sin_port = htons(DEFAULT_SKINNY_PORT);
  	}
  
+	if (skinnyreload){
+		AST_LIST_LOCK(&devices);
+		AST_LIST_TRAVERSE(&devices, temp, list) {
+			if (strcasecmp(d->id, temp->id) || !temp->prune || !temp->session) {
+				continue;
+			}
+			ast_mutex_lock(&d->lock);
+			d->session = temp->session;
+			d->session->device = d;
+
+			AST_LIST_LOCK(&d->lines);
+			AST_LIST_TRAVERSE(&d->lines, l, list){
+				l->device = d;	
+
+				AST_LIST_LOCK(&temp->lines);
+				AST_LIST_TRAVERSE(&temp->lines, ltemp, list) {
+					if (strcasecmp(l->name, ltemp->name)) {
+						continue;
+					}
+					ast_mutex_lock(&ltemp->lock);
+					l->instance = ltemp->instance;
+					l->hookstate = ltemp->hookstate;
+					if (!AST_LIST_EMPTY(&ltemp->sub)) {
+						ast_mutex_lock(&l->lock);
+						l->sub = ltemp->sub;
+						AST_LIST_TRAVERSE(&l->sub, sub, list) {
+							sub->parent = l;
+						}
+						ast_mutex_unlock(&l->lock);
+					}
+					ast_mutex_unlock(&ltemp->lock);
+				}
+				AST_LIST_UNLOCK(&temp->lines);
+			}
+			AST_LIST_UNLOCK(&d->lines);
+			ast_mutex_unlock(&d->lock);
+		}
+		AST_LIST_UNLOCK(&devices);
+	}
+
  	ast_mutex_unlock(&d->lock);
- 	return d;
+
+	ast_verb(3, "%s config for device '%s'\n", update ? "Updated" : (skinnyreload ? "Reloaded" : "Created"), d->name);
+	
+	return d;
+
  }
  
  static int config_load(void)
@@ -7102,19 +7188,87 @@ static void delete_devices(void)
 	AST_LIST_UNLOCK(&devices);
 }
 
-#if 0
-/*
- * XXX This never worked properly anyways.
- * Let's get rid of it, until we can fix it.
- */
-static int reload(void)
+int skinny_reload(void)
 {
-	delete_devices();
-	config_load();
-	restart_monitor();
-	return 0;
+	struct skinny_device *d;
+	struct skinny_line *l;
+	struct skinny_speeddial *sd;
+	struct skinny_addon *a;
+	struct skinny_req *req;
+
+	if (skinnyreload) {
+		ast_verb(3, "Chan_skinny is already reloading.\n");
+		return 0;
+	}
+
+	skinnyreload = 1;
+
+	/* Mark all devices and lines as candidates to be pruned */
+	AST_LIST_LOCK(&devices);
+	AST_LIST_TRAVERSE(&devices, d, list) {
+		d->prune = 1;
+	}
+	AST_LIST_UNLOCK(&devices);
+
+	AST_LIST_LOCK(&lines);
+	AST_LIST_TRAVERSE(&lines, l, all) {
+		l->prune = 1;
+	}
+	AST_LIST_UNLOCK(&lines);
+
+        config_load();
+
+	/* Remove any devices that no longer exist in the config */
+	AST_LIST_LOCK(&devices);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&devices, d, list) {
+		if (!d->prune) {
+			continue;
+		}
+		ast_verb(3, "Removing device '%s'\n", d->name);
+		/* Delete all lines for this device. 
+		   We do not want to free the line here, that
+		   will happen below. */
+		while ((l = AST_LIST_REMOVE_HEAD(&d->lines, list))) {
+		}
+		/* Delete all speeddials for this device */
+		while ((sd = AST_LIST_REMOVE_HEAD(&d->speeddials, list))) {
+			free(sd);
+		}
+		/* Delete all addons for this device */
+		while ((a = AST_LIST_REMOVE_HEAD(&d->addons, list))) {
+			free(a);
+		}
+		AST_LIST_REMOVE_CURRENT(list);
+		free(d);
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+	AST_LIST_UNLOCK(&devices);
+
+	AST_LIST_LOCK(&lines);  
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&lines, l, all) {
+		if (l->prune) {
+			AST_LIST_REMOVE_CURRENT(all);
+			free(l);
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+	AST_LIST_UNLOCK(&lines);  
+
+	AST_LIST_TRAVERSE(&devices, d, list) {
+		/* Do a soft reset to re-register the devices after
+		   cleaning up the removed devices and lines */
+		if (d->session) {
+			ast_verb(3, "Restarting device '%s'\n", d->name);
+			if ((req = req_alloc(sizeof(struct reset_message), RESET_MESSAGE))) {
+				req->data.reset.resetType = 2;
+				transmit_response(d, req);
+			}
+		}
+	}
+	
+	skinnyreload = 0;
+        return 0;
 }
-#endif
 
 static int load_module(void)
 {
@@ -7158,7 +7312,7 @@ static int load_module(void)
 	/* And start the monitor for the first time */
 	restart_monitor();
 
-	return res;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
@@ -7237,7 +7391,14 @@ static int unload_module(void)
 	return 0;
 }
 
+static int reload(void)
+{
+	skinny_reload();
+	return 0;
+}
+
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Skinny Client Control Protocol (Skinny)",
 		.load = load_module,
 		.unload = unload_module,
+		.reload = reload,
 );
