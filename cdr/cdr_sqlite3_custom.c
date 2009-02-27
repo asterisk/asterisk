@@ -172,7 +172,7 @@ static int load_config(int reload)
 		/* Nothing configured */
 		ast_mutex_unlock(&lock);
 		ast_config_destroy(cfg);
-		return 0;
+		return -1;
 	}
 
 	/* Mapping must have a table name */
