@@ -46,6 +46,13 @@ From 1.6.0.1 to 1.6.1:
 
 From 1.6.0.x to 1.6.1:
 
+* In previous versions of Asterisk, due to the way objects were arranged in
+  memory by chan_sip, the order of entries in sip.conf could be adjusted to
+  control the behavior of matching against peers and users.  The way objects
+  are managed has been significantly changed for reasons involving performance
+  and stability.  A side effect of these changes is that the order of entries
+  in sip.conf can no longer be relied upon to control behavior.
+
 * The following core commands dealing with dialplan have been deprecated: 'core
   show globals', 'core set global' and 'core set chanvar'. Use the equivalent
   'dialplan show globals', 'dialplan set global' and 'dialplan set chanvar'
