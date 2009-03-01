@@ -744,7 +744,7 @@ static int speech_background(struct ast_channel *chan, void *data)
 		/* Do timeout check (shared between audio/dtmf) */
 		if ((!quieted || strlen(dtmf)) && started == 1) {
 			current = ast_tvnow();
-			if ((ast_tvdiff_ms(start, current)) >= timeout) {
+			if ((ast_tvdiff_ms(current, start)) >= timeout) {
 				done = 1;
 				if (f)
 					ast_frfree(f);
