@@ -4131,6 +4131,7 @@ static int set_member_paused(const char *queuename, const char *interface, const
 	struct call_queue *q;
 	struct member *mem;
 	struct ao2_iterator queue_iter;
+	int failed;
 
 	/* Special event for when all queues are paused - individual events still generated */
 	/* XXX In all other cases, we use the membername, but since this affects all queues, we cannot */
@@ -4146,13 +4147,23 @@ static int set_member_paused(const char *queuename, const char *interface, const
 				if (mem->paused == paused) {
 					ast_debug(1, "%spausing already-%spaused queue member %s:%s\n", (paused ? "" : "un"), (paused ? "" : "un"), q->name, interface);
 				}
+				
+				failed = 0;
+				if (mem->realtime) {
+					failed = update_realtime_member_field(mem, q->name, "paused", paused ? "1" : "0");
+				}
+
+				if (failed) {
+					ast_log(LOG_WARNING, "Failed %spausing realtime queue member %s:%s\n", (paused ? "" : "un"), q->name, interface);
+					ao2_ref(mem, -1);
+					ao2_unlock(q);
+					continue;
+				}
+
 				mem->paused = paused;
 
 				if (queue_persistent_members)
 					dump_queue_members(q);
-
-				if (mem->realtime)
-					update_realtime_member_field(mem, q->name, "paused", paused ? "1" : "0");
 
 				ast_queue_log(q->name, "NONE", mem->membername, (paused ? "PAUSE" : "UNPAUSE"), "%s", S_OR(reason, ""));
 				
