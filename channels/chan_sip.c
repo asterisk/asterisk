@@ -3581,8 +3581,10 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 	if (xmitres == XMIT_ERROR) {	/* Serious network trouble, no need to try again */
 		append_history(pkt->owner, "XmitErr", "%s", pkt->is_fatal ? "(Critical)" : "(Non-critical)");
 		ast_log(LOG_ERROR, "Serious Network Trouble; __sip_xmit returns error for pkt data\n");
-		if (pkt->data)
-			ast_free(pkt->data);
+		AST_SCHED_DEL(sched, pkt->retransid);
+		p->packets = pkt->next;
+		ast_free(pkt->data);
+		ast_free(pkt);
 		return AST_FAILURE;
 	} else {
 		return AST_SUCCESS;
