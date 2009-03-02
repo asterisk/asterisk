@@ -2243,7 +2243,10 @@ int ast_settimeout(struct ast_channel *c, unsigned int rate, int (*func)(const v
 	int res;
 	unsigned int real_rate = rate, max_rate;
 
+	ast_channel_lock(c);
+
 	if (c->timingfd == -1) {
+		ast_channel_unlock(c);
 		return -1;
 	}
 
@@ -2262,6 +2265,8 @@ int ast_settimeout(struct ast_channel *c, unsigned int rate, int (*func)(const v
 
 	c->timingfunc = func;
 	c->timingdata = data;
+
+	ast_channel_unlock(c);
 
 	return res;
 }
