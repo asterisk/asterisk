@@ -915,7 +915,8 @@ int ast_audiohook_volume_set(struct ast_channel *chan, enum ast_audiohook_direct
 	/* Now based on the direction set the proper value */
 	if (direction == AST_AUDIOHOOK_DIRECTION_READ || direction == AST_AUDIOHOOK_DIRECTION_BOTH) {
 		audiohook_volume->read_adjustment = volume;
-	} else if (direction == AST_AUDIOHOOK_DIRECTION_WRITE || direction == AST_AUDIOHOOK_DIRECTION_BOTH) {
+	}
+	if (direction == AST_AUDIOHOOK_DIRECTION_WRITE || direction == AST_AUDIOHOOK_DIRECTION_BOTH) {
 		audiohook_volume->write_adjustment = volume;
 	}
 
@@ -965,7 +966,8 @@ int ast_audiohook_volume_adjust(struct ast_channel *chan, enum ast_audiohook_dir
 	/* Based on the direction change the specific adjustment value */
 	if (direction == AST_AUDIOHOOK_DIRECTION_READ || direction == AST_AUDIOHOOK_DIRECTION_BOTH) {
 		audiohook_volume->read_adjustment += volume;
-	} else if (direction == AST_AUDIOHOOK_DIRECTION_WRITE || direction == AST_AUDIOHOOK_DIRECTION_BOTH) {
+	}
+	if (direction == AST_AUDIOHOOK_DIRECTION_WRITE || direction == AST_AUDIOHOOK_DIRECTION_BOTH) {
 		audiohook_volume->write_adjustment += volume;
 	}
 
