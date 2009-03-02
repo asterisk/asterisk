@@ -2659,8 +2659,6 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 				}
 			}
 
-			c = ast_waitfor_nandfds(&chan, 1, &fd, nfds, NULL, &outfd, &ms);
-
 			/* Update the struct with the actual confflags */
 			user->userflags = confflags;
 
@@ -2822,6 +2820,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			if (ast_check_hangup(chan)) {
 				break;
 			}
+
+			c = ast_waitfor_nandfds(&chan, 1, &fd, nfds, NULL, &outfd, &ms);
 
 			if (c) {
 				char dtmfstr[2] = "";
