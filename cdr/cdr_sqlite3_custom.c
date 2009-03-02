@@ -240,6 +240,11 @@ static int sqlite3_log(struct ast_cdr *cdr)
 	struct ast_channel dummy = { 0, };
 	int count = 0;
 
+	if (db == NULL) {
+		/* Should not have loaded, but be failsafe. */
+		return 0;
+	}
+
 	{ /* Make it obvious that only sql should be used outside of this block */
 		char *escaped;
 		char subst_buf[2048];
