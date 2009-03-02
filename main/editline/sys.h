@@ -74,6 +74,16 @@ typedef void	*ioctl_t;
 char	*fgetln(FILE *fp, size_t *len);
 #endif
 
+#ifndef HAVE_STRLCPY
+#define	strlcpy libedit_strlcpy
+size_t strlcpy(char *dst, const char *src, size_t siz);
+#endif
+
+#ifndef HAVE_STRLCAT
+#define	strlcat libedit_strlcat
+size_t strlcat(char *dst, const char *src, size_t siz);
+#endif
+
 #define	REGEX		/* Use POSIX.2 regular expression functions */
 #undef	REGEXP		/* Use UNIX V8 regular expression functions */
 
