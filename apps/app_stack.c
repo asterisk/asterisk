@@ -464,10 +464,13 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, char **arg
 
 		if ((res = pbx_exec(chan, theapp, gosub_args)) == 0) {
 			struct ast_pbx *pbx = chan->pbx;
+			struct ast_pbx_args args;
+			memset(&args, 0, sizeof(args));
+			args.no_hangup_chan = 1;
 			/* Suppress warning about PBX already existing */
 			chan->pbx = NULL;
 			ast_agi_send(agi->fd, chan, "100 result=0 Trying...\n");
-			ast_pbx_run(chan);
+			ast_pbx_run_args(chan, &args);
 			ast_agi_send(agi->fd, chan, "200 result=0 Gosub complete\n");
 			if (chan->pbx) {
 				ast_free(chan->pbx);
@@ -500,15 +503,8 @@ struct agi_command gosub_agi_command =
 
 static int unload_module(void)
 {
-	struct ast_context *con;
-
 	if (ast_agi_unregister) {
 		ast_agi_unregister(ast_module_info->self, &gosub_agi_command);
-
-		if ((con = ast_context_find("app_stack_gosub_virtual_context"))) {
-			ast_context_remove_extension2(con, "s", 1, NULL, 0);
-			ast_context_destroy(con, "app_stack"); /* leave nothing behind */
-		}
 	}
 
 	ast_unregister_application(app_return);
@@ -522,20 +518,10 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	struct ast_context *con;
-
 	/* usage of AGI is optional, so check to see if the ast_agi_register()
 	   function is available; if so, use it.
 	*/
 	if (ast_agi_register) {
-		con = ast_context_find_or_create(NULL, NULL, "app_stack_gosub_virtual_context", "app_stack");
-		if (!con) {
-			ast_log(LOG_ERROR, "Virtual context 'app_stack_gosub_virtual_context' does not exist and unable to create\n");
-			return AST_MODULE_LOAD_DECLINE;
-		} else {
-			ast_add_extension2(con, 1, "s", 1, NULL, NULL, "KeepAlive", ast_strdup(""), ast_free_ptr, "app_stack");
-		}
-
 		ast_agi_register(ast_module_info->self, &gosub_agi_command);
 	}
 
