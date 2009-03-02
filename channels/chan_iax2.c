@@ -11184,7 +11184,9 @@ static void delete_users(void)
 
 	AST_LIST_LOCK(&registrations);
 	while ((reg = AST_LIST_REMOVE_HEAD(&registrations, entry))) {
-		ast_sched_thread_del(sched, reg->expire);
+		if (sched) {
+			ast_sched_thread_del(sched, reg->expire);
+		}
 		if (reg->callno) {
 			int callno = reg->callno;
 			ast_mutex_lock(&iaxsl[callno]);
