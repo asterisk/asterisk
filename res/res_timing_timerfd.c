@@ -134,6 +134,7 @@ static int timerfd_timer_set_rate(int handle, unsigned int rate)
 	struct timerfd_timer *our_timer, find_helper = {
 		.handle = handle,
 	};
+	int res;
 
 	if (!(our_timer = ao2_find(timerfd_timers, &find_helper, OBJ_POINTER))) {
 		ast_log(LOG_ERROR, "Couldn't find timer with handle %d\n", handle);
@@ -145,7 +146,11 @@ static int timerfd_timer_set_rate(int handle, unsigned int rate)
 	our_timer->saved_timer.it_interval.tv_sec = our_timer->saved_timer.it_value.tv_sec;
 	our_timer->saved_timer.it_interval.tv_nsec = our_timer->saved_timer.it_value.tv_nsec;
 
-	return timerfd_settime(handle, 0, &our_timer->saved_timer, NULL);
+	res = timerfd_settime(handle, 0, &our_timer->saved_timer, NULL);
+
+	ao2_ref(our_timer, -1);
+
+	return res;
 }
 
 static void timerfd_timer_ack(int handle, unsigned int quantity)
