@@ -1839,6 +1839,7 @@ int ast_settimeout(struct ast_channel *c, int samples, int (*func)(const void *d
 {
 	int res = -1;
 #ifdef HAVE_DAHDI
+	ast_channel_lock(c);
 	if (c->timingfd > -1) {
 		if (!func) {
 			samples = 0;
@@ -1850,6 +1851,7 @@ int ast_settimeout(struct ast_channel *c, int samples, int (*func)(const void *d
 		c->timingfunc = func;
 		c->timingdata = data;
 	}
+	ast_channel_unlock(c);
 #endif	
 	return res;
 }
