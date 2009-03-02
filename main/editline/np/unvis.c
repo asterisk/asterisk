@@ -61,7 +61,7 @@ __warn_references(unvis,
     "warning: reference to compatibility unvis(); include <vis.h> for correct reference")
 #endif
 
-#if !HAVE_VIS_H
+#ifndef HAVE_VIS_H
 /*
  * decode driven by state machine
  */
