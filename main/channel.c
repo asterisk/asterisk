@@ -4585,7 +4585,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	o0nativeformats = c0->nativeformats;
 	o1nativeformats = c1->nativeformats;
 
-	if (config->feature_timer) {
+	if (config->feature_timer && !ast_tvzero(config->nexteventts)) {
 		config->nexteventts = ast_tvadd(config->start_time, ast_samp2tv(config->feature_timer, 1000));
 	} else if (config->timelimit && firstpass) {
 		config->nexteventts = ast_tvadd(config->start_time, ast_samp2tv(config->timelimit, 1000));
