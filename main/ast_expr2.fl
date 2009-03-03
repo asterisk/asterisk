@@ -158,6 +158,12 @@ HIBIT           [\x80-\xff]
 		return TOKEN;
 	}
 
+([a-zA-Z0-9\.';\\_^#@]|{HIBIT}|($[^{]))+\$\{	{
+		curlycount = 0;
+		BEGIN(var);
+		yymore();
+	}
+
 
 <var>[^{}]*\}	{
 		curlycount--;
@@ -182,6 +188,12 @@ HIBIT           [\x80-\xff]
 		return TOKEN;
 	}
 	
+<trail>[^-\t\r \n$():?%/+=*<>!|&]*\$\{	{
+		curlycount = 0;
+		BEGIN(var);
+		yymore();
+	}
+	
 <trail>[-\t\r \n$():?%/+=*<>!|&]	{
 		char c = yytext[yyleng-1];
 		BEGIN(0);
@@ -189,12 +201,6 @@ HIBIT           [\x80-\xff]
 		SET_COLUMNS;
 		SET_STRING;
 		return TOKEN;
-	}
-	
-<trail>\$\{	{
-		curlycount = 0;
-		BEGIN(var);
-		yymore();
 	}
 	
 <trail><<EOF>>	{

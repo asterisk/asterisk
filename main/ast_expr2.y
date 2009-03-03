@@ -422,6 +422,14 @@ is_zero_or_null (struct val *vp)
 
 #ifdef STANDALONE
 
+void ast_register_file_version(const char *file, const char *version)
+{
+}
+
+void ast_unregister_file_version(const char *file)
+{
+}
+
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
 {
 	va_list vars;
