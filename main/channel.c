@@ -2061,12 +2061,6 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	}
 	prestate = chan->_state;
 
-	/* 
-	 * Reset the recorded file descriptor that triggered this read so that we can
-	 * easily detect when ast_read() is called without properly using ast_waitfor().
-	 */
-	chan->fdno = -1;
-
 	/* Read and ignore anything on the alertpipe, but read only
 	   one sizeof(blah) per frame that we send from it */
 	if (chan->alertpipe[0] > -1) {
@@ -2190,6 +2184,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		else
 			ast_log(LOG_WARNING, "No read routine on channel %s\n", chan->name);
 	}
+
+        /*
+	 * Reset the recorded file descriptor that triggered this read so that we can
+	 * easily detect when ast_read() is called without properly using ast_waitfor().
+	 */
+	chan->fdno = -1;
 
 	if (f) {
 		/* if the channel driver returned more than one frame, stuff the excess
