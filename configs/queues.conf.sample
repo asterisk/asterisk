@@ -156,6 +156,13 @@ monitor-type = MixMonitor
 ; Use these sound files in making position/holdtime announcements.  The
 ; defaults are as listed below -- change only if you need to.
 ;
+; Keep in mind that you may also prevent a sound from being played if you
+; explicitly set a sound to be an empty string. For example, if you want to
+; prevent the queue from playing queue-thankyou, you may set the sound using
+; the following line:
+;
+; queue-thankyou=
+;
 			;	("You are now first in line.")
 ;queue-youarenext = queue-youarenext		
 			;	("There are")
