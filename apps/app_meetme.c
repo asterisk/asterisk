@@ -3347,6 +3347,8 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 		char *pin = NULL, *pinadmin = NULL; /* For temp use */
 		int maxusers = 0;
 		struct timeval now;
+		char recordingfilename[256] = "";
+		char recordingformat[10] = "";
 		char currenttime[19] = "";
 		char eatime[19] = "";
 		char bookid[19] = "";
@@ -3355,6 +3357,7 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 		char adminopts[OPTIONS_LEN];
 		struct ast_tm tm, etm;
 		struct timeval endtime = { .tv_sec = 0 };
+		const char *var2;
 
 		if (rt_schedule) {
 			now = ast_tvnow();
@@ -3420,6 +3423,10 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 				maxusers = atoi(var->value);
 			} else if (!strcasecmp(var->name, "adminopts")) {
 				ast_copy_string(adminopts, var->value, sizeof(char[OPTIONS_LEN]));
+			} else if (!strcasecmp(var->name, "recordingfilename")) {
+				ast_copy_string(recordingfilename, var->value, sizeof(recordingfilename));
+			} else if (!strcasecmp(var->name, "recordingformat")) {
+				ast_copy_string(recordingformat, var->value, sizeof(recordingformat));
 			} else if (!strcasecmp(var->name, "endtime")) {
 				struct ast_tm endtime_tm;
 				ast_strptime(var->value, "%Y-%m-%d %H:%M:%S", &endtime_tm);
@@ -3438,9 +3445,37 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 			cnf->useropts = ast_strdup(useropts);
 			cnf->adminopts = ast_strdup(adminopts);
 			cnf->bookid = ast_strdup(bookid);
-			snprintf(recordingtmp, sizeof(recordingtmp), "%s/meetme/meetme-conf-rec-%s-%s", ast_config_AST_SPOOL_DIR, confno, bookid);
-			cnf->recordingfilename = ast_strdup(recordingtmp);
-			cnf->recordingformat = ast_strdup("wav");
+			cnf->recordingfilename = ast_strdup(recordingfilename);
+			cnf->recordingformat = ast_strdup(recordingformat);
+
+			if (strchr(cnf->useropts, 'r')) {
+				if (ast_strlen_zero(recordingfilename)) { /* If the recordingfilename in the database is empty, use the channel definition or use the default. */
+					ast_channel_lock(chan);
+					if ((var2 = pbx_builtin_getvar_helper(chan, "MEETME_RECORDINGFILE"))) {
+						ast_free(cnf->recordingfilename);
+						cnf->recordingfilename = ast_strdup(var2);
+					}
+					ast_channel_unlock(chan);
+					if (ast_strlen_zero(cnf->recordingfilename)) {
+						snprintf(recordingtmp, sizeof(recordingtmp), "meetme-conf-rec-%s-%s", cnf->confno, chan->uniqueid);
+						ast_free(cnf->recordingfilename);
+						cnf->recordingfilename = ast_strdup(recordingtmp);
+					}
+				}
+				if (ast_strlen_zero(cnf->recordingformat)) {/* If the recording format is empty, use the wav as default */
+					ast_channel_lock(chan);
+					if ((var2 = pbx_builtin_getvar_helper(chan, "MEETME_RECORDINGFORMAT"))) {
+						ast_free(cnf->recordingformat);
+						cnf->recordingformat = ast_strdup(var2);
+					}
+					ast_channel_unlock(chan);
+					if (ast_strlen_zero(cnf->recordingformat)) {
+						ast_free(cnf->recordingformat);
+						cnf->recordingformat = ast_strdup("wav");
+					}
+				}
+				ast_verb(4, "Starting recording of MeetMe Conference %s into file %s.%s.\n", cnf->confno, cnf->recordingfilename, cnf->recordingformat);
+			}
 		}
 	}
 
@@ -3816,6 +3851,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 									}
 								}
 								/* Run the conference */
+								ast_verb(4, "Starting recording of MeetMe Conference %s into file %s.%s.\n", cnf->confno, cnf->recordingfilename, cnf->recordingformat);
 								res = conf_run(chan, cnf, confflags.flags, optargs);
 								break;
 							} else {
