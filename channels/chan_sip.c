@@ -535,8 +535,8 @@ static int mwi_expiry = DEFAULT_MWI_EXPIRY;
 
 #define DEFAULT_RETRANS              1000             /*!< How frequently to retransmit Default: 2 * 500 ms in RFC 3261 */
 #define MAX_RETRANS                  6                /*!< Try only 6 times for retransmissions, a total of 7 transmissions */
-#define SIP_TIMER_T1                 500              /*!< SIP timer T1 (according to RFC 3261) */
-#define SIP_TRANS_TIMEOUT            64 * SIP_TIMER_T1/*!< SIP request timeout (rfc 3261) 64*T1 
+#define DEFAULT_TIMER_T1                 500              /*!< SIP timer T1 (according to RFC 3261) */
+#define SIP_TRANS_TIMEOUT            64 * DEFAULT_TIMER_T1 /*!< SIP request timeout (rfc 3261) 64*T1 
                                                       \todo Use known T1 for timeout (peerpoke)
                                                       */
 #define DEFAULT_TRANS_TIMEOUT        -1               /*!< Use default SIP transaction timeout */
@@ -23187,8 +23187,8 @@ static int reload_config(enum channelreloadreason reason)
 	global_relaxdtmf = FALSE;
 	sip_cfg.callevents = DEFAULT_CALLEVENTS;
 	global_authfailureevents = FALSE;
-	global_t1 = SIP_TIMER_T1;
-	global_timer_b = 64 * SIP_TIMER_T1;
+	global_t1 = DEFAULT_TIMER_T1;
+	global_timer_b = 64 * DEFAULT_TIMER_T1;
 	global_t1min = DEFAULT_T1MIN;
 	global_qualifyfreq = DEFAULT_QUALIFYFREQ;
 
