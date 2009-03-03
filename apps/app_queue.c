@@ -1974,6 +1974,10 @@ static int play_file(struct ast_channel *chan, const char *filename)
 {
 	int res;
 
+	if (ast_strlen_zero(filename)) {
+		return 0;
+	}
+
 	ast_stopstream(chan);
 
 	res = ast_streamfile(chan, filename, chan->language);
