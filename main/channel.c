@@ -2499,10 +2499,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				/* save a copy of func/data before unlocking the channel */
 				int (*func)(const void *) = chan->timingfunc;
 				void *data = chan->timingdata;
+				chan->fdno = -1;
 				ast_channel_unlock(chan);
 				func(data);
 			} else {
 				ast_timer_set_rate(chan->timingfd, 0);
+				chan->fdno = -1;
 				ast_channel_unlock(chan);
 			}
 
@@ -2526,6 +2528,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		chan->generator->generate(chan, tmp, -1, -1);
 		chan->generatordata = tmp;
 		f = &ast_null_frame;
+		chan->fdno = -1;
 		goto done;
 	}
 
@@ -2584,7 +2587,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			ast_log(LOG_WARNING, "No read routine on channel %s\n", chan->name);
 	}
 
-        /*
+	/*
 	 * Reset the recorded file descriptor that triggered this read so that we can
 	 * easily detect when ast_read() is called without properly using ast_waitfor().
 	 */
