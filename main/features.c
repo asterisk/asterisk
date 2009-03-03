@@ -2763,8 +2763,13 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		ast_channel_lock(chan);
 		ast_copy_string(chan->exten, save_exten, sizeof(chan->exten));
 		chan->priority = save_prio;
-		if (bridge_cdr)
-			chan->cdr = swapper;
+		if (bridge_cdr) {
+			if (chan->cdr == bridge_cdr) {
+				chan->cdr = swapper;
+			} else {
+				bridge_cdr = NULL;
+			}
+		}
 		ast_set_flag(chan, AST_FLAG_BRIDGE_HANGUP_RUN);
 		ast_channel_unlock(chan);
 		/* protect the lastapp/lastdata against the effects of the hangup/dialplan code */
