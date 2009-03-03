@@ -16,10 +16,21 @@ ASTTOPDIR?=..
 
 .PHONY: clean all uninstall
 
-ALL_UTILS:=astman smsq stereorize streamplayer muted check_expr hashtest2 hashtest astcanary refcounter aelparse conf2ael
+# to get check_expr, add it to the ALL_UTILS list -- this is a somewhat old checking
+#     program that wants an ael file for input, and will check each $[] expr for
+#     possible (old) problems, like spacing around operators, which dates back to
+#     the 1.2 days. The neat part is that it will actually evaluate the expressions.
+#     Users could use this to quickly check expressions in their .ael file.
+# to get check_expr2, add it to the ALL_UTILS list -- this is a program that will
+#     read in a file containing expressions (as if they were in $[ ]), one per line. 
+#     It will, of course signal any syntax errors. Devs (like murf) should use this whenever
+#     changes are made to ast_expr2.y or ast_expr2.fl (or the corresponding .c files),
+#     as a regression test. Others (mere mortals?) need not bother, but they are
+#     more than welcome to play! The regression test itself is in expr2.testinput.
+ALL_UTILS:=astman smsq stereorize streamplayer muted hashtest2 hashtest astcanary refcounter aelparse conf2ael check_expr2
 UTILS:=$(ALL_UTILS)
 
-LIBS += $(BKTR_LIB)	# astobj2 with devmode uses backtrace
+LIBS += $(BKTR_LIB) # astobj2 with devmode uses backtrace
 
 include $(ASTTOPDIR)/Makefile.rules
 
@@ -73,7 +84,7 @@ clean:
 	rm -f *.o $(ALL_UTILS) check_expr
 	rm -f .*.d
 	rm -f *.s *.i
-	rm -f md5.c strcompat.c ast_expr2.c ast_expr2f.c pbx_ael.c pval.c hashtab.c
+	rm -f md5.c strcompat.c ast_expr2.c ast_expr2.h ast_expr2f.c pbx_ael.c pval.c hashtab.c
 	rm -f aelparse.c aelbison.c conf2ael
 	rm -f utils.c strings.c threadstorage.c sha1.c astobj2.c hashtest2 hashtest refcounter
 
@@ -110,6 +121,10 @@ ast_expr2.c: $(ASTTOPDIR)/main/ast_expr2.c
 	$(CMD_PREFIX) cp "$<" "$@"
 ast_expr2.o: ASTCFLAGS+=-DSTANDALONE
 
+ast_expr2.h: $(ASTTOPDIR)/main/ast_expr2.h
+	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
+	$(CMD_PREFIX) cp "$<" "$@"
+
 ast_expr2f.c: $(ASTTOPDIR)/main/ast_expr2f.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
@@ -135,6 +150,7 @@ aelparse.c: $(ASTTOPDIR)/res/ael/ael_lex.c
 ael_main.o: ASTCFLAGS+=-DSTANDALONE
 
 aelparse.o: ASTCFLAGS+=-I$(ASTTOPDIR)/res -DSTANDALONE -Wno-unused
+aelparse: LIBS+=-lm
 aelparse: aelparse.o aelbison.o pbx_ael.o hashtab.o ael_main.o ast_expr2f.o ast_expr2.o strcompat.o pval.o extconf.o
 
 astobj2.c: $(ASTTOPDIR)/main/astobj2.c
@@ -175,12 +191,16 @@ extconf.o: extconf.c
 
 conf2ael: conf2ael.o ast_expr2f.o ast_expr2.o hashtab.o aelbison.o aelparse.o pbx_ael.o pval.o extconf.o strcompat.o
 
-testexpr2s: $(ASTTOPDIR)/main/ast_expr2f.c $(ASTTOPDIR)/main/ast_expr2.c $(ASTTOPDIR)/main/ast_expr2.h
-	$(CC) -g -c -I$(ASTTOPDIR)/include -DSTANDALONE $(ASTTOPDIR)/main/ast_expr2f.c -o ast_expr2f.o
-	$(CC) -g -c -I$(ASTTOPDIR)/include -DSTANDALONE $(ASTTOPDIR)/main/ast_expr2.c -o ast_expr2.o
-	$(CC) -g -o testexpr2s ast_expr2f.o ast_expr2.o
-	rm ast_expr2.o ast_expr2f.o 
-	./testexpr2s expr2.testinput
+check_expr2: $(ASTTOPDIR)/main/ast_expr2f.c $(ASTTOPDIR)/main/ast_expr2.c $(ASTTOPDIR)/main/ast_expr2.h
+	$(ECHO_PREFIX) echo "   [CC] ast_expr2f.c -> ast_expr2fz.o"
+	$(CC) -g -c -I$(ASTTOPDIR)/include -DSTANDALONE $(ASTTOPDIR)/main/ast_expr2f.c -o ast_expr2fz.o
+	$(ECHO_PREFIX) echo "   [CC] ast_expr2.c -> ast_expr2z.o"
+	$(CC) -g -c -I$(ASTTOPDIR)/include -DSTANDALONE2 $(ASTTOPDIR)/main/ast_expr2.c -o ast_expr2z.o
+	$(ECHO_PREFIX) echo "   [LD] ast_expr2fz.o ast_expr2z.o  -> check_expr2"
+	$(CC) -g -o check_expr2 ast_expr2fz.o ast_expr2z.o -lm
+	$(ECHO_PREFIX) echo "   [RM] ast_expr2fz.o ast_expr2z.o"
+	rm ast_expr2z.o ast_expr2fz.o 
+	./check_expr2 expr2.testinput
 
 smsq: smsq.o strcompat.o
 smsq: LIBS+=$(POPT_LIB)
