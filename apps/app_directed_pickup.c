@@ -163,8 +163,8 @@ static int pickup_by_channel(struct ast_channel *chan, char *pickup)
 	/* Just check that we are not picking up the SAME as target */
 	if (chan->name != target->name && chan != target) {
 		res = pickup_do(chan, target);
-		ast_channel_unlock(target);
 	}
+	ast_channel_unlock(target);
 
 	return res;
 }
