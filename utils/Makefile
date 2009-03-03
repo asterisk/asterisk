@@ -27,7 +27,7 @@ ASTTOPDIR?=..
 #     changes are made to ast_expr2.y or ast_expr2.fl (or the corresponding .c files),
 #     as a regression test. Others (mere mortals?) need not bother, but they are
 #     more than welcome to play! The regression test itself is in expr2.testinput.
-ALL_UTILS:=astman smsq stereorize streamplayer muted hashtest2 hashtest astcanary refcounter aelparse conf2ael check_expr2
+ALL_UTILS:=astman smsq stereorize streamplayer muted hashtest2 hashtest astcanary refcounter aelparse conf2ael
 UTILS:=$(ALL_UTILS)
 
 LIBS += $(BKTR_LIB) # astobj2 with devmode uses backtrace
