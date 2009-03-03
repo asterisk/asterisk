@@ -17,7 +17,8 @@
 #include <sys/types.h>
 #include <stdio.h>
 
-#if !defined(STANDALONE)
+#if !defined(STANDALONE) && !defined(STANDALONE2)	\
+	
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #else
 #ifndef __USE_ISOC99
@@ -212,7 +213,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/ast_expr.h"
 #include "asterisk/logger.h"
-#ifndef STANDALONE
+#if !defined(STANDALONE) && !defined(STANDALONE2)
 #include "asterisk/pbx.h"
 #endif
 
@@ -240,7 +241,7 @@ enum valtype {
 	AST_EXPR_number, AST_EXPR_numeric_string, AST_EXPR_string
 } ;
 
-#ifdef STANDALONE
+#if defined(STANDALONE) || defined(STANDALONE2)
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__ ((format (printf,5,6)));
 #endif
 
@@ -656,6 +657,62 @@ is_zero_or_null (struct val *vp)
 	/* NOTREACHED */
 }
 
+#ifdef STANDALONE2
+
+void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
+{
+	va_list vars;
+	va_start(vars,fmt);
+	
+        printf("LOG: lev:%d file:%s  line:%d func: %s  ",
+                   level, file, line, function);
+	vprintf(fmt, vars);
+	fflush(stdout);
+	va_end(vars);
+}
+
+
+int main(int argc,char **argv) {
+	char s[4096];
+	char out[4096];
+	FILE *infile;
+	
+	if( !argv[1] )
+		exit(20);
+	
+	if( access(argv[1],F_OK)== 0 )
+	{
+		int ret;
+		
+		infile = fopen(argv[1],"r");
+		if( !infile )
+		{
+			printf("Sorry, couldn't open %s for reading!\n", argv[1]);
+			exit(10);
+		}
+		while( fgets(s,sizeof(s),infile) )
+		{
+			if( s[strlen(s)-1] == '\n' )
+				s[strlen(s)-1] = 0;
+			
+			ret = ast_expr(s, out, sizeof(out), NULL);
+			printf("Expression: %s    Result: [%d] '%s'\n",
+				   s, ret, out);
+		}
+		fclose(infile);
+	}
+	else
+	{
+		if (ast_expr(argv[1], s, sizeof(s), NULL))
+			printf("=====%s======\n",s);
+		else
+			printf("No result\n");
+	}
+	return 0;
+}
+
+#endif
+
 #undef ast_yyerror
 #define ast_yyerror(x) ast_yyerror(x, YYLTYPE *yylloc, struct parse_io *parseio)
 
@@ -680,7 +737,7 @@ static void destroy_arglist(struct expr_node *arglist)
 	}
 }
 
-#if !defined(STANDALONE)
+#if !defined(STANDALONE) && !defined(STANDALONE2)
 static char *compose_func_args(struct expr_node *arglist)
 {
 	struct expr_node *t = arglist;
@@ -974,7 +1031,7 @@ static struct val *op_func(struct val *funcname, struct expr_node *arglist, stru
 #endif
 		} else {
 			/* is this a custom function we should execute and collect the results of? */
-#ifndef STANDALONE
+#if !defined(STANDALONE) && !defined(STANDALONE2)
 			struct ast_custom_function *f = ast_custom_function_find(funcname->u.s);
 			if (!chan)
 				ast_log(LOG_WARNING,"Hey! chan is NULL.\n");

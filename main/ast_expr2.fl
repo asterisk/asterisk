@@ -172,12 +172,17 @@ static char *expr2_token_subst(const char *mess);
 		return TOKEN;
 	}
 
-([a-zA-Z0-9\.';\\_^#@]|[\x80-\xff]|($[^{]))+	{
+([a-zA-Z0-9\.';\\_^#@]|[\x80-\xff]|($[^{]))+   {
 		SET_COLUMNS;
 		SET_STRING;
 		return TOKEN;
 	}
 
+([a-zA-Z0-9\.';\\_^#@]|[\x80-\xff]|($[^{]))+\$\{	{
+		curlycount = 0;
+		BEGIN(var);
+		yymore();
+	}
 
 <var>[^{}]*\}	{
 		curlycount--;
@@ -202,6 +207,12 @@ static char *expr2_token_subst(const char *mess);
 		return TOKEN;
 	}
 	
+<trail>[^-\t\r \n$():?%/+=*<>!|&]*\$\{	{
+		curlycount = 0;
+		BEGIN(var);
+		yymore();
+	}
+	
 <trail>[-\t\r \n$():?%/+=*<>!|&]	{
 		char c = yytext[yyleng-1];
 		BEGIN(0);
@@ -209,12 +220,6 @@ static char *expr2_token_subst(const char *mess);
 		SET_COLUMNS;
 		SET_STRING;
 		return TOKEN;
-	}
-	
-<trail>\$\{	{
-		curlycount = 0;
-		BEGIN(var);
-		yymore();
 	}
 	
 <trail><<EOF>>	{
