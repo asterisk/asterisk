@@ -209,6 +209,16 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
     'silencethreshold' or use '-1' for either or both parameters for defaults. */
 int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime_sec, char *fmt, int *duration, int beep, int silencethreshold, int maxsilence_ms);
 
+enum ast_getdata_result {
+	AST_GETDATA_FAILED = -1,
+	AST_GETDATA_COMPLETE = 0,
+	AST_GETDATA_TIMEOUT = 1,
+	AST_GETDATA_INTERRUPTED = 2,
+	/*! indicates a user terminated empty string rather than an empty string resulting 
+	 * from a timeout or other factors */
+	AST_GETDATA_EMPTY_END_TERMINATED = 3,
+};
+
 enum AST_LOCK_RESULT {
 	AST_LOCK_SUCCESS = 0,
 	AST_LOCK_TIMEOUT = -1,

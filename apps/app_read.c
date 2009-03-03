@@ -231,11 +231,11 @@ static int read_exec(struct ast_channel *chan, void *data)
 				}
 			} else {
 				res = ast_app_getdata(chan, arglist.filename, tmp, maxdigits, to);
-				if (res == 0)
+				if (res == AST_GETDATA_COMPLETE || res == AST_GETDATA_EMPTY_END_TERMINATED)
 					status = "OK";
-				else if (res == 1)
+				else if (res == AST_GETDATA_TIMEOUT)
 					status = "TIMEOUT";
-				else if (res == 2)
+				else if (res == AST_GETDATA_INTERRUPTED)
 					status = "INTERRUPTED";
 			}
 			if (res > -1) {

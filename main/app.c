@@ -121,7 +121,7 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
  * \param maxlen How many digits to read (maximum)
  * \param timeout set timeout to 0 for "standard" timeouts. Set timeout to -1 for 
  *      "ludicrous time" (essentially never times out) */
-int ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout)
+enum ast_getdata_result ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout)
 {
 	int res = 0, to, fto;
 	char *front, *filename;
@@ -158,10 +158,14 @@ int ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxl
 			to = c->pbx ? c->pbx->dtimeoutms : 2000;
 		}
 		res = ast_readstring(c, s, maxlen, to, fto, "#");
-		if (!ast_strlen_zero(s))
+		if (res == AST_GETDATA_EMPTY_END_TERMINATED) {
 			return res;
+		}
+		if (!ast_strlen_zero(s)) {
+			return res;
+		}
 	}
-	
+
 	return res;
 }
 

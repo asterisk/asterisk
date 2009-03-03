@@ -3709,20 +3709,25 @@ int ast_readstring_full(struct ast_channel *c, char *s, int len, int timeout, in
 			d = ast_waitfordigit_full(c, to, audiofd, ctrlfd);
 		}
 		if (d < 0)
-			return -1;
+			return AST_GETDATA_FAILED;
 		if (d == 0) {
-			s[pos]='\0';
-			return 1;
+			s[pos] = '\0';
+			return AST_GETDATA_TIMEOUT;
 		}
 		if (d == 1) {
-			s[pos]='\0';
-			return 2;
+			s[pos] = '\0';
+			return AST_GETDATA_INTERRUPTED;
 		}
-		if (!strchr(enders, d))
+		if (strchr(enders, d) && (pos == 0)) {
+			s[pos] = '\0';
+			return AST_GETDATA_EMPTY_END_TERMINATED;
+		}
+		if (!strchr(enders, d)) {
 			s[pos++] = d;
+		}
 		if (strchr(enders, d) || (pos >= len)) {
-			s[pos]='\0';
-			return 0;
+			s[pos] = '\0';
+			return AST_GETDATA_COMPLETE;
 		}
 		to = timeout;
 	}
