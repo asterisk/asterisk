@@ -12087,13 +12087,11 @@ static int setup_dahdi(int reload)
 	cfg = ast_config_load("users.conf");
 	if (cfg) {
 		char *cat;
-		const char *chans;
 		process_dahdi(&conf, "", ast_variable_browse(cfg, "general"), 1, 1);
 		for (cat = ast_category_browse(cfg, NULL); cat ; cat = ast_category_browse(cfg, cat)) {
 			if (!strcasecmp(cat, "general"))
 				continue;
-			chans = ast_variable_retrieve(cfg, cat, "dahdichan");
-			if (!ast_strlen_zero(chans)) {
+			if (!ast_strlen_zero(ast_variable_retrieve(cfg, cat, "dahdichan")) || !ast_strlen_zero(ast_variable_retrieve(cfg, cat, "zapchan"))) {
 				struct dahdi_chan_conf sect_conf;
 				memcpy(&sect_conf, &conf, sizeof(sect_conf));
 
