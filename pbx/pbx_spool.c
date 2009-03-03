@@ -61,43 +61,41 @@ static char qdir[255];
 static char qdonedir[255];
 
 struct outgoing {
-	char fn[256];
 	int retries;                              /*!< Current number of retries */
 	int maxretries;                           /*!< Maximum number of retries permitted */
 	int retrytime;                            /*!< How long to wait between retries (in seconds) */
 	int waittime;                             /*!< How long to wait for an answer */
 	long callingpid;                          /*!< PID which is currently calling */
 	int format;                               /*!< Formats (codecs) for this call */
-	
-	char tech[256];                           /*!< Which channel driver to use for outgoing call */
-	char dest[256];                           /*!< Which device/line to use for outgoing call */
-
-	char app[256];                            /*!< If application: Application name */
-	char data[256];                           /*!< If applicatoin: Application data */
-
-	char exten[AST_MAX_EXTENSION];            /*!< If extension/context/priority: Extension in dialplan */
-	char context[AST_MAX_CONTEXT];            /*!< If extension/context/priority: Dialplan context */
+	AST_DECLARE_STRING_FIELDS (
+		AST_STRING_FIELD(fn);                 /*!< File name of call file */
+		AST_STRING_FIELD(tech);               /*!< Which channel technology to use for outgoing call */
+		AST_STRING_FIELD(dest);               /*!< Which device/line to use for outgoing call */
+		AST_STRING_FIELD(app);                /*!< If application: Application name */
+		AST_STRING_FIELD(data);               /*!< If application: Application data */
+		AST_STRING_FIELD(exten);              /*!< If extension/context/priority: Extension in dialplan */
+		AST_STRING_FIELD(context);            /*!< If extension/context/priority: Dialplan context */
+		AST_STRING_FIELD(cid_num);            /*!< CallerID Information: Number/extension */
+		AST_STRING_FIELD(cid_name);           /*!< CallerID Information: Name */
+		AST_STRING_FIELD(account);            /*!< account code */
+	);
 	int priority;                             /*!< If extension/context/priority: Dialplan priority */
-
-	char cid_num[256];                        /*!< CallerID Information: Number/extension */
-	char cid_name[256];                       /*!< CallerID Information: Name */
-
-	char account[AST_MAX_ACCOUNT_CODE];       /*!< account code */
-
 	struct ast_variable *vars;                /*!< Variables and Functions */
-	
 	int maxlen;                               /*!< Maximum length of call */
-
 	struct ast_flags options;                 /*!< options */
 };
 
-static void init_outgoing(struct outgoing *o)
+static int init_outgoing(struct outgoing *o)
 {
 	o->priority = 1;
 	o->retrytime = 300;
 	o->waittime = 45;
 	o->format = AST_FORMAT_SLINEAR;
 	ast_set_flag(&o->options, SPOOL_FLAG_ALWAYS_DELETE);
+	if (ast_string_field_init(o, 128)) {
+		return -1;
+	}
+	return 0;
 }
 
 static void free_outgoing(struct outgoing *o)
@@ -105,6 +103,7 @@ static void free_outgoing(struct outgoing *o)
 	if (o->vars) {
 		ast_variables_destroy(o->vars);
 	}
+	ast_string_field_free_memory(o);
 	ast_free(o);
 }
 
@@ -155,21 +154,23 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 				printf("'%s' is '%s' at line %d\n", buf, c, lineno);
 #endif
 				if (!strcasecmp(buf, "channel")) {
-					ast_copy_string(o->tech, c, sizeof(o->tech));
-					if ((c2 = strchr(o->tech, '/'))) {
+					if ((c2 = strchr(c, '/'))) {
 						*c2 = '\0';
 						c2++;
-						ast_copy_string(o->dest, c2, sizeof(o->dest));
+						ast_string_field_set(o, tech, c);
+						ast_string_field_set(o, dest, c2);
 					} else {
 						ast_log(LOG_NOTICE, "Channel should be in form Tech/Dest at line %d of %s\n", lineno, fn);
-						o->tech[0] = '\0';
 					}
 				} else if (!strcasecmp(buf, "callerid")) {
-					ast_callerid_split(c, o->cid_name, sizeof(o->cid_name), o->cid_num, sizeof(o->cid_num));
+					char cid_name[80] = {0}, cid_num[80] = {0};
+					ast_callerid_split(c, cid_name, sizeof(cid_name), cid_num, sizeof(cid_num));
+					ast_string_field_set(o, cid_num, cid_num);
+					ast_string_field_set(o, cid_name, cid_name);
 				} else if (!strcasecmp(buf, "application")) {
-					ast_copy_string(o->app, c, sizeof(o->app));
+					ast_string_field_set(o, app, c);
 				} else if (!strcasecmp(buf, "data")) {
-					ast_copy_string(o->data, c, sizeof(o->data));
+					ast_string_field_set(o, data, c);
 				} else if (!strcasecmp(buf, "maxretries")) {
 					if (sscanf(c, "%d", &o->maxretries) != 1) {
 						ast_log(LOG_WARNING, "Invalid max retries at line %d of %s\n", lineno, fn);
@@ -178,9 +179,9 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 				} else if (!strcasecmp(buf, "codecs")) {
 					ast_parse_allow_disallow(NULL, &o->format, c, 1);
 				} else if (!strcasecmp(buf, "context")) {
-					ast_copy_string(o->context, c, sizeof(o->context));
+					ast_string_field_set(o, context, c);
 				} else if (!strcasecmp(buf, "extension")) {
-					ast_copy_string(o->exten, c, sizeof(o->exten));
+					ast_string_field_set(o, exten, c);
 				} else if (!strcasecmp(buf, "priority")) {
 					if ((sscanf(c, "%d", &o->priority) != 1) || (o->priority < 1)) {
 						ast_log(LOG_WARNING, "Invalid priority at line %d of %s\n", lineno, fn);
@@ -224,7 +225,7 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 					} else
 						ast_log(LOG_WARNING, "Malformed \"%s\" argument.  Should be \"%s: variable=value\"\n", buf, buf);
 				} else if (!strcasecmp(buf, "account")) {
-					ast_copy_string(o->account, c, sizeof(o->account));
+					ast_string_field_set(o, account, c);
 				} else if (!strcasecmp(buf, "alwaysdelete")) {
 					ast_set2_flag(&o->options, ast_true(c), SPOOL_FLAG_ALWAYS_DELETE);
 				} else if (!strcasecmp(buf, "archive")) {
@@ -236,7 +237,7 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 				ast_log(LOG_NOTICE, "Syntax error at line %d of %s\n", lineno, fn);
 		}
 	}
-	ast_copy_string(o->fn, fn, sizeof(o->fn));
+	ast_string_field_set(o, fn, fn);
 	if (ast_strlen_zero(o->tech) || ast_strlen_zero(o->dest) || (ast_strlen_zero(o->app) && ast_strlen_zero(o->exten))) {
 		ast_log(LOG_WARNING, "At least one of app or extension must be specified, along with tech and dest in file %s\n", fn);
 		return -1;
@@ -327,11 +328,11 @@ static void *attempt_thread(void *data)
 	int res, reason;
 	if (!ast_strlen_zero(o->app)) {
 		ast_verb(3, "Attempting call on %s/%s for application %s(%s) (Retry %d)\n", o->tech, o->dest, o->app, o->data, o->retries);
-		res = ast_pbx_outgoing_app(o->tech, o->format, o->dest, o->waittime * 1000, o->app, o->data, &reason, 2 /* wait to finish */, o->cid_num, o->cid_name, o->vars, o->account, NULL);
+		res = ast_pbx_outgoing_app(o->tech, o->format, (void *) o->dest, o->waittime * 1000, o->app, o->data, &reason, 2 /* wait to finish */, o->cid_num, o->cid_name, o->vars, o->account, NULL);
 		o->vars = NULL;
 	} else {
 		ast_verb(3, "Attempting call on %s/%s for %s@%s:%d (Retry %d)\n", o->tech, o->dest, o->exten, o->context,o->priority, o->retries);
-		res = ast_pbx_outgoing_exten(o->tech, o->format, o->dest, o->waittime * 1000, o->context, o->exten, o->priority, &reason, 2 /* wait to finish */, o->cid_num, o->cid_name, o->vars, o->account, NULL);
+		res = ast_pbx_outgoing_exten(o->tech, o->format, (void *) o->dest, o->waittime * 1000, o->context, o->exten, o->priority, &reason, 2 /* wait to finish */, o->cid_num, o->cid_name, o->vars, o->account, NULL);
 		o->vars = NULL;
 	}
 	if (res) {
@@ -375,7 +376,14 @@ static int scan_service(char *fn, time_t now, time_t atime)
 		return -1;
 	}
 	
-	init_outgoing(o);
+	if (init_outgoing(o)) {
+		/* No need to call free_outgoing here since we know the failure
+		 * was to allocate string fields and no variables have been allocated
+		 * yet.
+		 */
+		ast_free(o);
+		return -1;
+	}
 
 	/* Attempt to open the file */
 	if (!(f = fopen(fn, "r+"))) {
