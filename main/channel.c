@@ -2039,6 +2039,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		usleep(1);
 	}
 
+	if (chan->fdno == -1) {
+		ast_log(LOG_ERROR, "ast_read() called with no recorded file descriptor.\n");
+		f = &ast_null_frame;
+		goto done;
+	}
+
 	if (chan->masq) {
 		if (ast_do_masquerade(chan))
 			ast_log(LOG_WARNING, "Failed to perform masquerade\n");
@@ -2054,6 +2060,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		goto done;
 	}
 	prestate = chan->_state;
+
+	/* 
+	 * Reset the recorded file descriptor that triggered this read so that we can
+	 * easily detect when ast_read() is called without properly using ast_waitfor().
+	 */
+	chan->fdno = -1;
 
 	/* Read and ignore anything on the alertpipe, but read only
 	   one sizeof(blah) per frame that we send from it */
