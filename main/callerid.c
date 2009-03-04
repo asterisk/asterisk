@@ -1008,7 +1008,7 @@ int ast_callerid_parse(char *instr, char **name, char **location)
 	char *ns, *ne, *ls, *le;
 
 	/* Try "name" <location> format or name <location> format */
-	if ((ls = strchr(instr, '<')) && (le = strchr(ls, '>'))) {
+	if ((ls = strrchr(instr, '<')) && (le = strrchr(ls, '>'))) {
 		*ls = *le = '\0';	/* location found, trim off the brackets */
 		*location = ls + 1;	/* and this is the result */
 		if ((ns = strchr(instr, '"')) && (ne = strchr(ns + 1, '"'))) {
