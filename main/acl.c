@@ -61,36 +61,37 @@ static void score_address(const struct sockaddr_in *sin, struct in_addr *best_ad
 	address = ast_inet_ntoa(sin->sin_addr);
 
 	/* RFC 1700 alias for the local network */
-	if (address[0] == '0')
+	if (address[0] == '0') {
 		score = -25;
 	/* RFC 1700 localnet */
-	else if (strncmp(address, "127", 3) == 0)
+	} else if (strncmp(address, "127", 3) == 0) {
 		score = -20;
 	/* RFC 1918 non-public address space */
-	else if (strncmp(address, "10.", 3) == 0)
+	} else if (strncmp(address, "10.", 3) == 0) {
 		score = -5;
 	/* RFC 1918 non-public address space */
-	else if (strncmp(address, "172", 3) == 0) {
+	} else if (strncmp(address, "172", 3) == 0) {
 		/* 172.16.0.0 - 172.19.255.255, but not 172.160.0.0 - 172.169.255.255 */
-		if (address[4] == '1' && address[5] >= '6' && address[6] == '.')
+		if (address[4] == '1' && address[5] >= '6' && address[6] == '.') {
 			score = -5;
 		/* 172.20.0.0 - 172.29.255.255, but not 172.200.0.0 - 172.255.255.255 nor 172.2.0.0 - 172.2.255.255 */
-		else if (address[4] == '2' && address[6] == '.')
+		} else if (address[4] == '2' && address[6] == '.') {
 			score = -5;
 		/* 172.30.0.0 - 172.31.255.255 */
-		else if (address[4] == '3' && address[5] <= '1')
+		} else if (address[4] == '3' && address[5] <= '1') {
 			score = -5;
 		/* All other 172 addresses are public */
-		else
+		} else {
 			score = 0;
-	/* RFC 2544 Benchmark test range */
-	} else if (strncmp(address, "198.1", 5) == 0 && address[5] >= '8' && address[6] == '.')
+		}
+	/* RFC 2544 Benchmark test range (198.18.0.0 - 198.19.255.255, but not 198.180.0.0 - 198.199.255.255) */
+	} else if (strncmp(address, "198.1", 5) == 0 && address[5] >= '8' && address[6] == '.') {
 		score = -10;
 	/* RFC 1918 non-public address space */
-	else if (strncmp(address, "192.168", 7) == 0)
+	} else if (strncmp(address, "192.168", 7) == 0) {
 		score = -5;
 	/* RFC 3330 Zeroconf network */
-	else if (strncmp(address, "169.254", 7) == 0)
+	} else if (strncmp(address, "169.254", 7) == 0) {
 		/*!\note Better score than a test network, but not quite as good as RFC 1918
 		 * address space.  The reason is that some Linux distributions automatically
 		 * configure a Zeroconf address before trying DHCP, so we want to prefer a
@@ -98,11 +99,12 @@ static void score_address(const struct sockaddr_in *sin, struct in_addr *best_ad
 		 */
 		score = -10;
 	/* RFC 3330 Test network */
-	else if (strncmp(address, "192.0.2.", 8) == 0)
+	} else if (strncmp(address, "192.0.2.", 8) == 0) {
 		score = -15;
 	/* Every other address should be publically routable */
-	else
+	} else {
 		score = 0;
+	}
 
 	if (score > *best_score) {
 		*best_score = score;
@@ -149,8 +151,9 @@ static int get_local_address(struct in_addr *ourip)
 				score_address(sin, &best_addr, &best_score);
 				res = 0;
 
-				if (best_score == 0)
+				if (best_score == 0) {
 					break;
+				}
 			}
 		}
 #endif /* BSD_OR_LINUX */
@@ -189,21 +192,23 @@ static int get_local_address(struct in_addr *ourip)
 			score_address(sa, &best_addr, &best_score);
 			res = 0;
 
-			if (best_score == 0)
+			if (best_score == 0) {
 				break;
+			}
 		}
 
 		free(buf);
 #endif /* SOLARIS */
-		
+
 		close(s);
 	}
 #if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined(__linux__) || defined(__Darwin__)
 	freeifaddrs(ifaphead);
 #endif /* BSD_OR_LINUX */
 
-	if (res == 0 && ourip)
+	if (res == 0 && ourip) {
 		memcpy(ourip, &best_addr, sizeof(*ourip));
+	}
 	return res;
 }
 #endif /* HAVE_GETIFADDRS */
@@ -250,16 +255,18 @@ struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original)
 
 	while (start) {
 		current = ast_duplicate_ha(start);  /* Create copy of this object */
-		if (prev)
-			prev->next = current;		/* Link previous to this object */
+		if (prev) {
+			prev->next = current;           /* Link previous to this object */
+		}
 
-		if (!ret)
-			ret = current;		/* Save starting point */
+		if (!ret) {
+			ret = current;                  /* Save starting point */
+		}
 
-		start = start->next;		/* Go to next object */
-		prev = current;			/* Save pointer to this object */
+		start = start->next;                /* Go to next object */
+		prev = current;                     /* Save pointer to this object */
 	}
-	return ret;    			/* Return start of list */
+	return ret;                             /* Return start of list */
 }
 
 struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha *path, int *error)
@@ -277,12 +284,11 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 		path = path->next;
 	}
 
-	ha = ast_malloc(sizeof(*ha));
-	if (!ha)
+	if (!(ha = ast_malloc(sizeof(*ha)))) {
 		return ret;
+	}
 
-	nm = strchr(tmp, '/');
-	if (!nm) {
+	if (!(nm = strchr(tmp, '/'))) {
 		/* assume /32. Yes, htonl does not do anything for this particular mask
 		   but we better use it to show we remember about byte order */
 		ha->netmask.s_addr = htonl(0xFFFFFFFF);
@@ -291,20 +297,22 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 		nm++;
 
 		if (!strchr(nm, '.')) {
-			if ((sscanf(nm, "%d", &x) == 1) && (x >= 0) && (x <= 32))
+			if ((sscanf(nm, "%d", &x) == 1) && (x >= 0) && (x <= 32)) {
 				ha->netmask.s_addr = htonl(0xFFFFFFFF << (32 - x));
-			else {
+			} else {
 				ast_log(LOG_WARNING, "Invalid CIDR in %s\n", stuff);
 				ast_free(ha);
-				if (error)
+				if (error) {
 					*error = 1;
+				}
 				return ret;
 			}
 		} else if (!inet_aton(nm, &ha->netmask)) {
 			ast_log(LOG_WARNING, "Invalid mask in %s\n", stuff);
 			ast_free(ha);
-			if (error)
+			if (error) {
 				*error = 1;
+			}
 			return ret;
 		}
 	}
@@ -312,8 +320,9 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 	if (!inet_aton(tmp, &ha->netaddr)) {
 		ast_log(LOG_WARNING, "Invalid IP address in %s\n", stuff);
 		ast_free(ha);
-		if (error)
+		if (error) {
 			*error = 1;
+		}
 		return ret;
 	}
 
@@ -348,8 +357,9 @@ int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin)
 #endif
 		/* For each rule, if this address and the netmask = the net address
 		   apply the current rule */
-		if ((sin->sin_addr.s_addr & ha->netmask.s_addr) == ha->netaddr.s_addr)
+		if ((sin->sin_addr.s_addr & ha->netmask.s_addr) == ha->netaddr.s_addr) {
 			res = ha->sense;
+		}
 		ha = ha->next;
 	}
 	return res;
@@ -369,8 +379,7 @@ int ast_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *se
 			value = host;
 		}
 	}
-	hp = ast_gethostbyname(value, &ahp);
-	if (hp) {
+	if ((hp = ast_gethostbyname(value, &ahp))) {
 		memcpy(&sin->sin_addr, hp->h_addr, sizeof(sin->sin_addr));
 	} else {
 		ast_log(LOG_WARNING, "Unable to lookup '%s'\n", value);
@@ -410,17 +419,17 @@ static const struct dscp_codepoint dscp_pool1[] = {
 	{ "EF", 0x2E },
 };
 
-int ast_str2cos(const char *value, unsigned int *cos) 
+int ast_str2cos(const char *value, unsigned int *cos)
 {
 	int fval;
-	
+
 	if (sscanf(value, "%d", &fval) == 1) {
 		if (fval < 8) {
-    		    *cos = fval;
+		    *cos = fval;
 		    return 0;
 		}
 	}
-	
+
 	return -1;
 }
 
@@ -449,8 +458,9 @@ const char *ast_tos2str(unsigned int tos)
 	unsigned int x;
 
 	for (x = 0; x < ARRAY_LEN(dscp_pool1); x++) {
-		if (dscp_pool1[x].space == (tos >> 2))
+		if (dscp_pool1[x].space == (tos >> 2)) {
 			return dscp_pool1[x].name;
+		}
 	}
 
 	return "unknown";
@@ -467,8 +477,7 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 	struct sockaddr_in sin;
 	socklen_t slen;
 
-	s = socket(PF_INET, SOCK_DGRAM, 0);
-	if (s < 0) {
+	if ((s = socket(PF_INET, SOCK_DGRAM, 0)) < 0) {
 		ast_log(LOG_ERROR, "Cannot create socket\n");
 		return -1;
 	}
@@ -509,8 +518,7 @@ int ast_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr)
 	if (gethostname(ourhost, sizeof(ourhost) - 1)) {
 		ast_log(LOG_WARNING, "Unable to get hostname\n");
 	} else {
-		hp = ast_gethostbyname(ourhost, &ahp);
-		if (hp) {
+		if ((hp = ast_gethostbyname(ourhost, &ahp))) {
 			memcpy(ourip, hp->h_addr, sizeof(*ourip));
 			ast_debug(3, "Found one IP address based on local hostname %s.\n", ourhost);
 			return 0;
@@ -518,8 +526,9 @@ int ast_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr)
 	}
 	ast_debug(3, "Trying to check A.ROOT-SERVERS.NET and get our IP address for that connection\n");
 	/* A.ROOT-SERVERS.NET. */
-	if (inet_aton("198.41.0.4", &saddr) && !ast_ouraddrfor(&saddr, ourip))
+	if (inet_aton("198.41.0.4", &saddr) && !ast_ouraddrfor(&saddr, ourip)) {
 		return 0;
+	}
 	return get_local_address(ourip);
 }
 

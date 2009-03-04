@@ -122,7 +122,7 @@ aes_rval aes_encrypt(const void *in_blk, void *out_blk, const aes_encrypt_ctx cx
     aes_32t nr = (kp[45] ^ kp[52] ^ kp[53] ? kp[52] : 14);
 
 #ifdef AES_ERR_CHK
-    if(   (nr != 10 || !(kp[0] | kp[3] | kp[4])) 
+    if(   (nr != 10 || !(kp[0] | kp[3] | kp[4]))
        && (nr != 12 || !(kp[0] | kp[5] | kp[6]))
        && (nr != 14 || !(kp[0] | kp[7] | kp[8])) )
         return aes_error;
@@ -246,7 +246,7 @@ aes_rval aes_decrypt(const void *in_blk, void *out_blk, const aes_decrypt_ctx cx
     const aes_32t *kp = cx->ks + nr * N_COLS;
 
 #ifdef AES_ERR_CHK
-    if(   (nr != 10 || !(cx->ks[0] | cx->ks[3] | cx->ks[4])) 
+    if(   (nr != 10 || !(cx->ks[0] | cx->ks[3] | cx->ks[4]))
        && (nr != 12 || !(cx->ks[0] | cx->ks[5] | cx->ks[6]))
        && (nr != 14 || !(cx->ks[0] | cx->ks[7] | cx->ks[8])) )
         return aes_error;
