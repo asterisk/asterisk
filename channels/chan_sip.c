@@ -18574,7 +18574,7 @@ static int do_magic_pickup(struct ast_channel *channel, const char *extension, c
 		return -1;
 	}
 
-	ast_str_set(&str, 0, "%s@%s", extension, context);
+	ast_str_set(&str, 0, "%s@%s", extension, sip_cfg.notifycid == IGNORE_CONTEXT ? "PICKUPMARK" : context);
 
 	ast_debug(2, "About to call Pickup(%s)\n", str->str);
 

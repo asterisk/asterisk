@@ -414,7 +414,10 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; extension is ringing because multiple calls are incoming,
                                 ; only one will be used as the source of caller ID.  Specify
                                 ; 'ignore-context' to ignore the called context when looking
-                                ; for the caller's channel.  The default value is 'no.'
+                                ; for the caller's channel.  The default value is 'no.' Setting
+                                ; notifycid to 'ignore-context' also causes call-pickups attempted
+                                ; via SNOM's NOTIFY mechanism to set the context for the call pickup
+                                ; to PICKUPMARK.
 ;callcounter = yes              ; Enable call counters on devices. This can be set per
                                 ; device too.
 
