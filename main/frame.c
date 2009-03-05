@@ -93,10 +93,9 @@ enum frame_type {
 struct ast_smoother {
 	int size;
 	int format;
-	int readdata;
-	int optimizablestream;
 	int flags;
 	float samplesperbyte;
+	unsigned int opt_needs_swap:1;
 	struct ast_frame f;
 	struct timeval delivery;
 	char data[SMOOTHER_SIZE];
@@ -139,10 +138,54 @@ static struct ast_format_list AST_FORMAT_LIST[] = {					/*!< Bit number: comment
 
 struct ast_frame ast_null_frame = { AST_FRAME_NULL, };
 
-void ast_smoother_reset(struct ast_smoother *s, int size)
+static int smoother_frame_feed(struct ast_smoother *s, struct ast_frame *f, int swap)
+{
+	if (s->flags & AST_SMOOTHER_FLAG_G729) {
+		if (s->len % 10) {
+			ast_log(LOG_NOTICE, "Dropping extra frame of G.729 since we already have a VAD frame at the end\n");
+			return 0;
+		}
+	}
+	if (swap) {
+		ast_swapcopy_samples(s->data + s->len, f->data, f->samples);
+	} else {
+		memcpy(s->data + s->len, f->data, f->datalen);
+	}
+	/* If either side is empty, reset the delivery time */
+	if (!s->len || ast_tvzero(f->delivery) || ast_tvzero(s->delivery)) {	/* XXX really ? */
+		s->delivery = f->delivery;
+	}
+	s->len += f->datalen;
+
+	return 0;
+}
+
+void ast_smoother_reset(struct ast_smoother *s, int bytes)
 {
 	memset(s, 0, sizeof(*s));
-	s->size = size;
+	s->size = bytes;
+}
+
+void ast_smoother_reconfigure(struct ast_smoother *s, int bytes)
+{
+	/* if there is no change, then nothing to do */
+	if (s->size == bytes) {
+		return;
+	}
+	/* set the new desired output size */
+	s->size = bytes;
+	/* if there is no 'optimized' frame in the smoother,
+	 *   then there is nothing left to do
+	 */
+	if (!s->opt) {
+		return;
+	}
+	/* there is an 'optimized' frame here at the old size,
+	 * but it must now be put into the buffer so the data
+	 * can be extracted at the new size
+	 */
+	smoother_frame_feed(s, s->opt, s->opt_needs_swap);
+	s->opt = NULL;
 }
 
 struct ast_smoother *ast_smoother_new(int size)
@@ -187,33 +230,22 @@ int __ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f, int swap)
 		ast_log(LOG_WARNING, "Out of smoother space\n");
 		return -1;
 	}
-	if (((f->datalen == s->size) || ((f->datalen < 10) && (s->flags & AST_SMOOTHER_FLAG_G729)))
-				 && !s->opt && (f->offset >= AST_MIN_OFFSET)) {
-		if (!s->len) {
-			/* Optimize by sending the frame we just got
-			   on the next read, thus eliminating the douple
-			   copy */
-			if (swap)
-				ast_swapcopy_samples(f->data, f->data, f->samples);
-			s->opt = f;
-			return 0;
-		}
+	if (((f->datalen == s->size) ||
+	     ((f->datalen < 10) && (s->flags & AST_SMOOTHER_FLAG_G729))) &&
+	    !s->opt &&
+	    !s->len &&
+	    (f->offset >= AST_MIN_OFFSET)) {
+		/* Optimize by sending the frame we just got
+		   on the next read, thus eliminating the douple
+		   copy */
+		if (swap)
+			ast_swapcopy_samples(f->data, f->data, f->samples);
+		s->opt = f;
+		s->opt_needs_swap = swap ? 1 : 0;
+		return 0;
 	}
-	if (s->flags & AST_SMOOTHER_FLAG_G729) {
-		if (s->len % 10) {
-			ast_log(LOG_NOTICE, "Dropping extra frame of G.729 since we already have a VAD frame at the end\n");
-			return 0;
-		}
-	}
-	if (swap)
-		ast_swapcopy_samples(s->data+s->len, f->data, f->samples);
-	else
-		memcpy(s->data + s->len, f->data, f->datalen);
-	/* If either side is empty, reset the delivery time */
-	if (!s->len || ast_tvzero(f->delivery) || ast_tvzero(s->delivery))	/* XXX really ? */
-		s->delivery = f->delivery;
-	s->len += f->datalen;
-	return 0;
+
+	return smoother_frame_feed(s, f, swap);
 }
 
 struct ast_frame *ast_smoother_read(struct ast_smoother *s)
