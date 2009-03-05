@@ -7903,18 +7903,26 @@ static struct ast_vm_user *find_or_create(char *context, char *mbox)
 {
 	struct ast_vm_user *vmu;
 	AST_LIST_TRAVERSE(&users, vmu, list) {
-		if (ast_test_flag((&globalflags), VM_SEARCH) && !strcasecmp(mbox, vmu->mailbox))
-			break;
-		if (context && (!strcasecmp(context, vmu->context)) && (!strcasecmp(mbox, vmu->mailbox)))
-			break;
+		if (ast_test_flag((&globalflags), VM_SEARCH) && !strcasecmp(mbox, vmu->mailbox)) {
+			if (strcasecmp(vmu->context, context)) {
+				ast_log(LOG_WARNING, "\nIt has been detected that you have defined mailbox '%s' in separate\
+						\n\tcontexts and that you have the 'searchcontexts' option on. This type of\
+						\n\tconfiguration creates an ambiguity that you likely do not want. Please\
+						\n\tamend your voicemail.conf file to avoid this situation.\n", mbox);
+			}
+			ast_log(LOG_WARNING, "Ignoring duplicated mailbox %s\n", mbox);
+			return NULL;
+		}
+		if (!strcasecmp(context, vmu->context) && !strcasecmp(mbox, vmu->mailbox)) {
+			ast_log(LOG_WARNING, "Ignoring duplicated mailbox %s in context %s\n", mbox, context);
+			return NULL;
+		}
 	}
 	
-	if (!vmu) {
-		if ((vmu = ast_calloc(1, sizeof(*vmu)))) {
-			ast_copy_string(vmu->context, context, sizeof(vmu->context));
-			ast_copy_string(vmu->mailbox, mbox, sizeof(vmu->mailbox));
-			AST_LIST_INSERT_TAIL(&users, vmu, list);
-		}
+	if ((vmu = ast_calloc(1, sizeof(*vmu)))) {
+		ast_copy_string(vmu->context, context, sizeof(vmu->context));
+		ast_copy_string(vmu->mailbox, mbox, sizeof(vmu->mailbox));
+		AST_LIST_INSERT_TAIL(&users, vmu, list);
 	}
 	return vmu;
 }
