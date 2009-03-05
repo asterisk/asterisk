@@ -117,6 +117,9 @@ Applications
    call origination from the dialplan.
  * Voicemail now permits setting the emailsubject and emailbody per mailbox,
    in addition to the setting in the "general" context.
+ * Added ConfBridge dialplan application which does conference bridges without
+   DAHDI. For information on its use, please see the output of
+   "core show application ConfBridge" from the CLI.
 
 Miscellaneous
 -------------

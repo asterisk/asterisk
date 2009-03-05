@@ -496,7 +496,13 @@ struct ast_channel {
 
 	unsigned short transfercapability;		/*!< ISDN Transfer Capbility - AST_FLAG_DIGITAL is not enough */
 
-	char unused_old_dtmfq[AST_MAX_EXTENSION];			/*!< (deprecated, use readq instead) Any/all queued DTMF characters */
+	union {
+		char unused_old_dtmfq[AST_MAX_EXTENSION];			/*!< (deprecated, use readq instead) Any/all queued DTMF characters */
+		struct {
+			struct ast_bridge *bridge;                                      /*!< Bridge this channel is participating in */
+		};
+	};
+
 	char context[AST_MAX_CONTEXT];			/*!< Dialplan: Current extension context */
 	char exten[AST_MAX_EXTENSION];			/*!< Dialplan: Current extension number */
 	char macrocontext[AST_MAX_CONTEXT];		/*!< Macro: Current non-macro context. See app_macro.c */
