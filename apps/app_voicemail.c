@@ -1229,6 +1229,7 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 		ast_mutex_lock(&vms_p->lock);
 		pgm = mail_newsearchpgm ();
 		hdr = mail_newsearchheader ("X-Asterisk-VM-Extension", (char *)(!ast_strlen_zero(vmu->imapvmshareid) ? vmu->imapvmshareid : mailbox));
+		hdr->next = mail_newsearchheader("X-Asterisk-VM-Context", S_OR(context, "default"));
 		pgm->header = hdr;
 		if (fold != 1) {
 			pgm->unseen = 1;
@@ -1573,6 +1574,7 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 
 	/* Check IMAP folder for Asterisk messages only... */
 	hdr = mail_newsearchheader ("X-Asterisk-VM-Extension", (!ast_strlen_zero(vmu->imapvmshareid) ? vmu->imapvmshareid : vmu->mailbox));
+	hdr->next = mail_newsearchheader("X-Asterisk-VM-Context", vmu->context);
 	pgm->header = hdr;
 	pgm->deleted = 0;
 	pgm->undeleted = 1;
