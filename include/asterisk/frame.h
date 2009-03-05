@@ -523,6 +523,16 @@ int ast_smoother_get_flags(struct ast_smoother *smoother);
 int ast_smoother_test_flag(struct ast_smoother *s, int flag);
 void ast_smoother_free(struct ast_smoother *s);
 void ast_smoother_reset(struct ast_smoother *s, int bytes);
+
+/*!
+ * \brief Reconfigure an existing smoother to output a different number of bytes per frame
+ * \param s the smoother to reconfigure
+ * \param bytes the desired number of bytes per output frame
+ * \return nothing
+ *
+ */
+void ast_smoother_reconfigure(struct ast_smoother *s, int bytes);
+
 int __ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f, int swap);
 struct ast_frame *ast_smoother_read(struct ast_smoother *s);
 #define ast_smoother_feed(s,f) __ast_smoother_feed(s, f, 0)

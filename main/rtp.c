@@ -3659,14 +3659,48 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 
 void ast_rtp_codec_setpref(struct ast_rtp *rtp, struct ast_codec_pref *prefs)
 {
-	int x;
-	for (x = 0; x < 32; x++) {  /* Ugly way */
-		rtp->pref.order[x] = prefs->order[x];
-		rtp->pref.framing[x] = prefs->framing[x];
+	struct ast_format_list current_format_old, current_format_new;
+
+	/* if no packets have been sent through this session yet, then
+	 *  changing preferences does not require any extra work
+	 */
+	if (rtp->lasttxformat == 0) {
+		rtp->pref = *prefs;
+		return;
 	}
-	if (rtp->smoother)
-		ast_smoother_free(rtp->smoother);
-	rtp->smoother = NULL;
+
+	current_format_old = ast_codec_pref_getsize(&rtp->pref, rtp->lasttxformat);
+
+	rtp->pref = *prefs;
+
+	current_format_new = ast_codec_pref_getsize(&rtp->pref, rtp->lasttxformat);
+
+	/* if the framing desired for the current format has changed, we may have to create
+	 * or adjust the smoother for this session
+	 */
+	if ((current_format_new.inc_ms != 0) &&
+	    (current_format_new.cur_ms != current_format_old.cur_ms)) {
+		int new_size = (current_format_new.cur_ms * current_format_new.fr_len) / current_format_new.inc_ms;
+
+		if (rtp->smoother) {
+			ast_smoother_reconfigure(rtp->smoother, new_size);
+			if (option_debug) {
+				ast_log(LOG_DEBUG, "Adjusted smoother to %d ms and %d bytes\n", current_format_new.cur_ms, new_size);
+			}
+		} else {
+			if (!(rtp->smoother = ast_smoother_new(new_size))) {
+				ast_log(LOG_WARNING, "Unable to create smoother: format: %d ms: %d len: %d\n", rtp->lasttxformat, current_format_new.cur_ms, new_size);
+				return;
+			}
+			if (current_format_new.flags) {
+				ast_smoother_set_flags(rtp->smoother, current_format_new.flags);
+			}
+			if (option_debug) {
+				ast_log(LOG_DEBUG, "Created smoother: format: %d ms: %d len: %d\n", rtp->lasttxformat, current_format_new.cur_ms, new_size);
+			}
+		}
+	}
+
 }
 
 struct ast_codec_pref *ast_rtp_codec_getpref(struct ast_rtp *rtp)
