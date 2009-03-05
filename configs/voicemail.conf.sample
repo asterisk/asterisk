@@ -232,6 +232,9 @@ sendvoicemail=yes ; Allow the user to compose and send a voicemail while inside
 ; searchcontexts=yes	; Current default behavior is to search only the default context
 			; if one is not specified.  The older behavior was to search all contexts.
 			; This option restores the old behavior [DEFAULT=no]
+			; Note: If you have this option enabled, then you will be required to have
+			; unique mailbox names across all contexts. Otherwise, an ambiguity is created
+			; since it is impossible to know which mailbox to retrieve when one is requested.
 ; callback=fromvm 	; Context to call back from  
 			;     if not listed, calling the sender back will not be permitted
 ; exitcontext=fromvm    ; Context to go to on user exit such as * or 0
