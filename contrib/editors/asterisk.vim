@@ -75,8 +75,10 @@ if version >= 508 || !exists("did_conf_syntax_inits")
   HiLink        asteriskPriority        Preproc
   HiLink        asteriskLabel           Type
   HiLink        asteriskVar             String
+  HiLink        asteriskVarStart        String
   HiLink        asteriskFunction        Function
   HiLink        asteriskExp             Type
+  HiLink        asteriskExpStart        Type
   HiLink        asteriskCodecsPermit    Preproc
   HiLink        asteriskCodecs          String
   HiLink        asteriskType            Statement
