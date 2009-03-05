@@ -9584,14 +9584,21 @@ static struct ast_vm_user *find_or_create(const char *context, const char *box)
 	struct ast_vm_user *vmu;
 
 	AST_LIST_TRAVERSE(&users, vmu, list) {
-		if (ast_test_flag((&globalflags), VM_SEARCH) && !strcasecmp(box, vmu->mailbox))
-			break;
-		if (context && (!strcasecmp(context, vmu->context)) && (!strcasecmp(box, vmu->mailbox)))
-			break;
+		if (ast_test_flag((&globalflags), VM_SEARCH) && !strcasecmp(box, vmu->mailbox)) {
+			if (strcasecmp(vmu->context, context)) {
+				ast_log(LOG_WARNING, "\nIt has been detected that you have defined mailbox '%s' in separate\
+						\n\tcontexts and that you have the 'searchcontexts' option on. This type of\
+						\n\tconfiguration creates an ambiguity that you likely do not want. Please\
+						\n\tamend your voicemail.conf file to avoid this situation.\n", box);
+			}
+			ast_log(LOG_WARNING, "Ignoring duplicated mailbox %s\n", box);
+			return NULL;
+		}
+		if (!strcasecmp(context, vmu->context) && !strcasecmp(box, vmu->mailbox)) {
+			ast_log(LOG_WARNING, "Ignoring duplicated mailbox %s in context %s\n", box, context);
+			return NULL;
+		}
 	}
-
-	if (vmu)
-		return vmu;
 	
 	if (!(vmu = ast_calloc(1, sizeof(*vmu))))
 		return NULL;
