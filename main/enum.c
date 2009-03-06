@@ -393,17 +393,18 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 	char *p;
 	char regexp[512] = "";
 	char repl[512] = "";
-	char temp[512] = "";
+	char tempdst[512] = "";
 	char errbuff[512] = "";
 	char delim;
 	char *delim2;
-	char *pattern, *subst, *d, *number;
+	char *pattern, *subst, *d;
 	int res;
 	int regexp_len, rc;
-	int size;
-	int d_len = sizeof(temp) - 1;
+	static const int max_bt = 10; /* max num of regexp backreference allowed, must remain 10 to guarantee a valid backreference index */
+	int size, matchindex; /* size is the size of the backreference sub. */
+	size_t d_len = sizeof(tempdst) - 1;
 	regex_t preg;
-	regmatch_t pmatch[9];
+	regmatch_t pmatch[max_bt];
 
 	tech_return[0] = '\0';
 	dst[0] = '\0';
@@ -441,7 +442,7 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 		ast_log(LOG_WARNING, "Failed to expand hostname\n");
 		return -1;
 	}
-	
+
 	ast_debug(3, "NAPTR input='%s', flags='%s', services='%s', regexp='%s', repl='%s'\n",
 		naptrinput, flags, services, regexp, repl);
 
@@ -474,28 +475,27 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 		}
 	}
 
-	/* DEDBUGGING STUB
-	ast_copy_string(regexp, "!^\\+43(.*)$!\\1@bla.fasel!", sizeof(regexp) - 1);
-	*/
-
 	regexp_len = strlen(regexp);
 	if (regexp_len < 7) {
 		ast_log(LOG_WARNING, "Regex too short to be meaningful.\n");
 		return -1;
 	}
 
-
+	/* this takes the first character of the regexp (which is a delimiter) 
+	 * and uses that character to find the index of the second delimiter */
 	delim = regexp[0];
 	delim2 = strchr(regexp + 1, delim);
-	if ((delim2 == NULL) || (regexp[regexp_len - 1] != delim)) {
+	if ((delim2 == NULL) || (regexp[regexp_len - 1] != delim)) {  /* is the second delimiter found, and is the end of the regexp a delimiter */
+		ast_log(LOG_WARNING, "Regex delimiter error (on \"%s\").\n", regexp);
+		return -1;
+	} else if (strchr((delim2 + 1), delim) == NULL) { /* if the second delimiter is found, make sure there is a third instance.  this could be the end one instead of the middle */
 		ast_log(LOG_WARNING, "Regex delimiter error (on \"%s\").\n", regexp);
 		return -1;
 	}
-
-	pattern = regexp + 1;
-	*delim2 = 0;
-	subst   = delim2 + 1;
-	regexp[regexp_len - 1] = 0;
+	pattern = regexp + 1;   /* pattern is the regex without the begining and ending delimiter */
+	*delim2 = 0;    /* zero out the middle delimiter */
+	subst   = delim2 + 1; /* dst substring is everything after the second delimiter. */
+	regexp[regexp_len - 1] = 0; /* zero out the last delimiter */
 
 /*
  * now do the regex wizardry.
@@ -506,13 +506,14 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 		return -1;
 	}
 
-	if (preg.re_nsub > 9) {
+	if (preg.re_nsub > ARRAY_LEN(pmatch)) {
 		ast_log(LOG_WARNING, "NAPTR Regex compilation error: too many subs.\n");
 		regfree(&preg);
 		return -1;
 	}
-	
-	if (0 != (rc = regexec(&preg, (char *)naptrinput, 0, pmatch, 0))) {
+	/* pmatch is an array containing the substring indexes for the regex backreference sub.
+	 * max_bt is the maximum number of backreferences allowed to be stored in pmatch */
+	if ((rc = regexec(&preg, (char *) naptrinput, max_bt, pmatch, 0))) {
 		regerror(rc, &preg, errbuff, sizeof(errbuff));
 		ast_log(LOG_WARNING, "NAPTR Regex match failed. Reason: %s\n", errbuff);
 		regfree(&preg);
@@ -520,24 +521,37 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 	}
 	regfree(&preg);
 
-	d = temp;
-	
-	number = (char *)(naptrinput + (*naptrinput == '+'));
-
+	d = tempdst;
 	d_len--;
+
+	/* perform the backreference sub. Search the subst for backreferences,
+	 * when a backreference is found, retrieve the backreferences number.
+	 * use the backreference number as an index for pmatch to retrieve the
+	 * beginning and ending indexes of the substring to insert as the backreference.
+	 * if no backreference is found, continue copying the subst into tempdst */
 	while (*subst && (d_len > 0)) {
-		if ((subst[0] == '\\' && isdigit(subst[1]))) {
-			size = strlen(number);
-			//ast_log(LOG_WARNING, "size:%d: offset:%s: temp:%s:\n",size,offset,temp);
+		if ((subst[0] == '\\') && isdigit(subst[1])) { /* is this character the beginning of a backreference */
+			matchindex = (int) (subst[1] - '0');
+			if (matchindex >= ARRAY_LEN(pmatch)) {
+				ast_log(LOG_WARNING, "Error during regex substitution. Invalid pmatch index.\n");
+				return -1;
+			}
+			/* pmatch len is 10. we are garanteed a single char 0-9 is a valid index */
+			size = pmatch[matchindex].rm_eo - pmatch[matchindex].rm_so;
 			if (size > d_len) {
 				ast_log(LOG_WARNING, "Not enough space during NAPTR regex substitution.\n");
 				return -1;
 			}
-			memcpy(d, number, size);
-			d_len -= size;
-			subst += 2;
-			d += size;
-			//ast_log(LOG_WARNING, "after dlen:%d: temp:%s:\n",d_len,temp);
+			/* are the pmatch indexes valid for the input length */
+			if ((strlen((char *) naptrinput) >= pmatch[matchindex].rm_eo) && (pmatch[matchindex].rm_so <= pmatch[matchindex].rm_eo)) {
+				memcpy(d, (naptrinput + (int) pmatch[matchindex].rm_so), size);  /* copy input substring into backreference marker */
+				d_len -= size;
+				subst += 2;  /* skip over backreference characters to next valid character */
+				d += size;
+			} else {
+				ast_log(LOG_WARNING, "Error during regex substitution. Invalid backreference index.\n");
+				return -1;
+			}
 		} else if (isprint(*subst)) {
 			*d++ = *subst++;
 			d_len--;
@@ -547,9 +561,8 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 		}
 	}
 	*d = 0;
-	ast_copy_string((char *)dst, temp,dstsize);
+	ast_copy_string((char *) dst, tempdst, dstsize);
 	dst[dstsize - 1] = '\0';
-//	ast_log(LOG_WARNING, "after dst:%s: temp:%s:\n",dst,temp);
 
 	if (*tech != '\0'){ /* check if it is requested NAPTR */
 		if (!strncasecmp(tech, "ALL", techsize)){
