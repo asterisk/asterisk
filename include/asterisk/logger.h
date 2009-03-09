@@ -43,7 +43,7 @@ extern "C" {
 #define VERBOSE_PREFIX_3 "    -- "
 #define VERBOSE_PREFIX_4 "       > "
 
-/*! \brief Used for sending a log message 
+/*! \brief Used for sending a log message
 	This is the standard logger function.  Probably the only way you will invoke it would be something like this:
 	ast_log(AST_LOG_WHATEVER, "Problem with the %s Captain.  We should get some more.  Will %d be enough?\n", "flux capacitor", 10);
 	where WHATEVER is one of ERROR, DEBUG, EVENT, NOTICE, or WARNING depending
@@ -89,9 +89,18 @@ int ast_unregister_verbose(void (*verboser)(const char *string)) attribute_warn_
 
 void ast_console_puts(const char *string);
 
+/*!
+ * \brief log the string to the console, and all attached
+ * console clients
+ * \version 1.6.1 added level parameter
+ */
 void ast_console_puts_mutable(const char *string, int level);
 void ast_console_toggle_mute(int fd, int silent);
-void ast_console_toggle_loglevel(int fd, int leve, int state);
+
+/*!
+ * \since 1.6.1
+ */
+void ast_console_toggle_loglevel(int fd, int level, int state);
 
 /* Note: The AST_LOG_* macros below are the same as
  * the LOG_* macros and are intended to eventually replace
@@ -229,7 +238,7 @@ unsigned int ast_verbose_get_by_file(const char *file);
 #define AST_MAX_BT_FRAMES 32
 /* \brief
  *
- * A structure to hold backtrace information. This structure provides an easy means to 
+ * A structure to hold backtrace information. This structure provides an easy means to
  * store backtrace information or pass backtraces to other functions.
  */
 struct ast_bt {
@@ -245,6 +254,7 @@ struct ast_bt {
  * Allocates memory for an ast_bt and stores addresses and symbols.
  *
  * \return Returns NULL on failure, or the allocated ast_bt on success
+ * \since 1.6.1
  */
 struct ast_bt *ast_bt_create(void);
 
@@ -253,14 +263,16 @@ struct ast_bt *ast_bt_create(void);
  *
  * \retval 0 Success
  * \retval -1 Failure
+ * \since 1.6.1
  */
 int ast_bt_get_addresses(struct ast_bt *bt);
 
 /* \brief
- * 
+ *
  * Free dynamically allocated portions of an ast_bt
  *
  * \retval NULL.
+ * \since 1.6.1
  */
 void *ast_bt_destroy(struct ast_bt *bt);
 

@@ -50,6 +50,7 @@ struct ast_dnsmgr_entry;
  * is already known.
  *
  * \return a DNS manager entry
+ * \version 1.6.1 result changed from struct in_addr to struct sockaddr_in to store port number
  */
 struct ast_dnsmgr_entry *ast_dnsmgr_get(const char *name, struct sockaddr_in *result, const char *service);
 
@@ -75,6 +76,7 @@ void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry);
  *
  * \retval 0 success
  * \retval non-zero failure
+ * \version 1.6.1 result changed from struct in_addr to struct aockaddr_in to store port number
  */
 int ast_dnsmgr_lookup(const char *name, struct sockaddr_in *result, struct ast_dnsmgr_entry **dnsmgr, const char *service);
 
@@ -82,7 +84,7 @@ int ast_dnsmgr_lookup(const char *name, struct sockaddr_in *result, struct ast_d
  * \brief Force a refresh of a dnsmgr entry
  *
  * \retval non-zero if the result is different than the previous result
- * \retval zero if the result is the same as the previous result 
+ * \retval zero if the result is the same as the previous result
  */
 int ast_dnsmgr_refresh(struct ast_dnsmgr_entry *entry);
 

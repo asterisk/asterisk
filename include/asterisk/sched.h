@@ -61,6 +61,11 @@ extern "C" {
 		(_sched_res); \
 	})
 
+/*!
+ * \brief schedule task to get deleted and call unref function
+ * \sa AST_SCHED_DEL
+ * \since 1.6.1
+ */
 #define AST_SCHED_DEL_UNREF(sched, id, refcall)			\
 	do { \
 		int _count = 0; \
@@ -74,6 +79,10 @@ extern "C" {
 		id = -1; \
 	} while (0);
 
+/*!
+ * \brief schedule task to get deleted releasing the lock between attempts
+ * \since 1.6.1
+ */
 #define AST_SCHED_DEL_SPINLOCK(sched, id, lock) \
 	({ \
 		int _count = 0; \
@@ -104,6 +113,10 @@ extern "C" {
 #define AST_SCHED_REPLACE(id, sched, when, callback, data) \
 		AST_SCHED_REPLACE_VARIABLE(id, sched, when, callback, data, 0)
 
+/*!
+ * \note Not currently used in the source?
+ * \since 1.6.1
+ */
 #define AST_SCHED_REPLACE_VARIABLE_UNREF(id, sched, when, callback, data, variable, unrefcall, addfailcall, refcall) \
 	do { \
 		int _count = 0, _res=1;											 \
@@ -152,6 +165,14 @@ struct ast_cb_names {
 	char *list[10];
 	ast_sched_cb cblist[10];
 };
+
+/*!
+ * \brief Show statics on what it is in the schedule queue
+ * \param con Schedule context to check
+ * \param buf dynamic string to store report
+ * \param cbnames to check against
+ * \since 1.6.1
+ */
 void ast_sched_report(struct sched_context *con, struct ast_str **buf, struct ast_cb_names *cbnames);
 		
 /*! \brief Adds a scheduled event
@@ -209,10 +230,12 @@ int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb cal
 int ast_sched_replace_variable(int old_id, struct sched_context *con, int when, ast_sched_cb callback, const void *data, int variable) attribute_warn_unused_result;
 
 	
-/*! \brief Find a sched structure and return the data field associated with it. 
+/*! 
+ * \brief Find a sched structure and return the data field associated with it. 
  * \param con scheduling context in which to search fro the matching id
  * \param id ID of the scheduled item to find
  * \return the data field from the matching sched struct if found; else return NULL if not found.
+ * \since 1.6.1
  */
 
 const void *ast_sched_find_data(struct sched_context *con, int id);

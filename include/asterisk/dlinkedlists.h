@@ -4,7 +4,7 @@
  * Copyright (C) 2007, Digium, Inc.
  *
  * Steve Murphy <murf@digium.com>
- * 
+ *
  * Doubly-Linked List Macros--
  * Based on linkedlists.h (to the point of plagiarism!), which is by:
  *
@@ -40,9 +40,10 @@
   list head structure pointed to by head.
   \retval 0 on success
   \retval non-zero on failure
+  \since 1.6.1
 */
 #define AST_DLLIST_LOCK(head)						\
-	ast_mutex_lock(&(head)->lock) 
+	ast_mutex_lock(&(head)->lock)
 
 /*!
   \brief Write locks a list.
@@ -52,6 +53,7 @@
   list head structure pointed to by head.
   \retval 0 on success
   \retval non-zero on failure
+  \since 1.6.1
 */
 #define AST_RWDLLIST_WRLOCK(head)                                         \
         ast_rwlock_wrlock(&(head)->lock)
@@ -64,10 +66,11 @@
   list head structure pointed to by head.
   \retval 0 on success
   \retval non-zero on failure
+  \since 1.6.1
 */
 #define AST_RWDLLIST_RDLOCK(head)                                         \
         ast_rwlock_rdlock(&(head)->lock)
-	
+
 /*!
   \brief Locks a list, without blocking if the list is locked.
   \param head This is a pointer to the list head structure
@@ -76,9 +79,10 @@
   list head structure pointed to by head.
   \retval 0 on success
   \retval non-zero on failure
+  \since 1.6.1
 */
 #define AST_DLLIST_TRYLOCK(head)						\
-	ast_mutex_trylock(&(head)->lock) 
+	ast_mutex_trylock(&(head)->lock)
 
 /*!
   \brief Write locks a list, without blocking if the list is locked.
@@ -88,6 +92,7 @@
   list head structure pointed to by head.
   \retval 0 on success
   \retval non-zero on failure
+  \since 1.6.1
 */
 #define AST_RWDLLIST_TRYWRLOCK(head)                                      \
         ast_rwlock_trywrlock(&(head)->lock)
@@ -100,10 +105,11 @@
   list head structure pointed to by head.
   \retval 0 on success
   \retval non-zero on failure
+  \since 1.6.1
 */
 #define AST_RWDLLIST_TRYRDLOCK(head)                                      \
         ast_rwlock_tryrdlock(&(head)->lock)
-	
+
 /*!
   \brief Attempts to unlock a list.
   \param head This is a pointer to the list head structure
@@ -111,6 +117,7 @@
   This macro attempts to remove an exclusive lock from the
   list head structure pointed to by head. If the list
   was not locked by this thread, this macro has no effect.
+  \since 1.6.1
 */
 #define AST_DLLIST_UNLOCK(head) 						\
 	ast_mutex_unlock(&(head)->lock)
@@ -122,6 +129,7 @@
   This macro attempts to remove a read or write lock from the
   list head structure pointed to by head. If the list
   was not locked by this thread, this macro has no effect.
+  \since 1.6.1
 */
 #define AST_RWDLLIST_UNLOCK(head)                                         \
         ast_rwlock_unlock(&(head)->lock)
@@ -144,6 +152,7 @@
 
   This would define \c struct \c entry_list, and declare an instance of it named
   \a entries, all intended to hold a list of type \c struct \c entry.
+  \since 1.6.1
 */
 #define AST_DLLIST_HEAD(name, type)					\
 struct name {								\
@@ -170,6 +179,7 @@ struct name {								\
 
   This would define \c struct \c entry_list, and declare an instance of it named
   \a entries, all intended to hold a list of type \c struct \c entry.
+  \since 1.6.1
 */
 #define AST_RWDLLIST_HEAD(name, type)                                     \
 struct name {                                                           \
@@ -196,6 +206,7 @@ struct name {                                                           \
 
   This would define \c struct \c entry_list, and declare an instance of it named
   \a entries, all intended to hold a list of type \c struct \c entry.
+  \since 1.6.1
 */
 #define AST_DLLIST_HEAD_NOLOCK(name, type)				\
 struct name {								\
@@ -205,6 +216,7 @@ struct name {								\
 
 /*!
   \brief Defines initial values for a declaration of AST_DLLIST_HEAD
+  \since 1.6.1
 */
 #define AST_DLLIST_HEAD_INIT_VALUE	{		\
 	.first = NULL,					\
@@ -214,6 +226,7 @@ struct name {								\
 
 /*!
   \brief Defines initial values for a declaration of AST_RWDLLIST_HEAD
+  \since 1.6.1
 */
 #define AST_RWDLLIST_HEAD_INIT_VALUE      {               \
         .first = NULL,                                  \
@@ -223,6 +236,7 @@ struct name {								\
 
 /*!
   \brief Defines initial values for a declaration of AST_DLLIST_HEAD_NOLOCK
+  \since 1.6.1
 */
 #define AST_DLLIST_HEAD_NOLOCK_INIT_VALUE	{	\
 	.first = NULL,					\
@@ -245,6 +259,7 @@ struct name {								\
 
   This would define \c struct \c entry_list, intended to hold a list of
   type \c struct \c entry.
+  \since 1.6.1
 */
 #if defined(AST_MUTEX_INIT_W_CONSTRUCTORS)
 #define AST_DLLIST_HEAD_STATIC(name, type)				\
@@ -287,6 +302,7 @@ struct name {								\
 
   This would define \c struct \c entry_list, intended to hold a list of
   type \c struct \c entry.
+  \since 1.6.1
 */
 #ifndef AST_RWLOCK_INIT_VALUE
 #define AST_RWDLLIST_HEAD_STATIC(name, type)                              \
@@ -317,6 +333,7 @@ struct name {                                                           \
   \brief Defines a structure to be used to hold a list of specified type, statically initialized.
 
   This is the same as AST_DLLIST_HEAD_STATIC, except without the lock included.
+  \since 1.6.1
 */
 #define AST_DLLIST_HEAD_NOLOCK_STATIC(name, type)				\
 struct name {								\
@@ -331,6 +348,7 @@ struct name {								\
 
   This macro initializes a list head structure by setting the head
   entry to the supplied value and recreating the embedded lock.
+  \since 1.6.1
 */
 #define AST_DLLIST_HEAD_SET(head, entry) do {				\
 	(head)->first = (entry);					\
@@ -345,6 +363,7 @@ struct name {								\
 
   This macro initializes a list head structure by setting the head
   entry to the supplied value and recreating the embedded lock.
+  \since 1.6.1
 */
 #define AST_RWDLLIST_HEAD_SET(head, entry) do {                           \
         (head)->first = (entry);                                        \
@@ -359,6 +378,7 @@ struct name {								\
 
   This macro initializes a list head structure by setting the head
   entry to the supplied value.
+  \since 1.6.1
 */
 #define AST_DLLIST_HEAD_SET_NOLOCK(head, entry) do {			\
 	(head)->first = (entry);					\
@@ -381,6 +401,7 @@ struct name {								\
   \endcode
 
   The field name \a list here is arbitrary, and can be anything you wish.
+  \since 1.6.1
 */
 #define AST_DLLIST_ENTRY(type)			\
 struct {								\
@@ -389,10 +410,11 @@ struct {								\
 }
 
 #define AST_RWDLLIST_ENTRY AST_DLLIST_ENTRY
- 
+
 /*!
   \brief Returns the first entry contained in a list.
   \param head This is a pointer to the list head structure
+  \since 1.6.1
  */
 #define	AST_DLLIST_FIRST(head)	((head)->first)
 
@@ -401,6 +423,7 @@ struct {								\
 /*!
   \brief Returns the last entry contained in a list.
   \param head This is a pointer to the list head structure
+  \since 1.6.1
  */
 #define	AST_DLLIST_LAST(head)	((head)->last)
 
@@ -411,6 +434,7 @@ struct {								\
   \param elm This is a pointer to the current entry.
   \param field This is the name of the field (declared using AST_DLLIST_ENTRY())
   used to link entries of this list together.
+  \since 1.6.1
 */
 #define AST_DLLIST_NEXT(elm, field)	((elm)->field.next)
 
@@ -421,6 +445,7 @@ struct {								\
   \param elm This is a pointer to the current entry.
   \param field This is the name of the field (declared using AST_DLLIST_ENTRY())
   used to link entries of this list together.
+  \since 1.6.1
 */
 #define AST_DLLIST_PREV(elm, field)	((elm)->field.prev)
 
@@ -432,6 +457,7 @@ struct {								\
 
   \return non-zero if the list has entries
   \return zero if not.
+  \since 1.6.1
  */
 #define	AST_DLLIST_EMPTY(head)	(AST_DLLIST_FIRST(head) == NULL)
 
@@ -472,6 +498,7 @@ struct {								\
   \li AST_DLLIST_INSERT_AFTER()
   \li AST_DLLIST_INSERT_HEAD()
   \li AST_DLLIST_INSERT_TAIL()
+  \since 1.6.1
 */
 #define AST_DLLIST_TRAVERSE(head,var,field) 				\
 	for((var) = (head)->first; (var); (var) = (var)->field.next)
@@ -513,6 +540,7 @@ struct {								\
   \li AST_DLLIST_INSERT_BEFORE()
   \li AST_DLLIST_INSERT_HEAD()
   \li AST_DLLIST_INSERT_TAIL()
+  \since 1.6.1
 */
 #define AST_DLLIST_TRAVERSE_BACKWARDS(head,var,field) 				\
 	for((var) = (head)->last; (var); (var) = (var)->field.prev)
@@ -551,6 +579,7 @@ struct {								\
   It differs from AST_DLLIST_TRAVERSE() in that the code inside the loop can modify
   (or even free, after calling AST_DLLIST_REMOVE_CURRENT()) the entry pointed to by
   the \a current pointer without affecting the loop traversal.
+  \since 1.6.1
 */
 #define AST_DLLIST_TRAVERSE_SAFE_BEGIN(head, var, field) {				\
 	typeof((head)) __list_head = head;						\
@@ -599,6 +628,7 @@ struct {								\
   It differs from AST_DLLIST_TRAVERSE() in that the code inside the loop can modify
   (or even free, after calling AST_DLLIST_REMOVE_CURRENT()) the entry pointed to by
   the \a current pointer without affecting the loop traversal.
+  \since 1.6.1
 */
 #define AST_DLLIST_TRAVERSE_BACKWARDS_SAFE_BEGIN(head, var, field) {				\
 	typeof((head)) __list_head = head;						\
@@ -624,6 +654,7 @@ struct {								\
   block; it is used to unlink the current entry from the list without affecting
   the list traversal (and without having to re-traverse the list to modify the
   previous entry, if any).
+  \since 1.6.1
  */
 #define AST_DLLIST_REMOVE_CURRENT(field) do {			\
 	__new_prev->field.next = NULL;						\
@@ -676,6 +707,7 @@ struct {								\
 
   \note This macro can \b only be used inside an AST_DLLIST_TRAVERSE_SAFE_BEGIN()
   block.
+  \since 1.6.1
  */
 #define AST_DLLIST_INSERT_BEFORE_CURRENT(elm, field) do {	\
 	if (__list_prev) {										\
@@ -698,7 +730,7 @@ struct {								\
   \brief Inserts a list entry after the current entry during a backwards traversal. Since
          this is a backwards traversal, this will insert the entry AFTER the current
          element. Since this is a backwards traveral, though, this would be BEFORE
-         the current entry in traversal order. Confusing? 
+         the current entry in traversal order. Confusing?
   \param elm This is a pointer to the entry to be inserted.
   \param field This is the name of the field (declared using AST_DLLIST_ENTRY())
   used to link entries of this list together.
@@ -706,6 +738,7 @@ struct {								\
   \note This macro can \b only be used inside an AST_DLLIST_TRAVERSE_BACKWARDS_SAFE_BEGIN()
   block. If you use this with the AST_DLLIST_TRAVERSE_SAFE_BEGIN(), be prepared for
   strange things!
+  \since 1.6.1
  */
 #define AST_DLLIST_INSERT_BEFORE_CURRENT_BACKWARDS(elm, field) do {			\
 	if (__list_next) {								\
@@ -725,6 +758,7 @@ struct {								\
 
 /*!
   \brief Closes a safe loop traversal block.
+  \since 1.6.1
  */
 #define AST_DLLIST_TRAVERSE_SAFE_END  }
 
@@ -732,6 +766,7 @@ struct {								\
 
 /*!
   \brief Closes a safe loop traversal block.
+  \since 1.6.1
  */
 #define AST_DLLIST_TRAVERSE_BACKWARDS_SAFE_END  }
 
@@ -743,6 +778,7 @@ struct {								\
 
   This macro initializes a list head structure by setting the head
   entry to \a NULL (empty list) and recreating the embedded lock.
+  \since 1.6.1
 */
 #define AST_DLLIST_HEAD_INIT(head) {					\
 	(head)->first = NULL;						\
@@ -756,6 +792,7 @@ struct {								\
 
   This macro initializes a list head structure by setting the head
   entry to \a NULL (empty list) and recreating the embedded lock.
+  \since 1.6.1
 */
 #define AST_RWDLLIST_HEAD_INIT(head) {                                    \
         (head)->first = NULL;                                           \
@@ -770,6 +807,7 @@ struct {								\
   This macro destroys a list head structure by setting the head
   entry to \a NULL (empty list) and destroying the embedded lock.
   It does not free the structure from memory.
+  \since 1.6.1
 */
 #define AST_DLLIST_HEAD_DESTROY(head) {					\
 	(head)->first = NULL;						\
@@ -784,6 +822,7 @@ struct {								\
   This macro destroys a list head structure by setting the head
   entry to \a NULL (empty list) and destroying the embedded lock.
   It does not free the structure from memory.
+  \since 1.6.1
 */
 #define AST_RWDLLIST_HEAD_DESTROY(head) {                                 \
         (head)->first = NULL;                                           \
@@ -798,6 +837,7 @@ struct {								\
   This macro initializes a list head structure by setting the head
   entry to \a NULL (empty list). There is no embedded lock handling
   with this macro.
+  \since 1.6.1
 */
 #define AST_DLLIST_HEAD_INIT_NOLOCK(head) {				\
 	(head)->first = NULL;						\
@@ -812,6 +852,7 @@ struct {								\
   \param elm This is a pointer to the entry to be inserted.
   \param field This is the name of the field (declared using AST_DLLIST_ENTRY())
   used to link entries of this list together.
+  \since 1.6.1
  */
 #define AST_DLLIST_INSERT_AFTER(head, listelm, elm, field) do {		\
 	(elm)->field.next = (listelm)->field.next;			\
@@ -833,6 +874,7 @@ struct {								\
   \param elm This is a pointer to the entry to be inserted.
   \param field This is the name of the field (declared using AST_DLLIST_ENTRY())
   used to link entries of this list together.
+  \since 1.6.1
  */
 #define AST_DLLIST_INSERT_BEFORE(head, listelm, elm, field) do {		\
 	(elm)->field.next = (listelm);			\
@@ -852,6 +894,7 @@ struct {								\
   \param elm This is a pointer to the entry to be inserted.
   \param field This is the name of the field (declared using AST_DLLIST_ENTRY())
   used to link entries of this list together.
+  \since 1.6.1
  */
 #define AST_DLLIST_INSERT_HEAD(head, elm, field) do {			\
 		(elm)->field.next = (head)->first;			\
@@ -875,6 +918,7 @@ struct {								\
   Note: The link field in the appended entry is \b not modified, so if it is
   actually the head of a list itself, the entire list will be appended
   temporarily (until the next AST_DLLIST_INSERT_TAIL is performed).
+  \since 1.6.1
  */
 #define AST_DLLIST_INSERT_TAIL(head, elm, field) do {	\
       if (!(head)->first) {						\
@@ -901,6 +945,7 @@ struct {								\
 
   Note: The source list (the \a list parameter) will be empty after
   calling this macro (the list entries are \b moved to the target list).
+  \since 1.6.1
  */
 #define AST_DLLIST_APPEND_DLLIST(head, list, field) do {			\
       if (!(head)->first) {						\
@@ -925,6 +970,7 @@ struct {								\
 
   Removes the head entry from the list, and returns a pointer to it.
   This macro is safe to call on an empty list.
+  \since 1.6.1
  */
 #define AST_DLLIST_REMOVE_HEAD(head, field) ({				\
 		typeof((head)->first) cur = (head)->first;		\
@@ -948,6 +994,7 @@ struct {								\
   \param field This is the name of the field (declared using AST_DLLIST_ENTRY())
   used to link entries of this list together.
   \warning The removed entry is \b not freed nor modified in any way.
+  \since 1.6.1
  */
 #define AST_DLLIST_REMOVE(head, elm, field) ({			        \
 	__typeof(elm) __res = (elm);						\

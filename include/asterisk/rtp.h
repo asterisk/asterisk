@@ -327,13 +327,19 @@ int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src, i
            having to send a re-invite later */
 int ast_rtp_early_bridge(struct ast_channel *c0, struct ast_channel *c1);
 
-/*! \brief Get QOS stats on a RTP channel */
+/*! \brief Get QOS stats on a RTP channel
+ * \since 1.6.1
+ */
 int ast_rtp_get_qos(struct ast_rtp *rtp, const char *qos, char *buf, unsigned int buflen);
 
-/*! \brief Return RTP and RTCP QoS values */
+/*! \brief Return RTP and RTCP QoS values
+ * \since 1.6.1
+ */
 unsigned int ast_rtp_get_qosvalue(struct ast_rtp *rtp, enum ast_rtp_qos_vars value);
 
-/*! \brief Set RTPAUDIOQOS(...) variables on a channel when it is being hung up */
+/*! \brief Set RTPAUDIOQOS(...) variables on a channel when it is being hung up
+ * \since 1.6.1
+ */
 void ast_rtp_set_vars(struct ast_channel *chan, struct ast_rtp *rtp);
 
 /*! \brief Return RTCP quality string 
@@ -355,6 +361,7 @@ void ast_rtp_set_vars(struct ast_channel *chan, struct ast_rtp *rtp);
  *               other types are RTPQOS_JITTER, RTPQOS_LOSS and
  *               RTPQOS_RTT which will return more specific 
  *               statistics.
+ * \version 1.6.1 added qtype parameter
  */
 char *ast_rtp_get_quality(struct ast_rtp *rtp, struct ast_rtp_quality *qual, enum ast_rtp_quality_type qtype);
 /*! \brief Send an H.261 fast update request. Some devices need this rather than the XML message  in SIP */
@@ -393,11 +400,9 @@ void ast_rtp_set_rtptimers_onhold(struct ast_rtp *rtp);
  * \param red_pt payloadtype for RTP packet
  * \param pt payloadtype numbers for each generation including primary data
  * \param num_gen number of redundant generations, primary data excluded
+ * \since 1.6.1
  */
 int rtp_red_init(struct ast_rtp *rtp, int ti, int *pt, int num_gen);
-
-void red_init(struct rtp_red *red, const struct ast_frame *f);
-
 
 /*! \brief Buffer t.140 data */
 void red_buffer_t140(struct ast_rtp *rtp, struct ast_frame *f);

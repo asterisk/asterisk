@@ -37,7 +37,7 @@ AST_THREADSTORAGE_EXTERNAL(global_app_buf);
 /* IVR stuff */
 
 /*! \brief Callback function for IVR
-    \return returns 0 on completion, -1 on hangup or digit if interrupted 
+    \return returns 0 on completion, -1 on hangup or digit if interrupted
   */
 typedef int (*ast_ivr_callback)(struct ast_channel *chan, char *option, void *cbdata);
 
@@ -57,8 +57,8 @@ typedef enum {
 	AST_ACTION_BACKLIST,	/*!< adata is list of files separated by ; allows interruption */
 } ast_ivr_action;
 
-/*! 
-    Special "options" are: 
+/*!
+    Special "options" are:
    \arg "s" - "start here (one time greeting)"
    \arg "g" - "greeting/instructions"
    \arg "t" - "timeout"
@@ -69,7 +69,7 @@ typedef enum {
 struct ast_ivr_option {
 	char *option;
 	ast_ivr_action action;
-	void *adata;	
+	void *adata;
 };
 
 struct ast_ivr_menu {
@@ -83,13 +83,13 @@ struct ast_ivr_menu {
 #define AST_IVR_DECLARE_MENU(holder, title, flags, foo...) \
 	static struct ast_ivr_option __options_##holder[] = foo;\
 	static struct ast_ivr_menu holder = { title, flags, __options_##holder }
-	
 
-/*!	\brief Runs an IVR menu 
+
+/*!	\brief Runs an IVR menu
 	\return returns 0 on successful completion, -1 on hangup, or -2 on user error in menu */
 int ast_ivr_menu_run(struct ast_channel *c, struct ast_ivr_menu *menu, void *cbdata);
 
-/*! \brief Plays a stream and gets DTMF data from a channel 
+/*! \brief Plays a stream and gets DTMF data from a channel
  * \param c Which channel one is interacting with
  * \param prompt File to pass to ast_streamfile (the one that you wish to play).
  *        It is also valid for this to be multiple files concatenated by "&".
@@ -98,8 +98,8 @@ int ast_ivr_menu_run(struct ast_channel *c, struct ast_ivr_menu *menu, void *cbd
  * \param maxlen Max Length of the data
  * \param timeout Timeout length waiting for data(in milliseconds).  Set to 0 for standard timeout(six seconds), or -1 for no time out.
  *
- *  This function was designed for application programmers for situations where they need 
- *  to play a message and then get some DTMF data in response to the message.  If a digit 
+ *  This function was designed for application programmers for situations where they need
+ *  to play a message and then get some DTMF data in response to the message.  If a digit
  *  is pressed during playback, it will immediately break out of the message and continue
  *  execution of your code.
  */
@@ -108,6 +108,14 @@ int ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxl
 /*! \brief Full version with audiofd and controlfd.  NOTE: returns '2' on ctrlfd available, not '1' like other full functions */
 int ast_app_getdata_full(struct ast_channel *c, char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd);
 
+/*!
+ * \brief Set voicemail function callbacks
+ * \param[in] inboxcount2_func set function pointer
+ * \param[in] sayname_func set function pointer
+ * \param[in] inboxcount_func set function pointer
+ * \param[in] messagecount_func set function pointer
+ * \version 1.6.1 Added inboxcount2_func, sayname_func
+ */
 void ast_install_vm_functions(int (*has_voicemail_func)(const char *mailbox, const char *folder),
 			      int (*inboxcount_func)(const char *mailbox, int *newmsgs, int *oldmsgs),
 			      int (*inboxcount2_func)(const char *mailbox, int *urgentmsgs, int *newmsgs, int *oldmsgs),
@@ -122,16 +130,31 @@ int ast_app_has_voicemail(const char *mailbox, const char *folder);
 /*! \brief Determine number of new/old messages in a mailbox */
 int ast_app_inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs);
 
-/*! \brief Determine number of urgent/new/old messages in a mailbox */
+/*!
+ * \brief Determine number of urgent/new/old messages in a mailbox
+ * \param[in] mailbox the mailbox context to use
+ * \param[out] urgentmsgs the urgent message count
+ * \param[out] newmsgs the new message count
+ * \param[out] oldmsgs the old message count
+ * \return Returns 0 for success, negative upon error
+ * \since 1.6.1
+ */
 int ast_app_inboxcount2(const char *mailbox, int *urgentmsgs, int *newmsgs, int *oldmsgs);
 
-/*! Given a mailbox and context, play that mailbox owner's name to the channel specified */
+/*!
+ * \brief Given a mailbox and context, play that mailbox owner's name to the channel specified
+ * \param[in] chan channel to announce name to
+ * \param[in] mailbox mailbox to retrieve name for
+ * \param[in] context context to retrieve name for
+ * \return Returns 0 for success, negative upon error
+ * \since 1.6.1
+ */
 int ast_app_sayname(struct ast_channel *chan, const char *mailbox, const char *context);
 
 /*! \brief Determine number of messages in a given mailbox and folder */
 int ast_app_messagecount(const char *context, const char *mailbox, const char *folder);
 
-/*! \brief Safely spawn an external program while closing file descriptors 
+/*! \brief Safely spawn an external program while closing file descriptors
 	\note This replaces the \b system call in all Asterisk modules
 */
 int ast_safe_system(const char *s);
@@ -179,13 +202,13 @@ int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, const ch
 /*! \brief Stream a filename (or file descriptor) as a generator. */
 int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, int allowoverride);
 
-/*! 
- * \brief Stream a file with fast forward, pause, reverse, restart. 
- * \param chan 
+/*!
+ * \brief Stream a file with fast forward, pause, reverse, restart.
+ * \param chan
  * \param file filename
- * \param fwd, rev, stop, pause, restart, skipms, offsetms 
+ * \param fwd, rev, stop, pause, restart, skipms, offsetms
  *
- * Before calling this function, set this to be the number 
+ * Before calling this function, set this to be the number
  * of ms to start from the beginning of the file.  When the function
  * returns, it will be the number of ms from the beginning where the
  * playback stopped.  Pass NULL if you don't care.
@@ -197,15 +220,15 @@ int ast_play_and_wait(struct ast_channel *chan, const char *fn);
 
 int ast_play_and_record_full(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime_sec, const char *fmt, int *duration, int silencethreshold, int maxsilence_ms, const char *path, const char *acceptdtmf, const char *canceldtmf);
 
-/*! \brief Record a file for a max amount of time (in seconds), in a given list of formats separated by '|', outputting the duration of the recording, and with a maximum 
+/*! \brief Record a file for a max amount of time (in seconds), in a given list of formats separated by '|', outputting the duration of the recording, and with a maximum
  \n
- permitted silence time in milliseconds of 'maxsilence' under 'silencethreshold' or use '-1' for either or both parameters for defaults. 
+ permitted silence time in milliseconds of 'maxsilence' under 'silencethreshold' or use '-1' for either or both parameters for defaults.
      calls ast_unlock_path() on 'path' if passed */
 int ast_play_and_record(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime_sec, const char *fmt, int *duration, int silencethreshold, int maxsilence_ms, const char *path);
 
-/*! \brief Record a message and prepend the message to the given record file after 
-    playing the optional playfile (or a beep), storing the duration in 
-    'duration' and with a maximum permitted silence time in milliseconds of 'maxsilence' under 
+/*! \brief Record a message and prepend the message to the given record file after
+    playing the optional playfile (or a beep), storing the duration in
+    'duration' and with a maximum permitted silence time in milliseconds of 'maxsilence' under
     'silencethreshold' or use '-1' for either or both parameters for defaults. */
 int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime_sec, char *fmt, int *duration, int beep, int silencethreshold, int maxsilence_ms);
 
@@ -338,7 +361,7 @@ int ast_app_group_list_unlock(void);
  */
 #define AST_STANDARD_APP_ARGS(args, parse) \
 	args.argc = ast_app_separate_args(parse, ',', args.argv, ((sizeof(args) - offsetof(typeof(args), argv)) / sizeof(args.argv[0])))
-	
+
 /*!
   \brief Performs the 'nonstandard' argument separation process for an application.
   \param args An argument structure defined using AST_DECLARE_APP_ARGS
@@ -351,7 +374,7 @@ int ast_app_group_list_unlock(void);
  */
 #define AST_NONSTANDARD_APP_ARGS(args, parse, sep) \
 	args.argc = ast_app_separate_args(parse, sep, args.argv, ((sizeof(args) - offsetof(typeof(args), argv)) / sizeof(args.argv[0])))
-	
+
 /*!
   \brief Separate a string into arguments in an array
   \param buf The string to be parsed (this must be a writable copy, as it will be modified)
@@ -511,13 +534,24 @@ char *ast_get_encoded_str(const char *stream, char *result, size_t result_len);
 /*! \brief Decode a stream of encoded control or extended ASCII characters */
 int ast_str_get_encoded_str(struct ast_str **str, int maxlen, const char *stream);
 
-/*! \brief Common routine for child processes, to close all fds prior to exec(2) */
+/*!
+ * \brief Common routine for child processes, to close all fds prior to exec(2)
+ * \param[in] n starting file descriptor number for closing all higher file descriptors
+ * \since 1.6.1
+ */
 void ast_close_fds_above_n(int n);
 
-/*! \brief Common routine to safely fork without a chance of a signal handler firing badly in the child */
+/*!
+ * \brief Common routine to safely fork without a chance of a signal handler firing badly in the child
+ * \param[in] stop_reaper flag to determine if sigchld handler is replaced or not
+ * \since 1.6.1
+ */
 int ast_safe_fork(int stop_reaper);
 
-/*! \brief Common routine to cleanup after fork'ed process is complete (if reaping was stopped) */
+/*!
+ * \brief Common routine to cleanup after fork'ed process is complete (if reaping was stopped)
+ * \since 1.6.1
+ */
 void ast_safe_fork_cleanup(void);
 
 #if defined(__cplusplus) || defined(c_plusplus)

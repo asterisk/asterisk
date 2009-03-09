@@ -19,7 +19,7 @@
 
 #include "asterisk/compat.h"
 
-/*! \file 
+/*! \file
  * \ref AstObj2
  *
  * \page AstObj2 Object Model implementing objects and containers.
@@ -46,9 +46,9 @@ locks.
 
 Creating an object requires the size of the object and
 and a pointer to the destructor function:
- 
+
     struct foo *o;
- 
+
     o = ao2_alloc(sizeof(struct foo), my_destructor_fn);
 
 The value returned points to the user-visible portion of the objects
@@ -66,7 +66,7 @@ On return from ao2_alloc():
     ao2_ref(o, -1)
 
   causing the destructor to be called (and then memory freed) when
-  the refcount goes to 0. 
+  the refcount goes to 0.
 
 - ao2_ref(o, +1) can be used to modify the refcount on the
   object in case we want to pass it around.
@@ -138,9 +138,9 @@ list. However there is no ordering among elements.
 
 /*
 \note DEBUGGING REF COUNTS BIBLE:
-An interface to help debug refcounting is provided 
+An interface to help debug refcounting is provided
 in this package. It is dependent on the REF_DEBUG macro being
-defined in a source file, before the #include of astobj2.h, 
+defined in a source file, before the #include of astobj2.h,
 and in using variants of the normal ao2_xxxx functions
 that are named ao2_t_xxxx instead, with an extra argument, a string,
 that will be printed out into /tmp/refs when the refcount for an
@@ -153,14 +153,14 @@ ao2_t_ref(arg1,arg2,arg3)
 ao2_t_container_alloc(arg1,arg2,arg3,arg4)
 ao2_t_link(arg1, arg2, arg3)
 ao2_t_unlink(arg1, arg2, arg3)
-ao2_t_callback(arg1,arg2,arg3,arg4,arg5) 
+ao2_t_callback(arg1,arg2,arg3,arg4,arg5)
 ao2_t_find(arg1,arg2,arg3,arg4)
 ao2_t_iterator_next(arg1, arg2)
 
 If you study each argument list, you will see that these functions all have
 one extra argument that their ao2_xxx counterpart. The last argument in
 each case is supposed to be a string pointer, a "tag", that should contain
-enough of an explanation, that you can pair operations that increment the 
+enough of an explanation, that you can pair operations that increment the
 ref count, with operations that are meant to decrement the refcount.
 
 Each of these calls will generate at least one line of output in /tmp/refs.
@@ -186,9 +186,9 @@ These lines look like this:
 0x8cc07e8 -1   chan_sip.c:2370:unref_peer (unref_peer, from sip_devicestate, release ref from find_peer) [@3]
 ...
 
-The first column is the object address. 
-The second column reflects how the operation affected the ref count 
-    for that object. Creation sets the ref count to 1 (=1). 
+The first column is the object address.
+The second column reflects how the operation affected the ref count
+    for that object. Creation sets the ref count to 1 (=1).
     increment or decrement and amount are specified (-1/+1).
 The remainder of the line specifies where in the file the call was made,
     and the function name, and the tag supplied in the function call.
@@ -240,13 +240,13 @@ static struct sip_pvt *dialog_unref(struct sip_pvt *p, char *tag)
 #endif
 
 In the above code, note that the "normal" helper funcs call ao2_ref() as
-normal, and the "helper" functions call ao2_ref_debug directly with the 
+normal, and the "helper" functions call ao2_ref_debug directly with the
 file, function, and line number info provided. You might find this
 well worth the effort to help track these function calls in the code.
 
-To find out why objects are not destroyed (a common bug), you can 
-edit the source file to use the ao2_t_* variants, add the #define REF_DEBUG 1 
-before the #include "asterisk/astobj2.h" line, and add a descriptive 
+To find out why objects are not destroyed (a common bug), you can
+edit the source file to use the ao2_t_* variants, add the #define REF_DEBUG 1
+before the #include "asterisk/astobj2.h" line, and add a descriptive
 tag to each call. Recompile, and run Asterisk, exit asterisk with
 "stop gracefully", which should result in every object being destroyed.
 Then, you can "sort -k 1 /tmp/refs > x1" to get a sorted list of
@@ -254,16 +254,16 @@ all the objects, or you can use "util/refcounter" to scan the file
 for you and output any problems it finds.
 
 The above may seem astronomically more work than it is worth to debug
-reference counts, which may be true in "simple" situations, but for 
+reference counts, which may be true in "simple" situations, but for
 more complex situations, it is easily worth 100 times this effort to
 help find problems.
 
-To debug, pair all calls so that each call that increments the 
+To debug, pair all calls so that each call that increments the
 refcount is paired with a corresponding call that decrements the
-count for the same reason. Hopefully, you will be left with one 
+count for the same reason. Hopefully, you will be left with one
 or more unpaired calls. This is where you start your search!
 
-For instance, here is an example of this for a dialog object in 
+For instance, here is an example of this for a dialog object in
 chan_sip, that was not getting destroyed, after I moved the lines around
 to pair operations:
 
@@ -300,11 +300,11 @@ THE ART OF REFERENCE COUNTING
 (by Steve Murphy)
 SOME TIPS for complicated code, and ref counting:
 
-1. Theoretically, passing a refcounted object pointer into a function 
+1. Theoretically, passing a refcounted object pointer into a function
 call is an act of copying the reference, and could be refcounted.
 But, upon examination, this sort of refcounting will explode the amount
 of code you have to enter, and for no tangible benefit, beyond
-creating more possible failure points/bugs. It will even 
+creating more possible failure points/bugs. It will even
 complicate your code and make debugging harder, slow down your program
 doing useless increments and decrements of the ref counts.
 
@@ -312,14 +312,14 @@ doing useless increments and decrements of the ref counts.
 is copied into a structure or stored. Make sure to decrement the refcount
 of any previous pointer that might have been there, if setting
 this field might erase a previous pointer. ao2_find and iterate_next
-internally increment the ref count when they return a pointer, so 
+internally increment the ref count when they return a pointer, so
 you need to decrement the count before the pointer goes out of scope.
 
 3. Any time you decrement a ref count, it may be possible that the
 object will be destroyed (freed) immediately by that call. If you
-are destroying a series of fields in a refcounted object, and 
+are destroying a series of fields in a refcounted object, and
 any of the unref calls might possibly result in immediate destruction,
-you can first increment the count to prevent such behavior, then 
+you can first increment the count to prevent such behavior, then
 after the last test, decrement the pointer to allow the object
 to be destroyed, if the refcount would be zero.
 
@@ -345,7 +345,7 @@ Example:
 	}
     ...
  	dialog_unref(dialog, "Let's unbump the count in the unlink so the poor pvt can disappear if it is time");
-   
+
 In the above code, the ao2_t_unlink could end up destroying the dialog
 object; if this happens, then the subsequent usages of the dialog
 pointer could result in a core dump. So, we 'bump' the
@@ -385,10 +385,10 @@ typedef void (*ao2_destructor_fn)(void *);
 
 /*! \brief
  * Allocate and initialize an object.
- * 
+ *
  * \param data_size The sizeof() of the user-defined structure.
  * \param destructor_fn The destructor function (can be NULL)
- * \return A pointer to user-data. 
+ * \return A pointer to user-data.
  *
  * Allocates a struct astobj2 with sufficient space for the
  * user-defined structure.
@@ -448,7 +448,7 @@ int _ao2_ref(void *o, int delta);
 
 /*! \brief
  * Lock an object.
- * 
+ *
  * \param a A pointer to the object we want to lock.
  * \return 0 on success, other values on error.
  */
@@ -461,7 +461,7 @@ int _ao2_lock(void *a, const char *file, const char *func, int line, const char 
 
 /*! \brief
  * Unlock an object.
- * 
+ *
  * \param a A pointer to the object we want unlock.
  * \return 0 on success, other values on error.
  */
@@ -485,20 +485,22 @@ int ao2_trylock(void *a);
 int _ao2_trylock(void *a, const char *file, const char *func, int line, const char *var);
 #endif
 
-/*! \brief
- * Return the lock address of an object
+/*!
+ * \brief Return the lock address of an object
  *
- * \param a A pointer to the object we want.
+ * \param[in] obj A pointer to the object we want.
  * \return the address of the lock, else NULL.
- * 
- * This function comes in handy mainly for debugging locking 
- * situations, where the locking trace code reports the 
+ *
+ * This function comes in handy mainly for debugging locking
+ * situations, where the locking trace code reports the
  * lock address, this allows you to correlate against
  * object address, to match objects to reported locks.
+ *
+ * \since 1.6.1
  */
 void *ao2_object_get_lockaddr(void *obj);
 
-/*! 
+/*!
  \page AstObj2_Containers AstObj2 Containers
 
 Containers are data structures meant to store several objects,
@@ -522,7 +524,7 @@ Operations on container include:
 
   -  \b ao2_find(c, arg, flags)
 	returns zero or more element matching a given criteria
-	(specified as arg). 'c' is the container pointer. Flags 
+	(specified as arg). 'c' is the container pointer. Flags
     can be:
 	OBJ_UNLINK - to remove the object, once found, from the container.
 	OBJ_NODATA - don't return the object if found (no ref count change)
@@ -535,14 +537,14 @@ Operations on container include:
 	Similar to find. fn() can tell when to stop, and
 	do anything with the object including unlinking it.
 	  - c is the container;
-      - flags can be 
+      - flags can be
 	     OBJ_UNLINK   - to remove the object, once found, from the container.
 	     OBJ_NODATA   - don't return the object if found (no ref count change)
 	     OBJ_MULTIPLE - don't stop at first match (not fully implemented)
 	     OBJ_POINTER  - if set, 'arg' is an object pointer, and a hashtable
                         search will be done. If not, a traversal is done through
                         all the hashtable 'buckets'..
-      - fn is a func that returns int, and takes 3 args: 
+      - fn is a func that returns int, and takes 3 args:
         (void *obj, void *arg, int flags);
           obj is an object
           arg is the same as arg passed into ao2_callback
@@ -560,7 +562,7 @@ Operations on container include:
 	The mechanism is very flexible because the callback function fn()
 	can do basically anything e.g. counting, deleting records, etc.
 	possibly using arg to store the results.
-   
+
   -  \b iterate on a container
 	this is done with the following sequence
 
@@ -571,7 +573,7 @@ Operations on container include:
 	    void *o;
 
 	    i = ao2_iterator_init(c, flags);
-     
+
 	    while ( (o = ao2_iterator_next(&i)) ) {
 		... do something on o ...
 		ao2_ref(o, -1);
@@ -583,7 +585,7 @@ Operations on container include:
 
     - \b ao2_ref(c, -1)
 	dropping a reference to a container destroys it, very simple!
- 
+
 Containers are ao2 objects themselves, and this is why their
 implementation is simple too.
 
@@ -661,22 +663,22 @@ enum search_flags {
  */
 typedef int (ao2_hash_fn)(const void *obj, const int flags);
 
-/*! \name Object Containers 
+/*! \name Object Containers
  * Here start declarations of containers.
  */
 /*@{ */
 struct ao2_container;
 
 /*! \brief
- * Allocate and initialize a container 
+ * Allocate and initialize a container
  * with the desired number of buckets.
- * 
+ *
  * We allocate space for a struct astobj_container, struct container
  * and the buckets[] array.
  *
  * \param n_buckets Number of buckets for hash
  * \param hash_fn Pointer to a function computing a hash value.
- * \param cmp_fn Pointer to a function comparating key-value 
+ * \param cmp_fn Pointer to a function comparating key-value
  * 			with a string. (can be NULL)
  * \return A pointer to a struct container.
  *
@@ -693,7 +695,7 @@ struct ao2_container;
 struct ao2_container *_ao2_container_alloc(const unsigned int n_buckets,
 										  ao2_hash_fn *hash_fn, ao2_callback_fn *cmp_fn);
 struct ao2_container *_ao2_container_alloc_debug(const unsigned int n_buckets,
-												ao2_hash_fn *hash_fn, ao2_callback_fn *cmp_fn, 
+												ao2_hash_fn *hash_fn, ao2_callback_fn *cmp_fn,
 												char *tag, char *file, int line, const char *funcname);
 
 /*! \brief
@@ -705,7 +707,7 @@ int ao2_container_count(struct ao2_container *c);
 /*! \name Object Management
  * Here we have functions to manage objects.
  *
- * We can use the functions below on any kind of 
+ * We can use the functions below on any kind of
  * object defined by the user.
  */
 /*@{ */
@@ -750,7 +752,7 @@ void *_ao2_link(struct ao2_container *c, void *newobj);
  *       be called.
  *
  * \note If the object gets unlinked from the container, the container's
- *       reference to the object will be automatically released. (The 
+ *       reference to the object will be automatically released. (The
  *       refcount will be decremented).
  */
 #ifdef REF_DEBUG
@@ -774,7 +776,7 @@ struct ao2_list {
 /*! \brief
  * ao2_callback() is a generic function that applies cb_fn() to all objects
  * in a container, as described below.
- * 
+ *
  * \param c A pointer to the container to operate on.
  * \param flags A set of flags specifying the operation to perform,
 	partially used by the container code, but also passed to
@@ -790,8 +792,8 @@ struct ao2_list {
  * \param cb_fn A function pointer, that will be called on all
     objects, to see if they match. This function returns CMP_MATCH
     if the object is matches the criteria; CMP_STOP if the traversal
-    should immediately stop, or both (via bitwise ORing), if you find a 
-    match and want to end the traversal, and 0 if the object is not a match, 
+    should immediately stop, or both (via bitwise ORing), if you find a
+    match and want to end the traversal, and 0 if the object is not a match,
     but the traversal should continue. This is the function that is applied
     to each object traversed. It's arguments are:
         (void *obj, void *arg, int flags), where:
@@ -800,7 +802,7 @@ struct ao2_list {
           flags is the same as flags passed into ao2_callback (flags are
            also used by ao2_callback).
  * \param arg passed to the callback.
- * \return 	A pointer to the object found/marked, 
+ * \return 	A pointer to the object found/marked,
  * 		a pointer to a list of objects matching comparison function,
  * 		NULL if not found.
  *
@@ -822,13 +824,13 @@ struct ao2_list {
  * This function searches through a container and performs operations
  * on objects according on flags passed.
  * XXX describe better
- * The comparison is done calling the compare function set implicitly. 
- * The p pointer can be a pointer to an object or to a key, 
+ * The comparison is done calling the compare function set implicitly.
+ * The p pointer can be a pointer to an object or to a key,
  * we can say this looking at flags value.
  * If p points to an object we will search for the object pointed
  * by this value, otherwise we serch for a key value.
  * If the key is not uniq we only find the first matching valued.
- * If we use the OBJ_MARK flags, we mark all the objects matching 
+ * If we use the OBJ_MARK flags, we mark all the objects matching
  * the condition.
  *
  * The use of flags argument is the follow:
@@ -842,7 +844,7 @@ struct ao2_list {
  *				to a key (not yet supported)
  *	OBJ_POINTER 		the pointer is an object pointer
  *
- * In case we return a list, the callee must take care to destroy 
+ * In case we return a list, the callee must take care to destroy
  * that list when no longer used.
  *
  * \note When the returned object is no longer in use, ao2_ref() should
@@ -856,7 +858,7 @@ struct ao2_list {
 #define ao2_callback(arg1,arg2,arg3,arg4)        _ao2_callback((arg1), (arg2), (arg3), (arg4))
 #endif
 void *_ao2_callback_debug(struct ao2_container *c, enum search_flags flags,
-						  ao2_callback_fn *cb_fn, void *arg, char *tag, 
+						  ao2_callback_fn *cb_fn, void *arg, char *tag,
 						  char *file, int line, const char *funcname);
 void *_ao2_callback(struct ao2_container *c,
 					enum search_flags flags,
@@ -885,7 +887,7 @@ void *_ao2_callback(struct ao2_container *c,
 #define ao2_callback_data(arg1,arg2,arg3,arg4,arg5)        _ao2_callback_data((arg1), (arg2), (arg3), (arg4), (arg5))
 #endif
 void *_ao2_callback_data_debug(struct ao2_container *c, enum search_flags flags,
-						  ao2_callback_data_fn *cb_fn, void *arg, void *data, char *tag, 
+						  ao2_callback_data_fn *cb_fn, void *arg, void *data, char *tag,
 						  char *file, int line, const char *funcname);
 void *_ao2_callback_data(struct ao2_container *c,
 					enum search_flags flags,
@@ -909,7 +911,7 @@ void *_ao2_find(struct ao2_container *c, void *arg, enum search_flags flags);
  *
  * When we need to walk through a container, we use
  * ao2_iterator to keep track of the current position.
- * 
+ *
  * Because the navigation is typically done without holding the
  * lock on the container across the loop,
  * objects can be inserted or deleted or moved
@@ -924,7 +926,7 @@ void *_ao2_find(struct ao2_container *c, void *arg, enum search_flags flags);
  *    not see this object, because it would still be waiting on the container
  *    lock so that it can be added.
  *  - It would be extremely rare to see an object twice.  The only way this can
- *    happen is if an object got unlinked from the container and added again 
+ *    happen is if an object got unlinked from the container and added again
  *    during the same iteration.  Furthermore, when the object gets added back,
  *    it has to be in the current or later bucket for it to be seen again.
  *
@@ -953,7 +955,7 @@ void *_ao2_find(struct ao2_container *c, void *arg, enum search_flags flags);
  *
  */
 
-/*! \brief 
+/*! \brief
  * The Astobj2 iterator
  *
  * \note You are not supposed to know the internals of an iterator!
@@ -995,7 +997,7 @@ struct ao2_iterator {
 	unsigned int version;
 };
 
-/* the flags field can contain F_AO2I_DONTLOCK, which will prevent 
+/* the flags field can contain F_AO2I_DONTLOCK, which will prevent
    ao2_iterator_next calls from locking the container while it
    searches for the next pointer */
 

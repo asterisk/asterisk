@@ -165,7 +165,7 @@ int ast_audiohook_detach_list(struct ast_audiohook_list *audiohook_list);
  */
 void ast_audiohook_move_by_source(struct ast_channel *old_chan, struct ast_channel *new_chan, const char *source);
 
-/*! 
+/*!
  * \brief Detach specified source audiohook from channel
  *
  * \param chan Channel to detach from
@@ -205,9 +205,9 @@ void ast_audiohook_trigger_wait(struct ast_audiohook *audiohook);
 
 /*!
   \brief Find out how many audiohooks from  a certain source exist on a given channel, regardless of status.
-  \param chan The channel on which to find the spies 
+  \param chan The channel on which to find the spies
   \param source The audiohook's source
-  \param type The type of audiohook 
+  \param type The type of audiohook
   \return Return the number of audiohooks which are from the source specified
 
   Note: Function performs nlocking.
@@ -235,26 +235,32 @@ int ast_channel_audiohook_count_by_source_running(struct ast_channel *chan, cons
  */
 #define ast_audiohook_unlock(ah) ast_mutex_unlock(&(ah)->lock)
 
-/*! \brief Adjust the volume on frames read from or written to a channel
+/*!
+ * \brief Adjust the volume on frames read from or written to a channel
  * \param chan Channel to muck with
  * \param direction Direction to set on
  * \param volume Value to adjust the volume by
  * \return Returns 0 on success, -1 on failure
+ * \since 1.6.1
  */
 int ast_audiohook_volume_set(struct ast_channel *chan, enum ast_audiohook_direction direction, int volume);
 
-/*! \brief Retrieve the volume adjustment value on frames read from or written to a channel
+/*!
+ * \brief Retrieve the volume adjustment value on frames read from or written to a channel
  * \param chan Channel to retrieve volume adjustment from
  * \param direction Direction to retrieve
  * \return Returns adjustment value
+ * \since 1.6.1
  */
 int ast_audiohook_volume_get(struct ast_channel *chan, enum ast_audiohook_direction direction);
 
-/*! \brief Adjust the volume on frames read from or written to a channel
+/*!
+ * \brief Adjust the volume on frames read from or written to a channel
  * \param chan Channel to muck with
  * \param direction Direction to increase
  * \param volume Value to adjust the adjustment by
  * \return Returns 0 on success, -1 on failure
+ * \since 1.6.1
  */
 int ast_audiohook_volume_adjust(struct ast_channel *chan, enum ast_audiohook_direction direction, int volume);
 

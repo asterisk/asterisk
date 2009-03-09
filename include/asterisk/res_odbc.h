@@ -184,6 +184,7 @@ SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_c
  * \retval A structure describing the table layout, or NULL, if the table is not found or another error occurs.
  * When a structure is returned, the contained columns list will be
  * rdlock'ed, to ensure that it will be retained in memory.
+ * \since 1.6.1
  */
 struct odbc_cache_tables *ast_odbc_find_table(const char *database, const char *tablename);
 
@@ -192,6 +193,7 @@ struct odbc_cache_tables *ast_odbc_find_table(const char *database, const char *
  * \param table Cached table structure, as returned from ast_odbc_find_table()
  * \param colname The column name requested
  * \retval A structure describing the column type, or NULL, if the column is not found.
+ * \since 1.6.1
  */
 struct odbc_cache_columns *ast_odbc_find_column(struct odbc_cache_tables *table, const char *colname);
 
@@ -200,6 +202,7 @@ struct odbc_cache_columns *ast_odbc_find_column(struct odbc_cache_tables *table,
  * \param database Name of an ODBC class (used to ensure like-named tables in different databases are not confused)
  * \param table Tablename for which a cached record should be removed
  * \retval 0 if the cache entry was removed, or -1 if no matching entry was found.
+ * \since 1.6.1
  */
 int ast_odbc_clear_cache(const char *database, const char *tablename);
 

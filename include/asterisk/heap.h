@@ -49,6 +49,8 @@ struct ast_heap;
  *
  * \note This implementation is of a max heap.  However, if a min heap is
  *       desired, simply swap the return values of this function.
+ *
+ * \since 1.6.1
  */
 typedef int (*ast_heap_cmp_fn)(void *elm1, void *elm2);
 
@@ -93,6 +95,7 @@ typedef int (*ast_heap_cmp_fn)(void *elm1, void *elm2);
  * \endcode
  *
  * \return An instance of a max heap
+ * \since 1.6.1
  */
 struct ast_heap *ast_heap_create(unsigned int init_height, ast_heap_cmp_fn cmp_fn,
 		ssize_t index_offset);
@@ -103,6 +106,7 @@ struct ast_heap *ast_heap_create(unsigned int init_height, ast_heap_cmp_fn cmp_f
  * \param h the heap to destroy
  *
  * \return NULL for convenience
+ * \since 1.6.1
  */
 struct ast_heap *ast_heap_destroy(struct ast_heap *h);
 
@@ -114,6 +118,7 @@ struct ast_heap *ast_heap_destroy(struct ast_heap *h);
  *
  * \retval 0 success
  * \retval non-zero failure
+ * \since 1.6.1
  */
 int ast_heap_push(struct ast_heap *h, void *elm);
 
@@ -126,6 +131,7 @@ int ast_heap_push(struct ast_heap *h, void *elm);
  *         largest value according to the element comparison function that was
  *         provided when the heap was created.  The element will be removed before
  *         being returned.
+ * \since 1.6.1
  */
 void *ast_heap_pop(struct ast_heap *h);
 
@@ -139,6 +145,7 @@ void *ast_heap_pop(struct ast_heap *h);
  *
  * \note the index_offset parameter to ast_heap_create() is required to be able
  *       to use this function.
+ * \since 1.6.1
  */
 void *ast_heap_remove(struct ast_heap *h, void *elm);
 
@@ -177,6 +184,7 @@ void *ast_heap_remove(struct ast_heap *h, void *elm);
  * ast_heap_unlock(h);
  *
  * \endcode
+ * \since 1.6.1
  */
 void *ast_heap_peek(struct ast_heap *h, unsigned int index);
 
@@ -186,41 +194,45 @@ void *ast_heap_peek(struct ast_heap *h, unsigned int index);
  * \param h the heap
  *
  * \return the number of elements currently in the heap
+ * \since 1.6.1
  */
 size_t ast_heap_size(struct ast_heap *h);
 
 /*!
  * \brief Write-Lock a heap
  *
- * \arg h the heap
+ * \param h the heap
  *
  * A lock is provided for convenience.  It can be assumed that none of the
  * ast_heap API calls are thread safe.  This lock does not have to be used
  * if another one is already available to protect the heap.
  *
  * \return see the documentation for pthread_rwlock_wrlock()
+ * \since 1.6.1
  */
 int ast_heap_wrlock(struct ast_heap *h);
 
 /*!
  * \brief Read-Lock a heap
  *
- * \arg h the heap
+ * \param h the heap
  *
  * A lock is provided for convenience.  It can be assumed that none of the
  * ast_heap API calls are thread safe.  This lock does not have to be used
  * if another one is already available to protect the heap.
  *
  * \return see the documentation for pthread_rwlock_rdlock()
+ * \since 1.6.1
  */
 int ast_heap_rdlock(struct ast_heap *h);
 
 /*!
  * \brief Unlock a heap
  *
- * \arg h the heap
+ * \param h the heap
  *
  * \return see the documentation for pthread_rwlock_unlock()
+ * \since 1.6.1
  */
 int ast_heap_unlock(struct ast_heap *h);
 
@@ -234,6 +246,7 @@ int ast_heap_unlock(struct ast_heap *h);
  *
  * \note This function is mostly for debugging purposes.  It traverses an existing
  *       heap and verifies that every node is properly placed relative to its children.
+ * \since 1.6.1
  */
 int ast_heap_verify(struct ast_heap *h);
 

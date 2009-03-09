@@ -952,7 +952,9 @@ int pbx_set_extenpatternmatchnew(int newval);
 
 /*! Set "overrideswitch" field.  If set and of nonzero length, all contexts
  * will be tried directly through the named switch prior to any other
- * matching within that context. */
+ * matching within that context.
+ * \since 1.6.1
+ */ 
 void pbx_set_overrideswitch(const char *newval);
 
 /*!

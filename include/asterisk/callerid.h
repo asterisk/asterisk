@@ -66,9 +66,9 @@
 
 /* defines dealing with message waiting indication generation */
 /*! MWI SDMF format */
-#define CID_MWI_TYPE_SDMF		0x00 
+#define CID_MWI_TYPE_SDMF		0x00
 /*! MWI MDMF format -- generate only MWI field */
-#define CID_MWI_TYPE_MDMF		0x01 
+#define CID_MWI_TYPE_MDMF		0x01
 /*! MWI MDMF format -- generate name, callerid, date and MWI fields */
 #define CID_MWI_TYPE_MDMF_FULL	0x02
 
@@ -169,11 +169,12 @@ void callerid_free(struct callerid_state *cid);
  */
 int ast_callerid_generate(unsigned char *buf, const char *name, const char *number, int codec);
 
-/*! \brief Generate message waiting indicator 
- * \param active The message indicator state
+/*! \brief Generate message waiting indicator
+ *  \param active The message indicator state
  *  -- either 0 no messages in mailbox or 1 messages in mailbox
- * \param type Format of message (any of CID_MWI_TYPE_*)
- * \see callerid_generate() for more info as it use the same encoding  
+ *  \param type Format of message (any of CID_MWI_TYPE_*)
+ *  \see callerid_generate() for more info as it use the same encoding
+ *  \version 1.6.1 changed mdmf parameter to type, added name, number and flags for caller id message generation
 */
 int vmwi_generate(unsigned char *buf, int active, int type, int codec, const char *name,
 	const char *number, int flags);

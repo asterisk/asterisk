@@ -48,7 +48,7 @@
 #define DSP_FAXMODE_DETECT_ALL	(DSP_FAXMODE_DETECT_CNG | DSP_FAXMODE_DETECT_CED)
 
 #define DSP_TONE_STATE_SILENCE  0
-#define DSP_TONE_STATE_RINGING  1 
+#define DSP_TONE_STATE_RINGING  1
 #define DSP_TONE_STATE_DIALTONE 2
 #define DSP_TONE_STATE_TALKING  3
 #define DSP_TONE_STATE_BUSY     4
@@ -84,7 +84,7 @@ int ast_dsp_call_progress(struct ast_dsp *dsp, struct ast_frame *inf);
 /*! \brief Set zone for doing progress detection */
 int ast_dsp_set_call_progress_zone(struct ast_dsp *dsp, char *zone);
 
-/*! \brief Return AST_FRAME_NULL frames when there is silence, AST_FRAME_BUSY on 
+/*! \brief Return AST_FRAME_NULL frames when there is silence, AST_FRAME_BUSY on
    busies, and call progress, all dependent upon which features are enabled */
 struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp, struct ast_frame *inf);
 
@@ -92,8 +92,11 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
    number of seconds of silence  */
 int ast_dsp_silence(struct ast_dsp *dsp, struct ast_frame *f, int *totalsilence);
 
-/*! \brief Return non-zero if this is noise.  Updates "totalnoise" with the total
-   number of seconds of noise  */
+/*!
+ * \brief Return non-zero if this is noise.  Updates "totalnoise" with the total
+ * number of seconds of noise
+ * \since 1.6.1
+ */
 int ast_dsp_noise(struct ast_dsp *dsp, struct ast_frame *f, int *totalnoise);
 
 /*! \brief Return non-zero if historically this should be a busy, request that
@@ -115,14 +118,19 @@ void ast_dsp_set_features(struct ast_dsp *dsp, int features);
 /*! \brief Get pending DTMF/MF digits */
 int ast_dsp_getdigits(struct ast_dsp *dsp, char *buf, int max);
 
-/*! \brief Set digit mode */
+/*! \brief Set digit mode
+ * \version 1.6.1 renamed from ast_dsp_digitmode to ast_dsp_set_digitmode
+ */
 int ast_dsp_set_digitmode(struct ast_dsp *dsp, int digitmode);
 
 /*! \brief Set fax mode */
 int ast_dsp_set_faxmode(struct ast_dsp *dsp, int faxmode);
 
-/*! \brief Returns true if DSP code was muting any fragment of the last processed frame.
-  Muting (squelching) happens when DSP code removes DTMF/MF/generic tones from the audio */
+/*!
+ * \brief Returns true if DSP code was muting any fragment of the last processed frame.
+ * Muting (squelching) happens when DSP code removes DTMF/MF/generic tones from the audio
+ * \since 1.6.1
+ */
 int ast_dsp_was_muted(struct ast_dsp *dsp);
 
 /*! \brief Get tstate (Tone State) */
@@ -131,12 +139,22 @@ int ast_dsp_get_tstate(struct ast_dsp *dsp);
 /*! \brief Get tcount (Threshold counter) */
 int ast_dsp_get_tcount(struct ast_dsp *dsp);
 
-/*! \brief Get silence threshold from dsp.conf*/
+/*!
+ * \brief Get silence threshold from dsp.conf
+ * \since 1.6.1
+ */
 int ast_dsp_get_threshold_from_settings(enum threshold which);
 
-/* \brief Reloads dsp settings from dsp.conf*/
+/*!
+ * \brief Reloads dsp settings from dsp.conf
+ * \since 1.6.1
+ */
 int ast_dsp_reload(void);
 
+/*!
+ * \brief Load dsp settings from dsp.conf
+ * \since 1.6.1
+ */
 int ast_dsp_init(void);
 
 /*!

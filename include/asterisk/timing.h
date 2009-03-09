@@ -92,6 +92,7 @@ struct ast_timing_interface {
  *
  * \retval NULL failure 
  * \retval non-Null handle to be passed to ast_unregister_timing_interface() on success
+ * \since 1.6.1
  */
 #define ast_register_timing_interface(i) _ast_register_timing_interface(i, ast_module_info->self)
 void *_ast_register_timing_interface(struct ast_timing_interface *funcs,
@@ -105,6 +106,7 @@ void *_ast_register_timing_interface(struct ast_timing_interface *funcs,
  *
  * \retval 0 success
  * \retval non-zero failure
+ * \since 1.6.1
  */
 int ast_unregister_timing_interface(void *handle);
 
@@ -113,6 +115,7 @@ int ast_unregister_timing_interface(void *handle);
  *
  * \retval -1 error, with errno set
  * \retval >=0 success
+ * \since 1.6.1
  */
 int ast_timer_open(void);
 
@@ -122,6 +125,7 @@ int ast_timer_open(void);
  * \param handle timing fd returned from timer_open()
  *
  * \return nothing
+ * \since 1.6.1
  */
 void ast_timer_close(int handle);
 
@@ -137,6 +141,7 @@ void ast_timer_close(int handle);
  *
  * \retval -1 error, with errno set
  * \retval 0 success
+ * \since 1.6.1
  */
 int ast_timer_set_rate(int handle, unsigned int rate);
 
@@ -150,6 +155,7 @@ int ast_timer_set_rate(int handle, unsigned int rate);
  *       returned AST_TIMING_EVENT_EXPIRED.
  *
  * \return nothing
+ * \since 1.6.1
  */
 void ast_timer_ack(int handle, unsigned int quantity);
 
@@ -163,6 +169,7 @@ void ast_timer_ack(int handle, unsigned int quantity);
  *
  * \retval -1 failure, with errno set
  * \retval 0 success
+ * \since 1.6.1
  */
 int ast_timer_enable_continuous(int handle);
 
@@ -173,6 +180,7 @@ int ast_timer_enable_continuous(int handle);
  *
  * \retval -1 failure, with errno set
  * \retval 0 success
+ * \since 1.6.1
  */
 int ast_timer_disable_continuous(int handle);
 
@@ -185,6 +193,7 @@ int ast_timer_disable_continuous(int handle);
  * be called to find out what triggered it.
  *
  * \return which event triggered the timing fd
+ * \since 1.6.1
  */
 enum ast_timer_event ast_timer_get_event(int handle);
 
@@ -194,6 +203,7 @@ enum ast_timer_event ast_timer_get_event(int handle);
  * \param handle timing fd returned by timer_open()
  *
  * \return maximum rate supported for timing handle
+ * \since 1.6.1
  */
 unsigned int ast_timer_get_max_rate(int handle);
 

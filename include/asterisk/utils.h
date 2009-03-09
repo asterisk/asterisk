@@ -705,11 +705,13 @@ extern struct ast_eid g_eid;
 
 /*!
  * \brief Fill in an ast_eid with the default eid of this machine
+ * \since 1.6.1
  */
 void ast_set_default_eid(struct ast_eid *eid);
 
 /*!
  * /brief Convert an EID to a string
+ * \since 1.6.1
  */
 char *ast_eid_to_str(char *s, int maxlen, struct ast_eid *eid);
 
@@ -720,6 +722,7 @@ char *ast_eid_to_str(char *s, int maxlen, struct ast_eid *eid);
  *    00:11:22:33:44:55
  *
  * \return 0 success, non-zero failure
+ * \since 1.6.1
  */
 int ast_str_to_eid(struct ast_eid *eid, const char *s);
 
@@ -727,6 +730,7 @@ int ast_str_to_eid(struct ast_eid *eid, const char *s);
  * \brief Compare two EIDs
  *
  * \return 0 if the two are the same, non-zero otherwise
+ * \since 1.6.1
  */
 int ast_eid_cmp(const struct ast_eid *eid1, const struct ast_eid *eid2);
 

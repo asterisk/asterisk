@@ -70,7 +70,9 @@ enum ast_tps_options {
  * \param create Use 0 by default or specify TPS_REF_IF_EXISTS to return NULL if the taskprocessor does 
  * not already exist
  * return A pointer to a reference counted taskprocessor under normal conditions, or NULL if the
- * TPS_REF_IF_EXISTS reference type is specified and the taskprocessor does not exist */
+ * TPS_REF_IF_EXISTS reference type is specified and the taskprocessor does not exist
+ * \since 1.6.1
+ */
 struct ast_taskprocessor *ast_taskprocessor_get(char *name, enum ast_tps_options create);
 
 /*! \brief Unreference the specified taskprocessor and its reference count will decrement.
@@ -78,17 +80,23 @@ struct ast_taskprocessor *ast_taskprocessor_get(char *name, enum ast_tps_options
  * Taskprocessors use astobj2 and will unlink from the taskprocessor singleton container and destroy
  * themself when the taskprocessor reference count reaches zero.
  * \param tps taskprocessor to unreference
- * \return NULL */
+ * \return NULL
+ * \since 1.6.1
+ */
 void *ast_taskprocessor_unreference(struct ast_taskprocessor *tps);
 
 /*! \brief Push a task into the specified taskprocessor queue and signal the taskprocessor thread
  * \param tps The taskprocessor structure
  * \param task_exe The task handling function to push into the taskprocessor queue
  * \param datap The data to be used by the task handling function
- * \return zero on success, -1 on failure */
+ * \return zero on success, -1 on failure
+ * \since 1.6.1
+ */
 int ast_taskprocessor_push(struct ast_taskprocessor *tps, int (*task_exe)(void *datap), void *datap);
 
-/*! \brief Return the name of the taskprocessor singleton */
+/*! \brief Return the name of the taskprocessor singleton
+ * \since 1.6.1
+ */
 const char *ast_taskprocessor_name(struct ast_taskprocessor *tps);
 #endif
 

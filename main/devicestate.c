@@ -514,7 +514,6 @@ int ast_devstate_changed(enum ast_device_state state, const char *fmt, ...)
 	return ast_devstate_changed_literal(state, buf);
 }
 
-/*! \brief Accept change notification, add it to change queue */
 int ast_device_state_changed(const char *fmt, ...) 
 {
 	char buf[AST_MAX_EXTENSION];
