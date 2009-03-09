@@ -1,13 +1,116 @@
 ================================================================================
 ===                     Google Summer of Code 2009                           ===
-===                          Project Ideas                                   ===
 ===                                                                          ===
 ===                      http://www.asterisk.org/                            ===
 ===                                                                          ===
 ===                      <asteriskteam@digium.com>                           ===
 ================================================================================
 
-...
+--------------------------------------------------------------------------------
+--- Personnel ------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+Administrator: Russell Bryant
+
+Mentors:       Russell Bryant
+               Joshua Colp
+               Mark Michelson
+               Tilghman Lesher
+               Luigi Rizzo
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+--- Project Ideas --------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+Project difficulty is listed on a 1 through 5 scale.  A 1 would be a project
+appropriate for a college student with familiarity with C programming, but no
+experience with the Asterisk code base, or even Asterisk itself.  A project with
+a difficulty of 5 would be something appropriate for a student that already has
+significant experience with the Asterisk code base.
+
+1) There are a number of projects that fall into the category of improving and
+   creating new interfaces for developers to interface with Asterisk.  To get a
+   bit of an idea for the higher level vision of this effort, see the following
+   wiki page: <http://astridevcon.pbwiki.com/Codename-Pinemango/>.  
+  
+   Some insight regarding the motivation for this overall effort is captured
+   in this mailing list post, written by Brian Degenhardt.
+
+    - http://lists.digium.com/pipermail/asterisk-dev/2008-October/034700.html
+
+   Specific project ideas in this area are listed here:
+   
+
+   a) Create a generic "data get" layer for Asterisk components to be able to
+      expose data that they maintain.  Currently, modules implement specific
+      code to implement CLI commands, manager interface actions, and so forth,
+      while it would be much nicer to have this data available through a common
+      interface.  For example, SNMP support has been added to Asterisk but is
+      limited in what it can expose due to the lack of this interface.  This
+      project would be to create the infrastructure for this data layer and some
+      uses to prove its functionality.  Then, various parts of Asterisk could
+      be converted as time permits.  Note that this may end up sharing some code
+      with the "data put" interface in part b.
+
+      Difficulty - 2
+      Mentor     - TBD
+
+   b) Create a generic "data put" layer for Asterisk components to allow
+      external interfaces to update configuration items, as opposed to having
+      to issue a full configuration reload to account for a single change.
+      This project would involve writing the infrastructure and some basic usage
+      to prove its functionality.  Various parts of Asterisk could be converted
+      as time permits.  Note that this may end up sharing some code with the
+      "data get" interface in part a.
+
+      Difficulty - 2
+      Mentor     - TBD
+
+   c) Improve the performance of cache handling in the event core.  The event
+      API in Asterisk provides a generic interface for subscribing to and
+      publishing asynchronous events.  It also provides a caching mechanism for
+      events that represent state changes.  So, to find out a state, you can
+      pull it out of the event cache.  For example, the state of devices as used
+      for presence is handled using this mechanism.  The data structures
+      currently used for maintaining the cache are not optimal for performance
+      when the cache gets large.  This project would be to write code to
+      benchmark the performance of the caching mechanism, and then implement a
+      new storage mechanism that is more efficient.
+
+      Difficulty - 3
+      Mentor     - TBD
+
+   d) Develop a method for federating Asterisk servers using distributed events
+      with a transport suitable for communication beyond a LAN.  The current
+      event infrastructure includes ways to hook in and distribute events
+      between servers.  There is a module which implements this, res_ais, but
+      it is only suitable for federating servers on a high speed LAN.  This
+      project would be to implement a new event distribution module using a
+      protocol such as XMPP, or something else if deemed appropriate.
+
+      Difficulty - 2
+      Mentor     - TBD
+
+   e) Implement a method that makes it very easy to add synchronous hooks 
+      throughout the code base.  Hooks are arbitrary callbacks within the 
+      internals of asterisk where external components can modify asterisk's 
+      behavior.  While the dialplan allows applications to control much of the 
+      asterisk behavior, hooks allow for business logic to be applied to 
+      situations that are not associated with a call (eg: a sip registration 
+      hook could allow time-goverened registration period), or for situations 
+      that occur during the execution of a diaplan application (eg: codec 
+      negotiation hook to apply business logic to codecs proposed in the middle 
+      of a Dial command, or a transfer hook to execute business logic when a 
+      SIP REINVITE is received).
+
+      Difficulty - 3
+      Mentor - TBD
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 ================================================================================
 ================================================================================
