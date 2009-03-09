@@ -2020,7 +2020,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 static const struct sockaddr_in *sip_real_dst(const struct sip_pvt *p);
 static void build_via(struct sip_pvt *p);
 static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer);
-static int create_addr(struct sip_pvt *dialog, const char *opeer);
+static int create_addr(struct sip_pvt *dialog, const char *opeer, int newdialog);
 static char *generate_random_string(char *buf, size_t size);
 static void build_callid_pvt(struct sip_pvt *pvt);
 static void build_callid_registry(struct sip_registry *reg, struct in_addr ourip, const char *fromdomain);
@@ -4149,7 +4149,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 /*! \brief create address structure from peer name
  *      Or, if peer not found, find it in the global DNS 
  *      returns TRUE (-1) on failure, FALSE on success */
-static int create_addr(struct sip_pvt *dialog, const char *opeer)
+static int create_addr(struct sip_pvt *dialog, const char *opeer, int newdialog)
 {
 	struct hostent *hp;
 	struct ast_hostent ahp;
@@ -4169,7 +4169,11 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 	peer = find_peer(peername, NULL, 1, 0);
 
 	if (peer) {
-		int res = create_addr_from_peer(dialog, peer);
+		int res;
+		if (newdialog) {
+			dialog->socket.type = 0;
+		}
+		res = create_addr_from_peer(dialog, peer);
 		unref_peer(peer);
 		return res;
 	}
@@ -9549,7 +9553,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		p->outboundproxy = obproxy_get(p, NULL);
 
 		/* Find address to hostname */
-		if (create_addr(p, r->hostname)) {
+		if (create_addr(p, r->hostname, 0)) {
 			/* we have what we hope is a temporary network error,
 			 * probably DNS.  We need to reschedule a registration try */
 			sip_destroy(p);
@@ -14236,7 +14240,7 @@ static char *sip_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 			return CLI_FAILURE;
 		}
 
-		if (create_addr(p, a->argv[i])) {
+		if (create_addr(p, a->argv[i], 0)) {
 			/* Maybe they're not registered, etc. */
 			sip_destroy(p);
 			ast_cli(a->fd, "Could not create address for '%s'\n", a->argv[i]);
@@ -16941,7 +16945,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			if ((peerorhost = strchr(uri, ':'))) {
 				*peerorhost++ = '\0';
 			}
-			create_addr(p, peerorhost);
+			create_addr(p, peerorhost, 0);
 			ast_string_field_set(p, theirtag, NULL);
 			for (pkt = p->packets; pkt; pkt = pkt->next) {
 				if (pkt->seqno == p->icseq && pkt->method == SIP_INVITE) {
@@ -20072,7 +20076,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 		ext = extension (user part of URI)
 		dnid = destination of the call (applies to the To: header)
 	*/
-	if (create_addr(p, host)) {
+	if (create_addr(p, host, 1)) {
 		*cause = AST_CAUSE_UNREGISTERED;
 		ast_debug(3, "Cant create SIP call - target device not registered\n");
 		sip_destroy(p);
