@@ -53,7 +53,7 @@ struct enum_context {
 };
 
 
-/*! \brief Lookup entry in ENUM 
+/*! \brief Lookup entry in ENUM
 	\param chan	Channel
 	\param number   E164 number with or without the leading +
 	\param location Number returned	(or SIP uri)
@@ -76,16 +76,25 @@ struct enum_context {
 	\retval 0 if not found
 	\retval -1 on hangup
 */
-int ast_get_enum(struct ast_channel *chan, const char *number, char *location, int maxloc, char *technology, 
+int ast_get_enum(struct ast_channel *chan, const char *number, char *location, int maxloc, char *technology,
 		int maxtech, char* suffix, char* options, unsigned int record, struct enum_context **argcontext);
 
-/*!	\brief Lookup DNS TXT record (used by app TXTCIDnum
-	\param chan	Channel
-	\param number   E164 number with or without the leading +
-	\param txt	Text string (return value)
-	\param maxtxt	Max length of "txt"
-	\param suffix	Zone suffix
-*/
+/*!	\brief Lookup DNS TXT record (used by app TXTCIDnum)
+ *
+ * Really has nothing to do with enum, but anyway...
+ * Actually, there is now an internet-draft which describes how callerID should
+ * be stored in ENUM domains: draft-ietf-enum-cnam-04.txt
+ * The algorithm implemented here will thus be obsolete soon.
+ *
+ * \param chan	Channel
+ * \param number   E164 number with or without the leading +
+ * \param txt	Text string (return value)
+ * \param maxtxt	Max length of "txt"
+ * \param suffix	Zone suffix
+ * \version 1.6.1 new suffix parameter to take into account caller ids that aren't in e164.arpa
+ * \version 1.6.1 removed parameters location, maxloc, technology, maxtech as all the information
+ * is stored the txt string
+ */
 int ast_get_txt(struct ast_channel *chan, const char *number, char *txt, int maxtxt, char *suffix);
 
 int ast_enum_init(void);

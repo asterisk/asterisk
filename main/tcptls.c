@@ -326,9 +326,6 @@ int ast_ssl_setup(struct ast_tls_config *cfg)
 	return __ssl_setup(cfg, 0);
 }
 
-/*! \brief A generic client routine for a TCP client
- *  and starts a thread for handling accept()
- */
 struct ast_tcptls_session_instance *ast_tcptls_client_start(struct ast_tcptls_session_args *desc)
 {
 	int flags;
@@ -408,11 +405,6 @@ error:
 	return NULL;
 }
 
-/*! \brief
- * This is a generic (re)start routine for a TCP server,
- * which does the socket/bind/listen and starts a thread for handling
- * accept().
- */
 void ast_tcptls_server_start(struct ast_tcptls_session_args *desc)
 {
 	int flags;
@@ -476,7 +468,6 @@ error:
 	desc->accept_fd = -1;
 }
 
-/*! \brief Shutdown a running server if there is one */
 void ast_tcptls_server_stop(struct ast_tcptls_session_args *desc)
 {
 	if (desc->master != AST_PTHREADT_NULL) {

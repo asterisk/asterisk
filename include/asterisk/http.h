@@ -58,11 +58,11 @@
    \note The method and the path as arguments and should
    return the content, allocated with malloc().  Status should be changed to reflect
    the status of the request if it isn't 200 and title may be set to a malloc()'d string
-   to an appropriate title for non-200 responses.  Content length may also be specified. 
-\verbatim   
-   The return value may include additional headers at the front and MUST include a blank 
+   to an appropriate title for non-200 responses.  Content length may also be specified.
+\verbatim
+   The return value may include additional headers at the front and MUST include a blank
    line with \r\n to provide separation between user headers and content (even if no
-   content is specified) 
+   content is specified)
 \endverbatim
 */
 
@@ -109,7 +109,12 @@ void ast_http_uri_unlink_all_with_key(const char *key);
 /*! \brief Return an ast_str malloc()'d string containing an HTTP error message */
 struct ast_str *ast_http_error(int status, const char *title, const char *extra_header, const char *text);
 
-/*! \brief Return the current prefix */
+/*!
+ * \brief Return the current prefix
+ * \param buf[out] destination buffer for previous
+ * \param len[in] length of prefix to copy
+ * \since 1.6.1
+ */
 void ast_http_prefix(char *buf, int len);
 
 #endif /* _ASTERISK_SRV_H */

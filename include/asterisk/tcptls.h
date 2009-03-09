@@ -149,10 +149,27 @@ struct ast_tcptls_session_instance {
 #define LEN_T size_t
 #endif
 
+/*!
+ * \brief A generic client routine for a TCP client
+ * and starts a thread for handling accept()
+ * \version 1.6.1 changed desc parameter to be of ast_tcptls_session_args type
+ */
 struct ast_tcptls_session_instance *ast_tcptls_client_start(struct ast_tcptls_session_args *desc);
 
 void *ast_tcptls_server_root(void *);
+
+/*!
+ * \brief This is a generic (re)start routine for a TCP server,
+ * which does the socket/bind/listen and starts a thread for handling
+ * accept().
+ * \version 1.6.1 changed desc parameter to be of ast_tcptls_session_args type
+ */
 void ast_tcptls_server_start(struct ast_tcptls_session_args *desc);
+
+/*!
+ * \brief Shutdown a running server if there is one
+ * \version 1.6.1 changed desc parameter to be of ast_tcptls_session_args type
+ */
 void ast_tcptls_server_stop(struct ast_tcptls_session_args *desc);
 int ast_ssl_setup(struct ast_tls_config *cfg);
 

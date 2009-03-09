@@ -37,7 +37,7 @@
   \retval non-zero on failure
 */
 #define AST_LIST_LOCK(head)						\
-	ast_mutex_lock(&(head)->lock) 
+	ast_mutex_lock(&(head)->lock)
 
 /*!
   \brief Write locks a list.
@@ -62,7 +62,7 @@
 */
 #define AST_RWLIST_RDLOCK(head)                                         \
         ast_rwlock_rdlock(&(head)->lock)
-	
+
 /*!
   \brief Locks a list, without blocking if the list is locked.
   \param head This is a pointer to the list head structure
@@ -73,7 +73,7 @@
   \retval non-zero on failure
 */
 #define AST_LIST_TRYLOCK(head)						\
-	ast_mutex_trylock(&(head)->lock) 
+	ast_mutex_trylock(&(head)->lock)
 
 /*!
   \brief Write locks a list, without blocking if the list is locked.
@@ -98,7 +98,7 @@
 */
 #define AST_RWLIST_TRYRDLOCK(head)                                      \
         ast_rwlock_tryrdlock(&(head)->lock)
-	
+
 /*!
   \brief Attempts to unlock a list.
   \param head This is a pointer to the list head structure
@@ -383,7 +383,7 @@ struct {								\
 }
 
 #define AST_RWLIST_ENTRY AST_LIST_ENTRY
- 
+
 /*!
   \brief Returns the first entry contained in a list.
   \param head This is a pointer to the list head structure
@@ -701,6 +701,7 @@ struct {								\
  * \param elm Pointer to the entry to be inserted
  * \param field Name of the list entry field (declared using AST_LIST_ENTRY())
  * \param sortfield Name of the field on which the list is sorted
+ * \since 1.6.1
  */
 #define AST_LIST_INSERT_SORTALPHA(head, elm, field, sortfield) do { \
 	if (!(head)->first) {                                           \

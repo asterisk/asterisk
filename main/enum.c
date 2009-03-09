@@ -915,14 +915,6 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 	return ret;
 }
 
-/*!\brief Get TXT record from DNS.
- * Really has nothing to do with enum, but anyway...
- *
- * Actually, there is now an internet-draft which describes how callerID should
- * be stored in ENUM domains: draft-ietf-enum-cnam-04.txt
- *
- * The algorithm implemented here will thus be obsolete soon.
- */
 int ast_get_txt(struct ast_channel *chan, const char *number, char *txt, int txtlen, char *suffix)
 {
 	struct txt_context context;

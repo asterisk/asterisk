@@ -59,13 +59,18 @@ struct ast_datastore {
 	AST_LIST_ENTRY(ast_datastore) entry; 	/*!< Used for easy linking */
 };
 
-/*! 
+/*!
  * \brief Create a data store object
+ * \param[in] info information describing the data store object
+ * \param[in] uid unique identifer
+ * \version 1.6.1 moved here and renamed from ast_channel_datastore_alloc
  */
 struct ast_datastore *ast_datastore_alloc(const struct ast_datastore_info *info, const char *uid);
 
 /*!
  * \brief Free a data store object
+ * \param[in] datastore datastore to free
+ * \version 1.6.1 moved here and renamed from ast_channel_datastore_free
  */
 int ast_datastore_free(struct ast_datastore *datastore);
 

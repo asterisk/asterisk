@@ -138,7 +138,7 @@ struct ast_lock_track {
 
 struct ast_mutex_info {
 	/*! Track which thread holds this mutex */
-	struct ast_lock_track track;	
+	struct ast_lock_track track;
 	unsigned int tracking:1;
 	pthread_mutex_t mutex;
 };
@@ -240,6 +240,8 @@ static inline void __dump_backtrace(struct ast_bt *bt, int canlog)
  * that is unexpectedly but momentarily locked, and you wonder who
  * are fighting with for the lock, this routine could be called, IF
  * you have the thread debugging stuff turned on.
+ * \param this_lock_addr lock address to return lock information
+ * \since 1.6.1
  */
 void log_show_lock(void *this_lock_addr);
 
@@ -367,7 +369,7 @@ static inline void delete_reentrancy_cs(struct ast_lock_track *lt)
 }
 
 static inline int __ast_pthread_mutex_init(int tracking, const char *filename, int lineno, const char *func,
-						const char *mutex_name, ast_mutex_t *t) 
+						const char *mutex_name, ast_mutex_t *t)
 {
 	int res;
 	pthread_mutexattr_t  attr;
@@ -412,7 +414,7 @@ static inline int __ast_pthread_mutex_destroy(const char *filename, int lineno, 
 	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
 		/* Don't try to uninitialize non initialized mutex
 		 * This may no effect on linux
-		 * And always ganerate core on *BSD with 
+		 * And always ganerate core on *BSD with
 		 * linked libpthread
 		 * This not error condition if the mutex created on the fly.
 		 */
@@ -491,7 +493,7 @@ static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, con
 			__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized and unable to initialize.\n",
 					 filename, lineno, func, mutex_name);
 			return res;
-		}		
+		}
 	}
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
@@ -613,7 +615,7 @@ static inline int __ast_pthread_mutex_trylock(const char *filename, int lineno, 
 			__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized and unable to initialize.\n",
 					 filename, lineno, func, mutex_name);
 			return res;
-		}		
+		}
 	}
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
@@ -716,7 +718,7 @@ static inline int __ast_pthread_mutex_unlock(const char *filename, int lineno, c
 	}
 
 	if ((res = pthread_mutex_unlock(&t->mutex))) {
-		__ast_mutex_logger("%s line %d (%s): Error releasing mutex: %s\n", 
+		__ast_mutex_logger("%s line %d (%s): Error releasing mutex: %s\n",
 				   filename, lineno, func, strerror(res));
 		DO_THREAD_CRASH;
 	}
@@ -813,7 +815,7 @@ static inline int __ast_cond_wait(const char *filename, int lineno, const char *
 	}
 
 	if ((res = pthread_cond_wait(cond, &t->mutex))) {
-		__ast_mutex_logger("%s line %d (%s): Error waiting on condition mutex '%s'\n", 
+		__ast_mutex_logger("%s line %d (%s): Error waiting on condition mutex '%s'\n",
 				   filename, lineno, func, strerror(res));
 		DO_THREAD_CRASH;
 	} else {
@@ -908,9 +910,9 @@ static inline int __ast_cond_timedwait(const char *filename, int lineno, const c
 		ast_remove_lock_info(t);
 #endif
 	}
-	
+
 	if ((res = pthread_cond_timedwait(cond, &t->mutex, abstime)) && (res != ETIMEDOUT)) {
-		__ast_mutex_logger("%s line %d (%s): Error waiting on condition mutex '%s'\n", 
+		__ast_mutex_logger("%s line %d (%s): Error waiting on condition mutex '%s'\n",
 				   filename, lineno, func, strerror(res));
 		DO_THREAD_CRASH;
 	} else {
@@ -963,7 +965,18 @@ struct ast_rwlock_info {
 
 typedef struct ast_rwlock_info ast_rwlock_t;
 
+/*!
+ * \brief wrapper for rwlock with tracking enabled
+ * \return 0 on success, non zero for error
+ * \since 1.6.1
+ */
 #define ast_rwlock_init(rwlock) __ast_rwlock_init(1, __FILE__, __LINE__, __PRETTY_FUNCTION__, #rwlock, rwlock)
+
+/*!
+ * \brief wrapper for ast_rwlock_init with tracking disabled
+ * \return 0 on success, non zero for error
+ * \since 1.6.1
+ */
 #define ast_rwlock_init_notracking(rwlock) __ast_rwlock_init(0, __FILE__, __LINE__, __PRETTY_FUNCTION__, #rwlock, rwlock)
 
 #define ast_rwlock_destroy(rwlock)	__ast_rwlock_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, #rwlock, rwlock)
@@ -977,7 +990,7 @@ typedef struct ast_rwlock_info ast_rwlock_t;
 #ifdef HAVE_PTHREAD_RWLOCK_INITIALIZER
 #define __AST_RWLOCK_INIT_VALUE PTHREAD_RWLOCK_INITIALIZER
 #else  /* HAVE_PTHREAD_RWLOCK_INITIALIZER */
-#define __AST_RWLOCK_INIT_VALUE {0} 
+#define __AST_RWLOCK_INIT_VALUE {0}
 #endif /* HAVE_PTHREAD_RWLOCK_INITIALIZER */
 
 #define AST_RWLOCK_INIT_VALUE \
@@ -1027,7 +1040,7 @@ static inline int __ast_rwlock_destroy(const char *filename, int lineno, const c
 		return 0;
 	}
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
-	
+
 	if ((res = pthread_rwlock_destroy(&t->lock))) {
 		__ast_mutex_logger("%s line %d (%s): Error destroying rwlock %s: %s\n",
 				filename, lineno, func, rwlock_name, strerror(res));
@@ -1070,7 +1083,7 @@ static inline int _ast_rwlock_unlock(ast_rwlock_t *t, const char *name,
 		return res;
 	}
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
-	
+
 	ast_reentrancy_lock(lt);
 	if (lt->reentrancy) {
 		int lock_found = 0;
@@ -1160,13 +1173,13 @@ static inline int _ast_rwlock_rdlock(ast_rwlock_t *t, const char *name,
 		ast_reentrancy_lock(lt);
 		ast_bt_get_addresses(&lt->backtrace[lt->reentrancy]);
 		bt = &lt->backtrace[lt->reentrancy];
-		ast_reentrancy_unlock(lt);	
+		ast_reentrancy_unlock(lt);
 		ast_store_lock_info(AST_RDLOCK, filename, line, func, name, t, bt);
 #else
 		ast_store_lock_info(AST_RDLOCK, filename, line, func, name, t);
 #endif
 	}
-	
+
 #ifdef DETECT_DEADLOCKS
 	{
 		time_t seconds = time(NULL);
@@ -1198,7 +1211,7 @@ static inline int _ast_rwlock_rdlock(ast_rwlock_t *t, const char *name,
 #else /* !DETECT_DEADLOCKS */
 	res = pthread_rwlock_rdlock(&t->lock);
 #endif /* !DETECT_DEADLOCKS */
-	
+
 	if (!res) {
 		ast_reentrancy_lock(lt);
 		if (lt->reentrancy < AST_MAX_REENTRANCY) {
@@ -1371,7 +1384,7 @@ static inline int _ast_rwlock_tryrdlock(ast_rwlock_t *t, const char *name,
 		}
 	}
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
-	
+
 	if (t->tracking) {
 #ifdef HAVE_BKTR
 		ast_reentrancy_lock(lt);
@@ -1383,7 +1396,7 @@ static inline int _ast_rwlock_tryrdlock(ast_rwlock_t *t, const char *name,
 		ast_store_lock_info(AST_RDLOCK, filename, line, func, name, t);
 #endif
 	}
-	
+
 	if (!(res = pthread_rwlock_tryrdlock(&t->lock))) {
 		ast_reentrancy_lock(lt);
 		if (lt->reentrancy < AST_MAX_REENTRANCY) {
@@ -1443,7 +1456,7 @@ static inline int _ast_rwlock_trywrlock(ast_rwlock_t *t, const char *name,
 		ast_store_lock_info(AST_WRLOCK, filename, line, func, name, t);
 #endif
 	}
-	
+
 	if (!(res = pthread_rwlock_trywrlock(&t->lock))) {
 		ast_reentrancy_lock(lt);
 		if (lt->reentrancy < AST_MAX_REENTRANCY) {
@@ -1635,7 +1648,7 @@ static void  __attribute__((destructor)) fini_##mutex(void)	\
 	ast_mutex_destroy(&mutex);				\
 }
 #else /* !AST_MUTEX_INIT_W_CONSTRUCTORS */
-/* By default, use static initialization of mutexes. */ 
+/* By default, use static initialization of mutexes. */
 #define __AST_MUTEX_DEFINE(scope, mutex, init_val, track)	scope ast_mutex_t mutex = init_val
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
@@ -1733,7 +1746,7 @@ AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
 {
 	__asm __volatile (
 	"       lock;  xaddl   %0, %1 ;        "
-	: "+r" (v),                     /* 0 (result) */   
+	: "+r" (v),                     /* 0 (result) */
 	  "=m" (*p)                     /* 1 */
 	: "m" (*p));                    /* 2 */
 	return (v);
@@ -1743,7 +1756,7 @@ AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
 {
 	__asm __volatile (
 	"       lock   xaddl   %0, %1 ;        "
-	: "+r" (v),                     /* 0 (result) */   
+	: "+r" (v),                     /* 0 (result) */
 	  "=m" (*p)                     /* 1 */
 	: "m" (*p));                    /* 2 */
 	return (v);
@@ -1782,13 +1795,13 @@ AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
 #endif
 
 #ifndef DEBUG_CHANNEL_LOCKS
-/*! \brief Lock a channel. If DEBUG_CHANNEL_LOCKS is defined 
+/*! \brief Lock a channel. If DEBUG_CHANNEL_LOCKS is defined
 	in the Makefile, print relevant output for debugging */
 #define ast_channel_lock(x)		ast_mutex_lock(&x->lock_dont_use)
-/*! \brief Unlock a channel. If DEBUG_CHANNEL_LOCKS is defined 
+/*! \brief Unlock a channel. If DEBUG_CHANNEL_LOCKS is defined
 	in the Makefile, print relevant output for debugging */
 #define ast_channel_unlock(x)		ast_mutex_unlock(&x->lock_dont_use)
-/*! \brief Try locking a channel. If DEBUG_CHANNEL_LOCKS is defined 
+/*! \brief Try locking a channel. If DEBUG_CHANNEL_LOCKS is defined
 	in the Makefile, print relevant output for debugging */
 #define ast_channel_trylock(x)		ast_mutex_trylock(&x->lock_dont_use)
 #else
