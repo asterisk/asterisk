@@ -1,3 +1,10 @@
+2009-03-10  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.4.23.2 released.
+
+	* channels/chan_sip.c: Regression fix for AST-2009-002 security
+	fix.
+
 2009-01-23  Tilghman Lesher <tlesher@digium.com>
 
 	* Asterisk 1.4.23.1 released.
