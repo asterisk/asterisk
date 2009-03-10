@@ -108,6 +108,15 @@ significant experience with the Asterisk code base.
       Difficulty - 3
       Language   - C
 
+   f) There is a generic asynchronous event API in Asterisk, and there is a
+      lot of code that generates events for the existing manager interface.
+      This project would be to go through the code base and add new events
+      for the new event system everywhere where manager events are generated
+      today.
+
+      Difficulty - 2
+      Language   - C
+
 2) This section contains projects related to Voicemail support in Asterisk.
 
    a) Extract the support for storage backends into an API to reduce code
@@ -196,6 +205,16 @@ significant experience with the Asterisk code base.
 
       Difficulty - 3
       Language   - C
+
+6) There are a number of potential projects that could be done to improve
+   security in Asterisk.  A document that lists some of the security challenges
+   currently faced and some ideas for improvements that could be made can be
+   found in the following document:
+
+   http://astridevcon.pbwiki.com/Network-Security-Framework
+
+   Difficulty - 1 to 5
+   Language   - C
 
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
