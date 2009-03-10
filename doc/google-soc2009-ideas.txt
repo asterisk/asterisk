@@ -108,13 +108,22 @@ significant experience with the Asterisk code base.
       Difficulty - 3
       Language   - C
 
-   f) There is a generic asynchronous event API in Asterisk, and there is a
-      lot of code that generates events for the existing manager interface.
-      This project would be to go through the code base and add new events
-      for the new event system everywhere where manager events are generated
-      today.
-
-      Difficulty - 2
+   f) Asterisk has a relatively new generic asynchronous event API. While it 
+      has been implemented in several areas of the code base, one place where 
+      it has not been utilized but would make a great fit would be to replace 
+      the legacy code used for generating events on the Asterisk Manager 
+      Interface (AMI).  The first phase of this project would be to go through
+      the code base and generate new generic Asterisk events in places where
+      manager events are generated today.  That means that those events would
+      be available to any part of Asterisk that would be interested in doing
+      something with them in a binary format as opposed to a big string.
+      
+      As time permits, a second phase to this project would be to either write
+      a new socket based interface that exposes the generic event API, or to
+      modify the existing manager interface to use the ast_event API to handle
+      receiving events from inside of Asterisk to send to manager clients.
+       
+      Difficulty - 3
       Language   - C
 
 2) This section contains projects related to Voicemail support in Asterisk.
