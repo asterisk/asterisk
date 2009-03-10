@@ -4175,6 +4175,11 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, int newdialog)
 		}
 		res = create_addr_from_peer(dialog, peer);
 		unref_peer(peer);
+		if (!ast_strlen_zero(port)) {
+			if ((portno = atoi(port))) {
+				dialog->sa.sin_port = dialog->recv.sin_port = htons(portno);
+			}
+		}
 		return res;
 	}
 
