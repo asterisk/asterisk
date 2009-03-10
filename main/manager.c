@@ -2662,6 +2662,9 @@ static int action_userevent(struct mansession *s, const struct message *m)
 	const char *event = astman_get_header(m, "UserEvent");
 	struct ast_str *body = ast_str_thread_get(&userevent_buf, 16);
 	int x;
+
+	ast_str_reset(body);
+
 	for (x = 0; x < m->hdrcount; x++) {
 		if (strncasecmp("UserEvent:", m->headers[x], strlen("UserEvent:"))) {
 			ast_str_append(&body, 0, "%s\r\n", m->headers[x]);
