@@ -21,15 +21,15 @@ Mentors:       Russell Bryant
 Contact:
 
     To get in contact with mentors or the Asterisk development community in
-	general, the best place is the asterisk-dev mailing list, hosted on 
-	http://lists.digium.com/.  Alternatively, many developers can be found in
-	the #asterisk-dev IRC channel on Freenode.  The most active time for this
-	channel on IRC is during US business hours.
+    general, the best place is the asterisk-dev mailing list, hosted on 
+    http://lists.digium.com/.  Alternatively, many developers can be found in
+    the #asterisk-dev IRC channel on Freenode.  The most active time for this
+    channel on IRC is during US business hours.
 
-	Feel free to get in contact with the development community ahead of time if
-	you are a student interested in applying for a project with Asterisk.  We
-	can help explain projects proposed here, or help come up with potential
-	alternative project proposals.
+    Feel free to get in contact with the development community ahead of time if
+    you are a student interested in applying for a project with Asterisk.  We
+    can help explain projects proposed here, or help come up with potential
+    alternative project proposals.
 
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
