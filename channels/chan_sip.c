@@ -12618,7 +12618,7 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 	ast_copy_string(referdata->refer_to_context, transfer_context, sizeof(referdata->refer_to_context));
 	
 	/* Either an existing extension or the parking extension */
-	if (ast_exists_extension(NULL, transfer_context, refer_to, 1, NULL) ) {
+	if (referdata->attendedtransfer || ast_exists_extension(NULL, transfer_context, refer_to, 1, NULL) ) {
 		if (sip_debug_test_pvt(transferer)) {
 			ast_verbose("SIP transfer to extension %s@%s by %s\n", refer_to, transfer_context, referred_by_uri);
 		}
