@@ -398,7 +398,6 @@ char *ast_process_quotes_and_slashes(char *start, char find, char replace_with);
 
 long int ast_random(void);
 
-#define ast_free free
 
 /*! 
  * \brief free() wrapper
@@ -413,6 +412,7 @@ static void ast_free_ptr(void *ptr)
 	ast_free(ptr);
 }
 #else
+#define ast_free free
 #define ast_free_ptr ast_free
 #endif
 
@@ -597,19 +597,6 @@ int _ast_vasprintf(char **ret, const char *file, int lineno, const char *func, c
 	return res;
 }
 )
-
-#else
-
-/* If astmm is in use, let it handle these.  Otherwise, it will report that
-   all allocations are coming from this header file */
-
-#define ast_malloc(a)		malloc(a)
-#define ast_calloc(a,b)		calloc(a,b)
-#define ast_realloc(a,b)	realloc(a,b)
-#define ast_strdup(a)		strdup(a)
-#define ast_strndup(a,b)	strndup(a,b)
-#define ast_asprintf(a,b,...)	asprintf(a,b,__VA_ARGS__)
-#define ast_vasprintf(a,b,c)	vasprintf(a,b,c)
 
 #endif /* AST_DEBUG_MALLOC */
 

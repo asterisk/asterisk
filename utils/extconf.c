@@ -891,10 +891,10 @@ int ast_channel_trylock(struct ast_channel *chan);
 /* from utils.h */
 
 #define ast_free free
+#define ast_free_ptr free
 
 #define MALLOC_FAILURE_MSG \
 	ast_log(LOG_ERROR, "Memory Allocation Failure in function %s at line %d of %s\n", func, lineno, file);
-#ifndef __AST_DEBUG_MALLOC
 
 /*!
  * \brief A wrapper for malloc()
@@ -928,97 +928,6 @@ int ast_channel_trylock(struct ast_channel *chan);
 #define ast_vasprintf(ret, fmt, ap) \
 	_ast_vasprintf((ret), __FILE__, __LINE__, __PRETTY_FUNCTION__, (fmt), (ap))
 
-#else
-
-/* If astmm is in use, let it handle these.  Otherwise, it will report that
-   all allocations are coming from this header file */
-
-#undef __ast_calloc
-#undef calloc
-#undef ast_calloc
-
-#define ast_malloc(a)		malloc(a)
-#define ast_calloc(a,b)		calloc(a,b)
-#define ast_realloc(a,b)	realloc(a,b)
-#define ast_strdup(a)		strdup(a)
-#define ast_strndup(a,b)	strndup(a,b)
-#define ast_asprintf(a,b,...)	asprintf(a,b,__VA_ARGS__)
-#define ast_vasprintf(a,b,c)	vasprintf(a,b,c)
-
-void * attribute_malloc __ast_malloc(size_t len, const char *file, int lineno, const char *func)
-{
-	void *p;
-
-	if (!(p = malloc(len)))
-		MALLOC_FAILURE_MSG;
-
-	return p;
-}
-
-void * attribute_malloc __ast_calloc(size_t num, size_t len, const char *file, int lineno, const char *func)
-{
-	void *p;
-
-	if (!(p = calloc(num, len)))
-		MALLOC_FAILURE_MSG;
-
-	return p;
-}
-
-void * attribute_malloc _ast_calloc(size_t num, size_t len, const char *file, int lineno, const char *func);
-
-void * attribute_malloc _ast_calloc(size_t num, size_t len, const char *file, int lineno, const char *func)
-{
-	void *p;
-
-	if (!(p = calloc(num, len)))
-		MALLOC_FAILURE_MSG;
-
-	return p;
-}
-
-void * attribute_malloc __ast_realloc(void *p, size_t len, const char *file, int lineno, const char *func)
-{
-	void *newp;
-
-	if (!(newp = realloc(p, len)))
-		MALLOC_FAILURE_MSG;
-
-	return newp;
-}
-
-char * attribute_malloc __ast_strdup(const char *str, const char *file, int lineno, const char *func)
-{
-	char *newstr = NULL;
-
-	if (str) {
-		if (!(newstr = strdup(str)))
-			MALLOC_FAILURE_MSG;
-	}
-
-	return newstr;
-}
-
-char * attribute_malloc __ast_strndup(const char *str, size_t len, const char *file, int lineno, const char *func)
-{
-	char *newstr = NULL;
-
-	if (str) {
-		if (!(newstr = strndup(str, len)))
-			MALLOC_FAILURE_MSG;
-	}
-
-	return newstr;
-}
-
-void __ast_free(void *ptr, const char *file, int lineno, const char *func)
-{
-#undef free
-	free(ptr);
-}
-
-#endif /* AST_DEBUG_MALLOC */
-
 
 static unsigned int __unsigned_int_flags_dummy;
 
@@ -1043,8 +952,6 @@ struct ast_flags {  /* stolen from utils.h */
 					} while (0)
 
 
-
-#ifndef __AST_DEBUG_MALLOC
 
 #define MALLOC_FAILURE_MSG \
 	ast_log(LOG_ERROR, "Memory Allocation Failure in function %s at line %d of %s\n", func, lineno, file);
@@ -1238,20 +1145,6 @@ int _ast_vasprintf(char **ret, const char *file, int lineno, const char *func, c
 	return res;
 }
 )
-
-#else
-
-/* If astmm is in use, let it handle these.  Otherwise, it will report that
-   all allocations are coming from this header file */
-
-#define ast_malloc(a)		malloc(a)
-#define ast_calloc(a,b)		calloc(a,b)
-#define ast_realloc(a,b)	realloc(a,b)
-#define ast_strdup(a)		strdup(a)
-#define ast_strndup(a,b)	strndup(a,b)
-#define ast_vasprintf(a,b,c)	vasprintf(a,b,c)
-
-#endif /* AST_DEBUG_MALLOC */
 
 #if !defined(ast_strdupa) && defined(__GNUC__)
 /*!
@@ -6092,7 +5985,7 @@ static int pbx_load_config(const char *config_file)
 						lastpri = ipri;
 						if (!ast_opt_dont_warn && !strcmp(realext, "_."))
 							ast_log(LOG_WARNING, "The use of '_.' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X.' instead at line %d\n", v->lineno);
-						if (ast_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), ast_free, global_registrar)) {
+						if (ast_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), ast_free_ptr, global_registrar)) {
 							ast_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
 						}
 					}

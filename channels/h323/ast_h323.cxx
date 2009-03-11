@@ -140,7 +140,7 @@ int PAsteriskLog::Buffer::underflow()
 
 int PAsteriskLog::Buffer::sync()
 {
-	char *str = strdup(string);
+	char *str = ast_strdup(string);
 	char *s, *s1;
 	char c;
 
@@ -156,7 +156,7 @@ int PAsteriskLog::Buffer::sync()
 		ast_verbose("%s", s);
 		*s1 = c;
 	}
-	free(str);
+	ast_free(str);
 
 	string = PString();
 	char *base = string.GetPointer(2000);
@@ -2141,7 +2141,7 @@ MyH323_ExternalRTPChannel::MyH323_ExternalRTPChannel(MyH323Connection & connecti
 		/* tell the H.323 stack */
 		SetExternalAddress(H323TransportAddress(localIpAddr, localPort), H323TransportAddress(localIpAddr, localPort + 1));
 		/* clean up allocated memory */
-		free(info);
+		ast_free(info);
 	}
 
 	/* Get the payload code	*/
@@ -2388,7 +2388,7 @@ int h323_set_alias(struct oh323_alias *alias)
 			endPoint->SetGateway();
 		}
 		if (prefix)
-			free(prefix);
+			ast_free(prefix);
 	}
 	return 0;
 }

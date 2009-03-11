@@ -1754,7 +1754,7 @@ static void pbx_load_users(void)
 				c = altcopy;
 				ext = strsep(&c, ",");
 				while (ext) {
-					ast_add_extension2(con, 0, ext, 1, NULL, NULL, "Goto", strdup(tmp), ast_free, registrar);
+					ast_add_extension2(con, 0, ext, 1, NULL, NULL, "Goto", strdup(tmp), ast_free_ptr, registrar);
 					ext = strsep(&c, ",");
 				}
 			}
