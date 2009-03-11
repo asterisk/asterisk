@@ -9215,34 +9215,43 @@ static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *t
 
 	ast_mutex_lock(&iflock);
 
-	if (option_debug > 3 && totag)
+	if (option_debug > 3 && totag) {
 		ast_log(LOG_DEBUG, "Looking for callid %s (fromtag %s totag %s)\n", callid, fromtag ? fromtag : "<no fromtag>", totag ? totag : "<no totag>");
+	}
 
 	/* Search interfaces and find the match */
 	for (sip_pvt_ptr = iflist; sip_pvt_ptr; sip_pvt_ptr = sip_pvt_ptr->next) {
 		if (!strcmp(sip_pvt_ptr->callid, callid)) {
 			int match = 1;
 
+			if (option_debug > 3)
+				ast_log(LOG_DEBUG, "Found call with callid %s (ourtag=%s, theirtag=%s)\n", callid, sip_pvt_ptr->tag, sip_pvt_ptr->theirtag);
+
 			/* Go ahead and lock it (and its owner) before returning */
 			ast_mutex_lock(&sip_pvt_ptr->lock);
 
 			/* Check if tags match. If not, this is not the call we want
-			   (With a forking SIP proxy, several call legs share the
-			   call id, but have different tags)
-			*/
+			 * (With a forking SIP proxy, several call legs share the
+			 * call id, but have different tags)
+			 */
 			if (pedanticsipchecking) {
 				const char *pvt_fromtag, *pvt_totag;
 
-				if (ast_test_flag(&sip_pvt_ptr->flags[1], SIP_PAGE2_OUTGOING_CALL)) {
-					/* Outgoing call tags : from is "our", to is "their" */
-					pvt_fromtag = sip_pvt_ptr->tag ;
-					pvt_totag = sip_pvt_ptr->theirtag ;
-				} else {
-					/* Incoming call tags : from is "their", to is "our" */
-					pvt_fromtag = sip_pvt_ptr->theirtag ;
-					pvt_totag = sip_pvt_ptr->tag ;
-				}
-				if (ast_strlen_zero(fromtag) || strcmp(fromtag, pvt_fromtag) || (!ast_strlen_zero(totag) && strcmp(totag, pvt_totag)))
+				/* RFC 3891
+				 * > 3.  User Agent Server Behavior: Receiving a Replaces Header
+				 * > The Replaces header contains information used to match an existing
+				 * > SIP dialog (call-id, to-tag, and from-tag).  Upon receiving an INVITE
+				 * > with a Replaces header, the User Agent (UA) attempts to match this
+				 * > information with a confirmed or early dialog.  The User Agent Server
+				 * > (UAS) matches the to-tag and from-tag parameters as if they were tags
+				 * > present in an incoming request.  In other words, the to-tag parameter
+				 * > is compared to the local tag, and the from-tag parameter is compared
+				 * > to the remote tag.
+				 *
+				 * Thus, the totag is always compared to the local tag, regardless if
+				 * this our call is an incoming or outgoing call.
+				 */
+				if (ast_strlen_zero(fromtag) || strcmp(fromtag, sip_pvt_ptr->theirtag) || (!ast_strlen_zero(totag) && strcmp(totag, sip_pvt_ptr->tag)))
 					match = 0;
 			}
 
