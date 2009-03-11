@@ -291,7 +291,12 @@ void ast_hashtab_destroy( struct ast_hashtab *tab, void (*objdestroyfunc)(void *
  * \retval 1 on success
  * \retval 0 if there's a problem
 */
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+int _ast_hashtab_insert_immediate(struct ast_hashtab *tab, const void *obj, const char *file, int lineno, const char *func);
+#define	ast_hashtab_insert_immediate(a,b)	_ast_hashtab_insert_immediate(a, b, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#else
 int ast_hashtab_insert_immediate(struct ast_hashtab *tab, const void *obj);
+#endif
 
 /*!
  * \brief Insert without checking, hashing or locking
@@ -303,7 +308,12 @@ int ast_hashtab_insert_immediate(struct ast_hashtab *tab, const void *obj);
  * \retval 1 on success
  * \retval 0 if there's a problem
 */
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+int _ast_hashtab_insert_immediate_bucket(struct ast_hashtab *tab, const void *obj, unsigned int h, const char *file, int lineno, const char *func);
+#define	ast_hashtab_insert_immediate_bucket(a,b,c)	_ast_hashtab_insert_immediate_bucket(a, b, c, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#else
 int ast_hashtab_insert_immediate_bucket(struct ast_hashtab *tab, const void *obj, unsigned int h);
+#endif
 
 /*!
  * \brief Check and insert new object only if it is not there.
@@ -311,7 +321,12 @@ int ast_hashtab_insert_immediate_bucket(struct ast_hashtab *tab, const void *obj
  * \retval 1 on success
  * \retval  0 if there's a problem, or it's already there.
 */
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+int _ast_hashtab_insert_safe(struct ast_hashtab *tab, const void *obj, const char *file, int lineno, const char *func);
+#define	ast_hashtab_insert_safe(a,b)	_ast_hashtab_insert_safe(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+#else
 int ast_hashtab_insert_safe(struct ast_hashtab *tab, const void *obj);
+#endif
 
 /*!
  * \brief Lookup this object in the hash table.
@@ -344,10 +359,20 @@ int ast_hashtab_size( struct ast_hashtab *tab);
 int ast_hashtab_capacity( struct ast_hashtab *tab);
 
 /*! \brief Return a copy of the hash table */
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+struct ast_hashtab *_ast_hashtab_dup(struct ast_hashtab *tab, void *(*obj_dup_func)(const void *obj), const char *file, int lineno, const char *func);
+#define	ast_hashtab_dup(a,b)	_ast_hashtab_dup(a,b,__FILE__,__LINE__,__PRETTY_FUNCTION__)
+#else
 struct ast_hashtab *ast_hashtab_dup(struct ast_hashtab *tab, void *(*obj_dup_func)(const void *obj));
+#endif
 
 /*! \brief Gives an iterator to hastable */
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+struct ast_hashtab_iter *_ast_hashtab_start_traversal(struct ast_hashtab *tab, const char *file, int lineno, const char *func);
+#define	ast_hashtab_start_traversal(a)	_ast_hashtab_start_traversal(a,__FILE__,__LINE__,__PRETTY_FUNCTION__)
+#else
 struct ast_hashtab_iter *ast_hashtab_start_traversal(struct ast_hashtab *tab);
+#endif
 
 /*! \brief end the traversal, free the iterator, unlock if necc. */
 void ast_hashtab_end_traversal(struct ast_hashtab_iter *it);
@@ -367,7 +392,12 @@ void *ast_hashtab_remove_this_object(struct ast_hashtab *tab, void *obj);
 /* ------------------ */
 
 /*! \brief Gives an iterator to hastable */
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+struct ast_hashtab_iter *_ast_hashtab_start_write_traversal(struct ast_hashtab *tab, const char *file, int lineno, const char *func);
+#define	ast_hashtab_start_write_traversal(a)	_ast_hashtab_start_write_traversal(a,__FILE__,__LINE__,__PRETTY_FUNCTION__)
+#else
 struct ast_hashtab_iter *ast_hashtab_start_write_traversal(struct ast_hashtab *tab);
+#endif
 
 /*! \brief Looks up the object, removes the corresponding bucket */
 void *ast_hashtab_remove_object_via_lookup_nolock(struct ast_hashtab *tab, void *obj);

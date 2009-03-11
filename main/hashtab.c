@@ -38,7 +38,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/linkedlists.h"
 #include "asterisk/hashtab.h"
 
+
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+static void _ast_hashtab_resize(struct ast_hashtab *tab, const char *file, int lineno, const char *func);
+#define ast_hashtab_resize(a)	_ast_hashtab_resize(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+#else
 static void ast_hashtab_resize(struct ast_hashtab *tab);
+#endif
 static void *ast_hashtab_lookup_internal(struct ast_hashtab *tab, const void *obj, unsigned int h);
 
 /* some standard, default routines for general use */
@@ -264,7 +270,11 @@ ast_hashtab_create
 	return ht;
 }
 
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+struct ast_hashtab *_ast_hashtab_dup(struct ast_hashtab *tab, void *(*obj_dup_func)(const void *obj), const char *file, int lineno, const char *func)
+#else
 struct ast_hashtab *ast_hashtab_dup(struct ast_hashtab *tab, void *(*obj_dup_func)(const void *obj))
+#endif
 {
 	struct ast_hashtab *ht;
 	unsigned int i;
@@ -272,7 +282,13 @@ struct ast_hashtab *ast_hashtab_dup(struct ast_hashtab *tab, void *(*obj_dup_fun
 	if (!(ht = ast_calloc(1, sizeof(*ht))))
 		return NULL;
 
-	if (!(ht->array = ast_calloc(tab->hash_tab_size, sizeof(*(ht->array))))) {
+	if (!(ht->array =
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+		__ast_calloc(tab->hash_tab_size, sizeof(*(ht->array)), file, lineno, func)
+#else
+		ast_calloc(tab->hash_tab_size, sizeof(*(ht->array)))
+#endif
+		)) {
 		free(ht);
 		return NULL;
 	}
@@ -295,7 +311,11 @@ struct ast_hashtab *ast_hashtab_dup(struct ast_hashtab *tab, void *(*obj_dup_fun
 		while (b) {
 			void *newobj = (*obj_dup_func)(b->object);
 			if (newobj)
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+				_ast_hashtab_insert_immediate_bucket(ht, newobj, i, file, lineno, func);
+#else
 				ast_hashtab_insert_immediate_bucket(ht, newobj, i);
+#endif
 			b = b->next;
 		}
 	}
@@ -402,7 +422,11 @@ void ast_hashtab_destroy(struct ast_hashtab *tab, void (*objdestroyfunc)(void *o
 	}
 }
 
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+int _ast_hashtab_insert_immediate(struct ast_hashtab *tab, const void *obj, const char *file, int lineno, const char *func)
+#else
 int ast_hashtab_insert_immediate(struct ast_hashtab *tab, const void *obj)
+#endif
 {
 	unsigned int h;
 	int res=0;
@@ -415,7 +439,11 @@ int ast_hashtab_insert_immediate(struct ast_hashtab *tab, const void *obj)
 
 	h = (*tab->hash)(obj) % tab->hash_tab_size;
 
-	res = ast_hashtab_insert_immediate_bucket(tab,obj,h);
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+	res = _ast_hashtab_insert_immediate_bucket(tab, obj, h, file, lineno, func);
+#else
+	res = ast_hashtab_insert_immediate_bucket(tab, obj, h);
+#endif
 
 	if (tab->do_locking)
 		ast_rwlock_unlock(&tab->lock);
@@ -423,7 +451,11 @@ int ast_hashtab_insert_immediate(struct ast_hashtab *tab, const void *obj)
 	return res;
 }
 
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+int _ast_hashtab_insert_immediate_bucket(struct ast_hashtab *tab, const void *obj, unsigned int h, const char *file, int lineno, const char *func)
+#else
 int ast_hashtab_insert_immediate_bucket(struct ast_hashtab *tab, const void *obj, unsigned int h)
+#endif
 {
 	int c;
 	struct ast_hashtab_bucket *b;
@@ -437,8 +469,13 @@ int ast_hashtab_insert_immediate_bucket(struct ast_hashtab *tab, const void *obj
 	if (c + 1 > tab->largest_bucket_size)
 		tab->largest_bucket_size = c + 1;
 
-	if (!(b = ast_calloc(1, sizeof(*b))))
-		return 0;
+	if (!(b =
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+			__ast_calloc(1, sizeof(*b), file, lineno, func)
+#else
+			ast_calloc(1, sizeof(*b))
+#endif
+		)) return 0;
 
 	b->object = obj;
 	b->next = tab->array[h];
@@ -456,7 +493,11 @@ int ast_hashtab_insert_immediate_bucket(struct ast_hashtab *tab, const void *obj
 	return 1;
 }
 
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+int _ast_hashtab_insert_safe(struct ast_hashtab *tab, const void *obj, const char *file, int lineno, const char *func)
+#else
 int ast_hashtab_insert_safe(struct ast_hashtab *tab, const void *obj)
+#endif
 {
 	/* check to see if the element is already there; insert only if
 	   it is not there. */
@@ -468,7 +509,11 @@ int ast_hashtab_insert_safe(struct ast_hashtab *tab, const void *obj)
 		ast_rwlock_wrlock(&tab->lock);
 
 	if (!ast_hashtab_lookup_bucket(tab, obj, &bucket)) {
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+		int ret2 = _ast_hashtab_insert_immediate_bucket(tab, obj, bucket, file, lineno, func);
+#else
 		int ret2 = ast_hashtab_insert_immediate_bucket(tab, obj, bucket);
+#endif
 
 		if (tab->do_locking)
 			ast_rwlock_unlock(&tab->lock);
@@ -587,7 +632,11 @@ int ast_hashtab_capacity( struct ast_hashtab *tab)
 /* the insert operation calls this, and is wrlock'd when it does. */
 /* if you want to call it, you should set the wrlock yourself */
 
-static void ast_hashtab_resize( struct ast_hashtab *tab)
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+static void _ast_hashtab_resize(struct ast_hashtab *tab, const char *file, int lineno, const char *func)
+#else
+static void ast_hashtab_resize(struct ast_hashtab *tab)
+#endif
 {
 	/* this function is called either internally, when the resize func returns 1, or
 	   externally by the user to force a resize of the hash table */
@@ -605,7 +654,13 @@ static void ast_hashtab_resize( struct ast_hashtab *tab)
 		tab->array[i] = 0; /* erase old ptrs */
 	}
 	free(tab->array);
-	if (!(tab->array = ast_calloc(newsize, sizeof(*(tab->array)))))
+	if (!(tab->array =
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+		__ast_calloc(newsize, sizeof(*(tab->array)), file, lineno, func)
+#else
+		ast_calloc(newsize, sizeof(*(tab->array)))
+#endif
+		))
 		return;
 
 	/* now sort the buckets into their rightful new slots */
@@ -631,12 +686,22 @@ static void ast_hashtab_resize( struct ast_hashtab *tab)
 	}
 }
 
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+struct ast_hashtab_iter *_ast_hashtab_start_traversal(struct ast_hashtab *tab, const char *file, int lineno, const char *func)
+#else
 struct ast_hashtab_iter *ast_hashtab_start_traversal(struct ast_hashtab *tab)
+#endif
 {
 	/* returns an iterator */
 	struct ast_hashtab_iter *it;
 
-	if (!(it = ast_calloc(1, sizeof(*it))))
+	if (!(it =
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+			__ast_calloc(1, sizeof(*it), file, lineno, func)
+#else
+			ast_calloc(1, sizeof(*it))
+#endif
+		))
 		return NULL;
 
 	it->next = tab->tlist;
@@ -648,12 +713,22 @@ struct ast_hashtab_iter *ast_hashtab_start_traversal(struct ast_hashtab *tab)
 }
 
 /* use this function to get a write lock */
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+struct ast_hashtab_iter *_ast_hashtab_start_write_traversal(struct ast_hashtab *tab, const char *file, int lineno, const char *func)
+#else
 struct ast_hashtab_iter *ast_hashtab_start_write_traversal(struct ast_hashtab *tab)
+#endif
 {
 	/* returns an iterator */
 	struct ast_hashtab_iter *it;
 
-	if (!(it = ast_calloc(1, sizeof(*it))))
+	if (!(it =
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+			__ast_calloc(1, sizeof(*it), file, lineno, func)
+#else
+			ast_calloc(1, sizeof(*it))
+#endif
+		))
 		return NULL;
 
 	it->next = tab->tlist;

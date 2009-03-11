@@ -372,6 +372,26 @@ struct ast_str {
  * \note The result of this function is dynamically allocated memory, and must
  *       be free()'d after it is no longer needed.
  */
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+#define	ast_str_create(a)	_ast_str_create(a,__FILE__,__LINE__,__PRETTY_FUNCTION__)
+AST_INLINE_API(
+struct ast_str * attribute_malloc _ast_str_create(size_t init_len,
+		const char *file, int lineno, const char *func),
+{
+	struct ast_str *buf;
+
+	buf = (struct ast_str *)__ast_calloc(1, sizeof(*buf) + init_len, file, lineno, func);
+	if (buf == NULL)
+		return NULL;
+
+	buf->__AST_STR_LEN = init_len;
+	buf->__AST_STR_USED = 0;
+	buf->__AST_STR_TS = DS_MALLOC;
+
+	return buf;
+}
+)
+#else
 AST_INLINE_API(
 struct ast_str * attribute_malloc ast_str_create(size_t init_len),
 {
@@ -388,6 +408,7 @@ struct ast_str * attribute_malloc ast_str_create(size_t init_len),
 	return buf;
 }
 )
+#endif
 
 /*! \brief Reset the content of a dynamic string.
  * Useful before a series of ast_str_append.
@@ -665,8 +686,14 @@ enum {
  *       through calling one of the other functions or macros defined in this
  *       file.
  */
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+int __attribute__((format(printf, 4, 0))) __ast_debug_str_helper(struct ast_str **buf, size_t max_len,
+							   int append, const char *fmt, va_list ap, const char *file, int lineno, const char *func);
+#define __ast_str_helper(a,b,c,d,e)	__ast_debug_str_helper(a,b,c,d,e,__FILE__,__LINE__,__PRETTY_FUNCTION__)
+#else
 int __attribute__((format(printf, 4, 0))) __ast_str_helper(struct ast_str **buf, size_t max_len,
 							   int append, const char *fmt, va_list ap);
+#endif
 char *__ast_str_helper2(struct ast_str **buf, size_t max_len,
 	const char *src, size_t maxsrc, int append, int escapecommas);
 

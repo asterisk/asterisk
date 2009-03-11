@@ -138,7 +138,7 @@ static int __ao2_ref(void *user_data, const int delta);
 static void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn);
 static struct ao2_container *__ao2_container_alloc(struct ao2_container *c, const uint n_buckets, ao2_hash_fn *hash_fn,
 											ao2_callback_fn *cmp_fn);
-static struct bucket_list *__ao2_link(struct ao2_container *c, void *user_data);
+static struct bucket_list *__ao2_link(struct ao2_container *c, void *user_data, const char *file, int line, const char *func);
 static void *__ao2_callback(struct ao2_container *c,
 	const enum search_flags flags, void *cb_fn, void *arg, void *data, enum ao2_callback_type type,
 					 char *tag, char *file, int line, const char *funcname);
@@ -486,13 +486,13 @@ struct bucket_list {
  * link an object to a container
  */
 
-static struct bucket_list *__ao2_link(struct ao2_container *c, void *user_data)
+static struct bucket_list *__ao2_link(struct ao2_container *c, void *user_data, const char *file, int line, const char *func)
 {
 	int i;
 	/* create a new list entry */
 	struct bucket_list *p;
 	struct astobj2 *obj = INTERNAL_OBJ(user_data);
-	
+
 	if (!obj)
 		return NULL;
 
@@ -518,8 +518,8 @@ static struct bucket_list *__ao2_link(struct ao2_container *c, void *user_data)
 
 void *_ao2_link_debug(struct ao2_container *c, void *user_data, char *tag, char *file, int line, const char *funcname)
 {
-	struct bucket_list *p = __ao2_link(c, user_data);
-	
+	struct bucket_list *p = __ao2_link(c, user_data, file, line, funcname);
+
 	if (p) {
 		_ao2_ref_debug(user_data, +1, tag, file, line, funcname);
 		ao2_unlock(c);
@@ -529,8 +529,8 @@ void *_ao2_link_debug(struct ao2_container *c, void *user_data, char *tag, char 
 
 void *_ao2_link(struct ao2_container *c, void *user_data)
 {
-	struct bucket_list *p = __ao2_link(c, user_data);
-	
+	struct bucket_list *p = __ao2_link(c, user_data, __FILE__, __LINE__, __PRETTY_FUNCTION__);
+
 	if (p) {
 		_ao2_ref(user_data, +1);
 		ao2_unlock(c);

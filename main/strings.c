@@ -48,8 +48,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  *	ast_str_append_va(...)
  */
 
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+int __ast_debug_str_helper(struct ast_str **buf, size_t max_len,
+	int append, const char *fmt, va_list ap, const char *file, int lineno, const char *function)
+#else
 int __ast_str_helper(struct ast_str **buf, size_t max_len,
 	int append, const char *fmt, va_list ap)
+#endif
 {
 	int res, need;
 	int offset = (append && (*buf)->__AST_STR_LEN) ? (*buf)->__AST_STR_USED : 0;
@@ -80,7 +85,13 @@ int __ast_str_helper(struct ast_str **buf, size_t max_len,
 			if (0) {	/* debugging */
 				ast_verbose("extend from %d to %d\n", (int)(*buf)->__AST_STR_LEN, need);
 			}
-			if (ast_str_make_space(buf, need)) {
+			if (
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+					_ast_str_make_space(buf, need, file, lineno, function)
+#else
+					ast_str_make_space(buf, need)
+#endif
+				) {
 				ast_verbose("failed to extend from %d to %d\n", (int)(*buf)->__AST_STR_LEN, need);
 				return AST_DYNSTR_BUILD_FAILED;
 			}

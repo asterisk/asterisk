@@ -97,8 +97,14 @@ typedef int (*ast_heap_cmp_fn)(void *elm1, void *elm2);
  * \return An instance of a max heap
  * \since 1.6.1
  */
+#ifdef MALLOC_DEBUG
+struct ast_heap *_ast_heap_create(unsigned int init_height, ast_heap_cmp_fn cmp_fn,
+		ssize_t index_offset, const char *file, int lineno, const char *func);
+#define	ast_heap_create(a,b,c)	_ast_heap_create(a,b,c,__FILE__,__LINE__,__PRETTY_FUNCTION__)
+#else
 struct ast_heap *ast_heap_create(unsigned int init_height, ast_heap_cmp_fn cmp_fn,
 		ssize_t index_offset);
+#endif
 
 /*!
  * \brief Destroy a max heap
@@ -120,7 +126,12 @@ struct ast_heap *ast_heap_destroy(struct ast_heap *h);
  * \retval non-zero failure
  * \since 1.6.1
  */
+#ifdef MALLOC_DEBUG
+int _ast_heap_push(struct ast_heap *h, void *elm, const char *file, int lineno, const char *func);
+#define	ast_heap_push(a,b)	_ast_heap_push(a,b,__FILE__,__LINE__,__PRETTY_FUNCTION__)
+#else
 int ast_heap_push(struct ast_heap *h, void *elm);
+#endif
 
 /*!
  * \brief Pop the max element off of the heap

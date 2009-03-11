@@ -19,6 +19,10 @@
 
 #include "asterisk/compat.h"
 
+#ifdef MALLOC_DEBUG
+#define REF_DEBUG
+#endif
+
 /*! \file
  * \ref AstObj2
  *
