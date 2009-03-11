@@ -4560,6 +4560,33 @@ static void update_bridge_vars(struct ast_channel *c0, struct ast_channel *c1)
 	ast_channel_unlock(c1);
 }
 
+static void bridge_play_sounds(struct ast_channel *c0, struct ast_channel *c1)
+{
+	const char *s, *sound;
+
+	/* See if we need to play an audio file to any side of the bridge */
+
+	ast_channel_lock(c0);
+	if ((s = pbx_builtin_getvar_helper(c0, "BRIDGE_PLAY_SOUND"))) {
+		sound = ast_strdupa(s);
+		ast_channel_unlock(c0);
+		bridge_playfile(c0, c1, sound, 0);
+		pbx_builtin_setvar_helper(c0, "BRIDGE_PLAY_SOUND", NULL);
+	} else {
+		ast_channel_unlock(c0);
+	}
+
+	ast_channel_lock(c1);
+	if ((s = pbx_builtin_getvar_helper(c1, "BRIDGE_PLAY_SOUND"))) {
+		sound = ast_strdupa(s);
+		ast_channel_unlock(c1);
+		bridge_playfile(c1, c0, sound, 0);
+		pbx_builtin_setvar_helper(c1, "BRIDGE_PLAY_SOUND", NULL);
+	} else {
+		ast_channel_unlock(c1);
+	}
+}
+
 /*! \brief Bridge two channels together */
 enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1,
 					  struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc)
@@ -4637,7 +4664,6 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	for (/* ever */;;) {
 		struct timeval now = { 0, };
 		int to;
-		const char *bridge_play_sound = NULL;
 
 		to = -1;
 
@@ -4715,15 +4741,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 
 		update_bridge_vars(c0, c1);
 
-		/* See if we need to play an audio file to any side of the bridge */
-		if ((bridge_play_sound = pbx_builtin_getvar_helper(c0, "BRIDGE_PLAY_SOUND"))) {
-			bridge_playfile(c0, c1, bridge_play_sound, 0);
-			pbx_builtin_setvar_helper(c0, "BRIDGE_PLAY_SOUND", NULL);
-		}
-		if ((bridge_play_sound = pbx_builtin_getvar_helper(c1, "BRIDGE_PLAY_SOUND"))) {
-			bridge_playfile(c1, c0, bridge_play_sound, 0);
-			pbx_builtin_setvar_helper(c1, "BRIDGE_PLAY_SOUND", NULL);
-		}
+		bridge_play_sounds(c0, c1);
 
 		if (c0->tech->bridge &&
 		    (c0->tech->bridge == c1->tech->bridge) &&
