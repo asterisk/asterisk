@@ -1826,11 +1826,13 @@ static struct call_queue *load_realtime_queue(const char *queuename)
 			ast_variables_destroy(queue_vars);
 		}
 		/* update the use_weight value if the queue's has gained or lost a weight */ 
-		if (!q->weight && prev_weight) {
-			ast_atomic_fetchadd_int(&use_weight, -1);
-		}
-		if (q->weight && !prev_weight) {
-			ast_atomic_fetchadd_int(&use_weight, +1);
+		if (q) {
+			if (!q->weight && prev_weight) {
+				ast_atomic_fetchadd_int(&use_weight, -1);
+			}
+			if (q->weight && !prev_weight) {
+				ast_atomic_fetchadd_int(&use_weight, +1);
+			}
 		}
 		/* Other cases will end up with the proper value for use_weight */
 		ao2_unlock(queues);
