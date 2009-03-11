@@ -1536,7 +1536,7 @@ static int handle_context_add_extension_deprecated(int fd, int argc, char *argv[
 	if (!app_data)
 		app_data="";
 	if (ast_add_extension(argv[4], argc == 6 ? 1 : 0, exten, iprior, NULL, cidmatch, app,
-		(void *)strdup(app_data), ast_free, registrar)) {
+		(void *)strdup(app_data), ast_free_ptr, registrar)) {
 		switch (errno) {
 		case ENOMEM:
 			ast_cli(fd, "Out of free memory\n");
@@ -1629,7 +1629,7 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 	if (!app_data)
 		app_data="";
 	if (ast_add_extension(argv[5], argc == 7 ? 1 : 0, exten, iprior, NULL, cidmatch, app,
-		(void *)strdup(app_data), ast_free, registrar)) {
+		(void *)strdup(app_data), ast_free_ptr, registrar)) {
 		switch (errno) {
 		case ENOMEM:
 			ast_cli(fd, "Out of free memory\n");
@@ -2372,7 +2372,7 @@ static int pbx_load_config(const char *config_file)
 						lastpri = ipri;
 						if (!ast_opt_dont_warn && !strcmp(realext, "_."))
 							ast_log(LOG_WARNING, "The use of '_.' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X.' instead at line %d\n", v->lineno);
-						if (ast_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), ast_free, registrar)) {
+						if (ast_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), ast_free_ptr, registrar)) {
 							ast_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
 						}
 					}
@@ -2516,9 +2516,9 @@ static void pbx_load_users(void)
 			/* If voicemail, use "stdexten" else use plain old dial */
 			if (hasvoicemail) {
 				snprintf(tmp, sizeof(tmp), "stdexten|%s|${HINT}", cat);
-				ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Macro", strdup(tmp), ast_free, registrar);
+				ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Macro", strdup(tmp), ast_free_ptr, registrar);
 			} else {
-				ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Dial", strdup("${HINT}"), ast_free, registrar);
+				ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Dial", strdup("${HINT}"), ast_free_ptr, registrar);
 			}
 		}
 	}

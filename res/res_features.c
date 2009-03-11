@@ -518,7 +518,7 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 	if (!con)	/* Still no context? Bad */
 		ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
 	if (con) {
-		if (!ast_add_extension2(con, 1, pu->parkingexten, 1, NULL, NULL, parkedcall, strdup(pu->parkingexten), ast_free, registrar)) {
+		if (!ast_add_extension2(con, 1, pu->parkingexten, 1, NULL, NULL, parkedcall, strdup(pu->parkingexten), ast_free_ptr, registrar)) {
 			notify_metermaids(pu->parkingexten, parking_con);
 		}
 	}
@@ -2195,7 +2195,7 @@ static void *do_parking_thread(void *ignore)
 							snprintf(returnexten, sizeof(returnexten), "%s|30|t", peername);
 						}
 
-						ast_add_extension2(con, 1, peername, 1, NULL, NULL, "Dial", strdup(returnexten), ast_free, registrar);
+						ast_add_extension2(con, 1, peername, 1, NULL, NULL, "Dial", strdup(returnexten), ast_free_ptr, registrar);
 					}
 					set_c_e_p(chan, parking_con_dial, peername, 1);
 				} else {

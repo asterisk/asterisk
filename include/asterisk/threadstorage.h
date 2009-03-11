@@ -65,7 +65,7 @@ void __ast_threadstorage_object_replace(void *key_old, void *key_new, size_t len
  * \endcode
  */
 #define AST_THREADSTORAGE(name, name_init) \
-	AST_THREADSTORAGE_CUSTOM(name, name_init, ast_free) 
+	AST_THREADSTORAGE_CUSTOM(name, name_init, ast_free_ptr) 
 
 #if !defined(DEBUG_THREADLOCALS)
 #define AST_THREADSTORAGE_CUSTOM(name, name_init, cleanup)  \

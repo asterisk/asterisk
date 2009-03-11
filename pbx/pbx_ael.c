@@ -4079,7 +4079,7 @@ void add_extensions(struct ael_extension *exten)
 		pbx_substitute_variables_helper(NULL, exten->name, realext, sizeof(realext) - 1);
 		if (exten->hints) {
 			if (ast_add_extension2(exten->context, 0 /*no replace*/, realext, PRIORITY_HINT, NULL, exten->cidmatch, 
-								  exten->hints, NULL, ast_free, registrar)) {
+								  exten->hints, NULL, ast_free_ptr, registrar)) {
 				ast_log(LOG_WARNING, "Unable to add step at priority 'hint' of extension '%s'\n",
 						exten->name);
 			}
@@ -4159,7 +4159,7 @@ void add_extensions(struct ael_extension *exten)
 				label = 0;
 			
 			if (ast_add_extension2(exten->context, 0 /*no replace*/, realext, pr->priority_num, (label?label:NULL), exten->cidmatch, 
-								  app, strdup(appargs), ast_free, registrar)) {
+								  app, strdup(appargs), ast_free_ptr, registrar)) {
 				ast_log(LOG_WARNING, "Unable to add step at priority '%d' of extension '%s'\n", pr->priority_num, 
 						exten->name);
 			}
