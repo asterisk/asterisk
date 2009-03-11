@@ -6209,9 +6209,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	else
 		ast_debug(3, "This channel will not be able to handle video.\n");
 
-
-
-	if (ast_test_flag(&i->flags[0], SIP_DTMF) ==  SIP_DTMF_INBAND) {
+	if ((ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_INBAND) || (ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_AUTO)) {
 		i->vad = ast_dsp_new();
 		ast_dsp_set_features(i->vad, DSP_FEATURE_DIGIT_DETECT);
 		if (global_relaxdtmf)
