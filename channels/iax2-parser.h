@@ -19,6 +19,7 @@
 #define _IAX2_PARSER_H
 
 #include "asterisk/linkedlists.h"
+#include "asterisk/aes.h"
 
 struct iax_ies {
 	char *called_number;
@@ -86,41 +87,49 @@ struct iax_frame {
 	int sockfd;
 #endif
 
-	/* /Our/ call number */
+	/*! /Our/ call number */
 	unsigned short callno;
-	/* /Their/ call number */
+	/*! /Their/ call number */
 	unsigned short dcallno;
-	/* Start of raw frame (outgoing only) */
+	/*! Start of raw frame (outgoing only) */
 	void *data;
-	/* Length of frame (outgoing only) */
+	/*! Length of frame (outgoing only) */
 	int datalen;
-	/* How many retries so far? */
+	/*! How many retries so far? */
 	int retries;
-	/* Outgoing relative timestamp (ms) */
+	/*! Outgoing relative timestamp (ms) */
 	unsigned int ts;
-	/* How long to wait before retrying */
+	/*! How long to wait before retrying */
 	int retrytime;
-	/* Are we received out of order?  */
+	/*! Are we received out of order?  */
 	unsigned int outoforder:1;
-	/* Have we been sent at all yet? */
+	/*! Have we been sent at all yet? */
 	unsigned int sentyet:1;
-	/* Non-zero if should be sent to transfer peer */
+	/*! Non-zero if should be sent to transfer peer */
 	unsigned int transfer:1;
-	/* Non-zero if this is the final message */
+	/*! Non-zero if this is the final message */
 	unsigned int final:1;
-	/* Ingress or outgres */
+	/*! Ingress or outgres */
 	unsigned int direction:2;
-	/* Can this frame be cached? */
+	/*! Can this frame be cached? */
 	unsigned int cacheable:1;
-	/* Outgoing Packet sequence number */
+	/*! Outgoing Packet sequence number */
 	int oseqno;
-	/* Next expected incoming packet sequence number */
+	/*! Next expected incoming packet sequence number */
 	int iseqno;
-	/* Retransmission ID */
+	/*! Retransmission ID */
 	int retrans;
-	/* Easy linking */
+	/*! is this packet encrypted or not. if set this varible holds encryption methods*/
+	int encmethods;
+	/*! store encrypt key */
+	aes_encrypt_ctx ecx;
+	/*! store decrypt key which corresponds to ecx */
+	aes_decrypt_ctx mydcx;
+	/*! random data for encryption pad */
+	unsigned char semirand[32];
+	/*! Easy linking */
 	AST_LIST_ENTRY(iax_frame) list;
-	/* Actual, isolated frame header */
+	/*! Actual, isolated frame header */
 	struct ast_frame af;
 	/*! Amount of space _allocated_ for data */
 	size_t afdatalen;
