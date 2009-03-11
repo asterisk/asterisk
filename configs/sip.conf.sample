@@ -45,7 +45,7 @@
 ;   sip show peers               Show all SIP peers (including friends)
 ;   sip show registry            Show status of hosts we register with
 ;
-;   sip set debug                Show all SIP messages
+;   sip set debug on             Show all SIP messages
 ;
 ;   module reload chan_sip.so    Reload configuration file
 ;
