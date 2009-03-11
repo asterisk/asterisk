@@ -57,8 +57,10 @@ case "${host_os}" in
      ;;
 esac
 
-if test ${localstatedir} = '${prefix}/var'; then
-     localstatedir=/var
+if test ${prefix} = ${ac_default_prefix} || test ${prefix} = 'NONE'; then
+     if test ${localstatedir} = '${prefix}/var'; then
+        localstatedir=/var
+     fi
 fi
 
 BUILD_PLATFORM=${build}
