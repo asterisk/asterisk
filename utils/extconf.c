@@ -5993,7 +5993,7 @@ static int pbx_load_config(const char *config_file)
 						lastpri = ipri;
 						if (!ast_opt_dont_warn && !strcmp(realext, "_."))
 							ast_log(LOG_WARNING, "The use of '_.' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X.' instead at line %d\n", v->lineno);
-						if (ast_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), ast_free_ptr, global_registrar)) {
+						if (ast_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), ast_free_ptr, registrar)) {
 							ast_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
 						}
 					}
