@@ -166,6 +166,9 @@ hashtest: hashtest.o md5.o hashtab.o utils.o sha1.o strcompat.o threadstorage.o 
 hashtest.o: ASTCFLAGS+=-O0 -DSTANDALONE
 
 extconf.o: extconf.c
+extconf.o: ASTCFLAGS+=-DSTANDALONE
+
+conf2ael.o: ASTCFLAGS+=-DSTANDALONE
 
 conf2ael: conf2ael.o ast_expr2f.o ast_expr2.o hashtab.o aelbison.o aelparse.o pbx_ael.o pval.o extconf.o strcompat.o
 
