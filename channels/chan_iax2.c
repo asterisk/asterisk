@@ -589,7 +589,9 @@ struct chan_iax2_pvt {
 	int encmethods;
 	/*! Encryption AES-128 Key */
 	ast_aes_encrypt_key ecx;
-	/*! Decryption AES-128 Key */
+	/*! Decryption AES-128 Key corresponding to ecx */
+	ast_aes_decrypt_key mydcx;
+	/*! Decryption AES-128 Key used to decrypt peer frames */
 	ast_aes_decrypt_key dcx;
 	/*! 32 bytes of semi-random data */
 	unsigned char semirand[32];
@@ -934,6 +936,9 @@ static void iax2_free_variable_datastore(void *);
 
 static int acf_channel_read(struct ast_channel *chan, const char *funcname, char *preparse, char *buf, size_t buflen);
 static int acf_channel_write(struct ast_channel *chan, const char *function, char *data, const char *value);
+static int decode_frame(ast_aes_decrypt_key *dcx, struct ast_iax2_full_hdr *fh, struct ast_frame *f, int *datalen);
+static int encrypt_frame(ast_aes_encrypt_key *ecx, struct ast_iax2_full_hdr *fh, unsigned char *poo, int *datalen);
+static void build_ecx_key(const unsigned char *digest, struct chan_iax2_pvt *pvt);
 
 static const struct ast_channel_tech iax2_tech = {
 	.type = "IAX2",
@@ -2379,11 +2384,22 @@ static int update_packet(struct iax_frame *f)
 {
 	/* Called with iaxsl lock held, and iaxs[callno] non-NULL */
 	struct ast_iax2_full_hdr *fh = f->data;
+	struct ast_frame af;
+
+	/* if frame is encrypted. decrypt before updating it. */
+	if (f->encmethods) {
+		decode_frame(&f->mydcx, fh, &af, &f->datalen);
+	}
 	/* Mark this as a retransmission */
 	fh->dcallno = ntohs(IAX_FLAG_RETRANS | f->dcallno);
 	/* Update iseqno */
 	f->iseqno = iaxs[f->callno]->iseqno;
 	fh->iseqno = f->iseqno;
+
+	/* Now re-encrypt the frame */
+	if (f->encmethods) {
+		encrypt_frame(&f->ecx, fh, f->semirand, &f->datalen);
+	}
 	return 0;
 }
 
@@ -4639,10 +4655,19 @@ static int iax2_trunk_queue(struct chan_iax2_pvt *pvt, struct iax_frame *fr)
 	return 0;
 }
 
-static void build_enc_keys(const unsigned char *digest, ast_aes_encrypt_key *ecx, ast_aes_decrypt_key *dcx)
+static void build_encryption_keys(const unsigned char *digest, struct chan_iax2_pvt *pvt)
 {
-	ast_aes_encrypt_key(digest, ecx);
-	ast_aes_decrypt_key(digest, dcx);
+	build_ecx_key(digest, pvt);
+	ast_aes_decrypt_key(digest, &pvt->dcx);
+}
+
+static void build_ecx_key(const unsigned char *digest, struct chan_iax2_pvt *pvt)
+{
+	/* it is required to hold the corresponding decrypt key to our encrypt key
+	 * in the pvt struct because queued frames occasionally need to be decrypted and
+	 * re-encrypted when updated for a retransmission */
+	ast_aes_encrypt_key(digest, &pvt->ecx);
+	ast_aes_decrypt_key(digest, &pvt->mydcx);
 }
 
 static void memcpy_decrypt(unsigned char *dst, const unsigned char *src, int len, ast_aes_decrypt_key *dcx)
@@ -4795,7 +4820,7 @@ static int decrypt_frame(int callno, struct ast_iax2_full_hdr *fh, struct ast_fr
 			MD5Update(&md5, (unsigned char *)iaxs[callno]->challenge, strlen(iaxs[callno]->challenge));
 			MD5Update(&md5, (unsigned char *)tmppw, strlen(tmppw));
 			MD5Final(digest, &md5);
-			build_enc_keys(digest, &iaxs[callno]->ecx, &iaxs[callno]->dcx);
+			build_encryption_keys(digest, iaxs[callno]);
 			res = decode_frame(&iaxs[callno]->dcx, fh, f, datalen);
 			if (!res) {
 				ast_set_flag(iaxs[callno], IAX_KEYPOPULATED);
@@ -4890,6 +4915,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 	fr->callno = pvt->callno;
 	fr->transfer = transfer;
 	fr->final = final;
+	fr->encmethods = 0;
 	if (!sendmini) {
 		/* We need a full frame */
 		if (seqno > -1)
@@ -4943,6 +4969,10 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 						iax_showframe(fr, NULL, 2, &pvt->addr, fr->datalen - sizeof(struct ast_iax2_full_hdr));
 				}
 				encrypt_frame(&pvt->ecx, fh, pvt->semirand, &fr->datalen);
+				fr->encmethods = pvt->encmethods;
+				fr->ecx = pvt->ecx;
+				fr->mydcx = pvt->mydcx;
+				memcpy(fr->semirand, pvt->semirand, sizeof(fr->semirand));
 			} else
 				ast_log(LOG_WARNING, "Supposed to send packet encrypted, but no key?\n");
 		}
@@ -6433,7 +6463,7 @@ return_unref:
 	return res;
 }
 
-static int authenticate(const char *challenge, const char *secret, const char *keyn, int authmethods, struct iax_ie_data *ied, struct sockaddr_in *sin, ast_aes_encrypt_key *ecx, ast_aes_decrypt_key *dcx)
+static int authenticate(const char *challenge, const char *secret, const char *keyn, int authmethods, struct iax_ie_data *ied, struct sockaddr_in *sin, struct chan_iax2_pvt *pvt)
 {
 	int res = -1;
 	int x;
@@ -6473,8 +6503,9 @@ static int authenticate(const char *challenge, const char *secret, const char *k
 			/* If they support md5, authenticate with it.  */
 			for (x=0;x<16;x++)
 				sprintf(digres + (x << 1),  "%2.2x", digest[x]); /* safe */
-			if (ecx && dcx)
-				build_enc_keys(digest, ecx, dcx);
+			if (pvt) {
+				build_encryption_keys(digest, pvt);
+			}
 			iax_ie_append_str(ied, IAX_IE_MD5_RESULT, digres);
 			res = 0;
 		} else if (authmethods & IAX_AUTH_PLAINTEXT) {
@@ -6515,7 +6546,7 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 	/* Check for override RSA authentication first */
 	if (!ast_strlen_zero(override) || !ast_strlen_zero(okey)) {
 		/* Normal password authentication */
-		res = authenticate(p->challenge, override, okey, authmethods, &ied, sin, &p->ecx, &p->dcx);
+		res = authenticate(p->challenge, override, okey, authmethods, &ied, sin, p);
 	} else {
 		struct ao2_iterator i = ao2_iterator_init(peers, 0);
 		while ((peer = ao2_iterator_next(&i))) {
@@ -6526,7 +6557,7 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 			    && (!peer->addr.sin_addr.s_addr || ((sin->sin_addr.s_addr & peer->mask.s_addr) == (peer->addr.sin_addr.s_addr & peer->mask.s_addr)))
 			    /* No specified host, or this is our host */
 				) {
-				res = authenticate(p->challenge, peer->secret, peer->outkey, authmethods, &ied, sin, &p->ecx, &p->dcx);
+				res = authenticate(p->challenge, peer->secret, peer->outkey, authmethods, &ied, sin, p);
 				if (!res) {
 					peer_unref(peer);
 					break;
@@ -6545,7 +6576,7 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 					peer_unref(peer);
 					return -1;
 				}
-				res = authenticate(p->challenge, peer->secret,peer->outkey, authmethods, &ied, sin, &p->ecx, &p->dcx);
+				res = authenticate(p->challenge, peer->secret,peer->outkey, authmethods, &ied, sin, p);
 				peer_unref(peer);
 			}
 			if (!peer) {
@@ -7231,9 +7262,9 @@ static int registry_rerequest(struct iax_ies *ies, int callno, struct sockaddr_i
 				char tmpkey[256];
 				ast_copy_string(tmpkey, reg->secret + 1, sizeof(tmpkey));
 				tmpkey[strlen(tmpkey) - 1] = '\0';
-				res = authenticate(challenge, NULL, tmpkey, authmethods, &ied, sin, NULL, NULL);
+				res = authenticate(challenge, NULL, tmpkey, authmethods, &ied, sin, NULL);
 			} else
-				res = authenticate(challenge, reg->secret, NULL, authmethods, &ied, sin, NULL, NULL);
+				res = authenticate(challenge, reg->secret, NULL, authmethods, &ied, sin, NULL);
 			if (!res) {
 				reg->regstate = REG_STATE_AUTHSENT;
 				return send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_REGREQ, 0, ied.buf, ied.pos, -1);
