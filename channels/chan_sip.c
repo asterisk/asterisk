@@ -9235,8 +9235,6 @@ static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *t
 			 * call id, but have different tags)
 			 */
 			if (pedanticsipchecking) {
-				const char *pvt_fromtag, *pvt_totag;
-
 				/* RFC 3891
 				 * > 3.  User Agent Server Behavior: Receiving a Replaces Header
 				 * > The Replaces header contains information used to match an existing
