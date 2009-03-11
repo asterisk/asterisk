@@ -271,11 +271,13 @@ static void post_join_marked(struct conference_bridge *conference_bridge, struct
 		}
 
 		/* Next play the audio file stating they are going to be placed into the conference */
-		ao2_unlock(conference_bridge);
-		ast_autoservice_start(conference_bridge_user->chan);
-		play_sound_file(conference_bridge, "conf-placeintoconf");
-		ast_autoservice_stop(conference_bridge_user->chan);
-		ao2_lock(conference_bridge);
+		if (!ast_test_flag(&conference_bridge_user->flags, OPTION_QUIET)) {
+			ao2_unlock(conference_bridge);
+			ast_autoservice_start(conference_bridge_user->chan);
+			play_sound_file(conference_bridge, "conf-placeintoconf");
+			ast_autoservice_stop(conference_bridge_user->chan);
+			ao2_lock(conference_bridge);
+		}
 
 		/* Finally iterate through and unmute them all */
 		AST_LIST_TRAVERSE(&conference_bridge->users_list, other_conference_bridge_user, list) {
@@ -505,11 +507,13 @@ static void  leave_conference_bridge(struct conference_bridge *conference_bridge
 			}
 
 			/* Play back the audio prompt saying the leader has left the conference */
-			ao2_unlock(conference_bridge);
-			ast_autoservice_start(conference_bridge_user->chan);
-			play_sound_file(conference_bridge, "conf-leaderhasleft");
-			ast_autoservice_stop(conference_bridge_user->chan);
-			ao2_lock(conference_bridge);
+			if (!ast_test_flag(&conference_bridge_user->flags, OPTION_QUIET)) {
+				ao2_unlock(conference_bridge);
+				ast_autoservice_start(conference_bridge_user->chan);
+				play_sound_file(conference_bridge, "conf-leaderhasleft");
+				ast_autoservice_stop(conference_bridge_user->chan);
+				ao2_lock(conference_bridge);
+			}
 
 			/* Now on to starting MOH if needed */
 			AST_LIST_TRAVERSE(&conference_bridge->users_list, other_participant, list) {
