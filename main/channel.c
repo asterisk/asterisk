@@ -4523,6 +4523,29 @@ static void manager_bridge_event(int onoff, int type, struct ast_channel *c0, st
 			S_OR(c1->cid.cid_num, ""));
 }
 
+static void update_bridgepeer(struct ast_channel *c0, struct ast_channel *c1)
+{
+	const char *c0_name;
+	const char *c1_name;
+
+	ast_channel_lock(c1);
+	c1_name = ast_strdupa(c1->name);
+	ast_channel_unlock(c1);
+
+	ast_channel_lock(c0);
+	if (!ast_strlen_zero(pbx_builtin_getvar_helper(c0, "BRIDGEPEER"))) {
+		pbx_builtin_setvar_helper(c0, "BRIDGEPEER", c1_name);
+	}
+	c0_name = ast_strdupa(c0->name);
+	ast_channel_unlock(c0);
+
+	ast_channel_lock(c1);
+	if (!ast_strlen_zero(pbx_builtin_getvar_helper(c1, "BRIDGEPEER"))) {
+		pbx_builtin_setvar_helper(c1, "BRIDGEPEER", c0_name);
+	}
+	ast_channel_unlock(c1);
+}
+
 /*! \brief Bridge two channels together */
 enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1,
 					  struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc)
@@ -4632,7 +4655,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 				res = 0;
 				break;
 			}
-			
+
 			if (!to) {
 				if (time_left_ms >= 5000 && config->warning_sound && config->play_warning && ast_test_flag(config, AST_FEATURE_WARNING_ACTIVE)) {
 					int t = (time_left_ms + 500) / 1000; /* round to nearest second */
@@ -4659,7 +4682,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			ast_debug(1, "Unbridge signal received. Ending native bridge.\n");
 			continue;
 		}
-		
+
 		/* Stop if we're a zombie or need a soft hangup */
 		if (ast_test_flag(c0, AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c0) ||
 		    ast_test_flag(c1, AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c1)) {
@@ -4675,12 +4698,9 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 				ast_check_hangup(c1) ? "Yes" : "No");
 			break;
 		}
-		
-		/* See if the BRIDGEPEER variable needs to be updated */
-		if (!ast_strlen_zero(pbx_builtin_getvar_helper(c0, "BRIDGEPEER")))
-			pbx_builtin_setvar_helper(c0, "BRIDGEPEER", c1->name);
-		if (!ast_strlen_zero(pbx_builtin_getvar_helper(c1, "BRIDGEPEER")))
-			pbx_builtin_setvar_helper(c1, "BRIDGEPEER", c0->name);
+
+		update_bridgepeer(c0, c1);
+
 		if (c0->tech->get_pvt_uniqueid)
 			pbx_builtin_setvar_helper(c1, "BRIDGEPVTCALLID", c0->tech->get_pvt_uniqueid(c0));
 		if (c1->tech->get_pvt_uniqueid)
@@ -4695,7 +4715,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			bridge_playfile(c1, c0, bridge_play_sound, 0);
 			pbx_builtin_setvar_helper(c1, "BRIDGE_PLAY_SOUND", NULL);
 		}
-		
+
 		if (c0->tech->bridge &&
 		    (c0->tech->bridge == c1->tech->bridge) &&
 		    !nativefailed && !c0->monitor && !c1->monitor &&
@@ -4741,7 +4761,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 				break;
 			}
 		}
-	
+
 		if (((c0->writeformat != c1->readformat) || (c0->readformat != c1->writeformat) ||
 		    (c0->nativeformats != o0nativeformats) || (c1->nativeformats != o1nativeformats)) &&
 		    !(c0->generator || c1->generator)) {
@@ -4754,10 +4774,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			o1nativeformats = c1->nativeformats;
 		}
 
-		if (!ast_strlen_zero(pbx_builtin_getvar_helper(c0, "BRIDGEPEER")))
-			pbx_builtin_setvar_helper(c0, "BRIDGEPEER", c1->name);
-		if (!ast_strlen_zero(pbx_builtin_getvar_helper(c1, "BRIDGEPEER")))
-			pbx_builtin_setvar_helper(c1, "BRIDGEPEER", c0->name);
+		update_bridgepeer(c0, c1);
 
 		res = ast_generic_bridge(c0, c1, config, fo, rc, config->nexteventts);
 		if (res != AST_BRIDGE_RETRY) {
