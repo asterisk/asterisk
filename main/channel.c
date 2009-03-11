@@ -4549,25 +4549,39 @@ static void manager_bridge_event(int onoff, int type, struct ast_channel *c0, st
 			S_OR(c1->cid.cid_num, ""));
 }
 
-static void update_bridgepeer(struct ast_channel *c0, struct ast_channel *c1)
+static void update_bridge_vars(struct ast_channel *c0, struct ast_channel *c1)
 {
 	const char *c0_name;
 	const char *c1_name;
+	const char *c0_pvtid = NULL;
+	const char *c1_pvtid = NULL;
 
 	ast_channel_lock(c1);
 	c1_name = ast_strdupa(c1->name);
+	if (c1->tech->get_pvt_uniqueid) {
+		c1_pvtid = ast_strdupa(c1->tech->get_pvt_uniqueid(c1));
+	}
 	ast_channel_unlock(c1);
 
 	ast_channel_lock(c0);
 	if (!ast_strlen_zero(pbx_builtin_getvar_helper(c0, "BRIDGEPEER"))) {
 		pbx_builtin_setvar_helper(c0, "BRIDGEPEER", c1_name);
 	}
+	if (c1_pvtid) {
+		pbx_builtin_setvar_helper(c0, "BRIDGEPVTCALLID", c1_pvtid);
+	}
 	c0_name = ast_strdupa(c0->name);
+	if (c0->tech->get_pvt_uniqueid) {
+		c0_pvtid = ast_strdupa(c0->tech->get_pvt_uniqueid(c0));
+	}
 	ast_channel_unlock(c0);
 
 	ast_channel_lock(c1);
 	if (!ast_strlen_zero(pbx_builtin_getvar_helper(c1, "BRIDGEPEER"))) {
 		pbx_builtin_setvar_helper(c1, "BRIDGEPEER", c0_name);
+	}
+	if (c0_pvtid) {
+		pbx_builtin_setvar_helper(c1, "BRIDGEPVTCALLID", c0_pvtid);
 	}
 	ast_channel_unlock(c1);
 }
@@ -4725,12 +4739,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			break;
 		}
 
-		update_bridgepeer(c0, c1);
-
-		if (c0->tech->get_pvt_uniqueid)
-			pbx_builtin_setvar_helper(c1, "BRIDGEPVTCALLID", c0->tech->get_pvt_uniqueid(c0));
-		if (c1->tech->get_pvt_uniqueid)
-			pbx_builtin_setvar_helper(c0, "BRIDGEPVTCALLID", c1->tech->get_pvt_uniqueid(c1));
+		update_bridge_vars(c0, c1);
 
 		/* See if we need to play an audio file to any side of the bridge */
 		if ((bridge_play_sound = pbx_builtin_getvar_helper(c0, "BRIDGE_PLAY_SOUND"))) {
@@ -4800,7 +4809,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			o1nativeformats = c1->nativeformats;
 		}
 
-		update_bridgepeer(c0, c1);
+		update_bridge_vars(c0, c1);
 
 		res = ast_generic_bridge(c0, c1, config, fo, rc, config->nexteventts);
 		if (res != AST_BRIDGE_RETRY) {
