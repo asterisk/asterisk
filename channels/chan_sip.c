@@ -11092,6 +11092,21 @@ static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *t
 			   (With a forking SIP proxy, several call legs share the
 			   call id, but have different tags)
 			*/
+			
+			/* RFC 3891
+			 * > 3.  User Agent Server Behavior: Receiving a Replaces Header
+			 * > The Replaces header contains information used to match an existing
+			 * > SIP dialog (call-id, to-tag, and from-tag).  Upon receiving an INVITE
+			 * > with a Replaces header, the User Agent (UA) attempts to match this
+			 * > information with a confirmed or early dialog.  The User Agent Server
+			 * > (UAS) matches the to-tag and from-tag parameters as if they were tags
+			 * > present in an incoming request.  In other words, the to-tag parameter
+			 * > is compared to the local tag, and the from-tag parameter is compared
+			 * > to the remote tag.
+			 *
+			 * Thus, the totag is always compared to the local tag, regardless if
+			 * this our call is an incoming or outgoing call.
+			 */
 			if (pedanticsipchecking && (strcmp(fromtag, sip_pvt_ptr->theirtag) || (!ast_strlen_zero(totag) && strcmp(totag, ourtag))))
 				match = 0;
 
