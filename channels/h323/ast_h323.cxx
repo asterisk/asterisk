@@ -28,6 +28,8 @@
  *
  * Version Info: $Id$
  */
+#include "asterisk.h"
+
 #include <arpa/inet.h>
 
 #include <list>
