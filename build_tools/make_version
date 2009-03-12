@@ -10,7 +10,12 @@ elif [ -d .svn ]; then
 
     REV=`svnversion -c ${1} | cut -d: -f2`
 
-    BASE=`LANG=C svn pg svnmerge-integrated ${1} | cut -d: -f1`
+    INTEGRATED=`LANG=C svn pg automerge-propname ${1}`
+    if [ -z "${INTEGRATED}" ] ; then
+    	INTEGRATED=svnmerge-integrated
+    fi
+
+    BASE=`LANG=C svn pg ${INTEGRATED} ${1} | cut -d: -f1`
 
     if [ "${PARTS}" = "trunk" ] ; then
 	echo SVN-trunk-r${REV}
