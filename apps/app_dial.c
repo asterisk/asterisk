@@ -2268,10 +2268,12 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 	parse = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	if ((sleepms = atoi(args.sleep)))
+	if (!ast_strlen_zero(args.sleep) && (sleepms = atoi(args.sleep)))
 		sleepms *= 1000;
 
-	loops = atoi(args.retries);
+	if (!ast_strlen_zero(args.retries)) {
+		loops = atoi(args.retries);
+	}
 
 	if (!args.dialdata) {
 		ast_log(LOG_ERROR, "%s requires a 4th argument (dialdata)\n", rapp);
