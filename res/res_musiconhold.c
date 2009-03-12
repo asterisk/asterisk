@@ -567,7 +567,7 @@ static void *monmp3thread(void *data)
 			}
 			res = 8 * MOH_MS_INTERVAL;	/* 8 samples per millisecond */
 		}
-		if (strncasecmp(class->dir, "http://", 7) && AST_LIST_EMPTY(&class->members))
+		if ((strncasecmp(class->dir, "http://", 7) && strncasecmp(class->dir, "nodir")) && AST_LIST_EMPTY(&class->members))
 			continue;
 		/* Read mp3 audio */
 		len = ast_codec_get_len(class->format, res);
