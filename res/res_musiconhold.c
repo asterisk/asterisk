@@ -557,11 +557,11 @@ static void *monmp3thread(void *data)
 			}
 			res = 8 * MOH_MS_INTERVAL;	/* 8 samples per millisecond */
 		}
-		if (AST_LIST_EMPTY(&class->members))
+		if (strncasecmp(class->dir, "http://", 7) && AST_LIST_EMPTY(&class->members))
 			continue;
 		/* Read mp3 audio */
 		len = ast_codec_get_len(class->format, res);
-		
+
 		if ((res2 = read(class->srcfd, sbuf, len)) != len) {
 			if (!res2) {
 				close(class->srcfd);
