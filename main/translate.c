@@ -29,6 +29,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <math.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/channel.h"
@@ -518,7 +519,7 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 {
 #define SHOW_TRANS 16
 	int x, y, z;
-	int curlen = 0, longest = 0;
+	int curlen = 0, longest = 0, magnitude[SHOW_TRANS] = { 0, };
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -536,7 +537,7 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 
 	if (a->argc > 5)
 		return CLI_SHOWUSAGE;
-	
+
 	if (a->argv[3] && !strcasecmp(a->argv[3], "recalc")) {
 		z = a->argv[4] ? atoi(a->argv[4]) : 1;
 
@@ -565,9 +566,14 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 		curlen = strlen(ast_getformatname(1 << (x)));
 		if (curlen > longest)
 			longest = curlen;
+		for (y = 0; y < SHOW_TRANS; y++) {
+			if (tr_matrix[x][y].cost > pow(10, magnitude[x])) {
+				magnitude[y] = floor(log10(tr_matrix[x][y].cost));
+			}
+		}
 	}
 	for (x = -1; x < SHOW_TRANS; x++) {
-		struct ast_str *out = ast_str_alloca(120);
+		struct ast_str *out = ast_str_alloca(125);
 		/*Go ahead and move to next iteration if dealing with an unknown codec*/
 		if(x >= 0 && !strcmp(ast_getformatname(1 << (x)), "unknown"))
 			continue;
@@ -578,13 +584,14 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 				continue;
 			if (y >= 0)
 				curlen = strlen(ast_getformatname(1 << (y)));
+			if (y >= 0 && magnitude[y] + 1 > curlen) {
+				curlen = magnitude[y] + 1;
+			}
 			if (curlen < 5)
 				curlen = 5;
 			if (x >= 0 && y >= 0 && tr_matrix[x][y].step) {
-				/* XXX 99999 is a little hackish
-				   We don't want this number being larger than the shortest (or current) codec
-				   For now, that is "gsm" */
-				ast_str_append(&out, -1, "%*d", curlen + 1, tr_matrix[x][y].cost > 99999 ? 0 : tr_matrix[x][y].cost);
+				/* Actual codec output */
+				ast_str_append(&out, -1, "%*d", curlen + 1, tr_matrix[x][y].cost);
 			} else if (x == -1 && y >= 0) {
 				/* Top row - use a dynamic size */
 				ast_str_append(&out, -1, "%*s", curlen + 1, ast_getformatname(1 << (y)) );
@@ -592,13 +599,15 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 				/* Left column - use a static size. */
 				ast_str_append(&out, -1, "%*s", longest, ast_getformatname(1 << (x)) );
 			} else if (x >= 0 && y >= 0) {
+				/* Codec not supported */
 				ast_str_append(&out, -1, "%*s", curlen + 1, "-");
 			} else {
+				/* Upper left hand corner */
 				ast_str_append(&out, -1, "%*s", longest, "");
 			}
 		}
 		ast_str_append(&out, -1, "\n");
-		ast_cli(a->fd, "%s", ast_str_buffer(out));			
+		ast_cli(a->fd, "%s", ast_str_buffer(out));
 	}
 	AST_RWLIST_UNLOCK(&translators);
 	return CLI_SUCCESS;
