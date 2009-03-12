@@ -4037,7 +4037,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			application = pbx_findapp("Macro");
 
 			if (application) {
-				res = pbx_exec(qe->chan, application, macroexec);
+				res = pbx_exec(peer, application, macroexec);
 				ast_debug(1, "Macro exited with status %d\n", res);
 				res = 0;
 			} else {
