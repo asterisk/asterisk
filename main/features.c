@@ -1983,20 +1983,30 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 	struct ast_call_feature *feature;
 	struct feature_group *fg = NULL;
 	struct feature_group_exten *fge;
-	const char *dynamic_features;
+	const char *peer_dynamic_features, *chan_dynamic_features;
+	char dynamic_features_buf[128];
 	char *tmp, *tok;
 	int res = AST_FEATURE_RETURN_PASSDIGITS;
 	int feature_detected = 0;
 
 	if (sense == FEATURE_SENSE_CHAN) {
 		ast_copy_flags(&features, &(config->features_caller), AST_FLAGS_ALL);
-		dynamic_features = pbx_builtin_getvar_helper(chan, "DYNAMIC_FEATURES");
 	}
 	else {
 		ast_copy_flags(&features, &(config->features_callee), AST_FLAGS_ALL);
-		dynamic_features = pbx_builtin_getvar_helper(peer, "DYNAMIC_FEATURES");
 	}
-	ast_debug(3, "Feature interpret: chan=%s, peer=%s, code=%s, sense=%d, features=%d, dynamic=%s\n", chan->name, peer->name, code, sense, features.flags, dynamic_features);
+
+	ast_channel_lock(peer);
+	peer_dynamic_features = ast_strdupa(S_OR(pbx_builtin_getvar_helper(peer, "DYNAMIC_FEATURES"),""));
+	ast_channel_unlock(peer);
+
+	ast_channel_lock(chan);
+	chan_dynamic_features = ast_strdupa(S_OR(pbx_builtin_getvar_helper(chan, "DYNAMIC_FEATURES"),""));
+	ast_channel_unlock(chan);
+
+	snprintf(dynamic_features_buf, sizeof(dynamic_features_buf), "%s%s%s", S_OR(chan_dynamic_features, ""), chan_dynamic_features && peer_dynamic_features ? "#" : "", S_OR(peer_dynamic_features,""));
+
+	ast_debug(3, "Feature interpret: chan=%s, peer=%s, code=%s, sense=%d, features=%d, dynamic=%s\n", chan->name, peer->name, code, sense, features.flags, dynamic_features_buf);
 
 	ast_rwlock_rdlock(&features_lock);
 	for (x = 0; x < FEATURES_COUNT; x++) {
@@ -2016,10 +2026,10 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 	}
 	ast_rwlock_unlock(&features_lock);
 
-	if (ast_strlen_zero(dynamic_features) || feature_detected)
+	if (ast_strlen_zero(dynamic_features_buf) || feature_detected)
 		return res;
 
-	tmp = ast_strdupa(dynamic_features);
+	tmp = dynamic_features_buf;
 
 	while ((tok = strsep(&tmp, "#"))) {
 		AST_RWLIST_RDLOCK(&feature_groups);
