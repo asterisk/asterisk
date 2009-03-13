@@ -19865,11 +19865,7 @@ static int acf_channel_read(struct ast_channel *chan, const char *funcname, char
 	} else if (!strcasecmp(args.param, "peername")) {
 		ast_copy_string(buf, p->peername, buflen);
 	} else if (!strcasecmp(args.param, "t38passthrough")) {
-		if (p->t38.state == T38_DISABLED) {
-			ast_copy_string(buf, "0", sizeof("0"));
-		} else {  /* T38 is offered or enabled in this call */
-			ast_copy_string(buf, "1", sizeof("1"));
-		}
+		ast_copy_string(buf, (p->t38.state == T38_DISABLED) ? "0" : "1", buflen);
 	} else if (!strcasecmp(args.param, "rtpdest")) {
 		struct sockaddr_in sin;
 
