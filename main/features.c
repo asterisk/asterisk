@@ -395,7 +395,7 @@ static void check_goto_on_transfer(struct ast_channel *chan)
 	}
 }
 
-static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *caller, struct ast_channel *transferee, const char *type, int format, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name, int igncallerstate, const char *language);
+static struct ast_channel *feature_request_and_dial(struct ast_channel *caller, struct ast_channel *transferee, const char *type, int format, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name, int igncallerstate, const char *language);
 
 /*!
  * \brief bridge the call 
@@ -405,7 +405,7 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
  * bridge call, check if we're going back to dialplan
  * if not hangup both legs of the call
 */
-static void *ast_bridge_call_thread(void *data)
+static void *bridge_call_thread(void *data)
 {
 	struct ast_bridge_thread_obj *tobj = data;
 	int res;
@@ -446,9 +446,9 @@ static void *ast_bridge_call_thread(void *data)
  * \brief create thread for the parked call
  * \param data
  *
- * Create thread and attributes, call ast_bridge_call_thread
+ * Create thread and attributes, call bridge_call_thread
 */
-static void ast_bridge_call_thread_launch(void *data) 
+static void bridge_call_thread_launch(void *data) 
 {
 	pthread_t thread;
 	pthread_attr_t attr;
@@ -456,7 +456,7 @@ static void ast_bridge_call_thread_launch(void *data)
 
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	ast_pthread_create(&thread, &attr,ast_bridge_call_thread, data);
+	ast_pthread_create(&thread, &attr, bridge_call_thread, data);
 	pthread_attr_destroy(&attr);
 	memset(&sched, 0, sizeof(sched));
 	pthread_setschedparam(thread, SCHED_RR, &sched);
@@ -531,7 +531,7 @@ static enum ast_device_state metermaidstate(const char *data)
 	return AST_DEVICE_INUSE;
 }
 
-/*! Options to pass to ast_park_call_full */
+/*! Options to pass to park_call_full */
 enum ast_park_call_options {
 	/*! Provide ringing to the parked caller instead of music on hold */
 	AST_PARK_OPT_RINGING =   (1 << 0),
@@ -670,7 +670,7 @@ static struct parkeduser *park_space_reserve(struct ast_channel *chan,
 }
 
 /* Park a call */
-static int ast_park_call_full(struct ast_channel *chan, struct ast_channel *peer, struct ast_park_call_args *args)
+static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, struct ast_park_call_args *args)
 {
 	struct ast_context *con;
 	int parkingnum_copy;
@@ -815,7 +815,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 		.extout = extout,
 	};
 
-	return ast_park_call_full(chan, peer, &args);
+	return park_call_full(chan, peer, &args);
 }
 
 static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout, int play_announcement, struct ast_park_call_args *args)
@@ -863,7 +863,7 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, i
 		args->orig_chan_name = ast_strdupa(chan->name);
 	}
 
-	park_status = ast_park_call_full(chan, peer, args);
+	park_status = park_call_full(chan, peer, args);
 	if (park_status == 1) {
 	/* would be nice to play "invalid parking extension" */
 		ast_hangup(chan);
@@ -1456,7 +1456,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		}
 	}
 
-	newchan = ast_feature_request_and_dial(transferer, transferee, "Local", ast_best_codec(transferer->nativeformats),
+	newchan = feature_request_and_dial(transferer, transferee, "Local", ast_best_codec(transferer->nativeformats),
 		xferto, atxfernoanswertimeout, &outstate, transferer->cid.cid_num, transferer->cid.cid_name, 1, transferer->language);
 
 	if (!ast_check_hangup(transferer)) {
@@ -1562,7 +1562,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 
 		if (ast_stream_and_wait(newchan, xfersound, ""))
 			ast_log(LOG_WARNING, "Failed to play transfer sound!\n");
-		ast_bridge_call_thread_launch(tobj);
+		bridge_call_thread_launch(tobj);
 		return -1;      /* XXX meaning the channel is bridged ? */
 	} else if (!ast_check_hangup(transferee)) {
 		/* act as blind transfer */
@@ -1586,14 +1586,14 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 			}
 
 			ast_log(LOG_NOTICE, "We're trying to call %s/%s\n", transferer_tech, transferer_name);
-			newchan = ast_feature_request_and_dial(transferee, NULL, transferer_tech, ast_best_codec(transferee->nativeformats),
+			newchan = feature_request_and_dial(transferee, NULL, transferer_tech, ast_best_codec(transferee->nativeformats),
 				transferer_name, atxfernoanswertimeout, &outstate, transferee->cid.cid_num, transferee->cid.cid_name, 0, transferer->language);
 			while (!newchan && !atxferdropcall && tries < atxfercallbackretries) {
 				/* Trying to transfer again */
 				ast_autoservice_start(transferee);
 				ast_indicate(transferee, AST_CONTROL_HOLD);
 
-				newchan = ast_feature_request_and_dial(transferer, transferee, "Local", ast_best_codec(transferer->nativeformats),
+				newchan = feature_request_and_dial(transferer, transferee, "Local", ast_best_codec(transferer->nativeformats),
 					xferto, atxfernoanswertimeout, &outstate, transferer->cid.cid_num, transferer->cid.cid_name, 1, transferer->language);
 				if (ast_autoservice_stop(transferee) < 0) {
 					if (newchan)
@@ -1605,7 +1605,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 					ast_debug(1, "Sleeping for %d ms before callback.\n", atxferloopdelay);
 					ast_safe_sleep(transferee, atxferloopdelay);
 					ast_debug(1, "Trying to callback...\n");
-					newchan = ast_feature_request_and_dial(transferee, NULL, transferer_tech, ast_best_codec(transferee->nativeformats),
+					newchan = feature_request_and_dial(transferee, NULL, transferer_tech, ast_best_codec(transferee->nativeformats),
 						transferer_name, atxfernoanswertimeout, &outstate, transferee->cid.cid_num, transferee->cid.cid_name, 0, transferer->language);
 				}
 				tries++;
@@ -1663,7 +1663,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 
 		if (ast_stream_and_wait(newchan, xfersound, ""))
 			ast_log(LOG_WARNING, "Failed to play transfer sound!\n");
-		ast_bridge_call_thread_launch(tobj);
+		bridge_call_thread_launch(tobj);
 		return -1;      /* XXX meaning the channel is bridged ? */
 	} else {
 		/* Transferee hung up */
@@ -1976,7 +1976,7 @@ static int remap_feature(const char *name, const char *value)
  * \retval res on success.
  * \retval -1 on failure.
 */
-static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
+static int feature_interpret(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
 {
 	int x;
 	struct ast_flags features;
@@ -2132,7 +2132,7 @@ static void set_config_flags(struct ast_channel *chan, struct ast_channel *peer,
  * \todo XXX Check - this is very similar to the code in channel.c 
  * \return always a channel
 */
-static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *caller, struct ast_channel *transferee, const char *type, int format, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name, int igncallerstate, const char *language)
+static struct ast_channel *feature_request_and_dial(struct ast_channel *caller, struct ast_channel *transferee, const char *type, int format, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name, int igncallerstate, const char *language)
 {
 	int state = 0;
 	int cause = 0;
@@ -2672,7 +2672,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			ast_frfree(f);
 			f = NULL;
 			config->feature_timer = backup_config.feature_timer;
-			res = ast_feature_interpret(chan, peer, config, featurecode, sense);
+			res = feature_interpret(chan, peer, config, featurecode, sense);
 			switch(res) {
 			case AST_FEATURE_RETURN_PASSDIGITS:
 				ast_dtmf_stream(other, who, featurecode, 0, 0);
@@ -4185,7 +4185,7 @@ static int action_bridge(struct mansession *s, const struct message *m)
 		}
 	}
 
-	ast_bridge_call_thread_launch(tobj);
+	bridge_call_thread_launch(tobj);
 
 	astman_send_ack(s, m, "Launched bridge thread with success");
 
