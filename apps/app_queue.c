@@ -1923,7 +1923,7 @@ static int say_position(struct queue_ent *qe, int ringing)
 		if (res)
 			goto playout;
 
-		if (avgholdmins > 1) {
+		if (avgholdmins >= 1) {
 			res = ast_say_number(qe->chan, avgholdmins, AST_DIGIT_ANY, qe->chan->language, NULL);
 			if (res)
 				goto playout;
@@ -1938,7 +1938,7 @@ static int say_position(struct queue_ent *qe, int ringing)
 					goto playout;
 			}
 		}
-		if (avgholdsecs > 1) {
+		if (avgholdsecs >= 1) {
 			res = ast_say_number(qe->chan, avgholdmins > 1 ? avgholdsecs : avgholdmins * 60 + avgholdsecs, AST_DIGIT_ANY, qe->chan->language, NULL);
 			if (res)
 				goto playout;
