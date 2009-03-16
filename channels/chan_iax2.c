@@ -874,7 +874,7 @@ static void prune_users(void);
 static int decode_frame(aes_decrypt_ctx *dcx, struct ast_iax2_full_hdr *fh, struct ast_frame *f, int *datalen);
 static int encrypt_frame(aes_encrypt_ctx *ecx, struct ast_iax2_full_hdr *fh, unsigned char *poo, int *datalen);
 static void build_ecx_key(const unsigned char *digest, struct chan_iax2_pvt *pvt);
- 
+static void build_rand_pad(unsigned char *buf, ssize_t len);
 
 static const struct ast_channel_tech iax2_tech = {
 	.type = "IAX2",
@@ -2274,6 +2274,9 @@ static int update_packet(struct iax_frame *f)
 
 	/* Now re-encrypt the frame */
 	if (f->encmethods) {
+	/* since this is a retransmit frame, create a new random padding
+	 * before re-encrypting. */
+		build_rand_pad(f->semirand, sizeof(f->semirand));
 		encrypt_frame(&f->ecx, fh, f->semirand, &f->datalen);
 	}
 	return 0;
@@ -4306,6 +4309,18 @@ static int iax2_trunk_queue(struct chan_iax2_pvt *pvt, struct iax_frame *fr)
 	return 0;
 }
 
+/* IAX2 encryption requires 16 to 32 bytes of random padding to be present
+ * before the encryption data.  This function randomizes that data. */
+static void build_rand_pad(unsigned char *buf, ssize_t len)
+{
+	long tmp;
+	for (tmp = ast_random(); len > 0; tmp = ast_random()) {
+		memcpy(buf, (unsigned char *) &tmp, (len > sizeof(tmp)) ? sizeof(tmp) : len);
+		buf += sizeof(tmp);
+		len -= sizeof(tmp);
+	}
+}
+
 static void build_encryption_keys(const unsigned char *digest, struct chan_iax2_pvt *pvt)
 {
 	build_ecx_key(digest, pvt);
@@ -4317,6 +4332,7 @@ static void build_ecx_key(const unsigned char *digest, struct chan_iax2_pvt *pvt
 	/* it is required to hold the corresponding decrypt key to our encrypt key
 	 * in the pvt struct because queued frames occasionally need to be decrypted and
 	 * re-encrypted when updated for a retransmission */
+	build_rand_pad(pvt->semirand, sizeof(pvt->semirand));
 	aes_encrypt_key128(digest, &pvt->ecx);
 	aes_decrypt_key128(digest, &pvt->mydcx);
 }
@@ -4383,7 +4399,7 @@ static int decode_frame(aes_decrypt_ctx *dcx, struct ast_iax2_full_hdr *fh, stru
 		/* Decrypt */
 		memcpy_decrypt(workspace, efh->encdata, *datalen - sizeof(struct ast_iax2_full_enc_hdr), dcx);
 
-		padding = 16 + (workspace[15] & 0xf);
+		padding = 16 + (workspace[15] & 0x0f);
 		if (option_debug && iaxdebug)
 			ast_log(LOG_DEBUG, "Decoding full frame with length %d (padding = %d) (15=%02x)\n", *datalen, padding, workspace[15]);
 		if (*datalen < padding + sizeof(struct ast_iax2_full_hdr))
