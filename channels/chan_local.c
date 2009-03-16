@@ -203,23 +203,17 @@ static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_fra
 	/* Recalculate outbound channel */
 	other = isoutbound ? p->owner : p->chan;
 
-	/* Set glare detection */
-	ast_set_flag(p, LOCAL_GLARE_DETECT);
-	if (ast_test_flag(p, LOCAL_CANCEL_QUEUE)) {
-		/* We had a glare on the hangup.  Forget all this business,
-		return and destroy p.  */
-		ast_mutex_unlock(&p->lock);
-		p = local_pvt_destroy(p);
-		return -1;
-	}
 	if (!other) {
-		ast_clear_flag(p, LOCAL_GLARE_DETECT);
 		return 0;
 	}
 
 	/* do not queue frame if generator is on both local channels */
-	if (us && us->generator && other->generator)
+	if (us && us->generator && other->generator) {
 		return 0;
+	}
+
+	/* Set glare detection */
+	ast_set_flag(p, LOCAL_GLARE_DETECT);
 
 	/* Ensure that we have both channels locked */
 	while (other && ast_channel_trylock(other)) {
@@ -233,6 +227,17 @@ static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_fra
 			ast_mutex_lock(&p->lock);
 		}
 		other = isoutbound ? p->owner : p->chan;
+	}
+
+	/* Since glare detection only occurs within this function, and because
+	 * a pvt flag cannot be set without having the pvt lock, this is the only
+	 * location where we could detect a cancelling of the queue. */
+	if (ast_test_flag(p, LOCAL_CANCEL_QUEUE)) {
+		/* We had a glare on the hangup.  Forget all this business,
+		return and destroy p.  */
+		ast_mutex_unlock(&p->lock);
+		p = local_pvt_destroy(p);
+		return -1;
 	}
 
 	if (other) {
