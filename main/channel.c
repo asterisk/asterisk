@@ -1755,14 +1755,19 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay,  int cdr_answer)
 				}
 				f = ast_read(chan);
 				if (!f || (f->frametype == AST_FRAME_CONTROL && f->subclass == AST_CONTROL_HANGUP)) {
+					if (f) {
+						ast_frfree(f);
+					}
 					res = -1;
 					ast_debug(2, "Hangup of channel %s detected in answer routine\n", chan->name);
 					break;
 				}
 				if (f->frametype == AST_FRAME_VOICE) {
+					ast_frfree(f);
 					res = 0;
 					break;
 				}
+				ast_frfree(f);
 			}
 		}
 		break;
