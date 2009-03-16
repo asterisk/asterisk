@@ -74,11 +74,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax>
 			<parameter name="filename" required="true" />
 			<parameter name="offset" required="true">
-				<para>Maybe specified as any number. if negative <replaceable>offset</replaceable> specifies the number
+				<para>Maybe specified as any number. If negative, <replaceable>offset</replaceable> specifies the number
 				of bytes back from the end of the file.</para>
 			</parameter>
 			<parameter name="length" required="true">
-				<para>If specified, will limit the length of the data read to that size.</para>
+				<para>If specified, will limit the length of the data read to that size. If negative,
+				trims <replaceable>length</replaceable> bytes from the end of the file.</para>
 			</parameter>
 		</syntax>
 		<description>
@@ -166,40 +167,59 @@ static int file_read(struct ast_channel *chan, const char *cmd, char *data, char
 		AST_APP_ARG(offset);
 		AST_APP_ARG(length);
 	);
-	int offset = 0, length;
+	int offset = 0, length, res = 0;
 	char *contents;
+	size_t contents_len;
 
 	AST_STANDARD_APP_ARGS(args, data);
-	if (args.argc > 1)
+	if (args.argc > 1) {
 		offset = atoi(args.offset);
+	}
 
 	if (args.argc > 2) {
-		if ((length = atoi(args.length)) < 1) {
-			ast_log(LOG_WARNING, "Invalid length '%s'.  Returning the max (%d)\n", args.length, (int)len);
-			length = len;
-		} else if (length > len) {
-			ast_log(LOG_WARNING, "Length %d is greater than the max (%d).  Truncating output.\n", length, (int)len);
+		/* The +1/-1 in this code section is to accomodate for the terminating NULL. */
+		if ((length = atoi(args.length) + 1) > len) {
+			ast_log(LOG_WARNING, "Length %d is greater than the max (%d).  Truncating output.\n", length - 1, (int)len - 1);
 			length = len;
 		}
-	} else
+	} else {
 		length = len;
-
-	if (!(contents = ast_read_textfile(args.filename)))
-		return -1;
-
-	if (offset >= 0)
-		ast_copy_string(buf, &contents[offset], length);
-	else {
-		size_t tmp = strlen(contents);
-		if (offset * -1 > tmp) {
-			ast_log(LOG_WARNING, "Offset is larger than the file size.\n");
-			offset = tmp * -1;
-		}
-		ast_copy_string(buf, &contents[tmp + offset], length);
 	}
+
+	if (!(contents = ast_read_textfile(args.filename))) {
+		return -1;
+	}
+
+	do {
+		contents_len = strlen(contents);
+		if (offset > contents_len) {
+			res = -1;
+			break;
+		}
+
+		if (offset >= 0) {
+			if (length < 0) {
+				if (contents_len - offset + length < 0) {
+					/* Nothing left after trimming */
+					res = -1;
+					break;
+				}
+				ast_copy_string(buf, &contents[offset], contents_len + length);
+			} else {
+				ast_copy_string(buf, &contents[offset], length);
+			}
+		} else {
+			if (offset * -1 > contents_len) {
+				ast_log(LOG_WARNING, "Offset is larger than the file size.\n");
+				offset = contents_len * -1;
+			}
+			ast_copy_string(buf, &contents[contents_len + offset], length);
+		}
+	} while (0);
+
 	ast_free(contents);
 
-	return 0;
+	return res;
 }
 
 static struct ast_custom_function env_function = {
