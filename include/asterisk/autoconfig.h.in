@@ -596,6 +596,12 @@
 /* Define if your system has the OpenH323 libraries. */
 #undef HAVE_OPENH323
 
+/* Define this to indicate the ${OPENR2_DESCRIP} library */
+#undef HAVE_OPENR2
+
+/* Define to indicate the ${OPENR2_DESCRIP} library version */
+#undef HAVE_OPENR2_VERSION
+
 /* Define this to indicate the ${OPENSSL_DESCRIP} library */
 #undef HAVE_OPENSSL
 

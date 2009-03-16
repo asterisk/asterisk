@@ -43,6 +43,7 @@
 	<depend>tonezone</depend>
 	<use>pri</use>
 	<use>ss7</use>
+	<use>openr2</use>
  ***/
 
 #include "asterisk.h"
@@ -68,6 +69,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #ifdef HAVE_SS7
 #include <libss7.h>
+#endif
+
+#ifdef HAVE_OPENR2
+#include <openr2.h>
 #endif
 
 #include "asterisk/lock.h"
@@ -100,6 +105,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj.h"
 #include "asterisk/event.h"
 #include "asterisk/devicestate.h"
+#include "asterisk/paths.h"
 
 /*** DOCUMENTATION
 	<application name="DAHDISendKeypadFacility" language="en_US">
@@ -132,6 +138,23 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>This application will send a Callrerouting Facility IE over the
 			current channel.</para>
+		</description>
+	</application>
+	<application name="DAHDIAcceptR2Call" language="en_US">
+		<synopsis>
+			Accept an R2 call if its not already accepted (you still need to answer it)
+		</synopsis>
+		<syntax>
+			<parameter name="charge" required="true">
+				<para>Yes or No.</para>
+				<para>Whether you want to accept the call with charge or without charge.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application will Accept the R2 call either with charge or no charge.</para>
+		</description>
+		<description>
+			<para>This application will Accept the R2 call either with charge or no charge.</para>
 		</description>
 	</application>
  ***/
@@ -192,11 +215,25 @@ static struct ast_jb_conf global_jbconf;
 #define NEED_MFDETECT(p) (((p)->sig == SIG_FEATDMF) || ((p)->sig == SIG_FEATDMF_TA) || ((p)->sig == SIG_E911) || ((p)->sig == SIG_FGC_CAMA) || ((p)->sig == SIG_FGC_CAMAMF) || ((p)->sig == SIG_FEATB))
 
 static const char tdesc[] = "DAHDI Telephony Driver"
+#if defined(HAVE_PRI) || defined(HAVE_SS7) || defined(HAVE_OPENR2)
+	" w/"
+#endif
 #ifdef HAVE_PRI
-	" w/PRI"
+	"PRI"
 #endif
 #ifdef HAVE_SS7
-	" w/SS7"
+	#ifdef HAVE_PRI
+	" & SS7"
+	#else
+	"SS7"
+	#endif
+#endif
+#ifdef HAVE_OPENR2
+	#if defined(HAVE_PRI) || defined(HAVE_SS7)
+	" & MFC/R2"
+	#else
+	"MFC/R2"
+	#endif
 #endif
 ;
 
@@ -221,6 +258,7 @@ static const char config[] = "chan_dahdi.conf";
 #define SIG_BRI		(0x2000000 | DAHDI_SIG_CLEAR)
 #define SIG_BRI_PTMP	(0X4000000 | DAHDI_SIG_CLEAR)
 #define SIG_SS7		(0x1000000 | DAHDI_SIG_CLEAR)
+#define SIG_MFCR2 	DAHDI_SIG_CAS
 #define	SIG_SF		DAHDI_SIG_SF
 #define SIG_SFWINK 	(0x0100000 | DAHDI_SIG_SF)
 #define SIG_SF_FEATD	(0x0200000 | DAHDI_SIG_SF)
@@ -421,6 +459,44 @@ static int cur_adjpointcode = -1;
 static int cur_networkindicator = -1;
 static int cur_defaultdpc = -1;
 #endif /* HAVE_SS7 */
+
+#ifdef HAVE_OPENR2
+struct dahdi_mfcr2 {
+	pthread_t r2master;		       /*!< Thread of master */
+	openr2_context_t *protocol_context;    /*!< OpenR2 context handle */
+	struct dahdi_pvt *pvts[MAX_CHANNELS];     /*!< Member channel pvt structs */
+	int numchans;                          /*!< Number of channels in this R2 block */
+	int monitored_count;                   /*!< Number of channels being monitored */
+	ast_mutex_t monitored_count_lock;      /*!< lock access to the counter */ 
+	ast_cond_t do_monitor;                 /*!< Condition to wake up the monitor thread when there's work to do */
+
+};
+struct dahdi_mfcr2_conf {
+	openr2_variant_t variant;
+	int mfback_timeout;
+	int metering_pulse_timeout;
+	int max_ani;
+	int max_dnis;
+	int get_ani_first:1;
+	int call_files:1;
+	int allow_collect_calls:1;
+	int charge_calls:1;
+	int accept_on_offer:1;
+	int forced_release:1;
+	int double_answer:1;
+	int immediate_accept:1;
+	char logdir[OR2_MAX_PATH];
+	char r2proto_file[OR2_MAX_PATH];
+	openr2_log_level_t loglevel;
+	openr2_calling_party_category_t category;
+};
+
+/* malloc'd array of malloc'd r2links */
+static struct dahdi_mfcr2 **r2links; 
+/* how many r2links have been malloc'd */
+static int r2links_count = 0; 
+
+#endif /* HAVE_OPENR2 */
 
 #ifdef HAVE_PRI
 
@@ -1132,6 +1208,22 @@ static struct dahdi_pvt {
 	unsigned int dpc;						/*!< CIC's DPC */
 	unsigned int loopedback:1;
 #endif
+#ifdef HAVE_OPENR2
+	struct dahdi_mfcr2 *mfcr2;
+	openr2_chan_t *r2chan;
+	openr2_calling_party_category_t mfcr2_recvd_category;
+	openr2_calling_party_category_t mfcr2_category;
+	int mfcr2_dnis_index;
+	int mfcr2_ani_index;
+	int mfcr2call:1;
+	int mfcr2_answer_pending:1;
+	int mfcr2_charge_calls:1;
+	int mfcr2_allow_collect_calls:1;
+	int mfcr2_forced_release:1;
+	int mfcr2_dnis_matched:1;
+	int mfcr2_call_accepted:1;
+	int mfcr2_accept_on_offer:1;
+#endif
 	/*! \brief DTMF digit in progress.  0 when no digit in progress. */
 	char begindigit;
 	/*! \brief TRUE if confrence is muted. */
@@ -1156,6 +1248,10 @@ struct dahdi_chan_conf {
 
 #ifdef HAVE_SS7
 	struct dahdi_ss7 ss7;
+#endif
+
+#ifdef HAVE_OPENR2
+	struct dahdi_mfcr2_conf mfcr2;
 #endif
 	struct dahdi_params timing;
 	int is_sig_auto; /*!< Use channel signalling from DAHDI? */
@@ -1202,6 +1298,27 @@ static struct dahdi_chan_conf dahdi_chan_conf_default(void)
 			.nationalprefix = "",
 			.subscriberprefix = "",
 			.unknownprefix = ""
+		},
+#endif
+#ifdef HAVE_OPENR2
+		.mfcr2 = {
+			.variant = OR2_VAR_ITU,
+			.mfback_timeout = -1,
+			.metering_pulse_timeout = -1,
+			.max_ani = 10,
+			.max_dnis = 4,
+			.get_ani_first = -1,
+			.call_files = 0,
+			.allow_collect_calls = 0,
+			.charge_calls = 1,
+			.accept_on_offer = 1,
+			.forced_release = 0,
+			.double_answer = 0,
+			.immediate_accept = -1,
+			.logdir = "",
+			.r2proto_file = "",
+			.loglevel = OR2_LOG_ERROR | OR2_LOG_WARNING,
+			.category = OR2_CALLING_PARTY_CATEGORY_NATIONAL_SUBSCRIBER
 		},
 #endif
 		.chan = {
@@ -1484,6 +1601,462 @@ static void dahdi_queue_frame(struct dahdi_pvt *p, struct ast_frame *f, void *da
 	}
 #endif
 }
+
+static struct ast_channel *dahdi_new(struct dahdi_pvt *, int, int, int, int, int);
+#ifdef HAVE_OPENR2
+
+static int dahdi_r2_answer(struct dahdi_pvt *p)
+{
+	int res = 0;
+	/* openr2 1.1.0 and older does not even define OR2_LIB_INTERFACE
+	* and does not has support for openr2_chan_answer_call_with_mode
+	*  */
+#if defined(OR2_LIB_INTERFACE) && OR2_LIB_INTERFACE > 1
+	const char *double_answer = pbx_builtin_getvar_helper(p->owner, "MFCR2_DOUBLE_ANSWER");
+	int wants_double_answer = ast_true(double_answer) ? 1 : 0;
+	if (!double_answer) {
+		/* this still can result in double answer if the channel context 
+		* was configured that way */
+		res = openr2_chan_answer_call(p->r2chan);
+	} else if (wants_double_answer) {
+		res = openr2_chan_answer_call_with_mode(p->r2chan, OR2_ANSWER_DOUBLE);
+	} else {
+		res = openr2_chan_answer_call_with_mode(p->r2chan, OR2_ANSWER_SIMPLE);
+	} 
+#else
+	res = openr2_chan_answer_call(p->r2chan);
+#endif
+	return res;
+}
+
+
+
+/* should be called with the ast_channel locked */
+static openr2_calling_party_category_t dahdi_r2_get_channel_category(struct ast_channel *c)
+{
+	openr2_calling_party_category_t cat;
+	const char *catstr = pbx_builtin_getvar_helper(c, "MFCR2_CATEGORY");
+	struct dahdi_pvt *p = c->tech_pvt;
+	if (ast_strlen_zero(catstr)) {
+		ast_debug(1, "No MFC/R2 category specified for chan %s, using default %s\n",
+				c->name, openr2_proto_get_category_string(p->mfcr2_category));
+		return p->mfcr2_category;
+	}
+	if ((cat = openr2_proto_get_category(catstr)) == OR2_CALLING_PARTY_CATEGORY_UNKNOWN) {
+		ast_log(LOG_WARNING, "Invalid category specified '%s' for chan %s, using default %s\n",
+				catstr, c->name, openr2_proto_get_category_string(p->mfcr2_category));
+		return p->mfcr2_category;
+	}
+	ast_debug(1, "Using category %s\n", catstr);
+	return cat;
+}
+
+static void dahdi_r2_on_call_init(openr2_chan_t *r2chan)
+{
+	struct dahdi_pvt *p = openr2_chan_get_client_data(r2chan);
+	ast_mutex_lock(&p->lock);
+	if (p->mfcr2call) {
+		ast_mutex_unlock(&p->lock);
+		/* TODO: This can happen when some other thread just finished dahdi_request requesting this very same
+		   interface but has not yet seized the line (dahdi_call), and the far end wins and seize the line,
+		   can we avoid this somehow?, at this point when dahdi_call send the seize, it is likely that since
+		   the other end will see our seize as a forced release and drop the call, we will see an invalid
+		   pattern that will be seen and treated as protocol error. */
+		ast_log(LOG_ERROR, "Collision of calls on chan %d detected!.\n", openr2_chan_get_number(r2chan));
+		return;
+	}
+	p->mfcr2call = 1;
+	/* better safe than sorry ... */
+	p->cid_name[0] = '\0';
+	p->cid_num[0] = '\0';
+	p->rdnis[0] = '\0';
+	p->exten[0] = '\0';
+	p->mfcr2_ani_index = '\0';
+	p->mfcr2_dnis_index = '\0';
+	p->mfcr2_dnis_matched = 0;
+	p->mfcr2_answer_pending = 0;
+	p->mfcr2_call_accepted = 0;
+	ast_mutex_unlock(&p->lock);
+	ast_log(LOG_NOTICE, "New MFC/R2 call detected on chan %d.\n", openr2_chan_get_number(r2chan));
+}
+
+static int get_alarms(struct dahdi_pvt *p);
+static void handle_alarms(struct dahdi_pvt *p, int alms);
+static void dahdi_r2_on_hardware_alarm(openr2_chan_t *r2chan, int alarm)
+{
+	int res;
+	struct dahdi_pvt *p = openr2_chan_get_client_data(r2chan);
+	ast_mutex_lock(&p->lock);
+	p->inalarm = alarm ? 1 : 0;
+	if (p->inalarm) {
+		res = get_alarms(p);
+		handle_alarms(p, res);
+	} else {
+		ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", p->channel);
+		manager_event(EVENT_FLAG_SYSTEM, "AlarmClear", "Channel: %d\r\n", p->channel);
+	}
+	ast_mutex_unlock(&p->lock);
+}
+
+static void dahdi_r2_on_os_error(openr2_chan_t *r2chan, int errorcode)
+{
+	ast_log(LOG_ERROR, "OS error on chan %d: %s\n", openr2_chan_get_number(r2chan), strerror(errorcode));
+}
+
+static void dahdi_r2_on_protocol_error(openr2_chan_t *r2chan, openr2_protocol_error_t reason)
+{
+	struct dahdi_pvt *p = openr2_chan_get_client_data(r2chan);
+	ast_log(LOG_ERROR, "MFC/R2 protocol error on chan %d: %s\n", openr2_chan_get_number(r2chan), openr2_proto_get_error(reason));
+	if (p->owner) {
+		p->owner->hangupcause = AST_CAUSE_PROTOCOL_ERROR;
+		p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+	}
+	ast_mutex_lock(&p->lock);
+	p->mfcr2call = 0;
+	ast_mutex_unlock(&p->lock);
+}
+
+static void dahdi_r2_update_monitor_count(struct dahdi_mfcr2 *mfcr2, int increment)
+{
+	ast_mutex_lock(&mfcr2->monitored_count_lock);
+	if (increment) {
+		mfcr2->monitored_count++;
+		if (mfcr2->monitored_count == 1) {
+			ast_log(LOG_DEBUG, "At least one device needs monitoring, let's wake up the monitor thread.\n");
+			ast_cond_signal(&mfcr2->do_monitor);
+		}
+	} else {
+		mfcr2->monitored_count--;
+		if (mfcr2->monitored_count < 0) {
+			ast_log(LOG_ERROR, "we have a bug here!.\n");
+		}
+	}
+	ast_mutex_unlock(&mfcr2->monitored_count_lock);
+}
+
+static void dahdi_r2_on_call_offered(openr2_chan_t *r2chan, const char *ani, const char *dnis, openr2_calling_party_category_t category)
+{
+	struct dahdi_pvt *p;
+	struct ast_channel *c;
+	ast_log(LOG_NOTICE, "MFC/R2 call offered on chan %d. ANI = %s, DNIS = %s, Category = %s\n",
+			openr2_chan_get_number(r2chan), ani ? ani : "(restricted)", dnis,
+			openr2_proto_get_category_string(category));
+	p = openr2_chan_get_client_data(r2chan);
+	/* if collect calls are not allowed and this is a collect call, reject it! */
+	if (!p->mfcr2_allow_collect_calls && category == OR2_CALLING_PARTY_CATEGORY_COLLECT_CALL) {
+		ast_log(LOG_NOTICE, "Rejecting MFC/R2 collect call\n");
+		openr2_chan_disconnect_call(r2chan, OR2_CAUSE_COLLECT_CALL_REJECTED);
+		return;
+	}
+	ast_mutex_lock(&p->lock);
+	p->mfcr2_recvd_category = category;
+	/* if we're not supposed to use CID, clear whatever we have */
+	if (!p->use_callerid) {
+		ast_log(LOG_DEBUG, "No CID allowed in configuration, CID is being cleared!\n");
+		p->cid_num[0] = 0;
+		p->cid_name[0] = 0;
+	}
+	/* if we're supposed to answer immediately, clear DNIS and set 's' exten */
+	if (p->immediate || !openr2_context_get_max_dnis(openr2_chan_get_context(r2chan))) {
+		ast_log(LOG_DEBUG, "Setting exten => s because of immediate or 0 DNIS configured\n");
+		p->exten[0] = 's';
+		p->exten[1] = 0;
+	}
+	ast_mutex_unlock(&p->lock);
+	if (!ast_exists_extension(NULL, p->context, p->exten, 1, p->cid_num)) {
+		ast_log(LOG_NOTICE, "MFC/R2 call on channel %d requested non-existent extension '%s' in context '%s'. Rejecting call.\n",
+				p->channel, p->exten, p->context);
+		openr2_chan_disconnect_call(r2chan, OR2_CAUSE_UNALLOCATED_NUMBER);
+		return;
+	} 
+	if (!p->mfcr2_accept_on_offer) {
+		/* The user wants us to start the PBX thread right away without accepting the call first */
+		c = dahdi_new(p, AST_STATE_RING, 1, SUB_REAL, DAHDI_LAW_ALAW, 0);
+		if (c) {
+			dahdi_r2_update_monitor_count(p->mfcr2, 0);
+			/* Done here, don't disable reading now since we still need to generate MF tones to accept
+			   the call or reject it and detect the tone off condition of the other end, all of this
+			   will be done in the PBX thread now */
+			return;
+		} 
+		ast_log(LOG_WARNING, "Unable to create PBX channel in DAHDI channel %d\n", p->channel);
+		openr2_chan_disconnect_call(r2chan, OR2_CAUSE_OUT_OF_ORDER);
+	} else if (p->mfcr2_charge_calls) {
+		ast_log(LOG_DEBUG, "Accepting MFC/R2 call with charge on chan %d\n", p->channel);
+		openr2_chan_accept_call(r2chan, OR2_CALL_WITH_CHARGE);
+	} else {
+		ast_log(LOG_DEBUG, "Accepting MFC/R2 call with no charge on chan %d\n", p->channel);
+		openr2_chan_accept_call(r2chan, OR2_CALL_NO_CHARGE);
+	}
+}
+
+static void dahdi_r2_on_call_end(openr2_chan_t *r2chan)
+{
+	struct dahdi_pvt *p = openr2_chan_get_client_data(r2chan);
+	ast_log(LOG_NOTICE, "MFC/R2 call end on chan %d\n", p->channel);
+	ast_mutex_lock(&p->lock);
+	p->mfcr2call = 0;
+	ast_mutex_unlock(&p->lock);
+}
+
+static void dahdi_enable_ec(struct dahdi_pvt *p);
+static void dahdi_r2_on_call_accepted(openr2_chan_t *r2chan, openr2_call_mode_t mode)
+{
+	struct dahdi_pvt *p = NULL;
+	struct ast_channel *c = NULL;
+	ast_log(LOG_NOTICE, "MFC/R2 call has been accepted on chan %d\n", openr2_chan_get_number(r2chan));
+	p = openr2_chan_get_client_data(r2chan);
+	dahdi_enable_ec(p);
+	p->mfcr2_call_accepted = 1;
+	/* if it's an incoming call ... */
+	if (OR2_DIR_BACKWARD == openr2_chan_get_direction(r2chan)) {
+		/* If accept on offer is not set, it means at this point the PBX thread is already
+		   launched (was launched in the 'on call offered' handler) and therefore this callback
+		   is being executed already in the PBX thread rather than the monitor thread, don't launch
+		   any other thread, just disable the openr2 reading and answer the call if needed */
+		if (!p->mfcr2_accept_on_offer) {
+			openr2_chan_disable_read(r2chan);
+			if (p->mfcr2_answer_pending) {
+				ast_log(LOG_DEBUG, "Answering MFC/R2 call after accepting it on chan %d\n", openr2_chan_get_number(r2chan));
+				dahdi_r2_answer(p);
+			}	
+			return;
+		} 
+		c = dahdi_new(p, AST_STATE_RING, 1, SUB_REAL, DAHDI_LAW_ALAW, 0);
+		if (c) {
+			dahdi_r2_update_monitor_count(p->mfcr2, 0);
+			/* chan_dahdi will take care of reading from now on in the PBX thread, tell the 
+			   library to forget about it */
+			openr2_chan_disable_read(r2chan);
+			return;
+		}
+		ast_log(LOG_WARNING, "Unable to create PBX channel in DAHDI channel %d\n", p->channel);
+		/* failed to create the channel, bail out and report it as an out of order line */
+		openr2_chan_disconnect_call(r2chan, OR2_CAUSE_OUT_OF_ORDER);
+		return;
+	} 
+	/* this is an outgoing call, no need to launch the PBX thread, most likely we're in one already */
+	ast_log(LOG_NOTICE, "Call accepted on forward channel %d\n", p->channel);
+	p->subs[SUB_REAL].needringing = 1;
+	p->dialing = 0;
+	/* chan_dahdi will take care of reading from now on in the PBX thread, tell the 
+	   library to forget about it */
+	openr2_chan_disable_read(r2chan);
+}
+
+static void dahdi_r2_on_call_answered(openr2_chan_t *r2chan)
+{
+	struct dahdi_pvt *p = openr2_chan_get_client_data(r2chan);
+	ast_log(LOG_DEBUG, "MFC/R2 call has been answered on chan %d\n", openr2_chan_get_number(r2chan));
+	p->subs[SUB_REAL].needanswer = 1;
+}
+
+static void dahdi_r2_on_call_read(openr2_chan_t *r2chan, const unsigned char *buf, int buflen)
+{
+	/*ast_log(LOG_DEBUG, "Read data from dahdi channel %d\n", openr2_chan_get_number(r2chan));*/
+}
+
+static int dahdi_r2_cause_to_ast_cause(openr2_call_disconnect_cause_t cause)
+{
+	switch (cause) {
+	case OR2_CAUSE_BUSY_NUMBER:
+		return AST_CAUSE_BUSY;
+	case OR2_CAUSE_NETWORK_CONGESTION:
+		return AST_CAUSE_CONGESTION;
+	case OR2_CAUSE_OUT_OF_ORDER:
+		return AST_CAUSE_DESTINATION_OUT_OF_ORDER;
+	case OR2_CAUSE_UNALLOCATED_NUMBER:
+		return AST_CAUSE_UNREGISTERED;
+	case OR2_CAUSE_NO_ANSWER:
+		return AST_CAUSE_NO_ANSWER;
+	case OR2_CAUSE_NORMAL_CLEARING:
+		return AST_CAUSE_NORMAL_CLEARING;
+	case OR2_CAUSE_UNSPECIFIED:
+	default:
+		return AST_CAUSE_NOTDEFINED;
+	}
+}
+
+static void dahdi_r2_on_call_disconnect(openr2_chan_t *r2chan, openr2_call_disconnect_cause_t cause)
+{
+	struct dahdi_pvt *p = openr2_chan_get_client_data(r2chan);
+	ast_verb(3, "MFC/R2 call disconnected on chan %d\n", openr2_chan_get_number(r2chan));
+	ast_mutex_lock(&p->lock);
+	if (!p->owner) {
+		ast_mutex_unlock(&p->lock);
+		/* no owner, therefore we can't use dahdi_hangup to disconnect, do it right now */
+		openr2_chan_disconnect_call(r2chan, OR2_CAUSE_NORMAL_CLEARING);
+		return;
+	}
+	/* when we have an owner we don't call openr2_chan_disconnect_call here, that will
+	   be done in dahdi_hangup */
+	if (p->owner->_state == AST_STATE_UP) {
+		p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+		ast_mutex_unlock(&p->lock);
+	} else if (openr2_chan_get_direction(r2chan) == OR2_DIR_FORWARD) {
+		/* being the forward side we must report what happened to the call to whoever requested it */
+		switch (cause) {
+		case OR2_CAUSE_BUSY_NUMBER:
+			p->subs[SUB_REAL].needbusy = 1;
+			break;
+		case OR2_CAUSE_NETWORK_CONGESTION:
+		case OR2_CAUSE_OUT_OF_ORDER:
+		case OR2_CAUSE_UNALLOCATED_NUMBER:
+		case OR2_CAUSE_NO_ANSWER:
+		case OR2_CAUSE_UNSPECIFIED:
+		case OR2_CAUSE_NORMAL_CLEARING:
+			p->subs[SUB_REAL].needcongestion = 1;
+			break;
+		default:
+			p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+		}
+		ast_mutex_unlock(&p->lock);
+	} else {
+		ast_mutex_unlock(&p->lock);
+		/* being the backward side and not UP yet, we only need to request hangup */
+		/* TODO: what about doing this same thing when were AST_STATE_UP? */
+		ast_queue_hangup_with_cause(p->owner, dahdi_r2_cause_to_ast_cause(cause));
+	}
+}
+
+static void dahdi_r2_write_log(openr2_log_level_t level, char *logmessage)
+{
+	switch (level) {
+	case OR2_LOG_NOTICE:
+		ast_log(LOG_NOTICE, "%s", logmessage);
+		break;
+	case OR2_LOG_WARNING:
+		ast_log(LOG_WARNING, "%s", logmessage);
+		break;
+	case OR2_LOG_ERROR:
+		ast_log(LOG_ERROR, "%s", logmessage);
+		break;
+	case OR2_LOG_STACK_TRACE:
+	case OR2_LOG_MF_TRACE:
+	case OR2_LOG_CAS_TRACE:
+	case OR2_LOG_DEBUG:
+	case OR2_LOG_EX_DEBUG:
+		ast_log(LOG_DEBUG, "%s", logmessage);
+		break;
+	default:
+		ast_log(LOG_WARNING, "We should handle logging level %d here.\n", level);
+		ast_log(LOG_DEBUG, "%s", logmessage);
+		break;
+	}
+}
+
+static void dahdi_r2_on_line_blocked(openr2_chan_t *r2chan)
+{
+	struct dahdi_pvt *p = openr2_chan_get_client_data(r2chan);
+	ast_mutex_lock(&p->lock);
+	p->remotelyblocked = 1;
+	ast_mutex_unlock(&p->lock);
+	ast_log(LOG_NOTICE, "Far end blocked on chan %d\n", openr2_chan_get_number(r2chan));
+}
+
+static void dahdi_r2_on_line_idle(openr2_chan_t *r2chan)
+{
+	struct dahdi_pvt *p = openr2_chan_get_client_data(r2chan);
+	ast_mutex_lock(&p->lock);
+	p->remotelyblocked = 0;
+	ast_mutex_unlock(&p->lock);
+	ast_log(LOG_NOTICE, "Far end unblocked on chan %d\n", openr2_chan_get_number(r2chan));
+}
+
+static void dahdi_r2_on_context_log(openr2_context_t *r2context, openr2_log_level_t level, const char *fmt, va_list ap)
+	__attribute__((format (printf, 3, 0)));
+static void dahdi_r2_on_context_log(openr2_context_t *r2context, openr2_log_level_t level, const char *fmt, va_list ap)
+{
+#define CONTEXT_TAG "Context - "
+	char logmsg[256];
+	char completemsg[sizeof(logmsg) + sizeof(CONTEXT_TAG) - 1];
+	vsnprintf(logmsg, sizeof(logmsg), fmt, ap);
+	snprintf(completemsg, sizeof(completemsg), CONTEXT_TAG "%s", logmsg);
+	dahdi_r2_write_log(level, completemsg);
+#undef CONTEXT_TAG
+}
+
+static void dahdi_r2_on_chan_log(openr2_chan_t *r2chan, openr2_log_level_t level, const char *fmt, va_list ap)
+	__attribute__((format (printf, 3, 0)));
+static void dahdi_r2_on_chan_log(openr2_chan_t *r2chan, openr2_log_level_t level, const char *fmt, va_list ap)
+{
+#define CHAN_TAG "Chan "
+	char logmsg[256];
+	char completemsg[sizeof(logmsg) + sizeof(CHAN_TAG) - 1];
+	vsnprintf(logmsg, sizeof(logmsg), fmt, ap);
+	snprintf(completemsg, sizeof(completemsg), CHAN_TAG "%d - %s", openr2_chan_get_number(r2chan), logmsg);
+	dahdi_r2_write_log(level, completemsg);
+}
+
+static int dahdi_r2_on_dnis_digit_received(openr2_chan_t *r2chan, char digit)
+{
+	struct dahdi_pvt *p = openr2_chan_get_client_data(r2chan);
+	/* if 'immediate' is set, let's stop requesting DNIS */
+	if (p->immediate) {
+		return 0;
+	}
+	p->exten[p->mfcr2_dnis_index] = digit;
+	p->rdnis[p->mfcr2_dnis_index] = digit;
+	p->mfcr2_dnis_index++;
+	p->exten[p->mfcr2_dnis_index] = 0;
+	p->rdnis[p->mfcr2_dnis_index] = 0;
+	/* if the DNIS is a match and cannot match more, stop requesting DNIS */
+	if ((p->mfcr2_dnis_matched ||
+	    (ast_exists_extension(NULL, p->context, p->exten, 1, p->cid_num) && (p->mfcr2_dnis_matched = 1))) &&
+	    !ast_matchmore_extension(NULL, p->context, p->exten, 1, p->cid_num)) {
+		return 0;
+	}
+	/* otherwise keep going */
+	return 1;
+}
+
+static void dahdi_r2_on_ani_digit_received(openr2_chan_t *r2chan, char digit)
+{
+	struct dahdi_pvt *p = openr2_chan_get_client_data(r2chan);
+	p->cid_num[p->mfcr2_ani_index] = digit;
+	p->cid_name[p->mfcr2_ani_index] = digit;
+	p->mfcr2_ani_index++;
+	p->cid_num[p->mfcr2_ani_index] = 0;
+	p->cid_name[p->mfcr2_ani_index] = 0;
+}
+
+static openr2_event_interface_t dahdi_r2_event_iface = {
+	.on_call_init = dahdi_r2_on_call_init,
+	.on_call_offered = dahdi_r2_on_call_offered,
+	.on_call_accepted = dahdi_r2_on_call_accepted,
+	.on_call_answered = dahdi_r2_on_call_answered,
+	.on_call_disconnect = dahdi_r2_on_call_disconnect,
+	.on_call_end = dahdi_r2_on_call_end,
+	.on_call_read = dahdi_r2_on_call_read,
+	.on_hardware_alarm = dahdi_r2_on_hardware_alarm,
+	.on_os_error = dahdi_r2_on_os_error,
+	.on_protocol_error = dahdi_r2_on_protocol_error,
+	.on_line_blocked = dahdi_r2_on_line_blocked,
+	.on_line_idle = dahdi_r2_on_line_idle,
+	/* cast seems to be needed to get rid of the annoying warning regarding format attribute  */
+	.on_context_log = (openr2_handle_context_logging_func)dahdi_r2_on_context_log,
+	.on_dnis_digit_received = dahdi_r2_on_dnis_digit_received,
+	.on_ani_digit_received = dahdi_r2_on_ani_digit_received,
+	/* so far we do nothing with billing pulses */
+	.on_billing_pulse_received = NULL
+};
+
+static inline int16_t dahdi_r2_alaw_to_linear(uint8_t sample)
+{
+	return AST_ALAW(sample);
+}
+
+static inline uint8_t dahdi_r2_linear_to_alaw(int sample)
+{
+	return AST_LIN2A(sample);
+}
+
+static openr2_transcoder_interface_t dahdi_r2_transcode_iface = {
+	dahdi_r2_alaw_to_linear,
+	dahdi_r2_linear_to_alaw
+};
+
+#endif /* HAVE_OPENR2 */
 
 static int restore_gains(struct dahdi_pvt *p);
 
@@ -1877,6 +2450,8 @@ static char *dahdi_sig2str(int sig)
 		return "ISDN BRI Point to MultiPoint";
 	case SIG_SS7:
 		return "SS7";
+	case SIG_MFCR2:
+		return "MFC/R2";
 	case SIG_SF:
 		return "SF (Tone) Immediate";
 	case SIG_SFWINK:
@@ -2816,6 +3391,7 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 	case SIG_BRI:
 	case SIG_BRI_PTMP:
 	case SIG_SS7:
+	case SIG_MFCR2:
 		/* We'll get it in a moment -- but use dialdest to store pre-setup_ack digits */
 		p->dialdest[0] = '\0';
 		break;
@@ -2962,6 +3538,39 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 		ss7_rel(p->ss7);
 	}
 #endif /* HAVE_SS7 */
+#ifdef HAVE_OPENR2
+	if (p->mfcr2) {
+		openr2_calling_party_category_t chancat;
+		int strip = p->stripmsd;
+		int callres = 0;
+		c = strchr(dest, '/');
+		if (c) {
+			c++;
+		} else {
+			c = dest;
+		}
+		if (!p->hidecallerid) {
+			l = ast->cid.cid_num;
+		} else {
+			l = NULL;
+		}
+		if (strlen(c) < strip) {
+			ast_log(LOG_WARNING, "Destiny number '%s' is shorter than stripmsd(%d)? hum, you should fix that. Assuming stripmsd = 0\n", c, strip);
+			strip = 0;
+		}
+		p->dialing = 1;
+		ast_channel_lock(ast);
+		chancat = dahdi_r2_get_channel_category(ast);
+		ast_channel_unlock(ast);
+		callres = openr2_chan_make_call(p->r2chan, l, (c + strip), chancat);
+		if (-1 == callres) {
+			ast_mutex_unlock(&p->lock);
+			ast_log(LOG_ERROR, "unable to make new MFC/R2 call!\n");
+			return -1;
+		}
+		ast_setstate(ast, AST_STATE_DIALING);
+	}
+#endif /* HAVE_OPENR2 */
 #ifdef HAVE_PRI
 	if (p->pri) {
 		struct pri_sr *sr;
@@ -3555,6 +4164,149 @@ static int pri_find_dchan(struct dahdi_pri *pri)
 }
 #endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_OPENR2)
+static const char *dahdi_accept_r2_call_app = "DAHDIAcceptR2Call";
+
+static int dahdi_accept_r2_call_exec(struct ast_channel *chan, void *data)
+{
+	/* data is whether to accept with charge or no charge */
+	openr2_call_mode_t accept_mode;
+	int res, timeout, maxloops;
+	struct ast_frame *f;
+	struct dahdi_pvt *p;
+	char *parse;
+	AST_DECLARE_APP_ARGS(args,
+			AST_APP_ARG(charge);
+	);
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_DEBUG, "No data sent to application!\n");
+		return -1;
+	}
+
+	if (chan->tech != &dahdi_tech) {
+		ast_log(LOG_DEBUG, "Only DAHDI technology accepted!\n");
+		return -1;
+	}
+
+	p = (struct dahdi_pvt *)chan->tech_pvt;
+	if (!p) {
+		ast_log(LOG_DEBUG, "Unable to find technology private!\n");
+		return -1;
+	}
+
+	parse = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (ast_strlen_zero(args.charge)) {
+		ast_log(LOG_WARNING, "DAHDIAcceptR2Call requires 'yes' or 'no' for the charge parameter\n");
+		return -1;
+	}
+
+	ast_mutex_lock(&p->lock);
+	if (!p->mfcr2 || !p->mfcr2call) {
+		ast_mutex_unlock(&p->lock);
+		ast_log(LOG_DEBUG, "Channel %s does not seems to be an R2 active channel!\n", chan->name);
+		return -1;
+	}
+
+	if (p->mfcr2_call_accepted) {
+		ast_mutex_unlock(&p->lock);
+		ast_log(LOG_DEBUG, "MFC/R2 call already accepted on channel %s!\n", chan->name);
+		return 0;
+	}
+	accept_mode = ast_true(args.charge) ? OR2_CALL_WITH_CHARGE : OR2_CALL_NO_CHARGE;
+	if (openr2_chan_accept_call(p->r2chan, accept_mode)) {
+		ast_mutex_unlock(&p->lock);
+		ast_log(LOG_WARNING, "Failed to accept MFC/R2 call!\n");
+		return -1;
+	}
+	ast_mutex_unlock(&p->lock);
+
+	res = 0;
+	timeout = 100;
+	maxloops = 50; /* wait up to 5 seconds */
+	/* we need to read() until the call is accepted */
+	while (maxloops > 0) {
+		maxloops--;
+		if (ast_check_hangup(chan)) {
+			break;
+		}
+		res = ast_waitfor(chan, timeout);
+		if (res < 0) {
+			ast_log(LOG_DEBUG, "ast_waitfor failed on channel %s, going out ...\n", chan->name);
+			res = -1;
+			break;
+		}
+		if (res == 0) {
+			continue;
+		}
+		f = ast_read(chan);
+		if (!f) {
+			ast_log(LOG_DEBUG, "No frame read on channel %s, going out ...\n", chan->name);
+			res = -1;
+			break;
+		}
+		if (f->frametype == AST_FRAME_CONTROL && f->subclass == AST_CONTROL_HANGUP) {
+			ast_log(LOG_DEBUG, "Got HANGUP frame on channel %s, going out ...\n", chan->name);
+			ast_frfree(f);
+			res = -1;
+			break;
+		}
+		ast_frfree(f);
+		ast_mutex_lock(&p->lock);
+		if (p->mfcr2_call_accepted) {
+			ast_mutex_unlock(&p->lock);
+			ast_log(LOG_DEBUG, "Accepted MFC/R2 call!\n");
+			break;
+		}
+		ast_mutex_unlock(&p->lock);
+	}
+	if (res == -1) {
+		ast_log(LOG_WARNING, "Failed to accept MFC/R2 call!\n");
+	}
+	return res;
+}
+
+static openr2_call_disconnect_cause_t dahdi_ast_cause_to_r2_cause(int cause)
+{
+	openr2_call_disconnect_cause_t r2cause = OR2_CAUSE_NORMAL_CLEARING;
+	switch (cause) {
+	case AST_CAUSE_USER_BUSY:
+	case AST_CAUSE_CALL_REJECTED:
+	case AST_CAUSE_INTERWORKING: /* I don't know wtf is this but is used sometimes when ekiga rejects a call */
+		r2cause = OR2_CAUSE_BUSY_NUMBER;
+		break;
+
+	case AST_CAUSE_NORMAL_CIRCUIT_CONGESTION:
+	case AST_CAUSE_SWITCH_CONGESTION:
+		r2cause = OR2_CAUSE_NETWORK_CONGESTION;
+		break;
+
+	case AST_CAUSE_UNALLOCATED:
+		r2cause = OR2_CAUSE_UNALLOCATED_NUMBER;
+		break;
+
+	case AST_CAUSE_NETWORK_OUT_OF_ORDER:
+	case AST_CAUSE_DESTINATION_OUT_OF_ORDER:
+		r2cause = OR2_CAUSE_OUT_OF_ORDER;
+		break;
+
+	case AST_CAUSE_NO_ANSWER:
+	case AST_CAUSE_NO_USER_RESPONSE:
+		r2cause = OR2_CAUSE_NO_ANSWER;
+		break;
+
+	default:
+		r2cause = OR2_CAUSE_NORMAL_CLEARING;
+		break;
+	}
+	ast_log(LOG_DEBUG, "dahdi_ast_cause_to_r2_cause returned %d/%s for ast cause %d\n", 
+			r2cause, openr2_proto_get_disconnect_string(r2cause), cause);
+	return r2cause;
+}
+#endif
+
 static int dahdi_hangup(struct ast_channel *ast)
 {
 	int res;
@@ -3770,6 +4522,22 @@ static int dahdi_hangup(struct ast_channel *ast)
 			}
 		}
 #endif
+#ifdef HAVE_OPENR2
+		if (p->mfcr2) {
+			ast_log(LOG_DEBUG, "disconnecting MFC/R2 call on chan %d\n", p->channel);
+			/* If it's an incoming call, check the mfcr2_forced_release setting */
+			if (openr2_chan_get_direction(p->r2chan) == OR2_DIR_BACKWARD && p->mfcr2_forced_release) {
+				openr2_chan_disconnect_call(p->r2chan, OR2_CAUSE_FORCED_RELEASE);
+			} else {
+				const char *r2causestr = pbx_builtin_getvar_helper(ast, "MFCR2_CAUSE");
+				int r2cause_user = r2causestr ? atoi(r2causestr) : 0;
+				openr2_call_disconnect_cause_t r2cause = r2cause_user ? dahdi_ast_cause_to_r2_cause(r2cause_user)
+					                                              : dahdi_ast_cause_to_r2_cause(ast->hangupcause);
+				openr2_chan_disconnect_call(p->r2chan, r2cause);
+			}
+			dahdi_r2_update_monitor_count(p->mfcr2, 1);
+		}
+#endif
 #ifdef HAVE_PRI
 		if (p->pri) {
 #ifdef SUPPORT_USERUSER
@@ -3823,7 +4591,10 @@ static int dahdi_hangup(struct ast_channel *ast)
 			}
 		}
 #endif
-		if (p->sig && ((p->sig != SIG_PRI) && (p->sig != SIG_SS7) && (p->sig != SIG_BRI) && (p->sig != SIG_BRI_PTMP)))
+		if (p->sig && ((p->sig != SIG_PRI) && (p->sig != SIG_SS7)
+			&& (p->sig != SIG_BRI)
+			&& (p->sig != SIG_BRI_PTMP))
+			&& (p->sig != SIG_MFCR2))
 			res = dahdi_set_hook(p->subs[SUB_REAL].dfd, DAHDI_ONHOOK);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Unable to hangup line %s\n", ast->name);
@@ -4014,6 +4785,25 @@ static int dahdi_answer(struct ast_channel *ast)
 		} else {
 			ast_log(LOG_WARNING, "Unable to grab SS7 on span %d\n", p->span);
 			res = -1;
+		}
+		break;
+#endif
+#ifdef HAVE_OPENR2
+	case SIG_MFCR2:
+		if (!p->mfcr2_call_accepted) {
+			/* The call was not accepted on offer nor the user, so it must be accepted now before answering,
+			   openr2_chan_answer_call will be called when the callback on_call_accepted is executed */
+			p->mfcr2_answer_pending = 1;
+			if (p->mfcr2_charge_calls) {
+				ast_log(LOG_DEBUG, "Accepting MFC/R2 call with charge before answering on chan %d\n", p->channel);
+				openr2_chan_accept_call(p->r2chan, OR2_CALL_WITH_CHARGE);
+			} else {
+				ast_log(LOG_DEBUG, "Accepting MFC/R2 call with no charge before answering on chan %d\n", p->channel);
+				openr2_chan_accept_call(p->r2chan, OR2_CALL_NO_CHARGE);
+			}
+		} else {
+			ast_log(LOG_DEBUG, "Answering MFC/R2 call on chan %d\n", p->channel);
+			dahdi_r2_answer(p);
 		}
 		break;
 #endif
@@ -4693,8 +5483,6 @@ static int dahdi_ring_phone(struct dahdi_pvt *p)
 
 static void *ss_thread(void *data);
 
-static struct ast_channel *dahdi_new(struct dahdi_pvt *, int, int, int, int, int);
-
 static int attempt_transfer(struct dahdi_pvt *p)
 {
 	/* In order to transfer, we need at least one of the channels to
@@ -4957,13 +5745,29 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 			p->echocanon = 0;
 			break;
 		case DAHDI_EVENT_BITSCHANGED:
+#ifdef HAVE_OPENR2
+			if (p->sig != SIG_MFCR2) {
+				ast_log(LOG_WARNING, "Recieved bits changed on %s signalling?\n", sig2str(p->sig));
+			} else {
+				ast_log(LOG_DEBUG, "bits changed in chan %d\n", p->channel);
+				openr2_chan_handle_cas(p->r2chan);
+			}
+#else
 			ast_log(LOG_WARNING, "Recieved bits changed on %s signalling?\n", sig2str(p->sig));
+#endif
 		case DAHDI_EVENT_PULSE_START:
 			/* Stop tone if there's a pulse start and the PBX isn't started */
 			if (!ast->pbx)
 				tone_zone_play_tone(p->subs[idx].dfd, -1);
 			break;
 		case DAHDI_EVENT_DIALCOMPLETE:
+#ifdef HAVE_OPENR2
+			if ((p->sig & SIG_MFCR2) && p->r2chan && ast->_state != AST_STATE_UP) {
+				/* we don't need to do anything for this event for R2 signaling 
+				   if the call is being setup */
+				break;
+			}
+#endif
 			if (p->inalarm) break;
 			if ((p->radio || (p->oprmode < 0))) break;
 			if (ioctl(p->subs[idx].dfd,DAHDI_DIALING,&x) == -1) {
@@ -5056,6 +5860,10 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 #endif
 #ifdef HAVE_SS7
 			if (p->sig == SIG_SS7)
+				break;
+#endif
+#ifdef HAVE_OPENR2
+			if (p->sig == SIG_MFCR2)
 				break;
 #endif
 		case DAHDI_EVENT_ONHOOK:
@@ -5914,6 +6722,12 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 	else if (p->ringt > 0)
 		p->ringt--;
 
+#ifdef HAVE_OPENR2
+	if (p->mfcr2) {
+		openr2_chan_process_event(p->r2chan);
+	}
+#endif
+
 	if (p->subs[idx].needringing) {
 		/* Send ringing frame if requested */
 		p->subs[idx].needringing = 0;
@@ -5957,7 +6771,17 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 		p->subs[idx].f.subclass = AST_CONTROL_ANSWER;
 		ast_mutex_unlock(&p->lock);
 		return &p->subs[idx].f;
+	}	
+#ifdef HAVE_OPENR2
+	if (p->mfcr2 && openr2_chan_get_read_enabled(p->r2chan)) {
+		/* openr2 took care of reading and handling any event 
+		  (needanswer, needbusy etc), if we continue we will read()
+		  twice, lets just return a null frame. This should only
+		  happen when openr2 is dialing out */
+		ast_mutex_unlock(&p->lock);
+		return &ast_null_frame;
 	}
+#endif
 
 	if (p->subs[idx].needflash) {
 		/* Send answer frame if requested */
@@ -6292,6 +7116,14 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 	ast_mutex_lock(&p->lock);
 	idx = dahdi_get_index(chan, p, 0);
 	ast_debug(1, "Requested indication %d on channel %s\n", condition, chan->name);
+#ifdef HAVE_OPENR2
+	if (p->mfcr2 && !p->mfcr2_call_accepted) {
+		ast_mutex_unlock(&p->lock);
+		/* if this is an R2 call and the call is not yet accepted, we don't want the
+		   tone indications to mess up with the MF tones */
+		return 0;
+	}	
+#endif
 	if (idx == SUB_REAL) {
 		switch (condition) {
 		case AST_CONTROL_BUSY:
@@ -6686,6 +7518,10 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	/* Assume calls are not idle calls unless we're told differently */
 	i->isidlecall = 0;
 	i->alreadyhungup = 0;
+#endif
+#ifdef HAVE_OPENR2
+	if (i->mfcr2call)
+		pbx_builtin_setvar_helper(tmp, "MFCR2_CATEGORY", openr2_proto_get_category_string(i->mfcr2_recvd_category));
 #endif
 	/* clear the fake event in case we posted one before we had ast_channel */
 	i->fake_event = 0;
@@ -8621,7 +9457,7 @@ static void *do_monitor(void *data)
 		count = 0;
 		i = iflist;
 		while (i) {
-			if ((i->subs[SUB_REAL].dfd > -1) && i->sig && (!i->radio)) {
+			if ((i->subs[SUB_REAL].dfd > -1) && i->sig && (!i->radio) && !(i->sig & SIG_MFCR2)) {
 				if (!i->owner && !i->subs[SUB_REAL].owner && !i->mwimonitoractive ) {
 					/* This needs to be watched, as it lacks an owner */
 					pfds[count].fd = i->subs[SUB_REAL].dfd;
@@ -8956,6 +9792,102 @@ static struct dahdi_ss7 * ss7_resolve_linkset(int linkset)
 }
 #endif	/* defined(HAVE_SS7) */
 
+#ifdef HAVE_OPENR2
+static void dahdi_r2_destroy_links(void)
+{
+	int i = 0;
+	if (!r2links) {
+		return;
+	}
+	for (; i < r2links_count; i++) {
+		if (r2links[i]->r2master != AST_PTHREADT_NULL) {
+			pthread_cancel(r2links[i]->r2master);
+			pthread_join(r2links[i]->r2master, NULL);
+			openr2_context_delete(r2links[i]->protocol_context);
+		}
+		ast_free(r2links[i]);
+	}
+	ast_free(r2links);
+	r2links = NULL;
+	r2links_count = 0;
+}
+
+#define R2_LINK_CAPACITY 10
+static struct dahdi_mfcr2 *dahdi_r2_get_link(void)
+{
+	struct dahdi_mfcr2 *new_r2link = NULL;
+	struct dahdi_mfcr2 **new_r2links = NULL;
+	/* this function is called just when starting up and no monitor threads have been launched, 
+	   no need to lock monitored_count member */
+	if (!r2links_count || (r2links[r2links_count - 1]->monitored_count == R2_LINK_CAPACITY)) {
+		new_r2link = ast_calloc(1, sizeof(**r2links));
+		if (!new_r2link) {
+			ast_log(LOG_ERROR, "Cannot allocate R2 link!\n");
+			return NULL;
+		}
+		new_r2links = ast_realloc(r2links, ((r2links_count + 1) * sizeof(*r2links)));
+		if (!new_r2links) {
+			ast_log(LOG_ERROR, "Cannot allocate R2 link!\n");
+			ast_free(new_r2link);
+			return NULL;
+		}
+		r2links = new_r2links;
+		new_r2link->r2master = AST_PTHREADT_NULL;
+		r2links[r2links_count] = new_r2link;
+		r2links_count++;
+		ast_log(LOG_DEBUG, "Created new R2 link!\n");
+	}
+	return r2links[r2links_count - 1];
+}
+
+static int dahdi_r2_set_context(struct dahdi_mfcr2 *r2_link, const struct dahdi_chan_conf *conf)
+{
+	char tmplogdir[] = "/tmp";
+	char logdir[OR2_MAX_PATH];
+	int threshold = 0;
+	int snres = 0;
+	r2_link->protocol_context = openr2_context_new(NULL, &dahdi_r2_event_iface, 
+			&dahdi_r2_transcode_iface, conf->mfcr2.variant, conf->mfcr2.max_ani, 
+			conf->mfcr2.max_dnis);
+	if (!r2_link->protocol_context) {
+		return -1;
+	}
+	openr2_context_set_log_level(r2_link->protocol_context, conf->mfcr2.loglevel);
+	openr2_context_set_ani_first(r2_link->protocol_context, conf->mfcr2.get_ani_first);
+	openr2_context_set_mf_threshold(r2_link->protocol_context, threshold);
+	openr2_context_set_mf_back_timeout(r2_link->protocol_context, conf->mfcr2.mfback_timeout);
+	openr2_context_set_metering_pulse_timeout(r2_link->protocol_context, conf->mfcr2.metering_pulse_timeout);
+	openr2_context_set_double_answer(r2_link->protocol_context, conf->mfcr2.double_answer);
+	openr2_context_set_immediate_accept(r2_link->protocol_context, conf->mfcr2.immediate_accept);
+	if (ast_strlen_zero(conf->mfcr2.logdir)) {
+		if (openr2_context_set_log_directory(r2_link->protocol_context, tmplogdir)) {
+			ast_log(LOG_ERROR, "Failed setting default MFC/R2 log directory %s\n", tmplogdir);
+		}
+	} else {
+		snres = snprintf(logdir, sizeof(logdir), "%s/%s/%s", ast_config_AST_LOG_DIR, "mfcr2", conf->mfcr2.logdir);
+		if (snres >= sizeof(logdir)) {
+			ast_log(LOG_ERROR, "MFC/R2 logging directory truncated, using %s\n", tmplogdir);
+			if (openr2_context_set_log_directory(r2_link->protocol_context, tmplogdir)) {
+				ast_log(LOG_ERROR, "Failed setting default MFC/R2 log directory %s\n", tmplogdir);
+			}
+		} else {
+			if (openr2_context_set_log_directory(r2_link->protocol_context, logdir)) {
+				ast_log(LOG_ERROR, "Failed setting MFC/R2 log directory %s\n", logdir);
+			}
+		}
+	}
+	if (!ast_strlen_zero(conf->mfcr2.r2proto_file)) {
+		if (openr2_context_configure_from_advanced_file(r2_link->protocol_context, conf->mfcr2.r2proto_file)) {
+			ast_log(LOG_ERROR, "Failed to configure r2context from advanced configuration file %s\n", conf->mfcr2.r2proto_file);
+		}
+	}
+	ast_cond_init(&r2_link->do_monitor, NULL);
+	ast_mutex_init(&r2_link->monitored_count_lock);
+	r2_link->monitored_count = 0;
+	return 0;
+}
+#endif
+
 /* converts a DAHDI sigtype to signalling as can be configured from
  * chan_dahdi.conf.
  * While both have basically the same values, this will later be the
@@ -9104,6 +10036,53 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 
 				linksets[span].called_nai = conf->ss7.called_nai;
 				linksets[span].calling_nai = conf->ss7.calling_nai;
+			}
+#endif
+#ifdef HAVE_OPENR2
+			if (chan_sig == SIG_MFCR2 && reloading != 1) {
+				struct dahdi_mfcr2 *r2_link;
+				r2_link = dahdi_r2_get_link();
+				if (!r2_link) {
+					ast_log(LOG_WARNING, "Cannot get another R2 DAHDI context!\n");
+					destroy_dahdi_pvt(&tmp);
+					return NULL;
+				}
+				if (!r2_link->protocol_context && dahdi_r2_set_context(r2_link, conf)) {
+					ast_log(LOG_ERROR, "Cannot create OpenR2 protocol context.\n");
+					destroy_dahdi_pvt(&tmp);
+					return NULL;
+				}
+				if (r2_link->numchans == (sizeof(r2_link->pvts)/sizeof(r2_link->pvts[0]))) {
+					ast_log(LOG_ERROR, "Cannot add more channels to this link!\n");
+					destroy_dahdi_pvt(&tmp);
+					return NULL;
+				}
+				r2_link->pvts[r2_link->numchans++] = tmp;
+				tmp->r2chan = openr2_chan_new_from_fd(r2_link->protocol_context, 
+						                      tmp->subs[SUB_REAL].dfd,
+						                      NULL, NULL);
+				if (!tmp->r2chan) {
+					ast_log(LOG_ERROR, "Cannot create OpenR2 channel.\n");
+					destroy_dahdi_pvt(&tmp);
+					return NULL;
+				}
+				tmp->mfcr2 = r2_link;
+				if (conf->mfcr2.call_files) {
+					openr2_chan_enable_call_files(tmp->r2chan);
+				}
+				openr2_chan_set_client_data(tmp->r2chan, tmp);
+				/* cast seems to be needed to get rid of the annoying warning regarding format attribute  */
+				openr2_chan_set_logging_func(tmp->r2chan, (openr2_logging_func_t)dahdi_r2_on_chan_log);
+				openr2_chan_set_log_level(tmp->r2chan, conf->mfcr2.loglevel);
+				tmp->mfcr2_category = conf->mfcr2.category;
+				tmp->mfcr2_charge_calls = conf->mfcr2.charge_calls;
+				tmp->mfcr2_allow_collect_calls = conf->mfcr2.allow_collect_calls;
+				tmp->mfcr2_forced_release = conf->mfcr2.forced_release;
+				tmp->mfcr2_accept_on_offer = conf->mfcr2.accept_on_offer;
+				tmp->mfcr2call = 0;
+				tmp->mfcr2_dnis_index = 0;
+				tmp->mfcr2_ani_index = 0;
+				r2_link->monitored_count++;
 			}
 #endif
 #ifdef HAVE_PRI
@@ -9480,7 +10459,8 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				ast_dsp_set_digitmode(tmp->dsp, DSP_DIGITMODE_DTMF | tmp->dtmfrelax);
 			update_conf(tmp);
 			if (!here) {
-				if ((chan_sig != SIG_BRI) && (chan_sig != SIG_BRI_PTMP) && (chan_sig != SIG_PRI) && (chan_sig != SIG_SS7))
+				if ((chan_sig != SIG_BRI) && (chan_sig != SIG_BRI_PTMP) && (chan_sig != SIG_PRI)
+				    && (chan_sig != SIG_SS7) && (chan_sig != SIG_MFCR2))
 					/* Hang it up to be sure it's good */
 					dahdi_set_hook(tmp->subs[SUB_REAL].dfd, DAHDI_ONHOOK);
 			}
@@ -9602,6 +10582,15 @@ static inline int available(struct dahdi_pvt *p, int channelmatch, ast_group_t g
 		/* Trust SS7 */
 		if (p->ss7) {
 			if (p->ss7call)
+				return 0;
+			else
+				return 1;
+		}
+#endif
+#ifdef HAVE_OPENR2
+		/* Trust MFC/R2 */
+		if (p->mfcr2) {
+			if (p->mfcr2call)
 				return 0;
 			else
 				return 1;
@@ -9902,6 +10891,19 @@ static struct ast_channel *dahdi_request(const char *type, int format, void *dat
 
 					p->pri = pri;
 				}
+			}
+#endif
+#ifdef HAVE_OPENR2
+			if (p->mfcr2) {
+				ast_mutex_lock(&p->lock);
+				if (p->mfcr2call) {
+					ast_mutex_unlock(&p->lock);
+					ast_log(LOG_DEBUG, "Yay!, someone just beat us in the race for channel %d.\n", p->channel);
+					goto next;
+				}
+				p->mfcr2call = 1;
+				ast_mutex_unlock(&p->lock);
+				dahdi_r2_update_monitor_count(p->mfcr2, 0);
 			}
 #endif
 			if (p->channel == CHAN_PSEUDO) {
@@ -10835,6 +11837,80 @@ static void dahdi_ss7_error(struct ss7 *ss7, char *s)
 #endif
 }
 #endif	/* defined(HAVE_SS7) */
+
+#if defined(HAVE_OPENR2)
+static void *mfcr2_monitor(void *data)
+{
+	struct dahdi_mfcr2 *mfcr2 = data;
+	/* we should be using pthread_key_create
+	   and allocate pollers dynamically.
+	   I think do_monitor() could be leaking, since it
+	   could be cancelled at any time and is not
+	   using thread keys, why?, */
+	struct pollfd pollers[sizeof(mfcr2->pvts)];
+	int nextms = 0;
+	int res = 0;
+	int i = 0;
+	int oldstate = 0;
+	int quit_loop = 0;
+	/* now that we're ready to get calls, unblock our side and
+	   get current line state */
+	for (i = 0; i < mfcr2->numchans; i++) {
+		openr2_chan_set_idle(mfcr2->pvts[i]->r2chan);
+		openr2_chan_handle_cas(mfcr2->pvts[i]->r2chan);
+	}
+	while (1) {
+		/* we trust here that the mfcr2 channel list will not ever change once
+		   the module is loaded */
+		ast_mutex_lock(&mfcr2->monitored_count_lock);
+		if (mfcr2->monitored_count == 0) {
+			ast_log(LOG_DEBUG, "No one requires my monitoring services :-(\n");
+			ast_cond_wait(&mfcr2->do_monitor, &mfcr2->monitored_count_lock);
+			ast_log(LOG_DEBUG, "Alright, back to work!\n");
+		}
+
+		for (i = 0; i < mfcr2->numchans; i++) {
+			pollers[i].revents = 0;
+			pollers[i].events = 0;
+			if (mfcr2->pvts[i]->owner) {
+				continue;
+			}
+			if (!mfcr2->pvts[i]->r2chan) {
+				ast_log(LOG_DEBUG, "Wow, no r2chan on channel %d\n", mfcr2->pvts[i]->channel);
+				quit_loop = 1;
+				break;
+			}
+			openr2_chan_enable_read(mfcr2->pvts[i]->r2chan);
+			pollers[i].events = POLLIN | POLLPRI;
+			pollers[i].fd = mfcr2->pvts[i]->subs[SUB_REAL].dfd;
+		}
+		ast_mutex_unlock(&mfcr2->monitored_count_lock);
+		if (quit_loop) {
+			break;
+		}
+		nextms = openr2_context_get_time_to_next_event(mfcr2->protocol_context);
+		/* probably poll() is a valid cancel point, lets just be on the safe side
+		   by calling pthread_testcancel */
+		pthread_testcancel();
+		res = poll(pollers, mfcr2->numchans, nextms);
+		pthread_testcancel();
+		if ((res < 0) && (errno != EINTR)) {
+			ast_log(LOG_ERROR, "going out, poll failed: %s\n", strerror(errno));
+			break;
+		} 
+		/* do we want to allow to cancel while processing events? */
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &oldstate);
+		for (i = 0; i < mfcr2->numchans; i++) {
+			if (pollers[i].revents & POLLPRI || pollers[i].revents & POLLIN) {
+				openr2_chan_process_event(mfcr2->pvts[i]->r2chan);
+			}
+		}
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &oldstate);
+	}
+	ast_log(LOG_NOTICE, "Quitting MFC/R2 monitor thread\n");
+	return 0;
+}
+#endif /* HAVE_OPENR2 */
 
 #if defined(HAVE_PRI)
 static struct dahdi_pvt *pri_find_crv(struct dahdi_pri *pri, int crv)
@@ -12720,6 +13796,339 @@ static struct ast_cli_entry dahdi_pri_cli[] = {
 };
 #endif	/* defined(HAVE_PRI) */
 
+#ifdef HAVE_OPENR2
+
+static char *handle_mfcr2_version(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "mfcr2 show version";
+		e->usage =
+			"Usage: mfcr2 show version\n"
+			"       Shows the version of the OpenR2 library being used.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	ast_cli(a->fd, "OpenR2 version: %s, revision: %s\n", openr2_get_version(), openr2_get_revision());
+	return CLI_SUCCESS;
+}
+
+static char *handle_mfcr2_show_variants(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+#define FORMAT "%4s %40s\n"
+	int i = 0;
+	int numvariants = 0;
+	const openr2_variant_entry_t *variants;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "mfcr2 show variants";
+		e->usage =
+			"Usage: mfcr2 show variants\n"
+			"       Shows the list of MFC/R2 variants supported.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (!(variants = openr2_proto_get_variant_list(&numvariants))) {
+		ast_cli(a->fd, "Failed to get list of variants.\n");
+		return CLI_FAILURE;
+	}
+	ast_cli(a->fd, FORMAT, "Variant Code", "Country");
+	for (i = 0; i < numvariants; i++) {
+		ast_cli(a->fd, FORMAT, variants[i].name, variants[i].country);
+	}
+	return CLI_SUCCESS;
+#undef FORMAT
+}
+
+static char *handle_mfcr2_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+#define FORMAT "%4s %-7.7s %-7.7s %-8.8s %-9.9s %-16.16s %-8.8s %-8.8s\n"
+	int filtertype = 0;
+	int targetnum = 0;
+	char channo[5];
+	char anino[5];
+	char dnisno[5];
+	struct dahdi_pvt *p;
+	openr2_context_t *r2context;
+	openr2_variant_t r2variant;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "mfcr2 show channels [group|context]";
+		e->usage =
+			"Usage: mfcr2 show channels [group <group> | context <context>]\n"
+			"       Shows the DAHDI channels configured with MFC/R2 signaling.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (!((a->argc == 3) || (a->argc == 5))) {
+		return CLI_SHOWUSAGE;
+	}
+	if (a->argc == 5) {
+		if (!strcasecmp(a->argv[3], "group")) {
+			targetnum = atoi(a->argv[4]);
+			if ((targetnum < 0) || (targetnum > 63))
+				return CLI_SHOWUSAGE;
+			targetnum = 1 << targetnum;
+			filtertype = 1;
+		} else if (!strcasecmp(a->argv[3], "context")) {
+			filtertype = 2;
+		} else {
+			return CLI_SHOWUSAGE;
+		}
+	}
+	ast_cli(a->fd, FORMAT, "Chan", "Variant", "Max ANI", "Max DNIS", "ANI First", "Immediate Accept", "Tx CAS", "Rx CAS");
+	ast_mutex_lock(&iflock);
+	p = iflist;
+	for (p = iflist; p; p = p->next) {
+		if (!(p->sig & SIG_MFCR2) || !p->r2chan) {
+			continue;
+		}
+		if (filtertype) {
+			switch(filtertype) {
+			case 1: /* mfcr2 show channels group <group> */
+				if (p->group != targetnum) {
+					continue;
+				}
+				break;
+			case 2: /* mfcr2 show channels context <context> */
+				if (strcasecmp(p->context, a->argv[4])) {
+					continue;
+				}
+				break;
+			default:
+				;
+			}
+		}
+		r2context = openr2_chan_get_context(p->r2chan);
+		r2variant = openr2_context_get_variant(r2context);
+		snprintf(channo, sizeof(channo), "%d", p->channel);
+		snprintf(anino, sizeof(anino), "%d", openr2_context_get_max_ani(r2context));
+		snprintf(dnisno, sizeof(dnisno), "%d", openr2_context_get_max_dnis(r2context));
+		ast_cli(a->fd, FORMAT, channo, openr2_proto_get_variant_string(r2variant),
+				anino, dnisno, openr2_context_get_ani_first(r2context) ? "Yes" : "No",
+				openr2_context_get_immediate_accept(r2context) ? "Yes" : "No",
+				openr2_chan_get_tx_cas_string(p->r2chan), openr2_chan_get_rx_cas_string(p->r2chan));
+	}
+	ast_mutex_unlock(&iflock);
+	return CLI_SUCCESS;
+#undef FORMAT
+}
+
+static char *handle_mfcr2_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct dahdi_pvt *p = NULL;
+	int channo = 0;
+	char *toklevel = NULL;
+	char *saveptr = NULL;
+	char *logval = NULL;
+	openr2_log_level_t loglevel = OR2_LOG_NOTHING;
+	openr2_log_level_t tmplevel = OR2_LOG_NOTHING;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "mfcr2 set debug";
+		e->usage =
+			"Usage: mfcr2 set debug <loglevel> <channel>\n"
+			"       Set a new logging level for the specified channel.\n"
+			"       If no channel is specified the logging level will be applied to all channels.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc < 4) {
+		return CLI_SHOWUSAGE;
+	}
+	channo = (a->argc == 5) ? atoi(a->argv[4]) : -1;
+	logval = ast_strdupa(a->argv[3]);
+	toklevel = strtok_r(logval, ",", &saveptr);
+	if (-1 == (tmplevel = openr2_log_get_level(toklevel))) {
+		ast_cli(a->fd, "Invalid MFC/R2 logging level '%s'.\n", a->argv[3]);
+		return CLI_FAILURE;
+	} else if (OR2_LOG_NOTHING == tmplevel) {
+		loglevel = tmplevel;
+	} else {
+		loglevel |= tmplevel;
+		while ((toklevel = strtok_r(NULL, ",", &saveptr))) {
+			if (-1 == (tmplevel = openr2_log_get_level(toklevel))) {
+				ast_cli(a->fd, "Ignoring invalid logging level: '%s'.\n", toklevel);
+				continue;
+			}
+			loglevel |= tmplevel;
+		}
+	}
+	ast_mutex_lock(&iflock);
+	for (p = iflist; p; p = p->next) {
+		if (!(p->sig & SIG_MFCR2) || !p->r2chan) {
+			continue;
+		}
+		if ((channo != -1) && (p->channel != channo )) {
+			continue;
+		}
+		openr2_chan_set_log_level(p->r2chan, loglevel);
+		if (channo != -1) {
+			ast_cli(a->fd, "MFC/R2 debugging set to '%s' for channel %d.\n", a->argv[3], p->channel);
+			break;
+		} 
+	}
+	if ((channo != -1) && !p) {
+		ast_cli(a->fd, "MFC/R2 channel %d not found.\n", channo);
+	}
+	if (channo == -1) {
+		ast_cli(a->fd, "MFC/R2 debugging set to '%s' for all channels.\n", a->argv[3]);
+	}
+	ast_mutex_unlock(&iflock);
+	return CLI_SUCCESS;
+}
+
+static char *handle_mfcr2_call_files(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct dahdi_pvt *p = NULL;
+	int channo = 0;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "mfcr2 call files [on|off]";
+		e->usage =
+			"Usage: mfcr2 call files [on|off] <channel>\n"
+			"       Enable call files creation on the specified channel.\n"
+			"       If no channel is specified call files creation policy will be applied to all channels.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc < 4) {
+		return CLI_SHOWUSAGE;
+	}
+	channo = (a->argc == 5) ? atoi(a->argv[4]) : -1;
+	ast_mutex_lock(&iflock);
+	for (p = iflist; p; p = p->next) {
+		if (!(p->sig & SIG_MFCR2) || !p->r2chan) {
+			continue;
+		}
+		if ((channo != -1) && (p->channel != channo )) {
+			continue;
+		}
+		if (ast_true(a->argv[3])) {
+			openr2_chan_enable_call_files(p->r2chan);
+		} else {
+			openr2_chan_disable_call_files(p->r2chan);
+		}
+		if (channo != -1) {
+			if (ast_true(a->argv[3])) {
+				ast_cli(a->fd, "MFC/R2 call files enabled for channel %d.\n", p->channel);
+			} else {
+				ast_cli(a->fd, "MFC/R2 call files disabled for channel %d.\n", p->channel);
+			}
+			break;
+		} 
+	}
+	if ((channo != -1) && !p) {
+		ast_cli(a->fd, "MFC/R2 channel %d not found.\n", channo);
+	}
+	if (channo == -1) {
+		if (ast_true(a->argv[3])) {
+			ast_cli(a->fd, "MFC/R2 Call files enabled for all channels.\n");
+		} else {
+			ast_cli(a->fd, "MFC/R2 Call files disabled for all channels.\n");
+		}
+	}
+	ast_mutex_unlock(&iflock);
+	return CLI_SUCCESS;
+}
+
+static char *handle_mfcr2_set_idle(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct dahdi_pvt *p = NULL;
+	int channo = 0;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "mfcr2 set idle";
+		e->usage =
+			"Usage: mfcr2 set idle <channel>\n"
+			"       DON'T USE THIS UNLESS YOU KNOW WHAT YOU ARE DOING.\n"
+			"       Force the given channel into IDLE state.\n"
+			"       If no channel is specified, all channels will be set to IDLE.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	channo = (a->argc == 4) ? atoi(a->argv[3]) : -1;
+	ast_mutex_lock(&iflock);
+	for (p = iflist; p; p = p->next) {
+		if (!(p->sig & SIG_MFCR2) || !p->r2chan) {
+			continue;
+		}
+		if ((channo != -1) && (p->channel != channo )) {
+			continue;
+		}
+		openr2_chan_set_idle(p->r2chan);
+		ast_mutex_lock(&p->lock);
+		p->locallyblocked = 0;
+		ast_mutex_unlock(&p->lock);
+		if (channo != -1) {
+			break;
+		} 
+	}
+	if ((channo != -1) && !p) {
+		ast_cli(a->fd, "MFC/R2 channel %d not found.\n", channo);
+	}
+	ast_mutex_unlock(&iflock);
+	return CLI_SUCCESS;
+}
+
+static char *handle_mfcr2_set_blocked(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct dahdi_pvt *p = NULL;
+	int channo = 0;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "mfcr2 set blocked";
+		e->usage =
+			"Usage: mfcr2 set blocked <channel>\n"
+			"       DON'T USE THIS UNLESS YOU KNOW WHAT YOU ARE DOING.\n"
+			"       Force the given channel into BLOCKED state.\n"
+			"       If no channel is specified, all channels will be set to BLOCKED.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	channo = (a->argc == 4) ? atoi(a->argv[3]) : -1;
+	ast_mutex_lock(&iflock);
+	for (p = iflist; p; p = p->next) {
+		if (!(p->sig & SIG_MFCR2) || !p->r2chan) {
+			continue;
+		}
+		if ((channo != -1) && (p->channel != channo )) {
+			continue;
+		}
+		openr2_chan_set_blocked(p->r2chan);
+		ast_mutex_lock(&p->lock);
+		p->locallyblocked = 1;
+		ast_mutex_unlock(&p->lock);
+		if (channo != -1) {
+			break;
+		} 
+	}
+	if ((channo != -1) && !p) {
+		ast_cli(a->fd, "MFC/R2 channel %d not found.\n", channo);
+	}
+	ast_mutex_unlock(&iflock);
+	return CLI_SUCCESS;
+}
+
+static struct ast_cli_entry dahdi_mfcr2_cli[] = {
+	AST_CLI_DEFINE(handle_mfcr2_version, "Show OpenR2 library version"),
+	AST_CLI_DEFINE(handle_mfcr2_show_variants, "Show supported MFC/R2 variants"),
+	AST_CLI_DEFINE(handle_mfcr2_show_channels, "Show MFC/R2 channels"),
+	AST_CLI_DEFINE(handle_mfcr2_set_debug, "Set MFC/R2 channel logging level"),
+	AST_CLI_DEFINE(handle_mfcr2_call_files, "Enable/Disable MFC/R2 call files"),
+	AST_CLI_DEFINE(handle_mfcr2_set_idle, "Reset MFC/R2 channel forcing it to IDLE"),
+	AST_CLI_DEFINE(handle_mfcr2_set_blocked, "Reset MFC/R2 channel forcing it to BLOCKED"),
+};
+
+#endif /* HAVE_OPENR2 */
+
 static char *dahdi_destroy_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int channel;
@@ -12780,10 +14189,12 @@ static int dahdi_restart(void)
 	struct dahdi_pvt *p;
 
 	ast_mutex_lock(&restart_lock);
-
 	ast_verb(1, "Destroying channels and reloading DAHDI configuration.\n");
 	dahdi_softhangup_all();
 	ast_verb(4, "Initial softhangup of all DAHDI channels complete.\n");
+#ifdef HAVE_OPENR2
+	dahdi_r2_destroy_links();
+#endif
 
 #if defined(HAVE_PRI)
 	for (i = 0; i < NUM_SPANS; i++) {
@@ -13168,6 +14579,34 @@ static char *dahdi_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli
 				if (tmp->slaves[x])
 					ast_cli(a->fd, "Slave Channel: %d\n", tmp->slaves[x]->channel);
 			}
+#ifdef HAVE_OPENR2
+			if (tmp->mfcr2) {
+				char calldir[OR2_MAX_PATH];
+				openr2_context_t *r2context = openr2_chan_get_context(tmp->r2chan);
+				openr2_variant_t r2variant = openr2_context_get_variant(r2context);
+				ast_cli(a->fd, "MFC/R2 MF State: %s\n", openr2_chan_get_mf_state_string(tmp->r2chan));
+				ast_cli(a->fd, "MFC/R2 MF Group: %s\n", openr2_chan_get_mf_group_string(tmp->r2chan));
+				ast_cli(a->fd, "MFC/R2 State: %s\n", openr2_chan_get_r2_state_string(tmp->r2chan));
+				ast_cli(a->fd, "MFC/R2 Call State: %s\n", openr2_chan_get_call_state_string(tmp->r2chan));
+				ast_cli(a->fd, "MFC/R2 Call Files Enabled: %s\n", openr2_chan_get_call_files_enabled(tmp->r2chan) ? "Yes" : "No");
+				ast_cli(a->fd, "MFC/R2 Variant: %s\n", openr2_proto_get_variant_string(r2variant));
+				ast_cli(a->fd, "MFC/R2 Max ANI: %d\n", openr2_context_get_max_ani(r2context));
+				ast_cli(a->fd, "MFC/R2 Max DNIS: %d\n", openr2_context_get_max_dnis(r2context));
+				ast_cli(a->fd, "MFC/R2 Get ANI First: %s\n", openr2_context_get_ani_first(r2context) ? "Yes" : "No");
+				ast_cli(a->fd, "MFC/R2 Immediate Accept: %s\n", openr2_context_get_immediate_accept(r2context) ? "Yes" : "No");
+				ast_cli(a->fd, "MFC/R2 Accept on Offer: %s\n", tmp->mfcr2_accept_on_offer ? "Yes" : "No");
+				ast_cli(a->fd, "MFC/R2 Charge Calls: %s\n", tmp->mfcr2_charge_calls ? "Yes" : "No");
+				ast_cli(a->fd, "MFC/R2 Allow Collect Calls: %s\n", tmp->mfcr2_allow_collect_calls ? "Yes" : "No");
+				ast_cli(a->fd, "MFC/R2 Forced Release: %s\n", tmp->mfcr2_forced_release ? "Yes" : "No");
+				ast_cli(a->fd, "MFC/R2 MF Back Timeout: %dms\n", openr2_context_get_mf_back_timeout(r2context));
+				ast_cli(a->fd, "MFC/R2 R2 Metering Pulse Timeout: %dms\n", openr2_context_get_metering_pulse_timeout(r2context));
+				ast_cli(a->fd, "MFC/R2 Rx CAS: %s\n", openr2_chan_get_rx_cas_string(tmp->r2chan));
+				ast_cli(a->fd, "MFC/R2 Tx CAS: %s\n", openr2_chan_get_tx_cas_string(tmp->r2chan));
+				ast_cli(a->fd, "MFC/R2 MF Tx Signal: %d\n", openr2_chan_get_tx_mf_signal(tmp->r2chan));
+				ast_cli(a->fd, "MFC/R2 MF Rx Signal: %d\n", openr2_chan_get_rx_mf_signal(tmp->r2chan));
+				ast_cli(a->fd, "MFC/R2 Call Files Directory: %s\n", openr2_context_get_log_directory(r2context, calldir, sizeof(calldir)));
+			}
+#endif
 #ifdef HAVE_SS7
 			if (tmp->ss7) {
 				ast_cli(a->fd, "CIC: %d\n", tmp->cic);
@@ -14270,6 +15709,11 @@ static int __unload_module(void)
 		}
 	ast_cli_unregister_multiple(dahdi_ss7_cli, ARRAY_LEN(dahdi_ss7_cli));
 #endif
+#if defined(HAVE_OPENR2)
+	dahdi_r2_destroy_links();
+	ast_cli_unregister_multiple(dahdi_mfcr2_cli, ARRAY_LEN(dahdi_mfcr2_cli));
+	ast_unregister_application(dahdi_accept_r2_call_app);
+#endif
 
 	ast_cli_unregister_multiple(dahdi_cli, ARRAY_LEN(dahdi_cli));
 	ast_manager_unregister( "DAHDIDialOffhook" );
@@ -14319,7 +15763,6 @@ static int __unload_module(void)
 		}
 	}
 #endif
-
 	ast_cond_destroy(&ss_thread_complete);
 	return 0;
 }
@@ -14945,6 +16388,10 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				} else if (!strcasecmp(v->value, "ss7")) {
 					confp->chan.sig = SIG_SS7;
 #endif
+#ifdef HAVE_OPENR2
+				} else if (!strcasecmp(v->value, "mfcr2")) {
+					confp->chan.sig = SIG_MFCR2;
+#endif
 				} else if (!strcasecmp(v->value, "auto")) {
 					confp->is_sig_auto = 1;
 				} else {
@@ -15225,6 +16672,77 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				if (ast_true(v->value))
 					link->flags |= LINKSET_FLAG_EXPLICITACM;
 #endif /* HAVE_SS7 */
+#ifdef HAVE_OPENR2
+			} else if (!strcasecmp(v->name, "mfcr2_advanced_protocol_file")) {
+				ast_copy_string(confp->mfcr2.r2proto_file, v->value, sizeof(confp->mfcr2.r2proto_file));
+				ast_log(LOG_WARNING, "MFC/R2 Protocol file '%s' will be used, you only should use this if you *REALLY KNOW WHAT YOU ARE DOING*.\n", confp->mfcr2.r2proto_file);
+			} else if (!strcasecmp(v->name, "mfcr2_logdir")) {
+				ast_copy_string(confp->mfcr2.logdir, v->value, sizeof(confp->mfcr2.logdir));
+			} else if (!strcasecmp(v->name, "mfcr2_variant")) {
+				confp->mfcr2.variant = openr2_proto_get_variant(v->value);
+				if (OR2_VAR_UNKNOWN == confp->mfcr2.variant) {
+					ast_log(LOG_WARNING, "Unknown MFC/R2 variant '%s' at line %d, defaulting to ITU.\n", v->value, v->lineno);
+					confp->mfcr2.variant = OR2_VAR_ITU;
+				}
+			} else if (!strcasecmp(v->name, "mfcr2_mfback_timeout")) {
+				confp->mfcr2.mfback_timeout = atoi(v->value);
+				if (!confp->mfcr2.mfback_timeout) {
+					ast_log(LOG_WARNING, "MF timeout of 0? hum, I will protect you from your ignorance. Setting default.\n");
+					confp->mfcr2.mfback_timeout = -1;
+				} else if (confp->mfcr2.mfback_timeout > 0 && confp->mfcr2.mfback_timeout < 500) {
+					ast_log(LOG_WARNING, "MF timeout less than 500ms is not recommended, you have been warned!\n");
+				}
+			} else if (!strcasecmp(v->name, "mfcr2_metering_pulse_timeout")) {
+				confp->mfcr2.metering_pulse_timeout = atoi(v->value);
+				if (confp->mfcr2.metering_pulse_timeout > 500) {
+					ast_log(LOG_WARNING, "Metering pulse timeout greater than 500ms is not recommended, you have been warned!\n");
+				}
+			} else if (!strcasecmp(v->name, "mfcr2_get_ani_first")) {
+				confp->mfcr2.get_ani_first = ast_true(v->value) ? 1 : 0;
+			} else if (!strcasecmp(v->name, "mfcr2_double_answer")) {
+				confp->mfcr2.double_answer = ast_true(v->value) ? 1 : 0;
+			} else if (!strcasecmp(v->name, "mfcr2_charge_calls")) {
+				confp->mfcr2.charge_calls = ast_true(v->value) ? 1 : 0;
+			} else if (!strcasecmp(v->name, "mfcr2_accept_on_offer")) {
+				confp->mfcr2.accept_on_offer = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "mfcr2_allow_collect_calls")) {
+				confp->mfcr2.allow_collect_calls = ast_true(v->value) ? 1 : 0;
+			} else if (!strcasecmp(v->name, "mfcr2_forced_release")) {
+				confp->mfcr2.forced_release = ast_true(v->value) ? 1 : 0;
+			} else if (!strcasecmp(v->name, "mfcr2_immediate_accept")) {
+				confp->mfcr2.immediate_accept = ast_true(v->value) ? 1 : 0;
+			} else if (!strcasecmp(v->name, "mfcr2_call_files")) {
+				confp->mfcr2.call_files = ast_true(v->value) ? 1 : 0;
+			} else if (!strcasecmp(v->name, "mfcr2_max_ani")) {
+				confp->mfcr2.max_ani = atoi(v->value);
+				if (confp->mfcr2.max_ani >= AST_MAX_EXTENSION){
+					confp->mfcr2.max_ani = AST_MAX_EXTENSION - 1;
+				}
+			} else if (!strcasecmp(v->name, "mfcr2_max_dnis")) {
+				confp->mfcr2.max_dnis = atoi(v->value);
+				if (confp->mfcr2.max_dnis >= AST_MAX_EXTENSION){
+					confp->mfcr2.max_dnis = AST_MAX_EXTENSION - 1;
+				}
+			} else if (!strcasecmp(v->name, "mfcr2_category")) {
+				confp->mfcr2.category = openr2_proto_get_category(v->value);
+				if (OR2_CALLING_PARTY_CATEGORY_UNKNOWN == confp->mfcr2.category) {
+					confp->mfcr2.category = OR2_CALLING_PARTY_CATEGORY_NATIONAL_SUBSCRIBER;
+					ast_log(LOG_WARNING, "Invalid MFC/R2 caller category '%s' at line %d. Using national subscriber as default.\n", 
+							v->value, v->lineno);
+				}
+			} else if (!strcasecmp(v->name, "mfcr2_logging")) {
+				openr2_log_level_t tmplevel;
+				char *clevel;
+				char *logval = ast_strdupa(v->value);
+				while (logval) {
+ 					clevel = strsep(&logval,",");
+					if (-1 == (tmplevel = openr2_log_get_level(clevel))) {
+						ast_log(LOG_WARNING, "Ignoring invalid logging level: '%s' at line %d.\n", clevel, v->lineno);
+						continue;
+					}
+					confp->mfcr2.loglevel |= tmplevel;
+				}
+#endif /* HAVE_OPENR2 */
 			} else if (!strcasecmp(v->name, "cadence")) {
 				/* setup to scan our argument */
 				int element_count, c[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
@@ -15595,6 +17113,19 @@ static int setup_dahdi(int reload)
 		}
 	}
 #endif
+#ifdef HAVE_OPENR2
+	if (reload != 1) {
+		int x;
+		for (x = 0; x < r2links_count; x++) {
+			if (ast_pthread_create(&r2links[x]->r2master, NULL, mfcr2_monitor, r2links[x])) {
+				ast_log(LOG_ERROR, "Unable to start R2 monitor on channel group %d\n", x + 1);
+				return -1;
+			} else {
+				ast_verb(2, "Starting R2 monitor on channel group %d\n", x + 1);
+			}
+		}
+	}
+#endif
 	/* And start the monitor for the first time */
 	restart_monitor();
 	return 0;
@@ -15650,6 +17181,10 @@ static int load_module(void)
 #endif
 #ifdef HAVE_SS7
 	ast_cli_register_multiple(dahdi_ss7_cli, ARRAY_LEN(dahdi_ss7_cli));
+#endif
+#ifdef HAVE_OPENR2
+	ast_cli_register_multiple(dahdi_mfcr2_cli, sizeof(dahdi_mfcr2_cli)/sizeof(dahdi_mfcr2_cli[0]));
+	ast_register_application_xml(dahdi_accept_r2_call_app, dahdi_accept_r2_call_exec);
 #endif
 
 	ast_cli_register_multiple(dahdi_cli, ARRAY_LEN(dahdi_cli));
@@ -15783,20 +17318,6 @@ static int reload(void)
 /* This is a workaround so that menuselect displays a proper description
  * AST_MODULE_INFO(, , "DAHDI Telephony"
  */
-
-#ifdef HAVE_PRI
-#ifdef HAVE_SS7
-#define tdesc "DAHDI Telephony w/PRI & SS7"
-#else
-#define tdesc "DAHDI Telephony w/PRI"
-#endif
-#else
-#ifdef HAVE_SS7
-#define tdesc "DAHDI Telephony w/SS7"
-#else
-#define tdesc "DAHDI Telephony"
-#endif
-#endif
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, tdesc,
 	.load = load_module,

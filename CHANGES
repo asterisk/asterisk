@@ -66,6 +66,8 @@ Skinny Changes
 
 DAHDI Changes
 -------------
+ * chan_dahdi now supports MFC/R2 signaling when Asterisk is compiled with
+   support for LibOpenR2.  http://www.libopenr2.org/
  * The UK option waitfordialtone has been added for use with BT analog
    lines.
  * Added a 'faxbuffers' configuration option to chan_dahdi.conf.  This option

@@ -249,6 +249,7 @@
 ; sf_featb:       SF Feature Group B (MF (domestic, US))
 ; e911:           E911 (MF) style signalling
 ; ss7:            Signalling System 7
+; mfcr2:          MFC/R2 Signalling. To specify the country variant see 'mfcr2_variant'
 ;
 ; The following are used for Radio interfaces:
 ; fxs_rx:         Receive audio/COR on an FXS kewlstart interface (FXO at the
@@ -992,6 +993,154 @@ pickupgroup=1
 ; For more information on setting up SS7, see the README file in libss7 or
 ; the doc/ss7.txt file in the Asterisk source tree.
 ; ----------------- SS7 Options ----------------------------------------
+
+; ---------------- Options for use with signalling=mfcr2 --------------
+
+; MFC/R2 variant. This depends on the OpenR2 supported variants
+; A list of values can be found at libopenr2.org
+; some valid values are:
+; ar (Argentina)
+; br (Brazil)
+; mx (Mexico)
+; ph (Philippines)
+; itu (per ITU spec)
+; mfcr2_variant=mx
+
+; whether or not to get the ANI before getting DNIS.
+; some telcos require ANI first some others do not care
+; if this go wrong, change this value
+; mfcr2_get_ani_first=no
+
+; Max amount of ANI to ask for
+; mfcr2_max_ani=10
+
+; Max amount of DNIS to ask for
+; mfcr2_max_dnis=4
+
+; Caller Category to send
+; national_subscriber
+; national_priority_subscriber
+; international_subscriber
+; international_priority_subscriber
+; collect_call
+; usually national_subscriber works just fine
+; you can change this setting from the dialplan
+; by setting the variable MFCR2_CATEGORY
+; (remember to set _MFCR2_CATEGORY from originating channels)
+; MFCR2_CATEGORY will also be a variable available
+; on incoming calls set to the value received from
+; the far end
+; mfcr2_category=national_subscriber
+
+; Call logging is stored at the Asterisk
+; logging directory specified in asterisk.conf
+; plus mfcr2/<whatever you put here>
+; if you specify 'span1' here and asterisk.conf has
+; as logging directory /var/log/asterisk then the full
+; path to your MFC/R2 call logs will be /var/log/asterisk/mfcr2/span1
+; (the directory will be automatically created if not present already)
+; remember to set mfcr2_call_files=yes
+; mfcr2_logdir=span1
+
+; whether or not to drop call files into mfcr2_logdir
+; mfcr2_call_files=yes|no
+
+; MFC/R2 valid logging values are: all,error,warning,debug,notice,cas,mf,stack,nothing
+; error,warning,debug and notice are self-descriptive
+; 'cas' is for logging ABCD CAS tx and rx
+; 'mf' is for logging of the Multi Frequency tones
+; 'stack' is for very verbose output of the channel and context call stack, only useful
+; if you are debugging a crash or want to learn how the library works. The stack logging
+; will be only enabled if the openr2 library was compiled with -DOR2_TRACE_STACKS
+; You can mix up values, like: loglevel=error,debug,mf to log just error, debug and 
+; multi frequency messages
+; 'all' is a special value to log all the activity
+; 'nothing' is a clean-up value, in case you want to not log any activity for
+; a channel or group of channels
+; BE AWARE that the level of output logged will ALSO depend on
+; the value you have in logger.conf, if you disable output in logger.conf
+; then it does not matter you specify 'all' here, nothing will be logged
+; so logger.conf has the last word on what is going to be logged
+; mfcr2_logging=all
+
+; MFC/R2 value in milliseconds for the MF timeout. Any negative value
+; means 'default', smaller values than 500ms are not recommended
+; and can cause malfunctioning. If you experience protocol error
+; due to MF timeout try incrementing this value in 500ms steps
+; mfcr2_mfback_timeout=-1
+
+; MFC/R2 value in milliseconds for the metering pulse timeout.
+; Metering pulses are sent by some telcos for some R2 variants
+; during a call presumably for billing purposes to indicate costs,
+; however this pulses use the same signal that is used to indicate
+; call hangup, therefore a timeout is sometimes required to distinguish
+; between a *real* hangup and a billing pulse that should not
+; last more than 500ms, If you experience call drops after some
+; minutes of being stablished try setting a value of some ms here,
+; values greater than 500ms are not recommended.
+; BE AWARE that choosing the proper protocol mfcr2_variant parameter
+; implicitly sets a good recommended value for this timer, use this
+; parameter only when you *really* want to override the default, otherwise
+; just comment out this value or put a -1
+; Any negative value means 'default'.
+; mfcr2_metering_pulse_timeout=-1
+
+; Brazil uses a special calling party category for collect calls (llamadas por cobrar)
+; instead of using the operator (as in Mexico). The R2 spec in Brazil says a special GB tone
+; should be used to reject collect calls. If you want to ALLOW collect calls specify 'yes',
+; if you want to BLOCK collect calls then say 'no'. Default is to block collect calls.
+; (see also 'mfcr2_double_answer')
+; mfcr2_allow_collect_calls=no
+
+; This feature is related but independent of mfcr2_allow_collect_calls
+; Some PBX's require a double-answer process to block collect calls, if
+; you ever have problems blocking collect calls using Group B signals (mfcr2_allow_collect_calls=no)
+; then you may want to try with mfcr2_double_answer=yes, this will cause that every answer signal
+; is changed by answer->clear back->answer (sort of a flash)
+; (see also 'mfcr2_allow_collect_calls')
+; mfcr2_double_answer=no
+
+; This feature allows to skip the use of Group B/II signals and go directly
+; to the accepted state for incoming calls
+; mfcr2_immediate_accept=no
+
+; You most likely dont need this feature. Default is yes.
+; When this is set to yes, all calls that are offered (incoming calls) which
+; DNIS is valid (exists in extensions.conf) and pass collect call validation 
+; will be accepted with a Group B tone (either call with charge or not, depending on mfcr2_charge_calls)
+; with this set to 'no' then the call will NOT be accepted on offered, and the call will start its
+; execution in extensions.conf without being accepted until the channel is answered (either with Answer() or
+; any other application resulting in the channel being answered). 
+; This can be set to 'no' if your telco or PBX needs the hangup cause to be set accurately
+; when this option is set to no you must explicitly accept the call with DAHDIAcceptR2Call
+; or implicitly through the Answer() application. 
+; mfcr2_accept_on_offer=yes
+
+; WARNING: advanced users only! I really mean it
+; this parameter is commented by default because
+; YOU DON'T NEED IT UNLESS YOU REALLY GROK MFC/R2
+; READ COMMENTS on doc/r2proto.conf in openr2 package 
+; for more info
+; mfcr2_advanced_protocol_file=/path/to/r2proto.conf
+
+; Brazil use a special signal to force the release of the line (hangup) from the
+; backward perspective. When mfcr2_forced_release=no, the normal clear back signal
+; will be sent on hangup, which is OK for all mfcr2 variants I know of, except for
+; Brazilian variant, where the central will leave the line up for several seconds (30, 60)
+; which sometimes is not what people really want. When mfcr2_forced_release=yes, a different
+; signal will be sent to hangup the call indicating that the line should be released immediately
+; mfcr2_forced_release=no
+
+; Whether or not report to the other end 'accept call with charge'
+; This setting has no effect with most telecos, usually is safe
+; leave the default (yes), but once in a while when interconnecting with
+; old PBXs this may be useful.
+; Concretely this affects the Group B signal used to accept calls
+; The application DAHDIAcceptR2Call can also be used to decide this
+; in the dial plan in a per-call basis instead of doing it here for all calls
+; mfcr2_charge_calls=yes
+
+; ---------------- END of options to be used with signalling=mfcr2
 
 ; Configuration Sections
 ; ~~~~~~~~~~~~~~~~~~~~~~
