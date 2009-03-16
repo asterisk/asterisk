@@ -1,0 +1,218 @@
+                                Release Summary
+
+                                asterisk-1.4.24
+
+                                Date: 2009-03-16
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.4.24-rc1.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   6 file                   1 caspy                  3 caspy                  
+   3 mmichelson             1 dvossel                1 guillecabeza           
+   2 dvossel                1 klaus3000              1 klaus3000              
+   2 qwell                  1 legranjl               1 legranjl               
+   1 jpeeler                                         1 makoto                 
+   1 klaus3000                                       1 mmichelson             
+   1 rmudgett                                        1 pj                     
+   1 russell                                         1 stevenla               
+   1 tilghman                                        1 sverre                 
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Channels/chan_iax2
+
+   #14607: chan_iax2.c: Packet Decrypt Failed! encrypted IAX2 during packet
+   loss causes hangup and end of call
+   Revision: 181340
+   Reporter: stevenla
+   Testers: dvossel
+   Coders: dvossel
+
+  Category: Channels/chan_local
+
+   #14656: [patch] unfreed memory in Local channel
+   Revision: 182208
+   Reporter: caspy
+   Testers: caspy
+   Coders: tilghman
+
+  Category: Channels/chan_sip/General
+
+   #13713: [patch] Inband DTMF on outbound call is not detected when
+   dtmfmode=auto
+   Revision: 181295
+   Reporter: makoto
+   Coders: file
+
+   #14149: Continuation - Handle BYE instead of CANCEL from callers (issue
+   0004994)
+   Revision: 181768
+   Reporter: legranjl
+   Testers: legranjl
+   Coders: mmichelson
+
+  Category: Channels/chan_sip/Interoperability
+
+   #14611: [patch] SIP Attended Transfer fails
+   Revision: 181029
+   Reporter: klaus3000
+   Testers: klaus3000
+   Coders: klaus3000
+
+   #14628: "SIP/2.0 404 Not found" when attended transferring a private
+   number
+   Revision: 181328
+   Reporter: sverre
+   Coders: file
+
+  Category: Core/Channels
+
+   #14623: [patch] Race condition between bridge and channel masquerading
+   Revision: 181423
+   Reporter: guillecabeza
+   Coders: russell
+
+  Category: Core/General
+
+   #13593: [patch] MALLOC_DEBUG causes crash in chan_h323
+   Revision: 181133
+   Reporter: pj
+   Coders: jpeeler
+
+  Category: Resources/res_features
+
+   #14657: [patch] Callee cannot use dynamic features
+   Revision: 181990
+   Reporter: mmichelson
+   Coders: mmichelson
+
+  Category: Resources/res_musiconhold
+
+   #14416: [patch] streamed moh breaks if nobody listen it
+   Revision: 181655
+   Reporter: caspy
+   Coders: file
+
+   #14416: [patch] streamed moh breaks if nobody listen it
+   Revision: 181659
+   Reporter: caspy
+   Coders: file
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                           | Issues     |
+   |          |            |                                   | Referenced |
+   |----------+------------+-----------------------------------+------------|
+   | 180941   | qwell      | Make things happier when using    |            |
+   |          |            | autoconf 2.62+                    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 181031   | mmichelson | Remove unused variables.          |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Allow prefix to set localstatedir |            |
+   | 181436   | qwell      | (when used and different from the |            |
+   |          |            | default).                         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 181660   | file       | Fix logic flaw in previous        |            |
+   |          |            | commit.                           |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Fix incorrect usage of            |            |
+   | 181664   | file       | strncasecmp... I really meant to  |            |
+   |          |            | use strcasecmp.                   |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Use the correct branch integrated |            |
+   | 181898   | rmudgett   | property when generating the      |            |
+   |          |            | version string.                   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 182281   | dvossel    | Randomize IAX2 encryption padding |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ apps/app_meetme.c                |    6 -
+ autoconf/ast_check_gnu_make.m4   |   18 ++---
+ autoconf/ast_prog_sed.m4         |    3
+ build_tools/make_version         |  134 ++++++++++++++++++---------------------
+ channels/chan_iax2.c             |   78 ++++++++++++++++++----
+ channels/chan_local.c            |   27 ++++---
+ channels/chan_sip.c              |   47 +++++++------
+ channels/h323/ast_h323.cxx       |    8 +-
+ channels/iax2-parser.h           |   45 +++++++------
+ configure                        |   30 ++++----
+ configure.ac                     |    7 +-
+ include/asterisk/astmm.h         |   34 +++++++++
+ include/asterisk/threadstorage.h |    2
+ include/asterisk/utils.h         |   20 +----
+ main/channel.c                   |   44 ++++++++----
+ pbx/pbx_ael.c                    |    4 -
+ pbx/pbx_config.c                 |   10 +-
+ res/res_features.c               |   31 ++++++---
+ res/res_musiconhold.c            |    4 -
+ 19 files changed, 335 insertions(+), 217 deletions(-)
+
+     ----------------------------------------------------------------------
