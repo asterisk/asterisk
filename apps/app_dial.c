@@ -109,11 +109,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<option name="D" argsep=":">
 					<argument name="called" />
 					<argument name="calling" />
+					<argument name="progress" />
 					<para>Send the specified DTMF strings <emphasis>after</emphasis> the called
 					party has answered, but before the call gets bridged. The 
 					<replaceable>called</replaceable> DTMF string is sent to the called party, and the 
 					<replaceable>calling</replaceable> DTMF string is sent to the calling party. Both arguments 
-					can be used alone.</para>
+					can be used alone.  If <replaceable>progress</replaceable> is specified, its DTMF is sent
+					immediately after receiving a PROGRESS message.</para>
 				</option>
 				<option name="e">
 					<para>Execute the <literal>h</literal> extension for peer after the call ends</para>
@@ -796,7 +798,7 @@ struct privacy_args {
 static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	struct chanlist *outgoing, int *to, struct ast_flags64 *peerflags,
 	struct privacy_args *pa,
-	const struct cause_args *num_in, int *result)
+	const struct cause_args *num_in, int *result, char *dtmf_progress)
 {
 	struct cause_args num = *num_in;
 	int prestart = num.busy + num.congestion + num.nochan;
@@ -952,6 +954,10 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						ast_channel_early_bridge(in, c);
 					if (!ast_test_flag64(outgoing, OPT_RINGBACK))
 						ast_indicate(in, AST_CONTROL_PROGRESS);
+						if(!ast_strlen_zero(dtmf_progress)) {
+							ast_verb(3, "Sending DTMF '%s' to the called party as result of receiving a PROGRESS message.\n", dtmf_progress);
+							ast_dtmf_stream(c, in, dtmf_progress, 250, 0);
+						}
 					break;
 				case AST_CONTROL_VIDUPDATE:
 					ast_verb(3, "%s requested a video update, passing it to %s\n", c->name, in->name);
@@ -1502,7 +1508,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 	struct ast_bridge_config config = { { 0, } };
 	struct timeval calldurationlimit = { 0, };
-	char *dtmfcalled = NULL, *dtmfcalling = NULL;
+	char *dtmfcalled = NULL, *dtmfcalling = NULL, *dtmf_progress=NULL;
 	struct privacy_args pa = {
 		.sentringing = 0,
 		.privdb_val = 0,
@@ -1553,12 +1559,11 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		goto done;
 	}
 
-
 	if (ast_test_flag64(&opts, OPT_OPERMODE)) {
 		opermode = ast_strlen_zero(opt_args[OPT_ARG_OPERMODE]) ? 1 : atoi(opt_args[OPT_ARG_OPERMODE]);
 		ast_verb(3, "Setting operator services mode to %d.\n", opermode);
 	}
-	
+
 	if (ast_test_flag64(&opts, OPT_DURATION_STOP) && !ast_strlen_zero(opt_args[OPT_ARG_DURATION_STOP])) {
 		calldurationlimit.tv_sec = atoi(opt_args[OPT_ARG_DURATION_STOP]);
 		if (!calldurationlimit.tv_sec) {
@@ -1570,8 +1575,9 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	}
 
 	if (ast_test_flag64(&opts, OPT_SENDDTMF) && !ast_strlen_zero(opt_args[OPT_ARG_SENDDTMF])) {
-		dtmfcalling = opt_args[OPT_ARG_SENDDTMF];
-		dtmfcalled = strsep(&dtmfcalling, ":");
+		dtmf_progress = opt_args[OPT_ARG_SENDDTMF];
+		dtmfcalled = strsep(&dtmf_progress, ":");
+		dtmfcalling = strsep(&dtmf_progress, ":");
 	}
 
 	if (ast_test_flag64(&opts, OPT_DURATION_LIMIT) && !ast_strlen_zero(opt_args[OPT_ARG_DURATION_LIMIT])) {
@@ -1838,7 +1844,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		}
 	}
 
-	peer = wait_for_answer(chan, outgoing, &to, peerflags, &pa, &num, &result);
+	peer = wait_for_answer(chan, outgoing, &to, peerflags, &pa, &num, &result, dtmf_progress);
 
 	/* The ast_channel_datastore_remove() function could fail here if the
 	 * datastore was moved to another channel during a masquerade. If this is

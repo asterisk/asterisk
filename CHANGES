@@ -128,6 +128,9 @@ Applications
  * Added ConfBridge dialplan application which does conference bridges without
    DAHDI. For information on its use, please see the output of
    "core show application ConfBridge" from the CLI.
+ * Added progress option to the app_dial D() option.  When progress DTMF is
+   present, those values are sent immediatly upon receiving a PROGRESS message
+   regardless if the call has been answered or not.
 
 Miscellaneous
 -------------
