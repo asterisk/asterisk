@@ -2477,8 +2477,11 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	config->firstpass = 1;
 
 	/* Answer if need be */
-	if (ast_answer(chan))
-		return -1;
+	if (chan->_state != AST_STATE_UP) {
+		if (ast_raw_answer(chan, 1)) {
+			return -1;
+		}
+	}
 
 	ast_copy_string(orig_channame,chan->name,sizeof(orig_channame));
 	ast_copy_string(orig_peername,peer->name,sizeof(orig_peername));
