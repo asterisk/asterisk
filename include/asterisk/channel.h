@@ -1008,12 +1008,61 @@ void ast_channel_setwhentohangup_tv(struct ast_channel *chan, struct timeval off
  * This function answers a channel and handles all necessary call
  * setup functions.
  *
- * \note The channel passed does not need to be locked.
+ * \note The channel passed does not need to be locked, but is locked
+ * by the function when needed.
+ *
+ * \note This function will wait up to 500 milliseconds for media to
+ * arrive on the channel before returning to the caller, so that the
+ * caller can properly assume the channel is 'ready' for media flow.
  *
  * \retval 0 on success
  * \retval non-zero on failure
  */
 int ast_answer(struct ast_channel *chan);
+
+/*!
+ * \brief Answer a channel
+ *
+ * \param chan channel to answer
+ * \param cdr_answer flag to control whether any associated CDR should be marked as 'answered'
+ *
+ * This function answers a channel and handles all necessary call
+ * setup functions.
+ *
+ * \note The channel passed does not need to be locked, but is locked
+ * by the function when needed.
+ *
+ * \note Unlike ast_answer(), this function will not wait for media
+ * flow to begin. The caller should be careful before sending media
+ * to the channel before incoming media arrives, as the outgoing
+ * media may be lost.
+ *
+ * \retval 0 on success
+ * \retval non-zero on failure
+ */
+int ast_raw_answer(struct ast_channel *chan, int cdr_answer);
+
+/*!
+ * \brief Answer a channel, with a selectable delay before returning
+ *
+ * \param chan channel to answer
+ * \param delay maximum amount of time to wait for incoming media
+ * \param cdr_answer flag to control whether any associated CDR should be marked as 'answered'
+ *
+ * This function answers a channel and handles all necessary call
+ * setup functions.
+ *
+ * \note The channel passed does not need to be locked, but is locked
+ * by the function when needed.
+ *
+ * \note This function will wait up to 'delay' milliseconds for media to
+ * arrive on the channel before returning to the caller, so that the
+ * caller can properly assume the channel is 'ready' for media flow. If
+ * 'delay' is less than 500, the function will wait up to 500 milliseconds.
+ *
+ * \retval 0 on success
+ * \retval non-zero on failure
+ */
 int __ast_answer(struct ast_channel *chan, unsigned int delay, int cdr_answer);
 
 /*! \brief Make a call
