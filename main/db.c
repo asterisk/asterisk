@@ -180,10 +180,8 @@ int ast_db_get(const char *family, const char *keys, char *value, int valuelen)
 	memset(value, 0, valuelen);
 	key.data = fullkey;
 	key.size = fullkeylen + 1;
-	
+
 	res = astdb->get(astdb, &key, &data, 0);
-	
-	ast_mutex_unlock(&dblock);
 
 	/* Be sure to NULL terminate our data either way */
 	if (res) {
@@ -200,6 +198,11 @@ int ast_db_get(const char *family, const char *keys, char *value, int valuelen)
 			ast_log(LOG_NOTICE, "Strange, empty value for /%s/%s\n", family, keys);
 		}
 	}
+
+	/* Data is not fully isolated for concurrency, so the lock must be extended
+	 * to after the copy to the output buffer. */
+	ast_mutex_unlock(&dblock);
+
 	return res;
 }
 
