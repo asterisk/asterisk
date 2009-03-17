@@ -11997,7 +11997,7 @@ static int setup_dahdi(int reload)
 #ifdef HAVE_ZAPTEL
 	int load_from_zapata_conf = 1;
 #else
-	int load_from_zapata_conf = (dahdi_chan_mode == CHAN_ZAP_MODE);
+	int load_from_zapata_conf = (*dahdi_chan_mode == CHAN_ZAP_MODE);
 #endif
 
 	if (load_from_zapata_conf) {
