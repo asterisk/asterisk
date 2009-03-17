@@ -12,11 +12,15 @@
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.6.3  -------------
 ------------------------------------------------------------------------------
 
- *Applications
+Applications
 ------------
  * Added progress option to the app_dial D() option.  When progress DTMF is
    present, those values are sent immediatly upon receiving a PROGRESS message
    regardless if the call has been answered or not.
+
+Functions
+---------
+ * The CHANNEL() function now supports the "name" option.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.1 to Asterisk 1.6.2  -------------

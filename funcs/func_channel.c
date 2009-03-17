@@ -83,6 +83,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name="musicclass">
 						<para>R/W class (from musiconhold.conf) for hold music.</para>
 					</enum>
+					<enum name="name">
+						<para>The name of the channel</para>
+					</enum>
 					<enum name="parkinglot">
 						<para>R/W parkinglot for parking.</para>
 					</enum>
@@ -249,7 +252,9 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 		locked_copy_string(chan, buf, chan->language, len);
 	else if (!strcasecmp(data, "musicclass"))
 		locked_copy_string(chan, buf, chan->musicclass, len);
-	else if (!strcasecmp(data, "parkinglot"))
+	else if (!strcasecmp(data, "name")) {
+		locked_copy_string(chan, buf, chan->name, len);
+	} else if (!strcasecmp(data, "parkinglot"))
 		locked_copy_string(chan, buf, chan->parkinglot, len);
 	else if (!strcasecmp(data, "state"))
 		locked_copy_string(chan, buf, ast_state2str(chan->_state), len);
