@@ -151,26 +151,24 @@ protected:
 
 	PIPSocket::Address localIpAddr;
 	PIPSocket::Address remoteIpAddr;
+	/* Additional functions in order to have chan_h323 compile with H323Plus */
+#if VERSION(OPENH323_MAJOR, OPENH323_MINOR, OPENH323_BUILD) > VERSION(1,19,4)
+	BOOL OnReceivedAltPDU(const H245_ArrayOf_GenericInformation & alternate );
+	BOOL OnSendingAltPDU(H245_ArrayOf_GenericInformation & alternate) const;
+	void OnSendOpenAckAlt(H245_ArrayOf_GenericInformation & alternate) const;
+	BOOL OnReceivedAckAltPDU(const H245_ArrayOf_GenericInformation & alternate);
+#endif
 	WORD localPort;
 	WORD remotePort;
 };
 
-/**
- * The MyProcess is a necessary descendant PProcess class so that the H323EndPoint
- * objected to be created from within that class. (Solves the who owns main() problem).
- */
-class MyProcess : public PProcess
-{
-	PCLASSINFO(MyProcess, PProcess);
-
-public:
-	MyProcess();
-	~MyProcess();
-	void Main();
-};
-
 #ifdef H323_H450
+
+#if VERSION(OPENH323_MAJOR, OPENH323_MINOR, OPENH323_BUILD) > VERSION(1,19,4)
+#include <h450/h450pdu.h>
+#else
 #include <h450pdu.h>
+#endif
 
 class MyH4504Handler : public H4504Handler
 {
@@ -185,7 +183,5 @@ private:
 	MyH323Connection *conn;
 };
 #endif
-
-#include "compat_h323.h"
 
 #endif /* !defined AST_H323_H */

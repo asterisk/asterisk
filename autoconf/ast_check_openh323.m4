@@ -16,19 +16,19 @@ if test "${HAS_OPENH323:-unset}" = "unset" ; then
   else
     saved_cppflags="${CPPFLAGS}"
     CPPFLAGS="${CPPFLAGS} -I${HOME}/openh323/include -I${PWLIB_INCDIR}"
-    AC_CHECK_HEADER(${HOME}/openh323/include/h323.h, HAS_OPENH323=1, )
+    AC_CHECK_HEADER(${HOME}/openh323/include/h323.h, HAS_OPENH323=1, , [#include <ptlib.h>])
     CPPFLAGS="${saved_cppflags}"
     if test "${HAS_OPENH323:-unset}" != "unset" ; then
       OPENH323DIR="${HOME}/openh323"
     else
       saved_cppflags="${CPPFLAGS}"
       CPPFLAGS="${CPPFLAGS} -I/usr/local/include/openh323 -I${PWLIB_INCDIR}"
-      AC_CHECK_HEADER(/usr/local/include/openh323/h323.h, HAS_OPENH323=1, )
+      AC_CHECK_HEADER(/usr/local/include/openh323/h323.h, HAS_OPENH323=1, , [#include <ptlib.h>])
       CPPFLAGS="${saved_cppflags}"
       if test "${HAS_OPENH323:-unset}" != "unset" ; then
         OPENH323DIR="/usr/local/share/openh323"
         OPENH323_INCDIR="/usr/local/include/openh323"
-        if test "x$LIB64" != "x"; then
+        if test "x$LIB64" != "x" && test -d "/usr/local/lib64"; then
           OPENH323_LIBDIR="/usr/local/lib64"
         else
           OPENH323_LIBDIR="/usr/local/lib"
@@ -41,7 +41,7 @@ if test "${HAS_OPENH323:-unset}" = "unset" ; then
         if test "${HAS_OPENH323:-unset}" != "unset" ; then
           OPENH323DIR="/usr/share/openh323"
           OPENH323_INCDIR="/usr/include/openh323"
-          if test "x$LIB64" != "x"; then
+          if test "x$LIB64" != "x" && test -d "/usr/local/lib64"; then
             OPENH323_LIBDIR="/usr/lib64"
           else
             OPENH323_LIBDIR="/usr/lib"
@@ -77,7 +77,12 @@ AC_DEFUN([AST_CHECK_OPENH323_BUILD], [
 		OPENH323_SUFFIX=
 		prefixes="h323_${PWLIB_PLATFORM}_ h323_ openh323"
 		for pfx in $prefixes; do
+			#files=`ls -l /usr/local/lib/lib${pfx}*.so* 2>/dev/null`
 			files=`ls -l ${OPENH323_LIBDIR}/lib${pfx}*.so* 2>/dev/null`
+			if test -z "$files"; then
+				# check the default location
+				files=`ls -l /usr/local/lib/lib${pfx}*.so* 2>/dev/null`
+			fi
 			libfile=
 			if test -n "$files"; then
 				for f in $files; do
