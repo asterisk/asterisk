@@ -30,6 +30,7 @@
  */
 
 #include "asterisk.h"
+#define VERSION(a,b,c) ((a)*10000+(b)*100+(c))
 
 #include <arpa/inet.h>
 
@@ -42,6 +43,23 @@
 #include <h323pdu.h>
 #include <h323neg.h>
 #include <mediafmt.h>
+
+/* H323 Plus */
+#if VERSION(OPENH323_MAJOR, OPENH323_MINOR, OPENH323_BUILD) > VERSION(1,19,4)
+
+#ifdef H323_H450
+#include "h450/h4501.h"
+#include "h450/h4504.h"
+#include "h450/h45011.h"
+#include "h450/h450pdu.h"
+#endif
+
+#ifdef H323_H460
+#include <h460/h4601.h>
+#endif
+
+#else /* !H323 Plus */
+
 #include <lid.h>
 #ifdef H323_H450
 #include "h4501.h"
@@ -49,6 +67,10 @@
 #include "h45011.h"
 #include "h450pdu.h"
 #endif
+
+#endif /* H323 Plus */
+
+#include "compat_h323.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -66,15 +88,40 @@ extern "C" {
 #include "cisco-h225.h"
 #include "caps_h323.h"
 
-#if PWLIB_MAJOR * 10000 + PWLIB_MINOR * 100 + PWLIB_BUILD >= 1 * 10000 + 12 * 100 + 0
+#if VERSION(PWLIB_MAJOR, PWLIB_MINOR, PWLIB_BUILD) >= VERSION(1,12,0)
 #define SKIP_PWLIB_PIPE_BUG_WORKAROUND 1
 #endif
 
+///////////////////////////////////////////////
+/* We have to have a PProcess running for the life of the instance to give
+ * h323plus a static instance of PProcess to get system information.
+ * This class is defined with PDECLARE_PROCESS().  See pprocess.h from pwlib.
+ */
+
 /* PWlib Required Components  */
+#if VERSION(OPENH323_MAJOR, OPENH323_MINOR, OPENH323_BUILD) > VERSION(1,19,4)
+#define MAJOR_VERSION 1
+#define MINOR_VERSION 19
+#define BUILD_TYPE    ReleaseCode
+#define BUILD_NUMBER  6
+#else
 #define MAJOR_VERSION 1
 #define MINOR_VERSION 0
 #define BUILD_TYPE    ReleaseCode
 #define BUILD_NUMBER  0
+#endif
+ 
+const char *h323manufact = "The NuFone Networks";
+const char *h323product  = "H.323 Channel Driver for Asterisk";
+ 
+PDECLARE_PROCESS(MyProcess,PProcess,h323manufact,h323product,MAJOR_VERSION,MINOR_VERSION,BUILD_TYPE,BUILD_NUMBER)
+static MyProcess localProcess;  // active for the life of the DLL
+/* void MyProcess::Main()
+{
+}
+*/
+////////////////////////////////////////////////
+
 
 /** Counter for the number of connections */
 static int channelsOpen;
@@ -85,13 +132,6 @@ static int channelsOpen;
  * FIXME: Singleton this, for safety
  */
 static MyH323EndPoint *endPoint = NULL;
-
-/** PWLib entry point */
-static MyProcess *localProcess = NULL;
-
-#ifndef SKIP_PWLIB_PIPE_BUG_WORKAROUND
-static int _timerChangePipe[2];
-#endif
 
 static unsigned traceOptions = PTrace::Timestamp | PTrace::Thread | PTrace::FileAndLine;
 
@@ -176,36 +216,6 @@ static ostream &my_endl(ostream &os)
 #define cout \
 	(logstream ? (PTrace::ClearOptions((unsigned)-1), PTrace::Begin(0, __FILE__, __LINE__)) : std::cout)
 #define endl my_endl
-
-/* Special class designed to call cleanup code on module destruction */
-class MyH323_Shutdown {
-	public:
-	MyH323_Shutdown() { };
-	~MyH323_Shutdown()
-	{
-		h323_end_process();
-	};
-};
-
-MyProcess::MyProcess(): PProcess("The NuFone Networks",
-			"H.323 Channel Driver for Asterisk",
-			MAJOR_VERSION, MINOR_VERSION, BUILD_TYPE, BUILD_NUMBER)
-{
-	/* Call shutdown when module being unload or asterisk has been stopped */
-	static MyH323_Shutdown x;
-
-	/* Fix missed one in PWLib */
-	PX_firstTimeStart = FALSE;
-	Resume();
-}
-
-MyProcess::~MyProcess()
-{
-#ifndef SKIP_PWLIB_PIPE_BUG_WORKAROUND
-	_timerChangePipe[0] = timerChangePipe[0];
-	_timerChangePipe[1] = timerChangePipe[1];
-#endif
-}
 
 void MyProcess::Main()
 {
@@ -2061,7 +2071,7 @@ PBoolean MyH323Connection::StartControlChannel(const H225_TransportAddress & h24
 			cout << "Using " << addr << " for outbound H.245 transport" << endl;
 		controlChannel = new MyH323TransportTCP(endpoint, addr);
 	} else
-		controlChannel = new H323TransportTCP(endpoint);
+		controlChannel = new MyH323TransportTCP(endpoint);
 	if (!controlChannel->SetRemoteAddress(h245Address)) {
 		PTRACE(1, "H225\tCould not extract H245 address");
 		delete controlChannel;
@@ -2250,8 +2260,7 @@ void h323_end_point_create(void)
 {
 	channelsOpen = 0;
 	logstream = new PAsteriskLog();
-	localProcess = new MyProcess();
-	localProcess->Main();
+	endPoint = new MyH323EndPoint();
 }
 
 void h323_gk_urq(void)
@@ -2359,6 +2368,33 @@ int h323_start_listener(int listenPort, struct sockaddr_in bindaddr)
 	return 0;
 };
 
+/* Addition of functions just to make the channel driver compile with H323Plus */
+#if VERSION(OPENH323_MAJOR, OPENH323_MINOR, OPENH323_BUILD) > VERSION(1,19,4)
+/* Alternate RTP port information for Same NAT */
+BOOL MyH323_ExternalRTPChannel::OnReceivedAltPDU(const H245_ArrayOf_GenericInformation & alternate )
+{
+	return TRUE;
+}
+
+/* Alternate RTP port information for Same NAT */
+BOOL MyH323_ExternalRTPChannel::OnSendingAltPDU(H245_ArrayOf_GenericInformation & alternate) const
+{
+	return TRUE;
+}
+
+/* Alternate RTP port information for Same NAT */
+void MyH323_ExternalRTPChannel::OnSendOpenAckAlt(H245_ArrayOf_GenericInformation & alternate) const
+{
+}
+
+/* Alternate RTP port information for Same NAT */
+BOOL MyH323_ExternalRTPChannel::OnReceivedAckAltPDU(const H245_ArrayOf_GenericInformation & alternate)
+{
+	return TRUE;
+}
+#endif
+
+
 int h323_set_alias(struct oh323_alias *alias)
 {
 	char *p;
@@ -2374,7 +2410,7 @@ int h323_set_alias(struct oh323_alias *alias)
 
 	cout << "== Adding alias \"" << h323id << "\" to endpoint" << endl;
 	endPoint->AddAliasName(h323id);
-	endPoint->RemoveAliasName(localProcess->GetUserName());
+	endPoint->RemoveAliasName(PProcess::Current().GetName());
 
 	if (!e164.IsEmpty()) {
 		cout << "== Adding E.164 \"" << e164 << "\" to endpoint" << endl;
@@ -2407,6 +2443,11 @@ void h323_set_id(char *id)
 void h323_show_tokens(void)
 {
 	cout << "Current call tokens: " << setprecision(2) << endPoint->GetAllConnections() << endl;
+}
+
+void h323_show_version(void)
+{
+    cout << "H.323 version: " << OPENH323_MAJOR << "." << OPENH323_MINOR << "." << OPENH323_BUILD << endl;
 }
 
 /** Establish Gatekeeper communiations, if so configured,
@@ -2626,22 +2667,10 @@ int h323_hold_call(const char *token, int is_hold)
 void h323_end_process(void)
 {
 	if (endPoint) {
-		endPoint->ClearAllCalls();
-		endPoint->RemoveListener(NULL);
 		delete endPoint;
 		endPoint = NULL;
 	}
-	if (localProcess) {
-		delete localProcess;
-		localProcess = NULL;
-#ifndef SKIP_PWLIB_PIPE_BUG_WORKAROUND
-		close(_timerChangePipe[0]);
-		close(_timerChangePipe[1]);
-#endif
-	}
 	if (logstream) {
-		PTrace::SetLevel(0);
-		PTrace::SetStream(&cout);
 		delete logstream;
 		logstream = NULL;
 	}

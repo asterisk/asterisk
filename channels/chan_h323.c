@@ -2729,12 +2729,34 @@ static char *handle_cli_h323_show_tokens(struct ast_cli_entry *e, int cmd, struc
 	return CLI_SUCCESS;
 }
 
+static char *handle_cli_h323_show_version(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "h323 show version";
+		e->usage =
+			"Usage: h323 show version\n"
+			"		Show the version of the H.323 library in use\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+
+	h323_show_version();
+	
+	return CLI_SUCCESS;
+}
+
 static struct ast_cli_entry cli_h323[] = {
-	AST_CLI_DEFINE(handle_cli_h323_set_trace,   "Enable/Disable H.323 Stack Tracing"),
-	AST_CLI_DEFINE(handle_cli_h323_set_debug,   "Enable/Disable H.323 Debugging"),
-	AST_CLI_DEFINE(handle_cli_h323_cycle_gk,    "Manually re-register with the Gatekeper"),
-	AST_CLI_DEFINE(handle_cli_h323_hangup,      "Manually try to hang up a call"),
-	AST_CLI_DEFINE(handle_cli_h323_show_tokens, "Show all active call tokens"),
+	AST_CLI_DEFINE(handle_cli_h323_set_trace,    "Enable/Disable H.323 Stack Tracing"),
+	AST_CLI_DEFINE(handle_cli_h323_set_debug,    "Enable/Disable H.323 Debugging"),
+	AST_CLI_DEFINE(handle_cli_h323_cycle_gk,     "Manually re-register with the Gatekeper"),
+	AST_CLI_DEFINE(handle_cli_h323_hangup,       "Manually try to hang up a call"),
+	AST_CLI_DEFINE(handle_cli_h323_show_tokens,  "Show all active call tokens"),
+	AST_CLI_DEFINE(handle_cli_h323_show_version, "Show the version of the H.323 library in use"),
 };
 
 static void delete_users(void)
