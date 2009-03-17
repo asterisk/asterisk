@@ -11,7 +11,7 @@ AC_DEFUN([AST_EXT_LIB_SETUP],
     $1_DESCRIP="$2"
     $1_OPTION="$3"
     PBX_$1=0
-    AC_ARG_WITH([$3], AC_HELP_STRING([--with-$3=PATH],[use $2 files in PATH $4]),
+    AC_ARG_WITH([$3], AC_HELP_STRING([--with-$3=PATH],[use $2 files in PATH$4]),
     [
 	case ${withval} in
 	n|no)
