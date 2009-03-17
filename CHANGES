@@ -12,7 +12,11 @@
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.6.3  -------------
 ------------------------------------------------------------------------------
 
- * Nothing, yet!
+ *Applications
+------------
+ * Added progress option to the app_dial D() option.  When progress DTMF is
+   present, those values are sent immediatly upon receiving a PROGRESS message
+   regardless if the call has been answered or not.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.1 to Asterisk 1.6.2  -------------
@@ -128,9 +132,6 @@ Applications
  * Added ConfBridge dialplan application which does conference bridges without
    DAHDI. For information on its use, please see the output of
    "core show application ConfBridge" from the CLI.
- * Added progress option to the app_dial D() option.  When progress DTMF is
-   present, those values are sent immediatly upon receiving a PROGRESS message
-   regardless if the call has been answered or not.
 
 Miscellaneous
 -------------
