@@ -1788,7 +1788,7 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay, int cdr_answer)
 					ast_frfree(cur);
 				}
 
-				AST_LIST_INSERT_TAIL(&frames, new, frame_list);
+				AST_LIST_INSERT_HEAD(&frames, new, frame_list);
 
 				/* if a specific delay period was requested, continue
 				 * until that delay has passed. don't stop just because
@@ -1824,8 +1824,7 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay, int cdr_answer)
 
 			if (res == 0) {
 				ast_channel_lock(chan);
-				while ((cur = AST_LIST_LAST(&frames))) {
-					AST_LIST_REMOVE(&frames, cur, frame_list);
+				while ((cur = AST_LIST_REMOVE_HEAD(&frames, frame_list))) {
 					ast_queue_frame_head(chan, cur);
 					ast_frfree(cur);
 				}
