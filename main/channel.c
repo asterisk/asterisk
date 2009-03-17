@@ -1837,7 +1837,8 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay, int cdr_answer)
 
 			if (res == 0) {
 				ast_channel_lock(chan);
-				while ((cur = AST_LIST_REMOVE(&frames, AST_LIST_LAST(&frames), frame_list))) {
+				while ((cur = AST_LIST_LAST(&frames))) {
+					AST_LIST_REMOVE(&frames, cur, frame_list);
 					ast_queue_frame_head(chan, cur);
 					ast_frfree(cur);
 				}
