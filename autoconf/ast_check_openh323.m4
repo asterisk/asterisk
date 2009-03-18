@@ -79,7 +79,7 @@ AC_DEFUN([AST_CHECK_OPENH323_BUILD], [
 			files=`ls -l ${OPENH323_LIBDIR}/lib${pfx}*.so* 2>/dev/null`
 			if test -z "$files"; then
 				# check the default location
-				#files=`ls -l /usr/local/lib/lib${pfx}*.so* 2>/dev/null`
+				files=`ls -l /usr/local/lib/lib${pfx}*.so* 2>/dev/null`
 			fi	
 			libfile=
 			if test -n "$files"; then

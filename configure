@@ -26368,7 +26368,7 @@ echo $ECHO_N "checking OpenH323 build option... $ECHO_C" >&6; }
 			files=`ls -l ${OPENH323_LIBDIR}/lib${pfx}*.so* 2>/dev/null`
 			if test -z "$files"; then
 				# check the default location
-				#files=`ls -l /usr/local/lib/lib${pfx}*.so* 2>/dev/null`
+				files=`ls -l /usr/local/lib/lib${pfx}*.so* 2>/dev/null`
 			fi
 			libfile=
 			if test -n "$files"; then
