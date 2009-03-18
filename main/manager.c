@@ -2287,7 +2287,7 @@ static int get_input(struct mansession *s, char *output)
 		s->waiting_thread = pthread_self();
 		ast_mutex_unlock(&s->__lock);
 
-		res = poll(fds, 1, -1);
+		res = ast_poll(fds, 1, -1);
 
 		ast_mutex_lock(&s->__lock);
 		s->waiting_thread = AST_PTHREADT_NULL;
@@ -2431,7 +2431,7 @@ static void *accept_thread(void *ignore)
 		pfds[0].events = POLLIN;
 		/* Wait for something to happen, but timeout every few seconds so
 		   we can ditch any old manager sessions */
-		if (poll(pfds, 1, 5000) < 1)
+		if (ast_poll(pfds, 1, 5000) < 1)
 			continue;
 		as = accept(asock, (struct sockaddr *)&sin, &sinlen);
 		if (as < 0) {

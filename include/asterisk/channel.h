@@ -90,11 +90,8 @@
 #include "asterisk/abstract_jb.h"
 
 #include <unistd.h>
-#ifdef POLLCOMPAT 
+
 #include "asterisk/poll-compat.h"
-#else
-#include <sys/poll.h>
-#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

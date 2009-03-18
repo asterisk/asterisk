@@ -27,7 +27,7 @@ OBJS=	io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	netsock.o slinfactory.o ast_expr2.o ast_expr2f.o \
 	cryptostub.o sha1.o http.o fixedjitterbuf.o abstract_jb.o \
 	strcompat.o threadstorage.o dial.o astobj2.o global_datastores.o \
-	audiohook.o
+	audiohook.o poll.o
 
 # we need to link in the objects statically, not as a library, because
 # otherwise modules will not have them available if none of the static
@@ -37,16 +37,6 @@ OBJS+=stdtime/localtime.o
 # At the moment say.o is an optional component which can be overridden
 # by a module.
 OBJS+=say.o
-
-ifneq ($(findstring darwin,$(OSARCH)),)
-  OBJS+=poll.o
-  ASTCFLAGS+=-DPOLLCOMPAT
-else
-  ifeq ($(wildcard /usr/include/sys/poll.h),)
-    OBJS+=poll.o
-    ASTCFLAGS+=-DPOLLCOMPAT
-  endif
-endif
 
 ifneq ($(findstring $(OSARCH), linux-gnu uclinux linux-uclibc linux-gnueabi ),)
   ifneq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)

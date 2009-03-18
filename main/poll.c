@@ -71,6 +71,8 @@
 				 Includes
 \*---------------------------------------------------------------------------*/
 
+#include "asterisk.h"
+
 #include <unistd.h>			     /* standard Unix definitions */
 #include <sys/types.h>                       /* system types */
 #include <sys/time.h>                        /* time definitions */
@@ -78,6 +80,8 @@
 #include <string.h>                          /* string functions */
 
 #include "asterisk/poll-compat.h"                            /* this package */
+
+#ifdef AST_POLL_COMPAT
 
 /*---------------------------------------------------------------------------*\
 				  Macros
@@ -87,7 +91,6 @@
 #define MAX(a,b)	((a) > (b) ? (a) : (b))
 #endif
 
-
 /*---------------------------------------------------------------------------*\
 			     Private Functions
 \*---------------------------------------------------------------------------*/
@@ -209,7 +212,7 @@ static struct timeval *map_timeout
 
     return pResult;
 }
-
+
 static void map_select_results
 #if __STDC__ > 0
 			 (struct pollfd *pArray,
@@ -251,22 +254,12 @@ static void map_select_results
 
     return;
 }
-
+
 /*---------------------------------------------------------------------------*\
 			     Public Functions
 \*---------------------------------------------------------------------------*/
 
-int poll
-
-#if __STDC__ > 0
-	(struct pollfd *pArray, unsigned long n_fds, int timeout)
-#else
-	(pArray, n_fds, timeout)
-	 struct	       pollfd *pArray;
-	 unsigned long n_fds;
-	 int	       timeout;
-#endif
-
+int ast_internal_poll(struct pollfd *pArray, unsigned long n_fds, int timeout)
 {
     fd_set  read_descs;                          /* input file descs */
     fd_set  write_descs;                         /* output file descs */
@@ -304,3 +297,5 @@ int poll
 
     return ready_descriptors;
 }
+
+#endif /* AST_POLL_COMPAT */

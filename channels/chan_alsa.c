@@ -62,6 +62,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/abstract_jb.h"
 #include "asterisk/musiconhold.h"
+#include "asterisk/poll-compat.h"
 
 #include "busy_tone.h"
 #include "ring_tone.h"

@@ -131,7 +131,7 @@ static int timed_read(int fd, void *data, int datalen, int timeout)
 	struct pollfd fds[1];
 	fds[0].fd = fd;
 	fds[0].events = POLLIN;
-	res = poll(fds, 1, timeout);
+	res = ast_poll(fds, 1, timeout);
 	if (res < 1) {
 		ast_log(LOG_NOTICE, "Poll timed out/errored out with %d\n", res);
 		return -1;

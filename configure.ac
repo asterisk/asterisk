@@ -25,6 +25,9 @@ case "${host_os}" in
      CPPFLAGS=-I/usr/local/include
      LDFLAGS=-L/usr/local/lib
      ;;
+     darwin*)
+     AC_DEFINE([AST_POLL_COMPAT], 1, [Define to 1 if internal poll should be used.])
+     ;;
      *)
      ac_default_prefix=/usr
      if test ${prefix} = '/usr' || test ${prefix} = 'NONE'; then
@@ -225,6 +228,10 @@ AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h inttypes.h libintl.h limits.h locale.h malloc.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h strings.h sys/file.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h termios.h unistd.h utime.h arpa/nameser.h sys/io.h])
+
+AC_CHECK_HEADER([sys/poll.h],
+	 [],
+     AC_DEFINE([AST_POLL_COMPAT], 1, [Define to 1 if internal poll should be used.]))
 
 AC_SYS_LARGEFILE
 

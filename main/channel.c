@@ -1754,12 +1754,12 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 			int kbrms = rms;
 			if (kbrms > 600000)
 				kbrms = 600000;
-			res = poll(pfds, max, kbrms);
+			res = ast_poll(pfds, max, kbrms);
 			if (!res)
 				rms -= kbrms;
 		} while (!res && (rms > 0));
 	} else {
-		res = poll(pfds, max, rms);
+		res = ast_poll(pfds, max, rms);
 	}
 	for (x=0; x<n; x++)
 		ast_clear_flag(c[x], AST_FLAG_BLOCKING);
