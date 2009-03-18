@@ -176,7 +176,7 @@ int ast_callerid_generate(unsigned char *buf, const char *name, const char *numb
  *  \see callerid_generate() for more info as it use the same encoding
  *  \version 1.6.1 changed mdmf parameter to type, added name, number and flags for caller id message generation
 */
-int vmwi_generate(unsigned char *buf, int active, int type, int codec, const char *name,
+int ast_callerid_vmwi_generate(unsigned char *buf, int active, int type, int codec, const char *name,
 	const char *number, int flags);
 
 /*! \brief Generate Caller-ID spill but in a format suitable for Call Waiting(tm)'s Caller*ID(tm)

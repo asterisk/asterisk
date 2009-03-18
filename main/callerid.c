@@ -791,8 +791,8 @@ static int callerid_genmsg(char *msg, int size, const char *number, const char *
 	
 }
 
-int vmwi_generate(unsigned char *buf, int active, int type, int codec,
-				  const char* name, const char* number, int flags)
+int ast_callerid_vmwi_generate(unsigned char *buf, int active, int type, int codec,
+			       const char* name, const char* number, int flags)
 {
 	char msg[256];
 	int len = 0;

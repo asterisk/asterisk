@@ -9017,8 +9017,8 @@ static int mwi_send_init(struct dahdi_pvt * pvt)
 #ifdef HAVE_DAHDI_LINEREVERSE_VMWI
 	if (pvt->mwisend_fsk) {
 #endif
-		pvt->cidlen = vmwi_generate(pvt->cidspill, has_voicemail(pvt), CID_MWI_TYPE_MDMF_FULL,
-								AST_LAW(pvt), pvt->cid_name, pvt->cid_num, 0);
+		pvt->cidlen = ast_callerid_vmwi_generate(pvt->cidspill, has_voicemail(pvt), CID_MWI_TYPE_MDMF_FULL,
+							 AST_LAW(pvt), pvt->cid_name, pvt->cid_num, 0);
 		pvt->cidpos = 0;
 #ifdef HAVE_DAHDI_LINEREVERSE_VMWI
 	}
