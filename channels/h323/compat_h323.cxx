@@ -33,6 +33,7 @@
 #include <transports.h>
 
 #include "ast_h323.h"
+#include "compat_h323.h"
 
 #if VERSION(OPENH323_MAJOR,OPENH323_MINOR,OPENH323_BUILD) < VERSION(1,17,3)
 MyH323TransportTCP::MyH323TransportTCP(

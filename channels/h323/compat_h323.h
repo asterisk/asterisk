@@ -1,6 +1,8 @@
 #ifndef COMPAT_H323_H
 #define COMPAT_H323_H
 
+#include "ast_ptlib.h"
+
 #if VERSION(OPENH323_MAJOR,OPENH323_MINOR,OPENH323_BUILD) < VERSION(1,17,3)
 /**
  *  Workaround for broken (less than 1.17.3) OpenH323 stack to be able to

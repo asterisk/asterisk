@@ -2618,6 +2618,15 @@ static int h323_tokens_show(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static int h323_version_show(int fd, int argc, char *argv[])
+{
+	if (argc != 3) {
+		return RESULT_SHOWUSAGE;
+	}
+	h323_show_version();
+	return RESULT_SUCCESS;
+}
+
 static char trace_usage[] =
 "Usage: h.323 trace <level num>\n"
 "       Enables H.323 stack tracing for debugging purposes\n";
@@ -2645,6 +2654,10 @@ static char show_hangup_usage[] =
 static char show_tokens_usage[] =
 "Usage: h.323 show tokens\n"
 "       Print out all active call tokens\n";
+
+static char show_version_usage[] =
+"Usage: h.323 show version\n"
+"		Print the version of the H.323 library in use\n";
 
 static char h323_reload_usage[] =
 "Usage: h323 reload\n"
@@ -2703,6 +2716,10 @@ static struct ast_cli_entry cli_h323[] = {
 	{ { "h323", "show", "tokens", NULL },
 	h323_tokens_show, "Show all active call tokens",
 	show_tokens_usage },
+
+	{ { "h323", "show", "version", NULL },
+	h323_version_show, "Show the version of the H.323 library in use",
+	show_version_usage },
 };
 
 static void delete_users(void)

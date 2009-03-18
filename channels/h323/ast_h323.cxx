@@ -1,6 +1,3 @@
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
 /*
  * ast_h323.cpp
  *
@@ -29,6 +26,8 @@
  * Version Info: $Id$
  */
 #include "asterisk.h"
+#define VERSION(a,b,c) ((a)*10000+(b)*100+(c))
+
 
 #include <arpa/inet.h>
 
@@ -41,6 +40,24 @@
 #include <h323pdu.h>
 #include <h323neg.h>
 #include <mediafmt.h>
+
+
+/* H323 Plus */
+#if VERSION(OPENH323_MAJOR, OPENH323_MINOR, OPENH323_BUILD) > VERSION(1,19,4)
+
+#ifdef H323_H450
+#include "h450/h4501.h"
+#include "h450/h4504.h"
+#include "h450/h45011.h"
+#include "h450/h450pdu.h"
+#endif
+
+#ifdef H323_H460
+#include <h460/h4601.h>
+#endif
+
+#else /* !H323 Plus */
+
 #include <lid.h>
 #ifdef H323_H450
 #include "h4501.h"
@@ -48,6 +65,10 @@
 #include "h45011.h"
 #include "h450pdu.h"
 #endif
+
+#endif /* H323 Plus */
+
+#include "compat_h323.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -64,15 +85,23 @@ extern "C" {
 #include "cisco-h225.h"
 #include "caps_h323.h"
 
-#if PWLIB_MAJOR * 10000 + PWLIB_MINOR * 100 + PWLIB_BUILD >= 1 * 10000 + 12 * 100 + 0
+/* PWLIB_MAJOR renamed to PTLIB_MAJOR in 2.x.x */
+#if (defined(PTLIB_MAJOR) || VERSION(PWLIB_MAJOR, PWLIB_MINOR, PWLIB_BUILD) >= VERSION(1,12,0))
 #define SKIP_PWLIB_PIPE_BUG_WORKAROUND 1
 #endif
 
 /* PWlib Required Components  */
+#if VERSION(OPENH323_MAJOR, OPENH323_MINOR, OPENH323_BUILD) > VERSION(1,19,4)
+#define MAJOR_VERSION 1
+#define MINOR_VERSION 19
+#define BUILD_TYPE    ReleaseCode
+#define BUILD_NUMBER  6
+#else
 #define MAJOR_VERSION 1
 #define MINOR_VERSION 0
 #define BUILD_TYPE    ReleaseCode
 #define BUILD_NUMBER  0
+#endif
 
 /** Counter for the number of connections */
 static int channelsOpen;
@@ -1979,7 +2008,7 @@ PBoolean MyH323Connection::StartControlChannel(const H225_TransportAddress & h24
 			cout << "Using " << addr << " for outbound H.245 transport" << endl;
 		controlChannel = new MyH323TransportTCP(endpoint, addr);
 	} else
-		controlChannel = new H323TransportTCP(endpoint);
+		controlChannel = new MyH323TransportTCP(endpoint);
 	if (!controlChannel->SetRemoteAddress(h245Address)) {
 		PTRACE(1, "H225\tCould not extract H245 address");
 		delete controlChannel;
@@ -2207,6 +2236,35 @@ int h323_start_listener(int listenPort, struct sockaddr_in bindaddr)
 	return 0;
 };
 
+/* Addition of functions just to make the channel driver compile with H323Plus */
+#if VERSION(OPENH323_MAJOR, OPENH323_MINOR, OPENH323_BUILD) > VERSION(1,19,4)
+/* Alternate RTP port information for Same NAT */
+BOOL MyH323_ExternalRTPChannel::OnReceivedAltPDU(const H245_ArrayOf_GenericInformation & alternate )
+{
+	return TRUE;
+}
+
+/* Alternate RTP port information for Same NAT */
+BOOL MyH323_ExternalRTPChannel::OnSendingAltPDU(H245_ArrayOf_GenericInformation & alternate) const
+{
+	return TRUE;
+}
+
+/* Alternate RTP port information for Same NAT */
+void MyH323_ExternalRTPChannel::OnSendOpenAckAlt(H245_ArrayOf_GenericInformation & alternate) const
+{
+}
+
+/* Alternate RTP port information for Same NAT */
+BOOL MyH323_ExternalRTPChannel::OnReceivedAckAltPDU(const H245_ArrayOf_GenericInformation & alternate)
+{
+	return TRUE;
+}
+#endif
+
+
+
+
 int h323_set_alias(struct oh323_alias *alias)
 {
 	char *p;
@@ -2255,6 +2313,11 @@ void h323_set_id(char *id)
 void h323_show_tokens(void)
 {
 	cout << "Current call tokens: " << setprecision(2) << endPoint->GetAllConnections() << endl;
+}
+
+void h323_show_version(void)
+{
+    cout << "H.323 version: " << OPENH323_MAJOR << "." << OPENH323_MINOR << "." << OPENH323_BUILD << endl;
 }
 
 /** Establish Gatekeeper communiations, if so configured,

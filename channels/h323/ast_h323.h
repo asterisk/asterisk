@@ -145,6 +145,13 @@ protected:
 
 	PIPSocket::Address localIpAddr;
 	PIPSocket::Address remoteIpAddr;
+	/* Additional functions in order to have chan_h323 compile with H323Plus */
+#if VERSION(OPENH323_MAJOR, OPENH323_MINOR, OPENH323_BUILD) > VERSION(1,19,4)
+	BOOL OnReceivedAltPDU(const H245_ArrayOf_GenericInformation & alternate );
+	BOOL OnSendingAltPDU(H245_ArrayOf_GenericInformation & alternate) const;
+	void OnSendOpenAckAlt(H245_ArrayOf_GenericInformation & alternate) const;
+	BOOL OnReceivedAckAltPDU(const H245_ArrayOf_GenericInformation & alternate);
+#endif
 	WORD localPort;
 	WORD remotePort;
 };
