@@ -133,7 +133,7 @@ struct odbc_class
 	struct ao2_container *obj_container;
 };
 
-struct ao2_container *class_container;
+static struct ao2_container *class_container;
 
 static AST_RWLIST_HEAD_STATIC(odbc_tables, odbc_cache_tables);
 

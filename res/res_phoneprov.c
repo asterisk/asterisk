@@ -1305,7 +1305,7 @@ static int reload(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "HTTP Phone Provisioning",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "HTTP Phone Provisioning",
 		.load = load_module,
 		.unload = unload_module,
 		.reload = reload,
