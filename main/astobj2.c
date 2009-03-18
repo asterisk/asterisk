@@ -128,7 +128,7 @@ static inline struct astobj2 *INTERNAL_OBJ(void *user_data)
 #ifndef DEBUG_THREADS
 int ao2_lock(void *user_data)
 #else
-int _ao2_lock(void *user_data, const char *file, const char *func, int line, const char *var)
+int __ao2_lock(void *user_data, const char *file, const char *func, int line, const char *var)
 #endif
 {
 	struct astobj2 *p = INTERNAL_OBJ(user_data);
@@ -150,7 +150,7 @@ int _ao2_lock(void *user_data, const char *file, const char *func, int line, con
 #ifndef DEBUG_THREADS
 int ao2_trylock(void *user_data)
 #else
-int _ao2_trylock(void *user_data, const char *file, const char *func, int line, const char *var)
+int __ao2_trylock(void *user_data, const char *file, const char *func, int line, const char *var)
 #endif
 {
 	struct astobj2 *p = INTERNAL_OBJ(user_data);
@@ -177,7 +177,7 @@ int _ao2_trylock(void *user_data, const char *file, const char *func, int line, 
 #ifndef DEBUG_THREADS
 int ao2_unlock(void *user_data)
 #else
-int _ao2_unlock(void *user_data, const char *file, const char *func, int line, const char *var)
+int __ao2_unlock(void *user_data, const char *file, const char *func, int line, const char *var)
 #endif
 {
 	struct astobj2 *p = INTERNAL_OBJ(user_data);

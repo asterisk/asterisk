@@ -558,7 +558,7 @@ static int load_module (void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "ODBC Configuration",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "ODBC Configuration",
 		.load = load_module,
 		.unload = unload_module,
 		);

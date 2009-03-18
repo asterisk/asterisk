@@ -1,0 +1,11 @@
+{
+	global:
+		ast_odbc_backslash_is_escape;
+		ast_odbc_prepare_and_execute;
+		ast_odbc_release_obj;
+		ast_odbc_request_obj;
+		ast_odbc_sanity_check;
+		ast_odbc_smart_execute;
+	local:
+		*;
+};
