@@ -158,7 +158,7 @@ void callerid_free(struct callerid_state *cid);
 int ast_callerid_generate(unsigned char *buf, const char *name, const char *number, int codec);
 
 /*! \brief Generate message waiting indicator  (stutter tone) */
-int vmwi_generate(unsigned char *buf, int active, int mdmf, int codec);
+int ast_callerid_vmwi_generate(unsigned char *buf, int active, int mdmf, int codec);
 
 /*! \brief Generate Caller-ID spill but in a format suitable for Call Waiting(tm)'s Caller*ID(tm)
  * See ast_callerid_generate() for other details

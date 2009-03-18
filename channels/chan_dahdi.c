@@ -7341,7 +7341,7 @@ static void *do_monitor(void *data)
 									/* Turn on on hook transfer for 4 seconds */
 									x = 4000;
 									ioctl(last->subs[SUB_REAL].dfd, DAHDI_ONHOOKTRANSFER, &x);
-									last->cidlen = vmwi_generate(last->cidspill, res, 1, AST_LAW(last));
+									last->cidlen = ast_callerid_vmwi_generate(last->cidspill, res, 1, AST_LAW(last));
 									last->cidpos = 0;
 									last->msgstate = res;
 									last->onhooktime = thispass;
