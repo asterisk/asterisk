@@ -51,8 +51,13 @@ endif
 # per-target settings will be applied
 CC_CFLAGS=$(PTHREAD_CFLAGS) $(ASTCFLAGS)
 CXX_CFLAGS=$(PTHREAD_CFLAGS) $(filter-out -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(AST_DECLARATION_AFTER_STATEMENT),$(ASTCFLAGS))
-CC_LDFLAGS_SO=$(PTHREAD_CFLAGS) $(ASTLDFLAGS) $(SOLINK)
-CXX_LDFLAGS_SO=$(PTHREAD_CFLAGS) $(ASTLDFLAGS) $(SOLINK)
+
+ifeq ($(GNU_LD),1)
+SO_SUPPRESS_SYMBOLS=-Wl,--version-script,$(if $(wildcard $(subst .so,.exports,$@)),$(subst .so,.exports,$@),$(ASTTOPDIR)/default.exports)
+endif
+
+CC_LDFLAGS_SO=$(PTHREAD_CFLAGS) $(ASTLDFLAGS) $(SOLINK) $(SO_SUPPRESS_SYMBOLS)
+CXX_LDFLAGS_SO=$(PTHREAD_CFLAGS) $(ASTLDFLAGS) $(SOLINK) $(SO_SUPPRESS_SYMBOLS)
 CC_LIBS=$(PTHREAD_LIBS) $(LIBS)
 CXX_LIBS=$(PTHREAD_LIBS) $(LIBS)
 
