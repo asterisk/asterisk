@@ -88,7 +88,8 @@ extern "C" {
 #include "cisco-h225.h"
 #include "caps_h323.h"
 
-#if VERSION(PWLIB_MAJOR, PWLIB_MINOR, PWLIB_BUILD) >= VERSION(1,12,0)
+/* PWLIB_MAJOR renamed to PTLIB_MAJOR in 2.x.x */
+#if (defined(PTLIB_MAJOR) || VERSION(PWLIB_MAJOR, PWLIB_MINOR, PWLIB_BUILD) >= VERSION(1,12,0))
 #define SKIP_PWLIB_PIPE_BUG_WORKAROUND 1
 #endif
 
@@ -132,6 +133,10 @@ static int channelsOpen;
  * FIXME: Singleton this, for safety
  */
 static MyH323EndPoint *endPoint = NULL;
+
+#ifndef SKIP_PWLIB_PIPE_BUG_WORKAROUND
+static int _timerChangePipe[2];
+#endif
 
 static unsigned traceOptions = PTrace::Timestamp | PTrace::Thread | PTrace::FileAndLine;
 
@@ -2670,6 +2675,10 @@ void h323_end_process(void)
 		delete endPoint;
 		endPoint = NULL;
 	}
+#ifndef SKIP_PWLIB_PIPE_BUG_WORKAROUND
+	close(_timerChangePipe[0]);
+	close(_timerChangePipe[1]);
+#endif
 	if (logstream) {
 		delete logstream;
 		logstream = NULL;
