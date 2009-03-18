@@ -12,6 +12,4 @@
 		</member>
 		<member name="MTX_PROFILE" displayname="Enable Code Profiling Using TSC Counters">
 		</member>
-		<member name="TRACE_FRAMES" displayname="Trace Frame Allocations">
-		</member>
 	</category>

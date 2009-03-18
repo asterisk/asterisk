@@ -188,15 +188,15 @@ int ao2_ref(void *o, int delta);
 #ifndef DEBUG_THREADS
 int ao2_lock(void *a);
 #else
-#define ao2_lock(a) _ao2_lock(a, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
-int _ao2_lock(void *a, const char *file, const char *func, int line, const char *var);
+#define ao2_lock(a) __ao2_lock(a, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
+int __ao2_lock(void *a, const char *file, const char *func, int line, const char *var);
 #endif
 
 #ifndef DEBUG_THREADS
 int ao2_trylock(void *a);
 #else
-#define ao2_trylock(a) _ao2_trylock(a, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
-int _ao2_trylock(void *a, const char *file, const char *func, int line, const char *var);
+#define ao2_trylock(a) __ao2_trylock(a, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
+int __ao2_trylock(void *a, const char *file, const char *func, int line, const char *var);
 #endif
 
 /*!
@@ -208,8 +208,8 @@ int _ao2_trylock(void *a, const char *file, const char *func, int line, const ch
 #ifndef DEBUG_THREADS
 int ao2_unlock(void *a);
 #else
-#define ao2_unlock(a) _ao2_unlock(a, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
-int _ao2_unlock(void *a, const char *file, const char *func, int line, const char *var);
+#define ao2_unlock(a) __ao2_unlock(a, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
+int __ao2_unlock(void *a, const char *file, const char *func, int line, const char *var);
 #endif
 
 /*!

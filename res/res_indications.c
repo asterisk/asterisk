@@ -399,7 +399,7 @@ static int reload(void)
 	return ind_load_module();
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Indications Resource",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Indications Resource",
 		.load = load_module,
 		.unload = unload_module,
 		.reload = reload,
