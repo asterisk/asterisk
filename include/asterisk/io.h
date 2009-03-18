@@ -23,11 +23,7 @@
 #ifndef _ASTERISK_IO_H
 #define _ASTERISK_IO_H
 
-#ifdef HAVE_SYS_POLL_H
-#include <sys/poll.h>		/* For POLL* constants */
-#else
 #include "asterisk/poll-compat.h"
-#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

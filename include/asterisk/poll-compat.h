@@ -76,8 +76,16 @@
 	original.
 \*---------------------------------------------------------------------------*/
 
-#ifndef _POLL_EMUL_H_
-#define _POLL_EMUL_H_
+#ifndef __AST_POLL_COMPAT_H
+#define __AST_POLL_COMPAT_H
+
+#ifndef AST_POLL_COMPAT
+
+#include <sys/poll.h>
+
+#define ast_poll(a, b, c) poll(a, b, c)
+
+#else /* AST_POLL_COMPAT */
 
 #define POLLIN		0x01
 #define POLLPRI		0x02
@@ -86,26 +94,24 @@
 #define POLLHUP		0x10
 #define POLLNVAL	0x20
 
-struct pollfd
-{
+struct pollfd {
     int     fd;
     short   events;
     short   revents;
 };
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
-#if (__STDC__ > 0) || defined(__cplusplus)
-extern int poll (struct pollfd *pArray, unsigned long n_fds, int timeout);
-#else
-extern int poll();
-#endif
+#define ast_poll(a, b, c) ast_internal_poll(a, b, c)
+
+int ast_internal_poll(struct pollfd *pArray, unsigned long n_fds, int timeout);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _POLL_EMUL_H_ */
+#endif /* AST_POLL_COMPAT */
+
+#endif /* __AST_POLL_COMPAT_H */
