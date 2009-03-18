@@ -272,8 +272,9 @@ int ast_io_wait(struct io_context *ioc, int howlong)
 
 	DEBUG(ast_debug(1, "ast_io_wait()\n"));
 
-	if ((res = poll(ioc->fds, ioc->fdcnt, howlong)) <= 0)
+	if ((res = ast_poll(ioc->fds, ioc->fdcnt, howlong)) <= 0) {
 		return res;
+	}
 
 	/* At least one event tripped */
 	origcnt = ioc->fdcnt;

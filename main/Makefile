@@ -28,7 +28,7 @@ OBJS= tcptls.o io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	cryptostub.o sha1.o http.o fixedjitterbuf.o abstract_jb.o \
 	strcompat.o threadstorage.o dial.o event.o adsistub.o audiohook.o \
 	astobj2.o hashtab.o global_datastores.o version.o \
-	features.o
+	features.o poll.o
 
 # we need to link in the objects statically, not as a library, because
 # otherwise modules will not have them available if none of the static
@@ -41,15 +41,6 @@ OBJS+=say.o
 
 AST_LIBS += $(SSL_LIB)
 AST_LIBS += $(BKTR_LIB)
-
-
-ifeq ($(POLL_AVAILABLE),)
-  OBJS+=poll.o
-else
-  ifneq ($(findstring darwin,$(OSARCH)),)
-    OBJS+=poll.o
-  endif
-endif
 
 ifneq ($(findstring $(OSARCH), linux-gnu uclinux linux-uclibc linux-gnueabi ),)
   ifneq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)
