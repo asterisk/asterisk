@@ -21,7 +21,7 @@
 		jb_*;
 		channelreloadreason2txt;
 		devstate2str;
-		manager_event;
+		__manager_event;
 		dialed_interface_info;
 	local:
 		*;
