@@ -137,6 +137,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/dsp.h"
 #include "asterisk/buildinfo.h"
 #include "asterisk/xmldoc.h"
+#include "asterisk/poll-compat.h"
 
 #include "asterisk/doxyref.h"		/* Doxygen documentation */
 
@@ -1213,7 +1214,7 @@ static void *netconsole(void *vconsole)
 		fds[1].events = POLLIN;
 		fds[1].revents = 0;
 
-		res = poll(fds, 2, -1);
+		res = ast_poll(fds, 2, -1);
 		if (res < 0) {
 			if (errno != EINTR)
 				ast_log(LOG_WARNING, "poll returned < 0: %s\n", strerror(errno));
@@ -1266,7 +1267,7 @@ static void *listener(void *unused)
 			return NULL;
 		fds[0].fd = ast_socket;
 		fds[0].events = POLLIN;
-		s = poll(fds, 1, -1);
+		s = ast_poll(fds, 1, -1);
 		pthread_testcancel();
 		if (s < 0) {
 			if (errno != EINTR)
@@ -2081,7 +2082,7 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 			fds[1].events = POLLIN;
 			max++;
 		}
-		res = poll(fds, max, -1);
+		res = ast_poll(fds, max, -1);
 		if (res < 0) {
 			if (sig_flags.need_quit)
 				break;
@@ -2649,7 +2650,7 @@ static void ast_remotecontrol(char *data)
 		fds.fd = ast_consock;
 		fds.events = POLLIN;
 		fds.revents = 0;
-		while (poll(&fds, 1, 500) > 0) {
+		while (ast_poll(&fds, 1, 500) > 0) {
 			char buffer[512] = "", *curline = buffer, *nextline;
 			int not_written = 1;
 
@@ -3013,7 +3014,7 @@ static void *monitor_sig_flags(void *unused)
 	for (;;) {
 		struct pollfd p = { sig_alert_pipe[0], POLLIN, 0 };
 		int a;
-		poll(&p, 1, -1);
+		ast_poll(&p, 1, -1);
 		if (sig_flags.need_reload) {
 			sig_flags.need_reload = 0;
 			ast_module_reload(NULL);

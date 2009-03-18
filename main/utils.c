@@ -1054,7 +1054,7 @@ int ast_wait_for_input(int fd, int ms)
 	memset(pfd, 0, sizeof(pfd));
 	pfd[0].fd = fd;
 	pfd[0].events = POLLIN|POLLPRI;
-	return poll(pfd, 1, ms);
+	return ast_poll(pfd, 1, ms);
 }
 
 static int ast_wait_for_output(int fd, int timeoutms)
@@ -1068,7 +1068,7 @@ static int ast_wait_for_output(int fd, int timeoutms)
 	int elapsed = 0;
 
 	/* poll() until the fd is writable without blocking */
-	while ((res = poll(&pfd, 1, timeoutms - elapsed)) <= 0) {
+	while ((res = ast_poll(&pfd, 1, timeoutms - elapsed)) <= 0) {
 		if (res == 0) {
 			/* timed out. */
 			ast_log(LOG_NOTICE, "Timed out trying to write\n");
