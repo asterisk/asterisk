@@ -3361,19 +3361,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 
 		}
 
-	if ((queue_end_bridge = ao2_alloc(sizeof(*queue_end_bridge), NULL))) {
-		queue_end_bridge->q = qe->parent;
-		queue_end_bridge->chan = qe->chan;
-		bridge_config.end_bridge_callback = end_bridge_callback;
-		bridge_config.end_bridge_callback_data = queue_end_bridge;
-		bridge_config.end_bridge_callback_data_fixup = end_bridge_callback_data_fixup;
-		/* Since queue_end_bridge can survive beyond the life of this call to Queue, we need
-		 * to make sure to increase the refcount of this queue so it cannot be freed until we
-		 * are done with it. We remove this reference in end_bridge_callback.
-		 */
-		queue_ref(qe->parent);
-	}
-
 	/* Hold the lock while we setup the outgoing calls */
 	if (use_weight)
 		ao2_lock(queues);
@@ -3902,6 +3889,20 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 					qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
 		ast_copy_string(oldcontext, qe->chan->context, sizeof(oldcontext));
 		ast_copy_string(oldexten, qe->chan->exten, sizeof(oldexten));
+	
+		if ((queue_end_bridge = ao2_alloc(sizeof(*queue_end_bridge), NULL))) {
+			queue_end_bridge->q = qe->parent;
+			queue_end_bridge->chan = qe->chan;
+			bridge_config.end_bridge_callback = end_bridge_callback;
+			bridge_config.end_bridge_callback_data = queue_end_bridge;
+			bridge_config.end_bridge_callback_data_fixup = end_bridge_callback_data_fixup;
+			/* Since queue_end_bridge can survive beyond the life of this call to Queue, we need
+			 * to make sure to increase the refcount of this queue so it cannot be freed until we
+			 * are done with it. We remove this reference in end_bridge_callback.
+			 */
+			queue_ref(qe->parent);
+		}
+
 		time(&callstart);
 		transfer_ds = setup_transfer_datastore(qe, member, callstart, callcompletedinsl);
 		bridge = ast_bridge_call(qe->chan,peer, &bridge_config);
