@@ -131,7 +131,11 @@ void ast_register_feature(struct ast_call_feature *feature);
 void ast_unregister_feature(struct ast_call_feature *feature);
 
 /*! \brief detect a feature before bridging 
-    \para chan, ast_flags ptr, code, ast_call_feature ptr to be set if found */
+    \param chan
+    \param ast_flags ptr
+    \param char ptr of input code
+    \retval ast_call_feature ptr to be set if found 
+    \return result, was feature found or not */
 int ast_feature_detect(struct ast_channel *chan, struct ast_flags *features, char *code, struct ast_call_feature *feature);
 
 /*! \brief look for a call feature entry by its sname
