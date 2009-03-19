@@ -8,6 +8,7 @@
 		ast_pickup_ext;
 		ast_register_feature;
 		ast_unregister_feature;
+		ast_feature_detect;
 	local:
 		*;
 };
