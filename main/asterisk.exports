@@ -21,6 +21,9 @@
 		io_*;
 		jb_*;
 		aes_*;
+		config_*;
+		tdd_*;
+		term_*;
 		channelreloadreason2txt;
 		devstate2str;
 		__manager_event;
