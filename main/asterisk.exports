@@ -20,6 +20,7 @@
 		sched_*;
 		io_*;
 		jb_*;
+		aes_*;
 		channelreloadreason2txt;
 		devstate2str;
 		__manager_event;
