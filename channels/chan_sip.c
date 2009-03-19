@@ -1683,6 +1683,7 @@ struct sip_pvt {
 	int initid;				/*!< Auto-congest ID if appropriate (scheduler) */
 	int waitid;				/*!< Wait ID for scheduler after 491 or other delays */
 	int autokillid;				/*!< Auto-kill ID (scheduler) */
+	int t38id;                              /*!< T.38 Response ID */
 	enum transfermodes allowtransfer;	/*!< REFER: restriction scheme */
 	struct sip_refer *refer;		/*!< REFER: SIP transfer data structure */
 	enum subscriptiontype subscribed;	/*!< SUBSCRIBE: Is this dialog a subscription?  */
@@ -2569,7 +2570,6 @@ static int sip_get_codec(struct ast_channel *chan);
 static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p, int *faxdetect);
 
 /*------ T38 Support --------- */
-static int sip_handle_t38_reinvite(struct ast_channel *chan, struct sip_pvt *pvt, int reinvite); 
 static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
 static struct ast_udptl *sip_get_udptl_peer(struct ast_channel *chan);
 static int sip_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udptl);
@@ -2952,6 +2952,10 @@ static void *dialog_unlink_all(struct sip_pvt *dialog, int lockowner, int lockdi
 
 	if (dialog->request_queue_sched_id > -1) {
 		AST_SCHED_DEL_UNREF(sched, dialog->request_queue_sched_id, dialog_unref(dialog, "when you delete the request_queue_sched_id sched, you should dec the refcount for the stored dialog ptr"));
+	}
+
+	if (dialog->t38id > -1) {
+		AST_SCHED_DEL_UNREF(sched, dialog->t38id, dialog_unref(dialog, "when you delete the t38id sched, you should dec the refcount for the stored dialog ptr"));
 	}
 
 	dialog_unref(dialog, "Let's unbump the count in the unlink so the poor pvt can disappear if it is time");
@@ -4622,7 +4626,9 @@ static void change_t38_state(struct sip_pvt *p, int state)
 		return;
 
 	/* Given the state requested and old state determine what control frame we want to queue up */
-	if (state == T38_ENABLED)
+	if (state == T38_PEER_REINVITE)
+		message = AST_T38_REQUEST_NEGOTIATE;
+	else if (state == T38_ENABLED)
 		message = AST_T38_NEGOTIATED;
 	else if (state == T38_DISABLED && old == T38_ENABLED)
 		message = AST_T38_TERMINATED;
@@ -6078,8 +6084,13 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 			ast_log(LOG_ERROR, "Invalid datalen for AST_CONTROL_T38. Expected %d, got %d\n", (int)sizeof(enum ast_control_t38), (int)datalen);
 		} else {
 			switch (*((enum ast_control_t38 *) data)) {
+			case AST_T38_NEGOTIATED:
 			case AST_T38_REQUEST_NEGOTIATE:		/* Request T38 */
-				if (p->t38.state != T38_ENABLED) {
+				if (p->t38.state == T38_PEER_REINVITE) {
+					AST_SCHED_DEL_UNREF(sched, p->t38id, dialog_unref(p, "when you delete the t38id sched, you should dec the refcount for the stored dialog ptr"));
+					change_t38_state(p, T38_ENABLED);
+					transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL);
+				} else if (p->t38.state != T38_ENABLED) {
 					change_t38_state(p, T38_LOCAL_REINVITE);
 					if (!p->pendinginvite) {
 						transmit_reinvite_with_sdp(p, TRUE, FALSE);
@@ -6091,7 +6102,11 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 			case AST_T38_TERMINATED:
 			case AST_T38_REFUSED:
 			case AST_T38_REQUEST_TERMINATE:		/* Shutdown T38 */
-				if (p->t38.state == T38_ENABLED)
+				if (p->t38.state == T38_PEER_REINVITE) {
+					AST_SCHED_DEL_UNREF(sched, p->t38id, dialog_unref(p, "when you delete the t38id sched, you should dec the refcount for the stored dialog ptr"));
+					change_t38_state(p, T38_DISABLED);
+					transmit_response_reliable(p, "488 Not acceptable here", &p->initreq);
+				} else if (p->t38.state == T38_ENABLED)
 					transmit_reinvite_with_sdp(p, FALSE, FALSE);
 				break;
 			default:
@@ -6646,6 +6661,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	p->waitid = -1;
 	p->autokillid = -1;
 	p->request_queue_sched_id = -1;
+	p->t38id = -1;
 	p->subscribed = NONE;
 	p->stateid = -1;
 	p->sessionversion_remote = -1;
@@ -16523,7 +16539,6 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	int res = 0;
 	int xmitres = 0;
 	int reinvite = (p->owner && p->owner->_state == AST_STATE_UP);
-	struct ast_channel *bridgepeer = NULL;
 	char *p_hdrval;
 	int rtn;
 	
@@ -16634,41 +16649,6 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);	
 			} 
 
-		}
-		
-		if (p->owner && (p->owner->_state == AST_STATE_UP) && (bridgepeer = ast_bridged_channel(p->owner))) { /* if this is a re-invite */
-			struct sip_pvt *bridgepvt = NULL;
-
-			if (!bridgepeer->tech) {
-				ast_log(LOG_WARNING, "Ooooh.. no tech!  That's REALLY bad\n");
-				break;
-			}
-			if (IS_SIP_TECH(bridgepeer->tech)) {
-				bridgepvt = (struct sip_pvt*)(bridgepeer->tech_pvt);
-				if (bridgepvt->udptl) {
-					if (p->t38.state == T38_ENABLED && bridgepvt->t38.state == T38_PEER_REINVITE) {
-						sip_handle_t38_reinvite(bridgepeer, p, 0);
-						ast_rtp_set_rtptimers_onhold(p->rtp);
-						if (p->vrtp)
-							ast_rtp_set_rtptimers_onhold(p->vrtp);	/* Turn off RTP timers while we send fax */
-					} else if (p->t38.state == T38_DISABLED && bridgepvt->t38.state == T38_ENABLED) {
-						ast_log(LOG_WARNING, "RTP re-invite after T38 session not handled yet !\n");
-						/* Insted of this we should somehow re-invite the other side of the bridge to RTP */
-						/* XXXX Should we really destroy this session here, without any response at all??? */
-						sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
-					}
-				} else {
-					ast_debug(2, "Strange... The other side of the bridge does not have a udptl struct\n");
-					sip_pvt_lock(bridgepvt);
-					change_t38_state(bridgepvt, T38_DISABLED);
-					sip_pvt_unlock(bridgepvt);
-					change_t38_state(p, T38_DISABLED);
-				}
-			} else {
-				/* Other side is not a SIP channel */
-				ast_debug(2, "Strange... The other side of the bridge is not a SIP channel\n");
-				change_t38_state(p, T38_DISABLED);
-			}
 		}
 
 		if (!req->ignore && p->owner) {
@@ -18605,6 +18585,18 @@ static int do_magic_pickup(struct ast_channel *channel, const char *extension, c
 	return 0;
 }
 
+static int sip_t38_abort(const void *data)
+{
+	struct sip_pvt *p = (struct sip_pvt *) data;
+
+	change_t38_state(p, T38_DISABLED);
+	transmit_response_reliable(p, "488 Not acceptable here", &p->initreq);
+	p->t38id = -1;
+	dialog_unref(p, "unref the dialog ptr from sip_t38_abort, because it held a dialog ptr");
+
+	return 0;
+}
+
 /*! \brief Handle incoming INVITE request
 \note 	If the INVITE has a Replaces header, it is part of an
  *	attended transfer. If so, we do not go through the dial
@@ -19246,73 +19238,16 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			transmit_response(p, "100 Trying", req);
 
 			if (p->t38.state == T38_PEER_REINVITE) {
-				struct ast_channel *bridgepeer = NULL;
-				struct sip_pvt *bridgepvt = NULL;
-				
-				if ((bridgepeer = ast_bridged_channel(p->owner))) {
-					/* We have a bridge, and this is re-invite to switchover to T38 so we send re-invite with T38 SDP, to other side of bridge*/
-					/*! XXX: we should also check here does the other side supports t38 at all !!! XXX */
-					if (IS_SIP_TECH(bridgepeer->tech)) {
-						bridgepvt = (struct sip_pvt*)bridgepeer->tech_pvt;
-						if (bridgepvt->t38.state == T38_DISABLED) {
-							if (bridgepvt->udptl) { /* If everything is OK with other side's udptl struct */
-								/* Send re-invite to the bridged channel */
-								sip_handle_t38_reinvite(bridgepeer, p, 1);
-							} else { /* Something is wrong with peers udptl struct */
-								ast_log(LOG_WARNING, "Strange... The other side of the bridge don't have udptl struct\n");
-								sip_pvt_lock(bridgepvt);
-								change_t38_state(bridgepvt, T38_DISABLED);
-								sip_pvt_unlock(bridgepvt);
-								transmit_response_reliable(p, "488 Not acceptable here", req);
-							
-							}
-						} else {
-							/* The other side is already setup for T.38 most likely so we need to acknowledge this too */
-							ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
-							transmit_response_with_t38_sdp(p, "200 OK", req, XMIT_CRITICAL);
-							change_t38_state(p, T38_ENABLED);
-						}
-					} else {
-						/* Other side is not a SIP channel */
-						transmit_response_reliable(p, "488 Not acceptable here", req);
-						change_t38_state(p, T38_DISABLED);
-
-						if (!p->lastinvite) /* Only destroy if this is *not* a re-invite */
-							sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
-					}
-				} else {
-					/* we are not bridged in a call */
-					ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
-					transmit_response_with_t38_sdp(p, "200 OK", req, XMIT_CRITICAL);
-					change_t38_state(p, T38_ENABLED);
-				}
-			} else if (p->t38.state == T38_DISABLED) { /* Channel doesn't have T38 offered or enabled */
-				int sendok = TRUE;
-
-				/* If we are bridged to a channel that has T38 enabled than this is a case of RTP re-invite after T38 session */
-				/* so handle it here (re-invite other party to RTP) */
-				struct ast_channel *bridgepeer = NULL;
-				struct sip_pvt *bridgepvt = NULL;
-				if ((bridgepeer = ast_bridged_channel(p->owner))) {
-					if (IS_SIP_TECH(bridgepeer->tech) && !ast_check_hangup(bridgepeer)) {
-						bridgepvt = (struct sip_pvt*)bridgepeer->tech_pvt;
-						/* Does the bridged peer have T38 ? */
-						if (bridgepvt->t38.state == T38_ENABLED) {
-							ast_log(LOG_WARNING, "RTP re-invite after T38 session not handled yet !\n");
-							/* Insted of this we should somehow re-invite the other side of the bridge to RTP */
-							transmit_response_reliable(p, "488 Not Acceptable Here (unsupported)", req);
-							sendok = FALSE;
-						} 
-						/* No bridged peer with T38 enabled*/
-					}
-				} 
-				/* Respond to normal re-invite */
-				if (sendok) {
-					/* If this is not a re-invite or something to ignore - it's critical */
-					ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
-					transmit_response_with_sdp(p, "200 OK", req, (reinvite ? XMIT_RELIABLE : (req->ignore ?  XMIT_UNRELIABLE : XMIT_CRITICAL)), p->session_modify == TRUE ? FALSE:TRUE); 
-				}
+				p->t38id = ast_sched_add(sched, 5000, sip_t38_abort, dialog_ref(p, "passing dialog ptr into sched structure based on t38id for sip_t38_abort."));
+			} else if (p->t38.state == T38_ENABLED) {
+				ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
+				transmit_response_with_t38_sdp(p, "200 OK", req, (reinvite ? XMIT_RELIABLE : (req->ignore ?  XMIT_UNRELIABLE : XMIT_CRITICAL)));
+			} else if (p->t38.state == T38_DISABLED) {
+				/* If this is not a re-invite or something to ignore - it's critical */
+				ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
+				transmit_response_with_sdp(p, "200 OK", req, (reinvite ? XMIT_RELIABLE : (req->ignore ?  XMIT_UNRELIABLE : XMIT_CRITICAL)), p->session_modify == TRUE ? FALSE:TRUE); 
 			}
+
 			p->invitestate = INV_TERMINATED;
 			break;
 		default:
@@ -23925,84 +23860,6 @@ static int sip_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udptl)
 	sip_pvt_unlock(p);
 	return 0;
 }
-
-/*! \brief Handle T38 reinvite 
-	\todo Make sure we don't destroy the call if we can't handle the re-invite. 
-	Nothing should be changed until we have processed the SDP and know that we
-	can handle it.
-*/
-static int sip_handle_t38_reinvite(struct ast_channel *chan, struct sip_pvt *pvt, int reinvite)
-{
-	struct sip_pvt *p;
-	int flag = 0;
-	
-	p = chan->tech_pvt;
-	if (!p || !pvt->udptl)
-		return -1;
-	
-	/* Setup everything on the other side like offered/responded from first side */
-	sip_pvt_lock(p);
-
-	/*! \todo check if this is not set earlier when setting up the PVT. If not
-		maybe it should move there. */
-	p->t38.jointcapability = p->t38.peercapability = pvt->t38.jointcapability;
-
-	ast_udptl_set_far_max_datagram(p->udptl, ast_udptl_get_local_max_datagram(pvt->udptl));
-	ast_udptl_set_local_max_datagram(p->udptl, ast_udptl_get_local_max_datagram(pvt->udptl));
-	ast_udptl_set_error_correction_scheme(p->udptl, ast_udptl_get_error_correction_scheme(pvt->udptl));
-	
-	if (reinvite) {		/* If we are handling sending re-invite to the other side of the bridge */
-		/*! \note The SIP_CAN_REINVITE flag is for RTP media redirects,
-			not really T38 re-invites which are different. In this
-			case it's used properly, to see if we can reinvite over
-			NAT 
-		*/
-		if (ast_test_flag(&p->flags[0], SIP_CAN_REINVITE) && ast_test_flag(&pvt->flags[0], SIP_CAN_REINVITE)) {
-			ast_udptl_get_peer(pvt->udptl, &p->udptlredirip);
-			flag =1;
-		} else {
-			memset(&p->udptlredirip, 0, sizeof(p->udptlredirip));
-		}
-		if (!ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
-			if (!p->pendinginvite) {
-				if (flag)
-					ast_debug(3, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
-				else
-					ast_debug(3, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to us (IP %s)\n", p->callid, ast_inet_ntoa(p->ourip.sin_addr));
-				change_t38_state(p, T38_LOCAL_REINVITE);
-				transmit_reinvite_with_sdp(p, TRUE, FALSE);
-			} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
-				if (flag)
-					ast_debug(3, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
-				else
-					ast_debug(3, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to us (IP %s)\n", p->callid, ast_inet_ntoa(p->ourip.sin_addr));
-				ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);
-			}
-		}
-		/* Reset lastrtprx timer */
-		p->lastrtprx = p->lastrtptx = time(NULL);
-		sip_pvt_unlock(p);
-		return 0;
-	} else {	/* If we are handling sending 200 OK to the other side of the bridge */
-		if (ast_test_flag(&p->flags[0], SIP_CAN_REINVITE) && ast_test_flag(&pvt->flags[0], SIP_CAN_REINVITE)) {
-			ast_udptl_get_peer(pvt->udptl, &p->udptlredirip);
-			flag = 1;
-		} else {
-			memset(&p->udptlredirip, 0, sizeof(p->udptlredirip));
-		}
-		if (flag)
-			ast_debug(3, "Responding 200 OK on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
-		else
-			ast_debug(3, "Responding 200 OK on SIP '%s' - It's UDPTL soon redirected to us (IP %s)\n", p->callid, ast_inet_ntoa(p->ourip.sin_addr));
-		change_t38_state(pvt, T38_ENABLED);
-		change_t38_state(p, T38_ENABLED);
-		transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL);
-		p->lastrtprx = p->lastrtptx = time(NULL);
-		sip_pvt_unlock(p);
-		return 0;
-	}
-}
-
 
 /*! \brief Returns null if we can't reinvite audio (part of RTP interface) */
 static enum ast_rtp_get_result sip_get_rtp_peer(struct ast_channel *chan, struct ast_rtp **rtp)
