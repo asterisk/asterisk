@@ -9,7 +9,9 @@
 		ast_odbc_prepare_and_execute;
 		ast_odbc_release_obj;
 		ast_odbc_request_obj;
+		_ast_odbc_request_obj;
 		ast_odbc_request_obj2;
+		_ast_odbc_request_obj2;
 		ast_odbc_retrieve_transaction_obj;
 		ast_odbc_sanity_check;
 		ast_odbc_smart_execute;
