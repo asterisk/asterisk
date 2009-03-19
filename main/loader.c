@@ -403,18 +403,6 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 		return NULL;
 	}
 
-	/* if the system supports RTLD_NOLOAD, we can just 'promote' the flags
-	   on the already-opened library to what we want... if not, we have to
-	   close it and start over
-	*/
-#if defined(HAVE_RTLD_NOLOAD) && !defined(__Darwin__)
-	if (!dlopen(fn, RTLD_NOLOAD | (wants_global ? RTLD_LAZY | RTLD_GLOBAL : RTLD_NOW | RTLD_LOCAL))) {
-		ast_log(LOG_WARNING, "Unable to promote flags on module '%s': %s\n", resource_in, dlerror());
-		while (!dlclose(lib));
-		ast_free(resource_being_loaded);
-		return NULL;
-	}
-#else
 	while (!dlclose(lib));
 	resource_being_loaded = NULL;
 
@@ -435,7 +423,6 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 	/* since the module was successfully opened, and it registered itself
 	   the previous time we did that, we're going to assume it worked this
 	   time too :) */
-#endif
 
 	AST_LIST_LAST(&module_list)->lib = lib;
 	resource_being_loaded = NULL;
