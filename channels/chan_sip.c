@@ -3670,11 +3670,6 @@ static int sip_hangup(struct ast_channel *ast)
 					needdestroy = 0;
 					sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 				}
-				if ( p->initid != -1 ) {
-					/* channel still up - reverse dec of inUse counter
-					   only if the channel is not auto-congested */
-					update_call_counter(p, INC_CALL_LIMIT);
-				}
 			} else {	/* Incoming call, not up */
 				const char *res;
 				if (p->hangupcause && (res = hangup_cause2sip(p->hangupcause)))
