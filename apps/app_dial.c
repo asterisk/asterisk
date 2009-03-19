@@ -792,7 +792,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 static int detect_disconnect(struct ast_channel *chan, char code, char *featurecode, int len)
 {
 	struct ast_flags features = { AST_FEATURE_DISCONNECT }; /* only concerned with disconnect feature */
-	struct ast_call_feature feature;
+	struct ast_call_feature feature = { 0, };
 	char *tmp;
 	int res;
 

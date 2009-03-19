@@ -1344,12 +1344,7 @@ static int feature_interpret(struct ast_channel *chan, struct ast_channel *peer,
 
 int ast_feature_detect(struct ast_channel *chan, struct ast_flags *features, char *code, struct ast_call_feature *feature) {
 
-	char *dynamic_features;
-	ast_channel_lock(chan);
-	dynamic_features = ast_strdupa(S_OR(pbx_builtin_getvar_helper(chan, "DYNAMIC_FEATURES"),""));
-	ast_channel_unlock(chan);
-
-	return feature_interpret_helper(chan, NULL, NULL, code, 0, dynamic_features, features, 0, feature);
+	return feature_interpret_helper(chan, NULL, NULL, code, 0, NULL, features, 0, feature);
 }
 
 static void set_config_flags(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config)

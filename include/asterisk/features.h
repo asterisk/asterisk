@@ -101,7 +101,11 @@ char *ast_pickup_ext(void);
 int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer,struct ast_bridge_config *config);
 
 /*! \brief detect a feature before bridging 
-    \param chan, ast_flags ptr, code, ast_call_feature ptr to be set if found */
+    \param chan
+    \param ast_flags ptr
+    \param char ptr of input code
+    \retval ast_call_feature ptr to be set if found 
+    \return result, was feature found or not */
 int ast_feature_detect(struct ast_channel *chan, struct ast_flags *features, char *code, struct ast_call_feature *feature);
 
 /*! \brief Pickup a call */
