@@ -2382,6 +2382,7 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 	case SIG_PRI:
 		/* We'll get it in a moment -- but use dialdest to store pre-setup_ack digits */
 		p->dialdest[0] = '\0';
+		p->dialing = 1;
 		break;
 	default:
 		ast_log(LOG_DEBUG, "not yet implemented\n");
@@ -2958,6 +2959,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 		p->onhooktime = time(NULL);
 #ifdef HAVE_PRI
 		p->proceeding = 0;
+		p->dialing = 0;
 		p->progress = 0;
 		p->alerting = 0;
 		p->setup_ack = 0;
@@ -3196,6 +3198,7 @@ static int dahdi_answer(struct ast_channel *ast)
 		/* Send a pri acknowledge */
 		if (!pri_grab(p, p->pri)) {
 			p->proceeding = 1;
+			p->dialing = 0;
 			res = pri_answer(p->pri->pri, p->call, 0, !p->digital);
 			pri_rel(p->pri);
 		} else {
@@ -5519,6 +5522,7 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
 				}
 				p->proceeding = 1;
+				p->dialing = 0;
 			}
 #endif
 			/* don't continue in ast_indicate */
@@ -9552,8 +9556,12 @@ static void *pri_dchannel(void *vpri)
 								ast_dsp_set_features(pri->pvts[chanpos]->dsp, pri->pvts[chanpos]->dsp_features);
 								pri->pvts[chanpos]->dsp_features = 0;
 							}
+							/* Bring voice path up */
+							f.subclass = AST_CONTROL_PROGRESS;
+							dahdi_queue_frame(pri->pvts[chanpos], &f, pri);
 						}
 						pri->pvts[chanpos]->progress = 1;
+						pri->pvts[chanpos]->dialing = 0;
 						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 					}
 				}
@@ -9584,6 +9592,7 @@ static void *pri_dchannel(void *vpri)
 						}
 						pri->pvts[chanpos]->proceeding = 1;
 						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
+						pri->pvts[chanpos]->dialing = 0;
 					}
 				}
 				break;
