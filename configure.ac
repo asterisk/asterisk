@@ -432,15 +432,6 @@ AC_LINK_IFELSE(
 	AC_MSG_RESULT(no)
 )
 
-AC_MSG_CHECKING(for RTLD_NOLOAD)
-AC_LINK_IFELSE(
-	AC_LANG_PROGRAM([#include <dlfcn.h>],
-			[int foo = RTLD_NOLOAD;]),
-	AC_MSG_RESULT(yes)
-	AC_DEFINE([HAVE_RTLD_NOLOAD], 1, [Define to 1 if your system has a dynamic linker that supports RTLD_NOLOAD.]),
-	AC_MSG_RESULT(no)
-)
-
 AC_MSG_CHECKING(for IP_MTU_DISCOVER)
 AC_LINK_IFELSE(
 	AC_LANG_PROGRAM([#include <netinet/in.h>],
