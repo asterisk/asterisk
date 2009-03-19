@@ -767,12 +767,6 @@
 /* Define to indicate the ${ROUND_DESCRIP} library version */
 #undef HAVE_ROUND_VERSION
 
-/* Define if your system has the RTLD_NOLOAD headers. */
-#undef HAVE_RTLD_NOLOAD
-
-/* Define RTLD_NOLOAD headers version */
-#undef HAVE_RTLD_NOLOAD_VERSION
-
 /* Define to 1 if your system has /sbin/launchd. */
 #undef HAVE_SBIN_LAUNCHD
 
