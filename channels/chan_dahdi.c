@@ -9591,8 +9591,8 @@ static void *pri_dchannel(void *vpri)
 							dahdi_queue_frame(pri->pvts[chanpos], &f, pri);
 						}
 						pri->pvts[chanpos]->proceeding = 1;
-						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 						pri->pvts[chanpos]->dialing = 0;
+						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 					}
 				}
 				break;
