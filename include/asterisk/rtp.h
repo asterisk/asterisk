@@ -402,10 +402,10 @@ void ast_rtp_set_rtptimers_onhold(struct ast_rtp *rtp);
  * \param num_gen number of redundant generations, primary data excluded
  * \since 1.6.1
  */
-int rtp_red_init(struct ast_rtp *rtp, int ti, int *pt, int num_gen);
+int ast_rtp_red_init(struct ast_rtp *rtp, int ti, int *pt, int num_gen);
 
 /*! \brief Buffer t.140 data */
-void red_buffer_t140(struct ast_rtp *rtp, struct ast_frame *f);
+void ast_red_buffer_t140(struct ast_rtp *rtp, struct ast_frame *f);
 
 
 

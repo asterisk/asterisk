@@ -4815,7 +4815,7 @@ static struct ast_frame *red_t140_to_red(struct rtp_red *red) {
  * \param num_gen numbers of generations (primary generation not encounted)
  *
 */
-int rtp_red_init(struct ast_rtp *rtp, int ti, int *red_data_pt, int num_gen)
+int ast_rtp_red_init(struct ast_rtp *rtp, int ti, int *red_data_pt, int num_gen)
 {
 	struct rtp_red *r;
 	int x;
@@ -4854,7 +4854,7 @@ int rtp_red_init(struct ast_rtp *rtp, int ti, int *red_data_pt, int num_gen)
  * \param rtp
  * \param f frame
  */
-void red_buffer_t140(struct ast_rtp *rtp, struct ast_frame *f)
+void ast_red_buffer_t140(struct ast_rtp *rtp, struct ast_frame *f)
 {
 	if (f->datalen > -1) {
 		struct rtp_red *red = rtp->red;
