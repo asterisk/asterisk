@@ -6682,15 +6682,20 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	ast_devstate_changed(AST_DEVICE_UNKNOWN, "IAX2/%s", p->name); /* Activate notification */
 
 return_unref:
-	ast_string_field_set(iaxs[callno], peer, peer);
-	/* Choose lowest expiry number */
-	if (expire && (expire < iaxs[callno]->expiry)) 
-		iaxs[callno]->expiry = expire;
+	if (iaxs[callno]) {
+		ast_string_field_set(iaxs[callno], peer, peer);
+
+		/* Choose lowest expiry number */
+		if (expire && (expire < iaxs[callno]->expiry)) {
+			iaxs[callno]->expiry = expire;
+		}
+	}
 
 	res = 0;
 
-	if (p)
+	if (p) {
 		peer_unref(p);
+	}
 
 	return res;
 }
