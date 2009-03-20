@@ -28,6 +28,8 @@
 		devstate2str;
 		__manager_event;
 		dialed_interface_info;
+		red_buffer_t140;
+		rtp_red_init;
 	local:
 		*;
 };
