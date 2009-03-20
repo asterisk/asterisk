@@ -153,9 +153,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>This application will Accept the R2 call either with charge or no charge.</para>
 		</description>
-		<description>
-			<para>This application will Accept the R2 call either with charge or no charge.</para>
-		</description>
 	</application>
  ***/
 
