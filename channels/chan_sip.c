@@ -5841,7 +5841,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 		if (p) {
 			sip_pvt_lock(p);
 			if (p->red) {
-				red_buffer_t140(p->trtp, frame);
+				ast_red_buffer_t140(p->trtp, frame);
 			} else {
 				if (p->trtp) {
 					/* Activate text early media */
@@ -8066,7 +8066,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 
 	if (p->jointcapability & AST_FORMAT_T140RED) {
 		p->red = 1; 
-		rtp_red_init(p->trtp, 300, red_data_pt, 2);
+		ast_rtp_red_init(p->trtp, 300, red_data_pt, 2);
 	} else {
 		p->red = 0; 
 	}
