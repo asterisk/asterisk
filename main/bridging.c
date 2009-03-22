@@ -319,7 +319,7 @@ static int generic_thread_loop(struct ast_bridge *bridge)
 		/* Move channels around for priority reasons if we have more than one channel in our array */
 		if (bridge->array_num > 1) {
 			struct ast_channel *first = bridge->array[0];
-			memmove(bridge->array, bridge->array + 1, sizeof(bridge->array) - 1);
+			memmove(bridge->array, bridge->array + 1, sizeof(struct ast_channel *) * (bridge->array_num - 1));
 			bridge->array[(bridge->array_num - 1)] = first;
 		}
 
