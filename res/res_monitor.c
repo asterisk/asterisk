@@ -587,11 +587,7 @@ static int start_monitor_action(struct mansession *s, const struct message *m)
 
 	if (ast_strlen_zero(fname)) {
 		/* No filename base specified, default to channel name as per CLI */		
-		if (!(fname = ast_strdup(c->name))) {
-			astman_send_error(s, m, "Could not start monitoring channel");
-			ast_channel_unlock(c);
-			return 0;
-		}
+		fname = ast_strdupa(c->name);
 		/* Channels have the format technology/channel_name - have to replace that /  */
 		if ((d = strchr(fname, '/'))) 
 			*d = '-';
