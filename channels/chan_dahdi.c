@@ -15023,7 +15023,7 @@ static struct ast_cli_entry dahdi_cli[] = {
 	AST_CLI_DEFINE(dahdi_show_version, "Show the DAHDI version in use"),
 	AST_CLI_DEFINE(dahdi_set_hwgain, "Set hardware gain on a channel"),
 	AST_CLI_DEFINE(dahdi_set_swgain, "Set software gain on a channel"),
-	AST_CLI_DEFINE(dahdi_set_dnd, "Set software gain on a channel"),
+	AST_CLI_DEFINE(dahdi_set_dnd, "Sets/resets DND (Do Not Disturb) mode on a channel"),
 };
 
 #define TRANSFER	0
