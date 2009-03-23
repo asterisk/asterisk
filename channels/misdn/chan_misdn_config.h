@@ -11,7 +11,7 @@
  * the GNU General Public License
  */
 
-/*! \file 
+/*! \file
  * \brief Interface to mISDN - Config
  * \author Christian Richter <crich@beronet.com>
  */
@@ -89,7 +89,7 @@ enum misdn_cfg_elements {
  	MISDN_CFG_FAXDETECT_TIMEOUT,   /* int */
 	MISDN_CFG_PTP,                 /* int (bool) */
 	MISDN_CFG_LAST,
-	
+
 	/* general config items */
 	MISDN_GEN_FIRST,
 #ifndef MISDN_1_2
@@ -116,14 +116,14 @@ enum misdn_cfg_method {
 };
 
 /* you must call misdn_cfg_init before any other function of this header file */
-int misdn_cfg_init(int max_ports, int reload); 
+int misdn_cfg_init(int max_ports, int reload);
 void misdn_cfg_reload(void);
 void misdn_cfg_destroy(void);
 
 void misdn_cfg_update_ptp( void );
 
-/* if you requst a general config element, the port value is ignored. if the requested 
- * value is not available, or the buffer is too small, the buffer will be nulled (in 
+/* if you requst a general config element, the port value is ignored. if the requested
+ * value is not available, or the buffer is too small, the buffer will be nulled (in
  * case of a char* only its first byte will be nulled). */
 void misdn_cfg_get(int port, enum misdn_cfg_elements elem, void* buf, int bufsize);
 

@@ -13,5 +13,5 @@ all:
 portinfo: portinfo.o
 	$(CC) -o $@ $^ -lisdnnet -lmISDN -lpthread
 
-clean: 
+clean:
 	rm -rf *.a *.o *.so portinfo *.i

@@ -15,7 +15,7 @@
  * the GNU General Public License
  */
 
-/*! \file 
+/*! \file
  * \brief Interface to mISDN
  * \author Christian Richter <crich@beronet.com>
  */
@@ -153,7 +153,7 @@ static void enc_ie_bearer(unsigned char **ntmode, msg_t *msg, int coding, int ca
 		p[4+(multi>=0)] = 0xa0 + user;
 }
 
-static void dec_ie_bearer(unsigned char *p, Q931_info_t *qi, int *coding, int *capability, int *mode, int *rate, int *multi, int *user, 
+static void dec_ie_bearer(unsigned char *p, Q931_info_t *qi, int *coding, int *capability, int *mode, int *rate, int *multi, int *user,
 		   int *async, int *urate, int *stopbits, int *dbits, int *parity, int nt, struct misdn_bchannel *bc)
 {
 	int octet;
@@ -168,13 +168,13 @@ static void dec_ie_bearer(unsigned char *p, Q931_info_t *qi, int *coding, int *c
 	*stopbits = -1;
 	*dbits = -1;
 	*parity = -1;
-	
+
 	if (!nt)
 	{
 		p = NULL;
 #ifdef LLC_SUPPORT
 		if (qi->QI_ELEMENT(llc)) {
-			
+
 			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->QI_ELEMENT(llc) + 1;
 		}
 #endif
@@ -189,7 +189,7 @@ static void dec_ie_bearer(unsigned char *p, Q931_info_t *qi, int *coding, int *c
 		printf("%s: ERROR: IE too short (%d).\n", __FUNCTION__, p[0]);
 		return;
 	}
-	
+
 	*coding = (p[1]&0x60) >> 5;
 	*capability = p[1] & 0x1f;
 	octet = 2;
@@ -221,7 +221,7 @@ static void dec_ie_bearer(unsigned char *p, Q931_info_t *qi, int *coding, int *c
 
 		if (p[0] <= octet)
 			goto done;
-		
+
 		if (p[octet++] & 0x80)
 			goto l2;
 
@@ -231,7 +231,7 @@ static void dec_ie_bearer(unsigned char *p, Q931_info_t *qi, int *coding, int *c
 
 		if (p[0] <= octet)
 			goto done;
-		
+
 		if (p[octet++] & 0x80)
 			goto l2;
 
@@ -239,7 +239,7 @@ static void dec_ie_bearer(unsigned char *p, Q931_info_t *qi, int *coding, int *c
 
 		if (p[0] <= octet)
 			goto done;
-		
+
 		if (p[octet++] & 0x80)
 			goto l2;
 
@@ -247,20 +247,20 @@ static void dec_ie_bearer(unsigned char *p, Q931_info_t *qi, int *coding, int *c
 
 		if (p[0] <= octet)
 			goto done;
-		
+
 		if (!p[octet++] & 0x80)
 			goto l2;
 
 		/* Wheee. V.110 speed information */
 
 		*stopbits = (p[octet] & 0x60) >> 5;
-		*dbits = (p[octet] & 0x18) >> 3; 
+		*dbits = (p[octet] & 0x18) >> 3;
 		*parity = p[octet] & 7;
 
 		octet++;
 	}
  l2: /* Nobody seems to want the rest so we don't bother (yet) */
- done:		
+ done:
 	if (MISDN_IE_DEBG) printf("    coding=%d capability=%d mode=%d rate=%d multi=%d user=%d async=%d urate=%d stopbits=%d dbits=%d parity=%d\n", *coding, *capability, *mode, *rate, *multi, *user, *async, *urate, *stopbits, *dbits, *parity);
 }
 
@@ -292,7 +292,7 @@ static void enc_ie_call_id(unsigned char **ntmode, msg_t *msg, char *callid, int
 		if (MISDN_IE_DEBG) printf(debug+(i*3), " %02x", callid[i]);
 		i++;
 	}
-		
+
 	if (MISDN_IE_DEBG) printf("    callid%s\n", debug);
 
 	l = callid_len;
@@ -338,7 +338,7 @@ static void dec_ie_call_id(unsigned char *p, Q931_info_t *qi, char *callid, int 
 		if (MISDN_IE_DEBG) printf(debug+(i*3), " %02x", callid[i]);
 		i++;
 	}
-		
+
 	if (MISDN_IE_DEBG) printf("    callid%s\n", debug);
 }
 #endif
@@ -501,7 +501,7 @@ static void dec_ie_calling_pn(unsigned char *p, Q931_info_t *qi, int *type, int 
 	} else
 	{
 		strnncpy(number, (char *)p+2, p[0]-1, number_len);
- 		/* SPECIAL workarround for IBT software bug */ 
+ 		/* SPECIAL workarround for IBT software bug */
 		/* if (number[0]==0x80) */
 		/*  strcpy((char *)number, (char *)number+1); */
 	}
@@ -691,7 +691,7 @@ static void enc_ie_channel_id(unsigned char **ntmode, msg_t *msg, int exclusive,
 	int l;
 	struct misdn_stack *stack=get_stack_by_bc(bc);
 	int pri = stack->pri;
-	
+
 	if (exclusive<0 || exclusive>1)
 	{
 		printf("%s: ERROR: exclusive(%d) is out of range.\n", __FUNCTION__, exclusive);
@@ -707,7 +707,7 @@ static void enc_ie_channel_id(unsigned char **ntmode, msg_t *msg, int exclusive,
 	}
 
 	/* if (MISDN_IE_DEBG) printf("    exclusive=%d channel=%d\n", exclusive, channel); */
-	
+
 
 	if (!pri)
 	{
@@ -1086,7 +1086,7 @@ static void dec_ie_progress(unsigned char *p, Q931_info_t *qi, int *coding, int 
 	*location = -1;
 	//*progress = -1;
 	*progress = 0;
-	
+
 	if (!nt)
 	{
 		p = NULL;
@@ -1350,7 +1350,7 @@ static void enc_ie_useruser(unsigned char **ntmode, msg_t *msg, int protocol, ch
 		if (MISDN_IE_DEBG) sprintf(debug+(i*3), " %02x", user[i]);
 		i++;
 	}
-		
+
 	if (MISDN_IE_DEBG) printf("    protocol=%d user-user%s\n", protocol, debug);
 
 	l = user_len+1;
@@ -1397,7 +1397,7 @@ static void dec_ie_useruser(unsigned char *p, Q931_info_t *qi, int *protocol, ch
 		i++;
 	}
 	debug[i*3] = '\0';
-		
+
 	if (MISDN_IE_DEBG) printf("    protocol=%d user-user%s\n", *protocol, debug);
 }
 #endif

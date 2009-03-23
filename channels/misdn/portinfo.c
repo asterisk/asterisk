@@ -1,4 +1,4 @@
-/*! \file 
+/*! \file
  * \brief Interface to mISDN - port info
  * \author Christian Richter <crich@beronet.com>
  */

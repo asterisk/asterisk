@@ -1,6 +1,6 @@
 /*
  * Asterisk -- An open source telephony toolkit.
- * 
+ *
  * Copyright (C) 2005, Christian Richter
  *
  * Christian Richter <crich@beronet.com>
@@ -364,8 +364,8 @@ static const struct misdn_cfg_spec gen_spec[] = {
 	{ "crypt_keys", MISDN_GEN_CRYPT_KEYS, MISDN_CTYPE_STR, NO_DEFAULT, NONE,
 		"Keys for cryption, you reference them in the dialplan\n"
 		"\tLater also in dynamic encr." },
- 	{ "ntkeepcalls", MISDN_GEN_NTKEEPCALLS, MISDN_CTYPE_BOOL, "no", NONE, 
-		"avoid dropping calls if the L2 goes down. some Nortel pbx\n" 
+ 	{ "ntkeepcalls", MISDN_GEN_NTKEEPCALLS, MISDN_CTYPE_BOOL, "no", NONE,
+		"avoid dropping calls if the L2 goes down. some Nortel pbx\n"
 		"do put down the L2/L1 for some milliseconds even if there\n"
 		"are running calls. with this option you can avoid dropping them" },
 	{ "ntdebugflags", MISDN_GEN_NTDEBUGFLAGS, MISDN_CTYPE_INT, "0", NONE,
@@ -386,7 +386,7 @@ static int *ptp;
 /* maps enum config elements to array positions */
 static int *map;
 
-static ast_mutex_t config_mutex; 
+static ast_mutex_t config_mutex;
 
 #define CLI_ERROR(name, value, section) ({ \
 	ast_log(LOG_WARNING, "misdn.conf: \"%s=%s\" (section: %s) invalid or out of range. " \
@@ -475,7 +475,7 @@ static void _free_port_cfg (void)
 	int i, j;
 	int gn = map[MISDN_CFG_GROUPNAME];
 	union misdn_cfg_pt* free_list[max_ports + 2];
-	
+
 	memset(free_list, 0, sizeof(free_list));
 	free_list[0] = port_cfg[0];
 	for (i = 1; i <= max_ports; ++i) {
@@ -507,7 +507,7 @@ static void _free_general_cfg (void)
 {
 	int i;
 
-	for (i = 0; i < NUM_GEN_ELEMENTS; i++) 
+	for (i = 0; i < NUM_GEN_ELEMENTS; i++)
 		if (general_cfg[i].any)
 			ast_free(general_cfg[i].any);
 }
@@ -579,11 +579,11 @@ enum misdn_cfg_elements misdn_cfg_get_elem(char *name)
 	pos = get_cfg_position(name, PORT_CFG);
 	if (pos >= 0)
 		return port_spec[pos].elem;
-	
+
 	pos = get_cfg_position(name, GEN_CFG);
 	if (pos >= 0)
 		return gen_spec[pos].elem;
-	
+
 	return MISDN_CFG_FIRST;
 }
 
@@ -597,7 +597,7 @@ void misdn_cfg_get_name(enum misdn_cfg_elements elem, void *buf, int bufsize)
 		memset(buf, 0, 1);
 		return;
 	}
-	
+
 	/* here comes a hack to replace the (not existing) "name" element with the "ports" element */
 	if (elem == MISDN_CFG_GROUPNAME) {
 		if (!snprintf(buf, bufsize, "ports"))
@@ -630,7 +630,7 @@ void misdn_cfg_get_desc (enum misdn_cfg_elements elem, void *buf, int bufsize, v
 		spec = (struct misdn_cfg_spec *)port_spec;
 	else if ((elem > MISDN_GEN_FIRST) && (elem < MISDN_GEN_LAST))
 		spec = (struct misdn_cfg_spec *)gen_spec;
-		
+
 	if (!spec || !spec[place].desc)
 		memset(buf, 0, 1);
 	else {
@@ -659,7 +659,7 @@ int misdn_cfg_is_msn_valid (int port, char* msn)
 		iter = port_cfg[port][map[MISDN_CFG_MSNS]].ml;
 	else
 		iter = port_cfg[0][map[MISDN_CFG_MSNS]].ml;
-	for (; iter; iter = iter->next) 
+	for (; iter; iter = iter->next)
 		if (*(iter->msn) == '*' || ast_extension_match(iter->msn, msn)) {
 			re = 1;
 			break;
@@ -688,7 +688,7 @@ int misdn_cfg_is_group_method (char *group, enum misdn_cfg_method meth)
 	for (i = 1; i <= max_ports; i++) {
 		if (port_cfg[i] && port_cfg[i][map[MISDN_CFG_GROUPNAME]].str) {
 			if (!strcasecmp(port_cfg[i][map[MISDN_CFG_GROUPNAME]].str, group))
-				method = (port_cfg[i][map[MISDN_CFG_METHOD]].str ? 
+				method = (port_cfg[i][map[MISDN_CFG_METHOD]].str ?
 						  port_cfg[i][map[MISDN_CFG_METHOD]].str : port_cfg[0][map[MISDN_CFG_METHOD]].str);
 		}
 	}
@@ -708,7 +708,7 @@ int misdn_cfg_is_group_method (char *group, enum misdn_cfg_method meth)
 	return re;
 }
 
-/*! 
+/*!
  * \brief Generate a comma separated list of all active ports
  */
 void misdn_cfg_get_ports_string (char *ports)
@@ -776,10 +776,10 @@ void misdn_cfg_get_config_string (int port, enum misdn_cfg_elements elem, char* 
 			break;
 		case MISDN_CTYPE_ASTGROUP:
 			if (port_cfg[port][place].grp)
-				snprintf(buf, bufsize, " -> %s: %s", port_spec[place].name, 
+				snprintf(buf, bufsize, " -> %s: %s", port_spec[place].name,
 						 ast_print_group(tempbuf, sizeof(tempbuf), *port_cfg[port][place].grp));
 			else if (port_cfg[0][place].grp)
-				snprintf(buf, bufsize, " -> %s: %s", port_spec[place].name, 
+				snprintf(buf, bufsize, " -> %s: %s", port_spec[place].name,
 						 ast_print_group(tempbuf, sizeof(tempbuf), *port_cfg[0][place].grp));
 			else
 				snprintf(buf, bufsize, " -> %s:", port_spec[place].name);
@@ -844,7 +844,7 @@ int misdn_cfg_get_next_port (int port)
 {
 	int p = -1;
 	int gn = map[MISDN_CFG_GROUPNAME];
-	
+
 	misdn_cfg_lock();
 	for (port++; port <= max_ports; port++) {
 		if (port_cfg[port][gn].str) {
@@ -936,7 +936,7 @@ static void _build_general_config (struct ast_variable *v)
 	for (; v; v = v->next) {
 		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value))
 			continue;
-		if (((pos = get_cfg_position(v->name, GEN_CFG)) < 0) || 
+		if (((pos = get_cfg_position(v->name, GEN_CFG)) < 0) ||
 			(_parse(&general_cfg[pos], v->value, gen_spec[pos].type, gen_spec[pos].boolint_def) < 0))
 			CLI_ERROR(v->name, v->value, "general");
 	}
@@ -958,7 +958,7 @@ static void _build_port_config (struct ast_variable *v, char *cat)
 		cfg_for_ports[0] = 1;
 	}
 
-	if (((pos = get_cfg_position("name", PORT_CFG)) < 0) || 
+	if (((pos = get_cfg_position("name", PORT_CFG)) < 0) ||
 		(_parse(&cfg_tmp[pos], cat, port_spec[pos].type, port_spec[pos].boolint_def) < 0)) {
 		CLI_ERROR(v->name, v->value, cat);
 		return;
@@ -969,7 +969,7 @@ static void _build_port_config (struct ast_variable *v, char *cat)
 			char *token, *tmp = ast_strdupa(v->value);
 			char ptpbuf[BUFFERSIZE] = "";
 			int start, end;
-			for (token = strsep(&tmp, ","); token; token = strsep(&tmp, ","), *ptpbuf = 0) { 
+			for (token = strsep(&tmp, ","); token; token = strsep(&tmp, ","), *ptpbuf = 0) {
 				if (!*token)
 					continue;
 				if (sscanf(token, "%d-%d%s", &start, &end, ptpbuf) >= 2) {
@@ -992,7 +992,7 @@ static void _build_port_config (struct ast_variable *v, char *cat)
 				}
 			}
 		} else {
-			if (((pos = get_cfg_position(v->name, PORT_CFG)) < 0) || 
+			if (((pos = get_cfg_position(v->name, PORT_CFG)) < 0) ||
 				(_parse(&cfg_tmp[pos], v->value, port_spec[pos].type, port_spec[pos].boolint_def) < 0))
 				CLI_ERROR(v->name, v->value, cat);
 		}
