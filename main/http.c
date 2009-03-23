@@ -213,7 +213,7 @@ static struct ast_str *static_callback(struct ast_tcptls_session_instance *ser, 
 		"Server: Asterisk/%s\r\n"
 		"Date: %s\r\n"
 		"Connection: close\r\n"
-		"Cache-Control: no-cache, no-store\r\n"
+		"Cache-Control: private\r\n"
 		"Content-Length: %d\r\n"
 		"Content-type: %s\r\n\r\n",
 		ast_get_version(), buf, (int) st.st_size, mtype);
