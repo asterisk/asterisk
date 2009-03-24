@@ -104,7 +104,7 @@ static int manager_play_dtmf(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Channel not specified");
 		return 0;
 	}
-	if (!digit) {
+	if (ast_strlen_zero(digit)) {
 		astman_send_error(s, m, "No digit specified");
 		ast_mutex_unlock(&chan->lock);
 		return 0;
