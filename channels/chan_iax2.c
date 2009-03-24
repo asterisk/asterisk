@@ -270,6 +270,9 @@ int (*iax2_regfunk)(const char *username, int onoff) = NULL;
 /* T1, maybe ISDN */
 #define IAX_CAPABILITY_MEDBANDWIDTH 	(IAX_CAPABILITY_FULLBANDWIDTH & 	\
 					 ~AST_FORMAT_SLINEAR &			\
+					 ~AST_FORMAT_SLINEAR16 &			\
+					 ~AST_FORMAT_SIREN7 &			\
+					 ~AST_FORMAT_SIREN14 &			\
 					 ~AST_FORMAT_ULAW &			\
 					 ~AST_FORMAT_ALAW &			\
 					 ~AST_FORMAT_G722) 
