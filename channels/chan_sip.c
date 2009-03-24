@@ -1369,6 +1369,7 @@ struct sip_auth {
 /* Space for addition of other realtime flags in the future */
 #define SIP_PAGE2_STATECHANGEQUEUE	(1 << 9)	/*!< D: Unsent state pending change exists */
 
+#define SIP_PAGE2_PREFERRED_CODEC	(1 << 13)	/*!< GDP: Only respond with single most preferred joint codec */
 #define SIP_PAGE2_VIDEOSUPPORT		(1 << 14)	/*!< DP: Video supported if offered? */
 #define SIP_PAGE2_TEXTSUPPORT		(1 << 15)	/*!< GDP: Global text enable */
 #define SIP_PAGE2_ALLOWSUBSCRIBE	(1 << 16)	/*!< GP: Allow subscriptions from this peer? */
@@ -1398,7 +1399,7 @@ struct sip_auth {
 	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_IGNORESDPVERSION | \
 	SIP_PAGE2_VIDEOSUPPORT | SIP_PAGE2_T38SUPPORT | SIP_PAGE2_RFC2833_COMPENSATE | \
 	SIP_PAGE2_BUGGY_MWI | SIP_PAGE2_TEXTSUPPORT | SIP_PAGE2_FAX_DETECT | \
-	SIP_PAGE2_UDPTL_DESTINATION | SIP_PAGE2_VIDEOSUPPORT_ALWAYS)
+	SIP_PAGE2_UDPTL_DESTINATION | SIP_PAGE2_VIDEOSUPPORT_ALWAYS | SIP_PAGE2_PREFERRED_CODEC)
 
 /*@}*/ 
 
@@ -8064,11 +8065,15 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	p->peercapability = newpeercapability;		        /* The other sides capability in latest offer */
 	p->jointnoncodeccapability = newnoncodeccapability;	/* DTMF capabilities */
 
+	if (ast_test_flag(&p->flags[1], SIP_PAGE2_PREFERRED_CODEC)) { /* respond with single most preferred joint codec, limiting the other side's choice */
+		p->jointcapability = ast_codec_choose(&p->prefs, p->jointcapability, 1);
+	}
+
 	if (p->jointcapability & AST_FORMAT_T140RED) {
-		p->red = 1; 
+		p->red = 1;
 		ast_rtp_red_init(p->trtp, 300, red_data_pt, 2);
 	} else {
-		p->red = 0; 
+		p->red = 0;
 	}
 
 	ast_rtp_pt_copy(p->rtp, newaudiortp);
@@ -22697,6 +22702,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			int error =  ast_parse_allow_disallow(&peer->prefs, &peer->capability, v->value, FALSE);
 			if (error)
 				ast_log(LOG_WARNING, "Codec configuration errors found in line %d : %s = %s\n", v->lineno, v->name, v->value);
+		} else if (!strcasecmp(v->name, "preferred_codec_only")) {
+			ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_PREFERRED_CODEC);
 		} else if (!strcasecmp(v->name, "registertrying")) {
 			ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_REGISTERTRYING);
 		} else if (!strcasecmp(v->name, "autoframing")) {
@@ -23432,6 +23439,8 @@ static int reload_config(enum channelreloadreason reason)
 			int error =  ast_parse_allow_disallow(&default_prefs, &global_capability, v->value, FALSE);
 			if (error)
 				ast_log(LOG_WARNING, "Codec configuration errors found in line %d : %s = %s\n", v->lineno, v->name, v->value);
+		} else if (!strcasecmp(v->name, "preferred_codec_only")) {
+			ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_PREFERRED_CODEC);
 		} else if (!strcasecmp(v->name, "autoframing")) {
 			global_autoframing = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "allowexternaldomains")) {

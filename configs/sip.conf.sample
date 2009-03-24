@@ -182,6 +182,11 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;vmexten=voicemail              ; dialplan extension to reach mailbox sets the 
                                 ; Message-Account in the MWI notify message 
                                 ; defaults to "asterisk"
+
+;preferred_codec_only=yes       ; Respond to a SIP invite with the single most preferred codec
+                                ; rather than advertising all joint codec capabilities. This
+                                ; limits the other side's codec choice to exactly what we prefer.
+
 ;disallow=all                   ; First disallow all codecs
 ;allow=ulaw                     ; Allow codecs in order of preference
 ;allow=ilbc                     ; see doc/rtp-packetization for framing options

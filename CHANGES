@@ -12,6 +12,11 @@
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.6.3  -------------
 ------------------------------------------------------------------------------
 
+SIP Changes
+-----------
+ * Added preferred_codec_only option in sip.conf. This feature limits the joint
+   codecs sent in response to an INVITE to the single most preferred codec.
+
 Applications
 ------------
  * Added progress option to the app_dial D() option.  When progress DTMF is
