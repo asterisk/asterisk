@@ -240,8 +240,10 @@ sendvoicemail=yes ; Allow the user to compose and send a voicemail while inside
 ; exitcontext=fromvm    ; Context to go to on user exit such as * or 0
                         ;     The default is the current context.
 ; review=yes 		; Allow sender to review/rerecord their message before saving it [OFF by default
-; operator=yes 		; Allow sender to hit 0 before/after/during  leaving a voicemail to 
-			;     reach an operator  [OFF by default]
+; operator=yes      ; Allow sender to hit 0 before/after/during leaving a voicemail to
+                    ; reach an operator.  This option REQUIRES an 'o' extension in the
+                    ; same context (or in exitcontext, if set), as that is where the
+                    ; 0 key will send you.  [OFF by default]
 ; envelope=no 		; Turn on/off envelope playback before message playback. [ON by default] 
 			;     This does NOT affect option 3,3 from the advanced options menu
 ; delete=yes		; After notification, the voicemail is deleted from the server. [per-mailbox only]
