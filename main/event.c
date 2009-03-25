@@ -86,9 +86,18 @@ struct ast_event {
 	unsigned char payload[0];
 } __attribute__((packed));
 
+
+/*!
+ * \brief A holder for an event
+ *
+ * \details This struct used to have more of a purpose than it does now.
+ * It is used to hold events in the event cache.  It can be completely removed
+ * if one of these two things is done:
+ *  - ast_event gets changed such that it never has to be realloc()d
+ *  - astobj2 is updated so that you can realloc() an astobj2 object
+ */
 struct ast_event_ref {
 	struct ast_event *event;
-	AST_LIST_ENTRY(ast_event_ref) entry;
 };
 
 struct ast_event_ie_val {
