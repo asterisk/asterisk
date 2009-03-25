@@ -4391,7 +4391,6 @@ static int unistim_send_mwi_to_peer(struct unistimsession *s, unsigned int tick)
 	event = ast_event_get_cached(AST_EVENT_MWI,
 		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
 		AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
-		AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
 		AST_EVENT_IE_END);
 
 	if (event) {

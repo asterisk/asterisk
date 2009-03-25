@@ -358,42 +358,18 @@ int ast_event_queue(struct ast_event *event);
  *
  * \param event the event to be queued and cached
  *
- * The rest of the arguments to this function specify information elements to
- * use for determining which events in the cache that this event should replace.
- * All events in the cache that match the specified criteria will be removed from
- * the cache and then this one will be added.  The arguments are specified in
- * the form:
- *
- * \code
- *    <enum ast_event_ie_type>, [enum ast_event_ie_pltype]
- * \endcode
- * and must end with AST_EVENT_IE_END.
- *
- * If the ie_type specified is *not* AST_EVENT_IE_END, then it must be followed
- * by a valid IE payload type.  If the payload type given is EXISTS, then all
- * events that contain that information element will be removed from the cache.
- * Otherwise, all events in the cache that contain an information element with
- * the same value as the new event will be removed.
- *
- * \note If more than one IE parameter is specified, they *all* must match for
- *       the event to be removed from the cache.
- *
- * Example usage:
- *
- * \code
- * ast_event_queue_and_cache(event,
- *     AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR,
- *     AST_EVENT_IE_END);
- * \endcode
- *
- * This example queues and caches an event.  Any events in the cache that have
- * the same MAILBOX information element as this event will be removed.
- *
+ * \details
  * The purpose of caching events is so that the core can retain the last known
  * information for events that represent some sort of state.  That way, when
  * code needs to find out the current state, it can query the cache.
+ *
+ * The event API already knows which events can be cached and how to cache them.
+ *
+ * \retval 0 success
+ * \retval non-zero failure.  If failure is returned, the event must be destroyed
+ *         by the caller of this function.
  */
-int ast_event_queue_and_cache(struct ast_event *event, ...);
+int ast_event_queue_and_cache(struct ast_event *event);
 
 /*!
  * \brief Retrieve an event from the cache
@@ -509,6 +485,18 @@ uint32_t ast_event_get_ie_uint(const struct ast_event *event, enum ast_event_ie_
  *         If the information element isn't found, NULL will be returned.
  */
 const char *ast_event_get_ie_str(const struct ast_event *event, enum ast_event_ie_type ie_type);
+
+/*!
+ * \brief Get the hash for the string payload of an IE
+ *
+ * \param event The event to get the IE from
+ * \param ie_type the type of information element to retrieve the hash for
+ *
+ * \return This function returns the hash value as calculated by ast_str_hash()
+ *         for the string payload.  This is stored in the event to avoid
+ *         unnecessary string comparisons.
+ */
+uint32_t ast_event_get_ie_str_hash(const struct ast_event *event, enum ast_event_ie_type ie_type);
 
 /*!
  * \brief Get the value of an information element that has a raw payload
