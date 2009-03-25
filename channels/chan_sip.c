@@ -6086,7 +6086,7 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 					AST_SCHED_DEL_UNREF(sched, p->t38id, dialog_unref(p, "when you delete the t38id sched, you should dec the refcount for the stored dialog ptr"));
 					change_t38_state(p, T38_ENABLED);
 					transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL);
-				} else if (p->t38.state != T38_ENABLED) {
+				} else if (ast_test_flag(&p->t38.t38support, SIP_PAGE2_T38SUPPORT) && p->t38.state != T38_ENABLED) {
 					change_t38_state(p, T38_LOCAL_REINVITE);
 					if (!p->pendinginvite) {
 						transmit_reinvite_with_sdp(p, TRUE, FALSE);
