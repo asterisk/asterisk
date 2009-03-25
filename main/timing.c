@@ -38,6 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/time.h"
 #include "asterisk/heap.h"
 #include "asterisk/module.h"
+#include "asterisk/poll-compat.h"
 
 struct timing_holder {
 	/*! Do _not_ move this from the beginning of the struct. */
@@ -290,7 +291,7 @@ static char *timing_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 			.events = POLLIN | POLLPRI,
 		};
 
-		res = poll(&pfd, 1, 100);
+		res = ast_poll(&pfd, 1, 100);
 
 		if (res == 1) {
 			count++;

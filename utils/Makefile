@@ -143,6 +143,10 @@ aelparse.o: ASTCFLAGS+=-I$(ASTTOPDIR)/res -DSTANDALONE -Wno-unused
 aelparse: LIBS+=-lm
 aelparse: aelparse.o aelbison.o pbx_ael.o hashtab.o ael_main.o ast_expr2f.o ast_expr2.o strcompat.o pval.o extconf.o
 
+poll.c: $(ASTTOPDIR)/main/poll.c
+	@cp "$<" "$@"
+poll.o: ASTCFLAGS+=-DSTANDALONE
+
 astobj2.c: $(ASTTOPDIR)/main/astobj2.c
 	@cp "$<" "$@"
 astobj2.o: ASTCFLAGS+=-DSTANDALONE
@@ -160,12 +164,12 @@ threadstorage.c: $(ASTTOPDIR)/main/threadstorage.c
 threadstorage.o: ASTCFLAGS+=-DSTANDALONE
 
 hashtest2.o: ASTCFLAGS+=-O0 -DSTANDALONE
-hashtest2: hashtest2.o md5.o utils.o astobj2.o sha1.o strcompat.o threadstorage.o clicompat.o
+hashtest2: hashtest2.o md5.o utils.o astobj2.o sha1.o strcompat.o threadstorage.o clicompat.o poll.o
 
-hashtest: hashtest.o md5.o hashtab.o utils.o sha1.o strcompat.o threadstorage.o clicompat.o
+hashtest: hashtest.o md5.o hashtab.o utils.o sha1.o strcompat.o threadstorage.o clicompat.o poll.o
 hashtest.o: ASTCFLAGS+=-O0 -DSTANDALONE
 
-refcounter: refcounter.o md5.o hashtab.o utils.o sha1.o strcompat.o threadstorage.o clicompat.o
+refcounter: refcounter.o md5.o hashtab.o utils.o sha1.o strcompat.o threadstorage.o clicompat.o poll.o
 refcounter.o: ASTCFLAGS+=-O0 -DSTANDALONE
 
 extconf.o: extconf.c
