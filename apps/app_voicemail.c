@@ -6215,10 +6215,7 @@ static void queue_mwi_event(const char *box, int urgent, int new, int old)
 		return;
 	}
 
-	ast_event_queue_and_cache(event,
-		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR,
-		AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR,
-		AST_EVENT_IE_END);
+	ast_event_queue_and_cache(event);
 }
 
 /*!

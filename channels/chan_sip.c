@@ -18059,10 +18059,7 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 						   AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, atoi(new),
 						   AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_UINT, atoi(old),
 						   AST_EVENT_IE_END))) {
-				ast_event_queue_and_cache(event,
-							  AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR,
-							  AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR,
-							  AST_EVENT_IE_END);
+				ast_event_queue_and_cache(event);
 			}
 		}
 
@@ -21038,8 +21035,6 @@ static int get_cached_mwi(struct sip_peer *peer, int *new, int *old)
 		event = ast_event_get_cached(AST_EVENT_MWI,
 			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox->mailbox,
 			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, S_OR(mailbox->context, "default"),
-			AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
-			AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
 			AST_EVENT_IE_END);
 		if (!event)
 			continue;

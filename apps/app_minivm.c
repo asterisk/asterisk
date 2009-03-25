@@ -1785,13 +1785,10 @@ static void queue_mwi_event(const char *mbx, const char *ctx, int urgent, int ne
 			AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, (new+urgent),
 			AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_UINT, old,
 			AST_EVENT_IE_END))) {
- 		return;
+		return;
 	}
 
-	ast_event_queue_and_cache(event,
-		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR,
-		AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR,
-		AST_EVENT_IE_END);
+	ast_event_queue_and_cache(event);
 }
 
 /*! \brief Send MWI using interal Asterisk event subsystem */

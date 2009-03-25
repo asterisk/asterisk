@@ -37,6 +37,8 @@
 #ifndef _ASTERISK_DEVICESTATE_H
 #define _ASTERISK_DEVICESTATE_H
 
+#include "asterisk/channel.h"
+
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
@@ -259,6 +261,21 @@ struct ast_devstate_aggregate {
 	unsigned int in_use:1;
 	unsigned int ring:1;
 };
+
+/*!
+ * \brief Enable distributed device state processing.
+ *
+ * \details
+ * By default, Asterisk assumes that device state change events will only be
+ * originating from one instance.  If a module gets loaded and configured such
+ * that multiple instances of Asterisk will be sharing device state, this
+ * function should be called to enable distributed device state processing.
+ * It is off by default to save on unnecessary processing.
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_enable_distributed_devstate(void);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

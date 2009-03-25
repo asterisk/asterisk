@@ -852,6 +852,29 @@ static force_inline int attribute_pure ast_str_hash(const char *str)
 }
 
 /*!
+ * \brief Compute a hash value on a string
+ *
+ * \param[in] str The string to add to the hash
+ * \param[in] hash The hash value to add to
+ * 
+ * \details
+ * This version of the function is for when you need to compute a
+ * string hash of more than one string.
+ *
+ * This famous hash algorithm was written by Dan Bernstein and is
+ * commonly used.
+ *
+ * \sa http://www.cse.yorku.ca/~oz/hash.html
+ */
+static force_inline int ast_str_hash_add(const char *str, int hash)
+{
+	while (*str)
+		hash = hash * 33 ^ *str++;
+
+	return abs(hash);
+}
+
+/*!
  * \brief Compute a hash value on a case-insensitive string
  *
  * Uses the same hash algorithm as ast_str_hash, but converts

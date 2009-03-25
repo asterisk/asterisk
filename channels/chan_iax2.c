@@ -7394,8 +7394,6 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 			event = ast_event_get_cached(AST_EVENT_MWI,
 				AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
 				AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
-				AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
-				AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
 				AST_EVENT_IE_END);
 			if (event) {
 				new = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
