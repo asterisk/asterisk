@@ -290,7 +290,7 @@ static char *timing_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 			.events = POLLIN | POLLPRI,
 		};
 
-		res = poll(&pfd, 1, 100);
+		res = ast_poll(&pfd, 1, 100);
 
 		if (res == 1) {
 			count++;
