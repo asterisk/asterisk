@@ -163,6 +163,11 @@ utils.c: $(ASTTOPDIR)/main/utils.c
 	$(CMD_PREFIX) cp "$<" "$@"
 utils.o: ASTCFLAGS+=-DSTANDALONE
 
+poll.c: $(ASTTOPDIR)/main/poll.c
+	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
+	$(CMD_PREFIX) cp "$<" "$@"
+poll.o: ASTCFLAGS+=-DSTANDALONE
+
 strings.c: $(ASTTOPDIR)/main/strings.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
@@ -179,12 +184,12 @@ threadstorage.c: $(ASTTOPDIR)/main/threadstorage.c
 threadstorage.o: ASTCFLAGS+=-DSTANDALONE
 
 hashtest2.o: ASTCFLAGS+=-O0 -DSTANDALONE
-hashtest2: hashtest2.o md5.o utils.o strings.o astobj2.o sha1.o strcompat.o threadstorage.o clicompat.o
+hashtest2: hashtest2.o md5.o utils.o strings.o astobj2.o sha1.o strcompat.o threadstorage.o clicompat.o poll.o
 
-hashtest: hashtest.o md5.o hashtab.o utils.o strings.o sha1.o strcompat.o threadstorage.o clicompat.o
+hashtest: hashtest.o md5.o hashtab.o utils.o strings.o sha1.o strcompat.o threadstorage.o clicompat.o poll.o
 hashtest.o: ASTCFLAGS+=-O0 -DSTANDALONE
 
-refcounter: refcounter.o md5.o hashtab.o utils.o strings.o sha1.o strcompat.o threadstorage.o clicompat.o
+refcounter: refcounter.o md5.o hashtab.o utils.o strings.o sha1.o strcompat.o threadstorage.o clicompat.o poll.o
 refcounter.o: ASTCFLAGS+=-O0 -DSTANDALONE
 
 extconf.o: extconf.c
