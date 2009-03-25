@@ -38,6 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/time.h"
 #include "asterisk/heap.h"
 #include "asterisk/module.h"
+#include "asterisk/poll-compat.h"
 
 struct timing_holder {
 	/*! Do _not_ move this from the beginning of the struct. */
