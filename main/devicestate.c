@@ -196,8 +196,10 @@ struct {
 	ast_cond_t cond;
 	ast_mutex_t lock;
 	AST_LIST_HEAD_NOLOCK(, devstate_change) devstate_change_q;
+	unsigned int enabled:1;
 } devstate_collector = {
 	.thread = AST_PTHREADT_NULL,
+	.enabled = 0,
 };
 
 /* Forward declarations */
@@ -428,22 +430,26 @@ static int getproviderstate(const char *provider, const char *address)
 static void devstate_event(const char *device, enum ast_device_state state)
 {
 	struct ast_event *event;
+	enum ast_event_type event_type;
+
+	if (devstate_collector.enabled) {
+		/* Distributed device state is enabled, so this state change is a change
+		 * for a single server, not the real state. */
+		event_type = AST_EVENT_DEVICE_STATE_CHANGE;
+	} else {
+		event_type = AST_EVENT_DEVICE_STATE;
+	}
 
 	ast_debug(3, "device '%s' state '%d'\n", device, state);
 
-	if (!(event = ast_event_new(AST_EVENT_DEVICE_STATE_CHANGE,
+	if (!(event = ast_event_new(event_type,
 			AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, device,
 			AST_EVENT_IE_STATE, AST_EVENT_IE_PLTYPE_UINT, state,
 			AST_EVENT_IE_END))) {
 		return;
 	}
 
-	/* Cache this event, replacing an event in the cache with the same
-	 * device name if it exists. */
-	ast_event_queue_and_cache(event,
-		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR,
-		AST_EVENT_IE_EID, AST_EVENT_IE_PLTYPE_RAW, sizeof(struct ast_eid),
-		AST_EVENT_IE_END);
+	ast_event_queue_and_cache(event);
 }
 
 /*! Called by the state change thread to find out what the state is, and then
@@ -632,13 +638,12 @@ static void process_collection(const char *device, struct change_collection *col
 		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, device,
 		AST_EVENT_IE_STATE, AST_EVENT_IE_PLTYPE_UINT, state,
 		AST_EVENT_IE_END);
-	
-	if (!event)
-		return;
 
-	ast_event_queue_and_cache(event,
-		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR,
-		AST_EVENT_IE_END);
+	if (!event) {
+		return;
+	}
+
+	ast_event_queue_and_cache(event);
 }
 
 static void handle_devstate_change(struct devstate_change *sc)
@@ -719,21 +724,6 @@ static void devstate_change_collector_cb(const struct ast_event *event, void *da
 /*! \brief Initialize the device state engine in separate thread */
 int ast_device_state_engine_init(void)
 {
-	devstate_collector.event_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE_CHANGE,
-		devstate_change_collector_cb, NULL, AST_EVENT_IE_END);
-
-	if (!devstate_collector.event_sub) {
-		ast_log(LOG_ERROR, "Failed to create subscription for the device state change collector\n");
-		return -1;
-	}
-
-	ast_mutex_init(&devstate_collector.lock);
-	ast_cond_init(&devstate_collector.cond, NULL);
-	if (ast_pthread_create_background(&devstate_collector.thread, NULL, run_devstate_collector, NULL) < 0) {
-		ast_log(LOG_ERROR, "Unable to start device state collector thread.\n");
-		return -1;
-	}
-
 	ast_cond_init(&change_pending, NULL);
 	if (ast_pthread_create_background(&change_thread, NULL, do_devstate_changes, NULL) < 0) {
 		ast_log(LOG_ERROR, "Unable to start device state change thread.\n");
@@ -830,3 +820,28 @@ enum ast_device_state ast_devstate_aggregate_result(struct ast_devstate_aggregat
 	return AST_DEVICE_NOT_INUSE;
 }
 
+int ast_enable_distributed_devstate(void)
+{
+	if (devstate_collector.enabled) {
+		return 0;
+	}
+
+	devstate_collector.event_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE_CHANGE,
+		devstate_change_collector_cb, NULL, AST_EVENT_IE_END);
+
+	if (!devstate_collector.event_sub) {
+		ast_log(LOG_ERROR, "Failed to create subscription for the device state change collector\n");
+		return -1;
+	}
+
+	ast_mutex_init(&devstate_collector.lock);
+	ast_cond_init(&devstate_collector.cond, NULL);
+	if (ast_pthread_create_background(&devstate_collector.thread, NULL, run_devstate_collector, NULL) < 0) {
+		ast_log(LOG_ERROR, "Unable to start device state collector thread.\n");
+		return -1;
+	}
+
+	devstate_collector.enabled = 1;
+
+	return 0;
+}

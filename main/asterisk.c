@@ -3509,7 +3509,10 @@ int main(int argc, char *argv[])
 	}
 #endif
 
-	ast_event_init();
+	if (ast_event_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
 
 	ast_makesocket();
 	sigemptyset(&sigs);

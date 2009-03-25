@@ -47,6 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #include "asterisk/event.h"
 #include "asterisk/config.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/devicestate.h"
 
 #ifndef AST_MODULE
 /* XXX HACK */
@@ -111,34 +112,7 @@ void evt_channel_open_cb(SaInvocationT invocation, SaEvtChannelHandleT channel_h
 
 static void queue_event(struct ast_event *ast_event)
 {
-	enum ast_event_type type;
-
-	/*! 
-	 * \todo This hack macks me sad.  I need to come up with a better way to
-	 *       figure out whether an event should be cached or not, and what
-	 *       parameters to cache on.
-	 *
-	 *       As long as the types of events that are supported is limited,
-	 *       this isn't *terrible*, I guess.  Perhaps we should just define
-	 *       caching rules in the core, and make them configurable, and not
-	 *       have it be the job of the event publishers.
-	 */
-
-	type = ast_event_get_type(ast_event);
-
-	if (type == AST_EVENT_MWI) {
-		ast_event_queue_and_cache(ast_event,
-			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR,
-			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR,
-			AST_EVENT_IE_END);
-	} else if (type == AST_EVENT_DEVICE_STATE_CHANGE) {
-		ast_event_queue_and_cache(ast_event,
-			AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR,
-			AST_EVENT_IE_EID, AST_EVENT_IE_PLTYPE_RAW, sizeof(struct ast_eid),
-			AST_EVENT_IE_END);
-	} else {
-		ast_event_queue(ast_event);
-	}
+	ast_event_queue_and_cache(ast_event);
 }
 
 void evt_event_deliver_cb(SaEvtSubscriptionIdT sub_id,
@@ -341,9 +315,14 @@ static void add_publish_event(struct event_channel *event_channel, const char *e
 		return;
 	}
 
-	if (!(publish_event = ast_calloc(1, sizeof(*publish_event))))
+	if (type == AST_EVENT_DEVICE_STATE_CHANGE && ast_enable_distributed_devstate()) {
 		return;
-	
+	}
+
+	if (!(publish_event = ast_calloc(1, sizeof(*publish_event)))) {
+		return;
+	}
+
 	publish_event->type = type;
 	ast_log(LOG_DEBUG, "Subscribing to event type %d\n", type);
 	publish_event->sub = ast_event_subscribe(type, ast_event_cb, event_channel,
@@ -399,9 +378,14 @@ static void add_subscribe_event(struct event_channel *event_channel, const char 
 		return;
 	}
 
-	if (!(subscribe_event = ast_calloc(1, sizeof(*subscribe_event))))
+	if (type == AST_EVENT_DEVICE_STATE_CHANGE && ast_enable_distributed_devstate()) {
 		return;
-	
+	}
+
+	if (!(subscribe_event = ast_calloc(1, sizeof(*subscribe_event)))) {
+		return;
+	}
+
 	subscribe_event->type = type;
 	subscribe_event->id = ast_atomic_fetchadd_int(&unique_id, +1);
 
