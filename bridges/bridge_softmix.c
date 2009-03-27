@@ -199,7 +199,7 @@ static int softmix_bridge_poke(struct ast_bridge *bridge, struct ast_bridge_chan
 /*! \brief Function which acts as the mixing thread */
 static int softmix_bridge_thread(struct ast_bridge *bridge)
 {
-	int timingfd = (unsigned short)(unsigned long)bridge->bridge_pvt;
+	int timingfd = (unsigned long)bridge->bridge_pvt;
 
 	ast_timer_set_rate(timingfd, (1000 / SOFTMIX_INTERVAL));
 
