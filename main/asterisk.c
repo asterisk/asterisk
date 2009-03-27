@@ -182,7 +182,7 @@ long option_minmemfree;				/*!< Minimum amount of free system memory - stop acce
 
 /*! @} */
 
-struct ast_eid g_eid;
+struct ast_eid ast_eid_default;
 
 /* XXX tmpdir is a subdir of the spool directory, and no way to remap it */
 char record_cache_dir[AST_CACHE_DIR_LEN] = DEFAULT_TMP_DIR;
@@ -427,7 +427,7 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 		return NULL;
 	}
 
-	ast_eid_to_str(eid_str, sizeof(eid_str), &g_eid);
+	ast_eid_to_str(eid_str, sizeof(eid_str), &ast_eid_default);
 
 	ast_cli(a->fd, "\nPBX Core settings\n");
 	ast_cli(a->fd, "-----------------\n");
@@ -2817,7 +2817,7 @@ static void ast_readconfig(void)
 	ast_copy_string(cfg_paths.socket_path, DEFAULT_SOCKET, sizeof(cfg_paths.socket_path));
 	ast_copy_string(cfg_paths.run_dir, DEFAULT_RUN_DIR, sizeof(cfg_paths.run_dir));
 
-	ast_set_default_eid(&g_eid);
+	ast_set_default_eid(&ast_eid_default);
 
 	/* no asterisk.conf? no problem, use buildtime config! */
 	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
@@ -2988,7 +2988,7 @@ static void ast_readconfig(void)
 			struct ast_eid tmp_eid;
 			if (!ast_str_to_eid(&tmp_eid, v->value)) {
 				ast_verbose("Successfully set global EID to '%s'\n", v->value);
-				g_eid = tmp_eid;
+				ast_eid_default = tmp_eid;
 			} else
 				ast_verbose("Invalid Entity ID '%s' provided\n", v->value);
 		} else if (!strcasecmp(v->name, "lightbackground")) {
