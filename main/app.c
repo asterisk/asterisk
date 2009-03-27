@@ -52,7 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/linkedlists.h"
 #include "asterisk/threadstorage.h"
 
-AST_THREADSTORAGE_PUBLIC(global_app_buf);
+AST_THREADSTORAGE_PUBLIC(ast_str_thread_global_buf);
 
 
 #define MAX_OTHER_FORMATS 10
