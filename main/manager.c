@@ -3593,7 +3593,7 @@ static struct ast_str *generic_http_callback(enum output_format format,
 		 * properties of the rand() function (and the constantcy of s), that
 		 * won't happen twice in a row.
 		 */
-		while ((session->managerid = rand() ^ (unsigned long) session) == 0);
+		while ((session->managerid = ast_random() ^ (unsigned long) session) == 0);
 		session->last_ev = grab_last();
 		AST_LIST_LOCK(&sessions);
 		AST_LIST_INSERT_HEAD(&sessions, session, list);
