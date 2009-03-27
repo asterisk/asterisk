@@ -2947,7 +2947,9 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 		ASTOBJ_UNREF(p, sip_destroy_peer);
 		return res;
 	}
-	
+
+	do_setnat(dialog, ast_test_flag(&dialog->flags[0], SIP_NAT) & SIP_NAT_ROUTE);
+
 	ast_string_field_set(dialog, tohost, peer);
 
 	if (sin) {
