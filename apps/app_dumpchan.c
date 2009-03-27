@@ -149,7 +149,7 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 
 static int dumpchan_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_str *vars = ast_str_thread_get(&global_app_buf, 16);
+	struct ast_str *vars = ast_str_thread_get(&ast_str_thread_global_buf, 16);
 	char info[1024];
 	int level = 0;
 	static char *line = "================================================================================";

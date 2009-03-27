@@ -2319,7 +2319,7 @@ static void do_hang(struct callattempt *o)
 /*! \brief convert "\n" to "\nVariable: " ready for manager to use */
 static char *vars2manager(struct ast_channel *chan, char *vars, size_t len)
 {
-	struct ast_str *buf = ast_str_thread_get(&global_app_buf, len + 1);
+	struct ast_str *buf = ast_str_thread_get(&ast_str_thread_global_buf, len + 1);
 	char *tmp;
 
 	if (pbx_builtin_serialize_variables(chan, &buf)) {

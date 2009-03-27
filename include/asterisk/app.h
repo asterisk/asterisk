@@ -32,7 +32,7 @@ struct ast_flags64;
 extern "C" {
 #endif
 
-AST_THREADSTORAGE_EXTERNAL(global_app_buf);
+AST_THREADSTORAGE_EXTERNAL(ast_str_thread_global_buf);
 
 /* IVR stuff */
 

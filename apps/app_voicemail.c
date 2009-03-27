@@ -10267,7 +10267,7 @@ static const char *substitute_escapes(const char *value)
 	char *current;
 
 	/* Add 16 for fudge factor */
-	struct ast_str *str = ast_str_thread_get(&global_app_buf, strlen(value) + 16);
+	struct ast_str *str = ast_str_thread_get(&ast_str_thread_global_buf, strlen(value) + 16);
 
 	ast_str_reset(str);
 	
