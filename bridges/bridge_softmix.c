@@ -91,7 +91,7 @@ static int softmix_bridge_create(struct ast_bridge *bridge)
 		return -1;
 	}
 
-	ast_timer_close(timingfd);
+	bridge->bridge_pvt = (void*)(unsigned long)timingfd;
 
 	return 0;
 }
@@ -199,11 +199,7 @@ static int softmix_bridge_poke(struct ast_bridge *bridge, struct ast_bridge_chan
 /*! \brief Function which acts as the mixing thread */
 static int softmix_bridge_thread(struct ast_bridge *bridge)
 {
-	int timingfd;
-
-	if ((timingfd = ast_timer_open()) < 0) {
-		return -1;
-	}
+	int timingfd = (unsigned short)(unsigned long)bridge->bridge_pvt;
 
 	ast_timer_set_rate(timingfd, (1000 / SOFTMIX_INTERVAL));
 
@@ -267,7 +263,6 @@ static int softmix_bridge_thread(struct ast_bridge *bridge)
 		ao2_lock(bridge);
 	}
 
-	ast_timer_set_rate(timingfd, 0);
 	ast_timer_close(timingfd);
 
 	return 0;
