@@ -58,7 +58,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>Streams to an icecast server using ices (available separately).
 			A configuration file must be supplied for ices (see contrib/asterisk-ices.xml).</para>
-			<note><para>ICES version 2 cient and server required.</para></note>
+			<note><para>ICES version 2 client and server required.</para></note>
 		</description>
 	</application>
 
