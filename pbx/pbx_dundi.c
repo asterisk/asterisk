@@ -4614,7 +4614,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
 		ast_log(LOG_WARNING, "Unable to get host name!\n");
 	AST_LIST_LOCK(&peers);
 
-	memcpy(&global_eid, &g_eid, sizeof(global_eid));
+	memcpy(&global_eid, &ast_eid_default, sizeof(global_eid));
 
 	global_storehistory = 0;
 	ast_copy_string(secretpath, "dundi", sizeof(secretpath));

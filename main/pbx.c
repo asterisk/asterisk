@@ -2924,7 +2924,7 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 		} else if (!strcmp(var, "SYSTEMNAME")) {
 			s = ast_config_AST_SYSTEM_NAME;
 		} else if (!strcmp(var, "ENTITYID")) {
-			ast_eid_to_str(workspace, workspacelen, &g_eid);
+			ast_eid_to_str(workspace, workspacelen, &ast_eid_default);
 			s = workspace;
 		}
 	}

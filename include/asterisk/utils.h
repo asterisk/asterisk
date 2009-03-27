@@ -688,7 +688,7 @@ struct ast_eid {
  * This is set in asterisk.conf, or determined automatically by taking the mac
  * address of an Ethernet interface on the system.
  */
-extern struct ast_eid g_eid;
+extern struct ast_eid ast_eid_default;
 
 /*!
  * \brief Fill in an ast_eid with the default eid of this machine
