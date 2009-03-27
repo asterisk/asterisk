@@ -807,17 +807,19 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 #endif
 	}
 
-	tmp->timingfd = ast_timer_open();
-	if (tmp->timingfd > -1) {
+	if ((tmp->timer = ast_timer_open())) {
 		needqueue = 0;
+		tmp->timingfd = ast_timer_fd(tmp->timer);
+	} else {
+		tmp->timingfd = -1;
 	}
 
 	if (needqueue) {
 		if (pipe(tmp->alertpipe)) {
 			ast_log(LOG_WARNING, "Channel allocation failed: Can't create alert pipe!\n");
 alertpipe_failed:
-			if (tmp->timingfd > -1) {
-				ast_timer_close(tmp->timingfd);
+			if (tmp->timer) {
+				ast_timer_close(tmp->timer);
 			}
 
 			sched_context_destroy(tmp->sched);
@@ -1010,7 +1012,7 @@ static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, in
 				chan->name, f->frametype, f->subclass, qlen, strerror(errno));
 		}
 	} else if (chan->timingfd > -1) {
-		ast_timer_enable_continuous(chan->timingfd);
+		ast_timer_enable_continuous(chan->timer);
 	} else if (ast_test_flag(chan, AST_FLAG_BLOCKING)) {
 		pthread_kill(chan->blocker, SIGURG);
 	}
@@ -1378,8 +1380,9 @@ void ast_channel_free(struct ast_channel *chan)
 		close(fd);
 	if ((fd = chan->alertpipe[1]) > -1)
 		close(fd);
-	if ((fd = chan->timingfd) > -1)
-		ast_timer_close(fd);
+	if (chan->timer) {
+		ast_timer_close(chan->timer);
+	}
 #ifdef HAVE_EPOLL
 	for (i = 0; i < AST_MAX_FDS; i++) {
 		if (chan->epfd_data[i])
@@ -2325,13 +2328,13 @@ int ast_settimeout(struct ast_channel *c, unsigned int rate, int (*func)(const v
 		data = NULL;
 	}
 
-	if (rate && rate > (max_rate = ast_timer_get_max_rate(c->timingfd))) {
+	if (rate && rate > (max_rate = ast_timer_get_max_rate(c->timer))) {
 		real_rate = max_rate;
 	}
 
 	ast_debug(1, "Scheduling timer at (%u requested / %u actual) timer ticks per second\n", rate, real_rate);
 
-	res = ast_timer_set_rate(c->timingfd, real_rate);
+	res = ast_timer_set_rate(c->timer, real_rate);
 
 	c->timingfunc = func;
 	c->timingdata = data;
@@ -2584,11 +2587,11 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 
 		ast_clear_flag(chan, AST_FLAG_EXCEPTION);
 
-		res = ast_timer_get_event(chan->timingfd);
+		res = ast_timer_get_event(chan->timer);
 
 		switch (res) {
 		case AST_TIMING_EVENT_EXPIRED:
-			ast_timer_ack(chan->timingfd, 1);
+			ast_timer_ack(chan->timer, 1);
 
 			if (chan->timingfunc) {
 				/* save a copy of func/data before unlocking the channel */
@@ -2598,7 +2601,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				ast_channel_unlock(chan);
 				func(data);
 			} else {
-				ast_timer_set_rate(chan->timingfd, 0);
+				ast_timer_set_rate(chan->timer, 0);
 				chan->fdno = -1;
 				ast_channel_unlock(chan);
 			}
@@ -2609,7 +2612,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		case AST_TIMING_EVENT_CONTINUOUS:
 			if (AST_LIST_EMPTY(&chan->readq) || 
 				!AST_LIST_NEXT(AST_LIST_FIRST(&chan->readq), frame_list)) {
-				ast_timer_disable_continuous(chan->timingfd);
+				ast_timer_disable_continuous(chan->timer);
 			}
 			break;
 		}

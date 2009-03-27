@@ -85,13 +85,13 @@ struct softmix_channel {
 /*! \brief Function called when a bridge is created */
 static int softmix_bridge_create(struct ast_bridge *bridge)
 {
-	int timingfd;
+	struct ast_timer *timer;
 
-	if ((timingfd = ast_timer_open()) < 0) {
+	if (!(timer = ast_timer_open())) {
 		return -1;
 	}
 
-	bridge->bridge_pvt = (void*)(unsigned long)timingfd;
+	bridge->bridge_pvt = timer;
 
 	return 0;
 }
@@ -99,9 +99,7 @@ static int softmix_bridge_create(struct ast_bridge *bridge)
 /*! \brief Function called when a bridge is destroyed */
 static int softmix_bridge_destroy(struct ast_bridge *bridge)
 {
-	int timingfd = (unsigned long)bridge->bridge_pvt;
-
-	ast_timer_close(timingfd);
+	ast_timer_close((struct ast_timer *) bridge->bridge_pvt);
 
 	return 0;
 }
@@ -209,9 +207,10 @@ static int softmix_bridge_poke(struct ast_bridge *bridge, struct ast_bridge_chan
 /*! \brief Function which acts as the mixing thread */
 static int softmix_bridge_thread(struct ast_bridge *bridge)
 {
-	int timingfd = (unsigned long)bridge->bridge_pvt;
+	struct ast_timer *timer = (struct ast_timer *) bridge->bridge_pvt;
+	int timingfd = ast_timer_fd(timer);
 
-	ast_timer_set_rate(timingfd, (1000 / SOFTMIX_INTERVAL));
+	ast_timer_set_rate(timer, (1000 / SOFTMIX_INTERVAL));
 
 	while (!bridge->stop && !bridge->refresh && bridge->array_num) {
 		struct ast_bridge_channel *bridge_channel = NULL;
@@ -268,7 +267,7 @@ static int softmix_bridge_thread(struct ast_bridge *bridge)
 		/* Wait for the timing source to tell us to wake up and get things done */
 		ast_waitfor_n_fd(&timingfd, 1, &timeout, NULL);
 
-		ast_timer_ack(timingfd, 1);
+		ast_timer_ack(timer, 1);
 
 		ao2_lock(bridge);
 	}
