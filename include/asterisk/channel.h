@@ -496,6 +496,7 @@ struct ast_channel {
 		char unused_old_dtmfq[AST_MAX_EXTENSION];			/*!< (deprecated, use readq instead) Any/all queued DTMF characters */
 		struct {
 			struct ast_bridge *bridge;                                      /*!< Bridge this channel is participating in */
+			struct ast_timer *timer;					/*!< timer object that provided timingfd */
 		};
 	};
 

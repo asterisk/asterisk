@@ -45,9 +45,6 @@
   4) Multiple 'event types', so that the code using the timer can
      know whether the wakeup it received was due to a periodic trigger
      or a continuous trigger.
-
-  \todo Create an implementation of this API for Linux based on the
-   following API: http://www.kernel.org/doc/man-pages/online/pages/man2/timerfd_create.2.html
  */
 
 #ifndef _ASTERISK_TIMING_H
@@ -96,7 +93,7 @@ struct ast_timing_interface {
  */
 #define ast_register_timing_interface(i) _ast_register_timing_interface(i, ast_module_info->self)
 void *_ast_register_timing_interface(struct ast_timing_interface *funcs,
-		struct ast_module *mod);
+				     struct ast_module *mod);
 
 /*!
  * \brief Unregister a previously registered timing interface.
@@ -110,45 +107,57 @@ void *_ast_register_timing_interface(struct ast_timing_interface *funcs,
  */
 int ast_unregister_timing_interface(void *handle);
 
+struct ast_timer;
+
 /*!
- * \brief Open a timing fd
+ * \brief Open a timer
  *
- * \retval -1 error, with errno set
- * \retval >=0 success
+ * \retval NULL on error, with errno set
+ * \retval non-NULL timer handle on success
  * \since 1.6.1
  */
-int ast_timer_open(void);
+struct ast_timer *ast_timer_open(void);
 
 /*!
  * \brief Close an opened timing handle
  *
- * \param handle timing fd returned from timer_open()
+ * \param handle timer handle returned from timer_open()
  *
  * \return nothing
  * \since 1.6.1
  */
-void ast_timer_close(int handle);
+void ast_timer_close(struct ast_timer *handle);
+
+/*!
+ * \brief Get a poll()-able file descriptor for a timer
+ *
+ * \param handle timer handle returned from timer_open()
+ *
+ * \return file descriptor which can be used with poll() to wait for events
+ * \since 1.6.1
+ */
+int ast_timer_fd(const struct ast_timer *handle);
 
 /*!
  * \brief Set the timing tick rate
  *
- * \param handle timing fd returned from timer_open()
+ * \param handle timer handle returned from timer_open()
  * \param rate ticks per second, 0 turns the ticks off if needed
  *
- * Use this function if you want the timing fd to show input at a certain
- * rate.  The other alternative use of a timing fd, is using the continuous
+ * Use this function if you want the timer to show input at a certain
+ * rate.  The other alternative use of a timer is the continuous
  * mode.
  *
  * \retval -1 error, with errno set
  * \retval 0 success
  * \since 1.6.1
  */
-int ast_timer_set_rate(int handle, unsigned int rate);
+int ast_timer_set_rate(const struct ast_timer *handle, unsigned int rate);
 
 /*!
  * \brief Acknowledge a timer event
  *
- * \param handle timing fd returned from timer_open()
+ * \param handle timer handle returned from timer_open()
  * \param quantity number of timer events to acknowledge
  *
  * \note This function should only be called if timer_get_event()
@@ -157,55 +166,55 @@ int ast_timer_set_rate(int handle, unsigned int rate);
  * \return nothing
  * \since 1.6.1
  */
-void ast_timer_ack(int handle, unsigned int quantity);
+void ast_timer_ack(const struct ast_timer *handle, unsigned int quantity);
 
 /*!
  * \brief Enable continuous mode
  *
- * \param handle timing fd returned from timer_open()
+ * \param handle timer handle returned from timer_open()
  *
- * Continuous mode causes poll() on the timing fd to immediately return
+ * Continuous mode causes poll() on the timer's fd to immediately return
  * always until continuous mode is disabled.
  *
  * \retval -1 failure, with errno set
  * \retval 0 success
  * \since 1.6.1
  */
-int ast_timer_enable_continuous(int handle);
+int ast_timer_enable_continuous(const struct ast_timer *handle);
 
 /*!
  * \brief Disable continuous mode
  *
- * \param handle timing fd returned from timer_close()
+ * \param handle timer handle returned from timer_close()
  *
  * \retval -1 failure, with errno set
  * \retval 0 success
  * \since 1.6.1
  */
-int ast_timer_disable_continuous(int handle);
+int ast_timer_disable_continuous(const struct ast_timer *handle);
 
 /*!
- * \brief Determine timing event
+ * \brief Retrieve timing event
  *
- * \param handle timing fd returned by timer_open()
+ * \param handle timer handle returned by timer_open()
  *
- * After poll() indicates that there is input on the timing fd, this will
+ * After poll() indicates that there is input on the timer's fd, this will
  * be called to find out what triggered it.
  *
- * \return which event triggered the timing fd
+ * \return which event triggered the timer
  * \since 1.6.1
  */
-enum ast_timer_event ast_timer_get_event(int handle);
+enum ast_timer_event ast_timer_get_event(const struct ast_timer *handle);
 
 /*!
- * \brief Get maximum rate supported for a timing handle
+ * \brief Get maximum rate supported for a timer
  *
- * \param handle timing fd returned by timer_open()
+ * \param handle timer handle returned by timer_open()
  *
- * \return maximum rate supported for timing handle
+ * \return maximum rate supported by timer
  * \since 1.6.1
  */
-unsigned int ast_timer_get_max_rate(int handle);
+unsigned int ast_timer_get_max_rate(const struct ast_timer *handle);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

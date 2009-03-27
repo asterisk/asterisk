@@ -49,6 +49,11 @@ struct timing_holder {
 
 static struct ast_heap *timing_interfaces;
 
+struct ast_timer {
+	int fd;
+	struct timing_holder *holder;
+};
+
 static int timing_holder_cmp(void *_h1, void *_h2)
 {
 	struct timing_holder *h1 = _h1;
@@ -64,16 +69,16 @@ static int timing_holder_cmp(void *_h1, void *_h2)
 }
 
 void *_ast_register_timing_interface(struct ast_timing_interface *funcs, 
-		struct ast_module *mod)
+				     struct ast_module *mod)
 {
 	struct timing_holder *h;
 
 	if (!funcs->timer_open ||
 	    !funcs->timer_close ||
-		!funcs->timer_set_rate ||
+	    !funcs->timer_set_rate ||
 	    !funcs->timer_ack ||
 	    !funcs->timer_get_event ||
-		!funcs->timer_get_max_rate ||
+	    !funcs->timer_get_max_rate ||
 	    !funcs->timer_enable_continuous ||
 	    !funcs->timer_disable_continuous) {
 		return NULL;
@@ -111,10 +116,11 @@ int ast_unregister_timing_interface(void *handle)
 	return res;
 }
 
-int ast_timer_open(void)
+struct ast_timer *ast_timer_open(void)
 {
 	int fd = -1;
 	struct timing_holder *h;
+	struct ast_timer *t = NULL;
 
 	ast_heap_rdlock(timing_interfaces);
 
@@ -123,124 +129,88 @@ int ast_timer_open(void)
 		ast_module_ref(h->mod);
 	}
 
-	ast_heap_unlock(timing_interfaces);
-
-	return fd;
-}
-
-void ast_timer_close(int timer)
-{
-	struct timing_holder *h;
-
-	ast_heap_rdlock(timing_interfaces);
-
-	if ((h = ast_heap_peek(timing_interfaces, 1))) {
-		h->iface->timer_close(timer);
-		ast_module_unref(h->mod);
+	if (fd != -1) {
+		if (!(t = ast_calloc(1, sizeof(*t)))) {
+			h->iface->timer_close(fd);
+		} else {
+			t->fd = fd;
+			t->holder = h;
+		}
 	}
 
 	ast_heap_unlock(timing_interfaces);
+
+	return t;
 }
 
-int ast_timer_set_rate(int handle, unsigned int rate)
+void ast_timer_close(struct ast_timer *handle)
 {
-	struct timing_holder *h;
+	handle->holder->iface->timer_close(handle->fd);
+	ast_module_unref(handle->holder->mod);
+	ast_free(handle);
+}
+
+int ast_timer_fd(const struct ast_timer *handle)
+{
+	return handle->fd;
+}
+
+int ast_timer_set_rate(const struct ast_timer *handle, unsigned int rate)
+{
 	int res = -1;
 
-	ast_heap_rdlock(timing_interfaces);
-
-	if ((h = ast_heap_peek(timing_interfaces, 1))) {
-		res = h->iface->timer_set_rate(handle, rate);
-	}
-
-	ast_heap_unlock(timing_interfaces);
+	res = handle->holder->iface->timer_set_rate(handle->fd, rate);
 
 	return res;
 }
 
-void ast_timer_ack(int handle, unsigned int quantity)
+void ast_timer_ack(const struct ast_timer *handle, unsigned int quantity)
 {
-	struct timing_holder *h;
-
-	ast_heap_rdlock(timing_interfaces);
-
-	if ((h = ast_heap_peek(timing_interfaces, 1))) {
-		h->iface->timer_ack(handle, quantity);
-	}
-
-	ast_heap_unlock(timing_interfaces);
+	handle->holder->iface->timer_ack(handle->fd, quantity);
 }
 
-int ast_timer_enable_continuous(int handle)
+int ast_timer_enable_continuous(const struct ast_timer *handle)
 {
-	struct timing_holder *h;
 	int res = -1;
 
-	ast_heap_rdlock(timing_interfaces);
-
-	if ((h = ast_heap_peek(timing_interfaces, 1))) {
-		res = h->iface->timer_enable_continuous(handle);
-	}
-
-	ast_heap_unlock(timing_interfaces);
+	res = handle->holder->iface->timer_enable_continuous(handle->fd);
 
 	return res;
 }
 
-int ast_timer_disable_continuous(int handle)
+int ast_timer_disable_continuous(const struct ast_timer *handle)
 {
-	struct timing_holder *h;
 	int res = -1;
 
-	ast_heap_rdlock(timing_interfaces);
-
-	if ((h = ast_heap_peek(timing_interfaces, 1))) {
-		res = h->iface->timer_disable_continuous(handle);
-	}
-
-	ast_heap_unlock(timing_interfaces);
+	res = handle->holder->iface->timer_disable_continuous(handle->fd);
 
 	return res;
 }
 
-enum ast_timer_event ast_timer_get_event(int handle)
+enum ast_timer_event ast_timer_get_event(const struct ast_timer *handle)
 {
-	struct timing_holder *h;
 	enum ast_timer_event res = -1;
 
-	ast_heap_rdlock(timing_interfaces);
-
-	if ((h = ast_heap_peek(timing_interfaces, 1))) {
-		res = h->iface->timer_get_event(handle);
-	}
-
-	ast_heap_unlock(timing_interfaces);
+	res = handle->holder->iface->timer_get_event(handle->fd);
 
 	return res;
 }
 
-unsigned int ast_timer_get_max_rate(int handle)
+unsigned int ast_timer_get_max_rate(const struct ast_timer *handle)
 {
-	struct timing_holder *h;
 	unsigned int res = 0;
 
-	ast_heap_rdlock(timing_interfaces);
-
-	if ((h = ast_heap_peek(timing_interfaces, 1))) {
-		res = h->iface->timer_get_max_rate(handle);
-	}
-
-	ast_heap_unlock(timing_interfaces);
+	res = handle->holder->iface->timer_get_max_rate(handle->fd);
 
 	return res;
 }
 
 static char *timing_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	int fd, count = 0;
+	struct ast_timer *timer;
+	int count = 0;
 	struct timeval start, end;
 	unsigned int test_rate = 50;
-	struct timing_holder *h;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -268,26 +238,21 @@ static char *timing_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 
 	ast_cli(a->fd, "Attempting to test a timer with %u ticks per second.\n", test_rate);
 
-	if ((fd = ast_timer_open()) == -1) {
+	if (!(timer = ast_timer_open())) {
 		ast_cli(a->fd, "Failed to open timing fd\n");
 		return CLI_FAILURE;
 	}
 
-	ast_heap_rdlock(timing_interfaces);
-	if ((h = ast_heap_peek(timing_interfaces, 1))) {
-		ast_cli(a->fd, "Using the '%s' timing module for this test.\n", h->iface->name);
-		h = NULL;
-	}
-	ast_heap_unlock(timing_interfaces);
+	ast_cli(a->fd, "Using the '%s' timing module for this test.\n", timer->holder->iface->name);
 
 	start = ast_tvnow();
 
-	ast_timer_set_rate(fd, test_rate);
+	ast_timer_set_rate(timer, test_rate);
 
 	while (ast_tvdiff_ms((end = ast_tvnow()), start) < 1000) {
 		int res;
 		struct pollfd pfd = {
-			.fd = fd,
+			.fd = ast_timer_fd(timer),
 			.events = POLLIN | POLLPRI,
 		};
 
@@ -295,7 +260,7 @@ static char *timing_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 
 		if (res == 1) {
 			count++;
-			ast_timer_ack(fd, 1);
+			ast_timer_ack(timer, 1);
 		} else if (!res) {
 			ast_cli(a->fd, "poll() timed out!  This is bad.\n");
 		} else if (errno != EAGAIN && errno != EINTR) {
@@ -303,7 +268,7 @@ static char *timing_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 		}
 	}
 
-	ast_timer_close(fd);
+	ast_timer_close(timer);
 
 	ast_cli(a->fd, "It has been %d milliseconds, and we got %d timer ticks\n", 
 		ast_tvdiff_ms(end, start), count);

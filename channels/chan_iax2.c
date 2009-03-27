@@ -257,7 +257,7 @@ static int max_reg_expire;
 
 static int srvlookup = 0;
 
-static int timingfd = -1;				/* Timing file descriptor */
+static struct ast_timer *timer;				/* Timer for trunking */
 
 static struct ast_netsock_list *netsock;
 static struct ast_netsock_list *outsock;		/*!< used if sourceaddress specified and bindaddr == INADDR_ANY */
@@ -7717,8 +7717,8 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 	if (iaxtrunkdebug)
 		ast_verbose("Beginning trunk processing. Trunk queue ceiling is %d bytes per host\n", trunkmaxsize);
 
-	if (timingfd > -1) { 
-		ast_timer_ack(timingfd, 1);
+	if (timer) { 
+		ast_timer_ack(timer, 1);
 	}
 
 	/* For each peer that supports trunking... */
@@ -10500,8 +10500,8 @@ static void *network_thread(void *ignore)
 	int res, count, wakeup;
 	struct iax_frame *f;
 
-	if (timingfd > -1)
-		ast_io_add(io, timingfd, timing_read, AST_IO_IN | AST_IO_PRI, NULL);
+	if (timer)
+		ast_io_add(io, ast_timer_fd(timer), timing_read, AST_IO_IN | AST_IO_PRI, NULL);
 	
 	for(;;) {
 		pthread_testcancel();
@@ -10809,7 +10809,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 				ast_string_field_set(peer, dbsecret, v->value);
 			} else if (!strcasecmp(v->name, "trunk")) {
 				ast_set2_flag(peer, ast_true(v->value), IAX_TRUNK);	
-				if (ast_test_flag(peer, IAX_TRUNK) && (timingfd < 0)) {
+				if (ast_test_flag(peer, IAX_TRUNK) && !timer) {
 					ast_log(LOG_WARNING, "Unable to support trunking on peer '%s' without a timing interface\n", peer->name);
 					ast_clear_flag(peer, IAX_TRUNK);
 				}
@@ -11076,7 +11076,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 				ast_parse_allow_disallow(&user->prefs, &user->capability,v->value, 0);
 			} else if (!strcasecmp(v->name, "trunk")) {
 				ast_set2_flag(user, ast_true(v->value), IAX_TRUNK);	
-				if (ast_test_flag(user, IAX_TRUNK) && (timingfd < 0)) {
+				if (ast_test_flag(user, IAX_TRUNK) && !timer) {
 					ast_log(LOG_WARNING, "Unable to support trunking on user '%s' without a timing interface\n", user->name);
 					ast_clear_flag(user, IAX_TRUNK);
 				}
@@ -12486,8 +12486,8 @@ static int __unload_module(void)
 	ao2_ref(users, -1);
 	ao2_ref(iax_peercallno_pvts, -1);
 	ao2_ref(iax_transfercallno_pvts, -1);
-	if (timingfd > -1) {
-		ast_timer_close(timingfd);
+	if (timer) {
+		ast_timer_close(timer);
 	}
 
 	con = ast_context_find(regcontext);
@@ -12627,9 +12627,8 @@ static int load_module(void)
 	ast_manager_register( "IAXnetstats", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_netstats, "Show IAX Netstats" );
 	ast_manager_register( "IAXregistry", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_registry, "Show IAX registrations");
 
-	timingfd = ast_timer_open();
-	if (timingfd > -1) {
-		ast_timer_set_rate(timingfd, trunkfreq);
+	if ((timer = ast_timer_open())) {
+		ast_timer_set_rate(timer, trunkfreq);
 	}
 
 	if (set_config(config, 0) == -1) {
