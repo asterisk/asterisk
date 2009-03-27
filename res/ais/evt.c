@@ -141,7 +141,7 @@ void evt_event_deliver_cb(SaEvtSubscriptionIdT sub_id,
 		return;
 	}
 
-	if (!ast_eid_cmp(&g_eid, ast_event_get_ie_raw(event, AST_EVENT_IE_EID))) {
+	if (!ast_eid_cmp(&ast_eid_default, ast_event_get_ie_raw(event, AST_EVENT_IE_EID))) {
 		/* Don't feed events back in that originated locally. */
 		return;
 	}
@@ -183,7 +183,7 @@ static void ast_event_cb(const struct ast_event *ast_event, void *data)
 
 	ast_log(LOG_DEBUG, "Got an event to forward\n");
 
-	if (ast_eid_cmp(&g_eid, ast_event_get_ie_raw(ast_event, AST_EVENT_IE_EID))) {
+	if (ast_eid_cmp(&ast_eid_default, ast_event_get_ie_raw(ast_event, AST_EVENT_IE_EID))) {
 		/* If the event didn't originate from this server, don't send it back out. */
 		ast_log(LOG_DEBUG, "Returning here\n");
 		return;

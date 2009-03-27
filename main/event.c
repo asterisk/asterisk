@@ -954,7 +954,7 @@ struct ast_event *ast_event_new(enum ast_event_type type, ...)
 	if (!ast_event_get_ie_raw(event, AST_EVENT_IE_EID)) {
 		/* If the event is originating on this server, add the server's
 		 * entity ID to the event. */
-		ast_event_append_ie_raw(&event, AST_EVENT_IE_EID, &g_eid, sizeof(g_eid));
+		ast_event_append_ie_raw(&event, AST_EVENT_IE_EID, &ast_eid_default, sizeof(ast_eid_default));
 	}
 
 	return event;
