@@ -1177,7 +1177,7 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	} 
 	ast_debug(4, "Fromstring now: %s\n", ast_strlen_zero(passdata) ? "-default-" : passdata);
 
-	fprintf(p, "Message-ID: <Asterisk-%d-%s-%d-%s>\n", (unsigned int)rand(), vmu->username, (int)getpid(), who);
+	fprintf(p, "Message-ID: <Asterisk-%d-%s-%d-%s>\n", (unsigned int)ast_random(), vmu->username, (int)getpid(), who);
 	len_passdata = strlen(vmu->fullname) * 2 + 3;
 	passdata2 = alloca(len_passdata);
 	if (!ast_strlen_zero(vmu->email))
@@ -1210,7 +1210,7 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	fprintf(p, "MIME-Version: 1.0\n");
 
 	/* Something unique. */
-	snprintf(bound, sizeof(bound), "voicemail_%s%d%d", vmu->username, (int)getpid(), (unsigned int)rand());
+	snprintf(bound, sizeof(bound), "voicemail_%s%d%d", vmu->username, (int)getpid(), (unsigned int)ast_random());
 
 	fprintf(p, "Content-Type: multipart/mixed; boundary=\"%s\"\n\n\n", bound);
 
