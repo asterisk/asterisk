@@ -360,7 +360,8 @@
  * Some commit history viewers treat the first line of commit messages as the
  * summary for the commit.  So, an effort should be made to format our commit
  * messages in that fashion.  The verbose description may contain multiple 
- * paragraphs, itemized lists, etc.
+ * paragraphs, itemized lists, etc. Always end the first sentence (and any
+ * subsequent sentences) with punctuation.
  *
  * Commit messages should be wrapped at 80 %columns.
  *
