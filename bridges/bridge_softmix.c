@@ -96,6 +96,16 @@ static int softmix_bridge_create(struct ast_bridge *bridge)
 	return 0;
 }
 
+/*! \brief Function called when a bridge is destroyed */
+static int softmix_bridge_destroy(struct ast_bridge *bridge)
+{
+	int timingfd = (unsigned long)bridge->bridge_pvt;
+
+	ast_timer_close(timingfd);
+
+	return 0;
+}
+
 /*! \brief Function called when a channel is joined into the bridge */
 static int softmix_bridge_join(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
@@ -263,8 +273,6 @@ static int softmix_bridge_thread(struct ast_bridge *bridge)
 		ao2_lock(bridge);
 	}
 
-	ast_timer_close(timingfd);
-
 	return 0;
 }
 
@@ -278,6 +286,7 @@ static struct ast_bridge_technology softmix_bridge = {
 	.formats = AST_FORMAT_SLINEAR,
 #endif
 	.create = softmix_bridge_create,
+	.destroy = softmix_bridge_destroy,
 	.join = softmix_bridge_join,
 	.leave = softmix_bridge_leave,
 	.write = softmix_bridge_write,
