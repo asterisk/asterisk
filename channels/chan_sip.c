@@ -4876,6 +4876,8 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 		return res;
 	}
 
+	do_setnat(dialog, ast_test_flag(&dialog->flags[0], SIP_NAT) & SIP_NAT_ROUTE);
+
 	ast_string_field_set(dialog, tohost, peername);
 
 	/* Get the outbound proxy information */
