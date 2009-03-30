@@ -134,10 +134,11 @@ static const struct misdn_cfg_spec port_spec[] = {
 	{ "callerid", MISDN_CFG_CALLERID, MISDN_CTYPE_STR, "", NONE,
 		"Sets the caller ID." },
 	{ "method", MISDN_CFG_METHOD, MISDN_CTYPE_STR, "standard", NONE,
-		"Sets the method to use for channel selection:\n"
-		"\t  standard    - always choose the first free channel with the lowest number\n"
-		"\t  round_robin - use the round robin algorithm to select a channel. use this\n"
-		"\t                if you want to balance your load." },
+		"Set the method to use for channel selection:\n"
+		"\t  standard     - Use the first free channel starting from the lowest number.\n"
+		"\t  standard_dec - Use the first free channel starting from the highest number.\n"
+		"\t  round_robin  - Use the round robin algorithm to select a channel. Use this\n"
+		"\t                 if you want to balance your load." },
 	{ "dialplan", MISDN_CFG_DIALPLAN, MISDN_CTYPE_INT, "0", NONE,
 		"Dialplan means Type Of Number in ISDN Terms (for outgoing calls)\n"
 		"\n"

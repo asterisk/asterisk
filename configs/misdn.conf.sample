@@ -269,10 +269,11 @@ need_more_infos=no
 ;
 nttimeout=no
 
-; set the method to use for channel selection:
-;   standard    - always choose the first free channel with the lowest number
-;   round_robin - use the round robin algorithm to select a channel. use this
-;                 if you want to balance your load.
+; Set the method to use for channel selection:
+;   standard     - Use the first free channel starting from the lowest number.
+;   standard_dec - Use the first free channel starting from the highest number.
+;   round_robin  - Use the round robin algorithm to select a channel. Use this
+;                  if you want to balance your load.
 ;
 ; default value: standard
 ;
