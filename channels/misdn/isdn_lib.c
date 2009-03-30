@@ -941,7 +941,7 @@ static int create_process(int midev, struct misdn_bchannel *bc)
 		bc->l3_id = l3_id;
 		cb_log(3, stack->port, " --> new_l3id %x\n", l3_id);
 	} else {
-		if (stack->ptp || bc->te_choose_channel) {
+		if ((stack->pri && stack->ptp) || bc->te_choose_channel) {
 			/* we know exactly which channels are in use */
 			if (find_free_chan_in_stack(stack, bc, bc->channel_preselected ? bc->channel : 0, bc->dec) < 0) {
 				return -1;
