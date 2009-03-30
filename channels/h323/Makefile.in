@@ -24,7 +24,9 @@ ifndef OPENH323DIR
 OPENH323DIR=@OPENH323DIR@
 endif
 
+ifneq ($(wildcard $(OPENH323DIR)/openh323u.mak),)
 include $(OPENH323DIR)/openh323u.mak
+endif
 
 notrace::
 	$(MAKE) NOTRACE=1 opt
