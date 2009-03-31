@@ -5489,6 +5489,11 @@ static int reload_queues(int reload)
 						struct member tmpmem;
 						membername = NULL;
 
+						if (ast_strlen_zero(var->value)) {
+							ast_log(LOG_WARNING, "Empty queue member definition at line %d. Moving on!\n", var->lineno);
+							continue;
+						}
+
 						/* Add a new member */
 						ast_copy_string(parse, var->value, sizeof(parse));
 						
