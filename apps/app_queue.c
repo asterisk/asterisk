@@ -5604,7 +5604,7 @@ static void reload_single_member(const char *memberdata, struct call_queue *q)
 	);
 
 	if (ast_strlen_zero(memberdata)) {
-		ast_log(LOG_WARNING, "Empty queue member definition at line %d. Moving on!\n", var->lineno);
+		ast_log(LOG_WARNING, "Empty queue member definition. Moving on!\n");
 		return;
 	}
 
