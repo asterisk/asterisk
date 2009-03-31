@@ -326,11 +326,6 @@ Dutch also uses:
 Spanish also uses:
 \arg \b vm-youhaveno
 
-Ukrainian requires the following additional soundfile:
-\arg \b vm-nove		'nove'
-\arg \b vm-stare	'stare'
-\arg \b digits/ua/1e	'odne'
-
 Italian requires the following additional soundfile:
 
 For vm_intro_it:
@@ -6401,7 +6396,8 @@ static int vm_intro_multilang(struct ast_channel *chan, struct vm_state *vms, co
 	if (!res) {
 		if (lastnum == 0) {
 			res = ast_play_and_wait(chan, "vm-no");
-		} else {
+		}
+		if (!res) {
 			res = ast_say_counted_noun(chan, lastnum, "vm-message");
 		}
 	}
