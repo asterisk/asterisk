@@ -615,11 +615,11 @@ static int gtalk_is_answered(struct gtalk *client, ikspak *pak)
 	}
 
 	/* codec points to the first <payload-type/> tag */
-	codec = iks_child(iks_child(iks_child(pak->x)));
+	codec = iks_first_tag(iks_first_tag(iks_first_tag(pak->x)));
 	while (codec) {
 		ast_rtp_set_m_type(tmp->rtp, atoi(iks_find_attrib(codec, "id")));
 		ast_rtp_set_rtpmap_type(tmp->rtp, atoi(iks_find_attrib(codec, "id")), "audio", iks_find_attrib(codec, "name"), 0);
-		codec = iks_next(codec);
+		codec = iks_next_tag(codec);
 	}
 	
 	/* Now gather all of the codecs that we are asked for */
@@ -1204,12 +1204,12 @@ static int gtalk_newcall(struct gtalk *client, ikspak *pak)
 	}
 
 	/* codec points to the first <payload-type/> tag */	
-	codec = iks_child(iks_child(iks_child(pak->x)));
+	codec = iks_first_tag(iks_first_tag(iks_first_tag(pak->x)));
 	
 	while (codec) {
 		ast_rtp_set_m_type(p->rtp, atoi(iks_find_attrib(codec, "id")));
 		ast_rtp_set_rtpmap_type(p->rtp, atoi(iks_find_attrib(codec, "id")), "audio", iks_find_attrib(codec, "name"), 0);
-		codec = iks_next(codec);
+		codec = iks_next_tag(codec);
 	}
 	
 	/* Now gather all of the codecs that we are asked for */
@@ -1323,11 +1323,11 @@ static int gtalk_add_candidate(struct gtalk *client, ikspak *pak)
 	traversenodes = pak->query;
 	while(traversenodes) {
 		if(!strcasecmp(iks_name(traversenodes), "session")) {
-			traversenodes = iks_child(traversenodes);
+			traversenodes = iks_first_tag(traversenodes);
 			continue;
 		}
 		if(!strcasecmp(iks_name(traversenodes), "transport")) {
-			traversenodes = iks_child(traversenodes);
+			traversenodes = iks_first_tag(traversenodes);
 			continue;
 		}
 		if(!strcasecmp(iks_name(traversenodes), "candidate")) {
@@ -1366,7 +1366,7 @@ static int gtalk_add_candidate(struct gtalk *client, ikspak *pak)
 			gtalk_update_stun(p->parent, p);
 			newcandidate = NULL;
 		}
-		traversenodes = iks_next(traversenodes);
+		traversenodes = iks_next_tag(traversenodes);
 	}
 	
 	receipt = iks_new("iq");
