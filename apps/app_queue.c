@@ -1630,7 +1630,7 @@ static struct call_queue *alloc_queue(const char *queuename)
 
 	if ((q = ao2_alloc(sizeof(*q), destroy_queue))) {
 		if (ast_string_field_init(q, 64)) {
-			free(q);
+			ao2_ref(q, -1);
 			return NULL;
 		}
 		ast_string_field_set(q, name, queuename);
