@@ -5603,6 +5603,11 @@ static void reload_single_member(const char *memberdata, struct call_queue *q)
 		AST_APP_ARG(state_interface);
 	);
 
+	if (ast_strlen_zero(memberdata)) {
+		ast_log(LOG_WARNING, "Empty queue member definition at line %d. Moving on!\n", var->lineno);
+		return;
+	}
+
 	/* Add a new member */
 	parse = ast_strdupa(memberdata);
 				
