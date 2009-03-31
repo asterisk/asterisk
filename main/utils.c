@@ -1469,7 +1469,32 @@ void ast_join(char *s, size_t len, char * const w[])
  * stringfields support routines.
  */
 
-const char __ast_string_field_empty[] = ""; /*!< the empty string */
+/* this is a little complex... string fields are stored with their
+   allocated size in the bytes preceding the string; even the
+   constant 'empty' string has to be this way, so the code that
+   checks to see if there is enough room for a new string doesn't
+   have to have any special case checks
+*/
+
+static const struct {
+	ast_string_field_allocation allocation;
+	char string[1];
+} __ast_string_field_empty_buffer;
+
+ast_string_field __ast_string_field_empty = __ast_string_field_empty_buffer.string;
+
+#define ALLOCATOR_OVERHEAD 48
+
+static size_t optimal_alloc_size(size_t size)
+{
+	unsigned int count;
+
+	size += ALLOCATOR_OVERHEAD;
+
+	for (count = 1; size; size >>= 1, count++);
+
+	return (1 << count) - ALLOCATOR_OVERHEAD;
+}
 
 /*! \brief add a new block to the pool.
  * We can only allocate from the topmost pool, so the
@@ -1480,14 +1505,15 @@ static int add_string_pool(struct ast_string_field_mgr *mgr,
 			   size_t size)
 {
 	struct ast_string_field_pool *pool;
+	size_t alloc_size = optimal_alloc_size(sizeof(*pool) + size);
 
-	if (!(pool = ast_calloc(1, sizeof(*pool) + size)))
+	if (!(pool = ast_calloc(1, alloc_size))) {
 		return -1;
-	
+	}
+
 	pool->prev = *pool_head;
+	pool->size = alloc_size - sizeof(*pool);
 	*pool_head = pool;
-	mgr->size = size;
-	mgr->used = 0;
 	mgr->last_alloc = NULL;
 
 	return 0;
@@ -1511,13 +1537,16 @@ int __ast_string_field_init(struct ast_string_field_mgr *mgr,
 	struct ast_string_field_pool *cur = *pool_head;
 
 	/* clear fields - this is always necessary */
-	while ((struct ast_string_field_mgr *) p != mgr)
+	while ((struct ast_string_field_mgr *) p != mgr) {
 		*p++ = __ast_string_field_empty;
+	}
+
 	mgr->last_alloc = NULL;
 	if (size > 0) {			/* allocate the initial pool */
 		*pool_head = NULL;
 		return add_string_pool(mgr, pool_head, size);
 	}
+
 	if (size < 0) {			/* reset all pools */
 		*pool_head = NULL;
 	} else {			/* preserve the first pool */
@@ -1527,7 +1556,7 @@ int __ast_string_field_init(struct ast_string_field_mgr *mgr,
 		}
 		cur = cur->prev;
 		(*pool_head)->prev = NULL;
-		mgr->used = 0;
+		(*pool_head)->used = (*pool_head)->active = 0;
 	}
 
 	while (cur) {
@@ -1544,33 +1573,36 @@ ast_string_field __ast_string_field_alloc_space(struct ast_string_field_mgr *mgr
 						struct ast_string_field_pool **pool_head, size_t needed)
 {
 	char *result = NULL;
-	size_t space = mgr->size - mgr->used;
+	size_t space = (*pool_head)->size - (*pool_head)->used;
+	size_t to_alloc = needed + sizeof(ast_string_field_allocation);
 
-	if (__builtin_expect(needed > space, 0)) {
-		size_t new_size = mgr->size * 2;
+	if (__builtin_expect(to_alloc > space, 0)) {
+		size_t new_size = (*pool_head)->size;
 
-		while (new_size < needed)
+		while (new_size < to_alloc) {
 			new_size *= 2;
+		}
 
 		if (add_string_pool(mgr, pool_head, new_size))
 			return NULL;
 	}
 
-	result = (*pool_head)->base + mgr->used;
-	mgr->used += needed;
+	result = (*pool_head)->base + (*pool_head)->used;
+	(*pool_head)->used += to_alloc;
+	(*pool_head)->active += needed;
+	result += sizeof(ast_string_field_allocation);
+	AST_STRING_FIELD_ALLOCATION(result) = needed;
 	mgr->last_alloc = result;
+
 	return result;
 }
 
-int __ast_string_field_ptr_grow(struct ast_string_field_mgr *mgr, size_t needed,
+int __ast_string_field_ptr_grow(struct ast_string_field_mgr *mgr,
+				struct ast_string_field_pool **pool_head, size_t needed,
 				const ast_string_field *ptr)
 {
-	int grow = needed - (strlen(*ptr) + 1);
-	size_t space = mgr->size - mgr->used;
-
-	if (grow <= 0) {
-		return 0;
-	}
+	ssize_t grow = needed - AST_STRING_FIELD_ALLOCATION(*ptr);
+	size_t space = (*pool_head)->size - (*pool_head)->used;
 
 	if (*ptr != mgr->last_alloc) {
 		return 1;
@@ -1580,9 +1612,32 @@ int __ast_string_field_ptr_grow(struct ast_string_field_mgr *mgr, size_t needed,
 		return 1;
 	}
 
-	mgr->used += grow;
+	(*pool_head)->used += grow;
+	(*pool_head)->active += grow;
+	AST_STRING_FIELD_ALLOCATION(*ptr) += grow;
 
 	return 0;
+}
+
+void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
+				       const ast_string_field ptr)
+{
+	struct ast_string_field_pool *pool, *prev;
+
+	if (ptr == __ast_string_field_empty) {
+		return;
+	}
+
+	for (pool = pool_head, prev = NULL; pool; prev = pool, pool = pool->prev) {
+		if ((ptr >= pool->base) && (ptr <= (pool->base + pool->size))) {
+			pool->active -= AST_STRING_FIELD_ALLOCATION(ptr);
+			if ((pool->active == 0) && prev) {
+				prev->prev = pool->prev;
+				ast_free(pool);
+			}
+			break;
+		}
+	}
 }
 
 void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
@@ -1591,19 +1646,23 @@ void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 {
 	size_t needed;
 	size_t available;
-	size_t space = mgr->size - mgr->used;
+	size_t space = (*pool_head)->size - (*pool_head)->used;
+	ssize_t grow;
 	char *target;
 
 	/* if the field already has space allocated, try to reuse it;
-	   otherwise, use the empty space at the end of the current
+	   otherwise, try to use the empty space at the end of the current
 	   pool
 	*/
-	if ((*ptr)[0] != '\0') {
+	if (*ptr != __ast_string_field_empty) {
 		target = (char *) *ptr;
-		available = strlen(target) + 1;
+		available = AST_STRING_FIELD_ALLOCATION(*ptr);
+		if (*ptr == mgr->last_alloc) {
+			available += space;
+		}
 	} else {
-		target = (*pool_head)->base + mgr->used;
-		available = space;
+		target = (*pool_head)->base + (*pool_head)->used + sizeof(ast_string_field_allocation);
+		available = space - sizeof(ast_string_field_allocation);
 	}
 
 	needed = vsnprintf(target, available, format, ap1) + 1;
@@ -1611,28 +1670,32 @@ void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 	va_end(ap1);
 
 	if (needed > available) {
-		/* if the space needed can be satisfied by using the current
-		   pool (which could only occur if we tried to use the field's
-		   allocated space and failed), then use that space; otherwise
-		   allocate a new pool
+		/* the allocation could not be satisfied using the field's current allocation
+		   (if it has one), or the space available in the pool (if it does not). allocate
+		   space for it, adding a new string pool if necessary.
 		*/
-		if (needed > space) {
-			size_t new_size = mgr->size * 2;
-
-			while (new_size < needed)
-				new_size *= 2;
-			
-			if (add_string_pool(mgr, pool_head, new_size))
-				return;
+		if (!(target = (char *) __ast_string_field_alloc_space(mgr, pool_head, needed))) {
+			return;
 		}
-
-		target = (*pool_head)->base + mgr->used;
 		vsprintf(target, format, ap2);
-	}
-
-	if (*ptr != target) {
+		__ast_string_field_release_active(*pool_head, *ptr);
+		*ptr = target;
+	} else if (*ptr != target) {
+		/* the allocation was satisfied using available space in the pool, but not
+		   using the space already allocated to the field
+		*/
+		__ast_string_field_release_active(*pool_head, *ptr);
 		mgr->last_alloc = *ptr = target;
-		mgr->used += needed;
+		AST_STRING_FIELD_ALLOCATION(target) = needed;
+		(*pool_head)->used += needed + sizeof(ast_string_field_allocation);
+		(*pool_head)->active += needed;
+	} else if ((grow = (needed - AST_STRING_FIELD_ALLOCATION(*ptr))) > 0) {
+		/* the allocation was satisfied by using available space in the pool *and*
+		   the field was the last allocated field from the pool, so it grew
+		*/
+		(*pool_head)->used += grow;
+		(*pool_head)->active += grow;
+		AST_STRING_FIELD_ALLOCATION(*ptr) += grow;
 	}
 }
 

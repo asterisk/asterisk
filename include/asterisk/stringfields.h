@@ -57,25 +57,23 @@
 
   Fields will default to pointing to an empty string, and will revert to
   that when ast_string_field_set() is called with a NULL argument.
-  A string field will \b never contain NULL (this feature is not used
-  in this code, but comes from external requirements).
+  A string field will \b never contain NULL.
 
   ast_string_field_init(x, 0) will reset fields to the
   initial value while keeping the pool allocated.
   
   Reading the fields is much like using 'const char * const' fields in the
-  structure: you cannot write to the field or to the memory it points to
-  (XXX perhaps the latter is too much of a restriction since values
-  are not shared).
+  structure: you cannot write to the field or to the memory it points to.
 
   Writing to the fields must be done using the wrapper macros listed below;
   and assignments are always by value (i.e. strings are copied):
   * ast_string_field_set() stores a simple value;
-  * ast_string_field_build() builds the string using a printf-style;
+  * ast_string_field_build() builds the string using a printf-style format;
   * ast_string_field_build_va() is the varargs version of the above (for
-    portability reasons it uses two vararg);
+    portability reasons it uses two vararg arguments);
   * variants of these function allow passing a pointer to the field
     as an argument.
+
   \code
   ast_string_field_set(x, foo, "infinite loop");
   ast_string_field_set(x, foo, NULL); // set to an empty string
@@ -110,6 +108,9 @@
 
   Don't declare instances of this type directly; use the AST_STRING_FIELD()
   macro instead.
+
+  In addition to the string itself, the amount of space allocated for the
+  field is stored in the two bytes immediately preceding it.
 */
 typedef const char * ast_string_field;
 
@@ -117,7 +118,7 @@ typedef const char * ast_string_field;
   \internal
   \brief A constant empty string used for fields that have no other value
 */
-extern const char __ast_string_field_empty[];
+extern const char *__ast_string_field_empty;
 
 /*!
   \internal
@@ -125,18 +126,17 @@ extern const char __ast_string_field_empty[];
 */
 struct ast_string_field_pool {
 	struct ast_string_field_pool *prev;	/*!< pointer to the previous pool, if any */
+	size_t size;				/*!< the total size of the pool */
+	size_t used;				/*!< the space used in the pool */
+	size_t active;				/*!< the amount of space actively in use by fields */
 	char base[0];				/*!< storage space for the fields */
 };
 
 /*!
   \internal
   \brief Structure used to manage the storage for a set of string fields.
-  Because of the way pools are managed, we can only allocate from the topmost
-  pool, so the numbers here reflect just that.
 */
 struct ast_string_field_mgr {
-	size_t size;				/*!< the total size of the current pool */
-	size_t used;				/*!< the space used in the current pool */
 	ast_string_field last_alloc;		/*!< the last field allocated */
 };
 
@@ -154,7 +154,8 @@ struct ast_string_field_mgr {
   the pool has enough space available. If so, the additional space will be
   allocated to this field and the field's address will not be changed.
 */
-int __ast_string_field_ptr_grow(struct ast_string_field_mgr *mgr, size_t needed,
+int __ast_string_field_ptr_grow(struct ast_string_field_mgr *mgr,
+				struct ast_string_field_pool **pool_head, size_t needed,
 				const ast_string_field *ptr);
 
 /*!
@@ -176,7 +177,7 @@ ast_string_field __ast_string_field_alloc_space(struct ast_string_field_mgr *mgr
   \internal
   \brief Set a field to a complex (built) value
   \param mgr Pointer to the pool manager structure
-  \param fields Pointer to the first entry of the field array
+  \param pool_head Pointer to the current pool
   \param ptr Pointer to a field within the structure
   \param format printf-style format string
   \return nothing
@@ -189,7 +190,7 @@ void __ast_string_field_ptr_build(struct ast_string_field_mgr *mgr,
   \internal
   \brief Set a field to a complex (built) value
   \param mgr Pointer to the pool manager structure
-  \param fields Pointer to the first entry of the field array
+  \param pool_head Pointer to the current pool
   \param ptr Pointer to a field within the structure
   \param format printf-style format string
   \param args va_list of the args for the format_string
@@ -242,29 +243,55 @@ void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 
 /*! \internal \brief internal version of ast_string_field_init */
 int __ast_string_field_init(struct ast_string_field_mgr *mgr,
-	struct ast_string_field_pool **pool_head, int needed);
+			    struct ast_string_field_pool **pool_head, int needed);
+
+/*!
+  \internal
+  \brief Release a field's allocation from a pool
+  \param pool_head Pointer to the current pool
+  \param ptr Field to be released
+  \return nothing
+
+  This function will search the pool list to find the pool that contains
+  the allocation for the specified field, then remove the field's allocation
+  from that pool's 'active' count. If the pool's active count reaches zero,
+  and it is not the current pool, then it will be freed.
+ */
+void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
+				       const ast_string_field ptr);
+
+/* the type of storage used to track how many bytes were allocated for a field */
+
+typedef uint16_t ast_string_field_allocation;
+
+/*!
+  \brief Macro to provide access to the allocation field that lives immediately in front of a string field
+  \param x Pointer to the string field
+*/
+#define AST_STRING_FIELD_ALLOCATION(x) *((ast_string_field_allocation *) (x - sizeof(ast_string_field_allocation)))
 
 /*!
   \brief Set a field to a simple string value
   \param x Pointer to a structure containing fields
   \param ptr Pointer to a field within the structure
-  \param data String value to be copied into the field
+  \param data String value to be copied into the field 
   \return nothing
 */
-#define ast_string_field_ptr_set(x, ptr, data) do { 		\
-	const char *__d__ = (data);				\
-	size_t __dlen__ = (__d__) ? strlen(__d__) + 1 : 1;	\
-	const char **__p__ = (const char **) (ptr);		\
-	char *__q__; \
-	if (__dlen__ == 1)					\
-		*__p__ = __ast_string_field_empty;		\
-	else if (!__ast_string_field_ptr_grow(&(x)->__field_mgr, __dlen__, ptr)) { \
-		__q__ = (char *) *__p__; \
-		memcpy(__q__, __d__, __dlen__);	\
-	} else if ((*__p__ = __ast_string_field_alloc_space(&(x)->__field_mgr, &(x)->__field_mgr_pool, __dlen__))) { \
-		__q__ = (char *) *__p__; \
-		memcpy(__q__, __d__, __dlen__);	\
-	} \
+#define ast_string_field_ptr_set(x, ptr, data) do {									\
+	const char *__d__ = (data);											\
+	size_t __dlen__ = (__d__) ? strlen(__d__) + 1 : 1;								\
+	ast_string_field *__p__ = (ast_string_field *) (ptr);								\
+	if (__dlen__ == 1) {												\
+		__ast_string_field_release_active((x)->__field_mgr_pool, *__p__);					\
+		*__p__ = __ast_string_field_empty;									\
+	} else if ((__dlen__ <= AST_STRING_FIELD_ALLOCATION(*__p__)) ||							\
+		   (!__ast_string_field_ptr_grow(&(x)->__field_mgr, &(x)->__field_mgr_pool, __dlen__, __p__)) ||	\
+		   (*__p__ = __ast_string_field_alloc_space(&(x)->__field_mgr, &(x)->__field_mgr_pool, __dlen__))) {	\
+		if (*__p__ != (*ptr)) {											\
+			__ast_string_field_release_active((x)->__field_mgr_pool, (*ptr));				\
+		}													\
+		memcpy((void *) *__p__, __d__, __dlen__);								\
+	}														\
 	} while (0)
 
 /*!
