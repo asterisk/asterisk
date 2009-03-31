@@ -2215,9 +2215,7 @@ static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 			 * the packet's retransid will be set to -1. The atomicity of the setting and checking
 			 * of the retransid to -1 is ensured since in both cases p's lock is held.
 			 */
-			while (cur->retransid > -1 && ast_sched_del(sched, cur->retransid)) {
-				DEADLOCK_AVOIDANCE(&p->lock);
-			}
+			AST_SCHED_DEL_SPINLOCK(sched, cur->retransid, &p->lock);
 			free(cur);
 			break;
 		}
