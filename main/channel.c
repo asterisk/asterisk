@@ -2328,6 +2328,13 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					ast_clear_flag(chan, AST_FLAG_EMULATE_DTMF);
 					chan->emulate_dtmf_digit = 0;
 					ast_log(LOG_DTMF, "DTMF end emulation of '%c' queued on %s\n", f->subclass, chan->name);
+					if (chan->audiohooks) {
+						struct ast_frame *old_frame = f;
+						f = ast_audiohook_write_list(chan, chan->audiohooks, AST_AUDIOHOOK_DIRECTION_READ, f);
+						if (old_frame != f) {
+							ast_frfree(old_frame);
+						}
+					}
 				}
 			}
 			break;
