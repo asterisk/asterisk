@@ -1787,13 +1787,11 @@ static int action_hangup(struct mansession *s, const struct message *m)
 		return 0;
 	}
 	if (causecode > 0) {
-		if (option_debug >= 1) {
-			ast_log(LOG_DEBUG, "Setting hangupcause of channel %s to %d (is %d now)\n",
+		ast_debug(1, "Setting hangupcause of channel %s to %d (is %d now)\n",
 				c->name, causecode, c->hangupcause);
-		}
 		c->hangupcause = causecode;
 	}
-	ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
+	ast_softhangup_nolock(c, AST_SOFTHANGUP_EXPLICIT);
 	ast_channel_unlock(c);
 	astman_send_ack(s, m, "Channel Hungup");
 	return 0;
