@@ -998,9 +998,12 @@ static struct sip_pvt {
 	char lastmsg[256];			/*!< Last Message sent/received */
 	int amaflags;				/*!< AMA Flags */
 	int pendinginvite;			/*!< Any pending INVITE or state NOTIFY (in subscribe pvt's) ? (seqno of this) */
+	int glareinvite;			/*!< A invite received while a pending invite is already present is stored here.  Its seqno is the
+						value. Since this glare invite's seqno is not the same as the pending invite's, it must be 
+						held in order to properly process acknowledgements for our 491 response. */
 	struct sip_request initreq;		/*!< Request that opened the latest transaction
 						     within this SIP dialog */
-	
+
 	int maxtime;				/*!< Max time for first response */
 	int initid;				/*!< Auto-congest ID if appropriate (scheduler) */
 	int waitid;				/*!< Wait ID for scheduler after 491 or other delays */
@@ -12313,7 +12316,7 @@ static void check_pendings(struct sip_pvt *p)
 				ast_log(LOG_DEBUG, "Sending pending reinvite on '%s'\n", p->callid);
 			/* Didn't get to reinvite yet, so do it now */
 			transmit_reinvite_with_sdp(p);
-			ast_clear_flag(&p->flags[0], SIP_NEEDREINVITE);	
+			ast_clear_flag(&p->flags[0], SIP_NEEDREINVITE);
 		}
 	}
 }
@@ -12322,12 +12325,15 @@ static void check_pendings(struct sip_pvt *p)
 	to avoid race conditions between asterisk servers.
 	Called from the scheduler.
 */
-static int sip_reinvite_retry(const void *data) 
+static int sip_reinvite_retry(const void *data)
 {
 	struct sip_pvt *p = (struct sip_pvt *) data;
 
-	ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);	
+	ast_mutex_lock(&p->lock); /* called from schedule thread which requires a lock */
+	ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);
 	p->waitid = -1;
+	check_pendings(p);
+	ast_mutex_unlock(&p->lock);
 	return 0;
 }
 
@@ -12340,7 +12346,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	int xmitres = 0;
 	int reinvite = (p->owner && p->owner->_state == AST_STATE_UP);
 	struct ast_channel *bridgepeer = NULL;
-	
+
 	if (option_debug > 3) {
 		if (reinvite)
 			ast_log(LOG_DEBUG, "SIP response %d to RE-invite on %s call %s\n", resp, outgoing ? "outgoing" : "incoming", p->callid);
@@ -12617,13 +12623,20 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		if (p->owner && !ast_test_flag(req, SIP_PKT_IGNORE)) {
 			if (p->owner->_state != AST_STATE_UP) {
 				ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
-				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
 			} else {
 				/* This is a re-invite that failed.
 				 * Reset the flag after a while 
 				 */
-				int wait = 3 + ast_random() % 5;
-				p->waitid = ast_sched_add(sched, wait, sip_reinvite_retry, p); 
+				int wait;
+				/* RFC 3261, if owner of call, wait between 2.1 to 4 seconds,
+				 * if not owner of call, wait 0 to 2 seconds */
+				if (ast_test_flag(&p->flags[1], SIP_PAGE2_OUTGOING_CALL)) {
+					wait = 2100 + ast_random() % 2000;
+				} else {
+					wait = ast_random() % 2000;
+				}
+				p->waitid = ast_sched_add(sched, wait, sip_reinvite_retry, p);
 				if (option_debug > 2)
 					ast_log(LOG_DEBUG, "Reinvite race. Waiting %d secs before retry\n", wait);
 			}
@@ -14322,6 +14335,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	
 	if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->pendinginvite) {
 		/* We already have a pending invite. Sorry. You are on hold. */
+		p->glareinvite = seqno;
 		transmit_response_reliable(p, "491 Request Pending", req);
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Got INVITE on call where we already have pending INVITE, deferring that - %s\n", p->callid);
@@ -15972,8 +15986,12 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			if (find_sdp(req)) {
 				if (process_sdp(p, req))
 					return -1;
-			} 
+			}
 			check_pendings(p);
+		} else if (p->glareinvite == seqno) {
+			/* handle ack for the 491 pending send for glareinvite */
+			p->glareinvite = 0;
+			__sip_ack(p, seqno, 1, 0);
 		}
 		/* Got an ACK that we did not match. Ignore silently */
 		if (!p->lastinvite && ast_strlen_zero(p->randdata))
