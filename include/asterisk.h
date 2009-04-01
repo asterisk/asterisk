@@ -146,10 +146,10 @@ char *ast_complete_source_filename(const char *partial, int n);
  *
  * (note, this must be documented a lot more)
  * ast_add_profile allocates a generic 'counter' with a given name,
- * which can be shown with the command 'show profile <name>'
+ * which can be shown with the command 'core show profile &lt;name&gt;'
  *
  * The counter accumulates positive or negative values supplied by
- * ast_add_profile(), dividing them by the 'scale' value passed in the
+ * \see ast_add_profile(), dividing them by the 'scale' value passed in the
  * create call, and also counts the number of 'events'.
  * Values can also be taked by the TSC counter on ia32 architectures,
  * in which case you can mark the start of an event calling ast_mark(id, 1)

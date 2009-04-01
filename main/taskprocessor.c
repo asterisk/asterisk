@@ -84,10 +84,10 @@ struct ast_taskprocessor {
 /*! \brief tps_singletons is the astobj2 container for taskprocessor singletons */
 static struct ao2_container *tps_singletons;
 
-/*! \brief CLI 'taskprocessor ping <blah>' operation requires a ping condition */
+/*! \brief CLI <example>taskprocessor ping &lt;blah&gt;</example> operation requires a ping condition */
 static ast_cond_t cli_ping_cond;
 
-/*! \brief CLI 'taskprocessor ping <blah>' operation requires a ping condition lock */
+/*! \brief CLI <example>taskprocessor ping &lt;blah&gt;</example> operation requires a ping condition lock */
 AST_MUTEX_DEFINE_STATIC(cli_ping_cond_lock);
 
 /*! \brief The astobj2 hash callback for taskprocessors */
@@ -101,7 +101,7 @@ static void *tps_processing_function(void *data);
 /*! \brief Destroy the taskprocessor when its refcount reaches zero */
 static void tps_taskprocessor_destroy(void *tps);
 
-/*! \brief CLI 'taskprocessor ping <blah>' handler function */
+/*! \brief CLI <example>taskprocessor ping &lt;blah&gt;</example> handler function */
 static int tps_ping_handler(void *datap);
 
 /*! \brief Remove the front task off the taskprocessor queue */

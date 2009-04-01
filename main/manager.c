@@ -499,7 +499,7 @@ static struct ast_manager_user *get_manager_by_name_locked(const char *name)
 }
 
 /*! \brief Get displayconnects config option.
- *  \param s manager session to get parameter from.
+ *  \param session manager session to get parameter from.
  *  \return displayconnects config option value.
  */
 static int manager_displayconnects (struct mansession_session *session)
