@@ -35,7 +35,7 @@
 
 typedef enum { ODBC_SUCCESS=0, ODBC_FAIL=-1} odbc_status;
 
-/*! \brief Flags for use with ast_odbc_request_obj2 */
+/*! \brief Flags for use with \see ast_odbc_request_obj2 */
 enum {
 	RES_ODBC_SANITY_CHECK = (1 << 0),
 	RES_ODBC_INDEPENDENT_CONNECTION = (1 << 1),
@@ -102,7 +102,7 @@ int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt) __attribute__((d
 /*! 
  * \brief Retrieves a connected ODBC object
  * \param name The name of the ODBC class for which a connection is needed.
- * \param check Whether to ensure that a connection is valid before returning the handle.  Usually unnecessary.
+ * \param flags Set of flags used to control which connection is returned.
  * \retval ODBC object 
  * \retval  NULL if there is no connection available with the requested name.
  *
@@ -129,7 +129,7 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check);
  * \brief Retrieve a stored ODBC object, if a transaction has been started.
  * \param chan Channel associated with the transaction.
  * \param objname Name of the database handle.  This name corresponds to the name passed
- * to ast_odbc_request_obj2 (or formerly, to ast_odbc_request_obj).  Note that the
+ * to \see ast_odbc_request_obj2 (or formerly, to ast_odbc_request_obj).  Note that the
  * existence of this parameter name explicitly allows for multiple transactions to be open
  * at once, albeit to different databases.
  * \retval A stored ODBC object, if a transaction was already started.
@@ -180,7 +180,7 @@ SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_c
 /*!
  * \brief Find or create an entry describing the table specified.
  * \param database Name of an ODBC class on which to query the table
- * \param table Tablename to describe
+ * \param tablename Tablename to describe
  * \retval A structure describing the table layout, or NULL, if the table is not found or another error occurs.
  * When a structure is returned, the contained columns list will be
  * rdlock'ed, to ensure that it will be retained in memory.
@@ -200,7 +200,7 @@ struct odbc_cache_columns *ast_odbc_find_column(struct odbc_cache_tables *table,
 /*!
  * \brief Remove a cache entry from memory
  * \param database Name of an ODBC class (used to ensure like-named tables in different databases are not confused)
- * \param table Tablename for which a cached record should be removed
+ * \param tablename Tablename for which a cached record should be removed
  * \retval 0 if the cache entry was removed, or -1 if no matching entry was found.
  * \since 1.6.1
  */
@@ -213,7 +213,7 @@ int ast_odbc_clear_cache(const char *database, const char *tablename);
 
 /*!\brief Wrapper for SQLGetData to use with dynamic strings
  * \param buf Address of the pointer to the ast_str structure.
- * \param maxlen The maximum size of the resulting string, or 0 for no limit.
+ * \param pmaxlen The maximum size of the resulting string, or 0 for no limit.
  * \param StatementHandle The statement handle from which to retrieve data.
  * \param ColumnNumber Column number (1-based offset) for which to retrieve data.
  * \param TargetType The SQL constant indicating what kind of data is to be retrieved (usually SQL_CHAR)

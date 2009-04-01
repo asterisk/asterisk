@@ -451,7 +451,7 @@ void ast_str_trim_blanks(struct ast_str *buf),
 )
 
 /*!\brief Returns the current length of the string stored within buf.
- * \param A pointer to the ast_str string.
+ * \param buf A pointer to the ast_str structure.
  */
 AST_INLINE_API(
 size_t attribute_pure ast_str_strlen(struct ast_str *buf),
@@ -461,7 +461,8 @@ size_t attribute_pure ast_str_strlen(struct ast_str *buf),
 )
 
 /*!\brief Returns the current maximum length (without reallocation) of the current buffer.
- * \param A pointer to the ast_str string.
+ * \param buf A pointer to the ast_str structure.
+ * \retval Current maximum length of the buffer.
  */
 AST_INLINE_API(
 size_t attribute_pure ast_str_size(struct ast_str *buf),
@@ -471,7 +472,8 @@ size_t attribute_pure ast_str_size(struct ast_str *buf),
 )
 
 /*!\brief Returns the string buffer within the ast_str buf.
- * \param A pointer to the ast_str string.
+ * \param buf A pointer to the ast_str structure.
+ * \retval A pointer to the enclosed string.
  */
 AST_INLINE_API(
 char * attribute_pure ast_str_buffer(struct ast_str *buf),
@@ -480,6 +482,11 @@ char * attribute_pure ast_str_buffer(struct ast_str *buf),
 }
 )
 
+/*!\brief Truncates the enclosed string to the given length.
+ * \param buf A pointer to the ast_str structure.
+ * \param len Maximum length of the string.
+ * \retval A pointer to the resulting string.
+ */
 AST_INLINE_API(
 char *ast_str_truncate(struct ast_str *buf, ssize_t len),
 {

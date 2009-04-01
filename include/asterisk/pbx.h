@@ -37,12 +37,13 @@ extern "C" {
 #define AST_PBX_KEEP    0
 #define AST_PBX_REPLACE 1
 
-/*! \brief Special return values from applications to the PBX { */
+/*! \brief Special return values from applications to the PBX
+ * @{ */
 #define AST_PBX_HANGUP                -1    /*!< Jump to the 'h' exten */
 #define AST_PBX_OK                     0    /*!< No errors */
 #define AST_PBX_ERROR                  1    /*!< Jump to the 'e' exten */
 #define AST_PBX_INCOMPLETE             12   /*!< Return to PBX matching, allowing more digits for the extension */
-/*! } */
+/*! @} */
 
 #define PRIORITY_HINT	-1	/*!< Special Priority for a hint */
 
@@ -134,7 +135,8 @@ int ast_check_timing(const struct ast_timing *i);
 
 /*!\brief Deallocates memory structures associated with a timing bitmap.
  * \param i Pointer to an ast_timing structure.
- * \retval Returns 0 on success or a number suitable for passing into strerror, otherwise.
+ * \retval 0 success
+ * \retval non-zero failure (number suitable to pass to \see strerror)
  */
 int ast_destroy_timing(struct ast_timing *i);
 
@@ -152,7 +154,8 @@ struct ast_pbx {
  * This function registers a populated ast_switch structure with the
  * asterisk switching architecture.
  *
- * \return 0 on success, and other than 0 on failure
+ * \retval 0 success
+ * \retval non-zero failure
  */
 int ast_register_switch(struct ast_switch *sw);
 
@@ -191,7 +194,8 @@ struct ast_app *pbx_findapp(const char *app);
  * saves the stack and executes the given application passing in
  * the given data.
  *
- * \return 0 on success, and -1 on failure
+ * \retval 0 success
+ * \retval -1 failure
  */
 int pbx_exec(struct ast_channel *c, struct ast_app *app, void *data);
 
@@ -251,7 +255,7 @@ void ast_context_destroy(struct ast_context *con, const char *registrar);
  */
 struct ast_context *ast_context_find(const char *name);
 
-/*! \brief The result codes when starting the PBX on a channelwith \see ast_pbx_start.
+/*! \brief The result codes when starting the PBX on a channel with \see ast_pbx_start.
 	AST_PBX_CALL_LIMIT refers to the maxcalls call limit in asterisk.conf
  */
 enum ast_pbx_result {
@@ -403,18 +407,18 @@ int ast_extension_state_del(int id, ast_state_cb_type callback);
  * \brief If an extension hint exists, return non-zero
  * 
  * \param hint buffer for hint
- * \param maxlen size of hint buffer
+ * \param hintsize size of hint buffer, in bytes
  * \param name buffer for name portion of hint
- * \param maxnamelen size of name buffer
- * \param c this is not important
+ * \param namesize size of name buffer
+ * \param c Channel from which to return the hint.  This is only important when the hint or name contains an expression to be expanded.
  * \param context which context to look in
  * \param exten which extension to search for
  *
  * \return If an extension within the given context with the priority PRIORITY_HINT
- * is found a non zero value will be returned.
+ * is found, a non zero value will be returned.
  * Otherwise, 0 is returned.
  */
-int ast_get_hint(char *hint, int maxlen, char *name, int maxnamelen, 
+int ast_get_hint(char *hint, int hintsize, char *name, int namesize,
 	struct ast_channel *c, const char *context, const char *exten);
 
 /*!
@@ -679,6 +683,8 @@ int ast_context_remove_switch2(struct ast_context *con, const char *sw,
  *
  * \retval 0 on success 
  * \retval -1 on failure
+ *
+ * @{
  */
 int ast_context_remove_extension(const char *context, const char *extension, int priority,
 	const char *registrar);
@@ -692,6 +698,7 @@ int ast_context_remove_extension_callerid(const char *context, const char *exten
 int ast_context_remove_extension_callerid2(struct ast_context *con, const char *extension,
 	int priority, const char *callerid, int matchcid, const char *registrar,
 	int already_locked);
+/*! @} */
 
 /*! 
  * \brief Add an ignorepat
@@ -818,8 +825,13 @@ int ast_context_lockmacro(const char *macrocontext);
  */
 int ast_context_unlockmacro(const char *macrocontext);
 
+/*!\brief Set the channel to next execute the specified dialplan location.
+ * \see ast_async_parseable_goto, ast_async_goto_if_exists
+ */
 int ast_async_goto(struct ast_channel *chan, const char *context, const char *exten, int priority);
 
+/*!\brief Set the channel to next execute the specified dialplan location.
+ */
 int ast_async_goto_by_name(const char *chan, const char *context, const char *exten, int priority);
 
 /*! Synchronously or asynchronously make an outbound call and send it to a
@@ -873,7 +885,8 @@ const char *ast_get_ignorepat_registrar(struct ast_ignorepat *ip);
 const char *ast_get_switch_registrar(struct ast_sw *sw);
 /*! @} */
 
-/* Walking functions ... */
+/*! @name Walking functions ... */
+/*! @{ */
 struct ast_context *ast_walk_contexts(struct ast_context *con);
 struct ast_exten *ast_walk_context_extensions(struct ast_context *con,
 	struct ast_exten *priority);
@@ -884,13 +897,16 @@ struct ast_include *ast_walk_context_includes(struct ast_context *con,
 struct ast_ignorepat *ast_walk_context_ignorepats(struct ast_context *con,
 	struct ast_ignorepat *ip);
 struct ast_sw *ast_walk_context_switches(struct ast_context *con, struct ast_sw *sw);
+/*! @} */
 
-/*!
+/*!\brief Create a human-readable string, specifying all variables and their corresponding values.
+ * \param chan Channel from which to read variables
+ * \param buf Dynamic string in which to place the result (should be allocated with \see ast_str_create).
  * \note Will lock the channel.
  */
 int pbx_builtin_serialize_variables(struct ast_channel *chan, struct ast_str **buf);
 
-/*!
+/*!\brief Return a pointer to the value of the corresponding channel variable.
  * \note Will lock the channel.
  *
  * \note This function will return a pointer to the buffer inside the channel
@@ -909,43 +925,51 @@ int pbx_builtin_serialize_variables(struct ast_channel *chan, struct ast_str **b
  */
 const char *pbx_builtin_getvar_helper(struct ast_channel *chan, const char *name);
 
-/*!
+/*!\brief Add a variable to the channel variable stack, without removing any previously set value.
  * \note Will lock the channel.
  */
 void pbx_builtin_pushvar_helper(struct ast_channel *chan, const char *name, const char *value);
 
-/*!
- * \note Will lock the channel.
+/*!\brief Add a variable to the channel variable stack, removing the most recently set value for the same name.
+ * \note Will lock the channel.  May also be used to set a channel dialplan function to a particular value.
+ * \see ast_func_write
  */
 void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const char *value);
 
-/*!
+/*!\brief Retrieve the value of a builtin variable or variable from the channel variable stack.
  * \note Will lock the channel.
  */
 void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct varshead *headp);
 void pbx_builtin_clear_globals(void);
 
-/*!
+/*!\brief Parse and set a single channel variable, where the name and value are separated with an '=' character.
  * \note Will lock the channel.
  */
 int pbx_builtin_setvar(struct ast_channel *chan, void *data);
+
+/*!\brief Parse and set multiple channel variables, where the pairs are separated by the ',' character, and name and value are separated with an '=' character.
+ * \note Will lock the channel.
+ */
 int pbx_builtin_setvar_multiple(struct ast_channel *chan, void *data);
 
 int pbx_builtin_raise_exception(struct ast_channel *chan, void *data);
 
-void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char *cp2,int count);
+/*! @name Substitution routines, using static string buffers
+ * @{ */
+void pbx_substitute_variables_helper(struct ast_channel *c, const char *cp1, char *cp2, int count);
 void pbx_substitute_variables_varshead(struct varshead *headp, const char *cp1, char *cp2, int count);
 void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead *headp, const char *cp1, char *cp2, int cp2_size, size_t *used);
 void ast_str_substitute_variables(struct ast_str **buf, size_t maxlen, struct ast_channel *chan, const char *templ);
+/*! @} */
 
 int ast_extension_patmatch(const char *pattern, const char *data);
 
-/*! Set "autofallthrough" flag, if newval is <0, does not acutally set.  If
+/*! Set "autofallthrough" flag, if newval is <0, does not actually set.  If
   set to 1, sets to auto fall through.  If newval set to 0, sets to no auto
   fall through (reads extension instead).  Returns previous value. */
 int pbx_set_autofallthrough(int newval);
 
-/*! Set "extenpatternmatchnew" flag, if newval is <0, does not acutally set.  If
+/*! Set "extenpatternmatchnew" flag, if newval is <0, does not actually set.  If
   set to 1, sets to use the new Trie-based pattern matcher.  If newval set to 0, sets to use
   the old linear-search algorithm.  Returns previous value. */
 int pbx_set_extenpatternmatchnew(int newval);
@@ -963,10 +987,6 @@ void pbx_set_overrideswitch(const char *newval);
 int ast_goto_if_exists(struct ast_channel *chan, const char *context, const char *exten, int priority);
 
 /*!
- * \note I can find neither parsable nor parseable at dictionary.com, 
- *       but google gives me 169000 hits for parseable and only 49,800 
- *       for parsable 
- *
  * \note This function will handle locking the channel as needed.
  */
 int ast_parseable_goto(struct ast_channel *chan, const char *goto_string);
@@ -1023,7 +1043,8 @@ int ast_processed_calls(void);
  *
  * This application executes a function in read mode on a given channel.
  *
- * \return zero on success, non-zero on failure
+ * \retval 0 success
+ * \retval non-zero failure
  */
 int ast_func_read(struct ast_channel *chan, const char *function, char *workspace, size_t len);
 
@@ -1036,7 +1057,8 @@ int ast_func_read(struct ast_channel *chan, const char *function, char *workspac
  *
  * This application executes a function in write mode on a given channel.
  *
- * \return zero on success, non-zero on failure
+ * \retval 0 success
+ * \retval non-zero failure
  */
 int ast_func_write(struct ast_channel *chan, const char *function, const char *value);
 
@@ -1092,9 +1114,11 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 int ast_wrlock_contexts_version(void);
 	
 
-/* hashtable functions for contexts */
+/*!\brief hashtable functions for contexts */
+/*! @{ */
 int ast_hashtab_compare_contexts(const void *ah_a, const void *ah_b);
 unsigned int ast_hashtab_hash_contexts(const void *obj);
+/*! @} */
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

@@ -274,7 +274,9 @@ static inline float tdd_getcarrier(float *cr, float *ci, int bit)
 	PUT_TDD_STOP;	/* Stop bit */ \
 } while(0);	
 
-/*! Generate TDD hold tone */
+/*! Generate TDD hold tone
+ * \param buf Result buffer
+ * \todo How big should this be??? */
 int tdd_gen_holdtone(unsigned char *buf)
 {
 	int bytes = 0;

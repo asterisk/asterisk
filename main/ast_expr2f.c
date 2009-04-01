@@ -1962,8 +1962,8 @@ YY_BUFFER_STATE ast_yy_scan_string (yyconst char * yystr , yyscan_t yyscanner)
 
 /** Setup the input buffer state to scan the given bytes. The next call to ast_yylex() will
  * scan from a @e copy of @a bytes.
- * @param bytes the byte buffer to scan
- * @param len the number of bytes in the buffer pointed to by @a bytes.
+ * @param yybytes the byte buffer to scan
+ * @param _yybytes_len the number of bytes in the buffer pointed to by @a bytes.
  * @param yyscanner The scanner object.
  * @return the newly allocated buffer state object.
  */
@@ -2124,7 +2124,7 @@ void ast_yyset_lineno (int  line_number , yyscan_t yyscanner)
 }
 
 /** Set the current column.
- * @param line_number
+ * @param column_no
  * @param yyscanner The scanner object.
  */
 void ast_yyset_column (int  column_no , yyscan_t yyscanner)
@@ -2387,19 +2387,12 @@ void ast_yyfree(void *ptr, yyscan_t yyscanner)
 
 int ast_expr(char *expr, char *buf, int length, struct ast_channel *chan)
 {
-	struct parse_io io;
+	struct parse_io io = { .string = expr, .chan = chan };
 	int return_value = 0;
-	
-	memset(&io, 0, sizeof(io));
-	io.string = expr;  /* to pass to the error routine */
-	io.chan = chan;
-	
-	ast_yylex_init(&io.scanner);
-	
-	ast_yy_scan_string(expr, io.scanner);
-	
-	ast_yyparse ((void *) &io);
 
+	ast_yylex_init(&io.scanner);
+	ast_yy_scan_string(expr, io.scanner);
+	ast_yyparse ((void *) &io);
 	ast_yylex_destroy(io.scanner);
 
 	if (!io.val) {

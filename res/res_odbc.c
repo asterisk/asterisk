@@ -415,11 +415,12 @@ static void destroy_table_cache(struct odbc_cache_tables *table) {
 
 /*!
  * \brief Find or create an entry describing the table specified.
- * \param obj An active ODBC handle on which to query the table
- * \param table Tablename to describe
+ * \param database Name of an ODBC class on which to query the table
+ * \param tablename Tablename to describe
  * \retval A structure describing the table layout, or NULL, if the table is not found or another error occurs.
  * When a structure is returned, the contained columns list will be
  * rdlock'ed, to ensure that it will be retained in memory.
+ * \since 1.6.1
  */
 struct odbc_cache_tables *ast_odbc_find_table(const char *database, const char *tablename)
 {
