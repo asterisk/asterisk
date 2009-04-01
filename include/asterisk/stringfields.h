@@ -290,7 +290,7 @@ typedef uint16_t ast_string_field_allocation;
 		if (*__p__ != (*ptr)) {											\
 			__ast_string_field_release_active((x)->__field_mgr_pool, (*ptr));				\
 		}													\
-		memcpy((void *) *__p__, __d__, __dlen__);								\
+		memcpy(* (void **) __p__, __d__, __dlen__);								\
 	}														\
 	} while (0)
 
