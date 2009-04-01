@@ -1670,17 +1670,19 @@ struct sip_pvt {
 	struct ast_channel *owner;		/*!< Who owns us (if we have an owner) */
 	struct sip_route *route;		/*!< Head of linked list of routing steps (fm Record-Route) */
 	int route_persistant;			/*!< Is this the "real" route? */
-	struct ast_variable *notify_headers;    /*!< Custom notify type */	
+	struct ast_variable *notify_headers;    /*!< Custom notify type */
 	struct sip_auth *peerauth;		/*!< Realm authentication */
 	int noncecount;				/*!< Nonce-count */
 	char lastmsg[256];			/*!< Last Message sent/received */
 	int amaflags;				/*!< AMA Flags */
 	int pendinginvite;			/*!< Any pending INVITE or state NOTIFY (in subscribe pvt's) ? (seqno of this) */
+	int glareinvite;			/*!< A invite received while a pending invite is already present is stored here.  Its seqno is the
+						value. Since this glare invite's seqno is not the same as the pending invite's, it must be 
+						held in order to properly process acknowledgements for our 491 response. */
 	struct sip_request initreq;		/*!< Latest request that opened a new transaction
 							within this dialog.
-							NOT the request that opened the dialog
-						*/
-	
+							NOT the request that opened the dialog */
+
 	int initid;				/*!< Auto-congest ID if appropriate (scheduler) */
 	int waitid;				/*!< Wait ID for scheduler after 491 or other delays */
 	int autokillid;				/*!< Auto-kill ID (scheduler) */
@@ -1691,9 +1693,9 @@ struct sip_pvt {
 	int stateid;				/*!< SUBSCRIBE: ID for devicestate subscriptions */
 	int laststate;				/*!< SUBSCRIBE: Last known extension state */
 	int dialogver;				/*!< SUBSCRIBE: Version for subscription dialog-info */
-	
+
 	struct ast_dsp *vad;			/*!< Inband DTMF Detection dsp */
-	
+
 	struct sip_peer *relatedpeer;		/*!< If this dialog is related to a peer, which one 
 							Used in peerpoke, mwi subscriptions */
 	struct sip_registry *registry;		/*!< If this is a REGISTER dialog, to which registry */
@@ -16504,12 +16506,15 @@ static void check_pendings(struct sip_pvt *p)
 	to avoid race conditions between asterisk servers.
 	Called from the scheduler.
 */
-static int sip_reinvite_retry(const void *data) 
+static int sip_reinvite_retry(const void *data)
 {
 	struct sip_pvt *p = (struct sip_pvt *) data;
 
-	ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);	
+	sip_pvt_lock(p); /* called from schedule thread which requires a lock */
+	ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);
 	p->waitid = -1;
+	check_pendings(p);
+	sip_pvt_unlock(p);
 	dialog_unref(p, "unref the dialog ptr from sip_reinvite_retry, because it held a dialog ptr");
 	return 0;
 }
@@ -16524,7 +16529,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	int reinvite = (p->owner && p->owner->_state == AST_STATE_UP);
 	char *p_hdrval;
 	int rtn;
-	
+
 	if (reinvite)
 		ast_debug(4, "SIP response %d to RE-invite on %s call %s\n", resp, outgoing ? "outgoing" : "incoming", p->callid);
 	else
@@ -16800,8 +16805,15 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 				/* This is a re-invite that failed. */
 				/* Reset the flag after a while 
 				 */
-				int wait = 3 + ast_random() % 5;
-				p->waitid = ast_sched_add(sched, wait, sip_reinvite_retry, dialog_ref(p, "passing dialog ptr into sched structure based on waitid for sip_reinvite_retry.")); 
+				int wait;
+				/* RFC 3261, if owner of call, wait between 2.1 to 4 seconds,
+				 * if not owner of call, wait 0 to 2 seconds */
+				if (p->outgoing_call) {
+					wait = 2100 + ast_random() % 2000;
+				} else {
+					wait = ast_random() % 2000;
+				}
+				p->waitid = ast_sched_add(sched, wait, sip_reinvite_retry, dialog_ref(p, "passing dialog ptr into sched structure based on waitid for sip_reinvite_retry."));
 				ast_log(LOG_WARNING, "just did sched_add waitid(%d) for sip_reinvite_retry for dialog %s in handle_response_invite\n", p->waitid, p->callid);
 				ast_debug(2, "Reinvite race. Waiting %d secs before retry\n", wait);
 			}
@@ -18675,9 +18687,10 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			return transmit_invite(p, SIP_INVITE, 1, 3);
 		}
 	}
-	
+
 	if (!req->ignore && p->pendinginvite) {
 		/* We already have a pending invite. Sorry. You are on hold. */
+		p->glareinvite = seqno;     /* must hold on to this seqno to process ack and retransmit correctly */
 		transmit_response_reliable(p, "491 Request Pending", req);
 		ast_debug(1, "Got INVITE on call where we already have pending INVITE, deferring that - %s\n", p->callid);
 		/* Don't destroy dialog here */
@@ -20551,8 +20564,12 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 			if (find_sdp(req)) {
 				if (process_sdp(p, req, SDP_T38_NONE))
 					return -1;
-			} 
+			}
 			check_pendings(p);
+		} else if (p->glareinvite == seqno) {
+			/* handle ack for the 491 pending sent for glareinvite */
+			p->glareinvite = 0;
+			__sip_ack(p, seqno, 1, 0);
 		}
 		/* Got an ACK that we did not match. Ignore silently */
 		if (!p->lastinvite && ast_strlen_zero(p->randdata)) {
