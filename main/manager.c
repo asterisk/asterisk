@@ -1759,20 +1759,39 @@ static int action_challenge(struct mansession *s, const struct message *m)
 static char mandescr_hangup[] =
 "Description: Hangup a channel\n"
 "Variables: \n"
-"	Channel: The channel name to be hungup\n";
+"	Channel: The channel name to be hungup\n"
+"	Cause: numeric hangup cause\n";
 
 static int action_hangup(struct mansession *s, const struct message *m)
 {
 	struct ast_channel *c = NULL;
+	int causecode = 0; /* all values <= 0 mean 'do not set hangupcause in channel' */
 	const char *name = astman_get_header(m, "Channel");
+	const char *cause = astman_get_header(m, "Cause");
 	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
+	}
+	if (!ast_strlen_zero(cause)) {
+		char *endptr;
+		causecode = strtol(cause, &endptr, 10);
+		if (causecode < 0 || causecode > 127 || *endptr != '\0') {
+			ast_log(LOG_NOTICE, "Invalid 'Cause: %s' in manager action Hangup\n", cause);
+			/* keep going, better to hangup without cause than to not hang up at all */
+			causecode = 0; /* do not set channel's hangupcause */
+		}
 	}
 	c = ast_get_channel_by_name_locked(name);
 	if (!c) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
+	}
+	if (causecode > 0) {
+		if (option_debug >= 1) {
+			ast_log(LOG_DEBUG, "Setting hangupcause of channel %s to %d (is %d now)\n",
+				c->name, causecode, c->hangupcause);
+		}
+		c->hangupcause = causecode;
 	}
 	ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
 	ast_channel_unlock(c);

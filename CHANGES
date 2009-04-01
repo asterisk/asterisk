@@ -27,6 +27,11 @@ Functions
 ---------
  * The CHANNEL() function now supports the "name" option.
 
+Asterisk Manager Interface
+--------------------------
+ * The Hangup action now accepts a Cause header which may be used to
+   set the channel's hangup cause.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.1 to Asterisk 1.6.2  -------------
 ------------------------------------------------------------------------------
