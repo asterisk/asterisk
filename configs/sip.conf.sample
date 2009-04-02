@@ -108,10 +108,12 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; Useful to limit subscriptions to local extensions
 				; Settable per peer/user also
 ;notifyringing = yes		; Notify subscriptions on RINGING state
-;alwaysauthreject = yes		; When an incoming INVITE or REGISTER is to be rejected,
-		    		; for any reason, always reject with '401 Unauthorized'
-				; instead of letting the requester know whether there was
-				; a matching user or peer for their request
+;alwaysauthreject = yes          ; When an incoming INVITE or REGISTER is to be rejected,
+                                 ; for any reason, always reject with an identical response
+                                 ; equivalent to valid username and invalid password/hash
+                                 ; instead of letting the requester know whether there was
+                                 ; a matching user or peer for their request.  This reduces
+                                 ; the ability of an attacker to scan for valid SIP usernames.
 ;
 ; If regcontext is specified, Asterisk will dynamically create and destroy a
 ; NoOp priority 1 extension for a given peer who registers or unregisters with

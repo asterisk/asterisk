@@ -6611,10 +6611,81 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 /*! \brief Send a fake 401 Unauthorized response when the administrator
   wants to hide the names of local users/peers from fishers
 */
-static void transmit_fake_auth_response(struct sip_pvt *p, struct sip_request *req, char *randdata, int randlen, int reliable)
+static void transmit_fake_auth_response(struct sip_pvt *p, int sipmethod, struct sip_request *req, char *randdata, int randlen, int reliable, int ignore)
 {
-	snprintf(randdata, randlen, "%08x", thread_safe_rand());
-	transmit_response_with_auth(p, "401 Unauthorized", req, randdata, reliable, "WWW-Authenticate", 0);
+	/* We have to emulate EXACTLY what we'd get with a good peer
+	 * and a bad password, or else we leak information. */
+	char *response = "407 Proxy Authentication Required";
+	char *reqheader = "Proxy-Authorization";
+	char *respheader = "Proxy-Authenticate";
+	const char *authtoken;
+
+	if (sipmethod == SIP_REGISTER || sipmethod == SIP_SUBSCRIBE) {
+		response = "401 Unauthorized";
+		reqheader = "Authorization";
+		respheader = "WWW-Authenticate";
+	}
+
+	authtoken = get_header(req, reqheader);
+	if (ignore && !ast_strlen_zero(p->randdata) && ast_strlen_zero(authtoken)) {
+		/* This is a retransmitted invite/register/etc, don't reconstruct authentication
+		 * information */
+		if (!reliable) {
+			/* Resend message if this was NOT a reliable delivery.   Otherwise the
+			   retransmission should get it */
+			transmit_response_with_auth(p, response, req, randdata, reliable, respheader, 0);
+			/* Schedule auto destroy in 15 seconds */
+			sip_scheddestroy(p, 15000);
+		}
+	} else if (ast_strlen_zero(p->randdata) || ast_strlen_zero(authtoken)) {
+		/* We have no auth, so issue challenge and request authentication */
+		snprintf(p->randdata, sizeof(p->randdata), "%08x", thread_safe_rand());
+		transmit_response_with_auth(p, response, req, p->randdata, 0, respheader, 0);
+		sip_scheddestroy(p, 15000);
+	} else {
+		char tmp[256], *c = tmp, *z, *nonce = "";
+
+		/* Find their response among the mess that we'r sent for comparison */
+		ast_copy_string(tmp, authtoken, sizeof(tmp));
+
+		while (c) {
+			c = ast_skip_blanks(c);
+			if (!*c) {
+				break;
+			}
+			if (!strncasecmp(c, "nonce=", strlen("nonce="))) {
+				c += strlen("nonce=");
+				if ((*c == '\"')) {
+					nonce = ++c;
+					if ((c = strchr(c,'\"'))) {
+						*c = '\0';
+					}
+				} else {
+					nonce = c;
+					if ((c = strchr(c,','))) {
+						*c = '\0';
+					}
+				}
+				/* Don't need anything beyond the nonce sent. */
+				break;
+			} else if ((z = strchr(c, ' ')) || (z = strchr(c, ','))) {
+				c = z;
+			}
+			if (c) {
+				c++;
+			}
+		}
+		/* Verify nonce from request matches our nonce.  If not, send 401 with new nonce */
+		if (strncasecmp(randdata, nonce, randlen)) {
+			snprintf(randdata, randlen, "%08x", thread_safe_rand());
+			transmit_response_with_auth(p, response, req, randdata, reliable, respheader, 0);
+
+			/* Schedule auto destroy in 15 seconds */
+			sip_scheddestroy(p, 15000);
+		} else {
+			transmit_response(p, "403 Forbidden (Bad auth)", &p->initreq);
+		}
+	}
 }
 
 /*! \brief  register_verify: Verify registration of user */
@@ -6736,6 +6807,14 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 			}
 		}
 	}
+	if (!peer && global_alwaysauthreject) {
+		/* If we found a peer, we transmit a 100 Trying.  Therefore, if we're
+		 * trying to avoid leaking information, we MUST also transmit the same
+		 * response when we DON'T find a peer. */
+		transmit_response(p, "100 Trying", req);
+		/* Insert a fake delay between the 100 and the subsequent failure. */
+		sched_yield();
+	}
 	if (!res) {
 		ast_device_state_changed("SIP/%s", peer->name);
 	}
@@ -6756,7 +6835,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 		case -4:	/* ACL error */
 		case -5:	/* Peer is not supposed to register with us at all */
 			if (global_alwaysauthreject) {
-				transmit_fake_auth_response(p, &p->initreq, p->randdata, sizeof(p->randdata), 1);
+				transmit_fake_auth_response(p, SIP_REGISTER, &p->initreq, p->randdata, sizeof(p->randdata), 1, ignore);
 			} else {
 				/* URI not found */
 				if (res == -5)
@@ -10699,7 +10778,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		if (res < 0) {
 			if (res == -4) {
 				ast_log(LOG_NOTICE, "Sending fake auth rejection for user %s\n", get_header(req, "From"));
-				transmit_fake_auth_response(p, req, p->randdata, sizeof(p->randdata), 1);
+				transmit_fake_auth_response(p, SIP_INVITE, req, p->randdata, sizeof(p->randdata), 1, ignore);
 			} else {
 				ast_log(LOG_NOTICE, "Failed to authenticate user %s\n", get_header(req, "From"));
 				transmit_response_reliable(p, "403 Forbidden", req, 1);
@@ -11105,7 +11184,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		if (res < 0) {
 			if (res == -4) {
 				ast_log(LOG_NOTICE, "Sending fake auth rejection for user %s\n", get_header(req, "From"));
-				transmit_fake_auth_response(p, req, p->randdata, sizeof(p->randdata), 1);
+				transmit_fake_auth_response(p, SIP_SUBSCRIBE, req, p->randdata, sizeof(p->randdata), 1, ignore);
 			} else {
 				ast_log(LOG_NOTICE, "Failed to authenticate user %s for SUBSCRIBE\n", get_header(req, "From"));
 				if (ignore)
