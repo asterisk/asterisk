@@ -2235,7 +2235,7 @@ static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, const 
 static int transmit_response_with_unsupported(struct sip_pvt *p, const char *msg, const struct sip_request *req, const char *unsupported);
 static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, const struct sip_request *req, const char *rand, enum xmittype reliable, const char *header, int stale);
 static int transmit_response_with_allow(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable);
-static void transmit_fake_auth_response(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable);
+static void transmit_fake_auth_response(struct sip_pvt *p, int sipmethod, struct sip_request *req, enum xmittype reliable);
 static int transmit_request(struct sip_pvt *p, int sipmethod, int inc, enum xmittype reliable, int newbranch);
 static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqno, enum xmittype reliable, int newbranch);
 static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init);
@@ -11906,10 +11906,96 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 /*! \brief Send a fake 401 Unauthorized response when the administrator
   wants to hide the names of local devices  from fishers
  */
-static void transmit_fake_auth_response(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable)
+static void transmit_fake_auth_response(struct sip_pvt *p, int sipmethod, struct sip_request *req, enum xmittype reliable)
 {
-	ast_string_field_build(p, randdata, "%08lx", ast_random());	/* Create nonce for challenge */
-	transmit_response_with_auth(p, "401 Unauthorized", req, p->randdata, reliable, "WWW-Authenticate", 0);
+	/* We have to emulate EXACTLY what we'd get with a good peer
+	 * and a bad password, or else we leak information. */
+	const char *response = "407 Proxy Authentication Required";
+	const char *reqheader = "Proxy-Authorization";
+	const char *respheader = "Proxy-Authenticate";
+	const char *authtoken;
+	struct ast_str *buf;
+	char *c;
+
+	/* table of recognised keywords, and their value in the digest */
+	enum keys { K_NONCE, K_LAST };
+	struct x {
+		const char *key;
+		const char *s;
+	} *i, keys[] = {
+		[K_NONCE] = { "nonce=", "" },
+		[K_LAST] = { NULL, NULL}
+	};
+
+	if (sipmethod == SIP_REGISTER || sipmethod == SIP_SUBSCRIBE) {
+		response = "401 Unauthorized";
+		reqheader = "Authorization";
+		respheader = "WWW-Authenticate";
+	}
+	authtoken = get_header(req, reqheader);
+	if (req->ignore && !ast_strlen_zero(p->randdata) && ast_strlen_zero(authtoken)) {
+		/* This is a retransmitted invite/register/etc, don't reconstruct authentication
+		 * information */
+		transmit_response_with_auth(p, response, req, p->randdata, 0, respheader, 0);
+		/* Schedule auto destroy in 32 seconds (according to RFC 3261) */
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+		return;
+	} else if (ast_strlen_zero(p->randdata) || ast_strlen_zero(authtoken)) {
+		/* We have no auth, so issue challenge and request authentication */
+		ast_string_field_build(p, randdata, "%08lx", ast_random());	/* Create nonce for challenge */
+		transmit_response_with_auth(p, response, req, p->randdata, 0, respheader, 0);
+		/* Schedule auto destroy in 32 seconds */
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+		return;
+	}
+
+	if (!(buf = ast_str_thread_get(&check_auth_buf, CHECK_AUTH_BUF_INITLEN))) {
+		transmit_response(p, "403 Forbidden (Bad auth)", &p->initreq);
+		return;
+	}
+
+	/* Make a copy of the response and parse it */
+	if (ast_str_set(&buf, 0, "%s", authtoken) == AST_DYNSTR_BUILD_FAILED) {
+		transmit_response(p, "403 Forbidden (Bad auth)", &p->initreq);
+		return;
+	}
+
+	c = buf->str;
+
+	while (c && *(c = ast_skip_blanks(c))) { /* lookup for keys */
+		for (i = keys; i->key != NULL; i++) {
+			const char *separator = ",";	/* default */
+
+			if (strncasecmp(c, i->key, strlen(i->key)) != 0) {
+				continue;
+			}
+			/* Found. Skip keyword, take text in quotes or up to the separator. */
+			c += strlen(i->key);
+			if (*c == '"') { /* in quotes. Skip first and look for last */
+				c++;
+				separator = "\"";
+			}
+			i->s = c;
+			strsep(&c, separator);
+			break;
+		}
+		if (i->key == NULL) { /* not found, jump after space or comma */
+			strsep(&c, " ,");
+		}
+	}
+
+	/* Verify nonce from request matches our nonce.  If not, send 401 with new nonce */
+	if (strcasecmp(p->randdata, keys[K_NONCE].s)) {
+		if (!req->ignore) {
+			ast_string_field_build(p, randdata, "%08lx", ast_random());
+		}
+		transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, FALSE);
+
+		/* Schedule auto destroy in 32 seconds */
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+	} else {
+		transmit_response(p, "403 Forbidden (Bad auth)", &p->initreq);
+	}
 }
 
 /*!
@@ -12085,6 +12171,14 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 			}
 		}
 	}
+	if (!peer && sip_cfg.alwaysauthreject) {
+		/* If we found a peer, we transmit a 100 Trying.  Therefore, if we're
+		 * trying to avoid leaking information, we MUST also transmit the same
+		 * response when we DON'T find a peer. */
+		transmit_response(p, "100 Trying", req);
+		/* Insert a fake delay between the 100 and the subsequent failure. */
+		sched_yield();
+	}
 	if (!res) {
 		ast_devstate_changed(AST_DEVICE_UNKNOWN, "SIP/%s", peer->name);
 	}
@@ -12098,7 +12192,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 					name, ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
 			break;
 		case AUTH_USERNAME_MISMATCH:
-			/* Username and digest username does not match. 
+			/* Username and digest username does not match.
 			   Asterisk uses the From: username for authentication. We need the
 			   devices to use the same authentication user name until we support
 			   proper authentication by digest auth name */
@@ -12111,7 +12205,12 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 		case AUTH_PEER_NOT_DYNAMIC:
 		case AUTH_ACL_FAILED:
 			if (sip_cfg.alwaysauthreject) {
-				transmit_fake_auth_response(p, &p->initreq, XMIT_UNRELIABLE);
+				transmit_fake_auth_response(p, SIP_REGISTER, &p->initreq, XMIT_UNRELIABLE);
+				if (global_authfailureevents) {
+					manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Rejected\r\nCause: %s\r\nAddress: %s\r\nPort: %d\r\n",
+						name, res == AUTH_PEER_NOT_DYNAMIC ? "AUTH_PEER_NOT_DYNAMIC" : "URI_NOT_FOUND",
+						ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+				}
 			} else {
 				/* URI not found */
 				if (res == AUTH_PEER_NOT_DYNAMIC) {
@@ -18879,7 +18978,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		if (res < 0) { /* Something failed in authentication */
 			if (res == AUTH_FAKE_AUTH) {
 				ast_log(LOG_NOTICE, "Sending fake auth rejection for device %s\n", get_header(req, "From"));
-				transmit_fake_auth_response(p, req, XMIT_RELIABLE);
+				transmit_fake_auth_response(p, SIP_INVITE, req, XMIT_RELIABLE);
 			} else {
 				ast_log(LOG_NOTICE, "Failed to authenticate device %s\n", get_header(req, "From"));
 				transmit_response_reliable(p, "403 Forbidden", req);
@@ -20076,7 +20175,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	if (res < 0) {
 		if (res == AUTH_FAKE_AUTH) {
 			ast_log(LOG_NOTICE, "Sending fake auth rejection for device %s\n", get_header(req, "From"));
-			transmit_fake_auth_response(p, req, XMIT_UNRELIABLE);
+			transmit_fake_auth_response(p, SIP_SUBSCRIBE, req, XMIT_UNRELIABLE);
 		} else {
 			ast_log(LOG_NOTICE, "Failed to authenticate device %s for SUBSCRIBE\n", get_header(req, "From"));
 			transmit_response_reliable(p, "403 Forbidden", req);
