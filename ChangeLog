@@ -1,3 +1,11 @@
+2009-04-02  Leif Madsen <lmadsen@digium.com>
+
+	* Released 1.4.24.1
+
+2009-04-02  Tilghman Lesher <tlesher@digium.com>
+
+	* Add fix for AST-2009-003
+
 2009-03-16  Leif Madsen <lmadsen@digium.com>
 
 	* Released 1.4.24
