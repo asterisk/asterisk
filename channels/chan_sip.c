@@ -192,6 +192,7 @@ static int min_expiry = DEFAULT_MIN_EXPIRY;        /*!< Minimum accepted registr
 static int max_expiry = DEFAULT_MAX_EXPIRY;        /*!< Maximum accepted registration time */
 static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 static int expiry = DEFAULT_EXPIRY;
+static char seen_lastms = 0;
 
 #ifndef MAX
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
@@ -2456,9 +2457,11 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 		ast_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr,
 			"port", port, "regseconds", regseconds,
 			"username", username, syslabel, sysname, NULL); /* note syslabel _can_ be NULL */
-	/* We cannot do this in the same statement as above, because the lack of
-	 * this field could cause the whole statement to fail. */
-	ast_update_realtime("sippeers", "name", peername, "lastms", str_lastms, NULL);
+	if (seen_lastms) {
+		/* We cannot do this in the same statement as above, because the lack of
+		 * this field could cause the whole statement to fail. */
+		ast_update_realtime("sippeers", "name", peername, "lastms", str_lastms, NULL);
+	}
 }
 
 /*! \brief Automatically add peer extension to dial plan */
@@ -2641,9 +2644,11 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 			return NULL;
 		} else if (!newpeername && !strcasecmp(tmp->name, "name")) {
 			newpeername = tmp->value;
+		} else if (!strcasecmp(tmp->name, "lastms")) {
+			seen_lastms = 1;
 		}
 	}
-	
+
 	if (!newpeername) {	/* Did not find peer in realtime */
 		ast_log(LOG_WARNING, "Cannot Determine peer name ip=%s\n", iabuf);
 		if(peerlist)
