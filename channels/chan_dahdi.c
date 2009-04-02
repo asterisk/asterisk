@@ -11768,6 +11768,7 @@ static int start_pri(struct dahdi_pri *pri)
 			pri->dchanavail[i] |= DCHAN_NOTINALARM;
 		else
 			pri->dchanavail[i] &= ~DCHAN_NOTINALARM;
+		memset(&bi, 0, sizeof(bi));
 		bi.txbufpolicy = DAHDI_POLICY_IMMEDIATE;
 		bi.rxbufpolicy = DAHDI_POLICY_IMMEDIATE;
 		bi.numbufs = 32;
@@ -13326,6 +13327,7 @@ static int linkset_addsigchan(int sigchan)
 			return -1;
 		}
 
+		memset(&bi, 0, sizeof(bi));
 		bi.txbufpolicy = DAHDI_POLICY_IMMEDIATE;
 		bi.rxbufpolicy = DAHDI_POLICY_IMMEDIATE;
 		bi.numbufs = 32;
