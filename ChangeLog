@@ -1,3 +1,11 @@
+2009-04-02  Leif Madsen <lmadsen@digium.com>
+
+	* Release Asterisk 1.6.0.8
+
+2009-04-02  Tilghman Lesher <tlesher@digium.com>
+
+	* Fix for security issue AST-2009-003
+
 2009-03-30  Leif Madsen <lmadsen@digium.com>
 
 	* Release Asterisk 1.6.0.7
