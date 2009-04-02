@@ -141,9 +141,11 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;callevents=no                   ; generate manager events when sip ua 
                                  ; performs events (e.g. hold)
 ;alwaysauthreject = yes          ; When an incoming INVITE or REGISTER is to be rejected,
-                                 ; for any reason, always reject with '401 Unauthorized'
+                                 ; for any reason, always reject with an identical response
+                                 ; equivalent to valid username and invalid password/hash
                                  ; instead of letting the requester know whether there was
-                                 ; a matching user or peer for their request
+                                 ; a matching user or peer for their request.  This reduces
+                                 ; the ability of an attacker to scan for valid SIP usernames.
 
 ;g726nonstandard = yes          ; If the peer negotiates G726-32 audio, use AAL2 packing
                                 ; order instead of RFC3551 packing order (this is required
