@@ -8168,7 +8168,7 @@ static void *do_monitor(void *data)
 							if (last->msgstate != res) {
 								int x;
 								ast_debug(1, "Message status for %s changed from %d to %d on %d\n", last->mailbox, last->msgstate, res, last->channel);
-								res2 = ioctl(last->subs[SUB_REAL].dfd, DAHDI_VMWI, res);
+								res2 = ioctl(last->subs[SUB_REAL].dfd, DAHDI_VMWI, &res);
 								if (res2)
 									/* TODO: This message will ALWAYS be generated on some cards; any way to restrict it to those cards where it is interesting? */
 									ast_debug(3, "Unable to control message waiting led on channel %d: %s\n", last->channel, strerror(errno));
