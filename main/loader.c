@@ -43,7 +43,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/cdr.h"
 #include "asterisk/enum.h"
-#include "asterisk/rtp.h"
 #include "asterisk/http.h"
 #include "asterisk/lock.h"
 #include "asterisk/features.h"
@@ -243,7 +242,6 @@ static struct reload_classes {
 	{ "extconfig",	read_config_maps },
 	{ "enum",	ast_enum_reload },
 	{ "manager",	reload_manager },
-	{ "rtp",	ast_rtp_reload },
 	{ "http",	ast_http_reload },
 	{ "logger",	logger_reload },
 	{ "features",	ast_features_reload },

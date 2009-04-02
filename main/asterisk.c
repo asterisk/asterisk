@@ -120,7 +120,6 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/cdr.h"
 #include "asterisk/pbx.h"
 #include "asterisk/enum.h"
-#include "asterisk/rtp.h"
 #include "asterisk/http.h"
 #include "asterisk/udptl.h"
 #include "asterisk/app.h"
@@ -3579,7 +3578,6 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	ast_rtp_init();
 	ast_dsp_init();
 	ast_udptl_init();
 

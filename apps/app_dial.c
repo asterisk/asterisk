@@ -54,7 +54,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 #include "asterisk/causes.h"
-#include "asterisk/rtp.h"
+#include "asterisk/rtp_engine.h"
 #include "asterisk/cdr.h"
 #include "asterisk/manager.h"
 #include "asterisk/privacy.h"
@@ -745,7 +745,9 @@ static void do_forward(struct chanlist *o,
 		char *new_cid_num, *new_cid_name;
 		struct ast_channel *src;
 
-		ast_rtp_make_compatible(c, in, single);
+		if (single) {
+			ast_rtp_instance_early_bridge_make_compatible(c, in);
+		}
 		if (ast_test_flag64(o, OPT_FORCECLID)) {
 			new_cid_num = ast_strdup(S_OR(in->macroexten, in->exten));
 			new_cid_name = NULL; /* XXX no name ? */
@@ -1745,7 +1747,9 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		pbx_builtin_setvar_helper(tc, "DIALEDPEERNUMBER", numsubst);
 
 		/* Setup outgoing SDP to match incoming one */
-		ast_rtp_make_compatible(tc, chan, !outgoing && !rest);
+		if (!outgoing && !rest) {
+			ast_rtp_instance_early_bridge_make_compatible(tc, chan);
+		}
 		
 		/* Inherit specially named variables from parent channel */
 		ast_channel_inherit_variables(chan, tc);

@@ -60,7 +60,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/pbx.h"
 #include "asterisk/event.h"
-#include "asterisk/rtp.h"
+#include "asterisk/rtp_engine.h"
 #include "asterisk/netsock.h"
 #include "asterisk/acl.h"
 #include "asterisk/callerid.h"
@@ -365,7 +365,7 @@ struct unistim_subchannel {
 	/*! Unistim line */
 	struct unistim_line *parent;
 	/*! RTP handle */
-	struct ast_rtp *rtp;
+	struct ast_rtp_instance *rtp;
 	int alreadygone;
 	char ringvolume;
 	char ringstyle;
@@ -711,7 +711,7 @@ static const struct ast_channel_tech unistim_tech = {
 	.send_digit_begin = unistim_senddigit_begin,
 	.send_digit_end = unistim_senddigit_end,
 	.send_text = unistim_sendtext,
-/*      .bridge = ast_rtp_bridge, */
+	.bridge = ast_rtp_instance_bridge,
 };
 
 static void display_last_error(const char *sz_msg)
@@ -1854,7 +1854,7 @@ static void cancel_dial(struct unistimsession *pte)
 static void swap_subs(struct unistim_line *p, int a, int b)
 {
 /*  struct ast_channel *towner; */
-	struct ast_rtp *rtp;
+	struct ast_rtp_instance *rtp;
 	int fds;
 
 	if (unistimdebug)
@@ -2056,30 +2056,29 @@ static void start_rtp(struct unistim_subchannel *sub)
 	/* Allocate the RTP */
 	if (unistimdebug)
 		ast_verb(0, "Starting RTP. Bind on %s\n", ast_inet_ntoa(sout.sin_addr));
-	sub->rtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, sout.sin_addr);
+	sub->rtp = ast_rtp_instance_new(NULL, sched, &sout, NULL);
 	if (!sub->rtp) {
 		ast_log(LOG_WARNING, "Unable to create RTP session: %s binaddr=%s\n",
 				strerror(errno), ast_inet_ntoa(sout.sin_addr));
 		ast_mutex_unlock(&sub->lock);
 		return;
 	}
-	if (sub->rtp && sub->owner) {
-		sub->owner->fds[0] = ast_rtp_fd(sub->rtp);
-		sub->owner->fds[1] = ast_rtcp_fd(sub->rtp);
+	ast_rtp_instance_set_prop(sub->rtp, AST_RTP_PROPERTY_RTCP, 1);
+	if (sub->owner) {
+		sub->owner->fds[0] = ast_rtp_instance_fd(sub->rtp, 0);
+		sub->owner->fds[1] = ast_rtp_instance_fd(sub->rtp, 1);
 	}
-	if (sub->rtp) {
-		ast_rtp_setqos(sub->rtp, qos.tos_audio, qos.cos_audio, "UNISTIM RTP");
-		ast_rtp_setnat(sub->rtp, sub->parent->parent->nat);
-	}
+	ast_rtp_instance_set_qos(sub->rtp, qos.tos_audio, qos.cos_audio, "UNISTIM RTP");
+	ast_rtp_instance_set_prop(sub->rtp, AST_RTP_PROPERTY_NAT, sub->parent->parent->nat);
 
 	/* Create the RTP connection */
-	ast_rtp_get_us(sub->rtp, &us);
+	ast_rtp_instance_get_local_address(sub->rtp, &us);
 	sin.sin_family = AF_INET;
 	/* Setting up RTP for our side */
 	memcpy(&sin.sin_addr, &sub->parent->parent->session->sin.sin_addr,
 		   sizeof(sin.sin_addr));
 	sin.sin_port = htons(sub->parent->parent->rtp_port);
-	ast_rtp_set_peer(sub->rtp, &sin);
+	ast_rtp_instance_set_remote_address(sub->rtp, &sin);
 	if (!(sub->owner->nativeformats & sub->owner->readformat)) {
 		int fmt;
 		fmt = ast_best_codec(sub->owner->nativeformats);
@@ -2091,7 +2090,7 @@ static void start_rtp(struct unistim_subchannel *sub)
 		sub->owner->readformat = fmt;
 		sub->owner->writeformat = fmt;
 	}
-	codec = ast_rtp_lookup_code(sub->rtp, 1, sub->owner->readformat);
+	codec = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(sub->rtp), 1, sub->owner->readformat);
 	/* Setting up RTP of the phone */
 	if (public_ip.sin_family == 0)  /* NAT IP override ?   */
 		memcpy(&public, &us, sizeof(public));   /* No defined, using IP from recvmsg  */
@@ -3724,7 +3723,7 @@ static int unistim_hangup(struct ast_channel *ast)
 		if (sub->rtp) {
 			if (unistimdebug)
 				ast_verb(0, "Destroying RTP session\n");
-			ast_rtp_destroy(sub->rtp);
+			ast_rtp_instance_destroy(sub->rtp);
 			sub->rtp = NULL;
 		}
 		return 0;
@@ -3769,7 +3768,7 @@ static int unistim_hangup(struct ast_channel *ast)
 		if (sub->rtp) {
 			if (unistimdebug)
 				ast_verb(0, "Destroying RTP session\n");
-			ast_rtp_destroy(sub->rtp);
+			ast_rtp_instance_destroy(sub->rtp);
 			sub->rtp = NULL;
 		}
 		return 0;
@@ -3794,7 +3793,7 @@ static int unistim_hangup(struct ast_channel *ast)
 	if (sub->rtp) {
 		if (unistimdebug)
 			ast_verb(0, "Destroying RTP session\n");
-		ast_rtp_destroy(sub->rtp);
+		ast_rtp_instance_destroy(sub->rtp);
 		sub->rtp = NULL;
 	} else if (unistimdebug)
 		ast_verb(0, "No RTP session to destroy\n");
@@ -3921,10 +3920,10 @@ static struct ast_frame *unistim_rtp_read(const struct ast_channel *ast,
 
 	switch (ast->fdno) {
 	case 0:
-		f = ast_rtp_read(sub->rtp);     /* RTP Audio */
+		f = ast_rtp_instance_read(sub->rtp, 0);     /* RTP Audio */
 		break;
 	case 1:
-		f = ast_rtcp_read(sub->rtp);    /* RTCP Control Channel */
+		f = ast_rtp_instance_read(sub->rtp, 1);    /* RTCP Control Channel */
 		break;
 	default:
 		f = &ast_null_frame;
@@ -3990,7 +3989,7 @@ static int unistim_write(struct ast_channel *ast, struct ast_frame *frame)
 	if (sub) {
 		ast_mutex_lock(&sub->lock);
 		if (sub->rtp) {
-			res = ast_rtp_write(sub->rtp, frame);
+			res = ast_rtp_instance_write(sub->rtp, frame);
 		}
 		ast_mutex_unlock(&sub->lock);
 	}
@@ -4455,8 +4454,8 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 	if ((sub->rtp) && (sub->subtype == 0)) {
 		if (unistimdebug)
 			ast_verb(0, "New unistim channel with a previous rtp handle ?\n");
-		tmp->fds[0] = ast_rtp_fd(sub->rtp);
-		tmp->fds[1] = ast_rtcp_fd(sub->rtp);
+		tmp->fds[0] = ast_rtp_instance_fd(sub->rtp, 0);
+		tmp->fds[1] = ast_rtp_instance_fd(sub->rtp, 1);
 	}
 	if (sub->rtp)
 		ast_jb_configure(tmp, &global_jbconf);
@@ -5526,51 +5525,19 @@ static int reload_config(void)
 	return 0;
 }
 
-static enum ast_rtp_get_result unistim_get_vrtp_peer(struct ast_channel *chan, 
-	struct ast_rtp **rtp)
+static enum ast_rtp_glue_result unistim_get_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance **instance)
 {
-	return AST_RTP_TRY_NATIVE;
+	struct unistim_subchannel *sub = chan->tech_pvt;
+
+	ao2_ref(sub->rtp, +1);
+	*instance = sub->rtp;
+
+	return AST_RTP_GLUE_RESULT_LOCAL;
 }
 
-static enum ast_rtp_get_result unistim_get_rtp_peer(struct ast_channel *chan, 
-	struct ast_rtp **rtp)
-{
-	struct unistim_subchannel *sub;
-	enum ast_rtp_get_result res = AST_RTP_GET_FAILED;
-
-	if (unistimdebug)
-		ast_verb(0, "unistim_get_rtp_peer called\n");
-		
-	sub = chan->tech_pvt;
-	if (sub && sub->rtp) {
-		*rtp = sub->rtp;
-		res = AST_RTP_TRY_NATIVE;
-	}
-
-	return res;
-}
-
-static int unistim_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, 
-	struct ast_rtp *vrtp, struct ast_rtp *trtp, int codecs, int nat_active)
-{
-	struct unistim_subchannel *sub;
-
-	if (unistimdebug)
-		ast_verb(0, "unistim_set_rtp_peer called\n");
-
-	sub = chan->tech_pvt;
-
-	if (sub)
-		return 0;
-
-	return -1;
-}
-
-static struct ast_rtp_protocol unistim_rtp = {
+static struct ast_rtp_glue unistim_rtp_glue = {
 	.type = channel_type,
 	.get_rtp_info = unistim_get_rtp_peer,
-	.get_vrtp_info = unistim_get_vrtp_peer,
-	.set_rtp_peer = unistim_set_rtp_peer,
 };
 
 /*--- load_module: PBX load module - initialization ---*/
@@ -5603,7 +5570,7 @@ int load_module(void)
 		goto chanreg_failed;
 	} 
 
-	ast_rtp_proto_register(&unistim_rtp);
+	ast_rtp_glue_register(&unistim_rtp_glue);
 
 	ast_cli_register_multiple(unistim_cli, ARRAY_LEN(unistim_cli));
 
@@ -5634,7 +5601,7 @@ static int unload_module(void)
 	ast_cli_unregister_multiple(unistim_cli, ARRAY_LEN(unistim_cli));
 
 	ast_channel_unregister(&unistim_tech);
-	ast_rtp_proto_unregister(&unistim_rtp);
+	ast_rtp_glue_unregister(&unistim_rtp_glue);
 
 	ast_mutex_lock(&monlock);
 	if (monitor_thread && (monitor_thread != AST_PTHREADT_STOP) && (monitor_thread != AST_PTHREADT_NULL)) {

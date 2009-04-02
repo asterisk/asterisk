@@ -76,7 +76,7 @@ extern "C" {
 #include "asterisk/utils.h"
 #include "asterisk/sched.h"
 #include "asterisk/io.h"
-#include "asterisk/rtp.h"
+#include "asterisk/rtp_engine.h"
 #include "asterisk/acl.h"
 #include "asterisk/callerid.h"
 #include "asterisk/cli.h"
@@ -161,7 +161,7 @@ struct oh323_pvt {
 	char accountcode[256];			/*!< Account code */
 	char rdnis[80];				/*!< Referring DNIS, if available */
 	int amaflags;				/*!< AMA Flags */
-	struct ast_rtp *rtp;			/*!< RTP Session */
+	struct ast_rtp_instance *rtp;		/*!< RTP Session */
 	struct ast_dsp *vad;			/*!< Used for in-band DTMF detection */
 	int nativeformats;			/*!< Codec formats supported by a channel */
 	int needhangup;				/*!< Send hangup when Asterisk is ready */
@@ -254,7 +254,7 @@ static const struct ast_channel_tech oh323_tech = {
 	.write = oh323_write,
 	.indicate = oh323_indicate,
 	.fixup = oh323_fixup,
-	.bridge = ast_rtp_bridge,
+	.bridge = ast_rtp_instance_bridge,
 };
 
 static const char* redirectingreason2str(int redirectingreason)
@@ -381,8 +381,8 @@ static void __oh323_update_info(struct ast_channel *c, struct oh323_pvt *pvt)
 	if (pvt->update_rtp_info > 0) {
 		if (pvt->rtp) {
 			ast_jb_configure(c, &global_jbconf);
-			ast_channel_set_fd(c, 0, ast_rtp_fd(pvt->rtp));
-			ast_channel_set_fd(c, 1, ast_rtcp_fd(pvt->rtp));
+			ast_channel_set_fd(c, 0, ast_rtp_instance_fd(pvt->rtp, 0));
+			ast_channel_set_fd(c, 1, ast_rtp_instance_fd(pvt->rtp, 1));
 			ast_queue_frame(pvt->owner, &ast_null_frame);	/* Tell Asterisk to apply changes */
 		}
 		pvt->update_rtp_info = -1;
@@ -444,7 +444,7 @@ static void __oh323_destroy(struct oh323_pvt *pvt)
 	AST_SCHED_DEL(sched, pvt->DTMFsched);
 
 	if (pvt->rtp) {
-		ast_rtp_destroy(pvt->rtp);
+		ast_rtp_instance_destroy(pvt->rtp);
 	}
 
 	/* Free dsp used for in-band DTMF detection */
@@ -510,7 +510,7 @@ static int oh323_digit_begin(struct ast_channel *c, char digit)
 		if (h323debug) {
 			ast_log(LOG_DTMF, "Begin sending out-of-band digit %c on %s\n", digit, c->name);
 		}
-		ast_rtp_senddigit_begin(pvt->rtp, digit);
+		ast_rtp_instance_dtmf_begin(pvt->rtp, digit);
 		ast_mutex_unlock(&pvt->lock);
 	} else if (pvt->txDtmfDigit != digit) {
 		/* in-band DTMF */
@@ -549,7 +549,7 @@ static int oh323_digit_end(struct ast_channel *c, char digit, unsigned int durat
 		if (h323debug) {
 			ast_log(LOG_DTMF, "End sending out-of-band digit %c on %s, duration %d\n", digit, c->name, duration);
 		}
-		ast_rtp_senddigit_end(pvt->rtp, digit);
+		ast_rtp_instance_dtmf_end(pvt->rtp, digit);
 		ast_mutex_unlock(&pvt->lock);
 	} else {
 		/* in-band DTMF */
@@ -747,11 +747,11 @@ static struct ast_frame *oh323_rtp_read(struct oh323_pvt *pvt)
 
 	/* Only apply it for the first packet, we just need the correct ip/port */
 	if (pvt->options.nat) {
-		ast_rtp_setnat(pvt->rtp, pvt->options.nat);
+		ast_rtp_instance_set_prop(pvt->rtp, AST_RTP_PROPERTY_NAT, pvt->options.nat);
 		pvt->options.nat = 0;
 	}
 
-	f = ast_rtp_read(pvt->rtp);
+	f = ast_rtp_instance_read(pvt->rtp, 0);
 	/* Don't send RFC2833 if we're not supposed to */
 	if (f && (f->frametype == AST_FRAME_DTMF) && !(pvt->options.dtmfmode & (H323_DTMF_RFC2833 | H323_DTMF_CISCO))) {
 		return &ast_null_frame;
@@ -808,7 +808,7 @@ static struct ast_frame *oh323_read(struct ast_channel *c)
 		break;
 	case 1:
 		if (pvt->rtp)
-			fr = ast_rtcp_read(pvt->rtp);
+			fr = ast_rtp_instance_read(pvt->rtp, 1);
 		else
 			fr = &ast_null_frame;
 		break;
@@ -842,7 +842,7 @@ static int oh323_write(struct ast_channel *c, struct ast_frame *frame)
 	if (pvt) {
 		ast_mutex_lock(&pvt->lock);
 		if (pvt->rtp && !pvt->recvonly)
-			res = ast_rtp_write(pvt->rtp, frame);
+			res = ast_rtp_instance_write(pvt->rtp, frame);
 		__oh323_update_info(c, pvt);
 		ast_mutex_unlock(&pvt->lock);
 	}
@@ -910,7 +910,7 @@ static int oh323_indicate(struct ast_channel *c, int condition, const void *data
 		res = 0;
 		break;
 	case AST_CONTROL_SRCUPDATE:
-		ast_rtp_new_source(pvt->rtp);
+		ast_rtp_instance_new_source(pvt->rtp);
 		res = 0;
 		break;
 	case AST_CONTROL_PROCEEDING:
@@ -946,17 +946,17 @@ static int oh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 
 static int __oh323_rtp_create(struct oh323_pvt *pvt)
 {
-	struct in_addr our_addr;
+	struct sockaddr_in our_addr;
 
 	if (pvt->rtp)
 		return 0;
 
-	if (ast_find_ourip(&our_addr, bindaddr)) {
+	if (ast_find_ourip(&our_addr.sin_addr, bindaddr)) {
 		ast_mutex_unlock(&pvt->lock);
 		ast_log(LOG_ERROR, "Unable to locate local IP address for RTP stream\n");
 		return -1;
 	}
-	pvt->rtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, our_addr);
+	pvt->rtp = ast_rtp_instance_new(NULL, sched, &our_addr, NULL);
 	if (!pvt->rtp) {
 		ast_mutex_unlock(&pvt->lock);
 		ast_log(LOG_WARNING, "Unable to create RTP session: %s\n", strerror(errno));
@@ -965,24 +965,24 @@ static int __oh323_rtp_create(struct oh323_pvt *pvt)
 	if (h323debug)
 		ast_debug(1, "Created RTP channel\n");
 
-	ast_rtp_setqos(pvt->rtp, tos, cos, "H323 RTP");
+	ast_rtp_instance_set_qos(pvt->rtp, tos, cos, "H323 RTP");
 
 	if (h323debug)
 		ast_debug(1, "Setting NAT on RTP to %d\n", pvt->options.nat);
-	ast_rtp_setnat(pvt->rtp, pvt->options.nat);
+	ast_rtp_instance_set_prop(pvt->rtp, AST_RTP_PROPERTY_NAT, pvt->options.nat);
 
 	if (pvt->dtmf_pt[0] > 0)
-		ast_rtp_set_rtpmap_type(pvt->rtp, pvt->dtmf_pt[0], "audio", "telephone-event", 0);
+		ast_rtp_codecs_payloads_set_rtpmap_type(ast_rtp_instance_get_codecs(pvt->rtp), pvt->rtp, pvt->dtmf_pt[0], "audio", "telephone-event", 0);
 	if (pvt->dtmf_pt[1] > 0)
-		ast_rtp_set_rtpmap_type(pvt->rtp, pvt->dtmf_pt[1], "audio", "cisco-telephone-event", 0);
+		ast_rtp_codecs_payloads_set_rtpmap_type(ast_rtp_instance_get_codecs(pvt->rtp), pvt->rtp, pvt->dtmf_pt[1], "audio", "cisco-telephone-event", 0);
 
 	if (pvt->peercapability)
-		ast_rtp_codec_setpref(pvt->rtp, &pvt->peer_prefs);
+		ast_rtp_codecs_packetization_set(ast_rtp_instance_get_codecs(pvt->rtp), pvt->rtp, &pvt->peer_prefs);
 
 	if (pvt->owner && !ast_channel_trylock(pvt->owner)) {
 		ast_jb_configure(pvt->owner, &global_jbconf);
-		ast_channel_set_fd(pvt->owner, 0, ast_rtp_fd(pvt->rtp));
-		ast_channel_set_fd(pvt->owner, 1, ast_rtcp_fd(pvt->rtp));
+		ast_channel_set_fd(pvt->owner, 0, ast_rtp_instance_fd(pvt->rtp, 0));
+		ast_channel_set_fd(pvt->owner, 1, ast_rtp_instance_fd(pvt->rtp, 1));
 		ast_queue_frame(pvt->owner, &ast_null_frame);	/* Tell Asterisk to apply changes */
 		ast_channel_unlock(pvt->owner);
 	} else
@@ -1028,13 +1028,13 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 		if (!pvt->rtp)
 			__oh323_rtp_create(pvt);
 #if 0
-		ast_channel_set_fd(ch, 0, ast_rtp_fd(pvt->rtp));
-		ast_channel_set_fd(ch, 1, ast_rtcp_fd(pvt->rtp));
+		ast_channel_set_fd(ch, 0, ast_rtp_instance_fd(pvt->rtp, 0));
+		ast_channel_set_fd(ch, 1, ast_rtp_instance_fd(pvt->rtp, 1));
 #endif
 #ifdef VIDEO_SUPPORT
 		if (pvt->vrtp) {
-			ast_channel_set_fd(ch, 2, ast_rtp_fd(pvt->vrtp));
-			ast_channel_set_fd(ch, 3, ast_rtcp_fd(pvt->vrtp));
+			ast_channel_set_fd(ch, 2, ast_rtp_instance_fd(pvt->vrtp, 0));
+			ast_channel_set_fd(ch, 3, ast_rtp_instance_fd(pvt->vrtp, 1));
 		}
 #endif
 #ifdef T38_SUPPORT
@@ -1112,7 +1112,7 @@ static struct oh323_pvt *oh323_alloc(int callid)
 		}
 		if (!pvt->cd.call_token) {
 			ast_log(LOG_ERROR, "Not enough memory to alocate call token\n");
-			ast_rtp_destroy(pvt->rtp);
+			ast_rtp_instance_destroy(pvt->rtp);
 			ast_free(pvt);
 			return NULL;
 		}
@@ -1912,7 +1912,7 @@ static struct rtp_info *external_rtp_create(unsigned call_reference, const char 
 		return NULL;
 	}
 	/* figure out our local RTP port and tell the H.323 stack about it */
-	ast_rtp_get_us(pvt->rtp, &us);
+	ast_rtp_instance_get_local_address(pvt->rtp, &us);
 	ast_mutex_unlock(&pvt->lock);
 
 	ast_copy_string(info->addr, ast_inet_ntoa(us.sin_addr), sizeof(info->addr));
@@ -1931,7 +1931,6 @@ static void setup_rtp_connection(unsigned call_reference, const char *remoteIp, 
 {
 	struct oh323_pvt *pvt;
 	struct sockaddr_in them;
-	struct rtpPayloadType rtptype;
 	int nativeformats_changed;
 	enum { NEED_NONE, NEED_HOLD, NEED_UNHOLD } rtp_change = NEED_NONE;
 
@@ -1953,7 +1952,7 @@ static void setup_rtp_connection(unsigned call_reference, const char *remoteIp, 
 		__oh323_rtp_create(pvt);
 
 	if ((pt == 2) && (pvt->jointcapability & AST_FORMAT_G726_AAL2)) {
-		ast_rtp_set_rtpmap_type(pvt->rtp, pt, "audio", "G726-32", AST_RTP_OPT_G726_NONSTANDARD);
+		ast_rtp_codecs_payloads_set_rtpmap_type(ast_rtp_instance_get_codecs(pvt->rtp), pvt->rtp, pt, "audio", "G726-32", AST_RTP_OPT_G726_NONSTANDARD);
 	}
 
 	them.sin_family = AF_INET;
@@ -1962,13 +1961,13 @@ static void setup_rtp_connection(unsigned call_reference, const char *remoteIp, 
 	them.sin_port = htons(remotePort);
 
 	if (them.sin_addr.s_addr) {
-		ast_rtp_set_peer(pvt->rtp, &them);
+		ast_rtp_instance_set_remote_address(pvt->rtp, &them);
 		if (pvt->recvonly) {
 			pvt->recvonly = 0;
 			rtp_change = NEED_UNHOLD;
 		}
 	} else {
-		ast_rtp_stop(pvt->rtp);
+		ast_rtp_instance_stop(pvt->rtp);
 		if (!pvt->recvonly) {
 			pvt->recvonly = 1;
 			rtp_change = NEED_HOLD;
@@ -1978,7 +1977,7 @@ static void setup_rtp_connection(unsigned call_reference, const char *remoteIp, 
 	/* Change native format to reflect information taken from OLC/OLCAck */
 	nativeformats_changed = 0;
 	if (pt != 128 && pvt->rtp) {	/* Payload type is invalid, so try to use previously decided */
-		rtptype = ast_rtp_lookup_pt(pvt->rtp, pt);
+		struct ast_rtp_payload_type rtptype = ast_rtp_codecs_payload_lookup(ast_rtp_instance_get_codecs(pvt->rtp), pt);
 		if (h323debug)
 			ast_debug(1, "Native format is set to %d from %d by RTP payload type %d\n", rtptype.code, pvt->nativeformats, pt);
 		if (pvt->nativeformats != rtptype.code) {
@@ -2359,7 +2358,7 @@ static void cleanup_connection(unsigned call_reference, const char *call_token)
 	}
 	if (pvt->rtp) {
 		/* Immediately stop RTP */
-		ast_rtp_destroy(pvt->rtp);
+		ast_rtp_instance_destroy(pvt->rtp);
 		pvt->rtp = NULL;
 	}
 	/* Free dsp used for in-band DTMF detection */
@@ -2421,7 +2420,7 @@ static void set_dtmf_payload(unsigned call_reference, const char *token, int pay
 		return;
 	}
 	if (pvt->rtp) {
-		ast_rtp_set_rtpmap_type(pvt->rtp, payload, "audio", (is_cisco ? "cisco-telephone-event" : "telephone-event"), 0);
+		ast_rtp_codecs_payloads_set_rtpmap_type(ast_rtp_instance_get_codecs(pvt->rtp), pvt->rtp, payload, "audio", (is_cisco ? "cisco-telephone-event" : "telephone-event"), 0);
 	}
 	pvt->dtmf_pt[is_cisco ? 1 : 0] = payload;
 	ast_mutex_unlock(&pvt->lock);
@@ -2452,7 +2451,7 @@ static void set_peer_capabilities(unsigned call_reference, const char *token, in
 			}
 		}
 		if (pvt->rtp)
-			ast_rtp_codec_setpref(pvt->rtp, &pvt->peer_prefs);
+			ast_rtp_codecs_packetization_set(ast_rtp_instance_get_codecs(pvt->rtp), pvt->rtp, &pvt->peer_prefs);
 	}
 	ast_mutex_unlock(&pvt->lock);
 }
@@ -3113,29 +3112,24 @@ static int reload(void)
 static struct ast_cli_entry cli_h323_reload =
 	AST_CLI_DEFINE(handle_cli_h323_reload, "Reload H.323 configuration");
 
-static enum ast_rtp_get_result oh323_get_rtp_peer(struct ast_channel *chan, struct ast_rtp **rtp)
+static enum ast_rtp_glue_result oh323_get_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance **instance)
 {
 	struct oh323_pvt *pvt;
-	enum ast_rtp_get_result res = AST_RTP_TRY_PARTIAL;
+	enum ast_rtp_glue_result res = AST_RTP_GLUE_RESULT_LOCAL;
 
 	if (!(pvt = (struct oh323_pvt *)chan->tech_pvt))
-		return AST_RTP_GET_FAILED;
+		return AST_RTP_GLUE_RESULT_FORBID;
 
 	ast_mutex_lock(&pvt->lock);
-	*rtp = pvt->rtp;
+	*instance = pvt->rtp ? ao2_ref(pvt->rtp, +1), pvt->rtp : NULL;
 #if 0
 	if (pvt->options.bridge) {
-		res = AST_RTP_TRY_NATIVE;
+		res = AST_RTP_GLUE_RESULT_REMOTE;
 	}
 #endif
 	ast_mutex_unlock(&pvt->lock);
 
 	return res;
-}
-
-static enum ast_rtp_get_result oh323_get_vrtp_peer(struct ast_channel *chan, struct ast_rtp **rtp)
-{
-	return AST_RTP_GET_FAILED;
 }
 
 static char *convertcap(int cap)
@@ -3165,7 +3159,7 @@ static char *convertcap(int cap)
 	}
 }
 
-static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, struct ast_rtp *trtp, int codecs, int nat_active)
+static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *rtp, struct ast_rtp_instance *vrtp, struct ast_rtp_instance *trtp, int codecs, int nat_active)
 {
 	/* XXX Deal with Video */
 	struct oh323_pvt *pvt;
@@ -3183,19 +3177,18 @@ static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, str
 		ast_log(LOG_ERROR, "No Private Structure, this is bad\n");
 		return -1;
 	}
-	ast_rtp_get_peer(rtp, &them);
-	ast_rtp_get_us(rtp, &us);
+	ast_rtp_instance_get_remote_address(rtp, &them);
+	ast_rtp_instance_get_local_address(rtp, &us);
 #if 0	/* Native bridge still isn't ready */
 	h323_native_bridge(pvt->cd.call_token, ast_inet_ntoa(them.sin_addr), mode);
 #endif
 	return 0;
 }
 
-static struct ast_rtp_protocol oh323_rtp = {
+static struct ast_rtp_glue oh323_rtp_glue = {
 	.type = "H323",
 	.get_rtp_info = oh323_get_rtp_peer,
-	.get_vrtp_info = oh323_get_vrtp_peer,
-	.set_rtp_peer = oh323_set_rtp_peer,
+	.update_peer = oh323_set_rtp_peer,
 };
 
 static enum ast_module_load_result load_module(void)
@@ -3250,7 +3243,7 @@ static enum ast_module_load_result load_module(void)
 		}
 		ast_cli_register_multiple(cli_h323, sizeof(cli_h323) / sizeof(struct ast_cli_entry));
 
-		ast_rtp_proto_register(&oh323_rtp);
+		ast_rtp_glue_register(&oh323_rtp_glue);
 
 		/* Register our callback functions */
 		h323_callback_register(setup_incoming_call,
@@ -3271,7 +3264,7 @@ static enum ast_module_load_result load_module(void)
 		/* start the h.323 listener */
 		if (h323_start_listener(h323_signalling_port, bindaddr)) {
 			ast_log(LOG_ERROR, "Unable to create H323 listener.\n");
-			ast_rtp_proto_unregister(&oh323_rtp);
+			ast_rtp_glue_unregister(&oh323_rtp_glue);
 			ast_cli_unregister_multiple(cli_h323, sizeof(cli_h323) / sizeof(struct ast_cli_entry));
 			ast_cli_unregister(&cli_h323_reload);
 			h323_end_process();
@@ -3310,7 +3303,7 @@ static int unload_module(void)
 	ast_cli_unregister(&cli_h323_reload);
 
 	ast_channel_unregister(&oh323_tech);
-	ast_rtp_proto_unregister(&oh323_rtp);
+	ast_rtp_glue_unregister(&oh323_rtp_glue);
 
 	if (!ast_mutex_lock(&iflock)) {
 		/* hangup all interfaces if they have an owner */

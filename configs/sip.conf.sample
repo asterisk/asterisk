@@ -292,6 +292,8 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;contactpermit=172.16.0.0/255.255.0.0  ; restrict at what IPs your users may
                                        ; register their phones.
 
+;engine=asterisk                ; RTP engine to use when communicating with the device
+
 ;
 ; If regcontext is specified, Asterisk will dynamically create and destroy a
 ; NoOp priority 1 extension for a given peer who registers or unregisters with

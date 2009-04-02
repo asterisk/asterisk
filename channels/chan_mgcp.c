@@ -52,7 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/sched.h"
 #include "asterisk/io.h"
-#include "asterisk/rtp.h"
+#include "asterisk/rtp_engine.h"
 #include "asterisk/acl.h"
 #include "asterisk/callerid.h"
 #include "asterisk/cli.h"
@@ -282,7 +282,7 @@ struct mgcp_subchannel {
 	int id;
 	struct ast_channel *owner;
 	struct mgcp_endpoint *parent;
-	struct ast_rtp *rtp;
+	struct ast_rtp_instance *rtp;
 	struct sockaddr_in tmpdest;
 	char txident[80]; /*! \todo FIXME txident is replaced by rqnt_ident in endpoint. 
 			This should be obsoleted */
@@ -408,7 +408,7 @@ static int transmit_response(struct mgcp_subchannel *sub, char *msg, struct mgcp
 static int transmit_notify_request(struct mgcp_subchannel *sub, char *tone);
 static int transmit_modify_request(struct mgcp_subchannel *sub);
 static int transmit_notify_request_with_callerid(struct mgcp_subchannel *sub, char *tone, char *callernum, char *callername);
-static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp *rtp, int codecs);
+static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp_instance *rtp, int codecs);
 static int transmit_connection_del(struct mgcp_subchannel *sub);
 static int transmit_audit_endpoint(struct mgcp_endpoint *p);
 static void start_rtp(struct mgcp_subchannel *sub);
@@ -447,7 +447,7 @@ static const struct ast_channel_tech mgcp_tech = {
 	.fixup = mgcp_fixup,
 	.send_digit_begin = mgcp_senddigit_begin,
 	.send_digit_end = mgcp_senddigit_end,
-	.bridge = ast_rtp_bridge,
+	.bridge = ast_rtp_instance_bridge,
 };
 
 static void mwi_event_cb(const struct ast_event *event, void *userdata)
@@ -503,7 +503,7 @@ static int unalloc_sub(struct mgcp_subchannel *sub)
 	sub->alreadygone = 0;
 	memset(&sub->tmpdest, 0, sizeof(sub->tmpdest));
 	if (sub->rtp) {
-		ast_rtp_destroy(sub->rtp);
+		ast_rtp_instance_destroy(sub->rtp);
 		sub->rtp = NULL;
 	}
 	dump_cmd_queues(NULL, sub); /* SC */
@@ -1003,7 +1003,7 @@ static int mgcp_hangup(struct ast_channel *ast)
 	/* Reset temporary destination */
 	memset(&sub->tmpdest, 0, sizeof(sub->tmpdest));
 	if (sub->rtp) {
-		ast_rtp_destroy(sub->rtp);
+		ast_rtp_instance_destroy(sub->rtp);
 		sub->rtp = NULL;
 	}
 
@@ -1203,7 +1203,7 @@ static struct ast_frame *mgcp_rtp_read(struct mgcp_subchannel *sub)
 	/* Retrieve audio/etc from channel.  Assumes sub->lock is already held. */
 	struct ast_frame *f;
 
-	f = ast_rtp_read(sub->rtp);
+	f = ast_rtp_instance_read(sub->rtp, 0);
 	/* Don't send RFC2833 if we're not supposed to */
 	if (f && (f->frametype == AST_FRAME_DTMF) && !(sub->parent->dtmfmode & MGCP_DTMF_RFC2833))
 		return &ast_null_frame;
@@ -1261,7 +1261,7 @@ static int mgcp_write(struct ast_channel *ast, struct ast_frame *frame)
 		ast_mutex_lock(&sub->lock);
 		if ((sub->parent->sub == sub) || !sub->parent->singlepath) {
 			if (sub->rtp) {
-				res =  ast_rtp_write(sub->rtp, frame);
+				res =  ast_rtp_instance_write(sub->rtp, frame);
 			}
 		}
 		ast_mutex_unlock(&sub->lock);
@@ -1297,7 +1297,7 @@ static int mgcp_senddigit_begin(struct ast_channel *ast, char digit)
 		res = -1; /* Let asterisk play inband indications */
 	} else if (p->dtmfmode & MGCP_DTMF_RFC2833) {
 		ast_log(LOG_DEBUG, "Sending DTMF using RFC2833");
-		ast_rtp_senddigit_begin(sub->rtp, digit);
+		ast_rtp_instance_dtmf_begin(sub->rtp, digit);
 	} else {
 		ast_log(LOG_ERROR, "Don't know about DTMF_MODE %d\n", p->dtmfmode);
 	}
@@ -1324,7 +1324,7 @@ static int mgcp_senddigit_end(struct ast_channel *ast, char digit, unsigned int 
 		tmp[2] = digit;
 		tmp[3] = '\0';
 		transmit_notify_request(sub, tmp);
-                ast_rtp_senddigit_end(sub->rtp, digit);
+                ast_rtp_instance_dtmf_end(sub->rtp, digit);
 	} else {
 		ast_log(LOG_ERROR, "Don't know about DTMF_MODE %d\n", p->dtmfmode);
 	}
@@ -1453,7 +1453,7 @@ static int mgcp_indicate(struct ast_channel *ast, int ind, const void *data, siz
 		ast_moh_stop(ast);
 		break;
 	case AST_CONTROL_SRCUPDATE:
-		ast_rtp_new_source(sub->rtp);
+		ast_rtp_instance_new_source(sub->rtp);
 		break;
 	case -1:
 		transmit_notify_request(sub, "");
@@ -1481,7 +1481,7 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		fmt = ast_best_codec(tmp->nativeformats);
 		ast_string_field_build(tmp, name, "MGCP/%s@%s-%d", i->name, i->parent->name, sub->id);
 		if (sub->rtp)
-			ast_channel_set_fd(tmp, 0, ast_rtp_fd(sub->rtp));
+			ast_channel_set_fd(tmp, 0, ast_rtp_instance_fd(sub->rtp, 0));
 		if (i->dtmfmode & (MGCP_DTMF_INBAND | MGCP_DTMF_HYBRID)) {
 			i->dsp = ast_dsp_new();
 			ast_dsp_set_features(i->dsp, DSP_FEATURE_DIGIT_DETECT);
@@ -1874,12 +1874,12 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 	sin.sin_family = AF_INET;
 	memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
 	sin.sin_port = htons(portno);
-	ast_rtp_set_peer(sub->rtp, &sin);
+	ast_rtp_instance_set_remote_address(sub->rtp, &sin);
 #if 0
 	printf("Peer RTP is at port %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 #endif	
 	/* Scan through the RTP payload types specified in a "m=" line: */
-	ast_rtp_pt_clear(sub->rtp);
+	ast_rtp_codecs_payloads_clear(ast_rtp_instance_get_codecs(sub->rtp), sub->rtp);
 	codecs = ast_strdupa(m + len);
 	while (!ast_strlen_zero(codecs)) {
 		if (sscanf(codecs, "%d%n", &codec, &len) != 1) {
@@ -1888,7 +1888,7 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 			ast_log(LOG_WARNING, "Error in codec string '%s' at '%s'\n", m, codecs);
 			return -1;
 		}
-		ast_rtp_set_m_type(sub->rtp, codec);
+		ast_rtp_codecs_payloads_set_m_type(ast_rtp_instance_get_codecs(sub->rtp), sub->rtp, codec);
 		codec_count++;
 		codecs += len;
 	}
@@ -1901,11 +1901,11 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 		if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) != 2)
 			continue;
 		/* Note: should really look at the 'freq' and '#chans' params too */
-		ast_rtp_set_rtpmap_type(sub->rtp, codec, "audio", mimeSubtype, 0);
+		ast_rtp_codecs_payloads_set_rtpmap_type(ast_rtp_instance_get_codecs(sub->rtp), sub->rtp, codec, "audio", mimeSubtype, 0);
 	}
 
 	/* Now gather all of the codecs that were asked for: */
-	ast_rtp_get_current_formats(sub->rtp, &peercapability, &peerNonCodecCapability);
+	ast_rtp_codecs_payload_formats(ast_rtp_instance_get_codecs(sub->rtp), &peercapability, &peerNonCodecCapability);
 	p->capability = capability & peercapability;
 	if (mgcpdebug) {
 		ast_verbose("Capabilities: us - %d, them - %d, combined - %d\n",
@@ -2043,7 +2043,7 @@ static int transmit_response(struct mgcp_subchannel *sub, char *msg, struct mgcp
 }
 
 
-static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struct ast_rtp *rtp)
+static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struct ast_rtp_instance *rtp)
 {
 	int len;
 	int codec;
@@ -2066,9 +2066,9 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 		ast_log(LOG_WARNING, "No way to add SDP without an RTP structure\n");
 		return -1;
 	}
-	ast_rtp_get_us(sub->rtp, &sin);
+	ast_rtp_instance_get_local_address(sub->rtp, &sin);
 	if (rtp) {
-		ast_rtp_get_peer(rtp, &dest);
+		ast_rtp_instance_get_remote_address(sub->rtp, &dest);
 	} else {
 		if (sub->tmpdest.sin_addr.s_addr) {
 			dest.sin_addr = sub->tmpdest.sin_addr;
@@ -2094,11 +2094,11 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 			if (mgcpdebug) {
 				ast_verbose("Answering with capability %d\n", x);
 			}
-			codec = ast_rtp_lookup_code(sub->rtp, 1, x);
+			codec = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(sub->rtp), 1, x);
 			if (codec > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
 				strncat(m, costr, sizeof(m) - strlen(m) - 1);
-				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(1, x, 0));
+				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype2(1, x, 0));
 				strncat(a, costr, sizeof(a) - strlen(a) - 1);
 			}
 		}
@@ -2108,11 +2108,11 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 			if (mgcpdebug) {
 				ast_verbose("Answering with non-codec capability %d\n", x);
 			}
-			codec = ast_rtp_lookup_code(sub->rtp, 0, x);
+			codec = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(sub->rtp), 0, x);
 			if (codec > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
 				strncat(m, costr, sizeof(m) - strlen(m) - 1);
-				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(0, x, 0));
+				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype2(0, x, 0));
 				strncat(a, costr, sizeof(a) - strlen(a) - 1);
 				if (x == AST_RTP_DTMF) {
 					/* Indicate we support DTMF...  Not sure about 16,
@@ -2136,7 +2136,7 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 	return 0;
 }
 
-static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp *rtp, int codecs)
+static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp_instance *rtp, int codecs)
 {
 	struct mgcp_request resp;
 	char local[256];
@@ -2147,13 +2147,13 @@ static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp 
 	if (ast_strlen_zero(sub->cxident) && rtp) {
 		/* We don't have a CXident yet, store the destination and
 		   wait a bit */
-		ast_rtp_get_peer(rtp, &sub->tmpdest);
+		ast_rtp_instance_get_remote_address(rtp, &sub->tmpdest);
 		return 0;
 	}
 	ast_copy_string(local, "p:20", sizeof(local));
 	for (x = 1; x <= AST_FORMAT_AUDIO_MASK; x <<= 1) {
 		if (p->capability & x) {
-			snprintf(tmp, sizeof(tmp), ", a:%s", ast_rtp_lookup_mime_subtype(1, x, 0));
+			snprintf(tmp, sizeof(tmp), ", a:%s", ast_rtp_lookup_mime_subtype2(1, x, 0));
 			strncat(local, tmp, sizeof(local) - strlen(local) - 1);
 		}
 	}
@@ -2172,7 +2172,7 @@ static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp 
 	return send_request(p, sub, &resp, oseq); /* SC */
 }
 
-static int transmit_connect_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp *rtp)
+static int transmit_connect_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp_instance *rtp)
 {
 	struct mgcp_request resp;
 	char local[256];
@@ -2183,7 +2183,7 @@ static int transmit_connect_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp
 	ast_copy_string(local, "p:20", sizeof(local));
 	for (x = 1; x <= AST_FORMAT_AUDIO_MASK; x <<= 1) {
 		if (p->capability & x) {
-			snprintf(tmp, sizeof(tmp), ", a:%s", ast_rtp_lookup_mime_subtype(1, x, 0));
+			snprintf(tmp, sizeof(tmp), ", a:%s", ast_rtp_lookup_mime_subtype2(1, x, 0));
 			strncat(local, tmp, sizeof(local) - strlen(local) - 1);
 		}
 	}
@@ -2611,21 +2611,17 @@ static void start_rtp(struct mgcp_subchannel *sub)
 	ast_mutex_lock(&sub->lock);
 	/* check again to be on the safe side */
 	if (sub->rtp) {
-		ast_rtp_destroy(sub->rtp);
+		ast_rtp_instance_destroy(sub->rtp);
 		sub->rtp = NULL;
 	}
 	/* Allocate the RTP now */
-	sub->rtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
+	sub->rtp = ast_rtp_instance_new(NULL, sched, &bindaddr, NULL);
 	if (sub->rtp && sub->owner)
-		ast_channel_set_fd(sub->owner, 0, ast_rtp_fd(sub->rtp));
+		ast_channel_set_fd(sub->owner, 0, ast_rtp_instance_fd(sub->rtp, 0));
 	if (sub->rtp) {
-		ast_rtp_setqos(sub->rtp, qos.tos_audio, qos.cos_audio, "MGCP RTP");
-		ast_rtp_setnat(sub->rtp, sub->nat);
+		ast_rtp_instance_set_qos(sub->rtp, qos.tos_audio, qos.cos_audio, "MGCP RTP");
+		ast_rtp_instance_set_prop(sub->rtp, AST_RTP_PROPERTY_NAT, sub->nat);
 	}
-#if 0
-	ast_rtp_set_callback(p->rtp, rtpready);
-	ast_rtp_set_data(p->rtp, p);
-#endif		
 	/* Make a call*ID */
         snprintf(sub->callid, sizeof(sub->callid), "%08lx%s", ast_random(), sub->txident);
 	/* Transmit the connection create */
@@ -3940,22 +3936,22 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 	return (gw_reload ? NULL : gw);
 }
 
-static enum ast_rtp_get_result mgcp_get_rtp_peer(struct ast_channel *chan, struct ast_rtp **rtp)
+static enum ast_rtp_glue_result mgcp_get_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance **instance)
 {
 	struct mgcp_subchannel *sub = NULL;
 
 	if (!(sub = chan->tech_pvt) || !(sub->rtp))
-		return AST_RTP_GET_FAILED;
+		return AST_RTP_GLUE_RESULT_FORBID;
 
-	*rtp = sub->rtp;
+	*instance = sub->rtp ? ao2_ref(sub->rtp, +1), sub->rtp : NULL;
 
 	if (sub->parent->canreinvite)
-		return AST_RTP_TRY_NATIVE;
+		return AST_RTP_GLUE_RESULT_REMOTE;
 	else
-		return AST_RTP_TRY_PARTIAL;
+		return AST_RTP_GLUE_RESULT_LOCAL;
 }
 
-static int mgcp_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, struct ast_rtp *trtp, int codecs, int nat_active)
+static int mgcp_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *rtp, struct ast_rtp_instance *vrtp, struct ast_rtp_instance *trtp, int codecs, int nat_active)
 {
 	/* XXX Is there such thing as video support with MGCP? XXX */
 	struct mgcp_subchannel *sub;
@@ -3967,10 +3963,10 @@ static int mgcp_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, stru
 	return -1;
 }
 
-static struct ast_rtp_protocol mgcp_rtp = {
+static struct ast_rtp_glue mgcp_rtp_glue = {
 	.type = "MGCP",
 	.get_rtp_info = mgcp_get_rtp_peer,
-	.set_rtp_peer = mgcp_set_rtp_peer,
+	.update_peer = mgcp_set_rtp_peer,
 };
 
 static void destroy_endpoint(struct mgcp_endpoint *e)
@@ -3984,7 +3980,7 @@ static void destroy_endpoint(struct mgcp_endpoint *e)
 			transmit_connection_del(sub);
 		}
 		if (sub->rtp) {
-			ast_rtp_destroy(sub->rtp);
+			ast_rtp_instance_destroy(sub->rtp);
 			sub->rtp = NULL;
 		}
 		memset(sub->magic, 0, sizeof(sub->magic));
@@ -4276,7 +4272,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	ast_rtp_proto_register(&mgcp_rtp);
+	ast_rtp_glue_register(&mgcp_rtp_glue);
 	ast_cli_register_multiple(cli_mgcp, sizeof(cli_mgcp) / sizeof(struct ast_cli_entry));
 	
 	/* And start the monitor for the first time */
@@ -4379,7 +4375,7 @@ static int unload_module(void)
 	}
 
 	close(mgcpsock);
-	ast_rtp_proto_unregister(&mgcp_rtp);
+	ast_rtp_glue_unregister(&mgcp_rtp_glue);
 	ast_cli_unregister_multiple(cli_mgcp, sizeof(cli_mgcp) / sizeof(struct ast_cli_entry));
 	sched_context_destroy(sched);
 

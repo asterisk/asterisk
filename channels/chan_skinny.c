@@ -49,7 +49,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/sched.h"
 #include "asterisk/io.h"
-#include "asterisk/rtp.h"
+#include "asterisk/rtp_engine.h"
 #include "asterisk/netsock.h"
 #include "asterisk/acl.h"
 #include "asterisk/callerid.h"
@@ -1111,8 +1111,8 @@ static int matchdigittimeout = 3000;
 struct skinny_subchannel {
 	ast_mutex_t lock;
 	struct ast_channel *owner;
-	struct ast_rtp *rtp;
-	struct ast_rtp *vrtp;
+	struct ast_rtp_instance *rtp;
+	struct ast_rtp_instance *vrtp;
 	unsigned int callid;
 	/* time_t lastouttime; */ /* Unused */
 	int progress;
@@ -1347,7 +1347,7 @@ static const struct ast_channel_tech skinny_tech = {
 	.fixup = skinny_fixup,
 	.send_digit_begin = skinny_senddigit_begin,
 	.send_digit_end = skinny_senddigit_end,
-	.bridge = ast_rtp_bridge,  
+	.bridge = ast_rtp_instance_bridge, 
 };
 
 static int skinny_extensionstate_cb(char *context, char* exten, int state, void *data);
@@ -2557,46 +2557,48 @@ static void mwi_event_cb(const struct ast_event *event, void *userdata)
 /* I do not believe skinny can deal with video.
    Anyone know differently? */
 /* Yes, it can.  Currently 7985 and Cisco VT Advantage do video. */
-static enum ast_rtp_get_result skinny_get_vrtp_peer(struct ast_channel *c, struct ast_rtp **rtp)
+static enum ast_rtp_glue_result skinny_get_vrtp_peer(struct ast_channel *c, struct ast_rtp_instance **instance)
 {
 	struct skinny_subchannel *sub = NULL;
 
 	if (!(sub = c->tech_pvt) || !(sub->vrtp))
-		return AST_RTP_GET_FAILED;
+		return AST_RTP_GLUE_RESULT_FORBID;
 
-	*rtp = sub->vrtp;
+	ao2_ref(sub->vrtp, +1);
+	*instance = sub->vrtp;
 
-	return AST_RTP_TRY_NATIVE;
+	return AST_RTP_GLUE_RESULT_REMOTE;
 }
 
-static enum ast_rtp_get_result skinny_get_rtp_peer(struct ast_channel *c, struct ast_rtp **rtp)
+static enum ast_rtp_glue_result skinny_get_rtp_peer(struct ast_channel *c, struct ast_rtp_instance **instance)
 {
 	struct skinny_subchannel *sub = NULL;
 	struct skinny_line *l;
-	enum ast_rtp_get_result res = AST_RTP_TRY_NATIVE;
+	enum ast_rtp_glue_result res = AST_RTP_GLUE_RESULT_REMOTE;
 
 	if (skinnydebug)
 		ast_verb(1, "skinny_get_rtp_peer() Channel = %s\n", c->name);
 
 
 	if (!(sub = c->tech_pvt))
-		return AST_RTP_GET_FAILED;
+		return AST_RTP_GLUE_RESULT_FORBID;
 
 	ast_mutex_lock(&sub->lock);
 
 	if (!(sub->rtp)){
 		ast_mutex_unlock(&sub->lock);
-		return AST_RTP_GET_FAILED;
+		return AST_RTP_GLUE_RESULT_FORBID;
 	}
-	
-	*rtp = sub->rtp;
+
+	ao2_ref(sub->rtp, +1);
+	*instance = sub->rtp;
 
 	l = sub->parent;
 
 	if (!l->canreinvite || l->nat){
-		res = AST_RTP_TRY_PARTIAL;
+		res = AST_RTP_GLUE_RESULT_LOCAL;
 		if (skinnydebug)
-			ast_verb(1, "skinny_get_rtp_peer() Using AST_RTP_TRY_PARTIAL \n");
+			ast_verb(1, "skinny_get_rtp_peer() Using AST_RTP_GLUE_RESULT_LOCAL \n");
 	}
 
 	ast_mutex_unlock(&sub->lock);
@@ -2605,7 +2607,7 @@ static enum ast_rtp_get_result skinny_get_rtp_peer(struct ast_channel *c, struct
 
 }
 
-static int skinny_set_rtp_peer(struct ast_channel *c, struct ast_rtp *rtp, struct ast_rtp *vrtp, struct ast_rtp *trtp, int codecs, int nat_active)
+static int skinny_set_rtp_peer(struct ast_channel *c, struct ast_rtp_instance *rtp, struct ast_rtp_instance *vrtp, struct ast_rtp_instance *trtp, int codecs, int nat_active)
 {
 	struct skinny_subchannel *sub;
 	struct skinny_line *l;
@@ -2630,7 +2632,7 @@ static int skinny_set_rtp_peer(struct ast_channel *c, struct ast_rtp *rtp, struc
 	s = d->session;
 
 	if (rtp){
-		ast_rtp_get_peer(rtp, &them);
+		ast_rtp_instance_get_remote_address(rtp, &them);
 
 		/* Shutdown any early-media or previous media on re-invite */
 		if (!(req = req_alloc(sizeof(struct stop_media_transmission_message), STOP_MEDIA_TRANSMISSION_MESSAGE)))
@@ -2654,7 +2656,7 @@ static int skinny_set_rtp_peer(struct ast_channel *c, struct ast_rtp *rtp, struc
 		req->data.startmedia.conferenceId = htolel(sub->callid);
 		req->data.startmedia.passThruPartyId = htolel(sub->callid);
 		if (!(l->canreinvite) || (l->nat)){
-			ast_rtp_get_us(rtp, &us);
+			ast_rtp_instance_get_local_address(rtp, &us);
 			req->data.startmedia.remoteIp = htolel(d->ourip.s_addr);
 			req->data.startmedia.remotePort = htolel(ntohs(us.sin_port));
 		} else {
@@ -2675,11 +2677,11 @@ static int skinny_set_rtp_peer(struct ast_channel *c, struct ast_rtp *rtp, struc
 	return 0;
 }
 
-static struct ast_rtp_protocol skinny_rtp = {
+static struct ast_rtp_glue skinny_rtp_glue = {
 	.type = "Skinny",
 	.get_rtp_info = skinny_get_rtp_peer,
 	.get_vrtp_info = skinny_get_vrtp_peer,
-	.set_rtp_peer = skinny_set_rtp_peer,
+	.update_peer = skinny_set_rtp_peer,
 };
 
 static char *handle_skinny_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -3559,29 +3561,36 @@ static void start_rtp(struct skinny_subchannel *sub)
 
 	ast_mutex_lock(&sub->lock);
 	/* Allocate the RTP */
-	sub->rtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
+	sub->rtp = ast_rtp_instance_new(NULL, sched, &bindaddr, NULL);
 	if (hasvideo)
-		sub->vrtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
-	
-	if (sub->rtp && sub->owner) {
-		ast_channel_set_fd(sub->owner, 0, ast_rtp_fd(sub->rtp));
-		ast_channel_set_fd(sub->owner, 1, ast_rtcp_fd(sub->rtp));
-	}
-	if (hasvideo && sub->vrtp && sub->owner) {
-		ast_channel_set_fd(sub->owner, 2, ast_rtp_fd(sub->vrtp));
-		ast_channel_set_fd(sub->owner, 3, ast_rtcp_fd(sub->vrtp));
-	}
+		sub->vrtp = ast_rtp_instance_new(NULL, sched, &bindaddr, NULL);
+
 	if (sub->rtp) {
-		ast_rtp_setqos(sub->rtp, qos.tos_audio, qos.cos_audio, "Skinny RTP");
-		ast_rtp_setnat(sub->rtp, l->nat);
+		ast_rtp_instance_set_prop(sub->rtp, AST_RTP_PROPERTY_RTCP, 1);
 	}
 	if (sub->vrtp) {
-		ast_rtp_setqos(sub->vrtp, qos.tos_video, qos.cos_video, "Skinny VRTP");
-		ast_rtp_setnat(sub->vrtp, l->nat);
+		ast_rtp_instance_set_prop(sub->vrtp, AST_RTP_PROPERTY_RTCP, 1);
+	}
+
+	if (sub->rtp && sub->owner) {
+		ast_channel_set_fd(sub->owner, 0, ast_rtp_instance_fd(sub->rtp, 0));
+		ast_channel_set_fd(sub->owner, 1, ast_rtp_instance_fd(sub->rtp, 1));
+	}
+	if (hasvideo && sub->vrtp && sub->owner) {
+		ast_channel_set_fd(sub->owner, 2, ast_rtp_instance_fd(sub->vrtp, 0));
+		ast_channel_set_fd(sub->owner, 3, ast_rtp_instance_fd(sub->vrtp, 1));
+	}
+	if (sub->rtp) {
+		ast_rtp_instance_set_qos(sub->rtp, qos.tos_audio, qos.cos_audio, "Skinny RTP");
+		ast_rtp_instance_set_prop(sub->rtp, AST_RTP_PROPERTY_NAT, l->nat);
+	}
+	if (sub->vrtp) {
+		ast_rtp_instance_set_qos(sub->vrtp, qos.tos_video, qos.cos_video, "Skinny VRTP");
+		ast_rtp_instance_set_prop(sub->vrtp, AST_RTP_PROPERTY_NAT, l->nat);
 	}
 	/* Set Frame packetization */
 	if (sub->rtp)
-		ast_rtp_codec_setpref(sub->rtp, &l->prefs);
+		ast_rtp_codecs_packetization_set(ast_rtp_instance_get_codecs(sub->rtp), sub->rtp, &l->prefs);
 
 	/* Create the RTP connection */
 	transmit_connect(d, sub);
@@ -3852,7 +3861,7 @@ static int skinny_hangup(struct ast_channel *ast)
 	sub->alreadygone = 0;
 	sub->outgoing = 0;
 	if (sub->rtp) {
-		ast_rtp_destroy(sub->rtp);
+		ast_rtp_instance_destroy(sub->rtp);
 		sub->rtp = NULL;
 	}
 	ast_mutex_unlock(&sub->lock);
@@ -3913,16 +3922,16 @@ static struct ast_frame *skinny_rtp_read(struct skinny_subchannel *sub)
 
 	switch(ast->fdno) {
 	case 0:
-		f = ast_rtp_read(sub->rtp); /* RTP Audio */
+		f = ast_rtp_instance_read(sub->rtp, 0); /* RTP Audio */
 		break;
 	case 1:
-		f = ast_rtcp_read(sub->rtp); /* RTCP Control Channel */
+		f = ast_rtp_instance_read(sub->rtp, 1); /* RTCP Control Channel */
 		break;
 	case 2:
-		f = ast_rtp_read(sub->vrtp); /* RTP Video */
+		f = ast_rtp_instance_read(sub->vrtp, 0); /* RTP Video */
 		break;
 	case 3:
-		f = ast_rtcp_read(sub->vrtp); /* RTCP Control Channel for video */
+		f = ast_rtp_instance_read(sub->vrtp, 1); /* RTCP Control Channel for video */
 		break;
 #if 0
 	case 5:
@@ -3979,7 +3988,7 @@ static int skinny_write(struct ast_channel *ast, struct ast_frame *frame)
 	if (sub) {
 		ast_mutex_lock(&sub->lock);
 		if (sub->rtp) {
-			res = ast_rtp_write(sub->rtp, frame);
+			res = ast_rtp_instance_write(sub->rtp, frame);
 		}
 		ast_mutex_unlock(&sub->lock);
 	}
@@ -4253,7 +4262,7 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 	case AST_CONTROL_PROCEEDING:
 		break;
 	case AST_CONTROL_SRCUPDATE:
-		ast_rtp_new_source(sub->rtp);
+		ast_rtp_instance_new_source(sub->rtp);
 		break;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to indicate condition %d\n", ind);
@@ -4312,7 +4321,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 		if (skinnydebug)
 			ast_verb(1, "skinny_new: tmp->nativeformats=%d fmt=%d\n", tmp->nativeformats, fmt);
 		if (sub->rtp) {
-			ast_channel_set_fd(tmp, 0, ast_rtp_fd(sub->rtp));
+			ast_channel_set_fd(tmp, 0, ast_rtp_instance_fd(sub->rtp, 0));
 		}
 		if (state == AST_STATE_RING) {
 			tmp->rings = 1;
@@ -5537,8 +5546,8 @@ static int handle_open_receive_channel_ack_message(struct skinny_req *req, struc
 	l = sub->parent;
 
 	if (sub->rtp) {
-		ast_rtp_set_peer(sub->rtp, &sin);
-		ast_rtp_get_us(sub->rtp, &us);
+		ast_rtp_instance_set_remote_address(sub->rtp, &sin);
+		ast_rtp_instance_get_local_address(sub->rtp, &us);
 	} else {
 		ast_log(LOG_ERROR, "No RTP structure, this is very bad\n");
 		return 0;
@@ -7289,7 +7298,7 @@ static int load_module(void)
 		return -1;
 	}
 
-	ast_rtp_proto_register(&skinny_rtp);
+	ast_rtp_glue_register(&skinny_rtp_glue);
 	ast_cli_register_multiple(cli_skinny, ARRAY_LEN(cli_skinny));
 
 	ast_manager_register2("SKINNYdevices", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_skinny_show_devices,
@@ -7323,7 +7332,7 @@ static int unload_module(void)
 	struct skinny_subchannel *sub;
 	struct ast_context *con;
 
-	ast_rtp_proto_unregister(&skinny_rtp);
+	ast_rtp_glue_unregister(&skinny_rtp_glue);
 	ast_channel_unregister(&skinny_tech);
 	ast_cli_unregister_multiple(cli_skinny, ARRAY_LEN(cli_skinny));
 
