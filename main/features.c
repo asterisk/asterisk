@@ -1387,6 +1387,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	struct ast_bridge_config bconfig;
 	struct ast_frame *f;
 	int l;
+	struct ast_party_connected_line connected_line = {{0,},};
 	struct ast_datastore *features_datastore;
 	struct ast_dial_features *dialfeatures = NULL;
 
@@ -1478,6 +1479,17 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		memset(&bconfig,0,sizeof(struct ast_bridge_config));
 		ast_set_flag(&(bconfig.features_caller), AST_FEATURE_DISCONNECT);
 		ast_set_flag(&(bconfig.features_callee), AST_FEATURE_DISCONNECT);
+		/* We need to get the transferer's connected line information copied
+		 * at this point because he is likely to hang up during the bridge with
+		 * newchan. This info will be used down below before bridging the 
+		 * transferee and newchan
+		 *
+		 * As a result, we need to be sure to free this data before returning
+		 * or overwriting it.
+		 */
+		ast_channel_lock(transferer);
+		ast_party_connected_line_copy(&connected_line, &transferer->connected);
+		ast_channel_unlock(transferer);
 		res = ast_bridge_call(transferer, newchan, &bconfig);
 		if (ast_check_hangup(newchan) || !ast_check_hangup(transferer)) {
 			ast_hangup(newchan);
@@ -1485,10 +1497,12 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 				ast_log(LOG_WARNING, "Failed to play transfer sound!\n");
 			finishup(transferee);
 			transferer->_softhangup = 0;
+			ast_party_connected_line_free(&connected_line);
 			return AST_FEATURE_RETURN_SUCCESS;
 		}
 		if (check_compat(transferee, newchan)) {
 			finishup(transferee);
+			ast_party_connected_line_free(&connected_line);
 			return -1;
 		}
 		ast_indicate(transferee, AST_CONTROL_UNHOLD);
@@ -1499,11 +1513,13 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		 || ast_check_hangup(transferee)
 		 || ast_check_hangup(newchan)) {
 			ast_hangup(newchan);
+			ast_party_connected_line_free(&connected_line);
 			return -1;
 		}
 		xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "Transfered/%s", transferee->name);
 		if (!xferchan) {
 			ast_hangup(newchan);
+			ast_party_connected_line_free(&connected_line);
 			return -1;
 		}
 		/* Make formats okay */
@@ -1523,6 +1539,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		if (!(tobj = ast_calloc(1, sizeof(*tobj)))) {
 			ast_hangup(xferchan);
 			ast_hangup(newchan);
+			ast_party_connected_line_free(&connected_line);
 			return -1;
 		}
 
@@ -1556,6 +1573,18 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		if (tobj->bconfig.end_bridge_callback_data_fixup) {
 			tobj->bconfig.end_bridge_callback_data_fixup(&tobj->bconfig, tobj->peer, tobj->chan);
 		}
+
+		/* Due to a limitation regarding when callerID is set on a Local channel,
+		 * we use the transferer's connected line information here.
+		 */
+		connected_line.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
+		ast_channel_update_connected_line(xferchan, &connected_line);
+		ast_channel_lock(xferchan);
+		ast_connected_line_copy_from_caller(&connected_line, &xferchan->cid);
+		ast_channel_unlock(xferchan);
+		connected_line.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
+		ast_channel_update_connected_line(newchan, &connected_line);
+		ast_party_connected_line_free(&connected_line);
 
 		if (ast_stream_and_wait(newchan, xfersound, ""))
 			ast_log(LOG_WARNING, "Failed to play transfer sound!\n");
@@ -1653,11 +1682,24 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		tobj->chan = newchan;
 		tobj->peer = xferchan;
 		tobj->bconfig = *config;
-
+		
 		if (tobj->bconfig.end_bridge_callback_data_fixup) {
 			tobj->bconfig.end_bridge_callback_data_fixup(&tobj->bconfig, tobj->peer, tobj->chan);
 		}
 
+		ast_channel_lock(newchan);
+		ast_connected_line_copy_from_caller(&connected_line, &newchan->cid);
+		ast_channel_unlock(newchan);
+		connected_line.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
+		ast_channel_update_connected_line(xferchan, &connected_line);
+		ast_channel_lock(xferchan);
+		ast_connected_line_copy_from_caller(&connected_line, &xferchan->cid);
+		ast_channel_unlock(xferchan);
+		connected_line.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
+		ast_channel_update_connected_line(newchan, &connected_line);
+
+		ast_party_connected_line_free(&connected_line);
+		
 		if (ast_stream_and_wait(newchan, xfersound, ""))
 			ast_log(LOG_WARNING, "Failed to play transfer sound!\n");
 		bridge_call_thread_launch(tobj);
@@ -2197,6 +2239,10 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller, 
 	ast_channel_inherit_variables(caller, chan);	
 	pbx_builtin_setvar_helper(chan, "TRANSFERERNAME", caller->name);
 		
+	ast_channel_lock(chan);
+	ast_connected_line_copy_from_caller(&chan->connected, &caller->cid);
+	ast_channel_unlock(chan);
+	
 	if (ast_call(chan, data, timeout)) {
 		ast_log(LOG_NOTICE, "Unable to call channel %s/%s\n", type, (char *)data);
 		goto done;
@@ -2266,6 +2312,8 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller, 
 					f = NULL;
 					ready=1;
 					break;
+				} else if (f->subclass == AST_CONTROL_CONNECTED_LINE) {
+					ast_indicate_data(caller, AST_CONTROL_CONNECTED_LINE, f->data.ptr, f->datalen);
 				} else if (f->subclass != -1) {
 					ast_log(LOG_NOTICE, "Don't know what to do about control frame: %d\n", f->subclass);
 				}
@@ -4444,8 +4492,19 @@ int ast_pickup_call(struct ast_channel *chan)
 	struct ast_channel *cur = ast_channel_search_locked(find_channel_by_group, chan);
 
 	if (cur) {
+		struct ast_party_connected_line connected_caller;
+
 		int res = -1;
 		ast_debug(1, "Call pickup on chan '%s' by '%s'\n",cur->name, chan->name);
+
+		connected_caller = cur->connected;
+		connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
+		ast_channel_update_connected_line(chan, &connected_caller);
+
+		ast_party_connected_line_collect_caller(&connected_caller, &chan->cid);
+		connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
+		ast_channel_queue_connected_line_update(chan, &connected_caller);
+
 		res = ast_answer(chan);
 		if (res)
 			ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);

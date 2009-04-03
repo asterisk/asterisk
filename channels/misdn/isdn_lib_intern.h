@@ -41,7 +41,6 @@ struct send_lock {
 struct isdn_msg {
 	unsigned long misdn_msg;
 
-	enum layer_e layer;
 	enum event_e event;
 
 	void (*msg_parser)(struct isdn_msg *msgs, msg_t *msg, struct misdn_bchannel *bc, int nt);

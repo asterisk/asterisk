@@ -274,10 +274,12 @@ static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_chann
 		ast_channel_datastore_inherit(chan, channel->owner);
 
 		/* Copy over callerid information */
-		S_REPLACE(channel->owner->cid.cid_num, ast_strdup(chan->cid.cid_num));
-		S_REPLACE(channel->owner->cid.cid_name, ast_strdup(chan->cid.cid_name));
-		S_REPLACE(channel->owner->cid.cid_ani, ast_strdup(chan->cid.cid_ani));
 		S_REPLACE(channel->owner->cid.cid_rdnis, ast_strdup(chan->cid.cid_rdnis));
+		ast_party_redirecting_copy(&channel->owner->redirecting, &chan->redirecting);
+
+		channel->owner->cid.cid_tns = chan->cid.cid_tns;
+
+		ast_connected_line_copy_from_caller(&channel->owner->connected, &chan->cid);
 
 		ast_string_field_set(channel->owner, language, chan->language);
 		ast_string_field_set(channel->owner, accountcode, chan->accountcode);
@@ -285,9 +287,6 @@ static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_chann
 		if (ast_strlen_zero(channel->owner->musicclass))
 			ast_string_field_set(channel->owner, musicclass, chan->musicclass);
 
-		channel->owner->cid.cid_pres = chan->cid.cid_pres;
-		channel->owner->cid.cid_ton = chan->cid.cid_ton;
-		channel->owner->cid.cid_tns = chan->cid.cid_tns;
 		channel->owner->adsicpe = chan->adsicpe;
 		channel->owner->transfercapability = chan->transfercapability;
 	}
@@ -428,6 +427,14 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 			if (option_verbose > 2)
 				ast_verbose (VERBOSE_PREFIX_3 "%s requested a source update, passing it to %s\n", channel->owner->name, chan->name);
 			ast_indicate(chan, AST_CONTROL_SRCUPDATE);
+			break;
+		case AST_CONTROL_CONNECTED_LINE:
+			ast_verb(3, "%s connected line has changed, passing it to %s\n", channel->owner->name, chan->name);
+			ast_indicate_data(chan, AST_CONTROL_CONNECTED_LINE, fr->data.ptr, fr->datalen);
+			break;
+		case AST_CONTROL_REDIRECTING:
+			ast_verb(3, "%s redirecting info has changed, passing it to %s\n", channel->owner->name, chan->name);
+			ast_indicate_data(chan, AST_CONTROL_REDIRECTING, fr->data.ptr, fr->datalen);
 			break;
 		case AST_CONTROL_PROCEEDING:
 			ast_verb(3, "%s is proceeding, passing it to %s\n", channel->owner->name, chan->name);

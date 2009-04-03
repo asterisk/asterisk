@@ -214,6 +214,14 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;relaxdtmf=yes                  ; Relax dtmf handling
 ;trustrpid = no                 ; If Remote-Party-ID should be trusted
 ;sendrpid = yes                 ; If Remote-Party-ID should be sent
+;sendrpid = rpid                ; Use the "Remote-Party-ID" header
+                                ; to send the identity of the remote party
+                                ; This is identical to sendrpid=yes
+;sendrpid = pai                 ; Use the "P-Asserted-Identity" header
+                                ; to send the identity of the remote party
+;rpid_header = rpid             ; Which header should be used when sending Remote Party ID
+                                ; 'rpid' means to send "Remote-Party-ID"
+                                ; 'pai' means to send "P-Asserted-Identity"
 ;progressinband=never           ; If we should generate in-band ringing always
                                 ; use 'never' to never use in-band signalling, even in cases
                                 ; where some buggy devices might not render it

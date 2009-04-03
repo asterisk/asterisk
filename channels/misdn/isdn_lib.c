@@ -171,19 +171,24 @@ struct misdn_stack *get_stack_by_bc(struct misdn_bchannel *bc)
 
 void get_show_stack_details(int port, char *buf)
 {
-	struct misdn_stack *stack=get_misdn_stack();
+	struct misdn_stack *stack = get_misdn_stack();
 
-	for ( ; stack; stack=stack->next) {
-		if (stack->port == port) break;
+	for (; stack; stack = stack->next) {
+		if (stack->port == port) {
+			break;
+		}
 	}
 
 	if (stack) {
-		sprintf(buf, "* Port %d Type %s Prot. %s L2Link %s L1Link:%s Blocked:%d",
-			stack->port, stack->nt ? "NT" : "TE", stack->ptp ? "PTP" : "PMP",
-			stack->l2link ? "UP" : "DOWN", stack->l1link ? "UP" : "DOWN",
+		sprintf(buf, "* Port %2d Type %s Prot. %s L2Link %s L1Link:%s Blocked:%d",
+			stack->port,
+			stack->nt ? "NT" : "TE",
+			stack->ptp ? "PTP" : "PMP",
+			stack->l2link ? "UP  " : "DOWN",
+			stack->l1link ? "UP  " : "DOWN",
 			stack->blocked);
 	} else {
-		buf[0]=0;
+		buf[0] = 0;
 	}
 }
 
@@ -644,6 +649,29 @@ static void bc_next_state_change(struct misdn_bchannel *bc, enum bchannel_state 
 
 static void empty_bc(struct misdn_bchannel *bc)
 {
+	bc->caller.presentation = 0;	/* allowed */
+	bc->caller.number_plan = NUMPLAN_ISDN;
+	bc->caller.number_type = NUMTYPE_UNKNOWN;
+	bc->caller.name[0] = 0;
+	bc->caller.number[0] = 0;
+	bc->caller.subaddress[0] = 0;
+
+	bc->connected.presentation = 0;	/* allowed */
+	bc->connected.number_plan = NUMPLAN_ISDN;
+	bc->connected.number_type = NUMTYPE_UNKNOWN;
+	bc->connected.name[0] = 0;
+	bc->connected.number[0] = 0;
+	bc->connected.subaddress[0] = 0;
+
+	bc->redirecting.from.presentation = 0;	/* allowed */
+	bc->redirecting.from.number_plan = NUMPLAN_ISDN;
+	bc->redirecting.from.number_type = NUMTYPE_UNKNOWN;
+	bc->redirecting.from.name[0] = 0;
+	bc->redirecting.from.number[0] = 0;
+	bc->redirecting.from.subaddress[0] = 0;
+
+	bc->redirecting.reason = mISDN_REDIRECTING_REASON_UNKNOWN;
+
 	bc->dummy=0;
 
 	bc->bframe_len=0;
@@ -678,12 +706,6 @@ static void empty_bc(struct misdn_bchannel *bc)
 	bc->generate_tone=0;
 	bc->tone_cnt=0;
 
-	bc->dnumplan=NUMPLAN_UNKNOWN;
-	bc->onumplan=NUMPLAN_UNKNOWN;
-	bc->rnumplan=NUMPLAN_UNKNOWN;
-	bc->cpnnumplan=NUMPLAN_UNKNOWN;
-
-
 	bc->active = 0;
 
 	bc->early_bconnect = 1;
@@ -701,7 +723,12 @@ static void empty_bc(struct misdn_bchannel *bc)
 
 	bc->cause = AST_CAUSE_NORMAL_CLEARING;
 	bc->out_cause = AST_CAUSE_NORMAL_CLEARING;
-	bc->pres = 0;	/* allowed */
+
+	bc->display_connected = 0;	/* none */
+	bc->display_setup = 0;	/* none */
+
+	bc->presentation = 0;	/* allowed */
+	bc->set_presentation = 0;
 
 	bc->evq=EVENT_NOTHING;
 
@@ -719,15 +746,14 @@ static void empty_bc(struct misdn_bchannel *bc)
 
 	bc->hdlc=0;
 
+	bc->dialed.number_plan = NUMPLAN_ISDN;
+	bc->dialed.number_type = NUMTYPE_UNKNOWN;
+	bc->dialed.number[0] = 0;
+	bc->dialed.subaddress[0] = 0;
 
 	bc->info_dad[0] = 0;
 	bc->display[0] = 0;
 	bc->infos_pending[0] = 0;
-	bc->cad[0] = 0;
-	bc->oad[0] = 0;
-	bc->dad[0] = 0;
-	bc->rad[0] = 0;
-	bc->orig_dad[0] = 0;
 	bc->uu[0]=0;
 	bc->uulen=0;
 
@@ -929,7 +955,7 @@ static int create_process(int midev, struct misdn_bchannel *bc)
 			if (stack->procids[proc_id] == 0) {
 				break;
 			}
-		}	/* end for */
+		}
 		if (proc_id == MAXPROCS) {
 			cb_log(0, stack->port, "Couldn't Create New ProcId.\n");
 			return -1;
@@ -1560,7 +1586,14 @@ static int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_
 			setup_bc(bc);
 
 			if ( *bc->crypt_key ) {
-				cb_log(4, stack->port, "ENABLING BLOWFISH channel:%d oad%d:%s dad%d:%s\n", bc->channel, bc->onumplan,bc->oad, bc->dnumplan,bc->dad);
+				cb_log(4, stack->port,
+					"ENABLING BLOWFISH channel:%d caller%d:\"%s\" <%s> dialed%d:%s\n",
+					bc->channel,
+					bc->caller.number_type,
+					bc->caller.name,
+					bc->caller.number,
+					bc->dialed.number_type,
+					bc->dialed.number);
 				manager_ph_control_block(bc,  BF_ENABLE_KEY, bc->crypt_key, strlen(bc->crypt_key) );
 			}
 
@@ -1582,7 +1615,14 @@ static int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_
 		case EVENT_CONNECT:
 
 			if ( *bc->crypt_key ) {
-				cb_log(4, stack->port, "ENABLING BLOWFISH channel:%d oad%d:%s dad%d:%s\n", bc->channel, bc->onumplan,bc->oad, bc->dnumplan,bc->dad);
+				cb_log(4, stack->port,
+					"ENABLING BLOWFISH channel:%d caller%d:\"%s\" <%s> dialed%d:%s\n",
+					bc->channel,
+					bc->caller.number_type,
+					bc->caller.name,
+					bc->caller.number,
+					bc->dialed.number_type,
+					bc->dialed.number);
 				manager_ph_control_block(bc,  BF_ENABLE_KEY, bc->crypt_key, strlen(bc->crypt_key) );
 			}
 		case EVENT_ALERTING:
@@ -2454,7 +2494,14 @@ static int handle_bchan(msg_t *msg)
 	{
 		unsigned int *cont = (unsigned int *) &frm->data.p;
 
-		cb_log(4, stack->port, "PH_CONTROL: channel:%d oad%d:%s dad%d:%s \n", bc->channel, bc->onumplan,bc->oad, bc->dnumplan,bc->dad);
+		cb_log(4, stack->port,
+			"PH_CONTROL: channel:%d caller%d:\"%s\" <%s> dialed%d:%s \n",
+			bc->channel,
+			bc->caller.number_type,
+			bc->caller.name,
+			bc->caller.number,
+			bc->dialed.number_type,
+			bc->dialed.number);
 
 		if ((*cont & ~DTMF_TONE_MASK) == DTMF_TONE_VAL) {
 			int dtmf = *cont & DTMF_TONE_MASK;
@@ -3268,10 +3315,6 @@ struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel, int inout, i
 	return NULL;
 }
 
-
-
-
-/* ******************************************************************* */
 /*!
  * \internal
  * \brief Convert the facility function enum value into a string.
@@ -3286,14 +3329,8 @@ static const char *fac2str(enum FacFunction facility)
 	} arr[] = {
 /* *INDENT-OFF* */
 		{ Fac_None, "Fac_None" },
-		{ Fac_GetSupportedServices, "Fac_GetSupportedServices" },
-		{ Fac_Listen, "Fac_Listen" },
-		{ Fac_Suspend, "Fac_Suspend" },
-		{ Fac_Resume, "Fac_Resume" },
 		{ Fac_CFActivate, "Fac_CFActivate" },
 		{ Fac_CFDeactivate, "Fac_CFDeactivate" },
-		{ Fac_CFInterrogateParameters, "Fac_CFInterrogateParameters" },
-		{ Fac_CFInterrogateNumbers, "Fac_CFInterrogateNumbers" },
 		{ Fac_CD, "Fac_CD" },
 		{ Fac_AOCDCurrency, "Fac_AOCDCurrency" },
 		{ Fac_AOCDChargingUnit, "Fac_AOCDChargingUnit" },
@@ -3306,10 +3343,10 @@ static const char *fac2str(enum FacFunction facility)
 		if (arr[index].facility == facility) {
 			return arr[index].name;
 		}
-	}	/* end for */
+	}
 
 	return "unknown";
-}	/* end fac2str() */
+}
 
 void misdn_lib_log_ies(struct misdn_bchannel *bc)
 {
@@ -3321,20 +3358,50 @@ void misdn_lib_log_ies(struct misdn_bchannel *bc)
 
 	if (!stack) return;
 
-	cb_log(2, stack->port, " --> channel:%d mode:%s cause:%d ocause:%d rad:%s cad:%s\n", bc->channel, stack->nt?"NT":"TE", bc->cause, bc->out_cause, bc->rad, bc->cad);
+	cb_log(2, stack->port,
+		" --> channel:%d mode:%s cause:%d ocause:%d\n",
+		bc->channel,
+		stack->nt ? "NT" : "TE",
+		bc->cause,
+		bc->out_cause);
 
 	cb_log(2, stack->port,
-	       " --> info_dad:%s onumplan:%c dnumplan:%c rnumplan:%c cpnnumplan:%c\n",
-	       bc->info_dad,
-	       bc->onumplan>=0?'0'+bc->onumplan:' ',
-	       bc->dnumplan>=0?'0'+bc->dnumplan:' ',
-	       bc->rnumplan>=0?'0'+bc->rnumplan:' ',
-	       bc->cpnnumplan>=0?'0'+bc->cpnnumplan:' '
-		);
+		" --> info_dad:%s dialed numtype:%d plan:%d\n",
+		bc->info_dad,
+		bc->dialed.number_type,
+		bc->dialed.number_plan);
+
+	cb_log(2, stack->port,
+		" --> caller:\"%s\" <%s> type:%d plan:%d pres:%d screen:%d\n",
+		bc->caller.name,
+		bc->caller.number,
+		bc->caller.number_type,
+		bc->caller.number_plan,
+		bc->caller.presentation,
+		bc->caller.screening);
+
+	cb_log(2, stack->port,
+		" --> redirecting:\"%s\" <%s> type:%d plan:%d pres:%d screen:%d reason:%d\n",
+		bc->redirecting.from.name,
+		bc->redirecting.from.number,
+		bc->redirecting.from.number_type,
+		bc->redirecting.from.number_plan,
+		bc->redirecting.from.presentation,
+		bc->redirecting.from.screening,
+		bc->redirecting.reason);
+
+	cb_log(2, stack->port,
+		" --> connected:\"%s\" <%s> type:%d plan:%d pres:%d screen:%d\n",
+		bc->connected.name,
+		bc->connected.number,
+		bc->connected.number_type,
+		bc->connected.number_plan,
+		bc->connected.presentation,
+		bc->connected.screening);
 
 	cb_log(3, stack->port, " --> caps:%s pi:%x keypad:%s sending_complete:%d\n", bearer2str(bc->capability),bc->progress_indicator, bc->keypad, bc->sending_complete);
-	cb_log(4, stack->port, " --> screen:%d --> pres:%d\n",
-			bc->screen, bc->pres);
+
+	cb_log(4, stack->port, " --> set_pres:%d pres:%d\n", bc->set_presentation, bc->presentation);
 
 	cb_log(4, stack->port, " --> addr:%x l3id:%x b_stid:%x layer_id:%x\n", bc->addr, bc->l3_id, bc->b_stid, bc->layer_id);
 
@@ -3373,7 +3440,12 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 	stack = get_stack_by_bc(bc);
 
 	if (!stack) {
-		cb_log(0,bc->port,"SENDEVENT: no Stack for event:%s oad:%s dad:%s \n", isdn_get_info(msgs_g, event, 0), bc->oad, bc->dad);
+		cb_log(0,bc->port,
+			"SENDEVENT: no Stack for event:%s caller:\"%s\" <%s> dialed:%s \n",
+			isdn_get_info(msgs_g, event, 0),
+			bc->caller.name,
+			bc->caller.number,
+			bc->dialed.number);
 		RETURN(-1,OUT);
 	}
 
@@ -3390,7 +3462,13 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 		RETURN(0,OUT);
 	}
 
-	cb_log(1, stack->port, "I SEND:%s oad:%s dad:%s pid:%d\n", isdn_get_info(msgs_g, event, 0), bc->oad, bc->dad, bc->pid);
+	cb_log(1, stack->port,
+		"I SEND:%s caller:\"%s\" <%s> dialed:%s pid:%d\n",
+		isdn_get_info(msgs_g, event, 0),
+		bc->caller.name,
+		bc->caller.number,
+		bc->dialed.number,
+		bc->pid);
 	cb_log(4, stack->port, " --> bc_state:%s\n",bc_state2str(bc->bc_state));
 	misdn_lib_log_ies(bc);
 
@@ -3431,7 +3509,14 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 		if (misdn_cap_is_speech(bc->capability)) {
 			if ((event==EVENT_CONNECT)||(event==EVENT_RETRIEVE_ACKNOWLEDGE)) {
 				if ( *bc->crypt_key ) {
-					cb_log(4, stack->port,  " --> ENABLING BLOWFISH channel:%d oad%d:%s dad%d:%s \n", bc->channel, bc->onumplan,bc->oad, bc->dnumplan,bc->dad);
+					cb_log(4, stack->port,
+						" --> ENABLING BLOWFISH channel:%d caller%d:\"%s\" <%s> dialed%d:%s\n",
+						bc->channel,
+						bc->caller.number_type,
+						bc->caller.name,
+						bc->caller.number,
+						bc->dialed.number_type,
+						bc->dialed.number);
 
 					manager_ph_control_block(bc,  BF_ENABLE_KEY, bc->crypt_key, strlen(bc->crypt_key) );
 				}
@@ -3571,8 +3656,19 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 
 	/* Later we should think about sending bchannel data directly to misdn. */
 	msg = isdn_msg_build_event(msgs_g, bc, event, stack->nt);
-	msg_queue_tail(&stack->downqueue, msg);
-	sem_post(&glob_mgr->new_msg);
+	if (!msg) {
+		/*
+		 * The message was not built.
+		 *
+		 * NOTE:  The only time that the message will fail to build
+		 * is because the requested FACILITY message is not supported.
+		 * A failed malloc() results in exit() being called.
+		 */
+		RETURN(-1, OUT);
+	} else {
+		msg_queue_tail(&stack->downqueue, msg);
+		sem_post(&glob_mgr->new_msg);
+	}
 
 OUT:
 	misdn_send_unlock(bc);

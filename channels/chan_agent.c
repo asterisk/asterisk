@@ -757,8 +757,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 		time(&p->start);
 		/* Call on this agent */
 		ast_verb(3, "outgoing agentcall, to agent '%s', on '%s'\n", p->agent, p->chan->name);
-		ast_set_callerid(p->chan,
-			ast->cid.cid_num, ast->cid.cid_name, NULL);
+		ast_channel_set_connected_line(p->chan, &ast->connected);
 		ast_channel_inherit_variables(ast, p->chan);
 		res = ast_call(p->chan, p->loginchan, 0);
 		CLEANUP(ast,p);

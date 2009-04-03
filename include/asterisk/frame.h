@@ -39,53 +39,55 @@ struct ast_codec_pref {
 	char framing[32];
 };
 
-/*! \page Def_Frame AST Multimedia and signalling frames
-	\section Def_AstFrame What is an ast_frame ?
- 	A frame of data read used to communicate between 
- 	between channels and applications.
-	Frames are divided into frame types and subclasses.
-
-	\par Frame types 
-	\arg \b VOICE:	Voice data, subclass is codec (AST_FORMAT_*)
-	\arg \b VIDEO:	Video data, subclass is codec (AST_FORMAT_*)
-	\arg \b DTMF:	A DTMF digit, subclass is the digit
-	\arg \b IMAGE:	Image transport, mostly used in IAX
-	\arg \b TEXT:	Text messages and character by character (real time text)
-	\arg \b HTML:	URL's and web pages
-	\arg \b MODEM:	Modulated data encodings, such as T.38 and V.150
-	\arg \b IAX:	Private frame type for the IAX protocol
-	\arg \b CNG:	Comfort noice frames
-	\arg \b CONTROL:	A control frame, subclass defined as AST_CONTROL_
-	\arg \b NULL:	Empty, useless frame
-
-	\par Files
-	\arg frame.h	Definitions
-	\arg frame.c	Function library
-	\arg \ref Def_Channel Asterisk channels
-	\section Def_ControlFrame Control Frames
-	Control frames send signalling information between channels
-	and devices. They are prefixed with AST_CONTROL_, like AST_CONTROL_FRAME_HANGUP
-	\arg \b HANGUP	The other end has hungup
-	\arg \b RING	Local ring
-	\arg \b RINGING	The other end is ringing
-	\arg \b ANSWER	The other end has answered
-	\arg \b BUSY	Remote end is busy
-	\arg \b TAKEOFFHOOK	Make it go off hook (what's "it" ? )
-	\arg \b OFFHOOK	Line is off hook
-	\arg \b CONGESTION	Congestion (circuit is busy, not available)
-	\arg \b FLASH	Other end sends flash hook
-	\arg \b WINK	Other end sends wink
-	\arg \b OPTION	Send low-level option
-	\arg \b RADIO_KEY	Key radio (see app_rpt.c)
-	\arg \b RADIO_UNKEY	Un-key radio (see app_rpt.c)
-	\arg \b PROGRESS	Other end indicates call progress
-	\arg \b PROCEEDING	Indicates proceeding
-	\arg \b HOLD	Call is placed on hold
-	\arg \b UNHOLD	Call is back from hold
-	\arg \b VIDUPDATE	Video update requested
-	\arg \b SRCUPDATE       The source of media has changed
-
-*/
+/*!
+ * \page Def_Frame AST Multimedia and signalling frames
+ * \section Def_AstFrame What is an ast_frame ?
+ * A frame of data read used to communicate between 
+ * between channels and applications.
+ * Frames are divided into frame types and subclasses.
+ *
+ * \par Frame types 
+ * \arg \b VOICE:  Voice data, subclass is codec (AST_FORMAT_*)
+ * \arg \b VIDEO:  Video data, subclass is codec (AST_FORMAT_*)
+ * \arg \b DTMF:   A DTMF digit, subclass is the digit
+ * \arg \b IMAGE:  Image transport, mostly used in IAX
+ * \arg \b TEXT:   Text messages and character by character (real time text)
+ * \arg \b HTML:   URL's and web pages
+ * \arg \b MODEM:  Modulated data encodings, such as T.38 and V.150
+ * \arg \b IAX:    Private frame type for the IAX protocol
+ * \arg \b CNG:    Comfort noice frames
+ * \arg \b CONTROL:A control frame, subclass defined as AST_CONTROL_
+ * \arg \b NULL:   Empty, useless frame
+ *
+ * \par Files
+ * \arg frame.h    Definitions
+ * \arg frame.c    Function library
+ * \arg \ref Def_Channel Asterisk channels
+ * \section Def_ControlFrame Control Frames
+ * Control frames send signalling information between channels
+ * and devices. They are prefixed with AST_CONTROL_, like AST_CONTROL_FRAME_HANGUP
+ * \arg \b HANGUP          The other end has hungup
+ * \arg \b RING            Local ring
+ * \arg \b RINGING         The other end is ringing
+ * \arg \b ANSWER          The other end has answered
+ * \arg \b BUSY            Remote end is busy
+ * \arg \b TAKEOFFHOOK     Make it go off hook (what's "it" ? )
+ * \arg \b OFFHOOK         Line is off hook
+ * \arg \b CONGESTION      Congestion (circuit is busy, not available)
+ * \arg \b FLASH           Other end sends flash hook
+ * \arg \b WINK            Other end sends wink
+ * \arg \b OPTION          Send low-level option
+ * \arg \b RADIO_KEY       Key radio (see app_rpt.c)
+ * \arg \b RADIO_UNKEY     Un-key radio (see app_rpt.c)
+ * \arg \b PROGRESS        Other end indicates call progress
+ * \arg \b PROCEEDING      Indicates proceeding
+ * \arg \b HOLD            Call is placed on hold
+ * \arg \b UNHOLD          Call is back from hold
+ * \arg \b VIDUPDATE       Video update requested
+ * \arg \b SRCUPDATE       The source of media has changed
+ * \arg \b CONNECTED_LINE  Connected line has changed
+ * \arg \b REDIRECTING     Call redirecting information has changed.
+ */
 
 /*!
  * \brief Frame types 
@@ -320,6 +322,8 @@ enum ast_control_frame_type {
 	AST_CONTROL_T38 = 19,		/*!< T38 state change request/notification */
 	AST_CONTROL_SRCUPDATE = 20,     /*!< Indicate source of media has changed */
 	AST_CONTROL_TRANSFER = 21,      /*!< Indicate status of a transfer request */
+	AST_CONTROL_CONNECTED_LINE = 22,  /*!< Indicate connected line has changed */
+	AST_CONTROL_REDIRECTING = 23	/*!< Indicate redirecting id has changed */
 };
 
 enum ast_control_t38 {

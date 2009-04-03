@@ -380,7 +380,9 @@ enum iax2_flags {
 						     them before sending voice or anything else*/
 	IAX_ALLOWFWDOWNLOAD =   (1 << 26),	/*!< Allow the FWDOWNL command? */
 	IAX_IMMEDIATE =		(1 << 27),      /*!< Allow immediate off-hook to extension s */
-	IAX_FORCE_ENCRYPT =	(1 << 28),      /*!< Forces call encryption, if encryption not possible hangup */
+	IAX_SENDCONNECTEDLINE = (1 << 28), /*!< Allow sending of connected line updates */
+	IAX_RECVCONNECTEDLINE = (1 << 29), /*!< Allow receiving of connected line updates */
+	IAX_FORCE_ENCRYPT =	(1 << 30),      /*!< Forces call encryption, if encryption not possible hangup */
 };
 
 static int global_rtautoclear = 120;
@@ -1976,7 +1978,7 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 			iaxs[x]->pingid = iax2_sched_add(sched, ping_time * 1000, send_ping, (void *)(long)x);
 			iaxs[x]->lagid = iax2_sched_add(sched, lagrq_time * 1000, send_lagrq, (void *)(long)x);
 			iaxs[x]->amaflags = amaflags;
-			ast_copy_flags(iaxs[x], &globalflags, IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_FORCE_ENCRYPT);	
+			ast_copy_flags(iaxs[x], &globalflags, IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_SENDCONNECTEDLINE | IAX_RECVCONNECTEDLINE | IAX_FORCE_ENCRYPT);
 			ast_string_field_set(iaxs[x], accountcode, accountcode);
 			ast_string_field_set(iaxs[x], mohinterpret, mohinterpret);
 			ast_string_field_set(iaxs[x], mohsuggest, mohsuggest);
@@ -3601,6 +3603,8 @@ struct create_addr_info {
 	char outkey[80];
 	char timezone[80];
 	char prefs[32];
+	char cid_num[80];
+	char cid_name[80];
 	char context[AST_MAX_CONTEXT];
 	char peercontext[AST_MAX_CONTEXT];
 	char mohinterpret[MAX_MUSICCLASS];
@@ -3644,7 +3648,7 @@ static int create_addr(const char *peername, struct ast_channel *c, struct socka
 	if (peer->maxms && ((peer->lastms > peer->maxms) || (peer->lastms < 0)))
 		goto return_unref;
 
-	ast_copy_flags(cai, peer, IAX_SENDANI | IAX_TRUNK | IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_FORCE_ENCRYPT);
+	ast_copy_flags(cai, peer, IAX_SENDANI | IAX_TRUNK | IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_SENDCONNECTEDLINE | IAX_RECVCONNECTEDLINE | IAX_FORCE_ENCRYPT);
 	cai->maxtime = peer->maxms;
 	cai->capability = peer->capability;
 	cai->encmethods = peer->encmethods;
@@ -3662,6 +3666,8 @@ static int create_addr(const char *peername, struct ast_channel *c, struct socka
 	ast_copy_string(cai->username, peer->username, sizeof(cai->username));
 	ast_copy_string(cai->timezone, peer->zonetag, sizeof(cai->timezone));
 	ast_copy_string(cai->outkey, peer->outkey, sizeof(cai->outkey));
+	ast_copy_string(cai->cid_num, peer->cid_num, sizeof(cai->cid_num));
+	ast_copy_string(cai->cid_name, peer->cid_name, sizeof(cai->cid_name));
 	ast_copy_string(cai->mohinterpret, peer->mohinterpret, sizeof(cai->mohinterpret));
 	ast_copy_string(cai->mohsuggest, peer->mohsuggest, sizeof(cai->mohsuggest));
 	if (ast_strlen_zero(peer->dbsecret)) {
@@ -3870,8 +3876,8 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	if (pds.port)
 		sin.sin_port = htons(atoi(pds.port));
 
-	l = c->cid.cid_num;
-	n = c->cid.cid_name;
+	l = c->connected.id.number;
+	n = c->connected.id.name;
 
 	/* Now build request */	
 	memset(&ied, 0, sizeof(ied));
@@ -3888,21 +3894,21 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 
 	if (l) {
 		iax_ie_append_str(&ied, IAX_IE_CALLING_NUMBER, l);
-		iax_ie_append_byte(&ied, IAX_IE_CALLINGPRES, c->cid.cid_pres);
+		iax_ie_append_byte(&ied, IAX_IE_CALLINGPRES, c->connected.id.number_presentation);
 	} else {
 		if (n)
-			iax_ie_append_byte(&ied, IAX_IE_CALLINGPRES, c->cid.cid_pres);
+			iax_ie_append_byte(&ied, IAX_IE_CALLINGPRES, c->connected.id.number_presentation);
 		else
 			iax_ie_append_byte(&ied, IAX_IE_CALLINGPRES, AST_PRES_NUMBER_NOT_AVAILABLE);
 	}
 
-	iax_ie_append_byte(&ied, IAX_IE_CALLINGTON, c->cid.cid_ton);
+	iax_ie_append_byte(&ied, IAX_IE_CALLINGTON, c->connected.id.number_type);
 	iax_ie_append_short(&ied, IAX_IE_CALLINGTNS, c->cid.cid_tns);
 
 	if (n)
 		iax_ie_append_str(&ied, IAX_IE_CALLING_NAME, n);
-	if (ast_test_flag(iaxs[callno], IAX_SENDANI) && c->cid.cid_ani)
-		iax_ie_append_str(&ied, IAX_IE_CALLING_ANI, c->cid.cid_ani);
+	if (ast_test_flag(iaxs[callno], IAX_SENDANI) && c->connected.ani)
+		iax_ie_append_str(&ied, IAX_IE_CALLING_ANI, c->connected.ani);
 
 	if (!ast_strlen_zero(c->language))
 		iax_ie_append_str(&ied, IAX_IE_LANGUAGE, c->language);
@@ -4398,6 +4404,11 @@ static int iax2_indicate(struct ast_channel *c, int condition, const void *data,
 			ast_moh_stop(c);
 			goto done;
 		}
+		break;
+	case AST_CONTROL_CONNECTED_LINE:
+		if (!ast_test_flag(pvt, IAX_SENDCONNECTEDLINE))
+			goto done;
+		break;
 	}
 
 	res = send_command(pvt, AST_FRAME_CONTROL, condition, 0, data, datalen, -1);
@@ -6381,7 +6392,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 			iaxs[callno]->amaflags = user->amaflags;
 		if (!ast_strlen_zero(user->language))
 			ast_string_field_set(iaxs[callno], language, user->language);
-		ast_copy_flags(iaxs[callno], user, IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);	
+		ast_copy_flags(iaxs[callno], user, IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_SENDCONNECTEDLINE | IAX_RECVCONNECTEDLINE);	
 		/* Keep this check last */
 		if (!ast_strlen_zero(user->dbsecret)) {
 			char *family, *key=NULL;
@@ -9954,6 +9965,31 @@ immediatedial:
 		ast_mutex_unlock(&iaxsl[fr->callno]);
 		return 1;
 	}
+	/* Don't allow connected line updates unless we are configured to */
+	if (f.frametype == AST_FRAME_CONTROL && f.subclass == AST_CONTROL_CONNECTED_LINE) {
+		struct ast_party_connected_line connected;
+
+		if (!ast_test_flag(iaxs[fr->callno], IAX_RECVCONNECTEDLINE)) {
+			ast_mutex_unlock(&iaxsl[fr->callno]);
+			return 1;
+		}
+
+		/* Initialize defaults */
+		ast_party_connected_line_init(&connected);
+		connected.id.number_presentation = iaxs[fr->callno]->calling_pres;
+
+		if (!ast_connected_line_parse_data(f.data.ptr, f.datalen, &connected)) {
+			ast_string_field_set(iaxs[fr->callno], cid_num, connected.id.number);
+			ast_string_field_set(iaxs[fr->callno], cid_name, connected.id.name);
+			iaxs[fr->callno]->calling_pres = connected.id.number_presentation;
+
+			if (iaxs[fr->callno]->owner) {
+				ast_set_callerid(iaxs[fr->callno]->owner, S_OR(connected.id.number, ""), S_OR(connected.id.name, ""), NULL);
+				iaxs[fr->callno]->owner->cid.cid_pres = connected.id.number_presentation;
+			}
+		}
+		ast_party_connected_line_free(&connected);
+	}
 	/* Common things */
 	f.src = "IAX2";
 	f.mallocd = 0;
@@ -10449,7 +10485,7 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 	memset(&cai, 0, sizeof(cai));
 	cai.capability = iax2_capability;
 
-	ast_copy_flags(&cai, &globalflags, IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);
+	ast_copy_flags(&cai, &globalflags, IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_SENDCONNECTEDLINE | IAX_RECVCONNECTEDLINE);
 	
 	/* Populate our address from the given */
 	if (create_addr(pds.peer, NULL, &sin, &cai)) {
@@ -10468,7 +10504,7 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 	}
 
 	/* If this is a trunk, update it now */
-	ast_copy_flags(iaxs[callno], &cai, IAX_TRUNK | IAX_SENDANI | IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);
+	ast_copy_flags(iaxs[callno], &cai, IAX_TRUNK | IAX_SENDANI | IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_SENDCONNECTEDLINE | IAX_RECVCONNECTEDLINE);
 	if (ast_test_flag(&cai, IAX_TRUNK)) {
 		int new_callno;
 		if ((new_callno = make_trunk(callno, 1)) != -1)
@@ -10731,7 +10767,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 
 	if (peer) {
 		if (firstpass) {
-			ast_copy_flags(peer, &globalflags, IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_FORCE_ENCRYPT);
+			ast_copy_flags(peer, &globalflags, IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_SENDCONNECTEDLINE | IAX_RECVCONNECTEDLINE | IAX_FORCE_ENCRYPT);
 			peer->encmethods = iax2_encryption;
 			peer->adsi = adsi;
 			ast_string_field_set(peer,secret,"");
@@ -10904,6 +10940,18 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 				ast_string_field_set(peer, zonetag, v->value);
 			} else if (!strcasecmp(v->name, "adsi")) {
 				peer->adsi = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "connectedline")) {
+				if (ast_true(v->value)) {
+					ast_set_flag(peer, IAX_SENDCONNECTEDLINE | IAX_RECVCONNECTEDLINE);
+				} else if (!strcasecmp(v->value, "send")) {
+					ast_clear_flag(peer, IAX_RECVCONNECTEDLINE);
+					ast_set_flag(peer, IAX_SENDCONNECTEDLINE);
+				} else if (!strcasecmp(v->value, "receive")) {
+					ast_clear_flag(peer, IAX_SENDCONNECTEDLINE);
+					ast_set_flag(peer, IAX_RECVCONNECTEDLINE);
+				} else {
+					ast_clear_flag(peer, IAX_SENDCONNECTEDLINE | IAX_RECVCONNECTEDLINE);
+				}
 			}/* else if (strcasecmp(v->name,"type")) */
 			/*	ast_log(LOG_WARNING, "Ignoring %s\n", v->name); */
 			v = v->next;
@@ -11002,7 +11050,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 			user->adsi = adsi;
 			ast_string_field_set(user, name, name);
 			ast_string_field_set(user, language, language);
-			ast_copy_flags(user, &globalflags, IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_CODEC_USER_FIRST | IAX_CODEC_NOPREFS | IAX_CODEC_NOCAP | IAX_FORCE_ENCRYPT);	
+			ast_copy_flags(user, &globalflags, IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_CODEC_USER_FIRST | IAX_CODEC_NOPREFS | IAX_CODEC_NOCAP | IAX_SENDCONNECTEDLINE | IAX_RECVCONNECTEDLINE | IAX_FORCE_ENCRYPT);
 			ast_clear_flag(user, IAX_HASCALLERID);
 			ast_string_field_set(user, cid_name, "");
 			ast_string_field_set(user, cid_num, "");
@@ -11147,6 +11195,18 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 					user->maxauthreq = 0;
 			} else if (!strcasecmp(v->name, "adsi")) {
 				user->adsi = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "connectedline")) {
+				if (ast_true(v->value)) {
+					ast_set_flag(user, IAX_SENDCONNECTEDLINE | IAX_RECVCONNECTEDLINE);
+				} else if (!strcasecmp(v->value, "send")) {
+					ast_clear_flag(user, IAX_RECVCONNECTEDLINE);
+					ast_set_flag(user, IAX_SENDCONNECTEDLINE);
+				} else if (!strcasecmp(v->value, "receive")) {
+					ast_clear_flag(user, IAX_SENDCONNECTEDLINE);
+					ast_set_flag(user, IAX_RECVCONNECTEDLINE);
+				} else {
+					ast_clear_flag(user, IAX_SENDCONNECTEDLINE | IAX_RECVCONNECTEDLINE);
+				}
 			}/* else if (strcasecmp(v->name,"type")) */
 			/*	ast_log(LOG_WARNING, "Ignoring %s\n", v->name); */
 			v = v->next;
@@ -11262,10 +11322,8 @@ static void set_config_destroy(void)
 	trunkmaxsize = MAX_TRUNKDATA;
 	amaflags = 0;
 	delayreject = 0;
-	ast_clear_flag((&globalflags), IAX_NOTRANSFER);	
-	ast_clear_flag((&globalflags), IAX_TRANSFERMEDIA);	
-	ast_clear_flag((&globalflags), IAX_USEJITTERBUF);	
-	ast_clear_flag((&globalflags), IAX_FORCEJITTERBUF);	
+	ast_clear_flag((&globalflags), IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF |
+		IAX_FORCEJITTERBUF | IAX_SENDCONNECTEDLINE | IAX_RECVCONNECTEDLINE);
 	delete_users();
 }
 
@@ -11569,6 +11627,18 @@ static int set_config(char *config_file, int reload)
 			adsi = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "srvlookup")) {
 			srvlookup = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "connectedline")) {
+			if (ast_true(v->value)) {
+				ast_set_flag((&globalflags), IAX_SENDCONNECTEDLINE | IAX_RECVCONNECTEDLINE);
+			} else if (!strcasecmp(v->value, "send")) {
+				ast_clear_flag((&globalflags), IAX_RECVCONNECTEDLINE);
+				ast_set_flag((&globalflags), IAX_SENDCONNECTEDLINE);
+			} else if (!strcasecmp(v->value, "receive")) {
+				ast_clear_flag((&globalflags), IAX_SENDCONNECTEDLINE);
+				ast_set_flag((&globalflags), IAX_RECVCONNECTEDLINE);
+			} else {
+				ast_clear_flag((&globalflags), IAX_SENDCONNECTEDLINE | IAX_RECVCONNECTEDLINE);
+			}
 		} /*else if (strcasecmp(v->name,"type")) */
 		/*	ast_log(LOG_WARNING, "Ignoring %s\n", v->name); */
 		v = v->next;

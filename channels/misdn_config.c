@@ -132,7 +132,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 	{ "musicclass", MISDN_CFG_MUSICCLASS, MISDN_CTYPE_STR, "default", NONE,
 		"Sets the musiconhold class." },
 	{ "callerid", MISDN_CFG_CALLERID, MISDN_CTYPE_STR, "", NONE,
-		"Sets the caller ID." },
+		"Set the outgoing caller id to the value." },
 	{ "method", MISDN_CFG_METHOD, MISDN_CTYPE_STR, "standard", NONE,
 		"Set the method to use for channel selection:\n"
 		"\t  standard     - Use the first free channel starting from the lowest number.\n"
@@ -140,62 +140,71 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"\t  round_robin  - Use the round robin algorithm to select a channel. Use this\n"
 		"\t                 if you want to balance your load." },
 	{ "dialplan", MISDN_CFG_DIALPLAN, MISDN_CTYPE_INT, "0", NONE,
-		"Dialplan means Type Of Number in ISDN Terms (for outgoing calls)\n"
-		"\n"
+		"Dialplan means Type Of Number in ISDN Terms\n"
 		"\tThere are different types of the dialplan:\n"
 		"\n"
-		"\tdialplan -> outgoing Number\n"
-		"\tlocaldialplan -> callerid\n"
-		"\tcpndialplan -> connected party number\n"
+		"\tdialplan -> for outgoing call's dialed number\n"
+		"\tlocaldialplan -> for outgoing call's callerid\n"
+		"\t      (if -1 is set use the value from the asterisk channel)\n"
+		"\tcpndialplan -> for incoming call's connected party number sent to caller\n"
+		"\t      (if -1 is set use the value from the asterisk channel)\n"
 		"\n"
 		"\tdialplan options:\n"
 		"\n"
 		"\t0 - unknown\n"
 		"\t1 - International\n"
 		"\t2 - National\n"
-		"\t4 - Subscriber\n"
-		"\n"
-		"\tThis setting is used for outgoing calls." },
+		"\t4 - Subscriber" },
 	{ "localdialplan", MISDN_CFG_LOCALDIALPLAN, MISDN_CTYPE_INT, "0", NONE,
-		"Dialplan means Type Of Number in ISDN Terms (for outgoing calls)\n"
-		"\n"
+		"Dialplan means Type Of Number in ISDN Terms\n"
 		"\tThere are different types of the dialplan:\n"
 		"\n"
-		"\tdialplan -> outgoing Number\n"
-		"\tlocaldialplan -> callerid\n"
-		"\tcpndialplan -> connected party number\n"
+		"\tdialplan -> for outgoing call's dialed number\n"
+		"\tlocaldialplan -> for outgoing call's callerid\n"
+		"\t      (if -1 is set use the value from the asterisk channel)\n"
+		"\tcpndialplan -> for incoming call's connected party number sent to caller\n"
+		"\t      (if -1 is set use the value from the asterisk channel)\n"
 		"\n"
 		"\tdialplan options:\n"
 		"\n"
 		"\t0 - unknown\n"
 		"\t1 - International\n"
 		"\t2 - National\n"
-		"\t4 - Subscriber\n"
-		"\n"
-		"\tThis setting is used for outgoing calls." },
+		"\t4 - Subscriber" },
 	{ "cpndialplan", MISDN_CFG_CPNDIALPLAN, MISDN_CTYPE_INT, "0", NONE,
-		"Dialplan means Type Of Number in ISDN Terms (for outgoing calls)\n"
-		"\n"
+		"Dialplan means Type Of Number in ISDN Terms\n"
 		"\tThere are different types of the dialplan:\n"
 		"\n"
-		"\tdialplan -> outgoing Number\n"
-		"\tlocaldialplan -> callerid\n"
-		"\tcpndialplan -> connected party number\n"
+		"\tdialplan -> for outgoing call's dialed number\n"
+		"\tlocaldialplan -> for outgoing call's callerid\n"
+		"\t      (if -1 is set use the value from the asterisk channel)\n"
+		"\tcpndialplan -> for incoming call's connected party number sent to caller\n"
+		"\t      (if -1 is set use the value from the asterisk channel)\n"
 		"\n"
 		"\tdialplan options:\n"
 		"\n"
 		"\t0 - unknown\n"
 		"\t1 - International\n"
 		"\t2 - National\n"
-		"\t4 - Subscriber\n"
-		"\n"
-		"\tThis setting is used for outgoing calls." },
-	{ "nationalprefix", MISDN_CFG_NATPREFIX, MISDN_CTYPE_STR, "0", NONE,
-		"Prefix for national, this is put before the\n"
-		"\toad if an according dialplan is set by the other end." },
-	{ "internationalprefix", MISDN_CFG_INTERNATPREFIX, MISDN_CTYPE_STR, "00", NONE,
-		"Prefix for international, this is put before the\n"
-		"\toad if an according dialplan is set by the other end." },
+		"\t4 - Subscriber" },
+	{ "unknownprefix", MISDN_CFG_TON_PREFIX_UNKNOWN, MISDN_CTYPE_STR, "", NONE,
+		"Prefix for unknown numbers, this is put before an incoming number\n"
+		"\tif its type-of-number is unknown." },
+	{ "internationalprefix", MISDN_CFG_TON_PREFIX_INTERNATIONAL, MISDN_CTYPE_STR, "00", NONE,
+		"Prefix for international numbers, this is put before an incoming number\n"
+		"\tif its type-of-number is international." },
+	{ "nationalprefix", MISDN_CFG_TON_PREFIX_NATIONAL, MISDN_CTYPE_STR, "0", NONE,
+		"Prefix for national numbers, this is put before an incoming number\n"
+		"\tif its type-of-number is national." },
+	{ "netspecificprefix", MISDN_CFG_TON_PREFIX_NETWORK_SPECIFIC, MISDN_CTYPE_STR, "", NONE,
+		"Prefix for network-specific numbers, this is put before an incoming number\n"
+		"\tif its type-of-number is network-specific." },
+	{ "subscriberprefix", MISDN_CFG_TON_PREFIX_SUBSCRIBER, MISDN_CTYPE_STR, "", NONE,
+		"Prefix for subscriber numbers, this is put before an incoming number\n"
+		"\tif its type-of-number is subscriber." },
+	{ "abbreviatedprefix", MISDN_CFG_TON_PREFIX_ABBREVIATED, MISDN_CTYPE_STR, "", NONE,
+		"Prefix for abbreviated numbers, this is put before an incoming number\n"
+		"\tif its type-of-number is abbreviated." },
 	{ "presentation", MISDN_CFG_PRES, MISDN_CTYPE_INT, "-1", NONE,
 		"These (presentation and screen) are the exact isdn screening and presentation\n"
 		"\tindicators.\n"
@@ -212,6 +221,22 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"\n"
 		"\tscreen=0, presentation=0 -> callerid presented\n"
 		"\tscreen=1, presentation=1 -> callerid restricted (the remote end doesn't see it!)" },
+	{ "display_connected", MISDN_CFG_DISPLAY_CONNECTED, MISDN_CTYPE_INT, "0", NONE,
+		"Put a display ie in the CONNECT message containing the following\n"
+		"\tinformation if it is available (nt port only):\n"
+		"\n"
+		"\t0 - Do not put the connected line information in the display ie.\n"
+		"\t1 - Put the available connected line name in the display ie.\n"
+		"\t2 - Put the available connected line number in the display ie.\n"
+		"\t3 - Put the available connected line name and number in the display ie." },
+	{ "display_setup", MISDN_CFG_DISPLAY_SETUP, MISDN_CTYPE_INT, "0", NONE,
+		"Put a display ie in the SETUP message containing the following\n"
+		"\tinformation if it is available (nt port only):\n"
+		"\n"
+		"\t0 - Do not put the caller information in the display ie.\n"
+		"\t1 - Put the available caller name in the display ie.\n"
+		"\t2 - Put the available caller number in the display ie.\n"
+		"\t3 - Put the available caller name and number in the display ie." },
 	{ "always_immediate", MISDN_CFG_ALWAYS_IMMEDIATE, MISDN_CTYPE_BOOL, "no", NONE,
 		"Enable this to get into the s dialplan-extension.\n"
 		"\tThere you can use DigitTimeout if you can't or don't want to use\n"
@@ -220,7 +245,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 	{ "nodialtone", MISDN_CFG_NODIALTONE, MISDN_CTYPE_BOOL, "no", NONE,
 		"Enable this to prevent chan_misdn to generate the dialtone\n"
 		"\tThis makes only sense together with the always_immediate=yes option\n"
-		"\tto generate your own dialtone with Playtones or so."},
+		"\tto generate your own dialtone with Playtones or so." },
 	{ "immediate", MISDN_CFG_IMMEDIATE, MISDN_CTYPE_BOOL, "no", NONE,
 		"Enable this if you want callers which called exactly the base\n"
 		"\tnumber (so no extension is set) to jump into the s extension.\n"
@@ -257,17 +282,17 @@ static const struct misdn_cfg_spec port_spec[] = {
 #endif
 #ifdef WITH_BEROEC
 	{ "bnechocancel", MISDN_CFG_BNECHOCANCEL, MISDN_CTYPE_BOOLINT, "yes", 64,
-		"echotail in ms (1-200)\n"},
+		"echotail in ms (1-200)" },
 	{ "bnec_antihowl", MISDN_CFG_BNEC_ANTIHOWL, MISDN_CTYPE_INT, "0", NONE,
-		"Use antihowl\n"},
+		"Use antihowl" },
 	{ "bnec_nlp", MISDN_CFG_BNEC_NLP, MISDN_CTYPE_BOOL, "yes", NONE,
-		"Nonlinear Processing (much faster adaption)"},
+		"Nonlinear Processing (much faster adaption)" },
 	{ "bnec_zerocoeff", MISDN_CFG_BNEC_ZEROCOEFF, MISDN_CTYPE_BOOL, "no", NONE,
-		"ZeroCoeffeciens\n"},
+		"ZeroCoeffeciens" },
 	{ "bnec_tonedisabler", MISDN_CFG_BNEC_TD, MISDN_CTYPE_BOOL, "no", NONE,
-		"Disable Tone\n"},
+		"Disable Tone" },
 	{ "bnec_adaption", MISDN_CFG_BNEC_ADAPT, MISDN_CTYPE_INT, "1", NONE,
-		"Adaption mode (0=no,1=full,2=fast)\n"},
+		"Adaption mode (0=no,1=full,2=fast)" },
 #endif
 	{ "need_more_infos", MISDN_CFG_NEED_MORE_INFOS, MISDN_CTYPE_BOOL, "0", NONE,
 		"Send Setup_Acknowledge on incoming calls anyway (instead of PROCEEDING),\n"
@@ -311,13 +336,13 @@ static const struct misdn_cfg_spec port_spec[] = {
 	{ "faxdetect_context", MISDN_CFG_FAXDETECT_CONTEXT, MISDN_CTYPE_STR, NO_DEFAULT, NONE,
 		"Context to jump into if we detect a fax. Don't set this if you want to stay in the current context." },
 	{ "l1watcher_timeout", MISDN_CFG_L1_TIMEOUT, MISDN_CTYPE_BOOLINT, "0", 4,
-		"Watches the layer 1. If the layer 1 is down, it tries to\n"
-		"\tget it up. The timeout is given in seconds. with 0 as value it\n"
-		"\tdoes not watch the l1 at all\n"
+		"Monitors L1 of the port.  If L1 is down it tries\n"
+		"\tto bring it up.  The polling timeout is given in seconds.\n"
+		"\tSetting the value to 0 disables monitoring L1 of the port.\n"
 		"\n"
-		"\tThis option is only read at loading time of chan_misdn, which\n"
-		"\tmeans you need to unload and load chan_misdn to change the value,\n"
-		"\tan Asterisk restart should do the trick." },
+		"\tThis option is only read at chan_misdn loading time.\n"
+		"\tYou need to unload and load chan_misdn to change the\n"
+		"\tvalue.  An asterisk restart will also do the trick." },
 	{ "overlapdial", MISDN_CFG_OVERLAP_DIAL, MISDN_CTYPE_BOOLINT, "0", 4,
 		"Enables overlap dial for the given amount of seconds.\n"
 		"\tPossible values are positive integers or:\n"

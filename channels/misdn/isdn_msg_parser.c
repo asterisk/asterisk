@@ -25,6 +25,42 @@
 
 #include "ie.c"
 
+/*!
+ * \internal
+ * \brief Build the name, number, name/number display message string
+ *
+ * \param display Display buffer to fill in
+ * \param display_length Length of the display buffer to fill in
+ * \param display_format Display format enumeration
+ * \param name Name string to use
+ * \param number Number string to use
+ *
+ * \return Nothing
+ */
+static void build_display_str(char *display, size_t display_length, int display_format, const char *name, const char *number)
+{
+	display[0] = 0;
+	switch (display_format) {
+	default:
+	case 0:		/* none */
+		break;
+
+	case 1:		/* name */
+		snprintf(display, display_length, "%s", name);
+		break;
+
+	case 2:		/* number */
+		snprintf(display, display_length, "%s", number);
+		break;
+
+	case 3:		/* both */
+		if (name[0] || number[0]) {
+			snprintf(display, display_length, "\"%s\" <%s>", name, number);
+		}
+		break;
+	}
+}
+
 
 static void set_channel(struct misdn_bchannel *bc, int channel)
 {
@@ -161,62 +197,74 @@ static void parse_setup (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchann
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	SETUP_t *setup= (SETUP_t*)((unsigned long)msg->data+HEADER_LEN);
 	Q931_info_t *qi=(Q931_info_t*)((unsigned long)msg->data+HEADER_LEN);
+	int type;
+	int plan;
+	int present;
+	int screen;
+	int reason;
 
 #ifdef DEBUG
 	printf("Parsing SETUP Msg\n");
 #endif
-	{
-		int type,plan,present, screen;
-		char id[32];
-		dec_ie_calling_pn(setup->CALLING_PN, qi, &type, &plan, &present, &screen, id, sizeof(id)-1, nt,bc);
 
-		bc->onumplan=type;
-		strcpy(bc->oad, id);
-		switch (present) {
-		case 0:
-			bc->pres=0; /* screened */
-			break;
-		case 1:
-			bc->pres=1; /* not screened */
-			break;
-		default:
-			bc->pres=0;
-		}
-		switch (screen) {
-		case 0:
-			break;
-		default:
-			;
-		}
+	dec_ie_calling_pn(setup->CALLING_PN, qi, &type, &plan, &present, &screen, bc->caller.number, sizeof(bc->caller.number) - 1, nt, bc);
+	bc->caller.number_type = type;
+	bc->caller.number_plan = plan;
+	switch (present) {
+	default:
+	case 0:
+		bc->caller.presentation = 0;	/* presentation allowed */
+		break;
+	case 1:
+		bc->caller.presentation = 1;	/* presentation restricted */
+		break;
+	case 2:
+		bc->caller.presentation = 2;	/* Number not available */
+		break;
 	}
-	{
-		int  type, plan;
-		char number[32];
-		dec_ie_called_pn(setup->CALLED_PN, (Q931_info_t *)setup, &type, &plan, number, sizeof(number)-1, nt,bc);
-		strcpy(bc->dad, number);
-		bc->dnumplan=type;
-	}
-	{
-		char keypad[32];
-		dec_ie_keypad(setup->KEYPAD, (Q931_info_t *)setup, keypad, sizeof(keypad)-1, nt,bc);
-		strcpy(bc->keypad, keypad);
+	if (0 <= screen) {
+		bc->caller.screening = screen;
+	} else {
+		bc->caller.screening = 0;	/* Unscreened */
 	}
 
-	{
-		dec_ie_complete(setup->COMPLETE, (Q931_info_t *)setup, &bc->sending_complete, nt,bc);
+	dec_ie_called_pn(setup->CALLED_PN, (Q931_info_t *) setup, &type, &plan, bc->dialed.number, sizeof(bc->dialed.number) - 1, nt, bc);
+	bc->dialed.number_type = type;
+	bc->dialed.number_plan = plan;
 
+	dec_ie_keypad(setup->KEYPAD, (Q931_info_t *) setup, bc->keypad, sizeof(bc->keypad) - 1, nt, bc);
+
+	dec_ie_complete(setup->COMPLETE, (Q931_info_t *) setup, &bc->sending_complete, nt, bc);
+
+	dec_ie_redir_nr(setup->REDIR_NR, (Q931_info_t *) setup, &type, &plan, &present, &screen, &reason, bc->redirecting.from.number, sizeof(bc->redirecting.from.number) - 1, nt, bc);
+	bc->redirecting.from.number_type = type;
+	bc->redirecting.from.number_plan = plan;
+	switch (present) {
+	default:
+	case 0:
+		bc->redirecting.from.presentation = 0;	/* presentation allowed */
+		break;
+	case 1:
+		bc->redirecting.from.presentation = 1;	/* presentation restricted */
+		break;
+	case 2:
+		bc->redirecting.from.presentation = 2;	/* Number not available */
+		break;
+	}
+	if (0 <= screen) {
+		bc->redirecting.from.screening = screen;
+	} else {
+		bc->redirecting.from.screening = 0;	/* Unscreened */
+	}
+	if (0 <= reason) {
+		bc->redirecting.reason = reason;
+	} else {
+		bc->redirecting.reason = mISDN_REDIRECTING_REASON_UNKNOWN;
 	}
 
-	{
-		int  type, plan, present, screen, reason;
-		char id[32];
-		dec_ie_redir_nr(setup->REDIR_NR, (Q931_info_t *)setup, &type, &plan, &present, &screen, &reason, id, sizeof(id)-1, nt,bc);
-
-		strcpy(bc->rad, id);
-		bc->rnumplan=type;
-	}
 	{
 		int  coding, capability, mode, rate, multi, user, async, urate, stopbits, dbits, parity;
+
 		dec_ie_bearer(setup->BEARER, (Q931_info_t *)setup, &coding, &capability, &mode, &rate, &multi, &user, &async, &urate, &stopbits, &dbits, &parity, nt,bc);
 		switch (capability) {
 		case -1: bc->capability=INFO_CAPABILITY_DIGITAL_UNRESTRICTED;
@@ -271,7 +319,7 @@ static void parse_setup (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchann
 
 }
 
-#define ANY_CHANNEL 0xff /* IE attribut for 'any channel' */
+#define ANY_CHANNEL 0xff /* IE attribute for 'any channel' */
 static msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
@@ -286,35 +334,43 @@ static msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, in
 		enc_ie_channel_id(&setup->CHANNEL_ID, msg, 1, bc->channel, nt,bc);
 
 
-	{
-		int type=bc->onumplan,plan=1,present=bc->pres,screen=bc->screen;
-		enc_ie_calling_pn(&setup->CALLING_PN, msg, type, plan, present,
-				  screen, bc->oad, nt, bc);
+	enc_ie_calling_pn(&setup->CALLING_PN, msg, bc->caller.number_type, bc->caller.number_plan,
+		bc->caller.presentation, bc->caller.screening, bc->caller.number, nt, bc);
+
+	if (bc->dialed.number[0]) {
+		enc_ie_called_pn(&setup->CALLED_PN, msg, bc->dialed.number_type, bc->dialed.number_plan, bc->dialed.number, nt, bc);
 	}
 
-	{
-		if (bc->dad[0])
-			enc_ie_called_pn(&setup->CALLED_PN, msg, bc->dnumplan, 1, bc->dad, nt,bc);
+	if (bc->redirecting.from.number[0]) {
+		enc_ie_redir_nr(&setup->REDIR_NR, msg, bc->redirecting.from.number_type, bc->redirecting.from.number_plan,
+			bc->redirecting.from.presentation, bc->redirecting.from.screening, bc->redirecting.reason,
+			bc->redirecting.from.number, nt, bc);
 	}
 
-	{
-		if (bc->rad[0])
-			enc_ie_redir_nr(&setup->REDIR_NR, msg, 1, 1,  bc->pres, bc->screen, 0, bc->rad, nt,bc);
+	if (bc->keypad[0]) {
+		enc_ie_keypad(&setup->KEYPAD, msg, bc->keypad, nt,bc);
 	}
 
-	{
-		if (bc->keypad[0])
-			enc_ie_keypad(&setup->KEYPAD, msg, bc->keypad, nt,bc);
-	}
 
 
 	if (*bc->display) {
-		enc_ie_display(&setup->DISPLAY, msg, bc->display, nt,bc);
+		enc_ie_display(&setup->DISPLAY, msg, bc->display, nt, bc);
+	} else if (nt && bc->caller.presentation == 0) {
+		char display[sizeof(bc->display)];
+
+		/* Presentation is allowed */
+		build_display_str(display, sizeof(display), bc->display_setup, bc->caller.name, bc->caller.number);
+		if (display[0]) {
+			enc_ie_display(&setup->DISPLAY, msg, display, nt, bc);
+		}
 	}
 
 	{
-		int coding=0, capability, mode=0 /*  2 for packet ! */
-			,user, rate=0x10;
+		int coding = 0;
+		int capability;
+		int mode = 0;	/* 2 for packet! */
+		int user;
+		int rate = 0x10;
 
 		switch (bc->law) {
 		case INFO_CODEC_ULAW: user=2;
@@ -340,8 +396,6 @@ static msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, in
 			capability=bc->capability;
 		}
 
-
-
 		enc_ie_bearer(&setup->BEARER, msg, coding, capability, mode, rate, -1, user, nt,bc);
 	}
 
@@ -365,15 +419,36 @@ static void parse_connect (struct isdn_msg msgs[], msg_t *msg, struct misdn_bcha
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	CONNECT_t *connect=(CONNECT_t*)((unsigned long)(msg->data+HEADER_LEN));
+	int type;
+	int plan;
+	int pres;
+	int screen;
 
-	int plan,pres,screen;
-
-	bc->ces = connect->ces;
 	bc->ces = connect->ces;
 
 	dec_ie_progress(connect->PROGRESS, (Q931_info_t *)connect, &bc->progress_coding, &bc->progress_location, &bc->progress_indicator, nt, bc);
 
-	dec_ie_connected_pn(connect->CONNECT_PN,(Q931_info_t *)connect, &bc->cpnnumplan, &plan, &pres, &screen, bc->cad, 31, nt, bc);
+	dec_ie_connected_pn(connect->CONNECT_PN, (Q931_info_t *) connect, &type, &plan,
+		&pres, &screen, bc->connected.number, sizeof(bc->connected.number) - 1, nt, bc);
+	bc->connected.number_type = type;
+	bc->connected.number_plan = plan;
+	switch (pres) {
+	default:
+	case 0:
+		bc->connected.presentation = 0;	/* presentation allowed */
+		break;
+	case 1:
+		bc->connected.presentation = 1;	/* presentation restricted */
+		break;
+	case 2:
+		bc->connected.presentation = 2;	/* Number not available */
+		break;
+	}
+	if (0 <= screen) {
+		bc->connected.screening = screen;
+	} else {
+		bc->connected.screening = 0;	/* Unscreened */
+	}
 
 	/*
 		cb_log(1,bc->port,"CONNETED PN: %s cpn_dialplan:%d\n", connected_pn, type);
@@ -400,9 +475,17 @@ static msg_t *build_connect (struct isdn_msg msgs[], struct misdn_bchannel *bc, 
 		enc_ie_date(&connect->DATE, msg, now, nt,bc);
 	}
 
-	{
-		int type=bc->cpnnumplan, plan=1, present=2, screen=0;
-		enc_ie_connected_pn(&connect->CONNECT_PN, msg, type,plan, present, screen, bc->cad, nt , bc);
+	enc_ie_connected_pn(&connect->CONNECT_PN, msg, bc->connected.number_type, bc->connected.number_plan,
+		bc->connected.presentation, bc->connected.screening, bc->connected.number, nt, bc);
+
+	if (nt && bc->connected.presentation == 0) {
+		char display[sizeof(bc->display)];
+
+		/* Presentation is allowed */
+		build_display_str(display, sizeof(display), bc->display_connected, bc->connected.name, bc->connected.number);
+		if (display[0]) {
+			enc_ie_display(&connect->DISPLAY, msg, display, nt, bc);
+		}
 	}
 
 #ifdef DEBUG
@@ -982,12 +1065,12 @@ static void parse_facility (struct isdn_msg msgs[], msg_t *msg, struct misdn_bch
 
 static msg_t *build_facility (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 {
-	int len,
-		HEADER_LEN = nt ? mISDNUSER_HEAD_SIZE : mISDN_HEADER_LEN;
-	unsigned char *ie_fac,
-				  fac_tmp[256];
-	msg_t *msg =(msg_t*)create_l3msg(CC_FACILITY | REQUEST, MT_FACILITY,  bc?bc->l3_id:-1, sizeof(FACILITY_t) ,nt);
-	FACILITY_t *facility = (FACILITY_t*)(msg->data+HEADER_LEN);
+	int len;
+	int HEADER_LEN;
+	unsigned char *ie_fac;
+	unsigned char fac_tmp[256];
+	msg_t *msg;
+	FACILITY_t *facility;
 	Q931_info_t *qi;
 
 #ifdef DEBUG
@@ -995,8 +1078,14 @@ static msg_t *build_facility (struct isdn_msg msgs[], struct misdn_bchannel *bc,
 #endif
 
 	len = encodeFac(fac_tmp, &(bc->fac_out));
-	if (len <= 0)
+	if (len <= 0) {
+		/* mISDN does not know how to build the requested facility structure */
 		return NULL;
+	}
+
+	msg = (msg_t *) create_l3msg(CC_FACILITY | REQUEST, MT_FACILITY, bc ? bc->l3_id : -1, sizeof(FACILITY_t), nt);
+	HEADER_LEN = nt ? mISDNUSER_HEAD_SIZE : mISDN_HEADER_LEN;
+	facility = (FACILITY_t *) (msg->data + HEADER_LEN);
 
 	ie_fac = msg_put(msg, len);
 	if (bc->nt) {
@@ -1009,7 +1098,9 @@ static msg_t *build_facility (struct isdn_msg msgs[], struct misdn_bchannel *bc,
 	memcpy(ie_fac, fac_tmp, len);
 
 	if (*bc->display) {
+#ifdef DEBUG
 		printf("Sending %s as Display\n", bc->display);
+#endif
 		enc_ie_display(&facility->DISPLAY, msg, bc->display, nt,bc);
 	}
 
@@ -1062,15 +1153,11 @@ static void parse_information (struct isdn_msg msgs[], msg_t *msg, struct misdn_
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	INFORMATION_t *information=(INFORMATION_t*)((unsigned long)(msg->data+HEADER_LEN));
-	{
-		int  type, plan;
-		char number[32];
-		char keypad[32];
-		dec_ie_called_pn(information->CALLED_PN, (Q931_info_t *)information, &type, &plan, number, sizeof(number)-1, nt, bc);
-		dec_ie_keypad(information->KEYPAD, (Q931_info_t *)information, keypad, sizeof(keypad)-1, nt, bc);
-		strcpy(bc->info_dad, number);
-		strcpy(bc->keypad,keypad);
-	}
+	int type, plan;
+
+	dec_ie_called_pn(information->CALLED_PN, (Q931_info_t *) information, &type, &plan, bc->info_dad, sizeof(bc->info_dad) - 1, nt, bc);
+	dec_ie_keypad(information->KEYPAD, (Q931_info_t *) information, bc->keypad, sizeof(bc->keypad) - 1, nt, bc);
+
 #ifdef DEBUG
 	printf("Parsing INFORMATION Msg\n");
 #endif
@@ -1084,13 +1171,13 @@ static msg_t *build_information (struct isdn_msg msgs[], struct misdn_bchannel *
 
 	information=(INFORMATION_t*)((msg->data+HEADER_LEN));
 
-	{
-		enc_ie_called_pn(&information->CALLED_PN, msg, 0, 1, bc->info_dad, nt,bc);
-	}
+	enc_ie_called_pn(&information->CALLED_PN, msg, 0, 1, bc->info_dad, nt,bc);
 
 	{
 		if (*bc->display) {
+#ifdef DEBUG
 			printf("Sending %s as Display\n", bc->display);
+#endif
 			enc_ie_display(&information->DISPLAY, msg, bc->display, nt,bc);
 		}
 	}
@@ -1110,7 +1197,6 @@ static void parse_status (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchan
 
 	dec_ie_cause(status->CAUSE, (Q931_info_t *)(status), &location, &cause, nt,bc);
 	if (cause>0) bc->cause=cause;
-	;
 
 #ifdef DEBUG
 	printf("Parsing STATUS Msg\n");
@@ -1161,97 +1247,40 @@ static msg_t *build_timeout (struct isdn_msg msgs[], struct misdn_bchannel *bc, 
 /** Msg Array **/
 
 struct isdn_msg msgs_g[] = {
-	{CC_PROCEEDING,L3,EVENT_PROCEEDING,
-	 parse_proceeding,build_proceeding,
-	 "PROCEEDING"},
-	{CC_ALERTING,L3,EVENT_ALERTING,
-	 parse_alerting,build_alerting,
-	 "ALERTING"},
-	{CC_PROGRESS,L3,EVENT_PROGRESS,
-	 parse_progress,build_progress,
-	 "PROGRESS"},
-	{CC_SETUP,L3,EVENT_SETUP,
-	 parse_setup,build_setup,
-	 "SETUP"},
-	{CC_CONNECT,L3,EVENT_CONNECT,
-	 parse_connect,build_connect,
-	 "CONNECT"},
-	{CC_SETUP_ACKNOWLEDGE,L3,EVENT_SETUP_ACKNOWLEDGE,
-	 parse_setup_acknowledge,build_setup_acknowledge,
-	 "SETUP_ACKNOWLEDGE"},
-	{CC_CONNECT_ACKNOWLEDGE ,L3,EVENT_CONNECT_ACKNOWLEDGE ,
-	 parse_connect_acknowledge ,build_connect_acknowledge,
-	 "CONNECT_ACKNOWLEDGE "},
-	{CC_USER_INFORMATION,L3,EVENT_USER_INFORMATION,
-	 parse_user_information,build_user_information,
-	 "USER_INFORMATION"},
-	{CC_SUSPEND_REJECT,L3,EVENT_SUSPEND_REJECT,
-	 parse_suspend_reject,build_suspend_reject,
-	 "SUSPEND_REJECT"},
-	{CC_RESUME_REJECT,L3,EVENT_RESUME_REJECT,
-	 parse_resume_reject,build_resume_reject,
-	 "RESUME_REJECT"},
-	{CC_HOLD,L3,EVENT_HOLD,
-	 parse_hold,build_hold,
-	 "HOLD"},
-	{CC_SUSPEND,L3,EVENT_SUSPEND,
-	 parse_suspend,build_suspend,
-	 "SUSPEND"},
-	{CC_RESUME,L3,EVENT_RESUME,
-	 parse_resume,build_resume,
-	 "RESUME"},
-	{CC_HOLD_ACKNOWLEDGE,L3,EVENT_HOLD_ACKNOWLEDGE,
-	 parse_hold_acknowledge,build_hold_acknowledge,
-	 "HOLD_ACKNOWLEDGE"},
-	{CC_SUSPEND_ACKNOWLEDGE,L3,EVENT_SUSPEND_ACKNOWLEDGE,
-	 parse_suspend_acknowledge,build_suspend_acknowledge,
-	 "SUSPEND_ACKNOWLEDGE"},
-	{CC_RESUME_ACKNOWLEDGE,L3,EVENT_RESUME_ACKNOWLEDGE,
-	 parse_resume_acknowledge,build_resume_acknowledge,
-	 "RESUME_ACKNOWLEDGE"},
-	{CC_HOLD_REJECT,L3,EVENT_HOLD_REJECT,
-	 parse_hold_reject,build_hold_reject,
-	 "HOLD_REJECT"},
-	{CC_RETRIEVE,L3,EVENT_RETRIEVE,
-	 parse_retrieve,build_retrieve,
-	 "RETRIEVE"},
-	{CC_RETRIEVE_ACKNOWLEDGE,L3,EVENT_RETRIEVE_ACKNOWLEDGE,
-	 parse_retrieve_acknowledge,build_retrieve_acknowledge,
-	 "RETRIEVE_ACKNOWLEDGE"},
-	{CC_RETRIEVE_REJECT,L3,EVENT_RETRIEVE_REJECT,
-	 parse_retrieve_reject,build_retrieve_reject,
-	 "RETRIEVE_REJECT"},
-	{CC_DISCONNECT,L3,EVENT_DISCONNECT,
-	 parse_disconnect,build_disconnect,
-	 "DISCONNECT"},
-	{CC_RESTART,L3,EVENT_RESTART,
-	 parse_restart,build_restart,
-	 "RESTART"},
-	{CC_RELEASE,L3,EVENT_RELEASE,
-	 parse_release,build_release,
-	 "RELEASE"},
-	{CC_RELEASE_COMPLETE,L3,EVENT_RELEASE_COMPLETE,
-	 parse_release_complete,build_release_complete,
-	 "RELEASE_COMPLETE"},
-	{CC_FACILITY,L3,EVENT_FACILITY,
-	 parse_facility,build_facility,
-	 "FACILITY"},
-	{CC_NOTIFY,L3,EVENT_NOTIFY,
-	 parse_notify,build_notify,
-	 "NOTIFY"},
-	{CC_STATUS_ENQUIRY,L3,EVENT_STATUS_ENQUIRY,
-	 parse_status_enquiry,build_status_enquiry,
-	 "STATUS_ENQUIRY"},
-	{CC_INFORMATION,L3,EVENT_INFORMATION,
-	 parse_information,build_information,
-	 "INFORMATION"},
-	{CC_STATUS,L3,EVENT_STATUS,
-	 parse_status,build_status,
-	 "STATUS"},
-	{CC_TIMEOUT,L3,EVENT_TIMEOUT,
-	 parse_timeout,build_timeout,
-	 "TIMEOUT"},
-	{0,0,0,NULL,NULL,NULL}
+/* *INDENT-OFF* */
+	/* misdn_msg,               event,                      msg_parser,                 msg_builder,                info */
+	{ CC_PROCEEDING,            EVENT_PROCEEDING,           parse_proceeding,           build_proceeding,           "PROCEEDING" },
+	{ CC_ALERTING,              EVENT_ALERTING,             parse_alerting,             build_alerting,             "ALERTING" },
+	{ CC_PROGRESS,              EVENT_PROGRESS,             parse_progress,             build_progress,             "PROGRESS" },
+	{ CC_SETUP,                 EVENT_SETUP,                parse_setup,                build_setup,                "SETUP" },
+	{ CC_CONNECT,               EVENT_CONNECT,              parse_connect,              build_connect,              "CONNECT" },
+	{ CC_SETUP_ACKNOWLEDGE,     EVENT_SETUP_ACKNOWLEDGE,    parse_setup_acknowledge,    build_setup_acknowledge,    "SETUP_ACKNOWLEDGE" },
+	{ CC_CONNECT_ACKNOWLEDGE,   EVENT_CONNECT_ACKNOWLEDGE,  parse_connect_acknowledge,  build_connect_acknowledge,  "CONNECT_ACKNOWLEDGE " },
+	{ CC_USER_INFORMATION,      EVENT_USER_INFORMATION,     parse_user_information,     build_user_information,     "USER_INFORMATION" },
+	{ CC_SUSPEND_REJECT,        EVENT_SUSPEND_REJECT,       parse_suspend_reject,       build_suspend_reject,       "SUSPEND_REJECT" },
+	{ CC_RESUME_REJECT,         EVENT_RESUME_REJECT,        parse_resume_reject,        build_resume_reject,        "RESUME_REJECT" },
+	{ CC_HOLD,                  EVENT_HOLD,                 parse_hold,                 build_hold,                 "HOLD" },
+	{ CC_SUSPEND,               EVENT_SUSPEND,              parse_suspend,              build_suspend,              "SUSPEND" },
+	{ CC_RESUME,                EVENT_RESUME,               parse_resume,               build_resume,               "RESUME" },
+	{ CC_HOLD_ACKNOWLEDGE,      EVENT_HOLD_ACKNOWLEDGE,     parse_hold_acknowledge,     build_hold_acknowledge,     "HOLD_ACKNOWLEDGE" },
+	{ CC_SUSPEND_ACKNOWLEDGE,   EVENT_SUSPEND_ACKNOWLEDGE,  parse_suspend_acknowledge,  build_suspend_acknowledge,  "SUSPEND_ACKNOWLEDGE" },
+	{ CC_RESUME_ACKNOWLEDGE,    EVENT_RESUME_ACKNOWLEDGE,   parse_resume_acknowledge,   build_resume_acknowledge,   "RESUME_ACKNOWLEDGE" },
+	{ CC_HOLD_REJECT,           EVENT_HOLD_REJECT,          parse_hold_reject,          build_hold_reject,          "HOLD_REJECT" },
+	{ CC_RETRIEVE,              EVENT_RETRIEVE,             parse_retrieve,             build_retrieve,             "RETRIEVE" },
+	{ CC_RETRIEVE_ACKNOWLEDGE,  EVENT_RETRIEVE_ACKNOWLEDGE, parse_retrieve_acknowledge, build_retrieve_acknowledge, "RETRIEVE_ACKNOWLEDGE" },
+	{ CC_RETRIEVE_REJECT,       EVENT_RETRIEVE_REJECT,      parse_retrieve_reject,      build_retrieve_reject,      "RETRIEVE_REJECT" },
+	{ CC_DISCONNECT,            EVENT_DISCONNECT,           parse_disconnect,           build_disconnect,           "DISCONNECT" },
+	{ CC_RESTART,               EVENT_RESTART,              parse_restart,              build_restart,              "RESTART" },
+	{ CC_RELEASE,               EVENT_RELEASE,              parse_release,              build_release,              "RELEASE" },
+	{ CC_RELEASE_COMPLETE,      EVENT_RELEASE_COMPLETE,     parse_release_complete,     build_release_complete,     "RELEASE_COMPLETE" },
+	{ CC_FACILITY,              EVENT_FACILITY,             parse_facility,             build_facility,             "FACILITY" },
+	{ CC_NOTIFY,                EVENT_NOTIFY,               parse_notify,               build_notify,               "NOTIFY" },
+	{ CC_STATUS_ENQUIRY,        EVENT_STATUS_ENQUIRY,       parse_status_enquiry,       build_status_enquiry,       "STATUS_ENQUIRY" },
+	{ CC_INFORMATION,           EVENT_INFORMATION,          parse_information,          build_information,          "INFORMATION" },
+	{ CC_STATUS,                EVENT_STATUS,               parse_status,               build_status,               "STATUS" },
+	{ CC_TIMEOUT,               EVENT_TIMEOUT,              parse_timeout,              build_timeout,              "TIMEOUT" },
+	{ 0, 0, NULL, NULL, NULL }
+/* *INDENT-ON* */
 };
 
 #define msgs_max (sizeof(msgs_g)/sizeof(struct isdn_msg))

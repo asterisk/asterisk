@@ -922,8 +922,10 @@ int callerid_generate(unsigned char *buf, const char *number, const char *name, 
 	return bytes;
 }
 
-/*! \brief Clean up phone string
- * remove '(', ' ', ')', non-trailing '.', and '-' not in square brackets.
+/*!
+ * \brief Clean up phone string
+ * \details
+ * Remove '(', ' ', ')', non-trailing '.', and '-' not in square brackets.
  * Basically, remove anything that could be invalid in a pattern.
  */
 void ast_shrink_phone_number(char *n)
@@ -958,11 +960,13 @@ void ast_shrink_phone_number(char *n)
 	n[y] = '\0';
 }
 
-/*! \brief Checks if phone number consists of valid characters 
-	\param exten	String that needs to be checked
-	\param valid	Valid characters in string
-	\return 1 if valid string, 0 if string contains invalid characters
-*/
+/*!
+ * \brief Checks if phone number consists of valid characters
+ * \param exten	String that needs to be checked
+ * \param valid	Valid characters in string
+ * \retval 1 if valid string
+ * \retval 0 if string contains invalid characters
+ */
 static int ast_is_valid_string(const char *exten, const char *valid)
 {
 	int x;
@@ -975,34 +979,16 @@ static int ast_is_valid_string(const char *exten, const char *valid)
 	return 1;
 }
 
-/*! \brief checks if string consists only of digits and * \# and + 
-	\return 1 if string is valid AST phone number
-	\return 0 if not
-*/
 int ast_isphonenumber(const char *n)
 {
 	return ast_is_valid_string(n, "0123456789*#+");
 }
 
-/*! \brief checks if string consists only of digits and ( ) - * \# and + 
-	Pre-qualifies the string for ast_shrink_phone_number()
-	\return 1 if string is valid AST shrinkable phone number
-	\return 0 if not
-*/
 int ast_is_shrinkable_phonenumber(const char *exten)
 {
 	return ast_is_valid_string(exten, "0123456789*#+()-.");
 }
 
-/*!
- * \brief Destructively parse instr for caller id information 
- * \return always returns 0, as the code always returns something.
- * \note XXX 'name' is not parsed consistently e.g. we have
- * input                   location        name
- * " foo bar " <123>       123             ' foo bar ' (with spaces around)
- * " foo bar "             NULL            'foo bar' (without spaces around)
- * The parsing of leading and trailing space/quotes should be more consistent.
- */
 int ast_callerid_parse(char *instr, char **name, char **location)
 {
 	char *ns, *ne, *ls, *le;
@@ -1103,68 +1089,191 @@ int ast_callerid_split(const char *buf, char *name, int namelen, char *num, int 
 	return 0;
 }
 
-/*! \brief Translation table for Caller ID Presentation settings */
-static struct {
-	int val;
+struct ast_value_translation {
+	int value;
 	const char *name;
 	const char *description;
-} pres_types[] = {
-	{  AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED, "allowed_not_screened", "Presentation Allowed, Not Screened"},
-	{  AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN, "allowed_passed_screen", "Presentation Allowed, Passed Screen"},
-	{  AST_PRES_ALLOWED_USER_NUMBER_FAILED_SCREEN, "allowed_failed_screen", "Presentation Allowed, Failed Screen"},
-	{  AST_PRES_ALLOWED_NETWORK_NUMBER, "allowed", "Presentation Allowed, Network Number"},
-	{  AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED, "prohib_not_screened", "Presentation Prohibited, Not Screened"},
-	{  AST_PRES_PROHIB_USER_NUMBER_PASSED_SCREEN, "prohib_passed_screen", "Presentation Prohibited, Passed Screen"},
-	{  AST_PRES_PROHIB_USER_NUMBER_FAILED_SCREEN, "prohib_failed_screen", "Presentation Prohibited, Failed Screen"},
-	{  AST_PRES_PROHIB_NETWORK_NUMBER, "prohib", "Presentation Prohibited, Network Number"},
-	{  AST_PRES_NUMBER_NOT_AVAILABLE, "unavailable", "Number Unavailable"},
 };
 
-/*! \brief Convert caller ID text code to value 
-	used in config file parsing
-	\param data text string
-	\return value AST_PRES_ from callerid.h 
-*/
+/*! \brief Translation table for Caller ID Presentation settings */
+static const struct ast_value_translation pres_types[] = {
+/* *INDENT-OFF* */
+	{ AST_PRES_ALLOWED | AST_PRES_USER_NUMBER_UNSCREENED,        "allowed_not_screened",  "Presentation Allowed, Not Screened" },
+	{ AST_PRES_ALLOWED | AST_PRES_USER_NUMBER_PASSED_SCREEN,     "allowed_passed_screen", "Presentation Allowed, Passed Screen" },
+	{ AST_PRES_ALLOWED | AST_PRES_USER_NUMBER_FAILED_SCREEN,     "allowed_failed_screen", "Presentation Allowed, Failed Screen" },
+	{ AST_PRES_ALLOWED | AST_PRES_NETWORK_NUMBER,                "allowed",               "Presentation Allowed, Network Number" },
+
+	{ AST_PRES_RESTRICTED | AST_PRES_USER_NUMBER_UNSCREENED,     "prohib_not_screened",   "Presentation Prohibited, Not Screened" },
+	{ AST_PRES_RESTRICTED | AST_PRES_USER_NUMBER_PASSED_SCREEN,  "prohib_passed_screen",  "Presentation Prohibited, Passed Screen" },
+	{ AST_PRES_RESTRICTED | AST_PRES_USER_NUMBER_FAILED_SCREEN,  "prohib_failed_screen",  "Presentation Prohibited, Failed Screen" },
+	{ AST_PRES_RESTRICTED | AST_PRES_NETWORK_NUMBER,             "prohib",                "Presentation Prohibited, Network Number" },
+
+	{ AST_PRES_UNAVAILABLE | AST_PRES_NETWORK_NUMBER,            "unavailable",           "Number Unavailable" }, /* Default name to value conversion. */
+	{ AST_PRES_UNAVAILABLE | AST_PRES_USER_NUMBER_UNSCREENED,    "unavailable",           "Number Unavailable" },
+	{ AST_PRES_UNAVAILABLE | AST_PRES_USER_NUMBER_FAILED_SCREEN, "unavailable",           "Number Unavailable" },
+	{ AST_PRES_UNAVAILABLE | AST_PRES_USER_NUMBER_PASSED_SCREEN, "unavailable",           "Number Unavailable" },
+/* *INDENT-ON* */
+};
+
+/*!
+ * \brief Convert caller ID text code to value (used in config file parsing)
+ * \param data text string from config file
+ * \retval value AST_PRES_ from callerid.h
+ * \retval -1 if not in table
+ */
 int ast_parse_caller_presentation(const char *data)
 {
-	int i;
+	int index;
 
-	for (i = 0; i < ARRAY_LEN(pres_types); i++) {
-		if (!strcasecmp(pres_types[i].name, data))
-			return pres_types[i].val;
+	for (index = 0; index < ARRAY_LEN(pres_types); ++index) {
+		if (!strcasecmp(pres_types[index].name, data)) {
+			return pres_types[index].value;
+		}
 	}
 
 	return -1;
 }
 
-/*! \brief Convert caller ID pres value to explanatory string 
-	\param data value (see callerid.h AST_PRES_ ) 
-	\return string for human presentation
-*/
+/*!
+ * \brief Convert caller ID pres value to explanatory string
+ * \param data AST_PRES_ value from callerid.h
+ * \return string for human presentation
+ */
 const char *ast_describe_caller_presentation(int data)
 {
-	int i;
+	int index;
 
-	for (i = 0; i < ARRAY_LEN(pres_types); i++) {
-		if (pres_types[i].val == data)
-			return pres_types[i].description;
+	for (index = 0; index < ARRAY_LEN(pres_types); ++index) {
+		if (pres_types[index].value == data) {
+			return pres_types[index].description;
+		}
 	}
 
 	return "unknown";
 }
 
-/*! \brief Convert caller ID pres value to text code
-	\param data text string
-	\return string for config file
-*/
+/*!
+ * \brief Convert caller ID pres value to text code
+ * \param data AST_PRES_ value from callerid.h
+ * \return string for config file
+ */
 const char *ast_named_caller_presentation(int data)
 {
-	int i;
+	int index;
 
-	for (i = 0; i < ARRAY_LEN(pres_types); i++) {
-		if (pres_types[i].val == data)
-			return pres_types[i].name;
+	for (index = 0; index < ARRAY_LEN(pres_types); ++index) {
+		if (pres_types[index].value == data) {
+			return pres_types[index].name;
+		}
 	}
 
 	return "unknown";
+}
+
+/*! \brief Translation table for redirecting reason settings */
+static const struct ast_value_translation redirecting_reason_types[] = {
+/* *INDENT-OFF* */
+	{ AST_REDIRECTING_REASON_UNKNOWN,        "unknown",      "Unknown" },
+	{ AST_REDIRECTING_REASON_USER_BUSY,      "cfb",          "Call Forwarding Busy" },
+	{ AST_REDIRECTING_REASON_NO_ANSWER,      "cfnr",         "Call Forwarding No Reply" },
+	{ AST_REDIRECTING_REASON_UNAVAILABLE,    "unavailable",  "Callee is Unavailable" },
+	{ AST_REDIRECTING_REASON_UNCONDITIONAL,  "cfu",          "Call Forwarding Unconditional" },
+	{ AST_REDIRECTING_REASON_TIME_OF_DAY,    "time_of_day",  "Time of Day" },
+	{ AST_REDIRECTING_REASON_DO_NOT_DISTURB, "dnd",          "Do Not Disturb" },
+	{ AST_REDIRECTING_REASON_DEFLECTION,     "deflection",   "Call Deflection" },
+	{ AST_REDIRECTING_REASON_FOLLOW_ME,      "follow_me",    "Follow Me" },
+	{ AST_REDIRECTING_REASON_OUT_OF_ORDER,   "out_of_order", "Called DTE Out-Of-Order" },
+	{ AST_REDIRECTING_REASON_AWAY,           "away",         "Callee is Away" },
+	{ AST_REDIRECTING_REASON_CALL_FWD_DTE,   "cf_dte",       "Call Forwarding By The Called DTE" },
+/* *INDENT-ON* */
+};
+
+int ast_redirecting_reason_parse(const char *data)
+{
+	int index;
+
+	for (index = 0; index < ARRAY_LEN(redirecting_reason_types); ++index) {
+		if (!strcasecmp(redirecting_reason_types[index].name, data)) {
+			return redirecting_reason_types[index].value;
+		}
+	}
+
+	return -1;
+}
+
+const char *ast_redirecting_reason_describe(int data)
+{
+	int index;
+
+	for (index = 0; index < ARRAY_LEN(redirecting_reason_types); ++index) {
+		if (redirecting_reason_types[index].value == data) {
+			return redirecting_reason_types[index].description;
+		}
+	}
+
+	return "not-known";
+}
+
+const char *ast_redirecting_reason_name(int data)
+{
+	int index;
+
+	for (index = 0; index < ARRAY_LEN(redirecting_reason_types); ++index) {
+		if (redirecting_reason_types[index].value == data) {
+			return redirecting_reason_types[index].name;
+		}
+	}
+
+	return "not-known";
+}
+
+/*! \brief Translation table for connected line update source settings */
+static const struct ast_value_translation connected_line_source_types[] = {
+/* *INDENT-OFF* */
+	{ AST_CONNECTED_LINE_UPDATE_SOURCE_UNKNOWN,           "unknown",           "Unknown" },
+	{ AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER,            "answer",            "Normal Call Answering" },
+	{ AST_CONNECTED_LINE_UPDATE_SOURCE_DIVERSION,         "diversion",         "Call Diversion (Deprecated, use REDIRECTING)" },
+	{ AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER,          "transfer_active",   "Call Transfer(Active)" },
+	{ AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER,          "transfer",          "Call Transfer(Active)" },/* Old name must come after new name. */
+	{ AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER_ALERTING, "transfer_alerting", "Call Transfer(Alerting)" }
+/* *INDENT-ON* */
+};
+
+int ast_connected_line_source_parse(const char *data)
+{
+	int index;
+
+	for (index = 0; index < ARRAY_LEN(connected_line_source_types); ++index) {
+		if (!strcasecmp(connected_line_source_types[index].name, data)) {
+			return connected_line_source_types[index].value;
+		}
+	}
+
+	return -1;
+}
+
+const char *ast_connected_line_source_describe(int data)
+{
+	int index;
+
+	for (index = 0; index < ARRAY_LEN(connected_line_source_types); ++index) {
+		if (connected_line_source_types[index].value == data) {
+			return connected_line_source_types[index].description;
+		}
+	}
+
+	return "not-known";
+}
+
+const char *ast_connected_line_source_name(int data)
+{
+	int index;
+
+	for (index = 0; index < ARRAY_LEN(connected_line_source_types); ++index) {
+		if (connected_line_source_types[index].value == data) {
+			return connected_line_source_types[index].name;
+		}
+	}
+
+	return "not-known";
 }

@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
 #include "asterisk/features.h"
+#include "asterisk/callerid.h"
 
 #define PICKUPMARK "PICKUPMARK"
 
@@ -91,8 +92,20 @@ static const char *app2 = "PickupChan";
 static int pickup_do(struct ast_channel *chan, struct ast_channel *target)
 {
 	int res = 0;
+	struct ast_party_connected_line connected_caller;
 
 	ast_debug(1, "Call pickup on '%s' by '%s'\n", target->name, chan->name);
+
+	connected_caller = target->connected;
+	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
+	ast_channel_update_connected_line(chan, &connected_caller);
+
+	ast_channel_lock(chan);
+	ast_connected_line_copy_from_caller(&connected_caller, &chan->cid);
+	ast_channel_unlock(chan);
+	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
+	ast_channel_queue_connected_line_update(chan, &connected_caller);
+	ast_party_connected_line_free(&connected_caller);
 
 	if ((res = ast_answer(chan))) {
 		ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);

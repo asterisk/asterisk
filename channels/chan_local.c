@@ -406,6 +406,37 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 		ast_moh_start(ast, data, NULL);
 	} else if (condition == AST_CONTROL_UNHOLD) {
 		ast_moh_stop(ast);
+	} else if (condition == AST_CONTROL_CONNECTED_LINE || condition == AST_CONTROL_REDIRECTING) {
+		struct ast_channel *this_channel;
+		struct ast_channel *the_other_channel;
+		/* A connected line update frame may only contain a partial amount of data, such
+		 * as just a source, or just a ton, and not the full amount of information. However,
+		 * the collected information is all stored in the outgoing channel's connectedline
+		 * structure, so when receiving a connected line update on an outgoing local channel,
+		 * we need to transmit the collected connected line information instead of whatever
+		 * happens to be in this control frame. The same applies for redirecting information, which
+		 * is why it is handled here as well.*/
+		isoutbound = IS_OUTBOUND(ast, p);
+		if (isoutbound) {
+			this_channel = p->chan;
+			the_other_channel = p->owner;
+		} else {
+			this_channel = p->owner;
+			the_other_channel = p->chan;
+		}
+		if (the_other_channel) {
+			unsigned char frame_data[1024];
+			if (condition == AST_CONTROL_CONNECTED_LINE) {
+				f.datalen = ast_connected_line_build_data(frame_data, sizeof(frame_data), &this_channel->connected);
+			} else {
+				f.datalen = ast_redirecting_build_data(frame_data, sizeof(frame_data), &this_channel->redirecting);
+			}
+			f.subclass = condition;
+			f.data.ptr = frame_data;
+			if (!(res = local_queue_frame(p, isoutbound, &f, ast, 1))) {
+				ast_mutex_unlock(&p->lock);
+			}
+		}
 	} else {
 		/* Queue up a frame representing the indication as a control frame */
 		ast_mutex_lock(&p->lock);
@@ -509,22 +540,45 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 
 	if (!p)
 		return -1;
-	
-	ast_mutex_lock(&p->lock);
+
+	/* If you value your sanity, please don't look at this code */
+start_over:
+	while (ast_channel_trylock(p->chan)) {
+		ast_channel_unlock(p->owner);
+		usleep(1);
+		ast_channel_lock(p->owner);
+	}
+
+	/* p->owner and p->chan are locked now. Let's get p locked */
+	if (ast_mutex_trylock(&p->lock)) {
+		/* @#$&$@ */
+		ast_channel_unlock(p->chan);
+		ast_channel_unlock(p->owner);
+		usleep(1);
+		ast_channel_lock(p->owner);
+		goto start_over;
+	}
 
 	/*
 	 * Note that cid_num and cid_name aren't passed in the ast_channel_alloc
 	 * call, so it's done here instead.
+	 *
+	 * All these failure points just return -1. The individual strings will
+	 * be cleared when we destroy the channel.
 	 */
-	p->chan->cid.cid_dnid = ast_strdup(p->owner->cid.cid_dnid);
-	p->chan->cid.cid_num = ast_strdup(p->owner->cid.cid_num);
-	p->chan->cid.cid_name = ast_strdup(p->owner->cid.cid_name);
-	p->chan->cid.cid_rdnis = ast_strdup(p->owner->cid.cid_rdnis);
-	p->chan->cid.cid_ani = ast_strdup(p->owner->cid.cid_ani);
-	p->chan->cid.cid_pres = p->owner->cid.cid_pres;
-	p->chan->cid.cid_ani2 = p->owner->cid.cid_ani2;
-	p->chan->cid.cid_ton = p->owner->cid.cid_ton;
+	if (!(p->chan->cid.cid_rdnis = ast_strdup(p->owner->cid.cid_rdnis))) {
+		return -1;
+	}
+	ast_party_redirecting_copy(&p->chan->redirecting, &p->owner->redirecting);
+
+	if (!(p->chan->cid.cid_dnid = ast_strdup(p->owner->cid.cid_dnid))) {
+		return -1;
+	}
 	p->chan->cid.cid_tns = p->owner->cid.cid_tns;
+
+	ast_connected_line_copy_to_caller(&p->chan->cid, &p->owner->connected);
+	ast_connected_line_copy_from_caller(&p->chan->connected, &p->owner->cid);
+
 	ast_string_field_set(p->chan, language, p->owner->language);
 	ast_string_field_set(p->chan, accountcode, p->owner->accountcode);
 	ast_string_field_set(p->chan, musicclass, p->owner->musicclass);
@@ -560,6 +614,7 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 		ast_set_flag(p, LOCAL_LAUNCHED_PBX);
 
 	ast_mutex_unlock(&p->lock);
+	ast_channel_unlock(p->chan);
 	return res;
 }
 

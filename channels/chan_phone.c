@@ -303,13 +303,13 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 		snprintf(cid.min, sizeof(cid.min),     "%02d", tm.tm_min);
 	}
 	/* the standard format of ast->callerid is:  "name" <number>, but not always complete */
-	if (ast_strlen_zero(ast->cid.cid_name))
+	if (ast_strlen_zero(ast->connected.id.name))
 		strcpy(cid.name, DEFAULT_CALLER_ID);
 	else
-		ast_copy_string(cid.name, ast->cid.cid_name, sizeof(cid.name));
+		ast_copy_string(cid.name, ast->connected.id.name, sizeof(cid.name));
 
-	if (ast->cid.cid_num) 
-		ast_copy_string(cid.number, ast->cid.cid_num, sizeof(cid.number));
+	if (ast->connected.id.number) 
+		ast_copy_string(cid.number, ast->connected.id.number, sizeof(cid.number));
 
 	p = ast->tech_pvt;
 

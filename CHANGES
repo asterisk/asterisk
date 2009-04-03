@@ -7,7 +7,6 @@
 === and the other UPGRADE files for older releases.
 ===
 ======================================================================
-
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.6.3  -------------
 ------------------------------------------------------------------------------
@@ -23,9 +22,46 @@ Applications
    present, those values are sent immediatly upon receiving a PROGRESS message
    regardless if the call has been answered or not.
 
-Functions
----------
+Dialplan Functions
+------------------
+ * Added new dialplan functions CONNECTEDLINE and REDIRECTING which permits
+   setting various connected line and redirecting party information.
  * The CHANNEL() function now supports the "name" option.
+
+Queue changes
+-------------
+  * A new option, 'I' has been added to both app_queue and app_dial.
+    By setting this option, Asterisk will not update the caller with
+    connected line changes or redirecting party changes when they occur.
+
+mISDN channel driver (chan_misdn) changes
+----------------------------------------
+  * Added display_connected parameter to misdn.conf to put a display string
+    in the CONNECT message containing the connected name and/or number if
+    the presentation setting permits it.
+  * Added display_setup parameter to misdn.conf to put a display string
+    in the SETUP message containing the caller name and/or number if the
+    presentation setting permits it.
+  * Made misdn.conf parameters localdialplan and cpndialplan take a -1 to
+    indicate the dialplan settings are to be obtained from the asterisk
+    channel.
+  * Made misdn.conf parameter callerid accept the "name" <number> format
+    used by the rest of the system.
+  * Made use the nationalprefix and internationalprefix misdn.conf
+    parameters to prefix any received number from the ISDN link if that
+    number has the corresponding Type-Of-Number.
+  * Added the following new parameters: unknownprefix, netspecificprefix,
+    subscriberprefix, and abbreviatedprefix in misdn.conf to prefix any
+    received number from the ISDN link if that number has the corresponding
+    Type-Of-Number.
+
+
+SIP channel driver (chan_sip) changes
+-------------------------------------------
+  * The sendrpid parameter has been expanded to include the options
+    'rpid' and 'pai'. Setting sendrpid to 'rpid' will cause Remote-Party-ID
+    header to be sent (equivalent to setting sendrpid=yes) and setting
+    sendrpid to 'pai' will cause P-Asserted-Identity header to be sent.
 
 Asterisk Manager Interface
 --------------------------

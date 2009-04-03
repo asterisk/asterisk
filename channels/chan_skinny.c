@@ -2516,6 +2516,43 @@ static int skinny_extensionstate_cb(char *context, char *exten, int state, void 
 	return 0;
 }
 
+static void update_connectedline(struct skinny_subchannel *sub, const void *data, size_t datalen)
+{
+	struct ast_channel *c = sub->owner;
+	struct skinny_line *l = sub->parent;
+	struct skinny_device *d = l->device;
+
+	if (ast_strlen_zero(c->cid.cid_num) || ast_strlen_zero(c->connected.id.number))
+		return;
+
+	if (sub->owner->_state == AST_STATE_UP) {
+		transmit_callstate(d, l->instance, SKINNY_CONNECTED, sub->callid);
+		transmit_displaypromptstatus(d, "Connected", 0, l->instance, sub->callid);
+		if (sub->outgoing)
+			transmit_callinfo(d, c->connected.id.name, c->connected.id.number, l->cid_name, l->cid_num, l->instance, sub->callid, 1);
+		else
+			transmit_callinfo(d, l->cid_name, l->cid_num, c->connected.id.name, c->connected.id.number, l->instance, sub->callid, 2);
+	} else {
+		if (sub->outgoing) {
+			transmit_callstate(d, l->instance, SKINNY_RINGIN, sub->callid);
+			transmit_displaypromptstatus(d, "Ring-In", 0, l->instance, sub->callid);
+			transmit_callinfo(d, c->connected.id.name, c->connected.id.number, l->cid_name, l->cid_num, l->instance, sub->callid, 1);
+		} else {
+			if (!sub->ringing) {
+				transmit_callstate(d, l->instance, SKINNY_RINGOUT, sub->callid);
+				transmit_displaypromptstatus(d, "Ring-Out", 0, l->instance, sub->callid);
+				sub->ringing = 1;
+			} else {
+				transmit_callstate(d, l->instance, SKINNY_PROGRESS, sub->callid);
+				transmit_displaypromptstatus(d, "Call Progress", 0, l->instance, sub->callid);
+				sub->progress = 1;
+			}
+
+			transmit_callinfo(d, l->cid_name, l->cid_num, c->connected.id.name, c->connected.id.number, l->instance, sub->callid, 2);
+		}
+	}
+}
+
 static void mwi_event_cb(const struct ast_event *event, void *userdata)
 {
 	struct skinny_line *l = userdata;
@@ -3610,6 +3647,8 @@ static void *skinny_newcall(void *data)
 		l->hidecallerid ? "" : l->cid_num,
 		l->hidecallerid ? "" : l->cid_name,
 		c->cid.cid_ani ? NULL : l->cid_num);
+	c->connected.id.number = ast_strdup(c->exten);
+	c->connected.id.name = NULL;
 	ast_setstate(c, AST_STATE_RING);
 	if (!sub->rtp) {
 		start_rtp(sub);
@@ -3773,7 +3812,7 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 	transmit_callstateonly(d, sub, SKINNY_RINGIN);
 	transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGIN);
 	transmit_displaypromptstatus(d, "Ring-In", 0, l->instance, sub->callid);
-	transmit_callinfo(d, ast->cid.cid_name, ast->cid.cid_num, l->cid_name, l->cid_num, l->instance, sub->callid, 1);
+	transmit_callinfo(d, ast->connected.id.name, ast->connected.id.number, l->cid_name, l->cid_num, l->instance, sub->callid, 1);
 	transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
 	transmit_ringer_mode(d, SKINNY_RING_INSIDE);
 
@@ -3900,7 +3939,7 @@ static int skinny_answer(struct ast_channel *ast)
 	/* order matters here...
 	   for some reason, transmit_callinfo must be before transmit_callstate,
 	   or you won't get keypad messages in some situations. */
-	transmit_callinfo(d, ast->cid.cid_name, ast->cid.cid_num, l->lastnumberdialed, l->lastnumberdialed, l->instance, sub->callid, 2);
+	transmit_callinfo(d, ast->connected.id.name, ast->connected.id.number, l->lastnumberdialed, l->lastnumberdialed, l->instance, sub->callid, 2);
 	transmit_callstateonly(d, sub, SKINNY_CONNECTED);
 	transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_CONNECTED);
 	transmit_dialednumber(d, l->lastnumberdialed, l->instance, sub->callid);
@@ -4095,6 +4134,10 @@ static char *control2str(int ind) {
 		return "Unhold";
 	case AST_CONTROL_SRCUPDATE:
 		return "Media Source Update";
+	case AST_CONTROL_CONNECTED_LINE:
+		return "Connected Line";
+	case AST_CONTROL_REDIRECTING:
+		return "Redirecting";
 	case -1:
 		return "Stop tone";
 	default:
@@ -4202,7 +4245,7 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 				transmit_callstateonly(d, sub, SKINNY_RINGOUT);
 				transmit_dialednumber(d, l->lastnumberdialed, l->instance, sub->callid);
 				transmit_displaypromptstatus(d, "Ring Out", 0, l->instance, sub->callid);
-				transmit_callinfo(d, ast->cid.cid_name, ast->cid.cid_num, l->lastnumberdialed, l->lastnumberdialed, l->instance, sub->callid, 2); /* 2 = outgoing from phone */
+				transmit_callinfo(d, ast->cid.cid_name, ast->cid.cid_num, S_OR(ast->connected.id.name, l->lastnumberdialed), S_OR(ast->connected.id.number, l->lastnumberdialed), l->instance, sub->callid, 2); /* 2 = outgoing from phone */
 				sub->ringing = 1;
 				if (!d->earlyrtp) {
 					break;
@@ -4243,7 +4286,7 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 			}
 			transmit_callstateonly(d, sub, SKINNY_PROGRESS);
 			transmit_displaypromptstatus(d, "Call Progress", 0, l->instance, sub->callid);
-			transmit_callinfo(d, ast->cid.cid_name, ast->cid.cid_num, l->lastnumberdialed, l->lastnumberdialed, l->instance, sub->callid, 2); /* 2 = outgoing from phone */
+			transmit_callinfo(d, ast->cid.cid_name, ast->cid.cid_num, S_OR(ast->connected.id.name, l->lastnumberdialed), S_OR(ast->connected.id.number, l->lastnumberdialed), l->instance, sub->callid, 2); /* 2 = outgoing from phone */
 			sub->progress = 1;
 			if (!d->earlyrtp) {
 				break;
@@ -4263,6 +4306,9 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 		break;
 	case AST_CONTROL_SRCUPDATE:
 		ast_rtp_instance_new_source(sub->rtp);
+		break;
+	case AST_CONTROL_CONNECTED_LINE:
+		update_connectedline(sub, data, datalen);
 		break;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to indicate condition %d\n", ind);

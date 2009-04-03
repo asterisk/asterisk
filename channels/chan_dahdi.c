@@ -3156,7 +3156,7 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 				}
 				p->callwaitcas = 0;
 				if ((p->cidspill = ast_malloc(MAX_CALLERID_SIZE))) {
-					p->cidlen = ast_callerid_generate(p->cidspill, ast->cid.cid_name, ast->cid.cid_num, AST_LAW(p));
+					p->cidlen = ast_callerid_generate(p->cidspill, ast->connected.id.name, ast->connected.id.number, AST_LAW(p));
 					p->cidpos = 0;
 					send_callerid(p);
 				}
@@ -3197,12 +3197,12 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 		} else {
 			/* Call waiting call */
 			p->callwaitrings = 0;
-			if (ast->cid.cid_num)
-				ast_copy_string(p->callwait_num, ast->cid.cid_num, sizeof(p->callwait_num));
+			if (ast->connected.id.number)
+				ast_copy_string(p->callwait_num, ast->connected.id.number, sizeof(p->callwait_num));
 			else
 				p->callwait_num[0] = '\0';
-			if (ast->cid.cid_name)
-				ast_copy_string(p->callwait_name, ast->cid.cid_name, sizeof(p->callwait_name));
+			if (ast->connected.id.name)
+				ast_copy_string(p->callwait_name, ast->connected.id.name, sizeof(p->callwait_name));
 			else
 				p->callwait_name[0] = '\0';
 			/* Call waiting tone instead */
@@ -3214,8 +3214,8 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 			if (tone_zone_play_tone(p->subs[SUB_CALLWAIT].dfd, DAHDI_TONE_RINGTONE))
 				ast_log(LOG_WARNING, "Unable to generate call-wait ring-back on channel %s\n", ast->name);
 		}
-		n = ast->cid.cid_name;
-		l = ast->cid.cid_num;
+		n = ast->connected.id.name;
+		l = ast->connected.id.number;
 		if (l)
 			ast_copy_string(p->lastcid_num, l, sizeof(p->lastcid_num));
 		else
@@ -3281,14 +3281,14 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 
 		switch (mysig) {
 		case SIG_FEATD:
-			l = ast->cid.cid_num;
+			l = ast->connected.id.number;
 			if (l)
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T*%s*%s*", l, c);
 			else
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T**%s*", c);
 			break;
 		case SIG_FEATDMF:
-			l = ast->cid.cid_num;
+			l = ast->connected.id.number;
 			if (l)
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*00%s#*%s#", l, c);
 			else
@@ -3423,7 +3423,7 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 		}
 
 		if (!p->hidecallerid) {
-			l = ast->cid.cid_num;
+			l = ast->connected.id.number;
 		} else {
 			l = NULL;
 		}
@@ -3472,10 +3472,10 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 			}
 		}
 		isup_set_calling(p->ss7call, l ? (l + calling_nai_strip) : NULL, ss7_calling_nai,
-			p->use_callingpres ? cid_pres2ss7pres(ast->cid.cid_pres) : (l ? SS7_PRESENTATION_ALLOWED : SS7_PRESENTATION_RESTRICTED),
-			p->use_callingpres ? cid_pres2ss7screen(ast->cid.cid_pres) : SS7_SCREENING_USER_PROVIDED );
+			p->use_callingpres ? cid_pres2ss7pres(ast->connected.id.number_presentation) : (l ? SS7_PRESENTATION_ALLOWED : SS7_PRESENTATION_RESTRICTED),
+			p->use_callingpres ? cid_pres2ss7screen(ast->connected.id.number_presentation) : SS7_SCREENING_USER_PROVIDED );
 
-		isup_set_oli(p->ss7call, ast->cid.cid_ani2);
+		isup_set_oli(p->ss7call, ast->connected.ani2);
 		isup_init_call(p->ss7->ss7, p->ss7call, p->cic, p->dpc);
 
 		ast_channel_lock(ast);
@@ -3587,9 +3587,9 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 		l = NULL;
 		n = NULL;
 		if (!p->hidecallerid) {
-			l = ast->cid.cid_num;
+			l = ast->connected.id.number;
 			if (!p->hidecalleridname) {
-				n = ast->cid.cid_name;
+				n = ast->connected.id.name;
 			}
 		}
 
@@ -3803,7 +3803,7 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 			}
 		}
 		pri_sr_set_caller(sr, l ? (l + ldp_strip) : NULL, n, prilocaldialplan,
-			p->use_callingpres ? ast->cid.cid_pres : (l ? PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN : PRES_NUMBER_NOT_AVAILABLE));
+			p->use_callingpres ? ast->connected.id.number_presentation : (l ? PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN : PRES_NUMBER_NOT_AVAILABLE));
 		if ((rr_str = pbx_builtin_getvar_helper(ast, "PRIREDIRECTREASON"))) {
 			if (!strcasecmp(rr_str, "UNKNOWN"))
 				redirect_reason = 0;

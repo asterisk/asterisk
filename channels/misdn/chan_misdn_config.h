@@ -46,10 +46,16 @@ enum misdn_cfg_elements {
 	MISDN_CFG_DIALPLAN,            /* int */
 	MISDN_CFG_LOCALDIALPLAN,       /* int */
 	MISDN_CFG_CPNDIALPLAN,       /* int */
-	MISDN_CFG_NATPREFIX,           /* char[] */
-	MISDN_CFG_INTERNATPREFIX,      /* char[] */
+	MISDN_CFG_TON_PREFIX_UNKNOWN,         /* char[] */
+	MISDN_CFG_TON_PREFIX_INTERNATIONAL,   /* char[] */
+	MISDN_CFG_TON_PREFIX_NATIONAL,        /* char[] */
+	MISDN_CFG_TON_PREFIX_NETWORK_SPECIFIC,/* char[] */
+	MISDN_CFG_TON_PREFIX_SUBSCRIBER,      /* char[] */
+	MISDN_CFG_TON_PREFIX_ABBREVIATED,     /* char[] */
 	MISDN_CFG_PRES,                /* int */
 	MISDN_CFG_SCREEN,              /* int */
+	MISDN_CFG_DISPLAY_CONNECTED,   /* int */
+	MISDN_CFG_DISPLAY_SETUP,       /* int */
 	MISDN_CFG_ALWAYS_IMMEDIATE,    /* int (bool) */
 	MISDN_CFG_NODIALTONE,    /* int (bool) */
 	MISDN_CFG_IMMEDIATE,           /* int (bool) */

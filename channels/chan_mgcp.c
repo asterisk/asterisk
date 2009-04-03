@@ -915,7 +915,7 @@ static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
 			transmit_modify_request(sub->next);
 		}
 
-		transmit_notify_request_with_callerid(sub, tone, ast->cid.cid_num, ast->cid.cid_name);
+		transmit_notify_request_with_callerid(sub, tone, ast->connected.id.number, ast->connected.id.name);
 		ast_setstate(ast, AST_STATE_RINGING);
 
 		if (sub->next->owner && !ast_strlen_zero(sub->next->cxident) && !ast_strlen_zero(sub->next->callid)) {

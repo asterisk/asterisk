@@ -606,18 +606,18 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 	/* make sure null terminated */
 	called_addr[sizeof(called_addr) - 1] = '\0';
 
-	if (c->cid.cid_num)
-		ast_copy_string(pvt->options.cid_num, c->cid.cid_num, sizeof(pvt->options.cid_num));
+	if (c->connected.id.number)
+		ast_copy_string(pvt->options.cid_num, c->connected.id.number, sizeof(pvt->options.cid_num));
 
-	if (c->cid.cid_name)
-		ast_copy_string(pvt->options.cid_name, c->cid.cid_name, sizeof(pvt->options.cid_name));
+	if (c->connected.id.name)
+		ast_copy_string(pvt->options.cid_name, c->connected.id.name, sizeof(pvt->options.cid_name));
 
 	if (c->cid.cid_rdnis) {
 		ast_copy_string(pvt->options.cid_rdnis, c->cid.cid_rdnis, sizeof(pvt->options.cid_rdnis));
 	}
 
-	pvt->options.presentation = c->cid.cid_pres;
-	pvt->options.type_of_number = c->cid.cid_ton;
+	pvt->options.presentation = c->connected.id.number_presentation;
+	pvt->options.type_of_number = c->connected.id.number_type;
 
 	if ((addr = pbx_builtin_getvar_helper(c, "PRIREDIRECTREASON"))) {
 		if (!strcasecmp(addr, "UNKNOWN"))

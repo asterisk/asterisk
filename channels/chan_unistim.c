@@ -3671,16 +3671,16 @@ static int unistim_call(struct ast_channel *ast, char *dest, int timeout)
 	Sendicon(TEXT_LINE0, FAV_ICON_NONE, session);
 
 	if (sub->owner) {
-		if (sub->owner->cid.cid_num) {
-			send_text(TEXT_LINE1, TEXT_NORMAL, session, sub->owner->cid.cid_num);
-			change_callerid(session, 0, sub->owner->cid.cid_num);
+		if (sub->owner->connected.id.number) {
+			send_text(TEXT_LINE1, TEXT_NORMAL, session, sub->owner->connected.id.number);
+			change_callerid(session, 0, sub->owner->connected.id.number);
 		} else {
 			send_text(TEXT_LINE1, TEXT_NORMAL, session, DEFAULTCALLERID);
 			change_callerid(session, 0, DEFAULTCALLERID);
 		}
-		if (sub->owner->cid.cid_name) {
-			send_text(TEXT_LINE0, TEXT_NORMAL, session, sub->owner->cid.cid_name);
-			change_callerid(session, 1, sub->owner->cid.cid_name);
+		if (sub->owner->connected.id.name) {
+			send_text(TEXT_LINE0, TEXT_NORMAL, session, sub->owner->connected.id.name);
+			change_callerid(session, 1, sub->owner->connected.id.name);
 		} else {
 			send_text(TEXT_LINE0, TEXT_NORMAL, session, DEFAULTCALLERNAME);
 			change_callerid(session, 1, DEFAULTCALLERNAME);
