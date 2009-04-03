@@ -662,7 +662,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, char *fmtc, signed char record_gain);
 static int vm_play_folder_name(struct ast_channel *chan, char *mbox);
 static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, int msgnum, long duration, char *fmt, char *cidnum, char *cidname);
-static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, char *attach, char *format, int duration, int attach_user_voicemail, struct ast_channel *chan, const char *category, int imap);
+static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, const char *fromfolder, char *cidnum, char *cidname, char *attach, char *format, int duration, int attach_user_voicemail, struct ast_channel *chan, const char *category, int imap);
 static void apply_options(struct ast_vm_user *vmu, const char *options);
 static int is_valid_dtmf(const char *key);
 
@@ -1425,7 +1425,7 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 		imap_delete_old_greeting(fn, vms);
 	}
 	
-	make_email_file(p, myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), fn, fmt, duration, 1, chan, NULL, 1);
+	make_email_file(p, myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, "INBOX", S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), fn, fmt, duration, 1, chan, NULL, 1);
 	/* read mail file to memory */		
 	len = ftell(p);
 	rewind(p);
@@ -3266,9 +3266,16 @@ static int base_encode(char *filename, FILE *so)
 	return 1;
 }
 
-static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, char *dur, char *date, char *passdata, size_t passdatasize, const char *category)
+static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, const char *fromfolder, char *cidnum, char *cidname, char *dur, char *date, char *passdata, size_t passdatasize, const char *category)
 {
 	char callerid[256];
+	char fromdir[256], fromfile[256];
+	struct ast_config *msg_cfg;
+	const char *origcallerid, *origtime;
+	char origcidname[80], origcidnum[80], origdate[80];
+	int inttime;
+	struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE };
+
 	/* Prepare variables for substitution in email body and subject */
 	pbx_builtin_setvar_helper(ast, "VM_NAME", vmu->fullname);
 	pbx_builtin_setvar_helper(ast, "VM_DUR", dur);
@@ -3282,6 +3289,35 @@ static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu
 	pbx_builtin_setvar_helper(ast, "VM_CIDNUM", (!ast_strlen_zero(cidnum) ? cidnum : "an unknown caller"));
 	pbx_builtin_setvar_helper(ast, "VM_DATE", date);
 	pbx_builtin_setvar_helper(ast, "VM_CATEGORY", category ? ast_strdupa(category) : "no category");
+
+	/* Retrieve info from VM attribute file */
+	make_dir(fromdir, sizeof(fromdir), vmu->context, vmu->mailbox, fromfolder);
+	make_file(fromfile, sizeof(fromfile), fromdir, msgnum - 1);
+	if (strlen(fromfile) < sizeof(fromfile) - 5) {
+		strcat(fromfile, ".txt");
+	}
+	if (!(msg_cfg = ast_config_load(fromfile, config_flags))) {
+		if (option_debug > 0) {
+			ast_log(LOG_DEBUG, "Config load for message text file '%s' failed\n", fromfile);
+		}
+		return;
+	}
+
+	if ((origcallerid = ast_variable_retrieve(msg_cfg, "message", "callerid"))) {
+		pbx_builtin_setvar_helper(ast, "ORIG_VM_CALLERID", origcallerid);
+		ast_callerid_split(origcallerid, origcidname, sizeof(origcidname), origcidnum, sizeof(origcidnum));
+		pbx_builtin_setvar_helper(ast, "ORIG_VM_CIDNAME", origcidname);
+		pbx_builtin_setvar_helper(ast, "ORIG_VM_CIDNUM", origcidnum);
+	}
+
+	if ((origtime = ast_variable_retrieve(msg_cfg, "message", "origtime")) && sscanf(origtime, "%d", &inttime) == 1) {
+		struct timeval tv = { inttime, };
+		struct ast_tm tm;
+		ast_localtime(&tv, &tm, NULL);
+		ast_strftime(origdate, sizeof(origdate), emaildateformat, &tm);
+		pbx_builtin_setvar_helper(ast, "ORIG_VM_DATE", origdate);
+	}
+	ast_config_destroy(msg_cfg);
 }
 
 static char *quote(const char *from, char *to, size_t len)
@@ -3408,7 +3444,7 @@ static char *encode_mime_str(const char *start, char *end, size_t endsize, size_
  *
  * The email body, and base 64 encoded attachement (if any) are stored to the file identified by *p. This method does not actually send the email.  That is done by invoking the configure 'mailcmd' and piping this generated file into it, or with the sendemail() function.
  */
-static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, char *attach, char *format, int duration, int attach_user_voicemail, struct ast_channel *chan, const char *category, int imap)
+static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, const char *fromfolder, char *cidnum, char *cidname, char *attach, char *format, int duration, int attach_user_voicemail, struct ast_channel *chan, const char *category, int imap)
 {
 	char date[256];
 	char host[MAXHOSTNAMELEN] = "";
@@ -3469,7 +3505,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "Substitution/voicemail"))) {
 			char *ptr;
 			memset(passdata2, 0, len_passdata2);
-			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, enc_cidnum, enc_cidname, dur, date, passdata2, len_passdata2, category);
+			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, enc_cidnum, enc_cidname, dur, date, passdata2, len_passdata2, category);
 			pbx_substitute_variables_helper(ast, fromstring, passdata2, len_passdata2);
 			len_passdata = strlen(passdata2) * 3 + 300;
 			passdata = alloca(len_passdata);
@@ -3519,7 +3555,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 			}
 
 			memset(passdata, 0, len_passdata);
-			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, len_passdata, category);
+			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, cidnum, cidname, dur, date, passdata, len_passdata, category);
 			pbx_substitute_variables_helper(ast, emailsubject, passdata, len_passdata);
 			if (check_mime(passdata)) {
 				int first_line = 1;
@@ -3594,18 +3630,57 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 			int vmlen = strlen(emailbody) * 3 + 200;
 			passdata = alloca(vmlen);
 			memset(passdata, 0, vmlen);
-			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
+			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, cidnum, cidname, dur, date, passdata, vmlen, category);
 			pbx_substitute_variables_helper(ast, emailbody, passdata, vmlen);
 			fprintf(p, "%s" ENDL, passdata);
 			ast_channel_free(ast);
 		} else
 			ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 	} else if (msgnum > -1) {
-		fprintf(p, "Dear %s:" ENDL ENDL "\tJust wanted to let you know you were just left a %s long message (number %d)" ENDL
+		if (strcmp(vmu->mailbox, mailbox)) {
+			/* Forwarded type */
+			struct ast_config *msg_cfg;
+			const char *v;
+			int inttime;
+			char fromdir[256], fromfile[256], origdate[80] = "", origcallerid[80] = "";
+			struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE };
+			/* Retrieve info from VM attribute file */
+			make_dir(fromdir, sizeof(fromdir), vmu->context, vmu->mailbox, fromfolder);
+			make_file(fromfile, sizeof(fromfile), fromdir, msgnum);
+			if (strlen(fromfile) < sizeof(fromfile) - 5) {
+				strcat(fromfile, ".txt");
+			}
+			if ((msg_cfg = ast_config_load(fromfile, config_flags))) {
+				if ((v = ast_variable_retrieve(msg_cfg, "message", "callerid"))) {
+					ast_copy_string(origcallerid, v, sizeof(origcallerid));
+				}
 
-		"in mailbox %s from %s, on %s so you might" ENDL
-		"want to check it when you get a chance.  Thanks!" ENDL ENDL "\t\t\t\t--Asterisk" ENDL ENDL, vmu->fullname, 
-		dur, msgnum + 1, mailbox, (cidname ? cidname : (cidnum ? cidnum : "an unknown caller")), date);
+				/* You might be tempted to do origdate, except that a) it's in the wrong
+				 * format, and b) it's missing for IMAP recordings. */
+				if ((v = ast_variable_retrieve(msg_cfg, "message", "origtime")) && sscanf(v, "%d", &inttime) == 1) {
+					struct timeval tv = { inttime, };
+					struct ast_tm tm;
+					ast_localtime(&tv, &tm, NULL);
+					ast_strftime(origdate, sizeof(origdate), emaildateformat, &tm);
+				}
+				fprintf(p, "Dear %s:" ENDL ENDL "\tJust wanted to let you know you were just forwarded"
+					" a %s long message (number %d)" ENDL "in mailbox %s from %s, on %s" ENDL
+					"(originally sent by %s on %s)" ENDL "so you might want to check it when you get a"
+					" chance.  Thanks!" ENDL ENDL "\t\t\t\t--Asterisk" ENDL ENDL, vmu->fullname, dur,
+					msgnum + 1, mailbox, (cidname ? cidname : (cidnum ? cidnum : "an unknown caller")),
+					date, origcallerid, origdate);
+				ast_config_destroy(msg_cfg);
+			} else {
+				goto plain_message;
+			}
+		} else {
+plain_message:
+			fprintf(p, "Dear %s:" ENDL ENDL "\tJust wanted to let you know you were just left a "
+				"%s long message (number %d)" ENDL "in mailbox %s from %s, on %s so you might" ENDL
+				"want to check it when you get a chance.  Thanks!" ENDL ENDL "\t\t\t\t--Asterisk"
+				ENDL ENDL, vmu->fullname, dur, msgnum + 1, mailbox,
+				(cidname ? cidname : (cidnum ? cidnum : "an unknown caller")), date);
+		}
 	} else {
 		fprintf(p, "This message is to let you know that your greeting was changed on %s." ENDL
 				"Please do not delete this message, lest your greeting vanish with it." ENDL ENDL, date);
@@ -3658,7 +3733,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 #undef ENDL
 }
 
-static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, char *attach, char *format, int duration, int attach_user_voicemail, struct ast_channel *chan, const char *category)
+static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, const char *fromfolder, char *cidnum, char *cidname, char *attach, char *format, int duration, int attach_user_voicemail, struct ast_channel *chan, const char *category)
 {
 	FILE *p = NULL;
 	char tmp[80] = "/tmp/astmail-XXXXXX";
@@ -3677,7 +3752,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 		ast_log(LOG_WARNING, "Unable to launch '%s' (can't create temporary file)\n", mailcmd);
 		return -1;
 	} else {
-		make_email_file(p, srcemail, vmu, msgnum, context, mailbox, cidnum, cidname, attach, format, duration, attach_user_voicemail, chan, category, 0);
+		make_email_file(p, srcemail, vmu, msgnum, context, mailbox, fromfolder, cidnum, cidname, attach, format, duration, attach_user_voicemail, chan, category, 0);
 		fclose(p);
 		snprintf(tmp2, sizeof(tmp2), "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
 		ast_safe_system(tmp2);
@@ -3686,7 +3761,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 	return 0;
 }
 
-static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, int duration, struct ast_vm_user *vmu, const char *category)
+static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char *mailbox, const char *fromfolder, char *cidnum, char *cidname, int duration, struct ast_vm_user *vmu, const char *category)
 {
 	char date[256];
 	char host[MAXHOSTNAMELEN] = "";
@@ -3717,7 +3792,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 			int vmlen = strlen(fromstring) * 3 + 200;
 			passdata = alloca(vmlen);
 			memset(passdata, 0, vmlen);
-			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
+			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, cidnum, cidname, dur, date, passdata, vmlen, category);
 			pbx_substitute_variables_helper(ast, pagerfromstring, passdata, vmlen);
 			fprintf(p, "From: %s <%s>\n", passdata, who);
 			ast_channel_free(ast);
@@ -3733,7 +3808,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 			int vmlen = strlen(pagersubject) * 3 + 200;
 			passdata = alloca(vmlen);
 			memset(passdata, 0, vmlen);
-			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
+			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, cidnum, cidname, dur, date, passdata, vmlen, category);
 			pbx_substitute_variables_helper(ast, pagersubject, passdata, vmlen);
 			fprintf(p, "Subject: %s\n\n", passdata);
 			ast_channel_free(ast);
@@ -3750,7 +3825,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 			int vmlen = strlen(pagerbody) * 3 + 200;
 			passdata = alloca(vmlen);
 			memset(passdata, 0, vmlen);
-			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
+			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, cidnum, cidname, dur, date, passdata, vmlen, category);
 			pbx_substitute_variables_helper(ast, pagerbody, passdata, vmlen);
 			fprintf(p, "%s\n", passdata);
 			ast_channel_free(ast);
@@ -5408,14 +5483,15 @@ static int has_voicemail(const char *mailbox, const char *folder)
 				RETRIEVE(todir, msgnum, vmu->mailbox, vmu->context);
 
 			/* XXX possible imap issue, should category be NULL XXX */
-			sendmail(myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, cidnum, cidname, fn, fmt, duration, attach_user_voicemail, chan, category);
+			sendmail(myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, mbox(0), cidnum, cidname, fn, fmt, duration, attach_user_voicemail, chan, category);
 
 			if (attach_user_voicemail)
 				DISPOSE(todir, msgnum);
 		}
 
-		if (!ast_strlen_zero(vmu->pager))
-			sendpage(myserveremail, vmu->pager, msgnum, vmu->context, vmu->mailbox, cidnum, cidname, duration, vmu, category);
+		if (!ast_strlen_zero(vmu->pager)) {
+			sendpage(myserveremail, vmu->pager, msgnum, vmu->context, vmu->mailbox, mbox(0), cidnum, cidname, duration, vmu, category);
+		}
 
 		if (ast_test_flag(vmu, VM_DELETE))
 			DELETE(todir, msgnum, fn, vmu);
@@ -5551,6 +5627,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
 					while ((receiver = AST_LIST_REMOVE_HEAD(&extensions, list))) {
 						free_user(receiver);
 					}
+					ast_log(LOG_NOTICE, "'%s' is not a valid mailbox\n", s);
 					valid_extensions = 0;
 					break;
 				}
@@ -5635,7 +5712,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
 						myserveremail = vmtmp->serveremail;
 					attach_user_voicemail = ast_test_flag(vmtmp, VM_ATTACH);
 					/* NULL category for IMAP storage */
-					sendmail(myserveremail, vmtmp, todircount, vmtmp->context, vmtmp->mailbox, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), vms->fn, fmt, duration, attach_user_voicemail, chan, NULL);
+					sendmail(myserveremail, vmtmp, todircount, vmtmp->context, vmtmp->mailbox, dstvms->curbox, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), vms->fn, fmt, duration, attach_user_voicemail, chan, NULL);
 #else
 					copy_message(chan, sender, -1, curmsg, duration, vmtmp, fmt, vmstmp.curdir);
 #endif
