@@ -576,6 +576,7 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 		}
 		if (!(middle_frame = ast_translate(in_translate->trans_pvt, frame, 0)))
 			return frame;
+		samples = middle_frame->samples;
 	}
 
 	/* Queue up signed linear frame to each spy */
