@@ -38,7 +38,7 @@ struct ast_key;
  *
  * Returns the key on success or NULL on failure
  */
-struct ast_key *(*ast_key_get)(const char *key, int type);
+extern struct ast_key *(*ast_key_get)(const char *key, int type);
 
 /*! \brief Check the authenticity of a message signature using a given public key
  * \param key a public key to use to verify
@@ -48,7 +48,7 @@ struct ast_key *(*ast_key_get)(const char *key, int type);
  * Returns 0 if the signature is valid, or -1 otherwise
  *
  */
-int (*ast_check_signature)(struct ast_key *key, const char *msg, const char *sig);
+extern int (*ast_check_signature)(struct ast_key *key, const char *msg, const char *sig);
 
 /*! \brief Check the authenticity of a message signature using a given public key
  * \param key a public key to use to verify
@@ -58,7 +58,7 @@ int (*ast_check_signature)(struct ast_key *key, const char *msg, const char *sig
  * Returns 0 if the signature is valid, or -1 otherwise
  *
  */
-int (*ast_check_signature_bin)(struct ast_key *key, const char *msg, int msglen, const unsigned char *sig);
+extern int (*ast_check_signature_bin)(struct ast_key *key, const char *msg, int msglen, const unsigned char *sig);
 
 /*!
  * \param key a private key to use to create the signature
@@ -69,7 +69,7 @@ int (*ast_check_signature_bin)(struct ast_key *key, const char *msg, int msglen,
  * Returns 0 on success or -1 on failure.
  *
  */
-int (*ast_sign)(struct ast_key *key, char *msg, char *sig);
+extern int (*ast_sign)(struct ast_key *key, char *msg, char *sig);
 
 /*!
  * \param key a private key to use to create the signature
@@ -80,7 +80,7 @@ int (*ast_sign)(struct ast_key *key, char *msg, char *sig);
  * Returns 0 on success or -1 on failure.
  *
  */
-int (*ast_sign_bin)(struct ast_key *key, const char *msg, int msglen, unsigned char *sig);
+extern int (*ast_sign_bin)(struct ast_key *key, const char *msg, int msglen, unsigned char *sig);
 
 /*!
  * \param key a private key to use to encrypt
@@ -92,7 +92,7 @@ int (*ast_sign_bin)(struct ast_key *key, const char *msg, int msglen, unsigned c
  * Returns length of encrypted data on success or -1 on failure.
  *
  */
-int (*ast_encrypt_bin)(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key);
+extern int (*ast_encrypt_bin)(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key);
 
 /*!
  * \param key a private key to use to decrypt
@@ -104,7 +104,7 @@ int (*ast_encrypt_bin)(unsigned char *dst, const unsigned char *src, int srclen,
  * Returns length of decrypted data on success or -1 on failure.
  *
  */
-int (*ast_decrypt_bin)(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key);
+extern int (*ast_decrypt_bin)(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key);
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
