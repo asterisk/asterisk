@@ -319,6 +319,7 @@ enum ast_control_frame_type {
 	AST_CONTROL_VIDUPDATE = 18,	/*!< Indicate video frame update */
 	AST_CONTROL_T38 = 19,		/*!< T38 state change request/notification */
 	AST_CONTROL_SRCUPDATE = 20,     /*!< Indicate source of media has changed */
+	AST_CONTROL_TRANSFER = 21,      /*!< Indicate status of a transfer request */
 };
 
 enum ast_control_t38 {
@@ -327,6 +328,11 @@ enum ast_control_t38 {
 	AST_T38_NEGOTIATED,		/*!< T38 negotiated (fax mode) */
 	AST_T38_TERMINATED,		/*!< T38 terminated (back to voice) */
 	AST_T38_REFUSED			/*!< T38 refused for some reason (usually rejected by remote end) */
+};
+
+enum ast_control_transfer {
+	AST_TRANSFER_SUCCESS = 0, /*!< Transfer request on the channel worked */
+	AST_TRANSFER_FAILED,      /*!< Transfer request on the channel failed */
 };
 
 #define AST_SMOOTHER_FLAG_G729		(1 << 0)

@@ -17045,6 +17045,8 @@ static void handle_response_subscribe(struct sip_pvt *p, int resp, char *rest, s
   */
 static void handle_response_refer(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno)
 {
+	enum ast_control_transfer message = AST_TRANSFER_FAILED;
+
 	/* If no refer structure exists, then do nothing */
 	if (!p->refer)
 		return;
@@ -17064,12 +17066,18 @@ static void handle_response_refer(struct sip_pvt *p, int resp, char *rest, struc
 		if (ast_strlen_zero(p->authname)) {
 			ast_log(LOG_WARNING, "Asked to authenticate REFER to %s:%d but we have no matching peer or realm auth!\n",
 				ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
+			if (p->owner) {
+				ast_queue_control_data(p->owner, AST_CONTROL_TRANSFER, &message, sizeof(message));
+			}
 			pvt_set_needdestroy(p, "unable to authenticate REFER");
 		}
 		if (p->authtries > 1 || do_proxy_auth(p, req, resp, SIP_REFER, 0)) {
 			ast_log(LOG_NOTICE, "Failed to authenticate on REFER to '%s'\n", get_header(&p->initreq, "From"));
 			p->refer->status = REFER_NOAUTH;
-			pvt_set_needdestroy(p, "failed to authenticat REFER");
+			if (p->owner) {
+				ast_queue_control_data(p->owner, AST_CONTROL_TRANSFER, &message, sizeof(message));
+			}
+			pvt_set_needdestroy(p, "failed to authenticate REFER");
 		}
 		break;
 	case 481: /* Call leg does not exist */
@@ -17090,11 +17098,17 @@ static void handle_response_refer(struct sip_pvt *p, int resp, char *rest, struc
 		ast_log(LOG_NOTICE, "SIP transfer to %s failed, call miserably fails. \n", p->refer->refer_to);
 		pvt_set_needdestroy(p, "received 500/501 response");
 		p->refer->status = REFER_FAILED;
+		if (p->owner) {
+			ast_queue_control_data(p->owner, AST_CONTROL_TRANSFER, &message, sizeof(message));
+		}
 		break;
 	case 603:   /* Transfer declined */
 		ast_log(LOG_NOTICE, "SIP transfer to %s declined, call miserably fails. \n", p->refer->refer_to);
 		p->refer->status = REFER_FAILED;
 		pvt_set_needdestroy(p, "received 603 response");
+		if (p->owner) {
+			ast_queue_control_data(p->owner, AST_CONTROL_TRANSFER, &message, sizeof(message));
+		}
 		break;
 	}
 }
@@ -18129,7 +18143,11 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 		if (!success) {
 			ast_log(LOG_NOTICE, "Transfer failed. Sorry. Nothing further to do with this call\n");
 		}
-		
+
+		if (p->owner) {
+			enum ast_control_transfer message = success ? AST_TRANSFER_SUCCESS : AST_TRANSFER_FAILED;
+			ast_queue_control_data(p->owner, AST_CONTROL_TRANSFER, &message, sizeof(message));
+		}
 		/* Confirm that we received this packet */
 		transmit_response(p, "200 OK", req);
 	} else if (p->mwi && !strcmp(event, "message-summary")) {
@@ -24311,6 +24329,11 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 
 	sip_scheddestroy(p, SIP_TRANS_TIMEOUT);	/* Make sure we stop send this reply. */
 	sip_alreadygone(p);
+
+	if (p->owner) {
+		enum ast_control_transfer message = AST_TRANSFER_SUCCESS;
+		ast_queue_control_data(p->owner, AST_CONTROL_TRANSFER, &message, sizeof(message));
+	}
 	/* hangup here */
 	return 0;
 }

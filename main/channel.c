@@ -2994,6 +2994,7 @@ static int attribute_const is_visible_indication(enum ast_control_frame_type con
 	case AST_CONTROL_ANSWER:
 	case AST_CONTROL_HANGUP:
 	case AST_CONTROL_T38:
+	case AST_CONTROL_TRANSFER:
 		return 0;
 
 	case AST_CONTROL_CONGESTION:
@@ -3080,6 +3081,7 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	case AST_CONTROL_HOLD:
 	case AST_CONTROL_UNHOLD:
 	case AST_CONTROL_T38:
+	case AST_CONTROL_TRANSFER:
 		/* Nothing left to do for these. */
 		res = 0;
 		break;
@@ -3759,6 +3761,37 @@ int ast_transfer(struct ast_channel *chan, char *dest)
 			res = 0;
 	}
 	ast_channel_unlock(chan);
+
+	if (res < 0) {
+		return res;
+	}
+
+	for (;;) {
+		struct ast_frame *fr;
+
+		res = ast_waitfor(chan, -1);
+
+		if (res < 0 || !(fr = ast_read(chan))) {
+			res = -1;
+			break;
+		}
+
+		if (fr->frametype == AST_FRAME_CONTROL && fr->subclass == AST_CONTROL_TRANSFER) {
+			enum ast_control_transfer *message = fr->data.ptr;
+
+			if (*message == AST_TRANSFER_SUCCESS) {
+				res = 1;
+			} else {
+				res = -1;
+			}
+
+			ast_frfree(fr);
+			break;
+		}
+
+		ast_frfree(fr);
+	}
+
 	return res;
 }
 
