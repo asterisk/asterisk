@@ -5689,7 +5689,7 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 			deflaw = AST_FORMAT_ULAW;
 	}
 	tmp->fds[0] = i->subs[index].dfd;
-	tmp->nativeformats = AST_FORMAT_SLINEAR | deflaw;
+	tmp->nativeformats = deflaw;
 	/* Start out assuming ulaw since it's smaller :) */
 	tmp->rawreadformat = deflaw;
 	tmp->readformat = deflaw;
