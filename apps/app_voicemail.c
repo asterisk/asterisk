@@ -325,7 +325,7 @@ static void write_file(char *filename, char *buffer, unsigned long len);
 static char *get_header_by_tag(char *header, char *tag, char *buf, size_t len);
 static void vm_imap_delete(int msgnum, struct ast_vm_user *vmu);
 static char *get_user_by_mailbox(char *mailbox, char *buf, size_t len);
-static struct vm_state *get_vm_state_by_imapuser(char *user, int interactive);
+static struct vm_state *get_vm_state_by_imapuser(const char *user, int interactive);
 static struct vm_state *get_vm_state_by_mailbox(const char *mailbox, const char *context, int interactive);
 static struct vm_state *create_vm_state_from_user(struct ast_vm_user *vmu);
 static void vmstate_insert(struct vm_state *vms);
@@ -2294,22 +2294,14 @@ static void write_file(char *filename, char *buffer, unsigned long len)
 
 static void update_messages_by_imapuser(const char *user, unsigned long number)
 {
-	struct vmstate *vlist = NULL;
+	struct vm_state *vms = get_vm_state_by_imapuser(user, 1);
 
-	AST_LIST_LOCK(&vmstates);
-	AST_LIST_TRAVERSE(&vmstates, vlist, list) {
-		if (!vlist->vms) {
-			ast_debug(3, "error: vms is NULL for %s\n", user);
-			continue;
-		}
-		if (!vlist->vms->imapuser) {
-			ast_debug(3, "error: imapuser is NULL for %s\n", user);
-			continue;
-		}
-		ast_debug(3, "saving mailbox message number %lu as message %d. Interactive set to %d\n", number, vlist->vms->vmArrayIndex, vlist->vms->interactive);
-		vlist->vms->msgArray[vlist->vms->vmArrayIndex++] = number;
+	if (!vms && !(vms = get_vm_state_by_imapuser(user, 0))) {
+		return;
 	}
-	AST_LIST_UNLOCK(&vmstates);
+
+	ast_debug(3, "saving mailbox message number %lu as message %d. Interactive set to %d\n", number, vms->vmArrayIndex, vms->interactive);
+	vms->msgArray[vms->vmArrayIndex++] = number;
 }
 
 void mm_searched(MAILSTREAM *stream, unsigned long number)
@@ -2600,7 +2592,7 @@ static struct vm_state *create_vm_state_from_user(struct ast_vm_user *vmu)
 	return vms_p;
 }
 
-static struct vm_state *get_vm_state_by_imapuser(char *user, int interactive)
+static struct vm_state *get_vm_state_by_imapuser(const char *user, int interactive)
 {
 	struct vmstate *vlist = NULL;
 
