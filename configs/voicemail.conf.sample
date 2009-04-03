@@ -115,6 +115,10 @@ maxlogins=3
 ; Change the from, body and/or subject, variables:
 ;     VM_NAME, VM_DUR, VM_MSGNUM, VM_MAILBOX, VM_CALLERID, VM_CIDNUM,
 ;     VM_CIDNAME, VM_DATE
+; Additionally, on forwarded messages, you have the variables:
+;     ORIG_VM_CALLERID, ORIG_VM_CIDNUM, ORIG_VM_CIDNAME, ORIG_VM_DATE
+; You can select between two variables by using dialplan functions, e.g.
+;     ${IF(${ISNULL(${ORIG_VM_DATE})}?${VM_DATE}:${ORIG_VM_DATE})}
 ;
 ; Note: The emailbody config row can only be up to 512 characters due to a
 ;       limitation in the Asterisk configuration subsystem.
@@ -123,6 +127,11 @@ maxlogins=3
 ; just the CIDNAME, if it is not null, otherwise just the CIDNUM, or "an unknown
 ; caller", if they are both null.
 ;emailbody=Dear ${VM_NAME}:\n\n\tjust wanted to let you know you were just left a ${VM_DUR} long message (number ${VM_MSGNUM})\nin mailbox ${VM_MAILBOX} from ${VM_CALLERID}, on ${VM_DATE}, so you might\nwant to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n
+;
+; Note: ${IF()} strips spacing at the beginning and end of its true and false
+; values, so a newline cannot be placed at either location.  The word 'so' is
+; therefore duplicated, in order for the newline to be interpreted correctly.
+;emailbody=Dear ${VM_NAME}:\n\n\tjust wanted to let you know you were just ${IF($["${VM_CIDNUM}" = "${ORIG_VM_CIDNUM}"]?left:forwarded)} a ${VM_DUR} long message (number ${VM_MSGNUM})\nin mailbox ${VM_MAILBOX} from ${VM_CALLERID}, on ${VM_DATE},\n${IF($["${VM_CIDNUM}" = "${ORIG_VM_CIDNUM}"]?so:(originally sent by ${ORIG_VM_CALLERID} on ${ORIG_VM_DATE})\nso)} you might want to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n
 ;
 ; You can also change the Pager From: string, the pager body and/or subject.
 ; The above defined variables also can be used here
