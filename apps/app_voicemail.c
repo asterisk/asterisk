@@ -1911,9 +1911,9 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 		}
 		imap_delete_old_greeting(fn, vms);
 	}
-	
-	make_email_file(p, myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), fn, introfn, fmt, duration, 1, chan, NULL, 1, flag);
-	/* read mail file to memory */		
+
+	make_email_file(p, myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, "INBOX", S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), fn, introfn, fmt, duration, 1, chan, NULL, 1, flag);
+	/* read mail file to memory */
 	len = ftell(p);
 	rewind(p);
 	if (!(buf = ast_malloc(len + 1))) {
