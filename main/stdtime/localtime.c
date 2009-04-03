@@ -310,7 +310,11 @@ static void add_notify(struct state *sp, const char *path)
 			sp->wd[1] = -1;
 		}
 		/* or if the symlink itself changes (or the real file is here, if path is not a symlink) */
-		sp->wd[0] = inotify_add_watch(inotify_fd, path, IN_ATTRIB | IN_DELETE_SELF | IN_MODIFY | IN_MOVE_SELF | IN_CLOSE_WRITE | IN_DONT_FOLLOW);
+		sp->wd[0] = inotify_add_watch(inotify_fd, path, IN_ATTRIB | IN_DELETE_SELF | IN_MODIFY | IN_MOVE_SELF | IN_CLOSE_WRITE
+#ifdef IN_DONT_FOLLOW   /* Only defined in glibc 2.5 and above */
+			| IN_DONT_FOLLOW
+#endif
+		);
 	}
 }
 #else
