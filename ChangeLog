@@ -1,3 +1,19 @@
+2009-04-06  Leif Madsen <lmadsen@digium.com>
+
+	* Release Asterisk 1.6.0.9
+
+2009-04-03 16:27 -0500 [r186517]  Mark Michelson <mmichelson@digium.com>
+
+	* Remove an invalid call to free memory.
+
+	  A bad merge from trunk to 1.6.0 meant freeing memory that
+	  should not be freed. In trunk, pkt->data is an ast_str, but
+	  in 1.6.0, it is allocated in the same chunk of memory as the
+	  sip_pkt. This only affects 1.6.0.
+
+	  (closes issue #14819)
+	  Reported by: cwolff09
+
 2009-04-02  Leif Madsen <lmadsen@digium.com>
 
 	* Release Asterisk 1.6.0.8
