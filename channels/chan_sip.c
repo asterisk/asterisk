@@ -13458,8 +13458,10 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 		if (p->t38.peercapability)
 			p->t38.jointcapability &= p->t38.peercapability;
 		if (!dialog_initialize_rtp(p)) {
-			ast_rtp_codecs_packetization_set(ast_rtp_instance_get_codecs(p->rtp), p->rtp, &peer->prefs);
-			p->autoframing = peer->autoframing;
+			if (p->rtp) {
+				ast_rtp_codecs_packetization_set(ast_rtp_instance_get_codecs(p->rtp), p->rtp, &peer->prefs);
+				p->autoframing = peer->autoframing;
+			}
 		} else {
 			res = AUTH_RTP_FAILED;
 		}
