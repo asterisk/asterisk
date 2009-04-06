@@ -1307,7 +1307,7 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 			*(vmu->email) = '\0';
 		return -1;
 	} else {
-		make_email_file(p, myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, vms->curbox, "INBOX", S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), fn, fmt, duration, 1, chan, NULL, 1);
+		make_email_file(p, myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, vms->curbox, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), fn, fmt, duration, 1, chan, NULL, 1);
 		/* read mail file to memory */
 		len = ftell(p);
 		rewind(p);
