@@ -5836,7 +5836,12 @@ static void try_suggested_sip_codec(struct sip_pvt *p)
 	int fmt;
 	const char *codec;
 
-	codec = pbx_builtin_getvar_helper(p->owner, "SIP_CODEC");
+	if (p->outgoing_call) {
+		codec = pbx_builtin_getvar_helper(p->owner, "SIP_CODEC_OUTBOUND");
+	} else if (!(codec = pbx_builtin_getvar_helper(p->owner, "SIP_CODEC_INBOUND"))) {
+		codec = pbx_builtin_getvar_helper(p->owner, "SIP_CODEC");
+	}
+
 	if (!codec) 
 		return;
 
@@ -9838,6 +9843,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, int t38version, int old
 
 	if (p->do_history)
 		append_history(p, "ReInv", "Re-invite sent");
+	try_suggested_sip_codec(p);
 	if (t38version)
 		add_sdp(&req, p, oldsdp, FALSE, TRUE);
 	else
@@ -10199,8 +10205,10 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 			ast_udptl_offered_from_local(p->udptl, 1);
 			ast_debug(1, "T38 is in state %d on channel %s\n", p->t38.state, p->owner ? p->owner->name : "<none>");
 			add_sdp(&req, p, FALSE, FALSE, TRUE);
-		} else if (p->rtp) 
+		} else if (p->rtp) {
+			try_suggested_sip_codec(p);
 			add_sdp(&req, p, FALSE, TRUE, FALSE);
+		}
 	} else {
 		if (!p->notify_headers) {
 			add_header_contentLength(&req, 0);

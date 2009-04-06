@@ -15,6 +15,9 @@ SIP Changes
 -----------
  * Added preferred_codec_only option in sip.conf. This feature limits the joint
    codecs sent in response to an INVITE to the single most preferred codec.
+ * Added SIP_CODEC_OUTBOUND dialplan variable which can be used to set the codec
+   to be used for the outgoing call. It must be one of the codecs configured
+   for the device.
 
 Applications
 ------------
