@@ -374,7 +374,7 @@ int ast_rtp_instance_get_local_address(struct ast_rtp_instance *instance, struct
 	if ((address->sin_family != AF_INET) ||
 	    (address->sin_port != instance->local_address.sin_port) ||
 	    (address->sin_addr.s_addr != instance->local_address.sin_addr.s_addr)) {
-		memcpy(address, &instance->local_address, sizeof(address));
+		memcpy(address, &instance->local_address, sizeof(*address));
 		return 1;
 	}
 
@@ -386,7 +386,7 @@ int ast_rtp_instance_get_remote_address(struct ast_rtp_instance *instance, struc
 	if ((address->sin_family != AF_INET) ||
 	    (address->sin_port != instance->remote_address.sin_port) ||
 	    (address->sin_addr.s_addr != instance->remote_address.sin_addr.s_addr)) {
-		memcpy(address, &instance->remote_address, sizeof(address));
+		memcpy(address, &instance->remote_address, sizeof(*address));
 		return 1;
 	}
 
