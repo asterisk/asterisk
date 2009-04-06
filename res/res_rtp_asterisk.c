@@ -1308,8 +1308,10 @@ static struct ast_frame *process_dtmf_rfc2833(struct ast_rtp_instance *instance,
 	samples = ntohl(*((unsigned int *)(data)));
 	samples &= 0xFFFF;
 
-	ast_verbose("Got  RTP RFC2833 from   %s:%u (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u, mark %d, event %08x, end %d, duration %-5.5d) \n", ast_inet_ntoa(remote_address.sin_addr),
-		    ntohs(remote_address.sin_port), payloadtype, seqno, timestamp, len, (mark?1:0), event, ((event_end & 0x80)?1:0), samples);
+	if (rtp_debug_test_addr(&remote_address)) {
+		ast_verbose("Got  RTP RFC2833 from   %s:%u (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u, mark %d, event %08x, end %d, duration %-5.5d) \n", ast_inet_ntoa(remote_address.sin_addr),
+			    ntohs(remote_address.sin_port), payloadtype, seqno, timestamp, len, (mark?1:0), event, ((event_end & 0x80)?1:0), samples);
+	}
 
 	/* Print out debug if turned on */
 	if (rtpdebug || option_debug > 2)
