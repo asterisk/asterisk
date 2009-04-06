@@ -2922,7 +2922,6 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 		ast_log(LOG_ERROR, "Serious Network Trouble; __sip_xmit returns error for pkt data\n");
 		AST_SCHED_DEL(sched, pkt->retransid);
 		p->packets = pkt->next;
-		ast_free(pkt->data);
 		ast_free(pkt);
 		return AST_FAILURE;
 	} else {
