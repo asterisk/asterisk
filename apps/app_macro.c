@@ -53,19 +53,15 @@ static char *descrip =
 "will be returned at the location of the Goto.\n"
 "If ${MACRO_OFFSET} is set at termination, Macro will attempt to continue\n"
 "at priority MACRO_OFFSET + N + 1 if such a step exists, and N + 1 otherwise.\n"
-"Extensions: While a macro is being executed, it becomes the current context.\n"
-"            This means that if a hangup occurs, for instance, that the macro\n"
-"            will be searched for an 'h' extension, NOT the context from which\n"
-"            the macro was called. So, make sure to define all appropriate\n"
-"            extensions in your macro! (Note: AEL does not use macros)\n"
 "WARNING: Because of the way Macro is implemented (it executes the priorities\n"
-"         contained within it via sub-engine), and a fixed per-thread\n"
-"         memory stack allowance, macros are limited to 7 levels\n"
-"         of nesting (macro calling macro calling macro, etc.); It\n"
-"         may be possible that stack-intensive applications in deeply nested macros\n"
-"         could cause asterisk to crash earlier than this limit. It is advised that\n"
-"         if you need to deeply nest macro calls, that you use the Gosub application\n"
-"         (now allows arguments like a Macro) with explict Return() calls instead.\n";
+"         contained within it via sub-engine), and a fixed per-thread memory\n"
+"         stack allowance, macros are limited to 7 levels of nesting (macro\n"
+"         calling macro calling macro, etc.); It may be possible that\n"
+"         stack-intensive applications in deeply nested macros could cause\n"
+"         Asterisk to crash earlier than this limit. It is advised that if you\n"
+"         need to deeply nest macro calls, that you use the Gosub application\n"
+"         (now allows arguments like a Macro) with explict Return() calls\n"
+"         instead.\n";
 
 static char *if_descrip =
 "  MacroIf(<expr>?macroname_a[,arg1][:macroname_b[,arg1]])\n"
