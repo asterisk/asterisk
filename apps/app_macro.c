@@ -62,10 +62,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			at the location of the Goto.</para>
 			<para>If <variable>MACRO_OFFSET</variable> is set at termination, Macro will attempt to continue
 			at priority MACRO_OFFSET + N + 1 if such a step exists, and N + 1 otherwise.</para>
-			<para>Extensions: While a macro is being executed, it becomes the current context. This means that if
-			a hangup occurs, for instance, that the macro will be searched for an <literal>h</literal> extension,
-			NOT the context from which the macro was called. So, make sure to define all appropriate extensions
-			in your macro! (Note: AEL does not use macros)</para>
 			<warning><para>Because of the way Macro is implemented (it executes the priorities contained within
 			it via sub-engine), and a fixed per-thread memory stack allowance, macros are limited to 7 levels
 			of nesting (macro calling macro calling macro, etc.); It may be possible that stack-intensive
