@@ -2344,7 +2344,7 @@ static void *fast_originate(void *data)
 		snprintf(requested_channel, AST_CHANNEL_NAME, "%s/%s", in->tech, in->data);	
 	/* Tell the manager what happened with the channel */
 	manager_event(EVENT_FLAG_CALL, "OriginateResponse",
-		"%s"
+		"%s%s"
 		"Response: %s\r\n"
 		"Channel: %s\r\n"
 		"Context: %s\r\n"
@@ -2353,7 +2353,8 @@ static void *fast_originate(void *data)
 		"Uniqueid: %s\r\n"
 		"CallerIDNum: %s\r\n"
 		"CallerIDName: %s\r\n",
-		in->idtext, res ? "Failure" : "Success", chan ? chan->name : requested_channel, in->context, in->exten, reason, 
+		in->idtext, ast_strlen_zero(in->idtext) ? "" : "\r\n", res ? "Failure" : "Success", 
+		chan ? chan->name : requested_channel, in->context, in->exten, reason, 
 		chan ? chan->uniqueid : "<null>",
 		S_OR(in->cid_num, "<unknown>"),
 		S_OR(in->cid_name, "<unknown>")
@@ -2451,7 +2452,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 			res = -1;
 		} else {
 			if (!ast_strlen_zero(id))
-				snprintf(fast->idtext, sizeof(fast->idtext), "ActionID: %s\r\n", id);
+				snprintf(fast->idtext, sizeof(fast->idtext), "ActionID: %s", id);
 			ast_copy_string(fast->tech, tech, sizeof(fast->tech));
    			ast_copy_string(fast->data, data, sizeof(fast->data));
 			ast_copy_string(fast->app, app, sizeof(fast->app));
