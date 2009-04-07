@@ -4293,6 +4293,9 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			}
 			switch (res) {
 			case AST_BRIDGE_RETRY:
+				if (config->play_warning) {
+					ast_set_flag(config, AST_FEATURE_WARNING_ACTIVE);
+				}
 				continue;
 			default:
 				if (option_verbose > 2)
