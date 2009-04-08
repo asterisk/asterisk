@@ -136,7 +136,7 @@ static int check_header(FILE *f)
 		return -1;
 	}
 	if (ltohl(freq) != DEFAULT_SAMPLE_RATE) {
-		ast_log(LOG_WARNING, "Unexpected freqency %d\n", ltohl(freq));
+		ast_log(LOG_WARNING, "Unexpected frequency %d\n", ltohl(freq));
 		return -1;
 	}
 	/* Ignore the byte frequency */
