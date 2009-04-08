@@ -36,6 +36,7 @@
  * \arg \ref CommitMessages : Information on formatting and special tags for commit messages
  * \arg \ref ReleaseStatus : The current support level for various Asterisk releases
  * \arg \ref ReleasePolicies : Asterisk Release and Commit Policies
+ * \arg \ref Reviewboard : Reviewboard Usage and Guidelines
  * \arg \ref AstCREDITS : A Thank You to contributors (unfortunately out of date)
  *
  * \section apisandinterfaces Asterisk APIs and Interfaces
