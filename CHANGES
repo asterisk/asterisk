@@ -184,7 +184,7 @@ Skinny changes
   * Proper codec support in chan_skinny.
   * Added settings for IP and Ethernet QoS requests
 
-
+mISDN changes
 ------------
   * Added separate settings for media QoS in mgcp.conf
 
