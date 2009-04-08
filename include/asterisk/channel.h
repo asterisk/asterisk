@@ -738,6 +738,7 @@ struct ast_bridge_config {
 	struct ast_flags features_callee;
 	struct timeval start_time;
 	struct timeval nexteventts;
+	struct timeval feature_start_time;
 	long feature_timer;
 	long timelimit;
 	long play_warning;
@@ -745,7 +746,6 @@ struct ast_bridge_config {
 	const char *warning_sound;
 	const char *end_sound;
 	const char *start_sound;
-	int firstpass;
 	unsigned int flags;
 	void (* end_bridge_callback)(void *);   /*!< A callback that is called after a bridge attempt */
 	void *end_bridge_callback_data;         /*!< Data passed to the callback */

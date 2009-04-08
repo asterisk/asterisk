@@ -2509,17 +2509,12 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	int hadfeatures=0;
 	int autoloopflag;
 	struct ast_option_header *aoh;
-	struct ast_bridge_config backup_config;
 	struct ast_cdr *bridge_cdr = NULL;
 	struct ast_cdr *orig_peer_cdr = NULL;
 	struct ast_cdr *chan_cdr = pick_unlocked_cdr(chan->cdr); /* the proper chan cdr, if there are forked cdrs */
 	struct ast_cdr *peer_cdr = pick_unlocked_cdr(peer->cdr); /* the proper chan cdr, if there are forked cdrs */
 	struct ast_cdr *new_chan_cdr = NULL; /* the proper chan cdr, if there are forked cdrs */
 	struct ast_cdr *new_peer_cdr = NULL; /* the proper chan cdr, if there are forked cdrs */
-
-	memset(&backup_config, 0, sizeof(backup_config));
-
-	config->start_time = ast_tvnow();
 
 	if (chan && peer) {
 		pbx_builtin_setvar_helper(chan, "BRIDGEPEER", peer->name);
@@ -2541,7 +2536,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	if (monitor_ok) {
 		const char *monitor_exec;
 		struct ast_channel *src = NULL;
-		if (!monitor_app) { 
+		if (!monitor_app) {
 			if (!(monitor_app = pbx_findapp("Monitor")))
 				monitor_ok=0;
 		}
@@ -2556,7 +2551,6 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	}
 
 	set_config_flags(chan, peer, config);
-	config->firstpass = 1;
 
 	/* Answer if need be */
 	if (chan->_state != AST_STATE_UP) {
@@ -2635,8 +2629,8 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		   feature_timer. Not good!
 		*/
 		if (config->feature_timer && (!f || f->frametype == AST_FRAME_DTMF_END)) {
-			/* Update time limit for next pass */
-			diff = ast_tvdiff_ms(ast_tvnow(), config->start_time);
+			/* Update feature timer for next pass */
+			diff = ast_tvdiff_ms(ast_tvnow(), config->feature_start_time);
 			if (res == AST_BRIDGE_RETRY) {
 				/* The feature fully timed out but has not been updated. Skip
 				 * the potential round error from the diff calculation and
@@ -2647,18 +2641,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			}
 
 			if (hasfeatures) {
-				/* Running on backup config, meaning a feature might be being
-				   activated, but that's no excuse to keep things going 
-				   indefinitely! */
-				if (backup_config.feature_timer && ((backup_config.feature_timer -= diff) <= 0)) {
-					ast_debug(1, "Timed out, realtime this time!\n");
-					config->feature_timer = 0;
-					who = chan;
-					if (f)
-						ast_frfree(f);
-					f = NULL;
-					res = 0;
-				} else if (config->feature_timer <= 0) {
+				if (config->feature_timer <= 0) {
 					/* Not *really* out of time, just out of time for
 					   digits to come in for features. */
 					ast_debug(1, "Timed out for feature!\n");
@@ -2674,9 +2657,8 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 						ast_frfree(f);
 					hasfeatures = !ast_strlen_zero(chan_featurecode) || !ast_strlen_zero(peer_featurecode);
 					if (!hasfeatures) {
-						/* Restore original (possibly time modified) bridge config */
-						memcpy(config, &backup_config, sizeof(struct ast_bridge_config));
-						memset(&backup_config, 0, sizeof(backup_config));
+						/* No more digits expected - reset the timer */
+						config->feature_timer = 0;
 					}
 					hadfeatures = hasfeatures;
 					/* Continue as we were */
@@ -2700,13 +2682,14 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			}
 		}
 		if (res < 0) {
-			if (!ast_test_flag(chan, AST_FLAG_ZOMBIE) && !ast_test_flag(peer, AST_FLAG_ZOMBIE) && !ast_check_hangup(chan) && !ast_check_hangup(peer))
+			if (!ast_test_flag(chan, AST_FLAG_ZOMBIE) && !ast_test_flag(peer, AST_FLAG_ZOMBIE) && !ast_check_hangup(chan) && !ast_check_hangup(peer)) {
 				ast_log(LOG_WARNING, "Bridge failed on channels %s and %s\n", chan->name, peer->name);
+			}
 			goto before_you_go;
 		}
 		
 		if (!f || (f->frametype == AST_FRAME_CONTROL &&
-				(f->subclass == AST_CONTROL_HANGUP || f->subclass == AST_CONTROL_BUSY || 
+				(f->subclass == AST_CONTROL_HANGUP || f->subclass == AST_CONTROL_BUSY ||
 					f->subclass == AST_CONTROL_CONGESTION))) {
 			res = -1;
 			break;
@@ -2756,7 +2739,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			/* Get rid of the frame before we start doing "stuff" with the channels */
 			ast_frfree(f);
 			f = NULL;
-			config->feature_timer = backup_config.feature_timer;
+			config->feature_timer = 0;
 			res = feature_interpret(chan, peer, config, featurecode, sense);
 			switch(res) {
 			case AST_FEATURE_RETURN_PASSDIGITS:
@@ -2768,30 +2751,21 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			}
 			if (res >= AST_FEATURE_RETURN_PASSDIGITS) {
 				res = 0;
-			} else 
+			} else {
 				break;
+			}
 			hasfeatures = !ast_strlen_zero(chan_featurecode) || !ast_strlen_zero(peer_featurecode);
 			if (hadfeatures && !hasfeatures) {
-				/* Restore backup */
-				memcpy(config, &backup_config, sizeof(struct ast_bridge_config));
-				memset(&backup_config, 0, sizeof(struct ast_bridge_config));
+				/* Feature completed or timed out */
+				config->feature_timer = 0;
 			} else if (hasfeatures) {
-				if (!hadfeatures) {
-					/* Backup configuration */
-					memcpy(&backup_config, config, sizeof(struct ast_bridge_config));
-					/* Setup temporary config options */
-					config->play_warning = 0;
-					ast_clear_flag(&(config->features_caller), AST_FEATURE_PLAY_WARNING);
-					ast_clear_flag(&(config->features_callee), AST_FEATURE_PLAY_WARNING);
-					config->warning_freq = 0;
-					config->warning_sound = NULL;
-					config->end_sound = NULL;
-					config->start_sound = NULL;
-					config->firstpass = 0;
+				if (config->timelimit) {
+					/* No warning next time - we are waiting for future */
+					ast_set_flag(config, AST_FEATURE_WARNING_ACTIVE);
 				}
-				config->start_time = ast_tvnow();
+				config->feature_start_time = ast_tvnow();
 				config->feature_timer = featuredigittimeout;
-				ast_debug(1, "Set time limit to %ld\n", config->feature_timer);
+				ast_debug(1, "Set feature timer to %ld\n", config->feature_timer);
 			}
 		}
 		if (f)

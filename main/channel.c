@@ -4814,7 +4814,7 @@ static void bridge_playfile(struct ast_channel *chan, struct ast_channel *peer, 
 
 static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct ast_channel *c1,
 						 struct ast_bridge_config *config, struct ast_frame **fo,
-						 struct ast_channel **rc, struct timeval bridge_end)
+						 struct ast_channel **rc)
 {
 	/* Copy voice back and forth between the two channels. */
 	struct ast_channel *cs[3];
@@ -4856,13 +4856,17 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 			res = AST_BRIDGE_RETRY;
 			break;
 		}
-		if (bridge_end.tv_sec) {
-			to = ast_tvdiff_ms(bridge_end, ast_tvnow());
+		if (config->nexteventts.tv_sec) {
+			to = ast_tvdiff_ms(config->nexteventts, ast_tvnow());
 			if (to <= 0) {
-				if (config->timelimit) {
+				if (config->timelimit && !config->feature_timer && !ast_test_flag(config, AST_FEATURE_WARNING_ACTIVE)) {
 					res = AST_BRIDGE_RETRY;
 					/* generic bridge ending to play warning */
 					ast_set_flag(config, AST_FEATURE_WARNING_ACTIVE);
+				} else if (config->feature_timer) {
+					/* feature timer expired - make sure we do not play warning */
+					ast_clear_flag(config, AST_FEATURE_WARNING_ACTIVE);
+					res = AST_BRIDGE_RETRY;
 				} else {
 					res = AST_BRIDGE_COMPLETE;
 				}
@@ -4939,8 +4943,8 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 			/* monitored dtmf causes exit from bridge */
 			int monitored_source = (who == c0) ? watch_c0_dtmf : watch_c1_dtmf;
 
-			if (monitored_source && 
-				(f->frametype == AST_FRAME_DTMF_END || 
+			if (monitored_source &&
+				(f->frametype == AST_FRAME_DTMF_END ||
 				f->frametype == AST_FRAME_DTMF_BEGIN)) {
 				*fo = f;
 				*rc = who;
@@ -4994,13 +4998,13 @@ static void manager_bridge_event(int onoff, int type, struct ast_channel *c0, st
 {
 	manager_event(EVENT_FLAG_CALL, "Bridge",
 			"Bridgestate: %s\r\n"
-		     "Bridgetype: %s\r\n"
-		      "Channel1: %s\r\n"
-		      "Channel2: %s\r\n"
-		      "Uniqueid1: %s\r\n"
-		      "Uniqueid2: %s\r\n"
-		      "CallerID1: %s\r\n"
-		      "CallerID2: %s\r\n",
+			"Bridgetype: %s\r\n"
+			"Channel1: %s\r\n"
+			"Channel2: %s\r\n"
+			"Uniqueid1: %s\r\n"
+			"Uniqueid2: %s\r\n"
+			"CallerID1: %s\r\n"
+			"CallerID2: %s\r\n",
 			onoff ? "Link" : "Unlink",
 			type == 1 ? "core" : "native",
 			c0->name, c1->name, c0->uniqueid, c1->uniqueid, 
@@ -5079,7 +5083,6 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	struct ast_channel *who = NULL;
 	enum ast_bridge_result res = AST_BRIDGE_COMPLETE;
 	int nativefailed=0;
-	int firstpass;
 	int o0nativeformats;
 	int o1nativeformats;
 	long time_left_ms=0;
@@ -5103,21 +5106,17 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 		return -1;
 
 	*fo = NULL;
-	firstpass = config->firstpass;
-	config->firstpass = 0;
 
-	if (ast_tvzero(config->start_time))
+	if (ast_tvzero(config->start_time)) {
 		config->start_time = ast_tvnow();
-	time_left_ms = config->timelimit;
-
-	caller_warning = ast_test_flag(&config->features_caller, AST_FEATURE_PLAY_WARNING);
-	callee_warning = ast_test_flag(&config->features_callee, AST_FEATURE_PLAY_WARNING);
-
-	if (config->start_sound && firstpass) {
-		if (caller_warning)
-			bridge_playfile(c0, c1, config->start_sound, time_left_ms / 1000);
-		if (callee_warning)
-			bridge_playfile(c1, c0, config->start_sound, time_left_ms / 1000);
+		if (config->start_sound) {
+			if (caller_warning) {
+				bridge_playfile(c0, c1, config->start_sound, config->timelimit / 1000);
+			}
+			if (callee_warning) {
+				bridge_playfile(c1, c0, config->start_sound, config->timelimit / 1000);
+			}
+		}
 	}
 
 	/* Keep track of bridge */
@@ -5129,11 +5128,26 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	o1nativeformats = c1->nativeformats;
 
 	if (config->feature_timer && !ast_tvzero(config->nexteventts)) {
-		config->nexteventts = ast_tvadd(config->start_time, ast_samp2tv(config->feature_timer, 1000));
-	} else if (config->timelimit && firstpass) {
+		config->nexteventts = ast_tvadd(config->feature_start_time, ast_samp2tv(config->feature_timer, 1000));
+	} else if (config->timelimit) {
+		time_left_ms = config->timelimit - ast_tvdiff_ms(ast_tvnow(), config->start_time);
+		caller_warning = ast_test_flag(&config->features_caller, AST_FEATURE_PLAY_WARNING);
+		callee_warning = ast_test_flag(&config->features_callee, AST_FEATURE_PLAY_WARNING);
 		config->nexteventts = ast_tvadd(config->start_time, ast_samp2tv(config->timelimit, 1000));
-		if (caller_warning || callee_warning)
-			config->nexteventts = ast_tvsub(config->nexteventts, ast_samp2tv(config->play_warning, 1000));
+		if ((caller_warning || callee_warning) && config->play_warning) {
+			long next_warn = config->play_warning;
+			if (time_left_ms < config->play_warning) {
+				/* At least one warning was played, which means we are returning after feature */
+				long warns_passed = (config->play_warning - time_left_ms) / config->warning_freq;
+				/* It is 'warns_passed * warning_freq' NOT '(warns_passed + 1) * warning_freq',
+					because nexteventts will be updated once again in the 'if (!to)' block */
+				next_warn = config->play_warning - warns_passed * config->warning_freq;
+			}
+			config->nexteventts = ast_tvsub(config->nexteventts, ast_samp2tv(next_warn, 1000));
+		}
+	} else {
+		config->nexteventts.tv_sec = 0;
+		config->nexteventts.tv_usec = 0;
 	}
 
 	if (!c0->tech->send_digit_begin)
@@ -5189,10 +5203,12 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 					if (callee_warning)
 						bridge_playfile(c1, c0, config->warning_sound, t);
 				}
-				if (config->warning_freq && (time_left_ms > (config->warning_freq + 5000)))
+
+				if (config->warning_freq && (time_left_ms > (config->warning_freq + 5000))) {
 					config->nexteventts = ast_tvadd(config->nexteventts, ast_samp2tv(config->warning_freq, 1000));
-				else
+				} else {
 					config->nexteventts = ast_tvadd(config->start_time, ast_samp2tv(config->timelimit, 1000));
+				}
 			}
 			ast_clear_flag(config, AST_FEATURE_WARNING_ACTIVE);
 		}
@@ -5237,7 +5253,6 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			ast_set_flag(c0, AST_FLAG_NBRIDGE);
 			ast_set_flag(c1, AST_FLAG_NBRIDGE);
 			if ((res = c0->tech->bridge(c0, c1, config->flags, fo, rc, to)) == AST_BRIDGE_COMPLETE) {
-				/* \todo  XXX here should check that cid_num is not NULL */
 				manager_event(EVENT_FLAG_CALL, "Unlink",
 					      "Channel1: %s\r\n"
 					      "Channel2: %s\r\n"
@@ -5245,7 +5260,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 					      "Uniqueid2: %s\r\n"
 					      "CallerID1: %s\r\n"
 					      "CallerID2: %s\r\n",
-					      c0->name, c1->name, c0->uniqueid, c1->uniqueid, c0->cid.cid_num, c1->cid.cid_num);
+					      c0->name, c1->name, c0->uniqueid, c1->uniqueid, S_OR(c0->cid.cid_num, "<unknown>"), S_OR(c1->cid.cid_num, "<unknown>"));
 				ast_debug(1, "Returning from native bridge, channels: %s, %s\n", c0->name, c1->name);
 
 				ast_clear_flag(c0, AST_FLAG_NBRIDGE);
@@ -5291,7 +5306,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 
 		update_bridge_vars(c0, c1);
 
-		res = ast_generic_bridge(c0, c1, config, fo, rc, config->nexteventts);
+		res = ast_generic_bridge(c0, c1, config, fo, rc);
 		if (res != AST_BRIDGE_RETRY) {
 			break;
 		} else if (config->feature_timer) {
@@ -5310,7 +5325,6 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	c0->_bridge = NULL;
 	c1->_bridge = NULL;
 
-	/* \todo  XXX here should check that cid_num is not NULL */
 	manager_event(EVENT_FLAG_CALL, "Unlink",
 		      "Channel1: %s\r\n"
 		      "Channel2: %s\r\n"
@@ -5318,7 +5332,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 		      "Uniqueid2: %s\r\n"
 		      "CallerID1: %s\r\n"
 		      "CallerID2: %s\r\n",
-		      c0->name, c1->name, c0->uniqueid, c1->uniqueid, c0->cid.cid_num, c1->cid.cid_num);
+		      c0->name, c1->name, c0->uniqueid, c1->uniqueid, S_OR(c0->cid.cid_num, "<unknown>"), S_OR(c1->cid.cid_num, "<unknown>"));
 	ast_debug(1, "Bridge stops bridging channels %s and %s\n", c0->name, c1->name);
 
 	return res;
