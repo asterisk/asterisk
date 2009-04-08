@@ -585,7 +585,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 
 			ast_debug(2, "Got coldata of '%s'\n", ast_str_buffer(coldata));
 
-			if (buflen) {
+			if (x) {
 				buf[buflen++] = ',';
 			}
 
