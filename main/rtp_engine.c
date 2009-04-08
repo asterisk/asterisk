@@ -1186,6 +1186,16 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
 		goto done;
 	}
 
+	/* If we need to get DTMF see if we can do it outside of the RTP stream itself */
+	if ((flags & AST_BRIDGE_DTMF_CHANNEL_0) && instance0->properties[AST_RTP_PROPERTY_DTMF]) {
+		res = AST_BRIDGE_FAILED_NOWARN;
+		goto done;
+	}
+	if ((flags & AST_BRIDGE_DTMF_CHANNEL_1) && instance1->properties[AST_RTP_PROPERTY_DTMF]) {
+		res = AST_BRIDGE_FAILED_NOWARN;
+		goto done;
+	}
+
 	/* If we have gotten to a local bridge make sure that both sides have the same local bridge callback and that they are DTMF compatible */
 	if ((audio_glue0_res == AST_RTP_GLUE_RESULT_LOCAL || audio_glue1_res == AST_RTP_GLUE_RESULT_LOCAL) && ((instance0->engine->local_bridge != instance1->engine->local_bridge) || (instance0->engine->dtmf_compatible && !instance0->engine->dtmf_compatible(c0, instance0, c1, instance1)))) {
 		res = AST_BRIDGE_FAILED_NOWARN;
