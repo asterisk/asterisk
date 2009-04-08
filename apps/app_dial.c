@@ -1872,7 +1872,7 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 		}
 	}
 	
-	if ((dialdata = strchr(dialdata, '|'))) {
+	if (dialdata && (dialdata = strchr(dialdata, '|'))) {
 		*dialdata++ = '\0';
 	} else {
 		ast_log(LOG_ERROR, "%s requires more arguments\n",rapp);
