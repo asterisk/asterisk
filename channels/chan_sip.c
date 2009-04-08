@@ -25180,6 +25180,7 @@ static int load_module(void)
 		"fullcontact", RQ_CHAR, 35,
 		"regserver", RQ_CHAR, 20,
 		"useragent", RQ_CHAR, 20,
+		"lastms", RQ_INTEGER4, 11,
 		SENTINEL);
 
 	return AST_MODULE_LOAD_SUCCESS;
