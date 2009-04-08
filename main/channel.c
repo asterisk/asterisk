@@ -2039,17 +2039,23 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		usleep(1);
 	}
 
-	if (chan->fdno == -1) {
-		ast_log(LOG_ERROR, "ast_read() called with no recorded file descriptor.\n");
-		f = &ast_null_frame;
-		goto done;
-	}
-
 	if (chan->masq) {
 		if (ast_do_masquerade(chan))
 			ast_log(LOG_WARNING, "Failed to perform masquerade\n");
 		else
 			f =  &ast_null_frame;
+		goto done;
+	}
+
+	if (chan->fdno == -1) {
+#ifdef AST_DEVMODE
+		ast_log(LOG_ERROR, "ast_read() called with no recorded file descriptor.\n");
+#else
+		if (option_debug > 1) {
+			ast_log(LOG_DEBUG, "ast_read() called with no recorded file descriptor.\n");
+		}
+#endif
+		f = &ast_null_frame;
 		goto done;
 	}
 
