@@ -14341,41 +14341,26 @@ static void cleanup_stale_contexts(char *new, char *old)
 	}
 }
 
-/*! \brief this func is used with ao2_callback to unlink/delete all dialogs that
-   are marked needdestroy. It will return CMP_MATCH for candidates, and they
-   will be unlinked 
-
-   TODO: Implement a queue and instead of marking a dialog 
-   to be destroyed, toss it into the queue. Have a separate
-   thread do the locking and destruction */
+/*! 
+ * \brief Match dialogs that need to be destroyed
+ *
+ * \details This is used with ao2_callback to unlink/delete all dialogs that
+ * are marked needdestroy. It will return CMP_MATCH for candidates, and they
+ * will be unlinked.
+ *
+ * \todo Re-work this to improve efficiency.  Currently, this function is called
+ * on _every_ dialog after processing _every_ incoming SIP/UDP packet, or
+ * potentially even more often when the scheduler has entries to run.
+ */
 
 static int dialog_needdestroy(void *dialogobj, void *arg, int flags) 
 {
 	struct sip_pvt *dialog = dialogobj;
 	time_t *t = arg;
-	
-	/* log_show_lock(ao2_object_get_lockaddr(dialog)); this is an example of how to use log_show_lock() */
 
 	if (sip_pvt_trylock(dialog)) {
-		/* In very short-duration calls via sipp,
-		   this path gets executed fairly frequently (3% or so) even in low load
-		   situations; the routines we most commonly fight for a lock with:
-		   sip_answer (7 out of 9)
-		   sip_hangup (2 out of 9)
-		*/
-		ao2_unlock(dialogs);
-		usleep(1);
-		ao2_lock(dialogs);
-
-		/* I had previously returned CMP_STOP here; but changed it to return
-		   a zero instead, because there is no need to stop at the first sign
-		   of trouble. The old algorithm would restart in such circumstances,
-		   but there is no need for this now in astobj2-land. We'll
-		   just skip over this element this time, and catch it on the
-		   next traversal, which is about once a second or so. See the 
-		   ao2_callback call in do_monitor. We don't want the number of
-		   dialogs to back up too much between runs.
-		*/
+		/* Don't block the monitor thread.  This function is called often enough
+		 * that we can wait for the next time around. */
 		return 0;
 	}
 
