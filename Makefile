@@ -559,8 +559,10 @@ bininstall: _all installdirs $(SUBDIRS_INSTALL)
 		chmod 755 $(DESTDIR)$(ASTSBINDIR)/safe_asterisk;\
 	fi
 	$(INSTALL) -d $(DESTDIR)$(ASTHEADERDIR)
+	$(INSTALL) -d $(DESTDIR)$(ASTHEADERDIR)/doxygen
 	$(INSTALL) -m 644 include/asterisk.h $(DESTDIR)$(includedir)
 	$(INSTALL) -m 644 include/asterisk/*.h $(DESTDIR)$(ASTHEADERDIR)
+	$(INSTALL) -m 644 include/asterisk/doxygen/*.h $(DESTDIR)$(ASTHEADERDIR)/doxygen
 	if [ -n "$(OLDHEADERS)" ]; then \
 		rm -f $(addprefix $(DESTDIR)$(ASTHEADERDIR)/,$(OLDHEADERS)) ;\
 	fi

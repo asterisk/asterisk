@@ -475,6 +475,7 @@ INPUT                  = ./ \
                          funcs \
                          include \
                          include/asterisk \
+                         include/asterisk/doxygen \
                          main \
                          main/stdtime \
                          pbx \

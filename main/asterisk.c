@@ -138,8 +138,6 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/xmldoc.h"
 #include "asterisk/poll-compat.h"
 
-#include "asterisk/doxyref.h"		/* Doxygen documentation */
-
 #include "../defaults.h"
 
 #ifndef AF_LOCAL
