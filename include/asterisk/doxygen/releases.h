@@ -175,6 +175,12 @@
  * updated to indicate that there is an updated version of the fix.  A release should
  * be made immediately for these regression fixes, as well.
  *
+ * \subsection ast12releasenumbers Release Numbering
+ *
+ *  - 1.2.X - a release that contains new security fixes
+ *  - 1.2.X.Y - a release that contains fixes to the security patches released in
+ *    version 1.2.X
+ *
  * <hr/>
  *
  * \section ast14policy Asterisk 1.4
@@ -195,6 +201,12 @@
  * introduced into Asterisk 1.4 to reduce the %number of changes to this established
  * release series.  The only exceptions to this %rule are for cases where something
  * that may be considered a feature is needed to address a bug or security issue.
+ *
+ * \subsection ast14releasenumbers Release Numbering
+ *
+ *  - 1.4.X - a release that contains new bug fixes to the 1.4 release series
+ *  - 1.4.X.Y - a release that contains very few changes on top of 1.4.X.  This
+ *    may be for a security patch, or for a regression introduced in 1.4.X.
  *
  * <hr/>
  *
@@ -225,6 +237,12 @@
  * For some history on the motivations for Asterisk 1.6 release management, see the
  * first two sections of this
  * <a href="http://lists.digium.com/pipermail/asterisk-dev/2007-October/030083.html">mailing list post</a>.
+ *
+ * \subsection ast16releasenumbers Release Numbering
+ *
+ *  - 1.6.X - a release that includes new functionality
+ *  - 1.6.X.Y - a release that contains fixes for bugs or security issues identified
+ *    in the 1.6.X release series.
  *
  * <hr/>
  *
