@@ -1094,13 +1094,13 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 	/* If we don't actually know the remote address don't even bother doing anything */
 	if (!remote_address.sin_addr.s_addr) {
 		ast_debug(1, "No remote address on RTP instance '%p' so dropping frame\n", instance);
-		return -1;
+		return 0;
 	}
 
 	/* If there is no data length we can't very well send the packet */
 	if (!frame->datalen) {
 		ast_debug(1, "Received frame with no data for RTP instance '%p' so dropping frame\n", instance);
-		return -1;
+		return 0;
 	}
 
 	/* If the packet is not one our RTP stack supports bail out */

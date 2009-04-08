@@ -1160,7 +1160,7 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
 
 	/* Grab glue that binds each channel to something using the RTP engine */
 	if (!(glue0 = ast_rtp_instance_get_glue(c0->tech->type)) || !(glue1 = ast_rtp_instance_get_glue(c1->tech->type))) {
-		ast_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", glue0 ? c1->name : c0->name);
+		ast_debug(1, "Can't find native functions for channel '%s'\n", glue0 ? c1->name : c0->name);
 		goto done;
 	}
 
@@ -1256,7 +1256,7 @@ void ast_rtp_instance_early_bridge_make_compatible(struct ast_channel *c0, struc
 
 	/* Grab glue that binds each channel to something using the RTP engine */
 	if (!(glue0 = ast_rtp_instance_get_glue(c0->tech->type)) || !(glue1 = ast_rtp_instance_get_glue(c1->tech->type))) {
-		ast_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", glue0 ? c1->name : c0->name);
+		ast_debug(1, "Can't find native functions for channel '%s'\n", glue0 ? c1->name : c0->name);
 		goto done;
 	}
 
