@@ -50,6 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <signal.h>
 #include <errno.h>
 #include <unistd.h>
+#include <sys/mman.h>
 
 #include "asterisk/channel.h"
 #include "asterisk/file.h"
@@ -141,7 +142,39 @@ static struct {
 	{{ "restart", "gracefully", NULL }},
 };
 
-struct mansession {
+/* In order to understand what the heck is going on with the
+ * mansession_session and mansession structs, we need to have a bit of a history
+ * lesson.
+ *
+ * In the beginning, there was the mansession. The mansession contained data that was
+ * intrinsic to a manager session, such as the time that it started, the name of the logged-in
+ * user, etc. In addition to these parameters were the f and fd parameters. For typical manager
+ * sessions, these were used to represent the TCP socket over which the AMI session was taking
+ * place. It makes perfect sense for these fields to be a part of the session-specific data since
+ * the session actually defines this information.
+ *
+ * Then came the HTTP AMI sessions. With these, the f and fd fields need to be opened and closed
+ * for every single action that occurs. Thus the f and fd fields aren't really specific to the session
+ * but rather to the action that is being executed. Because a single session may execute many commands
+ * at once, some sort of safety needed to be added in order to be sure that we did not end up with fd
+ * leaks from one action overwriting the f and fd fields used by a previous action before the previous action
+ * has had a chance to properly close its handles.
+ *
+ * The initial idea to solve this was to use thread synchronization, but this prevented multiple actions
+ * from being run at the same time in a single session. Some manager actions may block for a long time, thus
+ * creating a large queue of actions to execute. In addition, this fix did not address the basic architectural
+ * issue that for HTTP manager sessions, the f and fd variables are not really a part of the session, but are
+ * part of the action instead.
+ *
+ * The new idea was to create a structure on the stack for each HTTP Manager action. This structure would
+ * contain the action-specific information, such as which file to write to. In order to maintain expectations
+ * of action handlers and not have to change the public API of the manager code, we would need to name this
+ * new stacked structure 'mansession' and contain within it the old mansession struct that we used to use.
+ * We renamed the old mansession struct 'mansession_session' to hopefully convey that what is in this structure
+ * is session-specific data. The structure that it is wrapped in, called a 'mansession' really contains action-specific
+ * data.
+ */
+struct mansession_session {
 	/*! Execution thread */
 	pthread_t t;
 	/*! Thread lock -- don't use in action callbacks, it's already taken care of  */
@@ -182,10 +215,21 @@ struct mansession {
 	/* Timeout for ast_carefulwrite() */
 	int writetimeout;
 	int pending_event;         /*!< Pending events indicator in case when waiting_thread is NULL */
-	AST_LIST_ENTRY(mansession) list;
+	AST_LIST_ENTRY(mansession_session) list;
 };
 
-static AST_LIST_HEAD_STATIC(sessions, mansession);
+/* In case you didn't read that giant block of text above the mansession_session struct, the
+ * 'mansession' struct is named this solely to keep the API the same in Asterisk. This structure really
+ * represents data that is different from Manager action to Manager action. The mansession_session pointer
+ * contained within points to session-specific data.
+ */
+struct mansession {
+	FILE *f;
+	struct mansession_session *session;
+	int fd;
+};
+
+static AST_LIST_HEAD_STATIC(sessions, mansession_session);
 
 struct ast_manager_user {
 	char username[80];
@@ -486,10 +530,10 @@ void astman_append(struct mansession *s, const char *fmt, ...)
 	va_list ap;
 	struct ast_dynamic_str *buf;
 
-	ast_mutex_lock(&s->__lock);
+	ast_mutex_lock(&s->session->__lock);
 
 	if (!(buf = ast_dynamic_str_thread_get(&astman_append_buf, ASTMAN_APPEND_BUF_INITSIZE))) {
-		ast_mutex_unlock(&s->__lock);
+		ast_mutex_unlock(&s->session->__lock);
 		return;
 	}
 
@@ -498,17 +542,17 @@ void astman_append(struct mansession *s, const char *fmt, ...)
 	va_end(ap);
 	
 	if (s->fd > -1)
-		ast_carefulwrite(s->fd, buf->str, strlen(buf->str), s->writetimeout);
+		ast_carefulwrite(s->fd, buf->str, strlen(buf->str), s->session->writetimeout);
 	else {
-		if (!s->outputstr && !(s->outputstr = ast_calloc(1, sizeof(*s->outputstr)))) {
-			ast_mutex_unlock(&s->__lock);
+		if (!s->session->outputstr && !(s->session->outputstr = ast_calloc(1, sizeof(*s->session->outputstr)))) {
+			ast_mutex_unlock(&s->session->__lock);
 			return;
 		}
 
-		ast_dynamic_str_append(&s->outputstr, 0, "%s", buf->str);	
+		ast_dynamic_str_append(&s->session->outputstr, 0, "%s", buf->str);	
 	}
 
-	ast_mutex_unlock(&s->__lock);
+	ast_mutex_unlock(&s->session->__lock);
 }
 
 static int handle_showmancmd(int fd, int argc, char *argv[])
@@ -627,7 +671,7 @@ static int handle_showmancmds(int fd, int argc, char *argv[])
 /* Should change to "manager show connected" */
 static int handle_showmanconn(int fd, int argc, char *argv[])
 {
-	struct mansession *s;
+	struct mansession_session *s;
 	char *format = "  %-15.15s  %-15.15s\n";
 
 	ast_cli(fd, format, "Username", "IP Address");
@@ -736,7 +780,7 @@ static void unuse_eventqent(struct eventqent *e)
 		pthread_kill(t, SIGURG);
 }
 
-static void free_session(struct mansession *s)
+static void free_session(struct mansession_session *s)
 {
 	struct eventqent *eqe;
 	if (s->fd > -1)
@@ -752,7 +796,7 @@ static void free_session(struct mansession *s)
 	free(s);
 }
 
-static void destroy_session(struct mansession *s)
+static void destroy_session(struct mansession_session *s)
 {
 	AST_LIST_LOCK(&sessions);
 	AST_LIST_REMOVE(&sessions, s, list);
@@ -939,7 +983,7 @@ static int strings_to_mask(const char *string)
    Rather than braindead on,off this now can also accept a specific int mask value 
    or a ',' delim list of mask strings (the same as manager.conf) -anthm
 */
-static int set_eventmask(struct mansession *s, const char *eventmask)
+static int set_eventmask(struct mansession_session *s, const char *eventmask)
 {
 	int maskint = strings_to_mask(eventmask);
 
@@ -979,7 +1023,7 @@ static int authenticate(struct mansession *s, const struct message *m)
 					} else if (!strcasecmp(v->name, "displaysystemname")) {
 						if (ast_true(v->value)) {
 							if (ast_strlen_zero(ast_config_AST_SYSTEM_NAME)) {
-								s->displaysystemname = 1;
+								s->session->displaysystemname = 1;
 							} else {
 								ast_log(LOG_ERROR, "Can't enable displaysystemname in manager.conf - no system name configured in asterisk.conf\n");
 							}
@@ -993,12 +1037,12 @@ static int authenticate(struct mansession *s, const struct message *m)
 						if (val < 100)
 							ast_log(LOG_WARNING, "Invalid writetimeout value '%s' at line %d\n", v->value, v->lineno);
 						else
-							s->writetimeout = val;
+							s->session->writetimeout = val;
 					}
 				    		
 				}
-				if (ha && !ast_apply_ha(ha, &(s->sin))) {
-					ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
+				if (ha && !ast_apply_ha(ha, &(s->session->sin))) {
+					ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", ast_inet_ntoa(s->session->sin.sin_addr), user);
 					ast_free_ha(ha);
 					ast_config_destroy(cfg);
 					return -1;
@@ -1006,14 +1050,14 @@ static int authenticate(struct mansession *s, const struct message *m)
 					ast_free_ha(ha);
 				if (!strcasecmp(authtype, "MD5")) {
 					if (!ast_strlen_zero(key) && 
-					    !ast_strlen_zero(s->challenge) && !ast_strlen_zero(password)) {
+					    !ast_strlen_zero(s->session->challenge) && !ast_strlen_zero(password)) {
 						int x;
 						int len = 0;
 						char md5key[256] = "";
 						struct MD5Context md5;
 						unsigned char digest[16];
 						MD5Init(&md5);
-						MD5Update(&md5, (unsigned char *) s->challenge, strlen(s->challenge));
+						MD5Update(&md5, (unsigned char *) s->session->challenge, strlen(s->session->challenge));
 						MD5Update(&md5, (unsigned char *) password, strlen(password));
 						MD5Final(digest, &md5);
 						for (x=0; x<16; x++)
@@ -1026,14 +1070,14 @@ static int authenticate(struct mansession *s, const struct message *m)
 						}
 					} else {
 						ast_log(LOG_DEBUG, "MD5 authentication is not possible.  challenge: '%s'\n", 
-							S_OR(s->challenge, ""));
+							S_OR(s->session->challenge, ""));
 						ast_config_destroy(cfg);
 						return -1;
 					}
 				} else if (password && !strcmp(password, pass)) {
 					break;
 				} else {
-					ast_log(LOG_NOTICE, "%s failed to authenticate as '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
+					ast_log(LOG_NOTICE, "%s failed to authenticate as '%s'\n", ast_inet_ntoa(s->session->sin.sin_addr), user);
 					ast_config_destroy(cfg);
 					return -1;
 				}	
@@ -1042,12 +1086,12 @@ static int authenticate(struct mansession *s, const struct message *m)
 		cat = ast_category_browse(cfg, cat);
 	}
 	if (cat) {
-		ast_copy_string(s->username, cat, sizeof(s->username));
-		s->readperm = get_perm(ast_variable_retrieve(cfg, cat, "read"));
-		s->writeperm = get_perm(ast_variable_retrieve(cfg, cat, "write"));
+		ast_copy_string(s->session->username, cat, sizeof(s->session->username));
+		s->session->readperm = get_perm(ast_variable_retrieve(cfg, cat, "read"));
+		s->session->writeperm = get_perm(ast_variable_retrieve(cfg, cat, "write"));
 		ast_config_destroy(cfg);
 		if (events)
-			set_eventmask(s, events);
+			set_eventmask(s->session, events);
 		return 0;
 	}
 	ast_config_destroy(cfg);
@@ -1079,19 +1123,19 @@ static int authenticate(struct mansession *s, const struct message *m)
 		if (!hasmanager)
 			break;
 		if (!password || strcmp(password, pass)) {
-			ast_log(LOG_NOTICE, "%s failed to authenticate as '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
+			ast_log(LOG_NOTICE, "%s failed to authenticate as '%s'\n", ast_inet_ntoa(s->session->sin.sin_addr), user);
 			ast_config_destroy(cfg);
 			return -1;
 		}
-		ast_copy_string(s->username, cat, sizeof(s->username));
-		s->readperm = readperms ? get_perm(readperms) : -1;
-		s->writeperm = writeperms ? get_perm(writeperms) : -1;
+		ast_copy_string(s->session->username, cat, sizeof(s->session->username));
+		s->session->readperm = readperms ? get_perm(readperms) : -1;
+		s->session->writeperm = writeperms ? get_perm(writeperms) : -1;
 		ast_config_destroy(cfg);
 		if (events)
-			set_eventmask(s, events);
+			set_eventmask(s->session, events);
 		return 0;
 	}
-	ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
+	ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_inet_ntoa(s->session->sin.sin_addr), user);
 	ast_config_destroy(cfg);
 	return -1;
 }
@@ -1288,38 +1332,38 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 		sscanf(timeouts, "%i", &timeout);
 	}
 	
-	ast_mutex_lock(&s->__lock);
-	if (s->waiting_thread != AST_PTHREADT_NULL) {
-		pthread_kill(s->waiting_thread, SIGURG);
+	ast_mutex_lock(&s->session->__lock);
+	if (s->session->waiting_thread != AST_PTHREADT_NULL) {
+		pthread_kill(s->session->waiting_thread, SIGURG);
 	}
-	if (s->sessiontimeout) {
+	if (s->session->sessiontimeout) {
 		time(&now);
-		max = s->sessiontimeout - now - 10;
+		max = s->session->sessiontimeout - now - 10;
 		if (max < 0)
 			max = 0;
 		if ((timeout < 0) || (timeout > max))
 			timeout = max;
-		if (!s->send_events)
-			s->send_events = -1;
+		if (!s->session->send_events)
+			s->session->send_events = -1;
 		/* Once waitevent is called, always queue events from now on */
 	}
-	ast_mutex_unlock(&s->__lock);
-	s->waiting_thread = pthread_self();
+	ast_mutex_unlock(&s->session->__lock);
+	s->session->waiting_thread = pthread_self();
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Starting waiting for an event!\n");
 	for (x=0; ((x < timeout) || (timeout < 0)); x++) {
-		ast_mutex_lock(&s->__lock);
-		if (s->eventq && s->eventq->next)
+		ast_mutex_lock(&s->session->__lock);
+		if (s->session->eventq && s->session->eventq->next)
 			needexit = 1;
-		if (s->waiting_thread != pthread_self())
+		if (s->session->waiting_thread != pthread_self())
 			needexit = 1;
-		if (s->needdestroy)
+		if (s->session->needdestroy)
 			needexit = 1;
-		ast_mutex_unlock(&s->__lock);
+		ast_mutex_unlock(&s->session->__lock);
 		if (needexit)
 			break;
-		if (s->fd > 0) {
-			if (ast_wait_for_input(s->fd, 1000))
+		if (s->session->fd > 0) {
+			if (ast_wait_for_input(s->session->fd, 1000))
 				break;
 		} else {
 			sleep(1);
@@ -1327,28 +1371,28 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 	}
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Finished waiting for an event!\n");
-	ast_mutex_lock(&s->__lock);
-	if (s->waiting_thread == pthread_self()) {
+	ast_mutex_lock(&s->session->__lock);
+	if (s->session->waiting_thread == pthread_self()) {
 		astman_send_response(s, m, "Success", "Waiting for Event...");
 		/* Only show events if we're the most recent waiter */
-		while(s->eventq->next) {
-			eqe = s->eventq->next;
-			if (((s->readperm & eqe->category) == eqe->category) &&
-			    ((s->send_events & eqe->category) == eqe->category)) {
+		while(s->session->eventq->next) {
+			eqe = s->session->eventq->next;
+			if (((s->session->readperm & eqe->category) == eqe->category) &&
+			    ((s->session->send_events & eqe->category) == eqe->category)) {
 				astman_append(s, "%s", eqe->eventdata);
 			}
-			unuse_eventqent(s->eventq);
-			s->eventq = eqe;
+			unuse_eventqent(s->session->eventq);
+			s->session->eventq = eqe;
 		}
 		astman_append(s,
 			"Event: WaitEventComplete\r\n"
 			"%s"
 			"\r\n", idText);
-		s->waiting_thread = AST_PTHREADT_NULL;
+		s->session->waiting_thread = AST_PTHREADT_NULL;
 	} else {
 		ast_log(LOG_DEBUG, "Abandoning event request!\n");
 	}
-	ast_mutex_unlock(&s->__lock);
+	ast_mutex_unlock(&s->session->__lock);
 	return 0;
 }
 
@@ -1369,7 +1413,7 @@ static int action_listcommands(struct mansession *s, const struct message *m)
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 	astman_append(s, "Response: Success\r\n%s", idText);
 	for (cur = first_action; cur; cur = cur->next) {
-		if ((s->writeperm & cur->authority) == cur->authority)
+		if ((s->session->writeperm & cur->authority) == cur->authority)
 			astman_append(s, "%s: %s (Priv: %s)\r\n", cur->action, cur->synopsis, authority_to_str(cur->authority, temp, sizeof(temp)));
 	}
 	astman_append(s, "\r\n");
@@ -1390,7 +1434,7 @@ static int action_events(struct mansession *s, const struct message *m)
 	const char *mask = astman_get_header(m, "EventMask");
 	int res;
 
-	res = set_eventmask(s, mask);
+	res = set_eventmask(s->session, mask);
 	if (res > 0)
 		astman_send_response(s, m, "Events On", NULL);
 	else if (res == 0)
@@ -2121,25 +2165,25 @@ static int process_events(struct mansession *s)
 {
 	struct eventqent *eqe;
 	int ret = 0;
-	ast_mutex_lock(&s->__lock);
-	if (!s->eventq)
-		s->eventq = master_eventq;
-	while(s->eventq->next) {
-		eqe = s->eventq->next;
-		if ((s->authenticated && (s->readperm & eqe->category) == eqe->category) &&
-				   ((s->send_events & eqe->category) == eqe->category)) {
+	ast_mutex_lock(&s->session->__lock);
+	if (!s->session->eventq)
+		s->session->eventq = master_eventq;
+	while(s->session->eventq->next) {
+		eqe = s->session->eventq->next;
+		if ((s->session->authenticated && (s->session->readperm & eqe->category) == eqe->category) &&
+				   ((s->session->send_events & eqe->category) == eqe->category)) {
 			if (s->fd > -1) {
-				if (!ret && ast_carefulwrite(s->fd, eqe->eventdata, strlen(eqe->eventdata), s->writetimeout) < 0)
+				if (!ret && ast_carefulwrite(s->fd, eqe->eventdata, strlen(eqe->eventdata), s->session->writetimeout) < 0)
 					ret = -1;
-			} else if (!s->outputstr && !(s->outputstr = ast_calloc(1, sizeof(*s->outputstr)))) 
+			} else if (!s->session->outputstr && !(s->session->outputstr = ast_calloc(1, sizeof(*s->session->outputstr)))) 
 				ret = -1;
 			else 
-				ast_dynamic_str_append(&s->outputstr, 0, "%s", eqe->eventdata);
+				ast_dynamic_str_append(&s->session->outputstr, 0, "%s", eqe->eventdata);
 		}
-		unuse_eventqent(s->eventq);
-		s->eventq = eqe;
+		unuse_eventqent(s->session->eventq);
+		s->session->eventq = eqe;
 	}
-	ast_mutex_unlock(&s->__lock);
+	ast_mutex_unlock(&s->session->__lock);
 	return ret;
 }
 
@@ -2191,17 +2235,17 @@ static int process_message(struct mansession *s, const struct message *m)
 	if (!ast_strlen_zero(id)) {
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 	}
-	if (!s->authenticated) {
+	if (!s->session->authenticated) {
 		if (!strcasecmp(action, "Challenge")) {
 			const char *authtype = astman_get_header(m, "AuthType");
 
 			if (!strcasecmp(authtype, "MD5")) {
-				if (ast_strlen_zero(s->challenge))
-					snprintf(s->challenge, sizeof(s->challenge), "%ld", ast_random());
+				if (ast_strlen_zero(s->session->challenge))
+					snprintf(s->session->challenge, sizeof(s->session->challenge), "%ld", ast_random());
 				astman_append(s, "Response: Success\r\n"
 						"%s"
 						"Challenge: %s\r\n\r\n",
-						idText, s->challenge);
+						idText, s->session->challenge);
 				return 0;
 			} else {
 				astman_send_error(s, m, "Must specify AuthType");
@@ -2213,15 +2257,15 @@ static int process_message(struct mansession *s, const struct message *m)
 				astman_send_error(s, m, "Authentication failed");
 				return -1;
 			} else {
-				s->authenticated = 1;
+				s->session->authenticated = 1;
 				if (option_verbose > 1) {
 					if (displayconnects) {
 						ast_verbose(VERBOSE_PREFIX_2 "%sManager '%s' logged on from %s\n", 
-							(s->sessiontimeout ? "HTTP " : ""), s->username, ast_inet_ntoa(s->sin.sin_addr));
+							(s->session->sessiontimeout ? "HTTP " : ""), s->session->username, ast_inet_ntoa(s->session->sin.sin_addr));
 					}
 				}
 				ast_log(LOG_EVENT, "%sManager '%s' logged on from %s\n", 
-					(s->sessiontimeout ? "HTTP " : ""), s->username, ast_inet_ntoa(s->sin.sin_addr));
+					(s->session->sessiontimeout ? "HTTP " : ""), s->session->username, ast_inet_ntoa(s->session->sin.sin_addr));
 				astman_send_ack(s, m, "Authentication accepted");
 			}
 		} else if (!strcasecmp(action, "Logoff")) {
@@ -2237,7 +2281,7 @@ static int process_message(struct mansession *s, const struct message *m)
 			for (tmp = first_action; tmp; tmp = tmp->next) { 		
 				if (strcasecmp(action, tmp->action))
 					continue;
-				if ((s->writeperm & tmp->authority) == tmp->authority) {
+				if ((s->session->writeperm & tmp->authority) == tmp->authority) {
 					if (tmp->func(s, m))
 						ret = -1;
 				} else
@@ -2254,7 +2298,7 @@ static int process_message(struct mansession *s, const struct message *m)
 	return process_events(s);
 }
 
-static int get_input(struct mansession *s, char *output)
+static int get_input(struct mansession_session *s, char *output)
 {
 	/* output must have at least sizeof(s->inbuf) space */
 	int res;
@@ -2316,16 +2360,16 @@ static int get_input(struct mansession *s, char *output)
 static int do_message(struct mansession *s)
 {
 	struct message m = { 0 };
-	char header_buf[sizeof(s->inbuf)] = { '\0' };
+	char header_buf[sizeof(s->session->inbuf)] = { '\0' };
 	int res;
 
 	for (;;) {
 		/* Check if any events are pending and do them if needed */
-		if (s->eventq->next) {
+		if (s->session->eventq->next) {
 			if (process_events(s))
 				return -1;
 		}
-		res = get_input(s, header_buf);
+		res = get_input(s->session, header_buf);
 		if (res == 0) {
 			continue;
 		} else if (res > 0) {
@@ -2345,26 +2389,27 @@ static int do_message(struct mansession *s)
 
 static void *session_do(void *data)
 {
-	struct mansession *s = data;
+	struct mansession_session *session = data;
 	int res;
-	
-	astman_append(s, "Asterisk Call Manager/1.0\r\n");
+	struct mansession s = { .session = session, .fd = session->fd };
+
+	astman_append(&s, "Asterisk Call Manager/1.0\r\n");
 	for (;;) {
-		if ((res = do_message(s)) < 0)
+		if ((res = do_message(&s)) < 0)
 			break;
 	}
-	if (s->authenticated) {
+	if (session->authenticated) {
 		if (option_verbose > 1) {
 			if (displayconnects) 
-				ast_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
+				ast_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", session->username, ast_inet_ntoa(session->sin.sin_addr));
 		}
-		ast_log(LOG_EVENT, "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
+		ast_log(LOG_EVENT, "Manager '%s' logged off from %s\n", session->username, ast_inet_ntoa(session->sin.sin_addr));
 	} else {
 		if (option_verbose > 1) {
 			if (displayconnects)
-				ast_verbose(VERBOSE_PREFIX_2 "Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(s->sin.sin_addr));
+				ast_verbose(VERBOSE_PREFIX_2 "Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(session->sin.sin_addr));
 		}
-		ast_log(LOG_EVENT, "Failed attempt from %s\n", ast_inet_ntoa(s->sin.sin_addr));
+		ast_log(LOG_EVENT, "Failed attempt from %s\n", ast_inet_ntoa(session->sin.sin_addr));
 	}
 
 	/* It is possible under certain circumstances for this session thread
@@ -2380,7 +2425,7 @@ static void *session_do(void *data)
 	*/
 	usleep(1);
 
-	destroy_session(s);
+	destroy_session(session);
 	return NULL;
 }
 
@@ -2390,7 +2435,7 @@ static void *accept_thread(void *ignore)
 	struct sockaddr_in sin;
 	socklen_t sinlen;
 	struct eventqent *eqe;
-	struct mansession *s;
+	struct mansession_session *s;
 	struct protoent *p;
 	int arg = 1;
 	int flags;
@@ -2509,7 +2554,7 @@ static int append_event(const char *str, int category)
 /*! \brief  manager_event: Send AMI event to client */
 int manager_event(int category, const char *event, const char *fmt, ...)
 {
-	struct mansession *s;
+	struct mansession_session *s;
 	char auth[80];
 	va_list ap;
 	struct timeval now;
@@ -2655,9 +2700,9 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 /*! @}
  END Doxygen group */
 
-static struct mansession *find_session(uint32_t ident)
+static struct mansession_session *find_session(uint32_t ident)
 {
-	struct mansession *s;
+	struct mansession_session *s;
 
 	AST_LIST_LOCK(&sessions);
 	AST_LIST_TRAVERSE(&sessions, s, list) {
@@ -2676,7 +2721,7 @@ static struct mansession *find_session(uint32_t ident)
 int astman_verify_session_readpermissions(uint32_t ident, int perm)
 {
 	int result = 0;
-	struct mansession *s;
+	struct mansession_session *s;
 
 	AST_LIST_LOCK(&sessions);
 	AST_LIST_TRAVERSE(&sessions, s, list) {
@@ -2695,7 +2740,7 @@ int astman_verify_session_readpermissions(uint32_t ident, int perm)
 int astman_verify_session_writepermissions(uint32_t ident, int perm)
 {
 	int result = 0;
-	struct mansession *s;
+	struct mansession_session *s;
 
 	AST_LIST_LOCK(&sessions);
 	AST_LIST_TRAVERSE(&sessions, s, list) {
@@ -2720,7 +2765,8 @@ static char *contenttype[] = { "plain", "html", "xml" };
 
 static char *generic_http_callback(int format, struct sockaddr_in *requestor, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
 {
-	struct mansession *s = NULL;
+	struct mansession_session *s = NULL;
+	struct mansession ss = { .session = NULL, };
 	uint32_t ident = 0;
 	char workspace[512];
 	char cookie[128];
@@ -2773,8 +2819,12 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 		s->sessiontimeout += 5;
 	else
 		s->sessiontimeout += httptimeout;
+	ss.session = s;
 	ast_mutex_unlock(&s->__lock);
-	
+
+	ss.f = tmpfile();
+	ss.fd = fileno(ss.f);
+
 	if (s) {
 		struct message m = { 0 };
 		char tmp[80];
@@ -2788,7 +2838,7 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 			m.hdrcount = x + 1;
 		}
 
-		if (process_message(s, &m)) {
+		if (process_message(&ss, &m)) {
 			if (s->authenticated) {
 				if (option_verbose > 1) {
 					if (displayconnects) 
@@ -2816,7 +2866,39 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 			ast_build_string(&c, &len, "<tr><td colspan=\"2\" bgcolor=\"#f1f1ff\"><h1>&nbsp;&nbsp;Manager Tester</h1></td></tr>\r\n");
 		}
 		ast_mutex_lock(&s->__lock);
-		if (s->outputstr) {
+		if (ss.fd > -1) {
+			char *buf;
+			size_t l = lseek(ss.fd, 0, SEEK_END);
+			if (l) {
+				if ((buf = mmap(NULL, l, PROT_READ | PROT_WRITE, MAP_SHARED, ss.fd, 0))) {
+					char *tmp;
+					if (format == FORMAT_XML)
+						tmp = xml_translate(buf, params);
+					else if (format == FORMAT_HTML)
+						tmp = html_translate(buf);
+					else
+						tmp = buf;
+					if (tmp) {
+						size_t wlen, tlen;
+						if ((retval = malloc((wlen = strlen(workspace)) + (tlen = strlen(tmp)) + 128))) {
+							strcpy(retval, workspace);
+							strcpy(retval + wlen, tmp);
+							c = retval + wlen + tlen;
+							/* Leftover space for footer, if any */
+							len = 120;
+						}
+					}
+					if (tmp != buf)
+						free(tmp);
+					free(s->outputstr);
+					s->outputstr = NULL;
+				}
+				munmap(buf, l);
+			}
+			fclose(ss.f);
+			ss.f = NULL;
+			ss.fd = -1;
+		} else if (s->outputstr) {
 			char *tmp;
 			if (format == FORMAT_XML)
 				tmp = xml_translate(s->outputstr->str, params);
