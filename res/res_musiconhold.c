@@ -1505,9 +1505,9 @@ static int load_moh_classes(int reload)
 		}
 
 		/* Don't leak a class when it's already registered */
-		moh_register(class, reload);
-
-		numclasses++;
+		if (!moh_register(class, reload)) {
+			numclasses++;
+		}
 	}
 
 	ast_config_destroy(cfg);
