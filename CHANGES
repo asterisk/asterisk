@@ -24,6 +24,8 @@ Applications
  * Added progress option to the app_dial D() option.  When progress DTMF is
    present, those values are sent immediatly upon receiving a PROGRESS message
    regardless if the call has been answered or not.
+ * Added functionality to the app_dial F() option to continue with execution
+   at the current location when no parameters are provided.
 
 Dialplan Functions
 ------------------

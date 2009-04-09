@@ -133,6 +133,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<para>When the caller hangs up, transfer the called party
 					to the specified destination and continue execution at that location.</para>
 				</option>
+				<option name="F">
+					<para>Proceed with dialplan execution at the next priority in the current extension if the
+					source channel hangs up.</para>
+				</option>
 				<option name="g">
 					<para>Proceed with dialplan execution at the next priority in the current extension if the
 					destination channel hangs up.</para>
@@ -2332,9 +2336,18 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			}
 			ast_set2_flag(peer, autoloopflag, AST_FLAG_IN_AUTOLOOP);  /* set it back the way it was */
 		}
-		if (!ast_check_hangup(peer) && ast_test_flag64(&opts, OPT_CALLEE_GO_ON) && !ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GO_ON])) {		
-			replace_macro_delimiter(opt_args[OPT_ARG_CALLEE_GO_ON]);
-			ast_parseable_goto(peer, opt_args[OPT_ARG_CALLEE_GO_ON]);
+		if (!ast_check_hangup(peer) && ast_test_flag64(&opts, OPT_CALLEE_GO_ON)) {
+			if(!ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GO_ON])) {
+				replace_macro_delimiter(opt_args[OPT_ARG_CALLEE_GO_ON]);
+				ast_parseable_goto(peer, opt_args[OPT_ARG_CALLEE_GO_ON]);
+			} else { /* F() */
+				int res;
+				res = ast_goto_if_exists(peer, chan->context, chan->exten, (chan->priority) + 1); 
+				if (res == AST_PBX_GOTO_FAILED) {
+					ast_hangup(peer);
+					goto out;
+				}
+			}
 			ast_pbx_start(peer);
 		} else {
 			if (!ast_check_hangup(chan))

@@ -34,6 +34,7 @@ extern "C" {
 
 #define AST_MAX_APP	32	/*!< Max length of an application */
 
+#define AST_PBX_GOTO_FAILED -3
 #define AST_PBX_KEEP    0
 #define AST_PBX_REPLACE 1
 

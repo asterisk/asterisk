@@ -9461,8 +9461,9 @@ static int __ast_goto_if_exists(struct ast_channel *chan, const char *context, c
 	goto_func = (async) ? ast_async_goto : ast_explicit_goto;
 	if (ast_exists_extension(chan, context, exten, priority, chan->cid.cid_num))
 		return goto_func(chan, context, exten, priority);
-	else
-		return -3;
+	else {
+		return AST_PBX_GOTO_FAILED;
+	}
 }
 
 int ast_goto_if_exists(struct ast_channel *chan, const char* context, const char *exten, int priority)
