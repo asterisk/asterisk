@@ -1020,7 +1020,7 @@ static inline int _ast_rwlock_wrlock(ast_rwlock_t *lock, const char *name,
 }
 
 static inline int _ast_rwlock_timedrdlock(ast_rwlock_t *lock, const char *name,
-	struct timeval *abs_timeout, const char *file, int line, const char *func)
+	struct timespec *abs_timeout, const char *file, int line, const char *func)
 {
 	int res;
 #ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
@@ -1050,7 +1050,7 @@ static inline int _ast_rwlock_timedrdlock(ast_rwlock_t *lock, const char *name,
 }
 
 static inline int _ast_rwlock_timedwrlock(ast_rwlock_t *lock, const char *name,
-	struct timeval *abs_timeout, const char *file, int line, const char *func)
+	struct timespec *abs_timeout, const char *file, int line, const char *func)
 {
 	int res;
 #ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
