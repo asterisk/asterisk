@@ -668,8 +668,13 @@ static int onedigit_goto(struct ast_channel *chan, const char *context, char ext
 /* do not call with chan lock held */
 static const char *get_cid_name(char *name, int namelen, struct ast_channel *chan)
 {
-	const char *context = ast_strdupa(S_OR(chan->macrocontext, chan->context));
-	const char *exten = ast_strdupa(S_OR(chan->macroexten, chan->exten));
+	const char *context;
+	const char *exten;
+
+	ast_channel_lock(chan);
+	context = ast_strdupa(S_OR(chan->macrocontext, chan->context));
+	exten = ast_strdupa(S_OR(chan->macroexten, chan->exten));
+	ast_channel_unlock(chan);
 
 	return ast_get_hint(NULL, 0, name, namelen, chan, context, exten) ? name : "";
 }
@@ -781,13 +786,13 @@ static void do_forward(struct chanlist *o,
 		ast_party_connected_line_copy(&c->connected, apc);
 
 		S_REPLACE(in->cid.cid_rdnis, ast_strdup(c->cid.cid_rdnis));
-		ast_channel_unlock(in);
-		ast_channel_unlock(c);
 		ast_channel_update_redirecting(in, apr);
 
 		ast_clear_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE);
 
 		if (ast_call(c, tmpchan, 0)) {
+			ast_channel_unlock(in);
+			ast_channel_unlock(c);
 			ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
 			ast_clear_flag64(o, DIAL_STILLGOING);
 			ast_hangup(original);
@@ -798,7 +803,14 @@ static void do_forward(struct chanlist *o,
 			senddialevent(in, c, stuff);
 			if (!ast_test_flag64(peerflags, OPT_ORIGINAL_CLID)) {
 				char cidname[AST_MAX_EXTENSION] = "";
-				ast_set_callerid(c, S_OR(in->macroexten, in->exten), get_cid_name(cidname, sizeof(cidname), in), NULL);
+				const char *tmpexten;
+				tmpexten = ast_strdupa(S_OR(in->macroexten, in->exten));
+				ast_channel_unlock(in);
+				ast_channel_unlock(c);
+				ast_set_callerid(c, tmpexten, get_cid_name(cidname, sizeof(cidname), in), NULL);
+			} else {
+				ast_channel_unlock(in);
+				ast_channel_unlock(c);
 			}
 			/* Hangup the original channel now, in case we needed it */
 			ast_hangup(original);
@@ -1923,11 +1935,11 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			const char *tmpexten = ast_strdupa(S_OR(chan->macroexten, chan->exten));
 			senddialevent(chan, tc, numsubst);
 			ast_verb(3, "Called %s\n", numsubst);
-			ast_channel_unlock(chan); /* unlock chan here.  should not call get_cid_name with chan locked */
+			ast_channel_unlock(chan);
+			ast_channel_unlock(tc);
 			if (!ast_test_flag64(peerflags, OPT_ORIGINAL_CLID)) {
 				ast_set_callerid(tc, tmpexten, get_cid_name(cidname, sizeof(cidname), chan), NULL);
 			}
-			ast_channel_unlock(tc);
 		}
 		/* Put them in the list of outgoing thingies...  We're ready now.
 		   XXX If we're forcibly removed, these outgoing calls won't get
