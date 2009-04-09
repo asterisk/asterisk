@@ -12,6 +12,8 @@
 		<member name="LOADABLE_MODULES" displayname="Runtime module loading">
 			<defaultenabled>yes</defaultenabled>
 		</member>
+		<member name="DEBUG_FD_LEAKS" displayname="Enable File Descriptor Leak Detection">
+		</member>
 		<member name="LOW_MEMORY" displayname="Optimize for Low Memory Usage">
 		</member>
 		<member name="LOTS_OF_SPANS" displayname="More than 32 DAHDI spans">
