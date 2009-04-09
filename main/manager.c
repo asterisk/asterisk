@@ -3367,8 +3367,12 @@ int __manager_event(int category, const char *event,
 int ast_manager_unregister(char *action)
 {
 	struct manager_action *cur;
+	struct timespec tv = { 5, };
 
-	AST_RWLIST_WRLOCK(&actions);
+	if (AST_RWLIST_TIMEDWRLOCK(&actions, &tv)) {
+		ast_log(LOG_ERROR, "Could not obtain lock on manager list\n");
+		return -1;
+	}
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&actions, cur, list) {
 		if (!strcasecmp(action, cur->action)) {
 			AST_RWLIST_REMOVE_CURRENT(list);
@@ -3377,7 +3381,7 @@ int ast_manager_unregister(char *action)
 			break;
 		}
 	}
-	AST_RWLIST_TRAVERSE_SAFE_END;
+	AST_RWLIST_TRAVERSE_SAFE_END
 	AST_RWLIST_UNLOCK(&actions);
 
 	return 0;
@@ -3396,8 +3400,12 @@ static int manager_state_cb(char *context, char *exten, int state, void *data)
 static int ast_manager_register_struct(struct manager_action *act)
 {
 	struct manager_action *cur, *prev = NULL;
+	struct timespec tv = { 5, };
 
-	AST_RWLIST_WRLOCK(&actions);
+	if (AST_RWLIST_TIMEDWRLOCK(&actions, &tv)) {
+		ast_log(LOG_ERROR, "Could not obtain lock on manager list\n");
+		return -1;
+	}
 	AST_RWLIST_TRAVERSE(&actions, cur, list) {
 		int ret = strcasecmp(cur->action, act->action);
 		if (ret == 0) {
@@ -3410,8 +3418,8 @@ static int ast_manager_register_struct(struct manager_action *act)
 			break;
 		}
 	}
-	
-	if (prev)	
+
+	if (prev)
 		AST_RWLIST_INSERT_AFTER(&actions, prev, act, list);
 	else
 		AST_RWLIST_INSERT_HEAD(&actions, act, list);
@@ -3438,7 +3446,10 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 	cur->synopsis = synopsis;
 	cur->description = description;
 
-	ast_manager_register_struct(cur);
+	if (ast_manager_register_struct(cur)) {
+		ast_free(cur);
+		return -1;
+	}
 
 	return 0;
 }
