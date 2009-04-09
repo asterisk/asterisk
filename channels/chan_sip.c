@@ -7082,7 +7082,7 @@ static int sip_register(const char *value, int lineno)
 	expire = strchr(buf, '~');
 	if (expire)
 		*expire++ = '\0';
-	callback = strchr(buf, '/');
+	callback = strrchr(buf, '/');
 	if (callback)
 		*callback++ = '\0';
 	if (ast_strlen_zero(callback))
