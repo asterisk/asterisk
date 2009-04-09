@@ -996,7 +996,7 @@ static inline int _ast_rwlock_wrlock(ast_rwlock_t *lock, const char *name,
 #define ast_rwlock_timedrdlock(a,b) \
 	_ast_rwlock_timedrdlock(a, # a, b, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
-static inline int _ast_rwlock_rdlock(ast_rwlock_t *lock, const char *name,
+static inline int _ast_rwlock_timedrdlock(ast_rwlock_t *lock, const char *name,
 	const struct timespec *abs_timeout, const char *file, int line, const char *func)
 {
 	int res;
