@@ -14435,13 +14435,26 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	}
 	
 	if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->pendinginvite) {
-		/* We already have a pending invite. Sorry. You are on hold. */
-		p->glareinvite = seqno;
-		transmit_response_reliable(p, "491 Request Pending", req);
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Got INVITE on call where we already have pending INVITE, deferring that - %s\n", p->callid);
-		/* Don't destroy dialog here */
-		return 0;
+		if (!ast_test_flag(&p->flags[0], SIP_OUTGOING) && ast_test_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED)) {
+			/* We have received a reINVITE on an incoming call to which we have sent a 200 OK but not yet received
+			 * an ACK. According to RFC 5407, Section 3.1.4, the proper way to handle this race condition is to accept
+			 * the reINVITE since we have established a dialog.
+			 */
+			 
+			/* Note that this will both clear the pendinginvite flag and cancel the 
+			 * retransmission of the 200 OK. Basically, we're accepting this reINVITE as both an ACK
+			 * and a reINVITE in one request.
+			 */
+			__sip_ack(p, p->lastinvite, FLAG_RESPONSE, 0);
+		} else {
+			/* We already have a pending invite. Sorry. You are on hold. */
+			p->glareinvite = seqno;
+			transmit_response_reliable(p, "491 Request Pending", req);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Got INVITE on call where we already have pending INVITE, deferring that - %s\n", p->callid);
+			/* Don't destroy dialog here */
+			return 0;
+		}
 	}
 
 	p_replaces = get_header(req, "Replaces");
