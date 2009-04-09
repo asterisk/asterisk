@@ -661,10 +661,11 @@ static int onedigit_goto(struct ast_channel *chan, const char *context, char ext
 	return 0;
 }
 
+/* do not call with chan lock held */
 static const char *get_cid_name(char *name, int namelen, struct ast_channel *chan)
 {
-	const char *context = S_OR(chan->macrocontext, chan->context);
-	const char *exten = S_OR(chan->macroexten, chan->exten);
+	const char *context = ast_strdupa(S_OR(chan->macrocontext, chan->context));
+	const char *exten = ast_strdupa(S_OR(chan->macroexten, chan->exten));
 
 	return ast_get_hint(NULL, 0, name, namelen, chan, context, exten) ? name : "";
 }
@@ -1915,12 +1916,13 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			ast_free(tmp);
 			continue;
 		} else {
+			const char *tmpexten = ast_strdupa(S_OR(chan->macroexten, chan->exten));
 			senddialevent(chan, tc, numsubst);
 			ast_verb(3, "Called %s\n", numsubst);
+			ast_channel_unlock(chan); /* unlock chan here.  should not call get_cid_name with chan locked */
 			if (!ast_test_flag64(peerflags, OPT_ORIGINAL_CLID)) {
-				ast_set_callerid(tc, S_OR(chan->macroexten, chan->exten), get_cid_name(cidname, sizeof(cidname), chan), NULL);
+				ast_set_callerid(tc, tmpexten, get_cid_name(cidname, sizeof(cidname), chan), NULL);
 			}
-			ast_channel_unlock(chan);
 			ast_channel_unlock(tc);
 		}
 		/* Put them in the list of outgoing thingies...  We're ready now.
