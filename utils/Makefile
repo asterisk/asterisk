@@ -95,7 +95,7 @@ md5.o: ASTCFLAGS+=-DSTANDALONE
 
 astman: astman.o md5.o
 astman: LIBS+=$(NEWT_LIB)
-astman.o: ASTCFLAGS+=-DSTANDALONE
+astman.o: ASTCFLAGS+=-DNO_MALLOC_DEBUG -DSTANDALONE
 
 stereorize: stereorize.o frame.o
 stereorize: LIBS+=-lm
@@ -209,6 +209,8 @@ check_expr2: $(ASTTOPDIR)/main/ast_expr2f.c $(ASTTOPDIR)/main/ast_expr2.c $(ASTT
 	$(ECHO_PREFIX) echo "   [RM] ast_expr2fz.o ast_expr2z.o"
 	rm ast_expr2z.o ast_expr2fz.o 
 	./check_expr2 expr2.testinput
+
+smsq.o: ASTCFLAGS+=-DSTANDALONE
 
 smsq: smsq.o strcompat.o
 smsq: LIBS+=$(POPT_LIB)
