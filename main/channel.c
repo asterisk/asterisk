@@ -3769,7 +3769,7 @@ done:
 static int set_format(struct ast_channel *chan, int fmt, int *rawformat, int *format,
 		      struct ast_trans_pvt **trans, const int direction)
 {
-	int native;
+	int native, native_fmt = ast_best_codec(fmt);
 	int res;
 	char from[200], to[200];
 	
@@ -3780,7 +3780,19 @@ static int set_format(struct ast_channel *chan, int fmt, int *rawformat, int *fo
 
 	if (!fmt || !native)	/* No audio requested */
 		return 0;	/* Let's try a call without any sounds (video, text) */
-	
+
+	/* See if the underlying channel driver is capable of performing transcoding for us */
+	if (!ast_channel_setoption(chan, direction ? AST_OPTION_FORMAT_WRITE : AST_OPTION_FORMAT_READ, &native_fmt, sizeof(int*), 0)) {
+		ast_debug(1, "Channel driver natively set channel %s to %s format %s (%d)\n", chan->name,
+			  direction ? "write" : "read", ast_getformatname(native_fmt), native_fmt);
+		chan->nativeformats = *rawformat = *format = native_fmt;
+		if (*trans) {
+			ast_translator_free_path(*trans);
+		}
+		*trans = NULL;
+		return 0;
+	}
+
 	/* Find a translation path from the native format to one of the desired formats */
 	if (!direction)
 		/* reading */
@@ -4201,6 +4213,12 @@ static int ast_channel_make_compatible_helper(struct ast_channel *from, struct a
 {
 	int src;
 	int dst;
+
+	/* See if the channel driver can natively make these two channels compatible */
+	if (from->tech->bridge && from->tech->bridge == to->tech->bridge &&
+	    !ast_channel_setoption(from, AST_OPTION_MAKE_COMPATIBLE, to, sizeof(struct ast_channel *), 0)) {
+		return 0;
+	}
 
 	if (from->readformat == to->writeformat && from->writeformat == to->readformat) {
 		/* Already compatible!  Moving on ... */

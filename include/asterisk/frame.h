@@ -391,6 +391,15 @@ enum ast_control_transfer {
  */
 #define AST_OPTION_T38_STATE		10
 
+/*! Request that the channel driver deliver frames in a specific format */
+#define AST_OPTION_FORMAT_READ          11
+
+/*! Request that the channel driver be prepared to accept frames in a specific format */
+#define AST_OPTION_FORMAT_WRITE         12
+
+/*! Request that the channel driver make two channels of the same tech type compatible if possible */
+#define AST_OPTION_MAKE_COMPATIBLE      13
+
 struct oprmode {
 	struct ast_channel *peer;
 	int mode;

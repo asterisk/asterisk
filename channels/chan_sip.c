@@ -2272,6 +2272,7 @@ static int sip_transfer(struct ast_channel *ast, const char *dest);
 static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int sip_senddigit_begin(struct ast_channel *ast, char digit);
 static int sip_senddigit_end(struct ast_channel *ast, char digit, unsigned int duration);
+static int sip_setoption(struct ast_channel *chan, int option, void *data, int datalen);
 static int sip_queryoption(struct ast_channel *chan, int option, void *data, int *datalen);
 static const char *sip_get_callid(struct ast_channel *chan);
 
@@ -2680,6 +2681,7 @@ static const struct ast_channel_tech sip_tech = {
 	.early_bridge = ast_rtp_instance_early_bridge,
 	.send_text = sip_sendtext,		/* called with chan locked */
 	.func_channel_read = acf_channel_read,
+	.setoption = sip_setoption,
 	.queryoption = sip_queryoption,
 	.get_pvt_uniqueid = sip_get_callid,
 };
@@ -3921,6 +3923,26 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittyp
 		ast_free(req->data);
 		req->data = NULL;
 	}
+	return res;
+}
+
+/*! \brief Set an option on a SIP dialog */
+static int sip_setoption(struct ast_channel *chan, int option, void *data, int datalen)
+{
+	int res = -1;
+	struct sip_pvt *p = chan->tech_pvt;
+
+	if (option == AST_OPTION_FORMAT_READ) {
+		int format = *(int *)data;
+		res = ast_rtp_instance_set_read_format(p->rtp, format);
+	} else if (option == AST_OPTION_FORMAT_WRITE) {
+		int format = *(int *)data;
+		res = ast_rtp_instance_set_write_format(p->rtp, format);
+	} else if (option == AST_OPTION_MAKE_COMPATIBLE) {
+		struct ast_channel *peer = data;
+		res = ast_rtp_instance_make_compatible(chan, p->rtp, peer);
+	}
+
 	return res;
 }
 
