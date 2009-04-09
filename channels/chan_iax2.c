@@ -4087,6 +4087,10 @@ static int iax2_setoption(struct ast_channel *c, int option, void *data, int dat
 		/* these two cannot be sent, because they require a result */
 		errno = ENOSYS;
 		return -1;
+	case AST_OPTION_FORMAT_READ:
+	case AST_OPTION_FORMAT_WRITE:
+	case AST_OPTION_MAKE_COMPATIBLE:
+		return -1;
 	case AST_OPTION_OPRMODE:
 		errno = EINVAL;
 		return -1;
