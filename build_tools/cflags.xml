@@ -8,6 +8,8 @@
 		<member name="LOADABLE_MODULES" displayname="Runtime module loading">
 			<defaultenabled>yes</defaultenabled>
 		</member>
+		<member name="DEBUG_FD_LEAKS" displayname="Enable File Descriptor Leak Detection">
+		</member>
 		<member name="LOW_MEMORY" displayname="Optimize for Low Memory Usage">
 		</member>
 		<member name="USE_HOARD_ALLOCATOR" displayname="Use the Hoard Memory Allocator instead of the default system one">
