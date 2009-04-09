@@ -1082,7 +1082,7 @@ static int init_app_class(struct mohclass *class)
 /*!
  * \note This function owns the reference it gets to moh
  */
-static int moh_register(struct mohclass *moh, int reload)
+static int moh_register(struct mohclass *moh, int reload, int unref)
 {
 	struct mohclass *mohclass = NULL;
 
@@ -1119,7 +1119,9 @@ static int moh_register(struct mohclass *moh, int reload)
 
 	ao2_link(mohclasses, moh);
 
-	moh = mohclass_unref(moh);
+	if (unref) {
+		moh = mohclass_unref(moh);
+	}
 	
 	return 0;
 }
@@ -1246,7 +1248,13 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 						mohclass = state->class;
 					}
 				}
-				moh_register(mohclass, 0);
+				/* We don't want moh_register to unref the mohclass because we do it at the end of this function as well.
+				 * If we allowed moh_register to unref the mohclass,too, then the count would be off by one. The result would
+				 * be that the destructor would be called when the generator on the channel is deactivated. The container then
+				 * has a pointer to a freed mohclass, so any operations involving the mohclass container would result in reading
+				 * invalid memory.
+				 */
+				moh_register(mohclass, 0, 0);
 			} else {
 				/* We don't register RT moh class, so let's init it manualy */
 
@@ -1510,7 +1518,7 @@ static int load_moh_classes(int reload)
 		}
 
 		/* Don't leak a class when it's already registered */
-		if (!moh_register(class, reload)) {
+		if (!moh_register(class, reload, 1)) {
 			numclasses++;
 		}
 	}
