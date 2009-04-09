@@ -2608,8 +2608,12 @@ int manager_event(int category, const char *event, const char *fmt, ...)
 int ast_manager_unregister(char *action) 
 {
 	struct manager_action *cur, *prev;
+	struct timespec tv = { 5, };
 
-	ast_rwlock_wrlock(&actionlock);
+	if (ast_rwlock_timedwrlock(&actionlock, &tv)) {
+		ast_log(LOG_ERROR, "Could not obtain lock on manager list\n");
+		return -1;
+	}
 	cur = prev = first_action;
 	while (cur) {
 		if (!strcasecmp(action, cur->action)) {
@@ -2638,8 +2642,12 @@ static int ast_manager_register_struct(struct manager_action *act)
 {
 	struct manager_action *cur, *prev = NULL;
 	int ret;
+	struct timespec tv = { 5, };
 
-	ast_rwlock_wrlock(&actionlock);
+	if (ast_rwlock_timedwrlock(&actionlock, &tv)) {
+		ast_log(LOG_ERROR, "Could not obtain lock on manager list\n");
+		return -1;
+	}
 	cur = first_action;
 	while (cur) { /* Walk the list of actions */
 		ret = strcasecmp(cur->action, act->action);
@@ -2693,7 +2701,10 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 	cur->description = description;
 	cur->next = NULL;
 
-	ast_manager_register_struct(cur);
+	if (ast_manager_register_struct(cur)) {
+		ast_free(cur);
+		return -1;
+	}
 
 	return 0;
 }
