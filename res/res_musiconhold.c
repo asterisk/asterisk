@@ -186,8 +186,8 @@ static struct ao2_container *mohclasses;
 
 static int reload(void);
 
-#define mohclass_ref(class)   (ao2_ref((class), +1), class)
-#define mohclass_unref(class) (ao2_ref((class), -1), (struct mohclass *) NULL)
+#define mohclass_ref(class,string)   (ao2_t_ref((class), +1, (string)), class)
+#define mohclass_unref(class,string) (ao2_t_ref((class), -1, (string)), (struct mohclass *) NULL)
 
 static void moh_files_release(struct ast_channel *chan, void *data)
 {
@@ -214,7 +214,7 @@ static void moh_files_release(struct ast_channel *chan, void *data)
 
 	state->save_pos = state->pos;
 
-	mohclass_unref(state->class);
+	mohclass_unref(state->class, "Unreffing channel's music class upon deactivation of generator");
 }
 
 static int ast_moh_files_next(struct ast_channel *chan) 
@@ -330,7 +330,7 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 		}
 	}
 
-	state->class = mohclass_ref(class);
+	state->class = mohclass_ref(class, "Reffing music class for channel");
 	state->origwfmt = chan->writeformat;
 
 	ast_verb(3, "Started music on hold, class '%s', on %s\n", class->name, chan->name);
@@ -349,7 +349,7 @@ static int moh_digit_match(void *obj, void *arg, int flags)
 /*! \note This function should be called with the mohclasses list locked */
 static struct mohclass *get_mohbydigit(char digit)
 {
-	return ao2_callback(mohclasses, 0, moh_digit_match, &digit);
+	return ao2_t_callback(mohclasses, 0, moh_digit_match, &digit, "digit callback");
 }
 
 static void moh_handle_digit(struct ast_channel *chan, char digit)
@@ -359,7 +359,7 @@ static void moh_handle_digit(struct ast_channel *chan, char digit)
 
 	if ((class = get_mohbydigit(digit))) {
 		classname = ast_strdupa(class->name);
-		class = mohclass_unref(class);
+		class = mohclass_unref(class, "Unreffing ao2_find from finding by digit");
 	}
 
 	if (!class) {
@@ -721,7 +721,7 @@ static struct mohclass *get_mohbyname(const char *name, int warn)
 
 	ast_copy_string(tmp_class.name, name, sizeof(tmp_class.name));
 
-	moh = ao2_find(mohclasses, &tmp_class, 0);
+	moh = ao2_t_find(mohclasses, &tmp_class, 0, "Finding by name");
 
 	if (!moh && warn) {
 		ast_log(LOG_DEBUG, "Music on Hold class '%s' not found in memory\n", name);
@@ -754,7 +754,7 @@ static struct mohdata *mohalloc(struct mohclass *cl)
 	moh->f.subclass = cl->format;
 	moh->f.offset = AST_FRIENDLY_OFFSET;
 
-	moh->parent = mohclass_ref(cl);
+	moh->parent = mohclass_ref(cl, "Reffing music class for mohdata parent");
 
 	ao2_lock(cl);
 	AST_LIST_INSERT_HEAD(&cl->members, moh, list);
@@ -778,7 +778,7 @@ static void moh_release(struct ast_channel *chan, void *data)
 
 	oldwfmt = moh->origwfmt;
 
-	moh->parent = class = mohclass_unref(class);
+	moh->parent = class = mohclass_unref(class, "unreffing moh->parent upon deactivation of generator");
 
 	ast_free(moh);
 
@@ -1064,18 +1064,18 @@ static int init_app_class(struct mohclass *class)
 /*!
  * \note This function owns the reference it gets to moh
  */
-static int moh_register(struct mohclass *moh, int reload)
+static int moh_register(struct mohclass *moh, int reload, int unref)
 {
 	struct mohclass *mohclass = NULL;
 
 	if ((mohclass = get_mohbyname(moh->name, 0)) && !moh_diff(mohclass, moh)) {
 		if (!mohclass->delete) {
  			ast_log(LOG_WARNING, "Music on Hold class '%s' already exists\n", moh->name);
-			mohclass = mohclass_unref(mohclass);
-			moh = mohclass_unref(moh);
+			mohclass = mohclass_unref(mohclass, "unreffing mohclass we just found by name");
+			moh = mohclass_unref(moh, "unreffing potential new moh class (it is a duplicate)");
 			return -1;
 		}
-		mohclass = mohclass_unref(mohclass);
+		mohclass = mohclass_unref(mohclass, "Unreffing mohclass we just found by name");
 	}
 
 	time(&moh->start);
@@ -1083,25 +1083,27 @@ static int moh_register(struct mohclass *moh, int reload)
 	
 	if (!strcasecmp(moh->mode, "files")) {
 		if (init_files_class(moh)) {
-			moh = mohclass_unref(moh);
+			moh = mohclass_unref(moh, "unreffing potential new moh class (init_files_class failed)");
 			return -1;
 		}
 	} else if (!strcasecmp(moh->mode, "mp3") || !strcasecmp(moh->mode, "mp3nb") || 
 			!strcasecmp(moh->mode, "quietmp3") || !strcasecmp(moh->mode, "quietmp3nb") || 
 			!strcasecmp(moh->mode, "httpmp3") || !strcasecmp(moh->mode, "custom")) {
 		if (init_app_class(moh)) {
-			moh = mohclass_unref(moh);
+			moh = mohclass_unref(moh, "unreffing potential new moh class (init_app_class_failed)");
 			return -1;
 		}
 	} else {
 		ast_log(LOG_WARNING, "Don't know how to do a mode '%s' music on hold\n", moh->mode);
-		moh = mohclass_unref(moh);
+		moh = mohclass_unref(moh, "unreffing potential new moh class (unknown mode)");
 		return -1;
 	}
 
-	ao2_link(mohclasses, moh);
+	ao2_t_link(mohclasses, moh, "Adding class to container");
 
-	moh = mohclass_unref(moh);
+	if (unref) {
+		moh = mohclass_unref(moh, "Unreffing new moh class because we just added it to the container");
+	}
 	
 	return 0;
 }
@@ -1122,7 +1124,7 @@ static struct mohclass *moh_class_malloc(void)
 {
 	struct mohclass *class;
 
-	if ((class = ao2_alloc(sizeof(*class), moh_class_destructor))) {
+	if ((class = ao2_t_alloc(sizeof(*class), moh_class_destructor, "Allocating new moh class"))) {
 		class->format = AST_FORMAT_SLINEAR;
 	}
 
@@ -1202,18 +1204,18 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 					strcpy(mohclass->dir, "nodir");
 				} else {
 					ast_log(LOG_WARNING, "A directory must be specified for class '%s'!\n", mohclass->name);
-					mohclass = mohclass_unref(mohclass);
+					mohclass = mohclass_unref(mohclass, "unreffing potential mohclass (no directory specified)");
 					return -1;
 				}
 			}
 			if (ast_strlen_zero(mohclass->mode)) {
 				ast_log(LOG_WARNING, "A mode must be specified for class '%s'!\n", mohclass->name);
-				mohclass = mohclass_unref(mohclass);
+				mohclass = mohclass_unref(mohclass, "unreffing potential mohclass (no mode specified)");
 				return -1;
 			}
 			if (ast_strlen_zero(mohclass->args) && !strcasecmp(mohclass->mode, "custom")) {
 				ast_log(LOG_WARNING, "An application must be specified for class '%s'!\n", mohclass->name);
-				mohclass = mohclass_unref(mohclass);
+				mohclass = mohclass_unref(mohclass, "unreffing potential mohclass (no app specified for custom mode");
 				return -1;
 			}
 
@@ -1224,11 +1226,18 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 					ast_log(LOG_NOTICE, "This channel already has a MOH class attached (%s)!\n", state->class->name);
 					if (state->class->realtime && !ast_test_flag(global_flags, MOH_CACHERTCLASSES) && !strcasecmp(mohclass->name, state->class->name)) {
 						/* we found RT class with the same name, seems like we should continue playing existing one */
-						mohclass = mohclass_unref(mohclass);
+						/* XXX This code is impossible to reach */
+						mohclass = mohclass_unref(mohclass, "unreffing potential mohclass (channel already has a class)");
 						mohclass = state->class;
 					}
 				}
-				moh_register(mohclass, 0);
+				/* We don't want moh_register to unref the mohclass because we do it at the end of this function as well.
+				 * If we allowed moh_register to unref the mohclass,too, then the count would be off by one. The result would
+				 * be that the destructor would be called when the generator on the channel is deactivated. The container then
+				 * has a pointer to a freed mohclass, so any operations involving the mohclass container would result in reading
+				 * invalid memory.
+				 */
+				moh_register(mohclass, 0, 0);
 			} else {
 				/* We don't register RT moh class, so let's init it manualy */
 
@@ -1237,7 +1246,7 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 	
 				if (!strcasecmp(mohclass->mode, "files")) {
 					if (!moh_scan_files(mohclass)) {
-						mohclass = mohclass_unref(mohclass);
+						mohclass = mohclass_unref(mohclass, "unreffing potential mohclass (moh_scan_files failed)");
 						return -1;
 					}
 					if (strchr(mohclass->args, 'r'))
@@ -1273,7 +1282,7 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 						ast_log(LOG_NOTICE, "This channel already has a MOH class attached (%s)!\n", state->class->name);
 						if (state->class->realtime && !ast_test_flag(global_flags, MOH_CACHERTCLASSES) && !strcasecmp(mohclass->name, state->class->name)) {
 							/* we found RT class with the same name, seems like we should continue playing existing one */
-							mohclass = mohclass_unref(mohclass);
+							mohclass = mohclass_unref(mohclass, "unreffing potential mohclass (channel already has one)");
 							mohclass = state->class;
 						}
 					} else {
@@ -1283,13 +1292,13 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 								close(mohclass->pseudofd);
 								mohclass->pseudofd = -1;
 							}
-							mohclass = mohclass_unref(mohclass);
+							mohclass = mohclass_unref(mohclass, "Unreffing potential mohclass (failed to create background thread)");
 							return -1;
 						}
 					}
 				} else {
 					ast_log(LOG_WARNING, "Don't know how to do a mode '%s' music on hold\n", mohclass->mode);
-					mohclass = mohclass_unref(mohclass);
+					mohclass = mohclass_unref(mohclass, "unreffing potential mohclass (unknown mode)");
 					return -1;
 				}
 			}
@@ -1320,7 +1329,7 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 		res = ast_activate_generator(chan, &mohgen, mohclass);
 	}
 
-	mohclass = mohclass_unref(mohclass);
+	mohclass = mohclass_unref(mohclass, "unreffing local reference to mohclass in local_ast_moh_start");
 
 	return res;
 }
@@ -1432,7 +1441,7 @@ static int load_moh_classes(int reload)
 	}
 
 	if (reload) {
-		ao2_callback(mohclasses, OBJ_NODATA, moh_class_mark, NULL);
+		ao2_t_callback(mohclasses, OBJ_NODATA, moh_class_mark, NULL, "Mark deleted classes");
 	}
 	
 	ast_clear_flag(global_flags, AST_FLAGS_ALL);
@@ -1489,31 +1498,31 @@ static int load_moh_classes(int reload)
 				strcpy(class->dir, "nodir");
 			} else {
 				ast_log(LOG_WARNING, "A directory must be specified for class '%s'!\n", class->name);
-				class = mohclass_unref(class);
+				class = mohclass_unref(class, "unreffing potential mohclass (no directory)");
 				continue;
 			}
 		}
 		if (ast_strlen_zero(class->mode)) {
 			ast_log(LOG_WARNING, "A mode must be specified for class '%s'!\n", class->name);
-			class = mohclass_unref(class);
+			class = mohclass_unref(class, "unreffing potential mohclass (no mode)");
 			continue;
 		}
 		if (ast_strlen_zero(class->args) && !strcasecmp(class->mode, "custom")) {
 			ast_log(LOG_WARNING, "An application must be specified for class '%s'!\n", class->name);
-			class = mohclass_unref(class);
+			class = mohclass_unref(class, "unreffing potential mohclass (no app for custom mode)");
 			continue;
 		}
 
 		/* Don't leak a class when it's already registered */
-		if (!moh_register(class, reload)) {
+		if (!moh_register(class, reload, 1)) {
 			numclasses++;
 		}
 	}
 
 	ast_config_destroy(cfg);
 
-	ao2_callback(mohclasses, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, 
-			moh_classes_delete_marked, NULL);
+	ao2_t_callback(mohclasses, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, 
+			moh_classes_delete_marked, NULL, "Purge marked classes");
 
 	return numclasses;
 }
@@ -1521,7 +1530,7 @@ static int load_moh_classes(int reload)
 static void ast_moh_destroy(void)
 {
 	ast_verb(2, "Destroying musiconhold processes\n");
-	ao2_callback(mohclasses, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL);
+	ao2_t_callback(mohclasses, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL, "Destroy callback");
 }
 
 static char *handle_cli_moh_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -1568,7 +1577,7 @@ static char *handle_cli_moh_show_files(struct ast_cli_entry *e, int cmd, struct 
 
 	i = ao2_iterator_init(mohclasses, 0);
 
-	for (; (class = ao2_iterator_next(&i)); mohclass_unref(class)) {
+	for (; (class = ao2_t_iterator_next(&i, "Show files iterator")); mohclass_unref(class, "Unref iterator in moh show files")) {
 		int x;
 
 		if (!class->total_files) {
@@ -1605,7 +1614,7 @@ static char *handle_cli_moh_show_classes(struct ast_cli_entry *e, int cmd, struc
 
 	i = ao2_iterator_init(mohclasses, 0);
 
-	for (; (class = ao2_iterator_next(&i)); mohclass_unref(class)) {
+	for (; (class = ao2_t_iterator_next(&i, "Show classes iterator")); mohclass_unref(class, "Unref iterator in moh show classes")) {
 		ast_cli(a->fd, "Class: %s\n", class->name);
 		ast_cli(a->fd, "\tMode: %s\n", S_OR(class->mode, "<none>"));
 		ast_cli(a->fd, "\tDirectory: %s\n", S_OR(class->dir, "<none>"));
@@ -1644,7 +1653,7 @@ static int load_module(void)
 {
 	int res;
 
-	if (!(mohclasses = ao2_container_alloc(53, moh_class_hash, moh_class_cmp))) {
+	if (!(mohclasses = ao2_t_container_alloc(53, moh_class_hash, moh_class_cmp, "Moh class container"))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -1695,8 +1704,8 @@ static int unload_module(void)
 
 	/* XXX This check shouldn't be required if module ref counting was being used
 	 * properly ... */
-	if ((class = ao2_callback(mohclasses, 0, moh_class_inuse, NULL))) {
-		class = mohclass_unref(class);
+	if ((class = ao2_t_callback(mohclasses, 0, moh_class_inuse, NULL, "Module unload callback"))) {
+		class = mohclass_unref(class, "unref of class from module unload callback");
 		res = -1;
 	}
 
