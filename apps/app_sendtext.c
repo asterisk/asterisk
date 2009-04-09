@@ -81,7 +81,9 @@ static int sendtext_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(text);
 	);
 
-	if (ast_strlen_zero(data)) {
+	/* NOT ast_strlen_zero, because some protocols (e.g. SIP) MUST be able to
+	 * send a zero-length message. */
+	if (!data) {
 		ast_log(LOG_WARNING, "SendText requires an argument (text)\n");
 		return -1;
 	} else
