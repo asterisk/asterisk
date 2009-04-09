@@ -5,6 +5,8 @@
 		</member>
 		<member name="DEBUG_THREADS" displayname="Enable Thread Debugging">
 		</member>
+		<member name="DEBUG_FD_LEAKS" displayname="Enable File Descriptor Leak Detection">
+		</member>
 		<member name="LOW_MEMORY" displayname="Optimize for Low Memory Usage">
 		</member>
 		<member name="MALLOC_DEBUG" displayname="Keep Track of Memory Allocations">

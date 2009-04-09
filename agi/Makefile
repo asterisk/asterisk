@@ -21,6 +21,8 @@ endif
 
 include $(ASTTOPDIR)/Makefile.rules
 
+ASTCFLAGS+=-DSTANDALONE
+
 all: $(AGIS)
 
 strcompat.c: ../main/strcompat.c

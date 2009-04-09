@@ -332,8 +332,10 @@ static void filestream_destructor(void *arg)
 		free(f->filename);
 	if (f->realfilename)
 		free(f->realfilename);
-	if (f->fmt->close)
-		f->fmt->close(f);
+	if (f->fmt->close) {
+		void (*closefn)(struct ast_filestream *) = f->fmt->close;
+		closefn(f);
+	}
 	if (f->f)
 		fclose(f->f);
 	if (f->vfs)
@@ -371,8 +373,9 @@ static int fn_wrapper(struct ast_filestream *s, const char *comment, enum wrap_f
 {
 	struct ast_format *f = s->fmt;
 	int ret = -1;
+	int (*openfn)(struct ast_filestream *s);
 
-	if (mode == WRAP_OPEN && f->open && f->open(s))
+	if (mode == WRAP_OPEN && (openfn = f->open) && openfn(s))
                 ast_log(LOG_WARNING, "Unable to open format %s\n", f->name);
 	else if (mode == WRAP_REWRITE && f->rewrite && f->rewrite(s, comment))
                 ast_log(LOG_WARNING, "Unable to rewrite format %s\n", f->name);
