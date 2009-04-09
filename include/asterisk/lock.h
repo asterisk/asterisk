@@ -883,6 +883,8 @@ typedef pthread_rwlock_t ast_rwlock_t;
 #define ast_rwlock_wrlock(a)		_ast_rwlock_wrlock(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ast_rwlock_tryrdlock(a)		_ast_rwlock_tryrdlock(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ast_rwlock_trywrlock(a) _ast_rwlock_trywrlock(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ast_rwlock_timedrdlock(a,b)	_ast_rwlock_timedrdlock(a, # a, b, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ast_rwlock_timedwrlock(a,b)	_ast_rwlock_timedwrlock(a, # a, b, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 
 static inline int __ast_rwlock_init(const char *filename, int lineno, const char *func, const char *rwlock_name, ast_rwlock_t *prwlock)
@@ -1017,6 +1019,65 @@ static inline int _ast_rwlock_wrlock(ast_rwlock_t *lock, const char *name,
 	return res;
 }
 
+static inline int _ast_rwlock_timedrdlock(ast_rwlock_t *lock, const char *name,
+	struct timeval *abs_timeout, const char *file, int line, const char *func)
+{
+	int res;
+#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
+	int canlog = strcmp(file, "logger.c");
+
+	if (*lock == ((ast_rwlock_t) AST_RWLOCK_INIT_VALUE)) {
+		 /* Don't warn abount uninitialized lock.
+		  * Simple try to initialize it.
+		  * May be not needed in linux system.
+		  */
+		res = __ast_rwlock_init(file, line, func, name, lock);
+		if (*lock == ((ast_rwlock_t) AST_RWLOCK_INIT_VALUE)) {
+			__ast_mutex_logger("%s line %d (%s): Error: rwlock '%s' is uninitialized and unable to initialize.\n",
+					file, line, func, name);
+			return res;
+		}
+	}
+#endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
+
+	ast_store_lock_info(AST_RDLOCK, file, line, func, name, lock);
+	res = pthread_rwlock_timedrdlock(lock, abs_timeout);
+	if (!res)
+		ast_mark_lock_acquired(lock);
+	else
+		ast_remove_lock_info(lock);
+	return res;
+}
+
+static inline int _ast_rwlock_timedwrlock(ast_rwlock_t *lock, const char *name,
+	struct timeval *abs_timeout, const char *file, int line, const char *func)
+{
+	int res;
+#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
+	int canlog = strcmp(file, "logger.c");
+
+	if (*lock == ((ast_rwlock_t) AST_RWLOCK_INIT_VALUE)) {
+		 /* Don't warn abount uninitialized lock.
+		  * Simple try to initialize it.
+		  * May be not needed in linux system.
+		  */
+		res = __ast_rwlock_init(file, line, func, name, lock);
+		if (*lock == ((ast_rwlock_t) AST_RWLOCK_INIT_VALUE)) {
+			__ast_mutex_logger("%s line %d (%s): Error: rwlock '%s' is uninitialized and unable to initialize.\n",
+					file, line, func, name);
+			return res;
+		}
+	}
+#endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
+
+	ast_store_lock_info(AST_WRLOCK, file, line, func, name, lock);
+	res = pthread_rwlock_timedwrlock(lock, abs_timeout);
+	if (!res)
+		ast_mark_lock_acquired(lock);
+	else
+		ast_remove_lock_info(lock);
+	return res;
+}
 
 static inline int _ast_rwlock_tryrdlock(ast_rwlock_t *lock, const char *name,
 	const char *file, int line, const char *func)
@@ -1122,6 +1183,11 @@ static inline int ast_rwlock_rdlock(ast_rwlock_t *prwlock)
 	return pthread_rwlock_rdlock(prwlock);
 }
 
+static inline int ast_rwlock_timedrdlock(ast_rwlock_t *prwlock, const struct timespec *abs_timeout)
+{
+	return pthread_rwlock_timedrdlock(prwlock, abs_timeout);
+}
+
 static inline int ast_rwlock_tryrdlock(ast_rwlock_t *prwlock)
 {
 	return pthread_rwlock_tryrdlock(prwlock);
@@ -1130,6 +1196,11 @@ static inline int ast_rwlock_tryrdlock(ast_rwlock_t *prwlock)
 static inline int ast_rwlock_wrlock(ast_rwlock_t *prwlock)
 {
 	return pthread_rwlock_wrlock(prwlock);
+}
+
+static inline int ast_rwlock_timedwrlock(ast_rwlock_t *prwlock, const struct timespec *abs_timeout)
+{
+	return pthread_rwlock_timedwrlock(prwlock, abs_timeout);
 }
 
 static inline int ast_rwlock_trywrlock(ast_rwlock_t *prwlock)
