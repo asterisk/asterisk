@@ -162,7 +162,8 @@ static char *levels[] = {
 	"WARNING",
 	"ERROR",
 	"VERBOSE",
-	"DTMF"
+	"DTMF",
+	"SECURITY",
 };
 
 /*! \brief Colors used in the console for logging */
@@ -204,6 +205,8 @@ static int make_components(const char *s, int lineno)
 			res |= (1 << __LOG_VERBOSE);
 		else if (!strcasecmp(w, "dtmf"))
 			res |= (1 << __LOG_DTMF);
+		else if (!strcasecmp(w, "security"))
+			res |= (1 << __LOG_SECURITY);
 		else {
 			fprintf(stderr, "Logfile Warning: Unknown keyword '%s' at line %d of logger.conf\n", w, lineno);
 		}
@@ -356,7 +359,7 @@ static void init_logger_chain(int locked)
 		if (!(chan = ast_calloc(1, sizeof(*chan))))
 			return;
 		chan->type = LOGTYPE_CONSOLE;
-		chan->logmask = 28; /*warning,notice,error */
+		chan->logmask = (1 << __LOG_WARNING) | (1 << __LOG_NOTICE) | (1 << __LOG_ERROR);
 		if (!locked)
 			AST_RWLIST_WRLOCK(&logchannels);
 		AST_RWLIST_INSERT_HEAD(&logchannels, chan, list);
@@ -802,6 +805,8 @@ static char *handle_logger_show_channels(struct ast_cli_entry *e, int cmd, struc
 			ast_cli(a->fd, "Debug ");
 		if (chan->logmask & (1 << __LOG_DTMF)) 
 			ast_cli(a->fd, "DTMF ");
+		if (chan->logmask & (1 << __LOG_SECURITY)) 
+			ast_cli(a->fd, "Security ");
 		if (chan->logmask & (1 << __LOG_VERBOSE)) 
 			ast_cli(a->fd, "Verbose ");
 		if (chan->logmask & (1 << __LOG_WARNING)) 
