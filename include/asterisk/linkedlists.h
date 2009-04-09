@@ -52,6 +52,18 @@
         ast_rwlock_wrlock(&(head)->lock)
 
 /*!
+  \brief Write locks a list, with timeout.
+  \param head This is a pointer to the list head structure
+  \param tv Pointer to a timeval structure
+
+  This macro attempts to place an exclusive write lock in the
+  list head structure pointed to by head.
+  \retval 0 on success
+  \retval non-zero on failure
+*/
+#define	AST_RWLIST_TIMEDWRLOCK(head,tv)	ast_rwlock_timedwrlock(&(head)->lock, tv)
+
+/*!
   \brief Read locks a list.
   \param head This is a pointer to the list head structure
 
@@ -62,6 +74,19 @@
 */
 #define AST_RWLIST_RDLOCK(head)                                         \
         ast_rwlock_rdlock(&(head)->lock)
+
+/*!
+  \brief Read locks a list, with timeout.
+  \param head This is a pointer to the list head structure
+  \param tv Pointer to a timeval structure
+
+  This macro attempts to place a read lock in the
+  list head structure pointed to by head.
+  \retval 0 on success
+  \retval non-zero on failure
+*/
+#define AST_RWLIST_TIMEDRDLOCK(head,tv)                                 \
+        ast_rwlock_timedrdlock(&(head)->lock, tv)
 
 /*!
   \brief Locks a list, without blocking if the list is locked.
