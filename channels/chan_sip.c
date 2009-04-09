@@ -1030,6 +1030,7 @@ static const char *sip_reason_code_to_str(enum AST_REDIRECTING_REASON code)
 #define DEFAULT_MOHSUGGEST      ""
 #define DEFAULT_VMEXTEN 	"asterisk"	/*!< Default voicemail extension */
 #define DEFAULT_CALLERID 	"asterisk"	/*!< Default caller ID */
+#define DEFAULT_MWI_FROM ""
 #define DEFAULT_NOTIFYMIME 	"application/simple-message-summary"
 #define DEFAULT_ALLOWGUEST	TRUE
 #define DEFAULT_RTPKEEPALIVE	0		/*!< Default RTPkeepalive setting */
@@ -1072,6 +1073,7 @@ static const char *sip_reason_code_to_str(enum AST_REDIRECTING_REASON code)
 /*@{*/ 
 static char default_language[MAX_LANGUAGE];
 static char default_callerid[AST_MAX_EXTENSION];
+static char default_mwi_from[80];
 static char default_fromdomain[AST_MAX_EXTENSION];
 static char default_notifymime[AST_MAX_EXTENSION];
 static int default_qualify;		/*!< Default Qualify= setting */
@@ -1663,6 +1665,7 @@ struct sip_pvt {
 		AST_STRING_FIELD(peermd5secret);
 		AST_STRING_FIELD(cid_num);	/*!< Caller*ID number */
 		AST_STRING_FIELD(cid_name);	/*!< Caller*ID name */
+		AST_STRING_FIELD(mwi_from); /*!< Name to place in the From header in outgoing NOTIFY requests */
 		AST_STRING_FIELD(fullcontact);	/*!< The Contact: that the UA registers with us */
 			/* we only store the part in <brackets> in this field. */
 		AST_STRING_FIELD(our_contact);	/*!< Our contact header */
@@ -1902,6 +1905,7 @@ struct sip_peer {
 		AST_STRING_FIELD(mohsuggest);		/*!<  Music on Hold class */
 		AST_STRING_FIELD(parkinglot);		/*!<  Parkinglot */
 		AST_STRING_FIELD(useragent);		/*!<  User agent in SIP request (saved from registration) */
+		AST_STRING_FIELD(mwi_from);         /*!< Name to place in From header for outgoing NOTIFY requests */
 		AST_STRING_FIELD(engine);               /*!<  RTP Engine to use */
 		);
 	struct sip_socket socket;	/*!< Socket used for this peer */
@@ -4889,6 +4893,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	ast_string_field_set(dialog, context, peer->context);
 	ast_string_field_set(dialog, cid_num, peer->cid_num);
 	ast_string_field_set(dialog, cid_name, peer->cid_name);
+	ast_string_field_set(dialog, mwi_from, peer->mwi_from);
 	ast_string_field_set(dialog, parkinglot, peer->parkinglot);
 	ast_string_field_set(dialog, engine, peer->engine);
 	ref_proxy(dialog, obproxy_get(dialog, peer));
@@ -9962,6 +9967,17 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		l = p->owner->connected.id.number; 
 		n = p->owner->connected.id.name;
 	}
+
+	/* Hey, it's a NOTIFY! See if they've configured a mwi_from.
+	 * XXX Right now, this logic works because the only place that mwi_from
+	 * is set on the sip_pvt is in sip_send_mwi_to_peer. If things changed, then
+	 * we might end up putting the mwi_from setting into other types of NOTIFY
+	 * messages as well.
+	 */
+	if (sipmethod == SIP_NOTIFY && !ast_strlen_zero(p->mwi_from)) {
+		l = p->mwi_from;
+	}
+
 	if (ast_strlen_zero(l))
 		l = default_callerid;
 	if (ast_strlen_zero(n))
@@ -21819,6 +21835,11 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *e
 		build_via(p);
 		ao2_t_unlink(dialogs, p, "About to change the callid -- remove the old name");
 		build_callid_pvt(p);
+		if (!ast_strlen_zero(peer->mwi_from)) {
+			ast_string_field_set(p, mwi_from, peer->mwi_from);
+		} else if (!ast_strlen_zero(default_mwi_from)) {
+			ast_string_field_set(p, mwi_from, default_mwi_from);
+		}
 		ao2_t_link(dialogs, p, "Linking in under new name");
 		/* Destroy this session after 32 secs */
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
@@ -23267,6 +23288,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			ast_callerid_split(v->value, cid_name, sizeof(cid_name), cid_num, sizeof(cid_num));
 			ast_string_field_set(peer, cid_name, cid_name);
 			ast_string_field_set(peer, cid_num, cid_num);
+		} else if (!strcasecmp(v->name, "mwi_from")) {
+			ast_string_field_set(peer, mwi_from, v->value);
 		} else if (!strcasecmp(v->name, "fullname")) {
 			ast_string_field_set(peer, cid_name, v->value);
 		} else if (!strcasecmp(v->name, "cid_number")) {
@@ -23800,6 +23823,7 @@ static int reload_config(enum channelreloadreason reason)
 	ast_copy_string(default_notifymime, DEFAULT_NOTIFYMIME, sizeof(default_notifymime));
 	ast_copy_string(sip_cfg.realm, S_OR(ast_config_AST_SYSTEM_NAME, DEFAULT_REALM), sizeof(sip_cfg.realm));
 	ast_copy_string(default_callerid, DEFAULT_CALLERID, sizeof(default_callerid));
+	ast_copy_string(default_mwi_from, DEFAULT_MWI_FROM, sizeof(default_mwi_from));
 	sip_cfg.compactheaders = DEFAULT_COMPACTHEADERS;
 	global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;
 	global_regattempts_max = 0;
@@ -24041,6 +24065,8 @@ static int reload_config(enum channelreloadreason reason)
 			sip_cfg.regextenonqualify = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "callerid")) {
 			ast_copy_string(default_callerid, v->value, sizeof(default_callerid));
+		} else if (!strcasecmp(v->name, "mwi_from")) {
+			ast_copy_string(default_mwi_from, v->value, sizeof(default_mwi_from));
 		} else if (!strcasecmp(v->name, "fromdomain")) {
 			ast_copy_string(default_fromdomain, v->value, sizeof(default_fromdomain));
 		} else if (!strcasecmp(v->name, "outboundproxy")) {

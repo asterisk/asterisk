@@ -179,6 +179,11 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;buggymwi=no                    ; Cisco SIP firmware doesn't support the MWI RFC
                                 ; fully. Enable this option to not get error messages
                                 ; when sending MWI to phones with this bug.
+;mwi_from=asterisk              ; When sending MWI NOTIFY requests, use this setting in
+                                ; the From: header as the "name" portion. Also fill the
+						        ; "user" portion of the URI in the From: header with this
+						        ; value if no fromuser is set
+						        ; Default: empty
 ;vmexten=voicemail              ; dialplan extension to reach mailbox sets the 
                                 ; Message-Account in the MWI notify message 
                                 ; defaults to "asterisk"
