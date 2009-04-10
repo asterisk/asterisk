@@ -11544,8 +11544,8 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			confp->chan.hanguponpolarityswitch = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "sendcalleridafter")) {
 			confp->chan.sendcalleridafter = atoi(v->value);
-		} else if (reload != 1){ 
-			 if (!strcasecmp(v->name, "signalling")) {
+		} else if (reload != 1) {
+			 if (!strcasecmp(v->name, "signalling") || !strcasecmp(v->name, "signaling")) {
 				confp->chan.outsigmod = -1;
 				if (!strcasecmp(v->value, "em")) {
 					confp->chan.sig = SIG_EM;
