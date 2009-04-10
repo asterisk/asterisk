@@ -3352,7 +3352,7 @@ int ast_manager_unregister(char *action)
 			break;
 		}
 	}
-	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&actions);
 
 	return 0;

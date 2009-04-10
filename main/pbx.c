@@ -3473,7 +3473,7 @@ int ast_extension_state_del(int id, ast_state_cb_type callback)
 				break;
 			}
 		}
-		AST_LIST_TRAVERSE_SAFE_END
+		AST_LIST_TRAVERSE_SAFE_END;
 	} else { /* callback with extension, find the callback based on ID */
 		struct ast_hint *hint;
 		AST_RWLIST_TRAVERSE(&hints, hint, list) {
@@ -3483,7 +3483,7 @@ int ast_extension_state_del(int id, ast_state_cb_type callback)
 					break;
 				}
 			}
-			AST_LIST_TRAVERSE_SAFE_END
+			AST_LIST_TRAVERSE_SAFE_END;
 
 			if (p_cur)
 				break;
@@ -7726,7 +7726,7 @@ void __ast_context_destroy(struct ast_context *list, struct ast_hashtab *context
 					ast_free(sw);
 				}
 			}
-			AST_LIST_TRAVERSE_SAFE_END
+			AST_LIST_TRAVERSE_SAFE_END;
 
 			if (tmp->root_table) { /* it is entirely possible that the context is EMPTY */
 				exten_iter = ast_hashtab_start_traversal(tmp->root_table);

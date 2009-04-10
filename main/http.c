@@ -399,7 +399,7 @@ void ast_http_uri_unlink_all_with_key(const char *key)
 			ast_free(urih);
 		}
 	}
-	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&uris);
 }
 
