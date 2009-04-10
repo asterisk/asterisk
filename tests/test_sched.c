@@ -23,6 +23,10 @@
  * \author Russell Bryant <russell@digium.com>
  */
 
+/*** MODULEINFO
+	<defaultenabled>no</defaultenabled>
+ ***/
+
 #include "asterisk.h"
 
 #include <inttypes.h>
