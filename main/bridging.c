@@ -108,7 +108,7 @@ int ast_bridge_technology_unregister(struct ast_bridge_technology *technology)
 			break;
 		}
 	}
-	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END;
 
 	AST_RWLIST_UNLOCK(&bridge_technologies);
 

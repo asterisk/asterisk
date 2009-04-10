@@ -1104,7 +1104,7 @@ int ast_app_group_update(struct ast_channel *old, struct ast_channel *new)
 			ast_free(gi);
 		}
 	}
-	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&groups);
 
 	return 0;
