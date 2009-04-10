@@ -60,7 +60,6 @@ endif
 ifneq ($(wildcard h323/Makefile.ast),)
 include h323/Makefile.ast
 endif
-H323LDFLAGS+=-Wl,--version-script=h323/noexport.map
 
 clean::
 	$(MAKE) -C misdn clean
@@ -71,14 +70,18 @@ dist-clean::
 
 $(if $(filter chan_iax2,$(EMBEDDED_MODS)),modules.link,chan_iax2.so): iax2-parser.o iax2-provision.o
 
+ifneq ($(filter chan_h323,$(EMBEDDED_MODS)),)
+modules.link: h323/libchanh323.a
+else
 ifeq ($(OSARCH),linux-gnu)
-chan_h323.so: chan_h323.o h323/libchanh323.a h323/Makefile.ast
+chan_h323.so: chan_h323.o h323/libchanh323.a
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
-	$(CMD_PREFIX) $(CXX) $(PTHREAD_CFLAGS) $(ASTLDFLAGS) $(SOLINK) $(H323LDFLAGS) -o $@ $< h323/libchanh323.a $(H323LDLIBS)
+	$(CMD_PREFIX) $(CXX) $(PTHREAD_CFLAGS) $(ASTLDFLAGS) $(SOLINK) -o $@ $< h323/libchanh323.a $(H323LDLIBS)
 else
 chan_h323.so: chan_h323.o h323/libchanh323.a
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
 	$(CMD_PREFIX) $(CXX) $(PTHREAD_CFLAGS) $(ASTLDFLAGS) $(SOLINK) -o $@ $< h323/libchanh323.a $(CHANH323LIB) -L$(PWLIBDIR)/lib $(PTLIB) -L$(OPENH323DIR)/lib $(H323LIB) -L/usr/lib -lcrypto -lssl -lexpat
+endif
 endif
 
 chan_misdn.o: ASTCFLAGS+=-Imisdn
@@ -99,7 +102,5 @@ chan_usbradio.so: ASTCFLAGS+=-DNDEBUG
 h323/Makefile.ast:
 	$(CMD_PREFIX) $(MAKE) -C h323 Makefile.ast
 
-h323/libchanh323.a:
+h323/libchanh323.a: h323/Makefile.ast
 	$(CMD_PREFIX) $(MAKE) -C h323 libchanh323.a
-
-
