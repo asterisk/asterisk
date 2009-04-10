@@ -47,6 +47,7 @@ CREATE TABLE `sipfriends` (
   `rtptimeout` varchar(15),
   `rtpholdtimeout` varchar(15),
   `rtpkeepalive` varchar(15),
+  `lastms` int(11) NOT NULL default '-1',
   `setvar` varchar(200),
   PRIMARY KEY  (`name`),
   INDEX host (host, port),
