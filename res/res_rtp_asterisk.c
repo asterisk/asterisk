@@ -406,13 +406,11 @@ static int ast_rtp_new(struct ast_rtp_instance *instance, struct sched_context *
 	startplace = x;
 
 	for (;;) {
-		struct sockaddr_in local_address = { 0, };
-
-		local_address.sin_port = htons(x);
+		sin->sin_port = htons(x);
 		/* Try to bind, this will tell us whether the port is available or not */
-		if (!bind(rtp->s, (struct sockaddr*)&local_address, sizeof(local_address))) {
+		if (!bind(rtp->s, (struct sockaddr *)sin, sizeof(*sin))) {
 			ast_debug(1, "Allocated port %d for RTP instance '%p'\n", x, instance);
-			ast_rtp_instance_set_local_address(instance, &local_address);
+			ast_rtp_instance_set_local_address(instance, sin);
 			break;
 		}
 
