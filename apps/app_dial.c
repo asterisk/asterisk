@@ -1916,6 +1916,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		else
 			ast_copy_string(tc->exten, chan->exten, sizeof(tc->exten));
 
+		ast_channel_unlock(tc);
 		res = ast_call(tc, numsubst, 0); /* Place the call, but don't wait on the answer */
 
 		/* Save the info in cdr's that we called them */
@@ -1931,7 +1932,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				chan->hangupcause = tc->hangupcause;
 			}
 			ast_channel_unlock(chan);
-			ast_channel_unlock(tc);
 			ast_hangup(tc);
 			tc = NULL;
 			ast_free(tmp);
@@ -1941,7 +1941,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			senddialevent(chan, tc, numsubst);
 			ast_verb(3, "Called %s\n", numsubst);
 			ast_channel_unlock(chan);
-			ast_channel_unlock(tc);
 			if (!ast_test_flag64(peerflags, OPT_ORIGINAL_CLID)) {
 				ast_set_callerid(tc, tmpexten, get_cid_name(cidname, sizeof(cidname), chan), NULL);
 			}
