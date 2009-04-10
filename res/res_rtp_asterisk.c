@@ -473,7 +473,7 @@ static int ast_rtp_destroy(struct ast_rtp_instance *instance)
 static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-	struct sockaddr_in remote_address;
+	struct sockaddr_in remote_address = { 0, };
 	int hdrlen = 12, res = 0, i = 0, payload = 101;
 	char data[256];
 	unsigned int *rtpheader = (unsigned int*)data;
@@ -542,7 +542,7 @@ static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit)
 static int ast_rtp_dtmf_continuation(struct ast_rtp_instance *instance)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-	struct sockaddr_in remote_address;
+	struct sockaddr_in remote_address = { 0, };
 	int hdrlen = 12, res = 0;
 	char data[256];
 	unsigned int *rtpheader = (unsigned int*)data;
@@ -585,7 +585,7 @@ static int ast_rtp_dtmf_continuation(struct ast_rtp_instance *instance)
 static int ast_rtp_dtmf_end(struct ast_rtp_instance *instance, char digit)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-	struct sockaddr_in remote_address;
+	struct sockaddr_in remote_address = { 0, };
 	int hdrlen = 12, res = 0, i = 0;
 	char data[256];
 	unsigned int *rtpheader = (unsigned int*)data;
@@ -938,7 +938,7 @@ static int ast_rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	int pred, mark = 0;
 	unsigned int ms = calc_txstamp(rtp, &frame->delivery);
-	struct sockaddr_in remote_address;
+	struct sockaddr_in remote_address = { 0, };
 
 	if (rtp->sending_digit) {
 		return 0;
@@ -1086,7 +1086,7 @@ static struct ast_frame *red_t140_to_red(struct rtp_red *red) {
 static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *frame)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-	struct sockaddr_in remote_address;
+	struct sockaddr_in remote_address = { 0, };
 	int codec, subclass;
 
 	ast_rtp_instance_get_remote_address(instance, &remote_address);
@@ -1263,7 +1263,7 @@ static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int t
 static struct ast_frame *send_dtmf(struct ast_rtp_instance *instance, enum ast_frame_type type, int compensate)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-	struct sockaddr_in remote_address;
+	struct sockaddr_in remote_address = { 0, };
 
 	ast_rtp_instance_get_remote_address(instance, &remote_address);
 
@@ -1292,7 +1292,7 @@ static struct ast_frame *send_dtmf(struct ast_rtp_instance *instance, enum ast_f
 static struct ast_frame *process_dtmf_rfc2833(struct ast_rtp_instance *instance, unsigned char *data, int len, unsigned int seqno, unsigned int timestamp, struct sockaddr_in *sin, int payloadtype, int mark)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-	struct sockaddr_in remote_address;
+	struct sockaddr_in remote_address = { 0, };
 	unsigned int event, event_end, samples;
 	char resp = 0;
 	struct ast_frame *f = NULL;
@@ -1450,7 +1450,7 @@ static struct ast_frame *process_cn_rfc3389(struct ast_rtp_instance *instance, u
 		ast_debug(0, "- RTP 3389 Comfort noise event: Level %d (len = %d)\n", rtp->lastrxformat, len);
 
 	if (ast_test_flag(rtp, FLAG_3389_WARNING)) {
-		struct sockaddr_in remote_address;
+		struct sockaddr_in remote_address = { 0, };
 
 		ast_rtp_instance_get_remote_address(instance, &remote_address);
 
@@ -1749,7 +1749,7 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance, unsigned int 
 	int res = 0, payload = 0, bridged_payload = 0, mark;
 	struct ast_rtp_payload_type payload_type;
 	int reconstruct = ntohl(rtpheader[0]);
-	struct sockaddr_in remote_address;
+	struct sockaddr_in remote_address = { 0, };
 
 	/* Get fields from packet */
 	payload = (reconstruct & 0x7f0000) >> 16;
@@ -1806,7 +1806,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 	int res, hdrlen = 12, version, payloadtype, padding, mark, ext, cc, prev_seqno;
 	unsigned int *rtpheader = (unsigned int*)(rtp->rawdata + AST_FRIENDLY_OFFSET), seqno, ssrc, timestamp;
 	struct ast_rtp_payload_type payload;
-	struct sockaddr_in remote_address;
+	struct sockaddr_in remote_address = { 0, };
 
 	/* If this is actually RTCP let's hop on over and handle it */
 	if (rtcp) {

@@ -2027,11 +2027,11 @@ static void *unistim_ss(void *data)
 static void start_rtp(struct unistim_subchannel *sub)
 {
 	BUFFSEND;
-	struct sockaddr_in us;
-	struct sockaddr_in public;
-	struct sockaddr_in sin;
+	struct sockaddr_in us = { 0, };
+	struct sockaddr_in public = { 0, };
+	struct sockaddr_in sin = { 0, };
 	int codec;
-	struct sockaddr_in sout;
+	struct sockaddr_in sout = { 0, };
 
 	/* Sanity checks */
 	if (!sub) {

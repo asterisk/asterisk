@@ -3163,8 +3163,8 @@ static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance 
 {
 	/* XXX Deal with Video */
 	struct oh323_pvt *pvt;
-	struct sockaddr_in them;
-	struct sockaddr_in us;
+	struct sockaddr_in them = { 0, };
+	struct sockaddr_in us = { 0, };
 	char *mode;
 
 	if (!rtp) {

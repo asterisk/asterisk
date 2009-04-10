@@ -2057,7 +2057,7 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 	char m[256] = "";
 	char a[1024] = "";
 	int x;
-	struct sockaddr_in dest;
+	struct sockaddr_in dest = { 0, };
 	struct mgcp_endpoint *p = sub->parent;
 	/* XXX We break with the "recommendation" and send our IP, in order that our
 	       peer doesn't have to ast_gethostbyname() us XXX */

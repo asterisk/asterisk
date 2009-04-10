@@ -1433,7 +1433,7 @@ int ast_rtp_instance_get_stats(struct ast_rtp_instance *instance, struct ast_rtp
 
 char *ast_rtp_instance_get_quality(struct ast_rtp_instance *instance, enum ast_rtp_instance_stat_field field, char *buf, size_t size)
 {
-	struct ast_rtp_instance_stats stats;
+	struct ast_rtp_instance_stats stats = { 0, };
 	enum ast_rtp_instance_stat stat;
 
 	/* Determine what statistics we will need to retrieve based on field passed in */

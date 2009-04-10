@@ -2651,8 +2651,8 @@ static int skinny_set_rtp_peer(struct ast_channel *c, struct ast_rtp_instance *r
 	struct skinny_device *d;
 	struct skinnysession *s;
 	struct ast_format_list fmt;
-	struct sockaddr_in us;
-	struct sockaddr_in them;
+	struct sockaddr_in us = { 0, };
+	struct sockaddr_in them = { 0, };
 	struct skinny_req *req;
 	
 	sub = c->tech_pvt;
@@ -5564,8 +5564,8 @@ static int handle_open_receive_channel_ack_message(struct skinny_req *req, struc
 	struct skinny_line *l;
 	struct skinny_subchannel *sub;
 	struct ast_format_list fmt;
-	struct sockaddr_in sin;
-	struct sockaddr_in us;
+	struct sockaddr_in sin = { 0, };
+	struct sockaddr_in us = { 0, };
 	uint32_t addr;
 	int port;
 	int status;

@@ -7752,7 +7752,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		if (udptlportno > 0) {
 			sin.sin_port = htons(udptlportno);
 			if (ast_test_flag(&p->flags[0], SIP_NAT) && ast_test_flag(&p->flags[1], SIP_PAGE2_UDPTL_DESTINATION)) {
-				struct sockaddr_in remote_address;
+				struct sockaddr_in remote_address = { 0, };
 				ast_rtp_instance_get_remote_address(p->rtp, &remote_address);
 				if (remote_address.sin_addr.s_addr) {
 					memcpy(&sin, &remote_address, sizeof(sin));
@@ -9382,11 +9382,11 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 	int len = 0;
 	int alreadysent = 0;
 
-	struct sockaddr_in sin;
-	struct sockaddr_in vsin;
-	struct sockaddr_in tsin;
-	struct sockaddr_in dest;
-	struct sockaddr_in udptlsin;
+	struct sockaddr_in sin = { 0, };
+	struct sockaddr_in vsin = { 0, };
+	struct sockaddr_in tsin = { 0, };
+	struct sockaddr_in dest = { 0, };
+	struct sockaddr_in udptlsin = { 0, };
 	struct sockaddr_in vdest = { 0, };
 	struct sockaddr_in tdest = { 0, };
 	struct sockaddr_in udptldest = { 0, };

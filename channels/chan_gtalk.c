@@ -770,7 +770,7 @@ static int gtalk_create_candidates(struct gtalk *client, struct gtalk_pvt *p, ch
 	struct gtalk_candidate *tmp;
 	struct aji_client *c = client->connection;
 	struct gtalk_candidate *ours1 = NULL, *ours2 = NULL;
-	struct sockaddr_in sin;
+	struct sockaddr_in sin = { 0, };
 	struct sockaddr_in dest;
 	struct in_addr us;
 	iks *iq, *gtalk, *candidate, *transport;
@@ -1254,8 +1254,8 @@ static int gtalk_update_stun(struct gtalk *client, struct gtalk_pvt *p)
 	struct gtalk_candidate *tmp;
 	struct hostent *hp;
 	struct ast_hostent ahp;
-	struct sockaddr_in sin;
-	struct sockaddr_in aux;
+	struct sockaddr_in sin = { 0, };
+	struct sockaddr_in aux = { 0, };
 
 	if (time(NULL) == p->laststun)
 		return 0;

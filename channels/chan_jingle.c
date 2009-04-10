@@ -577,7 +577,7 @@ static int jingle_create_candidates(struct jingle *client, struct jingle_pvt *p,
 	struct jingle_candidate *tmp;
 	struct aji_client *c = client->connection;
 	struct jingle_candidate *ours1 = NULL, *ours2 = NULL;
-	struct sockaddr_in sin;
+	struct sockaddr_in sin = { 0, };
 	struct sockaddr_in dest;
 	struct in_addr us;
 	struct in_addr externaddr;
