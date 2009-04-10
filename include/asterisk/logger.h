@@ -189,18 +189,7 @@ void ast_console_toggle_loglevel(int fd, int level, int state);
 #endif
 #define AST_LOG_DTMF    __LOG_DTMF, _A_
 
-#ifdef LOG_SECURITY
-#undef LOG_SECURITY
-#endif
-#define __LOG_SECURITY  7
-#define LOG_SECURITY    __LOG_SECURITY, _A_
-
-#ifdef AST_LOG_SECURITY
-#undef AST_LOG_SECURITY
-#endif
-#define AST_LOG_SECURITY    __LOG_SECURITY, _A_
-
-#define NUMLOGLEVELS 7
+#define NUMLOGLEVELS 6
 
 /*!
  * \brief Get the debug level for a file

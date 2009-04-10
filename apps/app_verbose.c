@@ -59,7 +59,7 @@ static char *app_log = "Log";
 		<syntax>
 			<parameter name="level">
 				<para>Level must be one of <literal>ERROR</literal>, <literal>WARNING</literal>, <literal>NOTICE</literal>,
-				<literal>DEBUG</literal>, <literal>VERBOSE</literal>, <literal>DTMF</literal> or <literal>SECURITY</literal>.</para>	
+				<literal>DEBUG</literal>, <literal>VERBOSE</literal> or <literal>DTMF</literal>.</para>	
 			</parameter>
 			<parameter name="message" required="true">
 				<para>Output text message.</para>
@@ -146,8 +146,6 @@ static int log_exec(struct ast_channel *chan, void *data)
 		lnum = __LOG_VERBOSE;
 	} else if (!strcasecmp(args.level, "DTMF")) {
 		lnum = __LOG_DTMF;
-	} else if (!strcasecmp(args.level, "SECURITY")) {
-		lnum = __LOG_SECURITY;
 	} else if (!strcasecmp(args.level, "EVENT")) {
 		lnum = __LOG_EVENT;
 	} else {
