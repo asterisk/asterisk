@@ -5691,7 +5691,7 @@ static int sip_hangup(struct ast_channel *ast)
 				if (bridge) {
 					struct sip_pvt *q = bridge->tech_pvt;
 
-					if (IS_SIP_TECH(bridge->tech) && q)
+					if (IS_SIP_TECH(bridge->tech) && q && q->rtp)
 						ast_rtp_set_vars(bridge, q->rtp);
 				}
 
@@ -19998,7 +19998,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 		if (bridge) {
 			struct sip_pvt *q = bridge->tech_pvt;
 
-			if (IS_SIP_TECH(bridge->tech) && q->rtp)
+			if (IS_SIP_TECH(bridge->tech) && q && q->rtp)
 				ast_rtp_set_vars(bridge, q->rtp);
 		}
 
