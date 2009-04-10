@@ -3353,7 +3353,7 @@ static int park_exec_full(struct ast_channel *chan, void *data, struct ast_parki
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_TRAVERSE_SAFE_END;
 	AST_LIST_UNLOCK(&parkinglot->parkings);
 
 	if (pu) {

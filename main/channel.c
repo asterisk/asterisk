@@ -2933,7 +2933,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			AST_LIST_REMOVE_CURRENT(frame_list);
 			break;
 		}
-		AST_LIST_TRAVERSE_SAFE_END
+		AST_LIST_TRAVERSE_SAFE_END;
 		
 		if (!f) {
 			/* There were no acceptable frames on the readq. */

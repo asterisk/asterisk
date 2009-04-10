@@ -1335,6 +1335,7 @@ static inline int _ast_rwlock_wrlock(ast_rwlock_t *t, const char *name,
 		if (lt->reentrancy) {
 			ast_reentrancy_lock(lt);
 			bt = &lt->backtrace[lt->reentrancy-1];
+			ast_reentrancy_unlock(lt);
 		} else {
 			bt = NULL;
 		}
@@ -1353,7 +1354,7 @@ static inline int _ast_rwlock_wrlock(ast_rwlock_t *t, const char *name,
 	return res;
 }
 
-#define ast_rwlock_timedrdlock(a,b) \
+#define ast_rwlock_timedrdlock(a, b) \
 	_ast_rwlock_timedrdlock(a, # a, b, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 static inline int _ast_rwlock_timedrdlock(ast_rwlock_t *t, const char *name,
@@ -1413,6 +1414,7 @@ static inline int _ast_rwlock_timedrdlock(ast_rwlock_t *t, const char *name,
 		if (lt->reentrancy) {
 			ast_reentrancy_lock(lt);
 			bt = &lt->backtrace[lt->reentrancy-1];
+			ast_reentrancy_unlock(lt);
 		} else {
 			bt = NULL;
 		}
@@ -1431,7 +1433,7 @@ static inline int _ast_rwlock_timedrdlock(ast_rwlock_t *t, const char *name,
 	return res;
 }
 
-#define ast_rwlock_timedwrlock(a,b) \
+#define ast_rwlock_timedwrlock(a, b) \
 	_ast_rwlock_timedwrlock(a, # a, b, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 static inline int _ast_rwlock_timedwrlock(ast_rwlock_t *t, const char *name,
@@ -1491,6 +1493,7 @@ static inline int _ast_rwlock_timedwrlock(ast_rwlock_t *t, const char *name,
 		if (lt->reentrancy) {
 			ast_reentrancy_lock(lt);
 			bt = &lt->backtrace[lt->reentrancy-1];
+			ast_reentrancy_unlock(lt);
 		} else {
 			bt = NULL;
 		}
