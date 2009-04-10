@@ -566,13 +566,17 @@ start_over:
 	 * All these failure points just return -1. The individual strings will
 	 * be cleared when we destroy the channel.
 	 */
-	if (!(p->chan->cid.cid_rdnis = ast_strdup(p->owner->cid.cid_rdnis))) {
-		return -1;
+	if (p->owner->cid.cid_rdnis) {
+		if (!(p->chan->cid.cid_rdnis = ast_strdup(p->owner->cid.cid_rdnis))) {
+			return -1;
+		}
 	}
 	ast_party_redirecting_copy(&p->chan->redirecting, &p->owner->redirecting);
 
-	if (!(p->chan->cid.cid_dnid = ast_strdup(p->owner->cid.cid_dnid))) {
-		return -1;
+	if (p->owner->cid.cid_dnid) {
+		if (!(p->chan->cid.cid_dnid = ast_strdup(p->owner->cid.cid_dnid))) {
+			return -1;
+		}
 	}
 	p->chan->cid.cid_tns = p->owner->cid.cid_tns;
 
