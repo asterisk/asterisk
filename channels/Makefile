@@ -102,6 +102,8 @@ ring_tone.h:
 
 $(if $(filter chan_iax2,$(EMBEDDED_MODS)),modules.link,chan_iax2.so): iax2-parser.o iax2-provision.o
 
+$(if $(filter chan_h323,$(EMBEDDED_MODS)),modules.link,chan_h323.so): h323/libchanh323.a
+
 ifeq ($(OSARCH),linux-gnu)
 chan_h323.so: chan_h323.o h323/libchanh323.a h323/Makefile.ast
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
