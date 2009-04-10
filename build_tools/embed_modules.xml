@@ -2,13 +2,16 @@
 		<member name="APPS" displayname="Applications" remove_on_change="apps/*.o">
 			<depend>gnu_ld</depend>
 		</member>
+		<member name="BRIDGES" displayname="Bridging Technologies" remove_on_change="bridges/*.o">
+			<depend>gnu_ld</depend>
+		</member>
 		<member name="CDR" displayname="Call Detail Recording" remove_on_change="cdr/*.o">
 			<depend>gnu_ld</depend>
 		</member>
-		<member name="CHANNELS" displayname="Channels" remove_on_change="channels/*.o channels/misdn/*.o">
+		<member name="CHANNELS" displayname="Channels" remove_on_change="channels/*.o channels/*/*.o">
 			<depend>gnu_ld</depend>
 		</member>
-		<member name="CODECS" displayname="Coders/Decoders" remove_on_change="codecs/*.o codecs/gsm/src/*.o codecs/ilbc/*.o codecs/lpc10/*.o codecs/gsm/lib/libgsm.a codecs/lpc10/liblpc10.a codecs/ilbc/libilbc.a codecs/g722/libg722.a">
+		<member name="CODECS" displayname="Coders/Decoders" remove_on_change="codecs/*.o codecs/*/*.o codecs/*/*/*.o codecs/*/*.a codecs/*/*/*.a">
 			<depend>gnu_ld</depend>
 		</member>
 		<member name="FORMATS" displayname="File Formats" remove_on_change="formats/*.o">
@@ -17,10 +20,13 @@
 		<member name="FUNCS" displayname="Dialplan Functions" remove_on_change="funcs/*.o">
 			<depend>gnu_ld</depend>
 		</member>
-		<member name="PBX" displayname="PBX Functionality" remove_on_change="pbx/*.o pbx/ael/*.o">
+		<member name="PBX" displayname="PBX Functionality" remove_on_change="pbx/*.o pbx/*/*.o">
 			<depend>gnu_ld</depend>
 		</member>
-		<member name="RES" displayname="Resource Modules" remove_on_change="res/*.o res/snmp/*.o">
+		<member name="RES" displayname="Resource Modules" remove_on_change="res/*.o res/*/*.o">
+			<depend>gnu_ld</depend>
+		</member>
+		<member name="TEST" displayname="Test Modules" remove_on_change="tests/*.o">
 			<depend>gnu_ld</depend>
 		</member>
 	</category>
