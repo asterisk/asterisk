@@ -790,9 +790,10 @@ static void do_forward(struct chanlist *o,
 
 		ast_clear_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE);
 
+		ast_channel_unlock(in);
+		ast_channel_unlock(c);
+
 		if (ast_call(c, tmpchan, 0)) {
-			ast_channel_unlock(in);
-			ast_channel_unlock(c);
 			ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
 			ast_clear_flag64(o, DIAL_STILLGOING);
 			ast_hangup(original);
@@ -800,6 +801,10 @@ static void do_forward(struct chanlist *o,
 			c = o->chan = NULL;
 			num->nochan++;
 		} else {
+			ast_channel_lock(c);
+			while (ast_channel_trylock(in)) {
+				CHANNEL_DEADLOCK_AVOIDANCE(c);
+			}
 			senddialevent(in, c, stuff);
 			if (!ast_test_flag64(peerflags, OPT_ORIGINAL_CLID)) {
 				char cidname[AST_MAX_EXTENSION] = "";
