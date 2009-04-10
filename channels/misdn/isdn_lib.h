@@ -202,12 +202,18 @@ enum { /* progress indicators */
  */
 enum mISDN_REDIRECTING_REASON {
 	mISDN_REDIRECTING_REASON_UNKNOWN = 0x0,
-	mISDN_REDIRECTING_REASON_CALL_FWD_BUSY = 0x1,	/* Call forwarding busy or called DTE busy */
-	mISDN_REDIRECTING_REASON_NO_REPLY = 0x2,		/* Call forwarding no reply */
-	mISDN_REDIRECTING_REASON_DEFLECTION = 0x4,		/* Call deflection */
-	mISDN_REDIRECTING_REASON_OUT_OF_ORDER = 0x9,	/* Called DTE out of order */
-	mISDN_REDIRECTING_REASON_CALL_FWD_DTE = 0xA,	/* Call forwarding by the called DTE */
-	mISDN_REDIRECTING_REASON_CALL_FWD = 0xF			/* Call forwarding unconditional or systematic call redirection */
+	/*! Call forwarding busy or called DTE busy */
+	mISDN_REDIRECTING_REASON_CALL_FWD_BUSY = 0x1,
+	/*! Call forwarding no reply */
+	mISDN_REDIRECTING_REASON_NO_REPLY = 0x2,
+	/*! Call deflection */
+	mISDN_REDIRECTING_REASON_DEFLECTION = 0x4,
+	/*! Called DTE out of order */
+	mISDN_REDIRECTING_REASON_OUT_OF_ORDER = 0x9,
+	/*! Call forwarding by the called DTE */
+	mISDN_REDIRECTING_REASON_CALL_FWD_DTE = 0xA,
+	/*! Call forwarding unconditional or systematic call redirection */
+	mISDN_REDIRECTING_REASON_CALL_FWD = 0xF
 };
 
 enum { /*CODECS*/
@@ -223,16 +229,16 @@ enum layer_e {
 	UNKNOWN
 };
 
-/* Maximum phone number (address) length plus null terminator */
+/*! Maximum phone number (address) length plus null terminator */
 #define MISDN_MAX_NUMBER_LEN		(31 + 1)
 
-/* Maximum name length plus null terminator (From ECMA-164) */
+/*! Maximum name length plus null terminator (From ECMA-164) */
 #define MISDN_MAX_NAME_LEN			(50 + 1)
 
-/* Maximum subaddress length plus null terminator */
+/*! Maximum subaddress length plus null terminator */
 #define MISDN_MAX_SUBADDRESS_LEN	(23 + 1)
 
-/* Maximum keypad facility content length plus null terminator */
+/*! Maximum keypad facility content length plus null terminator */
 #define MISDN_MAX_KEYPAD_LEN		(31 + 1)
 
 /*! \brief Connected-Line/Calling/Redirecting ID info struct */
@@ -283,13 +289,13 @@ struct misdn_bchannel {
 	struct send_lock *send_lock;
 
 	/*! \brief Originating/Caller ID information struct
-	 * \note The number_type element is set to "localdialplan" in /etc/asterisk/misdn.conf for outgoing calls
+	 * \note The number_type element can be set to "localdialplan" in /etc/asterisk/misdn.conf for outgoing calls
 	 * \note The number element can be set to "callerid" in /etc/asterisk/misdn.conf for outgoing calls
 	 */
 	struct misdn_party_id caller;
 
 	/*! \brief Connected-Party/Connected-Line ID information struct
-	 * \note The number_type element is set to "cpndialplan" in /etc/asterisk/misdn.conf for outgoing calls
+	 * \note The number_type element can be set to "cpndialplan" in /etc/asterisk/misdn.conf for outgoing calls
 	 */
 	struct misdn_party_id connected;
 
@@ -769,4 +775,4 @@ void misdn_dump_chanlist(void);
 void misdn_make_dummy(struct misdn_bchannel *dummybc, int port, int l3id, int nt, int channel);
 
 
-#endif
+#endif	/* TE_LIB */
