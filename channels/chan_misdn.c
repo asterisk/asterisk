@@ -6732,40 +6732,44 @@ static void chan_misdn_log(int level, int port, char *tmpl, ...)
 	char buf[1024];
 	char port_buf[8];
 
-	if (! ((0 <= port) && (port <= max_ports))) {
+	if (!(0 <= port && port <= max_ports)) {
 		ast_log(LOG_WARNING, "cb_log called with out-of-range port number! (%d)\n", port);
 		port = 0;
 		level = -1;
+	} else if (!(level == -1
+		|| (misdn_debug_only[port]
+			? (level == 1 && misdn_debug[port]) || level == misdn_debug[port]
+			: level <= misdn_debug[port])
+		|| (level <= misdn_debug[0] && !ast_strlen_zero(global_tracefile)))) {
+		/*
+		 * We are not going to print anything so lets not
+		 * go to all the work of generating a string.
+		 */
+		return;
 	}
 
 	snprintf(port_buf, sizeof(port_buf), "P[%2d] ", port);
-
 	va_start(ap, tmpl);
 	vsnprintf(buf, sizeof(buf), tmpl, ap);
 	va_end(ap);
 
 	if (level == -1) {
 		ast_log(LOG_WARNING, "%s", buf);
-	} else if (misdn_debug_only[port] ?
-			(level == 1 && misdn_debug[port]) || (level == misdn_debug[port])
-		 : level <= misdn_debug[port]) {
-
+	} else if (misdn_debug_only[port]
+		? (level == 1 && misdn_debug[port]) || level == misdn_debug[port]
+		: level <= misdn_debug[port]) {
 		ast_console_puts(port_buf);
 		ast_console_puts(buf);
 	}
 
-	if ((level <= misdn_debug[0]) && !ast_strlen_zero(global_tracefile) ) {
+	if (level <= misdn_debug[0] && !ast_strlen_zero(global_tracefile)) {
 		char ctimebuf[30];
-		time_t tm = time(NULL);
-		char *tmp = ctime_r(&tm, ctimebuf), *p;
+		time_t tm;
+		char *tmp;
+		char *p;
+		FILE *fp;
 
-		FILE *fp = fopen(global_tracefile, "a+");
-
-		p = strchr(tmp, '\n');
-		if (p) {
-			*p = ':';
-		}
-
+		fp = fopen(global_tracefile, "a+");
 		if (!fp) {
 			ast_console_puts("Error opening Tracefile: [ ");
 			ast_console_puts(global_tracefile);
@@ -6773,9 +6777,15 @@ static void chan_misdn_log(int level, int port, char *tmpl, ...)
 
 			ast_console_puts(strerror(errno));
 			ast_console_puts("\n");
-			return ;
+			return;
 		}
 
+		tm = time(NULL);
+		tmp = ctime_r(&tm, ctimebuf);
+		p = strchr(tmp, '\n');
+		if (p) {
+			*p = ':';
+		}
 		fputs(tmp, fp);
 		fputs(" ", fp);
 		fputs(port_buf, fp);
