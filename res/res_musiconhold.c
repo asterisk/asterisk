@@ -1090,7 +1090,9 @@ static int moh_register(struct mohclass *moh, int reload, int unref)
 		if (!mohclass->delete) {
  			ast_log(LOG_WARNING, "Music on Hold class '%s' already exists\n", moh->name);
 			mohclass = mohclass_unref(mohclass);
-			moh = mohclass_unref(moh);
+			if (unref) {
+				moh = mohclass_unref(moh);
+			}
 			return -1;
 		}
 		mohclass = mohclass_unref(mohclass);
