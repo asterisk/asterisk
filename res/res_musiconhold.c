@@ -1072,7 +1072,9 @@ static int moh_register(struct mohclass *moh, int reload, int unref)
 		if (!mohclass->delete) {
  			ast_log(LOG_WARNING, "Music on Hold class '%s' already exists\n", moh->name);
 			mohclass = mohclass_unref(mohclass, "unreffing mohclass we just found by name");
-			moh = mohclass_unref(moh, "unreffing potential new moh class (it is a duplicate)");
+			if (unref) {
+				moh = mohclass_unref(moh, "unreffing potential new moh class (it is a duplicate)");
+			}
 			return -1;
 		}
 		mohclass = mohclass_unref(mohclass, "Unreffing mohclass we just found by name");
