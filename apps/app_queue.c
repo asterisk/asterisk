@@ -3992,6 +3992,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			snprintf(interfacevar, sizeof(interfacevar), "MEMBERINTERFACE=%s,MEMBERNAME=%s,MEMBERCALLS=%d,MEMBERLASTCALL=%ld,MEMBERPENALTY=%d,MEMBERDYNAMIC=%d,MEMBERREALTIME=%d",
 				member->interface, member->membername, member->calls, (long)member->lastcall, member->penalty, member->dynamic, member->realtime);
 		 	pbx_builtin_setvar_multiple(qe->chan, interfacevar);
+			pbx_builtin_setvar_multiple(peer, interfacevar);
 		}
 		
 		/* if setqueueentryvar is defined, make queue entry (i.e. the caller) variables available to the channel */
@@ -4000,10 +4001,12 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			snprintf(interfacevar, sizeof(interfacevar), "QEHOLDTIME=%ld,QEORIGINALPOS=%d",
 				(long) time(NULL) - qe->start, qe->opos);
 			pbx_builtin_setvar_multiple(qe->chan, interfacevar);
+			pbx_builtin_setvar_multiple(peer, interfacevar);
 		}
 	
 		/* try to set queue variables if configured to do so*/
 		set_queue_variables(qe->parent, qe->chan);
+		set_queue_variables(qe->parent, peer);
 		ao2_unlock(qe->parent);
 		
 		ast_channel_lock(qe->chan);
