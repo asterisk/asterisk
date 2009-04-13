@@ -5005,6 +5005,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 	if (dialog->outboundproxy) {
 		/* If we have an outbound proxy, don't bother with DNS resolution at all, but set the port */
 		portno = port ? atoi(port) : (dialog->socket.type & SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT;
+		memcpy(&dialog->sa.sin_addr, &dialog->outboundproxy->ip.sin_addr, sizeof(dialog->sa.sin_addr));
 	} else if (sin) {
 		/* This address should be updated using dnsmgr */
 		memcpy(&dialog->sa.sin_addr, &sin->sin_addr, sizeof(dialog->sa.sin_addr));
