@@ -4611,7 +4611,7 @@ static int set_member_penalty(char *queuename, char *interface, int penalty)
 					"Location: %s\r\n"
 					"Penalty: %d\r\n",
 					q->name, mem->interface, penalty);
-
+				ao2_ref(mem, -1);
 			}
 		}
 		ao2_unlock(q);
@@ -4645,6 +4645,7 @@ static int get_member_penalty(char *queuename, char *interface)
 		ao2_lock(q);
 		if ((mem = interface_exists(q, interface))) {
 			penalty = mem->penalty;
+			ao2_ref(mem, -1);
 			ao2_unlock(q);
 			queue_unref(q);
 			return penalty;
