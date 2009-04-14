@@ -165,7 +165,7 @@ static char txqcheck (char *dir, char *queue, char subaddress, char *channel, ch
    fprintf (f, "Application: SMS\n");
    fprintf (f, "Data: %.*s", qfl, queue);
    if (dir[1] == 't')
-      fprintf (f, "|s");
+      fprintf (f, ",s");
    fprintf (f, "\nMaxRetries: %d\n", retries);
    fprintf (f, "RetryTime: %d\n", delay);
    fprintf (f, "WaitTime: %d\n", wait);
