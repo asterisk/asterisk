@@ -144,7 +144,7 @@ DAHDI Changes
    and a 'full' buffer policy for a fax transmission, add:
      faxbuffers=>6,full
    The faxbuffers configuration will be in affect until the call is torn down.
- * Added service message support for 4ess/5ess switches.
+ * Added service message support for 4ESS/5ESS switches.
 
 Dialplan Functions
 ------------------

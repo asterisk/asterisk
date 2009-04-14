@@ -13860,7 +13860,7 @@ static char *handle_pri_service_generic(struct ast_cli_entry *e, int cmd, struct
 	while (tmp) {
 		if (tmp->pri && tmp->channel == channel) {
 			if (!tmp->pri->enable_service_message_support) {
-				ast_cli(fd, "\n\tThis operation has not been enabled in chan_dahdi.conf, set 'service_message_support=yes' to use this operation.\n\tNote only 4ess and 5ess switch types are supported.\n\n");
+				ast_cli(fd, "\n\tThis operation has not been enabled in chan_dahdi.conf, set 'service_message_support=yes' to use this operation.\n\tNote only 4ESS and 5ESS switch types are supported.\n\n");
 				return CLI_SUCCESS;
 			}
 			why = -1;
