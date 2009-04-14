@@ -292,6 +292,28 @@ static const char config[] = "chan_dahdi.conf";
 #define CALLPROGRESS_FAX_INCOMING	4
 #define CALLPROGRESS_FAX		(CALLPROGRESS_FAX_INCOMING | CALLPROGRESS_FAX_OUTGOING)
 
+#ifdef HAVE_PRI_SERVICE_MESSAGES
+/*! \brief Persistent Service State */
+#define SRVST_DBKEY "service-state"
+/*! \brief The out-of-service SERVICE state */
+#define SRVST_TYPE_OOS "O"
+/*! \brief SRVST_INITIALIZED is used to indicate a channel being out-of-service 
+ *  The SRVST_INITIALIZED is mostly used maintain backwards compatibility but also may
+ *  mean that the channel has not yet received a RESTART message.  If a channel is
+ *  out-of-service with this reason a RESTART message will result in the channel
+ *  being put into service. */
+#define SRVST_INITIALIZED 0
+/*! \brief SRVST_NEAREND is used to indicate that the near end was put out-of-service */
+#define SRVST_NEAREND  (1 << 0)
+/*! \brief SRVST_FAREND is used to indicate that the far end was taken out-of-service */
+#define SRVST_FAREND   (1 << 1)
+/*! \brief SRVST_BOTH is used to indicate that both sides of the channel are out-of-service */
+#define SRVST_BOTH (SRVST_NEAREND | SRVST_FAREND)
+
+/*! \brief The AstDB family */
+static const char dahdi_db[] = "dahdi/registry";
+#endif
+
 static char defaultcic[64] = "";
 static char defaultozz[64] = "";
 
@@ -543,6 +565,9 @@ struct dahdi_pri {
 	int resetting;
 	/*! \brief Current position during a reset (-1 if not started) */
 	int resetpos;
+#ifdef HAVE_PRI_SERVICE_MESSAGES
+	unsigned int enable_service_message_support:1;	/*!< enable SERVICE message support */
+#endif
 #ifdef HAVE_PRI_INBANDDISCONNECT
 	unsigned int inbanddisconnect:1;				/*!< Should we support inband audio after receiving DISCONNECT? */
 #endif
@@ -3934,6 +3959,21 @@ static void destroy_all_channels(void)
 		pl = p;
 		p = p->next;
 		x = pl->channel;
+#ifdef HAVE_PRI_SERVICE_MESSAGES
+		{
+			char db_chan_name[20], db_answer[5], state;
+			int why = -1;
+
+			snprintf(db_chan_name, sizeof(db_chan_name), "%s/%d:%d", dahdi_db, pl->span, x);
+			if (!ast_db_get(db_chan_name, SRVST_DBKEY, db_answer, sizeof(db_answer))) {
+				sscanf(db_answer, "%c:%d", &state, &why);
+			}
+			if (!why) {
+				/* SRVST persistence is not required */
+				ast_db_del(db_chan_name, SRVST_DBKEY);
+			}
+		}
+#endif
 		/* Free associated memory */
 		if (pl)
 			destroy_dahdi_pvt(&pl);
@@ -10134,7 +10174,6 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 							}
 						}
 					}
-					offset = p.chanpos;
 					if (!matchesdchan) {
 						if (pris[span].nodetype && (pris[span].nodetype != conf->pri.nodetype)) {
 							ast_log(LOG_ERROR, "Span %d is already a %s node\n", span + 1, pri_node2str(pris[span].nodetype));
@@ -10190,6 +10229,9 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 						pris[span].overlapdial = conf->pri.overlapdial;
 						pris[span].qsigchannelmapping = conf->pri.qsigchannelmapping;
 						pris[span].discardremoteholdretrieval = conf->pri.discardremoteholdretrieval;
+#ifdef HAVE_PRI_SERVICE_MESSAGES
+						pris[span].enable_service_message_support = conf->pri.enable_service_message_support;
+#endif
 #ifdef HAVE_PRI_INBANDDISCONNECT
 						pris[span].inbanddisconnect = conf->pri.inbanddisconnect;
 #endif
@@ -10204,7 +10246,11 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 						pris[span].resetinterval = conf->pri.resetinterval;
 
 						tmp->pri = &pris[span];
-						tmp->prioffset = offset;
+						if (si.spanno != span + 1) { /* in another trunkgroup */
+							tmp->prioffset = pris[span].numchans;
+						} else {
+							tmp->prioffset = p.chanpos;
+						}
 						tmp->call = NULL;
 					} else {
 						ast_log(LOG_ERROR, "Channel %d is reserved for D-channel.\n", offset);
@@ -10483,10 +10529,23 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		tmp->sendcalleridafter = conf->chan.sendcalleridafter;
 		if (!here) {
 			tmp->locallyblocked = tmp->remotelyblocked = 0;
-			if ((chan_sig == SIG_PRI) || (chan_sig == SIG_BRI) || (chan_sig == SIG_BRI_PTMP) || (chan_sig == SIG_SS7))
+			if ((chan_sig == SIG_PRI) || (chan_sig == SIG_BRI) || (chan_sig == SIG_BRI_PTMP) || (chan_sig == SIG_SS7)) {
 				tmp->inservice = 0;
-			else /* We default to in service on protocols that don't have a reset */
+#ifdef HAVE_PRI_SERVICE_MESSAGES
+				if (chan_sig == SIG_PRI) {
+					char db_chan_name[20], db_answer[5];
+
+					snprintf(db_chan_name, sizeof(db_chan_name), "%s/%d:%d", dahdi_db, tmp->span, tmp->channel);
+					if (ast_db_get(db_chan_name, SRVST_DBKEY, db_answer, sizeof(db_answer))) {
+						snprintf(db_answer, sizeof(db_answer), "%s:%d", SRVST_TYPE_OOS, SRVST_INITIALIZED);
+						ast_db_put(db_chan_name, SRVST_DBKEY, db_answer);
+					}
+				}
+#endif
+			} else { 
+				 /* We default to in service on protocols that don't have a reset */
 				tmp->inservice = 1;
+			}
 		}
 	}
 	if (tmp && !here) {
@@ -10536,7 +10595,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 	return tmp;
 }
 
-static inline int available(struct dahdi_pvt *p, int channelmatch, ast_group_t groupmatch, int *busy, int *channelmatched, int *groupmatched)
+static inline int available(struct dahdi_pvt *p, int channelmatch, ast_group_t groupmatch, int *reason, int *channelmatched, int *groupmatched)
 {
 	int res;
 	struct dahdi_params par;
@@ -10554,9 +10613,9 @@ static inline int available(struct dahdi_pvt *p, int channelmatch, ast_group_t g
 		*channelmatched = 1;
 	}
 	/* We're at least busy at this point */
-	if (busy) {
+	if (reason) {
 		if ((p->sig == SIG_FXOKS) || (p->sig == SIG_FXOLS) || (p->sig == SIG_FXOGS))
-			*busy = 1;
+			*reason = AST_CAUSE_BUSY;
 	}
 	/* If do not disturb, definitely not */
 	if (p->dnd)
@@ -10573,10 +10632,25 @@ static inline int available(struct dahdi_pvt *p, int channelmatch, ast_group_t g
 #ifdef HAVE_PRI
 		/* Trust PRI */
 		if (p->pri) {
-			if (p->resetting || p->call)
+#ifdef HAVE_PRI_SERVICE_MESSAGES
+			char db_chan_name[20], db_answer[5], state;
+			int why = 0;
+						
+			snprintf(db_chan_name, sizeof(db_chan_name), "%s/%d:%d", dahdi_db, p->span, p->channel);
+			if (!ast_db_get(db_chan_name, SRVST_DBKEY, db_answer, sizeof(db_answer))) {
+				sscanf(db_answer, "%c:%d", &state, &why);
+			}
+			if ((p->resetting || p->call) || (why)) {
+				if (why) {
+					*reason = AST_CAUSE_REQUESTED_CHAN_UNAVAIL;
+				}
+#else
+			if (p->resetting || p->call) {
+#endif
 				return 0;
-			else
+			} else {
 				return 1;
+			}
 		}
 #endif
 #ifdef HAVE_SS7
@@ -10736,7 +10810,7 @@ static struct ast_channel *dahdi_request(const char *type, int format, void *dat
 	int channelmatch = -1;
 	int roundrobin = 0;
 	int callwait = 0;
-	int busy = 0;
+	int unavailreason = 0;
 	struct dahdi_pvt *p;
 	struct ast_channel *tmp = NULL;
 	char *dest=NULL;
@@ -10865,7 +10939,7 @@ static struct ast_channel *dahdi_request(const char *type, int format, void *dat
 		ast_verbose("name = %s, %d, %d, %d\n",p->owner ? p->owner->name : "<none>", p->channel, channelmatch, groupmatch);
 #endif
 
-		if (p && available(p, channelmatch, groupmatch, &busy, &channelmatched, &groupmatched)) {
+		if (p && available(p, channelmatch, groupmatch, &unavailreason, &channelmatched, &groupmatched)) {
 			ast_debug(1, "Using channel %d\n", p->channel);
 			if (p->inalarm)
 				goto next;
@@ -10973,10 +11047,10 @@ next:
 		*cause = AST_CAUSE_BUSY;
 	else if (!tmp) {
 		if (channelmatched) {
-			if (busy)
+			if (unavailreason)
 				*cause = AST_CAUSE_BUSY;
 		} else if (groupmatched) {
-			*cause = AST_CAUSE_CONGESTION;
+			*cause = (unavailreason) ? unavailreason : AST_CAUSE_CONGESTION;
 		}
 	}
 
@@ -12181,6 +12255,7 @@ static void dahdi_pri_error(struct pri *pri, char *s)
 #if defined(HAVE_PRI)
 static int pri_check_restart(struct dahdi_pri *pri)
 {
+tryanotherpos:
 	do {
 		pri->resetpos++;
 	} while ((pri->resetpos < pri->numchans) &&
@@ -12188,6 +12263,24 @@ static int pri_check_restart(struct dahdi_pri *pri)
 		pri->pvts[pri->resetpos]->call ||
 		pri->pvts[pri->resetpos]->resetting));
 	if (pri->resetpos < pri->numchans) {
+		char db_chan_name[20], db_answer[5], state;
+		int why;
+
+		/* check if the channel is out of service */
+		ast_mutex_lock(&pri->pvts[pri->resetpos]->lock);
+		snprintf(db_chan_name, sizeof(db_chan_name), "%s/%d:%d", dahdi_db, pri->pvts[pri->resetpos]->span, pri->pvts[pri->resetpos]->channel);
+		ast_mutex_unlock(&pri->pvts[pri->resetpos]->lock);
+
+		/* if so, try next channel */
+		if (!ast_db_get(db_chan_name, SRVST_DBKEY, db_answer, sizeof(db_answer))) {
+			sscanf(db_answer, "%c:%d", &state, &why);
+			if (why) {
+				ast_log(LOG_NOTICE, "span '%d' channel '%d' out-of-service (reason: %s), not sending RESTART\n", pri->span,
+				pri->pvts[pri->resetpos]->channel, (why & SRVST_FAREND) ? (why & SRVST_NEAREND) ? "both ends" : "far end" : "near end");
+				goto tryanotherpos;
+			}
+		}
+
 		/* Mark the channel as resetting and restart it */
 		pri->pvts[pri->resetpos]->resetting = 1;
 		pri_reset(pri->pri, PVT_TO_CHANNEL(pri->pvts[pri->resetpos]));
@@ -12566,13 +12659,36 @@ static void *pri_dchannel(void *vpri)
 						ast_log(LOG_WARNING, "Restart requested on odd/unavailable channel number %d/%d on span %d\n",
 							PRI_SPAN(e->restart.channel), PRI_CHANNEL(e->restart.channel), pri->span);
 					else {
-						ast_verb(3, "B-channel %d/%d restarted on span %d\n",
-								PRI_SPAN(e->restart.channel), PRI_CHANNEL(e->restart.channel), pri->span);
+#ifdef HAVE_PRI_SERVICE_MESSAGES
+						char db_chan_name[20], db_answer[5], state;
+						int why, skipit = 0;
+						
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
-						if (pri->pvts[chanpos]->call) {
-							pri_destroycall(pri->pri, pri->pvts[chanpos]->call);
-							pri->pvts[chanpos]->call = NULL;
+						snprintf(db_chan_name, sizeof(db_chan_name), "%s/%d:%d", dahdi_db, pri->pvts[chanpos]->span, pri->pvts[chanpos]->channel);
+						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
+
+						if (!ast_db_get(db_chan_name, SRVST_DBKEY, db_answer, sizeof(db_answer))) {
+							sscanf(db_answer, "%c:%d", &state, &why);
+							if (why) {
+								ast_log(LOG_NOTICE, "span '%d' channel '%d' out-of-service (reason: %s), ignoring RESTART\n", pri->span,
+									e->restart.channel, (why & SRVST_FAREND) ? (why & SRVST_NEAREND) ? "both ends" : "far end" : "near end");
+								skipit = 1;
+							} else {
+								ast_db_del(db_chan_name, SRVST_DBKEY);
+							}
 						}
+						if (!skipit) {
+#endif
+							ast_verb(3, "B-channel %d/%d restarted on span %d\n",
+									PRI_SPAN(e->restart.channel), PRI_CHANNEL(e->restart.channel), pri->span);
+							ast_mutex_lock(&pri->pvts[chanpos]->lock);
+							if (pri->pvts[chanpos]->call) {
+								pri_destroycall(pri->pri, pri->pvts[chanpos]->call);
+								pri->pvts[chanpos]->call = NULL;
+							}
+#ifdef HAVE_PRI_SERVICE_MESSAGES
+						}
+#endif
 						/* Force soft hangup if appropriate */
 						if (pri->pvts[chanpos]->realcall)
 							pri_hangup_all(pri->pvts[chanpos]->realcall, pri);
@@ -12652,6 +12768,62 @@ static void *pri_dchannel(void *vpri)
 					}
 				}
 				break;
+#ifdef HAVE_PRI_SERVICE_MESSAGES
+			case PRI_EVENT_SERVICE:
+				chanpos = pri_find_principle(pri, e->service.channel);
+				if (chanpos < 0) {
+					ast_log(LOG_WARNING, "Received service change status %d on unconfigured channel %d/%d span %d\n",
+						e->service_ack.changestatus, PRI_SPAN(e->service_ack.channel), PRI_CHANNEL(e->service_ack.channel), pri->span);
+				} else {
+					char db_chan_name[20], db_answer[5], state;
+					int ch, why = -1;
+
+					ast_mutex_lock(&pri->pvts[chanpos]->lock);
+					ch = pri->pvts[chanpos]->channel;
+					ast_mutex_unlock(&pri->pvts[chanpos]->lock);
+					
+					snprintf(db_chan_name, sizeof(db_chan_name), "%s/%d:%d", dahdi_db, pri->pvts[chanpos]->span, ch);
+					if (!ast_db_get(db_chan_name, SRVST_DBKEY, db_answer, sizeof(db_answer))) {
+						sscanf(db_answer, "%c:%d", &state, &why);
+						ast_db_del(db_chan_name, SRVST_DBKEY);
+					}
+					switch (e->service.changestatus) {
+					case 0: /* in-service */
+						if (why > -1) {
+							if (why & SRVST_NEAREND) {
+								snprintf(db_answer, sizeof(db_answer), "%s:%d", SRVST_TYPE_OOS, SRVST_NEAREND);
+								ast_db_put(db_chan_name, SRVST_DBKEY, db_answer);
+								ast_debug(2, "channel '%d' service state { near: out-of-service,  far: in-service }\n", ch);
+							}
+						}
+						break;
+					case 2: /* out-of-service */
+						if (why == -1) {
+							why = SRVST_FAREND;
+						} else {
+							why |= SRVST_FAREND;
+						}
+						snprintf(db_answer, sizeof(db_answer), "%s:%d", SRVST_TYPE_OOS, why);
+						ast_db_put(db_chan_name, SRVST_DBKEY, db_answer);
+						break;
+					default:
+						ast_log(LOG_ERROR, "Huh?  changestatus is: %d\n", e->service.changestatus);
+					}
+					ast_log(LOG_NOTICE, "Channel %d/%d span %d (logical: %d) received a change of service message, status '%d'\n",
+						PRI_SPAN(e->service.channel), PRI_CHANNEL(e->service.channel), pri->span, ch, e->service.changestatus);
+				}
+				break;
+			case PRI_EVENT_SERVICE_ACK:
+				chanpos = pri_find_principle(pri, e->service_ack.channel);
+				if (chanpos < 0) {
+					ast_log(LOG_WARNING, "Received service acknowledge change status '%d' on unconfigured channel %d/%d span %d\n",
+						e->service_ack.changestatus, PRI_SPAN(e->service_ack.channel), PRI_CHANNEL(e->service_ack.channel), pri->span);
+				} else {
+					ast_debug(2, "Channel %d/%d span %d received a change os service acknowledgement message, status '%d'\n",
+						PRI_SPAN(e->service_ack.channel), PRI_CHANNEL(e->service_ack.channel), pri->span, e->service_ack.changestatus);
+				}
+				break;
+#endif
 			case PRI_EVENT_RING:
 				crv = NULL;
 				if (e->ring.channel == -1)
@@ -13448,6 +13620,11 @@ static int start_pri(struct dahdi_pri *pri)
 			break;
 		default:
 			pri->dchans[i] = pri_new(pri->fds[i], pri->nodetype, pri->switchtype);
+#ifdef HAVE_PRI_SERVICE_MESSAGES
+				if (pri->enable_service_message_support) {
+					pri_set_service_message_support(pri->dchans[i], 1);
+				}
+#endif
 			break;
 		}
 		/* Force overlap dial if we're doing GR-303! */
@@ -13621,6 +13798,149 @@ static char *handle_pri_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	return CLI_SUCCESS;
 }
 #endif	/* defined(HAVE_PRI) */
+
+#ifdef HAVE_PRI_SERVICE_MESSAGES
+static char *handle_pri_service_generic(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a, int changestatus)
+{
+	int why;
+	int channel;
+	int trunkgroup;
+	int x, y, fd = a->fd;
+	int interfaceid = 0;
+	char *c;
+	char state;
+	char db_chan_name[20], db_answer[5];
+	struct dahdi_pvt *start, *tmp = NULL;
+	struct dahdi_pri *pri = NULL;
+	ast_mutex_t *lock;
+	
+	lock = &iflock;
+	start = iflist;
+
+	if (a->argc < 5 || a->argc > 6)
+		return CLI_SHOWUSAGE;
+	if ((c = strchr(a->argv[4], ':'))) {
+		if (sscanf(a->argv[4], "%d:%d", &trunkgroup, &channel) != 2)
+			return CLI_SHOWUSAGE;
+		if ((trunkgroup < 1) || (channel < 1))
+			return CLI_SHOWUSAGE;
+		for (x=0;x<NUM_SPANS;x++) {
+			if (pris[x].trunkgroup == trunkgroup) {
+				pri = pris + x;
+				break;
+			}
+		}
+		if (pri) {
+			start = pri->crvs;
+			lock = &pri->lock;
+		} else {
+			ast_cli(fd, "No such trunk group %d\n", trunkgroup);
+			return CLI_FAILURE;
+		}
+	} else
+		channel = atoi(a->argv[4]);
+	
+	if (a->argc == 6)
+		interfaceid = atoi(a->argv[5]);
+
+	/* either servicing a D-Channel */
+	for (x = 0; x < NUM_SPANS; x++) {
+		for (y = 0; y < NUM_DCHANS; y++) {
+			if (pris[x].dchannels[y] == channel) {
+				pri = pris + x;
+				pri_maintenance_service(pri->pri, interfaceid, -1, changestatus);
+				return CLI_SUCCESS;
+			}
+		}
+	}
+
+	/* or servicing a B-Channel */
+	ast_mutex_lock(lock);
+	tmp = start;
+	while (tmp) {
+		if (tmp->pri && tmp->channel == channel) {
+			if (!tmp->pri->enable_service_message_support) {
+				ast_cli(fd, "\n\tThis operation has not been enabled in chan_dahdi.conf, set 'service_message_support=yes' to use this operation.\n\tNote only 4ess and 5ess switch types are supported.\n\n");
+				return CLI_SUCCESS;
+			}
+			why = -1;
+			snprintf(db_chan_name, sizeof(db_chan_name), "%s/%d:%d", dahdi_db, tmp->span, channel);
+			if (!ast_db_get(db_chan_name, SRVST_DBKEY, db_answer, sizeof(db_answer))) {
+				sscanf(db_answer, "%c:%d", &state, &why);
+				ast_db_del(db_chan_name, SRVST_DBKEY);
+			}
+			switch(changestatus) {
+			case 0: /* enable */
+				if (why > -1) {
+					if (why & SRVST_FAREND) {
+						why = SRVST_FAREND;
+						snprintf(db_answer, sizeof(db_answer), "%s:%d", SRVST_TYPE_OOS, why);
+						ast_db_put(db_chan_name, SRVST_DBKEY, db_answer);
+						ast_debug(2, "channel '%d' service state { near: in-service,  far: out-of-service }\n", channel);
+					}
+				}
+				break;
+			/* case 1:  -- loop */
+			case 2: /* disable */
+				if (why == -1) {
+					why = SRVST_NEAREND;
+				} else {
+					why |= SRVST_NEAREND;
+				}
+				snprintf(db_answer, sizeof(db_answer), "%s:%d", SRVST_TYPE_OOS, why);
+				ast_db_put(db_chan_name, SRVST_DBKEY, db_answer);
+				break;
+			/* case 3:  -- continuity */
+			/* case 4:  -- shutdown */
+			default:
+				ast_log(LOG_WARNING, "Unsupported changestatus: '%d'\n", changestatus);
+			}
+			pri_maintenance_service(tmp->pri->pri, PRI_SPAN(PVT_TO_CHANNEL(tmp)), PVT_TO_CHANNEL(tmp), changestatus);
+			ast_mutex_unlock(lock);
+			return CLI_SUCCESS;
+		}
+		tmp = tmp->next;
+	}
+	ast_mutex_unlock(lock);
+
+	ast_cli(fd, "Unable to find given channel %d, possibly not a PRI\n", channel);
+	return CLI_FAILURE;
+}
+
+static char *handle_pri_service_enable_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:	
+		e->command = "pri service enable channel";
+		e->usage = 
+			"Usage: pri service enable channel <channel> [<interface id>]\n"
+			"       Send an AT&T / NFAS / CCS ANSI T1.607 maintenance message\n"
+			"	to restore a channel to service, with optional interface id\n"
+			"	as agreed upon with remote switch operator\n";
+		return NULL;
+	case CLI_GENERATE:	
+		return NULL;
+	}
+	return handle_pri_service_generic(e, cmd, a, 0);
+}
+
+static char *handle_pri_service_disable_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:	
+		e->command = "pri service disable channel";
+		e->usage = 
+			"Usage: pri service disable channel <chan num> [<interface id>]\n"
+			"	Send an AT&T / NFAS / CCS ANSI T1.607 maintenance message\n"
+			"	to remove a channel from service, with optional interface id\n"
+			"	as agreed upon with remote switch operator\n";
+		return NULL;
+	case CLI_GENERATE:	
+		return NULL;
+	}
+	return handle_pri_service_generic(e, cmd, a, 2);
+}
+#endif
 
 #if defined(HAVE_PRI)
 static void build_status(char *s, size_t len, int status, int active)
@@ -13798,6 +14118,10 @@ static char *handle_pri_version(struct ast_cli_entry *e, int cmd, struct ast_cli
 #if defined(HAVE_PRI)
 static struct ast_cli_entry dahdi_pri_cli[] = {
 	AST_CLI_DEFINE(handle_pri_debug, "Enables PRI debugging on a span"),
+#ifdef HAVE_PRI_SERVICE_MESSAGES
+ 	AST_CLI_DEFINE(handle_pri_service_enable_channel, "Return a channel to service"),
+ 	AST_CLI_DEFINE(handle_pri_service_disable_channel, "Remove a channel from service"),
+#endif
 	AST_CLI_DEFINE(handle_pri_show_spans, "Displays PRI Information"),
 	AST_CLI_DEFINE(handle_pri_show_span, "Displays PRI Information"),
 	AST_CLI_DEFINE(handle_pri_show_debug, "Displays current PRI debug settings"),
@@ -16581,6 +16905,14 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 #endif
 			} else if (!strcasecmp(v->name, "discardremoteholdretrieval")) {
 				confp->pri.discardremoteholdretrieval = ast_true(v->value);
+#ifdef HAVE_PRI_SERVICE_MESSAGES
+			} else if (!strcasecmp(v->name, "service_message_support")) {
+				/* assuming switchtype for this channel group has been configured already */
+				if ((confp->pri.switchtype == PRI_SWITCH_ATT4ESS || confp->pri.switchtype == PRI_SWITCH_LUCENT5E) && ast_true(v->value))
+					confp->pri.enable_service_message_support = 1;
+				else
+					confp->pri.enable_service_message_support = 0;
+#endif
 #ifdef HAVE_PRI_INBANDDISCONNECT
 			} else if (!strcasecmp(v->name, "inbanddisconnect")) {
 				confp->pri.inbanddisconnect = ast_true(v->value);

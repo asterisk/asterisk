@@ -11,6 +11,8 @@
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.6.3  -------------
 ------------------------------------------------------------------------------
 
+
+
 SIP Changes
 -----------
  * Added preferred_codec_only option in sip.conf. This feature limits the joint
@@ -142,6 +144,7 @@ DAHDI Changes
    and a 'full' buffer policy for a fax transmission, add:
      faxbuffers=>6,full
    The faxbuffers configuration will be in affect until the call is torn down.
+ * Added service message support for 4ess/5ess switches.
 
 Dialplan Functions
 ------------------

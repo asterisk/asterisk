@@ -671,6 +671,12 @@
 /* Define to indicate the ${PRI_PROG_W_CAUSE_DESCRIP} library version */
 #undef HAVE_PRI_PROG_W_CAUSE_VERSION
 
+/* Define this to indicate the ${PRI_SERVICE_MESSAGES_DESCRIP} library */
+#undef HAVE_PRI_SERVICE_MESSAGES
+
+/* Define to indicate the ${PRI_SERVICE_MESSAGES_DESCRIP} library version */
+#undef HAVE_PRI_SERVICE_MESSAGES_VERSION
+
 /* Define to indicate the ${PRI_DESCRIP} library version */
 #undef HAVE_PRI_VERSION
 
