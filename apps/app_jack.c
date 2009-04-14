@@ -26,7 +26,7 @@
  * and output jack port so that the audio can be processed through
  * another application, or to play audio from another application.
  *
- * \arg http://www.jackaudio.org/
+ * \extref http://www.jackaudio.org/
  *
  * \note To install libresample, check it out of the following repository:
  * <code>$ svn co http://svn.digium.com/svn/thirdparty/libresample/trunk</code>

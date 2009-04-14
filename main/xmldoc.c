@@ -19,6 +19,8 @@
  * \brief XML Documentation API
  *
  * \author Eliel C. Sardanons (LU1ALY) <eliels@gmail.com>
+ *
+ * \extref libxml2 http://www.xmlsoft.org/
  */
 
 #include "asterisk.h"
