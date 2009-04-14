@@ -252,6 +252,35 @@ Changes to manager version 1.1:
 		To list the information about a specific SKINNY line.
 	Variables:
 		Line: <line> Line to show information about.
+
+- Action: CoreSettings
+	Modules: manager.c
+	Purpose: To report core settings, like AMI and Asterisk version,
+		maxcalls and maxload settings.
+		* Integrated in SVN trunk as of May 4th, 2007
+	Example:
+		Response: Success
+		ActionID: 1681692777
+		AMIversion: 1.1
+		AsteriskVersion: SVN-oej-moremanager-r61756M
+		SystemName: EDVINA-node-a
+		CoreMaxCalls: 120
+		CoreMaxLoadAvg: 0.000000
+		CoreRunUser: edvina
+		CoreRunGroup: edvina
+
+- Action: CoreStatus
+	Modules: manager.c
+	Purpose: To report current PBX core status flags, like
+		number of concurrent calls, startup and reload time.
+		* Integrated in SVN trunk as of May 4th, 2007
+	Example:
+		Response: Success
+		ActionID: 1649760492
+		CoreStartupTime: 22:35:17
+		CoreReloadTime: 22:35:17
+		CoreCurrentCalls: 20
+
 		
 * NEW EVENTS
 ------------
@@ -293,34 +322,6 @@ Changes to manager version 1.1:
 		Channeltype: SIP
 		SIPcallid: NTQzYWFiOWM4NmE0MWRkZjExMzU2YzQ3OWQwNzg3ZmI.
 		SIPfullcontact: sip:olle@127.0.0.1:49054
-
-- Action: CoreSettings
-	Modules: manager.c
-	Purpose: To report core settings, like AMI and Asterisk version,
-		maxcalls and maxload settings.
-		* Integrated in SVN trunk as of May 4th, 2007
-	Example:
-		Response: Success
-		ActionID: 1681692777
-		AMIversion: 1.1
-		AsteriskVersion: SVN-oej-moremanager-r61756M
-		SystemName: EDVINA-node-a
-		CoreMaxCalls: 120
-		CoreMaxLoadAvg: 0.000000
-		CoreRunUser: edvina
-		CoreRunGroup: edvina
-
-- Action: CoreStatus
-	Modules: manager.c
-	Purpose: To report current PBX core status flags, like
-		number of concurrent calls, startup and reload time.
-		* Integrated in SVN trunk as of May 4th, 2007
-	Example:
-		Response: Success
-		ActionID: 1649760492
-		CoreStartupTime: 22:35:17
-		CoreReloadTime: 22:35:17
-		CoreCurrentCalls: 20
 
 - Event: NewAccountCode
 	Modules: cdr.c
