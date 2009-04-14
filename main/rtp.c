@@ -3550,14 +3550,14 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 	} else {
 		pred = rtp->lastotexttimestamp + f->samples;
 		/* Re-calculate last TS */
-		rtp->lastts = rtp->lastts + ms * 90;
+		rtp->lastts = rtp->lastts + ms;
 		/* If it's close to our prediction, go for it */
 		if (ast_tvzero(f->delivery)) {
 			if (abs(rtp->lastts - pred) < 7200) {
 				rtp->lastts = pred;
 				rtp->lastotexttimestamp += f->samples;
 			} else {
-				ast_debug(3, "Difference is %d, ms is %d (%d), pred/ts/samples %d/%d/%d\n", abs(rtp->lastts - pred), ms, ms * 90, rtp->lastts, pred, f->samples);
+				ast_debug(3, "Difference is %d, ms is %d, pred/ts/samples %d/%d/%d\n", abs(rtp->lastts - pred), ms, rtp->lastts, pred, f->samples);
 				rtp->lastotexttimestamp = rtp->lastts;
 			}
 		}
