@@ -11323,6 +11323,12 @@ static void ss7_start_call(struct dahdi_pvt *p, struct dahdi_ss7 *linkset)
 #if defined(HAVE_SS7)
 static void ss7_apply_plan_to_number(char *buf, size_t size, const struct dahdi_ss7 *ss7, const char *number, const unsigned nai)
 {
+	if (ast_strlen_zero(number)) { /* make sure a number exists so prefix isn't placed on an empty string */
+		if (size) {
+			*buf = '\0';
+		}
+		return;
+	}
 	switch (nai) {
 	case SS7_NAI_INTERNATIONAL:
 		snprintf(buf, size, "%s%s", ss7->internationalprefix, number);
@@ -12345,6 +12351,12 @@ static void apply_plan_to_number(char *buf, size_t size, const struct dahdi_pri 
 {
 	if (pri->dialplan == -2) { /* autodetect the TON but leave the number untouched */
 		snprintf(buf, size, "%s", number);
+		return;
+	}
+	if (ast_strlen_zero(number)) { /* make sure a number exists so prefix isn't placed on an empty string */
+		if (size) {
+			*buf = '\0';
+		}
 		return;
 	}
 	switch (plan) {
