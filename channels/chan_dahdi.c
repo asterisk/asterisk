@@ -8819,6 +8819,13 @@ static char * redirectingreason2str(int redirectingreason)
 
 static void apply_plan_to_number(char *buf, size_t size, const struct dahdi_pri *pri, const char *number, const int plan)
 {
+	if (ast_strlen_zero(number)) { /* make sure a number exists so prefix isn't placed on an empty string */
+		if (size) {
+			*buf = '\0';
+		}
+		return;
+	}
+
 	switch (plan) {
 	case PRI_INTERNATIONAL_ISDN:		/* Q.931 dialplan == 0x11 international dialplan => prepend international prefix digits */
 		snprintf(buf, size, "%s%s", pri->internationalprefix, number);
