@@ -370,6 +370,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<para>Allow the calling party to enable recording of the call by sending
 					the DTMF sequence defined for one-touch automixmonitor in <filename>features.conf</filename>.</para>
 				</option>
+				<option name="z">
+					<para>On a call forward, cancel any dial timeout which has been set for this call.</para>
+				</option>
 				</optionlist>
 			</parameter>
 			<parameter name="URL">
@@ -502,6 +505,7 @@ enum {
 #define OPT_CANCEL_ELSEWHERE ((uint64_t)1 << 34)
 #define OPT_PEER_H           ((uint64_t)1 << 35)
 #define OPT_CALLEE_GO_ON     ((uint64_t)1 << 36)
+#define OPT_CANCEL_TIMEOUT   ((uint64_t)1 << 37)
 
 enum {
 	OPT_ARG_ANNOUNCE = 0,
@@ -554,6 +558,7 @@ AST_APP_OPTIONS(dial_exec_options, BEGIN_OPTIONS
 	AST_APP_OPTION('W', OPT_CALLER_MONITOR),
 	AST_APP_OPTION('x', OPT_CALLEE_MIXMONITOR),
 	AST_APP_OPTION('X', OPT_CALLER_MIXMONITOR),
+	AST_APP_OPTION('z', OPT_CANCEL_TIMEOUT),
 END_OPTIONS );
 
 #define CAN_EARLY_BRIDGE(flags,chan,peer) (!ast_test_flag64(flags, OPT_CALLEE_HANGUP | \
@@ -712,7 +717,7 @@ static void senddialendevent(const struct ast_channel *src, const char *dialstat
  * the outgoing channel without properly deleting it.
  */
 static void do_forward(struct chanlist *o,
-	struct cause_args *num, struct ast_flags64 *peerflags, int single)
+	struct cause_args *num, struct ast_flags64 *peerflags, int single, int *to)
 {
 	char tmpchan[256];
 	struct ast_channel *original = o->chan;
@@ -789,6 +794,9 @@ static void do_forward(struct chanlist *o,
 		ast_channel_update_redirecting(in, apr);
 
 		ast_clear_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE);
+		if (ast_test_flag64(peerflags, OPT_CANCEL_TIMEOUT)) {
+			*to = -1;
+		}
 
 		ast_channel_unlock(in);
 		ast_channel_unlock(c);
@@ -942,7 +950,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				continue;
 			/* here, o->chan == c == winner */
 			if (!ast_strlen_zero(c->call_forward)) {
-				do_forward(o, &num, peerflags, single);
+				do_forward(o, &num, peerflags, single, to);
 				continue;
 			}
 			f = ast_read(winner);
@@ -1735,7 +1743,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		outbound_group = ast_strdupa(outbound_group);
 	}
 	ast_channel_unlock(chan);	
-	ast_copy_flags64(peerflags, &opts, OPT_DTMF_EXIT | OPT_GO_ON | OPT_ORIGINAL_CLID | OPT_CALLER_HANGUP | OPT_IGNORE_FORWARDING | OPT_IGNORE_CONNECTEDLINE);
+	ast_copy_flags64(peerflags, &opts, OPT_DTMF_EXIT | OPT_GO_ON | OPT_ORIGINAL_CLID | OPT_CALLER_HANGUP | OPT_IGNORE_FORWARDING | OPT_IGNORE_CONNECTEDLINE | OPT_CANCEL_TIMEOUT);
 
 	/* loop through the list of dial destinations */
 	rest = args.peers;
