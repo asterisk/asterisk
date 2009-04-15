@@ -778,11 +778,16 @@ static enum fsread_res ast_readvideo_callback(struct ast_filestream *s)
 			ast_set_flag(fr, AST_FRFLAG_FROM_FILESTREAM);
 			ao2_ref(s, +1);
 		}
-		if (!fr || ast_write(s->owner, fr)) { /* no stream or error, as above */
-			if (fr)
+		if (!fr /* stream complete */ || ast_write(s->owner, fr) /* error writing */) {
+			if (fr) {
 				ast_log(LOG_WARNING, "Failed to write frame\n");
+				ast_frfree(fr);
+			}
 			s->owner->vstreamid = -1;
 			return FSREAD_FAILURE;
+		}
+		if (fr) {
+			ast_frfree(fr);
 		}
 	}
 
