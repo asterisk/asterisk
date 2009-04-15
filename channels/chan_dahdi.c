@@ -12255,7 +12255,9 @@ static void dahdi_pri_error(struct pri *pri, char *s)
 #if defined(HAVE_PRI)
 static int pri_check_restart(struct dahdi_pri *pri)
 {
+#ifdef HAVE_PRI_SERVICE_MESSAGES
 tryanotherpos:
+#endif
 	do {
 		pri->resetpos++;
 	} while ((pri->resetpos < pri->numchans) &&
@@ -12263,6 +12265,7 @@ tryanotherpos:
 		pri->pvts[pri->resetpos]->call ||
 		pri->pvts[pri->resetpos]->resetting));
 	if (pri->resetpos < pri->numchans) {
+#ifdef HAVE_PRI_SERVICE_MESSAGES
 		char db_chan_name[20], db_answer[5], state;
 		int why;
 
@@ -12280,6 +12283,7 @@ tryanotherpos:
 				goto tryanotherpos;
 			}
 		}
+#endif
 
 		/* Mark the channel as resetting and restart it */
 		pri->pvts[pri->resetpos]->resetting = 1;
