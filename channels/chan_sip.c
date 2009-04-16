@@ -10351,22 +10351,14 @@ static int find_calling_channel(struct ast_channel *c, void *data) {
 			(sip_cfg.notifycid == IGNORE_CONTEXT || !strcasecmp(c->context, p->context)));
 }
 
-/*! \brief Used in the SUBSCRIBE notification subsystem (RFC3265) */
-static int transmit_state_notify(struct sip_pvt *p, int state, int full, int timeout)
+/*! \brief Builds XML portion of state NOTIFY messages */
+static void state_notify_build_xml(int state, int full, const char *exten, const char *context, struct ast_str **tmp, struct sip_pvt *p, int subscribed, const char *mfrom, const char *mto)
 {
-	struct ast_str *tmp = ast_str_alloca(4000);
-	char from[256], to[256];
-	char *c, *mfrom, *mto;
-	struct sip_request req;
-	char hint[AST_MAX_EXTENSION];
-	char *statestring = "terminated";
-	const struct cfsubscription_types *subscriptiontype;
 	enum state { NOTIFY_OPEN, NOTIFY_INUSE, NOTIFY_CLOSED } local_state = NOTIFY_OPEN;
-	char *pidfstate = "--";
-	char *pidfnote= "Ready";
-	
-	memset(from, 0, sizeof(from));
-	memset(to, 0, sizeof(to));
+	const char *statestring = "terminated";
+	const char *pidfstate = "--";
+	const char *pidfnote= "Ready";
+	char hint[AST_MAX_EXTENSION];
 
 	switch (state) {
 	case (AST_EXTENSION_RINGING | AST_EXTENSION_INUSE):
@@ -10411,10 +10403,8 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 		break;
 	}
 
-	subscriptiontype = find_subscription_type(p->subscribed);
-	
 	/* Check which device/devices we are watching  and if they are registered */
-	if (ast_get_hint(hint, sizeof(hint), NULL, 0, NULL, p->context, p->exten)) {
+	if (ast_get_hint(hint, sizeof(hint), NULL, 0, NULL, context, exten)) {
 		char *hint2 = hint, *individual_hint = NULL;
 		int hint_count = 0, unavailable_count = 0;
 
@@ -10435,13 +10425,114 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 		}
 	}
 
+	switch (subscribed) {
+	case XPIDF_XML:
+	case CPIM_PIDF_XML:
+		ast_str_append(tmp, 0,
+			"<?xml version=\"1.0\"?>\n"
+			"<!DOCTYPE presence PUBLIC \"-//IETF//DTD RFCxxxx XPIDF 1.0//EN\" \"xpidf.dtd\">\n"
+			"<presence>\n");
+		ast_str_append(tmp, 0, "<presentity uri=\"%s;method=SUBSCRIBE\" />\n", mfrom);
+		ast_str_append(tmp, 0, "<atom id=\"%s\">\n", exten);
+		ast_str_append(tmp, 0, "<address uri=\"%s;user=ip\" priority=\"0.800000\">\n", mto);
+		ast_str_append(tmp, 0, "<status status=\"%s\" />\n", (local_state ==  NOTIFY_OPEN) ? "open" : (local_state == NOTIFY_INUSE) ? "inuse" : "closed");
+		ast_str_append(tmp, 0, "<msnsubstatus substatus=\"%s\" />\n", (local_state == NOTIFY_OPEN) ? "online" : (local_state == NOTIFY_INUSE) ? "onthephone" : "offline");
+		ast_str_append(tmp, 0, "</address>\n</atom>\n</presence>\n");
+		break;
+	case PIDF_XML: /* Eyebeam supports this format */
+		ast_str_append(tmp, 0,
+			"<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n"
+			"<presence xmlns=\"urn:ietf:params:xml:ns:pidf\" \nxmlns:pp=\"urn:ietf:params:xml:ns:pidf:person\"\nxmlns:es=\"urn:ietf:params:xml:ns:pidf:rpid:status:rpid-status\"\nxmlns:ep=\"urn:ietf:params:xml:ns:pidf:rpid:rpid-person\"\nentity=\"%s\">\n", mfrom);
+		ast_str_append(tmp, 0, "<pp:person><status>\n");
+		if (pidfstate[0] != '-')
+			ast_str_append(tmp, 0, "<ep:activities><ep:%s/></ep:activities>\n", pidfstate);
+		ast_str_append(tmp, 0, "</status></pp:person>\n");
+		ast_str_append(tmp, 0, "<note>%s</note>\n", pidfnote); /* Note */
+		ast_str_append(tmp, 0, "<tuple id=\"%s\">\n", exten); /* Tuple start */
+		ast_str_append(tmp, 0, "<contact priority=\"1\">%s</contact>\n", mto);
+		if (pidfstate[0] == 'b') /* Busy? Still open ... */
+			ast_str_append(tmp, 0, "<status><basic>open</basic></status>\n");
+		else
+			ast_str_append(tmp, 0, "<status><basic>%s</basic></status>\n", (local_state != NOTIFY_CLOSED) ? "open" : "closed");
+		ast_str_append(tmp, 0, "</tuple>\n</presence>\n");
+		break;
+	case DIALOG_INFO_XML: /* SNOM subscribes in this format */
+		ast_str_append(tmp, 0, "<?xml version=\"1.0\"?>");
+		ast_str_append(tmp, 0, "<dialog-info xmlns=\"urn:ietf:params:xml:ns:dialog-info\" version=\"%d\" state=\"%s\" entity=\"%s\">", p->dialogver, full ? "full" : "partial", mto);
+		if ((state & AST_EXTENSION_RINGING) && sip_cfg.notifyringing) {
+			const char *local_display = exten;
+			char *local_target = ast_strdupa(mto);
+
+			/* There are some limitations to how this works.  The primary one is that the
+			   callee must be dialing the same extension that is being monitored.  Simply dialing
+			   the hint'd device is not sufficient. */
+			if (sip_cfg.notifycid) {
+				struct ast_channel *caller = ast_channel_search_locked(find_calling_channel, p);
+
+				if (caller) {
+					int need = strlen(caller->cid.cid_num) + strlen(p->fromdomain) + sizeof("sip:@");
+					local_target = alloca(need);
+					snprintf(local_target, need, "sip:%s@%s", caller->cid.cid_num, p->fromdomain);
+					local_display = ast_strdupa(caller->cid.cid_name);
+					ast_channel_unlock(caller);
+					caller = NULL;
+				}
+			}
+
+			/* We create a fake call-id which the phone will send back in an INVITE
+			   Replaces header which we can grab and do some magic with. */
+			ast_str_append(tmp, 0, 
+					"<dialog id=\"%s\" call-id=\"pickup-%s\" direction=\"recipient\">\n"
+					"<remote>\n"
+					/* See the limitations of this above.  Luckily the phone seems to still be
+					   happy when these values are not correct. */
+					"<identity display=\"%s\">%s</identity>\n"
+					"<target uri=\"%s\"/>\n"
+					"</remote>\n"
+					"<local>\n"
+					"<identity>%s</identity>\n"
+					"<target uri=\"%s\"/>\n"
+					"</local>\n",
+					exten, p->callid, local_display, local_target, local_target, mto, mto);
+		} else {
+			ast_str_append(tmp, 0, "<dialog id=\"%s\">", exten);
+		}
+		ast_str_append(tmp, 0, "<state>%s</state>\n", statestring);
+		if (state == AST_EXTENSION_ONHOLD) { //todohere, this seems weird
+				ast_str_append(tmp, 0, "<local>\n<target uri=\"%s\">\n"
+			                                    "<param pname=\"+sip.rendering\" pvalue=\"no\"/>\n"
+			                                    "</target>\n</local>\n", mto);
+		}
+		ast_str_append(tmp, 0, "</dialog>\n</dialog-info>\n");
+		break;
+	case NONE:
+	default:
+		break;
+	}
+}
+
+
+/*! \brief Used in the SUBSCRIBE notification subsystem (RFC3265) */
+static int transmit_state_notify(struct sip_pvt *p, int state, int full, int timeout)
+{
+	struct ast_str *tmp = ast_str_alloca(4000);
+	char from[256], to[256];
+	char *c, *mfrom, *mto;
+	struct sip_request req;
+	const struct cfsubscription_types *subscriptiontype;
+
+	memset(from, 0, sizeof(from));
+	memset(to, 0, sizeof(to));
+
+	subscriptiontype = find_subscription_type(p->subscribed);
+
 	ast_copy_string(from, get_header(&p->initreq, "From"), sizeof(from));
 	c = get_in_brackets(from);
 	if (strncasecmp(c, "sip:", 4) && strncasecmp(c, "sips:", 5)) {
 		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
 		return -1;
 	}
-	
+
 	mfrom = remove_uri_parameters(c);
 
 	ast_copy_string(to, get_header(&p->initreq, "To"), sizeof(to));
@@ -10454,7 +10545,6 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 
 	reqprep(&req, p, SIP_NOTIFY, 0, 1);
 
-	
 	add_header(&req, "Event", subscriptiontype->event);
 	add_header(&req, "Content-Type", subscriptiontype->mediatype);
 	switch(state) {
@@ -10475,85 +10565,26 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 		else	/* Expired */
 			add_header(&req, "Subscription-State", "terminated;reason=timeout");
 	}
+
 	switch (p->subscribed) {
 	case XPIDF_XML:
 	case CPIM_PIDF_XML:
-		ast_str_append(&tmp, 0,
-			"<?xml version=\"1.0\"?>\n"
-			"<!DOCTYPE presence PUBLIC \"-//IETF//DTD RFCxxxx XPIDF 1.0//EN\" \"xpidf.dtd\">\n"
-			"<presence>\n");
-		ast_str_append(&tmp, 0, "<presentity uri=\"%s;method=SUBSCRIBE\" />\n", mfrom);
-		ast_str_append(&tmp, 0, "<atom id=\"%s\">\n", p->exten);
-		ast_str_append(&tmp, 0, "<address uri=\"%s;user=ip\" priority=\"0.800000\">\n", mto);
-		ast_str_append(&tmp, 0, "<status status=\"%s\" />\n", (local_state ==  NOTIFY_OPEN) ? "open" : (local_state == NOTIFY_INUSE) ? "inuse" : "closed");
-		ast_str_append(&tmp, 0, "<msnsubstatus substatus=\"%s\" />\n", (local_state == NOTIFY_OPEN) ? "online" : (local_state == NOTIFY_INUSE) ? "onthephone" : "offline");
-		ast_str_append(&tmp, 0, "</address>\n</atom>\n</presence>\n");
+		add_header(&req, "Event", subscriptiontype->event);
+		state_notify_build_xml(state, full, p->exten, p->context, &tmp, p, p->subscribed, mfrom, mto);
+		add_header(&req, "Content-Type", subscriptiontype->mediatype);
+		p->dialogver++;
 		break;
 	case PIDF_XML: /* Eyebeam supports this format */
-		ast_str_append(&tmp, 0,
-			"<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n"
-			"<presence xmlns=\"urn:ietf:params:xml:ns:pidf\" \nxmlns:pp=\"urn:ietf:params:xml:ns:pidf:person\"\nxmlns:es=\"urn:ietf:params:xml:ns:pidf:rpid:status:rpid-status\"\nxmlns:ep=\"urn:ietf:params:xml:ns:pidf:rpid:rpid-person\"\nentity=\"%s\">\n", mfrom);
-		ast_str_append(&tmp, 0, "<pp:person><status>\n");
-		if (pidfstate[0] != '-')
-			ast_str_append(&tmp, 0, "<ep:activities><ep:%s/></ep:activities>\n", pidfstate);
-		ast_str_append(&tmp, 0, "</status></pp:person>\n");
-		ast_str_append(&tmp, 0, "<note>%s</note>\n", pidfnote); /* Note */
-		ast_str_append(&tmp, 0, "<tuple id=\"%s\">\n", p->exten); /* Tuple start */
-		ast_str_append(&tmp, 0, "<contact priority=\"1\">%s</contact>\n", mto);
-		if (pidfstate[0] == 'b') /* Busy? Still open ... */
-			ast_str_append(&tmp, 0, "<status><basic>open</basic></status>\n");
-		else
-			ast_str_append(&tmp, 0, "<status><basic>%s</basic></status>\n", (local_state != NOTIFY_CLOSED) ? "open" : "closed");
-		ast_str_append(&tmp, 0, "</tuple>\n</presence>\n");
+		add_header(&req, "Event", subscriptiontype->event);
+		state_notify_build_xml(state, full, p->exten, p->context, &tmp, p, p->subscribed, mfrom, mto);
+		add_header(&req, "Content-Type", subscriptiontype->mediatype);
+		p->dialogver++;
 		break;
 	case DIALOG_INFO_XML: /* SNOM subscribes in this format */
-		ast_str_append(&tmp, 0, "<?xml version=\"1.0\"?>\n");
-		ast_str_append(&tmp, 0, "<dialog-info xmlns=\"urn:ietf:params:xml:ns:dialog-info\" version=\"%d\" state=\"%s\" entity=\"%s\">\n", p->dialogver++, full ? "full" : "partial", mto);
-		if ((state & AST_EXTENSION_RINGING) && sip_cfg.notifyringing) {
-			const char *local_display = p->exten;
-			char *local_target = mto;
-
-			/* There are some limitations to how this works.  The primary one is that the
-			   callee must be dialing the same extension that is being monitored.  Simply dialing
-			   the hint'd device is not sufficient. */
-			if (sip_cfg.notifycid) {
-				struct ast_channel *caller = ast_channel_search_locked(find_calling_channel, p);
-
-				if (caller) {
-					int need = strlen(caller->cid.cid_num) + strlen(p->fromdomain) + sizeof("sip:@");
-					local_target = alloca(need);
-					snprintf(local_target, need, "sip:%s@%s", caller->cid.cid_num, p->fromdomain);
-					local_display = ast_strdupa(caller->cid.cid_name);
-					ast_channel_unlock(caller);
-					caller = NULL;
-				}
-			}
-
-			/* We create a fake call-id which the phone will send back in an INVITE
-			   Replaces header which we can grab and do some magic with. */
-			ast_str_append(&tmp, 0, 
-					"<dialog id=\"%s\" call-id=\"pickup-%s\" direction=\"recipient\">\n"
-					"<remote>\n"
-					/* See the limitations of this above.  Luckily the phone seems to still be
-					   happy when these values are not correct. */
-					"<identity display=\"%s\">%s</identity>\n"
-					"<target uri=\"%s\"/>\n"
-					"</remote>\n"
-					"<local>\n"
-					"<identity>%s</identity>\n"
-					"<target uri=\"%s\"/>\n"
-					"</local>\n",
-					p->exten, p->callid, local_display, local_target, local_target, mto, mto);
-		} else {
-			ast_str_append(&tmp, 0, "<dialog id=\"%s\">\n", p->exten);
-		}
-		ast_str_append(&tmp, 0, "<state>%s</state>\n", statestring);
-		if (state == AST_EXTENSION_ONHOLD) {
-			ast_str_append(&tmp, 0, "<local>\n<target uri=\"%s\">\n"
-			                                "<param pname=\"+sip.rendering\" pvalue=\"no\"/>\n"
-			                                "</target>\n</local>\n", mto);
-		}
-		ast_str_append(&tmp, 0, "</dialog>\n</dialog-info>\n");
+		add_header(&req, "Event", subscriptiontype->event);
+		state_notify_build_xml(state, full, p->exten, p->context, &tmp, p, p->subscribed, mfrom, mto);
+		add_header(&req, "Content-Type", subscriptiontype->mediatype);
+		p->dialogver++;
 		break;
 	case NONE:
 	default:
