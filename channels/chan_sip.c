@@ -8082,7 +8082,7 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqn
 static void destroy_association(struct sip_peer *peer)
 {
 	if (!ast_test_flag(&global_flags[1], SIP_PAGE2_IGNOREREGEXPIRE)) {
-		if (ast_test_flag(&peer->flags[1], SIP_PAGE2_RT_FROMCONTACT)) {
+		if (ast_test_flag(&peer->flags[1], SIP_PAGE2_RT_FROMCONTACT) && ast_test_flag(&global_flags[1], SIP_PAGE2_RTUPDATE)) {
 			ast_update_realtime("sippeers", "name", peer->name, "fullcontact", "", "ipaddr", "", "port", "", "regseconds", "0", "username", "", "regserver", "", NULL);
 			ast_update_realtime("sippeers", "name", peer->name, "lastms", "", NULL);
 		} else 
@@ -12983,7 +12983,9 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 		ast_log(LOG_NOTICE, "Peer '%s' is now %s. (%dms / %dms)\n",
 			peer->name, s, pingtime, peer->maxms);
 		ast_device_state_changed("SIP/%s", peer->name);
-		ast_update_realtime("sippeers", "name", peer->name, "lastms", str_lastms, NULL);
+		if (ast_test_flag(&global_flags[1], SIP_PAGE2_RTUPDATE)) {
+			ast_update_realtime("sippeers", "name", peer->name, "lastms", str_lastms, NULL);
+		}
 		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
 			"Peer: SIP/%s\r\nPeerStatus: %s\r\nTime: %d\r\n",
 			peer->name, s, pingtime);
@@ -16607,7 +16609,9 @@ static int sip_poke_noanswer(const void *data)
 	peer->pokeexpire = -1;
 	if (peer->lastms > -1) {
 		ast_log(LOG_NOTICE, "Peer '%s' is now UNREACHABLE!  Last qualify: %d\n", peer->name, peer->lastms);
-		ast_update_realtime("sippeers", "name", peer->name, "lastms", "-1", NULL);
+		if (ast_test_flag(&global_flags[1], SIP_PAGE2_RTUPDATE)) {
+			ast_update_realtime("sippeers", "name", peer->name, "lastms", "-1", NULL);
+		}
 		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, -1);
 	}
 	if (peer->call)
