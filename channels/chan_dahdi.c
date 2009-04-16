@@ -5035,6 +5035,8 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 			dahdi_disable_ec(p);
 		}
 		break;
+	default:
+		return -1;
 	}
 	errno = 0;
 
