@@ -439,7 +439,7 @@ static char VM_SPOOL_DIR[PATH_MAX];
 
 static char ext_pass_cmd[128];
 
-int my_umask;
+static int my_umask;
 
 #if ODBC_STORAGE
 #define tdesc "Comedian Mail (Voicemail System) with ODBC Storage"
