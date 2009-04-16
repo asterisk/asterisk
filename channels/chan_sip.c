@@ -11379,9 +11379,8 @@ static void destroy_association(struct sip_peer *peer)
 	char *tablename = (realtimeregs) ? "sipregs" : "sippeers";
 
 	if (!sip_cfg.ignore_regexpire) {
-		if (peer->rt_fromcontact) {
-			ast_update_realtime(tablename, "name", peer->name, "fullcontact", "", "ipaddr", "", "port", "", "regseconds", "0", peer->deprecated_username ? "username" : "defaultuser", "", "regserver", "", "useragent", "", SENTINEL);
-			ast_update_realtime(tablename, "name", peer->name, "lastms", "", SENTINEL);
+		if (peer->rt_fromcontact && sip_cfg.peer_rtupdate) {
+			ast_update_realtime(tablename, "name", peer->name, "fullcontact", "", "ipaddr", "", "port", "", "regseconds", "0", peer->deprecated_username ? "username" : "defaultuser", "", "regserver", "", "useragent", "", "lastms", "", SENTINEL);
 		} else {
 			ast_db_del("SIP/Registry", peer->name);
 		}
@@ -17868,7 +17867,9 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 		ast_log(LOG_NOTICE, "Peer '%s' is now %s. (%dms / %dms)\n",
 			peer->name, s, pingtime, peer->maxms);
 		ast_devstate_changed(AST_DEVICE_UNKNOWN, "SIP/%s", peer->name);
-		ast_update_realtime(ast_check_realtime("sipregs") ? "sipregs" : "sippeers", "name", peer->name, "lastms", str_lastms, SENTINEL);
+		if (sip_cfg.peer_rtupdate) {
+			ast_update_realtime(ast_check_realtime("sipregs") ? "sipregs" : "sippeers", "name", peer->name, "lastms", str_lastms, SENTINEL);
+		}
 		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
 			"ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: %s\r\nTime: %d\r\n",
 			peer->name, s, pingtime);
@@ -22356,7 +22357,9 @@ static int sip_poke_noanswer(const void *data)
 
 	if (peer->lastms > -1) {
 		ast_log(LOG_NOTICE, "Peer '%s' is now UNREACHABLE!  Last qualify: %d\n", peer->name, peer->lastms);
-		ast_update_realtime(ast_check_realtime("sipregs") ? "sipregs" : "sippeers", "name", peer->name, "lastms", "-1", SENTINEL);
+		if (sip_cfg.peer_rtupdate) {
+			ast_update_realtime(ast_check_realtime("sipregs") ? "sipregs" : "sippeers", "name", peer->name, "lastms", "-1", SENTINEL);
+		}
 		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, -1);
 		if (sip_cfg.regextenonqualify) {
 			register_peer_exten(peer, FALSE);
