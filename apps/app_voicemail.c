@@ -661,7 +661,7 @@ static char VM_SPOOL_DIR[PATH_MAX];
 static char ext_pass_cmd[128];
 static char ext_pass_check_cmd[128];
 
-int my_umask;
+static int my_umask;
 
 #define PWDCHANGE_INTERNAL (1 << 1)
 #define PWDCHANGE_EXTERNAL (1 << 2)
