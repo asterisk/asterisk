@@ -1813,7 +1813,7 @@ static void insert_in_next_chars_alt_char_list(struct match_char **parent_ptr, s
 		return;
 	}
 
-	if ((*parent_ptr)->specificity > node->specificity){
+	if ((*parent_ptr)->specificity > node->specificity) {
 		/* insert at head */
 		node->alt_char = (*parent_ptr);
 		*parent_ptr = node;
