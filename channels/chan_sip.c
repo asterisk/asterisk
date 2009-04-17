@@ -20067,11 +20067,7 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 		append_history(transferer, "Xfer", "Refer failed");
 		if (targetcall_pvt->owner)
 			ast_channel_unlock(targetcall_pvt->owner);
-		/* Right now, we have to hangup, sorry. Bridge is destroyed */
-		if (res != -2)
-			ast_hangup(transferer->owner);
-		else
-			ast_clear_flag(&transferer->flags[0], SIP_DEFER_BYE_ON_TRANSFER);
+		ast_clear_flag(&transferer->flags[0], SIP_DEFER_BYE_ON_TRANSFER);
 	} else {
 		struct ast_party_connected_line connected_caller;
 
