@@ -261,6 +261,7 @@ static struct ast_channel *agent_bridgedchannel(struct ast_channel *chan, struct
 static void set_agentbycallerid(const char *callerid, const char *agent);
 static struct ast_channel* agent_get_base_channel(struct ast_channel *chan);
 static int agent_set_base_channel(struct ast_channel *chan, struct ast_channel *base);
+static int agent_logoff(const char *agent, int soft);
 
 /*! \brief Channel interface description for PBX integration */
 static const struct ast_channel_tech agent_tech = {
@@ -493,8 +494,12 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 	struct ast_frame *f = NULL;
 	static struct ast_frame answer_frame = { AST_FRAME_CONTROL, AST_CONTROL_ANSWER };
 	const char *status;
-	ast_mutex_lock(&p->lock); 
+	int cur_time = time(NULL);
+	ast_mutex_lock(&p->lock);
 	CHECK_FORMATS(ast, p);
+	if (!p->start) {
+		p->start = cur_time;
+	}
 	if (p->chan) {
 		ast_copy_flags(p->chan, ast, AST_FLAG_EXCEPTION);
 		p->chan->fdno = (ast->fdno == AST_AGENT_FD) ? AST_TIMING_FD : ast->fdno;
@@ -511,19 +516,16 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 				if (p->chan)
 					ast_log(LOG_DEBUG, "Bridge on '%s' being cleared (2)\n", p->chan->name);
 				if (p->owner->_state != AST_STATE_UP) {
-					int howlong = time(NULL) - p->start;
-					if (p->autologoff && howlong > p->autologoff) {
-						long logintime = time(NULL) - p->loginstart;
+					int howlong = cur_time - p->start;
+					if (p->autologoff && howlong >= p->autologoff) {
 						p->loginstart = 0;
 							ast_log(LOG_NOTICE, "Agent '%s' didn't answer/confirm within %d seconds (waited %d)\n", p->name, p->autologoff, howlong);
-						agent_logoff_maintenance(p, p->loginchan, logintime, ast->uniqueid, "Autologoff");
-						if (persistent_agents)
-							dump_agents();
+						agent_logoff_maintenance(p, p->loginchan, (cur_time = p->loginstart), ast->uniqueid, "Autologoff");
 					}
 				}
 				status = pbx_builtin_getvar_helper(p->chan, "CHANLOCALSTATUS");
 				if (autologoffunavail && status && !strcasecmp(status, "CHANUNAVAIL")) {
-					long logintime = time(NULL) - p->loginstart;
+					long logintime = cur_time - p->loginstart;
 					p->loginstart = 0;
 					ast_log(LOG_NOTICE, "Agent read: '%s' is not available now, auto logoff\n", p->name);
 					agent_logoff_maintenance(p, p->loginchan, logintime, ast->uniqueid, "Chanunavail");
@@ -537,29 +539,38 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 			ast_device_state_changed("Agent/%s", p->agent);
 			p->acknowledged = 0;
 		}
- 	} else {
- 		/* if acknowledgement is not required, and the channel is up, we may have missed
+	} else {
+		/* if acknowledgement is not required, and the channel is up, we may have missed
  		   an AST_CONTROL_ANSWER (if there was one), so mark the call acknowledged anyway */
- 		if (!p->ackcall && !p->acknowledged && p->chan && (p->chan->_state == AST_STATE_UP))
-  			p->acknowledged = 1;
- 		switch (f->frametype) {
- 		case AST_FRAME_CONTROL:
- 			if (f->subclass == AST_CONTROL_ANSWER) {
- 				if (p->ackcall) {
- 					if (option_verbose > 2)
- 						ast_verbose(VERBOSE_PREFIX_3 "%s answered, waiting for '#' to acknowledge\n", p->chan->name);
- 					/* Don't pass answer along */
- 					ast_frfree(f);
- 					f = &ast_null_frame;
- 				} else {
- 					p->acknowledged = 1;
- 					/* Use the builtin answer frame for the 
+		if (!p->ackcall && !p->acknowledged && p->chan && (p->chan->_state == AST_STATE_UP)) {
+			p->acknowledged = 1;
+		}
+		if (!p->acknowledged) {
+			int howlong = cur_time - p->start;
+			if (p->autologoff && (howlong >= p->autologoff)) {
+				ast_log(LOG_NOTICE, "Agent '%s' didn't answer/confirm within %d seconds (waited %d)\n", p->name, p->autologoff, howlong);
+				agent_logoff_maintenance(p, p->loginchan, (cur_time - p->loginstart), ast->uniqueid, "Autologoff");
+				agent_logoff(p->agent, 0);
+			}
+		}
+		switch (f->frametype) {
+		case AST_FRAME_CONTROL:
+			if (f->subclass == AST_CONTROL_ANSWER) {
+				if (p->ackcall) {
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "%s answered, waiting for '#' to acknowledge\n", p->chan->name);
+					/* Don't pass answer along */
+					ast_frfree(f);
+					f = &ast_null_frame;
+				} else {
+					p->acknowledged = 1;
+					/* Use the builtin answer frame for the 
 					   recording start check below. */
- 					ast_frfree(f);
- 					f = &answer_frame;
- 				}
- 			}
- 			break;
+					ast_frfree(f);
+					f = &answer_frame;
+				}
+			}
+			break;
 		case AST_FRAME_DTMF_BEGIN:
 			/*ignore DTMF begin's as it can cause issues with queue announce files*/
 			if((!p->acknowledged && f->subclass == '#') || (f->subclass == '*' && endcall)){
@@ -567,31 +578,31 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 				f = &ast_null_frame;
 			}
 			break;
- 		case AST_FRAME_DTMF_END:
- 			if (!p->acknowledged && (f->subclass == '#')) {
- 				if (option_verbose > 2)
- 					ast_verbose(VERBOSE_PREFIX_3 "%s acknowledged\n", p->chan->name);
- 				p->acknowledged = 1;
- 				ast_frfree(f);
- 				f = &answer_frame;
- 			} else if (f->subclass == '*' && endcall) {
- 				/* terminates call */
- 				ast_frfree(f);
- 				f = NULL;
- 			}
- 			break;
- 		case AST_FRAME_VOICE:
- 		case AST_FRAME_VIDEO:
- 			/* don't pass voice or video until the call is acknowledged */
- 			if (!p->acknowledged) {
- 				ast_frfree(f);
- 				f = &ast_null_frame;
- 			}
+		case AST_FRAME_DTMF_END:
+			if (!p->acknowledged && (f->subclass == '#')) {
+				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "%s acknowledged\n", p->chan->name);
+				p->acknowledged = 1;
+				ast_frfree(f);
+				f = &answer_frame;
+			} else if (f->subclass == '*' && endcall) {
+				/* terminates call */
+				ast_frfree(f);
+				f = NULL;
+			}
+			break;
+		case AST_FRAME_VOICE:
+		case AST_FRAME_VIDEO:
+			/* don't pass voice or video until the call is acknowledged */
+			if (!p->acknowledged) {
+				ast_frfree(f);
+				f = &ast_null_frame;
+			}
 		default:
 			/* pass everything else on through */
 			break;
-  		}
-  	}
+		}
+	}
 
 	CLEANUP(ast,p);
 	if (p->chan && !p->chan->_bridge) {
@@ -1645,7 +1656,7 @@ static void agent_logoff_maintenance(struct agent_pvt *p, char *loginchan, long 
 	p->inherited_devicestate = -1;
 	ast_device_state_changed("Agent/%s", p->agent);
 	if (persistent_agents)
-		dump_agents();	
+		dump_agents();
 
 }
 
