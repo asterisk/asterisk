@@ -399,6 +399,10 @@ static void handle_cause(int cause, struct cause_args *num)
 		break;
 
 	case AST_CAUSE_NO_ANSWER:
+		if (cdr) {
+			ast_cdr_noanswer(cdr);
+		}
+		break;
 	case AST_CAUSE_NORMAL_CLEARING:
 		break;
 
