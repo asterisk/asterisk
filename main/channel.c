@@ -2842,6 +2842,13 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		goto done;
 	}
 
+	/* Stop if we're a zombie or need a soft hangup */
+	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
+		if (chan->generator)
+			ast_deactivate_generator(chan);
+		goto done;
+	}
+
 	if (chan->fdno == -1) {
 #ifdef AST_DEVMODE
 		ast_log(LOG_ERROR, "ast_read() called with no recorded file descriptor.\n");
@@ -2849,13 +2856,6 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		ast_debug(2, "ast_read() called with no recorded file descriptor.\n");
 #endif
 		f = &ast_null_frame;
-		goto done;
-	}
-
-	/* Stop if we're a zombie or need a soft hangup */
-	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
-		if (chan->generator)
-			ast_deactivate_generator(chan);
 		goto done;
 	}
 	prestate = chan->_state;
