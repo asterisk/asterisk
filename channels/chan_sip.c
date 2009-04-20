@@ -3598,7 +3598,7 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 	/* I removed the code from retrans_pkt that does the same thing so it doesn't get loaded into the scheduler */
 	/*! \todo According to the RFC some packets need to be retransmitted even if its TCP, so this needs to get revisited */
 	if (!(p->socket.type & SIP_TRANSPORT_UDP)) {
-		xmitres = __sip_xmit(dialog_ref(p, "passing dialog ptr into callback..."), data, len);	/* Send packet */
+		xmitres = __sip_xmit(p, data, len);	/* Send packet */
 		if (xmitres == XMIT_ERROR) {	/* Serious network trouble, no need to try again */
 			append_history(p, "XmitErr", "%s", fatal ? "(Critical)" : "(Non-critical)");
 			return AST_FAILURE;
@@ -3641,6 +3641,7 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 		ast_log(LOG_ERROR, "Serious Network Trouble; __sip_xmit returns error for pkt data\n");
 		AST_SCHED_DEL(sched, pkt->retransid);
 		p->packets = pkt->next;
+		pkt->owner = dialog_unref(pkt->owner,"pkt is being freed, its dialog ref is dead now");
 		ast_free(pkt->data);
 		ast_free(pkt);
 		return AST_FAILURE;
