@@ -402,6 +402,15 @@ hint_word : word { $$ = $1; }
 			free($3);
 		}
 	}
+	| hint_word AT word {
+		if (asprintf(&($$), "%s@%s", $1, $3) < 0) {
+			ast_log(LOG_WARNING, "asprintf() failed\n");
+			$$ = NULL;
+		} else {
+			free($1);
+			free($3);
+		}
+	}
 	;
 
 word3_list : word { $$ = $1;}
