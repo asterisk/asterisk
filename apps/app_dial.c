@@ -635,6 +635,7 @@ static void handle_cause(int cause, struct cause_args *num)
 		num->nochan++;
 		break;
 
+	case AST_CAUSE_NO_ANSWER:
 	case AST_CAUSE_NORMAL_CLEARING:
 		break;
 
