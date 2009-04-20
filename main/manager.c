@@ -3921,7 +3921,9 @@ static struct ast_str *generic_http_callback(enum output_format format,
 		size_t l = ftell(s.f);
 		
 		if (l) {
-			if ((buf = mmap(NULL, l, PROT_READ | PROT_WRITE, MAP_SHARED, s.fd, 0))) {
+			if (MAP_FAILED == (buf = mmap(NULL, l, PROT_READ | PROT_WRITE, MAP_PRIVATE, s.fd, 0))) {
+				ast_log(LOG_WARNING, "mmap failed.  Manager output was not processed\n");
+			} else {
 				if (format == FORMAT_XML || format == FORMAT_HTML)
 					xml_translate(&out, buf, params, format);
 				else
