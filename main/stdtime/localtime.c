@@ -239,6 +239,7 @@ static void *inotify_daemon(void *data)
 	} buf;
 	ssize_t res;
 	struct state *cur;
+	struct timespec ten_seconds = { 10, 0 };
 
 	inotify_fd = inotify_init();
 
@@ -261,7 +262,7 @@ static void *inotify_daemon(void *data)
 		} else if (res < 0) {
 			if (errno == EINTR || errno == EAGAIN) {
 				/* If read fails, then wait a bit, then continue */
-				poll(NULL, 0, 10000);
+				nanosleep(&ten_seconds, NULL);
 				continue;
 			}
 			/* Sanity check -- this should never happen, either */
@@ -322,6 +323,7 @@ static void *notify_daemon(void *data)
 {
 	struct stat st, lst;
 	struct state *cur;
+	struct timespec sixty_seconds = { 60, 0 };
 
 	ast_mutex_lock(&initialization_lock);
 	ast_cond_signal(&initialization);
@@ -330,7 +332,7 @@ static void *notify_daemon(void *data)
 	for (;/*ever*/;) {
 		char		fullname[FILENAME_MAX + 1];
 
-		poll(NULL, 0, 60000);
+		nanosleep(&sixty_seconds, NULL);
 		AST_LIST_LOCK(&zonelist);
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&zonelist, cur, list) {
 			char *name = cur->name;
