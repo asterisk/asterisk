@@ -2881,30 +2881,32 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 			char *buf;
 			size_t l = lseek(ss.fd, 0, SEEK_END);
 			if (l) {
-				if ((buf = mmap(NULL, l, PROT_READ | PROT_WRITE, MAP_SHARED, ss.fd, 0))) {
-					char *tmp;
+				if (MAP_FAILED == (buf = mmap(NULL, l, PROT_READ | PROT_WRITE, MAP_PRIVATE, ss.fd, 0))) {
+					ast_log(LOG_WARNING, "mmap failed.  Manager request output was not processed\n");
+				} else {
+					char *tmpbuf;
 					if (format == FORMAT_XML)
-						tmp = xml_translate(buf, params);
+						tmpbuf = xml_translate(buf, params);
 					else if (format == FORMAT_HTML)
-						tmp = html_translate(buf);
+						tmpbuf = html_translate(buf);
 					else
-						tmp = buf;
-					if (tmp) {
+						tmpbuf = buf;
+					if (tmpbuf) {
 						size_t wlen, tlen;
-						if ((retval = malloc((wlen = strlen(workspace)) + (tlen = strlen(tmp)) + 128))) {
+						if ((retval = malloc((wlen = strlen(workspace)) + (tlen = strlen(tmpbuf)) + 128))) {
 							strcpy(retval, workspace);
-							strcpy(retval + wlen, tmp);
+							strcpy(retval + wlen, tmpbuf);
 							c = retval + wlen + tlen;
 							/* Leftover space for footer, if any */
 							len = 120;
 						}
 					}
-					if (tmp != buf)
-						free(tmp);
+					if (tmpbuf != buf)
+						free(tmpbuf);
 					free(s->outputstr);
 					s->outputstr = NULL;
+					munmap(buf, l);
 				}
-				munmap(buf, l);
 			}
 			fclose(ss.f);
 			ss.f = NULL;
