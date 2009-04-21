@@ -352,6 +352,18 @@
 /* Define to 1 if you have the `glob' function. */
 #undef HAVE_GLOB
 
+/* Define if your system has the GLOB_BRACE headers. */
+#undef HAVE_GLOB_BRACE
+
+/* Define GLOB_BRACE headers version */
+#undef HAVE_GLOB_BRACE_VERSION
+
+/* Define if your system has the GLOB_NOMAGIC headers. */
+#undef HAVE_GLOB_NOMAGIC
+
+/* Define GLOB_NOMAGIC headers version */
+#undef HAVE_GLOB_NOMAGIC_VERSION
+
 /* Define if your system has the GMIME libraries. */
 #undef HAVE_GMIME
 

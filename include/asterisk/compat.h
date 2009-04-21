@@ -187,10 +187,10 @@ typedef unsigned long long uint64_t;
 #define GLOB_ABORTED GLOB_ABEND
 #endif
 #include <glob.h>
-#ifdef SOLARIS
+#if !defined(HAVE_GLOB_NOMAGIC) || !defined(HAVE_GLOB_BRACE)
 #define MY_GLOB_FLAGS   GLOB_NOCHECK
 #else
-#define MY_GLOB_FLAGS   (GLOB_NOMAGIC|GLOB_BRACE)
+#define MY_GLOB_FLAGS   (GLOB_NOMAGIC | GLOB_BRACE)
 #endif
 
 #endif
