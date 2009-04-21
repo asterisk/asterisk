@@ -684,6 +684,7 @@ int main(int argc, char *argv[])
 		fclose(astf);
 		exit(1);
 	}
+#if HAVE_WORKING_FORK
 	if (needfork) {
 #ifndef HAVE_SBIN_LAUNCHD
 		if (daemon(0,0) < 0) {
@@ -695,6 +696,7 @@ int main(int argc, char *argv[])
 		exit(1);
 #endif
 	}
+#endif
 	for(;;) {
 		if (wait_event()) {
 			fclose(astf);
