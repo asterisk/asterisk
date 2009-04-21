@@ -39,24 +39,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define AST_INCLUDE_GLOB 1
 
-#ifdef AST_INCLUDE_GLOB
-/* glob compat stuff - eventually this should go in compat.h or some
- * header in include/asterisk/
- */
-#if defined(__Darwin__) || defined(__CYGWIN__)
-#define GLOB_ABORTED GLOB_ABEND
-#endif
-
-#include <glob.h>
-
-#ifdef SOLARIS
-#define MY_GLOB_FLAGS	GLOB_NOCHECK
-#else
-#define MY_GLOB_FLAGS	(GLOB_NOMAGIC|GLOB_BRACE)
-#endif
-
-#endif
-
 #include "asterisk/config.h"
 #include "asterisk/cli.h"
 #include "asterisk/lock.h"
