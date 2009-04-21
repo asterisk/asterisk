@@ -3313,14 +3313,18 @@ static int __sip_xmit(struct sip_pvt *p, struct ast_str *data, int len)
 	if (p->socket.tcptls_session)
 		ast_mutex_lock(&p->socket.tcptls_session->lock);
 
-	if (p->socket.type & SIP_TRANSPORT_UDP) 
+	if (p->socket.type & SIP_TRANSPORT_UDP) {
 		res = sendto(p->socket.fd, data->str, len, 0, (const struct sockaddr *)dst, sizeof(struct sockaddr_in));
-	else {
-		if (p->socket.tcptls_session->f) 
+	} else if (p->socket.tcptls_session) {
+		if (p->socket.tcptls_session->f) {
 			res = ast_tcptls_server_write(p->socket.tcptls_session, data->str, len);
-		else
+		} else {
 			ast_debug(2, "No p->socket.tcptls_session->f len=%d\n", len);
-	} 
+		}
+	} else {
+		ast_debug(2, "Socket type is TCP but no tcptls_session is present to write to\n");
+		return XMIT_ERROR;
+	}
 
 	if (p->socket.tcptls_session)
 		ast_mutex_unlock(&p->socket.tcptls_session->lock);
@@ -10499,7 +10503,7 @@ static void state_notify_build_xml(int state, int full, const char *exten, const
 			ast_str_append(tmp, 0, "<dialog id=\"%s\">", exten);
 		}
 		ast_str_append(tmp, 0, "<state>%s</state>\n", statestring);
-		if (state == AST_EXTENSION_ONHOLD) { //todohere, this seems weird
+		if (state == AST_EXTENSION_ONHOLD) {
 				ast_str_append(tmp, 0, "<local>\n<target uri=\"%s\">\n"
 			                                    "<param pname=\"+sip.rendering\" pvalue=\"no\"/>\n"
 			                                    "</target>\n</local>\n", mto);
@@ -23276,8 +23280,10 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				else
 					ast_log(LOG_NOTICE, "'%s' is not a valid transport type. if no other is specified, udp will be used.\n", trans);
 
-				if (!peer->socket.type) /*!< The first transport listed should be used for outgoing */
+				if (!peer->socket.type) { /*!< The first transport listed should be used for outgoing */
 					peer->socket.type = peer->transports;
+					peer->socket.fd = -1;
+				}
 			}
 		} else if (realtime && !strcasecmp(v->name, "regseconds")) {
 			ast_get_time_t(v->value, &regseconds, 0, NULL);
@@ -23577,9 +23583,10 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 
 	if (!peer->socket.type) {
 		/* Set default set of transports */
-		peer->transports  = default_transports;
+		peer->transports = default_transports;
 		/* Set default primary transport */
 		peer->socket.type = default_primary_transport;
+		peer->socket.fd = -1;
 	}
 
 	if (fullcontact->used > 0) {
