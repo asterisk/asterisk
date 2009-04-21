@@ -133,6 +133,7 @@ enum event_e {
 	EVENT_PROCEEDING,
 	EVENT_PROGRESS,
 	EVENT_SETUP,
+	EVENT_REGISTER,
 	EVENT_ALERTING,
 	EVENT_CONNECT,
 	EVENT_SETUP_ACKNOWLEDGE,
@@ -216,6 +217,25 @@ enum mISDN_REDIRECTING_REASON {
 	mISDN_REDIRECTING_REASON_CALL_FWD = 0xF
 };
 
+/*!
+ * \brief Notification description code enumeration
+ */
+enum mISDN_NOTIFY_CODE {
+	mISDN_NOTIFY_CODE_INVALID = -1,
+	/*! Call is placed on hold (Q.931) */
+	mISDN_NOTIFY_CODE_USER_SUSPEND = 0x00,
+	/*! Call is taken off of hold (Q.931) */
+	mISDN_NOTIFY_CODE_USER_RESUME = 0x01,
+	/*! Call is diverting (EN 300 207-1 Section 7.2.1) */
+	mISDN_NOTIFY_CODE_CALL_IS_DIVERTING = 0x7B,
+	/*! Call diversion is enabled (cfu, cfb, cfnr) (EN 300 207-1 Section 7.2.1) */
+	mISDN_NOTIFY_CODE_DIVERSION_ACTIVATED = 0x68,
+	/*! Call transfer, alerting (EN 300 369-1 Section 7.2) */
+	mISDN_NOTIFY_CODE_CALL_TRANSFER_ALERTING = 0x69,
+	/*! Call transfer, active(answered) (EN 300 369-1 Section 7.2) */
+	mISDN_NOTIFY_CODE_CALL_TRANSFER_ACTIVE = 0x6A,
+};
+
 enum { /*CODECS*/
 	INFO_CODEC_ULAW=2,
 	INFO_CODEC_ALAW=3
@@ -240,6 +260,21 @@ enum layer_e {
 
 /*! Maximum keypad facility content length plus null terminator */
 #define MISDN_MAX_KEYPAD_LEN		(31 + 1)
+
+/*! \brief Dialed/Called information struct */
+struct misdn_party_dialing {
+	/*! \brief Type-of-number in ISDN terms for the dialed/called number */
+	enum mISDN_NUMBER_TYPE number_type;
+
+	/*! \brief Type-of-number numbering plan. */
+	enum mISDN_NUMBER_PLAN number_plan;
+
+	/*! \brief Dialed/Called Phone Number (Address) */
+	char number[MISDN_MAX_NUMBER_LEN];
+
+	/*! \brief Dialed/Called Subaddress number */
+	char subaddress[MISDN_MAX_SUBADDRESS_LEN];
+};
 
 /*! \brief Connected-Line/Calling/Redirecting ID info struct */
 struct misdn_party_id {
@@ -278,8 +313,17 @@ struct misdn_party_redirecting {
 	/*! \brief Who is redirecting the call (Sent to the party the call is redirected toward) */
 	struct misdn_party_id from;
 
+	/*! \brief Where the call is being redirected toward (Sent to the calling party) */
+	struct misdn_party_id to;
+
 	/*! \brief Reason a call is being redirected (Q.931 field value) */
 	enum mISDN_REDIRECTING_REASON reason;
+
+	/*! \brief Number of times the call has been redirected */
+	int count;
+
+	/*! \brief TRUE if the redirecting.to information has changed */
+	int to_changed;
 };
 
 
@@ -287,6 +331,17 @@ struct misdn_party_redirecting {
 struct misdn_bchannel {
 	/*! \brief B channel send locking structure */
 	struct send_lock *send_lock;
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+	/*! \brief The BC, HLC (optional) and LLC (optional) contents from the SETUP message. */
+	struct Q931_Bc_Hlc_Llc setup_bc_hlc_llc;
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+	/*!
+	 * \brief Dialed/Called information struct
+	 * \note The number_type element is set to "dialplan" in /etc/asterisk/misdn.conf for outgoing calls
+	 */
+	struct misdn_party_dialing dialed;
 
 	/*! \brief Originating/Caller ID information struct
 	 * \note The number_type element can be set to "localdialplan" in /etc/asterisk/misdn.conf for outgoing calls
@@ -360,6 +415,9 @@ struct misdn_bchannel {
 	/*! \brief TRUE if the B channel number is preselected */
 	int channel_preselected;
 
+	/*! \brief TRUE if the B channel is allocated from the REGISTER pool */
+	int is_register_pool;
+
 	/*! \brief TRUE if B channel record is in use */
 	int in_use;
 
@@ -381,8 +439,6 @@ struct misdn_bchannel {
 
 	/*! \brief Not used. Contents are setup but not used. */
 	void *astbuf;
-
-	void *misdnbuf;	/* Not used */
 
 	/*! \brief TRUE if the TE side should choose the B channel to use
 	 * \note This value is user configurable in /etc/asterisk/misdn.conf
@@ -530,6 +586,9 @@ struct misdn_bchannel {
 	/*! \brief TRUE if the user set the presentation restriction code */
 	int set_presentation;
 
+	/*! \brief Notification indicator ie description code */
+	enum mISDN_NOTIFY_CODE notify_description_code;
+
 	/*! \brief SETUP message bearer capability field code value */
 	int capability;
 
@@ -560,31 +619,11 @@ struct misdn_bchannel {
 	int hdlc;
 	/* V110 */
 
-	/*! \brief Dialed/Called information struct */
-	struct {
-		/*! \brief Type-of-number in ISDN terms for the dialed/called number
-		 * \note This value is set to "dialplan" in /etc/asterisk/misdn.conf for outgoing calls
-		 */
-		enum mISDN_NUMBER_TYPE number_type;
-
-		/*! \brief Type-of-number numbering plan. */
-		enum mISDN_NUMBER_PLAN number_plan;
-
-		/*! \brief Dialed/Called Phone Number (Address) */
-		char number[MISDN_MAX_NUMBER_LEN];
-
-		/*! \brief Dialed/Called Subaddress number */
-		char subaddress[MISDN_MAX_SUBADDRESS_LEN];
-	} dialed;
-
 	/*! \brief Display message that can be displayed by the user phone.
 	 * \note Maximum displayable length is 34 or 82 octets.
 	 * It is also settable by the misdn_set_opt() application.
 	 */
 	char display[84];
-
-	/*! \brief Not used. Contents are setup but not used. */
-	char msn[MISDN_MAX_NUMBER_LEN];
 
 	/*! \brief Q.931 Keypad Facility IE contents
 	 * \note Contents exported and imported to Asterisk variable MISDN_KEYPAD
@@ -696,6 +735,9 @@ char *manager_isdn_get_info(enum event_e event);
 void misdn_lib_transfer(struct misdn_bchannel* holded_bc);
 
 struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel, int inout, int dec);
+#if defined(AST_MISDN_ENHANCEMENTS)
+struct misdn_bchannel *misdn_lib_get_register_bc(int port);
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 
 void manager_bchannel_activate(struct misdn_bchannel *bc);
 void manager_bchannel_deactivate(struct misdn_bchannel * bc);

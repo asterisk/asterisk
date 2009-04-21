@@ -161,7 +161,10 @@ context=misdn
 language=en
 
 ;
-; sets the musiconhold class
+; This option specifies a default music on hold class to
+; use when put on hold if the channel's moh class was not
+; explicitly set with Set(CHANNEL(musicclass)=whatever) and
+; the peer channel did not suggest a class to use.
 ;
 musicclass=default
 
@@ -190,10 +193,10 @@ far_alerting=no
 ;
 allowed_bearers=all
 
-; Prefixes for national and international Type-Of-Number.  These are
+; Incoming number prefixes for the indicated Type-Of-Number.  These are
 ; inserted before any number (caller, dialed, connected, redirecting,
 ; redirection) received from the ISDN link if that number has the
-; correspondng Type-Of-Number.
+; corresponding Type-Of-Number.
 ; See the dialplan options.
 ;
 ; default values:
@@ -455,6 +458,17 @@ max_incoming=-1
 ; exceeding calls will be rejected
 ;
 max_outgoing=-1
+
+;
+; Enable/disable the call-completion retention option support (ptp only).
+;
+; Note: To use the CCBS/CCNR supplementary service feature and other
+; supplementary services using FACILITY messages requires a
+; modified version of mISDN from:
+; http://svn.digium.com/svn/thirdparty/mISDN/trunk
+; http://svn.digium.com/svn/thirdparty/mISDNuser/trunk
+;
+cc_request_retention=yes
 
 [intern]
 ; define your ports, e.g. 1,2 (depends on mISDN-driver loading order)

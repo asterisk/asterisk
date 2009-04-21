@@ -61,7 +61,25 @@ mISDN channel driver (chan_misdn) changes
     subscriberprefix, and abbreviatedprefix in misdn.conf to prefix any
     received number from the ISDN link if that number has the corresponding
     Type-Of-Number.
+  * Added new dialplan application misdn_command which permits controlling
+    the CCBS/CCNR functionality.
+  * Added new dialplan function mISDN_CC which permits retrieval of various
+    values from an active call completion record.
 
+thirdparty mISDN enhancements
+-----------------------------
+mISDN has been modified by Digium, Inc. to greatly expand facility message
+support to allow:
+  * Enhanced COLP support for call diversion and transfer.
+  * CCBS/CCNR support.
+
+The latest modified mISDN v1.1.x based version is available at:
+http://svn.digium.com/svn/thirdparty/mISDN/trunk
+http://svn.digium.com/svn/thirdparty/mISDNuser/trunk
+
+Taged versions of the modified mISDN code are available under:
+http://svn.digium.com/svn/thirdparty/mISDN/tags
+http://svn.digium.com/svn/thirdparty/mISDNuser/tags
 
 SIP channel driver (chan_sip) changes
 -------------------------------------------

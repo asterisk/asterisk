@@ -51,7 +51,15 @@ struct isdn_msg {
 /* for isdn_msg_parser.c */
 msg_t *create_l3msg(int prim, int mt, int dinfo , int size, int nt);
 
+#if defined(AST_MISDN_ENHANCEMENTS)
+/* Max call-completion REGISTER signaling links per stack/port */
+#define MISDN_MAX_REGISTER_LINKS	MAX_BCHANS
+#else
+/* Max call-completion REGISTER signaling links per stack/port */
+#define MISDN_MAX_REGISTER_LINKS	0
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 
+#define MAXPROCS 0x100
 
 struct misdn_stack {
 	/** is first element because &nst equals &mISDNlist **/
@@ -87,8 +95,6 @@ struct misdn_stack {
 	/*! \brief TRUE if Layer 2 is UP */
 	int l2link;
 
-	time_t l2establish;	/* Not used */
-
 	/*! \brief TRUE if Layer 1 is UP */
 	int l1link;
 
@@ -105,7 +111,7 @@ struct misdn_stack {
 	int pri;
 
 	/*! \brief CR Process ID allocation table.  TRUE if ID allocated */
-	int procids[0x100+1];
+	int procids[MAXPROCS];
 
 	/*! \brief Queue of Event messages to send to mISDN */
 	msg_queue_t downqueue;
@@ -115,13 +121,17 @@ struct misdn_stack {
 	/*! \brief Logical Layer 1 port associated with this stack */
 	int port;
 
-	/*! \brief B Channel record pool array */
-	struct misdn_bchannel bc[MAX_BCHANS + 1];
+	/*!
+	 * \brief B Channel record pool array
+	 * (Must be dimensioned the same as struct misdn_stack.channels[])
+	 */
+	struct misdn_bchannel bc[MAX_BCHANS + 1 + MISDN_MAX_REGISTER_LINKS];
 
-	struct misdn_bchannel* bc_list;	/* Not used */
-
-	/*! \brief Array of B channels in use (a[0] = B1).  TRUE if B channel in use */
-	int channels[MAX_BCHANS + 1];
+	/*!
+	 * \brief Array of B channels in use (a[0] = B1).  TRUE if B channel in use.
+	 * (Must be dimensioned the same as struct misdn_stack.bc[])
+	 */
+	char channels[MAX_BCHANS + 1 + MISDN_MAX_REGISTER_LINKS];
 
 	/*! \brief List of holded channels */
 	struct misdn_bchannel *holding;

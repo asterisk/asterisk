@@ -65,6 +65,7 @@ enum misdn_cfg_elements {
 	MISDN_CFG_EARLY_BCONNECT,      /* int (bool) */
 	MISDN_CFG_INCOMING_EARLY_AUDIO,      /* int (bool) */
 	MISDN_CFG_ECHOCANCEL,          /* int */
+	MISDN_CFG_CC_REQUEST_RETENTION,/* bool */
 #ifdef MISDN_1_2
 	MISDN_CFG_PIPELINE,      /* char[] */
 #endif

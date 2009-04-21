@@ -29,6 +29,26 @@
  * \ingroup channel_drivers
  */
 
+/*!
+ * \note
+ * To use the CCBS/CCNR supplementary service feature and other
+ * supplementary services using FACILITY messages requires a
+ * modified version of mISDN.
+ *
+ * \note
+ * The latest modified mISDN v1.1.x based version is available at:
+ * http://svn.digium.com/svn/thirdparty/mISDN/trunk
+ * http://svn.digium.com/svn/thirdparty/mISDNuser/trunk
+ *
+ * \note
+ * Taged versions of the modified mISDN code are available under:
+ * http://svn.digium.com/svn/thirdparty/mISDN/tags
+ * http://svn.digium.com/svn/thirdparty/mISDNuser/tags
+ */
+
+/* Define to enable cli commands to generate canned CCBS messages. */
+// #define CCBS_TEST_MESSAGES	1
+
 /*** MODULEINFO
 	<depend>isdnnet</depend>
 	<depend>misdn</depend>
@@ -48,6 +68,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/file.h>
 #include <semaphore.h>
 #include <ctype.h>
+#include <time.h>
 
 #include "asterisk/channel.h"
 #include "asterisk/config.h"
@@ -109,6 +130,165 @@ static char *complete_debug_port(struct ast_cli_args *a);
 static char *complete_show_config(struct ast_cli_args *a);
 
 /* BEGIN: chan_misdn.h */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*
+ * This timeout duration is to clean up any call completion records that
+ * are forgotten about by the switch.
+ */
+#define MISDN_CC_RECORD_AGE_MAX		(6UL * 60 * 60)	/* seconds */
+
+#define MISDN_CC_REQUEST_WAIT_MAX	5	/* seconds */
+
+/*!
+ * \brief Caller that initialized call completion services
+ *
+ * \details
+ * This data is the payload for a datastore that is put on the channel that
+ * initializes call completion services.  This datastore is set to be inherited
+ * by the outbound mISDN channel.  When one of these channels hangs up, the
+ * channel pointer will be set to NULL.  That way, we can ensure that we do not
+ * touch this channel after it gets destroyed.
+ */
+struct misdn_cc_caller {
+	/*! \brief The channel that initialized call completion services */
+	struct ast_channel *chan;
+};
+
+struct misdn_cc_notify {
+	/*! \brief Dialplan: Notify extension priority */
+	int priority;
+
+	/*! \brief Dialplan: Notify extension context */
+	char context[AST_MAX_CONTEXT];
+
+	/*! \brief Dialplan: Notify extension number (User-A) */
+	char exten[AST_MAX_EXTENSION];
+};
+
+/*! \brief mISDN call completion record */
+struct misdn_cc_record {
+	/*! \brief Call completion record linked list */
+	AST_LIST_ENTRY(misdn_cc_record) list;
+
+	/*! \brief Time the record was created. */
+	time_t time_created;
+
+	/*! \brief MISDN_CC_RECORD_ID value */
+	long record_id;
+
+	/*!
+	 * \brief Logical Layer 1 port associated with this
+	 * call completion record
+	 */
+	int port;
+
+	/*! \brief TRUE if point-to-point mode (CCBS-T/CCNR-T mode) */
+	int ptp;
+
+	/*! \brief Mode specific parameters */
+	union {
+		/*! \brief point-to-point specific parameters. */
+		struct {
+			/*!
+			 * \brief Call-completion signaling link.
+			 * NULL if signaling link not established.
+			 */
+			struct misdn_bchannel *bc;
+
+			/*!
+			 * \brief TRUE if we requested the request retention option
+			 * to be enabled.
+			 */
+			int requested_retention;
+
+			/*!
+			 * \brief TRUE if the request retention option is enabled.
+			 */
+			int retention_enabled;
+		} ptp;
+
+		/*! \brief point-to-multi-point specific parameters. */
+		struct {
+			/*! \brief CallLinkageID (valid when port determined) */
+			int linkage_id;
+
+			/*! \breif CCBSReference (valid when activated is TRUE) */
+			int reference_id;
+
+			/*! \brief globalRecall(0),	specificRecall(1) */
+			int recall_mode;
+		} ptmp;
+	} mode;
+
+	/*! \brief TRUE if call completion activated */
+	int activated;
+
+	/*! \brief Outstanding message ID (valid when outstanding_message) */
+	int invoke_id;
+
+	/*! \brief TRUE if waiting for a response from a message (invoke_id is valid) */
+	int outstanding_message;
+
+	/*! \brief TRUE if activation has been requested */
+	int activation_requested;
+
+	/*!
+	 * \brief TRUE if User-A is free
+	 * \note PTMP - Used to answer CCBSStatusRequest.
+	 * PTP - Determines how to respond to CCBS_T_RemoteUserFree.
+	 */
+	int party_a_free;
+
+	/*! \brief Error code received from last outstanding message. */
+	enum FacErrorCode error_code;
+
+	/*! \brief Reject code received from last outstanding message. */
+	enum FacRejectCode reject_code;
+
+	/*!
+	 * \brief Saved struct misdn_bchannel call information when
+	 * attempted to call User-B
+	 */
+	struct {
+		/*! \brief User-A caller id information */
+		struct misdn_party_id caller;
+
+		/*! \brief User-B number information */
+		struct misdn_party_dialing dialed;
+
+		/*! \brief The BC, HLC (optional) and LLC (optional) contents from the SETUP message. */
+		struct Q931_Bc_Hlc_Llc setup_bc_hlc_llc;
+
+		/*! \brief SETUP message bearer capability field code value */
+		int capability;
+
+		/*! \brief TRUE if call made in digital HDLC mode */
+		int hdlc;
+	} redial;
+
+	/*! \brief Dialplan location to indicate User-B free and User-A is free */
+	struct misdn_cc_notify remote_user_free;
+
+	/*! \brief Dialplan location to indicate User-B free and User-A is busy */
+	struct misdn_cc_notify b_free;
+};
+
+/*! \brief mISDN call completion record database */
+static AST_LIST_HEAD_STATIC(misdn_cc_records_db, misdn_cc_record);
+/*! \brief Next call completion record ID to use */
+static __u16 misdn_cc_record_id;
+/*! \brief Next invoke ID to use */
+static __s16 misdn_invoke_id;
+
+static const char misdn_no_response_from_network[] = "No response from network";
+static const char misdn_cc_record_not_found[] = "Call completion record not found";
+
+/* mISDN channel variable names */
+#define MISDN_CC_RECORD_ID	"MISDN_CC_RECORD_ID"
+#define MISDN_CC_STATUS		"MISDN_CC_STATUS"
+#define MISDN_ERROR_MSG		"MISDN_ERROR_MSG"
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 
 ast_mutex_t release_lock;
 
@@ -308,6 +488,16 @@ struct chan_list {
 	 */
 	struct misdn_bchannel *bc;
 
+#if defined(AST_MISDN_ENHANCEMENTS)
+	/*!
+	 * \brief Peer channel for which call completion was initialized.
+	 */
+	struct misdn_cc_caller *peer;
+
+	/*! \brief Associated call completion record ID (-1 if not associated) */
+	long record_id;
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
 	/*!
 	 * \brief HOLDED channel information
 	 */
@@ -472,7 +662,6 @@ static void hangup_chan(struct chan_list *ch);
 static int pbx_start_chan(struct chan_list *ch);
 
 #define MISDN_ASTERISK_TECH_PVT(ast) ast->tech_pvt
-#define MISDN_ASTERISK_PVT(ast) 1
 
 #include "asterisk/strings.h"
 
@@ -518,6 +707,10 @@ static int start_bc_tones(struct chan_list *cl);
 static int stop_bc_tones(struct chan_list *cl);
 static void release_chan(struct misdn_bchannel *bc);
 
+#if defined(AST_MISDN_ENHANCEMENTS)
+static const char misdn_command_name[] = "misdn_command";
+static int misdn_command_exec(struct ast_channel *chan, void *data);
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 static int misdn_check_l2l1(struct ast_channel *chan, void *data);
 static int misdn_set_opt_exec(struct ast_channel *chan, void *data);
 static int misdn_facility_exec(struct ast_channel *chan, void *data);
@@ -565,6 +758,1027 @@ static struct chan_list *get_chan_by_ast_name(char *name)
 
 	return NULL;
 }
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Destroy the misdn_cc_ds_info datastore payload
+ *
+ * \param[in] data the datastore payload, a reference to an misdn_cc_caller
+ *
+ * \details
+ * Since the payload is a reference to an astobj2 object, we just decrement its
+ * reference count.  Before doing so, we NULL out the channel pointer inside of
+ * the misdn_cc_caller instance.  This function will be called in one of two
+ * cases.  In both cases, we no longer need the channel pointer:
+ *
+ *  - The original channel that initialized call completion services, the same
+ *    channel that is stored here, has been destroyed early.  This could happen
+ *    if it transferred the mISDN channel, for example.
+ *
+ *  - The mISDN channel that had this datastore inherited on to it is now being
+ *    destroyed.  If this is the case, then the call completion events have
+ *    already occurred and the appropriate channel variables have already been
+ *    set on the original channel that requested call completion services.
+ *
+ * \return Nothing
+ */
+static void misdn_cc_ds_destroy(void *data)
+{
+	struct misdn_cc_caller *cc_caller = data;
+
+	ao2_lock(cc_caller);
+	cc_caller->chan = NULL;
+	ao2_unlock(cc_caller);
+
+	ao2_ref(cc_caller, -1);
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Duplicate the misdn_cc_ds_info datastore payload
+ *
+ * \param[in] data the datastore payload, a reference to an misdn_cc_caller
+ *
+ * \details
+ * All we need to do is bump the reference count and return the same instance.
+ *
+ * \return A reference to an instance of a misdn_cc_caller
+ */
+static void *misdn_cc_ds_duplicate(void *data)
+{
+	struct misdn_cc_caller *cc_caller = data;
+
+	ao2_ref(cc_caller, +1);
+
+	return cc_caller;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+static const struct ast_datastore_info misdn_cc_ds_info = {
+	.type      = "misdn_cc",
+	.destroy   = misdn_cc_ds_destroy,
+	.duplicate = misdn_cc_ds_duplicate,
+};
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Set a channel var on the peer channel for call completion services
+ *
+ * \param[in] peer The peer that initialized call completion services
+ * \param[in] var The variable name to set
+ * \param[in] value The variable value to set
+ *
+ * This function may be called from outside of the channel thread.  It handles
+ * the fact that the peer channel may be hung up and destroyed at any time.
+ *
+ * \return nothing
+ */
+static void misdn_cc_set_peer_var(struct misdn_cc_caller *peer, const char *var,
+	const char *value)
+{
+	ao2_lock(peer);
+
+	/*! \todo XXX This nastiness can go away once ast_channel is ref counted! */
+	while (peer->chan && ast_channel_trylock(peer->chan)) {
+		ao2_unlock(peer);
+		sched_yield();
+		ao2_lock(peer);
+	}
+
+	if (peer->chan) {
+		pbx_builtin_setvar_helper(peer->chan, var, value);
+		ast_channel_unlock(peer->chan);
+	}
+
+	ao2_unlock(peer);
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Get a reference to the CC caller if it exists
+ */
+static struct misdn_cc_caller *misdn_cc_caller_get(struct ast_channel *chan)
+{
+	struct ast_datastore *datastore;
+	struct misdn_cc_caller *cc_caller;
+
+	ast_channel_lock(chan);
+
+	if (!(datastore = ast_channel_datastore_find(chan, &misdn_cc_ds_info, NULL))) {
+		ast_channel_unlock(chan);
+		return NULL;
+	}
+
+	ao2_ref(datastore->data, +1);
+	cc_caller = datastore->data;
+
+	ast_channel_unlock(chan);
+
+	return cc_caller;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Find the call completion record given the record id.
+ *
+ * \param record_id
+ *
+ * \retval pointer to found call completion record
+ * \retval NULL if not found
+ *
+ * \note Assumes the misdn_cc_records_db lock is already obtained.
+ */
+static struct misdn_cc_record *misdn_cc_find_by_id(long record_id)
+{
+	struct misdn_cc_record *current;
+
+	AST_LIST_TRAVERSE(&misdn_cc_records_db, current, list) {
+		if (current->record_id == record_id) {
+			/* Found the record */
+			break;
+		}
+	}
+
+	return current;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Find the call completion record given the port and call linkage id.
+ *
+ * \param port Logical port number
+ * \param linkage_id Call linkage ID number from switch.
+ *
+ * \retval pointer to found call completion record
+ * \retval NULL if not found
+ *
+ * \note Assumes the misdn_cc_records_db lock is already obtained.
+ */
+static struct misdn_cc_record *misdn_cc_find_by_linkage(int port, int linkage_id)
+{
+	struct misdn_cc_record *current;
+
+	AST_LIST_TRAVERSE(&misdn_cc_records_db, current, list) {
+		if (current->port == port
+			&& !current->ptp
+			&& current->mode.ptmp.linkage_id == linkage_id) {
+			/* Found the record */
+			break;
+		}
+	}
+
+	return current;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Find the call completion record given the port and outstanding invocation id.
+ *
+ * \param port Logical port number
+ * \param invoke_id Outstanding message invocation ID number.
+ *
+ * \retval pointer to found call completion record
+ * \retval NULL if not found
+ *
+ * \note Assumes the misdn_cc_records_db lock is already obtained.
+ */
+static struct misdn_cc_record *misdn_cc_find_by_invoke(int port, int invoke_id)
+{
+	struct misdn_cc_record *current;
+
+	AST_LIST_TRAVERSE(&misdn_cc_records_db, current, list) {
+		if (current->outstanding_message
+			&& current->invoke_id == invoke_id
+			&& current->port == port) {
+			/* Found the record */
+			break;
+		}
+	}
+
+	return current;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Find the call completion record given the port and CCBS reference id.
+ *
+ * \param port Logical port number
+ * \param reference_id CCBS reference ID number from switch.
+ *
+ * \retval pointer to found call completion record
+ * \retval NULL if not found
+ *
+ * \note Assumes the misdn_cc_records_db lock is already obtained.
+ */
+static struct misdn_cc_record *misdn_cc_find_by_reference(int port, int reference_id)
+{
+	struct misdn_cc_record *current;
+
+	AST_LIST_TRAVERSE(&misdn_cc_records_db, current, list) {
+		if (current->activated
+			&& current->port == port
+			&& !current->ptp
+			&& current->mode.ptmp.reference_id == reference_id) {
+			/* Found the record */
+			break;
+		}
+	}
+
+	return current;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Find the call completion record given the B channel pointer
+ *
+ * \param bc B channel control structure pointer.
+ *
+ * \retval pointer to found call completion record
+ * \retval NULL if not found
+ *
+ * \note Assumes the misdn_cc_records_db lock is already obtained.
+ */
+static struct misdn_cc_record *misdn_cc_find_by_bc(const struct misdn_bchannel *bc)
+{
+	struct misdn_cc_record *current;
+
+	if (bc) {
+		AST_LIST_TRAVERSE(&misdn_cc_records_db, current, list) {
+			if (current->ptp
+				&& current->mode.ptp.bc == bc) {
+				/* Found the record */
+				break;
+			}
+		}
+	} else {
+		current = NULL;
+	}
+
+	return current;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Delete the given call completion record
+ *
+ * \param doomed Call completion record to destroy
+ *
+ * \return Nothing
+ *
+ * \note Assumes the misdn_cc_records_db lock is already obtained.
+ */
+static void misdn_cc_delete(struct misdn_cc_record *doomed)
+{
+	struct misdn_cc_record *current;
+
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&misdn_cc_records_db, current, list) {
+		if (current == doomed) {
+			AST_LIST_REMOVE_CURRENT(list);
+			ast_free(current);
+			return;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+
+	/* The doomed node is not in the call completion database */
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Delete all old call completion records
+ *
+ * \return Nothing
+ *
+ * \note Assumes the misdn_cc_records_db lock is already obtained.
+ */
+static void misdn_cc_remove_old(void)
+{
+	struct misdn_cc_record *current;
+	time_t now;
+
+	now = time(NULL);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&misdn_cc_records_db, current, list) {
+		if (MISDN_CC_RECORD_AGE_MAX < now - current->time_created) {
+			if (current->ptp && current->mode.ptp.bc) {
+				/* Close the old call-completion signaling link */
+				current->mode.ptp.bc->fac_out.Function = Fac_None;
+				current->mode.ptp.bc->out_cause = AST_CAUSE_NORMAL_CLEARING;
+				misdn_lib_send_event(current->mode.ptp.bc, EVENT_RELEASE_COMPLETE);
+			}
+
+			/* Remove the old call completion record */
+			AST_LIST_REMOVE_CURRENT(list);
+			ast_free(current);
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Allocate the next record id.
+ *
+ * \retval New record id on success.
+ * \retval -1 on error.
+ *
+ * \note Assumes the misdn_cc_records_db lock is already obtained.
+ */
+static long misdn_cc_record_id_new(void)
+{
+	long record_id;
+	long first_id;
+
+	record_id = ++misdn_cc_record_id;
+	first_id = record_id;
+	while (misdn_cc_find_by_id(record_id)) {
+		record_id = ++misdn_cc_record_id;
+		if (record_id == first_id) {
+			/*
+			 * We have a resource leak.
+			 * We should never need to allocate 64k records.
+			 */
+			chan_misdn_log(0, 0, " --> ERROR Too many call completion records!\n");
+			record_id = -1;
+			break;
+		}
+	}
+
+	return record_id;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Create a new call completion record
+ *
+ * \retval pointer to new call completion record
+ * \retval NULL if failed
+ *
+ * \note Assumes the misdn_cc_records_db lock is already obtained.
+ */
+static struct misdn_cc_record *misdn_cc_new(void)
+{
+	struct misdn_cc_record *cc_record;
+	long record_id;
+
+	misdn_cc_remove_old();
+
+	cc_record = ast_calloc(1, sizeof(*cc_record));
+	if (cc_record) {
+		record_id = misdn_cc_record_id_new();
+		if (record_id < 0) {
+			ast_free(cc_record);
+			return NULL;
+		}
+
+		/* Initialize the new record */
+		cc_record->record_id = record_id;
+		cc_record->port = -1;/* Invalid port so it will never be found this way */
+		cc_record->invoke_id = ++misdn_invoke_id;
+		cc_record->party_a_free = 1;/* Default User-A as free */
+		cc_record->error_code = FacError_None;
+		cc_record->reject_code = FacReject_None;
+		cc_record->time_created = time(NULL);
+
+		/* Insert the new record into the database */
+		AST_LIST_INSERT_HEAD(&misdn_cc_records_db, cc_record, list);
+	}
+	return cc_record;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Destroy the call completion record database
+ *
+ * \return Nothing
+ */
+static void misdn_cc_destroy(void)
+{
+	struct misdn_cc_record *current;
+
+	while ((current = AST_LIST_REMOVE_HEAD(&misdn_cc_records_db, list))) {
+		/* Do a misdn_cc_delete(current) inline */
+		ast_free(current);
+	}
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Initialize the call completion record database
+ *
+ * \return Nothing
+ */
+static void misdn_cc_init(void)
+{
+	misdn_cc_record_id = 0;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Check the status of an outstanding invocation request.
+ *
+ * \param data Points to an integer containing the call completion record id.
+ *
+ * \retval 0 if got a response.
+ * \retval -1 if no response yet.
+ */
+static int misdn_cc_response_check(void *data)
+{
+	int not_responded;
+	struct misdn_cc_record *cc_record;
+
+	AST_LIST_LOCK(&misdn_cc_records_db);
+	cc_record = misdn_cc_find_by_id(*(long *) data);
+	if (cc_record) {
+		if (cc_record->outstanding_message) {
+			not_responded = -1;
+		} else {
+			not_responded = 0;
+		}
+	} else {
+		/* No record so there is no response to check. */
+		not_responded = 0;
+	}
+	AST_LIST_UNLOCK(&misdn_cc_records_db);
+
+	return not_responded;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Wait for a response from the switch for an outstanding
+ * invocation request.
+ *
+ * \param chan Asterisk channel to operate upon.
+ * \param wait_seconds Number of seconds to wait
+ * \param record_id Call completion record ID.
+ *
+ * \return Nothing
+ */
+static void misdn_cc_response_wait(struct ast_channel *chan, int wait_seconds, long record_id)
+{
+	unsigned count;
+
+	for (count = 2 * MISDN_CC_REQUEST_WAIT_MAX; count--;) {
+		/* Sleep in 500 ms increments */
+		if (ast_safe_sleep_conditional(chan, 500, misdn_cc_response_check, &record_id) != 0) {
+			/* We got hung up or our response came in. */
+			break;
+		}
+	}
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Convert the mISDN reject code to a string
+ *
+ * \param code mISDN reject code.
+ *
+ * \return The mISDN reject code as a string
+ */
+static const char *misdn_to_str_reject_code(enum FacRejectCode code)
+{
+	static const struct {
+		enum FacRejectCode code;
+		char *name;
+	} arr[] = {
+/* *INDENT-OFF* */
+		{ FacReject_None,                           "No reject occurred" },
+		{ FacReject_Unknown,                        "Unknown reject code" },
+
+		{ FacReject_Gen_UnrecognizedComponent,      "General: Unrecognized Component" },
+		{ FacReject_Gen_MistypedComponent,          "General: Mistyped Component" },
+		{ FacReject_Gen_BadlyStructuredComponent,   "General: Badly Structured Component" },
+
+		{ FacReject_Inv_DuplicateInvocation,        "Invoke: Duplicate Invocation" },
+		{ FacReject_Inv_UnrecognizedOperation,      "Invoke: Unrecognized Operation" },
+		{ FacReject_Inv_MistypedArgument,           "Invoke: Mistyped Argument" },
+		{ FacReject_Inv_ResourceLimitation,         "Invoke: Resource Limitation" },
+		{ FacReject_Inv_InitiatorReleasing,         "Invoke: Initiator Releasing" },
+		{ FacReject_Inv_UnrecognizedLinkedID,       "Invoke: Unrecognized Linked ID" },
+		{ FacReject_Inv_LinkedResponseUnexpected,   "Invoke: Linked Response Unexpected" },
+		{ FacReject_Inv_UnexpectedChildOperation,   "Invoke: Unexpected Child Operation" },
+
+		{ FacReject_Res_UnrecognizedInvocation,     "Result: Unrecognized Invocation" },
+		{ FacReject_Res_ResultResponseUnexpected,   "Result: Result Response Unexpected" },
+		{ FacReject_Res_MistypedResult,             "Result: Mistyped Result" },
+
+		{ FacReject_Err_UnrecognizedInvocation,     "Error: Unrecognized Invocation" },
+		{ FacReject_Err_ErrorResponseUnexpected,    "Error: Error Response Unexpected" },
+		{ FacReject_Err_UnrecognizedError,          "Error: Unrecognized Error" },
+		{ FacReject_Err_UnexpectedError,            "Error: Unexpected Error" },
+		{ FacReject_Err_MistypedParameter,          "Error: Mistyped Parameter" },
+/* *INDENT-ON* */
+	};
+
+	unsigned index;
+
+	for (index = 0; index < ARRAY_LEN(arr); ++index) {
+		if (arr[index].code == code) {
+			return arr[index].name;
+		}
+	}
+
+	return "unknown";
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Convert the mISDN error code to a string
+ *
+ * \param code mISDN error code.
+ *
+ * \return The mISDN error code as a string
+ */
+static const char *misdn_to_str_error_code(enum FacErrorCode code)
+{
+	static const struct {
+		enum FacErrorCode code;
+		char *name;
+	} arr[] = {
+/* *INDENT-OFF* */
+		{ FacError_None,                            "No error occurred" },
+		{ FacError_Unknown,                         "Unknown OID error code" },
+
+		{ FacError_Gen_NotSubscribed,               "General: Not Subscribed" },
+		{ FacError_Gen_NotAvailable,                "General: Not Available" },
+		{ FacError_Gen_NotImplemented,              "General: Not Implemented" },
+		{ FacError_Gen_InvalidServedUserNr,         "General: Invalid Served User Number" },
+		{ FacError_Gen_InvalidCallState,            "General: Invalid Call State" },
+		{ FacError_Gen_BasicServiceNotProvided,     "General: Basic Service Not Provided" },
+		{ FacError_Gen_NotIncomingCall,             "General: Not Incoming Call" },
+		{ FacError_Gen_SupplementaryServiceInteractionNotAllowed,"General: Supplementary Service Interaction Not Allowed" },
+		{ FacError_Gen_ResourceUnavailable,         "General: Resource Unavailable" },
+
+		{ FacError_Div_InvalidDivertedToNr,         "Diversion: Invalid Diverted To Number" },
+		{ FacError_Div_SpecialServiceNr,            "Diversion: Special Service Number" },
+		{ FacError_Div_DiversionToServedUserNr,     "Diversion: Diversion To Served User Number" },
+		{ FacError_Div_IncomingCallAccepted,        "Diversion: Incoming Call Accepted" },
+		{ FacError_Div_NumberOfDiversionsExceeded,  "Diversion: Number Of Diversions Exceeded" },
+		{ FacError_Div_NotActivated,                "Diversion: Not Activated" },
+		{ FacError_Div_RequestAlreadyAccepted,      "Diversion: Request Already Accepted" },
+
+		{ FacError_AOC_NoChargingInfoAvailable,     "AOC: No Charging Info Available" },
+
+		{ FacError_CCBS_InvalidCallLinkageID,       "CCBS: Invalid Call Linkage ID" },
+		{ FacError_CCBS_InvalidCCBSReference,       "CCBS: Invalid CCBS Reference" },
+		{ FacError_CCBS_LongTermDenial,             "CCBS: Long Term Denial" },
+		{ FacError_CCBS_ShortTermDenial,            "CCBS: Short Term Denial" },
+		{ FacError_CCBS_IsAlreadyActivated,         "CCBS: Is Already Activated" },
+		{ FacError_CCBS_AlreadyAccepted,            "CCBS: Already Accepted" },
+		{ FacError_CCBS_OutgoingCCBSQueueFull,      "CCBS: Outgoing CCBS Queue Full" },
+		{ FacError_CCBS_CallFailureReasonNotBusy,   "CCBS: Call Failure Reason Not Busy" },
+		{ FacError_CCBS_NotReadyForCall,            "CCBS: Not Ready For Call" },
+
+		{ FacError_CCBS_T_LongTermDenial,           "CCBS-T: Long Term Denial" },
+		{ FacError_CCBS_T_ShortTermDenial,          "CCBS-T: Short Term Denial" },
+
+		{ FacError_ECT_LinkIdNotAssignedByNetwork,  "ECT: Link ID Not Assigned By Network" },
+/* *INDENT-ON* */
+	};
+
+	unsigned index;
+
+	for (index = 0; index < ARRAY_LEN(arr); ++index) {
+		if (arr[index].code == code) {
+			return arr[index].name;
+		}
+	}
+
+	return "unknown";
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Convert mISDN redirecting reason to diversion reason.
+ *
+ * \param reason mISDN redirecting reason code.
+ *
+ * \return Supported diversion reason code.
+ */
+static unsigned misdn_to_diversion_reason(enum mISDN_REDIRECTING_REASON reason)
+{
+	unsigned diversion_reason;
+
+	switch (reason) {
+	case mISDN_REDIRECTING_REASON_CALL_FWD:
+		diversion_reason = 1;/* cfu */
+		break;
+	case mISDN_REDIRECTING_REASON_CALL_FWD_BUSY:
+		diversion_reason = 2;/* cfb */
+		break;
+	case mISDN_REDIRECTING_REASON_NO_REPLY:
+		diversion_reason = 3;/* cfnr */
+		break;
+	default:
+		diversion_reason = 0;/* unknown */
+		break;
+	}
+
+	return diversion_reason;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Convert diversion reason to mISDN redirecting reason
+ *
+ * \param diversion_reason Diversion reason to convert
+ *
+ * \return Supported redirecting reason code.
+ */
+static enum mISDN_REDIRECTING_REASON diversion_reason_to_misdn(unsigned diversion_reason)
+{
+	enum mISDN_REDIRECTING_REASON reason;
+
+	switch (diversion_reason) {
+	case 1:/* cfu */
+		reason = mISDN_REDIRECTING_REASON_CALL_FWD;
+		break;
+	case 2:/* cfb */
+		reason = mISDN_REDIRECTING_REASON_CALL_FWD_BUSY;
+		break;
+	case 3:/* cfnr */
+		reason = mISDN_REDIRECTING_REASON_NO_REPLY;
+		break;
+	default:
+		reason = mISDN_REDIRECTING_REASON_UNKNOWN;
+		break;
+	}
+
+	return reason;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Convert the mISDN presentation to PresentedNumberUnscreened type
+ *
+ * \param presentation mISDN presentation to convert
+ * \param number_present TRUE if the number is present
+ *
+ * \return PresentedNumberUnscreened type
+ */
+static unsigned misdn_to_PresentedNumberUnscreened_type(int presentation, int number_present)
+{
+	unsigned type;
+
+	switch (presentation) {
+	case 0:/* allowed */
+		if (number_present) {
+			type = 0;/* presentationAllowedNumber */
+		} else {
+			type = 2;/* numberNotAvailableDueToInterworking */
+		}
+		break;
+	case 1:/* restricted */
+		if (number_present) {
+			type = 3;/* presentationRestrictedNumber */
+		} else {
+			type = 1;/* presentationRestricted */
+		}
+		break;
+	default:
+		type = 2;/* numberNotAvailableDueToInterworking */
+		break;
+	}
+
+	return type;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Convert the PresentedNumberUnscreened type to mISDN presentation
+ *
+ * \param type PresentedNumberUnscreened type
+ *
+ * \return mISDN presentation
+ */
+static int PresentedNumberUnscreened_to_misdn_pres(unsigned type)
+{
+	int presentation;
+
+	switch (type) {
+	default:
+	case 0:/* presentationAllowedNumber */
+		presentation = 0;/* allowed */
+		break;
+
+	case 1:/* presentationRestricted */
+	case 3:/* presentationRestrictedNumber */
+		presentation = 1;/* restricted */
+		break;
+
+	case 2:/* numberNotAvailableDueToInterworking */
+		presentation = 2;/* unavailable */
+		break;
+	}
+
+	return presentation;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Convert the mISDN numbering plan to PartyNumber numbering plan
+ *
+ * \param number_plan mISDN numbering plan
+ *
+ * \return PartyNumber numbering plan
+ */
+static unsigned misdn_to_PartyNumber_plan(enum mISDN_NUMBER_PLAN number_plan)
+{
+	unsigned party_plan;
+
+	switch (number_plan) {
+	default:
+	case NUMPLAN_UNKNOWN:
+		party_plan = 0;/* unknown */
+		break;
+
+	case NUMPLAN_ISDN:
+		party_plan = 1;/* public */
+		break;
+
+	case NUMPLAN_DATA:
+		party_plan = 3;/* data */
+		break;
+
+	case NUMPLAN_TELEX:
+		party_plan = 4;/* telex */
+		break;
+
+	case NUMPLAN_NATIONAL:
+		party_plan = 8;/* nationalStandard */
+		break;
+
+	case NUMPLAN_PRIVATE:
+		party_plan = 5;/* private */
+		break;
+	}
+
+	return party_plan;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Convert PartyNumber numbering plan to mISDN numbering plan
+ *
+ * \param party_plan PartyNumber numbering plan
+ *
+ * \return mISDN numbering plan
+ */
+static enum mISDN_NUMBER_PLAN PartyNumber_to_misdn_plan(unsigned party_plan)
+{
+	enum mISDN_NUMBER_PLAN number_plan;
+
+	switch (party_plan) {
+	default:
+	case 0:/* unknown */
+		number_plan = NUMPLAN_UNKNOWN;
+		break;
+	case 1:/* public */
+		number_plan = NUMPLAN_ISDN;
+		break;
+	case 3:/* data */
+		number_plan = NUMPLAN_DATA;
+		break;
+	case 4:/* telex */
+		number_plan = NUMPLAN_TELEX;
+		break;
+	case 8:/* nationalStandard */
+		number_plan = NUMPLAN_NATIONAL;
+		break;
+	case 5:/* private */
+		number_plan = NUMPLAN_PRIVATE;
+		break;
+	}
+
+	return number_plan;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Convert mISDN type-of-number to PartyNumber public type-of-number
+ *
+ * \param ton mISDN type-of-number
+ *
+ * \return PartyNumber public type-of-number
+ */
+static unsigned misdn_to_PartyNumber_ton_public(enum mISDN_NUMBER_TYPE ton)
+{
+	unsigned party_ton;
+
+	switch (ton) {
+	default:
+	case NUMTYPE_UNKNOWN:
+		party_ton = 0;/* unknown */
+		break;
+
+	case NUMTYPE_INTERNATIONAL:
+		party_ton = 1;/* internationalNumber */
+		break;
+
+	case NUMTYPE_NATIONAL:
+		party_ton = 2;/* nationalNumber */
+		break;
+
+	case NUMTYPE_NETWORK_SPECIFIC:
+		party_ton = 3;/* networkSpecificNumber */
+		break;
+
+	case NUMTYPE_SUBSCRIBER:
+		party_ton = 4;/* subscriberNumber */
+		break;
+
+	case NUMTYPE_ABBREVIATED:
+		party_ton = 6;/* abbreviatedNumber */
+		break;
+	}
+
+	return party_ton;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Convert the PartyNumber public type-of-number to mISDN type-of-number
+ *
+ * \param party_ton PartyNumber public type-of-number
+ *
+ * \return mISDN type-of-number
+ */
+static enum mISDN_NUMBER_TYPE PartyNumber_to_misdn_ton_public(unsigned party_ton)
+{
+	enum mISDN_NUMBER_TYPE ton;
+
+	switch (party_ton) {
+	default:
+	case 0:/* unknown */
+		ton = NUMTYPE_UNKNOWN;
+		break;
+
+	case 1:/* internationalNumber */
+		ton = NUMTYPE_INTERNATIONAL;
+		break;
+
+	case 2:/* nationalNumber */
+		ton = NUMTYPE_NATIONAL;
+		break;
+
+	case 3:/* networkSpecificNumber */
+		ton = NUMTYPE_NETWORK_SPECIFIC;
+		break;
+
+	case 4:/* subscriberNumber */
+		ton = NUMTYPE_SUBSCRIBER;
+		break;
+
+	case 6:/* abbreviatedNumber */
+		ton = NUMTYPE_ABBREVIATED;
+		break;
+	}
+
+	return ton;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Convert mISDN type-of-number to PartyNumber private type-of-number
+ *
+ * \param ton mISDN type-of-number
+ *
+ * \return PartyNumber private type-of-number
+ */
+static unsigned misdn_to_PartyNumber_ton_private(enum mISDN_NUMBER_TYPE ton)
+{
+	unsigned party_ton;
+
+	switch (ton) {
+	default:
+	case NUMTYPE_UNKNOWN:
+		party_ton = 0;/* unknown */
+		break;
+
+	case NUMTYPE_INTERNATIONAL:
+		party_ton = 1;/* level2RegionalNumber */
+		break;
+
+	case NUMTYPE_NATIONAL:
+		party_ton = 2;/* level1RegionalNumber */
+		break;
+
+	case NUMTYPE_NETWORK_SPECIFIC:
+		party_ton = 3;/* pTNSpecificNumber */
+		break;
+
+	case NUMTYPE_SUBSCRIBER:
+		party_ton = 4;/* localNumber */
+		break;
+
+	case NUMTYPE_ABBREVIATED:
+		party_ton = 6;/* abbreviatedNumber */
+		break;
+	}
+
+	return party_ton;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Convert the PartyNumber private type-of-number to mISDN type-of-number
+ *
+ * \param party_ton PartyNumber private type-of-number
+ *
+ * \return mISDN type-of-number
+ */
+static enum mISDN_NUMBER_TYPE PartyNumber_to_misdn_ton_private(unsigned party_ton)
+{
+	enum mISDN_NUMBER_TYPE ton;
+
+	switch (party_ton) {
+	default:
+	case 0:/* unknown */
+		ton = NUMTYPE_UNKNOWN;
+		break;
+
+	case 1:/* level2RegionalNumber */
+		ton = NUMTYPE_INTERNATIONAL;
+		break;
+
+	case 2:/* level1RegionalNumber */
+		ton = NUMTYPE_NATIONAL;
+		break;
+
+	case 3:/* pTNSpecificNumber */
+		ton = NUMTYPE_NETWORK_SPECIFIC;
+		break;
+
+	case 4:/* localNumber */
+		ton = NUMTYPE_SUBSCRIBER;
+		break;
+
+	case 6:/* abbreviatedNumber */
+		ton = NUMTYPE_ABBREVIATED;
+		break;
+	}
+
+	return ton;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 
 /*!
  * \internal
@@ -1128,25 +2342,589 @@ static const char *bearer2str(int cap)
 	return "Unknown Bearer";
 }
 
-
-static void print_facility(struct FacParm *fac, struct misdn_bchannel *bc)
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Fill in facility PartyNumber information
+ *
+ * \param party PartyNumber structure to fill in.
+ * \param id Information to put in PartyNumber structure.
+ *
+ * \return Nothing
+ */
+static void misdn_PartyNumber_fill(struct FacPartyNumber *party, const struct misdn_party_id *id)
 {
+	ast_copy_string((char *) party->Number, id->number, sizeof(party->Number));
+	party->LengthOfNumber = strlen((char *) party->Number);
+	party->Type = misdn_to_PartyNumber_plan(id->number_plan);
+	switch (party->Type) {
+	case 1:/* public */
+		party->TypeOfNumber = misdn_to_PartyNumber_ton_public(id->number_type);
+		break;
+	case 5:/* private */
+		party->TypeOfNumber = misdn_to_PartyNumber_ton_private(id->number_type);
+		break;
+	default:
+		party->TypeOfNumber = 0;/* Dont't care */
+		break;
+	}
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Extract the information from PartyNumber
+ *
+ * \param id Where to put extracted PartyNumber information
+ * \param party PartyNumber information to extract
+ *
+ * \return Nothing
+ */
+static void misdn_PartyNumber_extract(struct misdn_party_id *id, const struct FacPartyNumber *party)
+{
+	if (party->LengthOfNumber) {
+		ast_copy_string(id->number, (char *) party->Number, sizeof(id->number));
+		id->number_plan = PartyNumber_to_misdn_plan(party->Type);
+		switch (party->Type) {
+		case 1:/* public */
+			id->number_type = PartyNumber_to_misdn_ton_public(party->TypeOfNumber);
+			break;
+		case 5:/* private */
+			id->number_type = PartyNumber_to_misdn_ton_private(party->TypeOfNumber);
+			break;
+		default:
+			id->number_type = NUMTYPE_UNKNOWN;
+			break;
+		}
+	} else {
+		/* Number not present */
+		id->number_type = NUMTYPE_UNKNOWN;
+		id->number_plan = NUMPLAN_ISDN;
+		id->number[0] = 0;
+	}
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Fill in facility Address information
+ *
+ * \param Address Address structure to fill in.
+ * \param id Information to put in Address structure.
+ *
+ * \return Nothing
+ */
+static void misdn_Address_fill(struct FacAddress *Address, const struct misdn_party_id *id)
+{
+	misdn_PartyNumber_fill(&Address->Party, id);
+
+	/* Subaddresses are not supported yet */
+	Address->Subaddress.Length = 0;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Fill in facility PresentedNumberUnscreened information
+ *
+ * \param presented PresentedNumberUnscreened structure to fill in.
+ * \param id Information to put in PresentedNumberUnscreened structure.
+ *
+ * \return Nothing
+ */
+static void misdn_PresentedNumberUnscreened_fill(struct FacPresentedNumberUnscreened *presented, const struct misdn_party_id *id)
+{
+	presented->Type = misdn_to_PresentedNumberUnscreened_type(id->presentation, id->number[0] ? 1 : 0);
+	misdn_PartyNumber_fill(&presented->Unscreened, id);
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Extract the information from PartyNumber
+ *
+ * \param id Where to put extracted PresentedNumberUnscreened information
+ * \param presented PresentedNumberUnscreened information to extract
+ *
+ * \return Nothing
+ */
+static void misdn_PresentedNumberUnscreened_extract(struct misdn_party_id *id, const struct FacPresentedNumberUnscreened *presented)
+{
+	id->presentation = PresentedNumberUnscreened_to_misdn_pres(presented->Type);
+	id->screening = 0;/* unscreened */
+	misdn_PartyNumber_extract(id, &presented->Unscreened);
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+static const char Level_Spacing[] = "          ";/* Work for up to 10 levels */
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+static void print_facility_PartyNumber(unsigned Level, const struct FacPartyNumber *Party, const struct misdn_bchannel *bc)
+{
+	if (Party->LengthOfNumber) {
+		const char *Spacing;
+
+		Spacing = &Level_Spacing[sizeof(Level_Spacing) - 1 - Level];
+		chan_misdn_log(1, bc->port, " -->%s PartyNumber: Type:%d\n",
+			Spacing, Party->Type);
+		switch (Party->Type) {
+		case 0: /* Unknown PartyNumber */
+			chan_misdn_log(1, bc->port, " -->%s  Unknown: %s\n",
+				Spacing, Party->Number);
+			break;
+		case 1: /* Public PartyNumber */
+			chan_misdn_log(1, bc->port, " -->%s  Public TON:%d %s\n",
+				Spacing, Party->TypeOfNumber, Party->Number);
+			break;
+		case 2: /* NSAP encoded PartyNumber */
+			chan_misdn_log(1, bc->port, " -->%s  NSAP: %s\n",
+				Spacing, Party->Number);
+			break;
+		case 3: /* Data PartyNumber (Not used) */
+			chan_misdn_log(1, bc->port, " -->%s  Data: %s\n",
+				Spacing, Party->Number);
+			break;
+		case 4: /* Telex PartyNumber (Not used) */
+			chan_misdn_log(1, bc->port, " -->%s  Telex: %s\n",
+				Spacing, Party->Number);
+			break;
+		case 5: /* Private PartyNumber */
+			chan_misdn_log(1, bc->port, " -->%s  Private TON:%d %s\n",
+				Spacing, Party->TypeOfNumber, Party->Number);
+			break;
+		case 8: /* National Standard PartyNumber (Not used) */
+			chan_misdn_log(1, bc->port, " -->%s  National: %s\n",
+				Spacing, Party->Number);
+			break;
+		default:
+			break;
+		}
+	}
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+static void print_facility_Subaddress(unsigned Level, const struct FacPartySubaddress *Subaddress, const struct misdn_bchannel *bc)
+{
+	if (Subaddress->Length) {
+		const char *Spacing;
+
+		Spacing = &Level_Spacing[sizeof(Level_Spacing) - 1 - Level];
+		chan_misdn_log(1, bc->port, " -->%s Subaddress: Type:%d\n",
+			Spacing, Subaddress->Type);
+		switch (Subaddress->Type) {
+		case 0: /* UserSpecified */
+			if (Subaddress->u.UserSpecified.OddCountPresent) {
+				chan_misdn_log(1, bc->port, " -->%s  User BCD OddCount:%d NumOctets:%d\n",
+					Spacing, Subaddress->u.UserSpecified.OddCount, Subaddress->Length);
+			} else {
+				chan_misdn_log(1, bc->port, " -->%s  User: %s\n",
+					Spacing, Subaddress->u.UserSpecified.Information);
+			}
+			break;
+		case 1: /* NSAP */
+			chan_misdn_log(1, bc->port, " -->%s  NSAP: %s\n",
+				Spacing, Subaddress->u.Nsap);
+			break;
+		default:
+			break;
+		}
+	}
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+static void print_facility_Address(unsigned Level, const struct FacAddress *Address, const struct misdn_bchannel *bc)
+{
+	print_facility_PartyNumber(Level, &Address->Party, bc);
+	print_facility_Subaddress(Level, &Address->Subaddress, bc);
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+static void print_facility_PresentedNumberUnscreened(unsigned Level, const struct FacPresentedNumberUnscreened *Presented, const struct misdn_bchannel *bc)
+{
+	const char *Spacing;
+
+	Spacing = &Level_Spacing[sizeof(Level_Spacing) - 1 - Level];
+	chan_misdn_log(1, bc->port, " -->%s Unscreened Type:%d\n", Spacing, Presented->Type);
+	switch (Presented->Type) {
+	case 0: /* presentationAllowedNumber */
+		chan_misdn_log(1, bc->port, " -->%s  Allowed:\n", Spacing);
+		print_facility_PartyNumber(Level + 2, &Presented->Unscreened, bc);
+		break;
+	case 1: /* presentationRestricted */
+		chan_misdn_log(1, bc->port, " -->%s  Restricted\n", Spacing);
+		break;
+	case 2: /* numberNotAvailableDueToInterworking */
+		chan_misdn_log(1, bc->port, " -->%s  Not Available\n", Spacing);
+		break;
+	case 3: /* presentationRestrictedNumber */
+		chan_misdn_log(1, bc->port, " -->%s  Restricted:\n", Spacing);
+		print_facility_PartyNumber(Level + 2, &Presented->Unscreened, bc);
+		break;
+	default:
+		break;
+	}
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+static void print_facility_AddressScreened(unsigned Level, const struct FacAddressScreened *Address, const struct misdn_bchannel *bc)
+{
+	const char *Spacing;
+
+	Spacing = &Level_Spacing[sizeof(Level_Spacing) - 1 - Level];
+	chan_misdn_log(1, bc->port, " -->%s ScreeningIndicator:%d\n", Spacing, Address->ScreeningIndicator);
+	print_facility_PartyNumber(Level, &Address->Party, bc);
+	print_facility_Subaddress(Level, &Address->Subaddress, bc);
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+static void print_facility_PresentedAddressScreened(unsigned Level, const struct FacPresentedAddressScreened *Presented, const struct misdn_bchannel *bc)
+{
+	const char *Spacing;
+
+	Spacing = &Level_Spacing[sizeof(Level_Spacing) - 1 - Level];
+	chan_misdn_log(1, bc->port, " -->%s Screened Type:%d\n", Spacing, Presented->Type);
+	switch (Presented->Type) {
+	case 0: /* presentationAllowedAddress */
+		chan_misdn_log(1, bc->port, " -->%s  Allowed:\n", Spacing);
+		print_facility_AddressScreened(Level + 2, &Presented->Address, bc);
+		break;
+	case 1: /* presentationRestricted */
+		chan_misdn_log(1, bc->port, " -->%s  Restricted\n", Spacing);
+		break;
+	case 2: /* numberNotAvailableDueToInterworking */
+		chan_misdn_log(1, bc->port, " -->%s  Not Available\n", Spacing);
+		break;
+	case 3: /* presentationRestrictedAddress */
+		chan_misdn_log(1, bc->port, " -->%s  Restricted:\n", Spacing);
+		print_facility_AddressScreened(Level + 2, &Presented->Address, bc);
+		break;
+	default:
+		break;
+	}
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+static void print_facility_Q931_Bc_Hlc_Llc(unsigned Level, const struct Q931_Bc_Hlc_Llc *Q931ie, const struct misdn_bchannel *bc)
+{
+	const char *Spacing;
+
+	Spacing = &Level_Spacing[sizeof(Level_Spacing) - 1 - Level];
+	chan_misdn_log(1, bc->port, " -->%s Q931ie:\n", Spacing);
+	if (Q931ie->Bc.Length) {
+		chan_misdn_log(1, bc->port, " -->%s  Bc Len:%d\n", Spacing, Q931ie->Bc.Length);
+	}
+	if (Q931ie->Hlc.Length) {
+		chan_misdn_log(1, bc->port, " -->%s  Hlc Len:%d\n", Spacing, Q931ie->Hlc.Length);
+	}
+	if (Q931ie->Llc.Length) {
+		chan_misdn_log(1, bc->port, " -->%s  Llc Len:%d\n", Spacing, Q931ie->Llc.Length);
+	}
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+static void print_facility_Q931_Bc_Hlc_Llc_Uu(unsigned Level, const struct Q931_Bc_Hlc_Llc_Uu *Q931ie, const struct misdn_bchannel *bc)
+{
+	const char *Spacing;
+
+	Spacing = &Level_Spacing[sizeof(Level_Spacing) - 1 - Level];
+	chan_misdn_log(1, bc->port, " -->%s Q931ie:\n", Spacing);
+	if (Q931ie->Bc.Length) {
+		chan_misdn_log(1, bc->port, " -->%s  Bc Len:%d\n", Spacing, Q931ie->Bc.Length);
+	}
+	if (Q931ie->Hlc.Length) {
+		chan_misdn_log(1, bc->port, " -->%s  Hlc Len:%d\n", Spacing, Q931ie->Hlc.Length);
+	}
+	if (Q931ie->Llc.Length) {
+		chan_misdn_log(1, bc->port, " -->%s  Llc Len:%d\n", Spacing, Q931ie->Llc.Length);
+	}
+	if (Q931ie->UserInfo.Length) {
+		chan_misdn_log(1, bc->port, " -->%s  UserInfo Len:%d\n", Spacing, Q931ie->UserInfo.Length);
+	}
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+static void print_facility_CallInformation(unsigned Level, const struct FacCallInformation *CallInfo, const struct misdn_bchannel *bc)
+{
+	const char *Spacing;
+
+	Spacing = &Level_Spacing[sizeof(Level_Spacing) - 1 - Level];
+	chan_misdn_log(1, bc->port, " -->%s CCBSReference:%d\n",
+		Spacing, CallInfo->CCBSReference);
+	chan_misdn_log(1, bc->port, " -->%s AddressOfB:\n", Spacing);
+	print_facility_Address(Level + 1, &CallInfo->AddressOfB, bc);
+	print_facility_Q931_Bc_Hlc_Llc(Level, &CallInfo->Q931ie, bc);
+	if (CallInfo->SubaddressOfA.Length) {
+		chan_misdn_log(1, bc->port, " -->%s SubaddressOfA:\n", Spacing);
+		print_facility_Subaddress(Level + 1, &CallInfo->SubaddressOfA, bc);
+	}
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+static void print_facility_ServedUserNr(unsigned Level, const struct FacPartyNumber *Party, const struct misdn_bchannel *bc)
+{
+	const char *Spacing;
+
+	Spacing = &Level_Spacing[sizeof(Level_Spacing) - 1 - Level];
+	if (Party->LengthOfNumber) {
+		print_facility_PartyNumber(Level, Party, bc);
+	} else {
+		chan_misdn_log(1, bc->port, " -->%s All Numbers\n", Spacing);
+	}
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+static void print_facility_IntResult(unsigned Level, const struct FacForwardingRecord *ForwardingRecord, const struct misdn_bchannel *bc)
+{
+	const char *Spacing;
+
+	Spacing = &Level_Spacing[sizeof(Level_Spacing) - 1 - Level];
+	chan_misdn_log(1, bc->port, " -->%s Procedure:%d BasicService:%d\n",
+		Spacing,
+		ForwardingRecord->Procedure,
+		ForwardingRecord->BasicService);
+	chan_misdn_log(1, bc->port, " -->%s ForwardedTo:\n", Spacing);
+	print_facility_Address(Level + 1, &ForwardingRecord->ForwardedTo, bc);
+	chan_misdn_log(1, bc->port, " -->%s ServedUserNr:\n", Spacing);
+	print_facility_ServedUserNr(Level + 1, &ForwardingRecord->ServedUser, bc);
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+static void print_facility(const struct FacParm *fac, const const struct misdn_bchannel *bc)
+{
+#if defined(AST_MISDN_ENHANCEMENTS)
+	unsigned Index;
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
 	switch (fac->Function) {
-#ifdef HAVE_MISDN_FAC_RESULT
-	case Fac_RESULT:
-		chan_misdn_log(0, bc->port, " --> Received RESULT Operation\n");
+#if defined(AST_MISDN_ENHANCEMENTS)
+	case Fac_ActivationDiversion:
+		chan_misdn_log(1, bc->port, " --> ActivationDiversion: InvokeID:%d\n",
+			fac->u.ActivationDiversion.InvokeID);
+		switch (fac->u.ActivationDiversion.ComponentType) {
+		case FacComponent_Invoke:
+			chan_misdn_log(1, bc->port, " -->  Invoke: Procedure:%d BasicService:%d\n",
+				fac->u.ActivationDiversion.Component.Invoke.Procedure,
+				fac->u.ActivationDiversion.Component.Invoke.BasicService);
+			chan_misdn_log(1, bc->port, " -->   ForwardedTo:\n");
+			print_facility_Address(3, &fac->u.ActivationDiversion.Component.Invoke.ForwardedTo, bc);
+			chan_misdn_log(1, bc->port, " -->   ServedUserNr:\n");
+			print_facility_ServedUserNr(3, &fac->u.ActivationDiversion.Component.Invoke.ServedUser, bc);
+			break;
+		case FacComponent_Result:
+			chan_misdn_log(1, bc->port, " -->  Result\n");
+			break;
+		default:
+			break;
+		}
 		break;
-#endif
-#ifdef HAVE_MISDN_FAC_ERROR
-	case Fac_ERROR:
-		chan_misdn_log(0, bc->port, " --> Received Error Operation\n");
-		chan_misdn_log(0, bc->port, " --> Value:%d Error:%s\n", fac->u.ERROR.errorValue, fac->u.ERROR.error);
+	case Fac_DeactivationDiversion:
+		chan_misdn_log(1, bc->port, " --> DeactivationDiversion: InvokeID:%d\n",
+			fac->u.DeactivationDiversion.InvokeID);
+		switch (fac->u.DeactivationDiversion.ComponentType) {
+		case FacComponent_Invoke:
+			chan_misdn_log(1, bc->port, " -->  Invoke: Procedure:%d BasicService:%d\n",
+				fac->u.DeactivationDiversion.Component.Invoke.Procedure,
+				fac->u.DeactivationDiversion.Component.Invoke.BasicService);
+			chan_misdn_log(1, bc->port, " -->   ServedUserNr:\n");
+			print_facility_ServedUserNr(3, &fac->u.DeactivationDiversion.Component.Invoke.ServedUser, bc);
+			break;
+		case FacComponent_Result:
+			chan_misdn_log(1, bc->port, " -->  Result\n");
+			break;
+		default:
+			break;
+		}
 		break;
-#endif
+	case Fac_ActivationStatusNotificationDiv:
+		chan_misdn_log(1, bc->port, " --> ActivationStatusNotificationDiv: InvokeID:%d Procedure:%d BasicService:%d\n",
+			fac->u.ActivationStatusNotificationDiv.InvokeID,
+			fac->u.ActivationStatusNotificationDiv.Procedure,
+			fac->u.ActivationStatusNotificationDiv.BasicService);
+		chan_misdn_log(1, bc->port, " -->  ForwardedTo:\n");
+		print_facility_Address(2, &fac->u.ActivationStatusNotificationDiv.ForwardedTo, bc);
+		chan_misdn_log(1, bc->port, " -->  ServedUserNr:\n");
+		print_facility_ServedUserNr(2, &fac->u.ActivationStatusNotificationDiv.ServedUser, bc);
+		break;
+	case Fac_DeactivationStatusNotificationDiv:
+		chan_misdn_log(1, bc->port, " --> DeactivationStatusNotificationDiv: InvokeID:%d Procedure:%d BasicService:%d\n",
+			fac->u.DeactivationStatusNotificationDiv.InvokeID,
+			fac->u.DeactivationStatusNotificationDiv.Procedure,
+			fac->u.DeactivationStatusNotificationDiv.BasicService);
+		chan_misdn_log(1, bc->port, " -->  ServedUserNr:\n");
+		print_facility_ServedUserNr(2, &fac->u.DeactivationStatusNotificationDiv.ServedUser, bc);
+		break;
+	case Fac_InterrogationDiversion:
+		chan_misdn_log(1, bc->port, " --> InterrogationDiversion: InvokeID:%d\n",
+			fac->u.InterrogationDiversion.InvokeID);
+		switch (fac->u.InterrogationDiversion.ComponentType) {
+		case FacComponent_Invoke:
+			chan_misdn_log(1, bc->port, " -->  Invoke: Procedure:%d BasicService:%d\n",
+				fac->u.InterrogationDiversion.Component.Invoke.Procedure,
+				fac->u.InterrogationDiversion.Component.Invoke.BasicService);
+			chan_misdn_log(1, bc->port, " -->   ServedUserNr:\n");
+			print_facility_ServedUserNr(3, &fac->u.InterrogationDiversion.Component.Invoke.ServedUser, bc);
+			break;
+		case FacComponent_Result:
+			chan_misdn_log(1, bc->port, " -->  Result:\n");
+			if (fac->u.InterrogationDiversion.Component.Result.NumRecords) {
+				for (Index = 0; Index < fac->u.InterrogationDiversion.Component.Result.NumRecords; ++Index) {
+					chan_misdn_log(1, bc->port, " -->   IntResult[%d]:\n", Index);
+					print_facility_IntResult(3, &fac->u.InterrogationDiversion.Component.Result.List[Index], bc);
+				}
+			}
+			break;
+		default:
+			break;
+		}
+		break;
+	case Fac_DiversionInformation:
+		chan_misdn_log(1, bc->port, " --> DiversionInformation: InvokeID:%d Reason:%d BasicService:%d\n",
+			fac->u.DiversionInformation.InvokeID,
+			fac->u.DiversionInformation.DiversionReason,
+			fac->u.DiversionInformation.BasicService);
+		if (fac->u.DiversionInformation.ServedUserSubaddress.Length) {
+			chan_misdn_log(1, bc->port, " -->  ServedUserSubaddress:\n");
+			print_facility_Subaddress(2, &fac->u.DiversionInformation.ServedUserSubaddress, bc);
+		}
+		if (fac->u.DiversionInformation.CallingAddressPresent) {
+			chan_misdn_log(1, bc->port, " -->  CallingAddress:\n");
+			print_facility_PresentedAddressScreened(2, &fac->u.DiversionInformation.CallingAddress, bc);
+		}
+		if (fac->u.DiversionInformation.OriginalCalledPresent) {
+			chan_misdn_log(1, bc->port, " -->  OriginalCalledNr:\n");
+			print_facility_PresentedNumberUnscreened(2, &fac->u.DiversionInformation.OriginalCalled, bc);
+		}
+		if (fac->u.DiversionInformation.LastDivertingPresent) {
+			chan_misdn_log(1, bc->port, " -->  LastDivertingNr:\n");
+			print_facility_PresentedNumberUnscreened(2, &fac->u.DiversionInformation.LastDiverting, bc);
+		}
+		if (fac->u.DiversionInformation.LastDivertingReasonPresent) {
+			chan_misdn_log(1, bc->port, " -->  LastDivertingReason:%d\n", fac->u.DiversionInformation.LastDivertingReason);
+		}
+		if (fac->u.DiversionInformation.UserInfo.Length) {
+			chan_misdn_log(1, bc->port, " -->  UserInfo Length:%d\n", fac->u.DiversionInformation.UserInfo.Length);
+		}
+		break;
+	case Fac_CallDeflection:
+		chan_misdn_log(1, bc->port, " --> CallDeflection: InvokeID:%d\n",
+			fac->u.CallDeflection.InvokeID);
+		switch (fac->u.CallDeflection.ComponentType) {
+		case FacComponent_Invoke:
+			chan_misdn_log(1, bc->port, " -->  Invoke:\n");
+			if (fac->u.CallDeflection.Component.Invoke.PresentationAllowedToDivertedToUserPresent) {
+				chan_misdn_log(1, bc->port, " -->   PresentationAllowed:%d\n",
+					fac->u.CallDeflection.Component.Invoke.PresentationAllowedToDivertedToUser);
+			}
+			chan_misdn_log(1, bc->port, " -->   DeflectionAddress:\n");
+			print_facility_Address(3, &fac->u.CallDeflection.Component.Invoke.Deflection, bc);
+			break;
+		case FacComponent_Result:
+			chan_misdn_log(1, bc->port, " -->  Result\n");
+			break;
+		default:
+			break;
+		}
+		break;
+	case Fac_CallRerouteing:
+		chan_misdn_log(1, bc->port, " --> CallRerouteing: InvokeID:%d\n",
+			fac->u.CallRerouteing.InvokeID);
+		switch (fac->u.CallRerouteing.ComponentType) {
+		case FacComponent_Invoke:
+			chan_misdn_log(1, bc->port, " -->  Invoke: Reason:%d Counter:%d\n",
+				fac->u.CallRerouteing.Component.Invoke.ReroutingReason,
+				fac->u.CallRerouteing.Component.Invoke.ReroutingCounter);
+			chan_misdn_log(1, bc->port, " -->   CalledAddress:\n");
+			print_facility_Address(3, &fac->u.CallRerouteing.Component.Invoke.CalledAddress, bc);
+			print_facility_Q931_Bc_Hlc_Llc_Uu(2, &fac->u.CallRerouteing.Component.Invoke.Q931ie, bc);
+			chan_misdn_log(1, bc->port, " -->   LastReroutingNr:\n");
+			print_facility_PresentedNumberUnscreened(3, &fac->u.CallRerouteing.Component.Invoke.LastRerouting, bc);
+			chan_misdn_log(1, bc->port, " -->   SubscriptionOption:%d\n",
+				fac->u.CallRerouteing.Component.Invoke.SubscriptionOption);
+			if (fac->u.CallRerouteing.Component.Invoke.CallingPartySubaddress.Length) {
+				chan_misdn_log(1, bc->port, " -->   CallingParty:\n");
+				print_facility_Subaddress(3, &fac->u.CallRerouteing.Component.Invoke.CallingPartySubaddress, bc);
+			}
+			break;
+		case FacComponent_Result:
+			chan_misdn_log(1, bc->port, " -->  Result\n");
+			break;
+		default:
+			break;
+		}
+		break;
+	case Fac_InterrogateServedUserNumbers:
+		chan_misdn_log(1, bc->port, " --> InterrogateServedUserNumbers: InvokeID:%d\n",
+			fac->u.InterrogateServedUserNumbers.InvokeID);
+		switch (fac->u.InterrogateServedUserNumbers.ComponentType) {
+		case FacComponent_Invoke:
+			chan_misdn_log(1, bc->port, " -->  Invoke\n");
+			break;
+		case FacComponent_Result:
+			chan_misdn_log(1, bc->port, " -->  Result:\n");
+			if (fac->u.InterrogateServedUserNumbers.Component.Result.NumRecords) {
+				for (Index = 0; Index < fac->u.InterrogateServedUserNumbers.Component.Result.NumRecords; ++Index) {
+					chan_misdn_log(1, bc->port, " -->   ServedUserNr[%d]:\n", Index);
+					print_facility_PartyNumber(3, &fac->u.InterrogateServedUserNumbers.Component.Result.List[Index], bc);
+				}
+			}
+			break;
+		default:
+			break;
+		}
+		break;
+	case Fac_DivertingLegInformation1:
+		chan_misdn_log(1, bc->port, " --> DivertingLegInformation1: InvokeID:%d Reason:%d SubscriptionOption:%d\n",
+			fac->u.DivertingLegInformation1.InvokeID,
+			fac->u.DivertingLegInformation1.DiversionReason,
+			fac->u.DivertingLegInformation1.SubscriptionOption);
+		if (fac->u.DivertingLegInformation1.DivertedToPresent) {
+			chan_misdn_log(1, bc->port, " -->  DivertedToNr:\n");
+			print_facility_PresentedNumberUnscreened(2, &fac->u.DivertingLegInformation1.DivertedTo, bc);
+		}
+		break;
+	case Fac_DivertingLegInformation2:
+		chan_misdn_log(1, bc->port, " --> DivertingLegInformation2: InvokeID:%d Reason:%d Count:%d\n",
+			fac->u.DivertingLegInformation2.InvokeID,
+			fac->u.DivertingLegInformation2.DiversionReason,
+			fac->u.DivertingLegInformation2.DiversionCounter);
+		if (fac->u.DivertingLegInformation2.DivertingPresent) {
+			chan_misdn_log(1, bc->port, " -->  DivertingNr:\n");
+			print_facility_PresentedNumberUnscreened(2, &fac->u.DivertingLegInformation2.Diverting, bc);
+		}
+		if (fac->u.DivertingLegInformation2.OriginalCalledPresent) {
+			chan_misdn_log(1, bc->port, " -->  OriginalCalledNr:\n");
+			print_facility_PresentedNumberUnscreened(2, &fac->u.DivertingLegInformation2.OriginalCalled, bc);
+		}
+		break;
+	case Fac_DivertingLegInformation3:
+		chan_misdn_log(1, bc->port, " --> DivertingLegInformation3: InvokeID:%d PresentationAllowed:%d\n",
+			fac->u.DivertingLegInformation3.InvokeID,
+			fac->u.DivertingLegInformation3.PresentationAllowedIndicator);
+		break;
+
+#else	/* !defined(AST_MISDN_ENHANCEMENTS) */
+
 	case Fac_CD:
 		chan_misdn_log(1, bc->port, " --> calldeflect to: %s, presentable: %s\n", fac->u.CDeflection.DeflectedToNumber,
 			fac->u.CDeflection.PresentationAllowed ? "yes" : "no");
 		break;
+#endif	/* !defined(AST_MISDN_ENHANCEMENTS) */
 	case Fac_AOCDCurrency:
 		if (fac->u.AOCDcur.chargeNotAvailable) {
 			chan_misdn_log(1, bc->port, " --> AOCD currency: charge not available\n");
@@ -1175,7 +2953,345 @@ static void print_facility(struct FacParm *fac, struct misdn_bchannel *bc)
 				fac->u.AOCDchu.recordedUnits, (fac->u.AOCDchu.typeOfChargingInfo == 0) ? "subTotal" : "total");
 		}
 		break;
+#if defined(AST_MISDN_ENHANCEMENTS)
+	case Fac_ERROR:
+		chan_misdn_log(1, bc->port, " --> ERROR: InvokeID:%d, Code:0x%02x\n",
+			fac->u.ERROR.invokeId, fac->u.ERROR.errorValue);
+		break;
+	case Fac_RESULT:
+		chan_misdn_log(1, bc->port, " --> RESULT: InvokeID:%d\n",
+			fac->u.RESULT.InvokeID);
+		break;
+	case Fac_REJECT:
+		if (fac->u.REJECT.InvokeIDPresent) {
+			chan_misdn_log(1, bc->port, " --> REJECT: InvokeID:%d, Code:0x%02x\n",
+				fac->u.REJECT.InvokeID, fac->u.REJECT.Code);
+		} else {
+			chan_misdn_log(1, bc->port, " --> REJECT: Code:0x%02x\n",
+				fac->u.REJECT.Code);
+		}
+		break;
+	case Fac_EctExecute:
+		chan_misdn_log(1, bc->port, " --> EctExecute: InvokeID:%d\n",
+			fac->u.EctExecute.InvokeID);
+		break;
+	case Fac_ExplicitEctExecute:
+		chan_misdn_log(1, bc->port, " --> ExplicitEctExecute: InvokeID:%d LinkID:%d\n",
+			fac->u.ExplicitEctExecute.InvokeID,
+			fac->u.ExplicitEctExecute.LinkID);
+		break;
+	case Fac_RequestSubaddress:
+		chan_misdn_log(1, bc->port, " --> RequestSubaddress: InvokeID:%d\n",
+			fac->u.RequestSubaddress.InvokeID);
+		break;
+	case Fac_SubaddressTransfer:
+		chan_misdn_log(1, bc->port, " --> SubaddressTransfer: InvokeID:%d\n",
+			fac->u.SubaddressTransfer.InvokeID);
+		print_facility_Subaddress(1, &fac->u.SubaddressTransfer.Subaddress, bc);
+		break;
+	case Fac_EctLinkIdRequest:
+		chan_misdn_log(1, bc->port, " --> EctLinkIdRequest: InvokeID:%d\n",
+			fac->u.EctLinkIdRequest.InvokeID);
+		switch (fac->u.EctLinkIdRequest.ComponentType) {
+		case FacComponent_Invoke:
+			chan_misdn_log(1, bc->port, " -->  Invoke\n");
+			break;
+		case FacComponent_Result:
+			chan_misdn_log(1, bc->port, " -->  Result: LinkID:%d\n",
+				fac->u.EctLinkIdRequest.Component.Result.LinkID);
+			break;
+		default:
+			break;
+		}
+		break;
+	case Fac_EctInform:
+		chan_misdn_log(1, bc->port, " --> EctInform: InvokeID:%d Status:%d\n",
+			fac->u.EctInform.InvokeID,
+			fac->u.EctInform.Status);
+		if (fac->u.EctInform.RedirectionPresent) {
+			chan_misdn_log(1, bc->port, " -->  Redirection Number\n");
+			print_facility_PresentedNumberUnscreened(2, &fac->u.EctInform.Redirection, bc);
+		}
+		break;
+	case Fac_EctLoopTest:
+		chan_misdn_log(1, bc->port, " --> EctLoopTest: InvokeID:%d\n",
+			fac->u.EctLoopTest.InvokeID);
+		switch (fac->u.EctLoopTest.ComponentType) {
+		case FacComponent_Invoke:
+			chan_misdn_log(1, bc->port, " -->  Invoke: CallTransferID:%d\n",
+				fac->u.EctLoopTest.Component.Invoke.CallTransferID);
+			break;
+		case FacComponent_Result:
+			chan_misdn_log(1, bc->port, " -->  Result: LoopResult:%d\n",
+				fac->u.EctLoopTest.Component.Result.LoopResult);
+			break;
+		default:
+			break;
+		}
+		break;
+	case Fac_StatusRequest:
+		chan_misdn_log(1, bc->port, " --> StatusRequest: InvokeID:%d\n",
+			fac->u.StatusRequest.InvokeID);
+		switch (fac->u.StatusRequest.ComponentType) {
+		case FacComponent_Invoke:
+			chan_misdn_log(1, bc->port, " -->  Invoke: Compatibility:%d\n",
+				fac->u.StatusRequest.Component.Invoke.CompatibilityMode);
+			break;
+		case FacComponent_Result:
+			chan_misdn_log(1, bc->port, " -->  Result: Status:%d\n",
+				fac->u.StatusRequest.Component.Result.Status);
+			break;
+		default:
+			break;
+		}
+		break;
+	case Fac_CallInfoRetain:
+		chan_misdn_log(1, bc->port, " --> CallInfoRetain: InvokeID:%d, LinkageID:%d\n",
+			fac->u.CallInfoRetain.InvokeID, fac->u.CallInfoRetain.CallLinkageID);
+		break;
+	case Fac_CCBSDeactivate:
+		chan_misdn_log(1, bc->port, " --> CCBSDeactivate: InvokeID:%d\n",
+			fac->u.CCBSDeactivate.InvokeID);
+		switch (fac->u.CCBSDeactivate.ComponentType) {
+		case FacComponent_Invoke:
+			chan_misdn_log(1, bc->port, " -->  Invoke: CCBSReference:%d\n",
+				fac->u.CCBSDeactivate.Component.Invoke.CCBSReference);
+			break;
+		case FacComponent_Result:
+			chan_misdn_log(1, bc->port, " -->  Result\n");
+			break;
+		default:
+			break;
+		}
+		break;
+	case Fac_CCBSErase:
+		chan_misdn_log(1, bc->port, " --> CCBSErase: InvokeID:%d, CCBSReference:%d RecallMode:%d, Reason:%d\n",
+			fac->u.CCBSErase.InvokeID, fac->u.CCBSErase.CCBSReference,
+			fac->u.CCBSErase.RecallMode, fac->u.CCBSErase.Reason);
+		chan_misdn_log(1, bc->port, " -->  AddressOfB\n");
+		print_facility_Address(2, &fac->u.CCBSErase.AddressOfB, bc);
+		print_facility_Q931_Bc_Hlc_Llc(1, &fac->u.CCBSErase.Q931ie, bc);
+		break;
+	case Fac_CCBSRemoteUserFree:
+		chan_misdn_log(1, bc->port, " --> CCBSRemoteUserFree: InvokeID:%d, CCBSReference:%d RecallMode:%d\n",
+			fac->u.CCBSRemoteUserFree.InvokeID, fac->u.CCBSRemoteUserFree.CCBSReference,
+			fac->u.CCBSRemoteUserFree.RecallMode);
+		chan_misdn_log(1, bc->port, " -->  AddressOfB\n");
+		print_facility_Address(2, &fac->u.CCBSRemoteUserFree.AddressOfB, bc);
+		print_facility_Q931_Bc_Hlc_Llc(1, &fac->u.CCBSRemoteUserFree.Q931ie, bc);
+		break;
+	case Fac_CCBSCall:
+		chan_misdn_log(1, bc->port, " --> CCBSCall: InvokeID:%d, CCBSReference:%d\n",
+			fac->u.CCBSCall.InvokeID, fac->u.CCBSCall.CCBSReference);
+		break;
+	case Fac_CCBSStatusRequest:
+		chan_misdn_log(1, bc->port, " --> CCBSStatusRequest: InvokeID:%d\n",
+			fac->u.CCBSStatusRequest.InvokeID);
+		switch (fac->u.CCBSStatusRequest.ComponentType) {
+		case FacComponent_Invoke:
+			chan_misdn_log(1, bc->port, " -->  Invoke: CCBSReference:%d RecallMode:%d\n",
+				fac->u.CCBSStatusRequest.Component.Invoke.CCBSReference,
+				fac->u.CCBSStatusRequest.Component.Invoke.RecallMode);
+			print_facility_Q931_Bc_Hlc_Llc(2, &fac->u.CCBSStatusRequest.Component.Invoke.Q931ie, bc);
+			break;
+		case FacComponent_Result:
+			chan_misdn_log(1, bc->port, " -->  Result: Free:%d\n",
+				fac->u.CCBSStatusRequest.Component.Result.Free);
+			break;
+		default:
+			break;
+		}
+		break;
+	case Fac_CCBSBFree:
+		chan_misdn_log(1, bc->port, " --> CCBSBFree: InvokeID:%d, CCBSReference:%d RecallMode:%d\n",
+			fac->u.CCBSBFree.InvokeID, fac->u.CCBSBFree.CCBSReference,
+			fac->u.CCBSBFree.RecallMode);
+		chan_misdn_log(1, bc->port, " -->  AddressOfB\n");
+		print_facility_Address(2, &fac->u.CCBSBFree.AddressOfB, bc);
+		print_facility_Q931_Bc_Hlc_Llc(1, &fac->u.CCBSBFree.Q931ie, bc);
+		break;
+	case Fac_EraseCallLinkageID:
+		chan_misdn_log(1, bc->port, " --> EraseCallLinkageID: InvokeID:%d, LinkageID:%d\n",
+			fac->u.EraseCallLinkageID.InvokeID, fac->u.EraseCallLinkageID.CallLinkageID);
+		break;
+	case Fac_CCBSStopAlerting:
+		chan_misdn_log(1, bc->port, " --> CCBSStopAlerting: InvokeID:%d, CCBSReference:%d\n",
+			fac->u.CCBSStopAlerting.InvokeID, fac->u.CCBSStopAlerting.CCBSReference);
+		break;
+	case Fac_CCBSRequest:
+		chan_misdn_log(1, bc->port, " --> CCBSRequest: InvokeID:%d\n",
+			fac->u.CCBSRequest.InvokeID);
+		switch (fac->u.CCBSRequest.ComponentType) {
+		case FacComponent_Invoke:
+			chan_misdn_log(1, bc->port, " -->  Invoke: LinkageID:%d\n",
+				fac->u.CCBSRequest.Component.Invoke.CallLinkageID);
+			break;
+		case FacComponent_Result:
+			chan_misdn_log(1, bc->port, " -->  Result: CCBSReference:%d RecallMode:%d\n",
+				fac->u.CCBSRequest.Component.Result.CCBSReference,
+				fac->u.CCBSRequest.Component.Result.RecallMode);
+			break;
+		default:
+			break;
+		}
+		break;
+	case Fac_CCBSInterrogate:
+		chan_misdn_log(1, bc->port, " --> CCBSInterrogate: InvokeID:%d\n",
+			fac->u.CCBSInterrogate.InvokeID);
+		switch (fac->u.CCBSInterrogate.ComponentType) {
+		case FacComponent_Invoke:
+			chan_misdn_log(1, bc->port, " -->  Invoke\n");
+			if (fac->u.CCBSInterrogate.Component.Invoke.CCBSReferencePresent) {
+				chan_misdn_log(1, bc->port, " -->   CCBSReference:%d\n",
+					fac->u.CCBSInterrogate.Component.Invoke.CCBSReference);
+			}
+			if (fac->u.CCBSInterrogate.Component.Invoke.AParty.LengthOfNumber) {
+				chan_misdn_log(1, bc->port, " -->   AParty\n");
+				print_facility_PartyNumber(3, &fac->u.CCBSInterrogate.Component.Invoke.AParty, bc);
+			}
+			break;
+		case FacComponent_Result:
+			chan_misdn_log(1, bc->port, " -->  Result: RecallMode:%d\n",
+				fac->u.CCBSInterrogate.Component.Result.RecallMode);
+			if (fac->u.CCBSInterrogate.Component.Result.NumRecords) {
+				for (Index = 0; Index < fac->u.CCBSInterrogate.Component.Result.NumRecords; ++Index) {
+					chan_misdn_log(1, bc->port, " -->   CallDetails[%d]:\n", Index);
+					print_facility_CallInformation(3, &fac->u.CCBSInterrogate.Component.Result.CallDetails[Index], bc);
+				}
+			}
+			break;
+		default:
+			break;
+		}
+		break;
+	case Fac_CCNRRequest:
+		chan_misdn_log(1, bc->port, " --> CCNRRequest: InvokeID:%d\n",
+			fac->u.CCNRRequest.InvokeID);
+		switch (fac->u.CCNRRequest.ComponentType) {
+		case FacComponent_Invoke:
+			chan_misdn_log(1, bc->port, " -->  Invoke: LinkageID:%d\n",
+				fac->u.CCNRRequest.Component.Invoke.CallLinkageID);
+			break;
+		case FacComponent_Result:
+			chan_misdn_log(1, bc->port, " -->  Result: CCBSReference:%d RecallMode:%d\n",
+				fac->u.CCNRRequest.Component.Result.CCBSReference,
+				fac->u.CCNRRequest.Component.Result.RecallMode);
+			break;
+		default:
+			break;
+		}
+		break;
+	case Fac_CCNRInterrogate:
+		chan_misdn_log(1, bc->port, " --> CCNRInterrogate: InvokeID:%d\n",
+			fac->u.CCNRInterrogate.InvokeID);
+		switch (fac->u.CCNRInterrogate.ComponentType) {
+		case FacComponent_Invoke:
+			chan_misdn_log(1, bc->port, " -->  Invoke\n");
+			if (fac->u.CCNRInterrogate.Component.Invoke.CCBSReferencePresent) {
+				chan_misdn_log(1, bc->port, " -->   CCBSReference:%d\n",
+					fac->u.CCNRInterrogate.Component.Invoke.CCBSReference);
+			}
+			if (fac->u.CCNRInterrogate.Component.Invoke.AParty.LengthOfNumber) {
+				chan_misdn_log(1, bc->port, " -->   AParty\n");
+				print_facility_PartyNumber(3, &fac->u.CCNRInterrogate.Component.Invoke.AParty, bc);
+			}
+			break;
+		case FacComponent_Result:
+			chan_misdn_log(1, bc->port, " -->  Result: RecallMode:%d\n",
+				fac->u.CCNRInterrogate.Component.Result.RecallMode);
+			if (fac->u.CCNRInterrogate.Component.Result.NumRecords) {
+				for (Index = 0; Index < fac->u.CCNRInterrogate.Component.Result.NumRecords; ++Index) {
+					chan_misdn_log(1, bc->port, " -->   CallDetails[%d]:\n", Index);
+					print_facility_CallInformation(3, &fac->u.CCNRInterrogate.Component.Result.CallDetails[Index], bc);
+				}
+			}
+			break;
+		default:
+			break;
+		}
+		break;
+	case Fac_CCBS_T_Call:
+		chan_misdn_log(1, bc->port, " --> CCBS_T_Call: InvokeID:%d\n",
+			fac->u.CCBS_T_Call.InvokeID);
+		break;
+	case Fac_CCBS_T_Suspend:
+		chan_misdn_log(1, bc->port, " --> CCBS_T_Suspend: InvokeID:%d\n",
+			fac->u.CCBS_T_Suspend.InvokeID);
+		break;
+	case Fac_CCBS_T_Resume:
+		chan_misdn_log(1, bc->port, " --> CCBS_T_Resume: InvokeID:%d\n",
+			fac->u.CCBS_T_Resume.InvokeID);
+		break;
+	case Fac_CCBS_T_RemoteUserFree:
+		chan_misdn_log(1, bc->port, " --> CCBS_T_RemoteUserFree: InvokeID:%d\n",
+			fac->u.CCBS_T_RemoteUserFree.InvokeID);
+		break;
+	case Fac_CCBS_T_Available:
+		chan_misdn_log(1, bc->port, " --> CCBS_T_Available: InvokeID:%d\n",
+			fac->u.CCBS_T_Available.InvokeID);
+		break;
+	case Fac_CCBS_T_Request:
+		chan_misdn_log(1, bc->port, " --> CCBS_T_Request: InvokeID:%d\n",
+			fac->u.CCBS_T_Request.InvokeID);
+		switch (fac->u.CCBS_T_Request.ComponentType) {
+		case FacComponent_Invoke:
+			chan_misdn_log(1, bc->port, " -->  Invoke\n");
+			chan_misdn_log(1, bc->port, " -->   DestinationAddress:\n");
+			print_facility_Address(3, &fac->u.CCBS_T_Request.Component.Invoke.Destination, bc);
+			print_facility_Q931_Bc_Hlc_Llc(2, &fac->u.CCBS_T_Request.Component.Invoke.Q931ie, bc);
+			if (fac->u.CCBS_T_Request.Component.Invoke.RetentionSupported) {
+				chan_misdn_log(1, bc->port, " -->   RetentionSupported:1\n");
+			}
+			if (fac->u.CCBS_T_Request.Component.Invoke.PresentationAllowedIndicatorPresent) {
+				chan_misdn_log(1, bc->port, " -->   PresentationAllowed:%d\n",
+					fac->u.CCBS_T_Request.Component.Invoke.PresentationAllowedIndicator);
+			}
+			if (fac->u.CCBS_T_Request.Component.Invoke.Originating.Party.LengthOfNumber) {
+				chan_misdn_log(1, bc->port, " -->   OriginatingAddress:\n");
+				print_facility_Address(3, &fac->u.CCBS_T_Request.Component.Invoke.Originating, bc);
+			}
+			break;
+		case FacComponent_Result:
+			chan_misdn_log(1, bc->port, " -->  Result: RetentionSupported:%d\n",
+				fac->u.CCBS_T_Request.Component.Result.RetentionSupported);
+			break;
+		default:
+			break;
+		}
+		break;
+	case Fac_CCNR_T_Request:
+		chan_misdn_log(1, bc->port, " --> CCNR_T_Request: InvokeID:%d\n",
+			fac->u.CCNR_T_Request.InvokeID);
+		switch (fac->u.CCNR_T_Request.ComponentType) {
+		case FacComponent_Invoke:
+			chan_misdn_log(1, bc->port, " -->  Invoke\n");
+			chan_misdn_log(1, bc->port, " -->   DestinationAddress:\n");
+			print_facility_Address(3, &fac->u.CCNR_T_Request.Component.Invoke.Destination, bc);
+			print_facility_Q931_Bc_Hlc_Llc(2, &fac->u.CCNR_T_Request.Component.Invoke.Q931ie, bc);
+			if (fac->u.CCNR_T_Request.Component.Invoke.RetentionSupported) {
+				chan_misdn_log(1, bc->port, " -->   RetentionSupported:1\n");
+			}
+			if (fac->u.CCNR_T_Request.Component.Invoke.PresentationAllowedIndicatorPresent) {
+				chan_misdn_log(1, bc->port, " -->   PresentationAllowed:%d\n",
+					fac->u.CCNR_T_Request.Component.Invoke.PresentationAllowedIndicator);
+			}
+			if (fac->u.CCNR_T_Request.Component.Invoke.Originating.Party.LengthOfNumber) {
+				chan_misdn_log(1, bc->port, " -->   OriginatingAddress:\n");
+				print_facility_Address(3, &fac->u.CCNR_T_Request.Component.Invoke.Originating, bc);
+			}
+			break;
+		case FacComponent_Result:
+			chan_misdn_log(1, bc->port, " -->  Result: RetentionSupported:%d\n",
+				fac->u.CCNR_T_Request.Component.Result.RetentionSupported);
+			break;
+		default:
+			break;
+		}
+		break;
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 	case Fac_None:
+		/* No facility so print nothing */
+		break;
 	default:
 		chan_misdn_log(1, bc->port, " --> unknown facility\n");
 		break;
@@ -1862,7 +3978,9 @@ static char *handle_cli_misdn_show_config(struct ast_cli_entry *e, int cmd, stru
 			ast_cli(a->fd, "Unknown option: %s\n", a->argv[3]);
 			return CLI_SHOWUSAGE;
 		}
-	} else if (a->argc == 3 || onlyport == 0) {
+	}
+
+	if (a->argc == 3 || onlyport == 0) {
 		ast_cli(a->fd, "mISDN General-Config:\n");
 		for (elem = MISDN_GEN_FIRST + 1, linebreak = 1; elem < MISDN_GEN_LAST; elem++, linebreak++) {
 			misdn_cfg_get_config_string(0, elem, buffer, sizeof(buffer));
@@ -2003,7 +4121,8 @@ static void print_bc_info(int fd, struct chan_list *help, struct misdn_bchannel 
 	ast_cli(fd,
 		"* Pid:%d Port:%d Ch:%d Mode:%s Orig:%s dialed:%s\n"
 		"  --> caller:\"%s\" <%s>\n"
-		"  --> redirecting:\"%s\" <%s>\n"
+		"  --> redirecting-from:\"%s\" <%s>\n"
+		"  --> redirecting-to:\"%s\" <%s>\n"
 		"  --> context:%s state:%s\n",
 		bc->pid,
 		bc->port,
@@ -2015,6 +4134,8 @@ static void print_bc_info(int fd, struct chan_list *help, struct misdn_bchannel 
 		(ast && ast->cid.cid_num) ? ast->cid.cid_num : "",
 		bc->redirecting.from.name,
 		bc->redirecting.from.number,
+		bc->redirecting.to.name,
+		bc->redirecting.to.number,
 		ast ? ast->context : "",
 		misdn_get_ch_state(help));
 	if (misdn_debug[bc->port] > 0) {
@@ -2267,6 +4388,739 @@ static char *handle_cli_misdn_show_port(struct ast_cli_entry *e, int cmd, struct
 	return CLI_SUCCESS;
 }
 
+#if defined(AST_MISDN_ENHANCEMENTS) && defined(CCBS_TEST_MESSAGES)
+static const struct FacParm Fac_Msgs[] = {
+/* *INDENT-OFF* */
+	[0].Function = Fac_ERROR,
+	[0].u.ERROR.invokeId = 8,
+	[0].u.ERROR.errorValue = FacError_CCBS_AlreadyAccepted,
+
+	[1].Function = Fac_RESULT,
+	[1].u.RESULT.InvokeID = 9,
+
+	[2].Function = Fac_REJECT,
+	[2].u.REJECT.Code = FacReject_Gen_BadlyStructuredComponent,
+
+	[3].Function = Fac_REJECT,
+	[3].u.REJECT.InvokeIDPresent = 1,
+	[3].u.REJECT.InvokeID = 10,
+	[3].u.REJECT.Code = FacReject_Inv_InitiatorReleasing,
+
+	[4].Function = Fac_REJECT,
+	[4].u.REJECT.InvokeIDPresent = 1,
+	[4].u.REJECT.InvokeID = 11,
+	[4].u.REJECT.Code = FacReject_Res_MistypedResult,
+
+	[5].Function = Fac_REJECT,
+	[5].u.REJECT.InvokeIDPresent = 1,
+	[5].u.REJECT.InvokeID = 12,
+	[5].u.REJECT.Code = FacReject_Err_ErrorResponseUnexpected,
+
+	[6].Function = Fac_StatusRequest,
+	[6].u.StatusRequest.InvokeID = 13,
+	[6].u.StatusRequest.ComponentType = FacComponent_Invoke,
+	[6].u.StatusRequest.Component.Invoke.Q931ie.Bc.Length = 2,
+	[6].u.StatusRequest.Component.Invoke.Q931ie.Bc.Contents = "AB",
+	[6].u.StatusRequest.Component.Invoke.Q931ie.Llc.Length = 3,
+	[6].u.StatusRequest.Component.Invoke.Q931ie.Llc.Contents = "CDE",
+	[6].u.StatusRequest.Component.Invoke.Q931ie.Hlc.Length = 4,
+	[6].u.StatusRequest.Component.Invoke.Q931ie.Hlc.Contents = "FGHI",
+	[6].u.StatusRequest.Component.Invoke.CompatibilityMode = 1,
+
+	[7].Function = Fac_StatusRequest,
+	[7].u.StatusRequest.InvokeID = 14,
+	[7].u.StatusRequest.ComponentType = FacComponent_Result,
+	[7].u.StatusRequest.Component.Result.Status = 2,
+
+	[8].Function = Fac_CallInfoRetain,
+	[8].u.CallInfoRetain.InvokeID = 15,
+	[8].u.CallInfoRetain.CallLinkageID = 115,
+
+	[9].Function = Fac_EraseCallLinkageID,
+	[9].u.EraseCallLinkageID.InvokeID = 16,
+	[9].u.EraseCallLinkageID.CallLinkageID = 105,
+
+	[10].Function = Fac_CCBSDeactivate,
+	[10].u.CCBSDeactivate.InvokeID = 17,
+	[10].u.CCBSDeactivate.ComponentType = FacComponent_Invoke,
+	[10].u.CCBSDeactivate.Component.Invoke.CCBSReference = 2,
+
+	[11].Function = Fac_CCBSDeactivate,
+	[11].u.CCBSDeactivate.InvokeID = 18,
+	[11].u.CCBSDeactivate.ComponentType = FacComponent_Result,
+
+	[12].Function = Fac_CCBSErase,
+	[12].u.CCBSErase.InvokeID = 19,
+	[12].u.CCBSErase.Q931ie.Bc.Length = 2,
+	[12].u.CCBSErase.Q931ie.Bc.Contents = "JK",
+	[12].u.CCBSErase.AddressOfB.Party.Type = 0,
+	[12].u.CCBSErase.AddressOfB.Party.LengthOfNumber = 5,
+	[12].u.CCBSErase.AddressOfB.Party.Number = "33403",
+	[12].u.CCBSErase.AddressOfB.Subaddress.Type = 0,
+	[12].u.CCBSErase.AddressOfB.Subaddress.Length = 4,
+	[12].u.CCBSErase.AddressOfB.Subaddress.u.UserSpecified.Information = "3748",
+	[12].u.CCBSErase.RecallMode = 1,
+	[12].u.CCBSErase.CCBSReference = 102,
+	[12].u.CCBSErase.Reason = 3,
+
+	[13].Function = Fac_CCBSErase,
+	[13].u.CCBSErase.InvokeID = 20,
+	[13].u.CCBSErase.Q931ie.Bc.Length = 2,
+	[13].u.CCBSErase.Q931ie.Bc.Contents = "JK",
+	[13].u.CCBSErase.AddressOfB.Party.Type = 1,
+	[13].u.CCBSErase.AddressOfB.Party.LengthOfNumber = 11,
+	[13].u.CCBSErase.AddressOfB.Party.TypeOfNumber = 1,
+	[13].u.CCBSErase.AddressOfB.Party.Number = "18003020102",
+	[13].u.CCBSErase.AddressOfB.Subaddress.Type = 0,
+	[13].u.CCBSErase.AddressOfB.Subaddress.Length = 4,
+	[13].u.CCBSErase.AddressOfB.Subaddress.u.UserSpecified.OddCountPresent = 1,
+	[13].u.CCBSErase.AddressOfB.Subaddress.u.UserSpecified.OddCount = 1,
+	[13].u.CCBSErase.AddressOfB.Subaddress.u.UserSpecified.Information = "3748",
+	[13].u.CCBSErase.RecallMode = 1,
+	[13].u.CCBSErase.CCBSReference = 102,
+	[13].u.CCBSErase.Reason = 3,
+
+	[14].Function = Fac_CCBSErase,
+	[14].u.CCBSErase.InvokeID = 21,
+	[14].u.CCBSErase.Q931ie.Bc.Length = 2,
+	[14].u.CCBSErase.Q931ie.Bc.Contents = "JK",
+	[14].u.CCBSErase.AddressOfB.Party.Type = 2,
+	[14].u.CCBSErase.AddressOfB.Party.LengthOfNumber = 4,
+	[14].u.CCBSErase.AddressOfB.Party.Number = "1803",
+	[14].u.CCBSErase.AddressOfB.Subaddress.Type = 1,
+	[14].u.CCBSErase.AddressOfB.Subaddress.Length = 4,
+	[14].u.CCBSErase.AddressOfB.Subaddress.u.Nsap = "6492",
+	[14].u.CCBSErase.RecallMode = 1,
+	[14].u.CCBSErase.CCBSReference = 102,
+	[14].u.CCBSErase.Reason = 3,
+
+	[15].Function = Fac_CCBSErase,
+	[15].u.CCBSErase.InvokeID = 22,
+	[15].u.CCBSErase.Q931ie.Bc.Length = 2,
+	[15].u.CCBSErase.Q931ie.Bc.Contents = "JK",
+	[15].u.CCBSErase.AddressOfB.Party.Type = 3,
+	[15].u.CCBSErase.AddressOfB.Party.LengthOfNumber = 4,
+	[15].u.CCBSErase.AddressOfB.Party.Number = "1803",
+	[15].u.CCBSErase.RecallMode = 1,
+	[15].u.CCBSErase.CCBSReference = 102,
+	[15].u.CCBSErase.Reason = 3,
+
+	[16].Function = Fac_CCBSErase,
+	[16].u.CCBSErase.InvokeID = 23,
+	[16].u.CCBSErase.Q931ie.Bc.Length = 2,
+	[16].u.CCBSErase.Q931ie.Bc.Contents = "JK",
+	[16].u.CCBSErase.AddressOfB.Party.Type = 4,
+	[16].u.CCBSErase.AddressOfB.Party.LengthOfNumber = 4,
+	[16].u.CCBSErase.AddressOfB.Party.Number = "1803",
+	[16].u.CCBSErase.RecallMode = 1,
+	[16].u.CCBSErase.CCBSReference = 102,
+	[16].u.CCBSErase.Reason = 3,
+
+	[17].Function = Fac_CCBSErase,
+	[17].u.CCBSErase.InvokeID = 24,
+	[17].u.CCBSErase.Q931ie.Bc.Length = 2,
+	[17].u.CCBSErase.Q931ie.Bc.Contents = "JK",
+	[17].u.CCBSErase.AddressOfB.Party.Type = 5,
+	[17].u.CCBSErase.AddressOfB.Party.LengthOfNumber = 11,
+	[17].u.CCBSErase.AddressOfB.Party.TypeOfNumber = 4,
+	[17].u.CCBSErase.AddressOfB.Party.Number = "18003020102",
+	[17].u.CCBSErase.RecallMode = 1,
+	[17].u.CCBSErase.CCBSReference = 102,
+	[17].u.CCBSErase.Reason = 3,
+
+	[18].Function = Fac_CCBSErase,
+	[18].u.CCBSErase.InvokeID = 25,
+	[18].u.CCBSErase.Q931ie.Bc.Length = 2,
+	[18].u.CCBSErase.Q931ie.Bc.Contents = "JK",
+	[18].u.CCBSErase.AddressOfB.Party.Type = 8,
+	[18].u.CCBSErase.AddressOfB.Party.LengthOfNumber = 4,
+	[18].u.CCBSErase.AddressOfB.Party.Number = "1803",
+	[18].u.CCBSErase.RecallMode = 1,
+	[18].u.CCBSErase.CCBSReference = 102,
+	[18].u.CCBSErase.Reason = 3,
+
+	[19].Function = Fac_CCBSRemoteUserFree,
+	[19].u.CCBSRemoteUserFree.InvokeID = 26,
+	[19].u.CCBSRemoteUserFree.Q931ie.Bc.Length = 2,
+	[19].u.CCBSRemoteUserFree.Q931ie.Bc.Contents = "JK",
+	[19].u.CCBSRemoteUserFree.AddressOfB.Party.Type = 8,
+	[19].u.CCBSRemoteUserFree.AddressOfB.Party.LengthOfNumber = 4,
+	[19].u.CCBSRemoteUserFree.AddressOfB.Party.Number = "1803",
+	[19].u.CCBSRemoteUserFree.RecallMode = 1,
+	[19].u.CCBSRemoteUserFree.CCBSReference = 102,
+
+	[20].Function = Fac_CCBSCall,
+	[20].u.CCBSCall.InvokeID = 27,
+	[20].u.CCBSCall.CCBSReference = 115,
+
+	[21].Function = Fac_CCBSStatusRequest,
+	[21].u.CCBSStatusRequest.InvokeID = 28,
+	[21].u.CCBSStatusRequest.ComponentType = FacComponent_Invoke,
+	[21].u.CCBSStatusRequest.Component.Invoke.Q931ie.Bc.Length = 2,
+	[21].u.CCBSStatusRequest.Component.Invoke.Q931ie.Bc.Contents = "JK",
+	[21].u.CCBSStatusRequest.Component.Invoke.RecallMode = 1,
+	[21].u.CCBSStatusRequest.Component.Invoke.CCBSReference = 102,
+
+	[22].Function = Fac_CCBSStatusRequest,
+	[22].u.CCBSStatusRequest.InvokeID = 29,
+	[22].u.CCBSStatusRequest.ComponentType = FacComponent_Result,
+	[22].u.CCBSStatusRequest.Component.Result.Free = 1,
+
+	[23].Function = Fac_CCBSBFree,
+	[23].u.CCBSBFree.InvokeID = 30,
+	[23].u.CCBSBFree.Q931ie.Bc.Length = 2,
+	[23].u.CCBSBFree.Q931ie.Bc.Contents = "JK",
+	[23].u.CCBSBFree.AddressOfB.Party.Type = 8,
+	[23].u.CCBSBFree.AddressOfB.Party.LengthOfNumber = 4,
+	[23].u.CCBSBFree.AddressOfB.Party.Number = "1803",
+	[23].u.CCBSBFree.RecallMode = 1,
+	[23].u.CCBSBFree.CCBSReference = 14,
+
+	[24].Function = Fac_CCBSStopAlerting,
+	[24].u.CCBSStopAlerting.InvokeID = 31,
+	[24].u.CCBSStopAlerting.CCBSReference = 37,
+
+	[25].Function = Fac_CCBSRequest,
+	[25].u.CCBSRequest.InvokeID = 32,
+	[25].u.CCBSRequest.ComponentType = FacComponent_Invoke,
+	[25].u.CCBSRequest.Component.Invoke.CallLinkageID = 57,
+
+	[26].Function = Fac_CCBSRequest,
+	[26].u.CCBSRequest.InvokeID = 33,
+	[26].u.CCBSRequest.ComponentType = FacComponent_Result,
+	[26].u.CCBSRequest.Component.Result.RecallMode = 1,
+	[26].u.CCBSRequest.Component.Result.CCBSReference = 102,
+
+	[27].Function = Fac_CCBSInterrogate,
+	[27].u.CCBSInterrogate.InvokeID = 34,
+	[27].u.CCBSInterrogate.ComponentType = FacComponent_Invoke,
+	[27].u.CCBSInterrogate.Component.Invoke.AParty.Type = 8,
+	[27].u.CCBSInterrogate.Component.Invoke.AParty.LengthOfNumber = 4,
+	[27].u.CCBSInterrogate.Component.Invoke.AParty.Number = "1803",
+	[27].u.CCBSInterrogate.Component.Invoke.CCBSReferencePresent = 1,
+	[27].u.CCBSInterrogate.Component.Invoke.CCBSReference = 76,
+
+	[28].Function = Fac_CCBSInterrogate,
+	[28].u.CCBSInterrogate.InvokeID = 35,
+	[28].u.CCBSInterrogate.ComponentType = FacComponent_Invoke,
+	[28].u.CCBSInterrogate.Component.Invoke.AParty.Type = 8,
+	[28].u.CCBSInterrogate.Component.Invoke.AParty.LengthOfNumber = 4,
+	[28].u.CCBSInterrogate.Component.Invoke.AParty.Number = "1803",
+
+	[29].Function = Fac_CCBSInterrogate,
+	[29].u.CCBSInterrogate.InvokeID = 36,
+	[29].u.CCBSInterrogate.ComponentType = FacComponent_Invoke,
+	[29].u.CCBSInterrogate.Component.Invoke.CCBSReferencePresent = 1,
+	[29].u.CCBSInterrogate.Component.Invoke.CCBSReference = 76,
+
+	[30].Function = Fac_CCBSInterrogate,
+	[30].u.CCBSInterrogate.InvokeID = 37,
+	[30].u.CCBSInterrogate.ComponentType = FacComponent_Invoke,
+
+	[31].Function = Fac_CCBSInterrogate,
+	[31].u.CCBSInterrogate.InvokeID = 38,
+	[31].u.CCBSInterrogate.ComponentType = FacComponent_Result,
+	[31].u.CCBSInterrogate.Component.Result.RecallMode = 1,
+
+	[32].Function = Fac_CCBSInterrogate,
+	[32].u.CCBSInterrogate.InvokeID = 39,
+	[32].u.CCBSInterrogate.ComponentType = FacComponent_Result,
+	[32].u.CCBSInterrogate.Component.Result.RecallMode = 1,
+	[32].u.CCBSInterrogate.Component.Result.NumRecords = 1,
+	[32].u.CCBSInterrogate.Component.Result.CallDetails[0].CCBSReference = 12,
+	[32].u.CCBSInterrogate.Component.Result.CallDetails[0].Q931ie.Bc.Length = 2,
+	[32].u.CCBSInterrogate.Component.Result.CallDetails[0].Q931ie.Bc.Contents = "JK",
+	[32].u.CCBSInterrogate.Component.Result.CallDetails[0].AddressOfB.Party.Type = 8,
+	[32].u.CCBSInterrogate.Component.Result.CallDetails[0].AddressOfB.Party.LengthOfNumber = 4,
+	[32].u.CCBSInterrogate.Component.Result.CallDetails[0].AddressOfB.Party.Number = "1803",
+	[32].u.CCBSInterrogate.Component.Result.CallDetails[0].SubaddressOfA.Type = 1,
+	[32].u.CCBSInterrogate.Component.Result.CallDetails[0].SubaddressOfA.Length = 4,
+	[32].u.CCBSInterrogate.Component.Result.CallDetails[0].SubaddressOfA.u.Nsap = "6492",
+
+	[33].Function = Fac_CCBSInterrogate,
+	[33].u.CCBSInterrogate.InvokeID = 40,
+	[33].u.CCBSInterrogate.ComponentType = FacComponent_Result,
+	[33].u.CCBSInterrogate.Component.Result.RecallMode = 1,
+	[33].u.CCBSInterrogate.Component.Result.NumRecords = 2,
+	[33].u.CCBSInterrogate.Component.Result.CallDetails[0].CCBSReference = 12,
+	[33].u.CCBSInterrogate.Component.Result.CallDetails[0].Q931ie.Bc.Length = 2,
+	[33].u.CCBSInterrogate.Component.Result.CallDetails[0].Q931ie.Bc.Contents = "JK",
+	[33].u.CCBSInterrogate.Component.Result.CallDetails[0].AddressOfB.Party.Type = 8,
+	[33].u.CCBSInterrogate.Component.Result.CallDetails[0].AddressOfB.Party.LengthOfNumber = 4,
+	[33].u.CCBSInterrogate.Component.Result.CallDetails[0].AddressOfB.Party.Number = "1803",
+	[33].u.CCBSInterrogate.Component.Result.CallDetails[1].CCBSReference = 102,
+	[33].u.CCBSInterrogate.Component.Result.CallDetails[1].Q931ie.Bc.Length = 2,
+	[33].u.CCBSInterrogate.Component.Result.CallDetails[1].Q931ie.Bc.Contents = "LM",
+	[33].u.CCBSInterrogate.Component.Result.CallDetails[1].AddressOfB.Party.Type = 8,
+	[33].u.CCBSInterrogate.Component.Result.CallDetails[1].AddressOfB.Party.LengthOfNumber = 4,
+	[33].u.CCBSInterrogate.Component.Result.CallDetails[1].AddressOfB.Party.Number = "6229",
+	[33].u.CCBSInterrogate.Component.Result.CallDetails[1].AddressOfB.Subaddress.Type = 1,
+	[33].u.CCBSInterrogate.Component.Result.CallDetails[1].AddressOfB.Subaddress.Length = 4,
+	[33].u.CCBSInterrogate.Component.Result.CallDetails[1].AddressOfB.Subaddress.u.Nsap = "8592",
+	[33].u.CCBSInterrogate.Component.Result.CallDetails[1].SubaddressOfA.Type = 1,
+	[33].u.CCBSInterrogate.Component.Result.CallDetails[1].SubaddressOfA.Length = 4,
+	[33].u.CCBSInterrogate.Component.Result.CallDetails[1].SubaddressOfA.u.Nsap = "6492",
+
+	[34].Function = Fac_CCNRRequest,
+	[34].u.CCNRRequest.InvokeID = 512,
+	[34].u.CCNRRequest.ComponentType = FacComponent_Invoke,
+	[34].u.CCNRRequest.Component.Invoke.CallLinkageID = 57,
+
+	[35].Function = Fac_CCNRRequest,
+	[35].u.CCNRRequest.InvokeID = 150,
+	[35].u.CCNRRequest.ComponentType = FacComponent_Result,
+	[35].u.CCNRRequest.Component.Result.RecallMode = 1,
+	[35].u.CCNRRequest.Component.Result.CCBSReference = 102,
+
+	[36].Function = Fac_CCNRInterrogate,
+	[36].u.CCNRInterrogate.InvokeID = -129,
+	[36].u.CCNRInterrogate.ComponentType = FacComponent_Invoke,
+
+	[37].Function = Fac_CCNRInterrogate,
+	[37].u.CCNRInterrogate.InvokeID = -3,
+	[37].u.CCNRInterrogate.ComponentType = FacComponent_Result,
+	[37].u.CCNRInterrogate.Component.Result.RecallMode = 1,
+
+	[38].Function = Fac_CCBS_T_Call,
+	[38].u.EctExecute.InvokeID = 41,
+
+	[39].Function = Fac_CCBS_T_Suspend,
+	[39].u.EctExecute.InvokeID = 42,
+
+	[40].Function = Fac_CCBS_T_Resume,
+	[40].u.EctExecute.InvokeID = 43,
+
+	[41].Function = Fac_CCBS_T_RemoteUserFree,
+	[41].u.EctExecute.InvokeID = 44,
+
+	[42].Function = Fac_CCBS_T_Available,
+	[42].u.EctExecute.InvokeID = 45,
+
+	[43].Function = Fac_CCBS_T_Request,
+	[43].u.CCBS_T_Request.InvokeID = 46,
+	[43].u.CCBS_T_Request.ComponentType = FacComponent_Invoke,
+	[43].u.CCBS_T_Request.Component.Invoke.Destination.Party.Type = 8,
+	[43].u.CCBS_T_Request.Component.Invoke.Destination.Party.LengthOfNumber = 4,
+	[43].u.CCBS_T_Request.Component.Invoke.Destination.Party.Number = "6229",
+	[43].u.CCBS_T_Request.Component.Invoke.Q931ie.Bc.Length = 2,
+	[43].u.CCBS_T_Request.Component.Invoke.Q931ie.Bc.Contents = "LM",
+	[43].u.CCBS_T_Request.Component.Invoke.RetentionSupported = 1,
+	[43].u.CCBS_T_Request.Component.Invoke.PresentationAllowedIndicatorPresent = 1,
+	[43].u.CCBS_T_Request.Component.Invoke.PresentationAllowedIndicator = 1,
+	[43].u.CCBS_T_Request.Component.Invoke.Originating.Party.Type = 8,
+	[43].u.CCBS_T_Request.Component.Invoke.Originating.Party.LengthOfNumber = 4,
+	[43].u.CCBS_T_Request.Component.Invoke.Originating.Party.Number = "9864",
+
+	[44].Function = Fac_CCBS_T_Request,
+	[44].u.CCBS_T_Request.InvokeID = 47,
+	[44].u.CCBS_T_Request.ComponentType = FacComponent_Invoke,
+	[44].u.CCBS_T_Request.Component.Invoke.Destination.Party.Type = 8,
+	[44].u.CCBS_T_Request.Component.Invoke.Destination.Party.LengthOfNumber = 4,
+	[44].u.CCBS_T_Request.Component.Invoke.Destination.Party.Number = "6229",
+	[44].u.CCBS_T_Request.Component.Invoke.Q931ie.Bc.Length = 2,
+	[44].u.CCBS_T_Request.Component.Invoke.Q931ie.Bc.Contents = "LM",
+	[44].u.CCBS_T_Request.Component.Invoke.PresentationAllowedIndicatorPresent = 1,
+	[44].u.CCBS_T_Request.Component.Invoke.PresentationAllowedIndicator = 1,
+	[44].u.CCBS_T_Request.Component.Invoke.Originating.Party.Type = 8,
+	[44].u.CCBS_T_Request.Component.Invoke.Originating.Party.LengthOfNumber = 4,
+	[44].u.CCBS_T_Request.Component.Invoke.Originating.Party.Number = "9864",
+
+	[45].Function = Fac_CCBS_T_Request,
+	[45].u.CCBS_T_Request.InvokeID = 48,
+	[45].u.CCBS_T_Request.ComponentType = FacComponent_Invoke,
+	[45].u.CCBS_T_Request.Component.Invoke.Destination.Party.Type = 8,
+	[45].u.CCBS_T_Request.Component.Invoke.Destination.Party.LengthOfNumber = 4,
+	[45].u.CCBS_T_Request.Component.Invoke.Destination.Party.Number = "6229",
+	[45].u.CCBS_T_Request.Component.Invoke.Q931ie.Bc.Length = 2,
+	[45].u.CCBS_T_Request.Component.Invoke.Q931ie.Bc.Contents = "LM",
+	[45].u.CCBS_T_Request.Component.Invoke.Originating.Party.Type = 8,
+	[45].u.CCBS_T_Request.Component.Invoke.Originating.Party.LengthOfNumber = 4,
+	[45].u.CCBS_T_Request.Component.Invoke.Originating.Party.Number = "9864",
+
+	[46].Function = Fac_CCBS_T_Request,
+	[46].u.CCBS_T_Request.InvokeID = 49,
+	[46].u.CCBS_T_Request.ComponentType = FacComponent_Invoke,
+	[46].u.CCBS_T_Request.Component.Invoke.Destination.Party.Type = 8,
+	[46].u.CCBS_T_Request.Component.Invoke.Destination.Party.LengthOfNumber = 4,
+	[46].u.CCBS_T_Request.Component.Invoke.Destination.Party.Number = "6229",
+	[46].u.CCBS_T_Request.Component.Invoke.Q931ie.Bc.Length = 2,
+	[46].u.CCBS_T_Request.Component.Invoke.Q931ie.Bc.Contents = "LM",
+	[46].u.CCBS_T_Request.Component.Invoke.PresentationAllowedIndicatorPresent = 1,
+	[46].u.CCBS_T_Request.Component.Invoke.PresentationAllowedIndicator = 1,
+
+	[47].Function = Fac_CCBS_T_Request,
+	[47].u.CCBS_T_Request.InvokeID = 50,
+	[47].u.CCBS_T_Request.ComponentType = FacComponent_Invoke,
+	[47].u.CCBS_T_Request.Component.Invoke.Destination.Party.Type = 8,
+	[47].u.CCBS_T_Request.Component.Invoke.Destination.Party.LengthOfNumber = 4,
+	[47].u.CCBS_T_Request.Component.Invoke.Destination.Party.Number = "6229",
+	[47].u.CCBS_T_Request.Component.Invoke.Q931ie.Bc.Length = 2,
+	[47].u.CCBS_T_Request.Component.Invoke.Q931ie.Bc.Contents = "LM",
+
+	[48].Function = Fac_CCBS_T_Request,
+	[48].u.CCBS_T_Request.InvokeID = 51,
+	[48].u.CCBS_T_Request.ComponentType = FacComponent_Result,
+	[48].u.CCBS_T_Request.Component.Result.RetentionSupported = 1,
+
+	[49].Function = Fac_CCNR_T_Request,
+	[49].u.CCNR_T_Request.InvokeID = 52,
+	[49].u.CCNR_T_Request.ComponentType = FacComponent_Invoke,
+	[49].u.CCNR_T_Request.Component.Invoke.Destination.Party.Type = 8,
+	[49].u.CCNR_T_Request.Component.Invoke.Destination.Party.LengthOfNumber = 4,
+	[49].u.CCNR_T_Request.Component.Invoke.Destination.Party.Number = "6229",
+	[49].u.CCNR_T_Request.Component.Invoke.Q931ie.Bc.Length = 2,
+	[49].u.CCNR_T_Request.Component.Invoke.Q931ie.Bc.Contents = "LM",
+
+	[50].Function = Fac_CCNR_T_Request,
+	[50].u.CCNR_T_Request.InvokeID = 53,
+	[50].u.CCNR_T_Request.ComponentType = FacComponent_Result,
+	[50].u.CCNR_T_Request.Component.Result.RetentionSupported = 1,
+
+	[51].Function = Fac_EctExecute,
+	[51].u.EctExecute.InvokeID = 54,
+
+	[52].Function = Fac_ExplicitEctExecute,
+	[52].u.ExplicitEctExecute.InvokeID = 55,
+	[52].u.ExplicitEctExecute.LinkID = 23,
+
+	[53].Function = Fac_RequestSubaddress,
+	[53].u.RequestSubaddress.InvokeID = 56,
+
+	[54].Function = Fac_SubaddressTransfer,
+	[54].u.SubaddressTransfer.InvokeID = 57,
+	[54].u.SubaddressTransfer.Subaddress.Type = 1,
+	[54].u.SubaddressTransfer.Subaddress.Length = 4,
+	[54].u.SubaddressTransfer.Subaddress.u.Nsap = "6492",
+
+	[55].Function = Fac_EctLinkIdRequest,
+	[55].u.EctLinkIdRequest.InvokeID = 58,
+	[55].u.EctLinkIdRequest.ComponentType = FacComponent_Invoke,
+
+	[56].Function = Fac_EctLinkIdRequest,
+	[56].u.EctLinkIdRequest.InvokeID = 59,
+	[56].u.EctLinkIdRequest.ComponentType = FacComponent_Result,
+	[56].u.EctLinkIdRequest.Component.Result.LinkID = 76,
+
+	[57].Function = Fac_EctInform,
+	[57].u.EctInform.InvokeID = 60,
+	[57].u.EctInform.Status = 1,
+	[57].u.EctInform.RedirectionPresent = 1,
+	[57].u.EctInform.Redirection.Type = 0,
+	[57].u.EctInform.Redirection.Unscreened.Type = 8,
+	[57].u.EctInform.Redirection.Unscreened.LengthOfNumber = 4,
+	[57].u.EctInform.Redirection.Unscreened.Number = "6229",
+
+	[58].Function = Fac_EctInform,
+	[58].u.EctInform.InvokeID = 61,
+	[58].u.EctInform.Status = 1,
+	[58].u.EctInform.RedirectionPresent = 1,
+	[58].u.EctInform.Redirection.Type = 1,
+
+	[59].Function = Fac_EctInform,
+	[59].u.EctInform.InvokeID = 62,
+	[59].u.EctInform.Status = 1,
+	[59].u.EctInform.RedirectionPresent = 1,
+	[59].u.EctInform.Redirection.Type = 2,
+
+	[60].Function = Fac_EctInform,
+	[60].u.EctInform.InvokeID = 63,
+	[60].u.EctInform.Status = 1,
+	[60].u.EctInform.RedirectionPresent = 1,
+	[60].u.EctInform.Redirection.Type = 3,
+	[60].u.EctInform.Redirection.Unscreened.Type = 8,
+	[60].u.EctInform.Redirection.Unscreened.LengthOfNumber = 4,
+	[60].u.EctInform.Redirection.Unscreened.Number = "3340",
+
+	[61].Function = Fac_EctInform,
+	[61].u.EctInform.InvokeID = 64,
+	[61].u.EctInform.Status = 1,
+	[61].u.EctInform.RedirectionPresent = 0,
+
+	[62].Function = Fac_EctLoopTest,
+	[62].u.EctLoopTest.InvokeID = 65,
+	[62].u.EctLoopTest.ComponentType = FacComponent_Invoke,
+	[62].u.EctLoopTest.Component.Invoke.CallTransferID = 7,
+
+	[63].Function = Fac_EctLoopTest,
+	[63].u.EctLoopTest.InvokeID = 66,
+	[63].u.EctLoopTest.ComponentType = FacComponent_Result,
+	[63].u.EctLoopTest.Component.Result.LoopResult = 2,
+
+	[64].Function = Fac_ActivationDiversion,
+	[64].u.ActivationDiversion.InvokeID = 67,
+	[64].u.ActivationDiversion.ComponentType = FacComponent_Invoke,
+	[64].u.ActivationDiversion.Component.Invoke.Procedure = 2,
+	[64].u.ActivationDiversion.Component.Invoke.BasicService = 3,
+	[64].u.ActivationDiversion.Component.Invoke.ForwardedTo.Party.Type = 4,
+	[64].u.ActivationDiversion.Component.Invoke.ForwardedTo.Party.LengthOfNumber = 4,
+	[64].u.ActivationDiversion.Component.Invoke.ForwardedTo.Party.Number = "1803",
+	[64].u.ActivationDiversion.Component.Invoke.ServedUser.Type = 4,
+	[64].u.ActivationDiversion.Component.Invoke.ServedUser.LengthOfNumber = 4,
+	[64].u.ActivationDiversion.Component.Invoke.ServedUser.Number = "5398",
+
+	[65].Function = Fac_ActivationDiversion,
+	[65].u.ActivationDiversion.InvokeID = 68,
+	[65].u.ActivationDiversion.ComponentType = FacComponent_Invoke,
+	[65].u.ActivationDiversion.Component.Invoke.Procedure = 1,
+	[65].u.ActivationDiversion.Component.Invoke.BasicService = 5,
+	[65].u.ActivationDiversion.Component.Invoke.ForwardedTo.Party.Type = 4,
+	[65].u.ActivationDiversion.Component.Invoke.ForwardedTo.Party.LengthOfNumber = 4,
+	[65].u.ActivationDiversion.Component.Invoke.ForwardedTo.Party.Number = "1803",
+
+	[66].Function = Fac_ActivationDiversion,
+	[66].u.ActivationDiversion.InvokeID = 69,
+	[66].u.ActivationDiversion.ComponentType = FacComponent_Result,
+
+	[67].Function = Fac_DeactivationDiversion,
+	[67].u.DeactivationDiversion.InvokeID = 70,
+	[67].u.DeactivationDiversion.ComponentType = FacComponent_Invoke,
+	[67].u.DeactivationDiversion.Component.Invoke.Procedure = 1,
+	[67].u.DeactivationDiversion.Component.Invoke.BasicService = 5,
+
+	[68].Function = Fac_DeactivationDiversion,
+	[68].u.DeactivationDiversion.InvokeID = 71,
+	[68].u.DeactivationDiversion.ComponentType = FacComponent_Result,
+
+	[69].Function = Fac_ActivationStatusNotificationDiv,
+	[69].u.ActivationStatusNotificationDiv.InvokeID = 72,
+	[69].u.ActivationStatusNotificationDiv.Procedure = 1,
+	[69].u.ActivationStatusNotificationDiv.BasicService = 5,
+	[69].u.ActivationStatusNotificationDiv.ForwardedTo.Party.Type = 4,
+	[69].u.ActivationStatusNotificationDiv.ForwardedTo.Party.LengthOfNumber = 4,
+	[69].u.ActivationStatusNotificationDiv.ForwardedTo.Party.Number = "1803",
+
+	[70].Function = Fac_DeactivationStatusNotificationDiv,
+	[70].u.DeactivationStatusNotificationDiv.InvokeID = 73,
+	[70].u.DeactivationStatusNotificationDiv.Procedure = 1,
+	[70].u.DeactivationStatusNotificationDiv.BasicService = 5,
+
+	[71].Function = Fac_InterrogationDiversion,
+	[71].u.InterrogationDiversion.InvokeID = 74,
+	[71].u.InterrogationDiversion.ComponentType = FacComponent_Invoke,
+	[71].u.InterrogationDiversion.Component.Invoke.Procedure = 1,
+	[71].u.InterrogationDiversion.Component.Invoke.BasicService = 5,
+
+	[72].Function = Fac_InterrogationDiversion,
+	[72].u.InterrogationDiversion.InvokeID = 75,
+	[72].u.InterrogationDiversion.ComponentType = FacComponent_Invoke,
+	[72].u.InterrogationDiversion.Component.Invoke.Procedure = 1,
+
+	[73].Function = Fac_InterrogationDiversion,
+	[73].u.InterrogationDiversion.InvokeID = 76,
+	[73].u.InterrogationDiversion.ComponentType = FacComponent_Result,
+	[73].u.InterrogationDiversion.Component.Result.NumRecords = 2,
+	[73].u.InterrogationDiversion.Component.Result.List[0].Procedure = 2,
+	[73].u.InterrogationDiversion.Component.Result.List[0].BasicService = 5,
+	[73].u.InterrogationDiversion.Component.Result.List[0].ForwardedTo.Party.Type = 4,
+	[73].u.InterrogationDiversion.Component.Result.List[0].ForwardedTo.Party.LengthOfNumber = 4,
+	[73].u.InterrogationDiversion.Component.Result.List[0].ForwardedTo.Party.Number = "1803",
+	[73].u.InterrogationDiversion.Component.Result.List[1].Procedure = 1,
+	[73].u.InterrogationDiversion.Component.Result.List[1].BasicService = 3,
+	[73].u.InterrogationDiversion.Component.Result.List[1].ForwardedTo.Party.Type = 4,
+	[73].u.InterrogationDiversion.Component.Result.List[1].ForwardedTo.Party.LengthOfNumber = 4,
+	[73].u.InterrogationDiversion.Component.Result.List[1].ForwardedTo.Party.Number = "1903",
+	[73].u.InterrogationDiversion.Component.Result.List[1].ServedUser.Type = 4,
+	[73].u.InterrogationDiversion.Component.Result.List[1].ServedUser.LengthOfNumber = 4,
+	[73].u.InterrogationDiversion.Component.Result.List[1].ServedUser.Number = "5398",
+
+	[74].Function = Fac_DiversionInformation,
+	[74].u.DiversionInformation.InvokeID = 77,
+	[74].u.DiversionInformation.DiversionReason = 3,
+	[74].u.DiversionInformation.BasicService = 5,
+	[74].u.DiversionInformation.ServedUserSubaddress.Type = 1,
+	[74].u.DiversionInformation.ServedUserSubaddress.Length = 4,
+	[74].u.DiversionInformation.ServedUserSubaddress.u.Nsap = "6492",
+	[74].u.DiversionInformation.CallingAddressPresent = 1,
+	[74].u.DiversionInformation.CallingAddress.Type = 0,
+	[74].u.DiversionInformation.CallingAddress.Address.ScreeningIndicator = 3,
+	[74].u.DiversionInformation.CallingAddress.Address.Party.Type = 4,
+	[74].u.DiversionInformation.CallingAddress.Address.Party.LengthOfNumber = 4,
+	[74].u.DiversionInformation.CallingAddress.Address.Party.Number = "1803",
+	[74].u.DiversionInformation.OriginalCalledPresent = 1,
+	[74].u.DiversionInformation.OriginalCalled.Type = 1,
+	[74].u.DiversionInformation.LastDivertingPresent = 1,
+	[74].u.DiversionInformation.LastDiverting.Type = 2,
+	[74].u.DiversionInformation.LastDivertingReasonPresent = 1,
+	[74].u.DiversionInformation.LastDivertingReason = 3,
+	[74].u.DiversionInformation.UserInfo.Length = 5,
+	[74].u.DiversionInformation.UserInfo.Contents = "79828",
+
+	[75].Function = Fac_DiversionInformation,
+	[75].u.DiversionInformation.InvokeID = 78,
+	[75].u.DiversionInformation.DiversionReason = 3,
+	[75].u.DiversionInformation.BasicService = 5,
+	[75].u.DiversionInformation.CallingAddressPresent = 1,
+	[75].u.DiversionInformation.CallingAddress.Type = 1,
+	[75].u.DiversionInformation.OriginalCalledPresent = 1,
+	[75].u.DiversionInformation.OriginalCalled.Type = 2,
+	[75].u.DiversionInformation.LastDivertingPresent = 1,
+	[75].u.DiversionInformation.LastDiverting.Type = 1,
+
+	[76].Function = Fac_DiversionInformation,
+	[76].u.DiversionInformation.InvokeID = 79,
+	[76].u.DiversionInformation.DiversionReason = 2,
+	[76].u.DiversionInformation.BasicService = 3,
+	[76].u.DiversionInformation.CallingAddressPresent = 1,
+	[76].u.DiversionInformation.CallingAddress.Type = 2,
+
+	[77].Function = Fac_DiversionInformation,
+	[77].u.DiversionInformation.InvokeID = 80,
+	[77].u.DiversionInformation.DiversionReason = 3,
+	[77].u.DiversionInformation.BasicService = 5,
+	[77].u.DiversionInformation.CallingAddressPresent = 1,
+	[77].u.DiversionInformation.CallingAddress.Type = 3,
+	[77].u.DiversionInformation.CallingAddress.Address.ScreeningIndicator = 2,
+	[77].u.DiversionInformation.CallingAddress.Address.Party.Type = 4,
+	[77].u.DiversionInformation.CallingAddress.Address.Party.LengthOfNumber = 4,
+	[77].u.DiversionInformation.CallingAddress.Address.Party.Number = "1803",
+
+	[78].Function = Fac_DiversionInformation,
+	[78].u.DiversionInformation.InvokeID = 81,
+	[78].u.DiversionInformation.DiversionReason = 2,
+	[78].u.DiversionInformation.BasicService = 4,
+	[78].u.DiversionInformation.UserInfo.Length = 5,
+	[78].u.DiversionInformation.UserInfo.Contents = "79828",
+
+	[79].Function = Fac_DiversionInformation,
+	[79].u.DiversionInformation.InvokeID = 82,
+	[79].u.DiversionInformation.DiversionReason = 2,
+	[79].u.DiversionInformation.BasicService = 4,
+
+	[80].Function = Fac_CallDeflection,
+	[80].u.CallDeflection.InvokeID = 83,
+	[80].u.CallDeflection.ComponentType = FacComponent_Invoke,
+	[80].u.CallDeflection.Component.Invoke.Deflection.Party.Type = 4,
+	[80].u.CallDeflection.Component.Invoke.Deflection.Party.LengthOfNumber = 4,
+	[80].u.CallDeflection.Component.Invoke.Deflection.Party.Number = "1803",
+	[80].u.CallDeflection.Component.Invoke.PresentationAllowedToDivertedToUserPresent = 1,
+	[80].u.CallDeflection.Component.Invoke.PresentationAllowedToDivertedToUser = 1,
+
+	[81].Function = Fac_CallDeflection,
+	[81].u.CallDeflection.InvokeID = 84,
+	[81].u.CallDeflection.ComponentType = FacComponent_Invoke,
+	[81].u.CallDeflection.Component.Invoke.Deflection.Party.Type = 4,
+	[81].u.CallDeflection.Component.Invoke.Deflection.Party.LengthOfNumber = 4,
+	[81].u.CallDeflection.Component.Invoke.Deflection.Party.Number = "1803",
+	[81].u.CallDeflection.Component.Invoke.PresentationAllowedToDivertedToUserPresent = 1,
+	[81].u.CallDeflection.Component.Invoke.PresentationAllowedToDivertedToUser = 0,
+
+	[82].Function = Fac_CallDeflection,
+	[82].u.CallDeflection.InvokeID = 85,
+	[82].u.CallDeflection.ComponentType = FacComponent_Invoke,
+	[82].u.CallDeflection.Component.Invoke.Deflection.Party.Type = 4,
+	[82].u.CallDeflection.Component.Invoke.Deflection.Party.LengthOfNumber = 4,
+	[82].u.CallDeflection.Component.Invoke.Deflection.Party.Number = "1803",
+
+	[83].Function = Fac_CallDeflection,
+	[83].u.CallDeflection.InvokeID = 86,
+	[83].u.CallDeflection.ComponentType = FacComponent_Result,
+
+	[84].Function = Fac_CallRerouteing,
+	[84].u.CallRerouteing.InvokeID = 87,
+	[84].u.CallRerouteing.ComponentType = FacComponent_Invoke,
+	[84].u.CallRerouteing.Component.Invoke.ReroutingReason = 3,
+	[84].u.CallRerouteing.Component.Invoke.ReroutingCounter = 2,
+	[84].u.CallRerouteing.Component.Invoke.CalledAddress.Party.Type = 4,
+	[84].u.CallRerouteing.Component.Invoke.CalledAddress.Party.LengthOfNumber = 4,
+	[84].u.CallRerouteing.Component.Invoke.CalledAddress.Party.Number = "1803",
+	[84].u.CallRerouteing.Component.Invoke.Q931ie.Bc.Length = 2,
+	[84].u.CallRerouteing.Component.Invoke.Q931ie.Bc.Contents = "RT",
+	[84].u.CallRerouteing.Component.Invoke.Q931ie.Hlc.Length = 3,
+	[84].u.CallRerouteing.Component.Invoke.Q931ie.Hlc.Contents = "RTG",
+	[84].u.CallRerouteing.Component.Invoke.Q931ie.Llc.Length = 2,
+	[84].u.CallRerouteing.Component.Invoke.Q931ie.Llc.Contents = "MY",
+	[84].u.CallRerouteing.Component.Invoke.Q931ie.UserInfo.Length = 5,
+	[84].u.CallRerouteing.Component.Invoke.Q931ie.UserInfo.Contents = "YEHAW",
+	[84].u.CallRerouteing.Component.Invoke.LastRerouting.Type = 1,
+	[84].u.CallRerouteing.Component.Invoke.SubscriptionOption = 2,
+	[84].u.CallRerouteing.Component.Invoke.CallingPartySubaddress.Type = 1,
+	[84].u.CallRerouteing.Component.Invoke.CallingPartySubaddress.Length = 4,
+	[84].u.CallRerouteing.Component.Invoke.CallingPartySubaddress.u.Nsap = "6492",
+
+	[85].Function = Fac_CallRerouteing,
+	[85].u.CallRerouteing.InvokeID = 88,
+	[85].u.CallRerouteing.ComponentType = FacComponent_Invoke,
+	[85].u.CallRerouteing.Component.Invoke.ReroutingReason = 3,
+	[85].u.CallRerouteing.Component.Invoke.ReroutingCounter = 2,
+	[85].u.CallRerouteing.Component.Invoke.CalledAddress.Party.Type = 4,
+	[85].u.CallRerouteing.Component.Invoke.CalledAddress.Party.LengthOfNumber = 4,
+	[85].u.CallRerouteing.Component.Invoke.CalledAddress.Party.Number = "1803",
+	[85].u.CallRerouteing.Component.Invoke.Q931ie.Bc.Length = 2,
+	[85].u.CallRerouteing.Component.Invoke.Q931ie.Bc.Contents = "RT",
+	[85].u.CallRerouteing.Component.Invoke.LastRerouting.Type = 1,
+	[85].u.CallRerouteing.Component.Invoke.SubscriptionOption = 2,
+
+	[86].Function = Fac_CallRerouteing,
+	[86].u.CallRerouteing.InvokeID = 89,
+	[86].u.CallRerouteing.ComponentType = FacComponent_Invoke,
+	[86].u.CallRerouteing.Component.Invoke.ReroutingReason = 3,
+	[86].u.CallRerouteing.Component.Invoke.ReroutingCounter = 2,
+	[86].u.CallRerouteing.Component.Invoke.CalledAddress.Party.Type = 4,
+	[86].u.CallRerouteing.Component.Invoke.CalledAddress.Party.LengthOfNumber = 4,
+	[86].u.CallRerouteing.Component.Invoke.CalledAddress.Party.Number = "1803",
+	[86].u.CallRerouteing.Component.Invoke.Q931ie.Bc.Length = 2,
+	[86].u.CallRerouteing.Component.Invoke.Q931ie.Bc.Contents = "RT",
+	[86].u.CallRerouteing.Component.Invoke.LastRerouting.Type = 2,
+
+	[87].Function = Fac_CallRerouteing,
+	[87].u.CallRerouteing.InvokeID = 90,
+	[87].u.CallRerouteing.ComponentType = FacComponent_Result,
+
+	[88].Function = Fac_InterrogateServedUserNumbers,
+	[88].u.InterrogateServedUserNumbers.InvokeID = 91,
+	[88].u.InterrogateServedUserNumbers.ComponentType = FacComponent_Invoke,
+
+	[89].Function = Fac_InterrogateServedUserNumbers,
+	[89].u.InterrogateServedUserNumbers.InvokeID = 92,
+	[89].u.InterrogateServedUserNumbers.ComponentType = FacComponent_Result,
+	[89].u.InterrogateServedUserNumbers.Component.Result.NumRecords = 2,
+	[89].u.InterrogateServedUserNumbers.Component.Result.List[0].Type = 4,
+	[89].u.InterrogateServedUserNumbers.Component.Result.List[0].LengthOfNumber = 4,
+	[89].u.InterrogateServedUserNumbers.Component.Result.List[0].Number = "1803",
+	[89].u.InterrogateServedUserNumbers.Component.Result.List[1].Type = 4,
+	[89].u.InterrogateServedUserNumbers.Component.Result.List[1].LengthOfNumber = 4,
+	[89].u.InterrogateServedUserNumbers.Component.Result.List[1].Number = "5786",
+
+	[90].Function = Fac_DivertingLegInformation1,
+	[90].u.DivertingLegInformation1.InvokeID = 93,
+	[90].u.DivertingLegInformation1.DiversionReason = 4,
+	[90].u.DivertingLegInformation1.SubscriptionOption = 1,
+	[90].u.DivertingLegInformation1.DivertedToPresent = 1,
+	[90].u.DivertingLegInformation1.DivertedTo.Type = 2,
+
+	[91].Function = Fac_DivertingLegInformation1,
+	[91].u.DivertingLegInformation1.InvokeID = 94,
+	[91].u.DivertingLegInformation1.DiversionReason = 4,
+	[91].u.DivertingLegInformation1.SubscriptionOption = 1,
+
+	[92].Function = Fac_DivertingLegInformation2,
+	[92].u.DivertingLegInformation2.InvokeID = 95,
+	[92].u.DivertingLegInformation2.DiversionCounter = 3,
+	[92].u.DivertingLegInformation2.DiversionReason = 2,
+	[92].u.DivertingLegInformation2.DivertingPresent = 1,
+	[92].u.DivertingLegInformation2.Diverting.Type = 2,
+	[92].u.DivertingLegInformation2.OriginalCalledPresent = 1,
+	[92].u.DivertingLegInformation2.OriginalCalled.Type = 1,
+
+	[93].Function = Fac_DivertingLegInformation2,
+	[93].u.DivertingLegInformation2.InvokeID = 96,
+	[93].u.DivertingLegInformation2.DiversionCounter = 3,
+	[93].u.DivertingLegInformation2.DiversionReason = 2,
+	[93].u.DivertingLegInformation2.OriginalCalledPresent = 1,
+	[93].u.DivertingLegInformation2.OriginalCalled.Type = 1,
+
+	[94].Function = Fac_DivertingLegInformation2,
+	[94].u.DivertingLegInformation2.InvokeID = 97,
+	[94].u.DivertingLegInformation2.DiversionCounter = 1,
+	[94].u.DivertingLegInformation2.DiversionReason = 2,
+
+	[95].Function = Fac_DivertingLegInformation3,
+	[95].u.DivertingLegInformation3.InvokeID = 98,
+	[95].u.DivertingLegInformation3.PresentationAllowedIndicator = 1,
+/* *INDENT-ON* */
+};
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) && defined(CCBS_TEST_MESSAGES) */
+
 static char *handle_cli_misdn_send_facility(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char *channame;
@@ -2275,6 +5129,7 @@ static char *handle_cli_misdn_send_facility(struct ast_cli_entry *e, int cmd, st
 	int port;
 	char *served_nr;
 	struct misdn_bchannel dummy, *bc=&dummy;
+	unsigned max_len;
 
  	switch (cmd) {
 	case CLI_INIT:
@@ -2309,12 +5164,39 @@ static char *handle_cli_misdn_send_facility(struct ast_cli_entry *e, int cmd, st
 			return 0;
 		}
 
-		if (strlen(nr) >= 15) {
-			ast_verbose("Sending CD with nr %s to %s failed: Number too long (up to 15 digits are allowed).\n", nr, channame);
+#if defined(AST_MISDN_ENHANCEMENTS)
+		max_len = sizeof(tmp->bc->fac_out.u.CallDeflection.Component.Invoke.Deflection.Party.Number) - 1;
+		if (max_len < strlen(nr)) {
+			ast_verbose("Sending CD with nr %s to %s failed: Number too long (up to %u digits are allowed).\n",
+				nr, channame, max_len);
+			return 0;
+		}
+		tmp->bc->fac_out.Function = Fac_CallDeflection;
+		tmp->bc->fac_out.u.CallDeflection.InvokeID = ++misdn_invoke_id;
+		tmp->bc->fac_out.u.CallDeflection.ComponentType = FacComponent_Invoke;
+		tmp->bc->fac_out.u.CallDeflection.Component.Invoke.PresentationAllowedToDivertedToUserPresent = 1;
+		tmp->bc->fac_out.u.CallDeflection.Component.Invoke.PresentationAllowedToDivertedToUser = 0;
+		tmp->bc->fac_out.u.CallDeflection.Component.Invoke.Deflection.Party.Type = 0;/* unknown */
+		tmp->bc->fac_out.u.CallDeflection.Component.Invoke.Deflection.Party.LengthOfNumber = strlen(nr);
+		strcpy((char *) tmp->bc->fac_out.u.CallDeflection.Component.Invoke.Deflection.Party.Number, nr);
+		tmp->bc->fac_out.u.CallDeflection.Component.Invoke.Deflection.Subaddress.Length = 0;
+
+#else	/* !defined(AST_MISDN_ENHANCEMENTS) */
+
+		max_len = sizeof(tmp->bc->fac_out.u.CDeflection.DeflectedToNumber) - 1;
+		if (max_len < strlen(nr)) {
+			ast_verbose("Sending CD with nr %s to %s failed: Number too long (up to %u digits are allowed).\n",
+				nr, channame, max_len);
 			return 0;
 		}
 		tmp->bc->fac_out.Function = Fac_CD;
-		ast_copy_string((char *) tmp->bc->fac_out.u.CDeflection.DeflectedToNumber, nr, sizeof(tmp->bc->fac_out.u.CDeflection.DeflectedToNumber));
+		tmp->bc->fac_out.u.CDeflection.PresentationAllowed = 0;
+		//tmp->bc->fac_out.u.CDeflection.DeflectedToSubaddress[0] = 0;
+		strcpy((char *) tmp->bc->fac_out.u.CDeflection.DeflectedToNumber, nr);
+#endif	/* !defined(AST_MISDN_ENHANCEMENTS) */
+
+		/* Send message */
+		print_facility(&tmp->bc->fac_out, tmp->bc);
 		misdn_lib_send_event(tmp->bc, EVENT_FACILITY);
 	} else if (strstr(a->argv[3], "CFActivate")) {
 		if (a->argc < 7) {
@@ -2329,12 +5211,35 @@ static char *handle_cli_misdn_send_facility(struct ast_cli_entry *e, int cmd, st
 
 		ast_verbose("Sending CFActivate  Port:(%d) FromNr. (%s) to Nr. (%s)\n", port, served_nr, nr);
 
+#if defined(AST_MISDN_ENHANCEMENTS)
+		bc->fac_out.Function = Fac_ActivationDiversion;
+		bc->fac_out.u.ActivationDiversion.InvokeID = ++misdn_invoke_id;
+		bc->fac_out.u.ActivationDiversion.ComponentType = FacComponent_Invoke;
+		bc->fac_out.u.ActivationDiversion.Component.Invoke.BasicService = 0;/* allServices */
+		bc->fac_out.u.ActivationDiversion.Component.Invoke.Procedure = 0;/* cfu (Call Forward Unconditional) */
+		ast_copy_string((char *) bc->fac_out.u.ActivationDiversion.Component.Invoke.ServedUser.Number,
+			served_nr, sizeof(bc->fac_out.u.ActivationDiversion.Component.Invoke.ServedUser.Number));
+		bc->fac_out.u.ActivationDiversion.Component.Invoke.ServedUser.LengthOfNumber =
+			strlen((char *) bc->fac_out.u.ActivationDiversion.Component.Invoke.ServedUser.Number);
+		bc->fac_out.u.ActivationDiversion.Component.Invoke.ServedUser.Type = 0;/* unknown */
+		ast_copy_string((char *) bc->fac_out.u.ActivationDiversion.Component.Invoke.ForwardedTo.Party.Number,
+			nr, sizeof(bc->fac_out.u.ActivationDiversion.Component.Invoke.ForwardedTo.Party.Number));
+		bc->fac_out.u.ActivationDiversion.Component.Invoke.ForwardedTo.Party.LengthOfNumber =
+			strlen((char *) bc->fac_out.u.ActivationDiversion.Component.Invoke.ForwardedTo.Party.Number);
+		bc->fac_out.u.ActivationDiversion.Component.Invoke.ForwardedTo.Party.Type = 0;/* unknown */
+		bc->fac_out.u.ActivationDiversion.Component.Invoke.ForwardedTo.Subaddress.Length = 0;
+
+#else	/* !defined(AST_MISDN_ENHANCEMENTS) */
+
 		bc->fac_out.Function = Fac_CFActivate;
 		bc->fac_out.u.CFActivate.BasicService = 0; /* All Services */
 		bc->fac_out.u.CFActivate.Procedure = 0; /* Unconditional */
 		ast_copy_string((char *) bc->fac_out.u.CFActivate.ServedUserNumber, served_nr, sizeof(bc->fac_out.u.CFActivate.ServedUserNumber));
 		ast_copy_string((char *) bc->fac_out.u.CFActivate.ForwardedToNumber, nr, sizeof(bc->fac_out.u.CFActivate.ForwardedToNumber));
+#endif	/* !defined(AST_MISDN_ENHANCEMENTS) */
 
+		/* Send message */
+		print_facility(&bc->fac_out, bc);
 		misdn_lib_send_event(bc, EVENT_FACILITY);
 	} else if (strstr(a->argv[3], "CFDeactivate")) {
 		if (a->argc < 6) {
@@ -2347,12 +5252,94 @@ static char *handle_cli_misdn_send_facility(struct ast_cli_entry *e, int cmd, st
 		misdn_make_dummy(bc, port, 0, misdn_lib_port_is_nt(port), 0);
 		ast_verbose("Sending CFDeactivate  Port:(%d) FromNr. (%s)\n", port, served_nr);
 
+#if defined(AST_MISDN_ENHANCEMENTS)
+		bc->fac_out.Function = Fac_DeactivationDiversion;
+		bc->fac_out.u.DeactivationDiversion.InvokeID = ++misdn_invoke_id;
+		bc->fac_out.u.DeactivationDiversion.ComponentType = FacComponent_Invoke;
+		bc->fac_out.u.DeactivationDiversion.Component.Invoke.BasicService = 0;/* allServices */
+		bc->fac_out.u.DeactivationDiversion.Component.Invoke.Procedure = 0;/* cfu (Call Forward Unconditional) */
+		ast_copy_string((char *) bc->fac_out.u.DeactivationDiversion.Component.Invoke.ServedUser.Number,
+			served_nr, sizeof(bc->fac_out.u.DeactivationDiversion.Component.Invoke.ServedUser.Number));
+		bc->fac_out.u.DeactivationDiversion.Component.Invoke.ServedUser.LengthOfNumber =
+			strlen((char *) bc->fac_out.u.DeactivationDiversion.Component.Invoke.ServedUser.Number);
+		bc->fac_out.u.DeactivationDiversion.Component.Invoke.ServedUser.Type = 0;/* unknown */
+
+#else	/* !defined(AST_MISDN_ENHANCEMENTS) */
+
 		bc->fac_out.Function = Fac_CFDeactivate;
 		bc->fac_out.u.CFDeactivate.BasicService = 0; /* All Services */
 		bc->fac_out.u.CFDeactivate.Procedure = 0; /* Unconditional */
 		ast_copy_string((char *) bc->fac_out.u.CFActivate.ServedUserNumber, served_nr, sizeof(bc->fac_out.u.CFActivate.ServedUserNumber));
+#endif	/* !defined(AST_MISDN_ENHANCEMENTS) */
 
+		/* Send message */
+		print_facility(&bc->fac_out, bc);
 		misdn_lib_send_event(bc, EVENT_FACILITY);
+#if defined(AST_MISDN_ENHANCEMENTS) && defined(CCBS_TEST_MESSAGES)
+	} else if (strstr(a->argv[3], "test")) {
+		int msg_number;
+
+		if (a->argc < 5) {
+			ast_verbose("test (<port> [<msg#>]) | (<channel-name> <msg#>)\n\n");
+			return 0;
+		}
+		port = atoi(a->argv[4]);
+
+		channame = argv[4];
+		tmp = get_chan_by_ast_name(channame);
+		if (tmp) {
+			/* We are going to send this FACILITY message out on an existing connection */
+			msg_number = atoi(argv[5]);
+			if (msg_number < ARRAY_LEN(Fac_Msgs)) {
+				tmp->bc->fac_out = Fac_Msgs[msg_number];
+
+				/* Send message */
+				print_facility(&tmp->bc->fac_out, tmp->bc);
+				misdn_lib_send_event(tmp->bc, EVENT_FACILITY);
+			} else {
+				ast_verbose("test <channel-name> <msg#>\n\n");
+			}
+		} else if (a->argc < 6) {
+			for (msg_number = 0; msg_number < ARRAY_LEN(Fac_Msgs); ++msg_number) {
+				misdn_make_dummy(bc, port, 0, misdn_lib_port_is_nt(port), 0);
+				bc->fac_out = Fac_Msgs[msg_number];
+
+				/* Send message */
+				print_facility(&bc->fac_out, bc);
+				misdn_lib_send_event(bc, EVENT_FACILITY);
+				sleep(1);
+			}
+		} else {
+			msg_number = atoi(a->argv[5]);
+			if (msg_number < ARRAY_LEN(Fac_Msgs)) {
+				misdn_make_dummy(bc, port, 0, misdn_lib_port_is_nt(port), 0);
+				bc->fac_out = Fac_Msgs[msg_number];
+
+				/* Send message */
+				print_facility(&bc->fac_out, bc);
+				misdn_lib_send_event(bc, EVENT_FACILITY);
+			} else {
+				ast_verbose("test <port> [<msg#>]\n\n");
+			}
+		}
+	} else if (strstr(argv[3], "register")) {
+		if (argc < 5) {
+			ast_cli(fd, "register <port>\n\n");
+			return 0;
+		}
+		port = atoi(argv[4]);
+
+		bc = misdn_lib_get_register_bc(port);
+		if (!bc) {
+			ast_cli(fd, "Could not allocate REGISTER bc struct\n\n");
+			return 0;
+		}
+		bc->fac_out = Fac_Msgs[45];
+
+		/* Send message */
+		print_facility(&bc->fac_out, bc);
+		misdn_lib_send_event(bc, EVENT_REGISTER);
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) && defined(CCBS_TEST_MESSAGES) */
 	}
 
 	return CLI_SUCCESS;
@@ -2967,7 +5954,31 @@ static int read_config(struct chan_list *ch)
 
 /*!
  * \internal
- * \brief Notify peer that the connected line has changed.
+ * \brief Send a connected line update to the other channel
+ *
+ * \param ast Current Asterisk channel
+ * \param id Party id information to send to the other side
+ * \param source Why are we sending this update
+ *
+ * \return Nothing
+ */
+static void misdn_queue_connected_line_update(struct ast_channel *ast, const struct misdn_party_id *id, enum AST_CONNECTED_LINE_UPDATE_SOURCE source)
+{
+	struct ast_party_connected_line connected;
+
+	ast_party_connected_line_init(&connected);
+	connected.id.number = (char *) id->number;
+	connected.id.number_type = misdn_to_ast_ton(id->number_type)
+		| misdn_to_ast_plan(id->number_plan);
+	connected.id.number_presentation = misdn_to_ast_pres(id->presentation)
+		| misdn_to_ast_screen(id->screening);
+	connected.source = source;
+	ast_channel_queue_connected_line_update(ast, &connected);
+}
+
+/*!
+ * \internal
+ * \brief Get the connected line information out of the Asterisk channel.
  *
  * \param ast Current Asterisk channel
  * \param bc Associated B channel
@@ -2975,7 +5986,7 @@ static int read_config(struct chan_list *ch)
  *
  * \return Nothing
  */
-static void misdn_update_connected_line(struct ast_channel *ast, struct misdn_bchannel *bc, int originator)
+static void misdn_get_connected_line(struct ast_channel *ast, struct misdn_bchannel *bc, int originator)
 {
 	int number_type;
 
@@ -3020,6 +6031,90 @@ static void misdn_update_connected_line(struct ast_channel *ast, struct misdn_bc
 
 /*!
  * \internal
+ * \brief Notify peer that the connected line has changed.
+ *
+ * \param ast Current Asterisk channel
+ * \param bc Associated B channel
+ * \param originator Who originally created this channel. ORG_AST or ORG_MISDN
+ *
+ * \return Nothing
+ */
+static void misdn_update_connected_line(struct ast_channel *ast, struct misdn_bchannel *bc, int originator)
+{
+	int Is_PTMP;
+	struct chan_list *ch;
+
+	misdn_get_connected_line(ast, bc, originator);
+	if (originator == ORG_MISDN) {
+		bc->redirecting.to = bc->connected;
+	} else {
+		bc->redirecting.to = bc->caller;
+	}
+
+	Is_PTMP = !misdn_lib_is_ptp(bc->port);
+	switch (ast->connected.source) {
+	case AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER:
+	case AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER:
+		ch = MISDN_ASTERISK_TECH_PVT(ast);
+		if (ch->state == MISDN_CONNECTED
+			|| originator != ORG_MISDN) {
+			if (Is_PTMP) {
+				/* Send NOTIFY(transfer-active, redirecting.to data) */
+				bc->redirecting.to_changed = 1;
+				bc->notify_description_code = mISDN_NOTIFY_CODE_CALL_TRANSFER_ACTIVE;
+				misdn_lib_send_event(bc, EVENT_NOTIFY);
+#if defined(AST_MISDN_ENHANCEMENTS)
+			} else {
+				/* Send EctInform(transfer-active, redirecting.to data) */
+				bc->fac_out.Function = Fac_EctInform;
+				bc->fac_out.u.EctInform.InvokeID = ++misdn_invoke_id;
+				bc->fac_out.u.EctInform.Status = 1;/* active */
+				if (bc->redirecting.to.number[0]) {
+					misdn_PresentedNumberUnscreened_fill(&bc->fac_out.u.EctInform.Redirection,
+						&bc->redirecting.to);
+					bc->fac_out.u.EctInform.RedirectionPresent = 1;
+				} else {
+					bc->fac_out.u.EctInform.RedirectionPresent = 0;
+				}
+
+				/* Send message */
+				print_facility(&bc->fac_out, bc);
+				misdn_lib_send_event(bc, EVENT_FACILITY);
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+			}
+		}
+		break;
+	case AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER_ALERTING:
+		if (Is_PTMP) {
+			/* Send NOTIFY(transfer-alerting, redirecting.to data) */
+			bc->redirecting.to_changed = 1;
+			bc->notify_description_code = mISDN_NOTIFY_CODE_CALL_TRANSFER_ALERTING;
+			misdn_lib_send_event(bc, EVENT_NOTIFY);
+#if defined(AST_MISDN_ENHANCEMENTS)
+		} else {
+			/* Send EctInform(transfer-alerting, redirecting.to data) */
+			bc->fac_out.Function = Fac_EctInform;
+			bc->fac_out.u.EctInform.InvokeID = ++misdn_invoke_id;
+			bc->fac_out.u.EctInform.Status = 0;/* alerting */
+			if (bc->redirecting.to.number[0]) {
+				misdn_PresentedNumberUnscreened_fill(&bc->fac_out.u.EctInform.Redirection,
+					&bc->redirecting.to);
+				bc->fac_out.u.EctInform.RedirectionPresent = 1;
+			} else {
+				bc->fac_out.u.EctInform.RedirectionPresent = 0;
+			}
+			print_facility(&bc->fac_out, bc);
+			misdn_lib_send_event(bc, EVENT_FACILITY);
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+/*!
+ * \internal
  * \brief Copy the redirecting information out of the Asterisk channel
  *
  * \param bc Associated B channel
@@ -3035,7 +6130,98 @@ static void misdn_copy_redirecting_from_ast(struct misdn_bchannel *bc, struct as
 	bc->redirecting.from.screening = ast_to_misdn_screen(ast->redirecting.from.number_presentation);
 	bc->redirecting.from.number_type = ast_to_misdn_ton(ast->redirecting.from.number_type);
 	bc->redirecting.from.number_plan = ast_to_misdn_plan(ast->redirecting.from.number_type);
+
+	ast_copy_string(bc->redirecting.to.name, S_OR(ast->redirecting.to.name, ""), sizeof(bc->redirecting.to.name));
+	ast_copy_string(bc->redirecting.to.number, S_OR(ast->redirecting.to.number, ""), sizeof(bc->redirecting.to.number));
+	bc->redirecting.to.presentation = ast_to_misdn_pres(ast->redirecting.to.number_presentation);
+	bc->redirecting.to.screening = ast_to_misdn_screen(ast->redirecting.to.number_presentation);
+	bc->redirecting.to.number_type = ast_to_misdn_ton(ast->redirecting.to.number_type);
+	bc->redirecting.to.number_plan = ast_to_misdn_plan(ast->redirecting.to.number_type);
+
 	bc->redirecting.reason = ast_to_misdn_reason(ast->redirecting.reason);
+	bc->redirecting.count = ast->redirecting.count;
+}
+
+/*!
+ * \internal
+ * \brief Copy the redirecting info into the Asterisk channel
+ *
+ * \param ast Current Asterisk channel
+ * \param redirect Associated B channel redirecting info
+ *
+ * \return Nothing
+ */
+static void misdn_copy_redirecting_to_ast(struct ast_channel *ast, const struct misdn_party_redirecting *redirect)
+{
+	struct ast_party_redirecting redirecting;
+
+	ast_party_redirecting_set_init(&redirecting, &ast->redirecting);
+
+	redirecting.from.number = (char *) redirect->from.number;
+	redirecting.from.number_type =
+		misdn_to_ast_ton(redirect->from.number_type)
+		| misdn_to_ast_plan(redirect->from.number_plan);
+	redirecting.from.number_presentation =
+		misdn_to_ast_pres(redirect->from.presentation)
+		| misdn_to_ast_screen(redirect->from.screening);
+
+	redirecting.to.number = (char *) redirect->to.number;
+	redirecting.to.number_type =
+		misdn_to_ast_ton(redirect->to.number_type)
+		| misdn_to_ast_plan(redirect->to.number_plan);
+	redirecting.to.number_presentation =
+		misdn_to_ast_pres(redirect->to.presentation)
+		| misdn_to_ast_screen(redirect->to.screening);
+
+	redirecting.reason = misdn_to_ast_reason(redirect->reason);
+	redirecting.count = redirect->count;
+
+	ast_channel_set_redirecting(ast, &redirecting);
+}
+
+/*!
+ * \internal
+ * \brief Notify peer that the redirecting information has changed.
+ *
+ * \param ast Current Asterisk channel
+ * \param bc Associated B channel
+ *
+ * \return Nothing
+ */
+static void misdn_update_redirecting(struct ast_channel *ast, struct misdn_bchannel *bc)
+{
+	int Is_PTMP;
+
+	misdn_copy_redirecting_from_ast(bc, ast);
+
+	Is_PTMP = !misdn_lib_is_ptp(bc->port);
+	if (Is_PTMP) {
+		/* Send NOTIFY(call-is-diverting, redirecting.to data) */
+		bc->redirecting.to_changed = 1;
+		bc->notify_description_code = mISDN_NOTIFY_CODE_CALL_IS_DIVERTING;
+		misdn_lib_send_event(bc, EVENT_NOTIFY);
+#if defined(AST_MISDN_ENHANCEMENTS)
+	} else {
+		/* Send DivertingLegInformation1 */
+		bc->fac_out.Function = Fac_DivertingLegInformation1;
+		bc->fac_out.u.DivertingLegInformation1.InvokeID = ++misdn_invoke_id;
+		bc->fac_out.u.DivertingLegInformation1.DiversionReason =
+			misdn_to_diversion_reason(bc->redirecting.reason);
+		bc->fac_out.u.DivertingLegInformation1.SubscriptionOption = 2;/* notificationWithDivertedToNr */
+		bc->fac_out.u.DivertingLegInformation1.DivertedToPresent = 1;
+		misdn_PresentedNumberUnscreened_fill(&bc->fac_out.u.DivertingLegInformation1.DivertedTo, &bc->redirecting.to);
+		print_facility(&bc->fac_out, bc);
+		misdn_lib_send_event(bc, EVENT_FACILITY);
+
+		/* Send DivertingLegInformation3 */
+		bc->fac_out.Function = Fac_DivertingLegInformation3;
+		bc->fac_out.u.DivertingLegInformation3.InvokeID = ++misdn_invoke_id;
+		bc->fac_out.u.DivertingLegInformation3.PresentationAllowedIndicator =
+			bc->redirecting.to.presentation == 0 ? 1 : 0;
+		print_facility(&bc->fac_out, bc);
+		misdn_lib_send_event(bc, EVENT_FACILITY);
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+	}
 }
 
 
@@ -3088,21 +6274,147 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 		return -1;
 	}
 
-	/*
-	 * dest is ---v
-	 * Dial(mISDN/g:group_name[/extension[/options]])
-	 * Dial(mISDN/port[:preselected_channel][/extension[/options]])
-	 *
-	 * The dial extension could be empty if you are using MISDN_KEYPAD
-	 * to control ISDN provider features.
-	 */
-	dest_cp = ast_strdupa(dest);
-	AST_NONSTANDARD_APP_ARGS(args, dest_cp, '/');
-	if (!args.ext) {
-		args.ext = "";
+	port = newbc->port;
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+	if ((ch->peer = misdn_cc_caller_get(ast))) {
+		chan_misdn_log(3, port, " --> Found CC caller data, peer:%s\n",
+			ch->peer->chan ? "available" : "NULL");
 	}
 
-	port = newbc->port;
+	if (ch->record_id != -1) {
+		struct misdn_cc_record *cc_record;
+
+		/* This is a call completion retry call */
+		AST_LIST_LOCK(&misdn_cc_records_db);
+		cc_record = misdn_cc_find_by_id(ch->record_id);
+		if (!cc_record) {
+			AST_LIST_UNLOCK(&misdn_cc_records_db);
+			ast_log(LOG_WARNING, " --> ! misdn_call called on %s, cc_record==NULL\n", ast->name);
+			ast->hangupcause = AST_CAUSE_NORMAL_TEMPORARY_FAILURE;
+			ast_setstate(ast, AST_STATE_DOWN);
+			return -1;
+		}
+
+		/* Setup calling parameters to retry the call. */
+		newbc->dialed = cc_record->redial.dialed;
+		newbc->caller = cc_record->redial.caller;
+		memset(&newbc->redirecting, 0, sizeof(newbc->redirecting));
+		newbc->capability = cc_record->redial.capability;
+		newbc->hdlc = cc_record->redial.hdlc;
+		newbc->sending_complete = 1;
+
+		if (cc_record->ptp) {
+			newbc->fac_out.Function = Fac_CCBS_T_Call;
+			newbc->fac_out.u.CCBS_T_Call.InvokeID = ++misdn_invoke_id;
+		} else {
+			newbc->fac_out.Function = Fac_CCBSCall;
+			newbc->fac_out.u.CCBSCall.InvokeID = ++misdn_invoke_id;
+			newbc->fac_out.u.CCBSCall.CCBSReference = cc_record->mode.ptmp.reference_id;
+		}
+		AST_LIST_UNLOCK(&misdn_cc_records_db);
+
+		ast_copy_string(ast->exten, newbc->dialed.number, sizeof(ast->exten));
+
+		chan_misdn_log(1, port, "* Call completion to: %s\n", newbc->dialed.number);
+		chan_misdn_log(2, port, " --> * tech:%s context:%s\n", ast->name, ast->context);
+	} else
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+	{
+		/*
+		 * dest is ---v
+		 * Dial(mISDN/g:group_name[/extension[/options]])
+		 * Dial(mISDN/port[:preselected_channel][/extension[/options]])
+		 *
+		 * The dial extension could be empty if you are using MISDN_KEYPAD
+		 * to control ISDN provider features.
+		 */
+		dest_cp = ast_strdupa(dest);
+		AST_NONSTANDARD_APP_ARGS(args, dest_cp, '/');
+		if (!args.ext) {
+			args.ext = "";
+		}
+
+		chan_misdn_log(1, port, "* CALL: %s\n", dest);
+		chan_misdn_log(2, port, " --> * dialed:%s tech:%s context:%s\n", args.ext, ast->name, ast->context);
+
+		ast_copy_string(ast->exten, args.ext, sizeof(ast->exten));
+		ast_copy_string(newbc->dialed.number, args.ext, sizeof(newbc->dialed.number));
+
+		if (ast_strlen_zero(newbc->caller.name)	&& !ast_strlen_zero(ast->connected.id.name)) {
+			ast_copy_string(newbc->caller.name, ast->connected.id.name, sizeof(newbc->caller.name));
+			chan_misdn_log(3, port, " --> * set caller:\"%s\" <%s>\n", newbc->caller.name, newbc->caller.number);
+		}
+		if (ast_strlen_zero(newbc->caller.number) && !ast_strlen_zero(ast->connected.id.number)) {
+			ast_copy_string(newbc->caller.number, ast->connected.id.number, sizeof(newbc->caller.number));
+			chan_misdn_log(3, port, " --> * set caller:\"%s\" <%s>\n", newbc->caller.name, newbc->caller.number);
+		}
+
+		misdn_cfg_get(port, MISDN_CFG_LOCALDIALPLAN, &number_type, sizeof(number_type));
+		if (number_type < 0) {
+			newbc->caller.number_type = ast_to_misdn_ton(ast->connected.id.number_type);
+			newbc->caller.number_plan = ast_to_misdn_plan(ast->connected.id.number_type);
+		} else {
+			/* Force us to send in SETUP message */
+			newbc->caller.number_type = number_type;
+			newbc->caller.number_plan = NUMPLAN_ISDN;
+		}
+		debug_numtype(port, newbc->caller.number_type, "LTON");
+
+		newbc->capability = ast->transfercapability;
+		pbx_builtin_setvar_helper(ast, "TRANSFERCAPABILITY", ast_transfercapability2str(newbc->capability));
+		if (ast->transfercapability == INFO_CAPABILITY_DIGITAL_UNRESTRICTED) {
+			chan_misdn_log(2, port, " --> * Call with flag Digital\n");
+		}
+
+		/* update caller screening and presentation */
+		update_config(ch);
+
+		/* fill in some ies from channel dialplan variables */
+		import_ch(ast, newbc, ch);
+
+		/* Finally The Options Override Everything */
+		if (!ast_strlen_zero(args.opts)) {
+			misdn_set_opt_exec(ast, args.opts);
+		} else {
+			chan_misdn_log(2, port, "NO OPTS GIVEN\n");
+		}
+		if (newbc->set_presentation) {
+			newbc->caller.presentation = newbc->presentation;
+		}
+
+		misdn_copy_redirecting_from_ast(newbc, ast);
+#if defined(AST_MISDN_ENHANCEMENTS)
+		if (newbc->redirecting.from.number[0] && misdn_lib_is_ptp(port)) {
+			/* Create DivertingLegInformation2 facility */
+			newbc->fac_out.Function = Fac_DivertingLegInformation2;
+			newbc->fac_out.u.DivertingLegInformation2.InvokeID = ++misdn_invoke_id;
+			newbc->fac_out.u.DivertingLegInformation2.DiversionCounter =
+				newbc->redirecting.count;
+			newbc->fac_out.u.DivertingLegInformation2.DiversionReason =
+				misdn_to_diversion_reason(newbc->redirecting.reason);
+			newbc->fac_out.u.DivertingLegInformation2.DivertingPresent = 1;
+			misdn_PresentedNumberUnscreened_fill(
+				&newbc->fac_out.u.DivertingLegInformation2.Diverting,
+				&newbc->redirecting.from);
+			newbc->fac_out.u.DivertingLegInformation2.OriginalCalledPresent = 0;
+		}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+		/*check for bridging*/
+		misdn_cfg_get(0, MISDN_GEN_BRIDGING, &bridging, sizeof(bridging));
+		if (bridging && ch->other_ch) {
+#ifdef MISDN_1_2
+			chan_misdn_log(1, port, "Disabling EC (aka Pipeline) on both Sides\n");
+			*ch->bc->pipeline = 0;
+			*ch->other_ch->bc->pipeline = 0;
+#else
+			chan_misdn_log(1, port, "Disabling EC on both Sides\n");
+			ch->bc->ec_enable = 0;
+			ch->other_ch->bc->ec_enable = 0;
+#endif
+		}
+	}
 
 	exceed = add_out_calls(port);
 	if (exceed != 0) {
@@ -3115,71 +6427,11 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 		return -1;
 	}
 
-	chan_misdn_log(1, port, "* CALL: %s\n", dest);
-
-	chan_misdn_log(2, port, " --> * dialed:%s tech:%s context:%s\n", args.ext, ast->name, ast->context);
-
-	ast_copy_string(ast->exten, args.ext, sizeof(ast->exten));
-	ast_copy_string(newbc->dialed.number, args.ext, sizeof(newbc->dialed.number));
-
-	if (ast_strlen_zero(newbc->caller.name)	&& !ast_strlen_zero(ast->connected.id.name)) {
-		ast_copy_string(newbc->caller.name, ast->connected.id.name, sizeof(newbc->caller.name));
-		chan_misdn_log(3, port, " --> * set caller:\"%s\" <%s>\n", newbc->caller.name, newbc->caller.number);
+#if defined(AST_MISDN_ENHANCEMENTS)
+	if (newbc->fac_out.Function != Fac_None) {
+		print_facility(&newbc->fac_out, newbc);
 	}
-	if (ast_strlen_zero(newbc->caller.number) && !ast_strlen_zero(ast->connected.id.number)) {
-		ast_copy_string(newbc->caller.number, ast->connected.id.number, sizeof(newbc->caller.number));
-		chan_misdn_log(3, port, " --> * set caller:\"%s\" <%s>\n", newbc->caller.name, newbc->caller.number);
-	}
-
-	misdn_cfg_get(port, MISDN_CFG_LOCALDIALPLAN, &number_type, sizeof(number_type));
-	if (number_type < 0) {
-		newbc->caller.number_type = ast_to_misdn_ton(ast->connected.id.number_type);
-		newbc->caller.number_plan = ast_to_misdn_plan(ast->connected.id.number_type);
-	} else {
-		/* Force us to send in SETUP message */
-		newbc->caller.number_type = number_type;
-		newbc->caller.number_plan = NUMPLAN_ISDN;
-	}
-	debug_numtype(port, newbc->caller.number_type, "LTON");
-
-	newbc->capability = ast->transfercapability;
-	pbx_builtin_setvar_helper(ast, "TRANSFERCAPABILITY", ast_transfercapability2str(newbc->capability));
-	if ( ast->transfercapability == INFO_CAPABILITY_DIGITAL_UNRESTRICTED) {
-		chan_misdn_log(2, port, " --> * Call with flag Digital\n");
-	}
-
-	/* update caller screening and presentation */
-	update_config(ch);
-
-	/* fill in some ies from channel dialplan variables */
-	import_ch(ast, newbc, ch);
-
-	/* Finally The Options Override Everything */
-	if (!ast_strlen_zero(args.opts)) {
-		misdn_set_opt_exec(ast, args.opts);
-	} else {
-		chan_misdn_log(2, port, "NO OPTS GIVEN\n");
-	}
-	if (newbc->set_presentation) {
-		newbc->caller.presentation = newbc->presentation;
-	}
-
-	misdn_copy_redirecting_from_ast(newbc, ast);
-
-	/*check for bridging*/
-	misdn_cfg_get(0, MISDN_GEN_BRIDGING, &bridging, sizeof(bridging));
-	if (bridging && ch->other_ch) {
-#ifdef MISDN_1_2
-		chan_misdn_log(1, port, "Disabling EC (aka Pipeline) on both Sides\n");
-		*ch->bc->pipeline = 0;
-		*ch->other_ch->bc->pipeline = 0;
-#else
-		chan_misdn_log(1, port, "Disabling EC on both Sides\n");
-		ch->bc->ec_enable = 0;
-		ch->other_ch->bc->ec_enable = 0;
-#endif
-	}
-
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 	r = misdn_lib_send_event(newbc, EVENT_SETUP);
 
 	/** we should have l3id after sending setup **/
@@ -3468,7 +6720,7 @@ static int misdn_indication(struct ast_channel *ast, int cond, const void *data,
 		break;
 	case AST_CONTROL_REDIRECTING:
 		chan_misdn_log(1, p->bc->port, "* IND :\tredirecting info update pid:%d\n", p->bc->pid);
-		misdn_copy_redirecting_from_ast(p->bc, ast);
+		misdn_update_redirecting(ast, p->bc);
 		break;
 	default:
 		chan_misdn_log(1, p->bc->port, " --> * Unknown Indication:%d pid:%d\n", cond, p->bc->pid);
@@ -3518,7 +6770,7 @@ static int misdn_hangup(struct ast_channel *ast)
 		p->state == MISDN_HOLDED ||
 		p->state == MISDN_HOLD_DISCONNECT) {
 
-		CLEAN_CH:
+CLEAN_CH:
 		/* between request and call */
 		ast_debug(1, "State Reserved (or nothing) => chanIsAvail\n");
 		MISDN_ASTERISK_TECH_PVT(ast) = NULL;
@@ -3672,6 +6924,13 @@ static int misdn_hangup(struct ast_channel *ast)
 	}
 
 	p->state = MISDN_CLEANING;
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+	if (p->peer) {
+		ao2_ref(p->peer, -1);
+		p->peer = NULL;
+	}
+#endif /* AST_MISDN_ENHANCEMENTS */
 
 	chan_misdn_log(3, bc->port, " --> Channel: %s hanguped new state:%s\n", ast->name, misdn_get_ch_state(p));
 
@@ -4148,13 +7407,16 @@ static struct chan_list *init_chan_list(int orig)
 	cl->need_hangup = 1;
 	cl->need_busy = 1;
 	cl->overlap_dial_task = -1;
+#if defined(AST_MISDN_ENHANCEMENTS)
+	cl->record_id = -1;
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 
 	return cl;
 }
 
 static struct ast_channel *misdn_request(const char *type, int format, void *data, int *cause)
 {
-	struct ast_channel *tmp = NULL;
+	struct ast_channel *ast;
 	char group[BUFFERSIZE + 1] = "";
 	char dial_str[128];
 	char *dest_cp;
@@ -4163,6 +7425,12 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 	int port = 0;
 	struct misdn_bchannel *newbc = NULL;
 	int dec = 0;
+#if defined(AST_MISDN_ENHANCEMENTS)
+	int cc_retry_call = 0;	/* TRUE if this is a call completion retry call */
+	long record_id = -1;
+	struct misdn_cc_record *cc_record;
+	const char *err_msg;
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 	struct chan_list *cl;
 
 	AST_DECLARE_APP_ARGS(args,
@@ -4177,6 +7445,7 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 	 * data is ---v
 	 * Dial(mISDN/g:group_name[/extension[/options]])
 	 * Dial(mISDN/port[:preselected_channel][/extension[/options]])
+	 * Dial(mISDN/cc/cc-record-id)
 	 *
 	 * The dial extension could be empty if you are using MISDN_KEYPAD
 	 * to control ISDN provider features.
@@ -4193,6 +7462,10 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 			args.intf += 2;
 			ast_copy_string(group, args.intf, sizeof(group));
 			chan_misdn_log(2, 0, " --> Group Call group: %s\n", group);
+#if defined(AST_MISDN_ENHANCEMENTS)
+		} else if (strcmp(args.intf, "cc") == 0) {
+			cc_retry_call = 1;
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 		} else if ((p = strchr(args.intf, ':'))) {
 			/* we have a preselected channel */
 			*p++ = 0;
@@ -4206,6 +7479,37 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 		ast_log(LOG_WARNING, " --> ! IND : Dial(%s) WITHOUT Port or Group, check extensions.conf\n", dial_str);
 		return NULL;
 	}
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+	if (cc_retry_call) {
+		if (ast_strlen_zero(args.ext)) {
+			ast_log(LOG_WARNING, " --> ! IND : Dial(%s) WITHOUT cc-record-id, check extensions.conf\n", dial_str);
+			return NULL;
+		}
+		if (!isdigit(*args.ext)) {
+			ast_log(LOG_WARNING, " --> ! IND : Dial(%s) cc-record-id must be a number.\n", dial_str);
+			return NULL;
+		}
+		record_id = atol(args.ext);
+
+		AST_LIST_LOCK(&misdn_cc_records_db);
+		cc_record = misdn_cc_find_by_id(record_id);
+		if (!cc_record) {
+			AST_LIST_UNLOCK(&misdn_cc_records_db);
+			err_msg = misdn_cc_record_not_found;
+			ast_log(LOG_WARNING, " --> ! IND : Dial(%s) %s.\n", dial_str, err_msg);
+			return NULL;
+		}
+		if (!cc_record->activated) {
+			AST_LIST_UNLOCK(&misdn_cc_records_db);
+			err_msg = "Call completion has not been activated";
+			ast_log(LOG_WARNING, " --> ! IND : Dial(%s) %s.\n", dial_str, err_msg);
+			return NULL;
+		}
+		port = cc_record->port;
+		AST_LIST_UNLOCK(&misdn_cc_records_db);
+	}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 
 	if (misdn_cfg_is_group_method(group, METHOD_STANDARD_DEC)) {
 		chan_misdn_log(4, port, " --> STARTING STANDARD DEC...\n");
@@ -4331,18 +7635,21 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 	/* create ast_channel and link all the objects together */
 	cl = init_chan_list(ORG_AST);
 	if (!cl) {
-		ast_log(LOG_WARNING, "Could not create Asterisk channel for Dial(%s)\n", dial_str);
+		ast_log(LOG_ERROR, "Could not create call record for Dial(%s)\n", dial_str);
 		return NULL;
 	}
 	cl->bc = newbc;
 
-	tmp = misdn_new(cl, AST_STATE_RESERVED, args.ext, NULL, format, port, channel);
-	if (!tmp) {
-		ast_log(LOG_ERROR, "Could not create Asterisk object\n");
+	ast = misdn_new(cl, AST_STATE_RESERVED, args.ext, NULL, format, port, channel);
+	if (!ast) {
+		ast_log(LOG_ERROR, "Could not create Asterisk channel for Dial(%s)\n", dial_str);
 		return NULL;
 	}
+	cl->ast = ast;
 
-	cl->ast = tmp;
+#if defined(AST_MISDN_ENHANCEMENTS)
+	cl->record_id = record_id;
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 
 	/* register chan in local list */
 	cl_queue_chan(&cl_te, cl);
@@ -4353,7 +7660,7 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 	/* important */
 	cl->need_hangup = 0;
 
-	return tmp;
+	return ast;
 }
 
 
@@ -4373,7 +7680,7 @@ static int misdn_send_text(struct ast_channel *chan, const char *text)
 }
 
 static struct ast_channel_tech misdn_tech = {
-	.type = "mISDN",
+	.type = misdn_type,
 	.description = "Channel driver for mISDN Support (Bri/Pri)",
 	.capabilities = AST_FORMAT_ALAW ,
 	.requester = misdn_request,
@@ -4392,7 +7699,7 @@ static struct ast_channel_tech misdn_tech = {
 };
 
 static struct ast_channel_tech misdn_tech_wo_bridge = {
-	.type = "mISDN",
+	.type = misdn_type,
 	.description = "Channel driver for mISDN Support (Bri/Pri)",
 	.capabilities = AST_FORMAT_ALAW ,
 	.requester = misdn_request,
@@ -4688,19 +7995,16 @@ static void hangup_chan(struct chan_list *ch)
 /** Isdn asks us to release channel, pendant to misdn_hangup **/
 static void release_chan(struct misdn_bchannel *bc)
 {
-	struct ast_channel *ast = NULL;
 	struct chan_list *ch;
+	struct ast_channel *ast;
 
 	ast_mutex_lock(&release_lock);
+
 	ch = find_chan_by_bc(cl_te, bc);
 	if (!ch) {
 		chan_misdn_log(1, bc->port, "release_chan: Ch not found!\n");
 		ast_mutex_unlock(&release_lock);
 		return;
-	}
-
-	if (ch->ast) {
-		ast = ch->ast;
 	}
 
 	chan_misdn_log(5, bc->port, "release_chan: bc with l3id: %x\n", bc->l3_id);
@@ -4724,42 +8028,39 @@ static void release_chan(struct misdn_bchannel *bc)
 	}
 
 	if (ch->originator == ORG_AST) {
-		misdn_out_calls[bc->port]--;
+		--misdn_out_calls[bc->port];
 	} else {
-		misdn_in_calls[bc->port]--;
+		--misdn_in_calls[bc->port];
 	}
 
-	if (ch) {
-		close(ch->pipe[0]);
-		close(ch->pipe[1]);
+	close(ch->pipe[0]);
+	close(ch->pipe[1]);
 
-		if (ast && MISDN_ASTERISK_TECH_PVT(ast)) {
-			chan_misdn_log(1, bc->port,
-				"* RELEASING CHANNEL pid:%d context:%s dialed:%s caller:\"%s\" <%s> state: %s\n",
-				bc->pid,
-				ast->context,
-				ast->exten,
-				ast->cid.cid_name ? ast->cid.cid_name : "",
-				ast->cid.cid_num ? ast->cid.cid_num : "",
-				misdn_get_ch_state(ch));
-			chan_misdn_log(3, bc->port, " --> * State Down\n");
-			MISDN_ASTERISK_TECH_PVT(ast) = NULL;
+	ast = ch->ast;
+	if (ast && MISDN_ASTERISK_TECH_PVT(ast)) {
+		chan_misdn_log(1, bc->port,
+			"* RELEASING CHANNEL pid:%d context:%s dialed:%s caller:\"%s\" <%s> state: %s\n",
+			bc->pid,
+			ast->context,
+			ast->exten,
+			ast->cid.cid_name ? ast->cid.cid_name : "",
+			ast->cid.cid_num ? ast->cid.cid_num : "",
+			misdn_get_ch_state(ch));
+		chan_misdn_log(3, bc->port, " --> * State Down\n");
+		MISDN_ASTERISK_TECH_PVT(ast) = NULL;
 
-			if (ast->_state != AST_STATE_RESERVED) {
-				chan_misdn_log(3, bc->port, " --> Setting AST State to down\n");
-				ast_setstate(ast, AST_STATE_DOWN);
-			}
+		if (ast->_state != AST_STATE_RESERVED) {
+			chan_misdn_log(3, bc->port, " --> Setting AST State to down\n");
+			ast_setstate(ast, AST_STATE_DOWN);
 		}
-
-		ch->state = MISDN_CLEANING;
-		cl_dequeue_chan(&cl_te, ch);
-
-		ast_free(ch);
-	} else {
-		/* chan is already cleaned, so exiting  */
 	}
+
+	ch->state = MISDN_CLEANING;
+	cl_dequeue_chan(&cl_te, ch);
+
+	ast_free(ch);
+
 	ast_mutex_unlock(&release_lock);
-/*** release end **/
 }
 
 static void misdn_transfer_bc(struct chan_list *tmp_ch, struct chan_list *holded_chan)
@@ -4828,7 +8129,7 @@ static void do_immediate_setup(struct misdn_bchannel *bc, struct chan_list *ch, 
 		fr.offset = 0;
 		fr.delivery = ast_tv(0,0);
 
-		if (ch->ast && MISDN_ASTERISK_PVT(ch->ast) && MISDN_ASTERISK_TECH_PVT(ch->ast)) {
+		if (ch->ast && MISDN_ASTERISK_TECH_PVT(ch->ast)) {
 			ast_queue_frame(ch->ast, &fr);
 		}
 		predial++;
@@ -5012,6 +8313,883 @@ static void wait_for_digits(struct chan_list *ch, struct misdn_bchannel *bc, str
 	}
 }
 
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Handle the FACILITY CCBSStatusRequest message.
+ *
+ * \param port Logical port number.
+ * \param facility Facility ie contents.
+ *
+ * \return Nothing
+ */
+static void misdn_cc_handle_ccbs_status_request(int port, const struct FacParm *facility)
+{
+	struct misdn_cc_record *cc_record;
+	struct misdn_bchannel dummy;
+
+	switch (facility->u.CCBSStatusRequest.ComponentType) {
+	case FacComponent_Invoke:
+		/* Build message */
+		misdn_make_dummy(&dummy, port, 0, misdn_lib_port_is_nt(port), 0);
+		dummy.fac_out.Function = Fac_CCBSStatusRequest;
+		dummy.fac_out.u.CCBSStatusRequest.InvokeID = facility->u.CCBSStatusRequest.InvokeID;
+		dummy.fac_out.u.CCBSStatusRequest.ComponentType = FacComponent_Result;
+
+		/* Answer User-A free question */
+		AST_LIST_LOCK(&misdn_cc_records_db);
+		cc_record = misdn_cc_find_by_reference(port, facility->u.CCBSStatusRequest.Component.Invoke.CCBSReference);
+		if (cc_record) {
+			dummy.fac_out.u.CCBSStatusRequest.Component.Result.Free = cc_record->party_a_free;
+		} else {
+			/* No record so say User-A is free */
+			dummy.fac_out.u.CCBSStatusRequest.Component.Result.Free = 1;
+		}
+		AST_LIST_UNLOCK(&misdn_cc_records_db);
+
+		/* Send message */
+		print_facility(&dummy.fac_out, &dummy);
+		misdn_lib_send_event(&dummy, EVENT_FACILITY);
+		break;
+
+	default:
+		chan_misdn_log(0, port, " --> not yet handled: facility type:0x%04X\n", facility->Function);
+		break;
+	}
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Start a PBX to notify that User-B is available.
+ *
+ * \param record_id Call completion record ID
+ * \param notify Dialplan location to start processing.
+ *
+ * \return Nothing
+ */
+static void misdn_cc_pbx_notify(long record_id, const struct misdn_cc_notify *notify)
+{
+	struct ast_channel *chan;
+	char id_str[32];
+
+	static unsigned short sequence = 0;
+
+	/* Create a channel to notify with */
+	snprintf(id_str, sizeof(id_str), "%ld", record_id);
+	chan = ast_channel_alloc(0, AST_STATE_DOWN, id_str, NULL, NULL,
+		notify->exten, notify->context, 0,
+		"mISDN-CC/%ld-%X", record_id, (unsigned) ++sequence);
+	if (!chan) {
+		ast_log(LOG_ERROR, "Unable to allocate channel!\n");
+		return;
+	}
+	chan->priority = notify->priority;
+	if (chan->cid.cid_dnid) {
+		ast_free(chan->cid.cid_dnid);
+	}
+	chan->cid.cid_dnid = ast_strdup(notify->exten);
+
+	if (ast_pbx_start(chan)) {
+		ast_log(LOG_WARNING, "Unable to start pbx channel %s!\n", chan->name);
+		ast_channel_free(chan);
+	} else {
+		ast_verb(1, "Started pbx for call completion notify channel %s\n", chan->name);
+	}
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Handle the FACILITY CCBS_T_RemoteUserFree message.
+ *
+ * \param bc B channel control structure message came in on
+ *
+ * \return Nothing
+ */
+static void misdn_cc_handle_T_remote_user_free(struct misdn_bchannel *bc)
+{
+	struct misdn_cc_record *cc_record;
+	struct misdn_cc_notify notify;
+	long record_id;
+
+	AST_LIST_LOCK(&misdn_cc_records_db);
+	cc_record = misdn_cc_find_by_bc(bc);
+	if (cc_record) {
+		if (cc_record->party_a_free) {
+			notify = cc_record->remote_user_free;
+		} else {
+			/* Send CCBS_T_Suspend message */
+			bc->fac_out.Function = Fac_CCBS_T_Suspend;
+			bc->fac_out.u.CCBS_T_Suspend.InvokeID = ++misdn_invoke_id;
+			print_facility(&bc->fac_out, bc);
+			misdn_lib_send_event(bc, EVENT_FACILITY);
+
+			notify = cc_record->b_free;
+		}
+		record_id = cc_record->record_id;
+		AST_LIST_UNLOCK(&misdn_cc_records_db);
+		if (notify.context[0]) {
+			/* Party A is free or B-Free notify has been setup. */
+			misdn_cc_pbx_notify(record_id, &notify);
+		}
+	} else {
+		AST_LIST_UNLOCK(&misdn_cc_records_db);
+	}
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Handle the FACILITY CCBSRemoteUserFree message.
+ *
+ * \param port Logical port number.
+ * \param facility Facility ie contents.
+ *
+ * \return Nothing
+ */
+static void misdn_cc_handle_remote_user_free(int port, const struct FacParm *facility)
+{
+	struct misdn_cc_record *cc_record;
+	struct misdn_cc_notify notify;
+	long record_id;
+
+	AST_LIST_LOCK(&misdn_cc_records_db);
+	cc_record = misdn_cc_find_by_reference(port, facility->u.CCBSRemoteUserFree.CCBSReference);
+	if (cc_record) {
+		notify = cc_record->remote_user_free;
+		record_id = cc_record->record_id;
+		AST_LIST_UNLOCK(&misdn_cc_records_db);
+		misdn_cc_pbx_notify(record_id, &notify);
+	} else {
+		AST_LIST_UNLOCK(&misdn_cc_records_db);
+	}
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Handle the FACILITY CCBSBFree message.
+ *
+ * \param port Logical port number.
+ * \param facility Facility ie contents.
+ *
+ * \return Nothing
+ */
+static void misdn_cc_handle_b_free(int port, const struct FacParm *facility)
+{
+	struct misdn_cc_record *cc_record;
+	struct misdn_cc_notify notify;
+	long record_id;
+
+	AST_LIST_LOCK(&misdn_cc_records_db);
+	cc_record = misdn_cc_find_by_reference(port, facility->u.CCBSBFree.CCBSReference);
+	if (cc_record && cc_record->b_free.context[0]) {
+		/* B-Free notify has been setup. */
+		notify = cc_record->b_free;
+		record_id = cc_record->record_id;
+		AST_LIST_UNLOCK(&misdn_cc_records_db);
+		misdn_cc_pbx_notify(record_id, &notify);
+	} else {
+		AST_LIST_UNLOCK(&misdn_cc_records_db);
+	}
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+/*!
+ * \internal
+ * \brief Handle the incoming facility ie contents
+ *
+ * \param event Message type facility ie came in on
+ * \param bc B channel control structure message came in on
+ * \param ch Associated channel call record
+ *
+ * \return Nothing
+ */
+static void misdn_facility_ie_handler(enum event_e event, struct misdn_bchannel *bc, struct chan_list *ch)
+{
+#if defined(AST_MISDN_ENHANCEMENTS)
+	const char *diagnostic_msg;
+	struct misdn_cc_record *cc_record;
+	char buf[32];
+	struct misdn_party_id party_id;
+	long new_record_id;
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+	print_facility(&bc->fac_in, bc);
+	switch (bc->fac_in.Function) {
+#if defined(AST_MISDN_ENHANCEMENTS)
+	case Fac_ActivationDiversion:
+		switch (bc->fac_in.u.ActivationDiversion.ComponentType) {
+		case FacComponent_Result:
+			/* Positive ACK to activation */
+			/* We don't handle this yet */
+			break;
+		default:
+			chan_misdn_log(0, bc->port," --> not yet handled: facility type:0x%04X\n",
+				bc->fac_in.Function);
+			break;
+		}
+		break;
+	case Fac_DeactivationDiversion:
+		switch (bc->fac_in.u.DeactivationDiversion.ComponentType) {
+		case FacComponent_Result:
+			/* Positive ACK to deactivation */
+			/* We don't handle this yet */
+			break;
+		default:
+			chan_misdn_log(0, bc->port," --> not yet handled: facility type:0x%04X\n",
+				bc->fac_in.Function);
+			break;
+		}
+		break;
+	case Fac_ActivationStatusNotificationDiv:
+		/* Sent to other MSN numbers on the line when a user activates call forwarding. */
+		/* Sent in the first call control message of an outgoing call from the served user. */
+		/* We do not have anything to do for this message. */
+		break;
+	case Fac_DeactivationStatusNotificationDiv:
+		/* Sent to other MSN numbers on the line when a user deactivates call forwarding. */
+		/* We do not have anything to do for this message. */
+		break;
+#if 0	/* We don't handle this yet */
+	case Fac_InterrogationDiversion:
+		/* We don't handle this yet */
+		break;
+	case Fac_InterrogateServedUserNumbers:
+		/* We don't handle this yet */
+		break;
+#endif	/* We don't handle this yet */
+	case Fac_DiversionInformation:
+		/* Sent to the served user when a call is forwarded. */
+		/* We do not have anything to do for this message. */
+		break;
+	case Fac_CallDeflection:
+		if (ch && ch->ast) {
+			switch (bc->fac_in.u.CallDeflection.ComponentType) {
+			case FacComponent_Invoke:
+				ast_copy_string(bc->redirecting.from.number, bc->dialed.number,
+					sizeof(bc->redirecting.from.number));
+				bc->redirecting.from.name[0] = 0;
+				bc->redirecting.from.number_plan = bc->dialed.number_plan;
+				bc->redirecting.from.number_type = bc->dialed.number_type;
+				bc->redirecting.from.screening = 0;/* Unscreened */
+				if (bc->fac_in.u.CallDeflection.Component.Invoke.PresentationAllowedToDivertedToUserPresent) {
+					bc->redirecting.from.presentation =
+						bc->fac_in.u.CallDeflection.Component.Invoke.PresentationAllowedToDivertedToUser
+						? 0 /* Allowed */ : 1 /* Restricted */;
+				} else {
+					bc->redirecting.from.presentation = 0;/* Allowed */
+				}
+
+				/* Add configured prefix to the call deflection number */
+				memset(&party_id, 0, sizeof(party_id));
+				misdn_PartyNumber_extract(&party_id,
+					&bc->fac_in.u.CallDeflection.Component.Invoke.Deflection.Party);
+				misdn_add_number_prefix(bc->port, party_id.number_type,
+					party_id.number, sizeof(party_id.number));
+				//party_id.presentation = 0;/* Allowed */
+				//party_id.screening = 0;/* Unscreened */
+				bc->redirecting.to = party_id;
+
+				++bc->redirecting.count;
+				bc->redirecting.reason = mISDN_REDIRECTING_REASON_DEFLECTION;
+
+				misdn_copy_redirecting_to_ast(ch->ast, &bc->redirecting);
+				ast_string_field_set(ch->ast, call_forward, bc->redirecting.to.number);
+
+				/* Send back positive ACK */
+				bc->fac_out.Function = Fac_CallDeflection;
+				bc->fac_out.u.CallDeflection.InvokeID = bc->fac_in.u.CallDeflection.InvokeID;
+				bc->fac_out.u.CallDeflection.ComponentType = FacComponent_Result;
+				print_facility(&bc->fac_out, bc);
+				misdn_lib_send_event(bc, EVENT_DISCONNECT);
+
+				/* This line is BUSY to further attempts by this dialing attempt. */
+				ast_queue_control(ch->ast, AST_CONTROL_BUSY);
+				break;
+
+			case FacComponent_Result:
+				/* Positive ACK to call deflection */
+				/*
+				 * Sent in DISCONNECT or FACILITY message depending upon network option.
+				 * It is in the FACILITY message if the call is still offered to the user
+				 * while trying to alert the deflected to party.
+				 */
+				/* Ignore the ACK */
+				break;
+
+			default:
+				break;
+			}
+		}
+		break;
+#if 0	/* We don't handle this yet */
+	case Fac_CallRerouteing:
+		/* Private-Public ISDN interworking message */
+		/* We don't handle this yet */
+		break;
+#endif	/* We don't handle this yet */
+	case Fac_DivertingLegInformation1:
+		/* Private-Public ISDN interworking message */
+		if (ch && ch->ast) {
+			bc->redirecting.reason =
+				diversion_reason_to_misdn(bc->fac_in.u.DivertingLegInformation1.DiversionReason);
+			if (bc->fac_in.u.DivertingLegInformation1.DivertedToPresent) {
+				misdn_PresentedNumberUnscreened_extract(&bc->redirecting.to,
+					&bc->fac_in.u.DivertingLegInformation1.DivertedTo);
+
+				/* Add configured prefix to redirecting.to.number */
+				misdn_add_number_prefix(bc->port, bc->redirecting.to.number_type,
+					bc->redirecting.to.number, sizeof(bc->redirecting.to.number));
+
+				misdn_copy_redirecting_to_ast(ch->ast, &bc->redirecting);
+				ast_channel_queue_redirecting_update(ch->ast, &ch->ast->redirecting);
+			} else {
+				ch->ast->redirecting.reason = misdn_to_ast_reason(bc->redirecting.reason);
+			}
+		}
+		break;
+	case Fac_DivertingLegInformation2:
+		/* Private-Public ISDN interworking message */
+		switch (event) {
+		case EVENT_SETUP:
+			/* Comes in on a SETUP with redirecting.from information */
+			if (ch && ch->ast) {
+				bc->redirecting.reason =
+					diversion_reason_to_misdn(bc->fac_in.u.DivertingLegInformation2.DiversionReason);
+				bc->redirecting.count = bc->fac_in.u.DivertingLegInformation2.DiversionCounter;
+				if (bc->fac_in.u.DivertingLegInformation2.DivertingPresent) {
+					/* This information is redundant if there was a redirecting ie in the SETUP. */
+					misdn_PresentedNumberUnscreened_extract(&bc->redirecting.from,
+						&bc->fac_in.u.DivertingLegInformation2.Diverting);
+
+					/* Add configured prefix to redirecting.from.number */
+					misdn_add_number_prefix(bc->port, bc->redirecting.from.number_type,
+						bc->redirecting.from.number, sizeof(bc->redirecting.from.number));
+				}
+#if 0
+				if (bc->fac_in.u.DivertingLegInformation2.OriginalCalledPresent) {
+					/* We have no place to put the OriginalCalled number */
+				}
+#endif
+				misdn_copy_redirecting_to_ast(ch->ast, &bc->redirecting);
+			}
+			break;
+		default:
+			chan_misdn_log(0, bc->port," --> Expected in a SETUP message: facility type:0x%04X\n",
+				bc->fac_in.Function);
+			break;
+		}
+		break;
+	case Fac_DivertingLegInformation3:
+		/* Private-Public ISDN interworking message */
+		/* Don't know what to do with this. */
+		break;
+
+#else	/* !defined(AST_MISDN_ENHANCEMENTS) */
+
+	case Fac_CD:
+		if (ch && ch->ast) {
+			ast_copy_string(bc->redirecting.from.number, bc->dialed.number,
+				sizeof(bc->redirecting.from.number));
+			bc->redirecting.from.name[0] = 0;
+			bc->redirecting.from.number_plan = bc->dialed.number_plan;
+			bc->redirecting.from.number_type = bc->dialed.number_type;
+			bc->redirecting.from.screening = 0;/* Unscreened */
+			bc->redirecting.from.presentation =
+				bc->fac_in.u.CDeflection.PresentationAllowed
+				? 0 /* Allowed */ : 1 /* Restricted */;
+
+			ast_copy_string(bc->redirecting.to.number,
+				(char *) bc->fac_in.u.CDeflection.DeflectedToNumber,
+				sizeof(bc->redirecting.to.number));
+			bc->redirecting.to.name[0] = 0;
+			bc->redirecting.to.number_plan = NUMPLAN_UNKNOWN;
+			bc->redirecting.to.number_type = NUMTYPE_UNKNOWN;
+			bc->redirecting.to.presentation = 0;/* Allowed */
+			bc->redirecting.to.screening = 0;/* Unscreened */
+
+			++bc->redirecting.count;
+			bc->redirecting.reason = mISDN_REDIRECTING_REASON_DEFLECTION;
+
+			misdn_copy_redirecting_to_ast(ch->ast, &bc->redirecting);
+			ast_string_field_set(ch->ast, call_forward, bc->redirecting.to.number);
+
+			misdn_lib_send_event(bc, EVENT_DISCONNECT);
+
+			/* This line is BUSY to further attempts by this dialing attempt. */
+			ast_queue_control(ch->ast, AST_CONTROL_BUSY);
+		}
+		break;
+#endif	/* !defined(AST_MISDN_ENHANCEMENTS) */
+	case Fac_AOCDCurrency:
+		if (ch && ch->ast) {
+			bc->AOCDtype = Fac_AOCDCurrency;
+			memcpy(&bc->AOCD.currency, &bc->fac_in.u.AOCDcur, sizeof(bc->AOCD.currency));
+			bc->AOCD_need_export = 1;
+			export_aoc_vars(ch->originator, ch->ast, bc);
+		}
+		break;
+	case Fac_AOCDChargingUnit:
+		if (ch && ch->ast) {
+			bc->AOCDtype = Fac_AOCDChargingUnit;
+			memcpy(&bc->AOCD.chargingUnit, &bc->fac_in.u.AOCDchu, sizeof(bc->AOCD.chargingUnit));
+			bc->AOCD_need_export = 1;
+			export_aoc_vars(ch->originator, ch->ast, bc);
+		}
+		break;
+#if defined(AST_MISDN_ENHANCEMENTS)
+	case Fac_ERROR:
+		diagnostic_msg = misdn_to_str_error_code(bc->fac_in.u.ERROR.errorValue);
+		chan_misdn_log(1, bc->port, " --> Facility error code: %s\n", diagnostic_msg);
+		switch (event) {
+		case EVENT_DISCONNECT:
+		case EVENT_RELEASE:
+		case EVENT_RELEASE_COMPLETE:
+			/* Possible call failure as a result of Fac_CCBSCall/Fac_CCBS_T_Call */
+			if (ch && ch->peer) {
+				misdn_cc_set_peer_var(ch->peer, MISDN_ERROR_MSG, diagnostic_msg);
+			}
+			break;
+		default:
+			break;
+		}
+		AST_LIST_LOCK(&misdn_cc_records_db);
+		cc_record = misdn_cc_find_by_invoke(bc->port, bc->fac_in.u.ERROR.invokeId);
+		if (cc_record) {
+			cc_record->outstanding_message = 0;
+			cc_record->error_code = bc->fac_in.u.ERROR.errorValue;
+		}
+		AST_LIST_UNLOCK(&misdn_cc_records_db);
+		break;
+	case Fac_REJECT:
+		diagnostic_msg = misdn_to_str_reject_code(bc->fac_in.u.REJECT.Code);
+		chan_misdn_log(1, bc->port, " --> Facility reject code: %s\n", diagnostic_msg);
+		switch (event) {
+		case EVENT_DISCONNECT:
+		case EVENT_RELEASE:
+		case EVENT_RELEASE_COMPLETE:
+			/* Possible call failure as a result of Fac_CCBSCall/Fac_CCBS_T_Call */
+			if (ch && ch->peer) {
+				misdn_cc_set_peer_var(ch->peer, MISDN_ERROR_MSG, diagnostic_msg);
+			}
+			break;
+		default:
+			break;
+		}
+		if (bc->fac_in.u.REJECT.InvokeIDPresent) {
+			AST_LIST_LOCK(&misdn_cc_records_db);
+			cc_record = misdn_cc_find_by_invoke(bc->port, bc->fac_in.u.REJECT.InvokeID);
+			if (cc_record) {
+				cc_record->outstanding_message = 0;
+				cc_record->reject_code = bc->fac_in.u.REJECT.Code;
+			}
+			AST_LIST_UNLOCK(&misdn_cc_records_db);
+		}
+		break;
+	case Fac_RESULT:
+		AST_LIST_LOCK(&misdn_cc_records_db);
+		cc_record = misdn_cc_find_by_invoke(bc->port, bc->fac_in.u.RESULT.InvokeID);
+		if (cc_record) {
+			cc_record->outstanding_message = 0;
+		}
+		AST_LIST_UNLOCK(&misdn_cc_records_db);
+		break;
+#if 0	/* We don't handle this yet */
+	case Fac_EctExecute:
+		/* We don't handle this yet */
+		break;
+	case Fac_ExplicitEctExecute:
+		/* We don't handle this yet */
+		break;
+	case Fac_EctLinkIdRequest:
+		/* We don't handle this yet */
+		break;
+#endif	/* We don't handle this yet */
+	case Fac_SubaddressTransfer:
+		/* We do not have anything to do for this message since we do not handle subaddreses. */
+		break;
+	case Fac_RequestSubaddress:
+		/* We do not have anything to do for this message since we do not handle subaddreses. */
+		break;
+	case Fac_EctInform:
+		/* Private-Public ISDN interworking message */
+		if (ch && ch->ast && bc->fac_in.u.EctInform.RedirectionPresent) {
+			/* Add configured prefix to the redirection number */
+			memset(&party_id, 0, sizeof(party_id));
+			misdn_PresentedNumberUnscreened_extract(&party_id,
+				&bc->fac_in.u.EctInform.Redirection);
+			misdn_add_number_prefix(bc->port, party_id.number_type,
+				party_id.number, sizeof(party_id.number));
+
+			misdn_queue_connected_line_update(ch->ast, &party_id,
+				(bc->fac_in.u.EctInform.Status == 0 /* alerting */)
+					? AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER_ALERTING
+					: AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER);
+		}
+		break;
+#if 0	/* We don't handle this yet */
+	case Fac_EctLoopTest:
+		/* The use of this message is unclear on how it works to detect loops. */
+		/* We don't handle this yet */
+		break;
+#endif	/* We don't handle this yet */
+	case Fac_CallInfoRetain:
+		switch (event) {
+		case EVENT_ALERTING:
+		case EVENT_DISCONNECT:
+			/* CCBS/CCNR is available */
+			if (ch && ch->peer) {
+				AST_LIST_LOCK(&misdn_cc_records_db);
+				if (ch->record_id == -1) {
+					cc_record = misdn_cc_new();
+				} else {
+					/*
+					 * We are doing a call-completion attempt
+					 * or the switch is sending us extra call-completion
+					 * availability indications (erroneously?).
+					 *
+					 * Assume that the network request retention option
+					 * is not on and that the current call-completion
+					 * request is disabled.
+					 */
+					cc_record = misdn_cc_find_by_id(ch->record_id);
+					if (cc_record) {
+						if (cc_record->ptp && cc_record->mode.ptp.bc) {
+							/*
+							 * What?  We are getting mixed messages from the
+							 * switch.  We are currently setup for
+							 * point-to-point.  Now we are switching to
+							 * point-to-multipoint.
+							 *
+							 * Close the call-completion signaling link
+							 */
+							cc_record->mode.ptp.bc->fac_out.Function = Fac_None;
+							cc_record->mode.ptp.bc->out_cause = AST_CAUSE_NORMAL_CLEARING;
+							misdn_lib_send_event(cc_record->mode.ptp.bc, EVENT_RELEASE_COMPLETE);
+						}
+
+						/*
+						 * Resetup the existing record for a possible new
+						 * call-completion request.
+						 */
+						new_record_id = misdn_cc_record_id_new();
+						if (new_record_id < 0) {
+							/* Looks like we must keep the old id anyway. */
+						} else {
+							cc_record->record_id = new_record_id;
+							ch->record_id = new_record_id;
+						}
+						cc_record->ptp = 0;
+						cc_record->port = bc->port;
+						memset(&cc_record->mode, 0, sizeof(cc_record->mode));
+						cc_record->mode.ptmp.linkage_id = bc->fac_in.u.CallInfoRetain.CallLinkageID;
+						cc_record->invoke_id = ++misdn_invoke_id;
+						cc_record->activated = 0;
+						cc_record->outstanding_message = 0;
+						cc_record->activation_requested = 0;
+						cc_record->error_code = FacError_None;
+						cc_record->reject_code = FacReject_None;
+						memset(&cc_record->remote_user_free, 0, sizeof(cc_record->remote_user_free));
+						memset(&cc_record->b_free, 0, sizeof(cc_record->b_free));
+						cc_record->time_created = time(NULL);
+
+						cc_record = NULL;
+					} else {
+						/*
+						 * Where did the record go?  We will have to recapture
+						 * the call setup information.  Unfortunately, some
+						 * setup information may have been changed.
+						 */
+						ch->record_id = -1;
+						cc_record = misdn_cc_new();
+					}
+				}
+				if (cc_record) {
+					ch->record_id = cc_record->record_id;
+					cc_record->ptp = 0;
+					cc_record->port = bc->port;
+					cc_record->mode.ptmp.linkage_id = bc->fac_in.u.CallInfoRetain.CallLinkageID;
+
+					/* Record call information for possible call-completion attempt. */
+					cc_record->redial.caller = bc->caller;
+					cc_record->redial.dialed = bc->dialed;
+					cc_record->redial.setup_bc_hlc_llc = bc->setup_bc_hlc_llc;
+					cc_record->redial.capability = bc->capability;
+					cc_record->redial.hdlc = bc->hdlc;
+				}
+				AST_LIST_UNLOCK(&misdn_cc_records_db);
+
+				/* Set MISDN_CC_RECORD_ID in original channel */
+				if (ch->record_id != -1) {
+					snprintf(buf, sizeof(buf), "%ld", ch->record_id);
+				} else {
+					buf[0] = 0;
+				}
+				misdn_cc_set_peer_var(ch->peer, MISDN_CC_RECORD_ID, buf);
+			}
+			break;
+		default:
+			chan_misdn_log(0, bc->port,
+				" --> Expected in a DISCONNECT or ALERTING message: facility type:0x%04X\n",
+				bc->fac_in.Function);
+			break;
+		}
+		break;
+	case Fac_CCBS_T_Call:
+	case Fac_CCBSCall:
+		switch (event) {
+		case EVENT_SETUP:
+			/*
+			 * This is a call completion retry call.
+			 * If we had anything to do we would do it here.
+			 */
+			break;
+		default:
+			chan_misdn_log(0, bc->port, " --> Expected in a SETUP message: facility type:0x%04X\n",
+				bc->fac_in.Function);
+			break;
+		}
+		break;
+	case Fac_CCBSDeactivate:
+		switch (bc->fac_in.u.CCBSDeactivate.ComponentType) {
+		case FacComponent_Result:
+			AST_LIST_LOCK(&misdn_cc_records_db);
+			cc_record = misdn_cc_find_by_invoke(bc->port, bc->fac_in.u.CCBSDeactivate.InvokeID);
+			if (cc_record) {
+				cc_record->outstanding_message = 0;
+			}
+			AST_LIST_UNLOCK(&misdn_cc_records_db);
+			break;
+
+		default:
+			chan_misdn_log(0, bc->port, " --> not yet handled: facility type:0x%04X\n",
+				bc->fac_in.Function);
+			break;
+		}
+		break;
+	case Fac_CCBSErase:
+		AST_LIST_LOCK(&misdn_cc_records_db);
+		cc_record = misdn_cc_find_by_reference(bc->port, bc->fac_in.u.CCBSErase.CCBSReference);
+		if (cc_record) {
+			misdn_cc_delete(cc_record);
+		}
+		AST_LIST_UNLOCK(&misdn_cc_records_db);
+		break;
+	case Fac_CCBSRemoteUserFree:
+		misdn_cc_handle_remote_user_free(bc->port, &bc->fac_in);
+		break;
+	case Fac_CCBSBFree:
+		misdn_cc_handle_b_free(bc->port, &bc->fac_in);
+		break;
+	case Fac_CCBSStatusRequest:
+		misdn_cc_handle_ccbs_status_request(bc->port, &bc->fac_in);
+		break;
+	case Fac_EraseCallLinkageID:
+		AST_LIST_LOCK(&misdn_cc_records_db);
+		cc_record = misdn_cc_find_by_linkage(bc->port,
+			bc->fac_in.u.EraseCallLinkageID.CallLinkageID);
+		if (cc_record && !cc_record->activation_requested) {
+			/*
+			 * The T-RETENTION timer expired before we requested
+			 * call completion activation.  Call completion is no
+			 * longer available.
+			 */
+			misdn_cc_delete(cc_record);
+		}
+		AST_LIST_UNLOCK(&misdn_cc_records_db);
+		break;
+	case Fac_CCBSStopAlerting:
+		/* We do not have anything to do for this message. */
+		break;
+	case Fac_CCBSRequest:
+	case Fac_CCNRRequest:
+		switch (bc->fac_in.u.CCBSRequest.ComponentType) {
+		case FacComponent_Result:
+			AST_LIST_LOCK(&misdn_cc_records_db);
+			cc_record = misdn_cc_find_by_invoke(bc->port, bc->fac_in.u.CCBSRequest.InvokeID);
+			if (cc_record && !cc_record->ptp) {
+				cc_record->outstanding_message = 0;
+				cc_record->activated = 1;
+				cc_record->mode.ptmp.recall_mode = bc->fac_in.u.CCBSRequest.Component.Result.RecallMode;
+				cc_record->mode.ptmp.reference_id = bc->fac_in.u.CCBSRequest.Component.Result.CCBSReference;
+			}
+			AST_LIST_UNLOCK(&misdn_cc_records_db);
+			break;
+
+		default:
+			chan_misdn_log(0, bc->port, " --> not yet handled: facility type:0x%04X\n",
+				bc->fac_in.Function);
+			break;
+		}
+		break;
+#if 0	/* We don't handle this yet */
+	case Fac_CCBSInterrogate:
+	case Fac_CCNRInterrogate:
+		/* We don't handle this yet */
+		break;
+	case Fac_StatusRequest:
+		/* We don't handle this yet */
+		break;
+#endif	/* We don't handle this yet */
+#if 0	/* We don't handle this yet */
+	case Fac_CCBS_T_Suspend:
+	case Fac_CCBS_T_Resume:
+		/* We don't handle this yet */
+		break;
+#endif	/* We don't handle this yet */
+	case Fac_CCBS_T_RemoteUserFree:
+		misdn_cc_handle_T_remote_user_free(bc);
+		break;
+	case Fac_CCBS_T_Available:
+		switch (event) {
+		case EVENT_ALERTING:
+		case EVENT_DISCONNECT:
+			/* CCBS-T/CCNR-T is available */
+			if (ch && ch->peer) {
+				int set_id = 1;
+
+				AST_LIST_LOCK(&misdn_cc_records_db);
+				if (ch->record_id == -1) {
+					cc_record = misdn_cc_new();
+				} else {
+					/*
+					 * We are doing a call-completion attempt
+					 * or the switch is sending us extra call-completion
+					 * availability indications (erroneously?).
+					 */
+					cc_record = misdn_cc_find_by_id(ch->record_id);
+					if (cc_record) {
+						if (cc_record->ptp && cc_record->mode.ptp.retention_enabled) {
+							/*
+							 * Call-completion is still activated.
+							 * The user does not have to request it again.
+							 */
+							chan_misdn_log(1, bc->port, " --> Call-completion request retention option is enabled\n");
+
+							set_id = 0;
+						} else {
+							if (cc_record->ptp && cc_record->mode.ptp.bc) {
+								/*
+								 * The network request retention option
+								 * is not on and the current call-completion
+								 * request is to be disabled.
+								 *
+								 * We should get here only if EVENT_DISCONNECT
+								 *
+								 * Close the call-completion signaling link
+								 */
+								cc_record->mode.ptp.bc->fac_out.Function = Fac_None;
+								cc_record->mode.ptp.bc->out_cause = AST_CAUSE_NORMAL_CLEARING;
+								misdn_lib_send_event(cc_record->mode.ptp.bc, EVENT_RELEASE_COMPLETE);
+							}
+
+							/*
+							 * Resetup the existing record for a possible new
+							 * call-completion request.
+							 */
+							new_record_id = misdn_cc_record_id_new();
+							if (new_record_id < 0) {
+								/* Looks like we must keep the old id anyway. */
+							} else {
+								cc_record->record_id = new_record_id;
+								ch->record_id = new_record_id;
+							}
+							cc_record->ptp = 1;
+							cc_record->port = bc->port;
+							memset(&cc_record->mode, 0, sizeof(cc_record->mode));
+							cc_record->invoke_id = ++misdn_invoke_id;
+							cc_record->activated = 0;
+							cc_record->outstanding_message = 0;
+							cc_record->activation_requested = 0;
+							cc_record->error_code = FacError_None;
+							cc_record->reject_code = FacReject_None;
+							memset(&cc_record->remote_user_free, 0, sizeof(cc_record->remote_user_free));
+							memset(&cc_record->b_free, 0, sizeof(cc_record->b_free));
+							cc_record->time_created = time(NULL);
+						}
+						cc_record = NULL;
+					} else {
+						/*
+						 * Where did the record go?  We will have to recapture
+						 * the call setup information.  Unfortunately, some
+						 * setup information may have been changed.
+						 */
+						ch->record_id = -1;
+						cc_record = misdn_cc_new();
+					}
+				}
+				if (cc_record) {
+					ch->record_id = cc_record->record_id;
+					cc_record->ptp = 1;
+					cc_record->port = bc->port;
+
+					/* Record call information for possible call-completion attempt. */
+					cc_record->redial.caller = bc->caller;
+					cc_record->redial.dialed = bc->dialed;
+					cc_record->redial.setup_bc_hlc_llc = bc->setup_bc_hlc_llc;
+					cc_record->redial.capability = bc->capability;
+					cc_record->redial.hdlc = bc->hdlc;
+				}
+				AST_LIST_UNLOCK(&misdn_cc_records_db);
+
+				/* Set MISDN_CC_RECORD_ID in original channel */
+				if (ch->record_id != -1 && set_id) {
+					snprintf(buf, sizeof(buf), "%ld", ch->record_id);
+				} else {
+					buf[0] = 0;
+				}
+				misdn_cc_set_peer_var(ch->peer, MISDN_CC_RECORD_ID, buf);
+			}
+			break;
+		default:
+			chan_misdn_log(0, bc->port,
+				" --> Expected in a DISCONNECT or ALERTING message: facility type:0x%04X\n",
+				bc->fac_in.Function);
+			break;
+		}
+		break;
+	case Fac_CCBS_T_Request:
+	case Fac_CCNR_T_Request:
+		switch (bc->fac_in.u.CCBS_T_Request.ComponentType) {
+		case FacComponent_Result:
+			AST_LIST_LOCK(&misdn_cc_records_db);
+			cc_record = misdn_cc_find_by_invoke(bc->port, bc->fac_in.u.CCBS_T_Request.InvokeID);
+			if (cc_record && cc_record->ptp) {
+				cc_record->outstanding_message = 0;
+				cc_record->activated = 1;
+				cc_record->mode.ptp.retention_enabled =
+					cc_record->mode.ptp.requested_retention
+					? bc->fac_in.u.CCBS_T_Request.Component.Result.RetentionSupported
+					? 1 : 0
+					: 0;
+			}
+			AST_LIST_UNLOCK(&misdn_cc_records_db);
+			break;
+
+		case FacComponent_Invoke:
+			/* We cannot be User-B in ptp mode. */
+		default:
+			chan_misdn_log(0, bc->port, " --> not yet handled: facility type:0x%04X\n",
+				bc->fac_in.Function);
+			break;
+		}
+		break;
+
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+	case Fac_None:
+		break;
+	default:
+		chan_misdn_log(0, bc->port, " --> not yet handled: facility type:0x%04X\n",
+			bc->fac_in.Function);
+		break;
+	}
+}
 
 /************************************************************/
 /*  Receive Events from isdn_lib  here                     */
@@ -5019,6 +9197,9 @@ static void wait_for_digits(struct chan_list *ch, struct misdn_bchannel *bc, str
 static enum event_response_e
 cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 {
+#if defined(AST_MISDN_ENHANCEMENTS)
+	struct misdn_cc_record *cc_record;
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 	struct chan_list *ch = find_chan_by_bc(cl_te, bc);
 
 	if (event != EVENT_BCHAN_DATA && event != EVENT_TONE_GENERATE) {
@@ -5051,6 +9232,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		case EVENT_RETRIEVE:
 		case EVENT_NEW_BC:
 		case EVENT_FACILITY:
+		case EVENT_REGISTER:
 			break;
 		case EVENT_RELEASE_COMPLETE:
 			chan_misdn_log(1, bc->port, " --> no Ch, so we've already released.\n");
@@ -5079,7 +9261,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			}
 			break;
 		default:
-			if (!ch->ast  || !MISDN_ASTERISK_PVT(ch->ast) || !MISDN_ASTERISK_TECH_PVT(ch->ast)) {
+			if (!ch->ast || !MISDN_ASTERISK_TECH_PVT(ch->ast)) {
 				if (event != EVENT_BCHAN_DATA) {
 					ast_log(LOG_NOTICE, "No Ast or No private Pointer in Event (%d:%s)\n", event, manager_isdn_get_info(event));
 				}
@@ -5334,22 +9516,11 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		ast_set_callerid(chan, bc->caller.number, NULL, bc->caller.number);
 
 		if (!ast_strlen_zero(bc->redirecting.from.number)) {
-			struct ast_party_redirecting redirecting;
-
 			/* Add configured prefix to redirecting.from.number */
 			misdn_add_number_prefix(bc->port, bc->redirecting.from.number_type, bc->redirecting.from.number, sizeof(bc->redirecting.from.number));
 
 			/* Update asterisk channel redirecting information */
-			ast_party_redirecting_set_init(&redirecting, &chan->redirecting);
-			redirecting.from.number = bc->redirecting.from.number;
-			redirecting.from.number_type =
-				misdn_to_ast_ton(bc->redirecting.from.number_type)
-				| misdn_to_ast_plan(bc->redirecting.from.number_plan);
-			redirecting.from.number_presentation =
-				misdn_to_ast_pres(bc->redirecting.from.presentation)
-				| misdn_to_ast_screen(bc->redirecting.from.screening);
-			redirecting.reason = misdn_to_ast_reason(bc->redirecting.reason);
-			ast_channel_set_redirecting(chan, &redirecting);
+			misdn_copy_redirecting_to_ast(chan, &bc->redirecting);
 		}
 
 		pbx_builtin_setvar_helper(chan, "TRANSFERCAPABILITY", ast_transfercapability2str(bc->capability));
@@ -5392,6 +9563,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				misdn_lib_send_event(bc, EVENT_RELEASE_COMPLETE);
 				return RESPONSE_OK;
 			}
+		}
+
+		if (bc->fac_in.Function != Fac_None) {
+			misdn_facility_ie_handler(event, bc, ch);
 		}
 
 		/* Check for Pickup Request first */
@@ -5515,12 +9690,32 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		}
 		break;
 	}
-
+#if defined(AST_MISDN_ENHANCEMENTS)
+	case EVENT_REGISTER:
+		if (bc->fac_in.Function != Fac_None) {
+			misdn_facility_ie_handler(event, bc, ch);
+		}
+		/*
+		 * Shut down this connection immediately.
+		 * The current design of chan_misdn data structures
+		 * does not allow the proper handling of inbound call records
+		 * without an assigned B channel.  Therefore, we cannot
+		 * be the CCBS User-B party in a point-to-point setup.
+		 */
+		bc->fac_out.Function = Fac_None;
+		bc->out_cause = AST_CAUSE_NORMAL_CLEARING;
+		misdn_lib_send_event(bc, EVENT_RELEASE_COMPLETE);
+		break;
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 	case EVENT_SETUP_ACKNOWLEDGE:
 		ch->state = MISDN_CALLING_ACKNOWLEDGE;
 
 		if (bc->channel) {
 			update_name(ch->ast,bc->port,bc->channel);
+		}
+
+		if (bc->fac_in.Function != Fac_None) {
+			misdn_facility_ie_handler(event, bc, ch);
 		}
 
 		if (!ast_strlen_zero(bc->infos_pending)) {
@@ -5545,6 +9740,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 		ch->state = MISDN_PROCEEDING;
 
+		if (bc->fac_in.Function != Fac_None) {
+			misdn_facility_ie_handler(event, bc, ch);
+		}
+
 		if (!ch->ast) {
 			break;
 		}
@@ -5554,6 +9753,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	case EVENT_PROGRESS:
 		if (bc->channel) {
 			update_name(ch->ast, bc->port, bc->channel);
+		}
+
+		if (bc->fac_in.Function != Fac_None) {
+			misdn_facility_ie_handler(event, bc, ch);
 		}
 
 		if (!bc->nt) {
@@ -5577,6 +9780,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			break;
 		}
 
+		if (bc->fac_in.Function != Fac_None) {
+			misdn_facility_ie_handler(event, bc, ch);
+		}
+
 		ast_queue_control(ch->ast, AST_CONTROL_RINGING);
 		ast_setstate(ch->ast, AST_STATE_RINGING);
 
@@ -5595,8 +9802,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		}
 		break;
 	case EVENT_CONNECT:
-	{
-		struct ast_party_connected_line connected;
+		if (bc->fac_in.Function != Fac_None) {
+			misdn_facility_ie_handler(event, bc, ch);
+		}
 
 		/* we answer when we've got our very new L3 ID from the NT stack */
 		misdn_lib_send_event(bc, EVENT_CONNECT_ACKNOWLEDGE);
@@ -5607,18 +9815,41 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 		stop_indicate(ch);
 
+#if defined(AST_MISDN_ENHANCEMENTS)
+		if (ch->record_id != -1) {
+			/*
+			 * We will delete the associated call completion
+			 * record since we now have a completed call.
+			 * We will not wait/depend on the network to tell
+			 * us to delete it.
+			 */
+			AST_LIST_LOCK(&misdn_cc_records_db);
+			cc_record = misdn_cc_find_by_id(ch->record_id);
+			if (cc_record) {
+				if (cc_record->ptp && cc_record->mode.ptp.bc) {
+					/* Close the call-completion signaling link */
+					cc_record->mode.ptp.bc->fac_out.Function = Fac_None;
+					cc_record->mode.ptp.bc->out_cause = AST_CAUSE_NORMAL_CLEARING;
+					misdn_lib_send_event(cc_record->mode.ptp.bc, EVENT_RELEASE_COMPLETE);
+				}
+				misdn_cc_delete(cc_record);
+			}
+			AST_LIST_UNLOCK(&misdn_cc_records_db);
+			ch->record_id = -1;
+			if (ch->peer) {
+				misdn_cc_set_peer_var(ch->peer, MISDN_CC_RECORD_ID, "");
+
+				ao2_ref(ch->peer, -1);
+				ch->peer = NULL;
+			}
+		}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
 		/* Add configured prefix to connected.number */
 		misdn_add_number_prefix(bc->port, bc->connected.number_type, bc->connected.number, sizeof(bc->connected.number));
 
 		/* Update the connected line information on the other channel */
-		ast_party_connected_line_init(&connected);
-		connected.id.number = bc->connected.number;
-		connected.id.number_type = misdn_to_ast_ton(bc->connected.number_type)
-			| misdn_to_ast_plan(bc->connected.number_plan);
-		connected.id.number_presentation = misdn_to_ast_pres(bc->connected.presentation)
-			| misdn_to_ast_screen(bc->connected.screening);
-		connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-		ast_channel_queue_connected_line_update(ch->ast, &connected);
+		misdn_queue_connected_line_update(ch->ast, &bc->connected, AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER);
 
 		ch->l3id = bc->l3_id;
 		ch->addr = bc->addr;
@@ -5629,7 +9860,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 		ast_queue_control(ch->ast, AST_CONTROL_ANSWER);
 		break;
-	}
 	case EVENT_CONNECT_ACKNOWLEDGE:
 		ch->l3id = bc->l3_id;
 		ch->addr = bc->addr;
@@ -5642,6 +9872,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		/* we might not have an ch->ast ptr here anymore */
 		if (ch) {
 			struct chan_list *holded_ch = find_holded(cl_te, bc);
+
+			if (bc->fac_in.Function != Fac_None) {
+				misdn_facility_ie_handler(event, bc, ch);
+			}
 
 			chan_misdn_log(3, bc->port, " --> org:%d nt:%d, inbandavail:%d state:%d\n", ch->originator, bc->nt, misdn_inband_avail(bc), ch->state);
 			if (ch->originator == ORG_AST && !bc->nt && misdn_inband_avail(bc) && ch->state != MISDN_CONNECTED) {
@@ -5689,6 +9923,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		}
 		break;
 	case EVENT_RELEASE:
+		if (bc->fac_in.Function != Fac_None) {
+			misdn_facility_ie_handler(event, bc, ch);
+		}
+
 		bc->need_disconnect = 0;
 		bc->need_release = 0;
 
@@ -5696,15 +9934,33 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		release_chan(bc);
 		break;
 	case EVENT_RELEASE_COMPLETE:
+		if (bc->fac_in.Function != Fac_None) {
+			misdn_facility_ie_handler(event, bc, ch);
+		}
+
 		bc->need_disconnect = 0;
 		bc->need_release = 0;
 		bc->need_release_complete = 0;
 
-		stop_bc_tones(ch);
-		hangup_chan(ch);
-
 		if (ch) {
+			stop_bc_tones(ch);
+			hangup_chan(ch);
 			ch->state = MISDN_CLEANING;
+#if defined(AST_MISDN_ENHANCEMENTS)
+		} else {
+			/*
+			 * A call-completion signaling link established with
+			 * REGISTER does not have a struct chan_list record
+			 * associated with it.
+			 */
+			AST_LIST_LOCK(&misdn_cc_records_db);
+			cc_record = misdn_cc_find_by_bc(bc);
+			if (cc_record) {
+				/* The call-completion signaling link is closed. */
+				misdn_cc_delete(cc_record);
+			}
+			AST_LIST_UNLOCK(&misdn_cc_records_db);
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 		}
 
 		release_chan(bc);
@@ -5931,58 +10187,68 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		}
 		break;
 	}
-	case EVENT_FACILITY:
-		print_facility(&(bc->fac_in), bc);
-
-		switch (bc->fac_in.Function) {
-#ifdef HAVE_MISDN_FAC_RESULT
-		case Fac_RESULT:
+	case EVENT_NOTIFY:
+		if (bc->redirecting.to_changed) {
+			/* Add configured prefix to redirecting.to.number */
+			misdn_add_number_prefix(bc->port, bc->redirecting.to.number_type,
+				bc->redirecting.to.number, sizeof(bc->redirecting.to.number));
+		}
+		switch (bc->notify_description_code) {
+		case mISDN_NOTIFY_CODE_DIVERSION_ACTIVATED:
+			/* Ignore for now. */
+			bc->redirecting.to_changed = 0;
 			break;
-#endif
-		case Fac_CD:
-			if (ch) {
-				struct ast_channel *bridged = ast_bridged_channel(ch->ast);
-				struct chan_list *ch_br;
-				if (bridged && MISDN_ASTERISK_TECH_PVT(bridged)) {
-					ch_br = MISDN_ASTERISK_TECH_PVT(bridged);
-					/*ch->state = MISDN_FACILITY_DEFLECTED;*/
-					if (ch_br->bc) {
-						if (ast_exists_extension(bridged, ch->context, (char *) bc->fac_in.u.CDeflection.DeflectedToNumber, 1, bc->caller.number)) {
-							ch_br->state = MISDN_DIALING;
-							if (pbx_start_chan(ch_br) < 0) {
-								chan_misdn_log(-1, ch_br->bc->port, "ast_pbx_start returned < 0 in misdn_overlap_dial_task\n");
-							}
-						}
+		case mISDN_NOTIFY_CODE_CALL_IS_DIVERTING:
+			if (bc->redirecting.to_changed) {
+				bc->redirecting.to_changed = 0;
+				if (ch && ch->ast) {
+					switch (ch->state) {
+					case MISDN_ALERTING:
+						/* Call is deflecting after we have seen an ALERTING message */
+						bc->redirecting.reason = mISDN_REDIRECTING_REASON_NO_REPLY;
+						break;
+					default:
+						/* Call is deflecting for call forwarding unconditional or busy reason. */
+						bc->redirecting.reason = mISDN_REDIRECTING_REASON_UNKNOWN;
+						break;
 					}
+					misdn_copy_redirecting_to_ast(ch->ast, &bc->redirecting);
+					ast_channel_queue_redirecting_update(ch->ast, &ch->ast->redirecting);
 				}
-				misdn_lib_send_event(bc, EVENT_DISCONNECT);
 			}
 			break;
-		case Fac_AOCDCurrency:
-			if (ch) {
-				bc->AOCDtype = Fac_AOCDCurrency;
-				memcpy(&(bc->AOCD.currency), &(bc->fac_in.u.AOCDcur), sizeof(bc->AOCD.currency));
-				bc->AOCD_need_export = 1;
-				export_aoc_vars(ch->originator, ch->ast, bc);
+		case mISDN_NOTIFY_CODE_CALL_TRANSFER_ALERTING:
+			if (bc->redirecting.to_changed) {
+				bc->redirecting.to_changed = 0;
+				if (ch && ch->ast) {
+					misdn_queue_connected_line_update(ch->ast, &bc->redirecting.to,
+						AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER_ALERTING);
+				}
 			}
 			break;
-		case Fac_AOCDChargingUnit:
-			if (ch) {
-				bc->AOCDtype = Fac_AOCDChargingUnit;
-				memcpy(&(bc->AOCD.chargingUnit), &(bc->fac_in.u.AOCDchu), sizeof(bc->AOCD.chargingUnit));
-				bc->AOCD_need_export = 1;
-				export_aoc_vars(ch->originator, ch->ast, bc);
+		case mISDN_NOTIFY_CODE_CALL_TRANSFER_ACTIVE:
+			if (bc->redirecting.to_changed) {
+				bc->redirecting.to_changed = 0;
+				if (ch && ch->ast) {
+					misdn_queue_connected_line_update(ch->ast, &bc->redirecting.to,
+						AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER);
+				}
 			}
-			break;
-		case Fac_None:
-#ifdef HAVE_MISDN_FAC_ERROR
-		case Fac_ERROR:
-#endif
 			break;
 		default:
-			chan_misdn_log(0, bc->port," --> not yet handled: facility type:%d\n", bc->fac_in.Function);
+			bc->redirecting.to_changed = 0;
+			chan_misdn_log(0, bc->port," --> not yet handled: notify code:0x%02X\n",
+				bc->notify_description_code);
+			break;
 		}
-
+		break;
+	case EVENT_FACILITY:
+		if (bc->fac_in.Function == Fac_None) {
+			/* This is a FACILITY message so we MUST have a facility ie */
+			chan_misdn_log(0, bc->port," --> Missing facility ie or unknown facility ie contents.\n");
+		} else {
+			misdn_facility_ie_handler(event, bc, ch);
+		}
 		break;
 	case EVENT_RESTART:
 		if (!bc->dummy) {
@@ -5999,6 +10265,134 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 }
 
 /** TE STUFF END **/
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief Get call completion record information.
+ *
+ * \param chan Asterisk channel to operate upon. (Not used)
+ * \param function_name Name of the function that called us.
+ * \param function_args Argument string passed to function (Could be NULL)
+ * \param buf Buffer to put returned string.
+ * \param size Size of the supplied buffer including the null terminator.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int misdn_cc_read(struct ast_channel *chan, const char *function_name,
+	char *function_args, char *buf, size_t size)
+{
+	char *parse;
+	struct misdn_cc_record *cc_record;
+
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(cc_id);		/* Call completion record ID value. */
+		AST_APP_ARG(get_name);	/* Name of what to get */
+		AST_APP_ARG(other);		/* Any extraneous garbage arguments */
+	);
+
+	/* Ensure that the buffer is empty */
+	*buf = 0;
+
+	if (ast_strlen_zero(function_args)) {
+		ast_log(LOG_ERROR, "Function '%s' requires arguments.\n", function_name);
+		return -1;
+	}
+
+	parse = ast_strdupa(function_args);
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (!args.argc || ast_strlen_zero(args.cc_id)) {
+		ast_log(LOG_ERROR, "Function '%s' missing call completion record ID.\n",
+			function_name);
+		return -1;
+	}
+	if (!isdigit(*args.cc_id)) {
+		ast_log(LOG_ERROR, "Function '%s' call completion record ID must be numeric.\n",
+			function_name);
+		return -1;
+	}
+
+	if (ast_strlen_zero(args.get_name)) {
+		ast_log(LOG_ERROR, "Function '%s' missing what-to-get parameter.\n",
+			function_name);
+		return -1;
+	}
+
+	AST_LIST_LOCK(&misdn_cc_records_db);
+	cc_record = misdn_cc_find_by_id(atoi(args.cc_id));
+	if (cc_record) {
+		if (!strcasecmp("a-all", args.get_name)) {
+			snprintf(buf, size, "\"%s\" <%s>", cc_record->redial.caller.name,
+				cc_record->redial.caller.number);
+		} else if (!strcasecmp("a-name", args.get_name)) {
+			ast_copy_string(buf, cc_record->redial.caller.name, size);
+		} else if (!strncasecmp("a-num", args.get_name, 5)) {
+			ast_copy_string(buf, cc_record->redial.caller.number, size);
+		} else if (!strcasecmp("a-ton", args.get_name)) {
+			snprintf(buf, size, "%d",
+				misdn_to_ast_plan(cc_record->redial.caller.number_plan)
+				| misdn_to_ast_ton(cc_record->redial.caller.number_type));
+		} else if (!strncasecmp("a-pres", args.get_name, 6)) {
+			ast_copy_string(buf, ast_named_caller_presentation(
+				misdn_to_ast_pres(cc_record->redial.caller.presentation)
+				| misdn_to_ast_screen(cc_record->redial.caller.screening)), size);
+		} else if (!strcasecmp("a-busy", args.get_name)) {
+			ast_copy_string(buf, cc_record->party_a_free ? "no" : "yes", size);
+		} else if (!strncasecmp("b-num", args.get_name, 5)) {
+			ast_copy_string(buf, cc_record->redial.dialed.number, size);
+		} else if (!strcasecmp("b-ton", args.get_name)) {
+			snprintf(buf, size, "%d",
+				misdn_to_ast_plan(cc_record->redial.dialed.number_plan)
+				| misdn_to_ast_ton(cc_record->redial.dialed.number_type));
+		} else if (!strcasecmp("port", args.get_name)) {
+			snprintf(buf, size, "%d", cc_record->port);
+		} else if (!strcasecmp("available-notify-priority", args.get_name)) {
+			snprintf(buf, size, "%d", cc_record->remote_user_free.priority);
+		} else if (!strcasecmp("available-notify-exten", args.get_name)) {
+			ast_copy_string(buf, cc_record->remote_user_free.exten, size);
+		} else if (!strcasecmp("available-notify-context", args.get_name)) {
+			ast_copy_string(buf, cc_record->remote_user_free.context, size);
+		} else if (!strcasecmp("busy-notify-priority", args.get_name)) {
+			snprintf(buf, size, "%d", cc_record->b_free.priority);
+		} else if (!strcasecmp("busy-notify-exten", args.get_name)) {
+			ast_copy_string(buf, cc_record->b_free.exten, size);
+		} else if (!strcasecmp("busy-notify-context", args.get_name)) {
+			ast_copy_string(buf, cc_record->b_free.context, size);
+		} else {
+			AST_LIST_UNLOCK(&misdn_cc_records_db);
+			ast_log(LOG_ERROR, "Function '%s': Unknown what-to-get '%s'.\n", function_name, args.get_name);
+			return -1;
+		}
+	}
+	AST_LIST_UNLOCK(&misdn_cc_records_db);
+
+	return 0;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+static struct ast_custom_function misdn_cc_function = {
+	.name = "mISDN_CC",
+	.synopsis = "Get call completion record information.",
+	.syntax = "mISDN_CC(${MISDN_CC_RECORD_ID},<what-to-get>)",
+	.desc =
+		"mISDN_CC(${MISDN_CC_RECORD_ID},<what-to-get>)\n"
+		"The following can be retrieved:\n"
+		"\"a-num\", \"a-name\", \"a-all\", \"a-ton\", \"a-pres\", \"a-busy\",\n"
+		"\"b-num\", \"b-ton\", \"port\",\n"
+		"  User-A is available for call completion:\n"
+		"    \"available-notify-priority\",\n"
+		"    \"available-notify-exten\",\n"
+		"    \"available-notify-context\",\n"
+		"  User-A is busy:\n"
+		"    \"busy-notify-priority\",\n"
+		"    \"busy-notify-exten\",\n"
+		"    \"busy-notify-context\"\n",
+	.read = misdn_cc_read,
+};
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 
 /******************************************
  *
@@ -6026,6 +10420,10 @@ static int unload_module(void)
 	ast_unregister_application("misdn_set_opt");
 	ast_unregister_application("misdn_facility");
 	ast_unregister_application("misdn_check_l2l1");
+#if defined(AST_MISDN_ENHANCEMENTS)
+	ast_unregister_application(misdn_command_name);
+	ast_custom_function_unregister(&misdn_cc_function);
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 
 	ast_channel_unregister(&misdn_tech);
 
@@ -6040,6 +10438,10 @@ static int unload_module(void)
 		ast_free(misdn_debug_only);
 	}
  	ast_free(misdn_ports);
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+	misdn_cc_destroy();
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 
 	return 0;
 }
@@ -6069,6 +10471,10 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	g_config_initialized = 1;
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+	misdn_cc_init();
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 
 	misdn_debug = ast_malloc(sizeof(int) * (max_ports + 1));
 	if (!misdn_debug) {
@@ -6184,6 +10590,33 @@ static int load_module(void)
 		"exten => _X.,n,dial(mISDN/g:out/${EXTEN})\n"
 		);
 
+#if defined(AST_MISDN_ENHANCEMENTS)
+	ast_register_application(misdn_command_name, misdn_command_exec, misdn_command_name,
+		"misdn_command(<command>[,<options>])\n"
+		"The following commands are defined:\n"
+		"cc-initialize\n"
+		"  Setup mISDN support for call completion\n"
+		"  Must call before doing any Dial() involving call completion.\n"
+		"ccnr-request,${MISDN_CC_RECORD_ID},<notify-context>,<user-a-extension>,<priority>\n"
+		"  Request Call Completion No Reply activation\n"
+		"ccbs-request,${MISDN_CC_RECORD_ID},<notify-context>,<user-a-extension>,<priority>\n"
+		"  Request Call Completion Busy Subscriber activation\n"
+		"cc-b-free,${MISDN_CC_RECORD_ID},<notify-context>,<user-a-extension>,<priority>\n"
+		"  Set the dialplan location to notify when User-B is available but User-A is busy.\n"
+		"  Setting this dialplan location is optional.\n"
+		"cc-a-busy,${MISDN_CC_RECORD_ID},<yes/no>\n"
+		"  Set the busy status of call completion User-A\n"
+		"cc-deactivate,${MISDN_CC_RECORD_ID}\n"
+		"  Deactivate the identified call completion request\n"
+		"\n"
+		"MISDN_CC_RECORD_ID is set when Dial() returns and call completion is possible\n"
+		"MISDN_CC_STATUS is set to ACTIVATED or ERROR after the call completion\n"
+		"activation request.\n"
+		"MISDN_ERROR_MSG is set to a descriptive message on error.\n"
+		);
+
+	ast_custom_function_register(&misdn_cc_function);
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 
 	misdn_cfg_get(0, MISDN_GEN_TRACEFILE, global_tracefile, sizeof(global_tracefile));
 
@@ -6214,10 +10647,632 @@ static int reload(void)
 
 /*** SOME APPS ;)***/
 
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+* \brief misdn_command arguments container.
+*/
+AST_DEFINE_APP_ARGS_TYPE(misdn_command_args,
+	AST_APP_ARG(name);			/* Subcommand name */
+	AST_APP_ARG(arg)[10 + 1];	/* Subcommand arguments */
+);
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+static void misdn_cc_caller_destroy(void *obj)
+{
+	/* oh snap! */
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+static struct misdn_cc_caller *misdn_cc_caller_alloc(struct ast_channel *chan)
+{
+	struct misdn_cc_caller *cc_caller;
+
+	if (!(cc_caller = ao2_alloc(sizeof(*cc_caller), misdn_cc_caller_destroy))) {
+		return NULL;
+	}
+
+	cc_caller->chan = chan;
+
+	return cc_caller;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief misdn_command(cc-initialize) subcommand handler
+ *
+ * \param chan Asterisk channel to operate upon.
+ * \param subcommand Arguments for the subcommand
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int misdn_command_cc_initialize(struct ast_channel *chan, struct misdn_command_args *subcommand)
+{
+	struct misdn_cc_caller *cc_caller;
+	struct ast_datastore *datastore;
+
+	if (!(cc_caller = misdn_cc_caller_alloc(chan))) {
+		return -1;
+	}
+
+	if (!(datastore = ast_datastore_alloc(&misdn_cc_ds_info, NULL))) {
+		ao2_ref(cc_caller, -1);
+		return -1;
+	}
+
+	ast_channel_lock(chan);
+
+	/* Inherit reference */
+	datastore->data = cc_caller;
+	cc_caller = NULL;
+
+	datastore->inheritance = DATASTORE_INHERIT_FOREVER;
+
+	ast_channel_datastore_add(chan, datastore);
+
+	ast_channel_unlock(chan);
+
+	return 0;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief misdn_command(cc-deactivate) subcommand handler
+ *
+ * \details
+ * misdn_command(cc-deactivate,${MISDN_CC_RECORD_ID})
+ * Deactivate a call completion service instance.
+ *
+ * \param chan Asterisk channel to operate upon.
+ * \param subcommand Arguments for the subcommand
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int misdn_command_cc_deactivate(struct ast_channel *chan, struct misdn_command_args *subcommand)
+{
+	long record_id;
+	const char *error_str;
+	struct misdn_cc_record *cc_record;
+	struct misdn_bchannel *bc;
+	struct misdn_bchannel dummy;
+
+	static const char cmd_help[] = "%s(%s,${MISDN_CC_RECORD_ID})\n";
+
+	if (ast_strlen_zero(subcommand->arg[0]) || !isdigit(*subcommand->arg[0])) {
+		ast_log(LOG_WARNING, cmd_help, misdn_command_name, subcommand->name);
+		return -1;
+	}
+	record_id = atol(subcommand->arg[0]);
+
+	AST_LIST_LOCK(&misdn_cc_records_db);
+	cc_record = misdn_cc_find_by_id(record_id);
+	if (cc_record && 0 <= cc_record->port) {
+		if (cc_record->ptp) {
+			if (cc_record->mode.ptp.bc) {
+				/* Close the call-completion signaling link */
+				bc = cc_record->mode.ptp.bc;
+				bc->fac_out.Function = Fac_None;
+				bc->out_cause = AST_CAUSE_NORMAL_CLEARING;
+				misdn_lib_send_event(bc, EVENT_RELEASE_COMPLETE);
+			}
+			misdn_cc_delete(cc_record);
+		} else if (cc_record->activated) {
+			cc_record->error_code = FacError_None;
+			cc_record->reject_code = FacReject_None;
+			cc_record->invoke_id = ++misdn_invoke_id;
+			cc_record->outstanding_message = 1;
+
+			/* Build message */
+			misdn_make_dummy(&dummy, cc_record->port, 0, misdn_lib_port_is_nt(cc_record->port), 0);
+			dummy.fac_out.Function = Fac_CCBSDeactivate;
+			dummy.fac_out.u.CCBSDeactivate.InvokeID = cc_record->invoke_id;
+			dummy.fac_out.u.CCBSDeactivate.ComponentType = FacComponent_Invoke;
+			dummy.fac_out.u.CCBSDeactivate.Component.Invoke.CCBSReference = cc_record->mode.ptmp.reference_id;
+
+			/* Send message */
+			print_facility(&dummy.fac_out, &dummy);
+			misdn_lib_send_event(&dummy, EVENT_FACILITY);
+		}
+	}
+	AST_LIST_UNLOCK(&misdn_cc_records_db);
+
+	/* Wait for the response to the call completion deactivation request. */
+	misdn_cc_response_wait(chan, MISDN_CC_REQUEST_WAIT_MAX, record_id);
+
+	AST_LIST_LOCK(&misdn_cc_records_db);
+	cc_record = misdn_cc_find_by_id(record_id);
+	if (cc_record) {
+		if (cc_record->port < 0) {
+			/* The network did not tell us that call completion was available. */
+			error_str = NULL;
+		} else if (cc_record->outstanding_message) {
+			cc_record->outstanding_message = 0;
+			error_str = misdn_no_response_from_network;
+		} else if (cc_record->reject_code != FacReject_None) {
+			error_str = misdn_to_str_reject_code(cc_record->reject_code);
+		} else if (cc_record->reject_code != FacError_None) {
+			error_str = misdn_to_str_error_code(cc_record->error_code);
+		} else {
+			error_str = NULL;
+		}
+
+		misdn_cc_delete(cc_record);
+	} else {
+		error_str = NULL;
+	}
+	AST_LIST_UNLOCK(&misdn_cc_records_db);
+	if (error_str) {
+		ast_verb(1, "%s(%s) diagnostic '%s' on channel %s\n",
+			misdn_command_name, subcommand->name, error_str, chan->name);
+		pbx_builtin_setvar_helper(chan, MISDN_ERROR_MSG, error_str);
+	}
+
+	return 0;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief misdn_command(cc-a-busy) subcommand handler
+ *
+ * \details
+ * misdn_command(cc-a-busy,${MISDN_CC_RECORD_ID},<yes/no>)
+ * Set the status of User-A for a call completion service instance.
+ *
+ * \param chan Asterisk channel to operate upon.
+ * \param subcommand Arguments for the subcommand
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int misdn_command_cc_a_busy(struct ast_channel *chan, struct misdn_command_args *subcommand)
+{
+	long record_id;
+	int party_a_free;
+	struct misdn_cc_record *cc_record;
+	struct misdn_bchannel *bc;
+
+	static const char cmd_help[] = "%s(%s,${MISDN_CC_RECORD_ID},<yes/no>)\n";
+
+	if (ast_strlen_zero(subcommand->arg[0]) || !isdigit(*subcommand->arg[0])) {
+		ast_log(LOG_WARNING, cmd_help, misdn_command_name, subcommand->name);
+		return -1;
+	}
+	record_id = atol(subcommand->arg[0]);
+
+	if (ast_true(subcommand->arg[1])) {
+		party_a_free = 0;
+	} else if (ast_false(subcommand->arg[1])) {
+		party_a_free = 1;
+	} else {
+		ast_log(LOG_WARNING, cmd_help, misdn_command_name, subcommand->name);
+		return -1;
+	}
+
+	AST_LIST_LOCK(&misdn_cc_records_db);
+	cc_record = misdn_cc_find_by_id(record_id);
+	if (cc_record && cc_record->party_a_free != party_a_free) {
+		/* User-A's status has changed */
+		cc_record->party_a_free = party_a_free;
+
+		if (cc_record->ptp && cc_record->mode.ptp.bc) {
+			cc_record->error_code = FacError_None;
+			cc_record->reject_code = FacReject_None;
+
+			/* Build message */
+			bc = cc_record->mode.ptp.bc;
+			if (cc_record->party_a_free) {
+				bc->fac_out.Function = Fac_CCBS_T_Resume;
+				bc->fac_out.u.CCBS_T_Resume.InvokeID = ++misdn_invoke_id;
+			} else {
+				bc->fac_out.Function = Fac_CCBS_T_Suspend;
+				bc->fac_out.u.CCBS_T_Suspend.InvokeID = ++misdn_invoke_id;
+			}
+
+			/* Send message */
+			print_facility(&bc->fac_out, bc);
+			misdn_lib_send_event(bc, EVENT_FACILITY);
+		}
+	}
+	AST_LIST_UNLOCK(&misdn_cc_records_db);
+
+	return 0;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief misdn_command(cc-b-free) subcommand handler
+ *
+ * \details
+ * misdn_command(cc-b-free,${MISDN_CC_RECORD_ID},<notify-context>,<user-a-extension>,<priority>)
+ * Set the dialplan location to notify when User-B is free and User-A is busy.
+ *
+ * \param chan Asterisk channel to operate upon.
+ * \param subcommand Arguments for the subcommand
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int misdn_command_cc_b_free(struct ast_channel *chan, struct misdn_command_args *subcommand)
+{
+	unsigned index;
+	long record_id;
+	int priority;
+	char *context;
+	char *exten;
+	struct misdn_cc_record *cc_record;
+
+	static const char cmd_help[] = "%s(%s,${MISDN_CC_RECORD_ID},<notify-context>,<user-a-extension>,<priority>)\n";
+
+	/* Check that all arguments are present */
+	for (index = 0; index < 4; ++index) {
+		if (ast_strlen_zero(subcommand->arg[index])) {
+			ast_log(LOG_WARNING, cmd_help, misdn_command_name, subcommand->name);
+			return -1;
+		}
+	}
+
+	/* These must be numeric */
+	if (!isdigit(*subcommand->arg[0]) || !isdigit(*subcommand->arg[3])) {
+		ast_log(LOG_WARNING, cmd_help, misdn_command_name, subcommand->name);
+		return -1;
+	}
+
+	record_id = atol(subcommand->arg[0]);
+	context = subcommand->arg[1];
+	exten = subcommand->arg[2];
+	priority = atoi(subcommand->arg[3]);
+
+	AST_LIST_LOCK(&misdn_cc_records_db);
+	cc_record = misdn_cc_find_by_id(record_id);
+	if (cc_record) {
+		/* Save User-B free information */
+		ast_copy_string(cc_record->b_free.context, context, sizeof(cc_record->b_free.context));
+		ast_copy_string(cc_record->b_free.exten, exten, sizeof(cc_record->b_free.exten));
+		cc_record->b_free.priority = priority;
+	}
+	AST_LIST_UNLOCK(&misdn_cc_records_db);
+
+	return 0;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+struct misdn_cc_request {
+	enum FacFunction ptmp;
+	enum FacFunction ptp;
+};
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief misdn_command(ccbs-request/ccnr-request) subcommand handler helper
+ *
+ * \details
+ * misdn_command(ccbs-request,${MISDN_CC_RECORD_ID},<notify-context>,<user-a-extension>,<priority>)
+ * misdn_command(ccnr-request,${MISDN_CC_RECORD_ID},<notify-context>,<user-a-extension>,<priority>)
+ * Set the dialplan location to notify when User-B is free and User-A is free.
+ *
+ * \param chan Asterisk channel to operate upon.
+ * \param subcommand Arguments for the subcommand
+ * \param request Which call-completion request message to generate.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int misdn_command_cc_request(struct ast_channel *chan, struct misdn_command_args *subcommand, const struct misdn_cc_request *request)
+{
+	unsigned index;
+	int request_retention;
+	long record_id;
+	int priority;
+	char *context;
+	char *exten;
+	const char *error_str;
+	struct misdn_cc_record *cc_record;
+	struct misdn_bchannel *bc;
+	struct misdn_bchannel dummy;
+	struct misdn_party_id id;
+
+	static const char cmd_help[] = "%s(%s,${MISDN_CC_RECORD_ID},<notify-context>,<user-a-extension>,<priority>)\n";
+
+	/* Check that all arguments are present */
+	for (index = 0; index < 4; ++index) {
+		if (ast_strlen_zero(subcommand->arg[index])) {
+			ast_log(LOG_WARNING, cmd_help, misdn_command_name, subcommand->name);
+			return -1;
+		}
+	}
+
+	/* These must be numeric */
+	if (!isdigit(*subcommand->arg[0]) || !isdigit(*subcommand->arg[3])) {
+		ast_log(LOG_WARNING, cmd_help, misdn_command_name, subcommand->name);
+		return -1;
+	}
+
+	record_id = atol(subcommand->arg[0]);
+	context = subcommand->arg[1];
+	exten = subcommand->arg[2];
+	priority = atoi(subcommand->arg[3]);
+
+	AST_LIST_LOCK(&misdn_cc_records_db);
+	cc_record = misdn_cc_find_by_id(record_id);
+	if (cc_record) {
+		/* Save User-B free information */
+		ast_copy_string(cc_record->remote_user_free.context, context,
+			sizeof(cc_record->remote_user_free.context));
+		ast_copy_string(cc_record->remote_user_free.exten, exten,
+			sizeof(cc_record->remote_user_free.exten));
+		cc_record->remote_user_free.priority = priority;
+
+		if (0 <= cc_record->port) {
+			if (cc_record->ptp) {
+				if (!cc_record->mode.ptp.bc) {
+					bc = misdn_lib_get_register_bc(cc_record->port);
+					if (bc) {
+						cc_record->mode.ptp.bc = bc;
+						cc_record->error_code = FacError_None;
+						cc_record->reject_code = FacReject_None;
+						cc_record->invoke_id = ++misdn_invoke_id;
+						cc_record->outstanding_message = 1;
+						cc_record->activation_requested = 1;
+
+						misdn_cfg_get(bc->port, MISDN_CFG_CC_REQUEST_RETENTION,
+							&request_retention, sizeof(request_retention));
+						cc_record->mode.ptp.requested_retention = request_retention ? 1 : 0;
+
+						/* Build message */
+						bc->fac_out.Function = request->ptp;
+						bc->fac_out.u.CCBS_T_Request.InvokeID = cc_record->invoke_id;
+						bc->fac_out.u.CCBS_T_Request.ComponentType = FacComponent_Invoke;
+						bc->fac_out.u.CCBS_T_Request.Component.Invoke.Q931ie =
+							cc_record->redial.setup_bc_hlc_llc;
+						memset(&id, 0, sizeof(id));
+						id.number_plan = cc_record->redial.dialed.number_plan;
+						id.number_type = cc_record->redial.dialed.number_type;
+						ast_copy_string(id.number, cc_record->redial.dialed.number,
+							sizeof(id.number));
+						misdn_Address_fill(
+							&bc->fac_out.u.CCBS_T_Request.Component.Invoke.Destination,
+							&id);
+						misdn_Address_fill(
+							&bc->fac_out.u.CCBS_T_Request.Component.Invoke.Originating,
+							&cc_record->redial.caller);
+						bc->fac_out.u.CCBS_T_Request.Component.Invoke.PresentationAllowedIndicatorPresent = 1;
+						bc->fac_out.u.CCBS_T_Request.Component.Invoke.PresentationAllowedIndicator =
+							(cc_record->redial.caller.presentation != 0) ? 0 : 1;
+						bc->fac_out.u.CCBS_T_Request.Component.Invoke.RetentionSupported =
+							request_retention ? 1 : 0;
+
+						/* Send message */
+						print_facility(&bc->fac_out, bc);
+						misdn_lib_send_event(bc, EVENT_REGISTER);
+					}
+				}
+			} else {
+				cc_record->error_code = FacError_None;
+				cc_record->reject_code = FacReject_None;
+				cc_record->invoke_id = ++misdn_invoke_id;
+				cc_record->outstanding_message = 1;
+				cc_record->activation_requested = 1;
+
+				/* Build message */
+				misdn_make_dummy(&dummy, cc_record->port, 0,
+					misdn_lib_port_is_nt(cc_record->port), 0);
+				dummy.fac_out.Function = request->ptmp;
+				dummy.fac_out.u.CCBSRequest.InvokeID = cc_record->invoke_id;
+				dummy.fac_out.u.CCBSRequest.ComponentType = FacComponent_Invoke;
+				dummy.fac_out.u.CCBSRequest.Component.Invoke.CallLinkageID =
+					cc_record->mode.ptmp.linkage_id;
+
+				/* Send message */
+				print_facility(&dummy.fac_out, &dummy);
+				misdn_lib_send_event(&dummy, EVENT_FACILITY);
+			}
+		}
+	}
+	AST_LIST_UNLOCK(&misdn_cc_records_db);
+
+	/* Wait for the response to the call completion request. */
+	misdn_cc_response_wait(chan, MISDN_CC_REQUEST_WAIT_MAX, record_id);
+
+	AST_LIST_LOCK(&misdn_cc_records_db);
+	cc_record = misdn_cc_find_by_id(record_id);
+	if (cc_record) {
+		if (!cc_record->activated) {
+			if (cc_record->port < 0) {
+				/* The network did not tell us that call completion was available. */
+				error_str = "No port number";
+			} else if (cc_record->outstanding_message) {
+				cc_record->outstanding_message = 0;
+				error_str = misdn_no_response_from_network;
+			} else if (cc_record->reject_code != FacReject_None) {
+				error_str = misdn_to_str_reject_code(cc_record->reject_code);
+			} else if (cc_record->error_code != FacError_None) {
+				error_str = misdn_to_str_error_code(cc_record->error_code);
+			} else if (cc_record->ptp) {
+				if (cc_record->mode.ptp.bc) {
+					error_str = "Call-completion already requested";
+				} else {
+					error_str = "Could not allocate call-completion signaling link";
+				}
+			} else {
+				/* Should never happen. */
+				error_str = "Unexpected error";
+			}
+
+			/* No need to keep the call completion record. */
+			if (cc_record->ptp && cc_record->mode.ptp.bc) {
+				/* Close the call-completion signaling link */
+				bc = cc_record->mode.ptp.bc;
+				bc->fac_out.Function = Fac_None;
+				bc->out_cause = AST_CAUSE_NORMAL_CLEARING;
+				misdn_lib_send_event(bc, EVENT_RELEASE_COMPLETE);
+			}
+			misdn_cc_delete(cc_record);
+		} else {
+			error_str = NULL;
+		}
+	} else {
+		error_str = misdn_cc_record_not_found;
+	}
+	AST_LIST_UNLOCK(&misdn_cc_records_db);
+	if (error_str) {
+		ast_verb(1, "%s(%s) diagnostic '%s' on channel %s\n",
+			misdn_command_name, subcommand->name, error_str, chan->name);
+		pbx_builtin_setvar_helper(chan, MISDN_ERROR_MSG, error_str);
+		pbx_builtin_setvar_helper(chan, MISDN_CC_STATUS, "ERROR");
+	} else {
+		pbx_builtin_setvar_helper(chan, MISDN_CC_STATUS, "ACTIVATED");
+	}
+
+	return 0;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief misdn_command(ccbs-request) subcommand handler
+ *
+ * \details
+ * misdn_command(ccbs-request,${MISDN_CC_RECORD_ID},<notify-context>,<user-a-extension>,<priority>)
+ * Set the dialplan location to notify when User-B is free and User-A is free.
+ *
+ * \param chan Asterisk channel to operate upon.
+ * \param subcommand Arguments for the subcommand
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int misdn_command_ccbs_request(struct ast_channel *chan, struct misdn_command_args *subcommand)
+{
+	static const struct misdn_cc_request request = {
+		.ptmp = Fac_CCBSRequest,
+		.ptp = Fac_CCBS_T_Request
+	};
+
+	return misdn_command_cc_request(chan, subcommand, &request);
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief misdn_command(ccnr-request) subcommand handler
+ *
+ * \details
+ * misdn_command(ccnr-request,${MISDN_CC_RECORD_ID},<notify-context>,<user-a-extension>,<priority>)
+ * Set the dialplan location to notify when User-B is free and User-A is free.
+ *
+ * \param chan Asterisk channel to operate upon.
+ * \param subcommand Arguments for the subcommand
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int misdn_command_ccnr_request(struct ast_channel *chan, struct misdn_command_args *subcommand)
+{
+	static const struct misdn_cc_request request = {
+		.ptmp = Fac_CCNRRequest,
+		.ptp = Fac_CCNR_T_Request
+	};
+
+	return misdn_command_cc_request(chan, subcommand, &request);
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+struct misdn_command_table {
+	/*! \brief subcommand name */
+	const char *name;
+
+	/*! \brief subcommand handler */
+	int (*func)(struct ast_channel *chan, struct misdn_command_args *subcommand);
+
+	/*! \brief TRUE if the subcommand can only be executed on mISDN channels */
+	int misdn_only;
+};
+static const struct misdn_command_table misdn_commands[] = {
+/* *INDENT-OFF* */
+	/* subcommand-name  subcommand-handler              mISDN only */
+	{ "cc-initialize",  misdn_command_cc_initialize,    0 },
+	{ "cc-deactivate",  misdn_command_cc_deactivate,    0 },
+	{ "cc-a-busy",      misdn_command_cc_a_busy,        0 },
+	{ "cc-b-free",      misdn_command_cc_b_free,        0 },
+	{ "ccbs-request",   misdn_command_ccbs_request,     0 },
+	{ "ccnr-request",   misdn_command_ccnr_request,     0 },
+/* *INDENT-ON* */
+};
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
+#if defined(AST_MISDN_ENHANCEMENTS)
+/*!
+ * \internal
+ * \brief misdn_command() dialplan application.
+ *
+ * \param chan Asterisk channel to operate upon.
+ * \param data Application options string.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int misdn_command_exec(struct ast_channel *chan, void *data)
+{
+	char *parse;
+	unsigned index;
+	struct misdn_command_args subcommand;
+
+	if (ast_strlen_zero((char *) data)) {
+		ast_log(LOG_ERROR, "%s requires arguments\n", misdn_command_name);
+		return -1;
+	}
+
+	ast_log(LOG_DEBUG, "%s(%s)\n", misdn_command_name, (char *) data);
+
+	parse = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(subcommand, parse);
+	if (!subcommand.argc || ast_strlen_zero(subcommand.name)) {
+		ast_log(LOG_ERROR, "%s requires a subcommand\n", misdn_command_name);
+		return -1;
+	}
+
+	for (index = 0; index < ARRAY_LEN(misdn_commands); ++index) {
+		if (strcasecmp(misdn_commands[index].name, subcommand.name) == 0) {
+			strcpy(subcommand.name, misdn_commands[index].name);
+			if (misdn_commands[index].misdn_only
+				&& strcasecmp(chan->tech->type, misdn_type) != 0) {
+				ast_log(LOG_WARNING,
+					"%s(%s) only makes sense with %s channels!\n",
+					misdn_command_name, subcommand.name, misdn_type);
+				return -1;
+			}
+			return misdn_commands[index].func(chan, &subcommand);
+		}
+	}
+
+	ast_log(LOG_WARNING, "%s(%s) subcommand is unknown\n", misdn_command_name,
+		subcommand.name);
+	return -1;
+}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
 static int misdn_facility_exec(struct ast_channel *chan, void *data)
 {
 	struct chan_list *ch = MISDN_ASTERISK_TECH_PVT(chan);
 	char *parse;
+	unsigned max_len;
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(facility_type);
@@ -6226,8 +11281,8 @@ static int misdn_facility_exec(struct ast_channel *chan, void *data)
 
 	chan_misdn_log(0, 0, "TYPE: %s\n", chan->tech->type);
 
-	if (strcasecmp(chan->tech->type, "mISDN")) {
-		ast_log(LOG_WARNING, "misdn_facility makes only sense with chan_misdn channels!\n");
+	if (strcasecmp(chan->tech->type, misdn_type)) {
+		ast_log(LOG_WARNING, "misdn_facility only makes sense with %s channels!\n", misdn_type);
 		return -1;
 	}
 
@@ -6249,14 +11304,41 @@ static int misdn_facility_exec(struct ast_channel *chan, void *data)
 			ast_log(LOG_WARNING, "Facility: Call Deflection requires an argument: Number\n");
 		}
 
-		if (strlen(args.arg[0]) >= sizeof(ch->bc->fac_out.u.CDeflection.DeflectedToNumber)) {
+#if defined(AST_MISDN_ENHANCEMENTS)
+		max_len = sizeof(ch->bc->fac_out.u.CallDeflection.Component.Invoke.Deflection.Party.Number) - 1;
+		if (max_len < strlen(args.arg[0])) {
 			ast_log(LOG_WARNING,
-				"Facility: Number argument too long (up to %d digits are allowed). Ignoring.\n",
-				(int) sizeof(ch->bc->fac_out.u.CDeflection.DeflectedToNumber));
+				"Facility: Number argument too long (up to %u digits are allowed). Ignoring.\n",
+				max_len);
+			return 0;
+		}
+		ch->bc->fac_out.Function = Fac_CallDeflection;
+		ch->bc->fac_out.u.CallDeflection.InvokeID = ++misdn_invoke_id;
+		ch->bc->fac_out.u.CallDeflection.ComponentType = FacComponent_Invoke;
+		ch->bc->fac_out.u.CallDeflection.Component.Invoke.PresentationAllowedToDivertedToUserPresent = 1;
+		ch->bc->fac_out.u.CallDeflection.Component.Invoke.PresentationAllowedToDivertedToUser = 0;
+		ch->bc->fac_out.u.CallDeflection.Component.Invoke.Deflection.Party.Type = 0;/* unknown */
+		ch->bc->fac_out.u.CallDeflection.Component.Invoke.Deflection.Party.LengthOfNumber = strlen(args.arg[0]);
+		strcpy((char *) ch->bc->fac_out.u.CallDeflection.Component.Invoke.Deflection.Party.Number, args.arg[0]);
+		ch->bc->fac_out.u.CallDeflection.Component.Invoke.Deflection.Subaddress.Length = 0;
+
+#else	/* !defined(AST_MISDN_ENHANCEMENTS) */
+
+		max_len = sizeof(ch->bc->fac_out.u.CDeflection.DeflectedToNumber) - 1;
+		if (max_len < strlen(args.arg[0])) {
+			ast_log(LOG_WARNING,
+				"Facility: Number argument too long (up to %u digits are allowed). Ignoring.\n",
+				max_len);
 			return 0;
 		}
 		ch->bc->fac_out.Function = Fac_CD;
-		ast_copy_string((char *)ch->bc->fac_out.u.CDeflection.DeflectedToNumber, args.arg[0], sizeof(ch->bc->fac_out.u.CDeflection.DeflectedToNumber));
+		ch->bc->fac_out.u.CDeflection.PresentationAllowed = 0;
+		//ch->bc->fac_out.u.CDeflection.DeflectedToSubaddress[0] = 0;
+		strcpy((char *) ch->bc->fac_out.u.CDeflection.DeflectedToNumber, args.arg[0]);
+#endif	/* !defined(AST_MISDN_ENHANCEMENTS) */
+
+		/* Send message */
+		print_facility(&ch->bc->fac_out, ch->bc);
 		misdn_lib_send_event(ch->bc, EVENT_FACILITY);
 	} else {
 		chan_misdn_log(1, ch->bc->port, "Unknown Facility: %s\n", args.facility_type);
@@ -6350,8 +11432,8 @@ static int misdn_set_opt_exec(struct ast_channel *chan, void *data)
 	int txgain = 0;
 	int change_jitter = 0;
 
-	if (strcasecmp(chan->tech->type, "mISDN")) {
-		ast_log(LOG_WARNING, "misdn_set_opt makes only sense with chan_misdn channels!\n");
+	if (strcasecmp(chan->tech->type, misdn_type)) {
+		ast_log(LOG_WARNING, "misdn_set_opt makes sense only with %s channels!\n", misdn_type);
 		return -1;
 	}
 

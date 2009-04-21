@@ -361,6 +361,8 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"MSN's for TE ports, listen on those numbers on the above ports, and\n"
 		"\tindicate the incoming calls to Asterisk.\n"
 		"\tHere you can give a comma separated list, or simply an '*' for any msn." },
+	{ "cc_request_retention", MISDN_CFG_CC_REQUEST_RETENTION, MISDN_CTYPE_BOOL, "yes", NONE,
+		"Enable/Disable call-completion request retention support (ptp)." },
 };
 
 static const struct misdn_cfg_spec gen_spec[] = {
