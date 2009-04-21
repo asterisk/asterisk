@@ -147,6 +147,12 @@
 /* Define to 1 if you have the `gettimeofday' function. */
 #undef HAVE_GETTIMEOFDAY
 
+/* Define to 1 if your glob function supports GLOB_BRACE option. */
+#undef HAVE_GLOB_BRACE
+
+/* Define to 1 if your glob function supports GLOB_NOMAGIC option. */
+#undef HAVE_GLOB_NOMAGIC
+
 /* Define to indicate the ${GNUTLS_DESCRIP} library */
 #undef HAVE_GNUTLS
 

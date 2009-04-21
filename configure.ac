@@ -432,6 +432,24 @@ AC_LINK_IFELSE(
 	AC_MSG_RESULT(no)
 )
 
+AC_MSG_CHECKING(for GLOB_NOMAGIC)
+AC_LINK_IFELSE(
+	AC_LANG_PROGRAM([#include <glob.h>],
+			[int foo = GLOB_NOMAGIC;]),
+	AC_MSG_RESULT(yes)
+	AC_DEFINE([HAVE_GLOB_NOMAGIC], 1, [Define to 1 if your glob function supports GLOB_NOMAGIC option.]),
+	AC_MSG_RESULT(no)
+)
+
+AC_MSG_CHECKING(for GLOB_BRACE)
+AC_LINK_IFELSE(
+	AC_LANG_PROGRAM([#include <glob.h>],
+			[int foo = GLOB_BRACE;]),
+	AC_MSG_RESULT(yes)
+	AC_DEFINE([HAVE_GLOB_BRACE], 1, [Define to 1 if your glob function supports GLOB_BRACE option.]),
+	AC_MSG_RESULT(no)
+)
+
 AC_MSG_CHECKING(for IP_MTU_DISCOVER)
 AC_LINK_IFELSE(
 	AC_LANG_PROGRAM([#include <netinet/in.h>],

@@ -128,4 +128,15 @@ typedef unsigned int	uint;
 typedef unsigned long long uint64_t;
 #endif
 
+/* glob compat stuff */ 
+#if defined(__Darwin__) || defined(__CYGWIN__)
+#define GLOB_ABORTED GLOB_ABEND
+#endif
+
+#if !defined(HAVE_GLOB_NOMAGIC) || !defined(HAVE_GLOB_BRACE)
+#define MY_GLOB_FLAGS   GLOB_NOCHECK
+#else
+#define MY_GLOB_FLAGS   (GLOB_NOMAGIC | GLOB_BRACE)
+#endif
+
 #endif
