@@ -2015,7 +2015,7 @@ struct ast_group_info {
 	struct ast_channel *chan;
 	char *category;
 	char *group;
-	AST_LIST_ENTRY(ast_group_info) list;
+	AST_LIST_ENTRY(ast_group_info) group_list;
 };
 
 

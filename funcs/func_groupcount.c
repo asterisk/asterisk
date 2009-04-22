@@ -107,7 +107,7 @@ static int group_count_function_read(struct ast_channel *chan, const char *cmd,
 		struct ast_group_info *gi = NULL;
 
 		ast_app_group_list_rdlock();
-		for (gi = ast_app_group_list_head(); gi; gi = AST_LIST_NEXT(gi, list)) {
+		for (gi = ast_app_group_list_head(); gi; gi = AST_LIST_NEXT(gi, group_list)) {
 			if (gi->chan != chan)
 				continue;
 			if (ast_strlen_zero(category) || (!ast_strlen_zero(gi->category) && !strcasecmp(gi->category, category)))
@@ -170,7 +170,7 @@ static int group_function_read(struct ast_channel *chan, const char *cmd,
 	
 	ast_app_group_list_rdlock();
 	
-	for (gi = ast_app_group_list_head(); gi; gi = AST_LIST_NEXT(gi, list)) {
+	for (gi = ast_app_group_list_head(); gi; gi = AST_LIST_NEXT(gi, group_list)) {
 		if (gi->chan != chan)
 			continue;
 		if (ast_strlen_zero(data))
@@ -225,7 +225,7 @@ static int group_list_function_read(struct ast_channel *chan, const char *cmd,
 
 	ast_app_group_list_rdlock();
 
-	for (gi = ast_app_group_list_head(); gi; gi = AST_LIST_NEXT(gi, list)) {
+	for (gi = ast_app_group_list_head(); gi; gi = AST_LIST_NEXT(gi, group_list)) {
 		if (gi->chan != chan)
 			continue;
 		if (!ast_strlen_zero(tmp1)) {

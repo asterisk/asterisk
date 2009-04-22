@@ -1439,7 +1439,7 @@ static char *group_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 			ast_cli(a->fd, FORMAT_STRING, gi->chan->name, gi->group, (ast_strlen_zero(gi->category) ? "(default)" : gi->category));
 			numchans++;
 		}
-		gi = AST_LIST_NEXT(gi, list);
+		gi = AST_LIST_NEXT(gi, group_list);
 	}
 	
 	ast_app_group_list_unlock();
