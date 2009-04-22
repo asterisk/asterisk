@@ -69,6 +69,7 @@ typedef struct call_options {
 	int				nat;
 	int				tunnelOptions;
 	int				holdHandling;
+	int				autoframing; /*!< turn on to override local settings with remote framing length */
 	struct ast_codec_pref	prefs;
 } call_options_t;
 
