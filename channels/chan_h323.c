@@ -1256,6 +1256,8 @@ static int update_common_options(struct ast_variable *v, struct call_options *op
 
 	if (!strcasecmp(v->name, "allow")) {
 		ast_parse_allow_disallow(&options->prefs, &options->capability, v->value, 1);
+	} else if (!strcasecmp(v->name, "autoframing")) {
+		options->autoframing = ast_true(v->value);
 	} else if (!strcasecmp(v->name, "disallow")) {
 		ast_parse_allow_disallow(&options->prefs, &options->capability, v->value, 0);
 	} else if (!strcasecmp(v->name, "dtmfmode")) {
@@ -2409,8 +2411,15 @@ static void set_peer_capabilities(unsigned call_reference, const char *token, in
 				ast_log(LOG_DEBUG, "prefs[%d]=%s:%d\n", i, (prefs->order[i] ? ast_getformatname(1 << (prefs->order[i]-1)) : "<none>"), prefs->framing[i]);
 			}
 		}
-		if (pvt->rtp)
-			ast_rtp_codec_setpref(pvt->rtp, &pvt->peer_prefs);
+		if (pvt->rtp) {
+			if (pvt->options.autoframing) {
+				ast_log(LOG_DEBUG, "Autoframing option set, using peer's packetization settings\n");
+				ast_rtp_codec_setpref(pvt->rtp, &pvt->peer_prefs);
+			} else {
+				ast_log(LOG_DEBUG, "Autoframing option not set, using ignoring peer's packetization settings\n");
+				ast_rtp_codec_setpref(pvt->rtp, &pvt->options.prefs);
+			}
+		}
 	}
 	ast_mutex_unlock(&pvt->lock);
 }
@@ -2434,8 +2443,15 @@ static void set_local_capabilities(unsigned call_reference, const char *token)
 	ast_mutex_unlock(&pvt->lock);
 	h323_set_capabilities(token, capability, dtmfmode, &prefs, pref_codec);
 
-	if (h323debug)
+	if (h323debug) {
+		int i;
+		for (i = 0; i < 32; i++) {
+			if (!prefs.order[i])
+				break;
+			ast_log(LOG_DEBUG, "local prefs[%d]=%s:%d\n", i, (prefs.order[i] ? ast_getformatname(1 << (prefs.order[i]-1)) : "<none>"), prefs.framing[i]);
+		}
 		ast_log(LOG_DEBUG, "Capabilities for connection %s is set\n", token);
+	}
 }
 
 static void *do_monitor(void *data)
@@ -2816,6 +2832,7 @@ static int reload_config(int is_reload)
 	global_options.dtmfmode = H323_DTMF_RFC2833;
 	global_options.capability = GLOBAL_CAPABILITY;
 	global_options.bridge = 1;		/* Do native bridging by default */
+	global_options.autoframing = 0;
 	strcpy(default_context, "default");
 	h323_signalling_port = 1720;
 	gatekeeper_disable = 1;
