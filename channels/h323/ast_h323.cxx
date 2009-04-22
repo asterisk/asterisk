@@ -1773,8 +1773,6 @@ PBoolean MyH323Connection::OnReceivedCapabilitySet(const H323Capabilities & remo
 						format = ast_codec_pref_getsize(&prefs, ast_codec);
 						if ((ast_codec == AST_FORMAT_ALAW) || (ast_codec == AST_FORMAT_ULAW)) {
 							ms = remoteCapabilities[i].GetTxFramesInPacket();
-							if (ms > 60)
-								ms = format.cur_ms;
 						} else
 							ms = remoteCapabilities[i].GetTxFramesInPacket() * format.inc_ms;
 						ast_codec_pref_setsize(&prefs, ast_codec, ms);
@@ -1900,7 +1898,6 @@ void MyH323Connection::SetCapabilities(int caps, int dtmf_mode, void *_prefs, in
 	struct ast_codec_pref *prefs = (struct ast_codec_pref *)_prefs;
 	struct ast_format_list format;
 	int frames_per_packet;
-	int max_frames_per_packet;
 	H323Capability *cap;
 
 	localCapabilities.RemoveAll();
@@ -1925,9 +1922,9 @@ void MyH323Connection::SetCapabilities(int caps, int dtmf_mode, void *_prefs, in
 		if (!(caps & codec) || (alreadysent & codec) || !(codec & AST_FORMAT_AUDIO_MASK))
 			continue;
 		alreadysent |= codec;
+		/* format.cur_ms will be set to default if packetization is not explicitly set */
 		format = ast_codec_pref_getsize(prefs, codec);
 		frames_per_packet = (format.inc_ms ? format.cur_ms / format.inc_ms : format.cur_ms);
-		max_frames_per_packet = (format.inc_ms ? format.max_ms / format.inc_ms : 0);
 		switch(codec) {
 #if 0
 		case AST_FORMAT_SPEEX:
@@ -1947,43 +1944,35 @@ void MyH323Connection::SetCapabilities(int caps, int dtmf_mode, void *_prefs, in
 			AST_G729Capability *g729Cap;
 			lastcap = localCapabilities.SetCapability(0, 0, g729aCap = new AST_G729ACapability(frames_per_packet));
 			lastcap = localCapabilities.SetCapability(0, 0, g729Cap = new AST_G729Capability(frames_per_packet));
-			if (max_frames_per_packet) {
-				g729aCap->SetTxFramesInPacket(max_frames_per_packet);
-				g729Cap->SetTxFramesInPacket(max_frames_per_packet);
-			}
+			g729aCap->SetTxFramesInPacket(format.cur_ms);
+			g729Cap->SetTxFramesInPacket(format.cur_ms);
 			break;
 		case AST_FORMAT_G723_1:
 			AST_G7231Capability *g7231Cap;
 			lastcap = localCapabilities.SetCapability(0, 0, g7231Cap = new AST_G7231Capability(frames_per_packet, TRUE));
-			if (max_frames_per_packet)
-				g7231Cap->SetTxFramesInPacket(max_frames_per_packet);
+			g7231Cap->SetTxFramesInPacket(format.cur_ms);
 			lastcap = localCapabilities.SetCapability(0, 0, g7231Cap = new AST_G7231Capability(frames_per_packet, FALSE));
-			if (max_frames_per_packet)
-				g7231Cap->SetTxFramesInPacket(max_frames_per_packet);
+			g7231Cap->SetTxFramesInPacket(format.cur_ms);
 			break;
 		case AST_FORMAT_GSM:
 			AST_GSM0610Capability *gsmCap;
 			lastcap = localCapabilities.SetCapability(0, 0, gsmCap = new AST_GSM0610Capability(frames_per_packet));
-			if (max_frames_per_packet)
-				gsmCap->SetTxFramesInPacket(max_frames_per_packet);
+			gsmCap->SetTxFramesInPacket(format.cur_ms);
 			break;
 		case AST_FORMAT_ULAW:
 			AST_G711Capability *g711uCap;
 			lastcap = localCapabilities.SetCapability(0, 0, g711uCap = new AST_G711Capability(format.cur_ms, H323_G711Capability::muLaw));
-			if (format.max_ms)
-				g711uCap->SetTxFramesInPacket(format.max_ms);
+			g711uCap->SetTxFramesInPacket(format.cur_ms);
 			break;
 		case AST_FORMAT_ALAW:
 			AST_G711Capability *g711aCap;
 			lastcap = localCapabilities.SetCapability(0, 0, g711aCap = new AST_G711Capability(format.cur_ms, H323_G711Capability::ALaw));
-			if (format.max_ms)
-				g711aCap->SetTxFramesInPacket(format.max_ms);
+			g711aCap->SetTxFramesInPacket(format.cur_ms);
 			break;
 		case AST_FORMAT_G726_AAL2:
 			AST_CiscoG726Capability *g726Cap;
 			lastcap = localCapabilities.SetCapability(0, 0, g726Cap = new AST_CiscoG726Capability(frames_per_packet));
-			if (max_frames_per_packet)
-				g726Cap->SetTxFramesInPacket(max_frames_per_packet);
+			g726Cap->SetTxFramesInPacket(format.cur_ms);
 			break;
 		default:
 			alreadysent &= ~codec;
