@@ -716,6 +716,9 @@
    pthread.h */
 #undef HAVE_PTHREAD_RWLOCK_PREFER_WRITER_NP
 
+/* Define if your system has pthread_rwlock_timedwrlock() */
+#undef HAVE_PTHREAD_RWLOCK_TIMEDWRLOCK
+
 /* Define to 1 if the system has the type `ptrdiff_t'. */
 #undef HAVE_PTRDIFF_T
 
