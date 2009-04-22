@@ -2473,7 +2473,7 @@ static int unistim_do_senddigit(struct unistimsession *pte, char digit)
 	struct ast_frame f = { 0, };
 	struct unistim_subchannel *sub;
 	sub = pte->device->lines->subs[SUB_REAL];
-	if (!sub->owner) {
+	if (!sub->owner || sub->alreadygone) {
 		ast_log(LOG_WARNING, "Unable to find subchannel in dtmf senddigit\n");
 		return -1;
 	}
@@ -4223,8 +4223,8 @@ static int unistim_senddigit_end(struct ast_channel *ast, char digit, unsigned i
 
 	sub = pte->device->lines->subs[SUB_REAL];
 
-	if (!sub->owner) {
-		ast_log(LOG_WARNING, "Unable to find subchannel in dtmf senddigiti_end\n");
+	if (!sub->owner || sub->alreadygone) {
+		ast_log(LOG_WARNING, "Unable to find subchannel in dtmf senddigit_end\n");
 		return -1;
 	}
 
