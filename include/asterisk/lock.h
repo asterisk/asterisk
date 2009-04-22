@@ -50,6 +50,9 @@
 #include <time.h>
 #include <sys/param.h>
 
+#ifndef HAVE_PTHREAD_RWLOCK_TIMEDWRLOCK
+#include "asterisk/time.h"
+#endif
 #include "asterisk/logger.h"
 
 /* internal macro to profile mutexes. Only computes the delay on
@@ -1018,7 +1021,23 @@ static inline int _ast_rwlock_timedrdlock(ast_rwlock_t *lock, const char *name,
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 	
 	ast_store_lock_info(AST_RDLOCK, file, line, func, name, lock);
+#ifdef HAVE_PTHREAD_RWLOCK_TIMEDWRLOCK
 	res = pthread_rwlock_timedrdlock(lock, abs_timeout);
+#else
+	do {
+		struct timeval _start = ast_tvnow(), _diff;
+		for (;;) {
+			if (!(res = pthread_rwlock_tryrdlock(&t->lock))) {
+				break;
+			}
+			_diff = ast_tvsub(ast_tvnow(), _start);
+			if (_diff.tv_sec > abs_timeout->tv_sec || (_diff.tv_sec == abs_timeout->tv_sec && _diff.tv_usec * 1000 > abs_timeout->tv_nsec)) {
+				break;
+			}
+			usleep(1);
+		}
+	} while (0);
+#endif
 	if (!res)
 		ast_mark_lock_acquired(lock);
 	else
@@ -1051,7 +1070,23 @@ static inline int _ast_rwlock_timedwrlock(ast_rwlock_t *lock, const char *name,
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
 	ast_store_lock_info(AST_WRLOCK, file, line, func, name, lock);
+#ifdef HAVE_PTHREAD_RWLOCK_TIMEDWRLOCK
 	res = pthread_rwlock_timedwrlock(lock, abs_timeout);
+#else
+	do {
+		struct timeval _start = ast_tvnow(), _diff;
+		for (;;) {
+			if (!(res = pthread_rwlock_trywrlock(&t->lock))) {
+				break;
+			}
+			_diff = ast_tvsub(ast_tvnow(), _start);
+			if (_diff.tv_sec > abs_timeout->tv_sec || (_diff.tv_sec == abs_timeout->tv_sec && _diff.tv_usec * 1000 > abs_timeout->tv_nsec)) {
+				break;
+			}
+			usleep(1);
+		}
+	} while (0);
+#endif
 	if (!res)
 		ast_mark_lock_acquired(lock);
 	else
@@ -1160,7 +1195,23 @@ static inline int ast_rwlock_rdlock(ast_rwlock_t *prwlock)
 
 static inline int ast_rwlock_timedrdlock(ast_rwlock_t *prwlock, const struct timespec *abs_timeout)
 {
-	return pthread_rwlock_timedrdlock(prwlock, abs_timeout);
+	int res;
+#ifdef HAVE_PTHREAD_RWLOCK_TIMEDWRLOCK
+	res = pthread_rwlock_timedrdlock(prwlock, abs_timeout);
+#else
+	struct timeval _start = ast_tvnow(), _diff;
+	for (;;) {
+		if (!(res = pthread_rwlock_tryrdlock(prwlock))) {
+			break;
+		}
+		_diff = ast_tvsub(ast_tvnow(), _start);
+		if (_diff.tv_sec > abs_timeout->tv_sec || (_diff.tv_sec == abs_timeout->tv_sec && _diff.tv_usec * 1000 > abs_timeout->tv_nsec)) {
+			break;
+		}
+		usleep(1);
+	}
+#endif
+	return res;
 }
 
 static inline int ast_rwlock_tryrdlock(ast_rwlock_t *prwlock)
@@ -1175,7 +1226,25 @@ static inline int ast_rwlock_wrlock(ast_rwlock_t *prwlock)
 
 static inline int ast_rwlock_timedwrlock(ast_rwlock_t *prwlock, const struct timespec *abs_timeout)
 {
-	return pthread_rwlock_timedwrlock(prwlock, abs_timeout);
+	int res;
+#ifdef HAVE_PTHREAD_RWLOCK_TIMEDWRLOCK
+	res = pthread_rwlock_timedwrlock(prwlock, abs_timeout);
+#else
+	do {
+		struct timeval _start = ast_tvnow(), _diff;
+		for (;;) {
+			if (!(res = pthread_rwlock_trywrlock(prwlock))) {
+				break;
+			}
+			_diff = ast_tvsub(ast_tvnow(), _start);
+			if (_diff.tv_sec > abs_timeout->tv_sec || (_diff.tv_sec == abs_timeout->tv_sec && _diff.tv_usec * 1000 > abs_timeout->tv_nsec)) {
+				break;
+			}
+			usleep(1);
+		}
+	} while (0);
+#endif
+	return res;
 }
 
 static inline int ast_rwlock_trywrlock(ast_rwlock_t *prwlock)

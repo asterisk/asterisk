@@ -325,6 +325,27 @@ AC_LINK_IFELSE(
         AC_MSG_RESULT(no)
 )
 
+AC_MSG_CHECKING(for pthread_rwlock_timedwrlock() in pthread.h)
+saved_LDFLAGS="${LDFLAGS}"
+LDFLAGS="${LDFLAGS} -lpthread"
+AC_LINK_IFELSE(
+  [AC_LANG_PROGRAM(
+    [#include <pthread.h>
+     #include <time.h>],
+    [pthread_rwlock_t foo; struct timespec bar; pthread_rwlock_timedwrlock(&foo, &bar)])
+  ],[
+    AC_MSG_RESULT(yes)
+    ac_cv_pthread_rwlock_timedwrlock="yes"
+  ],[
+    AC_MSG_RESULT(no)
+    ac_cv_pthread_rwlock_timedwrlock="no"
+  ]
+)
+LDFLAGS="${saved_LDFLAGS}"
+if test "${ac_cv_pthread_rwlock_timedwrlock}" = "yes"; then
+  AC_DEFINE([HAVE_PTHREAD_RWLOCK_TIMEDWRLOCK], 1, [Define if your system has pthread_rwlock_timedwrlock()])
+fi
+
 AC_MSG_CHECKING(for compiler atomic operations)
 AC_LINK_IFELSE(
 AC_LANG_PROGRAM([], [int foo1; int foo2 = __sync_fetch_and_add(&foo1, 1);]),
