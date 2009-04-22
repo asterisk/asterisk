@@ -3063,10 +3063,10 @@ int manage_parkinglot(struct ast_parkinglot *curlot, fd_set *rfds, fd_set *efds,
 
 					if (dialfeatures) {
 						char buf[MAX_DIAL_FEATURE_OPTIONS] = {0,};
-						snprintf(returnexten, sizeof(returnexten), "%s|30|%s", peername, callback_dialoptions(&(dialfeatures->features_callee), &(dialfeatures->features_caller), buf, sizeof(buf)));
+						snprintf(returnexten, sizeof(returnexten), "%s,30,%s", peername, callback_dialoptions(&(dialfeatures->features_callee), &(dialfeatures->features_caller), buf, sizeof(buf)));
 					} else { /* Existing default */
 						ast_log(LOG_WARNING, "Dialfeatures not found on %s, using default!\n", chan->name);
-						snprintf(returnexten, sizeof(returnexten), "%s|30|t", peername);
+						snprintf(returnexten, sizeof(returnexten), "%s,30,t", peername);
 					}
 
 					ast_add_extension2(con, 1, peername_flat, 1, NULL, NULL, "Dial", ast_strdup(returnexten), ast_free_ptr, registrar);
