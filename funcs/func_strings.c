@@ -271,6 +271,76 @@ AST_THREADSTORAGE(result_buf);
 			<para>Example: ${QUOTE(ab"c"de)} will return "abcde"</para>
 		</description>
 	</function>
+	<function name="SHIFT" language="en_US">
+		<synopsis>
+			Removes and returns the first item off of a variable containing delimited text
+		</synopsis>
+		<syntax>
+			<parameter name="varname" required="true" />
+			<parameter name="delimiter" required="false" default="," />
+		</syntax>
+		<description>
+			<para>Example:</para>
+			<para>exten => s,1,Set(array=one,two,three)</para>
+			<para>exten => s,n,While($[${SET(var=${SHIFT(array)})}])</para>
+			<para>exten => s,n,NoOp(var is ${var})</para>
+			<para>exten => s,n,EndWhile</para>
+			<para>This would iterate over each value in array, left to right, and
+				would result in NoOp(var is one), NoOp(var is two), and
+				NoOp(var is three) being executed.
+			</para>
+		</description>
+	</function>	
+	<function name="POP" language="en_US">
+		<synopsis>
+			Removes and returns the last item off of a variable containing delimited text
+		</synopsis>
+		<syntax>
+			<parameter name="varname" required="true" />
+			<parameter name="delimiter" required="false" default="," />
+		</syntax>
+		<description>
+			<para>Example:</para>
+			<para>exten => s,1,Set(array=one,two,three)</para>
+			<para>exten => s,n,While($[${SET(var=${POP(array)})}])</para>
+			<para>exten => s,n,NoOp(var is ${var})</para>
+			<para>exten => s,n,EndWhile</para>
+			<para>This would iterate over each value in array, right to left, and
+				would result in NoOp(var is three), NoOp(var is two), and
+				NoOp(var is one) being executed.
+			</para>
+		</description>
+	</function>	
+	<function name="PUSH" language="en_US">
+		<synopsis>
+			Appends one or more values to the end of a variable containing delimited text
+		</synopsis>
+		<syntax>
+			<parameter name="varname" required="true" />
+			<parameter name="delimiter" required="false" default="," />
+		</syntax>
+		<description>
+			<para>Example: Set(PUSH(array)=one,two,three) would append one,
+				two, and three to the end of the values stored in the variable
+				"array".
+			</para>
+		</description>
+	</function>
+	<function name="UNSHIFT" language="en_US">
+		<synopsis>
+			Inserts one or more values to the beginning of a variable containing delimited text
+		</synopsis>
+		<syntax>
+			<parameter name="varname" required="true" />
+			<parameter name="delimiter" required="false" default="," />
+		</syntax>
+		<description>
+			<para>Example: Set(UNSHIFT(array)=one,two,three) would insert one,
+				two, and three before the values stored in the variable
+				"array".
+			</para>
+		</description>
+	</function>
  ***/
 
 static int function_fieldqty(struct ast_channel *chan, const char *cmd,
@@ -918,6 +988,140 @@ static struct ast_custom_function tolower_function = {
 	.read = string_tolower,
 };
 
+static int array_remove(struct ast_channel *chan, const char *cmd, char *var, char *buf, size_t len, int beginning)
+{
+	const char *tmp;
+	char *after, *before;
+	char *(*search_func)(const char *s, int c) = beginning ? strchr : strrchr;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(var);
+		AST_APP_ARG(delimiter);
+	);
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "%s requires a channel\n", cmd);
+		return -1;
+	}
+
+	AST_STANDARD_APP_ARGS(args, var);
+
+	if (ast_strlen_zero(args.var)) {
+		ast_log(LOG_WARNING, "%s requires a channel variable name\n", cmd);
+		return -1;
+	}
+
+	if (args.delimiter && strlen(args.delimiter) != 1) {
+		ast_log(LOG_WARNING, "%s delimeters should be a single character\n", cmd);
+		return -1;
+	}
+
+	ast_channel_lock(chan);
+	if (ast_strlen_zero(tmp = pbx_builtin_getvar_helper(chan, args.var))) {
+		ast_channel_unlock(chan);
+		return 0;
+	}
+
+	before = ast_strdupa(tmp);
+	ast_channel_unlock(chan);
+
+	/* Only one entry in array */
+	if (!(after = search_func(before, S_OR(args.delimiter, ",")[0]))) {
+		ast_copy_string(buf, before, len);
+		pbx_builtin_setvar_helper(chan, args.var, "");
+	} else {
+		*after++ = '\0';
+		ast_copy_string(buf, beginning ? before : after, len);
+		pbx_builtin_setvar_helper(chan, args.var, beginning ? after : before);
+	}
+
+	return 0;
+
+}
+
+static int shift(struct ast_channel *chan, const char *cmd, char *var, char *buf, size_t len)
+{
+	return array_remove(chan, cmd, var, buf, len, 1);
+}
+static struct ast_custom_function shift_function = {
+	.name = "SHIFT",
+	.read = shift,
+};
+
+static int pop(struct ast_channel *chan, const char *cmd, char *var, char *buf, size_t len)
+{
+	return array_remove(chan, cmd, var, buf, len, 0);
+}
+
+static struct ast_custom_function pop_function = {
+	.name = "POP",
+	.read = pop,
+};
+
+static int array_insert(struct ast_channel *chan, const char *cmd, char *var, const char *val, int beginning)
+{
+	const char *tmp;
+	struct ast_str *buf;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(var);
+		AST_APP_ARG(delimiter);
+	);
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "%s requires a channel\n", cmd);
+		return -1;
+	}
+
+	AST_STANDARD_APP_ARGS(args, var);
+
+	if (ast_strlen_zero(args.var) || ast_strlen_zero(val)) {
+		ast_log(LOG_WARNING, "%s requires a variable, and at least one value\n", cmd);
+		return -1;
+	}
+
+	if (args.delimiter && strlen(args.delimiter) != 1) {
+		ast_log(LOG_WARNING, "%s delimeters should be a single character\n", cmd);
+		return -1;
+	}
+
+	if (!(buf = ast_str_create(32))) {
+		ast_log(LOG_ERROR, "Unable to allocate memory for buffer!\n");
+		return -1;
+	}
+
+	ast_channel_lock(chan);
+	if (!(tmp = pbx_builtin_getvar_helper(chan, args.var))) {
+		ast_str_set(&buf, 0, "%s", val);
+	} else {
+		ast_str_append(&buf, 0, "%s%s%s", beginning ? val : tmp, S_OR(args.delimiter, ","), beginning ? tmp : val);
+	}
+	ast_channel_unlock(chan);
+
+	pbx_builtin_setvar_helper(chan, args.var, ast_str_buffer(buf));
+	ast_free(buf);
+
+	return 0;
+}
+
+static int push(struct ast_channel *chan, const char *cmd, char *var, const char *val)
+{
+	return array_insert(chan, cmd, var, val, 0);
+}
+
+static struct ast_custom_function push_function = {
+	.name = "PUSH",
+	.write = push,
+};
+
+static int unshift(struct ast_channel *chan, const char *cmd, char *var, const char *val)
+{
+	return array_insert(chan, cmd, var, val, 1);
+}
+
+static struct ast_custom_function unshift_function = {
+	.name = "UNSHIFT",
+	.write = unshift,
+};
+
 static int unload_module(void)
 {
 	int res = 0;
@@ -938,6 +1142,10 @@ static int unload_module(void)
 	res |= ast_unregister_application(app_clearhash);
 	res |= ast_custom_function_unregister(&toupper_function);
 	res |= ast_custom_function_unregister(&tolower_function);
+	res |= ast_custom_function_unregister(&shift_function);
+	res |= ast_custom_function_unregister(&pop_function);
+	res |= ast_custom_function_unregister(&push_function);
+	res |= ast_custom_function_unregister(&unshift_function);
 
 	return res;
 }
@@ -962,6 +1170,10 @@ static int load_module(void)
 	res |= ast_register_application_xml(app_clearhash, exec_clearhash);
 	res |= ast_custom_function_register(&toupper_function);
 	res |= ast_custom_function_register(&tolower_function);
+	res |= ast_custom_function_register(&shift_function);
+	res |= ast_custom_function_register(&pop_function);
+	res |= ast_custom_function_register(&push_function);
+	res |= ast_custom_function_register(&unshift_function);
 
 	return res;
 }
