@@ -590,13 +590,10 @@ static int local_hangup(struct ast_channel *ast)
 		   let local_queue do it. */
 		if (glaredetect)
 			ast_set_flag(p, LOCAL_CANCEL_QUEUE);
-		ast_mutex_unlock(&p->lock);
 		/* Remove from list */
 		AST_LIST_LOCK(&locals);
 		AST_LIST_REMOVE(&locals, p, list);
 		AST_LIST_UNLOCK(&locals);
-		/* Grab / release lock just in case */
-		ast_mutex_lock(&p->lock);
 		ast_mutex_unlock(&p->lock);
 		/* And destroy */
 		if (!glaredetect) {
