@@ -1310,7 +1310,7 @@ static int insert_penaltychange (const char *list_name, const char *content, con
 	return 0;
 }
 
-static void parse_empty_options(const char *value, enum empty_conditions *empty)
+static void parse_empty_options(const char *value, enum empty_conditions *empty, int joinempty)
 {
 	char *value_copy = ast_strdupa(value);
 	char *option = NULL;
@@ -1335,10 +1335,12 @@ static void parse_empty_options(const char *value, enum empty_conditions *empty)
 			*empty = (QUEUE_EMPTY_PENALTY | QUEUE_EMPTY_INVALID);
 		} else if (!strcasecmp(option, "strict")) {
 			*empty = (QUEUE_EMPTY_PENALTY | QUEUE_EMPTY_INVALID | QUEUE_EMPTY_PAUSED | QUEUE_EMPTY_UNAVAILABLE);
-		} else if (ast_false(option)) {
+		} else if ((ast_false(option) && joinempty) || (ast_true(option) && !joinempty)) {
 			*empty = (QUEUE_EMPTY_PENALTY | QUEUE_EMPTY_INVALID | QUEUE_EMPTY_PAUSED);
-		} else if (ast_true(option)) {
+		} else if ((ast_false(option) && !joinempty) || (ast_true(option) && joinempty)) {
 			*empty = 0;
+		} else {
+			ast_log(LOG_WARNING, "Unknown option %s for '%s'\n", option, joinempty ? "joinempty" : "leavewhenempty");
 		}
 	}
 }
@@ -1503,9 +1505,9 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		}
 		q->strategy = strategy;
 	} else if (!strcasecmp(param, "joinempty")) {
-		parse_empty_options(val, &q->joinempty);
+		parse_empty_options(val, &q->joinempty, 1);
 	} else if (!strcasecmp(param, "leavewhenempty")) {
-		parse_empty_options(val, &q->leavewhenempty);
+		parse_empty_options(val, &q->leavewhenempty, 0);
 	} else if (!strcasecmp(param, "eventmemberstatus")) {
 		q->maskmemberstatus = !ast_true(val);
 	} else if (!strcasecmp(param, "eventwhencalled")) {
