@@ -1047,12 +1047,12 @@ static inline int _ast_rwlock_timedrdlock(ast_rwlock_t *lock, const char *name,
 
 	ast_store_lock_info(AST_RDLOCK, file, line, func, name, lock);
 #ifdef HAVE_PTHREAD_RWLOCK_TIMEDWRLOCK
-	res = pthread_rwlock_timedrdlock(&t->lock, abs_timeout);
+	res = pthread_rwlock_timedrdlock(lock, abs_timeout);
 #else
 	do {
 		struct timeval _start = ast_tvnow(), _diff;
 		for (;;) {
-			if (!(res = pthread_rwlock_tryrdlock(&t->lock))) {
+			if (!(res = pthread_rwlock_tryrdlock(lock))) {
 				break;
 			}
 			_diff = ast_tvsub(ast_tvnow(), _start);
@@ -1093,12 +1093,12 @@ static inline int _ast_rwlock_timedwrlock(ast_rwlock_t *lock, const char *name,
 
 	ast_store_lock_info(AST_WRLOCK, file, line, func, name, lock);
 #ifdef HAVE_PTHREAD_RWLOCK_TIMEDWRLOCK
-	res = pthread_rwlock_timedwrlock(&t->lock, abs_timeout);
+	res = pthread_rwlock_timedwrlock(lock, abs_timeout);
 #else
 	do {
 		struct timeval _start = ast_tvnow(), _diff;
 		for (;;) {
-			if (!(res = pthread_rwlock_trywrlock(&t->lock))) {
+			if (!(res = pthread_rwlock_trywrlock(lock))) {
 				break;
 			}
 			_diff = ast_tvsub(ast_tvnow(), _start);
