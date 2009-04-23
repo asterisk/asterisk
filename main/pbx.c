@@ -1031,7 +1031,7 @@ static int hashtab_compare_exten_labels(const void *ah_a, const void *ah_b)
 {
 	const struct ast_exten *ac = ah_a;
 	const struct ast_exten *bc = ah_b;
-	return strcmp(ac->label, bc->label);
+	return strcmp(S_OR(ac->label, ""), S_OR(bc->label, ""));
 }
 
 unsigned int ast_hashtab_hash_contexts(const void *obj)
@@ -1059,7 +1059,7 @@ static unsigned int hashtab_hash_priority(const void *obj)
 static unsigned int hashtab_hash_labels(const void *obj)
 {
 	const struct ast_exten *ac = obj;
-	return ast_hashtab_hash_string(ac->label);
+	return ast_hashtab_hash_string(S_OR(ac->label, ""));
 }
 
 
