@@ -282,7 +282,7 @@ AST_THREADSTORAGE(result_buf);
 		<description>
 			<para>Example:</para>
 			<para>exten => s,1,Set(array=one,two,three)</para>
-			<para>exten => s,n,While($[${SET(var=${SHIFT(array)})}])</para>
+			<para>exten => s,n,While($["${SET(var=${SHIFT(array)})}" != ""])</para>
 			<para>exten => s,n,NoOp(var is ${var})</para>
 			<para>exten => s,n,EndWhile</para>
 			<para>This would iterate over each value in array, left to right, and
@@ -302,7 +302,7 @@ AST_THREADSTORAGE(result_buf);
 		<description>
 			<para>Example:</para>
 			<para>exten => s,1,Set(array=one,two,three)</para>
-			<para>exten => s,n,While($[${SET(var=${POP(array)})}])</para>
+			<para>exten => s,n,While($["${SET(var=${POP(array)})}" != ""])</para>
 			<para>exten => s,n,NoOp(var is ${var})</para>
 			<para>exten => s,n,EndWhile</para>
 			<para>This would iterate over each value in array, right to left, and
