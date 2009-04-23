@@ -17,14 +17,14 @@
  */
 
 /*!
- * \file 
+ * \file
  * \brief http server for AMI access
  *
  * \author Mark Spencer <markster@digium.com>
  *
  * This program implements a tiny http server
- * and was inspired by micro-httpd by Jef Poskanzer 
- * 
+ * and was inspired by micro-httpd by Jef Poskanzer
+ *
  * \ref AstHTTP - AMI over the http protocol
  */
 
@@ -98,6 +98,7 @@ static struct {
 	const char *mtype;
 } mimetypes[] = {
 	{ "png", "image/png" },
+	{ "xml", "text/xml" },
 	{ "jpg", "image/jpeg" },
 	{ "js", "application/x-javascript" },
 	{ "wav", "audio/x-wav" },
@@ -115,7 +116,23 @@ struct http_uri_redirect {
 
 static AST_RWLIST_HEAD_STATIC(uri_redirects, http_uri_redirect);
 
-static const char *ftype2mtype(const char *ftype, char *wkspace, int wkspacelen)
+const struct ast_cfhttp_methods_text {
+	enum ast_http_method method;
+	const char text[];
+} ast_http_methods_text[] = {
+	{ AST_HTTP_UNKNOWN,     "UNKNOWN" },
+	{ AST_HTTP_GET,         "GET" },
+	{ AST_HTTP_POST,        "POST" },
+	{ AST_HTTP_HEAD,        "HEAD" },
+	{ AST_HTTP_PUT,         "PUT" },
+};
+
+const char *ast_get_http_method(enum ast_http_method method)
+{
+	return ast_http_methods_text[method].text;
+}
+
+const char *ast_http_ftype2mtype(const char *ftype)
 {
 	int x;
 
@@ -126,21 +143,24 @@ static const char *ftype2mtype(const char *ftype, char *wkspace, int wkspacelen)
 			}
 		}
 	}
-
-	snprintf(wkspace, wkspacelen, "text/%s", S_OR(ftype, "plain"));
-
-	return wkspace;
+	return NULL;
 }
 
-static uint32_t manid_from_vars(struct ast_variable *sid) {
-	uint32_t mngid;
+uint32_t ast_http_manid_from_vars(struct ast_variable *headers)
+{
+	uint32_t mngid = 0;
+	struct ast_variable *v, *cookies;
 
-	while (sid && strcmp(sid->name, "mansession_id"))
-		sid = sid->next;
-	
-	if (!sid || sscanf(sid->value, "%x", &mngid) != 1)
-		return 0;
-	
+	cookies = ast_http_get_cookies(headers);
+	for (v = cookies; v; v = v->next) {
+		if (!strcasecmp(v->name, "mansession_id")) {
+			sscanf(v->value, "%x", &mngid);
+			break;
+		}
+	}
+	if (cookies) {
+		ast_variables_destroy(cookies);
+	}
 	return mngid;
 }
 
@@ -151,20 +171,31 @@ void ast_http_prefix(char *buf, int len)
 	}
 }
 
-static struct ast_str *static_callback(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *vars, struct ast_variable *headers, int *status, char **title, int *contentlength)
+static int static_callback(struct ast_tcptls_session_instance *ser,
+	const struct ast_http_uri *urih, const char *uri,
+	enum ast_http_method method, struct ast_variable *get_vars,
+	struct ast_variable *headers)
 {
 	char *path;
-	char *ftype;
+	const char *ftype;
 	const char *mtype;
 	char wkspace[80];
 	struct stat st;
 	int len;
 	int fd;
-	struct timeval now = ast_tvnow();
-	char buf[256];
+	struct ast_str *http_header;
+	struct timeval tv;
 	struct ast_tm tm;
+	char timebuf[80], etag[23];
+	struct ast_variable *v;
+	int not_modified = 0;
 
-	/* Yuck.  I'm not really sold on this, but if you don't deliver static content it makes your configuration 
+	if (method != AST_HTTP_GET && method != AST_HTTP_HEAD) {
+		ast_http_error(ser, 501, "Not Implemented", "Attempt to use unimplemented / unsupported method");
+		return -1;
+	}
+
+	/* Yuck.  I'm not really sold on this, but if you don't deliver static content it makes your configuration
 	   substantially more challenging, but this seems like a rather irritating feature creep on Asterisk. */
 	if (!enablestatic || ast_strlen_zero(uri)) {
 		goto out403;
@@ -178,18 +209,20 @@ static struct ast_str *static_callback(struct ast_tcptls_session_instance *ser, 
 	if (strstr(uri, "/..")) {
 		goto out403;
 	}
-		
+
 	if ((ftype = strrchr(uri, '.'))) {
 		ftype++;
 	}
 
-	mtype = ftype2mtype(ftype, wkspace, sizeof(wkspace));
-	
+	if (!(mtype = ast_http_ftype2mtype(ftype))) {
+		snprintf(wkspace, sizeof(wkspace), "text/%s", S_OR(ftype, "plain"));
+	}
+
 	/* Cap maximum length */
 	if ((len = strlen(uri) + strlen(ast_config_AST_DATA_DIR) + strlen("/static-http/") + 5) > 1024) {
 		goto out403;
 	}
-		
+
 	path = alloca(len);
 	sprintf(path, "%s/static-http/%s", ast_config_AST_DATA_DIR, uri);
 	if (stat(path, &st)) {
@@ -198,142 +231,275 @@ static struct ast_str *static_callback(struct ast_tcptls_session_instance *ser, 
 
 	if (S_ISDIR(st.st_mode)) {
 		goto out404;
-	}	
+	}
 
-	if ((fd = open(path, O_RDONLY)) < 0) {
+	fd = open(path, O_RDONLY);
+	if (fd < 0) {
 		goto out403;
 	}
 
-	if (strstr(path, "/private/") && !astman_is_authed(manid_from_vars(vars))) {
+	if (strstr(path, "/private/") && !astman_is_authed(ast_http_manid_from_vars(headers))) {
 		goto out403;
 	}
 
-	ast_strftime(buf, sizeof(buf), "%a, %d %b %Y %H:%M:%S %Z", ast_localtime(&now, &tm, "GMT"));
-	fprintf(ser->f, "HTTP/1.1 200 OK\r\n"
-		"Server: Asterisk/%s\r\n"
-		"Date: %s\r\n"
-		"Connection: close\r\n"
-		"Cache-Control: private\r\n"
-		"Content-Length: %d\r\n"
-		"Content-type: %s\r\n\r\n",
-		ast_get_version(), buf, (int) st.st_size, mtype);
+	/* make "Etag:" http header value */
+	snprintf(etag, sizeof(etag), "\"%ld\"", (long)st.st_mtime);
 
-	while ((len = read(fd, buf, sizeof(buf))) > 0) {
-		if (fwrite(buf, 1, len, ser->f) != len) {
-			ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
+	/* make "Last-Modified:" http header value */
+	tv.tv_sec = st.st_mtime;
+	tv.tv_usec = 0;
+	ast_strftime(timebuf, sizeof(timebuf), "%a, %d %b %Y %H:%M:%S GMT", ast_localtime(&tv, &tm, "GMT"));
+
+	/* check received "If-None-Match" request header and Etag value for file */
+	for (v = headers; v; v = v->next) {
+		if (!strcasecmp(v->name, "If-None-Match")) {
+			if (!strcasecmp(v->value, etag)) {
+				not_modified = 1;
+			}
+			break;
 		}
 	}
 
-	close(fd);
+	if ( (http_header = ast_str_create(255)) == NULL) {
+		return -1;
+	}
 
-	return NULL;
+	ast_str_set(&http_header, 0, "Content-type: %s\r\n"
+		"ETag: %s\r\n"
+		"Last-Modified: %s",
+		mtype,
+		etag,
+		timebuf);
+
+	/* ast_http_send() frees http_header, so we don't need to do it before returning */
+	if (not_modified) {
+		ast_http_send(ser, method, 304, "Not Modified", http_header, NULL, 0, 1);
+	} else {
+		ast_http_send(ser, method, 200, NULL, http_header, NULL, fd, 1); /* static content flag is set */
+	}
+	close(fd);
+	return 0;
 
 out404:
-	return ast_http_error((*status = 404),
-			      (*title = ast_strdup("Not Found")),
-			       NULL, "The requested URL was not found on this server.");
+	ast_http_error(ser, 404, "Not Found", "The requested URL was not found on this server.");
+	return -1;
 
 out403:
-	return ast_http_error((*status = 403),
-			      (*title = ast_strdup("Access Denied")),
-			      NULL, "You do not have permission to access the requested URL.");
+	ast_http_error(ser, 403, "Access Denied", "You do not have permission to access the requested URL.");
+	return -1;
 }
 
-
-static struct ast_str *httpstatus_callback(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *vars, struct ast_variable *headers, int *status, char **title, int *contentlength)
+static int httpstatus_callback(struct ast_tcptls_session_instance *ser,
+	const struct ast_http_uri *urih, const char *uri,
+	enum ast_http_method method, struct ast_variable *get_vars,
+	struct ast_variable *headers)
 {
-	struct ast_str *out = ast_str_create(512);
-	struct ast_variable *v;
+	struct ast_str *out;
+	struct ast_variable *v, *cookies = NULL;
 
-	if (out == NULL) {
-		return out;
+	if (method != AST_HTTP_GET && method != AST_HTTP_HEAD) {
+		ast_http_error(ser, 501, "Not Implemented", "Attempt to use unimplemented / unsupported method");
+		return -1;
+	}
+
+	if ( (out = ast_str_create(512)) == NULL) {
+		return -1;
 	}
 
 	ast_str_append(&out, 0,
-		       "\r\n"
-		       "<title>Asterisk HTTP Status</title>\r\n"
-		       "<body bgcolor=\"#ffffff\">\r\n"
-		       "<table bgcolor=\"#f1f1f1\" align=\"center\"><tr><td bgcolor=\"#e0e0ff\" colspan=\"2\" width=\"500\">\r\n"
-		       "<h2>&nbsp;&nbsp;Asterisk&trade; HTTP Status</h2></td></tr>\r\n");
+		"<title>Asterisk HTTP Status</title>\r\n"
+		"<body bgcolor=\"#ffffff\">\r\n"
+		"<table bgcolor=\"#f1f1f1\" align=\"center\"><tr><td bgcolor=\"#e0e0ff\" colspan=\"2\" width=\"500\">\r\n"
+		"<h2>&nbsp;&nbsp;Asterisk&trade; HTTP Status</h2></td></tr>\r\n");
+
 	ast_str_append(&out, 0, "<tr><td><i>Prefix</i></td><td><b>%s</b></td></tr>\r\n", prefix);
 	ast_str_append(&out, 0, "<tr><td><i>Bind Address</i></td><td><b>%s</b></td></tr>\r\n",
 		       ast_inet_ntoa(http_desc.old_address.sin_addr));
 	ast_str_append(&out, 0, "<tr><td><i>Bind Port</i></td><td><b>%d</b></td></tr>\r\n",
 		       ntohs(http_desc.old_address.sin_port));
-
 	if (http_tls_cfg.enabled) {
 		ast_str_append(&out, 0, "<tr><td><i>SSL Bind Port</i></td><td><b>%d</b></td></tr>\r\n",
 			       ntohs(https_desc.old_address.sin_port));
 	}
-
+	ast_str_append(&out, 0, "<tr><td colspan=\"2\"><hr></td></tr>\r\n");
+	for (v = get_vars; v; v = v->next) {
+		ast_str_append(&out, 0, "<tr><td><i>Submitted GET Variable '%s'</i></td><td>%s</td></tr>\r\n", v->name, v->value);
+	}
 	ast_str_append(&out, 0, "<tr><td colspan=\"2\"><hr></td></tr>\r\n");
 
-	for (v = vars; v; v = v->next) {
-		if (strncasecmp(v->name, "cookie_", 7)) {
-			ast_str_append(&out, 0, "<tr><td><i>Submitted Variable '%s'</i></td><td>%s</td></tr>\r\n", v->name, v->value);
-		}
+	cookies = ast_http_get_cookies(headers);
+	for (v = cookies; v; v = v->next) {
+		ast_str_append(&out, 0, "<tr><td><i>Cookie '%s'</i></td><td>%s</td></tr>\r\n", v->name, v->value);
 	}
-
-	ast_str_append(&out, 0, "<tr><td colspan=\"2\"><hr></td></tr>\r\n");
-
-	for (v = vars; v; v = v->next) {
-		if (!strncasecmp(v->name, "cookie_", 7)) {
-			ast_str_append(&out, 0, "<tr><td><i>Cookie '%s'</i></td><td>%s</td></tr>\r\n", v->name, v->value);
-		}
-	}
+	ast_variables_destroy(cookies);
 
 	ast_str_append(&out, 0, "</table><center><font size=\"-1\"><i>Asterisk and Digium are registered trademarks of Digium, Inc.</i></font></center></body>\r\n");
-	return out;
+	ast_http_send(ser, method, 200, NULL, NULL, out, 0, 0);
+	return 0;
 }
 
 static struct ast_http_uri statusuri = {
 	.callback = httpstatus_callback,
 	.description = "Asterisk HTTP General Status",
 	.uri = "httpstatus",
-	.supports_get = 1,
+	.has_subtree = 0,
 	.data = NULL,
 	.key = __FILE__,
 };
-	
+
 static struct ast_http_uri staticuri = {
 	.callback = static_callback,
 	.description = "Asterisk HTTP Static Delivery",
 	.uri = "static",
 	.has_subtree = 1,
-	.static_content = 1,
-	.supports_get = 1,
 	.data = NULL,
 	.key= __FILE__,
 };
-	
-struct ast_str *ast_http_error(int status, const char *title, const char *extra_header, const char *text)
-{
-	struct ast_str *out = ast_str_create(512);
 
-	if (out == NULL) {
-		return out;
+
+/* send http/1.1 responce */
+/* free content variable and close socket*/
+void ast_http_send(struct ast_tcptls_session_instance *ser,
+	enum ast_http_method method, int status_code, const char *status_title,
+	struct ast_str *http_header, struct ast_str *out, const int fd,
+	unsigned int static_content)
+{
+	struct timeval now = ast_tvnow();
+	struct ast_tm tm;
+	char timebuf[80];
+	int content_length = 0;
+
+	if (!ser || 0 == ser->f) {
+		return;
 	}
 
-	ast_str_set(&out, 0,
-		    "Content-type: text/html\r\n"
-		    "%s"
-		    "\r\n"
-		    "<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\r\n"
-		    "<html><head>\r\n"
-		    "<title>%d %s</title>\r\n"
-		    "</head><body>\r\n"
-		    "<h1>%s</h1>\r\n"
-		    "<p>%s</p>\r\n"
-		    "<hr />\r\n"
-		    "<address>Asterisk Server</address>\r\n"
-		    "</body></html>\r\n",
-		    (extra_header ? extra_header : ""), status, title, title, text);
+	ast_strftime(timebuf, sizeof(timebuf), "%a, %d %b %Y %H:%M:%S GMT", ast_localtime(&now, &tm, "GMT"));
 
-	return out;
+	/* calc conetnt length */
+	if (out) {
+		content_length += strlen(ast_str_buffer(out));
+	}
+
+	if (fd) {
+		content_length += lseek(fd, 0, SEEK_END);
+		lseek(fd, 0, SEEK_SET);
+	}
+
+	/* send http header */
+	fprintf(ser->f, "HTTP/1.1 %d %s\r\n"
+		"Server: Asterisk/%s\r\n"
+		"Date: %s\r\n"
+		"Connection: close\r\n"
+		"%s"
+		"Content-Length: %d\r\n"
+		"%s\r\n\r\n",
+		status_code, status_title ? status_title : "OK",
+		ast_get_version(),
+		timebuf,
+		static_content ? "" : "Cache-Control: no-cache, no-store\r\n",
+		content_length,
+		http_header ? ast_str_buffer(http_header) : ""
+		);
+
+	/* send content */
+	if (method != AST_HTTP_HEAD || status_code >= 400) {
+		if (out) {
+			fprintf(ser->f, "%s", ast_str_buffer(out));
+		}
+
+		if (fd) {
+			char buf[256];
+			int len;
+			while ((len = read(fd, buf, sizeof(buf))) > 0) {
+				if (fwrite(buf, len, 1, ser->f) != len) {
+					ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
+				}
+			}
+		}
+	}
+
+	if (http_header) {
+		ast_free(http_header);
+	}
+	if (out) {
+		ast_free(out);
+	}
+
+	fclose(ser->f);
+	ser->f = 0;
+	return;
 }
 
-/*! \brief 
- * Link the new uri into the list. 
+/* Send http "401 Unauthorized" responce and close socket*/
+void ast_http_auth(struct ast_tcptls_session_instance *ser, const char *realm,
+	const unsigned long nonce, const unsigned long opaque, int stale,
+	const char *text)
+{
+	struct ast_str *http_headers = ast_str_create(128);
+	struct ast_str *out = ast_str_create(512);
+
+	if (!http_headers || !out) {
+		ast_free(http_headers);
+		ast_free(out);
+		return;
+	}
+
+	ast_str_set(&http_headers, 0,
+		"WWW-authenticate: Digest algorithm=MD5, realm=\"%s\", nonce=\"%08lx\", qop=\"auth\", opaque=\"%08lx\"%s\r\n"
+		"Content-type: text/html",
+		realm ? realm : "Asterisk",
+		nonce,
+		opaque,
+		stale ? ", stale=true" : "");
+
+	ast_str_set(&out, 0,
+		"<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\r\n"
+		"<html><head>\r\n"
+		"<title>401 Unauthorized</title>\r\n"
+		"</head><body>\r\n"
+		"<h1>401 Unauthorized</h1>\r\n"
+		"<p>%s</p>\r\n"
+		"<hr />\r\n"
+		"<address>Asterisk Server</address>\r\n"
+		"</body></html>\r\n",
+		text ? text : "");
+
+	ast_http_send(ser, AST_HTTP_UNKNOWN, 401, "Unauthorized", http_headers, out, 0, 0);
+	return;
+}
+
+/* send http error responce and close socket*/
+void ast_http_error(struct ast_tcptls_session_instance *ser, int status_code, const char *status_title, const char *text)
+{
+	struct ast_str *http_headers = ast_str_create(40);
+	struct ast_str *out = ast_str_create(256);
+
+	if (!http_headers || !out) {
+		ast_free(http_headers);
+		ast_free(out);
+		return;
+	}
+
+	ast_str_set(&http_headers, 0, "Content-type: text/html");
+
+	ast_str_set(&out, 0,
+		"<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\r\n"
+		"<html><head>\r\n"
+		"<title>%d %s</title>\r\n"
+		"</head><body>\r\n"
+		"<h1>%s</h1>\r\n"
+		"<p>%s</p>\r\n"
+		"<hr />\r\n"
+		"<address>Asterisk Server</address>\r\n"
+		"</body></html>\r\n",
+			status_code, status_title, status_title, text);
+
+	ast_http_send(ser, AST_HTTP_UNKNOWN, status_code, status_title, http_headers, out, 0, 0);
+	return;
+}
+
+/*! \brief
+ * Link the new uri into the list.
  *
  * They are sorted by length of
  * the string, not alphabetically. Duplicate entries are not replaced,
@@ -346,25 +512,19 @@ int ast_http_uri_link(struct ast_http_uri *urih)
 	struct ast_http_uri *uri;
 	int len = strlen(urih->uri);
 
-	if (!(urih->supports_get || urih->supports_post)) {
-		ast_log(LOG_WARNING, "URI handler does not provide either GET or POST method: %s (%s)\n", urih->uri, urih->description);
-		return -1;
-	}
-
 	AST_RWLIST_WRLOCK(&uris);
 
-	if (AST_RWLIST_EMPTY(&uris) || strlen(AST_RWLIST_FIRST(&uris)->uri) <= len) {
+	if ( AST_RWLIST_EMPTY(&uris) || strlen(AST_RWLIST_FIRST(&uris)->uri) <= len ) {
 		AST_RWLIST_INSERT_HEAD(&uris, urih, entry);
 		AST_RWLIST_UNLOCK(&uris);
-
 		return 0;
 	}
 
 	AST_RWLIST_TRAVERSE(&uris, uri, entry) {
 		if (AST_RWLIST_NEXT(uri, entry) &&
-		    strlen(AST_RWLIST_NEXT(uri, entry)->uri) <= len) {
+			strlen(AST_RWLIST_NEXT(uri, entry)->uri) <= len) {
 			AST_RWLIST_INSERT_AFTER(&uris, uri, urih, entry);
-			AST_RWLIST_UNLOCK(&uris); 
+			AST_RWLIST_UNLOCK(&uris);
 
 			return 0;
 		}
@@ -373,9 +533,9 @@ int ast_http_uri_link(struct ast_http_uri *urih)
 	AST_RWLIST_INSERT_TAIL(&uris, urih, entry);
 
 	AST_RWLIST_UNLOCK(&uris);
-	
+
 	return 0;
-}	
+}
 
 void ast_http_uri_unlink(struct ast_http_uri *urih)
 {
@@ -411,91 +571,121 @@ void ast_http_uri_unlink_all_with_key(const char *key)
 static void http_decode(char *s)
 {
 	char *t;
-	
+
 	for (t = s; *t; t++) {
-		if (*t == '+')
+		if (*t == '+') {
 			*t = ' ';
+		}
 	}
 
 	ast_uri_decode(s);
 }
 
-static struct ast_str *handle_uri(struct ast_tcptls_session_instance *ser, char *uri, enum ast_http_method method,
-				  int *status, char **title, int *contentlength, struct ast_variable **cookies, struct ast_variable *headers, 
-				  unsigned int *static_content)
+/*
+ * get post variables from client Request Entity-Body, if content type is
+ * application/x-www-form-urlencoded
+ */
+struct ast_variable *ast_http_get_post_vars(
+	struct ast_tcptls_session_instance *ser, struct ast_variable *headers)
 {
-	char *c;
-	struct ast_str *out = NULL;
-	char *params = uri;
-	struct ast_http_uri *urih = NULL;
-	int l;
-	struct ast_variable *vars = NULL, *v, *prev = NULL;
-	struct http_uri_redirect *redirect;
-	int saw_method = 0;
+	int content_length = 0;
+	struct ast_variable *v, *post_vars=NULL, *prev = NULL;
+	char *buf, *var, *val;
 
-	/* preserve previous behavior of only support URI parameters on GET requests */
-	if (method == AST_HTTP_GET) {
-		strsep(&params, "?");
-		
-		/* Extract arguments from the request and store them in variables.
-		 * Note that a request can have multiple arguments with the same
-		 * name, and we store them all in the list of variables.
-		 * It is up to the application to handle multiple values.
-		 */
-		if (params) {
-			char *var, *val;
-			
-			while ((val = strsep(&params, "&"))) {
-				var = strsep(&val, "=");
-				if (val) {
-					http_decode(val);
-				} else {
-					val = "";
-				}
-				http_decode(var);
-				if ((v = ast_variable_new(var, val, ""))) {
-					if (vars) {
-						prev->next = v;
-					} else {
-						vars = v;
-					}
-					prev = v;
-				}
+	for (v = headers; v; v = v->next) {
+		if (!strcasecmp(v->name, "Content-Type")) {
+			if (strcasecmp(v->value, "application/x-www-form-urlencoded")) {
+				return NULL;
 			}
+			break;
 		}
 	}
 
-	/*
-	 * Append the cookies to the list of variables.
-	 * This saves a pass in the cookies list, but has the side effect
-	 * that a variable might mask a cookie with the same name if the
-	 * application stops at the first match.
-	 * Note that this is the same behaviour as $_REQUEST variables in PHP.
-	 */
-	if (prev) {
-		prev->next = *cookies;
-	} else {
-		vars = *cookies;
+	for (v = headers; v; v = v->next) {
+		if (!strcasecmp(v->name, "Content-Length")) {
+			content_length = atoi(v->value) + 1;
+			break;
+		}
 	}
-	*cookies = NULL;
 
+	if (!content_length) {
+		return NULL;
+	}
+
+	if (!(buf = alloca(content_length))) {
+		return NULL;
+	}
+	if (!fgets(buf, content_length, ser->f)) {
+		return NULL;
+	}
+
+	while ((val = strsep(&buf, "&"))) {
+		var = strsep(&val, "=");
+		if (val) {
+			http_decode(val);
+		} else  {
+			val = "";
+		}
+		http_decode(var);
+		if ((v = ast_variable_new(var, val, ""))) {
+			if (post_vars) {
+				prev->next = v;
+			} else {
+				post_vars = v;
+			}
+			prev = v;
+		}
+	}
+	return post_vars;
+}
+
+static int handle_uri(struct ast_tcptls_session_instance *ser, char *uri,
+	enum ast_http_method method, struct ast_variable *headers)
+{
+	char *c;
+	int res = -1;
+	char *params = uri;
+	struct ast_http_uri *urih = NULL;
+	int l;
+	struct ast_variable *get_vars = NULL, *v, *prev = NULL;
+	struct http_uri_redirect *redirect;
+
+	strsep(&params, "?");
+	/* Extract arguments from the request and store them in variables. */
+	if (params) {
+		char *var, *val;
+
+		while ((val = strsep(&params, "&"))) {
+			var = strsep(&val, "=");
+			if (val) {
+				http_decode(val);
+			} else  {
+				val = "";
+			}
+			http_decode(var);
+			if ((v = ast_variable_new(var, val, ""))) {
+				if (get_vars) {
+					prev->next = v;
+				} else {
+					get_vars = v;
+				}
+				prev = v;
+			}
+		}
+	}
 	http_decode(uri);
 
 	AST_RWLIST_RDLOCK(&uri_redirects);
 	AST_RWLIST_TRAVERSE(&uri_redirects, redirect, entry) {
 		if (!strcasecmp(uri, redirect->target)) {
-			char buf[512];
-
-			snprintf(buf, sizeof(buf), "Location: %s\r\n", redirect->dest);
-			out = ast_http_error((*status = 302),
-					     (*title = ast_strdup("Moved Temporarily")),
-					     buf, "Redirecting...");
+			struct ast_str *http_header = ast_str_create(128);
+			ast_str_set(&http_header, 0, "Location: %s\r\n", redirect->dest);
+			ast_http_send(ser, method, 302, "Moved Temporarily", http_header, NULL, 0, 0);
 
 			break;
 		}
 	}
 	AST_RWLIST_UNLOCK(&uri_redirects);
-
 	if (redirect) {
 		goto cleanup;
 	}
@@ -508,70 +698,31 @@ static struct ast_str *handle_uri(struct ast_tcptls_session_instance *ser, char 
 		AST_RWLIST_RDLOCK(&uris);
 		AST_RWLIST_TRAVERSE(&uris, urih, entry) {
 			ast_debug(2, "match request [%s] with handler [%s] len %d\n", uri, urih->uri, l);
-			if (!saw_method) {
-				switch (method) {
-				case AST_HTTP_GET:
-					if (urih->supports_get) {
-						saw_method = 1;
-					}
-					break;
-				case AST_HTTP_POST:
-					if (urih->supports_post) {
-						saw_method = 1;
-					}
-					break;
-				}
-			}
-
 			l = strlen(urih->uri);
 			c = uri + l;	/* candidate */
-
-			if (strncasecmp(urih->uri, uri, l) || /* no match */
-			    (*c && *c != '/')) { /* substring */
+			if (strncasecmp(urih->uri, uri, l) /* no match */
+			    || (*c && *c != '/')) { /* substring */
 				continue;
 			}
-
 			if (*c == '/') {
 				c++;
 			}
-
 			if (!*c || urih->has_subtree) {
-				if (((method == AST_HTTP_GET) && urih->supports_get) ||
-				    ((method == AST_HTTP_POST) && urih->supports_post)) {
-					uri = c;
-
-					break;
-				}
+				uri = c;
+				break;
 			}
 		}
-
-		if (!urih) {
-			AST_RWLIST_UNLOCK(&uris);
-		}
-	}
-
-	if (method == AST_HTTP_POST && !astman_is_authed(manid_from_vars(vars))) {
-		out = ast_http_error((*status = 403),
-			      (*title = ast_strdup("Access Denied")),
-			      NULL, "You do not have permission to access the requested URL.");
-	} else if (urih) {
-		*static_content = urih->static_content;
-		out = urih->callback(ser, urih, uri, method, vars, headers, status, title, contentlength);
 		AST_RWLIST_UNLOCK(&uris);
-	} else if (saw_method) {
-		out = ast_http_error((*status = 404),
-				     (*title = ast_strdup("Not Found")), NULL,
-				     "The requested URL was not found on this server.");
+	}
+	if (urih) {
+		res = urih->callback(ser, urih, uri, method, get_vars, headers);
 	} else {
-		out = ast_http_error((*status = 501),
-				     (*title = ast_strdup("Not Implemented")), NULL,
-				     "Attempt to use unimplemented / unsupported method");
+		ast_http_error(ser, 404, "Not Found", "The requested URL was not found on this server.");
 	}
 
 cleanup:
-	ast_variables_destroy(vars);
-
-	return out;
+	ast_variables_destroy(get_vars);
+	return res;
 }
 
 #ifdef DO_SSL
@@ -624,12 +775,9 @@ static struct ast_variable *parse_cookies(char *cookies)
 	char *cur;
 	struct ast_variable *vars = NULL, *var;
 
-	/* Skip Cookie: */
-	cookies += 8;
-
 	while ((cur = strsep(&cookies, ";"))) {
 		char *name, *val;
-		
+
 		name = val = cur;
 		strsep(&val, "=");
 
@@ -656,25 +804,53 @@ static struct ast_variable *parse_cookies(char *cookies)
 	return vars;
 }
 
+/* get cookie from Request headers */
+struct ast_variable *ast_http_get_cookies(struct ast_variable *headers)
+{
+	struct ast_variable *v, *cookies=NULL;
+
+	for (v = headers; v; v = v->next) {
+                if (!strncasecmp(v->name, "Cookie", 6)) {
+			if (cookies) {
+				ast_variables_destroy(cookies);
+			}
+
+			cookies = parse_cookies((char *)v->value);
+		}
+	}
+	return cookies;
+}
+
+
 static void *httpd_helper_thread(void *data)
 {
 	char buf[4096];
-	char cookie[4096];
+	char header_line[4096];
 	struct ast_tcptls_session_instance *ser = data;
-	struct ast_variable *vars=NULL, *headers = NULL;
-	char *uri, *title=NULL;
-	int status = 200, contentlength = 0;
-	struct ast_str *out = NULL;
-	unsigned int static_content = 0;
+	struct ast_variable *headers = NULL;
 	struct ast_variable *tail = headers;
+	char *uri, *method;
+	enum ast_http_method http_method = AST_HTTP_UNKNOWN;
 
 	if (!fgets(buf, sizeof(buf), ser->f)) {
 		goto done;
 	}
 
-	uri = ast_skip_nonblanks(buf);	/* Skip method */
+	/* Get method */
+	method = ast_skip_blanks(buf);
+	uri = ast_skip_nonblanks(method);
 	if (*uri) {
 		*uri++ = '\0';
+	}
+
+	if (!strcasecmp(method,"GET")) {
+		http_method = AST_HTTP_GET;
+	} else if (!strcasecmp(method,"POST")) {
+		http_method = AST_HTTP_POST;
+	} else if (!strcasecmp(method,"HEAD")) {
+		http_method = AST_HTTP_HEAD;
+	} else if (!strcasecmp(method,"PUT")) {
+		http_method = AST_HTTP_PUT;
 	}
 
 	uri = ast_skip_blanks(uri);	/* Skip white space */
@@ -687,101 +863,56 @@ static void *httpd_helper_thread(void *data)
 		}
 	}
 
-	/* process "Cookie: " lines */
-	while (fgets(cookie, sizeof(cookie), ser->f)) {
+	/* process "Request Headers" lines */
+	while (fgets(header_line, sizeof(header_line), ser->f)) {
+		char *name, *value;
+
 		/* Trim trailing characters */
-		ast_trim_blanks(cookie);
-		if (ast_strlen_zero(cookie)) {
+		ast_trim_blanks(header_line);
+		if (ast_strlen_zero(header_line)) {
 			break;
 		}
-		if (!strncasecmp(cookie, "Cookie: ", 8)) {
-			vars = parse_cookies(cookie);
+
+		value = header_line;
+		name = strsep(&value, ":");
+		if (!value) {
+			continue;
+		}
+
+		value = ast_skip_blanks(value);
+		if (ast_strlen_zero(value) || ast_strlen_zero(name)) {
+			continue;
+		}
+
+		ast_trim_blanks(name);
+
+		if (!headers) {
+			headers = ast_variable_new(name, value, __FILE__);
+			tail = headers;
 		} else {
-			char *name, *val;
-
-			val = cookie;
-			name = strsep(&val, ":");
-			if (ast_strlen_zero(name) || ast_strlen_zero(val)) {
-				continue;
-			}
-			ast_trim_blanks(name);
-			val = ast_skip_blanks(val);
-
-			if (!headers) {
-				headers = ast_variable_new(name, val, __FILE__);
-				tail = headers;
-			} else {
-				tail->next = ast_variable_new(name, val, __FILE__);
-				tail = tail->next;
-			}
+			tail->next = ast_variable_new(name, value, __FILE__);
+			tail = tail->next;
 		}
 	}
 
 	if (!*uri) {
-		out = ast_http_error(400, "Bad Request", NULL, "Invalid Request");
-	} else if (strcasecmp(buf, "post") && strcasecmp(buf, "get")) {
-		out = ast_http_error(501, "Not Implemented", NULL,
-				     "Attempt to use unimplemented / unsupported method");
-	} else {	/* try to serve it */
-		out = handle_uri(ser, uri, (!strcasecmp(buf, "get")) ? AST_HTTP_GET : AST_HTTP_POST,
-				 &status, &title, &contentlength, &vars, headers, &static_content);
+		ast_http_error(ser, 400, "Bad Request", "Invalid Request");
+		return NULL;
 	}
 
-	/* If they aren't mopped up already, clean up the cookies */
-	if (vars) {
-		ast_variables_destroy(vars);
-	}
+	handle_uri(ser, uri, http_method, headers);
+
 	/* Clean up all the header information pulled as well */
 	if (headers) {
 		ast_variables_destroy(headers);
 	}
 
-	if (out) {
-		struct timeval now = ast_tvnow();
-		char timebuf[256];
-		struct ast_tm tm;
-
-		ast_strftime(timebuf, sizeof(timebuf), "%a, %d %b %Y %H:%M:%S %Z", ast_localtime(&now, &tm, "GMT"));
-		fprintf(ser->f,
-			"HTTP/1.1 %d %s\r\n"
-			"Server: Asterisk/%s\r\n"
-			"Date: %s\r\n"
-			"Connection: close\r\n"
-			"%s",
-			status, title ? title : "OK", ast_get_version(), timebuf,
-			static_content ? "" : "Cache-Control: no-cache, no-store\r\n");
-			/* We set the no-cache headers only for dynamic content.
-			* If you want to make sure the static file you requested is not from cache,
-			* append a random variable to your GET request.  Ex: 'something.html?r=109987734'
-			*/
-		if (!contentlength) {	/* opaque body ? just dump it hoping it is properly formatted */
-			fprintf(ser->f, "%s", ast_str_buffer(out));
-		} else {
-			char *tmp = strstr(ast_str_buffer(out), "\r\n\r\n");
-
-			if (tmp) {
-				fprintf(ser->f, "Content-length: %d\r\n", contentlength);
-				/* first write the header, then the body */
-				if (fwrite(ast_str_buffer(out), 1, (tmp + 4 - ast_str_buffer(out)), ser->f) != tmp + 4 - ast_str_buffer(out)) {
-					ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
-				}
-				if (fwrite(tmp + 4, 1, contentlength, ser->f) != contentlength ) {
-					ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
-				}
-			}
-		}
-		ast_free(out);
-	}
-
-	if (title) {
-		ast_free(title);
-	}
-
 done:
-	fclose(ser->f);
+	if (ser->f) {
+		fclose(ser->f);
+	}
 	ao2_ref(ser, -1);
 	ser = NULL;
-
 	return NULL;
 }
 
@@ -814,7 +945,6 @@ static void add_redirect(const char *value)
 	if (!(redirect = ast_calloc(1, total_len))) {
 		return;
 	}
-
 	redirect->dest = redirect->target + target_len;
 	strcpy(redirect->target, target);
 	strcpy(redirect->dest, dest);
@@ -822,8 +952,8 @@ static void add_redirect(const char *value)
 	AST_RWLIST_WRLOCK(&uri_redirects);
 
 	target_len--; /* So we can compare directly with strlen() */
-	if (AST_RWLIST_EMPTY(&uri_redirects) 
-	    || strlen(AST_RWLIST_FIRST(&uri_redirects)->target) <= target_len) {
+	if (AST_RWLIST_EMPTY(&uri_redirects)
+		|| strlen(AST_RWLIST_FIRST(&uri_redirects)->target) <= target_len ) {
 		AST_RWLIST_INSERT_HEAD(&uri_redirects, redirect, entry);
 		AST_RWLIST_UNLOCK(&uri_redirects);
 
@@ -831,11 +961,10 @@ static void add_redirect(const char *value)
 	}
 
 	AST_RWLIST_TRAVERSE(&uri_redirects, cur, entry) {
-		if (AST_RWLIST_NEXT(cur, entry) 
-		    && strlen(AST_RWLIST_NEXT(cur, entry)->target) <= target_len) {
+		if (AST_RWLIST_NEXT(cur, entry)
+			&& strlen(AST_RWLIST_NEXT(cur, entry)->target) <= target_len ) {
 			AST_RWLIST_INSERT_AFTER(&uri_redirects, cur, redirect, entry);
-			AST_RWLIST_UNLOCK(&uri_redirects); 
-
+			AST_RWLIST_UNLOCK(&uri_redirects);
 			return;
 		}
 	}
@@ -961,14 +1090,14 @@ static char *handle_show_http(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "http show status";
-		e->usage = 
+		e->usage =
 			"Usage: http show status\n"
 			"       Lists status of internal HTTP engine\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
-	
+
 	if (a->argc != 3) {
 		return CLI_SHOWUSAGE;
 	}
@@ -992,17 +1121,15 @@ static char *handle_show_http(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	if (AST_RWLIST_EMPTY(&uris)) {
 		ast_cli(a->fd, "None.\n");
 	} else {
-		AST_RWLIST_TRAVERSE(&uris, urih, entry) {
-			ast_cli(a->fd, "%s/%s%s => %s\n", prefix, urih->uri, (urih->has_subtree ? "/..." : ""), urih->description);
-		}
+		AST_RWLIST_TRAVERSE(&uris, urih, entry)
+			ast_cli(a->fd, "%s/%s%s => %s\n", prefix, urih->uri, (urih->has_subtree ? "/..." : "" ), urih->description);
 	}
 	AST_RWLIST_UNLOCK(&uris);
 
 	ast_cli(a->fd, "\nEnabled Redirects:\n");
 	AST_RWLIST_RDLOCK(&uri_redirects);
-	AST_RWLIST_TRAVERSE(&uri_redirects, redirect, entry) {
+	AST_RWLIST_TRAVERSE(&uri_redirects, redirect, entry)
 		ast_cli(a->fd, "  %s => %s\n", redirect->target, redirect->dest);
-	}
 	if (AST_RWLIST_EMPTY(&uri_redirects)) {
 		ast_cli(a->fd, "  None.\n");
 	}

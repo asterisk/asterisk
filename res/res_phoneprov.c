@@ -155,19 +155,6 @@ static struct ao2_container *profiles;
 static struct ao2_container *http_routes;
 static struct ao2_container *users;
 
-/*! \brief Extensions whose mime types we think we know */
-static struct {
-	char *ext;
-	char *mtype;
-} mimetypes[] = {
-	{ "png", "image/png" },
-	{ "xml", "text/xml" },
-	{ "jpg", "image/jpeg" },
-	{ "js", "application/x-javascript" },
-	{ "wav", "audio/x-wav" },
-	{ "mp3", "audio/mpeg" },
-};
-
 static char global_server[80] = "";	/*!< Server to substitute into templates */
 static char global_serverport[6] = "";	/*!< Server port to substitute into templates */
 static char global_default_profile[80] = "";	/*!< Default profile to use if one isn't specified */
@@ -175,22 +162,6 @@ static char global_default_profile[80] = "";	/*!< Default profile to use if one 
 /*! \brief List of global variables currently available: VOICEMAIL_EXTEN, EXTENSION_LENGTH */
 static struct varshead global_variables;
 static ast_mutex_t globals_lock;
-
-/*! \brief Return mime type based on extension */
-static char *ftype2mtype(const char *ftype)
-{
-	int x;
-
-	if (ast_strlen_zero(ftype))
-		return NULL;
-
-	for (x = 0;x < ARRAY_LEN(mimetypes);x++) {
-		if (!strcasecmp(ftype, mimetypes[x].ext))
-			return mimetypes[x].mtype;
-	}
-
-	return NULL;
-}
 
 /* iface is the interface (e.g. eth0); address is the return value */
 static int lookup_iface(const char *iface, struct in_addr *address)
@@ -398,20 +369,24 @@ static void set_timezone_variables(struct varshead *headp, const char *zone)
 }
 
 /*! \brief Callback that is executed everytime an http request is received by this module */
-static struct ast_str *phoneprov_callback(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *vars, struct ast_variable *headers, int *status, char **title, int *contentlength)
+static int phoneprov_callback(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *get_vars, struct ast_variable *headers)
 {
 	struct http_route *route;
 	struct http_route search_route = {
 		.uri = uri,
 	};
-	struct ast_str *result = ast_str_create(512);
+	struct ast_str *result;
 	char path[PATH_MAX];
 	char *file = NULL;
 	int len;
 	int fd;
 	char buf[256];
-	struct timeval now = ast_tvnow();
-	struct ast_tm tm;
+	struct ast_str *http_header;
+
+	if (method != AST_HTTP_GET && method != AST_HTTP_HEAD) {
+		ast_http_error(ser, 501, "Not Implemented", "Attempt to use unimplemented / unsupported method");
+		return -1;
+	}
 
 	if (!(route = ao2_find(http_routes, &search_route, OBJ_POINTER))) {
 		goto out404;
@@ -434,15 +409,9 @@ static struct ast_str *phoneprov_callback(struct ast_tcptls_session_instance *se
 			goto out500;
 		}
 
-		ast_strftime(buf, sizeof(buf), "%a, %d %b %Y %H:%M:%S %Z", ast_localtime(&now, &tm, "GMT"));
-		fprintf(ser->f, "HTTP/1.1 200 OK\r\n"
-			"Server: Asterisk/%s\r\n"
-			"Date: %s\r\n"
-			"Connection: close\r\n"
-			"Cache-Control: no-cache, no-store\r\n"
-			"Content-Length: %d\r\n"
-			"Content-Type: %s\r\n\r\n",
-			ast_get_version(), buf, len, route->file->mime_type);
+		http_header = ast_str_create(80);
+		ast_str_set(&http_header, 0, "Content-type: %s\r\n",
+			route->file->mime_type);
 
 		while ((len = read(fd, buf, sizeof(buf))) > 0) {
 			if (fwrite(buf, 1, len, ser->f) != len) {
@@ -455,9 +424,10 @@ static struct ast_str *phoneprov_callback(struct ast_tcptls_session_instance *se
 			}
 		}
 
+		ast_http_send(ser, method, 200, NULL, http_header, NULL, fd, 0);
 		close(fd);
 		route = unref_route(route);
-		return NULL;
+		return 0;
 	} else { /* Dynamic file */
 		int bufsize;
 		char *tmp;
@@ -516,33 +486,36 @@ static struct ast_str *phoneprov_callback(struct ast_tcptls_session_instance *se
 			ast_free(file);
 		}
 
-		ast_str_append(&result, 0,
-			"Content-Type: %s\r\n"
-			"Content-length: %d\r\n"
-			"\r\n"
-			"%s", route->file->mime_type, (int) strlen(tmp), tmp);
+		ast_str_set(&http_header, 0, "Content-type: %s\r\n",
+			route->file->mime_type);
 
+		if (!(result = ast_str_create(512))) {
+			ast_log(LOG_ERROR, "Could not create result string!\n");
+			if (tmp) {
+				ast_free(tmp);
+			}
+			goto out500;
+		}
+		ast_str_append(&result, 0, "%s", tmp); 
+
+		ast_http_send(ser, method, 200, NULL, http_header, result, 0, 0);
 		if (tmp) {
 			ast_free(tmp);
 		}
 
 		route = unref_route(route);
 
-		return result;
+		return 0;
 	}
 
 out404:
-	*status = 404;
-	*title = strdup("Not Found");
-	*contentlength = 0;
-	return ast_http_error(404, "Not Found", NULL, "The requested URL was not found on this server.");
+	ast_http_error(ser, 404, "Not Found", "Nothing to see here.  Move along.");
+	return -1;
 
 out500:
 	route = unref_route(route);
-	*status = 500;
-	*title = strdup("Internal Server Error");
-	*contentlength = 0;
-	return ast_http_error(500, "Internal Error", NULL, "An internal error has occured.");
+	ast_http_error(ser, 500, "Internal Error", "An internal error has occured.");
+	return -1;
 }
 
 /*! \brief Build a route structure and add it to the list of available http routes
@@ -656,7 +629,8 @@ static void build_profile(const char *name, struct ast_variable *v)
 			 * 3) Default mime type specified in profile
 			 * 4) text/plain
 			 */
-			ast_string_field_set(pp_file, mime_type, S_OR(args.mimetype, (S_OR(S_OR(ftype2mtype(file_extension), profile->default_mime_type), "text/plain"))));
+			ast_string_field_set(pp_file, mime_type, S_OR(args.mimetype,
+				(S_OR(S_OR(ast_http_ftype2mtype(file_extension), profile->default_mime_type), "text/plain"))));
 
 			if (!strcasecmp(v->name, "static_file")) {
 				ast_string_field_set(pp_file, format, args.filename);
@@ -1233,7 +1207,6 @@ static struct ast_http_uri phoneprovuri = {
 	.description = "Asterisk HTTP Phone Provisioning Tool",
 	.uri = "phoneprov",
 	.has_subtree = 1,
-	.supports_get = 1,
 	.data = NULL,
 	.key = __FILE__,
 };

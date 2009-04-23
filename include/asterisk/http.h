@@ -52,27 +52,40 @@
  * be run earlier in the startup process so modules have it available.
  */
 
-
-/*! \brief HTTP Callbacks take the socket
-
-   \note The method and the path as arguments and should
-   return the content, allocated with malloc().  Status should be changed to reflect
-   the status of the request if it isn't 200 and title may be set to a malloc()'d string
-   to an appropriate title for non-200 responses.  Content length may also be specified.
-\verbatim
-   The return value may include additional headers at the front and MUST include a blank
-   line with \r\n to provide separation between user headers and content (even if no
-   content is specified)
-\endverbatim
-*/
-
+/*! \brief HTTP Request methods known by Asterisk */
 enum ast_http_method {
+	AST_HTTP_UNKNOWN = -1,   /*!< Unknown response */
 	AST_HTTP_GET = 0,
 	AST_HTTP_POST,
+	AST_HTTP_HEAD,
+	AST_HTTP_PUT,            /*!< Not supported in Asterisk */
 };
+
 struct ast_http_uri;
 
-typedef struct ast_str *(*ast_http_callback)(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *params, struct ast_variable *headers, int *status, char **title, int *contentlength);
+/*! \brief HTTP Callbacks
+ *
+ * \note The callback function receives server instance, uri, http method,
+ * get method (if present in URI), and http headers as arguments and should
+ * use the ast_http_send() function for sending content allocated with ast_str
+ * and/or content from an opened file descriptor.
+ *
+ * Status and status text should be sent as arguments to the ast_http_send()
+ * function to reflect the status of the request (200 or 304, for example).
+ * Content length is calculated by ast_http_send() automatically.
+ *
+ * Static content may be indicated to the ast_http_send() function, to indicate
+ * that it may be cached.
+ *
+ * \verbatim
+ * The return value may include additional headers at the front and MUST
+ * include a blank line with \r\n to provide separation between user headers
+ * and content (even if no content is specified)
+ * \endverbatim
+ *
+ * For an error response, the ast_http_error() function may be used.
+*/
+typedef int (*ast_http_callback)(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *get_params, struct ast_variable *headers);
 
 /*! \brief Definition of a URI handler */
 struct ast_http_uri {
@@ -81,12 +94,6 @@ struct ast_http_uri {
 	const char *uri;
 	ast_http_callback callback;
 	unsigned int has_subtree:1;
-	/*! This handler serves static content */
-	unsigned int static_content:1;
-	/*! This handler accepts GET requests */
-	unsigned int supports_get:1;
-	/*! This handler accepts POST requests */
-	unsigned int supports_post:1;
 	/*! Structure is malloc'd */
 	unsigned int mallocd:1;
 	/*! Data structure is malloc'd */
@@ -97,6 +104,9 @@ struct ast_http_uri {
 	const char *key;
 };
 
+/*! \brief Get cookie from Request headers */
+struct ast_variable *ast_http_get_cookies(struct ast_variable *headers);
+
 /*! \brief Register a URI handler */
 int ast_http_uri_link(struct ast_http_uri *urihandler);
 
@@ -106,8 +116,58 @@ void ast_http_uri_unlink(struct ast_http_uri *urihandler);
 /*! \brief Unregister all handlers with matching key */
 void ast_http_uri_unlink_all_with_key(const char *key);
 
-/*! \brief Return an ast_str malloc()'d string containing an HTTP error message */
-struct ast_str *ast_http_error(int status, const char *title, const char *extra_header, const char *text);
+/*!\brief Return http method name string
+ * \since 1.6.3
+ */
+const char *ast_get_http_method(enum ast_http_method method) attribute_pure;
+
+/*!\brief Return mime type based on extension
+ * \param ftype filename extension
+ * \return String containing associated MIME type
+ * \since 1.6.3
+ */
+const char *ast_http_ftype2mtype(const char *ftype) attribute_pure;
+
+/*!\brief Return manager id, if exist, from request headers
+ * \param headers List of HTTP headers
+ * \return 32-bit associated manager session identifier
+ * \since 1.6.3
+ */
+uint32_t ast_http_manid_from_vars(struct ast_variable *headers) attribute_pure;
+
+/*! \brief Generic function for sending http/1.1 response.
+ * \param ser TCP/TLS session object
+ * \param method GET/POST/HEAD
+ * \param status_code HTTP response code (200/401/403/404/500)
+ * \param status_title English equivalent to the status_code parameter
+ * \param http_header An ast_str object containing all headers
+ * \param out An ast_str object containing the body of the response
+ * \param fd If out is NULL, a file descriptor where the body of the response is held (otherwise -1)
+ * \param static_content Zero if the content is dynamically generated and should not be cached; nonzero otherwise
+ *
+ * \note Function determines the HTTP response header from status_code,
+ * status_header, and http_header.
+ *
+ * Extra HTTP headers MUST be present only in the http_header argument.  The
+ * argument "out" should contain only content of the response (no headers!).
+ *
+ * HTTP content can be constructed from the argument "out", if it is not NULL;
+ * otherwise, the function will read content from FD.
+ *
+ * This function calculates the content-length http header itself.
+ *
+ * Both the http_header and out arguments will be freed by this function;
+ * however, if FD is open, it will remain open.
+ *
+ * \since 1.6.3
+ */
+void ast_http_send(struct ast_tcptls_session_instance *ser, enum ast_http_method method, int status_code, const char *status_title, struct ast_str *http_header, struct ast_str *out, const int fd, unsigned int static_content);
+
+/*!\brief Send http "401 Unauthorized" response and close socket */
+void ast_http_auth(struct ast_tcptls_session_instance *ser, const char *realm, const unsigned long nonce, const unsigned long opaque, int stale, const char *text);
+
+/*!\brief Send HTTP error message and close socket */
+void ast_http_error(struct ast_tcptls_session_instance *ser, int status, const char *title, const char *text);
 
 /*!
  * \brief Return the current prefix
@@ -116,5 +176,16 @@ struct ast_str *ast_http_error(int status, const char *title, const char *extra_
  * \since 1.6.1
  */
 void ast_http_prefix(char *buf, int len);
+
+
+/*!\brief Get post variables from client Request Entity-Body, if content type is application/x-www-form-urlencoded.
+ * \param ser TCP/TLS session object
+ * \param headers List of HTTP headers
+ * \return List of variables within the POST body
+ * \note Since returned list is malloc'd, list should be free'd by the calling function
+ * \since 1.6.3
+ */
+struct ast_variable *ast_http_get_post_vars(struct ast_tcptls_session_instance *ser, struct ast_variable *headers);
+
 
 #endif /* _ASTERISK_SRV_H */

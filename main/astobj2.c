@@ -236,7 +236,7 @@ int __ao2_ref_debug(void *user_data, const int delta, char *tag, char *file, int
 
 	if (delta != 0) {
 		FILE *refo = fopen(REF_FILE,"a");
-		fprintf(refo, "%p %s%d   %s:%d:%s (%s) [@%d]\n", user_data, (delta<0? "":"+"), delta, file, line, funcname, tag, obj->priv_data.ref_counter);
+		fprintf(refo, "%p %s%d   %s:%d:%s (%s) [@%d]\n", user_data, (delta<0? "":"+"), delta, file, line, funcname, tag, obj ? obj->priv_data.ref_counter : -1);
 		fclose(refo);
 	}
 	if (obj->priv_data.ref_counter + delta == 0 && obj->priv_data.destructor_fn != NULL) { /* this isn't protected with lock; just for o/p */
@@ -428,7 +428,7 @@ static struct ao2_container *internal_ao2_container_alloc(struct ao2_container *
 		return NULL;
 	
 	c->version = 1;	/* 0 is a reserved value here */
-	c->n_buckets = n_buckets;
+	c->n_buckets = hash_fn ? n_buckets : 1;
 	c->hash_fn = hash_fn ? hash_fn : hash_zero;
 	c->cmp_fn = cmp_fn;
 
@@ -444,10 +444,11 @@ struct ao2_container *__ao2_container_alloc_debug(const unsigned int n_buckets, 
 {
 	/* XXX maybe consistency check on arguments ? */
 	/* compute the container size */
-	size_t container_size = sizeof(struct ao2_container) + n_buckets * sizeof(struct bucket);
+	const unsigned int num_buckets = hash_fn ? n_buckets : 1;
+	size_t container_size = sizeof(struct ao2_container) + num_buckets * sizeof(struct bucket);
 	struct ao2_container *c = __ao2_alloc_debug(container_size, container_destruct_debug, tag, file, line, funcname);
 
-	return internal_ao2_container_alloc(c, n_buckets, hash_fn, cmp_fn);
+	return internal_ao2_container_alloc(c, num_buckets, hash_fn, cmp_fn);
 }
 
 struct ao2_container *__ao2_container_alloc(const unsigned int n_buckets, ao2_hash_fn *hash_fn,
@@ -456,10 +457,11 @@ struct ao2_container *__ao2_container_alloc(const unsigned int n_buckets, ao2_ha
 	/* XXX maybe consistency check on arguments ? */
 	/* compute the container size */
 
-	size_t container_size = sizeof(struct ao2_container) + n_buckets * sizeof(struct bucket);
+	const unsigned int num_buckets = hash_fn ? n_buckets : 1;
+	size_t container_size = sizeof(struct ao2_container) + num_buckets * sizeof(struct bucket);
 	struct ao2_container *c = __ao2_alloc(container_size, container_destruct);
 
-	return internal_ao2_container_alloc(c, n_buckets, hash_fn, cmp_fn);
+	return internal_ao2_container_alloc(c, num_buckets, hash_fn, cmp_fn);
 }
 
 /*!
