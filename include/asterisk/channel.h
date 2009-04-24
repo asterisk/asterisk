@@ -1013,6 +1013,8 @@ void ast_change_name(struct ast_channel *chan, const char *newname);
  * if it is still there and also release the current reference to the channel.
  *
  * \return NULL, convenient for clearing invalid pointers
+ *
+ * \since 1.6.3
  */
 struct ast_channel *ast_channel_release(struct ast_channel *chan);
 
@@ -2092,6 +2094,8 @@ struct ast_channel_iterator;
  *
  * \return NULL, for convenience to clear out the pointer to the iterator that
  * was just destroyed.
+ *
+ * \since 1.6.3
  */
 struct ast_channel_iterator *ast_channel_iterator_destroy(struct ast_channel_iterator *i);
 
@@ -2108,6 +2112,8 @@ struct ast_channel_iterator *ast_channel_iterator_destroy(struct ast_channel_ite
  *
  * \retval NULL on failure
  * \retval a new channel iterator based on the specified parameters
+ *
+ * \since 1.6.3
  */
 struct ast_channel_iterator *ast_channel_iterator_by_exten_new(int ao2_flags, const char *exten,
 	const char *context);
@@ -2127,6 +2133,8 @@ struct ast_channel_iterator *ast_channel_iterator_by_exten_new(int ao2_flags, co
  *
  * \retval NULL on failure
  * \retval a new channel iterator based on the specified parameters
+ *
+ * \since 1.6.3
  */
 struct ast_channel_iterator *ast_channel_iterator_by_name_new(int ao2_flags, const char *name,
 	size_t name_len);
@@ -2141,6 +2149,8 @@ struct ast_channel_iterator *ast_channel_iterator_by_name_new(int ao2_flags, con
  *
  * \retval NULL on failure
  * \retval a new channel iterator
+ *
+ * \since 1.6.3
  */
 struct ast_channel_iterator *ast_channel_iterator_all_new(int ao2_flags);
 
@@ -2156,6 +2166,8 @@ struct ast_channel_iterator *ast_channel_iterator_all_new(int ao2_flags);
  * \retval the next channel that matches the parameters used when the iterator
  *         was created.
  * \retval NULL, if no more channels match the iterator parameters.
+ *
+ * \since 1.6.3
  */
 struct ast_channel *ast_channel_iterator_next(struct ast_channel_iterator *i);
 
@@ -2166,6 +2178,8 @@ struct ast_channel *ast_channel_iterator_next(struct ast_channel_iterator *i);
  *
  * This function executes a callback one time for each active channel on the
  * system.  The channel is provided as an argument to the function.
+ *
+ * \since 1.6.3
  */
 struct ast_channel *ast_channel_callback(ao2_callback_data_fn *cb_fn, void *arg,
 		void *data, int ao2_flags);
@@ -2181,6 +2195,8 @@ struct ast_channel *ast_channel_callback(ao2_callback_data_fn *cb_fn, void *arg,
  *
  * \retval a channel with the name specified by the argument
  * \retval NULL if no channel was found
+ *
+ * \since 1.6.3
  */
 struct ast_channel *ast_channel_get_by_name(const char *name);
 
@@ -2194,6 +2210,8 @@ struct ast_channel *ast_channel_get_by_name(const char *name);
  *
  * \retval a channel with the name prefix specified by the arguments
  * \retval NULL if no channel was found
+ *
+ * \since 1.6.3
  */
 struct ast_channel *ast_channel_get_by_name_prefix(const char *name, size_t name_len);
 
@@ -2207,6 +2225,8 @@ struct ast_channel *ast_channel_get_by_name_prefix(const char *name, size_t name
  *
  * \retval a channel that is at the specified extension and context
  * \retval NULL if no channel was found
+ *
+ * \since 1.6.3
  */
 struct ast_channel *ast_channel_get_by_exten(const char *exten, const char *context);
 
