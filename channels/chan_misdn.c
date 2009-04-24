@@ -8395,7 +8395,7 @@ static void misdn_cc_pbx_notify(long record_id, const struct misdn_cc_notify *no
 
 	if (ast_pbx_start(chan)) {
 		ast_log(LOG_WARNING, "Unable to start pbx channel %s!\n", chan->name);
-		ast_channel_free(chan);
+		ast_channel_release(chan);
 	} else {
 		ast_verb(1, "Started pbx for call completion notify channel %s\n", chan->name);
 	}
