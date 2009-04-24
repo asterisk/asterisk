@@ -307,9 +307,10 @@ struct ast_party_connected_line {
 	 */
 	int ani2;
 
-	/*! \brief Information about the source of an update (Q.SIG/ISDN requirement).
+	/*!
+	 * \brief Information about the source of an update.
 	 * \note enum AST_CONNECTED_LINE_UPDATE_SOURCE values
-	 * for Normal-Answer, Call-transfer, Call-diversion
+	 * for Normal-Answer and Call-transfer.
 	 */
 	int source;
 };
