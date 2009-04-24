@@ -204,7 +204,7 @@ static struct ast_channel *bridge_request(const char *type, int format, void *da
 		return NULL;
 	}
 	if (!(p->output = ast_channel_alloc(1, AST_STATE_UP, 0, 0, "", "", "", 0, "Bridge/%p-output", p))) {
-		ast_channel_free(p->input);
+		p->input = ast_channel_release(p->input);
 		ast_free(p);
 		return NULL;
 	}

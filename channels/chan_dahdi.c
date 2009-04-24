@@ -12075,9 +12075,13 @@ static int pri_fixup_principle(struct dahdi_pri *pri, int principle, q931_call *
 				new->owner = old->owner;
 				old->owner = NULL;
 				if (new->owner) {
-					ast_string_field_build(new->owner, name,
-						"DAHDI/%d:%d-%d", pri->trunkgroup,
-						new->channel, 1);
+					char newname[AST_CHANNEL_NAME];
+
+					snprintf(newname, sizeof(newname),
+						"DAHDI/%d:%d-%d", pri->trunkgroup, new->channel, 1);
+
+					ast_change_name(new->owner, newname);
+
 					new->owner->tech_pvt = new;
 					ast_channel_set_fd(new->owner, 0, new->subs[SUB_REAL].dfd);
 					new->subs[SUB_REAL].owner = old->subs[SUB_REAL].owner;

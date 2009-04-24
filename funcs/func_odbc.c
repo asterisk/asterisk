@@ -257,7 +257,7 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 		if (chan)
 			ast_autoservice_stop(chan);
 		if (bogus_chan) {
-			ast_channel_free(chan);
+			ast_channel_release(chan);
 		} else {
 			pbx_builtin_setvar_helper(chan, "ODBCSTATUS", status);
 		}
@@ -367,7 +367,7 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 	if (chan)
 		ast_autoservice_stop(chan);
 	if (bogus_chan)
-		ast_channel_free(chan);
+		ast_channel_release(chan);
 
 	return 0;
 }
@@ -473,7 +473,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			ast_autoservice_stop(chan);
 		}
 		if (bogus_chan) {
-			ast_channel_free(chan);
+			ast_channel_release(chan);
 		}
 		return -1;
 	}
@@ -490,7 +490,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			ast_autoservice_stop(chan);
 		}
 		if (bogus_chan) {
-			ast_channel_free(chan);
+			ast_channel_release(chan);
 		}
 		return -1;
 	}
@@ -517,7 +517,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 		if (chan)
 			ast_autoservice_stop(chan);
 		if (bogus_chan)
-			ast_channel_free(chan);
+			ast_channel_release(chan);
 		return res1;
 	}
 
@@ -560,7 +560,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 						if (chan)
 							ast_autoservice_stop(chan);
 						if (bogus_chan)
-							ast_channel_free(chan);
+							ast_channel_release(chan);
 						return -1;
 					}
 					resultset = tmp;
@@ -656,7 +656,7 @@ end_acf_read:
 			if (chan)
 				ast_autoservice_stop(chan);
 			if (bogus_chan)
-				ast_channel_free(chan);
+				ast_channel_release(chan);
 			return -1;
 		}
 		odbc_store->data = resultset;
@@ -669,7 +669,7 @@ end_acf_read:
 	if (chan)
 		ast_autoservice_stop(chan);
 	if (bogus_chan)
-		ast_channel_free(chan);
+		ast_channel_release(chan);
 	return 0;
 }
 
@@ -1059,7 +1059,7 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 	}
 
 	ast_str_substitute_variables(&sql, 0, chan, query->sql_read);
-	ast_channel_free(chan);
+	chan = ast_channel_release(chan);
 
 	if (a->argc == 5 && !strcmp(a->argv[4], "exec")) {
 		/* Execute the query */
@@ -1272,7 +1272,7 @@ static char *cli_odbc_write(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	pbx_builtin_pushvar_helper(chan, "VALUE", S_OR(a->argv[4], ""));
 	ast_str_substitute_variables(&sql, 0, chan, query->sql_write);
 	ast_debug(1, "SQL is %s\n", ast_str_buffer(sql));
-	ast_channel_free(chan);
+	chan = ast_channel_release(chan);
 
 	if (a->argc == 6 && !strcmp(a->argv[5], "exec")) {
 		/* Execute the query */

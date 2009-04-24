@@ -543,20 +543,27 @@ static char *handle_cli_agi_add_cmd(struct ast_cli_entry *e, int cmd, struct ast
 		return NULL;
 	}
 
-	if (a->argc < 4)
+	if (a->argc < 4) {
 		return CLI_SHOWUSAGE;
-	chan = ast_get_channel_by_name_locked(a->argv[2]);
-	if (!chan) {
+	}
+
+	if (!(chan = ast_channel_get_by_name(a->argv[2]))) {
 		ast_log(LOG_WARNING, "Channel %s does not exists or cannot lock it\n", a->argv[2]);
 		return CLI_FAILURE;
 	}
+
 	if (add_agi_cmd(chan, a->argv[3], (a->argc > 4 ? a->argv[4] : ""))) {
 		ast_log(LOG_WARNING, "failed to add AGI command to queue of channel %s\n", chan->name);
 		ast_channel_unlock(chan);
+		chan = ast_channel_unref(chan);
 		return CLI_FAILURE;
 	}
+
 	ast_log(LOG_DEBUG, "Added AGI command to channel %s queue\n", chan->name);
+
 	ast_channel_unlock(chan);
+	chan = ast_channel_unref(chan);
+
 	return CLI_SUCCESS;
 }
 
@@ -578,24 +585,33 @@ static int action_add_agi_cmd(struct mansession *s, const struct message *m)
 	const char *cmdid   = astman_get_header(m, "CommandID");
 	struct ast_channel *chan;
 	char buf[256];
+
 	if (ast_strlen_zero(channel) || ast_strlen_zero(cmdbuff)) {
 		astman_send_error(s, m, "Both, Channel and Command are *required*");
 		return 0;
 	}
-	chan = ast_get_channel_by_name_locked(channel);
-	if (!chan) {
+
+	if (!(chan = ast_channel_get_by_name(channel))) {
 		snprintf(buf, sizeof(buf), "Channel %s does not exists or cannot get its lock", channel);
 		astman_send_error(s, m, buf);
 		return 0;
 	}
+
+	ast_channel_lock(chan);
+
 	if (add_agi_cmd(chan, cmdbuff, cmdid)) {
 		snprintf(buf, sizeof(buf), "Failed to add AGI command to channel %s queue", chan->name);
 		astman_send_error(s, m, buf);
 		ast_channel_unlock(chan);
+		chan = ast_channel_unref(chan);
 		return 0;
 	}
-	astman_send_ack(s, m, "Added AGI command to queue");
+
 	ast_channel_unlock(chan);
+	chan = ast_channel_unref(chan);
+
+	astman_send_ack(s, m, "Added AGI command to queue");
+
 	return 0;
 }
 
@@ -1679,12 +1695,11 @@ static int handle_hangup(struct ast_channel *chan, AGI *agi, int argc, char **ar
 		return RESULT_SUCCESS;
 	} else if (argc == 2) {
 		/* one argument: look for info on the specified channel */
-		c = ast_get_channel_by_name_locked(argv[1]);
-		if (c) {
+		if ((c = ast_channel_get_by_name(argv[1]))) {
 			/* we have a matching channel */
-			ast_softhangup(c,AST_SOFTHANGUP_EXPLICIT);
+			ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
+			c = ast_channel_unref(c);
 			ast_agi_send(agi->fd, chan, "200 result=1\n");
-			ast_channel_unlock(c);
 			return RESULT_SUCCESS;
 		}
 		/* if we get this far no channel name matched the argument given */
@@ -1766,10 +1781,9 @@ static int handle_channelstatus(struct ast_channel *chan, AGI *agi, int argc, ch
 		return RESULT_SUCCESS;
 	} else if (argc == 3) {
 		/* one argument: look for info on the specified channel */
-		c = ast_get_channel_by_name_locked(argv[2]);
-		if (c) {
+		if ((c = ast_channel_get_by_name(argv[2]))) {
 			ast_agi_send(agi->fd, chan, "200 result=%d\n", c->_state);
-			ast_channel_unlock(c);
+			c = ast_channel_unref(c);
 			return RESULT_SUCCESS;
 		}
 		/* if we get this far no channel name matched the argument given */
@@ -1817,21 +1831,27 @@ static int handle_getvariablefull(struct ast_channel *chan, AGI *agi, int argc, 
 	char tmp[4096];
 	struct ast_channel *chan2=NULL;
 
-	if ((argc != 4) && (argc != 5))
+	if (argc != 4 && argc != 5) {
 		return RESULT_SHOWUSAGE;
-	if (argc == 5) {
-		chan2 = ast_get_channel_by_name_locked(argv[4]);
-	} else {
-		chan2 = chan;
 	}
+
+	if (argc == 5) {
+		chan2 = ast_channel_get_by_name(argv[4]);
+	} else {
+		chan2 = ast_channel_ref(chan);
+	}
+
 	if (chan2) {
 		pbx_substitute_variables_helper(chan2, argv[3], tmp, sizeof(tmp) - 1);
 		ast_agi_send(agi->fd, chan, "200 result=1 (%s)\n", tmp);
 	} else {
 		ast_agi_send(agi->fd, chan, "200 result=0\n");
 	}
-	if (chan2 && (chan2 != chan))
-		ast_channel_unlock(chan2);
+
+	if (chan2) {
+		chan2 = ast_channel_unref(chan2);
+	}
+
 	return RESULT_SUCCESS;
 }
 

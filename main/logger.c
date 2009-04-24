@@ -584,7 +584,7 @@ static int rotate_file(const char *filename)
 		if (ast_safe_system(buf) != -1) {
 			ast_log(LOG_WARNING, "error executing '%s'\n", buf);
 		}
-		ast_channel_free(c);
+		c = ast_channel_release(c);
 	}
 	return res;
 }

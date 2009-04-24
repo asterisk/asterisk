@@ -352,7 +352,8 @@ static int func_channels_read(struct ast_channel *chan, const char *function, ch
 	regex_t re;
 	int res;
 	size_t buflen = 0;
-	
+	struct ast_channel_iterator *iter;
+
 	buf[0] = '\0';
 
 	if (!ast_strlen_zero(data)) {
@@ -363,7 +364,15 @@ static int func_channels_read(struct ast_channel *chan, const char *function, ch
 		}
 	}
 
-	for (c = ast_channel_walk_locked(NULL); c; ast_channel_unlock(c), c = ast_channel_walk_locked(c)) {
+	if (!(iter = ast_channel_iterator_all_new(0))) {
+		if (!ast_strlen_zero(data)) {
+			regfree(&re);
+		}
+		return -1;
+	}
+
+	while ((c = ast_channel_iterator_next(iter))) {
+		ast_channel_lock(c);
 		if (ast_strlen_zero(data) || regexec(&re, c->name, 0, NULL, 0) == 0) {
 			size_t namelen = strlen(c->name);
 			if (buflen + namelen + (ast_strlen_zero(buf) ? 0 : 1) + 1 < maxlen) {
@@ -377,7 +386,11 @@ static int func_channels_read(struct ast_channel *chan, const char *function, ch
 				ast_log(LOG_WARNING, "Number of channels exceeds the available buffer space.  Output will be truncated!\n");
 			}
 		}
+		ast_channel_unlock(c);
+		c = ast_channel_unref(c);
 	}
+
+	ast_channel_iterator_destroy(iter);
 
 	if (!ast_strlen_zero(data)) {
 		regfree(&re);

@@ -1254,8 +1254,9 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	ast_safe_system(tmp2);
 	ast_debug(1, "Sent message to %s with command '%s' - %s\n", vmu->email, global_mailcmd, template->attachment ? "(media attachment)" : "");
 	ast_debug(3, "Actual command used: %s\n", tmp2);
-	if (ast)
-		ast_channel_free(ast);
+	if (ast) {
+		ast = ast_channel_release(ast);
+	}
 	return 0;
 }
 

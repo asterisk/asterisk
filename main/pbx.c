@@ -3488,7 +3488,7 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 						cp4 = ast_func_read(bogus, vars, workspace, VAR_BUF_SIZE) ? NULL : workspace;
 						/* Don't deallocate the varshead that was passed in */
 						memcpy(&bogus->varshead, &old, sizeof(bogus->varshead));
-						ast_channel_free(bogus);
+						bogus = ast_channel_release(bogus);
 					} else
 						ast_log(LOG_ERROR, "Unable to allocate bogus channel for variable substitution.  Function results may be blank.\n");
 				}
@@ -6134,16 +6134,19 @@ static char *handle_show_chanvar(struct ast_cli_entry *e, int cmd, struct ast_cl
 	if (a->argc != e->args + 1)
 		return CLI_SHOWUSAGE;
 
-	if (!(chan = ast_get_channel_by_name_locked(a->argv[e->args]))) {
+	if (!(chan = ast_channel_get_by_name(a->argv[e->args]))) {
 		ast_cli(a->fd, "Channel '%s' not found\n", a->argv[e->args]);
 		return CLI_FAILURE;
 	}
 
 	pbx_builtin_serialize_variables(chan, &vars);
+
 	if (ast_str_strlen(vars)) {
 		ast_cli(a->fd, "\nVariables for channel %s:\n%s\n", a->argv[e->args], ast_str_buffer(vars));
 	}
-	ast_channel_unlock(chan);
+
+	chan = ast_channel_unref(chan);
+
 	return CLI_SUCCESS;
 }
 
@@ -6192,13 +6195,15 @@ static char *handle_set_chanvar(struct ast_cli_entry *e, int cmd, struct ast_cli
 	var_name = a->argv[e->args + 1];
 	var_value = a->argv[e->args + 2];
 
-	if (!(chan = ast_get_channel_by_name_locked(chan_name))) {
+	if (!(chan = ast_channel_get_by_name(chan_name))) {
 		ast_cli(a->fd, "Channel '%s' not found\n", chan_name);
 		return CLI_FAILURE;
 	}
 
 	pbx_builtin_setvar_helper(chan, var_name, var_value);
-	ast_channel_unlock(chan);
+
+	chan = ast_channel_unref(chan);
+
 	ast_cli(a->fd, "\n    -- Channel variable '%s' set to '%s' for '%s'\n",  var_name, var_value, chan_name);
 
 	return CLI_SUCCESS;
@@ -7303,11 +7308,11 @@ int ast_async_goto_by_name(const char *channame, const char *context, const char
 	struct ast_channel *chan;
 	int res = -1;
 
-	chan = ast_get_channel_by_name_locked(channame);
-	if (chan) {
+	if ((chan = ast_channel_get_by_name(channame))) {
 		res = ast_async_goto(chan, context, exten, priority);
-		ast_channel_unlock(chan);
+		chan = ast_channel_unref(chan);
 	}
+
 	return res;
 }
 
@@ -7823,7 +7828,7 @@ static int ast_pbx_outgoing_cdr_failed(void)
 
 	if (!chan->cdr) {
 		/* allocation of the cdr failed */
-		ast_channel_free(chan);   /* free the channel */
+		chan = ast_channel_release(chan);   /* free the channel */
 		return -1;                /* return failure */
 	}
 
@@ -7834,7 +7839,7 @@ static int ast_pbx_outgoing_cdr_failed(void)
 	ast_cdr_failed(chan->cdr);      /* set the status to failed */
 	ast_cdr_detach(chan->cdr);      /* post and free the record */
 	chan->cdr = NULL;
-	ast_channel_free(chan);         /* free the channel */
+	chan = ast_channel_release(chan);         /* free the channel */
 
 	return 0;  /* success */
 }
@@ -9030,14 +9035,14 @@ int pbx_builtin_importvar(struct ast_channel *chan, void *data)
 	name = strsep(&value,"=");
 	channel = strsep(&value,",");
 	if (channel && value && name) { /*! \todo XXX should do !ast_strlen_zero(..) of the args ? */
-		struct ast_channel *chan2 = ast_get_channel_by_name_locked(channel);
+		struct ast_channel *chan2 = ast_channel_get_by_name(channel);
 		if (chan2) {
 			char *s = alloca(strlen(value) + 4);
 			if (s) {
 				sprintf(s, "${%s}", value);
 				pbx_substitute_variables_helper(chan2, s, tmp, sizeof(tmp) - 1);
 			}
-			ast_channel_unlock(chan2);
+			chan2 = ast_channel_unref(chan2);
 		}
 		pbx_builtin_setvar_helper(chan, name, tmp);
 	}

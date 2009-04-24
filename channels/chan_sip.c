@@ -10347,12 +10347,21 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 	return 0;
 }
 
-static int find_calling_channel(struct ast_channel *c, void *data) {
+static int find_calling_channel(void *obj, void *arg, void *data, int flags)
+{
+	struct ast_channel *c = obj;
 	struct sip_pvt *p = data;
+	int res;
 
-	return (c->pbx &&
+	ast_channel_lock(c);
+
+	res = (c->pbx &&
 			(!strcasecmp(c->macroexten, p->exten) || !strcasecmp(c->exten, p->exten)) &&
 			(sip_cfg.notifycid == IGNORE_CONTEXT || !strcasecmp(c->context, p->context)));
+
+	ast_channel_unlock(c);
+
+	return res ? CMP_MATCH | CMP_STOP : 0;
 }
 
 /*! \brief Builds XML portion of state NOTIFY messages */
@@ -10471,15 +10480,16 @@ static void state_notify_build_xml(int state, int full, const char *exten, const
 			   callee must be dialing the same extension that is being monitored.  Simply dialing
 			   the hint'd device is not sufficient. */
 			if (sip_cfg.notifycid) {
-				struct ast_channel *caller = ast_channel_search_locked(find_calling_channel, p);
+				struct ast_channel *caller;
 
-				if (caller) {
+				if ((caller = ast_channel_callback(find_calling_channel, NULL, p, 0))) {
 					int need = strlen(caller->cid.cid_num) + strlen(p->fromdomain) + sizeof("sip:@");
 					local_target = alloca(need);
+					ast_channel_lock(caller);
 					snprintf(local_target, need, "sip:%s@%s", caller->cid.cid_num, p->fromdomain);
 					local_display = ast_strdupa(caller->cid.cid_name);
 					ast_channel_unlock(caller);
-					caller = NULL;
+					caller = ast_channel_unref(caller);
 				}
 			}
 

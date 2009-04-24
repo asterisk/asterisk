@@ -1223,7 +1223,7 @@ static int gtalk_newcall(struct gtalk *client, ikspak *pak)
 		gtalk_action(client, p, "reject");
 		p->alreadygone = 1;
 		gtalk_hangup(chan);
-		ast_channel_free(chan);
+		ast_channel_release(chan);
 		return -1;
 	}	
 

@@ -58,7 +58,9 @@
 #ifndef HAVE_PTHREAD_RWLOCK_TIMEDWRLOCK
 #include "asterisk/time.h"
 #endif
+
 #include "asterisk/logger.h"
+#include "asterisk/astobj2.h"
 
 /* internal macro to profile mutexes. Only computes the delay on
  * non-blocking calls.
@@ -272,13 +274,13 @@ int ast_find_lock_info(void *lock_addr, char *filename, size_t filename_size, in
 	do { \
 		char __filename[80], __func[80], __mutex_name[80]; \
 		int __lineno; \
-		int __res = ast_find_lock_info(&chan->lock_dont_use, __filename, sizeof(__filename), &__lineno, __func, sizeof(__func), __mutex_name, sizeof(__mutex_name)); \
+		int __res = ast_find_lock_info(ao2_object_get_lockaddr(chan), __filename, sizeof(__filename), &__lineno, __func, sizeof(__func), __mutex_name, sizeof(__mutex_name)); \
 		ast_channel_unlock(chan); \
 		usleep(1); \
 		if (__res < 0) { /* Shouldn't ever happen, but just in case... */ \
 			ast_channel_lock(chan); \
 		} else { \
-			__ast_pthread_mutex_lock(__filename, __lineno, __func, __mutex_name, &chan->lock_dont_use); \
+			__ao2_lock(chan, __filename, __func, __lineno, __mutex_name); \
 		} \
 	} while (0)
 
@@ -2022,35 +2024,6 @@ AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
 	int a = ast_atomic_fetchadd_int(p, -1);
 	return a == 1; /* true if the value is 0 now (so it was 1 previously) */
 })
-#endif
-
-#ifndef DEBUG_CHANNEL_LOCKS
-/*! \brief Lock a channel. If DEBUG_CHANNEL_LOCKS is defined
-	in the Makefile, print relevant output for debugging */
-#define ast_channel_lock(x)		ast_mutex_lock(&x->lock_dont_use)
-/*! \brief Unlock a channel. If DEBUG_CHANNEL_LOCKS is defined
-	in the Makefile, print relevant output for debugging */
-#define ast_channel_unlock(x)		ast_mutex_unlock(&x->lock_dont_use)
-/*! \brief Try locking a channel. If DEBUG_CHANNEL_LOCKS is defined
-	in the Makefile, print relevant output for debugging */
-#define ast_channel_trylock(x)		ast_mutex_trylock(&x->lock_dont_use)
-#else
-
-#define ast_channel_lock(a) __ast_channel_lock(a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
-/*! \brief Lock AST channel (and print debugging output)
-\note You need to enable DEBUG_CHANNEL_LOCKS for this function */
-int __ast_channel_lock(struct ast_channel *chan, const char *file, int lineno, const char *func);
-
-#define ast_channel_unlock(a) __ast_channel_unlock(a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
-/*! \brief Unlock AST channel (and print debugging output)
-\note You need to enable DEBUG_CHANNEL_LOCKS for this function
-*/
-int __ast_channel_unlock(struct ast_channel *chan, const char *file, int lineno, const char *func);
-
-#define ast_channel_trylock(a) __ast_channel_trylock(a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
-/*! \brief Lock AST channel (and print debugging output)
-\note   You need to enable DEBUG_CHANNEL_LOCKS for this function */
-int __ast_channel_trylock(struct ast_channel *chan, const char *file, int lineno, const char *func);
 #endif
 
 #endif /* _ASTERISK_LOCK_H */

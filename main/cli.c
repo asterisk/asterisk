@@ -789,6 +789,7 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	int numchans = 0, concise = 0, verbose = 0, count = 0;
 	int fd, argc;
 	char **argv;
+	struct ast_channel_iterator *iter = NULL;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -831,9 +832,17 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 				"CallerID", "Duration", "Accountcode", "BridgedTo");
 	}
 
-	while ((c = ast_channel_walk_locked(c)) != NULL) {
-		struct ast_channel *bc = ast_bridged_channel(c);
+	if (!count && !(iter = ast_channel_iterator_all_new(0))) {
+		return CLI_FAILURE;
+	}
+
+	for (; iter && (c = ast_channel_iterator_next(iter)); ast_channel_unref(c)) {
+		struct ast_channel *bc;
 		char durbuf[10] = "-";
+
+		ast_channel_lock(c);
+
+		bc = ast_bridged_channel(c);
 
 		if (!count) {
 			if ((concise || verbose)  && c->cdr && !ast_tvzero(c->cdr->start)) {
@@ -876,10 +885,15 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 				ast_cli(fd, FORMAT_STRING, c->name, locbuf, ast_state2str(c->_state), appdata);
 			}
 		}
-		numchans++;
 		ast_channel_unlock(c);
 	}
+
+	if (iter) {
+		ast_channel_iterator_destroy(iter);
+	}
+
 	if (!concise) {
+		numchans = ast_active_channels();
 		ast_cli(fd, "%d active channel%s\n", numchans, ESS(numchans));
 		if (option_maxcalls)
 			ast_cli(fd, "%d of %d max active call%s (%5.2f%% of capacity)\n",
@@ -890,6 +904,7 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 
 		ast_cli(fd, "%d call%s processed\n", ast_processed_calls(), ESS(ast_processed_calls()));
 	}
+
 	return CLI_SUCCESS;
 	
 #undef FORMAT_STRING
@@ -914,15 +929,21 @@ static char *handle_softhangup(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	case CLI_GENERATE:
 		return ast_complete_channels(a->line, a->word, a->pos, a->n, e->args);
 	}
-	if (a->argc != 4)
+
+	if (a->argc != 4) {
 		return CLI_SHOWUSAGE;
-	c = ast_get_channel_by_name_locked(a->argv[3]);
-	if (c) {
+	}
+
+	if ((c = ast_channel_get_by_name(a->argv[3]))) {
+		ast_channel_lock(c);
 		ast_cli(a->fd, "Requested Hangup on channel '%s'\n", c->name);
 		ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
 		ast_channel_unlock(c);
-	} else
+		c = ast_channel_unref(c);
+	} else {
 		ast_cli(a->fd, "%s is not a known channel\n", a->argv[3]);
+	}
+
 	return CLI_SUCCESS;
 }
 
@@ -1174,10 +1195,41 @@ static char *handle_commandcomplete(struct ast_cli_entry *e, int cmd, struct ast
 	return CLI_SUCCESS;
 }
 
+struct channel_set_debug_args {
+	int fd;
+	int is_off;
+};
+
+static int channel_set_debug(void *obj, void *arg, void *data, int flags)
+{
+	struct ast_channel *chan = obj;
+	struct channel_set_debug_args *args = data;
+
+	ast_channel_lock(chan);
+
+	if (!(chan->fin & DEBUGCHAN_FLAG) || !(chan->fout & DEBUGCHAN_FLAG)) {
+		if (args->is_off) {
+			chan->fin &= ~DEBUGCHAN_FLAG;
+			chan->fout &= ~DEBUGCHAN_FLAG;
+		} else {
+			chan->fin |= DEBUGCHAN_FLAG;
+			chan->fout |= DEBUGCHAN_FLAG;
+		}
+		ast_cli(args->fd, "Debugging %s on channel %s\n", args->is_off ? "disabled" : "enabled",
+				chan->name);
+	}
+
+	ast_channel_unlock(chan);
+
+	return 0;
+}
+
 static char *handle_core_set_debug_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_channel *c = NULL;
-	int is_all, is_off = 0;
+	struct channel_set_debug_args args = {
+		.fd = a->fd,
+	};
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -1193,47 +1245,37 @@ static char *handle_core_set_debug_channel(struct ast_cli_entry *e, int cmd, str
 			return NULL;
 		return a->n == 0 ? ast_strdup("all") : ast_complete_channels(a->line, a->word, a->pos, a->n - 1, e->args);
 	}
+
 	/* 'core set debug channel {all|chan_id}' */
 	if (a->argc == e->args + 2) {
 		if (!strcasecmp(a->argv[e->args + 1], "off"))
-			is_off = 1;
+			args.is_off = 1;
 		else
 			return CLI_SHOWUSAGE;
-	} else if (a->argc != e->args + 1)
+	} else if (a->argc != e->args + 1) {
 		return CLI_SHOWUSAGE;
+	}
 
-	is_all = !strcasecmp("all", a->argv[e->args]);
-	if (is_all) {
-		if (is_off) {
+	if (!strcasecmp("all", a->argv[e->args])) {
+		if (args.is_off) {
 			global_fin &= ~DEBUGCHAN_FLAG;
 			global_fout &= ~DEBUGCHAN_FLAG;
 		} else {
 			global_fin |= DEBUGCHAN_FLAG;
 			global_fout |= DEBUGCHAN_FLAG;
 		}
-		c = ast_channel_walk_locked(NULL);
+		ast_channel_callback(channel_set_debug, NULL, &args, OBJ_NODATA | OBJ_MULTIPLE);
 	} else {
-		c = ast_get_channel_by_name_locked(a->argv[e->args]);
-		if (c == NULL)
+		if ((c = ast_channel_get_by_name(a->argv[e->args]))) {
+			channel_set_debug(c, NULL, &args, 0);
+			ast_channel_unref(c);
+		} else {
 			ast_cli(a->fd, "No such channel %s\n", a->argv[e->args]);
-	}
-	while (c) {
-		if (!(c->fin & DEBUGCHAN_FLAG) || !(c->fout & DEBUGCHAN_FLAG)) {
-			if (is_off) {
-				c->fin &= ~DEBUGCHAN_FLAG;
-				c->fout &= ~DEBUGCHAN_FLAG;
-			} else {
-				c->fin |= DEBUGCHAN_FLAG;
-				c->fout |= DEBUGCHAN_FLAG;
-			}
-			ast_cli(a->fd, "Debugging %s on channel %s\n", is_off ? "disabled" : "enabled", c->name);
 		}
-		ast_channel_unlock(c);
-		if (!is_all)
-			break;
-		c = ast_channel_walk_locked(c);
 	}
-	ast_cli(a->fd, "Debugging on new channels is %s\n", is_off ? "disabled" : "enabled");
+
+	ast_cli(a->fd, "Debugging on new channels is %s\n", args.is_off ? "disabled" : "enabled");
+
 	return CLI_SUCCESS;
 }
 
@@ -1279,22 +1321,29 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		return ast_complete_channels(a->line, a->word, a->pos, a->n, 3);
 	}
 	
-	if (a->argc != 4)
+	if (a->argc != 4) {
 		return CLI_SHOWUSAGE;
+	}
+
 	now = ast_tvnow();
-	c = ast_get_channel_by_name_locked(a->argv[3]);
-	if (!c) {
+
+	if (!(c = ast_channel_get_by_name(a->argv[3]))) {
 		ast_cli(a->fd, "%s is not a known channel\n", a->argv[3]);
 		return CLI_SUCCESS;
 	}
+
+	ast_channel_lock(c);
+
 	if (c->cdr) {
 		elapsed_seconds = now.tv_sec - c->cdr->start.tv_sec;
 		hour = elapsed_seconds / 3600;
 		min = (elapsed_seconds % 3600) / 60;
 		sec = elapsed_seconds % 60;
 		snprintf(cdrtime, sizeof(cdrtime), "%dh%dm%ds", hour, min, sec);
-	} else
+	} else {
 		strcpy(cdrtime, "N/A");
+	}
+
 	ast_cli(a->fd, 
 		" -- General --\n"
 		"           Name: %s\n"
@@ -1347,17 +1396,24 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		( c-> data ? S_OR(c->data, "(Empty)") : "(None)"),
 		(ast_test_flag(c, AST_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
 	
-	if (pbx_builtin_serialize_variables(c, &out))
+	if (pbx_builtin_serialize_variables(c, &out)) {
 		ast_cli(a->fd,"      Variables:\n%s\n", ast_str_buffer(out));
-	if (c->cdr && ast_cdr_serialize_variables(c->cdr, &out, '=', '\n', 1))
+	}
+
+	if (c->cdr && ast_cdr_serialize_variables(c->cdr, &out, '=', '\n', 1)) {
 		ast_cli(a->fd,"  CDR Variables:\n%s\n", ast_str_buffer(out));
+	}
+
 #ifdef CHANNEL_TRACE
 	trace_enabled = ast_channel_trace_is_enabled(c);
 	ast_cli(a->fd, "  Context Trace: %s\n", trace_enabled ? "Enabled" : "Disabled");
 	if (trace_enabled && ast_channel_trace_serialize(c, &out))
 		ast_cli(a->fd, "          Trace:\n%s\n", ast_str_buffer(out));
 #endif
+
 	ast_channel_unlock(c);
+	c = ast_channel_unref(c);
+
 	return CLI_SUCCESS;
 }
 
@@ -1381,20 +1437,27 @@ char *ast_complete_channels(const char *line, const char *word, int pos, int sta
 {
 	struct ast_channel *c = NULL;
 	int which = 0;
-	int wordlen;
 	char notfound = '\0';
 	char *ret = &notfound; /* so NULL can break the loop */
+	struct ast_channel_iterator *iter;
 
-	if (pos != rpos)
+	if (pos != rpos) {
 		return NULL;
-
-	wordlen = strlen(word);	
-
-	while (ret == &notfound && (c = ast_channel_walk_locked(c))) {
-		if (!strncasecmp(word, c->name, wordlen) && ++which > state)
-			ret = ast_strdup(c->name);
-		ast_channel_unlock(c);
 	}
+
+	if (!(iter = ast_channel_iterator_by_name_new(0, word, strlen(word)))) {
+		return NULL;
+	}
+
+	while (ret == &notfound && (c = ast_channel_iterator_next(iter))) {
+		if (++which > state) {
+			ast_channel_lock(c);
+			ret = ast_strdup(c->name);
+			ast_channel_unlock(c);
+		}
+		ast_channel_unref(c);
+	}
+
 	return ret == &notfound ? NULL : ret;
 }
 

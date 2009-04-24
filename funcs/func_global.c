@@ -134,6 +134,7 @@ static int shared_read(struct ast_channel *chan, const char *cmd, char *data, ch
 		AST_APP_ARG(var);
 		AST_APP_ARG(chan);
 	);
+	struct ast_channel *c_ref = NULL;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SHARED() requires an argument: SHARED(<var>[,<chan>])\n");
@@ -145,15 +146,20 @@ static int shared_read(struct ast_channel *chan, const char *cmd, char *data, ch
 	if (!ast_strlen_zero(args.chan)) {
 		char *prefix = alloca(strlen(args.chan) + 2);
 		sprintf(prefix, "%s-", args.chan);
-		if (!(chan = ast_get_channel_by_name_locked(args.chan)) && !(chan = ast_get_channel_by_name_prefix_locked(prefix, strlen(prefix)))) {
+		if (!(c_ref = ast_channel_get_by_name(args.chan)) && !(c_ref = ast_channel_get_by_name_prefix(prefix, strlen(prefix)))) {
 			ast_log(LOG_ERROR, "Channel '%s' not found!  Variable '%s' will be blank.\n", args.chan, args.var);
 			return -1;
 		}
-	} else
-		ast_channel_lock(chan);
+		chan = c_ref;
+	}
+
+	ast_channel_lock(chan);
 
 	if (!(varstore = ast_channel_datastore_find(chan, &shared_variable_info, NULL))) {
 		ast_channel_unlock(chan);
+		if (c_ref) {
+			c_ref = ast_channel_unref(c_ref);
+		}
 		return -1;
 	}
 
@@ -170,6 +176,10 @@ static int shared_read(struct ast_channel *chan, const char *cmd, char *data, ch
 
 	ast_channel_unlock(chan);
 
+	if (c_ref) {
+		c_ref = ast_channel_unref(c_ref);
+	}
+
 	return 0;
 }
 
@@ -182,6 +192,7 @@ static int shared_write(struct ast_channel *chan, const char *cmd, char *data, c
 		AST_APP_ARG(var);
 		AST_APP_ARG(chan);
 	);
+	struct ast_channel *c_ref = NULL;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SHARED() requires an argument: SHARED(<var>[,<chan>])\n");
@@ -193,17 +204,22 @@ static int shared_write(struct ast_channel *chan, const char *cmd, char *data, c
 	if (!ast_strlen_zero(args.chan)) {
 		char *prefix = alloca(strlen(args.chan) + 2);
 		sprintf(prefix, "%s-", args.chan);
-		if (!(chan = ast_get_channel_by_name_locked(args.chan)) && !(chan = ast_get_channel_by_name_prefix_locked(prefix, strlen(prefix)))) {
+		if (!(c_ref = ast_channel_get_by_name(args.chan)) && !(c_ref = ast_channel_get_by_name_prefix(prefix, strlen(prefix)))) {
 			ast_log(LOG_ERROR, "Channel '%s' not found!  Variable '%s' not set to '%s'.\n", args.chan, args.var, value);
 			return -1;
 		}
-	} else
-		ast_channel_lock(chan);
+		chan = c_ref;
+	}
+
+	ast_channel_lock(chan);
 
 	if (!(varstore = ast_channel_datastore_find(chan, &shared_variable_info, NULL))) {
 		if (!(varstore = ast_datastore_alloc(&shared_variable_info, NULL))) {
 			ast_log(LOG_ERROR, "Unable to allocate new datastore.  Shared variable not set.\n");
 			ast_channel_unlock(chan);
+			if (c_ref) {
+				c_ref = ast_channel_unref(c_ref);
+			}
 			return -1;
 		}
 
@@ -211,6 +227,9 @@ static int shared_write(struct ast_channel *chan, const char *cmd, char *data, c
 			ast_log(LOG_ERROR, "Unable to allocate variable structure.  Shared variable not set.\n");
 			ast_datastore_free(varstore);
 			ast_channel_unlock(chan);
+			if (c_ref) {
+				c_ref = ast_channel_unref(c_ref);
+			}
 			return -1;
 		}
 
@@ -240,6 +259,10 @@ static int shared_write(struct ast_channel *chan, const char *cmd, char *data, c
 		chan ? chan->uniqueid : "none");
 
 	ast_channel_unlock(chan);
+
+	if (c_ref) {
+		c_ref = ast_channel_unref(c_ref);
+	}
 
 	return 0;
 }

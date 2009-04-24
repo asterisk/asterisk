@@ -4106,7 +4106,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 			} else {
 				fprintf(p, "From: %s <%s>" ENDL, quote(passdata2, passdata, len_passdata), who);
 			}
-			ast_channel_free(ast);
+			ast = ast_channel_release(ast);
 		} else {
 			ast_log(AST_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		}
@@ -4156,7 +4156,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 			} else {
 				fprintf(p, "Subject: %s" ENDL, passdata);
 			}
-			ast_channel_free(ast);
+			ast = ast_channel_release(ast);
 		} else {
 			ast_log(AST_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		}
@@ -4229,7 +4229,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, cidnum, cidname, dur, date, passdata, vmlen, category, flag);
 			pbx_substitute_variables_helper(ast, e_body, passdata, vmlen);
 			fprintf(p, "%s" ENDL, passdata);
-			ast_channel_free(ast);
+			ast = ast_channel_release(ast);
 		} else
 			ast_log(AST_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 	} else if (msgnum > -1) {
@@ -4413,7 +4413,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, cidnum, cidname, dur, date, passdata, vmlen, category, flag);
 			pbx_substitute_variables_helper(ast, pagerfromstring, passdata, vmlen);
 			fprintf(p, "From: %s <%s>\n", passdata, who);
-			ast_channel_free(ast);
+			ast = ast_channel_release(ast);
 		} else 
 			ast_log(AST_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 	} else
@@ -4429,7 +4429,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, cidnum, cidname, dur, date, passdata, vmlen, category, flag);
 			pbx_substitute_variables_helper(ast, pagersubject, passdata, vmlen);
 			fprintf(p, "Subject: %s\n\n", passdata);
-			ast_channel_free(ast);
+			ast = ast_channel_release(ast);
 		} else
 			ast_log(AST_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 	} else {
@@ -4451,7 +4451,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, cidnum, cidname, dur, date, passdata, vmlen, category, flag);
 			pbx_substitute_variables_helper(ast, pagerbody, passdata, vmlen);
 			fprintf(p, "%s\n", passdata);
-			ast_channel_free(ast);
+			ast = ast_channel_release(ast);
 		} else
 			ast_log(AST_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 	} else {

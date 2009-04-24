@@ -793,13 +793,12 @@ static struct ast_channel *local_new(struct local_pvt *p, int state)
 		ama = 0;
 	if (!(tmp = ast_channel_alloc(1, state, 0, 0, t, p->exten, p->context, ama, "Local/%s@%s-%04x;1", p->exten, p->context, randnum)) 
 			|| !(tmp2 = ast_channel_alloc(1, AST_STATE_RING, 0, 0, t, p->exten, p->context, ama, "Local/%s@%s-%04x;2", p->exten, p->context, randnum))) {
-		if (tmp)
-			ast_channel_free(tmp);
-		if (tmp2)
-			ast_channel_free(tmp2);
+		if (tmp) {
+			tmp = ast_channel_release(tmp);
+		}
 		ast_log(LOG_WARNING, "Unable to allocate channel structure(s)\n");
 		return NULL;
-	} 
+	}
 
 	tmp2->tech = tmp->tech = &local_tech;
 

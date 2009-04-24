@@ -720,11 +720,13 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 			if ((c = strrchr(other_side, ';'))) {
 				*++c = '1';
 			}
-			if ((tmpchan = ast_get_channel_by_name_locked(other_side))) {
+			if ((tmpchan = ast_channel_get_by_name(other_side))) {
+				ast_channel_lock(tmpchan);
 				if ((base_peer = ast_bridged_channel(tmpchan))) {
 					ast_copy_string(pu->peername, base_peer->name, sizeof(pu->peername));
 				}
 				ast_channel_unlock(tmpchan);
+				tmpchan = ast_channel_unref(tmpchan);
 			}
 		} else {
 			ast_copy_string(pu->peername, S_OR(args->orig_chan_name, peer->name), sizeof(pu->peername));
@@ -2883,33 +2885,35 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	      to attend to; if the chan or peer changed names,
 	      we have the before and after attached CDR's.
 	*/
-	
+
 	if (new_chan_cdr) {
 		struct ast_channel *chan_ptr = NULL;
- 
- 		if (strcasecmp(orig_channame, chan->name) != 0) { 
- 			/* old channel */
- 			chan_ptr = ast_get_channel_by_name_locked(orig_channame);
- 			if (chan_ptr) {
- 				if (!ast_bridged_channel(chan_ptr)) {
- 					struct ast_cdr *cur;
- 					for (cur = chan_ptr->cdr; cur; cur = cur->next) {
- 						if (cur == chan_cdr) {
- 							break;
- 						}
- 					}
- 					if (cur)
- 						ast_cdr_specialized_reset(chan_cdr,0);
- 				}
- 				ast_channel_unlock(chan_ptr);
- 			}
- 			/* new channel */
- 			ast_cdr_specialized_reset(new_chan_cdr,0);
- 		} else {
- 			ast_cdr_specialized_reset(chan_cdr,0); /* nothing changed, reset the chan_cdr  */
- 		}
+
+		if (strcasecmp(orig_channame, chan->name) != 0) { 
+			/* old channel */
+			if ((chan_ptr == ast_channel_get_by_name(orig_channame))) {
+				ast_channel_lock(chan_ptr);
+				if (!ast_bridged_channel(chan_ptr)) {
+					struct ast_cdr *cur;
+					for (cur = chan_ptr->cdr; cur; cur = cur->next) {
+						if (cur == chan_cdr) {
+							break;
+						}
+					}
+					if (cur) {
+						ast_cdr_specialized_reset(chan_cdr, 0);
+					}
+				}
+				ast_channel_unlock(chan_ptr);
+				chan_ptr = ast_channel_unref(chan_ptr);
+			}
+			/* new channel */
+			ast_cdr_specialized_reset(new_chan_cdr, 0);
+		} else {
+			ast_cdr_specialized_reset(chan_cdr, 0); /* nothing changed, reset the chan_cdr  */
+		}
 	}
-	
+
 	{
 		struct ast_channel *chan_ptr = NULL;
 		new_peer_cdr = pick_unlocked_cdr(peer->cdr); /* the proper chan cdr, if there are forked cdrs */
@@ -2917,8 +2921,8 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			ast_set_flag(new_peer_cdr, AST_CDR_FLAG_POST_DISABLED); /* DISABLED is viral-- it will propagate across a bridge */
 		if (strcasecmp(orig_peername, peer->name) != 0) { 
 			/* old channel */
-			chan_ptr = ast_get_channel_by_name_locked(orig_peername);
-			if (chan_ptr) {
+			if ((chan_ptr = ast_channel_get_by_name(orig_peername))) {
+				ast_channel_lock(chan_ptr);
 				if (!ast_bridged_channel(chan_ptr)) {
 					struct ast_cdr *cur;
 					for (cur = chan_ptr->cdr; cur; cur = cur->next) {
@@ -2926,15 +2930,17 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 							break;
 						}
 					}
-					if (cur)
-						ast_cdr_specialized_reset(peer_cdr,0);
+					if (cur) {
+						ast_cdr_specialized_reset(peer_cdr, 0);
+					}
 				}
 				ast_channel_unlock(chan_ptr);
+				chan_ptr = ast_channel_unref(chan_ptr);
 			}
 			/* new channel */
-			ast_cdr_specialized_reset(new_peer_cdr,0);
+			ast_cdr_specialized_reset(new_peer_cdr, 0);
 		} else {
-			ast_cdr_specialized_reset(peer_cdr,0); /* nothing changed, reset the peer_cdr  */
+			ast_cdr_specialized_reset(peer_cdr, 0); /* nothing changed, reset the peer_cdr  */
 		}
 	}
 	
@@ -4157,12 +4163,8 @@ static int action_bridge(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	/* The same code must be executed for chana and chanb.  To avoid a
-	 * theoretical deadlock, this code is separated so both chana and chanb will
-	 * not hold locks at the same time. */
-
 	/* Start with chana */
-	chana = ast_get_channel_by_name_prefix_locked(channela, strlen(channela));
+	chana = ast_channel_get_by_name_prefix(channela, strlen(channela));
 
 	/* send errors if any of the channels could not be found/locked */
 	if (!chana) {
@@ -4180,16 +4182,16 @@ static int action_bridge(struct mansession *s, const struct message *m)
 	if (!(tmpchana = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, 
 		NULL, NULL, 0, "Bridge/%s", chana->name))) {
 		astman_send_error(s, m, "Unable to create temporary channel!");
-		ast_channel_unlock(chana);
+		chana = ast_channel_unref(chana);
 		return 1;
 	}
 
 	do_bridge_masquerade(chana, tmpchana);
-	ast_channel_unlock(chana);
-	chana = NULL;
+
+	chana = ast_channel_unref(chana);
 
 	/* now do chanb */
-	chanb = ast_get_channel_by_name_prefix_locked(channelb, strlen(channelb));
+	chanb = ast_channel_get_by_name_prefix(channelb, strlen(channelb));
 	/* send errors if any of the channels could not be found/locked */
 	if (!chanb) {
 		char buf[256];
@@ -4208,12 +4210,13 @@ static int action_bridge(struct mansession *s, const struct message *m)
 		NULL, NULL, 0, "Bridge/%s", chanb->name))) {
 		astman_send_error(s, m, "Unable to create temporary channels!");
 		ast_hangup(tmpchana);
-		ast_channel_unlock(chanb);
+		chanb = ast_channel_unref(chanb);
 		return 1;
 	}
+
 	do_bridge_masquerade(chanb, tmpchanb);
-	ast_channel_unlock(chanb);
-	chanb = NULL;
+
+	chanb = ast_channel_unref(chanb);
 
 	/* make the channels compatible, send error if we fail doing so */
 	if (ast_channel_make_compatible(tmpchana, tmpchanb)) {
@@ -4408,19 +4411,22 @@ static int manager_park(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	ch1 = ast_get_channel_by_name_locked(channel);
-	if (!ch1) {
+	if (!(ch1 = ast_channel_get_by_name(channel))) {
 		snprintf(buf, sizeof(buf), "Channel does not exist: %s", channel);
 		astman_send_error(s, m, buf);
 		return 0;
 	}
 
-	ch2 = ast_get_channel_by_name_locked(channel2);
-	if (!ch2) {
+	if (!(ch2 = ast_channel_get_by_name(channel2))) {
 		snprintf(buf, sizeof(buf), "Channel does not exist: %s", channel2);
 		astman_send_error(s, m, buf);
-		ast_channel_unlock(ch1);
+		ast_channel_unref(ch1);
 		return 0;
+	}
+
+	ast_channel_lock(ch1);
+	while (ast_channel_trylock(ch2)) {
+		CHANNEL_DEADLOCK_AVOIDANCE(ch1);
 	}
 
 	if (!ast_strlen_zero(timeout)) {
@@ -4438,19 +4444,26 @@ static int manager_park(struct mansession *s, const struct message *m)
 	ast_channel_unlock(ch1);
 	ast_channel_unlock(ch2);
 
+	ch1 = ast_channel_unref(ch1);
+	ch2 = ast_channel_unref(ch2);
+
 	return 0;
 }
 
-static int find_channel_by_group(struct ast_channel *c, void *data) {
-	struct ast_channel *chan = data;
+static int find_channel_by_group(void *obj, void *arg, void *data, int flags)
+{
+	struct ast_channel *c = data;
+	struct ast_channel *chan = obj;
 
-	return !c->pbx &&
+	int i = !c->pbx &&
 		/* Accessing 'chan' here is safe without locking, because there is no way for
 		   the channel do disappear from under us at this point.  pickupgroup *could*
 		   change while we're here, but that isn't a problem. */
 		(c != chan) &&
 		(chan->pickupgroup & c->callgroup) &&
 		((c->_state == AST_STATE_RINGING) || (c->_state == AST_STATE_RING));
+
+	return i ? CMP_MATCH | CMP_STOP : 0;
 }
 
 /*!
@@ -4463,43 +4476,57 @@ static int find_channel_by_group(struct ast_channel *c, void *data) {
 */
 int ast_pickup_call(struct ast_channel *chan)
 {
-	struct ast_channel *cur = ast_channel_search_locked(find_channel_by_group, chan);
+	struct ast_channel *cur;
+	struct ast_party_connected_line connected_caller;
+	int res;
+	const char *chan_name;
+	const char *cur_name;
 
-	if (cur) {
-		struct ast_party_connected_line connected_caller;
-
-		int res = -1;
-		ast_debug(1, "Call pickup on chan '%s' by '%s'\n",cur->name, chan->name);
-
-		connected_caller = cur->connected;
-		connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-		ast_channel_update_connected_line(chan, &connected_caller);
-
-		ast_party_connected_line_collect_caller(&connected_caller, &chan->cid);
-		connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-		ast_channel_queue_connected_line_update(chan, &connected_caller);
-
-		res = ast_answer(chan);
-		if (res)
-			ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);
-		res = ast_queue_control(chan, AST_CONTROL_ANSWER);
-		if (res)
-			ast_log(LOG_WARNING, "Unable to queue answer on '%s'\n", chan->name);
-		res = ast_channel_masquerade(cur, chan);
-		if (res)
-			ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, cur->name);		/* Done */
-		if (!ast_strlen_zero(pickupsound)) {
-			ast_stream_and_wait(cur, pickupsound, "");
-		}
-		ast_channel_unlock(cur);
-		return res;
-	} else	{
+	if (!(cur = ast_channel_callback(find_channel_by_group, NULL, chan, 0))) {
 		ast_debug(1, "No call pickup possible...\n");
 		if (!ast_strlen_zero(pickupfailsound)) {
 			ast_stream_and_wait(chan, pickupfailsound, "");
 		}
+		return -1;
 	}
-	return -1;
+
+	ast_channel_lock_both(cur, chan);
+
+	cur_name = ast_strdupa(cur->name);
+	chan_name = ast_strdupa(chan->name);
+
+	ast_debug(1, "Call pickup on chan '%s' by '%s'\n", cur_name, chan_name);
+
+	connected_caller = cur->connected;
+	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
+	ast_channel_update_connected_line(chan, &connected_caller);
+
+	ast_party_connected_line_collect_caller(&connected_caller, &chan->cid);
+	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
+	ast_channel_queue_connected_line_update(chan, &connected_caller);
+
+	ast_channel_unlock(cur);
+	ast_channel_unlock(chan);
+
+	if (ast_answer(chan)) {
+		ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan_name);
+	}
+
+	if (ast_queue_control(chan, AST_CONTROL_ANSWER)) {
+		ast_log(LOG_WARNING, "Unable to queue answer on '%s'\n", chan_name);
+	}
+
+	if ((res = ast_channel_masquerade(cur, chan))) {
+		ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan_name, cur_name);
+	}
+
+	if (!ast_strlen_zero(pickupsound)) {
+		ast_stream_and_wait(cur, pickupsound, "");
+	}
+
+	cur = ast_channel_unref(cur);
+
+	return res;
 }
 
 static char *app_bridge = "Bridge";
@@ -4559,8 +4586,8 @@ static int bridge_exec(struct ast_channel *chan, void *data)
 	}
 
 	/* make sure we have a valid end point */
-	if (!(current_dest_chan = ast_get_channel_by_name_prefix_locked(args.dest_chan, 
-		strlen(args.dest_chan)))) {
+	if (!(current_dest_chan = ast_channel_get_by_name_prefix(args.dest_chan,
+			strlen(args.dest_chan)))) {
 		ast_log(LOG_WARNING, "Bridge failed because channel %s does not exists or we "
 			"cannot get its lock\n", args.dest_chan);
 		manager_event(EVENT_FLAG_CALL, "BridgeExec",
@@ -4573,8 +4600,9 @@ static int bridge_exec(struct ast_channel *chan, void *data)
 	}
 
 	/* answer the channel if needed */
-	if (current_dest_chan->_state != AST_STATE_UP)
+	if (current_dest_chan->_state != AST_STATE_UP) {
 		ast_answer(current_dest_chan);
+	}
 
 	/* try to allocate a place holder where current_dest_chan will be placed */
 	if (!(final_dest_chan = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, 
@@ -4601,6 +4629,7 @@ static int bridge_exec(struct ast_channel *chan, void *data)
 					"Channel2: %s\r\n", chan->name, final_dest_chan->name);
 		ast_hangup(final_dest_chan); /* may be we should return this channel to the PBX? */
 		pbx_builtin_setvar_helper(chan, "BRIDGERESULT", "INCOMPATIBLE");
+		current_dest_chan = ast_channel_unref(current_dest_chan);
 		return 0;
 	}
 
@@ -4618,6 +4647,8 @@ static int bridge_exec(struct ast_channel *chan, void *data)
 		}
 	}
 	
+	current_dest_chan = ast_channel_unref(current_dest_chan);
+
 	/* do the bridge */
 	ast_bridge_call(chan, final_dest_chan, &bconfig);
 

@@ -45,6 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/app.h"
 #include "asterisk/channel.h"
+#include "asterisk/autochan.h"
 
 /*** DOCUMENTATION
 	<application name="MixMonitor" language="en_US">
@@ -138,7 +139,7 @@ struct mixmonitor {
 	char *post_process;
 	char *name;
 	unsigned int flags;
-	struct mixmonitor_ds *mixmonitor_ds;
+	struct ast_autochan *autochan;
 };
 
 enum {
@@ -163,50 +164,6 @@ AST_APP_OPTIONS(mixmonitor_opts, {
 	AST_APP_OPTION_ARG('V', MUXFLAG_WRITEVOLUME, OPT_ARG_WRITEVOLUME),
 	AST_APP_OPTION_ARG('W', MUXFLAG_VOLUME, OPT_ARG_VOLUME),
 });
-
-/* This structure is used as a means of making sure that our pointer to
- * the channel we are monitoring remains valid. This is very similar to 
- * what is used in app_chanspy.c.
- */
-struct mixmonitor_ds {
-	struct ast_channel *chan;
-	/* These condition variables are used to be sure that the channel
-	 * hangup code completes before the mixmonitor thread attempts to
-	 * free this structure. The combination of a bookean flag and a
-	 * ast_cond_t ensure that no matter what order the threads run in,
-	 * we are guaranteed to never have the waiting thread block forever
-	 * in the case that the signaling thread runs first.
-	 */
-	unsigned int destruction_ok;
-	ast_cond_t destruction_condition;
-	ast_mutex_t lock;
-};
-
-static void mixmonitor_ds_destroy(void *data)
-{
-	struct mixmonitor_ds *mixmonitor_ds = data;
-
-	ast_mutex_lock(&mixmonitor_ds->lock);
-	mixmonitor_ds->chan = NULL;
-	mixmonitor_ds->destruction_ok = 1;
-	ast_cond_signal(&mixmonitor_ds->destruction_condition);
-	ast_mutex_unlock(&mixmonitor_ds->lock);
-}
-
-static void mixmonitor_ds_chan_fixup(void *data, struct ast_channel *old_chan, struct ast_channel *new_chan)
-{
-	struct mixmonitor_ds *mixmonitor_ds = data;
-
-	ast_mutex_lock(&mixmonitor_ds->lock);
-	mixmonitor_ds->chan = new_chan;
-	ast_mutex_unlock(&mixmonitor_ds->lock);
-}
-
-static struct ast_datastore_info mixmonitor_ds_info = {
-	.type = "mixmonitor",
-	.destroy = mixmonitor_ds_destroy,
-	.chan_fixup = mixmonitor_ds_chan_fixup,
-};
 
 static int startmon(struct ast_channel *chan, struct ast_audiohook *audiohook) 
 {
@@ -249,9 +206,7 @@ static void *mixmonitor_thread(void *obj)
 		if (!(fr = ast_audiohook_read_frame(&mixmonitor->audiohook, SAMPLES_PER_FRAME, AST_AUDIOHOOK_DIRECTION_BOTH, AST_FORMAT_SLINEAR)))
 			continue;
 
-		ast_mutex_lock(&mixmonitor->mixmonitor_ds->lock);
-		if (!ast_test_flag(mixmonitor, MUXFLAG_BRIDGED) || (mixmonitor->mixmonitor_ds->chan && ast_bridged_channel(mixmonitor->mixmonitor_ds->chan))) {
-			ast_mutex_unlock(&mixmonitor->mixmonitor_ds->lock);
+		if (!ast_test_flag(mixmonitor, MUXFLAG_BRIDGED) || (mixmonitor->autochan->chan && ast_bridged_channel(mixmonitor->autochan->chan))) {
 			/* Initialize the file if not already done so */
 			if (!fs && !errflag) {
 				oflags = O_CREAT | O_WRONLY;
@@ -271,10 +226,7 @@ static void *mixmonitor_thread(void *obj)
 			/* Write out frame */
 			if (fs)
 				ast_writestream(fs, fr);
-		} else {
-			ast_mutex_unlock(&mixmonitor->mixmonitor_ds->lock);
 		}
-
 		/* All done! free it. */
 		ast_frame_free(fr, 0);
 
@@ -294,46 +246,10 @@ static void *mixmonitor_thread(void *obj)
 		ast_safe_system(mixmonitor->post_process);
 	}
 
-	ast_mutex_lock(&mixmonitor->mixmonitor_ds->lock);
-	if (!mixmonitor->mixmonitor_ds->destruction_ok) {
-		ast_cond_wait(&mixmonitor->mixmonitor_ds->destruction_condition, &mixmonitor->mixmonitor_ds->lock);
-	}
-	ast_mutex_unlock(&mixmonitor->mixmonitor_ds->lock);
-	ast_mutex_destroy(&mixmonitor->mixmonitor_ds->lock);
-	ast_cond_destroy(&mixmonitor->mixmonitor_ds->destruction_condition);
-	ast_free(mixmonitor->mixmonitor_ds);
+	ast_autochan_destroy(mixmonitor->autochan);
 	ast_free(mixmonitor);
 
 	return NULL;
-}
-
-static int setup_mixmonitor_ds(struct mixmonitor *mixmonitor, struct ast_channel *chan)
-{
-	struct ast_datastore *datastore = NULL;
-	struct mixmonitor_ds *mixmonitor_ds;
-
-	if (!(mixmonitor_ds = ast_calloc(1, sizeof(*mixmonitor_ds)))) {
-		return -1;
-	}
-	
-	ast_mutex_init(&mixmonitor_ds->lock);
-	ast_cond_init(&mixmonitor_ds->destruction_condition, NULL);
-
-	if (!(datastore = ast_datastore_alloc(&mixmonitor_ds_info, NULL))) {
-		ast_free(mixmonitor_ds);
-		return -1;
-	}
-
-	/* No need to lock mixmonitor_ds since this is still operating in the channel's thread */
-	mixmonitor_ds->chan = chan;
-	datastore->data = mixmonitor_ds;
-
-	ast_channel_lock(chan);
-	ast_channel_datastore_add(chan, datastore);
-	ast_channel_unlock(chan);
-
-	mixmonitor->mixmonitor_ds = mixmonitor_ds;
-	return 0;
 }
 
 static void launch_monitor_thread(struct ast_channel *chan, const char *filename, unsigned int flags,
@@ -369,7 +285,7 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 
 	/* Copy over flags and channel name */
 	mixmonitor->flags = flags;
-	if (setup_mixmonitor_ds(mixmonitor, chan)) {
+	if (!(mixmonitor->autochan = ast_autochan_setup(chan))) {
 		return;
 	}
 	mixmonitor->name = (char *) mixmonitor + sizeof(*mixmonitor);
@@ -512,11 +428,13 @@ static char *handle_cli_mixmonitor(struct ast_cli_entry *e, int cmd, struct ast_
 	if (a->argc < 3)
 		return CLI_SHOWUSAGE;
 
-	if (!(chan = ast_get_channel_by_name_prefix_locked(a->argv[2], strlen(a->argv[2])))) {
+	if (!(chan = ast_channel_get_by_name_prefix(a->argv[2], strlen(a->argv[2])))) {
 		ast_cli(a->fd, "No channel matching '%s' found.\n", a->argv[2]);
 		/* Technically this is a failure, but we don't want 2 errors printing out */
 		return CLI_SUCCESS;
 	}
+
+	ast_channel_lock(chan);
 
 	if (!strcasecmp(a->argv[1], "start")) {
 		mixmonitor_exec(chan, a->argv[3]);
@@ -525,6 +443,8 @@ static char *handle_cli_mixmonitor(struct ast_cli_entry *e, int cmd, struct ast_
 		ast_channel_unlock(chan);
 		ast_audiohook_detach_source(chan, mixmonitor_spy_type);
 	}
+
+	chan = ast_channel_unref(chan);
 
 	return CLI_SUCCESS;
 }

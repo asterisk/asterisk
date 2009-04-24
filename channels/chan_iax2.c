@@ -4483,7 +4483,7 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 		if (tmp) {
 			/* unlock and relock iaxsl[callno] to preserve locking order */
 			ast_mutex_unlock(&iaxsl[callno]);
-			ast_channel_free(tmp);
+			tmp = ast_channel_release(tmp);
 			ast_mutex_lock(&iaxsl[callno]);
 		}
 		return NULL;

@@ -4433,8 +4433,8 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 		return NULL;
 	}
 	l = sub->parent;
-	tmp = ast_channel_alloc(1, state, l->cid_num, NULL, l->accountcode, l->exten, 
-		l->context, l->amaflags, "%s-%08x", l->fullname, (int) (long) sub);
+	tmp = ast_channel_alloc(1, state, l->cid_num, NULL, l->accountcode, l->exten,
+		l->context, l->amaflags, "%s@%s-%d", l->name, l->parent->name, sub->subtype);
 	if (unistimdebug)
 		ast_verb(0, "unistim_new sub=%d (%p) chan=%p\n", sub->subtype, sub, tmp);
 	if (!tmp) {
@@ -4449,8 +4449,6 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 	if (unistimdebug)
 		ast_verb(0, "Best codec = %d from nativeformats %d (line cap=%d global=%d)\n", fmt,
 			 tmp->nativeformats, l->capability, CAPABILITY);
-	ast_string_field_build(tmp, name, "USTM/%s@%s-%d", l->name, l->parent->name,
-						   sub->subtype);
 	if ((sub->rtp) && (sub->subtype == 0)) {
 		if (unistimdebug)
 			ast_verb(0, "New unistim channel with a previous rtp handle ?\n");

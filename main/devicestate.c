@@ -268,19 +268,15 @@ enum ast_device_state ast_parse_device_state(const char *device)
 	char match[AST_CHANNEL_NAME];
 	enum ast_device_state res;
 
-	ast_copy_string(match, device, sizeof(match)-1);
-	strcat(match, "-");
-	chan = ast_get_channel_by_name_prefix_locked(match, strlen(match));
+	snprintf(match, sizeof(match), "%s-", device);
 
-	if (!chan)
+	if (!(chan = ast_channel_get_by_name_prefix(match, strlen(match)))) {
 		return AST_DEVICE_UNKNOWN;
+	}
 
-	if (chan->_state == AST_STATE_RINGING)
-		res = AST_DEVICE_RINGING;
-	else
-		res = AST_DEVICE_INUSE;
+	res = (chan->_state == AST_STATE_RINGING) ? AST_DEVICE_RINGING : AST_DEVICE_INUSE;
 	
-	ast_channel_unlock(chan);
+	chan = ast_channel_unref(chan);
 
 	return res;
 }

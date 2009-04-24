@@ -1885,10 +1885,12 @@ static int action_hangup(struct mansession *s, const struct message *m)
 	int causecode = 0; /* all values <= 0 mean 'do not set hangupcause in channel' */
 	const char *name = astman_get_header(m, "Channel");
 	const char *cause = astman_get_header(m, "Cause");
+
 	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
+
 	if (!ast_strlen_zero(cause)) {
 		char *endptr;
 		causecode = strtol(cause, &endptr, 10);
@@ -1898,11 +1900,13 @@ static int action_hangup(struct mansession *s, const struct message *m)
 			causecode = 0; /* do not set channel's hangupcause */
 		}
 	}
-	c = ast_get_channel_by_name_locked(name);
-	if (!c) {
+
+	if (!(c = ast_channel_get_by_name(name))) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
+
+	ast_channel_lock(c);
 	if (causecode > 0) {
 		ast_debug(1, "Setting hangupcause of channel %s to %d (is %d now)\n",
 				c->name, causecode, c->hangupcause);
@@ -1910,7 +1914,11 @@ static int action_hangup(struct mansession *s, const struct message *m)
 	}
 	ast_softhangup_nolock(c, AST_SOFTHANGUP_EXPLICIT);
 	ast_channel_unlock(c);
+
+	c = ast_channel_unref(c);
+
 	astman_send_ack(s, m, "Channel Hungup");
+
 	return 0;
 }
 
@@ -1934,8 +1942,7 @@ static int action_setvar(struct mansession *s, const struct message *m)
 	}
 
 	if (!ast_strlen_zero(name)) {
-		c = ast_get_channel_by_name_locked(name);
-		if (!c) {
+		if (!(c = ast_channel_get_by_name(name))) {
 			astman_send_error(s, m, "No such channel");
 			return 0;
 		}
@@ -1944,7 +1951,7 @@ static int action_setvar(struct mansession *s, const struct message *m)
 	pbx_builtin_setvar_helper(c, varname, S_OR(varval, ""));
 
 	if (c) {
-		ast_channel_unlock(c);
+		c = ast_channel_unref(c);
 	}
 
 	astman_send_ack(s, m, "Variable Set");
@@ -1973,8 +1980,7 @@ static int action_getvar(struct mansession *s, const struct message *m)
 	}
 
 	if (!ast_strlen_zero(name)) {
-		c = ast_get_channel_by_name_locked(name);
-		if (!c) {
+		if (!(c = ast_channel_get_by_name(name))) {
 			astman_send_error(s, m, "No such channel");
 			return 0;
 		}
@@ -1985,19 +1991,21 @@ static int action_getvar(struct mansession *s, const struct message *m)
 			c = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Bogus/manager");
 			if (c) {
 				ast_func_read(c, (char *) varname, workspace, sizeof(workspace));
-				ast_channel_free(c);
+				c = ast_channel_release(c);
 			} else
 				ast_log(LOG_ERROR, "Unable to allocate bogus channel for variable substitution.  Function results may be blank.\n");
-		} else
+		} else {
 			ast_func_read(c, (char *) varname, workspace, sizeof(workspace));
+		}
 		varval = workspace;
 	} else {
 		pbx_retrieve_variable(c, varname, &varval, workspace, sizeof(workspace), NULL);
 	}
 
 	if (c) {
-		ast_channel_unlock(c);
+		c = ast_channel_unref(c);
 	}
+
 	astman_start_ack(s, m);
 	astman_append(s, "Variable: %s\r\nValue: %s\r\n\r\n", varname, varval);
 
@@ -2033,6 +2041,7 @@ static int action_status(struct mansession *s, const struct message *m)
 		AST_APP_ARG(name)[100];
 	);
 	struct ast_str *str = ast_str_create(1000);
+	struct ast_channel_iterator *iter = NULL;
 
 	if (!ast_strlen_zero(id)) {
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
@@ -2041,15 +2050,20 @@ static int action_status(struct mansession *s, const struct message *m)
 	}
 
 	if (all) {
-		c = ast_channel_walk_locked(NULL);
+		if (!(iter = ast_channel_iterator_all_new(0))) {
+			ast_free(str);
+			astman_send_error(s, m, "Memory Allocation Failure");
+			return 1;
+		}
+		c = ast_channel_iterator_next(iter);
 	} else {
-		c = ast_get_channel_by_name_locked(name);
-		if (!c) {
+		if (!(c = ast_channel_get_by_name(name))) {
 			astman_send_error(s, m, "No such channel");
 			ast_free(str);
 			return 0;
 		}
 	}
+
 	astman_send_ack(s, m, "Channel status will follow");
 
 	if (!ast_strlen_zero(cvariables)) {
@@ -2057,7 +2071,9 @@ static int action_status(struct mansession *s, const struct message *m)
 	}
 
 	/* if we look by name, we break after the first iteration */
-	while (c) {
+	for (; c; c = ast_channel_iterator_next(iter)) {
+		ast_channel_lock(c);
+
 		if (!ast_strlen_zero(cvariables)) {
 			int i;
 			ast_str_reset(str);
@@ -2114,36 +2130,42 @@ static int action_status(struct mansession *s, const struct message *m)
 			c->exten, c->priority, (long)elapsed_seconds, bridge, c->uniqueid, ast_str_buffer(str), idText);
 		} else {
 			astman_append(s,
-			"Event: Status\r\n"
-			"Privilege: Call\r\n"
-			"Channel: %s\r\n"
-			"CallerIDNum: %s\r\n"
-			"CallerIDName: %s\r\n"
-			"Account: %s\r\n"
-			"State: %s\r\n"
-			"%s"
-			"Uniqueid: %s\r\n"
-			"%s"
-			"%s"
-			"\r\n",
-			c->name,
-			S_OR(c->cid.cid_num, "<unknown>"),
-			S_OR(c->cid.cid_name, "<unknown>"),
-			c->accountcode,
-			ast_state2str(c->_state), bridge, c->uniqueid, ast_str_buffer(str), idText);
+				"Event: Status\r\n"
+				"Privilege: Call\r\n"
+				"Channel: %s\r\n"
+				"CallerIDNum: %s\r\n"
+				"CallerIDName: %s\r\n"
+				"Account: %s\r\n"
+				"State: %s\r\n"
+				"%s"
+				"Uniqueid: %s\r\n"
+				"%s"
+				"%s"
+				"\r\n",
+				c->name,
+				S_OR(c->cid.cid_num, "<unknown>"),
+				S_OR(c->cid.cid_name, "<unknown>"),
+				c->accountcode,
+				ast_state2str(c->_state), bridge, c->uniqueid,
+				ast_str_buffer(str), idText);
 		}
+
 		ast_channel_unlock(c);
+		c = ast_channel_unref(c);
+
 		if (!all) {
 			break;
 		}
-		c = ast_channel_walk_locked(c);
 	}
+
 	astman_append(s,
-	"Event: StatusComplete\r\n"
-	"%s"
-	"Items: %d\r\n"
-	"\r\n", idText, channels);
+		"Event: StatusComplete\r\n"
+		"%s"
+		"Items: %d\r\n"
+		"\r\n", idText, channels);
+
 	ast_free(str);
+
 	return 0;
 }
 
@@ -2171,14 +2193,15 @@ static int action_sendtext(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	c = ast_get_channel_by_name_locked(name);
-	if (!c) {
+	if (!(c = ast_channel_get_by_name(name))) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
 
+	ast_channel_lock(c);
 	res = ast_sendtext(c, textmsg);
 	ast_channel_unlock(c);
+	c = ast_channel_unref(c);
 
 	if (res > 0) {
 		astman_send_ack(s, m, "Success");
@@ -2215,38 +2238,44 @@ static int action_redirect(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Channel not specified");
 		return 0;
 	}
+
 	if (!ast_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1)) {
 		if ((pi = ast_findlabel_extension(NULL, context, exten, priority, NULL)) < 1) {
 			astman_send_error(s, m, "Invalid priority");
 			return 0;
 		}
 	}
-	/* XXX watch out, possible deadlock - we are trying to get two channels!!! */
-	chan = ast_get_channel_by_name_locked(name);
-	if (!chan) {
+
+	if (!(chan = ast_channel_get_by_name(name))) {
 		char buf[256];
 		snprintf(buf, sizeof(buf), "Channel does not exist: %s", name);
 		astman_send_error(s, m, buf);
 		return 0;
 	}
-	if (ast_check_hangup(chan)) {
+
+	if (ast_check_hangup_locked(chan)) {
 		astman_send_error(s, m, "Redirect failed, channel not up.");
-		ast_channel_unlock(chan);
+		chan = ast_channel_unref(chan);
 		return 0;
 	}
-	if (!ast_strlen_zero(name2))
-		chan2 = ast_get_channel_by_name_locked(name2);
-	if (chan2 && ast_check_hangup(chan2)) {
+
+	if (!ast_strlen_zero(name2)) {
+		chan2 = ast_channel_get_by_name(name2);
+	}
+
+	if (chan2 && ast_check_hangup_locked(chan2)) {
 		astman_send_error(s, m, "Redirect failed, extra channel not up.");
-		ast_channel_unlock(chan);
-		ast_channel_unlock(chan2);
+		chan = ast_channel_unref(chan);
+		chan2 = ast_channel_unref(chan2);
 		return 0;
 	}
+
 	if (chan->pbx) {
 		ast_channel_lock(chan);
 		ast_set_flag(chan, AST_FLAG_BRIDGE_HANGUP_DONT); /* don't let the after-bridge code run the h-exten */
 		ast_channel_unlock(chan);
 	}
+
 	res = ast_async_goto(chan, context, exten, pi);
 	if (!res) {
 		if (!ast_strlen_zero(name2)) {
@@ -2271,12 +2300,15 @@ static int action_redirect(struct mansession *s, const struct message *m)
 	} else {
 		astman_send_error(s, m, "Redirect failed");
 	}
+
 	if (chan) {
-		ast_channel_unlock(chan);
+		chan = ast_channel_unref(chan);
 	}
+
 	if (chan2) {
-		ast_channel_unlock(chan2);
+		chan2 = ast_channel_unref(chan2);
 	}
+
 	return 0;
 }
 
@@ -2312,7 +2344,7 @@ static int action_atxfer(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	if (!(chan = ast_get_channel_by_name_locked(name))) {
+	if (!(chan = ast_channel_get_by_name(name))) {
 		astman_send_error(s, m, "Channel specified does not exist");
 		return 0;
 	}
@@ -2322,17 +2354,18 @@ static int action_atxfer(struct mansession *s, const struct message *m)
 	}
 
 	for (feature_code = atxfer_feature->exten; feature_code && *feature_code; ++feature_code) {
-		struct ast_frame f = {AST_FRAME_DTMF, *feature_code};
+		struct ast_frame f = { AST_FRAME_DTMF, *feature_code };
 		ast_queue_frame(chan, &f);
 	}
 
 	for (feature_code = (char *)exten; feature_code && *feature_code; ++feature_code) {
-		struct ast_frame f = {AST_FRAME_DTMF, *feature_code};
+		struct ast_frame f = { AST_FRAME_DTMF, *feature_code };
 		ast_queue_frame(chan, &f);
 	}
 
+	chan = ast_channel_unref(chan);
+
 	astman_send_ack(s, m, "Atxfer successfully queued");
-	ast_channel_unlock(chan);
 
 	return 0;
 }
@@ -2761,20 +2794,26 @@ static int action_timeout(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
+
 	if (!timeout || timeout < 0) {
 		astman_send_error(s, m, "No timeout specified");
 		return 0;
 	}
-	c = ast_get_channel_by_name_locked(name);
-	if (!c) {
+
+	if (!(c = ast_channel_get_by_name(name))) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
 
 	when.tv_usec = (timeout - when.tv_sec) * 1000000.0;
+
+	ast_channel_lock(c);
 	ast_channel_setwhentohangup_tv(c, when);
 	ast_channel_unlock(c);
+	c = ast_channel_unref(c);
+
 	astman_send_ack(s, m, "Timeout Set");
+
 	return 0;
 }
 
@@ -2952,6 +2991,7 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 	struct ast_channel *c = NULL;
 	int numchans = 0;
 	int duration, durh, durm, durs;
+	struct ast_channel_iterator *iter;
 
 	if (!ast_strlen_zero(actionid)) {
 		snprintf(actionidtext, sizeof(actionidtext), "ActionID: %s\r\n", actionid);
@@ -2959,12 +2999,20 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 		actionidtext[0] = '\0';
 	}
 
+	if (!(iter = ast_channel_iterator_all_new(0))) {
+		astman_send_error(s, m, "Memory Allocation Failure");
+		return 1;
+	}
+
 	astman_send_listack(s, m, "Channels will follow", "start");
 
-	while ((c = ast_channel_walk_locked(c)) != NULL) {
-		struct ast_channel *bc = ast_bridged_channel(c);
+	for (; (c = ast_channel_iterator_next(iter)); ast_channel_unref(c)) {
+		struct ast_channel *bc;
 		char durbuf[10] = "";
 
+		ast_channel_lock(c);
+
+		bc = ast_bridged_channel(c);
 		if (c->cdr && !ast_tvzero(c->cdr->start)) {
 			duration = (int)(ast_tvdiff_ms(ast_tvnow(), c->cdr->start) / 1000);
 			durh = duration / 3600;
@@ -2992,7 +3040,9 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 			"\r\n", c->name, c->uniqueid, c->context, c->exten, c->priority, c->_state, ast_state2str(c->_state),
 			c->appl ? c->appl : "", c->data ? S_OR(c->data, ""): "",
 			S_OR(c->cid.cid_num, ""), durbuf, S_OR(c->accountcode, ""), bc ? bc->name : "", bc ? bc->uniqueid : "");
+
 		ast_channel_unlock(c);
+
 		numchans++;
 	}
 
@@ -3002,6 +3052,8 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 		"ListItems: %d\r\n"
 		"%s"
 		"\r\n", numchans, actionidtext);
+
+	ast_channel_iterator_destroy(iter);
 
 	return 0;
 }

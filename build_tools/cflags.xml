@@ -32,8 +32,6 @@
 		<member name="TEST_TANDEM_TRANSCODING" displayname="New ulaw/alaw codec, turn on transcoding tests on init">
 			<depend>G711_NEW_ALGORITHM</depend>
 		</member>
-		<member name="DEBUG_CHANNEL_LOCKS" displayname="Debug Channel Locking">
-		</member>
 		<member name="MALLOC_DEBUG" displayname="Keep Track of Memory Allocations">
 		</member>
 		<member name="BUSYDETECT_TONEONLY" displayname="Enable additional comparision of only the tone duration not the silence part">

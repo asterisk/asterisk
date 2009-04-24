@@ -80,6 +80,7 @@ static int softhangup_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(channel);
 		AST_APP_ARG(options);
 	);
+	struct ast_channel_iterator *iter;
 	
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SoftHangup requires an argument (Technology/resource)\n");
@@ -93,9 +94,12 @@ static int softhangup_exec(struct ast_channel *chan, void *data)
 		ast_app_parse_options(app_opts, &flags, opts, args.options);
 	lenmatch = strlen(args.channel);
 
-	for (c = ast_walk_channel_by_name_prefix_locked(NULL, args.channel, lenmatch);
-		 c;
-		 c = ast_walk_channel_by_name_prefix_locked(c, args.channel, lenmatch)) {
+	if (!(iter = ast_channel_iterator_by_name_new(0, args.channel, lenmatch))) {
+		return -1;
+	}
+
+	while ((c = ast_channel_iterator_next(iter))) {
+		ast_channel_lock(c);
 		ast_copy_string(name, c->name, sizeof(name));
 		if (ast_test_flag(&flags, OPTION_ALL)) {
 			/* CAPI is set up like CAPI[foo/bar]/clcnt */ 
@@ -113,11 +117,15 @@ static int softhangup_exec(struct ast_channel *chan, void *data)
 			ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
 			if (!ast_test_flag(&flags, OPTION_ALL)) {
 				ast_channel_unlock(c);
+				c = ast_channel_unref(c);
 				break;
 			}
 		}
 		ast_channel_unlock(c);
+		c = ast_channel_unref(c);
 	}
+
+	ast_channel_iterator_destroy(iter);
 
 	return 0;
 }

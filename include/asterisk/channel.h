@@ -124,6 +124,7 @@ References:
 #define _ASTERISK_CHANNEL_H
 
 #include "asterisk/abstract_jb.h"
+#include "asterisk/astobj2.h"
 
 #include "asterisk/poll-compat.h"
 
@@ -510,8 +511,58 @@ enum ast_t38_state {
 };
 
 /*!
+ * \page AstChannel ast_channel locking and reference tracking
+ *
+ * \par Creating Channels
+ * A channel is allocated using the ast_channel_alloc() function.  When created, it is
+ * automatically inserted into the main channels hash table that keeps track of all
+ * active channels in the system.  The hash key is based on the channel name.  Because
+ * of this, if you want to change the name, you _must_ use ast_change_name(), not change
+ * the name field directly.  When ast_channel_alloc() returns a channel pointer, you now
+ * hold a reference to that channel.  In most cases this reference is given to ast_pbx_run().
+ *
+ * \par Channel Locking
+ * There is a lock associated with every ast_channel.  It is allocated internally via astobj2.
+ * To lock or unlock a channel, you must use the ast_channel_lock() wrappers.
+ *
+ * Previously, before ast_channel was converted to astobj2, the channel lock was used in some
+ * additional ways that are no longer necessary.  Before, the only way to ensure that a channel
+ * did not disappear out from under you if you were working with a channel outside of the channel
+ * thread that owns it, was to hold the channel lock.  Now, that is no longer necessary.
+ * You simply must hold a reference to the channel to ensure it does not go away.
+ *
+ * The channel must be locked if you need to ensure that data that you reading from the channel
+ * does not change while you access it.  Further, you must hold the channel lock if you are
+ * making a non-atomic change to channel data.
+ *
+ * \par Channel References
+ * There are multiple ways to get a reference to a channel.  The first is that you hold a reference
+ * to a channel after creating it.  The other ways involve using the channel search or the channel
+ * traversal APIs.  These functions are the ast_channel_get_*() functions or ast_channel_iterator_*()
+ * functions.  Once a reference is retrieved by one of these methods, you know that the channel will
+ * not go away.  So, the channel should only get locked as needed for data access or modification.
+ * But, make sure that the reference gets released when you are done with it!
+ *
+ * There are different things you can do when you are done with a reference to a channel.  The first
+ * is to simply release the reference using ast_channel_unref().  The other option is to call
+ * ast_channel_release().  This function is generally used where ast_channel_free() was used in
+ * the past.  The release function releases a reference as well as ensures that the channel is no
+ * longer in the global channels container.  That way, the channel will get destroyed as soon as any
+ * other pending references get released.
+ *
+ * \par Exceptions to the rules
+ * Even though ast_channel is reference counted, there are some places where pointers to an ast_channel
+ * get stored, but the reference count does not reflect it.  The reason is mostly historical.
+ * The only places where this happens should be places where because of how the code works, we
+ * _know_ that the pointer to the channel will get removed before the channel goes away.  The main
+ * example of this is in channel drivers.  Channel drivers generally store a pointer to their owner
+ * ast_channel in their technology specific pvt struct.  In this case, the channel drivers _know_
+ * that this pointer to the channel will be removed in time, because the channel's hangup callback
+ * gets called before the channel goes away.
+ */
+
+/*!
  * \brief Main Channel structure associated with a channel.
- * This is the side of it mostly used by the pbx and call management.
  *
  * \note XXX It is important to remember to increment .cleancount each time
  *       this structure is changed. XXX
@@ -568,7 +619,6 @@ struct ast_channel {
 
 	struct timeval whentohangup;        		/*!< Non-zero, set to actual time when channel is to be hung up */
 	pthread_t blocker;				/*!< If anyone is blocking, this is them */
-	ast_mutex_t lock_dont_use;			/*!< Lock a channel for some operations. See ast_channel_lock() */
 
 	/*!
 	 * \brief Channel Caller ID information.
@@ -601,6 +651,7 @@ struct ast_channel {
 	struct ast_jb jb;				/*!< The jitterbuffer state */
 	struct timeval dtmf_tv;				/*!< The time that an in process digit began, or the last digit ended */
 	AST_LIST_HEAD_NOLOCK(datastores, ast_datastore) datastores; /*!< Data stores on the channel */
+	AST_LIST_HEAD_NOLOCK(autochans, ast_autochan) autochans; /*!< Autochans on the channel */
 
 	unsigned long insmpl;				/*!< Track the read/written samples for monitor use */
 	unsigned long outsmpl;				/*!< Track the read/written samples for monitor use */
@@ -642,13 +693,8 @@ struct ast_channel {
 
 	unsigned short transfercapability;		/*!< ISDN Transfer Capability - AST_FLAG_DIGITAL is not enough */
 
-	union {
-		char unused_old_dtmfq[AST_MAX_EXTENSION];			/*!< (deprecated, use readq instead) Any/all queued DTMF characters */
-		struct {
-			struct ast_bridge *bridge;                                      /*!< Bridge this channel is participating in */
-			struct ast_timer *timer;					/*!< timer object that provided timingfd */
-		};
-	};
+	struct ast_bridge *bridge;                      /*!< Bridge this channel is participating in */
+	struct ast_timer *timer;			/*!< timer object that provided timingfd */
 
 	char context[AST_MAX_CONTEXT];			/*!< Dialplan: Current extension context */
 	char exten[AST_MAX_EXTENSION];			/*!< Dialplan: Current extension number */
@@ -951,12 +997,24 @@ int ast_queue_control_data(struct ast_channel *chan, enum ast_control_frame_type
 /*!
  * \brief Change channel name
  *
- * \note The channel must be locked before calling this function.
+ * \pre The channel must be locked before calling this function.
+ *
+ * \param chan the channel to change the name of
+ * \param newname the name to change to
+ *
+ * \return nothing
  */
-void ast_change_name(struct ast_channel *chan, char *newname);
+void ast_change_name(struct ast_channel *chan, const char *newname);
 
-/*! \brief Free a channel structure */
-void  ast_channel_free(struct ast_channel *);
+/*!
+ * \brief Unlink and release reference to a channel
+ *
+ * This function will unlink the channel from the global channels container
+ * if it is still there and also release the current reference to the channel.
+ *
+ * \return NULL, convenient for clearing invalid pointers
+ */
+struct ast_channel *ast_channel_release(struct ast_channel *chan);
 
 /*!
  * \brief Requests a channel
@@ -1105,6 +1163,8 @@ int ast_softhangup_nolock(struct ast_channel *chan, int cause);
  * \return Returns 0 if not, or 1 if hang up is requested (including time-out).
  */
 int ast_check_hangup(struct ast_channel *chan);
+
+int ast_check_hangup_locked(struct ast_channel *chan);
 
 /*!
  * \brief Compare a offset with the settings of when to hang a channel up
@@ -1470,44 +1530,6 @@ int ast_senddigit_end(struct ast_channel *chan, char digit, unsigned int duratio
 char *ast_recvtext(struct ast_channel *chan, int timeout);
 
 /*!
- * \brief Browse channels in use
- * Browse the channels currently in use
- * \param prev where you want to start in the channel list
- * \return Returns the next channel in the list, NULL on end.
- *         If it returns a channel, that channel *has been locked*!
- */
-struct ast_channel *ast_channel_walk_locked(const struct ast_channel *prev);
-
-/*! \brief Get channel by name or uniqueid (locks channel) */
-struct ast_channel *ast_get_channel_by_name_locked(const char *chan);
-
-/*! \brief Get channel by name or uniqueid prefix (locks channel) */
-struct ast_channel *ast_get_channel_by_name_prefix_locked(const char *name, const int namelen);
-
-/*! \brief Get channel by name or uniqueid prefix (locks channel) */
-struct ast_channel *ast_walk_channel_by_name_prefix_locked(const struct ast_channel *chan, const char *name, const int namelen);
-
-/*! \brief Get channel by exten (and optionally context) and lock it */
-struct ast_channel *ast_get_channel_by_exten_locked(const char *exten, const char *context);
-
-/*! \brief Get next channel by exten (and optionally context) and lock it */
-struct ast_channel *ast_walk_channel_by_exten_locked(const struct ast_channel *chan, const char *exten,
-						     const char *context);
-
-/*!
- * \brief Search for a channel based on the passed channel matching callback
- * Search for a channel based on the specified is_match callback, and return the
- * first channel that we match.  When returned, the channel will be locked.  Note
- * that the is_match callback is called with the passed channel locked, and should
- * return 0 if there is no match, and non-zero if there is.
- * \param is_match callback executed on each channel until non-zero is returned, or we
- *        run out of channels to search.
- * \param data data passed to the is_match callback during each invocation.
- * \return Returns the matched channel, or NULL if no channel was matched.
- */
-struct ast_channel *ast_channel_search_locked(int (*is_match)(struct ast_channel *, void *), void *data);
-
-/*!
  * \brief Waits for a digit
  * \param c channel to wait for a digit on
  * \param ms how many milliseconds to wait
@@ -1808,8 +1830,22 @@ int ast_do_masquerade(struct ast_channel *chan);
 
 /*!
  * \brief Find bridged channel
+ *
+ * \note This function does _not_ return a reference to the bridged channel.
+ * The reason for this is mostly historical.  It _should_ return a reference,
+ * but it will take a lot of work to make the code base account for that.
+ * So, for now, the old rules still apply for how to handle this function.
+ * If this function is being used from the channel thread that owns the channel,
+ * then a reference is already held, and channel locking is not required to
+ * guarantee that the channel will stay around.  If this function is used
+ * outside of the associated channel thread, the channel parameter 'chan'
+ * MUST be locked before calling this function.  Also, 'chan' must remain locked
+ * for the entire time that the result of this function is being used.
+ *
  * \param chan Current channel
- */
+ *
+ * \return A pointer to the bridged channel
+*/
 struct ast_channel *ast_bridged_channel(struct ast_channel *chan);
 
 /*!
@@ -2018,6 +2054,163 @@ struct ast_group_info {
 	AST_LIST_ENTRY(ast_group_info) group_list;
 };
 
+#define ast_channel_lock(chan) ao2_lock(chan)
+#define ast_channel_unlock(chan) ao2_unlock(chan)
+#define ast_channel_trylock(chan) ao2_trylock(chan)
+
+/*!
+ * \brief Lock two channels.
+ */
+#define ast_channel_lock_both(chan1, chan2) do { \
+		ast_channel_lock(chan1); \
+		while (ast_channel_trylock(chan2)) { \
+			ast_channel_unlock(chan1); \
+			sched_yield(); \
+			ast_channel_lock(chan1); \
+		} \
+	} while (0)
+
+#define ast_channel_ref(c) ({ ao2_ref(c, +1); (c); })
+#define ast_channel_unref(c) ({ ao2_ref(c, -1); (NULL); })
+
+/*! Channel Iterating @{ */
+
+/*!
+ * \brief A channel iterator
+ *
+ * This is an opaque type.
+ */
+struct ast_channel_iterator;
+
+/*!
+ * \brief Destroy a channel iterator
+ *
+ * \arg i the itereator to destroy
+ *
+ * This function is used to destroy a channel iterator that was retrieved by
+ * using one of the channel_iterator_new() functions.
+ *
+ * \return NULL, for convenience to clear out the pointer to the iterator that
+ * was just destroyed.
+ */
+struct ast_channel_iterator *ast_channel_iterator_destroy(struct ast_channel_iterator *i);
+
+/*!
+ * \brief Create a new channel iterator based on extension
+ *
+ * \arg ao2_flags astobj2 iterator flags
+ * \arg exten The extension that channels must be in
+ * \arg context The context that channels must be in (optional)
+ *
+ * After creating an iterator using this function, the ast_channel_iterator_next()
+ * function can be used to iterate through all channels that are currently
+ * in the specified context and extension.
+ *
+ * \retval NULL on failure
+ * \retval a new channel iterator based on the specified parameters
+ */
+struct ast_channel_iterator *ast_channel_iterator_by_exten_new(int ao2_flags, const char *exten,
+	const char *context);
+
+/*!
+ * \brief Create a new channel iterator based on name
+ *
+ * \arg ao2_flags astobj2 iterator flags
+ * \arg name channel name or channel uniqueid to match
+ * \arg name_len number of characters in the channel name to match on.  This
+ *      would be used to match based on name prefix.  If matching on the full
+ *      channel name is desired, then this parameter should be 0.
+ *
+ * After creating an iterator using this function, the ast_channel_iterator_next()
+ * function can be used to iterate through all channels that exist that have
+ * the specified name or name prefix.
+ *
+ * \retval NULL on failure
+ * \retval a new channel iterator based on the specified parameters
+ */
+struct ast_channel_iterator *ast_channel_iterator_by_name_new(int ao2_flags, const char *name,
+	size_t name_len);
+
+/*!
+ * \brief Create a new channel iterator
+ *
+ * \arg ao2_flags astobj2 iterator flags
+ *
+ * After creating an iterator using this function, the ast_channel_iterator_next()
+ * function can be used to iterate through all channels that exist.
+ *
+ * \retval NULL on failure
+ * \retval a new channel iterator
+ */
+struct ast_channel_iterator *ast_channel_iterator_all_new(int ao2_flags);
+
+/*!
+ * \brief Get the next channel for a channel iterator
+ *
+ * \arg i the channel iterator that was created using one of the
+ *  channel_iterator_new() functions.
+ *
+ * This function should be used to iterate through all channels that match a
+ * specified set of parameters that were provided when the iterator was created.
+ *
+ * \retval the next channel that matches the parameters used when the iterator
+ *         was created.
+ * \retval NULL, if no more channels match the iterator parameters.
+ */
+struct ast_channel *ast_channel_iterator_next(struct ast_channel_iterator *i);
+
+/*! @} End channel iterator definitions. */
+
+/*!
+ * \brief Call a function with every active channel
+ *
+ * This function executes a callback one time for each active channel on the
+ * system.  The channel is provided as an argument to the function.
+ */
+struct ast_channel *ast_channel_callback(ao2_callback_data_fn *cb_fn, void *arg,
+		void *data, int ao2_flags);
+
+/*! @{ Channel search functions */
+
+/*!
+ * \brief Find a channel by name
+ *
+ * \arg name the name or uniqueid of the channel to search for
+ *
+ * Find a channel that has the same name as the provided argument.
+ *
+ * \retval a channel with the name specified by the argument
+ * \retval NULL if no channel was found
+ */
+struct ast_channel *ast_channel_get_by_name(const char *name);
+
+/*!
+ * \brief Find a channel by a name prefix
+ *
+ * \arg name The channel name or uniqueid prefix to search for
+ * \arg name_len Only search for up to this many characters from the name
+ *
+ * Find a channel that has the same name prefix as specified by the arguments.
+ *
+ * \retval a channel with the name prefix specified by the arguments
+ * \retval NULL if no channel was found
+ */
+struct ast_channel *ast_channel_get_by_name_prefix(const char *name, size_t name_len);
+
+/*!
+ * \brief Find a channel by extension and context
+ *
+ * \arg exten the extension to search for
+ * \arg context the context to search for (optional)
+ *
+ * Return a channel that is currently at the specified extension and context.
+ *
+ * \retval a channel that is at the specified extension and context
+ * \retval NULL if no channel was found
+ */
+struct ast_channel *ast_channel_get_by_exten(const char *exten, const char *context);
+
+/*! @} End channel search functions. */
 
 /*!
  * \since 1.6.3
