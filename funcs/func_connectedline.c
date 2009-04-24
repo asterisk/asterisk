@@ -19,7 +19,7 @@
 /*! \file
  *
  * \brief Connected Line dialplan function
- * 
+ *
  * \ingroup functions
  */
 
@@ -41,6 +41,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/callerid.h"
 
+/*
+ * Do not document the CONNECTEDLINE(source) datatype.
+ * It has turned out to not be needed.  The source value is really                                      .
+ * only useful as a possible tracing aid.
+ */
 /*** DOCUMENTATION
 	<function name="CONNECTEDLINE" language="en_US">
 		<synopsis>
@@ -55,7 +60,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name = "name" />
 					<enum name = "ton" />
 					<enum name = "pres" />
-					<enum name = "source" />
 				</enumlist>
 			</parameter>
 			<parameter name="i">
@@ -64,13 +68,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</parameter>
 		</syntax>
 		<description>
-			<para>Gets or sets Connected Line data on the channel. Possible values
-			for the <replaceable>source</replaceable> datatype are:</para>
-			<enumlist>
-				<enum name="answer"><para>Normal Call Answering</para></enum>
-				<enum name="transfer_alerting"><para>Call Transfer(Alerting)</para></enum>
-				<enum name="transfer_active"><para>Call Transfer(Active)</para></enum>
-			</enumlist>
+			<para>Gets or sets Connected Line data on the channel.</para>
 		</description>
 	</function>
  ***/
@@ -133,7 +131,7 @@ static int connectedline_write(struct ast_channel *chan, const char *cmd, char *
 		case 'i':
 			set_it = ast_channel_set_connected_line;
 			break;
-		
+
 		default:
 			ast_log(LOG_ERROR, "Unknown connectedline option '%s'.\n", option);
 			return 0;
@@ -161,7 +159,7 @@ static int connectedline_write(struct ast_channel *chan, const char *cmd, char *
 		connected.id.name = ast_strdupa(value);
 		ast_trim_blanks(connected.id.name);
 		set_it(chan, &connected);
-	} else if (!strncasecmp("num", data, 3)) { 
+	} else if (!strncasecmp("num", data, 3)) {
 		connected.id.number = ast_strdupa(value);
 		ast_trim_blanks(connected.id.number);
 		set_it(chan, &connected);

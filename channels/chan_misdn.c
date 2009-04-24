@@ -6041,7 +6041,6 @@ static void misdn_get_connected_line(struct ast_channel *ast, struct misdn_bchan
  */
 static void misdn_update_connected_line(struct ast_channel *ast, struct misdn_bchannel *bc, int originator)
 {
-	int Is_PTMP;
 	struct chan_list *ch;
 
 	misdn_get_connected_line(ast, bc, originator);
@@ -6051,51 +6050,23 @@ static void misdn_update_connected_line(struct ast_channel *ast, struct misdn_bc
 		bc->redirecting.to = bc->caller;
 	}
 
-	Is_PTMP = !misdn_lib_is_ptp(bc->port);
-	switch (ast->connected.source) {
-	case AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER:
-	case AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER:
-		ch = MISDN_ASTERISK_TECH_PVT(ast);
-		if (ch->state == MISDN_CONNECTED
-			|| originator != ORG_MISDN) {
-			if (Is_PTMP) {
-				/* Send NOTIFY(transfer-active, redirecting.to data) */
-				bc->redirecting.to_changed = 1;
-				bc->notify_description_code = mISDN_NOTIFY_CODE_CALL_TRANSFER_ACTIVE;
-				misdn_lib_send_event(bc, EVENT_NOTIFY);
-#if defined(AST_MISDN_ENHANCEMENTS)
-			} else {
-				/* Send EctInform(transfer-active, redirecting.to data) */
-				bc->fac_out.Function = Fac_EctInform;
-				bc->fac_out.u.EctInform.InvokeID = ++misdn_invoke_id;
-				bc->fac_out.u.EctInform.Status = 1;/* active */
-				if (bc->redirecting.to.number[0]) {
-					misdn_PresentedNumberUnscreened_fill(&bc->fac_out.u.EctInform.Redirection,
-						&bc->redirecting.to);
-					bc->fac_out.u.EctInform.RedirectionPresent = 1;
-				} else {
-					bc->fac_out.u.EctInform.RedirectionPresent = 0;
-				}
+	ch = MISDN_ASTERISK_TECH_PVT(ast);
+	if (ch->state == MISDN_CONNECTED
+		|| originator != ORG_MISDN) {
+		int is_ptmp;
 
-				/* Send message */
-				print_facility(&bc->fac_out, bc);
-				misdn_lib_send_event(bc, EVENT_FACILITY);
-#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
-			}
-		}
-		break;
-	case AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER_ALERTING:
-		if (Is_PTMP) {
-			/* Send NOTIFY(transfer-alerting, redirecting.to data) */
+		is_ptmp = !misdn_lib_is_ptp(bc->port);
+		if (is_ptmp) {
+			/* Send NOTIFY(transfer-active, redirecting.to data) */
 			bc->redirecting.to_changed = 1;
-			bc->notify_description_code = mISDN_NOTIFY_CODE_CALL_TRANSFER_ALERTING;
+			bc->notify_description_code = mISDN_NOTIFY_CODE_CALL_TRANSFER_ACTIVE;
 			misdn_lib_send_event(bc, EVENT_NOTIFY);
 #if defined(AST_MISDN_ENHANCEMENTS)
 		} else {
-			/* Send EctInform(transfer-alerting, redirecting.to data) */
+			/* Send EctInform(transfer-active, redirecting.to data) */
 			bc->fac_out.Function = Fac_EctInform;
 			bc->fac_out.u.EctInform.InvokeID = ++misdn_invoke_id;
-			bc->fac_out.u.EctInform.Status = 0;/* alerting */
+			bc->fac_out.u.EctInform.Status = 1;/* active */
 			if (bc->redirecting.to.number[0]) {
 				misdn_PresentedNumberUnscreened_fill(&bc->fac_out.u.EctInform.Redirection,
 					&bc->redirecting.to);
@@ -6103,13 +6074,12 @@ static void misdn_update_connected_line(struct ast_channel *ast, struct misdn_bc
 			} else {
 				bc->fac_out.u.EctInform.RedirectionPresent = 0;
 			}
+
+			/* Send message */
 			print_facility(&bc->fac_out, bc);
 			misdn_lib_send_event(bc, EVENT_FACILITY);
 #endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 		}
-		break;
-	default:
-		break;
 	}
 }
 
@@ -8829,6 +8799,15 @@ static void misdn_facility_ie_handler(enum event_e event, struct misdn_bchannel 
 			misdn_add_number_prefix(bc->port, party_id.number_type,
 				party_id.number, sizeof(party_id.number));
 
+			/*
+			 * It would be preferable to update the connected line information
+			 * only when the message callStatus is active.  However, the
+			 * optional redirection number may not be present in the active
+			 * message if an alerting message were received earlier.
+			 *
+			 * The consequences if we wind up sending two updates is benign.
+			 * The other end will think that it got transferred twice.
+			 */
 			misdn_queue_connected_line_update(ch->ast, &party_id,
 				(bc->fac_in.u.EctInform.Status == 0 /* alerting */)
 					? AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER_ALERTING
@@ -10220,6 +10199,15 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			}
 			break;
 		case mISDN_NOTIFY_CODE_CALL_TRANSFER_ALERTING:
+			/*
+			 * It would be preferable to update the connected line information
+			 * only when the message callStatus is active.  However, the
+			 * optional redirection number may not be present in the active
+			 * message if an alerting message were received earlier.
+			 *
+			 * The consequences if we wind up sending two updates is benign.
+			 * The other end will think that it got transferred twice.
+			 */
 			if (bc->redirecting.to_changed) {
 				bc->redirecting.to_changed = 0;
 				if (ch && ch->ast) {
