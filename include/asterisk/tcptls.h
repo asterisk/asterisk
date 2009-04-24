@@ -78,6 +78,7 @@ enum ast_ssl_flags {
 struct ast_tls_config {
 	int enabled;
 	char *certfile;
+	char *pvtfile;
 	char *cipher;
 	char *cafile;
 	char *capath;

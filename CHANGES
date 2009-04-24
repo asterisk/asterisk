@@ -20,6 +20,9 @@ SIP Changes
  * Added SIP_CODEC_OUTBOUND dialplan variable which can be used to set the codec
    to be used for the outgoing call. It must be one of the codecs configured
    for the device.
+ * Added tlsprivatekey option to sip.conf.  This allows a separate .pem file
+   to be used for holding a private key.  If tlsprivatekey is not specified,
+   tlscertfile is searched for both public and private key.
 
 Applications
 ------------
@@ -96,7 +99,9 @@ Asterisk Manager Interface
 --------------------------
  * The Hangup action now accepts a Cause header which may be used to
    set the channel's hangup cause.
-
+ * sslprivatekey option added to manager.conf and http.conf.  Adds the ability
+   to specify a separate .pem file to hold a private key.  By default sslcert
+   is used to hold both the public and private key.
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.1 to Asterisk 1.6.2  -------------
 ------------------------------------------------------------------------------

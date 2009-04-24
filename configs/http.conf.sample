@@ -52,12 +52,16 @@ bindaddr=127.0.0.1
 ; sslbindport=4433	; port to use - default is 8089
 ; sslbindaddr=0.0.0.0	; address to bind to - default is bindaddr.
 ;
-; sslcert=/tmp/foo.pem	; path to the certificate
 ;
-; To produce a certificate you can e.g. use openssl
-;	openssl req -new -x509 -days 365 -nodes -out /tmp/foo.pem -keyout /tmp/foo.pem
+; sslcert=</path/to/certificate.pem>   ; path to the certificate file (*.pem) only.
+; sslprivatekey=</path/to/private.pem>    ; path to private key file (*.pem) only.
+; If no path is given for sslcert or sslprivatekey, default is to look in current
+; directory. If no sslprivatekey is given, default is to search sslcert for private key.
 ;
-
+; To produce a certificate you can e.g. use openssl. This places both the cert and
+; private in same .pem file.
+; openssl req -new -x509 -days 365 -nodes -out /tmp/foo.pem -keyout /tmp/foo.pem
+;
 ; The post_mappings section maps URLs to real paths on the filesystem.  If a
 ; POST is done from within an authenticated manager session to one of the
 ; configured POST mappings, then any files in the POST will be placed in the

@@ -117,12 +117,16 @@ tcpbindaddr=0.0.0.0             ; IP address for TCP server to bind to (0.0.0.0 
                                 ; Remember that the IP address must match the common name (hostname) in the
                                 ; certificate, so you don't want to bind a TLS socket to multiple IP addresses.
 
-;tlscertfile=asterisk.pem       ; Certificate file (*.pem only) to use for TLS connections 
-                                ; default is to look for "asterisk.pem" in current directory
+;tlscertfile=</path/to/certificate.pem> ; Certificate file (*.pem only) to use for TLS connections
+                                        ; default is to look for "asterisk.pem" in current directory
+
+;tlsprivatekey=</path/to/private.pem> ; Private key file (*.pem only) for TLS connections.
+                                      ; If no tlsprivatekey is specified, tlscertfile is searched for
+                                      ; for both public and private key.
 
 ;tlscafile=</path/to/certificate>
 ;        If the server your connecting to uses a self signed certificate
-;        you should have their certificate installed here so the code can 
+;        you should have their certificate installed here so the code can
 ;        verify the authenticity of their certificate.
 
 ;tlscadir=</path/to/ca/dir>

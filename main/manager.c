@@ -4791,6 +4791,10 @@ static int __init_manager(int reload)
 		ast_free(ami_tls_cfg.certfile);
 	}
 	ami_tls_cfg.certfile = ast_strdup(AST_CERTFILE);
+	if (ami_tls_cfg.pvtfile) {
+		ast_free(ami_tls_cfg.pvtfile);
+	}
+	ami_tls_cfg.pvtfile = ast_strdup("");
 	if (ami_tls_cfg.cipher) {
 		ast_free(ami_tls_cfg.cipher);
 	}
@@ -4812,6 +4816,9 @@ static int __init_manager(int reload)
 		} else if (!strcasecmp(var->name, "sslcert")) {
 			ast_free(ami_tls_cfg.certfile);
 			ami_tls_cfg.certfile = ast_strdup(val);
+		} else if (!strcasecmp(var->name, "sslprivatekey")) {
+			ast_free(ami_tls_cfg.pvtfile);
+			ami_tls_cfg.pvtfile = ast_strdup(val);
 		} else if (!strcasecmp(var->name, "sslcipher")) {
 			ast_free(ami_tls_cfg.cipher);
 			ami_tls_cfg.cipher = ast_strdup(val);

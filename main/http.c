@@ -1004,6 +1004,12 @@ static int __ast_http_load(int reload)
 		ast_free(http_tls_cfg.certfile);
 	}
 	http_tls_cfg.certfile = ast_strdup(AST_CERTFILE);
+
+	if (http_tls_cfg.pvtfile) {
+		ast_free(http_tls_cfg.pvtfile);
+	}
+	http_tls_cfg.pvtfile = ast_strdup("");
+
 	if (http_tls_cfg.cipher) {
 		ast_free(http_tls_cfg.cipher);
 	}
@@ -1027,6 +1033,9 @@ static int __ast_http_load(int reload)
 			} else if (!strcasecmp(v->name, "sslcert")) {
 				ast_free(http_tls_cfg.certfile);
 				http_tls_cfg.certfile = ast_strdup(v->value);
+			} else if (!strcasecmp(v->name, "sslprivatekey")) {
+				ast_free(http_tls_cfg.pvtfile);
+				http_tls_cfg.pvtfile = ast_strdup(v->value);
 			} else if (!strcasecmp(v->name, "sslcipher")) {
 				ast_free(http_tls_cfg.cipher);
 				http_tls_cfg.cipher = ast_strdup(v->value);

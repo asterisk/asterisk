@@ -23785,7 +23785,6 @@ static int reload_config(enum channelreloadreason reason)
 					/* iterator->call = sip_destroy(iterator->call); */
 				}
 				ASTOBJ_UNLOCK(iterator);
-				
 		} while(0));
 
 		/* Then, actually destroy users and registry */
@@ -23793,20 +23792,21 @@ static int reload_config(enum channelreloadreason reason)
 		ast_debug(4, "--------------- Done destroying registry list\n");
 		ao2_t_callback(peers, OBJ_NODATA, peer_markall_func, NULL, "callback to mark all peers");
 	}
-	
+
 	/* Reset certificate handling for TLS sessions */
 	if (reason != CHANNEL_MODULE_LOAD) {
 		ast_free(default_tls_cfg.certfile);
+		ast_free(default_tls_cfg.pvtfile);
 		ast_free(default_tls_cfg.cipher);
 		ast_free(default_tls_cfg.cafile);
 		ast_free(default_tls_cfg.capath);
 	}
 	default_tls_cfg.certfile = ast_strdup(AST_CERTFILE); /*XXX Not sure if this is useful */
+	default_tls_cfg.pvtfile = ast_strdup("");
 	default_tls_cfg.cipher = ast_strdup("");
 	default_tls_cfg.cafile = ast_strdup("");
 	default_tls_cfg.capath = ast_strdup("");
 
-	
 	/* Initialize copy of current global_regcontext for later use in removing stale contexts */
 	ast_copy_string(oldcontexts, global_regcontext, sizeof(oldcontexts));
 	oldregcontext = oldcontexts;
@@ -24017,6 +24017,9 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "tlscertfile")) {
 			ast_free(default_tls_cfg.certfile);
 			default_tls_cfg.certfile = ast_strdup(v->value);
+		} else if (!strcasecmp(v->name, "tlsprivatekey")) {
+			ast_free(default_tls_cfg.pvtfile);
+			default_tls_cfg.pvtfile = ast_strdup(v->value);
 		} else if (!strcasecmp(v->name, "tlscipher")) {
 			ast_free(default_tls_cfg.cipher);
 			default_tls_cfg.cipher = ast_strdup(v->value);
@@ -25367,6 +25370,8 @@ static int unload_module(void)
 
 	if (default_tls_cfg.certfile)
 		ast_free(default_tls_cfg.certfile);
+	if (default_tls_cfg.pvtfile)
+		ast_free(default_tls_cfg.pvtfile);
 	if (default_tls_cfg.cipher)
 		ast_free(default_tls_cfg.cipher);
 	if (default_tls_cfg.cafile)
