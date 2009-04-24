@@ -4817,6 +4817,8 @@ static int dialog_initialize_rtp(struct sip_pvt *dialog)
 
 	ast_rtp_instance_set_qos(dialog->rtp, global_tos_audio, 0, "SIP RTP");
 
+	do_setnat(dialog, ast_test_flag(&dialog->flags[0], SIP_NAT) & SIP_NAT_ROUTE);
+
 	return 0;
 }
 
@@ -4860,7 +4862,6 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 		ast_udptl_destroy(dialog->udptl);
 		dialog->udptl = NULL;
 	}
-	do_setnat(dialog, ast_test_flag(&dialog->flags[0], SIP_NAT) & SIP_NAT_ROUTE);
 
 	ast_string_field_set(dialog, engine, peer->engine);
 
@@ -4999,8 +5000,6 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 	if (dialog_initialize_rtp(dialog)) {
 		return -1;
 	}
-
-	do_setnat(dialog, ast_test_flag(&dialog->flags[0], SIP_NAT) & SIP_NAT_ROUTE);
 
 	ast_string_field_set(dialog, tohost, peername);
 
