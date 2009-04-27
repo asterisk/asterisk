@@ -1339,7 +1339,8 @@ int pbx_exec(struct ast_channel *c, /*!< Channel */
 	c->data = data;
 	if (app->module)
 		u = __ast_module_user_add(app->module, c);
-	if (!ast_strlen_zero(data) && strchr(data, '|') && !strchr(data, ',')) {
+	if (strcasecmp(app->name, "system") && !ast_strlen_zero(data) &&
+			strchr(data, '|') && !strchr(data, ',')) {
 		ast_log(LOG_WARNING, "The application delimiter is now the comma, not "
 			"the pipe.  Did you forget to convert your dialplan?  (%s(%s))\n",
 			app->name, (char *) data);
