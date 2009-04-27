@@ -423,8 +423,6 @@ static void *smdi_msg_find(struct ast_smdi_interface *iface,
 		break;
 	case SMDI_MWI:
 		if (ast_strlen_zero(search_key)) {
-			msg = ASTOBJ_CONTAINER_FIND(&iface->mwi_q, search_key);
-		} else {
 			struct ast_smdi_mwi_message *mwi_msg = NULL;
 
 			/* No search key provided (the code from chan_dahdi does this).
@@ -435,6 +433,8 @@ static void *smdi_msg_find(struct ast_smdi_interface *iface,
 			} while (0); );
 
 			msg = mwi_msg;
+		} else {
+			msg = ASTOBJ_CONTAINER_FIND(&iface->mwi_q, search_key);
 		}
 		break;
 	}
