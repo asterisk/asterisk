@@ -855,6 +855,8 @@ alertpipe_failed:
 
 			sched_context_destroy(tmp->sched);
 			ast_string_field_free_memory(tmp);
+			ast_free(tmp->cid.cid_name);
+			ast_free(tmp->cid.cid_num);
 			ast_free(tmp);
 			return NULL;
 		} else {
