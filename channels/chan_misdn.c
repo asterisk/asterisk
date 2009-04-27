@@ -316,7 +316,9 @@ enum misdn_chan_state {
 	MISDN_HOLD_DISCONNECT,     /*!< when on hold */
 };
 
+/*! Asterisk created the channel (outgoing call) */
 #define ORG_AST 1
+/*! mISDN created the channel (incoming call) */
 #define ORG_MISDN 2
 
 struct hold_info {
@@ -6155,33 +6157,45 @@ static void misdn_copy_redirecting_to_ast(struct ast_channel *ast, const struct 
  *
  * \param ast Current Asterisk channel
  * \param bc Associated B channel
+ * \param originator Who originally created this channel. ORG_AST or ORG_MISDN
  *
  * \return Nothing
  */
-static void misdn_update_redirecting(struct ast_channel *ast, struct misdn_bchannel *bc)
+static void misdn_update_redirecting(struct ast_channel *ast, struct misdn_bchannel *bc, int originator)
 {
-	int Is_PTMP;
+	int is_ptmp;
 
 	misdn_copy_redirecting_from_ast(bc, ast);
 
-	Is_PTMP = !misdn_lib_is_ptp(bc->port);
-	if (Is_PTMP) {
+	if (originator != ORG_MISDN) {
+		return;
+	}
+
+	is_ptmp = !misdn_lib_is_ptp(bc->port);
+	if (is_ptmp) {
 		/* Send NOTIFY(call-is-diverting, redirecting.to data) */
 		bc->redirecting.to_changed = 1;
 		bc->notify_description_code = mISDN_NOTIFY_CODE_CALL_IS_DIVERTING;
 		misdn_lib_send_event(bc, EVENT_NOTIFY);
 #if defined(AST_MISDN_ENHANCEMENTS)
 	} else {
-		/* Send DivertingLegInformation1 */
-		bc->fac_out.Function = Fac_DivertingLegInformation1;
-		bc->fac_out.u.DivertingLegInformation1.InvokeID = ++misdn_invoke_id;
-		bc->fac_out.u.DivertingLegInformation1.DiversionReason =
-			misdn_to_diversion_reason(bc->redirecting.reason);
-		bc->fac_out.u.DivertingLegInformation1.SubscriptionOption = 2;/* notificationWithDivertedToNr */
-		bc->fac_out.u.DivertingLegInformation1.DivertedToPresent = 1;
-		misdn_PresentedNumberUnscreened_fill(&bc->fac_out.u.DivertingLegInformation1.DivertedTo, &bc->redirecting.to);
-		print_facility(&bc->fac_out, bc);
-		misdn_lib_send_event(bc, EVENT_FACILITY);
+		int match;	/* TRUE if the dialed number matches the redirecting to number */
+
+		match = (strcmp(ast->exten, bc->redirecting.to.number) == 0) ? 1 : 0;
+		if (!bc->div_leg_3_tx_pending
+			|| !match) {
+			/* Send DivertingLegInformation1 */
+			bc->fac_out.Function = Fac_DivertingLegInformation1;
+			bc->fac_out.u.DivertingLegInformation1.InvokeID = ++misdn_invoke_id;
+			bc->fac_out.u.DivertingLegInformation1.DiversionReason =
+				misdn_to_diversion_reason(bc->redirecting.reason);
+			bc->fac_out.u.DivertingLegInformation1.SubscriptionOption = 2;/* notificationWithDivertedToNr */
+			bc->fac_out.u.DivertingLegInformation1.DivertedToPresent = 1;
+			misdn_PresentedNumberUnscreened_fill(&bc->fac_out.u.DivertingLegInformation1.DivertedTo, &bc->redirecting.to);
+			print_facility(&bc->fac_out, bc);
+			misdn_lib_send_event(bc, EVENT_FACILITY);
+		}
+		bc->div_leg_3_tx_pending = 0;
 
 		/* Send DivertingLegInformation3 */
 		bc->fac_out.Function = Fac_DivertingLegInformation3;
@@ -6368,6 +6382,10 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 				&newbc->fac_out.u.DivertingLegInformation2.Diverting,
 				&newbc->redirecting.from);
 			newbc->fac_out.u.DivertingLegInformation2.OriginalCalledPresent = 0;
+			if (1 < newbc->redirecting.count) {
+				newbc->fac_out.u.DivertingLegInformation2.OriginalCalledPresent = 1;
+				newbc->fac_out.u.DivertingLegInformation2.OriginalCalled.Type = 2;/* numberNotAvailableDueToInterworking */
+			}
 		}
 #endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 
@@ -6488,6 +6506,18 @@ static int misdn_answer(struct ast_channel *ast)
 		p->bc->connected.number_plan = p->bc->dialed.number_plan;
 	}
 
+#if defined(AST_MISDN_ENHANCEMENTS)
+	if (p->bc->div_leg_3_tx_pending) {
+		p->bc->div_leg_3_tx_pending = 0;
+
+		/* Send DivertingLegInformation3 */
+		p->bc->fac_out.Function = Fac_DivertingLegInformation3;
+		p->bc->fac_out.u.DivertingLegInformation3.InvokeID = ++misdn_invoke_id;
+		p->bc->fac_out.u.DivertingLegInformation3.PresentationAllowedIndicator =
+			(p->bc->connected.presentation == 0) ? 1 : 0;
+		print_facility(&p->bc->fac_out, p->bc);
+	}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 	misdn_lib_send_event(p->bc, EVENT_CONNECT);
 	start_bc_tones(p);
 
@@ -6690,7 +6720,7 @@ static int misdn_indication(struct ast_channel *ast, int cond, const void *data,
 		break;
 	case AST_CONTROL_REDIRECTING:
 		chan_misdn_log(1, p->bc->port, "* IND :\tredirecting info update pid:%d\n", p->bc->pid);
-		misdn_update_redirecting(ast, p->bc);
+		misdn_update_redirecting(ast, p->bc, p->originator);
 		break;
 	default:
 		chan_misdn_log(1, p->bc->port, " --> * Unknown Indication:%d pid:%d\n", cond, p->bc->pid);
@@ -8608,6 +8638,7 @@ static void misdn_facility_ie_handler(enum event_e event, struct misdn_bchannel 
 #endif	/* We don't handle this yet */
 	case Fac_DivertingLegInformation1:
 		/* Private-Public ISDN interworking message */
+		bc->div_leg_3_rx_wanted = 0;
 		if (ch && ch->ast) {
 			bc->redirecting.reason =
 				diversion_reason_to_misdn(bc->fac_in.u.DivertingLegInformation1.DiversionReason);
@@ -8618,12 +8649,15 @@ static void misdn_facility_ie_handler(enum event_e event, struct misdn_bchannel 
 				/* Add configured prefix to redirecting.to.number */
 				misdn_add_number_prefix(bc->port, bc->redirecting.to.number_type,
 					bc->redirecting.to.number, sizeof(bc->redirecting.to.number));
-
-				misdn_copy_redirecting_to_ast(ch->ast, &bc->redirecting);
-				ast_channel_queue_redirecting_update(ch->ast, &ch->ast->redirecting);
 			} else {
-				ch->ast->redirecting.reason = misdn_to_ast_reason(bc->redirecting.reason);
+				bc->redirecting.to.number[0] = '\0';
+				bc->redirecting.to.number_plan = NUMPLAN_ISDN;
+				bc->redirecting.to.number_type = NUMTYPE_UNKNOWN;
+				bc->redirecting.to.presentation = 1;/* restricted */
+				bc->redirecting.to.screening = 0;/* unscreened */
 			}
+			misdn_copy_redirecting_to_ast(ch->ast, &bc->redirecting);
+			bc->div_leg_3_rx_wanted = 1;
 		}
 		break;
 	case Fac_DivertingLegInformation2:
@@ -8631,7 +8665,25 @@ static void misdn_facility_ie_handler(enum event_e event, struct misdn_bchannel 
 		switch (event) {
 		case EVENT_SETUP:
 			/* Comes in on a SETUP with redirecting.from information */
+			bc->div_leg_3_tx_pending = 1;
 			if (ch && ch->ast) {
+				/*
+				 * Setup the redirecting.to informtion so we can identify
+				 * if the user wants to manually supply the COLR for this
+				 * redirected to number if further redirects could happen.
+				 *
+				 * All the user needs to do is set the REDIRECTING(to-pres)
+				 * to the COLR and REDIRECTING(to-num) = ${EXTEN} to be safe
+				 * after determining that the incoming call was redirected by
+				 * checking if there is a REDIRECTING(from-num).
+				 */
+				ast_copy_string(bc->redirecting.to.number, bc->dialed.number,
+					sizeof(bc->redirecting.to.number));
+				bc->redirecting.to.number_plan = bc->dialed.number_plan;
+				bc->redirecting.to.number_type = bc->dialed.number_type;
+				bc->redirecting.to.presentation = 1;/* restricted */
+				bc->redirecting.to.screening = 0;/* unscreened */
+
 				bc->redirecting.reason =
 					diversion_reason_to_misdn(bc->fac_in.u.DivertingLegInformation2.DiversionReason);
 				bc->redirecting.count = bc->fac_in.u.DivertingLegInformation2.DiversionCounter;
@@ -8660,7 +8712,17 @@ static void misdn_facility_ie_handler(enum event_e event, struct misdn_bchannel 
 		break;
 	case Fac_DivertingLegInformation3:
 		/* Private-Public ISDN interworking message */
-		/* Don't know what to do with this. */
+		if (bc->div_leg_3_rx_wanted) {
+			bc->div_leg_3_rx_wanted = 0;
+
+			if (ch && ch->ast) {
+				ch->ast->redirecting.to.number_presentation =
+					bc->fac_in.u.DivertingLegInformation3.PresentationAllowedIndicator
+					? AST_PRES_ALLOWED | AST_PRES_USER_NUMBER_UNSCREENED
+					: AST_PRES_RESTRICTED | AST_PRES_USER_NUMBER_UNSCREENED;
+				ast_channel_queue_redirecting_update(ch->ast, &ch->ast->redirecting);
+			}
+		}
 		break;
 
 #else	/* !defined(AST_MISDN_ENHANCEMENTS) */
@@ -9786,6 +9848,17 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		if (bc->fac_in.Function != Fac_None) {
 			misdn_facility_ie_handler(event, bc, ch);
 		}
+#if defined(AST_MISDN_ENHANCEMENTS)
+		if (bc->div_leg_3_rx_wanted) {
+			bc->div_leg_3_rx_wanted = 0;
+
+			if (ch->ast) {
+				ch->ast->redirecting.to.number_presentation =
+					AST_PRES_RESTRICTED | AST_PRES_USER_NUMBER_UNSCREENED;
+				ast_channel_queue_redirecting_update(ch->ast, &ch->ast->redirecting);
+			}
+		}
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 
 		/* we answer when we've got our very new L3 ID from the NT stack */
 		misdn_lib_send_event(bc, EVENT_CONNECT_ACKNOWLEDGE);

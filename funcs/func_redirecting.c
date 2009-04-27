@@ -49,6 +49,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/callerid.h"
 
+/*
+ * Do not document the REDIRECTING(pres) datatype.
+ * It has turned out that the from-pres and to-pres values must be kept
+ * separate.  They represent two different parties and there is a case when
+ * they are active at the same time.  The plain pres option will simply
+ * live on as a historical relic.
+ */
 /*** DOCUMENTATION
 	<function name="REDIRECTING" language="en_US">
 		<synopsis>
@@ -62,11 +69,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name = "from-num" />
 					<enum name = "from-name" />
 					<enum name = "from-ton" />
+					<enum name = "from-pres" />
 					<enum name = "to-all" />
 					<enum name = "to-num" />
 					<enum name = "to-name" />
 					<enum name = "to-ton" />
-					<enum name = "pres" />
+					<enum name = "to-pres" />
 					<enum name = "reason" />
 					<enum name = "count" />
 				</enumlist>
@@ -323,7 +331,7 @@ static int redirecting_write(struct ast_channel *chan, const char *cmd, char *da
 		case 'i':
 			set_it = ast_channel_set_redirecting;
 			break;
-		
+
 		default:
 			ast_log(LOG_ERROR, "Unknown redirecting option '%s'.\n", option);
 			return 0;

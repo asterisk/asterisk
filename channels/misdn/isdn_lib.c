@@ -764,6 +764,11 @@ static void empty_bc(struct misdn_bchannel *bc)
 	bc->progress_location=0;
 	bc->progress_indicator=0;
 
+#if defined(AST_MISDN_ENHANCEMENTS)
+	bc->div_leg_3_rx_wanted = 0;
+	bc->div_leg_3_tx_pending = 0;
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
 /** Set Default Bearer Caps **/
 	bc->capability=INFO_CAPABILITY_SPEECH;
 	bc->law=INFO_CODEC_ALAW;

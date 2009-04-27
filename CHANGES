@@ -72,6 +72,11 @@ mISDN channel driver (chan_misdn) changes
     the CCBS/CCNR functionality.
   * Added new dialplan function mISDN_CC which permits retrieval of various
     values from an active call completion record.
+  * For PTP, you should manually send the COLR for an incomming redirected
+    call if the incoming call could or does experience further redirects.
+    Just set the REDIRECTING(to-num,i) = ${EXTEN} and set the
+    REDIRECTING(to-pres) to the COLR.  A call has been redirected if the
+    REDIRECTING(from-num) is not empty.
 
 thirdparty mISDN enhancements
 -----------------------------

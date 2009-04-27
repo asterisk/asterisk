@@ -493,6 +493,18 @@ struct misdn_bchannel {
 	 */
 	int progress_indicator;
 
+#if defined(AST_MISDN_ENHANCEMENTS)
+	/*!
+	 * \brief TRUE if waiting for DivertingLegInformation3 to queue redirecting update.
+	 */
+	int div_leg_3_rx_wanted;
+
+	/*!
+	 * \brief TRUE if a DivertingLegInformation3 needs to be sent with CONNECT.
+	 */
+	int div_leg_3_tx_pending;
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+
 	/*! \brief Inbound FACILITY message function type and contents */
 	struct FacParm fac_in;
 
