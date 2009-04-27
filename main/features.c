@@ -648,7 +648,7 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, i
 		peer = chan;
 	}
 
-	if (!play_announcement || !orig_chan_name) {
+	if (!play_announcement && !orig_chan_name) {
 		orig_chan_name = ast_strdupa(chan->name);
 	}
 
