@@ -853,6 +853,10 @@ ${QUEUE_MAX_PENALTY}      Maximum member penalty allowed to answer caller
 ${QUEUE_MIN_PENALTY}      Minimum member penalty allowed to answer caller
 ${QUEUESTATUS}            Status of the call, one of:
                           (TIMEOUT | FULL | JOINEMPTY | LEAVEEMPTY | JOINUNAVAIL | LEAVEUNAVAIL)
+${QUEUEPOSITION}        * When a caller is removed from a queue, his current position is logged
+                          in this variable. If the value is 0, then this means that the caller was
+						  serviced by a queue member. If non-zero, then this was the position in the
+						  queue the caller was in when he left.
 ${RECORDED_FILE}        * Recorded file in record()
 ${TALK_DETECTED}        * Result from talkdetect()
 ${TOUCH_MONITOR}          The filename base to use with Touch Monitor (auto record)

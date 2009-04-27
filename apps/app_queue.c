@@ -203,6 +203,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="rule">
 				<para>Will cause the queue's defaultrule to be overridden by the rule specified.</para>
 			</parameter>
+			<parameter name="position">
+				<para>Attempt to enter the caller into the queue at the numerical position specified. <literal>1</literal>
+				would attempt to enter the caller at the head of the queue, and <literal>3</literal> would attempt to place
+				the caller third in the queue.</para>
 		</syntax>
 		<description>
 			<para>In addition to transferring the call, a call may be parked and then picked
@@ -1914,7 +1918,7 @@ static void update_realtime_members(struct call_queue *q)
 	ast_config_destroy(member_config);
 }
 
-static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *reason)
+static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *reason, int position)
 {
 	struct call_queue *q;
 	struct queue_ent *cur, *prev = NULL;
@@ -1953,6 +1957,17 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 			 * higher or equal to our priority. */
 			if ((!inserted) && (qe->prio > cur->prio)) {
 				insert_entry(q, prev, qe, &pos);
+				inserted = 1;
+			}
+			/* <= is necessary for the position comparison because it may not be possible to enter
+			 * at our desired position since higher-priority callers may have taken the position we want
+			 */
+			if (!inserted && (qe->prio <= cur->prio) && position && (position <= pos + 1)) {
+				insert_entry(q, prev, qe, &pos);
+				/*pos is incremented inside insert_entry, so don't need to add 1 here*/
+				if (position < pos) {
+					ast_log(LOG_NOTICE, "Asked to be inserted at position %d but forced into position %d due to higher priority callers\n", position, pos);
+				}
 				inserted = 1;
 			}
 			cur->pos = ++pos;
@@ -2215,12 +2230,13 @@ static void leave_queue(struct queue_ent *qe)
 	prev = NULL;
 	for (current = q->head; current; current = current->next) {
 		if (current == qe) {
+			char posstr[20];
 			q->count--;
 
 			/* Take us out of the queue */
 			manager_event(EVENT_FLAG_CALL, "Leave",
-				"Channel: %s\r\nQueue: %s\r\nCount: %d\r\nUniqueid: %s\r\n",
-				qe->chan->name, q->name,  q->count, qe->chan->uniqueid);
+				"Channel: %s\r\nQueue: %s\r\nCount: %d\r\nPosition: %d\r\nUniqueid: %s\r\n",
+				qe->chan->name, q->name,  q->count, qe->pos, qe->chan->uniqueid);
 			ast_debug(1, "Queue '%s' Leave, Channel '%s'\n", q->name, qe->chan->name );
 			/* Take us out of the queue */
 			if (prev)
@@ -2230,6 +2246,8 @@ static void leave_queue(struct queue_ent *qe)
 			/* Free penalty rules */
 			while ((pr_iter = AST_LIST_REMOVE_HEAD(&qe->qe_rules, list)))
 				ast_free(pr_iter);
+			snprintf(posstr, sizeof(posstr), "%d", qe->pos);
+			pbx_builtin_setvar_helper(qe->chan, "QUEUEPOSITION", posstr);
 		} else {
 			/* Renumber the people after us in the queue based on a new count */
 			current->pos = ++pos;
@@ -5046,6 +5064,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	int noption = 0;
 	char *parse;
 	int makeannouncement = 0;
+	int position = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(queuename);
 		AST_APP_ARG(options);
@@ -5056,12 +5075,13 @@ static int queue_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(macro);
 		AST_APP_ARG(gosub);
 		AST_APP_ARG(rule);
+		AST_APP_ARG(position);
 	);
 	/* Our queue entry */
 	struct queue_ent qe;
 	
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Queue requires an argument: queuename[,options[,URL[,announceoverride[,timeout[,agi[,macro[,gosub[,rule]]]]]]]]\n");
+		ast_log(LOG_WARNING, "Queue requires an argument: queuename[,options[,URL[,announceoverride[,timeout[,agi[,macro[,gosub[,rule[,position]]]]]]]]]\n");
 		return -1;
 	}
 	
@@ -5127,6 +5147,14 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	if (args.options && (strchr(args.options, 'c')))
 		qcontinue = 1;
 
+	if (args.position) {
+		position = atoi(args.position);
+		if (position < 0) {
+			ast_log(LOG_WARNING, "Invalid position '%s' given for call to queue '%s'. Assuming no preference for position\n", args.position, args.queuename);
+			position = 0;
+		}
+	}
+
 	ast_debug(1, "queue: %s, options: %s, url: %s, announce: %s, expires: %ld, priority: %d\n",
 		args.queuename, args.options, args.url, args.announceoverride, (long)qe.expire, prio);
 
@@ -5139,7 +5167,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	qe.last_periodic_announce_time = time(NULL);
 	qe.last_periodic_announce_sound = 0;
 	qe.valid_digits = 0;
-	if (join_queue(args.queuename, &qe, &reason)) {
+	if (join_queue(args.queuename, &qe, &reason, position)) {
 		ast_log(LOG_WARNING, "Unable to join queue '%s'\n", args.queuename);
 		set_queue_result(chan, reason);
 		return 0;
