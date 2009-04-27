@@ -3511,7 +3511,6 @@ int __manager_event(int category, const char *event,
 	va_list ap;
 	struct timeval now;
 	struct ast_str *buf;
-	struct ao2_iterator i;
 
 	if (!(buf = ast_str_thread_get(&manager_event_buf, MANAGER_EVENT_BUF_INITSIZE))) {
 		return -1;
@@ -3546,21 +3545,24 @@ int __manager_event(int category, const char *event,
 	append_event(ast_str_buffer(buf), category);
 
 	/* Wake up any sleeping sessions */
-	i = ao2_iterator_init(sessions, 0);
-	while ((session = ao2_iterator_next(&i))) {
-		ao2_lock(session);
-		if (session->waiting_thread != AST_PTHREADT_NULL) {
-			pthread_kill(session->waiting_thread, SIGURG);
-		} else {
-			/* We have an event to process, but the mansession is
-			 * not waiting for it. We still need to indicate that there
-			 * is an event waiting so that get_input processes the pending
-			 * event instead of polling.
-			 */
-			session->pending_event = 1;
+	if (sessions) {
+		struct ao2_iterator i;
+		i = ao2_iterator_init(sessions, 0);
+		while ((session = ao2_iterator_next(&i))) {
+			ao2_lock(session);
+			if (session->waiting_thread != AST_PTHREADT_NULL) {
+				pthread_kill(session->waiting_thread, SIGURG);
+			} else {
+				/* We have an event to process, but the mansession is
+				 * not waiting for it. We still need to indicate that there
+				 * is an event waiting so that get_input processes the pending
+				 * event instead of polling.
+				 */
+				session->pending_event = 1;
+			}
+			ao2_unlock(session);
+			unref_mansession(session);
 		}
-		ao2_unlock(session);
-		unref_mansession(session);
 	}
 
 	AST_RWLIST_RDLOCK(&manager_hooks);
