@@ -493,7 +493,7 @@ datafiles: _all
 	mkdir -p $(DESTDIR)$(AGI_DIR)
 	$(MAKE) -C sounds install
 
-doc/core-en_US.xml: $(foreach dir,$(MOD_SUBDIRS),$(wildcard $(dir)/*.c) $(wildcard $(dir)/*.cc)) 
+doc/core-en_US.xml: $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"en_US\"" $(dir)/*.c $(dir)/*.cc 2>/dev/null))
 	@echo -n "Building Documentation For: "
 	@echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > $@
 	@echo "<!DOCTYPE docs SYSTEM \"appdocsxml.dtd\">" >> $@
