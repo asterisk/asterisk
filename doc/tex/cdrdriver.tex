@@ -112,7 +112,7 @@ Call data records can be stored in many different databases or even CSV text.
 		        [disposition]   [varchar] (45)          NOT NULL ,
 		        [amaflags]      [int]                   NOT NULL ,
 		        [accountcode]   [varchar] (20)          NOT NULL ,
-		        [uniqueid]      [varchar] (32)          NOT NULL ,
+		        [uniqueid]      [varchar] (150)         NOT NULL ,
 		        [userfield]     [varchar] (255)         NOT NULL
 		)
 \end{verbatim}
@@ -185,7 +185,7 @@ Call data records can be stored in many different databases or even CSV text.
 		        [billsec]       [int]                   NULL ,
 		        [disposition]   [varchar] (20)          NULL ,
 		        [amaflags]      [varchar] (16)          NULL ,
-		        [uniqueid]      [varchar] (32)          NULL ,
+		        [uniqueid]      [varchar] (150)         NULL ,
 		        [userfield]     [varchar] (256)         NULL
 		)
 \end{verbatim}
@@ -240,7 +240,7 @@ Using MySQL for CDR records is supported by using ODBC and the cdr\_odbc module.
                 disposition   varchar (45)          NOT NULL ,
                 amaflags      int                   NOT NULL ,
                 accountcode   varchar (20)          NOT NULL ,
-                uniqueid      varchar (32)          NOT NULL ,
+                uniqueid      varchar (150)         NOT NULL ,
                 userfield     varchar (255)         NOT NULL
         );
 \end{verbatim}
