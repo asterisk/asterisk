@@ -111,14 +111,6 @@ endif
 	$(ECHO_PREFIX) echo "   [CPP] $< -> $@"
 	$(CMD_PREFIX) $(CXX) -o $@ -E $< $(CXX_CFLAGS) $(MAKE_DEPS)
 
-%.c: %.y
-	$(ECHO_PREFIX) echo "   [BISON] $< -> $@"
-	$(CMD_PREFIX) bison -o $@ -d --name-prefix=ast_yy $<
-
-%.c: %.fl
-	$(ECHO_PREFIX) echo "   [FLEX] $< -> $@"
-	$(CMD_PREFIX) flex -o $@ --full $<
-
 %.so: %.o
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
 	$(CMD_PREFIX) $(CC) $(STATIC_BUILD) -o $@ $(CC_LDFLAGS_SO) $^ $(CC_LIBS)
