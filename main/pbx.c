@@ -3605,7 +3605,7 @@ void ast_str_substitute_variables_full(struct ast_str **buf, ssize_t maxlen, str
 						cp4 = ast_func_read2(c, finalvars, &substr3, 0) ? NULL : ast_str_buffer(substr3);
 						/* Don't deallocate the varshead that was passed in */
 						memcpy(&bogus->varshead, &old, sizeof(bogus->varshead));
-						ast_channel_free(bogus);
+						ast_channel_release(bogus);
 					} else {
 						ast_log(LOG_ERROR, "Unable to allocate bogus channel for variable substitution.  Function results may be blank.\n");
 					}
@@ -3694,7 +3694,7 @@ void ast_str_substitute_variables_varshead(struct ast_str **buf, ssize_t maxlen,
 void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead *headp, const char *cp1, char *cp2, int count, size_t *used)
 {
 	/* Substitutes variables into cp2, based on string cp1, cp2 NO LONGER NEEDS TO BE ZEROED OUT!!!!  */
-	char *cp4;
+	char *cp4 = NULL;
 	const char *tmp, *whereweare, *orig_cp2 = cp2;
 	int length, offset, offset2, isfunction;
 	char *workspace = NULL;
@@ -3805,8 +3805,9 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 						/* Don't deallocate the varshead that was passed in */
 						memcpy(&bogus->varshead, &old, sizeof(bogus->varshead));
 						bogus = ast_channel_release(bogus);
-					} else
+					} else {
 						ast_log(LOG_ERROR, "Unable to allocate bogus channel for variable substitution.  Function results may be blank.\n");
+					}
 				}
 				ast_debug(2, "Function result is '%s'\n", cp4 ? cp4 : "(null)");
 			} else {
