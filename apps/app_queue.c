@@ -207,6 +207,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<para>Attempt to enter the caller into the queue at the numerical position specified. <literal>1</literal>
 				would attempt to enter the caller at the head of the queue, and <literal>3</literal> would attempt to place
 				the caller third in the queue.</para>
+			</parameter>
 		</syntax>
 		<description>
 			<para>In addition to transferring the call, a call may be parked and then picked
