@@ -102,6 +102,8 @@ extern "C" {
 }
 #endif
 
+#undef open
+#undef close
 #include "h323/chan_h323.h"
 
 receive_digit_cb on_receive_digit;
