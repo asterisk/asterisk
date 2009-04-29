@@ -620,71 +620,11 @@ static int handle_context_remove_extension(int fd, int argc, char *argv[])
 	return ret;
 }
 
-#define BROKEN_READLINE 1
-
-#ifdef BROKEN_READLINE
-/*
- * There is one funny thing, when you have word like 300@ and you hit
- * <tab>, you arguments will like as your word is '300 ', so it '@'
- * characters acts sometimes as word delimiter and sometimes as a part
- * of word
- *
- * This fix function, allocates new word variable and store here every
- * time xxx@yyy always as one word and correct pos is set too
- *
- * It's ugly, I know, but I'm waiting for Mark suggestion if upper is
- * bug or feature ...
- */
-static int fix_complete_args(const char *line, char **word, int *pos)
-{
-	char *_line, *_strsep_line, *_previous_word = NULL, *_word = NULL;
-	int words = 0;
-
-	_line = strdup(line);
-
-	_strsep_line = _line;
-	while (_strsep_line) {
-		_previous_word = _word;
-		_word = strsep(&_strsep_line, " ");
-
-		if (_word && strlen(_word)) words++;
-	}
-
-
-	if (_word || _previous_word) {
-		if (_word) {
-			if (!strlen(_word)) words++;
-			*word = strdup(_word);
-		} else
-			*word = strdup(_previous_word);
-		*pos = words - 1;
-		free(_line);
-		return 0;
-	}
-
-	free(_line);
-	return -1;
-}
-#endif /* BROKEN_READLINE */
-
 static char *complete_context_remove_extension_deprecated(const char *line, const char *word, int pos,
 	int state)
 {
 	char *ret = NULL;
 	int which = 0;
-
-#ifdef BROKEN_READLINE
-	char *word2;
-	/*
-	 * Fix arguments, *word is a new allocated structure, REMEMBER to
-	 * free *word when you want to return from this function ...
-	 */
-	if (fix_complete_args(line, &word2, &pos)) {
-		ast_log(LOG_ERROR, "Out of free memory\n");
-		return NULL;
-	}
-	word = word2;
-#endif
 
 	if (pos == 2) { /* 'remove extension _X_' (exten/cid@context ... */
 		struct ast_context *c = NULL;
@@ -694,9 +634,6 @@ static char *complete_context_remove_extension_deprecated(const char *line, cons
 		int lcid = 0; /* length of cid */
 
 		lc = split_ec(word, &exten, &context, &cid);
-#ifdef BROKEN_READLINE
-		free(word2);
-#endif
 		if (lc)	/* error */
 			return NULL;
 		le = strlen(exten);
@@ -762,7 +699,11 @@ static char *complete_context_remove_extension_deprecated(const char *line, cons
 			*p = '\0';
 		le = strlen(exten);
 		lc = strlen(context);
-		lcid = strlen(cid);
+		if (cid == NULL) {
+			lcid = 0;
+		} else {
+			lcid = strlen(cid);
+		}
 		len = strlen(word);
 		if (le == 0 || lc == 0)
 			goto error3;
@@ -806,9 +747,6 @@ static char *complete_context_remove_extension_deprecated(const char *line, cons
 		if (exten)
 			free(exten);
 	}
-#ifdef BROKEN_READLINE
-	free(word2);
-#endif
 	return ret; 
 }
 
@@ -817,19 +755,6 @@ static char *complete_context_remove_extension(const char *line, const char *wor
 {
 	char *ret = NULL;
 	int which = 0;
-
-#ifdef BROKEN_READLINE
-	char *word2;
-	/*
-	 * Fix arguments, *word is a new allocated structure, REMEMBER to
-	 * free *word when you want to return from this function ...
-	 */
-	if (fix_complete_args(line, &word2, &pos)) {
-		ast_log(LOG_ERROR, "Out of free memory\n");
-		return NULL;
-	}
-	word = word2;
-#endif
 
 	if (pos == 3) { /* 'dialplan remove extension _X_' (exten@context ... */
 		struct ast_context *c = NULL;
@@ -840,9 +765,6 @@ static char *complete_context_remove_extension(const char *line, const char *wor
 
 		lc = split_ec(word, &exten, &context, &cid);
 		if (lc)	{ /* error */
-#ifdef BROKEN_READLINE
-			free(word2);
-#endif
 			return NULL;
 		}
 		le = strlen(exten);
@@ -888,10 +810,6 @@ static char *complete_context_remove_extension(const char *line, const char *wor
 			if (e)	/* got a match */
 				break;
 		}
-#ifdef BROKEN_READLINE
-		free(word2);
-#endif
-
 		ast_unlock_contexts();
 	error2:
 		if (exten)
@@ -954,9 +872,6 @@ static char *complete_context_remove_extension(const char *line, const char *wor
 	error3:
 		if (exten)
 			free(exten);
-#ifdef BROKEN_READLINE
-		free(word2);
-#endif
 	}
 	return ret; 
 }
