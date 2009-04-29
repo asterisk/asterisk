@@ -1038,6 +1038,7 @@ static int load_indications(int reload)
 	cfg = ast_config_load2(config, "indications", config_flags);
 
 	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Can't find indications config file %s.\n", config);
 		return -1;
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
 		return 0;
