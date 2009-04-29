@@ -107,6 +107,12 @@ Asterisk Manager Interface
  * sslprivatekey option added to manager.conf and http.conf.  Adds the ability
    to specify a separate .pem file to hold a private key.  By default sslcert
    is used to hold both the public and private key.
+ * Options in manager.conf and http.conf with the 'ssl' prefix have been replaced
+   for options containing the 'tls' prefix.  For example, 'sslenable' is now
+   'tlsenable'.  This has been done in effort to keep ssl and tls options consistent
+   across all .conf files. All affected sample.conf files have been modified to
+   reflect this change.  Previous options such as 'sslenable' still work,
+   but options with the 'tls' prefix are preferred.
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.1 to Asterisk 1.6.2  -------------
 ------------------------------------------------------------------------------

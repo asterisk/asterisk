@@ -4719,9 +4719,6 @@ static int __init_manager(int reload)
 	const char *val;
 	char *cat = NULL;
 	int newhttptimeout = 60;
-	int have_sslbindaddr = 0;
-	struct hostent *hp;
-	struct ast_hostent ahp;
 	struct ast_manager_user *user = NULL;
 	struct ast_variable *var;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
@@ -4804,27 +4801,12 @@ static int __init_manager(int reload)
 
 	for (var = ast_variable_browse(cfg, "general"); var; var = var->next) {
 		val = var->value;
-		if (!strcasecmp(var->name, "sslenable")) {
-			ami_tls_cfg.enabled = ast_true(val);
-		} else if (!strcasecmp(var->name, "sslbindport")) {
-			amis_desc.local_address.sin_port = htons(atoi(val));
-		} else if (!strcasecmp(var->name, "sslbindaddr")) {
-			if ((hp = ast_gethostbyname(val, &ahp))) {
-				memcpy(&amis_desc.local_address.sin_addr, hp->h_addr, sizeof(amis_desc.local_address.sin_addr));
-				have_sslbindaddr = 1;
-			} else {
-				ast_log(LOG_WARNING, "Invalid bind address '%s'\n", val);
-			}
-		} else if (!strcasecmp(var->name, "sslcert")) {
-			ast_free(ami_tls_cfg.certfile);
-			ami_tls_cfg.certfile = ast_strdup(val);
-		} else if (!strcasecmp(var->name, "sslprivatekey")) {
-			ast_free(ami_tls_cfg.pvtfile);
-			ami_tls_cfg.pvtfile = ast_strdup(val);
-		} else if (!strcasecmp(var->name, "sslcipher")) {
-			ast_free(ami_tls_cfg.cipher);
-			ami_tls_cfg.cipher = ast_strdup(val);
-		} else if (!strcasecmp(var->name, "enabled")) {
+
+		if (!ast_tls_read_conf(&ami_tls_cfg, &amis_desc, var->name, val)) {
+			continue;
+		}
+
+		if (!strcasecmp(var->name, "enabled")) {
 			manager_enabled = ast_true(val);
 		} else if (!strcasecmp(var->name, "block-sockets")) {
 			block_sockets = ast_true(val);
@@ -4856,7 +4838,8 @@ static int __init_manager(int reload)
 	if (manager_enabled) {
 		ami_desc.local_address.sin_family = AF_INET;
 	}
-	if (!have_sslbindaddr) {
+	/* if the amis address has not been set, default is the same as non secure ami */
+	if (!amis_desc.local_address.sin_addr.s_addr) {
 		amis_desc.local_address.sin_addr = ami_desc.local_address.sin_addr;
 	}
 	if (ami_tls_cfg.enabled) {

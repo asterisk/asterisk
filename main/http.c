@@ -983,7 +983,6 @@ static int __ast_http_load(int reload)
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	char newprefix[MAX_PREFIX] = "";
-	int have_sslbindaddr = 0;
 	struct http_uri_redirect *redirect;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
@@ -1024,32 +1023,18 @@ static int __ast_http_load(int reload)
 	if (cfg) {
 		v = ast_variable_browse(cfg, "general");
 		for (; v; v = v->next) {
+
+			/* handle tls conf */
+			if (!ast_tls_read_conf(&http_tls_cfg, &https_desc, v->name, v->value)) {
+				continue;
+			}
+
 			if (!strcasecmp(v->name, "enabled")) {
 				enabled = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "sslenable")) {
-				http_tls_cfg.enabled = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "sslbindport")) {
-				https_desc.local_address.sin_port = htons(atoi(v->value));
-			} else if (!strcasecmp(v->name, "sslcert")) {
-				ast_free(http_tls_cfg.certfile);
-				http_tls_cfg.certfile = ast_strdup(v->value);
-			} else if (!strcasecmp(v->name, "sslprivatekey")) {
-				ast_free(http_tls_cfg.pvtfile);
-				http_tls_cfg.pvtfile = ast_strdup(v->value);
-			} else if (!strcasecmp(v->name, "sslcipher")) {
-				ast_free(http_tls_cfg.cipher);
-				http_tls_cfg.cipher = ast_strdup(v->value);
 			} else if (!strcasecmp(v->name, "enablestatic")) {
 				newenablestatic = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "bindport")) {
 				http_desc.local_address.sin_port = htons(atoi(v->value));
-			} else if (!strcasecmp(v->name, "sslbindaddr")) {
-				if ((hp = ast_gethostbyname(v->value, &ahp))) {
-					memcpy(&https_desc.local_address.sin_addr, hp->h_addr, sizeof(https_desc.local_address.sin_addr));
-					have_sslbindaddr = 1;
-				} else {
-					ast_log(LOG_WARNING, "Invalid bind address '%s'\n", v->value);
-				}
 			} else if (!strcasecmp(v->name, "bindaddr")) {
 				if ((hp = ast_gethostbyname(v->value, &ahp))) {
 					memcpy(&http_desc.local_address.sin_addr, hp->h_addr, sizeof(http_desc.local_address.sin_addr));
@@ -1072,8 +1057,8 @@ static int __ast_http_load(int reload)
 
 		ast_config_destroy(cfg);
 	}
-
-	if (!have_sslbindaddr) {
+	/* if the https addres has not been set, default is the same as non secure http */
+	if (!https_desc.local_address.sin_addr.s_addr) {
 		https_desc.local_address.sin_addr = http_desc.local_address.sin_addr;
 	}
 	if (enabled) {

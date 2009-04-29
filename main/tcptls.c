@@ -488,3 +488,39 @@ void ast_tcptls_server_stop(struct ast_tcptls_session_args *desc)
 	desc->accept_fd = -1;
 	ast_debug(2, "Stopped server :: %s\n", desc->name);
 }
+
+int ast_tls_read_conf(struct ast_tls_config *tls_cfg, struct ast_tcptls_session_args *tls_desc, const char *varname, const char *value)
+{
+	if (!strcasecmp(varname, "tlsenable") || !strcasecmp(varname, "sslenable")) {
+		tls_cfg->enabled = ast_true(value) ? 1 : 0;
+		tls_desc->local_address.sin_family = AF_INET;
+	} else if (!strcasecmp(varname, "tlscertfile") || !strcasecmp(varname, "sslcert")) {
+		ast_free(tls_cfg->certfile);
+		tls_cfg->certfile = ast_strdup(value);
+	} else if (!strcasecmp(varname, "tlsprivatekey") || !strcasecmp(varname, "sslprivatekey")) {
+		ast_free(tls_cfg->pvtfile);
+		tls_cfg->pvtfile = ast_strdup(value);
+	} else if (!strcasecmp(varname, "tlscipher") || !strcasecmp(varname, "sslcipher")) {
+		ast_free(tls_cfg->cipher);
+		tls_cfg->cipher = ast_strdup(value);
+	} else if (!strcasecmp(varname, "tlscafile")) {
+		ast_free(tls_cfg->cafile);
+		tls_cfg->cafile = ast_strdup(value);
+	} else if (!strcasecmp(varname, "tlscapath")) {
+		ast_free(tls_cfg->capath);
+		tls_cfg->capath = ast_strdup(value);
+	} else if (!strcasecmp(varname, "tlsverifyclient")) {
+		ast_set2_flag(&tls_cfg->flags, ast_true(value), AST_SSL_VERIFY_CLIENT);
+	} else if (!strcasecmp(varname, "tlsdontverifyserver")) {
+		ast_set2_flag(&tls_cfg->flags, ast_true(value), AST_SSL_DONT_VERIFY_SERVER);
+	} else if (!strcasecmp(varname, "tlsbindaddr") || !strcasecmp(varname, "sslbindaddr")) {
+		if (ast_parse_arg(value, PARSE_INADDR, &tls_desc->local_address))
+			ast_log(LOG_WARNING, "Invalid %s '%s'\n", varname, value);
+	} else if (!strcasecmp(varname, "tlsbindport") || !strcasecmp(varname, "sslbindport")) {
+		tls_desc->local_address.sin_port = htons(atoi(value));
+	} else {
+		return -1;
+	}
+
+	return 0;
+}

@@ -23943,13 +23943,18 @@ static int reload_config(enum channelreloadreason reason)
 		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value))
 			continue;
 
+		/* handle tls conf */
+		if (!ast_tls_read_conf(&default_tls_cfg, &sip_tls_desc, v->name, v->value)) {
+			continue;
+		}
+
 		if (!strcasecmp(v->name, "context")) {
 			ast_copy_string(sip_cfg.default_context, v->value, sizeof(sip_cfg.default_context));
 		} else if (!strcasecmp(v->name, "subscribecontext")) {
 			ast_copy_string(sip_cfg.default_subscribecontext, v->value, sizeof(sip_cfg.default_subscribecontext));
-  		} else if (!strcasecmp(v->name, "callcounter")) {
+		} else if (!strcasecmp(v->name, "callcounter")) {
 			global_callcounter = ast_true(v->value) ? 1 : 0;
-  		} else if (!strcasecmp(v->name, "allowguest")) {
+		} else if (!strcasecmp(v->name, "allowguest")) {
 			sip_cfg.allowguest = ast_true(v->value) ? 1 : 0;
 		} else if (!strcasecmp(v->name, "realm")) {
 			ast_copy_string(sip_cfg.realm, v->value, sizeof(sip_cfg.realm));
@@ -23967,7 +23972,7 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "allowtransfer")) {
 			sip_cfg.allowtransfer = ast_true(v->value) ? TRANSFER_OPENFORALL : TRANSFER_CLOSED;
 		} else if (!strcasecmp(v->name, "rtcachefriends")) {
-			ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_RTCACHEFRIENDS);	
+			ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_RTCACHEFRIENDS);
 		} else if (!strcasecmp(v->name, "rtsavesysname")) {
 			sip_cfg.rtsave_sysname = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "rtupdate")) {
@@ -23990,7 +23995,7 @@ static int reload_config(enum channelreloadreason reason)
 			while ((trans = strsep(&val, ","))) {
 				trans = ast_skip_blanks(trans);
 
-				if (!strncasecmp(trans, "udp", 3)) 
+				if (!strncasecmp(trans, "udp", 3))
 					default_transports |= SIP_TRANSPORT_UDP;
 				else if (!strncasecmp(trans, "tcp", 3))
 					default_transports |= SIP_TRANSPORT_TCP;
@@ -24011,31 +24016,6 @@ static int reload_config(enum channelreloadreason reason)
 				ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of %s\n", v->name, v->value, v->lineno, config);
 			sip_tcp_desc.local_address.sin_family = family;
 			ast_debug(2, "Setting TCP socket address to %s\n", v->value);
-		} else if (!strcasecmp(v->name, "tlsenable")) {
-			default_tls_cfg.enabled = ast_true(v->value) ? TRUE : FALSE;
-			sip_tls_desc.local_address.sin_family = AF_INET;
-		} else if (!strcasecmp(v->name, "tlscertfile")) {
-			ast_free(default_tls_cfg.certfile);
-			default_tls_cfg.certfile = ast_strdup(v->value);
-		} else if (!strcasecmp(v->name, "tlsprivatekey")) {
-			ast_free(default_tls_cfg.pvtfile);
-			default_tls_cfg.pvtfile = ast_strdup(v->value);
-		} else if (!strcasecmp(v->name, "tlscipher")) {
-			ast_free(default_tls_cfg.cipher);
-			default_tls_cfg.cipher = ast_strdup(v->value);
-		} else if (!strcasecmp(v->name, "tlscafile")) {
-			ast_free(default_tls_cfg.cafile);
-			default_tls_cfg.cafile = ast_strdup(v->value);
-		} else if (!strcasecmp(v->name, "tlscapath")) {
-			ast_free(default_tls_cfg.capath);
-			default_tls_cfg.capath = ast_strdup(v->value);
-		} else if (!strcasecmp(v->name, "tlsverifyclient")) {
-			ast_set2_flag(&default_tls_cfg.flags, ast_true(v->value), AST_SSL_VERIFY_CLIENT);	
-		} else if (!strcasecmp(v->name, "tlsdontverifyserver")) {
-			ast_set2_flag(&default_tls_cfg.flags, ast_true(v->value), AST_SSL_DONT_VERIFY_SERVER);	
-		} else if (!strcasecmp(v->name, "tlsbindaddr")) {
-			if (ast_parse_arg(v->value, PARSE_INADDR, &sip_tls_desc.local_address))
-				ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of %s\n", v->name, v->value, v->lineno, config);
 		} else if (!strcasecmp(v->name, "dynamic_exclude_static") || !strcasecmp(v->name, "dynamic_excludes_static")) {
 			global_dynamic_exclude_static = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "contactpermit") || !strcasecmp(v->name, "contactdeny")) {
@@ -24052,7 +24032,7 @@ static int reload_config(enum channelreloadreason reason)
 				i = 0;
 			ast_set2_flag(&global_flags[1], i || ast_true(v->value), SIP_PAGE2_RTAUTOCLEAR);
 		} else if (!strcasecmp(v->name, "usereqphone")) {
-			ast_set2_flag(&global_flags[0], ast_true(v->value), SIP_USEREQPHONE);	
+			ast_set2_flag(&global_flags[0], ast_true(v->value), SIP_USEREQPHONE);
 		} else if (!strcasecmp(v->name, "relaxdtmf")) {
 			global_relaxdtmf = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "vmexten")) {

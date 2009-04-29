@@ -174,6 +174,11 @@ void ast_tcptls_server_start(struct ast_tcptls_session_args *desc);
 void ast_tcptls_server_stop(struct ast_tcptls_session_args *desc);
 int ast_ssl_setup(struct ast_tls_config *cfg);
 
+/*!
+ * \brief Used to parse conf files containing tls/ssl options.
+ */
+int ast_tls_read_conf(struct ast_tls_config *tls_cfg, struct ast_tcptls_session_args *tls_desc, const char *varname, const char *value);
+
 HOOK_T ast_tcptls_server_read(struct ast_tcptls_session_instance *ser, void *buf, size_t count);
 HOOK_T ast_tcptls_server_write(struct ast_tcptls_session_instance *ser, const void *buf, size_t count);
 

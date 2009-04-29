@@ -39,15 +39,14 @@ bindaddr = 0.0.0.0
 ;
 ;	openssl s_client -connect my_host:5039
 ;
-;   sslenable=no		; set to YES to enable it
-;   sslbindport=5039		; the port to bind to
-;   sslbindaddr=0.0.0.0		; address to bind to, default to bindaddr
-;   sslcert=/tmp/asterisk.pem	; path to the certificate.
-;   sslprivatekey=/tmp/private.pem ; path to the private key, if no private given,
-                                   ; if no sslprivatekey is given, default is to search
-								   ; sslcert for private key.
-;   sslcipher=<cipher string>   ; string specifying which SSL ciphers to use or not use
-
+;tlsenable=no		; set to YES to enable it
+;tlsbindport=5039		; the port to bind to
+;tlsbindaddr=0.0.0.0		; address to bind to, default to bindaddr
+;tlscertfile=/tmp/asterisk.pem	; path to the certificate.
+;tlsprivatekey=/tmp/private.pem ; path to the private key, if no private given,
+                                ; if no tlsprivatekey is given, default is to search
+								; tlscertfile for private key.
+;tlscipher=<cipher string>      ; string specifying which SSL ciphers to use or not use
 ;
 ;allowmultiplelogin = yes		; IF set to no, rejects manager logins that are already in use.
 ;                               ; The default is yes.

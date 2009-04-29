@@ -46,17 +46,16 @@ bindaddr=127.0.0.1
 ;redirect = / /static/config/cfgbasic.html
 ;
 ; HTTPS support. In addition to enabled=yes, you need to
-; explicitly enable ssl, define the port to use,
+; explicitly enable tls, define the port to use,
 ; and have a certificate somewhere.
-; sslenable=yes		; enable ssl - default no.
-; sslbindport=4433	; port to use - default is 8089
-; sslbindaddr=0.0.0.0	; address to bind to - default is bindaddr.
+;tlsenable=yes          ; enable tls - default no.
+;tlsbindport=4433       ; port to use - default is 8089
+;tlsbindaddr=0.0.0.0    ; address to bind to - default is bindaddr.
 ;
-;
-; sslcert=</path/to/certificate.pem>   ; path to the certificate file (*.pem) only.
-; sslprivatekey=</path/to/private.pem>    ; path to private key file (*.pem) only.
-; If no path is given for sslcert or sslprivatekey, default is to look in current
-; directory. If no sslprivatekey is given, default is to search sslcert for private key.
+;tlscertfile=</path/to/certificate.pem>  ; path to the certificate file (*.pem) only.
+;tlsprivatekey=</path/to/private.pem>    ; path to private key file (*.pem) only.
+; If no path is given for tlscertfile or tlsprivatekey, default is to look in current
+; directory. If no tlsprivatekey is given, default is to search tlscertfile for private key.
 ;
 ; To produce a certificate you can e.g. use openssl. This places both the cert and
 ; private in same .pem file.
