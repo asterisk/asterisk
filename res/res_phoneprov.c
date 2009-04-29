@@ -1102,7 +1102,7 @@ static int pp_each_user_read(struct ast_channel *chan, const char *cmd, char *da
 	return pp_each_user_helper(chan, data, buf, NULL, len);
 }
 
-static int pp_each_user_read2(struct ast_channel *chan, const char *cmd, char *data, struct ast_str **buf, int len)
+static int pp_each_user_read2(struct ast_channel *chan, const char *cmd, char *data, struct ast_str **buf, ssize_t len)
 {
 	return pp_each_user_helper(chan, data, NULL, buf, len);
 }
@@ -1188,7 +1188,7 @@ static int pp_each_extension_read(struct ast_channel *chan, const char *cmd, cha
 	return pp_each_extension_helper(chan, cmd, data, buf, NULL, len);
 }
 
-static int pp_each_extension_read2(struct ast_channel *chan, const char *cmd, char *data, struct ast_str **buf, int len)
+static int pp_each_extension_read2(struct ast_channel *chan, const char *cmd, char *data, struct ast_str **buf, ssize_t len)
 {
 	return pp_each_extension_helper(chan, cmd, data, NULL, buf, len);
 }
