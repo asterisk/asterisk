@@ -29,7 +29,6 @@
  * Version Info: $Id$
  */
 
-#include "asterisk.h"
 #define VERSION(a,b,c) ((a)*10000+(b)*100+(c))
 
 #include <arpa/inet.h>
@@ -72,6 +71,8 @@
 
 #include "compat_h323.h"
 
+#include "asterisk.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -82,6 +83,9 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
+
+#undef open
+#undef close
 
 #include "chan_h323.h"
 #include "ast_h323.h"
