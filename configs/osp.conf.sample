@@ -12,23 +12,14 @@
 [general]
 ;
 ; Enable cryptographic acceleration hardware.  
-; The default value is no.
 ;
 ;accelerate=no
-;
-; Enable security features.
-; If security features are disabled, Asterisk cannot validate signed tokens and
-; all certificate file name parameters are ignored.
-; The default value is no.
-;
-;securityfeatures=no
 ;
 ; Defines the status of tokens that Asterisk will validate. 
 ; 0 - signed tokens only 
 ; 1 - unsigned tokens only 
 ; 2 - both signed and unsigned
 ; The default value is 0, i.e. the Asterisk will only validate signed tokens.
-; If securityfeatures are disabled, Asterisk cannot validate signed tokens.
 ;
 ;tokenformat=0
 ;
@@ -52,7 +43,6 @@
 ; If this parameter is unspecified or not present, the default name will be the 
 ; osp.conf section name followed by "-privatekey.pem" (for example: 
 ; default-privatekey.pem)
-; If securityfeatures are disabled, this parameter is ignored.
 ;
 ;privatekey=pkey.pem
 ;
@@ -60,7 +50,6 @@
 ; If this parameter is unspecified or not present, the default name will be the 
 ; osp.conf section name followed by "- localcert.pem " (for example: 
 ; default-localcert.pem)  
-; If securityfeatures are disabled, this parameter is ignored.
 ;
 ;localcert=localcert.pem
 ;
@@ -68,7 +57,6 @@
 ; a single Certificate Authority key file name is added with the default name of 
 ; the osp.conf section name followed by "-cacert_0.pem " (for example: 
 ; default-cacert_0.pem)
-; If securityfeatures are disabled, this parameter is ignored.
 ;
 ;cacert=cacert_0.pem
 ;
@@ -93,7 +81,6 @@
 ; 2 - EXCLUSIVE - Accept calls with valid token. Block calls with invalid token 
 ;                 or no token.
 ; Default is 1,
-; If securityfeatures are disabled, Asterisk cannot validate signed tokens.
 ;
 ;authpolicy=1
 ;
