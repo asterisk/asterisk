@@ -1540,7 +1540,8 @@ int ast_rtp_instance_make_compatible(struct ast_channel *chan, struct ast_rtp_in
 
 	if (!peer_instance || peer_instance->engine != instance->engine) {
 		ast_channel_unlock(peer);
-		peer_instance = (ao2_ref(peer_instance, -1), NULL);
+		ao2_ref(peer_instance, -1);
+		peer_instance = NULL;
 		return -1;
 	}
 
@@ -1548,7 +1549,8 @@ int ast_rtp_instance_make_compatible(struct ast_channel *chan, struct ast_rtp_in
 
 	ast_channel_unlock(peer);
 
-	peer_instance = (ao2_ref(peer_instance, -1), NULL);
+	ao2_ref(peer_instance, -1);
+	peer_instance = NULL;
 
 	return res;
 }

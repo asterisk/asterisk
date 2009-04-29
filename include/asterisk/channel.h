@@ -2073,8 +2073,27 @@ struct ast_group_info {
 		} \
 	} while (0)
 
+/*!
+ * \brief Increase channel reference count
+ *
+ * \param c the channel
+ *
+ * \retval c always
+ *
+ * \since 1.6.3
+ */
 #define ast_channel_ref(c) ({ ao2_ref(c, +1); (c); })
-#define ast_channel_unref(c) ({ ao2_ref(c, -1); (NULL); })
+
+/*!
+ * \brief Decrease channel reference count
+ *
+ * \param c the channel
+ *
+ * \retval NULL always
+ *
+ * \since 1.6.3
+ */
+#define ast_channel_unref(c) ({ ao2_ref(c, -1); (struct ast_channel *) (NULL); })
 
 /*! Channel Iterating @{ */
 
