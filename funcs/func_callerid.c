@@ -274,12 +274,14 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 static struct ast_custom_function callerid_function = {
 	.name = "CALLERID",
 	.read = callerid_read,
+	.read_max = 256,
 	.write = callerid_write,
 };
 
 static struct ast_custom_function callerpres_function = {
 	.name = "CALLERPRES",
 	.read = callerpres_read,
+	.read_max = 50,
 	.write = callerpres_write,
 };
 

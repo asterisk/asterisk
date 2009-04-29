@@ -109,17 +109,6 @@ int __ast_str_helper(struct ast_str **buf, size_t max_len,
 	return res;
 }
 
-void ast_str_substitute_variables(struct ast_str **buf, size_t maxlen, struct ast_channel *chan, const char *template)
-{
-	int first = 1;
-	do {
-		ast_str_make_space(buf, maxlen ? maxlen :
-			(first ? strlen(template) * 2 : (*buf)->__AST_STR_LEN * 2));
-		pbx_substitute_variables_helper_full(chan, NULL, template, (*buf)->__AST_STR_STR, (*buf)->__AST_STR_LEN - 1, &((*buf)->__AST_STR_USED));
-		first = 0;
-	} while (maxlen == 0 && (*buf)->__AST_STR_LEN - 5 < (*buf)->__AST_STR_USED);
-}
-
 char *__ast_str_helper2(struct ast_str **buf, size_t maxlen, const char *src, size_t maxsrc, int append, int escapecommas)
 {
 	int dynamic = 0;

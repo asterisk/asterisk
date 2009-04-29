@@ -3843,9 +3843,10 @@ static int base_encode(char *filename, FILE *so)
 	return 1;
 }
 
-static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, const char *fromfolder, char *cidnum, char *cidname, char *dur, char *date, char *passdata, size_t passdatasize, const char *category, const char *flag)
+static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, const char *fromfolder, char *cidnum, char *cidname, char *dur, char *date, const char *category, const char *flag)
 {
 	char callerid[256];
+	char num[12];
 	char fromdir[256], fromfile[256];
 	struct ast_config *msg_cfg;
 	const char *origcallerid, *origtime;
@@ -3856,8 +3857,8 @@ static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu
 	/* Prepare variables for substitution in email body and subject */
 	pbx_builtin_setvar_helper(ast, "VM_NAME", vmu->fullname);
 	pbx_builtin_setvar_helper(ast, "VM_DUR", dur);
-	snprintf(passdata, passdatasize, "%d", msgnum);
-	pbx_builtin_setvar_helper(ast, "VM_MSGNUM", passdata);
+	snprintf(num, sizeof(num), "%d", msgnum);
+	pbx_builtin_setvar_helper(ast, "VM_MSGNUM", num);
 	pbx_builtin_setvar_helper(ast, "VM_CONTEXT", context);
 	pbx_builtin_setvar_helper(ast, "VM_MAILBOX", mailbox);
 	pbx_builtin_setvar_helper(ast, "VM_CALLERID", (!ast_strlen_zero(cidname) || !ast_strlen_zero(cidnum)) ?
@@ -3901,30 +3902,32 @@ static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu
 /*!
  * \brief Wraps a character sequence in double quotes, escaping occurences of quotes within the string.
  * \param from The string to work with.
- * \param to The string to write the modified quoted string. This buffer should be sufficiently larger than the from string, so as to allow it to be expanded by the surrounding quotes and escaping of internal quotes.
+ * \param buf The buffer into which to write the modified quoted string.
+ * \param maxlen Always zero, but see \see ast_str
  * 
  * \return The destination string with quotes wrapped on it (the to field).
  */
-static char *quote(const char *from, char *to, size_t len)
+static const char *ast_str_quote(struct ast_str **buf, ssize_t maxlen, const char *from)
 {
-	char *ptr = to;
-	*ptr++ = '"';
-	for (; ptr < to + len - 1; from++) {
-		if (*from == '"')
-			*ptr++ = '\\';
-		else if (*from == '\0')
-			break;
-		*ptr++ = *from;
+	const char *ptr;
+
+	/* We're only ever passing 0 to maxlen, so short output isn't possible */
+	ast_str_set(buf, maxlen, "\"");
+	for (ptr = from; *ptr; ptr++) {
+		if (*ptr == '"' || *ptr == '\\') {
+			ast_str_append(buf, maxlen, "\\%c", *ptr);
+		} else {
+			ast_str_append(buf, maxlen, "%c", *ptr);
+		}
 	}
-	if (ptr < to + len - 1)
-		*ptr++ = '"';
-	*ptr = '\0';
-	return to;
+	ast_str_append(buf, maxlen, "\"");
+
+	return ast_str_buffer(*buf);
 }
 
 /*! \brief
  * fill in *tm for current time according to the proper timezone, if any.
- * Return tm so it can be used as a function argument.
+ * \return tm so it can be used as a function argument.
  */
 static const struct ast_tm *vmu_tm(const struct ast_vm_user *vmu, struct ast_tm *tm)
 {
@@ -3967,46 +3970,47 @@ static int check_mime(const char *str)
  * sections, separated by a space character, in order to facilitate
  * breaking up the associated header across multiple lines.
  *
- * \param start A string to be encoded
  * \param end An expandable buffer for holding the result
+ * \param maxlen Always zero, but see \see ast_str
+ * \param start A string to be encoded
  * \param preamble The length of the first line already used for this string,
  * to ensure that each line maintains a maximum length of 76 chars.
  * \param postamble the length of any additional characters appended to the
  * line, used to ensure proper field wrapping.
  * \retval The encoded string.
  */
-static char *encode_mime_str(const char *start, char *end, size_t endsize, size_t preamble, size_t postamble)
+static const char *ast_str_encode_mime(struct ast_str **end, ssize_t maxlen, const char *start, size_t preamble, size_t postamble)
 {
-	char tmp[80];
+	struct ast_str *tmp = ast_str_alloca(80);
 	int first_section = 1;
-	size_t endlen = 0, tmplen = 0;
 	*end = '\0';
 
-	tmplen = snprintf(tmp, sizeof(tmp), "=?%s?Q?", charset);
+	ast_str_reset(*end);
+	ast_str_set(&tmp, -1, "=?%s?Q?", charset);
 	for (; *start; start++) {
 		int need_encoding = 0;
 		if (*start < 33 || *start > 126 || strchr("()<>@,:;/\"[]?.=_", *start)) {
 			need_encoding = 1;
 		}
-		if ((first_section && need_encoding && preamble + tmplen > 70) ||
-			(first_section && !need_encoding && preamble + tmplen > 72) ||
-			(!first_section && need_encoding && tmplen > 70) ||
-			(!first_section && !need_encoding && tmplen > 72)) {
+		if ((first_section && need_encoding && preamble + ast_str_strlen(tmp) > 70) ||
+			(first_section && !need_encoding && preamble + ast_str_strlen(tmp) > 72) ||
+			(!first_section && need_encoding && ast_str_strlen(tmp) > 70) ||
+			(!first_section && !need_encoding && ast_str_strlen(tmp) > 72)) {
 			/* Start new line */
-			endlen += snprintf(end + endlen, endsize - endlen, "%s%s?=", first_section ? "" : " ", tmp);
-			tmplen = snprintf(tmp, sizeof(tmp), "=?%s?Q?", charset);
+			ast_str_append(end, maxlen, "%s%s?=", first_section ? "" : " ", ast_str_buffer(tmp));
+			ast_str_set(&tmp, -1, "=?%s?Q?", charset);
 			first_section = 0;
 		}
 		if (need_encoding && *start == ' ') {
-			tmplen += snprintf(tmp + tmplen, sizeof(tmp) - tmplen, "_");
+			ast_str_append(&tmp, -1, "_");
 		} else if (need_encoding) {
-			tmplen += snprintf(tmp + tmplen, sizeof(tmp) - tmplen, "=%hhX", *start);
+			ast_str_append(&tmp, -1, "=%hhX", *start);
 		} else {
-			tmplen += snprintf(tmp + tmplen, sizeof(tmp) - tmplen, "%c", *start);
+			ast_str_append(&tmp, -1, "%c", *start);
 		}
 	}
-	snprintf(end + endlen, endsize - endlen, "%s%s?=%s", first_section ? "" : " ", tmp, endlen + postamble > 74 ? " " : "");
-	return end;
+	ast_str_append(end, maxlen, "%s%s?=%s", first_section ? "" : " ", ast_str_buffer(tmp), ast_str_strlen(tmp) + postamble > 74 ? " " : "");
+	return ast_str_buffer(*end);
 }
 
 /*!
@@ -4038,27 +4042,20 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	char dur[256];
 	struct ast_tm tm;
 	char enc_cidnum[256] = "", enc_cidname[256] = "";
-	char *passdata = NULL, *passdata2;
-	size_t len_passdata = 0, len_passdata2, tmplen;
+	struct ast_str *str1 = ast_str_create(16), *str2 = ast_str_create(16);
 	char *greeting_attachment; 
 	char filename[256];
 
+	if (!str1 || !str2) {
+		ast_free(str1);
+		ast_free(str2);
+		return;
+	}
 #ifdef IMAP_STORAGE
 #define ENDL "\r\n"
 #else
 #define ENDL "\n"
 #endif
-
-	/* One alloca for multiple fields */
-	len_passdata2 = strlen(vmu->fullname);
-	if (emailsubject && (tmplen = strlen(emailsubject)) > len_passdata2) {
-		len_passdata2 = tmplen;
-	}
-	if ((tmplen = strlen(fromstring)) > len_passdata2) {
-		len_passdata2 = tmplen;
-	}
-	len_passdata2 = len_passdata2 * 3 + 200;
-	passdata2 = alloca(len_passdata2);
 
 	if (cidnum) {
 		strip_control(cidnum, enc_cidnum, sizeof(enc_cidnum));
@@ -4068,14 +4065,16 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	}
 	gethostname(host, sizeof(host) - 1);
 
-	if (strchr(srcemail, '@'))
+	if (strchr(srcemail, '@')) {
 		ast_copy_string(who, srcemail, sizeof(who));
-	else 
+	} else {
 		snprintf(who, sizeof(who), "%s@%s", srcemail, host);
+	}
 	
 	greeting_attachment = strrchr(ast_strdupa(attach), '/');
-	if (greeting_attachment)
+	if (greeting_attachment) {
 		*greeting_attachment++ = '\0';
+	}
 
 	snprintf(dur, sizeof(dur), "%d:%02d", duration / 60, duration % 60);
 	ast_strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", vmu_tm(vmu, &tm));
@@ -4088,23 +4087,22 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 		struct ast_channel *ast;
 		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "Substitution/voicemail"))) {
 			char *ptr;
-			memset(passdata2, 0, len_passdata2);
-			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, enc_cidnum, enc_cidname, dur, date, passdata2, len_passdata2, category, flag);
-			pbx_substitute_variables_helper(ast, fromstring, passdata2, len_passdata2);
-			len_passdata = strlen(passdata2) * 3 + 300;
-			passdata = alloca(len_passdata);
-			if (check_mime(passdata2)) {
+			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, enc_cidnum, enc_cidname, dur, date, category, flag);
+			ast_str_substitute_variables(&str1, 0, ast, fromstring);
+
+			if (check_mime(ast_str_buffer(str1))) {
 				int first_line = 1;
-				encode_mime_str(passdata2, passdata, len_passdata, strlen("From: "), strlen(who) + 3);
-				while ((ptr = strchr(passdata, ' '))) {
+				ast_str_encode_mime(&str2, 0, ast_str_buffer(str1), strlen("From: "), strlen(who) + 3);
+				while ((ptr = strchr(ast_str_buffer(str2), ' '))) {
 					*ptr = '\0';
-					fprintf(p, "%s %s" ENDL, first_line ? "From:" : "", passdata);
+					fprintf(p, "%s %s" ENDL, first_line ? "From:" : "", ast_str_buffer(str2));
 					first_line = 0;
-					passdata = ptr + 1;
+					/* Substring is smaller, so this will never grow */
+					ast_str_set(&str2, 0, "%s", ptr + 1);
 				}
-				fprintf(p, "%s %s <%s>" ENDL, first_line ? "From:" : "", passdata, who);
+				fprintf(p, "%s %s <%s>" ENDL, first_line ? "From:" : "", ast_str_buffer(str2), who);
 			} else {
-				fprintf(p, "From: %s <%s>" ENDL, quote(passdata2, passdata, len_passdata), who);
+				fprintf(p, "From: %s <%s>" ENDL, ast_str_quote(&str2, 0, ast_str_buffer(str1)), who);
 			}
 			ast = ast_channel_release(ast);
 		} else {
@@ -4117,44 +4115,39 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	if (check_mime(vmu->fullname)) {
 		int first_line = 1;
 		char *ptr;
-		encode_mime_str(vmu->fullname, passdata2, len_passdata2, strlen("To: "), strlen(vmu->email) + 3);
-		while ((ptr = strchr(passdata2, ' '))) {
+		ast_str_encode_mime(&str2, 0, vmu->fullname, strlen("To: "), strlen(vmu->email) + 3);
+		while ((ptr = strchr(ast_str_buffer(str2), ' '))) {
 			*ptr = '\0';
-			fprintf(p, "%s %s" ENDL, first_line ? "To:" : "", passdata2);
+			fprintf(p, "%s %s" ENDL, first_line ? "To:" : "", ast_str_buffer(str2));
 			first_line = 0;
-			passdata2 = ptr + 1;
+			/* Substring is smaller, so this will never grow */
+			ast_str_set(&str2, 0, "%s", ptr + 1);
 		}
-		fprintf(p, "%s %s <%s>" ENDL, first_line ? "To:" : "", passdata2, vmu->email);
+		fprintf(p, "%s %s <%s>" ENDL, first_line ? "To:" : "", ast_str_buffer(str2), vmu->email);
 	} else {
-		fprintf(p, "To: %s <%s>" ENDL, quote(vmu->fullname, passdata2, len_passdata2), vmu->email);
+		fprintf(p, "To: %s <%s>" ENDL, ast_str_quote(&str2, 0, vmu->fullname), vmu->email);
 	}
+
 	if (!ast_strlen_zero(emailsubject) || !ast_strlen_zero(vmu->emailsubject)) {
 		char *e_subj = !ast_strlen_zero(vmu->emailsubject) ? vmu->emailsubject : emailsubject;
 		struct ast_channel *ast;
 		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "Substitution/voicemail"))) {
-			int vmlen = strlen(e_subj) * 3 + 200;
-			/* Only allocate more space if the previous was not large enough */
-			if (vmlen > len_passdata) {
-				passdata = alloca(vmlen);
-				len_passdata = vmlen;
-			}
-
-			memset(passdata, 0, len_passdata);
-			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, cidnum, cidname, dur, date, passdata, len_passdata, category, flag);
-			pbx_substitute_variables_helper(ast, e_subj, passdata, len_passdata);
-			if (check_mime(passdata)) {
+			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, cidnum, cidname, dur, date, category, flag);
+			ast_str_substitute_variables(&str1, 0, ast, e_subj);
+			if (check_mime(ast_str_buffer(str1))) {
 				int first_line = 1;
 				char *ptr;
-				encode_mime_str(passdata, passdata2, len_passdata2, strlen("Subject: "), 0);
-				while ((ptr = strchr(passdata2, ' '))) {
+				ast_str_encode_mime(&str2, 0, ast_str_buffer(str1), strlen("Subject: "), 0);
+				while ((ptr = strchr(ast_str_buffer(str2), ' '))) {
 					*ptr = '\0';
-					fprintf(p, "%s %s" ENDL, first_line ? "Subject:" : "", passdata2);
+					fprintf(p, "%s %s" ENDL, first_line ? "Subject:" : "", ast_str_buffer(str2));
 					first_line = 0;
-					passdata2 = ptr + 1;
+					/* Substring is smaller, so this will never grow */
+					ast_str_set(&str2, 0, "%s", ptr + 1);
 				}
-				fprintf(p, "%s %s" ENDL, first_line ? "Subject:" : "", passdata2);
+				fprintf(p, "%s %s" ENDL, first_line ? "Subject:" : "", ast_str_buffer(str2));
 			} else {
-				fprintf(p, "Subject: %s" ENDL, passdata);
+				fprintf(p, "Subject: %s" ENDL, ast_str_buffer(str1));
 			}
 			ast = ast_channel_release(ast);
 		} else {
@@ -4222,16 +4215,13 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 		char* e_body = vmu->emailbody ? vmu->emailbody : emailbody;
 		struct ast_channel *ast;
 		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "Substitution/voicemail"))) {
-			char *passdata;
-			int vmlen = strlen(e_body) * 3 + 200;
-			passdata = alloca(vmlen);
-			memset(passdata, 0, vmlen);
-			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, cidnum, cidname, dur, date, passdata, vmlen, category, flag);
-			pbx_substitute_variables_helper(ast, e_body, passdata, vmlen);
-			fprintf(p, "%s" ENDL, passdata);
+			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, cidnum, cidname, dur, date, category, flag);
+			ast_str_substitute_variables(&str1, 0, ast, e_body);
+			fprintf(p, "%s" ENDL, ast_str_buffer(str1));
 			ast = ast_channel_release(ast);
-		} else
+		} else {
 			ast_log(AST_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+		}
 	} else if (msgnum > -1) {
 		if (strcmp(vmu->mailbox, mailbox)) {
 			/* Forwarded type */
@@ -4296,6 +4286,8 @@ plain_message:
 			add_email_attachment(p, vmu, format, attach, greeting_attachment, mailbox, bound, filename, 1, msgnum);
 		}
 	}
+	ast_free(str1);
+	ast_free(str2);
 }
 
 static int add_email_attachment(FILE *p, struct ast_vm_user *vmu, char *format, char *attach, char *greeting_attachment, char *mailbox, char *bound, char *filename, int last, int msgnum)
@@ -4349,7 +4341,6 @@ static int add_email_attachment(FILE *p, struct ast_vm_user *vmu, char *format, 
 	}
 	return 0;
 }
-#undef ENDL
 
 static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, const char *fromfolder, char *cidnum, char *cidname, char *attach, char *attach2, char *format, int duration, int attach_user_voicemail, struct ast_channel *chan, const char *category, const char *flag)
 {
@@ -4381,6 +4372,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 
 static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char *mailbox, const char *fromfolder, char *cidnum, char *cidname, int duration, struct ast_vm_user *vmu, const char *category, const char *flag)
 {
+	char enc_cidnum[256], enc_cidname[256];
 	char date[256];
 	char host[MAXHOSTNAMELEN] = "";
 	char who[256];
@@ -4389,49 +4381,106 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 	char tmp2[PATH_MAX];
 	struct ast_tm tm;
 	FILE *p;
+	struct ast_str *str1 = ast_str_create(16), *str2 = ast_str_create(16);
+
+	if (!str1 || !str2) {
+		ast_free(str1);
+		ast_free(str2);
+		return -1;
+	}
+
+	if (cidnum) {
+		strip_control(cidnum, enc_cidnum, sizeof(enc_cidnum));
+	}
+	if (cidname) {
+		strip_control(cidname, enc_cidname, sizeof(enc_cidname));
+	}
 
 	if ((p = vm_mkftemp(tmp)) == NULL) {
 		ast_log(AST_LOG_WARNING, "Unable to launch '%s' (can't create temporary file)\n", mailcmd);
+		ast_free(str1);
+		ast_free(str2);
 		return -1;
 	}
 	gethostname(host, sizeof(host)-1);
-	if (strchr(srcemail, '@'))
+	if (strchr(srcemail, '@')) {
 		ast_copy_string(who, srcemail, sizeof(who));
-	else 
+	} else {
 		snprintf(who, sizeof(who), "%s@%s", srcemail, host);
+	}
 	snprintf(dur, sizeof(dur), "%d:%02d", duration / 60, duration % 60);
 	ast_strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", vmu_tm(vmu, &tm));
 	fprintf(p, "Date: %s\n", date);
 
-	if (*pagerfromstring) {
+	if (!ast_strlen_zero(pagerfromstring)) {
 		struct ast_channel *ast;
 		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "Substitution/voicemail"))) {
-			char *passdata;
-			int vmlen = strlen(fromstring)*3 + 200;
-			passdata = alloca(vmlen);
-			memset(passdata, 0, vmlen);
-			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, cidnum, cidname, dur, date, passdata, vmlen, category, flag);
-			pbx_substitute_variables_helper(ast, pagerfromstring, passdata, vmlen);
-			fprintf(p, "From: %s <%s>\n", passdata, who);
+			char *ptr;
+			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, enc_cidnum, enc_cidname, dur, date, category, flag);
+			ast_str_substitute_variables(&str1, 0, ast, pagerfromstring);
+
+			if (check_mime(ast_str_buffer(str1))) {
+				int first_line = 1;
+				ast_str_encode_mime(&str2, 0, ast_str_buffer(str1), strlen("From: "), strlen(who) + 3);
+				while ((ptr = strchr(ast_str_buffer(str2), ' '))) {
+					*ptr = '\0';
+					fprintf(p, "%s %s" ENDL, first_line ? "From:" : "", ast_str_buffer(str2));
+					first_line = 0;
+					/* Substring is smaller, so this will never grow */
+					ast_str_set(&str2, 0, "%s", ptr + 1);
+				}
+				fprintf(p, "%s %s <%s>" ENDL, first_line ? "From:" : "", ast_str_buffer(str2), who);
+			} else {
+				fprintf(p, "From: %s <%s>" ENDL, ast_str_quote(&str2, 0, ast_str_buffer(str1)), who);
+			}
 			ast = ast_channel_release(ast);
-		} else 
+		} else {
 			ast_log(AST_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
-	} else
-		fprintf(p, "From: Asterisk PBX <%s>\n", who);
-	fprintf(p, "To: %s\n", pager);
-	if (pagersubject) {
+		}
+	} else {
+		fprintf(p, "From: Asterisk PBX <%s>" ENDL, who);
+	}
+
+	if (check_mime(vmu->fullname)) {
+		int first_line = 1;
+		char *ptr;
+		ast_str_encode_mime(&str2, 0, vmu->fullname, strlen("To: "), strlen(pager) + 3);
+		while ((ptr = strchr(ast_str_buffer(str2), ' '))) {
+			*ptr = '\0';
+			fprintf(p, "%s %s" ENDL, first_line ? "To:" : "", ast_str_buffer(str2));
+			first_line = 0;
+			/* Substring is smaller, so this will never grow */
+			ast_str_set(&str2, 0, "%s", ptr + 1);
+		}
+		fprintf(p, "%s %s <%s>" ENDL, first_line ? "To:" : "", ast_str_buffer(str2), pager);
+	} else {
+		fprintf(p, "To: %s <%s>" ENDL, ast_str_quote(&str2, 0, vmu->fullname), pager);
+	}
+
+	if (!ast_strlen_zero(pagersubject)) {
 		struct ast_channel *ast;
 		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "Substitution/voicemail"))) {
-			char *passdata;
-			int vmlen = strlen(pagersubject) * 3 + 200;
-			passdata = alloca(vmlen);
-			memset(passdata, 0, vmlen);
-			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, cidnum, cidname, dur, date, passdata, vmlen, category, flag);
-			pbx_substitute_variables_helper(ast, pagersubject, passdata, vmlen);
-			fprintf(p, "Subject: %s\n\n", passdata);
+			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, cidnum, cidname, dur, date, category, flag);
+			ast_str_substitute_variables(&str1, 0, ast, pagersubject);
+			if (check_mime(ast_str_buffer(str1))) {
+				int first_line = 1;
+				char *ptr;
+				ast_str_encode_mime(&str2, 0, ast_str_buffer(str1), strlen("Subject: "), 0);
+				while ((ptr = strchr(ast_str_buffer(str2), ' '))) {
+					*ptr = '\0';
+					fprintf(p, "%s %s" ENDL, first_line ? "Subject:" : "", ast_str_buffer(str2));
+					first_line = 0;
+					/* Substring is smaller, so this will never grow */
+					ast_str_set(&str2, 0, "%s", ptr + 1);
+				}
+				fprintf(p, "%s %s" ENDL, first_line ? "Subject:" : "", ast_str_buffer(str2));
+			} else {
+				fprintf(p, "Subject: %s" ENDL, ast_str_buffer(str1));
+			}
 			ast = ast_channel_release(ast);
-		} else
+		} else {
 			ast_log(AST_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+		}
 	} else {
 		if (ast_strlen_zero(flag)) {
 			fprintf(p, "Subject: New VM\n\n");
@@ -4444,26 +4493,27 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 	if (pagerbody) {
 		struct ast_channel *ast;
 		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "Substitution/voicemail"))) {
-			char *passdata;
-			int vmlen = strlen(pagerbody) * 3 + 200;
-			passdata = alloca(vmlen);
-			memset(passdata, 0, vmlen);
-			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, cidnum, cidname, dur, date, passdata, vmlen, category, flag);
-			pbx_substitute_variables_helper(ast, pagerbody, passdata, vmlen);
-			fprintf(p, "%s\n", passdata);
+			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, cidnum, cidname, dur, date, category, flag);
+			ast_str_substitute_variables(&str1, 0, ast, pagerbody);
+			fprintf(p, "%s" ENDL, ast_str_buffer(str1));
 			ast = ast_channel_release(ast);
-		} else
+		} else {
 			ast_log(AST_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+		}
 	} else {
 		fprintf(p, "New %s long %s msg in box %s\n"
 				"from %s, on %s", dur, flag, mailbox, (cidname ? cidname : (cidnum ? cidnum : "unknown")), date);
 	}
+
 	fclose(p);
 	snprintf(tmp2, sizeof(tmp2), "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
 	ast_safe_system(tmp2);
 	ast_debug(1, "Sent page to %s with command '%s'\n", pager, mailcmd);
+	ast_free(str1);
+	ast_free(str2);
 	return 0;
 }
+#undef ENDL
 
 /*!
  * \brief Gets the current date and time, as formatted string.
@@ -5025,7 +5075,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	char fmt[80];
 	char *context;
 	char ecodes[17] = "#";
-	char tmp[1024] = "";
+	struct ast_str *tmp = ast_str_create(16);
 	char *tmpptr;
 	struct ast_vm_user *vmu;
 	struct ast_vm_user svm;
@@ -5034,9 +5084,13 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	const char *alldtmf = "0123456789ABCD*#";
 	char flag[80];
 
-	ast_copy_string(tmp, ext, sizeof(tmp));
-	ext = tmp;
-	if ((context = strchr(tmp, '@'))) {
+	if (!tmp) {
+		return -1;
+	}
+
+	ast_str_set(&tmp, 0, "%s", ext);
+	ext = ast_str_buffer(tmp);
+	if ((context = strchr(ext, '@'))) {
 		*context++ = '\0';
 		tmpptr = strchr(context, '&');
 	} else {

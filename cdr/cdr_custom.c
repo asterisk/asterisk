@@ -44,6 +44,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
+#include "asterisk/threadstorage.h"
+#include "asterisk/strings.h"
 
 #define CUSTOM_LOG_DIR "/cdr_custom"
 
@@ -51,6 +53,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 AST_MUTEX_DEFINE_STATIC(lock);
 AST_MUTEX_DEFINE_STATIC(mf_lock);
+
+AST_THREADSTORAGE(custom_buf);
 
 static char *name = "cdr-custom";
 
@@ -110,35 +114,37 @@ static int load_config(int reload)
 static int custom_log(struct ast_cdr *cdr)
 {
 	FILE *mf = NULL;
-
-	/* Make sure we have a big enough buf */
-	char buf[2048];
 	struct ast_channel dummy;
+	struct ast_str *str;
 
 	/* Abort if no master file is specified */
-	if (ast_strlen_zero(master))
+	if (ast_strlen_zero(master)) {
 		return 0;
+	}
+
+	/* Batching saves memory management here.  Otherwise, it's the same as doing an allocation and free each time. */
+	if (!(str = ast_str_thread_get(&custom_buf, 16))) {
+		return -1;
+	}
+	ast_str_reset(str);
 
 	/* Quite possibly the first use of a static struct ast_channel, we need it so the var funcs will work */
 	memset(&dummy, 0, sizeof(dummy));
 	dummy.cdr = cdr;
-	pbx_substitute_variables_helper(&dummy, format, buf, sizeof(buf) - 1);
+	ast_str_substitute_variables(&str, 0, &dummy, format);
 
 	/* because of the absolutely unconditional need for the
 	   highest reliability possible in writing billing records,
 	   we open write and close the log file each time */
 	ast_mutex_lock(&mf_lock);
-	mf = fopen(master, "a");
-	if (mf) {
-		fputs(buf, mf);
+	if ((mf = fopen(master, "a"))) {
+		fputs(ast_str_buffer(str), mf);
 		fflush(mf); /* be particularly anal here */
 		fclose(mf);
-		mf = NULL;
-		ast_mutex_unlock(&mf_lock);
 	} else {
 		ast_log(LOG_ERROR, "Unable to re-open master file %s : %s\n", master, strerror(errno));
-		ast_mutex_unlock(&mf_lock);
 	}
+	ast_mutex_unlock(&mf_lock);
 
 	return 0;
 }

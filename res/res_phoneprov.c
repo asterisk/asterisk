@@ -429,8 +429,7 @@ static int phoneprov_callback(struct ast_tcptls_session_instance *ser, const str
 		route = unref_route(route);
 		return 0;
 	} else { /* Dynamic file */
-		int bufsize;
-		char *tmp;
+		struct ast_str *tmp;
 
 		len = load_file(path, &file);
 		if (len < 0) {
@@ -446,12 +445,7 @@ static int phoneprov_callback(struct ast_tcptls_session_instance *ser, const str
 			goto out500;
 		}
 
-		/* XXX This is a hack -- maybe sum length of all variables in route->user->headp and add that? */
- 		bufsize = len + VAR_BUF_SIZE;
-
-		/* malloc() instead of alloca() here, just in case the file is bigger than
-		 * we have enough stack space for. */
-		if (!(tmp = ast_calloc(1, bufsize))) {
+		if (!(tmp = ast_str_create(len))) {
 			if (file) {
 				ast_free(file);
 			}
@@ -480,7 +474,7 @@ static int phoneprov_callback(struct ast_tcptls_session_instance *ser, const str
 			}
 		}
 
-		pbx_substitute_variables_varshead(AST_LIST_FIRST(&route->user->extensions)->headp, file, tmp, bufsize);
+		ast_str_substitute_variables_varshead(&tmp, 0, AST_LIST_FIRST(&route->user->extensions)->headp, file);
 
 		if (file) {
 			ast_free(file);
@@ -496,7 +490,7 @@ static int phoneprov_callback(struct ast_tcptls_session_instance *ser, const str
 			}
 			goto out500;
 		}
-		ast_str_append(&result, 0, "%s", tmp); 
+		ast_str_append(&result, 0, "%s", ast_str_buffer(tmp)); 
 
 		ast_http_send(ser, method, 200, NULL, http_header, result, 0, 0);
 		if (tmp) {
@@ -830,17 +824,24 @@ static struct user *build_user(const char *mac, struct phone_profile *profile)
 static int add_user_extension(struct user *user, struct extension *exten)
 {
 	struct ast_var_t *var;
+	struct ast_str *str = ast_str_create(16);
+
+	if (!str) {
+		return -1;
+	}
 
 	/* Append profile variables here, and substitute variables on profile
 	 * setvars, so that we can use user specific variables in them */
 	AST_LIST_TRAVERSE(user->profile->headp, var, entries) {
-		char expand_buf[VAR_BUF_SIZE] = {0,};
 		struct ast_var_t *var2;
 
-		pbx_substitute_variables_varshead(exten->headp, var->value, expand_buf, sizeof(expand_buf));
-		if ((var2 = ast_var_assign(var->name, expand_buf)))
+		ast_str_substitute_variables_varshead(&str, 0, exten->headp, var->value);
+		if ((var2 = ast_var_assign(var->name, ast_str_buffer(str)))) {
 			AST_LIST_INSERT_TAIL(exten->headp, var2, entries);
+		}
 	}
+
+	ast_free(str);
 
 	if (AST_LIST_EMPTY(&user->extensions)) {
 		AST_LIST_INSERT_HEAD(&user->extensions, exten, entry);
@@ -867,14 +868,18 @@ static int add_user_extension(struct user *user, struct extension *exten)
 static int build_user_routes(struct user *user)
 {
 	struct phoneprov_file *pp_file;
+	struct ast_str *str;
 
-	AST_LIST_TRAVERSE(&user->profile->dynamic_files, pp_file, entry) {
-		char expand_buf[VAR_BUF_SIZE] = { 0, };
-
-		pbx_substitute_variables_varshead(AST_LIST_FIRST(&user->extensions)->headp, pp_file->format, expand_buf, sizeof(expand_buf));
-		build_route(pp_file, user, expand_buf);
+	if (!(str = ast_str_create(16))) {
+		return -1;
 	}
 
+	AST_LIST_TRAVERSE(&user->profile->dynamic_files, pp_file, entry) {
+		ast_str_substitute_variables_varshead(&str, 0, AST_LIST_FIRST(&user->extensions)->headp, pp_file->format);
+		build_route(pp_file, user, ast_str_buffer(str));
+	}
+
+	ast_free(str);
 	return 0;
 }
 
@@ -1053,16 +1058,21 @@ static void delete_profiles(void)
 }
 
 /*! \brief A dialplan function that can be used to print a string for each phoneprov user */
-static int pp_each_user_exec(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+static int pp_each_user_helper(struct ast_channel *chan, char *data, char *buf, struct ast_str **bufstr, int len)
 {
-	char *tmp, expand_buf[VAR_BUF_SIZE] = {0,};
+	char *tmp;
 	struct ao2_iterator i;
 	struct user *user;
+	struct ast_str *str;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(string);
 		AST_APP_ARG(exclude_mac);
 	);
 	AST_STANDARD_APP_ARGS(args, data);
+
+	if (!(str = ast_str_create(16))) {
+		return -1;
+	}
 
 	/* Fix data by turning %{ into ${ */
 	while ((tmp = strstr(args.string, "%{")))
@@ -1073,12 +1083,28 @@ static int pp_each_user_exec(struct ast_channel *chan, const char *cmd, char *da
 		if (!ast_strlen_zero(args.exclude_mac) && !strcasecmp(user->macaddress, args.exclude_mac)) {
 			continue;
 		}
-		pbx_substitute_variables_varshead(AST_LIST_FIRST(&user->extensions)->headp, args.string, expand_buf, sizeof(expand_buf));
-		ast_build_string(&buf, &len, "%s", expand_buf);
+		ast_str_substitute_variables_varshead(&str, len, AST_LIST_FIRST(&user->extensions)->headp, args.string);
+		if (buf) {
+			size_t slen = len;
+			ast_build_string(&buf, &slen, "%s", ast_str_buffer(str));
+		} else {
+			ast_str_append(bufstr, len, "%s", ast_str_buffer(str));
+		}
 		user = unref_user(user);
 	}
 
+	ast_free(str);
 	return 0;
+}
+
+static int pp_each_user_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	return pp_each_user_helper(chan, data, buf, NULL, len);
+}
+
+static int pp_each_user_read2(struct ast_channel *chan, const char *cmd, char *data, struct ast_str **buf, int len)
+{
+	return pp_each_user_helper(chan, data, NULL, buf, len);
 }
 
 static struct ast_custom_function pp_each_user_function = {
@@ -1091,17 +1117,19 @@ static struct ast_custom_function pp_each_user_function = {
 		"excluding ones with MAC address <exclude_mac>. Probably not useful outside of\n"
 		"res_phoneprov.\n"
 		"\nExample: ${PP_EACH_USER(<item><fn>%{DISPLAY_NAME}</fn></item>|${MAC})",
-	.read = pp_each_user_exec,
+	.read = pp_each_user_read,
+	.read2 = pp_each_user_read2,
 };
 
 /*! \brief A dialplan function that can be used to output a template for each extension attached to a user */
-static int pp_each_extension_exec(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+static int pp_each_extension_helper(struct ast_channel *chan, const char *cmd, char *data, char *buf, struct ast_str **bufstr, int len)
 {
 	struct user *user;
 	struct extension *exten;
 	char path[PATH_MAX];
 	char *file;
 	int filelen;
+	struct ast_str *str;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(mac);
 		AST_APP_ARG(template);
@@ -1133,17 +1161,36 @@ static int pp_each_extension_exec(struct ast_channel *chan, const char *cmd, cha
 		return 0;
 	}
 
+	if (!(str = ast_str_create(filelen))) {
+		return 0;
+	}
+
 	AST_LIST_TRAVERSE(&user->extensions, exten, entry) {
-		char expand_buf[VAR_BUF_SIZE] = {0,};
-		pbx_substitute_variables_varshead(exten->headp, file, expand_buf, sizeof(expand_buf));
-		ast_build_string(&buf, &len, "%s", expand_buf);
+		ast_str_substitute_variables_varshead(&str, 0, exten->headp, file);
+		if (buf) {
+			size_t slen = len;
+			ast_build_string(&buf, &slen, "%s", ast_str_buffer(str));
+		} else {
+			ast_str_append(bufstr, len, "%s", ast_str_buffer(str));
+		}
 	}
 
 	ast_free(file);
+	ast_free(str);
 
 	user = unref_user(user);
 
 	return 0;
+}
+
+static int pp_each_extension_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	return pp_each_extension_helper(chan, cmd, data, buf, NULL, len);
+}
+
+static int pp_each_extension_read2(struct ast_channel *chan, const char *cmd, char *data, struct ast_str **buf, int len)
+{
+	return pp_each_extension_helper(chan, cmd, data, NULL, buf, len);
 }
 
 static struct ast_custom_function pp_each_extension_function = {
@@ -1153,7 +1200,8 @@ static struct ast_custom_function pp_each_extension_function = {
 	.desc =
 		"Output the specified template for each extension associated with the specified\n"
 		"MAC address.",
-	.read = pp_each_extension_exec,
+	.read = pp_each_extension_read,
+	.read2 = pp_each_extension_read2,
 };
 
 /*! \brief CLI command to list static and dynamic routes */

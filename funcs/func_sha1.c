@@ -74,6 +74,7 @@ static int sha1(struct ast_channel *chan, const char *cmd, char *data,
 static struct ast_custom_function sha1_function = {
 	.name = "SHA1",
 	.read = sha1,
+	.read_max = 42,
 };
 
 static int unload_module(void)

@@ -132,56 +132,61 @@ static char *app_execif = "ExecIf";
 static int exec_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	char *s, *appname, *endargs, args[MAXRESULT];
+	char *s, *appname, *endargs;
 	struct ast_app *app;
+	struct ast_str *args = NULL;
 
 	if (ast_strlen_zero(data))
 		return 0;
 
 	s = ast_strdupa(data);
-	args[0] = 0;
 	appname = strsep(&s, "(");
 	if (s) {
 		endargs = strrchr(s, ')');
 		if (endargs)
 			*endargs = '\0';
-		pbx_substitute_variables_helper(chan, s, args, MAXRESULT - 1);
+		if ((args = ast_str_create(16))) {
+			ast_str_substitute_variables(&args, 0, chan, s);
+		}
 	}
 	if (appname) {
 		app = pbx_findapp(appname);
 		if (app) {
-			res = pbx_exec(chan, app, args);
+			res = pbx_exec(chan, app, args ? ast_str_buffer(args) : NULL);
 		} else {
 			ast_log(LOG_WARNING, "Could not find application (%s)\n", appname);
 			res = -1;
 		}
 	}
 
+	ast_free(args);
 	return res;
 }
 
 static int tryexec_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	char *s, *appname, *endargs, args[MAXRESULT];
+	char *s, *appname, *endargs;
 	struct ast_app *app;
+	struct ast_str *args = NULL;
 
 	if (ast_strlen_zero(data))
 		return 0;
 
 	s = ast_strdupa(data);
-	args[0] = 0;
 	appname = strsep(&s, "(");
 	if (s) {
 		endargs = strrchr(s, ')');
 		if (endargs)
 			*endargs = '\0';
-		pbx_substitute_variables_helper(chan, s, args, MAXRESULT - 1);
+		if ((args = ast_str_create(16))) {
+			ast_str_substitute_variables(&args, 0, chan, s);
+		}
 	}
 	if (appname) {
 		app = pbx_findapp(appname);
 		if (app) {
-			res = pbx_exec(chan, app, args);
+			res = pbx_exec(chan, app, args ? ast_str_buffer(args) : NULL);
 			pbx_builtin_setvar_helper(chan, "TRYSTATUS", res ? "FAILED" : "SUCCESS");
 		} else {
 			ast_log(LOG_WARNING, "Could not find application (%s)\n", appname);
@@ -189,6 +194,7 @@ static int tryexec_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
+	ast_free(args);
 	return 0;
 }
 

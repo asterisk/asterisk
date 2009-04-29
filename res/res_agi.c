@@ -1828,8 +1828,7 @@ static int handle_getvariable(struct ast_channel *chan, AGI *agi, int argc, char
 
 static int handle_getvariablefull(struct ast_channel *chan, AGI *agi, int argc, char **argv)
 {
-	char tmp[4096];
-	struct ast_channel *chan2=NULL;
+	struct ast_channel *chan2 = NULL;
 
 	if (argc != 4 && argc != 5) {
 		return RESULT_SHOWUSAGE;
@@ -1842,8 +1841,14 @@ static int handle_getvariablefull(struct ast_channel *chan, AGI *agi, int argc, 
 	}
 
 	if (chan2) {
-		pbx_substitute_variables_helper(chan2, argv[3], tmp, sizeof(tmp) - 1);
-		ast_agi_send(agi->fd, chan, "200 result=1 (%s)\n", tmp);
+		struct ast_str *str = ast_str_create(16);
+		if (!str) {
+			ast_agi_send(agi->fd, chan, "200 result=0\n");
+			return RESULT_SUCCESS;
+		}
+		ast_str_substitute_variables(&str, 0, chan2, argv[3]);
+		ast_agi_send(agi->fd, chan, "200 result=1 (%s)\n", ast_str_buffer(str));
+		ast_free(str);
 	} else {
 		ast_agi_send(agi->fd, chan, "200 result=0\n");
 	}

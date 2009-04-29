@@ -64,6 +64,7 @@ static int md5(struct ast_channel *chan, const char *cmd, char *data,
 static struct ast_custom_function md5_function = {
 	.name = "MD5",
 	.read = md5,
+	.read_max = 33,
 };
 
 static int unload_module(void)

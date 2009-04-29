@@ -231,13 +231,14 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 	int offset, depth = 0, maxdepth = 7;
 	int setmacrocontext=0;
 	int autoloopflag, inhangup = 0;
+	struct ast_str *tmp_subst = NULL;
   
 	char *save_macro_exten;
 	char *save_macro_context;
 	char *save_macro_priority;
 	char *save_macro_offset;
 	struct ast_datastore *macro_store = ast_channel_datastore_find(chan, &macro_ds_info, NULL);
- 
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Macro() requires arguments. See \"core show application macro\" for help.\n");
 		return -1;
@@ -281,7 +282,6 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 		return 0;
 	}
 	snprintf(depthc, sizeof(depthc), "%d", depth + 1);
-	pbx_builtin_setvar_helper(chan, "MACRO_DEPTH", depthc);
 
 	tmp = ast_strdupa(data);
 	rest = tmp;
@@ -311,7 +311,11 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 		}
 		ast_autoservice_stop(chan);
 	}
-	
+
+	if (!(tmp_subst = ast_str_create(16))) {
+		return -1;
+	}
+
 	/* Save old info */
 	oldpriority = chan->priority;
 	ast_copy_string(oldexten, chan->exten, sizeof(oldexten));
@@ -336,6 +340,8 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
   
 	save_macro_offset = ast_strdup(pbx_builtin_getvar_helper(chan, "MACRO_OFFSET"));
 	pbx_builtin_setvar_helper(chan, "MACRO_OFFSET", NULL);
+
+	pbx_builtin_setvar_helper(chan, "MACRO_DEPTH", depthc);
 
 	/* Setup environment for new run */
 	chan->exten[0] = 's';
@@ -415,8 +421,9 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 			gosub_level++;
 			ast_debug(1, "Incrementing gosub_level\n");
 		} else if (!strcasecmp(runningapp, "GOSUBIF")) {
-			char tmp2[1024], *cond, *app_arg, *app2 = tmp2;
-			pbx_substitute_variables_helper(chan, runningdata, tmp2, sizeof(tmp2) - 1);
+			char *cond, *app_arg, *app2;
+			ast_str_substitute_variables(&tmp_subst, 0, chan, runningdata);
+			app2 = ast_str_buffer(tmp_subst);
 			cond = strsep(&app2, "?");
 			app_arg = strsep(&app2, ":");
 			if (pbx_checkcondition(cond)) {
@@ -438,19 +445,24 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 			ast_debug(1, "Decrementing gosub_level\n");
 		} else if (!strncasecmp(runningapp, "EXEC", 4)) {
 			/* Must evaluate args to find actual app */
-			char tmp2[1024], *tmp3 = NULL;
-			pbx_substitute_variables_helper(chan, runningdata, tmp2, sizeof(tmp2) - 1);
+			char *tmp2, *tmp3 = NULL;
+			ast_str_substitute_variables(&tmp_subst, 0, chan, runningdata);
+			tmp2 = ast_str_buffer(tmp_subst);
 			if (!strcasecmp(runningapp, "EXECIF")) {
 				tmp3 = strchr(tmp2, '|');
-				if (tmp3)
+				if (tmp3) {
 					*tmp3++ = '\0';
-				if (!pbx_checkcondition(tmp2))
+				}
+				if (!pbx_checkcondition(tmp2)) {
 					tmp3 = NULL;
-			} else
+				}
+			} else {
 				tmp3 = tmp2;
+			}
 
-			if (tmp3)
+			if (tmp3) {
 				ast_debug(1, "Last app: %s\n", tmp3);
+			}
 
 			if (tmp3 && !strncasecmp(tmp3, "GOSUB", 5)) {
 				gosub_level++;
@@ -547,6 +559,7 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 		}
 	}
 	ast_channel_unlock(chan);
+	ast_free(tmp_subst);
 
 	return res;
 }

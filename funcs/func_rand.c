@@ -87,6 +87,7 @@ static int acf_rand_exec(struct ast_channel *chan, const char *cmd,
 static struct ast_custom_function acf_rand = {
 	.name = "RAND",
 	.read = acf_rand_exec,
+	.read_max = 12,
 };
 
 static int unload_module(void)

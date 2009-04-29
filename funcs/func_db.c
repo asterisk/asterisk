@@ -201,6 +201,7 @@ static int function_db_exists(struct ast_channel *chan, const char *cmd,
 static struct ast_custom_function db_exists_function = {
 	.name = "DB_EXISTS",
 	.read = function_db_exists,
+	.read_max = 2,
 };
 
 static int function_db_delete(struct ast_channel *chan, const char *cmd,

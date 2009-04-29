@@ -77,9 +77,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</function>
  ***/
 
-/* Maximum length of any variable */
-#define MAXRESULT	1024
-
 struct sortable_keys {
 	char *key;
 	float value;
@@ -151,7 +148,7 @@ static int sort_internal(struct ast_channel *chan, char *data, char *buffer, siz
 	return 0;
 }
 
-static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size_t buflen)
+static int cut_internal(struct ast_channel *chan, char *data, struct ast_str **buf, ssize_t buflen)
 {
 	char *parse;
 	size_t delim_consumed;
@@ -160,8 +157,7 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 		AST_APP_ARG(delimiter);
 		AST_APP_ARG(field);
 	);
-
-	*buffer = '\0';
+	struct ast_str *str = ast_str_create(16);
 
 	parse = ast_strdupa(data);
 
@@ -169,31 +165,30 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 
 	/* Check and parse arguments */
 	if (args.argc < 3) {
+		ast_free(str);
 		return ERROR_NOARG;
 	} else {
-		char d, ds[2] = "";
+		char ds[2] = "";
 		char *tmp = alloca(strlen(args.varname) + 4);
-		char varvalue[MAXRESULT], *tmp2=varvalue;
 
 		if (tmp) {
 			snprintf(tmp, strlen(args.varname) + 4, "${%s}", args.varname);
 		} else {
+			ast_free(str);
 			return ERROR_NOMEM;
 		}
 
 		if (ast_get_encoded_char(args.delimiter, ds, &delim_consumed))
 			ast_copy_string(ds, "-", sizeof(ds));
 
-		/* String form of the delimiter, for use with strsep(3) */
-		d = *ds;
+		ast_str_substitute_variables(&str, 0, chan, tmp);
 
-		pbx_substitute_variables_helper(chan, tmp, tmp2, MAXRESULT - 1);
-
-		if (tmp2) {
+		if (ast_str_strlen(str)) {
 			int curfieldnum = 1;
+			char *tmp2 = ast_str_buffer(str);
 			while (tmp2 != NULL && args.field != NULL) {
 				char *nextgroup = strsep(&(args.field), "&");
-				int num1 = 0, num2 = MAXRESULT;
+				int num1 = 0, num2 = INT_MAX;
 				char trashchar;
 
 				if (sscanf(nextgroup, "%d-%d", &num1, &num2) == 2) {
@@ -203,18 +198,19 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 					num1 = 0;
 				} else if ((sscanf(nextgroup, "%d%c", &num1, &trashchar) == 2) && (trashchar == '-')) {
 					/* range with start */
-					num2 = MAXRESULT;
+					num2 = INT_MAX;
 				} else if (sscanf(nextgroup, "%d", &num1) == 1) {
 					/* single number */
 					num2 = num1;
 				} else {
+					ast_free(str);
 					return ERROR_USAGE;
 				}
 
 				/* Get to start, if any */
 				if (num1 > 0) {
-					while (tmp2 != (char *)NULL + 1 && curfieldnum < num1) {
-						tmp2 = strchr(tmp2, d) + 1;
+					while (tmp2 != NULL && curfieldnum < num1) {
+						tmp2 = strchr(tmp2 + 1, ds[0]);
 						curfieldnum++;
 					}
 				}
@@ -223,25 +219,16 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 				if ((num1 > 0) && (curfieldnum > num1))
 					ast_log(LOG_WARNING, "We're already past the field you wanted?\n");
 
-				/* Re-null tmp2 if we added 1 to NULL */
-				if (tmp2 == (char *)NULL + 1)
-					tmp2 = NULL;
-
 				/* Output fields until we either run out of fields or num2 is reached */
 				while (tmp2 != NULL && curfieldnum <= num2) {
 					char *tmp3 = strsep(&tmp2, ds);
-					int curlen = strlen(buffer);
-
-					if (curlen)
-						snprintf(buffer + curlen, buflen - curlen, "%c%s", d, tmp3);
-					else
-						snprintf(buffer, buflen, "%s", tmp3);
-
+					ast_str_append(buf, buflen, "%s%s", ast_str_strlen(*buf) ? ds : "", tmp3);
 					curfieldnum++;
 				}
 			}
 		}
 	}
+	ast_free(str);
 	return 0;
 }
 
@@ -267,6 +254,32 @@ static int acf_sort_exec(struct ast_channel *chan, const char *cmd, char *data, 
 }
 
 static int acf_cut_exec(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	int ret = -1;
+	struct ast_str *str = ast_str_create(16);
+
+	switch (cut_internal(chan, data, &str, len)) {
+	case ERROR_NOARG:
+		ast_log(LOG_ERROR, "Syntax: CUT(<varname>,<char-delim>,<range-spec>) - missing argument!\n");
+		break;
+	case ERROR_NOMEM:
+		ast_log(LOG_ERROR, "Out of memory\n");
+		break;
+	case ERROR_USAGE:
+		ast_log(LOG_ERROR, "Usage: CUT(<varname>,<char-delim>,<range-spec>)\n");
+		break;
+	case 0:
+		ret = 0;
+		ast_copy_string(buf, ast_str_buffer(str), len);
+		break;
+	default:
+		ast_log(LOG_ERROR, "Unknown internal error\n");
+	}
+	ast_free(str);
+	return ret;
+}
+
+static int acf_cut_exec2(struct ast_channel *chan, const char *cmd, char *data, struct ast_str **buf, ssize_t len)
 {
 	int ret = -1;
 
@@ -298,6 +311,7 @@ struct ast_custom_function acf_sort = {
 struct ast_custom_function acf_cut = {
 	.name = "CUT",
 	.read = acf_cut_exec,
+	.read2 = acf_cut_exec2,
 };
 
 static int unload_module(void)

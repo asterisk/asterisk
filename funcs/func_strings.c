@@ -343,10 +343,11 @@ AST_THREADSTORAGE(result_buf);
 	</function>
  ***/
 
-static int function_fieldqty(struct ast_channel *chan, const char *cmd,
-			     char *parse, char *buf, size_t len)
+static int function_fieldqty_helper(struct ast_channel *chan, const char *cmd,
+			     char *parse, char *buf, struct ast_str **sbuf, ssize_t len)
 {
-	char *varsubst, varval[8192], *varval2 = varval;
+	char *varsubst;
+	struct ast_str *str = ast_str_create(16);
 	int fieldcount = 0;
 	AST_DECLARE_APP_ARGS(args,
 			     AST_APP_ARG(varname);
@@ -355,6 +356,10 @@ static int function_fieldqty(struct ast_channel *chan, const char *cmd,
 	char delim[2] = "";
 	size_t delim_used;
 
+	if (!str) {
+		return -1;
+	}
+
 	AST_STANDARD_APP_ARGS(args, parse);
 	if (args.delim) {
 		ast_get_encoded_char(args.delim, delim, &delim_used);
@@ -362,27 +367,47 @@ static int function_fieldqty(struct ast_channel *chan, const char *cmd,
 		varsubst = alloca(strlen(args.varname) + 4);
 
 		sprintf(varsubst, "${%s}", args.varname);
-		pbx_substitute_variables_helper(chan, varsubst, varval, sizeof(varval) - 1);
-		if (ast_strlen_zero(varval2))
+		ast_str_substitute_variables(&str, 0, chan, varsubst);
+		if (ast_str_strlen(str) == 0) {
 			fieldcount = 0;
-		else {
-			while (strsep(&varval2, delim))
+		} else {
+			char *varval = ast_str_buffer(str);
+			while (strsep(&varval, delim)) {
 				fieldcount++;
+			}
 		}
 	} else {
 		fieldcount = 1;
 	}
-	snprintf(buf, len, "%d", fieldcount);
+	if (sbuf) {
+		ast_str_set(sbuf, len, "%d", fieldcount);
+	} else {
+		snprintf(buf, len, "%d", fieldcount);
+	}
 
+	ast_free(str);
 	return 0;
+}
+
+static int function_fieldqty(struct ast_channel *chan, const char *cmd,
+			     char *parse, char *buf, size_t len)
+{
+	return function_fieldqty_helper(chan, cmd, parse, buf, NULL, len);
+}
+
+static int function_fieldqty_str(struct ast_channel *chan, const char *cmd,
+				 char *parse, struct ast_str **buf, ssize_t len)
+{
+	return function_fieldqty_helper(chan, cmd, parse, NULL, buf, len);
 }
 
 static struct ast_custom_function fieldqty_function = {
 	.name = "FIELDQTY",
 	.read = function_fieldqty,
+	.read2 = function_fieldqty_str,
 };
 
-static int listfilter(struct ast_channel *chan, const char *cmd, char *parse, char *buf, size_t len)
+static int listfilter(struct ast_channel *chan, const char *cmd, char *parse, char *buf, struct ast_str **bufstr, ssize_t len)
 {
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(listname);
@@ -392,10 +417,17 @@ static int listfilter(struct ast_channel *chan, const char *cmd, char *parse, ch
 	const char *orig_list, *ptr;
 	const char *begin, *cur, *next;
 	int dlen, flen, first = 1;
-	struct ast_str *result = ast_str_thread_get(&result_buf, 16);
+	struct ast_str *result, **result_ptr = &result;
 	char *delim;
 
 	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (buf) {
+		result = ast_str_thread_get(&result_buf, 16);
+	} else {
+		/* Place the result directly into the output buffer */
+		result_ptr = bufstr;
+	}
 
 	if (args.argc < 3) {
 		ast_log(LOG_ERROR, "Usage: LISTFILTER(<listname>,<delimiter>,<fieldvalue>)\n");
@@ -416,7 +448,11 @@ static int listfilter(struct ast_channel *chan, const char *cmd, char *parse, ch
 
 	/* If the string isn't there, just copy out the string and be done with it. */
 	if (!(ptr = strstr(orig_list, args.fieldvalue))) {
-		ast_copy_string(buf, orig_list, len);
+		if (buf) {
+			ast_copy_string(buf, orig_list, len);
+		} else {
+			ast_str_set(result_ptr, len, "%s", orig_list);
+		}
 		if (chan) {
 			ast_channel_unlock(chan);
 		}
@@ -436,7 +472,9 @@ static int listfilter(struct ast_channel *chan, const char *cmd, char *parse, ch
 
 	ast_str_reset(result);
 	/* Enough space for any result */
-	ast_str_make_space(&result, strlen(orig_list) + 1);
+	if (len > -1) {
+		ast_str_make_space(result_ptr, len ? len : strlen(orig_list) + 1);
+	}
 
 	begin = orig_list;
 	next = strstr(begin, delim);
@@ -456,10 +494,10 @@ static int listfilter(struct ast_channel *chan, const char *cmd, char *parse, ch
 		} else {
 			/* Copy field to output */
 			if (!first) {
-				ast_str_append(&result, 0, "%s", delim);
+				ast_str_append(result_ptr, len, "%s", delim);
 			}
 
-			ast_str_append_substr(&result, 0, begin, cur - begin + 1);
+			ast_str_append_substr(result_ptr, len, begin, cur - begin + 1);
 			first = 0;
 			begin = cur + dlen;
 		}
@@ -468,14 +506,27 @@ static int listfilter(struct ast_channel *chan, const char *cmd, char *parse, ch
 		ast_channel_unlock(chan);
 	}
 
-	ast_copy_string(buf, ast_str_buffer(result), len);
+	if (buf) {
+		ast_copy_string(buf, ast_str_buffer(result), len);
+	}
 
 	return 0;
 }
 
+static int listfilter_read(struct ast_channel *chan, const char *cmd, char *parse, char *buf, size_t len)
+{
+	return listfilter(chan, cmd, parse, buf, NULL, len);
+}
+
+static int listfilter_read2(struct ast_channel *chan, const char *cmd, char *parse, struct ast_str **buf, ssize_t len)
+{
+	return listfilter(chan, cmd, parse, NULL, buf, len);
+}
+
 static struct ast_custom_function listfilter_function = {
 	.name = "LISTFILTER",
-	.read = listfilter,
+	.read = listfilter_read,
+	.read2 = listfilter_read2,
 };
 
 static int filter(struct ast_channel *chan, const char *cmd, char *parse, char *buf,
@@ -679,22 +730,44 @@ static int array(struct ast_channel *chan, const char *cmd, char *var,
 static int hashkeys_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	struct ast_var_t *newvar;
-	int plen;
-	char prefix[80];
-	snprintf(prefix, sizeof(prefix), HASH_PREFIX, data);
-	plen = strlen(prefix);
+	struct ast_str *prefix = ast_str_alloca(80);
 
+	ast_str_set(&prefix, -1, HASH_PREFIX, data);
 	memset(buf, 0, len);
+
 	AST_LIST_TRAVERSE(&chan->varshead, newvar, entries) {
-		if (strncasecmp(prefix, ast_var_name(newvar), plen) == 0) {
+		if (strncasecmp(ast_str_buffer(prefix), ast_var_name(newvar), ast_str_strlen(prefix)) == 0) {
 			/* Copy everything after the prefix */
-			strncat(buf, ast_var_name(newvar) + plen, len - strlen(buf) - 1);
+			strncat(buf, ast_var_name(newvar) + ast_str_strlen(prefix), len - strlen(buf) - 1);
 			/* Trim the trailing ~ */
 			buf[strlen(buf) - 1] = ',';
 		}
 	}
 	/* Trim the trailing comma */
 	buf[strlen(buf) - 1] = '\0';
+	return 0;
+}
+
+static int hashkeys_read2(struct ast_channel *chan, const char *cmd, char *data, struct ast_str **buf, ssize_t len)
+{
+	struct ast_var_t *newvar;
+	struct ast_str *prefix = ast_str_alloca(80);
+	char *tmp;
+
+	ast_str_set(&prefix, -1, HASH_PREFIX, data);
+
+	AST_LIST_TRAVERSE(&chan->varshead, newvar, entries) {
+		if (strncasecmp(ast_str_buffer(prefix), ast_var_name(newvar), ast_str_strlen(prefix)) == 0) {
+			/* Copy everything after the prefix */
+			ast_str_append(buf, len, "%s", ast_var_name(newvar) + ast_str_strlen(prefix));
+			/* Trim the trailing ~ */
+			tmp = ast_str_buffer(*buf);
+			tmp[ast_str_strlen(*buf) - 1] = ',';
+		}
+	}
+	/* Trim the trailing comma */
+	tmp = ast_str_buffer(*buf);
+	tmp[ast_str_strlen(*buf) - 1] = '\0';
 	return 0;
 }
 
@@ -773,6 +846,7 @@ static struct ast_custom_function hash_function = {
 static struct ast_custom_function hashkeys_function = {
 	.name = "HASHKEYS",
 	.read = hashkeys_read,
+	.read2 = hashkeys_read2,
 };
 
 static struct ast_custom_function array_function = {
@@ -824,6 +898,7 @@ static int len(struct ast_channel *chan, const char *cmd, char *data, char *buf,
 static struct ast_custom_function len_function = {
 	.name = "LEN",
 	.read = len,
+	.read_max = 12,
 };
 
 static int acf_strftime(struct ast_channel *chan, const char *cmd, char *parse,
@@ -915,9 +990,23 @@ static int function_eval(struct ast_channel *chan, const char *cmd, char *data,
 	return 0;
 }
 
+static int function_eval2(struct ast_channel *chan, const char *cmd, char *data,
+			 struct ast_str **buf, ssize_t buflen)
+{
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "EVAL requires an argument: EVAL(<string>)\n");
+		return -1;
+	}
+
+	ast_str_substitute_variables(buf, buflen, chan, data);
+
+	return 0;
+}
+
 static struct ast_custom_function eval_function = {
 	.name = "EVAL",
 	.read = function_eval,
+	.read2 = function_eval2,
 };
 
 static int keypadhash(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t buflen)
@@ -969,9 +1058,24 @@ static int string_toupper(struct ast_channel *chan, const char *cmd, char *data,
 	return 0;
 }
 
+static int string_toupper2(struct ast_channel *chan, const char *cmd, char *data, struct ast_str **buf, ssize_t buflen)
+{
+	char *bufptr, *dataptr = data;
+
+	if (buflen > -1) {
+		ast_str_make_space(buf, buflen > 0 ? buflen : strlen(data) + 1);
+	}
+	bufptr = ast_str_buffer(*buf);
+	while ((bufptr < ast_str_buffer(*buf) + ast_str_size(*buf) - 1) && (*bufptr++ = toupper(*dataptr++)));
+	ast_str_update(*buf);
+
+	return 0;
+}
+
 static struct ast_custom_function toupper_function = {
 	.name = "TOUPPER",
 	.read = string_toupper,
+	.read2 = string_toupper2,
 };
 
 static int string_tolower(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t buflen)
@@ -983,9 +1087,24 @@ static int string_tolower(struct ast_channel *chan, const char *cmd, char *data,
 	return 0;
 }
 
+static int string_tolower2(struct ast_channel *chan, const char *cmd, char *data, struct ast_str **buf, ssize_t buflen)
+{
+	char *bufptr, *dataptr = data;
+
+	if (buflen > -1) {
+		ast_str_make_space(buf, buflen > 0 ? buflen : strlen(data) + 1);
+	}
+	bufptr = ast_str_buffer(*buf);
+	while ((bufptr < ast_str_buffer(*buf) + ast_str_size(*buf) - 1) && (*bufptr++ = tolower(*dataptr++)));
+	ast_str_update(*buf);
+
+	return 0;
+}
+
 static struct ast_custom_function tolower_function = {
 	.name = "TOLOWER",
 	.read = string_tolower,
+	.read2 = string_tolower2,
 };
 
 static int array_remove(struct ast_channel *chan, const char *cmd, char *var, char *buf, size_t len, int beginning)

@@ -29,6 +29,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/pbx.h"	/* function register/unregister */
 #include "asterisk/utils.h"
+#include "asterisk/strings.h"
 
 /*** DOCUMENTATION
 	<function name="BASE64_ENCODE" language="en_US">
@@ -59,40 +60,61 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</function>
  ***/
 
-static int base64_encode(struct ast_channel *chan, const char *cmd, char *data,
-			 char *buf, size_t len)
+static int base64_helper(struct ast_channel *chan, const char *cmd, char *data,
+			 char *buf, struct ast_str **str, ssize_t len)
 {
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Syntax: BASE64_ENCODE(<data>) - missing argument!\n");
+		ast_log(LOG_WARNING, "Syntax: %s(<data>) - missing argument!\n", cmd);
 		return -1;
 	}
 
-	ast_base64encode(buf, (unsigned char *) data, strlen(data), len);
+	if (cmd[7] == 'E') {
+		if (buf) {
+			ast_base64encode(buf, (unsigned char *) data, strlen(data), len);
+		} else {
+			if (len >= 0) {
+				ast_str_make_space(str, len ? len : ast_str_strlen(*str) + strlen(data) * 4 / 3 + 2);
+			}
+			ast_base64encode(ast_str_buffer(*str) + ast_str_strlen(*str), (unsigned char *) data, strlen(data), ast_str_size(*str) - ast_str_strlen(*str));
+			ast_str_update(*str);
+		}
+	} else {
+		if (buf) {
+			ast_base64decode((unsigned char *) buf, data, len);
+		} else {
+			if (len >= 0) {
+				ast_str_make_space(str, len ? len : ast_str_strlen(*str) + strlen(data) * 3 / 4 + 2);
+			}
+			ast_base64decode((unsigned char *) ast_str_buffer(*str) + ast_str_strlen(*str), data, ast_str_size(*str) - ast_str_strlen(*str));
+			ast_str_update(*str);
+		}
+	}
 
 	return 0;
 }
 
-static int base64_decode(struct ast_channel *chan, const char *cmd, char *data,
+static int base64_buf_helper(struct ast_channel *chan, const char *cmd, char *data,
 			 char *buf, size_t len)
 {
-	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Syntax: BASE64_DECODE(<base_64 string>) - missing argument!\n");
-		return -1;
-	}
+	return base64_helper(chan, cmd, data, buf, NULL, len);
+}
 
-	ast_base64decode((unsigned char *) buf, data, len);
-
-	return 0;
+static int base64_str_helper(struct ast_channel *chan, const char *cmd, char *data,
+			 struct ast_str **buf, ssize_t len)
+{
+	return base64_helper(chan, cmd, data, NULL, buf, len);
 }
 
 static struct ast_custom_function base64_encode_function = {
 	.name = "BASE64_ENCODE",
-	.read = base64_encode,
+	.read = base64_buf_helper,
+	.read2 = base64_str_helper,
 };
 
 static struct ast_custom_function base64_decode_function = {
 	.name = "BASE64_DECODE",
-	.read = base64_decode,
+	.read = base64_buf_helper,
+	.read2 = base64_str_helper,
 };
 
 static int unload_module(void)

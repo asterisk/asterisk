@@ -191,6 +191,7 @@ static int timeout_write(struct ast_channel *chan, const char *cmd, char *data,
 static struct ast_custom_function timeout_function = {
 	.name = "TIMEOUT",
 	.read = timeout_read,
+	.read_max = 22,
 	.write = timeout_write,
 };
 

@@ -122,6 +122,7 @@ static int extstate_read(struct ast_channel *chan, const char *cmd, char *data,
 static struct ast_custom_function extstate_function = {
 	.name = "EXTENSION_STATE",
 	.read = extstate_read,
+	.read_max = 12,
 };
 
 static int unload_module(void)

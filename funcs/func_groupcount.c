@@ -134,6 +134,7 @@ static int group_count_function_read(struct ast_channel *chan, const char *cmd,
 static struct ast_custom_function group_count_function = {
 	.name = "GROUP_COUNT",
 	.read = group_count_function_read,
+	.read_max = 12,
 };
 
 static int group_match_count_function_read(struct ast_channel *chan,
@@ -159,6 +160,7 @@ static int group_match_count_function_read(struct ast_channel *chan,
 static struct ast_custom_function group_match_count_function = {
 	.name = "GROUP_MATCH_COUNT",
 	.read = group_match_count_function_read,
+	.read_max = 12,
 	.write = NULL,
 };
 

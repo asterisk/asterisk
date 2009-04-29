@@ -223,25 +223,40 @@ static int set(struct ast_channel *chan, const char *cmd, char *data, char *buf,
 	return 0;
 }
 
-static int acf_import(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+static int set2(struct ast_channel *chan, const char *cmd, char *data, struct ast_str **str, ssize_t len)
+{
+	if (len > -1) {
+		ast_str_make_space(str, len == 0 ? strlen(data) : len);
+	}
+	return set(chan, cmd, data, ast_str_buffer(*str), ast_str_size(*str));
+}
+
+static int import_helper(struct ast_channel *chan, const char *cmd, char *data, char *buf, struct ast_str **str, ssize_t len)
 {
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(channel);
 		AST_APP_ARG(varname);
 	);
 	AST_STANDARD_APP_ARGS(args, data);
-
-	buf[0] = '\0';
+	if (buf) {
+		*buf = '\0';
+	}
 
 	if (!ast_strlen_zero(args.varname)) {
 		struct ast_channel *chan2;
 
 		if ((chan2 = ast_channel_get_by_name(args.channel))) {
 			char *s = alloca(strlen(args.varname) + 4);
-			sprintf(s, "${%s}", args.varname);
-			ast_channel_lock(chan2);
-			pbx_substitute_variables_helper(chan2, s, buf, len);
-			ast_channel_unlock(chan2);
+			if (s) {
+				sprintf(s, "${%s}", args.varname);
+				ast_channel_lock(chan2);
+				if (buf) {
+					pbx_substitute_variables_helper(chan2, s, buf, len);
+				} else {
+					ast_str_substitute_variables(str, len, chan2, s);
+				}
+				ast_channel_unlock(chan2);
+			}
 			chan2 = ast_channel_unref(chan2);
 		}
 	}
@@ -249,19 +264,32 @@ static int acf_import(struct ast_channel *chan, const char *cmd, char *data, cha
 	return 0;
 }
 
+static int import_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	return import_helper(chan, cmd, data, buf, NULL, len);
+}
+
+static int import_read2(struct ast_channel *chan, const char *cmd, char *data, struct ast_str **str, ssize_t len)
+{
+	return import_helper(chan, cmd, data, NULL, str, len);
+}
+
 static struct ast_custom_function isnull_function = {
 	.name = "ISNULL",
 	.read = isnull,
+	.read_max = 2,
 };
 
 static struct ast_custom_function set_function = {
 	.name = "SET",
 	.read = set,
+	.read2 = set2,
 };
 
 static struct ast_custom_function exists_function = {
 	.name = "EXISTS",
 	.read = exists,
+	.read_max = 2,
 };
 
 static struct ast_custom_function if_function = {
@@ -276,7 +304,8 @@ static struct ast_custom_function if_time_function = {
 
 static struct ast_custom_function import_function = {
 	.name = "IMPORT",
-	.read = acf_import,
+	.read = import_read,
+	.read2 = import_read2,
 };
 
 static int unload_module(void)

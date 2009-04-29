@@ -65,6 +65,7 @@ static int ifmodule_read(struct ast_channel *chan, const char *cmd, char *data,
 static struct ast_custom_function ifmodule_function = {
 	.name = "IFMODULE",
 	.read = ifmodule_read,
+	.read_max = 2,
 };
 
 

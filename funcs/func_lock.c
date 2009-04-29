@@ -324,16 +324,19 @@ static int trylock_read(struct ast_channel *chan, const char *cmd, char *data, c
 static struct ast_custom_function lock_function = {
 	.name = "LOCK",
 	.read = lock_read,
+	.read_max = 2,
 };
 
 static struct ast_custom_function trylock_function = {
 	.name = "TRYLOCK",
 	.read = trylock_read,
+	.read_max = 2,
 };
 
 static struct ast_custom_function unlock_function = {
 	.name = "UNLOCK",
 	.read = unlock_read,
+	.read_max = 2,
 };
 
 static int unload_module(void)

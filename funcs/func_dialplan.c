@@ -105,6 +105,7 @@ static int isexten_function_read(struct ast_channel *chan, const char *cmd, char
 static struct ast_custom_function isexten_function = {
 	.name = "DIALPLAN_EXISTS",
 	.read = isexten_function_read,
+	.read_max = 2,
 };
 
 static int unload_module(void)

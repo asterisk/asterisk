@@ -70,9 +70,26 @@ static int blacklist_read(struct ast_channel *chan, const char *cmd, char *data,
 	return 0;
 }
 
+static int blacklist_read2(struct ast_channel *chan, const char *cmd, char *data, struct ast_str **str, ssize_t len)
+{
+	/* 2 bytes is a single integer, plus terminating null */
+	if (ast_str_size(*str) - ast_str_strlen(*str) < 2) {
+		if (len > ast_str_size(*str) || len == 0) {
+			ast_str_make_space(str, len ? len : ast_str_strlen(*str) + 2);
+		}
+	}
+	if (ast_str_size(*str) - ast_str_strlen(*str) >= 2) {
+		int res = blacklist_read(chan, cmd, data, ast_str_buffer(*str) + ast_str_strlen(*str), 2);
+		ast_str_update(*str);
+		return res;
+	}
+	return -1;
+}
+
 static struct ast_custom_function blacklist_function = {
 	.name = "BLACKLIST",
 	.read = blacklist_read,
+	.read2 = blacklist_read2,
 };
 
 static int unload_module(void)

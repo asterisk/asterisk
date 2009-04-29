@@ -2424,6 +2424,32 @@ int ast_expr(char *expr, char *buf, int length, struct ast_channel *chan)
 	return return_value;
 }
 
+#if !defined(STANDALONE)
+int ast_str_expr(struct ast_str **str, ssize_t maxlen, struct ast_channel *chan, char *expr)
+{
+	struct parse_io io = { .string = expr, .chan = chan };
+
+	ast_yylex_init(&io.scanner);
+	ast_yy_scan_string(expr, io.scanner);
+	ast_yyparse ((void *) &io);
+	ast_yylex_destroy(io.scanner);
+
+	if (!io.val) {
+		ast_str_set(str, maxlen, "0");
+	} else {
+		if (io.val->type == AST_EXPR_number) {
+			int res_length;
+			ast_str_set(str, maxlen, FP___PRINTF, io.val->u.i);
+		} else if (io.val->u.s) {
+			ast_str_set(str, maxlen, "%s", io.val->u.s);
+			free(io.val->u.s);
+		}
+		free(io.val);
+	}
+	return ast_str_strlen(*str);
+}
+#endif
+
 
 char extra_error_message[4095];
 int extra_error_message_supplied = 0;

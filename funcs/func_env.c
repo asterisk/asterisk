@@ -230,7 +230,8 @@ static struct ast_custom_function env_function = {
 
 static struct ast_custom_function stat_function = {
 	.name = "STAT",
-	.read = stat_read
+	.read = stat_read,
+	.read_max = 12,
 };
 
 static struct ast_custom_function file_function = {

@@ -86,6 +86,7 @@ static struct ast_custom_function sysinfo_function = {
 	.synopsis = "Returns system information specified by parameter.",
 	.syntax = "SYSINFO(<parameter>)",
 	.read = sysinfo_helper,
+	.read_max = 22,
 	.desc = 
 "Returns information from a given parameter\n"
 "  Options:\n"
