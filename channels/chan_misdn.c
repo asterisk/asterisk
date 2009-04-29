@@ -6386,6 +6386,12 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 				newbc->fac_out.u.DivertingLegInformation2.OriginalCalledPresent = 1;
 				newbc->fac_out.u.DivertingLegInformation2.OriginalCalled.Type = 2;/* numberNotAvailableDueToInterworking */
 			}
+
+			/*
+			 * Expect a DivertingLegInformation3 to update the COLR of the
+			 * redirecting-to party we are attempting to call now.
+			 */
+			newbc->div_leg_3_rx_wanted = 1;
 		}
 #endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 
