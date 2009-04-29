@@ -389,70 +389,10 @@ static char *handle_cli_dialplan_remove_extension(struct ast_cli_entry *e, int c
 	return ret;
 }
 
-#define BROKEN_READLINE 1
-
-#ifdef BROKEN_READLINE
-/*
- * There is one funny thing, when you have word like 300@ and you hit
- * <tab>, you arguments will act as your word is '300 ', so the '@'
- * character acts sometimes as a word delimiter and sometimes as a part
- * of a word.
- *
- * This fix function allocates a new word variable and stores it every
- * time as xxx@yyy. The correct pos is set, too.
- *
- * It's ugly, I know, but I'm waiting for Mark's suggestion if the
- * previous is a bug or a feature ...
- */
-static int fix_complete_args(const char *line, char **word, int *pos)
-{
-	char *_line, *_strsep_line, *_previous_word = NULL, *_word = NULL;
-	int words = 0;
-
-	_line = strdup(line);
-
-	_strsep_line = _line;
-	while (_strsep_line) {
-		_previous_word = _word;
-		_word = strsep(&_strsep_line, " ");
-
-		if (_word && strlen(_word)) words++;
-	}
-
-
-	if (_word || _previous_word) {
-		if (_word) {
-			if (!strlen(_word)) words++;
-			*word = strdup(_word);
-		} else
-			*word = strdup(_previous_word);
-		*pos = words - 1;
-		free(_line);
-		return 0;
-	}
-
-	free(_line);
-	return -1;
-}
-#endif /* BROKEN_READLINE */
-
 static char *complete_dialplan_remove_extension(struct ast_cli_args *a)
 {
 	char *ret = NULL;
 	int which = 0;
-
-#ifdef BROKEN_READLINE
-	char *word2;
-	/*
-	 * Fix arguments, *word is a new allocated structure, REMEMBER to
-	 * free *word when you want to return from this function ...
-	 */
-	if (fix_complete_args(a->line, &word2, &a->pos)) {
-		ast_log(LOG_ERROR, "Out of free memory\n");
-		return NULL;
-	}
-	a->word = word2;
-#endif
 
 	if (a->pos == 3) { /* 'dialplan remove extension _X_' (exten@context ... */
 		struct ast_context *c = NULL;
@@ -463,9 +403,6 @@ static char *complete_dialplan_remove_extension(struct ast_cli_args *a)
 
 		lc = split_ec(a->word, &exten, &context, &cid);
 		if (lc)	{ /* error */
-#ifdef BROKEN_READLINE
-			free(word2);
-#endif
 			return NULL;
 		}
 		le = strlen(exten);
@@ -575,9 +512,6 @@ static char *complete_dialplan_remove_extension(struct ast_cli_args *a)
 		if (exten)
 			free(exten);
 	}
-#ifdef BROKEN_READLINE
-	free(word2);
-#endif
 	return ret; 
 }
 
