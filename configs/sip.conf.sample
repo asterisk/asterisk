@@ -142,8 +142,12 @@ tcpbindaddr=0.0.0.0             ; IP address for TCP server to bind to (0.0.0.0 
 
 ;tlscipher=<SSL cipher string>
 ;        A string specifying which SSL ciphers to use or not use
-;        A list of valid SSL cipher strings can be found at: 
+;        A list of valid SSL cipher strings can be found at:
 ;                http://www.openssl.org/docs/apps/ciphers.html#CIPHER_STRINGS
+;
+;tlsclientmethod=tlsv1     ; values include tlsv1, sslv3, sslv2.
+                           ; Specify protocol for outbound client connections.
+                           ; If left unspecified, the default is sslv2.
 
 srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; Note: Asterisk only uses the first host 

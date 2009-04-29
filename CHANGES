@@ -23,6 +23,8 @@ SIP Changes
  * Added tlsprivatekey option to sip.conf.  This allows a separate .pem file
    to be used for holding a private key.  If tlsprivatekey is not specified,
    tlscertfile is searched for both public and private key.
+ * Added tlsclientmethod option to sip.conf.  This allows the protocol for
+   outbound client connections to be specified.
 
 Applications
 ------------

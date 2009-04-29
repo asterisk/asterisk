@@ -72,7 +72,13 @@ enum ast_ssl_flags {
 	/*! Don't verify certificate when connecting to a server */
 	AST_SSL_DONT_VERIFY_SERVER = (1 << 1),
 	/*! Don't compare "Common Name" against IP or hostname */
-	AST_SSL_IGNORE_COMMON_NAME = (1 << 2)
+	AST_SSL_IGNORE_COMMON_NAME = (1 << 2),
+	/*! Use SSLv2 for outgoing client connections */
+	AST_SSL_SSLV2_CLIENT = (1 << 3),
+	/*! Use SSLv3 for outgoing client connections */
+	AST_SSL_SSLV3_CLIENT = (1 << 4),
+	/*! Use TLSv1 for outgoing client connections */
+	AST_SSL_TLSV1_CLIENT = (1 << 5)
 };
 
 struct ast_tls_config {
