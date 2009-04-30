@@ -654,6 +654,8 @@ AST_C_DEFINE_CHECK([DAHDI_HALF_FULL], [DAHDI_POLICY_HALF_FULL], [dahdi/user.h])
 
 AST_C_COMPILE_CHECK([DAHDI_LINEREVERSE_VMWI], [struct dahdi_vmwi_info booger], [dahdi/user.h], , [enhanced dahdi vmwi support])
 
+AST_C_COMPILE_CHECK([DAHDI_ECHOCANCEL_FAX_MODE], [int foo = DAHDI_ECHOCANCEL_FAX_MODE], [dahdi/user.h])
+
 # BSD might not have exp2, and/or log2
 AST_EXT_LIB_CHECK([EXP2L], [m], [exp2l])
 AST_EXT_LIB_CHECK([LOG2L], [m], [log2l])

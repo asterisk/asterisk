@@ -782,10 +782,10 @@ static struct dahdi_pvt {
 	unsigned int echocanon:1;
 	/*! \brief TRUE if a fax tone has already been handled. */
 	unsigned int faxhandled:1;
-	/*! \brief TRUE if dynamic faxbuffers are configured for use, default is OFF */
+	/*! TRUE if dynamic faxbuffers are configured for use, default is OFF */
 	unsigned int usefaxbuffers:1;
-	/*! \brief TRUE while dynamic faxbuffers are in use */
-	unsigned int faxbuffersinuse:1;
+	/*! TRUE while buffer configuration override is in use */
+	unsigned int bufferoverrideinuse:1;
 	/*! \brief TRUE if over a radio and dahdi_read() has been called. */
 	unsigned int firstradio:1;
 	/*!
@@ -1381,8 +1381,6 @@ static struct dahdi_chan_conf dahdi_chan_conf_default(void)
 			.buf_policy = DAHDI_POLICY_IMMEDIATE,
 			.buf_no = numbufs,
 			.usefaxbuffers = 0,
-			.faxbuf_policy = DAHDI_POLICY_IMMEDIATE,
-			.faxbuf_no = numbufs,
 		},
 		.timing = {
 			.prewinktime = -1,
@@ -1417,6 +1415,7 @@ static int dahdi_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int datalen);
 static int dahdi_func_read(struct ast_channel *chan, const char *function, char *data, char *buf, size_t len);
 static int handle_init_event(struct dahdi_pvt *i, int event);
+static int dahdi_func_write(struct ast_channel *chan, const char *function, char *data, const char *value);
 
 static const struct ast_channel_tech dahdi_tech = {
 	.type = "DAHDI",
@@ -1437,6 +1436,7 @@ static const struct ast_channel_tech dahdi_tech = {
 	.fixup = dahdi_fixup,
 	.setoption = dahdi_setoption,
 	.func_channel_read = dahdi_func_read,
+	.func_channel_write = dahdi_func_write,
 };
 
 #ifdef HAVE_PRI
@@ -3982,8 +3982,7 @@ static void destroy_all_channels(void)
 		/* Free associated memory */
 		if (pl)
 			destroy_dahdi_pvt(&pl);
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_2 "Unregistered channel %d\n", x);
+		ast_verb(3, "Unregistered channel %d\n", x);
 	}
 	iflist = NULL;
 	ifcount = 0;
@@ -4515,7 +4514,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 			p->dsp = NULL;
 		}
 
-		if (p->faxbuffersinuse) {
+		if (p->bufferoverrideinuse) {
 			/* faxbuffers are in use, revert them */
 			struct dahdi_bufferinfo bi = {
 				.txbufpolicy = p->buf_policy,
@@ -4528,7 +4527,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 			if ((bpres = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SET_BUFINFO, &bi)) < 0) {
 				ast_log(LOG_WARNING, "Channel '%s' unable to revert faxbuffer policy: %s\n", ast->name, strerror(errno));
 			}
-			p->faxbuffersinuse = 0;
+			p->bufferoverrideinuse = 0;	
 		}
 
 		law = DAHDI_LAW_DEFAULT;
@@ -5051,7 +5050,8 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 static int dahdi_func_read(struct ast_channel *chan, const char *function, char *data, char *buf, size_t len)
 {
 	struct dahdi_pvt *p = chan->tech_pvt;
-
+	int res = 0;
+	
 	if (!strcasecmp(data, "rxgain")) {
 		ast_mutex_lock(&p->lock);
 		snprintf(buf, len, "%f", p->rxgain);
@@ -5062,10 +5062,108 @@ static int dahdi_func_read(struct ast_channel *chan, const char *function, char 
 		ast_mutex_unlock(&p->lock);
 	} else {
 		ast_copy_string(buf, "", len);
+		res = -1;
 	}
+
+	return res;
+}
+
+
+static int parse_buffers_policy(const char *parse, int *num_buffers, int *policy)
+{
+	int res;
+	char policy_str[21] = "";
+	
+	if ((res = sscanf(parse, "%d,%20s", num_buffers, policy_str)) != 2) {
+		ast_log(LOG_WARNING, "Parsing buffer string '%s' failed.\n", parse);
+		return 1;
+	}
+	if (*num_buffers < 0) {
+		ast_log(LOG_WARNING, "Invalid buffer count given '%d'.\n", *num_buffers);
+		return -1;
+	}
+	if (!strcasecmp(policy_str, "full")) {
+		*policy = DAHDI_POLICY_WHEN_FULL;
+	} else if (!strcasecmp(policy_str, "immediate")) {
+		*policy = DAHDI_POLICY_IMMEDIATE;
+#if defined(HAVE_DAHDI_HALF_FULL)
+	} else if (!strcasecmp(policy_str, "half")) {
+		*policy = DAHDI_POLICY_HALF_FULL;
+#endif
+	} else {
+		ast_log(LOG_WARNING, "Invalid policy name given '%s'.\n", policy_str);
+		return -1;
+	}
+
 	return 0;
 }
 
+static int dahdi_func_write(struct ast_channel *chan, const char *function, char *data, const char *value)
+{
+	struct dahdi_pvt *p = chan->tech_pvt;
+	int res = 0;
+	
+	if (!strcasecmp(data, "buffers")) {
+		int num_bufs, policy;
+
+		if (!(parse_buffers_policy(value, &num_bufs, &policy))) {
+			struct dahdi_bufferinfo bi = {
+				.txbufpolicy = policy,
+				.rxbufpolicy = policy,
+				.bufsize = p->bufsize,
+				.numbufs = num_bufs,
+			};
+			int bpres;
+
+			if ((bpres = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SET_BUFINFO, &bi)) < 0) {
+				ast_log(LOG_WARNING, "Channel '%d' unable to override buffer policy: %s\n", p->channel, strerror(errno));
+			} else {
+				p->bufferoverrideinuse = 1;
+			}
+		} else {
+			res = -1;
+		}
+	} else if (!strcasecmp(data, "echocan_mode")) {
+		if (!strcasecmp(value, "on")) {
+			ast_mutex_lock(&p->lock);
+			dahdi_enable_ec(p);
+			ast_mutex_unlock(&p->lock);	
+		} else if (!strcasecmp(value, "off")) {
+			ast_mutex_lock(&p->lock);
+			dahdi_disable_ec(p);
+			ast_mutex_unlock(&p->lock);	
+		} else if (!strcasecmp(value, "fax")) {
+			int blah = 1;
+
+			ast_mutex_lock(&p->lock);
+			if (!p->echocanon) {
+				dahdi_enable_ec(p);
+			}
+			if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_ECHOCANCEL_FAX_MODE, &blah)) {
+				ast_log(LOG_WARNING, "Unable to place echocan into fax mode on channel %d: %s\n", p->channel, strerror(errno));
+			}
+			ast_mutex_unlock(&p->lock);	
+		} else if (!strcasecmp(value, "voice")) {
+			int blah = 0;
+
+			ast_mutex_lock(&p->lock);
+			if (!p->echocanon) {
+				dahdi_enable_ec(p);
+			}
+			if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_ECHOCANCEL_FAX_MODE, &blah)) {
+				ast_log(LOG_WARNING, "Unable to place echocan into voice mode on channel %d: %s\n", p->channel, strerror(errno));
+			}
+			ast_mutex_unlock(&p->lock);	
+		} else {
+			ast_log(LOG_WARNING, "Unsupported value '%s' provided for '%s' item.\n", value, data);
+			res = -1;
+		}
+	} else {
+		res = -1;
+	}
+
+	return res;
+}
 
 static void dahdi_unlink(struct dahdi_pvt *slave, struct dahdi_pvt *master, int needlock)
 {
@@ -5661,7 +5759,7 @@ static void dahdi_handle_dtmfup(struct ast_channel *ast, int idx, struct ast_fra
 		/* Fax tone -- Handle and return NULL */
 		if ((p->callprogress & CALLPROGRESS_FAX) && !p->faxhandled) {
 			/* If faxbuffers are configured, use them for the fax transmission */
-			if (p->usefaxbuffers && !p->faxbuffersinuse) {
+			if (p->usefaxbuffers && !p->bufferoverrideinuse) {
 				struct dahdi_bufferinfo bi = {
 					.txbufpolicy = p->faxbuf_policy,
 					.bufsize = p->bufsize,
@@ -5672,7 +5770,7 @@ static void dahdi_handle_dtmfup(struct ast_channel *ast, int idx, struct ast_fra
 				if ((res = ioctl(p->subs[idx].dfd, DAHDI_SET_BUFINFO, &bi)) < 0) {
 					ast_log(LOG_WARNING, "Channel '%s' unable to set faxbuffer policy, reason: %s\n", ast->name, strerror(errno));
 				} else {
-					p->faxbuffersinuse = 1;
+					p->bufferoverrideinuse = 1;
 				}
 			}
 			p->faxhandled = 1;
@@ -5784,9 +5882,23 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 
 	switch (res) {
 		case DAHDI_EVENT_EC_DISABLED:
-			ast_verb(3, "Channel %d echo canceler disabled due to CED detection\n", p->channel);
+			ast_verb(3, "Channel %d echo canceler disabled.\n", p->channel);
 			p->echocanon = 0;
 			break;
+#ifdef HAVE_DAHDI_ECHOCANCEL_FAX_MODE
+		case DAHDI_EVENT_TX_CED_DETECTED:
+			ast_verb(3, "Channel %d detected a CED tone towards the network.\n", p->channel);
+			break;
+		case DAHDI_EVENT_RX_CED_DETECTED:
+			ast_verb(3, "Channel %d detected a CED tone from the network.\n", p->channel);
+			break;
+		case DAHDI_EVENT_EC_NLP_DISABLED:
+			ast_verb(3, "Channel %d echo canceler disabled its NLP.\n", p->channel);
+			break;
+		case DAHDI_EVENT_EC_NLP_ENABLED:
+			ast_verb(3, "Channel %d echo canceler enabled its NLP.\n", p->channel);
+			break;
+#endif
 		case DAHDI_EVENT_BITSCHANGED:
 #ifdef HAVE_OPENR2
 			if (p->sig != SIG_MFCR2) {
@@ -16331,48 +16443,14 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
  					return -1;
 			ast_log(LOG_DEBUG, "Channel '%s' configured.\n", v->value);
 		} else if (!strcasecmp(v->name, "buffers")) {
-			int res;
-			char policy[21] = "";
-
-			res = sscanf(v->value, "%d,%20s", &confp->chan.buf_no, policy);
-			if (res != 2) {
-				ast_log(LOG_WARNING, "Parsing buffers option data failed, using defaults.\n");
+			if (parse_buffers_policy(v->value, &confp->chan.buf_no, &confp->chan.buf_policy)) {
+				ast_log(LOG_WARNING, "Using default buffer policy.\n");
 				confp->chan.buf_no = numbufs;
-				continue;
-			}
-			if (confp->chan.buf_no < 0)
-				confp->chan.buf_no = numbufs;
-			if (!strcasecmp(policy, "full")) {
-				confp->chan.buf_policy = DAHDI_POLICY_WHEN_FULL;
-			} else if (!strcasecmp(policy, "immediate")) {
 				confp->chan.buf_policy = DAHDI_POLICY_IMMEDIATE;
-#ifdef HAVE_DAHDI_HALF_FULL
-			} else if (!strcasecmp(policy, "half_full")) {
-				confp->chan.buf_policy = DAHDI_POLICY_HALF_FULL;
-#endif
-			} else {
-				ast_log(LOG_WARNING, "Invalid policy name given (%s).\n", policy);
 			}
 		} else if (!strcasecmp(v->name, "faxbuffers")) {
-			int res;
-			char policy[21] = "";
-
-			res = sscanf(v->value, "%d,%20s", &confp->chan.faxbuf_no, policy);
-			if (res != 2) {
-				ast_log(LOG_WARNING, "Parsing faxbuffers option data failed, using defaults.\n");
-				confp->chan.faxbuf_no = numbufs;
-				continue;
-			}
-			confp->chan.usefaxbuffers = 1;
-			if (confp->chan.faxbuf_no < 0)
-				confp->chan.faxbuf_no = numbufs;
-			if (!strcasecmp(policy, "full")) {
-				confp->chan.faxbuf_policy = DAHDI_POLICY_WHEN_FULL;
-			} else if (!strcasecmp(policy, "immediate")) {
-				confp->chan.faxbuf_policy = DAHDI_POLICY_IMMEDIATE;
-			} else {
-				ast_log(LOG_WARNING, "Invalid policy name given (%s).\n", policy);
-				confp->chan.usefaxbuffers = 0;
+			if (!parse_buffers_policy(v->value, &confp->chan.faxbuf_no, &confp->chan.faxbuf_policy)) {
+				confp->chan.usefaxbuffers = 1;
 			}
  		} else if (!strcasecmp(v->name, "dahdichan")) {
  			ast_copy_string(dahdichan, v->value, sizeof(dahdichan));

@@ -11,8 +11,6 @@
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.6.3  -------------
 ------------------------------------------------------------------------------
 
-
-
 SIP Changes
 -----------
  * Added preferred_codec_only option in sip.conf. This feature limits the joint
@@ -25,6 +23,10 @@ SIP Changes
    tlscertfile is searched for both public and private key.
  * Added tlsclientmethod option to sip.conf.  This allows the protocol for
    outbound client connections to be specified.
+ * The sendrpid parameter has been expanded to include the options
+   'rpid' and 'pai'. Setting sendrpid to 'rpid' will cause Remote-Party-ID
+   header to be sent (equivalent to setting sendrpid=yes) and setting
+   sendrpid to 'pai' will cause P-Asserted-Identity header to be sent.
 
 Applications
 ------------
@@ -43,6 +45,30 @@ Dialplan Functions
  * Added new dialplan functions CONNECTEDLINE and REDIRECTING which permits
    setting various connected line and redirecting party information.
  * The CHANNEL() function now supports the "name" option.
+ * For DAHDI channels, the CHANNEL() dialplan function now
+   supports changing the channel's buffer policy (for the current
+   call only), using this syntax:
+
+   exten => s,n,Set(CHANNEL(buffers)=6,full)
+
+   This would change the channel to the 'full' buffer policy and
+   6 (six) buffers. Possible options for this setting are the same
+   as those in chan_dahdi.conf.
+ * For DAHDI channels, the CHANNEL() dialplan function now allows
+   the dialplan to request changes in the configuration of the active
+   echo canceller on the channel (if any), for the current call only.
+   The syntax is:
+
+   exten => s,n,Set(CHANNEL(echocan_mode)=off)
+
+   The possible values are:
+
+     on - normal mode (the echo canceller is actually reinitalized)
+     off - disabled
+     fax - FAX/data mode (NLP disabled if possible, otherwise completely
+           disabled)
+     voice - voice mode (returns from FAX mode, reverting the changes that
+             were made when FAX mode was requested)
 
 Queue changes
 -------------
@@ -100,13 +126,6 @@ Taged versions of the modified mISDN code are available under:
 http://svn.digium.com/svn/thirdparty/mISDN/tags
 http://svn.digium.com/svn/thirdparty/mISDNuser/tags
 
-SIP channel driver (chan_sip) changes
--------------------------------------------
-  * The sendrpid parameter has been expanded to include the options
-    'rpid' and 'pai'. Setting sendrpid to 'rpid' will cause Remote-Party-ID
-    header to be sent (equivalent to setting sendrpid=yes) and setting
-    sendrpid to 'pai' will cause P-Asserted-Identity header to be sent.
-
 Asterisk Manager Interface
 --------------------------
  * The Hangup action now accepts a Cause header which may be used to
@@ -120,6 +139,7 @@ Asterisk Manager Interface
    across all .conf files. All affected sample.conf files have been modified to
    reflect this change.  Previous options such as 'sslenable' still work,
    but options with the 'tls' prefix are preferred.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.1 to Asterisk 1.6.2  -------------
 ------------------------------------------------------------------------------
