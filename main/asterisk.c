@@ -3435,6 +3435,23 @@ int main(int argc, char *argv[])
 			ast_log(LOG_WARNING, "Unable to set the process for core dumps after changing to a non-root user. %s\n", strerror(errno));
 		}	
 	}
+
+	{
+		char dir[PATH_MAX];
+		if (!getcwd(dir, sizeof(dir)) || eaccess(dir, R_OK | X_OK | F_OK)) {
+			ast_log(LOG_ERROR, "Unable to access the running directory (%s).  Changing to '/' for compatibility.\n", strerror(errno));
+			/* If we cannot access the CWD, then we couldn't dump core anyway,
+			 * so chdir("/") won't break anything. */
+			if (chdir("/")) {
+				ast_log(LOG_ERROR, "chdir() failed?!! %s\n", strerror(errno));
+			}
+		} else if (!ast_opt_no_fork && !ast_opt_dump_core) {
+			/* Backgrounding, but no cores, so chdir won't break anything. */
+			if (chdir("/")) {
+				ast_log(LOG_ERROR, "Unable to chdir(\"/\") ?!! %s\n", strerror(errno));
+			}
+		}
+	}
 #endif
 
 	ast_term_init();
