@@ -850,6 +850,7 @@ static int osp_create_callid(
  * \param calling Calling number
  * \param called Called number
  * \param snetid Source network ID
+ * \param rnumber Routing number
  * \param callidtypes Call ID types
  * \param result Lookup results
  * \return 1 Found , 0 No route, -1 Error
@@ -860,6 +861,7 @@ static int osp_lookup(
 	const char* calling,
 	const char* called,
 	const char* snetid,
+	const char* rnumber,
 	unsigned int callidtypes,
 	struct osp_result* result)
 {
@@ -907,6 +909,10 @@ static int osp_lookup(
 
 	if (!ast_strlen_zero(snetid)) {
 		OSPPTransactionSetNetworkIds(result->outhandle, snetid, "");
+	}
+
+	if (!ast_strlen_zero(rnumber)) {
+		OSPPTransactionSetRoutingNumber(result->outhandle, rnumber);
 	}
 
 	callidnum = 0;
@@ -1348,6 +1354,7 @@ static int osplookup_exec(
 	struct ast_var_t* current;
 	const char* srcdev = "";
 	const char* snetid = "";
+	const char* rnumber = "";
 	char buffer[OSP_TOKSTR_SIZE];
 	unsigned int callidtypes = OSP_CALLID_UNDEFINED;
 	struct osp_result result;
@@ -1407,6 +1414,8 @@ static int osplookup_exec(
 			}
 		} else if (!strcasecmp(ast_var_name(current), "OSPINNETWORKID")) {
 			snetid = ast_var_value(current);
+		} else if (!strcasecmp(ast_var_name(current), "OSPROUTINGNUMBER")) {
+			rnumber = ast_var_value(current);
 		} else if (!strcasecmp(ast_var_name(current), "OSPPEERIP")) {
 			srcdev = ast_var_value(current);
 		}
@@ -1414,13 +1423,14 @@ static int osplookup_exec(
 	ast_debug(1, "OSPLookup: OSPINHANDLE '%d'\n", result.inhandle);
 	ast_debug(1, "OSPLookup: OSPINTIMELIMIT '%d'\n", result.intimelimit);
 	ast_debug(1, "OSPLookup: OSPINNETWORKID '%s'\n", snetid);
+	ast_debug(1, "OSPLookup: OSPROUTINGNUMBER '%s'\n", rnumber);
 	ast_debug(1, "OSPLookup: source device '%s'\n", srcdev);
 
 	if ((cres = ast_autoservice_start(chan)) < 0) {
 		return -1;
 	}
 
-	if ((res = osp_lookup(provider, srcdev, chan->cid.cid_num, args.exten, snetid, callidtypes, &result)) > 0) {
+	if ((res = osp_lookup(provider, srcdev, chan->cid.cid_num, args.exten, snetid, rnumber, callidtypes, &result)) > 0) {
 		status = AST_OSP_SUCCESS;
 	} else {
 		result.tech[0] = '\0';
