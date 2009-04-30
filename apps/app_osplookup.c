@@ -849,6 +849,7 @@ static int osp_create_callid(
  * \param srcdev Source device of outbound call
  * \param calling Calling number
  * \param called Called number
+ * \param snetid Source network ID
  * \param callidtypes Call ID types
  * \param result Lookup results
  * \return 1 Found , 0 No route, -1 Error
@@ -858,6 +859,7 @@ static int osp_lookup(
 	const char* srcdev,
 	const char* calling,
 	const char* called,
+	const char* snetid,
 	unsigned int callidtypes,
 	struct osp_result* result)
 {
@@ -901,6 +903,10 @@ static int osp_lookup(
 			OSPPTransactionRecordFailure(result->inhandle, OSPC_FAIL_NORMAL_UNSPECIFIED);
 		}
 		return -1;
+	}
+
+	if (!ast_strlen_zero(snetid)) {
+		OSPPTransactionSetNetworkIds(result->outhandle, snetid, "");
 	}
 
 	callidnum = 0;
@@ -1414,7 +1420,7 @@ static int osplookup_exec(
 		return -1;
 	}
 
-	if ((res = osp_lookup(provider, srcdev, chan->cid.cid_num, args.exten, callidtypes, &result)) > 0) {
+	if ((res = osp_lookup(provider, srcdev, chan->cid.cid_num, args.exten, snetid, callidtypes, &result)) > 0) {
 		status = AST_OSP_SUCCESS;
 	} else {
 		result.tech[0] = '\0';
@@ -1445,6 +1451,8 @@ static int osplookup_exec(
 	ast_debug(1, "OSPLookup: OSPCALLED '%s'\n", result.called);
 	pbx_builtin_setvar_helper(chan, "OSPCALLING", result.calling);
 	ast_debug(1, "OSPLookup: OSPCALLING '%s'\n", result.calling);
+	pbx_builtin_setvar_helper(chan, "OSPOUTNETWORKID", result.networkid);
+	ast_debug(1, "OSPLookup: OSPOUTNETWORKID '%s'\n", result.networkid);
 	pbx_builtin_setvar_helper(chan, "OSPOUTTOKEN", result.token);
 	ast_debug(1, "OSPLookup: OSPOUTTOKEN size '%zd'\n", strlen(result.token));
 	snprintf(buffer, sizeof(buffer), "%d", result.numresults);
@@ -1606,6 +1614,8 @@ static int ospnext_exec(
 	ast_debug(1, "OSPNext: OSPCALLED'%s'\n", result.called);
 	pbx_builtin_setvar_helper(chan, "OSPCALLING", result.calling);
 	ast_debug(1, "OSPNext: OSPCALLING '%s'\n", result.calling);
+	pbx_builtin_setvar_helper(chan, "OSPOUTNETWORKID", result.networkid);
+	ast_debug(1, "OSPLookup: OSPOUTNETWORKID '%s'\n", result.networkid);
 	pbx_builtin_setvar_helper(chan, "OSPOUTTOKEN", result.token);
 	ast_debug(1, "OSPNext: OSPOUTTOKEN size '%zd'\n", strlen(result.token));
 	snprintf(buffer, sizeof(buffer), "%d", result.numresults);
