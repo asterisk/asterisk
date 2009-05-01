@@ -3420,7 +3420,7 @@ static int hangup_sip2cause(int cause)
 		case 409:	/* Conflict */
 			return AST_CAUSE_NORMAL_TEMPORARY_FAILURE;
 		case 410:	/* Gone */
-			return AST_CAUSE_UNALLOCATED;
+			return AST_CAUSE_NUMBER_CHANGED;
 		case 411:	/* Length required */
 			return AST_CAUSE_INTERWORKING;
 		case 413:	/* Request entity too large */
