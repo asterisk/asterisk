@@ -122,7 +122,7 @@ The latest modified mISDN v1.1.x based version is available at:
 http://svn.digium.com/svn/thirdparty/mISDN/trunk
 http://svn.digium.com/svn/thirdparty/mISDNuser/trunk
 
-Taged versions of the modified mISDN code are available under:
+Tagged versions of the modified mISDN code are available under:
 http://svn.digium.com/svn/thirdparty/mISDN/tags
 http://svn.digium.com/svn/thirdparty/mISDNuser/tags
 
@@ -139,6 +139,12 @@ Asterisk Manager Interface
    across all .conf files. All affected sample.conf files have been modified to
    reflect this change.  Previous options such as 'sslenable' still work,
    but options with the 'tls' prefix are preferred.
+
+Logger
+------
+ * The rarely used 'event_log' and LOG_EVENT channel have been removed; the few
+   users of this channel in the tree have been converted to LOG_NOTICE or removed
+   (in cases where the same message was already generated to another channel).
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.1 to Asterisk 1.6.2  -------------

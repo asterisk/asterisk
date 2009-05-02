@@ -339,7 +339,7 @@ static void *attempt_thread(void *data)
 		ast_log(LOG_NOTICE, "Call failed to go through, reason (%d) %s\n", reason, ast_channel_reason2str(reason));
 		if (o->retries >= o->maxretries + 1) {
 			/* Max retries exceeded */
-			ast_log(LOG_EVENT, "Queued call to %s/%s expired without completion after %d attempt%s\n", o->tech, o->dest, o->retries - 1, ((o->retries - 1) != 1) ? "s" : "");
+			ast_log(LOG_NOTICE, "Queued call to %s/%s expired without completion after %d attempt%s\n", o->tech, o->dest, o->retries - 1, ((o->retries - 1) != 1) ? "s" : "");
 			remove_from_queue(o, "Expired");
 		} else {
 			/* Notate that the call is still active */
@@ -347,7 +347,6 @@ static void *attempt_thread(void *data)
 		}
 	} else {
 		ast_log(LOG_NOTICE, "Call completed to %s/%s\n", o->tech, o->dest);
-		ast_log(LOG_EVENT, "Queued call to %s/%s completed\n", o->tech, o->dest);
 		remove_from_queue(o, "Completed");
 	}
 	free_outgoing(o);
@@ -425,7 +424,7 @@ static int scan_service(char *fn, time_t now, time_t atime)
 		}
 		res = now;
 	} else {
-		ast_log(LOG_EVENT, "Queued call to %s/%s expired without completion after %d attempt%s\n", o->tech, o->dest, o->retries - 1, ((o->retries - 1) != 1) ? "s" : "");
+		ast_log(LOG_NOTICE, "Queued call to %s/%s expired without completion after %d attempt%s\n", o->tech, o->dest, o->retries - 1, ((o->retries - 1) != 1) ? "s" : "");
 		remove_from_queue(o, "Expired");
 		free_outgoing(o);
 	}

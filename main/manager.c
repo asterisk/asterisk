@@ -1850,7 +1850,6 @@ static int action_login(struct mansession *s, const struct message *m)
 	if (manager_displayconnects(s->session)) {
 		ast_verb(2, "%sManager '%s' logged on from %s\n", (s->session->managerid ? "HTTP " : ""), s->session->username, ast_inet_ntoa(s->session->sin.sin_addr));
 	}
-	ast_log(LOG_EVENT, "%sManager '%s' logged on from %s\n", (s->session->managerid ? "HTTP " : ""), s->session->username, ast_inet_ntoa(s->session->sin.sin_addr));
 	astman_send_ack(s, m, "Authentication accepted");
 	return 0;
 }
@@ -3415,12 +3414,10 @@ static void *session_do(void *data)
 		if (manager_displayconnects(session)) {
 			ast_verb(2, "Manager '%s' logged off from %s\n", session->username, ast_inet_ntoa(session->sin.sin_addr));
 		}
-		ast_log(LOG_EVENT, "Manager '%s' logged off from %s\n", session->username, ast_inet_ntoa(session->sin.sin_addr));
 	} else {
 		if (displayconnects) {
 			ast_verb(2, "Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(session->sin.sin_addr));
 		}
-		ast_log(LOG_EVENT, "Failed attempt from %s\n", ast_inet_ntoa(session->sin.sin_addr));
 	}
 
 	/* It is possible under certain circumstances for this session thread
@@ -4153,12 +4150,10 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 			if (manager_displayconnects(session)) {
 				ast_verb(2, "HTTP Manager '%s' logged off from %s\n", session->username, ast_inet_ntoa(session->sin.sin_addr));
 			}
-			ast_log(LOG_EVENT, "HTTP Manager '%s' logged off from %s\n", session->username, ast_inet_ntoa(session->sin.sin_addr));
 		} else {
 			if (displayconnects) {
 				ast_verb(2, "HTTP Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(session->sin.sin_addr));
 			}
-			ast_log(LOG_EVENT, "HTTP Failed attempt from %s\n", ast_inet_ntoa(session->sin.sin_addr));
 		}
 		session->needdestroy = 1;
 	}
@@ -4420,9 +4415,6 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 		}
 		session->noncetime = session->sessionstart = time_now;
 		session->authenticated = 1;
-
-		ast_log(LOG_EVENT, "HTTP Manager '%s' logged in from %s\n", session->username, ast_inet_ntoa(session->sin.sin_addr));
-
 	} else if (stale) {
 		/*
 		 * Session found, but nonce is stale.
@@ -4498,7 +4490,6 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 		if (u_displayconnects) {
 			ast_verb(2, "HTTP Manager '%s' logged off from %s\n", session->username, ast_inet_ntoa(session->sin.sin_addr));
 		}
-		ast_log(LOG_EVENT, "HTTP Manager '%s' logged off from %s\n", session->username, ast_inet_ntoa(session->sin.sin_addr));
 
 		session->needdestroy = 1;
 	}

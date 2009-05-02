@@ -123,17 +123,6 @@ void ast_console_toggle_loglevel(int fd, int level, int state);
 #endif
 #define AST_LOG_DEBUG      __LOG_DEBUG, _A_
 
-#ifdef LOG_EVENT
-#undef LOG_EVENT
-#endif
-#define __LOG_EVENT    1
-#define LOG_EVENT      __LOG_EVENT, _A_
-
-#ifdef AST_LOG_EVENT
-#undef AST_LOG_EVENT
-#endif
-#define AST_LOG_EVENT      __LOG_EVENT, _A_
-
 #ifdef LOG_NOTICE
 #undef LOG_NOTICE
 #endif

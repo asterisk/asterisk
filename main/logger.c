@@ -106,8 +106,7 @@ enum rotatestrategy {
 
 static struct {
 	unsigned int queue_log:1;
-	unsigned int event_log:1;
-} logfiles = { 1, 1 };
+} logfiles = { 1 };
 
 static char hostname[MAXHOSTNAMELEN];
 
@@ -151,13 +150,12 @@ static pthread_t logthread = AST_PTHREADT_NULL;
 static ast_cond_t logcond;
 static int close_logger_thread;
 
-static FILE *eventlog;
 static FILE *qlog;
 
 /*! \brief Logging channels used in the Asterisk logging system */
 static char *levels[] = {
 	"DEBUG",
-	"EVENT",
+	"---EVENT---",		/* no longer used */
 	"NOTICE",
 	"WARNING",
 	"ERROR",
@@ -196,8 +194,6 @@ static int make_components(const char *s, int lineno)
 			res |= (1 << __LOG_WARNING);
 		else if (!strcasecmp(w, "notice"))
 			res |= (1 << __LOG_NOTICE);
-		else if (!strcasecmp(w, "event"))
-			res |= (1 << __LOG_EVENT);
 		else if (!strcasecmp(w, "debug"))
 			res |= (1 << __LOG_DEBUG);
 		else if (!strcasecmp(w, "verbose"))
@@ -382,8 +378,6 @@ static void init_logger_chain(int locked)
 		ast_copy_string(dateformat, "%b %e %T", sizeof(dateformat));
 	if ((s = ast_variable_retrieve(cfg, "general", "queue_log")))
 		logfiles.queue_log = ast_true(s);
-	if ((s = ast_variable_retrieve(cfg, "general", "event_log")))
-		logfiles.event_log = ast_true(s);
 	if ((s = ast_variable_retrieve(cfg, "general", "queue_log_name")))
 		ast_copy_string(queue_log_name, s, sizeof(queue_log_name));
 	if ((s = ast_variable_retrieve(cfg, "general", "exec_after_rotate")))
@@ -592,28 +586,12 @@ static int rotate_file(const char *filename)
 static int reload_logger(int rotate)
 {
 	char old[PATH_MAX] = "";
-	int event_rotate = rotate, queue_rotate = rotate;
+	int queue_rotate = rotate;
 	struct logchannel *f;
 	int res = 0;
 	struct stat st;
 
 	AST_RWLIST_WRLOCK(&logchannels);
-
-	if (eventlog) {
-		if (rotate < 0) {
-			/* Check filesize - this one typically doesn't need an auto-rotate */
-			snprintf(old, sizeof(old), "%s/%s", ast_config_AST_LOG_DIR, EVENTLOG);
-			if (stat(old, &st) != 0 || st.st_size > 0x40000000) { /* Arbitrarily, 1 GB */
-				fclose(eventlog);
-				eventlog = NULL;
-			} else
-				event_rotate = 0;
-		} else {
-			fclose(eventlog);
-			eventlog = NULL;
-		}
-	} else
-		event_rotate = 0;
 
 	if (qlog) {
 		if (rotate < 0) {
@@ -650,21 +628,6 @@ static int reload_logger(int rotate)
 
 	init_logger_chain(1 /* locked */);
 
-	if (logfiles.event_log) {
-		snprintf(old, sizeof(old), "%s/%s", ast_config_AST_LOG_DIR, EVENTLOG);
-		if (event_rotate)
-			rotate_file(old);
-
-		eventlog = fopen(old, "a");
-		if (eventlog) {
-			ast_log(LOG_EVENT, "Restarted Asterisk Event Logger\n");
-			ast_verb(1, "Asterisk Event Logger restarted\n");
-		} else {
-			ast_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
-			res = -1;
-		}
-	}
-
 	if (logfiles.queue_log) {
 		snprintf(old, sizeof(old), "%s/%s", ast_config_AST_LOG_DIR, queue_log_name);
 		if (queue_rotate)
@@ -675,7 +638,6 @@ static int reload_logger(int rotate)
 			AST_RWLIST_UNLOCK(&logchannels);
 			ast_queue_log("NONE", "NONE", "NONE", "CONFIGRELOAD", "%s", "");
 			AST_RWLIST_WRLOCK(&logchannels);
-			ast_log(LOG_EVENT, "Restarted Asterisk Queue Logger\n");
 			ast_verb(1, "Asterisk Queue Logger restarted\n");
 		} else {
 			ast_log(LOG_ERROR, "Unable to create queue log: %s\n", strerror(errno));
@@ -809,8 +771,6 @@ static char *handle_logger_show_channels(struct ast_cli_entry *e, int cmd, struc
 			ast_cli(a->fd, "Notice ");
 		if (chan->logmask & (1 << __LOG_ERROR)) 
 			ast_cli(a->fd, "Error ");
-		if (chan->logmask & (1 << __LOG_EVENT)) 
-			ast_cli(a->fd, "Event ");
 		ast_cli(a->fd, "\n");
 	}
 	AST_RWLIST_UNLOCK(&logchannels);
@@ -872,13 +832,6 @@ static void logger_print_normal(struct logmsg *logmsg)
 	char buf[BUFSIZ];
 
 	AST_RWLIST_RDLOCK(&logchannels);
-
-	if (logfiles.event_log && logmsg->level == __LOG_EVENT) {
-		fprintf(eventlog, "%s asterisk[%ld]: %s", logmsg->date, (long)getpid(), logmsg->str);
-		fflush(eventlog);
-		AST_RWLIST_UNLOCK(&logchannels);
-		return;
-	}
 
 	if (!AST_RWLIST_EMPTY(&logchannels)) {
 		AST_RWLIST_TRAVERSE(&logchannels, chan, list) {
@@ -943,7 +896,6 @@ static void logger_print_normal(struct logmsg *logmsg)
 	/* If we need to reload because of the file size, then do so */
 	if (filesize_reload_needed) {
 		reload_logger(-1);
-		ast_log(LOG_EVENT, "Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
 		ast_verb(1, "Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
 	}
 
@@ -1029,19 +981,6 @@ int init_logger(void)
 	/* create log channels */
 	init_logger_chain(0 /* locked */);
 
-	/* create the eventlog */
-	if (logfiles.event_log) {
-		snprintf(tmp, sizeof(tmp), "%s/%s", ast_config_AST_LOG_DIR, EVENTLOG);
-		eventlog = fopen(tmp, "a");
-		if (eventlog) {
-			ast_log(LOG_EVENT, "Started Asterisk Event Logger\n");
-			ast_verb(1, "Asterisk Event Logger Started %s\n", tmp);
-		} else {
-			ast_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
-			res = -1;
-		}
-	}
-
 	if (logfiles.queue_log) {
 		snprintf(tmp, sizeof(tmp), "%s/%s", ast_config_AST_LOG_DIR, queue_log_name);
 		qlog = fopen(tmp, "a");
@@ -1064,11 +1003,6 @@ void close_logger(void)
 		pthread_join(logthread, NULL);
 
 	AST_RWLIST_WRLOCK(&logchannels);
-
-	if (eventlog) {
-		fclose(eventlog);
-		eventlog = NULL;
-	}
 
 	if (qlog) {
 		fclose(qlog);

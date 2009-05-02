@@ -47,10 +47,6 @@
 ;
 ; exec_after_rotate=gzip -9 ${filename}.2
 ;
-; This determines whether or not we log generic events to a file
-; (defaults to yes).
-;event_log = no
-;
 ;
 ; For each file, specify what to log.
 ;

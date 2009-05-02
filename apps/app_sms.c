@@ -815,7 +815,7 @@ static void sms_readfile(sms_t * h, char *fn)
 	char line[1000];
 	FILE *s;
 	char dcsset = 0;                        /* if DSC set */
-	ast_log(LOG_EVENT, "Sending %s\n", fn);
+	ast_log(LOG_NOTICE, "Sending %s\n", fn);
 	h->rx = h->udl = *h->oa = *h->da = h->pid = h->srr = h->udhi = h->rp = h->vp = h->udhl = 0;
 	h->mr = -1;
 	h->dcs = 0xF1;                          /* normal messages class 1 */
@@ -1080,7 +1080,7 @@ static void sms_writefile(sms_t * h)
 	if (rename(fn, fn2)) {
 		unlink(fn);
 	} else {
-		ast_log(LOG_EVENT, "Received to %s\n", fn2);
+		ast_log(LOG_NOTICE, "Received to %s\n", fn2);
 	}
 }
 
