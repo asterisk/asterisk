@@ -508,6 +508,8 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 	char nameprefix[AST_NAME_STRLEN];
 	char peer_name[AST_NAME_STRLEN + 5];
 	signed char zero_volume = 0;
+	char *groups[25];
+	char dup_group[512];
 	int waitms;
 	int res;
 	char *ptr;
@@ -557,9 +559,7 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 			 	next_channel(chan, prev, spec, exten, context, &chanspy_ds), next_chanspy_ds = NULL) {
 			const char *group;
 			int igrp = !mygroup;
-			char *groups[25];
 			int num_groups = 0;
-			char dup_group[512];
 			int x;
 			char *s;
 
