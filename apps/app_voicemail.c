@@ -5580,7 +5580,8 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	vms->starting = 0; 
 	make_file(vms->fn, sizeof(vms->fn), vms->curdir, vms->curmsg);
 	adsi_message(chan, vms);
-	if (!strcasecmp(chan->language, "he")) {	/* HEBREW FORMAT */
+	
+	if (!strcasecmp(chan->language, "he")) {			/* HEBREW FORMAT */
 		/*
 		 * The syntax in hebrew for counting the number of message is up side down
 		 * in comparison to english.
@@ -5600,47 +5601,56 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 					res = ast_say_number(chan, vms->curmsg + 1, AST_DIGIT_ANY, chan->language, "f");
 				}
 			}
-		}
-	} else {
-		if (!vms->curmsg)
-			res = wait_file2(chan, vms, "vm-first");	/* "First" */
-		else if (vms->curmsg == vms->lastmsg)
-			res = wait_file2(chan, vms, "vm-last");		/* "last" */
-	}
-	if (!res) {
-		/* POLISH syntax */
-		if (!strcasecmp(chan->language, "pl")) { 
-			if (vms->curmsg && (vms->curmsg != vms->lastmsg)) {
-				int ten, one;
-				char nextmsg[256];
-				ten = (vms->curmsg + 1) / 10;
-				one = (vms->curmsg + 1) % 10;
+		}		
+
+	} else if (!strcasecmp(chan->language, "pl")) {		/* POLISH FORMAT */
+		if (vms->curmsg && (vms->curmsg != vms->lastmsg)) {
+			int ten, one;
+			char nextmsg[256];
+			ten = (vms->curmsg + 1) / 10;
+			one = (vms->curmsg + 1) % 10;
 				
-				if (vms->curmsg < 20) {
-					snprintf(nextmsg, sizeof(nextmsg), "digits/n-%d", vms->curmsg + 1);
-					res = wait_file2(chan, vms, nextmsg);
-				} else {
-					snprintf(nextmsg, sizeof(nextmsg), "digits/n-%d", ten * 10);
-					res = wait_file2(chan, vms, nextmsg);
-					if (one > 0) {
-						if (!res) {
-							snprintf(nextmsg, sizeof(nextmsg), "digits/n-%d", one);
-							res = wait_file2(chan, vms, nextmsg);
-						}
+			if (vms->curmsg < 20) {
+				snprintf(nextmsg, sizeof(nextmsg), "digits/n-%d", vms->curmsg + 1);
+				res = wait_file2(chan, vms, nextmsg);
+			} else {
+				snprintf(nextmsg, sizeof(nextmsg), "digits/n-%d", ten * 10);
+				res = wait_file2(chan, vms, nextmsg);
+				if (one > 0) {
+					if (!res) {
+						snprintf(nextmsg, sizeof(nextmsg), "digits/n-%d", one);
+						res = wait_file2(chan, vms, nextmsg);
 					}
 				}
 			}
+		}
+		if (!res)
+			res = wait_file2(chan, vms, "vm-message");			
+
+	} else if (!strcasecmp(chan->language, "se")) {		/* SWEDISH FORMAT */
+		if (!vms->curmsg)
+			res = wait_file2(chan, vms, "vm-first");	/* "First" */
+		else if (vms->curmsg == vms->lastmsg)
+			res = wait_file2(chan, vms, "vm-last");		/* "last" */		
+		res = wait_file2(chan, vms, "vm-meddelandet");  /* "message" */
+		if (vms->curmsg && (vms->curmsg != vms->lastmsg)) {
 			if (!res)
-				res = wait_file2(chan, vms, "vm-message");
-		} else {
-			if (!strcasecmp(chan->language, "se")) /* SWEDISH syntax */
-				res = wait_file2(chan, vms, "vm-meddelandet");  /* "message" */
-			else /* DEFAULT syntax */
-				res = wait_file2(chan, vms, "vm-message");
-			if (vms->curmsg && (vms->curmsg != vms->lastmsg)) {
-				if (!res)
-					res = ast_say_number(chan, vms->curmsg + 1, AST_DIGIT_ANY, chan->language, NULL);
-			}
+				res = ast_say_number(chan, vms->curmsg + 1, AST_DIGIT_ANY, chan->language, NULL);
+		}
+		/* We know that the difference between English and Swedish
+		 * is very small, however, we differ the two for standartization
+		 * purposes, and possible changes to either of these in the 
+		 * future
+		 */
+	} else {
+		if (!vms->curmsg)								/* Default syntax */
+			res = wait_file2(chan, vms, "vm-first");	/* "First" */
+		else if (vms->curmsg == vms->lastmsg)
+			res = wait_file2(chan, vms, "vm-last");		/* "last" */		
+		res = wait_file2(chan, vms, "vm-message");
+		if (vms->curmsg && (vms->curmsg != vms->lastmsg)) {
+			if (!res)
+				res = ast_say_number(chan, vms->curmsg + 1, AST_DIGIT_ANY, chan->language, NULL);
 		}
 	}
 
