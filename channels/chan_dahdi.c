@@ -5132,6 +5132,7 @@ static int dahdi_func_write(struct ast_channel *chan, const char *function, char
 			ast_mutex_lock(&p->lock);
 			dahdi_disable_ec(p);
 			ast_mutex_unlock(&p->lock);	
+#ifdef HAVE_DAHDI_ECHOCANCEL_FAX_MODE
 		} else if (!strcasecmp(value, "fax")) {
 			int blah = 1;
 
@@ -5154,6 +5155,7 @@ static int dahdi_func_write(struct ast_channel *chan, const char *function, char
 				ast_log(LOG_WARNING, "Unable to place echocan into voice mode on channel %d: %s\n", p->channel, strerror(errno));
 			}
 			ast_mutex_unlock(&p->lock);	
+#endif
 		} else {
 			ast_log(LOG_WARNING, "Unsupported value '%s' provided for '%s' item.\n", value, data);
 			res = -1;
