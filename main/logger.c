@@ -623,14 +623,13 @@ static int reload_logger(int rotate)
 				fclose(qlog);
 				qlog = NULL;
 			} else
-				event_rotate = 0;
+				queue_rotate = 0;
 		} else {
 			fclose(qlog);
 			qlog = NULL;
 		}
 	} else 
 		queue_rotate = 0;
-	qlog = NULL;
 
 	ast_mkdir(ast_config_AST_LOG_DIR, 0777);
 
