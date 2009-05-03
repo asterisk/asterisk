@@ -137,6 +137,8 @@ enum ast_event_ie_pltype {
 	AST_EVENT_IE_PLTYPE_STR,
 	/*! Raw data, compared with memcmp */
 	AST_EVENT_IE_PLTYPE_RAW,
+	/*! Bit flags (unsigned integer, compared using boolean logic) */
+	AST_EVENT_IE_PLTYPE_BITFLAGS,
 };
 
 /*!
