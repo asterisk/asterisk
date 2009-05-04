@@ -168,7 +168,7 @@ static char *handle_cli_sched_bench(struct ast_cli_entry *e, int cmd, struct ast
 	case CLI_INIT:
 		e->command = "sched benchmark";
 		e->usage = ""
-			"Usage: sched test <num>\n"
+			"Usage: sched benchmark <num>\n"
 			"";
 		return NULL;
 	case CLI_GENERATE:
