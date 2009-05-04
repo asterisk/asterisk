@@ -774,6 +774,12 @@ static int handle_answer(struct ast_channel *chan, AGI *agi, int argc, char *arg
 	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 
+static int handle_asyncagi_break(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
+{
+	ast_agi_send(agi->fd, chan, "200 result=0\n");
+	return RESULT_FAILURE;
+}
+
 static int handle_waitfordigit(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
 	int res, to;
@@ -2287,11 +2293,16 @@ static char usage_speechrecognize[] =
 " Usage: SPEECH RECOGNIZE <prompt> <timeout> [<offset>]\n"
 "       Plays back given prompt while listening for speech and dtmf.\n";
 
+static char usage_asyncagi_break[] =
+" Usage: ASYNCAGI BREAK\n"
+"       Returns control to the dialplan\n";
+
 /*!
  * \brief AGI commands list
  */
 static struct agi_command commands[] = {
 	{ { "answer", NULL }, handle_answer, "Answer channel", usage_answer , 0 },
+	{ { "asyncagi", "break", NULL }, handle_asyncagi_break, "Exit AsyncAGI processing", usage_asyncagi_break, 1 },
 	{ { "channel", "status", NULL }, handle_channelstatus, "Returns status of the connected channel", usage_channelstatus , 0 },
 	{ { "database", "del", NULL }, handle_dbdel, "Removes database key/value", usage_dbdel , 1 },
 	{ { "database", "deltree", NULL }, handle_dbdeltree, "Removes database keytree/value", usage_dbdeltree , 1 },
