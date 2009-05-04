@@ -130,7 +130,6 @@ static inline struct astobj2 *INTERNAL_OBJ(void *user_data)
 /* the underlying functions common to debug and non-debug versions */
 
 static int __ao2_ref(void *user_data, const int delta);
-static void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn);
 static struct ao2_container *__ao2_container_alloc(struct ao2_container *c, const uint n_buckets, ao2_hash_fn *hash_fn,
 											ao2_callback_fn *cmp_fn);
 static struct bucket_list *__ao2_link(struct ao2_container *c, void *user_data);
@@ -298,7 +297,7 @@ static int __ao2_ref(void *user_data, const int delta)
  * We always alloc at least the size of a void *,
  * for debugging purposes.
  */
-static void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn)
+static void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, char *file, int line, const char *funcname)
 {
 	/* allocation */
 	struct astobj2 *obj;
@@ -306,7 +305,11 @@ static void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn)
 	if (data_size < sizeof(void *))
 		data_size = sizeof(void *);
 
+#if defined(__AST_DEBUG_MALLOC)
+	obj = __ast_calloc(1, sizeof(*obj) + data_size, file, line, funcname);
+#else
 	obj = ast_calloc(1, sizeof(*obj) + data_size);
+#endif
 
 	if (obj == NULL)
 		return NULL;
@@ -333,7 +336,7 @@ void *_ao2_alloc_debug(size_t data_size, ao2_destructor_fn destructor_fn, char *
 	void *obj;
 	FILE *refo = fopen(REF_FILE,"a");
 
-	obj = __ao2_alloc(data_size, destructor_fn);
+	obj = __ao2_alloc(data_size, destructor_fn, file, line, funcname);
 
 	if (obj == NULL)
 		return NULL;
@@ -349,7 +352,7 @@ void *_ao2_alloc_debug(size_t data_size, ao2_destructor_fn destructor_fn, char *
 
 void *_ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn)
 {
-	return __ao2_alloc(data_size, destructor_fn);
+	return __ao2_alloc(data_size, destructor_fn, NULL, 0, NULL);
 }
 
 
