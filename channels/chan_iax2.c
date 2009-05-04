@@ -10790,6 +10790,8 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 			ast_clear_flag(peer, IAX_HASCALLERID);
 			ast_string_field_set(peer, cid_name, "");
 			ast_string_field_set(peer, cid_num, "");
+			ast_string_field_set(peer, mohinterpret, mohinterpret);
+			ast_string_field_set(peer, mohsuggest, mohsuggest);
 		}
 
 		if (!v) {
@@ -11058,6 +11060,9 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 			ast_clear_flag(user, IAX_HASCALLERID);
 			ast_string_field_set(user, cid_name, "");
 			ast_string_field_set(user, cid_num, "");
+			ast_string_field_set(user, accountcode, accountcode);
+			ast_string_field_set(user, mohinterpret, mohinterpret);
+			ast_string_field_set(user, mohsuggest, mohsuggest);
 		}
 		if (!v) {
 			v = alt;
