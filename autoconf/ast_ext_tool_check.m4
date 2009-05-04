@@ -20,8 +20,8 @@ AC_DEFUN([AST_EXT_TOOL_CHECK],
 		fi
 		CPPFLAGS="${CPPFLAGS} ${$1_INCLUDE}"
 
-		saved_ldflags="${LDFLAGS}"
-		LDFLAGS="${$1_LIB}"
+		saved_libs="${LIBS}"
+		LIBS="${$1_LIB}"
 
 		AC_LINK_IFELSE(
 		    [ AC_LANG_PROGRAM( [ $5 ],
@@ -33,7 +33,7 @@ AC_DEFUN([AST_EXT_TOOL_CHECK],
 		    []
 		)
 		CPPFLAGS="${saved_cppflags}"
-		LDFLAGS="${saved_ldflags}"
+		LIBS="${saved_libs}"
 	    else
 		PBX_$1=1
 		AC_DEFINE([HAVE_$1], 1, [Define if your system has the $1 libraries.])
