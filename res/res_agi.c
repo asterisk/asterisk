@@ -78,6 +78,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="agi">hangup</ref>
 		</see-also>
 	</agi>
+	<agi name="asyncagi break" language="en_US">
+		<synopsis>
+			Interrupts Async AGI
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Interrupts expected flow of Async AGI commands and returns control to previous source
+			(typically, the PBX dialplan).</para>
+		</description>
+		<see-also>
+			<ref type="agi">hangup</ref>
+		</see-also>
+	</agi>
 	<agi name="channel status" language="en_US">
 		<synopsis>
 			Returns status of the connected channel.
@@ -1032,6 +1045,12 @@ static int handle_answer(struct ast_channel *chan, AGI *agi, int argc, char *arg
 
 	ast_agi_send(agi->fd, chan, "200 result=%d\n", res);
 	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
+}
+
+static int handle_asyncagi_break(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
+{
+	ast_agi_send(agi->fd, chan, "200 result=0\n");
+	return RESULT_FAILURE;
 }
 
 static int handle_waitfordigit(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
@@ -2474,6 +2493,7 @@ static char usage_speechrecognize[] =
  */
 static struct agi_command commands[] = {
 	{ { "answer", NULL }, handle_answer, NULL, NULL, 0 },
+	{ { "asyncagi", "break", NULL }, handle_asyncagi_break, NULL, NULL, 1 },
 	{ { "channel", "status", NULL }, handle_channelstatus, NULL, NULL, 0 },
 	{ { "database", "del", NULL }, handle_dbdel, NULL, NULL, 1 },
 	{ { "database", "deltree", NULL }, handle_dbdeltree, NULL, NULL, 1 },
