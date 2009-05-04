@@ -33,7 +33,7 @@ load => res_musiconhold.so
 ;
 noload => chan_alsa.so
 ;noload => chan_oss.so
-;noload => chan_console.so
+noload => chan_console.so
 ;
 ;
 ; Only load one timing interface.  If DAHDI is available, use that as it will
