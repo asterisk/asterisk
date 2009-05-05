@@ -302,7 +302,7 @@ static int __ao2_ref(void *user_data, const int delta)
  * We always alloc at least the size of a void *,
  * for debugging purposes.
  */
-static void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, char *file, int line, const char *funcname)
+static void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, const char *file, int line, const char *funcname)
 {
 	/* allocation */
 	struct astobj2 *obj;
@@ -335,11 +335,12 @@ static void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, char
 	return EXTERNAL_OBJ(obj);
 }
 
-void *_ao2_alloc_debug(size_t data_size, ao2_destructor_fn destructor_fn, char *tag, char *file, int line, const char *funcname)
+void *_ao2_alloc_debug(size_t data_size, ao2_destructor_fn destructor_fn, char *tag,
+		       const char *file, int line, const char *funcname, int ref_debug)
 {
 	/* allocation */
 	void *obj;
-	FILE *refo = fopen(REF_FILE,"a");
+	FILE *refo = ref_debug ? fopen(REF_FILE,"a") : NULL;
 
 	obj = __ao2_alloc(data_size, destructor_fn, file, line, funcname);
 
@@ -443,12 +444,13 @@ static struct ao2_container *__ao2_container_alloc(struct ao2_container *c, cons
 }
 
 struct ao2_container *_ao2_container_alloc_debug(const unsigned int n_buckets, ao2_hash_fn *hash_fn,
-		ao2_callback_fn *cmp_fn, char *tag, char *file, int line, const char *funcname)
+						  ao2_callback_fn *cmp_fn, char *tag, char *file, int line,
+						  const char *funcname, int ref_debug)
 {
 	/* XXX maybe consistency check on arguments ? */
 	/* compute the container size */
 	size_t container_size = sizeof(struct ao2_container) + n_buckets * sizeof(struct bucket);
-	struct ao2_container *c = _ao2_alloc_debug(container_size, container_destruct_debug, tag, file, line, funcname);
+	struct ao2_container *c = _ao2_alloc_debug(container_size, container_destruct_debug, tag, file, line, funcname, ref_debug);
 
 	return __ao2_container_alloc(c, n_buckets, hash_fn, cmp_fn);
 }
