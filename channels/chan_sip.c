@@ -19630,6 +19630,11 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			return 0;
 		}
 
+		/* If T38 is needed but not present, then make it magically appear */
+		if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) && !p->udptl) {
+			p->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr.sin_addr);
+		}
+
 		/* We have a succesful authentication, process the SDP portion if there is one */
 		if (find_sdp(req)) {
 			if (process_sdp(p, req, SDP_T38_INITIATE)) {
