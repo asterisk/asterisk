@@ -887,7 +887,7 @@ static void findmeexec(struct fm_args *tpargs)
 		if (winner)
 			break;
 
-		if (!caller) {
+		if (!caller || ast_check_hangup(caller)) {
 			tpargs->status = 1;
 			ast_free(findme_user_list);
 			return;
