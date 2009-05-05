@@ -399,10 +399,15 @@ typedef void (*ao2_destructor_fn)(void *);
  *   rather, we just call ao2_ref(o, -1);
  */
 
-#if defined(REF_DEBUG) || defined(__AST_DEBUG_MALLOC)
+#if defined(REF_DEBUG)
 
-#define ao2_t_alloc(arg1, arg2, arg3) _ao2_alloc_debug((arg1), (arg2), (arg3),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define ao2_alloc(arg1, arg2)         _ao2_alloc_debug((arg1), (arg2), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ao2_t_alloc(data_size, destructor_fn, debug_msg) _ao2_alloc_debug((data_size), (destructor_fn), (debug_msg),  __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
+#define ao2_alloc(data_size, destructor_fn)              _ao2_alloc_debug((data_size), (destructor_fn), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
+
+#elif defined(__AST_DEBUG_MALLOC)
+
+#define ao2_t_alloc(data_size, destructor_fn, debug_msg) _ao2_alloc_debug((data_size), (destructor_fn), (debug_msg),  __FILE__, __LINE__, __PRETTY_FUNCTION__, 0)
+#define ao2_alloc(data_size, destructor_fn)              _ao2_alloc_debug((data_size), (destructor_fn), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__, 0)
 
 #else
 
@@ -411,7 +416,8 @@ typedef void (*ao2_destructor_fn)(void *);
 
 #endif
 
-void *_ao2_alloc_debug(const size_t data_size, ao2_destructor_fn destructor_fn, char *tag, char *file, int line, const char *funcname);
+void *_ao2_alloc_debug(const size_t data_size, ao2_destructor_fn destructor_fn, char *tag,
+			const char *file, int line, const char *funcname, int ref_debug);
 void *_ao2_alloc(const size_t data_size, ao2_destructor_fn destructor_fn);
 
 /*! @} */
@@ -682,10 +688,15 @@ struct ao2_container;
  * destructor is set implicitly.
  */
 
-#if defined(REF_DEBUG) || defined(__AST_DEBUG_MALLOC)
+#if defined(REF_DEBUG)
 
-#define ao2_t_container_alloc(arg1,arg2,arg3,arg4) _ao2_container_alloc_debug((arg1), (arg2), (arg3), (arg4),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define ao2_container_alloc(arg1,arg2,arg3)        _ao2_container_alloc_debug((arg1), (arg2), (arg3), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ao2_t_container_alloc(arg1,arg2,arg3,arg4) _ao2_container_alloc_debug((arg1), (arg2), (arg3), (arg4),  __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
+#define ao2_container_alloc(arg1,arg2,arg3)        _ao2_container_alloc_debug((arg1), (arg2), (arg3), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
+
+#elif defined(__AST_DEBUG_MALLOC)
+
+#define ao2_t_container_alloc(arg1,arg2,arg3,arg4) _ao2_container_alloc_debug((arg1), (arg2), (arg3), (arg4),  __FILE__, __LINE__, __PRETTY_FUNCTION__, 0)
+#define ao2_container_alloc(arg1,arg2,arg3)        _ao2_container_alloc_debug((arg1), (arg2), (arg3), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__, 0)
 
 #else
 
@@ -698,7 +709,8 @@ struct ao2_container *_ao2_container_alloc(const unsigned int n_buckets,
 					   ao2_hash_fn *hash_fn, ao2_callback_fn *cmp_fn);
 struct ao2_container *_ao2_container_alloc_debug(const unsigned int n_buckets,
 						 ao2_hash_fn *hash_fn, ao2_callback_fn *cmp_fn,
-						 char *tag, char *file, int line, const char *funcname);
+						 char *tag, char *file, int line, const char *funcname,
+						 int ref_debug);
 
 /*! \brief
  * Returns the number of elements in a container.
