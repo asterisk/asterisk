@@ -238,7 +238,7 @@ function Astman() {
 			onSuccess: this.managerResponse,
 			onFailure: function(t) {
 				alert("Error: " + t.status + ": " + t.statusText);
-			},
+			}
 		};
 		me.callback = callback;
 		opt.parameters = request;
@@ -252,7 +252,7 @@ function Astman() {
 			onSuccess: this.eventResponse,
 			onFailure: function(t) {
 				alert("Event Error: " + t.status + ": " + t.statusText);
-			},
+			}
 		};
 		opt.parameters="action=waitevent";
 		tmp = new Ajax.Request(this.url, opt);
