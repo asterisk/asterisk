@@ -3434,7 +3434,6 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 		const char *call_ref_id = NULL;
 		const char *call_ref_pc = NULL;
 		const char *send_far = NULL;
-	        const char *calling_party_category = NULL;
 
 		c = strchr(dest, '/');
 		if (c) {
@@ -3543,10 +3542,6 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 			isup_set_callref(p->ss7call, atoi(call_ref_id),
 					 call_ref_pc ? atoi(call_ref_pc) : 0);
 		}
-
-                calling_party_category = pbx_builtin_getvar_helper(ast, "SS7_CALLING_PARTY_CATEGORY");
-                if (calling_party_category)  
-                       isup_set_calling_party_category(p->ss7call, atoi(calling_party_category)); 
 
 		send_far = pbx_builtin_getvar_helper(ast, "SS7_SEND_FAR");
 		if ((send_far) && ((strncmp("NO", send_far, strlen(send_far))) != 0 ))
