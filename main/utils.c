@@ -1530,6 +1530,8 @@ static int add_string_pool(struct ast_string_field_mgr *mgr, struct ast_string_f
  * size > 0 means initialize the pool list with a pool of given size.
  *	This must be called right after allocating the object.
  * size = 0 means release all pools except the most recent one.
+ *      If the first pool was allocated via embedding in another
+ *      object, that pool will be preserved instead.
  *	This is useful to e.g. reset an object to the initial value.
  * size < 0 means release all pools.
  *	This must be done before destroying the object.
@@ -1559,6 +1561,9 @@ int __ast_string_field_init(struct ast_string_field_mgr *mgr, struct ast_string_
 
 	if (needed < 0) {		/* reset all pools */
 		/* nothing to do */
+	} else if (mgr->embedded_pool) { /* preserve the embedded pool */
+		preserve = mgr->embedded_pool;
+		cur = *pool_head;
 	} else {			/* preserve the last pool */
 		if (*pool_head == NULL) {
 			ast_log(LOG_WARNING, "trying to reset empty pool\n");
@@ -1736,6 +1741,50 @@ void __ast_string_field_ptr_build(struct ast_string_field_mgr *mgr,
 	va_end(ap1);
 	va_end(ap2);
 }
+
+void *__ast_calloc_with_stringfields(unsigned int num_structs, size_t struct_size, size_t field_mgr_offset,
+				     size_t field_mgr_pool_offset, size_t pool_size, const char *file,
+				     int lineno, const char *func)
+{
+	struct ast_string_field_mgr *mgr;
+	struct ast_string_field_pool *pool;
+	struct ast_string_field_pool **pool_head;
+	size_t pool_size_needed = sizeof(*pool) + pool_size;
+	size_t size_to_alloc = optimal_alloc_size(struct_size + pool_size_needed);
+	void *allocation;
+	unsigned int x;
+
+#if defined(__AST_DEBUG_MALLOC)	
+	if (!(allocation = __ast_calloc(num_structs, size_to_alloc, file, lineno, func))) {
+		return NULL;
+	}
+#else
+	if (!(allocation = ast_calloc(num_structs, size_to_alloc))) {
+		return NULL;
+	}
+#endif
+
+	for (x = 0; x < num_structs; x++) {
+		void *base = allocation + (size_to_alloc * x);
+		const char **p;
+
+		mgr = base + field_mgr_offset;
+		pool_head = base + field_mgr_pool_offset;
+		pool = base + struct_size;
+
+		p = (const char **) pool_head + 1;
+		while ((struct ast_string_field_mgr *) p != mgr) {
+			*p++ = __ast_string_field_empty;
+		}
+
+		mgr->embedded_pool = pool;
+		*pool_head = pool;
+		pool->size = size_to_alloc - struct_size - sizeof(*pool);
+	}
+
+	return allocation;
+}
+
 /* end of stringfields support */
 
 AST_MUTEX_DEFINE_STATIC(fetchadd_m); /* used for all fetc&add ops */

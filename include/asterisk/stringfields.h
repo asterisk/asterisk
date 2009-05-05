@@ -138,6 +138,7 @@ struct ast_string_field_pool {
 */
 struct ast_string_field_mgr {
 	ast_string_field last_alloc;			/*!< the last field allocated */
+ 	struct ast_string_field_pool *embedded_pool;	/*!< pointer to the embedded pool, if any */
 #if defined(__AST_DEBUG_MALLOC)
 	const char *owner_file;				/*!< filename of owner */
 	const char *owner_func;				/*!< function name of owner */
@@ -252,6 +253,30 @@ void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
  */
 int __ast_string_field_init(struct ast_string_field_mgr *mgr, struct ast_string_field_pool **pool_head,
 			    int needed, const char *file, int lineno, const char *func);
+
+/*!
+ * \brief Allocate a structure with embedded stringfields in a single allocation
+ * \param n Number of structures to allocate (see ast_calloc)
+ * \param type The type of structure to allocate
+ * \param size The number of bytes of space (minimum) to allocate for stringfields to use
+ *
+ * This function will allocate memory for one or more structures that use stringfields, and
+ * also allocate space for the stringfields and initialize the stringfield management
+ * structure embedded in the outer structure.
+ *
+ * \since 1.6.3
+ */
+#define ast_calloc_with_stringfields(n, type, size) \
+	__ast_calloc_with_stringfields(n, sizeof(type), offsetof(type, __field_mgr), offsetof(type, __field_mgr_pool), \
+				       size, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+/*!
+ * \internal
+ * \brief internal version of ast_calloc_with_stringfields
+ */
+void * attribute_malloc __ast_calloc_with_stringfields(unsigned int num_structs, size_t struct_size, size_t field_mgr_offset,
+						       size_t field_mgr_pool_offset, size_t pool_size, const char *file,
+						       int lineno, const char *func);
 
 /*!
   \internal
