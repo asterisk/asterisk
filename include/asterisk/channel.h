@@ -854,7 +854,7 @@ enum channelreloadreason {
  * \deprecated You should use the ast_datastore_alloc() generic function instead.
  * \version 1.6.1 deprecated
  */
-struct ast_datastore *ast_channel_datastore_alloc(const struct ast_datastore_info *info, const char *uid)
+struct ast_datastore * attribute_malloc ast_channel_datastore_alloc(const struct ast_datastore_info *info, const char *uid)
 	__attribute__((deprecated));
 
 /*!
@@ -913,7 +913,16 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state);
  * \note By default, new channels are set to the "s" extension
  *       and "default" context.
  */
-struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_num, const char *cid_name, const char *acctcode, const char *exten, const char *context, const int amaflag, const char *name_fmt, ...) __attribute__((format(printf, 9, 10)));
+struct ast_channel * attribute_malloc __attribute__((format(printf, 12, 13)))
+	__ast_channel_alloc(int needqueue, int state, const char *cid_num,
+			    const char *cid_name, const char *acctcode,
+			    const char *exten, const char *context,
+			    const int amaflag, const char *file, int line,
+			    const char *function, const char *name_fmt, ...);
+
+#define ast_channel_alloc(needqueue, state, cid_num, cid_name, acctcode, exten, context, amaflag, ...) \
+	__ast_channel_alloc(needqueue, state, cid_num, cid_name, acctcode, exten, context, amaflag, \
+			    __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 
 /*!
  * \brief Queue an outgoing frame

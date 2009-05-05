@@ -28,7 +28,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/datastore.h"
 #include "asterisk/utils.h"
 
-struct ast_datastore *ast_datastore_alloc(const struct ast_datastore_info *info, const char *uid)
+struct ast_datastore *__ast_datastore_alloc(const struct ast_datastore_info *info, const char *uid,
+					    const char *file, int line, const char *function)
 {
 	struct ast_datastore *datastore = NULL;
 
@@ -37,11 +38,15 @@ struct ast_datastore *ast_datastore_alloc(const struct ast_datastore_info *info,
 		return NULL;
 	}
 
-	/* Allocate memory for datastore and clear it */
-	datastore = ast_calloc(1, sizeof(*datastore));
-	if (!datastore) {
+#if defined(__AST_DEBUG_MALLOC)
+	if (!(datastore = __ast_calloc(1, sizeof(*datastore), file, line, function))) {
 		return NULL;
 	}
+#else
+	if (!(datastore = ast_calloc(1, sizeof(*datastore)))) {
+		return NULL;
+	}
+#endif
 
 	datastore->info = info;
 
@@ -70,4 +75,20 @@ int ast_datastore_free(struct ast_datastore *datastore)
 	ast_free(datastore);
 
 	return res;
+}
+
+/* DO NOT PUT ADDITIONAL FUNCTIONS BELOW THIS BOUNDARY
+ *
+ * ONLY FUNCTIONS FOR PROVIDING BACKWARDS ABI COMPATIBILITY BELONG HERE
+ *
+ */
+
+/* Provide binary compatibility for modules that call ast_datastore_alloc() directly;
+ * newly compiled modules will call __ast_datastore_alloc() via the macros in datastore.h
+ */
+#undef ast_datastore_alloc
+struct ast_datastore *ast_datastore_alloc(const struct ast_datastore_info *info, const char *uid);
+struct ast_datastore *ast_datastore_alloc(const struct ast_datastore_info *info, const char *uid)
+{
+	return __ast_datastore_alloc(info, uid, __FILE__, __LINE__, __FUNCTION__);
 }
