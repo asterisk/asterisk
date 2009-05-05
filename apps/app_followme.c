@@ -874,22 +874,22 @@ static void findmeexec(struct fm_args *tpargs)
 		status = 0;	
 		if (!AST_LIST_EMPTY(findme_user_list))
 			winner = wait_for_winner(findme_user_list, nm, caller, tpargs->namerecloc, &status, tpargs);
-		
-					
+
 		AST_LIST_TRAVERSE_SAFE_BEGIN(findme_user_list, fmuser, entry) {
 			if (!fmuser->cleared && fmuser->ochan != winner)
 				clear_caller(fmuser);
 			AST_LIST_REMOVE_CURRENT(findme_user_list, entry);
 			free(fmuser);
 		}
-		AST_LIST_TRAVERSE_SAFE_END
+		AST_LIST_TRAVERSE_SAFE_END;
+
 		fmuser = NULL;
 		tmpuser = NULL;
 		headuser = NULL;	
 		if (winner)
 			break;
 
-		if (!caller) {
+		if (!caller || ast_check_hangup(caller)) {
 			tpargs->status = 1;
 			free(findme_user_list);
 			return;	
