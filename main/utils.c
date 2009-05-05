@@ -1605,7 +1605,7 @@ ast_string_field __ast_string_field_alloc_space(struct ast_string_field_mgr *mgr
 		if (add_string_pool(mgr, pool_head, new_size, mgr->owner_file, mgr->owner_line, mgr->owner_func))
 			return NULL;
 #else
-		if (add_string_pool(mgr, pool_head, new_size, NULL, 0, NULL))
+		if (add_string_pool(mgr, pool_head, new_size, __FILE__, __LINE__, __FUNCTION__))
 			return NULL;
 #endif
 	}

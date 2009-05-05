@@ -244,7 +244,7 @@ void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 
 /*! \brief free all memory - to be called before destroying the object */
 #define ast_string_field_free_memory(x)	\
-	__ast_string_field_init(&(x)->__field_mgr, &(x)->__field_mgr_pool, -1, NULL, 0, NULL)
+	__ast_string_field_init(&(x)->__field_mgr, &(x)->__field_mgr_pool, -1, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
  * \internal

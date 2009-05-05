@@ -358,7 +358,7 @@ void *__ao2_alloc_debug(size_t data_size, ao2_destructor_fn destructor_fn, char 
 
 void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn)
 {
-	return internal_ao2_alloc(data_size, destructor_fn, NULL, 0, NULL);
+	return internal_ao2_alloc(data_size, destructor_fn, __FILE__, __LINE__, __FUNCTION__);
 }
 
 
