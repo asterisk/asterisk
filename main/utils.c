@@ -1475,15 +1475,21 @@ const char __ast_string_field_empty[] = ""; /*!< the empty string */
  * We can only allocate from the topmost pool, so the
  * fields in *mgr reflect the size of that only.
  */
-static int add_string_pool(struct ast_string_field_mgr *mgr,
-			   struct ast_string_field_pool **pool_head,
-			   size_t size)
+static int add_string_pool(struct ast_string_field_mgr *mgr, struct ast_string_field_pool **pool_head,
+			   size_t size, const char *file, int lineno, const char *func)
 {
 	struct ast_string_field_pool *pool;
 
-	if (!(pool = ast_calloc(1, sizeof(*pool) + size)))
+#if defined(__AST_DEBUG_MALLOC)
+	if (!(pool = __ast_calloc(1, sizeof(*pool) + size, file, lineno, func))) {
 		return -1;
-	
+	}
+#else
+	if (!(pool = ast_calloc(1, sizeof(*pool) + size))) {
+		return -1;
+	}
+#endif
+
 	pool->prev = *pool_head;
 	*pool_head = pool;
 	mgr->size = size;
@@ -1503,39 +1509,52 @@ static int add_string_pool(struct ast_string_field_mgr *mgr,
  * size < 0 means release all pools.
  *	This must be done before destroying the object.
  */
-int __ast_string_field_init(struct ast_string_field_mgr *mgr,
-			    struct ast_string_field_pool **pool_head,
-			    int size)
+int __ast_string_field_init(struct ast_string_field_mgr *mgr, struct ast_string_field_pool **pool_head,
+			    int needed, const char *file, int lineno, const char *func)
 {
 	const char **p = (const char **) pool_head + 1;
-	struct ast_string_field_pool *cur = *pool_head;
+	struct ast_string_field_pool *cur = NULL;
+	struct ast_string_field_pool *preserve = NULL;
 
 	/* clear fields - this is always necessary */
 	while ((struct ast_string_field_mgr *) p != mgr)
 		*p++ = __ast_string_field_empty;
 	mgr->last_alloc = NULL;
-	if (size > 0) {			/* allocate the initial pool */
+#if defined(__AST_DEBUG_MALLOC)
+	mgr->owner_file = file;
+	mgr->owner_func = func;
+	mgr->owner_line = lineno;
+#endif
+	if (needed > 0) {		/* allocate the initial pool */
 		*pool_head = NULL;
-		return add_string_pool(mgr, pool_head, size);
+		return add_string_pool(mgr, pool_head, needed, file, lineno, func);
 	}
-	if (size < 0) {			/* reset all pools */
-		*pool_head = NULL;
-	} else {			/* preserve the first pool */
-		if (cur == NULL) {
+	if (needed < 0) {		/* reset all pools */
+		/* nothing to do */
+	} else {			/* preserve the last pool */
+		if (*pool_head == NULL) {
 			ast_log(LOG_WARNING, "trying to reset empty pool\n");
 			return -1;
 		}
-		cur = cur->prev;
-		(*pool_head)->prev = NULL;
 		mgr->used = 0;
+		preserve = *pool_head;
+		cur = preserve->prev;
+	}
+
+	if (preserve) {
+		preserve->prev = NULL;
 	}
 
 	while (cur) {
 		struct ast_string_field_pool *prev = cur->prev;
 
-		ast_free(cur);
+		if (cur != preserve) {
+			ast_free(cur);
+		}
 		cur = prev;
 	}
+
+	*pool_head = preserve;
 
 	return 0;
 }
@@ -1552,8 +1571,13 @@ ast_string_field __ast_string_field_alloc_space(struct ast_string_field_mgr *mgr
 		while (new_size < needed)
 			new_size *= 2;
 
-		if (add_string_pool(mgr, pool_head, new_size))
+#if defined(__AST_DEBUG_MALLOC)
+		if (add_string_pool(mgr, pool_head, new_size, mgr->owner_file, mgr->owner_line, mgr->owner_func))
 			return NULL;
+#else
+		if (add_string_pool(mgr, pool_head, new_size, NULL, 0, NULL))
+			return NULL;
+#endif
 	}
 
 	result = (*pool_head)->base + mgr->used;
@@ -1622,8 +1646,13 @@ void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 			while (new_size < needed)
 				new_size *= 2;
 			
-			if (add_string_pool(mgr, pool_head, new_size))
+#if defined(__AST_DEBUG_MALLOC)
+			if (add_string_pool(mgr, pool_head, new_size, mgr->owner_file, mgr->owner_line, mgr->owner_func))
 				return;
+#else
+			if (add_string_pool(mgr, pool_head, new_size, NULL, 0, NULL))
+				return;
+#endif
 		}
 
 		target = (*pool_head)->base + mgr->used;
