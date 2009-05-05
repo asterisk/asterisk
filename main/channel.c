@@ -761,13 +761,16 @@ static const struct ast_channel_tech null_tech = {
 };
 
 /*! \brief Create a new channel structure */
-struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_num, const char *cid_name, const char *acctcode, const char *exten, const char *context, const int amaflag, const char *name_fmt, ...)
+static struct ast_channel * attribute_malloc __attribute__((format(printf, 12, 0)))
+__ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char *cid_name,
+		       const char *acctcode, const char *exten, const char *context,
+		       const int amaflag, const char *file, int line, const char *function,
+		       const char *name_fmt, va_list ap1, va_list ap2)
 {
 	struct ast_channel *tmp;
 	int x;
 	int flags;
 	struct varshead *headp;
-	va_list ap1, ap2;
 
 	/* If shutting down, don't allocate any new channels */
 	if (shutting_down) {
@@ -775,8 +778,15 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 		return NULL;
 	}
 
-	if (!(tmp = ast_calloc(1, sizeof(*tmp))))
+#if defined(__AST_DEBUG_MALLOC)
+	if (!(tmp = __ast_calloc(1, sizeof(*tmp), file, line, function))) {
 		return NULL;
+	}
+#else
+	if (!(tmp = ast_calloc(1, sizeof(*tmp)))) {
+		return NULL;
+	}
+#endif
 
 	if (!(tmp->sched = sched_context_create())) {
 		ast_log(LOG_WARNING, "Channel allocation failed: Unable to create schedule context\n");
@@ -878,11 +888,7 @@ alertpipe_failed:
 		 * uses them to build the string, instead of forming the va_lists internally from the vararg ... list.
 		 * This new function was written so this can be accomplished.
 		 */
-		va_start(ap1, name_fmt);
-		va_start(ap2, name_fmt);
 		ast_string_field_build_va(tmp, name, name_fmt, ap1, ap2);
-		va_end(ap1);
-		va_end(ap2);
 	}
 
 	/* Reminder for the future: under what conditions do we NOT want to track cdrs on channels? */
@@ -954,6 +960,25 @@ alertpipe_failed:
 	}
 
 	return tmp;
+}
+
+struct ast_channel *__ast_channel_alloc(int needqueue, int state, const char *cid_num,
+					const char *cid_name, const char *acctcode,
+					const char *exten, const char *context,
+					const int amaflag, const char *file, int line,
+					const char *function, const char *name_fmt, ...)
+{
+	va_list ap1, ap2;
+	struct ast_channel *result;
+
+	va_start(ap1, name_fmt);
+	va_start(ap2, name_fmt);
+	result = __ast_channel_alloc_ap(needqueue, state, cid_num, cid_name, acctcode, exten, context,
+					amaflag, file, line, function, name_fmt, ap1, ap2);
+	va_end(ap1);
+	va_end(ap2);
+
+	return result;
 }
 
 /*! \brief Queue an outgoing media frame */
@@ -5466,4 +5491,38 @@ int ast_say_digits_full(struct ast_channel *chan, int num,
 	snprintf(buf, sizeof(buf), "%d", num);
 
 	return ast_say_digit_str_full(chan, buf, ints, lang, audiofd, ctrlfd);
+}
+
+/* DO NOT PUT ADDITIONAL FUNCTIONS BELOW THIS BOUNDARY
+ *
+ * ONLY FUNCTIONS FOR PROVIDING BACKWARDS ABI COMPATIBILITY BELONG HERE
+ *
+ */
+
+/* Provide binary compatibility for modules that call ast_channel_alloc() directly;
+ * newly compiled modules will call __ast_channel_alloc() via the macros in channel.h
+ */
+#undef ast_channel_alloc
+struct ast_channel __attribute__((format(printf, 9, 10)))
+	*ast_channel_alloc(int needqueue, int state, const char *cid_num,
+			   const char *cid_name, const char *acctcode,
+			   const char *exten, const char *context,
+			   const int amaflag, const char *name_fmt, ...);
+struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_num,
+				      const char *cid_name, const char *acctcode,
+				      const char *exten, const char *context,
+				      const int amaflag, const char *name_fmt, ...)
+{
+	va_list ap1, ap2;
+	struct ast_channel *result;
+
+
+	va_start(ap1, name_fmt);
+	va_start(ap2, name_fmt);
+	result = __ast_channel_alloc_ap(needqueue, state, cid_num, cid_name, acctcode, exten, context,
+					amaflag, __FILE__, __LINE__, __FUNCTION__, name_fmt, ap1, ap2);
+	va_end(ap1);
+	va_end(ap2);
+
+	return result;
 }
