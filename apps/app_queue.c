@@ -2846,6 +2846,8 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 	struct ast_party_connected_line connected_caller;
 	char *inchan_name;
 
+	ast_party_connected_line_init(&connected_caller);
+
 	ast_channel_lock(qe->chan);
 	inchan_name = ast_strdupa(qe->chan->name);
 	ast_channel_unlock(qe->chan);

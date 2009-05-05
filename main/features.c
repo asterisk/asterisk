@@ -1389,7 +1389,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	struct ast_bridge_config bconfig;
 	struct ast_frame *f;
 	int l;
-	struct ast_party_connected_line connected_line = {{0,},};
+	struct ast_party_connected_line connected_line;
 	struct ast_datastore *features_datastore;
 	struct ast_dial_features *dialfeatures = NULL;
 
@@ -1459,6 +1459,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	newchan = feature_request_and_dial(transferer, transferee, "Local", ast_best_codec(transferer->nativeformats),
 		xferto, atxfernoanswertimeout, &outstate, transferer->cid.cid_num, transferer->cid.cid_name, 1, transferer->language);
 
+	ast_party_connected_line_init(&connected_line);
 	if (!ast_check_hangup(transferer)) {
 		/* Transferer is up - old behaviour */
 		ast_indicate(transferer, -1);

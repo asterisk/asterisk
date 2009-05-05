@@ -864,6 +864,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 #endif
 	struct ast_party_connected_line connected_caller;
 	struct ast_str *featurecode = ast_str_alloca(FEATURE_MAX_LEN + 1);
+
+	ast_party_connected_line_init(&connected_caller);
 	if (single) {
 		/* Turn off hold music, etc */
 		if (!ast_test_flag64(outgoing, OPT_MUSICBACK | OPT_RINGBACK))

@@ -20104,6 +20104,7 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 			ast_channel_unlock(targetcall_pvt->owner);
 		}
 
+		ast_party_connected_line_init(&connected_caller);
 		if (target.chan2) {
 			if (current->chan2) {
 				/* Tell each of the other channels to whom they are now connected */
