@@ -138,6 +138,11 @@ struct ast_string_field_mgr {
 	size_t size;				/*!< the total size of the current pool */
 	size_t used;				/*!< the space used in the current pool */
 	ast_string_field last_alloc;		/*!< the last field allocated */
+#if defined(__AST_DEBUG_MALLOC)
+	const char *owner_file;				/*!< filename of owner */
+	const char *owner_func;				/*!< function name of owner */
+	int owner_line;					/*!< line number of owner */
+#endif
 };
 
 /*!
@@ -234,15 +239,18 @@ void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
   \return 0 on success, non-zero on failure
 */
 #define ast_string_field_init(x, size) \
-	__ast_string_field_init(&(x)->__field_mgr, &(x)->__field_mgr_pool, size)
+	__ast_string_field_init(&(x)->__field_mgr, &(x)->__field_mgr_pool, size, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*! \brief free all memory - to be called before destroying the object */
 #define ast_string_field_free_memory(x)	\
-	__ast_string_field_init(&(x)->__field_mgr, &(x)->__field_mgr_pool, -1)
+	__ast_string_field_init(&(x)->__field_mgr, &(x)->__field_mgr_pool, -1, NULL, 0, NULL)
 
-/*! \internal \brief internal version of ast_string_field_init */
-int __ast_string_field_init(struct ast_string_field_mgr *mgr,
-	struct ast_string_field_pool **pool_head, int needed);
+/*!
+ * \internal
+ * \brief internal version of ast_string_field_init
+ */
+int __ast_string_field_init(struct ast_string_field_mgr *mgr, struct ast_string_field_pool **pool_head,
+			    int needed, const char *file, int lineno, const char *func);
 
 /*!
   \brief Set a field to a simple string value
