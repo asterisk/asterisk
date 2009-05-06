@@ -98,7 +98,9 @@ static char *cli_alias_passthrough(struct ast_cli_entry *e, int cmd, struct ast_
 	case CLI_GENERATE:
 		line = a->line;
 		line += (strlen(alias->alias));
-		if (!ast_strlen_zero(a->word)) {
+		if (!strncmp(alias->alias, alias->real_cmd, strlen(alias->alias))) {
+			generator = NULL;
+		} else if (!ast_strlen_zero(a->word)) {
 			struct ast_str *real_cmd = ast_str_alloca(strlen(alias->real_cmd) + strlen(line) + 1);
 			ast_str_append(&real_cmd, 0, "%s%s", alias->real_cmd, line);
 			generator = ast_cli_generator(ast_str_buffer(real_cmd), a->word, a->n);
