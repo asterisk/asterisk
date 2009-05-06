@@ -12637,6 +12637,9 @@ static int load_module(void)
 	}
 
 	if (set_config(config, 0) == -1) {
+		if (timer) {
+			ast_timer_close(timer);
+		}
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
