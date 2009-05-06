@@ -1999,7 +1999,7 @@ static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, str
 				m0 = &m1->next_char;
 			}
 			if (!(*(s1 + 1))) {
-				if (m2) {
+				if (m2 && m2->exten) {
 					ast_log(LOG_WARNING, "Found duplicate exten. Had %s found %s\n", m2->exten->exten, e1->exten);
 				}
 				m1->deleted = 0;
