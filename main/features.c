@@ -3484,7 +3484,7 @@ static int park_exec_full(struct ast_channel *chan, void *data, struct ast_parki
 
 		/* Simulate the PBX hanging up */
 		ast_hangup(peer);
-		return res;
+		return -1;
 	} else {
 		/*! \todo XXX Play a message XXX */
 		if (ast_stream_and_wait(chan, "pbx-invalidpark", ""))
@@ -3493,7 +3493,7 @@ static int park_exec_full(struct ast_channel *chan, void *data, struct ast_parki
 		res = -1;
 	}
 
-	return res;
+	return -1;
 }
 
 static int park_exec(struct ast_channel *chan, void *data) 
