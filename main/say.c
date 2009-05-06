@@ -349,6 +349,7 @@ static int ast_say_number_full_ru(struct ast_channel *chan, int num, const char 
 static int ast_say_number_full_ge(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
 static int ast_say_number_full_hu(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd);
 static int ast_say_number_full_th(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd);
+static int ast_say_number_full_ur(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
 
 /* Forward declarations of language specific variants of ast_say_enumeration_full */
 static int ast_say_enumeration_full_en(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd);
@@ -467,6 +468,8 @@ static int say_number_full(struct ast_channel *chan, int num, const char *ints, 
 	   return(ast_say_number_full_ru(chan, num, ints, language, options, audiofd, ctrlfd));
 	} else if (!strcasecmp(language, "th") ) {	/* Thai syntax */
 	   return(ast_say_number_full_th(chan, num, ints, language, audiofd, ctrlfd));
+	} else if (!strcasecmp(language, "ur") ) {      /* Urdu syntax */
+		return(ast_say_number_full_ur(chan, num, ints, language, options, audiofd, ctrlfd));
 	} else if (!strcasecmp(language, "ge") ) {	/* Georgian syntax */
 	   return(ast_say_number_full_ge(chan, num, ints, language, options, audiofd, ctrlfd));
 	}
@@ -2352,6 +2355,67 @@ static int ast_say_number_full_tw(struct ast_channel *chan, int num, const char 
 	return res;
 }
 
+/*!\internal
+ * \brief Counting in Urdu, the national language of Pakistan
+ * \since 1.6.3
+ */
+static int ast_say_number_full_ur(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
+{
+	int res = 0;
+	int playh = 0;
+	char fn[256] = "";
+
+	if (!num) {
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
+	}
+
+	while (!res && (num || playh)) {
+		if (playh) {
+			snprintf(fn, sizeof(fn), "digits/hundred");
+			playh = 0;
+		} else if (num < 100) {
+			snprintf(fn, sizeof(fn), "digits/%d", num);
+			num = 0;
+		} else if (num < 1000) {
+			snprintf(fn, sizeof(fn), "digits/%d", (num / 100));
+			playh++;
+			num -= ((num / 100) * 100);
+		} else if (num < 100000) { /* 1,00,000 */
+			if ((res = ast_say_number_full_ur(chan, num / 1000, ints, language, options, audiofd, ctrlfd))) {
+				return res;
+			}
+			num = num % 1000;
+			snprintf(fn, sizeof(fn), "digits/thousand");
+		} else if (num < 10000000) { /* 1,00,00,000 */
+			if ((res = ast_say_number_full_ur(chan, num / 100000, ints, language, options, audiofd, ctrlfd))) {
+				return res;
+			}
+			num = num % 100000;
+			snprintf(fn, sizeof(fn), "digits/lac");
+		} else if (num < 1000000000) { /* 1,00,00,00,000 */
+			if ((res = ast_say_number_full_ur(chan, num / 10000000, ints, language, options, audiofd, ctrlfd))) {
+				return res;
+			}
+			num = num % 10000000;
+			snprintf(fn, sizeof(fn), "digits/crore");
+		} else {
+			ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+			res = -1;
+		}
+
+		if (!res) {
+			if (!ast_streamfile(chan, fn, language)) {
+				if ((audiofd > -1) && (ctrlfd > -1)) {
+					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
+				} else {
+					res = ast_waitstream(chan, ints);
+				}
+			}
+			ast_stopstream(chan);
+		}
+	}
+	return res;
+}
 
 /*! \brief  determine last digits for thousands/millions (ru) */
 static int get_lastdigits_ru(int num) {
