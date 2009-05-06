@@ -2575,7 +2575,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 		/* Simulate the PBX hanging up */
 		ast_hangup(peer);
 		ast_module_user_remove(u);
-		return res;
+		return -1;
 	} else {
 		/*! \todo XXX Play a message XXX */
 		if (ast_stream_and_wait(chan, "pbx-invalidpark", chan->language, ""))
@@ -2587,7 +2587,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 
 	ast_module_user_remove(u);
 
-	return res;
+	return -1;
 }
 
 static int handle_showfeatures(int fd, int argc, char *argv[])
