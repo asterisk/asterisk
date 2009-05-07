@@ -5674,7 +5674,7 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	struct ast_flags flags = {0};
-	char *parse;
+	char *parse, exten[2] = "";
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(filename);
 		AST_APP_ARG(options);
@@ -5736,7 +5736,22 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 			ast_stopstream(chan);
 		}
 	}
-	if (strcmp(args.context, chan->context) && res) {
+
+	/*
+	 * If the single digit DTMF is an extension in the specified context, then
+	 * go there and signal no DTMF.  Otherwise, we should exit with that DTMF.
+	 * If we're in Macro, we'll exit and seek that DTMF as the beginning of an
+	 * extension in the Macro's calling context.  If we're not in Macro, then
+	 * we'll simply seek that extension in the calling context.  Previously,
+	 * someone complained about the behavior as it related to the interior of a
+	 * Gosub routine, and the fix (#14011) inadvertently broke FreePBX
+	 * (#14940).  This change should fix both of these situations, but with the
+	 * possible incompatibility that if a single digit extension does not exist
+	 * (but a longer extension COULD have matched), it would have previously
+	 * gone immediately to the "i" extension, but will now need to wait for a
+	 * timeout.
+	 */
+	if ((exten[0] = res) && (ast_exists_extension(chan, args.context, exten, 1, chan->cid.cid_num) || !ast_matchmore_extension(chan, args.context, exten, 1, chan->cid.cid_num))) {
 		snprintf(chan->exten, sizeof(chan->exten), "%c", res);
 		ast_copy_string(chan->context, args.context, sizeof(chan->context));
 		chan->priority = 0;
