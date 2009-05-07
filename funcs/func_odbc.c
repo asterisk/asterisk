@@ -524,6 +524,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 	status = "SUCCESS";
 
 	for (y = 0; y < rowlimit; y++) {
+		buf[0] = '\0';
 		for (x = 0; x < colcount; x++) {
 			int i;
 			struct ast_str *coldata = ast_str_thread_get(&coldata_buf, 16);
