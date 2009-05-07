@@ -4427,7 +4427,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			
 			if (!ast_canmatch_extension(ch->ast, ch->context, bc->dad, 1, bc->oad)) {
 				if (ast_exists_extension(ch->ast, ch->context, "i", 1, bc->oad)) {
-					ast_log(LOG_WARNING, "Extension can never match, So jumping to 'i' extension. port(%d)\n", bc->port);
+					ast_log(LOG_WARNING,
+						"Extension '%s@%s' can never match. Jumping to 'i' extension. port:%d\n",
+						bc->dad, ch->context, bc->port);
 					strcpy(ch->ast->exten, "i");
 
 					ch->state = MISDN_DIALING;
@@ -4435,9 +4437,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 					break;
 				}
 
-				ast_log(LOG_WARNING, "Extension can never match, so disconnecting on port(%d).\n"
-						"\tMaybe you want to add an 'i' extension to catch this case.\n",
-						bc->port);
+				ast_log(LOG_WARNING,
+					"Extension '%s@%s' can never match. Disconnecting. port:%d\n"
+					"\tMaybe you want to add an 'i' extension to catch this case.\n",
+					bc->dad, ch->context, bc->port);
 
 				if (bc->nt) {
 					hanguptone_indicate(ch);
@@ -4680,7 +4683,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		chan_misdn_log(5, bc->port, "CONTEXT:%s\n", ch->context);
 		if (!ast_canmatch_extension(ch->ast, ch->context, bc->dad, 1, bc->oad)) {
 			if (ast_exists_extension(ch->ast, ch->context, "i", 1, bc->oad)) {
-				ast_log(LOG_WARNING, "Extension can never match, So jumping to 'i' extension. port(%d)\n", bc->port);
+				ast_log(LOG_WARNING,
+					"Extension '%s@%s' can never match. Jumping to 'i' extension. port:%d\n",
+					bc->dad, ch->context, bc->port);
 				strcpy(ch->ast->exten, "i");
 				misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE);
 				ch->state = MISDN_DIALING;
@@ -4688,9 +4693,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				break;
 			}
 
-			ast_log(LOG_WARNING, "Extension can never match, so disconnecting on port(%d).\n"
-					"\tMaybe you want to add an 'i' extension to catch this case.\n",
-					bc->port);
+			ast_log(LOG_WARNING,
+				"Extension '%s@%s' can never match. Disconnecting. port:%d\n"
+				"\tMaybe you want to add an 'i' extension to catch this case.\n",
+				bc->dad, ch->context, bc->port);
 			if (bc->nt) {
 				hanguptone_indicate(ch);
 			}
