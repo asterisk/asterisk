@@ -2469,14 +2469,17 @@ static void HandleCallIncoming(struct unistimsession *s)
 
 static int unistim_do_senddigit(struct unistimsession *pte, char digit)
 {
-
-	struct ast_frame f = { 0, };
+	struct ast_frame f = { .frametype = AST_FRAME_DTMF, .subclass = digit, .src = "unistim" };
 	struct unistim_subchannel *sub;
 	sub = pte->device->lines->subs[SUB_REAL];
 	if (!sub->owner || sub->alreadygone) {
 		ast_log(LOG_WARNING, "Unable to find subchannel in dtmf senddigit\n");
 		return -1;
 	}
+
+	/* Send DTMF indication _before_ playing sounds */
+	ast_queue_frame(sub->owner, &f);
+
 	if (unistimdebug)
 		ast_verb(0, "Send Digit %c\n", digit);
 	switch (digit) {
@@ -2533,10 +2536,6 @@ static int unistim_do_senddigit(struct unistimsession *pte, char digit)
 	}
 	usleep(150000);			 /* XXX Less than perfect, blocking an important thread is not a good idea */
 	send_tone(pte, 0, 0);
-	f.frametype = AST_FRAME_DTMF;
-	f.subclass = digit;
-	f.src = "unistim";
-	ast_queue_frame(sub->owner, &f);
 	return 0;
 }
 
