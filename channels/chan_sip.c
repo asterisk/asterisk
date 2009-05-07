@@ -17421,6 +17421,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	struct ast_variable *tmpvar = NULL;
 	struct ast_flags peerflags[2] = {{(0)}};
 	struct ast_flags mask[2] = {{(0)}};
+	int alt_fullcontact = alt ? 1 : 0;
 	char fullcontact[sizeof(peer->fullcontact)] = "";
 
 	if (!realtime || ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS))
@@ -17479,6 +17480,15 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		} else if (realtime && !strcasecmp(v->name, "name"))
 			ast_copy_string(peer->name, v->value, sizeof(peer->name));
 		else if (realtime && !strcasecmp(v->name, "fullcontact")) {
+			if (alt_fullcontact && !alt) {
+				/* Reset, because the alternate also has a fullcontact and we
+				 * do NOT want the field value to be doubled. It might be
+				 * tempting to skip this, but the first table might not have
+				 * fullcontact and since we're here, we know that the alternate
+				 * absolutely does. */
+				alt_fullcontact = 0;
+				fullcontact[0] = '\0';
+			}
 			/* Reconstruct field, because realtime separates our value at the ';' */
 			if (!ast_strlen_zero(fullcontact)) {
 				strncat(fullcontact, ";", sizeof(fullcontact) - strlen(fullcontact) - 1);
