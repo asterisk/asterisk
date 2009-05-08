@@ -798,7 +798,9 @@ void misdn_cfg_get_config_string (int port, enum misdn_cfg_elements elem, char* 
 				for (; iter; iter = iter->next) {
 					strncat(tempbuf, iter->msn, sizeof(tempbuf) - strlen(tempbuf) - 1);
 				}
-				tempbuf[strlen(tempbuf)-2] = 0;
+				if (strlen(tempbuf) > 1) {
+					tempbuf[strlen(tempbuf)-2] = 0;
+				}
 			}
 			snprintf(buf, bufsize, " -> msns: %s", *tempbuf ? tempbuf : "none");
 			break;
