@@ -3089,8 +3089,19 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 					break;
 
 				case AST_CONTROL_BUSY:
+					ast_cdr_busy(chan->cdr);
+					*outstate = f->subclass;
+					timeout = 0;
+					break;
+
 				case AST_CONTROL_CONGESTION:
+					ast_cdr_failed(chan->cdr);
+					*outstate = f->subclass;
+					timeout = 0;
+					break;
+
 				case AST_CONTROL_ANSWER:
+					ast_cdr_answer(chan->cdr);
 					*outstate = f->subclass;
 					timeout = 0;		/* trick to force exit from the while() */
 					break;
