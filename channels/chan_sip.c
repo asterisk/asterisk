@@ -11788,6 +11788,21 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 	 */
 	peer = (sipmethod == SIP_SUBSCRIBE) ? find_peer(of, NULL, 1, 0) : find_peer(NULL, &p->recv, 1, 0);
 
+	/* If the peer is still not found, try the address and port from the
+	 * contact header.  If the transport type is TCP or TLS it is not possible
+	 * to find the peer using p->recv. Because of the way TCP works, the received
+	 * packet's destination port will not match the one the peer table is
+	 * built with. */
+	if (!peer && (p->socket.type != SIP_TRANSPORT_UDP)) {
+		struct sockaddr_in tmpsin;
+		char contact[SIPBUFSIZE];
+		char *tmp;
+		memcpy(&tmpsin, &p->recv, sizeof(tmpsin));
+		ast_copy_string(contact, get_header(req, "Contact"), sizeof(contact));
+		tmp = get_in_brackets(contact);
+		__set_address_from_contact(tmp, &tmpsin, 1);
+		peer = find_peer(NULL, &tmpsin, 1, 0);
+	}
 	if (!peer) {
 		if (debug)
 			ast_verbose("No matching peer for '%s' from '%s:%d'\n",
