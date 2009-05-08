@@ -257,18 +257,12 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 		snprintf(chan->filename, sizeof(chan->filename), "%s", channel);
 		openlog("asterisk", LOG_PID, chan->facility);
 	} else {
-		if (channel[0] == '/') {
-			if(!ast_strlen_zero(hostname)) { 
-				snprintf(chan->filename, sizeof(chan->filename) - 1,"%s.%s", channel, hostname);
-			} else {
-				ast_copy_string(chan->filename, channel, sizeof(chan->filename));
-			}
-		}		  
-		
-		if(!ast_strlen_zero(hostname)) {
-			snprintf(chan->filename, sizeof(chan->filename), "%s/%s.%s",(char *)ast_config_AST_LOG_DIR, channel, hostname);
+		if (!ast_strlen_zero(hostname)) {
+			snprintf(chan->filename, sizeof(chan->filename), "%s/%s.%s",
+				 channel[0] != '/' ? ast_config_AST_LOG_DIR : "", channel, hostname);
 		} else {
-			snprintf(chan->filename, sizeof(chan->filename), "%s/%s", (char *)ast_config_AST_LOG_DIR, channel);
+			snprintf(chan->filename, sizeof(chan->filename), "%s/%s",
+				 channel[0] != '/' ? ast_config_AST_LOG_DIR : "", channel);
 		}
 		chan->fileptr = fopen(chan->filename, "a");
 		if (!chan->fileptr) {
