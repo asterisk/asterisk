@@ -358,12 +358,13 @@ void ast_event_destroy(struct ast_event *event);
  * \param event the event to be queued
  *
  * \retval zero success
- * \retval non-zero failure
+ * \retval non-zero failure.  Note that the caller of this function is
+ *         responsible for destroying the event in the case of a failure.
  *
  * This function queues an event to be dispatched to all of the appropriate
  * subscribers.  This function will not block while the event is being
- * dispatched because a pool of event dispatching threads handle the event
- * queue.
+ * dispatched because the event is queued up for a dispatching thread 
+ * to handle.
  */
 int ast_event_queue(struct ast_event *event);
 
