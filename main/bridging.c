@@ -261,6 +261,18 @@ static struct ast_frame *bridge_handle_dtmf(struct ast_bridge *bridge, struct as
 	return frame;
 }
 
+/*! \brief Internal function used to determine whether a control frame should be dropped or not */
+static int bridge_drop_control_frame(int subclass)
+{
+	switch (subclass) {
+	case AST_CONTROL_ANSWER:
+	case -1:
+		return 1;
+	default:
+		return 0;
+	}
+}
+
 void ast_bridge_handle_trip(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_channel *chan, int outfd)
 {
 	/* If no bridge channel has been provided and the actual channel has been provided find it */
@@ -276,8 +288,8 @@ void ast_bridge_handle_trip(struct ast_bridge *bridge, struct ast_bridge_channel
 		if (!frame || (frame->frametype == AST_FRAME_CONTROL && frame->subclass == AST_CONTROL_HANGUP)) {
 			/* Signal the thread that is handling the bridged channel that it should be ended */
 			ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END);
-		} else if (frame->frametype == AST_FRAME_CONTROL && frame->subclass == AST_CONTROL_ANSWER) {
-			ast_debug(1, "Dropping answer frame from bridge channel %p\n", bridge_channel);
+		} else if (frame->frametype == AST_FRAME_CONTROL && bridge_drop_control_frame(frame->subclass)) {
+			ast_debug(1, "Dropping control frame from bridge channel %p\n", bridge_channel);
 		} else {
 			if (frame->frametype == AST_FRAME_DTMF_BEGIN) {
 				frame = bridge_handle_dtmf(bridge, bridge_channel, frame);
