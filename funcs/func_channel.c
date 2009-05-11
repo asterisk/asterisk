@@ -155,6 +155,8 @@ static struct ast_custom_function channel_function = {
 		"R/W	rxgain             set rxgain level on channel drivers that support it\n"
 		"R/O	state              state for channel\n"
 		"R/W	tonezone           zone for indications played\n"
+		"R/W	transfercapability ISDN transfer capability (one of SPEECH, DIGITAL,\n"
+		"                          RESTRICTED_DIGITAL, 3K1AUDIO, DIGITAL_W_TONES, or VIDEO).\n"
 		"R/W	txgain             set txgain level on channel drivers that support it\n"
 		"R/O	videonativeformat  format used natively for video\n"
 		"\n"
