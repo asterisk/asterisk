@@ -98,6 +98,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name="tonezone">
 						<para>R/W zone for indications played</para>
 					</enum>
+					<enum name="transfercapability">
+						<para>R/W ISDN Transfer Capability, one of:</para>
+						<enumlist>
+							<enum name="SPEECH" />
+							<enum name="DIGITAL" />
+							<enum name="RESTRICTED_DIGITAL" />
+							<enum name="3K1AUDIO" />
+							<enum name="DIGITAL_W_TONES" />
+							<enum name="VIDEO" />
+						</enumlist>
+					</enum>
 					<enum name="txgain">
 						<para>R/W set txgain level on channel drivers that support it.</para>
 					</enum>
