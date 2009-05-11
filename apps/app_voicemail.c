@@ -3965,7 +3965,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	char txtfile[PATH_MAX], tmptxtfile[PATH_MAX];
 	char callerid[256];
 	FILE *txt;
-	char date[256];
+	char date[50];
 	int txtdes;
 	int res = 0;
 	int msgnum;
@@ -3978,15 +3978,18 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	char fn[PATH_MAX];
 	char prefile[PATH_MAX] = "";
 	char tempfile[PATH_MAX] = "";
-	char ext_context[256] = "";
+	char ext_context[AST_MAX_EXTENSION + AST_MAX_CONTEXT + 2] = "";
 	char fmt[80];
 	char *context;
 	char ecodes[16] = "#";
-	char tmp[1024] = "", *tmpptr;
+	char tmp[1324] = "", *tmpptr;
 	struct ast_vm_user *vmu;
 	struct ast_vm_user svm;
 	const char *category = NULL;
 
+	if (strlen(ext) > sizeof(tmp) - 1) {
+		ast_log(LOG_WARNING, "List of extensions is too long (>%ld).  Truncating.\n", (long) sizeof(tmp) - 1);
+	}
 	ast_copy_string(tmp, ext, sizeof(tmp));
 	ext = tmp;
 	context = strchr(tmp, '@');
