@@ -415,6 +415,8 @@ static AST_LIST_HEAD_STATIC(vmstates, vmstate);
 #define ERROR_LOCK_PATH  -100
 
 
+AST_THREADSTORAGE(voicemail_extension_list);
+
 enum {
 	NEW_FOLDER,
 	OLD_FOLDER,
@@ -5074,7 +5076,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	char fmt[80];
 	char *context;
 	char ecodes[17] = "#";
-	struct ast_str *tmp = ast_str_create(16);
+	struct ast_str *tmp = ast_str_thread_get(&voicemail_extension_list, 16);
 	char *tmpptr;
 	struct ast_vm_user *vmu;
 	struct ast_vm_user svm;
