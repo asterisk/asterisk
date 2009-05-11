@@ -2610,11 +2610,10 @@ static int misdn_hangup(struct ast_channel *ast)
 
 	switch (p->state) {
 	case MISDN_INCOMING_SETUP:
-	case MISDN_CALLING:
 		/* This is the only place in misdn_hangup, where we 
 		 * can call release_chan, else it might create lot's of trouble
 		 * */
-		ast_log(LOG_NOTICE, "release channel, in CALLING/INCOMING_SETUP state.. no other events happened\n");
+		ast_log(LOG_NOTICE, "release channel, in INCOMING_SETUP state.. no other events happened\n");
 		release_chan(bc);
 
 		p->state = MISDN_CLEANING;
@@ -2637,6 +2636,7 @@ static int misdn_hangup(struct ast_channel *ast)
 			misdn_lib_send_event( bc, EVENT_DISCONNECT);
 		break;
 
+	case MISDN_CALLING:
 	case MISDN_ALERTING:
 	case MISDN_PROGRESS:
 	case MISDN_PROCEEDING:
