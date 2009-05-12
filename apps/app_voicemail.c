@@ -415,8 +415,6 @@ static AST_LIST_HEAD_STATIC(vmstates, vmstate);
 #define ERROR_LOCK_PATH  -100
 
 
-AST_THREADSTORAGE(voicemail_extension_list);
-
 enum {
 	NEW_FOLDER,
 	OLD_FOLDER,
@@ -5076,7 +5074,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	char fmt[80];
 	char *context;
 	char ecodes[17] = "#";
-	struct ast_str *tmp = ast_str_thread_get(&voicemail_extension_list, 16);
+	struct ast_str *tmp = ast_str_create(16);
 	char *tmpptr;
 	struct ast_vm_user *vmu;
 	struct ast_vm_user svm;
@@ -5119,6 +5117,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	if (!(vmu = find_user(&svm, context, ext))) {
 		ast_log(AST_LOG_WARNING, "No entry in voicemail config file for '%s'\n", ext);
 		pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
+		ast_free(tmp);
 		return res;
 	}
 	/* Setup pre-file if appropriate */
@@ -5144,6 +5143,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	snprintf(tempfile, sizeof(tempfile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, ext);
 	if ((res = create_dirpath(tmpdir, sizeof(tmpdir), vmu->context, ext, "tmp"))) {
 		ast_log(AST_LOG_WARNING, "Failed to make directory (%s)\n", tempfile);
+		ast_free(tmp);
 		return -1;
 	}
 	RETRIEVE(tempfile, -1, vmu->mailbox, vmu->context);
@@ -5214,6 +5214,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			ast_debug(1, "Hang up during prefile playback\n");
 			free_user(vmu);
 			pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
+			ast_free(tmp);
 			return -1;
 		}
 	}
@@ -5244,6 +5245,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		chan->priority = 0;
 		free_user(vmu);
 		pbx_builtin_setvar_helper(chan, "VMSTATUS", "USEREXIT");
+		ast_free(tmp);
 		return 0;
 	}
 
@@ -5263,6 +5265,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			free_user(vmu);
 			pbx_builtin_setvar_helper(chan, "VMSTATUS", "USEREXIT");
 		}
+		ast_free(tmp);
 		return 0;
 	}
 
@@ -5272,12 +5275,14 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			ast_copy_string(chan->context, options->exitcontext, sizeof(chan->context));
 		free_user(vmu);
 		pbx_builtin_setvar_helper(chan, "VMSTATUS", "USEREXIT");
+		ast_free(tmp);
 		return res;
 	}
 
 	if (res < 0) {
 		free_user(vmu);
 		pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
+		ast_free(tmp);
 		return -1;
 	}
 	/* The meat of recording the message...  All the announcements and beeps have been played*/
@@ -5291,6 +5296,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		res = inboxcount(ext_context, &newmsgs, &oldmsgs);
 		if (res < 0) {
 			ast_log(AST_LOG_NOTICE, "Can not leave voicemail, unable to count messages\n");
+			ast_free(tmp);
 			return -1;
 		}
 		if (!(vms = get_vm_state_by_mailbox(ext, context, 0))) {
@@ -5300,6 +5306,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		 */
 			if (!(vms = create_vm_state_from_user(vmu))) {
 				ast_log(AST_LOG_ERROR, "Couldn't allocate necessary space\n");
+				ast_free(tmp);
 				return -1;
 			}
 		}
@@ -5317,6 +5324,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		if (vms->quota_limit && vms->quota_usage >= vms->quota_limit) {
 			ast_debug(1, "*** QUOTA EXCEEDED!! %u >= %u\n", vms->quota_usage, vms->quota_limit);
 			ast_play_and_wait(chan, "vm-mailboxfull");
+			ast_free(tmp);
 			return -1;
 		}
 		
@@ -5324,6 +5332,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		if (msgnum >= vmu->maxmsg) {
 			ast_log(AST_LOG_WARNING, "Unable to leave message since we will exceed the maximum number of messages allowed (%u > %u)\n", msgnum, vmu->maxmsg);
 			ast_play_and_wait(chan, "vm-mailboxfull");
+			ast_free(tmp);
 			return -1;
 		}
 #else
@@ -5531,7 +5540,8 @@ leave_vm_out:
 		ast_mutex_unlock(&vms->lock);
 	}
 #endif
-	
+
+	ast_free(tmp);
 	return res;
 }
 
