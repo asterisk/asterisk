@@ -227,8 +227,6 @@ static AST_LIST_HEAD_STATIC(vmstates, vmstate);
 #define ERROR_MAILBOX_FULL	-200
 
 
-AST_THREADSTORAGE(voicemail_extension_list);
-
 enum {
 	NEW_FOLDER,
 	OLD_FOLDER,
@@ -4255,424 +4253,449 @@ static int has_voicemail(const char *mailbox, const char *folder)
 		}
 	}
 
-	struct leave_vm_options {
-		unsigned int flags;
-		signed char record_gain;
-		char *exitcontext;
-	};
+struct leave_vm_options {
+	unsigned int flags;
+	signed char record_gain;
+	char *exitcontext;
+};
 
-	static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_options *options)
-	{
+static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_options *options)
+{
 #ifdef IMAP_STORAGE
-		int newmsgs, oldmsgs;
+	int newmsgs, oldmsgs;
 #endif
-		char txtfile[PATH_MAX], tmptxtfile[PATH_MAX];
-		struct vm_state *vms = NULL;
-		char callerid[256];
-		FILE *txt;
-		char date[256];
-		int txtdes;
-		int res = 0;
-		int msgnum;
-		int duration = 0;
-		int ausemacro = 0;
-		int ousemacro = 0;
-		int ouseexten = 0;
-		int rtmsgid = 0;
-		char tmpid[16];
-		char tmpdur[16];
-		char priority[16];
-		char origtime[16];
-		char dir[PATH_MAX], tmpdir[PATH_MAX];
-		char fn[PATH_MAX];
-		char prefile[PATH_MAX] = "";
-		char tempfile[PATH_MAX] = "";
-		char ext_context[256] = "";
-		char fmt[80];
-		char *context;
-		char ecodes[17] = "#";
-		char *tmpptr;
-		struct ast_str *tmp = ast_str_thread_get(&voicemail_extension_list, 16);
-		struct ast_vm_user *vmu;
-		struct ast_vm_user svm;
-		const char *category = NULL, *code, *alldtmf = "0123456789ABCD*#";
+	char txtfile[PATH_MAX], tmptxtfile[PATH_MAX];
+	struct vm_state *vms = NULL;
+	char callerid[256];
+	FILE *txt;
+	char date[256];
+	int txtdes;
+	int res = 0;
+	int msgnum;
+	int duration = 0;
+	int ausemacro = 0;
+	int ousemacro = 0;
+	int ouseexten = 0;
+	int rtmsgid = 0;
+	char tmpid[16];
+	char tmpdur[16];
+	char priority[16];
+	char origtime[16];
+	char dir[PATH_MAX], tmpdir[PATH_MAX];
+	char fn[PATH_MAX];
+	char prefile[PATH_MAX] = "";
+	char tempfile[PATH_MAX] = "";
+	char ext_context[256] = "";
+	char fmt[80];
+	char *context;
+	char ecodes[17] = "#";
+	char *tmpptr;
+	struct ast_str *tmp = ast_str_create(16);
+	struct ast_vm_user *vmu;
+	struct ast_vm_user svm;
+	const char *category = NULL, *code, *alldtmf = "0123456789ABCD*#";
 
-		ast_str_set(&tmp, 0, "%s", ext);
-		ext = ast_str_buffer(tmp);
-		if ((context = strchr(ext, '@'))) {
-			*context++ = '\0';
-			tmpptr = strchr(context, '&');
-		} else {
-			tmpptr = strchr(ext, '&');
-		}
+	ast_str_set(&tmp, 0, "%s", ext);
+	ext = ast_str_buffer(tmp);
+	if ((context = strchr(ext, '@'))) {
+		*context++ = '\0';
+		tmpptr = strchr(context, '&');
+	} else {
+		tmpptr = strchr(ext, '&');
+	}
 
-		if (tmpptr)
-			*tmpptr++ = '\0';
+	if (tmpptr) {
+		*tmpptr++ = '\0';
+	}
 
-		category = pbx_builtin_getvar_helper(chan, "VM_CATEGORY");
+	category = pbx_builtin_getvar_helper(chan, "VM_CATEGORY");
 
-		ast_debug(3, "Before find_user\n");
-		if (!(vmu = find_user(&svm, context, ext))) {
-			ast_log(LOG_WARNING, "No entry in voicemail config file for '%s'\n", ext);
-			pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
-			return res;
-		}
-		/* Setup pre-file if appropriate */
-		if (strcmp(vmu->context, "default"))
-			snprintf(ext_context, sizeof(ext_context), "%s@%s", ext, vmu->context);
-		else
-			ast_copy_string(ext_context, vmu->mailbox, sizeof(ext_context));
-		if (ast_test_flag(options, OPT_BUSY_GREETING)) {
-			snprintf(prefile, sizeof(prefile), "%s%s/%s/busy", VM_SPOOL_DIR, vmu->context, ext);
-		} else if (ast_test_flag(options, OPT_UNAVAIL_GREETING)) {
-			snprintf(prefile, sizeof(prefile), "%s%s/%s/unavail", VM_SPOOL_DIR, vmu->context, ext);
-		}
-		snprintf(tempfile, sizeof(tempfile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, ext);
-		if ((res = create_dirpath(tmpdir, sizeof(tmpdir), vmu->context, ext, "tmp"))) {
-			ast_log(LOG_WARNING, "Failed to make directory (%s)\n", tempfile);
-			return -1;
-		}
-		RETRIEVE(tempfile, -1, vmu->mailbox, vmu->context);
-		if (ast_fileexists(tempfile, NULL, NULL) > 0)
-			ast_copy_string(prefile, tempfile, sizeof(prefile));
-		DISPOSE(tempfile, -1);
-		/* It's easier just to try to make it than to check for its existence */
-		create_dirpath(dir, sizeof(dir), vmu->context, ext, "INBOX");
+	ast_debug(3, "Before find_user\n");
+	if (!(vmu = find_user(&svm, context, ext))) {
+		ast_log(LOG_WARNING, "No entry in voicemail config file for '%s'\n", ext);
+		pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
+		ast_free(tmp);
+		return res;
+	}
+	/* Setup pre-file if appropriate */
+	if (strcmp(vmu->context, "default")) {
+		snprintf(ext_context, sizeof(ext_context), "%s@%s", ext, vmu->context);
+	} else {
+		ast_copy_string(ext_context, vmu->mailbox, sizeof(ext_context));
+	}
+	if (ast_test_flag(options, OPT_BUSY_GREETING)) {
+		snprintf(prefile, sizeof(prefile), "%s%s/%s/busy", VM_SPOOL_DIR, vmu->context, ext);
+	} else if (ast_test_flag(options, OPT_UNAVAIL_GREETING)) {
+		snprintf(prefile, sizeof(prefile), "%s%s/%s/unavail", VM_SPOOL_DIR, vmu->context, ext);
+	}
+	snprintf(tempfile, sizeof(tempfile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, ext);
+	if ((res = create_dirpath(tmpdir, sizeof(tmpdir), vmu->context, ext, "tmp"))) {
+		ast_log(LOG_WARNING, "Failed to make directory (%s)\n", tempfile);
+		ast_free(tmp);
+		return -1;
+	}
+	RETRIEVE(tempfile, -1, vmu->mailbox, vmu->context);
+	if (ast_fileexists(tempfile, NULL, NULL) > 0) {
+		ast_copy_string(prefile, tempfile, sizeof(prefile));
+	}
+	DISPOSE(tempfile, -1);
+	/* It's easier just to try to make it than to check for its existence */
+	create_dirpath(dir, sizeof(dir), vmu->context, ext, "INBOX");
 
-		/* Check current or macro-calling context for special extensions */
-		if (ast_test_flag(vmu, VM_OPERATOR)) {
-			if (!ast_strlen_zero(vmu->exit)) {
-				if (ast_exists_extension(chan, vmu->exit, "o", 1, chan->cid.cid_num)) {
-					strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
-					ouseexten = 1;
-				}
-			} else if (ast_exists_extension(chan, chan->context, "o", 1, chan->cid.cid_num)) {
+	/* Check current or macro-calling context for special extensions */
+	if (ast_test_flag(vmu, VM_OPERATOR)) {
+		if (!ast_strlen_zero(vmu->exit)) {
+			if (ast_exists_extension(chan, vmu->exit, "o", 1, chan->cid.cid_num)) {
 				strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
 				ouseexten = 1;
-			} else if (!ast_strlen_zero(chan->macrocontext) && ast_exists_extension(chan, chan->macrocontext, "o", 1, chan->cid.cid_num)) {
-				strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
-				ousemacro = 1;
 			}
+		} else if (ast_exists_extension(chan, chan->context, "o", 1, chan->cid.cid_num)) {
+			strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
+			ouseexten = 1;
+		} else if (!ast_strlen_zero(chan->macrocontext) && ast_exists_extension(chan, chan->macrocontext, "o", 1, chan->cid.cid_num)) {
+			strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
+			ousemacro = 1;
 		}
+	}
 
-		if (!ast_strlen_zero(vmu->exit)) {
-			if (ast_exists_extension(chan, vmu->exit, "a", 1, chan->cid.cid_num))
-				strncat(ecodes, "*", sizeof(ecodes) - strlen(ecodes) - 1);
-		} else if (ast_exists_extension(chan, chan->context, "a", 1, chan->cid.cid_num))
+	if (!ast_strlen_zero(vmu->exit)) {
+		if (ast_exists_extension(chan, vmu->exit, "a", 1, chan->cid.cid_num)) {
 			strncat(ecodes, "*", sizeof(ecodes) - strlen(ecodes) - 1);
-		else if (!ast_strlen_zero(chan->macrocontext) && ast_exists_extension(chan, chan->macrocontext, "a", 1, chan->cid.cid_num)) {
-			strncat(ecodes, "*", sizeof(ecodes) - strlen(ecodes) - 1);
-			ausemacro = 1;
 		}
+	} else if (ast_exists_extension(chan, chan->context, "a", 1, chan->cid.cid_num)) {
+		strncat(ecodes, "*", sizeof(ecodes) - strlen(ecodes) - 1);
+	} else if (!ast_strlen_zero(chan->macrocontext) && ast_exists_extension(chan, chan->macrocontext, "a", 1, chan->cid.cid_num)) {
+		strncat(ecodes, "*", sizeof(ecodes) - strlen(ecodes) - 1);
+		ausemacro = 1;
+	}
 
-		if (ast_test_flag(options, OPT_DTMFEXIT)) {
-			for (code = alldtmf; *code; code++) {
-				char e[2] = "";
-				e[0] = *code;
-				if (strchr(ecodes, e[0]) == NULL && ast_canmatch_extension(chan, chan->context, e, 1, chan->cid.cid_num))
-					strncat(ecodes, e, sizeof(ecodes) - strlen(ecodes) - 1);
+	if (ast_test_flag(options, OPT_DTMFEXIT)) {
+		for (code = alldtmf; *code; code++) {
+			char e[2] = "";
+			e[0] = *code;
+			if (strchr(ecodes, e[0]) == NULL && ast_canmatch_extension(chan, chan->context, e, 1, chan->cid.cid_num)) {
+				strncat(ecodes, e, sizeof(ecodes) - strlen(ecodes) - 1);
 			}
 		}
+	}
 
-		/* Play the beginning intro if desired */
-		if (!ast_strlen_zero(prefile)) {
-			res = play_greeting(chan, vmu, prefile, ecodes);
-			if (res == -2) {
-				/* The file did not exist */
-				ast_debug(1, "%s doesn't exist, doing what we can\n", prefile);
-				res = invent_message(chan, vmu, ext, ast_test_flag(options, OPT_BUSY_GREETING), ecodes);
-			}
-			if (res < 0) {
-				ast_debug(1, "Hang up during prefile playback\n");
-				free_user(vmu);
-				pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
-				return -1;
-			}
+	/* Play the beginning intro if desired */
+	if (!ast_strlen_zero(prefile)) {
+		res = play_greeting(chan, vmu, prefile, ecodes);
+		if (res == -2) {
+			/* The file did not exist */
+			ast_debug(1, "%s doesn't exist, doing what we can\n", prefile);
+			res = invent_message(chan, vmu, ext, ast_test_flag(options, OPT_BUSY_GREETING), ecodes);
 		}
+		if (res < 0) {
+			ast_debug(1, "Hang up during prefile playback\n");
+			free_user(vmu);
+			pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
+			ast_free(tmp);
+			return -1;
+		}
+	}
+	if (res == '#') {
+		/* On a '#' we skip the instructions */
+		ast_set_flag(options, OPT_SILENT);
+		res = 0;
+	}
+	if (!res && !ast_test_flag(options, OPT_SILENT)) {
+		res = ast_stream_and_wait(chan, INTRO, ecodes);
 		if (res == '#') {
-			/* On a '#' we skip the instructions */
 			ast_set_flag(options, OPT_SILENT);
 			res = 0;
 		}
-		if (!res && !ast_test_flag(options, OPT_SILENT)) {
-			res = ast_stream_and_wait(chan, INTRO, ecodes);
-			if (res == '#') {
-				ast_set_flag(options, OPT_SILENT);
-				res = 0;
-			}
+	}
+	if (res > 0) {
+		ast_stopstream(chan);
+	}
+	/* Check for a '*' here in case the caller wants to escape from voicemail to something
+	 * other than the operator -- an automated attendant or mailbox login for example */
+	if (res == '*') {
+		chan->exten[0] = 'a';
+		chan->exten[1] = '\0';
+		if (!ast_strlen_zero(vmu->exit)) {
+			ast_copy_string(chan->context, vmu->exit, sizeof(chan->context));
+		} else if (ausemacro && !ast_strlen_zero(chan->macrocontext)) {
+			ast_copy_string(chan->context, chan->macrocontext, sizeof(chan->context));
 		}
-		if (res > 0)
-			ast_stopstream(chan);
-		/* Check for a '*' here in case the caller wants to escape from voicemail to something
-		other than the operator -- an automated attendant or mailbox login for example */
-		if (res == '*') {
-			chan->exten[0] = 'a';
+		chan->priority = 0;
+		free_user(vmu);
+		pbx_builtin_setvar_helper(chan, "VMSTATUS", "USEREXIT");
+		ast_free(tmp);
+		return 0;
+	}
+
+	/* Check for a '0' here */
+	if (ast_test_flag(vmu, VM_OPERATOR) && res == '0') {
+transfer:
+		if (ouseexten || ousemacro) {
+			chan->exten[0] = 'o';
 			chan->exten[1] = '\0';
 			if (!ast_strlen_zero(vmu->exit)) {
 				ast_copy_string(chan->context, vmu->exit, sizeof(chan->context));
-			} else if (ausemacro && !ast_strlen_zero(chan->macrocontext)) {
+			} else if (ousemacro && !ast_strlen_zero(chan->macrocontext)) {
 				ast_copy_string(chan->context, chan->macrocontext, sizeof(chan->context));
 			}
+			ast_play_and_wait(chan, "transfer");
 			chan->priority = 0;
 			free_user(vmu);
 			pbx_builtin_setvar_helper(chan, "VMSTATUS", "USEREXIT");
-			return 0;
 		}
+		ast_free(tmp);
+		return 0;
+	}
 
-		/* Check for a '0' here */
-		if (ast_test_flag(vmu, VM_OPERATOR) && res == '0') {
-		transfer:
-			if (ouseexten || ousemacro) {
-				chan->exten[0] = 'o';
-				chan->exten[1] = '\0';
-				if (!ast_strlen_zero(vmu->exit)) {
-					ast_copy_string(chan->context, vmu->exit, sizeof(chan->context));
-				} else if (ousemacro && !ast_strlen_zero(chan->macrocontext)) {
-					ast_copy_string(chan->context, chan->macrocontext, sizeof(chan->context));
-				}
-				ast_play_and_wait(chan, "transfer");
-				chan->priority = 0;
-				free_user(vmu);
-				pbx_builtin_setvar_helper(chan, "VMSTATUS", "USEREXIT");
-			}
-			return 0;
+	/* Allow all other digits to exit Voicemail and return to the dialplan */
+	if (ast_test_flag(options, OPT_DTMFEXIT) && res > 0) {
+		if (!ast_strlen_zero(options->exitcontext)) {
+			ast_copy_string(chan->context, options->exitcontext, sizeof(chan->context));
 		}
+		free_user(vmu);
+		pbx_builtin_setvar_helper(chan, "VMSTATUS", "USEREXIT");
+		return res;
+	}
 
-		/* Allow all other digits to exit Voicemail and return to the dialplan */
-		if (ast_test_flag(options, OPT_DTMFEXIT) && res > 0) {
-			if (!ast_strlen_zero(options->exitcontext))
-				ast_copy_string(chan->context, options->exitcontext, sizeof(chan->context));
-			free_user(vmu);
-			pbx_builtin_setvar_helper(chan, "VMSTATUS", "USEREXIT");
-			return res;
-		}
-
-		if (res < 0) {
-			free_user(vmu);
-			pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
-			return -1;
-		}
-		/* The meat of recording the message...  All the announcements and beeps have been played*/
-		ast_copy_string(fmt, vmfmts, sizeof(fmt));
-		if (!ast_strlen_zero(fmt)) {
-			msgnum = 0;
+	if (res < 0) {
+		free_user(vmu);
+		pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
+		ast_free(tmp);
+		return -1;
+	}
+	/* The meat of recording the message...  All the announcements and beeps have been played*/
+	ast_copy_string(fmt, vmfmts, sizeof(fmt));
+	if (!ast_strlen_zero(fmt)) {
+		msgnum = 0;
 
 #ifdef IMAP_STORAGE
-			/* Is ext a mailbox? */
-			/* must open stream for this user to get info! */
-			res = inboxcount(ext_context, &newmsgs, &oldmsgs);
-			if (res < 0) {
-				ast_log(LOG_NOTICE, "Can not leave voicemail, unable to count messages\n");
-				return -1;
-			}
-			if (!(vms = get_vm_state_by_mailbox(ext, 0))) {
+		/* Is ext a mailbox? */
+		/* must open stream for this user to get info! */
+		res = inboxcount(ext_context, &newmsgs, &oldmsgs);
+		if (res < 0) {
+			ast_log(LOG_NOTICE, "Can not leave voicemail, unable to count messages\n");
+			ast_free(tmp);
+			return -1;
+		}
+		if (!(vms = get_vm_state_by_mailbox(ext, 0))) {
 			/* It is possible under certain circumstances that inboxcount did not
-			* create a vm_state when it was needed. This is a catchall which will
-			* rarely be used.
-			*/
-				if (!(vms = create_vm_state_from_user(vmu))) {
-					ast_log(LOG_ERROR, "Couldn't allocate necessary space\n");
-					return -1;
-				}
+			 * create a vm_state when it was needed. This is a catchall which will
+			 * rarely be used.
+			 */
+			if (!(vms = create_vm_state_from_user(vmu))) {
+				ast_log(LOG_ERROR, "Couldn't allocate necessary space\n");
+				ast_free(tmp);
+				return -1;
 			}
-			vms->newmessages++;
-			
-			/* here is a big difference! We add one to it later */
-			msgnum = newmsgs + oldmsgs;
-			ast_debug(3, "Messagecount set to %d\n", msgnum);
-			snprintf(fn, sizeof(fn), "%s/imap/msg%s%04d", VM_SPOOL_DIR, vmu->mailbox, msgnum);
-			/* set variable for compatibility */
-			pbx_builtin_setvar_helper(chan, "VM_MESSAGEFILE", "IMAP_STORAGE");
+		}
+		vms->newmessages++;
 
-			/* Check if mailbox is full */
-			check_quota(vms, imapfolder);
-			if (vms->quota_limit && vms->quota_usage >= vms->quota_limit) {
-				ast_debug(1, "*** QUOTA EXCEEDED!! %u >= %u\n", vms->quota_usage, vms->quota_limit);
-				ast_play_and_wait(chan, "vm-mailboxfull");
-				return -1;
-			}
-			
-			/* Check if we have exceeded maxmsg */
-			if (msgnum >= vmu->maxmsg) {
-				ast_log(LOG_WARNING, "Unable to leave message since we will exceed the maximum number of messages allowed (%u > %u)\n", msgnum, vmu->maxmsg);
-				ast_play_and_wait(chan, "vm-mailboxfull");
-				return -1;
-			}
+		/* here is a big difference! We add one to it later */
+		msgnum = newmsgs + oldmsgs;
+		ast_debug(3, "Messagecount set to %d\n", msgnum);
+		snprintf(fn, sizeof(fn), "%s/imap/msg%s%04d", VM_SPOOL_DIR, vmu->mailbox, msgnum);
+		/* set variable for compatibility */
+		pbx_builtin_setvar_helper(chan, "VM_MESSAGEFILE", "IMAP_STORAGE");
+
+		/* Check if mailbox is full */
+		check_quota(vms, imapfolder);
+		if (vms->quota_limit && vms->quota_usage >= vms->quota_limit) {
+			ast_debug(1, "*** QUOTA EXCEEDED!! %u >= %u\n", vms->quota_usage, vms->quota_limit);
+			ast_play_and_wait(chan, "vm-mailboxfull");
+			ast_free(tmp);
+			return -1;
+		}
+
+		/* Check if we have exceeded maxmsg */
+		if (msgnum >= vmu->maxmsg) {
+			ast_log(LOG_WARNING, "Unable to leave message since we will exceed the maximum number of messages allowed (%u > %u)\n", msgnum, vmu->maxmsg);
+			ast_play_and_wait(chan, "vm-mailboxfull");
+			ast_free(tmp);
+			return -1;
+		}
 #else
-			if (count_messages(vmu, dir) >= vmu->maxmsg) {
-				res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
-				if (!res)
-					res = ast_waitstream(chan, "");
-				ast_log(LOG_WARNING, "No more messages possible\n");
-				pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
-				goto leave_vm_out;
+		if (count_messages(vmu, dir) >= vmu->maxmsg) {
+			res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
+			if (!res) {
+				res = ast_waitstream(chan, "");
 			}
+			ast_log(LOG_WARNING, "No more messages possible\n");
+			pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
+			goto leave_vm_out;
+		}
 
 #endif
-			snprintf(tmptxtfile, sizeof(tmptxtfile), "%s/XXXXXX", tmpdir);
-			txtdes = mkstemp(tmptxtfile);
-			chmod(tmptxtfile, VOICEMAIL_FILE_MODE & ~my_umask);
-			if (txtdes < 0) {
-				res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
-				if (!res)
-					res = ast_waitstream(chan, "");
-				ast_log(LOG_ERROR, "Unable to create message file: %s\n", strerror(errno));
-				pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
-				goto leave_vm_out;
+		snprintf(tmptxtfile, sizeof(tmptxtfile), "%s/XXXXXX", tmpdir);
+		txtdes = mkstemp(tmptxtfile);
+		chmod(tmptxtfile, VOICEMAIL_FILE_MODE & ~my_umask);
+		if (txtdes < 0) {
+			res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
+			if (!res) {
+				res = ast_waitstream(chan, "");
 			}
+			ast_log(LOG_ERROR, "Unable to create message file: %s\n", strerror(errno));
+			pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
+			goto leave_vm_out;
+		}
 
-			/* Now play the beep once we have the message number for our next message. */
-			if (res >= 0) {
-				/* Unless we're *really* silent, try to send the beep */
-				res = ast_stream_and_wait(chan, "beep", "");
-			}
-					
-			/* Store information in real-time storage */
-			if (ast_check_realtime("voicemail_data")) {
-				snprintf(priority, sizeof(priority), "%d", chan->priority);
-				snprintf(origtime, sizeof(origtime), "%ld", (long)time(NULL));
-				get_date(date, sizeof(date));
-				rtmsgid = ast_store_realtime("voicemail_data", "origmailbox", ext, "context", chan->context, "macrocontext", chan->macrocontext, "exten", chan->exten, "priority", priority, "callerchan", chan->name, "callerid", ast_callerid_merge(callerid, sizeof(callerid), chan->cid.cid_name, chan->cid.cid_num, "Unknown"), "origdate", date, "origtime", origtime, "category", category ? category : "", NULL);
-			}
+		/* Now play the beep once we have the message number for our next message. */
+		if (res >= 0) {
+			/* Unless we're *really* silent, try to send the beep */
+			res = ast_stream_and_wait(chan, "beep", "");
+		}
 
-			/* Store information */
-			txt = fdopen(txtdes, "w+");
-			if (txt) {
-				get_date(date, sizeof(date));
-				fprintf(txt, 
-					";\n"
-					"; Message Information file\n"
-					";\n"
-					"[message]\n"
-					"origmailbox=%s\n"
-					"context=%s\n"
-					"macrocontext=%s\n"
-					"exten=%s\n"
-					"priority=%d\n"
-					"callerchan=%s\n"
-					"callerid=%s\n"
-					"origdate=%s\n"
-					"origtime=%ld\n"
-					"category=%s\n",
-					ext,
-					chan->context,
-					chan->macrocontext, 
-					chan->exten,
-					chan->priority,
-					chan->name,
-					ast_callerid_merge(callerid, sizeof(callerid), S_OR(chan->cid.cid_name, NULL), S_OR(chan->cid.cid_num, NULL), "Unknown"),
-					date, (long)time(NULL),
-					category ? category : ""); 
-			} else
-				ast_log(LOG_WARNING, "Error opening text file for output\n");
-			res = play_record_review(chan, NULL, tmptxtfile, vmu->maxsecs, fmt, 1, vmu, &duration, NULL, options->record_gain, vms);
+		/* Store information in real-time storage */
+		if (ast_check_realtime("voicemail_data")) {
+			snprintf(priority, sizeof(priority), "%d", chan->priority);
+			snprintf(origtime, sizeof(origtime), "%ld", (long)time(NULL));
+			get_date(date, sizeof(date));
+			rtmsgid = ast_store_realtime("voicemail_data", "origmailbox", ext, "context", chan->context, "macrocontext", chan->macrocontext, "exten", chan->exten, "priority", priority, "callerchan", chan->name, "callerid", ast_callerid_merge(callerid, sizeof(callerid), chan->cid.cid_name, chan->cid.cid_num, "Unknown"), "origdate", date, "origtime", origtime, "category", category ? category : "", NULL);
+		}
 
-			if (txt) {
-				if (duration < vmminsecs) {
-					fclose(txt);
-					ast_verb(3, "Recording was %d seconds long but needs to be at least %d - abandoning\n", duration, vmminsecs);
+		/* Store information */
+		txt = fdopen(txtdes, "w+");
+		if (txt) {
+			get_date(date, sizeof(date));
+			fprintf(txt, 
+				";\n"
+				"; Message Information file\n"
+				";\n"
+				"[message]\n"
+				"origmailbox=%s\n"
+				"context=%s\n"
+				"macrocontext=%s\n"
+				"exten=%s\n"
+				"priority=%d\n"
+				"callerchan=%s\n"
+				"callerid=%s\n"
+				"origdate=%s\n"
+				"origtime=%ld\n"
+				"category=%s\n",
+				ext,
+				chan->context,
+				chan->macrocontext, 
+				chan->exten,
+				chan->priority,
+				chan->name,
+				ast_callerid_merge(callerid, sizeof(callerid), S_OR(chan->cid.cid_name, NULL), S_OR(chan->cid.cid_num, NULL), "Unknown"),
+				date, (long)time(NULL),
+				category ? category : "");
+		} else {
+			ast_log(LOG_WARNING, "Error opening text file for output\n");
+		}
+		res = play_record_review(chan, NULL, tmptxtfile, vmu->maxsecs, fmt, 1, vmu, &duration, NULL, options->record_gain, vms);
+
+		if (txt) {
+			if (duration < vmminsecs) {
+				fclose(txt);
+				ast_verb(3, "Recording was %d seconds long but needs to be at least %d - abandoning\n", duration, vmminsecs);
+				ast_filedelete(tmptxtfile, NULL);
+				unlink(tmptxtfile);
+				if (ast_check_realtime("voicemail_data")) {
+					snprintf(tmpid, sizeof(tmpid), "%d", rtmsgid);
+					ast_destroy_realtime("voicemail_data", "id", tmpid, NULL);
+				}
+			} else {
+				fprintf(txt, "duration=%d\n", duration);
+				fclose(txt);
+				if (vm_lock_path(dir)) {
+					ast_log(LOG_ERROR, "Couldn't lock directory %s.  Voicemail will be lost.\n", dir);
+					/* Delete files */
 					ast_filedelete(tmptxtfile, NULL);
 					unlink(tmptxtfile);
+				} else if (ast_fileexists(tmptxtfile, NULL, NULL) <= 0) {
+					ast_debug(1, "The recorded media file is gone, so we should remove the .txt file too!\n");
+					unlink(tmptxtfile);
+					ast_unlock_path(dir);
 					if (ast_check_realtime("voicemail_data")) {
 						snprintf(tmpid, sizeof(tmpid), "%d", rtmsgid);
 						ast_destroy_realtime("voicemail_data", "id", tmpid, NULL);
 					}
 				} else {
-					fprintf(txt, "duration=%d\n", duration);
-					fclose(txt);
-					if (vm_lock_path(dir)) {
-						ast_log(LOG_ERROR, "Couldn't lock directory %s.  Voicemail will be lost.\n", dir);
-						/* Delete files */
-						ast_filedelete(tmptxtfile, NULL);
-						unlink(tmptxtfile);
-					} else if (ast_fileexists(tmptxtfile, NULL, NULL) <= 0) {
-						ast_debug(1, "The recorded media file is gone, so we should remove the .txt file too!\n");
-						unlink(tmptxtfile);
-						ast_unlock_path(dir);
-						if (ast_check_realtime("voicemail_data")) {
-							snprintf(tmpid, sizeof(tmpid), "%d", rtmsgid);
-							ast_destroy_realtime("voicemail_data", "id", tmpid, NULL);
-						}
-					} else {
 #ifndef IMAP_STORAGE
-						msgnum = last_message_index(vmu, dir) + 1;
+					msgnum = last_message_index(vmu, dir) + 1;
 #endif
-						make_file(fn, sizeof(fn), dir, msgnum);
+					make_file(fn, sizeof(fn), dir, msgnum);
 
-						/* assign a variable with the name of the voicemail file */ 
+					/* assign a variable with the name of the voicemail file */ 
 #ifndef IMAP_STORAGE
-						pbx_builtin_setvar_helper(chan, "VM_MESSAGEFILE", fn);
+					pbx_builtin_setvar_helper(chan, "VM_MESSAGEFILE", fn);
 #else
-						pbx_builtin_setvar_helper(chan, "VM_MESSAGEFILE", "IMAP_STORAGE");
+					pbx_builtin_setvar_helper(chan, "VM_MESSAGEFILE", "IMAP_STORAGE");
 #endif
 
-						snprintf(txtfile, sizeof(txtfile), "%s.txt", fn);
-						ast_filerename(tmptxtfile, fn, NULL);
-						rename(tmptxtfile, txtfile);
+					snprintf(txtfile, sizeof(txtfile), "%s.txt", fn);
+					ast_filerename(tmptxtfile, fn, NULL);
+					rename(tmptxtfile, txtfile);
 
-						/* Properly set permissions on voicemail text descriptor file.
-						Unfortunately mkstemp() makes this file 0600 on most unix systems. */
-						if (chmod(txtfile, VOICEMAIL_FILE_MODE) < 0)
-							ast_log(LOG_ERROR, "Couldn't set permissions on voicemail text file %s: %s", txtfile, strerror(errno));
+					/* Properly set permissions on voicemail text descriptor file.
+					Unfortunately mkstemp() makes this file 0600 on most unix systems. */
+					if (chmod(txtfile, VOICEMAIL_FILE_MODE) < 0) {
+						ast_log(LOG_ERROR, "Couldn't set permissions on voicemail text file %s: %s", txtfile, strerror(errno));
+					}
 
-						ast_unlock_path(dir);
-						if (ast_check_realtime("voicemail_data")) {
-							snprintf(tmpid, sizeof(tmpid), "%d", rtmsgid);
-							snprintf(tmpdur, sizeof(tmpdur), "%d", duration);
-							ast_update_realtime("voicemail_data", "id", tmpid, "filename", fn, "duration", tmpdur, NULL);
-						}
-						/* We must store the file first, before copying the message, because
-						* ODBC storage does the entire copy with SQL.
-						*/
-						if (ast_fileexists(fn, NULL, NULL) > 0) {
-							STORE(dir, vmu->mailbox, vmu->context, msgnum, chan, vmu, fmt, duration, vms);
-						}
+					ast_unlock_path(dir);
+					if (ast_check_realtime("voicemail_data")) {
+						snprintf(tmpid, sizeof(tmpid), "%d", rtmsgid);
+						snprintf(tmpdur, sizeof(tmpdur), "%d", duration);
+						ast_update_realtime("voicemail_data", "id", tmpid, "filename", fn, "duration", tmpdur, NULL);
+					}
+					/* We must store the file first, before copying the message, because
+					 * ODBC storage does the entire copy with SQL.
+					 */
+					if (ast_fileexists(fn, NULL, NULL) > 0) {
+						STORE(dir, vmu->mailbox, vmu->context, msgnum, chan, vmu, fmt, duration, vms);
+					}
 
-						/* Are there to be more recipients of this message? */
-						while (tmpptr) {
-							struct ast_vm_user recipu, *recip;
-							char *exten, *context;
-						
-							exten = strsep(&tmpptr, "&");
-							context = strchr(exten, '@');
-							if (context) {
-								*context = '\0';
-								context++;
-							}
-							if ((recip = find_user(&recipu, context, exten))) {
-								copy_message(chan, vmu, 0, msgnum, duration, recip, fmt, dir);
-								free_user(recip);
-							}
+					/* Are there to be more recipients of this message? */
+					while (tmpptr) {
+						struct ast_vm_user recipu, *recip;
+						char *exten, *context;
+
+						exten = strsep(&tmpptr, "&");
+						context = strchr(exten, '@');
+						if (context) {
+							*context = '\0';
+							context++;
 						}
-						/* Notification and disposal needs to happen after the copy, though. */
-						if (ast_fileexists(fn, NULL, NULL)) {
+						if ((recip = find_user(&recipu, context, exten))) {
+							copy_message(chan, vmu, 0, msgnum, duration, recip, fmt, dir);
+							free_user(recip);
+						}
+					}
+					/* Notification and disposal needs to happen after the copy, though. */
+					if (ast_fileexists(fn, NULL, NULL)) {
 #ifdef IMAP_STORAGE
-							notify_new_message(chan, vmu, vms, msgnum, duration, fmt, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL));
+						notify_new_message(chan, vmu, vms, msgnum, duration, fmt, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL));
 #else
-							notify_new_message(chan, vmu, NULL, msgnum, duration, fmt, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL));
+						notify_new_message(chan, vmu, NULL, msgnum, duration, fmt, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL));
 #endif
-							DISPOSE(dir, msgnum);
-						}
+						DISPOSE(dir, msgnum);
 					}
 				}
 			}
-			if (res == '0') {
-				goto transfer;
-			} else if (res > 0)
-				res = 0;
+		}
+		if (res == '0') {
+			goto transfer;
+		} else if (res > 0) {
+			res = 0;
+		}
 
-			if (duration < vmminsecs)
-				/* XXX We should really give a prompt too short/option start again, with leave_vm_out called only after a timeout XXX */
-				pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
-			else
-				pbx_builtin_setvar_helper(chan, "VMSTATUS", "SUCCESS");
-		} else
-			ast_log(LOG_WARNING, "No format for saving voicemail?\n");
-	leave_vm_out:
-		free_user(vmu);
-		
-		return res;
+		if (duration < vmminsecs) {
+			/* XXX We should really give a prompt too short/option start again, with leave_vm_out called only after a timeout XXX */
+			pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
+		} else {
+			pbx_builtin_setvar_helper(chan, "VMSTATUS", "SUCCESS");
+		}
+	} else {
+		ast_log(LOG_WARNING, "No format for saving voicemail?\n");
 	}
+leave_vm_out:
+	free_user(vmu);
+
+	ast_free(tmp);
+	return res;
+}
 
 #ifndef IMAP_STORAGE
 	static int resequence_mailbox(struct ast_vm_user *vmu, char *dir)
