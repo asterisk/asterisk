@@ -2566,6 +2566,22 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		ast_copy_string(tmp->chan->exten, macroexten, sizeof(tmp->chan->exten));
 	else
 		ast_copy_string(tmp->chan->exten, qe->chan->exten, sizeof(tmp->chan->exten));
+	if (ast_cdr_isset_unanswered()) {
+		/* they want to see the unanswered dial attempts! */
+		/* set up the CDR fields on all the CDRs to give sensical information */
+		ast_cdr_setdestchan(tmp->chan->cdr, tmp->chan->name);
+		strcpy(tmp->chan->cdr->clid, qe->chan->cdr->clid);
+		strcpy(tmp->chan->cdr->channel, qe->chan->cdr->channel);
+		strcpy(tmp->chan->cdr->src, qe->chan->cdr->src);
+		strcpy(tmp->chan->cdr->dst, qe->chan->exten);
+		strcpy(tmp->chan->cdr->dcontext, qe->chan->context);
+		strcpy(tmp->chan->cdr->lastapp, qe->chan->cdr->lastapp);
+		strcpy(tmp->chan->cdr->lastdata, qe->chan->cdr->lastdata);
+		tmp->chan->cdr->amaflags = qe->chan->cdr->amaflags;
+		strcpy(tmp->chan->cdr->accountcode, qe->chan->cdr->accountcode);
+		strcpy(tmp->chan->cdr->userfield, qe->chan->cdr->userfield);
+	}
+	ast_channel_unlock(qe->chan);
 
 	/* Place the call, but don't wait on the answer */
 	if ((res = ast_call(tmp->chan, location, 0))) {
@@ -3913,6 +3929,20 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		}
 		if (res == -1)
 			ast_debug(1, "%s: Nobody answered.\n", qe->chan->name);
+		if (ast_cdr_isset_unanswered()) {
+			/* channel contains the name of one of the outgoing channels
+			   in its CDR; zero out this CDR to avoid a dual-posting */
+			struct callattempt *o;
+			for (o = outgoing; o; o = o->q_next) {
+				if (!o->chan) {
+					continue;
+				}
+				if (strcmp(o->chan->cdr->dstchannel, qe->chan->cdr->dstchannel) == 0) {
+					ast_set_flag(o->chan->cdr, AST_CDR_FLAG_POST_DISABLED);
+					break;
+				}
+			}
+		}
 	} else { /* peer is valid */
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this
 		   we will always return with -1 so that it is hung up properly after the
@@ -3988,6 +4018,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ast_log(LOG_NOTICE, "Caller was about to talk to agent on %s but the caller hungup.\n", peer->name);
 				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "ABANDON", "%d|%d|%ld", qe->pos, qe->opos, (long) time(NULL) - qe->start);
 				record_abandoned(qe);
+				ast_cdr_noanswer(qe->chan->cdr);
 				ast_hangup(peer);
 				ao2_ref(member, -1);
 				return -1;
@@ -4007,6 +4038,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "SYSCOMPAT", "%s", "");
 			ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", qe->chan->name, peer->name);
 			record_abandoned(qe);
+			ast_cdr_failed(qe->chan->cdr);
 			ast_hangup(peer);
 			ao2_ref(member, -1);
 			return -1;
@@ -5213,6 +5245,7 @@ check_turns:
 		/* Leave if we have exceeded our queuetimeout */
 		if (qe.expire && (time(NULL) >= qe.expire)) {
 			record_abandoned(&qe);
+			ast_cdr_noanswer(qe.chan->cdr);
 			reason = QUEUE_TIMEOUT;
 			res = 0;
 			ast_queue_log(args.queuename, chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d|%d|%ld", 
@@ -5236,6 +5269,7 @@ check_turns:
 		/* Leave if we have exceeded our queuetimeout */
 		if (qe.expire && (time(NULL) >= qe.expire)) {
 			record_abandoned(&qe);
+			ast_cdr_noanswer(qe.chan->cdr);
 			reason = QUEUE_TIMEOUT;
 			res = 0;
 			ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
@@ -5257,6 +5291,7 @@ check_turns:
 			int status = 0;
 			if ((status = get_member_status(qe.parent, qe.max_penalty, qe.min_penalty, qe.parent->leavewhenempty))) {
 				record_abandoned(&qe);
+				ast_cdr_noanswer(qe.chan->cdr);
 				reason = QUEUE_LEAVEEMPTY;
 				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe.pos, qe.opos, (long)(time(NULL) - qe.start));
 				res = 0;
@@ -5269,6 +5304,7 @@ check_turns:
 			ast_verb(3, "Exiting on time-out cycle\n");
 			ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
 			record_abandoned(&qe);
+			ast_cdr_noanswer(qe.chan->cdr);
 			reason = QUEUE_TIMEOUT;
 			res = 0;
 			break;
@@ -5278,6 +5314,7 @@ check_turns:
 		/* Leave if we have exceeded our queuetimeout */
 		if (qe.expire && (time(NULL) >= qe.expire)) {
 			record_abandoned(&qe);
+			ast_cdr_noanswer(qe.chan->cdr);
 			reason = QUEUE_TIMEOUT;
 			res = 0;
 			ast_queue_log(qe.parent->name, qe.chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d|%d|%ld", qe.pos, qe.opos, (long) time(NULL) - qe.start);
@@ -5306,6 +5343,7 @@ stop:
 		if (res < 0) {
 			if (!qe.handled) {
 				record_abandoned(&qe);
+				ast_cdr_noanswer(qe.chan->cdr);
 				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "ABANDON",
 					"%d|%d|%ld", qe.pos, qe.opos,
 					(long) time(NULL) - qe.start);
