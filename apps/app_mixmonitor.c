@@ -125,13 +125,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define get_volfactor(x) x ? ((x > 0) ? (1 << x) : ((1 << abs(x)) * -1)) : 0
 
-static const char *app = "MixMonitor";
+static const char * const app = "MixMonitor";
 
-static const char *stop_app = "StopMixMonitor";
+static const char * const stop_app = "StopMixMonitor";
 
 struct module_symbols *me;
 
-static const char *mixmonitor_spy_type = "MixMonitor";
+static const char * const mixmonitor_spy_type = "MixMonitor";
 
 struct mixmonitor {
 	struct ast_audiohook audiohook;

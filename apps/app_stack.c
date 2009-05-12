@@ -166,10 +166,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</function>
  ***/
 
-static const char *app_gosub = "Gosub";
-static const char *app_gosubif = "GosubIf";
-static const char *app_return = "Return";
-static const char *app_pop = "StackPop";
+static const char * const app_gosub = "Gosub";
+static const char * const app_gosubif = "GosubIf";
+static const char * const app_return = "Return";
+static const char * const app_pop = "StackPop";
 
 static void gosub_free(void *data);
 

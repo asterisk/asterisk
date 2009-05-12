@@ -565,12 +565,12 @@ AST_APP_OPTIONS(meetme_opts, BEGIN_OPTIONS
 	AST_APP_OPTION_ARG('L', CONFFLAG_DURATION_LIMIT, OPT_ARG_DURATION_LIMIT),
 END_OPTIONS );
 
-static const char *app = "MeetMe";
-static const char *app2 = "MeetMeCount";
-static const char *app3 = "MeetMeAdmin";
-static const char *app4 = "MeetMeChannelAdmin";
-static const char *slastation_app = "SLAStation";
-static const char *slatrunk_app = "SLATrunk";
+static const char * const app = "MeetMe";
+static const char * const app2 = "MeetMeCount";
+static const char * const app3 = "MeetMeAdmin";
+static const char * const app4 = "MeetMeChannelAdmin";
+static const char * const slastation_app = "SLAStation";
+static const char * const slatrunk_app = "SLATrunk";
 
 /* Lookup RealTime conferences based on confno and current time */
 static int rt_schedule;

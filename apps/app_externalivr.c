@@ -48,10 +48,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/tcptls.h"
 #include "asterisk/astobj2.h"
 
-static const char *app = "ExternalIVR";
+static const char * const app = "ExternalIVR";
 
-static const char *synopsis = "Interfaces with an external IVR application";
-static const char *descrip =
+static const char * const synopsis = "Interfaces with an external IVR application";
+static const char * const descrip =
 "  ExternalIVR(command|ivr://ivrhosti([,arg[,arg...]])[,options]): Either forks a process\n"
 "to run given command or makes a socket to connect to given host and starts\n"
 "a generator on the channel. The generator's play list is controlled by the\n"

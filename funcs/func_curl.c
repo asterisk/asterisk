@@ -413,7 +413,7 @@ static size_t WriteMemoryCallback(void *ptr, size_t size, size_t nmemb, void *da
 	return realsize;
 }
 
-static const char *global_useragent = "asterisk-libcurl-agent/1.0";
+static const char * const global_useragent = "asterisk-libcurl-agent/1.0";
 
 static int curl_instance_init(void *data)
 {

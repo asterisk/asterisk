@@ -99,7 +99,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</see-also>
 	</application>
  ***/
-static const char *app_page= "Page";
+static const char * const app_page= "Page";
 
 enum {
 	PAGE_DUPLEX = (1 << 0),

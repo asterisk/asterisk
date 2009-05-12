@@ -8906,7 +8906,7 @@ static int pbx_builtin_execiftime(struct ast_channel *chan, void *data)
 	char *s, *appname;
 	struct ast_timing timing;
 	struct ast_app *app;
-	static const char *usage = "ExecIfTime requires an argument:\n  <time range>,<days of week>,<days of month>,<months>[,<timezone>]?<appname>[(<appargs>)]";
+	static const char * const usage = "ExecIfTime requires an argument:\n  <time range>,<days of week>,<days of month>,<months>[,<timezone>]?<appname>[(<appargs>)]";
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "%s\n", usage);

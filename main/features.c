@@ -3678,7 +3678,7 @@ static int load_config(void)
 	char old_parking_ext[AST_MAX_EXTENSION];
 	char old_parking_con[AST_MAX_EXTENSION] = "";
 	char *ctg; 
-	static const char *categories[] = { 
+	static const char * const categories[] = { 
 		/* Categories in features.conf that are not
 		 * to be parsed as group categories
 		 */

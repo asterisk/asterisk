@@ -70,7 +70,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</application>
  ***/
 
-static const char *app = "SendText";
+static const char * const app = "SendText";
 
 static int sendtext_exec(struct ast_channel *chan, void *data)
 {

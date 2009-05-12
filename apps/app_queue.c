@@ -557,7 +557,7 @@ static char *app_upqm = "UnpauseQueueMember" ;
 static char *app_ql = "QueueLog" ;
 
 /*! \brief Persistent Members astdb family */
-static const char *pm_family = "Queue/PersistentMembers";
+static const char * const pm_family = "Queue/PersistentMembers";
 /* The maximum length of each persistent member queue database entry */
 #define PM_MAX_LEN 8192
 

@@ -1419,7 +1419,7 @@ static int create_dirpath(char *dest, int len, const char *context, const char *
 
 static const char *mbox(int id)
 {
-	static const char *msgs[] = {
+	static const char * const msgs[] = {
 #ifdef IMAP_STORAGE
 		imapfolder,
 #else

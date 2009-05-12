@@ -43,7 +43,7 @@ static char prepdata[80] = "";
 static char enddata[80] = "";
 static char quitdata[80] = "";
 
-static const char *termpath[] = {
+static const char * const termpath[] = {
 	"/usr/share/terminfo",
 	"/usr/local/share/misc/terminfo",
 	"/usr/lib/terminfo",

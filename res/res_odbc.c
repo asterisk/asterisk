@@ -1594,8 +1594,8 @@ static struct ast_custom_function odbc_function = {
 	.write = acf_transaction_write,
 };
 
-static const char *app_commit = "ODBC_Commit";
-static const char *app_rollback = "ODBC_Rollback";
+static const char * const app_commit = "ODBC_Commit";
+static const char * const app_rollback = "ODBC_Rollback";
 
 static int reload(void)
 {

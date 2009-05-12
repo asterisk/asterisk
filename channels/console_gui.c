@@ -832,7 +832,7 @@ static void handle_mousedown(struct video_desc *env, SDL_MouseButtonEvent button
  * use a translation table, below - one line per entry,
  * plain, shift, ctrl, ... using the first char as key.
  */
-static const char *us_kbd_map[] = {
+static const char * const us_kbd_map[] = {
 	"`~", "1!", "2@", "3#", "4$", "5%", "6^",
 	"7&", "8*", "9(", "0)", "-_", "=+", "[{",
 	"]}", "\\|", ";:", "'\"", ",<", ".>", "/?",

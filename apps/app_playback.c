@@ -90,8 +90,8 @@ static struct ast_config *say_cfg = NULL;
  * 'say load [new|old]' will enable the new or old method, or report status
  */
 static const void *say_api_buf[40];
-static const char *say_old = "old";
-static const char *say_new = "new";
+static const char * const say_old = "old";
+static const char * const say_new = "new";
 
 static void save_say_mode(const void *arg)
 {

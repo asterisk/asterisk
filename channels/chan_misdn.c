@@ -3625,7 +3625,7 @@ misdn_overlap_dial_task_disconnect:
 
 static void send_digit_to_chan(struct chan_list *cl, char digit)
 {
-	static const char *dtmf_tones[] = {
+	static const char * const dtmf_tones[] = {
 /* *INDENT-OFF* */
 		"!941+1336/100,!0/100",	/* 0 */
 		"!697+1209/100,!0/100",	/* 1 */

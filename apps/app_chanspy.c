@@ -325,11 +325,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</application>
  ***/
 
-static const char *app_chan = "ChanSpy";
+static const char * const app_chan = "ChanSpy";
 
-static const char *app_ext = "ExtenSpy";
+static const char * const app_ext = "ExtenSpy";
 
-static const char *app_dahdiscan = "DAHDIScan";
+static const char * const app_dahdiscan = "DAHDIScan";
 
 enum {
 	OPTION_QUIET             = (1 << 0),    /* Quiet, no announcement */

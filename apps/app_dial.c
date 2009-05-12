@@ -1447,7 +1447,7 @@ static int do_privacy(struct ast_channel *chan, struct ast_channel *peer,
 	ast_autoservice_stop(chan);
 	if (ast_test_flag64(opts, OPT_PRIVACY) && (res2 >= '1' && res2 <= '5')) {
 		/* map keypresses to various things, the index is res2 - '1' */
-		static const char *_val[] = { "ALLOW", "DENY", "TORTURE", "KILL", "ALLOW" };
+		static const char * const _val[] = { "ALLOW", "DENY", "TORTURE", "KILL", "ALLOW" };
 		static const int _flag[] = { AST_PRIVACY_ALLOW, AST_PRIVACY_DENY, AST_PRIVACY_TORTURE, AST_PRIVACY_KILL, AST_PRIVACY_ALLOW};
 		int i = res2 - '1';
 		ast_verb(3, "--Set privacy database entry %s/%s to %s\n",

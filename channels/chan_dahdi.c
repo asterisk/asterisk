@@ -158,7 +158,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define SMDI_MD_WAIT_TIMEOUT 1500 /* 1.5 seconds */
 
-static const char *lbostr[] = {
+static const char * const lbostr[] = {
 "0 db (CSU)/0-133 feet (DSX-1)",
 "133-266 feet (DSX-1)",
 "266-399 feet (DSX-1)",
@@ -4196,7 +4196,7 @@ static int pri_find_dchan(struct dahdi_pri *pri)
 #endif	/* defined(HAVE_PRI) */
 
 #if defined(HAVE_OPENR2)
-static const char *dahdi_accept_r2_call_app = "DAHDIAcceptR2Call";
+static const char * const dahdi_accept_r2_call_app = "DAHDIAcceptR2Call";
 
 static int dahdi_accept_r2_call_exec(struct ast_channel *chan, void *data)
 {

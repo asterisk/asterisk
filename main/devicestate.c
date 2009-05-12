@@ -128,7 +128,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/event.h"
 
 /*! \brief Device state strings for printing */
-static const char *devstatestring[][2] = {
+static const char * const devstatestring[][2] = {
 	{ /* 0 AST_DEVICE_UNKNOWN */     "Unknown",     "UNKNOWN"     }, /*!< Valid, but unknown state */
 	{ /* 1 AST_DEVICE_NOT_INUSE */   "Not in use",  "NOT_INUSE"   }, /*!< Not used */
 	{ /* 2 AST_DEVICE IN USE */      "In use",      "INUSE"       }, /*!< In use */

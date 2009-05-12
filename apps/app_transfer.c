@@ -72,7 +72,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</application>
  ***/
 
-static const char *app = "Transfer";
+static const char * const app = "Transfer";
 
 static int transfer_exec(struct ast_channel *chan, void *data)
 {
