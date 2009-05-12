@@ -7894,6 +7894,10 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	/* If ADSI is supported, setup login screen */
 	adsi_begin(chan, &useadsi);
 
+	if (!valid) {
+		goto out;
+	}
+
 #ifdef IMAP_STORAGE
 	pthread_once(&ts_vmstate.once, ts_vmstate.key_init);
 	pthread_setspecific(ts_vmstate.key, &vms);
@@ -7903,9 +7907,6 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	vmstate_insert(&vms);
 	init_vm_state(&vms);
 #endif
-	if (!valid)
-		goto out;
-
 	if (!(vms.deleted = ast_calloc(vmu->maxmsg, sizeof(int)))) {
 		ast_log(LOG_ERROR, "Could not allocate memory for deleted message storage!\n");
 		cmd = ast_play_and_wait(chan, "an-error-has-occured");
@@ -8314,7 +8315,9 @@ out:
 	}
 	/*  before we delete the state, we should copy pertinent info
 	 *  back to the persistent model */
-	vmstate_delete(&vms);
+	if (vmu) {
+		vmstate_delete(&vms);
+	}
 #endif
 	if (vmu)
 		free_user(vmu);
