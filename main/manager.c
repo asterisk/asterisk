@@ -224,6 +224,7 @@ struct mansession {
 	struct mansession_session *session;
 	FILE *f;
 	int fd;
+	ast_mutex_t lock;
 };
 
 static struct ao2_container *sessions = NULL;
@@ -504,6 +505,13 @@ static void session_destructor(void *obj)
 {
 	struct mansession_session *session = obj;
 	struct eventqent *eqe = session->last_ev;
+	struct ast_datastore *datastore;
+
+	/* Get rid of each of the data stores on the session */
+	while ((datastore = AST_LIST_REMOVE_HEAD(&session->datastores, entry))) {
+		/* Free the data store */
+		ast_datastore_free(datastore);
+	}
 
 	if (session->f != NULL) {
 		fclose(session->f);
@@ -519,7 +527,6 @@ static struct mansession_session *build_mansession(struct sockaddr_in sin)
 	if (!(newsession = ao2_alloc(sizeof(*newsession), session_destructor))) {
 		return NULL;
 	}
-	memset(newsession, 0, sizeof(*newsession));
 	newsession->fd = -1;
 	newsession->waiting_thread = AST_PTHREADT_NULL;
 	newsession->writetimeout = 100;
@@ -528,7 +535,7 @@ static struct mansession_session *build_mansession(struct sockaddr_in sin)
 
 	ao2_link(sessions, newsession);
 
-	return unref_mansession(newsession);
+	return newsession;
 }
 
 static int mansession_cmp_fn(void *obj, void *arg, int flags)
@@ -540,6 +547,7 @@ static int mansession_cmp_fn(void *obj, void *arg, int flags)
 
 static void session_destroy(struct mansession_session *s)
 {
+	unref_mansession(s);
 	ao2_unlink(sessions, s);
 }
 
@@ -547,11 +555,13 @@ static void session_destroy(struct mansession_session *s)
 static int check_manager_session_inuse(const char *name)
 {
 	struct mansession_session *session = ao2_find(sessions, (char*) name, OBJ_POINTER);
+	int inuse = 0;
 
 	if (session) {
+		inuse = 1;
 		unref_mansession(session);
 	}
-	return session ? 1 : 0;
+	return inuse;
 }
 
 
@@ -905,32 +915,6 @@ static void ref_event(struct eventqent *e)
 }
 
 /*
- * destroy a session, leaving the usecount
- */
-static void free_session(struct mansession_session *session)
-{
-	struct eventqent *eqe = session->last_ev;
-	struct ast_datastore *datastore;
-
-	/* Get rid of each of the data stores on the session */
-	while ((datastore = AST_LIST_REMOVE_HEAD(&session->datastores, entry))) {
-		/* Free the data store */
-		ast_datastore_free(datastore);
-	}
-
-	if (session->f != NULL)
-		fclose(session->f);
-	ast_free(session);
-	unref_event(eqe);
-}
-
-static void destroy_session(struct mansession_session *session)
-{
-	ao2_unlink(sessions, session);
-	free_session(session);
-}
-
-/*
  * Generic function to return either the first or the last matching header
  * from a list of variables, possibly skipping empty strings.
  * At the moment there is only one use of this function in this file,
@@ -1124,6 +1108,17 @@ void astman_send_listack(struct mansession *s, const struct message *m, char *ms
 	astman_send_response_full(s, m, "Success", msg, listflag);
 }
 
+/*! \brief Lock the 'mansession' structure. */
+static void mansession_lock(struct mansession *s)
+{
+	ast_mutex_lock(&s->lock);
+}
+
+/*! \brief Unlock the 'mansession' structure. */
+static void mansession_unlock(struct mansession *s)
+{
+	ast_mutex_unlock(&s->lock);
+}
 
 /*! \brief
    Rather than braindead on,off this now can also accept a specific int mask value
@@ -1133,11 +1128,11 @@ static int set_eventmask(struct mansession *s, const char *eventmask)
 {
 	int maskint = strings_to_mask(eventmask);
 
-	ao2_lock(s);
+	mansession_lock(s);
 	if (maskint >= 0) {
 		s->session->send_events = maskint;
 	}
-	ao2_unlock(s);
+	mansession_unlock(s);
 
 	return maskint;
 }
@@ -1693,7 +1688,7 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 		/* XXX maybe put an upper bound, or prevent the use of 0 ? */
 	}
 
-	ao2_lock(s);
+	mansession_lock(s);
 	if (s->session->waiting_thread != AST_PTHREADT_NULL) {
 		pthread_kill(s->session->waiting_thread, SIGURG);
 	}
@@ -1717,14 +1712,14 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 			s->session->send_events = -1;
 		}
 	}
-	ao2_unlock(s);
+	mansession_unlock(s);
 
 	/* XXX should this go inside the lock ? */
 	s->session->waiting_thread = pthread_self();	/* let new events wake up this thread */
 	ast_debug(1, "Starting waiting for an event!\n");
 
 	for (x = 0; x < timeout || timeout < 0; x++) {
-		ao2_lock(s);
+		mansession_lock(s);
 		if (NEW_EVENT(s)) {
 			needexit = 1;
 		}
@@ -1738,7 +1733,7 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 		if (s->session->needdestroy) {
 			needexit = 1;
 		}
-		ao2_unlock(s);
+		mansession_unlock(s);
 		if (needexit) {
 			break;
 		}
@@ -1752,7 +1747,7 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 	}
 	ast_debug(1, "Finished waiting for an event!\n");
 
-	ao2_lock(s);
+	mansession_lock(s);
 	if (s->session->waiting_thread == pthread_self()) {
 		struct eventqent *eqe;
 		astman_send_response(s, m, "Success", "Waiting for Event completed.");
@@ -1772,7 +1767,7 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 	} else {
 		ast_debug(1, "Abandoning event request!\n");
 	}
-	ao2_unlock(s);
+	mansession_unlock(s);
 	return 0;
 }
 
@@ -1862,10 +1857,10 @@ static int action_challenge(struct mansession *s, const struct message *m)
 		if (ast_strlen_zero(s->session->challenge)) {
 			snprintf(s->session->challenge, sizeof(s->session->challenge), "%ld", ast_random());
 		}
-		ao2_lock(s);
+		mansession_lock(s);
 		astman_start_ack(s, m);
 		astman_append(s, "Challenge: %s\r\n\r\n", s->session->challenge);
-		ao2_unlock(s);
+		mansession_unlock(s);
 	} else {
 		astman_send_error(s, m, "Must specify AuthType");
 	}
@@ -3191,16 +3186,16 @@ static int process_message(struct mansession *s, const struct message *m)
 	ast_copy_string(action, __astman_get_header(m, "Action", GET_HEADER_SKIP_EMPTY), sizeof(action));
 
 	if (ast_strlen_zero(action)) {
-		ao2_lock(s);
+		mansession_lock(s);
 		astman_send_error(s, m, "Missing action in request");
-		ao2_unlock(s);
+		mansession_unlock(s);
 		return 0;
 	}
 
 	if (!s->session->authenticated && strcasecmp(action, "Login") && strcasecmp(action, "Logoff") && strcasecmp(action, "Challenge")) {
-		ao2_lock(s);
+		mansession_lock(s);
 		astman_send_error(s, m, "Permission denied");
-		ao2_unlock(s);
+		mansession_unlock(s);
 		return 0;
 	}
 
@@ -3208,9 +3203,9 @@ static int process_message(struct mansession *s, const struct message *m)
 		(!strcasecmp(action, "Login") || !strcasecmp(action, "Challenge"))) {
 		if (check_manager_session_inuse(user)) {
 			sleep(1);
-			ao2_lock(s);
+			mansession_lock(s);
 			astman_send_error(s, m, "Login Already In Use");
-			ao2_unlock(s);
+			mansession_unlock(s);
 			return -1;
 		}
 	}
@@ -3237,9 +3232,9 @@ static int process_message(struct mansession *s, const struct message *m)
 	} else {
 		char buf[512];
 		snprintf(buf, sizeof(buf), "Invalid/unknown command: %s. Use Action: ListCommands to show available commands.", action);
-		ao2_lock(s);
+		mansession_lock(s);
 		astman_send_error(s, m, buf);
-		ao2_unlock(s);
+		mansession_unlock(s);
 	}
 	if (ret) {
 		return ret;
@@ -3297,20 +3292,20 @@ static int get_input(struct mansession *s, char *output)
 	res = 0;
 	while (res == 0) {
 		/* XXX do we really need this locking ? */
-		ao2_lock(s);
+		mansession_lock(s);
 		if (s->session->pending_event) {
 			s->session->pending_event = 0;
-			ao2_unlock(s);
+			mansession_unlock(s);
 			return 0;
 		}
 		s->session->waiting_thread = pthread_self();
-		ao2_unlock(s);
+		mansession_unlock(s);
 
 		res = ast_wait_for_input(s->session->fd, -1);	/* return 0 on timeout ? */
 
-		ao2_lock(s);
+		mansession_lock(s);
 		s->session->waiting_thread = AST_PTHREADT_NULL;
-		ao2_unlock(s);
+		mansession_unlock(s);
 	}
 	if (res < 0) {
 		/* If we get a signal from some other thread (typically because
@@ -3323,7 +3318,7 @@ static int get_input(struct mansession *s, char *output)
 		return -1;
 	}
 
-	ao2_lock(s);
+	mansession_lock(s);
 	res = fread(src + s->session->inlen, 1, maxlen - s->session->inlen, s->session->f);
 	if (res < 1) {
 		res = -1;	/* error return */
@@ -3332,7 +3327,7 @@ static int get_input(struct mansession *s, char *output)
 		src[s->session->inlen] = '\0';
 		res = 0;
 	}
-	ao2_unlock(s);
+	mansession_unlock(s);
 	return res;
 }
 
@@ -3394,6 +3389,8 @@ static void *session_do(void *data)
 	/* Hook to the tail of the event queue */
 	session->last_ev = grab_last();
 
+	ast_mutex_init(&s.lock);
+
 	/* these fields duplicate those in the 'ser' structure */
 	session->fd = s.fd = ser->fd;
 	session->f = s.f = ser->f;
@@ -3433,8 +3430,9 @@ static void *session_do(void *data)
 	*/
 	usleep(1);
 
-	destroy_session(session);
+	session_destroy(session);
 
+	ast_mutex_destroy(&s.lock);
 done:
 	ao2_ref(ser, -1);
 	ser = NULL;
@@ -3450,7 +3448,6 @@ static void purge_sessions(int n_max)
 
 	i = ao2_iterator_init(sessions, 0);
 	while ((session = ao2_iterator_next(&i)) && n_max > 0) {
-		unref_mansession(session);
 		ao2_lock(session);
 		if (session->sessiontimeout && (now > session->sessiontimeout) && !session->inuse) {
 			if (session->authenticated && (VERBOSITY_ATLEAST(2)) && manager_displayconnects(session)) {
@@ -3462,6 +3459,7 @@ static void purge_sessions(int n_max)
 			n_max--;
 		} else {
 			ao2_unlock(session);
+			unref_mansession(session);
 		}
 	}
 }
@@ -3711,7 +3709,6 @@ static struct mansession_session *find_session(uint32_t ident, int incinuse)
 		ao2_lock(session);
 		if (session->managerid == ident && !session->needdestroy) {
 			ast_atomic_fetchadd_int(&session->inuse, incinuse ? 1 : 0);
-			unref_mansession(session);
 			break;
 		}
 		ao2_unlock(session);
@@ -3744,11 +3741,9 @@ static struct mansession_session *find_session_by_nonce(const char *username, un
 		ao2_lock(session);
 		if (!strcasecmp(session->username, username) && session->managerid == nonce) {
 			*stale = 0;
-			unref_mansession(session);
 			break;
 		} else if (!strcasecmp(session->username, username) && session->oldnonce == nonce) {
 			*stale = 1;
-			unref_mansession(session);
 			break;
 		}
 		ao2_unlock(session);
@@ -3768,6 +3763,7 @@ int astman_is_authed(uint32_t ident)
 	authed = (session->authenticated != 0);
 
 	ao2_unlock(session);
+	unref_mansession(session);
 
 	return authed;
 }
@@ -4113,6 +4109,8 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 	http_header = ast_str_create(128);
 	out = ast_str_create(2048);
 
+	ast_mutex_init(&s.lock);
+
 	if (http_header == NULL || out == NULL) {
 		ast_http_error(ser, 500, "Server Error", "Internal Server Error (ast_str_create() out of memory)\n");
 		goto generic_callback_out;
@@ -4249,6 +4247,8 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 	http_header = out = NULL;
 
 generic_callback_out:
+	ast_mutex_destroy(&s.lock);
+
 	/* Clear resource */
 
 	if (method == AST_HTTP_POST && params) {
@@ -4260,13 +4260,14 @@ generic_callback_out:
 	if (out) {
 		ast_free(out);
 	}
-	if (session->f) {
+
+	if (session && blastaway) {
+		session_destroy(session);
+	} else if (session && session->f) {
 		fclose(session->f);
+		session->f = NULL;
 	}
 
-	if (session != NULL && blastaway) {
-		session_destroy(session);
-	}
 	return 0;
 }
 
@@ -4459,6 +4460,7 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 	session->sessiontimeout = time(NULL) + (httptimeout > 5 ? httptimeout : 5);
 	ao2_unlock(session);
 
+	ast_mutex_init(&s.lock);
 	s.session = session;
 	s.fd = mkstemp(template);	/* create a temporary file for command output */
 	unlink(template);
@@ -4554,6 +4556,8 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 	http_header = out = NULL;
 
 auth_callback_out:
+	ast_mutex_destroy(&s.lock);
+
 	/* Clear resources and unlock manager session */
 	if (method == AST_HTTP_POST && params) {
 		ast_variables_destroy(params);
