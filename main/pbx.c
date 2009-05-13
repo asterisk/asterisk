@@ -1573,8 +1573,7 @@ int ast_func_write(struct ast_channel *chan, char *function, const char *value)
 
 static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead *headp, const char *cp1, char *cp2, int count)
 {
-	/* Substitutes variables into cp2, based on string cp1, and assuming cp2 to be
-	   zero-filled */
+	/* Substitutes variables into cp2, based on string cp1, cp2 NO LONGER NEEDS TO BE ZEROED OUT!!!!  */
 	char *cp4;
 	const char *tmp, *whereweare;
 	int length, offset, offset2, isfunction;
@@ -1584,6 +1583,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 	char *vars, *vare;
 	int pos, brackets, needsub, len;
 
+	*cp2 = 0; /* just in case nothing ends up there */
 	whereweare=tmp=cp1;
 	while (!ast_strlen_zero(whereweare) && count) {
 		/* Assume we're copying the whole remaining string */
@@ -1617,6 +1617,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 			count -= pos;
 			cp2 += pos;
 			whereweare += pos;
+			*cp2 = 0;
 		}
 
 		if (nextvar) {
@@ -1640,7 +1641,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 				vare++;
 			}
 			if (brackets)
-				ast_log(LOG_NOTICE, "Error in extension logic (missing '}')\n");
+				ast_log(LOG_WARNING, "Error in extension logic (missing '}')\n");
 			len = vare - vars - 1;
 
 			/* Skip totally over variable string */
@@ -1657,7 +1658,6 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 				if (!ltmp)
 					ltmp = alloca(VAR_BUF_SIZE);
 
-				memset(ltmp, 0, VAR_BUF_SIZE);
 				pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE - 1);
 				vars = ltmp;
 			} else {
@@ -1703,6 +1703,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 				memcpy(cp2, cp4, length);
 				count -= length;
 				cp2 += length;
+				*cp2 = 0;
 			}
 		} else if (nextexp) {
 			/* We have an expression.  Find the start and end, and determine
@@ -1713,7 +1714,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 			needsub = 0;
 
 			/* Find the end of it */
-			while(brackets && *vare) {
+			while (brackets && *vare) {
 				if ((vare[0] == '$') && (vare[1] == '[')) {
 					needsub++;
 					brackets++;
@@ -1729,7 +1730,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 				vare++;
 			}
 			if (brackets)
-				ast_log(LOG_NOTICE, "Error in extension logic (missing ']')\n");
+				ast_log(LOG_WARNING, "Error in extension logic (missing ']')\n");
 			len = vare - vars - 1;
 
 			/* Skip totally over expression */
@@ -1746,7 +1747,6 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 				if (!ltmp)
 					ltmp = alloca(VAR_BUF_SIZE);
 
-				memset(ltmp, 0, VAR_BUF_SIZE);
 				pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE - 1);
 				vars = ltmp;
 			} else {
@@ -1760,6 +1760,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 					ast_log(LOG_DEBUG, "Expression result is '%s'\n", cp2);
 				count -= length;
 				cp2 += length;
+				*cp2 = 0;
 			}
 		}
 	}
