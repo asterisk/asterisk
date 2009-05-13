@@ -9122,7 +9122,7 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 	 * gone immediately to the "i" extension, but will now need to wait for a
 	 * timeout.
 	 */
-	if ((exten[0] = res) && (ast_exists_extension(chan, args.context, exten, 1, chan->cid.cid_num) || !ast_matchmore_extension(chan, args.context, exten, 1, chan->cid.cid_num))) {
+	if ((exten[0] = res) && !ast_matchmore_extension(chan, args.context, exten, 1, chan->cid.cid_num)) {
 		snprintf(chan->exten, sizeof(chan->exten), "%c", res);
 		ast_copy_string(chan->context, args.context, sizeof(chan->context));
 		chan->priority = 0;
