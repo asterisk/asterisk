@@ -7908,12 +7908,10 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 
 	/* If we are adding a hint evalulate in variables and global variables */
 	if (priority == PRIORITY_HINT && strstr(application, "${") && !strstr(extension, "_")) {
-		struct ast_channel c = {0, };
-
-		ast_copy_string(c.exten, extension, sizeof(c.exten));
-		ast_copy_string(c.context, con->name, sizeof(c.context));
-		pbx_substitute_variables_helper(&c, application, expand_buf, sizeof(expand_buf));
+		struct ast_channel *c = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", extension, con->name, 0, "Bogus/%s", __PRETTY_FUNCTION__);
+		pbx_substitute_variables_helper(c, application, expand_buf, sizeof(expand_buf));
 		application = expand_buf;
+		ast_channel_release(c);
 	}
 
 	length = sizeof(struct ast_exten);
