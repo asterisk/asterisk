@@ -1353,7 +1353,6 @@ void ast_channel_free(struct ast_channel *chan)
 	
 	AST_RWLIST_WRLOCK(&channels);
 	if (!AST_RWLIST_REMOVE(&channels, chan, chan_list)) {
-		AST_RWLIST_UNLOCK(&channels);
 		ast_log(LOG_ERROR, "Unable to find channel in list to free. Assuming it has already been done.\n");
 	}
 	/* Lock and unlock the channel just to be sure nobody has it locked still
