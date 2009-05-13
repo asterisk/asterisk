@@ -72,7 +72,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define RTP_MTU		1200
 
-#define DEFAULT_DTMF_TIMEOUT 3000	/*!< samples */
+#define DEFAULT_DTMF_TIMEOUT (150 * (8000 / 1000))	/*!< samples */
 
 #define ZFONE_PROFILE_ID 0x505a
 
@@ -139,7 +139,8 @@ struct ast_rtp {
 	/* DTMF Reception Variables */
 	char resp;
 	unsigned int lastevent;
-	int dtmfcount;
+	unsigned int dtmf_duration;     /*!< Total duration in samples since the digit start event */
+	unsigned int dtmf_timeout;      /*!< When this timestamp is reached we consider END frame lost and forcibly abort digit */
 	unsigned int dtmfsamples;
 	/* DTMF Transmission Variables */
 	unsigned int lastdigitts;
@@ -1335,23 +1336,59 @@ static struct ast_frame *process_dtmf_rfc2833(struct ast_rtp_instance *instance,
 	if (ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_DTMF_COMPENSATE)) {
 		if ((rtp->lastevent != timestamp) || (rtp->resp && rtp->resp != resp)) {
 			rtp->resp = resp;
-			rtp->dtmfcount = 0;
+			rtp->dtmf_timeout = 0;
 			f = send_dtmf(instance, AST_FRAME_DTMF_END, ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_DTMF_COMPENSATE));
 			f->len = 0;
 			rtp->lastevent = timestamp;
 		}
 	} else {
-		if ((!(rtp->resp) && (!(event_end & 0x80))) || (rtp->resp && rtp->resp != resp)) {
-			rtp->resp = resp;
-			f = send_dtmf(instance, AST_FRAME_DTMF_BEGIN, 0);
-			rtp->dtmfcount = dtmftimeout;
-		} else if ((event_end & 0x80) && (rtp->lastevent != seqno) && rtp->resp) {
-			f = send_dtmf(instance, AST_FRAME_DTMF_END, 0);
-			f->len = ast_tvdiff_ms(ast_samp2tv(samples, 8000), ast_tv(0, 0)); /* XXX hard coded 8kHz */
-			rtp->resp = 0;
-			rtp->dtmfcount = 0;
-			rtp->lastevent = seqno;
+		/*  The duration parameter measures the complete
+		    duration of the event (from the beginning) - RFC2833.
+		    Account for the fact that duration is only 16 bits long
+		    (about 8 seconds at 8000 Hz) and can wrap is digit
+		    is hold for too long. */
+		unsigned int new_duration = rtp->dtmf_duration;
+		unsigned int last_duration = new_duration & 0xFFFF;
+
+		if (last_duration > 64000 && samples < last_duration) {
+			new_duration += 0xFFFF + 1;
 		}
+		new_duration = (new_duration & ~0xFFFF) | samples;
+
+		if (event_end & 0x80) {
+			/* End event */
+			if ((rtp->lastevent != seqno) && rtp->resp) {
+				rtp->dtmf_duration = new_duration;
+				f = send_dtmf(instance, AST_FRAME_DTMF_END, 0);
+				f->len = ast_tvdiff_ms(ast_samp2tv(rtp->dtmf_duration, 8000), ast_tv(0, 0));
+				rtp->resp = 0;
+				rtp->dtmf_duration = rtp->dtmf_timeout = 0;
+			}
+		} else {
+			/* Begin/continuation */
+
+			if (rtp->resp && rtp->resp != resp) {
+				/* Another digit already began. End it */
+				f = send_dtmf(instance, AST_FRAME_DTMF_END, 0);
+				f->len = ast_tvdiff_ms(ast_samp2tv(rtp->dtmf_duration, 8000), ast_tv(0, 0));
+				rtp->resp = 0;
+				rtp->dtmf_duration = rtp->dtmf_timeout = 0;
+			}
+
+			if (rtp->resp) {
+				/* Digit continues */
+				rtp->dtmf_duration = new_duration;
+			} else {
+				/* New digit began */
+				rtp->resp = resp;
+				f = send_dtmf(instance, AST_FRAME_DTMF_BEGIN, 0);
+				rtp->dtmf_duration = samples;
+			}
+
+			rtp->dtmf_timeout = timestamp + rtp->dtmf_duration + dtmftimeout;
+		}
+
+		rtp->lastevent = seqno;
 	}
 
 	rtp->dtmfsamples = samples;
@@ -1432,7 +1469,7 @@ static struct ast_frame *process_dtmf_cisco(struct ast_rtp_instance *instance, u
 		rtp->resp = 0;
 	} else if (rtp->resp == resp)
 		rtp->dtmfsamples += 20 * 8;
-	rtp->dtmfcount = dtmftimeout;
+	rtp->dtmf_timeout = 0;
 
 	return f;
 }
@@ -1982,6 +2019,20 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 	rtp->f.frametype = (rtp->f.subclass & AST_FORMAT_AUDIO_MASK) ? AST_FRAME_VOICE : (rtp->f.subclass & AST_FORMAT_VIDEO_MASK) ? AST_FRAME_VIDEO : AST_FRAME_TEXT;
 
 	rtp->rxseqno = seqno;
+
+	if (rtp->dtmf_timeout && rtp->dtmf_timeout < timestamp) {
+		rtp->dtmf_timeout = 0;
+
+		if (rtp->resp) {
+			struct ast_frame *f;
+			f = send_dtmf(instance, AST_FRAME_DTMF_END, 0);
+			f->len = ast_tvdiff_ms(ast_samp2tv(rtp->dtmf_duration, 8000), ast_tv(0, 0));
+			rtp->resp = 0;
+			rtp->dtmf_timeout = rtp->dtmf_duration = 0;
+			return f;
+		}
+	}
+
 	rtp->lastrxts = timestamp;
 
 	rtp->f.src = "RTP";
@@ -2522,7 +2573,7 @@ static int rtp_reload(int reload)
 		}
 		if ((s = ast_variable_retrieve(cfg, "general", "dtmftimeout"))) {
 			dtmftimeout = atoi(s);
-			if ((dtmftimeout < 0) || (dtmftimeout > 20000)) {
+			if ((dtmftimeout < 0) || (dtmftimeout > 64000)) {
 				ast_log(LOG_WARNING, "DTMF timeout of '%d' outside range, using default of '%d' instead\n",
 					dtmftimeout, DEFAULT_DTMF_TIMEOUT);
 				dtmftimeout = DEFAULT_DTMF_TIMEOUT;
