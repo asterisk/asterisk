@@ -3376,7 +3376,6 @@ static void *session_do(void *data)
 	if (session == NULL) {
 		goto done;
 	}
-	ao2_lock(sessions);
 
 	flags = fcntl(ser->fd, F_GETFL);
 	if (!block_sockets) { /* make sure socket is non-blocking */
@@ -3386,6 +3385,7 @@ static void *session_do(void *data)
 	}
 	fcntl(ser->fd, F_SETFL, flags);
 
+	ao2_lock(session);
 	/* Hook to the tail of the event queue */
 	session->last_ev = grab_last();
 
@@ -3399,7 +3399,7 @@ static void *session_do(void *data)
 
 	AST_LIST_HEAD_INIT_NOLOCK(&session->datastores);
 
-	ao2_unlock(sessions);
+	ao2_unlock(session);
 	astman_append(&s, "Asterisk Call Manager/%s\r\n", AMI_VERSION);	/* welcome prompt */
 	for (;;) {
 		if ((res = do_message(&s)) < 0) {
