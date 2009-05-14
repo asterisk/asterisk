@@ -482,6 +482,10 @@ struct chan_iax2_pvt {
 	unsigned int lastvsent;
 	/*! Next outgoing timestamp if everything is good */
 	unsigned int nextpred;
+	/*! iax frame subclass that began iax2_pvt entry. 0x8000 bit is set on TX */
+	int first_iax_message;
+	/*! Last iax frame subclass sent or received for a iax2_pvt. 0x8000 bit is set on TX */
+	int last_iax_message;
 	/*! True if the last voice we transmitted was not silence/CNG */
 	int notsilenttx;
 	/*! Ping time */
@@ -4566,6 +4570,13 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 		}
 		pvt->lastvsent = fts;
 	}
+	if (f->frametype == AST_FRAME_IAX) {
+		/* 0x8000 marks this message as TX:, this bit will be stripped later */
+		pvt->last_iax_message = f->subclass | 0x8000;
+		if (!pvt->first_iax_message) {
+			pvt->first_iax_message = pvt->last_iax_message;
+		}
+	}
 	/* Allocate an iax_frame */
 	if (now) {
 		fr = &frb.fr2;
@@ -4643,7 +4654,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 			} else
 				ast_log(LOG_WARNING, "Supposed to send packet encrypted, but no key?\n");
 		}
-	
+
 		if (now) {
 			res = send_packet(fr);
 		} else
@@ -5033,21 +5044,22 @@ static int iax2_show_registry(int fd, int argc, char *argv[])
 
 static int iax2_show_channels(int fd, int argc, char *argv[])
 {
-#define FORMAT2 "%-20.20s  %-15.15s  %-10.10s  %-11.11s  %-11.11s  %-7.7s  %-6.6s  %-6.6s  %s\n"
-#define FORMAT  "%-20.20s  %-15.15s  %-10.10s  %5.5d/%5.5d  %5.5d/%5.5d  %-5.5dms  %-4.4dms  %-4.4dms  %-6.6s\n"
+#define FORMAT2 "%-20.20s  %-15.15s  %-10.10s  %-11.11s  %-11.11s  %-7.7s  %-6.6s  %-6.6s  %s  %s  %9s\n"
+#define FORMAT  "%-20.20s  %-15.15s  %-10.10s  %5.5d/%5.5d  %5.5d/%5.5d  %-5.5dms  %-4.4dms  %-4.4dms  %-6.6s  %s%s  %3s%s\n"
 #define FORMATB "%-20.20s  %-15.15s  %-10.10s  %5.5d/%5.5d  %5.5d/%5.5d  [Native Bridged to ID=%5.5d]\n"
 	int x;
 	int numchans = 0;
+	char first_message[10] = { 0, };
+	char last_message[10] = { 0, };
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	ast_cli(fd, FORMAT2, "Channel", "Peer", "Username", "ID (Lo/Rem)", "Seq (Tx/Rx)", "Lag", "Jitter", "JitBuf", "Format");
+	ast_cli(fd, FORMAT2, "Channel", "Peer", "Username", "ID (Lo/Rem)", "Seq (Tx/Rx)", "Lag", "Jitter", "JitBuf", "Format", "FirstMsg", "LastMsg");
 	for (x = 0; x < ARRAY_LEN(iaxs); x++) {
 		ast_mutex_lock(&iaxsl[x]);
 		if (iaxs[x]) {
 			int lag, jitter, localdelay;
 			jb_info jbinfo;
-			
 			if(ast_test_flag(iaxs[x], IAX_USEJITTERBUF)) {
 				jb_getinfo(iaxs[x]->jb, &jbinfo);
 				jitter = jbinfo.jitter;
@@ -5056,17 +5068,24 @@ static int iax2_show_channels(int fd, int argc, char *argv[])
 				jitter = -1;
 				localdelay = 0;
 			}
+
+			iax_frame_subclass2str(iaxs[x]->first_iax_message & ~0x8000, first_message, sizeof(first_message));
+			iax_frame_subclass2str(iaxs[x]->last_iax_message & ~0x8000, last_message, sizeof(last_message));
 			lag = iaxs[x]->remote_rr.delay;
 			ast_cli(fd, FORMAT,
 				iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
-				ast_inet_ntoa(iaxs[x]->addr.sin_addr), 
+				ast_inet_ntoa(iaxs[x]->addr.sin_addr),
 				S_OR(iaxs[x]->username, "(None)"),
 				iaxs[x]->callno, iaxs[x]->peercallno,
 				iaxs[x]->oseqno, iaxs[x]->iseqno,
 				lag,
 				jitter,
 				localdelay,
-				ast_getformatname(iaxs[x]->voiceformat) );
+				ast_getformatname(iaxs[x]->voiceformat),
+				(iaxs[x]->first_iax_message & 0x8000) ? "Tx:" : "Rx:",
+				first_message,
+				(iaxs[x]->last_iax_message & 0x8000) ? "Tx:" : "Rx:",
+				last_message);
 			numchans++;
 		}
 		ast_mutex_unlock(&iaxsl[x]);
@@ -5082,13 +5101,15 @@ static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt)
 {
 	int x;
 	int numchans = 0;
+	char first_message[10] = { 0, };
+	char last_message[10] = { 0, };
 	for (x = 0; x < ARRAY_LEN(iaxs); x++) {
 		ast_mutex_lock(&iaxsl[x]);
 		if (iaxs[x]) {
 			int localjitter, localdelay, locallost, locallosspct, localdropped, localooo;
 			char *fmt;
 			jb_info jbinfo;
-			
+
 			if(ast_test_flag(iaxs[x], IAX_USEJITTERBUF)) {
 				jb_getinfo(iaxs[x]->jb, &jbinfo);
 				localjitter = jbinfo.jitter;
@@ -5105,16 +5126,18 @@ static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt)
 				localdropped = 0;
 				localooo = -1;
 			}
+			iax_frame_subclass2str(iaxs[x]->first_iax_message & ~0x8000, first_message, sizeof(first_message));
+			iax_frame_subclass2str(iaxs[x]->last_iax_message & ~0x8000, last_message, sizeof(last_message));
 			if (limit_fmt)
-				fmt = "%-25.25s %4d %4d %4d %5d %3d %5d %4d %6d %4d %4d %5d %3d %5d %4d %6d\n";
+				fmt = "%-20.25s %4d %4d %4d %5d %3d %5d %4d %6d %4d %4d %5d %3d %5d %4d %6d %s%s %4s%s\n";
 			else
-				fmt = "%s %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n";
+				fmt = "%s %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %s%s %s%s\n";
 			if (s)
-				
+
 				astman_append(s, fmt,
 					      iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
 					      iaxs[x]->pingtime,
-					      localjitter, 
+					      localjitter,
 					      localdelay,
 					      locallost,
 					      locallosspct,
@@ -5127,12 +5150,16 @@ static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt)
 					      iaxs[x]->remote_rr.losspct,
 					      iaxs[x]->remote_rr.dropped,
 					      iaxs[x]->remote_rr.ooo,
-					      iaxs[x]->remote_rr.packets/1000);
+					      iaxs[x]->remote_rr.packets/1000,
+                          (iaxs[x]->first_iax_message & 0x8000) ? "Tx:" : "Rx:",
+						  first_message,
+						  (iaxs[x]->last_iax_message & 0x8000) ? "Tx:" : "Rx:",
+						  last_message);
 			else
 				ast_cli(fd, fmt,
 					iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
 					iaxs[x]->pingtime,
-					localjitter, 
+					localjitter,
 					localdelay,
 					locallost,
 					locallosspct,
@@ -5145,8 +5172,11 @@ static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt)
 					iaxs[x]->remote_rr.losspct,
 					iaxs[x]->remote_rr.dropped,
 					iaxs[x]->remote_rr.ooo,
-					iaxs[x]->remote_rr.packets/1000
-					);
+					iaxs[x]->remote_rr.packets/1000,
+					(iaxs[x]->first_iax_message & 0x8000) ? "Tx:" : "Rx:",
+					first_message,
+					(iaxs[x]->last_iax_message & 0x8000) ? "Tx:" : "Rx:",
+					last_message);
 			numchans++;
 		}
 		ast_mutex_unlock(&iaxsl[x]);
@@ -5159,8 +5189,8 @@ static int iax2_show_netstats(int fd, int argc, char *argv[])
 	int numchans = 0;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	ast_cli(fd, "                                -------- LOCAL ---------------------  -------- REMOTE --------------------\n");
-	ast_cli(fd, "Channel                    RTT  Jit  Del  Lost   %%  Drop  OOO  Kpkts  Jit  Del  Lost   %%  Drop  OOO  Kpkts\n");
+	ast_cli(fd, "                           -------- LOCAL ---------------------  -------- REMOTE --------------------\n");
+	ast_cli(fd, "Channel               RTT  Jit  Del  Lost   %%  Drop  OOO  Kpkts  Jit  Del  Lost   %%  Drop  OOO  Kpkts FirstMsg    LastMsg\n");
 	numchans = ast_cli_netstats(NULL, fd, 1);
 	ast_cli(fd, "%d active IAX channel%s\n", numchans, (numchans != 1) ? "s" : "");
 	return RESULT_SUCCESS;
@@ -7718,8 +7748,9 @@ retryowner:
 		if (f.frametype == AST_FRAME_IAX) {
 			AST_SCHED_DEL(sched, iaxs[fr->callno]->initid);
 			/* Handle the IAX pseudo frame itself */
-			if (option_debug && iaxdebug)
+			if (option_debug && iaxdebug) {
 				ast_log(LOG_DEBUG, "IAX subclass %d received\n", f.subclass);
+			}
 
                         /* Update last ts unless the frame's timestamp originated with us. */
 			if (iaxs[fr->callno]->last < fr->ts &&
@@ -7727,10 +7758,14 @@ retryowner:
                             f.subclass != IAX_COMMAND_PONG &&
                             f.subclass != IAX_COMMAND_LAGRP) {
 				iaxs[fr->callno]->last = fr->ts;
-				if (option_debug && iaxdebug)
+				if (option_debug && iaxdebug) {
 					ast_log(LOG_DEBUG, "For call=%d, set last=%d\n", fr->callno, fr->ts);
+				}
 			}
-
+			iaxs[fr->callno]->last_iax_message = f.subclass;
+			if (!iaxs[fr->callno]->first_iax_message) {
+				iaxs[fr->callno]->first_iax_message = f.subclass;
+			}
 			switch(f.subclass) {
 			case IAX_COMMAND_ACK:
 				/* Do nothing */

@@ -400,6 +400,59 @@ static void dump_ies(unsigned char *iedata, int len)
 	outputf("\n");
 }
 
+void iax_frame_subclass2str(int subclass, char *str, size_t len)
+{
+	int copylen = 8;
+	const char *iaxs[] = {
+		"(0?)   ",
+		"NEW    ",
+		"PING   ",
+		"PONG   ",
+		"ACK    ",
+		"HANGUP ",
+		"REJECT ",
+		"ACCEPT ",
+		"AUTHREQ",
+		"AUTHREP",
+		"INVAL  ",
+		"LAGRQ  ",
+		"LAGRP  ",
+		"REGREQ ",
+		"REGAUTH",
+		"REGACK ",
+		"REGREJ ",
+		"REGREL ",
+		"VNAK   ",
+		"DPREQ  ",
+		"DPREP  ",
+		"DIAL   ",
+		"TXREQ  ",
+		"TXCNT  ",
+		"TXACC  ",
+		"TXREADY",
+		"TXREL  ",
+		"TXREJ  ",
+		"QUELCH ",
+		"UNQULCH",
+		"POKE   ",
+		"PAGE   ",
+		"MWI    ",
+		"UNSPRTD",
+		"TRANSFR",
+		"PROVISN",
+		"FWDWNLD",
+		"FWDATA ",
+		"TXMEDIA"
+	};
+	if ((copylen > len) || !subclass) {
+		str[0] = '\0';
+	} else if (subclass < ARRAY_LEN(iaxs)) {
+		memcpy(str, iaxs[subclass], len);
+	} else {
+		memcpy(str, "Unknown", len);
+	}
+}
+
 void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, struct sockaddr_in *sin, int datalen)
 {
 	const char *frames[] = {
