@@ -2892,7 +2892,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 
 		if (strcasecmp(orig_channame, chan->name) != 0) { 
 			/* old channel */
-			if ((chan_ptr == ast_channel_get_by_name(orig_channame))) {
+			if ((chan_ptr = ast_channel_get_by_name(orig_channame))) {
 				ast_channel_lock(chan_ptr);
 				if (!ast_bridged_channel(chan_ptr)) {
 					struct ast_cdr *cur;
