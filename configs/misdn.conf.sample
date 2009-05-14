@@ -397,6 +397,13 @@ nodialtone=no
 presentation=-1
 screen=-1
 
+; Select what to do with outgoing COLP information on this port.
+;
+; 0 - Send out COLP information unaltered. (default)
+; 1 - Force COLP to restricted on all outgoing COLP information.
+; 2 - Do not send COLP information.
+outgoing_colp=0
+
 ; Put a display ie in the CONNECT message containing the following
 ; information if it is available (nt port only):
 ;

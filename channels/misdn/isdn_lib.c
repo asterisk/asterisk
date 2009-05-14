@@ -753,6 +753,8 @@ static void empty_bc(struct misdn_bchannel *bc)
 	bc->display_connected = 0;	/* none */
 	bc->display_setup = 0;	/* none */
 
+	bc->outgoing_colp = 0;/* pass */
+
 	bc->presentation = 0;	/* allowed */
 	bc->set_presentation = 0;
 

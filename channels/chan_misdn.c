@@ -5868,6 +5868,7 @@ static int read_config(struct chan_list *ch)
 
 	misdn_cfg_get(port, MISDN_CFG_DISPLAY_CONNECTED, &bc->display_connected, sizeof(bc->display_connected));
 	misdn_cfg_get(port, MISDN_CFG_DISPLAY_SETUP, &bc->display_setup, sizeof(bc->display_setup));
+	misdn_cfg_get(port, MISDN_CFG_OUTGOING_COLP, &bc->outgoing_colp, sizeof(bc->outgoing_colp));
 
 	misdn_cfg_get(port, MISDN_CFG_PICKUPGROUP, &pg, sizeof(pg));
 	misdn_cfg_get(port, MISDN_CFG_CALLGROUP, &cg, sizeof(cg));
@@ -6051,6 +6052,14 @@ static void misdn_update_connected_line(struct ast_channel *ast, struct misdn_bc
 	} else {
 		bc->redirecting.to = bc->caller;
 	}
+	switch (bc->outgoing_colp) {
+	case 1:/* restricted */
+	case 2:/* blocked */
+		bc->redirecting.to.presentation = 1;/* restricted */
+		break;
+	default:
+		break;
+	}
 
 	ch = MISDN_ASTERISK_TECH_PVT(ast);
 	if (ch->state == MISDN_CONNECTED
@@ -6069,12 +6078,16 @@ static void misdn_update_connected_line(struct ast_channel *ast, struct misdn_bc
 			bc->fac_out.Function = Fac_EctInform;
 			bc->fac_out.u.EctInform.InvokeID = ++misdn_invoke_id;
 			bc->fac_out.u.EctInform.Status = 1;/* active */
-			if (bc->redirecting.to.number[0]) {
-				misdn_PresentedNumberUnscreened_fill(&bc->fac_out.u.EctInform.Redirection,
-					&bc->redirecting.to);
-				bc->fac_out.u.EctInform.RedirectionPresent = 1;
-			} else {
-				bc->fac_out.u.EctInform.RedirectionPresent = 0;
+			bc->fac_out.u.EctInform.RedirectionPresent = 1;/* Must be present when status is active */
+			misdn_PresentedNumberUnscreened_fill(&bc->fac_out.u.EctInform.Redirection,
+				&bc->redirecting.to);
+			switch (bc->outgoing_colp) {
+			case 2:/* blocked */
+				/* Block the number going out */
+				bc->fac_out.u.EctInform.Redirection.Type = 1;/* presentationRestricted */
+				break;
+			default:
+				break;
 			}
 
 			/* Send message */
@@ -6166,6 +6179,14 @@ static void misdn_update_redirecting(struct ast_channel *ast, struct misdn_bchan
 	int is_ptmp;
 
 	misdn_copy_redirecting_from_ast(bc, ast);
+	switch (bc->outgoing_colp) {
+	case 1:/* restricted */
+	case 2:/* blocked */
+		bc->redirecting.to.presentation = 1;/* restricted */
+		break;
+	default:
+		break;
+	}
 
 	if (originator != ORG_MISDN) {
 		return;
@@ -6192,6 +6213,14 @@ static void misdn_update_redirecting(struct ast_channel *ast, struct misdn_bchan
 			bc->fac_out.u.DivertingLegInformation1.SubscriptionOption = 2;/* notificationWithDivertedToNr */
 			bc->fac_out.u.DivertingLegInformation1.DivertedToPresent = 1;
 			misdn_PresentedNumberUnscreened_fill(&bc->fac_out.u.DivertingLegInformation1.DivertedTo, &bc->redirecting.to);
+			switch (bc->outgoing_colp) {
+			case 2:/* blocked */
+				/* Block the number going out */
+				bc->fac_out.u.DivertingLegInformation1.DivertedTo.Type = 1;/* presentationRestricted */
+				break;
+			default:
+				break;
+			}
 			print_facility(&bc->fac_out, bc);
 			misdn_lib_send_event(bc, EVENT_FACILITY);
 		}
@@ -6368,6 +6397,14 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 		}
 
 		misdn_copy_redirecting_from_ast(newbc, ast);
+		switch (newbc->outgoing_colp) {
+		case 1:/* restricted */
+		case 2:/* blocked */
+			newbc->redirecting.from.presentation = 1;/* restricted */
+			break;
+		default:
+			break;
+		}
 #if defined(AST_MISDN_ENHANCEMENTS)
 		if (newbc->redirecting.from.number[0] && misdn_lib_is_ptp(port)) {
 			/* Create DivertingLegInformation2 facility */
@@ -6381,6 +6418,14 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 			misdn_PresentedNumberUnscreened_fill(
 				&newbc->fac_out.u.DivertingLegInformation2.Diverting,
 				&newbc->redirecting.from);
+			switch (newbc->outgoing_colp) {
+			case 2:/* blocked */
+				/* Block the number going out */
+				newbc->fac_out.u.DivertingLegInformation2.Diverting.Type = 1;/* presentationRestricted */
+				break;
+			default:
+				break;
+			}
 			newbc->fac_out.u.DivertingLegInformation2.OriginalCalledPresent = 0;
 			if (1 < newbc->redirecting.count) {
 				newbc->fac_out.u.DivertingLegInformation2.OriginalCalledPresent = 1;
@@ -6510,6 +6555,15 @@ static int misdn_answer(struct ast_channel *ast)
 		p->bc->connected.screening = 0;	/* unscreened */
 		p->bc->connected.number_type = p->bc->dialed.number_type;
 		p->bc->connected.number_plan = p->bc->dialed.number_plan;
+	}
+
+	switch (p->bc->outgoing_colp) {
+	case 1:/* restricted */
+	case 2:/* blocked */
+		p->bc->connected.presentation = 1;/* restricted */
+		break;
+	default:
+		break;
 	}
 
 #if defined(AST_MISDN_ENHANCEMENTS)

@@ -589,6 +589,15 @@ struct misdn_bchannel {
 	 */
 	int display_setup;
 
+	/*!
+	 * \brief Select what to do with outgoing COLP information.
+	 * \details
+	 * 0 - pass (Send out COLP information unaltered.)
+	 * 1 - restricted (Force COLP to restricted on all outgoing COLP information.)
+	 * 2 - block (Do not send COLP information.)
+	 */
+	int outgoing_colp;
+
 	/*! \brief User set presentation restriction code
 	 * 0=Allowed, 1=Restricted, 2=Unavailable
 	 * \note It is settable by the misdn_set_opt() application.

@@ -110,6 +110,8 @@ mISDN channel driver (chan_misdn) changes
     redirected-to party.  You still have to set the REDIRECTING(to-xxx,i)
     and the REDIRECTING(from-xxx,i) values.  The PTP call will update the
     redirecting-to presentation (COLR) when it becomes available.
+  * Added outgoing_colp parameter to misdn.conf to filter outgoing COLP
+    information.
 
 thirdparty mISDN enhancements
 -----------------------------

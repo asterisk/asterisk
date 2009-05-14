@@ -519,18 +519,26 @@ static msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, in
 		enc_ie_called_pn(&setup->CALLED_PN, msg, bc->dialed.number_type, bc->dialed.number_plan, bc->dialed.number, nt, bc);
 	}
 
-	if (bc->redirecting.from.number[0]) {
+	switch (bc->outgoing_colp) {
+	case 0:/* pass */
+	case 1:/* restricted */
+		if (bc->redirecting.from.number[0]) {
 #if 1
-		/* ETSI and Q.952 do not define the screening field */
-		enc_ie_redir_nr(&setup->REDIR_NR, msg, bc->redirecting.from.number_type, bc->redirecting.from.number_plan,
-			bc->redirecting.from.presentation, 0, bc->redirecting.reason,
-			bc->redirecting.from.number, nt, bc);
+			/* ETSI and Q.952 do not define the screening field */
+			enc_ie_redir_nr(&setup->REDIR_NR, msg, bc->redirecting.from.number_type,
+				bc->redirecting.from.number_plan, bc->redirecting.from.presentation, 0,
+				bc->redirecting.reason, bc->redirecting.from.number, nt, bc);
 #else
-		/* Q.931 defines the screening field */
-		enc_ie_redir_nr(&setup->REDIR_NR, msg, bc->redirecting.from.number_type, bc->redirecting.from.number_plan,
-			bc->redirecting.from.presentation, bc->redirecting.from.screening, bc->redirecting.reason,
-			bc->redirecting.from.number, nt, bc);
+			/* Q.931 defines the screening field */
+			enc_ie_redir_nr(&setup->REDIR_NR, msg, bc->redirecting.from.number_type,
+				bc->redirecting.from.number_plan, bc->redirecting.from.presentation,
+				bc->redirecting.from.screening, bc->redirecting.reason,
+				bc->redirecting.from.number, nt, bc);
 #endif
+		}
+		break;
+	default:
+		break;
 	}
 
 	if (bc->keypad[0]) {
@@ -667,8 +675,16 @@ static msg_t *build_connect (struct isdn_msg msgs[], struct misdn_bchannel *bc, 
 		enc_ie_date(&connect->DATE, msg, now, nt,bc);
 	}
 
-	enc_ie_connected_pn(&connect->CONNECT_PN, msg, bc->connected.number_type, bc->connected.number_plan,
-		bc->connected.presentation, bc->connected.screening, bc->connected.number, nt, bc);
+	switch (bc->outgoing_colp) {
+	case 0:/* pass */
+	case 1:/* restricted */
+		enc_ie_connected_pn(&connect->CONNECT_PN, msg, bc->connected.number_type,
+			bc->connected.number_plan, bc->connected.presentation,
+			bc->connected.screening, bc->connected.number, nt, bc);
+		break;
+	default:
+		break;
+	}
 
 	if (nt && bc->connected.presentation == 0) {
 		char display[sizeof(bc->display)];
@@ -1456,9 +1472,16 @@ static msg_t *build_notify (struct isdn_msg msgs[], struct misdn_bchannel *bc, i
 
 	if (bc->redirecting.to_changed) {
 		bc->redirecting.to_changed = 0;
-		enc_ie_redir_dn(&notify->REDIR_DN, msg, bc->redirecting.to.number_type,
-			bc->redirecting.to.number_plan, bc->redirecting.to.presentation,
-			bc->redirecting.to.number, nt, bc);
+		switch (bc->outgoing_colp) {
+		case 0:/* pass */
+		case 1:/* restricted */
+			enc_ie_redir_dn(&notify->REDIR_DN, msg, bc->redirecting.to.number_type,
+				bc->redirecting.to.number_plan, bc->redirecting.to.presentation,
+				bc->redirecting.to.number, nt, bc);
+			break;
+		default:
+			break;
+		}
 	}
 	return msg;
 }

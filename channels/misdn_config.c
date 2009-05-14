@@ -221,6 +221,12 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"\n"
 		"\tscreen=0, presentation=0 -> callerid presented\n"
 		"\tscreen=1, presentation=1 -> callerid restricted (the remote end doesn't see it!)" },
+	{ "outgoing_colp", MISDN_CFG_OUTGOING_COLP, MISDN_CTYPE_INT, "0", NONE,
+		"Select what to do with outgoing COLP information on this port.\n"
+		"\n"
+		"\t0 - Send out COLP information unaltered.\n"
+		"\t1 - Force COLP to restricted on all outgoing COLP information.\n"
+		"\t2 - Do not send COLP information." },
 	{ "display_connected", MISDN_CFG_DISPLAY_CONNECTED, MISDN_CTYPE_INT, "0", NONE,
 		"Put a display ie in the CONNECT message containing the following\n"
 		"\tinformation if it is available (nt port only):\n"
