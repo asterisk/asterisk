@@ -7083,11 +7083,10 @@ static unsigned get_range(char *src, int max, char *const names[], const char *m
 		/* Fill the mask. Remember that ranges are cyclic */
 		mask |= (1 << end);   /* initialize with last element */
 		while (start != end) {
-			if (start >= max) {
+			mask |= (1 << start);
+			if (++start >= max) {
 				start = 0;
 			}
-			mask |= (1 << start);
-			start++;
 		}
 	}
 	return mask;
