@@ -19,7 +19,6 @@ MENUSELECT_DESCRIPTION=Codec Translators
 
 LIBILBC:=ilbc/libilbc.a
 LIBLPC10:=lpc10/liblpc10.a
-LIBG722:=g722/libg722.a
 
 all: _all
 
@@ -34,7 +33,7 @@ clean::
 	$(MAKE) -C gsm clean
 	$(MAKE) -C lpc10 clean
 	$(MAKE) -C ilbc clean
-	$(MAKE) -C g722 clean
+	rm -f g722/*.[oa]
 
 gsm/lib/libgsm.a:
 	@mkdir -p gsm/lib
@@ -50,9 +49,4 @@ $(LIBILBC):
 
 $(if $(filter codec_ilbc,$(EMBEDDED_MODS)),modules.link,codec_ilbc.so): $(LIBILBC)
 
-$(LIBG722):
-	@$(MAKE) -C g722 all
-
-$(if $(filter codec_g722,$(EMBEDDED_MODS)),modules.link,codec_g722.so): $(LIBG722)
-
-.PHONY: $(LIBG722)
+$(if $(filter codec_g722,$(EMBEDDED_MODS)),modules.link,codec_g722.so): g722/g722_encode.o g722/g722_decode.o
