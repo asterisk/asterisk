@@ -60,6 +60,7 @@ struct documentation_tree {
 };
 
 static char *xmldoc_get_syntax_cmd(struct ast_xml_node *fixnode, const char *name, int printname);
+static int xmldoc_parse_enumlist(struct ast_xml_node *fixnode, const char *tabs, struct ast_str **buffer);
 
 /*!
  * \brief Container of documentation trees
@@ -1400,6 +1401,9 @@ static int xmldoc_parse_enum(struct ast_xml_node *fixnode, const char *tabs, str
 {
 	struct ast_xml_node *node = fixnode;
 	int ret = 0;
+	char *optiontabs;
+
+	ast_asprintf(&optiontabs, "%s    ", tabs);
 
 	for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
 		if ((xmldoc_parse_para(node, (ret ? tabs : " - "), "\n", buffer))) {
@@ -1407,7 +1411,12 @@ static int xmldoc_parse_enum(struct ast_xml_node *fixnode, const char *tabs, str
 		} else if ((xmldoc_parse_specialtags(node, (ret ? tabs : " - "), "\n", buffer))) {
 			ret = 1;
 		}
+
+		xmldoc_parse_enumlist(node, optiontabs, buffer);
 	}
+
+	ast_free(optiontabs);
+
 	return ret;
 }
 
