@@ -69,7 +69,7 @@
 ;
 ; Special filename "console" represents the system console
 ;
-; Filenams can either be relative to the standard Asterisk log directory
+; Filenames can either be relative to the standard Asterisk log directory
 ; (see 'astlogdir' in asterisk.conf), or absolute paths that begin with
 ; '/'.
 ;
