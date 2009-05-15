@@ -44,7 +44,7 @@
 #define IAX_WINDOW			64
 
 /*! Subclass for AST_FRAME_IAX */
-enum {
+enum iax_frame_subclass {
 	IAX_COMMAND_NEW =       1,
 	IAX_COMMAND_PING =      2,
 	IAX_COMMAND_PONG =      3,
@@ -104,7 +104,7 @@ enum {
 	/*! Provision device */
 	IAX_COMMAND_PROVISION = 35,
 	/*! Download firmware */
-	IAX_COMMAND_FWDOWNL =   36,	
+	IAX_COMMAND_FWDOWNL =   36,
 	/*! Firmware Data */
 	IAX_COMMAND_FWDATA =    37,
 	/*! Transfer media only */
@@ -112,10 +112,10 @@ enum {
 };
 
 /*! By default require re-registration once per minute */
-#define IAX_DEFAULT_REG_EXPIRE  60	
+#define IAX_DEFAULT_REG_EXPIRE  60
 
 /*! How long to wait before closing bridged call */
-#define IAX_LINGER_TIMEOUT		10 
+#define IAX_LINGER_TIMEOUT		10
 
 #define IAX_DEFAULT_PORTNO		4569
 
