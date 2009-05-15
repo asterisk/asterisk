@@ -279,7 +279,7 @@ int g722_encode(g722_encode_state_t *s, uint8_t g722_data[], const int16_t amp[]
         {
             if (s->eight_k)
             {
-                xlow = amp[j++];
+                xlow = amp[j++] >> 1;
             }
             else
             {
@@ -298,8 +298,8 @@ int g722_encode(g722_encode_state_t *s, uint8_t g722_data[], const int16_t amp[]
                     sumodd += s->x[2*i]*qmf_coeffs[i];
                     sumeven += s->x[2*i + 1]*qmf_coeffs[11 - i];
                 }
-                xlow = (sumeven + sumodd) >> 13;
-                xhigh = (sumeven - sumodd) >> 13;
+                xlow = (sumeven + sumodd) >> 14;
+                xhigh = (sumeven - sumodd) >> 14;
             }
         }
         /* Block 1L, SUBTRA */
