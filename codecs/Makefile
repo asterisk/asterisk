@@ -50,9 +50,9 @@ $(LIBILBC):
 
 $(if $(filter codec_ilbc,$(EMBEDDED_MODS)),modules.link,codec_ilbc.so): $(LIBILBC)
 
-FORCE:
-
-$(LIBG722): FORCE
+$(LIBG722):
 	@$(MAKE) -C g722 all
 
 $(if $(filter codec_g722,$(EMBEDDED_MODS)),modules.link,codec_g722.so): $(LIBG722)
+
+.PHONY: $(LIBG722)
