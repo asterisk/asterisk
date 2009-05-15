@@ -195,6 +195,37 @@ unsigned int ast_debug_get_by_file(const char *file);
 unsigned int ast_verbose_get_by_file(const char *file);
 
 /*!
+ * \brief Register a new logger level
+ * \param name The name of the level to be registered
+ * \retval -1 if an error occurs
+ * \retval non-zero level to be used with ast_log for sending messages to this level
+ * \since 1.6.3
+ */
+int ast_logger_register_level(const char *name);
+
+/*!
+ * \brief Unregister a previously registered logger level
+ * \param name The name of the level to be unregistered
+ * \return nothing
+ * \since 1.6.3
+ */
+void ast_logger_unregister_level(const char *name);
+
+/*!
+ * \brief Send a log message to a dynamically registered log level
+ * \param level The log level to send the message to
+ *
+ * Like ast_log, the log message may include printf-style formats, and
+ * the data for these must be provided as additional parameters after
+ * the log message.
+ *
+ * \return nothing
+ * \since 1.6.3
+ */
+
+#define ast_log_dynamic_level(level, ...) ast_log(level, __FILE__, __LINE__, __PRETTY_FUNCTION__, __VA_ARGS__)
+
+/*!
  * \brief Log a DEBUG message
  * \param level The minimum value of option_debug for this message
  *        to get logged
