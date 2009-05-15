@@ -445,6 +445,9 @@ static AST_LIST_HEAD_STATIC(registrations, iax2_registry);
 /* If consecutive voice frame timestamps jump by more than this many milliseconds, then jitter buffer will resync */
 #define TS_GAP_FOR_JB_RESYNC	5000
 
+/* used for first_iax_message and last_iax_message.  If this bit is set it was TX, else RX */
+#define MARK_IAX_SUBCLASS_TX	0x8000
+
 static int iaxthreadcount = DEFAULT_THREAD_COUNT;
 static int iaxmaxthreadcount = DEFAULT_MAX_THREAD_COUNT;
 static int iaxdynamicthreadcount = 0;
@@ -4572,7 +4575,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 	}
 	if (f->frametype == AST_FRAME_IAX) {
 		/* 0x8000 marks this message as TX:, this bit will be stripped later */
-		pvt->last_iax_message = f->subclass | 0x8000;
+		pvt->last_iax_message = f->subclass | MARK_IAX_SUBCLASS_TX;
 		if (!pvt->first_iax_message) {
 			pvt->first_iax_message = pvt->last_iax_message;
 		}
@@ -5069,8 +5072,8 @@ static int iax2_show_channels(int fd, int argc, char *argv[])
 				localdelay = 0;
 			}
 
-			iax_frame_subclass2str(iaxs[x]->first_iax_message & ~0x8000, first_message, sizeof(first_message));
-			iax_frame_subclass2str(iaxs[x]->last_iax_message & ~0x8000, last_message, sizeof(last_message));
+			iax_frame_subclass2str(iaxs[x]->first_iax_message & ~MARK_IAX_SUBCLASS_TX, first_message, sizeof(first_message));
+			iax_frame_subclass2str(iaxs[x]->last_iax_message & ~MARK_IAX_SUBCLASS_TX, last_message, sizeof(last_message));
 			lag = iaxs[x]->remote_rr.delay;
 			ast_cli(fd, FORMAT,
 				iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
@@ -5082,9 +5085,9 @@ static int iax2_show_channels(int fd, int argc, char *argv[])
 				jitter,
 				localdelay,
 				ast_getformatname(iaxs[x]->voiceformat),
-				(iaxs[x]->first_iax_message & 0x8000) ? "Tx:" : "Rx:",
+				(iaxs[x]->first_iax_message & MARK_IAX_SUBCLASS_TX) ? "Tx:" : "Rx:",
 				first_message,
-				(iaxs[x]->last_iax_message & 0x8000) ? "Tx:" : "Rx:",
+				(iaxs[x]->last_iax_message & MARK_IAX_SUBCLASS_TX) ? "Tx:" : "Rx:",
 				last_message);
 			numchans++;
 		}
@@ -5126,8 +5129,8 @@ static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt)
 				localdropped = 0;
 				localooo = -1;
 			}
-			iax_frame_subclass2str(iaxs[x]->first_iax_message & ~0x8000, first_message, sizeof(first_message));
-			iax_frame_subclass2str(iaxs[x]->last_iax_message & ~0x8000, last_message, sizeof(last_message));
+			iax_frame_subclass2str(iaxs[x]->first_iax_message & ~MARK_IAX_SUBCLASS_TX, first_message, sizeof(first_message));
+			iax_frame_subclass2str(iaxs[x]->last_iax_message & ~MARK_IAX_SUBCLASS_TX, last_message, sizeof(last_message));
 			if (limit_fmt)
 				fmt = "%-20.25s %4d %4d %4d %5d %3d %5d %4d %6d %4d %4d %5d %3d %5d %4d %6d %s%s %4s%s\n";
 			else
@@ -5151,9 +5154,9 @@ static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt)
 					      iaxs[x]->remote_rr.dropped,
 					      iaxs[x]->remote_rr.ooo,
 					      iaxs[x]->remote_rr.packets/1000,
-                          (iaxs[x]->first_iax_message & 0x8000) ? "Tx:" : "Rx:",
+                          (iaxs[x]->first_iax_message & MARK_IAX_SUBCLASS_TX) ? "Tx:" : "Rx:",
 						  first_message,
-						  (iaxs[x]->last_iax_message & 0x8000) ? "Tx:" : "Rx:",
+						  (iaxs[x]->last_iax_message & MARK_IAX_SUBCLASS_TX) ? "Tx:" : "Rx:",
 						  last_message);
 			else
 				ast_cli(fd, fmt,
@@ -5173,9 +5176,9 @@ static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt)
 					iaxs[x]->remote_rr.dropped,
 					iaxs[x]->remote_rr.ooo,
 					iaxs[x]->remote_rr.packets/1000,
-					(iaxs[x]->first_iax_message & 0x8000) ? "Tx:" : "Rx:",
+					(iaxs[x]->first_iax_message & MARK_IAX_SUBCLASS_TX) ? "Tx:" : "Rx:",
 					first_message,
-					(iaxs[x]->last_iax_message & 0x8000) ? "Tx:" : "Rx:",
+					(iaxs[x]->last_iax_message & MARK_IAX_SUBCLASS_TX) ? "Tx:" : "Rx:",
 					last_message);
 			numchans++;
 		}

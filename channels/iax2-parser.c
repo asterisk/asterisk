@@ -402,7 +402,7 @@ static void dump_ies(unsigned char *iedata, int len)
 
 void iax_frame_subclass2str(int subclass, char *str, size_t len)
 {
-	int copylen = 8;
+	static const size_t copylen = 8;
 	const char *iaxs[] = {
 		"(0?)   ",
 		"NEW    ",
@@ -444,12 +444,12 @@ void iax_frame_subclass2str(int subclass, char *str, size_t len)
 		"FWDATA ",
 		"TXMEDIA"
 	};
-	if ((copylen > len) || !subclass) {
+	if ((copylen > len) || !subclass || (subclass < 0)) {
 		str[0] = '\0';
 	} else if (subclass < ARRAY_LEN(iaxs)) {
-		memcpy(str, iaxs[subclass], len);
+		ast_copy_string(str, iaxs[subclass], len);
 	} else {
-		memcpy(str, "Unknown", len);
+		ast_copy_string(str, "Unknown", len);
 	}
 }
 
