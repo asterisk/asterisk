@@ -370,7 +370,7 @@ int g722_decode(g722_decode_state_t *s, int16_t amp[], const uint8_t g722_data[]
         {
             if (s->eight_k)
             {
-                amp[outlen++] = (int16_t) rlow;
+                amp[outlen++] = (int16_t) (rlow << 1);
             }
             else
             {
@@ -387,8 +387,8 @@ int g722_decode(g722_decode_state_t *s, int16_t amp[], const uint8_t g722_data[]
                     xout2 += s->x[2*i]*qmf_coeffs[i];
                     xout1 += s->x[2*i + 1]*qmf_coeffs[11 - i];
                 }
-                amp[outlen++] = (int16_t) (xout1 >> 12);
-                amp[outlen++] = (int16_t) (xout2 >> 12);
+                amp[outlen++] = (int16_t) (xout1 >> 11);
+                amp[outlen++] = (int16_t) (xout2 >> 11);
             }
         }
     }
