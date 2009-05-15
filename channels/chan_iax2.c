@@ -338,10 +338,9 @@ static struct ast_flags globalflags = { 0 };
 static pthread_t netthreadid = AST_PTHREADT_NULL;
 
 enum iax2_state {
-	IAX_STATE_STARTED = 		(1 << 0),
-	IAX_STATE_AUTHENTICATED = 	(1 << 1),
-	IAX_STATE_TBD = 		(1 << 2),
-	IAX_STATE_UNCHANGED = 		(1 << 3),
+	IAX_STATE_STARTED =			(1 << 0),
+	IAX_STATE_AUTHENTICATED =	(1 << 1),
+	IAX_STATE_TBD =				(1 << 2),
 };
 
 struct iax2_context {
@@ -6635,7 +6634,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	int expire = 0;
 	int res = -1;
 
-	ast_clear_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED | IAX_STATE_UNCHANGED);
+	ast_clear_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED);
 	/* iaxs[callno]->peer[0] = '\0'; not necc. any more-- stringfield is pre-inited to null string */
 	if (ies->username)
 		ast_copy_string(peer, ies->username, sizeof(peer));
@@ -6659,8 +6658,23 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	ast_mutex_lock(&iaxsl[callno]);
 	if (!p || !iaxs[callno]) {
 		if (iaxs[callno]) {
+			int plaintext = ((last_authmethod & IAX_AUTH_PLAINTEXT) | (iaxs[callno]->authmethods & IAX_AUTH_PLAINTEXT));
 			/* Anything, as long as it's non-blank */
 			ast_string_field_set(iaxs[callno], secret, "badsecret");
+			/* An AUTHREQ must be sent in response to a REGREQ of an invalid peer unless
+			 * 1. A challenge already exists indicating a AUTHREQ was already sent out.
+			 * 2. A plaintext secret is present in ie as result of a previous AUTHREQ requesting it.
+			 * 3. A plaintext secret is present in the ie and the last_authmethod used by a peer happened
+			 *    to be plaintext, indicating it is an authmethod used by other peers on the system. 
+			 *
+			 * If none of these cases exist, res will be returned as 0 without authentication indicating
+			 * an AUTHREQ needs to be sent out. */
+
+			if (ast_strlen_zero(iaxs[callno]->challenge) &&
+				!(!ast_strlen_zero(secret) && plaintext)) {
+				/* by setting res to 0, an REGAUTH will be sent */
+				res = 0;
+			}
 		}
 		if (authdebug && !p)
 			ast_log(LOG_NOTICE, "No registration for peer '%s' (from %s)\n", peer, ast_inet_ntoa(sin->sin_addr));
@@ -6678,8 +6692,6 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 			ast_log(LOG_NOTICE, "Host %s denied access to register peer '%s'\n", ast_inet_ntoa(sin->sin_addr), p->name);
 		goto return_unref;
 	}
-	if (!inaddrcmp(&p->addr, sin))
-		ast_set_flag(&iaxs[callno]->state, IAX_STATE_UNCHANGED);
 	ast_string_field_set(iaxs[callno], secret, p->secret);
 	ast_string_field_set(iaxs[callno], inkeys, p->inkeys);
 	/* Check secret against what we have on file */
@@ -6695,7 +6707,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 				if (key && !ast_check_signature(key, iaxs[callno]->challenge, rsasecret)) {
 					ast_set_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED);
 					break;
-				} else if (!key) 
+				} else if (!key)
 					ast_log(LOG_WARNING, "requested inkey '%s' does not exist\n", keyn);
 				keyn = strsep(&stringp, ":");
 			}
@@ -6713,7 +6725,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		struct MD5Context md5;
 		unsigned char digest[16];
 		char *tmppw, *stringp;
-		
+
 		tmppw = ast_strdupa(p->secret);
 		stringp = tmppw;
 		while((tmppw = strsep(&stringp, ";"))) {
@@ -6723,7 +6735,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 			MD5Final(digest, &md5);
 			for (x=0;x<16;x++)
 				sprintf(requeststr + (x << 1), "%2.2x", digest[x]); /* safe */
-			if (!strcasecmp(requeststr, md5secret)) 
+			if (!strcasecmp(requeststr, md5secret))
 				break;
 		}
 		if (tmppw) {
@@ -6741,15 +6753,14 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 			goto return_unref;
 		} else
 			ast_set_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED);
-	} else if (!ast_strlen_zero(p->secret) || !ast_strlen_zero(p->inkeys)) {
-		if (authdebug &&
-				((!ast_strlen_zero(p->secret) && (p->authmethods & IAX_AUTH_MD5) && !ast_strlen_zero(iaxs[callno]->challenge)) ||
-				 (!ast_strlen_zero(p->inkeys) && (p->authmethods & IAX_AUTH_RSA) && !ast_strlen_zero(iaxs[callno]->challenge)))) {
-			ast_log(LOG_NOTICE, "Inappropriate authentication received for '%s'\n", p->name);
-		}
+	} else if (!ast_strlen_zero(iaxs[callno]->challenge) && ast_strlen_zero(md5secret) && ast_strlen_zero(rsasecret)) {
+		/* if challenge has been sent, but no challenge response if given, reject. */
 		goto return_unref;
 	}
 	ast_devstate_changed(AST_DEVICE_UNKNOWN, "IAX2/%s", p->name); /* Activate notification */
+
+	/* either Authentication has taken place, or a REGAUTH must be sent before verifying registration */
+	res = 0;
 
 return_unref:
 	if (iaxs[callno]) {
@@ -6761,12 +6772,9 @@ return_unref:
 		}
 	}
 
-	res = 0;
-
 	if (p) {
 		peer_unref(p);
 	}
-
 	return res;
 }
 
@@ -7522,6 +7530,9 @@ static int registry_authrequest(int callno)
 	 * Therefore, we use whatever the last peer used (which may vary over the
 	 * course of a server, which should leak minimal information). */
 	sentauthmethod = p ? p->authmethods : last_authmethod ? last_authmethod : (IAX_AUTH_MD5 | IAX_AUTH_PLAINTEXT);
+	if (!p) {
+		iaxs[callno]->authmethods = sentauthmethod;
+	}
 	iax_ie_append_short(&ied, IAX_IE_AUTHMETHODS, sentauthmethod);
 	if (sentauthmethod & (IAX_AUTH_RSA | IAX_AUTH_MD5)) {
 		/* Build the challenge */
@@ -9736,8 +9747,9 @@ immediatedial:
 					ast_mutex_unlock(&iaxsl[fr->callno]);
 					return 1;
 				}
-				if ((ast_strlen_zero(iaxs[fr->callno]->secret) && ast_strlen_zero(iaxs[fr->callno]->inkeys)) || 
-						ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_AUTHENTICATED | IAX_STATE_UNCHANGED)) {
+				if ((ast_strlen_zero(iaxs[fr->callno]->secret) && ast_strlen_zero(iaxs[fr->callno]->inkeys)) ||
+						ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_AUTHENTICATED)) {
+
 					if (f.subclass == IAX_COMMAND_REGREL)
 						memset(&sin, 0, sizeof(sin));
 					if (update_registry(&sin, fr->callno, ies.devicetype, fd, ies.refresh))
