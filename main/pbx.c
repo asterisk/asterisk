@@ -5358,6 +5358,7 @@ int ast_register_application2(const char *app, int (*execute)(struct ast_channel
 	}
 
 	if (ast_string_field_init(tmp, 128)) {
+		AST_RWLIST_UNLOCK(&apps);
 		ast_free(tmp);
 		return -1;
 	}
@@ -6653,11 +6654,7 @@ int ast_unregister_application(const char *app)
 			unreference_cached_app(tmp);
 			AST_RWLIST_REMOVE_CURRENT(list);
 			ast_verb(2, "Unregistered application '%s'\n", tmp->name);
-#ifdef AST_XML_DOCS
-			if (tmp->docsrc == AST_XML_DOC) {
-				ast_string_field_free_memory(tmp);
-			}
-#endif
+			ast_string_field_free_memory(tmp);
 			ast_free(tmp);
 			break;
 		}
