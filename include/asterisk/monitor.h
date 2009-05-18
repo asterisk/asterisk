@@ -51,21 +51,21 @@ struct ast_channel_monitor {
 
 /* Start monitoring a channel */
 int ast_monitor_start(struct ast_channel *chan, const char *format_spec,
-		      const char *fname_base, int need_lock, int stream_action);
+		      const char *fname_base, int need_lock, int stream_action) attribute_weak;
 
 /* Stop monitoring a channel */
-int ast_monitor_stop(struct ast_channel *chan, int need_lock);
+int ast_monitor_stop(struct ast_channel *chan, int need_lock) attribute_weak;
 
 /* Change monitoring filename of a channel */
 int ast_monitor_change_fname(struct ast_channel *chan,
-			     const char *fname_base, int need_lock);
+			     const char *fname_base, int need_lock) attribute_weak;
 
-void ast_monitor_setjoinfiles(struct ast_channel *chan, int turnon);
+void ast_monitor_setjoinfiles(struct ast_channel *chan, int turnon) attribute_weak;
 
 /* Pause monitoring of a channel */
-int ast_monitor_pause(struct ast_channel *chan);
+int ast_monitor_pause(struct ast_channel *chan) attribute_weak;
 
 /* Unpause monitoring of a channel */
-int ast_monitor_unpause(struct ast_channel *chan);
+int ast_monitor_unpause(struct ast_channel *chan) attribute_weak;
 
 #endif /* _ASTERISK_MONITOR_H */

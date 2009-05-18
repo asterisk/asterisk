@@ -84,7 +84,7 @@ struct ast_smdi_md_message {
  */
 struct ast_smdi_interface;
 
-void ast_smdi_interface_unref(struct ast_smdi_interface *iface);
+void ast_smdi_interface_unref(struct ast_smdi_interface *iface) attribute_weak;
 
 /*! 
  * \brief Get the next SMDI message from the queue.
@@ -96,7 +96,7 @@ void ast_smdi_interface_unref(struct ast_smdi_interface *iface);
  *
  * \return the next SMDI message, or NULL if there were no pending messages.
  */
-struct ast_smdi_md_message *ast_smdi_md_message_pop(struct ast_smdi_interface *iface);
+struct ast_smdi_md_message *ast_smdi_md_message_pop(struct ast_smdi_interface *iface) attribute_weak;
 
 /*!
  * \brief Get the next SMDI message from the queue.
@@ -110,7 +110,7 @@ struct ast_smdi_md_message *ast_smdi_md_message_pop(struct ast_smdi_interface *i
  * \return the next SMDI message, or NULL if there were no pending messages and
  * the timeout has expired.
  */
-struct ast_smdi_md_message *ast_smdi_md_message_wait(struct ast_smdi_interface *iface, int timeout);
+struct ast_smdi_md_message *ast_smdi_md_message_wait(struct ast_smdi_interface *iface, int timeout) attribute_weak;
 
 /*!
  * \brief Put an SMDI message back in the front of the queue.
@@ -121,7 +121,7 @@ struct ast_smdi_md_message *ast_smdi_md_message_wait(struct ast_smdi_interface *
  * should be used if a message was popped but is not going to be processed for
  * some reason, and the message needs to be returned to the queue.
  */
-void ast_smdi_md_message_putback(struct ast_smdi_interface *iface, struct ast_smdi_md_message *msg);
+void ast_smdi_md_message_putback(struct ast_smdi_interface *iface, struct ast_smdi_md_message *msg) attribute_weak;
 
 /*!
  * \brief Get the next SMDI message from the queue.
@@ -133,7 +133,7 @@ void ast_smdi_md_message_putback(struct ast_smdi_interface *iface, struct ast_sm
  *
  * \return the next SMDI message, or NULL if there were no pending messages.
  */
-struct ast_smdi_mwi_message *ast_smdi_mwi_message_pop(struct ast_smdi_interface *iface);
+struct ast_smdi_mwi_message *ast_smdi_mwi_message_pop(struct ast_smdi_interface *iface) attribute_weak;
 
 /*!
  * \brief Get the next SMDI message from the queue.
@@ -147,9 +147,9 @@ struct ast_smdi_mwi_message *ast_smdi_mwi_message_pop(struct ast_smdi_interface 
  * \return the next SMDI message, or NULL if there were no pending messages and
  * the timeout has expired.
  */
-struct ast_smdi_mwi_message *ast_smdi_mwi_message_wait(struct ast_smdi_interface *iface, int timeout);
+struct ast_smdi_mwi_message *ast_smdi_mwi_message_wait(struct ast_smdi_interface *iface, int timeout) attribute_weak;
 struct ast_smdi_mwi_message *ast_smdi_mwi_message_wait_station(struct ast_smdi_interface *iface, 
-	int timeout, const char *station);
+	int timeout, const char *station) attribute_weak;
 
 /*!
  * \brief Put an SMDI message back in the front of the queue.
@@ -160,7 +160,7 @@ struct ast_smdi_mwi_message *ast_smdi_mwi_message_wait_station(struct ast_smdi_i
  * should be used if a message was popped but is not going to be processed for
  * some reason, and the message needs to be returned to the queue.
  */
-void ast_smdi_mwi_message_putback(struct ast_smdi_interface *iface, struct ast_smdi_mwi_message *msg);
+void ast_smdi_mwi_message_putback(struct ast_smdi_interface *iface, struct ast_smdi_mwi_message *msg) attribute_weak;
 
 /*!
  * \brief Find an SMDI interface with the specified name.
@@ -170,26 +170,26 @@ void ast_smdi_mwi_message_putback(struct ast_smdi_interface *iface, struct ast_s
  * actually returns an ASTOBJ reference and should be released using
  * #ASTOBJ_UNREF(iface, ast_smdi_interface_destroy).
  */
-struct ast_smdi_interface *ast_smdi_interface_find(const char *iface_name);
+struct ast_smdi_interface *ast_smdi_interface_find(const char *iface_name) attribute_weak;
 
 /*!
  * \brief Set the MWI indicator for a mailbox.
  * \param iface the interface to use.
  * \param mailbox the mailbox to use.
  */
-int ast_smdi_mwi_set(struct ast_smdi_interface *iface, const char *mailbox);
+int ast_smdi_mwi_set(struct ast_smdi_interface *iface, const char *mailbox) attribute_weak;
 
 /*! 
  * \brief Unset the MWI indicator for a mailbox.
  * \param iface the interface to use.
  * \param mailbox the mailbox to use.
  */
-int ast_smdi_mwi_unset(struct ast_smdi_interface *iface, const char *mailbox);
+int ast_smdi_mwi_unset(struct ast_smdi_interface *iface, const char *mailbox) attribute_weak;
 
 /*! \brief ast_smdi_md_message destructor. */
-void ast_smdi_md_message_destroy(struct ast_smdi_md_message *msg);
+void ast_smdi_md_message_destroy(struct ast_smdi_md_message *msg) attribute_weak;
 
 /*! \brief ast_smdi_mwi_message destructor. */
-void ast_smdi_mwi_message_destroy(struct ast_smdi_mwi_message *msg);
+void ast_smdi_mwi_message_destroy(struct ast_smdi_mwi_message *msg) attribute_weak;
 
 #endif /* !ASTERISK_SMDI_H */
