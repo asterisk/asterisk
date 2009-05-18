@@ -282,29 +282,20 @@ static void ast_eivr_getvariable(struct ast_channel *chan, char *data, char *out
 
 static void ast_eivr_setvariable(struct ast_channel *chan, char *data)
 {
-	char buf[1024];
 	char *value;
 
-	char *inbuf, *variable;
+	char *inbuf = ast_strdupa(data), *variable;
 
-	int j;
-
-	for (j = 1, inbuf = data; ; j++, inbuf = NULL) {
-		variable = strsep(&inbuf, ",");
+	for (variable = strsep(&inbuf, ","); variable; variable = strsep(&inbuf, ",")) {
 		ast_debug(1, "Setting up a variable: %s\n", variable);
-		if (variable) {
-			/* variable contains "varname=value" */
-			ast_copy_string(buf, variable, sizeof(buf));
-			value = strchr(buf, '=');
-			if (!value) {
-				value = "";
-			} else {
-				*value++ = '\0';
-			}
-			pbx_builtin_setvar_helper(chan, buf, value);
+		/* variable contains "varname=value" */
+		value = strchr(variable, '=');
+		if (!value) {
+			value = "";
 		} else {
-			break;
+			*value++ = '\0';
 		}
+		pbx_builtin_setvar_helper(chan, variable, value);
 	}
 }
 
