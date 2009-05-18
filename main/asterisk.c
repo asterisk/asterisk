@@ -3304,57 +3304,6 @@ int main(int argc, char *argv[])
 
 	if (isroot) {
 		ast_set_priority(ast_opt_high_priority);
-		if (ast_opt_high_priority) {
-			int cpipe[2];
-
-			/* PIPE signal ensures that astcanary dies when Asterisk dies */
-			if (pipe(cpipe)) {
-				fprintf(stderr, "Unable to open pipe for canary process: %s\n", strerror(errno));
-				exit(1);
-			}
-			canary_pipe = cpipe[0];
-
-			snprintf(canary_filename, sizeof(canary_filename), "%s/alt.asterisk.canary.tweet.tweet.tweet", ast_config_AST_RUN_DIR);
-
-			/* Don't let the canary child kill Asterisk, if it dies immediately */
-			signal(SIGPIPE, SIG_IGN);
-
-			canary_pid = fork();
-			if (canary_pid == 0) {
-				char canary_binary[128], *lastslash;
-				int fd;
-
-				/* Reset signal handler */
-				signal(SIGCHLD, SIG_DFL);
-				signal(SIGPIPE, SIG_DFL);
-
-				dup2(cpipe[1], 100);
-				close(cpipe[1]);
-
-				for (fd = 0; fd < 100; fd++) {
-					close(fd);
-				}
-
-				execlp("astcanary", "astcanary", canary_filename, (char *)NULL);
-
-				/* If not found, try the same path as used to execute asterisk */
-				ast_copy_string(canary_binary, argv[0], sizeof(canary_binary));
-				if ((lastslash = strrchr(canary_binary, '/'))) {
-					ast_copy_string(lastslash + 1, "astcanary", sizeof(canary_binary) + canary_binary - (lastslash + 1));
-					execl(canary_binary, "astcanary", canary_filename, (char *)NULL);
-				}
-
-				/* Should never happen */
-				_exit(1);
-			} else if (canary_pid > 0) {
-				pthread_t dont_care;
-				close(cpipe[1]);
-				ast_pthread_create_detached(&dont_care, NULL, canary_thread, NULL);
-			}
-
-			/* Kill the canary when we exit */
-			atexit(canary_exit);
-		}
 	}
 
 	if (isroot && rungroup) {
@@ -3530,6 +3479,56 @@ int main(int argc, char *argv[])
 #endif
 	}
 #endif
+
+	/* Spawning of astcanary must happen AFTER the call to daemon(3) */
+	if (isroot && ast_opt_high_priority) {
+		int cpipe[2];
+
+		/* PIPE signal ensures that astcanary dies when Asterisk dies */
+		if (pipe(cpipe)) {
+			fprintf(stderr, "Unable to open pipe for canary process: %s\n", strerror(errno));
+			exit(1);
+		}
+		canary_pipe = cpipe[0];
+
+		snprintf(canary_filename, sizeof(canary_filename), "%s/alt.asterisk.canary.tweet.tweet.tweet", ast_config_AST_RUN_DIR);
+
+		/* Don't let the canary child kill Asterisk, if it dies immediately */
+		signal(SIGPIPE, SIG_IGN);
+
+		canary_pid = fork();
+		if (canary_pid == 0) {
+			char canary_binary[128], *lastslash;
+
+			/* Reset signal handler */
+			signal(SIGCHLD, SIG_DFL);
+			signal(SIGPIPE, SIG_DFL);
+
+			dup2(cpipe[1], 0);
+			close(cpipe[1]);
+			ast_close_fds_above_n(0);
+			ast_set_priority(0);
+
+			execlp("astcanary", "astcanary", canary_filename, (char *)NULL);
+
+			/* If not found, try the same path as used to execute asterisk */
+			ast_copy_string(canary_binary, argv[0], sizeof(canary_binary));
+			if ((lastslash = strrchr(canary_binary, '/'))) {
+				ast_copy_string(lastslash + 1, "astcanary", sizeof(canary_binary) + canary_binary - (lastslash + 1));
+				execl(canary_binary, "astcanary", canary_filename, (char *)NULL);
+			}
+
+			/* Should never happen */
+			_exit(1);
+		} else if (canary_pid > 0) {
+			pthread_t dont_care;
+			close(cpipe[1]);
+			ast_pthread_create_detached(&dont_care, NULL, canary_thread, NULL);
+		}
+
+		/* Kill the canary when we exit */
+		atexit(canary_exit);
+	}
 
 	if (ast_event_init()) {
 		printf("%s", term_quit());
