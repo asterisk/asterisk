@@ -2399,6 +2399,11 @@ static int proxy_update(struct sip_proxy *proxy)
 static struct sip_proxy *proxy_allocate(char *name, char *port, int force)
 {
 	struct sip_proxy *proxy;
+
+	if (ast_strlen_zero(name)) {
+		return NULL;
+	}
+
 	proxy = ast_calloc(1, sizeof(*proxy));
 	if (!proxy)
 		return NULL;
