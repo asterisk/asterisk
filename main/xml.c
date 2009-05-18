@@ -58,7 +58,7 @@ struct ast_xml_doc *ast_xml_open(char *filename)
 	doc = xmlReadFile(filename, NULL, XML_PARSE_RECOVER);
 	if (doc) {
 		/* process xinclude elements. */
-		if (xmlXIncludeProcess(doc) <= 0) {
+		if (xmlXIncludeProcess(doc) < 0) {
 			xmlFreeDoc(doc);
 			return NULL;
 		}
