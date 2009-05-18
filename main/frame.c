@@ -256,7 +256,7 @@ struct ast_frame *ast_smoother_read(struct ast_smoother *s)
 	/* Make sure we have enough data */
 	if (s->len < s->size) {
 		/* Or, if this is a G.729 frame with VAD on it, send it immediately anyway */
-		if (!((s->flags & AST_SMOOTHER_FLAG_G729) && (s->size % 10)))
+		if (!((s->flags & AST_SMOOTHER_FLAG_G729) && (s->len % 10)))
 			return NULL;
 	}
 	len = s->size;
