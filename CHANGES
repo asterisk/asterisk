@@ -148,6 +148,10 @@ Logger
    users of this channel in the tree have been converted to LOG_NOTICE or removed
    (in cases where the same message was already generated to another channel).
 
+CDR
+---
+ * Multiple files and formats can now be specified in cdr_custom.conf.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.1 to Asterisk 1.6.2  -------------
 ------------------------------------------------------------------------------

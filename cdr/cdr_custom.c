@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2009, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -48,103 +48,116 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/strings.h"
 
 #define CUSTOM_LOG_DIR "/cdr_custom"
-
-#define DATE_FORMAT "%Y-%m-%d %T"
-
-AST_MUTEX_DEFINE_STATIC(lock);
-AST_MUTEX_DEFINE_STATIC(mf_lock);
+#define CONFIG         "cdr_custom.conf"
+#define DATE_FORMAT    "%Y-%m-%d %T"
 
 AST_THREADSTORAGE(custom_buf);
 
 static char *name = "cdr-custom";
 
-static char master[PATH_MAX];
-static char format[1024]="";
+struct cdr_config {
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(filename);
+		AST_STRING_FIELD(format);
+		);
+	ast_mutex_t lock;
+	AST_RWLIST_ENTRY(cdr_config) list;
+};
 
-static int load_config(int reload)
+static AST_RWLIST_HEAD_STATIC(sinks, cdr_config);
+
+static void free_config(void)
+{
+	struct cdr_config *sink;
+	while ((sink = AST_RWLIST_REMOVE_HEAD(&sinks, list))) {
+		ast_mutex_destroy(&sink->lock);
+		ast_free(sink);
+	}
+}
+
+static int load_config(void)
 {
 	struct ast_config *cfg;
 	struct ast_variable *var;
-	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
-	int res = -1;
+	struct ast_flags config_flags = { 0 };
+	int res = 0;
 
-	if ((cfg = ast_config_load("cdr_custom.conf", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
-		return 0;
-
-	if (cfg == CONFIG_STATUS_FILEINVALID) {
-		ast_log(LOG_ERROR, "Invalid config file\n");
-		return 1;
+	cfg = ast_config_load(CONFIG, config_flags);
+	if (!cfg || cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Unable to load " CONFIG ". Not custom CSV CDRs.\n");
+		return -1;
 	}
 
-	strcpy(format, "");
-	strcpy(master, "");
-	ast_mutex_lock(&lock);
-	if (cfg) {
-		var = ast_variable_browse(cfg, "mappings");
-		while(var) {
-			if (!ast_strlen_zero(var->name) && !ast_strlen_zero(var->value)) {
-				if (strlen(var->value) > (sizeof(format) - 1))
-					ast_log(LOG_WARNING, "Format string too long, will be truncated, at line %d\n", var->lineno);
-				ast_copy_string(format, var->value, sizeof(format) - 1);
-				strcat(format,"\n");
-				snprintf(master, sizeof(master),"%s/%s/%s", ast_config_AST_LOG_DIR, name, var->name);
-				if (var->next) {
-					ast_log(LOG_NOTICE, "Sorry, only one mapping is supported at this time, mapping '%s' will be ignored at line %d.\n", var->next->name, var->next->lineno);
-					break;
-				}
-			} else
-				ast_log(LOG_NOTICE, "Mapping must have both filename and format at line %d\n", var->lineno);
-			var = var->next;
+	var = ast_variable_browse(cfg, "mappings");
+	while (var) {
+		if (!ast_strlen_zero(var->name) && !ast_strlen_zero(var->value)) {
+			struct cdr_config *sink = ast_calloc_with_stringfields(1, struct cdr_config, 1024);
+
+			if (!sink) {
+				ast_log(LOG_ERROR, "Unable to allocate memory for configuration settings.\n");
+				res = -2;
+				break;
+			}
+
+			ast_string_field_build(sink, format, "%s\n", var->value);
+			ast_string_field_build(sink, filename, "%s/%s/%s", ast_config_AST_LOG_DIR, name, var->name);
+			ast_mutex_init(&sink->lock);
+
+			AST_RWLIST_INSERT_TAIL(&sinks, sink, list);
+		} else {
+			ast_log(LOG_NOTICE, "Mapping must have both a filename and a format at line %d\n", var->lineno);
 		}
-		ast_config_destroy(cfg);
-		res = 0;
-	} else {
-		if (reload)
-			ast_log(LOG_WARNING, "Failed to reload configuration file.\n");
-		else
-			ast_log(LOG_WARNING, "Failed to load configuration file. Module not activated.\n");
+		var = var->next;
 	}
-	ast_mutex_unlock(&lock);
+	ast_config_destroy(cfg);
 
 	return res;
 }
 
-
-
 static int custom_log(struct ast_cdr *cdr)
 {
-	FILE *mf = NULL;
 	struct ast_channel dummy;
 	struct ast_str *str;
-
-	/* Abort if no master file is specified */
-	if (ast_strlen_zero(master)) {
-		return 0;
-	}
+	struct cdr_config *config;
 
 	/* Batching saves memory management here.  Otherwise, it's the same as doing an allocation and free each time. */
 	if (!(str = ast_str_thread_get(&custom_buf, 16))) {
 		return -1;
 	}
-	ast_str_reset(str);
 
 	/* Quite possibly the first use of a static struct ast_channel, we need it so the var funcs will work */
 	memset(&dummy, 0, sizeof(dummy));
 	dummy.cdr = cdr;
-	ast_str_substitute_variables(&str, 0, &dummy, format);
 
-	/* because of the absolutely unconditional need for the
-	   highest reliability possible in writing billing records,
-	   we open write and close the log file each time */
-	ast_mutex_lock(&mf_lock);
-	if ((mf = fopen(master, "a"))) {
-		fputs(ast_str_buffer(str), mf);
-		fflush(mf); /* be particularly anal here */
-		fclose(mf);
-	} else {
-		ast_log(LOG_ERROR, "Unable to re-open master file %s : %s\n", master, strerror(errno));
+	AST_RWLIST_RDLOCK(&sinks);
+
+	AST_LIST_TRAVERSE(&sinks, config, list) {
+		FILE *out;
+
+		ast_str_reset(str);
+		ast_str_substitute_variables(&str, 0, &dummy, config->format);
+
+		/* Even though we have a lock on the list, we could be being chased by
+		   another thread and this lock ensures that we won't step on anyone's
+		   toes.  Once each CDR backend gets it's own thread, this lock can be
+		   removed. */
+		ast_mutex_lock(&config->lock);
+
+		/* Because of the absolutely unconditional need for the
+		   highest reliability possible in writing billing records,
+		   we open write and close the log file each time */
+		if ((out = fopen(config->filename, "a"))) {
+			fputs(ast_str_buffer(str), out);
+			fflush(out); /* be particularly anal here */
+			fclose(out);
+		} else {
+			ast_log(LOG_ERROR, "Unable to re-open master file %s : %s\n", config->filename, strerror(errno));
+		}
+
+		ast_mutex_unlock(&config->lock);
 	}
-	ast_mutex_unlock(&mf_lock);
+
+	AST_RWLIST_UNLOCK(&sinks);
 
 	return 0;
 }
@@ -152,25 +165,42 @@ static int custom_log(struct ast_cdr *cdr)
 static int unload_module(void)
 {
 	ast_cdr_unregister(name);
+
+	if (AST_RWLIST_WRLOCK(&sinks)) {
+		ast_cdr_register(name, ast_module_info->description, custom_log);
+		ast_log(LOG_ERROR, "Unable to lock sink list.  Unload failed.\n");
+		return -1;
+	}
+
+	free_config();
+	AST_RWLIST_UNLOCK(&sinks);
 	return 0;
 }
 
 static int load_module(void)
 {
-	int res = 0;
+	if (AST_RWLIST_WRLOCK(&sinks)) {
+		ast_log(LOG_ERROR, "Unable to lock sink list.  Load failed.\n");
+		return AST_MODULE_LOAD_FAILURE;
+	}
 
-	if (!load_config(0)) {
-		res = ast_cdr_register(name, ast_module_info->description, custom_log);
-		if (res)
-			ast_log(LOG_ERROR, "Unable to register custom CDR handling\n");
-		return res;
-	} else
-		return AST_MODULE_LOAD_DECLINE;
+	load_config();
+	AST_RWLIST_UNLOCK(&sinks);
+	ast_cdr_register(name, ast_module_info->description, custom_log);
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int reload(void)
 {
-	return load_config(1);
+	if (AST_RWLIST_WRLOCK(&sinks)) {
+		ast_log(LOG_ERROR, "Unable to lock sink list.  Load failed.\n");
+		return AST_MODULE_LOAD_FAILURE;
+	}
+
+	free_config();
+	load_config();
+	AST_RWLIST_UNLOCK(&sinks);
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Customizable Comma Separated Values CDR Backend",
