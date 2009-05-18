@@ -164,6 +164,8 @@ static char *descrip =
 "           You cannot use any additional action post answer options in conjunction\n"
 "           with this option. Also, pbx services are not run on the peer (called) channel,\n"
 "           so you will not be able to set timeouts via the TIMEOUT() function in this macro.\n"
+"           Be aware of the limitations that macros have, specifically with regards to use of\n"
+"           the WaitExten application. For more information, see the documentation for Macro()\n"
 "    n    - This option is a modifier for the screen/privacy mode. It specifies\n"
 "           that no introductions are to be saved in the priv-callerintros\n"
 "           directory.\n"
