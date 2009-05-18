@@ -612,17 +612,22 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 			"	Shows the detailed description for a specific Asterisk manager interface command.\n";
 		return NULL;
 	case CLI_GENERATE:
-		l = strlen(a->word);
-		which = 0;
-		AST_RWLIST_RDLOCK(&actions);
-		AST_RWLIST_TRAVERSE(&actions, cur, list) {
-			if (!strncasecmp(a->word, cur->action, l) && ++which > a->n) {
-				ret = ast_strdup(cur->action);
-				break;	/* make sure we exit even if ast_strdup() returns NULL */
+		if (a->pos == 3) {
+			/* autocomplete the action name. */
+			l = strlen(a->word);
+			which = 0;
+			AST_RWLIST_RDLOCK(&actions);
+			AST_RWLIST_TRAVERSE(&actions, cur, list) {
+				if (!strncasecmp(a->word, cur->action, l) && ++which > a->n) {
+					ret = ast_strdup(cur->action);
+					break;	/* make sure we exit even if ast_strdup() returns NULL */
+				}
 			}
+			AST_RWLIST_UNLOCK(&actions);
+			return ret;
 		}
-		AST_RWLIST_UNLOCK(&actions);
-		return ret;
+
+		return NULL;
 	}
 	authority = ast_str_alloca(80);
 	if (a->argc != 4) {
