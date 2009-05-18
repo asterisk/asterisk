@@ -1550,6 +1550,7 @@ static int action_getvar(struct mansession *s, const struct message *m)
 			if (c) {
 				ast_func_read(c, copy, workspace, sizeof(workspace));
 				ast_channel_free(c);
+				c = NULL;
 			} else
 				ast_log(LOG_ERROR, "Unable to allocate bogus channel for variable substitution.  Function results may be blank.\n");
 		} else
