@@ -68,6 +68,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			applications in deeply nested macros could cause asterisk to crash earlier than this limit.
 			It is advised that if you need to deeply nest macro calls, that you use the Gosub application
 			(now allows arguments like a Macro) with explict Return() calls instead.</para></warning>
+			<warning><para>Use of the application <literal>WaitExten</literal> within a macro will not function
+			as expected. Please use the <literal>Read</literal> application in order to read DTMF from a channel
+			currently executing a macro.</para></warning>
 		</description>
 		<see-also>
 			<ref type="application">MacroExit</ref>
@@ -97,6 +100,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<replaceable>expr</replaceable> is true (otherwise <replaceable>macroiffalse</replaceable>
 			if provided)</para>
 			<para>Arguments and return values as in application Macro()</para>
+			<xi:include xpointer="xpointer(/docs/application[@name='Macro']/description/warning[2])" />
 		</description>
 		<see-also>
 			<ref type="application">GotoIf</ref>
@@ -120,6 +124,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			Only one call at a time may run the macro. (we'll wait if another call is busy
 			executing in the Macro)</para>
 			<para>Arguments and return values as in application Macro()</para>
+			<xi:include xpointer="xpointer(/docs/application[@name='Macro']/description/warning[2])" />
 		</description>
 		<see-also>
 			<ref type="application">Macro</ref>

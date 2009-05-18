@@ -258,6 +258,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						with this option. Also, pbx services are not run on the peer (called) channel,
 						so you will not be able to set timeouts via the TIMEOUT() function in this macro.</para>
 					</note>
+					<warning><para>Be aware of the limitations that macros have, specifically with regards to use of
+					the <literal>WaitExten</literal> application. For more information, see the documentation for
+					Macro()</para></warning>
 				</option>
 				<option name="n">
 					<para>This option is a modifier for the call screening/privacy mode. (See the 

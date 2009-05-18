@@ -679,6 +679,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>This application waits for the user to enter a new extension for a specified number
 			of <replaceable>seconds</replaceable>.</para>
+			<xi:include xpointer="xpointer(/docs/application[@name='Macro']/description/warning[2])" />
 		</description>
 		<see-also>
 			<ref type="application">Background</ref>
