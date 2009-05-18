@@ -53,7 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 AST_THREADSTORAGE(custom_buf);
 
-static char *name = "cdr-custom";
+static const char name[] = "cdr-custom";
 
 struct cdr_config {
 	AST_DECLARE_STRING_FIELDS(
@@ -84,7 +84,7 @@ static int load_config(void)
 
 	cfg = ast_config_load(CONFIG, config_flags);
 	if (!cfg || cfg == CONFIG_STATUS_FILEINVALID) {
-		ast_log(LOG_ERROR, "Unable to load " CONFIG ". Not custom CSV CDRs.\n");
+		ast_log(LOG_ERROR, "Unable to load " CONFIG ". Not logging custom CSV CDRs.\n");
 		return -1;
 	}
 
@@ -177,7 +177,7 @@ static int unload_module(void)
 	return 0;
 }
 
-static int load_module(void)
+static enum ast_module_load_result load_module(void)
 {
 	if (AST_RWLIST_WRLOCK(&sinks)) {
 		ast_log(LOG_ERROR, "Unable to lock sink list.  Load failed.\n");
