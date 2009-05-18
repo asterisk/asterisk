@@ -288,6 +288,64 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Does nothing.</para>
 		</description>
 	</agi>
+	<agi name="receive char" language="en_US">
+		<synopsis>
+			Receives one character from channels supporting it.
+		</synopsis>
+		<syntax>
+			<parameter name="timeout" required="true">
+				<para>The maximum time to wait for input in milliseconds, or <literal>0</literal>
+				for infinite. Most channels</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Receives a character of text on a channel. Most channels do not support
+			the reception of text. Returns the decimal value of the character
+			if one is received, or <literal>0</literal> if the channel does not support
+			text reception. Returns <literal>-1</literal> only on error/hangup.</para>
+		</description>
+	</agi>
+	<agi name="receive text" language="en_US">
+		<synopsis>
+			Receives text from channels supporting it.
+		</synopsis>
+		<syntax>
+			<parameter name="timeout" required="true">
+				<para>The timeout to be the maximum time to wait for input in
+				milliseconds, or <literal>0</literal> for infinite.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Receives a string of text on a channel. Most channels 
+			do not support the reception of text. Returns <literal>-1</literal> for failure
+			or <literal>1</literal> for success, and the string in parenthesis.</para> 
+		</description>
+	</agi>
+	<agi name="record file" language="en_US">
+		<synopsis>
+			Records to a given file.
+		</synopsis>
+		<syntax>
+			<parameter name="filename" required="true" />
+			<parameter name="format" required="true" />
+			<parameter name="escape_digits" required="true" />
+			<parameter name="timeout" required="true" />
+			<parameter name="offset samples" />
+			<parameter name="BEEP" />
+			<parameter name="s=silence" />
+		</syntax>
+		<description>
+			<para>Record to a file until a given dtmf digit in the sequence is received.
+			Returns <literal>-1</literal> on hangup or error.  The format will specify what kind of file
+			will be recorded. The <replaceable>timeout</replaceable> is the maximum record time in
+			milliseconds, or <literal>-1</literal> for no <replaceable>timeout</replaceable>.
+			<replaceable>offset samples</replaceable> is optional, and, if provided, will seek
+			to the offset without exceeding the end of the file. <replaceable>silence</replaceable> is
+			the number of seconds of silence allowed before the function returns despite the
+			lack of dtmf digits or reaching <replaceable>timeout</replaceable>. <replaceable>silence</replaceable>
+			value must be preceeded by <literal>s=</literal> and is also optional.</para>
+		</description>
+	</agi>
 	<agi name="set music" language="en_US">
 		<synopsis>
 			Enable/Disable Music on hold generator
@@ -2324,20 +2382,6 @@ static char usage_sendtext[] =
 " consisting of greater than one word should be placed in quotes since the\n"
 " command only accepts a single argument.\n";
 
-static char usage_recvchar[] =
-" Usage: RECEIVE CHAR <timeout>\n"
-"	Receives a character of text on a channel. Specify timeout to be the\n"
-" maximum time to wait for input in milliseconds, or 0 for infinite. Most channels\n"
-" do not support the reception of text. Returns the decimal value of the character\n"
-" if one is received, or 0 if the channel does not support text reception.  Returns\n"
-" -1 only on error/hangup.\n";
-
-static char usage_recvtext[] =
-" Usage: RECEIVE TEXT <timeout>\n"
-"	Receives a string of text on a channel. Specify timeout to be the\n"
-" maximum time to wait for input in milliseconds, or 0 for infinite. Most channels\n"
-" do not support the reception of text. Returns -1 for failure or 1 for success, and the string in parentheses.\n";
-
 static char usage_tddmode[] =
 " Usage: TDD MODE <on|off>\n"
 "	Enable/Disable TDD transmission/reception on a channel. Returns 1 if\n"
@@ -2438,18 +2482,6 @@ static char usage_setpriority[] =
 "	Changes the priority for continuation upon exiting the application.\n"
 " The priority must be a valid priority or label.\n";
 
-static char usage_recordfile[] =
-" Usage: RECORD FILE <filename> <format> <escape digits> <timeout> \\\n"
-"                                          [offset samples] [BEEP] [s=silence]\n"
-"	Record to a file until a given dtmf digit in the sequence is received\n"
-" Returns -1 on hangup or error.  The format will specify what kind of file\n"
-" will be recorded.  The timeout is the maximum record time in milliseconds, or\n"
-" -1 for no timeout. \"Offset samples\" is optional, and, if provided, will seek\n"
-" to the offset without exceeding the end of the file.  \"silence\" is the number\n"
-" of seconds of silence allowed before the function returns despite the\n"
-" lack of dtmf digits or reaching timeout.  Silence value must be\n"
-" preceeded by \"s=\" and is also optional.\n";
-
 static char usage_autohangup[] =
 " Usage: SET AUTOHANGUP <time>\n"
 "	Cause the channel to automatically hangup at <time> seconds in the\n"
@@ -2506,9 +2538,9 @@ static struct agi_command commands[] = {
 	{ { "get", "variable", NULL }, handle_getvariable, NULL, NULL, 1 },
 	{ { "hangup", NULL }, handle_hangup, NULL, NULL, 0 },
 	{ { "noop", NULL }, handle_noop, NULL, NULL, 1 },
-	{ { "receive", "char", NULL }, handle_recvchar, "Receives one character from channels supporting it", usage_recvchar , 0 },
-	{ { "receive", "text", NULL }, handle_recvtext, "Receives text from channels supporting it", usage_recvtext , 0 },
-	{ { "record", "file", NULL }, handle_recordfile, "Records to a given file", usage_recordfile , 0 },
+	{ { "receive", "char", NULL }, handle_recvchar, NULL, NULL, 0 },
+	{ { "receive", "text", NULL }, handle_recvtext, NULL, NULL, 0 },
+	{ { "record", "file", NULL }, handle_recordfile, NULL, NULL, 0 }, 
 	{ { "say", "alpha", NULL }, handle_sayalpha, "Says a given character string", usage_sayalpha , 0 },
 	{ { "say", "digits", NULL }, handle_saydigits, "Says a given digit string", usage_saydigits , 0 },
 	{ { "say", "number", NULL }, handle_saynumber, "Says a given number", usage_saynumber , 0 },
