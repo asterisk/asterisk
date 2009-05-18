@@ -17040,10 +17040,9 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 					}
 				} else
 					ast_log(LOG_WARNING, "'%s' is not a valid ISDN timer configuration string at line %d.\n", v->value, v->lineno);
-
+#endif /* PRI_GETSET_TIMERS */
 			} else if (!strcasecmp(v->name, "facilityenable")) {
 				confp->pri.facilityenable = ast_true(v->value);
-#endif /* PRI_GETSET_TIMERS */
 #endif /* HAVE_PRI */
 #ifdef HAVE_SS7
 			} else if (!strcasecmp(v->name, "ss7type")) {
