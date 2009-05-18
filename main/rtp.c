@@ -3929,7 +3929,8 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 		}
 		if ((inaddrcmp(&t0, &ac0)) ||
 		    (vp0 && inaddrcmp(&vt0, &vac0)) ||
-		    (tp0 && inaddrcmp(&tt0, &tac0))) {
+		    (tp0 && inaddrcmp(&tt0, &tac0)) ||
+		    (codec0 != oldcodec0)) {
 			ast_debug(2, "Oooh, '%s' changed end address to %s:%d (format %d)\n",
 				c0->name, ast_inet_ntoa(t0.sin_addr), ntohs(t0.sin_port), codec0);
 			ast_debug(2, "Oooh, '%s' was %s:%d/(format %d)\n",
