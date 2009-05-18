@@ -38,6 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/manager.h"
 #include "asterisk/cli.h"
+#define AST_API_MODULE
 #include "asterisk/monitor.h"
 #include "asterisk/app.h"
 #include "asterisk/utils.h"
