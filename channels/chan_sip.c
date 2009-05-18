@@ -18559,11 +18559,8 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 		changed = 1;
 	}
 	if (codecs) {
-		if ((p->redircodecs != codecs)) {
+		if (p->redircodecs != codecs && (p->jointcapability & codecs) != p->jointcapability) {
 			p->redircodecs = codecs;
-			changed = 1;
-		}
-		if ((p->capability & codecs) != p->capability) {
 			p->jointcapability &= codecs;
 			p->capability &= codecs;
 			changed = 1;
