@@ -42,6 +42,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* special result value used to force macro exit */
 #define MACRO_EXIT_RESULT 1024
 
+#define WAITEXTENWARNING "Use of the application WaitExten within a macro will not function as expected.\n" \
+	"Please use the Read application in order to read DTMF from a channel currently\n" \
+	"executing a macro.\n"
+
 static char *descrip =
 "  Macro(macroname,arg1,arg2...): Executes a macro using the context\n"
 "'macro-<macroname>', jumping to the 's' extension of that context and\n"
@@ -61,20 +65,23 @@ static char *descrip =
 "         Asterisk to crash earlier than this limit. It is advised that if you\n"
 "         need to deeply nest macro calls, that you use the Gosub application\n"
 "         (now allows arguments like a Macro) with explict Return() calls\n"
-"         instead.\n";
+"         instead.\n"
+WAITEXTENWARNING;
 
 static char *if_descrip =
 "  MacroIf(<expr>?macroname_a[,arg1][:macroname_b[,arg1]])\n"
 "Executes macro defined in <macroname_a> if <expr> is true\n"
 "(otherwise <macroname_b> if provided)\n"
-"Arguments and return values as in application Macro()\n";
+"Arguments and return values as in application Macro()\n"
+WAITEXTENWARNING;
 
 static char *exclusive_descrip =
 "  MacroExclusive(macroname,arg1,arg2...):\n"
 "Executes macro defined in the context 'macro-macroname'\n"
 "Only one call at a time may run the macro.\n"
 "(we'll wait if another call is busy executing in the Macro)\n"
-"Arguments and return values as in application Macro()\n";
+"Arguments and return values as in application Macro()\n"
+WAITEXTENWARNING;
 
 static char *exit_descrip =
 "  MacroExit():\n"

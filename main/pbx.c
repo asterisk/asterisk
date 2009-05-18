@@ -722,6 +722,9 @@ static struct pbx_builtin {
 	"  Options:\n"
 	"    m[(x)] - Provide music on hold to the caller while waiting for an extension.\n"
 	"               Optionally, specify the class for music on hold within parenthesis.\n"
+	"Warning: Attempting to use this application from within a Macro will not work as\n"
+	"desired. The Read() application is recommended as an alternative to WaitExten when\n"
+	"used from a macro\n"
 	"See Also: Playback(application), Background(application).\n"
 	},
 };
