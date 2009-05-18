@@ -3699,16 +3699,18 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				else
 					which = peer;
 				ast_channel_unlock(qe->chan);
-				if (monitorfilename)
-					ast_monitor_start(which, qe->parent->monfmt, monitorfilename, 1, X_REC_IN | X_REC_OUT);
-				else if (qe->chan->cdr)
-					ast_monitor_start(which, qe->parent->monfmt, qe->chan->cdr->uniqueid, 1, X_REC_IN | X_REC_OUT);
-				else {
-					/* Last ditch effort -- no CDR, make up something */
-					snprintf(tmpid, sizeof(tmpid), "chan-%lx", ast_random());
-					ast_monitor_start(which, qe->parent->monfmt, tmpid, 1, X_REC_IN | X_REC_OUT);
+				if (ast_monitor_start) {
+					if (monitorfilename) {
+						ast_monitor_start(which, qe->parent->monfmt, monitorfilename, 1, X_REC_IN | X_REC_OUT);
+					} else if (qe->chan->cdr && ast_monitor_start) {
+						ast_monitor_start(which, qe->parent->monfmt, qe->chan->cdr->uniqueid, 1, X_REC_IN | X_REC_OUT);
+					} else if (ast_monitor_start) {
+						/* Last ditch effort -- no CDR, make up something */
+						snprintf(tmpid, sizeof(tmpid), "chan-%lx", ast_random());
+						ast_monitor_start(which, qe->parent->monfmt, tmpid, 1, X_REC_IN | X_REC_OUT);
+					}
 				}
-				if (!ast_strlen_zero(monexec)) {
+				if (!ast_strlen_zero(monexec) && ast_monitor_setjoinfiles) {
 					ast_monitor_setjoinfiles(which, 1);
 				}
 			} else {
@@ -6588,6 +6590,7 @@ static int unload_module(void)
 	struct ast_context *con;
 	struct ao2_iterator q_iter;
 	struct call_queue *q = NULL;
+
 
 	if (device_state.thread != AST_PTHREADT_NULL) {
 		device_state.stop = 1;
