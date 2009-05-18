@@ -517,7 +517,7 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	case CLI_INIT:
 		e->command = "manager show command";
 		e->usage = 
-			"Usage: manager show command <actionname>\n"
+			"Usage: manager show command <actionname> [<actionname> [<actionname> [...]]]\n"
 			"	Shows the detailed description for a specific Asterisk manager interface command.\n";
 		return NULL;
 	case CLI_GENERATE:
@@ -534,8 +534,9 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		return ret;
 	}
 	authority = ast_str_alloca(80);
-	if (a->argc != 4)
+	if (a->argc < 4) {
 		return CLI_SHOWUSAGE;
+	}
 
 	AST_RWLIST_RDLOCK(&actions);
 	AST_RWLIST_TRAVERSE(&actions, cur, list) {
