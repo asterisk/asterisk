@@ -49,7 +49,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define CUSTOM_LOG_DIR "/cdr_custom"
 #define CONFIG         "cdr_custom.conf"
-#define DATE_FORMAT    "%Y-%m-%d %T"
 
 AST_THREADSTORAGE(custom_buf);
 
