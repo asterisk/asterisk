@@ -8862,13 +8862,26 @@ static int load_module(void)
 {
 	int res;
 	char *adsi_loaded = ast_module_helper("", "res_adsi.so", 0, 0, 0, 0);
+	char *smdi_loaded = ast_module_helper("", "res_smdi.so", 0, 0, 0, 0);
 	free(adsi_loaded);
+	free(smdi_loaded);
+
 	if (!adsi_loaded) {
 		/* If embedded, res_adsi may be known as "res_adsi" not "res_adsi.so" */
 		adsi_loaded = ast_module_helper("", "res_adsi", 0, 0, 0, 0);
 		ast_free(adsi_loaded);
 		if (!adsi_loaded) {
 			ast_log(LOG_ERROR, "app_voicemail.so depends upon res_adsi.so\n");
+			return AST_MODULE_LOAD_DECLINE;
+		}
+	}
+
+	if (!smdi_loaded) {
+		/* If embedded, res_smdi may be known as "res_smdi" not "res_smdi.so" */
+		smdi_loaded = ast_module_helper("", "res_smdi", 0, 0, 0, 0);
+		ast_free(smdi_loaded);
+		if (!smdi_loaded) {
+			ast_log(LOG_ERROR, "app_voicemail.so depends upon res_smdi.so\n");
 			return AST_MODULE_LOAD_DECLINE;
 		}
 	}

@@ -1337,6 +1337,8 @@ static struct ast_custom_function smdi_msg_function = {
 	.read = smdi_msg_read,
 };
 
+static int unload_module(void);
+
 static int load_module(void)
 {
 	int res;
@@ -1354,8 +1356,10 @@ static int load_module(void)
 	/* load the config and start the listener threads*/
 	res = smdi_load(0);
 	if (res < 0) {
+		unload_module();
 		return res;
 	} else if (res == 1) {
+		unload_module();
 		ast_log(LOG_WARNING, "No SMDI interfaces are available to listen on, not starting SMDI listener.\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}
