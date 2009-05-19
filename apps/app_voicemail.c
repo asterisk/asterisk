@@ -1904,6 +1904,7 @@ static struct vm_state *create_vm_state_from_user(struct ast_vm_user *vmu)
 {
 	struct vm_state *vms_p;
 
+	pthread_once(&ts_vmstate.once, ts_vmstate.key_init);
 	if ((vms_p = pthread_getspecific(ts_vmstate.key)) && !strcmp(vms_p->imapuser, vmu->imapuser) && !strcmp(vms_p->username, vmu->mailbox)) {
 		return vms_p;
 	}
@@ -1931,6 +1932,7 @@ static struct vm_state *get_vm_state_by_imapuser(char *user, int interactive)
 
 	if (interactive) {
 		struct vm_state *vms;
+		pthread_once(&ts_vmstate.once, ts_vmstate.key_init);
 		vms = pthread_getspecific(ts_vmstate.key);
 		return vms;
 	}
@@ -1972,6 +1974,7 @@ static struct vm_state *get_vm_state_by_mailbox(const char *mailbox, const char 
 
 	if (interactive) {
 		struct vm_state *vms;
+		pthread_once(&ts_vmstate.once, ts_vmstate.key_init);
 		vms = pthread_getspecific(ts_vmstate.key);
 		return vms;
 	}
