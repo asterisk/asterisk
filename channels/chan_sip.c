@@ -1423,6 +1423,7 @@ struct sip_auth {
 /* realtime flags */
 #define SIP_PAGE2_RTCACHEFRIENDS	(1 << 0)	/*!< GP: Should we keep RT objects in memory for extended time? */
 #define SIP_PAGE2_RTAUTOCLEAR		(1 << 2)	/*!< GP: Should we clean memory from peers after expiry? */
+#define SIP_PAGE2_RPID_UPDATE		(1 << 3)
 /* Space for addition of other realtime flags in the future */
 #define SIP_PAGE2_STATECHANGEQUEUE	(1 << 9)	/*!< D: Unsent state pending change exists */
 
@@ -1460,7 +1461,7 @@ struct sip_auth {
 	SIP_PAGE2_VIDEOSUPPORT | SIP_PAGE2_T38SUPPORT | SIP_PAGE2_RFC2833_COMPENSATE | \
 	SIP_PAGE2_BUGGY_MWI | SIP_PAGE2_TEXTSUPPORT | SIP_PAGE2_FAX_DETECT | \
 	SIP_PAGE2_UDPTL_DESTINATION | SIP_PAGE2_VIDEOSUPPORT_ALWAYS | SIP_PAGE2_PREFERRED_CODEC | \
-	SIP_PAGE2_RPID_IMMEDIATE)
+	SIP_PAGE2_RPID_IMMEDIATE | SIP_PAGE2_RPID_UPDATE)
 
 /*@}*/ 
 
@@ -1780,6 +1781,11 @@ struct sip_pvt {
 	int hangupcause;			/*!< Storage of hangupcause copied from our owner before we disconnect from the AST channel (only used at hangup) */
 
 	struct sip_subscription_mwi *mwi;       /*!< If this is a subscription MWI dialog, to which subscription */
+	/*! The SIP methods allowed on this dialog. We get this information from the Allow header present in 
+	 * the peer's REGISTER. If peer does not register with us, then we will use the first transaction we
+	 * have with this peer to determine its allowed methods.
+	 */
+	unsigned int allowed_methods;
 }; 
 
 
@@ -1966,6 +1972,7 @@ struct sip_peer {
 	
 	/*XXX Seems like we suddenly have two flags with the same content. Why? To be continued... */
 	enum sip_peer_type type; /*!< Distinguish between "user" and "peer" types. This is used solely for CLI and manager commands */
+	unsigned int allowed_methods;
 };
 
 
@@ -2546,6 +2553,8 @@ static const struct cfsubscription_types *find_subscription_type(enum subscripti
 static const char *gettag(const struct sip_request *req, const char *header, char *tagbuf, int tagbufsize);
 static int find_sip_method(const char *msg);
 static unsigned int parse_sip_options(struct sip_pvt *pvt, const char *supported);
+static unsigned int parse_allowed_methods(struct sip_request *req);
+static unsigned int set_pvt_allowed_methods(struct sip_pvt *pvt, struct sip_request *req);
 static int parse_request(struct sip_request *req);
 static const char *get_header(const struct sip_request *req, const char *name);
 static const char *referstatus2str(enum referstatus rstatus) attribute_pure;
@@ -2609,6 +2618,7 @@ static void build_contact(struct sip_pvt *p);
 
 /*------Request handling functions */
 static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int *recount, int *nounlock);
+static int handle_request_update(struct sip_pvt *p, struct sip_request *req);
 static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct sockaddr_in *sin, int *recount, char *e, int *nounlock);
 static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, int *nounlock);
 static int handle_request_bye(struct sip_pvt *p, struct sip_request *req);
@@ -4915,6 +4925,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	dialog->rtptimeout = peer->rtptimeout;
 	dialog->peerauth = peer->auth;
 	dialog->maxcallbitrate = peer->maxcallbitrate;
+	dialog->allowed_methods = peer->allowed_methods;
 	if (ast_strlen_zero(dialog->tohost))
 		ast_string_field_set(dialog, tohost, ast_inet_ntoa(dialog->sa.sin_addr));
 	if (!ast_strlen_zero(peer->fromdomain)) {
@@ -7236,6 +7247,87 @@ static int sip_subscribe_mwi(const char *value, int lineno)
 	ASTOBJ_UNREF(mwi, sip_subscribe_mwi_destroy);
 	
 	return 0;
+}
+
+static void mark_method_allowed(unsigned int *allowed_methods, enum sipmethod method)
+{
+	(*allowed_methods) |= (1 << method);
+}
+
+static void mark_method_unallowed(unsigned int *allowed_methods, enum sipmethod method)
+{
+	(*allowed_methods) &= ~(1 << method);
+}
+
+static int is_method_allowed(unsigned int *allowed_methods, enum sipmethod method)
+{
+	return ((*allowed_methods) >> method) & 1;
+}
+
+/*!
+ * \brief parse the Allow header to see what methods the endpoint we
+ * are communicating with allows.
+ *
+ * We parse the allow header on incoming Registrations and save the
+ * result to the SIP peer that is registering. When the registration
+ * expires, we clear what we know about the peer's allowed methods.
+ * When the peer re-registers, we once again parse to see if the 
+ * list of allowed methods has changed.
+ *
+ * For peers that do not register, we parse the first message we receive
+ * during a call to see what is allowed, and save the information
+ * for the duration of the call.
+ * \param req The SIP request we are parsing
+ * \retval The methods allowed
+ */
+static unsigned int parse_allowed_methods(struct sip_request *req)
+{
+	char *allow = ast_strdupa(get_header(req, "Allow"));
+	char *method;
+	unsigned int allowed_methods = SIP_UNKNOWN;
+
+	if (ast_strlen_zero(allow)) {
+		/* RFC 3261 states:
+		 *
+		 * "The absence of an Allow header field MUST NOT be
+		 * interpreted to mean that the UA sending the message supports no
+		 * methods.   Rather, it implies that the UA is not providing any
+		 * information on what methods it supports."
+		 *
+		 * For simplicity, we'll assume that the peer allows all known
+		 * SIP methods if they have no Allow header. We can then clear out the necessary
+		 * bits if the peer lets us know that we have sent an unsupported method.
+		 */
+		return UINT_MAX;
+	}
+	for (method = strsep(&allow, ","); !ast_strlen_zero(method); method = strsep(&allow, ",")) {
+		int id = find_sip_method(ast_skip_blanks(method));
+		if (id == SIP_UNKNOWN) {
+			continue;
+		}
+		mark_method_allowed(&allowed_methods, id);
+	}
+	return allowed_methods;
+}
+
+/*! A wrapper for parse_allowed_methods geared toward sip_pvts
+ *
+ * This function, in addition to setting the allowed methods for a sip_pvt
+ * also will take into account the setting of the SIP_PAGE2_RPID_UPDATE flag.
+ *
+ * \param pvt The sip_pvt we are setting the allowed_methods for
+ * \param req The request which we are parsing
+ * \retval The methods alloweded by the sip_pvt
+ */
+static unsigned int set_pvt_allowed_methods(struct sip_pvt *pvt, struct sip_request *req)
+{
+	pvt->allowed_methods = parse_allowed_methods(req);
+	
+	if (ast_test_flag(&pvt->flags[1], SIP_PAGE2_RPID_UPDATE)) {
+		mark_method_allowed(&pvt->allowed_methods, SIP_UPDATE);
+	}
+
+	return pvt->allowed_methods;
 }
 
 /*! \brief  Parse multiline SIP headers into one header
@@ -9875,8 +9967,12 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, int t38version, int old
 			add_header(&req, "X-asterisk-Info", "SIP re-invite (External RTP bridge)");
 	}
 
+	if (ast_test_flag(&p->flags[1], SIP_SENDRPID))
+		add_rpid(&req, p);
+
 	if (p->do_history)
 		append_history(p, "ReInv", "Re-invite sent");
+
 	try_suggested_sip_codec(p);
 	if (t38version)
 		add_sdp(&req, p, oldsdp, FALSE, TRUE);
@@ -10262,7 +10358,9 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 
 	if (!p->initreq.headers || init > 2)
 		initialize_initreq(p, &req);
-	p->lastinvite = p->ocseq;
+	if (sipmethod == SIP_INVITE) {
+		p->lastinvite = p->ocseq;
+	}
 	return send_request(p, &req, init ? XMIT_CRITICAL : XMIT_RELIABLE, p->ocseq);
 }
 
@@ -10815,11 +10913,15 @@ static void update_connectedline(struct sip_pvt *p, const void *data, size_t dat
 			p->lastinvite = p->ocseq;
 			ast_set_flag(&p->flags[0], SIP_OUTGOING);
 			send_request(p, &req, XMIT_CRITICAL, p->ocseq);
-		} else {
+		} else if (is_method_allowed(&p->allowed_methods, SIP_UPDATE)) {
 			reqprep(&req, p, SIP_UPDATE, 0, 1);
 			add_rpid(&req, p);
+			add_header(&req, "X-Asterisk-rpid-update", "Yes");
 			add_header_contentLength(&req, 0);
 			send_request(p, &req, XMIT_CRITICAL, p->ocseq);
+		} else {
+			/* We cannot send the update yet, so we have to wait until we can */
+			ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);
 		}
 	} else {
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_RPID_IMMEDIATE)) {
@@ -11424,6 +11526,7 @@ static int expire_register(const void *data)
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", peer->name);
 	register_peer_exten(peer, FALSE);	/* Remove regexten */
 	ast_devstate_changed(AST_DEVICE_UNKNOWN, "SIP/%s", peer->name);
+	peer->allowed_methods = SIP_UNKNOWN;
 
 	/* Do we need to release this peer from memory? 
 		Only for realtime peers and autocreated peers
@@ -12361,6 +12464,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 	}
 
 	if (peer) {
+		ao2_lock(peer);
 		if (!peer->host_dynamic) {
 			ast_log(LOG_ERROR, "Peer '%s' is trying to register, but not configured as host=dynamic\n", peer->name);
 			res = AUTH_PEER_NOT_DYNAMIC;
@@ -12405,6 +12509,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 
 			} 
 		}
+		ao2_unlock(peer);
 	}
 	if (!peer && sip_cfg.autocreatepeer) {
 		/* Create peer if we have autocreate mode enabled */
@@ -12414,7 +12519,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 			if (peer->addr.sin_addr.s_addr) {
 				ao2_t_link(peers_by_ip, peer, "link peer into peers-by-ip table");
 			}
-			
+			ao2_lock(peer);
 			if (sip_cancel_destroy(p))
 				ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 			switch (parse_register_contact(p, peer, req)) {
@@ -12437,6 +12542,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 				res = 0;
 				break;
 			}
+			ao2_unlock(peer);
 		}
 	}
 	if (!peer && sip_cfg.alwaysauthreject) {
@@ -12499,8 +12605,14 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 			break;
 		}
 	}
-	if (peer)
+	if (peer) {
+		ao2_lock(peer);
+		if (peer->allowed_methods == SIP_UNKNOWN) {
+			peer->allowed_methods = set_pvt_allowed_methods(p, req);
+		}
+		ao2_unlock(peer);
 		unref_peer(peer, "register_verify: unref_peer: tossing stack peer pointer at end of func");
+	}
 
 	return res;
 }
@@ -13479,6 +13591,11 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 	ast_string_field_set(p, mohsuggest, peer->mohsuggest);
 	ast_string_field_set(p, parkinglot, peer->parkinglot);
 	ast_string_field_set(p, engine, peer->engine);
+	if (peer->allowed_methods == SIP_UNKNOWN) {
+		set_pvt_allowed_methods(p, req);
+	} else {
+		p->allowed_methods = peer->allowed_methods;
+	}
 	if (peer->callingpres)	/* Peer calling pres setting will override RPID */
 		p->callingpres = peer->callingpres;
 	if (peer->maxms && peer->lastms)
@@ -17188,6 +17305,20 @@ static int sip_reinvite_retry(const void *data)
 	return 0;
 }
 
+/*!
+ * \brief Handle authentication challenge for SIP UPDATE
+ *
+ * This function is only called upon the receipt of a 401/407 response to an UPDATE.
+ */
+static void handle_response_update(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno)
+{
+	if (p->options) {
+		p->options->auth_type = (resp == 401 ? WWW_AUTH : PROXY_AUTH);
+	}
+	if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, resp, SIP_UPDATE, 1)) {
+		ast_log(LOG_NOTICE, "Failed to authenticate on UPDATE to '%s'\n", get_header(&p->initreq, "From"));
+	}
+}
 
 /*! \brief Handle SIP response to INVITE dialogue */
 static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno)
@@ -17204,6 +17335,21 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		ast_debug(4, "SIP response %d to RE-invite on %s call %s\n", resp, outgoing ? "outgoing" : "incoming", p->callid);
 	else
 		ast_debug(4, "SIP response %d to standard invite\n", resp);
+
+	/* If this is a response to our initial INVITE, we need to set what we can use
+	 * for this peer.
+	 */
+	if (!reinvite && p->allowed_methods == SIP_UNKNOWN) {
+		struct sip_peer *peer = find_peer(p->peername, NULL, 1, FINDPEERS, FALSE);
+		if (!peer || peer->allowed_methods == SIP_UNKNOWN) {
+			set_pvt_allowed_methods(p, req);
+		} else {
+			p->allowed_methods = peer->allowed_methods;
+		}
+		if (peer) {
+			unref_peer(peer, "handle_response_invite: Getting supported methods from peer");
+		}
+	}
 
 	if (p->alreadygone) { /* This call is already gone */
 		ast_debug(1, "Got response on call that is already terminated: %s (ignoring)\n", p->callid);
@@ -17591,6 +17737,7 @@ static void handle_response_notify(struct sip_pvt *p, int resp, char *rest, stru
 /* \brief Handle SIP response in SUBSCRIBE transaction */
 static void handle_response_subscribe(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno)
 {
+	struct sip_peer *peer;
 	if (!p->mwi) {
 		return;
 	}
@@ -17598,6 +17745,15 @@ static void handle_response_subscribe(struct sip_pvt *p, int resp, char *rest, s
 	switch (resp) {
 	case 200: /* Subscription accepted */
 		ast_debug(3, "Got 200 OK on subscription for MWI\n");
+		peer = find_peer(p->peername, NULL, 1, FINDPEERS, FALSE);
+		if (!peer || peer->allowed_methods == SIP_UNKNOWN) {
+			set_pvt_allowed_methods(p, req);
+		} else {
+			p->allowed_methods = peer->allowed_methods;
+		}
+		if (peer) {
+			unref_peer(peer, "handle_response_subscribe: Getting supported methods");
+		}
 		if (p->options) {
 			ast_free(p->options);
 			p->options = NULL;
@@ -17910,6 +18066,12 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
 			"ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: %s\r\nTime: %d\r\n",
 			peer->name, s, pingtime);
+		if (!is_reachable) {
+			peer->allowed_methods = SIP_UNKNOWN;
+		} else {
+			set_pvt_allowed_methods(p, req);
+			peer->allowed_methods = p->allowed_methods;
+		}
 		if (is_reachable && sip_cfg.regextenonqualify)
 			register_peer_exten(peer, TRUE);
 	}
@@ -17951,6 +18113,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 	char *c_copy = ast_strdupa(c);
 	/* Skip the Cseq and its subsequent spaces */
 	const char *msg = ast_skip_blanks(ast_skip_nonblanks(c_copy));
+	struct sip_peer *peer;
 
 	if (!msg)
 		msg = "";
@@ -18051,7 +18214,9 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				handle_response_subscribe(p, resp, rest, req, seqno);
 			else if (p->registry && sipmethod == SIP_REGISTER)
 				res = handle_response_register(p, resp, rest, req, seqno);
-			else if (sipmethod == SIP_BYE) {
+			else if (sipmethod == SIP_UPDATE) {
+				handle_response_update(p, resp, rest, req, seqno);
+			} else if (sipmethod == SIP_BYE) {
 				if (p->options)
 					p->options->auth_type = resp;
 				if (ast_strlen_zero(p->authname)) {
@@ -18151,6 +18316,11 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			}
 			break;
 		case 501: /* Not Implemented */
+			mark_method_unallowed(&p->allowed_methods, sipmethod);
+			if ((peer = find_peer(p->peername, 0, 1, FINDPEERS, FALSE))) {
+				peer->allowed_methods = p->allowed_methods;
+				unref_peer(peer, "handle_response: marking a specific method as unallowed");
+			}
 			if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, seqno);
 			else if (sipmethod == SIP_REFER)
@@ -19310,6 +19480,36 @@ static int sip_t38_abort(const void *data)
 	p->t38id = -1;
 	dialog_unref(p, "unref the dialog ptr from sip_t38_abort, because it held a dialog ptr");
 
+	return 0;
+}
+
+/*!
+ * \brief bare-bones support for SIP UPDATE
+ *
+ * XXX This is not even close to being RFC 3311-compliant. We don't advertise
+ * that we support the UPDATE method, so no one should ever try sending us
+ * an UPDATE anyway. However, Asterisk can send an UPDATE to change connected
+ * line information, so we need to be prepared to handle this. The way we distinguish
+ * such an UPDATE is through the X-Asterisk-rpid-update header.
+ *
+ * Actually updating the media session may be some future work.
+ */
+static int handle_request_update(struct sip_pvt *p, struct sip_request *req)
+{
+	if (ast_strlen_zero(get_header(req, "X-Asterisk-rpid-update"))) {
+		transmit_response(p, "501 Method Not Implemented", req);
+		return 0;
+	}
+	if (get_rpid(p, req)) {
+		struct ast_party_connected_line connected;
+		ast_party_connected_line_init(&connected);
+		connected.id.number = (char *) p->cid_num;
+		connected.id.name = (char *) p->cid_name;
+		connected.id.number_presentation = p->callingpres;
+		connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
+		ast_channel_queue_connected_line_update(p->owner, &connected);
+	}
+	transmit_response(p, "200 OK", req);
 	return 0;
 }
 
@@ -21381,6 +21581,9 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 	case SIP_NOTIFY:
 		res = handle_request_notify(p, req, sin, seqno, e);
 		break;
+	case SIP_UPDATE:
+		res = handle_request_update(p, req);
+		break;
 	case SIP_ACK:
 		/* Make sure we don't ignore this */
 		if (seqno == p->pendinginvite) {
@@ -22837,6 +23040,9 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 		} else if (ast_true(v->value)) {
 			ast_set_flag(&flags[0], SIP_SENDRPID_RPID);
 		}
+	} else if (!strcasecmp(v->name, "rpid_update")) {
+		ast_set_flag(&mask[1], SIP_PAGE2_RPID_UPDATE);
+		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_RPID_UPDATE);
 	} else if (!strcasecmp(v->name, "rpid_immediate")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_RPID_IMMEDIATE);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_RPID_IMMEDIATE);

@@ -232,6 +232,13 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; This is identical to sendrpid=yes
 ;sendrpid = pai                 ; Use the "P-Asserted-Identity" header
                                 ; to send the identity of the remote party
+;rpid_update = no               ; In certain cases, the only method by which a connected line
+                                ; change may be immediately transmitted is with a SIP UPDATE request.
+                                ; If communicating with another Asterisk server, and you wish to be able
+                                ; transmit such UPDATE messages to it, then you must enable this option.
+                                ; Otherwise, we will have to wait until we can send a reinvite to
+                                ; transmit the information.
+
 ;progressinband=never           ; If we should generate in-band ringing always
                                 ; use 'never' to never use in-band signalling, even in cases
                                 ; where some buggy devices might not render it
