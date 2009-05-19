@@ -18528,7 +18528,7 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 		return -1;
 
 	/* Disable early RTP bridge  */
-	if (chan->_state != AST_STATE_UP && !global_directrtpsetup) 	/* We are in early state */
+	if (!ast_bridged_channel(chan) && !global_directrtpsetup) 	/* We are in early state */
 		return 0;
 
 	ast_mutex_lock(&p->lock);
