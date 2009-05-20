@@ -594,6 +594,7 @@ static void hanguptree(struct chanlist *outgoing, struct ast_channel *exception,
 				/* This is for the channel drivers */
 				outgoing->chan->hangupcause = AST_CAUSE_ANSWERED_ELSEWHERE;
 			}
+			ast_party_connected_line_free(&outgoing->connected);
 			ast_hangup(outgoing->chan);
 		}
 		oo = outgoing;
