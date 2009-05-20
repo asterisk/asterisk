@@ -2605,15 +2605,21 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		   hears nothing but ringing while the macro does its thing. */
 		if (peer_cdr && !ast_tvzero(peer_cdr->answer)) {
 			bridge_cdr->answer = peer_cdr->answer;
-			chan_cdr->answer = peer_cdr->answer;
 			bridge_cdr->disposition = peer_cdr->disposition;
-			chan_cdr->disposition = peer_cdr->disposition;
+			if (chan_cdr) {
+				chan_cdr->answer = peer_cdr->answer;
+				chan_cdr->disposition = peer_cdr->disposition;
+			}
 		} else {
 			ast_cdr_answer(bridge_cdr);
-			ast_cdr_answer(chan_cdr); /* for the sake of cli status checks */
+			if (chan_cdr) {
+				ast_cdr_answer(chan_cdr); /* for the sake of cli status checks */
+			}
 		}
-		if (ast_test_flag(chan,AST_FLAG_BRIDGE_HANGUP_DONT)) {
-			ast_set_flag(chan_cdr, AST_CDR_FLAG_BRIDGED);
+		if (ast_test_flag(chan,AST_FLAG_BRIDGE_HANGUP_DONT) && (chan_cdr || peer_cdr)) {
+			if (chan_cdr) {
+				ast_set_flag(chan_cdr, AST_CDR_FLAG_BRIDGED);
+			}
 			if (peer_cdr) {
 				ast_set_flag(peer_cdr, AST_CDR_FLAG_BRIDGED);
 			}
