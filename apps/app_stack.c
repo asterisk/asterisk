@@ -201,21 +201,20 @@ static int frame_set_var(struct ast_channel *chan, struct gosub_stack_frame *fra
 		}
 	}
 
-	if (!ast_strlen_zero(value)) {
-		if (!found) {
-			variables = ast_var_assign(var, "");
-			AST_LIST_INSERT_HEAD(&frame->varshead, variables, entries);
-			pbx_builtin_pushvar_helper(chan, var, value);
-		} else
-			pbx_builtin_setvar_helper(chan, var, value);
-
-		manager_event(EVENT_FLAG_DIALPLAN, "VarSet", 
-			"Channel: %s\r\n"
-			"Variable: LOCAL(%s)\r\n"
-			"Value: %s\r\n"
-			"Uniqueid: %s\r\n", 
-			chan->name, var, value, chan->uniqueid);
+	if (!found) {
+		variables = ast_var_assign(var, "");
+		AST_LIST_INSERT_HEAD(&frame->varshead, variables, entries);
+		pbx_builtin_pushvar_helper(chan, var, value);
+	} else {
+		pbx_builtin_setvar_helper(chan, var, value);
 	}
+
+	manager_event(EVENT_FLAG_DIALPLAN, "VarSet",
+		"Channel: %s\r\n"
+		"Variable: LOCAL(%s)\r\n"
+		"Value: %s\r\n"
+		"Uniqueid: %s\r\n",
+		chan->name, var, value, chan->uniqueid);
 	return 0;
 }
 
