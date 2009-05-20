@@ -3697,7 +3697,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 
 		empty = ast_test_flag(&confflags, CONFFLAG_EMPTY | CONFFLAG_EMPTYNOPIN);
 		empty_no_pin = ast_test_flag(&confflags, CONFFLAG_EMPTYNOPIN);
-		always_prompt = ast_test_flag(&confflags, CONFFLAG_ALWAYSPROMPT);
+		always_prompt = ast_test_flag(&confflags, CONFFLAG_ALWAYSPROMPT | CONFFLAG_DYNAMICPIN);
 	}
 
 	do {
