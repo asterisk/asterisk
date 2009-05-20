@@ -17466,7 +17466,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);
 		}
 
-		if (!req->ignore && p->owner && get_rpid(p, req)) {
+		if (!req->ignore && p->owner && (get_rpid(p, req) || !reinvite)) {
 			/* Queue a connected line update */
 			ast_party_connected_line_init(&connected);
 			connected.id.number = (char *) p->cid_num;
@@ -17497,9 +17497,6 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 
 		if (!req->ignore && p->owner) {
 			if (!reinvite) {
-				struct ast_party_connected_line connected;
-				ast_party_connected_line_collect_caller(&connected, &p->owner->cid);
-				ast_channel_queue_connected_line_update(p->owner, &connected);
 				ast_queue_control(p->owner, AST_CONTROL_ANSWER);
 				if (sip_cfg.callevents)
 					manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate",
