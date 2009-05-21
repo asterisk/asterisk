@@ -2714,6 +2714,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				break;
 			case AST_CONTROL_HOLD:
 			case AST_CONTROL_UNHOLD:
+			case AST_CONTROL_CONNECTED_LINE:
 				ast_indicate_data(other, f->subclass, f->data.ptr, f->datalen);
 				break;
 			case AST_CONTROL_OPTION:
