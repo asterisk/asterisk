@@ -787,6 +787,30 @@ void ast_cdr_setapp(struct ast_cdr *cdr, const char *app, const char *data)
 	}
 }
 
+void ast_cdr_setanswer(struct ast_cdr *cdr, struct timeval t)
+{
+
+	for (; cdr; cdr = cdr->next) {
+		if (ast_test_flag(cdr, AST_CDR_FLAG_ANSLOCKED))
+			continue;
+		if (ast_test_flag(cdr, AST_CDR_FLAG_DONT_TOUCH) && ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
+			continue;
+		check_post(cdr);
+		cdr->answer = t;
+	}
+}
+
+void ast_cdr_setdisposition(struct ast_cdr *cdr, long int disposition)
+{
+
+	for (; cdr; cdr = cdr->next) {
+		if (ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
+			continue;
+		check_post(cdr);
+		cdr->disposition = disposition;
+	}
+}
+
 /* set cid info for one record */
 static void set_one_cid(struct ast_cdr *cdr, struct ast_channel *c)
 {
