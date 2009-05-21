@@ -4090,6 +4090,9 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 	/* If we have a time that the frame arrived, always use it to make our timestamp */
 	if (delivery && !ast_tvzero(*delivery)) {
 		ms = ast_tvdiff_ms(*delivery, p->offset);
+		if (ms < 0) {
+			ms = 0;
+		}
 		if (option_debug > 2 && iaxdebug)
 			ast_log(LOG_DEBUG, "calc_timestamp: call %d/%d: Timestamp slaved to delivery time\n", p->callno, iaxs[p->callno]->peercallno);
 	} else {
