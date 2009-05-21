@@ -606,7 +606,7 @@ static void *monmp3thread(void *data)
 	return NULL;
 }
 
-static int play_moh_exec(struct ast_channel *chan, void *data)
+static int play_moh_exec(struct ast_channel *chan, const char *data)
 {
 	char *parse;
 	char *class;
@@ -646,7 +646,7 @@ static int play_moh_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-static int wait_moh_exec(struct ast_channel *chan, void *data)
+static int wait_moh_exec(struct ast_channel *chan, const char *data)
 {
 	static int deprecation_warning = 0;
 	int res;
@@ -669,7 +669,7 @@ static int wait_moh_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-static int set_moh_exec(struct ast_channel *chan, void *data)
+static int set_moh_exec(struct ast_channel *chan, const char *data)
 {
 	static int deprecation_warning = 0;
 
@@ -686,7 +686,7 @@ static int set_moh_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static int start_moh_exec(struct ast_channel *chan, void *data)
+static int start_moh_exec(struct ast_channel *chan, const char *data)
 {
 	char *parse;
 	char *class;
@@ -705,7 +705,7 @@ static int start_moh_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static int stop_moh_exec(struct ast_channel *chan, void *data)
+static int stop_moh_exec(struct ast_channel *chan, const char *data)
 {
 	ast_moh_stop(chan);
 

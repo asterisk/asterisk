@@ -705,7 +705,7 @@ static int transmit(fax_session *s)
 
 /* === Application functions === */
 
-static int sndfax_exec(struct ast_channel *chan, void *data)
+static int sndfax_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	char *parse;
@@ -749,7 +749,7 @@ static int sndfax_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-static int rcvfax_exec(struct ast_channel *chan, void *data)
+static int rcvfax_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	char *parse;

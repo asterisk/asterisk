@@ -921,7 +921,7 @@ static void set_peers(struct ast_channel **caller, struct ast_channel **callee,
  * Setup channel, set return exten,priority to 's,1'
  * answer chan, sleep chan, park call
 */
-static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
+static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, const char *code, int sense, void *data)
 {
 	struct ast_channel *parker;
 	struct ast_channel *parkee;
@@ -991,7 +991,7 @@ static int play_message_in_bridged_call(struct ast_channel *caller_chan, struct 
  * \retval AST_FEATURE_RETURN_SUCCESS on success.
  * \retval -1 on error.
 */
-static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
+static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, const char *code, int sense, void *data)
 {
 	char *caller_chan_id = NULL, *callee_chan_id = NULL, *args = NULL, *touch_filename = NULL;
 	int x = 0;
@@ -1084,7 +1084,7 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 	return -1;
 }
 
-static int builtin_automixmonitor(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
+static int builtin_automixmonitor(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, const char *code, int sense, void *data)
 {
 	char *caller_chan_id = NULL, *callee_chan_id = NULL, *args = NULL, *touch_filename = NULL;
 	int x = 0;
@@ -1194,7 +1194,7 @@ static int builtin_automixmonitor(struct ast_channel *chan, struct ast_channel *
 
 }
 
-static int builtin_disconnect(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
+static int builtin_disconnect(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, const char *code, int sense, void *data)
 {
 	ast_verb(4, "User hit '%s' to disconnect call.\n", code);
 	return AST_FEATURE_RETURN_HANGUP;
@@ -1244,7 +1244,7 @@ static const char *real_ctx(struct ast_channel *transferer, struct ast_channel *
  * \retval AST_FEATURE_RETURN_SUCCESS.
  * \retval -1 on failure.
 */
-static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
+static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, const char *code, int sense, void *data)
 {
 	struct ast_channel *transferer;
 	struct ast_channel *transferee;
@@ -1375,7 +1375,7 @@ static int check_compat(struct ast_channel *c, struct ast_channel *newchan)
  *
  * \return -1 on failure
 */
-static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
+static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, const char *code, int sense, void *data)
 {
 	struct ast_channel *transferer;
 	struct ast_channel *transferee;
@@ -1719,8 +1719,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 
 AST_RWLOCK_DEFINE_STATIC(features_lock);
 
-static struct ast_call_feature builtin_features[] = 
-{
+static struct ast_call_feature builtin_features[] = {
 	{ AST_FEATURE_REDIRECT, "Blind Transfer", "blindxfer", "#", "#", builtin_blindtransfer, AST_FEATURE_FLAG_NEEDSDTMF, "" },
 	{ AST_FEATURE_REDIRECT, "Attended Transfer", "atxfer", "", "", builtin_atxfer, AST_FEATURE_FLAG_NEEDSDTMF, "" },
 	{ AST_FEATURE_AUTOMON, "One Touch Monitor", "automon", "", "", builtin_automonitor, AST_FEATURE_FLAG_NEEDSDTMF, "" },
@@ -1925,7 +1924,7 @@ struct ast_call_feature *ast_find_call_feature(const char *name)
  * \retval -1 error.
  * \retval -2 when an application cannot be found.
 */
-static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
+static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, const char *code, int sense, void *data)
 {
 	struct ast_app *app;
 	struct ast_call_feature *feature = data;
@@ -2021,7 +2020,7 @@ static int remap_feature(const char *name, const char *value)
  * \retval -1 on failure.
 */
 static int feature_interpret_helper(struct ast_channel *chan, struct ast_channel *peer,
-	struct ast_bridge_config *config, char *code, int sense, char *dynamic_features_buf,
+	struct ast_bridge_config *config, const char *code, int sense, char *dynamic_features_buf,
 	struct ast_flags *features, int operation, struct ast_call_feature *feature)
 {
 	int x;
@@ -2124,7 +2123,7 @@ static int feature_interpret_helper(struct ast_channel *chan, struct ast_channel
  * \retval -1 on failure.
 */
 
-static int feature_interpret(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense) {
+static int feature_interpret(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, const char *code, int sense) {
 
 	char dynamic_features_buf[128];
 	const char *peer_dynamic_features, *chan_dynamic_features;
@@ -2153,7 +2152,7 @@ static int feature_interpret(struct ast_channel *chan, struct ast_channel *peer,
 }
 
 
-int ast_feature_detect(struct ast_channel *chan, struct ast_flags *features, char *code, struct ast_call_feature *feature) {
+int ast_feature_detect(struct ast_channel *chan, struct ast_flags *features, const char *code, struct ast_call_feature *feature) {
 
 	return feature_interpret_helper(chan, NULL, NULL, code, 0, NULL, features, 0, feature);
 }
@@ -3254,7 +3253,7 @@ AST_APP_OPTIONS(park_call_options, BEGIN_OPTIONS
 END_OPTIONS );
 
 /*! \brief Park a call */
-static int park_call_exec(struct ast_channel *chan, void *data)
+static int park_call_exec(struct ast_channel *chan, const char *data)
 {
 	/* Cache the original channel name in case we get masqueraded in the middle
 	 * of a park--it is still theoretically possible for a transfer to happen before
@@ -3340,7 +3339,7 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 }
 
 /*! \brief Pickup parked call */
-static int park_exec_full(struct ast_channel *chan, void *data, struct ast_parkinglot *parkinglot)
+static int park_exec_full(struct ast_channel *chan, const char *data, struct ast_parkinglot *parkinglot)
 {
 	int res = 0;
 	struct ast_channel *peer=NULL;
@@ -3350,7 +3349,7 @@ static int park_exec_full(struct ast_channel *chan, void *data, struct ast_parki
 	struct ast_bridge_config config;
 
 	if (data)
-		park = atoi((char *)data);
+		park = atoi((char *) data);
 
 	parkinglot = find_parkinglot(findparkinglotname(chan)); 	
 	if (!parkinglot)
@@ -3503,7 +3502,7 @@ static int park_exec_full(struct ast_channel *chan, void *data, struct ast_parki
 	return -1;
 }
 
-static int park_exec(struct ast_channel *chan, void *data) 
+static int park_exec(struct ast_channel *chan, const char *data) 
 {
 	return park_exec_full(chan, data, default_parkinglot);
 }
@@ -4110,7 +4109,7 @@ static char *handle_features_reload(struct ast_cli_entry *e, int cmd, struct ast
 	return CLI_SUCCESS;
 }
 
-static char mandescr_bridge[] =
+static const char mandescr_bridge[] =
 "Description: Bridge together two channels already in the PBX\n"
 "Variables: ( Headers marked with * are required )\n"
 "   *Channel1: Channel to Bridge to Channel2\n"
@@ -4383,7 +4382,7 @@ static int manager_parking_status(struct mansession *s, const struct message *m)
 	return RESULT_SUCCESS;
 }
 
-static char mandescr_park[] =
+static const char mandescr_park[] =
 "Description: Park a channel.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Channel: Channel name to park\n"
@@ -4556,7 +4555,7 @@ END_OPTIONS );
  * answer call if not already, check compatible channels, setup bridge config
  * now bridge call, if transfered party hangs up return to PBX extension.
 */
-static int bridge_exec(struct ast_channel *chan, void *data)
+static int bridge_exec(struct ast_channel *chan, const char *data)
 {
 	struct ast_channel *current_dest_chan, *final_dest_chan;
 	char *tmp_data  = NULL;

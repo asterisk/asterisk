@@ -963,7 +963,7 @@ exit:
 	return res;
 }
 
-static int chanspy_exec(struct ast_channel *chan, void *data)
+static int chanspy_exec(struct ast_channel *chan, const char *data)
 {
 	char *myenforced = NULL;
 	char *mygroup = NULL;
@@ -985,9 +985,9 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(options);
 	);
 	char *opts[OPT_ARG_ARRAY_SIZE];
+	char *parse = ast_strdupa(data);
 
-	data = ast_strdupa(data);
-	AST_STANDARD_APP_ARGS(args, data);
+	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (args.spec && !strcmp(args.spec, "all"))
 		args.spec = NULL;
@@ -1078,7 +1078,7 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-static int extenspy_exec(struct ast_channel *chan, void *data)
+static int extenspy_exec(struct ast_channel *chan, const char *data)
 {
 	char *ptr, *exten = NULL;
 	char *mygroup = NULL;
@@ -1099,10 +1099,9 @@ static int extenspy_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(context);
 		AST_APP_ARG(options);
 	);
+	char *parse = ast_strdupa(data);
 
-	data = ast_strdupa(data);
-
-	AST_STANDARD_APP_ARGS(args, data);
+	AST_STANDARD_APP_ARGS(args, parse);
 	if (!ast_strlen_zero(args.context) && (ptr = strchr(args.context, '@'))) {
 		exten = args.context;
 		*ptr++ = '\0';
@@ -1199,7 +1198,7 @@ static int extenspy_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-static int dahdiscan_exec(struct ast_channel *chan, void *data)
+static int dahdiscan_exec(struct ast_channel *chan, const char *data)
 {
 	const char *spec = "DAHDI";
 	struct ast_flags flags;

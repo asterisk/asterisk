@@ -51,7 +51,7 @@ int ast_supports_images(struct ast_channel *chan);
  * \retval 0 on success
  * \retval -1 on error
  */
-int ast_send_image(struct ast_channel *chan, char *filename);
+int ast_send_image(struct ast_channel *chan, const char *filename);
 
 /*! 
  * \brief Make an image 
@@ -62,7 +62,7 @@ int ast_send_image(struct ast_channel *chan, char *filename);
  * \retval an ast_frame on success
  * \retval NULL on failure
  */
-struct ast_frame *ast_read_image(char *filename, const char *preflang, int format);
+struct ast_frame *ast_read_image(const char *filename, const char *preflang, int format);
 
 /*! 
  * \brief Register image format

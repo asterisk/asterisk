@@ -390,13 +390,13 @@ int ast_monitor_unpause(struct ast_channel *chan)
 }
 
 /*! \brief Wrapper for ast_monitor_pause */
-static int pause_monitor_exec(struct ast_channel *chan, void *data)
+static int pause_monitor_exec(struct ast_channel *chan, const char *data)
 {
 	return ast_monitor_pause(chan);
 }
 
 /*! \brief Wrapper for ast_monitor_unpause */
-static int unpause_monitor_exec(struct ast_channel *chan, void *data)
+static int unpause_monitor_exec(struct ast_channel *chan, const char *data)
 {
 	return ast_monitor_unpause(chan);
 }
@@ -457,7 +457,7 @@ int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, i
  * \retval 0 on success.
  * \retval -1 on failure.
 */
-static int start_monitor_exec(struct ast_channel *chan, void *data)
+static int start_monitor_exec(struct ast_channel *chan, const char *data)
 {
 	char *arg = NULL;
 	char *options = NULL;
@@ -541,18 +541,18 @@ static int start_monitor_exec(struct ast_channel *chan, void *data)
 }
 
 /*! \brief Wrapper function \see ast_monitor_stop */
-static int stop_monitor_exec(struct ast_channel *chan, void *data)
+static int stop_monitor_exec(struct ast_channel *chan, const char *data)
 {
 	return ast_monitor_stop(chan, 1);
 }
 
 /*! \brief Wrapper function \see ast_monitor_change_fname */
-static int change_monitor_exec(struct ast_channel *chan, void *data)
+static int change_monitor_exec(struct ast_channel *chan, const char *data)
 {
-	return ast_monitor_change_fname(chan, (const char*)data, 1);
+	return ast_monitor_change_fname(chan, data, 1);
 }
 
-static char start_monitor_action_help[] =
+static const char start_monitor_action_help[] =
 "Description: The 'Monitor' action may be used to record the audio on a\n"
 "  specified channel.  The following parameters may be used to control\n"
 "  this:\n"
@@ -618,7 +618,7 @@ static int start_monitor_action(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static char stop_monitor_action_help[] =
+static const char stop_monitor_action_help[] =
 "Description: The 'StopMonitor' action may be used to end a previously\n"
 "  started 'Monitor' action.  The only parameter is 'Channel', the name\n"
 "  of the channel monitored.\n";
@@ -654,7 +654,7 @@ static int stop_monitor_action(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static char change_monitor_action_help[] =
+static const char change_monitor_action_help[] =
 "Description: The 'ChangeMonitor' action may be used to change the file\n"
 "  started by a previous 'Monitor' action.  The following parameters may\n"
 "  be used to control this:\n"
@@ -737,7 +737,7 @@ static int do_pause_or_unpause(struct mansession *s, const struct message *m, in
 	return 0;
 }
 
-static char pause_monitor_action_help[] =
+static const char pause_monitor_action_help[] =
 	"Description: The 'PauseMonitor' action may be used to temporarily stop the\n"
 	" recording of a channel.  The following parameters may\n"
 	" be used to control this:\n"
@@ -748,7 +748,7 @@ static int pause_monitor_action(struct mansession *s, const struct message *m)
 	return do_pause_or_unpause(s, m, MONITOR_ACTION_PAUSE);
 }
 
-static char unpause_monitor_action_help[] =
+static const char unpause_monitor_action_help[] =
 	"Description: The 'UnpauseMonitor' action may be used to re-enable recording\n"
 	"  of a channel after calling PauseMonitor.  The following parameters may\n"
 	"  be used to control this:\n"

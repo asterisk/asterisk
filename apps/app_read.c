@@ -122,9 +122,7 @@ AST_APP_OPTIONS(read_app_options, {
 
 static char *app = "Read";
 
-#define ast_next_data(instr,ptr,delim) if((ptr=strchr(instr,delim))) { *(ptr) = '\0' ; ptr++;}
-
-static int read_exec(struct ast_channel *chan, void *data)
+static int read_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	char tmp[256] = "";

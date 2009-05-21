@@ -855,7 +855,7 @@ struct ast_context {
 
 /*! \brief ast_app: A registered application */
 struct ast_app {
-	int (*execute)(struct ast_channel *chan, void *data);
+	int (*execute)(struct ast_channel *chan, const char *data);
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(synopsis);     /*!< Synopsis text for 'show applications' */
 		AST_STRING_FIELD(description);  /*!< Description (help text) for 'show application &lt;name&gt;' */
@@ -919,33 +919,33 @@ struct pbx_exception {
 	int priority;				/*!< Priority associated with this exception */
 };
 
-static int pbx_builtin_answer(struct ast_channel *, void *);
-static int pbx_builtin_goto(struct ast_channel *, void *);
-static int pbx_builtin_hangup(struct ast_channel *, void *);
-static int pbx_builtin_background(struct ast_channel *, void *);
-static int pbx_builtin_wait(struct ast_channel *, void *);
-static int pbx_builtin_waitexten(struct ast_channel *, void *);
-static int pbx_builtin_incomplete(struct ast_channel *, void *);
-static int pbx_builtin_resetcdr(struct ast_channel *, void *);
-static int pbx_builtin_setamaflags(struct ast_channel *, void *);
-static int pbx_builtin_ringing(struct ast_channel *, void *);
-static int pbx_builtin_proceeding(struct ast_channel *, void *);
-static int pbx_builtin_progress(struct ast_channel *, void *);
-static int pbx_builtin_congestion(struct ast_channel *, void *);
-static int pbx_builtin_busy(struct ast_channel *, void *);
-static int pbx_builtin_noop(struct ast_channel *, void *);
-static int pbx_builtin_gotoif(struct ast_channel *, void *);
-static int pbx_builtin_gotoiftime(struct ast_channel *, void *);
-static int pbx_builtin_execiftime(struct ast_channel *, void *);
-static int pbx_builtin_saynumber(struct ast_channel *, void *);
-static int pbx_builtin_saydigits(struct ast_channel *, void *);
-static int pbx_builtin_saycharacters(struct ast_channel *, void *);
-static int pbx_builtin_sayphonetic(struct ast_channel *, void *);
+static int pbx_builtin_answer(struct ast_channel *, const char *);
+static int pbx_builtin_goto(struct ast_channel *, const char *);
+static int pbx_builtin_hangup(struct ast_channel *, const char *);
+static int pbx_builtin_background(struct ast_channel *, const char *);
+static int pbx_builtin_wait(struct ast_channel *, const char *);
+static int pbx_builtin_waitexten(struct ast_channel *, const char *);
+static int pbx_builtin_incomplete(struct ast_channel *, const char *);
+static int pbx_builtin_resetcdr(struct ast_channel *, const char *);
+static int pbx_builtin_setamaflags(struct ast_channel *, const char *);
+static int pbx_builtin_ringing(struct ast_channel *, const char *);
+static int pbx_builtin_proceeding(struct ast_channel *, const char *);
+static int pbx_builtin_progress(struct ast_channel *, const char *);
+static int pbx_builtin_congestion(struct ast_channel *, const char *);
+static int pbx_builtin_busy(struct ast_channel *, const char *);
+static int pbx_builtin_noop(struct ast_channel *, const char *);
+static int pbx_builtin_gotoif(struct ast_channel *, const char *);
+static int pbx_builtin_gotoiftime(struct ast_channel *, const char *);
+static int pbx_builtin_execiftime(struct ast_channel *, const char *);
+static int pbx_builtin_saynumber(struct ast_channel *, const char *);
+static int pbx_builtin_saydigits(struct ast_channel *, const char *);
+static int pbx_builtin_saycharacters(struct ast_channel *, const char *);
+static int pbx_builtin_sayphonetic(struct ast_channel *, const char *);
 static int matchcid(const char *cidpattern, const char *callerid);
-int pbx_builtin_setvar(struct ast_channel *, void *);
+int pbx_builtin_setvar(struct ast_channel *, const char *);
 void log_match_char_tree(struct match_char *node, char *prefix); /* for use anywhere */
-int pbx_builtin_setvar_multiple(struct ast_channel *, void *);
-static int pbx_builtin_importvar(struct ast_channel *, void *);
+int pbx_builtin_setvar_multiple(struct ast_channel *, const char *);
+static int pbx_builtin_importvar(struct ast_channel *, const char *);
 static void set_ext_pri(struct ast_channel *c, const char *exten, int pri);
 static void new_find_extension(const char *str, struct scoreboard *score,
 		struct match_char *tree, int length, int spec, const char *callerid,
@@ -1083,7 +1083,7 @@ static AST_RWLIST_HEAD_STATIC(acf_root, ast_custom_function);
 /*! \brief Declaration of builtin applications */
 static struct pbx_builtin {
 	char name[AST_MAX_APP];
-	int (*execute)(struct ast_channel *chan, void *data);
+	int (*execute)(struct ast_channel *chan, const char *data);
 } builtins[] =
 {
 	/* These applications are built into the PBX core and do not
@@ -1320,9 +1320,9 @@ int check_contexts(char *file, int line )
 /*
    \note This function is special. It saves the stack so that no matter
    how many times it is called, it returns to the same place */
-int pbx_exec(struct ast_channel *c, /*!< Channel */
-	     struct ast_app *app,       /*!< Application */
-	     void *data)                /*!< Data for execution */
+int pbx_exec(struct ast_channel *c,	/*!< Channel */
+	     struct ast_app *app,	/*!< Application */
+	     const char *data)		/*!< Data for execution */
 {
 	int res;
 	struct ast_module_user *u = NULL;
@@ -3040,9 +3040,8 @@ static struct ast_datastore_info exception_store_info = {
 	.destroy = exception_store_free,
 };
 
-int pbx_builtin_raise_exception(struct ast_channel *chan, void *vreason)
+int pbx_builtin_raise_exception(struct ast_channel *chan, const char *reason)
 {
-	const char *reason = vreason;
 	struct ast_datastore *ds = ast_channel_datastore_find(chan, &exception_store_info, NULL);
 	struct pbx_exception *exception = NULL;
 
@@ -5332,7 +5331,7 @@ int ast_context_unlockmacro(const char *context)
 }
 
 /*! \brief Dynamically register a new dial plan application */
-int ast_register_application2(const char *app, int (*execute)(struct ast_channel *, void *), const char *synopsis, const char *description, void *mod)
+int ast_register_application2(const char *app, int (*execute)(struct ast_channel *, const char *), const char *synopsis, const char *description, void *mod)
 {
 	struct ast_app *tmp, *cur = NULL;
 	char tmps[80];
@@ -5757,7 +5756,7 @@ static char *handle_show_applications(struct ast_cli_entry *e, int cmd, struct a
 	int like = 0, describing = 0;
 	int total_match = 0;    /* Number of matches in like clause */
 	int total_apps = 0;     /* Number of apps registered */
-	static char* choices[] = { "like", "describing", NULL };
+	static const char * const choices[] = { "like", "describing", NULL };
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -6127,7 +6126,7 @@ static char *handle_show_dialplan(struct ast_cli_entry *e, int cmd, struct ast_c
 			if (ast_strlen_zero(exten))
 				exten = NULL;
 		} else { /* no '@' char, only context given */
-			context = a->argv[2];
+			context = ast_strdupa(a->argv[2]);
 		}
 		if (ast_strlen_zero(context))
 			context = NULL;
@@ -6195,7 +6194,7 @@ static char *handle_debug_dialplan(struct ast_cli_entry *e, int cmd, struct ast_
 			if (ast_strlen_zero(exten))
 				exten = NULL;
 		} else { /* no '@' char, only context given */
-			context = a->argv[2];
+			context = ast_strdupa(a->argv[2]);
 		}
 		if (ast_strlen_zero(context))
 			context = NULL;
@@ -6417,7 +6416,7 @@ static int manager_show_dialplan(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static char mandescr_show_dialplan[] =
+static const char mandescr_show_dialplan[] =
 "Description: Show dialplan contexts and extensions.\n"
 "Be aware that showing the full dialplan may take a lot of capacity\n"
 "Variables: \n"
@@ -7025,7 +7024,7 @@ int ast_context_add_include(const char *context, const char *include, const char
  * return the index of the matching entry, starting from 1.
  * If names is not supplied, try numeric values.
  */
-static int lookup_name(const char *s, char *const names[], int max)
+static int lookup_name(const char *s, const char * const names[], int max)
 {
 	int i;
 
@@ -7048,7 +7047,7 @@ static int lookup_name(const char *s, char *const names[], int max)
 /*! \brief helper function to return a range up to max (7, 12, 31 respectively).
  * names, if supplied, is an array of names that should be mapped to numbers.
  */
-static unsigned get_range(char *src, int max, char *const names[], const char *msg)
+static unsigned get_range(char *src, int max, const char * const names[], const char *msg)
 {
 	int start, end; /* start and ending position */
 	unsigned int mask = 0;
@@ -7151,7 +7150,7 @@ static void get_timerange(struct ast_timing *i, char *times)
 	return;
 }
 
-static char *days[] =
+static const char * const days[] =
 {
 	"sun",
 	"mon",
@@ -7163,7 +7162,7 @@ static char *days[] =
 	NULL,
 };
 
-static char *months[] =
+static const char * const months[] =
 {
 	"jan",
 	"feb",
@@ -8659,7 +8658,7 @@ void ast_context_destroy(struct ast_context *con, const char *registrar)
 	ast_unlock_contexts();
 }
 
-static void wait_for_hangup(struct ast_channel *chan, void *data)
+static void wait_for_hangup(struct ast_channel *chan, const void *data)
 {
 	int res;
 	struct ast_frame *f;
@@ -8684,7 +8683,7 @@ static void wait_for_hangup(struct ast_channel *chan, void *data)
 /*!
  * \ingroup applications
  */
-static int pbx_builtin_proceeding(struct ast_channel *chan, void *data)
+static int pbx_builtin_proceeding(struct ast_channel *chan, const char *data)
 {
 	ast_indicate(chan, AST_CONTROL_PROCEEDING);
 	return 0;
@@ -8693,7 +8692,7 @@ static int pbx_builtin_proceeding(struct ast_channel *chan, void *data)
 /*!
  * \ingroup applications
  */
-static int pbx_builtin_progress(struct ast_channel *chan, void *data)
+static int pbx_builtin_progress(struct ast_channel *chan, const char *data)
 {
 	ast_indicate(chan, AST_CONTROL_PROGRESS);
 	return 0;
@@ -8702,7 +8701,7 @@ static int pbx_builtin_progress(struct ast_channel *chan, void *data)
 /*!
  * \ingroup applications
  */
-static int pbx_builtin_ringing(struct ast_channel *chan, void *data)
+static int pbx_builtin_ringing(struct ast_channel *chan, const char *data)
 {
 	ast_indicate(chan, AST_CONTROL_RINGING);
 	return 0;
@@ -8711,7 +8710,7 @@ static int pbx_builtin_ringing(struct ast_channel *chan, void *data)
 /*!
  * \ingroup applications
  */
-static int pbx_builtin_busy(struct ast_channel *chan, void *data)
+static int pbx_builtin_busy(struct ast_channel *chan, const char *data)
 {
 	ast_indicate(chan, AST_CONTROL_BUSY);
 	/* Don't change state of an UP channel, just indicate
@@ -8727,7 +8726,7 @@ static int pbx_builtin_busy(struct ast_channel *chan, void *data)
 /*!
  * \ingroup applications
  */
-static int pbx_builtin_congestion(struct ast_channel *chan, void *data)
+static int pbx_builtin_congestion(struct ast_channel *chan, const char *data)
 {
 	ast_indicate(chan, AST_CONTROL_CONGESTION);
 	/* Don't change state of an UP channel, just indicate
@@ -8741,7 +8740,7 @@ static int pbx_builtin_congestion(struct ast_channel *chan, void *data)
 /*!
  * \ingroup applications
  */
-static int pbx_builtin_answer(struct ast_channel *chan, void *data)
+static int pbx_builtin_answer(struct ast_channel *chan, const char *data)
 {
 	int delay = 0;
 	int answer_cdr = 1;
@@ -8773,9 +8772,9 @@ static int pbx_builtin_answer(struct ast_channel *chan, void *data)
 	return __ast_answer(chan, delay, answer_cdr);
 }
 
-static int pbx_builtin_incomplete(struct ast_channel *chan, void *data)
+static int pbx_builtin_incomplete(struct ast_channel *chan, const char *data)
 {
-	char *options = data;
+	const char *options = data;
 	int answer = 1;
 
 	/* Some channels can receive DTMF in unanswered state; some cannot */
@@ -8803,7 +8802,7 @@ AST_APP_OPTIONS(resetcdr_opts, {
 /*!
  * \ingroup applications
  */
-static int pbx_builtin_resetcdr(struct ast_channel *chan, void *data)
+static int pbx_builtin_resetcdr(struct ast_channel *chan, const char *data)
 {
 	char *args;
 	struct ast_flags flags = { 0 };
@@ -8821,7 +8820,7 @@ static int pbx_builtin_resetcdr(struct ast_channel *chan, void *data)
 /*!
  * \ingroup applications
  */
-static int pbx_builtin_setamaflags(struct ast_channel *chan, void *data)
+static int pbx_builtin_setamaflags(struct ast_channel *chan, const char *data)
 {
 	/* Copy the AMA Flags as specified */
 	ast_cdr_setamaflags(chan, data ? data : "");
@@ -8831,7 +8830,7 @@ static int pbx_builtin_setamaflags(struct ast_channel *chan, void *data)
 /*!
  * \ingroup applications
  */
-static int pbx_builtin_hangup(struct ast_channel *chan, void *data)
+static int pbx_builtin_hangup(struct ast_channel *chan, const char *data)
 {
 	if (!ast_strlen_zero(data)) {
 		int cause;
@@ -8861,7 +8860,7 @@ static int pbx_builtin_hangup(struct ast_channel *chan, void *data)
 /*!
  * \ingroup applications
  */
-static int pbx_builtin_gotoiftime(struct ast_channel *chan, void *data)
+static int pbx_builtin_gotoiftime(struct ast_channel *chan, const char *data)
 {
 	char *s, *ts, *branch1, *branch2, *branch;
 	struct ast_timing timing;
@@ -8896,7 +8895,7 @@ static int pbx_builtin_gotoiftime(struct ast_channel *chan, void *data)
 /*!
  * \ingroup applications
  */
-static int pbx_builtin_execiftime(struct ast_channel *chan, void *data)
+static int pbx_builtin_execiftime(struct ast_channel *chan, const char *data)
 {
 	char *s, *appname;
 	struct ast_timing timing;
@@ -8950,7 +8949,7 @@ static int pbx_builtin_execiftime(struct ast_channel *chan, void *data)
 /*!
  * \ingroup applications
  */
-static int pbx_builtin_wait(struct ast_channel *chan, void *data)
+static int pbx_builtin_wait(struct ast_channel *chan, const char *data)
 {
 	double s;
 	int ms;
@@ -8966,7 +8965,7 @@ static int pbx_builtin_wait(struct ast_channel *chan, void *data)
 /*!
  * \ingroup applications
  */
-static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
+static int pbx_builtin_waitexten(struct ast_channel *chan, const char *data)
 {
 	int ms, res;
 	double s;
@@ -9035,7 +9034,7 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 /*!
  * \ingroup applications
  */
-static int pbx_builtin_background(struct ast_channel *chan, void *data)
+static int pbx_builtin_background(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	int mres = 0;
@@ -9133,7 +9132,7 @@ done:
 /*! Goto
  * \ingroup applications
  */
-static int pbx_builtin_goto(struct ast_channel *chan, void *data)
+static int pbx_builtin_goto(struct ast_channel *chan, const char *data)
 {
 	int res = ast_parseable_goto(chan, data);
 	if (!res)
@@ -9302,7 +9301,7 @@ void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const
 		ast_rwlock_unlock(&globalslock);
 }
 
-int pbx_builtin_setvar(struct ast_channel *chan, void *data)
+int pbx_builtin_setvar(struct ast_channel *chan, const char *data)
 {
 	char *name, *value, *mydata;
 
@@ -9325,7 +9324,7 @@ int pbx_builtin_setvar(struct ast_channel *chan, void *data)
 	return(0);
 }
 
-int pbx_builtin_setvar_multiple(struct ast_channel *chan, void *vdata)
+int pbx_builtin_setvar_multiple(struct ast_channel *chan, const char *vdata)
 {
 	char *data;
 	int x;
@@ -9361,7 +9360,7 @@ int pbx_builtin_setvar_multiple(struct ast_channel *chan, void *vdata)
 	return 0;
 }
 
-int pbx_builtin_importvar(struct ast_channel *chan, void *data)
+int pbx_builtin_importvar(struct ast_channel *chan, const char *data)
 {
 	char *name;
 	char *value;
@@ -9398,7 +9397,7 @@ int pbx_builtin_importvar(struct ast_channel *chan, void *data)
 	return(0);
 }
 
-static int pbx_builtin_noop(struct ast_channel *chan, void *data)
+static int pbx_builtin_noop(struct ast_channel *chan, const char *data)
 {
 	return 0;
 }
@@ -9425,7 +9424,7 @@ int pbx_checkcondition(const char *condition)
 	}
 }
 
-static int pbx_builtin_gotoif(struct ast_channel *chan, void *data)
+static int pbx_builtin_gotoif(struct ast_channel *chan, const char *data)
 {
 	char *condition, *branch1, *branch2, *branch;
 	char *stringp;
@@ -9449,7 +9448,7 @@ static int pbx_builtin_gotoif(struct ast_channel *chan, void *data)
 	return pbx_builtin_goto(chan, branch);
 }
 
-static int pbx_builtin_saynumber(struct ast_channel *chan, void *data)
+static int pbx_builtin_saynumber(struct ast_channel *chan, const char *data)
 {
 	char tmp[256];
 	char *number = tmp;
@@ -9477,7 +9476,7 @@ static int pbx_builtin_saynumber(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static int pbx_builtin_saydigits(struct ast_channel *chan, void *data)
+static int pbx_builtin_saydigits(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 
@@ -9486,7 +9485,7 @@ static int pbx_builtin_saydigits(struct ast_channel *chan, void *data)
 	return res;
 }
 
-static int pbx_builtin_saycharacters(struct ast_channel *chan, void *data)
+static int pbx_builtin_saycharacters(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 
@@ -9495,7 +9494,7 @@ static int pbx_builtin_saycharacters(struct ast_channel *chan, void *data)
 	return res;
 }
 
-static int pbx_builtin_sayphonetic(struct ast_channel *chan, void *data)
+static int pbx_builtin_sayphonetic(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 

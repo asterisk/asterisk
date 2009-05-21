@@ -1134,7 +1134,7 @@ static char *handle_cli_udptl_set_debug(struct ast_cli_entry *e, int cmd, struct
 		if (strncasecmp(a->argv[3], "ip", 2))
 			return CLI_SHOWUSAGE;
 		port = 0;
-		arg = a->argv[4];
+		arg = ast_strdupa(a->argv[4]);
 		p = strstr(arg, ":");
 		if (p) {
 			*p = '\0';

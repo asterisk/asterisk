@@ -73,7 +73,7 @@ enum ast_tps_options {
  * TPS_REF_IF_EXISTS reference type is specified and the taskprocessor does not exist
  * \since 1.6.1
  */
-struct ast_taskprocessor *ast_taskprocessor_get(char *name, enum ast_tps_options create);
+struct ast_taskprocessor *ast_taskprocessor_get(const char *name, enum ast_tps_options create);
 
 /*! \brief Unreference the specified taskprocessor and its reference count will decrement.
  *

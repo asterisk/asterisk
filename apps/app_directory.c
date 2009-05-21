@@ -714,7 +714,7 @@ exit:
 	return res;
 }
 
-static int directory_exec(struct ast_channel *chan, void *data)
+static int directory_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0, digit = 3;
 	struct ast_config *cfg, *ucfg;

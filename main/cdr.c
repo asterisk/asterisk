@@ -282,10 +282,10 @@ void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *wor
 }
 
 /* readonly cdr variables */
-static	const char *cdr_readonly_vars[] = { "clid", "src", "dst", "dcontext", "channel", "dstchannel",
-				    "lastapp", "lastdata", "start", "answer", "end", "duration",
-				    "billsec", "disposition", "amaflags", "accountcode", "uniqueid",
-				    "userfield", NULL };
+static const char * const cdr_readonly_vars[] = { "clid", "src", "dst", "dcontext", "channel", "dstchannel",
+						  "lastapp", "lastdata", "start", "answer", "end", "duration",
+						  "billsec", "disposition", "amaflags", "accountcode", "uniqueid",
+						  "userfield", NULL };
 /*! Set a CDR channel variable 
 	\note You can't set the CDR variables that belong to the actual CDR record, like "billsec".
 */

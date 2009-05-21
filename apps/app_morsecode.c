@@ -63,9 +63,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</see-also>
 	</application>
  ***/	
-static char *app_morsecode = "Morsecode";
+static const char app_morsecode[] = "Morsecode";
 
-static char *morsecode[] = {
+static const char * const morsecode[] = {
 	"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", /*  0-15 */
 	"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", /* 16-31 */
 	" ",      /* 32 - <space> */
@@ -118,10 +118,10 @@ static void playtone(struct ast_channel *chan, int tone, int len)
 	ast_playtones_stop(chan);
 }
 
-static int morsecode_exec(struct ast_channel *chan, void *data)
+static int morsecode_exec(struct ast_channel *chan, const char *data)
 {
 	int res=0, ditlen, tone;
-	char *digit;
+	const char *digit;
 	const char *ditlenc, *tonec;
 
 	if (ast_strlen_zero(data)) {
@@ -147,7 +147,7 @@ static int morsecode_exec(struct ast_channel *chan, void *data)
 
 	for (digit = data; *digit; digit++) {
 		int digit2 = *digit;
-		char *dahdit;
+		const char *dahdit;
 		if (digit2 < 0) {
 			continue;
 		}

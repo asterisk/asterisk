@@ -143,7 +143,7 @@ static int dfltMaximumWordLength    = 5000; /* Setting this to a large default s
 /* Set to the lowest ms value provided in amd.conf or application parameters */
 static int dfltMaxWaitTimeForFrame  = 50;
 
-static void isAnsweringMachine(struct ast_channel *chan, void *data)
+static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	struct ast_frame *f = NULL;
@@ -404,7 +404,7 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 }
 
 
-static int amd_exec(struct ast_channel *chan, void *data)
+static int amd_exec(struct ast_channel *chan, const char *data)
 {
 	isAnsweringMachine(chan, data);
 

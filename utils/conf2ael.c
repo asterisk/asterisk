@@ -568,7 +568,7 @@ int main(int argc, char **argv)
 
 /* ==================================== for linking internal stuff to external stuff */
 
-int pbx_builtin_setvar(struct ast_channel *chan, void *data)
+int pbx_builtin_setvar(struct ast_channel *chan, const char *data)
 {
 	return localized_pbx_builtin_setvar(chan, data);
 }

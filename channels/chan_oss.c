@@ -305,7 +305,7 @@ struct chan_oss_pvt {
 };
 
 /*! forward declaration */
-static struct chan_oss_pvt *find_desc(char *dev);
+static struct chan_oss_pvt *find_desc(const char *dev);
 
 static char *oss_active;	 /*!< the active device */
 
@@ -367,7 +367,7 @@ static struct ast_channel_tech oss_tech = {
 /*!
  * \brief returns a pointer to the descriptor with the given name
  */
-static struct chan_oss_pvt *find_desc(char *dev)
+static struct chan_oss_pvt *find_desc(const char *dev)
 {
 	struct chan_oss_pvt *o = NULL;
 
@@ -1075,7 +1075,8 @@ static char *console_flash(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 
 static char *console_dial(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char *s = NULL, *mye = NULL, *myc = NULL;
+	char *s = NULL;
+	char *mye = NULL, *myc = NULL;
 	struct chan_oss_pvt *o = find_desc(oss_active);
 
 	if (cmd == CLI_INIT) {
@@ -1092,6 +1093,7 @@ static char *console_dial(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	if (o->owner) {	/* already in a call */
 		int i;
 		struct ast_frame f = { AST_FRAME_DTMF, 0 };
+		const char *s;
 
 		if (a->argc == e->args) {	/* argument is mandatory here */
 			ast_cli(a->fd, "Already in a call. You can only dial digits until you hangup.\n");
@@ -1126,7 +1128,7 @@ static char *console_dial(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 static char *console_mute(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct chan_oss_pvt *o = find_desc(oss_active);
-	char *s;
+	const char *s;
 	int toggle = 0;
 	
 	if (cmd == CLI_INIT) {

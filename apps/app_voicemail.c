@@ -5090,8 +5090,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		return -1;
 	}
 
-	ast_str_set(&tmp, 0, "%s", ext);
-	ext = ast_str_buffer(tmp);
+	ext = ast_strdupa(ext);
 	if ((context = strchr(ext, '@'))) {
 		*context++ = '\0';
 		tmpptr = strchr(context, '&');
@@ -8947,7 +8946,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 	return 0;
 }
 
-static int vm_execmain(struct ast_channel *chan, void *data)
+static int vm_execmain(struct ast_channel *chan, const char *data)
 {
 	/* XXX This is, admittedly, some pretty horrendous code.  For some
 	   reason it just seemed a lot easier to do with GOTO's.  I feel
@@ -9655,7 +9654,7 @@ out:
 	return res;
 }
 
-static int vm_exec(struct ast_channel *chan, void *data)
+static int vm_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	char *tmp;
@@ -9787,7 +9786,7 @@ static int append_mailbox(const char *context, const char *box, const char *data
 	return 0;
 }
 
-static int vm_box_exists(struct ast_channel *chan, void *data) 
+static int vm_box_exists(struct ast_channel *chan, const char *data) 
 {
 	struct ast_vm_user svm;
 	char *context, *box;
@@ -9851,16 +9850,16 @@ static struct ast_custom_function mailbox_exists_acf = {
 	.read = acf_mailbox_exists,
 };
 
-static int vmauthenticate(struct ast_channel *chan, void *data)
+static int vmauthenticate(struct ast_channel *chan, const char *data)
 {
-	char *s = data, *user=NULL, *context=NULL, mailbox[AST_MAX_EXTENSION] = "";
+	char *s, *user=NULL, *context=NULL, mailbox[AST_MAX_EXTENSION] = "";
 	struct ast_vm_user vmus;
 	char *options = NULL;
 	int silent = 0, skipuser = 0;
 	int res = -1;
 	
-	if (s) {
-		s = ast_strdupa(s);
+	if (data) {
+		s = ast_strdupa(data);
 		user = strsep(&s, ",");
 		options = strsep(&s, ",");
 		if (user) {

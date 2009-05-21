@@ -654,7 +654,7 @@ static void clearvar_prefix(struct ast_channel *chan, const char *prefix)
 	AST_LIST_TRAVERSE_SAFE_END
 }
 
-static int exec_clearhash(struct ast_channel *chan, void *data)
+static int exec_clearhash(struct ast_channel *chan, const char *data)
 {
 	char prefix[80];
 	snprintf(prefix, sizeof(prefix), HASH_PREFIX, data ? (char *)data : "null");

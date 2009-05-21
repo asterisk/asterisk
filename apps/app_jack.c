@@ -740,19 +740,14 @@ static int handle_options(struct jack_data *jack_data, const char *__options_str
 	return 0;
 }
 
-static int jack_exec(struct ast_channel *chan, void *data)
+static int jack_exec(struct ast_channel *chan, const char *data)
 {
 	struct jack_data *jack_data;
-	AST_DECLARE_APP_ARGS(args,
-		AST_APP_ARG(options);
-	);
 
 	if (!(jack_data = jack_data_alloc()))
 		return -1;
 
-	args.options = data;
-
-	if (!ast_strlen_zero(args.options) && handle_options(jack_data, args.options)) {
+	if (!ast_strlen_zero(data) && handle_options(jack_data, data)) {
 		destroy_jack_data(jack_data);
 		return -1;
 	}

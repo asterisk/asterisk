@@ -227,7 +227,7 @@ struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp)
 }
 
 /*! \brief Produce 32 char MD5 hash of value. */
-void ast_md5_hash(char *output, char *input)
+void ast_md5_hash(char *output, const char *input)
 {
 	struct MD5Context md5;
 	unsigned char digest[16];
@@ -235,7 +235,7 @@ void ast_md5_hash(char *output, char *input)
 	int x;
 
 	MD5Init(&md5);
-	MD5Update(&md5, (unsigned char *)input, strlen(input));
+	MD5Update(&md5, (const unsigned char *) input, strlen(input));
 	MD5Final(digest, &md5);
 	ptr = output;
 	for (x = 0; x < 16; x++)
@@ -243,7 +243,7 @@ void ast_md5_hash(char *output, char *input)
 }
 
 /*! \brief Produce 40 char SHA1 hash of value. */
-void ast_sha1_hash(char *output, char *input)
+void ast_sha1_hash(char *output, const char *input)
 {
 	struct SHA1Context sha;
 	char *ptr;
@@ -1446,7 +1446,7 @@ char *ast_process_quotes_and_slashes(char *start, char find, char replace_with)
 	return dataPut;
 }
 
-void ast_join(char *s, size_t len, char * const w[])
+void ast_join(char *s, size_t len, const char * const w[])
 {
 	int x, ofs = 0;
 	const char *src;

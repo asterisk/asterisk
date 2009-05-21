@@ -100,7 +100,7 @@ static char *app2 = "TrySystem";
 
 static char *chanvar = "SYSTEMSTATUS";
 
-static int system_exec_helper(struct ast_channel *chan, void *data, int failmode)
+static int system_exec_helper(struct ast_channel *chan, const char *data, int failmode)
 {
 	int res = 0;
 	struct ast_str *buf = ast_str_thread_get(&buf_buf, 16);
@@ -140,12 +140,12 @@ static int system_exec_helper(struct ast_channel *chan, void *data, int failmode
 	return res;
 }
 
-static int system_exec(struct ast_channel *chan, void *data)
+static int system_exec(struct ast_channel *chan, const char *data)
 {
 	return system_exec_helper(chan, data, -1);
 }
 
-static int trysystem_exec(struct ast_channel *chan, void *data)
+static int trysystem_exec(struct ast_channel *chan, const char *data)
 {
 	return system_exec_helper(chan, data, 0);
 }

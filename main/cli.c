@@ -365,13 +365,13 @@ static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	int atleast = 0;
 	int fd = a->fd;
 	int argc = a->argc;
-	char **argv = a->argv;
-	char *argv3 = a->argv ? S_OR(a->argv[3], "") : "";
+	const char * const *argv = a->argv;
+	const char *argv3 = a->argv ? S_OR(a->argv[3], "") : "";
 	int *dst;
 	char *what;
 	struct debug_file_list *dfl;
 	struct ast_debug_file *adf;
-	char *fn;
+	const char *fn;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -387,7 +387,7 @@ static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 	case CLI_GENERATE:
 		if (a->pos == 3 || (a->pos == 4 && !strcasecmp(a->argv[3], "atleast"))) {
-			char *pos = a->pos == 3 ? argv3 : S_OR(a->argv[4], "");
+			const char *pos = a->pos == 3 ? argv3 : S_OR(a->argv[4], "");
 			int numbermatch = (ast_strlen_zero(pos) || strchr("123456789", pos[0])) ? 0 : 21;
 			if (a->n < 21 && numbermatch == 0) {
 				return complete_number(pos, 0, 0x7fffffff, a->n);
@@ -534,7 +534,7 @@ static char *handle_unload(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 	/* "module unload mod_1 [mod_2 .. mod_N]" */
 	int x;
 	int force = AST_FORCE_SOFT;
-	char *s;
+	const char *s;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -685,7 +685,7 @@ static char * handle_showuptime(struct ast_cli_entry *e, int cmd, struct ast_cli
 
 static char *handle_modlist(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char *like;
+	const char *like;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -787,8 +787,6 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 
 	struct ast_channel *c = NULL;
 	int numchans = 0, concise = 0, verbose = 0, count = 0;
-	int fd, argc;
-	char **argv;
 	struct ast_channel_iterator *iter = NULL;
 
 	switch (cmd) {
@@ -808,16 +806,13 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	case CLI_GENERATE:
 		return NULL;
 	}
-	fd = a->fd;
-	argc = a->argc;
-	argv = a->argv;
 
 	if (a->argc == e->args) {
-		if (!strcasecmp(argv[e->args-1],"concise"))
+		if (!strcasecmp(a->argv[e->args-1],"concise"))
 			concise = 1;
-		else if (!strcasecmp(argv[e->args-1],"verbose"))
+		else if (!strcasecmp(a->argv[e->args-1],"verbose"))
 			verbose = 1;
-		else if (!strcasecmp(argv[e->args-1],"count"))
+		else if (!strcasecmp(a->argv[e->args-1],"count"))
 			count = 1;
 		else
 			return CLI_SHOWUSAGE;
@@ -826,9 +821,9 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 
 	if (!count) {
 		if (!concise && !verbose)
-			ast_cli(fd, FORMAT_STRING2, "Channel", "Location", "State", "Application(Data)");
+			ast_cli(a->fd, FORMAT_STRING2, "Channel", "Location", "State", "Application(Data)");
 		else if (verbose)
-			ast_cli(fd, VERBOSE_FORMAT_STRING2, "Channel", "Context", "Extension", "Priority", "State", "Application", "Data", 
+			ast_cli(a->fd, VERBOSE_FORMAT_STRING2, "Channel", "Context", "Extension", "Priority", "State", "Application", "Data", 
 				"CallerID", "Duration", "Accountcode", "BridgedTo");
 	}
 
@@ -857,7 +852,7 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 				}				
 			}
 			if (concise) {
-				ast_cli(fd, CONCISE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
+				ast_cli(a->fd, CONCISE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
 					c->appl ? c->appl : "(None)",
 					S_OR(c->data, ""),	/* XXX different from verbose ? */
 					S_OR(c->cid.cid_num, ""),
@@ -867,7 +862,7 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 					bc ? bc->name : "(None)",
 					c->uniqueid);
 			} else if (verbose) {
-				ast_cli(fd, VERBOSE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
+				ast_cli(a->fd, VERBOSE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
 					c->appl ? c->appl : "(None)",
 					c->data ? S_OR(c->data, "(Empty)" ): "(None)",
 					S_OR(c->cid.cid_num, ""),
@@ -882,7 +877,7 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 					snprintf(locbuf, sizeof(locbuf), "%s@%s:%d", c->exten, c->context, c->priority);
 				if (c->appl)
 					snprintf(appdata, sizeof(appdata), "%s(%s)", c->appl, S_OR(c->data, ""));
-				ast_cli(fd, FORMAT_STRING, c->name, locbuf, ast_state2str(c->_state), appdata);
+				ast_cli(a->fd, FORMAT_STRING, c->name, locbuf, ast_state2str(c->_state), appdata);
 			}
 		}
 		ast_channel_unlock(c);
@@ -894,15 +889,15 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 
 	if (!concise) {
 		numchans = ast_active_channels();
-		ast_cli(fd, "%d active channel%s\n", numchans, ESS(numchans));
+		ast_cli(a->fd, "%d active channel%s\n", numchans, ESS(numchans));
 		if (option_maxcalls)
-			ast_cli(fd, "%d of %d max active call%s (%5.2f%% of capacity)\n",
+			ast_cli(a->fd, "%d of %d max active call%s (%5.2f%% of capacity)\n",
 				ast_active_calls(), option_maxcalls, ESS(ast_active_calls()),
 				((double)ast_active_calls() / (double)option_maxcalls) * 100.0);
 		else
-			ast_cli(fd, "%d active call%s\n", ast_active_calls(), ESS(ast_active_calls()));
+			ast_cli(a->fd, "%d active call%s\n", ast_active_calls(), ESS(ast_active_calls()));
 
-		ast_cli(fd, "%d call%s processed\n", ast_processed_calls(), ESS(ast_processed_calls()));
+		ast_cli(a->fd, "%d call%s processed\n", ast_processed_calls(), ESS(ast_processed_calls()));
 	}
 
 	return CLI_SUCCESS;
@@ -1238,7 +1233,6 @@ static char *handle_core_set_debug_channel(struct ast_cli_entry *e, int cmd, str
 			"Usage: core set debug channel <all|channel> [off]\n"
 			"       Enables/disables debugging on all or on a specific channel.\n";
 		return NULL;
-
 	case CLI_GENERATE:
 		/* XXX remember to handle the optional "off" */
 		if (a->pos != e->args)
@@ -1246,8 +1240,11 @@ static char *handle_core_set_debug_channel(struct ast_cli_entry *e, int cmd, str
 		return a->n == 0 ? ast_strdup("all") : ast_complete_channels(a->line, a->word, a->pos, a->n - 1, e->args);
 	}
 
-	/* 'core set debug channel {all|chan_id}' */
-	if (a->argc == e->args + 2) {
+	if (cmd == (CLI_HANDLER + 1000)) {
+		/* called from handle_nodebugchan_deprecated */
+		args.is_off = 1;
+	} else if (a->argc == e->args + 2) {
+		/* 'core set debug channel {all|chan_id}' */
 		if (!strcasecmp(a->argv[e->args + 1], "off"))
 			args.is_off = 1;
 		else
@@ -1282,18 +1279,27 @@ static char *handle_core_set_debug_channel(struct ast_cli_entry *e, int cmd, str
 static char *handle_nodebugchan_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char *res;
-	if (cmd == CLI_HANDLER) {
-		if (a->argc != e->args + 1)
-			return CLI_SHOWUSAGE;
-		/* pretend we have an extra "off" at the end. We can do this as the array
-		 * is NULL terminated so we overwrite that entry.
-		 */
-		a->argv[e->args+1] = "off";
-		a->argc++;
-	}
-	res = handle_core_set_debug_channel(e, cmd, a);
-	if (cmd == CLI_INIT)
+
+	switch (cmd) {
+	case CLI_INIT:
 		e->command = "no debug channel";
+		return NULL;
+	case CLI_HANDLER:
+		/* exit out of switch statement */
+		break;
+	default:
+		return NULL;
+	}
+
+	if (a->argc != e->args + 1)
+		return CLI_SHOWUSAGE;
+
+	/* add a 'magic' value to the CLI_HANDLER command so that
+	 * handle_core_set_debug_channel() will act as if 'off'
+	 * had been specified as part of the command
+	 */
+	res = handle_core_set_debug_channel(e, CLI_HANDLER + 1000, a);
+
 	return res;
 }
 		
@@ -1421,7 +1427,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
  * helper function to generate CLI matches from a fixed set of values.
  * A NULL word is acceptable.
  */
-char *ast_cli_complete(const char *word, char *const choices[], int state)
+char *ast_cli_complete(const char *word, const char * const choices[], int state)
 {
 	int i, which = 0, len;
 	len = ast_strlen_zero(word) ? 0 : strlen(word);
@@ -1823,15 +1829,15 @@ static char *is_prefix(const char *word, const char *token,
  *      1       true only on complete, exact match.
  *
  */
-static struct ast_cli_entry *find_cli(char *const cmds[], int match_type)
+static struct ast_cli_entry *find_cli(const char * const cmds[], int match_type)
 {
 	int matchlen = -1;	/* length of longest match so far */
 	struct ast_cli_entry *cand = NULL, *e=NULL;
 
 	while ( (e = cli_next(e)) ) {
 		/* word-by word regexp comparison */
-		char * const *src = cmds;
-		char * const *dst = e->cmda;
+		const char * const *src = cmds;
+		const char * const *dst = e->cmda;
 		int n = 0;
 		for (;; dst++, src += n) {
 			n = word_match(*src, *dst);
@@ -1867,16 +1873,15 @@ static struct ast_cli_entry *find_cli(char *const cmds[], int match_type)
 	return e ? e : cand;
 }
 
-static char *find_best(char *argv[])
+static char *find_best(const char *argv[])
 {
 	static char cmdline[80];
 	int x;
 	/* See how close we get, then print the candidate */
-	char *myargv[AST_MAX_CMD_LEN];
-	for (x=0;x<AST_MAX_CMD_LEN;x++)
-		myargv[x]=NULL;
+	const char *myargv[AST_MAX_CMD_LEN] = { NULL, };
+
 	AST_RWLIST_RDLOCK(&helpers);
-	for (x=0;argv[x];x++) {
+	for (x = 0; argv[x]; x++) {
 		myargv[x] = argv[x];
 		if (!find_cli(myargv, -1))
 			break;
@@ -2002,7 +2007,7 @@ int ast_cli_unregister_multiple(struct ast_cli_entry *e, int len)
 /*! \brief helper for final part of handle_help
  *  if locked = 1, assume the list is already locked
  */
-static char *help1(int fd, char *match[], int locked)
+static char *help1(int fd, const char * const match[], int locked)
 {
 	char matchstr[80] = "";
 	struct ast_cli_entry *e = NULL;
@@ -2077,7 +2082,7 @@ static char *handle_help(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 	return res;
 }
 
-static char *parse_args(const char *s, int *argc, char *argv[], int max, int *trailingwhitespace)
+static char *parse_args(const char *s, int *argc, const char *argv[], int max, int *trailingwhitespace)
 {
 	char *duplicate, *cur;
 	int x = 0;
@@ -2208,7 +2213,7 @@ char **ast_cli_completion_matches(const char *text, const char *word)
 }
 
 /*! \brief returns true if there are more words to match */
-static int more_words (char * const *dst)
+static int more_words (const char * const *dst)
 {
 	int i;
 	for (i = 0; dst[i]; i++) {
@@ -2223,7 +2228,7 @@ static int more_words (char * const *dst)
  */
 static char *__ast_cli_generator(const char *text, const char *word, int state, int lock)
 {
-	char *argv[AST_MAX_ARGS];
+	const char *argv[AST_MAX_ARGS];
 	struct ast_cli_entry *e = NULL;
 	int x = 0, argindex, matchlen;
 	int matchnum=0;
@@ -2311,7 +2316,7 @@ char *ast_cli_generator(const char *text, const char *word, int state)
 
 int ast_cli_command_full(int uid, int gid, int fd, const char *s)
 {
-	char *args[AST_MAX_ARGS + 1];
+	const char *args[AST_MAX_ARGS + 1];
 	struct ast_cli_entry *e;
 	int x;
 	char *duplicate = parse_args(s, &x, args + 1, AST_MAX_ARGS, NULL);

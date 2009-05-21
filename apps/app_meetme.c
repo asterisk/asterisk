@@ -861,7 +861,7 @@ static int audio_buffers;
  *  conversion... the numbers have been modified
  *  to give the user a better level of adjustability
  */
-static char const gain_map[] = {
+static const char gain_map[] = {
 	-15,
 	-13,
 	-10,
@@ -876,7 +876,7 @@ static char const gain_map[] = {
 };
 
 
-static int admin_exec(struct ast_channel *chan, void *data);
+static int admin_exec(struct ast_channel *chan, const char *data);
 static void *recordthread(void *args);
 
 static char *istalking(int x)
@@ -1144,7 +1144,7 @@ cnfout:
 
 static char *complete_meetmecmd(const char *line, const char *word, int pos, int state)
 {
-	static char *cmds[] = {"concise", "lock", "unlock", "mute", "unmute", "kick", "list", NULL};
+	static const char * const cmds[] = {"concise", "lock", "unlock", "mute", "unmute", "kick", "list", NULL};
 
 	int len = strlen(word);
 	int which = 0;
@@ -3600,7 +3600,7 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 }
 
 /*! \brief The MeetmeCount application */
-static int count_exec(struct ast_channel *chan, void *data)
+static int count_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	struct ast_conference *conf;
@@ -3646,7 +3646,7 @@ static int count_exec(struct ast_channel *chan, void *data)
 }
 
 /*! \brief The meetme() application */
-static int conf_exec(struct ast_channel *chan, void *data)
+static int conf_exec(struct ast_channel *chan, const char *data)
 {
 	int res = -1;
 	char confno[MAX_CONFNUM] = "";
@@ -3657,7 +3657,8 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	int dynamic = 0;
 	int empty = 0, empty_no_pin = 0;
 	int always_prompt = 0;
-	char *notdata, *info, the_pin[MAX_PIN] = "";
+	const char *notdata;
+	char *info, the_pin[MAX_PIN] = "";
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(confno);
 		AST_APP_ARG(options);
@@ -3920,7 +3921,7 @@ static struct ast_conf_user *find_user(struct ast_conference *conf, char *caller
 
 /*! \brief The MeetMeadmin application */
 /* MeetMeAdmin(confno, command, caller) */
-static int admin_exec(struct ast_channel *chan, void *data) {
+static int admin_exec(struct ast_channel *chan, const char *data) {
 	char *params;
 	struct ast_conference *cnf;
 	struct ast_conf_user *user = NULL;
@@ -4102,7 +4103,7 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 
 /*--- channel_admin_exec: The MeetMeChannelAdmin application */
 /* MeetMeChannelAdmin(channel, command) */
-static int channel_admin_exec(struct ast_channel *chan, void *data) {
+static int channel_admin_exec(struct ast_channel *chan, const char *data) {
 	char *params;
 	struct ast_conference *conf = NULL;
 	struct ast_conf_user *user = NULL;
@@ -4235,7 +4236,7 @@ static int action_meetmeunmute(struct mansession *s, const struct message *m)
 	return meetmemute(s, m, 0);
 }
 
-static char mandescr_meetmelist[] =
+static const char mandescr_meetmelist[] =
 "Description: Lists all users in a particular MeetMe conference.\n"
 "MeetmeList will follow as separate events, followed by a final event called\n"
 "MeetmeListComplete.\n"
@@ -5552,7 +5553,7 @@ static struct sla_trunk_ref *sla_choose_idle_trunk(const struct sla_station *sta
 	return trunk_ref;
 }
 
-static int sla_station_exec(struct ast_channel *chan, void *data)
+static int sla_station_exec(struct ast_channel *chan, const char *data)
 {
 	char *station_name, *trunk_name;
 	struct sla_station *station;
@@ -5759,7 +5760,7 @@ AST_APP_OPTIONS(sla_trunk_opts, BEGIN_OPTIONS
 	AST_APP_OPTION_ARG('M', SLA_TRUNK_OPT_MOH, SLA_TRUNK_OPT_ARG_MOH_CLASS),
 END_OPTIONS );
 
-static int sla_trunk_exec(struct ast_channel *chan, void *data)
+static int sla_trunk_exec(struct ast_channel *chan, const char *data)
 {
 	char conf_name[MAX_CONFNUM];
 	struct ast_conference *conf;

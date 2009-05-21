@@ -147,7 +147,7 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 	return 0;
 }
 
-static int dumpchan_exec(struct ast_channel *chan, void *data)
+static int dumpchan_exec(struct ast_channel *chan, const char *data)
 {
 	struct ast_str *vars = ast_str_thread_get(&ast_str_thread_global_buf, 16);
 	char info[1024];

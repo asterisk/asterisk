@@ -97,7 +97,7 @@ void ast_cli(int fd, const char *fmt, ...)
 \code
 static char *test_new_cli(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	static char *choices = { "one", "two", "three", NULL };
+	static const char * const choices = { "one", "two", "three", NULL };
 
         switch (cmd) {
         case CLI_INIT:
@@ -128,7 +128,7 @@ static char *test_new_cli(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 /*! \brief calling arguments for new-style handlers. 
 * \arg \ref CLI_command_API
 */
-enum ast_cli_fn {
+enum ast_cli_command {
 	CLI_INIT = -2,		/* return the usage string */
 	CLI_GENERATE = -3,	/* behave as 'generator', remap argv to struct ast_cli_args */
 	CLI_HANDLER = -4,	/* run the normal handler */
@@ -136,27 +136,25 @@ enum ast_cli_fn {
 
 /* argument for new-style CLI handler */
 struct ast_cli_args {
-	int fd;
-	int argc;
-	char **argv;
+	const int fd;
+	const int argc;
+	const char * const *argv;
 	const char *line;	/* the current input line */
 	const char *word;	/* the word we want to complete */
-	int pos;		/* position of the word to complete */
-	int n;			/* the iteration count (n-th entry we generate) */
+	const int pos;		/* position of the word to complete */
+	const int n;		/* the iteration count (n-th entry we generate) */
 };
-
-struct ast_cli_entry;
-typedef char *(*cli_fn)(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 /*! \brief descriptor for a cli entry. 
  * \arg \ref CLI_command_API
  */
 struct ast_cli_entry {
-	char * const cmda[AST_MAX_CMD_LEN];	/*!< words making up the command.
-						* set the first entry to NULL for a new-style entry. */
+	const char * const cmda[AST_MAX_CMD_LEN];	/*!< words making up the command.
+							 * set the first entry to NULL for a new-style entry.
+							 */
 
-	const char *summary; 			/*!< Summary of the command (< 60 characters) */
-	const char *usage; 			/*!< Detailed usage information */
+	const char * const summary; 			/*!< Summary of the command (< 60 characters) */
+	const char * usage; 				/*!< Detailed usage information */
 
 	int inuse; 				/*!< For keeping track of usage */
 	struct module *module;			/*!< module this belongs to */
@@ -166,7 +164,7 @@ struct ast_cli_entry {
 	 */
 	int args;				/*!< number of non-null entries in cmda */
 	char *command;				/*!< command, non-null for new-style entries */
-	cli_fn handler;
+	char *(*handler)(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 	/*! For linking */
 	AST_LIST_ENTRY(ast_cli_entry) list;
 };
@@ -183,7 +181,7 @@ struct ast_cli_entry {
   \code
     char *my_generate(const char *line, const char *word, int pos, int n)
     {
-        static char *choices = { "one", "two", "three", NULL };
+        static const char * const choices = { "one", "two", "three", NULL };
 	if (pos == 2)
         	return ast_cli_complete(word, choices, n);
 	else
@@ -191,7 +189,7 @@ struct ast_cli_entry {
     }
   \endcode
  */
-char *ast_cli_complete(const char *word, char *const choices[], int pos);
+char *ast_cli_complete(const char *word, const char * const choices[], int pos);
 
 /*! 
  * \brief Interprets a command

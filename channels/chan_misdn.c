@@ -711,11 +711,11 @@ static void release_chan(struct misdn_bchannel *bc);
 
 #if defined(AST_MISDN_ENHANCEMENTS)
 static const char misdn_command_name[] = "misdn_command";
-static int misdn_command_exec(struct ast_channel *chan, void *data);
+static int misdn_command_exec(struct ast_channel *chan, const char *data);
 #endif	/* defined(AST_MISDN_ENHANCEMENTS) */
-static int misdn_check_l2l1(struct ast_channel *chan, void *data);
-static int misdn_set_opt_exec(struct ast_channel *chan, void *data);
-static int misdn_facility_exec(struct ast_channel *chan, void *data);
+static int misdn_check_l2l1(struct ast_channel *chan, const char *data);
+static int misdn_set_opt_exec(struct ast_channel *chan, const char *data);
+static int misdn_facility_exec(struct ast_channel *chan, const char *data);
 
 int chan_misdn_jb_empty(struct misdn_bchannel *bc, char *buf, int len);
 
@@ -748,7 +748,7 @@ static struct chan_list *get_chan_by_ast(struct ast_channel *ast)
 	return NULL;
 }
 
-static struct chan_list *get_chan_by_ast_name(char *name)
+static struct chan_list *get_chan_by_ast_name(const char *name)
 {
 	struct chan_list *tmp;
 
@@ -4025,7 +4025,7 @@ struct state_struct {
 	char txt[255];
 };
 
-static struct state_struct state_array[] = {
+static const struct state_struct state_array[] = {
 /* *INDENT-OFF* */
 	{ MISDN_NOTHING,             "NOTHING" },             /* at beginning */
 	{ MISDN_WAITING4DIGS,        "WAITING4DIGS" },        /* when waiting for infos */
@@ -5125,11 +5125,11 @@ static const struct FacParm Fac_Msgs[] = {
 
 static char *handle_cli_misdn_send_facility(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char *channame;
-	char *nr;
+	const char *channame;
+	const char *nr;
 	struct chan_list *tmp;
 	int port;
-	char *served_nr;
+	const char *served_nr;
 	struct misdn_bchannel dummy, *bc=&dummy;
 	unsigned max_len;
 
@@ -5381,8 +5381,8 @@ static char *handle_cli_misdn_send_restart(struct ast_cli_entry *e, int cmd, str
 
 static char *handle_cli_misdn_send_digit(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char *channame;
-	char *msg;
+	const char *channame;
+	const char *msg;
 	struct chan_list *tmp;
 	int i, msglen;
 
@@ -5430,7 +5430,7 @@ static char *handle_cli_misdn_send_digit(struct ast_cli_entry *e, int cmd, struc
 
 static char *handle_cli_misdn_toggle_echocancel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char *channame;
+	const char *channame;
 	struct chan_list *tmp;
 
 	switch (cmd) {
@@ -5476,8 +5476,8 @@ static char *handle_cli_misdn_toggle_echocancel(struct ast_cli_entry *e, int cmd
 
 static char *handle_cli_misdn_send_display(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char *channame;
-	char *msg;
+	const char *channame;
+	const char *msg;
 	struct chan_list *tmp;
 
 	switch (cmd) {
@@ -11357,7 +11357,7 @@ static const struct misdn_command_table misdn_commands[] = {
  * \retval 0 on success.
  * \retval -1 on error.
  */
-static int misdn_command_exec(struct ast_channel *chan, void *data)
+static int misdn_command_exec(struct ast_channel *chan, const char *data)
 {
 	char *parse;
 	unsigned index;
@@ -11397,7 +11397,7 @@ static int misdn_command_exec(struct ast_channel *chan, void *data)
 }
 #endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 
-static int misdn_facility_exec(struct ast_channel *chan, void *data)
+static int misdn_facility_exec(struct ast_channel *chan, const char *data)
 {
 	struct chan_list *ch = MISDN_ASTERISK_TECH_PVT(chan);
 	char *parse;
@@ -11476,7 +11476,7 @@ static int misdn_facility_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static int misdn_check_l2l1(struct ast_channel *chan, void *data)
+static int misdn_check_l2l1(struct ast_channel *chan, const char *data)
 {
 	char *parse;
 	char group[BUFFERSIZE + 1];
@@ -11550,7 +11550,7 @@ static int misdn_check_l2l1(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static int misdn_set_opt_exec(struct ast_channel *chan, void *data)
+static int misdn_set_opt_exec(struct ast_channel *chan, const char *data)
 {
 	struct chan_list *ch = MISDN_ASTERISK_TECH_PVT(chan);
 	char *tok;

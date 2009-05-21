@@ -114,11 +114,10 @@ static char *orig_exten(int fd, const char *chan, const char *data)
  * \param cmd operation to execute
  * \param a structure that contains either application or extension arguments
  * \retval CLI_SUCCESS on success.
- * \retval CLI_SHOWUSAGE on failure.
-*/
+ * \retval CLI_SHOWUSAGE on failure.*/
 static char *handle_orig(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	static char *choices[] = { "application", "extension", NULL };
+	static const char * const choices[] = { "application", "extension", NULL };
 	char *res;
 	switch (cmd) {
 	case CLI_INIT:

@@ -56,8 +56,8 @@ AST_MUTEX_DEFINE_STATIC(lock);
 
 static const char config_file[] = "cdr_sqlite3_custom.conf";
 
-static char *desc = "Customizable SQLite3 CDR Backend";
-static char *name = "cdr_sqlite3_custom";
+static const char desc[] = "Customizable SQLite3 CDR Backend";
+static const char name[] = "cdr_sqlite3_custom";
 static sqlite3 *db = NULL;
 
 static char table[80];

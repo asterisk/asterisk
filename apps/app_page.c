@@ -118,7 +118,7 @@ AST_APP_OPTIONS(page_opts, {
 });
 
 
-static int page_exec(struct ast_channel *chan, void *data)
+static int page_exec(struct ast_channel *chan, const char *data)
 {
 	char *tech, *resource, *tmp;
 	char meetmeopts[88], originator[AST_CHANNEL_NAME], *opts[0];

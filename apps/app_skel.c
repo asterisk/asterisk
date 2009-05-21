@@ -94,7 +94,7 @@ AST_APP_OPTIONS(app_opts,{
 });
 
 
-static int app_exec(struct ast_channel *chan, void *data)
+static int app_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	struct ast_flags flags;

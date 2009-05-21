@@ -81,7 +81,7 @@ static int play_and_wait(struct ast_channel *chan, char *file, char *digits)
 	return res;
 }
 
-static int dictate_exec(struct ast_channel *chan, void *data)
+static int dictate_exec(struct ast_channel *chan, const char *data)
 {
 	char *path = NULL, filein[256], *filename = "";
 	char *parse;

@@ -3090,7 +3090,7 @@ static void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name
 
 }
 
-static int pbx_builtin_setvar(struct ast_channel *chan, void *data)
+static int pbx_builtin_setvar(struct ast_channel *chan, const void *data)
 {
 	char *name, *value, *mydata;
 	int argc;
@@ -3125,9 +3125,9 @@ static int pbx_builtin_setvar(struct ast_channel *chan, void *data)
 	return(0);
 }
 
-int localized_pbx_builtin_setvar(struct ast_channel *chan, void *data);
+int localized_pbx_builtin_setvar(struct ast_channel *chan, const void *data);
 
-int localized_pbx_builtin_setvar(struct ast_channel *chan, void *data)
+int localized_pbx_builtin_setvar(struct ast_channel *chan, const void *data)
 {
 	return pbx_builtin_setvar(chan, data);
 }

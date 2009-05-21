@@ -69,7 +69,7 @@ static char *app = "SendImage";
 	</application>
  ***/
 
-static int sendimage_exec(struct ast_channel *chan, void *data)
+static int sendimage_exec(struct ast_channel *chan, const char *data)
 {
 
 	if (ast_strlen_zero(data)) {

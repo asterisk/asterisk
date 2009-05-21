@@ -185,7 +185,7 @@ int localized_pbx_load_module(void);
  * \version 1.6.1 renamed function from localized_context_create to localized_context_find_or_create
  */
 struct ast_context *localized_context_find_or_create(struct ast_context **extcontexts, void *tab, const char *name, const char *registrar);
-int localized_pbx_builtin_setvar(struct ast_channel *chan, void *data);
+int localized_pbx_builtin_setvar(struct ast_channel *chan, const void *data);
 int localized_context_add_ignorepat2(struct ast_context *con, const char *value, const char *registrar);
 int localized_context_add_switch2(struct ast_context *con, const char *value,
 								 const char *data, int eval, const char *registrar);

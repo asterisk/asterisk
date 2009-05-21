@@ -125,7 +125,7 @@ static int is_argument(const char *haystack, int needle)
 	return 0;
 }
 
-static int controlplayback_exec(struct ast_channel *chan, void *data)
+static int controlplayback_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	int skipms = 0;

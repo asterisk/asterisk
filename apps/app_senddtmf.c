@@ -62,7 +62,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  ***/
 static char *app = "SendDTMF";
 
-static int senddtmf_exec(struct ast_channel *chan, void *vdata)
+static int senddtmf_exec(struct ast_channel *chan, const char *vdata)
 {
 	int res = 0;
 	char *data;
@@ -90,7 +90,7 @@ static int senddtmf_exec(struct ast_channel *chan, void *vdata)
 	return res;
 }
 
-static char mandescr_playdtmf[] =
+static const char mandescr_playdtmf[] =
 "Description: Plays a dtmf digit on the specified channel.\n"
 "Variables: (all are required)\n"
 "	Channel: Channel name to send digit to\n"

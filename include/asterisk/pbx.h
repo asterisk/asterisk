@@ -210,7 +210,7 @@ struct ast_app *pbx_findapp(const char *app);
  * \retval 0 success
  * \retval -1 failure
  */
-int pbx_exec(struct ast_channel *c, struct ast_app *app, void *data);
+int pbx_exec(struct ast_channel *c, struct ast_app *app, const char *data);
 
 /*!
  * \brief Register a new context or find an existing one
@@ -976,14 +976,14 @@ void pbx_builtin_clear_globals(void);
 /*!\brief Parse and set a single channel variable, where the name and value are separated with an '=' character.
  * \note Will lock the channel.
  */
-int pbx_builtin_setvar(struct ast_channel *chan, void *data);
+int pbx_builtin_setvar(struct ast_channel *chan, const char *data);
 
 /*!\brief Parse and set multiple channel variables, where the pairs are separated by the ',' character, and name and value are separated with an '=' character.
  * \note Will lock the channel.
  */
-int pbx_builtin_setvar_multiple(struct ast_channel *chan, void *data);
+int pbx_builtin_setvar_multiple(struct ast_channel *chan, const char *data);
 
-int pbx_builtin_raise_exception(struct ast_channel *chan, void *data);
+int pbx_builtin_raise_exception(struct ast_channel *chan, const char *data);
 
 /*! @name Substitution routines, using static string buffers
  * @{ */

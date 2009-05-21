@@ -105,7 +105,7 @@ static int timed_read(int fd, void *data, int datalen)
 	
 }
 
-static int NBScat_exec(struct ast_channel *chan, void *data)
+static int NBScat_exec(struct ast_channel *chan, const char *data)
 {
 	int res=0;
 	int fds[2];

@@ -1208,7 +1208,7 @@ static int authenticate(struct mansession *s, const struct message *m)
 }
 
 /*! \brief Manager PING */
-static char mandescr_ping[] =
+static const char mandescr_ping[] =
 "Description: A 'Ping' action will ellicit a 'Pong' response.  Used to keep the\n"
 "  manager connection open.\n"
 "Variables: NONE\n";
@@ -1225,7 +1225,7 @@ static int action_ping(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static char mandescr_getconfig[] =
+static const char mandescr_getconfig[] =
 "Description: A 'GetConfig' action will dump the contents of a configuration\n"
 "file by category and contents or optionally by specified category only.\n"
 "Variables: (Names marked with * are required)\n"
@@ -1273,7 +1273,7 @@ static int action_getconfig(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static char mandescr_listcategories[] =
+static const char mandescr_listcategories[] =
 "Description: A 'ListCategories' action will dump the categories in\n"
 "a given file.\n"
 "Variables:\n"
@@ -1324,7 +1324,7 @@ static void json_escape(char *out, const char *in)
 	*out = '\0';
 }
 
-static char mandescr_getconfigjson[] =
+static const char mandescr_getconfigjson[] =
 "Description: A 'GetConfigJSON' action will dump the contents of a configuration\n"
 "file by category and contents in JSON format.  This only makes sense to be used\n"
 "using rawman over the HTTP interface.\n"
@@ -1543,7 +1543,7 @@ static enum error_type handle_updates(struct mansession *s, const struct message
 	return result;
 }
 
-static char mandescr_updateconfig[] =
+static const char mandescr_updateconfig[] =
 "Description: A 'UpdateConfig' action will modify, create, or delete\n"
 "configuration elements in Asterisk configuration files.\n"
 "Variables (X's represent 6 digit number beginning with 000000):\n"
@@ -1632,7 +1632,7 @@ static int action_updateconfig(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static char mandescr_createconfig[] =
+static const char mandescr_createconfig[] =
 "Description: A 'CreateConfig' action will create an empty file in the\n"
 "configuration directory. This action is intended to be used before an\n"
 "UpdateConfig action.\n"
@@ -1658,7 +1658,7 @@ static int action_createconfig(struct mansession *s, const struct message *m)
 }
 
 /*! \brief Manager WAITEVENT */
-static char mandescr_waitevent[] =
+static const char mandescr_waitevent[] =
 "Description: A 'WaitEvent' action will ellicit a 'Success' response.  Whenever\n"
 "a manager event is queued.  Once WaitEvent has been called on an HTTP manager\n"
 "session, events will be generated and queued.\n"
@@ -1771,7 +1771,7 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static char mandescr_listcommands[] =
+static const char mandescr_listcommands[] =
 "Description: Returns the action name and synopsis for every\n"
 "  action that is available to the user\n"
 "Variables: NONE\n";
@@ -1794,7 +1794,7 @@ static int action_listcommands(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static char mandescr_events[] =
+static const char mandescr_events[] =
 "Description: Enable/Disable sending of events to this manager\n"
 "  client.\n"
 "Variables:\n"
@@ -1817,7 +1817,7 @@ static int action_events(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static char mandescr_logoff[] =
+static const char mandescr_logoff[] =
 "Description: Logoff this manager session\n"
 "Variables: NONE\n";
 
@@ -1867,7 +1867,7 @@ static int action_challenge(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static char mandescr_hangup[] =
+static const char mandescr_hangup[] =
 "Description: Hangup a channel\n"
 "Variables: \n"
 "	Channel: The channel name to be hungup\n"
@@ -1916,7 +1916,7 @@ static int action_hangup(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static char mandescr_setvar[] =
+static const char mandescr_setvar[] =
 "Description: Set a global or local channel variable.\n"
 "Variables: (Names marked with * are required)\n"
 "	Channel: Channel to set variable for\n"
@@ -1953,7 +1953,7 @@ static int action_setvar(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static char mandescr_getvar[] =
+static const char mandescr_getvar[] =
 "Description: Get the value of a global or local channel variable.\n"
 "Variables: (Names marked with * are required)\n"
 "	Channel: Channel to read variable from\n"
@@ -2006,7 +2006,7 @@ static int action_getvar(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static char mandescr_status[] =
+static const char mandescr_status[] =
 "Description: Lists channel status along with requested channel vars.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Channel: Name of the channel to query for status\n"
@@ -2163,7 +2163,7 @@ static int action_status(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static char mandescr_sendtext[] =
+static const char mandescr_sendtext[] =
 "Description: Sends A Text Message while in a call.\n"
 "Variables: (Names marked with * are required)\n"
 "       *Channel: Channel to send message to\n"
@@ -2206,7 +2206,7 @@ static int action_sendtext(struct mansession *s, const struct message *m)
 	return res;
 }
 
-static char mandescr_redirect[] =
+static const char mandescr_redirect[] =
 "Description: Redirect (transfer) a call.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Channel: Channel to redirect\n"
@@ -2306,7 +2306,7 @@ static int action_redirect(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static char mandescr_atxfer[] =
+static const char mandescr_atxfer[] =
 "Description: Attended transfer.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Channel: Transferer's channel\n"
@@ -2399,7 +2399,7 @@ static int check_blacklist(const char *cmd)
 	return 0;
 }
 
-static char mandescr_command[] =
+static const char mandescr_command[] =
 "Description: Run a CLI command.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Command: Asterisk CLI command to run\n"
@@ -2526,7 +2526,7 @@ static void *fast_originate(void *data)
 	return NULL;
 }
 
-static char mandescr_originate[] =
+static const char mandescr_originate[] =
 "Description: Generates an outgoing call to a Extension/Context/Priority or\n"
 "  Application/Data\n"
 "Variables: (Names marked with * are required)\n"
@@ -2673,7 +2673,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 
 /*! \brief Help text for manager command mailboxstatus
  */
-static char mandescr_mailboxstatus[] =
+static const char mandescr_mailboxstatus[] =
 "Description: Checks a voicemail account for status.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Mailbox: Full mailbox ID <mailbox>@<vm-context>\n"
@@ -2701,7 +2701,7 @@ static int action_mailboxstatus(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static char mandescr_mailboxcount[] =
+static const char mandescr_mailboxcount[] =
 "Description: Checks a voicemail account for new messages.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Mailbox: Full mailbox ID <mailbox>@<vm-context>\n"
@@ -2734,7 +2734,7 @@ static int action_mailboxcount(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static char mandescr_extensionstate[] =
+static const char mandescr_extensionstate[] =
 "Description: Report the extension state for given extension.\n"
 "  If the extension has a hint, will use devicestate to check\n"
 "  the status of the device connected to the extension.\n"
@@ -2770,7 +2770,7 @@ static int action_extensionstate(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static char mandescr_timeout[] =
+static const char mandescr_timeout[] =
 "Description: Hangup a channel after a certain time.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Channel: Channel name to hangup\n"
@@ -2839,7 +2839,7 @@ static int process_events(struct mansession *s)
 	return ret;
 }
 
-static char mandescr_userevent[] =
+static const char mandescr_userevent[] =
 "Description: Send an event to manager sessions.\n"
 "Variables: (Names marked with * are required)\n"
 "       *UserEvent: EventStringToSend\n"
@@ -2864,7 +2864,7 @@ static int action_userevent(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static char mandescr_coresettings[] =
+static const char mandescr_coresettings[] =
 "Description: Query for Core PBX settings.\n"
 "Variables: (Names marked with * are optional)\n"
 "       *ActionID: ActionID of this transaction\n";
@@ -2911,7 +2911,7 @@ static int action_coresettings(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static char mandescr_corestatus[] =
+static const char mandescr_corestatus[] =
 "Description: Query for Core PBX status.\n"
 "Variables: (Names marked with * are optional)\n"
 "       *ActionID: ActionID of this transaction\n";
@@ -2950,7 +2950,7 @@ static int action_corestatus(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static char mandescr_reload[] =
+static const char mandescr_reload[] =
 "Description: Send a reload event.\n"
 "Variables: (Names marked with * are optional)\n"
 "       *ActionID: ActionID of this transaction\n"
@@ -2970,7 +2970,7 @@ static int action_reload(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static char mandescr_coreshowchannels[] =
+static const char mandescr_coreshowchannels[] =
 "Description: List currently defined channels and some information\n"
 "             about them.\n"
 "Variables:\n"
@@ -3052,7 +3052,7 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 	return 0;
 }
 
-static char mandescr_modulecheck[] =
+static const char mandescr_modulecheck[] =
 "Description: Checks if Asterisk module is loaded\n"
 "Variables: \n"
 "  ActionID: <id>          Action ID for this transaction. Will be returned.\n"
@@ -3105,7 +3105,7 @@ static int manager_modulecheck(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static char mandescr_moduleload[] =
+static const char mandescr_moduleload[] =
 "Description: Loads, unloads or reloads an Asterisk module in a running system.\n"
 "Variables: \n"
 "  ActionID: <id>          Action ID for this transaction. Will be returned.\n"
@@ -3684,7 +3684,7 @@ enum output_format {
 	FORMAT_XML,
 };
 
-static char *contenttype[] = {
+static const char * const contenttype[] = {
 	[FORMAT_RAW] = "plain",
 	[FORMAT_HTML] = "html",
 	[FORMAT_XML] =  "xml",

@@ -90,7 +90,7 @@ AST_APP_OPTIONS(app_opts,{
 	AST_APP_OPTION('w', OPTION_WAIT),
 });
 
-static int sendurl_exec(struct ast_channel *chan, void *data)
+static int sendurl_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	char *tmp;

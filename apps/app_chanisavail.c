@@ -92,7 +92,7 @@ static char *app = "ChanIsAvail";
 	</application>
  ***/
 
-static int chanavail_exec(struct ast_channel *chan, void *data)
+static int chanavail_exec(struct ast_channel *chan, const char *data)
 {
 	int inuse=-1, option_state=0, string_compare=0, option_all_avail=0;
 	int status;

@@ -226,7 +226,7 @@ static void ast_cdr_fork(struct ast_channel *chan, struct ast_flags optflags, ch
 	ast_set_flag(cdr, AST_CDR_FLAG_CHILD | AST_CDR_FLAG_LOCKED);
 }
 
-static int forkcdr_exec(struct ast_channel *chan, void *data)
+static int forkcdr_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	char *argcopy = NULL;

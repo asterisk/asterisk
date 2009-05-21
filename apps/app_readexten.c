@@ -125,7 +125,7 @@ AST_APP_OPTIONS(readexten_app_options, {
 
 static char *app = "ReadExten";
 
-static int readexten_exec(struct ast_channel *chan, void *data)
+static int readexten_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	char exten[256] = "";

@@ -117,7 +117,7 @@ static int timed_read(int fd, void *data, int datalen, int timeout)
 	
 }
 
-static int mp3_exec(struct ast_channel *chan, void *data)
+static int mp3_exec(struct ast_channel *chan, const char *data)
 {
 	int res=0;
 	int fds[2];

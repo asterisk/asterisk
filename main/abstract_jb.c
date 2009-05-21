@@ -110,8 +110,7 @@ static void jb_force_resynch_adaptive(void *jb);
 static void jb_empty_and_reset_adaptive(void *jb);
 
 /* Available jb implementations */
-static struct ast_jb_impl avail_impl[] =
-{
+static const struct ast_jb_impl avail_impl[] = {
 	{
 		.name = "fixed",
 		.create = jb_create_fixed,
@@ -150,13 +149,13 @@ enum {
 };
 
 /* Translations between impl and abstract return codes */
-static int fixed_to_abstract_code[] =
+static const int fixed_to_abstract_code[] =
 	{JB_IMPL_OK, JB_IMPL_DROP, JB_IMPL_INTERP, JB_IMPL_NOFRAME};
-static int adaptive_to_abstract_code[] =
+static const int adaptive_to_abstract_code[] =
 	{JB_IMPL_OK, JB_IMPL_NOFRAME, JB_IMPL_NOFRAME, JB_IMPL_INTERP, JB_IMPL_DROP, JB_IMPL_OK};
 
 /* JB_GET actions (used only for the frames log) */
-static char *jb_get_actions[] = {"Delivered", "Dropped", "Interpolated", "No"};
+static const char * const jb_get_actions[] = {"Delivered", "Dropped", "Interpolated", "No"};
 
 /*! \brief Macros for the frame log files */
 #define jb_framelog(...) do { \
@@ -181,7 +180,7 @@ static void jb_choose_impl(struct ast_channel *chan)
 {
 	struct ast_jb *jb = &chan->jb;
 	struct ast_jb_conf *jbconf = &jb->conf;
-	struct ast_jb_impl *test_impl;
+	const struct ast_jb_impl *test_impl;
 	int i, avail_impl_count = ARRAY_LEN(avail_impl);
 
 	jb->impl = &avail_impl[default_impl];
@@ -303,7 +302,7 @@ int ast_jb_get_when_to_wakeup(struct ast_channel *c0, struct ast_channel *c1, in
 int ast_jb_put(struct ast_channel *chan, struct ast_frame *f)
 {
 	struct ast_jb *jb = &chan->jb;
-	struct ast_jb_impl *jbimpl = jb->impl;
+	const struct ast_jb_impl *jbimpl = jb->impl;
 	void *jbobj = jb->jbobj;
 	struct ast_frame *frr;
 	long now = 0;
@@ -385,7 +384,7 @@ void ast_jb_get_and_deliver(struct ast_channel *c0, struct ast_channel *c1)
 static void jb_get_and_deliver(struct ast_channel *chan)
 {
 	struct ast_jb *jb = &chan->jb;
-	struct ast_jb_impl *jbimpl = jb->impl;
+	const struct ast_jb_impl *jbimpl = jb->impl;
 	void *jbobj = jb->jbobj;
 	struct ast_frame *f, finterp;
 	long now;
@@ -450,7 +449,7 @@ static int create_jb(struct ast_channel *chan, struct ast_frame *frr)
 {
 	struct ast_jb *jb = &chan->jb;
 	struct ast_jb_conf *jbconf = &jb->conf;
-	struct ast_jb_impl *jbimpl = jb->impl;
+	const struct ast_jb_impl *jbimpl = jb->impl;
 	void *jbobj;
 	struct ast_channel *bridged;
 	long now;
@@ -534,7 +533,7 @@ static int create_jb(struct ast_channel *chan, struct ast_frame *frr)
 void ast_jb_destroy(struct ast_channel *chan)
 {
 	struct ast_jb *jb = &chan->jb;
-	struct ast_jb_impl *jbimpl = jb->impl;
+	const struct ast_jb_impl *jbimpl = jb->impl;
 	void *jbobj = jb->jbobj;
 	struct ast_frame *f;
 

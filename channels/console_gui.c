@@ -1505,7 +1505,7 @@ static int kp_match_area(const struct keypad_entry *e, int x, int y)
 }
 
 struct _s_k { const char *s; int k; };
-static struct _s_k gui_key_map[] = {
+static const struct _s_k gui_key_map[] = {
 	{"FREEZE",	KEY_FREEZE},
 	{"PIP",		KEY_PIP},
 	{"PICK_UP",	KEY_PICK_UP },

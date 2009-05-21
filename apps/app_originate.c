@@ -89,7 +89,7 @@ static const char app_originate[] = "Originate";
 	</application>
  ***/
 
-static int originate_exec(struct ast_channel *chan, void *data)
+static int originate_exec(struct ast_channel *chan, const char *data)
 {
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(tech_data);

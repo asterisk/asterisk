@@ -927,10 +927,10 @@ static void container_destruct_debug(void *_c)
 #ifdef AO2_DEBUG
 static int print_cb(void *obj, void *arg, int flag)
 {
-	int *fd = arg;
+	struct ast_cli_args *a = (struct ast_cli_args *) arg;
 	char *s = (char *)obj;
 
-	ast_cli(*fd, "string <%s>\n", s);
+	ast_cli(a->fd, "string <%s>\n", s);
 	return 0;
 }
 
@@ -1017,7 +1017,7 @@ static char *handle_astobj2_test(struct ast_cli_entry *e, int cmd, struct ast_cl
 		ao2_t_ref(obj, -1, "test");
 	}
 	ast_cli(a->fd, "testing callbacks\n");
-	ao2_t_callback(c1, 0, print_cb, &a->fd, "test callback");
+	ao2_t_callback(c1, 0, print_cb, a, "test callback");
 	ast_cli(a->fd, "testing iterators, remove every second object\n");
 	{
 		struct ao2_iterator ai;
@@ -1038,7 +1038,7 @@ static char *handle_astobj2_test(struct ast_cli_entry *e, int cmd, struct ast_cl
 		}
 	}
 	ast_cli(a->fd, "testing callbacks again\n");
-	ao2_t_callback(c1, 0, print_cb, &a->fd, "test callback");
+	ao2_t_callback(c1, 0, print_cb, a, "test callback");
 
 	ast_verbose("now you should see an error message:\n");
 	ao2_t_ref(&i, -1, "");	/* i is not a valid object so we print an error here */

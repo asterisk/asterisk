@@ -782,7 +782,7 @@ static char *console_dial(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 {
 	char tmp[256], *tmp2;
 	char *mye, *myc;
-	char *d;
+	const char *d;
 	char *res = CLI_SUCCESS;
 
 	switch (cmd) {

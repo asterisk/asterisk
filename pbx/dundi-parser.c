@@ -155,7 +155,7 @@ static void dump_hint(char *output, int maxlen, void *value, int len)
 
 static void dump_cause(char *output, int maxlen, void *value, int len)
 {
-	static char *causes[] = {
+	static const char * const causes[] = {
 		"SUCCESS",
 		"GENERAL",
 		"DYNAMIC",

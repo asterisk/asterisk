@@ -202,7 +202,7 @@ static int do_waiting(struct ast_channel *chan, int timereqd, time_t waitstart, 
 	return res;
 }
 
-static int waitfor_exec(struct ast_channel *chan, void *data, int wait_for_silence)
+static int waitfor_exec(struct ast_channel *chan, const char *data, int wait_for_silence)
 {
 	int res = 1;
 	int timereqd = 1000;
@@ -232,12 +232,12 @@ static int waitfor_exec(struct ast_channel *chan, void *data, int wait_for_silen
 	return res;
 }
 
-static int waitforsilence_exec(struct ast_channel *chan, void *data)
+static int waitforsilence_exec(struct ast_channel *chan, const char *data)
 {
 	return waitfor_exec(chan, data, 1);
 }
 
-static int waitfornoise_exec(struct ast_channel *chan, void *data)
+static int waitfornoise_exec(struct ast_channel *chan, const char *data)
 {
 	return waitfor_exec(chan, data, 0);
 }

@@ -415,7 +415,7 @@ static void __restore_globals(void)
  * \retval 0 success
  * \retval -1 failure.
  */
-int ast_register_application2(const char *app, int (*execute)(struct ast_channel *, void *),
+int ast_register_application2(const char *app, int (*execute)(struct ast_channel *, const char *),
 				     const char *synopsis, const char *description, void *mod);
 
 /*! 

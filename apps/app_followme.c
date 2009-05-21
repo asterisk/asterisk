@@ -275,18 +275,19 @@ static void profile_set_param(struct call_followme *f, const char *param, const 
 }
 
 /*! \brief Add a new number */
-static struct number *create_followme_number(char *number, int timeout, int numorder)
+static struct number *create_followme_number(const char *number, int timeout, int numorder)
 {
 	struct number *cur;
+	char *buf = ast_strdupa(number);
 	char *tmp;
 
 	if (!(cur = ast_calloc(1, sizeof(*cur))))
 		return NULL;
 
 	cur->timeout = timeout;
-	if ((tmp = strchr(number, ','))) 
+	if ((tmp = strchr(buf, ',')))
 		*tmp = '\0';
-	ast_copy_string(cur->number, number, sizeof(cur->number));
+	ast_copy_string(cur->number, buf, sizeof(cur->number));
 	cur->order = numorder;
 	ast_debug(1, "Created a number, %s, order of , %d, with a timeout of %ld.\n", cur->number, cur->order, cur->timeout);
 
@@ -996,7 +997,7 @@ static void end_bridge_callback_data_fixup(struct ast_bridge_config *bconfig, st
 	bconfig->end_bridge_callback_data = originator;
 }
 
-static int app_exec(struct ast_channel *chan, void *data)
+static int app_exec(struct ast_channel *chan, const char *data)
 {
 	struct fm_args targs = { 0, };
 	struct ast_bridge_config config;

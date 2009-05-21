@@ -262,7 +262,7 @@ static int pickup_by_mark(struct ast_channel *chan, const char *mark)
 }
 
 /* application entry point for Pickup() */
-static int pickup_exec(struct ast_channel *chan, void *data)
+static int pickup_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	char *tmp = ast_strdupa(data);
@@ -291,7 +291,7 @@ static int pickup_exec(struct ast_channel *chan, void *data)
 }
 
 /* application entry point for PickupChan() */
-static int pickupchan_exec(struct ast_channel *chan, void *data)
+static int pickupchan_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	char *tmp = ast_strdupa(data);

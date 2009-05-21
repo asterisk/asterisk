@@ -1708,7 +1708,7 @@ static int agent_logoff(const char *agent, int soft)
 static char *agent_logoff_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int ret;
-	char *agent;
+	const char *agent;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -1956,7 +1956,7 @@ static struct ast_cli_entry cli_agents[] = {
  * \returns
  * \sa agentmonitoroutgoing_exec(), load_module().
  */
-static int login_exec(struct ast_channel *chan, void *data)
+static int login_exec(struct ast_channel *chan, const char *data)
 {
 	int res=0;
 	int tries = 0;
@@ -2284,7 +2284,7 @@ static int login_exec(struct ast_channel *chan, void *data)
  * \returns
  * \sa login_exec(), load_module().
  */
-static int agentmonitoroutgoing_exec(struct ast_channel *chan, void *data)
+static int agentmonitoroutgoing_exec(struct ast_channel *chan, const char *data)
 {
 	int exitifnoagentid = 0;
 	int nowarnings = 0;

@@ -1634,7 +1634,7 @@ static void end_bridge_callback_data_fixup(struct ast_bridge_config *bconfig, st
 	bconfig->end_bridge_callback_data = originator;
 }
 
-static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags64 *peerflags, int *continue_exec)
+static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast_flags64 *peerflags, int *continue_exec)
 {
 	int res = -1; /* default: error */
 	char *rest, *cur; /* scan the list of destinations */
@@ -2423,7 +2423,7 @@ done:
 	return res;
 }
 
-static int dial_exec(struct ast_channel *chan, void *data)
+static int dial_exec(struct ast_channel *chan, const char *data)
 {
 	struct ast_flags64 peerflags;
 
@@ -2432,7 +2432,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	return dial_exec_full(chan, data, &peerflags, NULL);
 }
 
-static int retrydial_exec(struct ast_channel *chan, void *data)
+static int retrydial_exec(struct ast_channel *chan, const char *data)
 {
 	char *parse;
 	const char *context = NULL;

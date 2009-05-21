@@ -1922,7 +1922,7 @@ static void queue_mwi_event(const char *mbx, const char *ctx, int urgent, int ne
 
 /*!\internal
  * \brief Send MWI using interal Asterisk event subsystem */
-static int minivm_mwi_exec(struct ast_channel *chan, void *data)
+static int minivm_mwi_exec(struct ast_channel *chan, const char *data)
 {
 	int argc;
 	char *argv[4];
@@ -1964,7 +1964,7 @@ static int minivm_mwi_exec(struct ast_channel *chan, void *data)
 
 /*!\internal
  * \brief Notify voicemail account owners - either generic template or user specific */
-static int minivm_notify_exec(struct ast_channel *chan, void *data)
+static int minivm_notify_exec(struct ast_channel *chan, const char *data)
 {
 	int argc;
 	char *argv[2];
@@ -2044,7 +2044,7 @@ static int minivm_notify_exec(struct ast_channel *chan, void *data)
 
 /*!\internal
  * \brief Dialplan function to record voicemail */
-static int minivm_record_exec(struct ast_channel *chan, void *data)
+static int minivm_record_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	char *tmp;
@@ -2101,7 +2101,7 @@ static int minivm_record_exec(struct ast_channel *chan, void *data)
 
 /*!\internal
  * \brief Play voicemail prompts - either generic or user specific */
-static int minivm_greet_exec(struct ast_channel *chan, void *data)
+static int minivm_greet_exec(struct ast_channel *chan, const char *data)
 {
 	struct leave_vm_options leave_options = { 0, '\0'};
 	int argc;
@@ -2288,7 +2288,7 @@ static int minivm_greet_exec(struct ast_channel *chan, void *data)
 
 /*!\internal
  * \brief Dialplan application to delete voicemail */
-static int minivm_delete_exec(struct ast_channel *chan, void *data)
+static int minivm_delete_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	char filename[BUFSIZ];
@@ -2326,7 +2326,7 @@ static int minivm_delete_exec(struct ast_channel *chan, void *data)
 }
 
 /*! \brief Record specific messages for voicemail account */
-static int minivm_accmess_exec(struct ast_channel *chan, void *data)
+static int minivm_accmess_exec(struct ast_channel *chan, const char *data)
 {
 	int argc = 0;
 	char *argv[2];

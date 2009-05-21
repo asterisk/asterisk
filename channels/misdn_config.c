@@ -600,7 +600,7 @@ void misdn_cfg_get(int port, enum misdn_cfg_elements elem, void *buf, int bufsiz
 	misdn_cfg_unlock();
 }
 
-enum misdn_cfg_elements misdn_cfg_get_elem(char *name)
+enum misdn_cfg_elements misdn_cfg_get_elem(const char *name)
 {
 	int pos;
 

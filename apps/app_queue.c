@@ -593,7 +593,7 @@ enum queue_result {
 	QUEUE_CONTINUE = 7,
 };
 
-const struct {
+static const struct {
 	enum queue_result id;
 	char *text;
 } queue_results[] = {
@@ -2403,7 +2403,7 @@ static void do_hang(struct callattempt *o)
 static char *vars2manager(struct ast_channel *chan, char *vars, size_t len)
 {
 	struct ast_str *buf = ast_str_thread_get(&ast_str_thread_global_buf, len + 1);
-	char *tmp;
+	const char *tmp;
 
 	if (pbx_builtin_serialize_variables(chan, &buf)) {
 		int i, j;
@@ -4651,7 +4651,7 @@ static int set_member_paused(const char *queuename, const char *interface, const
 }
 
 /* \brief Sets members penalty, if queuename=NULL we set member penalty in all the queues. */
-static int set_member_penalty(char *queuename, char *interface, int penalty)
+static int set_member_penalty(const char *queuename, const char *interface, int penalty)
 {
 	int foundinterface = 0, foundqueue = 0;
 	struct call_queue *q;
@@ -4828,7 +4828,7 @@ static void reload_queue_members(void)
 }
 
 /*! \brief PauseQueueMember application */
-static int pqm_exec(struct ast_channel *chan, void *data)
+static int pqm_exec(struct ast_channel *chan, const char *data)
 {
 	char *parse;
 	AST_DECLARE_APP_ARGS(args,
@@ -4864,7 +4864,7 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 }
 
 /*! \brief UnPauseQueueMember application */
-static int upqm_exec(struct ast_channel *chan, void *data)
+static int upqm_exec(struct ast_channel *chan, const char *data)
 {
 	char *parse;
 	AST_DECLARE_APP_ARGS(args,
@@ -4900,7 +4900,7 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 }
 
 /*! \brief RemoveQueueMember application */
-static int rqm_exec(struct ast_channel *chan, void *data)
+static int rqm_exec(struct ast_channel *chan, const char *data)
 {
 	int res=-1;
 	char *parse, *temppos = NULL;
@@ -4957,7 +4957,7 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 }
 
 /*! \brief AddQueueMember application */
-static int aqm_exec(struct ast_channel *chan, void *data)
+static int aqm_exec(struct ast_channel *chan, const char *data)
 {
 	int res=-1;
 	char *parse, *temppos = NULL;
@@ -5020,7 +5020,7 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 }
 
 /*! \brief QueueLog application */
-static int ql_exec(struct ast_channel *chan, void *data)
+static int ql_exec(struct ast_channel *chan, const char *data)
 {
 	char *parse;
 
@@ -5095,7 +5095,7 @@ static void copy_rules(struct queue_ent *qe, const char *rulename)
  * 6. Try 4 again unless some condition (such as an expiration time) causes us to 
  *    exit the queue.
  */
-static int queue_exec(struct ast_channel *chan, void *data)
+static int queue_exec(struct ast_channel *chan, const char *data)
 {
 	int res=-1;
 	int ringing=0;
@@ -6145,7 +6145,7 @@ static void do_print(struct mansession *s, int fd, const char *str)
  * List the queues strategy, calls processed, members logged in,
  * other queue statistics such as avg hold time.
 */
-static char *__queues_show(struct mansession *s, int fd, int argc, char **argv)
+static char *__queues_show(struct mansession *s, int fd, int argc, const char * const *argv)
 {
 	struct call_queue *q;
 	struct ast_str *out = ast_str_alloca(240);
@@ -6320,7 +6320,7 @@ static char *queue_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
  */
 static int manager_queues_show(struct mansession *s, const struct message *m)
 {
-	char *a[] = { "queue", "show" };
+	static const char * const a[] = { "queue", "show" };
 
 	__queues_show(s, -1, 2, a);
 	astman_append(s, "\r\n\r\n");	/* Properly terminate Manager output */
@@ -6756,7 +6756,7 @@ static int manager_queue_member_penalty(struct mansession *s, const struct messa
 
 static char *handle_queue_add_member(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char *queuename, *interface, *membername = NULL, *state_interface = NULL;
+	const char *queuename, *interface, *membername = NULL, *state_interface = NULL;
 	int penalty;
 
 	switch ( cmd ) {
@@ -6871,7 +6871,7 @@ static char *complete_queue_remove_member(const char *line, const char *word, in
 
 static char *handle_queue_remove_member(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char *queuename, *interface;
+	const char *queuename, *interface;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -6936,7 +6936,7 @@ static char *complete_queue_pause_member(const char *line, const char *word, int
 
 static char *handle_queue_pause_member(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char *queuename, *interface, *reason;
+	const char *queuename, *interface, *reason;
 	int paused;
 
 	switch (cmd) {
@@ -7010,7 +7010,7 @@ static char *complete_queue_set_member_penalty(const char *line, const char *wor
  
 static char *handle_queue_set_member_penalty(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char *queuename = NULL, *interface;
+	const char *queuename = NULL, *interface;
 	int penalty = 0;
 
 	switch (cmd) {
@@ -7072,7 +7072,7 @@ static char *complete_queue_rule_show(const char *line, const char *word, int po
 
 static char *handle_queue_rule_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char *rule;
+	const char *rule;
 	struct rule_list *rl_iter;
 	struct penalty_rule *pr_iter;
 	switch (cmd) {

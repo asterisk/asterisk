@@ -81,7 +81,7 @@ static int file_exists(char *filename)
 	return 0;
 }
 
-static void make_filename(char *buf, int len, char *filename, const char *preflang, char *ext)
+static void make_filename(char *buf, int len, const char *filename, const char *preflang, char *ext)
 {
 	if (filename[0] == '/') {
 		if (!ast_strlen_zero(preflang))
@@ -96,7 +96,7 @@ static void make_filename(char *buf, int len, char *filename, const char *prefla
 	}
 }
 
-struct ast_frame *ast_read_image(char *filename, const char *preflang, int format)
+struct ast_frame *ast_read_image(const char *filename, const char *preflang, int format)
 {
 	struct ast_imager *i;
 	char buf[256];
@@ -152,7 +152,7 @@ struct ast_frame *ast_read_image(char *filename, const char *preflang, int forma
 	return f;
 }
 
-int ast_send_image(struct ast_channel *chan, char *filename)
+int ast_send_image(struct ast_channel *chan, const char *filename)
 {
 	struct ast_frame *f;
 	int res = -1;

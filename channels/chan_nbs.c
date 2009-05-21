@@ -53,7 +53,7 @@ static const char tdesc[] = "Network Broadcast Sound Driver";
 static int prefformat = AST_FORMAT_SLINEAR;
 
 static char context[AST_MAX_EXTENSION] = "default";
-static char type[] = "NBS";
+static const char type[] = "NBS";
 
 /* NBS creates private structures on demand */
    

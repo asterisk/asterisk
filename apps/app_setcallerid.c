@@ -84,7 +84,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *app2 = "SetCallerPres";
 
-static int setcallerid_pres_exec(struct ast_channel *chan, void *data)
+static int setcallerid_pres_exec(struct ast_channel *chan, const char *data)
 {
 	int pres = -1;
 	static int deprecated = 0;

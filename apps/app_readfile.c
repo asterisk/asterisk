@@ -67,7 +67,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *app_readfile = "ReadFile";
 
-static int readfile_exec(struct ast_channel *chan, void *data)
+static int readfile_exec(struct ast_channel *chan, const char *data)
 {
 	int res=0;
 	char *s, *varname=NULL, *file=NULL, *length=NULL, *returnvar=NULL;

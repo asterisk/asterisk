@@ -322,7 +322,7 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 	ast_pthread_create_detached_background(&thread, NULL, mixmonitor_thread, mixmonitor);
 }
 
-static int mixmonitor_exec(struct ast_channel *chan, void *data)
+static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 {
 	int x, readvol = 0, writevol = 0;
 	struct ast_flags flags = {0};
@@ -403,7 +403,7 @@ static int mixmonitor_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static int stop_mixmonitor_exec(struct ast_channel *chan, void *data)
+static int stop_mixmonitor_exec(struct ast_channel *chan, const char *data)
 {
 	ast_audiohook_detach_source(chan, mixmonitor_spy_type);
 	return 0;

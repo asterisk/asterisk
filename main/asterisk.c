@@ -765,7 +765,7 @@ int64_t ast_mark(int i, int startstop)
 static char *handle_show_profile(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int i, min, max;
-	char *search = NULL;
+	const char *search = NULL;
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "core show profile";
@@ -800,7 +800,7 @@ static char *handle_show_profile(struct ast_cli_entry *e, int cmd, struct ast_cl
 static char *handle_clear_profile(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int i, min, max;
-	char *search = NULL;
+	const char *search = NULL;
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "core clear profile";

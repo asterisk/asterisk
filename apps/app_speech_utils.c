@@ -481,7 +481,7 @@ static struct ast_custom_function speech_function = {
 
 
 /*! \brief SpeechCreate() Dialplan Application */
-static int speech_create(struct ast_channel *chan, void *data)
+static int speech_create(struct ast_channel *chan, const char *data)
 {
 	struct ast_speech *speech = NULL;
 	struct ast_datastore *datastore = NULL;
@@ -508,7 +508,7 @@ static int speech_create(struct ast_channel *chan, void *data)
 }
 
 /*! \brief SpeechLoadGrammar(Grammar Name,Path) Dialplan Application */
-static int speech_load(struct ast_channel *chan, void *vdata)
+static int speech_load(struct ast_channel *chan, const char *vdata)
 {
 	int res = 0;
 	struct ast_speech *speech = find_speech(chan);
@@ -534,7 +534,7 @@ static int speech_load(struct ast_channel *chan, void *vdata)
 }
 
 /*! \brief SpeechUnloadGrammar(Grammar Name) Dialplan Application */
-static int speech_unload(struct ast_channel *chan, void *data)
+static int speech_unload(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	struct ast_speech *speech = find_speech(chan);
@@ -549,7 +549,7 @@ static int speech_unload(struct ast_channel *chan, void *data)
 }
 
 /*! \brief SpeechDeactivateGrammar(Grammar Name) Dialplan Application */
-static int speech_deactivate(struct ast_channel *chan, void *data)
+static int speech_deactivate(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	struct ast_speech *speech = find_speech(chan);
@@ -564,7 +564,7 @@ static int speech_deactivate(struct ast_channel *chan, void *data)
 }
 
 /*! \brief SpeechActivateGrammar(Grammar Name) Dialplan Application */
-static int speech_activate(struct ast_channel *chan, void *data)
+static int speech_activate(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	struct ast_speech *speech = find_speech(chan);
@@ -579,7 +579,7 @@ static int speech_activate(struct ast_channel *chan, void *data)
 }
 
 /*! \brief SpeechStart() Dialplan Application */
-static int speech_start(struct ast_channel *chan, void *data)
+static int speech_start(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	struct ast_speech *speech = find_speech(chan);
@@ -593,7 +593,7 @@ static int speech_start(struct ast_channel *chan, void *data)
 }
 
 /*! \brief SpeechProcessingSound(Sound File) Dialplan Application */
-static int speech_processing_sound(struct ast_channel *chan, void *data)
+static int speech_processing_sound(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	struct ast_speech *speech = find_speech(chan);
@@ -636,7 +636,7 @@ AST_APP_OPTIONS(speech_background_options, BEGIN_OPTIONS
 END_OPTIONS );
 
 /*! \brief SpeechBackground(Sound File,Timeout) Dialplan Application */
-static int speech_background(struct ast_channel *chan, void *data)
+static int speech_background(struct ast_channel *chan, const char *data)
 {
 	unsigned int timeout = 0;
 	int res = 0, done = 0, started = 0, quieted = 0, max_dtmf_len = 0;
@@ -888,7 +888,7 @@ static int speech_background(struct ast_channel *chan, void *data)
 
 
 /*! \brief SpeechDestroy() Dialplan Application */
-static int speech_destroy(struct ast_channel *chan, void *data)
+static int speech_destroy(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	struct ast_speech *speech = find_speech(chan);

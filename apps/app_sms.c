@@ -123,7 +123,7 @@ static char *app = "SMS";
  * To pick the two carriers (1300Hz for '1' and 2100 Hz for '0') used by
  * the modulation, we should take one every 13 and 21 samples respectively.
  */
-static signed short wave[] = {
+static const signed short wave[] = {
 	0, 392, 782, 1167, 1545, 1913, 2270, 2612, 2939, 3247, 3536, 3802, 4045, 4263, 4455, 4619, 4755, 4862, 4938, 4985,
 	5000, 4985, 4938, 4862, 4755, 4619, 4455, 4263, 4045, 3802, 3536, 3247, 2939, 2612, 2270, 1913, 1545, 1167, 782, 392,
 	0, -392, -782, -1167,
@@ -1855,7 +1855,7 @@ AST_APP_OPTIONS(sms_options, {
 	AST_APP_OPTION_ARG('p', OPTION_PAUSE, OPTION_ARG_PAUSE),
 	} );
 
-static int sms_exec(struct ast_channel *chan, void *data)
+static int sms_exec(struct ast_channel *chan, const char *data)
 {
 	int res = -1;
 	sms_t h = { 0 };

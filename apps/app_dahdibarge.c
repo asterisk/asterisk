@@ -258,7 +258,7 @@ outrun:
 	return ret;
 }
 
-static int conf_exec(struct ast_channel *chan, void *data)
+static int conf_exec(struct ast_channel *chan, const char *data)
 {
 	int res = -1;
 	int retrycnt = 0;

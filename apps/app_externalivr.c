@@ -311,7 +311,7 @@ static struct playlist_entry *make_entry(const char *filename)
 	return entry;
 }
 
-static int app_exec(struct ast_channel *chan, void *data)
+static int app_exec(struct ast_channel *chan, const char *data)
 {
 	struct ast_flags flags = { 0, };
 	char *opts[0];

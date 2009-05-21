@@ -44,9 +44,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</application>
  ***/
 
-static char *nocdr_app = "NoCDR";
+static const char nocdr_app[] = "NoCDR";
 
-static int nocdr_exec(struct ast_channel *chan, void *data)
+static int nocdr_exec(struct ast_channel *chan, const char *data)
 {
 	if (chan->cdr)
 		ast_set_flag(chan->cdr, AST_CDR_FLAG_POST_DISABLED);

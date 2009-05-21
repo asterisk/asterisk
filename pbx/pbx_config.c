@@ -328,7 +328,7 @@ static char *handle_cli_dialplan_remove_extension(struct ast_cli_entry *e, int c
 	 * Priority input checking ...
 	 */
 	if (a->argc == 5) {
-		char *c = a->argv[4];
+		const char *c = a->argv[4];
 
 		/* check for digits in whole parameter for right priority ...
 		 * why? because atoi (strtol) returns 0 if any characters in
@@ -935,8 +935,7 @@ static char *handle_cli_dialplan_add_extension(struct ast_cli_entry *e, int cmd,
 		if (strcmp(a->argv[6], "replace"))
 			return CLI_SHOWUSAGE;
 
-	/* XXX overwrite argv[3] */
-	whole_exten = a->argv[3];
+	whole_exten = ast_strdupa(a->argv[3]);
 	exten = strsep(&whole_exten,",");
 	if (strchr(exten, '/')) {
 		cidmatch = exten;

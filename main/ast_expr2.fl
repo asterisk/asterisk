@@ -313,7 +313,7 @@ void  ast_expr_clear_extra_error_info(void)
        extra_error_message[0] = 0;
 }
 
-static char *expr2_token_equivs1[] = 
+static const char * const expr2_token_equivs1[] = 
 {
 	"TOKEN",
 	"TOK_COND",
@@ -339,7 +339,7 @@ static char *expr2_token_equivs1[] =
 	"TOK_LP"
 };
 
-static char *expr2_token_equivs2[] = 
+static const char * const expr2_token_equivs2[] = 
 {
 	"<token>",
 	"?",

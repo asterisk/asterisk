@@ -69,7 +69,7 @@ AST_APP_OPTIONS(app_opts,{
 	AST_APP_OPTION('a', OPTION_ALL),
 });
 
-static int softhangup_exec(struct ast_channel *chan, void *data)
+static int softhangup_exec(struct ast_channel *chan, const char *data)
 {
 	struct ast_channel *c = NULL;
 	char *cut, *opts[0];

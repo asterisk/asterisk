@@ -105,7 +105,7 @@ static char *app = "Authenticate";
 	</application>
  ***/
 
-static int auth_exec(struct ast_channel *chan, void *data)
+static int auth_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0, retries, maxdigits;
 	char passwd[256], *prompt = "agent-pass", *argcopy = NULL;

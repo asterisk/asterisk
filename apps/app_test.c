@@ -143,10 +143,10 @@ static int sendnoise(struct ast_channel *chan, int ms)
 	return res;
 }
 
-static int testclient_exec(struct ast_channel *chan, void *data)
+static int testclient_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
-	char *testid=data;
+	const char *testid=data;
 	char fn[80];
 	char serverver[80];
 	FILE *f;
@@ -318,7 +318,7 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-static int testserver_exec(struct ast_channel *chan, void *data)
+static int testserver_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	char testid[80]="";

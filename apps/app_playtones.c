@@ -72,7 +72,7 @@ static const char stopplaytones_app[] = "StopPlayTones";
 	</application>
  ***/
 
-static int handle_playtones(struct ast_channel *chan, void *data)
+static int handle_playtones(struct ast_channel *chan, const char *data)
 {
 	struct ast_tone_zone_sound *ts;
 	int res;
@@ -99,7 +99,7 @@ static int handle_playtones(struct ast_channel *chan, void *data)
 	return res;
 }
 
-static int handle_stopplaytones(struct ast_channel *chan, void *data)
+static int handle_stopplaytones(struct ast_channel *chan, const char *data)
 {
 	ast_playtones_stop(chan);
 

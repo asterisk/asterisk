@@ -3541,7 +3541,7 @@ int ast_senddigit_begin(struct ast_channel *chan, char digit)
 {
 	/* Device does not support DTMF tones, lets fake
 	 * it by doing our own generation. */
-	static const char* dtmf_tones[] = {
+	static const char * const dtmf_tones[] = {
 		"941+1336", /* 0 */
 		"697+1209", /* 1 */
 		"697+1336", /* 2 */

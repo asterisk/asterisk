@@ -56,7 +56,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *app = "UserEvent";
 
-static int userevent_exec(struct ast_channel *chan, void *data)
+static int userevent_exec(struct ast_channel *chan, const char *data)
 {
 	char *parse;
 	int x;

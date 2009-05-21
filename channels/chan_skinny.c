@@ -1076,7 +1076,7 @@ static int callnums = 1;
 #define SKINNY_CX_INACTIVE 4
 
 #if 0
-static char *skinny_cxmodes[] = {
+static const char * const skinny_cxmodes[] = {
 	"sendonly",
 	"recvonly",
 	"sendrecv",
@@ -3049,7 +3049,7 @@ static char *_skinny_show_devices(int fd, int *total, struct mansession *s, cons
 	return CLI_SUCCESS;
 }
 
-static char mandescr_show_devices[] =
+static const char mandescr_show_devices[] =
 "Description: Lists Skinny devices in text format with details on current status.\n"
 "Devicelist will follow as separate events, followed by a final event called\n"
 "DevicelistComplete.\n"
@@ -3194,7 +3194,7 @@ static char *_skinny_show_device(int type, int fd, struct mansession *s, const s
 	return CLI_SUCCESS;
 }
 
-static char mandescr_show_device[] =
+static const char mandescr_show_device[] =
 "Description: Show one SKINNY device with details on current status.\n"
 "Variables: \n"
 "  Device: <name>           The device name you want to check.\n"
@@ -3310,7 +3310,7 @@ static char *_skinny_show_lines(int fd, int *total, struct mansession *s, const 
 	return CLI_SUCCESS;
 }
 
-static char mandescr_show_lines[] =
+static const char mandescr_show_lines[] =
 "Description: Lists Skinny lines in text format with details on current status.\n"
 "Linelist will follow as separate events, followed by a final event called\n"
 "LinelistComplete.\n"
@@ -3502,7 +3502,7 @@ static char *_skinny_show_line(int type, int fd, struct mansession *s, const str
 	return CLI_SUCCESS;
 }
 
-static char mandescr_show_line[] =
+static const char mandescr_show_line[] =
 "Description: Show one SKINNY line with details on current status.\n"
 "Variables: \n"
 "  Line: <name>           The line name you want to check.\n"

@@ -502,7 +502,7 @@ static struct unistimsession {
 
 static const unsigned char packet_rcv_discovery[] =
 	{ 0xff, 0xff, 0xff, 0xff, 0x02, 0x02, 0xff, 0xff, 0xff, 0xff, 0x9e, 0x03, 0x08 };
-static unsigned char packet_send_discovery_ack[] =
+static const unsigned char packet_send_discovery_ack[] =
 	{ 0x00, 0x00, /*Initial Seq (2 bytes) */ 0x00, 0x00, 0x00, 0x01 };
 
 static const unsigned char packet_recv_firm_version[] =
@@ -733,8 +733,8 @@ static unsigned int get_tick_count(void)
 }
 
 /* Send data to a phone without retransmit nor buffering */
-static void send_raw_client(int size, unsigned char *data, struct sockaddr_in *addr_to,
-	const struct sockaddr_in *addr_ourip)
+static void send_raw_client(int size, const unsigned char *data, struct sockaddr_in *addr_to,
+			    const struct sockaddr_in *addr_ourip)
 {
 #ifdef HAVE_PKTINFO
 	struct iovec msg_iov;
@@ -743,7 +743,12 @@ static void send_raw_client(int size, unsigned char *data, struct sockaddr_in *a
 	struct cmsghdr *ip_msg = (struct cmsghdr *) buffer;
 	struct in_pktinfo *pki = (struct in_pktinfo *) CMSG_DATA(ip_msg);
 
-	msg_iov.iov_base = data;
+	/* cast this to a non-const pointer, since the sendmsg() API
+	 * does not provide read-only and write-only flavors of the
+	 * structures used for its arguments, but in this case we know
+	 * the data will not be modified
+	 */
+	msg_iov.iov_base = (char *) data;
 	msg_iov.iov_len = size;
 
 	msg.msg_name = addr_to;	 /* optional address */

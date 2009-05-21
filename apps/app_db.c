@@ -83,7 +83,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static char *d_app = "DBdel";
 static char *dt_app = "DBdeltree";
 
-static int deltree_exec(struct ast_channel *chan, void *data)
+static int deltree_exec(struct ast_channel *chan, const char *data)
 {
 	char *argv, *family, *keytree;
 
@@ -114,7 +114,7 @@ static int deltree_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static int del_exec(struct ast_channel *chan, void *data)
+static int del_exec(struct ast_channel *chan, const char *data)
 {
 	char *argv, *family, *key;
 	static int deprecation_warning = 0;

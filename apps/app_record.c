@@ -129,7 +129,7 @@ AST_APP_OPTIONS(app_opts,{
 	AST_APP_OPTION('x', OPTION_IGNORE_TERMINATE),
 });
 
-static int record_exec(struct ast_channel *chan, void *data)
+static int record_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	int count = 0;

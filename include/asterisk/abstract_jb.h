@@ -84,7 +84,7 @@ struct ast_jb
 	/*! \brief Jitterbuffer configuration. */
 	struct ast_jb_conf conf;
 	/*! \brief Jitterbuffer implementation to be used. */
-	struct ast_jb_impl *impl;
+	const struct ast_jb_impl *impl;
 	/*! \brief Jitterbuffer object, passed to the implementation. */
 	void *jbobj;
 	/*! \brief The time the jitterbuffer was created. */

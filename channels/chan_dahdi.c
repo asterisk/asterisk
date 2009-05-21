@@ -620,7 +620,7 @@ struct dahdi_distRings {
 	struct ringContextData ringContext[3];
 };
 
-static char *subnames[] = {
+static const char * const subnames[] = {
 	"Real",
 	"Callwait",
 	"Threeway"
@@ -2364,7 +2364,7 @@ out:
 	return res;
 }
 
-static char *events[] = {
+static const char * const events[] = {
 	"No event",
 	"On hook",
 	"Ring/Answered",
@@ -2409,7 +2409,7 @@ static char *alarm2str(int alm)
 	return alm ? "Unknown Alarm" : "No Alarm";
 }
 
-static char *event2str(int event)
+static const char *event2str(int event)
 {
 	static char buf[256];
 	if ((event < (ARRAY_LEN(events))) && (event > -1))
@@ -3987,11 +3987,11 @@ static void destroy_all_channels(void)
 #if defined(HAVE_PRI)
 static char *dahdi_send_keypad_facility_app = "DAHDISendKeypadFacility";
 
-static int dahdi_send_keypad_facility_exec(struct ast_channel *chan, void *data)
+static int dahdi_send_keypad_facility_exec(struct ast_channel *chan, const char *data)
 {
 	/* Data will be our digit string */
 	struct dahdi_pvt *p;
-	char *digits = (char *) data;
+	const char *digits = (const char *) data;
 
 	if (ast_strlen_zero(digits)) {
 		ast_debug(1, "No digit string sent to application!\n");
@@ -4032,7 +4032,7 @@ static int dahdi_send_keypad_facility_exec(struct ast_channel *chan, void *data)
 #if defined(HAVE_PRI_PROG_W_CAUSE)
 static char *dahdi_send_callrerouting_facility_app = "DAHDISendCallreroutingFacility";
 
-static int dahdi_send_callrerouting_facility_exec(struct ast_channel *chan, void *data)
+static int dahdi_send_callrerouting_facility_exec(struct ast_channel *chan, const char *data)
 {
 	/* Data will be our digit string */
 	struct dahdi_pvt *p;

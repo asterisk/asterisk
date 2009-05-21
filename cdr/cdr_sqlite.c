@@ -61,7 +61,7 @@ static sqlite* db = NULL;
 AST_MUTEX_DEFINE_STATIC(sqlite_lock);
 
 /*! \brief SQL table format */
-static char sql_create_table[] = "CREATE TABLE cdr ("
+static const char sql_create_table[] = "CREATE TABLE cdr ("
 "	AcctId		INTEGER PRIMARY KEY,"
 "	clid		VARCHAR(80),"
 "	src		VARCHAR(80),"

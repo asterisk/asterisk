@@ -62,7 +62,7 @@ struct tps_taskprocessor_stats {
 /*! \brief A ast_taskprocessor structure is a singleton by name */
 struct ast_taskprocessor {
 	/*! \brief Friendly name of the taskprocessor */
-	char *name;
+	const char *name;
 	/*! \brief Thread poll condition */
 	ast_cond_t poll_cond;
 	/*! \brief Taskprocessor thread */
@@ -189,7 +189,7 @@ static int tps_ping_handler(void *datap)
 static char *cli_tps_ping(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct timeval begin, end, delta;
-	char *name;
+	const char *name;
 	struct timeval when;
 	struct timespec ts;
 	struct ast_taskprocessor *tps = NULL;
@@ -366,7 +366,7 @@ static void tps_taskprocessor_destroy(void *tps)
 		ast_free(t->stats);
 		t->stats = NULL;
 	}
-	ast_free(t->name);
+	ast_free((char *) t->name);
 }
 
 /* pop the front task and return it */
@@ -404,7 +404,7 @@ const char *ast_taskprocessor_name(struct ast_taskprocessor *tps)
 /* Provide a reference to a taskprocessor.  Create the taskprocessor if necessary, but don't
  * create the taskprocessor if we were told via ast_tps_options to return a reference only 
  * if it already exists */
-struct ast_taskprocessor *ast_taskprocessor_get(char *name, enum ast_tps_options create)
+struct ast_taskprocessor *ast_taskprocessor_get(const char *name, enum ast_tps_options create)
 {
 	struct ast_taskprocessor *p, tmp_tps = {
 		.name = name,

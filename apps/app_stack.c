@@ -266,7 +266,7 @@ static void gosub_free(void *data)
 	ast_free(oldlist);
 }
 
-static int pop_exec(struct ast_channel *chan, void *data)
+static int pop_exec(struct ast_channel *chan, const char *data)
 {
 	struct ast_datastore *stack_store = ast_channel_datastore_find(chan, &stack_info, NULL);
 	struct gosub_stack_frame *oldframe;
@@ -290,12 +290,12 @@ static int pop_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static int return_exec(struct ast_channel *chan, void *data)
+static int return_exec(struct ast_channel *chan, const char *data)
 {
 	struct ast_datastore *stack_store = ast_channel_datastore_find(chan, &stack_info, NULL);
 	struct gosub_stack_frame *oldframe;
 	AST_LIST_HEAD(, gosub_stack_frame) *oldlist;
-	char *retval = data;
+	const char *retval = data;
 
 	if (!stack_store) {
 		ast_log(LOG_ERROR, "Return without Gosub: stack is unallocated\n");
@@ -320,7 +320,7 @@ static int return_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static int gosub_exec(struct ast_channel *chan, void *data)
+static int gosub_exec(struct ast_channel *chan, const char *data)
 {
 	struct ast_datastore *stack_store = ast_channel_datastore_find(chan, &stack_info, NULL);
 	AST_LIST_HEAD(, gosub_stack_frame) *oldlist;
@@ -410,7 +410,7 @@ static int gosub_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static int gosubif_exec(struct ast_channel *chan, void *data)
+static int gosubif_exec(struct ast_channel *chan, const char *data)
 {
 	char *args;
 	int res=0;
@@ -537,7 +537,7 @@ static struct ast_custom_function peek_function = {
 	.read = peek_read,
 };
 
-static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, char **argv)
+static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, const char * const *argv)
 {
 	int old_priority, priority;
 	char old_context[AST_MAX_CONTEXT], old_extension[AST_MAX_EXTENSION];
@@ -627,7 +627,7 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, char **arg
 	return RESULT_SUCCESS;
 }
 
-static char usage_gosub[] =
+static const char usage_gosub[] =
 " Usage: GOSUB <context> <extension> <priority> [<optional-argument>]\n"
 "   Cause the channel to execute the specified dialplan subroutine, returning\n"
 " to the dialplan with execution of a Return()\n";

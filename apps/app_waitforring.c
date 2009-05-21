@@ -53,7 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *app = "WaitForRing";
 
-static int waitforring_exec(struct ast_channel *chan, void *data)
+static int waitforring_exec(struct ast_channel *chan, const char *data)
 {
 	struct ast_frame *f;
 	int res = 0;

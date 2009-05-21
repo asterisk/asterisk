@@ -216,7 +216,7 @@ static struct ast_exten *find_matching_priority(struct ast_context *c, const cha
 	return NULL;
 }
 
-static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
+static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive)
 {
 	const char *s;
 	char *tmp;
@@ -426,7 +426,8 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 			gosub_level++;
 			ast_debug(1, "Incrementing gosub_level\n");
 		} else if (!strcasecmp(runningapp, "GOSUBIF")) {
-			char *cond, *app_arg, *app2;
+			char *cond, *app_arg;
+			char *app2;
 			ast_str_substitute_variables(&tmp_subst, 0, chan, runningdata);
 			app2 = ast_str_buffer(tmp_subst);
 			cond = strsep(&app2, "?");
@@ -454,8 +455,7 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 			ast_str_substitute_variables(&tmp_subst, 0, chan, runningdata);
 			tmp2 = ast_str_buffer(tmp_subst);
 			if (!strcasecmp(runningapp, "EXECIF")) {
-				tmp3 = strchr(tmp2, '|');
-				if (tmp3) {
+				if ((tmp3 = strchr(tmp2, '|'))) {
 					*tmp3++ = '\0';
 				}
 				if (!pbx_checkcondition(tmp2)) {
@@ -569,17 +569,17 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 	return res;
 }
 
-static int macro_exec(struct ast_channel *chan, void *data)
+static int macro_exec(struct ast_channel *chan, const char *data)
 {
 	return _macro_exec(chan, data, 0);
 }
 
-static int macroexclusive_exec(struct ast_channel *chan, void *data)
+static int macroexclusive_exec(struct ast_channel *chan, const char *data)
 {
 	return _macro_exec(chan, data, 1);
 }
 
-static int macroif_exec(struct ast_channel *chan, void *data) 
+static int macroif_exec(struct ast_channel *chan, const char *data) 
 {
 	char *expr = NULL, *label_a = NULL, *label_b = NULL;
 	int res = 0;
@@ -604,7 +604,7 @@ static int macroif_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 			
-static int macro_exit_exec(struct ast_channel *chan, void *data)
+static int macro_exit_exec(struct ast_channel *chan, const char *data)
 {
 	return MACRO_EXIT_RESULT;
 }

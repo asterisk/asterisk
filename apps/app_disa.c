@@ -140,7 +140,7 @@ static void play_dialtone(struct ast_channel *chan, char *mailbox)
 	}
 }
 
-static int disa_exec(struct ast_channel *chan, void *data)
+static int disa_exec(struct ast_channel *chan, const char *data)
 {
 	int i = 0, j, k = 0, did_ignore = 0, special_noanswer = 0;
 	int firstdigittimeout = (chan->pbx ? chan->pbx->rtimeoutms : 20000);

@@ -439,7 +439,7 @@ static char *descrip =
 static int debug = 0;  /* Set this >0 for extra debug output */
 static int nrpts = 0;
 
-static char remdtmfstr[] = "0123456789*#ABCD";
+static const char remdtmfstr[] = "0123456789*#ABCD";
 
 enum {TOP_TOP,TOP_WON,WON_BEFREAD,BEFREAD_AFTERREAD};
 
@@ -13114,7 +13114,7 @@ char *this,*val;
 	pthread_exit(NULL);
 }
 
-static int rpt_exec(struct ast_channel *chan, void *data)
+static int rpt_exec(struct ast_channel *chan, const void *data)
 {
 	int res=-1,i,rem_totx,rem_rx,remkeyed,n,phone_mode = 0;
 	int iskenwood_pci4,authtold,authreq,setting,notremming,reming;

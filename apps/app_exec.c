@@ -129,7 +129,7 @@ static char *app_exec = "Exec";
 static char *app_tryexec = "TryExec";
 static char *app_execif = "ExecIf";
 
-static int exec_exec(struct ast_channel *chan, void *data)
+static int exec_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	char *s, *appname, *endargs;
@@ -163,7 +163,7 @@ static int exec_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-static int tryexec_exec(struct ast_channel *chan, void *data)
+static int tryexec_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	char *s, *appname, *endargs;
@@ -198,7 +198,7 @@ static int tryexec_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static int execif_exec(struct ast_channel *chan, void *data)
+static int execif_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	char *truedata = NULL, *falsedata = NULL, *end, *firstcomma, *firstquestion;

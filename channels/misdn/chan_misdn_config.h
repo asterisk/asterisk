@@ -136,7 +136,7 @@ void misdn_cfg_update_ptp( void );
 void misdn_cfg_get(int port, enum misdn_cfg_elements elem, void* buf, int bufsize);
 
 /* returns the enum element for the given name, returns MISDN_CFG_FIRST if none was found */
-enum misdn_cfg_elements misdn_cfg_get_elem (char *name);
+enum misdn_cfg_elements misdn_cfg_get_elem (const char *name);
 
 /* fills the buffer with the name of the given config element */
 void misdn_cfg_get_name (enum misdn_cfg_elements elem, void *buf, int bufsize);

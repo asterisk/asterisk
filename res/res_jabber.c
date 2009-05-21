@@ -183,8 +183,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*-- Forward declarations */
 static void aji_buddy_destroy(struct aji_buddy *obj);
 static void aji_client_destroy(struct aji_client *obj);
-static int aji_send_exec(struct ast_channel *chan, void *data);
-static int aji_status_exec(struct ast_channel *chan, void *data);
 static int aji_is_secure(struct aji_client *client);
 #ifdef HAVE_OPENSSL
 static int aji_start_tls(struct aji_client *client);
@@ -429,7 +427,7 @@ static iks *jabber_make_auth(iksid * id, const char *pass, const char *sid)
  * \param data
  * \return 0 on success, -1 on error
  */
-static int aji_status_exec(struct ast_channel *chan, void *data)
+static int aji_status_exec(struct ast_channel *chan, const char *data)
 {
 	struct aji_client *client = NULL;
 	struct aji_buddy *buddy = NULL;
@@ -545,7 +543,7 @@ static struct ast_custom_function jabberstatus_function = {
  * \param data  Data is sender|reciever|message.
  * \return 0 on success,-1 on error.
  */
-static int aji_send_exec(struct ast_channel *chan, void *data)
+static int aji_send_exec(struct ast_channel *chan, const char *data)
 {
 	struct aji_client *client = NULL;
 	char *s;
@@ -2972,7 +2970,7 @@ struct aji_client_container *ast_aji_get_clients(void)
 	return &clients;
 }
 
-static char mandescr_jabber_send[] =
+static const char mandescr_jabber_send[] =
 "Description: Sends a message to a Jabber Client.\n"
 "Variables: \n"
 "  Jabber:    Client or transport Asterisk uses to connect to JABBER\n"

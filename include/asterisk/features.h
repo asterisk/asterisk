@@ -49,7 +49,7 @@
 #define FEATURE_SENSE_CHAN	(1 << 0)
 #define FEATURE_SENSE_PEER	(1 << 1)
 
-typedef int (*ast_feature_operation)(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data);
+typedef int (*ast_feature_operation)(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, const char *code, int sense, void *data);
 
 /*! \brief main call feature structure */
 
@@ -136,7 +136,7 @@ void ast_unregister_feature(struct ast_call_feature *feature);
     \param char ptr of input code
     \retval ast_call_feature ptr to be set if found 
     \return result, was feature found or not */
-int ast_feature_detect(struct ast_channel *chan, struct ast_flags *features, char *code, struct ast_call_feature *feature);
+int ast_feature_detect(struct ast_channel *chan, struct ast_flags *features, const char *code, struct ast_call_feature *feature);
 
 /*! \brief look for a call feature entry by its sname
 	\param name a string ptr, should match "automon", "blindxfer", "atxfer", etc. */

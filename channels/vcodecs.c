@@ -1113,7 +1113,7 @@ struct _cm {    /* map ffmpeg codec types to asterisk formats */
 	//struct video_codec_desc *codec_desc;
 };
 
-static struct _cm video_formats[] = {
+static const struct _cm video_formats[] = {
         { AST_FORMAT_H263_PLUS, CODEC_ID_H263,  CM_RD }, /* incoming H263P ? */
         { AST_FORMAT_H263_PLUS, CODEC_ID_H263P, CM_WR },
         { AST_FORMAT_H263,      CODEC_ID_H263,  CM_RD },
@@ -1137,7 +1137,7 @@ static enum CodecID map_video_format(uint32_t ast_format, int rw)
 }
 
 /* pointers to supported codecs. We assume the first one to be non null. */
-static struct video_codec_desc *supported_codecs[] = {
+static const struct video_codec_desc *supported_codecs[] = {
 	&h263p_codec,
 	&h264_codec,
 	&h263_codec,

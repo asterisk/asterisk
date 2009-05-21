@@ -187,7 +187,7 @@ static void run_ras(struct ast_channel *chan, char *args)
 	ast_safe_fork_cleanup();
 }
 
-static int dahdiras_exec(struct ast_channel *chan, void *data)
+static int dahdiras_exec(struct ast_channel *chan, const char *data)
 {
 	int res=-1;
 	char *args;

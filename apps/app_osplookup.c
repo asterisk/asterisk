@@ -1296,8 +1296,8 @@ static int osp_finish(
  * \return 0 Success, -1 Failed
  */
 static int ospauth_exec(
-	struct ast_channel* chan,
-	void* data)
+	struct ast_channel *chan,
+	const char *data)
 {
 	int res;
 	const char* provider = OSP_DEF_PROVIDER;
@@ -1377,7 +1377,7 @@ static int ospauth_exec(
  */
 static int osplookup_exec(
 	struct ast_channel* chan,
-	void* data)
+	const void* data)
 {
 	int res, cres;
 	const char* provider = OSP_DEF_PROVIDER;
@@ -1551,7 +1551,7 @@ static int osplookup_exec(
  */
 static int ospnext_exec(
 	struct ast_channel* chan,
-	void* data)
+	const void* data)
 {
 	int res;
 	const char* provider = OSP_DEF_PROVIDER;
@@ -1707,7 +1707,7 @@ static int ospnext_exec(
  */
 static int ospfinished_exec(
 	struct ast_channel* chan,
-	void* data)
+	const void* data)
 {
 	int res = 1;
 	int cause = 0;

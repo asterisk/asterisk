@@ -279,7 +279,7 @@ static struct iax2_ie {
 	{ IAX_IE_OSPTOKEN, "OSPTOKEN" },
 };
 
-static struct iax2_ie prov_ies[] = {
+static const struct iax2_ie prov_ies[] = {
 	{ PROV_IE_USEDHCP, "USEDHCP" },
 	{ PROV_IE_IPADDR, "IPADDR", dump_ipaddr },
 	{ PROV_IE_SUBNET, "SUBNET", dump_ipaddr },

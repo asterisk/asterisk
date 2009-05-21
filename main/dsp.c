@@ -283,24 +283,17 @@ typedef struct
 	} td;
 } digit_detect_state_t;
 
-static float dtmf_row[] =
-{
+static const float dtmf_row[] = {
 	697.0,  770.0,  852.0,  941.0
 };
-static float dtmf_col[] =
-{
+static const float dtmf_col[] = {
 	1209.0, 1336.0, 1477.0, 1633.0
 };
-
-static float mf_tones[] =
-{
+static const float mf_tones[] = {
 	700.0, 900.0, 1100.0, 1300.0, 1500.0, 1700.0
 };
-
-static char dtmf_positions[] = "123A" "456B" "789C" "*0#D";
-
-static char bell_mf_positions[] = "1247C-358A--69*---0B----#";
-
+static const char dtmf_positions[] = "123A" "456B" "789C" "*0#D";
+static const char bell_mf_positions[] = "1247C-358A--69*---0B----#";
 static int thresholds[THRESHOLD_MAX];
 
 static inline void goertzel_sample(goertzel_state_t *s, short sample)

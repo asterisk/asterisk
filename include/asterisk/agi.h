@@ -39,22 +39,22 @@ typedef struct agi_state {
 } AGI;
 
 typedef struct agi_command {
-	char *cmda[AST_MAX_CMD_LEN];		/*!< Null terminated list of the words of the command */
+	const char * const cmda[AST_MAX_CMD_LEN];		/*!< Null terminated list of the words of the command */
 	/*! Handler for the command (channel, AGI state, # of arguments, argument list). 
 	    Returns RESULT_SHOWUSAGE for improper arguments */
-	int (*handler)(struct ast_channel *chan, AGI *agi, int argc, char *argv[]);
+	int (* const handler)(struct ast_channel *chan, AGI *agi, int argc, const char * const argv[]);
 	/*! Summary of the command (< 60 characters) */
-	char *summary;
+	const char * const summary;
 	/*! Detailed usage information */
-	char *usage;
+	const char * const usage;
 	/*! Does this application run dead */
-	int dead;
+	const int dead;
 	/*! AGI command syntax description */
-	char *syntax;
+	const char * const syntax;
 	/*! See also content */
-	char *seealso;
+	const char * const seealso;
 	/*! Where the documentation come from. */
-	enum ast_doc_src docsrc;
+	const enum ast_doc_src docsrc;
 	/*! Pointer to module that registered the agi command */
 	struct ast_module *mod;
 	/*! Linked list pointer */

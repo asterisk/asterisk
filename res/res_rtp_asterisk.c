@@ -2370,9 +2370,8 @@ static char *rtp_do_debug_ip(struct ast_cli_args *a)
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	int port = 0;
-	char *p, *arg;
+	char *p, *arg = ast_strdupa(a->argv[3]);
 
-	arg = a->argv[3];
 	p = strstr(arg, ":");
 	if (p) {
 		*p = '\0';
@@ -2400,9 +2399,8 @@ static char *rtcp_do_debug_ip(struct ast_cli_args *a)
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	int port = 0;
-	char *p, *arg;
+	char *p, *arg = ast_strdupa(a->argv[3]);
 
-	arg = a->argv[3];
 	p = strstr(arg, ":");
 	if (p) {
 		*p = '\0';

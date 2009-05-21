@@ -74,7 +74,7 @@ struct adsi_event {
 	char *name;
 };
 
-static struct adsi_event events[] = {
+static const struct adsi_event events[] = {
 	{ 1, "CALLERID" },
 	{ 2, "VMWI" },
 	{ 3, "NEARANSWER" },
@@ -101,7 +101,7 @@ static struct adsi_event events[] = {
 	{ 24, "CPEID" },
 };
 
-static struct adsi_event justify[] = {
+static const struct adsi_event justify[] = {
 	{ 0, "CENTER" },
 	{ 1, "RIGHT" },
 	{ 2, "LEFT" },
@@ -232,7 +232,7 @@ static int process_token(void *out, char *src, int maxlen, int argtype)
 	return 0;
 }
 
-static char *get_token(char **buf, char *script, int lineno)
+static char *get_token(char **buf, const char *script, int lineno)
 {
 	char *tmp = *buf, *keyword;
 	int quoted = 0;
@@ -264,7 +264,7 @@ static char *get_token(char **buf, char *script, int lineno)
 
 static char *validdtmf = "123456789*0#ABCD";
 
-static int send_dtmf(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
+static int send_dtmf(char *buf, char *name, int id, char *args, struct adsi_script *state, const char *script, int lineno)
 {
 	char dtmfstr[80], *a;
 	int bytes = 0;
@@ -294,7 +294,7 @@ static int send_dtmf(char *buf, char *name, int id, char *args, struct adsi_scri
 	return bytes;
 }
 
-static int goto_line(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
+static int goto_line(char *buf, char *name, int id, char *args, struct adsi_script *state, const char *script, int lineno)
 {
 	char *page = get_token(&args, script, lineno);
 	char *gline = get_token(&args, script, lineno);
@@ -327,7 +327,7 @@ static int goto_line(char *buf, char *name, int id, char *args, struct adsi_scri
 	return 2;
 }
 
-static int goto_line_rel(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
+static int goto_line_rel(char *buf, char *name, int id, char *args, struct adsi_script *state, const char *script, int lineno)
 {
 	char *dir = get_token(&args, script, lineno);
 	char *gline = get_token(&args, script, lineno);
@@ -360,7 +360,7 @@ static int goto_line_rel(char *buf, char *name, int id, char *args, struct adsi_
 	return 2;
 }
 
-static int send_delay(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
+static int send_delay(char *buf, char *name, int id, char *args, struct adsi_script *state, const char *script, int lineno)
 {
 	char *gtime = get_token(&args, script, lineno);
 	int ms;
@@ -385,7 +385,7 @@ static int send_delay(char *buf, char *name, int id, char *args, struct adsi_scr
 	return 2;
 }
 
-static int set_state(char *buf, char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
+static int set_state(char *buf, char *name, int id, char *args, struct adsi_script *istate, const char *script, int lineno)
 {
 	char *gstate = get_token(&args, script, lineno);
 	int state;
@@ -406,7 +406,7 @@ static int set_state(char *buf, char *name, int id, char *args, struct adsi_scri
 	return 2;
 }
 
-static int cleartimer(char *buf, char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
+static int cleartimer(char *buf, char *name, int id, char *args, struct adsi_script *istate, const char *script, int lineno)
 {
 	char *tok = get_token(&args, script, lineno);
 
@@ -424,7 +424,7 @@ static int cleartimer(char *buf, char *name, int id, char *args, struct adsi_scr
 	return 2;
 }
 
-static struct adsi_flag *getflagbyname(struct adsi_script *state, char *name, char *script, int lineno, int create)
+static struct adsi_flag *getflagbyname(struct adsi_script *state, char *name, const char *script, int lineno, int create)
 {
 	int x;
 
@@ -449,7 +449,7 @@ static struct adsi_flag *getflagbyname(struct adsi_script *state, char *name, ch
 	return &state->flags[state->numflags-1];
 }
 
-static int setflag(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
+static int setflag(char *buf, char *name, int id, char *args, struct adsi_script *state, const char *script, int lineno)
 {
 	char *tok = get_token(&args, script, lineno);
 	char sname[80];
@@ -476,7 +476,7 @@ static int setflag(char *buf, char *name, int id, char *args, struct adsi_script
 	return 2;
 }
 
-static int clearflag(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
+static int clearflag(char *buf, char *name, int id, char *args, struct adsi_script *state, const char *script, int lineno)
 {
 	char *tok = get_token(&args, script, lineno);
 	struct adsi_flag *flag;
@@ -503,7 +503,7 @@ static int clearflag(char *buf, char *name, int id, char *args, struct adsi_scri
 	return 2;
 }
 
-static int starttimer(char *buf, char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
+static int starttimer(char *buf, char *name, int id, char *args, struct adsi_script *istate, const char *script, int lineno)
 {
 	char *tok = get_token(&args, script, lineno);
 	int secs;
@@ -549,7 +549,7 @@ static int getjustifybyname(char *name)
 	return -1;
 }
 
-static struct adsi_soft_key *getkeybyname(struct adsi_script *state, char *name, char *script, int lineno)
+static struct adsi_soft_key *getkeybyname(struct adsi_script *state, char *name, const char *script, int lineno)
 {
 	int x;
 
@@ -570,7 +570,7 @@ static struct adsi_soft_key *getkeybyname(struct adsi_script *state, char *name,
 	return &state->keys[state->numkeys-1];
 }
 
-static struct adsi_subscript *getsubbyname(struct adsi_script *state, char *name, char *script, int lineno)
+static struct adsi_subscript *getsubbyname(struct adsi_script *state, char *name, const char *script, int lineno)
 {
 	int x;
 
@@ -591,7 +591,7 @@ static struct adsi_subscript *getsubbyname(struct adsi_script *state, char *name
 	return &state->subs[state->numsubs-1];
 }
 
-static struct adsi_state *getstatebyname(struct adsi_script *state, char *name, char *script, int lineno, int create)
+static struct adsi_state *getstatebyname(struct adsi_script *state, char *name, const char *script, int lineno, int create)
 {
 	int x;
 
@@ -616,7 +616,7 @@ static struct adsi_state *getstatebyname(struct adsi_script *state, char *name, 
 	return &state->states[state->numstates-1];
 }
 
-static struct adsi_display *getdisplaybyname(struct adsi_script *state, char *name, char *script, int lineno, int create)
+static struct adsi_display *getdisplaybyname(struct adsi_script *state, char *name, const char *script, int lineno, int create)
 {
 	int x;
 
@@ -641,7 +641,7 @@ static struct adsi_display *getdisplaybyname(struct adsi_script *state, char *na
 	return &state->displays[state->numdisplays-1];
 }
 
-static int showkeys(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
+static int showkeys(char *buf, char *name, int id, char *args, struct adsi_script *state, const char *script, int lineno)
 {
 	char *tok, newkey[80];
 	int bytes, x, flagid = 0;
@@ -688,7 +688,7 @@ static int showkeys(char *buf, char *name, int id, char *args, struct adsi_scrip
 	return 2 + x;
 }
 
-static int showdisplay(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
+static int showdisplay(char *buf, char *name, int id, char *args, struct adsi_script *state, const char *script, int lineno)
 {
 	char *tok, dispname[80];
 	int line = 0, flag = 0, cmd = 3;
@@ -739,7 +739,7 @@ static int showdisplay(char *buf, char *name, int id, char *args, struct adsi_sc
 	return 3;
 }
 
-static int cleardisplay(char *buf, char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
+static int cleardisplay(char *buf, char *name, int id, char *args, struct adsi_script *istate, const char *script, int lineno)
 {
 	char *tok = get_token(&args, script, lineno);
 
@@ -751,7 +751,7 @@ static int cleardisplay(char *buf, char *name, int id, char *args, struct adsi_s
 	return 2;
 }
 
-static int digitdirect(char *buf, char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
+static int digitdirect(char *buf, char *name, int id, char *args, struct adsi_script *istate, const char *script, int lineno)
 {
 	char *tok = get_token(&args, script, lineno);
 
@@ -763,7 +763,7 @@ static int digitdirect(char *buf, char *name, int id, char *args, struct adsi_sc
 	return 2;
 }
 
-static int clearcbone(char *buf, char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
+static int clearcbone(char *buf, char *name, int id, char *args, struct adsi_script *istate, const char *script, int lineno)
 {
 	char *tok = get_token(&args, script, lineno);
 
@@ -775,7 +775,7 @@ static int clearcbone(char *buf, char *name, int id, char *args, struct adsi_scr
 	return 2;
 }
 
-static int digitcollect(char *buf, char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
+static int digitcollect(char *buf, char *name, int id, char *args, struct adsi_script *istate, const char *script, int lineno)
 {
 	char *tok = get_token(&args, script, lineno);
 
@@ -787,7 +787,7 @@ static int digitcollect(char *buf, char *name, int id, char *args, struct adsi_s
 	return 2;
 }
 
-static int subscript(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
+static int subscript(char *buf, char *name, int id, char *args, struct adsi_script *state, const char *script, int lineno)
 {
 	char *tok = get_token(&args, script, lineno);
 	char subscr[80];
@@ -812,7 +812,7 @@ static int subscript(char *buf, char *name, int id, char *args, struct adsi_scri
 	return 2;
 }
 
-static int onevent(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
+static int onevent(char *buf, char *name, int id, char *args, struct adsi_script *state, const char *script, int lineno)
 {
 	char *tok = get_token(&args, script, lineno);
 	char subscr[80], sname[80];
@@ -879,10 +879,10 @@ static int onevent(char *buf, char *name, int id, char *args, struct adsi_script
 struct adsi_key_cmd {
 	char *name;
 	int id;
-	int (*add_args)(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno);
+	int (*add_args)(char *buf, char *name, int id, char *args, struct adsi_script *state, const char *script, int lineno);
 };
 
-static struct adsi_key_cmd kcmds[] = {
+static const struct adsi_key_cmd kcmds[] = {
 	{ "SENDDTMF", 0, send_dtmf },
 	/* Encoded DTMF would go here */
 	{ "ONHOOK", 0x81 },
@@ -924,7 +924,7 @@ static struct adsi_key_cmd kcmds[] = {
 	{ "EXIT", 0xa0 },
 };
 
-static struct adsi_key_cmd opcmds[] = {
+static const struct adsi_key_cmd opcmds[] = {
 	
 	/* 1 - Branch on event -- handled specially */
 	{ "SHOWKEYS", 2, showkeys },
@@ -944,7 +944,7 @@ static struct adsi_key_cmd opcmds[] = {
 };
 
 
-static int process_returncode(struct adsi_soft_key *key, char *code, char *args, struct adsi_script *state, char *script, int lineno)
+static int process_returncode(struct adsi_soft_key *key, char *code, char *args, struct adsi_script *state, const char *script, int lineno)
 {
 	int x, res;
 	char *unused;
@@ -973,7 +973,7 @@ static int process_returncode(struct adsi_soft_key *key, char *code, char *args,
 	return -1;
 }
 
-static int process_opcode(struct adsi_subscript *sub, char *code, char *args, struct adsi_script *state, char *script, int lineno)
+static int process_opcode(struct adsi_subscript *sub, char *code, char *args, struct adsi_script *state, const char *script, int lineno)
 {
 	int x, res, max = sub->id ? MAX_SUB_LEN : MAX_MAIN_LEN;
 	char *unused;
@@ -1010,7 +1010,7 @@ static int process_opcode(struct adsi_subscript *sub, char *code, char *args, st
 	return -1;
 }
 
-static int adsi_process(struct adsi_script *state, char *buf, char *script, int lineno)
+static int adsi_process(struct adsi_script *state, char *buf, const char *script, int lineno)
 {
 	char *keyword = get_token(&buf, script, lineno);
 	char *args, vname[256], tmp[80], tmp2[80];
@@ -1358,7 +1358,7 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 	return 0;
 }
 
-static struct adsi_script *compile_script(char *script)
+static struct adsi_script *compile_script(const char *script)
 {
 	FILE *f;
 	char fn[256], buf[256], *c;
@@ -1451,7 +1451,7 @@ static void dump_message(char *type, char *vname, unsigned char *buf, int buflen
 }
 #endif
 
-static int adsi_prog(struct ast_channel *chan, char *script)
+static int adsi_prog(struct ast_channel *chan, const char *script)
 {
 	struct adsi_script *scr;
 	int x, bytes;
@@ -1562,7 +1562,7 @@ static int adsi_prog(struct ast_channel *chan, char *script)
 	return 0;
 }
 
-static int adsi_exec(struct ast_channel *chan, void *data)
+static int adsi_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	

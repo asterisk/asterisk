@@ -732,7 +732,7 @@ static struct ast_custom_function fetch_function = {
 
 static char *app_odbcfinish = "ODBCFinish";
 
-static int exec_odbcfinish(struct ast_channel *chan, void *data)
+static int exec_odbcfinish(struct ast_channel *chan, const char *data)
 {
 	struct ast_datastore *store = ast_channel_datastore_find(chan, &odbc_info, data);
 	if (!store) /* Already freed; no big deal. */

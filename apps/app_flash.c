@@ -72,7 +72,7 @@ static inline int dahdi_wait_event(int fd)
 	return j;
 }
 
-static int flash_exec(struct ast_channel *chan, void *data)
+static int flash_exec(struct ast_channel *chan, const char *data)
 {
 	int res = -1;
 	int x;

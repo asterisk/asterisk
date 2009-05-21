@@ -104,7 +104,7 @@ static int icesencode(char *filename, int fd)
 	_exit(0);
 }
 
-static int ices_exec(struct ast_channel *chan, void *data)
+static int ices_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	int fds[2];

@@ -55,9 +55,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</application>
  ***/
 
-static char *app = "Milliwatt";
+static const char app[] = "Milliwatt";
 
-static char digital_milliwatt[] = {0x1e,0x0b,0x0b,0x1e,0x9e,0x8b,0x8b,0x9e} ;
+static const char digital_milliwatt[] = {0x1e,0x0b,0x0b,0x1e,0x9e,0x8b,0x8b,0x9e} ;
 
 static void *milliwatt_alloc(struct ast_channel *chan, void *params)
 {
@@ -139,7 +139,7 @@ static int old_milliwatt_exec(struct ast_channel *chan)
 	return -1;
 }
 
-static int milliwatt_exec(struct ast_channel *chan, void *data)
+static int milliwatt_exec(struct ast_channel *chan, const char *data)
 {
 	const char *options = data;
 	struct ast_app *playtones_app;

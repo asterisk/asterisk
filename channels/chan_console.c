@@ -797,6 +797,7 @@ static char *cli_console_dial(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	if (pvt->owner) {	/* already in a call */
 		int i;
 		struct ast_frame f = { AST_FRAME_DTMF, 0 };
+		const char *s;
 
 		if (a->argc == e->args) {	/* argument is mandatory here */
 			ast_cli(a->fd, "Already in a call. You can only dial digits until you hangup.\n");
@@ -883,7 +884,7 @@ static char *cli_console_hangup(struct ast_cli_entry *e, int cmd, struct ast_cli
 
 static char *cli_console_mute(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char *s;
+	const char *s;
 	struct console_pvt *pvt = get_active_pvt();
 	char *res = CLI_SUCCESS;
 

@@ -251,7 +251,7 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Asterisk Extension Langu
 	       );
 
 #ifdef AAL_ARGCHECK
-static char *ael_funclist[] =
+static const char * const ael_funclist[] =
 {
 	"AGENT",
 	"ARRAY",
