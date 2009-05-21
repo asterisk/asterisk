@@ -2,8 +2,9 @@
 ; Mappings for custom config file
 ;
 ; To get your CSV output in a format tailored to your liking, uncomment the
-; following look for the output in the cdr-custom/Master.csv file (usually
-; in /var/log/asterisk).
+; following lines and look for the output in the cdr-custom directory (usually
+; in /var/log/asterisk).  Depending on which mapping you uncomment, you may see
+; Master.csv, Simple.csv, or both.
 ;
 ;[mappings]
 ;Master.csv => "${CDR(clid)}","${CDR(src)}","${CDR(dst)}","${CDR(dcontext)}","${CDR(channel)}","${CDR(dstchannel)}","${CDR(lastapp)}","${CDR(lastdata)}","${CDR(start)}","${CDR(answer)}","${CDR(end)}","${CDR(duration)}","${CDR(billsec)}","${CDR(disposition)}","${CDR(amaflags)}","${CDR(accountcode)}","${CDR(uniqueid)}","${CDR(userfield)}"
