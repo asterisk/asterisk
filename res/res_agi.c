@@ -346,6 +346,103 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			value must be preceeded by <literal>s=</literal> and is also optional.</para>
 		</description>
 	</agi>
+	<agi name="say alpha" language="en_US">
+		<synopsis>
+			Says a given character string.
+		</synopsis>
+		<syntax>
+			<parameter name="number" required="true" />
+			<parameter name="escape_digits" required="true" />
+		</syntax>
+		<description>
+			<para>Say a given character string, returning early if any of the given DTMF digits
+			are received on the channel. Returns <literal>0</literal> if playback completes
+			without a digit being pressed, or the ASCII numerical value of the digit if one
+			was pressed or <literal>-1</literal> on error/hangup.</para>
+		</description>
+	</agi>
+	<agi name="say digits" language="en_US">
+		<synopsis>
+			Says a given digit string.
+		</synopsis>
+		<syntax>
+			<parameter name="number" required="true" />
+			<parameter name="escape_digits" required="true" />
+		</syntax>
+		<description>
+			<para>Say a given digit string, returning early if any of the given DTMF digits
+			are received on the channel. Returns <literal>0</literal> if playback completes
+			without a digit being pressed, or the ASCII numerical value of the digit if one
+			was pressed or <literal>-1</literal> on error/hangup.</para>
+		</description>
+	</agi>
+	<agi name="say number" language="en_US">
+		<synopsis>
+			Says a given number.
+		</synopsis>
+		<syntax>
+			<parameter name="number" required="true" />
+			<parameter name="escape_digits" required="true" />
+			<parameter name="gender" />
+		</syntax>
+		<description>
+			<para>Say a given number, returning early if any of the given DTMF digits
+			are received on the channel.  Returns <literal>0</literal> if playback
+			completes without a digit being pressed, or the ASCII numerical value of
+			the digit if one was pressed or <literal>-1</literal> on error/hangup.</para>
+		</description>
+	</agi>
+	<agi name="say phonetic" language="en_US">
+		<synopsis>
+			Says a given character string with phonetics.
+		</synopsis>
+		<syntax>
+			<parameter name="string" required="true" />
+			<parameter name="escape_digits" required="true" />
+		</syntax>
+		<description>
+			<para>Say a given character string with phonetics, returning early if any of the
+			given DTMF digits are received on the channel. Returns <literal>0</literal> if
+			playback completes without a digit pressed, the ASCII numerical value of the digit
+			if one was pressed, or <literal>-1</literal> on error/hangup.</para>
+		</description>
+	</agi>
+	<agi name="say date" language="en_US">
+		<synopsis>
+			Says a given date.
+		</synopsis>
+		<syntax>
+			<parameter name="date" required="true">
+				<para>Is number of seconds elapsed since 00:00:00 on January 1, 1970.
+				Coordinated Universal Time (UTC).</para>
+			</parameter>
+			<parameter name="escape_digits" required="true" />
+		</syntax>
+		<description>
+			<para>Say a given date, returning early if any of the given DTMF digits are
+			received on the channel. Returns <literal>0</literal> if playback
+			completes without a digit being pressed, or the ASCII numerical value of the
+			digit if one was pressed or <literal>-1</literal> on error/hangup.</para>
+		</description>
+	</agi>
+	<agi name="say time" language="en_US">
+		<synopsis>
+			Says a given time.
+		</synopsis>
+		<syntax>
+			<parameter name="time" required="true">
+				<para>Is number of seconds elapsed since 00:00:00 on January 1, 1970.
+				Coordinated Universal Time (UTC).</para>
+			</parameter>
+			<parameter name="escape_digits" required="true" />
+		</syntax>
+		<description>
+			<para>Say a given time, returning early if any of the given DTMF digits are
+			received on the channel. Returns <literal>0</literal> if playback completes
+			without a digit being pressed, or the ASCII numerical value of the digit if
+			one was pressed or <literal>-1</literal> on error/hangup.</para>
+		</description>
+	</agi>
 	<agi name="set music" language="en_US">
 		<synopsis>
 			Enable/Disable Music on hold generator
@@ -2416,43 +2513,6 @@ static const char usage_controlstreamfile[] =
 " extension must not be included in the filename.\n\n"
 " Note: ffchar and rewchar default to * and # respectively.\n";
 
-static const char usage_saynumber[] =
-" Usage: SAY NUMBER <number> <escape digits> [gender]\n"
-"	Say a given number, returning early if any of the given DTMF digits\n"
-" are received on the channel.  Returns 0 if playback completes without a digit\n"
-" being pressed, or the ASCII numerical value of the digit if one was pressed or\n"
-" -1 on error/hangup.\n";
-
-static const char usage_saydigits[] =
-" Usage: SAY DIGITS <number> <escape digits>\n"
-"	Say a given digit string, returning early if any of the given DTMF digits\n"
-" are received on the channel. Returns 0 if playback completes without a digit\n"
-" being pressed, or the ASCII numerical value of the digit if one was pressed or\n"
-" -1 on error/hangup.\n";
-
-static const char usage_sayalpha[] =
-" Usage: SAY ALPHA <number> <escape digits>\n"
-"	Say a given character string, returning early if any of the given DTMF digits\n"
-" are received on the channel. Returns 0 if playback completes without a digit\n"
-" being pressed, or the ASCII numerical value of the digit if one was pressed or\n"
-" -1 on error/hangup.\n";
-
-static const char usage_saydate[] =
-" Usage: SAY DATE <date> <escape digits>\n"
-"	Say a given date, returning early if any of the given DTMF digits are\n"
-" received on the channel.  <date> is number of seconds elapsed since 00:00:00\n"
-" on January 1, 1970, Coordinated Universal Time (UTC). Returns 0 if playback\n"
-" completes without a digit being pressed, or the ASCII numerical value of the\n"
-" digit if one was pressed or -1 on error/hangup.\n";
-
-static const char usage_saytime[] =
-" Usage: SAY TIME <time> <escape digits>\n"
-"	Say a given time, returning early if any of the given DTMF digits are\n"
-" received on the channel.  <time> is number of seconds elapsed since 00:00:00\n"
-" on January 1, 1970, Coordinated Universal Time (UTC). Returns 0 if playback\n"
-" completes without a digit being pressed, or the ASCII numerical value of the\n"
-" digit if one was pressed or -1 on error/hangup.\n";
-
 static const char usage_saydatetime[] =
 " Usage: SAY DATETIME <time> <escape digits> [format] [timezone]\n"
 "	Say a given time, returning early if any of the given DTMF digits are\n"
@@ -2463,13 +2523,6 @@ static const char usage_saydatetime[] =
 " /usr/share/zoneinfo.  Defaults to machine default. Returns 0 if playback\n"
 " completes without a digit being pressed, or the ASCII numerical value of the\n"
 " digit if one was pressed or -1 on error/hangup.\n";
-
-static const char usage_sayphonetic[] =
-" Usage: SAY PHONETIC <string> <escape digits>\n"
-"	Say a given character string with phonetics, returning early if any of the\n"
-" given DTMF digits are received on the channel. Returns 0 if playback\n"
-" completes without a digit pressed, the ASCII numerical value of the digit\n"
-" if one was pressed, or -1 on error/hangup.\n";
 
 static const char usage_setcontext[] =
 " Usage: SET CONTEXT <desired context>\n"
@@ -2543,12 +2596,12 @@ static struct agi_command commands[] = {
 	{ { "receive", "char", NULL }, handle_recvchar, NULL, NULL, 0 },
 	{ { "receive", "text", NULL }, handle_recvtext, NULL, NULL, 0 },
 	{ { "record", "file", NULL }, handle_recordfile, NULL, NULL, 0 }, 
-	{ { "say", "alpha", NULL }, handle_sayalpha, "Says a given character string", usage_sayalpha , 0 },
-	{ { "say", "digits", NULL }, handle_saydigits, "Says a given digit string", usage_saydigits , 0 },
-	{ { "say", "number", NULL }, handle_saynumber, "Says a given number", usage_saynumber , 0 },
-	{ { "say", "phonetic", NULL }, handle_sayphonetic, "Says a given character string with phonetics", usage_sayphonetic , 0 },
-	{ { "say", "date", NULL }, handle_saydate, "Says a given date", usage_saydate , 0 },
-	{ { "say", "time", NULL }, handle_saytime, "Says a given time", usage_saytime , 0 },
+	{ { "say", "alpha", NULL }, handle_sayalpha, NULL, NULL, 0},
+	{ { "say", "digits", NULL }, handle_saydigits, NULL, NULL, 0 },
+	{ { "say", "number", NULL }, handle_saynumber, NULL, NULL, 0 },
+	{ { "say", "phonetic", NULL }, handle_sayphonetic, NULL, NULL, 0}, 
+	{ { "say", "date", NULL }, handle_saydate, NULL, NULL, 0}, 
+	{ { "say", "time", NULL }, handle_saytime, NULL, NULL, 0}, 
 	{ { "say", "datetime", NULL }, handle_saydatetime, "Says a given time as specfied by the format given", usage_saydatetime , 0 },
 	{ { "send", "image", NULL }, handle_sendimage, "Sends images to channels supporting it", usage_sendimage , 0 },
 	{ { "send", "text", NULL }, handle_sendtext, "Sends text to channels supporting it", usage_sendtext , 0 },
