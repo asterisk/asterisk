@@ -3991,7 +3991,7 @@ static int dahdi_send_keypad_facility_exec(struct ast_channel *chan, const char 
 {
 	/* Data will be our digit string */
 	struct dahdi_pvt *p;
-	const char *digits = (const char *) data;
+	const char *digits = data;
 
 	if (ast_strlen_zero(digits)) {
 		ast_debug(1, "No digit string sent to application!\n");

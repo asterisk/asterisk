@@ -561,7 +561,7 @@ static int aji_send_exec(struct ast_channel *chan, const char *data)
 
 	AST_STANDARD_APP_ARGS(args, s);
 	if (args.argc < 3) {
-		ast_log(LOG_ERROR, "JabberSend requires 3 arguments: '%s'\n", (char *) data);
+		ast_log(LOG_ERROR, "JabberSend requires 3 arguments: '%s'\n", data);
 		return -1;
 	}
 

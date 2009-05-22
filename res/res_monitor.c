@@ -476,12 +476,12 @@ static int start_monitor_exec(struct ast_channel *chan, const char *data)
 	);
 	
 	/* Parse arguments. */
-	if (ast_strlen_zero((char*)data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_ERROR, "Monitor requires an argument\n");
 		return 0;
 	}
 
-	parse = ast_strdupa((char*)data);
+	parse = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (!ast_strlen_zero(args.options)) {
