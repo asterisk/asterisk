@@ -1988,6 +1988,8 @@ struct sip_peer {
 		AST_STRING_FIELD(engine);               /*!<  RTP Engine to use */
 		);
 	struct sip_socket socket;	/*!< Socket used for this peer */
+	enum sip_transport default_outbound_transport;    /*!< Peer Registration may change the default outbound transport.
+												If register expires, default should be reset. to this value */
 	unsigned int transports:3;      /*!< Transports (enum sip_transport) that are acceptable for this peer */
 	struct sip_auth *auth;		/*!< Realm authentication list */
 	int amaflags;			/*!< AMA Flags (for billing) */
@@ -2002,7 +2004,7 @@ struct sip_peer {
 	int lastmsgssent;
 	unsigned int sipoptions;	/*!<  Supported SIP options */
 	struct ast_flags flags[2];	/*!<  SIP_ flags */
-	
+
 	/*! Mailboxes that this peer cares about */
 	AST_LIST_HEAD_NOLOCK(, sip_mailbox) mailboxes;
 
@@ -2024,7 +2026,7 @@ struct sip_peer {
 	struct ast_dnsmgr_entry *dnsmgr;/*!<  DNS refresh manager for peer */
 	struct sockaddr_in addr;	/*!<  IP address of peer */
 	int maxcallbitrate;		/*!< Maximum Bitrate for a video call */
-	
+
 	/* Qualification */
 	struct sip_pvt *call;		/*!<  Call pointer */
 	int pokeexpire;			/*!<  When to expire poke (qualify= checking) */
@@ -3333,6 +3335,28 @@ static inline int sip_debug_test_pvt(struct sip_pvt *p)
 	return sip_debug_test_addr(sip_real_dst(p));
 }
 
+/*! \brief Return int representing a bit field of transport types found in const char *transport */
+static int get_transport_str2enum(const char *transport)
+{
+	int res = 0;
+
+	if (ast_strlen_zero(transport)) {
+		return res;
+	}
+
+	if (!strcasecmp(transport, "udp")) {
+		res |= SIP_TRANSPORT_UDP;
+	}
+	if (!strcasecmp(transport, "tcp")) {
+		res |= SIP_TRANSPORT_TCP;
+	}
+	if (!strcasecmp(transport, "tls")) {
+		res |= SIP_TRANSPORT_TLS;
+	}
+
+	return res;
+}
+
 /*! \brief Return configuration of transports for a device */
 static inline const char *get_transport_list(unsigned int transports) {
 	switch (transports) {
@@ -4169,10 +4193,9 @@ static char *get_in_brackets(char *tmp)
  * general form we are expecting is sip[s]:username[:password][;parameter]@host[:port][;...] 
  * \endverbatim
  * 
- * \todo This function needs to look for ;transport= too
  */
 static int parse_uri(char *uri, char *scheme,
-	char **ret_name, char **pass, char **domain, char **port, char **options)
+	char **ret_name, char **pass, char **domain, char **port, char **options, char **transport)
 {
 	char *name = NULL;
 	int error = 0;
@@ -4191,6 +4214,17 @@ static int parse_uri(char *uri, char *scheme,
 			error = -1;
 		}
 	}
+	if (transport) {
+		char *t, *type = "";
+		*transport = "";
+		if ((t = strstr(uri, "transport="))) {
+			strsep(&t, "=");
+			if ((type = strsep(&t, ";"))) {
+				*transport = type;
+			}
+		}
+	}
+
 	if (!domain) {
 		/* if we don't want to split around domain, keep everything as a name,
 		 * so we need to do nothing here, except remember why.
@@ -11574,11 +11608,24 @@ static void destroy_association(struct sip_peer *peer)
 	}
 }
 
+static void set_peer_transport(struct sip_peer *peer, int transport)
+{
+	/* if the transport type changes, clear all socket data */
+	if (peer->socket.type != transport) {
+		peer->socket.type = transport;
+		peer->socket.fd = -1;
+		if (peer->socket.tcptls_session) {
+			ao2_ref(peer->socket.tcptls_session, -1);
+			peer->socket.tcptls_session = NULL;
+		}
+	}
+}
+
 /*! \brief Expire registration of SIP peer */
 static int expire_register(const void *data)
 {
 	struct sip_peer *peer = (struct sip_peer *)data;
-	
+
 	if (!peer)		/* Hmmm. We have no peer. Weird. */
 		return 0;
 
@@ -11586,7 +11633,8 @@ static int expire_register(const void *data)
 	memset(&peer->addr, 0, sizeof(peer->addr));
 
 	destroy_association(peer);	/* remove registration data from storage */
-	
+	set_peer_transport(peer, peer->default_outbound_transport);
+
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", peer->name);
 	register_peer_exten(peer, FALSE);	/* Remove regexten */
 	ast_devstate_changed(AST_DEVICE_UNKNOWN, "SIP/%s", peer->name);
@@ -11736,16 +11784,16 @@ static int __set_address_from_contact(const char *fullcontact, struct sockaddr_i
 		We still need to be able to send to the remote agent through the proxy.
        */
 	if (tcp) {
-		if (!parse_uri(contact, "sips:", &contact, NULL, &host, &pt, NULL)) {
+		if (!parse_uri(contact, "sips:", &contact, NULL, &host, &pt, NULL, NULL)) {
 			use_tls = TRUE;
 		} else {
-			if (parse_uri(contact2, "sip:", &contact, NULL, &host, &pt, NULL))
+			if (parse_uri(contact2, "sip:", &contact, NULL, &host, &pt, NULL, NULL))
 				ast_log(LOG_NOTICE, "'%s' is not a valid SIP contact (missing sip:) trying to use anyway\n", contact);
 		}
 		port = !ast_strlen_zero(pt) ? atoi(pt) : STANDARD_TLS_PORT;
 		/*! \todo XXX why are we setting TLS port if there's no port given? parse_uri needs to return the transport. */
 	} else {
-		if (parse_uri(contact, "sip:", &contact, NULL, &host, &pt, NULL))
+		if (parse_uri(contact, "sip:", &contact, NULL, &host, &pt, NULL, NULL))
 			ast_log(LOG_NOTICE, "'%s' is not a valid SIP contact (missing sip:) trying to use anyway\n", contact);
 		port = !ast_strlen_zero(pt) ? atoi(pt) : STANDARD_SIP_PORT;
 	}
@@ -11782,20 +11830,21 @@ static int set_address_from_contact(struct sip_pvt *pvt)
 	return __set_address_from_contact(pvt->fullcontact, &pvt->sa, pvt->socket.type == SIP_TRANSPORT_TLS ? 1 : 0);
 }
 
-
 /*! \brief Parse contact header and save registration (peer registration) */
 static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, struct sip_peer *peer, struct sip_request *req)
 {
-	char contact[SIPBUFSIZE]; 
+	char contact[SIPBUFSIZE];
 	char data[SIPBUFSIZE];
 	const char *expires = get_header(req, "Expires");
 	int expire = atoi(expires);
-	char *curi, *host, *pt, *curi2;
+	char *curi, *host, *pt, *curi2, *transport;
 	int port;
+	int transport_type;
 	const char *useragent;
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	struct sockaddr_in oldsin, testsin;
+
 
 	ast_copy_string(contact, get_header(req, "Contact"), sizeof(contact));
 
@@ -11811,8 +11860,6 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		}
 	}
 
-	if (peer->socket.type == req->socket.type)
-		copy_socket_data(&peer->socket, &req->socket);
 	copy_socket_data(&pvt->socket, &req->socket);
 
 	/* Look for brackets */
@@ -11834,12 +11881,13 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	} else if (!strcasecmp(curi, "*") || !expire) {	/* Unregister this peer */
 		/* This means remove all registrations and return OK */
 		memset(&peer->addr, 0, sizeof(peer->addr));
+		set_peer_transport(peer, peer->default_outbound_transport);
 
 		AST_SCHED_DEL_UNREF(sched, peer->expire,
 				unref_peer(peer, "remove register expire ref"));
 
 		destroy_association(peer);
-		
+
 		register_peer_exten(peer, FALSE);	/* Remove extension from regexten= setting in sip.conf */
 		ast_string_field_set(peer, fullcontact, "");
 		ast_string_field_set(peer, useragent, "");
@@ -11860,22 +11908,35 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	ast_string_field_build(pvt, our_contact, "<%s>", curi);
 
 	/* Make sure it's a SIP URL */
-	/*! \todo This code assumes that the Contact is using the same transport as the
-		REGISTER request. That might not be true at all. You can receive
-		sips: requests over any transport. Needs to be fixed.
-		Does not parse the ;transport uri parameter at this point, which might be handy
-		in some situations.
-	*/
 	if (pvt->socket.type == SIP_TRANSPORT_TLS) {
-		if (parse_uri(curi, "sips:", &curi, NULL, &host, &pt, NULL)) {
-			if (parse_uri(curi2, "sip:", &curi, NULL, &host, &pt, NULL))
+		if (parse_uri(curi, "sips:", &curi, NULL, &host, &pt, NULL, &transport)) {
+			if (parse_uri(curi2, "sip:", &curi, NULL, &host, &pt, NULL, &transport))
 				ast_log(LOG_NOTICE, "Not a valid SIP contact (missing sip:) trying to use anyway\n");
 		}
 		port = !ast_strlen_zero(pt) ? atoi(pt) : STANDARD_TLS_PORT;
 	} else {
-		if (parse_uri(curi, "sip:", &curi, NULL, &host, &pt, NULL))
+		if (parse_uri(curi, "sip:", &curi, NULL, &host, &pt, NULL, &transport))
 			ast_log(LOG_NOTICE, "Not a valid SIP contact (missing sip:) trying to use anyway\n");
 		port = !ast_strlen_zero(pt) ? atoi(pt) : STANDARD_SIP_PORT;
+	}
+
+	/* handle the transport type specified in Contact header. */
+	if ((transport_type = get_transport_str2enum(transport))) {
+		/* if the port is not specified but the transport is, make sure to set the
+		 * default port to match the specified transport.  This may or may not be the
+		 * same transport used by the pvt struct for the Register dialog. */
+		if (ast_strlen_zero(pt)) {
+			port = (transport_type == SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT;
+		}
+	} else {
+		transport_type = pvt->socket.type;
+	}
+
+	/* if the peer's socket type is different than the Registration
+	 * transport type, change it.  If it got this far, it is a
+	 * supported type, but check just in case */
+	if ((peer->socket.type != transport_type) && (peer->transports & transport_type)) {
+		set_peer_transport(peer, transport_type);
 	}
 
 	oldsin = peer->addr;
@@ -11916,6 +11977,16 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		peer->addr = pvt->recv;
 	}
 
+	/* if the Contact header information copied into peer->addr matches the
+	 * received address, and the transport types are the same, then copy socket
+	 * data into the peer struct */
+	if ((peer->socket.type == pvt->socket.type) &&
+		(peer->addr.sin_addr.s_addr == pvt->recv.sin_addr.s_addr) &&
+		(peer->addr.sin_port == pvt->recv.sin_port)){
+
+		copy_socket_data(&peer->socket, &pvt->socket);
+	}
+
 	/* Now that our address has been updated put ourselves back into the container for lookups */
 	ao2_t_link(peers_by_ip, peer, "ao2_link into peers_by_ip table");
 
@@ -11935,7 +12006,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	if (peer->is_realtime && !ast_test_flag(&peer->flags[1], SIP_PAGE2_RTCACHEFRIENDS)) {
 		peer->expire = -1;
 	} else {
-		peer->expire = ast_sched_add(sched, (expire + 10) * 1000, expire_register, 
+		peer->expire = ast_sched_add(sched, (expire + 10) * 1000, expire_register,
 				ref_peer(peer, "add registration ref"));
 		if (peer->expire == -1) {
 			unref_peer(peer, "remote registration ref");
@@ -11947,7 +12018,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		XXX WHY???? XXX
 		\todo Fix this immediately.
 	*/
-	if (!peer->rt_fromcontact && (peer->socket.type & SIP_TRANSPORT_UDP)) 
+	if (!peer->rt_fromcontact && (peer->socket.type & SIP_TRANSPORT_UDP))
 		ast_db_put("SIP/Registry", peer->name, data);
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Registered\r\nAddress: %s\r\nPort: %d\r\n", peer->name,  ast_inet_ntoa(peer->addr.sin_addr), ntohs(peer->addr.sin_port));
 
@@ -13805,12 +13876,12 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	/*! \todo Samme logical error as in many places above. Need a generic function for this.
  	*/
 	if (p->socket.type == SIP_TRANSPORT_TLS) {
-		if (parse_uri(of, "sips:", &of, &dummy, &domain, &dummy, &dummy)) {
-			if (parse_uri(of2, "sip:", &of, &dummy, &domain, &dummy, &dummy))
+		if (parse_uri(of, "sips:", &of, &dummy, &domain, &dummy, &dummy, NULL)) {
+			if (parse_uri(of2, "sip:", &of, &dummy, &domain, &dummy, &dummy, NULL))
 				ast_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
 		}
 	} else {
-		if (parse_uri(of, "sip:", &of, &dummy, &domain, &dummy, &dummy))
+		if (parse_uri(of, "sip:", &of, &dummy, &domain, &dummy, &dummy, NULL))
 			ast_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
 	}
 
@@ -23485,9 +23556,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 {
 	struct sip_peer *peer = NULL;
 	struct ast_ha *oldha = NULL;
-	int found=0;
-	int firstpass=1;
-	int format=0;		/* Ama flags */
+	int found = 0;
+	int firstpass = 1;
+	int format = 0;		/* Ama flags */
 	time_t regseconds = 0;
 	struct ast_flags peerflags[2] = {{(0)}};
 	struct ast_flags mask[2] = {{(0)}};
@@ -23550,8 +23621,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	/* If we have realm authentication information, remove them (reload) */
 	clear_realm_authentication(peer->auth);
 	peer->auth = NULL;
+	peer->default_outbound_transport = 0;
 	peer->transports = 0;
-	peer->socket.type = 0;
 
 	for (; v || ((v = alt) && !(alt=NULL)); v = v->next) {
 		if (handle_common_options(&peerflags[0], &mask[0], v))
@@ -23563,7 +23634,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			while ((trans = strsep(&val, ","))) {
 				trans = ast_skip_blanks(trans);
 
-				if (!strncasecmp(trans, "udp", 3)) 
+				if (!strncasecmp(trans, "udp", 3))
 					peer->transports |= SIP_TRANSPORT_UDP;
 				else if (!strncasecmp(trans, "tcp", 3))
 					peer->transports |= SIP_TRANSPORT_TCP;
@@ -23572,9 +23643,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				else
 					ast_log(LOG_NOTICE, "'%s' is not a valid transport type. if no other is specified, udp will be used.\n", trans);
 
-				if (!peer->socket.type) { /*!< The first transport listed should be used for outgoing */
-					peer->socket.type = peer->transports;
-					peer->socket.fd = -1;
+				if (!peer->default_outbound_transport) { /*!< The first transport listed should be default outbound */
+					peer->default_outbound_transport = peer->transports;
 				}
 			}
 		} else if (realtime && !strcasecmp(v->name, "regseconds")) {
@@ -23882,12 +23952,21 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		}
 	}
 
-	if (!peer->socket.type) {
+	if (!peer->default_outbound_transport) {
 		/* Set default set of transports */
 		peer->transports = default_transports;
 		/* Set default primary transport */
-		peer->socket.type = default_primary_transport;
-		peer->socket.fd = -1;
+		peer->default_outbound_transport = default_primary_transport;
+	}
+
+	/* The default transport type set during build_peer should only replace the socket.type when...
+	 * 1. Registration is not present and the socket.type and default transport types are different.
+	 * 2. The socket.type is not an acceptable transport type after rebuilding peer.
+	 * 3. The socket.type is not set yet. */
+	if (((peer->socket.type != peer->default_outbound_transport) && (peer->expire == -1)) ||
+		!(peer->socket.type & peer->transports) || !(peer->socket.type)) {
+
+		set_peer_transport(peer, peer->default_outbound_transport);
 	}
 
 	if (fullcontact->used > 0) {
@@ -23912,7 +23991,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		if ((params = strchr(_srvlookup, ';'))) {
 			*params++ = '\0';
 		}
-		
+
 		snprintf(transport, sizeof(transport), "_sip._%s", get_transport(peer->socket.type));
 
 		if (ast_dnsmgr_lookup(_srvlookup, &peer->addr, &peer->dnsmgr, sip_cfg.srvlookup ? transport : NULL)) {

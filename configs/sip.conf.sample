@@ -906,11 +906,14 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;remotesecret=guessit             ; Our password to their service
 ;defaultuser=yourusername         ; Authentication user for outbound proxies
 ;fromuser=yourusername            ; Many SIP providers require this!
-;fromdomain=provider.sip.domain        
+;fromdomain=provider.sip.domain 
 ;host=box.provider.com
-;transport=udp,tcp                ; This sets the transport type to udp for outgoing, and will
-;                                 ;   accept both tcp and udp. Default is udp. The first transport
-;                                 ;   listed will always be used for outgoing connections.
+;transport=udp,tcp                ; This sets the default transport type to udp for outgoing, and will
+;                                 ; accept both tcp and udp. The default transport type is only used for
+;                                 ; outbound messages until a Registration takes place.  During the
+;                                 ; peer Registration the transport type may change to another supported
+;                                 ; type if the peer requests so.
+
 ;usereqphone=yes                  ; This provider requires ";user=phone" on URI
 ;callcounter=yes                  ; Enable call counter
 ;busylevel=2                      ; Signal busy at 2 or more calls
