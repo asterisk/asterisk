@@ -3462,6 +3462,8 @@ static int unload_module(void)
 	res |= ast_unregister_application(app_minivm_notify);
 	res |= ast_unregister_application(app_minivm_delete);
 	res |= ast_unregister_application(app_minivm_accmess);
+	res |= ast_unregister_application(app_minivm_mwi);
+
 	ast_cli_unregister_multiple(cli_minivm, ARRAY_LEN(cli_minivm));
 	ast_custom_function_unregister(&minivm_account_function);
 	ast_custom_function_unregister(&minivm_counter_function);
