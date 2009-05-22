@@ -8171,8 +8171,9 @@ static void do_immediate_setup(struct misdn_bchannel *bc, struct chan_list *ch, 
 
 	strcpy(ast->exten, "s");
 
-	if (pbx_start_chan(ch) < 0) {
+	if (!ast_canmatch_extension(ast, ast->context, ast->exten, 1, bc->oad) || pbx_start_chan(ch) < 0) {
 		ast = NULL;
+		bc->out_cause = AST_CAUSE_UNALLOCATED;
 		hangup_chan(ch);
 		hanguptone_indicate(ch);
 
