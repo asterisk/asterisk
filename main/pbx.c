@@ -717,6 +717,24 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="application">RaiseException</ref>
 		</see-also>
 	</function>
+	<manager name="ShowDialPlan" language="en_US">
+		<synopsis>
+			La merde se produit.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Extension">
+				<para>Show a specific extension.</para>
+			</parameter>
+			<parameter name="Context">
+				<para>Show a specific context.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Show dialplan contexts and extensions. Be aware that showing the full dialplan
+			may take a lot of capacity.</para>
+		</description>
+	</manager>
  ***/
 
 #ifdef LOW_MEMORY
@@ -863,7 +881,9 @@ struct ast_app {
 		AST_STRING_FIELD(arguments);    /*!< Arguments description */
 		AST_STRING_FIELD(seealso);      /*!< See also */
 	);
-	enum ast_doc_src docsrc;/*!< Where the documentation come from. */
+#ifdef AST_XML_DOCS
+	enum ast_doc_src docsrc;		/*!< Where the documentation come from. */
+#endif
 	AST_RWLIST_ENTRY(ast_app) list;		/*!< Next app in list */
 	struct ast_module *module;		/*!< Module this app belongs to */
 	char name[0];				/*!< Name of the application */
@@ -3267,9 +3287,11 @@ int ast_custom_function_unregister(struct ast_custom_function *acf)
 
 	AST_RWLIST_WRLOCK(&acf_root);
 	if ((cur = AST_RWLIST_REMOVE(&acf_root, acf, acflist))) {
+#ifdef AST_XML_DOCS
 		if (cur->docsrc == AST_XML_DOC) {
 			ast_string_field_free_memory(acf);
 		}
+#endif
 		ast_verb(2, "Unregistered custom function %s\n", cur->name);
 	}
 	AST_RWLIST_UNLOCK(&acf_root);
@@ -3340,7 +3362,9 @@ int __ast_custom_function_register(struct ast_custom_function *acf, struct ast_m
 	}
 
 	acf->mod = mod;
+#ifdef AST_XML_DOCS
 	acf->docsrc = AST_STATIC_DOC;
+#endif
 
 	if (acf_retrieve_docs(acf)) {
 		return -1;
@@ -5395,8 +5419,8 @@ int ast_register_application2(const char *app, int (*execute)(struct ast_channel
 #endif
 		ast_string_field_set(tmp, synopsis, synopsis);
 		ast_string_field_set(tmp, description, description);
-		tmp->docsrc = AST_STATIC_DOC;
 #ifdef AST_XML_DOCS
+		tmp->docsrc = AST_STATIC_DOC;
 	}
 #endif
 
@@ -6415,15 +6439,6 @@ static int manager_show_dialplan(struct mansession *s, const struct message *m)
 	/* everything ok */
 	return 0;
 }
-
-static const char mandescr_show_dialplan[] =
-"Description: Show dialplan contexts and extensions.\n"
-"Be aware that showing the full dialplan may take a lot of capacity\n"
-"Variables: \n"
-" ActionID: <id>		Action ID for this AMI transaction (optional)\n"
-" Extension: <extension>	Extension (Optional)\n"
-" Context: <context>		Context (Optional)\n"
-"\n";
 
 /*! \brief CLI support for listing global variables in a parseable way */
 static char *handle_show_globals(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -9546,7 +9561,7 @@ int load_pbx(void)
 	}
 
 	/* Register manager application */
-	ast_manager_register2("ShowDialPlan", EVENT_FLAG_CONFIG | EVENT_FLAG_REPORTING, manager_show_dialplan, "List dialplan", mandescr_show_dialplan);
+	ast_manager_register_xml("ShowDialPlan", EVENT_FLAG_CONFIG | EVENT_FLAG_REPORTING, manager_show_dialplan);
 
 	if (!(device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE, device_state_cb, NULL,
 			AST_EVENT_IE_END))) {

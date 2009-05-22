@@ -473,6 +473,79 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			Check the <literal>domain=</literal> configuration in <filename>sip.conf</filename>.</para>
 		</description>
 	</function>
+	<manager name="SIPpeers" language="en_US">
+		<synopsis>
+			List SIP peers (text format).
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>Lists SIP peers in text format with details on current status.
+			Peerlist will follow as separate events, followed by a final event called
+			PeerlistComplete.</para>
+		</description>
+	</manager>
+	<manager name="SIPshowpeer" language="en_US">
+		<synopsis>
+			show SIP peer (text format).
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Peer" required="true">
+				<para>The peer name you want to check.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Show one SIP peer with details on current status.</para>
+		</description>
+	</manager>
+	<manager name="SIPqualifypeer" language="en_US">
+		<synopsis>
+			Qualify SIP peers.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Peer" required="true">
+				<para>The peer name you want to qualify.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Qualify a SIP peer.</para>
+		</description>
+	</manager>
+	<manager name="SIPshowregistry" language="en_US">
+		<synopsis>
+			Show SIP registrations (text format).
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>Lists all registration requests and status. Registrations will follow as separate
+			events. followed by a final event called RegistrationsComplete.</para>
+		</description>
+	</manager>
+	<manager name="SIPnotify" language="en_US">
+		<synopsis>
+			Send a SIP notify.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Peer to receive the notify.</para>
+			</parameter>
+			<parameter name="Variable" required="true">
+				<para>At least one variable pair must be specified.
+				<replaceable>name</replaceable>=<replaceable>value</replaceable></para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Sends a SIP Notify event.</para>
+			<para>All parameters for this event must be specified in the body of this request
+			via multiple Variable: name=value sequences.</para>
+		</description>
+	</manager>
  ***/
 
 #ifndef FALSE
@@ -10859,15 +10932,6 @@ static int manager_sipnotify(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static const char mandescr_sipnotify[] =
-"Description: Sends a SIP Notify event\n"
-"All parameters for this event must be specified in the body of this request\n"
-"via multiple Variable: name=value sequences.\n"
-"Variables: \n"
-"  *Channel: <peername>       Peer to receive the notify. Required.\n"
-"  *Variable: <name>=<value>  At least one variable pair must be specified.\n"
-"  ActionID: <id>             Action ID for this transaction. Will be returned.\n";
-
 /*! \brief Send a provisional response indicating that a call was redirected
  */
 static void update_redirecting(struct sip_pvt *p, const void *data, size_t datalen)
@@ -14166,14 +14230,6 @@ static char *sip_show_users(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 #undef FORMAT
 }
 
-/*! \brief Manager Action SIPShowRegistry description */
-static const char mandescr_show_registry[] =
-"Description: Lists all registration requests and status\n"
-"Registrations will follow as separate events. followed by a final event called\n"
-"RegistrationsComplete.\n"
-"Variables: \n"
-"  ActionID: <id>       Action ID for this transaction. Will be returned.\n";
-
 /*! \brief Show SIP registrations in the manager API */
 static int manager_show_registry(struct mansession *s, const struct message *m)
 {
@@ -14211,13 +14267,6 @@ static int manager_show_registry(struct mansession *s, const struct message *m)
 	
 	return 0;
 }
-
-static const char mandescr_show_peers[] = 
-"Description: Lists SIP peers in text format with details on current status.\n"
-"Peerlist will follow as separate events, followed by a final event called\n"
-"PeerlistComplete.\n"
-"Variables: \n"
-"  ActionID: <id>	Action ID for this transaction. Will be returned.\n";
 
 /*! \brief  Show SIP peers in the manager API */
 /*    Inspired from chan_iax2 */
@@ -14836,12 +14885,6 @@ static char *sip_show_domains(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	}
 }
 #undef FORMAT
-
-static const char mandescr_show_peer[] = 
-"Description: Show one SIP peer with details on current status.\n"
-"Variables: \n"
-"  Peer: <name>           The peer name you want to check.\n"
-"  ActionID: <id>	  Optional action ID for this AMI transaction.\n";
 
 /*! \brief Show SIP peers in the manager API  */
 static int manager_sip_show_peer(struct mansession *s, const struct message *m)
@@ -25478,16 +25521,11 @@ static int load_module(void)
 	ast_custom_function_register(&checksipdomain_function);
 
 	/* Register manager commands */
-	ast_manager_register2("SIPpeers", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_sip_show_peers,
-			"List SIP peers (text format)", mandescr_show_peers);
-	ast_manager_register2("SIPshowpeer", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_sip_show_peer,
-			"Show SIP peer (text format)", mandescr_show_peer);
-	ast_manager_register2("SIPqualifypeer", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_sip_qualify_peer,
-			"Show SIP peer (text format)", mandescr_show_peer);	/*! \todo Fix this XXX This must be all wrong XXXX */
-	ast_manager_register2("SIPshowregistry", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_show_registry,
-			"Show SIP registrations (text format)", mandescr_show_registry);
-	ast_manager_register2("SIPnotify", EVENT_FLAG_SYSTEM, manager_sipnotify,
-			"Send a SIP notify", mandescr_sipnotify);
+	ast_manager_register_xml("SIPpeers", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_sip_show_peers);
+	ast_manager_register_xml("SIPshowpeer", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_sip_show_peer);
+	ast_manager_register_xml("SIPqualifypeer", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_sip_qualify_peer);
+	ast_manager_register_xml("SIPshowregistry", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_show_registry);
+	ast_manager_register_xml("SIPnotify", EVENT_FLAG_SYSTEM, manager_sipnotify);
 	sip_poke_all_peers();	
 	sip_send_all_registers();
 	sip_send_all_mwi_subscriptions();

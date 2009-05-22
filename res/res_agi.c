@@ -2609,8 +2609,8 @@ int ast_agi_register(struct ast_module *mod, agi_command *cmd)
 	ast_join(fullcmd, sizeof(fullcmd), cmd->cmda);
 
 	if (!find_command(cmd->cmda, 1)) {
-		*((enum ast_doc_src *) &cmd->docsrc) = AST_STATIC_DOC;
 #ifdef AST_XML_DOCS
+		*((enum ast_doc_src *) &cmd->docsrc) = AST_STATIC_DOC;
 		if (ast_strlen_zero(cmd->summary) && ast_strlen_zero(cmd->usage)) {
 			*((char **) &cmd->summary) = ast_xmldoc_build_synopsis("agi", fullcmd);
 			*((char **) &cmd->usage) = ast_xmldoc_build_description("agi", fullcmd);

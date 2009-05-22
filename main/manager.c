@@ -75,6 +75,618 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 #include "asterisk/features.h"
 
+/*** DOCUMENTATION
+	<manager name="Ping" language="en_US">
+		<synopsis>
+			Keepalive command.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>A 'Ping' action will ellicit a 'Pong' response. Used to keep the
+			manager connection open.</para>
+		</description>
+	</manager>
+	<manager name="Events" language="en_US">
+		<synopsis>
+			Control Event Flow.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="EventMask" required="true">
+				<enumlist>
+					<enum name="on">
+						<para>If all events should be sent.</para>
+					</enum>
+					<enum name="off">
+						<para>If no events should be sent.</para>
+					</enum>
+					<enum name="system,call,log,...">
+						<para>To select which flags events should have to be sent.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Enable/Disable sending of events to this manager client.</para>
+		</description>
+	</manager>
+	<manager name="Logoff" language="en_US">
+		<synopsis>
+			Logoff Manager.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>Logoff the current manager session.</para>
+		</description>
+	</manager>
+	<manager name="Login" language="en_US">
+		<synopsis>
+			Login Manager.
+		</synopsis>
+		<syntax>
+			<parameter name="ActionID">
+				<para>ActionID for this transaction. Will be returned.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Login Manager.</para>
+		</description>
+	</manager>
+	<manager name="Challenge" language="en_US">
+		<synopsis>
+			Generate Challenge for MD5 Auth.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>Generate a challenge for MD5 authentication.</para>
+		</description>
+	</manager>
+	<manager name="Hangup" language="en_US">
+		<synopsis>
+			Hangup channel.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>The channel name to be hangup.</para>
+			</parameter>
+			<parameter name="Cause">
+				<para>Numeric hangup cause.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Hangup a channel.</para>
+		</description>
+	</manager>
+	<manager name="Status" language="en_US">
+		<synopsis>
+			List channel status.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>The name of the channel to query for status.</para>
+			</parameter>
+			<parameter name="Variables">
+				<para>Comma <literal>,</literal> separated list of variable to include.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Will return the status information of each channel along with the
+			value for the specified channel variables.</para>
+		</description>
+	</manager>
+	<manager name="Setvar" language="en_US">
+		<synopsis>
+			Set a channel variable.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel">
+				<para>Channel to set variable for.</para>
+			</parameter>
+			<parameter name="Variable" required="true">
+				<para>Variable name.</para>
+			</parameter>
+			<parameter name="Value" required="true">
+				<para>Variable value.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Set a global or local channel variable.</para>
+		</description>
+	</manager>
+	<manager name="Getvar" language="en_US">
+		<synopsis>
+			Gets a channel variable.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel">
+				<para>Channel to read variable from.</para>
+			</parameter>
+			<parameter name="Variable" required="true">
+				<para>Variable name.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Get the value of a global or local channel variable.</para>
+		</description>
+	</manager>
+	<manager name="GetConfig" language="en_US">
+		<synopsis>
+			Retrieve configuration.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Filename" required="true">
+				<para>Configuration filename (e.g. <filename>foo.conf</filename>).</para>
+			</parameter>
+			<parameter name="Category">
+				<para>Category in configuration file.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This action will dump the contents of a configuration
+			file by category and contents or optionally by specified category only.</para>
+		</description>
+	</manager>
+	<manager name="GetConfigJSON" language="en_US">
+		<synopsis>
+			Retrieve configuration (JSON format).
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Filename" required="true">
+				<para>Configuration filename (e.g. <filename>foo.conf</filename>).</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This action will dump the contents of a configuration file by category
+			and contents in JSON format. This only makes sense to be used using rawman over
+			the HTTP interface.</para>
+		</description>
+	</manager>
+	<manager name="UpdateConfig" language="en_US">
+		<synopsis>
+			Update basic configuration.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="SrcFilename" required="true">
+				<para>Configuration filename to read (e.g. <filename>foo.conf</filename>).</para>
+			</parameter>
+			<parameter name="DstFilename" required="true">
+				<para>Configuration filename to write (e.g. <filename>foo.conf</filename>)</para>
+			</parameter>
+			<parameter name="Reload">
+				<para>Whether or not a reload should take place (or name of specific module).</para>
+			</parameter>
+			<parameter name="Action-XXXXXX">
+				<para>Action to take.</para>
+				<para>X's represent 6 digit number beginning with 000000.</para>
+				<enumlist>
+					<enum name="NewCat" />
+					<enum name="RenameCat" />
+					<enum name="DelCat" />
+					<enum name="EmptyCat" />
+					<enum name="Update" />
+					<enum name="Delete" />
+					<enum name="Append" />
+					<enum name="Insert" />
+				</enumlist>
+			</parameter>
+			<parameter name="Cat-XXXXXX">
+				<para>Category to operate on.</para>
+				<xi:include xpointer="xpointer(/docs/manager[@name='UpdateConfig']/syntax/parameter[@name='Action-XXXXXX']/para[2])" />
+			</parameter>
+			<parameter name="Var-XXXXXX">
+				<para>Variable to work on.</para>
+				<xi:include xpointer="xpointer(/docs/manager[@name='UpdateConfig']/syntax/parameter[@name='Action-XXXXXX']/para[2])" />
+			</parameter>
+			<parameter name="Value-XXXXXX">
+				<para>Value to work on.</para>
+				<xi:include xpointer="xpointer(/docs/manager[@name='UpdateConfig']/syntax/parameter[@name='Action-XXXXXX']/para[2])" />
+			</parameter>
+			<parameter name="Match-XXXXXX">
+				<para>Extra match required to match line.</para>
+				<xi:include xpointer="xpointer(/docs/manager[@name='UpdateConfig']/syntax/parameter[@name='Action-XXXXXX']/para[2])" />
+			</parameter>
+			<parameter name="Line-XXXXXX">
+				<para>Line in category to operate on (used with delete and insert actions).</para>
+				<xi:include xpointer="xpointer(/docs/manager[@name='UpdateConfig']/syntax/parameter[@name='Action-XXXXXX']/para[2])" />
+			</parameter>
+		</syntax>
+		<description>
+			<para>This action will modify, create, or delete configuration elements
+			in Asterisk configuration files.</para>
+		</description>
+	</manager>
+	<manager name="CreateConfig" language="en_US">
+		<synopsis>
+			Creates an empty file in the configuration directory.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Filename" required="true">
+				<para>The configuration filename to create (e.g. <filename>foo.conf</filename>).</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This action will create an empty file in the configuration
+			directory. This action is intended to be used before an UpdateConfig
+			action.</para>
+		</description>
+	</manager>
+	<manager name="ListCategories" language="en_US">
+		<synopsis>
+			List categories in configuration file.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Filename" required="true">
+				<para>Configuration filename (e.g. <filename>foo.conf</filename>).</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This action will dump the categories in a given file.</para>
+		</description>
+	</manager>
+	<manager name="Redirect" language="en_US">
+		<synopsis>
+			Redirect (transfer) a call.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Channel to redirect.</para>
+			</parameter>
+			<parameter name="ExtraChannel">
+				<para>Second call leg to transfer (optional).</para>
+			</parameter>
+			<parameter name="Exten" required="true">
+				<para>Extension to transfer to.</para>
+			</parameter>
+			<parameter name="Context" required="true">
+				<para>Context to transfer to.</para>
+			</parameter>
+			<parameter name="Priority" required="true">
+				<para>Priority to transfer to.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Redirect (transfer) a call.</para>
+		</description>
+	</manager>
+	<manager name="Atxfer" language="en_US">
+		<synopsis>
+			Attended transfer.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Transferer's channel.</para>
+			</parameter>
+			<parameter name="Exten" required="true">
+				<para>Extension to transfer to.</para>
+			</parameter>
+			<parameter name="Context" required="true">
+				<para>Context to transfer to.</para>
+			</parameter>
+			<parameter name="Priority" required="true">
+				<para>Priority to transfer to.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Attended transfer.</para>
+		</description>
+	</manager>
+	<manager name="Originate" language="en_US">
+		<synopsis>
+			Originate a call.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Channel name to call.</para>
+			</parameter>
+			<parameter name="Exten">
+				<para>Extension to use (requires <literal>Context</literal> and
+				<literal>Priority</literal>)</para>
+			</parameter>
+			<parameter name="Context">
+				<para>Context to use (requires <literal>Exten</literal> and
+				<literal>Priority</literal>)</para>
+			</parameter>
+			<parameter name="Priority">
+				<para>Priority to use (requires <literal>Exten</literal> and
+				<literal>Context</literal>)</para>
+			</parameter>
+			<parameter name="Application">
+				<para>Application to execute.</para>
+			</parameter>
+			<parameter name="Data">
+				<para>Data to use (requires <literal>Application</literal>).</para>
+			</parameter>
+			<parameter name="Timeout">
+				<para>How long to wait for call to be answered (in ms).</para>
+			</parameter>
+			<parameter name="CallerID">
+				<para>Caller ID to be set on the outgoing channel.</para>
+			</parameter>
+			<parameter name="Variable">
+				<para>Channel variable to set, multiple Variable: headers are allowed.</para>
+			</parameter>
+			<parameter name="Account">
+				<para>Account code.</para>
+			</parameter>
+			<parameter name="Async">
+				<para>Set to <literal>true</literal> for fast origination.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Generates an outgoing call to a
+			<replaceable>Extension</replaceable>/<replaceable>Context</replaceable>/<replaceable>Priority</replaceable>
+			or <replaceable>Application</replaceable>/<replaceable>Data</replaceable></para>
+		</description>
+	</manager>
+	<manager name="Command" language="en_US">
+		<synopsis>
+			Execute Asterisk CLI Command.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Command" required="true">
+				<para>Asterisk CLI command to run.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Run a CLI command.</para>
+		</description>
+	</manager>
+	<manager name="ExtensionState" language="en_US">
+		<synopsis>
+			Check Extension Status.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Exten" required="true">
+				<para>Extension to check state on.</para>
+			</parameter>
+			<parameter name="Context" required="true">
+				<para>Context for extension.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Report the extension state for given extension. If the extension has a hint,
+			will use devicestate to check the status of the device connected to the extension.</para>
+			<para>Will return an <literal>Extension Status</literal> message. The response will include
+			the hint for the extension and the status.</para>
+		</description>
+	</manager>
+	<manager name="AbsoluteTimeout" language="en_US">
+		<synopsis>
+			Set absolute timeout.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Channel name to hangup.</para>
+			</parameter>
+			<parameter name="Timeout" required="true">
+				<para>Maximum duration of the call (sec).</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Hangup a channel after a certain time. Acknowledges set time with
+			<literal>Timeout Set</literal> message.</para>
+		</description>
+	</manager>
+	<manager name="MailboxStatus" language="en_US">
+		<synopsis>
+			Check mailbox.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Mailbox" required="true">
+				<para>Full mailbox ID <replaceable>mailbox</replaceable>@<replaceable>vm-context</replaceable>.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Checks a voicemail account for status.</para>
+			<para>Returns number of messages.</para>
+			<para>Message: Mailbox Status.</para>
+			<para>Mailbox: <replaceable>mailboxid</replaceable>.</para>
+			<para>Waiting: <replaceable>count</replaceable>.</para>
+		</description>
+	</manager>
+	<manager name="MailboxCount" language="en_US">
+		<synopsis>
+			Check Mailbox Message Count.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Mailbox" required="true">
+				<para>Full mailbox ID <replaceable>mailbox</replaceable>@<replaceable>vm-context</replaceable>.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Checks a voicemail account for new messages.</para>
+			<para>Returns number of urgent, new and old messages.</para>
+			<para>Message: Mailbox Message Count</para>
+			<para>Mailbox: <replaceable>mailboxid</replaceable></para>
+			<para>UrgentMessages: <replaceable>count</replaceable></para>
+			<para>NewMessages: <replaceable>count</replaceable></para>
+			<para>OldMessages: <replaceable>count</replaceable></para>
+		</description>
+	</manager>
+	<manager name="ListCommands" language="en_US">
+		<synopsis>
+			List available manager commands.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>Returns the action name and synopsis for every action that
+			is available to the user.</para>
+		</description>
+	</manager>
+	<manager name="SendText" language="en_US">
+		<synopsis>
+			Send text message to channel.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Channel to send message to.</para>
+			</parameter>
+			<parameter name="Message" required="true">
+				<para>Message to send.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Sends A Text Message to a channel while in a call.</para>
+		</description>
+	</manager>
+	<manager name="UserEvent" language="en_US">
+		<synopsis>
+			Send an arbitrary event.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="UserEvent" required="true">
+				<para>Event string to send.</para>
+			</parameter>
+			<parameter name="Header1">
+				<para>Content1.</para>
+			</parameter>
+			<parameter name="HeaderN">
+				<para>ContentN.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Send an event to manager sessions.</para>
+		</description>
+	</manager>
+	<manager name="WaitEvent" language="en_US">
+		<synopsis>
+			Wait for an event to occur.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Timeout" required="true">
+				<para>Maximum time (in seconds) to wait for events, <literal>-1</literal> means forever.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This action will ellicit a <literal>Success</literal> response. Whenever
+			a manager event is queued. Once WaitEvent has been called on an HTTP manager
+			session, events will be generated and queued.</para>
+		</description>
+	</manager>
+	<manager name="CoreSettings" language="en_US">
+		<synopsis>
+			Show PBX core settings (version etc).
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>Query for Core PBX settings.</para>
+		</description>
+	</manager>
+	<manager name="CoreStatus" language="en_US">
+		<synopsis>
+			Show PBX core status variables.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>Query for Core PBX status.</para>
+		</description>
+	</manager>
+	<manager name="Reload" language="en_US">
+		<synopsis>
+			Send a reload event.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Module">
+				<para>Name of the module to reload.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Send a reload event.</para>
+		</description>
+	</manager>
+	<manager name="CoreShowChannels" language="en_US">
+		<synopsis>
+			List currently active channels.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>List currently defined channels and some information about them.</para>
+		</description>
+	</manager>
+	<manager name="ModuleLoad" language="en_US">
+		<synopsis>
+			Module management.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Module">
+				<para>Asterisk module name (including .so extension) or subsystem identifier:</para>
+				<enumlist>
+					<enum name="cdr" />
+					<enum name="enum" />
+					<enum name="dnsmgr" />
+					<enum name="extconfig" />
+					<enum name="manager" />
+					<enum name="rtp" />
+					<enum name="http" />
+				</enumlist>
+			</parameter>
+			<parameter name="LoadType" required="true">
+				<para>The operation to be done on module.</para>
+				<enumlist>
+					<enum name="load" />
+					<enum name="unload" />
+					<enum name="reload" />
+				</enumlist>
+				<para>If no module is specified for a <literal>reload</literal> loadtype,
+				all modules are reloaded.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Loads, unloads or reloads an Asterisk module in a running system.</para>
+		</description>
+	</manager>
+	<manager name="ModuleCheck" language="en_US">
+		<synopsis>
+			Check if module is loaded.
+		</synopsis>
+		<syntax>
+			<parameter name="Module" required="true">
+				<para>Asterisk module name (not including extension).</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Checks if Asterisk module is loaded. Will return Success/Failure.
+			For success returns, the module revision number is included.</para>
+		</description>
+	</manager>
+ ***/
+
 enum error_type {
 	UNKNOWN_ACTION = 1,
 	UNKNOWN_CATEGORY,
@@ -604,6 +1216,10 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	struct ast_str *authority;
 	int num, l, which;
 	char *ret = NULL;
+#ifdef AST_XML_DOCS
+	char syntax_title[64], description_title[64], synopsis_title[64], seealso_title[64], arguments_title[64];
+#endif
+
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "manager show command";
@@ -629,14 +1245,41 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		return CLI_SHOWUSAGE;
 	}
 
+#ifdef AST_XML_DOCS
+	/* setup the titles */
+	term_color(synopsis_title, "[Synopsis]\n", COLOR_MAGENTA, 0, 40);
+	term_color(description_title, "[Description]\n", COLOR_MAGENTA, 0, 40);
+	term_color(syntax_title, "[Syntax]\n", COLOR_MAGENTA, 0, 40);
+	term_color(seealso_title, "[See Also]\n", COLOR_MAGENTA, 0, 40);
+	term_color(arguments_title, "[Arguments]\n", COLOR_MAGENTA, 0, 40);
+#endif
+
 	AST_RWLIST_RDLOCK(&actions);
 	AST_RWLIST_TRAVERSE(&actions, cur, list) {
 		for (num = 3; num < a->argc; num++) {
 			if (!strcasecmp(cur->action, a->argv[num])) {
-				ast_cli(a->fd, "Action: %s\nSynopsis: %s\nPrivilege: %s\n%s\n",
-					cur->action, cur->synopsis,
-					authority_to_str(cur->authority, &authority),
-					S_OR(cur->description, ""));
+#ifdef AST_XML_DOCS
+				if (cur->docsrc == AST_XML_DOC) {
+					ast_cli(a->fd, "%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n",
+						syntax_title,
+						ast_xmldoc_printable(S_OR(cur->syntax, "Not available"), 1),
+						synopsis_title,
+						ast_xmldoc_printable(S_OR(cur->synopsis, "Not available"), 1),
+						description_title,
+						ast_xmldoc_printable(S_OR(cur->description, "Not available"), 1),
+						arguments_title,
+						ast_xmldoc_printable(S_OR(cur->arguments, "Not available"), 1),
+						seealso_title,
+						ast_xmldoc_printable(S_OR(cur->seealso, "Not available"), 1));
+				} else {
+#endif
+					ast_cli(a->fd, "Action: %s\nSynopsis: %s\nPrivilege: %s\n%s\n",
+							cur->action, cur->synopsis,
+							authority_to_str(cur->authority, &authority),
+							S_OR(cur->description, ""));
+#ifdef AST_XML_DOCS
+				}
+#endif
 			}
 		}
 	}
@@ -1207,12 +1850,6 @@ static int authenticate(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-/*! \brief Manager PING */
-static const char mandescr_ping[] =
-"Description: A 'Ping' action will ellicit a 'Pong' response.  Used to keep the\n"
-"  manager connection open.\n"
-"Variables: NONE\n";
-
 static int action_ping(struct mansession *s, const struct message *m)
 {
 	const char *actionid = astman_get_header(m, "ActionID");
@@ -1224,13 +1861,6 @@ static int action_ping(struct mansession *s, const struct message *m)
 	astman_append(s, "Ping: Pong\r\n\r\n");
 	return 0;
 }
-
-static const char mandescr_getconfig[] =
-"Description: A 'GetConfig' action will dump the contents of a configuration\n"
-"file by category and contents or optionally by specified category only.\n"
-"Variables: (Names marked with * are required)\n"
-"   *Filename: Configuration filename (e.g. foo.conf)\n"
-"   Category: Category in configuration file\n";
 
 static int action_getconfig(struct mansession *s, const struct message *m)
 {
@@ -1272,12 +1902,6 @@ static int action_getconfig(struct mansession *s, const struct message *m)
 
 	return 0;
 }
-
-static const char mandescr_listcategories[] =
-"Description: A 'ListCategories' action will dump the categories in\n"
-"a given file.\n"
-"Variables:\n"
-"   Filename: Configuration filename (e.g. foo.conf)\n";
 
 static int action_listcategories(struct mansession *s, const struct message *m)
 {
@@ -1323,13 +1947,6 @@ static void json_escape(char *out, const char *in)
 	}
 	*out = '\0';
 }
-
-static const char mandescr_getconfigjson[] =
-"Description: A 'GetConfigJSON' action will dump the contents of a configuration\n"
-"file by category and contents in JSON format.  This only makes sense to be used\n"
-"using rawman over the HTTP interface.\n"
-"Variables:\n"
-"   Filename: Configuration filename (e.g. foo.conf)\n";
 
 static int action_getconfigjson(struct mansession *s, const struct message *m)
 {
@@ -1543,20 +2160,6 @@ static enum error_type handle_updates(struct mansession *s, const struct message
 	return result;
 }
 
-static const char mandescr_updateconfig[] =
-"Description: A 'UpdateConfig' action will modify, create, or delete\n"
-"configuration elements in Asterisk configuration files.\n"
-"Variables (X's represent 6 digit number beginning with 000000):\n"
-"   SrcFilename:   Configuration filename to read(e.g. foo.conf)\n"
-"   DstFilename:   Configuration filename to write(e.g. foo.conf)\n"
-"   Reload:        Whether or not a reload should take place (or name of specific module)\n"
-"   Action-XXXXXX: Action to Take (NewCat,RenameCat,DelCat,EmptyCat,Update,Delete,Append,Insert)\n"
-"   Cat-XXXXXX:    Category to operate on\n"
-"   Var-XXXXXX:    Variable to work on\n"
-"   Value-XXXXXX:  Value to work on\n"
-"   Match-XXXXXX:  Extra match required to match line\n"
-"   Line-XXXXXX:   Line in category to operate on (used with delete and insert actions)\n";
-
 static int action_updateconfig(struct mansession *s, const struct message *m)
 {
 	struct ast_config *cfg;
@@ -1632,13 +2235,6 @@ static int action_updateconfig(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static const char mandescr_createconfig[] =
-"Description: A 'CreateConfig' action will create an empty file in the\n"
-"configuration directory. This action is intended to be used before an\n"
-"UpdateConfig action.\n"
-"Variables\n"
-"   Filename:   The configuration filename to create (e.g. foo.conf)\n";
-
 static int action_createconfig(struct mansession *s, const struct message *m)
 {
 	int fd;
@@ -1656,14 +2252,6 @@ static int action_createconfig(struct mansession *s, const struct message *m)
 
 	return 0;
 }
-
-/*! \brief Manager WAITEVENT */
-static const char mandescr_waitevent[] =
-"Description: A 'WaitEvent' action will ellicit a 'Success' response.  Whenever\n"
-"a manager event is queued.  Once WaitEvent has been called on an HTTP manager\n"
-"session, events will be generated and queued.\n"
-"Variables: \n"
-"   Timeout: Maximum time (in seconds) to wait for events, -1 means forever.\n";
 
 static int action_waitevent(struct mansession *s, const struct message *m)
 {
@@ -1771,11 +2359,6 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static const char mandescr_listcommands[] =
-"Description: Returns the action name and synopsis for every\n"
-"  action that is available to the user\n"
-"Variables: NONE\n";
-
 /*! \note The actionlock is read-locked by the caller of this function */
 static int action_listcommands(struct mansession *s, const struct message *m)
 {
@@ -1794,14 +2377,6 @@ static int action_listcommands(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static const char mandescr_events[] =
-"Description: Enable/Disable sending of events to this manager\n"
-"  client.\n"
-"Variables:\n"
-"	EventMask: 'on' if all events should be sent,\n"
-"		'off' if no events should be sent,\n"
-"		'system,call,log' to select which flags events should have to be sent.\n";
-
 static int action_events(struct mansession *s, const struct message *m)
 {
 	const char *mask = astman_get_header(m, "EventMask");
@@ -1816,10 +2391,6 @@ static int action_events(struct mansession *s, const struct message *m)
 				 "Events: Off\r\n");
 	return 0;
 }
-
-static const char mandescr_logoff[] =
-"Description: Logoff this manager session\n"
-"Variables: NONE\n";
 
 static int action_logoff(struct mansession *s, const struct message *m)
 {
@@ -1867,12 +2438,6 @@ static int action_challenge(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static const char mandescr_hangup[] =
-"Description: Hangup a channel\n"
-"Variables: \n"
-"	Channel: The channel name to be hungup\n"
-"	Cause: numeric hangup cause\n";
-
 static int action_hangup(struct mansession *s, const struct message *m)
 {
 	struct ast_channel *c = NULL;
@@ -1916,13 +2481,6 @@ static int action_hangup(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static const char mandescr_setvar[] =
-"Description: Set a global or local channel variable.\n"
-"Variables: (Names marked with * are required)\n"
-"	Channel: Channel to set variable for\n"
-"	*Variable: Variable name\n"
-"	*Value: Value\n";
-
 static int action_setvar(struct mansession *s, const struct message *m)
 {
 	struct ast_channel *c = NULL;
@@ -1952,13 +2510,6 @@ static int action_setvar(struct mansession *s, const struct message *m)
 
 	return 0;
 }
-
-static const char mandescr_getvar[] =
-"Description: Get the value of a global or local channel variable.\n"
-"Variables: (Names marked with * are required)\n"
-"	Channel: Channel to read variable from\n"
-"	*Variable: Variable name\n"
-"	ActionID: Optional Action id for message matching.\n";
 
 static int action_getvar(struct mansession *s, const struct message *m)
 {
@@ -2005,16 +2556,6 @@ static int action_getvar(struct mansession *s, const struct message *m)
 
 	return 0;
 }
-
-static const char mandescr_status[] =
-"Description: Lists channel status along with requested channel vars.\n"
-"Variables: (Names marked with * are required)\n"
-"	*Channel: Name of the channel to query for status\n"
-"	Variables: Comma ',' separated list of variables to include\n"
-"	ActionID: Optional ID for this transaction\n"
-"Will return the status information of each channel along with the\n"
-"value for the specified channel variables.\n";
-
 
 /*! \brief Manager "status" command to show channels */
 /* Needs documentation... */
@@ -2163,13 +2704,6 @@ static int action_status(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static const char mandescr_sendtext[] =
-"Description: Sends A Text Message while in a call.\n"
-"Variables: (Names marked with * are required)\n"
-"       *Channel: Channel to send message to\n"
-"       *Message: Message to send\n"
-"       ActionID: Optional Action id for message matching.\n";
-
 static int action_sendtext(struct mansession *s, const struct message *m)
 {
 	struct ast_channel *c = NULL;
@@ -2205,16 +2739,6 @@ static int action_sendtext(struct mansession *s, const struct message *m)
 
 	return res;
 }
-
-static const char mandescr_redirect[] =
-"Description: Redirect (transfer) a call.\n"
-"Variables: (Names marked with * are required)\n"
-"	*Channel: Channel to redirect\n"
-"	ExtraChannel: Second call leg to transfer (optional)\n"
-"	*Exten: Extension to transfer to\n"
-"	*Context: Context to transfer to\n"
-"	*Priority: Priority to transfer to\n"
-"	ActionID: Optional Action id for message matching.\n";
 
 /*! \brief  action_redirect: The redirect manager command */
 static int action_redirect(struct mansession *s, const struct message *m)
@@ -2306,15 +2830,6 @@ static int action_redirect(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static const char mandescr_atxfer[] =
-"Description: Attended transfer.\n"
-"Variables: (Names marked with * are required)\n"
-"	*Channel: Transferer's channel\n"
-"	*Exten: Extension to transfer to\n"
-"	*Context: Context to transfer to\n"
-"	*Priority: Priority to transfer to\n"
-"	ActionID: Optional Action id for message matching.\n";
-
 static int action_atxfer(struct mansession *s, const struct message *m)
 {
 	const char *name = astman_get_header(m, "Channel");
@@ -2398,12 +2913,6 @@ static int check_blacklist(const char *cmd)
 
 	return 0;
 }
-
-static const char mandescr_command[] =
-"Description: Run a CLI command.\n"
-"Variables: (Names marked with * are required)\n"
-"	*Command: Asterisk CLI command to run\n"
-"	ActionID: Optional Action id for message matching.\n";
 
 /*! \brief  Manager command "command" - execute CLI command */
 static int action_command(struct mansession *s, const struct message *m)
@@ -2525,22 +3034,6 @@ static void *fast_originate(void *data)
 	ast_free(in);
 	return NULL;
 }
-
-static const char mandescr_originate[] =
-"Description: Generates an outgoing call to a Extension/Context/Priority or\n"
-"  Application/Data\n"
-"Variables: (Names marked with * are required)\n"
-"	*Channel: Channel name to call\n"
-"	Exten: Extension to use (requires 'Context' and 'Priority')\n"
-"	Context: Context to use (requires 'Exten' and 'Priority')\n"
-"	Priority: Priority to use (requires 'Exten' and 'Context')\n"
-"	Application: Application to use\n"
-"	Data: Data to use (requires 'Application')\n"
-"	Timeout: How long to wait for call to be answered (in ms)\n"
-"	CallerID: Caller ID to be set on the outgoing channel\n"
-"	Variable: Channel variable to set, multiple Variable: headers are allowed\n"
-"	Account: Account code\n"
-"	Async: Set to 'true' for fast origination\n";
 
 static int action_originate(struct mansession *s, const struct message *m)
 {
@@ -2671,19 +3164,6 @@ static int action_originate(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-/*! \brief Help text for manager command mailboxstatus
- */
-static const char mandescr_mailboxstatus[] =
-"Description: Checks a voicemail account for status.\n"
-"Variables: (Names marked with * are required)\n"
-"	*Mailbox: Full mailbox ID <mailbox>@<vm-context>\n"
-"	ActionID: Optional ActionID for message matching.\n"
-"Returns number of messages.\n"
-"	Message: Mailbox Status\n"
-"	Mailbox: <mailboxid>\n"
-"	Waiting: <count>\n"
-"\n";
-
 static int action_mailboxstatus(struct mansession *s, const struct message *m)
 {
 	const char *mailbox = astman_get_header(m, "Mailbox");
@@ -2701,18 +3181,6 @@ static int action_mailboxstatus(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static const char mandescr_mailboxcount[] =
-"Description: Checks a voicemail account for new messages.\n"
-"Variables: (Names marked with * are required)\n"
-"	*Mailbox: Full mailbox ID <mailbox>@<vm-context>\n"
-"	ActionID: Optional ActionID for message matching.\n"
-"Returns number of urgent, new and old messages.\n"
-"	Message: Mailbox Message Count\n"
-"	Mailbox: <mailboxid>\n"
-"	UrgentMessages: <count>\n"
-"	NewMessages: <count>\n"
-"	OldMessages: <count>\n"
-"\n";
 static int action_mailboxcount(struct mansession *s, const struct message *m)
 {
 	const char *mailbox = astman_get_header(m, "Mailbox");
@@ -2733,17 +3201,6 @@ static int action_mailboxcount(struct mansession *s, const struct message *m)
 			   mailbox, urgentmsgs, newmsgs, oldmsgs);
 	return 0;
 }
-
-static const char mandescr_extensionstate[] =
-"Description: Report the extension state for given extension.\n"
-"  If the extension has a hint, will use devicestate to check\n"
-"  the status of the device connected to the extension.\n"
-"Variables: (Names marked with * are required)\n"
-"	*Exten: Extension to check state on\n"
-"	*Context: Context for extension\n"
-"	ActionId: Optional ID for this transaction\n"
-"Will return an \"Extension Status\" message.\n"
-"The response will include the hint for the extension and the status.\n";
 
 static int action_extensionstate(struct mansession *s, const struct message *m)
 {
@@ -2769,13 +3226,6 @@ static int action_extensionstate(struct mansession *s, const struct message *m)
 			   exten, context, hint, status);
 	return 0;
 }
-
-static const char mandescr_timeout[] =
-"Description: Hangup a channel after a certain time.\n"
-"Variables: (Names marked with * are required)\n"
-"	*Channel: Channel name to hangup\n"
-"	*Timeout: Maximum duration of the call (sec)\n"
-"Acknowledges set time with 'Timeout Set' message\n";
 
 static int action_timeout(struct mansession *s, const struct message *m)
 {
@@ -2839,13 +3289,6 @@ static int process_events(struct mansession *s)
 	return ret;
 }
 
-static const char mandescr_userevent[] =
-"Description: Send an event to manager sessions.\n"
-"Variables: (Names marked with * are required)\n"
-"       *UserEvent: EventStringToSend\n"
-"       Header1: Content1\n"
-"       HeaderN: ContentN\n";
-
 static int action_userevent(struct mansession *s, const struct message *m)
 {
 	const char *event = astman_get_header(m, "UserEvent");
@@ -2863,11 +3306,6 @@ static int action_userevent(struct mansession *s, const struct message *m)
 	manager_event(EVENT_FLAG_USER, "UserEvent", "UserEvent: %s\r\n%s", event, ast_str_buffer(body));
 	return 0;
 }
-
-static const char mandescr_coresettings[] =
-"Description: Query for Core PBX settings.\n"
-"Variables: (Names marked with * are optional)\n"
-"       *ActionID: ActionID of this transaction\n";
 
 /*! \brief Show PBX core settings information */
 static int action_coresettings(struct mansession *s, const struct message *m)
@@ -2911,11 +3349,6 @@ static int action_coresettings(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static const char mandescr_corestatus[] =
-"Description: Query for Core PBX status.\n"
-"Variables: (Names marked with * are optional)\n"
-"       *ActionID: ActionID of this transaction\n";
-
 /*! \brief Show PBX core status information */
 static int action_corestatus(struct mansession *s, const struct message *m)
 {
@@ -2950,12 +3383,6 @@ static int action_corestatus(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static const char mandescr_reload[] =
-"Description: Send a reload event.\n"
-"Variables: (Names marked with * are optional)\n"
-"       *ActionID: ActionID of this transaction\n"
-"       *Module: Name of the module to reload\n";
-
 /*! \brief Send a reload event */
 static int action_reload(struct mansession *s, const struct message *m)
 {
@@ -2969,12 +3396,6 @@ static int action_reload(struct mansession *s, const struct message *m)
 	}
 	return 0;
 }
-
-static const char mandescr_coreshowchannels[] =
-"Description: List currently defined channels and some information\n"
-"             about them.\n"
-"Variables:\n"
-"          ActionID: Optional Action id for message matching.\n";
 
 /*! \brief  Manager command "CoreShowChannels" - List currently defined channels
  *          and some information about them. */
@@ -3052,15 +3473,6 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 	return 0;
 }
 
-static const char mandescr_modulecheck[] =
-"Description: Checks if Asterisk module is loaded\n"
-"Variables: \n"
-"  ActionID: <id>          Action ID for this transaction. Will be returned.\n"
-"  Module: <name>          Asterisk module name (not including extension)\n"
-"\n"
-"Will return Success/Failure\n"
-"For success returns, the module revision number is included.\n";
-
 /* Manager function to check if module is loaded */
 static int manager_modulecheck(struct mansession *s, const struct message *m)
 {
@@ -3104,17 +3516,6 @@ static int manager_modulecheck(struct mansession *s, const struct message *m)
 #endif
 	return 0;
 }
-
-static const char mandescr_moduleload[] =
-"Description: Loads, unloads or reloads an Asterisk module in a running system.\n"
-"Variables: \n"
-"  ActionID: <id>          Action ID for this transaction. Will be returned.\n"
-"  Module: <name>          Asterisk module name (including .so extension)\n"
-"                          or subsystem identifier:\n"
-"				cdr, enum, dnsmgr, extconfig, manager, rtp, http\n"
-"  LoadType: load | unload | reload\n"
-"                          The operation to be done on module\n"
-" If no module is specified for a reload loadtype, all modules are reloaded";
 
 static int manager_moduleload(struct mansession *s, const struct message *m)
 {
@@ -3584,6 +3985,7 @@ int ast_manager_unregister(char *action)
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&actions, cur, list) {
 		if (!strcasecmp(action, cur->action)) {
 			AST_RWLIST_REMOVE_CURRENT(list);
+			ast_string_field_free_memory(cur);
 			ast_free(cur);
 			ast_verb(2, "Manager unregistered action %s\n", action);
 			break;
@@ -3645,17 +4047,53 @@ static int ast_manager_register_struct(struct manager_action *act)
 int ast_manager_register2(const char *action, int auth, int (*func)(struct mansession *s, const struct message *m), const char *synopsis, const char *description)
 {
 	struct manager_action *cur = NULL;
+#ifdef AST_XML_DOCS
+	char *tmpxml;
+#endif
 
 	if (!(cur = ast_calloc(1, sizeof(*cur)))) {
+		return -1;
+	}
+
+	if (ast_string_field_init(cur, 128)) {
+		ast_free(cur);
 		return -1;
 	}
 
 	cur->action = action;
 	cur->authority = auth;
 	cur->func = func;
-	cur->synopsis = synopsis;
-	cur->description = description;
+#ifdef AST_XML_DOCS
+	if (ast_strlen_zero(synopsis) && ast_strlen_zero(description)) {
+		tmpxml = ast_xmldoc_build_synopsis("manager", action);
+		ast_string_field_set(cur, synopsis, tmpxml);
+		ast_free(tmpxml);
 
+		tmpxml = ast_xmldoc_build_syntax("manager", action);
+		ast_string_field_set(cur, syntax, tmpxml);
+		ast_free(tmpxml);
+
+		tmpxml = ast_xmldoc_build_description("manager", action);
+		ast_string_field_set(cur, description, tmpxml);
+		ast_free(tmpxml);
+
+		tmpxml = ast_xmldoc_build_seealso("manager", action);
+		ast_string_field_set(cur, seealso, tmpxml);
+		ast_free(tmpxml);
+
+		tmpxml = ast_xmldoc_build_arguments("manager", action);
+		ast_string_field_set(cur, arguments, tmpxml);
+		ast_free(tmpxml);
+
+		cur->docsrc = AST_XML_DOC;
+	} else {
+#endif
+		ast_string_field_set(cur, synopsis, synopsis);
+		ast_string_field_set(cur, description, description);
+#ifdef AST_XML_DOCS
+		cur->docsrc = AST_STATIC_DOC;
+	}
+#endif
 	if (ast_manager_register_struct(cur)) {
 		ast_free(cur);
 		return -1;
@@ -4724,38 +5162,38 @@ static int __init_manager(int reload)
 
 	if (!registered) {
 		/* Register default actions */
-		ast_manager_register2("Ping", 0, action_ping, "Keepalive command", mandescr_ping);
-		ast_manager_register2("Events", 0, action_events, "Control Event Flow", mandescr_events);
-		ast_manager_register2("Logoff", 0, action_logoff, "Logoff Manager", mandescr_logoff);
-		ast_manager_register2("Login", 0, action_login, "Login Manager", NULL);
-		ast_manager_register2("Challenge", 0, action_challenge, "Generate Challenge for MD5 Auth", NULL);
-		ast_manager_register2("Hangup", EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL, action_hangup, "Hangup Channel", mandescr_hangup);
-		ast_manager_register2("Status", EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_status, "Lists channel status", mandescr_status);
-		ast_manager_register2("Setvar", EVENT_FLAG_CALL, action_setvar, "Set Channel Variable", mandescr_setvar);
-		ast_manager_register2("Getvar", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_getvar, "Gets a Channel Variable", mandescr_getvar);
-		ast_manager_register2("GetConfig", EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG, action_getconfig, "Retrieve configuration", mandescr_getconfig);
-		ast_manager_register2("GetConfigJSON", EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG, action_getconfigjson, "Retrieve configuration (JSON format)", mandescr_getconfigjson);
-		ast_manager_register2("UpdateConfig", EVENT_FLAG_CONFIG, action_updateconfig, "Update basic configuration", mandescr_updateconfig);
-		ast_manager_register2("CreateConfig", EVENT_FLAG_CONFIG, action_createconfig, "Creates an empty file in the configuration directory", mandescr_createconfig);
-		ast_manager_register2("ListCategories", EVENT_FLAG_CONFIG, action_listcategories, "List categories in configuration file", mandescr_listcategories);
-		ast_manager_register2("Redirect", EVENT_FLAG_CALL, action_redirect, "Redirect (transfer) a call", mandescr_redirect );
-		ast_manager_register2("Atxfer", EVENT_FLAG_CALL, action_atxfer, "Attended transfer", mandescr_atxfer);
-		ast_manager_register2("Originate", EVENT_FLAG_ORIGINATE, action_originate, "Originate Call", mandescr_originate);
-		ast_manager_register2("Command", EVENT_FLAG_COMMAND, action_command, "Execute Asterisk CLI Command", mandescr_command );
-		ast_manager_register2("ExtensionState", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_extensionstate, "Check Extension Status", mandescr_extensionstate );
-		ast_manager_register2("AbsoluteTimeout", EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL, action_timeout, "Set Absolute Timeout", mandescr_timeout );
-		ast_manager_register2("MailboxStatus", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_mailboxstatus, "Check Mailbox", mandescr_mailboxstatus );
-		ast_manager_register2("MailboxCount", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_mailboxcount, "Check Mailbox Message Count", mandescr_mailboxcount );
-		ast_manager_register2("ListCommands", 0, action_listcommands, "List available manager commands", mandescr_listcommands);
-		ast_manager_register2("SendText", EVENT_FLAG_CALL, action_sendtext, "Send text message to channel", mandescr_sendtext);
-		ast_manager_register2("UserEvent", EVENT_FLAG_USER, action_userevent, "Send an arbitrary event", mandescr_userevent);
-		ast_manager_register2("WaitEvent", 0, action_waitevent, "Wait for an event to occur", mandescr_waitevent);
-		ast_manager_register2("CoreSettings", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_coresettings, "Show PBX core settings (version etc)", mandescr_coresettings);
-		ast_manager_register2("CoreStatus", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_corestatus, "Show PBX core status variables", mandescr_corestatus);
-		ast_manager_register2("Reload", EVENT_FLAG_CONFIG | EVENT_FLAG_SYSTEM, action_reload, "Send a reload event", mandescr_reload);
-		ast_manager_register2("CoreShowChannels", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_coreshowchannels, "List currently active channels", mandescr_coreshowchannels);
-		ast_manager_register2("ModuleLoad", EVENT_FLAG_SYSTEM, manager_moduleload, "Module management", mandescr_moduleload);
-		ast_manager_register2("ModuleCheck", EVENT_FLAG_SYSTEM, manager_modulecheck, "Check if module is loaded", mandescr_modulecheck);
+		ast_manager_register_xml("Ping", 0, action_ping);
+		ast_manager_register_xml("Events", 0, action_events);
+		ast_manager_register_xml("Logoff", 0, action_logoff);
+		ast_manager_register_xml("Login", 0, action_login);
+		ast_manager_register_xml("Challenge", 0, action_challenge);
+		ast_manager_register_xml("Hangup", EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL, action_hangup);
+		ast_manager_register_xml("Status", EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_status);
+		ast_manager_register_xml("Setvar", EVENT_FLAG_CALL, action_setvar);
+		ast_manager_register_xml("Getvar", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_getvar);
+		ast_manager_register_xml("GetConfig", EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG, action_getconfig);
+		ast_manager_register_xml("GetConfigJSON", EVENT_FLAG_SYSTEM | EVENT_FLAG_CONFIG, action_getconfigjson);
+		ast_manager_register_xml("UpdateConfig", EVENT_FLAG_CONFIG, action_updateconfig);
+		ast_manager_register_xml("CreateConfig", EVENT_FLAG_CONFIG, action_createconfig);
+		ast_manager_register_xml("ListCategories", EVENT_FLAG_CONFIG, action_listcategories);
+		ast_manager_register_xml("Redirect", EVENT_FLAG_CALL, action_redirect);
+		ast_manager_register_xml("Atxfer", EVENT_FLAG_CALL, action_atxfer);
+		ast_manager_register_xml("Originate", EVENT_FLAG_ORIGINATE, action_originate);
+		ast_manager_register_xml("Command", EVENT_FLAG_COMMAND, action_command);
+		ast_manager_register_xml("ExtensionState", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_extensionstate);
+		ast_manager_register_xml("AbsoluteTimeout", EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL, action_timeout);
+		ast_manager_register_xml("MailboxStatus", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_mailboxstatus);
+		ast_manager_register_xml("MailboxCount", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_mailboxcount);
+		ast_manager_register_xml("ListCommands", 0, action_listcommands);
+		ast_manager_register_xml("SendText", EVENT_FLAG_CALL, action_sendtext);
+		ast_manager_register_xml("UserEvent", EVENT_FLAG_USER, action_userevent);
+		ast_manager_register_xml("WaitEvent", 0, action_waitevent);
+		ast_manager_register_xml("CoreSettings", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_coresettings);
+		ast_manager_register_xml("CoreStatus", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_corestatus);
+		ast_manager_register_xml("Reload", EVENT_FLAG_CONFIG | EVENT_FLAG_SYSTEM, action_reload);
+		ast_manager_register_xml("CoreShowChannels", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_coreshowchannels);
+		ast_manager_register_xml("ModuleLoad", EVENT_FLAG_SYSTEM, manager_moduleload);
+		ast_manager_register_xml("ModuleCheck", EVENT_FLAG_SYSTEM, manager_modulecheck);
 
 		ast_cli_register_multiple(cli_manager, ARRAY_LEN(cli_manager));
 		ast_extension_state_add(NULL, NULL, manager_state_cb, NULL);

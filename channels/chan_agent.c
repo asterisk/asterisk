@@ -167,6 +167,34 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description />
 	</function>
+	<manager name="Agents" language="en_US">
+		<synopsis>
+			Lists agents and their status.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>Will list info about all possible agents.</para>
+		</description>
+	</manager>
+	<manager name="AgentLogoff" language="en_US">
+		<synopsis>
+			Sets an agent as no longer logged in.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Agent" required="true">
+				<para>Agent ID of the agent to log off.</para>
+			</parameter>
+			<parameter name="Soft">
+				<para>Set to <literal>true</literal> to not hangup existing calls.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Sets an agent as no longer logged in.</para>
+		</description>
+	</manager>
  ***/
 
 static const char tdesc[] = "Call Agent Proxy Channel";
@@ -174,16 +202,6 @@ static const char config[] = "agents.conf";
 
 static const char app[] = "AgentLogin";
 static const char app3[] = "AgentMonitorOutgoing";
-
-static const char mandescr_agents[] =
-"Description: Will list info about all possible agents.\n"
-"Variables: NONE\n";
-
-static const char mandescr_agent_logoff[] =
-"Description: Sets an agent as no longer logged in.\n"
-"Variables: (Names marked with * are required)\n"
-"	*Agent: Agent ID of the agent to log off\n"
-"	Soft: Set to 'true' to not hangup existing calls\n";
 
 static char moh[80] = "default";
 
@@ -2559,8 +2577,8 @@ static int load_module(void)
 	ast_register_application_xml(app3, agentmonitoroutgoing_exec);
 
 	/* Manager commands */
-	ast_manager_register2("Agents", EVENT_FLAG_AGENT, action_agents, "Lists agents and their status", mandescr_agents);
-	ast_manager_register2("AgentLogoff", EVENT_FLAG_AGENT, action_agent_logoff, "Sets an agent as no longer logged in", mandescr_agent_logoff);
+	ast_manager_register_xml("Agents", EVENT_FLAG_AGENT, action_agents);
+	ast_manager_register_xml("AgentLogoff", EVENT_FLAG_AGENT, action_agent_logoff);
 
 	/* CLI Commands */
 	ast_cli_register_multiple(cli_agents, ARRAY_LEN(cli_agents));

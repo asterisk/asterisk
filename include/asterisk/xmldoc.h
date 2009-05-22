@@ -23,6 +23,13 @@
 
 #include "asterisk/xml.h"
 
+/*! \brief From where the documentation come from, this structure is useful for
+ *  use it inside application/functions/manager actions structure. */
+enum ast_doc_src {
+	AST_XML_DOC,            /*!< From XML documentation */
+	AST_STATIC_DOC          /*!< From application/function registration */
+};
+
 #ifdef AST_XML_DOCS
 
 /*!

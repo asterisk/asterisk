@@ -154,6 +154,89 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>This application will Accept the R2 call either with charge or no charge.</para>
 		</description>
 	</application>
+	<manager name="DAHDITransfer" language="en_US">
+		<synopsis>
+			Transfer DAHDI Channel.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="DAHDIChannel" required="true">
+				<para>DAHDI channel name to transfer.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Transfer a DAHDI channel.</para>
+		</description>
+	</manager>
+	<manager name="DAHDIHangup" language="en_US">
+		<synopsis>
+			Hangup DAHDI Channel.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="DAHDIChannel" required="true">
+				<para>DAHDI channel name to hangup.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Hangup a DAHDI channel.</para>
+		</description>
+	</manager>
+	<manager name="DAHDIDialOffhook" language="en_US">
+		<synopsis>
+			Dial over DAHDI channel while offhook.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="DAHDIChannel" required="true" />
+			<parameter name="Number" required="true" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
+	<manager name="DAHDIDNDon" language="en_US">
+		<synopsis>
+			Toggle DAHDI channel Do Not Disturb status ON.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="DAHDIChannel" required="true" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
+	<manager name="DAHDIDNDoff" language="en_US">
+		<synopsis>
+			Toggle DAHDI channel Do Not Disturb status OFF.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="DAHDIChannel" required="true" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
+	<manager name="DAHDIShowChannels" language="en_US">
+		<synopsis>
+			Show status DAHDI channels.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="DAHDIChannel" required="true" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
+	<manager name="DAHDIRestart" language="en_US">
+		<synopsis>
+			Fully Restart DAHDI channels (terminates calls).
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
  ***/
 
 #define SMDI_MD_WAIT_TIMEOUT 1500 /* 1.5 seconds */
@@ -16193,11 +16276,11 @@ static int __unload_module(void)
 #endif
 
 	ast_cli_unregister_multiple(dahdi_cli, ARRAY_LEN(dahdi_cli));
-	ast_manager_unregister( "DAHDIDialOffhook" );
-	ast_manager_unregister( "DAHDIHangup" );
-	ast_manager_unregister( "DAHDITransfer" );
-	ast_manager_unregister( "DAHDIDNDoff" );
-	ast_manager_unregister( "DAHDIDNDon" );
+	ast_manager_unregister("DAHDIDialOffhook");
+	ast_manager_unregister("DAHDIHangup");
+	ast_manager_unregister("DAHDITransfer");
+	ast_manager_unregister("DAHDIDNDoff");
+	ast_manager_unregister("DAHDIDNDon");
 	ast_manager_unregister("DAHDIShowChannels");
 	ast_manager_unregister("DAHDIRestart");
 	ast_channel_unregister(&dahdi_tech);
@@ -17640,13 +17723,13 @@ static int load_module(void)
 	ast_cli_register_multiple(dahdi_cli, ARRAY_LEN(dahdi_cli));
 
 	memset(round_robin, 0, sizeof(round_robin));
-	ast_manager_register( "DAHDITransfer", 0, action_transfer, "Transfer DAHDI Channel" );
-	ast_manager_register( "DAHDIHangup", 0, action_transferhangup, "Hangup DAHDI Channel" );
-	ast_manager_register( "DAHDIDialOffhook", 0, action_dahdidialoffhook, "Dial over DAHDI channel while offhook" );
-	ast_manager_register( "DAHDIDNDon", 0, action_dahdidndon, "Toggle DAHDI channel Do Not Disturb status ON" );
-	ast_manager_register( "DAHDIDNDoff", 0, action_dahdidndoff, "Toggle DAHDI channel Do Not Disturb status OFF" );
-	ast_manager_register("DAHDIShowChannels", 0, action_dahdishowchannels, "Show status DAHDI channels");
-	ast_manager_register("DAHDIRestart", 0, action_dahdirestart, "Fully Restart DAHDI channels (terminates calls)");
+	ast_manager_register_xml("DAHDITransfer", 0, action_transfer);
+	ast_manager_register_xml("DAHDIHangup", 0, action_transferhangup);
+	ast_manager_register_xml("DAHDIDialOffhook", 0, action_dahdidialoffhook);
+	ast_manager_register_xml("DAHDIDNDon", 0, action_dahdidndon);
+	ast_manager_register_xml("DAHDIDNDoff", 0, action_dahdidndoff);
+	ast_manager_register_xml("DAHDIShowChannels", 0, action_dahdishowchannels);
+	ast_manager_register_xml("DAHDIRestart", 0, action_dahdirestart);
 
 	ast_cond_init(&ss_thread_complete, NULL);
 

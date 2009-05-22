@@ -59,6 +59,23 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="application">Read</ref>
 		</see-also>
 	</application>
+	<manager name="PlayDTMF" language="en_US">
+		<synopsis>
+			Play DTMF signal on a specific channel.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Channel name to send digit to.</para>
+			</parameter>
+			<parameter name="Digit" required="true">
+				<para>The DTMF digit to play.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Plays a dtmf digit on the specified channel.</para>
+		</description>
+	</manager>
  ***/
 static char *app = "SendDTMF";
 
@@ -89,12 +106,6 @@ static int senddtmf_exec(struct ast_channel *chan, const char *vdata)
 
 	return res;
 }
-
-static const char mandescr_playdtmf[] =
-"Description: Plays a dtmf digit on the specified channel.\n"
-"Variables: (all are required)\n"
-"	Channel: Channel name to send digit to\n"
-"	Digit: The dtmf digit to play\n";
 
 static int manager_play_dtmf(struct mansession *s, const struct message *m)
 {
@@ -136,7 +147,7 @@ static int load_module(void)
 {
 	int res;
 
-	res = ast_manager_register2( "PlayDTMF", EVENT_FLAG_CALL, manager_play_dtmf, "Play DTMF signal on a specific channel.", mandescr_playdtmf );
+	res = ast_manager_register_xml("PlayDTMF", EVENT_FLAG_CALL, manager_play_dtmf);
 	res |= ast_register_application_xml(app, senddtmf_exec);
 
 	return res;

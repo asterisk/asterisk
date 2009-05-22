@@ -154,6 +154,61 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="application">ParkedCall</ref>
 		</see-also>
 	</application>
+	<manager name="ParkedCalls" language="en_US">
+		<synopsis>
+			List parked calls.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>List parked calls.</para>
+		</description>
+	</manager>
+	<manager name="Park" language="en_US">
+		<synopsis>
+			Park a channel.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Channel name to park.</para>
+			</parameter>
+			<parameter name="Channel2" required="true">
+				<para>Channel to announce park info to (and return to if timeout).</para>
+			</parameter>
+			<parameter name="Timeout">
+				<para>Number of milliseconds to wait before callback.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Park a channel.</para>
+		</description>
+	</manager>
+	<manager name="Bridge" language="en_US">
+		<synopsis>
+			Bridge two channels already in the PBX.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel1" required="true">
+				<para>Channel to Bridge to Channel2.</para>
+			</parameter>
+			<parameter name="Channel2" required="true">
+				<para>Channel to Bridge to Channel1.</para>
+			</parameter>
+			<parameter name="Tone">
+				<para>Play courtesy tone to Channel 2.</para>
+				<enumlist>
+					<enum name="yes" />
+					<enum name="no" />
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Bridge together two channels already in the PBX.</para>
+		</description>
+	</manager>
  ***/
 
 #define DEFAULT_PARK_TIME 45000
@@ -4109,14 +4164,6 @@ static char *handle_features_reload(struct ast_cli_entry *e, int cmd, struct ast
 	return CLI_SUCCESS;
 }
 
-static const char mandescr_bridge[] =
-"Description: Bridge together two channels already in the PBX\n"
-"Variables: ( Headers marked with * are required )\n"
-"   *Channel1: Channel to Bridge to Channel2\n"
-"   *Channel2: Channel to Bridge to Channel1\n"
-"        Tone: (Yes|No) Play courtesy tone to Channel 2\n"
-"\n";
-
 /*!
  * \brief Actual bridge
  * \param chan
@@ -4381,13 +4428,6 @@ static int manager_parking_status(struct mansession *s, const struct message *m)
 
 	return RESULT_SUCCESS;
 }
-
-static const char mandescr_park[] =
-"Description: Park a channel.\n"
-"Variables: (Names marked with * are required)\n"
-"	*Channel: Channel name to park\n"
-"	*Channel2: Channel to announce park info to (and return to if timeout)\n"
-"	Timeout: Number of milliseconds to wait before callback.\n";  
 
 /*!
  * \brief Create manager event for parked calls
@@ -4695,9 +4735,9 @@ int ast_features_init(void)
 	if (!res)
 		res = ast_register_application2(parkcall, park_call_exec, NULL, NULL, NULL);
 	if (!res) {
-		ast_manager_register("ParkedCalls", 0, manager_parking_status, "List parked calls");
-		ast_manager_register2("Park", EVENT_FLAG_CALL, manager_park, "Park a channel", mandescr_park); 
-		ast_manager_register2("Bridge", EVENT_FLAG_CALL, action_bridge, "Bridge two channels already in the PBX", mandescr_bridge);
+		ast_manager_register_xml("ParkedCalls", 0, manager_parking_status);
+		ast_manager_register_xml("Park", EVENT_FLAG_CALL, manager_park);
+		ast_manager_register_xml("Bridge", EVENT_FLAG_CALL, action_bridge);
 	}
 
 	res |= ast_devstate_prov_add("Park", metermaidstate);

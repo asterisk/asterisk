@@ -420,6 +420,46 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</variablelist>
 		</description>
 	</application>
+	<manager name="MeetmeMute" language="en_US">
+		<synopsis>
+			Mute a Meetme user.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Meetme" required="true" />
+			<parameter name="Usernum" required="true" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
+	<manager name="MeetmeUnmute" language="en_US">
+		<synopsis>
+			Unmute a Meetme user.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Meetme" required="true" />
+			<parameter name="Usernum" required="true" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
+	<manager name="MeetmeList" language="en_US">
+		<synopsis>
+			List participants in a conference.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Conference" required="true">
+				<para>Conference number.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Lists all users in a particular MeetMe conference.
+			MeetmeList will follow as separate events, followed by a final event called
+			MeetmeListComplete.</para>
+		</description>
+	</manager>
  ***/
 
 #define CONFIG_FILE_NAME "meetme.conf"
@@ -4236,14 +4276,6 @@ static int action_meetmeunmute(struct mansession *s, const struct message *m)
 	return meetmemute(s, m, 0);
 }
 
-static const char mandescr_meetmelist[] =
-"Description: Lists all users in a particular MeetMe conference.\n"
-"MeetmeList will follow as separate events, followed by a final event called\n"
-"MeetmeListComplete.\n"
-"Variables:\n"
-"    *ActionId: <id>\n"
-"    *Conference: <confno>\n";
-
 static int action_meetmelist(struct mansession *s, const struct message *m)
 {
 	const char *actionid = astman_get_header(m, "ActionID");
@@ -6418,12 +6450,9 @@ static int load_module(void)
 	res |= load_config(0);
 
 	ast_cli_register_multiple(cli_meetme, ARRAY_LEN(cli_meetme));
-	res |= ast_manager_register("MeetmeMute", EVENT_FLAG_CALL, 
-				    action_meetmemute, "Mute a Meetme user");
-	res |= ast_manager_register("MeetmeUnmute", EVENT_FLAG_CALL, 
-				    action_meetmeunmute, "Unmute a Meetme user");
-	res |= ast_manager_register2("MeetmeList", EVENT_FLAG_REPORTING, 
-				    action_meetmelist, "List participants in a conference", mandescr_meetmelist);
+	res |= ast_manager_register_xml("MeetmeMute", EVENT_FLAG_CALL, action_meetmemute);
+	res |= ast_manager_register_xml("MeetmeUnmute", EVENT_FLAG_CALL, action_meetmeunmute);
+	res |= ast_manager_register_xml("MeetmeList", EVENT_FLAG_REPORTING, action_meetmelist);
 	res |= ast_register_application_xml(app4, channel_admin_exec);
 	res |= ast_register_application_xml(app3, admin_exec);
 	res |= ast_register_application_xml(app2, count_exec);

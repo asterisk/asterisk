@@ -27,6 +27,7 @@
 #include "asterisk/chanvars.h"
 #include "asterisk/hashtab.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/xmldoc.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -72,12 +73,6 @@ struct ast_sw;
 
 /*! \brief Typedef for devicestate and hint callbacks */
 typedef int (*ast_state_cb_type)(char *context, char* id, enum ast_extension_states state, void *data);
-
-/*! \brief From where the documentation come from */
-enum ast_doc_src {
-	AST_XML_DOC,            /*!< From XML documentation */
-	AST_STATIC_DOC          /*!< From application/function registration */
-};
 
 /*! \brief Data structure associated with a custom dialplan function */
 struct ast_custom_function {

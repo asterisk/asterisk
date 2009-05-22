@@ -175,6 +175,47 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description />
 	</function>
+	<manager name="IAXpeers" language="en_US">
+		<synopsis>
+			List IAX peers.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
+	<manager name="IAXpeerlist" language="en_US">
+		<synopsis>
+			List IAX Peers.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>List all the IAX peers.</para>
+		</description>
+	</manager>
+	<manager name="IAXnetstats" language="en_US">
+		<synopsis>
+			Show IAX Netstats.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Show IAX channels network statistics.</para>
+		</description>
+	</manager>
+	<manager name="IAXregistry" language="en_US">
+		<synopsis>
+			Show IAX registrations.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>Show IAX registrations.</para>
+		</description>
+	</manager>
  ***/
 
 /* Define SCHED_MULTITHREADED to run the scheduler in a special
@@ -12720,10 +12761,10 @@ static int load_module(void)
 
 	ast_register_application_xml(papp, iax2_prov_app);
 	
-	ast_manager_register( "IAXpeers", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_peers, "List IAX Peers" );
-	ast_manager_register( "IAXpeerlist", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_peer_list, "List IAX Peers" );
-	ast_manager_register( "IAXnetstats", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_netstats, "Show IAX Netstats" );
-	ast_manager_register( "IAXregistry", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_registry, "Show IAX registrations");
+	ast_manager_register_xml("IAXpeers", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_peers);
+	ast_manager_register_xml("IAXpeerlist", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_peer_list);
+	ast_manager_register_xml("IAXnetstats", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_netstats);
+	ast_manager_register_xml("IAXregistry", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_registry);
 
 	if ((timer = ast_timer_open())) {
 		ast_timer_set_rate(timer, trunkfreq);

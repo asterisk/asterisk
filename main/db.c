@@ -48,6 +48,58 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "db1-ast/include/db.h"
 
+/*** DOCUMENTATION
+	<manager name="DBGet" language="en_US">
+		<synopsis>
+			Get DB Entry.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Family" required="true" />
+			<parameter name="Key" required="true" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
+	<manager name="DBPut" language="en_US">
+		<synopsis>
+			Put DB entry.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Family" required="true" />
+			<parameter name="Key" required="true" />
+			<parameter name="Val" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
+	<manager name="DBDel" language="en_US">
+		<synopsis>
+			Delete DB entry.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Family" required="true" />
+			<parameter name="Key" required="true" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
+	<manager name="DBDelTree" language="en_US">
+		<synopsis>
+			Delete DB Tree.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Family" required="true" />
+			<parameter name="Key" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
+ ***/
+
 static DB *astdb;
 AST_MUTEX_DEFINE_STATIC(dblock);
 
@@ -666,9 +718,9 @@ int astdb_init(void)
 {
 	dbinit();
 	ast_cli_register_multiple(cli_database, ARRAY_LEN(cli_database));
-	ast_manager_register("DBGet", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_dbget, "Get DB Entry");
-	ast_manager_register("DBPut", EVENT_FLAG_SYSTEM, manager_dbput, "Put DB Entry");
-	ast_manager_register("DBDel", EVENT_FLAG_SYSTEM, manager_dbdel, "Delete DB Entry");
-	ast_manager_register("DBDelTree", EVENT_FLAG_SYSTEM, manager_dbdeltree, "Delete DB Tree");
+	ast_manager_register_xml("DBGet", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_dbget);
+	ast_manager_register_xml("DBPut", EVENT_FLAG_SYSTEM, manager_dbput);
+	ast_manager_register_xml("DBDel", EVENT_FLAG_SYSTEM, manager_dbdel);
+	ast_manager_register_xml("DBDelTree", EVENT_FLAG_SYSTEM, manager_dbdeltree);
 	return 0;
 }

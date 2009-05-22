@@ -22,6 +22,7 @@
 #include "asterisk/network.h"
 #include "asterisk/lock.h"
 #include "asterisk/datastore.h"
+#include "asterisk/xmldoc.h"
 
 /*!
  \file
@@ -116,14 +117,19 @@ struct message {
 struct manager_action {
 	/*! Name of the action */
 	const char *action;
-	/*! Short description of the action */
-	const char *synopsis;
-	/*! Detailed description of the action */
-	const char *description;
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(synopsis);	/*!< Synopsis text (short description). */
+		AST_STRING_FIELD(description);	/*!< Description (help text) */
+		AST_STRING_FIELD(syntax);	/*!< Syntax text */
+		AST_STRING_FIELD(arguments);	/*!< Description of each argument. */
+		AST_STRING_FIELD(seealso);	/*!< See also */
+	);
 	/*! Permission required for action.  EVENT_FLAG_* */
 	int authority;
 	/*! Function to be called */
 	int (*func)(struct mansession *s, const struct message *m);
+	/*! Where the documentation come from. */
+	enum ast_doc_src docsrc;
 	/*! For easy linking */
 	AST_RWLIST_ENTRY(manager_action) list;
 };
@@ -132,6 +138,8 @@ struct manager_action {
  * \note  Use ast_manager_register2() to register with help text for new manager commands */
 #define ast_manager_register(a, b, c, d) ast_manager_register2(a, b, c, d, NULL)
 
+/*! \brief Register a manager callback using XML documentation to describe the manager. */
+#define ast_manager_register_xml(a, b, c) ast_manager_register2(a, b, c, NULL, NULL)
 
 /*! \brief Register a manager command with the manager interface 
  	\param action Name of the requested Action:

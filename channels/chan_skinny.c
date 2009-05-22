@@ -71,6 +71,63 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/indications.h"
 #include "asterisk/linkedlists.h"
 
+/*** DOCUMENTATION
+	<manager name="SKINNYdevices" language="en_US">
+		<synopsis>
+			List SKINNY devices (text format).
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>Lists Skinny devices in text format with details on current status.
+			Devicelist will follow as separate events, followed by a final event called
+			DevicelistComplete.</para>
+		</description>
+	</manager>
+	<manager name="SKINNYshowdevice" language="en_US">
+		<synopsis>
+			Show SKINNY device (text format).
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Device" required="true">
+				<para>The device name you want to check.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Show one SKINNY device with details on current status.</para>
+		</description>
+	</manager>
+	<manager name="SKINNYlines" language="en_US">
+		<synopsis>
+			List SKINNY lines (text format).
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>Lists Skinny lines in text format with details on current status.
+			Linelist will follow as separate events, followed by a final event called
+			LinelistComplete.</para>
+		</description>
+	</manager>
+	<manager name="SKINNYshowline" language="en_US">
+		<synopsis>
+			Show SKINNY line (text format).
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Line" required="true">
+				<para>The line name you want to check.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Show one SKINNY line with details on current status.</para>
+		</description>
+	</manager>
+ ***/
+
 #ifdef SKINNY_DEVMODE
 #define SKINNY_DEVONLY(code)	\
 	code
@@ -3049,13 +3106,6 @@ static char *_skinny_show_devices(int fd, int *total, struct mansession *s, cons
 	return CLI_SUCCESS;
 }
 
-static const char mandescr_show_devices[] =
-"Description: Lists Skinny devices in text format with details on current status.\n"
-"Devicelist will follow as separate events, followed by a final event called\n"
-"DevicelistComplete.\n"
-"Variables: \n"
-"  ActionID: <id>	Action ID for this transaction. Will be returned.\n";
-
 /*! \brief  Show SKINNY devices in the manager API */
 /*    Inspired from chan_sip */
 static int manager_skinny_show_devices(struct mansession *s, const struct message *m)
@@ -3194,12 +3244,6 @@ static char *_skinny_show_device(int type, int fd, struct mansession *s, const s
 	return CLI_SUCCESS;
 }
 
-static const char mandescr_show_device[] =
-"Description: Show one SKINNY device with details on current status.\n"
-"Variables: \n"
-"  Device: <name>           The device name you want to check.\n"
-"  ActionID: <id>	  Optional action ID for this AMI transaction.\n";
-
 static int manager_skinny_show_device(struct mansession *s, const struct message *m)
 {
 	const char *a[4];
@@ -3309,13 +3353,6 @@ static char *_skinny_show_lines(int fd, int *total, struct mansession *s, const 
 
 	return CLI_SUCCESS;
 }
-
-static const char mandescr_show_lines[] =
-"Description: Lists Skinny lines in text format with details on current status.\n"
-"Linelist will follow as separate events, followed by a final event called\n"
-"LinelistComplete.\n"
-"Variables: \n"
-"  ActionID: <id>	Action ID for this transaction. Will be returned.\n";
 
 /*! \brief  Show Skinny lines in the manager API */
 /*    Inspired from chan_sip */
@@ -3501,12 +3538,6 @@ static char *_skinny_show_line(int type, int fd, struct mansession *s, const str
 	AST_LIST_UNLOCK(&devices);
 	return CLI_SUCCESS;
 }
-
-static const char mandescr_show_line[] =
-"Description: Show one SKINNY line with details on current status.\n"
-"Variables: \n"
-"  Line: <name>           The line name you want to check.\n"
-"  ActionID: <id>	  Optional action ID for this AMI transaction.\n";
 
 static int manager_skinny_show_line(struct mansession *s, const struct message *m)
 {
@@ -7347,14 +7378,10 @@ static int load_module(void)
 	ast_rtp_glue_register(&skinny_rtp_glue);
 	ast_cli_register_multiple(cli_skinny, ARRAY_LEN(cli_skinny));
 
-	ast_manager_register2("SKINNYdevices", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_skinny_show_devices,
-			"List SKINNY devices (text format)", mandescr_show_devices);
-	ast_manager_register2("SKINNYshowdevice", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_skinny_show_device,
-			"Show SKINNY device (text format)", mandescr_show_device);
-	ast_manager_register2("SKINNYlines", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_skinny_show_lines,
-			"List SKINNY lines (text format)", mandescr_show_lines);
-	ast_manager_register2("SKINNYshowline", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_skinny_show_line,
-			"Show SKINNY line (text format)", mandescr_show_line);
+	ast_manager_register_xml("SKINNYdevices", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_skinny_show_devices);
+	ast_manager_register_xml("SKINNYshowdevice", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_skinny_show_device);
+	ast_manager_register_xml("SKINNYlines", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_skinny_show_lines);
+	ast_manager_register_xml("SKINNYshowline", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_skinny_show_line);
 
 	sched = sched_context_create();
 	if (!sched) {

@@ -494,7 +494,160 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Gets or sets queue members penalty.</para>
 		</description>
 	</function>
-
+	<manager name="Queues" language="en_US">
+		<synopsis>
+			Queues.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
+	<manager name="QueueStatus" language="en_US">
+		<synopsis>
+			Show queue status.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Queue" />
+			<parameter name="Member" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
+	<manager name="QueueSummary" language="en_US">
+		<synopsis>
+			Show queue summary.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Queue" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
+	<manager name="QueueAdd" language="en_US">
+		<synopsis>
+			Add interface to queue.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Queue" required="true" />
+			<parameter name="Interface" required="true" />
+			<parameter name="Penalty" />
+			<parameter name="Paused" />
+			<parameter name="MemberName" />
+			<parameter name="StateInterface" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
+	<manager name="QueueRemove" language="en_US">
+		<synopsis>
+			Remove interface from queue.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Queue" required="true" />
+			<parameter name="Interface" required="true" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
+	<manager name="QueuePause" language="en_US">
+		<synopsis>
+			Makes a queue member temporarily unavailable.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Interface" required="true" />
+			<parameter name="Paused" required="true" />
+			<parameter name="Queue" />
+			<parameter name="Reason" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
+	<manager name="QueueLog" language="en_US">
+		<synopsis>
+			Adds custom entry in queue_log.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Queue" required="true" />
+			<parameter name="Event" required="true" />
+			<parameter name="Uniqueid" />
+			<parameter name="Interface" />
+			<parameter name="Message" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
+	<manager name="QueuePenalty" language="en_US">
+		<synopsis>
+			Set the penalty for a queue member.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Interface" required="true" />
+			<parameter name="Penalty" required="true" />
+			<parameter name="Queue" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
+	<manager name="QueueRule" language="en_US">
+		<synopsis>
+			Queue Rules.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Rule" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
+	<manager name="QueueReload" language="en_US">
+		<synopsis>
+			Reload a queue, queues, or any sub-section of a queue or queues.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Queue" />
+			<parameter name="Members">
+				<enumlist>
+					<enum name="yes" />
+					<enum name="no" />
+				</enumlist>
+			</parameter>
+			<parameter name="Rules">
+				<enumlist>
+					<enum name="yes" />
+					<enum name="no" />
+				</enumlist>
+			</parameter>
+			<parameter name="Parameters">
+				<enumlist>
+					<enum name="yes" />
+					<enum name="no" />
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+		</description>
+	</manager>
+	<manager name="QueueReset" language="en_US">
+		<synopsis>
+			Reset queue statistics.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Queue" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
  ***/
 
 enum {
@@ -7299,17 +7452,17 @@ static int load_module(void)
 	res |= ast_register_application_xml(app_pqm, pqm_exec);
 	res |= ast_register_application_xml(app_upqm, upqm_exec);
 	res |= ast_register_application_xml(app_ql, ql_exec);
-	res |= ast_manager_register("Queues", 0, manager_queues_show, "Queues");
-	res |= ast_manager_register("QueueStatus", 0, manager_queues_status, "Queue Status");
-	res |= ast_manager_register("QueueSummary", 0, manager_queues_summary, "Queue Summary");
-	res |= ast_manager_register("QueueAdd", EVENT_FLAG_AGENT, manager_add_queue_member, "Add interface to queue.");
-	res |= ast_manager_register("QueueRemove", EVENT_FLAG_AGENT, manager_remove_queue_member, "Remove interface from queue.");
-	res |= ast_manager_register("QueuePause", EVENT_FLAG_AGENT, manager_pause_queue_member, "Makes a queue member temporarily unavailable");
-	res |= ast_manager_register("QueueLog", EVENT_FLAG_AGENT, manager_queue_log_custom, "Adds custom entry in queue_log");
-	res |= ast_manager_register("QueuePenalty", EVENT_FLAG_AGENT, manager_queue_member_penalty, "Set the penalty for a queue member"); 
-	res |= ast_manager_register("QueueRule", 0, manager_queue_rule_show, "Queue Rules");
-	res |= ast_manager_register("QueueReload", 0, manager_queue_reload, "Reload a queue, queues, or any sub-section of a queue or queues");
-	res |= ast_manager_register("QueueReset", 0, manager_queue_reset, "Reset queue statistics");
+	res |= ast_manager_register_xml("Queues", 0, manager_queues_show);
+	res |= ast_manager_register_xml("QueueStatus", 0, manager_queues_status);
+	res |= ast_manager_register_xml("QueueSummary", 0, manager_queues_summary);
+	res |= ast_manager_register_xml("QueueAdd", EVENT_FLAG_AGENT, manager_add_queue_member);
+	res |= ast_manager_register_xml("QueueRemove", EVENT_FLAG_AGENT, manager_remove_queue_member);
+	res |= ast_manager_register_xml("QueuePause", EVENT_FLAG_AGENT, manager_pause_queue_member);
+	res |= ast_manager_register_xml("QueueLog", EVENT_FLAG_AGENT, manager_queue_log_custom);
+	res |= ast_manager_register_xml("QueuePenalty", EVENT_FLAG_AGENT, manager_queue_member_penalty);
+	res |= ast_manager_register_xml("QueueRule", 0, manager_queue_rule_show);
+	res |= ast_manager_register_xml("QueueReload", 0, manager_queue_reload);
+	res |= ast_manager_register_xml("QueueReset", 0, manager_queue_reset);
 	res |= ast_custom_function_register(&queuevar_function);
 	res |= ast_custom_function_register(&queuemembercount_function);
 	res |= ast_custom_function_register(&queuemembercount_dep);

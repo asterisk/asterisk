@@ -298,6 +298,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			context.</para>
 		</description>
 	</function>
+	<manager name="VoicemailUsersList" language="en_US">
+		<synopsis>
+			List All Voicemail User Information.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
  ***/
 
 #ifdef IMAP_STORAGE
@@ -11150,7 +11160,7 @@ static int load_module(void)
 	res |= ast_register_application_xml(app3, vm_box_exists);
 	res |= ast_register_application_xml(app4, vmauthenticate);
 	res |= ast_custom_function_register(&mailbox_exists_acf);
-	res |= ast_manager_register("VoicemailUsersList", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, manager_list_voicemail_users, "List All Voicemail User Information");
+	res |= ast_manager_register_xml("VoicemailUsersList", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, manager_list_voicemail_users);
 	if (res)
 		return res;
 
