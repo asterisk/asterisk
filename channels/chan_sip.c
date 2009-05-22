@@ -20350,7 +20350,7 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 			}
 		} else {
 			/* Notify the first other party that they are connected to someone else assuming that target.chan1
-			   has progressed far enough through the dialplan to have it's called party information set. */
+			   has progressed far enough through the dialplan to have its called party information set. */
 			if (current->chan2) {
 				ast_channel_lock(target.chan1);
 				ast_party_connected_line_copy(&connected_caller, &target.chan1->connected);
