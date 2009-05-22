@@ -4198,7 +4198,7 @@ static int pri_find_dchan(struct dahdi_pri *pri)
 #if defined(HAVE_OPENR2)
 static const char * const dahdi_accept_r2_call_app = "DAHDIAcceptR2Call";
 
-static int dahdi_accept_r2_call_exec(struct ast_channel *chan, void *data)
+static int dahdi_accept_r2_call_exec(struct ast_channel *chan, const char *data)
 {
 	/* data is whether to accept with charge or no charge */
 	openr2_call_mode_t accept_mode;
