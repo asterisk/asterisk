@@ -3648,6 +3648,8 @@ int main(int argc, char *argv[])
 	/* loads the cli_permissoins.conf file needed to implement cli restrictions. */
 	ast_cli_perms_init(0);
 
+	ast_stun_init();
+
 	/* AMI is initialized after loading modules because of a potential
 	 * conflict between issuing a module reload from manager and
 	 * registering manager actions.  This will cause reversed locking
