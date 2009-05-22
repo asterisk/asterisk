@@ -324,7 +324,7 @@ int __ast_vasprintf(char **strp, const char *fmt, va_list ap, const char *file, 
 
 static char *handle_memory_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char *fn = NULL;
+	const char *fn = NULL;
 	struct ast_region *reg;
 	unsigned int x;
 	unsigned int len = 0;
@@ -386,7 +386,7 @@ static char *handle_memory_show(struct ast_cli_entry *e, int cmd, struct ast_cli
 
 static char *handle_memory_show_summary(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char *fn = NULL;
+	const char *fn = NULL;
 	int x;
 	struct ast_region *reg;
 	unsigned int len = 0;
