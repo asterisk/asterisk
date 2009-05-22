@@ -942,9 +942,7 @@ static int pbx_builtin_saydigits(struct ast_channel *, const char *);
 static int pbx_builtin_saycharacters(struct ast_channel *, const char *);
 static int pbx_builtin_sayphonetic(struct ast_channel *, const char *);
 static int matchcid(const char *cidpattern, const char *callerid);
-int pbx_builtin_setvar(struct ast_channel *, const char *);
-void log_match_char_tree(struct match_char *node, char *prefix); /* for use anywhere */
-int pbx_builtin_setvar_multiple(struct ast_channel *, const char *);
+static void log_match_char_tree(struct match_char *node, char *prefix); /* for use anywhere */
 static int pbx_builtin_importvar(struct ast_channel *, const char *);
 static void set_ext_pri(struct ast_channel *c, const char *exten, int pri);
 static void new_find_extension(const char *str, struct scoreboard *score,
@@ -959,11 +957,9 @@ static struct match_char *add_pattern_node(struct ast_context *con,
 static void create_match_char_tree(struct ast_context *con);
 static struct ast_exten *get_canmatch_exten(struct match_char *node);
 static void destroy_pattern_tree(struct match_char *pattern_tree);
-int ast_hashtab_compare_contexts(const void *ah_a, const void *ah_b);
 static int hashtab_compare_extens(const void *ha_a, const void *ah_b);
 static int hashtab_compare_exten_numbers(const void *ah_a, const void *ah_b);
 static int hashtab_compare_exten_labels(const void *ah_a, const void *ah_b);
-unsigned int ast_hashtab_hash_contexts(const void *obj);
 static unsigned int hashtab_hash_extens(const void *obj);
 static unsigned int hashtab_hash_priority(const void *obj);
 static unsigned int hashtab_hash_labels(const void *obj);
@@ -1492,7 +1488,7 @@ static void update_scoreboard(struct scoreboard *board, int length, int spec, st
 #endif
 }
 
-void log_match_char_tree(struct match_char *node, char *prefix)
+static void log_match_char_tree(struct match_char *node, char *prefix)
 {
 	char extenstr[40];
 	struct ast_str *my_prefix = ast_str_alloca(1024);
