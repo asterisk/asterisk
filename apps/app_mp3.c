@@ -64,7 +64,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  ***/
 static char *app = "MP3Player";
 
-static int mp3play(char *filename, int fd)
+static int mp3play(const char *filename, int fd)
 {
 	int res;
 
@@ -152,8 +152,8 @@ static int mp3_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 	
-	res = mp3play((char *)data, fds[1]);
-	if (!strncasecmp((char *)data, "http://", 7)) {
+	res = mp3play(data, fds[1]);
+	if (!strncasecmp(data, "http://", 7)) {
 		timeout = 10000;
 	}
 	/* Wait 1000 ms first */
