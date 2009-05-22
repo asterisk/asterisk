@@ -3199,9 +3199,9 @@ static int write_htmldump(const char *filename)
 		fprintf(htmlfile, "<TR><TH ALIGN=\"CENTER\"><B>%s - %s</B></TH></TR>\n", fullcmd, command->summary);
 #ifdef AST_XML_DOCS
 		stringptmp = ast_xmldoc_printable(command->usage, 0);
-		stringp = stringptmp;
+		stringp = ast_strdup(stringptmp);
 #else
-		stringp = command->usage;
+		stringp = ast_strdup(command->usage);
 #endif
 		tempstr = strsep(&stringp, "\n");
 
@@ -3216,6 +3216,7 @@ static int write_htmldump(const char *filename)
 		}
 		fprintf(htmlfile, "</TD></TR>\n");
 		fprintf(htmlfile, "</TABLE></TD></TR>\n\n");
+		ast_free(stringp);
 #ifdef AST_XML_DOCS
 		ast_free(stringptmp);
 #endif
