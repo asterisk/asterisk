@@ -97,7 +97,7 @@ void ast_cli(int fd, const char *fmt, ...)
 \code
 static char *test_new_cli(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	static const char * const choices = { "one", "two", "three", NULL };
+	static const char * const choices[] = { "one", "two", "three", NULL };
 
         switch (cmd) {
         case CLI_INIT:
@@ -181,7 +181,7 @@ struct ast_cli_entry {
   \code
     char *my_generate(const char *line, const char *word, int pos, int n)
     {
-        static const char * const choices = { "one", "two", "three", NULL };
+        static const char * const choices[] = { "one", "two", "three", NULL };
 	if (pos == 2)
         	return ast_cli_complete(word, choices, n);
 	else
