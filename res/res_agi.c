@@ -443,6 +443,110 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			one was pressed or <literal>-1</literal> on error/hangup.</para>
 		</description>
 	</agi>
+	<agi name="say datetime" language="en_US">
+		<synopsis>
+			Says a given time as specfied by the format given.
+		</synopsis>
+		<syntax>
+			<parameter name="time" required="true">
+				<para>Is number of seconds elapsed since 00:00:00
+				on January 1, 1970, Coordinated Universal Time (UTC)</para>
+			</parameter>
+			<parameter name="escape_digits" required="true" />
+			<parameter name="format">
+				<para>Is the format the time should be said in. See
+				<filename>voicemail.conf</filename> (defaults to <literal>ABdY
+				'digits/at' IMp</literal>).</para>
+			</parameter>
+			<parameter name="timezone">
+				<para>Acceptable values can be found in <filename>/usr/share/zoneinfo</filename>
+				Defaults to machine default.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Say a given time, returning early if any of the given DTMF digits are
+			received on the channel. Returns <literal>0</literal> if playback
+			completes without a digit being pressed, or the ASCII numerical value of the
+			digit if one was pressed or <literal>-1</literal> on error/hangup.</para>
+		</description>
+	</agi>
+	<agi name="send image" language="en_US">
+		<synopsis>
+			Sends images to channels supporting it.
+		</synopsis>
+		<syntax>
+			<parameter name="image" required="true" />
+		</syntax>
+		<description>
+			<para>Sends the given image on a channel. Most channels do not support the
+			transmission of images. Returns <literal>0</literal> if image is sent, or if
+			the channel does not support image transmission.  Returns <literal>-1</literal>
+			only on error/hangup. Image names should not include extensions.</para>
+		</description>
+	</agi>
+	<agi name="send text" language="en_US">
+		<synopsis>
+			Sends text to channels supporting it.
+		</synopsis>
+		<syntax>
+			<parameter name="text to send" required="true">
+				<para>Text consisting of greater than one word should be placed
+				in quotes since the command only accepts a single argument.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Sends the given text on a channel. Most channels do not support the
+			transmission of text. Returns <literal>0</literal> if text is sent, or if the
+			channel does not support text transmission. Returns <literal>-1</literal> only
+			on error/hangup.</para>
+		</description>
+	</agi>
+	<agi name="set autohangup" language="en_US">
+		<synopsis>
+			Autohangup channel in some time.
+		</synopsis>
+		<syntax>
+			<parameter name="time" required="true" />
+		</syntax>
+		<description>
+			<para>Cause the channel to automatically hangup at <replaceable>time</replaceable>
+			seconds in the future. Of course it can be hungup before then as well. Setting to
+			<literal>0</literal> will cause the autohangup feature to be disabled on this channel.</para>
+		</description>
+	</agi>
+	<agi name="set callerid" language="en_US">
+		<synopsis>
+			Sets callerid for the current channel.
+		</synopsis>
+		<syntax>
+			<parameter name="number" required="true" />
+		</syntax>
+		<description>
+			<para>Changes the callerid of the current channel.</para>
+		</description>
+	</agi>
+	<agi name="set context" language="en_US">
+		<synopsis>
+			Sets channel context.
+		</synopsis>
+		<syntax>
+			<parameter name="desired context" required="true" />
+		</syntax>
+		<description>
+			<para>Sets the context for continuation upon exiting the application.</para>
+		</description>
+	</agi>
+	<agi name="set extension" language="en_US">
+		<synopsis>
+			Changes channel extension.
+		</synopsis>
+		<syntax>
+			<parameter name="new extension" required="true" />
+		</syntax>
+		<description>
+			<para>Changes the extension for continuation upon exiting the application.</para>
+		</description>
+	</agi>
 	<agi name="set music" language="en_US">
 		<synopsis>
 			Enable/Disable Music on hold generator
@@ -2462,10 +2566,6 @@ static const char usage_verbose[] =
 static const char usage_setvariable[] =
 " Usage: SET VARIABLE <variablename> <value>\n";
 
-static const char usage_setcallerid[] =
-" Usage: SET CALLERID <number>\n"
-"	Changes the callerid of the current channel.\n";
-
 static const char usage_waitfordigit[] =
 " Usage: WAIT FOR DIGIT <timeout>\n"
 "	Waits up to 'timeout' milliseconds for channel to receive a DTMF digit.\n"
@@ -2473,25 +2573,10 @@ static const char usage_waitfordigit[] =
 " the numerical value of the ascii of the digit if one is received.  Use -1\n"
 " for the timeout value if you desire the call to block indefinitely.\n";
 
-static const char usage_sendtext[] =
-" Usage: SEND TEXT \"<text to send>\"\n"
-"	Sends the given text on a channel. Most channels do not support the\n"
-" transmission of text.  Returns 0 if text is sent, or if the channel does not\n"
-" support text transmission.  Returns -1 only on error/hangup.  Text\n"
-" consisting of greater than one word should be placed in quotes since the\n"
-" command only accepts a single argument.\n";
-
 static const char usage_tddmode[] =
 " Usage: TDD MODE <on|off>\n"
 "	Enable/Disable TDD transmission/reception on a channel. Returns 1 if\n"
 " successful, or 0 if channel is not TDD-capable.\n";
-
-static const char usage_sendimage[] =
-" Usage: SEND IMAGE <image>\n"
-"	Sends the given image on a channel. Most channels do not support the\n"
-" transmission of images. Returns 0 if image is sent, or if the channel does not\n"
-" support image transmission.  Returns -1 only on error/hangup. Image names\n"
-" should not include extensions.\n";
 
 static const char usage_streamfile[] =
 " Usage: STREAM FILE <filename> <escape digits> [sample offset]\n"
@@ -2513,35 +2598,10 @@ static const char usage_controlstreamfile[] =
 " extension must not be included in the filename.\n\n"
 " Note: ffchar and rewchar default to * and # respectively.\n";
 
-static const char usage_saydatetime[] =
-" Usage: SAY DATETIME <time> <escape digits> [format] [timezone]\n"
-"	Say a given time, returning early if any of the given DTMF digits are\n"
-" received on the channel.  <time> is number of seconds elapsed since 00:00:00\n"
-" on January 1, 1970, Coordinated Universal Time (UTC). [format] is the format\n"
-" the time should be said in.  See voicemail.conf (defaults to \"ABdY\n"
-" 'digits/at' IMp\").  Acceptable values for [timezone] can be found in\n"
-" /usr/share/zoneinfo.  Defaults to machine default. Returns 0 if playback\n"
-" completes without a digit being pressed, or the ASCII numerical value of the\n"
-" digit if one was pressed or -1 on error/hangup.\n";
-
-static const char usage_setcontext[] =
-" Usage: SET CONTEXT <desired context>\n"
-"	Sets the context for continuation upon exiting the application.\n";
-
-static const char usage_setextension[] =
-" Usage: SET EXTENSION <new extension>\n"
-"	Changes the extension for continuation upon exiting the application.\n";
-
 static const char usage_setpriority[] =
 " Usage: SET PRIORITY <priority>\n"
 "	Changes the priority for continuation upon exiting the application.\n"
 " The priority must be a valid priority or label.\n";
-
-static const char usage_autohangup[] =
-" Usage: SET AUTOHANGUP <time>\n"
-"	Cause the channel to automatically hangup at <time> seconds in the\n"
-" future.  Of course it can be hungup before then as well. Setting to 0 will\n"
-" cause the autohangup feature to be disabled on this channel.\n";
 
 static const char usage_speechcreate[] =
 " Usage: SPEECH CREATE <engine>\n"
@@ -2602,13 +2662,13 @@ static struct agi_command commands[] = {
 	{ { "say", "phonetic", NULL }, handle_sayphonetic, NULL, NULL, 0}, 
 	{ { "say", "date", NULL }, handle_saydate, NULL, NULL, 0}, 
 	{ { "say", "time", NULL }, handle_saytime, NULL, NULL, 0}, 
-	{ { "say", "datetime", NULL }, handle_saydatetime, "Says a given time as specfied by the format given", usage_saydatetime , 0 },
-	{ { "send", "image", NULL }, handle_sendimage, "Sends images to channels supporting it", usage_sendimage , 0 },
-	{ { "send", "text", NULL }, handle_sendtext, "Sends text to channels supporting it", usage_sendtext , 0 },
-	{ { "set", "autohangup", NULL }, handle_autohangup, "Autohangup channel in some time", usage_autohangup , 0 },
-	{ { "set", "callerid", NULL }, handle_setcallerid, "Sets callerid for the current channel", usage_setcallerid , 0 },
-	{ { "set", "context", NULL }, handle_setcontext, "Sets channel context", usage_setcontext , 0 },
-	{ { "set", "extension", NULL }, handle_setextension, "Changes channel extension", usage_setextension , 0 },
+	{ { "say", "datetime", NULL }, handle_saydatetime, NULL, NULL, 0},
+	{ { "send", "image", NULL }, handle_sendimage, NULL, NULL, 0}, 
+	{ { "send", "text", NULL }, handle_sendtext, NULL, NULL, 0},
+	{ { "set", "autohangup", NULL }, handle_autohangup, NULL, NULL, 0},
+	{ { "set", "callerid", NULL }, handle_setcallerid, NULL, NULL, 0},
+	{ { "set", "context", NULL }, handle_setcontext, NULL, NULL, 0},
+	{ { "set", "extension", NULL }, handle_setextension, NULL, NULL, 0},
 	{ { "set", "music", NULL }, handle_setmusic, NULL, NULL, 0 },
 	{ { "set", "priority", NULL }, handle_setpriority, "Set channel dialplan priority", usage_setpriority , 0 },
 	{ { "set", "variable", NULL }, handle_setvariable, "Sets a channel variable", usage_setvariable , 1 },
