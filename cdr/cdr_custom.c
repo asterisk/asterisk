@@ -115,7 +115,7 @@ static int load_config(void)
 
 static int custom_log(struct ast_cdr *cdr)
 {
-	struct ast_channel dummy;
+	struct ast_channel *dummy;
 	struct ast_str *str;
 	struct cdr_config *config;
 
@@ -124,17 +124,24 @@ static int custom_log(struct ast_cdr *cdr)
 		return -1;
 	}
 
-	/* Quite possibly the first use of a static struct ast_channel, we need it so the var funcs will work */
-	memset(&dummy, 0, sizeof(dummy));
-	dummy.cdr = cdr;
+	dummy = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Substitution/%p", cdr);
+
+	if (!dummy) {
+		ast_log(LOG_ERROR, "Unable to allocate channel for variable subsitution.\n");
+		return -1;
+	}
+
+	/* We need to dup here since the cdr actually belongs to the other channel,
+	   so when we release this channel we don't want the CDR getting cleaned
+	   up prematurely. */
+	dummy->cdr = ast_cdr_dup(cdr);
 
 	AST_RWLIST_RDLOCK(&sinks);
 
 	AST_LIST_TRAVERSE(&sinks, config, list) {
 		FILE *out;
 
-		ast_str_reset(str);
-		ast_str_substitute_variables(&str, 0, &dummy, config->format);
+		ast_str_substitute_variables(&str, 0, dummy, config->format);
 
 		/* Even though we have a lock on the list, we could be being chased by
 		   another thread and this lock ensures that we won't step on anyone's
@@ -157,6 +164,8 @@ static int custom_log(struct ast_cdr *cdr)
 	}
 
 	AST_RWLIST_UNLOCK(&sinks);
+
+	ast_channel_release(dummy);
 
 	return 0;
 }
