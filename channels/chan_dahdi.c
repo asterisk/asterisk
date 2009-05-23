@@ -7758,10 +7758,6 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	i->isidlecall = 0;
 	i->alreadyhungup = 0;
 #endif
-#ifdef HAVE_OPENR2
-	if (i->mfcr2call)
-		pbx_builtin_setvar_helper(tmp, "MFCR2_CATEGORY", openr2_proto_get_category_string(i->mfcr2_recvd_category));
-#endif
 	/* clear the fake event in case we posted one before we had ast_channel */
 	i->fake_event = 0;
 	/* Assure there is no confmute on this channel */
@@ -7776,6 +7772,11 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 		pbx_builtin_setvar_helper(tmp, v->name, v->value);
 
 	if (startpbx) {
+#ifdef HAVE_OPENR2
+		if (i->mfcr2call) {
+			pbx_builtin_setvar_helper(tmp, "MFCR2_CATEGORY", openr2_proto_get_category_string(i->mfcr2_recvd_category));
+		}
+#endif
 		if (ast_pbx_start(tmp)) {
 			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
 			ast_hangup(tmp);
