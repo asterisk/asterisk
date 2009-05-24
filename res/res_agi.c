@@ -130,6 +130,32 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</enumlist>
 		</description>
 	</agi>
+	<agi name="control stream file" language="en_US">
+		<synopsis>
+			Sends audio file on channel and allows the listner to control the stream.
+		</synopsis>
+		<syntax>
+			<parameter name="filename" required="true">
+				<para>The file extension must not be included in the filename.</para>
+			</parameter>
+			<parameter name="escape_digits" required="true" />
+			<parameter name="skipms" />
+			<parameter name="ffchar">
+				<para>Defaults to <literal>*</literal></para>
+			</parameter>
+			<parameter name="rewchr">
+				<para>Defaults to <literal>#</literal></para>
+			</parameter>
+			<parameter name="pausechr" />
+		</syntax>
+		<description>
+			<para>Send the given file, allowing playback to be controled by the given
+			digits, if any. Use double quotes for the digits if you wish none to be
+			permitted. Returns <literal>0</literal> if playback completes without a digit
+			being pressed, or the ASCII numerical value of the digit if one was pressed,
+			or <literal>-1</literal> on error or if the channel was disconnected.</para>
+		</description>
+	</agi>
 	<agi name="database del" language="en_US">
 		<synopsis>
 			Removes database key/value
@@ -569,6 +595,199 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			is not specified, then the <literal>default</literal> music on hold class will be
 			used.</para>
 			<para>Always returns <literal>0</literal>.</para>
+		</description>
+	</agi>
+	<agi name="set priority" language="en_US">
+		<synopsis>
+			Set channel dialplan priority.
+		</synopsis>
+		<syntax>
+			<parameter name="priority" required="true" />
+		</syntax>
+		<description>
+			<para>Changes the priority for continuation upon exiting the application.
+			The priority must be a valid priority or label.</para>
+		</description>
+	</agi>
+	<agi name="set variable" language="en_US">
+		<synopsis>
+			Sets a channel variable.
+		</synopsis>
+		<syntax>
+			<parameter name="variablename" required="true" />
+			<parameter name="value" required="true" />
+		</syntax>
+		<description>
+			<para>Sets a variable to the current channel.</para>
+		</description>
+	</agi>
+	<agi name="stream file" language="en_US">
+		<synopsis>
+			Sends audio file on channel.
+		</synopsis>
+		<syntax>
+			<parameter name="filename" required="true">
+				<para>File name to play. The file extension must not be
+				included in the <replaceable>filename</replaceable>.</para>
+			</parameter>
+			<parameter name="escape_digits" required="true">
+				<para>Use double quotes for the digits if you wish none to be
+				permitted.</para>
+			</parameter>
+			<parameter name="sample offset">
+				<para>If sample offset is provided then the audio will seek to sample
+				offset before play starts.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Send the given file, allowing playback to be interrupted by the given
+			digits, if any. Returns <literal>0</literal> if playback completes without a digit
+			being pressed, or the ASCII numerical value of the digit if one was pressed,
+			or <literal>-1</literal> on error or if the channel was disconnected.</para>
+		</description>
+		<see-also>
+			<ref type="agi">control stream file</ref>
+		</see-also>
+	</agi>
+	<agi name="tdd mode" language="en_US">
+		<synopsis>
+			Toggles TDD mode (for the deaf).
+		</synopsis>
+		<syntax>
+			<parameter name="boolean" required="true">
+				<enumlist>
+					<enum name="on" />
+					<enum name="off" />
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Enable/Disable TDD transmission/reception on a channel. Returns <literal>1</literal> if
+			successful, or <literal>0</literal> if channel is not TDD-capable.</para>
+		</description>
+	</agi>
+	<agi name="verbose" language="en_US">
+		<synopsis>
+			Logs a message to the asterisk verbose log.
+		</synopsis>
+		<syntax>
+			<parameter name="message" required="true" />
+			<parameter name="level" required="true" />
+		</syntax>
+		<description>
+			<para>Sends <replaceable>message</replaceable> to the console via verbose
+			message system. <replaceable>level</replaceable> is the the verbose level (1-4).
+			Always returns <literal>1</literal></para>
+		</description>
+	</agi>
+	<agi name="wait for digit" language="en_US">
+		<synopsis>
+			Waits for a digit to be pressed.
+		</synopsis>
+		<syntax>
+			<parameter name="timeout" required="true" />
+		</syntax>
+		<description>
+			<para>Waits up to <replaceable>timeout</replaceable> milliseconds for channel to
+			receive a DTMF digit. Returns <literal>-1</literal> on channel failure, <literal>0</literal>
+			if no digit is received in the timeout, or the numerical value of the ascii of the digit if
+			one is received. Use <literal>-1</literal> for the <replaceable>timeout</replaceable> value if
+			you desire the call to block indefinitely.</para>
+		</description>
+	</agi>
+	<agi name="speech create" language="en_US">
+		<synopsis>
+			Creates a speech object.
+		</synopsis>
+		<syntax>
+			<parameter name="engine" required="true" />
+		</syntax>
+		<description>
+			<para>Create a speech object to be used by the other Speech AGI commands.</para>
+		</description>
+	</agi>
+	<agi name="speech set" language="en_US">
+		<synopsis>
+			Sets a speech engine setting.
+		</synopsis>
+		<syntax>
+			<parameter name="name" required="true" />
+			<parameter name="value" required="true" />
+		</syntax>
+		<description>
+			<para>Set an engine-specific setting.</para>
+		</description>
+	</agi>
+	<agi name="speech destroy" language="en_US">
+		<synopsis>
+			Destroys a speech object.
+		</synopsis>
+		<syntax>
+		</syntax>
+		<description>
+			<para>Destroy the speech object created by <literal>SPEECH CREATE</literal>.</para>
+		</description>
+		<see-also>
+			<ref type="agi">speech create</ref>
+		</see-also>
+	</agi>
+	<agi name="speech load grammar" language="en_US">
+		<synopsis>
+			Loads a grammar.
+		</synopsis>
+		<syntax>
+			<parameter name="grammar name" required="true" />
+			<parameter name="path to grammar" required="true" />
+		</syntax>
+		<description>
+			<para>Loads the specified grammar as the specified name.</para>
+		</description>
+	</agi>
+	<agi name="speech unload grammar" language="en_US">
+		<synopsis>
+			Unloads a grammar.
+		</synopsis>
+		<syntax>
+			<parameter name="grammar name" required="true" />
+		</syntax>
+		<description>
+			<para>Unloads the specified grammar.</para>
+		</description>
+	</agi>
+	<agi name="speech activate grammar" language="en_US">
+		<synopsis>
+			Activates a grammar.
+		</synopsis>
+		<syntax>
+			<parameter name="grammar name" required="true" />
+		</syntax>
+		<description>
+			<para>Activates the specified grammar on the speech object.</para>
+		</description>
+	</agi>
+	<agi name="speech deactivate grammar" language="en_US">
+		<synopsis>
+			Deactivates a grammar.
+		</synopsis>
+		<syntax>
+			<parameter name="grammar name" required="true" />
+		</syntax>
+		<description>
+			<para>Deactivates the specified grammar on the speech object.</para>
+		</description>
+	</agi>
+	<agi name="speech recognize" language="en_US">
+		<synopsis>
+			Recognizes speech.
+		</synopsis>
+		<syntax>
+			<parameter name="prompt" required="true" />
+			<parameter name="timeout" required="true" />
+			<parameter name="offset" />
+		</syntax>
+		<description>
+			<para>Plays back given <replaceable>prompt</replaceable> while listening for
+			speech and dtmf.</para>
 		</description>
 	</agi>
  ***/
@@ -2557,84 +2776,6 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 	return RESULT_SUCCESS;
 }
 
-static const char usage_verbose[] =
-" Usage: VERBOSE <message> <level>\n"
-"	Sends <message> to the console via verbose message system.\n"
-" <level> is the the verbose level (1-4)\n"
-" Always returns 1.\n";
-
-static const char usage_setvariable[] =
-" Usage: SET VARIABLE <variablename> <value>\n";
-
-static const char usage_waitfordigit[] =
-" Usage: WAIT FOR DIGIT <timeout>\n"
-"	Waits up to 'timeout' milliseconds for channel to receive a DTMF digit.\n"
-" Returns -1 on channel failure, 0 if no digit is received in the timeout, or\n"
-" the numerical value of the ascii of the digit if one is received.  Use -1\n"
-" for the timeout value if you desire the call to block indefinitely.\n";
-
-static const char usage_tddmode[] =
-" Usage: TDD MODE <on|off>\n"
-"	Enable/Disable TDD transmission/reception on a channel. Returns 1 if\n"
-" successful, or 0 if channel is not TDD-capable.\n";
-
-static const char usage_streamfile[] =
-" Usage: STREAM FILE <filename> <escape digits> [sample offset]\n"
-"	Send the given file, allowing playback to be interrupted by the given\n"
-" digits, if any. Use double quotes for the digits if you wish none to be\n"
-" permitted. If sample offset is provided then the audio will seek to sample\n"
-" offset before play starts.  Returns 0 if playback completes without a digit\n"
-" being pressed, or the ASCII numerical value of the digit if one was pressed,\n"
-" or -1 on error or if the channel was disconnected. Remember, the file\n"
-" extension must not be included in the filename.\n";
-
-static const char usage_controlstreamfile[] =
-" Usage: CONTROL STREAM FILE <filename> <escape digits> [skipms] [ffchar] [rewchr] [pausechr]\n"
-"	Send the given file, allowing playback to be controled by the given\n"
-" digits, if any. Use double quotes for the digits if you wish none to be\n"
-" permitted.  Returns 0 if playback completes without a digit\n"
-" being pressed, or the ASCII numerical value of the digit if one was pressed,\n"
-" or -1 on error or if the channel was disconnected. Remember, the file\n"
-" extension must not be included in the filename.\n\n"
-" Note: ffchar and rewchar default to * and # respectively.\n";
-
-static const char usage_setpriority[] =
-" Usage: SET PRIORITY <priority>\n"
-"	Changes the priority for continuation upon exiting the application.\n"
-" The priority must be a valid priority or label.\n";
-
-static const char usage_speechcreate[] =
-" Usage: SPEECH CREATE <engine>\n"
-"       Create a speech object to be used by the other Speech AGI commands.\n";
-
-static const char usage_speechset[] =
-" Usage: SPEECH SET <name> <value>\n"
-"       Set an engine-specific setting.\n";
-
-static const char usage_speechdestroy[] =
-" Usage: SPEECH DESTROY\n"
-"       Destroy the speech object created by SPEECH CREATE.\n";
-
-static const char usage_speechloadgrammar[] =
-" Usage: SPEECH LOAD GRAMMAR <grammar name> <path to grammar>\n"
-"       Loads the specified grammar as the specified name.\n";
-
-static const char usage_speechunloadgrammar[] =
-" Usage: SPEECH UNLOAD GRAMMAR <grammar name>\n"
-"       Unloads the specified grammar.\n";
-
-static const char usage_speechactivategrammar[] =
-" Usage: SPEECH ACTIVATE GRAMMAR <grammar name>\n"
-"       Activates the specified grammar on the speech object.\n";
-
-static const char usage_speechdeactivategrammar[] =
-" Usage: SPEECH DEACTIVATE GRAMMAR <grammar name>\n"
-"       Deactivates the specified grammar on the speech object.\n";
-
-static const char usage_speechrecognize[] =
-" Usage: SPEECH RECOGNIZE <prompt> <timeout> [<offset>]\n"
-"       Plays back given prompt while listening for speech and dtmf.\n";
-
 /*!
  * \brief AGI commands list
  */
@@ -2670,21 +2811,21 @@ static struct agi_command commands[] = {
 	{ { "set", "context", NULL }, handle_setcontext, NULL, NULL, 0},
 	{ { "set", "extension", NULL }, handle_setextension, NULL, NULL, 0},
 	{ { "set", "music", NULL }, handle_setmusic, NULL, NULL, 0 },
-	{ { "set", "priority", NULL }, handle_setpriority, "Set channel dialplan priority", usage_setpriority , 0 },
-	{ { "set", "variable", NULL }, handle_setvariable, "Sets a channel variable", usage_setvariable , 1 },
-	{ { "stream", "file", NULL }, handle_streamfile, "Sends audio file on channel", usage_streamfile , 0 },
-	{ { "control", "stream", "file", NULL }, handle_controlstreamfile, "Sends audio file on channel and allows the listner to control the stream", usage_controlstreamfile , 0 },
-	{ { "tdd", "mode", NULL }, handle_tddmode, "Toggles TDD mode (for the deaf)", usage_tddmode , 0 },
-	{ { "verbose", NULL }, handle_verbose, "Logs a message to the asterisk verbose log", usage_verbose , 1 },
-	{ { "wait", "for", "digit", NULL }, handle_waitfordigit, "Waits for a digit to be pressed", usage_waitfordigit , 0 },
-	{ { "speech", "create", NULL }, handle_speechcreate, "Creates a speech object", usage_speechcreate, 0 },
-	{ { "speech", "set", NULL }, handle_speechset, "Sets a speech engine setting", usage_speechset, 0 },
-	{ { "speech", "destroy", NULL }, handle_speechdestroy, "Destroys a speech object", usage_speechdestroy, 1 },
-	{ { "speech", "load", "grammar", NULL }, handle_speechloadgrammar, "Loads a grammar", usage_speechloadgrammar, 0 },
-	{ { "speech", "unload", "grammar", NULL }, handle_speechunloadgrammar, "Unloads a grammar", usage_speechunloadgrammar, 1 },
-	{ { "speech", "activate", "grammar", NULL }, handle_speechactivategrammar, "Activates a grammar", usage_speechactivategrammar, 0 },
-	{ { "speech", "deactivate", "grammar", NULL }, handle_speechdeactivategrammar, "Deactivates a grammar", usage_speechdeactivategrammar, 0 },
-	{ { "speech", "recognize", NULL }, handle_speechrecognize, "Recognizes speech", usage_speechrecognize, 0 },
+	{ { "set", "priority", NULL }, handle_setpriority, NULL, NULL, 0 },
+	{ { "set", "variable", NULL }, handle_setvariable, NULL, NULL, 1 },
+	{ { "stream", "file", NULL }, handle_streamfile, NULL, NULL, 0 },
+	{ { "control", "stream", "file", NULL }, handle_controlstreamfile, NULL, NULL, 0 },
+	{ { "tdd", "mode", NULL }, handle_tddmode, NULL, NULL, 0 },
+	{ { "verbose", NULL }, handle_verbose, NULL, NULL, 1 },
+	{ { "wait", "for", "digit", NULL }, handle_waitfordigit, NULL, NULL, 0 },
+	{ { "speech", "create", NULL }, handle_speechcreate, NULL, NULL, 0 },
+	{ { "speech", "set", NULL }, handle_speechset, NULL, NULL, 0 },
+	{ { "speech", "destroy", NULL }, handle_speechdestroy, NULL, NULL, 1 },
+	{ { "speech", "load", "grammar", NULL }, handle_speechloadgrammar, NULL, NULL, 0 },
+	{ { "speech", "unload", "grammar", NULL }, handle_speechunloadgrammar, NULL, NULL, 1 },
+	{ { "speech", "activate", "grammar", NULL }, handle_speechactivategrammar, NULL, NULL, 0 },
+	{ { "speech", "deactivate", "grammar", NULL }, handle_speechdeactivategrammar, NULL, NULL, 0 },
+	{ { "speech", "recognize", NULL }, handle_speechrecognize, NULL, NULL, 0 },
 };
 
 static AST_RWLIST_HEAD_STATIC(agi_commands, agi_command);
