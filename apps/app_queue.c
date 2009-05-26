@@ -1216,6 +1216,7 @@ static int handle_statechange(void *datap)
 		}
 
 		ao2_unlock(q);
+		ao2_ref(q, -1);
 	}
 
 	if (found)
