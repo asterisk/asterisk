@@ -13457,6 +13457,7 @@ static char *sip_unregister(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	
 	if ((peer = find_peer(a->argv[2], NULL, load_realtime, 0))) {
 		if (peer->expire > 0) {
+			AST_SCHED_DEL(sched, peer->expire);
 			expire_register(peer);
 			ast_cli(a->fd, "Unregistered peer \'%s\'\n\n", a->argv[2]);
 		} else {
