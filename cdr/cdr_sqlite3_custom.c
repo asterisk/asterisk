@@ -237,7 +237,6 @@ static int sqlite3_log(struct ast_cdr *cdr)
 	int res = 0;
 	char *error = NULL;
 	char *sql = NULL;
-	struct ast_channel dummy = { 0, };
 	int count = 0;
 
 	if (db == NULL) {
@@ -249,16 +248,25 @@ static int sqlite3_log(struct ast_cdr *cdr)
 		char *escaped;
 		char subst_buf[2048];
 		struct values *value;
+		struct ast_channel *dummy;
 		struct ast_str *value_string = ast_str_create(1024);
-		dummy.cdr = cdr;
+
+		dummy = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Substitution/%p", cdr);
+		if (!dummy) {
+			ast_log(LOG_ERROR, "Unable to allocate channel for variable subsitution.\n");
+			ast_free(value_string);
+			return 0;
+		}
+		dummy->cdr = ast_cdr_dup(cdr);
 		AST_LIST_TRAVERSE(&sql_values, value, list) {
-			pbx_substitute_variables_helper(&dummy, value->expression, subst_buf, sizeof(subst_buf) - 1);
+			pbx_substitute_variables_helper(dummy, value->expression, subst_buf, sizeof(subst_buf) - 1);
 			escaped = sqlite3_mprintf("%q", subst_buf);
 			ast_str_append(&value_string, 0, "%s'%s'", ast_str_strlen(value_string) ? "," : "", escaped);
 			sqlite3_free(escaped);
 		}
 		sql = sqlite3_mprintf("INSERT INTO %q (%s) VALUES (%s)", table, columns, ast_str_buffer(value_string));
 		ast_debug(1, "About to log: %s\n", sql);
+		ast_channel_release(dummy);
 		ast_free(value_string);
 	}
 
