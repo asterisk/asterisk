@@ -2792,15 +2792,15 @@ static char mandescr_coreshowchannels[] =
 static int action_coreshowchannels(struct mansession *s, const struct message *m)
 {
 	const char *actionid = astman_get_header(m, "ActionID");
-	char actionidtext[256];
+	char idText[256];
 	struct ast_channel *c = NULL;
 	int numchans = 0;
 	int duration, durh, durm, durs;
 
 	if (!ast_strlen_zero(actionid))
-		snprintf(actionidtext, sizeof(actionidtext), "ActionID: %s\r\n", actionid);
+		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", actionid);
 	else
-		actionidtext[0] = '\0';
+		idText[0] = '\0';
 
 	astman_send_listack(s, m, "Channels will follow", "start");	
 
@@ -2818,6 +2818,7 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 
 		astman_append(s,
 			"Event: CoreShowChannel\r\n"
+			"%s"
 			"Channel: %s\r\n"
 			"UniqueID: %s\r\n"
 			"Context: %s\r\n"
@@ -2832,8 +2833,8 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 			"AccountCode: %s\r\n"
 			"BridgedChannel: %s\r\n"
 			"BridgedUniqueID: %s\r\n"
-			"\r\n", c->name, c->uniqueid, c->context, c->exten, c->priority, c->_state, ast_state2str(c->_state),
-			c->appl ? c->appl : "", c->data ? S_OR(c->data, ""): "",
+			"\r\n", idText, c->name, c->uniqueid, c->context, c->exten, c->priority, c->_state,
+			ast_state2str(c->_state), c->appl ? c->appl : "", c->data ? S_OR(c->data, "") : "",
 			S_OR(c->cid.cid_num, ""), durbuf, S_OR(c->accountcode, ""), bc ? bc->name : "", bc ? bc->uniqueid : "");
 		ast_channel_unlock(c);
 		numchans++;
@@ -2844,7 +2845,7 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 		"EventList: Complete\r\n"
 		"ListItems: %d\r\n"
 		"%s"
-		"\r\n", numchans, actionidtext);
+		"\r\n", numchans, idText);
 
 	return 0;
 }
