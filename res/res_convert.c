@@ -117,9 +117,11 @@ static char *handle_cli_file_convert(struct ast_cli_entry *e, int cmd, struct as
 	
 	while ((f = ast_readframe(fs_in))) {
 		if (ast_writestream(fs_out, f)) {
+			ast_frfree(f);
 			ast_cli(a->fd, "Failed to convert %s.%s to %s.%s!\n", name_in, ext_in, name_out, ext_out);
 			goto fail_out;
 		}
+		ast_frfree(f);
 	}
 
 	cost = ast_tvdiff_ms(ast_tvnow(), start);
