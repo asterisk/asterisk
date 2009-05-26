@@ -127,7 +127,6 @@ static int manager_log(struct ast_cdr *cdr)
 	char strAnswerTime[80] = "";
 	char strEndTime[80] = "";
 	char buf[CUSTOM_FIELDS_BUF_SIZE];
-	struct ast_channel dummy;
 
 	if (!enablecdr)
 		return 0;
@@ -146,9 +145,14 @@ static int manager_log(struct ast_cdr *cdr)
 	buf[0] = 0;
 	/* Custom fields handling */
 	if (customfields != NULL && ast_str_strlen(customfields)) {
-		memset(&dummy, 0, sizeof(dummy));
-		dummy.cdr = cdr;
-		pbx_substitute_variables_helper(&dummy, ast_str_buffer(customfields), buf, sizeof(buf) - 1);
+		struct ast_channel *dummy = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Substitution/%p", cdr);
+		if (!dummy) {
+			ast_log(LOG_ERROR, "Unable to allocate channel for variable substitution.\n");
+			return 0;
+		}
+		dummy->cdr = ast_cdr_dup(cdr);
+		pbx_substitute_variables_helper(dummy, ast_str_buffer(customfields), buf, sizeof(buf) - 1);
+		ast_channel_release(dummy);
 	}
 
 	manager_event(EVENT_FLAG_CDR, "Cdr",
