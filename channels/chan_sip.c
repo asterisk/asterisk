@@ -20471,7 +20471,6 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 				ast_channel_lock(target.chan1);
 				ast_party_connected_line_copy(&connected_caller, &target.chan1->connected);
 				ast_channel_unlock(target.chan1);
-				connected_caller = target.chan1->connected;
 				connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
 				ast_channel_update_connected_line(current->chan2, &connected_caller);
 				ast_party_connected_line_free(&connected_caller);

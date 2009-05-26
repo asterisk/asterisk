@@ -97,7 +97,6 @@ static int pickup_do(struct ast_channel *chan, struct ast_channel *target)
 	ast_debug(1, "Call pickup on '%s' by '%s'\n", target->name, chan->name);
 
 	connected_caller = target->connected;
-	ast_party_connected_line_init(&target->connected);
 	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 	ast_channel_update_connected_line(chan, &connected_caller);
 
