@@ -1555,7 +1555,7 @@ fi
 
 if test "$PBX_OPENSSL" = "1";
 then
-    AST_EXT_LIB_CHECK([OSPTK], [osptk], [OSPPCryptoDecrypt], [osp/osp.h], [-lcrypto -lssl])
+    AST_CHECK_OSPTK([3], [5], [0])
 fi
 
 AST_EXT_TOOL_CHECK([GMIME], [gmime], [], [], [#include <gmime/gmime.h>], [gboolean q = g_mime_check_version(0,0,0);])

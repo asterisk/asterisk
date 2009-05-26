@@ -638,9 +638,6 @@
 /* Define this to indicate the ${OSPTK_DESCRIP} library */
 #undef HAVE_OSPTK
 
-/* Define to indicate the ${OSPTK_DESCRIP} library version */
-#undef HAVE_OSPTK_VERSION
-
 /* Define this to indicate the ${OSS_DESCRIP} library */
 #undef HAVE_OSS
 
