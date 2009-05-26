@@ -44,7 +44,7 @@ then
 	echo "This is NOT suitable for large systems." >&2
 	PRIORITY=0
 else
-	if `echo $OSTYPE | grep linux 2>&1 > /dev/null `
+	if `uname -s | grep Linux 2>&1 > /dev/null `
 	then
 		# maximum number of open files is set to the system maximum divided by two if
 		# MAXFILES is not set.
@@ -57,7 +57,7 @@ else
 			fi
 		fi
 		SYSCTL_MAXFILES="fs.file-max"
-	elif `echo $OSTYPE | grep darwin 2>&1 > /dev/null `
+	elif `uname -s | grep Darwin 2>&1 > /dev/null `
 	then
 		SYSCTL_MAXFILES="kern.maxfiles"
 	fi
@@ -116,7 +116,7 @@ trap '' PIPE
 if [ -d /etc/asterisk/startup.d ]; then
 	for script in /etc/asterisk/startup.d/*.sh; do
 		if [ -x ${script} ]; then
-			source ${script}
+			. ${script}
 		fi
 	done
 fi
@@ -140,7 +140,7 @@ run_asterisk()
 			echo "Asterisk shutdown normally."
 			exit 0
 		elif [ $EXITSTATUS -gt 128 ]; then
-			let EXITSIGNAL=EXITSTATUS-128
+			EXITSIGNAL=EXITSTATUS-128
 			echo "Asterisk exited on signal $EXITSIGNAL."
 			if [ "$NOTIFY" != "" ]; then
 				echo "Asterisk on $MACHINE exited on signal $EXITSIGNAL.  Might want to take a peek." | \
