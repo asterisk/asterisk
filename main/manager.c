@@ -3354,8 +3354,8 @@ static int action_corestatus(struct mansession *s, const struct message *m)
 {
 	const char *actionid = astman_get_header(m, "ActionID");
 	char idText[150];
-	char startuptime[150];
-	char reloadtime[150];
+	char startuptime[150], startupdate[150];
+	char reloadtime[150], reloaddate[150];
 	struct ast_tm tm;
 
 	if (!ast_strlen_zero(actionid)) {
@@ -3366,17 +3366,23 @@ static int action_corestatus(struct mansession *s, const struct message *m)
 
 	ast_localtime(&ast_startuptime, &tm, NULL);
 	ast_strftime(startuptime, sizeof(startuptime), "%H:%M:%S", &tm);
+	ast_strftime(startupdate, sizeof(startupdate), "%Y-%m-%d", &tm);
 	ast_localtime(&ast_lastreloadtime, &tm, NULL);
 	ast_strftime(reloadtime, sizeof(reloadtime), "%H:%M:%S", &tm);
+	ast_strftime(reloaddate, sizeof(reloaddate), "%Y-%m-%d", &tm);
 
 	astman_append(s, "Response: Success\r\n"
 			"%s"
+			"CoreStartupDate: %s\r\n"
 			"CoreStartupTime: %s\r\n"
+			"CoreReloadDate: %s\r\n"
 			"CoreReloadTime: %s\r\n"
 			"CoreCurrentCalls: %d\r\n"
 			"\r\n",
 			idText,
+			startupdate,
 			startuptime,
+			reloaddate,
 			reloadtime,
 			ast_active_channels()
 			);
