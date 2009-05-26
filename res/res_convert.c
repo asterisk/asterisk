@@ -100,9 +100,11 @@ static int cli_audio_convert_deprecated(int fd, int argc, char *argv[])
 	
 	while ((f = ast_readframe(fs_in))) {
 		if (ast_writestream(fs_out, f)) {
+			ast_frfree(f);
 			ast_cli(fd, "Failed to convert %s.%s to %s.%s!\n", name_in, ext_in, name_out, ext_out);
 			goto fail_out;
 		}
+		ast_frfree(f);
 	}
 
 	cost = ast_tvdiff_ms(ast_tvnow(), start);
@@ -167,9 +169,11 @@ static int cli_audio_convert(int fd, int argc, char *argv[])
 	
 	while ((f = ast_readframe(fs_in))) {
 		if (ast_writestream(fs_out, f)) {
+			ast_frfree(f);
 			ast_cli(fd, "Failed to convert %s.%s to %s.%s!\n", name_in, ext_in, name_out, ext_out);
 			goto fail_out;
 		}
+		ast_frfree(f);
 	}
 
 	cost = ast_tvdiff_ms(ast_tvnow(), start);
