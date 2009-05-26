@@ -1199,6 +1199,14 @@ int ast_hashtab_compare_contexts(const void *ah_a, const void *ah_b);
 unsigned int ast_hashtab_hash_contexts(const void *obj);
 /*! @} */
 
+/*!
+ * \brief Command completion for the list of installed applications.
+ *
+ * This can be called from a CLI command completion function that wants to
+ * complete from the list of available applications.
+ */
+char *ast_complete_applications(const char *line, const char *word, int state);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

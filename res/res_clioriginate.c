@@ -16,12 +16,12 @@
  * at the top of the source tree.
  */
 
-/*! 
+/*!
  * \file
  * \author Russell Bryant <russell@digium.com>
  *
  * \brief Originate calls via the CLI
- * 
+ *
  */
 
 #include "asterisk.h"
@@ -52,12 +52,12 @@ static char *orig_app(int fd, const char *chan, const char *app, const char *app
 	char *chantech;
 	char *chandata;
 	int reason = 0;
-	
+
 	if (ast_strlen_zero(app))
 		return CLI_SHOWUSAGE;
 
 	chandata = ast_strdupa(chan);
-	
+
 	chantech = strsep(&chandata, "/");
 	if (!chandata) {
 		ast_cli(fd, "*** No data provided after channel type! ***\n");
@@ -86,7 +86,7 @@ static char *orig_exten(int fd, const char *chan, const char *data)
 	int reason = 0;
 
 	chandata = ast_strdupa(chan);
-	
+
 	chantech = strsep(&chandata, "/");
 	if (!chandata) {
 		ast_cli(fd, "*** No data provided after channel type! ***\n");
@@ -102,7 +102,7 @@ static char *orig_exten(int fd, const char *chan, const char *data)
 		exten = "s";
 	if (ast_strlen_zero(context))
 		context = "default";
-	
+
 	ast_pbx_outgoing_exten(chantech, AST_FORMAT_SLINEAR, chandata, TIMEOUT * 1000, context, exten, 1, &reason, 0, NULL, NULL, NULL, NULL, NULL);
 
 	return CLI_SUCCESS;
@@ -118,11 +118,11 @@ static char *orig_exten(int fd, const char *chan, const char *data)
 static char *handle_orig(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	static const char * const choices[] = { "application", "extension", NULL };
-	char *res;
+	char *res = NULL;
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "channel originate";
-		e->usage = 
+		e->usage =
 			"  There are two ways to use this command. A call can be originated between a\n"
 			"channel and a specific application, or between a channel and an extension in\n"
 			"the dialplan. This is similar to call files or the manager originate action.\n"
@@ -140,14 +140,16 @@ static char *handle_orig(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 			"used. If no extension is given, the 's' extension will be used.\n";
 		return NULL;
 	case CLI_GENERATE:
-		if (a->pos != 3)
-			return NULL;
-
 		/* ugly, can be removed when CLI entries have ast_module pointers */
 		ast_module_ref(ast_module_info->self);
-		res = ast_cli_complete(a->word, choices, a->n);
+		if (a->pos == 3) {
+			res = ast_cli_complete(a->word, choices, a->n);
+		} else if (a->pos == 4) {
+			if (!strcasecmp("application", a->argv[3])) {
+				res = ast_complete_applications(a->line, a->word, a->n);
+			}
+		}
 		ast_module_unref(ast_module_info->self);
-
 		return res;
 	}
 
@@ -158,7 +160,7 @@ static char *handle_orig(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 	ast_module_ref(ast_module_info->self);
 
 	if (!strcasecmp("application", a->argv[3])) {
-		res = orig_app(a->fd, a->argv[2], a->argv[4], a->argv[5]);	
+		res = orig_app(a->fd, a->argv[2], a->argv[4], a->argv[5]);
 	} else if (!strcasecmp("extension", a->argv[3])) {
 		res = orig_exten(a->fd, a->argv[2], a->argv[4]);
 	} else {

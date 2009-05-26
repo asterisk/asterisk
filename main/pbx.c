@@ -5558,9 +5558,6 @@ static char *handle_show_application(struct ast_cli_entry *e, int cmd, struct as
 {
 	struct ast_app *aa;
 	int app, no_registered_app = 1;
-	char *ret = NULL;
-	int which = 0;
-	int wordlen;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -5575,18 +5572,7 @@ static char *handle_show_application(struct ast_cli_entry *e, int cmd, struct as
 		 * application at one time. You can type 'show application Dial Echo' and
 		 * you will see informations about these two applications ...
 		 */
-		wordlen = strlen(a->word);
-		/* return the n-th [partial] matching entry */
-		AST_RWLIST_RDLOCK(&apps);
-		AST_RWLIST_TRAVERSE(&apps, aa, list) {
-			if (!strncasecmp(a->word, aa->name, wordlen) && ++which > a->n) {
-				ret = ast_strdup(aa->name);
-				break;
-			}
-		}
-		AST_RWLIST_UNLOCK(&apps);
-
-		return ret;
+		return ast_complete_applications(a->line, a->word, a->n);
 	}
 
 	if (a->argc < 4) {
@@ -9877,4 +9863,23 @@ int ast_parseable_goto(struct ast_channel *chan, const char *goto_string)
 int ast_async_parseable_goto(struct ast_channel *chan, const char *goto_string)
 {
 	return pbx_parseable_goto(chan, goto_string, 1);
+}
+
+char *ast_complete_applications(const char *line, const char *word, int state)
+{
+	struct ast_app *app = NULL;
+	int which = 0;
+	char *ret = NULL;
+	size_t wordlen = strlen(word);
+
+	AST_RWLIST_RDLOCK(&apps);
+	AST_RWLIST_TRAVERSE(&apps, app, list) {
+		if (!strncasecmp(word, app->name, wordlen) && ++which > state) {
+			ret = ast_strdup(app->name);
+			break;
+		}
+	}
+	AST_RWLIST_UNLOCK(&apps);
+
+	return ret;
 }
