@@ -48341,105 +48341,21 @@ fi
 if test "$PBX_OPENSSL" = "1";
 then
 
-if test "x${PBX_OSPTK}" != "x1" -a "${USE_OSPTK}" != "no"; then
-   pbxlibdir=""
-   # if --with-OSPTK=DIR has been specified, use it.
-   if test "x${OSPTK_DIR}" != "x"; then
-      if test -d ${OSPTK_DIR}/lib; then
-      	 pbxlibdir="-L${OSPTK_DIR}/lib"
-      else
-      	 pbxlibdir="-L${OSPTK_DIR}"
-      fi
-   fi
-   pbxfuncname="OSPPCryptoDecrypt"
-   if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
-      AST_OSPTK_FOUND=yes
-   else
-      as_ac_Lib=`echo "ac_cv_lib_osptk_${pbxfuncname}" | $as_tr_sh`
-{ echo "$as_me:$LINENO: checking for ${pbxfuncname} in -losptk" >&5
-echo $ECHO_N "checking for ${pbxfuncname} in -losptk... $ECHO_C" >&6; }
-if { as_var=$as_ac_Lib; eval "test \"\${$as_var+set}\" = set"; }; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-losptk ${pbxlibdir} -lcrypto -lssl $LIBS"
-cat >conftest.$ac_ext <<_ACEOF
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
+	# if OSPTK has not been checked and is not excluded
+	if test "x${PBX_OSPTK}" != "x1" -a "${USE_OSPTK}" != "no"; then
+		# if --with-osptk=DIR has been specified, use it.
+		if test "x${OSPTK_DIR}" != "x"; then
+			osptk_cflags="-I${OSPTK_DIR}/include"
+			osptk_ldflags="-L${OSPTK_DIR}/lib"
+		else
+			osptk_cflags=""
+			osptk_ldflags=""
+		fi
 
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char ${pbxfuncname} ();
-int
-main ()
-{
-return ${pbxfuncname} ();
-  ;
-  return 0;
-}
-_ACEOF
-rm -f conftest.$ac_objext conftest$ac_exeext
-if { (ac_try="$ac_link"
-case "(($ac_try" in
-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
-  *) ac_try_echo=$ac_try;;
-esac
-eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
-  (eval "$ac_link") 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } && {
-	 test -z "$ac_c_werror_flag" ||
-	 test ! -s conftest.err
-       } && test -s conftest$ac_exeext &&
-       $as_test_x conftest$ac_exeext; then
-  eval "$as_ac_Lib=yes"
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-	eval "$as_ac_Lib=no"
-fi
-
-rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
-      conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-ac_res=`eval echo '${'$as_ac_Lib'}'`
-	       { echo "$as_me:$LINENO: result: $ac_res" >&5
-echo "${ECHO_T}$ac_res" >&6; }
-if test `eval echo '${'$as_ac_Lib'}'` = yes; then
-  AST_OSPTK_FOUND=yes
-else
-  AST_OSPTK_FOUND=no
-fi
-
-   fi
-
-   # now check for the header.
-   if test "${AST_OSPTK_FOUND}" = "yes"; then
-      OSPTK_LIB="${pbxlibdir} -losptk -lcrypto -lssl"
-      # if --with-OSPTK=DIR has been specified, use it.
-      if test "x${OSPTK_DIR}" != "x"; then
-	 OSPTK_INCLUDE="-I${OSPTK_DIR}/include"
-      fi
-      OSPTK_INCLUDE="${OSPTK_INCLUDE} "
-      if test "xosp/osp.h" = "x" ; then	# no header, assume found
-         OSPTK_HEADER_FOUND="1"
-      else				# check for the header
-         saved_cppflags="${CPPFLAGS}"
-         CPPFLAGS="${CPPFLAGS} ${OSPTK_INCLUDE}"
-	 if test "${ac_cv_header_osp_osp_h+set}" = set; then
+		# check for the header
+		osptk_saved_cppflags="${CPPFLAGS}"
+		CPPFLAGS="${CPPFLAGS} ${osptk_cflags}"
+		if test "${ac_cv_header_osp_osp_h+set}" = set; then
   { echo "$as_me:$LINENO: checking for osp/osp.h" >&5
 echo $ECHO_N "checking for osp/osp.h... $ECHO_C" >&6; }
 if test "${ac_cv_header_osp_osp_h+set}" = set; then
@@ -48570,36 +48486,169 @@ echo "${ECHO_T}$ac_cv_header_osp_osp_h" >&6; }
 
 fi
 if test $ac_cv_header_osp_osp_h = yes; then
-  OSPTK_HEADER_FOUND=1
+  osptk_header_found=yes
 else
-  OSPTK_HEADER_FOUND=0
+  osptk_header_found=no
 fi
 
 
-         CPPFLAGS="${saved_cppflags}"
-      fi
-      if test "x${OSPTK_HEADER_FOUND}" = "x0" ; then
-         OSPTK_LIB=""
-         OSPTK_INCLUDE=""
-      else
-         if test "x${pbxfuncname}" = "x" ; then		# only checking headers -> no library
-	    OSPTK_LIB=""
-	 fi
-         PBX_OSPTK=1
-         # XXX don't know how to evaluate the description (third argument) in AC_DEFINE_UNQUOTED
+		CPPFLAGS="${osptk_saved_cppflags}"
+
+		# check for the library
+		if test "${osptk_header_found}" = "yes"; then
+			osptk_extralibs="-lssl -lcrypto"
+
+			{ echo "$as_me:$LINENO: checking for OSPPInit in -losptk" >&5
+echo $ECHO_N "checking for OSPPInit in -losptk... $ECHO_C" >&6; }
+if test "${ac_cv_lib_osptk_OSPPInit+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-losptk ${osptk_ldflags} ${osptk_extralibs} $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char OSPPInit ();
+int
+main ()
+{
+return OSPPInit ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
+  ac_cv_lib_osptk_OSPPInit=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_cv_lib_osptk_OSPPInit=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_lib_osptk_OSPPInit" >&5
+echo "${ECHO_T}$ac_cv_lib_osptk_OSPPInit" >&6; }
+if test $ac_cv_lib_osptk_OSPPInit = yes; then
+  osptk_library_found=yes
+else
+  osptk_library_found=no
+fi
+
+
+			# check OSP Toolkit version
+			if test "${osptk_library_found}" = "yes"; then
+				{ echo "$as_me:$LINENO: checking if OSP Toolkit version is compatible with app_osplookup" >&5
+echo $ECHO_N "checking if OSP Toolkit version is compatible with app_osplookup... $ECHO_C" >&6; }
+
+				osptk_saved_cppflags="${CPPFLAGS}"
+				CPPFLAGS="${CPPFLAGS} ${osptk_cflags}"
+				if test "$cross_compiling" = yes; then
+  { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling
+See \`config.log' for more details." >&5
+echo "$as_me: error: cannot run test program while cross compiling
+See \`config.log' for more details." >&2;}
+   { (exit 1); exit 1; }; }
+else
+  cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+						#include <osp/osp.h>
+						int main(void) {
+							int ver = OSP_CLIENT_TOOLKIT_VERSION_MAJOR * 10000 + OSP_CLIENT_TOOLKIT_VERSION_MINOR * 100 + OSP_CLIENT_TOOLKIT_VERSION_BUGFIX;
+							int req = 3 * 10000 + 5 * 100 + 0;
+							return (ver < req) ? 1 : 0;
+						}
+
+_ACEOF
+rm -f conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && { ac_try='./conftest$ac_exeext'
+  { (case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_try") 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  osptk_compatible=yes
+else
+  echo "$as_me: program exited with status $ac_status" >&5
+echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+( exit $ac_status )
+osptk_compatible=no
+
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext conftest.$ac_objext conftest.$ac_ext
+fi
+
+
+				CPPFLAGS="${osptk_saved_cppflags}"
+
+				if test "${osptk_compatible}" = "yes"; then
+					{ echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6; }
+					PBX_OSPTK=1
+					OSPTK_INCLUDE="${osptk_cflags}"
+					OSPTK_LIB="${osptk_ldflags} -losptk ${osptk_extralibs}"
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_OSPTK 1
 _ACEOF
 
-
-cat >>confdefs.h <<_ACEOF
-#define HAVE_OSPTK_VERSION
-_ACEOF
-
-      fi
-   fi
-fi
+				else
+					{ echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+				fi
+			fi
+		fi
+	fi
 
 fi
 
