@@ -4472,10 +4472,11 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 	ast_poll_channel_add(c0, c1);
 
 	if (config->feature_timer > 0 && ast_tvzero(config->nexteventts)) {
-		/* nexteventts is not set when the bridge is not scheduled to
- 		 * break, so calculate when the bridge should possibly break
+		/* calculate when the bridge should possibly break
  		 * if a partial feature match timed out */
-		config->nexteventts = ast_tvadd(ast_tvnow(), ast_samp2tv(config->feature_timer, 1000));
+		config->partialfeature_timer = ast_tvadd(ast_tvnow(), ast_samp2tv(config->feature_timer, 1000));
+	} else {
+		memset(&config->partialfeature_timer, 0, sizeof(config->partialfeature_timer));
 	}
 
 	for (;;) {
@@ -4505,8 +4506,8 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
  			 * to not break, leave the channel bridge when the feature timer
 			 * time has elapsed so the DTMF will be sent to the other side. 
  			 */
-			if (!ast_tvzero(config->nexteventts)) {
-				int diff = ast_tvdiff_ms(config->nexteventts, ast_tvnow());
+			if (!ast_tvzero(config->partialfeature_timer)) {
+				int diff = ast_tvdiff_ms(config->partialfeature_timer, ast_tvnow());
 				if (diff <= 0) {
 					res = AST_BRIDGE_RETRY;
 					break;
