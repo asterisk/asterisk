@@ -534,6 +534,7 @@ struct ast_bridge_config {
 	struct ast_flags features_callee;
 	struct timeval start_time;
 	struct timeval nexteventts;
+	struct timeval partialfeature_timer;
 	long feature_timer;
 	long timelimit;
 	long play_warning;
