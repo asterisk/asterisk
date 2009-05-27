@@ -4950,13 +4950,15 @@ static int handle_queue_add_member(int fd, int argc, char *argv[])
 	char *queuename, *interface, *membername = NULL, *state_interface = NULL;
 	int penalty;
 
-	if ((argc != 6) && (argc != 8) && (argc != 10)) {
+	if ((argc != 6) && (argc != 8) && (argc != 10) && (argc != 12)) {
 		return RESULT_SHOWUSAGE;
 	} else if (strcmp(argv[4], "to")) {
 		return RESULT_SHOWUSAGE;
 	} else if ((argc == 8) && strcmp(argv[6], "penalty")) {
 		return RESULT_SHOWUSAGE;
 	} else if ((argc == 10) && strcmp(argv[8], "as")) {
+		return RESULT_SHOWUSAGE;
+	} else if ((argc == 12) && strcmp(argv[10], "state_interface")) {
 		return RESULT_SHOWUSAGE;
 	}
 
