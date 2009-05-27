@@ -186,6 +186,7 @@ static int cut_internal(struct ast_channel *chan, char *data, struct ast_str **b
 		if (ast_str_strlen(str)) {
 			int curfieldnum = 1;
 			char *tmp2 = ast_str_buffer(str);
+			int firstfield = 1;
 			while (tmp2 != NULL && args.field != NULL) {
 				char *nextgroup = strsep(&(args.field), "&");
 				int num1 = 0, num2 = INT_MAX;
@@ -222,7 +223,8 @@ static int cut_internal(struct ast_channel *chan, char *data, struct ast_str **b
 				/* Output fields until we either run out of fields or num2 is reached */
 				while (tmp2 != NULL && curfieldnum <= num2) {
 					char *tmp3 = strsep(&tmp2, ds);
-					ast_str_append(buf, buflen, "%s%s", ast_str_strlen(*buf) ? ds : "", tmp3);
+					ast_str_append(buf, buflen, "%s%s", firstfield ? "" : ds, tmp3);
+					firstfield = 0;
 					curfieldnum++;
 				}
 			}
