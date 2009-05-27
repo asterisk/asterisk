@@ -5698,6 +5698,16 @@ static int hangup_sip2cause(int cause)
 		case 606:	/* Not acceptable */
 			return AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;
 		default:
+			if (cause < 500 && cause >= 400) {
+				/* 4xx class error that is unknown - someting wrong with our request */
+				return AST_CAUSE_INTERWORKING;
+			} else if (cause < 600 && cause >= 500) {
+				/* 5xx class error - problem in the remote end */
+				return AST_CAUSE_CONGESTION;
+			} else if (cause < 700 && cause >= 600) {
+				/* 6xx - global errors in the 4xx class */
+				return AST_CAUSE_INTERWORKING;
+			}
 			return AST_CAUSE_NORMAL;
 	}
 	/* Never reached */
