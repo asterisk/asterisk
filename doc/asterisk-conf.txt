@@ -68,9 +68,7 @@ systemname = <a_string>				; System name. Used to prefix CDR uniqueid and to fil
 languageprefix = yes | no			; Should language code be last component of sound file name or first?
 	       	       				; when off, sound files are searched as <path>/<lang>/<file>
 						; when on, sound files are search as <lang>/<path>/<file>
-						; (only affects
-						relative paths for
-						sound files)
+						; (only affects relative paths for sound files)
 dahdichanname = yes | no			; Should channels created by chan_dahdi be called 'DAHDI' or 'Zap';
 						; defaults to 'DAHDI' if built against DAHDI, and 'Zap' if built
 						; against Zaptel; also used by other applications so that they will
