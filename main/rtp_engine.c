@@ -359,10 +359,8 @@ int ast_rtp_instance_set_local_address(struct ast_rtp_instance *instance, struct
 
 int ast_rtp_instance_set_remote_address(struct ast_rtp_instance *instance, struct sockaddr_in *address)
 {
-	if (&instance->remote_address != address) {
-		instance->remote_address.sin_addr = address->sin_addr;
-		instance->remote_address.sin_port = address->sin_port;
-	}
+	instance->remote_address.sin_addr = address->sin_addr;
+	instance->remote_address.sin_port = address->sin_port;
 
 	/* moo */
 
