@@ -863,6 +863,7 @@ static int load_module(void)
 	strcpy(mohinterpret, "default");
 
 	if (!(cfg = ast_config_load(config, config_flags))) {
+		ast_log(LOG_ERROR, "Unable to read ALSA configuration file %s.  Aborting.\n", config);
 		return AST_MODULE_LOAD_DECLINE;
 	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_ERROR, "%s is in an invalid format.  Aborting.\n", config);
