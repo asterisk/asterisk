@@ -670,8 +670,9 @@ pickupgroup=1
 ;progzone=uk
 ;
 ; Set the tonezone. Equivalent of the defaultzone settings in
-; /etc/dahdi.conf . This sets the tone zone by number.
-; Note that you'd still need to load tonezones (loadzone in dahdi.conf).
+; /etc/dahdi/system.conf. This sets the tone zone by number.
+; Note that you'd still need to load tonezones (loadzone in
+; /etc/dahdi/system.conf).
 ; The default is -1: not to set anything.
 ;tonezone = 0 ; 0 is US
 ;
