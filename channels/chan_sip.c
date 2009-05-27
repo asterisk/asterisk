@@ -22068,9 +22068,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		}
 	}
 
-	if (!peer->socket.type) {
+	if (!peer->default_outbound_transport) {
 		peer->transports  = SIP_TRANSPORT_UDP;
-		peer->socket.type = SIP_TRANSPORT_UDP;
+		peer->default_outbound_transport = SIP_TRANSPORT_UDP;
 	}
 
 	/* The default transport type set during build_peer should only replace the socket.type when...
