@@ -167,7 +167,7 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 		pbx_substitute_variables_helper(chan, tmp, tmp2, MAXRESULT - 1);
 
 		if (tmp2) {
-			int curfieldnum = 1;
+			int curfieldnum = 1, firstfield = 1;
 			while (tmp2 != NULL && args.field != NULL) {
 				char *nextgroup = strsep(&(args.field), "&");
 				int num1 = 0, num2 = MAXRESULT;
@@ -209,11 +209,12 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 					char *tmp3 = strsep(&tmp2, ds);
 					int curlen = strlen(buffer);
 
-					if (curlen)
-						snprintf(buffer + curlen, buflen - curlen, "%c%s", d, tmp3);
-					else
+					if (firstfield) {
 						snprintf(buffer, buflen, "%s", tmp3);
-
+						firstfield = 0;
+					} else {
+						snprintf(buffer + curlen, buflen - curlen, "%c%s", d, tmp3);
+					}
 					curfieldnum++;
 				}
 			}
