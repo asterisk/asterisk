@@ -28,6 +28,7 @@ extern "C" {
 #endif
 
 #include "asterisk/cli.h"
+#include "asterisk/xmldoc.h"
 #include "asterisk/optional_api.h"
 
 typedef struct agi_state {
