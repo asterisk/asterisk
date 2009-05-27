@@ -29,7 +29,7 @@
 
 ;autocontext=line1          ; This supports automatic generation of the dialplan entries 
                             ; if the autocontext option is used.  Each trunk should have 
-                            ; a unique context name.  Then, in dahdi.conf, this device 
+                            ; a unique context name.  Then, in chan_dahdi.conf, this device
                             ; should be configured to have incoming calls go to this context.
 
 ;ringtimeout=30             ; Set how long to allow this trunk to ring on an inbound call before hanging 
