@@ -2,8 +2,8 @@
 
 [interfaces]
 ; Specify serial ports to listen for SMDI messages on below.  These will be
-; referenced later in dahdi.conf.  If you do not specify any interfaces then
-; SMDI will be disabled.  Interfaces can have several different attributes
+; referenced later in chan_dahdi.conf.  If you do not specify any interfaces
+; then SMDI will be disabled.  Interfaces can have several different attributes
 ; associated with them.
 
 ; Set the number of stop bits to use per character here.  The default is no,

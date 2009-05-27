@@ -713,8 +713,9 @@ pickupgroup=1
 ;progzone=uk
 ;
 ; Set the tonezone. Equivalent of the defaultzone settings in
-; /etc/dahdi.conf . This sets the tone zone by number.
-; Note that you'd still need to load tonezones (loadzone in dahdi.conf).
+; /etc/dahdi/system.conf. This sets the tone zone by number.
+; Note that you'd still need to load tonezones (loadzone in
+; /etc/dahdi/system.conf).
 ; The default is -1: not to set anything.
 ;tonezone = 0 ; 0 is US
 ;
@@ -1147,7 +1148,7 @@ pickupgroup=1
 
 ; Configuration Sections
 ; ~~~~~~~~~~~~~~~~~~~~~~
-; You can also configure channels in a separate dahdi.conf section. In
+; You can also configure channels in a separate chan_dahdi.conf section. In
 ; this case the keyword 'channel' is not used. Instead the keyword
 ; 'dahdichan' is used (as in users.conf) - configuration is only processed
 ; in a section where the keyword dahdichan is used. It will only be
@@ -1167,7 +1168,7 @@ pickupgroup=1
 ;
 ; When starting a new section almost all of the configuration values are
 ; copied from their values at the end of the section [channels] in
-; dahdi.conf and [general] in users.conf - one section's configuration
+; chan_dahdi.conf and [general] in users.conf - one section's configuration
 ; does not affect another one's.
 ;
 ; Instead of letting common configuration values "slide through" you can 

@@ -131,8 +131,8 @@ IAXINFO=guest					; IAXtel username/password
 TRUNK=DAHDI/G2					; Trunk interface
 ;
 ; Note the 'G2' in the TRUNK variable above. It specifies which group (defined
-; in dahdi.conf) to dial, i.e. group 2, and how to choose a channel to use in
-; the specified group. The four possible options are:
+; in chan_dahdi.conf) to dial, i.e. group 2, and how to choose a channel to use
+; in the specified group. The four possible options are:
 ;
 ; g: select the lowest-numbered non-busy DAHDI channel
 ;    (aka. ascending sequential hunt group).
