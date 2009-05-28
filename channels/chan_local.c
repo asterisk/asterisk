@@ -416,6 +416,7 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 		 * we need to transmit the collected connected line information instead of whatever
 		 * happens to be in this control frame. The same applies for redirecting information, which
 		 * is why it is handled here as well.*/
+		ast_mutex_lock(&p->lock);
 		isoutbound = IS_OUTBOUND(ast, p);
 		if (isoutbound) {
 			this_channel = p->chan;
