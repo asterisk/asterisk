@@ -169,7 +169,7 @@
  * Commits to the Asterisk 1.2 branch should only address security issues or
  * regressions introduced by previous security fixes.  For a security issue, the
  * commit should be accompanied by an 
- * <a href="http://downloads.digium.com/pub/security/">Asterisk Security Advisory</a>
+ * <a href="http://downloads.asterisk.org/pub/security/">Asterisk Security Advisory</a>
  * and an immediate release.  When a commit goes in to fix a regression, the previous
  * security advisory that is related to the change that introduced the bug should get
  * updated to indicate that there is an updated version of the fix.  A release should
