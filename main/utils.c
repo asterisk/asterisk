@@ -1560,7 +1560,11 @@ int __ast_string_field_init(struct ast_string_field_mgr *mgr, struct ast_string_
 	}
 
 	if (needed < 0) {		/* reset all pools */
-		/* nothing to do */
+		if (*pool_head == NULL) {
+			ast_log(LOG_WARNING, "trying to reset empty pool\n");
+			return -1;
+		}
+		cur = *pool_head;
 	} else if (mgr->embedded_pool) { /* preserve the embedded pool */
 		preserve = mgr->embedded_pool;
 		cur = *pool_head;
