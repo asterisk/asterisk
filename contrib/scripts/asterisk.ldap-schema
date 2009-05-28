@@ -91,6 +91,7 @@ objectIdentifier AstVoicemailEmail AstAttrType:54
 objectIdentifier AstVoicemailPager AstAttrType:55
 objectIdentifier AstVoicemailOptions AstAttrType:56
 objectIdentifier AstVoicemailTimestamp AstAttrType:57
+objectIdentifier AstVoicemailContext AstAttrType:58
 
 
 #############################################################################
@@ -539,6 +540,13 @@ attributetype ( AstVoicemailTimestamp
         SUBSTR caseIgnoreSubstringsMatch
         SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
 
+attributetype ( AstVoicemailContext
+        NAME 'AstVoicemailContext'
+        DESC 'Asterisk voicemail context'
+        EQUALITY caseIgnoreMatch
+        SUBSTR caseIgnoreSubstringsMatch
+        SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
+
 #############################################################################
 # Object Class definitions
 #
@@ -692,6 +700,7 @@ objectclass ( AsteriskVoiceMail
     AstVoicemailEmail $
     AstVoicemailPager $
     AstVoicemailOptions $
-    AstVoicemailTimestamp   
+    AstVoicemailTimestamp $
+    AstVoicemailContext
     )
     )
