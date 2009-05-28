@@ -22,7 +22,7 @@ lines, and is well documented.
 Asterisk is published under a dual-licensing scheme by Digium.
 To be accepted into the codebase, all non-trivial changes must be
 licensed to Digium. For more information, see the electronic license
-agreement on http://bugs.digium.com/.
+agreement on https://issues.asterisk.org/.
 
 Patches should be in the form of a unified (-u) diff, made from a checkout
 from subversion.

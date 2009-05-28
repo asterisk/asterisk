@@ -67,4 +67,4 @@ echo Notifying admins of the core.
 echo Done.
 echo
 echo Reproducible deadlocks should be posted with a full backtrace and instructions
-echo to reproduce the issue at http://bugs.digium.com/    Thanks!
+echo to reproduce the issue at https://issues.asterisk.org/    Thanks!

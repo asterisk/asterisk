@@ -64,7 +64,7 @@
  *
  * \section weblinks Web sites
  * \arg \b Main:  Asterisk Developer's website http://www.asterisk.org/developers/
- * \arg \b Bugs: The Issue Tracker http://bugs.digium.com
+ * \arg \b Bugs: The Issue Tracker https://issues.asterisk.org
  * \arg \b Lists: List Server http://lists.digium.com
  * \arg \b Wiki: The Asterisk Wiki 	http://www.voip-info.org
  * \arg \b Docs: The Asterisk Documentation Project http://www.asteriskdocs.org

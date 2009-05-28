@@ -52,7 +52,7 @@
  *
  * \section CommitMsgTags Special Tags for Commit Messages
  *
- * \subsection MantisTags Mantis (http://bugs.digium.com/)
+ * \subsection MantisTags Mantis (https://issues.asterisk.org/)
  *
  * To have a commit noted in an issue, use a tag of the form: 
  * \arg (issue #1234)
@@ -85,11 +85,11 @@
  * need to include something like "fixed by me", as that will be the default
  * assumption when a specific patch is not referenced.
  *
- * \subsection ReviewBoardTags Review Board (http://reviewboard.digium.com/)
+ * \subsection ReviewBoardTags Review Board (https://reviewboard.asterisk.org/)
  *
  * To have a commit set a review request as submitted, include the full URL
  * to the review request.  For example:
- * \arg Review: %http://reviewboard.digium.com/r/95/
+ * \arg Review: %https://reviewboard.asterisk.org/r/95/
  *
  * \note The trailing slash in the review URL is required.
  *

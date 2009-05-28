@@ -41,7 +41,7 @@
  *
  * \par Possible improvement
  * \todo Implement a caching mechanism for multile enum lookups
- * - See http://bugs.digium.com/view.php?id=6739
+ * - See https://issues.asterisk.org/view.php?id=6739
  * \todo The service type selection needs to be redone.
  */
 

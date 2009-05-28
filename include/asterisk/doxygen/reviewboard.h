@@ -27,7 +27,7 @@
  *
  * \section ReviewboardGuidelines Usage Guidelines
  *
- * Mantis (http://bugs.digium.com) and Reviewboard (http://reviewboard.digium.com)
+ * Mantis (https://issues.asterisk.org) and Reviewboard (https://reviewboard.asterisk.org)
  * are both utilities that the Asterisk development community uses to help
  * track and review code being written for Asterisk.  Since both systems
  * are used for posting patches, it is worth discussing when it is appropriate
@@ -78,7 +78,7 @@
  * the server option:
  * 
    \verbatim
-   $ post-review --server=http://reviewboard.digium.com
+   $ post-review --server=https://reviewboard.asterisk.org
    \endverbatim
  *
  * \subsection postreviewnewfiles Dealing with New Files

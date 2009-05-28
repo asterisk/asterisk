@@ -61,8 +61,8 @@ writeprotect=no
 ; this value to "yes" !!
 ; Please, if you try this out, and are forced to return to the
 ; old pattern matcher, please report your reasons in a bug report
-; on bugs.digium.com. We have made good progress in providing something
-; compatible with the old matcher; help us finish the job!
+; on https://issues.asterisk.org. We have made good progress in providing
+; something compatible with the old matcher; help us finish the job!
 ;
 ; This value can be switched at runtime using the cli command "dialplan set extenpatternmatchnew true"
 ; or "dialplan set extenpatternmatchnew false", so you can experiment to your hearts content.
