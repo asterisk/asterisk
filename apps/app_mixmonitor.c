@@ -68,6 +68,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="b">
 						<para>Only save audio to the file while the channel is bridged.</para>
 						<note><para>Does not include conferences or sounds played to each bridged party</para></note>
+						<note><para>If you utilize this option inside a Local channel, you must make sure the Local
+						channel is not optimized away. To do this, be sure to call your Local channel with the
+						<literal>/n</literal> option. For example: Dial(Local/start@mycontext/n)</para></note>
 					</option>
 					<option name="v">
 						<para>Adjust the <emphasis>heard</emphasis> volume by a factor of <replaceable>x</replaceable>
