@@ -44,8 +44,8 @@ bindaddr = 0.0.0.0
 ;tlsbindaddr=0.0.0.0		; address to bind to, default to bindaddr
 ;tlscertfile=/tmp/asterisk.pem	; path to the certificate.
 ;tlsprivatekey=/tmp/private.pem ; path to the private key, if no private given,
-                                ; if no tlsprivatekey is given, default is to search
-								; tlscertfile for private key.
+; if no tlsprivatekey is given, default is to search
+; tlscertfile for private key.
 ;tlscipher=<cipher string>      ; string specifying which SSL ciphers to use or not use
 ;
 ;allowmultiplelogin = yes		; IF set to no, rejects manager logins that are already in use.
@@ -58,7 +58,7 @@ bindaddr = 0.0.0.0
 ;timestampevents = yes
 
 ; debug = on	; enable some debugging info in AMI messages (default off).
-		; Also accessible through the "manager debug" CLI command.
+; Also accessible through the "manager debug" CLI command.
 ;[mark]
 ;secret = mysecret
 ;deny=0.0.0.0/0.0.0.0

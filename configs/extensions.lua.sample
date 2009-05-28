@@ -97,103 +97,103 @@ TRUNKMSD = 1
 --
 
 function outgoing_local(c, e)
-	app.dial("DAHDI/1/" .. e, "", "")
+app.dial("DAHDI/1/" .. e, "", "")
 end
 
 function demo_instruct()
-	app.background("demo-instruct")
-	app.waitexten()
+app.background("demo-instruct")
+app.waitexten()
 end
 
 function demo_congrats()
-	app.background("demo-congrats")
-	demo_instruct()
+app.background("demo-congrats")
+demo_instruct()
 end
 
 -- Answer the chanel and play the demo sound files
 function demo_start(context, exten)
-	app.wait(1)
-	app.answer()
+app.wait(1)
+app.answer()
 
-	channel.TIMEOUT("digit"):set(5)
-	channel.TIMEOUT("response"):set(10)
-	-- app.set("TIMEOUT(digit)=5")
-	-- app.set("TIMEOUT(response)=10")
+channel.TIMEOUT("digit"):set(5)
+channel.TIMEOUT("response"):set(10)
+-- app.set("TIMEOUT(digit)=5")
+-- app.set("TIMEOUT(response)=10")
 
-	demo_congrats(context, exten)
+demo_congrats(context, exten)
 end
 
 function demo_hangup()
-	app.playback("demo-thanks")
-	app.hangup()
+app.playback("demo-thanks")
+app.hangup()
 end
 
 extensions = {
-	demo = {
-		s = demo_start;
+demo = {
+s = demo_start;
 
-		["2"] = function()
-			app.background("demo-moreinfo")
-			demo_instruct()
-		end;
-		["3"] = function ()
-			channel.LANGUAGE():set("fr") -- set the language to french
-			demo_congrats()
-		end;
+["2"] = function()
+app.background("demo-moreinfo")
+demo_instruct()
+end;
+["3"] = function ()
+channel.LANGUAGE():set("fr") -- set the language to french
+demo_congrats()
+end;
 
-		["1000"] = function()
-			app.goto("default", "s", 1)
-		end;
+["1000"] = function()
+app.goto("default", "s", 1)
+end;
 
-		["1234"] = function()
-			app.playback("transfer", "skip")
-			-- do a dial here
-		end;
+["1234"] = function()
+app.playback("transfer", "skip")
+-- do a dial here
+end;
 
-		["1235"] = function()
-			app.voicemail("1234", "u")
-		end;
+["1235"] = function()
+app.voicemail("1234", "u")
+end;
 
-		["1236"] = function()
-			app.dial("Console/dsp")
-			app.voicemail(1234, "b")
-		end;
+["1236"] = function()
+app.dial("Console/dsp")
+app.voicemail(1234, "b")
+end;
 
-		["#"] = demo_hangup;
-		t = demo_hangup;
-                i = function()
-                        app.playback("invalid")
-                        demo_instruct()
-                end;
+["#"] = demo_hangup;
+t = demo_hangup;
+i = function()
+app.playback("invalid")
+demo_instruct()
+end;
 
-		["500"] = function()
-			app.playback("demo-abouttotry")
-			app.dial("IAX2/guest@misery.digium.com/s@default")
-			app.playback("demo-nogo")
-			demo_instruct()
-		end;
+["500"] = function()
+app.playback("demo-abouttotry")
+app.dial("IAX2/guest@misery.digium.com/s@default")
+app.playback("demo-nogo")
+demo_instruct()
+end;
 
-		["600"] = function()
-			app.playback("demo-echotest")
-			app.echo()
-			app.playback("demo-echodone")
-			demo_instruct()
-		end;
+["600"] = function()
+app.playback("demo-echotest")
+app.echo()
+app.playback("demo-echodone")
+demo_instruct()
+end;
 
-		["8500"] = function()
-			app.voicemailmain()
-			demo_instruct()
-		end;
+["8500"] = function()
+app.voicemailmain()
+demo_instruct()
+end;
 
-	};
+};
 
-	default = {
-		-- by default, do the demo
-		include = {"demo"};
-	};
+default = {
+-- by default, do the demo
+include = {"demo"};
+};
 
-	["local"] = {
-		["_NXXXXXX"] = outgoing_local;
-	};
+["local"] = {
+["_NXXXXXX"] = outgoing_local;
+};
 }
 

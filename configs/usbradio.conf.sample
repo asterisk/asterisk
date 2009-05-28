@@ -30,23 +30,23 @@
 
 ;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
 ; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of an
-                              ; USBRADIO channel. Defaults to "no". An enabled jitterbuffer will
-                              ; be used only if the sending side can create and the receiving
-                              ; side can not accept jitter. The USBRADIO channel can't accept jitter,
-                              ; thus an enabled jitterbuffer on the receive USBRADIO side will always
-                              ; be used if the sending side can create jitter.
+; USBRADIO channel. Defaults to "no". An enabled jitterbuffer will
+; be used only if the sending side can create and the receiving
+; side can not accept jitter. The USBRADIO channel can't accept jitter,
+; thus an enabled jitterbuffer on the receive USBRADIO side will always
+; be used if the sending side can create jitter.
 
 ; jbmaxsize = 200             ; Max length of the jitterbuffer in milliseconds.
 
 ; jbresyncthreshold = 1000    ; Jump in the frame timestamps over which the jitterbuffer is
-                              ; resynchronized. Useful to improve the quality of the voice, with
-                              ; big jumps in/broken timestamps, usualy sent from exotic devices
-                              ; and programs. Defaults to 1000.
+; resynchronized. Useful to improve the quality of the voice, with
+; big jumps in/broken timestamps, usualy sent from exotic devices
+; and programs. Defaults to 1000.
 
 ; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of an USBRADIO
-                              ; channel. Two implementations are currenlty available - "fixed"
-                              ; (with size always equals to jbmax-size) and "adaptive" (with
-                              ; variable size, actually the new jb of IAX2). Defaults to fixed.
+; channel. Two implementations are currenlty available - "fixed"
+; (with size always equals to jbmax-size) and "adaptive" (with
+; variable size, actually the new jb of IAX2). Defaults to fixed.
 
 ; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
 ;-----------------------------------------------------------------------------------

@@ -28,13 +28,13 @@
 ;funcchar = *				; function lead-in character (defaults to '*')
 ;endchar = #				; command mode end character (defaults to '#')
 ;;nobusyout=yes				; (optional) Do not busy-out reverse-patch when
-					; normal patch in use
+; normal patch in use
 ;hangtime=1000				; squelch tail hang time (in ms) (optional)
 ;totime=100000				; transmit time-out time (in ms) (optional)
 ;idtime=30000				; id interval time (in ms) (optional)
 ;politeid=30000				; time in milliseconds before ID timer
-					; expires to try and ID in the tail.
-					; (optional, default is 30000).
+; expires to try and ID in the tail.
+; (optional, default is 30000).
 ;idtalkover=|iwb6nil/rpt		; Talkover ID (optional) default is none
 ;unlinkedct=ct2				; unlinked courtesy tone (optional) default is none
 
@@ -69,13 +69,13 @@
 ;funcchar = *				; function lead-in character (defaults to '*')
 ;endchar = #				; command mode end character (defaults to '#')
 ;;nobusyout=yes				; (optional) Do not busy-out reverse-patch when
-					; normal patch in use
+; normal patch in use
 ;hangtime=1000				; squelch tail hang time (in ms) (optional)
 ;totime=100000				; transmit time-out time (in ms) (optional)
 ;idtime=30000				; id interval time (in ms) (optional)
 ;politeid=30000				; time in milliseconds before ID timer
-					; expires to try and ID in the tail.
-					; (optional, default is 30000).
+; expires to try and ID in the tail.
+; (optional, default is 30000).
 ;idtalkover=|iwb6nil/rpt		; Talkover ID (optional) default is none
 ;unlinkedct=ct2				; unlinked courtesy tone (optional) default is none
 
@@ -87,8 +87,8 @@
 ;txchannel = DAHDI/6			; Tx audio/signalling channel
 ;functions = functions-remote
 ;remote = ft897				; Set remote=y for dumb remote or 
-					; remote=ft897 for Yaesu FT-897 or
-					; remote=rbi for Doug Hall RBI1
+; remote=ft897 for Yaesu FT-897 or
+; remote=rbi for Doug Hall RBI1
 ;iobase = 0x378				; Specify IO port for parallel port (optional)
 
 ;[functions-repeater]

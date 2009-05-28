@@ -6,8 +6,8 @@
 
 ;serveraddr=192.168.1.1 ; Override address to send to the phone to use as server address.
 ;serveriface=eth0       ; Same as above, except an ethernet interface.
-                        ; Useful for when the interface uses DHCP and the asterisk http
-                        ; server listens on a different IP than chan_sip.
+; Useful for when the interface uses DHCP and the asterisk http
+; server listens on a different IP than chan_sip.
 ;serverport=5060        ; Override port to send to the phone to use as server port.
 default_profile=polycom ; The default profile to use if none specified in users.conf
 
@@ -43,10 +43,10 @@ default_profile=polycom ; The default profile to use if none specified in users.
 
 [polycom]
 staticdir => configs/ ; Sub directory of AST_DATA_DIR/phoneprov that static files reside
-                      ; in. This allows a request to /phoneprov/sip.cfg to pull the file
-                      ; from /phoneprov/configs/sip.cfg 
+; in. This allows a request to /phoneprov/sip.cfg to pull the file
+; from /phoneprov/configs/sip.cfg 
 mime_type => text/xml ; Default mime type to use if one isn't specified or the
-                      ; extension isn't recognized
+; extension isn't recognized
 static_file => bootrom.ld,application/octet-stream ; Static files the phone will download
 static_file => bootrom.ver,plain/text              ; static_file => filename,mime-type
 static_file => sip.ld,application/octet-stream

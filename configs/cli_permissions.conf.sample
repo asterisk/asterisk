@@ -23,7 +23,7 @@
 [general]
 
 default_perm=permit	; To leave asterisk working as normal
-			; we should set this parameter to 'permit'
+; we should set this parameter to 'permit'
 ;
 ; Follows the per-users permissions configs.
 ;

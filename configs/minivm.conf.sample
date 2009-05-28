@@ -144,7 +144,7 @@ military=Zulu|'vm-received' q 'digits/at' H N 'hours' 'phonetic/z_p'
 ; locale = <locale>		; Locale for LC_TIME - to get weekdays in local language 
 ;				; See your O/S documentation for proper settings for setlocale()
 ; templatefile = <filename>	; File name (relative to Asterisk configuration directory,
-				; or absolute
+; or absolute
 ; messagebody = Format		; Message body definition with variables
 ;
 [template-sv_SE_email] 

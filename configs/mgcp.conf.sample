@@ -13,27 +13,27 @@
 
 ;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
 ; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of a
-                              ; MGCP channel. Defaults to "no". An enabled jitterbuffer will
-                              ; be used only if the sending side can create and the receiving
-                              ; side can not accept jitter. The MGCP channel can accept jitter,
-                              ; thus an enabled jitterbuffer on the receive MGCP side will only
-                              ; be used if the sending side can create jitter and jbforce is
-                              ; also set to yes.
+; MGCP channel. Defaults to "no". An enabled jitterbuffer will
+; be used only if the sending side can create and the receiving
+; side can not accept jitter. The MGCP channel can accept jitter,
+; thus an enabled jitterbuffer on the receive MGCP side will only
+; be used if the sending side can create jitter and jbforce is
+; also set to yes.
 
 ; jbforce = no                ; Forces the use of a jitterbuffer on the receive side of a MGCP
-                              ; channel. Defaults to "no".
+; channel. Defaults to "no".
 
 ; jbmaxsize = 200             ; Max length of the jitterbuffer in milliseconds.
 
 ; jbresyncthreshold = 1000    ; Jump in the frame timestamps over which the jitterbuffer is
-                              ; resynchronized. Useful to improve the quality of the voice, with
-                              ; big jumps in/broken timestamps, usually sent from exotic devices
-                              ; and programs. Defaults to 1000.
+; resynchronized. Useful to improve the quality of the voice, with
+; big jumps in/broken timestamps, usually sent from exotic devices
+; and programs. Defaults to 1000.
 
 ; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of a MGCP
-                              ; channel. Two implementations are currently available - "fixed"
-                              ; (with size always equals to jbmax-size) and "adaptive" (with
-                              ; variable size, actually the new jb of IAX2). Defaults to fixed.
+; channel. Two implementations are currently available - "fixed"
+; (with size always equals to jbmax-size) and "adaptive" (with
+; variable size, actually the new jb of IAX2). Defaults to fixed.
 
 ; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
 ;-----------------------------------------------------------------------------------
@@ -79,7 +79,7 @@
 ;context=local
 ;host=dynamic
 ;dtmfmode=none		; DTMF Mode can be 'none', 'rfc2833', or 'inband' or
-			; 'hybrid' which starts in none and moves to inband.  Default is none.
+; 'hybrid' which starts in none and moves to inband.  Default is none.
 ;slowsequence=yes	; The DPH100M does not follow MGCP standards for sequencing
 ;line => aaln/1
 
@@ -87,11 +87,11 @@
 ;[192.168.1.20]
 ;accountcode	= 1000		; record this in cdr as account identification for billing
 ;amaflags	= billing	; record this in cdr as flagged for 'billing',
-				; 'documentation', or 'omit'
+; 'documentation', or 'omit'
 ;context	= local
 ;host		= 192.168.1.20
 ;wcardep	= aaln/*	; enables wildcard endpoint and sets it to 'aaln/*' 
-				; another common format is '*'
+; another common format is '*'
 ;callerid 	= "Duane Cox" <123>	; now lets setup line 1 using per endpoint configuration...
 ;callwaiting	= no
 ;callreturn	= yes

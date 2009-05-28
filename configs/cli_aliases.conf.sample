@@ -13,8 +13,8 @@ template = friendly		; By default, include friendly aliases
 ;template = asterisk12		; Asterisk 1.2 style syntax
 ;template = asterisk14		; Asterisk 1.4 style syntax
 ;template = individual_custom	; see [individual_custom] example below which
-				; includes a list of aliases from an external 
-				; file
+; includes a list of aliases from an external 
+; file
 
 
 ; Because the Asterisk CLI syntax follows a "module verb argument" syntax,

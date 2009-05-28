@@ -300,23 +300,23 @@ shared_lastcall=no
 ;
 ; queue-thankyou=
 ;
-			;	("You are now first in line.")
+;	("You are now first in line.")
 ;queue-youarenext = queue-youarenext		
-			;	("There are")
+;	("There are")
 ;queue-thereare	= queue-thereare
-			;	("calls waiting.")
+;	("calls waiting.")
 ;queue-callswaiting = queue-callswaiting
-			;	("The current est. holdtime is")
+;	("The current est. holdtime is")
 ;queue-holdtime = queue-holdtime
-			;	("minutes.")
+;	("minutes.")
 ;queue-minutes = queue-minutes
-			;	("seconds.")
+;	("seconds.")
 ;queue-seconds = queue-seconds
-			;	("Thank you for your patience.")
+;	("Thank you for your patience.")
 ;queue-thankyou = queue-thankyou
-			;       ("Hold time")
+;       ("Hold time")
 ;queue-reporthold = queue-reporthold
-			;       ("All reps busy / wait for next")
+;       ("All reps busy / wait for next")
 ;periodic-announce = queue-periodic-announce
 ;
 ; A set of periodic announcements can be defined by separating 
@@ -501,5 +501,5 @@ shared_lastcall=no
 ;
 ;member => Agent/@1		; Any agent in group 1
 ;member => Agent/:1,1		; Any agent in group 1, wait for first
-                                ; available, but consider with penalty
+; available, but consider with penalty
 

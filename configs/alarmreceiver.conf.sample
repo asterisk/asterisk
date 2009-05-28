@@ -10,7 +10,7 @@
 ;                                                                                                                                   
 ; Specify a timestamp format for the metadata section of the event files
 ; Default is %a %b %d, %Y @ %H:%M:%S %Z
-	        
+
 timestampformat = %a %b %d, %Y @ %H:%M:%S %Z
 
 ;

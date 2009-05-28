@@ -430,7 +430,7 @@ exten => stdexten-NOANSWER,n,NoOp(Finish stdexten NOANSWER)
 exten => stdexten-NOANSWER,n,Return()			; If they press #, return to start
 
 exten => stdexten-BUSY,1,Voicemail(${mbx},b)
-						; If busy, send to voicemail w/ busy announce
+; If busy, send to voicemail w/ busy announce
 exten => stdexten-BUSY,n,NoOp(Finish stdexten BUSY)
 exten => stdexten-BUSY,n,Return()			; If they press #, return to start
 
@@ -459,7 +459,7 @@ exten => _X.,n,Set(LOCAL(cntx)=${ARG5})
 
 exten => _X.,n,Set(LOCAL(mbx)="${ext}"$["${cntx}" ? "@${cntx}" :: ""])
 exten => _X.,n,Dial(${dev},20,p)			; Ring the interface, 20 seconds maximum, call screening 
-						; option (or use P for databased call _X.creening)
+; option (or use P for databased call _X.creening)
 exten => _X.,n,Goto(s-${DIALSTATUS},1)		; Jump based on status (NOANSWER,BUSY,CHANUNAVAIL,CONGESTION,ANSWER)
 
 exten => stdexten-NOANSWER,1,Voicemail(${mbx},u)	; If unavailable, send to voicemail w/ unavail announce
@@ -521,7 +521,7 @@ exten => 1000,1,Goto(default,s,1)
 ; voicemail, etc.
 ;
 exten => 1234,1,Playback(transfer,skip)		; "Please hold while..." 
-					; (but skip if channel is not up)
+; (but skip if channel is not up)
 exten => 1234,n,Gosub(stdexten(1234,${GLOBAL(CONSOLE)}))
 exten => 1234,n,Goto(default,s,1)		; exited Voicemail
 
@@ -640,11 +640,11 @@ include => demo
 ;exten => 6394,1,Dial(Local/6275/n)		; this will dial ${MARK}
 
 ;exten => 6275,1,Gosub(stdexten(6275,${MARK}))
-						; assuming ${MARK} is something like DAHDI/2
+; assuming ${MARK} is something like DAHDI/2
 ;exten => 6275,n,Goto(default,s,1)		; exited Voicemail
 ;exten => mark,1,Goto(6275,1)			; alias mark to 6275
 ;exten => 6536,1,Gosub(stdexten(6236,${WIL}))
-						; Ditto for wil
+; Ditto for wil
 ;exten => 6536,n,Goto(default,s,1)		; exited Voicemail
 ;exten => wil,1,Goto(6236,1)
 
