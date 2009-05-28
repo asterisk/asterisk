@@ -1423,7 +1423,11 @@ int __ast_string_field_init(struct ast_string_field_mgr *mgr, struct ast_string_
 		return add_string_pool(mgr, pool_head, needed, file, lineno, func);
 	}
 	if (needed < 0) {		/* reset all pools */
-		/* nothing to do */
+		if (*pool_head == NULL) {
+			ast_log(LOG_WARNING, "trying to reset empty pool\n");
+			return -1;
+		}
+		cur = *pool_head;
 	} else {			/* preserve the last pool */
 		if (*pool_head == NULL) {
 			ast_log(LOG_WARNING, "trying to reset empty pool\n");
