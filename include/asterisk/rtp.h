@@ -127,6 +127,23 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 
 void ast_rtp_set_peer(struct ast_rtp *rtp, struct sockaddr_in *them);
 
+/*! 
+ * \since 1.4.26
+ * \brief set potential alternate source for RTP media
+ *
+ * This function may be used to give the RTP stack a hint that there is a potential
+ * second source of media. One case where this is used is when the SIP stack receives
+ * a REINVITE to which it will be replying with a 491. In such a scenario, the IP and
+ * port information in the SDP of that REINVITE lets us know that we may receive media
+ * from that source/those sources even though the SIP transaction was unable to be completed
+ * successfully
+ *
+ * \param rtp The RTP structure we wish to set up an alternate host/port on
+ * \param alt The address information for the alternate media source
+ * \retval void
+ */
+void ast_rtp_set_alt_peer(struct ast_rtp *rtp, struct sockaddr_in *alt);
+
 /* Copies from rtp to them and returns 1 if there was a change or 0 if it was already the same */
 int ast_rtp_get_peer(struct ast_rtp *rtp, struct sockaddr_in *them);
 

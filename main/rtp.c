@@ -151,6 +151,7 @@ struct ast_rtp {
 	unsigned int flags;
 	struct sockaddr_in us;		/*!< Socket representation of the local endpoint. */
 	struct sockaddr_in them;	/*!< Socket representation of the remote endpoint. */
+	struct sockaddr_in altthem;	/*!< Alternate source of remote media */
 	struct timeval rxcore;
 	struct timeval txcore;
 	double drxcore;                 /*!< The double representation of the first received packet */
@@ -209,6 +210,7 @@ struct ast_rtcp {
 	int s;				/*!< Socket */
 	struct sockaddr_in us;		/*!< Socket representation of the local endpoint. */
 	struct sockaddr_in them;	/*!< Socket representation of the remote endpoint. */
+	struct sockaddr_in altthem;	/*!< Alternate source for RTCP */
 	unsigned int soc;		/*!< What they told us */
 	unsigned int spc;		/*!< What they told us */
 	unsigned int themrxlsr;		/*!< The middle 32 bits of the NTP timestamp in the last received SR*/
@@ -899,11 +901,13 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 	}
 
 	packetwords = res / 4;
-	
+
 	if (rtp->nat) {
 		/* Send to whoever sent to us */
-		if ((rtp->rtcp->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
-		    (rtp->rtcp->them.sin_port != sin.sin_port)) {
+		if (((rtp->rtcp->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
+		    (rtp->rtcp->them.sin_port != sin.sin_port)) &&
+		    ((rtp->rtcp->altthem.sin_addr.s_addr != sin.sin_addr.s_addr) ||
+		    (rtp->rtcp->altthem.sin_port != sin.sin_port))) {
 			memcpy(&rtp->rtcp->them, &sin, sizeof(rtp->rtcp->them));
 			if (option_debug || rtpdebug)
 				ast_log(LOG_DEBUG, "RTCP NAT: Got RTCP from other end. Now sending to address %s:%d\n", ast_inet_ntoa(rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
@@ -1203,8 +1207,10 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 
 	/* Send to whoever send to us if NAT is turned on */
 	if (rtp->nat) {
-		if ((rtp->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
-		    (rtp->them.sin_port != sin.sin_port)) {
+		if (((rtp->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
+		    (rtp->them.sin_port != sin.sin_port)) &&
+		    ((rtp->altthem.sin_addr.s_addr != sin.sin_addr.s_addr) ||
+		    (rtp->altthem.sin_port != sin.sin_port))) {
 			rtp->them = sin;
 			if (rtp->rtcp) {
 				memcpy(&rtp->rtcp->them, &sin, sizeof(rtp->rtcp->them));
@@ -2059,6 +2065,16 @@ void ast_rtp_set_peer(struct ast_rtp *rtp, struct sockaddr_in *them)
 		rtp->rtcp->them.sin_addr = them->sin_addr;
 	}
 	rtp->rxseqno = 0;
+}
+
+void ast_rtp_set_alt_peer(struct ast_rtp *rtp, struct sockaddr_in *alt)
+{
+	rtp->altthem.sin_port = alt->sin_port;
+	rtp->altthem.sin_addr = alt->sin_addr;
+	if (rtp->rtcp) {
+		rtp->rtcp->altthem.sin_port = htons(ntohs(alt->sin_port) + 1);
+		rtp->rtcp->altthem.sin_addr = alt->sin_addr;
+	}
 }
 
 int ast_rtp_get_peer(struct ast_rtp *rtp, struct sockaddr_in *them)
