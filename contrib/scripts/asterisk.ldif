@@ -1,12 +1,13 @@
 #
 # Copyright (c) 2007-2009 Suretec Systems Ltd. - <http://www.suretecsystems.com/>
 #
-# Version: 3.1.7
+# Version: 3.1.8
 #
 # Changes:
+# - Added AsteriskVoiceMail Object class and AstAccountCallLimit attribute - 28/05/2009
+#   https://issues.asterisk.org/view.php?id=15155
 # - Added AstAccountLastQualifyMilliseconds - 28/05/2009
 #   https://issues.asterisk.org/view.php?id=15156
-#   Also brought asterisk.ldif fully in synch with asterisk.ldap-schema
 # - http://bugs.digium.com/view.php?id=12860 - 04/07/2008
 # - Fixed wrong DESC - 07/05/2008
 #
@@ -86,6 +87,14 @@ olcObjectIdentifier: AstAccountIPAddress AstAttrType:46
 olcObjectIdentifier: AstAccountDefaultUser AstAttrType:47
 olcObjectIdentifier: AstAccountRegistrationServer AstAttrType:48
 olcObjectIdentifier: AstAccountLastQualifyMilliseconds AstAttrType:49
+olcObjectIdentifier: AstAccountCallLimit AstAttrType:50
+olcObjectIdentifier: AstVoicemailMailbox AstAttrType:51
+olcObjectIdentifier: AstVoicemailPassword AstAttrType:52
+olcObjectIdentifier: AstVoicemailFullname AstAttrType:53
+olcObjectIdentifier: AstVoicemailEmail AstAttrType:54
+olcObjectIdentifier: AstVoicemailPager AstAttrType:55
+olcObjectIdentifier: AstVoicemailOptions AstAttrType:56
+olcObjectIdentifier: AstVoicemailTimestamp AstAttrType:57
 #
 #
 #############################################################################
@@ -96,6 +105,7 @@ olcObjectIdentifier: AsteriskExtension AstObjectClass:1
 olcObjectIdentifier: AsteriskIAXUser AstObjectClass:2
 olcObjectIdentifier: AsteriskSIPUser AstObjectClass:3
 olcObjectIdentifier: AsteriskConfig AstObjectClass:4
+olcObjectIdentifier: AsteriskVoiceMail AstObjectClass:5
 #
 #
 #############################################################################
@@ -450,32 +460,88 @@ olcAttributeTypes: ( AstConfigCommented
         SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
 #
 olcAttributeTypes: ( AstAccountIPAddress
-	NAME 'AstAccountIPAddress'
-	DESC 'Asterisk Account IP Address' 
-	EQUALITY caseIgnoreMatch
-	SUBSTR caseIgnoreSubstringsMatch
-	SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
-#	  
+        NAME 'AstAccountIPAddress'
+        DESC 'Asterisk Account IP Address' 
+        EQUALITY caseIgnoreMatch
+        SUBSTR caseIgnoreSubstringsMatch
+        SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
+#  
 olcAttributeTypes: ( AstAccountDefaultUser
-	NAME 'AstAccountDefaultUser'
-	DESC 'Asterisk Account Default User'
-	EQUALITY caseIgnoreMatch
-	SUBSTR caseIgnoreSubstringsMatch
-	SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
+        NAME 'AstAccountDefaultUser'
+        DESC 'Asterisk Account Default User'
+        EQUALITY caseIgnoreMatch
+        SUBSTR caseIgnoreSubstringsMatch
+        SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
 #
 olcAttributeTypes: ( AstAccountRegistrationServer
-	NAME 'AstAccountRegistrationServer'
-	DESC 'Asterisk Account Registration Server' 
-	EQUALITY caseIgnoreMatch
-	SUBSTR caseIgnoreSubstringsMatch
-	SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
+        NAME 'AstAccountRegistrationServer'
+        DESC 'Asterisk Account Registration Server' 
+        EQUALITY caseIgnoreMatch
+        SUBSTR caseIgnoreSubstringsMatch
+        SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
 #
 olcAttributeTypes: ( AstAccountLastQualifyMilliseconds
-	NAME 'AstAccountLastQualifyMilliseconds'
-	DESC 'Asterisk Account Last Qualify Milliseconds'
-	EQUALITY caseIgnoreMatch
-	SUBSTR caseIgnoreSubstringsMatch
-	SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
+        NAME 'AstAccountLastQualifyMilliseconds'
+        DESC 'Asterisk Account Last Qualify Milliseconds'
+        EQUALITY caseIgnoreMatch
+        SUBSTR caseIgnoreSubstringsMatch
+        SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
+#
+olcAttributeTypes: ( AstAccountCallLimit
+        NAME 'AstAccountCallLimit'
+        DESC 'Asterisk Account Call Limit'
+        EQUALITY caseIgnoreMatch
+        SUBSTR caseIgnoreSubstringsMatch
+        SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
+#
+olcAttributeTypes: ( AstVoicemailMailbox
+        NAME 'AstVoicemailMailbox'
+        DESC 'Asterisk voicemail mailbox'
+        EQUALITY caseIgnoreMatch
+        SUBSTR caseIgnoreSubstringsMatch
+        SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
+#
+olcAttributeTypes: ( AstVoicemailPassword
+        NAME 'AstVoicemailPassword'
+        DESC 'Asterisk voicemail password'
+        EQUALITY caseIgnoreMatch
+        SUBSTR caseIgnoreSubstringsMatch
+        SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
+#
+olcAttributeTypes: ( AstVoicemailFullname
+        NAME 'AstVoicemailFullname'
+        DESC 'Asterisk voicemail fullname'
+        EQUALITY caseIgnoreMatch
+        SUBSTR caseIgnoreSubstringsMatch
+        SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
+#
+olcAttributeTypes: ( AstVoicemailEmail
+        NAME 'AstVoicemailEmail'
+        DESC 'Asterisk voicemail email'
+        EQUALITY caseIgnoreMatch
+        SUBSTR caseIgnoreSubstringsMatch
+        SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
+#
+olcAttributeTypes: ( AstVoicemailPager
+        NAME 'AstVoicemailPager'
+        DESC 'Asterisk voicemail pager'
+        EQUALITY caseIgnoreMatch
+        SUBSTR caseIgnoreSubstringsMatch
+        SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
+#
+olcAttributeTypes: ( AstVoicemailOptions
+        NAME 'AstVoicemailOptions'
+        DESC 'Asterisk voicemail options'
+        EQUALITY caseIgnoreMatch
+        SUBSTR caseIgnoreSubstringsMatch
+        SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
+#
+olcAttributeTypes: ( AstVoicemailTimestamp
+        NAME 'AstVoicemailTimestamp'
+        DESC 'Asterisk voicemail timestamp'
+        EQUALITY caseIgnoreMatch
+        SUBSTR caseIgnoreSubstringsMatch
+        SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
 #
 #############################################################################
 # Object Class definitions
@@ -538,7 +604,8 @@ olcObjectClasses: ( AsteriskIAXUser
         AstAccountRegistrationExten $ 
         AstAccountNoTransfer $ 
         AstAccountName $
-	AstAccountLastQualifyMilliseconds 
+        AstAccountLastQualifyMilliseconds $
+        AstAccountCallLimit
     )
     )
 #       
@@ -583,13 +650,14 @@ olcObjectClasses: ( AsteriskSIPUser
         AstAccountCanCallForward $ 
         AstAccountSecret $ 
         AstAccountName $
-	AstAccountLastQualifyMilliseconds 
+        AstAccountLastQualifyMilliseconds $
+        AstAccountCallLimit
     )
     )
 #
 #############################################################################
 #
-# AsteriskIAXUser and AsteriskSIPUser extend AsteriskExtension. These
+# AsteriskConfig and AsteriskVoiceMail extend AsteriskExtension. These
 # represent real accounts in Asterisk.
 #
 # NOTE: They are defined as AUXILIARY in case they need to be mixed with an
@@ -610,5 +678,24 @@ olcObjectClasses: ( AsteriskConfig
         AstConfigVariableValue $ 
         AstConfigCommented
     ) 
+    )
+#
+olcObjectClasses: ( AsteriskVoiceMail
+    NAME 'AsteriskVoiceMail'
+    DESC 'Asterisk voicemail information'
+    SUP top AUXILIARY
+    MUST (
+    cn $
+    AstContext $
+    AstVoicemailMailbox $
+    AstVoicemailPassword
+    ) 
+    MAY (
+    AstVoicemailFullname $
+    AstVoicemailEmail $
+    AstVoicemailPager $
+    AstVoicemailOptions $
+    AstVoicemailTimestamp   
+    )
     )
 #
