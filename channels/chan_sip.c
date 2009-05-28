@@ -803,6 +803,7 @@ struct sip_auth {
 #define SIP_PAGE2_OUTGOING_CALL         (1 << 27)       /*!< 27: Is this an outgoing call? */
 #define SIP_PAGE2_UDPTL_DESTINATION     (1 << 28)       /*!< 28: Use source IP of RTP as destination if NAT is enabled */
 #define SIP_PAGE2_DIALOG_ESTABLISHED    (1 << 29)       /*!< 29: Has a dialog been established? */
+#define SIP_PAGE2_RPORT_PRESENT         (1 << 30)       /*!< 30: Was rport received in the Via header? */
 
 #define SIP_PAGE2_FLAGS_TO_COPY \
 	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_VIDEOSUPPORT | \
@@ -9580,7 +9581,7 @@ static void check_via(struct sip_pvt *p, const struct sip_request *req)
 	/* Check for rport */
 	c = strstr(via, ";rport");
 	if (c && (c[6] != '='))	/* rport query, not answer */
-		ast_set_flag(&p->flags[0], SIP_NAT_ROUTE);
+		ast_set_flag(&p->flags[1], SIP_PAGE2_RPORT_PRESENT);
 
 	c = strchr(via, ';');
 	if (c) 
@@ -10013,6 +10014,11 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 
 	if (user)
 		ASTOBJ_UNREF(user, sip_destroy_user);
+
+	if (ast_test_flag(&p->flags[1], SIP_PAGE2_RPORT_PRESENT)) {
+		ast_set_flag(&p->flags[0], SIP_NAT_ROUTE);
+	}
+
 	return res;
 }
 
