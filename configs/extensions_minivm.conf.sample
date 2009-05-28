@@ -1,4 +1,4 @@
-; MINI-VOICEMAIL dialplan example 
+; MINI-VOICEMAIL dialplan example
 ; ---------------------------------------------------------------------------------------
 ; ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 ;
@@ -10,7 +10,7 @@
 ; A macro to test the MINIVMACCOUNT dialplan function
 ; 	Currently, accountcode and pincode is not used in the application
 ; 	They where added to be used in dialplan scripting
-;	
+;
 ;
 [macro-minivmfunctest]
 exten => s,1,set(account=${ARGV1})

@@ -38,7 +38,7 @@ bindaddr=127.0.0.1
 ;enablestatic=yes
 ;
 ; Redirect one URI to another.  This is how you would set a
-; default page.  
+; default page.
 ;   Syntax: redirect=<from here> <to there>
 ; For example, if you are using the Asterisk-gui,
 ; it is convenient to enable the following redirect:

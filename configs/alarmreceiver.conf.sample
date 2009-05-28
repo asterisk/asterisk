@@ -7,7 +7,7 @@
 
 [general]
 
-;                                                                                                                                   
+;
 ; Specify a timestamp format for the metadata section of the event files
 ; Default is %a %b %d, %Y @ %H:%M:%S %Z
 
@@ -32,7 +32,7 @@ timestampformat = %a %b %d, %Y @ %H:%M:%S %Z
 
 eventspooldir = /tmp
 
-; 
+;
 ; The alarmreceiver app can either log the events one-at-a-time to individual
 ; files in the spool directory, or it can store them until the caller
 ; disconnects and write them all to one file.
@@ -46,7 +46,7 @@ logindividualevents = no
 ; The timeout for receiving the first DTMF digit is adjustable from 1000 msec.
 ; to 10000 msec. The default is 2000 msec. Note: if you wish to test the
 ; receiver by entering digits manually, set this to a reasonable time out
-; like 10000 milliseconds. 
+; like 10000 milliseconds.
 
 fdtimeout = 2000
 
@@ -54,7 +54,7 @@ fdtimeout = 2000
 ; The timeout for receiving subsequent DTMF digits is adjustable from
 ; 110 msec. to 4000 msec. The default is 200 msec. Note: if you wish to test
 ; the receiver by entering digits manually, set this to a reasonable time out
-; like 4000 milliseconds. 
+; like 4000 milliseconds.
 ;
 
 sdtimeout = 200

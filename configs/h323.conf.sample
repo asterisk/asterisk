@@ -44,7 +44,7 @@ port = 1720
 ; or
 ;dtmfmode=cisco:121
 ;
-; Set the gatekeeper 
+; Set the gatekeeper
 ; DISCOVER			- Find the Gk address using multicast
 ; DISABLE			- Disable the use of a GK
 ; <IP address> or <Host name>	- The acutal IP address or hostname of your GK
@@ -70,9 +70,9 @@ port = 1720
 ;
 ;UserByAlias=no
 ;
-; Default context gets used in siutations where you are using 
-; the GK routed model or no type=user was found. This gives you 
-; the ability to either play an invalid message or to simply not 
+; Default context gets used in siutations where you are using
+; the GK routed model or no type=user was found. This gives you
+; the ability to either play an invalid message or to simply not
 ; use user authentication at all.
 ;
 ;context=default
@@ -122,27 +122,27 @@ port = 1720
 ;
 ;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
 ; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of a
-; H323 channel. Defaults to "no". An enabled jitterbuffer will
-; be used only if the sending side can create and the receiving
-; side can not accept jitter. The H323 channel can accept jitter,
-; thus an enabled jitterbuffer on the receive H323 side will only
-; be used if the sending side can create jitter and jbforce is
-; also set to yes.
+                              ; H323 channel. Defaults to "no". An enabled jitterbuffer will
+                              ; be used only if the sending side can create and the receiving
+                              ; side can not accept jitter. The H323 channel can accept jitter,
+                              ; thus an enabled jitterbuffer on the receive H323 side will only
+                              ; be used if the sending side can create jitter and jbforce is
+                              ; also set to yes.
 
 ; jbforce = no                ; Forces the use of a jitterbuffer on the receive side of a H323
-; channel. Defaults to "no".
+                              ; channel. Defaults to "no".
 
 ; jbmaxsize = 200             ; Max length of the jitterbuffer in milliseconds.
 
 ; jbresyncthreshold = 1000    ; Jump in the frame timestamps over which the jitterbuffer is
-; resynchronized. Useful to improve the quality of the voice, with
-; big jumps in/broken timestamps, usualy sent from exotic devices
-; and programs. Defaults to 1000.
+                              ; resynchronized. Useful to improve the quality of the voice, with
+                              ; big jumps in/broken timestamps, usualy sent from exotic devices
+                              ; and programs. Defaults to 1000.
 
 ; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of a H323
-; channel. Two implementations are currenlty available - "fixed"
-; (with size always equals to jbmax-size) and "adaptive" (with
-; variable size, actually the new jb of IAX2). Defaults to fixed.
+                              ; channel. Two implementations are currenlty available - "fixed"
+                              ; (with size always equals to jbmax-size) and "adaptive" (with
+                              ; variable size, actually the new jb of IAX2). Defaults to fixed.
 
 ; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
 ;-----------------------------------------------------------------------------------
@@ -153,7 +153,7 @@ port = 1720
 ; and Gatekeeper, if there is one.
 ;
 ; Example: if someone calls time@your.asterisk.box.com
-; Asterisk will send the call to the extension 'time' 
+; Asterisk will send the call to the extension 'time'
 ; in the context default
 ;
 ;   [default]
@@ -161,13 +161,13 @@ port = 1720
 ;   exten => time,2,Playback,current-time
 ;
 ; Keyword's 'prefix' and 'e164' are only make sense when
-; used with a gatekeeper. You can specify either a prefix 
+; used with a gatekeeper. You can specify either a prefix
 ; or E.164 this endpoint is responsible for terminating.
-; 
+;
 ; Example: The H.323 alias 'det-gw' will tell the gatekeeper
 ; to route any call with the prefix 1248 to this alias. Keyword
 ; e164 is used when you want to specifiy a full telephone
-; number. So a call to the number 18102341212 would be 
+; number. So a call to the number 18102341212 would be
 ; routed to the H.323 alias 'time'.
 ;
 ;[time]
@@ -182,10 +182,10 @@ port = 1720
 ;
 ;
 ; Inbound H.323 calls from BillyBob would land in the incoming
-; context with a maximum of 4 concurrent incoming calls 
-; 
+; context with a maximum of 4 concurrent incoming calls
 ;
-; Note: If keyword 'incominglimit' are omitted Asterisk will not 
+;
+; Note: If keyword 'incominglimit' are omitted Asterisk will not
 ; enforce any maximum number of concurrent calls.
 ;
 ;[BillyBob]

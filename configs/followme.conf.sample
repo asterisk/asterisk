@@ -29,7 +29,7 @@ pls_hold_prompt=>followme/pls-hold-while-try
 status_prompt=>followme/status
 ; The global default for 'The party you're calling isn't at their desk' message.
 ;
-sorry_prompt=>followme/sorry  
+sorry_prompt=>followme/sorry
 ; The global default for 'I'm sorry, but we were unable to locate your party' message.
 ;
 ;
@@ -41,9 +41,9 @@ context=>default
 number=>01233456,25
 ; The a follow-me number to call. The format is:
 ; number=> <number to call[&2nd #[&3rd #]]> [, <timeout value in seconds> [, <order in follow-me>] ]
-; You can specify as many of these numbers as you like. They will be dialed in the 
+; You can specify as many of these numbers as you like. They will be dialed in the
 ; order that you specify them in the config file OR as specified with the order field
-; on the number prompt. As you can see from the example, forked dialing of multiple 
+; on the number prompt. As you can see from the example, forked dialing of multiple
 ; numbers in the same step is supported with this application if you'd like to dial
 ; multiple numbers in the same followme step.
 ; It's also important to note that the timeout value is not the same
@@ -79,7 +79,7 @@ status_prompt=>followme/status
 ; The 'The party you're calling isn't at their desk' message prompt.
 ; Default is the global default.
 ;
-sorry_prompt=>followme/sorry  
+sorry_prompt=>followme/sorry
 ; The 'I'm sorry, but we were unable to locate your party' message prompt. Default
 ; is the global default.
 

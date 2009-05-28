@@ -15,7 +15,7 @@
 ; see strftime(3) Linux manual for format specifiers.  Note that there is also
 ; a fractional second parameter which may be used in this field.  Use %1q
 ; for tenths, %2q for hundredths, etc.
-; 
+;
 ;dateformat=%F %T       ; ISO 8601 date format
 ;dateformat=%F %T.%3q   ; with milliseconds
 ;
@@ -90,7 +90,7 @@ console => notice,warning,error
 messages => notice,warning,error
 ;full => notice,warning,error,debug,verbose
 
-;syslog keyword : This special keyword logs to syslog facility 
+;syslog keyword : This special keyword logs to syslog facility
 ;
 ;syslog.local0 => notice,warning,error
 ;

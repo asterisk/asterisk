@@ -21,7 +21,7 @@ autoload=yes
 ; Uncomment the following if you wish to use the Speech Recognition API
 ;preload => res_speech.so
 ;
-; If you want, load the GTK console right away.  
+; If you want, load the GTK console right away.
 ;
 noload => pbx_gtkconsole.so
 ;load => pbx_gtkconsole.so
@@ -38,6 +38,6 @@ noload => chan_console.so
 ;
 ; Only load one timing interface.  If DAHDI is available, use that as it will
 ; provide the best results.
-; 
+;
 ;noload => res_timing_dahdi.so
 ;noload => res_timing_pthread.so

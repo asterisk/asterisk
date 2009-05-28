@@ -3,14 +3,14 @@
 ;
 [general]
 ;cachertclasses=yes ; use 1 instance of moh class for all users who are using it,
-; decrease consumable cpu cycles and memory
-; disabled by default
+                    ; decrease consumable cpu cycles and memory
+                    ; disabled by default
 
 
 ; valid mode options:
-; files		-- read files from a directory in any Asterisk supported 
+; files		-- read files from a directory in any Asterisk supported
 ;		   media format
-; quietmp3 	-- default 
+; quietmp3 	-- default
 ; mp3 		-- loud
 ; mp3nb		-- unbuffered
 ; quietmp3nb	-- quiet unbuffered

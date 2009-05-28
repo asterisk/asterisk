@@ -15,7 +15,7 @@
 
 [general]
 ; We run as a subagent per default -- to run as a full agent
-; we must run as root (to be able to bind to port 161) 
+; we must run as root (to be able to bind to port 161)
 ;subagent = yes
 ; SNMP must be explicitly enabled to be active
 ;enabled = yes

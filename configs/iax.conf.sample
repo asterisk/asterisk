@@ -12,11 +12,11 @@
 [general]
 ;bindport=4569			; bindport and bindaddr may be specified
 ;                               ; NOTE: bindport must be specified BEFORE
-; bindaddr or may be specified on a specific
-; bindaddr if followed by colon and port
-;  (e.g. bindaddr=192.168.0.1:4569)
+				; bindaddr or may be specified on a specific
+				; bindaddr if followed by colon and port
+				;  (e.g. bindaddr=192.168.0.1:4569)
 ;bindaddr=192.168.0.1		; more than once to bind to multiple
-;                               ; addresses, but the first will be the 
+;                               ; addresses, but the first will be the
 ;                               ; default
 ;
 ; Set iaxcompat to yes if you plan to use layered switches or
@@ -36,7 +36,7 @@
 ;
 ; For increased security against brute force password attacks
 ; enable "delayreject" which will delay the sending of authentication
-; reject for REGREQ or AUTHREP if there is a password.  
+; reject for REGREQ or AUTHREP if there is a password.
 ;
 ;delayreject=yes
 ;
@@ -60,7 +60,7 @@
 ;
 ;accountcode=lss0101
 ;
-; You may specify a global default language for users. 
+; You may specify a global default language for users.
 ; Can be specified also on a per-user basis
 ; If omitted, will fallback to english
 ;
@@ -111,7 +111,7 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ;
 ; forcejitterbuffer=yes|no: in the ideal world, when we bridge VoIP channels
 ; we don't want to do jitterbuffering on the switch, since the endpoints
-; can each handle this.  However, some endpoints may have poor jitterbuffers 
+; can each handle this.  However, some endpoints may have poor jitterbuffers
 ; themselves, so this option will force * to always jitterbuffer, even in this
 ; case.
 ;
@@ -166,7 +166,7 @@ forcejitterbuffer=no
 ;
 ; With a large amount of traffic on IAX2 trunks, there is a risk of bad voice quality due to
 ; the fact that the IAX2 trunking scheme depends on the Linux system to handle fragmentation of
-; UDP packets. This may not be very efficient. 
+; UDP packets. This may not be very efficient.
 ; This setting sets the maximum transmission unit for IAX2 UDP trunking.
 ; default is 1240 bytes. Zero disables this functionality and let's the O/S handle fragmentation.
 ;
@@ -177,7 +177,7 @@ forcejitterbuffer=no
 ; encryption = yes
 ;
 ; Force encryption insures no connection is established unless both sides support
-; encryption.  By turning this option on, encryption is automatically turned on as well.  
+; encryption.  By turning this option on, encryption is automatically turned on as well.
 ;
 ; forceencryption = yes
 
@@ -211,7 +211,7 @@ forcejitterbuffer=no
 ; Sample Registration for iaxtel
 ;
 ; Visit http://www.iaxtel.com to register with iaxtel.  Replace "user"
-; and "pass" with your username and password for iaxtel.  Incoming 
+; and "pass" with your username and password for iaxtel.  Incoming
 ; calls arrive at the "s" extension of "default" context.
 ;
 ;register => user:pass@iaxtel.com
@@ -228,7 +228,7 @@ forcejitterbuffer=no
 ;register => FWDNumber:passwd@iax.fwdnet.net
 ;
 ;
-; You can disable authentication debugging to reduce the amount of 
+; You can disable authentication debugging to reduce the amount of
 ; debugging traffic.
 ;
 ;authdebug=no
@@ -256,7 +256,7 @@ forcejitterbuffer=no
 autokill=yes
 ;
 ; codecpriority controls the codec negotiation of an inbound IAX call.
-; This option is inherited to all user entities.  It can also be defined 
+; This option is inherited to all user entities.  It can also be defined
 ; in each user entity separately which will override the setting in general.
 ;
 ; The valid values are:
@@ -284,29 +284,29 @@ autokill=yes
 ;allowfwdownload=yes
 
 ;rtcachefriends=yes	; Cache realtime friends by adding them to the internal list
-; just like friends added from the config file only on a
-; as-needed basis? (yes|no)
+			; just like friends added from the config file only on a
+			; as-needed basis? (yes|no)
 
 ;rtupdate=yes		; Send registry updates to database using realtime? (yes|no)
-; If set to yes, when a IAX2 peer registers successfully,
-; the ip address, the origination port, the registration period,
-; and the username of the peer will be set to database via realtime.
-; If not present, defaults to 'yes'.
+			; If set to yes, when a IAX2 peer registers successfully,
+			; the ip address, the origination port, the registration period,
+			; and the username of the peer will be set to database via realtime.
+			; If not present, defaults to 'yes'.
 
 ;rtautoclear=yes	; Auto-Expire friends created on the fly on the same schedule
-; as if it had just registered? (yes|no|<seconds>)
-; If set to yes, when the registration expires, the friend will
-; vanish from the configuration until requested again.
-; If set to an integer, friends expire within this number of
-; seconds instead of the registration interval.
+			; as if it had just registered? (yes|no|<seconds>)
+			; If set to yes, when the registration expires, the friend will
+			; vanish from the configuration until requested again.
+			; If set to an integer, friends expire within this number of
+			; seconds instead of the registration interval.
 
 ;rtignoreregexpire=yes	; When reading a peer from Realtime, if the peer's registration
-; has expired based on its registration interval, used the stored
-; address information regardless. (yes|no)
+			; has expired based on its registration interval, used the stored
+			; address information regardless. (yes|no)
 
 ;parkinglot=edvina		; Default parkinglot for IAX peers and users
-; This can also be configured per device
-; Parkinglots are defined in features.conf
+				; This can also be configured per device
+				; Parkinglots are defined in features.conf
 
 ; Guest sections for unauthenticated connection attempts.  Just specify an
 ; empty secret, or provide no secret section.
@@ -357,7 +357,7 @@ inkeys=freeworlddialup
 ; across the net.  "md5" uses a challenge/response md5 sum arrangement, but
 ; still requires both ends have plain text access to the secret.  "rsa" allows
 ; unidirectional secret knowledge through public/private keys.  If "rsa"
-; authentication is used, "inkeys" is a list of acceptable public keys on the 
+; authentication is used, "inkeys" is a list of acceptable public keys on the
 ; local system that can be used to authenticate the remote peer, separated by
 ; the ":" character.  "outkey" is a single, private key to use to authenticate
 ; to the other side.  Public keys are named /var/lib/asterisk/keys/<name>.pub
@@ -377,13 +377,13 @@ inkeys=freeworlddialup
 ;auth=md5,plaintext,rsa
 ;secret=markpasswd
 ;setvar=ATTENDED_TRANSFER_COMPLETE_SOUND=beep   ; This channel variable will
-; cause the given audio file to
-; be played upon completion of
-; an attended transfer.
+                                                ; cause the given audio file to
+                                                ; be played upon completion of
+                                                ; an attended transfer.
 ;dbsecret=mysecrets/place	; Secrets can be stored in astdb, too
 ;transfer=no		; Disable IAX native transfer
-;transfer=mediaonly	; When doing IAX native transfers, transfer 
-; only media stream
+;transfer=mediaonly	; When doing IAX native transfers, transfer
+			; only media stream
 ;jitterbuffer=yes	; Override global setting an enable jitter buffer
 ;			; for this user
 ;maxauthreq=10          ; Set maximum number of outstanding AUTHREQs waiting for replies. Any further authentication attempts will be blocked
@@ -395,10 +395,10 @@ inkeys=freeworlddialup
 ;language=en		; Use english as default language
 ;encryption=yes ; Enable IAX2 encryption.  The default is no.
 ;keyrotate=off ; This is a compatibility option for older versions of
-;              ; IAX2 that do not support key rotation with encryption. 
-;              ; This option will disable the IAX_COMMAND_RTENC message. 
+;              ; IAX2 that do not support key rotation with encryption.
+;              ; This option will disable the IAX_COMMAND_RTENC message.
 ;              ; default is on.
-;              ; 
+;              ;
 ;
 ; Peers may also be specified, with a secret and
 ; a remote hostname.
@@ -414,20 +414,20 @@ host=216.207.245.47
 ;mask=255.255.255.255
 ;qualify=yes			; Make sure this peer is alive
 ;qualifysmoothing = yes		; use an average of the last two PONG
-; results to reduce falsely detected LAGGED hosts
-; Default: Off
+				; results to reduce falsely detected LAGGED hosts
+				; Default: Off
 ;qualifyfreqok = 60000		; how frequently to ping the peer when
-; everything seems to be ok, in milliseconds
+				; everything seems to be ok, in milliseconds
 ;qualifyfreqnotok = 10000	; how frequently to ping the peer when it's
-; either LAGGED or UNAVAILABLE, in milliseconds
+				; either LAGGED or UNAVAILABLE, in milliseconds
 ;jitterbuffer=no		; Turn off jitter buffer for this peer
 ;
 ;encryption=yes ; Enable IAX2 encryption.  The default is no.
 ;keyrotate=off ; This is a compatibility option for older versions of
-;              ; IAX2 that do not support key rotation with encryption. 
-;              ; This option will disable the IAX_COMMAND_RTENC message. 
+;              ; IAX2 that do not support key rotation with encryption.
+;              ; This option will disable the IAX_COMMAND_RTENC message.
 ;              ; default is on.
-;              ; 
+;              ;
 ; Peers can remotely register as well, so that they can be mobile.  Default
 ; IP's can also optionally be given but are not required.  Caller*ID can be
 ; suggested to the other side as well if it is for example a phone instead of

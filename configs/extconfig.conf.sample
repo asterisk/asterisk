@@ -7,7 +7,7 @@
 ;
 [settings]
 ;
-; Static configuration files: 
+; Static configuration files:
 ;
 ; file.conf => driver,database[,table]
 ;

@@ -15,9 +15,9 @@
 ;
 ;usecache=yes
 ;
-; If usecache=yes, a directory to store waveform cache files. 
+; If usecache=yes, a directory to store waveform cache files.
 ; The cache is never cleared (yet), so you must take care of cleaning it
-; yourself (just delete any or all files from the cache). 
+; yourself (just delete any or all files from the cache).
 ; THIS DIRECTORY *MUST* EXIST and must be writable from the asterisk process.
 ; Defaults to /tmp/
 ;
@@ -25,10 +25,10 @@
 ;
 ; Festival command to send to the server.
 ; Defaults to: (tts_textasterisk "%s" 'file)(quit)\n
-; %s is replaced by the desired text to say. The command MUST end with a 
-; (quit) directive, or the cache handling mechanism will hang. Do not 
-; forget the \n at the end. 
-; 
+; %s is replaced by the desired text to say. The command MUST end with a
+; (quit) directive, or the cache handling mechanism will hang. Do not
+; forget the \n at the end.
+;
 ;festivalcommand=(tts_textasterisk "%s" 'file)(quit)\n
 ;
 ;

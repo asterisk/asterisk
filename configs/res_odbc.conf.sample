@@ -1,4 +1,4 @@
-;;; odbc setup file 
+;;; odbc setup file
 
 ; ENV is a global set of environmental variables that will get set.
 ; Note that all environmental variables can be seen by all connections,
@@ -49,11 +49,11 @@ pre-connect => yes
 sanitysql => select count(*) from systables
 ; forcecommit => no            ; Default to committing uncommitted transactions?
 ; isolation => read_committed  ; Isolation level; supported levels are:
-; read_uncommitted, read_committed, repeatable_read,
-; serializable.  Note that not all databases support
-; all isolation levels (e.g. Postgres only supports
-; repeatable_read and serializable).  See database
-; documentation for further information.
+                               ; read_uncommitted, read_committed, repeatable_read,
+                               ; serializable.  Note that not all databases support
+                               ; all isolation levels (e.g. Postgres only supports
+                               ; repeatable_read and serializable).  See database
+                               ; documentation for further information.
 ;
 ; Many databases have a default of '\' to escape special characters.  MS SQL
 ; Server does not.

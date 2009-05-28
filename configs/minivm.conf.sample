@@ -16,7 +16,7 @@
 ; Change the from, body and/or subject, variables:
 ;     MVM_NAME, MVM_DUR, MVM_MSGNUM, VM_MAILBOX, MVM_CALLERID, MVM_CIDNUM,
 ;     MVM_CIDNAME, MVM_DATE
-; 
+;
 ; In addition to these, you can set the MVM_COUNTER channel variable in the
 ; dial plan and use that as a counter. It will also be used in the file name
 ; of the media file attached to the message
@@ -89,43 +89,43 @@ emaildateformat=%A, %B %d, %Y at %r
 ;pagersubject=New VM ${MVM_COUNTER}
 ;pagerbody=New ${MVM_DUR} long msg in box ${MVM_MAILBOX}\nfrom ${MVM_CALLERID}, on ${MVM_DATE}
 ;
-; 
+;
 ;--------------Timezone definitions (used in voicemail accounts) -------------------
 ;
-; Users may be located in different timezones, or may have different 
-; message announcements for their introductory message when they enter 
-; the voicemail system. Set the message and the timezone each user 
-; hears here. Set the user into one of these zones with the tz= attribute 
-; in the options field of the mailbox. Of course, language substitution 
-; still applies here so you may have several directory trees that have 
-; alternate language choices. 
-; 
-; Look in /usr/share/zoneinfo/ for names of timezones. 
-; Look at the manual page for strftime for a quick tutorial on how the 
-; variable substitution is done on the values below. 
-; 
-; Supported values: 
+; Users may be located in different timezones, or may have different
+; message announcements for their introductory message when they enter
+; the voicemail system. Set the message and the timezone each user
+; hears here. Set the user into one of these zones with the tz= attribute
+; in the options field of the mailbox. Of course, language substitution
+; still applies here so you may have several directory trees that have
+; alternate language choices.
+;
+; Look in /usr/share/zoneinfo/ for names of timezones.
+; Look at the manual page for strftime for a quick tutorial on how the
+; variable substitution is done on the values below.
+;
+; Supported values:
 ; 'filename'    filename of a soundfile (single ticks around the filename
 ;               required)
-; ${VAR}        variable substitution 
-; A or a        Day of week (Saturday, Sunday, ...) 
-; B or b or h   Month name (January, February, ...) 
-; d or e        numeric day of month (first, second, ..., thirty-first) 
-; Y             Year 
-; I or l        Hour, 12 hour clock 
-; H             Hour, 24 hour clock (single digit hours preceded by "oh") 
-; k             Hour, 24 hour clock (single digit hours NOT preceded by "oh") 
-; M             Minute, with 00 pronounced as "o'clock" 
+; ${VAR}        variable substitution
+; A or a        Day of week (Saturday, Sunday, ...)
+; B or b or h   Month name (January, February, ...)
+; d or e        numeric day of month (first, second, ..., thirty-first)
+; Y             Year
+; I or l        Hour, 12 hour clock
+; H             Hour, 24 hour clock (single digit hours preceded by "oh")
+; k             Hour, 24 hour clock (single digit hours NOT preceded by "oh")
+; M             Minute, with 00 pronounced as "o'clock"
 ; N             Minute, with 00 pronounced as "hundred" (US military time)
-; P or p        AM or PM 
+; P or p        AM or PM
 ; Q             "today", "yesterday" or ABdY
-;               (*note: not standard strftime value) 
+;               (*note: not standard strftime value)
 ; q             "" (for today), "yesterday", weekday, or ABdY
-;               (*note: not standard strftime value) 
-; R             24 hour time, including minute 
-; 
+;               (*note: not standard strftime value)
+; R             24 hour time, including minute
+;
 ; The message here is not used in mini-voicemail, but stays for
-; backwards compatibility 
+; backwards compatibility
 
 [zonemessages]
 eastern=America/New_York|'vm-received' Q 'digits/at' IMp
@@ -141,27 +141,27 @@ military=Zulu|'vm-received' q 'digits/at' H N 'hours' 'phonetic/z_p'
 ; attachmedia = yes | no	; Add media file as attachment?
 ; dateformat = <formatstring>   ; See above
 ; charset = <charset>		; Mime charset definition for e-mail messages
-; locale = <locale>		; Locale for LC_TIME - to get weekdays in local language 
+; locale = <locale>		; Locale for LC_TIME - to get weekdays in local language
 ;				; See your O/S documentation for proper settings for setlocale()
 ; templatefile = <filename>	; File name (relative to Asterisk configuration directory,
-; or absolute
+				; or absolute
 ; messagebody = Format		; Message body definition with variables
 ;
-[template-sv_SE_email] 
+[template-sv_SE_email]
 messagebody=Hej ${MVM_NAME}:\n\n\tDu har fått ett röstbrevlåde-meddelande från ${MVM_CALLERID}.\nLängd: ${MVM_DUR}\nMailbox ${MVM_MAILBOX}\nDatum:  ${MVM_DATE}. \nMeddelandet bifogas det här brevet. Om du inte kan läsa det, kontakta intern support. \nHälsningar\n\n\t\t\t\t--Asterisk\n
 subject = Du har fått röstmeddelande (se bilaga)
 fromemail = swedish-voicemail-service@stockholm.example.com
 fromaddress = Asterisk Röstbrevlåda
 charset=iso-8859-1
-attachmedia=yes 
+attachmedia=yes
 dateformat=%A, %d %B %Y at %H:%M:%S
 locale=sv_SE
 
-[template-en_US_email] 
+[template-en_US_email]
 messagebody=Dear ${MVM_NAME}:\n\n\tjust wanted to let you know you were just left a ${MVM_DUR} long message \nin mailbox ${MVM_MAILBOX} from ${MVM_CALLERID}, on ${MVM_DATE}, so you might\nwant to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n
 subject = New voicemail
 charset=ascii
-attachmedia=yes 
+attachmedia=yes
 dateformat=%A, %B %d, %Y at %r
 
 ;[template-sv_SE_pager]
@@ -180,12 +180,12 @@ dateformat=%A, %B %d, %Y at %r
 ;[template-en_US_email_southern]
 ;templatefile = templates/email_en_US.txt
 ;subject = Y'all got voicemail, honey!
-;charset=ascii  
+;charset=ascii
 
 ;[template-en_UK_email]
 ;templatefile = templates/email_en_us.txt
 ;subject = Dear old chap, you've got an electronic communique
-;charset=ascii  
+;charset=ascii
 
 ;----------------------- Mailbox accounts --------------------------
 ;Template for mailbox definition - all options

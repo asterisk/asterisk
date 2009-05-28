@@ -6,8 +6,8 @@
 [interfaces]
 ;
 ; Select a mode, either the phone jack provides dialtone, reads digits,
-; then starts PBX with the given extension (dialtone mode), or 
-; immediately provides the PBX without reading any digits or providing 
+; then starts PBX with the given extension (dialtone mode), or
+; immediately provides the PBX without reading any digits or providing
 ; any dialtone (this is the immediate mode, the default).  Also, you
 ; can set the mode to "fxo" if you have a linejack to make it operate
 ; properly. If you are using a Sigma Designs board you may set this to

@@ -6,7 +6,7 @@
 ;      will reload the configuration file, but not all configuration options
 ;      are re-configured during a reload (signalling, as well as PRI and
 ;      SS7-related settings cannot be changed on a reload).
-; 
+;
 ; This file documents many configuration variables.  Normally unless you know
 ; what a variable means or that it should be changed, there's no reason to
 ; un-comment those lines.
@@ -21,11 +21,11 @@
 ;
 ; Trunk groups are used for NFAS or GR-303 connections.
 ;
-; Group: Defines a trunk group.  
+; Group: Defines a trunk group.
 ;        trunkgroup => <trunkgroup>,<dchannel>[,<backup1>...]
 ;
 ;        trunkgroup  is the numerical trunk group to create
-;        dchannel    is the DAHDI channel which will have the 
+;        dchannel    is the DAHDI channel which will have the
 ;                    d-channel for the trunk.
 ;        backup1     is an optional list of backup d-channels.
 ;
@@ -85,7 +85,7 @@
 ; example, if you set 'national', you will be unable to dial local or
 ; international numbers.
 ;
-; PRI Local Dialplan:  Only RARELY used for PRI (sets the calling number's 
+; PRI Local Dialplan:  Only RARELY used for PRI (sets the calling number's
 ; numbering plan).  In North America, the typical use is sending the 10 digit
 ; callerID number and setting the prilocaldialplan to 'national' (the default).
 ; Only VERY rarely will you need to change this.
@@ -98,12 +98,12 @@
 ; national:       National ISDN
 ; international:  International ISDN
 ; dynamic:        Dynamically selects the appropriate dialplan
-; redundant:      Same as dynamic, except that the underlying number is not 
+; redundant:      Same as dynamic, except that the underlying number is not
 ;                 changed (not common)
 ;
 ;pridialplan=unknown
 ;prilocaldialplan=national
-; 
+;
 ; pridialplan may be also set at dialtime, by prefixing the dialled number with
 ; one of the following letters:
 ; U - Unknown
@@ -133,27 +133,27 @@
 ;
 ; PRI caller ID prefixes based on the given TON/NPI (dialplan)
 ; This is especially needed for EuroISDN E1-PRIs
-; 
+;
 ; None of the prefix settings can be changed on reload.
 ;
-; sample 1 for Germany 
+; sample 1 for Germany
 ;internationalprefix = 00
 ;nationalprefix = 0
 ;localprefix = 0711
 ;privateprefix = 07115678
-;unknownprefix = 
+;unknownprefix =
 ;
-; sample 2 for Germany 
+; sample 2 for Germany
 ;internationalprefix = +
 ;nationalprefix = +49
 ;localprefix = +49711
 ;privateprefix = +497115678
-;unknownprefix = 
+;unknownprefix =
 ;
 ; PRI resetinterval: sets the time in seconds between restart of unused
 ; B channels; defaults to 'never'.
 ;
-;resetinterval = 3600 
+;resetinterval = 3600
 ;
 ; Overlap dialing mode (sending overlap digits)
 ; Cannot be changed on a reload.
@@ -168,7 +168,7 @@
 ; Enable this to report Busy and Congestion on a PRI using out-of-band
 ; notification. Inband indication, as used by Asterisk doesn't seem to work
 ; with all telcos.
-; 
+;
 ; outofband:      Signal Busy/Congestion out of band with RELEASE/DISCONNECT
 ; inband:         Signal Busy/Congestion using in-band tones (default)
 ;
@@ -206,7 +206,7 @@
 ; T203: Layer 2 max time without frames being exchanged (default 10000 ms)
 ; T305: Wait for DISCONNECT acknowledge (default 30000 ms)
 ; T308: Wait for RELEASE acknowledge (default 4000 ms)
-; T309: Maintain active calls on Layer 2 disconnection (default -1, 
+; T309: Maintain active calls on Layer 2 disconnection (default -1,
 ;       Asterisk clears calls)
 ;       EuroISDN: 6000 to 12000 ms, according to (N200 + 1) x T200 + 2s
 ;       May vary in other ISDN standards (Q.931 1993 : 90000 ms)
@@ -284,11 +284,11 @@
 ; (see below). The 'signalling' format specified will be the inbound signalling
 ; format. If you only specify 'signalling', then it will be the format for
 ; both inbound and outbound.
-; 
-; outsignalling can only be one of: 
+;
+; outsignalling can only be one of:
 ;   em, em_e1, em_w, sf, sf_w, sf_featd, sf_featdmf, sf_featb, featd,
 ;   featdmf, featdmf_ta, e911, fgccama, fgccamamf
-; 
+;
 ; outsignalling cannot be changed on a reload.
 ;
 ;signalling=featdmf
@@ -318,9 +318,9 @@
 ; None of them will update on a reload.
 ;
 ; How long generated tones (DTMF and MF) will be played on the channel
-; (in milliseconds). 
+; (in milliseconds).
 ;
-; This is a global, rather than a per-channel setting. It will not be 
+; This is a global, rather than a per-channel setting. It will not be
 ; updated on a reload.
 ;
 ;toneduration=100
@@ -354,7 +354,7 @@ usecallerid=yes
 ; What signals the start of caller ID
 ;     ring        = a ring signals the start (default)
 ;     polarity    = polarity reversal signals the start
-;     polarity_IN = polarity reversal signals the start, for India, 
+;     polarity_IN = polarity reversal signals the start, for India,
 ;                   for dtmf dialtone detection; using DTMF.
 ;                   (see doc/India-CID.txt)
 ;
@@ -381,7 +381,7 @@ usecallerid=yes
 ;		fsk,rpas - the FXO line is monitored for MWI FSK spills preceded
 ;			by a ring pulse alert signal.
 ;		neon - The fxo line is monitored for the presence of NEON pulses
-;			indicating MWI.   
+;			indicating MWI.
 ; When detected, an internal Asterisk MWI event is generated so that any other
 ; part of Asterisk that cares about MWI state changes is notified, just as if
 ; the state change came from app_voicemail.
@@ -432,7 +432,7 @@ usecallingpres=yes
 ;
 ; Some countries (UK) have ring tones with different ring tones (ring-ring),
 ; which means the caller ID needs to be set later on, and not just after
-; the first ring, as per the default (1). 
+; the first ring, as per the default (1).
 ;
 ;sendcalleridafter = 2
 ;
@@ -472,10 +472,10 @@ cancallforward=yes
 ;
 callreturn=yes
 ;
-; Stutter dialtone support: If a mailbox is specified without a voicemail 
-; context, then when voicemail is received in a mailbox in the default 
+; Stutter dialtone support: If a mailbox is specified without a voicemail
+; context, then when voicemail is received in a mailbox in the default
 ; voicemail context in voicemail.conf, taking the phone off hook will cause a
-; stutter dialtone instead of a normal one. 
+; stutter dialtone instead of a normal one.
 ;
 ; If a mailbox is specified *with* a voicemail context, the same will result
 ; if voicemail received in mailbox in the specified voicemail context.
@@ -486,9 +486,9 @@ callreturn=yes
 ;
 ; for any other voicemail context, the following will produce the stutter tone:
 ;
-;mailbox=1234@context 
+;mailbox=1234@context
 ;
-; Enable echo cancellation 
+; Enable echo cancellation
 ; Use either "yes", "no", or a power of two from 32 to 256 if you wish to
 ; actually set the number of taps of cancellation.
 ;
@@ -552,7 +552,7 @@ echocancelwhenbridged=yes
 ;
 ;                There are several independent gain settings:
 ;   rxgain: gain for the rx (receive - into Asterisk) channel. Default: 0.0
-;   txgain: gain for the tx (transmit - out of Asterisk Asterisk) channel. 
+;   txgain: gain for the tx (transmit - out of Asterisk Asterisk) channel.
 ;           Default: 0.0
 ;   cid_rxgain: set the gain just for the caller ID sounds Asterisk
 ;               emits. Default: 5.0 .
@@ -581,9 +581,9 @@ pickupgroup=1
 ; Channel variable to be set for all calls from this channel
 ;setvar=CHANNEL=42
 ;setvar=ATTENDED_TRANSFER_COMPLETE_SOUND=beep   ; This channel variable will
-; cause the given audio file to
-; be played upon completion of
-; an attended transfer.
+                                                ; cause the given audio file to
+                                                ; be played upon completion of
+                                                ; an attended transfer.
 
 ;
 ; Specify whether the channel should be answered immediately or if the simple
@@ -600,10 +600,10 @@ pickupgroup=1
 ;
 ; caller ID can be set to "asreceived" or a specific number if you want to
 ; override it.  Note that "asreceived" only applies to trunk interfaces.
-; fullname sets just the 
+; fullname sets just the
 ;
 ; fullname: sets just the name part.
-; cid_number: sets just the number part: 
+; cid_number: sets just the number part:
 ;
 ;callerid = 123456
 ;
@@ -642,7 +642,7 @@ pickupgroup=1
 ;smdiport=/dev/ttyS0
 ;
 ; On trunk interfaces (FXS) and E&M interfaces (E&M, Wink, Feature Group D
-; etc, it can be useful to perform busy detection either in an effort to 
+; etc, it can be useful to perform busy detection either in an effort to
 ; detect hangup or for detecting busies.  This enables listening for
 ; the beep-beep busy pattern.
 ;
@@ -685,8 +685,8 @@ pickupgroup=1
 ;
 ;hanguponpolarityswitch=yes
 ;
-; polarityonanswerdelay: minimal time period (ms) between the answer 
-;                        polarity switch and hangup polarity switch. 
+; polarityonanswerdelay: minimal time period (ms) between the answer
+;                        polarity switch and hangup polarity switch.
 ;                        (default: 600ms)
 ;
 ; On trunk interfaces (FXS) it can be useful to attempt to follow the progress
@@ -699,7 +699,7 @@ pickupgroup=1
 ; with "progzone".
 ;
 ; progzone also affects the pattern used for buzydetect (unless
-; busypattern is set explicitly). The possible values are: 
+; busypattern is set explicitly). The possible values are:
 ;   us (default)
 ;   ca (alias for 'us')
 ;   cr (Costa Rica)
@@ -741,7 +741,7 @@ pickupgroup=1
 ;faxdetect=no
 ;
 ; When 'faxdetect' is used, one could use 'faxbuffers' to configure the DAHDI
-; transmit buffer policy.  The default is *OFF*.  When this configuration 
+; transmit buffer policy.  The default is *OFF*.  When this configuration
 ; option is used, the faxbuffer policy will be used for the life of the call
 ; after a fax tone is detected.  The faxbuffer policy is reverted after the
 ; call is torn down.  The sample below will result in 6 buffers and a full
@@ -792,23 +792,23 @@ pickupgroup=1
 ;
 ;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
 ; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of a
-; DAHDI channel. Defaults to "no". An enabled jitterbuffer will
-; be used only if the sending side can create and the receiving
-; side can not accept jitter. The DAHDI channel can't accept jitter,
-; thus an enabled jitterbuffer on the receive DAHDI side will always
-; be used if the sending side can create jitter.
+                              ; DAHDI channel. Defaults to "no". An enabled jitterbuffer will
+                              ; be used only if the sending side can create and the receiving
+                              ; side can not accept jitter. The DAHDI channel can't accept jitter,
+                              ; thus an enabled jitterbuffer on the receive DAHDI side will always
+                              ; be used if the sending side can create jitter.
 
 ; jbmaxsize = 200             ; Max length of the jitterbuffer in milliseconds.
 
 ; jbresyncthreshold = 1000    ; Jump in the frame timestamps over which the jitterbuffer is
-; resynchronized. Useful to improve the quality of the voice, with
-; big jumps in/broken timestamps, usually sent from exotic devices
-; and programs. Defaults to 1000.
+                              ; resynchronized. Useful to improve the quality of the voice, with
+                              ; big jumps in/broken timestamps, usually sent from exotic devices
+                              ; and programs. Defaults to 1000.
 
 ; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of a DAHDI
-; channel. Two implementations are currently available - "fixed"
-; (with size always equals to jbmax-size) and "adaptive" (with
-; variable size, actually the new jb of IAX2). Defaults to fixed.
+                              ; channel. Two implementations are currently available - "fixed"
+                              ; (with size always equals to jbmax-size) and "adaptive" (with
+                              ; variable size, actually the new jb of IAX2). Defaults to fixed.
 
 ; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
 ;-----------------------------------------------------------------------------------
@@ -834,7 +834,7 @@ pickupgroup=1
 ; parameters that were specified above its declaration.
 ;
 ; For GR-303, CRV's are created like channels except they must start with the
-; trunk group followed by a colon, e.g.: 
+; trunk group followed by a colon, e.g.:
 ;
 ; crv => 1:1
 ; crv => 2:1-2,5-8
@@ -908,15 +908,15 @@ pickupgroup=1
 ;  A range of -1 will force it to always match.
 ;  Anything lower than -1 would presumably cause it to never match.
 ;
-;dring1=95,0,0 
-;dring1context=internal1 
+;dring1=95,0,0
+;dring1context=internal1
 ;dring1range=10
-;dring2=325,95,0 
-;dring2context=internal2 
+;dring2=325,95,0
+;dring2context=internal2
 ;dring2range=10
 ; If no pattern is matched here is where we go.
 ;context=default
-;channel => 1 
+;channel => 1
 
 ; ---------------- Options for use with signalling=ss7 -----------------
 ; None of them can be changed by a reload.
@@ -945,12 +945,12 @@ pickupgroup=1
 ;
 ;ss7_calling_nai=dynamic
 ;
-; 
-; sample 1 for Germany 
+;
+; sample 1 for Germany
 ;ss7_internationalprefix = 00
 ;ss7_nationalprefix = 0
-;ss7_subscriberprefix = 
-;ss7_unknownprefix = 
+;ss7_subscriberprefix =
+;ss7_unknownprefix =
 ;
 
 ; This option is used to disable automatic sending of ACM when the call is started
@@ -1056,7 +1056,7 @@ pickupgroup=1
 ; 'stack' is for very verbose output of the channel and context call stack, only useful
 ; if you are debugging a crash or want to learn how the library works. The stack logging
 ; will be only enabled if the openr2 library was compiled with -DOR2_TRACE_STACKS
-; You can mix up values, like: loglevel=error,debug,mf to log just error, debug and 
+; You can mix up values, like: loglevel=error,debug,mf to log just error, debug and
 ; multi frequency messages
 ; 'all' is a special value to log all the activity
 ; 'nothing' is a clean-up value, in case you want to not log any activity for
@@ -1110,20 +1110,20 @@ pickupgroup=1
 
 ; You most likely dont need this feature. Default is yes.
 ; When this is set to yes, all calls that are offered (incoming calls) which
-; DNIS is valid (exists in extensions.conf) and pass collect call validation 
+; DNIS is valid (exists in extensions.conf) and pass collect call validation
 ; will be accepted with a Group B tone (either call with charge or not, depending on mfcr2_charge_calls)
 ; with this set to 'no' then the call will NOT be accepted on offered, and the call will start its
 ; execution in extensions.conf without being accepted until the channel is answered (either with Answer() or
-; any other application resulting in the channel being answered). 
+; any other application resulting in the channel being answered).
 ; This can be set to 'no' if your telco or PBX needs the hangup cause to be set accurately
 ; when this option is set to no you must explicitly accept the call with DAHDIAcceptR2Call
-; or implicitly through the Answer() application. 
+; or implicitly through the Answer() application.
 ; mfcr2_accept_on_offer=yes
 
 ; WARNING: advanced users only! I really mean it
 ; this parameter is commented by default because
 ; YOU DON'T NEED IT UNLESS YOU REALLY GROK MFC/R2
-; READ COMMENTS on doc/r2proto.conf in openr2 package 
+; READ COMMENTS on doc/r2proto.conf in openr2 package
 ; for more info
 ; mfcr2_advanced_protocol_file=/path/to/r2proto.conf
 
@@ -1171,7 +1171,7 @@ pickupgroup=1
 ; chan_dahdi.conf and [general] in users.conf - one section's configuration
 ; does not affect another one's.
 ;
-; Instead of letting common configuration values "slide through" you can 
+; Instead of letting common configuration values "slide through" you can
 ; use configuration templates to easily keep the common part in one
 ; place and override where needed.
 ;

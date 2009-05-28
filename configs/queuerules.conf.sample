@@ -1,12 +1,12 @@
-; It is possible to change the value of the QUEUE_MAX_PENALTY and QUEUE_MIN_PENALTY 
+; It is possible to change the value of the QUEUE_MAX_PENALTY and QUEUE_MIN_PENALTY
 ; channel variables in mid-call by defining rules in the queue for when to do so. This can allow for
-; a call to be opened to more members or potentially a different set of members. 
-; The advantage to changing members this way as opposed to inserting the caller into a 
-; different queue with more members or reinserting the caller into the same queue with a different 
-; QUEUE_MAX_PENALTY or QUEUE_MIN_PENALTY set is that the caller does not lose his place in the queue. 
+; a call to be opened to more members or potentially a different set of members.
+; The advantage to changing members this way as opposed to inserting the caller into a
+; different queue with more members or reinserting the caller into the same queue with a different
+; QUEUE_MAX_PENALTY or QUEUE_MIN_PENALTY set is that the caller does not lose his place in the queue.
 ;
-; Note: There is a limitation to these rules; a caller will follow the penaltychange rules for 
-; the queue that were defined at the time the caller entered the queue. If an update to the rules is 
+; Note: There is a limitation to these rules; a caller will follow the penaltychange rules for
+; the queue that were defined at the time the caller entered the queue. If an update to the rules is
 ; made during the the caller's stay in the queue, these will not be reflected for that caller.
 ;
 ; The syntax for these rules is

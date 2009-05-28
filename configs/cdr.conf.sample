@@ -14,12 +14,12 @@
 ;enable=yes
 
 ; Define whether or not to log unanswered calls. Setting this to "yes" will
-; report every attempt to ring a phone in dialing attempts, when it was not 
+; report every attempt to ring a phone in dialing attempts, when it was not
 ; answered. For example, if you try to dial 3 extensions, and this option is "yes",
 ; you will get 3 CDR's, one for each phone that was rung. Default is "no". Some
 ; find this information horribly useless. Others find it very valuable. Note, in "yes"
 ; mode, you will see one CDR, with one of the call targets on one side, and the originating
-; channel on the other, and then one CDR for each channel attempted. This may seem 
+; channel on the other, and then one CDR for each channel attempted. This may seem
 ; redundant, but cannot be helped.
 ;unanswered = no
 
@@ -67,7 +67,7 @@
 
 ; Normally, the 'billsec' field logged to the backends (text files or databases)
 ; is simply the end time (hangup time) minus the answer time in seconds. Internally,
-; asterisk stores the time in terms of microseconds and seconds. By setting 
+; asterisk stores the time in terms of microseconds and seconds. By setting
 ; initiatedseconds to 'yes', you can force asterisk to report any seconds
 ; that were initiated (a sort of round up method). Technically, this is
 ; when the microsecond part of the end time is greater than the microsecond
@@ -78,19 +78,19 @@
 ;
 ; CHOOSING A CDR "BACKEND"  (what kind of output to generate)
 ;
-; To choose a backend, you have to make sure either the right category is 
-; defined in this file, or that the appropriate config file exists, and has the 
+; To choose a backend, you have to make sure either the right category is
+; defined in this file, or that the appropriate config file exists, and has the
 ; proper definitions in it. If there are any problems, usually, the entry will
 ; silently ignored, and you get no output.
-; 
-; Also, please note that you can generate CDR records in as many formats as you 
+;
+; Also, please note that you can generate CDR records in as many formats as you
 ; wish. If you configure 5 different CDR formats, then each event will be logged
 ; in 5 different places! In the example config files, all formats are commented
 ; out except for the cdr-csv format.
 ;
 ; Here are all the possible back ends:
 ;
-;   csv, custom, manager, odbc, pgsql, radius, sqlite, tds 
+;   csv, custom, manager, odbc, pgsql, radius, sqlite, tds
 ;    (also, mysql is available via the asterisk-addons, due to licensing
 ;     requirements)
 ;   (please note, also, that other backends can be created, by creating
@@ -104,7 +104,7 @@
 ; backend is marked with XXX, you know that the "configure" command could not find
 ; the required libraries for that option.
 ;
-; To get CDRs to be logged to the plain-jane /var/log/asterisk/cdr-csv/Master.csv 
+; To get CDRs to be logged to the plain-jane /var/log/asterisk/cdr-csv/Master.csv
 ; file, define the [csv] category in this file. No database necessary. The example
 ; config files are set up to provide this kind of output by default.
 ;
@@ -126,7 +126,7 @@
 ; shows that the modules are available, and the cdr_pgsql.conf file exists, and
 ; has a [global] section with the proper variables defined.
 ;
-; For logging to radius databases, make sure all the proper libs are installed, that 
+; For logging to radius databases, make sure all the proper libs are installed, that
 ; "make menuselect" shows that the modules are available, and the [radius]
 ; category is defined in this file, and in that section, make sure the 'radiuscfg'
 ; variable is properly pointing to an existing radiusclient.conf file.
@@ -135,7 +135,7 @@
 ; which is usually /var/log/asterisk. Of course, the proper libraries should be available
 ; during the 'configure' operation.
 ;
-; For tds logging, make sure the proper libraries are available during the 'configure' 
+; For tds logging, make sure the proper libraries are available during the 'configure'
 ; phase, and that cdr_tds.conf exists and is properly set up with a [global] category.
 ;
 ; Also, remember, that if you wish to log CDR info to a database, you will have to define

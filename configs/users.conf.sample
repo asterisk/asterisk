@@ -2,11 +2,11 @@
 ; User configuration
 ;
 ; Creating entries in users.conf is a "shorthand" for creating individual
-; entries in each configuration file.  Using users.conf is not intended to 
+; entries in each configuration file.  Using users.conf is not intended to
 ; provide you with as much flexibility as using the separate configuration
 ; files (e.g. sip.conf, iax.conf, etc) but is intended to accelerate the
 ; simple task of adding users.  Note that creating individual items (e.g.
-; custom SIP peers, IAX friends, etc.) will allow you to override specific 
+; custom SIP peers, IAX friends, etc.) will allow you to override specific
 ; parameters within this file.  Parameter names here are the same as they
 ; appear in the other configuration files.  There is no way to change the
 ; value of a parameter here for just one subsystem.

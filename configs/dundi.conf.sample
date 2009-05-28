@@ -1,6 +1,6 @@
 ;
 ; DUNDi configuration file
-; 
+;
 ; For more information about DUNDi, see http://www.dundi.com
 ;
 ;
@@ -50,9 +50,9 @@
 ttl=32
 ;
 ; If we don't get ACK to our DPDISCOVER within 2000ms, and autokill is set
-; to yes, then we cancel the whole thing (that's enough time for one 
+; to yes, then we cancel the whole thing (that's enough time for one
 ; retransmission only).  This is used to keep things from stalling for a long
-; time for a host that is not available, but would be ill advised for bad 
+; time for a host that is not available, but would be ill advised for bad
 ; connections.  In addition to 'yes' or 'no' you can also specify a number
 ; of milliseconds.  See 'qualify' for individual peers to turn on for just
 ; a specific peer.
@@ -60,7 +60,7 @@ ttl=32
 autokill=yes
 ;
 ; pbx_dundi creates a rotating key called "secret", under the family
-; 'secretpath'.  The default family is dundi (resulting in 
+; 'secretpath'.  The default family is dundi (resulting in
 ; the key being held at dundi/secret).
 ;
 ;secretpath=dundi
@@ -78,8 +78,8 @@ autokill=yes
 ;
 ; The "mappings" section maps DUNDi contexts
 ; to contexts on the local asterisk system.  Remember
-; that numbers that are made available under the e164 
-; DUNDi context are regulated by the DUNDi General Peering 
+; that numbers that are made available under the e164
+; DUNDi context are regulated by the DUNDi General Peering
 ; Agreement (GPA) if you are a member of the DUNDi E.164
 ; Peering System.
 ;
@@ -108,14 +108,14 @@ autokill=yes
 ;
 ; Further options may include:
 ;
-; nounsolicited:  No unsolicited calls of any type permitted via this 
+; nounsolicited:  No unsolicited calls of any type permitted via this
 ;                 route
-; nocomunsolicit: No commercial unsolicited calls permitted via 
+; nocomunsolicit: No commercial unsolicited calls permitted via
 ;                 this route
 ; residential:    This number is known to be a residence
 ; commercial:     This number is known to be a business
 ; mobile:         This number is known to be a mobile phone
-; nocomunsolicit: No commercial unsolicited calls permitted via 
+; nocomunsolicit: No commercial unsolicited calls permitted via
 ;                 this route
 ; nopartial:      Do not search for partial matches
 ;
@@ -163,7 +163,7 @@ autokill=yes
 ;
 ; host - What their host is
 ;
-; order - What search order to use.  May be 'primary', 'secondary', 
+; order - What search order to use.  May be 'primary', 'secondary',
 ;         'tertiary' or 'quartiary'.  In large systems, it is beneficial
 ;         to only query one up-stream host in order to maximize caching
 ;         value.  Adding one with primary and one with secondary gives you
@@ -187,7 +187,7 @@ autokill=yes
 ;          the local system.  Set "all" to deny this host to
 ;          lookup all contexts.
 ;
-; model - inbound, outbound, or symmetric for whether we receive 
+; model - inbound, outbound, or symmetric for whether we receive
 ;         requests only, transmit requests only, or do both.
 ;
 ; precache - Utilize/Permit precaching with this peer (to pre
@@ -241,7 +241,7 @@ autokill=yes
 ;inkey = littleguy
 ;outkey = ourkey
 ;include = e164	; In this case used only for precaching
-;permit = e164      
+;permit = e164
 ;qualify = yes
 
 ;
@@ -254,7 +254,7 @@ autokill=yes
 ;register = yes
 ;inkey = dhcp34
 ;permit = all ; In this case used only for precaching
-;include = all 
+;include = all
 ;qualify = yes
 ;outkey=foo
 

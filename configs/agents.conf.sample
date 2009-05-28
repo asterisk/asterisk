@@ -32,14 +32,14 @@ persistentagents=yes
 ; Define autologoffunavail to have agents automatically logged
 ; out when the extension that they are at returns a CHANUNAVAIL
 ; status when a call is attempted to be sent there.
-; Default is "no". 
+; Default is "no".
 ;
 ;autologoffunavail=yes
 ;
 ; Define ackcall to require a DTMF acknowledgement when
 ; an agent logs in using agentcallbacklogin.  Default is "no".
 ; Can also be set to "always", which will also require AgentLogin
-; agents to acknowledge calls. Use the acceptdtmf option to 
+; agents to acknowledge calls. Use the acceptdtmf option to
 ; configure what DTMF key press should be used to acknowledge the
 ; call. The default is '#'.
 ;
@@ -70,14 +70,14 @@ persistentagents=yes
 ;
 ;goodbye => goodbye_file
 ;
-; Define updatecdr. This is whether or not to change the source 
-; channel in the CDR record for this call to agent/agent_id so 
+; Define updatecdr. This is whether or not to change the source
+; channel in the CDR record for this call to agent/agent_id so
 ; that we know which agent generates the call
 ;
 ;updatecdr=no
 ;
 ; Group memberships for agents (may change in mid-file)
-; 
+;
 ;group=3
 ;group=1,2
 ;group=
@@ -85,7 +85,7 @@ persistentagents=yes
 ; --------------------------------------------------
 ; This section is devoted to recording agent's calls
 ; The keywords are global to the chan_agent channel driver
-; 
+;
 ; Enable recording calls addressed to agents. It's turned off by default.
 ;recordagentcalls=yes
 ;
@@ -100,7 +100,7 @@ persistentagents=yes
 ; /var/spool/asterisk/monitor
 ;savecallsin=/var/calls
 ;
-; An optional custom beep sound file to play to always-connected agents. 
+; An optional custom beep sound file to play to always-connected agents.
 ;custom_beep=beep
 ;
 ; --------------------------------------------------

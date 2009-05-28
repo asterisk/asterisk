@@ -1,17 +1,17 @@
 ;
 ; Open Settlement Protocol Sample Configuration File
 ;
-; This file contains configuration of OSP server providers that are used by the 
-; Asterisk OSP module.  The section "general" is reserved for global options.  
-; All other sections describe specific OSP Providers.  The provider "default" 
-; is used when no provider is otherwise specified. 
+; This file contains configuration of OSP server providers that are used by the
+; Asterisk OSP module.  The section "general" is reserved for global options.
+; All other sections describe specific OSP Providers.  The provider "default"
+; is used when no provider is otherwise specified.
 ;
-; The "servicepoint" and "source" parameters must be configured.  For most 
+; The "servicepoint" and "source" parameters must be configured.  For most
 ; implementations the other parameters in this file can be left unchanged.
 ;
 [general]
 ;
-; Enable cryptographic acceleration hardware.  
+; Enable cryptographic acceleration hardware.
 ; The default value is no.
 ;
 ;accelerate=no
@@ -23,9 +23,9 @@
 ;
 ;securityfeatures=no
 ;
-; Defines the status of tokens that Asterisk will validate. 
-; 0 - signed tokens only 
-; 1 - unsigned tokens only 
+; Defines the status of tokens that Asterisk will validate.
+; 0 - signed tokens only
+; 1 - unsigned tokens only
 ; 2 - both signed and unsigned
 ; The default value is 0, i.e. the Asterisk will only validate signed tokens.
 ; If securityfeatures are disabled, Asterisk cannot validate signed tokens.
@@ -45,37 +45,37 @@
 ;source=domain name or [IP address in brackets]
 ;
 ; Define path and file name of crypto files.
-; The default path for crypto file is /var/lib/asterisk/keys.  If no path is 
+; The default path for crypto file is /var/lib/asterisk/keys.  If no path is
 ; defined, crypto files will in /var/lib/asterisk/keys directory.
 ;
-; Specify the private key file name.  
-; If this parameter is unspecified or not present, the default name will be the 
-; osp.conf section name followed by "-privatekey.pem" (for example: 
+; Specify the private key file name.
+; If this parameter is unspecified or not present, the default name will be the
+; osp.conf section name followed by "-privatekey.pem" (for example:
 ; default-privatekey.pem)
 ; If securityfeatures are disabled, this parameter is ignored.
 ;
 ;privatekey=pkey.pem
 ;
-; Specify the local certificate file.  
-; If this parameter is unspecified or not present, the default name will be the 
-; osp.conf section name followed by "- localcert.pem " (for example: 
-; default-localcert.pem)  
+; Specify the local certificate file.
+; If this parameter is unspecified or not present, the default name will be the
+; osp.conf section name followed by "- localcert.pem " (for example:
+; default-localcert.pem)
 ; If securityfeatures are disabled, this parameter is ignored.
 ;
 ;localcert=localcert.pem
 ;
-; Specify one or more Certificate Authority key file names.  If none are listed, 
-; a single Certificate Authority key file name is added with the default name of 
-; the osp.conf section name followed by "-cacert_0.pem " (for example: 
+; Specify one or more Certificate Authority key file names.  If none are listed,
+; a single Certificate Authority key file name is added with the default name of
+; the osp.conf section name followed by "-cacert_0.pem " (for example:
 ; default-cacert_0.pem)
 ; If securityfeatures are disabled, this parameter is ignored.
 ;
 ;cacert=cacert_0.pem
 ;
-; Configure parameters for OSP communication between Asterisk OSP client and OSP 
-; servers. 
+; Configure parameters for OSP communication between Asterisk OSP client and OSP
+; servers.
 ;
-; maxconnections: Max number of simultaneous connections to the provider OSP 
+; maxconnections: Max number of simultaneous connections to the provider OSP
 ;                 server (default=20)
 ; retrydelay:     Extra delay between retries (default=0)
 ; retrylimit:     Max number of retries before giving up (default=2)
@@ -86,18 +86,18 @@
 ;retrylimit=2
 ;timeout=500
 ;
-; Set the authentication policy.  
+; Set the authentication policy.
 ; 0 - NO        - Accept all calls.
-; 1 - YES       - Accept calls with valid token or no token. Block calls with 
-;                 invalid token.  
-; 2 - EXCLUSIVE - Accept calls with valid token. Block calls with invalid token 
+; 1 - YES       - Accept calls with valid token or no token. Block calls with
+;                 invalid token.
+; 2 - EXCLUSIVE - Accept calls with valid token. Block calls with invalid token
 ;                 or no token.
 ; Default is 1,
 ; If securityfeatures are disabled, Asterisk cannot validate signed tokens.
 ;
 ;authpolicy=1
 ;
-; Set the default destination protocol. The OSP module supports SIP, H323, and 
+; Set the default destination protocol. The OSP module supports SIP, H323, and
 ; IAX protocols.  The default protocol is set to SIP.
 ;
 ;defaultprotocol=SIP

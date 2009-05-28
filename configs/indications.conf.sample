@@ -516,7 +516,7 @@ callwaiting = 425/150,0/150,425/150,0/4000
 dialrecall = 425/500,0/50
 ; RECORDTONE - not specified
 record = 1400/500,0/15000
-; 950/1400/1800 3x0.33 on 1.0 off  repeated 3 times 
+; 950/1400/1800 3x0.33 on 1.0 off  repeated 3 times
 info = !950/330,!1400/330,!1800/330,!0/1000,!950/330,!1400/330,!1800/330,!0/1000,!950/330,!1400/330,!1800/330,!0/1000
 ; STUTTER - not specified
 stutter = !425/100,!0/100,!425/100,!0/100,!425/100,!0/100,!425/100,!0/100,!425/100,!0/100,!425/100,!0/100,425
@@ -567,7 +567,7 @@ stutter = !425/100,!0/100,!425/100,!0/100,!425/100,!0/100,!425/100,!0/100,!425/1
 [sg]
 description = Singapore
 ; Singapore
-; Reference: http://www.ida.gov.sg/idaweb/doc/download/I397/ida_ts_pstn1_i4r2.pdf 
+; Reference: http://www.ida.gov.sg/idaweb/doc/download/I397/ida_ts_pstn1_i4r2.pdf
 ; Frequency specs are:   425 Hz +/- 20Hz; 24 Hz +/- 2Hz; modulation depth 100%; SIT +/- 50Hz
 ringcadence = 400,200,400,2000
 dial        = 425
@@ -691,7 +691,7 @@ info = !950/330,!1400/330,!1800/330,0
 stutter = !350+440/100,!0/100,!350+440/100,!0/100,!350+440/100,!0/100,!350+440/100,!0/100,!350+440/100,!0/100,!350+440/100,!0/100,350+440
 
 [ve]
-; Tone definition source for ve found on 
+; Tone definition source for ve found on
 ; Reference: http://www.itu.int/ITU-T/inr/forms/files/tones-0203.pdf
 description = Venezuela / South America
 ringcadence = 1000,4000

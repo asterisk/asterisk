@@ -1,6 +1,6 @@
 ;
 ; AMI - The Asterisk Manager Interface
-; 
+;
 ; Third party application call management support and PBX event supervision
 ;
 ; This configuration file is read every time someone logs in
@@ -13,11 +13,11 @@
 ; ---------------------------- SECURITY NOTE -------------------------------
 ; Note that you should not enable the AMI on a public IP address. If needed,
 ; block this TCP port with iptables (or another FW software) and reach it
-; with IPsec, SSH, or SSL vpn tunnel.  You can also make the manager 
+; with IPsec, SSH, or SSL vpn tunnel.  You can also make the manager
 ; interface available over http/https if Asterisk's http server is enabled in
 ; http.conf and if both "enabled" and "webenabled" are set to yes in
-; this file.  Both default to no.  httptimeout provides the maximum 
-; timeout in seconds before a web based session is discarded.  The 
+; this file.  Both default to no.  httptimeout provides the maximum
+; timeout in seconds before a web based session is discarded.  The
 ; default is 60 seconds.
 ;
 [general]
@@ -27,9 +27,9 @@ port = 5038
 
 ;httptimeout = 60
 ; a) httptimeout sets the Max-Age of the http cookie
-; b) httptimeout is the amount of time the webserver waits 
+; b) httptimeout is the amount of time the webserver waits
 ;    on a action=waitevent request (actually its httptimeout-10)
-; c) httptimeout is also the amount of time the webserver keeps 
+; c) httptimeout is also the amount of time the webserver keeps
 ;    a http session alive after completing a successful action
 
 bindaddr = 0.0.0.0
@@ -44,8 +44,8 @@ bindaddr = 0.0.0.0
 ;tlsbindaddr=0.0.0.0		; address to bind to, default to bindaddr
 ;tlscertfile=/tmp/asterisk.pem	; path to the certificate.
 ;tlsprivatekey=/tmp/private.pem ; path to the private key, if no private given,
-; if no tlsprivatekey is given, default is to search
-; tlscertfile for private key.
+                                ; if no tlsprivatekey is given, default is to search
+								; tlscertfile for private key.
 ;tlscipher=<cipher string>      ; string specifying which SSL ciphers to use or not use
 ;
 ;allowmultiplelogin = yes		; IF set to no, rejects manager logins that are already in use.
@@ -58,7 +58,7 @@ bindaddr = 0.0.0.0
 ;timestampevents = yes
 
 ; debug = on	; enable some debugging info in AMI messages (default off).
-; Also accessible through the "manager debug" CLI command.
+		; Also accessible through the "manager debug" CLI command.
 ;[mark]
 ;secret = mysecret
 ;deny=0.0.0.0/0.0.0.0
@@ -72,7 +72,7 @@ bindaddr = 0.0.0.0
 ;
 ;displayconnects = yes	; Display on CLI user login/logoff
 ;
-; Authorization for various classes 
+; Authorization for various classes
 ;
 ; Read authorization permits you to receive asynchronous events, in general.
 ; Write authorization permits you to send commands and get back responses.  The

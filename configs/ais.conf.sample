@@ -1,5 +1,5 @@
 ;
-; Sample configuration file for res_ais 
+; Sample configuration file for res_ais
 ;   * SAForum AIS (Application Interface Specification)
 ;
 ; More information on the AIS specification is available from the SAForum.
@@ -76,7 +76,7 @@
 ;
 ; This example would be used for a node that has phones directly registered
 ; to it, but does not have direct access to voicemail.  So, this node wants
-; to be informed about MWI state changes on other voicemail server nodes, but 
+; to be informed about MWI state changes on other voicemail server nodes, but
 ; is not capable of publishing any state changes.
 ;
 ; [mwi]

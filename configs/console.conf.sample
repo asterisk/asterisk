@@ -5,7 +5,7 @@
 [general]
 
 ; Set this option to "yes" to enable automatically answering calls on the
-; console.  This is very useful if the console is used as an intercom. 
+; console.  This is very useful if the console is used as an intercom.
 ; The default value is "no".
 ;
 ;autoanswer = no
@@ -21,7 +21,7 @@
 ;extension = s
 
 ; Set the default CallerID for created channels.
-; 
+;
 ;callerid = MyName Here <(256) 428-6000>
 
 ; Set the default language for created channels.
@@ -34,7 +34,7 @@
 ; The default is "no".
 ;
 ;overridecontext = no    ; if 'no', the last @ will start the context
-; if 'yes' the whole string is an extension.
+                        ; if 'yes' the whole string is an extension.
 
 
 ; Default Music on Hold class to use when this channel is placed on hold in
@@ -46,23 +46,23 @@
 
 ;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
 ; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of an
-; Console channel. Defaults to "no". An enabled jitterbuffer will
-; be used only if the sending side can create and the receiving
-; side can not accept jitter. The Console channel can't accept jitter,
-; thus an enabled jitterbuffer on the receive Console side will always
-; be used if the sending side can create jitter.
+                              ; Console channel. Defaults to "no". An enabled jitterbuffer will
+                              ; be used only if the sending side can create and the receiving
+                              ; side can not accept jitter. The Console channel can't accept jitter,
+                              ; thus an enabled jitterbuffer on the receive Console side will always
+                              ; be used if the sending side can create jitter.
 
 ; jbmaxsize = 200             ; Max length of the jitterbuffer in milliseconds.
 
 ; jbresyncthreshold = 1000    ; Jump in the frame timestamps over which the jitterbuffer is
-; resynchronized. Useful to improve the quality of the voice, with
-; big jumps in/broken timestamps, usually sent from exotic devices
-; and programs. Defaults to 1000.
+                              ; resynchronized. Useful to improve the quality of the voice, with
+                              ; big jumps in/broken timestamps, usually sent from exotic devices
+                              ; and programs. Defaults to 1000.
 
 ; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of a Console
-; channel. Two implementations are currently available - "fixed"
-; (with size always equals to jbmax-size) and "adaptive" (with
-; variable size, actually the new jb of IAX2). Defaults to fixed.
+                              ; channel. Two implementations are currently available - "fixed"
+                              ; (with size always equals to jbmax-size) and "adaptive" (with
+                              ; variable size, actually the new jb of IAX2). Defaults to fixed.
 
 ; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
 ;-----------------------------------------------------------------------------------
@@ -76,8 +76,8 @@
 [default]
 input_device = default       ; When configuring an input device and output device,
 output_device = default      ; use the name that you see when you run the "console
-; list available" CLI command.  If you say "default", the
-; system default input and output devices will be used.
+                             ; list available" CLI command.  If you say "default", the
+                             ; system default input and output devices will be used.
 autoanswer = no
 context = default
 extension = s
@@ -86,5 +86,5 @@ language = en
 overridecontext = no
 mohinterpret = default
 active = yes                 ; This option should only be set for one console.
-; It means that it is the active console to be
-; used from the Asterisk CLI.
+                             ; It means that it is the active console to be
+                             ; used from the Asterisk CLI.

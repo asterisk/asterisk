@@ -13,8 +13,8 @@ template = friendly		; By default, include friendly aliases
 ;template = asterisk12		; Asterisk 1.2 style syntax
 ;template = asterisk14		; Asterisk 1.4 style syntax
 ;template = individual_custom	; see [individual_custom] example below which
-; includes a list of aliases from an external 
-; file
+				; includes a list of aliases from an external
+				; file
 
 
 ; Because the Asterisk CLI syntax follows a "module verb argument" syntax,
@@ -70,7 +70,7 @@ pri intense debug span=pri set debug 2 span
 ; by Asterisk. If you wish to use the provided templates, simply define the
 ; context name which does not utilize the '_tpl' at the end. For example,
 ; if you would like to use the Asterisk 1.2 style syntax, define in the
-; [general] section 
+; [general] section
 
 [asterisk12_tpl](!)
 show channeltypes=core show channeltypes
@@ -92,7 +92,7 @@ show file formats=core show file formats
 show applications=core show applications
 show functions=core show functions
 show switches=core show switches
-show hints=core show hints 
+show hints=core show hints
 show globals=core show globals
 show function=core show function
 show application=core show application
@@ -102,7 +102,7 @@ show codecs=core show codecs
 show audio codecs=core show audio codecs
 show video codecs=core show video codecs
 show image codecs=core show image codecs
-show codec=core show codec 
+show codec=core show codec
 moh classes show=moh show classes
 moh files show=moh show files
 agi no debug=agi debug off
