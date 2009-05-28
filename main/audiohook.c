@@ -130,6 +130,7 @@ int ast_audiohook_write_frame(struct ast_audiohook *audiohook, enum ast_audiohoo
 	struct ast_slinfactory *factory = (direction == AST_AUDIOHOOK_DIRECTION_READ ? &audiohook->read_factory : &audiohook->write_factory);
 	struct ast_slinfactory *other_factory = (direction == AST_AUDIOHOOK_DIRECTION_READ ? &audiohook->write_factory : &audiohook->read_factory);
 	struct timeval *time = (direction == AST_AUDIOHOOK_DIRECTION_READ ? &audiohook->read_time : &audiohook->write_time), previous_time = *time;
+	int our_factory_samples;
 	int our_factory_ms;
 	int other_factory_samples;
 	int other_factory_ms;
@@ -137,7 +138,8 @@ int ast_audiohook_write_frame(struct ast_audiohook *audiohook, enum ast_audiohoo
 	/* Update last feeding time to be current */
 	*time = ast_tvnow();
 
-	our_factory_ms = ast_tvdiff_ms(*time, previous_time) + (ast_slinfactory_available(factory) / 8);
+	our_factory_samples = ast_slinfactory_available(factory);
+	our_factory_ms = ast_tvdiff_ms(*time, previous_time) + (our_factory_samples / 8);
 	other_factory_samples = ast_slinfactory_available(other_factory);
 	other_factory_ms = other_factory_samples / 8;
 
@@ -145,6 +147,14 @@ int ast_audiohook_write_frame(struct ast_audiohook *audiohook, enum ast_audiohoo
 	if (ast_test_flag(audiohook, AST_AUDIOHOOK_TRIGGER_SYNC) && other_factory_samples && (our_factory_ms - other_factory_ms > AST_AUDIOHOOK_SYNC_TOLERANCE)) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Flushing audiohook %p so it remains in sync\n", audiohook);
+		ast_slinfactory_flush(factory);
+		ast_slinfactory_flush(other_factory);
+	}
+
+	if (ast_test_flag(audiohook, AST_AUDIOHOOK_SMALL_QUEUE) && (our_factory_samples > 640 || other_factory_samples > 640)) {
+		if (option_debug) {
+			ast_log(LOG_DEBUG, "Audiohook %p has stale audio in its factories. Flushing them both\n", audiohook);
+		}
 		ast_slinfactory_flush(factory);
 		ast_slinfactory_flush(other_factory);
 	}

@@ -803,6 +803,7 @@ struct sip_auth {
 #define SIP_PAGE2_OUTGOING_CALL         (1 << 27)       /*!< 27: Is this an outgoing call? */
 #define SIP_PAGE2_UDPTL_DESTINATION     (1 << 28)       /*!< 28: Use source IP of RTP as destination if NAT is enabled */
 #define SIP_PAGE2_DIALOG_ESTABLISHED    (1 << 29)       /*!< 29: Has a dialog been established? */
+#define SIP_PAGE2_RPORT_PRESENT         (1 << 30)       /*!< 30: Was rport received in the Via header? */
 
 #define SIP_PAGE2_FLAGS_TO_COPY \
 	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_VIDEOSUPPORT | \
@@ -5108,6 +5109,63 @@ static void change_hold_state(struct sip_pvt *dialog, struct sip_request *req, i
 	else
 		ast_set_flag(&dialog->flags[1], SIP_PAGE2_CALL_ONHOLD_ACTIVE);
 	return;
+}
+
+enum media_type {
+	SDP_AUDIO,
+	SDP_VIDEO,
+};
+
+static int get_ip_and_port_from_sdp(struct sip_request *req, const enum media_type media, struct sockaddr_in *sin)
+{
+	const char *m;
+	const char *c;
+	int miterator = req->sdp_start;
+	int citerator = req->sdp_start;
+	int x = 0;
+	int numberofports;
+	int len;
+	char host[258] = ""; /*Initialize to empty so we will know if we have any input */
+	struct ast_hostent audiohp;
+	struct hostent *hp;
+
+	c = get_sdp_iterate(&citerator, req, "c");
+	if (sscanf(c, "IN IP4 %256s", host) != 1) {
+		ast_log(LOG_WARNING, "Invalid host in c= line, '%s'\n", c);
+		/* Continue since there may be a valid host in a c= line specific to the audio stream */
+	}
+	/* We only want the m and c lines for audio */
+	while ((m = get_sdp_iterate(&miterator, req, "m"))) {
+		if ((media == SDP_AUDIO && ((sscanf(m, "audio %d/%d RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
+		    (sscanf(m, "audio %d RTP/AVP %n", &x, &len) == 1 && len > 0))) ||
+			(media == SDP_VIDEO && ((sscanf(m, "video %d/%d RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
+		    (sscanf(m, "video %d RTP/AVP %n", &x, &len) == 1 && len > 0)))) {
+			/* See if there's a c= line for this media stream.
+			 * XXX There is no guarantee that we'll be grabbing the c= line for this
+			 * particular media stream here. However, this is the same logic used in process_sdp.
+			 */
+			c = get_sdp_iterate(&citerator, req, "c");
+			if (!ast_strlen_zero(c)) {
+				sscanf(c, "IN IP4 %256s", host);
+			}
+			break;
+		}
+	}
+
+	if (ast_strlen_zero(host) || x == 0) {
+		ast_log(LOG_WARNING, "Failed to read an alternate host or port in SDP. Expect %s problems\n", media == SDP_AUDIO ? "audio" : "video");
+		return -1;
+	}
+
+	hp = ast_gethostbyname(host, &audiohp);
+	if (!hp) {
+		ast_log(LOG_WARNING, "Could not look up IP address of alternate hostname. Expect %s problems\n", media == SDP_AUDIO? "audio" : "video");
+		return -1;
+	}
+
+	memcpy(&sin->sin_addr, hp->h_addr, sizeof(sin->sin_addr));
+	sin->sin_port = htons(x);
+	return 0;
 }
 
 /*! \brief Process SIP SDP offer, select formats and activate RTP channels
@@ -9580,7 +9638,7 @@ static void check_via(struct sip_pvt *p, const struct sip_request *req)
 	/* Check for rport */
 	c = strstr(via, ";rport");
 	if (c && (c[6] != '='))	/* rport query, not answer */
-		ast_set_flag(&p->flags[0], SIP_NAT_ROUTE);
+		ast_set_flag(&p->flags[1], SIP_PAGE2_RPORT_PRESENT);
 
 	c = strchr(via, ';');
 	if (c) 
@@ -10013,6 +10071,11 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 
 	if (user)
 		ASTOBJ_UNREF(user, sip_destroy_user);
+
+	if (ast_test_flag(&p->flags[1], SIP_PAGE2_RPORT_PRESENT)) {
+		ast_set_flag(&p->flags[0], SIP_NAT_ROUTE);
+	}
+
 	return res;
 }
 
@@ -14453,6 +14516,21 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		} else {
 			/* We already have a pending invite. Sorry. You are on hold. */
 			p->glareinvite = seqno;
+			if (p->rtp && find_sdp(req)) {
+				struct sockaddr_in sin;
+				if (get_ip_and_port_from_sdp(req, SDP_AUDIO, &sin)) {
+					ast_log(LOG_WARNING, "Failed to set an alternate media source on glared reinvite. Audio may not work properly on this call.\n");
+				} else {
+					ast_rtp_set_alt_peer(p->rtp, &sin);
+				}
+				if (p->vrtp) {
+					if (get_ip_and_port_from_sdp(req, SDP_VIDEO, &sin)) {
+						ast_log(LOG_WARNING, "Failed to set an alternate media source on glared reinvite. Video may not work properly on this call.\n");
+					} else {
+						ast_rtp_set_alt_peer(p->vrtp, &sin);
+					}
+				}
+			}
 			transmit_response_reliable(p, "491 Request Pending", req);
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Got INVITE on call where we already have pending INVITE, deferring that - %s\n", p->callid);
@@ -17693,8 +17771,11 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		 * address listed on the entry (or if it's 'dynamic'), then we need to
 		 * parse the entry to obtain the IP address, so a dynamic host can be
 		 * contacted immediately after reload (as opposed to waiting for it to
-		 * register once again). */
-		__set_address_from_contact(fullcontact, &peer->addr);
+		 * register once again). But if we have an address for this peer and NAT was
+		 * specified, use that address instead. */
+		if (!ast_test_flag(&peer->flags[0], SIP_NAT_ROUTE) || !peer->addr.sin_addr.s_addr) {
+			__set_address_from_contact(fullcontact, &peer->addr);
+		}
 	}
 
 	if (!ast_test_flag(&global_flags[1], SIP_PAGE2_IGNOREREGEXPIRE) && ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC) && realtime) {

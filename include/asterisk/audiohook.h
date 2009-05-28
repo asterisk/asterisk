@@ -54,6 +54,10 @@ enum ast_audiohook_flags {
 	AST_AUDIOHOOK_TRIGGER_WRITE = (2 << 0), /*!< Audiohook wants to be triggered when writing audio out */
 	AST_AUDIOHOOK_WANTS_DTMF = (1 << 1),    /*!< Audiohook also wants to receive DTMF frames */
 	AST_AUDIOHOOK_TRIGGER_SYNC = (1 << 2),  /*!< Audiohook wants to be triggered when both sides have combined audio available */
+	/*! Audiohooks with this flag set will not allow for a large amount of samples to build up on its
+	 * slinfactories. We will flush the factories if they contain too many samples.
+	 */
+	AST_AUDIOHOOK_SMALL_QUEUE = (1 << 3),
 };
 
 #define AST_AUDIOHOOK_SYNC_TOLERANCE 100 /*< Tolerance in milliseconds for audiohooks synchronization */

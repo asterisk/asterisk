@@ -215,6 +215,8 @@ static int start_spying(struct ast_channel *chan, const char *spychan_name, stru
 
 	ast_log(LOG_NOTICE, "Attaching %s to %s\n", spychan_name, chan->name);
 
+	ast_set_flag(audiohook, AST_AUDIOHOOK_TRIGGER_SYNC | AST_AUDIOHOOK_SMALL_QUEUE);
+
 	res = ast_audiohook_attach(chan, audiohook);
 
 	if (!res && ast_test_flag(chan, AST_FLAG_NBRIDGE) && (peer = ast_bridged_channel(chan))) { 
