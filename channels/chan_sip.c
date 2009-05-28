@@ -23992,10 +23992,13 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		 * address listed on the entry (or if it's 'dynamic'), then we need to
 		 * parse the entry to obtain the IP address, so a dynamic host can be
 		 * contacted immediately after reload (as opposed to waiting for it to
-		 * register once again). */
+		 * register once again). But if we have an address for this peer and NAT was
+		 * specified, use that address instead. */
 		/* XXX May need to revisit the final argument; does the realtime DB store whether
 		 * the original contact was over TLS or not? XXX */
-		__set_address_from_contact(fullcontact->str, &peer->addr, 0);
+		if (!ast_test_flag(&peer->flags[0], SIP_NAT_ROUTE) || !peer->addr.sin_addr.s_addr) {
+			__set_address_from_contact(fullcontact->str, &peer->addr, 0);
+		}
 	}
 
 	if (srvlookup && peer->dnsmgr == NULL) {
