@@ -34,6 +34,10 @@
 ;waittime = 30            ; How long to wait for an answer
 
 ;[calendar2]
+; Note: Exchange support has only been tested on Exchange Server 2003
+;       Forms-based authentication is not supported at this time
+;       Querying attendees is not supported with Exchange at this time
+;
 ;type = exchange          ;  type of calendar--currently supported: ical, caldav, or exchange
 ;url = https://example.com/exchange/jdoe   ; URL to MS Exchange OWA for user (usually includes exchange/user)
 ;user = jdoe              ; Exchange username
