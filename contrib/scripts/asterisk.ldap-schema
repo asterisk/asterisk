@@ -1,9 +1,11 @@
 #
-# Copyright (c) 2007-2008 Suretec Systems Ltd. - <http://www.suretecsystems.com/>
+# Copyright (c) 2007-2009 Suretec Systems Ltd. - <http://www.suretecsystems.com/>
 #
-# Version: 3.1.6
+# Version: 3.1.7
 #
 # Changes:
+# - Added AstAccountLastQualifyMilliseconds - 28/05/2009
+#   https://issues.asterisk.org/view.php?id=15156
 # - http://bugs.digium.com/view.php?id=12860 - 04/07/2008
 # - Fixed wrong DESC - 07/05/2008
 #
@@ -78,7 +80,7 @@ objectIdentifier AstConfigCommented AstAttrType:45
 objectIdentifier AstAccountIPAddress AstAttrType:46
 objectIdentifier AstAccountDefaultUser AstAttrType:47
 objectIdentifier AstAccountRegistrationServer AstAttrType:48
-
+objectIdentifier AstAccountLastQualifyMilliseconds AstAttrType:49
 
 #############################################################################
 # Object Class OIDs
@@ -462,6 +464,13 @@ attributetype ( AstAccountRegistrationServer
         SUBSTR caseIgnoreSubstringsMatch
         SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
 
+attributetype ( AstAccountLastQualifyMilliseconds
+	NAME 'AstAccountLastQualifyMilliseconds'
+	DESC 'Asterisk Account Last Qualify Milliseconds'
+	EQUALITY caseIgnoreMatch
+	SUBSTR caseIgnoreSubstringsMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
+
 #############################################################################
 # Object Class definitions
 #
@@ -522,7 +531,8 @@ objectclass ( AsteriskIAXUser
         AstAccountRegistrationContext$
         AstAccountRegistrationExten $ 
         AstAccountNoTransfer $ 
-        AstAccountName 
+        AstAccountName $
+	AstAccountLastQualifyMilliseconds 
     )
     )
        
@@ -566,7 +576,8 @@ objectclass ( AsteriskSIPUser
         AstAccountRegistrationServer $
         AstAccountCanCallForward $ 
         AstAccountSecret $ 
-        AstAccountName 
+        AstAccountName $
+	AstAccountLastQualifyMilliseconds 
     )
     )
 

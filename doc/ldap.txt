@@ -1,13 +1,13 @@
 Asterisk Realtime LDAP Driver
 ---------------------------
 
-With this driver Asterisk can retrieve information from a LDAP drectory, including 
+With this driver Asterisk can retrieve information from an LDAP drectory, including 
 sip/iax users, extensions and configuration.
 
 See configs/res_ldap.conf.sample for a configuration file sample
 
 
-Here is a LDAP dif sample:
+Here is a LDAP diff sample:
 
 # Base SIP Phones Entry
 dn: uid=phone-base,dc=myDomain,dc=myDomainExt
