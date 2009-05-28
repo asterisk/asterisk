@@ -11413,7 +11413,6 @@ static void set_config_destroy(void)
 	strcpy(language, "");
 	strcpy(mohinterpret, "default");
 	strcpy(mohsuggest, "");
-	global_max_trunk_mtu = MAX_TRUNK_MTU;
 	trunkmaxsize = MAX_TRUNKDATA;
 	amaflags = 0;
 	delayreject = 0;
@@ -11490,6 +11489,7 @@ static int set_config(char *config_file, int reload)
 
 	min_reg_expire = IAX_DEFAULT_REG_EXPIRE;
 	max_reg_expire = IAX_DEFAULT_REG_EXPIRE;
+	global_max_trunk_mtu = MAX_TRUNK_MTU;
 
 	maxauthreq = 3;
 
