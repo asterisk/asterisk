@@ -987,7 +987,6 @@ static void *logger_thread(void *data)
 				logger_print_verbose(msg);
 
 			/* Free the data since we are done */
-			ast_string_field_free_memory(msg);
 			ast_free(msg);
 		}
 
