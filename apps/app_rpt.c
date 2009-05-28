@@ -1957,7 +1957,11 @@ unsigned int seq;
 	if (!myrpt->p.statpost_url) return;
 	str = ast_malloc(strlen(pairs) + strlen(myrpt->p.statpost_url) + 200);
 	astr = ast_strdup(myrpt->p.statpost_program);
-	if ((!str) || (!astr)) return;
+	if ((!str) || (!astr)) {
+		ast_free(str);
+		ast_free(astr);
+		return;
+	}
 	n = finddelim(astr,astrs,100);
 	if (n < 1) return;
 	ast_mutex_lock(&myrpt->statpost_lock);
@@ -2895,12 +2899,8 @@ static int rpt_do_stats(int fd, int argc, char *argv[])
 			for(j = 0; j < numoflinks; j++){ /* ast_free() all link names */
 				ast_free(listoflinks[j]);
 			}
-			if(called_number){
-				ast_free(called_number);
-			}
-			if(lastdtmfcommand){
-				ast_free(lastdtmfcommand);
-			}
+			ast_free(called_number);
+			ast_free(lastdtmfcommand);
 		        return RESULT_SUCCESS;
 		}
 	}
@@ -3646,8 +3646,7 @@ static int send_tone_telemetry(struct ast_channel *chan, char *tonestring)
 		if(res)
 			break;
 	}
-	if(p)
-		ast_free(p);
+	ast_free(p);
 	if(!res)
 		res = play_tone_pair(chan, 0, 0, 100, 0); /* This is needed to ensure the last tone segment is timed correctly */
 	
@@ -3828,8 +3827,7 @@ static int telem_lookup(struct rpt *myrpt,struct ast_channel *chan, char *node, 
 	else{
 		res = -1;
 	}
-	if(telemetry_save)
-		ast_free(telemetry_save);
+	ast_free(telemetry_save);
 	return res;
 }
 
@@ -3907,8 +3905,7 @@ static int get_wait_interval(struct rpt *myrpt, int type)
 			interval = 0;
 			break;
         }
-	if(wait_times_save)
-       		ast_free(wait_times_save);
+	ast_free(wait_times_save);
 	return interval;
 }                                                                                                                  
 

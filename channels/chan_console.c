@@ -838,8 +838,7 @@ static char *cli_console_dial(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	} else
 		ast_cli(a->fd, "No such extension '%s' in context '%s'\n", mye, myc);
 
-	if (s)
-		free(s);
+	free(s);
 
 	unref_pvt(pvt);
 

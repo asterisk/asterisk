@@ -342,11 +342,11 @@ void *__ao2_alloc_debug(size_t data_size, ao2_destructor_fn destructor_fn, char 
 	void *obj;
 	FILE *refo = ref_debug ? fopen(REF_FILE,"a") : NULL;
 
-	obj = internal_ao2_alloc(data_size, destructor_fn, file, line, funcname);
-
-	if (obj == NULL)
+	if ((obj = internal_ao2_alloc(data_size, destructor_fn, file, line, funcname)) == NULL) {
+		fclose(refo);
 		return NULL;
-	
+	}
+
 	if (refo) {
 		fprintf(refo, "%p =1   %s:%d:%s (%s)\n", obj, file, line, funcname, tag);
 		fclose(refo);

@@ -10183,8 +10183,6 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 
 	if (!here && reloading != 1) {
 		if (!(tmp = ast_calloc(1, sizeof(*tmp)))) {
-			if (tmp)
-				free(tmp);
 			return NULL;
 		}
 		ast_mutex_init(&tmp->lock);
