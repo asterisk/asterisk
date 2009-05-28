@@ -1559,11 +1559,17 @@ int __ast_string_field_init(struct ast_string_field_mgr *mgr, struct ast_string_
 		return add_string_pool(mgr, pool_head, needed, file, lineno, func);
 	}
 
+	/* if there is an embedded pool, we can't actually release *all*
+	 * pools, we must keep the embedded one. if the caller is about
+	 * to free the structure that contains the stringfield manager
+	 * and embedded pool anyway, it will be freed as part of that
+	 * operation.
+	 */
+	if ((needed < 0) && mgr->embedded_pool) {
+		needed = 0;
+	}
+
 	if (needed < 0) {		/* reset all pools */
-		if (*pool_head == NULL) {
-			ast_log(LOG_WARNING, "trying to reset empty pool\n");
-			return -1;
-		}
 		cur = *pool_head;
 	} else if (mgr->embedded_pool) { /* preserve the embedded pool */
 		preserve = mgr->embedded_pool;
