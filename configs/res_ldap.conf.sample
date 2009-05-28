@@ -91,6 +91,7 @@ CanCallForward = AstAccountCanCallForward
 ipaddr = AstAccountIPAddress
 defaultuser = AstAccountDefaultUser
 regserver = AstAccountRegistrationServer
+lastms = AstAccountLastQualifyMilliseconds
 additionalFilter=(objectClass=AsteriskSIPUser)
 
 ;
@@ -116,6 +117,7 @@ regseconds = AstAccountExpirationTimestamp
 regcontext = AstAccountRegistrationContext
 regexten = AstAccountRegistrationExten
 notransfer = AstAccountNoTransfer
+lastms = AstAccountLastQualifyMilliseconds
 additionalFilter=(objectClass=AstAccountIAX)
 
 ;
