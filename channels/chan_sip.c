@@ -1059,6 +1059,7 @@ struct sip_auth {
 /* Space for addition of other realtime flags in the future */
 #define SIP_PAGE2_STATECHANGEQUEUE	(1 << 9)	/*!< D: Unsent state pending change exists */
 
+#define SIP_PAGE2_RPORT_PRESENT         (1 << 10)       /*!< Was rport received in the Via header? */
 #define SIP_PAGE2_VIDEOSUPPORT		(1 << 14)	/*!< DP: Video supported if offered? */
 #define SIP_PAGE2_TEXTSUPPORT		(1 << 15)	/*!< GDP: Global text enable */
 #define SIP_PAGE2_ALLOWSUBSCRIBE	(1 << 16)	/*!< GP: Allow subscriptions from this peer? */
@@ -12150,7 +12151,7 @@ static void check_via(struct sip_pvt *p, struct sip_request *req)
 	/* Check for rport */
 	c = strstr(via, ";rport");
 	if (c && (c[6] != '='))	/* rport query, not answer */
-		ast_set_flag(&p->flags[0], SIP_NAT_ROUTE);
+		ast_set_flag(&p->flags[1], SIP_PAGE2_RPORT_PRESENT);
 
 	c = strchr(via, ';');
 	if (c) 
@@ -12577,6 +12578,11 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 		res = AUTH_FAKE_AUTH; /* reject with fake authorization request */
 	else
 		res = AUTH_SECRET_FAILED; /* we don't want any guests, authentication will fail */
+
+
+	if (ast_test_flag(&p->flags[1], SIP_PAGE2_RPORT_PRESENT)) {
+		ast_set_flag(&p->flags[0], SIP_NAT_ROUTE);
+	}
 
 	return res;
 }
