@@ -17808,6 +17808,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		}
 		break;
 
+	case 405: /* Not allowed */
 	case 501: /* Not implemented */
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		if (p->owner)
@@ -17972,6 +17973,18 @@ static void handle_response_refer(struct sip_pvt *p, int resp, const char *rest,
 			pvt_set_needdestroy(p, "failed to authenticate REFER");
 		}
 		break;
+	
+	case 405:   /* Method not allowed */
+		/* Return to the current call onhold */
+		/* Status flag needed to be reset */
+		ast_log(LOG_NOTICE, "SIP transfer to %s failed, REFER not allowed. \n", p->refer->refer_to);
+		pvt_set_needdestroy(p, "received 405 response");
+		p->refer->status = REFER_FAILED;
+		if (p->owner) {
+			ast_queue_control_data(p->owner, AST_CONTROL_TRANSFER, &message, sizeof(message));
+		}
+		break;
+
 	case 481: /* Call leg does not exist */
 
 		/* A transfer with Replaces did not work */
@@ -18444,6 +18457,7 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 				pvt_set_needdestroy(p, "received 491 response");
 			}
 			break;
+		case 405:
 		case 501: /* Not Implemented */
 			mark_method_unallowed(&p->allowed_methods, sipmethod);
 			if ((peer = find_peer(p->peername, 0, 1, FINDPEERS, FALSE))) {
