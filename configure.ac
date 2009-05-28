@@ -244,6 +244,7 @@ AST_EXT_LIB_SETUP([GTK], [gtk libraries], [gtk])
 AST_EXT_LIB_SETUP([GTK2], [gtk2 libraries], [gtk2])
 AST_EXT_LIB_SETUP([GMIME], [GMime library], [gmime])
 AST_EXT_LIB_SETUP([HOARD], [Hoard Memory Allocator], [hoard])
+AST_EXT_LIB_SETUP([ICAL], [ical libraries], [ical])
 AST_EXT_LIB_SETUP([ICONV], [Iconv Library], [iconv])
 AST_EXT_LIB_SETUP([IKSEMEL], [Iksemel Jabber Library], [iksemel])
 AST_EXT_LIB_SETUP([IMAP_TK], [UW IMAP Toolkit], [imap])
@@ -258,6 +259,7 @@ AST_EXT_LIB_SETUP([LUA], [Lua], [lua])
 AST_EXT_LIB_SETUP([MISDN], [mISDN User Library], [misdn])
 AST_EXT_LIB_SETUP([NBS], [Network Broadcast Sound], [nbs])
 AST_EXT_LIB_SETUP([NCURSES], [ncurses], [ncurses])
+AST_EXT_LIB_SETUP([NEON], [neon], [neon])
 AST_EXT_LIB_SETUP([NETSNMP], [Net-SNMP], [netsnmp])
 AST_EXT_LIB_SETUP([NEWT], [newt], [newt])
 AST_EXT_LIB_SETUP([OGG], [OGG], [ogg])
@@ -778,6 +780,8 @@ if test "${host_os}" != "linux-gnu" ; then
 else
   PBX_ICONV=1
 fi
+
+AST_EXT_LIB_CHECK([ICAL], [ical], [icaltimezone_new], [libical/ical.h], [-lpthread])
 
 AST_EXT_LIB_CHECK([IKSEMEL], [iksemel], [iks_start_sasl], [iksemel.h])
 
@@ -1349,6 +1353,8 @@ fi
 AST_EXT_LIB_CHECK([NBS], [nbs], [nbs_connect], [nbs.h])
 
 AST_EXT_LIB_CHECK([NCURSES], [ncurses], [initscr], [curses.h])
+
+AST_EXT_TOOL_CHECK([NEON], [neon])
 
 AST_EXT_TOOL_CHECK([NETSNMP], [net-snmp], , [--agent-libs],
 [#include <net-snmp/net-snmp-config.h>

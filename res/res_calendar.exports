@@ -1,0 +1,7 @@
+{
+	global:
+		ast_*;
+		calendar_config;
+	local:
+		*;
+};

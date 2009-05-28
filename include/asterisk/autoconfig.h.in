@@ -400,6 +400,12 @@
 /* Define to indicate the ${HOARD_DESCRIP} library version */
 #undef HAVE_HOARD_VERSION
 
+/* Define this to indicate the ${ICAL_DESCRIP} library */
+#undef HAVE_ICAL
+
+/* Define to indicate the ${ICAL_DESCRIP} library version */
+#undef HAVE_ICAL_VERSION
+
 /* Define this to indicate the ${ICONV_DESCRIP} library */
 #undef HAVE_ICONV
 
@@ -592,6 +598,9 @@
 
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 #undef HAVE_NDIR_H
+
+/* Define if your system has the NEON libraries. */
+#undef HAVE_NEON
 
 /* Define to 1 if you have the <netdb.h> header file. */
 #undef HAVE_NETDB_H
