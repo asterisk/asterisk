@@ -25080,9 +25080,7 @@ static enum ast_rtp_glue_result sip_get_rtp_peer(struct ast_channel *chan, struc
 	ao2_ref(p->rtp, +1);
 	*instance = p->rtp;
 
-        if (!ast_test_flag(&p->flags[0], SIP_CAN_REINVITE_NAT)) {
-                res = AST_RTP_GLUE_RESULT_LOCAL;
-	} else if (ast_test_flag(&p->flags[0], SIP_CAN_REINVITE)) {
+	if (ast_test_flag(&p->flags[0], SIP_CAN_REINVITE | SIP_CAN_REINVITE_NAT)) {
                 res = AST_RTP_GLUE_RESULT_REMOTE;
 	} else if (ast_test_flag(&global_jbconf, AST_JB_FORCED)) {
                 res = AST_RTP_GLUE_RESULT_FORBID;
