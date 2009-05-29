@@ -16,11 +16,11 @@
  * at the top of the source tree.
  */
 
-/*! 
+/*!
  * \file
  * \author Russell Bryant <russell@digium.com>
  *
- * \brief pthread timing interface 
+ * \brief pthread timing interface
  */
 
 #include "asterisk.h"
@@ -186,7 +186,7 @@ static int pthread_timer_set_rate(int handle, unsigned int rate)
 	if (timer->state != TIMER_STATE_CONTINUOUS) {
 		set_state(timer);
 	}
-	
+
 	ao2_unlock(timer);
 
 	ao2_ref(timer, -1);
@@ -311,7 +311,7 @@ static void pthread_timer_destructor(void *obj)
 }
 
 /*!
- * \note only PIPE_READ is guaranteed valid 
+ * \note only PIPE_READ is guaranteed valid
  */
 static int pthread_timer_hash(const void *obj, const int flags)
 {
@@ -321,7 +321,7 @@ static int pthread_timer_hash(const void *obj, const int flags)
 }
 
 /*!
- * \note only PIPE_READ is guaranteed valid 
+ * \note only PIPE_READ is guaranteed valid
  */
 static int pthread_timer_cmp(void *obj, void *arg, int flags)
 {
@@ -339,9 +339,9 @@ static int check_timer(struct pthread_timer *timer)
 	struct timeval now;
 
 	if (timer->state == TIMER_STATE_IDLE || timer->state == TIMER_STATE_CONTINUOUS) {
-		return 0;	
+		return 0;
 	}
-	
+
 	now = ast_tvnow();
 
 	if (timer->tick_count < (ast_tvdiff_ms(now, timer->start) / timer->interval)) {
@@ -379,7 +379,7 @@ static void read_pipe(int rd_fd, unsigned int quantity, int clear)
 			break;
 		}
 
-		res = read(rd_fd, buf, 
+		res = read(rd_fd, buf,
 			(quantity < sizeof(buf)) ? quantity : sizeof(buf));
 
 		if (res == -1) {
@@ -404,7 +404,7 @@ static void write_byte(int wr_fd)
 		ssize_t res;
 		unsigned char x = 42;
 
-		res = write(wr_fd, &x, 1); 
+		res = write(wr_fd, &x, 1);
 
 		if (res == -1) {
 			if (errno == EAGAIN) {
@@ -428,7 +428,7 @@ static int run_timer(void *obj, void *arg, int flags)
 	if (check_timer(timer)) {
 		write_byte(timer->pipe[PIPE_WRITE]);
 	}
-	
+
 	ao2_unlock(timer);
 
 	return 0;
@@ -477,7 +477,7 @@ static int init_timing_thread(void)
 
 static int load_module(void)
 {
-	if (!(pthread_timers = ao2_container_alloc(PTHREAD_TIMER_BUCKETS, 
+	if (!(pthread_timers = ao2_container_alloc(PTHREAD_TIMER_BUCKETS,
 		pthread_timer_hash, pthread_timer_cmp))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
