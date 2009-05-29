@@ -69,6 +69,7 @@ dist-clean::
 	rm -f h323/Makefile
 
 $(if $(filter chan_iax2,$(EMBEDDED_MODS)),modules.link,chan_iax2.so): iax2-parser.o iax2-provision.o
+$(if $(filter chan_dahdi,$(EMBEDDED_MODS)),modules.link,chan_dahdi.so): sig_analog.o
 
 ifneq ($(filter chan_h323,$(EMBEDDED_MODS)),)
 modules.link: h323/libchanh323.a
