@@ -357,9 +357,21 @@ static int check_timer(struct pthread_timer *timer)
 static void read_pipe(struct pthread_timer *timer, unsigned int quantity)
 {
 	int rd_fd = timer->pipe[PIPE_READ];
+	int pending_ticks = timer->pending_ticks;
 
 	ast_assert(quantity);
-	ast_assert(quantity >= timer->pending_ticks);
+
+	if (timer->continuous && pending_ticks) {
+		pending_ticks--;
+	}
+
+	if (quantity > pending_ticks) {
+		quantity = pending_ticks;
+	}
+
+	if (!quantity) {
+		return;
+	}
 
 	do {
 		unsigned char buf[1024];
