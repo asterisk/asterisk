@@ -18,6 +18,9 @@
 
 /*! \file
  * \brief Calendaring API
+ * 
+ * \todo Support responding to a meeting invite
+ * \todo Support writing attendees
  */
 
 #include "asterisk.h"
