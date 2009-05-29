@@ -850,7 +850,7 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 			ast_copy_string(cdr->channel, c->name, sizeof(cdr->channel));
 			set_one_cid(cdr, c);
 
-			cdr->disposition = (c->_state == AST_STATE_UP) ?  AST_CDR_ANSWERED : AST_CDR_NULL;
+			cdr->disposition = (c->_state == AST_STATE_UP) ?  AST_CDR_ANSWERED : AST_CDR_NOANSWER;
 			cdr->amaflags = c->amaflags ? c->amaflags :  ast_default_amaflags;
 			ast_copy_string(cdr->accountcode, c->accountcode, sizeof(cdr->accountcode));
 			/* Destination information */
@@ -1037,6 +1037,14 @@ static void post_cdr(struct ast_cdr *cdr)
 			continue;
 		}
 
+		/* don't post CDRs that are for dialed channels unless those
+		 * channels were originated from asterisk (pbx_spool, manager,
+		 * cli) */
+		if (ast_test_flag(cdr, AST_CDR_FLAG_DIALED) && !ast_test_flag(cdr, AST_CDR_FLAG_ORIGINATED)) {
+			ast_set_flag(cdr, AST_CDR_FLAG_POST_DISABLED);
+			continue;
+		}
+
 		chan = S_OR(cdr->channel, "<unknown>");
 		check_post(cdr);
 		ast_set_flag(cdr, AST_CDR_FLAG_POSTED);
@@ -1088,7 +1096,7 @@ void ast_cdr_reset(struct ast_cdr *cdr, struct ast_flags *_flags)
 			cdr->billsec = 0;
 			cdr->duration = 0;
 			ast_cdr_start(cdr);
-			cdr->disposition = AST_CDR_NULL;
+			cdr->disposition = AST_CDR_NOANSWER;
 		}
 	}
 }

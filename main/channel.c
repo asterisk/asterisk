@@ -3971,6 +3971,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 	}
 
 	ast_set_callerid(chan, cid_num, cid_name, cid_num);
+	ast_set_flag(chan->cdr, AST_CDR_FLAG_ORIGINATED);
 	ast_party_connected_line_set_init(&connected, &chan->connected);
 	connected.id.number = (char *) cid_num;
 	connected.id.name = (char *) cid_name;
