@@ -3063,6 +3063,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 			ast_cdr_setaccount(chan, oh->account);	
 	}
 	ast_set_callerid(chan, cid_num, cid_name, cid_num);
+	ast_set_flag(chan->cdr, AST_CDR_FLAG_ORIGINATED);
 
 	if (ast_call(chan, data, 0)) {	/* ast_call failed... */
 		ast_log(LOG_NOTICE, "Unable to call channel %s/%s\n", type, (char *)data);

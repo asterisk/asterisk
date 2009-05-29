@@ -37,6 +37,7 @@
 #define AST_CDR_FLAG_ANSLOCKED      (1 << 8)
 #define AST_CDR_FLAG_DONT_TOUCH     (1 << 9)
 #define AST_CDR_FLAG_DIALED         (1 << 10)
+#define AST_CDR_FLAG_ORIGINATED		(1 << 11)
 
 /*! Disposition */
 #define AST_CDR_NULL                0
