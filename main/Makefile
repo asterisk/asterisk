@@ -17,19 +17,9 @@ all: asterisk
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
-OBJS= tcptls.o io.o sched.o logger.o frame.o loader.o config.o channel.o \
-	translate.o file.o pbx.o cli.o md5.o term.o heap.o \
-	ulaw.o alaw.o callerid.o fskmodem.o image.o app.o \
-	cdr.o tdd.o acl.o udptl.o manager.o asterisk.o \
-	dsp.o chanvars.o indications.o autoservice.o db.o privacy.o \
-	astmm.o astfd.o enum.o srv.o dns.o aescrypt.o aestab.o aeskey.o \
-	utils.o plc.o jitterbuf.o dnsmgr.o devicestate.o \
-	netsock.o slinfactory.o ast_expr2.o ast_expr2f.o \
-	cryptostub.o sha1.o http.o fixedjitterbuf.o abstract_jb.o \
-	strcompat.o threadstorage.o dial.o event.o adsistub.o audiohook.o \
-	astobj2.o hashtab.o global_datastores.o version.o \
-	features.o taskprocessor.o timing.o datastore.o xml.o xmldoc.o \
-	strings.o bridging.o poll.o rtp_engine.o stun.o autochan.o
+SRC=$(wildcard *.c)
+OBJSFILTER=fskmodem_int.o fskmodem_float.o cygload.o buildinfo.o
+OBJS=$(filter-out $(OBJSFILTER),$(SRC:.c=.o))
 
 # we need to link in the objects statically, not as a library, because
 # otherwise modules will not have them available if none of the static
