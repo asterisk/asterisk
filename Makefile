@@ -676,7 +676,7 @@ config:
 			$(INSTALL) -m 755 contrib/init.d/rc.suse.asterisk $(DESTDIR)/etc/init.d/asterisk; \
 			if [ -z "$(DESTDIR)" ]; then /sbin/chkconfig --add asterisk; fi; \
 		elif [ -f /etc/slackware-version ]; then \
-			echo "Slackware is not currently supported, although an init script does exist for it." \
+			echo "Slackware is not currently supported, although an init script does exist for it."; \
 		else \
 			echo "We could not install init scripts for your distribution."; \
 		fi \
