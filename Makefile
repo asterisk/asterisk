@@ -830,7 +830,7 @@ config:
 			cat contrib/init.d/rc.archlinux.asterisk | sed 's|__ASTERISK_ETC_DIR__|$(ASTETCDIR)|;s|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;s|__ASTERISK_VARRUN_DIR__|$(ASTVARRUNDIR)|;' > $(DESTDIR)/etc/rc.d/asterisk ;\
 			chmod 755 $(DESTDIR)/etc/rc.d/asterisk;\
 		elif [ -f /etc/slackware-version ]; then \
-			echo "Slackware is not currently supported, although an init script does exist for it." \
+			echo "Slackware is not currently supported, although an init script does exist for it."; \
 		else \
 			echo "We could not install init scripts for your distribution."; \
 		fi \
