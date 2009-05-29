@@ -40,6 +40,7 @@
 #define AST_CDR_FLAG_POST_ENABLE    (1 << 10)
 #define AST_CDR_FLAG_DIALED         (1 << 11)
 /*@} */
+#define AST_CDR_FLAG_ORIGINATED		(1 << 11)
 
 /*! \name CDR Flags - Disposition */
 /*@{ */
