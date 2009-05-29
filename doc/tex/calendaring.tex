@@ -1,0 +1,206 @@
+\section{Introduction}
+
+The Asterisk Calendaring API aims to be a generic interface for integrating
+Asterisk with various calendaring technologies. The goal is to be able to
+support reading and writing of calendar events as well as allowing notification
+of pending events through the Asterisk dialplan.
+
+There are three calendaring modules that ship with Asterisk that provide support
+for iCalendar, CalDAV, and Microsoft Exchange Server calendars. All three
+modules support event notification. Both CalDAV and Exchange support reading
+and writing calendars, while iCalendar is a read-only format.
+
+\section{Configuring Asterisk Calendaring}
+
+All asterisk calendaring modules are configured through calender.conf. Each
+calendar module can define its own set of required parameters in addition to the
+parameters available to all calendar types. An effort has been made to keep all
+options the same in all calendaring modules, but some options will diverge over
+time as features are added to each module.
+
+An example calendar.conf might look like:
+\begin{astlisting}
+\begin{verbatim}
+[calendar_joe]
+type = ical
+url = https://example.com/home/jdoe/Calendar
+user = jdoe
+secret = mysecret
+refresh = 15
+timeframe = 600
+autoreminder = 10
+channel = SIP/joe
+context = calendar_event_notify
+extension = s
+waittime = 30
+\end{verbatim}
+\end{astlisting}
+
+\subsection{Module-independent settings}
+
+The settings related to calendar event notification are handled by the core
+calendaring API. These settings are:
+\begin{description}
+\item[autoreminder] This allows the overriding of any alarms that may or may not
+be set for a calendar event. It is specified in minutes.
+\item[refresh] How often to refresh the calendar data; specified in minutes.
+\item[timeframe] How far into the future each calendar refresh should look. This
+is the amount of data that will be visible to queries from the dialplan. This
+setting should always be greater than or equal to the refresh setting or events
+may be missed. It is specified in minutes.
+\item[channel] The channel that should be used for making the notification
+attempt.
+\item[waittime] How long to wait, in seconds, for the channel to answer a notification
+attempt.
+\end{description}
+
+There are two ways to specify how to handle a notification. One option is
+providing a context and extension, while the other is providing an application
+and the arguments to that application. One (and only one) of these options
+should be provided.
+
+\begin{description}
+\item[context] The context of the extension to connect to the notification
+channel
+\item[extension] The extension to connect to the notification. Note that the
+priority will always be 1.
+\end{description}
+
+or
+
+\begin{description}
+\item[app] The dialplan application to execute upon the answer of a notification
+\item[appdata] The data to pass to the notification dialplan application
+\end{description}
+
+\subsection{Module-dependent settings}
+
+Connection-related options are specific to each module. Currently, all modules
+take a url, user, and secret for configuration and no other module-specific
+settings have been implemented. At this time, no support for HTTP redirects has
+been implemented, so it is important to specify the correct URL--paying attention
+to any trailing slashes that may be necessary.
+
+\section{Dialplan functions}
+\subsection{Read functions}
+
+The simplest dialplan query is the CALENDAR\_BUSY query. It takes a single
+option, the name of the calendar defined, and returns "1" for busy (including
+tentatively busy) and "0" for not busy.
+
+For more information about a calendar event, a combination of CALENDAR\_QUERY
+and CALENDAR\_QUERY\_RESULT is used.  CALENDAR\_QUERY takes the calendar name
+and optionally a start and end time in "unix time" (seconds from unix epoch). It
+returns an id that can be passed to CALENDAR\_QUERY\_RESULT along with a field
+name to return the data in that field. If multiple events are returned in the
+query, the number of the event in the list can be specified as well. The available
+fields to return are:
+\begin{description}
+\item[summary] A short summary of the event
+\item[description] The full description of the event
+\item[organizer] Who organized the event
+\item[location] Where the event is located
+\item[calendar] The name of the calendar from calendar.conf
+\item[uid] The unique identifier associated with the event
+\item[start] The start of the event in seconds since Unix epoch
+\item[end] The end of the event in seconds since Unix epoch
+\item[busystate] The busy state 0=Free, 1=Tentative, 2=Busy
+\item[attendees] A comma separated list of attendees as stored in the event and
+may include prefixes such as "mailto:".
+\end{description}
+
+When an event notification is sent to the dial plan, the CALENDAR\_EVENT
+function may be used to return the information about the event that is causing
+the notification. The fields that can be returned are the same as those from
+CALENDAR\_QUERY\_RESULT.
+\subsection{Write functions}
+
+To write an event to a calendar, the CALENDAR\_WRITE function is used. This
+function takes a calendar name and also uses the same fields as
+CALENDAR\_QUERY\_RESULT. As a write function, it takes a set of comma-separated
+values that are in the same order as the specified fields. For example:
+\begin{astlisting}
+\begin{verbatim}
+CALENDAR_WRITE(mycalendar,summary,organizer,start,end,busystate)=
+  "My event","mailto:jdoe@example.com",228383580,228383640,1)
+\end{verbatim}
+\end{astlisting}
+
+\section{Dialplan Examples}
+\subsection{Office hours}
+A common business PBX scenario is would be executing dialplan logic based on
+when the business is open and the phones staffed. If the business is closed for
+holidays, it is sometimes desirable to play a message to the caller stating why
+the business is closed.
+
+The standard way to do this in asterisk has been doing a series of GotoIfTime
+statements or time-based include statements. Either way can be tedious and
+requires someone with access to edit asterisk config files.
+
+With calendaring, the adminstrator only needs to set up a calendar that contains
+the various holidays or even recurring events specifying the office hours. A
+custom greeting filename could even be contained in the description field for
+playback. For example:
+\begin{astlisting}
+\begin{verbatim}
+[incoming]
+exten => 5555551212,1,Answer
+exten => 5555551212,n,GotoIf(${CALENDAR_BUSY(officehours)}?closed:attendant,s,1)
+exten => 5555551212,n(closed),Set(id=${CALENDAR_QUERY(office,${EPOCH},${EPOCH})})
+exten => 5555551212,n,Set(soundfile=${CALENDAR_QUERY_RESULT(${id},description)})
+exten => 5555551212,n,Playback($[${ISNULL(soundfile)} ? generic-closed :: ${soundfile}])
+exten => 5555551212,n,Hangup
+\end{verbatim}
+\end{astlisting}
+
+\subsection{Meeting reminders}
+One useful application of Asterisk Calendaring is the ability to execute
+dialplan logic based on an event notification. Most calendaring technologies
+allow a user to set an alarm for an event. If these alarms are set on a calendar
+that Asterisk is monitoring and the calendar is set up for event notification
+via calendar.conf, then Asterisk will execute notify the specified channel at
+the time of the alarm. If an overrided notification time is set with the
+autoreminder setting, then the notification would happen at that time instead.
+
+The following example demonstrates the set up for a simple event notification
+that plays back a generic message followed by the time of the upcoming meeting.
+calendar.conf.
+\begin{astlisting}
+\begin{verbatim}
+[calendar_joe]
+type = ical
+url = https://example.com/home/jdoe/Calendar
+user = jdoe
+secret = mysecret
+refresh = 15
+timeframe = 600
+autoreminder = 10
+channel = SIP/joe
+context = calendar_event_notify
+extension = s
+waittime = 30
+\end{verbatim}
+\end{astlisting}
+
+\begin{astlisting}
+\begin{verbatim}
+[calendar_event_notify]
+exten => s,1,Answer
+exten => s,n,Playback(you-have-a-meeting-at)
+exten => s,n,SayUnixTime(${CALENDAR_EVENT(start)})
+exten => s,n,Hangup
+\end{verbatim}
+\end{astlisting}
+
+\subsection{Writing an event}
+Both CalDAV and Exchange calendar servers support creating new events. The
+following example demonstrates writing a log of a call to a calendar.
+\begin{astlisting}
+\begin{verbatim}
+[incoming]
+exten => 6000,1,Set(start=${EPOCH})
+exten => 6000,n,Dial(SIP/joe)
+exten => h,1,Set(end=${EPOCH})
+exten => h,n,Set(CALENDAR_WRITE(calendar_joe,summary,start,end)=Call from ${CALLERID(all)},${start},${end})
+\end{verbatim}
+\end{astlisting}
