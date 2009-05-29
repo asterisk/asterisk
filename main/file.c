@@ -322,6 +322,9 @@ static void filestream_destructor(void *arg)
 		fclose(f->f);
 	if (f->vfs)
 		ast_closestream(f->vfs);
+	if (f->write_buffer) {
+		ast_free(f->write_buffer);
+	}
 	if (f->orig_chan_name)
 		free((void *) f->orig_chan_name);
 	ast_module_unref(f->fmt->module);
