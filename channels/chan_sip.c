@@ -7404,18 +7404,28 @@ static unsigned int parse_allowed_methods(struct sip_request *req)
 	unsigned int allowed_methods = SIP_UNKNOWN;
 
 	if (ast_strlen_zero(allow)) {
-		/* RFC 3261 states:
-		 *
-		 * "The absence of an Allow header field MUST NOT be
-		 * interpreted to mean that the UA sending the message supports no
-		 * methods.   Rather, it implies that the UA is not providing any
-		 * information on what methods it supports."
-		 *
-		 * For simplicity, we'll assume that the peer allows all known
-		 * SIP methods if they have no Allow header. We can then clear out the necessary
-		 * bits if the peer lets us know that we have sent an unsupported method.
+		/* I have witnessed that REGISTER requests from Polycom phones do not
+		 * place the phone's allowed methods in an Allow header. Instead, they place the
+		 * allowed methods in a methods= parameter in the Contact header.
 		 */
-		return UINT_MAX;
+		char *contact = ast_strdupa(get_header(req, "Contact"));
+		char *methods = strstr(contact, ";methods=");
+
+		if (ast_strlen_zero(methods)) {
+			/* RFC 3261 states:
+			 *
+			 * "The absence of an Allow header field MUST NOT be
+			 * interpreted to mean that the UA sending the message supports no
+			 * methods.   Rather, it implies that the UA is not providing any
+			 * information on what methods it supports."
+			 *
+			 * For simplicity, we'll assume that the peer allows all known
+			 * SIP methods if they have no Allow header. We can then clear out the necessary
+			 * bits if the peer lets us know that we have sent an unsupported method.
+			 */
+			return UINT_MAX;
+		}
+		allow = ast_strip_quoted(methods + 9, "\"", "\"");
 	}
 	for (method = strsep(&allow, ","); !ast_strlen_zero(method); method = strsep(&allow, ",")) {
 		int id = find_sip_method(ast_skip_blanks(method));
@@ -11020,6 +11030,7 @@ static void update_connectedline(struct sip_pvt *p, const void *data, size_t dat
 			initialize_initreq(p, &req);
 			p->lastinvite = p->ocseq;
 			ast_set_flag(&p->flags[0], SIP_OUTGOING);
+			p->invitestate = INV_CALLING;
 			send_request(p, &req, XMIT_CRITICAL, p->ocseq);
 		} else if (is_method_allowed(&p->allowed_methods, SIP_UPDATE)) {
 			reqprep(&req, p, SIP_UPDATE, 0, 1);
@@ -11614,6 +11625,7 @@ static void destroy_association(struct sip_peer *peer)
 			ast_update_realtime(tablename, "name", peer->name, "fullcontact", "", "ipaddr", "", "port", "", "regseconds", "0", peer->deprecated_username ? "username" : "defaultuser", "", "regserver", "", "useragent", "", "lastms", "", SENTINEL);
 		} else {
 			ast_db_del("SIP/Registry", peer->name);
+			ast_db_del("SIP/PeerMethods", peer->name);
 		}
 	}
 }
@@ -11691,11 +11703,13 @@ static void reg_source_db(struct sip_peer *peer)
 	int expire;
 	int port;
 	char *scan, *addr, *port_str, *expiry_str, *username, *contact;
+	char allowed_methods_str[256] = "";
 
 	if (peer->rt_fromcontact) 
 		return;
 	if (ast_db_get("SIP/Registry", peer->name, data, sizeof(data)))
 		return;
+	ast_db_get("SIP/PeerMethods", peer->name, allowed_methods_str, sizeof(allowed_methods_str));
 
 	scan = data;
 	addr = strsep(&scan, ":");
@@ -11721,6 +11735,10 @@ static void reg_source_db(struct sip_peer *peer)
 		ast_string_field_set(peer, username, username);
 	if (contact)
 		ast_string_field_set(peer, fullcontact, contact);
+
+	if (!ast_strlen_zero(allowed_methods_str)) {
+		peer->allowed_methods = atoi(allowed_methods_str);
+	}
 
 	ast_debug(2, "SIP Seeding peer from astdb: '%s' at %s@%s:%d for %d\n",
 	    peer->name, peer->username, ast_inet_ntoa(in), port, expire);
@@ -12755,6 +12773,11 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 		ao2_lock(peer);
 		if (peer->allowed_methods == SIP_UNKNOWN) {
 			peer->allowed_methods = set_pvt_allowed_methods(p, req);
+		}
+		if (!peer->rt_fromcontact) {
+			char allowed_methods_str[256];
+			snprintf(allowed_methods_str, sizeof(allowed_methods_str), "%u", peer->allowed_methods);
+			ast_db_put("SIP/PeerMethods", peer->name, allowed_methods_str);
 		}
 		ao2_unlock(peer);
 		unref_peer(peer, "register_verify: unref_peer: tossing stack peer pointer at end of func");
