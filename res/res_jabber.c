@@ -723,8 +723,8 @@ static int aji_io_recv(struct aji_client *client, char *buffer, size_t buf_len, 
 static int aji_recv (struct aji_client *client, int timeout)
 {
 	int len, ret;
-	char buf[NET_IO_BUF_SIZE -1];
-	char newbuf[NET_IO_BUF_SIZE -1];
+	char buf[NET_IO_BUF_SIZE - 1];
+	char newbuf[NET_IO_BUF_SIZE - 1];
 	int pos = 0;
 	int newbufpos = 0;
 	unsigned char c;
@@ -733,7 +733,7 @@ static int aji_recv (struct aji_client *client, int timeout)
 	memset(newbuf, 0, sizeof(newbuf));
 
 	while (1) {
-		len = aji_io_recv(client, buf, NET_IO_BUF_SIZE - 1, timeout);
+		len = aji_io_recv(client, buf, NET_IO_BUF_SIZE - 2, timeout);
 		if (len < 0) return IKS_NET_RWERR;
 		if (len == 0) return IKS_NET_EXPIRED;
 		buf[len] = '\0';
@@ -766,8 +766,18 @@ static int aji_recv (struct aji_client *client, int timeout)
 		ret = iks_parse(client->p, newbuf, 0, 0);
 		memset(newbuf, 0, sizeof(newbuf));
 
+		switch (ret) {
+		case IKS_NOMEM:
+			ast_log(LOG_WARNING, "Parsing failure: Out of memory.\n");
+			break;
+		case IKS_BADXML:
+			ast_log(LOG_WARNING, "Parsing failure: Invalid XML.\n");
+			break;
+		case IKS_HOOK:
+			ast_log(LOG_WARNING, "Parsing failure: Hook returned an error.\n");
+			break;
+		}
 		if (ret != IKS_OK) {
-			ast_log(LOG_WARNING, "XML parsing failed\n");
 			return ret;
 		}
 		ast_debug(3, "XML parsing successful\n");	
