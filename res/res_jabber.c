@@ -2978,17 +2978,17 @@ static int manager_jabber_send(struct mansession *s, const struct message *m)
 	if (!client) {
 		astman_send_error(s, m, "Could not find Sender");
 		return 0;
-	}	
-	if (strchr(screenname, '@') && message){
-		ast_aji_send_chat(client, screenname, message);	
-		astman_append(s, "Response: Success\r\n");
-		if (!ast_strlen_zero(id))
-			astman_append(s, "ActionID: %s\r\n",id);
-		return 0;
 	}
-	astman_append(s, "Response: Error\r\n");
-	if (!ast_strlen_zero(id))
+	if (strchr(screenname, '@') && message) {
+		ast_aji_send_chat(client, screenname, message);
+		astman_append(s, "Response: Success\r\n");
+	} else {
+		astman_append(s, "Response: Error\r\n");
+	}
+	if (!ast_strlen_zero(id)) {
 		astman_append(s, "ActionID: %s\r\n",id);
+	}
+	astman_append(s, "\r\n");
 	return 0;
 }
 
