@@ -2423,16 +2423,16 @@ static int manager_jabber_send(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Could not find Sender");
 		return 0;
 	}	
-	if (strchr(screenname, '@') && message){
-		ast_aji_send(client, screenname, message);	
-		if (!ast_strlen_zero(id))
-			astman_append(s, "ActionID: %s\r\n",id);
+	if (strchr(screenname, '@') && message) {
+		ast_aji_send(client, screenname, message);
 		astman_append(s, "Response: Success\r\n");
-		return 0;
+	} else {
+		astman_append(s, "Response: Failure\r\n");
 	}
-	if (!ast_strlen_zero(id))
-		astman_append(s, "ActionID: %s\r\n",id);
-	astman_append(s, "Response: Failure\r\n");
+	if (!ast_strlen_zero(id)) {
+		astman_append(s, "ActionID: %s\r\n", id);
+	}
+	astman_append(s, "\r\n");
 	return 0;
 }
 
