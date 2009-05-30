@@ -306,8 +306,10 @@ static inline void unref_msg(void *msg, enum smdi_message_type type)
 	switch (type) {
 	case SMDI_MWI:
 		ASTOBJ_UNREF(mwi_msg, ast_smdi_mwi_message_destroy);
+		break;
 	case SMDI_MD:
 		ASTOBJ_UNREF(md_msg, ast_smdi_md_message_destroy);
+		break;
 	}
 }
 
