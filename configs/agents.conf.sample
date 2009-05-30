@@ -3,13 +3,6 @@
 ;
 
 [general]
-;
-; Define whether callbacklogins should be stored in astdb for
-; persistence. Persistent logins will be reloaded after
-; Asterisk restarts.
-;
-persistentagents=yes
-
 ; Enable or disable a single extension from logging in as multiple agents.
 ; The default value is "yes".
 ;multiplelogin=yes
@@ -37,11 +30,10 @@ persistentagents=yes
 ;autologoffunavail=yes
 ;
 ; Define ackcall to require a DTMF acknowledgement when
-; an agent logs in using agentcallbacklogin.  Default is "no".
-; Can also be set to "always", which will also require AgentLogin
-; agents to acknowledge calls. Use the acceptdtmf option to
-; configure what DTMF key press should be used to acknowledge the
-; call. The default is '#'.
+; an agent logs in using AgentLogin.  Default is "no".
+; Use the acceptdtmf option to configure what DTMF key
+; press should be used to acknowledge the call. The
+; default is '#'.
 ;
 ;ackcall=no
 ;acceptdtmf=#
