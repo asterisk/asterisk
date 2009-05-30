@@ -498,6 +498,9 @@ static void do_forward(struct chanlist *o,
 		tech = tmpchan;
 	} else {
 		const char *forward_context = pbx_builtin_getvar_helper(c, "FORWARD_CONTEXT");
+		if (ast_strlen_zero(forward_context)) {
+			forward_context = NULL;
+		}
 		snprintf(tmpchan, sizeof(tmpchan), "%s@%s", c->call_forward, forward_context ? forward_context : c->context);
 		stuff = tmpchan;
 		tech = "Local";
