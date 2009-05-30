@@ -3079,6 +3079,9 @@ static void *dialog_unlink_all(struct sip_pvt *dialog, int lockowner, int lockdi
 		dialog->packets = dialog->packets->next;
 		AST_SCHED_DEL(sched, cp->retransid);
 		dialog_unref(cp->owner, "remove all current packets in this dialog, and the pointer to the dialog too as part of __sip_destroy");
+		if (cp->data) {
+			ast_free(cp->data);
+		}
 		ast_free(cp);
 	}
 
