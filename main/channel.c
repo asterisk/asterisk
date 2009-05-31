@@ -1017,7 +1017,7 @@ struct ast_channel *__ast_channel_alloc(int needqueue, int state, const char *ci
 }
 
 /*! \brief Queue an outgoing media frame */
-static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, int head)
+static int __ast_queue_frame(struct ast_channel *chan, const struct ast_frame *fin, int head)
 {
 	struct ast_frame *f;
 	struct ast_frame *cur;
@@ -1078,12 +1078,12 @@ static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, in
 	return 0;
 }
 
-int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin)
+int ast_queue_frame(struct ast_channel *chan, const struct ast_frame *fin)
 {
 	return __ast_queue_frame(chan, fin, 0);
 }
 
-int ast_queue_frame_head(struct ast_channel *chan, struct ast_frame *fin)
+int ast_queue_frame_head(struct ast_channel *chan, const struct ast_frame *fin)
 {
 	return __ast_queue_frame(chan, fin, 1);
 }

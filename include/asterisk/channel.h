@@ -929,7 +929,7 @@ struct ast_channel * attribute_malloc __attribute__((format(printf, 12, 13)))
  *
  * \note The channel does not need to be locked before calling this function.
  */
-int ast_queue_frame(struct ast_channel *chan, struct ast_frame *f);
+int ast_queue_frame(struct ast_channel *chan, const struct ast_frame *f);
 
 /*!
  * \brief Queue an outgoing frame to the head of the frame queue
@@ -943,7 +943,7 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *f);
  * \retval 0 success
  * \retval non-zero failure
  */
-int ast_queue_frame_head(struct ast_channel *chan, struct ast_frame *f);
+int ast_queue_frame_head(struct ast_channel *chan, const struct ast_frame *f);
 
 /*!
  * \brief Queue a hangup frame
