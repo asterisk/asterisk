@@ -192,7 +192,11 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	return ast_unregister_timing_interface(timing_funcs_handle);
+	if (timing_funcs_handle) {
+		return ast_unregister_timing_interface(timing_funcs_handle);
+	}
+
+	return 0;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "DAHDI Timing Interface");
