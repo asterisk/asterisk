@@ -756,8 +756,8 @@ static int manager_debug;	/*!< enable some debugging code in the manager */
  * Digest Authentication http header).
  */
 #define MAX_BLACKLIST_CMD_LEN 2
-static struct {
-	char *words[AST_MAX_CMD_LEN];
+static const struct {
+	const char *words[AST_MAX_CMD_LEN];
 } command_blacklist[] = {
 	{{ "module", "load", NULL }},
 	{{ "module", "unload", NULL }},
@@ -880,7 +880,6 @@ void ast_manager_register_hook(struct manager_custom_hook *hook)
 	AST_RWLIST_WRLOCK(&manager_hooks);
 	AST_RWLIST_INSERT_TAIL(&manager_hooks, hook, list);
 	AST_RWLIST_UNLOCK(&manager_hooks);
-	return;
 }
 
 /*! \brief Delete a custom hook to be called when an event is fired */
@@ -889,51 +888,7 @@ void ast_manager_unregister_hook(struct manager_custom_hook *hook)
 	AST_RWLIST_WRLOCK(&manager_hooks);
 	AST_RWLIST_REMOVE(&manager_hooks, hook, list);
 	AST_RWLIST_UNLOCK(&manager_hooks);
-	return;
 }
-
-/*! \brief
- * Event list management functions.
- * We assume that the event list always has at least one element,
- * and the delete code will not remove the last entry even if the
- *
- */
-#if 0
-static time_t __deb(time_t start, const char *msg)
-{
-	time_t now = time(NULL);
-	ast_verbose("%4d th %p %s\n", (int)(now % 3600), pthread_self(), msg);
-	if (start != 0 && now - start > 5)
-		ast_verbose("+++ WOW, %s took %d seconds\n", msg, (int)(now - start));
-	return now;
-}
-
-static void LOCK_EVENTS(void)
-{
-	time_t start = __deb(0, "about to lock events");
-	AST_LIST_LOCK(&all_events);
-	__deb(start, "done lock events");
-}
-
-static void UNLOCK_EVENTS(void)
-{
-	__deb(0, "about to unlock events");
-	AST_LIST_UNLOCK(&all_events);
-}
-
-static void LOCK_SESS(void)
-{
-	time_t start = __deb(0, "about to lock sessions");
-	AST_LIST_LOCK(&sessions);
-	__deb(start, "done lock sessions");
-}
-
-static void UNLOCK_SESS(void)
-{
-	__deb(0, "about to unlock sessions");
-	AST_LIST_UNLOCK(&sessions);
-}
-#endif
 
 int check_manager_enabled()
 {
@@ -986,9 +941,9 @@ static void purge_events(void)
  * helper functions to convert back and forth between
  * string and numeric representation of set of flags
  */
-static struct permalias {
+static const struct permalias {
 	int num;
-	char *label;
+	const char *label;
 } perms[] = {
 	{ EVENT_FLAG_SYSTEM, "system" },
 	{ EVENT_FLAG_CALL, "call" },
@@ -1009,7 +964,7 @@ static struct permalias {
 };
 
 /*! \brief Convert authority code to a list of options */
-static char *authority_to_str(int authority, struct ast_str **res)
+static const char *authority_to_str(int authority, struct ast_str **res)
 {
 	int i;
 	char *sep = "";
