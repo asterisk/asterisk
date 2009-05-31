@@ -18,7 +18,7 @@ all: asterisk
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
 SRC=$(wildcard *.c)
-OBJSFILTER=fskmodem_int.o fskmodem_float.o cygload.o buildinfo.o
+OBJSFILTER=fskmodem_int.o fskmodem_float.o cygload.o buildinfo.o say.o
 OBJS=$(filter-out $(OBJSFILTER),$(SRC:.c=.o))
 
 # we need to link in the objects statically, not as a library, because
