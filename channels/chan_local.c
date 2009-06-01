@@ -438,6 +438,8 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 			if (!(res = local_queue_frame(p, isoutbound, &f, ast, 1))) {
 				ast_mutex_unlock(&p->lock);
 			}
+		} else {
+			ast_mutex_unlock(&p->lock);
 		}
 	} else {
 		/* Queue up a frame representing the indication as a control frame */
