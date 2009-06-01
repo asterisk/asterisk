@@ -156,9 +156,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name="mohclass">
 						<para>MusicOnHold class</para>
 					</enum>
-					<enum name="exten">
-						<para>The callback extension for the Agent (AgentCallbackLogin)</para>
-					</enum>
 					<enum name="channel">
 						<para>The name of the active channel for the Agent (AgentLogin)</para>
 					</enum>
