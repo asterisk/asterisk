@@ -434,7 +434,6 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 			}
 			f.subclass = condition;
 			f.data.ptr = frame_data;
-			ast_mutex_lock(&p->lock);
 			if (!(res = local_queue_frame(p, isoutbound, &f, ast, 1))) {
 				ast_mutex_unlock(&p->lock);
 			}
