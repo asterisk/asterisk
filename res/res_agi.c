@@ -790,6 +790,107 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			speech and dtmf.</para>
 		</description>
 	</agi>
+	<application name="AGI" language="en_US">
+		<synopsis>
+			Executes an AGI compliant application.
+		</synopsis>
+		<syntax>
+			<parameter name="command" required="true" />
+			<parameter name="args">
+				<argument name="arg1" required="true" />
+				<argument name="arg2" multiple="yes" />
+			</parameter>
+		</syntax>
+		<description>
+			<para>Executes an Asterisk Gateway Interface compliant
+			program on a channel. AGI allows Asterisk to launch external programs written
+			in any language to control a telephony channel, play audio, read DTMF digits,
+			etc. by communicating with the AGI protocol on <emphasis>stdin</emphasis> and
+			<emphasis>stdout</emphasis>. As of <literal>1.6.0</literal>, this channel will
+			not stop dialplan execution on hangup inside of this application. Dialplan
+			execution will continue normally, even upon hangup until the AGI application
+			signals a desire to stop (either by exiting or, in the case of a net script, by
+			closing the connection). A locally executed AGI script will receive SIGHUP on
+			hangup from the channel except when using DeadAGI. A fast AGI server will
+			correspondingly receive a HANGUP in OOB data. Both of these signals may be disabled
+			by setting the <variable>AGISIGHUP</variable> channel variable to <literal>no</literal>
+			before executing the AGI application.</para>
+			<para>Use the CLI command <literal>agi show commnands</literal> to list available agi
+			commands.</para>
+			<para>This application sets the following channel variable upon completion:</para>
+			<variablelist>
+				<variable name="AGISTATUS">
+					<para>The status of the attempt to the run the AGI script
+					text string, one of:</para>
+					<value name="SUCCESS" />
+					<value name="FAILURE" />
+					<value name="NOTFOUND" />
+					<value name="HANGUP" />
+				</variable>
+			</variablelist>
+		</description>
+		<see-also>
+			<ref type="application">EAGI</ref>
+			<ref type="application">DeadAGI</ref>
+		</see-also>
+	</application>
+	<application name="EAGI" language="en_US">
+		<synopsis>
+			Executes an EAGI compliant application.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/application[@name='AGI']/syntax/parameter[@name='command'])" />
+			<xi:include xpointer="xpointer(/docs/application[@name='AGI']/syntax/parameter[@name='args'])" />
+		</syntax>
+		<description>
+			<para>Using 'EAGI' provides enhanced AGI, with incoming audio available out of band
+			on file descriptor 3.</para>
+			<xi:include xpointer="xpointer(/docs/application[@name='AGI']/description/para)" />
+			<xi:include xpointer="xpointer(/docs/application[@name='AGI']/description/variablelist)" />
+		</description>
+		<see-also>
+			<ref type="application">AGI</ref>
+			<ref type="application">DeadAGI</ref>
+		</see-also>
+	</application>
+	<application name="DeadAGI" language="en_US">
+		<synopsis>
+			Executes AGI on a hungup channel.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/application[@name='AGI']/syntax/parameter[@name='command'])" />
+			<xi:include xpointer="xpointer(/docs/application[@name='AGI']/syntax/parameter[@name='args'])" />
+		</syntax>
+		<description>
+			<xi:include xpointer="xpointer(/docs/application[@name='AGI']/description/para)" />
+			<xi:include xpointer="xpointer(/docs/application[@name='AGI']/description/variablelist)" />
+		</description>
+		<see-also>
+			<ref type="application">AGI</ref>
+			<ref type="application">EAGI</ref>
+		</see-also>
+	</application>
+	<manager name="AGI" language="en_US">
+		<synopsis>
+			Add an AGI command to execute by Async AGI.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Channel that is currently in Async AGI.</para>
+			</parameter>
+			<parameter name="Command" required="true">
+				<para>Application to execute.</para>
+			</parameter>
+			<parameter name="CommandID">
+				<para>This will be sent back in CommandID header of AsyncAGI exec
+				event notification.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Add an AGI command to the execute queue of the channel in Async AGI.</para>
+		</description>
+	</manager>
  ***/
 
 #define MAX_ARGS 128
@@ -802,30 +903,6 @@ static char *app = "AGI";
 static char *eapp = "EAGI";
 
 static char *deadapp = "DeadAGI";
-
-static char *synopsis = "Executes an AGI compliant application";
-static char *esynopsis = "Executes an EAGI compliant application";
-static char *deadsynopsis = "Executes AGI on a hungup channel";
-
-static char *descrip =
-"  [E|Dead]AGI(command,args): Executes an Asterisk Gateway Interface compliant\n"
-"program on a channel. AGI allows Asterisk to launch external programs written\n"
-"in any language to control a telephony channel, play audio, read DTMF digits,\n"
-"etc. by communicating with the AGI protocol on stdin and stdout.\n"
-"  As of 1.6.0, this channel will not stop dialplan execution on hangup inside\n"
-"of this application. Dialplan execution will continue normally, even upon\n"
-"hangup until the AGI application signals a desire to stop (either by exiting\n"
-"or, in the case of a net script, by closing the connection).\n"
-"  A locally executed AGI script will receive SIGHUP on hangup from the channel\n"
-"except when using DeadAGI. A fast AGI server will correspondingly receive a\n"
-"HANGUP in OOB data. Both of these signals may be disabled by setting the\n"
-"AGISIGHUP channel variable to \"no\" before executing the AGI application.\n"
-"  Using 'EAGI' provides enhanced AGI, with incoming audio available out of band\n"
-"on file descriptor 3.\n\n"
-"  Use the CLI command 'agi show commnands' to list available agi commands.\n"
-"  This application sets the following channel variable upon completion:\n"
-"     AGISTATUS      The status of the attempt to the run the AGI script\n"
-"                    text string, one of SUCCESS | FAILURE | NOTFOUND | HANGUP\n";
 
 static int agidebug = 0;
 
@@ -912,14 +989,6 @@ static const struct ast_datastore_info agi_commands_datastore_info = {
 	.type = "AsyncAGI",
 	.destroy = agi_destroy_commands_cb
 };
-
-static const char mandescr_asyncagi[] =
-"Description: Add an AGI command to the execute queue of the channel in Async AGI\n"
-"Variables:\n"
-"  *Channel: Channel that is currently in Async AGI\n"
-"  *Command: Application to execute\n"
-"   CommandID: comand id. This will be sent back in CommandID header of AsyncAGI exec event notification\n"
-"\n";
 
 static struct agi_cmd *get_agi_cmd(struct ast_channel *chan)
 {
@@ -3635,10 +3704,10 @@ static int load_module(void)
 	   no other commands have been registered yet
 	*/
 	(void) ast_agi_register_multiple(ast_module_info->self, commands, ARRAY_LEN(commands));
-	ast_register_application(deadapp, deadagi_exec, deadsynopsis, descrip);
-	ast_register_application(eapp, eagi_exec, esynopsis, descrip);
-	ast_manager_register2("AGI", EVENT_FLAG_AGI, action_add_agi_cmd, "Add an AGI command to execute by Async AGI", mandescr_asyncagi);
-	return ast_register_application(app, agi_exec, synopsis, descrip);
+	ast_register_application_xml(deadapp, deadagi_exec);
+	ast_register_application_xml(eapp, eagi_exec);
+	ast_manager_register_xml("AGI", EVENT_FLAG_AGI, action_add_agi_cmd);
+	return ast_register_application_xml(app, agi_exec);
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Asterisk Gateway Interface (AGI)",
