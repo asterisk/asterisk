@@ -18,17 +18,13 @@ all: asterisk
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
 SRC=$(wildcard *.c)
-OBJSFILTER=fskmodem_int.o fskmodem_float.o cygload.o buildinfo.o say.o
+OBJSFILTER=fskmodem_int.o fskmodem_float.o cygload.o buildinfo.o
 OBJS=$(filter-out $(OBJSFILTER),$(SRC:.c=.o))
 
 # we need to link in the objects statically, not as a library, because
 # otherwise modules will not have them available if none of the static
 # objects use it.
 OBJS+=stdtime/localtime.o
-
-# At the moment say.o is an optional component which can be overridden
-# by a module.
-OBJS+=say.o
 
 AST_LIBS += $(OPENSSL_LIB)
 AST_LIBS += $(BKTR_LIB)
