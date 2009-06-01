@@ -322,8 +322,8 @@ enum ast_control_frame_type {
 	AST_CONTROL_T38 = 19,		/*!< T38 state change request/notification */
 	AST_CONTROL_SRCUPDATE = 20,     /*!< Indicate source of media has changed */
 	AST_CONTROL_TRANSFER = 21,      /*!< Indicate status of a transfer request */
-	AST_CONTROL_CONNECTED_LINE = 22,  /*!< Indicate connected line has changed */
-	AST_CONTROL_REDIRECTING = 23	/*!< Indicate redirecting id has changed */
+	AST_CONTROL_CONNECTED_LINE = 22,/*!< Indicate connected line has changed */
+	AST_CONTROL_REDIRECTING = 23    /*!< Indicate redirecting id has changed */
 };
 
 enum ast_control_t38 {
