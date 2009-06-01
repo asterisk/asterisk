@@ -2735,7 +2735,6 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		strcpy(tmp->chan->cdr->accountcode, qe->chan->cdr->accountcode);
 		strcpy(tmp->chan->cdr->userfield, qe->chan->cdr->userfield);
 	}
-	ast_channel_unlock(qe->chan);
 
 	/* Place the call, but don't wait on the answer */
 	if ((res = ast_call(tmp->chan, location, 0))) {
