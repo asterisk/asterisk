@@ -937,7 +937,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					ast_verb(3, "%s answered %s\n", c->name, in->name);
 					if (!single && !ast_test_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE)) {
 						if (o->connected.id.number) {
-							ast_channel_update_connected_line(in, &o->connected);
+							if (ast_channel_connected_line_macro(c, in, &o->connected, 1, 0)) {
+								ast_channel_update_connected_line(in, &o->connected);
+							}
 						} else if (!ast_test_flag64(o, DIAL_NOCONNECTEDLINE)) {
 							ast_channel_lock(c);
 							ast_connected_line_copy_from_caller(&connected_caller, &c->cid);
@@ -987,7 +989,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						ast_verb(3, "%s answered %s\n", c->name, in->name);
 						if (!single && !ast_test_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE)) {
 							if (o->connected.id.number) {
-								ast_channel_update_connected_line(in, &o->connected);
+								if (ast_channel_connected_line_macro(c, in, &o->connected, 1, 0)) {
+									ast_channel_update_connected_line(in, &o->connected);
+								}
 							} else if (!ast_test_flag64(o, DIAL_NOCONNECTEDLINE)) {
 								ast_channel_lock(c);
 								ast_connected_line_copy_from_caller(&connected_caller, &c->cid);
@@ -1076,8 +1080,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						ast_party_connected_line_set(&o->connected, &connected);
 						ast_party_connected_line_free(&connected);
 					} else {
-						ast_verb(3, "%s connected line has changed, passing it to %s\n", c->name, in->name);
-						ast_indicate_data(in, AST_CONTROL_CONNECTED_LINE, f->data.ptr, f->datalen);
+						if (ast_channel_connected_line_macro(c, in, f, 1, 1)) {
+							ast_indicate_data(in, AST_CONTROL_CONNECTED_LINE, f->data.ptr, f->datalen);
+						}
 					}
 					break;
 				case AST_CONTROL_REDIRECTING:
@@ -1198,15 +1203,19 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				if (ast_write(outgoing->chan, f))
 					ast_log(LOG_WARNING, "Unable to forward voice or dtmf\n");
 			}
-			if (single && (f->frametype == AST_FRAME_CONTROL) &&
-				((f->subclass == AST_CONTROL_HOLD) ||
-				(f->subclass == AST_CONTROL_UNHOLD) ||
-				(f->subclass == AST_CONTROL_VIDUPDATE) ||
-				(f->subclass == AST_CONTROL_SRCUPDATE) ||
-				(f->subclass == AST_CONTROL_CONNECTED_LINE) ||
-				(f->subclass == AST_CONTROL_REDIRECTING))) {
-				ast_verb(3, "%s requested special control %d, passing it to %s\n", in->name, f->subclass, outgoing->chan->name);
-				ast_indicate_data(outgoing->chan, f->subclass, f->data.ptr, f->datalen);
+			if (single && (f->frametype == AST_FRAME_CONTROL)) { 
+				if ((f->subclass == AST_CONTROL_HOLD) ||
+				    (f->subclass == AST_CONTROL_UNHOLD) ||
+				    (f->subclass == AST_CONTROL_VIDUPDATE) ||
+				    (f->subclass == AST_CONTROL_SRCUPDATE) ||
+				    (f->subclass == AST_CONTROL_REDIRECTING)) {
+					ast_verb(3, "%s requested special control %d, passing it to %s\n", in->name, f->subclass, outgoing->chan->name);
+					ast_indicate_data(outgoing->chan, f->subclass, f->data.ptr, f->datalen);
+				} else if (f->subclass == AST_CONTROL_CONNECTED_LINE) {
+					if (ast_channel_connected_line_macro(in, outgoing->chan, f, 0, 1)) {
+						ast_indicate_data(outgoing->chan, f->subclass, f->data.ptr, f->datalen);
+					}
+				}
 			}
 			ast_frfree(f);
 		}

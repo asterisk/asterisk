@@ -203,6 +203,28 @@ int ast_app_getdata_full(struct ast_channel *c, const char *prompt, char *s, int
 	return res;
 }
 
+int ast_app_run_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const char * const macro_name, const char * const macro_args)
+{
+	struct ast_app *macro_app;
+	int res;
+	char buf[1024];
+
+	macro_app = pbx_findapp("Macro");
+	if (!macro_app) {
+		ast_log(LOG_WARNING, "Cannot run macro '%s' because the 'Macro' application in not available\n", macro_name);
+		return -1;
+	}
+	snprintf(buf, sizeof(buf), "%s%s%s", macro_name, ast_strlen_zero(macro_args) ? "" : ",", S_OR(macro_args, ""));
+	if (autoservice_chan) {
+		ast_autoservice_start(autoservice_chan);
+	}
+	res = pbx_exec(macro_chan, macro_app, buf);
+	if (autoservice_chan) {
+		ast_autoservice_stop(autoservice_chan);
+	}
+	return res;
+}
+
 static int (*ast_has_voicemail_func)(const char *mailbox, const char *folder) = NULL;
 static int (*ast_inboxcount_func)(const char *mailbox, int *newmsgs, int *oldmsgs) = NULL;
 static int (*ast_inboxcount2_func)(const char *mailbox, int *urgentmsgs, int *newmsgs, int *oldmsgs) = NULL;

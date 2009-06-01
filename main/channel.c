@@ -5008,13 +5008,19 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 			int bridge_exit = 0;
 
 			switch (f->subclass) {
+			case AST_CONTROL_REDIRECTING:
+				ast_indicate_data(other, f->subclass, f->data.ptr, f->datalen);
+				break;
+			case AST_CONTROL_CONNECTED_LINE:
+				if (ast_channel_connected_line_macro(who, other, f, other == c0, 1)) {
+					ast_indicate_data(other, f->subclass, f->data.ptr, f->datalen);
+				}
+				break;
 			case AST_CONTROL_HOLD:
 			case AST_CONTROL_UNHOLD:
 			case AST_CONTROL_VIDUPDATE:
 			case AST_CONTROL_T38:
 			case AST_CONTROL_SRCUPDATE:
-			case AST_CONTROL_CONNECTED_LINE:
-			case AST_CONTROL_REDIRECTING:
 				ast_indicate_data(other, f->subclass, f->data.ptr, f->datalen);
 				if (jb_in_use) {
 					ast_jb_empty_and_reset(c0, c1);
@@ -6501,6 +6507,44 @@ void ast_channel_queue_redirecting_update(struct ast_channel *chan, const struct
 	}
 
 	ast_queue_control_data(chan, AST_CONTROL_REDIRECTING, data, datalen);
+}
+
+int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const void *connected_info, int caller, int frame)
+{
+	const char *macro;
+	const char *macro_args;
+	union {
+		const struct ast_frame *frame;
+		const struct ast_party_connected_line *connected;
+	} pointer;
+	int retval;
+
+	if (frame) {
+		pointer.frame = connected_info;
+	} else {
+		pointer.connected = connected_info;
+	}
+
+	ast_channel_lock(macro_chan);
+	macro = ast_strdupa(S_OR(pbx_builtin_getvar_helper(macro_chan, caller ? "CONNECTED_LINE_CALLER_SEND_MACRO" : "CONNECTED_LINE_CALLEE_SEND_MACRO"), ""));
+	macro_args = ast_strdupa(S_OR(pbx_builtin_getvar_helper(macro_chan, caller ? "CONNECTED_LINE_CALLER_SEND_MACRO_ARGS" : "CONNECTED_LINE_CALLEE_SEND_MACRO_ARGS"), ""));
+	ast_channel_unlock(macro_chan);
+
+	if (ast_strlen_zero(macro)) {
+		return -1;
+	}
+
+	if (frame) {
+		ast_connected_line_parse_data(pointer.frame->data.ptr, pointer.frame->datalen, &macro_chan->connected);
+	} else {
+		ast_party_connected_line_copy(&macro_chan->connected, pointer.connected);
+	}
+
+	if (!(retval = ast_app_run_macro(autoservice_chan, macro_chan, macro, macro_args))) {
+		ast_channel_update_connected_line(macro_chan, &macro_chan->connected);
+	}
+
+	return retval;
 }
 
 /* DO NOT PUT ADDITIONAL FUNCTIONS BELOW THIS BOUNDARY

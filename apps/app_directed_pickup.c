@@ -98,7 +98,9 @@ static int pickup_do(struct ast_channel *chan, struct ast_channel *target)
 
 	connected_caller = target->connected;
 	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-	ast_channel_update_connected_line(chan, &connected_caller);
+	if (ast_channel_connected_line_macro(NULL, chan, &connected_caller, 0, 0)) {
+		ast_channel_update_connected_line(chan, &connected_caller);
+	}
 
 	ast_channel_lock(chan);
 	ast_connected_line_copy_from_caller(&connected_caller, &chan->cid);

@@ -2550,6 +2550,34 @@ void ast_channel_update_redirecting(struct ast_channel *chan, const struct ast_p
  */
 void ast_channel_queue_redirecting_update(struct ast_channel *chan, const struct ast_party_redirecting *redirecting);
 
+/*!
+ * \since 1.6.3
+ * \brief Run a connected line interception macro and update a channel's connected line
+ * information
+ *
+ * Whenever we want to update a channel's connected line information, we may need to run
+ * a macro so that an administrator can manipulate the information before sending it 
+ * out. This function both runs the macro and sends the update to the channel.
+ *
+ * \param autoservice_chan Channel to place into autoservice while the macro is running. 
+ * 	It is perfectly safe for this to be NULL 
+ * \param macro_chan The channel to run the macro on. Also the channel from which we 
+ * 	determine which macro we need to run.
+ * \param connected_info Either an ast_party_connected_line or ast_frame pointer of type 
+ * 	AST_CONTROL_CONNECTED_LINE
+ * \param caller If true, then run CONNECTED_LINE_CALLER_SEND_MACRO, otherwise run 
+ * 	CONNECTED_LINE_CALLEE_SEND_MACRO
+ * \param frame If true, then connected_info is an ast_frame pointer, otherwise it is an 
+ * 	ast_party_connected_line pointer.
+ * \retval 0 Success
+ * \retval -1 Either the macro does not exist, or there was an error while attempting to 
+ * 	run the macro
+ *
+ * \todo Have multiple return codes based on the MACRO_RESULT
+ * \todo Make constants so that caller and frame can be more expressive than just '1' and
+ * 	'0'
+ */
+int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const void *connected_info, int caller, int frame);
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

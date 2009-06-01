@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/dial.h"
 #include "asterisk/pbx.h"
 #include "asterisk/musiconhold.h"
+#include "asterisk/app.h"
 
 /*! \brief Main dialing structure. Contains global options, channels being dialed, and more! */
 struct ast_dial {
@@ -430,7 +431,9 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 			break;
 		case AST_CONTROL_CONNECTED_LINE:
 			ast_verb(3, "%s connected line has changed, passing it to %s\n", channel->owner->name, chan->name);
-			ast_indicate_data(chan, AST_CONTROL_CONNECTED_LINE, fr->data.ptr, fr->datalen);
+			if (ast_channel_connected_line_macro(channel->owner, chan, fr, 1, 1)) {
+				ast_indicate_data(chan, AST_CONTROL_CONNECTED_LINE, fr->data.ptr, fr->datalen);
+			}
 			break;
 		case AST_CONTROL_REDIRECTING:
 			ast_verb(3, "%s redirecting info has changed, passing it to %s\n", channel->owner->name, chan->name);

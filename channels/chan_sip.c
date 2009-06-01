@@ -20407,6 +20407,8 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 					/* Chan 2: Call from Asterisk to target */
 	int res = 0;
 	struct sip_pvt *targetcall_pvt;
+	struct ast_party_connected_line connected_to_transferee;
+	struct ast_party_connected_line connected_to_target;
 
 	/* Check if the call ID of the replaces header does exist locally */
 	if (!(targetcall_pvt = get_sip_pvt_byid_locked(transferer->refer->replaces_callid, transferer->refer->replaces_callid_totag, 
@@ -20474,6 +20476,13 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 		transferer->callid,
 		target.chan1->name,
 		target.chan1->uniqueid);
+	ast_party_connected_line_init(&connected_to_transferee);
+	ast_party_connected_line_init(&connected_to_target);
+	/* No need to lock current->chan1 here since it was locked in sipsock_read */
+	ast_party_connected_line_copy(&connected_to_transferee, &current->chan1->connected);
+	/* No need to lock target.chan1 here since it was locked in get_sip_pvt_byid_locked */
+	ast_party_connected_line_copy(&connected_to_target, &target.chan1->connected);
+	connected_to_target.source = connected_to_transferee.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
 	res = attempt_transfer(current, &target);
 	sip_pvt_unlock(targetcall_pvt);
 	if (res) {
@@ -20484,8 +20493,6 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 			ast_channel_unlock(targetcall_pvt->owner);
 		ast_clear_flag(&transferer->flags[0], SIP_DEFER_BYE_ON_TRANSFER);
 	} else {
-		struct ast_party_connected_line connected_caller;
-
 		/* Transfer succeeded! */
 		const char *xfersound = pbx_builtin_getvar_helper(target.chan1, "ATTENDED_TRANSFER_COMPLETE_SOUND");
 
@@ -20501,45 +20508,29 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 			ast_channel_unlock(targetcall_pvt->owner);
 		}
 
-		ast_party_connected_line_init(&connected_caller);
-		if (target.chan2) {
-			if (current->chan2) {
-				/* Tell each of the other channels to whom they are now connected */
-				ast_channel_lock(current->chan2);
-				ast_connected_line_copy_from_caller(&connected_caller, &current->chan2->cid);
-				ast_channel_unlock(current->chan2);
-				connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
-				ast_channel_update_connected_line(target.chan2, &connected_caller);
-				ast_channel_lock(target.chan2);
-				ast_connected_line_copy_from_caller(&connected_caller, &target.chan2->cid);
-				ast_channel_unlock(target.chan2);
-				connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
-				ast_channel_update_connected_line(current->chan2, &connected_caller);
-				ast_party_connected_line_free(&connected_caller);
-			}
-		} else {
-			/* Notify the first other party that they are connected to someone else assuming that target.chan1
-			   has progressed far enough through the dialplan to have its called party information set. */
-			if (current->chan2) {
-				ast_channel_lock(target.chan1);
-				ast_party_connected_line_copy(&connected_caller, &target.chan1->connected);
-				ast_channel_unlock(target.chan1);
-				connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
-				ast_channel_update_connected_line(current->chan2, &connected_caller);
-				ast_party_connected_line_free(&connected_caller);
-			}
-
-			/* We can't indicate to the called channel directly so we force the masquerade to complete
-			   and queue and update to be read and passed-through */
-			ast_channel_lock(target.chan1);
+		/* By forcing the masquerade, we know that target.chan1 and target.chan2 are bridged. We then
+		 * can queue connected line updates where they need to go.
+		 *
+		 * No need to lock target.chan1 here since it was previously locked in get_sip_pvt_byid_locked
+		 */
+		if (target.chan1->masq) {
+			/* If the channel thread already did the masquerade, then we don't need to do anything */
 			ast_do_masquerade(target.chan1);
-			ast_channel_unlock(target.chan1);
-
-			ast_party_connected_line_collect_caller(&connected_caller, &target.chan1->cid);
-			connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
-			ast_channel_queue_connected_line_update(target.chan1, &connected_caller);
+		}
+		if (target.chan2) {
+			ast_channel_queue_connected_line_update(target.chan1, &connected_to_transferee);
+			ast_channel_queue_connected_line_update(target.chan2, &connected_to_target);
+		} else {
+			/* Since target.chan1 isn't actually connected to another channel, there is no way for us
+			 * to queue a frame so that its connected line status will be updated. Instead, we have to
+			 * change it directly. Since we are not the channel thread, we cannot run a connected line
+			 * interception macro on target.chan1
+			 */
+			ast_channel_update_connected_line(target.chan1, &connected_to_target);
 		}
 	}
+	ast_party_connected_line_free(&connected_to_target);
+	ast_party_connected_line_free(&connected_to_transferee);
 	if (targetcall_pvt)
 		ao2_t_ref(targetcall_pvt, -1, "drop targetcall_pvt");
 	return 1;

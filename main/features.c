@@ -1377,6 +1377,9 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 			/* Set the channel's new extension, since it exists, using transferer context */
 			ast_set_flag(transferee, AST_FLAG_BRIDGE_HANGUP_DONT); /* don't let the after-bridge code run the h-exten */
 			ast_log(LOG_DEBUG,"ABOUT TO AST_ASYNC_GOTO, have a pbx... set HANGUP_DONT on chan=%s\n", transferee->name);
+			if (ast_channel_connected_line_macro(transferee, transferer, &transferer->connected, 1, 0)) {
+				ast_channel_update_connected_line(transferee, &transferer->connected);
+			}
 			set_c_e_p(transferee, transferer_real_context, xferto, 0);
 		}
 		check_goto_on_transfer(transferer);
@@ -1635,13 +1638,43 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		/* Due to a limitation regarding when callerID is set on a Local channel,
 		 * we use the transferer's connected line information here.
 		 */
+
+		/* xferchan is transferee, and newchan is the transfer target
+		 * So...in a transfer, who is the caller and who is the callee?
+		 *
+		 * When the call is originally made, it is clear who is caller and callee.
+		 * When a transfer occurs, it is my humble opinion that the transferee becomes
+		 * the caller, and the transfer target is the callee.
+		 *
+		 * The problem is that these macros were set with the intention of the original
+		 * caller and callee taking those roles. A transfer can totally mess things up,
+		 * to be technical. What sucks even more is that you can't effectively change
+		 * the macros in the dialplan during the call from the transferer to the transfer
+		 * target because the transferee is stuck with whatever role he originally had.
+		 *
+		 * I think the answer here is just to make sure that it is well documented that
+		 * during a transfer, the transferee is the "caller" and the transfer target
+		 * is the "callee."
+		 *
+		 * This means that if party A calls party B, and party A transfers party B to
+		 * party C, then B has switched roles for the call. Now party B will have the
+		 * caller macro called on his channel instead of the callee macro.
+		 *
+		 * Luckily, the method by which the bridge is launched here ensures that the 
+		 * transferee is the "chan" on the bridge and the transfer target is the "peer,"
+		 * so my idea for the roles post-transfer does not require extensive code changes.
+		 */
 		connected_line.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
-		ast_channel_update_connected_line(xferchan, &connected_line);
+		if (ast_channel_connected_line_macro(newchan, xferchan, &connected_line, 1, 0)) {
+			ast_channel_update_connected_line(xferchan, &connected_line);
+		}
 		ast_channel_lock(xferchan);
 		ast_connected_line_copy_from_caller(&connected_line, &xferchan->cid);
 		ast_channel_unlock(xferchan);
 		connected_line.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
-		ast_channel_update_connected_line(newchan, &connected_line);
+		if (ast_channel_connected_line_macro(xferchan, newchan, &connected_line, 0, 0)) {
+			ast_channel_update_connected_line(newchan, &connected_line);
+		}
 		ast_party_connected_line_free(&connected_line);
 
 		if (ast_stream_and_wait(newchan, xfersound, ""))
@@ -1749,12 +1782,16 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		ast_connected_line_copy_from_caller(&connected_line, &newchan->cid);
 		ast_channel_unlock(newchan);
 		connected_line.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
-		ast_channel_update_connected_line(xferchan, &connected_line);
+		if (ast_channel_connected_line_macro(newchan, xferchan, &connected_line, 1, 0)) {
+			ast_channel_update_connected_line(xferchan, &connected_line);
+		}
 		ast_channel_lock(xferchan);
 		ast_connected_line_copy_from_caller(&connected_line, &xferchan->cid);
 		ast_channel_unlock(xferchan);
 		connected_line.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
-		ast_channel_update_connected_line(newchan, &connected_line);
+		if (ast_channel_connected_line_macro(xferchan, newchan, &connected_line, 0, 0)) {
+			ast_channel_update_connected_line(newchan, &connected_line);
+		}
 
 		ast_party_connected_line_free(&connected_line);
 		
@@ -2370,7 +2407,9 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller, 
 					ready=1;
 					break;
 				} else if (f->subclass == AST_CONTROL_CONNECTED_LINE) {
-					ast_indicate_data(caller, AST_CONTROL_CONNECTED_LINE, f->data.ptr, f->datalen);
+					if (ast_channel_connected_line_macro(chan, caller, f, 1, 1)) {
+						ast_indicate_data(caller, AST_CONTROL_CONNECTED_LINE, f->data.ptr, f->datalen);
+					}
 				} else if (f->subclass != -1) {
 					ast_log(LOG_NOTICE, "Don't know what to do about control frame: %d\n", f->subclass);
 				}
@@ -2766,9 +2805,13 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			case -1:
 				ast_indicate(other, f->subclass);
 				break;
+			case AST_CONTROL_CONNECTED_LINE:
+				if (!ast_channel_connected_line_macro(who, other, f, who != chan, 1)) {
+					break;
+				}
+				/* The implied "else" falls through purposely */
 			case AST_CONTROL_HOLD:
 			case AST_CONTROL_UNHOLD:
-			case AST_CONTROL_CONNECTED_LINE:
 				ast_indicate_data(other, f->subclass, f->data.ptr, f->datalen);
 				break;
 			case AST_CONTROL_OPTION:
@@ -4546,7 +4589,9 @@ int ast_pickup_call(struct ast_channel *chan)
 
 	connected_caller = cur->connected;
 	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-	ast_channel_update_connected_line(chan, &connected_caller);
+	if (ast_channel_connected_line_macro(NULL, chan, &connected_caller, 0, 0)) {
+		ast_channel_update_connected_line(chan, &connected_caller);
+	}
 
 	ast_party_connected_line_collect_caller(&connected_caller, &chan->cid);
 	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;

@@ -3092,7 +3092,9 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 					ast_verb(3, "%s answered %s\n", ochan_name, inchan_name);
 					if (update_connectedline) {
 						if (o->connected.id.number) {
-							ast_channel_update_connected_line(in, &o->connected);
+							if (ast_channel_connected_line_macro(o->chan, in, &o->connected, 1, 0)) {
+								ast_channel_update_connected_line(in, &o->connected);
+							}
 						} else if (o->update_connectedline) {
 							ast_channel_lock(o->chan);
 							ast_connected_line_copy_from_caller(&connected_caller, &o->chan->cid);
@@ -3192,7 +3194,9 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 								ast_verb(3, "%s answered %s\n", ochan_name, inchan_name);
 								if (update_connectedline) {
 									if (o->connected.id.number) {
-										ast_channel_update_connected_line(in, &o->connected);
+										if (ast_channel_connected_line_macro(o->chan, in, &o->connected, 1, 0)) {
+											ast_channel_update_connected_line(in, &o->connected);
+										}
 									} else if (o->update_connectedline) {
 										ast_channel_lock(o->chan);
 										ast_connected_line_copy_from_caller(&connected_caller, &o->chan->cid);
@@ -3252,8 +3256,9 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 								ast_party_connected_line_set(&o->connected, &connected);
 								ast_party_connected_line_free(&connected);
 							} else {
-								ast_verb(3, "%s connected line has changed, passing it to %s\n", ochan_name, inchan_name);
-								ast_indicate_data(in, AST_CONTROL_CONNECTED_LINE, f->data.ptr, f->datalen);
+								if (ast_channel_connected_line_macro(o->chan, in, f, 1, 1)) {
+									ast_indicate_data(in, AST_CONTROL_CONNECTED_LINE, f->data.ptr, f->datalen);
+								}
 							}
 							break;
 						case AST_CONTROL_REDIRECTING:
