@@ -125,7 +125,7 @@ void __ast_threadstorage_object_replace(void *key_old, void *key_new, size_t len
 
 static char *handle_cli_threadstorage_show_allocations(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char *fn = NULL;
+	const char *fn = NULL;
 	size_t len = 0;
 	unsigned int count = 0;
 	struct tls_object *to;
@@ -169,7 +169,7 @@ static char *handle_cli_threadstorage_show_allocations(struct ast_cli_entry *e, 
 
 static char *handle_cli_threadstorage_show_summary(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char *fn = NULL;
+	const char *fn = NULL;
 	size_t len = 0;
 	unsigned int count = 0;
 	struct tls_object *to;
