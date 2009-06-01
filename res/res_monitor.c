@@ -45,6 +45,200 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config.h"
 #include "asterisk/options.h"
 
+/*** DOCUMENTATION
+	<application name="Monitor" language="en_US">
+		<synopsis>
+			Monitor a channel.
+		</synopsis>
+		<syntax>
+			<parameter name="file_format" argsep=":">
+				<argument name="file_format" required="true">
+					<para>optional, if not set, defaults to <literal>wav</literal></para>
+				</argument>
+				<argument name="urlbase" />
+			</parameter>
+			<parameter name="fname_base">
+				<para>if set, changes the filename used to the one specified.</para>
+			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="m">
+						<para>when the recording ends mix the two leg files into one and
+						delete the two leg files. If the variable <variable>MONITOR_EXEC</variable>
+						is set, the application referenced in it will be executed instead of
+						soxmix/sox and the raw leg files will NOT be deleted automatically.
+						soxmix/sox or <variable>MONITOR_EXEC</variable> is handed 3 arguments,
+						the two leg files and a target mixed file name which is the same as
+						the leg file names only without the in/out designator.</para>
+						<para>If <variable>MONITOR_EXEC_ARGS</variable> is set, the contents
+						will be passed on as additional arguments to <variable>MONITOR_EXEC</variable>.
+						Both <variable>MONITOR_EXEC</variable> and the Mix flag can be set from the
+						administrator interface.</para>
+					</option>
+					<option name="b">
+						<para>Don't begin recording unless a call is bridged to another channel.</para>
+					</option>
+					<option name="i">
+						<para>Skip recording of input stream (disables <literal>m</literal> option).</para>
+					</option>
+					<option name="o">
+						<para>Skip recording of output stream (disables <literal>m</literal> option).</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Used to start monitoring a channel. The channel's input and output
+			voice packets are logged to files until the channel hangs up or
+			monitoring is stopped by the StopMonitor application.</para>
+			<para>By default, files are stored to <filename>/var/spool/asterisk/monitor/</filename>.
+			Returns <literal>-1</literal> if monitor files can't be opened or if the channel is
+			already monitored, otherwise <literal>0</literal>.</para>
+		</description>
+		<see-also>
+			<ref type="application">StopMonitor</ref>
+		</see-also>
+	</application>
+	<application name="StopMonitor" language="en_US">
+		<synopsis>
+			Stop monitoring a channel.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Stops monitoring a channel. Has no effect if the channel is not monitored.</para>
+		</description>
+	</application>
+	<application name="ChangeMonitor" language="en_US">
+		<synopsis>
+			Change monitoring filename of a channel.
+		</synopsis>
+		<syntax>
+			<parameter name="filename_base" required="true">
+				<para>The new filename base to use for monitoring this channel.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Changes monitoring filename of a channel. Has no effect if the
+			channel is not monitored.</para>
+		</description>
+	</application>
+	<application name="PauseMonitor" language="en_US">
+		<synopsis>
+			Pause monitoring of a channel.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Pauses monitoring of a channel until it is re-enabled by a call to UnpauseMonitor.</para>
+		</description>
+		<see-also>
+			<ref type="application">UnpauseMonitor</ref>
+		</see-also>
+	</application>
+	<application name="UnpauseMonitor" language="en_US">
+		<synopsis>
+			Unpause monitoring of a channel.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Unpauses monitoring of a channel on which monitoring had
+			previously been paused with PauseMonitor.</para>
+		</description>
+		<see-also>
+			<ref type="application">PauseMonitor</ref>
+		</see-also>
+	</application>
+	<manager name="Monitor" language="en_US">
+		<synopsis>
+			Monitor a channel.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Used to specify the channel to record.</para>
+			</parameter>
+			<parameter name="File">
+				<para>Is the name of the file created in the monitor spool directory.
+				Defaults to the same name as the channel (with slashes replaced with dashes).</para>
+			</parameter>
+			<parameter name="Format">
+				<para>Is the audio recording format. Defaults to <literal>wav</literal>.</para>
+			</parameter>
+			<parameter name="Mix">
+				<para>Boolean parameter as to whether to mix the input and output channels
+				together after the recording is finished.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This action may be used to record the audio on a
+			specified channel.</para>
+		</description>
+	</manager>
+	<manager name="StopMonitor" language="en_US">
+		<synopsis>
+			Stop monitoring a channel.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>The name of the channel monitored.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This action may be used to end a previously started 'Monitor' action.</para>
+		</description>
+	</manager>
+	<manager name="ChangeMonitor" language="en_US">
+		<synopsis>
+			Change monitoring filename of a channel.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Used to specify the channel to record.</para>
+			</parameter>
+			<parameter name="File" required="true">
+				<para>Is the new name of the file created in the
+				monitor spool directory.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This action may be used to change the file
+			started by a previous 'Monitor' action.</para>
+		</description>
+	</manager>
+	<manager name="PauseMonitor" language="en_US">
+		<synopsis>
+			Pause monitoring of a channel.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Used to specify the channel to record.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This action may be used to temporarily stop the
+			recording of a channel.</para>
+		</description>
+	</manager>
+	<manager name="UnpauseMonitor" language="en_US">
+		<synopsis>
+			Unpause monitoring of a channel.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Used to specify the channel to record.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This action may be used to re-enable recording
+			of a channel after calling PauseMonitor.</para>
+		</description>
+	</manager>
+
+ ***/
+
 AST_MUTEX_DEFINE_STATIC(monitorlock);
 
 #define LOCK_IF_NEEDED(lock, needed) do { \
@@ -58,62 +252,6 @@ AST_MUTEX_DEFINE_STATIC(monitorlock);
 	} while (0)
 
 static unsigned long seq = 0;
-
-static char *monitor_synopsis = "Monitor a channel";
-
-static char *monitor_descrip = "  Monitor([file_format[:urlbase],[fname_base],[options]]):\n"
-"Used to start monitoring a channel. The channel's input and output\n"
-"voice packets are logged to files until the channel hangs up or\n"
-"monitoring is stopped by the StopMonitor application.\n"
-"  file_format		optional, if not set, defaults to \"wav\"\n"
-"  fname_base		if set, changes the filename used to the one specified.\n"
-"  options:\n"
-"    m   - when the recording ends mix the two leg files into one and\n"
-"          delete the two leg files.  If the variable MONITOR_EXEC is set, the\n"
-"          application referenced in it will be executed instead of\n"
-#ifdef HAVE_SOXMIX
-"          soxmix and the raw leg files will NOT be deleted automatically.\n"
-"          soxmix or MONITOR_EXEC is handed 3 arguments, the two leg files\n"
-#else
-"          sox and the raw leg files will NOT be deleted automatically.\n"
-"          sox or MONITOR_EXEC is handed 3 arguments, the two leg files\n"
-#endif
-"          and a target mixed file name which is the same as the leg file names\n"
-"          only without the in/out designator.\n"
-"          If MONITOR_EXEC_ARGS is set, the contents will be passed on as\n"
-"          additional arguments to MONITOR_EXEC\n"
-"          Both MONITOR_EXEC and the Mix flag can be set from the\n"
-"          administrator interface\n"
-"\n"
-"    b   - Don't begin recording unless a call is bridged to another channel\n"
-"    i   - Skip recording of input stream (disables m option)\n"
-"    o   - Skip recording of output stream (disables m option)\n"
-"\nBy default, files are stored to /var/spool/asterisk/monitor/.\n"
-"\nReturns -1 if monitor files can't be opened or if the channel is already\n"
-"monitored, otherwise 0.\n"
-;
-
-static char *stopmonitor_synopsis = "Stop monitoring a channel";
-
-static char *stopmonitor_descrip = "  StopMonitor():\n"
-	"Stops monitoring a channel. Has no effect if the channel is not monitored\n";
-
-static char *changemonitor_synopsis = "Change monitoring filename of a channel";
-
-static char *changemonitor_descrip = "  ChangeMonitor(filename_base):\n"
-	"Changes monitoring filename of a channel. Has no effect if the channel is not monitored.\n"
-	"The argument is the new filename base to use for monitoring this channel.\n";
-
-static char *pausemonitor_synopsis = "Pause monitoring of a channel";
-
-static char *pausemonitor_descrip = "  PauseMonitor():\n"
-	"Pauses monitoring of a channel until it is re-enabled by a call to UnpauseMonitor.\n";
-
-static char *unpausemonitor_synopsis = "Unpause monitoring of a channel";
-
-static char *unpausemonitor_descrip = "  UnpauseMonitor():\n"
-	"Unpauses monitoring of a channel on which monitoring had\n"
-	"previously been paused with PauseMonitor.\n";
 
 /*! 
  * \brief Change state of monitored channel 
@@ -552,20 +690,6 @@ static int change_monitor_exec(struct ast_channel *chan, const char *data)
 	return ast_monitor_change_fname(chan, data, 1);
 }
 
-static const char start_monitor_action_help[] =
-"Description: The 'Monitor' action may be used to record the audio on a\n"
-"  specified channel.  The following parameters may be used to control\n"
-"  this:\n"
-"  Channel     - Required.  Used to specify the channel to record.\n"
-"  File        - Optional.  Is the name of the file created in the\n"
-"                monitor spool directory.  Defaults to the same name\n"
-"                as the channel (with slashes replaced with dashes).\n"
-"  Format      - Optional.  Is the audio recording format.  Defaults\n"
-"                to \"wav\".\n"
-"  Mix         - Optional.  Boolean parameter as to whether to mix\n"
-"                the input and output channels together after the\n"
-"                recording is finished.\n";
-
 /*! \brief Start monitoring a channel by manager connection */
 static int start_monitor_action(struct mansession *s, const struct message *m)
 {
@@ -618,11 +742,6 @@ static int start_monitor_action(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static const char stop_monitor_action_help[] =
-"Description: The 'StopMonitor' action may be used to end a previously\n"
-"  started 'Monitor' action.  The only parameter is 'Channel', the name\n"
-"  of the channel monitored.\n";
-
 /*! \brief Stop monitoring a channel by manager connection */
 static int stop_monitor_action(struct mansession *s, const struct message *m)
 {
@@ -653,14 +772,6 @@ static int stop_monitor_action(struct mansession *s, const struct message *m)
 
 	return 0;
 }
-
-static const char change_monitor_action_help[] =
-"Description: The 'ChangeMonitor' action may be used to change the file\n"
-"  started by a previous 'Monitor' action.  The following parameters may\n"
-"  be used to control this:\n"
-"  Channel     - Required.  Used to specify the channel to record.\n"
-"  File        - Required.  Is the new name of the file created in the\n"
-"                monitor spool directory.\n";
 
 /*! \brief Change filename of a monitored channel by manager connection */
 static int change_monitor_action(struct mansession *s, const struct message *m)
@@ -737,22 +848,10 @@ static int do_pause_or_unpause(struct mansession *s, const struct message *m, in
 	return 0;
 }
 
-static const char pause_monitor_action_help[] =
-	"Description: The 'PauseMonitor' action may be used to temporarily stop the\n"
-	" recording of a channel.  The following parameters may\n"
-	" be used to control this:\n"
-	"  Channel     - Required.  Used to specify the channel to record.\n";
-
 static int pause_monitor_action(struct mansession *s, const struct message *m)
 {
 	return do_pause_or_unpause(s, m, MONITOR_ACTION_PAUSE);
 }
-
-static const char unpause_monitor_action_help[] =
-	"Description: The 'UnpauseMonitor' action may be used to re-enable recording\n"
-	"  of a channel after calling PauseMonitor.  The following parameters may\n"
-	"  be used to control this:\n"
-	"  Channel     - Required.  Used to specify the channel to record.\n";
 
 static int unpause_monitor_action(struct mansession *s, const struct message *m)
 {
@@ -762,16 +861,16 @@ static int unpause_monitor_action(struct mansession *s, const struct message *m)
 
 static int load_module(void)
 {
-	ast_register_application("Monitor", start_monitor_exec, monitor_synopsis, monitor_descrip);
-	ast_register_application("StopMonitor", stop_monitor_exec, stopmonitor_synopsis, stopmonitor_descrip);
-	ast_register_application("ChangeMonitor", change_monitor_exec, changemonitor_synopsis, changemonitor_descrip);
-	ast_register_application("PauseMonitor", pause_monitor_exec, pausemonitor_synopsis, pausemonitor_descrip);
-	ast_register_application("UnpauseMonitor", unpause_monitor_exec, unpausemonitor_synopsis, unpausemonitor_descrip);
-	ast_manager_register2("Monitor", EVENT_FLAG_CALL, start_monitor_action, monitor_synopsis, start_monitor_action_help);
-	ast_manager_register2("StopMonitor", EVENT_FLAG_CALL, stop_monitor_action, stopmonitor_synopsis, stop_monitor_action_help);
-	ast_manager_register2("ChangeMonitor", EVENT_FLAG_CALL, change_monitor_action, changemonitor_synopsis, change_monitor_action_help);
-	ast_manager_register2("PauseMonitor", EVENT_FLAG_CALL, pause_monitor_action, pausemonitor_synopsis, pause_monitor_action_help);
-	ast_manager_register2("UnpauseMonitor", EVENT_FLAG_CALL, unpause_monitor_action, unpausemonitor_synopsis, unpause_monitor_action_help);
+	ast_register_application_xml("Monitor", start_monitor_exec);
+	ast_register_application_xml("StopMonitor", stop_monitor_exec);
+	ast_register_application_xml("ChangeMonitor", change_monitor_exec);
+	ast_register_application_xml("PauseMonitor", pause_monitor_exec);
+	ast_register_application_xml("UnpauseMonitor", unpause_monitor_exec);
+	ast_manager_register_xml("Monitor", EVENT_FLAG_CALL, start_monitor_action);
+	ast_manager_register_xml("StopMonitor", EVENT_FLAG_CALL, stop_monitor_action);
+	ast_manager_register_xml("ChangeMonitor", EVENT_FLAG_CALL, change_monitor_action);
+	ast_manager_register_xml("PauseMonitor", EVENT_FLAG_CALL, pause_monitor_action);
+	ast_manager_register_xml("UnpauseMonitor", EVENT_FLAG_CALL, unpause_monitor_action);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
