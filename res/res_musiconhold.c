@@ -157,6 +157,7 @@ struct mohclass {
 	/*! FD for timing source */
 	int pseudofd;
 	unsigned int delete:1;
+	unsigned int deprecated:1;
 	AST_LIST_HEAD_NOLOCK(, mohdata) members;
 	AST_LIST_ENTRY(mohclass) list;
 };
@@ -1243,7 +1244,8 @@ static int load_moh_classes(int reload)
 			*args++ = '\0';
 		}
 
-		if ((tmp_class = get_mohbyname(var->name, 0))) {
+		/* Only skip if this is a duplicate of an above item */
+		if ((tmp_class = get_mohbyname(var->name, 0)) && !tmp_class->deprecated && !tmp_class->delete) {
 			tmp_class = mohclass_unref(tmp_class);
 			continue;
 		}
@@ -1251,14 +1253,15 @@ static int load_moh_classes(int reload)
 		if (!(class = moh_class_malloc())) {
 			break;
 		}
-				
+
+		class->deprecated = 1;
 		ast_copy_string(class->name, var->name, sizeof(class->name));
 		ast_copy_string(class->dir, data, sizeof(class->dir));
 		ast_copy_string(class->mode, var->value, sizeof(class->mode));
 		if (args) {
 			ast_copy_string(class->args, args, sizeof(class->args));
 		}
-				
+
 		moh_register(class, reload);
 		class = NULL;
 
@@ -1273,7 +1276,8 @@ static int load_moh_classes(int reload)
 			dep_warning = 1;
 		}
 
-		if ((tmp_class = get_mohbyname(var->name, 0))) {
+		/* Only skip if this is a duplicate of an above item */
+		if ((tmp_class = get_mohbyname(var->name, 0)) && !tmp_class->deprecated && !tmp_class->delete) {
 			tmp_class = mohclass_unref(tmp_class);
 			continue;
 		}
@@ -1285,14 +1289,15 @@ static int load_moh_classes(int reload)
 		if (!(class = moh_class_malloc())) {
 			break;
 		}
-			
+
+		class->deprecated = 1;
 		ast_copy_string(class->name, var->name, sizeof(class->name));
 		ast_copy_string(class->dir, var->value, sizeof(class->dir));
 		ast_copy_string(class->mode, "files", sizeof(class->mode));
 		if (args) {
 			ast_copy_string(class->args, args, sizeof(class->args));
 		}
-			
+
 		moh_register(class, reload);
 		class = NULL;
 
