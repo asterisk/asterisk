@@ -166,6 +166,26 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</enumlist>
 		</description>
 	</function>
+	<manager name="JabberSend" language="en_US">
+		<synopsis>
+			Sends a message to a Jabber Client.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Jabber" required="true">
+				<para>Client or transport Asterisk uses to connect to JABBER.</para>
+			</parameter>
+			<parameter name="JID" required="true">
+				<para>XMPP/Jabber JID (Name) of recipient.</para>
+			</parameter>
+			<parameter name="Message" required="true">
+				<para>Message to be sent to the buddy.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Sends a message to a Jabber Client.</para>
+		</description>
+	</manager>
  ***/
 
 /*! \todo This should really be renamed to xmpp.conf. For backwards compatibility, we
@@ -2980,13 +3000,6 @@ struct aji_client_container *ast_aji_get_clients(void)
 	return &clients;
 }
 
-static const char mandescr_jabber_send[] =
-"Description: Sends a message to a Jabber Client.\n"
-"Variables: \n"
-"  Jabber:    Client or transport Asterisk uses to connect to JABBER\n"
-"  JID:       XMPP/Jabber JID (Name) of recipient\n" 
-"  Message:   Message to be sent to the buddy\n";
-
 /*! 
  * \brief  Send a Jabber Message via call from the Manager 
  * \param s mansession Manager session
@@ -3089,8 +3102,7 @@ static int load_module(void)
 	ASTOBJ_CONTAINER_INIT(&clients);
 	if(!aji_reload(0))
 		return AST_MODULE_LOAD_DECLINE;
-	ast_manager_register2("JabberSend", EVENT_FLAG_SYSTEM, manager_jabber_send,
-			"Sends a message to a Jabber Client", mandescr_jabber_send);
+	ast_manager_register_xml("JabberSend", EVENT_FLAG_SYSTEM, manager_jabber_send);
 	ast_register_application_xml(app_ajisend, aji_send_exec);
 	ast_register_application_xml(app_ajistatus, aji_status_exec);
 	ast_cli_register_multiple(aji_cli, ARRAY_LEN(aji_cli));
