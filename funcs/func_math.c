@@ -1,9 +1,10 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2004 - 2006, Andy Powell 
+ * Copyright (C) 2004 - 2006, Andy Powell
  *
  * Updated by Mark Spencer <markster@digium.com>
+ * Updated by Nir Simionovich <nirs@greenfieldtech.net>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -22,6 +23,7 @@
  *
  * \author Andy Powell
  * \author Mark Spencer <markster@digium.com>
+ * \author Nir Simionovich <nirs@greenfieldtech.net>
  *
  * \ingroup functions
  */
@@ -64,6 +66,40 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Performs mathematical functions based on two parameters and an operator.  The returned
 			value type is <replaceable>type</replaceable></para>
 			<para>Example: Set(i=${MATH(123%16,int)}) - sets var i=11</para>
+		</description>
+	</function>
+	<function name="INC" language="en_US">
+		<synopsis>
+			Increments the value of a variable, while returning the updated value to the dialplan
+		</synopsis>
+		<syntax>
+			<parameter name="variable" required="true">
+				<para>
+				The variable name to be manipulated, without the braces.
+				</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Increments the value of a variable, while returning the updated value to the dialplan</para>
+			<para>Example: INC(MyVAR) - Increments MyVar</para>
+			<para>Note: INC(${MyVAR}) - Is wrong, as INC expects the variable name, not its value</para>
+		</description>
+	</function>
+	<function name="DEC" language="en_US">
+		<synopsis>
+			Decrements the value of a variable, while returning the updated value to the dialplan
+		</synopsis>
+		<syntax>
+			<parameter name="variable" required="true">
+				<para>
+				The variable name to be manipulated, without the braces.
+				</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Decrements the value of a variable, while returning the updated value to the dialplan</para>
+			<para>Example: DEC(MyVAR) - Increments MyVar</para>
+			<para>Note: DEC(${MyVAR}) - Is wrong, as INC expects the variable name, not its value</para>
 		</description>
 	</function>
  ***/
@@ -333,19 +369,107 @@ static int math(struct ast_channel *chan, const char *cmd, char *parse,
 	return 0;
 }
 
+static int crement_function_read(struct ast_channel *chan, const char *cmd,
+                     char *data, char *buf, size_t len)
+{
+	int ret = -1;
+	int int_value = 0;
+	int modify_orig = 0;
+	const char *var;
+	char endchar = 0, returnvar[12]; /* If you need a variable longer than 11 digits - something is way wrong */
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "Syntax: %s(<data>) - missing argument!\n", cmd);
+		return -1;
+	}
+
+	ast_channel_lock(chan);
+
+	if (!(var = pbx_builtin_getvar_helper(chan, data))) {
+		ast_log(LOG_NOTICE, "Failed to obtain variable %s, bailing out\n", data);
+		ast_channel_unlock(chan);
+		return -1;
+	}
+
+	if (ast_strlen_zero(var)) {
+		ast_log(LOG_NOTICE, "Variable %s doesn't exist - are you sure you wrote it corrrectly?\n", data);
+		ast_channel_unlock(chan);
+		return -1;
+	}
+
+	if (sscanf(var, "%d%c", &int_value, &endchar) == 0 || endchar != 0) {
+		ast_log(LOG_NOTICE, "The content of ${%s} is not a numeric value - bailing out!\n", data);
+		ast_channel_unlock(chan);
+		return -1;
+	}
+
+	/* now we'll actually do something useful */
+	if (!strcasecmp(cmd, "INC")) {              /* Increment variable */
+		int_value++;
+		modify_orig = 1;
+	} else if (!strcasecmp(cmd, "DEC")) {       /* Decrement variable */
+		int_value--;
+		modify_orig = 1;
+	}
+
+	ast_log(LOG_NOTICE, "The value is now: %d\n", int_value);
+
+	if (snprintf(returnvar, sizeof(returnvar), "%d", int_value) > 0) {
+		pbx_builtin_setvar_helper(chan, data, returnvar);
+		if (modify_orig) {
+			ast_copy_string(buf, returnvar, len);
+		}
+		ret = 0;
+	} else {
+		pbx_builtin_setvar_helper(chan, data, "0");
+		if (modify_orig) {
+			ast_copy_string(buf, "0", len);
+		}
+		ast_log(LOG_NOTICE, "Variable %s refused to be %sREMENTED, setting value to 0", data, cmd);
+		ret = 0;
+	}
+
+	ast_channel_unlock(chan);
+
+	return ret;
+}
+
+
 static struct ast_custom_function math_function = {
 	.name = "MATH",
 	.read = math
 };
 
+static struct ast_custom_function increment_function = {
+	.name = "INC",
+	.read = crement_function_read,
+};
+
+static struct ast_custom_function decrement_function = {
+	.name = "DEC",
+	.read = crement_function_read,
+};
+
 static int unload_module(void)
 {
-	return ast_custom_function_unregister(&math_function);
+	int res = 0;
+
+	res |= ast_custom_function_unregister(&math_function);
+	res |= ast_custom_function_unregister(&increment_function);
+	res |= ast_custom_function_unregister(&decrement_function);
+
+	return res;
 }
 
 static int load_module(void)
 {
-	return ast_custom_function_register(&math_function);
+	int res = 0;
+
+	res |= ast_custom_function_register(&math_function);
+	res |= ast_custom_function_register(&increment_function);
+	res |= ast_custom_function_register(&decrement_function);
+
+	return res;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Mathematical dialplan function");
