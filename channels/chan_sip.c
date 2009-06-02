@@ -7239,7 +7239,7 @@ static int sip_register(const char *value, int lineno)
 	if (hostname)
 		*hostname++ = '\0';
 	if (ast_strlen_zero(username) || ast_strlen_zero(hostname)) {
-		ast_log(LOG_WARNING, "Format for registration is [transport://]user[:secret[:authuser]]@domain[:port][/extension][~expiry] at line %d\n", lineno);
+		ast_log(LOG_WARNING, "Format for registration is [transport://]user[@domain][:secret[:authuser]]@host[:port][/extension][~expiry] at line %d\n", lineno);
 		return -1;
 	}
 
