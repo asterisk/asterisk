@@ -1081,6 +1081,18 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 	int timeout, int *reason, const char *cid_num, const char *cid_name, struct outgoing_helper *oh);
 
 /*!
+ * \brief Forwards a call to a new channel specified by the original channel's call_forward str.  If possible, the new forwarded channel is created and returned while the original one is terminated.
+ * \param caller in channel that requested orig
+ * \param orig channel being replaced by the call forward channel
+ * \param timeout maximum amount of time to wait for setup of new forward channel
+ * \param format requested channel format
+ * \param oh outgoing helper used with original channel
+ * \param outstate reason why unsuccessful (if uncuccessful)
+ * \return Returns the forwarded call's ast_channel on success or NULL on failure
+ */
+struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_channel *orig, int *timeout, int format, struct outgoing_helper *oh, int *outstate);
+
+/*!
  * \brief Register a channel technology (a new channel driver)
  * Called by a channel module to register the kind of channels it supports.
  * \param tech Structure defining channel technology or "type"
