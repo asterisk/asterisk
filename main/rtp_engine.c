@@ -278,6 +278,7 @@ int ast_rtp_instance_destroy(struct ast_rtp_instance *instance)
 
 struct ast_rtp_instance *ast_rtp_instance_new(const char *engine_name, struct sched_context *sched, struct sockaddr_in *sin, void *data)
 {
+	struct sockaddr_in address = { 0, };
 	struct ast_rtp_instance *instance = NULL;
 	struct ast_rtp_engine *engine = NULL;
 
@@ -315,11 +316,12 @@ struct ast_rtp_instance *ast_rtp_instance_new(const char *engine_name, struct sc
 	instance->local_address.sin_family = AF_INET;
 	instance->local_address.sin_addr = sin->sin_addr;
 	instance->remote_address.sin_family = AF_INET;
+	address.sin_addr = sin->sin_addr;
 
 	ast_debug(1, "Using engine '%s' for RTP instance '%p'\n", engine->name, instance);
 
 	/* And pass it off to the engine to setup */
-	if (instance->engine->new(instance, sched, sin, data)) {
+	if (instance->engine->new(instance, sched, &address, data)) {
 		ast_debug(1, "Engine '%s' failed to setup RTP instance '%p'\n", engine->name, instance);
 		ao2_ref(instance, -1);
 		return NULL;
