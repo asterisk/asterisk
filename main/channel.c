@@ -4001,6 +4001,7 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 	while (ast_channel_trylock(new)) {
 		CHANNEL_DEADLOCK_AVOIDANCE(orig);
 	}
+	ast_copy_flags(new->cdr, orig->cdr, AST_CDR_FLAG_ORIGINATED);
 	ast_string_field_set(new, accountcode, orig->accountcode);
 	ast_party_caller_copy(&new->cid, &orig->cid);
 	ast_party_connected_line_copy(&new->connected, &orig->connected);
