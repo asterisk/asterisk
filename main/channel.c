@@ -3027,6 +3027,86 @@ char *ast_channel_reason2str(int reason)
 	}
 }
 
+static void handle_cause(int cause, int *outstate)
+{
+	if (outstate) {
+		/* compute error and return */
+		if (cause == AST_CAUSE_BUSY)
+			*outstate = AST_CONTROL_BUSY;
+		else if (cause == AST_CAUSE_CONGESTION)
+			*outstate = AST_CONTROL_CONGESTION;
+		else
+			*outstate = 0;
+	}
+}
+
+struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_channel *orig, int *timeout, int format, struct outgoing_helper *oh, int *outstate)
+{
+	char tmpchan[256];
+	struct ast_channel *new = NULL;
+	char *data, *type;
+	int cause = 0;
+
+	/* gather data and request the new forward channel */
+	ast_copy_string(tmpchan, orig->call_forward, sizeof(tmpchan));
+	if ((data = strchr(tmpchan, '/'))) {
+		*data++ = '\0';
+		type = tmpchan;
+	} else {
+		const char *forward_context;
+		ast_channel_lock(orig);
+		forward_context = pbx_builtin_getvar_helper(orig, "FORWARD_CONTEXT");
+		snprintf(tmpchan, sizeof(tmpchan), "%s@%s", orig->call_forward, S_OR(forward_context, orig->context));
+		ast_channel_unlock(orig);
+		data = tmpchan;
+		type = "Local";
+	}
+	if (!(new = ast_request(type, format, data, &cause))) {
+		ast_log(LOG_NOTICE, "Unable to create channel for call forward to '%s/%s' (cause = %d)\n", type, data, cause);
+		handle_cause(cause, outstate);
+		ast_hangup(orig);
+		return NULL;
+	}
+
+	/* Copy/inherit important information into new channel */
+	if (oh) {
+		if (oh->vars) {
+			ast_set_variables(new, oh->vars);
+		}
+		if (!ast_strlen_zero(oh->cid_num) && !ast_strlen_zero(oh->cid_name)) {
+			ast_set_callerid(new, oh->cid_num, oh->cid_name, oh->cid_num);
+		}
+		if (oh->parent_channel) {
+			ast_channel_inherit_variables(oh->parent_channel, new);
+			ast_channel_datastore_inherit(oh->parent_channel, new);
+		}
+		if (oh->account) {
+			ast_cdr_setaccount(new, oh->account);
+		}
+	} else if (caller) { /* no outgoing helper so use caller if avaliable */
+		ast_channel_inherit_variables(caller, new);
+		ast_channel_datastore_inherit(caller, new);
+	}
+
+	ast_channel_lock(orig);
+	ast_string_field_set(new, accountcode, orig->accountcode);
+	if (!ast_strlen_zero(orig->cid.cid_num) && !ast_strlen_zero(new->cid.cid_name)) {
+		ast_set_callerid(new, orig->cid.cid_num, orig->cid.cid_name, orig->cid.cid_num);
+	}
+	ast_channel_unlock(orig);
+
+	/* call new channel */
+	if ((*timeout = ast_call(new, data, 0))) {
+		ast_log(LOG_NOTICE, "Unable to call forward to channel %s/%s\n", type, (char *)data);
+		ast_hangup(orig);
+		ast_hangup(new);
+		return NULL;
+	}
+	ast_hangup(orig);
+
+	return new;
+}
+
 struct ast_channel *__ast_request_and_dial(const char *type, int format, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name, struct outgoing_helper *oh)
 {
 	int dummy_outstate;
@@ -3043,11 +3123,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 	chan = ast_request(type, format, data, &cause);
 	if (!chan) {
 		ast_log(LOG_NOTICE, "Unable to request channel %s/%s\n", type, (char *)data);
-		/* compute error and return */
-		if (cause == AST_CAUSE_BUSY)
-			*outstate = AST_CONTROL_BUSY;
-		else if (cause == AST_CAUSE_CONGESTION)
-			*outstate = AST_CONTROL_CONGESTION;
+		handle_cause(cause, outstate);
 		return NULL;
 	}
 
@@ -3076,6 +3152,13 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 				break;
 			if (timeout > -1)
 				timeout = res;
+			if (!ast_strlen_zero(chan->call_forward)) {
+				if (!(chan = ast_call_forward(NULL, chan, &timeout, format, oh, outstate))) {
+					return NULL;
+				}
+				continue;
+			}
+
 			f = ast_read(chan);
 			if (!f) {
 				*outstate = AST_CONTROL_HANGUP;
