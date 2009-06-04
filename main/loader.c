@@ -111,6 +111,15 @@ static AST_LIST_HEAD_STATIC(updaters, loadupdate);
 
 AST_MUTEX_DEFINE_STATIC(reloadlock);
 
+struct reload_queue_item {
+	AST_LIST_ENTRY(reload_queue_item) entry;
+	char module[0];
+};
+
+static int do_full_reload = 0;
+
+static AST_LIST_HEAD_STATIC(reload_queue, reload_queue_item);
+
 /* when dynamic modules are being loaded, ast_module_register() will
    need to know what filename the module was loaded from while it
    is being registered
@@ -544,11 +553,83 @@ char *ast_module_helper(const char *line, const char *word, int pos, int state, 
 	return ret;
 }
 
+void ast_process_pending_reloads(void)
+{
+	struct reload_queue_item *item;
+
+	if (!ast_fully_booted) {
+		return;
+	}
+
+	AST_LIST_LOCK(&reload_queue);
+
+	if (do_full_reload) {
+		do_full_reload = 0;
+		AST_LIST_UNLOCK(&reload_queue);
+		ast_log(LOG_NOTICE, "Executing deferred reload request.\n");
+		ast_module_reload(NULL);
+		return;
+	}
+
+	while ((item = AST_LIST_REMOVE_HEAD(&reload_queue, entry))) {
+		ast_log(LOG_NOTICE, "Executing deferred reload request for module '%s'.\n", item->module);
+		ast_module_reload(item->module);
+		ast_free(item);
+	}
+
+	AST_LIST_UNLOCK(&reload_queue);
+}
+
+static void queue_reload_request(const char *module)
+{
+	struct reload_queue_item *item;
+
+	AST_LIST_LOCK(&reload_queue);
+
+	if (do_full_reload) {
+		AST_LIST_UNLOCK(&reload_queue);
+		return;
+	}
+
+	if (ast_strlen_zero(module)) {
+		/* A full reload request (when module is NULL) wipes out any previous
+		   reload requests and causes the queue to ignore future ones */
+		while ((item = AST_LIST_REMOVE_HEAD(&reload_queue, entry))) {
+			ast_free(item);
+		}
+		do_full_reload = 1;
+	} else {
+		/* No reason to add the same module twice */
+		AST_LIST_TRAVERSE(&reload_queue, item, entry) {
+			if (!strcasecmp(item->module, module)) {
+				AST_LIST_UNLOCK(&reload_queue);
+				return;
+			}
+		}
+		item = ast_calloc(1, sizeof(*item) + strlen(module) + 1);
+		if (!item) {
+			ast_log(LOG_ERROR, "Failed to allocate reload queue item.\n");
+			AST_LIST_UNLOCK(&reload_queue);
+			return;
+		}
+		strcpy(item->module, module);
+		AST_LIST_INSERT_TAIL(&reload_queue, item, entry);
+	}
+	AST_LIST_UNLOCK(&reload_queue);
+}
+
 int ast_module_reload(const char *name)
 {
 	struct ast_module *cur;
 	int res = 0; /* return value. 0 = not found, others, see below */
 	int i;
+
+	/* If we aren't fully booted, we just pretend we reloaded but we queue this
+	   up to run once we are booted up. */
+	if (!ast_fully_booted) {
+		queue_reload_request(name);
+		return 0;
+	}
 
 	if (ast_mutex_trylock(&reloadlock)) {
 		ast_verbose("The previous reload command didn't finish yet\n");
