@@ -126,6 +126,18 @@ struct ast_module;
 int ast_module_reload(const char *name);
 
 /*!
+ * \brief Process reload requests received during startup.
+ *
+ * This function requests that the loader execute the pending reload requests
+ * that were queued during server startup.
+ *
+ * \note This function will do nothing if the server has not completely started
+ *       up.  Once called, the reload queue is emptied, and further invocations
+ *       will have no affect.
+ */
+void ast_process_pending_reloads(void);
+
+/*!
  * \brief Register a function to be executed before Asterisk exits.
  * \param func The callback function to use.
  *

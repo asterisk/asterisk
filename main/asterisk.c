@@ -3111,6 +3111,11 @@ int main(int argc, char *argv[])
 
 	ast_channels_init();
 
+	if (init_manager()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
 	if (ast_cdr_engine_init()) {
 		printf("%s", term_quit());
 		exit(1);
@@ -3160,15 +3165,6 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	/* AMI is initialized after loading modules because of a potential
-	 * conflict between issuing a module reload from manager and
-	 * registering manager actions.  This will cause reversed locking
-	 * order between the module list and manager actions list. */
-	if (init_manager()) {
-		printf("%s", term_quit());
-		exit(1);
-	}
-
 	dnsmgr_start_refresh();
 
 	/* We might have the option of showing a console, but for now just
@@ -3184,6 +3180,9 @@ int main(int argc, char *argv[])
 		sig_alert_pipe[0] = sig_alert_pipe[1] = -1;
 
 	ast_set_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED);
+
+	ast_process_pending_reloads();
+
 	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
 
 #ifdef __AST_DEBUG_MALLOC
