@@ -1,3 +1,11 @@
+2009-04-02  David Vossel <dvossel@digium.com>
+
+	* channels/chan_iax2.c: Additional updates for AST-2009-001
+
+2009-04-02  David Vossel <dvossel@digium.com>
+
+	* channels/chan_iax2.c: REGAUTH loop fix related to AST-2009-001
+
 2009-04-02  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.2.32 released
