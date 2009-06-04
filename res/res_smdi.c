@@ -57,6 +57,100 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* Message expiry time in milliseconds */
 #define SMDI_MSG_EXPIRY_TIME	30000 /* 30 seconds */
 
+/*** DOCUMENTATION
+
+	<function name="SMDI_MSG_RETRIEVE" language="en_US">
+		<synopsis>
+			Retrieve an SMDI message.
+		</synopsis>
+		<syntax>
+			<parameter name="smdi port" required="true" />
+			<parameter name="search key" required="true" />
+			<parameter name="timeout" />
+			<parameter name="options">
+				<enumlist>
+					<enum name="t">
+						<para>Instead of searching on the forwarding station, search on the message desk terminal.</para>
+					</enum>
+					<enum name="n">
+						<para>Instead of searching on the forwarding station, search on the message desk number.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This function is used to retrieve an incoming SMDI message. It returns
+			an ID which can be used with the SMDI_MSG() function to access details of
+			the message.  Note that this is a destructive function in the sense that
+			once an SMDI message is retrieved using this function, it is no longer in
+			the global SMDI message queue, and can not be accessed by any other Asterisk
+			channels.  The timeout for this function is optional, and the default is
+			3 seconds.  When providing a timeout, it should be in milliseconds.
+			</para>
+			<para>The default search is done on the forwarding station ID. However, if
+			you set one of the search key options in the options field, you can change
+			this behavior.
+			</para>
+		</description>
+		<see-also>
+			<ref type="function">SMDI_MSG</ref>
+		</see-also>
+	</function>
+	<function name="SMDI_MSG" language="en_US">
+		<synopsis>
+			Retrieve details about an SMDI message.
+		</synopsis>
+		<syntax>
+			<parameter name="message_id" required="true" />
+			<parameter name="component" required="true">
+				<para>Valid message components are:</para>
+				<enumlist>
+					<enum name="number">
+						<para>The message desk number</para>
+					</enum>
+					<enum name="terminal">
+						<para>The message desk terminal</para>
+					</enum>
+					<enum name="station">
+						<para>The forwarding station</para>
+					</enum>
+					<enum name="callerid">
+						<para>The callerID of the calling party that was forwarded</para>
+					</enum>
+					<enum name="type">
+						<para>The call type.  The value here is the exact character
+						that came in on the SMDI link.  Typically, example values
+						are:</para>
+						<para>Options:</para>
+						<enumlist>
+							<enum name="D">
+								<para>Direct Calls</para>
+							</enum>
+							<enum name="A">
+								<para>Forward All Calls</para>
+							</enum>
+							<enum name="B">
+								<para>Forward Busy Calls</para>
+							</enum>
+							<enum name="N">
+								<para>Forward No Answer Calls</para>
+							</enum>
+						</enumlist>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This function is used to access details of an SMDI message that was
+			pulled from the incoming SMDI message queue using the SMDI_MSG_RETRIEVE()
+			function.</para>
+		</description>
+		<see-also>
+			<ref type="function">SMDI_MSG_RETRIEVE</ref>
+		</see-also>
+	</function>
+ ***/
+
 static const char config_file[] = "smdi.conf";
 
 /*! \brief SMDI message desk message queue. */
@@ -1292,46 +1386,11 @@ return_error:
 
 static struct ast_custom_function smdi_msg_retrieve_function = {
 	.name = "SMDI_MSG_RETRIEVE",
-	.synopsis = "Retrieve an SMDI message.",
-	.syntax = "SMDI_MSG_RETRIEVE(<smdi port>,<search key>[,timeout[,options]])",
-	.desc = 
-	"   This function is used to retrieve an incoming SMDI message.  It returns\n"
-	"an ID which can be used with the SMDI_MSG() function to access details of\n"
-	"the message.  Note that this is a destructive function in the sense that\n"
-	"once an SMDI message is retrieved using this function, it is no longer in\n"
-	"the global SMDI message queue, and can not be accessed by any other Asterisk\n"
-	"channels.  The timeout for this function is optional, and the default is\n"
-	"3 seconds.  When providing a timeout, it should be in milliseconds.\n"
-	"   The default search is done on the forwarding station ID.  However, if\n"
-	"you set one of the search key options in the options field, you can change\n"
-	"this behavior.\n"
-	"   Options:\n"
-	"     t - Instead of searching on the forwarding station, search on the message\n"
-	"         desk terminal.\n"
-	"     n - Instead of searching on the forwarding station, search on the message\n"
-	"         desk number.\n"
-	"",
 	.read = smdi_msg_retrieve_read,
 };
 
 static struct ast_custom_function smdi_msg_function = {
 	.name = "SMDI_MSG",
-	.synopsis = "Retrieve details about an SMDI message.",
-	.syntax = "SMDI_MSG(<message_id>,<component>)",
-	.desc = 
-	"   This function is used to access details of an SMDI message that was\n"
-	"pulled from the incoming SMDI message queue using the SMDI_MSG_RETRIEVE()\n"
-	"function.\n"
-	"   Valid message components are:\n"
-	"      number   - The message desk number\n"
-	"      terminal - The message desk terminal\n"
-	"      station  - The forwarding station\n"
-	"      callerid - The callerID of the calling party that was forwarded\n"
-	"      type     - The call type.  The value here is the exact character\n"
-	"                 that came in on the SMDI link.  Typically, example values\n"
-	"                 are: D - Direct Calls, A - Forward All Calls,\n"
-	"                      B - Forward Busy Calls, N - Forward No Answer Calls\n"
-	"",
 	.read = smdi_msg_read,
 };
 
