@@ -575,7 +575,8 @@ struct chan_iax2_pvt {
 		AST_STRING_FIELD(mohinterpret);
 		AST_STRING_FIELD(mohsuggest);
 	);
-	
+	/*! AUTHREJ all AUTHREP frames */
+	int authrej;
 	/*! permitted authentication methods */
 	int authmethods;
 	/*! permitted encryption methods */
@@ -5556,6 +5557,18 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 			ast_string_field_set(iaxs[callno], secret, user->secret);
 		res = 0;
 		user = user_unref(user);
+	} else {
+		 /* user was not found, but we should still fake an AUTHREQ.
+		  * Set authmethods to the last known authmethod used by the system
+		  * Set a fake secret, it's not looked at, just required to attempt authentication.
+		  * Set authrej so the AUTHREP is rejected without even looking at its contents */
+		iaxs[callno]->authmethods = last_authmethod ? last_authmethod : (IAX_AUTH_MD5 | IAX_AUTH_PLAINTEXT);
+		ast_string_field_set(iaxs[callno], secret, "badsecret");
+		iaxs[callno]->authrej = 1;
+		if (!ast_strlen_zero(iaxs[callno]->username)) {
+			/* only send the AUTHREQ if a username was specified. */
+			res = 0;
+		}
 	}
 	ast_set2_flag(iaxs[callno], iax2_getpeertrunk(*sin), IAX_TRUNK);	
 	return res;
@@ -5662,6 +5675,9 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 		.name = p->username,	
 	};
 
+	if (p->authrej) {
+		return res;
+	}
 	user = ao2_find(users, &tmp_user, OBJ_POINTER);
 	if (user) {
 		if (ast_test_flag(p, IAX_MAXAUTHREQ)) {
