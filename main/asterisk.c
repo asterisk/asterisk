@@ -3496,6 +3496,9 @@ int main(int argc, char *argv[])
 		sig_alert_pipe[0] = sig_alert_pipe[1] = -1;
 
 	ast_set_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED);
+
+	ast_process_pending_reloads();
+
 	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
 
 #ifdef __AST_DEBUG_MALLOC
