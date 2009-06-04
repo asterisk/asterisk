@@ -546,6 +546,8 @@ struct chan_iax2_pvt {
 	char username[80];
 	/*! Expected Secret */
 	char secret[80];
+	/*! AUTHREJ all AUTHREP frames */
+	int authrej;
 	/*! permitted authentication methods */
 	int authmethods;
 	/*! permitted encryption methods */
@@ -5178,6 +5180,18 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		if (ast_test_flag(user, IAX_TEMPONLY))
 			destroy_user(user);
 		res = 0;
+	} else {
+		 /* user was not found, but we should still fake an AUTHREQ.
+		  * Set authmethods to the last known authmethods used by the system.
+		  * Set a fake secret, it's not looked at, just required to attempt authentication.
+		  * Set authrej so the AUTHREP is rejected without even looking at its contents */
+		iaxs[callno]->authmethods = lastauthmethod ? lastauthmethod : (IAX_AUTH_MD5 | IAX_AUTH_PLAINTEXT);
+		ast_copy_string(iaxs[callno]->secret, "badsecret", sizeof(iaxs[callno]->secret));
+		iaxs[callno]->authrej = 1;
+		if (!ast_strlen_zero(iaxs[callno]->username)) {
+			/* only send the AUTHREQ if a username was specified. */
+			res = 0;
+		}
 	}
 	ast_set2_flag(iaxs[callno], iax2_getpeertrunk(*sin), IAX_TRUNK);	
 	return res;
@@ -5277,6 +5291,9 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 	int x;
 	struct iax2_user *user = NULL;
 
+	if (p->authrej) {
+		return res;
+	}
 	ast_mutex_lock(&userl.lock);
 	user = userl.users;
 	while (user) {
@@ -6109,11 +6126,10 @@ static int registry_authrequest(char *name, int callno)
 	authmethods = p ? p->authmethods : lastauthmethod ? lastauthmethod : (IAX_AUTH_PLAINTEXT | IAX_AUTH_MD5);
 	if (p && ast_test_flag(p, IAX_TEMPONLY)) {
 		destroy_peer(p);
-	} else if (!p && !delayreject) {
+	} else if (!p) {
 		ast_log(LOG_WARNING, "No such peer '%s'\n", name);
-		return 0;
 	}
-	
+
 	memset(&ied, 0, sizeof(ied));
 	iax_ie_append_short(&ied, IAX_IE_AUTHMETHODS, authmethods);
 	if (authmethods & (IAX_AUTH_RSA | IAX_AUTH_MD5)) {
