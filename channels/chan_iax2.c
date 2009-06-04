@@ -5403,6 +5403,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	/* We release the lock for the call to prevent a deadlock, but it's okay because
 	   only the current thread could possibly make it go away or make changes */
 	ast_mutex_unlock(&iaxsl[callno]);
+
 	/* SLD: first call to lookup peer during registration */
 	p = find_peer(peer, 1);
 	ast_mutex_lock(&iaxsl[callno]);
@@ -5411,6 +5412,12 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		if (authdebug)
 			ast_log(LOG_NOTICE, "No registration for peer '%s' (from %s)\n", peer, ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 		ast_copy_string(iaxs[callno]->secret, "invalidpassword", sizeof(iaxs[callno]->secret));
+
+		/* A AUTHREQ must be sent to a invalid peer.  By returning 0, a REGAUTH with a md5/rsa challenge
+		 * will be sent.  If the challenge has already been sent, return -1 to REGREJ the invalid peer. */
+		if (ast_strlen_zero(iaxs[callno]->challenge)) {
+			return 0;
+		}
 		return -1;
 	}
 
@@ -5444,7 +5451,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 				if (key && !ast_check_signature(key, iaxs[callno]->challenge, rsasecret)) {
 					ast_set_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED);
 					break;
-				} else if (!key) 
+				} else if (!key)
 					ast_log(LOG_WARNING, "requested inkey '%s' does not exist\n", keyn);
 				keyn = strsep(&stringp, ":");
 			}
@@ -5476,7 +5483,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		struct MD5Context md5;
 		unsigned char digest[16];
 		char *tmppw, *stringp;
-		
+
 		tmppw = ast_strdupa(p->secret);
 		stringp = tmppw;
 		while((tmppw = strsep(&stringp, ";"))) {
@@ -5486,7 +5493,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 			MD5Final(digest, &md5);
 			for (x=0;x<16;x++)
 				sprintf(requeststr + (x << 1), "%2.2x", digest[x]); /* safe */
-			if (!strcasecmp(requeststr, md5secret)) 
+			if (!strcasecmp(requeststr, md5secret))
 				break;
 		}
 		if (tmppw) {
@@ -5498,12 +5505,8 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 				destroy_peer(p);
 			return -1;
 		}
-	} else if (!ast_strlen_zero(p->secret) || !ast_strlen_zero(p->inkeys)) {
-		if (authdebug &&
-				((!ast_strlen_zero(p->secret) && (p->authmethods & IAX_AUTH_MD5) && !ast_strlen_zero(iaxs[callno]->challenge)) ||
-				 (!ast_strlen_zero(p->inkeys) && (p->authmethods & IAX_AUTH_RSA) && !ast_strlen_zero(iaxs[callno]->challenge)))) {
-			ast_log(LOG_NOTICE, "Inappropriate authentication received for '%s'\n", p->name);
-		}
+	} else if (!ast_strlen_zero(iaxs[callno]->challenge) && ast_strlen_zero(md5secret) && ast_strlen_zero(rsasecret)) {
+		/* if challenge has been sent, but no challenge response if given, reject. */
 		if (ast_test_flag(p, IAX_TEMPONLY))
 			destroy_peer(p);
 		return -1;
@@ -5513,7 +5516,6 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	if (ast_test_flag(p, IAX_TEMPONLY))
 		destroy_peer(p);
 	return 0;
-	
 }
 
 static int authenticate(char *challenge, char *secret, char *keyn, int authmethods, struct iax_ie_data *ied, struct sockaddr_in *sin, aes_encrypt_ctx *ecx, aes_decrypt_ctx *dcx)
@@ -7866,7 +7868,11 @@ retryowner2:
 				/* For security, always ack immediately */
 				if (delayreject)
 					send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
-				register_verify(fr->callno, &sin, &ies);
+				if (register_verify(fr->callno, &sin, &ies)) {
+					/* Send delayed failure */
+					auth_fail(fr->callno, IAX_COMMAND_REGREJ);
+					break;
+				}
 				if ((ast_strlen_zero(iaxs[fr->callno]->secret) && ast_strlen_zero(iaxs[fr->callno]->inkeys)) || ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_AUTHENTICATED)) {
 					if (f.subclass == IAX_COMMAND_REGREL)
 						memset(&sin, 0, sizeof(sin));
