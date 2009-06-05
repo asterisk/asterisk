@@ -1920,8 +1920,8 @@ static int ast_extension_state2(struct ast_exten *e)
 {
 	char hint[AST_MAX_EXTENSION];
 	char *cur, *rest;
-	int allunavailable = 1, allbusy = 1, allfree = 1, allonhold = 1;
-	int busy = 0, inuse = 0, ring = 0;
+	int allunavailable = 1, allbusy = 1, allfree = 1;
+	int busy = 0, inuse = 0, ring = 0, onhold = 0;
 
 	if (!e)
 		return -1;
@@ -1935,67 +1935,60 @@ static int ast_extension_state2(struct ast_exten *e)
 		case AST_DEVICE_NOT_INUSE:
 			allunavailable = 0;
 			allbusy = 0;
-			allonhold = 0;
 			break;
 		case AST_DEVICE_INUSE:
 			inuse = 1;
 			allunavailable = 0;
 			allfree = 0;
-			allonhold = 0;
 			break;
 		case AST_DEVICE_RINGING:
 			ring = 1;
 			allunavailable = 0;
 			allfree = 0;
-			allonhold = 0;
 			break;
 		case AST_DEVICE_RINGINUSE:
 			inuse = 1;
 			ring = 1;
 			allunavailable = 0;
 			allfree = 0;
-			allonhold = 0;
 			break;
 		case AST_DEVICE_ONHOLD:
 			allunavailable = 0;
 			allfree = 0;
+			onhold = 1;
 			break;
 		case AST_DEVICE_BUSY:
 			allunavailable = 0;
 			allfree = 0;
-			allonhold = 0;
 			busy = 1;
+			inuse = 1;
 			break;
 		case AST_DEVICE_UNAVAILABLE:
 		case AST_DEVICE_INVALID:
 			allbusy = 0;
 			allfree = 0;
-			allonhold = 0;
 			break;
 		default:
 			allunavailable = 0;
 			allbusy = 0;
 			allfree = 0;
-			allonhold = 0;
 		}
 	}
 
-	if (!inuse && ring)
-		return AST_EXTENSION_RINGING;
-	if (inuse && ring)
-		return (AST_EXTENSION_INUSE | AST_EXTENSION_RINGING);
-	if (inuse)
-		return AST_EXTENSION_INUSE;
 	if (allfree)
 		return AST_EXTENSION_NOT_INUSE;
-	if (allonhold)
-		return AST_EXTENSION_ONHOLD;
+	if ((inuse || onhold) && ring)
+		return (AST_EXTENSION_INUSE | AST_EXTENSION_RINGING);
 	if (allbusy)
 		return AST_EXTENSION_BUSY;
+	if (inuse)
+		return AST_EXTENSION_INUSE;
+	if (ring)
+		return AST_EXTENSION_RINGING;
+	if (onhold)
+		return AST_EXTENSION_ONHOLD;
 	if (allunavailable)
 		return AST_EXTENSION_UNAVAILABLE;
-	if (busy)
-		return AST_EXTENSION_INUSE;
 
 	return AST_EXTENSION_NOT_INUSE;
 }
