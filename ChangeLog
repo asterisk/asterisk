@@ -1,8 +1,12 @@
-2009-06-05  David Vossel <dvossel@digium.com>
+2009-06-05  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.2.33 released
+
+2009-06-04  David Vossel <dvossel@digium.com>
 
 	* channels/chan_iax2.c: Additional updates for AST-2009-001
 
-2009-06-05  David Vossel <dvossel@digium.com>
+2009-06-04  David Vossel <dvossel@digium.com>
 
 	* channels/chan_iax2.c, apps/app_chanspy.c: Fixes REGAUTH loop
 	  related to AST-2009-001, also addresses a small compile time
