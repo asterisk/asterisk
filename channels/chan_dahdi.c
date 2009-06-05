@@ -16008,7 +16008,7 @@ static char *dahdi_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 		if (filtertype) {
 			switch(filtertype) {
 			case 1: /* dahdi show channels group <group> */
-				if (tmp->group != targetnum) {
+				if (!(tmp->group & targetnum)) {
 					tmp = tmp->next;
 					continue;
 				}
