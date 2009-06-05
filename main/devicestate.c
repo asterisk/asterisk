@@ -736,7 +736,6 @@ void ast_devstate_aggregate_init(struct ast_devstate_aggregate *agg)
 	agg->all_unavail = 1;
 	agg->all_busy = 1;
 	agg->all_free = 1;
-	agg->all_on_hold = 1;
 }
 
 void ast_devstate_aggregate_add(struct ast_devstate_aggregate *agg, enum ast_device_state state)
@@ -745,21 +744,18 @@ void ast_devstate_aggregate_add(struct ast_devstate_aggregate *agg, enum ast_dev
 	case AST_DEVICE_NOT_INUSE:
 		agg->all_unavail = 0;
 		agg->all_busy = 0;
-		agg->all_on_hold = 0;
 		break;
 	case AST_DEVICE_INUSE:
 		agg->in_use = 1;
 		agg->all_busy = 0;
 		agg->all_unavail = 0;
 		agg->all_free = 0;
-		agg->all_on_hold = 0;
 		break;
 	case AST_DEVICE_RINGING:
 		agg->ring = 1;
 		agg->all_busy = 0;
 		agg->all_unavail = 0;
 		agg->all_free = 0;
-		agg->all_on_hold = 0;
 		break;
 	case AST_DEVICE_RINGINUSE:
 		agg->in_use = 1;
@@ -767,23 +763,22 @@ void ast_devstate_aggregate_add(struct ast_devstate_aggregate *agg, enum ast_dev
 		agg->all_busy = 0;
 		agg->all_unavail = 0;
 		agg->all_free = 0;
-		agg->all_on_hold = 0;
 		break;
 	case AST_DEVICE_ONHOLD:
 		agg->all_unavail = 0;
 		agg->all_free = 0;
+		agg->on_hold = 1;
 		break;
 	case AST_DEVICE_BUSY:
 		agg->all_unavail = 0;
 		agg->all_free = 0;
-		agg->all_on_hold = 0;
 		agg->busy = 1;
+		agg->in_use = 1;
 		break;
 	case AST_DEVICE_UNAVAILABLE:
 	case AST_DEVICE_INVALID:
 		agg->all_busy = 0;
 		agg->all_free = 0;
-		agg->all_on_hold = 0;
 		break;
 	case AST_DEVICE_UNKNOWN:
 		break;
@@ -794,25 +789,25 @@ enum ast_device_state ast_devstate_aggregate_result(struct ast_devstate_aggregat
 {
 	if (agg->all_free)
 		return AST_DEVICE_NOT_INUSE;
-	
-	if (agg->all_on_hold)
-		return AST_DEVICE_ONHOLD;
-	
+
+	if ((agg->in_use || agg->on_hold) && agg->ring)
+		return AST_DEVICE_RINGINUSE;
+
 	if (agg->all_busy)
 		return AST_DEVICE_BUSY;
-
-	if (agg->all_unavail)
-		return AST_DEVICE_UNAVAILABLE;
-	
-	if (agg->ring)
-		return agg->in_use ? AST_DEVICE_RINGINUSE : AST_DEVICE_RINGING;
 
 	if (agg->in_use)
 		return AST_DEVICE_INUSE;
 
-	if (agg->busy)
-		return AST_DEVICE_BUSY;
-	
+	if (agg->ring)
+		return AST_DEVICE_RINGING;
+
+	if (agg->on_hold)
+		return AST_DEVICE_ONHOLD;
+
+	if (agg->all_unavail)
+		return AST_DEVICE_UNAVAILABLE;
+
 	return AST_DEVICE_NOT_INUSE;
 }
 

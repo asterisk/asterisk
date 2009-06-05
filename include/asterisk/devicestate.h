@@ -256,7 +256,7 @@ struct ast_devstate_aggregate {
 	unsigned int all_unavail:1;
 	unsigned int all_busy:1;
 	unsigned int all_free:1;
-	unsigned int all_on_hold:1;
+	unsigned int on_hold:1;
 	unsigned int busy:1;
 	unsigned int in_use:1;
 	unsigned int ring:1;
