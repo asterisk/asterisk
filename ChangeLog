@@ -1,8 +1,12 @@
-2009-06-05  David Vossel <dvossel@digium.com>
+2009-06-05  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.4.25.1 released
+
+2009-06-04  David Vossel <dvossel@digium.com>
 
 	* channels/chan_iax2.c: Additional updates for AST-2009-001
 
-2009-06-05  David Vossel <dvossel@digium.com>
+2009-06-04  David Vossel <dvossel@digium.com>
 
 	* channels/chan_iax2.c: REGAUTH loop fix related to AST-2009-001
 
