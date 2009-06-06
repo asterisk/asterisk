@@ -420,6 +420,40 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</variablelist>
 		</description>
 	</application>
+	<function name="MEETME_INFO" language="en_US">
+		<synopsis>
+			Query a given conference of various properties.
+		</synopsis>
+		<syntax>
+			<parameter name="keyword" required="true">
+				<para>Options:</para>
+				<enumlist>
+					<enum name="lock">
+						<para>Boolean of whether the corresponding conference is locked.</para>
+					</enum>
+					<enum name="parties">
+						<para>Number of parties in a given conference</para>
+					</enum>
+					<enum name="activity">
+						<para>Duration of conference in seconds.</para>
+					</enum>
+					<enum name="dynamic">
+						<para>Boolean of whether the corresponding conference is dynamic.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+			<parameter name="confno" required="true">
+				<para>Conference number to retrieve information from.</para>
+			</parameter>
+		</syntax>
+		<description />
+		<see-also>
+			<ref type="application">MeetMe</ref>
+			<ref type="application">MeetMeCount</ref>
+			<ref type="application">MeetMeAdmin</ref>
+			<ref type="application">MeetMeChannelAdmin</ref>
+		</see-also>
+	</function>
 	<manager name="MeetmeMute" language="en_US">
 		<synopsis>
 			Mute a Meetme user.
@@ -6390,16 +6424,7 @@ static int acf_meetme_info(struct ast_channel *chan, const char *cmd, char *data
 
 static struct ast_custom_function meetme_info_acf = {
 	.name = "MEETME_INFO",
-	.synopsis = "Query a given conference of various properties.",
-	.syntax = "MEETME_INFO(<keyword>,<confno>)",
 	.read = acf_meetme_info,
-	.desc =
-"Returns information from a given keyword. (For booleans 1-true, 0-false)\n"
-"  Options:\n"
-"    lock     - boolean of whether the corresponding conference is locked\n" 
-"    parties  - number of parties in a given conference\n"
-"    activity - duration of conference in seconds\n"
-"    dynamic  - boolean of whether the corresponding coference is dynamic\n",
 };
 
 
