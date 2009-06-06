@@ -36,6 +36,57 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision: 87233 $")
 #include "asterisk/module.h"
 #include "asterisk/pbx.h"
 
+/*** DOCUMENTATION
+	<function name="SYSINFO" language="en_US">
+		<synopsis>
+			Returns system information specified by parameter.
+		</synopsis>
+		<syntax>
+			<parameter name="parameter" required="true">
+				<enumlist>
+					<enum name="loadavg">
+						<para>System load average from past minute.</para>
+					</enum>
+					<enum name="numcalls">
+						<para>Number of active calls currently in progress.</para>
+					</enum>
+					<enum name="uptime">
+						<para>System uptime in hours.</para>
+						<note><para>This parameter is dependant upon operating system.</para></note>
+					</enum>
+					<enum name="totalram">
+						<para>Total usable main memory size in KiB.</para>
+						<note><para>This parameter is dependant upon operating system.</para></note>
+					</enum>
+					<enum name="freeram">
+						<para>Available memory size in KiB.</para>
+						<note><para>This parameter is dependant upon operating system.</para></note>
+					</enum>
+					<enum name="bufferram">
+						<para>Memory used by buffers in KiB.</para>
+						<note><para>This parameter is dependant upon operating system.</para></note>
+					</enum>
+					<enum name="totalswap">
+						<para>Total swap space still available in KiB.</para>
+						<note><para>This parameter is dependant upon operating system.</para></note>
+					</enum>
+					<enum name="freeswap">
+						<para>Free swap space still available in KiB.</para>
+						<note><para>This parameter is dependant upon operating system.</para></note>
+					</enum>
+					<enum name="numprocs">
+						<para>Number of current processes.</para>
+						<note><para>This parameter is dependant upon operating system.</para></note>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Returns information from a given parameter.</para>
+		</description>
+	</function>
+ ***/
+
 static int sysinfo_helper(struct ast_channel *chan, const char *cmd, char *data,
 		                         char *buf, size_t len)
 {
@@ -83,24 +134,8 @@ static int sysinfo_helper(struct ast_channel *chan, const char *cmd, char *data,
 
 static struct ast_custom_function sysinfo_function = {
 	.name = "SYSINFO",
-	.synopsis = "Returns system information specified by parameter.",
-	.syntax = "SYSINFO(<parameter>)",
 	.read = sysinfo_helper,
 	.read_max = 22,
-	.desc = 
-"Returns information from a given parameter\n"
-"  Options:\n"
-"    loadavg   - system load average from past minute\n"
-"    numcalls  - number of active calls currently in progress\n"
-#if defined(HAVE_SYSINFO)
-"    uptime    - system uptime in hours\n"
-"    totalram  - total usable main memory size in KiB\n"
-"    freeram   - available memory size in KiB\n"
-"    bufferram - memory used by buffers in KiB\n"
-"    totalswap - total swap space size in KiB\n"
-"    freeswap  - free swap space still available in KiB\n"
-"    numprocs  - number of current processes\n",
-#endif /* HAVE_SYSINFO */
 };
 
 static int unload_module(void)
