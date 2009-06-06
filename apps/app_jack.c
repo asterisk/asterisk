@@ -113,7 +113,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</application>
  ***/
 
-static const char *jack_app = "JACK";
+static const char jack_app[] = "JACK";
 
 struct jack_data {
 	AST_DECLARE_STRING_FIELDS(
