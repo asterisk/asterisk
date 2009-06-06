@@ -164,6 +164,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="application">Return</ref>
 		</see-also>
 	</function>
+	<agi name="gosub" language="en_US">
+		<synopsis>
+			Cause the channel to execute the specified dialplan subroutine.
+		</synopsis>
+		<syntax>
+			<parameter name="context" required="true" />
+			<parameter name="extension" required="true" />
+			<parameter name="priority" required="true" />
+			<parameter name="optional-argument" />
+		</syntax>
+		<description>
+			<para>Cause the channel to execute the specified dialplan subroutine,
+			returning to the dialplan with execution of a Return().</para>
+		</description>
+	</agi>
  ***/
 
 static const char * const app_gosub = "Gosub";
@@ -627,13 +642,8 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, const char
 	return RESULT_SUCCESS;
 }
 
-static const char usage_gosub[] =
-" Usage: GOSUB <context> <extension> <priority> [<optional-argument>]\n"
-"   Cause the channel to execute the specified dialplan subroutine, returning\n"
-" to the dialplan with execution of a Return()\n";
-
 struct agi_command gosub_agi_command =
-	{ { "gosub", NULL }, handle_gosub, "Execute a dialplan subroutine", usage_gosub , 0 };
+	{ { "gosub", NULL }, handle_gosub, NULL, NULL, 0 };
 
 static int unload_module(void)
 {
