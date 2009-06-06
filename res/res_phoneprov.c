@@ -65,6 +65,37 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define VAR_BUF_SIZE 4096
 
+/*** DOCUMENTATION
+	<function name="PP_EACH_EXTENSION" language="en_US">
+		<synopsis>
+			Execute specified template for each extension.
+		</synopsis>
+		<syntax>
+			<parameter name="mac" required="true" />
+			<parameter name="template" required="true" />
+		</syntax>
+		<description>
+			<para>Output the specified template for each extension associated with the specified MAC address.</para>
+		</description>
+	</function>
+	<function name="PP_EACH_USER" language="en_US">
+		<synopsis>
+			Generate a string for each phoneprov user.
+		</synopsis>
+		<syntax>
+			<parameter name="string" required="true" />
+			<parameter name="exclude_mac" required="true" />
+		</syntax>
+		<description>
+			<para>Pass in a string, with phoneprov variables you want substituted in the format of
+			%{VARNAME}, and you will get the string rendered for each user in phoneprov
+			excluding ones with MAC address <replaceable>exclude_mac</replaceable>. Probably not
+			useful outside of res_phoneprov.</para>
+			<para>Example: ${PP_EACH_USER(&lt;item&gt;&lt;fn&gt;%{DISPLAY_NAME}&lt;/fn&gt;&lt;/item&gt;|${MAC})</para>
+		</description>
+	</function>
+ ***/
+
 /*! \brief for use in lookup_iface */
 static struct in_addr __ourip = { .s_addr = 0x00000000, };
 
@@ -1109,14 +1140,6 @@ static int pp_each_user_read2(struct ast_channel *chan, const char *cmd, char *d
 
 static struct ast_custom_function pp_each_user_function = {
 	.name = "PP_EACH_USER",
-	.synopsis = "Generate a string for each phoneprov user",
-	.syntax = "PP_EACH_USER(<string>|<exclude_mac>)",
-	.desc =
-		"Pass in a string, with phoneprov variables you want substituted in the format of\n"
-		"%{VARNAME}, and you will get the string rendered for each user in phoneprov\n"
-		"excluding ones with MAC address <exclude_mac>. Probably not useful outside of\n"
-		"res_phoneprov.\n"
-		"\nExample: ${PP_EACH_USER(<item><fn>%{DISPLAY_NAME}</fn></item>|${MAC})",
 	.read = pp_each_user_read,
 	.read2 = pp_each_user_read2,
 };
@@ -1195,11 +1218,6 @@ static int pp_each_extension_read2(struct ast_channel *chan, const char *cmd, ch
 
 static struct ast_custom_function pp_each_extension_function = {
 	.name = "PP_EACH_EXTENSION",
-	.synopsis = "Execute specified template for each extension",
-	.syntax = "PP_EACH_EXTENSION(<mac>|<template>)",
-	.desc =
-		"Output the specified template for each extension associated with the specified\n"
-		"MAC address.",
 	.read = pp_each_extension_read,
 	.read2 = pp_each_extension_read2,
 };
