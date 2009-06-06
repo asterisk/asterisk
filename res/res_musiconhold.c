@@ -70,53 +70,82 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define INITIAL_NUM_FILES   8
 
-static char *play_moh = "MusicOnHold";
-static char *wait_moh = "WaitMusicOnHold";
-static char *set_moh = "SetMusicOnHold";
-static char *start_moh = "StartMusicOnHold";
-static char *stop_moh = "StopMusicOnHold";
+/*** DOCUMENTATION
+	<application name="MusicOnHold" language="en_US">
+		<synopsis>
+			Play Music On Hold indefinitely.
+		</synopsis>
+		<syntax>
+			<parameter name="class" required="true" />
+			<parameter name="duration" />
+		</syntax>
+		<description>
+			<para>Plays hold music specified by class. If omitted, the default music
+			source for the channel will be used. Change the default class with
+			Set(CHANNEL(musicclass)=...). If duration is given, hold music will be played
+			specified number of seconds. If duration is ommited, music plays indefinitely.
+			Returns <literal>0</literal> when done, <literal>-1</literal> on hangup.</para>
+		</description>
+	</application>
+	<application name="WaitMusicOnHold" language="en_US">
+		<synopsis>
+			Wait, playing Music On Hold.
+		</synopsis>
+		<syntax>
+			<parameter name="delay" required="true" />
+		</syntax>
+		<description>
+			<para> !!! DEPRECATED. Use MusicOnHold instead !!!</para>
+			<para>Plays hold music specified number of seconds. Returns <literal>0</literal> when done,
+			or <literal>-1</literal> on hangup. If no hold music is available, the delay will still occur
+			with no sound.</para>
+			<para> !!! DEPRECATED. Use MusicOnHold instead !!!</para>
+		</description>
+	</application>
+	<application name="SetMusicOnHold" language="en_US">
+		<synopsis>
+			Set default Music On Hold class.
+		</synopsis>
+		<syntax>
+			<parameter name="class" required="yes" />
+		</syntax>
+		<description>
+			<para>!!! DEPRECATED. USe Set(CHANNEL(musicclass)=...) instead !!!</para>
+			<para>Sets the default class for music on hold for a given channel.
+			When music on hold is activated, this class will be used to select which
+			music is played.</para>
+			<para>!!! DEPRECATED. USe Set(CHANNEL(musicclass)=...) instead !!!</para>
+		</description>
+	</application>
+	<application name="StartMusicOnHold" language="en_US">
+		<synopsis>
+			Play Music On Hold.
+		</synopsis>
+		<syntax>
+			<parameter name="class" required="true" />
+		</syntax>
+		<description>
+			<para>Starts playing music on hold, uses default music class for channel.
+			Starts playing music specified by class. If omitted, the default music
+			source for the channel will be used. Always returns <literal>0</literal>.</para>
+		</description>
+	</application>
+	<application name="StopMusicOnHold" language="en_US">
+		<synopsis>
+			Stop playing Music On Hold.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Stops playing music on hold.</para>
+		</description>
+	</application>
+ ***/
 
-static char *play_moh_syn = "Play Music On Hold indefinitely";
-static char *wait_moh_syn = "Wait, playing Music On Hold";
-static char *set_moh_syn = "Set default Music On Hold class";
-static char *start_moh_syn = "Play Music On Hold";
-static char *stop_moh_syn = "Stop Playing Music On Hold";
-
-static char *play_moh_desc = "  MusicOnHold(class[,duration]):\n"
-"Plays hold music specified by class.  If omitted, the default\n"
-"music source for the channel will be used. Change the default \n"
-"class with Set(CHANNEL(musicclass)=...).\n"
-"If duration is given, hold music will be played specified number\n"
-"of seconds. If duration is ommited, music plays indefinitely.\n"
-"Returns 0 when done, -1 on hangup.\n";
-
-static char *wait_moh_desc = "  WaitMusicOnHold(delay):\n"
-"\n"
-"  !!! DEPRECATED. Use MusicOnHold instead !!!\n"
-"\n"
-"Plays hold music specified number of seconds.  Returns 0 when\n"
-"done, or -1 on hangup.  If no hold music is available, the delay will\n"
-"still occur with no sound.\n"
-"\n"
-"  !!! DEPRECATED. Use MusicOnHold instead !!!\n";
-
-static char *set_moh_desc = "  SetMusicOnHold(class):\n"
-"\n"
-"  !!! DEPRECATED. USe Set(CHANNEL(musicclass)=...) instead !!!\n"
-"\n"
-"Sets the default class for music on hold for a given channel.  When\n"
-"music on hold is activated, this class will be used to select which\n"
-"music is played.\n"
-"\n"
-"  !!! DEPRECATED. USe Set(CHANNEL(musicclass)=...) instead !!!\n";
-
-static char *start_moh_desc = "  StartMusicOnHold(class):\n"
-"Starts playing music on hold, uses default music class for channel.\n"
-"Starts playing music specified by class.  If omitted, the default\n"
-"music source for the channel will be used.  Always returns 0.\n";
-
-static char *stop_moh_desc = "  StopMusicOnHold(): "
-"Stops playing music on hold.\n";
+static const char play_moh[] = "MusicOnHold";
+static const char wait_moh[] = "WaitMusicOnHold";
+static const char set_moh[] = "SetMusicOnHold";
+static const char start_moh[] = "StartMusicOnHold";
+static const char stop_moh[] = "StopMusicOnHold";
 
 static int respawn_time = 20;
 
@@ -1667,17 +1696,17 @@ static int load_module(void)
 				local_ast_moh_cleanup);
 	}
 
-	res = ast_register_application(play_moh, play_moh_exec, play_moh_syn, play_moh_desc);
+	res = ast_register_application_xml(play_moh, play_moh_exec);
 	ast_register_atexit(ast_moh_destroy);
 	ast_cli_register_multiple(cli_moh, ARRAY_LEN(cli_moh));
 	if (!res)
-		res = ast_register_application(wait_moh, wait_moh_exec, wait_moh_syn, wait_moh_desc);
+		res = ast_register_application_xml(wait_moh, wait_moh_exec);
 	if (!res)
-		res = ast_register_application(set_moh, set_moh_exec, set_moh_syn, set_moh_desc);
+		res = ast_register_application_xml(set_moh, set_moh_exec);
 	if (!res)
-		res = ast_register_application(start_moh, start_moh_exec, start_moh_syn, start_moh_desc);
+		res = ast_register_application_xml(start_moh, start_moh_exec);
 	if (!res)
-		res = ast_register_application(stop_moh, stop_moh_exec, stop_moh_syn, stop_moh_desc);
+		res = ast_register_application_xml(stop_moh, stop_moh_exec);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
