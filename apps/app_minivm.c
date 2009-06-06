@@ -400,6 +400,99 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		subscribed to the mailbox passed in the first parameter.</para>
 	</description>
 </application>
+<function name="MINIVMCOUNTER" language="en_US">
+	<synopsis>
+		Reads or sets counters for MiniVoicemail message.
+	</synopsis>
+	<syntax argsep=":">
+		<parameter name="account" required="true">
+			<para>If account is given and it exists, the counter is specific for the account.</para>
+			<para>If account is a domain and the domain directory exists, counters are specific for a domain.</para>
+		</parameter>
+		<parameter name="name" required="true">
+			<para>The name of the counter is a string, up to 10 characters.</para>
+		</parameter>
+		<parameter name="operand">
+			<para>The counters never goes below zero. Valid operands for changing the value of a counter when assigning a value are:</para>
+			<enumlist>
+				<enum name="i"><para>Increment by value.</para></enum>
+				<enum name="d"><para>Decrement by value.</para></enum>
+				<enum name="s"><para>Set to value.</para></enum>
+			</enumlist>
+		</parameter>
+	</syntax>
+	<description>
+		<para>The operation is atomic and the counter is locked while changing the value. The counters are stored as text files in the minivm account directories. It might be better to use realtime functions if you are using a database to operate your Asterisk.</para>
+	</description>
+	<see-also>
+		<ref type="application">MinivmRecord</ref>
+		<ref type="application">MinivmGreet</ref>
+		<ref type="application">MinivmNotify</ref>
+		<ref type="application">MinivmDelete</ref>
+		<ref type="application">MinivmAccMess</ref>
+		<ref type="application">MinivmMWI</ref>
+		<ref type="function">MINIVMACCOUNT</ref>
+	</see-also>
+</function>
+<function name="MINIVMACCOUNT" language="en_US">
+	<synopsis>
+		Gets MiniVoicemail account information.
+	</synopsis>
+	<syntax argsep=":">
+		<parameter name="account" required="true" />
+		<parameter name="item" required="true">
+			<para>Valid items are:</para>
+			<enumlist>
+				<enum name="path">
+					<para>Path to account mailbox (if account exists, otherwise temporary mailbox).</para>
+				</enum>
+				<enum name="hasaccount">
+					<para>1 is static Minivm account exists, 0 otherwise.</para>
+				</enum>
+				<enum name="fullname">
+					<para>Full name of account owner.</para>
+				</enum>
+				<enum name="email">
+					<para>Email address used for account.</para>
+				</enum>
+				<enum name="etemplate">
+					<para>Email template for account (default template if none is configured).</para>
+				</enum>
+				<enum name="ptemplate">
+					<para>Pager template for account (default template if none is configured).</para>
+				</enum>
+				<enum name="accountcode">
+					<para>Account code for the voicemail account.</para>
+				</enum>
+				<enum name="pincode">
+					<para>Pin code for voicemail account.</para>
+				</enum>
+				<enum name="timezone">
+					<para>Time zone for voicemail account.</para>
+				</enum>
+				<enum name="language">
+					<para>Language for voicemail account.</para>
+				</enum>
+				<enum name="&lt;channel variable name&gt;">
+					<para>Channel variable value (set in configuration for account).</para>
+				</enum>
+			</enumlist>
+		</parameter>
+	</syntax>
+	<description>
+		<para />
+	</description>
+	<see-also>
+		<ref type="application">MinivmRecord</ref>
+		<ref type="application">MinivmGreet</ref>
+		<ref type="application">MinivmNotify</ref>
+		<ref type="application">MinivmDelete</ref>
+		<ref type="application">MinivmAccMess</ref>
+		<ref type="application">MinivmMWI</ref>
+		<ref type="function">MINIVMCOUNTER</ref>
+	</see-also>
+</function>
+
 ***/
 
 #ifndef TRUE
@@ -3361,41 +3454,13 @@ static struct ast_cli_entry cli_minivm[] = {
 
 static struct ast_custom_function minivm_counter_function = {
 	.name = "MINIVMCOUNTER",
-	.synopsis = "Reads or sets counters for MiniVoicemail message",
-	.syntax = "MINIVMCOUNTER(<account>:name[:operand])",
 	.read = minivm_counter_func_read,
 	.write = minivm_counter_func_write,
-	.desc = "Valid operands for changing the value of a counter when assigning a value are:\n"
-	"- i   Increment by value\n"
-	"- d   Decrement by value\n"
-	"- s   Set to value\n"
-	"\nThe counters never goes below zero.\n"
-	"- The name of the counter is a string, up to 10 characters\n"
-	"- If account is given and it exists, the counter is specific for the account\n"
-	"- If account is a domain and the domain directory exists, counters are specific for a domain\n"
-	"The operation is atomic and the counter is locked while changing the value\n"
-	"\nThe counters are stored as text files in the minivm account directories. It might be better to use\n"
-	"realtime functions if you are using a database to operate your Asterisk\n",
 };
 
 static struct ast_custom_function minivm_account_function = {
 	.name = "MINIVMACCOUNT",
-	.synopsis = "Gets MiniVoicemail account information",
-	.syntax = "MINIVMACCOUNT(<account>:item)",
 	.read = minivm_account_func_read,
-	.desc = "Valid items are:\n"
-	"- path           Path to account mailbox (if account exists, otherwise temporary mailbox)\n"
-	"- hasaccount     1 if static Minivm account exists, 0 otherwise\n"
-	"- fullname       Full name of account owner\n"
-	"- email          Email address used for account\n"
-	"- etemplate      E-mail template for account (default template if none is configured)\n"   
-	"- ptemplate      Pager template for account (default template if none is configured)\n"   
-	"- accountcode    Account code for voicemail account\n"
-	"- pincode        Pin code for voicemail account\n"
-	"- timezone       Time zone for voicemail account\n"
-	"- language       Language for voicemail account\n"
-	"- <channel variable name> Channel variable value (set in configuration for account)\n"
-	"\n",
 };
 
 /*! \brief Load mini voicemail module */
