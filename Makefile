@@ -494,12 +494,12 @@ datafiles: _all
 	$(MAKE) -C sounds install
 
 doc/core-en_US.xml: $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"en_US\"" $(dir)/*.c $(dir)/*.cc 2>/dev/null))
-	@echo -n "Building Documentation For: "
+	@printf "Building Documentation For: "
 	@echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > $@
 	@echo "<!DOCTYPE docs SYSTEM \"appdocsxml.dtd\">" >> $@
 	@echo "<docs xmlns:xi=\"http://www.w3.org/2001/XInclude\">" >> $@
 	@for x in $(MOD_SUBDIRS); do \
-		echo -n "$$x " ; \
+		printf "$$x " ; \
 		for i in $$x/*.c; do \
 			$(AWK) -f build_tools/get_documentation $$i >> $@ ; \
 		done ; \
