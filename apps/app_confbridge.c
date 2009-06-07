@@ -111,7 +111,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * bridge lock if it is important.
  */
 
-static const char * const app = "ConfBridge";
+static const char app[] = "ConfBridge";
 
 enum {
 	OPTION_ADMIN = (1 << 0),             /*!< Set if the caller is an administrator */

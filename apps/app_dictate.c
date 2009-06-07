@@ -55,7 +55,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</application>
  ***/
 
-static char *app = "Dictate";
+static const char app[] = "Dictate";
 
 typedef enum {
 	DFLAG_RECORD = (1 << 0),

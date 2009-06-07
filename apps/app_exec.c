@@ -125,9 +125,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * affecting the dialplan.
  */
 
-static char *app_exec = "Exec";
-static char *app_tryexec = "TryExec";
-static char *app_execif = "ExecIf";
+static const char app_exec[] = "Exec";
+static const char app_tryexec[] = "TryExec";
+static const char app_execif[] = "ExecIf";
 
 static int exec_exec(struct ast_channel *chan, const char *data)
 {

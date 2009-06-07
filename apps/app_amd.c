@@ -124,7 +124,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
  ***/
 
-static char *app = "AMD";
+static const char app[] = "AMD";
 
 #define STATE_IN_WORD       1
 #define STATE_IN_SILENCE    2

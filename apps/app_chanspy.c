@@ -325,11 +325,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</application>
  ***/
 
-static const char * const app_chan = "ChanSpy";
+static const char app_chan[] = "ChanSpy";
 
-static const char * const app_ext = "ExtenSpy";
+static const char app_ext[] = "ExtenSpy";
 
-static const char * const app_dahdiscan = "DAHDIScan";
+static const char app_dahdiscan[] = "DAHDIScan";
 
 enum {
 	OPTION_QUIET             = (1 << 0),    /* Quiet, no announcement */
@@ -349,7 +349,7 @@ enum {
 	OPTION_DTMF_EXIT         = (1 << 14),	/* Set DTMF to exit, added for DAHDIScan integration */
 	OPTION_DTMF_CYCLE        = (1 << 15),	/* Custom DTMF for cycling next avaliable channel, (default is '*') */
 	OPTION_DAHDI_SCAN        = (1 << 16),	/* Scan groups in DAHDIScan mode */
-} chanspy_opt_flags;
+};
 
 enum {
 	OPT_ARG_VOLUME = 0,
@@ -360,7 +360,7 @@ enum {
 	OPT_ARG_EXIT,
 	OPT_ARG_CYCLE,
 	OPT_ARG_ARRAY_SIZE,
-} chanspy_opt_args;
+};
 
 AST_APP_OPTIONS(spy_opts, {
 	AST_APP_OPTION('q', OPTION_QUIET),

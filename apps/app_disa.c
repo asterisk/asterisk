@@ -110,12 +110,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</see-also>
 	</application>
  ***/
-static char *app = "DISA";
+static const char app[] = "DISA";
 
 enum {
 	NOANSWER_FLAG = (1 << 0),
 	POUND_TO_END_FLAG = (1 << 1),
-} option_flags;
+};
 
 AST_APP_OPTIONS(app_opts, {
 	AST_APP_OPTION('n', NOANSWER_FLAG),

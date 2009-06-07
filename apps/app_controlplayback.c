@@ -92,7 +92,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</description>
 	</application>
  ***/
-static const char * const app = "ControlPlayback";
+static const char app[] = "ControlPlayback";
 
 enum {
 	OPT_OFFSET = (1 << 1),

@@ -62,7 +62,7 @@ struct event_node{
 
 typedef struct event_node event_node_t;
 
-static char *app = "AlarmReceiver";
+static const char app[] = "AlarmReceiver";
 /*** DOCUMENTATION
 	<application name="AlarmReceiver" language="en_US">
 		<synopsis>

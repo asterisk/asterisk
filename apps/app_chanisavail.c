@@ -41,7 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/devicestate.h"
 
-static char *app = "ChanIsAvail";
+static const char app[] = "ChanIsAvail";
 
 /*** DOCUMENTATION
 	<application name="ChanIsAvail" language="en_US">

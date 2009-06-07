@@ -60,7 +60,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</application>
  ***/
 
-static char *app = "DumpChan";
+static const char app[] = "DumpChan";
 
 static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 {

@@ -141,8 +141,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
  ***/
 
-static char *app_sndfax_name = "SendFAX";
-static char *app_rcvfax_name = "ReceiveFAX";
+static const char app_sndfax_name[] = "SendFAX";
+static const char app_rcvfax_name[] = "ReceiveFAX";
 
 #define MAX_SAMPLES 240
 

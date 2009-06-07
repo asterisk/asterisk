@@ -46,7 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</application>
  ***/
 
-static char *app = "Echo";
+static const char app[] = "Echo";
 
 static int echo_exec(struct ast_channel *chan, const char *data)
 {

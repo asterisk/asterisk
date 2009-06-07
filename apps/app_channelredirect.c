@@ -60,7 +60,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</description>
 	</application>
  ***/
-static char *app = "ChannelRedirect";
+static const char app[] = "ChannelRedirect";
 
 static int asyncgoto_exec(struct ast_channel *chan, const char *data)
 {

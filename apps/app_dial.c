@@ -465,8 +465,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</application>
  ***/
 
-static char *app = "Dial";
-static char *rapp = "RetryDial";
+static const char app[] = "Dial";
+static const char rapp[] = "RetryDial";
 
 enum {
 	OPT_ANNOUNCE =          (1 << 0),

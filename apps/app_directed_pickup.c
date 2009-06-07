@@ -84,8 +84,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</application>
  ***/
 
-static const char * const app = "Pickup";
-static const char * const app2 = "PickupChan";
+static const char app[] = "Pickup";
+static const char app2[] = "PickupChan";
 /*! \todo This application should return a result code, like PICKUPRESULT */
 
 /* Perform actual pickup between two channels */

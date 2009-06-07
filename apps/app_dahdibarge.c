@@ -70,7 +70,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</description>
 	</application>
  ***/
-static char *app = "DAHDIBarge";
+static const char app[] = "DAHDIBarge";
 
 #define CONF_SIZE 160
 

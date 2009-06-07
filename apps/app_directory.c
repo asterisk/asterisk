@@ -113,7 +113,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</application>
 
  ***/
-static char *app = "Directory";
+static const char app[] = "Directory";
 
 /* For simplicity, I'm keeping the format compatible with the voicemail config,
    but i'm open to suggestions for isolating it */
@@ -128,7 +128,7 @@ enum {
 	OPT_LISTBYLASTNAME =  (1 << 4),
 	OPT_LISTBYEITHER =    OPT_LISTBYFIRSTNAME | OPT_LISTBYLASTNAME,
 	OPT_PAUSE =           (1 << 5),
-} directory_option_flags;
+};
 
 enum {
 	OPT_ARG_FIRSTNAME =   0,

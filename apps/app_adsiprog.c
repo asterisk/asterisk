@@ -45,7 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
 
-static char *app = "ADSIProg";
+static const char app[] = "ADSIProg";
 
 /*** DOCUMENTATION
 	<application name="ADSIProg" language="en_US">
@@ -71,7 +71,7 @@ static char *app = "ADSIProg";
 
 struct adsi_event {
 	int id;
-	char *name;
+	const char *name;
 };
 
 static const struct adsi_event events[] = {

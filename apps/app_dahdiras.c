@@ -73,7 +73,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
  ***/
 
-static char *app = "DAHDIRAS";
+static const char app[] = "DAHDIRAS";
 
 #define PPP_MAX_ARGS	32
 #define PPP_EXEC	"/usr/sbin/pppd"
