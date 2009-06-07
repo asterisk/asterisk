@@ -53,6 +53,158 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/astosp.h"
 
+/*** DOCUMENTATION
+	<application name="OSPAuth" language="en_US">
+		<synopsis>
+			OSP Authentication.
+		</synopsis>
+		<syntax>
+			<parameter name="provider" />
+			<parameter name="options" />
+		</syntax>
+		<description>
+			<para>Authenticate a SIP INVITE by OSP and sets the variables:</para>
+			<variablelist>
+				<variable name="OSPINHANDLE">
+					<para>The inbound call transaction handle.</para>
+				</variable>
+				<variable name="OSPINTIMELIMIT">
+					<para>The inbound call duration limit in seconds.</para>
+				</variable>
+			</variablelist>
+			<para>This application sets the following channel variable upon completion:</para>
+			<variablelist>
+				<variable name="OSPAUTHSTATUS">
+					<para>The status of the OSP Auth attempt as a text string, one of</para>
+					<value name="SUCCESS" />
+					<value name="FAILED" />
+					<value name="ERROR" />
+				</variable>
+			</variablelist>
+		</description>
+	</application>
+	<application name="OSPLookup" language="en_US">
+		<synopsis>
+			Lookup destination by OSP.
+		</synopsis>
+		<syntax>
+			<parameter name="exten" required="true" />
+			<parameter name="provider" />
+			<parameter name="options">
+				<enumlist>
+					<enum name="h">
+						<para>generate H323 call id for the outbound call</para>
+					</enum>
+					<enum name="s">
+						<para>generate SIP call id for the outbound call.
+						Have not been implemented</para>
+					</enum>
+					<enum name="i">
+						<para>generate IAX call id for the outbound call.
+						Have not been implemented</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Looks up an extension via OSP and sets the variables, where <literal>n</literal> is the
+			number of the result beginning with <literal>1</literal>:</para>
+			<variablelist>
+				<variable name="OSPOUTHANDLE">
+					<para>The OSP Handle for anything remaining.</para>
+				</variable>
+				<variable name="OSPTECH">
+					<para>The technology to use for the call.</para>
+				</variable>
+				<variable name="OSPDEST">
+					<para>The destination to use for the call.</para>
+				</variable>
+				<variable name="OSPCALLED">
+					<para>The called number to use for the call.</para>
+				</variable>
+				<variable name="OSPCALLING">
+					<para>The calling number to use for the call.</para>
+				</variable>
+				<variable name="OSPDIALSTR">
+					<para>The dial command string.</para>
+				</variable>
+				<variable name="OSPOUTTOKEN">
+					<para>The actual OSP token as a string.</para>
+				</variable>
+				<variable name="OSPOUTTIMELIMIT">
+					<para>The outbound call duraction limit in seconds.</para>
+				</variable>
+				<variable name="OSPOUTCALLIDTYPES">
+					<para>The outbound call id types.</para>
+				</variable>
+				<variable name="OSPOUTCALLID">
+					<para>The outbound call id.</para>
+				</variable>
+				<variable name="OSPRESULTS">
+					<para>The number of OSP results total remaining.</para>
+				</variable>
+			</variablelist>
+			<variablelist>
+				<variable name="OSPLOOKUPSTATUS">
+					<para>This application sets the following channel variable upon completion:</para>
+					<value name="SUCCESS" />
+					<value name="FAILED" />
+					<value name="ERROR" />
+				</variable>
+			</variablelist>
+		</description>
+	</application>
+	<application name="OSPNext" language="en_US">
+		<synopsis>
+			Lookup next destination by OSP.
+		</synopsis>
+		<syntax>
+			<parameter name="cause" required="true" />
+			<parameter name="provider" />
+			<parameter name="options" />
+		</syntax>
+		<description>
+			<para>Looks up the next OSP Destination for <variable>OSPOUTHANDLE</variable>.</para>
+			<para>This application sets the following channel variable upon completion:</para>
+			<variablelist>
+				<variable name="OSPNEXTSTATUS">
+					<para>The status of the OSP Next attempt as a text string, one of</para>
+					<value name="SUCCESS" />
+					<value name="FAILED" />
+					<value name="ERROR" />
+				</variable>
+			</variablelist>
+		</description>
+		<see-also>
+			<ref type="application">OSPLookup</ref>
+		</see-also>
+	</application>
+	<application name="OSPFinish" language="en_US">
+		<synopsis>
+			Record OSP entry.
+		</synopsis>
+		<syntax>
+			<parameter name="status" />
+			<parameter name="options" />
+		</syntax>
+		<description>
+			<para>Records call state for <variable>OSPINHANDLE</variable>, according to status, which should
+			be one of <literal>BUSY</literal>, <literal>CONGESTION</literal>, <literal>ANSWER</literal>,
+			<literal>NOANSWER</literal>, or <literal>CHANUNAVAIL</literal> or coincidentally, just what the
+			Dial application stores in its <variable>DIALSTATUS</variable>.</para>
+			<para>This application sets the following channel variable upon completion:</para>
+			<variablelist>
+				<variable name="OSPFINISHSTATUS">
+					<para>The status of the OSP Finish attempt as a text string, one of</para>
+					<value name="SUCCESS" />
+					<value name="FAILED" />
+					<value name="ERROR" />
+				</variable>
+			</variablelist>
+		</description>
+	</application>
+ ***/
+
 /* OSP Buffer Sizes */
 #define OSP_INTSTR_SIZE		((unsigned int)16)		/* OSP signed/unsigned int string buffer size */
 #define OSP_NORSTR_SIZE		((unsigned int)256)		/* OSP normal string buffer size */
@@ -1377,7 +1529,7 @@ static int ospauth_exec(
  */
 static int osplookup_exec(
 	struct ast_channel* chan,
-	const void* data)
+	const char * data)
 {
 	int res, cres;
 	const char* provider = OSP_DEF_PROVIDER;
@@ -1551,7 +1703,7 @@ static int osplookup_exec(
  */
 static int ospnext_exec(
 	struct ast_channel* chan,
-	const void* data)
+	const char * data)
 {
 	int res;
 	const char* provider = OSP_DEF_PROVIDER;
@@ -1707,7 +1859,7 @@ static int ospnext_exec(
  */
 static int ospfinished_exec(
 	struct ast_channel* chan,
-	const void* data)
+	const char * data)
 {
 	int res = 1;
 	int cause = 0;
@@ -2003,63 +2155,17 @@ static char *handle_cli_osp_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 	return CLI_SUCCESS;
 }
 
-static const char* app1= "OSPAuth";
-static const char* synopsis1 = "OSP authentication";
-static const char* descrip1 =
-"  OSPAuth([provider[,options]]):  Authenticate a SIP INVITE by OSP and sets\n"
-"the variables:\n"
-" ${OSPINHANDLE}:  The inbound call transaction handle\n"
-" ${OSPINTIMELIMIT}:  The inbound call duration limit in seconds\n"
-"\n"
-"This application sets the following channel variable upon completion:\n"
-"	OSPAUTHSTATUS	The status of the OSP Auth attempt as a text string, one of\n"
-"		SUCCESS | FAILED | ERROR\n";
+/* OSPAuth() dialplan application */
+static const char app1[] = "OSPAuth";
 
-static const char* app2= "OSPLookup";
-static const char* synopsis2 = "Lookup destination by OSP";
-static const char* descrip2 =
-"  OSPLookup(exten[,provider[,options]]):  Looks up an extension via OSP and sets\n"
-"the variables, where 'n' is the number of the result beginning with 1:\n"
-" ${OSPOUTHANDLE}:  The OSP Handle for anything remaining\n"
-" ${OSPTECH}:  The technology to use for the call\n"
-" ${OSPDEST}:  The destination to use for the call\n"
-" ${OSPCALLED}:  The called number to use for the call\n"
-" ${OSPCALLING}:  The calling number to use for the call\n"
-" ${OSPDIALSTR}:  The dial command string\n"
-" ${OSPOUTTOKEN}:  The actual OSP token as a string\n"
-" ${OSPOUTTIMELIMIT}:  The outbound call duration limit in seconds\n"
-" ${OSPOUTCALLIDTYPES}:  The outbound call id types\n"
-" ${OSPOUTCALLID}:  The outbound call id\n"
-" ${OSPRESULTS}:  The number of OSP results total remaining\n"
-"\n"
-"The option string may contain the following character:\n"
-"	'h' -- generate H323 call id for the outbound call\n"
-"	's' -- generate SIP call id for the outbound call. Have not been implemented\n"
-"	'i' -- generate IAX call id for the outbound call. Have not been implemented\n"
-"This application sets the following channel variable upon completion:\n"
-"	OSPLOOKUPSTATUS The status of the OSP Lookup attempt as a text string, one of\n"
-"		SUCCESS | FAILED | ERROR\n";
+/* OSPLookup() dialplan application */
+static const char app2[] = "OSPLookup";
 
-static const char* app3 = "OSPNext";
-static const char* synopsis3 = "Lookup next destination by OSP";
-static const char* descrip3 =
-"  OSPNext(cause[,provider[,options]]):  Looks up the next OSP Destination for ${OSPOUTHANDLE}\n"
-"See OSPLookup for more information\n"
-"\n"
-"This application sets the following channel variable upon completion:\n"
-"	OSPNEXTSTATUS The status of the OSP Next attempt as a text string, one of\n"
-"		SUCCESS | FAILED | ERROR\n";
+/* OSPNext() dialplan application */
+static const char app3[] = "OSPNext";
 
-static const char* app4 = "OSPFinish";
-static const char* synopsis4 = "Record OSP entry";
-static const char* descrip4 =
-"  OSPFinish([status[,options]]):  Records call state for ${OSPINHANDLE}, according to\n"
-"status, which should be one of BUSY, CONGESTION, ANSWER, NOANSWER, or CHANUNAVAIL\n"
-"or coincidentally, just what the Dial application stores in its ${DIALSTATUS}.\n"
-"\n"
-"This application sets the following channel variable upon completion:\n"
-"	OSPFINISHSTATUS The status of the OSP Finish attempt as a text string, one of\n"
-"		SUCCESS | FAILED | ERROR \n";
+/* OSPFinish() dialplan application */
+static const char app4[] = "OSPFinish";
 
 static struct ast_cli_entry cli_osp[] = {
 	AST_CLI_DEFINE(handle_cli_osp_show, "Displays OSF information")
@@ -2073,10 +2179,10 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 
 	ast_cli_register_multiple(cli_osp, sizeof(cli_osp) / sizeof(struct ast_cli_entry));
-	res = ast_register_application(app1, ospauth_exec, synopsis1, descrip1);
-	res |= ast_register_application(app2, osplookup_exec, synopsis2, descrip2);
-	res |= ast_register_application(app3, ospnext_exec, synopsis3, descrip3);
-	res |= ast_register_application(app4, ospfinished_exec, synopsis4, descrip4);
+	res = ast_register_application_xml(app1, ospauth_exec);
+	res |= ast_register_application_xml(app2, osplookup_exec);
+	res |= ast_register_application_xml(app3, ospnext_exec);
+	res |= ast_register_application_xml(app4, ospfinished_exec);
 
 	return res;
 }
