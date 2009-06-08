@@ -5730,6 +5730,21 @@ static int sip_hangup(struct ast_channel *ast)
 				char *videoqos = "";
 				char *textqos = "";
 
+				/* We need to get the lock on bridge because ast_rtp_set_vars will attempt
+				 * to lock the bridge. This may get hairy...
+				 */
+				while (bridge && ast_channel_trylock(bridge)) {
+					struct ast_channel *chan = p->owner;
+					sip_pvt_unlock(p);
+					do {
+						/* Use chan since p->owner could go NULL on us
+						 * while p is unlocked
+						 */
+						CHANNEL_DEADLOCK_AVOIDANCE(chan);
+					} while (sip_pvt_trylock(p));
+					bridge = p->owner ? ast_bridged_channel(p->owner) : NULL;
+				}
+
 				if (p->rtp)
 					ast_rtp_set_vars(oldowner, p->rtp);
 
@@ -5738,6 +5753,7 @@ static int sip_hangup(struct ast_channel *ast)
 
 					if (IS_SIP_TECH(bridge->tech) && q && q->rtp)
 						ast_rtp_set_vars(bridge, q->rtp);
+					ast_channel_unlock(bridge);
 				}
 
 				if (p->vrtp)
@@ -20159,6 +20175,20 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 		struct ast_channel *bridge = p->owner ? ast_bridged_channel(p->owner) : NULL;
 		char *videoqos, *textqos;
 
+		/* We need to get the lock on bridge because ast_rtp_set_vars will attempt
+		 * to lock the bridge. This may get hairy...
+		 */
+		while (bridge && ast_channel_trylock(bridge)) {
+			ast_channel_unlock(p->owner);
+			do {
+				/* Can't use DEADLOCK_AVOIDANCE since p is an ao2 object */
+				sip_pvt_unlock(p);
+				usleep(1);
+				sip_pvt_lock(p);
+			} while (p->owner && ast_channel_trylock(p->owner));
+			bridge = p->owner ? ast_bridged_channel(p->owner) : NULL;
+		}
+
 		if (p->rtp) {	
 			if (p->do_history) {
 				char *audioqos,
@@ -20187,6 +20217,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 
 			if (IS_SIP_TECH(bridge->tech) && q && q->rtp)
 				ast_rtp_set_vars(bridge, q->rtp);
+			ast_channel_unlock(bridge);
 		}
 
 		if (p->vrtp) {
