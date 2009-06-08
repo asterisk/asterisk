@@ -5933,6 +5933,17 @@ static int sip_hangup(struct ast_channel *ast)
 				struct ast_channel *bridge = ast_bridged_channel(oldowner);
 				char quality_buf[AST_MAX_USER_FIELD], *quality;
 
+				/* We need to get the lock on bridge because ast_rtp_instance_set_stats_vars will attempt
+				 * to lock the bridge. This may get hairy...
+				 */
+				while (bridge && ast_channel_trylock(bridge)) {
+					sip_pvt_unlock(p);
+					do {
+						CHANNEL_DEADLOCK_AVOIDANCE(oldowner);
+					} while (sip_pvt_trylock(p));
+					bridge = ast_bridged_channel(oldowner);
+				}
+
 				if (p->rtp) {
 					ast_rtp_instance_set_stats_vars(oldowner, p->rtp);
 				}
@@ -5943,6 +5954,7 @@ static int sip_hangup(struct ast_channel *ast)
 					if (IS_SIP_TECH(bridge->tech) && q && q->rtp) {
 						ast_rtp_instance_set_stats_vars(bridge, q->rtp);
 					}
+					ast_channel_unlock(bridge);
 				}
 
 				if (p->do_history || oldowner) {
@@ -21061,7 +21073,22 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 	/* Get RTCP quality before end of call */
 	if (p->do_history || p->owner) {
 		char quality_buf[AST_MAX_USER_FIELD], *quality;
-		struct ast_channel *bridge = p->owner ? ast_bridged_channel(p->owner) : NULL;
+		struct ast_channel *bridge = p->owner ? ast_bridged_channel(p->owner) : NULL;  
+
+		/* We need to get the lock on bridge because ast_rtp_instance_set_stats_vars will attempt
+		 * to lock the bridge. This may get hairy...
+		 */
+		while (bridge && ast_channel_trylock(bridge)) {
+			ast_channel_unlock(p->owner);
+			do {
+				/* Can't use DEADLOCK_AVOIDANCE since p is an ao2 object */
+				sip_pvt_unlock(p);
+				usleep(1);
+				sip_pvt_lock(p);
+			} while (p->owner && ast_channel_trylock(p->owner));
+			bridge = p->owner ? ast_bridged_channel(p->owner) : NULL;
+		}
+
 
 		if (p->rtp && (quality = ast_rtp_instance_get_quality(p->rtp, AST_RTP_INSTANCE_STAT_FIELD_QUALITY, quality_buf, sizeof(quality_buf)))) {
 			if (p->do_history) {
@@ -21090,6 +21117,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 			if (IS_SIP_TECH(bridge->tech) && q && q->rtp) {
 				ast_rtp_instance_set_stats_vars(bridge, q->rtp);
 			}
+			ast_channel_unlock(bridge);
 		}
 
 		if (p->vrtp && (quality = ast_rtp_instance_get_quality(p->vrtp, AST_RTP_INSTANCE_STAT_FIELD_QUALITY, quality_buf, sizeof(quality_buf)))) {
