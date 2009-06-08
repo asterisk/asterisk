@@ -262,7 +262,7 @@ static force_inline int inaddrcmp(const struct sockaddr_in *sin1, const struct s
 		|| (sin1->sin_port != sin2->sin_port));
 }
 
-#define AST_STACKSIZE (((__WORDSIZE * 6) - 16) * 1024)
+#define AST_STACKSIZE (((__WORDSIZE * 8) - 16) * 1024)
 
 #if defined(LOW_MEMORY)
 #define AST_BACKGROUND_STACKSIZE (((__WORDSIZE * 2) - 16) * 1024)
