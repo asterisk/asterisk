@@ -32,3 +32,5 @@
  -- Audit all channel/res/app/etc. modules to ensure that they do not register any entrypoints with the Asterisk core until after they are ready to service requests; all config file reading/processing, structure allocation, etc. must be completed before Asterisk is made aware of any services the module offers.
 
  -- Ensure that Realtime-enabled modules do not depend on the order of columns returned by the database lookup (example: outboundproxy and host settings in chan_sip).
+
+ -- Convert all usage of the signal(2) system API to the more portable sigaction(2) system API.
