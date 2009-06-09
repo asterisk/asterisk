@@ -14512,7 +14512,7 @@ static char *sip_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 			return CLI_FAILURE;
 		}
 
-		if (create_addr(p, a->argv[i], 0)) {
+		if (create_addr(p, a->argv[i], 1)) {
 			/* Maybe they're not registered, etc. */
 			sip_destroy(p);
 			ast_cli(a->fd, "Could not create address for '%s'\n", a->argv[i]);
