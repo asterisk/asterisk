@@ -48,6 +48,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/features.h"
 #include "asterisk/dsp.h"
 #include "asterisk/udptl.h"
+#include "asterisk/heap.h"
 
 #include <dlfcn.h>
 
@@ -712,11 +713,57 @@ static unsigned int inspect_module(const struct ast_module *mod)
 	return 0;
 }
 
-static enum ast_module_load_result load_resource(const char *resource_name, unsigned int global_symbols_only)
+static enum ast_module_load_result start_resource(struct ast_module *mod)
+{
+	char tmp[256];
+	enum ast_module_load_result res;
+
+	if (!mod->info->load) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
+
+	res = mod->info->load();
+
+	switch (res) {
+	case AST_MODULE_LOAD_SUCCESS:
+		if (!ast_fully_booted) {
+			ast_verb(1, "%s => (%s)\n", mod->resource, term_color(tmp, mod->info->description, COLOR_BROWN, COLOR_BLACK, sizeof(tmp)));
+			if (ast_opt_console && !option_verbose)
+				ast_verbose( ".");
+		} else {
+			ast_verb(1, "Loaded %s => (%s)\n", mod->resource, mod->info->description);
+		}
+
+		mod->flags.running = 1;
+
+		ast_update_use_count();
+		break;
+	case AST_MODULE_LOAD_DECLINE:
+		mod->flags.declined = 1;
+		break;
+	case AST_MODULE_LOAD_FAILURE:
+		break;
+	case AST_MODULE_LOAD_SKIP:
+		/* modules should never return this value */
+		break;
+	}
+
+	return res;
+}
+
+/*! loads a resource based upon resource_name. If global_symbols_only is set
+ *  only modules with global symbols will be loaded.
+ *
+ *  If the ast_heap is provided (not NULL) the module is found and added to the
+ *  heap without running the module's load() function.  By doing this, modules
+ *  added to the resource_heap can be initilized later in order by priority. 
+ *
+ *  If the ast_heap is not provided, the module's load function will be executed
+ *  immediately */
+static enum ast_module_load_result load_resource(const char *resource_name, unsigned int global_symbols_only, struct ast_heap *resource_heap)
 {
 	struct ast_module *mod;
 	enum ast_module_load_result res = AST_MODULE_LOAD_SUCCESS;
-	char tmp[256];
 
 	if ((mod = find_resource(resource_name, 0))) {
 		if (mod->flags.running) {
@@ -757,31 +804,11 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 
 	mod->flags.declined = 0;
 
-	if (mod->info->load)
-		res = mod->info->load();
-
-	switch (res) {
-	case AST_MODULE_LOAD_SUCCESS:
-		if (!ast_fully_booted) {
-			ast_verb(1, "%s => (%s)\n", resource_name, term_color(tmp, mod->info->description, COLOR_BROWN, COLOR_BLACK, sizeof(tmp)));
-			if (ast_opt_console && !option_verbose)
-				ast_verbose( ".");
-		} else {
-			ast_verb(1, "Loaded %s => (%s)\n", resource_name, mod->info->description);
-		}
-
-		mod->flags.running = 1;
-
-		ast_update_use_count();
-		break;
-	case AST_MODULE_LOAD_DECLINE:
-		mod->flags.declined = 1;
-		break;
-	case AST_MODULE_LOAD_FAILURE:
-		break;
-	case AST_MODULE_LOAD_SKIP:
-		/* modules should never return this value */
-		break;
+	if (resource_heap) {
+		ast_heap_push(resource_heap, mod);
+		res = AST_MODULE_LOAD_SKIP;
+	} else {
+		res = start_resource(mod);
 	}
 
 	return res;
@@ -791,7 +818,7 @@ int ast_load_resource(const char *resource_name)
 {
 	int res;
 	AST_LIST_LOCK(&module_list);
-	res = load_resource(resource_name, 0);
+	res = load_resource(resource_name, 0, NULL);
 	AST_LIST_UNLOCK(&module_list);
 
 	return res;
@@ -820,6 +847,77 @@ static struct load_order_entry *add_to_load_order(const char *resource, struct l
 	AST_LIST_INSERT_TAIL(load_order, order, entry);
 
 	return order;
+}
+
+static int mod_load_cmp(void *a, void *b)
+{
+	struct ast_module *a_mod = (struct ast_module *) a;
+	struct ast_module *b_mod = (struct ast_module *) b;
+	int res = -1;
+	/* if load_pri is not set, default is 255.  Lower is better*/
+	unsigned char a_pri = ast_test_flag(a_mod->info, AST_MODFLAG_LOAD_ORDER) ? a_mod->info->load_pri : 255;
+	unsigned char b_pri = ast_test_flag(a_mod->info, AST_MODFLAG_LOAD_ORDER) ? b_mod->info->load_pri : 255;
+	if (a_pri == b_pri) {
+		res = 0;
+	} else if (a_pri < b_pri) {
+		res = 1;
+	}
+	return res;
+}
+
+/*! loads modules in order by load_pri, updates mod_count */
+static int load_resource_list(struct load_order *load_order, unsigned int global_symbols, int *mod_count)
+{
+	struct ast_heap *resource_heap;
+	struct load_order_entry *order;
+	struct ast_module *mod;
+	int count = 0;
+	int res = 0;
+
+	if(!(resource_heap = ast_heap_create(8, mod_load_cmp, -1))) {
+		return -1;
+	}
+
+	/* first, add find and add modules to heap */
+	AST_LIST_TRAVERSE_SAFE_BEGIN(load_order, order, entry) {
+		switch (load_resource(order->resource, global_symbols, resource_heap)) {
+		case AST_MODULE_LOAD_SUCCESS:
+		case AST_MODULE_LOAD_DECLINE:
+			AST_LIST_REMOVE_CURRENT(entry);
+			ast_free(order->resource);
+			ast_free(order);
+			break;
+		case AST_MODULE_LOAD_FAILURE:
+			res = -1;
+			goto done;
+		case AST_MODULE_LOAD_SKIP:
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+
+	/* second remove modules from heap sorted by priority */
+	while ((mod = ast_heap_pop(resource_heap))) {
+		switch (start_resource(mod)) {
+		case AST_MODULE_LOAD_SUCCESS:
+			count++;
+		case AST_MODULE_LOAD_DECLINE:
+			break;
+		case AST_MODULE_LOAD_FAILURE:
+			res = -1;
+			goto done;
+		case AST_MODULE_LOAD_SKIP:
+			break;
+		}
+	}
+
+done:
+	if (mod_count) {
+		*mod_count += count;
+	}
+	ast_heap_destroy(resource_heap);
+
+	return res;
 }
 
 int load_modules(unsigned int preload_only)
@@ -941,44 +1039,14 @@ int load_modules(unsigned int preload_only)
 		ast_log(LOG_NOTICE, "%d modules will be loaded.\n", load_count);
 
 	/* first, load only modules that provide global symbols */
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&load_order, order, entry) {
-		switch (load_resource(order->resource, 1)) {
-		case AST_MODULE_LOAD_SUCCESS:
-			modulecount++;
-		case AST_MODULE_LOAD_DECLINE:
-			AST_LIST_REMOVE_CURRENT(entry);
-			ast_free(order->resource);
-			ast_free(order);
-			break;
-		case AST_MODULE_LOAD_FAILURE:
-			res = -1;
-			goto done;
-		case AST_MODULE_LOAD_SKIP:
-			/* try again later */
-			break;
-		}
+	if ((res = load_resource_list(&load_order, 1, &modulecount)) < 0) {
+		goto done;
 	}
-	AST_LIST_TRAVERSE_SAFE_END;
 
 	/* now load everything else */
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&load_order, order, entry) {
-		switch (load_resource(order->resource, 0)) {
-		case AST_MODULE_LOAD_SUCCESS:
-			modulecount++;
-		case AST_MODULE_LOAD_DECLINE:
-			AST_LIST_REMOVE_CURRENT(entry);
-			ast_free(order->resource);
-			ast_free(order);
-			break;
-		case AST_MODULE_LOAD_FAILURE:
-			res = -1;
-			goto done;
-		case AST_MODULE_LOAD_SKIP:
-			/* should not happen */
-			break;
-		}
+	if ((res = load_resource_list(&load_order, 0, &modulecount)) < 0) {
+		goto done;
 	}
-	AST_LIST_TRAVERSE_SAFE_END;
 
 done:
 	while ((order = AST_LIST_REMOVE_HEAD(&load_order, entry))) {

@@ -189,6 +189,7 @@ struct ast_module_user_list;
 enum ast_module_flags {
 	AST_MODFLAG_DEFAULT = 0,
 	AST_MODFLAG_GLOBAL_SYMBOLS = (1 << 0),
+	AST_MODFLAG_LOAD_ORDER = (1 << 1),
 };
 
 struct ast_module_info {
@@ -219,6 +220,13 @@ struct ast_module_info {
 
 	/*! The value of AST_BUILDOPT_SUM when this module was compiled */
 	const char buildopt_sum[33];
+
+	/*! This value represents the order in which a module's load() function is initialized.
+	 *  The lower this value, the higher the priority.  The value is only checked if the
+	 *  AST_MODFLAG_LOAD_ORDER flag is set.  If the AST_MODFLAG_LOAD_ORDER flag is not set,
+	 *  this value will never be read and the module will be given the lowest possible priority
+	 *  on load. */
+	unsigned char load_pri;
 };
 
 void ast_module_register(const struct ast_module_info *);
