@@ -1254,6 +1254,7 @@ struct sip_pvt {
 	int authtries;				/*!< Times we've tried to authenticate */
 	int expiry;				/*!< How long we take to expire */
 	long branch;				/*!< The branch identifier of this session */
+	long invite_branch;			/*!< The branch used when we sent the initial INVITE */
 	char tag[11];				/*!< Our tag for this session */
 	int sessionid;				/*!< SDP Session ID */
 	int sessionversion;			/*!< SDP Session Version */
@@ -7805,8 +7806,15 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 		p->ocseq++;
 		seqno = p->ocseq;
 	}
-	
-	if (newbranch) {
+		
+	/* A CANCEL must have the same branch as the INVITE that it is canceling.
+	 * Similarly, if we need to re-send an INVITE with auth credentials, then we
+	 * need to use the same branch as we did the first time we sent the INVITE.
+	 */
+	if (sipmethod == SIP_CANCEL || (sipmethod == SIP_INVITE && !ast_strlen_zero(p->options->auth))) {
+		p->branch = p->invite_branch;
+		build_via(p);
+	} else if (newbranch) {
 		p->branch ^= ast_random();
 		build_via(p);
 	}
@@ -9134,6 +9142,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 	req.method = sipmethod;
 	if (init) {/* Bump branch even on initial requests */
 		p->branch ^= ast_random();
+		p->invite_branch = p->branch;
 		build_via(p);
 	}
 	if (init > 1)
