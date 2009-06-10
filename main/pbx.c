@@ -1648,7 +1648,7 @@ static char *action2str(enum ext_match_t action)
 
 #endif
 
-static void new_find_extension(const char *str, struct scoreboard *score, struct match_char *tree, int length, int spec, const char *label, const char *callerid, enum ext_match_t action)
+static void new_find_extension(const char *str, struct scoreboard *score, struct match_char *tree, int length, int spec, const char *callerid, const char *label, enum ext_match_t action)
 {
 	struct match_char *p; /* note minimal stack storage requirements */
 	struct ast_exten pattern = { .label = label };
