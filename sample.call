@@ -6,7 +6,7 @@
 # Comments are indicated by a '#' character that begins a line, or follows
 # a space or tab character.  To be consistent with the configuration files
 # in Asterisk, comments can also be indicated by a semicolon.  However, the
-# multiline comments (;-- --;) used in Asterisk configuration files are not 
+# multiline comments (;-- --;) used in Asterisk configuration files are not
 # supported.  Semicolons can be escaped by a backslash.
 #
 
@@ -76,8 +76,8 @@ Priority: 1
 
 #
 # Setting Archive to yes the call file is never deleted, but is moved
-# in the subdir "outgoing_done" of the spool directory. In this case 
-# will be appended a line with "Status: value", where value can be 
+# in the subdir "outgoing_done" of the spool directory. In this case
+# will be appended a line with "Status: value", where value can be
 # Completed, Expired or Failed.
 #
 #Archive: yes
