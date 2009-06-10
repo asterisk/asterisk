@@ -350,10 +350,10 @@ int ast_careful_fwrite(FILE *f, int fd, const char *s, size_t len, int timeoutms
  * Thread management support (should be moved to lock.h or a different header)
  */
 
-#define AST_STACKSIZE (((__WORDSIZE * 8) - 16) * 1024)
+#define AST_STACKSIZE (((sizeof(void *) * 8 * 8) - 16) * 1024)
 
 #if defined(LOW_MEMORY)
-#define AST_BACKGROUND_STACKSIZE (((__WORDSIZE * 2) - 16) * 1024)
+#define AST_BACKGROUND_STACKSIZE (((sizeof(void *) * 8 * 2) - 16) * 1024)
 #else
 #define AST_BACKGROUND_STACKSIZE AST_STACKSIZE
 #endif
