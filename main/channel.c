@@ -826,17 +826,14 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		if (!(tmp->cid.cid_name = ast_strdup(cid_name))) {
 			ast_string_field_free_memory(tmp);
 			sched_context_destroy(tmp->sched);
-			ast_free(tmp);
-			return NULL;
+			return ast_channel_unref(tmp);
 		}
 	}
 	if (cid_num) {
 		if (!(tmp->cid.cid_num = ast_strdup(cid_num))) {
 			ast_string_field_free_memory(tmp);
 			sched_context_destroy(tmp->sched);
-			ast_free(tmp->cid.cid_name);
-			ast_free(tmp);
-			return NULL;
+			return ast_channel_unref(tmp);
 		}
 	}
 
