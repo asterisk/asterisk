@@ -1488,18 +1488,21 @@ static void calc_rxstamp(struct timeval *when, struct ast_rtp *rtp, unsigned int
 	if (d<0)
 		d=-d;
 	rtp->rxjitter += (1./16.) * (d - rtp->rxjitter);
-	if (rtp->rtcp && rtp->rxjitter > rtp->rtcp->maxrxjitter)
-		rtp->rtcp->maxrxjitter = rtp->rxjitter;
-	if (rtp->rtcp->rxjitter_count == 1) 
-		rtp->rtcp->minrxjitter = rtp->rxjitter;
-	if (rtp->rtcp && rtp->rxjitter < rtp->rtcp->minrxjitter)
-		rtp->rtcp->minrxjitter = rtp->rxjitter;
-		
-	normdev_rxjitter_current = normdev_compute(rtp->rtcp->normdev_rxjitter,rtp->rxjitter,rtp->rtcp->rxjitter_count);
-	rtp->rtcp->stdev_rxjitter = stddev_compute(rtp->rtcp->stdev_rxjitter,rtp->rxjitter,rtp->rtcp->normdev_rxjitter,normdev_rxjitter_current,rtp->rtcp->rxjitter_count);
 
-	rtp->rtcp->normdev_rxjitter = normdev_rxjitter_current;
-	rtp->rtcp->rxjitter_count++;
+	if (rtp->rtcp) {
+		if (rtp->rxjitter > rtp->rtcp->maxrxjitter)
+			rtp->rtcp->maxrxjitter = rtp->rxjitter;
+		if (rtp->rtcp->rxjitter_count == 1) 
+			rtp->rtcp->minrxjitter = rtp->rxjitter;
+		if (rtp->rxjitter < rtp->rtcp->minrxjitter)
+			rtp->rtcp->minrxjitter = rtp->rxjitter;
+			
+		normdev_rxjitter_current = normdev_compute(rtp->rtcp->normdev_rxjitter,rtp->rxjitter,rtp->rtcp->rxjitter_count);
+		rtp->rtcp->stdev_rxjitter = stddev_compute(rtp->rtcp->stdev_rxjitter,rtp->rxjitter,rtp->rtcp->normdev_rxjitter,normdev_rxjitter_current,rtp->rtcp->rxjitter_count);
+
+		rtp->rtcp->normdev_rxjitter = normdev_rxjitter_current;
+		rtp->rtcp->rxjitter_count++;
+	}
 }
 
 /*! \brief Perform a Packet2Packet RTP write */
