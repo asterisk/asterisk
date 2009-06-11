@@ -1,5 +1,5 @@
 #!/bin/sh
-if [ ! -f ../.flavor ]; then
+if [ ! -f .flavor ]; then
     cat << END
 /*
  * version.h 
@@ -10,8 +10,8 @@ if [ ! -f ../.flavor ]; then
 
 END
 else
-    aadkver=`cat ../.version`
-    aadkflavor=`cat ../.flavor`
+    aadkver=`cat .version`
+    aadkflavor=`cat .flavor`
     cat << END
 /*
  * version.h 
