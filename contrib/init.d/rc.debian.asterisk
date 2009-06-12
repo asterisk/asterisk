@@ -73,7 +73,7 @@ case "$1" in
 	fi
 	if [ $AST_GROUP ] ; then
 		ASTARGS="$ASTARGS -G $AST_GROUP"
-		chown $AST_GROUP $ASTVARRUNDIR
+		chgrp $AST_GROUP $ASTVARRUNDIR
 	fi
 	# "start-stop-daemon --oknodo" returns 0 even if Asterisk was already running (as LSB expects):
 	start-stop-daemon --start --oknodo --exec $DAEMON -- $ASTARGS
