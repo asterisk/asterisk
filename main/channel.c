@@ -3427,6 +3427,16 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	switch (condition) {
 	case AST_CONTROL_RINGING:
 		ts = ast_get_indication_tone(chan->zone, "ring");
+		/* It is common practice for channel drivers to return -1 if trying
+		 * to indicate ringing on a channel which is up. The idea is to let the
+		 * core generate the ringing inband. However, we don't want the
+		 * warning message about not being able to handle the specific indication
+		 * to print nor do we want ast_indicate_data to return an "error" for this
+		 * condition
+		 */
+		if (chan->_state == AST_STATE_UP) {
+			res = 0;
+		}
 		break;
 	case AST_CONTROL_BUSY:
 		ts = ast_get_indication_tone(chan->zone, "busy");
