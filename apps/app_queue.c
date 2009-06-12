@@ -3178,11 +3178,13 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 
 						if (ast_call(o->chan, tmpchan, 0)) {
 							ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
+							ast_channel_unlock(o->chan);
 							do_hang(o);
 							numnochan++;
+						} else {
+							ast_channel_unlock(o->chan);
 						}
 						ast_channel_unlock(in);
-						ast_channel_unlock(o->chan);
 					}
 					/* Hangup the original channel now, in case we needed it */
 					ast_hangup(winner);

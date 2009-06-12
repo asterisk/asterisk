@@ -571,6 +571,8 @@ start_over:
 	 */
 	if (p->owner->cid.cid_rdnis) {
 		if (!(p->chan->cid.cid_rdnis = ast_strdup(p->owner->cid.cid_rdnis))) {
+			ast_mutex_unlock(&p->lock);
+			ast_channel_unlock(p->chan);
 			return -1;
 		}
 	}
@@ -578,6 +580,8 @@ start_over:
 
 	if (p->owner->cid.cid_dnid) {
 		if (!(p->chan->cid.cid_dnid = ast_strdup(p->owner->cid.cid_dnid))) {
+			ast_mutex_unlock(&p->lock);
+			ast_channel_unlock(p->chan);
 			return -1;
 		}
 	}
@@ -595,6 +599,7 @@ start_over:
 	if (!ast_exists_extension(NULL, p->chan->context, p->chan->exten, 1, p->owner->cid.cid_num)) {
 		ast_log(LOG_NOTICE, "No such extension/context %s@%s while calling Local channel\n", p->chan->exten, p->chan->context);
 		ast_mutex_unlock(&p->lock);
+		ast_channel_unlock(p->chan);
 		return -1;
 	}
 
