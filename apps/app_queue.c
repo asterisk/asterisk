@@ -3086,9 +3086,11 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 			 * ast_strdupa in a loop like this one can cause a stack overflow
 			 */
 			char ochan_name[AST_CHANNEL_NAME];
-			ast_channel_lock(o->chan);
-			ast_copy_string(ochan_name, o->chan->name, sizeof(ochan_name));
-			ast_channel_unlock(o->chan);
+			if (o->chan) {
+				ast_channel_lock(o->chan);
+				ast_copy_string(ochan_name, o->chan->name, sizeof(ochan_name));
+				ast_channel_unlock(o->chan);
+			}
 			if (o->stillgoing && (o->chan) &&  (o->chan->_state == AST_STATE_UP)) {
 				if (!peer) {
 					ast_verb(3, "%s answered %s\n", ochan_name, inchan_name);
