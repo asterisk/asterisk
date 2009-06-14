@@ -583,6 +583,7 @@ struct dahdi_mfcr2_conf {
 	int max_ani;
 	int max_dnis;
 	int get_ani_first:1;
+	int skip_category_request:1;
 	int call_files:1;
 	int allow_collect_calls:1;
 	int charge_calls:1;
@@ -1418,6 +1419,7 @@ static struct dahdi_chan_conf dahdi_chan_conf_default(void)
 			.max_ani = 10,
 			.max_dnis = 4,
 			.get_ani_first = -1,
+			.skip_category_request = -1,
 			.call_files = 0,
 			.allow_collect_calls = 0,
 			.charge_calls = 1,
@@ -5327,8 +5329,8 @@ static openr2_call_disconnect_cause_t dahdi_ast_cause_to_r2_cause(int cause)
 		r2cause = OR2_CAUSE_NORMAL_CLEARING;
 		break;
 	}
-	ast_log(LOG_DEBUG, "dahdi_ast_cause_to_r2_cause returned %d/%s for ast cause %d\n",
-			r2cause, openr2_proto_get_disconnect_string(r2cause), cause);
+	ast_log(LOG_DEBUG, "ast cause %d resulted in openr2 cause %d/%s\n",
+			cause, r2cause, openr2_proto_get_disconnect_string(r2cause));
 	return r2cause;
 }
 #endif
@@ -11080,6 +11082,7 @@ static int dahdi_r2_set_context(struct dahdi_mfcr2 *r2_link, const struct dahdi_
 	}
 	openr2_context_set_log_level(r2_link->protocol_context, conf->mfcr2.loglevel);
 	openr2_context_set_ani_first(r2_link->protocol_context, conf->mfcr2.get_ani_first);
+	openr2_context_set_skip_category_request(r2_link->protocol_context, conf->mfcr2.skip_category_request);
 	openr2_context_set_mf_threshold(r2_link->protocol_context, threshold);
 	openr2_context_set_mf_back_timeout(r2_link->protocol_context, conf->mfcr2.mfback_timeout);
 	openr2_context_set_metering_pulse_timeout(r2_link->protocol_context, conf->mfcr2.metering_pulse_timeout);
@@ -11301,7 +11304,8 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 						                      tmp->subs[SUB_REAL].dfd,
 						                      NULL, NULL);
 				if (!tmp->r2chan) {
-					ast_log(LOG_ERROR, "Cannot create OpenR2 channel.\n");
+					openr2_liberr_t err = openr2_context_get_last_error(r2_link->protocol_context);
+					ast_log(LOG_ERROR, "Cannot create OpenR2 channel: %s\n", openr2_context_error_string(err));
 					destroy_dahdi_pvt(&tmp);
 					return NULL;
 				}
@@ -16193,6 +16197,7 @@ static char *dahdi_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli
 				ast_cli(a->fd, "MFC/R2 Max ANI: %d\n", openr2_context_get_max_ani(r2context));
 				ast_cli(a->fd, "MFC/R2 Max DNIS: %d\n", openr2_context_get_max_dnis(r2context));
 				ast_cli(a->fd, "MFC/R2 Get ANI First: %s\n", openr2_context_get_ani_first(r2context) ? "Yes" : "No");
+				ast_cli(a->fd, "MFC/R2 Skip Category Request: %s\n", openr2_context_get_skip_category_request(r2context) ? "Yes" : "No");
 				ast_cli(a->fd, "MFC/R2 Immediate Accept: %s\n", openr2_context_get_immediate_accept(r2context) ? "Yes" : "No");
 				ast_cli(a->fd, "MFC/R2 Accept on Offer: %s\n", tmp->mfcr2_accept_on_offer ? "Yes" : "No");
 				ast_cli(a->fd, "MFC/R2 Charge Calls: %s\n", tmp->mfcr2_charge_calls ? "Yes" : "No");
