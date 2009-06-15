@@ -339,17 +339,17 @@ static void *dial_features_duplicate(void *data)
  	memcpy(df_copy, df, sizeof(*df));
  
  	return df_copy;
- }
- 
- static void dial_features_destroy(void *data)
- {
+}
+
+static void dial_features_destroy(void *data)
+{
  	struct ast_dial_features *df = data;
  	if (df) {
  		ast_free(df);
  	}
- }
- 
- const struct ast_datastore_info dial_features_info = {
+}
+
+static const struct ast_datastore_info dial_features_info = {
  	.type = "dial-features",
  	.destroy = dial_features_destroy,
  	.duplicate = dial_features_duplicate,

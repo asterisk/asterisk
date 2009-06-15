@@ -97,7 +97,7 @@ static char exec_after_rotate[256] = "";
 static int filesize_reload_needed;
 static unsigned int global_logmask = 0xFFFF;
 
-enum rotatestrategy {
+static enum rotatestrategy {
 	SEQUENTIAL = 1 << 0,     /* Original method - create a new file, in order */
 	ROTATE = 1 << 1,         /* Rotate all files, such that the oldest file has the highest suffix */
 	TIMESTAMP = 1 << 2,      /* Append the epoch timestamp onto the end of the archived file */

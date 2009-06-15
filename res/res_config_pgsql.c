@@ -49,7 +49,7 @@ AST_THREADSTORAGE(escapebuf_buf);
 
 #define RES_CONFIG_PGSQL_CONF "res_pgsql.conf"
 
-PGconn *pgsqlConn = NULL;
+static PGconn *pgsqlConn = NULL;
 
 #define MAX_DB_OPTION_SIZE 64
 
@@ -84,7 +84,7 @@ static int pgsql_reconnect(const char *database);
 static char *handle_cli_realtime_pgsql_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *handle_cli_realtime_pgsql_cache(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
-enum { RQ_WARN, RQ_CREATECLOSE, RQ_CREATECHAR } requirements;
+static enum { RQ_WARN, RQ_CREATECLOSE, RQ_CREATECHAR } requirements;
 
 static struct ast_cli_entry cli_realtime[] = {
 	AST_CLI_DEFINE(handle_cli_realtime_pgsql_status, "Shows connection information for the PostgreSQL RealTime driver"),

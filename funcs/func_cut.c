@@ -305,12 +305,12 @@ static int acf_cut_exec2(struct ast_channel *chan, const char *cmd, char *data, 
 	return ret;
 }
 
-struct ast_custom_function acf_sort = {
+static struct ast_custom_function acf_sort = {
 	.name = "SORT",
 	.read = acf_sort_exec,
 };
 
-struct ast_custom_function acf_cut = {
+static struct ast_custom_function acf_cut = {
 	.name = "CUT",
 	.read = acf_cut_exec,
 	.read2 = acf_cut_exec2,

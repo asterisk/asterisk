@@ -84,7 +84,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 
 
-AST_LIST_HEAD_STATIC(locklist, lock_frame);
+static AST_LIST_HEAD_STATIC(locklist, lock_frame);
 
 static void lock_free(void *data);
 static int unloading = 0;

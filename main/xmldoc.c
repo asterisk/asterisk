@@ -1050,7 +1050,7 @@ enum syntaxtype {
 };
 
 /*! \brief Mapping between type of node and type of syntax to generate. */
-struct strsyntaxtype {
+static struct strsyntaxtype {
 	const char *type;
 	enum syntaxtype stxtype;
 } stxtype[] = {

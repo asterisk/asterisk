@@ -623,7 +623,7 @@ static void *exchangecal_load_calendar(void *void_data)
 	struct ast_calendar *cal = void_data;
 	ast_mutex_t refreshlock;
 
-	if (!(cal && calendar_config)) {
+	if (!(cal && ast_calendar_config)) {
 		ast_log(LOG_ERROR, "You must enable calendar support for res_exchangecal to load\n");
 		return NULL;
 	}
@@ -658,7 +658,7 @@ static void *exchangecal_load_calendar(void *void_data)
 		return NULL;
 	}
 
-	for (v = ast_variable_browse(calendar_config, cal->name); v; v = v->next) {
+	for (v = ast_variable_browse(ast_calendar_config, cal->name); v; v = v->next) {
 		if (!strcasecmp(v->name, "url")) {
 			ast_string_field_set(pvt, url, v->value);
 		} else if (!strcasecmp(v->name, "user")) {

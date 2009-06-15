@@ -190,7 +190,7 @@ struct devstate_change {
 	char device[1];
 };
 
-struct {
+static struct {
 	pthread_t thread;
 	struct ast_event_sub *event_sub;
 	ast_cond_t cond;

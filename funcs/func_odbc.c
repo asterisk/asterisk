@@ -99,10 +99,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *config = "func_odbc.conf";
 
-enum {
+enum odbc_option_flags {
 	OPT_ESCAPECOMMAS =	(1 << 0),
 	OPT_MULTIROW     =	(1 << 1),
-} odbc_option_flags;
+};
 
 struct acf_odbc_query {
 	AST_RWLIST_ENTRY(acf_odbc_query) list;
@@ -118,7 +118,7 @@ struct acf_odbc_query {
 
 static void odbc_datastore_free(void *data);
 
-struct ast_datastore_info odbc_info = {
+static struct ast_datastore_info odbc_info = {
 	.type = "FUNC_ODBC",
 	.destroy = odbc_datastore_free,
 };
@@ -135,7 +135,7 @@ struct odbc_datastore {
 	char names[0];
 };
 
-AST_RWLIST_HEAD_STATIC(queries, acf_odbc_query);
+static AST_RWLIST_HEAD_STATIC(queries, acf_odbc_query);
 
 static int resultcount = 0;
 

@@ -187,10 +187,10 @@ struct evententry {
 	AST_LIST_ENTRY(evententry) list;
 };
 
-AST_LIST_HEAD_STATIC(techs, ast_calendar_tech);
+static AST_LIST_HEAD_STATIC(techs, ast_calendar_tech);
 AST_LIST_HEAD_NOLOCK(eventlist, evententry); /* define the type */
 
-struct ast_config *calendar_config = NULL;
+struct ast_config *ast_calendar_config;
 
 static struct ast_calendar *unref_calendar(struct ast_calendar *cal)
 {
@@ -390,22 +390,22 @@ static int load_tech_calendars(struct ast_calendar_tech *tech)
 	const char *cat = NULL;
 	const char *val;
 
-	if (!calendar_config) {
+	if (!ast_calendar_config) {
 		ast_log(LOG_WARNING, "Calendar support disabled, not loading %s calendar module\n", tech->type);
 		return -1;
 	}
 
-	while ((cat = ast_category_browse(calendar_config, cat))) {
+	while ((cat = ast_category_browse(ast_calendar_config, cat))) {
 		if (!strcasecmp(cat, "general")) {
 			continue;
 		}
 
-		if (!(val = ast_variable_retrieve(calendar_config, cat, "type")) || strcasecmp(val, tech->type)) {
+		if (!(val = ast_variable_retrieve(ast_calendar_config, cat, "type")) || strcasecmp(val, tech->type)) {
 			continue;
 		}
 
 		/* A serious error occurred loading calendars from this tech and it should be disabled */
-		if (!(cal = build_calendar(calendar_config, cat, tech))) {
+		if (!(cal = build_calendar(ast_calendar_config, cat, tech))) {
 			ast_calendar_unregister(tech);
 			return -1;
 		}
@@ -862,11 +862,11 @@ static int load_config(void *data)
 		return 0;
 	}
 
-	if (calendar_config) {
-		ast_config_destroy(calendar_config);
+	if (ast_calendar_config) {
+		ast_config_destroy(ast_calendar_config);
 	}
 
-	calendar_config = tmpcfg;
+	ast_calendar_config = tmpcfg;
 
 	return 0;
 }

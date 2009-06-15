@@ -594,7 +594,7 @@ void ast_db_freetree(struct ast_db_entry *dbe)
 	}
 }
 
-struct ast_cli_entry cli_database[] = {
+static struct ast_cli_entry cli_database[] = {
 	AST_CLI_DEFINE(handle_cli_database_show,    "Shows database contents"),
 	AST_CLI_DEFINE(handle_cli_database_showkey, "Shows database contents"),
 	AST_CLI_DEFINE(handle_cli_database_get,     "Gets database value"),

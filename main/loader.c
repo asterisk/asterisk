@@ -125,7 +125,7 @@ static AST_LIST_HEAD_STATIC(reload_queue, reload_queue_item);
    need to know what filename the module was loaded from while it
    is being registered
 */
-struct ast_module *resource_being_loaded;
+static struct ast_module *resource_being_loaded;
 
 /* XXX: should we check for duplicate resource names here? */
 

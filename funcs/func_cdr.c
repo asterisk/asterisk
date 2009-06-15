@@ -163,12 +163,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</function>
  ***/
 
-enum {
+enum cdr_option_flags {
 	OPT_RECURSIVE = (1 << 0),
 	OPT_UNPARSED = (1 << 1),
 	OPT_LAST = (1 << 2),
 	OPT_SKIPLOCKED = (1 << 3),
-} cdr_option_flags;
+};
 
 AST_APP_OPTIONS(cdr_func_options, {
 	AST_APP_OPTION('l', OPT_LAST),

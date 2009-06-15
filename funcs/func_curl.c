@@ -569,7 +569,7 @@ static int acf_curl2_exec(struct ast_channel *chan, const char *cmd, char *info,
 	return acf_curl_helper(chan, cmd, info, NULL, buf, len);
 }
 
-struct ast_custom_function acf_curl = {
+static struct ast_custom_function acf_curl = {
 	.name = "CURL",
 	.synopsis = "Retrieves the contents of a URL",
 	.syntax = "CURL(url[,post-data])",
@@ -580,7 +580,7 @@ struct ast_custom_function acf_curl = {
 	.read2 = acf_curl2_exec,
 };
 
-struct ast_custom_function acf_curlopt = {
+static struct ast_custom_function acf_curlopt = {
 	.name = "CURLOPT",
 	.synopsis = "Set options for use with the CURL() function",
 	.syntax = "CURLOPT(<option>)",

@@ -60,7 +60,7 @@
  * to unregister that module's calendar type (usually done in module_unload())
  */
 
-extern struct ast_config *calendar_config;
+extern struct ast_config *ast_calendar_config;
 
 struct ast_calendar;
 struct ast_calendar_event;

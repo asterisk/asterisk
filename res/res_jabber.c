@@ -261,8 +261,8 @@ static char *app_ajisend = "JabberSend";
 
 static char *app_ajistatus = "JabberStatus";
 
-struct aji_client_container clients;
-struct aji_capabilities *capabilities = NULL;
+static struct aji_client_container clients;
+static struct aji_capabilities *capabilities = NULL;
 
 /*! \brief Global flags, initialized to default values */
 static struct ast_flags globalflags = { AJI_AUTOREGISTER };

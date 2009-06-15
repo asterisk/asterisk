@@ -54,9 +54,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define EXT_DATA_SIZE 256
 
-enum {
+enum option_flags {
 	OPTION_PATTERNS_DISABLED = (1 << 0),
-} option_flags;
+};
 
 AST_APP_OPTIONS(switch_opts, {
 	AST_APP_OPTION('p', OPTION_PATTERNS_DISABLED),

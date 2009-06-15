@@ -116,7 +116,7 @@ struct http_uri_redirect {
 
 static AST_RWLIST_HEAD_STATIC(uri_redirects, http_uri_redirect);
 
-const struct ast_cfhttp_methods_text {
+static const struct ast_cfhttp_methods_text {
 	enum ast_http_method method;
 	const char text[];
 } ast_http_methods_text[] = {

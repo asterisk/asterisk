@@ -5006,7 +5006,7 @@ static int rawman_http_callback(struct ast_tcptls_session_instance *ser, const s
 	return generic_http_callback(ser, method, FORMAT_RAW, &ser->remote_address, uri, get_params, headers);
 }
 
-struct ast_http_uri rawmanuri = {
+static struct ast_http_uri rawmanuri = {
 	.description = "Raw HTTP Manager Event Interface",
 	.uri = "rawman",
 	.callback = rawman_http_callback,
@@ -5014,7 +5014,7 @@ struct ast_http_uri rawmanuri = {
 	.key = __FILE__,
 };
 
-struct ast_http_uri manageruri = {
+static struct ast_http_uri manageruri = {
 	.description = "HTML Manager Event Interface",
 	.uri = "manager",
 	.callback = manager_http_callback,
@@ -5022,7 +5022,7 @@ struct ast_http_uri manageruri = {
 	.key = __FILE__,
 };
 
-struct ast_http_uri managerxmluri = {
+static struct ast_http_uri managerxmluri = {
 	.description = "XML Manager Event Interface",
 	.uri = "mxml",
 	.callback = mxml_http_callback,
@@ -5047,7 +5047,7 @@ static int auth_rawman_http_callback(struct ast_tcptls_session_instance *ser, co
 	return auth_http_callback(ser, method, FORMAT_RAW, &ser->remote_address, uri, get_params, headers);
 }
 
-struct ast_http_uri arawmanuri = {
+static struct ast_http_uri arawmanuri = {
 	.description = "Raw HTTP Manager Event Interface w/Digest authentication",
 	.uri = "arawman",
 	.has_subtree = 0,
@@ -5056,7 +5056,7 @@ struct ast_http_uri arawmanuri = {
 	.key = __FILE__,
 };
 
-struct ast_http_uri amanageruri = {
+static struct ast_http_uri amanageruri = {
 	.description = "HTML Manager Event Interface w/Digest authentication",
 	.uri = "amanager",
 	.has_subtree = 0,
@@ -5065,7 +5065,7 @@ struct ast_http_uri amanageruri = {
 	.key = __FILE__,
 };
 
-struct ast_http_uri amanagerxmluri = {
+static struct ast_http_uri amanagerxmluri = {
 	.description = "XML Manager Event Interface w/Digest authentication",
 	.uri = "amxml",
 	.has_subtree = 0,
@@ -5086,7 +5086,7 @@ static void purge_old_stuff(void *data)
 	purge_events();
 }
 
-struct ast_tls_config ami_tls_cfg;
+static struct ast_tls_config ami_tls_cfg;
 static struct ast_tcptls_session_args ami_desc = {
 	.accept_fd = -1,
 	.master = AST_PTHREADT_NULL,

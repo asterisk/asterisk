@@ -34,7 +34,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 int res_snmp_agentx_subagent;
 int res_snmp_dont_stop;
-int res_snmp_enabled;
+static int res_snmp_enabled;
 
 static pthread_t thread = AST_PTHREADT_NULL;
 

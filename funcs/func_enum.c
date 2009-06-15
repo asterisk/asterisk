@@ -216,7 +216,7 @@ static int function_enum(struct ast_channel *chan, const char *cmd, char *data,
 	return 0;
 }
 
-unsigned int enum_datastore_id;
+static unsigned int enum_datastore_id;
 
 struct enum_result_datastore {
 	struct enum_context *context;
@@ -243,7 +243,7 @@ static void erds_destroy_cb(void *data)
 	erds_destroy(erds);
 }
 
-const struct ast_datastore_info enum_result_datastore_info = {
+static const struct ast_datastore_info enum_result_datastore_info = {
 	.type = "ENUMQUERY",
 	.destroy = erds_destroy_cb,
 }; 

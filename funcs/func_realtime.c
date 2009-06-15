@@ -410,29 +410,29 @@ static int function_realtime_readdestroy(struct ast_channel *chan, const char *c
 	return 0;
 }
 
-struct ast_custom_function realtime_function = {
+static struct ast_custom_function realtime_function = {
 	.name = "REALTIME",
 	.read = function_realtime_read,
 	.write = function_realtime_write,
 };
 
-struct ast_custom_function realtimefield_function = {
+static struct ast_custom_function realtimefield_function = {
 	.name = "REALTIME_FIELD",
 	.read = realtimefield_read,
 	.write = function_realtime_write,
 };
 
-struct ast_custom_function realtimehash_function = {
+static struct ast_custom_function realtimehash_function = {
 	.name = "REALTIME_HASH",
 	.read = realtimefield_read,
 };
 
-struct ast_custom_function realtime_store_function = {
+static struct ast_custom_function realtime_store_function = {
 	.name = "REALTIME_STORE",
 	.write = function_realtime_store,
 };
 
-struct ast_custom_function realtime_destroy_function = {
+static struct ast_custom_function realtime_destroy_function = {
 	.name = "REALTIME_DESTROY",
 	.read = function_realtime_readdestroy,
 };

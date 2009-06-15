@@ -227,7 +227,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		ast_channel_unlock(chan); \
 	} while (0)
 
-char *transfercapability_table[0x20] = {
+static const char * const transfercapability_table[0x20] = {
 	"SPEECH", "UNK", "UNK", "UNK", "UNK", "UNK", "UNK", "UNK",
 	"DIGITAL", "RESTRICTED_DIGITAL", "UNK", "UNK", "UNK", "UNK", "UNK", "UNK",
 	"3K1AUDIO", "DIGITAL_W_TONES", "UNK", "UNK", "UNK", "UNK", "UNK", "UNK",

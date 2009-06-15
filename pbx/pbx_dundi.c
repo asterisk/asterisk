@@ -3876,7 +3876,7 @@ AST_APP_OPTIONS(dundi_query_opts, BEGIN_OPTIONS
 	AST_APP_OPTION('b', OPT_BYPASS_CACHE),
 END_OPTIONS );
 
-unsigned int dundi_result_id;
+static unsigned int dundi_result_id;
 
 struct dundi_result_datastore {
 	struct dundi_result results[MAX_RESULTS];

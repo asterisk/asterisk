@@ -180,7 +180,7 @@ struct ast_smdi_interface {
 };
 
 /*! \brief SMDI interface container. */
-struct ast_smdi_interface_container {
+static struct ast_smdi_interface_container {
 	ASTOBJ_CONTAINER_COMPONENTS(struct ast_smdi_interface);
 } smdi_ifaces;
 

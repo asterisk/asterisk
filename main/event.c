@@ -39,7 +39,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/taskprocessor.h"
 #include "asterisk/astobj2.h"
 
-struct ast_taskprocessor *event_dispatcher;
+static struct ast_taskprocessor *event_dispatcher;
 
 /*!
  * \brief An event information element

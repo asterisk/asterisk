@@ -74,7 +74,7 @@ static int cli_default_perm = 1;
  * it is already running. */
 AST_MUTEX_DEFINE_STATIC(permsconfiglock);
 /*! \brief  List of users and permissions. */
-AST_RWLIST_HEAD_STATIC(cli_perms, usergroup_cli_perm);
+static AST_RWLIST_HEAD_STATIC(cli_perms, usergroup_cli_perm);
 
 /*!
  * \brief map a debug or verbose value to a filename

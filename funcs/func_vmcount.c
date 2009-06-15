@@ -94,7 +94,7 @@ static int acf_vmcount_exec(struct ast_channel *chan, const char *cmd, char *arg
 	return 0;
 }
 
-struct ast_custom_function acf_vmcount = {
+static struct ast_custom_function acf_vmcount = {
 	.name = "VMCOUNT",
 	.read = acf_vmcount_exec,
 	.read_max = 12,
