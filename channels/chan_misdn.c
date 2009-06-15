@@ -94,7 +94,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "chan_misdn_config.h"
 #include "isdn_lib.h"
 
-char global_tracefile[BUFFERSIZE + 1];
+static char global_tracefile[BUFFERSIZE + 1];
 
 static int g_config_initialized = 0;
 
@@ -290,7 +290,7 @@ static const char misdn_cc_record_not_found[] = "Call completion record not foun
 #define MISDN_ERROR_MSG		"MISDN_ERROR_MSG"
 #endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 
-ast_mutex_t release_lock;
+static ast_mutex_t release_lock;
 
 enum misdn_chan_state {
 	MISDN_NOTHING = 0,         /*!< at beginning */
@@ -683,13 +683,11 @@ static int max_ports;
 static int *misdn_in_calls;
 static int *misdn_out_calls;
 
-struct chan_list dummy_cl;
-
 /*!
  * \brief Global channel call record list head.
  */
-struct chan_list *cl_te=NULL;
-ast_mutex_t cl_te_lock;
+static struct chan_list *cl_te=NULL;
+static ast_mutex_t cl_te_lock;
 
 static enum event_response_e
 cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data);

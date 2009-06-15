@@ -642,7 +642,7 @@ struct soft_key_template_definition {
 #define SOFTKEY_DND 0x13
 #define SOFTKEY_IDIVERT 0x14
 
-struct soft_key_template_definition soft_key_template_default[] = {
+static struct soft_key_template_definition soft_key_template_default[] = {
 	{ "\200\001", SOFTKEY_REDIAL },
 	{ "\200\002", SOFTKEY_NEWCALL },
 	{ "\200\003", SOFTKEY_HOLD },
@@ -1020,7 +1020,7 @@ struct skinny_req {
 /* XXX This is the combined size of the variables above.  (len, res, e)
    If more are added, this MUST change.
    (sizeof(skinny_req) - sizeof(skinny_data)) DOES NOT WORK on all systems (amd64?). */
-int skinny_header_size = 12;
+static int skinny_header_size = 12;
 
 /*****************************
  * Asterisk specific globals *
@@ -1034,8 +1034,8 @@ static struct sockaddr_in bindaddr;
 static char ourhost[256];
 static int ourport;
 static struct in_addr __ourip;
-struct ast_hostent ahp;
-struct hostent *hp;
+static struct ast_hostent ahp;
+static struct hostent *hp;
 static int skinnysock = -1;
 static pthread_t accept_t;
 static int callnums = 1;
@@ -1255,7 +1255,7 @@ struct skinny_line {
 	int newmsgs;
 };
 
-struct skinny_line_options{
+static struct skinny_line_options{
 	SKINNY_LINE_OPTIONS
 } default_line_struct = {
  	.callwaiting = 1,
@@ -1274,7 +1274,7 @@ struct skinny_line_options{
 	.prune = 0,
 	.hookstate = SKINNY_ONHOOK,
 };
-struct skinny_line_options *default_line = &default_line_struct;
+static struct skinny_line_options *default_line = &default_line_struct;
 
 static AST_LIST_HEAD_STATIC(lines, skinny_line);
 
@@ -1335,7 +1335,7 @@ struct skinny_device {
 	AST_LIST_ENTRY(skinny_device) list;
 };
 
-struct skinny_device_options{
+static struct skinny_device_options {
 	SKINNY_DEVICE_OPTIONS
 } default_device_struct = {
 	.transfer = 1,
@@ -1347,7 +1347,7 @@ struct skinny_device_options{
  	.capability = 0,
 	.prune = 0,
 };
-struct skinny_device_options *default_device = &default_device_struct;
+static struct skinny_device_options *default_device = &default_device_struct;
 	
 static AST_LIST_HEAD_STATIC(devices, skinny_device);
 

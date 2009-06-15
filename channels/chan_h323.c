@@ -147,7 +147,7 @@ static unsigned int unique = 0;
 static call_options_t global_options;
 
 /*! \brief Private structure of a OpenH323 channel */
-struct oh323_pvt {
+static struct oh323_pvt {
 	ast_mutex_t lock;			/*!< Channel private lock */
 	call_options_t options;			/*!<!< Options to be used during call setup */
 	int alreadygone;			/*!< Whether or not we've already been destroyed by our peer */

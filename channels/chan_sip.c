@@ -1869,7 +1869,7 @@ struct sip_pvt {
  * the container and individual items, and functions to add/remove
  * references to the individual items.
  */
-struct ao2_container *dialogs;
+static struct ao2_container *dialogs;
 
 #define sip_pvt_lock(x) ao2_lock(x)
 #define sip_pvt_trylock(x) ao2_trylock(x)
@@ -2148,8 +2148,8 @@ static int hash_user_size = 563;
 static AST_LIST_HEAD_STATIC(threadl, sip_threadinfo);
 
 /*! \brief  The peer list: Users, Peers and Friends */
-struct ao2_container *peers;
-struct ao2_container *peers_by_ip;
+static struct ao2_container *peers;
+static struct ao2_container *peers_by_ip;
 
 /*! \brief  The register list: Other SIP proxies we register with and place calls to */
 static struct ast_register_list {

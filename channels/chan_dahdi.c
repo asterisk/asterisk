@@ -2440,7 +2440,7 @@ static struct analog_callback dahdi_analog_callbacks =
 	.decrease_ss_count = my_decrease_ss_count,
 };
 
-struct dahdi_pvt *round_robin[32];
+static struct dahdi_pvt *round_robin[32];
 
 #if defined(HAVE_PRI)
 static inline int pri_grab(struct dahdi_pvt *pvt, struct dahdi_pri *pri)

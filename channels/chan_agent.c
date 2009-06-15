@@ -2283,7 +2283,7 @@ static int function_agent(struct ast_channel *chan, const char *cmd, char *data,
 	return 0;
 }
 
-struct ast_custom_function agent_function = {
+static struct ast_custom_function agent_function = {
 	.name = "AGENT",
 	.read = function_agent,
 };

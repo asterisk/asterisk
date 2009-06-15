@@ -305,7 +305,7 @@ static struct ast_netsock_list *netsock;
 static struct ast_netsock_list *outsock;		/*!< used if sourceaddress specified and bindaddr == INADDR_ANY */
 static int defaultsockfd = -1;
 
-int (*iax2_regfunk)(const char *username, int onoff) = NULL;
+static int (*iax2_regfunk)(const char *username, int onoff) = NULL;
 
 /* Ethernet, etc */
 #define IAX_CAPABILITY_FULLBANDWIDTH 	0xFFFF
@@ -12318,7 +12318,7 @@ static int function_iaxpeer(struct ast_channel *chan, const char *cmd, char *dat
 	return 0;
 }
 
-struct ast_custom_function iaxpeer_function = {
+static struct ast_custom_function iaxpeer_function = {
 	.name = "IAXPEER",
 	.read = function_iaxpeer,
 };
