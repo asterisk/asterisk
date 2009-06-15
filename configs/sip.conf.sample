@@ -615,6 +615,15 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; instead of INVITE. This can be combined with 'nonat', as
                                 ; 'canreinvite=update,nonat'. It implies 'yes'.
 
+;ignoresdpversion=yes           ; By default, Asterisk will honor the session version
+                                ; number in SDP packets and will only modify the SDP
+                                ; session if the version number changes. This option will
+                                ; force asterisk to ignore the SDP session version number
+                                ; and treat all SDP data as new data.  This is required
+                                ; for devices that send us non standard SDP packets
+                                ; (observed with Microsoft OCS). By default this option is
+                                ; off.
+
 ;----------------------------------------- REALTIME SUPPORT ------------------------
 ; For additional information on ARA, the Asterisk Realtime Architecture,
 ; please read realtime.txt and extconfig.txt in the /doc directory of the
@@ -774,12 +783,19 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; subscribecontext            subscribecontext
 ; videosupport                videosupport
 ; maxcallbitrate              maxcallbitrate
-; rfc2833compensate           mailbox
-; session-timers              busylevel
-; session-expires            
-; session-minse               template
-; session-refresher           fromdomain
-; t38pt_usertpsource          regexten
+; rfc2833compensate           rfc2833compensate
+; ignoresdpversion            ignoresdpversion
+; session-timers              session-timers
+; session-expires             session-expires
+; session-minse               session-minse
+; session-refresher           session-refresher
+; t38pt_usertpsource          t38pt_usertpsource
+;                             regexten
+;                             template
+;                             fromdomain
+;                             regexten
+;                             mailbox
+;                             busylevel
 ;                             fromuser
 ;                             host
 ;                             port
@@ -790,17 +806,11 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;                             rtpholdtimeout
 ;                             sendrpid
 ;                             outboundproxy
-;                             rfc2833compensate
 ;                             callbackextension
 ;                             registertrying
-;                             session-timers
-;                             session-expires
-;                             session-minse
-;                             session-refresher
 ;                             timert1
 ;                             timerb
 ;                             qualifyfreq
-;                             t38pt_usertpsource
 ;                             contactpermit         ; Limit what a host may register as (a neat trick
 ;                             contactdeny           ; is to register at the same IP as a SIP provider,
 ;                                                   ; then call oneself, and get redirected to that
