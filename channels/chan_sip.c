@@ -1222,8 +1222,8 @@ static unsigned int global_cos_sip;		/*!< 802.1p class of service for SIP packet
 static unsigned int global_cos_audio;		/*!< 802.1p class of service for audio RTP packets */
 static unsigned int global_cos_video;		/*!< 802.1p class of service for video RTP packets */
 static unsigned int global_cos_text;		/*!< 802.1p class of service for text RTP packets */
-static int recordhistory;		/*!< Record SIP history. Off by default */
-static int dumphistory;			/*!< Dump history to verbose before destroying SIP dialog */
+static unsigned int recordhistory;		/*!< Record SIP history. Off by default */
+static unsigned int dumphistory;		/*!< Dump history to verbose before destroying SIP dialog */
 static char global_regcontext[AST_MAX_CONTEXT];		/*!< Context for auto-extensions */
 static char global_useragent[AST_MAX_EXTENSION];	/*!< Useragent for the SIP channel */
 static char global_sdpsession[AST_MAX_EXTENSION];	/*!< SDP session name for the SIP channel */
@@ -1232,7 +1232,7 @@ static int global_authfailureevents;		/*!< Whether we send authentication failur
 static int global_t1;			/*!< T1 time */
 static int global_t1min;		/*!< T1 roundtrip time minimum */
 static int global_timer_b;    			/*!< Timer B - RFC 3261 Section 17.1.1.2 */
-static int global_autoframing;          	/*!< Turn autoframing on or off. */
+static unsigned int global_autoframing;        	/*!< Turn autoframing on or off. */
 static int global_qualifyfreq;			/*!< Qualify frequency */
 static int global_qualify_gap;              /*!< Time between our group of peer pokes */
 static int global_qualify_peers;          /*!< Number of peers to poke at a given time */
@@ -1757,15 +1757,21 @@ struct sip_pvt {
 	int lastnoninvite;                      /*!< Last Cseq of non-invite */
 	struct ast_flags flags[2];		/*!< SIP_ flags */
 
-	/* boolean or small integers that don't belong in flags */
-	char do_history;			/*!< Set if we want to record history */
-	char alreadygone;			/*!< already destroyed by our peer */
-	char needdestroy;			/*!< need to be destroyed by the monitor thread */
-	char outgoing_call;			/*!< this is an outgoing call */
-	char answered_elsewhere;		/*!< This call is cancelled due to answer on another channel */
-	char novideo;				/*!< Didn't get video in invite, don't offer */
-	char notext;				/*!< Text not supported  (?) */
-
+	/* boolean flags that don't belong in flags */
+	unsigned short do_history:1;		/*!< Set if we want to record history */
+	unsigned short alreadygone:1;		/*!< already destroyed by our peer */
+	unsigned short needdestroy:1;		/*!< need to be destroyed by the monitor thread */
+	unsigned short outgoing_call:1;		/*!< this is an outgoing call */
+	unsigned short answered_elsewhere:1;	/*!< This call is cancelled due to answer on another channel */
+	unsigned short novideo:1;		/*!< Didn't get video in invite, don't offer */
+	unsigned short notext:1;		/*!< Text not supported  (?) */
+	unsigned short session_modify:1;	/*!< Session modification request true/false  */
+	unsigned short route_persistent:1;	/*!< Is this the "real" route? */
+	unsigned short autoframing:1;		/*!< Whether to use our local configuration for frame sizes (off)
+						 *   or respect the other endpoint's request for frame sizes (on)
+						 *   for incoming calls
+						 */
+	char tag[11];				/*!< Our tag for this session */
 	int timer_t1;				/*!< SIP timer T1, ms rtt */
 	int timer_b;                            /*!< SIP timer B, ms */
 	unsigned int sipoptions;		/*!< Supported SIP options on the other end */
@@ -1779,20 +1785,19 @@ struct sip_pvt {
 	int jointnoncodeccapability;            /*!< Joint Non codec capability */
 	int redircodecs;			/*!< Redirect codecs */
 	int maxcallbitrate;			/*!< Maximum Call Bitrate for Video Calls */	
+	int request_queue_sched_id;		/*!< Scheduler ID of any scheduled action to process queued requests */
+	int authtries;				/*!< Times we've tried to authenticate */
 	struct sip_proxy *outboundproxy;	/*!< Outbound proxy for this dialog. Use ref_proxy to set this instead of setting it directly*/
 	struct t38properties t38;		/*!< T38 settings */
 	struct sockaddr_in udptlredirip;	/*!< Where our T.38 UDPTL should be going if not to us */
 	struct ast_udptl *udptl;		/*!< T.38 UDPTL session */
 	int callingpres;			/*!< Calling presentation */
-	int authtries;				/*!< Times we've tried to authenticate */
 	int expiry;				/*!< How long we take to expire */
+	int sessionversion;			/*!< SDP Session Version */
+	int sessionid;				/*!< SDP Session ID */
 	long branch;				/*!< The branch identifier of this session */
 	long invite_branch;			/*!< The branch used when we sent the initial INVITE */
-	char tag[11];				/*!< Our tag for this session */
-	int sessionid;				/*!< SDP Session ID */
-	int sessionversion;			/*!< SDP Session Version */
 	uint64_t sessionversion_remote;		/*!< Remote UA's SDP Session Version */
-	int session_modify;			/*!< Session modification request true/false  */
 	struct sockaddr_in sa;			/*!< Our peer */
 	struct sockaddr_in redirip;		/*!< Where our RTP should be going if not to us */
 	struct sockaddr_in vredirip;		/*!< Where our Video RTP should be going if not to us */
@@ -1802,9 +1807,9 @@ struct sip_pvt {
 	int rtptimeout;				/*!< RTP timeout time */
 	struct sockaddr_in recv;		/*!< Received as */
 	struct sockaddr_in ourip;		/*!< Our IP (as seen from the outside) */
+	enum transfermodes allowtransfer;	/*!< REFER: restriction scheme */
 	struct ast_channel *owner;		/*!< Who owns us (if we have an owner) */
 	struct sip_route *route;		/*!< Head of linked list of routing steps (fm Record-Route) */
-	int route_persistant;			/*!< Is this the "real" route? */
 	struct ast_variable *notify_headers;    /*!< Custom notify type */
 	struct sip_auth *peerauth;		/*!< Realm authentication */
 	int noncecount;				/*!< Nonce-count */
@@ -1822,7 +1827,6 @@ struct sip_pvt {
 	int waitid;				/*!< Wait ID for scheduler after 491 or other delays */
 	int autokillid;				/*!< Auto-kill ID (scheduler) */
 	int t38id;                              /*!< T.38 Response ID */
-	enum transfermodes allowtransfer;	/*!< REFER: restriction scheme */
 	struct sip_refer *refer;		/*!< REFER: SIP transfer data structure */
 	enum subscriptiontype subscribed;	/*!< SUBSCRIBE: Is this dialog a subscription?  */
 	int stateid;				/*!< SUBSCRIBE: ID for devicestate subscriptions */
@@ -1842,12 +1846,7 @@ struct sip_pvt {
 	size_t history_entries;			/*!< Number of entires in the history */
 	struct ast_variable *chanvars;		/*!< Channel variables to set for inbound call */
 	AST_LIST_HEAD_NOLOCK(request_queue, sip_request) request_queue; /*!< Requests that arrived but could not be processed immediately */
-	int request_queue_sched_id;		/*!< Scheduler ID of any scheduled action to process queued requests */
 	struct sip_invite_param *options;	/*!< Options for INVITE */
-	int autoframing;			/*!< The number of Asters we group in a Pyroflax
-							before strolling to the Grokyzpå
-							(A bit unsure of this, please correct if
-							you know more) */
 	struct sip_st_dlg *stimer;		/*!< SIP Session-Timers */              
   
 	int red; 				/*!< T.140 RTP Redundancy */
@@ -1989,8 +1988,18 @@ struct sip_peer {
 		);
 	struct sip_socket socket;	/*!< Socket used for this peer */
 	enum sip_transport default_outbound_transport;    /*!< Peer Registration may change the default outbound transport.
-												If register expires, default should be reset. to this value */
-	unsigned int transports:3;      /*!< Transports (enum sip_transport) that are acceptable for this peer */
+							    If register expires, default should be reset. to this value */
+	/* things that don't belong in flags */
+	unsigned short transports:3;	/*!< Transports (enum sip_transport) that are acceptable for this peer */
+	unsigned short is_realtime:1;	/*!< this is a 'realtime' peer */
+	unsigned short rt_fromcontact:1;/*!< copy fromcontact from realtime */
+	unsigned short host_dynamic:1;	/*!< Dynamic Peers register with Asterisk */
+	unsigned short selfdestruct:1;	/*!< Automatic peers need to destruct themselves */
+	unsigned short the_mark:1;	/*!< moved out of ASTOBJ into struct proper; That which bears the_mark should be deleted! */
+	unsigned short autoframing:1;	/*!< Whether to use our local configuration for frame sizes (off)
+					 *   or respect the other endpoint's request for frame sizes (on)
+					 *   for incoming calls
+					 */
 	struct sip_auth *auth;		/*!< Realm authentication list */
 	int amaflags;			/*!< AMA Flags (for billing) */
 	int callingpres;		/*!< Calling id presentation */
@@ -2008,13 +2017,7 @@ struct sip_peer {
 	/*! Mailboxes that this peer cares about */
 	AST_LIST_HEAD_NOLOCK(, sip_mailbox) mailboxes;
 
-	/* things that don't belong in flags */
-	char is_realtime;		/*!< this is a 'realtime' peer */
-	char rt_fromcontact;		/*!< copy fromcontact from realtime */
-	char host_dynamic;		/*!< Dynamic Peers register with Asterisk */
-	char selfdestruct;		/*!< Automatic peers need to destruct themselves */
-	char the_mark;			/*!< moved out of ASTOBJ into struct proper; That which bears the_mark should be deleted! */
-
+	int maxcallbitrate;		/*!< Maximum Bitrate for a video call */
 	int expire;			/*!<  When to expire this peer registration */
 	int capability;			/*!<  Codec capability */
 	int rtptimeout;			/*!<  RTP timeout */
@@ -2025,8 +2028,6 @@ struct sip_peer {
 	struct sip_proxy *outboundproxy;	/*!< Outbound proxy for this peer */
 	struct ast_dnsmgr_entry *dnsmgr;/*!<  DNS refresh manager for peer */
 	struct sockaddr_in addr;	/*!<  IP address of peer */
-	int maxcallbitrate;		/*!< Maximum Bitrate for a video call */
-
 	/* Qualification */
 	struct sip_pvt *call;		/*!<  Call pointer */
 	int pokeexpire;			/*!<  When to expire poke (qualify= checking) */
@@ -2039,7 +2040,6 @@ struct sip_peer {
 	struct ast_ha *contactha;       /*!<  Restrict what IPs are allowed in the Contact header (for registration) */
 	struct ast_variable *chanvars;	/*!<  Variables to set for channel created by user */
 	struct sip_pvt *mwipvt;		/*!<  Subscription for MWI */
-	int autoframing;
 	struct sip_st_cfg stimer;	/*!<  SIP Session-Timers */
 	int timer_t1;			/*!<  The maximum T1 value for the peer */
 	int timer_b;			/*!<  The maximum timer B (transaction timeouts) */
@@ -12114,8 +12114,8 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 	int len;
 	const char *rr, *contact, *c;
 
-	/* Once a persistant route is set, don't fool with it */
-	if (p->route && p->route_persistant) {
+	/* Once a persistent route is set, don't fool with it */
+	if (p->route && p->route_persistent) {
 		ast_debug(1, "build_route: Retaining previous route: <%s>\n", p->route->hop);
 		return;
 	}
@@ -12126,7 +12126,7 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 	}
 
 	/* We only want to create the route set the first time this is called */
-	p->route_persistant = 1;
+	p->route_persistent = 1;
 	
 	/* Build a tailq, then assign it to p->route when done.
 	 * If backwards, we add entries from the head so they end up
