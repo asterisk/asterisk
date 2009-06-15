@@ -647,9 +647,7 @@ struct agi_command gosub_agi_command =
 
 static int unload_module(void)
 {
-	if (ast_agi_unregister) {
-		 ast_agi_unregister(ast_module_info->self, &gosub_agi_command);
-	}
+	ast_agi_unregister(ast_module_info->self, &gosub_agi_command);
 
 	ast_unregister_application(app_return);
 	ast_unregister_application(app_pop);
@@ -663,9 +661,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	if (ast_agi_register) {
-		 ast_agi_register(ast_module_info->self, &gosub_agi_command);
-	}
+	ast_agi_register(ast_module_info->self, &gosub_agi_command);
 
 	ast_register_application_xml(app_pop, pop_exec);
 	ast_register_application_xml(app_return, return_exec);

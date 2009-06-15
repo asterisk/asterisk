@@ -251,7 +251,7 @@ static void ast_smdi_interface_destroy(struct ast_smdi_interface *iface)
 	ast_module_unref(ast_module_info->self);
 }
 
-void ast_smdi_interface_unref(struct ast_smdi_interface *iface)
+void AST_OPTIONAL_API_NAME(ast_smdi_interface_unref)(struct ast_smdi_interface *iface)
 {
 	ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
 }
@@ -311,17 +311,17 @@ static int smdi_toggle_mwi(struct ast_smdi_interface *iface, const char *mailbox
 	return 0;
 }
 
-int ast_smdi_mwi_set(struct ast_smdi_interface *iface, const char *mailbox)
+int AST_OPTIONAL_API_NAME(ast_smdi_mwi_set)(struct ast_smdi_interface *iface, const char *mailbox)
 {
 	return smdi_toggle_mwi(iface, mailbox, 1);
 }
 
-int ast_smdi_mwi_unset(struct ast_smdi_interface *iface, const char *mailbox)
+int AST_OPTIONAL_API_NAME(ast_smdi_mwi_unset)(struct ast_smdi_interface *iface, const char *mailbox)
 {
 	return smdi_toggle_mwi(iface, mailbox, 0);
 }
 
-void ast_smdi_md_message_putback(struct ast_smdi_interface *iface, struct ast_smdi_md_message *md_msg)
+void AST_OPTIONAL_API_NAME(ast_smdi_md_message_putback)(struct ast_smdi_interface *iface, struct ast_smdi_md_message *md_msg)
 {
 	ast_mutex_lock(&iface->md_q_lock);
 	ASTOBJ_CONTAINER_LINK_START(&iface->md_q, md_msg);
@@ -329,7 +329,7 @@ void ast_smdi_md_message_putback(struct ast_smdi_interface *iface, struct ast_sm
 	ast_mutex_unlock(&iface->md_q_lock);
 }
 
-void ast_smdi_mwi_message_putback(struct ast_smdi_interface *iface, struct ast_smdi_mwi_message *mwi_msg)
+void AST_OPTIONAL_API_NAME(ast_smdi_mwi_message_putback)(struct ast_smdi_interface *iface, struct ast_smdi_mwi_message *mwi_msg)
 {
 	ast_mutex_lock(&iface->mwi_q_lock);
 	ASTOBJ_CONTAINER_LINK_START(&iface->mwi_q, mwi_msg);
@@ -590,36 +590,36 @@ static void *smdi_message_wait(struct ast_smdi_interface *iface, int timeout,
 	return NULL;
 }
 
-struct ast_smdi_md_message *ast_smdi_md_message_pop(struct ast_smdi_interface *iface)
+struct ast_smdi_md_message * AST_OPTIONAL_API_NAME(ast_smdi_md_message_pop)(struct ast_smdi_interface *iface)
 {
 	return smdi_msg_pop(iface, SMDI_MD);
 }
 
-struct ast_smdi_md_message *ast_smdi_md_message_wait(struct ast_smdi_interface *iface, int timeout)
+struct ast_smdi_md_message * AST_OPTIONAL_API_NAME(ast_smdi_md_message_wait)(struct ast_smdi_interface *iface, int timeout)
 {
 	struct ast_flags options = { 0 };
 	return smdi_message_wait(iface, timeout, SMDI_MD, NULL, options);
 }
 
-struct ast_smdi_mwi_message *ast_smdi_mwi_message_pop(struct ast_smdi_interface *iface)
+struct ast_smdi_mwi_message * AST_OPTIONAL_API_NAME(ast_smdi_mwi_message_pop)(struct ast_smdi_interface *iface)
 {
 	return smdi_msg_pop(iface, SMDI_MWI);
 }
 
-struct ast_smdi_mwi_message *ast_smdi_mwi_message_wait(struct ast_smdi_interface *iface, int timeout)
+struct ast_smdi_mwi_message * AST_OPTIONAL_API_NAME(ast_smdi_mwi_message_wait)(struct ast_smdi_interface *iface, int timeout)
 {
 	struct ast_flags options = { 0 };
 	return smdi_message_wait(iface, timeout, SMDI_MWI, NULL, options);
 }
 
-struct ast_smdi_mwi_message *ast_smdi_mwi_message_wait_station(struct ast_smdi_interface *iface, int timeout,
+struct ast_smdi_mwi_message * AST_OPTIONAL_API_NAME(ast_smdi_mwi_message_wait_station)(struct ast_smdi_interface *iface, int timeout,
 	const char *station)
 {
 	struct ast_flags options = { 0 };
 	return smdi_message_wait(iface, timeout, SMDI_MWI, station, options);
 }
 
-struct ast_smdi_interface *ast_smdi_interface_find(const char *iface_name)
+struct ast_smdi_interface * AST_OPTIONAL_API_NAME(ast_smdi_interface_find)(const char *iface_name)
 {
 	return (ASTOBJ_CONTAINER_FIND(&smdi_ifaces, iface_name));
 }
@@ -816,12 +816,12 @@ static void *smdi_read(void *iface_p)
 	return NULL;
 }
 
-void ast_smdi_md_message_destroy(struct ast_smdi_md_message *msg)
+void AST_OPTIONAL_API_NAME(ast_smdi_md_message_destroy)(struct ast_smdi_md_message *msg)
 {
 	ast_free(msg);
 }
 
-void ast_smdi_mwi_message_destroy(struct ast_smdi_mwi_message *msg)
+void AST_OPTIONAL_API_NAME(ast_smdi_mwi_message_destroy)(struct ast_smdi_mwi_message *msg)
 {
 	ast_free(msg);
 }

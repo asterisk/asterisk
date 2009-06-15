@@ -44,9 +44,7 @@ endif
 
 ifneq ($(findstring darwin,$(OSARCH)),)
   AST_LIBS+=-lresolv
-  ifneq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)
-    ASTLINK=-Wl,-dynamic
-  endif
+  ASTLINK=-undefined suppress -force_flat_namespace
 else
 # These are used for all but Darwin
   ifneq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)

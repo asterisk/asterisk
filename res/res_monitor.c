@@ -283,8 +283,8 @@ static int ast_monitor_set_state(struct ast_channel *chan, int state)
  * \retval 0 on success
  * \retval -1 on failure
  */
-int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
-		const char *fname_base, int need_lock, int stream_action)
+int AST_OPTIONAL_API_NAME(ast_monitor_start)(struct ast_channel *chan, const char *format_spec,
+					     const char *fname_base, int need_lock, int stream_action)
 {
 	int res = 0;
 
@@ -423,7 +423,7 @@ static const char *get_soxmix_format(const char *format)
  * Stop the recording, close any open streams, mix in/out channels if required
  * \return Always 0
 */
-int ast_monitor_stop(struct ast_channel *chan, int need_lock)
+int AST_OPTIONAL_API_NAME(ast_monitor_stop)(struct ast_channel *chan, int need_lock)
 {
 	int delfiles = 0;
 
@@ -516,13 +516,13 @@ int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 
 
 /*! \brief Pause monitoring of channel */
-int ast_monitor_pause(struct ast_channel *chan)
+int AST_OPTIONAL_API_NAME(ast_monitor_pause)(struct ast_channel *chan)
 {
 	return ast_monitor_set_state(chan, AST_MONITOR_PAUSED);
 }
 
 /*! \brief Unpause monitoring of channel */
-int ast_monitor_unpause(struct ast_channel *chan)
+int AST_OPTIONAL_API_NAME(ast_monitor_unpause)(struct ast_channel *chan)
 {
 	return ast_monitor_set_state(chan, AST_MONITOR_RUNNING);
 }
@@ -547,7 +547,7 @@ static int unpause_monitor_exec(struct ast_channel *chan, const char *data)
  * \retval 0 on success.
  * \retval -1 on failure.
 */
-int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, int need_lock)
+int AST_OPTIONAL_API_NAME(ast_monitor_change_fname)(struct ast_channel *chan, const char *fname_base, int need_lock)
 {
 	if (ast_strlen_zero(fname_base)) {
 		ast_log(LOG_WARNING, "Cannot change monitor filename of channel %s to null\n", chan->name);
@@ -808,7 +808,7 @@ static int change_monitor_action(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-void ast_monitor_setjoinfiles(struct ast_channel *chan, int turnon)
+void AST_OPTIONAL_API_NAME(ast_monitor_setjoinfiles)(struct ast_channel *chan, int turnon)
 {
 	if (chan->monitor)
 		chan->monitor->joinfiles = turnon;

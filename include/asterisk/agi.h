@@ -72,7 +72,8 @@ typedef struct agi_command {
  * \return 1 on success, 0 if the command is already registered
  *
  */
-AST_OPTIONAL_API(int, ast_agi_register, (struct ast_module *mod, agi_command *cmd),
+AST_OPTIONAL_API(int, ast_agi_register,
+		 (struct ast_module *mod, agi_command *cmd),
 		 { return AST_OPTIONAL_API_UNAVAILABLE; });
 
 /*!
@@ -85,7 +86,8 @@ AST_OPTIONAL_API(int, ast_agi_register, (struct ast_module *mod, agi_command *cm
  * \return 1 on success, 0 if the command was not already registered
  *
  */
-AST_OPTIONAL_API(int, ast_agi_unregister, (struct ast_module *mod, agi_command *cmd),
+AST_OPTIONAL_API(int, ast_agi_unregister,
+		 (struct ast_module *mod, agi_command *cmd),
 		 { return AST_OPTIONAL_API_UNAVAILABLE; });
 
 /*!
@@ -103,7 +105,8 @@ AST_OPTIONAL_API(int, ast_agi_unregister, (struct ast_module *mod, agi_command *
  * will be unregistered. In other words, this function registers all the provided commands, or none
  * of them.
  */
-AST_OPTIONAL_API(int, ast_agi_register_multiple, (struct ast_module *mod, struct agi_command *cmd, unsigned int len),
+AST_OPTIONAL_API(int, ast_agi_register_multiple,
+		 (struct ast_module *mod, struct agi_command *cmd, unsigned int len),
 		 { return AST_OPTIONAL_API_UNAVAILABLE; });
 
 /*!
@@ -120,7 +123,8 @@ AST_OPTIONAL_API(int, ast_agi_register_multiple, (struct ast_module *mod, struct
  * \note If any command fails to unregister, this function will continue to unregister the
  * remaining commands in the array; it will not reregister the already-unregistered commands.
  */
-AST_OPTIONAL_API(int, ast_agi_unregister_multiple, (struct ast_module *mod, struct agi_command *cmd, unsigned int len),
+AST_OPTIONAL_API(int, ast_agi_unregister_multiple,
+		 (struct ast_module *mod, struct agi_command *cmd, unsigned int len),
 		 { return AST_OPTIONAL_API_UNAVAILABLE; });
 
 /*!
@@ -134,7 +138,8 @@ AST_OPTIONAL_API(int, ast_agi_unregister_multiple, (struct ast_module *mod, stru
  * \return 0 for success, -1 for failure, AST_OPTIONAL_API_UNAVAILABLE if res_agi is not loaded
  *
  */
-AST_OPTIONAL_API_ATTR(int, format(printf, 3, 4), ast_agi_send, (int fd, struct ast_channel *chan, char *fmt, ...),
+AST_OPTIONAL_API_ATTR(int, format(printf, 3, 4), ast_agi_send,
+		      (int fd, struct ast_channel *chan, char *fmt, ...),
 		      { return AST_OPTIONAL_API_UNAVAILABLE; });
 
 #if defined(__cplusplus) || defined(c_plusplus)

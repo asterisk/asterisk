@@ -1,18 +1,18 @@
 {
 	global:
-		ast_smdi_interface_find;
-		ast_smdi_interface_unref;
-		ast_smdi_md_message_destroy;
-		ast_smdi_md_message_pop;
-		ast_smdi_md_message_putback;
-		ast_smdi_md_message_wait;
-		ast_smdi_mwi_message_destroy;
-		ast_smdi_mwi_message_pop;
-		ast_smdi_mwi_message_putback;
-		ast_smdi_mwi_message_wait;
-		ast_smdi_mwi_message_wait_station;
-		ast_smdi_mwi_set;
-		ast_smdi_mwi_unset;
+		*ast_smdi_interface_find;
+		*ast_smdi_interface_unref;
+		*ast_smdi_md_message_destroy;
+		*ast_smdi_md_message_pop;
+		*ast_smdi_md_message_putback;
+		*ast_smdi_md_message_wait;
+		*ast_smdi_mwi_message_destroy;
+		*ast_smdi_mwi_message_pop;
+		*ast_smdi_mwi_message_putback;
+		*ast_smdi_mwi_message_wait;
+		*ast_smdi_mwi_message_wait_station;
+		*ast_smdi_mwi_set;
+		*ast_smdi_mwi_unset;
 	local:
 		*;
 };

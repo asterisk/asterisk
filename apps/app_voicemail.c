@@ -10699,10 +10699,10 @@ static int load_config(int reload)
 		if ((val = ast_variable_retrieve(cfg, "general", "smdienable")) && ast_true(val)) {
 			ast_debug(1, "Enabled SMDI voicemail notification\n");
 			if ((val = ast_variable_retrieve(cfg, "general", "smdiport"))) {
-				smdi_iface = ast_smdi_interface_find ? ast_smdi_interface_find(val) : NULL;
+				smdi_iface = ast_smdi_interface_find(val);
 			} else {
 				ast_debug(1, "No SMDI interface set, trying default (/dev/ttyS0)\n");
-				smdi_iface = ast_smdi_interface_find ? ast_smdi_interface_find("/dev/ttyS0") : NULL;
+				smdi_iface = ast_smdi_interface_find("/dev/ttyS0");
 			}
 			if (!smdi_iface) {
 				ast_log(AST_LOG_ERROR, "No valid SMDI interface specfied, disabling SMDI voicemail notification\n");

@@ -1,11 +1,11 @@
 {
 	global:
-		ast_monitor_change_fname;
-		ast_monitor_pause;
-		ast_monitor_setjoinfiles;
-		ast_monitor_start;
-		ast_monitor_stop;
-		ast_monitor_unpause;
+		*ast_monitor_change_fname;
+		*ast_monitor_pause;
+		*ast_monitor_setjoinfiles;
+		*ast_monitor_start;
+		*ast_monitor_stop;
+		*ast_monitor_unpause;
 	local:
 		*;
 };

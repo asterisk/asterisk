@@ -1,7 +1,10 @@
 {
 	global:
-		ast_agi_register;
-		ast_agi_unregister;
+		*ast_agi_register;
+		*ast_agi_unregister;
+		*ast_agi_register_multiple;
+		*ast_agi_unregister_multiple;
+		*ast_agi_send;
 	local:
 		*;
 };

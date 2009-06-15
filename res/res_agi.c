@@ -927,7 +927,7 @@ static agi_command *find_command(const char * const cmds[], int exact);
 AST_THREADSTORAGE(agi_buf);
 #define AGI_BUF_INITSIZE 256
 
-int ast_agi_send(int fd, struct ast_channel *chan, char *fmt, ...)
+int AST_OPTIONAL_API_NAME(ast_agi_send)(int fd, struct ast_channel *chan, char *fmt, ...)
 {
 	int res = 0;
 	va_list ap;
@@ -2925,7 +2925,7 @@ static char *help_workhorse(int fd, const char * const match[])
 	return CLI_SUCCESS;
 }
 
-int ast_agi_register(struct ast_module *mod, agi_command *cmd)
+int AST_OPTIONAL_API_NAME(ast_agi_register)(struct ast_module *mod, agi_command *cmd)
 {
 	char fullcmd[MAX_CMD_LEN];
 
@@ -2956,7 +2956,7 @@ int ast_agi_register(struct ast_module *mod, agi_command *cmd)
 	}
 }
 
-int ast_agi_unregister(struct ast_module *mod, agi_command *cmd)
+int AST_OPTIONAL_API_NAME(ast_agi_unregister)(struct ast_module *mod, agi_command *cmd)
 {
 	struct agi_command *e;
 	int unregistered = 0;
@@ -2995,7 +2995,7 @@ int ast_agi_unregister(struct ast_module *mod, agi_command *cmd)
 	return unregistered;
 }
 
-int ast_agi_register_multiple(struct ast_module *mod, struct agi_command *cmd, unsigned int len)
+int AST_OPTIONAL_API_NAME(ast_agi_register_multiple)(struct ast_module *mod, struct agi_command *cmd, unsigned int len)
 {
 	unsigned int i, x = 0;
 
@@ -3025,7 +3025,7 @@ int ast_agi_register_multiple(struct ast_module *mod, struct agi_command *cmd, u
 	return 0;
 }
 
-int ast_agi_unregister_multiple(struct ast_module *mod, struct agi_command *cmd, unsigned int len)
+int AST_OPTIONAL_API_NAME(ast_agi_unregister_multiple)(struct ast_module *mod, struct agi_command *cmd, unsigned int len)
 {
 	unsigned int i;
 	int res = 0;

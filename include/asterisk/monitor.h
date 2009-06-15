@@ -51,27 +51,34 @@ struct ast_channel_monitor {
 };
 
 /* Start monitoring a channel */
-AST_OPTIONAL_API(int, ast_monitor_start, (struct ast_channel *chan, const char
-	*format_spec, const char *fname_base, int need_lock, int stream_action),
-	{ return -1; });
+AST_OPTIONAL_API(int, ast_monitor_start,
+		 (struct ast_channel *chan, const char *format_spec,
+		  const char *fname_base, int need_lock, int stream_action),
+		 { return -1; });
 
 /* Stop monitoring a channel */
-AST_OPTIONAL_API(int, ast_monitor_stop, (struct ast_channel *chan, int
-	need_lock), { return -1; });
+AST_OPTIONAL_API(int, ast_monitor_stop,
+		 (struct ast_channel *chan, int need_lock),
+		 { return -1; });
 
 /* Change monitoring filename of a channel */
-AST_OPTIONAL_API(int, ast_monitor_change_fname, (struct ast_channel *chan,
-	const char *fname_base, int need_lock), { return -1; });
+AST_OPTIONAL_API(int, ast_monitor_change_fname,
+		 (struct ast_channel *chan, const char *fname_base,
+		  int need_lock),
+		 { return -1; });
 
-AST_OPTIONAL_API(void, ast_monitor_setjoinfiles, (struct ast_channel *chan,
-	int turnon), { return; });
+AST_OPTIONAL_API(void, ast_monitor_setjoinfiles,
+		 (struct ast_channel *chan, int turnon),
+		 { return; });
 
 /* Pause monitoring of a channel */
-AST_OPTIONAL_API(int, ast_monitor_pause, (struct ast_channel *chan),
-	{ return -1; });
+AST_OPTIONAL_API(int, ast_monitor_pause,
+		 (struct ast_channel *chan),
+		 { return -1; });
 
 /* Unpause monitoring of a channel */
-AST_OPTIONAL_API(int, ast_monitor_unpause, (struct ast_channel *chan),
-	{ return -1; });
+AST_OPTIONAL_API(int, ast_monitor_unpause,
+		 (struct ast_channel *chan),
+		 { return -1; });
 
 #endif /* _ASTERISK_MONITOR_H */
