@@ -1068,7 +1068,7 @@ static const char *sip_reason_code_to_str(enum AST_REDIRECTING_REASON code)
 	\todo This string should be set dynamically. We only support REFER and SUBSCRIBE if we have
 	allowsubscribe and allowrefer on in sip.conf.
 */
-#define ALLOWED_METHODS "INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, SUBSCRIBE, NOTIFY"
+#define ALLOWED_METHODS "INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, SUBSCRIBE, NOTIFY, INFO"
 
 /*! \brief SIP Extensions we support 
 	\note This should be generated based on the previous array
