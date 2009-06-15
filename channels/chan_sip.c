@@ -583,7 +583,7 @@ static const struct cfsip_options {
 	\todo This string should be set dynamically. We only support REFER and SUBSCRIBE is we have
 	allowsubscribe and allowrefer on in sip.conf.
 */
-#define ALLOWED_METHODS "INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, SUBSCRIBE, NOTIFY"
+#define ALLOWED_METHODS "INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, SUBSCRIBE, NOTIFY, INFO"
 
 /*! \brief SIP Extensions we support */
 #define SUPPORTED_EXTENSIONS "replaces, timer" 
