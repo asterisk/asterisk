@@ -7824,16 +7824,39 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		return -1;
 	}
 
-	if (ast_test_flag(&p->flags[1], SIP_PAGE2_IGNORESDPVERSION)
-		|| p->sessionversion_remote < 0
-		|| p->sessionversion_remote != rua_version) {
- 		
+	/* we need to check the SDP version number the other end sent us;
+	 * our rules for deciding what to accept are a bit complex.
+	 *
+	 * 1) if 'ignoresdpversion' has been set for this dialog, then
+	 *    we will just accept whatever they sent and assume it is
+	 *    a modification of the session, even if it is not
+	 * 2) otherwise, if this is the first SDP we've seen from them
+	 *    we accept it
+	 * 3) otherwise, if the new SDP version number is higher than the
+	 *    old one, we accept it
+	 * 4) otherwise, if this SDP is in response to us requesting a switch
+	 *    to T.38, we accept the SDP, but also generate a warning message
+	 *    that this peer should have the 'ignoresdpversion' option set,
+	 *    because it is not following the SDP offer/answer RFC; if we did
+	 *    not request a switch to T.38, then we stop parsing the SDP, as it
+	 *    has not changed from the previous version
+	 */
+
+	if (ast_test_flag(&p->flags[1], SIP_PAGE2_IGNORESDPVERSION) ||
+	    (p->sessionversion_remote < 0) ||
+	    (p->sessionversion_remote < rua_version)) {
 		p->sessionversion_remote = rua_version;
 		p->session_modify = TRUE;
-	} else if (p->sessionversion_remote == rua_version) {
-		p->session_modify = FALSE;
-		ast_debug(2, "SDP version number same as previous SDP. Not parsing this SDP.\n");
-		return 0;
+	} else {
+		if (p->t38.state == T38_LOCAL_REINVITE) {
+			p->sessionversion_remote = rua_version;
+			p->session_modify = TRUE;
+			ast_log(LOG_WARNING, "Call %s responded to our T.38 reinvite without changing SDP version; 'ignoresdpversion' should be set for this peer.\n", p->callid);
+		} else {
+			p->session_modify = FALSE;
+			ast_debug(2, "Call %s responded to our reinvite without changing SDP version; ignoring SDP.\n", p->callid);
+			return 0;
+		}
 	} 
 
 	/* Try to find first media stream */
