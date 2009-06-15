@@ -642,7 +642,7 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, const char
 	return RESULT_SUCCESS;
 }
 
-struct agi_command gosub_agi_command =
+static struct agi_command gosub_agi_command =
 	{ { "gosub", NULL }, handle_gosub, NULL, NULL, 0 };
 
 static int unload_module(void)

@@ -447,19 +447,19 @@ struct ast_app_option {
 
   Example usage:
   \code
-  enum {
+  enum my_app_option_flags {
         OPT_JUMP = (1 << 0),
         OPT_BLAH = (1 << 1),
         OPT_BLORT = (1 << 2),
-  } my_app_option_flags;
+  };
 
-  enum {
+  enum my_app_option_args {
         OPT_ARG_BLAH = 0,
         OPT_ARG_BLORT,
         !! this entry tells how many possible arguments there are,
            and must be the last entry in the list
         OPT_ARG_ARRAY_SIZE,
-  } my_app_option_args;
+  };
 
   AST_APP_OPTIONS(my_app_options, {
         AST_APP_OPTION('j', OPT_JUMP),

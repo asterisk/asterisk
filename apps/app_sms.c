@@ -1832,19 +1832,19 @@ static void sms_process(sms_t * h, int samples, signed short *data)
  *	- AST_APP_OPTIONS() to drive the parsing routine
  *	- in the function, AST_DECLARE_APP_ARGS(...) for the arguments.
  */
-enum {
+enum sms_flags {
 	OPTION_BE_SMSC	= (1 << 0),             /* act as sms center */
 	OPTION_ANSWER	= (1 << 1),             /* answer on incoming calls */
 	OPTION_TWO	= (1 << 2),                 /* Use Protocol Two */
 	OPTION_PAUSE	= (1 << 3),             /* pause before sending data, in ms */
 	OPTION_SRR	= (1 << 4),                 /* set srr */
 	OPTION_DCS	= (1 << 5),                 /* set dcs */
-} sms_flags;
+};
 
-enum {
+enum sms_opt_args {
 	OPTION_ARG_PAUSE = 0,
 	OPTION_ARG_ARRAY_SIZE
-} sms_opt_args;
+};
 
 AST_APP_OPTIONS(sms_options, {
 	AST_APP_OPTION('s', OPTION_BE_SMSC),

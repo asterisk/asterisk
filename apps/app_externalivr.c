@@ -95,11 +95,11 @@ static const char app[] = "ExternalIVR";
 /* XXX the parser in gcc 2.95 gets confused if you don't put a space between 'name' and the comma */
 #define ast_chan_log(level, channel, format, ...) ast_log(level, "%s: " format, channel->name , ## __VA_ARGS__)
 
-enum {
+enum options_flags {
 	noanswer = (1 << 0),
 	ignore_hangup = (1 << 1),
 	run_dead = (1 << 2),
-} options_flags;
+};
 
 AST_APP_OPTIONS(app_opts, {
 	AST_APP_OPTION('n', noanswer),

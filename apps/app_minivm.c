@@ -548,19 +548,19 @@ static char *app_minivm_mwi = "MinivmMWI";
 
 
 
-enum {
+enum minivm_option_flags {
 	OPT_SILENT =	   (1 << 0),
 	OPT_BUSY_GREETING =    (1 << 1),
 	OPT_UNAVAIL_GREETING = (1 << 2),
 	OPT_TEMP_GREETING = (1 << 3),
 	OPT_NAME_GREETING = (1 << 4),
 	OPT_RECORDGAIN =  (1 << 5),
-} minivm_option_flags;
+};
 
-enum {
+enum minivm_option_args {
 	OPT_ARG_RECORDGAIN = 0,
 	OPT_ARG_ARRAY_SIZE = 1,
-} minivm_option_args;
+};
 
 AST_APP_OPTIONS(minivm_app_options, {
 	AST_APP_OPTION('s', OPT_SILENT),
@@ -670,7 +670,7 @@ static struct minivm_stats global_stats;
 AST_MUTEX_DEFINE_STATIC(minivmlock);	/*!< Lock to protect voicemail system */
 AST_MUTEX_DEFINE_STATIC(minivmloglock);	/*!< Lock to protect voicemail system log file */
 
-FILE *minivmlogfile;			/*!< The minivm log file */
+static FILE *minivmlogfile;		/*!< The minivm log file */
 
 static int global_vmminmessage;		/*!< Minimum duration of messages */
 static int global_vmmaxmessage;		/*!< Maximum duration of message */

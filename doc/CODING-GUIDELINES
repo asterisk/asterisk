@@ -114,7 +114,6 @@ those you really need. Apart from obvious cases (e.g. module.h which
 is almost always necessary) write a short comment next to each #include to
 explain why you need it.
 
-
 * Declaration of functions and variables
 ----------------------------------------
 
@@ -122,14 +121,46 @@ explain why you need it.
   since it is harder to read and not portable to GCC 2.95 and others.
 
 - Functions and variables that are not intended to be used outside the module
-  must be declared static.
+  must be declared static. If you are compiling on a Linux platform that has the
+  'dwarves' package available, you can use the 'pglobal' tool from that package
+  to check for unintended global variables or functions being exposed in your
+  object files. Usage is very simple:
+
+  $ pglobal -vf <path to .o file>
 
 - When reading integer numeric input with scanf (or variants), do _NOT_ use '%i'
   unless you specifically want to allow non-base-10 input; '%d' is always a better
   choice, since it will not silently turn numbers with leading zeros into base-8.
 
-- Strings that are coming from input should not be used as a first argument to
-  a formatted *printf function.
+- Strings that are coming from input should not be used as the format argument to
+  any printf-style function.
+
+* Structure alignment and padding
+---------------------------------
+
+On many platforms, structure fields (in structures that are not marked 'packed')
+will be laid out by the compiler with gaps (padding) between them, in order to
+satisfy alignment requirements. As a simple example:
+
+struct foo {
+       int bar;
+       void *xyz;
+}
+
+On nearly every 64-bit platform, this will result in 4 bytes of dead space between
+'bar' and 'xyz', because pointers on 64-bit platforms must be aligned on 8-byte
+boundaries. Once you have your code written and tested, it may be worthwhile to review
+your structure definitions to look for problems of this nature. If you are on a Linux
+platform with the 'dwarves' package available, the 'pahole' tool from that package
+can be used to both check for padding issues of this type and also propose reorganized
+structure definitions to eliminate it. Usage is quite simple; for a structure named 'foo',
+the command would look something like this:
+
+$ pahole --reorganize --show_reorg_steps -C foo <path to module>
+
+The 'pahole' tool has many other modes available, including some that will list all the
+structures declared in the module and the amount of padding in each one that could possibly
+be recovered.
 
 * Use the internal API
 ----------------------

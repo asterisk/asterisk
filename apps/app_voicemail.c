@@ -425,16 +425,16 @@ static AST_LIST_HEAD_STATIC(vmstates, vmstate);
 #define ERROR_LOCK_PATH  -100
 
 
-enum {
+enum vm_box {
 	NEW_FOLDER,
 	OLD_FOLDER,
 	WORK_FOLDER,
 	FAMILY_FOLDER,
 	FRIENDS_FOLDER,
 	GREETINGS_FOLDER
-} vm_box;
+};
 
-enum {
+enum vm_option_flags {
 	OPT_SILENT =           (1 << 0),
 	OPT_BUSY_GREETING =    (1 << 1),
 	OPT_UNAVAIL_GREETING = (1 << 2),
@@ -444,15 +444,15 @@ enum {
 	OPT_DTMFEXIT =         (1 << 7),
 	OPT_MESSAGE_Urgent =   (1 << 8),
 	OPT_MESSAGE_PRIORITY = (1 << 9)
-} vm_option_flags;
+};
 
-enum {
+enum vm_option_args {
 	OPT_ARG_RECORDGAIN = 0,
 	OPT_ARG_PLAYFOLDER = 1,
 	OPT_ARG_DTMFEXIT   = 2,
 	/* This *must* be the last value in this enum! */
 	OPT_ARG_ARRAY_SIZE = 3,
-} vm_option_args;
+};
 
 AST_APP_OPTIONS(vm_app_options, {
 	AST_APP_OPTION('s', OPT_SILENT),

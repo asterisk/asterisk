@@ -159,7 +159,7 @@ static char *exit_app = "MacroExit";
 
 static void macro_fixup(void *data, struct ast_channel *old_chan, struct ast_channel *new_chan);
 
-struct ast_datastore_info macro_ds_info = {
+static struct ast_datastore_info macro_ds_info = {
 	.type = "MACRO",
 	.chan_fixup = macro_fixup,
 };

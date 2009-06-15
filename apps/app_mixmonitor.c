@@ -132,8 +132,6 @@ static const char * const app = "MixMonitor";
 
 static const char * const stop_app = "StopMixMonitor";
 
-struct module_symbols *me;
-
 static const char * const mixmonitor_spy_type = "MixMonitor";
 
 struct mixmonitor {
@@ -145,20 +143,20 @@ struct mixmonitor {
 	struct ast_autochan *autochan;
 };
 
-enum {
+enum mixmonitor_flags {
 	MUXFLAG_APPEND = (1 << 1),
 	MUXFLAG_BRIDGED = (1 << 2),
 	MUXFLAG_VOLUME = (1 << 3),
 	MUXFLAG_READVOLUME = (1 << 4),
 	MUXFLAG_WRITEVOLUME = (1 << 5),
-} mixmonitor_flags;
+};
 
-enum {
+enum mixmonitor_args {
 	OPT_ARG_READVOLUME = 0,
 	OPT_ARG_WRITEVOLUME,
 	OPT_ARG_VOLUME,
 	OPT_ARG_ARRAY_SIZE,
-} mixmonitor_args;
+};
 
 AST_APP_OPTIONS(mixmonitor_opts, {
 	AST_APP_OPTION('a', MUXFLAG_APPEND),

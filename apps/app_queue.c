@@ -977,7 +977,7 @@ struct rule_list {
 	AST_LIST_ENTRY(rule_list) list;
 };
 
-AST_LIST_HEAD_STATIC(rule_lists, rule_list);
+static AST_LIST_HEAD_STATIC(rule_lists, rule_list);
 
 static struct ao2_container *queues;
 

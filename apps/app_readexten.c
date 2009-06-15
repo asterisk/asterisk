@@ -111,11 +111,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</function>
  ***/
 
-enum {
+enum readexten_option_flags {
 	OPT_SKIP = (1 << 0),
 	OPT_INDICATION = (1 << 1),
 	OPT_NOANSWER = (1 << 2),
-} readexten_option_flags;
+};
 
 AST_APP_OPTIONS(readexten_app_options, {
 	AST_APP_OPTION('s', OPT_SKIP),
