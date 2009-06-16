@@ -410,7 +410,7 @@ static void spy_release(struct ast_channel *chan, void *data)
 static int spy_generate(struct ast_channel *chan, void *data, int len, int samples)
 {
 	struct chanspy_translation_helper *csth = data;
-	struct ast_frame *f = NULL;
+	struct ast_frame *f, *cur;
 
 	ast_audiohook_lock(&csth->spy_audiohook);
 	if (csth->spy_audiohook.status != AST_AUDIOHOOK_STATUS_RUNNING) {
@@ -426,14 +426,16 @@ static int spy_generate(struct ast_channel *chan, void *data, int len, int sampl
 	if (!f)
 		return 0;
 
-	if (ast_write(chan, f)) {
-		ast_frfree(f);
-		return -1;
-	}
+	for (cur = f; cur; cur = AST_LIST_NEXT(cur, frame_list)) {
+		if (ast_write(chan, cur)) {
+			ast_frfree(f);
+			return -1;
+		}
 
-	if (csth->fd) {
-		if (write(csth->fd, f->data.ptr, f->datalen) < 0) {
-			ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+		if (csth->fd) {
+			if (write(csth->fd, cur->data.ptr, cur->datalen) < 0) {
+				ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+			}
 		}
 	}
 

@@ -449,9 +449,9 @@ struct ast_frame *ast_fralloc(char *source, int len);
 #endif
 
 /*!  
- * \brief Frees a frame 
+ * \brief Frees a frame or list of frames
  * 
- * \param fr Frame to free
+ * \param fr Frame to free, or head of list to free
  * \param cache Whether to consider this frame for frame caching
  */
 void ast_frame_free(struct ast_frame *fr, int cache);
@@ -465,6 +465,11 @@ void ast_frame_free(struct ast_frame *fr, int cache);
  * data malloc'd.  If you need to store frames, say for queueing, then
  * you should call this function.
  * \return Returns a frame on success, NULL on error
+ * \note This function may modify the frame passed to it, so you must
+ * not assume the frame will be intact after the isolated frame has
+ * been produced. In other words, calling this function on a frame
+ * should be the last operation you do with that frame before freeing
+ * it (or exiting the block, if the frame is on the stack.)
  */
 struct ast_frame *ast_frisolate(struct ast_frame *fr);
 

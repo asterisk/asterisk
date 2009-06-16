@@ -223,10 +223,15 @@ static void *mixmonitor_thread(void *obj)
 					errflag = 1;
 				}
 			}
-			
-			/* Write out frame */
-			if (fs)
-				ast_writestream(fs, fr);
+
+			/* Write out the frame(s) */
+			if (fs) {
+				struct ast_frame *cur;
+
+				for (cur = fr; cur; cur = AST_LIST_NEXT(cur, frame_list)) {
+					ast_writestream(fs, cur);
+				}
+			}
 		}
 		/* All done! free it. */
 		ast_frame_free(fr, 0);

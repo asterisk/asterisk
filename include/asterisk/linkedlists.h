@@ -779,6 +779,30 @@ struct {								\
 #define AST_RWLIST_APPEND_LIST AST_LIST_APPEND_LIST
 
 /*!
+  \brief Inserts a whole list after a specific entry in a list
+  \param head This is a pointer to the list head structure
+  \param list This is a pointer to the list to be inserted.
+  \param elm This is a pointer to the entry after which the new list should
+  be inserted.
+  \param field This is the name of the field (declared using AST_LIST_ENTRY())
+  used to link entries of the lists together.
+
+  Note: The source list (the \a list parameter) will be empty after
+  calling this macro (the list entries are \b moved to the target list).
+ */
+#define AST_LIST_INSERT_LIST_AFTER(head, list, elm, field) do {		\
+	(list)->last->field.next = (elm)->field.next;			\
+	(elm)->field.next = (list)->first;				\
+	if ((head)->last == elm) {					\
+		(head)->last = (list)->last;				\
+	}								\
+	(list)->first = NULL;						\
+	(list)->last = NULL;						\
+} while(0)
+
+#define AST_RWLIST_INSERT_LIST_AFTER AST_LIST_INSERT_LIST_AFTER
+
+/*!
  * \brief Removes and returns the head entry from a list.
  * \param head This is a pointer to the list head structure
  * \param field This is the name of the field (declared using AST_LIST_ENTRY())

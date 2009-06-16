@@ -73,7 +73,7 @@ void ast_slinfactory_destroy(struct ast_slinfactory *sf)
 int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 {
 	struct ast_frame *begin_frame = f, *duped_frame = NULL, *frame_ptr;
-	unsigned int x;
+	unsigned int x = 0;
 
 	/* In some cases, we can be passed a frame which has no data in it, but
 	 * which has a positive number of samples defined. Once such situation is
@@ -100,15 +100,17 @@ int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 			sf->format = f->subclass;
 		}
 
-		if (!(begin_frame = ast_translate(sf->trans, f, 0))) 
+		if (!(begin_frame = ast_translate(sf->trans, f, 0))) {
 			return 0;
+		}
 		
-		duped_frame = ast_frdup(begin_frame);
-
-		ast_frfree(begin_frame);
-
-		if (!duped_frame)
+		if (!(duped_frame = ast_frisolate(begin_frame))) {
 			return 0;
+		}
+
+		if (duped_frame != begin_frame) {
+			ast_frfree(begin_frame);
+		}
 	} else {
 		if (sf->trans) {
 			ast_translator_free_path(sf->trans);
@@ -118,14 +120,17 @@ int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 			return 0;
 	}
 
-	x = 0;
 	AST_LIST_TRAVERSE(&sf->queue, frame_ptr, frame_list) {
 		x++;
 	}
 
-	AST_LIST_INSERT_TAIL(&sf->queue, duped_frame, frame_list);
-
-	sf->size += duped_frame->samples;
+	/* if the frame was translated, the translator may have returned multiple
+	   frames, so process each of them
+	*/
+	for (begin_frame = duped_frame; begin_frame; begin_frame = AST_LIST_NEXT(begin_frame, frame_list)) {
+		AST_LIST_INSERT_TAIL(&sf->queue, begin_frame, frame_list);
+		sf->size += begin_frame->samples;
+	}
 
 	return x;
 }

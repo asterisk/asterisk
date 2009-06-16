@@ -925,25 +925,32 @@ struct ast_channel * attribute_malloc __attribute__((format(printf, 12, 13)))
 			    __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 
 /*!
- * \brief Queue an outgoing frame
+ * \brief Queue one or more frames to a channel's frame queue
  *
- * \note The channel does not need to be locked before calling this function.
- */
-int ast_queue_frame(struct ast_channel *chan, const struct ast_frame *f);
-
-/*!
- * \brief Queue an outgoing frame to the head of the frame queue
- *
- * \param chan the channel to queue the frame on
- * \param f the frame to queue.  Note that this frame will be duplicated by
- *        this function.  It is the responsibility of the caller to handle
- *        freeing the memory associated with the frame being passed if
+ * \param chan the channel to queue the frame(s) on
+ * \param f the frame(s) to queue.  Note that the frame(s) will be duplicated
+ *        by this function.  It is the responsibility of the caller to handle
+ *        freeing the memory associated with the frame(s) being passed if
  *        necessary.
  *
  * \retval 0 success
  * \retval non-zero failure
  */
-int ast_queue_frame_head(struct ast_channel *chan, const struct ast_frame *f);
+int ast_queue_frame(struct ast_channel *chan, struct ast_frame *f);
+
+/*!
+ * \brief Queue one or more frames to the head of a channel's frame queue
+ *
+ * \param chan the channel to queue the frame(s) on
+ * \param f the frame(s) to queue.  Note that the frame(s) will be duplicated
+ *        by this function.  It is the responsibility of the caller to handle
+ *        freeing the memory associated with the frame(s) being passed if
+ *        necessary.
+ *
+ * \retval 0 success
+ * \retval non-zero failure
+ */
+int ast_queue_frame_head(struct ast_channel *chan, struct ast_frame *f);
 
 /*!
  * \brief Queue a hangup frame

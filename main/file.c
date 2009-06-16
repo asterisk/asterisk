@@ -187,14 +187,20 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 			struct ast_frame *trf;
 			fs->lastwriteformat = f->subclass;
 			/* Get the translated frame but don't consume the original in case they're using it on another stream */
-			trf = ast_translate(fs->trans, f, 0);
-			if (trf) {
-				res = fs->fmt->write(fs, trf);
+			if ((trf = ast_translate(fs->trans, f, 0))) {
+				struct ast_frame *cur;
+
+				/* the translator may have returned multiple frames, so process them */
+				for (cur = trf; cur; cur = AST_LIST_NEXT(cur, frame_list)) {
+					if ((res = fs->fmt->write(fs, trf))) {
+						ast_log(LOG_WARNING, "Translated frame write failed\n");
+						break;
+					}
+				}
 				ast_frfree(trf);
-				if (res) 
-					ast_log(LOG_WARNING, "Translated frame write failed\n");
-			} else
+			} else {
 				res = 0;
+			}
 		}
 	}
 	return res;
