@@ -40,7 +40,12 @@ SIP Changes
    version received is different from the current SDP session version.  This
    option is required to interoperate with devices that have non-standard SDP
    session version implementations (observed with Microsoft OCS).  This option
-   is disabled by default.
+   is disabled by default. In addition, this behavior is automatic when the SDP received
+   is in response to a T.38 re-INVITE that Asterisk initiated. In this situation,
+   since the call will fail if Asterisk does not process the incoming SDP, Asterisk
+   will accept the SDP even if the SDP version number is not properly incremented,
+   but will generate a warning in the log indicating that the SIP peer that sent
+   the SDP should have the 'ignoresdpversion' option set.
  * The parsing of register => lines in sip.conf has been modified to allow a port
    to be present in the "user" portion. Please see the sip.conf.sample file for more
    information
