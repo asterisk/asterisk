@@ -2403,7 +2403,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *e
 
 /*--- Dialog management */
 static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *sin,
-				 int useglobal_nat, const int intended_method);
+				 int useglobal_nat, const int intended_method, struct sip_request *req);
 static int __sip_autodestruct(const void *data);
 static void sip_scheddestroy(struct sip_pvt *p, int ms);
 static int sip_cancel_destroy(struct sip_pvt *p);
@@ -2601,6 +2601,7 @@ static void reg_source_db(struct sip_peer *peer);
 static void destroy_association(struct sip_peer *peer);
 static void set_insecure_flags(struct ast_flags *flags, const char *value, int lineno);
 static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask, struct ast_variable *v);
+static void set_socket_transport(struct sip_socket *socket, int transport);
 
 /* Realtime device support */
 static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, const char *username, const char *fullcontact, const char *useragent, int expirey, int deprecated_username, int lastms);
@@ -2611,7 +2612,7 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
 static char *sip_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 /*--- Internal UA client handling (outbound registrations) */
-static void ast_sip_ouraddrfor(struct in_addr *them, struct sockaddr_in *us);
+static void ast_sip_ouraddrfor(struct in_addr *them, struct sockaddr_in *us, struct sip_pvt *p);
 static void sip_registry_destroy(struct sip_registry *reg);
 static int sip_register(const char *value, int lineno);
 static const char *regstate2str(enum sipregistrystate regstate) attribute_const;
@@ -2911,14 +2912,14 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 		reqcpy.data = str_save;
 		ast_str_reset(reqcpy.data);
 
-		req.socket.fd = tcptls_session->fd;
 		if (tcptls_session->ssl) {
-			req.socket.type = SIP_TRANSPORT_TLS;
+			set_socket_transport(&req.socket, SIP_TRANSPORT_TLS);
 			req.socket.port = htons(ourport_tls);
 		} else {
-			req.socket.type = SIP_TRANSPORT_TCP;
+			set_socket_transport(&req.socket, SIP_TRANSPORT_TCP);
 			req.socket.port = htons(ourport_tcp);
 		}
+		req.socket.fd = tcptls_session->fd;
 		res = ast_wait_for_input(tcptls_session->fd, -1);
 		if (res < 0) {
 			ast_debug(2, "SIP %s server :: ast_wait_for_input returned %d\n", tcptls_session->ssl ? "SSL": "TCP", res);
@@ -3404,8 +3405,9 @@ static inline const char *get_transport(enum sip_transport t)
 */
 static inline const char *get_transport_pvt(struct sip_pvt *p)
 {
-	if (p->outboundproxy && p->outboundproxy->transport)
-		p->socket.type = p->outboundproxy->transport;
+	if (p->outboundproxy && p->outboundproxy->transport) {
+		set_socket_transport(&p->socket, p->outboundproxy->transport);
+	}
 
 	return get_transport(p->socket.type);
 }
@@ -3480,7 +3482,7 @@ static void build_via(struct sip_pvt *p)
  * externip or can get away with our internal bindaddr
  * 'us' is always overwritten.
  */
-static void ast_sip_ouraddrfor(struct in_addr *them, struct sockaddr_in *us)
+static void ast_sip_ouraddrfor(struct in_addr *them, struct sockaddr_in *us, struct sip_pvt *p)
 {
 	struct sockaddr_in theirs;
 	/* Set want_remap to non-zero if we want to remap 'us' to an externally
@@ -3524,10 +3526,34 @@ static void ast_sip_ouraddrfor(struct in_addr *them, struct sockaddr_in *us)
 			ast_log(LOG_WARNING, "stun failed\n");
 		ast_debug(1, "Target address %s is not local, substituting externip\n", 
 			ast_inet_ntoa(*(struct in_addr *)&them->s_addr));
-	} else if (bindaddr.sin_addr.s_addr) {
+	} else if (p) {
 		/* no remapping, but we bind to a specific address, so use it. */
+		switch (p->socket.type) {
+		case SIP_TRANSPORT_TCP:
+			if (sip_tcp_desc.local_address.sin_addr.s_addr) {
+				*us = sip_tcp_desc.local_address;
+			} else {
+				us->sin_port = sip_tcp_desc.local_address.sin_port;
+			}
+			break;
+		case SIP_TRANSPORT_TLS:
+			if (sip_tls_desc.local_address.sin_addr.s_addr) {
+				*us = sip_tls_desc.local_address;
+			} else {
+				us->sin_port = sip_tls_desc.local_address.sin_port;
+			}
+				break;
+		case SIP_TRANSPORT_UDP:
+			/* fall through on purpose */
+		default:
+			if (bindaddr.sin_addr.s_addr) {
+				*us = bindaddr;
+			}
+		}
+	} else if (bindaddr.sin_addr.s_addr) {
 		*us = bindaddr;
 	}
+	ast_debug(3, "Setting SIP_TRANSPORT_%s with address %s:%d\n", get_transport(p->socket.type), ast_inet_ntoa(us->sin_addr), ntohs(us->sin_port));
 }
 
 /*! \brief Append to SIP dialog history with arg list  */
@@ -5111,8 +5137,9 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 
 	if (peer) {
 		int res;
-		if (newdialog)
-			dialog->socket.type = 0;
+		if (newdialog) {
+			set_socket_transport(&dialog->socket, 0);
+		}
 		res = create_addr_from_peer(dialog, peer);
 		if (!ast_strlen_zero(port)) {
 			if ((portno = atoi(port))) {
@@ -5176,7 +5203,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 	}
 
 	if (!dialog->socket.type)
-		dialog->socket.type = SIP_TRANSPORT_UDP;
+		set_socket_transport(&dialog->socket, SIP_TRANSPORT_UDP);
 	if (!dialog->socket.port)
 		dialog->socket.port = bindaddr.sin_port;
 	dialog->sa.sin_port = htons(portno);
@@ -6943,7 +6970,7 @@ static struct sip_st_dlg* sip_st_alloc(struct sip_pvt *const p)
  * remember to release the reference.
  */
 static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *sin,
-				 int useglobal_nat, const int intended_method)
+				 int useglobal_nat, const int intended_method, struct sip_request *req)
 {
 	struct sip_pvt *p;
 
@@ -6955,8 +6982,13 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 		return NULL;
 	}
 
+	if (req) {
+		set_socket_transport(&p->socket, req->socket.type); /* Later in ast_sip_ouraddrfor we need this to choose the right ip and port for the specific transport */
+	} else {
+		set_socket_transport(&p->socket, SIP_TRANSPORT_UDP);
+	}
+
 	p->socket.fd = -1;
-	p->socket.type = SIP_TRANSPORT_UDP;
 	p->method = intended_method;
 	p->initid = -1;
 	p->waitid = -1;
@@ -6979,7 +7011,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 		p->ourip = internip;
 	else {
 		p->sa = *sin;
-		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip);
+		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip, p);
 	}
 
 	/* Copy global flags to this PVT at setup. */
@@ -7184,7 +7216,7 @@ restartsearch:
 			transmit_response_using_temp(callid, sin, 1, intended_method, req, "489 Bad event");
 		} else {
 			/* Ok, time to create a new SIP dialog object, a pvt */
-			if ((p = sip_alloc(callid, sin, 1, intended_method)))  {
+			if ((p = sip_alloc(callid, sin, 1, intended_method, req)))  {
 				/* Ok, we've created a dialog, let's go and process it */
 				sip_pvt_lock(p);
 			} else {
@@ -9174,7 +9206,7 @@ static int transmit_response_using_temp(ast_string_field callid, struct sockaddr
 		p->ourip = internip;
 	else {
 		p->sa = *sin;
-		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip);
+		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip, p);
 	}
 
 	p->branch = ast_random();
@@ -10189,15 +10221,17 @@ static void build_contact(struct sip_pvt *p)
 {
 
 	int ourport = ntohs(p->ourip.sin_port);
-
-	if (p->socket.type & SIP_TRANSPORT_UDP) {
-		if (!sip_standard_port(p->socket.type, ourport))
-			ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr), ourport);
+	/* only add port if it's non-standard for the transport type */
+	if (!sip_standard_port(p->socket.type, ourport)) {
+		if (p->socket.type == SIP_TRANSPORT_UDP)
+			ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d>", p->exten, S_OR(p->exten, "@"), ast_inet_ntoa(p->ourip.sin_addr), ourport);
 		else
-			ast_string_field_build(p, our_contact, "<sip:%s%s%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr));
-	} else  {
-		/*! \todo We should not always add port here. Port is only added if it's non-standard (see code above) */
-		ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d;transport=%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr), ourport, get_transport(p->socket.type));
+			ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d;transport=%s>", p->exten, S_OR(p->exten, "@"), ast_inet_ntoa(p->ourip.sin_addr), ourport, get_transport(p->socket.type));
+	} else {
+		if (p->socket.type == SIP_TRANSPORT_UDP)
+			ast_string_field_build(p, our_contact, "<sip:%s%s%s>", p->exten, S_OR(p->exten, "@"), ast_inet_ntoa(p->ourip.sin_addr));
+		else
+			ast_string_field_build(p, our_contact, "<sip:%s%s%s;transport=%s>", p->exten, S_OR(p->exten, "@"), ast_inet_ntoa(p->ourip.sin_addr), get_transport(p->socket.type));
 	}
 }
 
@@ -10566,7 +10600,7 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 	}
 	
 	/* Create a dialog that we will use for the subscription */
-	if (!(mwi->call = sip_alloc(NULL, NULL, 0, SIP_SUBSCRIBE))) {
+	if (!(mwi->call = sip_alloc(NULL, NULL, 0, SIP_SUBSCRIBE, NULL))) {
 		return -1;
 	}
 
@@ -10604,9 +10638,9 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 	if (!ast_strlen_zero(mwi->secret)) {
 		ast_string_field_set(mwi->call, peersecret, mwi->secret);
 	}
-	mwi->call->socket.type = mwi->transport;
+	set_socket_transport(&mwi->call->socket, mwi->transport);
 	mwi->call->socket.port = htons(mwi->portno);
-	ast_sip_ouraddrfor(&mwi->call->sa.sin_addr, &mwi->call->ourip);
+	ast_sip_ouraddrfor(&mwi->call->sa.sin_addr, &mwi->call->ourip, mwi->call);
 	build_contact(mwi->call);
 	build_via(mwi->call);
 	build_callid_pvt(mwi->call);
@@ -10991,7 +11025,7 @@ static int manager_sipnotify(struct mansession *s, const struct message *m)
 		channame += 4;
 	}
 
-	if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY))) {
+	if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY, NULL))) {
 		astman_send_error(s, m, "Unable to build sip pvt data for notify (memory/socket error)");
 		return 0;
 	}
@@ -11009,7 +11043,7 @@ static int manager_sipnotify(struct mansession *s, const struct message *m)
 	ast_set_flag(&p->flags[0], SIP_OUTGOING);
 
 	/* Recalculate our side, and recalculate Call ID */
-	ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip);
+	ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip, p);
 	build_via(p);
 	ao2_t_unlink(dialogs, p, "About to change the callid -- remove the old name");
 	build_callid_pvt(p);
@@ -11266,7 +11300,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			r->callid_valid = TRUE;
 		}
 		/* Allocate SIP dialog for registration */
-		if (!(p = sip_alloc( r->callid, NULL, 0, SIP_REGISTER))) {
+		if (!(p = sip_alloc( r->callid, NULL, 0, SIP_REGISTER, NULL))) {
 			ast_log(LOG_WARNING, "Unable to allocate registration transaction (memory or socket error)\n");
 			return 0;
 		}
@@ -11333,7 +11367,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			ast_string_field_set(p, exten, r->callback);
 
 		/* Set transport and port so the correct contact is built */
-		p->socket.type = r->transport;
+		set_socket_transport(&p->socket, r->transport);
 		if (r->transport == SIP_TRANSPORT_TLS || r->transport == SIP_TRANSPORT_TCP) {
 			p->socket.port = sip_tcp_desc.local_address.sin_port;
 		}
@@ -11343,7 +11377,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		  based on whether the remote host is on the external or
 		  internal network so we can register through nat
 		 */
-		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip);
+		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip, p);
 		build_contact(p);
 	}
 
@@ -11670,15 +11704,15 @@ static void destroy_association(struct sip_peer *peer)
 	}
 }
 
-static void set_peer_transport(struct sip_peer *peer, int transport)
+static void set_socket_transport(struct sip_socket *socket, int transport)
 {
 	/* if the transport type changes, clear all socket data */
-	if (peer->socket.type != transport) {
-		peer->socket.type = transport;
-		peer->socket.fd = -1;
-		if (peer->socket.tcptls_session) {
-			ao2_ref(peer->socket.tcptls_session, -1);
-			peer->socket.tcptls_session = NULL;
+	if (socket->type != transport) {
+		socket->fd = -1;
+		socket->type = transport;
+		if (socket->tcptls_session) {
+			ao2_ref(socket->tcptls_session, -1);
+			socket->tcptls_session = NULL;
 		}
 	}
 }
@@ -11695,7 +11729,7 @@ static int expire_register(const void *data)
 	memset(&peer->addr, 0, sizeof(peer->addr));
 
 	destroy_association(peer);	/* remove registration data from storage */
-	set_peer_transport(peer, peer->default_outbound_transport);
+	set_socket_transport(&peer->socket, peer->default_outbound_transport);
 
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", peer->name);
 	register_peer_exten(peer, FALSE);	/* Remove regexten */
@@ -11949,7 +11983,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	} else if (!strcasecmp(curi, "*") || !expire) {	/* Unregister this peer */
 		/* This means remove all registrations and return OK */
 		memset(&peer->addr, 0, sizeof(peer->addr));
-		set_peer_transport(peer, peer->default_outbound_transport);
+		set_socket_transport(&peer->socket, peer->default_outbound_transport);
 
 		AST_SCHED_DEL_UNREF(sched, peer->expire,
 				unref_peer(peer, "remove register expire ref"));
@@ -12004,7 +12038,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	 * transport type, change it.  If it got this far, it is a
 	 * supported type, but check just in case */
 	if ((peer->socket.type != transport_type) && (peer->transports & transport_type)) {
-		set_peer_transport(peer, transport_type);
+		set_socket_transport(&peer->socket, transport_type);
 	}
 
 	oldsin = peer->addr;
@@ -16716,7 +16750,7 @@ static char *sip_cli_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	for (i = 3; i < a->argc; i++) {
 		struct sip_pvt *p;
 
-		if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY))) {
+		if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY, NULL))) {
 			ast_log(LOG_WARNING, "Unable to build sip pvt data for notify (memory/socket error)\n");
 			return CLI_FAILURE;
 		}
@@ -16734,7 +16768,7 @@ static char *sip_cli_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		ast_set_flag(&p->flags[0], SIP_OUTGOING);
 
 		/* Recalculate our side, and recalculate Call ID */
-		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip);
+		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip, p);
 		build_via(p);
 		ao2_t_unlink(dialogs, p, "About to change the callid -- remove the old name");
 		build_callid_pvt(p);
@@ -17381,8 +17415,7 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req, char
 		p->socket.tcptls_session = NULL;
 	}
 
-	p->socket.fd = -1;
-	p->socket.type = transport;
+	set_socket_transport(&p->socket, transport);
 
 	if (set_call_forward && ast_test_flag(&p->flags[0], SIP_PROMISCREDIR)) {
 		char *host = NULL;
@@ -21956,8 +21989,8 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	}
 
 	req.len = res;
-	req.socket.fd 	= sipsock;
-	req.socket.type = SIP_TRANSPORT_UDP;
+	req.socket.fd = sipsock;
+	set_socket_transport(&req.socket, SIP_TRANSPORT_UDP);
 	req.socket.tcptls_session	= NULL;
 	req.socket.port = bindaddr.sin_port;
 
@@ -22305,13 +22338,13 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *e
 		p = dialog_ref(peer->mwipvt, "sip_send_mwi_to_peer: Setting dialog ptr p from peer->mwipvt-- should this be done?");
 	} else {
 		/* Build temporary dialog for this message */
-		if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY))) 
+		if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY, NULL))) 
 			return -1;
 		/* If we don't set the socket type to 0, then create_addr_from_peer will fail immediately if the peer
 		 * uses any transport other than UDP. We set the type to 0 here and then let create_addr_from_peer copy 
 		 * the peer's socket information to the sip_pvt we just allocated
 		 */
-		p->socket.type = 0;
+		set_socket_transport(&p->socket, 0);
 		if (create_addr_from_peer(p, peer)) {
 			/* Maybe they're not registered, etc. */
 			dialog_unlink_all(p, TRUE, TRUE);
@@ -22320,7 +22353,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *e
 			return 0;
 		}
 		/* Recalculate our side, and recalculate Call ID */
-		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip);
+		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip, p);
 		build_via(p);
 		ao2_t_unlink(dialogs, p, "About to change the callid -- remove the old name");
 		build_callid_pvt(p);
@@ -22878,7 +22911,7 @@ static int sip_poke_peer(struct sip_peer *peer, int force)
 		peer->call = dialog_unref(peer->call, "unref dialog peer->call");
 		/* peer->call = sip_destroy(peer->call); */
 	}
-	if (!(p = sip_alloc(NULL, NULL, 0, SIP_OPTIONS))) {
+	if (!(p = sip_alloc(NULL, NULL, 0, SIP_OPTIONS, NULL))) {
 		return -1;
 	}
 	peer->call = dialog_ref(p, "copy sip alloc from p to peer->call");
@@ -22899,7 +22932,7 @@ static int sip_poke_peer(struct sip_peer *peer, int force)
 		ast_string_field_set(p, tohost, ast_inet_ntoa(peer->addr.sin_addr));
 
 	/* Recalculate our side, and recalculate Call ID */
-	ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip);
+	ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip, p);
 	build_via(p);
 	ao2_t_unlink(dialogs, p, "About to change the callid -- remove the old name");
 	build_callid_pvt(p);
@@ -23073,7 +23106,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	}
 	ast_debug(1, "Asked to create a SIP channel with formats: %s\n", ast_getformatname_multiple(tmp, sizeof(tmp), oldformat));
 
-	if (!(p = sip_alloc(NULL, NULL, 0, SIP_INVITE))) {
+	if (!(p = sip_alloc(NULL, NULL, 0, SIP_INVITE, NULL))) {
 		ast_log(LOG_ERROR, "Unable to build sip pvt data for '%s' (Out of memory or socket error)\n", dest);
 		*cause = AST_CAUSE_SWITCH_CONGESTION;
 		return NULL;
@@ -23142,8 +23175,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 		host = tmp;
 	}
 
-	p->socket.fd = -1;
-	p->socket.type = transport;
+	set_socket_transport(&p->socket, transport);
 
 	/* We now have 
 		host = peer name, DNS host name or DNS domain (for SRV) 
@@ -23161,7 +23193,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	if (ast_strlen_zero(p->peername) && ext)
 		ast_string_field_set(p, peername, ext);
 	/* Recalculate our side, and recalculate Call ID */
-	ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip);
+	ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip, p);
 	build_via(p);
 	ao2_t_unlink(dialogs, p, "About to change the callid -- remove the old name");
 	build_callid_pvt(p);
@@ -23554,8 +23586,7 @@ static void set_peer_defaults(struct sip_peer *peer)
 		peer->expire = -1;
 		peer->pokeexpire = -1;
 		peer->addr.sin_port = htons(STANDARD_SIP_PORT);
-		peer->socket.type = SIP_TRANSPORT_UDP;
-		peer->socket.fd = -1;
+		set_socket_transport(&peer->socket, SIP_TRANSPORT_UDP);
 	}
 	peer->type = SIP_TYPE_PEER;
 	ast_copy_flags(&peer->flags[0], &global_flags[0], SIP_FLAGS_TO_COPY);
@@ -24066,7 +24097,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	if (((peer->socket.type != peer->default_outbound_transport) && (peer->expire == -1)) ||
 		!(peer->socket.type & peer->transports) || !(peer->socket.type)) {
 
-		set_peer_transport(peer, peer->default_outbound_transport);
+		set_socket_transport(&peer->socket, peer->default_outbound_transport);
 	}
 
 	if (fullcontact->used > 0) {
