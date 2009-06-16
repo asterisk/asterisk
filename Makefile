@@ -327,6 +327,10 @@ endif
 # comment to print directories during submakes
 #PRINT_DIR=yes
 
+ifneq ($(INSIDE_EMACS),)
+PRINT_DIR=yes
+endif
+
 SILENTMAKE:=$(MAKE) --quiet --no-print-directory
 ifneq ($(PRINT_DIR)$(NOISY_BUILD),)
 SUBMAKE:=$(MAKE)
