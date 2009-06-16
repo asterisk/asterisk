@@ -10266,14 +10266,14 @@ static void build_contact(struct sip_pvt *p)
 	/* only add port if it's non-standard for the transport type */
 	if (!sip_standard_port(p->socket.type, ourport)) {
 		if (p->socket.type == SIP_TRANSPORT_UDP)
-			ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d>", p->exten, S_OR(p->exten, "@"), ast_inet_ntoa(p->ourip.sin_addr), ourport);
+			ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr), ourport);
 		else
-			ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d;transport=%s>", p->exten, S_OR(p->exten, "@"), ast_inet_ntoa(p->ourip.sin_addr), ourport, get_transport(p->socket.type));
+			ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d;transport=%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr), ourport, get_transport(p->socket.type));
 	} else {
 		if (p->socket.type == SIP_TRANSPORT_UDP)
-			ast_string_field_build(p, our_contact, "<sip:%s%s%s>", p->exten, S_OR(p->exten, "@"), ast_inet_ntoa(p->ourip.sin_addr));
+			ast_string_field_build(p, our_contact, "<sip:%s%s%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr));
 		else
-			ast_string_field_build(p, our_contact, "<sip:%s%s%s;transport=%s>", p->exten, S_OR(p->exten, "@"), ast_inet_ntoa(p->ourip.sin_addr), get_transport(p->socket.type));
+			ast_string_field_build(p, our_contact, "<sip:%s%s%s;transport=%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr), get_transport(p->socket.type));
 	}
 }
 
