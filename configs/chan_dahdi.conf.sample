@@ -1042,9 +1042,8 @@ pickupgroup=1
 ; you can change this setting from the dialplan
 ; by setting the variable MFCR2_CATEGORY
 ; (remember to set _MFCR2_CATEGORY from originating channels)
-; MFCR2_CATEGORY will also be a variable available
-; on incoming calls set to the value received from
-; the far end
+; MFCR2_CATEGORY will also be a variable available in your context
+; on incoming calls set to the value received from the far end
 ; mfcr2_category=national_subscriber
 
 ; Call logging is stored at the Asterisk
@@ -1132,6 +1131,7 @@ pickupgroup=1
 ; mfcr2_accept_on_offer=yes
 
 ; Skip request of calling party category and ANI
+; you need openr2 >= 1.2.0 to use this feature
 ; mfcr2_skip_category=no
 
 ; WARNING: advanced users only! I really mean it
