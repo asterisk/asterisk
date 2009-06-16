@@ -200,6 +200,10 @@ Moises Silva (moy) - for writing LibOpenR2, and providing support for it in chan
 Eliel C. Sardanons - XML documentation implementation, and various other contributions
      eliels(AT)gmail.com
 
+Sean Bright - Snom call pickup, newt interface for menuselect, cdr_tds rewrite,
+	countless other improvements, fixes, and good ideas.
+	sean.bright(AT)gmail.com
+
 === OTHER CONTRIBUTIONS ===
 John Todd - Monkey sounds and associated teletorture prompt
 Michael Jerris - bug marshaling
