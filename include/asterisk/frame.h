@@ -400,6 +400,12 @@ enum ast_control_transfer {
 /*! Request that the channel driver make two channels of the same tech type compatible if possible */
 #define AST_OPTION_MAKE_COMPATIBLE      13
 
+/*! Get or set the digit detection state of the channel */
+#define AST_OPTION_DIGIT_DETECT		14
+
+/*! Get or set the fax tone detection state of the channel */
+#define AST_OPTION_FAX_DETECT		15
+
 struct oprmode {
 	struct ast_channel *peer;
 	int mode;

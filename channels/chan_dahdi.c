@@ -1507,6 +1507,7 @@ static struct ast_frame *dahdi_exception(struct ast_channel *ast);
 static int dahdi_indicate(struct ast_channel *chan, int condition, const void *data, size_t datalen);
 static int dahdi_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int datalen);
+static int dahdi_queryoption(struct ast_channel *chan, int option, void *data, int *datalen);
 static int dahdi_func_read(struct ast_channel *chan, const char *function, char *data, char *buf, size_t len);
 static int handle_init_event(struct dahdi_pvt *i, int event);
 static int dahdi_func_write(struct ast_channel *chan, const char *function, char *data, const char *value);
@@ -1529,6 +1530,7 @@ static const struct ast_channel_tech dahdi_tech = {
 	.indicate = dahdi_indicate,
 	.fixup = dahdi_fixup,
 	.setoption = dahdi_setoption,
+	.queryoption = dahdi_queryoption,
 	.func_channel_read = dahdi_func_read,
 	.func_channel_write = dahdi_func_write,
 };
@@ -5890,6 +5892,66 @@ static int dahdi_answer(struct ast_channel *ast)
 	return res;
 }
 
+static void disable_dtmf_detect(struct dahdi_pvt *p)
+{
+	int val = 0;
+
+	p->ignoredtmf = 1;
+
+	ioctl(p->subs[SUB_REAL].dfd, DAHDI_TONEDETECT, &val);
+
+	if (!p->hardwaredtmf && p->dsp) {
+		p->dsp_features &= ~DSP_FEATURE_DIGIT_DETECT;
+		ast_dsp_set_features(p->dsp, p->dsp_features);
+	}
+}
+
+static void enable_dtmf_detect(struct dahdi_pvt *p)
+{
+	int val = DAHDI_TONEDETECT_ON | DAHDI_TONEDETECT_MUTE;
+
+	if (p->channel == CHAN_PSEUDO)
+		return;
+
+	p->ignoredtmf = 0;
+
+	ioctl(p->subs[SUB_REAL].dfd, DAHDI_TONEDETECT, &val);
+
+	if (!p->hardwaredtmf && p->dsp) {
+		p->dsp_features |= DSP_FEATURE_DIGIT_DETECT;
+		ast_dsp_set_features(p->dsp, p->dsp_features);
+	}
+}
+
+static int dahdi_queryoption(struct ast_channel *chan, int option, void *data, int *datalen)
+{
+	char *cp;
+	struct dahdi_pvt *p = chan->tech_pvt;
+
+	/* all supported options require data */
+	if (!data || (*datalen < 1)) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	switch (option) {
+	case AST_OPTION_DIGIT_DETECT:
+		cp = (char *) data;
+		*cp = p->ignoredtmf ? 0 : 1;
+		ast_debug(1, "Reporting digit detection %sabled on %s\n", *cp ? "en" : "dis", chan->name);
+		break;
+	case AST_OPTION_FAX_DETECT:
+		cp = (char *) data;
+		*cp = (p->callprogress & CALLPROGRESS_FAX) ? 0 : 1;
+		ast_debug(1, "Reporting fax tone detection %sabled on %s\n", *cp ? "en" : "dis", chan->name);
+		break;
+	}
+
+	errno = 0;
+
+	return 0;
+}
+
 static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int datalen)
 {
 	char *cp;
@@ -6070,6 +6132,29 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 		} else {
 			ast_debug(1, "Disabling echo cancelation on %s\n", chan->name);
 			dahdi_disable_ec(p);
+		}
+		break;
+	case AST_OPTION_DIGIT_DETECT:
+		cp = (char *) data;
+		ast_debug(1, "%sabling digit detection on %s\n", *cp ? "En" : "Dis", chan->name);
+		if (*cp) {
+			enable_dtmf_detect(p);
+		} else {
+			disable_dtmf_detect(p);
+		}
+		break;
+	case AST_OPTION_FAX_DETECT:
+		cp = (char *) data;
+		if (p->dsp) {
+			ast_debug(1, "%sabling fax tone detection on %s\n", *cp ? "En" : "Dis", chan->name);
+			if (*cp) {
+				p->callprogress |= CALLPROGRESS_FAX;
+				p->dsp_features |= DSP_FEATURE_FAX_DETECT;
+			} else {
+				p->callprogress &= ~CALLPROGRESS_FAX;
+				p->dsp_features &= ~DSP_FEATURE_FAX_DETECT;
+			}
+			ast_dsp_set_features(p->dsp, p->dsp_features);
 		}
 		break;
 	default:
@@ -6277,39 +6362,6 @@ static void dahdi_link(struct dahdi_pvt *slave, struct dahdi_pvt *master) {
 	slave->master = master;
 
 	ast_debug(1, "Making %d slave to master %d at %d\n", slave->channel, master->channel, x);
-}
-
-static void disable_dtmf_detect(struct dahdi_pvt *p)
-{
-	int val;
-
-	p->ignoredtmf = 1;
-
-	val = 0;
-	ioctl(p->subs[SUB_REAL].dfd, DAHDI_TONEDETECT, &val);
-
-	if (!p->hardwaredtmf && p->dsp) {
-		p->dsp_features &= ~DSP_FEATURE_DIGIT_DETECT;
-		ast_dsp_set_features(p->dsp, p->dsp_features);
-	}
-}
-
-static void enable_dtmf_detect(struct dahdi_pvt *p)
-{
-	int val;
-
-	if (p->channel == CHAN_PSEUDO)
-		return;
-
-	p->ignoredtmf = 0;
-
-	val = DAHDI_TONEDETECT_ON | DAHDI_TONEDETECT_MUTE;
-	ioctl(p->subs[SUB_REAL].dfd, DAHDI_TONEDETECT, &val);
-
-	if (!p->hardwaredtmf && p->dsp) {
-		p->dsp_features |= DSP_FEATURE_DIGIT_DETECT;
-		ast_dsp_set_features(p->dsp, p->dsp_features);
-	}
 }
 
 static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms)
@@ -6814,6 +6866,10 @@ static void dahdi_handle_dtmfup(struct ast_channel *ast, int idx, struct ast_fra
 				}
 			}
 			p->faxhandled = 1;
+			p->callprogress &= ~CALLPROGRESS_FAX;
+			p->dsp_features &= ~DSP_FEATURE_FAX_DETECT;
+			ast_dsp_set_features(p->dsp, p->dsp_features);
+			ast_debug(1, "Disabling FAX tone detection on %s after tone received\n", ast->name);
 			if (strcmp(ast->exten, "fax")) {
 				const char *target_context = S_OR(ast->macrocontext, ast->context);
 

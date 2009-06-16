@@ -710,6 +710,7 @@ static int sndfax_exec(struct ast_channel *chan, const char *data)
 	int res = 0;
 	char *parse;
 	fax_session session;
+	char restore_digit_detect = 0;
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(file_name);
@@ -744,7 +745,31 @@ static int sndfax_exec(struct ast_channel *chan, const char *data)
 	session.chan = chan;
 	session.finished = 0;
 
+	/* get current digit detection mode, then disable digit detection if enabled */
+	{
+		int dummy = sizeof(restore_digit_detect);
+
+		ast_channel_queryoption(chan, AST_OPTION_DIGIT_DETECT, &restore_digit_detect, &dummy, 0);
+	}
+
+	if (restore_digit_detect) {
+		char new_digit_detect = 0;
+
+		ast_channel_setoption(chan, AST_OPTION_DIGIT_DETECT, &new_digit_detect, sizeof(new_digit_detect), 0);
+	}
+
+	/* disable FAX tone detection if enabled */
+	{
+		char new_fax_detect = 0;
+
+		ast_channel_setoption(chan, AST_OPTION_FAX_DETECT, &new_fax_detect, sizeof(new_fax_detect), 0);
+	}
+
 	res = transmit(&session);
+
+	if (restore_digit_detect) {
+		ast_channel_setoption(chan, AST_OPTION_DIGIT_DETECT, &restore_digit_detect, sizeof(restore_digit_detect), 0);
+	}
 
 	return res;
 }
@@ -754,6 +779,7 @@ static int rcvfax_exec(struct ast_channel *chan, const char *data)
 	int res = 0;
 	char *parse;
 	fax_session session;
+	char restore_digit_detect = 0;
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(file_name);
@@ -788,7 +814,31 @@ static int rcvfax_exec(struct ast_channel *chan, const char *data)
 	session.chan = chan;
 	session.finished = 0;
 
+	/* get current digit detection mode, then disable digit detection if enabled */
+	{
+		int dummy = sizeof(restore_digit_detect);
+
+		ast_channel_queryoption(chan, AST_OPTION_DIGIT_DETECT, &restore_digit_detect, &dummy, 0);
+	}
+
+	if (restore_digit_detect) {
+		char new_digit_detect = 0;
+
+		ast_channel_setoption(chan, AST_OPTION_DIGIT_DETECT, &new_digit_detect, sizeof(new_digit_detect), 0);
+	}
+
+	/* disable FAX tone detection if enabled */
+	{
+		char new_fax_detect = 0;
+
+		ast_channel_setoption(chan, AST_OPTION_FAX_DETECT, &new_fax_detect, sizeof(new_fax_detect), 0);
+	}
+
 	res = transmit(&session);
+
+	if (restore_digit_detect) {
+		ast_channel_setoption(chan, AST_OPTION_DIGIT_DETECT, &restore_digit_detect, sizeof(restore_digit_detect), 0);
+	}
 
 	return res;
 }

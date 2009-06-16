@@ -1833,7 +1833,7 @@ struct sip_pvt {
 	int laststate;				/*!< SUBSCRIBE: Last known extension state */
 	int dialogver;				/*!< SUBSCRIBE: Version for subscription dialog-info */
 
-	struct ast_dsp *vad;			/*!< Inband DTMF Detection dsp */
+	struct ast_dsp *dsp;			/*!< Inband DTMF Detection dsp */
 
 	struct sip_peer *relatedpeer;		/*!< If this dialog is related to a peer, which one 
 							Used in peerpoke, mwi subscriptions */
@@ -4076,21 +4076,62 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittyp
 	return res;
 }
 
+static void enable_digit_detect(struct sip_pvt *p)
+{
+	if (p->dsp) {
+		return;
+	}
+
+	if (!(p->dsp = ast_dsp_new())) {
+		return;
+	}
+
+	ast_dsp_set_features(p->dsp, DSP_FEATURE_DIGIT_DETECT);
+	if (global_relaxdtmf) {
+		ast_dsp_set_digitmode(p->dsp, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
+	}
+}
+
+static void disable_digit_detect(struct sip_pvt *p)
+{
+	if (p->dsp) {
+		ast_dsp_free(p->dsp);
+		p->dsp = NULL;
+	}
+}
+
 /*! \brief Set an option on a SIP dialog */
 static int sip_setoption(struct ast_channel *chan, int option, void *data, int datalen)
 {
 	int res = -1;
 	struct sip_pvt *p = chan->tech_pvt;
 
-	if (option == AST_OPTION_FORMAT_READ) {
-		int format = *(int *)data;
-		res = ast_rtp_instance_set_read_format(p->rtp, format);
-	} else if (option == AST_OPTION_FORMAT_WRITE) {
-		int format = *(int *)data;
-		res = ast_rtp_instance_set_write_format(p->rtp, format);
-	} else if (option == AST_OPTION_MAKE_COMPATIBLE) {
-		struct ast_channel *peer = data;
-		res = ast_rtp_instance_make_compatible(chan, p->rtp, peer);
+	switch (option) {
+	case AST_OPTION_FORMAT_READ:
+		res = ast_rtp_instance_set_read_format(p->rtp, *(int *) data);
+		break;
+	case AST_OPTION_FORMAT_WRITE:
+		res = ast_rtp_instance_set_write_format(p->rtp, *(int *) data);
+		break;
+	case AST_OPTION_MAKE_COMPATIBLE:
+		res = ast_rtp_instance_make_compatible(chan, p->rtp, (struct ast_channel *) data);
+		break;
+	case AST_OPTION_DIGIT_DETECT:
+		if ((ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_INBAND) ||
+		    (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_AUTO)) {
+			char *cp = (char *) data;
+
+			ast_debug(1, "%sabling digit detection on %s\n", *cp ? "En" : "Dis", chan->name);
+			if (*cp) {
+				enable_digit_detect(p);
+			} else {
+				disable_digit_detect(p);
+			}
+			res = 0;
+		}
+		break;
+	default:
+		break;
 	}
 
 	return res;
@@ -4102,6 +4143,7 @@ static int sip_queryoption(struct ast_channel *chan, int option, void *data, int
 	int res = -1;
 	enum ast_t38_state state = T38_STATE_UNAVAILABLE;
 	struct sip_pvt *p = (struct sip_pvt *) chan->tech_pvt;
+	char *cp;
 
 	switch (option) {
 	case AST_OPTION_T38_STATE:
@@ -4134,6 +4176,11 @@ static int sip_queryoption(struct ast_channel *chan, int option, void *data, int
 		*((enum ast_t38_state *) data) = state;
 		res = 0;
 
+		break;
+	case AST_OPTION_DIGIT_DETECT:
+		cp = (char *) data;
+		*cp = p->dsp ? 1 : 0;
+		ast_debug(1, "Reporting digit detection %sabled on %s\n", *cp ? "en" : "dis", chan->name);
 		break;
 	default:
 		break;
@@ -5823,7 +5870,6 @@ static const char *hangup_cause2sip(int cause)
 	return 0;
 }
 
-
 /*! \brief  sip_hangup: Hangup SIP call
  * Part of PBX interface, called from ast_hangup */
 static int sip_hangup(struct ast_channel *ast)
@@ -5902,8 +5948,7 @@ static int sip_hangup(struct ast_channel *ast)
 	append_history(p, needcancel ? "Cancel" : "Hangup", "Cause %s", p->owner ? ast_cause2str(p->hangupcause) : "Unknown");
 
 	/* Disconnect */
-	if (p->vad)
-		ast_dsp_free(p->vad);
+	disable_digit_detect(p);
 
 	p->owner = NULL;
 	ast->tech_pvt = dialog_unref(ast->tech_pvt, "unref ast->tech_pvt");
@@ -6453,7 +6498,6 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 	return res;
 }
 
-
 /*! \brief Initiate a call in the SIP channel
 	called from sip_request_call (calls from the pbx ) for outbound channels
 	and from handle_request_invite for inbound channels
@@ -6552,12 +6596,10 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	else
 		ast_debug(3, "This channel will not be able to handle video.\n");
 
-	if ((ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_INBAND) || (ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_AUTO)) {
+	if ((ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_INBAND) ||
+	    (ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_AUTO)) {
 		if (!i->rtp || ast_rtp_instance_dtmf_mode_set(i->rtp, AST_RTP_DTMF_MODE_INBAND)) {
-			i->vad = ast_dsp_new();
-			ast_dsp_set_features(i->vad, DSP_FEATURE_DIGIT_DETECT);
-			if (global_relaxdtmf)
-				ast_dsp_set_digitmode(i->vad, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
+			enable_digit_detect(i);
 		}
 	} else if (ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833) {
 		if (i->rtp) {
@@ -6853,8 +6895,8 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 		ast_set_write_format(p->owner, p->owner->writeformat);
 	}
 
-	if (f && (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_INBAND) && p->vad) {
-		f = ast_dsp_process(p->owner, p->vad, f);
+	if (f && p->dsp) {
+		f = ast_dsp_process(p->owner, p->dsp, f);
 		if (f && f->frametype == AST_FRAME_DTMF) {
 			if (ast_test_flag(&p->t38.t38support, SIP_PAGE2_T38SUPPORT_UDPTL) && f->subclass == 'f') {
 				ast_debug(1, "Fax CNG detected on %s\n", ast->name);
@@ -25354,16 +25396,11 @@ static int sip_dtmfmode(struct ast_channel *chan, const char *data)
 		ast_log(LOG_WARNING, "I don't know about this dtmf mode: %s\n", mode);
 	if (p->rtp)
 		ast_rtp_instance_set_prop(p->rtp, AST_RTP_PROPERTY_DTMF, ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833);
-	if (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_INBAND) {
-		if (!p->vad) {
-			p->vad = ast_dsp_new();
-			ast_dsp_set_features(p->vad, DSP_FEATURE_DIGIT_DETECT);
-		}
+	if ((ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_INBAND) ||
+	    (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_AUTO)) {
+		enable_digit_detect(p);
 	} else {
-		if (p->vad) {
-			ast_dsp_free(p->vad);
-			p->vad = NULL;
-		}
+		disable_digit_detect(p);
 	}
 	sip_pvt_unlock(p);
 	ast_channel_unlock(chan);
