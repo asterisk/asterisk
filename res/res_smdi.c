@@ -1138,7 +1138,7 @@ static int smdi_load(int reload)
 				ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
 
 			if (!(iface = ASTOBJ_CONTAINER_FIND(&smdi_ifaces, v->value))) {
-				ast_log(LOG_NOTICE, "SMDI interface %s not found\n", iface->name);
+				ast_log(LOG_NOTICE, "SMDI interface %s not found\n", v->value);
 				continue;
 			}
 		} else if (!strcasecmp(v->name, "pollinginterval")) {
