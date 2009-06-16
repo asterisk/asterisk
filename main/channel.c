@@ -894,61 +894,88 @@ alertpipe_failed:
 	return tmp;
 }
 
-/*! \brief Queue an outgoing media frame */
-static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, int head)
+static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, int head, struct ast_frame *after)
 {
 	struct ast_frame *f;
 	struct ast_frame *cur;
 	int blah = 1;
-	int qlen = 0;
-
-	/* Build us a copy and free the original one */
-	if (!(f = ast_frdup(fin))) {
-		return -1;
-	}
+	unsigned int new_frames = 0;
+	unsigned int new_voice_frames = 0;
+	unsigned int queued_frames = 0;
+	unsigned int queued_voice_frames = 0;
+	AST_LIST_HEAD_NOLOCK(, ast_frame) frames;
 
 	ast_channel_lock(chan);
 
 	/* See if the last frame on the queue is a hangup, if so don't queue anything */
-	if ((cur = AST_LIST_LAST(&chan->readq)) && (cur->frametype == AST_FRAME_CONTROL) && (cur->subclass == AST_CONTROL_HANGUP)) {
-		ast_frfree(f);
+	if ((cur = AST_LIST_LAST(&chan->readq)) &&
+	    (cur->frametype == AST_FRAME_CONTROL) &&
+	    (cur->subclass == AST_CONTROL_HANGUP)) {
 		ast_channel_unlock(chan);
 		return 0;
 	}
 
-	/* Count how many frames exist on the queue */
-	AST_LIST_TRAVERSE(&chan->readq, cur, frame_list) {
-		qlen++;
-	}
+	/* Build copies of all the frames and count them */
+	AST_LIST_HEAD_INIT_NOLOCK(&frames);
+	for (cur = fin; cur; cur = AST_LIST_NEXT(cur, frame_list)) {
+		if (!(f = ast_frdup(cur))) {
+			ast_frfree(AST_LIST_FIRST(&frames));
+			return -1;
+		}
 
-	/* Allow up to 96 voice frames outstanding, and up to 128 total frames */
-	if (((fin->frametype == AST_FRAME_VOICE) && (qlen > 96)) || (qlen  > 128)) {
-		if (fin->frametype != AST_FRAME_VOICE) {
-			ast_log(LOG_WARNING, "Exceptionally long queue length queuing to %s\n", chan->name);
-			ast_assert(fin->frametype == AST_FRAME_VOICE);
-		} else {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Dropping voice to exceptionally long queue on %s\n", chan->name);
-			ast_frfree(f);
-			ast_channel_unlock(chan);
-			return 0;
+		AST_LIST_INSERT_TAIL(&frames, f, frame_list);
+		new_frames++;
+		if (f->frametype == AST_FRAME_VOICE) {
+			new_voice_frames++;
 		}
 	}
 
-	if (head) {
-		AST_LIST_INSERT_HEAD(&chan->readq, f, frame_list);
+	/* Count how many frames exist on the queue */
+	AST_LIST_TRAVERSE(&chan->readq, cur, frame_list) {
+		queued_frames++;
+		if (cur->frametype == AST_FRAME_VOICE) {
+			queued_voice_frames++;
+		}
+	}
+
+	if ((queued_frames + new_frames) > 128) {
+		ast_log(LOG_WARNING, "Exceptionally long queue length queuing to %s\n", chan->name);
+		while ((f = AST_LIST_REMOVE_HEAD(&frames, frame_list))) {
+			ast_frfree(f);
+		}
+		ast_channel_unlock(chan);
+		return 0;
+	}
+
+	if ((queued_voice_frames + new_voice_frames) > 96) {
+		ast_log(LOG_WARNING, "Exceptionally long voice queue length queuing to %s\n", chan->name);
+		while ((f = AST_LIST_REMOVE_HEAD(&frames, frame_list))) {
+			ast_frfree(f);
+		}
+		ast_channel_unlock(chan);
+		return 0;
+	}
+
+	if (after) {
+		AST_LIST_INSERT_LIST_AFTER(&chan->readq, &frames, after, frame_list);
 	} else {
-		AST_LIST_INSERT_TAIL(&chan->readq, f, frame_list);
+		if (head) {
+			AST_LIST_APPEND_LIST(&frames, &chan->readq, frame_list);
+			AST_LIST_HEAD_INIT_NOLOCK(&chan->readq);
+		}
+		AST_LIST_APPEND_LIST(&chan->readq, &frames, frame_list);
 	}
 
 	if (chan->alertpipe[1] > -1) {
-		if (write(chan->alertpipe[1], &blah, sizeof(blah)) != sizeof(blah)) {
-			ast_log(LOG_WARNING, "Unable to write to alert pipe on %s, frametype/subclass %d/%d (qlen = %d): %s!\n",
-				chan->name, f->frametype, f->subclass, qlen, strerror(errno));
+		if (write(chan->alertpipe[1], &blah, new_frames * sizeof(blah)) != (new_frames * sizeof(blah))) {
+			ast_log(LOG_WARNING, "Unable to write to alert pipe on %s (qlen = %d): %s!\n",
+				chan->name, queued_frames, strerror(errno));
 		}
 #ifdef HAVE_DAHDI
 	} else if (chan->timingfd > -1) {
-		ioctl(chan->timingfd, DAHDI_TIMERPING, &blah);
+		while (new_frames--) {
+			ioctl(chan->timingfd, DAHDI_TIMERPING, &blah);
+		}
 #endif				
 	} else if (ast_test_flag(chan, AST_FLAG_BLOCKING)) {
 		pthread_kill(chan->blocker, SIGURG);
@@ -961,12 +988,12 @@ static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, in
 
 int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin)
 {
-	return __ast_queue_frame(chan, fin, 0);
+	return __ast_queue_frame(chan, fin, 0, NULL);
 }
 
 int ast_queue_frame_head(struct ast_channel *chan, struct ast_frame *fin)
 {
-	return __ast_queue_frame(chan, fin, 1);
+	return __ast_queue_frame(chan, fin, 1, NULL);
 }
 
 /*! \brief Queue a hangup frame for channel */
@@ -2155,7 +2182,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			AST_LIST_REMOVE_CURRENT(&chan->readq, frame_list);
 			break;
 		}
-		AST_LIST_TRAVERSE_SAFE_END
+		AST_LIST_TRAVERSE_SAFE_END;
 		
 		if (!f) {
 			/* There were no acceptable frames on the readq. */
@@ -2200,13 +2227,14 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	chan->fdno = -1;
 
 	if (f) {
+		struct ast_frame *readq_tail = AST_LIST_LAST(&chan->readq);
+
 		/* if the channel driver returned more than one frame, stuff the excess
-		   into the readq for the next ast_read call (note that we can safely assume
-		   that the readq is empty, because otherwise we would not have called into
-		   the channel driver and f would be only a single frame)
+		   into the readq for the next ast_read call
 		*/
 		if (AST_LIST_NEXT(f, frame_list)) {
-			AST_LIST_HEAD_SET_NOLOCK(&chan->readq, AST_LIST_NEXT(f, frame_list));
+			ast_queue_frame(chan, AST_LIST_NEXT(f, frame_list));
+			ast_frfree(AST_LIST_NEXT(f, frame_list));
 			AST_LIST_NEXT(f, frame_list) = NULL;
 		}
 
@@ -2422,8 +2450,26 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					}
 				}
 
-				if (chan->readtrans && (f = ast_translate(chan->readtrans, f, 1)) == NULL)
+				if (chan->readtrans && (f = ast_translate(chan->readtrans, f, 1)) == NULL) {
 					f = &ast_null_frame;
+				}
+
+				/* it is possible for the translation process on chan->readtrans to have
+				   produced multiple frames from the single input frame we passed it; if
+				   this happens, queue the additional frames *before* the frames we may
+				   have queued earlier. if the readq was empty, put them at the head of
+				   the queue, and if it was not, put them just after the frame that was
+				   at the end of the queue.
+				*/
+				if (AST_LIST_NEXT(f, frame_list)) {
+					if (!readq_tail) {
+						ast_queue_frame_head(chan, AST_LIST_NEXT(f, frame_list));
+					} else {
+						__ast_queue_frame(chan, AST_LIST_NEXT(f, frame_list), 0, readq_tail);
+					}
+					ast_frfree(AST_LIST_NEXT(f, frame_list));
+					AST_LIST_NEXT(f, frame_list) = NULL;
+				}
 
 				/* Run generator sitting on the line if timing device not available
 				* and synchronous generation of outgoing frames is necessary       */
@@ -2764,7 +2810,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 {
 	int res = -1;
 	int count = 0;
-	struct ast_frame *f = NULL, *f2 = NULL;
+	struct ast_frame *f = NULL;
 
 	/*Deadlock avoidance*/
 	while(ast_channel_trylock(chan)) {
@@ -2835,10 +2881,12 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		break;
 	case AST_FRAME_DTMF_END:
 		if (chan->audiohooks) {
-			struct ast_frame *old_frame = fr;
-			fr = ast_audiohook_write_list(chan, chan->audiohooks, AST_AUDIOHOOK_DIRECTION_WRITE, fr);
-			if (old_frame != fr)
-				f = fr;
+			struct ast_frame *new_frame = fr;
+
+			new_frame = ast_audiohook_write_list(chan, chan->audiohooks, AST_AUDIOHOOK_DIRECTION_WRITE, fr);
+			if (new_frame != fr) {
+				ast_frfree(new_frame);
+			}
 		}
 		ast_clear_flag(chan, AST_FLAG_BLOCKING);
 		ast_channel_unlock(chan);
@@ -2867,13 +2915,6 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		if (chan->tech->write == NULL)
 			break;	/*! \todo XXX should return 0 maybe ? */
 
-		if (chan->audiohooks) {
-			struct ast_frame *old_frame = fr;
-			fr = ast_audiohook_write_list(chan, chan->audiohooks, AST_AUDIOHOOK_DIRECTION_WRITE, fr);
-			if (old_frame != fr)
-				f2 = fr;
-		}
-		
 		/* If the frame is in the raw write format, then it's easy... just use the frame - otherwise we will have to translate */
 		if (fr->subclass == chan->rawwriteformat)
 			f = fr;
@@ -2886,37 +2927,82 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			break;
 		}
 
+		if (chan->audiohooks) {
+			struct ast_frame *new_frame, *cur;
+
+			for (cur = f; cur; cur = AST_LIST_NEXT(cur, frame_list)) {
+				new_frame = ast_audiohook_write_list(chan, chan->audiohooks, AST_AUDIOHOOK_DIRECTION_WRITE, cur);
+				if (new_frame != cur) {
+					ast_frfree(new_frame);
+				}
+			}
+		}
+		
 		/* If Monitor is running on this channel, then we have to write frames out there too */
+		/* the translator on chan->writetrans may have returned multiple frames
+		   from the single frame we passed in; if so, feed each one of them to the
+		   monitor */
 		if (chan->monitor && chan->monitor->write_stream) {
+			struct ast_frame *cur;
+
+			for (cur = f; cur; cur = AST_LIST_NEXT(cur, frame_list)) {
 			/* XXX must explain this code */
 #ifndef MONITOR_CONSTANT_DELAY
-			int jump = chan->insmpl - chan->outsmpl - 4 * f->samples;
-			if (jump >= 0) {
-				jump = chan->insmpl - chan->outsmpl;
-				if (ast_seekstream(chan->monitor->write_stream, jump, SEEK_FORCECUR) == -1)
-					ast_log(LOG_WARNING, "Failed to perform seek in monitoring write stream, synchronization between the files may be broken\n");
-				chan->outsmpl += jump + f->samples;
-			} else
-				chan->outsmpl += f->samples;
+				int jump = chan->insmpl - chan->outsmpl - 4 * cur->samples;
+				if (jump >= 0) {
+					jump = chan->insmpl - chan->outsmpl;
+					if (ast_seekstream(chan->monitor->write_stream, jump, SEEK_FORCECUR) == -1)
+						ast_log(LOG_WARNING, "Failed to perform seek in monitoring write stream, synchronization between the files may be broken\n");
+					chan->outsmpl += jump + cur->samples;
+				} else {
+					chan->outsmpl += cur->samples;
+				}
 #else
-			int jump = chan->insmpl - chan->outsmpl;
-			if (jump - MONITOR_DELAY >= 0) {
-				if (ast_seekstream(chan->monitor->write_stream, jump - f->samples, SEEK_FORCECUR) == -1)
-					ast_log(LOG_WARNING, "Failed to perform seek in monitoring write stream, synchronization between the files may be broken\n");
-				chan->outsmpl += jump;
-			} else
-				chan->outsmpl += f->samples;
+				int jump = chan->insmpl - chan->outsmpl;
+				if (jump - MONITOR_DELAY >= 0) {
+					if (ast_seekstream(chan->monitor->write_stream, jump - cur->samples, SEEK_FORCECUR) == -1)
+						ast_log(LOG_WARNING, "Failed to perform seek in monitoring write stream, synchronization between the files may be broken\n");
+					chan->outsmpl += jump;
+				} else {
+					chan->outsmpl += cur->samples;
+				}
 #endif
-			if (chan->monitor->state == AST_MONITOR_RUNNING) {
-				if (ast_writestream(chan->monitor->write_stream, f) < 0)
-					ast_log(LOG_WARNING, "Failed to write data to channel monitor write stream\n");
+				if (chan->monitor->state == AST_MONITOR_RUNNING) {
+					if (ast_writestream(chan->monitor->write_stream, cur) < 0)
+						ast_log(LOG_WARNING, "Failed to write data to channel monitor write stream\n");
+				}
 			}
 		}
 
-		if (f) 
-			res = chan->tech->write(chan,f);
-		else
-			res = 0;
+		/* the translator on chan->writetrans may have returned multiple frames
+		   from the single frame we passed in; if so, feed each one of them to the
+		   channel, freeing each one after it has been written */
+		if ((f != fr) && AST_LIST_NEXT(f, frame_list)) {
+			struct ast_frame *cur, *next;
+			unsigned int skip = 0;
+
+			for (cur = f, next = AST_LIST_NEXT(cur, frame_list);
+			     cur;
+			     cur = next, next = cur ? AST_LIST_NEXT(cur, frame_list) : NULL) {
+				if (!skip) {
+					if ((res = chan->tech->write(chan, cur)) < 0) {
+						chan->_softhangup |= AST_SOFTHANGUP_DEV;
+						skip = 1;
+					} else if (next) {
+						/* don't do this for the last frame in the list,
+						   as the code outside the loop will do it once
+						*/
+						chan->fout = FRAMECOUNT_INC(chan->fout);
+					}
+				}
+				ast_frfree(cur);
+			}
+
+			/* reset f so the code below doesn't attempt to free it */
+			f = NULL;
+		} else {
+			res = chan->tech->write(chan, f);
+		}
 		break;
 	case AST_FRAME_NULL:
 	case AST_FRAME_IAX:
@@ -2933,13 +3019,12 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 
 	if (f && f != fr)
 		ast_frfree(f);
-	if (f2)
-		ast_frfree(f2);
 	ast_clear_flag(chan, AST_FLAG_BLOCKING);
+
 	/* Consider a write failure to force a soft hangup */
-	if (res < 0)
+	if (res < 0) {
 		chan->_softhangup |= AST_SOFTHANGUP_DEV;
-	else {
+	} else {
 		chan->fout = FRAMECOUNT_INC(chan->fout);
 	}
 done:

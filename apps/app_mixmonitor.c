@@ -233,9 +233,14 @@ static void *mixmonitor_thread(void *obj)
 				}
 			}
 
-			/* Write out the frame */
-			if (fs)
-				ast_writestream(fs, fr);
+			/* Write out the frame(s) */
+			if (fs) {
+				struct ast_frame *cur;
+
+				for (cur = fr; cur; cur = AST_LIST_NEXT(cur, frame_list)) {
+					ast_writestream(fs, cur);
+				}
+			}
 		} else {
 			ast_mutex_unlock(&mixmonitor->mixmonitor_ds->lock);
 		}

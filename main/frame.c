@@ -47,11 +47,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/dsp.h"
 #include "asterisk/file.h"
 
-#ifdef TRACE_FRAMES
-static int headers;
-static AST_LIST_HEAD_STATIC(headerlist, ast_frame);
-#endif
-
 #if !defined(LOW_MEMORY)
 static void frame_cache_cleanup(void *data);
 
@@ -328,12 +323,6 @@ static struct ast_frame *ast_frame_header_new(void)
 #endif
 
 	f->mallocd_hdr_len = sizeof(*f);
-#ifdef TRACE_FRAMES
-	AST_LIST_LOCK(&headerlist);
-	headers++;
-	AST_LIST_INSERT_HEAD(&headerlist, f, frame_list);
-	AST_LIST_UNLOCK(&headerlist);
-#endif	
 	
 	return f;
 }
@@ -351,7 +340,7 @@ static void frame_cache_cleanup(void *data)
 }
 #endif
 
-void ast_frame_free(struct ast_frame *fr, int cache)
+static void __frame_free(struct ast_frame *fr, int cache)
 {
 	if (ast_test_flag(fr, AST_FRFLAG_FROM_TRANSLATOR)) {
 		ast_translate_frame_freed(fr);
@@ -370,8 +359,8 @@ void ast_frame_free(struct ast_frame *fr, int cache)
 		 * to keep things simple... */
 		struct ast_frame_cache *frames;
 
-		if ((frames = ast_threadstorage_get(&frame_cache, sizeof(*frames))) 
-		    && frames->size < FRAME_CACHE_MAX_SIZE) {
+		if ((frames = ast_threadstorage_get(&frame_cache, sizeof(*frames))) &&
+		    (frames->size < FRAME_CACHE_MAX_SIZE)) {
 			AST_LIST_INSERT_HEAD(&frames->list, fr, frame_list);
 			frames->size++;
 			return;
@@ -385,16 +374,22 @@ void ast_frame_free(struct ast_frame *fr, int cache)
 	}
 	if (fr->mallocd & AST_MALLOCD_SRC) {
 		if (fr->src)
-			free((char *)fr->src);
+			free((void *) fr->src);
 	}
 	if (fr->mallocd & AST_MALLOCD_HDR) {
-#ifdef TRACE_FRAMES
-		AST_LIST_LOCK(&headerlist);
-		headers--;
-		AST_LIST_REMOVE(&headerlist, fr, frame_list);
-		AST_LIST_UNLOCK(&headerlist);
-#endif			
 		free(fr);
+	}
+}
+
+
+void ast_frame_free(struct ast_frame *frame, int cache)
+{
+	struct ast_frame *next;
+
+	for (next = AST_LIST_NEXT(frame, frame_list);
+	     frame;
+	     frame = next, next = frame ? AST_LIST_NEXT(frame, frame_list) : NULL) {
+		__frame_free(frame, cache);
 	}
 }
 
@@ -408,19 +403,29 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 	struct ast_frame *out;
 	void *newdata;
 
-	ast_clear_flag(fr, AST_FRFLAG_FROM_TRANSLATOR);
-	ast_clear_flag(fr, AST_FRFLAG_FROM_DSP);
+	/* if none of the existing frame is malloc'd, let ast_frdup() do it
+	   since it is more efficient
+	*/
+	if (fr->mallocd == 0) {
+		return ast_frdup(fr);
+	}
+
+	/* if everything is already malloc'd, we are done */
+	if ((fr->mallocd & (AST_MALLOCD_HDR | AST_MALLOCD_SRC | AST_MALLOCD_DATA)) ==
+	    (AST_MALLOCD_HDR | AST_MALLOCD_SRC | AST_MALLOCD_DATA)) {
+		return fr;
+	}
 
 	if (!(fr->mallocd & AST_MALLOCD_HDR)) {
 		/* Allocate a new header if needed */
-		if (!(out = ast_frame_header_new()))
+		if (!(out = ast_frame_header_new())) {
 			return NULL;
+		}
 		out->frametype = fr->frametype;
 		out->subclass = fr->subclass;
 		out->datalen = fr->datalen;
 		out->samples = fr->samples;
 		out->offset = fr->offset;
-		out->data = fr->data;
 		/* Copy the timing data */
 		ast_copy_flags(out, fr, AST_FRFLAG_HAS_TIMING_INFO);
 		if (ast_test_flag(fr, AST_FRFLAG_HAS_TIMING_INFO)) {
@@ -428,26 +433,34 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 			out->len = fr->len;
 			out->seqno = fr->seqno;
 		}
-	} else
+	} else {
+		ast_clear_flag(fr, AST_FRFLAG_FROM_TRANSLATOR);
+		ast_clear_flag(fr, AST_FRFLAG_FROM_DSP);
+		ast_clear_flag(fr, AST_FRFLAG_FROM_FILESTREAM);
 		out = fr;
+	}
 	
-	if (!(fr->mallocd & AST_MALLOCD_SRC)) {
-		if (fr->src) {
-			if (!(out->src = ast_strdup(fr->src))) {
-				if (out != fr)
-					free(out);
-				return NULL;
+	if (!(fr->mallocd & AST_MALLOCD_SRC) && fr->src) {
+		if (!(out->src = ast_strdup(fr->src))) {
+			if (out != fr) {
+				free(out);
 			}
+			return NULL;
 		}
-	} else
+	} else {
 		out->src = fr->src;
+		fr->src = NULL;
+		fr->mallocd &= ~AST_MALLOCD_SRC;
+	}
 	
 	if (!(fr->mallocd & AST_MALLOCD_DATA))  {
 		if (!(newdata = ast_malloc(fr->datalen + AST_FRIENDLY_OFFSET))) {
-			if (out->src != fr->src)
+			if (out->src != fr->src) {
 				free((void *) out->src);
-			if (out != fr)
+			}
+			if (out != fr) {
 				free(out);
+			}
 			return NULL;
 		}
 		newdata += AST_FRIENDLY_OFFSET;
@@ -455,6 +468,10 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 		out->datalen = fr->datalen;
 		memcpy(newdata, fr->data, fr->datalen);
 		out->data = newdata;
+	} else {
+		out->data = fr->data;
+		fr->data = NULL;
+		fr->mallocd &= ~AST_MALLOCD_DATA;
 	}
 
 	out->mallocd = AST_MALLOCD_HDR | AST_MALLOCD_SRC | AST_MALLOCD_DATA;
@@ -497,7 +514,7 @@ struct ast_frame *ast_frdup(const struct ast_frame *f)
 				break;
 			}
 		}
-		AST_LIST_TRAVERSE_SAFE_END
+		AST_LIST_TRAVERSE_SAFE_END;
 	}
 #endif
 
@@ -970,29 +987,6 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 }
 
 
-#ifdef TRACE_FRAMES
-static int show_frame_stats(int fd, int argc, char *argv[])
-{
-	struct ast_frame *f;
-	int x=1;
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-	AST_LIST_LOCK(&headerlist);
-	ast_cli(fd, "     Framer Statistics     \n");
-	ast_cli(fd, "---------------------------\n");
-	ast_cli(fd, "Total allocated headers: %d\n", headers);
-	ast_cli(fd, "Queue Dump:\n");
-	AST_LIST_TRAVERSE(&headerlist, f, frame_list)
-		ast_cli(fd, "%d.  Type %d, subclass %d from %s\n", x++, f->frametype, f->subclass, f->src ? f->src : "<Unknown>");
-	AST_LIST_UNLOCK(&headerlist);
-	return RESULT_SUCCESS;
-}
-
-static char frame_stats_usage[] =
-"Usage: core show frame stats\n"
-"       Displays debugging statistics from framer\n";
-#endif
-
 /* Builtin Asterisk CLI-commands for debugging */
 static struct ast_cli_entry cli_show_codecs = {
 	{ "show", "codecs", NULL },
@@ -1019,13 +1013,6 @@ static struct ast_cli_entry cli_show_codec = {
 	show_codec_n_deprecated, NULL,
 	NULL };
 
-#ifdef TRACE_FRAMES
-static struct ast_cli_entry cli_show_frame_stats = {
-	{ "show", "frame", "stats", NULL },
-	show_frame_stats, NULL,
-	NULL };
-#endif
-
 static struct ast_cli_entry my_clis[] = {
 	{ { "core", "show", "codecs", NULL },
 	show_codecs, "Displays a list of codecs",
@@ -1046,12 +1033,6 @@ static struct ast_cli_entry my_clis[] = {
 	{ { "core", "show", "codec", NULL },
 	show_codec_n, "Shows a specific codec",
 	frame_show_codec_n_usage, NULL, &cli_show_codec },
-
-#ifdef TRACE_FRAMES
-	{ { "core", "show", "frame", "stats", NULL },
-	show_frame_stats, "Shows frame statistics",
-	frame_stats_usage, NULL, &cli_show_frame_stats },
-#endif
 };
 
 int init_framer(void)

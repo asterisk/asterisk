@@ -633,16 +633,27 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state);
  */
 struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_num, const char *cid_name, const char *acctcode, const char *exten, const char *context, const int amaflag, const char *name_fmt, ...) __attribute__((format(printf, 9, 10)));
 
-/*! \brief Queue an outgoing frame */
+/*!
+ * \brief Queue one or more frames to a channel's frame queue
+ *
+ * \param chan the channel to queue the frame(s) on
+ * \param f the frame(s) to queue.  Note that the frame(s) will be duplicated
+ *        by this function.  It is the responsibility of the caller to handle
+ *        freeing the memory associated with the frame(s) being passed if
+ *        necessary.
+ *
+ * \retval 0 success
+ * \retval non-zero failure
+ */
 int ast_queue_frame(struct ast_channel *chan, struct ast_frame *f);
 
 /*!
- * \brief Queue an outgoing frame to the head of the frame queue
+ * \brief Queue one or more frames to the head of a channel's frame queue
  *
- * \param chan the channel to queue the frame on
- * \param f the frame to queue.  Note that this frame will be duplicated by
- *        this function.  It is the responsibility of the caller to handle
- *        freeing the memory associated with the frame being passed if
+ * \param chan the channel to queue the frame(s) on
+ * \param f the frame(s) to queue.  Note that the frame(s) will be duplicated
+ *        by this function.  It is the responsibility of the caller to handle
+ *        freeing the memory associated with the frame(s) being passed if
  *        necessary.
  *
  * \retval 0 success
