@@ -1121,7 +1121,7 @@ static void session_destroy(struct mansession_session *s)
 
 static int check_manager_session_inuse(const char *name)
 {
-	struct mansession_session *session = ao2_find(sessions, (char*) name, OBJ_POINTER);
+	struct mansession_session *session = ao2_find(sessions, (char *) name, 0);
 	int inuse = 0;
 
 	if (session) {
