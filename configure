@@ -18019,13 +18019,20 @@ CFLAGS="$CFLAGS -Wall -Wno-unused -Werror"
 
 if test "x" = "x"
 then
+attribute_scope="static"
+else
+attribute_scope=""
+fi
+
+if test "x" = "x"
+then
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static void __attribute__((pure)) *test(void *muffin, ...) {return (void *) 0;}
+$attribute_scope void __attribute__((pure)) *test(void *muffin, ...) {return (void *) 0;}
 int
 main ()
 {
@@ -18076,7 +18083,7 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
+$attribute_scope void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
 int
 main ()
 {
@@ -18133,13 +18140,20 @@ CFLAGS="$CFLAGS -Wall -Wno-unused -Werror"
 
 if test "x" = "x"
 then
+attribute_scope="static"
+else
+attribute_scope=""
+fi
+
+if test "x" = "x"
+then
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static void __attribute__((malloc)) *test(void *muffin, ...) {return (void *) 0;}
+$attribute_scope void __attribute__((malloc)) *test(void *muffin, ...) {return (void *) 0;}
 int
 main ()
 {
@@ -18190,7 +18204,7 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
+$attribute_scope void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
 int
 main ()
 {
@@ -18247,13 +18261,20 @@ CFLAGS="$CFLAGS -Wall -Wno-unused -Werror"
 
 if test "x" = "x"
 then
+attribute_scope="static"
+else
+attribute_scope=""
+fi
+
+if test "x" = "x"
+then
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static void __attribute__((const)) *test(void *muffin, ...) {return (void *) 0;}
+$attribute_scope void __attribute__((const)) *test(void *muffin, ...) {return (void *) 0;}
 int
 main ()
 {
@@ -18304,7 +18325,7 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
+$attribute_scope void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
 int
 main ()
 {
@@ -18361,13 +18382,20 @@ CFLAGS="$CFLAGS -Wall -Wno-unused -Werror"
 
 if test "x" = "x"
 then
+attribute_scope="static"
+else
+attribute_scope=""
+fi
+
+if test "x" = "x"
+then
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static void __attribute__((unused)) *test(void *muffin, ...) {return (void *) 0;}
+$attribute_scope void __attribute__((unused)) *test(void *muffin, ...) {return (void *) 0;}
 int
 main ()
 {
@@ -18418,7 +18446,7 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
+$attribute_scope void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
 int
 main ()
 {
@@ -18475,13 +18503,20 @@ CFLAGS="$CFLAGS -Wall -Wno-unused -Werror"
 
 if test "x" = "x"
 then
+attribute_scope="static"
+else
+attribute_scope=""
+fi
+
+if test "x" = "x"
+then
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static void __attribute__((always_inline)) *test(void *muffin, ...) {return (void *) 0;}
+$attribute_scope void __attribute__((always_inline)) *test(void *muffin, ...) {return (void *) 0;}
 int
 main ()
 {
@@ -18532,7 +18567,7 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
+$attribute_scope void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
 int
 main ()
 {
@@ -18589,13 +18624,20 @@ CFLAGS="$CFLAGS -Wall -Wno-unused -Werror"
 
 if test "x" = "x"
 then
+attribute_scope="static"
+else
+attribute_scope=""
+fi
+
+if test "x" = "x"
+then
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static void __attribute__((deprecated)) *test(void *muffin, ...) {return (void *) 0;}
+$attribute_scope void __attribute__((deprecated)) *test(void *muffin, ...) {return (void *) 0;}
 int
 main ()
 {
@@ -18646,7 +18688,7 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
+$attribute_scope void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
 int
 main ()
 {
@@ -18703,13 +18745,20 @@ CFLAGS="$CFLAGS -Wall -Wno-unused -Werror"
 
 if test "x" = "x"
 then
+attribute_scope="static"
+else
+attribute_scope=""
+fi
+
+if test "x" = "x"
+then
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static void __attribute__((sentinel)) *test(void *muffin, ...) {return (void *) 0;}
+$attribute_scope void __attribute__((sentinel)) *test(void *muffin, ...) {return (void *) 0;}
 int
 main ()
 {
@@ -18760,7 +18809,7 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
+$attribute_scope void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
 int
 main ()
 {
@@ -18817,13 +18866,20 @@ CFLAGS="$CFLAGS -Wall -Wno-unused -Werror"
 
 if test "x" = "x"
 then
+attribute_scope="static"
+else
+attribute_scope=""
+fi
+
+if test "x" = "x"
+then
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static void __attribute__((warn_unused_result)) *test(void *muffin, ...) {return (void *) 0;}
+$attribute_scope void __attribute__((warn_unused_result)) *test(void *muffin, ...) {return (void *) 0;}
 int
 main ()
 {
@@ -18874,7 +18930,7 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
+$attribute_scope void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
 int
 main ()
 {
@@ -18929,6 +18985,13 @@ $as_echo_n "checking for compiler 'attribute weakref' support... " >&6; }
 saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Wall -Wno-unused -Werror"
 
+if test "x" = "x"
+then
+attribute_scope="static"
+else
+attribute_scope=""
+fi
+
 if test "xweakref("foo")" = "x"
 then
 cat >conftest.$ac_ext <<_ACEOF
@@ -18937,7 +19000,7 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static void __attribute__((weakref)) *test(void *muffin, ...) {return (void *) 0;}
+$attribute_scope void __attribute__((weakref)) *test(void *muffin, ...) {return (void *) 0;}
 int
 main ()
 {
@@ -18988,7 +19051,7 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static void __attribute__((weakref("foo"))) *test(void *muffin, ...) {return (void *) 0;}
+$attribute_scope void __attribute__((weakref("foo"))) *test(void *muffin, ...) {return (void *) 0;}
 int
 main ()
 {
@@ -19043,6 +19106,13 @@ $as_echo_n "checking for compiler 'attribute weak_import' support... " >&6; }
 saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Wall -Wno-unused -Werror"
 
+if test "x""" = "x"
+then
+attribute_scope="static"
+else
+attribute_scope=""""
+fi
+
 if test "x" = "x"
 then
 cat >conftest.$ac_ext <<_ACEOF
@@ -19051,7 +19121,7 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static void __attribute__((weak_import)) *test(void *muffin, ...) {return (void *) 0;}
+$attribute_scope void __attribute__((weak_import)) *test(void *muffin, ...) {return (void *) 0;}
 int
 main ()
 {
@@ -19102,7 +19172,7 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-static void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
+$attribute_scope void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
 int
 main ()
 {
