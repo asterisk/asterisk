@@ -8,6 +8,26 @@
 ===
 ======================================================================
 
+----------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 1.6.1.1 to Asterisk 1.6.1.2  -------------
+----------------------------------------------------------------------------------
+
+SIP Changes
+-----------
+ * Added a new 'ignoresdpversion' option to sip.conf.  When this is enabled
+   (either globally or for a specific peer), chan_sip will treat any SDP data
+   it receives as new data and update the media stream accordingly.  By
+   default, Asterisk will only modify the media stream if the SDP session
+   version received is different from the current SDP session version.  This
+   option is required to interoperate with devices that have non-standard SDP
+   session version implementations (observed with Microsoft OCS).  This option
+   is disabled by default. In addition, this behavior is automatic when the SDP received
+   is in response to a T.38 re-INVITE that Asterisk initiated. In this situation,
+   since the call will fail if Asterisk does not process the incoming SDP, Asterisk
+   will accept the SDP even if the SDP version number is not properly incremented,
+   but will generate a warning in the log indicating that the SIP peer that sent
+   the SDP should have the 'ignoresdpversion' option set.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.0 to Asterisk 1.6.1  -------------
 ------------------------------------------------------------------------------
