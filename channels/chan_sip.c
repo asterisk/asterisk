@@ -18345,6 +18345,10 @@ static int acf_channel_read(struct ast_channel *chan, const char *funcname, char
 
 	memset(buf, 0, buflen);
 
+	if (p == NULL) {
+		return -1;
+	}
+
 	if (!strcasecmp(args.param, "rtpdest")) {
 		struct sockaddr_in sin;
 
