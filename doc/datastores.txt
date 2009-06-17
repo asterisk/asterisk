@@ -19,8 +19,8 @@ This is a needed structure that contains information about a datastore, it's use
 
 * How do you create a data store?
 
-1. Use ast_channel_datastore_alloc function to return a pre-allocated structure
-   Ex: datastore = ast_channel_datastore_alloc(&example_datastore, "uid");
+1. Use ast_datastore_alloc function to return a pre-allocated structure
+   Ex: datastore = ast_datastore_alloc(&example_datastore, "uid");
    This function takes two arguments: (datastore info structure, uid)
 2. Attach data to pre-allocated structure.
    Ex: datastore->data = mysillydata;
@@ -36,7 +36,7 @@ void callback_destroy(void *data)
 }
 
 struct ast_datastore *datastore = NULL;
-datastore = ast_channel_datastore_alloc(&example_datastore, NULL);
+datastore = ast_datastore_alloc(&example_datastore, NULL);
 datastore->data = mysillydata;
 ast_channel_datastore_add(chan, datastore);
 
