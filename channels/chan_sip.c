@@ -1797,7 +1797,7 @@ struct sip_pvt {
 	int sessionid;				/*!< SDP Session ID */
 	long branch;				/*!< The branch identifier of this session */
 	long invite_branch;			/*!< The branch used when we sent the initial INVITE */
-	uint64_t sessionversion_remote;		/*!< Remote UA's SDP Session Version */
+	int64_t sessionversion_remote;		/*!< Remote UA's SDP Session Version */
 	struct sockaddr_in sa;			/*!< Our peer */
 	struct sockaddr_in redirip;		/*!< Where our RTP should be going if not to us */
 	struct sockaddr_in vredirip;		/*!< Where our Video RTP should be going if not to us */
@@ -7834,7 +7834,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	int last_rtpmap_codec=0;
 
 	char buf[SIPBUFSIZE];
-	uint64_t rua_version;
+	int64_t rua_version;
 	
 	int red_data_pt[10];
 	int red_num_gen = 0;
@@ -7887,7 +7887,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		ast_log(LOG_WARNING, "SDP syntax error in o= line\n");
 		return -1;
 	}
-	if (!sscanf(token, "%" SCNu64, &rua_version)) {
+	if (!sscanf(token, "%" SCNd64, &rua_version)) {
 		ast_log(LOG_WARNING, "SDP syntax error in o= line version\n");
 		return -1;
 	}
