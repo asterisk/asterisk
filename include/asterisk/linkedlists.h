@@ -765,15 +765,18 @@ struct {								\
  * calling this macro (the list entries are \b moved to the target list).
  */
 #define AST_LIST_APPEND_LIST(head, list, field) do {			\
-      if (!(head)->first) {						\
+	if (!(list)->first) {						\
+		break;							\
+	}								\
+	if (!(head)->first) {						\
 		(head)->first = (list)->first;				\
 		(head)->last = (list)->last;				\
-      } else {								\
+	} else {							\
 		(head)->last->field.next = (list)->first;		\
 		(head)->last = (list)->last;				\
-      }									\
-      (list)->first = NULL;						\
-      (list)->last = NULL;						\
+	}								\
+	(list)->first = NULL;						\
+	(list)->last = NULL;						\
 } while (0)
 
 #define AST_RWLIST_APPEND_LIST AST_LIST_APPEND_LIST
