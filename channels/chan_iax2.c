@@ -398,7 +398,7 @@ struct iax2_context {
 #define IAX_USEJITTERBUF        (uint64_t)(1 << 5)    /*!< Use jitter buffer */
 #define IAX_DYNAMIC             (uint64_t)(1 << 6)    /*!< dynamic peer */
 #define IAX_SENDANI             (uint64_t)(1 << 7)    /*!< Send ANI along with CallerID */
-        /* (1 << 8) is currently unused due to the deprecation of an old option. Go ahead, take it! */
+#define IAX_RTSAVE_SYSNAME      (uint64_t)(1 << 8)    /*!< Save Systname on Realtime Updates */
 #define IAX_ALREADYGONE         (uint64_t)(1 << 9)    /*!< Already disconnected */
 #define IAX_PROVISION           (uint64_t)(1 << 10)   /*!< This is a provisioning request */
 #define IAX_QUELCH              (uint64_t)(1 << 11)   /*!< Whether or not we quelch audio */
@@ -3627,12 +3627,19 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 {
 	char port[10];
 	char regseconds[20];
-	
+	const char *sysname = ast_config_AST_SYSTEM_NAME;
+	char *syslabel = NULL;
+
+	if (ast_strlen_zero(sysname))	/* No system name, disable this */
+		sysname = NULL;
+	else if (ast_test_flag64(&globalflags, IAX_RTSAVE_SYSNAME))
+		syslabel = "regserver";
+
 	snprintf(regseconds, sizeof(regseconds), "%d", (int)regtime);
 	snprintf(port, sizeof(port), "%d", ntohs(sin->sin_port));
 	ast_update_realtime("iaxpeers", "name", peername, 
 		"ipaddr", ast_inet_ntoa(sin->sin_addr), "port", port, 
-		"regseconds", regseconds, SENTINEL);
+		"regseconds", regseconds, syslabel, sysname, SENTINEL); /* note syslable can be NULL */
 }
 
 struct create_addr_info {
@@ -11644,6 +11651,8 @@ static int set_config(char *config_file, int reload)
 			ast_set2_flag64((&globalflags), ast_true(v->value), IAX_RTIGNOREREGEXPIRE);
 		else if (!strcasecmp(v->name, "rtupdate"))
 			ast_set2_flag64((&globalflags), ast_true(v->value), IAX_RTUPDATE);
+		else if (!strcasecmp(v->name, "rtsavesysname"))
+			ast_set2_flag64((&globalflags), ast_true(v->value), IAX_RTSAVE_SYSNAME);
 		else if (!strcasecmp(v->name, "trunktimestamps"))
 			ast_set2_flag64(&globalflags, ast_true(v->value), IAX_TRUNKTIMESTAMPS);
 		else if (!strcasecmp(v->name, "rtautoclear")) {

@@ -287,6 +287,9 @@ autokill=yes
 			; just like friends added from the config file only on a
 			; as-needed basis? (yes|no)
 
+;rtsavesysname=yes    ; Save systemname in realtime database at registration
+                      ; Default = no
+
 ;rtupdate=yes		; Send registry updates to database using realtime? (yes|no)
 			; If set to yes, when a IAX2 peer registers successfully,
 			; the ip address, the origination port, the registration period,

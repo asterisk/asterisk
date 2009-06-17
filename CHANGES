@@ -34,6 +34,11 @@ SIP Changes
    but will generate a warning in the log indicating that the SIP peer that sent
    the SDP should have the 'ignoresdpversion' option set.
 
+IAX2 Changes
+-----------
+ * Added rtsavesysname option into iax.conf to allow the systname to be saved
+   on realtime updates.
+
 Applications
 ------------
  * Added progress option to the app_dial D() option.  When progress DTMF is
