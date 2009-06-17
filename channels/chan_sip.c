@@ -21046,6 +21046,10 @@ static int acf_channel_read(struct ast_channel *chan, const char *funcname, char
 
 	memset(buf, 0, buflen);
 
+	if (p == NULL) {
+		return -1;
+	}
+
 	if (!strcasecmp(args.param, "peerip")) {
 		ast_copy_string(buf, p->sa.sin_addr.s_addr ? ast_inet_ntoa(p->sa.sin_addr) : "", buflen);
 	} else if (!strcasecmp(args.param, "recvip")) {
