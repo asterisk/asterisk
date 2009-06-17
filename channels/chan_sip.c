@@ -15519,6 +15519,10 @@ static int acf_channel_read(struct ast_channel *chan, char *funcname, char *prep
 	memset(buf, 0, buflen);
 	memset(&qos, 0, sizeof(qos));
 
+	if (p == NULL) {
+		return -1;
+	}
+
 	if (strcasecmp(args.type, "AUDIO") == 0) {
 		all = ast_rtp_get_quality(p->rtp, &qos);
 	} else if (strcasecmp(args.type, "VIDEO") == 0) {
