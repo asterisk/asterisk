@@ -2062,12 +2062,6 @@ struct sip_peer {
  * or once the previously completed registration one expires).
  * The registration can be in one of many states, though at the moment
  * the handling is a bit mixed.
- *
- * XXX \todo Reference count handling for this object has some problems with
- * respect to scheduler entries.  The ref count is handled in some places,
- * but not all of them.  There are some places where references get leaked
- * when this scheduler entry gets cancelled.  At worst, this would cause
- * memory leaks on reloads if registrations get removed from configuration.
  */
 struct sip_registry {
 	ASTOBJ_COMPONENTS_FULL(struct sip_registry,1,1);
@@ -11223,7 +11217,7 @@ static int sip_reregister(const void *data)
 
 	r->expire = -1;
 	__sip_do_register(r);
-	registry_unref(r, "unreg the re-registered");
+	registry_unref(r, "unref the re-register scheduled event");
 	return 0;
 }
 
@@ -18172,7 +18166,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 		break;
 	case 403:	/* Forbidden */
 		ast_log(LOG_WARNING, "Forbidden - wrong password on authentication for REGISTER for '%s' to '%s'\n", p->registry->username, p->registry->hostname);
-		AST_SCHED_DEL(sched, r->timeout);
+		AST_SCHED_DEL_UNREF(sched, r->timeout, registry_unref(r, "reg ptr unref from handle_response_register 403"));
 		r->regstate = REG_STATE_NOAUTH;
 		pvt_set_needdestroy(p, "received 403 response");
 		break;
@@ -18182,7 +18176,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 		if (r->call)
 			r->call = dialog_unref(r->call, "unsetting registry->call pointer-- case 404");
 		r->regstate = REG_STATE_REJECTED;
-		AST_SCHED_DEL(sched, r->timeout);
+		AST_SCHED_DEL_UNREF(sched, r->timeout, registry_unref(r, "reg ptr unref from handle_response_register 404"));
 		break;
 	case 407:	/* Proxy auth */
 		if (p->authtries == MAX_AUTHTRIES || do_register_auth(p, req, resp)) {
@@ -18201,8 +18195,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 	case 423:	/* Interval too brief */
 		r->expiry = atoi(get_header(req, "Min-Expires"));
 		ast_log(LOG_WARNING, "Got 423 Interval too brief for service %s@%s, minimum is %d seconds\n", p->registry->username, p->registry->hostname, r->expiry);
-		AST_SCHED_DEL(sched, r->timeout);
-		r->timeout = -1;
+		AST_SCHED_DEL_UNREF(sched, r->timeout, registry_unref(r, "reg ptr unref from handle_response_register 423"));
 		if (r->call) {
 			r->call = dialog_unref(r->call, "unsetting registry->call pointer-- case 423");
 			pvt_set_needdestroy(p, "received 423 response");
@@ -18223,7 +18216,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 		if (r->call)
 			r->call = dialog_unref(r->call, "unsetting registry->call pointer-- case 479");
 		r->regstate = REG_STATE_REJECTED;
-		AST_SCHED_DEL(sched, r->timeout);
+		AST_SCHED_DEL_UNREF(sched, r->timeout, registry_unref(r, "reg ptr unref from handle_response_register 479"));
 		break;
 	case 200:	/* 200 OK */
 		if (!r) {
@@ -18240,7 +18233,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 		if (r->timeout > -1) {
 			ast_debug(1, "Cancelling timeout %d\n", r->timeout);
 		}
-		AST_SCHED_DEL(sched, r->timeout);
+		AST_SCHED_DEL_UNREF(sched, r->timeout, registry_unref(r, "reg ptr unref from handle_response_register 200"));
 		if (r->call)
 			r->call = dialog_unref(r->call, "unsetting registry->call pointer-- case 200");
 		p->registry = registry_unref(p->registry, "unref registry entry p->registry");
@@ -18248,14 +18241,12 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		/* p->needdestroy = 1; */
 		
-		/* set us up for re-registering */
-		/* figure out how long we got registered for */
-		AST_SCHED_DEL(sched, r->expire);
-		
-		/* according to section 6.13 of RFC, contact headers override
-		   expires headers, so check those first */
+		/* set us up for re-registering
+		 * figure out how long we got registered for
+		 * according to section 6.13 of RFC, contact headers override
+		 * expires headers, so check those first */
 		expires = 0;
-		
+
 		/* XXX todo: try to save the extra call */
 		if (!ast_strlen_zero(get_header(req, "Contact"))) {
 			const char *contact = NULL;
@@ -18299,9 +18290,6 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 								registry_unref(_data,"unref in REPLACE del fail"), 
 								registry_unref(r,"unref in REPLACE add fail"), 
 								registry_addref(r,"The Addition side of REPLACE")); 
-		/* it is clear that we would not want to destroy the registry entry if we just
-		   scheduled a callback and recorded it in there! */
-		/* since we never bumped the count, we shouldn't decrement it! registry_unref(r, "unref registry ptr r"); if this gets deleted, p->registry will be a bad pointer! */ 
 	}
 	return 1;
 }
@@ -24319,18 +24307,19 @@ static int reload_config(enum channelreloadreason reason)
 		/* First, destroy all outstanding registry calls */
 		/* This is needed, since otherwise active registry entries will not be destroyed */
 		ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {  /* regl is locked */
-				
-				/* avoid a deadlock in the unlink_all call, if iterator->call's (a dialog) registry entry
-				   is this registry entry. In other words, if the dialog we are pointing to points back to 
-				   us, then if we get a lock on this object, and try to UNREF it, we will deadlock, because
-				   we already ... NO. This is not the problem. */
+
 				ASTOBJ_RDLOCK(iterator); /* now regl is locked, and the object is also locked */
 				if (iterator->call) {
 					ast_debug(3, "Destroying active SIP dialog for registry %s@%s\n", iterator->username, iterator->hostname);
 					/* This will also remove references to the registry */
 					dialog_unlink_all(iterator->call, TRUE, TRUE);
 					iterator->call = dialog_unref(iterator->call, "remove iterator->call from registry traversal");
-					/* iterator->call = sip_destroy(iterator->call); */
+				}
+				if (iterator->expire > -1) {
+					AST_SCHED_DEL_UNREF(sched, iterator->expire, registry_unref(iterator, "reg ptr unref from reload config"));
+				}
+				if (iterator->timeout > -1) {
+					AST_SCHED_DEL_UNREF(sched, iterator->timeout, registry_unref(iterator, "reg ptr unref from reload config"));
 				}
 				ASTOBJ_UNLOCK(iterator);
 		} while(0));
