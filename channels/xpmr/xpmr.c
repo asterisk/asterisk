@@ -157,7 +157,7 @@ i16 string_parse(char *src, char **dest, char ***ptrs)
 	TRACEJ(2,(" source len = %i\n",slen));
 
 	pd=*dest;
-	if(pd) free(pd);
+	free(pd);
     pd=calloc(slen+1,1);
 	memcpy(pd,src,slen);
 	*dest=pd;

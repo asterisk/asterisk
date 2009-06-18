@@ -3940,7 +3940,7 @@ struct  rpt_tele *tlist;
 struct	rpt *myrpt;
 struct	rpt_link *l,*l1,linkbase;
 struct	ast_channel *mychannel;
-int id_malloc, vmajor, vminor, m;
+int vmajor, vminor, m;
 char *p,*ct,*ct_copy,*ident, *nodename,*cp;
 time_t t;
 #ifdef	NEW_ASTERISK
@@ -3987,14 +3987,10 @@ struct dahdi_params par;
                 	ast_free(mytele);
                 	pthread_exit(NULL);
         	}
-		else{
-			id_malloc = 1;
-		}
 	}
 	else
 	{
 		ident = "";
-		id_malloc = 0;
 	}
 	rpt_mutex_unlock(&myrpt->lock);
 		
@@ -4010,8 +4006,7 @@ struct dahdi_params par;
 		ast_log(LOG_NOTICE,"Telemetry thread aborted at line %d, mode: %d\n",__LINE__, mytele->mode); /*@@@@@@@@@@@*/
 		rpt_mutex_unlock(&myrpt->lock);
 		ast_free(nodename);
-		if(id_malloc)
-			ast_free(ident);
+		ast_free(ident);
 		ast_free(mytele);		
 		pthread_exit(NULL);
 	}
@@ -4057,8 +4052,7 @@ struct dahdi_params par;
 		rpt_mutex_unlock(&myrpt->lock);
 		ast_log(LOG_NOTICE,"Telemetry thread aborted at line %d, mode: %d\n",__LINE__, mytele->mode); /*@@@@@@@@@@@*/
 		ast_free(nodename);
-		if(id_malloc)
-			ast_free(ident);
+		ast_free(ident);
 		ast_free(mytele);		
 		ast_hangup(mychannel);
 		pthread_exit(NULL);
@@ -4252,8 +4246,7 @@ struct dahdi_params par;
 				rpt_mutex_unlock(&myrpt->lock);
 				ast_log(LOG_NOTICE,"Telemetry thread aborted at line %d, mode: %d\n",__LINE__, mytele->mode); /*@@@@@@@@@@@*/
 				ast_free(nodename);
-				if(id_malloc)
-					ast_free(ident);
+				ast_free(ident);
 				ast_free(mytele);		
 				ast_hangup(mychannel);
 				pthread_exit(NULL);
@@ -4293,8 +4286,7 @@ struct dahdi_params par;
 				rpt_mutex_unlock(&myrpt->lock);
 				ast_log(LOG_NOTICE,"Telemetry thread aborted at line %d, mode: %d\n",__LINE__, mytele->mode); /*@@@@@@@@@@@*/
 				ast_free(nodename);
-				if(id_malloc)
-					ast_free(ident);
+				ast_free(ident);
 				ast_free(mytele);		
 				ast_hangup(mychannel);
 				pthread_exit(NULL);
@@ -4816,8 +4808,7 @@ struct dahdi_params par;
 				rpt_mutex_unlock(&myrpt->lock);
 				ast_log(LOG_NOTICE,"Telemetry thread aborted at line %d, mode: %d\n",__LINE__, mytele->mode); /*@@@@@@@@@@@*/
 				ast_free(nodename);
-				if(id_malloc)
-					ast_free(ident);
+				ast_free(ident);
 				ast_free(mytele);		
 				ast_hangup(mychannel);
 				pthread_exit(NULL);
@@ -5193,8 +5184,7 @@ struct dahdi_params par;
 	myrpt->active_telem = NULL;
 	rpt_mutex_unlock(&myrpt->lock);
 	ast_free(nodename);
-	if(id_malloc)
-		ast_free(ident);
+	ast_free(ident);
 	ast_free(mytele);		
 	ast_hangup(mychannel);
 #ifdef  APP_RPT_LOCK_DEBUG

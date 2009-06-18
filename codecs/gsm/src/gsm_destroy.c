@@ -22,5 +22,5 @@
 
 void gsm_destroy P1((S), gsm S)
 {
-	if (S) free((char *)S);
+	free((char *)S);
 }
