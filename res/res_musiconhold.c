@@ -1103,9 +1103,10 @@ static void moh_class_destructor(void *obj)
 	while ((member = AST_LIST_REMOVE_HEAD(&class->members, list))) {
 		free(member);
 	}
-	
+
 	if (class->thread) {
 		pthread_cancel(class->thread);
+		pthread_join(class->thread, NULL);
 		class->thread = AST_PTHREADT_NULL;
 	}
 
