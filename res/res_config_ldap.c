@@ -871,12 +871,8 @@ static struct ast_variable **realtime_ldap_base_ap(unsigned int *entries_count_p
 		}
 	}
 
-	if (filter)
-		ast_free(filter);
-
-	if (clean_basedn)
-		ast_free(clean_basedn);
-
+	ast_free(filter);
+	ast_free(clean_basedn);
 	ast_mutex_unlock(&ldap_lock);
 
 	return vars;
@@ -1270,10 +1266,8 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 			ldap_err2string(result));
 
 		ast_mutex_unlock(&ldap_lock);
-		if (filter)
-			free(filter);
-		if (clean_basedn)
-			free(clean_basedn);
+		free(filter);
+		free(clean_basedn);
 		ldap_msgfree(ldap_result);
 		ldap_mods_free(ldap_mods, 0);
 		return -1;
@@ -1296,10 +1290,8 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 	}
 
 	ast_mutex_unlock(&ldap_lock);
-	if (filter)
-		free(filter);
-	if (clean_basedn)
-		free(clean_basedn);
+	free(filter);
+	free(clean_basedn);
 	ldap_msgfree(ldap_result);
 	ldap_mods_free(ldap_mods, 0);
 	return num_entries;
