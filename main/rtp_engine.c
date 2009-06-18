@@ -50,6 +50,8 @@ struct ast_rtp_instance {
 	struct sockaddr_in local_address;
 	/*! Address that we are sending RTP to */
 	struct sockaddr_in remote_address;
+	/*! Alternate address that we are receiving RTP from */
+	struct sockaddr_in alt_remote_address;
 	/*! Instance that we are bridged to if doing remote or local bridging */
 	struct ast_rtp_instance *bridged;
 	/*! Payload and packetization information */
@@ -368,6 +370,20 @@ int ast_rtp_instance_set_remote_address(struct ast_rtp_instance *instance, struc
 
 	if (instance->engine->remote_address_set) {
 		instance->engine->remote_address_set(instance, &instance->remote_address);
+	}
+
+	return 0;
+}
+
+int ast_rtp_instance_set_alt_remote_address(struct ast_rtp_instance *instance, struct sockaddr_in *address)
+{
+	instance->alt_remote_address.sin_addr = address->sin_addr;
+	instance->alt_remote_address.sin_port = address->sin_port;
+
+	/* oink */
+
+	if (instance->engine->alt_remote_address_set) {
+		instance->engine->alt_remote_address_set(instance, &instance->alt_remote_address);
 	}
 
 	return 0;

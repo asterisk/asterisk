@@ -166,6 +166,7 @@ struct ast_rtp {
 
 	enum strict_rtp_state strict_rtp_state; /*!< Current state that strict RTP protection is in */
 	struct sockaddr_in strict_rtp_address;  /*!< Remote address information for strict RTP purposes */
+	struct sockaddr_in alt_rtp_address; /*!<Alternate remote address information */
 
 	struct rtp_red *red;
 };
@@ -257,6 +258,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_property property, int value);
 static int ast_rtp_fd(struct ast_rtp_instance *instance, int rtcp);
 static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct sockaddr_in *sin);
+static void ast_rtp_alt_remote_address_set(struct ast_rtp_instance *instance, struct sockaddr_in *sin);
 static int rtp_red_init(struct ast_rtp_instance *instance, int buffer_time, int *payloads, int generations);
 static int rtp_red_buffer(struct ast_rtp_instance *instance, struct ast_frame *frame);
 static int ast_rtp_local_bridge(struct ast_rtp_instance *instance0, struct ast_rtp_instance *instance1);
@@ -278,6 +280,7 @@ static struct ast_rtp_engine asterisk_rtp_engine = {
 	.prop_set = ast_rtp_prop_set,
 	.fd = ast_rtp_fd,
 	.remote_address_set = ast_rtp_remote_address_set,
+	.alt_remote_address_set = ast_rtp_alt_remote_address_set,
 	.red_init = rtp_red_init,
 	.red_buffer = rtp_red_buffer,
 	.local_bridge = ast_rtp_local_bridge,
@@ -1878,8 +1881,14 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		rtp->strict_rtp_state = STRICT_RTP_CLOSED;
 	} else if (rtp->strict_rtp_state == STRICT_RTP_CLOSED) {
 		if ((rtp->strict_rtp_address.sin_addr.s_addr != sin.sin_addr.s_addr) || (rtp->strict_rtp_address.sin_port != sin.sin_port)) {
-			ast_debug(1, "Received RTP packet from %s:%d, dropping due to strict RTP protection. Expected it to be from %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), ast_inet_ntoa(rtp->strict_rtp_address.sin_addr), ntohs(rtp->strict_rtp_address.sin_port));
-			return &ast_null_frame;
+			/* Hmm, not the strict addres. Perhaps we're getting audio from the alternate? */
+			if ((rtp->alt_rtp_address.sin_addr.s_addr == sin.sin_addr.s_addr) && (rtp->alt_rtp_address.sin_port == sin.sin_port)) {
+				/* ooh, we did! You're now the new expected address, son! */
+				rtp->strict_rtp_address = sin;
+			} else  {
+				ast_debug(1, "Received RTP packet from %s:%d, dropping due to strict RTP protection. Expected it to be from %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), ast_inet_ntoa(rtp->strict_rtp_address.sin_addr), ntohs(rtp->strict_rtp_address.sin_port));
+				return &ast_null_frame;
+			}
 		}
 	}
 
@@ -2196,6 +2205,18 @@ static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct
 	if (strictrtp) {
 		rtp->strict_rtp_state = STRICT_RTP_LEARN;
 	}
+
+	return;
+}
+
+static void ast_rtp_alt_remote_address_set(struct ast_rtp_instance *instance, struct sockaddr_in *sin)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	/* No need to futz with rtp->rtcp here because ast_rtcp_read is already able to adjust if receiving
+	 * RTCP from an "unexpected" source
+	 */
+	rtp->alt_rtp_address = *sin;
 
 	return;
 }
