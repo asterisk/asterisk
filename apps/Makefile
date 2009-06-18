@@ -22,7 +22,6 @@ ifneq ($(findstring ODBC_STORAGE,$(MENUSELECT_OPTS_app_voicemail)),)
 endif
 ifneq ($(findstring IMAP_STORAGE,$(MENUSELECT_OPTS_app_voicemail)),)
   MENUSELECT_DEPENDS_app_voicemail+=$(MENUSELECT_DEPENDS_IMAP_STORAGE)
-  MENUSELECT_DEPENDS_app_directory+=$(MENUSELECT_DEPENDS_IMAP_STORAGE)
 endif
 
 all: _all
