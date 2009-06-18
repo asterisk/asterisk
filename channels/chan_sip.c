@@ -6623,19 +6623,20 @@ static int sip_register(const char *value, int lineno)
 	enum sip_transport transport = SIP_TRANSPORT_UDP;
 	char buf[256] = "";
 	char *username = NULL;
-	char *hostname=NULL, *secret=NULL, *authuser=NULL, *expire=NULL;
+	char *hostname=NULL, *secret=NULL, *authuser=NULL, *expire=NULL, *buf2=NULL;
 	char *callback=NULL;
 
 	if (!value)
 		return -1;
 
 	ast_copy_string(buf, value, sizeof(buf));
+	buf2 = strrchr(buf, '@');
 
-	/* split [/contact][~expiry] */
-	expire = strchr(buf, '~');
+	/* split [/extension][~expiry] */
+	expire = strchr(buf2, '~');
 	if (expire)
 		*expire++ = '\0';
-	callback = strrchr(buf, '/');
+	callback = strrchr(buf2, '/');
 	if (callback)
 		*callback++ = '\0';
 	if (ast_strlen_zero(callback))
