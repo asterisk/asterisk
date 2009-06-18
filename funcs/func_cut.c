@@ -150,87 +150,84 @@ static int sort_internal(struct ast_channel *chan, char *data, char *buffer, siz
 
 static int cut_internal(struct ast_channel *chan, char *data, struct ast_str **buf, ssize_t buflen)
 {
-	char *parse;
+	char *parse, ds[2], *var_expr;
 	size_t delim_consumed;
+	struct ast_str *var_value;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(varname);
 		AST_APP_ARG(delimiter);
 		AST_APP_ARG(field);
 	);
-	struct ast_str *str = ast_str_create(16);
 
 	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	/* Check and parse arguments */
+	/* Check arguments */
 	if (args.argc < 3) {
-		ast_free(str);
 		return ERROR_NOARG;
-	} else {
-		char ds[2] = "";
-		char *tmp = alloca(strlen(args.varname) + 4);
+	} else if (!(var_expr = alloca(strlen(args.varname) + 4))) {
+		return ERROR_NOMEM;
+	}
 
-		if (tmp) {
-			snprintf(tmp, strlen(args.varname) + 4, "${%s}", args.varname);
-		} else {
-			ast_free(str);
-			return ERROR_NOMEM;
-		}
+	/* Get the value of the variable named in the 1st argument */
+	snprintf(var_expr, strlen(args.varname) + 4, "${%s}", args.varname);
+	var_value = ast_str_create(16);
+	ast_str_substitute_variables(&var_value, 0, chan, var_expr);
 
-		if (ast_get_encoded_char(args.delimiter, ds, &delim_consumed))
-			ast_copy_string(ds, "-", sizeof(ds));
+	/* Copy delimiter from 2nd argument to ds[] possibly decoding backslash escapes */
+	if (ast_get_encoded_char(args.delimiter, ds, &delim_consumed)) {
+		ast_copy_string(ds, "-", sizeof(ds));
+	}
+	ds[1] = '\0';
 
-		ast_str_substitute_variables(&str, 0, chan, tmp);
+	if (ast_str_strlen(var_value)) {
+		int curfieldnum = 1;
+		char *curfieldptr = ast_str_buffer(var_value);
+		int out_field_count = 0;
 
-		if (ast_str_strlen(str)) {
-			int curfieldnum = 1;
-			char *tmp2 = ast_str_buffer(str);
-			int firstfield = 1;
-			while (tmp2 != NULL && args.field != NULL) {
-				char *nextgroup = strsep(&(args.field), "&");
-				int num1 = 0, num2 = INT_MAX;
-				char trashchar;
+		while (curfieldptr != NULL && args.field != NULL) {
+			char *next_range = strsep(&(args.field), "&");
+			int start_field, stop_field;
+			char trashchar;
 
-				if (sscanf(nextgroup, "%d-%d", &num1, &num2) == 2) {
-					/* range with both start and end */
-				} else if (sscanf(nextgroup, "-%d", &num2) == 1) {
-					/* range with end */
-					num1 = 0;
-				} else if ((sscanf(nextgroup, "%d%c", &num1, &trashchar) == 2) && (trashchar == '-')) {
-					/* range with start */
-					num2 = INT_MAX;
-				} else if (sscanf(nextgroup, "%d", &num1) == 1) {
-					/* single number */
-					num2 = num1;
-				} else {
-					ast_free(str);
-					return ERROR_USAGE;
-				}
+			if (sscanf(next_range, "%d-%d", &start_field, &stop_field) == 2) {
+				/* range with both start and end */
+			} else if (sscanf(next_range, "-%d", &stop_field) == 1) {
+				/* range with end only */
+				start_field = 1;
+			} else if ((sscanf(next_range, "%d%c", &start_field, &trashchar) == 2) && (trashchar == '-')) {
+				/* range with start only */
+				stop_field = INT_MAX;
+			} else if (sscanf(next_range, "%d", &start_field) == 1) {
+				/* single number */
+				stop_field = start_field;
+			} else {
+				/* invalid field spec */
+				ast_free(var_value);
+				return ERROR_USAGE;
+			}
 
-				/* Get to start, if any */
-				if (num1 > 0) {
-					while (tmp2 != NULL && curfieldnum < num1) {
-						tmp2 = strchr(tmp2 + 1, ds[0]);
-						curfieldnum++;
-					}
-				}
+			/* Get to start, if not there already */
+			while (curfieldptr != NULL && curfieldnum < start_field) {
+				strsep(&curfieldptr, ds);
+				curfieldnum++;
+			}
 
-				/* Most frequent problem is the expectation of reordering fields */
-				if ((num1 > 0) && (curfieldnum > num1))
-					ast_log(LOG_WARNING, "We're already past the field you wanted?\n");
+			/* Most frequent problem is the expectation of reordering fields */
+			if (curfieldnum > start_field) {
+				ast_log(LOG_WARNING, "We're already past the field you wanted?\n");
+			}
 
-				/* Output fields until we either run out of fields or num2 is reached */
-				while (tmp2 != NULL && curfieldnum <= num2) {
-					char *tmp3 = strsep(&tmp2, ds);
-					ast_str_append(buf, buflen, "%s%s", firstfield ? "" : ds, tmp3);
-					firstfield = 0;
-					curfieldnum++;
-				}
+			/* Output fields until we either run out of fields or stop_field is reached */
+			while (curfieldptr != NULL && curfieldnum <= stop_field) {
+				char *field_value = strsep(&curfieldptr, ds);
+				ast_str_append(buf, buflen, "%s%s", out_field_count++ ? ds : "", field_value);
+				curfieldnum++;
 			}
 		}
 	}
-	ast_free(str);
+	ast_free(var_value);
 	return 0;
 }
 
