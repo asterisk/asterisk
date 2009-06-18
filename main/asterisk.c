@@ -941,8 +941,7 @@ void ast_unregister_atexit(void (*func)(void))
 	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&atexits);
 
-	if (ae)
-		free(ae);
+	free(ae);
 }
 
 /* Sending commands from consoles back to the daemon requires a terminating NULL */

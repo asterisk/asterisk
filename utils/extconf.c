@@ -2993,8 +2993,7 @@ static struct ast_var_t *ast_var_assign(const char *name, const char *value)
 	
 static void ast_var_delete(struct ast_var_t *var)
 {
-	if (var)
-		free(var);
+	free(var);
 }
 
 

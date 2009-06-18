@@ -2341,6 +2341,10 @@ static void misdn_save_data(int id, char *p1, int l1, char *p2, int l2)
 
 	if (!rx || !tx) {
 		cb_log(0,0,"Couldn't open files: %s\n",strerror(errno));
+		if (rx)
+			fclose(rx);
+		if (tx)
+			fclose(tx);
 		return ;
 	}
 

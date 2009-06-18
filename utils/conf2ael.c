@@ -471,7 +471,7 @@ int main(int argc, char **argv)
 								if (mon) {
 									*mon++ = 0;
 									/* now all 4 fields are set; what do we do? */
-									pvalIncludesAddIncludeWithTimeConstraints(incl, all, hr, dow, dom, mon);
+									pvalIncludesAddIncludeWithTimeConstraints(incl, strdup(all), strdup(hr), strdup(dow), strdup(dom), strdup(mon));
 									/* the original data is always best to keep (no 2-min rounding) */
 								} else {
 									ast_log(LOG_ERROR,"No month spec attached to include!\n");
@@ -483,6 +483,7 @@ int main(int argc, char **argv)
 							ast_log(LOG_ERROR,"No day of week spec attached to include!\n");
 						}
 					}
+					free(all);
 				}
 				tmpi = tmpi->next;
 			}

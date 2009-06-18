@@ -451,8 +451,7 @@ static char *complete_dialplan_remove_extension(struct ast_cli_args *a)
 
 		ast_unlock_contexts();
 	error2:
-		if (exten)
-			free(exten);
+		free(exten);
 	} else if (a->pos == 4) { /* 'dialplan remove extension EXT _X_' (priority) */
 		char *exten = NULL, *context, *cid, *p;
 		struct ast_context *c;
@@ -509,8 +508,7 @@ static char *complete_dialplan_remove_extension(struct ast_cli_args *a)
 		}
 		ast_unlock_contexts();
 	error3:
-		if (exten)
-			free(exten);
+		free(exten);
 	}
 	return ret; 
 }
@@ -1138,8 +1136,7 @@ static char *complete_dialplan_add_ignorepat(struct ast_cli_args *a)
 				ret = strdup(ast_get_context_name(c));
 		}
 
-		if (ignorepat)
-			free(ignorepat);
+		free(ignorepat);
 		ast_unlock_contexts();
 		return ret;
 	}

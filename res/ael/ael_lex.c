@@ -3221,8 +3221,7 @@ static void pbcpush(char x)
 
 void ael_yyfree(void *ptr, yyscan_t yyscanner)
 {
-	if (ptr)
-		free( (char*) ptr );
+	free( (char*) ptr );
 }
 
 static int pbcpop(char x)
@@ -3361,8 +3360,7 @@ struct pval *ael2_parse(char *filename, int *errors)
 		*errors = 1;
 		return 0;
 	}
-	if (my_file)
-		free(my_file);
+	free(my_file);
 	my_file = strdup(filename);
 	stat(filename, &stats);
 	buffer = (char*)malloc(stats.st_size+2);

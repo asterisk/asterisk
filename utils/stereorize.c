@@ -156,4 +156,7 @@ int main( int argcount, char *args[])
       }
    }
    /* That was an endless loop. This point is never reached. */
+   free(leftsample);
+   free(rightsample);
+   free(stereosample);
 }
