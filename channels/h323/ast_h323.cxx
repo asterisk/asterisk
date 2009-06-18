@@ -572,8 +572,7 @@ MyH323Connection::MyH323Connection(MyH323EndPoint & ep, unsigned callReference,
 {
 #ifdef H323_H450
 	/* Dispatcher will free out all registered handlers */
-	if (h450dispatcher)
-		delete h450dispatcher;
+	delete h450dispatcher;
 	h450dispatcher = new H450xDispatcher(*this);
 	h4502handler = new H4502Handler(*this, *h450dispatcher);
 	h4504handler = new MyH4504Handler(*this, *h450dispatcher);
@@ -1988,8 +1987,9 @@ void MyH323Connection::SetCapabilities(int caps, int dtmf_mode, void *_prefs, in
 	if (cap && cap->IsUsable(*this)) {
 		lastcap++;
 		lastcap = localCapabilities.SetCapability(0, lastcap, cap);
-	} else if (cap)
+	} else {
 		delete cap;				/* Capability is not usable */
+	}
 
 	dtmfMode = dtmf_mode;
 	if (h323debug) {
@@ -2001,8 +2001,9 @@ void MyH323Connection::SetCapabilities(int caps, int dtmf_mode, void *_prefs, in
 			cap = new H323_UserInputCapability(H323_UserInputCapability::BasicString);
 			if (cap && cap->IsUsable(*this)) {
 				lastcap = localCapabilities.SetCapability(0, lastcap, cap);
-			} else if (cap)
+			} else {
 				delete cap;		/* Capability is not usable */
+			}	
 			sendUserInputMode = SendUserInputAsString;
 		} else {
 			if ((dtmfMode & H323_DTMF_RFC2833) != 0) {
@@ -2011,8 +2012,7 @@ void MyH323Connection::SetCapabilities(int caps, int dtmf_mode, void *_prefs, in
 					lastcap = localCapabilities.SetCapability(0, lastcap, cap);
 				else {
 					dtmfMode |= H323_DTMF_SIGNAL;
-					if (cap)
-						delete cap;	/* Capability is not usable */
+					delete cap;	/* Capability is not usable */
 				}
 			}
 			if ((dtmfMode & H323_DTMF_CISCO) != 0) {
@@ -2024,8 +2024,7 @@ void MyH323Connection::SetCapabilities(int caps, int dtmf_mode, void *_prefs, in
 					dtmfMode |= H323_DTMF_SIGNAL;
 				} else {
 					dtmfMode |= H323_DTMF_SIGNAL;
-					if (cap)
-						delete cap;	/* Capability is not usable */
+					delete cap;	/* Capability is not usable */
 				}
 			}
 			if ((dtmfMode & H323_DTMF_SIGNAL) != 0) {
@@ -2033,7 +2032,7 @@ void MyH323Connection::SetCapabilities(int caps, int dtmf_mode, void *_prefs, in
 				cap = new H323_UserInputCapability(H323_UserInputCapability::SignalToneH245);
 				if (cap && cap->IsUsable(*this))
 					lastcap = localCapabilities.SetCapability(0, lastcap, cap);
-				else if (cap)
+				else
 					delete cap;	/* Capability is not usable */
 			}
 			sendUserInputMode = SendUserInputAsTone;	/* RFC2833 transmission handled at Asterisk level */

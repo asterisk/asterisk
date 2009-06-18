@@ -1271,10 +1271,8 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 			ldap_err2string(result));
 
 		ast_mutex_unlock(&ldap_lock);
-		if (filter)
-			free(filter);
-		if (clean_basedn)
-			free(clean_basedn);
+		free(filter);
+		free(clean_basedn);
 		ldap_msgfree(ldap_result_msg);
 		ldap_mods_free(ldap_mods, 0);
 		return -1;
@@ -1297,10 +1295,8 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 	}
 
 	ast_mutex_unlock(&ldap_lock);
-	if (filter)
-		free(filter);
-	if (clean_basedn)
-		free(clean_basedn);
+	free(filter);
+	free(clean_basedn);
 	ldap_msgfree(ldap_result_msg);
 	ldap_mods_free(ldap_mods, 0);
 	return num_entries;
@@ -1458,10 +1454,8 @@ static int update2_ldap(const char *basedn, const char *table_name, va_list ap)
 			ldap_err2string(result));
 
 		ast_mutex_unlock(&ldap_lock);
-		if (filter)
-			free(filter);
-		if (clean_basedn)
-			free(clean_basedn);
+		free(filter);
+		free(clean_basedn);
 		ldap_msgfree(ldap_result_msg);
 		ldap_mods_free(ldap_mods, 0);
 		return -1;
