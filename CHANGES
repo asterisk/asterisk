@@ -163,6 +163,14 @@ CDR
 ---
  * Multiple files and formats can now be specified in cdr_custom.conf.
 
+Calendaring for Asterisk
+------------------------
+ * A new set of modules were added supporing calendar integration with Asterisk.
+   Dialplan functions for reading from and writing to calendars are included,
+   as well as the ability to execute dialplan logic upon calendar event notifications.
+   iCalendar, CalDAV, and Exchange Server calendars are supported (Exchange support
+   only tested on Exchange Server 2003 with no support for forms-based authentication).
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.1 to Asterisk 1.6.2  -------------
 ------------------------------------------------------------------------------
