@@ -903,6 +903,9 @@ static int require_odbc(const char *database, const char *table, va_list ap)
 				case SQL_CHAR:
 				case SQL_VARCHAR:
 				case SQL_LONGVARCHAR:
+				case SQL_WCHAR:
+				case SQL_WVARCHAR:
+				case SQL_WLONGVARCHAR:
 				case SQL_BINARY:
 				case SQL_VARBINARY:
 				case SQL_LONGVARBINARY:
@@ -984,7 +987,7 @@ static int require_odbc(const char *database, const char *table, va_list ap)
 					if (type != RQ_UINTEGER1 && type != RQ_INTEGER1 &&
 						type != RQ_UINTEGER2 && type != RQ_INTEGER2 &&
 						type != RQ_UINTEGER3 && type != RQ_INTEGER3 &&
-						type != RQ_UINTEGER4) {
+						type != RQ_INTEGER4) {
 						WARN_TYPE_OR_LENGTH(size)
 					}
 					break;
@@ -1003,7 +1006,7 @@ static int require_odbc(const char *database, const char *table, va_list ap)
 						type != RQ_UINTEGER2 && type != RQ_INTEGER2 &&
 						type != RQ_UINTEGER3 && type != RQ_INTEGER3 &&
 						type != RQ_UINTEGER4 && type != RQ_INTEGER4 &&
-						type != RQ_UINTEGER8) {
+						type != RQ_INTEGER8) {
 						WARN_TYPE_OR_LENGTH(size)
 					}
 					break;
