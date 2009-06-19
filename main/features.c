@@ -2952,7 +2952,9 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				bridge_cdr = NULL;
 			}
 		}
-		ast_set_flag(chan, AST_FLAG_BRIDGE_HANGUP_RUN);
+		if (chan->priority != 1 || !spawn_error) {
+			ast_set_flag(chan, AST_FLAG_BRIDGE_HANGUP_RUN);
+		}
 		ast_channel_unlock(chan);
 		/* protect the lastapp/lastdata against the effects of the hangup/dialplan code */
 		if (bridge_cdr) {
