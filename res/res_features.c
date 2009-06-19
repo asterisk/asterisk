@@ -1991,7 +1991,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		char savelastapp[AST_MAX_EXTENSION];
 		char savelastdata[AST_MAX_EXTENSION];
 		char save_exten[AST_MAX_EXTENSION];
-		int  save_prio;
+		int  save_prio, spawn_error = 0;
 		
 		autoloopflag = ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP);
 		ast_set_flag(chan, AST_FLAG_IN_AUTOLOOP);
@@ -2013,7 +2013,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		chan->priority = 1;
 		ast_channel_unlock(chan);
 		while(ast_exists_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num)) {
-			if (ast_spawn_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num)) {
+			if ((spawn_error = ast_spawn_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num))) {
 				/* Something bad happened, or a hangup has been requested. */
 				if (option_debug)
 					ast_log(LOG_DEBUG, "Spawn h extension (%s,%s,%d) exited non-zero on '%s'\n", chan->context, chan->exten, chan->priority, chan->name);
@@ -2034,7 +2034,9 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				bridge_cdr = NULL;
 			}
 		}
-		ast_set_flag(chan, AST_FLAG_BRIDGE_HANGUP_RUN);
+		if (chan->priority != 1 || !spawn_error) {
+			ast_set_flag(chan, AST_FLAG_BRIDGE_HANGUP_RUN);
+		}
 		ast_channel_unlock(chan);
 		/* protect the lastapp/lastdata against the effects of the hangup/dialplan code */
 		if (bridge_cdr) {
