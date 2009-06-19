@@ -6081,7 +6081,7 @@ static void try_suggested_sip_codec(struct sip_pvt *p)
 	chan = ast_channel_ref(p->owner);
 	while (ast_channel_trylock(chan)) {
 		sip_pvt_unlock(p);
-		usleep(1);
+		sched_yield();
 		sip_pvt_lock(p);
 	}
 
