@@ -5338,7 +5338,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		return res;
 	}
 	p->callingpres = ast->cid.cid_pres;
-	p->jointcapability = ast_translate_available_formats(p->capability, p->prefcodec);
+	p->jointcapability = ast_rtp_instance_available_formats(p->rtp, p->capability, p->prefcodec);
 	p->jointnoncodeccapability = p->noncodeccapability;
 
 	/* If there are no audio formats left to offer, punt */

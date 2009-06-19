@@ -353,6 +353,8 @@ struct ast_rtp_engine {
 	int (*activate)(struct ast_rtp_instance *instance);
 	/*! Callback to request that the RTP engine send a STUN BIND request */
 	void (*stun_request)(struct ast_rtp_instance *instance, struct sockaddr_in *suggestion, const char *username);
+	/*! Callback to get the transcodeable formats supported */
+	int (*available_formats)(struct ast_rtp_instance *instance, int to_endpoint, int to_asterisk);
 	/*! Linked list information */
 	AST_RWLIST_ENTRY(ast_rtp_engine) entry;
 };
@@ -1496,6 +1498,26 @@ int ast_rtp_instance_set_write_format(struct ast_rtp_instance *instance, int for
  * \since 1.6.3
  */
 int ast_rtp_instance_make_compatible(struct ast_channel *chan, struct ast_rtp_instance *instance, struct ast_channel *peer);
+
+/*! \brief Request the formats that can be transcoded
+ *
+ * \param instance The RTP instance
+ * \param to_endpoint Formats being sent/received towards the endpoint
+ * \param to_asterisk Formats being sent/received towards Asterisk
+ *
+ * \retval supported formats
+ *
+ * Example usage:
+ *
+ * \code
+ * ast_rtp_instance_available_formats(instance, AST_FORMAT_ULAW, AST_FORMAT_SLINEAR);
+ * \endcode
+ *
+ * This sees if it is possible to have ulaw communicated to the endpoint but signed linear received into Asterisk.
+ *
+ * \since 1.6.3
+ */
+int ast_rtp_instance_available_formats(struct ast_rtp_instance *instance, int to_endpoint, int to_asterisk);
 
 /*!
  * \brief Indicate to the RTP engine that packets are now expected to be sent/received on the RTP instance

@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/pbx.h"
+#include "asterisk/translate.h"
 
 /*! Structure that represents an RTP session (instance) */
 struct ast_rtp_instance {
@@ -1570,6 +1571,17 @@ int ast_rtp_instance_make_compatible(struct ast_channel *chan, struct ast_rtp_in
 	peer_instance = NULL;
 
 	return res;
+}
+
+int ast_rtp_instance_available_formats(struct ast_rtp_instance *instance, int to_endpoint, int to_asterisk)
+{
+	int formats;
+
+	if (instance->engine->available_formats && (formats = instance->engine->available_formats(instance, to_endpoint, to_asterisk))) {
+		return formats;
+	}
+
+	return ast_translate_available_formats(to_endpoint, to_asterisk);
 }
 
 int ast_rtp_instance_activate(struct ast_rtp_instance *instance)
