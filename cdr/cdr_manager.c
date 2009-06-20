@@ -46,6 +46,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static char *name = "cdr_manager";
 
 static int enablecdr = 0;
+
+/*! 
+ * XXX
+ * \bug The handling of this variable is not thread-safe.  Crashes are possible on reload.
+ */
 static struct ast_str *customfields;
 
 static int manager_log(struct ast_cdr *cdr);
