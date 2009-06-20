@@ -374,7 +374,7 @@ static int transmit_audio(fax_session *s)
 	struct timeval now, start, state_change;
 	enum ast_control_t38 t38control;
 
-#if SPANDSP_RELEASE_DATE >= 20081012
+#if SPANDSP_RELEASE_DATE >= 20080725
         /* for spandsp shaphots 0.0.6 and higher */
         t30state = &fax.t30;
 #else
@@ -553,7 +553,7 @@ static int transmit_t38(fax_session *s)
 	t30_state_t *t30state;
 	t38_core_state_t *t38state;
 
-#if SPANDSP_RELEASE_DATE >= 20081012
+#if SPANDSP_RELEASE_DATE >= 20080725
 	/* for spandsp shaphots 0.0.6 and higher */
 	t30state = &t38.t30;
 	t38state = &t38.t38_fe.t38;
