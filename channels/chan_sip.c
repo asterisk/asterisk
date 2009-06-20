@@ -3730,9 +3730,9 @@ static void try_suggested_sip_codec(struct sip_pvt *p)
 	const char *codec;
 
 	while (p->owner && ast_channel_trylock(p->owner)) {
-		sip_pvt_unlock(p);
+		ast_mutex_unlock(&p->lock);
 		sched_yield();
-		sip_pvt_lock(p);
+		ast_mutex_lock(&p->lock);
 	}
 
 	if (!p->owner)
