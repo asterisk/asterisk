@@ -663,7 +663,6 @@ early_release:
 static int unload_module(void)
 {
 	ast_cdr_unregister(name);
-	usleep(1);
 	if (AST_RWLIST_WRLOCK(&odbc_tables)) {
 		ast_cdr_register(name, ast_module_info->description, odbc_log);
 		ast_log(LOG_ERROR, "Unable to lock column list.  Unload failed.\n");

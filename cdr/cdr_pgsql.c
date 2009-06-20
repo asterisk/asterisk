@@ -331,10 +331,9 @@ static int pgsql_log(struct ast_cdr *cdr)
 static int unload_module(void)
 {
 	struct columns *current;
+
 	ast_cdr_unregister(name);
 
-	/* Give all threads time to finish */
-	usleep(1);
 	PQfinish(conn);
 
 	if (pghostname)

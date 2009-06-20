@@ -148,13 +148,16 @@ void ast_cdr_unregister(const char *name)
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&be_list, i, list) {
 		if (!strcasecmp(name, i->name)) {
 			AST_RWLIST_REMOVE_CURRENT(list);
-			ast_verb(2, "Unregistered '%s' CDR backend\n", name);
-			ast_free(i);
 			break;
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&be_list);
+
+	if (i) {
+		ast_verb(2, "Unregistered '%s' CDR backend\n", name);
+		ast_free(i);
+	}
 }
 
 int ast_cdr_isset_unanswered(void)
