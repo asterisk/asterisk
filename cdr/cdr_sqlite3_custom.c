@@ -61,6 +61,8 @@ static const char name[] = "cdr_sqlite3_custom";
 static sqlite3 *db = NULL;
 
 static char table[80];
+
+/*! XXX \bug Handling of this variable has crash potential on reload */
 static char *columns;
 
 struct values {
