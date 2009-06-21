@@ -47,11 +47,8 @@ static char *name = "cdr_manager";
 
 static int enablecdr = 0;
 
-/*! 
- * XXX
- * \bug The handling of this variable is not thread-safe.  Crashes are possible on reload.
- */
 static struct ast_str *customfields;
+AST_RWLOCK_DEFINE_STATIC(customfields_lock);
 
 static int manager_log(struct ast_cdr *cdr);
 
@@ -73,11 +70,6 @@ static int load_config(int reload)
 		return -1;
 	}
 
-	if (reload && customfields) {
-		ast_free(customfields);
-	}
-	customfields = NULL;
-
 	if (!cfg) {
 		/* Standard configuration */
 		ast_log(LOG_WARNING, "Failed to load configuration file. Module not activated.\n");
@@ -85,6 +77,15 @@ static int load_config(int reload)
 			ast_cdr_unregister(name);
 		enablecdr = 0;
 		return -1;
+	}
+
+	if (reload) {
+		ast_rwlock_wrlock(&customfields_lock);
+	}
+
+	if (reload && customfields) {
+		ast_free(customfields);
+		customfields = NULL;
 	}
 
 	while ( (cat = ast_category_browse(cfg, cat)) ) {
@@ -113,6 +114,10 @@ static int load_config(int reload)
 				v = v->next;
 			}
 		}
+	}
+
+	if (reload) {
+		ast_rwlock_unlock(&customfields_lock);
 	}
 
 	ast_config_destroy(cfg);
@@ -148,9 +153,9 @@ static int manager_log(struct ast_cdr *cdr)
 	ast_localtime(&cdr->end, &timeresult, NULL);
 	ast_strftime(strEndTime, sizeof(strEndTime), DATE_FORMAT, &timeresult);
 
-	buf[0] = 0;
-	/* Custom fields handling */
-	if (customfields != NULL && ast_str_strlen(customfields)) {
+	buf[0] = '\0';
+	ast_rwlock_rdlock(&customfields_lock);
+	if (customfields && ast_str_strlen(customfields)) {
 		struct ast_channel *dummy = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Substitution/%p", cdr);
 		if (!dummy) {
 			ast_log(LOG_ERROR, "Unable to allocate channel for variable substitution.\n");
@@ -160,6 +165,7 @@ static int manager_log(struct ast_cdr *cdr)
 		pbx_substitute_variables_helper(dummy, ast_str_buffer(customfields), buf, sizeof(buf) - 1);
 		ast_channel_release(dummy);
 	}
+	ast_rwlock_unlock(&customfields_lock);
 
 	manager_event(EVENT_FLAG_CDR, "Cdr",
 	    "AccountCode: %s\r\n"
