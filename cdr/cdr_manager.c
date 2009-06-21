@@ -46,7 +46,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static char *name = "cdr_manager";
 
 static int enablecdr = 0;
-struct ast_str *customfields;
+
+static struct ast_str *customfields;
+AST_RWLOCK_DEFINE_STATIC(customfields_lock);
 
 static int manager_log(struct ast_cdr *cdr);
 
@@ -63,11 +65,6 @@ static int load_config(int reload)
 		return 0;
 	}
 
-	if (reload && customfields) {
-		ast_free(customfields);
-	}
-	customfields = NULL;
-
 	if (!cfg) {
 		/* Standard configuration */
 		ast_log(LOG_WARNING, "Failed to load configuration file. Module not activated.\n");
@@ -77,6 +74,15 @@ static int load_config(int reload)
 		return -1;
 	}
 	
+	if (reload) {
+		ast_rwlock_wrlock(&customfields_lock);
+	}
+
+	if (reload && customfields) {
+		ast_free(customfields);
+		customfields = NULL;
+	}
+
 	while ( (cat = ast_category_browse(cfg, cat)) ) {
 		if (!strcasecmp(cat, "general")) {
 			v = ast_variable_browse(cfg, cat);
@@ -105,6 +111,10 @@ static int load_config(int reload)
 		}
 	}
 	
+	if (reload) {
+		ast_rwlock_unlock(&customfields_lock);
+	}
+
 	ast_config_destroy(cfg);
 
 	if (enablecdr && !newenablecdr)
@@ -139,13 +149,14 @@ static int manager_log(struct ast_cdr *cdr)
 	ast_localtime(&cdr->end, &timeresult, NULL);
 	ast_strftime(strEndTime, sizeof(strEndTime), DATE_FORMAT, &timeresult);
 
-	buf[0] = 0;
-	/* Custom fields handling */
-	if (customfields != NULL && customfields->used > 0) {
+	buf[0] = '\0';
+	ast_rwlock_rdlock(&customfields_lock);
+	if (customfields && ast_str_strlen(customfields)) {
 		memset(&dummy, 0, sizeof(dummy));
 		dummy.cdr = cdr;
 		pbx_substitute_variables_helper(&dummy, customfields->str, buf, sizeof(buf) - 1);
 	}
+	ast_rwlock_unlock(&customfields_lock);
 
 	manager_event(EVENT_FLAG_CDR, "Cdr",
 	    "AccountCode: %s\r\n"
