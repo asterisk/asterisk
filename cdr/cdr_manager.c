@@ -59,12 +59,13 @@ static int load_config(int reload)
 	int newenablecdr = 0;
 
 	cfg = ast_config_load(CONF_FILE, config_flags);
-	if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+	if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
 		return 0;
+	}
 
 	if (cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_ERROR, "Config file '%s' could not be parsed\n", CONF_FILE);
-		return 1;
+		return -1;
 	}
 
 	if (reload && customfields) {
@@ -78,7 +79,7 @@ static int load_config(int reload)
 		if (enablecdr)
 			ast_cdr_unregister(name);
 		enablecdr = 0;
-		return 0;
+		return -1;
 	}
 
 	while ( (cat = ast_category_browse(cfg, cat)) ) {
@@ -117,7 +118,7 @@ static int load_config(int reload)
 		ast_cdr_register(name, "Asterisk Manager Interface CDR Backend", manager_log);
 	enablecdr = newenablecdr;
 
-	return 1;
+	return 0;
 }
 
 static int manager_log(struct ast_cdr *cdr)
@@ -190,9 +191,9 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	/* Configuration file */
-	if (!load_config(0))
+	if (load_config(0)) {
 		return AST_MODULE_LOAD_DECLINE;
+	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
