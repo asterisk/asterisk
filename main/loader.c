@@ -744,9 +744,8 @@ static enum ast_module_load_result start_resource(struct ast_module *mod)
 		mod->flags.declined = 1;
 		break;
 	case AST_MODULE_LOAD_FAILURE:
-		break;
-	case AST_MODULE_LOAD_SKIP:
-		/* modules should never return this value */
+	case AST_MODULE_LOAD_SKIP: /* modules should never return this value */
+	case AST_MODULE_LOAD_PRIORITY:
 		break;
 	}
 
@@ -808,7 +807,7 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 
 	if (resource_heap) {
 		ast_heap_push(resource_heap, mod);
-		res = AST_MODULE_LOAD_SKIP;
+		res = AST_MODULE_LOAD_PRIORITY;
 	} else {
 		res = start_resource(mod);
 	}
@@ -894,6 +893,9 @@ static int load_resource_list(struct load_order *load_order, unsigned int global
 			goto done;
 		case AST_MODULE_LOAD_SKIP:
 			break;
+		case AST_MODULE_LOAD_PRIORITY:
+			AST_LIST_REMOVE_CURRENT(entry);
+			break;
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
@@ -909,6 +911,7 @@ static int load_resource_list(struct load_order *load_order, unsigned int global
 			res = -1;
 			goto done;
 		case AST_MODULE_LOAD_SKIP:
+		case AST_MODULE_LOAD_PRIORITY:
 			break;
 		}
 	}
