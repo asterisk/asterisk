@@ -70,7 +70,7 @@ struct values {
 
 static AST_LIST_HEAD_STATIC(sql_values, values);
 
-static int free_config(void);
+static void free_config(void);
 
 static int load_column_config(const char *tmp)
 {
@@ -170,11 +170,8 @@ static int load_config(int reload)
 	if (reload)
 		free_config();
 
-	ast_mutex_lock(&lock);
-
 	if (!(mappingvar = ast_variable_browse(cfg, "master"))) {
 		/* Nothing configured */
-		ast_mutex_unlock(&lock);
 		ast_config_destroy(cfg);
 		return -1;
 	}
@@ -191,7 +188,6 @@ static int load_config(int reload)
 	/* Columns */
 	tmp = ast_variable_retrieve(cfg, "master", "columns");
 	if (load_column_config(tmp)) {
-		ast_mutex_unlock(&lock);
 		ast_config_destroy(cfg);
 		free_config();
 		return -1;
@@ -200,7 +196,6 @@ static int load_config(int reload)
 	/* Values */
 	tmp = ast_variable_retrieve(cfg, "master", "values");
 	if (load_values_config(tmp)) {
-		ast_mutex_unlock(&lock);
 		ast_config_destroy(cfg);
 		free_config();
 		return -1;
@@ -208,17 +203,14 @@ static int load_config(int reload)
 
 	ast_verb(3, "cdr_sqlite3_custom: Logging CDR records to table '%s' in 'master.db'\n", table);
 
-	ast_mutex_unlock(&lock);
 	ast_config_destroy(cfg);
 
 	return 0;
 }
 
-static int free_config(void)
+static void free_config(void)
 {
 	struct values *value;
-
-	ast_mutex_lock(&lock);
 
 	if (db) {
 		sqlite3_close(db);
@@ -232,10 +224,6 @@ static int free_config(void)
 
 	while ((value = AST_LIST_REMOVE_HEAD(&sql_values, list)))
 		ast_free(value);
-
-	ast_mutex_unlock(&lock);
-
-	return 0;
 }
 
 static int sqlite3_log(struct ast_cdr *cdr)
@@ -250,6 +238,8 @@ static int sqlite3_log(struct ast_cdr *cdr)
 		/* Should not have loaded, but be failsafe. */
 		return 0;
 	}
+
+	ast_mutex_lock(&lock);
 
 	{ /* Make it obvious that only sql should be used outside of this block */
 		char *escaped;
@@ -271,8 +261,6 @@ static int sqlite3_log(struct ast_cdr *cdr)
 		ast_debug(1, "About to log: %s\n", sql);
 		ast_free(value_string);
 	}
-
-	ast_mutex_lock(&lock);
 
 	/* XXX This seems awful arbitrary... */
 	for (count = 0; count < 5; count++) {
@@ -297,9 +285,9 @@ static int sqlite3_log(struct ast_cdr *cdr)
 
 static int unload_module(void)
 {
-	free_config();
-
 	ast_cdr_unregister(name);
+
+	free_config();
 
 	return 0;
 }
@@ -311,15 +299,9 @@ static int load_module(void)
 	int res;
 	char *sql;
 
-	if (!load_config(0)) {
-		res = ast_cdr_register(name, desc, sqlite3_log);
-		if (res) {
-			ast_log(LOG_ERROR, "Unable to register custom SQLite3 CDR handling\n");
-			free_config();
-			return AST_MODULE_LOAD_DECLINE;
-		}
-	} else
+	if (load_config(0)) {
 		return AST_MODULE_LOAD_DECLINE;
+	}
 
 	/* is the database there? */
 	snprintf(filename, sizeof(filename), "%s/master.db", ast_config_AST_LOG_DIR);
@@ -347,12 +329,25 @@ static int load_module(void)
 		}
 	}
 
-	return 0;
+	res = ast_cdr_register(name, desc, sqlite3_log);
+	if (res) {
+		ast_log(LOG_ERROR, "Unable to register custom SQLite3 CDR handling\n");
+		free_config();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int reload(void)
 {
-	return load_config(1);
+	int res = 0;
+
+	ast_mutex_lock(&lock);
+	res = load_config(1);
+	ast_mutex_unlock(&lock);
+
+	return res;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "SQLite3 Custom CDR Module",
