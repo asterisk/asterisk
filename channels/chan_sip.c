@@ -2069,7 +2069,6 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 		/* Parse out the response code */
 		if (sscanf(pkt->data, "SIP/2.0 %d", &respid) == 1) {
 			pkt->response_code = respid;
-			ast_log(LOG_NOTICE, "Hey, I just set the response code for this packet to %d\n", pkt->response_code);
 		}
 	}
 	pkt->timer_t1 = p->timer_t1;	/* Set SIP timer T1 */
