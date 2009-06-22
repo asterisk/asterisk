@@ -6644,7 +6644,7 @@ static int get_ip_and_port_from_sdp(struct sip_request *req, const enum media_ty
 		/* Continue since there may be a valid host in a c= line specific to the audio stream */
 	}
 	/* We only want the m and c lines for audio */
-	while ((m = get_sdp_iterate(&miterator, req, "m"))) {
+	for (m = get_sdp_iterate(&miterator, req, "m"); !ast_strlen_zero(m); m = get_sdp_iterate(&miterator, req, "m")) {
 		if ((media == SDP_AUDIO && ((sscanf(m, "audio %d/%d RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
 		    (sscanf(m, "audio %d RTP/AVP %n", &x, &len) == 1 && len > 0))) ||
 			(media == SDP_VIDEO && ((sscanf(m, "video %d/%d RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
