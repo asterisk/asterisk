@@ -3718,6 +3718,26 @@ static void clone_variables(struct ast_channel *original, struct ast_channel *cl
 }
 
 /*!
+ * \pre chan is locked
+ */
+static void report_new_callerid(const struct ast_channel *chan)
+{
+	manager_event(EVENT_FLAG_CALL, "Newcallerid",
+				"Channel: %s\r\n"
+				"CallerID: %s\r\n"
+				"CallerIDName: %s\r\n"
+				"Uniqueid: %s\r\n"
+				"CID-CallingPres: %d (%s)\r\n",
+				chan->name,
+				S_OR(chan->cid.cid_num, "<Unknown>"),
+				S_OR(chan->cid.cid_name, "<Unknown>"),
+				chan->uniqueid,
+				chan->cid.cid_pres,
+				ast_describe_caller_presentation(chan->cid.cid_pres)
+				);
+}
+
+/*!
   \brief Masquerade a channel
 
   \note Assumes channel will be locked when called
@@ -3918,7 +3938,8 @@ int ast_do_masquerade(struct ast_channel *original)
 	tmpcid = original->cid;
 	original->cid = clone->cid;
 	clone->cid = tmpcid;
-	
+	report_new_callerid(original);
+
 	/* Restore original timing file descriptor */
 	original->fds[AST_TIMING_FD] = original->timingfd;
 	
@@ -4019,20 +4040,9 @@ void ast_set_callerid(struct ast_channel *chan, const char *callerid, const char
 			free(chan->cid.cid_ani);
 		chan->cid.cid_ani = ast_strdup(ani);
 	}
-	manager_event(EVENT_FLAG_CALL, "Newcallerid",
-				"Channel: %s\r\n"
-				"CallerID: %s\r\n"
-				"CallerIDName: %s\r\n"
-				"Uniqueid: %s\r\n"
-				"CID-CallingPres: %d (%s)\r\n",
-				chan->name,
-				S_OR(chan->cid.cid_num, "<Unknown>"),
-				S_OR(chan->cid.cid_name, "<Unknown>"),
-				chan->uniqueid,
-				chan->cid.cid_pres,
-				ast_describe_caller_presentation(chan->cid.cid_pres)
-				);
-	
+
+	report_new_callerid(chan);
+
 	ast_channel_unlock(chan);
 }
 
