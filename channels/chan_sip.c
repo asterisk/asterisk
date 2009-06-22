@@ -18696,16 +18696,20 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		make_our_tag(p->tag, sizeof(p->tag));
 
 	if (!strcmp(event, "presence") || !strcmp(event, "dialog")) { /* Presence, RFC 3842 */
+		unsigned int pidf_xml;
+
 		if (authpeer)	/* We do not need the authpeer any more */
 			unref_peer(authpeer);
 
 		/* Header from Xten Eye-beam Accept: multipart/related, application/rlmi+xml, application/pidf+xml, application/xpidf+xml */
-		/* Polycom phones only handle xpidf+xml, even if they say they can
-		   handle pidf+xml as well
-		*/
-		if (strstr(p->useragent, "Polycom")) {
+
+		pidf_xml = strstr(accept, "application/pidf+xml") ? 1 : 0;
+
+		/* Older versions of Polycom firmware will claim pidf+xml, but really
+		 * they only support xpidf+xml. */
+		if (pidf_xml && strstr(p->useragent, "Polycom")) {
 			p->subscribed = XPIDF_XML;
-		} else if (strstr(accept, "application/pidf+xml")) {
+		} else if (pidf_xml) {
 			p->subscribed = PIDF_XML;         /* RFC 3863 format */
 		} else if (strstr(accept, "application/dialog-info+xml")) {
 			p->subscribed = DIALOG_INFO_XML;
