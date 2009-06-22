@@ -1387,6 +1387,7 @@ struct sip_pkt {
 	int seqno;				/*!< Sequence number */
 	char is_resp;				/*!< 1 if this is a response packet (e.g. 200 OK), 0 if it is a request */
 	char is_fatal;				/*!< non-zero if there is a fatal error */
+	int response_code;		/*!< If this is a response, the response code */
 	struct sip_pvt *owner;			/*!< Owner AST call */
 	int retransid;				/*!< Retransmission ID */
 	int timer_a;				/*!< SIP timer A, retransmission timer */
@@ -2937,6 +2938,7 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 	struct sip_pkt *pkt = NULL;
 	int siptimer_a = DEFAULT_RETRANS;
 	int xmitres = 0;
+	int respid;
 
 	if (sipmethod == SIP_INVITE) {
 		/* Note this is a pending invite */
@@ -2969,6 +2971,12 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 	pkt->owner = dialog_ref(p);
 	pkt->next = p->packets;
 	p->packets = pkt;	/* Add it to the queue */
+	if (resp) {
+		/* Parse out the response code */
+		if (sscanf(pkt->data, "SIP/2.0 %d", &respid) == 1) {
+			pkt->response_code = respid;
+		}
+	}
 	pkt->timer_t1 = p->timer_t1;	/* Set SIP timer T1 */
 	pkt->retransid = -1;
 	if (pkt->timer_t1)
@@ -18328,6 +18336,30 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 	else
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	if (p->initreq.len > 0) {
+		struct sip_pkt *pkt, *prev_pkt;
+		/* If the CANCEL we are receiving is a retransmission, and we already have scheduled
+		 * a reliable 487, then we don't want to schedule another one on top of the previous
+		 * one.
+		 *
+		 * As odd as this may sound, we can't rely on the previously-transmitted "reliable" 
+		 * response in this situation. What if we've sent all of our reliable responses 
+		 * already and now all of a sudden, we get this second CANCEL?
+		 *
+		 * The only way to do this correctly is to cancel our previously-scheduled reliably-
+		 * transmitted response and send a new one in its place.
+		 */
+		for (pkt = p->packets, prev_pkt = NULL; pkt; prev_pkt = pkt, pkt = pkt->next) {
+			if (pkt->seqno == p->lastinvite && pkt->response_code == 487) {
+				AST_SCHED_DEL(sched, pkt->retransid);
+				if (prev_pkt) {
+					prev_pkt->next = pkt->next;
+				} else {
+					p->packets = pkt->next;
+				}
+				ast_free(pkt);
+				break;
+			}
+		}
 		transmit_response_reliable(p, "487 Request Terminated", &p->initreq);
 		transmit_response(p, "200 OK", req);
 		return 1;
