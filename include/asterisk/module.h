@@ -58,10 +58,11 @@ enum ast_module_unload_mode {
 };
 
 enum ast_module_load_result {
-	AST_MODULE_LOAD_SUCCESS = 0,	/*!< Module loaded and configured */
-	AST_MODULE_LOAD_DECLINE = 1,	/*!< Module is not configured */
-	AST_MODULE_LOAD_SKIP = 2,	/*!< Module was skipped for some reason */
-	AST_MODULE_LOAD_FAILURE = -1,	/*!< Module could not be loaded properly */
+	AST_MODULE_LOAD_SUCCESS = 0,    /*!< Module loaded and configured */
+	AST_MODULE_LOAD_DECLINE = 1,    /*!< Module is not configured */
+	AST_MODULE_LOAD_SKIP = 2,       /*!< Module was skipped for some reason */
+	AST_MODULE_LOAD_PRIORITY = 3,   /*!< Module is not loaded yet, but is added to prioity heap */
+	AST_MODULE_LOAD_FAILURE = -1,   /*!< Module could not be loaded properly */
 };
 
 /*! 
