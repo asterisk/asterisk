@@ -1,6 +1,6 @@
-\section{CDR Back Ends}
+\section{Storage Backends}
 
-\subsection{MSSQL}
+\subsection{Microsoft SQL Server}
 
 	Asterisk can currently store CDRs into an MSSQL database in
 	two different ways:  cdr\_odbc or cdr\_tds
@@ -195,11 +195,11 @@
                 call to the database when it's complete.
 
 
-\subsection{MYSQL}
+\subsection{MySQL}
 
 Using MySQL for CDR records is supported by using ODBC and the cdr\_odbc module.
 
-\subsection{PGSQL}
+\subsection{PostgreSQL}
         If you want to go directly to postgresql database, and have the cdr\_pgsql.so
         compiled you can use the following sample setup.
         On Debian, before compiling asterisk, just install libpqxx-dev.
@@ -246,9 +246,13 @@ Using MySQL for CDR records is supported by using ODBC and the cdr\_odbc module.
 \end{verbatim}
 \end{astlisting}
 
-\subsection{SQLLITE}
+\subsection{SQLite 2}
 
 SQLite version 2 is supported in cdr\_sqlite.
+
+\subsection{SQLite 3}
+
+SQLite version 3 is supported in cdr\_sqlite3\_custom.
 
 \subsection{RADIUS}
 
