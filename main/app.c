@@ -699,6 +699,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 	time_t start, end;
 	struct ast_dsp *sildet = NULL;   /* silence detector dsp */
 	int totalsilence = 0;
+	int dspsilence = 0;
 	int rfmt = 0;
 	struct ast_silence_generator *silgen = NULL;
 	char prependfile[80];
@@ -823,17 +824,13 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 
 				/* Silence Detection */
 				if (maxsilence > 0) {
-					int dspsilence = 0;
+					dspsilence = 0;
 					ast_dsp_silence(sildet, f, &dspsilence);
-					if (dspsilence) {
-						totalsilence = dspsilence;
-					} else {
-						totalsilence = 0;
-					}
+					totalsilence += dspsilence;
 
-					if (totalsilence > maxsilence) {
+					if (dspsilence > maxsilence) {
 						/* Ended happily with silence */
-						ast_verb(3, "Recording automatically stopped after a silence of %d seconds\n", totalsilence/1000);
+						ast_verb(3, "Recording automatically stopped after a silence of %d seconds\n", dspsilence/1000);
 						res = 'S';
 						outmsg = 2;
 						break;
@@ -908,6 +905,12 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 	*duration = others[0] ? ast_tellstream(others[0]) / 8000 : 0;
 
 	if (!prepend) {
+		/* Reduce duration by a total silence amount */
+        	if (totalsilence > 0)
+			*duration -= (totalsilence - 200) / 1000;
+		if (*duration < 0) {
+			*duration = 0;
+		}
 		for (x = 0; x < fmtcnt; x++) {
 			if (!others[x]) {
 				break;
@@ -917,15 +920,9 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 			 * off the recording.  However, if we ended with '#', we don't want
 			 * to trim ANY part of the recording.
 			 */
-			if (res > 0 && totalsilence) {
-				ast_stream_rewind(others[x], totalsilence - 200);
-				/* Reduce duration by a corresponding amount */
-				if (x == 0 && *duration) {
-					*duration -= (totalsilence - 200) / 1000;
-					if (*duration < 0) {
-						*duration = 0;
-					}
-				}
+			if (res > 0 && dspsilence) {
+                                /* rewind only the trailing silence */
+				ast_stream_rewind(others[x], dspsilence - 200);
 			}
 			ast_truncstream(others[x]);
 			ast_closestream(others[x]);
@@ -943,8 +940,8 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 				break;
 			}
 			/*!\note Same logic as above. */
-			if (totalsilence) {
-				ast_stream_rewind(others[x], totalsilence - 200);
+			if (dspsilence) {
+				ast_stream_rewind(others[x], dspsilence - 200);
 			}
 			ast_truncstream(others[x]);
 			/* add the original file too */

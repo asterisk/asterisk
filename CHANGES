@@ -50,6 +50,8 @@ Applications
    to cycle through the next avaliable channel.  By default this is still '*'.
  * Added x() option to app_chanspy.  This option allows DTMF to be set to
    exit the application.
+ * The Voicemail application has been improved to automatically ignore messages
+   that only contain silence.
 
 Dialplan Functions
 ------------------
