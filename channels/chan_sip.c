@@ -7636,8 +7636,16 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 	add_header(&req, "Content-Type", default_notifymime);
 
 	ast_build_string(&t, &maxbytes, "Messages-Waiting: %s\r\n", newmsgs ? "yes" : "no");
-	ast_build_string(&t, &maxbytes, "Message-Account: sip:%s@%s\r\n",
+	/* if we listen to non-standard SIP port we have to specify the SIP port
+       in the URI, except domains are used - in this case the SRV records should be
+       used to redirect the client to the non-standard SIP port */
+	if ((ourport != STANDARD_SIP_PORT) && ast_strlen_zero(p->fromdomain)) {
+		ast_build_string(&t, &maxbytes, "Message-Account: sip:%s@%s:%d\r\n",
+		S_OR(vmexten, default_vmexten), ast_inet_ntoa(p->ourip), ourport);
+	} else {
+		ast_build_string(&t, &maxbytes, "Message-Account: sip:%s@%s\r\n",
 		S_OR(vmexten, default_vmexten), S_OR(p->fromdomain, ast_inet_ntoa(p->ourip)));
+	}
 	/* Cisco has a bug in the SIP stack where it can't accept the
 		(0/0) notification. This can temporarily be disabled in
 		sip.conf with the "buggymwi" option */
