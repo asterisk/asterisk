@@ -11044,14 +11044,29 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 {
 	struct sip_request req;
 	struct ast_str *out = ast_str_alloca(500);
-	
+	int ourport = ntohs(p->ourip.sin_port);
+	const char *exten = S_OR(vmexten, default_vmexten);
+
 	initreqprep(&req, p, SIP_NOTIFY);
 	add_header(&req, "Event", "message-summary");
 	add_header(&req, "Content-Type", default_notifymime);
-
 	ast_str_append(&out, 0, "Messages-Waiting: %s\r\n", newmsgs ? "yes" : "no");
-	ast_str_append(&out, 0, "Message-Account: sip:%s@%s\r\n",
-		S_OR(vmexten, default_vmexten), S_OR(p->fromdomain, ast_inet_ntoa(p->ourip.sin_addr)));
+
+	if (!ast_strlen_zero(p->fromdomain)) {
+		ast_str_append(&out, 0, "Message-Account: sip:%s@%s\r\n", exten, p->fromdomain);
+	} else if (!sip_standard_port(p->socket.type, ourport)) {
+		if (p->socket.type == SIP_TRANSPORT_UDP) {
+			ast_str_append(&out, 0, "Message-Account: sip:%s@%s:%d\r\n", exten, ast_inet_ntoa(p->ourip.sin_addr), ourport);
+		} else {
+			ast_str_append(&out, 0, "Message-Account: sip:%s@%s:%d;transport=%s\r\n", exten, ast_inet_ntoa(p->ourip.sin_addr), ourport, get_transport(p->socket.type));
+		}
+	} else {
+		if (p->socket.type == SIP_TRANSPORT_UDP) {
+			ast_str_append(&out, 0, "Message-Account: sip:%s@%s\r\n", exten, ast_inet_ntoa(p->ourip.sin_addr));
+		} else {
+			ast_str_append(&out, 0, "Message-Account: sip:%s@%s;transport=%s\r\n", exten, ast_inet_ntoa(p->ourip.sin_addr), get_transport(p->socket.type));
+		}
+	}
 	/* Cisco has a bug in the SIP stack where it can't accept the
 		(0/0) notification. This can temporarily be disabled in
 		sip.conf with the "buggymwi" option */
