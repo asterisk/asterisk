@@ -750,6 +750,14 @@ int ast_variable_update(struct ast_category *category, const char *variable,
 	
 		newer->next = cur->next;
 		newer->object = cur->object || object;
+
+		/* Preserve everything */
+		newer->lineno = cur->lineno;
+		newer->blanklines = cur->blanklines;
+		newer->precomments = cur->precomments; cur->precomments = NULL;
+		newer->sameline = cur->sameline; cur->sameline = NULL;
+		newer->trailing = cur->trailing; cur->trailing = NULL;
+
 		if (prev)
 			prev->next = newer;
 		else
@@ -1570,11 +1578,22 @@ static void insert_leading_blank_lines(FILE *fp, struct inclfile *fi, struct ast
 	   the ;! header comments were not also deleted in the process */
 	if (lineno - precomment_lines - fi->lineno < 0) { /* insertions can mess up the line numbering and produce negative numbers that mess things up */
 		return;
-	}
-	for (i=fi->lineno; i<lineno - precomment_lines; i++) {
-		fprintf(fp,"\n");
-	}
-	fi->lineno = lineno+1; /* Advance the file lineno */
+	} else if (lineno == 0) {
+		/* Line replacements also mess things up */
+		return;
+ 	} else if (lineno - precomment_lines - fi->lineno < 5) {
+ 		/* Only insert less than 5 blank lines; if anything more occurs,
+ 		 * it's probably due to context deletion. */
+ 		for (i = fi->lineno; i < lineno - precomment_lines; i++) {
+ 			fprintf(fp, "\n");
+ 		}
+ 	} else {
+ 		/* Deletion occurred - insert a single blank line, for separation of
+ 		 * contexts. */
+ 		fprintf(fp, "\n");
+ 	}
+ 
+ 	fi->lineno = lineno + 1; /* Advance the file lineno */
 }
 
 int config_text_file_save(const char *configfile, const struct ast_config *cfg, const char *generator)
