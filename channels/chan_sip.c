@@ -6097,6 +6097,12 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
  			ast_log(LOG_WARNING, "Unable to create RTP audio %s%ssession: %s\n",
  				ast_test_flag(&p->flags[1], SIP_PAGE2_VIDEOSUPPORT) ? "and video " : "",
  				ast_test_flag(&p->flags[1], SIP_PAGE2_TEXTSUPPORT) ? "and text " : "", strerror(errno));
+			if (p->rtp) {
+				ast_rtp_destroy(p->rtp);
+			}
+			if (p->vrtp) {
+				ast_rtp_destroy(p->vrtp);
+			}
 			ast_mutex_destroy(&p->pvt_lock);
 			if (p->chanvars) {
 				ast_variables_destroy(p->chanvars);
