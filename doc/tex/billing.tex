@@ -15,7 +15,7 @@ For more information, use the "core show application $<$application$>$" command.
 You can set default account codes and AMA flags for devices in
 channel configuration files, like sip.conf, iax.conf etc.
 
-\section{Fields of the CDR in Asterisk}
+\section{CDR Fields}
 
 \begin{itemize}
    \item accountcode:  What account number to use, (string, 20 characters)
@@ -53,11 +53,11 @@ transfers with IAX2 to avoid this problem, or turn off transfers completely
 (although this can result in a media latency increase since the media packets
 have to traverse the middle server(s) in the call).
 
-\section{CDR Variables}
+\section{Variables}
 
-If the channel has a cdr, that cdr record has its own set of variables which
-can be accessed just like channel variables. The following builtin variables
-are available.
+If the channel has a CDR, that CDR has its own set of variables which can be
+accessed just like channel variables. The following builtin variables are
+available.
 
 \begin{verbatim}
 ${CDR(clid)}         Caller ID
