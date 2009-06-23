@@ -1,6 +1,6 @@
-Call data records can be stored in many different databases or even CSV text.
+\section{CDR Back Ends}
 
-\section{MSSQL}
+\subsection{MSSQL}
 
 	Asterisk can currently store CDRs into an MSSQL database in
 	two different ways:  cdr\_odbc or cdr\_tds
@@ -12,7 +12,7 @@ Call data records can be stored in many different databases or even CSV text.
 
 	NOTE:  Only choose one db connector.
 
-\subsection{ODBC using cdr\_odbc}
+\subsubsection{ODBC using cdr\_odbc}
 	Compile, configure, and install the latest unixODBC package:
 \begin{astlisting}
 \begin{verbatim}
@@ -121,7 +121,7 @@ Call data records can be stored in many different databases or even CSV text.
 		logs a connection to the database and will now record every
 		call to the database when it's complete.
 
-\subsection{TDS, using cdr\_tds}
+\subsubsection{TDS, using cdr\_tds}
 		Compile, configure, and install the latest FreeTDS package:
 \begin{astlisting}
 \begin{verbatim}
@@ -195,11 +195,11 @@ Call data records can be stored in many different databases or even CSV text.
                 call to the database when it's complete.
 
 
-\section{MYSQL}
+\subsection{MYSQL}
 
 Using MySQL for CDR records is supported by using ODBC and the cdr\_odbc module.
 
-\section{PGSQL}
+\subsection{PGSQL}
         If you want to go directly to postgresql database, and have the cdr\_pgsql.so
         compiled you can use the following sample setup.
         On Debian, before compiling asterisk, just install libpqxx-dev.
@@ -246,13 +246,13 @@ Using MySQL for CDR records is supported by using ODBC and the cdr\_odbc module.
 \end{verbatim}
 \end{astlisting}
 
-\section{SQLLITE}
+\subsection{SQLLITE}
 
 SQLite version 2 is supported in cdr\_sqlite.
 
-\section{RADIUS}
+\subsection{RADIUS}
 
-\subsection{What is needed}
+\subsubsection{What is needed}
 
 \begin{itemize}
 	\item FreeRADIUS server
@@ -288,8 +288,6 @@ SQLite version 2 is supported in cdr\_sqlite.
 \end{center}
 \caption{Asterisk/RADIUS Integration}
 \end{figure}
-
-\subsection{Steps to follow in order to have RADIUS support}
 
 \subsubsection{Installation of the Radiusclient library}
 
@@ -447,7 +445,7 @@ SQLite version 2 is supported in cdr\_sqlite.
 	the radiusclient-ng library configuration file.
 
 
-\section{Logged Values}
+\subsubsection{Logged Values}
 \begin{verbatim}
   "Asterisk-Acc-Code",          The account name of detail records
   "Asterisk-Src",
