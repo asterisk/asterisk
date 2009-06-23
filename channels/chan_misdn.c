@@ -6052,9 +6052,11 @@ static void misdn_update_connected_line(struct ast_channel *ast, struct misdn_bc
 	}
 	switch (bc->outgoing_colp) {
 	case 1:/* restricted */
-	case 2:/* blocked */
 		bc->redirecting.to.presentation = 1;/* restricted */
 		break;
+	case 2:/* blocked */
+		/* Don't tell the remote party that the call was transferred. */
+		return;
 	default:
 		break;
 	}
@@ -6079,14 +6081,6 @@ static void misdn_update_connected_line(struct ast_channel *ast, struct misdn_bc
 			bc->fac_out.u.EctInform.RedirectionPresent = 1;/* Must be present when status is active */
 			misdn_PresentedNumberUnscreened_fill(&bc->fac_out.u.EctInform.Redirection,
 				&bc->redirecting.to);
-			switch (bc->outgoing_colp) {
-			case 2:/* blocked */
-				/* Block the number going out */
-				bc->fac_out.u.EctInform.Redirection.Type = 1;/* presentationRestricted */
-				break;
-			default:
-				break;
-			}
 
 			/* Send message */
 			print_facility(&bc->fac_out, bc);
@@ -6179,9 +6173,11 @@ static void misdn_update_redirecting(struct ast_channel *ast, struct misdn_bchan
 	misdn_copy_redirecting_from_ast(bc, ast);
 	switch (bc->outgoing_colp) {
 	case 1:/* restricted */
-	case 2:/* blocked */
 		bc->redirecting.to.presentation = 1;/* restricted */
 		break;
+	case 2:/* blocked */
+		/* Don't tell the remote party that the call was redirected. */
+		return;
 	default:
 		break;
 	}
@@ -6211,14 +6207,6 @@ static void misdn_update_redirecting(struct ast_channel *ast, struct misdn_bchan
 			bc->fac_out.u.DivertingLegInformation1.SubscriptionOption = 2;/* notificationWithDivertedToNr */
 			bc->fac_out.u.DivertingLegInformation1.DivertedToPresent = 1;
 			misdn_PresentedNumberUnscreened_fill(&bc->fac_out.u.DivertingLegInformation1.DivertedTo, &bc->redirecting.to);
-			switch (bc->outgoing_colp) {
-			case 2:/* blocked */
-				/* Block the number going out */
-				bc->fac_out.u.DivertingLegInformation1.DivertedTo.Type = 1;/* presentationRestricted */
-				break;
-			default:
-				break;
-			}
 			print_facility(&bc->fac_out, bc);
 			misdn_lib_send_event(bc, EVENT_FACILITY);
 		}
@@ -6405,13 +6393,13 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 		}
 #if defined(AST_MISDN_ENHANCEMENTS)
 		if (newbc->redirecting.from.number[0] && misdn_lib_is_ptp(port)) {
+			if (newbc->redirecting.count < 1) {
+				newbc->redirecting.count = 1;
+			}
+
 			/* Create DivertingLegInformation2 facility */
 			newbc->fac_out.Function = Fac_DivertingLegInformation2;
 			newbc->fac_out.u.DivertingLegInformation2.InvokeID = ++misdn_invoke_id;
-			newbc->fac_out.u.DivertingLegInformation2.DiversionCounter =
-				newbc->redirecting.count;
-			newbc->fac_out.u.DivertingLegInformation2.DiversionReason =
-				misdn_to_diversion_reason(newbc->redirecting.reason);
 			newbc->fac_out.u.DivertingLegInformation2.DivertingPresent = 1;
 			misdn_PresentedNumberUnscreened_fill(
 				&newbc->fac_out.u.DivertingLegInformation2.Diverting,
@@ -6420,12 +6408,20 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 			case 2:/* blocked */
 				/* Block the number going out */
 				newbc->fac_out.u.DivertingLegInformation2.Diverting.Type = 1;/* presentationRestricted */
+
+				/* Don't tell about any previous diversions or why for that matter. */
+				newbc->fac_out.u.DivertingLegInformation2.DiversionCounter = 1;
+				newbc->fac_out.u.DivertingLegInformation2.DiversionReason = 0;/* unknown */
 				break;
 			default:
+				newbc->fac_out.u.DivertingLegInformation2.DiversionCounter =
+					newbc->redirecting.count;
+				newbc->fac_out.u.DivertingLegInformation2.DiversionReason =
+					misdn_to_diversion_reason(newbc->redirecting.reason);
 				break;
 			}
 			newbc->fac_out.u.DivertingLegInformation2.OriginalCalledPresent = 0;
-			if (1 < newbc->redirecting.count) {
+			if (1 < newbc->fac_out.u.DivertingLegInformation2.DiversionCounter) {
 				newbc->fac_out.u.DivertingLegInformation2.OriginalCalledPresent = 1;
 				newbc->fac_out.u.DivertingLegInformation2.OriginalCalled.Type = 2;/* numberNotAvailableDueToInterworking */
 			}
