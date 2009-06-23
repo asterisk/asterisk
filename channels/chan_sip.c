@@ -4600,6 +4600,10 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 		if (!p->rtp || (ast_test_flag(&p->flags[1], SIP_PAGE2_VIDEOSUPPORT) && !p->vrtp)) {
 			ast_log(LOG_WARNING, "Unable to create RTP audio %s session: %s\n",
 				ast_test_flag(&p->flags[1], SIP_PAGE2_VIDEOSUPPORT) ? "and video" : "", strerror(errno));
+			/* If rtp was successfully allocated, but vrtp was not, then we need to be sure to free rtp here */
+			if (p->rtp) {
+				ast_rtp_destroy(p->rtp);
+			}
 			ast_mutex_destroy(&p->lock);
 			if (p->chanvars) {
 				ast_variables_destroy(p->chanvars);
