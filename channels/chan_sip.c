@@ -4604,11 +4604,15 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 			if (p->rtp) {
 				ast_rtp_destroy(p->rtp);
 			}
+			if (p->udptl) {
+				ast_udptl_destroy(p->udptl);
+			}
 			ast_mutex_destroy(&p->lock);
 			if (p->chanvars) {
 				ast_variables_destroy(p->chanvars);
 				p->chanvars = NULL;
 			}
+			ast_string_field_free_memory(p);
 			free(p);
 			return NULL;
 		}
