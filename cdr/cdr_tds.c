@@ -443,12 +443,19 @@ static int tds_load_module(int reload)
 	/* Clear out any existing settings */
 	ast_string_field_init(settings, 0);
 
-	ptr = ast_variable_retrieve(cfg, "global", "hostname");
+	/* 'connection' is the new preferred configuration option */
+	ptr = ast_variable_retrieve(cfg, "global", "connection");
 	if (ptr) {
 		ast_string_field_set(settings, hostname, ptr);
 	} else {
-		ast_log(LOG_ERROR, "Failed to connect: Database server hostname not specified.\n");
-		goto failed;
+		/* But we keep 'hostname' for backwards compatibility */
+		ptr = ast_variable_retrieve(cfg, "global", "hostname");
+		if (ptr) {
+			ast_string_field_set(settings, hostname, ptr);
+		} else {
+			ast_log(LOG_ERROR, "Failed to connect: Database server connection not specified.\n");
+			goto failed;
+		}
 	}
 
 	ptr = ast_variable_retrieve(cfg, "global", "dbname");
