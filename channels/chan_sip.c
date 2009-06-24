@@ -15530,11 +15530,7 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 		for (pkt = p->packets, prev_pkt = NULL; pkt; prev_pkt = pkt, pkt = pkt->next) {
 			if (pkt->seqno == p->lastinvite && pkt->response_code == 487) {
 				AST_SCHED_DEL(sched, pkt->retransid);
-				if (prev_pkt) {
-					prev_pkt->next = pkt->next;
-				} else {
-					p->packets = pkt->next;
-				}
+				UNLINK(pkt, p->packets, prev_pkt);
 				ast_free(pkt);
 				break;
 			}
