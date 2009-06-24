@@ -11823,26 +11823,37 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 #endif
 			} else if (!strcasecmp(v->name, "pritimer")) {
 #ifdef PRI_GETSET_TIMERS
-				char *timerc, *c;
-				int timer, timeridx;
-				c = v->value;
-				timerc = strsep(&c, ",");
-				if (timerc) {
-					timer = atoi(c);
-					if (!timer)
-						ast_log(LOG_WARNING, "'%s' is not a valid value for an ISDN timer\n", timerc);
-					else {
-						if ((timeridx = pri_timer2idx(timerc)) >= 0)
-							pritimers[timeridx] = timer;
-						else
-							ast_log(LOG_WARNING, "'%s' is not a valid ISDN timer\n", timerc);
-					}
-				} else
-					ast_log(LOG_WARNING, "'%s' is not a valid ISDN timer configuration string\n", v->value);
+				char tmp[20];
+				char *timerc;
+				char *c;
+				int timer;
+				int timeridx;
 
+				ast_copy_string(tmp, v->value, sizeof(tmp));
+				c = tmp;
+				timerc = strsep(&c, ",");
+				if (!ast_strlen_zero(timerc) && !ast_strlen_zero(c)) {
+					timeridx = pri_timer2idx(timerc);
+					timer = atoi(c);
+					if (timeridx < 0 || PRI_MAX_TIMERS <= timeridx) {
+						ast_log(LOG_WARNING,
+							"'%s' is not a valid ISDN timer at line %d.\n", timerc,
+							v->lineno);
+					} else if (!timer) {
+						ast_log(LOG_WARNING,
+							"'%s' is not a valid value for ISDN timer '%s' at line %d.\n",
+							c, timerc, v->lineno);
+					} else {
+						pritimers[timeridx] = timer;
+					}
+				} else {
+					ast_log(LOG_WARNING,
+						"'%s' is not a valid ISDN timer configuration string at line %d.\n",
+						v->value, v->lineno);
+				}
+#endif /* PRI_GETSET_TIMERS */
 			} else if (!strcasecmp(v->name, "facilityenable")) {
 				confp->pri.facilityenable = ast_true(v->value);
-#endif /* PRI_GETSET_TIMERS */
 #endif /* HAVE_PRI */
 			} else if (!strcasecmp(v->name, "cadence")) {
 				/* setup to scan our argument */
