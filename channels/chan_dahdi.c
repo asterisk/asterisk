@@ -4447,7 +4447,7 @@ static void destroy_all_channels(void)
 	ast_mutex_unlock(&iflock);
 }
 
-#ifdef HAVE_PRI
+#if defined(HAVE_PRI)
 static char *dahdi_send_keypad_facility_app = "DAHDISendKeypadFacility";
 
 static int dahdi_send_keypad_facility_exec(struct ast_channel *chan, const char *digits)
@@ -5071,15 +5071,16 @@ static int dahdi_answer(struct ast_channel *ast)
 		ast_mutex_unlock(&p->lock);
 		return res;
 	}
+
+	switch (p->sig) {
 #ifdef HAVE_PRI
-	if (p->sig == SIG_PRI || p->sig == SIG_BRI || p->sig == SIG_BRI_PTMP) {
+	case SIG_BRI:
+	case SIG_BRI_PTMP:
+	case SIG_PRI:
 		res = sig_pri_answer(p->sig_pvt, ast);
 		ast_mutex_unlock(&p->lock);
 		return res;
-	}
 #endif
-
-	switch (p->sig) {
 #ifdef HAVE_SS7
 	case SIG_SS7:
 		if (!ss7_grab(p, p->ss7)) {
@@ -12217,7 +12218,7 @@ static void dahdi_pri_error(struct pri *pri, char *s)
 }
 #endif	/* defined(HAVE_PRI) */
 
-#ifdef HAVE_PRI
+#if defined(HAVE_PRI)
 static int prepare_pri(struct dahdi_pri *pri)
 {
 	int i, res, x;
@@ -12273,7 +12274,9 @@ static int prepare_pri(struct dahdi_pri *pri)
 	}
 	return 0;
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static char *complete_span_helper(const char *line, const char *word, int pos, int state, int rpos)
 {
 	int which, span;
@@ -12292,7 +12295,9 @@ static char *complete_span_helper(const char *line, const char *word, int pos, i
 	}
 	return ret;
 }
+#endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 static char *complete_span_4(const char *line, const char *word, int pos, int state)
 {
 	return complete_span_helper(line,word,pos,state,3);
@@ -12542,7 +12547,7 @@ static char *handle_pri_service_disable_channel(struct ast_cli_entry *e, int cmd
 }
 #endif
 
-#ifdef HAVE_PRI
+#if defined(HAVE_PRI)
 static char *handle_pri_show_spans(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int span;
@@ -12568,7 +12573,7 @@ static char *handle_pri_show_spans(struct ast_cli_entry *e, int cmd, struct ast_
 	}
 	return CLI_SUCCESS;
 }
-#endif
+#endif	/* defined(HAVE_PRI) */
 
 #if defined(HAVE_PRI)
 static char *handle_pri_show_span(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
