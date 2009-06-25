@@ -1057,7 +1057,7 @@ static struct dahdi_pvt {
 	 * \note The "setvar" strings read in from chan_dahdi.conf
 	 */
 	struct ast_variable *vars;
-	int channel;					/*!< Channel Number or CRV */
+	int channel;					/*!< Channel Number */
 	int span;					/*!< Span number */
 	time_t guardtime;				/*!< Must wait this much time before using for new call */
 	int cid_signalling;				/*!< CID signalling type bell202 or v23 */
@@ -4139,17 +4139,11 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 		return res;
 	}
 
-	mysig = p->sig;
-	if (p->outsigmod > -1)
-		mysig = p->outsigmod;
-
 	switch (mysig) {
 	case 0:
 		/* Special pseudo -- automatically up*/
 		ast_setstate(ast, AST_STATE_UP);
 		break;
-	case SIG_BRI:
-	case SIG_BRI_PTMP:
 	case SIG_SS7:
 	case SIG_MFCR2:
 		/* We'll get it in a moment -- but use dialdest to store pre-setup_ack digits */
@@ -10190,7 +10184,7 @@ static int sigtype_to_signalling(int sigtype)
 
 static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf, int reloading)
 {
-	/* Make a dahdi_pvt structure for this interface (or CRV if "pri" is specified) */
+	/* Make a dahdi_pvt structure for this interface */
 	struct dahdi_pvt *tmp = NULL, *tmp2, *prev = NULL;
 	char fn[80];
 	struct dahdi_bufferinfo bi;
@@ -10277,12 +10271,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				tmp->span = p.spanno;
 				span = p.spanno - 1;
 			} else {
-				if (channel == CHAN_PSEUDO)
-					chan_sig = 0;
-				else if ((chan_sig != SIG_FXOKS) && (chan_sig != SIG_FXSKS)) {
-					ast_log(LOG_ERROR, "CRV's must use FXO/FXS Kewl Start (fxo_ks/fxs_ks) signalling only.\n");
-					return NULL;
-				}
+				chan_sig = 0;
 			}
 
 			if (analog_lib_handles(chan_sig, tmp->radio, tmp->oprmode)) {
@@ -10584,7 +10573,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				p.debouncetime = conf->timing.debouncetime;
 		}
 
-		/* dont set parms on a pseudo-channel (or CRV) */
+		/* dont set parms on a pseudo-channel */
 		if (tmp->subs[SUB_REAL].dfd >= 0)
 		{
 			res = ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_SET_PARAMS, &p);
@@ -11036,7 +11025,6 @@ static struct ast_channel *dahdi_request(const char *type, int format, void *dat
 	 * data is ---v
 	 * Dial(DAHDI/pseudo[/extension])
 	 * Dial(DAHDI/<channel#>[c|r<cadance#>|d][/extension])
-	 * Dial(DAHDI/<trunk_group#>:<crv#>[c|r<cadance#>|d][/extension])
 	 * Dial(DAHDI/(g|G|r|R)<group#(0-63)>[c|r<cadance#>|d][/extension])
 	 *
 	 * g - channel group allocation search forward
@@ -14629,7 +14617,7 @@ static int unload_module(void)
 	return __unload_module();
 }
 
-static int build_channels(struct dahdi_chan_conf *conf, int iscrv, const char *value, int reload, int lineno, int *found_pseudo)
+static int build_channels(struct dahdi_chan_conf *conf, const char *value, int reload, int lineno, int *found_pseudo)
 {
 	char *c, *chan;
 	int x, start, finish;
@@ -14757,12 +14745,11 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 
 		/* Create the interface list */
 		if (!strcasecmp(v->name, "channel")) {
- 			int iscrv = 0;
  			if (options & PROC_DAHDI_OPT_NOCHAN) {
 				ast_log(LOG_WARNING, "Channel '%s' ignored.\n", v->value);
  				continue;
 			}
- 			if (build_channels(confp, iscrv, v->value, reload, v->lineno, &found_pseudo))
+ 			if (build_channels(confp, v->value, reload, v->lineno, &found_pseudo))
  					return -1;
 			ast_log(LOG_DEBUG, "Channel '%s' configured.\n", v->value);
 		} else if (!strcasecmp(v->name, "buffers")) {
@@ -15660,7 +15647,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 	if (dahdichan[0]) {
 		/* The user has set 'dahdichan' */
 		/*< \todo pass proper line number instead of 0 */
-		if (build_channels(confp, 0, dahdichan, reload, 0, &found_pseudo)) {
+		if (build_channels(confp, dahdichan, reload, 0, &found_pseudo)) {
 			return -1;
 		}
 	}

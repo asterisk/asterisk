@@ -19,7 +19,7 @@
 
 [trunkgroups]
 ;
-; Trunk groups are used for NFAS or GR-303 connections.
+; Trunk groups are used for NFAS connections.
 ;
 ; Group: Defines a trunk group.
 ;        trunkgroup => <trunkgroup>,<dchannel>[,<backup1>...]
@@ -243,8 +243,6 @@
 ; fxo_ks:         FXO (Kewl Start)
 ; pri_cpe:        PRI signalling, CPE side
 ; pri_net:        PRI signalling, Network side
-; gr303fxoks_net: GR-303 Signalling, FXO Loopstart, Network side
-; gr303fxsks_cpe: GR-303 Signalling, FXS Loopstart, CPE side
 ; sf:             SF (Inband Tone) Signalling
 ; sf_w:           SF Wink
 ; sf_featd:       SF Feature Group D (The fake, Adtran style, DTMF)
@@ -832,12 +830,6 @@ pickupgroup=1
 ;
 ; Each channel consists of the channel number or range.  It inherits the
 ; parameters that were specified above its declaration.
-;
-; For GR-303, CRV's are created like channels except they must start with the
-; trunk group followed by a colon, e.g.:
-;
-; crv => 1:1
-; crv => 2:1-2,5-8
 ;
 ;
 ;callerid="Green Phone"<(256) 428-6121>
