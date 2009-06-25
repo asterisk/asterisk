@@ -4154,7 +4154,29 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 	p->outgoing = 1;
 
 	set_actual_gain(p->subs[SUB_REAL].dfd, 0, p->rxgain, p->txgain, p->law);
-
+	/* Set the ring cadence */
+	mysig = p->sig;
+	if (p->outsigmod > -1)
+		mysig = p->outsigmod;
+	switch (mysig) {
+	case SIG_FXOLS:
+	case SIG_FXOGS:
+	case SIG_FXOKS:
+		if (p->owner == ast) {
+			/* Choose proper cadence */
+			if ((p->distinctivering > 0) && (p->distinctivering <= num_cadence)) {
+				if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETCADENCE, &cadences[p->distinctivering - 1]))
+					ast_log(LOG_WARNING, "Unable to set distinctive ring cadence %d on '%s': %s\n", p->distinctivering, ast->name, strerror(errno));
+				p->cidrings = cidrings[p->distinctivering - 1];
+			} else {
+				if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETCADENCE, NULL))
+					ast_log(LOG_WARNING, "Unable to reset default ring on '%s': %s\n", ast->name, strerror(errno));
+				p->cidrings = p->sendcalleridafter;
+			}
+		}
+		break;
+	}
+	
 	/* If this is analog signalling we can exit here */
 	if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
 		p->callwaitrings = 0;
@@ -4162,10 +4184,6 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 		ast_mutex_unlock(&p->lock);
 		return res;
 	}
-
-	mysig = p->sig;
-	if (p->outsigmod > -1)
-		mysig = p->outsigmod;
 
 	switch (mysig) {
 	case SIG_FXOLS:
@@ -4189,17 +4207,6 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 					send_callerid(p);
 				}
 			}
-			/* Choose proper cadence */
-			if ((p->distinctivering > 0) && (p->distinctivering <= num_cadence)) {
-				if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETCADENCE, &cadences[p->distinctivering - 1]))
-					ast_log(LOG_WARNING, "Unable to set distinctive ring cadence %d on '%s': %s\n", p->distinctivering, ast->name, strerror(errno));
-				p->cidrings = cidrings[p->distinctivering - 1];
-			} else {
-				if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETCADENCE, NULL))
-					ast_log(LOG_WARNING, "Unable to reset default ring on '%s': %s\n", ast->name, strerror(errno));
-				p->cidrings = p->sendcalleridafter;
-			}
-
 			/* nick@dccinc.com 4/3/03 mods to allow for deferred dialing */
 			c = strchr(dest, '/');
 			if (c)
