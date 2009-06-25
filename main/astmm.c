@@ -157,9 +157,15 @@ static inline size_t __ast_sizeof_region(void *ptr)
 
 static void __ast_free_region(void *ptr, const char *file, int lineno, const char *func)
 {
-	int hash = HASH(ptr);
+	int hash;
 	struct ast_region *reg, *prev = NULL;
 	unsigned int *fence;
+
+	if (!ptr) {
+		return;
+	}
+
+	hash = HASH(ptr);
 
 	ast_mutex_lock(&reglock);
 	for (reg = regions[hash]; reg; reg = reg->next) {
