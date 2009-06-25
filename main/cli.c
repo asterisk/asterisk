@@ -1289,9 +1289,8 @@ static char *complete_fn_3(const char *line, const char *word, int pos, int stat
 		c += (strlen(ast_config_AST_MODULE_DIR) + 1);
 	if (c)
 		c = strdup(c);
-	if (d) {
-		free(d);
-	}
+
+	free(d);
 	
 	return c;
 }
