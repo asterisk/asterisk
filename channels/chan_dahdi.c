@@ -69,6 +69,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 
 #ifdef HAVE_SS7
+/* put this here until sig_ss7 comes along */
+#define NUM_DCHANS		4		/*!< No more than 4 d-channels */
+#define MAX_CHANNELS	672		/*!< No more than a DS3 per trunk group */
 #include <libss7.h>
 #endif
 
@@ -15909,7 +15912,7 @@ static int setup_dahdi(int reload)
 static int load_module(void)
 {
 	int res;
-#if defined(HAVE_PRI)
+#if defined(HAVE_PRI) || defined (HAVE_SS7)
 	int y;
 #endif
 #if defined(HAVE_SS7)
