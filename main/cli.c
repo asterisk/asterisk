@@ -235,7 +235,9 @@ static char *complete_fn(const char *word, int state)
 		c += (strlen(ast_config_AST_MODULE_DIR) + 1);
 	if (c)
 		c = ast_strdup(c);
-	free(d);
+	if (d) {
+		free(d);
+	}
 	
 	return c;
 }
