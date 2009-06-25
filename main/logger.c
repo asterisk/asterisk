@@ -840,29 +840,29 @@ static int handle_SIGXFSZ(int sig)
 	return 0;
 }
 
-static void ast_log_vsyslog(int level, const char *file, int line, const char *function, const char *str, long pid)
+static void ast_log_vsyslog(struct logmsg *msg)
 {
 	char buf[BUFSIZ];
 
-	if (level >= SYSLOG_NLEVELS) {
+	if (msg->level >= SYSLOG_NLEVELS) {
 		/* we are locked here, so cannot ast_log() */
-		fprintf(stderr, "ast_log_vsyslog called with bogus level: %d\n", level);
+		fprintf(stderr, "ast_log_vsyslog called with bogus level: %d\n", msg->level);
 		return;
 	}
 
-	if (level == __LOG_VERBOSE) {
-		snprintf(buf, sizeof(buf), "VERBOSE[%ld]: %s", pid, str);
-		level = __LOG_DEBUG;
-	} else if (level == __LOG_DTMF) {
-		snprintf(buf, sizeof(buf), "DTMF[%ld]: %s", pid, str);
-		level = __LOG_DEBUG;
+	if (msg->level == __LOG_VERBOSE) {
+		snprintf(buf, sizeof(buf), "VERBOSE[%ld]: %s", msg->process_id, msg->message);
+		msg->level = __LOG_DEBUG;
+	} else if (msg->level == __LOG_DTMF) {
+		snprintf(buf, sizeof(buf), "DTMF[%ld]: %s", msg->process_id, msg->message);
+		msg->level = __LOG_DEBUG;
 	} else {
 		snprintf(buf, sizeof(buf), "%s[%ld]: %s:%d in %s: %s",
-			 levels[level], pid, file, line, function, str);
+			 levels[msg->level], msg->process_id, msg->file, msg->line, msg->function, msg->message);
 	}
 
 	term_strip(buf, buf, strlen(buf) + 1);
-	syslog(syslog_level_map[level], "%s", buf);
+	syslog(syslog_level_map[msg->level], "%s", buf);
 }
 
 /*! \brief Print a normal log message to the channels */
@@ -880,7 +880,7 @@ static void logger_print_normal(struct logmsg *logmsg)
 				continue;
 			/* Check syslog channels */
 			if (chan->type == LOGTYPE_SYSLOG && (chan->logmask & (1 << logmsg->level))) {
-				ast_log_vsyslog(logmsg->level, logmsg->file, logmsg->line, logmsg->function, logmsg->message, logmsg->process_id);
+				ast_log_vsyslog(logmsg);
 			/* Console channels */
 			} else if (chan->type == LOGTYPE_CONSOLE && (chan->logmask & (1 << logmsg->level))) {
 				char linestr[128];
