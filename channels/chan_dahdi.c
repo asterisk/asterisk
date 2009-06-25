@@ -6965,6 +6965,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 			/* absorb event */
 		} else {
 #endif
+			dahdi_confmute(p, 0);
 			p->subs[idx].f.frametype = AST_FRAME_DTMF_END;
 			p->subs[idx].f.subclass = res & 0xff;
 #ifdef HAVE_PRI
