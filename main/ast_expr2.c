@@ -2397,7 +2397,6 @@ static void
 free_value (struct val *vp)
 {	
 	if (vp==NULL) {
-		free(vp);
 		return;
 	}
 	if (vp->type == AST_EXPR_string || vp->type == AST_EXPR_numeric_string)
