@@ -14865,7 +14865,23 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 
 
 	if (c) {	/* We have a call  -either a new call or an old one (RE-INVITE) */
-		switch(c->_state) {
+		enum ast_channel_state c_state = c->_state;
+
+		if (c_state != AST_STATE_UP && reinvite &&
+			(p->invitestate == INV_TERMINATED || p->invitestate == INV_CONFIRMED)) {
+			/* If these conditions are true, and the channel is still in the 'ringing'
+			 * state, then this likely means that we have a situation where the initial
+			 * INVITE transaction has completed *but* the channel's state has not yet been
+			 * changed to UP. The reason this could happen is if the reinvite is received
+			 * on the SIP socket prior to an application calling ast_read on this channel
+			 * to read the answer frame we earlier queued on it. In this case, the reinvite
+			 * is completely legitimate so we need to handle this the same as if the channel 
+			 * were already UP. Thus we are purposely falling through to the AST_STATE_UP case.
+			 */
+			c_state = AST_STATE_UP;
+		}
+
+		switch(c_state) {
 		case AST_STATE_DOWN:
 			if (option_debug > 1)
 				ast_log(LOG_DEBUG, "%s: New call is still down.... Trying... \n", c->name);
@@ -14937,21 +14953,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			p->invitestate = INV_PROCEEDING;
 			break;
 		case AST_STATE_RINGING:
-			if (reinvite && (p->invitestate == INV_TERMINATED || p->invitestate == INV_CONFIRMED)) {
-			/* If these conditions are true, and the channel is still in the 'ringing'
-			 * state, then this likely means that we have a situation where the initial
-			 * INVITE transaction has completed *but* the channel's state has not yet been
-			 * changed to UP. The reason this could happen is if the reinvite is received
-			 * on the SIP socket prior to an application calling ast_read on this channel
-			 * to read the answer frame we earlier queued on it. In this case, the reinvite
-			 * is completely legitimate so we need to handle this the same as if the channel 
-			 * were already UP. Thus we are purposely falling through to the AST_STATE_UP case.
-			 */
-			} else {
-				transmit_response(p, "180 Ringing", req);
-				p->invitestate = INV_PROCEEDING;
-				break;
-			}
+			transmit_response(p, "180 Ringing", req);
+			p->invitestate = INV_PROCEEDING;
+			break;
 		case AST_STATE_UP:
 			if (option_debug > 1)
 				ast_log(LOG_DEBUG, "%s: This call is UP.... \n", c->name);
