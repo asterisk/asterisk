@@ -774,11 +774,10 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, char *rdest, int 
 			p->lastcid_name[0] = '\0';
 
 		if (p->use_callerid) {
-			//p->callwaitcas = 0;
+			p->callwaitcas = 0;
 			p->cid.cid_name = p->lastcid_name;
 			p->cid.cid_num = p->lastcid_num;
 		}
-
 
 		ast_setstate(ast, AST_STATE_RINGING);
 		index = analog_get_index(ast, p, 0);
@@ -1087,9 +1086,7 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 	analog_stop_callwait(p);
 	ast->tech_pvt = NULL;
 
-	if (option_verbose > 2) {
-		ast_verbose(VERBOSE_PREFIX_3 "Hanging up on '%s'\n", ast->name);
-	}
+	ast_verb(3, "Hanging up on '%s'\n", ast->name);
 
 	return 0;
 }
@@ -1557,8 +1554,7 @@ static void *__analog_ss_thread(void *data)
 			}
 			goto quit;
 		} else {
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_2 "Unknown extension '%s' in context '%s' requested\n", exten, chan->context);
+			ast_verb(3, "Unknown extension '%s' in context '%s' requested\n", exten, chan->context);
 			sleep(2);
 			res = analog_play_tone(p, index, ANALOG_TONE_INFO);
 			if (res < 0)
@@ -1608,8 +1604,7 @@ static void *__analog_ss_thread(void *data)
 					if (getforward) {
 						/* Record this as the forwarding extension */
 						ast_copy_string(p->call_forward, exten, sizeof(p->call_forward)); 
-						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "Setting call forward to '%s' on channel %d\n", p->call_forward, p->channel);
+						ast_verb(3, "Setting call forward to '%s' on channel %d\n", p->call_forward, p->channel);
 						res = analog_play_tone(p, index, ANALOG_TONE_DIALRECALL);
 						if (res)
 							break;
@@ -1654,8 +1649,7 @@ static void *__analog_ss_thread(void *data)
 				ast_hangup(chan);
 				goto quit;
 			} else if (p->callwaiting && !strcmp(exten, "*70")) {
-				if (option_verbose > 2) 
-					ast_verbose(VERBOSE_PREFIX_3 "Disabling call waiting on %s\n", chan->name);
+				ast_verb(3, "Disabling call waiting on %s\n", chan->name);
 				/* Disable call waiting if enabled */
 				p->callwaiting = 0;
 				res = analog_play_tone(p, index, ANALOG_TONE_DIALRECALL);
@@ -1695,8 +1689,7 @@ static void *__analog_ss_thread(void *data)
 					goto quit;
 				}
 			} else if (!p->hidecallerid && !strcmp(exten, "*67")) {
-				if (option_verbose > 2) 
-					ast_verbose(VERBOSE_PREFIX_3 "Disabling Caller*ID on %s\n", chan->name);
+				ast_verb(3, "Disabling Caller*ID on %s\n", chan->name);
 				/* Disable Caller*ID if enabled */
 				p->hidecallerid = 1;
 				if (chan->cid.cid_num)
@@ -1723,13 +1716,10 @@ static void *__analog_ss_thread(void *data)
 				break;
 			} else if (!strcmp(exten, "*78")) {
 				/* Do not disturb */
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Enabled DND on channel %d\n", p->channel);
-#if 0
+				ast_verb(3, "Enabled DND on channel %d\n", p->channel);
 				manager_event(EVENT_FLAG_SYSTEM, "DNDState",
-					      "Channel: %s/%d\r\n"
-					      "Status: enabled\r\n", dahdi_chan_name, p->channel);
-#endif
+					      "Channel: DAHDI/%d\r\n"
+					      "Status: enabled\r\n", p->channel);
 				res = analog_play_tone(p, index, ANALOG_TONE_DIALRECALL);
 				p->dnd = 1;
 				getforward = 0;
@@ -1737,13 +1727,10 @@ static void *__analog_ss_thread(void *data)
 				len = 0;
 			} else if (!strcmp(exten, "*79")) {
 				/* Do not disturb */
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Disabled DND on channel %d\n", p->channel);
-#if 0
+				ast_verb(3, "Disabled DND on channel %d\n", p->channel);
 				manager_event(EVENT_FLAG_SYSTEM, "DNDState",
-					      "Channel: %s/%d\r\n"
-					      "Status: disabled\r\n", dahdi_chan_name, p->channel);
-#endif
+					      "Channel: DAHDI/%d\r\n"
+					      "Status: disabled\r\n", p->channel);
 				res = analog_play_tone(p, index, ANALOG_TONE_DIALRECALL);
 				p->dnd = 0;
 				getforward = 0;
@@ -1755,8 +1742,7 @@ static void *__analog_ss_thread(void *data)
 				memset(exten, 0, sizeof(exten));
 				len = 0;
 			} else if (p->cancallforward && !strcmp(exten, "*73")) {
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Cancelling call forwarding on channel %d\n", p->channel);
+				ast_verb(3, "Cancelling call forwarding on channel %d\n", p->channel);
 				res = analog_play_tone(p, index, ANALOG_TONE_DIALRECALL);
 				memset(p->call_forward, 0, sizeof(p->call_forward));
 				getforward = 0;
@@ -1768,12 +1754,10 @@ static void *__analog_ss_thread(void *data)
 				/* This is a three way call, the main call being a real channel,
 					and we're parking the first call. */
 				ast_masq_park_call(ast_bridged_channel(p->subs[ANALOG_SUB_THREEWAY].owner), chan, 0, NULL);
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Parking call to '%s'\n", chan->name);
+				ast_verb(3, "Parking call to '%s'\n", chan->name);
 				break;
 			} else if (!ast_strlen_zero(p->lastcid_num) && !strcmp(exten, "*60")) {
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Blacklisting number %s\n", p->lastcid_num);
+				ast_verb(3, "Blacklisting number %s\n", p->lastcid_num);
 				res = ast_db_put("blacklist", p->lastcid_num, "1");
 				if (!res) {
 					res = analog_play_tone(p, index, ANALOG_TONE_DIALRECALL);
@@ -1781,8 +1765,7 @@ static void *__analog_ss_thread(void *data)
 					len = 0;
 				}
 			} else if (p->hidecallerid && !strcmp(exten, "*82")) {
-				if (option_verbose > 2) 
-					ast_verbose(VERBOSE_PREFIX_3 "Enabling Caller*ID on %s\n", chan->name);
+				ast_verb(3, "Enabling Caller*ID on %s\n", chan->name);
 				/* Enable Caller*ID if enabled */
 				p->hidecallerid = 0;
 				if (chan->cid.cid_num)
@@ -2241,8 +2224,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 	switch (res) {
 #ifdef ANALOG_EVENT_EC_DISABLED
 	case ANALOG_EVENT_EC_DISABLED:
-		if (option_verbose > 2) 
-			ast_verbose(VERBOSE_PREFIX_3 "Channel %d echo canceler disabled due to CED detection\n", p->channel);
+		ast_verb(3, "Channel %d echo canceler disabled due to CED detection\n", p->channel);
 		p->echocanon = 0;
 		break;
 #endif
@@ -2310,8 +2292,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 				if (p->subs[ANALOG_SUB_CALLWAIT].owner) {
 					/* There's a call waiting call, so ring the phone, but make it unowned in the mean time */
 					analog_swap_subs(p, ANALOG_SUB_CALLWAIT, ANALOG_SUB_REAL);
-					if (option_verbose > 2) 
-						ast_verbose(VERBOSE_PREFIX_3 "Channel %d still has (callwait) call, ringing phone\n", p->channel);
+					ast_verb(3, "Channel %d still has (callwait) call, ringing phone\n", p->channel);
 					analog_unalloc_sub(p, ANALOG_SUB_CALLWAIT);
 					analog_stop_callwait(p);
 					p->owner = NULL;
@@ -2680,8 +2661,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 						if (p->subs[ANALOG_SUB_THREEWAY].owner->cdr)
 							cdr3way = 1;
  						
-						if (option_verbose > 2)	
-							ast_verbose(VERBOSE_PREFIX_3 "Started three way call on channel %d\n", p->channel);
+						ast_verb(3, "Started three way call on channel %d\n", p->channel);
 						/* Start music on hold if appropriate */
 						if (ast_bridged_channel(p->subs[ANALOG_SUB_THREEWAY].owner)) {
 							ast_queue_control_data(p->subs[ANALOG_SUB_THREEWAY].owner, AST_CONTROL_HOLD,
@@ -2703,8 +2683,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 						p->owner = p->subs[ANALOG_SUB_REAL].owner;
 					}
 					/* Drop the last call and stop the conference */
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Dropping three-way call on %s\n", p->subs[ANALOG_SUB_THREEWAY].owner->name);
+					ast_verb(3, "Dropping three-way call on %s\n", p->subs[ANALOG_SUB_THREEWAY].owner->name);
 					ast_softhangup_nolock(p->subs[ANALOG_SUB_THREEWAY].owner, AST_SOFTHANGUP_DEV);
 					p->subs[ANALOG_SUB_REAL].inthreeway = 0;
 					p->subs[ANALOG_SUB_THREEWAY].inthreeway = 0;
@@ -2724,8 +2703,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 						if (p->subs[ANALOG_SUB_THREEWAY].owner->cdr)
 							cdr3way = 1;
 
-						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "Building conference on call on %s and %s\n", p->subs[ANALOG_SUB_THREEWAY].owner->name, p->subs[ANALOG_SUB_REAL].owner->name);
+						ast_verb(3, "Building conference on call on %s and %s\n", p->subs[ANALOG_SUB_THREEWAY].owner->name, p->subs[ANALOG_SUB_REAL].owner->name);
 						/* Put them in the threeway, and flip */
 						p->subs[ANALOG_SUB_THREEWAY].inthreeway = 1;
 						p->subs[ANALOG_SUB_REAL].inthreeway = 1;
@@ -2742,8 +2720,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 							analog_play_tone(p, ANALOG_SUB_THREEWAY, ANALOG_TONE_RINGTONE);
 						}
 					} else {
-						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "Dumping incomplete call on on %s\n", p->subs[ANALOG_SUB_THREEWAY].owner->name);
+						ast_verb(3, "Dumping incomplete call on on %s\n", p->subs[ANALOG_SUB_THREEWAY].owner->name);
 						analog_swap_subs(p, ANALOG_SUB_THREEWAY, ANALOG_SUB_REAL);
 						ast_softhangup_nolock(p->subs[ANALOG_SUB_THREEWAY].owner, AST_SOFTHANGUP_DEV);
 						p->owner = p->subs[ANALOG_SUB_REAL].owner;
@@ -2938,8 +2915,7 @@ struct ast_frame *analog_exception(struct analog_pvt *p, struct ast_channel *ast
 		case ANALOG_EVENT_ONHOOK:
 			analog_set_echocanceller(p, 0);
 			if (p->owner) {
-				if (option_verbose > 2) 
-					ast_verbose(VERBOSE_PREFIX_3 "Channel %s still has call, ringing phone\n", p->owner->name);
+				ast_verb(3, "Channel %s still has call, ringing phone\n", p->owner->name);
 				analog_ring(p);
 				analog_stop_callwait(p);
 			} else
@@ -2962,8 +2938,7 @@ struct ast_frame *analog_exception(struct analog_pvt *p, struct ast_channel *ast
 		case ANALOG_EVENT_WINKFLASH:
 			gettimeofday(&p->flashtime, NULL);
 			if (p->owner) {
-				if (option_verbose > 2) 
-					ast_verbose(VERBOSE_PREFIX_3 "Channel %d flashed to other channel %s\n", p->channel, p->owner->name);
+				ast_verb(3, "Channel %d flashed to other channel %s\n", p->channel, p->owner->name);
 				if (p->owner->_state != AST_STATE_UP) {
 					/* Answer if necessary */
 					usedindex = analog_get_index(p->owner, p, 0);

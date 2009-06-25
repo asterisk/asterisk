@@ -248,12 +248,12 @@ struct analog_pvt {
 	/* XXX: All variables after this are internal */
 	unsigned int callwaiting:1;
 	unsigned int dialednone:1;
-	unsigned int dialing:1;
+	unsigned int dialing:1;			/*!< TRUE if in the process of dialing digits or sending something */
 	unsigned int dnd:1;
 	unsigned int echobreak:1;
 	unsigned int hidecallerid:1;
 	unsigned int outgoing:1;
-	unsigned int pulsedial:1;			/*!< whether a pulse dial phone is detected */
+	unsigned int pulsedial:1;		/*!< TRUE if a pulsed digit was detected. (Pulse dial phone detected) */
 
 	char callwait_num[AST_MAX_EXTENSION];
 	char callwait_name[AST_MAX_EXTENSION];
@@ -277,13 +277,13 @@ struct analog_pvt {
 	void *ss_astchan;
 
 	/* All variables after this are definitely going to be audited */
-	unsigned int inalarm:1; //
-	unsigned int unknown_alarm:1;//
+	unsigned int inalarm:1;
+	unsigned int unknown_alarm:1;
 
 	int callwaitcas;
 
 #if 0
-	int ringt; //
+	int ringt;
 	int ringt_base;
 #endif
 };
