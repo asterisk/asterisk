@@ -173,6 +173,16 @@ Calendaring for Asterisk
    iCalendar, CalDAV, and Exchange Server calendars are supported (Exchange support
    only tested on Exchange Server 2003 with no support for forms-based authentication).
 
+Multicast RTP Support
+---------------------
+ * A new RTP engine and channel driver have been added which supports Multicast RTP.
+   The channel driver can be used with the Page application to perform multicast RTP
+   paging. The dial string format is: MulticastRTP/<type>/<destination>/<control address>
+   Type can be either basic or linksys.
+   Destination is the IP address and port for the RTP packets.
+   Control address is specific to the linksys type and is used for sending the control
+   packets unique to them.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.1 to Asterisk 1.6.2  -------------
 ------------------------------------------------------------------------------
