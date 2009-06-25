@@ -2702,7 +2702,16 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		   before the macro started playing. To the phone system,
 		   this is billable time for the call, even tho the caller
 		   hears nothing but ringing while the macro does its thing. */
-		if (peer_cdr && !ast_tvzero(peer_cdr->answer)) {
+
+		/* Another case where the peer cdr's time will be set, is when
+		   A self-parks by pickup up phone and dialing 700, then B
+		   picks up A by dialing its parking slot; there may be more 
+		   practical paths that get the same result, tho... in which
+		   case you get the previous answer time from the Park... which
+		   is before the bridge's start time, so I added in the 
+		   tvcmp check to the if below */
+
+		if (peer_cdr && !ast_tvzero(peer_cdr->answer) && ast_tvcmp(peer->cdr->answer, bridge_cdr->start) >= 0) {
 			bridge_cdr->answer = peer_cdr->answer;
 			bridge_cdr->disposition = peer_cdr->disposition;
 			if (chan_cdr) {
