@@ -161,7 +161,7 @@ typedef struct {
 	int direction;			/* Fax direction: 0 - receiving, 1 - sending */
 	int caller_mode;
 	char *file_name;
-	
+	struct ast_control_t38_parameters t38parameters;
 	volatile int finished;
 } fax_session;
 
@@ -372,7 +372,6 @@ static int transmit_audio(fax_session *s)
 	struct ast_frame *fr;
 	int last_state = 0;
 	struct timeval now, start, state_change;
-	enum ast_control_t38 t38control;
 
 #if SPANDSP_RELEASE_DATE >= 20080725
         /* for spandsp shaphots 0.0.6 and higher */
@@ -456,9 +455,16 @@ static int transmit_audio(fax_session *s)
 			/* Do not pass channel to ast_dsp_process otherwise it may queue modified audio frame back */
 			fr = ast_dsp_process(NULL, dsp, fr);
 			if (fr && fr->frametype == AST_FRAME_DTMF && fr->subclass == 'f') {
+				struct ast_control_t38_parameters parameters = { .request_response = AST_T38_REQUEST_NEGOTIATE,
+										 .version = 0,
+										 .max_datagram = 400,
+										 .rate = AST_T38_RATE_9600,
+										 .rate_management = AST_T38_RATE_MANAGEMENT_TRANSFERED_TCF,
+										 .fill_bit_removal = 1,
+										 .transcoding_mmr = 1,
+				};
 				ast_debug(1, "Fax tone detected. Requesting T38\n");
-				t38control = AST_T38_REQUEST_NEGOTIATE;
-				ast_indicate_data(s->chan, AST_CONTROL_T38, &t38control, sizeof(t38control));
+				ast_indicate_data(s->chan, AST_CONTROL_T38_PARAMETERS, &parameters, sizeof(parameters));
 				detect_tone = 0;
 			}
 
@@ -483,11 +489,11 @@ static int transmit_audio(fax_session *s)
 				state_change = ast_tvnow();
 				last_state = t30state->state;
 			}
-		} else if (inf->frametype == AST_FRAME_CONTROL && inf->subclass == AST_CONTROL_T38 &&
-				inf->datalen == sizeof(enum ast_control_t38)) {
-			t38control =*((enum ast_control_t38 *) inf->data.ptr);
-			if (t38control == AST_T38_NEGOTIATED) {
+		} else if (inf->frametype == AST_FRAME_CONTROL && inf->subclass == AST_CONTROL_T38_PARAMETERS) {
+			struct ast_control_t38_parameters *parameters = inf->data.ptr;
+			if (parameters->request_response == AST_T38_NEGOTIATED) {
 				/* T38 switchover completed */
+				s->t38parameters = *parameters;
 				ast_debug(1, "T38 negotiated, finishing audio loop\n");
 				res = 1;
 				break;
@@ -548,8 +554,6 @@ static int transmit_t38(fax_session *s)
 	struct ast_frame *inf = NULL;
 	int last_state = 0;
 	struct timeval now, start, state_change, last_frame;
-	enum ast_control_t38 t38control;
-
 	t30_state_t *t30state;
 	t38_core_state_t *t38state;
 
@@ -568,6 +572,17 @@ static int transmit_t38(fax_session *s)
 	if (t38_terminal_init(&t38, s->caller_mode, t38_tx_packet_handler, s->chan) == NULL) {
 		ast_log(LOG_WARNING, "Unable to start T.38 termination.\n");
 		return -1;
+	}
+
+	t38_set_max_datagram_size(t38state, s->t38parameters.max_datagram);
+
+	if (s->t38parameters.fill_bit_removal) {
+		t38_set_fill_bit_removal(t38state, TRUE);
+	}
+	if (s->t38parameters.transcoding_mmr) {
+		t38_set_mmr_transcoding(t38state, TRUE);
+	} else if (s->t38parameters.transcoding_jbig) {
+		t38_set_jbig_transcoding(t38state, TRUE);
 	}
 
 	/* Setup logging */
@@ -613,12 +628,9 @@ static int transmit_t38(fax_session *s)
 				state_change = ast_tvnow();
 				last_state = t30state->state;
 			}
-		} else if (inf->frametype == AST_FRAME_CONTROL && inf->subclass == AST_CONTROL_T38 &&
-				inf->datalen == sizeof(enum ast_control_t38)) {
-
-			t38control = *((enum ast_control_t38 *) inf->data.ptr);
-
-			if (t38control == AST_T38_TERMINATED || t38control == AST_T38_REFUSED) {
+		} else if (inf->frametype == AST_FRAME_CONTROL && inf->subclass == AST_CONTROL_T38_PARAMETERS) {
+			struct ast_control_t38_parameters *parameters = inf->data.ptr;
+			if (parameters->request_response == AST_T38_TERMINATED || parameters->request_response == AST_T38_REFUSED) {
 				ast_debug(1, "T38 down, terminating\n");
 				res = -1;
 				break;
@@ -709,7 +721,7 @@ static int sndfax_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 	char *parse;
-	fax_session session;
+	fax_session session = { 0, };
 	char restore_digit_detect = 0;
 
 	AST_DECLARE_APP_ARGS(args,

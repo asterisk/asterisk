@@ -3483,6 +3483,7 @@ static int attribute_const is_visible_indication(enum ast_control_frame_type con
 	case AST_CONTROL_CONNECTED_LINE:
 	case AST_CONTROL_REDIRECTING:
 	case AST_CONTROL_TRANSFER:
+	case AST_CONTROL_T38_PARAMETERS:
 		break;
 
 	case AST_CONTROL_CONGESTION:
@@ -3613,6 +3614,7 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	case AST_CONTROL_TRANSFER:
 	case AST_CONTROL_CONNECTED_LINE:
 	case AST_CONTROL_REDIRECTING:
+	case AST_CONTROL_T38_PARAMETERS:
 		/* Nothing left to do for these. */
 		res = 0;
 		break;
