@@ -1236,7 +1236,14 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 				} else {
 					res = fr->subclass;
 					if (strchr(forward,res)) {
+						int eoftest;
 						ast_stream_fastforward(c->stream, skip_ms);
+						eoftest = fgetc(c->stream->f);
+						if (feof(c->stream->f)) {
+							ast_stream_rewind(c->stream, skip_ms);
+						} else {
+							ungetc(eoftest, c->stream->f);
+						}
 					} else if (strchr(rewind,res)) {
 						ast_stream_rewind(c->stream, skip_ms);
 					} else if (strchr(breakon, res)) {
