@@ -983,10 +983,10 @@ struct sip_auth {
 #define SIP_PAGE2_SUBSCRIBEMWIONLY	(1 << 18)	/*!< GP: Only issue MWI notification if subscribed to */
 #define SIP_PAGE2_IGNORESDPVERSION	(1 << 19)	/*!< GDP: Ignore the SDP session version number we receive and treat all sessions as new */
 
-#define SIP_PAGE2_T38SUPPORT		(7 << 20)	/*!< GDP: T38 Fax Passthrough Support */
-#define SIP_PAGE2_T38SUPPORT_UDPTL	(1 << 20)	/*!< GDP: T38 Fax Passthrough Support */
-#define SIP_PAGE2_T38SUPPORT_RTP	(2 << 20)	/*!< GDP: T38 Fax Passthrough Support (not implemented) */
-#define SIP_PAGE2_T38SUPPORT_TCP	(4 << 20)	/*!< GDP: T38 Fax Passthrough Support (not implemented) */
+#define SIP_PAGE2_T38SUPPORT		        (7 << 20)	/*!< GDP: T38 Fax Passthrough Support */
+#define SIP_PAGE2_T38SUPPORT_UDPTL	        (1 << 20)	/*!< GDP: T38 Fax Passthrough Support (no error correction) */
+#define SIP_PAGE2_T38SUPPORT_UDPTL_FEC	        (2 << 20)	/*!< GDP: T38 Fax Passthrough Support (FEC error correction) */
+#define SIP_PAGE2_T38SUPPORT_UDPTL_REDUNDANCY	(4 << 20)	/*!< GDP: T38 Fax Passthrough Support (redundancy error correction) */
 
 #define SIP_PAGE2_CALL_ONHOLD		(3 << 23)	/*!< D: Call hold states: */
 #define SIP_PAGE2_CALL_ONHOLD_ACTIVE    (1 << 23)       /*!< D: Active hold */
@@ -1060,7 +1060,6 @@ static int sipdebug_text;
 enum t38state {
 	T38_DISABLED = 0,                /*!< Not enabled */
 	T38_LOCAL_REINVITE,              /*!< Offered from local - REINVITE */
-	T38_PEER_DIRECT,                 /*!< Offered from peer */
 	T38_PEER_REINVITE,               /*!< Offered from peer - REINVITE */
 	T38_ENABLED                      /*!< Negotiated (enabled) */
 };
@@ -1072,7 +1071,6 @@ struct t38properties {
 	int peercapability;		/*!< Peers T38 capability */
 	int jointcapability;		/*!< Supported T38 capability at both ends */
 	enum t38state state;		/*!< T.38 state */
-	unsigned int direct:1;          /*!< Whether the T38 came from the initial invite or not */
 };
 
 /*! \brief Parameters to know status of transfer */
@@ -3291,7 +3289,6 @@ static int sip_queryoption(struct ast_channel *chan, int option, void *data, int
 		if (ast_test_flag(&p->t38.t38support, SIP_PAGE2_T38SUPPORT)) {
 			switch (p->t38.state) {
 			case T38_LOCAL_REINVITE:
-			case T38_PEER_DIRECT:
 			case T38_PEER_REINVITE:
 				state = T38_STATE_NEGOTIATING;
 				break;
@@ -4032,20 +4029,61 @@ static void do_setnat(struct sip_pvt *p, int natflags)
 	}
 }
 
+/*! \brief Helper function which interprets T.38 capabilities and fills a parameters structure in */
+static void fill_t38_parameters(int capabilities, struct ast_control_t38_parameters *parameters, struct sip_pvt *p)
+{
+	if (capabilities & T38FAX_VERSION_0) {
+		parameters->version = 0;
+	} else if (capabilities & T38FAX_VERSION_1) {
+		parameters->version = 1;
+	}
+
+	if (capabilities & T38FAX_RATE_14400) {
+		parameters->rate = AST_T38_RATE_14400;
+	} else if (capabilities & T38FAX_RATE_12000) {
+		parameters->rate = AST_T38_RATE_12000;
+	} else if (capabilities & T38FAX_RATE_9600) {
+		parameters->rate = AST_T38_RATE_9600;
+	} else if (capabilities & T38FAX_RATE_7200) {
+		parameters->rate = AST_T38_RATE_7200;
+	} else if (capabilities & T38FAX_RATE_4800) {
+		parameters->rate = AST_T38_RATE_4800;
+	} else if (capabilities & T38FAX_RATE_2400) {
+		parameters->rate = AST_T38_RATE_2400;
+	}
+
+	if (capabilities & T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF) {
+		parameters->rate_management = AST_T38_RATE_MANAGEMENT_TRANSFERED_TCF;
+	} else if (capabilities & T38FAX_RATE_MANAGEMENT_LOCAL_TCF) {
+		parameters->rate_management = AST_T38_RATE_MANAGEMENT_LOCAL_TCF;
+	}
+
+	if (capabilities & T38FAX_FILL_BIT_REMOVAL) {
+		parameters->fill_bit_removal = 1;
+	}
+
+	if (capabilities & T38FAX_TRANSCODING_MMR) {
+		parameters->transcoding_mmr = 1;
+	}
+
+	if (capabilities & T38FAX_TRANSCODING_JBIG) {
+		parameters->transcoding_jbig = 1;
+	}
+
+	parameters->max_datagram = ast_udptl_get_far_max_datagram(p->udptl);
+}
+
 /*! \brief Change the T38 state on a SIP dialog */
 static void change_t38_state(struct sip_pvt *p, int state)
 {
 	int old = p->t38.state;
 	struct ast_channel *chan = p->owner;
 	enum ast_control_t38 message = 0;
+	struct ast_control_t38_parameters parameters = { 0, };
 
 	/* Don't bother changing if we are already in the state wanted */
 	if (old == state)
 		return;
-
-	if (state == T38_PEER_DIRECT) {
-		p->t38.direct = 1;
-	}
 
 	p->t38.state = state;
 	ast_debug(2, "T38 state changed to %d on channel %s\n", p->t38.state, chan ? chan->name : "<none>");
@@ -4055,16 +4093,20 @@ static void change_t38_state(struct sip_pvt *p, int state)
 		return;
 
 	/* Given the state requested and old state determine what control frame we want to queue up */
-	if (state == T38_PEER_REINVITE)
-		message = AST_T38_REQUEST_NEGOTIATE;
-	else if (state == T38_ENABLED)
-		message = AST_T38_NEGOTIATED;
-	else if (state == T38_DISABLED && old == T38_ENABLED)
-		message = AST_T38_TERMINATED;
+	if (state == T38_PEER_REINVITE) {
+		message = parameters.request_response = AST_T38_REQUEST_NEGOTIATE;
+		fill_t38_parameters(p->t38.peercapability, &parameters, p);
+	} else if (state == T38_ENABLED) {
+		message = parameters.request_response = AST_T38_NEGOTIATED;
+		fill_t38_parameters(p->t38.jointcapability, &parameters, p);
+	} else if (state == T38_DISABLED && old == T38_ENABLED)
+		message = parameters.request_response = AST_T38_TERMINATED;
 	else if (state == T38_DISABLED && old == T38_LOCAL_REINVITE)
-		message = AST_T38_REFUSED;
+		message = parameters.request_response = AST_T38_REFUSED;
 
 	/* Woot we got a message, create a control frame and send it on! */
+	if (parameters.request_response)
+		ast_queue_control_data(chan, AST_CONTROL_T38_PARAMETERS, &parameters, sizeof(parameters));
 	if (message)
 		ast_queue_control_data(chan, AST_CONTROL_T38, &message, sizeof(message));
 }
@@ -4074,12 +4116,16 @@ static void set_t38_capabilities(struct sip_pvt *p)
 {
 	p->t38.capability = global_t38_capability;
 	if (p->udptl) {
-		if (ast_udptl_get_error_correction_scheme(p->udptl) == UDPTL_ERROR_CORRECTION_FEC )
-			p->t38.capability |= T38FAX_UDP_EC_FEC;
-		else if (ast_udptl_get_error_correction_scheme(p->udptl) == UDPTL_ERROR_CORRECTION_REDUNDANCY )
+		if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) == SIP_PAGE2_T38SUPPORT_UDPTL_REDUNDANCY) {
+                        ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_REDUNDANCY);
 			p->t38.capability |= T38FAX_UDP_EC_REDUNDANCY;
-		else if (ast_udptl_get_error_correction_scheme(p->udptl) == UDPTL_ERROR_CORRECTION_NONE )
+		} else if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) == SIP_PAGE2_T38SUPPORT_UDPTL_FEC) {
+			ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_FEC);
+			p->t38.capability |= T38FAX_UDP_EC_FEC;
+		} else if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) == SIP_PAGE2_T38SUPPORT_UDPTL) {
+			ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_NONE);
 			p->t38.capability |= T38FAX_UDP_EC_NONE;
+		}
 		p->t38.capability |= T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF;
 	}
 }
@@ -5162,9 +5208,6 @@ static int sip_answer(struct ast_channel *ast)
 
 		ast_setstate(ast, AST_STATE_UP);
 		ast_debug(1, "SIP answering channel: %s\n", ast->name);
-		if (p->t38.state == T38_PEER_DIRECT) {
-			change_t38_state(p, T38_ENABLED);
-		}
 		ast_rtp_new_source(p->rtp);
 		ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
 		res = transmit_response_with_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL, FALSE);
@@ -5204,7 +5247,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 					p->invitestate = INV_EARLY_MEDIA;
 					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE, FALSE);
 					ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);	
-				} else if (p->t38.state == T38_ENABLED && !p->t38.direct) {
+				} else if (p->t38.state == T38_ENABLED) {
 					change_t38_state(p, T38_DISABLED);
 					transmit_reinvite_with_sdp(p, FALSE, FALSE);
 				} else {
@@ -5390,6 +5433,90 @@ static int sip_transfer(struct ast_channel *ast, const char *dest)
 	return res;
 }
 
+/*! \brief Helper function which updates T.38 capability information and triggers a reinvite */
+static void interpret_t38_parameters(struct sip_pvt *p, enum ast_control_t38 request_response, const struct ast_control_t38_parameters *parameters)
+{
+	if (parameters) {
+		if (!parameters->version) {
+			p->t38.capability = p->t38.jointcapability |= T38FAX_VERSION_0;
+		} else if (parameters->version == 1) {
+			p->t38.capability = p->t38.jointcapability |= T38FAX_VERSION_1;
+		}
+
+		if (parameters->rate == AST_T38_RATE_14400) {
+			p->t38.capability = p->t38.jointcapability |= T38FAX_RATE_14400 | T38FAX_RATE_12000 | T38FAX_RATE_9600 | T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400;
+		} else if (parameters->rate == AST_T38_RATE_12000) {
+			p->t38.capability = p->t38.jointcapability |= T38FAX_RATE_12000 | T38FAX_RATE_9600 | T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400;
+		} else if (parameters->rate == AST_T38_RATE_9600) {
+			p->t38.capability = p->t38.jointcapability |= T38FAX_RATE_9600 | T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400;
+		} else if (parameters->rate == AST_T38_RATE_7200) {
+			p->t38.capability = p->t38.jointcapability |= T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400;
+		} else if (parameters->rate == AST_T38_RATE_4800) {
+			p->t38.capability = p->t38.jointcapability |= T38FAX_RATE_4800 | T38FAX_RATE_2400;
+		} else if (parameters->rate == AST_T38_RATE_2400) {
+			p->t38.capability = p->t38.jointcapability |= T38FAX_RATE_2400;
+		}
+
+		if (parameters->rate_management == AST_T38_RATE_MANAGEMENT_TRANSFERED_TCF) {
+			p->t38.capability = p->t38.jointcapability |= T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF;
+		} else if (parameters->rate_management == AST_T38_RATE_MANAGEMENT_LOCAL_TCF) {
+			p->t38.capability = p->t38.jointcapability |= T38FAX_RATE_MANAGEMENT_LOCAL_TCF;
+		}
+
+		if (parameters->fill_bit_removal) {
+			p->t38.capability = p->t38.jointcapability |= T38FAX_FILL_BIT_REMOVAL;
+		} else {
+			p->t38.capability = p->t38.jointcapability &= ~T38FAX_FILL_BIT_REMOVAL;
+		}
+
+		if (parameters->transcoding_mmr) {
+			p->t38.capability = p->t38.jointcapability |= T38FAX_TRANSCODING_MMR;
+		} else {
+			p->t38.capability = p->t38.jointcapability &= ~T38FAX_TRANSCODING_MMR;
+		}
+
+		if (parameters->transcoding_jbig) {
+			p->t38.capability = p->t38.jointcapability |= T38FAX_TRANSCODING_JBIG;
+		} else {
+			p->t38.capability = p->t38.jointcapability &= ~T38FAX_TRANSCODING_JBIG;
+		}
+
+		if (p->udptl && request_response == AST_T38_REQUEST_NEGOTIATE) {
+			ast_udptl_set_local_max_datagram(p->udptl, parameters->max_datagram ? parameters->max_datagram : 400);
+		}
+	}
+
+	switch (request_response) {
+	case AST_T38_NEGOTIATED:
+	case AST_T38_REQUEST_NEGOTIATE:         /* Request T38 */
+		if (p->t38.state == T38_PEER_REINVITE) {
+			AST_SCHED_DEL(sched, p->t38id);
+			change_t38_state(p, T38_ENABLED);
+			transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL);
+		} else if (ast_test_flag(&p->t38.t38support, SIP_PAGE2_T38SUPPORT) && p->t38.state != T38_ENABLED) {
+			change_t38_state(p, T38_LOCAL_REINVITE);
+			if (!p->pendinginvite) {
+				transmit_reinvite_with_sdp(p, TRUE, FALSE);
+			} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
+				ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);
+			}
+		}
+		break;
+	case AST_T38_TERMINATED:
+	case AST_T38_REFUSED:
+	case AST_T38_REQUEST_TERMINATE:         /* Shutdown T38 */
+		if (p->t38.state == T38_PEER_REINVITE) {
+			AST_SCHED_DEL(sched, p->t38id);
+			change_t38_state(p, T38_DISABLED);
+			transmit_response_reliable(p, "488 Not acceptable here", &p->initreq);
+		} else if (p->t38.state == T38_ENABLED)
+			transmit_reinvite_with_sdp(p, FALSE, FALSE);
+		break;
+	default:
+		break;
+	}
+}
+
 /*! \brief Play indication to user 
  * With SIP a lot of indications is sent as messages, letting the device play
    the indication - busy signal, congestion etc 
@@ -5478,35 +5605,15 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 		if (datalen != sizeof(enum ast_control_t38)) {
 			ast_log(LOG_ERROR, "Invalid datalen for AST_CONTROL_T38. Expected %d, got %d\n", (int)sizeof(enum ast_control_t38), (int)datalen);
 		} else {
-			switch (*((enum ast_control_t38 *) data)) {
-			case AST_T38_NEGOTIATED:
-			case AST_T38_REQUEST_NEGOTIATE:		/* Request T38 */
-				if (p->t38.state == T38_PEER_REINVITE) {
-					AST_SCHED_DEL(sched, p->t38id);
-					change_t38_state(p, T38_ENABLED);
-					transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL);
-				} else if (ast_test_flag(&p->t38.t38support, SIP_PAGE2_T38SUPPORT) && p->t38.state != T38_ENABLED) {
-					change_t38_state(p, T38_LOCAL_REINVITE);
-					if (!p->pendinginvite) {
-						transmit_reinvite_with_sdp(p, TRUE, FALSE);
-					} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
-						ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);
-					}
-				}
-				break;
-			case AST_T38_TERMINATED:
-			case AST_T38_REFUSED:
-			case AST_T38_REQUEST_TERMINATE:		/* Shutdown T38 */
-				if (p->t38.state == T38_PEER_REINVITE) {
-					AST_SCHED_DEL(sched, p->t38id);
-					change_t38_state(p, T38_DISABLED);
-					transmit_response_reliable(p, "488 Not acceptable here", &p->initreq);
-				} else if (p->t38.state == T38_ENABLED)
-					transmit_reinvite_with_sdp(p, FALSE, FALSE);
-				break;
-			default:
-				break;
-			}
+			interpret_t38_parameters(p, *((enum ast_control_t38 *) data), NULL);
+		}
+		break;
+	case AST_CONTROL_T38_PARAMETERS:
+		if (datalen != sizeof(struct ast_control_t38_parameters)) {
+			ast_log(LOG_ERROR, "Invalid datalen for AST_CONTROL_T38_PARAMETERS. Expected %d, got %d\n", (int)sizeof(struct ast_control_t38_parameters), (int)datalen);
+		} else {
+			const struct ast_control_t38_parameters *parameters = data;
+			interpret_t38_parameters(p, parameters->request_response, parameters);
 		}
 		break;
 	case AST_CONTROL_SRCUPDATE:
@@ -5913,7 +6020,7 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 	if (f && (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_INBAND) && p->vad) {
 		f = ast_dsp_process(p->owner, p->vad, f);
 		if (f && f->frametype == AST_FRAME_DTMF) {
-			if (ast_test_flag(&p->t38.t38support, SIP_PAGE2_T38SUPPORT_UDPTL) && f->subclass == 'f') {
+			if (ast_test_flag(&p->t38.t38support, SIP_PAGE2_T38SUPPORT) && f->subclass == 'f') {
 				ast_debug(1, "Fax CNG detected on %s\n", ast->name);
 				*faxdetect = 1;
 			} else {
@@ -5938,7 +6045,7 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 
 	/* If we are NOT bridged to another channel, and we have detected fax tone we issue T38 re-invite to a peer */
 	/* If we are bridged then it is the responsibility of the SIP device to issue T38 re-invite if it detects CNG or fax preamble */
-	if (faxdetected && ast_test_flag(&p->t38.t38support, SIP_PAGE2_T38SUPPORT_UDPTL) && (p->t38.state == T38_DISABLED) && !(ast_bridged_channel(ast))) {
+	if (faxdetected && ast_test_flag(&p->t38.t38support, SIP_PAGE2_T38SUPPORT) && (p->t38.state == T38_DISABLED) && !(ast_bridged_channel(ast))) {
 		if (!ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
 			if (!p->pendinginvite) {
 				ast_debug(3, "Sending reinvite on SIP (%s) for T.38 negotiation.\n", ast->name);
@@ -7226,7 +7333,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				found = 1;
 				ast_debug(3, "FaxMaxDatagram: %d\n", x);
 				ast_udptl_set_far_max_datagram(p->udptl, x);
-				ast_udptl_set_local_max_datagram(p->udptl, x);
+				if (!ast_udptl_get_local_max_datagram(p->udptl)) {
+					ast_udptl_set_local_max_datagram(p->udptl, x);
+				}
 			} else if ((strncmp(a, "T38FaxFillBitRemoval", 20) == 0)) {
 				found = 1;
 				if(sscanf(a, "T38FaxFillBitRemoval:%d", &x) == 1) {
@@ -7298,8 +7407,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		} else if (t38action == SDP_T38_INITIATE) {
 			if (p->owner && p->lastinvite) {
 				change_t38_state(p, T38_PEER_REINVITE); /* T38 Offered in re-invite from remote party */
-			} else {
-				change_t38_state(p, T38_PEER_DIRECT); /* T38 Offered directly from peer in first invite */
 			}
 		}
 	} else {
@@ -8521,13 +8628,6 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		ast_debug(1, "** Our capability: %s Video flag: %s Text flag: %s\n", ast_getformatname_multiple(codecbuf, sizeof(codecbuf), capability), 
 			  p->novideo ? "True" : "False", p->notext ? "True" : "False");
 		ast_debug(1, "** Our prefcodec: %s \n", ast_getformatname_multiple(codecbuf, sizeof(codecbuf), p->prefcodec));
-	
-#ifdef WHEN_WE_HAVE_T38_FOR_OTHER_TRANSPORTS
-		if (ast_test_flag(&p->t38.t38support, SIP_PAGE2_T38SUPPORT_RTP)) {
-			ast_str_append(&m_audio, 0, " %d", 191);
-			ast_str_append(&a_audio, 0, "a=rtpmap:%d %s/%d\r\n", 191, "t38", 8000);
-		}
-#endif
 
 		/* Check if we need audio */
 		if (capability & AST_FORMAT_AUDIO_MASK)
@@ -8728,8 +8828,10 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		x = ast_udptl_get_local_max_datagram(p->udptl);
 		ast_str_append(&a_modem, 0, "a=T38FaxMaxBuffer:%d\r\n", x);
 		ast_str_append(&a_modem, 0, "a=T38FaxMaxDatagram:%d\r\n", x);
-		if (p->t38.jointcapability != T38FAX_UDP_EC_NONE)
-			ast_str_append(&a_modem, 0, "a=T38FaxUdpEC:%s\r\n", (p->t38.jointcapability & T38FAX_UDP_EC_REDUNDANCY) ? "t38UDPRedundancy" : "t38UDPFEC");
+		if (p->t38.jointcapability & T38FAX_UDP_EC_REDUNDANCY)
+			ast_str_append(&a_modem, 0, "a=T38FaxUdpEC:t38UDPRedundancy\r\n");
+		else if (p->t38.jointcapability & T38FAX_UDP_EC_FEC)
+			ast_str_append(&a_modem, 0, "a=T38FaxUdpEC:t38UDPFEC\r\n");
 	}
 
 	if (m_audio->len - m_audio->used < 2 || m_video->len - m_video->used < 2 ||
@@ -8848,7 +8950,7 @@ static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, const 
 			ast_rtp_codec_setpref(p->rtp, &p->prefs);
 		}
 		try_suggested_sip_codec(p);
-		if (p->t38.state == T38_PEER_DIRECT || p->t38.state == T38_ENABLED) {
+		if (p->t38.state == T38_ENABLED) {
 			add_sdp(&resp, p, oldsdp, TRUE, TRUE);
 		} else {
 			add_sdp(&resp, p, oldsdp, TRUE, FALSE);
@@ -12078,6 +12180,11 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 	ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_FLAGS_TO_COPY);
 	ast_copy_flags(&p->flags[1], &peer->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
 
+	if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) && p->udptl) {
+		set_t38_capabilities(p);
+		p->t38.jointcapability = p->t38.capability;
+	}
+
 	/* Copy SIP extensions profile to peer */
 	/* XXX is this correct before a successful auth ? */
 	if (p->sipoptions)
@@ -13332,11 +13439,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  Insecure     : %s\n", insecure2str(ast_test_flag(&peer->flags[0], SIP_INSECURE)));
 		ast_cli(fd, "  Nat          : %s\n", nat2str(ast_test_flag(&peer->flags[0], SIP_NAT)));
 		ast_cli(fd, "  ACL          : %s\n", cli_yesno(peer->ha != NULL));
-		ast_cli(fd, "  T38 pt UDPTL : %s\n", cli_yesno(ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT_UDPTL)));
-#ifdef WHEN_WE_HAVE_T38_FOR_OTHER_TRANSPORTS
-		ast_cli(fd, "  T38 pt RTP   : %s\n", cli_yesno(ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT_RTP)));
-		ast_cli(fd, "  T38 pt TCP   : %s\n", cli_yesno(ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT_TCP)));
-#endif
+		ast_cli(fd, "  T38 pt UDPTL : %s\n", cli_yesno(ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT)));
 		ast_cli(fd, "  CanReinvite  : %s\n", cli_yesno(ast_test_flag(&peer->flags[0], SIP_CAN_REINVITE)));
 		ast_cli(fd, "  PromiscRedir : %s\n", cli_yesno(ast_test_flag(&peer->flags[0], SIP_PROMISCREDIR)));
 		ast_cli(fd, "  User=Phone   : %s\n", cli_yesno(ast_test_flag(&peer->flags[0], SIP_USEREQPHONE)));
@@ -13722,11 +13825,8 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Record SIP history:     %s\n", recordhistory ? "On" : "Off");
 	ast_cli(a->fd, "  Call Events:            %s\n", global_callevents ? "On" : "Off");
 
-	ast_cli(a->fd, "  T38 fax pt UDPTL:       %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_UDPTL)));
-#ifdef WHEN_WE_HAVE_T38_FOR_OTHER_TRANSPORTS
-	ast_cli(a->fd, "  T38 fax pt RTP:         %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_RTP)));
-	ast_cli(a->fd, "  T38 fax pt TCP:         %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_TCP)));
-#endif
+	ast_cli(a->fd, "  T38 fax pt UDPTL:       %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT)));
+
 	if (!realtimepeers && !realtimeusers && !realtimeregs)
 		ast_cli(a->fd, "  SIP realtime:           Disabled\n" );
 	else
@@ -17529,6 +17629,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) && !p->udptl && (p->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr.sin_addr))) {
 			set_t38_capabilities(p);
 			p->t38.jointcapability = p->t38.capability;
+			set_t38_capabilities(p);
+			p->t38.jointcapability = p->t38.capability;
 		}
 
 		/* We have a succesful authentication, process the SDP portion if there is one */
@@ -20640,16 +20742,24 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 		ast_set_flag(&mask[1], SIP_PAGE2_IGNORESDPVERSION);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_IGNORESDPVERSION);
 	} else if (!strcasecmp(v->name, "t38pt_udptl")) {
-		ast_set_flag(&mask[1], SIP_PAGE2_T38SUPPORT_UDPTL);
-		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_UDPTL);
-#ifdef WHEN_WE_HAVE_T38_FOR_OTHER_TRANSPORTS
-	} else if (!strcasecmp(v->name, "t38pt_rtp")) {
-		ast_set_flag(&mask[1], SIP_PAGE2_T38SUPPORT_RTP);
-		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_RTP);
-	} else if (!strcasecmp(v->name, "t38pt_tcp")) {
-		ast_set_flag(&mask[1], SIP_PAGE2_T38SUPPORT_TCP);
-		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_TCP);
-#endif
+		char buf[16], *word, *next = buf;
+
+		ast_set_flag(&mask[1], SIP_PAGE2_T38SUPPORT);
+
+		ast_copy_string(buf, v->value, sizeof(buf));
+
+		while ((word = strsep(&next, ","))) {
+			if (ast_true(word) || !strcasecmp(word, "fec")) {
+				ast_clear_flag(&flags[1], SIP_PAGE2_T38SUPPORT);
+				ast_set_flag(&flags[1], SIP_PAGE2_T38SUPPORT_UDPTL_FEC);
+			} else if (!strcasecmp(word, "redundancy")) {
+				ast_clear_flag(&flags[1], SIP_PAGE2_T38SUPPORT);
+				ast_set_flag(&flags[1], SIP_PAGE2_T38SUPPORT_UDPTL_REDUNDANCY);
+			} else if (!strcasecmp(word, "none")) {
+				ast_clear_flag(&flags[1], SIP_PAGE2_T38SUPPORT);
+				ast_set_flag(&flags[1], SIP_PAGE2_T38SUPPORT_UDPTL);
+			}
+		}
 	} else if (!strcasecmp(v->name, "rfc2833compensate")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_RFC2833_COMPENSATE);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_RFC2833_COMPENSATE);
