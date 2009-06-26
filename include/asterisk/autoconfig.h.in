@@ -1006,6 +1006,72 @@
 /* Define to 1 if your system has sysinfo support */
 #undef HAVE_SYSINFO
 
+/* Define if your system has the SYSLOG_FACILITY_LOG_AUTH headers. */
+#undef HAVE_SYSLOG_FACILITY_LOG_AUTH
+
+/* Define if your system has the SYSLOG_FACILITY_LOG_AUTHPRIV headers. */
+#undef HAVE_SYSLOG_FACILITY_LOG_AUTHPRIV
+
+/* Define SYSLOG_FACILITY_LOG_AUTHPRIV headers version */
+#undef HAVE_SYSLOG_FACILITY_LOG_AUTHPRIV_VERSION
+
+/* Define SYSLOG_FACILITY_LOG_AUTH headers version */
+#undef HAVE_SYSLOG_FACILITY_LOG_AUTH_VERSION
+
+/* Define if your system has the SYSLOG_FACILITY_LOG_CRON headers. */
+#undef HAVE_SYSLOG_FACILITY_LOG_CRON
+
+/* Define SYSLOG_FACILITY_LOG_CRON headers version */
+#undef HAVE_SYSLOG_FACILITY_LOG_CRON_VERSION
+
+/* Define if your system has the SYSLOG_FACILITY_LOG_DAEMON headers. */
+#undef HAVE_SYSLOG_FACILITY_LOG_DAEMON
+
+/* Define SYSLOG_FACILITY_LOG_DAEMON headers version */
+#undef HAVE_SYSLOG_FACILITY_LOG_DAEMON_VERSION
+
+/* Define if your system has the SYSLOG_FACILITY_LOG_FTP headers. */
+#undef HAVE_SYSLOG_FACILITY_LOG_FTP
+
+/* Define SYSLOG_FACILITY_LOG_FTP headers version */
+#undef HAVE_SYSLOG_FACILITY_LOG_FTP_VERSION
+
+/* Define if your system has the SYSLOG_FACILITY_LOG_KERN headers. */
+#undef HAVE_SYSLOG_FACILITY_LOG_KERN
+
+/* Define SYSLOG_FACILITY_LOG_KERN headers version */
+#undef HAVE_SYSLOG_FACILITY_LOG_KERN_VERSION
+
+/* Define if your system has the SYSLOG_FACILITY_LOG_LPR headers. */
+#undef HAVE_SYSLOG_FACILITY_LOG_LPR
+
+/* Define SYSLOG_FACILITY_LOG_LPR headers version */
+#undef HAVE_SYSLOG_FACILITY_LOG_LPR_VERSION
+
+/* Define if your system has the SYSLOG_FACILITY_LOG_MAIL headers. */
+#undef HAVE_SYSLOG_FACILITY_LOG_MAIL
+
+/* Define SYSLOG_FACILITY_LOG_MAIL headers version */
+#undef HAVE_SYSLOG_FACILITY_LOG_MAIL_VERSION
+
+/* Define if your system has the SYSLOG_FACILITY_LOG_NEWS headers. */
+#undef HAVE_SYSLOG_FACILITY_LOG_NEWS
+
+/* Define SYSLOG_FACILITY_LOG_NEWS headers version */
+#undef HAVE_SYSLOG_FACILITY_LOG_NEWS_VERSION
+
+/* Define if your system has the SYSLOG_FACILITY_LOG_SYSLOG headers. */
+#undef HAVE_SYSLOG_FACILITY_LOG_SYSLOG
+
+/* Define SYSLOG_FACILITY_LOG_SYSLOG headers version */
+#undef HAVE_SYSLOG_FACILITY_LOG_SYSLOG_VERSION
+
+/* Define if your system has the SYSLOG_FACILITY_LOG_UUCP headers. */
+#undef HAVE_SYSLOG_FACILITY_LOG_UUCP
+
+/* Define SYSLOG_FACILITY_LOG_UUCP headers version */
+#undef HAVE_SYSLOG_FACILITY_LOG_UUCP_VERSION
+
 /* Define to 1 if you have the <syslog.h> header file. */
 #undef HAVE_SYSLOG_H
 
@@ -1211,6 +1277,9 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
+/* Define to 1 if the C compiler supports function prototypes. */
+#undef PROTOTYPES
+
 /* Define to necessary symbol if this constant uses a non-standard name on
    your system. */
 #undef PTHREAD_CREATE_JOINABLE
@@ -1226,6 +1295,11 @@
 
 /* Define to the type of arg 5 for `select'. */
 #undef SELECT_TYPE_ARG5
+
+/* Define to 1 if the `setvbuf' function takes the buffering type as its
+   second argument and the buffer pointer as the third, as on System V before
+   release 3. */
+#undef SETVBUF_REVERSED
 
 /* The size of `int', as computed by sizeof. */
 #undef SIZEOF_INT
@@ -1247,30 +1321,20 @@
 /* Define to 1 if your <sys/time.h> declares `struct tm'. */
 #undef TM_IN_SYS_TIME
 
-/* Enable extensions on AIX 3, Interix.  */
+/* Define to 1 if on AIX 3.
+   System headers sometimes define this.
+   We just want to avoid a redefinition error message.  */
 #ifndef _ALL_SOURCE
 # undef _ALL_SOURCE
 #endif
+
+/* Number of bits in a file offset, on hosts where this is settable. */
+#undef _FILE_OFFSET_BITS
+
 /* Enable GNU extensions on systems that have them.  */
 #ifndef _GNU_SOURCE
 # undef _GNU_SOURCE
 #endif
-/* Enable threading extensions on Solaris.  */
-#ifndef _POSIX_PTHREAD_SEMANTICS
-# undef _POSIX_PTHREAD_SEMANTICS
-#endif
-/* Enable extensions on HP NonStop.  */
-#ifndef _TANDEM_SOURCE
-# undef _TANDEM_SOURCE
-#endif
-/* Enable general extensions on Solaris.  */
-#ifndef __EXTENSIONS__
-# undef __EXTENSIONS__
-#endif
-
-
-/* Number of bits in a file offset, on hosts where this is settable. */
-#undef _FILE_OFFSET_BITS
 
 /* Define to 1 to make fseeko visible on some hosts (e.g. glibc 2.2). */
 #undef _LARGEFILE_SOURCE
@@ -1287,6 +1351,20 @@
 
 /* Define to 1 if you need to in order for `stat' and other things to work. */
 #undef _POSIX_SOURCE
+
+/* Enable extensions on Solaris.  */
+#ifndef __EXTENSIONS__
+# undef __EXTENSIONS__
+#endif
+#ifndef _POSIX_PTHREAD_SEMANTICS
+# undef _POSIX_PTHREAD_SEMANTICS
+#endif
+#ifndef _TANDEM_SOURCE
+# undef _TANDEM_SOURCE
+#endif
+
+/* Define like PROTOTYPES; this can be used by system headers. */
+#undef __PROTOTYPES
 
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const
