@@ -1808,12 +1808,13 @@ static int authenticate(struct mansession *s, const struct message *m)
 static int action_ping(struct mansession *s, const struct message *m)
 {
 	const char *actionid = astman_get_header(m, "ActionID");
+	struct timeval now = ast_tvnow();
 
 	astman_append(s, "Response: Success\r\n");
 	if (!ast_strlen_zero(actionid)){
 		astman_append(s, "ActionID: %s\r\n", actionid);
 	}
-	astman_append(s, "Ping: Pong\r\n\r\n");
+	astman_append(s, "Ping: Pong\r\nTimestamp:%ld.%06lu\r\n", now.tv_sec, (unsigned long) now.tv_usec);
 	return 0;
 }
 

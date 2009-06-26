@@ -133,6 +133,9 @@ Changes to manager version 1.1:
 - Action IAXpeers
 	Now includes if the IAX link is a trunk or not
 
+- Action Ping
+	Response now includes a timestamp
+
 * NEW ACTIONS
 -------------
 - Action: ModuleLoad
