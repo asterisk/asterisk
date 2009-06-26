@@ -3709,7 +3709,7 @@ static int create_addr(const char *peername, struct ast_channel *c, struct socka
 	memcpy(&ourprefs, &peer->prefs, sizeof(ourprefs));
 	/* Move the calling channel's native codec to the top of the preference list */
 	if (c) {
-		ast_log(LOG_DEBUG, "prepending %x to prefs\n", c->nativeformats);
+		ast_debug(1, "prepending %x to prefs\n", c->nativeformats);
 		ast_codec_pref_prepend(&ourprefs, c->nativeformats, 1);
 	}
 	ast_codec_pref_convert(&ourprefs, cai->prefs, sizeof(cai->prefs), 1);
