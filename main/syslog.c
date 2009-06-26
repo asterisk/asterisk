@@ -35,48 +35,48 @@ static const struct {
 	int value;
 } facility_map[] = {
 	/* POSIX only specifies USER and LOCAL0 - LOCAL7 */
-	{ "USER",     LOG_USER     },
-	{ "LOCAL0",   LOG_LOCAL0   },
-	{ "LOCAL1",   LOG_LOCAL1   },
-	{ "LOCAL2",   LOG_LOCAL2   },
-	{ "LOCAL3",   LOG_LOCAL3   },
-	{ "LOCAL4",   LOG_LOCAL4   },
-	{ "LOCAL5",   LOG_LOCAL5   },
-	{ "LOCAL6",   LOG_LOCAL6   },
-	{ "LOCAL7",   LOG_LOCAL7   },
+	{ "user",     LOG_USER     },
+	{ "local0",   LOG_LOCAL0   },
+	{ "local1",   LOG_LOCAL1   },
+	{ "local2",   LOG_LOCAL2   },
+	{ "local3",   LOG_LOCAL3   },
+	{ "local4",   LOG_LOCAL4   },
+	{ "local5",   LOG_LOCAL5   },
+	{ "local6",   LOG_LOCAL6   },
+	{ "local7",   LOG_LOCAL7   },
 #if defined(HAVE_SYSLOG_FACILITY_LOG_KERN)
-	{ "KERN",     LOG_KERN     },
+	{ "kern",     LOG_KERN     },
 #endif
 #if defined(HAVE_SYSLOG_FACILITY_LOG_MAIL)
-	{ "MAIL",     LOG_MAIL     },
+	{ "mail",     LOG_MAIL     },
 #endif
 #if defined(HAVE_SYSLOG_FACILITY_LOG_DAEMON)
-	{ "DAEMON",   LOG_DAEMON   },
+	{ "daemon",   LOG_DAEMON   },
 #endif
 #if defined(HAVE_SYSLOG_FACILITY_LOG_AUTH)
-	{ "AUTH",     LOG_AUTH     },
-	{ "SECURITY", LOG_AUTH     },
+	{ "auth",     LOG_AUTH     },
+	{ "security", LOG_AUTH     },
 #endif
 #if defined(HAVE_SYSLOG_FACILITY_LOG_AUTHPRIV)
-	{ "AUTHPRIV", LOG_AUTHPRIV },
+	{ "authpriv", LOG_AUTHPRIV },
 #endif
 #if defined(HAVE_SYSLOG_FACILITY_LOG_SYSLOG)
-	{ "SYSLOG",   LOG_SYSLOG   },
+	{ "syslog",   LOG_SYSLOG   },
 #endif
 #if defined(HAVE_SYSLOG_FACILITY_LOG_FTP)
-	{ "FTP",      LOG_FTP      },
+	{ "ftp",      LOG_FTP      },
 #endif
 #if defined(HAVE_SYSLOG_FACILITY_LOG_LPR)
-	{ "LPR",      LOG_LPR      },
+	{ "lpr",      LOG_LPR      },
 #endif
 #if defined(HAVE_SYSLOG_FACILITY_LOG_NEWS)
-	{ "NEWS",     LOG_NEWS     },
+	{ "news",     LOG_NEWS     },
 #endif
 #if defined(HAVE_SYSLOG_FACILITY_LOG_UUCP)
-	{ "UUCP",     LOG_UUCP     },
+	{ "uucp",     LOG_UUCP     },
 #endif
 #if defined(HAVE_SYSLOG_FACILITY_LOG_CRON)
-	{ "CRON",     LOG_CRON     },
+	{ "cron",     LOG_CRON     },
 #endif
 };
 
@@ -93,19 +93,32 @@ int ast_syslog_facility(const char *facility)
 	return -1;
 }
 
+const char *ast_syslog_facility_name(int facility)
+{
+	int index;
+
+	for (index = 0; index < ARRAY_LEN(facility_map); index++) {
+		if (facility_map[index].value == facility) {
+			return facility_map[index].name;
+		}
+	}
+
+	return NULL;
+}
+
 static const struct {
 	const char *name;
 	int value;
 } priority_map[] = {
-	{ "ALERT",   LOG_ALERT   },
-	{ "CRIT",    LOG_CRIT    },
-	{ "DEBUG",   LOG_DEBUG   },
-	{ "EMERG",   LOG_EMERG   },
-	{ "ERR",     LOG_ERR     },
-	{ "ERROR",   LOG_ERR     },
-	{ "INFO",    LOG_INFO    },
-	{ "NOTICE",  LOG_NOTICE  },
-	{ "WARNING", LOG_WARNING }
+	{ "alert",   LOG_ALERT   },
+	{ "crit",    LOG_CRIT    },
+	{ "debug",   LOG_DEBUG   },
+	{ "emerg",   LOG_EMERG   },
+	{ "err",     LOG_ERR     },
+	{ "error",   LOG_ERR     },
+	{ "info",    LOG_INFO    },
+	{ "notice",  LOG_NOTICE  },
+	{ "warning", LOG_WARNING },
 };
 
 int ast_syslog_priority(const char *priority)
@@ -119,6 +132,19 @@ int ast_syslog_priority(const char *priority)
 	}
 
 	return -1;
+}
+
+const char *ast_syslog_priority_name(int priority)
+{
+	int index;
+
+	for (index = 0; index < ARRAY_LEN(priority_map); index++) {
+		if (priority_map[index].value == priority) {
+			return priority_map[index].name;
+		}
+	}
+
+	return NULL;
 }
 
 static const int logger_level_to_syslog_map[] = {

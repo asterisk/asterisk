@@ -42,6 +42,17 @@ int ast_syslog_facility(const char *facility);
 
 /*!
  * \since 1.6.3
+ * \brief Maps a syslog facility constant to a string.
+ *
+ * \param facility syslog facility constant to map (i.e. LOG_DAEMON)
+ *
+ * \retval facility name (i.e. "daemon") if found
+ * \retval NULL if facility is not found
+ */
+const char *ast_syslog_facility_name(int facility);
+
+/*!
+ * \since 1.6.3
  * \brief Maps a syslog priority name from a string to a syslog priority
  *        constant.
  *
@@ -51,6 +62,17 @@ int ast_syslog_facility(const char *facility);
  * \retval -1 if priority is not found
  */
 int ast_syslog_priority(const char *priority);
+
+/*!
+ * \since 1.6.3
+ * \brief Maps a syslog priority constant to a string.
+ *
+ * \param priority syslog priority constant to map (i.e. LOG_NOTICE)
+ *
+ * \retval priority name (i.e. "notice") if found
+ * \retval NULL if priority is not found
+ */
+const char *ast_syslog_priority_name(int priority);
 
 /*!
  * \since 1.6.3
