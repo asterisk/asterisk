@@ -10750,8 +10750,9 @@ static int load_config(int reload)
 		if ((val = ast_variable_retrieve(cfg, "general", "minsecs"))) {
 			if (sscanf(val, "%d", &x) == 1) {
 				vmminsecs = x;
-				if (maxsilence <= vmminsecs)
+				if (maxsilence / 1000 >= vmminsecs) {
 					ast_log(AST_LOG_WARNING, "maxsilence should be less than minmessage or you may get empty messages\n");
+				}
 			} else {
 				ast_log(AST_LOG_WARNING, "Invalid min message time length\n");
 			}
@@ -10763,8 +10764,9 @@ static int load_config(int reload)
 			}
 			if (sscanf(val, "%d", &x) == 1) {
 				vmminsecs = x;
-				if (maxsilence <= vmminsecs)
+				if (maxsilence / 1000 >= vmminsecs) {
 					ast_log(AST_LOG_WARNING, "maxsilence should be less than minmessage or you may get empty messages\n");
+				}
 			} else {
 				ast_log(AST_LOG_WARNING, "Invalid min message time length\n");
 			}
