@@ -15667,7 +15667,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 	}
 	/*< \todo why check for the pseudo in the per-channel section.
 	 * Any actual use for manual setup of the pseudo channel? */
-	if (!found_pseudo && reload == 0) {
+	if (!found_pseudo && reload != 1) {
 		/* use the default configuration for a channel, so
 		   that any settings from real configured channels
 		   don't "leak" into the pseudo channel config
