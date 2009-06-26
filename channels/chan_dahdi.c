@@ -14787,7 +14787,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, struct ast_variable *v, 
 	}
 	/*< \todo why check for the pseudo in the per-channel section.
 	 * Any actual use for manual setup of the pseudo channel? */
-	if (!found_pseudo && reload == 0) {
+	if (!found_pseudo && reload != 1) {
 		/* Make sure pseudo isn't a member of any groups if
 		   we're automatically making it. */	
 		
