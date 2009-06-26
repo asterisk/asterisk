@@ -60,6 +60,9 @@ Applications
    exit the application.
  * The Voicemail application has been improved to automatically ignore messages
    that only contain silence.
+ * The ChanSpy application now has the 's' option, which makes the application
+   automatically exit once it hits a point where no more channels are available
+   to spy on.
 
 Dialplan Functions
 ------------------

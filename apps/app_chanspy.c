@@ -135,6 +135,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="o">
 						<para>Only listen to audio coming from this channel.</para>
 					</option>
+					<option name="s">
+						<para>Stop when no more channels are left to spy on.</para>
+					</option>
 					<option name="X">
 						<para>Allow the user to exit ChanSpy to a valid single digit
 						numeric extension in the current context or the context
@@ -266,6 +269,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="o">
 						<para>Only listen to audio coming from this channel.</para>
 					</option>
+					<option name="s">
+						<para>Stop when there are no more extensions left to spy on.</para>
+					</option>
 					<option name="X">
 						<para>Allow the user to exit ChanSpy to a valid single digit
 						numeric extension in the current context or the context
@@ -349,6 +355,7 @@ enum {
 	OPTION_DTMF_EXIT         = (1 << 14),	/* Set DTMF to exit, added for DAHDIScan integration */
 	OPTION_DTMF_CYCLE        = (1 << 15),	/* Custom DTMF for cycling next avaliable channel, (default is '*') */
 	OPTION_DAHDI_SCAN        = (1 << 16),	/* Scan groups in DAHDIScan mode */
+	OPTION_STOP              = (1 << 17),
 };
 
 enum {
@@ -373,6 +380,7 @@ AST_APP_OPTIONS(spy_opts, {
 	AST_APP_OPTION_ARG('r', OPTION_RECORD, OPT_ARG_RECORD),
 	AST_APP_OPTION_ARG('e', OPTION_ENFORCED, OPT_ARG_ENFORCED),
 	AST_APP_OPTION('o', OPTION_READONLY),
+	AST_APP_OPTION('s', OPTION_STOP),
 	AST_APP_OPTION('X', OPTION_EXIT),
 	AST_APP_OPTION('s', OPTION_NOTECH),
 	AST_APP_OPTION_ARG('n', OPTION_NAME, OPT_ARG_NAME),
@@ -956,6 +964,9 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 
 		if (res == -1 || ast_check_hangup(chan))
 			break;
+		if (ast_test_flag(flags, OPTION_STOP) && !next_autochan) {
+			break;
+		}
 	}
 exit:
 
