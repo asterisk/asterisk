@@ -8510,7 +8510,7 @@ static int load_config(void)
 		if ((s = ast_variable_retrieve(cfg, "general", "minmessage"))) {
 			if (sscanf(s, "%d", &x) == 1) {
 				vmminmessage = x;
-				if (maxsilence <= vmminmessage)
+				if (maxsilence / 1000 >= vmminmessage)
 					ast_log(LOG_WARNING, "maxsilence should be less than minmessage or you may get empty messages\n");
 			} else {
 				ast_log(LOG_WARNING, "Invalid min message time length\n");
