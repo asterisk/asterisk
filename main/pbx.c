@@ -4101,8 +4101,9 @@ static int ast_extension_state2(struct ast_exten *e)
 
 	rest = ast_str_buffer(hint);	/* One or more devices separated with a & character */
 
-	while ( (cur = strsep(&rest, "&")) )
+	while ( (cur = strsep(&rest, "&")) ) {
 		ast_devstate_aggregate_add(&agg, ast_device_state(cur));
+	}
 
 	state = ast_devstate_aggregate_result(&agg);
 
@@ -4112,6 +4113,8 @@ static int ast_extension_state2(struct ast_exten *e)
 	case AST_DEVICE_BUSY:
 		return AST_EXTENSION_BUSY;
 	case AST_DEVICE_UNAVAILABLE:
+	case AST_DEVICE_UNKNOWN:
+	case AST_DEVICE_INVALID:
 		return AST_EXTENSION_UNAVAILABLE;
 	case AST_DEVICE_RINGINUSE:
 		return (AST_EXTENSION_INUSE | AST_EXTENSION_RINGING);
@@ -4119,8 +4122,6 @@ static int ast_extension_state2(struct ast_exten *e)
 		return AST_EXTENSION_RINGING;
 	case AST_DEVICE_INUSE:
 		return AST_EXTENSION_INUSE;
-	case AST_DEVICE_UNKNOWN:
-	case AST_DEVICE_INVALID:
 	case AST_DEVICE_NOT_INUSE:
 		return AST_EXTENSION_NOT_INUSE;
 	}
