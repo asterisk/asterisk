@@ -118,6 +118,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/term.h"
 #include "asterisk/manager.h"
 #include "asterisk/cdr.h"
+#include "asterisk/cel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/enum.h"
 #include "asterisk/http.h"
@@ -3595,6 +3596,11 @@ int main(int argc, char *argv[])
 	}
 
 	if (ast_cdr_engine_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
+	if (ast_cel_engine_init()) {
 		printf("%s", term_quit());
 		exit(1);
 	}

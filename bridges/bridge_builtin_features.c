@@ -75,7 +75,7 @@ static struct ast_channel *dial_transfer(const struct ast_channel *caller, const
 	snprintf(destination, sizeof(destination), "%s@%s", exten, context);
 
 	/* Now we request that chan_local prepare to call the destination */
-	if (!(chan = ast_request("Local", caller->nativeformats, destination, &cause))) {
+	if (!(chan = ast_request("Local", caller->nativeformats, caller, destination, &cause))) {
 		return NULL;
 	}
 

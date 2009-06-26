@@ -7,6 +7,7 @@
 === and the other UPGRADE files for older releases.
 ===
 ======================================================================
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.6.3  -------------
 ------------------------------------------------------------------------------
@@ -161,8 +162,21 @@ Logger
    users of this channel in the tree have been converted to LOG_NOTICE or removed
    (in cases where the same message was already generated to another channel).
 
+Channel Event Logging
+---------------------
+ * A new interface, CEL, is introduced here. CEL logs single events, much like
+   the AMI, but it differs from the AMI in that it logs to db backends much
+   like CDR does; is based on the event subsystem introduced by Russell, and
+   can share in all its benefits; allows multiple backends to operate like CDR;
+   is specialized to event data that would be of concern to billing sytems,
+   like CDR. Backends for logging and accounting calls have been produced,
+   but a new CDR backend is still in development.
+
 CDR
 ---
+ * 'linkedid' and 'peeraccount' are new CDR fields available to CDR officianados.
+   linkedid is based on uniqueID, but spreads to other channels as transfers, dials,
+   etc are performed. Thus the peices of CDR can be grouped into multilegged sets.
  * Multiple files and formats can now be specified in cdr_custom.conf.
 
 Calendaring for Asterisk

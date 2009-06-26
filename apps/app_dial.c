@@ -61,6 +61,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/global_datastores.h"
 #include "asterisk/dsp.h"
+#include "asterisk/cel.h"
 
 /*** DOCUMENTATION
 	<application name="Dial" language="en_US">
@@ -756,6 +757,9 @@ static void do_forward(struct chanlist *o,
 		stuff = tmpchan;
 		tech = "Local";
 	}
+
+	ast_cel_report_event(in, AST_CEL_FORWARD, NULL, c->call_forward, NULL);
+
 	/* Before processing channel, go ahead and check for forwarding */
 	ast_verb(3, "Now forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, c->name);
 	/* If we have been told to ignore forwards, just set this channel to null and continue processing extensions normally */
@@ -765,7 +769,7 @@ static void do_forward(struct chanlist *o,
 		cause = AST_CAUSE_BUSY;
 	} else {
 		/* Setup parameters */
-		c = o->chan = ast_request(tech, in->nativeformats, stuff, &cause);
+		c = o->chan = ast_request(tech, in->nativeformats, in, stuff, &cause);
 		if (c) {
 			if (single)
 				ast_channel_make_compatible(o->chan, in);
@@ -1872,7 +1876,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			AST_LIST_UNLOCK(dialed_interfaces);
 		}
 
-		tc = ast_request(tech, chan->nativeformats, numsubst, &cause);
+		tc = ast_request(tech, chan->nativeformats, chan, numsubst, &cause);
 		if (!tc) {
 			/* If we can't, just go on to the next call */
 			ast_log(LOG_WARNING, "Unable to create channel of type '%s' (cause %d - %s)\n",
@@ -1921,7 +1925,9 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 
 		tc->cid.cid_tns = chan->cid.cid_tns;
 
-		ast_string_field_set(tc, accountcode, chan->accountcode);
+		if (!ast_strlen_zero(chan->accountcode)) {
+			ast_string_field_set(tc, peeraccount, chan->accountcode);
+		}
 		tc->cdrflags = chan->cdrflags;
 		if (ast_strlen_zero(tc->musicclass))
 			ast_string_field_set(tc, musicclass, chan->musicclass);

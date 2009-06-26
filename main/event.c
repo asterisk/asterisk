@@ -119,6 +119,7 @@ struct ast_event_ie_val {
 struct ast_event_sub {
 	enum ast_event_type type;
 	ast_event_cb_t cb;
+	char description[64];
 	void *userdata;
 	uint32_t uniqueid;
 	AST_LIST_HEAD_NOLOCK(, ast_event_ie_val) ie_vals;
@@ -195,6 +196,7 @@ static struct event_name {
 	{ AST_EVENT_UNSUB,               "Unsubscription" },
 	{ AST_EVENT_DEVICE_STATE,        "DeviceState" },
 	{ AST_EVENT_DEVICE_STATE_CHANGE, "DeviceStateChange" },
+	{ AST_EVENT_CEL, "CEL" },
 };
 
 /*!
@@ -206,16 +208,38 @@ static struct ie_map {
 	const char *name;
 } ie_maps[] = {
 	{ 0, 0, "" },
-	{ AST_EVENT_IE_NEWMSGS,   AST_EVENT_IE_PLTYPE_UINT, "NewMessages" },
-	{ AST_EVENT_IE_OLDMSGS,   AST_EVENT_IE_PLTYPE_UINT, "OldMessages" },
-	{ AST_EVENT_IE_MAILBOX,   AST_EVENT_IE_PLTYPE_STR,  "Mailbox" },
-	{ AST_EVENT_IE_UNIQUEID,  AST_EVENT_IE_PLTYPE_UINT, "UniqueID" },
-	{ AST_EVENT_IE_EVENTTYPE, AST_EVENT_IE_PLTYPE_UINT, "EventType" },
-	{ AST_EVENT_IE_EXISTS,    AST_EVENT_IE_PLTYPE_UINT, "Exists" },
-	{ AST_EVENT_IE_DEVICE,    AST_EVENT_IE_PLTYPE_STR,  "Device" },
-	{ AST_EVENT_IE_STATE,     AST_EVENT_IE_PLTYPE_UINT, "State" },
-	{ AST_EVENT_IE_CONTEXT,   AST_EVENT_IE_PLTYPE_STR,  "Context" },
-	{ AST_EVENT_IE_EID,       AST_EVENT_IE_PLTYPE_RAW,  "EntityID" },
+	{ AST_EVENT_IE_NEWMSGS,              AST_EVENT_IE_PLTYPE_UINT, "NewMessages" },
+	{ AST_EVENT_IE_OLDMSGS,              AST_EVENT_IE_PLTYPE_UINT, "OldMessages" },
+	{ AST_EVENT_IE_MAILBOX,              AST_EVENT_IE_PLTYPE_STR,  "Mailbox" },
+	{ AST_EVENT_IE_UNIQUEID,             AST_EVENT_IE_PLTYPE_UINT, "UniqueID" },
+	{ AST_EVENT_IE_EVENTTYPE,            AST_EVENT_IE_PLTYPE_UINT, "EventType" },
+	{ AST_EVENT_IE_EXISTS,               AST_EVENT_IE_PLTYPE_UINT, "Exists" },
+	{ AST_EVENT_IE_DEVICE,               AST_EVENT_IE_PLTYPE_STR,  "Device" },
+	{ AST_EVENT_IE_STATE,                AST_EVENT_IE_PLTYPE_UINT, "State" },
+	{ AST_EVENT_IE_CONTEXT,              AST_EVENT_IE_PLTYPE_STR,  "Context" },
+	{ AST_EVENT_IE_EID,                  AST_EVENT_IE_PLTYPE_RAW,  "EntityID" },
+	{ AST_EVENT_IE_CEL_EVENT_TYPE,       AST_EVENT_IE_PLTYPE_UINT,  "CELEventType" },
+	{ AST_EVENT_IE_CEL_EVENT_TIME,       AST_EVENT_IE_PLTYPE_UINT,  "CELEventTime" },
+	{ AST_EVENT_IE_CEL_EVENT_TIME_USEC,  AST_EVENT_IE_PLTYPE_UINT,  "CELEventTimeUSec" },
+	{ AST_EVENT_IE_CEL_USEREVENT_NAME,   AST_EVENT_IE_PLTYPE_UINT,  "CELUserEventName" },
+	{ AST_EVENT_IE_CEL_CIDNAME,          AST_EVENT_IE_PLTYPE_STR,  "CELCIDName" },
+	{ AST_EVENT_IE_CEL_CIDNUM,           AST_EVENT_IE_PLTYPE_STR,  "CELCIDNum" },
+	{ AST_EVENT_IE_CEL_EXTEN,            AST_EVENT_IE_PLTYPE_STR,  "CELExten" },
+	{ AST_EVENT_IE_CEL_CONTEXT,          AST_EVENT_IE_PLTYPE_STR,  "CELContext" },
+	{ AST_EVENT_IE_CEL_CHANNAME,         AST_EVENT_IE_PLTYPE_STR,  "CELChanName" },
+	{ AST_EVENT_IE_CEL_APPNAME,          AST_EVENT_IE_PLTYPE_STR,  "CELAppName" },
+	{ AST_EVENT_IE_CEL_APPDATA,          AST_EVENT_IE_PLTYPE_STR,  "CELAppData" },
+	{ AST_EVENT_IE_CEL_AMAFLAGS,         AST_EVENT_IE_PLTYPE_STR,  "CELAMAFlags" },
+	{ AST_EVENT_IE_CEL_ACCTCODE,         AST_EVENT_IE_PLTYPE_UINT,  "CELAcctCode" },
+	{ AST_EVENT_IE_CEL_UNIQUEID,         AST_EVENT_IE_PLTYPE_STR,  "CELUniqueID" },
+	{ AST_EVENT_IE_CEL_USERFIELD,        AST_EVENT_IE_PLTYPE_STR,  "CELUserField" },
+	{ AST_EVENT_IE_CEL_CIDANI,           AST_EVENT_IE_PLTYPE_STR,  "CELCIDani" },
+	{ AST_EVENT_IE_CEL_CIDRDNIS,         AST_EVENT_IE_PLTYPE_STR,  "CELCIDrdnis" },
+	{ AST_EVENT_IE_CEL_CIDDNID,          AST_EVENT_IE_PLTYPE_STR,  "CELCIDdnid" },
+	{ AST_EVENT_IE_CEL_PEER,             AST_EVENT_IE_PLTYPE_STR,  "CELPeer" },
+	{ AST_EVENT_IE_CEL_LINKEDID,         AST_EVENT_IE_PLTYPE_STR,  "CELLinkedID" },
+	{ AST_EVENT_IE_CEL_PEERACCT,         AST_EVENT_IE_PLTYPE_STR,  "CELPeerAcct" },
+	{ AST_EVENT_IE_CEL_EXTRA,            AST_EVENT_IE_PLTYPE_STR,  "CELExtra" },
 };
 
 const char *ast_event_get_type_name(const struct ast_event *event)
@@ -535,8 +559,9 @@ static struct ast_event *gen_sub_event(struct ast_event_sub *sub)
 	struct ast_event *event;
 
 	event = ast_event_new(AST_EVENT_SUB,
-		AST_EVENT_IE_UNIQUEID,  AST_EVENT_IE_PLTYPE_UINT, sub->uniqueid,
-		AST_EVENT_IE_EVENTTYPE, AST_EVENT_IE_PLTYPE_UINT, sub->type,
+		AST_EVENT_IE_UNIQUEID,    AST_EVENT_IE_PLTYPE_UINT, sub->uniqueid,
+		AST_EVENT_IE_EVENTTYPE,   AST_EVENT_IE_PLTYPE_UINT, sub->type,
+		AST_EVENT_IE_DESCRIPTION, AST_EVENT_IE_PLTYPE_STR, sub->description,
 		AST_EVENT_IE_END);
 
 	if (!event)
@@ -773,7 +798,7 @@ int ast_event_sub_activate(struct ast_event_sub *sub)
 }
 
 struct ast_event_sub *ast_event_subscribe(enum ast_event_type type, ast_event_cb_t cb,
-	void *userdata, ...)
+	char *description, void *userdata, ...)
 {
 	va_list ap;
 	enum ast_event_ie_type ie_type;
@@ -782,6 +807,8 @@ struct ast_event_sub *ast_event_subscribe(enum ast_event_type type, ast_event_cb
 	if (!(sub = ast_event_subscribe_new(type, cb, userdata))) {
 		return NULL;
 	}
+
+	ast_copy_string(sub->description, description, sizeof(sub->description));
 
 	va_start(ap, userdata);
 	for (ie_type = va_arg(ap, enum ast_event_type);
@@ -843,6 +870,11 @@ void ast_event_sub_destroy(struct ast_event_sub *sub)
 	ast_free(sub);
 }
 
+const char *ast_event_subscriber_get_description(struct ast_event_sub *sub)
+{
+	return sub ? sub->description : NULL;
+}
+
 struct ast_event_sub *ast_event_unsubscribe(struct ast_event_sub *sub)
 {
 	struct ast_event *event;
@@ -856,8 +888,9 @@ struct ast_event_sub *ast_event_unsubscribe(struct ast_event_sub *sub)
 		AST_EVENT_IE_END) != AST_EVENT_SUB_NONE) {
 
 		event = ast_event_new(AST_EVENT_UNSUB,
-			AST_EVENT_IE_UNIQUEID,  AST_EVENT_IE_PLTYPE_UINT, sub->uniqueid,
-			AST_EVENT_IE_EVENTTYPE, AST_EVENT_IE_PLTYPE_UINT, sub->type,
+			AST_EVENT_IE_UNIQUEID,    AST_EVENT_IE_PLTYPE_UINT, sub->uniqueid,
+			AST_EVENT_IE_EVENTTYPE,   AST_EVENT_IE_PLTYPE_UINT, sub->type,
+			AST_EVENT_IE_DESCRIPTION, AST_EVENT_IE_PLTYPE_STR, sub->description,
 			AST_EVENT_IE_END);
 
 		if (event) {
@@ -1330,6 +1363,7 @@ int ast_event_queue(struct ast_event *event)
 	if (ast_event_check_subscriber(host_event_type, AST_EVENT_IE_END)
 			== AST_EVENT_SUB_NONE) {
 		ast_event_destroy(event);
+		ast_log(LOG_NOTICE, "Event destroyed, no subscriber\n");
 		return 0;
 	}
 

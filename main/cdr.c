@@ -271,8 +271,12 @@ void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *wor
 		}
 	} else if (!strcasecmp(name, "accountcode"))
 		ast_copy_string(workspace, cdr->accountcode, workspacelen);
+	else if (!strcasecmp(name, "peeraccount"))
+		ast_copy_string(workspace, cdr->peeraccount, workspacelen);
 	else if (!strcasecmp(name, "uniqueid"))
 		ast_copy_string(workspace, cdr->uniqueid, workspacelen);
+	else if (!strcasecmp(name, "linkedid"))
+		ast_copy_string(workspace, cdr->linkedid, workspacelen);
 	else if (!strcasecmp(name, "userfield"))
 		ast_copy_string(workspace, cdr->userfield, workspacelen);
 	else if ((varbuf = ast_cdr_getvar_internal(cdr, name, recur)))
@@ -287,7 +291,7 @@ void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *wor
 /* readonly cdr variables */
 static const char * const cdr_readonly_vars[] = { "clid", "src", "dst", "dcontext", "channel", "dstchannel",
 						  "lastapp", "lastdata", "start", "answer", "end", "duration",
-						  "billsec", "disposition", "amaflags", "accountcode", "uniqueid",
+						  "billsec", "disposition", "amaflags", "accountcode", "uniqueid", "linkedid",
 						  "userfield", NULL };
 /*! Set a CDR channel variable 
 	\note You can't set the CDR variables that belong to the actual CDR record, like "billsec".
@@ -297,9 +301,6 @@ int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int
 	struct ast_var_t *newvariable;
 	struct varshead *headp;
 	int x;
-	
-	if (!cdr)  /* don't die if the cdr is null */
-		return -1;
 	
 	for (x = 0; cdr_readonly_vars[x]; x++) {
 		if (!strcasecmp(name, cdr_readonly_vars[x])) {
@@ -644,6 +645,9 @@ void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from)
 	if (ast_test_flag(from, AST_CDR_FLAG_LOCKED) || (ast_strlen_zero(to->accountcode) && !ast_strlen_zero(from->accountcode))) {
 		ast_copy_string(to->accountcode, from->accountcode, sizeof(to->accountcode));
 	}
+	if (ast_test_flag(from, AST_CDR_FLAG_LOCKED) || (ast_strlen_zero(to->peeraccount) && !ast_strlen_zero(from->peeraccount))) {
+		ast_copy_string(to->peeraccount, from->peeraccount, sizeof(to->peeraccount));
+	}
 	if (ast_test_flag(from, AST_CDR_FLAG_LOCKED) || (ast_strlen_zero(to->userfield) && !ast_strlen_zero(from->userfield))) {
 		ast_copy_string(to->userfield, from->userfield, sizeof(to->userfield));
 	}
@@ -856,11 +860,14 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 			cdr->disposition = (c->_state == AST_STATE_UP) ?  AST_CDR_ANSWERED : AST_CDR_NOANSWER;
 			cdr->amaflags = c->amaflags ? c->amaflags :  ast_default_amaflags;
 			ast_copy_string(cdr->accountcode, c->accountcode, sizeof(cdr->accountcode));
+			ast_copy_string(cdr->peeraccount, c->peeraccount, sizeof(cdr->peeraccount));
 			/* Destination information */
 			ast_copy_string(cdr->dst, S_OR(c->macroexten,c->exten), sizeof(cdr->dst));
 			ast_copy_string(cdr->dcontext, S_OR(c->macrocontext,c->context), sizeof(cdr->dcontext));
 			/* Unique call identifier */
 			ast_copy_string(cdr->uniqueid, c->uniqueid, sizeof(cdr->uniqueid));
+			/* Linked call identifier */
+			ast_copy_string(cdr->linkedid, c->linkedid, sizeof(cdr->linkedid));
 		}
 	}
 	return 0;
@@ -938,9 +945,11 @@ char *ast_cdr_flags2str(int flag)
 int ast_cdr_setaccount(struct ast_channel *chan, const char *account)
 {
 	struct ast_cdr *cdr = chan->cdr;
-	char buf[BUFSIZ/2] = "";
-	if (!ast_strlen_zero(chan->accountcode))
-		ast_copy_string(buf, chan->accountcode, sizeof(buf));
+	const char *old_acct = "";
+
+	if (!ast_strlen_zero(chan->accountcode)) {
+		old_acct = ast_strdupa(chan->accountcode);
+	}
 
 	ast_string_field_set(chan, accountcode, account);
 	for ( ; cdr ; cdr = cdr->next) {
@@ -949,8 +958,39 @@ int ast_cdr_setaccount(struct ast_channel *chan, const char *account)
 		}
 	}
 
-	/* Signal change of account code to manager */
-	manager_event(EVENT_FLAG_CALL, "NewAccountCode", "Channel: %s\r\nUniqueid: %s\r\nAccountCode: %s\r\nOldAccountCode: %s\r\n", chan->name, chan->uniqueid, chan->accountcode, buf);
+	manager_event(EVENT_FLAG_CALL, "NewAccountCode",
+			"Channel: %s\r\n"
+			"Uniqueid: %s\r\n"
+			"AccountCode: %s\r\n"
+			"OldAccountCode: %s\r\n",
+			chan->name, chan->uniqueid, chan->accountcode, old_acct);
+
+	return 0;
+}
+
+int ast_cdr_setpeeraccount(struct ast_channel *chan, const char *account)
+{
+	struct ast_cdr *cdr = chan->cdr;
+	const char *old_acct = "";
+
+	if (!ast_strlen_zero(chan->peeraccount)) {
+		old_acct = ast_strdupa(chan->peeraccount);
+	}
+
+	ast_string_field_set(chan, peeraccount, account);
+	for ( ; cdr ; cdr = cdr->next) {
+		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
+			ast_copy_string(cdr->peeraccount, chan->peeraccount, sizeof(cdr->peeraccount));
+		}
+	}
+
+	manager_event(EVENT_FLAG_CALL, "NewPeerAccount",
+			"Channel: %s\r\n"
+			"Uniqueid: %s\r\n"
+			"PeerAccount: %s\r\n"
+			"OldPeerAccount: %s\r\n",
+			chan->name, chan->uniqueid, chan->peeraccount, old_acct);
+
 	return 0;
 }
 
@@ -1005,7 +1045,9 @@ int ast_cdr_update(struct ast_channel *c)
 
 			/* Copy account code et-al */	
 			ast_copy_string(cdr->accountcode, c->accountcode, sizeof(cdr->accountcode));
-			
+			ast_copy_string(cdr->peeraccount, c->peeraccount, sizeof(cdr->peeraccount));
+			ast_copy_string(cdr->linkedid, c->linkedid, sizeof(cdr->linkedid));
+
 			/* Destination information */ /* XXX privilege macro* ? */
 			ast_copy_string(cdr->dst, S_OR(c->macroexten, c->exten), sizeof(cdr->dst));
 			ast_copy_string(cdr->dcontext, S_OR(c->macrocontext, c->context), sizeof(cdr->dcontext));

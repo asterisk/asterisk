@@ -781,9 +781,9 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 {
 #define FORMAT_STRING  "%-20.20s %-20.20s %-7.7s %-30.30s\n"
 #define FORMAT_STRING2 "%-20.20s %-20.20s %-7.7s %-30.30s\n"
-#define CONCISE_FORMAT_STRING  "%s!%s!%s!%d!%s!%s!%s!%s!%s!%d!%s!%s!%s\n"
-#define VERBOSE_FORMAT_STRING  "%-20.20s %-20.20s %-16.16s %4d %-7.7s %-12.12s %-25.25s %-15.15s %8.8s %-11.11s %-20.20s\n"
-#define VERBOSE_FORMAT_STRING2 "%-20.20s %-20.20s %-16.16s %-4.4s %-7.7s %-12.12s %-25.25s %-15.15s %8.8s %-11.11s %-20.20s\n"
+#define CONCISE_FORMAT_STRING  "%s!%s!%s!%d!%s!%s!%s!%s!%s!%s!%d!%s!%s!%s\n"
+#define VERBOSE_FORMAT_STRING  "%-20.20s %-20.20s %-16.16s %4d %-7.7s %-12.12s %-25.25s %-15.15s %8.8s %-11.11s %-11.11s %-20.20s\n"
+#define VERBOSE_FORMAT_STRING2 "%-20.20s %-20.20s %-16.16s %-4.4s %-7.7s %-12.12s %-25.25s %-15.15s %8.8s %-11.11s %-11.11s %-20.20s\n"
 
 	struct ast_channel *c = NULL;
 	int numchans = 0, concise = 0, verbose = 0, count = 0;
@@ -824,7 +824,7 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 			ast_cli(a->fd, FORMAT_STRING2, "Channel", "Location", "State", "Application(Data)");
 		else if (verbose)
 			ast_cli(a->fd, VERBOSE_FORMAT_STRING2, "Channel", "Context", "Extension", "Priority", "State", "Application", "Data", 
-				"CallerID", "Duration", "Accountcode", "BridgedTo");
+				"CallerID", "Duration", "Accountcode", "PeerAccount", "BridgedTo");
 	}
 
 	if (!count && !(iter = ast_channel_iterator_all_new(0))) {
@@ -857,6 +857,7 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 					S_OR(c->data, ""),	/* XXX different from verbose ? */
 					S_OR(c->cid.cid_num, ""),
 					S_OR(c->accountcode, ""),
+					S_OR(c->peeraccount, ""),
 					c->amaflags, 
 					durbuf,
 					bc ? bc->name : "(None)",
@@ -868,6 +869,7 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 					S_OR(c->cid.cid_num, ""),
 					durbuf,
 					S_OR(c->accountcode, ""),
+					S_OR(c->peeraccount, ""),
 					bc ? bc->name : "(None)");
 			} else {
 				char locbuf[40] = "(None)";
@@ -1355,6 +1357,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		"           Name: %s\n"
 		"           Type: %s\n"
 		"       UniqueID: %s\n"
+		"       LinkedID: %s\n"
 		"      Caller ID: %s\n"
 		" Caller ID Name: %s\n"
 		"    DNID Digits: %s\n"
@@ -1382,7 +1385,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		"    Application: %s\n"
 		"           Data: %s\n"
 		"    Blocking in: %s\n",
-		c->name, c->tech->type, c->uniqueid,
+		c->name, c->tech->type, c->uniqueid, c->linkedid,
 		S_OR(c->cid.cid_num, "(N/A)"),
 		S_OR(c->cid.cid_name, "(N/A)"),
 		S_OR(c->cid.cid_dnid, "(N/A)"), 

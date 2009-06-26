@@ -666,8 +666,9 @@ static char *usbradio_active;	 /* the active device */
 
 static int setformat(struct chan_usbradio_pvt *o, int mode);
 
-static struct ast_channel *usbradio_request(const char *type, int format, void *data
-, int *cause);
+static struct ast_channel *usbradio_request(const char *type, int format,
+											const struct ast_channel *requestor,
+											void *data, int *cause);
 static int usbradio_digit_begin(struct ast_channel *c, char digit);
 static int usbradio_digit_end(struct ast_channel *c, char digit, unsigned int duration);
 static int usbradio_text(struct ast_channel *c, const char *text);
@@ -2186,11 +2187,11 @@ static int usbradio_indicate(struct ast_channel *c, int cond, const void *data, 
 /*
  * allocate a new channel.
  */
-static struct ast_channel *usbradio_new(struct chan_usbradio_pvt *o, char *ext, char *ctx, int state)
+static struct ast_channel *usbradio_new(struct chan_usbradio_pvt *o, char *ext, char *ctx, int state, const char *linkedid)
 {
 	struct ast_channel *c;
 
-	c = ast_channel_alloc(1, state, o->cid_num, o->cid_name, "", ext, ctx, 0, "Radio/%s", o->name);
+	c = ast_channel_alloc(1, state, o->cid_num, o->cid_name, "", ext, ctx, linkedid, 0, "Radio/%s", o->name);
 	if (c == NULL)
 		return NULL;
 	c->tech = &usbradio_tech;
@@ -2229,7 +2230,7 @@ static struct ast_channel *usbradio_new(struct chan_usbradio_pvt *o, char *ext, 
 }
 /*
 */
-static struct ast_channel *usbradio_request(const char *type, int format, void *data, int *cause)
+static struct ast_channel *usbradio_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause)
 {
 	struct ast_channel *c;
 	struct chan_usbradio_pvt *o = find_desc(data);
@@ -2254,7 +2255,7 @@ static struct ast_channel *usbradio_request(const char *type, int format, void *
 		*cause = AST_CAUSE_BUSY;
 		return NULL;
 	}
-	c = usbradio_new(o, NULL, NULL, AST_STATE_DOWN);
+	c = usbradio_new(o, NULL, NULL, AST_STATE_DOWN, requestor ? requestor->linkedid : NULL);
 	if (c == NULL) {
 		ast_log(LOG_WARNING, "Unable to create new usb channel\n");
 		return NULL;

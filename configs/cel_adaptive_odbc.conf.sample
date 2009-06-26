@@ -1,0 +1,106 @@
+;
+; This configuration defines the connections and tables for which CEL records may
+; be populated.  Each context specifies a different CEL table to be used.
+;
+; The columns in the tables should match up word-for-word (case-insensitive)
+; to the CEL variables set in the dialplan.  The natural advantage to this
+; system is that beyond setting up the configuration file to tell you what
+; tables to look at, there isn't anything more to do beyond creating the
+; columns for the fields that you want, and populating the corresponding
+; CEL variables in the dialplan.
+;
+; Please note that after adding columns to the database, it is necessary to
+; reload this module to get the new column names and types read.
+;
+; Warning: if you specify two contexts with exactly the same connection and
+; table names, you will get duplicate records in that table.  So be careful.
+;
+; CEL FIELDS:
+;  	eventtype
+;	  CEL_CHANNEL_START = 1
+;	  CEL_CHANNEL_END = 2
+;	  CEL_HANGUP = 3
+;	  CEL_ANSWER = 4
+;	  CEL_APP_START = 5
+;	  CEL_APP_END = 6
+;	  CEL_BRIDGE_START = 7
+;	  CEL_BRIDGE_END = 8
+;	  CEL_CONF_START = 9
+;	  CEL_CONF_END = 10
+;	  CEL_PARK_START = 11
+;	  CEL_PARK_END = 12
+;	  CEL_BLINDTRANSFER = 13
+;	  CEL_ATTENDEDTRANSFER = 14
+;	  CEL_TRANSFER = 15
+;	  CEL_HOOKFLASH = 16
+;	  CEL_3WAY_START = 17
+;	  CEL_3WAY_END = 18
+;	  CEL_CONF_ENTER = 19
+;	  CEL_CONF_EXIT = 20
+;	  CEL_USER_DEFINED = 21
+;	  CEL_LINKEDID_END = 22
+;	  CEL_BRIDGE_UPDATE = 23
+;	  CEL_PICKUP = 24
+;	  CEL_FORWARD = 25
+;	eventtime  (timeval, includes microseconds)
+;	userdeftype (set only if eventtype == USER_DEFINED)
+;	cid_name
+;	cid_num
+;	cid_ani
+;	cid_rdnis
+;	cid_dnid
+;	exten
+;	context
+;	channame
+;	appname
+;	appdata
+;	accountcode
+;	peeraccount
+;	uniqueid
+;	linkedid
+;	amaflag  (an int)
+;	userfield
+;	peer
+
+
+;[first]
+;connection=mysql1
+;table=cel
+
+;[second]
+;connection=mysql1
+;table=extracel
+
+;[third]
+;connection=sqlserver
+;table=AsteriskCEL
+;usegmtime=yes ; defaults to no
+;alias src => source
+;alias channel => source_channel
+;alias dst => dest
+;alias dstchannel => dest_channel
+;
+; Any filter specified MUST match exactly or the CDR will be discarded
+;filter accountcode => somename
+;filter src => 123
+;
+; Additionally, we now support setting static values per column.  Reason
+; for this is to allow different sections to specify different values for
+; a certain named column, presumably separated by filters.
+;static "Some Special Value" => identifier_code
+
+
+; On Wednesday 10 September 2008 21:11:16 Tilghman Lesher wrote:
+; (this module patterned after the CDR module)
+; I thought that the sample cdr_adaptive_odbc.conf was rather clear, but
+; apparently not.  The point of this module is to allow you log whatever you
+; like in terms of the CDR variables.  Do you want to log uniqueid?  Then simply
+; ensure that your table has that column.  If you don't want the column, ensure
+; that it does not exist in the table structure.  If you'd like to call uniqueid
+; something else in your table, simply provide an alias in the configuration
+; file that maps the standard CDR field name (uniqueid) to whatever column
+; name you like.
+
+At the current time, channel variables are not published with the events.
+If you wish to store variables, put them in the channel userfield and
+extract them from there.

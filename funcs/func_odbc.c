@@ -238,7 +238,7 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 	}
 
 	if (!chan) {
-		if ((chan = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Bogus/func_odbc")))
+		if ((chan = ast_channel_alloc(0, AST_STATE_DOWN, "", "", "", "", "", "", 0, "Bogus/func_odbc")))
 			bogus_chan = 1;
 	}
 
@@ -414,7 +414,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 	}
 
 	if (!chan) {
-		if ((chan = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Bogus/func_odbc"))) {
+		if ((chan = ast_channel_alloc(0, AST_STATE_DOWN, "", "", "", "", "", "", 0, "Bogus/func_odbc"))) {
 			bogus_chan = 1;
 		}
 	}
@@ -1051,7 +1051,7 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 	/* Evaluate function */
 	char_args = ast_strdupa(a->argv[3]);
 
-	chan = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Bogus/func_odbc");
+	chan = ast_dummy_channel_alloc();
 
 	AST_STANDARD_APP_ARGS(args, char_args);
 	for (i = 0; i < args.argc; i++) {
@@ -1254,7 +1254,7 @@ static char *cli_odbc_write(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	char_args = ast_strdupa(a->argv[3]);
 	char_values = ast_strdupa(a->argv[4]);
 
-	chan = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Bogus/func_odbc");
+	chan = ast_dummy_channel_alloc();
 
 	AST_STANDARD_APP_ARGS(args, char_args);
 	for (i = 0; i < args.argc; i++) {

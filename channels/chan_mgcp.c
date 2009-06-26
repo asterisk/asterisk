@@ -418,7 +418,7 @@ static void dump_cmd_queues(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 static char *mgcp_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static int reload_config(int reload);
 
-static struct ast_channel *mgcp_request(const char *type, int format, void *data, int *cause);
+static struct ast_channel *mgcp_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause);
 static int mgcp_call(struct ast_channel *ast, char *dest, int timeout);
 static int mgcp_hangup(struct ast_channel *ast);
 static int mgcp_answer(struct ast_channel *ast);
@@ -1466,13 +1466,13 @@ static int mgcp_indicate(struct ast_channel *ast, int ind, const void *data, siz
 	return res;
 }
 
-static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
+static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state, const char *linkedid)
 {
 	struct ast_channel *tmp;
 	struct mgcp_endpoint *i = sub->parent;
 	int fmt;
 
-	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, i->amaflags, "MGCP/%s@%s-%d", i->name, i->parent->name, sub->id);
+	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, linkedid, i->accountcode, i->exten, i->context, i->amaflags, "MGCP/%s@%s-%d", i->name, i->parent->name, sub->id);
 	if (tmp) {
 		tmp->tech = &mgcp_tech;
 		tmp->nativeformats = i->capability;
@@ -2967,7 +2967,7 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
 #else
 				transmit_notify_request(sub, "G/rt");
 #endif		
-				c = mgcp_new(sub, AST_STATE_RING);
+				c = mgcp_new(sub, AST_STATE_RING, NULL);
 				if (!c) {
 					ast_log(LOG_WARNING, "Unable to start PBX on channel %s@%s\n", p->name, p->parent->name);
 					transmit_notify_request(sub, "G/cg");
@@ -2979,7 +2979,7 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
 				} else {
 					transmit_notify_request(sub, "L/dl");
 				}
-				c = mgcp_new(sub, AST_STATE_DOWN);
+				c = mgcp_new(sub, AST_STATE_DOWN, NULL);
 				if (c) {
 					if (ast_pthread_create_detached(&t, NULL, mgcp_ss, c)) {
 						ast_log(LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
@@ -3489,7 +3489,7 @@ static int restart_monitor(void)
 	return 0;
 }
 
-static struct ast_channel *mgcp_request(const char *type, int format, void *data, int *cause)
+static struct ast_channel *mgcp_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause)
 {
 	int oldformat;
 	struct mgcp_subchannel *sub;
@@ -3533,7 +3533,7 @@ static struct ast_channel *mgcp_request(const char *type, int format, void *data
 		ast_mutex_unlock(&sub->lock);
 		return NULL;
 	}
-	tmpc = mgcp_new(sub->owner ? sub->next : sub, AST_STATE_DOWN);
+	tmpc = mgcp_new(sub->owner ? sub->next : sub, AST_STATE_DOWN, requestor ? requestor->linkedid : NULL);
 	ast_mutex_unlock(&sub->lock);
 	if (!tmpc)
 		ast_log(LOG_WARNING, "Unable to make channel for '%s'\n", tmp);
@@ -3726,7 +3726,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 						strsep(&cntx, "@");
 						if (ast_strlen_zero(cntx))
 							cntx = "default";
-						e->mwi_event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, NULL,
+						e->mwi_event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, "MGCP MWI subscription", NULL,
 							AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mbox,
 							AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, cntx,
 							AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,

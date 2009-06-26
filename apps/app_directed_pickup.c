@@ -41,6 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/features.h"
 #include "asterisk/callerid.h"
+#include "asterisk/cel.h"
 
 #define PICKUPMARK "PICKUPMARK"
 
@@ -95,6 +96,7 @@ static int pickup_do(struct ast_channel *chan, struct ast_channel *target)
 	struct ast_party_connected_line connected_caller;
 
 	ast_debug(1, "Call pickup on '%s' by '%s'\n", target->name, chan->name);
+	ast_cel_report_event(target, AST_CEL_PICKUP, NULL, NULL, chan);
 
 	connected_caller = target->connected;
 	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;

@@ -1,0 +1,20 @@
+;
+; Asterisk Channel Event Logging - Custom CSV Backend
+;
+; This is the configuration file for the customizable CSV backend for CEL
+; logging.
+;
+; In order to create custom CSV logs for CEL, uncomment the template below
+; (Master.csv) and start Asterisk.  Once CEL events are generated, a file will
+; appear in the following location:
+;
+;                 /var/log/asterisk/cel-custom/Master.csv
+;
+; (Note that /var/log/asterisk is the default and may differ on your system)
+;
+; You can also create more than one template if desired.  All logs will appear
+; in the cel-custom directory under your Asterisk logs directory.
+;
+
+[mappings]
+;Master.csv => "${eventtype}","${eventtime}","${CALLERID(name)}","${CALLERID(num)}","${CALLERID(ANI)}","${CALLERID(RDNIS)}","${CALLERID(DNID)}","${CHANNEL(exten)}","${CHANNEL(context)}","${CHANNEL(channame)}","${CHANNEL(appname)}","${CHANNEL(appdata)}","${CHANNEL(amaflags)}","${CHANNEL(accountcode)}","${CHANNEL(uniqueid)}","${CHANNEL(linkedid)}","${CHANNEL(peer)}","${CHANNEL(userfield)}"

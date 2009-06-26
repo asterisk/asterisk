@@ -349,12 +349,12 @@ static int analog_play_tone(struct analog_pvt *p, enum analog_sub sub, enum anal
 		return -1;
 }
 
-static struct ast_channel * analog_new_ast_channel(struct analog_pvt *p, int state, int startpbx, enum analog_sub sub)
+static struct ast_channel * analog_new_ast_channel(struct analog_pvt *p, int state, int startpbx, enum analog_sub sub, const struct ast_channel *requestor)
 {
 	struct ast_channel *c;
 
 	if (p->calls->new_ast_channel)
-		c = p->calls->new_ast_channel(p->chan_pvt, state, startpbx, sub);
+		c = p->calls->new_ast_channel(p->chan_pvt, state, startpbx, sub, requestor);
 	else
 		return NULL;
 
@@ -568,7 +568,7 @@ static int analog_update_conf(struct analog_pvt *p)
 	return 0;
 }
 
-struct ast_channel * analog_request(struct analog_pvt *p, int *callwait)
+struct ast_channel * analog_request(struct analog_pvt *p, int *callwait, const struct ast_channel *requestor)
 {
 	ast_log(LOG_DEBUG, "%s %d\n", __FUNCTION__, p->channel);
 	*callwait = (p->owner != NULL);
@@ -580,7 +580,7 @@ struct ast_channel * analog_request(struct analog_pvt *p, int *callwait)
 		}
 	}
 
-	return analog_new_ast_channel(p, AST_STATE_RESERVED, 0, p->owner ? ANALOG_SUB_CALLWAIT : ANALOG_SUB_REAL);
+	return analog_new_ast_channel(p, AST_STATE_RESERVED, 0, p->owner ? ANALOG_SUB_CALLWAIT : ANALOG_SUB_REAL, requestor);
 }
 
 int analog_available(struct analog_pvt *p, int channelmatch, ast_group_t groupmatch, int *busy, int *channelmatched, int *groupmatched)
@@ -2623,7 +2623,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 						goto winkflashdone;
 					}
 					/* Make new channel */
-					chan = analog_new_ast_channel(p, AST_STATE_RESERVED, 0, ANALOG_SUB_THREEWAY);
+					chan = analog_new_ast_channel(p, AST_STATE_RESERVED, 0, ANALOG_SUB_THREEWAY, NULL);
 					if (p->dahditrcallerid) {
 						if (!p->origcid_num)
 							p->origcid_num = ast_strdup(p->cid_num);
@@ -3000,7 +3000,7 @@ int analog_handle_init_event(struct analog_pvt *i, int event)
 				analog_set_echocanceller(i, 1);
 				/* The channel is immediately up.  Start right away */
 				res = analog_play_tone(i, ANALOG_SUB_REAL, ANALOG_TONE_RINGTONE);
-				chan = analog_new_ast_channel(i, AST_STATE_RING, 1, ANALOG_SUB_REAL);
+				chan = analog_new_ast_channel(i, AST_STATE_RING, 1, ANALOG_SUB_REAL, NULL);
 				if (!chan) {
 					ast_log(LOG_WARNING, "Unable to start PBX on channel %d\n", i->channel);
 					res = analog_play_tone(i, ANALOG_SUB_REAL, ANALOG_TONE_CONGESTION);
@@ -3009,7 +3009,7 @@ int analog_handle_init_event(struct analog_pvt *i, int event)
 				}
 			} else {
 				/* Check for callerid, digits, etc */
-				chan = analog_new_ast_channel(i, AST_STATE_RESERVED, 0, ANALOG_SUB_REAL);
+				chan = analog_new_ast_channel(i, AST_STATE_RESERVED, 0, ANALOG_SUB_REAL, NULL);
 				i->ss_astchan = chan;
 				if (chan) {
 					if (analog_has_voicemail(i))
@@ -3053,9 +3053,9 @@ int analog_handle_init_event(struct analog_pvt *i, int event)
 		case ANALOG_SIG_SF:
 				/* Check for callerid, digits, etc */
 				if (i->cid_start == ANALOG_CID_START_POLARITY_IN) {
-					chan = analog_new_ast_channel(i, AST_STATE_PRERING, 0, ANALOG_SUB_REAL);
+					chan = analog_new_ast_channel(i, AST_STATE_PRERING, 0, ANALOG_SUB_REAL, NULL);
 				} else {
-					chan = analog_new_ast_channel(i, AST_STATE_RING, 0, ANALOG_SUB_REAL);
+					chan = analog_new_ast_channel(i, AST_STATE_RING, 0, ANALOG_SUB_REAL, NULL);
 				}
 				i->ss_astchan = chan;
 				if (chan && ast_pthread_create(&threadid, &attr, __analog_ss_thread, i)) {
@@ -3153,7 +3153,7 @@ int analog_handle_init_event(struct analog_pvt *i, int event)
 				ast_verbose(VERBOSE_PREFIX_2 "Starting post polarity "
 					    "CID detection on channel %d\n",
 					    i->channel);
-				chan = analog_new_ast_channel(i, AST_STATE_PRERING, 0, ANALOG_SUB_REAL);
+				chan = analog_new_ast_channel(i, AST_STATE_PRERING, 0, ANALOG_SUB_REAL, NULL);
 				i->ss_astchan = chan;
 				if (chan && ast_pthread_create(&threadid, &attr, __analog_ss_thread, i)) {
 					ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);

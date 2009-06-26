@@ -325,7 +325,7 @@ static void add_publish_event(struct event_channel *event_channel, const char *e
 
 	publish_event->type = type;
 	ast_log(LOG_DEBUG, "Subscribing to event type %d\n", type);
-	publish_event->sub = ast_event_subscribe(type, ast_event_cb, event_channel,
+	publish_event->sub = ast_event_subscribe(type, ast_event_cb, "AIS", event_channel,
 		AST_EVENT_IE_END);
 	ast_event_dump_cache(publish_event->sub);
 

@@ -42,6 +42,8 @@ int ast_timing_init(void);		/*!< Provided by timing.c */
 int ast_indications_init(void); /*!< Provided by indications.c */
 int ast_indications_reload(void);/*!< Provided by indications.c */
 void ast_stun_init(void);               /*!< Provided by stun.c */
+int ast_cel_engine_init(void);		/*!< Provided by cel.c */
+int ast_cel_engine_reload(void);	/*!< Provided by cel.c */
 
 /*!
  * \brief Reload asterisk modules.

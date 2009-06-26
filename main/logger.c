@@ -535,7 +535,7 @@ static int rotate_file(const char *filename)
 	}
 
 	if (!ast_strlen_zero(exec_after_rotate)) {
-		struct ast_channel *c = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Logger/rotate");
+		struct ast_channel *c = ast_dummy_channel_alloc();
 		char buf[512];
 		pbx_builtin_setvar_helper(c, "filename", filename);
 		pbx_substitute_variables_helper(c, exec_after_rotate, buf, sizeof(buf));

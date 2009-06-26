@@ -329,9 +329,9 @@ static struct vpb_pvt {
 
 } *iflist = NULL;
 
-static struct ast_channel *vpb_new(struct vpb_pvt *i, enum ast_channel_state state, const char *context);
+static struct ast_channel *vpb_new(struct vpb_pvt *i, enum ast_channel_state state, const char *context, const char *linkedid);
 static void *do_chanreads(void *pvt);
-static struct ast_channel *vpb_request(const char *type, int format, void *data, int *cause);
+static struct ast_channel *vpb_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause);
 static int vpb_digit_begin(struct ast_channel *ast, char digit);
 static int vpb_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static int vpb_call(struct ast_channel *ast, char *dest, int timeout);
@@ -1116,7 +1116,7 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 		break;
 	case VPB_RING:
 		if (p->mode == MODE_FXO) /* FXO port ring, start * */ {
-			vpb_new(p, AST_STATE_RING, p->context);
+			vpb_new(p, AST_STATE_RING, p->context, NULL);
 			if (UsePolarityCID != 1) {
 				if (p->callerid_type == 1) {
 					ast_verb(4, "Using VPB Caller ID\n");
@@ -1140,7 +1140,7 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 
 	case VPB_STATION_OFFHOOK:
 		if (p->mode == MODE_IMMEDIATE) {
-			vpb_new(p,AST_STATE_RING, p->context);
+			vpb_new(p,AST_STATE_RING, p->context, NULL);
 		} else {
 			ast_verb(4, "%s: handle_notowned: playing dialtone\n", p->dev);
 			playtone(p->handle, &Dialtone);
@@ -1185,7 +1185,7 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 			if (ast_exists_extension(NULL, p->context, p->ext, 1, p->callerid)){
 				ast_verb(4, "%s: handle_notowned: DTMF IDD timer out, matching on [%s] in [%s]\n", p->dev, p->ext, p->context);
 
-				vpb_new(p, AST_STATE_RING, p->context);
+				vpb_new(p, AST_STATE_RING, p->context, NULL);
 			}
 		} else if (e->data == p->ring_timer_id) {
 			/* We didnt get another ring in time! */
@@ -1261,11 +1261,11 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 				vpb_timer_start(p->dtmfidd_timer);
 			} else {
 				ast_verb(4, "%s: handle_notowned: Matched on [%s] in [%s]\n", p->dev, p->ext , p->context);
-				vpb_new(p, AST_STATE_UP, p->context);
+				vpb_new(p, AST_STATE_UP, p->context, NULL);
 			}
 		} else if (!ast_canmatch_extension(NULL, p->context, p->ext, 1, p->callerid)) {
 			if (ast_exists_extension(NULL, "default", p->ext, 1, p->callerid)) {
-				vpb_new(p, AST_STATE_UP, "default");
+				vpb_new(p, AST_STATE_UP, "default", NULL);
 			} else if (!ast_canmatch_extension(NULL, "default", p->ext, 1, p->callerid)) {
 				ast_verb(4, "%s: handle_notowned: can't match anything in %s or default\n", p->dev, p->context);
 				playtone(p->handle, &Busytone);
@@ -2466,7 +2466,7 @@ static void *do_chanreads(void *pvt)
 	return NULL;
 }
 
-static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state state, const char *context)
+static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state state, const char *context, const char *linkedid)
 {
 	struct ast_channel *tmp; 
 	char cid_num[256];
@@ -2478,7 +2478,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state st
 	}
 	ast_verb(4, "%s: New call for context [%s]\n", me->dev, context);
 	    
-	tmp = ast_channel_alloc(1, state, 0, 0, "", me->ext, me->context, 0, "%s", me->dev);
+	tmp = ast_channel_alloc(1, state, 0, 0, "", me->ext, me->context, linkedid, 0, "%s", me->dev);
 	if (tmp) {
 		if (use_ast_ind == 1){
 			tmp->tech = &vpb_tech_indicate;
@@ -2541,7 +2541,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state st
 	return tmp;
 }
 
-static struct ast_channel *vpb_request(const char *type, int format, void *vdata, int *cause) 
+static struct ast_channel *vpb_request(const char *type, int format, const struct ast_channel *requestor, void *vdata, int *cause) 
 {
 	int oldformat;
 	struct vpb_pvt *p;
@@ -2573,13 +2573,13 @@ static struct ast_channel *vpb_request(const char *type, int format, void *vdata
 		if (group == -1) {
 			if (strncmp(s, p->dev + 4, sizeof p->dev) == 0) {
 				if (!p->owner) {
-					tmp = vpb_new(p, AST_STATE_DOWN, p->context);
+					tmp = vpb_new(p, AST_STATE_DOWN, p->context, requestor ? requestor->linkedid : NULL);
 					break;
 				}
 			}
 		} else {
 			if ((p->group == group) && (!p->owner)) {
-				tmp = vpb_new(p, AST_STATE_DOWN, p->context);
+				tmp = vpb_new(p, AST_STATE_DOWN, p->context, requestor ? requestor->linkedid : NULL);
 				break;
 			}
 		}

@@ -310,7 +310,7 @@ static AST_LIST_HEAD_STATIC(agents, agent_pvt);	/*!< Holds the list of agents (l
 } while(0)
 
 /*--- Forward declarations */
-static struct ast_channel *agent_request(const char *type, int format, void *data, int *cause);
+static struct ast_channel *agent_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause);
 static int agent_devicestate(void *data);
 static int agent_digit_begin(struct ast_channel *ast, char digit);
 static int agent_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
@@ -986,7 +986,7 @@ static struct ast_channel *agent_bridgedchannel(struct ast_channel *chan, struct
 }
 
 /*! \brief Create new agent channel */
-static struct ast_channel *agent_new(struct agent_pvt *p, int state)
+static struct ast_channel *agent_new(struct agent_pvt *p, int state, const char *linkedid)
 {
 	struct ast_channel *tmp;
 	int alreadylocked;
@@ -997,9 +997,9 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 	}
 #endif	
 	if (p->pending)
-		tmp = ast_channel_alloc(0, state, 0, 0, "", p->chan ? p->chan->exten:"", p->chan ? p->chan->context:"", 0, "Agent/P%s-%d", p->agent, (int) ast_random() & 0xffff);
+		tmp = ast_channel_alloc(0, state, 0, 0, "", p->chan ? p->chan->exten:"", p->chan ? p->chan->context:"", linkedid, 0, "Agent/P%s-%d", p->agent, (int) ast_random() & 0xffff);
 	else
-		tmp = ast_channel_alloc(0, state, 0, 0, "", p->chan ? p->chan->exten:"", p->chan ? p->chan->context:"", 0, "Agent/%s", p->agent);
+		tmp = ast_channel_alloc(0, state, 0, 0, "", p->chan ? p->chan->exten:"", p->chan ? p->chan->context:"", linkedid, 0, "Agent/%s", p->agent);
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Unable to allocate agent channel structure\n");
 		return NULL;
@@ -1249,7 +1249,7 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 		if (!p->abouttograb && p->pending && ((p->group && (newlyavailable->group & p->group)) || !strcmp(p->agent, newlyavailable->agent))) {
 			ast_debug(1, "Call '%s' looks like a winner for agent '%s'\n", p->owner->name, newlyavailable->agent);
 			/* We found a pending call, time to merge */
-			chan = agent_new(newlyavailable, AST_STATE_DOWN);
+			chan = agent_new(newlyavailable, AST_STATE_DOWN, p->owner ? p->owner->linkedid : NULL);
 			parent = p->owner;
 			p->abouttograb = 1;
 			ast_mutex_unlock(&p->lock);
@@ -1334,7 +1334,7 @@ static int check_beep(struct agent_pvt *newlyavailable, int needlock)
 }
 
 /*! \brief Part of the Asterisk PBX interface */
-static struct ast_channel *agent_request(const char *type, int format, void *data, int *cause)
+static struct ast_channel *agent_request(const char *type, int format, const struct ast_channel* requestor, void *data, int *cause)
 {
 	struct agent_pvt *p;
 	struct ast_channel *chan = NULL;
@@ -1367,7 +1367,7 @@ static struct ast_channel *agent_request(const char *type, int format, void *dat
 				/* Agent must be registered, but not have any active call, and not be in a waiting state */
 				if (!p->owner && p->chan) {
 					/* Fixed agent */
-					chan = agent_new(p, AST_STATE_DOWN);
+					chan = agent_new(p, AST_STATE_DOWN, requestor ? requestor->linkedid : NULL);
 				}
 				if (chan) {
 					ast_mutex_unlock(&p->lock);
@@ -1390,7 +1390,7 @@ static struct ast_channel *agent_request(const char *type, int format, void *dat
 					/* Agent must be registered, but not have any active call, and not be in a waiting state */
 					if (!p->owner && p->chan) {
 						/* Could still get a fixed agent */
-						chan = agent_new(p, AST_STATE_DOWN);
+						chan = agent_new(p, AST_STATE_DOWN, requestor ? requestor->linkedid : NULL);
 					}
 					if (chan) {
 						ast_mutex_unlock(&p->lock);
@@ -1409,7 +1409,7 @@ static struct ast_channel *agent_request(const char *type, int format, void *dat
 			ast_debug(1, "Creating place holder for '%s'\n", s);
 			p = add_agent(data, 1);
 			p->group = groupmatch;
-			chan = agent_new(p, AST_STATE_DOWN);
+			chan = agent_new(p, AST_STATE_DOWN, requestor ? requestor->linkedid : NULL);
 			if (!chan) 
 				ast_log(LOG_WARNING, "Weird...  Fix this to drop the unused pending agent\n");
 		} else {

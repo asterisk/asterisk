@@ -156,7 +156,7 @@ static int manager_log(struct ast_cdr *cdr)
 	buf[0] = '\0';
 	ast_rwlock_rdlock(&customfields_lock);
 	if (customfields && ast_str_strlen(customfields)) {
-		struct ast_channel *dummy = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Substitution/%p", cdr);
+		struct ast_channel *dummy = ast_dummy_channel_alloc();
 		if (!dummy) {
 			ast_log(LOG_ERROR, "Unable to allocate channel for variable substitution.\n");
 			return 0;

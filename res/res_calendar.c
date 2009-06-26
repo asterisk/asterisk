@@ -631,7 +631,7 @@ static int calendar_event_notify(const void *data)
 
 	ast_dial_set_global_timeout(dial, event->owner->notify_waittime);
 	generate_random_string(buf, sizeof(buf));
-	if (!(chan = ast_channel_alloc(1, AST_STATE_DOWN, 0, 0, 0, 0, 0, 0, "Calendar/%s-%s", event->owner->name, buf))) {
+	if (!(chan = ast_channel_alloc(1, AST_STATE_DOWN, 0, 0, 0, 0, 0, 0, 0, "Calendar/%s-%s", event->owner->name, buf))) {
 		ast_log(LOG_ERROR, "Could not allocate notification channel\n");
 		goto notify_cleanup;
 	}

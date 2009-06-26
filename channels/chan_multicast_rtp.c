@@ -52,7 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static const char tdesc[] = "Multicast RTP Paging Channel Driver";
 
 /* Forward declarations */
-static struct ast_channel *multicast_rtp_request(const char *type, int format, void *data, int *cause);
+static struct ast_channel *multicast_rtp_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause);
 static int multicast_rtp_call(struct ast_channel *ast, char *dest, int timeout);
 static int multicast_rtp_hangup(struct ast_channel *ast);
 static struct ast_frame *multicast_rtp_read(struct ast_channel *ast);
@@ -107,7 +107,7 @@ static int multicast_rtp_hangup(struct ast_channel *ast)
 }
 
 /*! \brief Function called when we should prepare to call the destination */
-static struct ast_channel *multicast_rtp_request(const char *type, int format, void *data, int *cause)
+static struct ast_channel *multicast_rtp_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause)
 {
 	char *tmp = ast_strdupa(data), *multicast_type = tmp, *destination, *control;
 	struct ast_rtp_instance *instance;
@@ -140,7 +140,7 @@ static struct ast_channel *multicast_rtp_request(const char *type, int format, v
 		goto failure;
 	}
 
-	if (!(chan = ast_channel_alloc(1, AST_STATE_DOWN, "", "", "", "", "", 0, "MulticastRTP/%p", instance))) {
+	if (!(chan = ast_channel_alloc(1, AST_STATE_DOWN, "", "", "", "", "", requestor ? requestor->linkedid : "", 0, "MulticastRTP/%p", instance))) {
 		ast_rtp_instance_destroy(instance);
 		goto failure;
 	}

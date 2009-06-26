@@ -143,12 +143,12 @@ static int sig_pri_play_tone(struct sig_pri_chan *p, enum sig_pri_tone tone)
 		return -1;
 }
 
-static struct ast_channel *sig_pri_new_ast_channel(struct sig_pri_chan *p, int state, int startpbx, int ulaw, int transfercapability, char *exten)
+static struct ast_channel *sig_pri_new_ast_channel(struct sig_pri_chan *p, int state, int startpbx, int ulaw, int transfercapability, char *exten, const struct ast_channel *requestor)
 {
 	struct ast_channel *c;
 
 	if (p->calls->new_ast_channel)
-		c = p->calls->new_ast_channel(p->chan_pvt, state, startpbx, ulaw, transfercapability, exten);
+		c = p->calls->new_ast_channel(p->chan_pvt, state, startpbx, ulaw, transfercapability, exten, requestor);
 	else
 		return NULL;
 
@@ -160,11 +160,11 @@ static struct ast_channel *sig_pri_new_ast_channel(struct sig_pri_chan *p, int s
 	return c;
 }
 
-struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law)
+struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law, const struct ast_channel *requestor)
 {
 	ast_log(LOG_DEBUG, "%s %d\n", __FUNCTION__, p->channel);
 
-	return sig_pri_new_ast_channel(p, AST_STATE_RESERVED, 0, law, 0, p->exten);
+	return sig_pri_new_ast_channel(p, AST_STATE_RESERVED, 0, law, 0, p->exten, requestor);
 }
 
 int pri_is_up(struct sig_pri_pri *pri)
@@ -704,7 +704,7 @@ static void *pri_dchannel(void *vpri)
 				if (ast_tvdiff_ms(ast_tvnow(), lastidle) > 1000) {
 					/* Don't create a new idle call more than once per second */
 					snprintf(idlen, sizeof(idlen), "%d/%s", pri->pvts[nextidle]->channel, pri->idledial);
-					idle = sig_pri_request(pri->pvts[nextidle], AST_FORMAT_ULAW);
+					idle = sig_pri_request(pri->pvts[nextidle], AST_FORMAT_ULAW, NULL);
 					if (idle) {
 						pri->pvts[nextidle]->isidlecall = 1;
 						if (ast_pthread_create_background(&p, NULL, do_idle_thread, idle)) {
@@ -1140,7 +1140,7 @@ static void *pri_dchannel(void *vpri)
 							/* Release the PRI lock while we create the channel */
 							ast_mutex_unlock(&pri->lock);
 
-							c = sig_pri_new_ast_channel(pri->pvts[chanpos], AST_STATE_RESERVED, 0, (e->ring.layer1 = PRI_LAYER_1_ALAW) ? SIG_PRI_ALAW : SIG_PRI_ULAW, e->ring.ctype, pri->pvts[chanpos]->exten);
+							c = sig_pri_new_ast_channel(pri->pvts[chanpos], AST_STATE_RESERVED, 0, (e->ring.layer1 = PRI_LAYER_1_ALAW) ? SIG_PRI_ALAW : SIG_PRI_ULAW, e->ring.ctype, pri->pvts[chanpos]->exten, NULL);
 
 							sig_pri_unlock_private(pri->pvts[chanpos]);
 
@@ -1187,7 +1187,7 @@ static void *pri_dchannel(void *vpri)
 						} else  {
 							ast_mutex_unlock(&pri->lock);
 							/* Release PRI lock while we create the channel */
-							c = sig_pri_new_ast_channel(pri->pvts[chanpos], AST_STATE_RING, 1, (e->ring.layer1 == PRI_LAYER_1_ALAW) ? SIG_PRI_ALAW : SIG_PRI_ULAW, e->ring.ctype, pri->pvts[chanpos]->exten);
+							c = sig_pri_new_ast_channel(pri->pvts[chanpos], AST_STATE_RING, 1, (e->ring.layer1 == PRI_LAYER_1_ALAW) ? SIG_PRI_ALAW : SIG_PRI_ULAW, e->ring.ctype, pri->pvts[chanpos]->exten, NULL);
 						
 							if (c) {
 								char calledtonstr[10];

@@ -818,7 +818,7 @@ int ast_enable_distributed_devstate(void)
 	}
 
 	devstate_collector.event_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE_CHANGE,
-		devstate_change_collector_cb, NULL, AST_EVENT_IE_END);
+		devstate_change_collector_cb, "devicestate_engine_enable_distributed", NULL, AST_EVENT_IE_END);
 
 	if (!devstate_collector.event_sub) {
 		ast_log(LOG_ERROR, "Failed to create subscription for the device state change collector\n");

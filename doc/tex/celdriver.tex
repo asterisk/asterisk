@@ -1,0 +1,447 @@
+\section{Storage Backends}
+
+Right now, the CEL package will support CSV, Customized CSV, ODBC, PGSQL, TDS,
+Sqlite3, and Radius back ends.  See the doc/celdriver.tex file
+for how to use these back ends.
+
+\subsection{Microsoft SQL Server}
+
+	Asterisk can currently store Channel Events into an MSSQL database in
+	two different ways:  cel\_odbc or cel\_tds
+
+	Channel Event Records can be stored using unixODBC (which requires
+	the FreeTDS package) [cel\_odbc] or directly by using just the
+	FreeTDS package [cel\_tds]  The following provide some
+	examples known to get asterisk working with mssql.
+
+	NOTE:  Only choose one db connector.
+
+\subsubsection{ODBC using cel\_odbc}
+	Compile, configure, and install the latest unixODBC package:
+\begin{verbatim}
+	tar -zxvf unixODBC-2.2.9.tar.gz &&
+	cd unixODBC-2.2.9 &&
+	./configure --sysconfdir=/etc --prefix=/usr --disable-gui &&
+	make &&
+	make install
+\end{verbatim}
+
+	Compile, configure, and install the latest FreeTDS package:
+\begin{verbatim}
+	tar -zxvf freetds-0.62.4.tar.gz &&
+	cd freetds-0.62.4 &&
+	./configure --prefix=/usr --with-tdsver=7.0 \
+                 --with-unixodbc=/usr/lib &&
+	make && make install
+\end{verbatim}
+
+	Compile, or recompile, asterisk so that it will now add support
+	for cel\_odbc.
+\begin{verbatim}
+	make clean && ./configure --with-odbc &&
+	make update &&
+	make &&
+	make install
+\end{verbatim}
+
+	Setup odbc configuration files.  These are working examples
+	from my system.  You will need to modify for your setup.
+	You are not required to store usernames or passwords here.
+
+\begin{verbatim}
+	/etc/odbcinst.ini
+	   [FreeTDS]
+	   Description    = FreeTDS ODBC driver for MSSQL
+	   Driver         = /usr/lib/libtdsodbc.so
+	   Setup          = /usr/lib/libtdsS.so
+	   FileUsage      = 1
+
+	/etc/odbc.ini
+	   [MSSQL-asterisk]
+	   description         = Asterisk ODBC for MSSQL
+	   driver              = FreeTDS
+	   server              = 192.168.1.25
+	   port                = 1433
+	   database            = voipdb
+	   tds_version         = 7.0
+	   language            = us_english
+\end{verbatim}
+
+		Only install one database connector.  Do not confuse asterisk
+		by using both ODBC (cel\_odbc) and FreeTDS (cel\_tds).
+		This command will erase the contents of cel\_tds.conf 
+\begin{verbatim}
+		[ -f /etc/asterisk/cel_tds.conf ] > /etc/asterisk/cel_tds.conf
+\end{verbatim}
+		NOTE:  unixODBC requires the freeTDS package, but asterisk does
+		not call freeTDS directly.
+
+		Now set up cel\_odbc configuration files.  These are working samples
+		from my system.  You will need to modify for your setup. Define
+		your usernames and passwords here, secure file as well.
+\begin{verbatim}
+		/etc/asterisk/cel_odbc.conf
+		   [global]
+		   dsn=MSSQL-asterisk
+		   username=voipdbuser
+		   password=voipdbpass
+		   loguniqueid=yes
+\end{verbatim}
+		And finally, create the 'cel' table in your mssql database.
+\begin{verbatim}
+		CREATE TABLE cel (
+				[eventtype]     [varchar] (30)          NOT NULL ,
+		        [eventtime]     [datetime]              NOT NULL ,
+		        [cidname]       [varchar] (80)          NOT NULL ,
+		        [cidnum]        [varchar] (80)          NOT NULL ,
+		        [cidani]        [varchar] (80)          NOT NULL ,
+		        [cidrdnis]      [varchar] (80)          NOT NULL ,
+		        [ciddnid]       [varchar] (80)          NOT NULL ,
+		        [exten]         [varchar] (80)          NOT NULL ,
+		        [context]       [varchar] (80)          NOT NULL ,
+		        [channame]      [varchar] (80)          NOT NULL ,
+		        [appname]       [varchar] (80)          NOT NULL ,
+		        [appdata]       [varchar] (80)          NOT NULL ,
+		        [amaflags]      [int]                   NOT NULL ,
+		        [accountcode]   [varchar] (20)          NOT NULL ,
+		        [uniqueid]      [varchar] (32)          NOT NULL ,
+		        [peer]          [varchar] (80)          NOT NULL ,
+		        [userfield]     [varchar] (255)         NOT NULL
+		)
+\end{verbatim}
+		Start asterisk in verbose mode, you should see that asterisk
+		logs a connection to the database and will now record every
+		desired channel event at the moment it occurs.
+
+\subsubsection{FreeTDS, using cel\_tds}
+		Compile, configure, and install the latest FreeTDS package:
+\begin{verbatim}
+		   tar -zxvf freetds-0.62.4.tar.gz &&
+		   cd freetds-0.62.4 &&
+		   ./configure --prefix=/usr --with-tdsver=7.0
+		   make &&
+		   make install
+\end{verbatim}
+                Compile, or recompile, asterisk so that it will now add support
+                for cel\_tds.
+\begin{verbatim}
+                   make clean && ./configure --with-tds &&
+                   make update &&
+                   make &&
+                   make install
+\end{verbatim}
+                Only install one database connector.  Do not confuse asterisk
+                by using both ODBC (cel\_odbc) and FreeTDS (cel\_tds).
+                This command will erase the contents of cel\_odbc.conf
+\begin{verbatim}
+		[ -f /etc/asterisk/cel_odbc.conf ] > /etc/asterisk/cel_odbc.conf
+\end{verbatim}
+                Setup cel\_tds configuration files.  These are working samples
+                from my system.  You will need to modify for your setup. Define
+                your usernames and passwords here, secure file as well.
+\begin{verbatim}
+                /etc/asterisk/cel_tds.conf
+		   [global]
+		   hostname=192.168.1.25
+		   port=1433
+		   dbname=voipdb
+		   user=voipdbuser
+		   password=voipdpass
+		   charset=BIG5
+\end{verbatim}
+                And finally, create the 'cel' table in your mssql database.
+\begin{verbatim}
+		CREATE TABLE cel (
+				[eventtype]     [varchar] (30)          NULL ,
+		        [eventtime]     [datetime]              NULL ,
+		        [cidname]       [varchar] (80)          NULL ,
+		        [cidnum]        [varchar] (80)          NULL ,
+		        [cidani]        [varchar] (80)          NULL ,
+		        [cidrdnis]      [varchar] (80)          NULL ,
+		        [ciddnid]       [varchar] (80)          NULL ,
+		        [exten]         [varchar] (80)          NULL ,
+		        [context]       [varchar] (80)          NULL ,
+		        [channame]      [varchar] (80)          NULL ,
+		        [appname]       [varchar] (80)          NULL ,
+		        [appdata]       [varchar] (80)          NULL ,
+		        [amaflags]      [varchar] (16)          NULL ,
+		        [accountcode]   [varchar] (20)          NULL ,
+		        [uniqueid]      [varchar] (32)          NULL ,
+		        [userfield]     [varchar] (255)         NULL ,
+		        [peer]          [varchar] (80)          NULL
+		)
+\end{verbatim}
+                Start asterisk in verbose mode, you should see that asterisk
+                logs a connection to the database and will now record every
+                call to the database when it's complete.
+
+
+\subsection{MySQL}
+
+Using MySQL for Channel Event records is supported by using ODBC and the cel\_odbc module.
+
+\subsection{PostreSQL}
+        If you want to go directly to postgresql database, and have the cel\_pgsql.so
+        compiled you can use the following sample setup.
+        On Debian, before compiling asterisk, just install libpqxx-dev.
+        Other distros will likely have a similiar package.
+
+        Once you have the compile done,
+        copy the sample cel\_pgsql.conf file or create your own.
+
+        Here is a sample:
+\begin{verbatim}
+        /etc/asterisk/cel_pgsql.conf
+          ; Sample Asterisk config file for CEL logging to PostgresSQL
+          [global]
+          hostname=localhost
+          port=5432
+          dbname=asterisk
+          password=password
+          user=postgres
+          table=cel
+\end{verbatim}
+        Now create a table in postgresql for your cels
+
+\begin{verbatim}
+        CREATE TABLE cel (
+                eventtype     varchar (30)          NOT NULL ,
+                eventtime     time                  NOT NULL ,
+                cidname       varchar (80)          NOT NULL ,
+                cidnum        varchar (80)          NOT NULL ,
+                cidani        varchar (80)          NOT NULL ,
+                cidrdnis      varchar (80)          NOT NULL ,
+                ciddnis       varchar (80)          NOT NULL ,
+                exten         varchar (80)          NOT NULL ,
+                context       varchar (80)          NOT NULL ,
+                channame      varchar (80)          NOT NULL ,
+                appname       varchar (80)          NOT NULL ,
+                appdata       varchar (80)          NOT NULL ,
+                amaflags      int                   NOT NULL ,
+                accountcode   varchar (20)          NOT NULL ,
+                uniqueid      varchar (32)          NOT NULL ,
+                userfield     varchar (255)         NOT NULL ,
+                peer          varchar (80)          NOT NULL
+        );
+\end{verbatim}
+
+\subsection{SQLite 3}
+
+SQLite version 3 is supported in cel\_sqlite3\_custom.
+
+\subsection{RADIUS}
+
+\subsubsection{What is needed}
+
+\begin{itemize}
+	\item FreeRADIUS server
+	\item Radiusclient-ng library
+	\item Asterisk PBX
+\end{itemize}
+
+\begin{figure}[h]
+\begin{center}
+\setlength{\unitlength}{4cm}
+\begin{picture}(3,.75)
+\put(0,0){\line(0,1){.75}}
+\put(0,.75){\line(1,0){1.5}}
+\put(1.5,0){\line(0,1){.75}}
+\put(0,0){\line(1,0){1.5}}
+\put(.1,.4){\makebox(1.3,.3){Asterisk PBX}}
+\put(.1,.4){\line(1,0){1.3}}
+\put(.1,.1){\line(1,0){1.3}}
+\put(.1,.1){\line(0,1){.3}}
+\put(1.4,.1){\line(0,1){.3}}
+\put(.1,.1){\makebox(1.3,.3){RADIUS Client}}
+\put(1.8,0){\line(0,1){.5}}
+\put(1.8,.5){\line(1,0){1.1}}
+\put(1.8,0){\line(1,0){1.1}}
+\put(2.9,0){\line(0,1){.5}}
+\put(1.8,.275){\makebox(1.1,.1){RADIUS Server}}
+\put(1.8,.125){\makebox(1.1,.1){$(FreeRADIUS)$}}
+\thicklines
+\put(1.4,.3){\vector(1,0){.4}}
+\put(1.8,.2){\vector(-1,0){.4}}
+\thinlines
+\end{picture}
+\end{center}
+\caption{Asterisk/RADIUS Integration}
+\end{figure}
+
+\subsubsection{Installation of the Radiusclient library}
+   Installation:
+\begin{verbatim}
+	Download the sources from:
+
+	http://developer.berlios.de/projects/radiusclient-ng/
+
+	Untar the source tarball.
+		root@localhost:/usr/local/src# tar xvfz radiusclient-ng-0.5.5.1.tar.gz
+
+	Compile and install the library.
+		root@localhost:/usr/local/src# cd radiusclient-ng-0.5.5.1
+		root@localhost:/usr/local/src/radiusclient-ng-0.5.5.1# ./configure
+		root@localhost:/usr/local/src/radiusclient-ng-0.5.5.1# make
+		root@localhost:/usr/local/src/radiusclient-ng-0.5.5.1# make install
+\end{verbatim}
+
+\subsubsection{Configuration of the Radiusclient library}
+
+	By default all the configuration files of the radiusclient library will
+	be in /usr/local/etc/radiusclient-ng directory.
+
+	File "radiusclient.conf"
+		Open the file and find lines containing the following:
+
+			authserver      localhost
+
+	This is the hostname or IP address of the RADIUS server used for 
+	authentication. You will have to change this unless the server is 
+	running on the same host as your Asterisk PBX.
+
+			acctserver      localhost
+	This is the hostname or IP address of the RADIUS server used for 
+	accounting. You will have to change this unless the server is running
+	on the same host as your Asterisk PBX.
+
+	File "servers" 
+
+	RADIUS protocol uses simple access control mechanism based on shared
+	secrets that allows RADIUS servers to limit access from RADIUS clients.
+
+	A RADIUS server is configured with a secret string and only RADIUS 
+	clients that have the same secret will be accepted.
+
+	You need to configure a shared secret for each server you have 
+	configured in radiusclient.conf file in the previous step. The shared 
+	secrets are stored in /usr/local/etc/radiusclient-ng/servers file.
+
+	Each line contains hostname of a RADIUS server and shared secret 
+	used in communication with that server. The two values are separated 
+	by white spaces. Configure shared secrets for every RADIUS server you 
+	are going to use.
+
+	File "dictionary"
+
+	Asterisk uses some attributes that are not included in the 
+	dictionary of radiusclient library, therefore it is necessary to add 
+	them. A file called dictionary.digium (kept in the contrib dir)
+	was created to list all new attributes used by Asterisk. 
+	Add to the end of the main dictionary file
+	/usr/local/etc/radiusclient-ng/dictionary
+	the line:
+\begin{verbatim}
+		\$INCLUDE /path/to/dictionary.digium
+\end{verbatim}
+
+\subsubsection{Install FreeRADIUS Server (Version 1.1.1)}
+ 
+	Download sources tarball from:
+
+		http://freeradius.org/
+
+	Untar, configure, build, and install the server:
+
+\begin{verbatim}
+	root@localhost:/usr/local/src# tar xvfz freeradius-1.1.1.tar.gz
+	root@localhost:/usr/local/src# cd freeradius-1.1.1
+	root@localhost"/usr/local/src/freeradius-1.1.1# ./configure
+	root@localhost"/usr/local/src/freeradius-1.1.1# make
+	root@localhost"/usr/local/src/freeradius-1.1.1# make install
+\end{verbatim}
+
+	All the configuration files of FreeRADIUS server will be in 
+	/usr/local/etc/raddb directory. 
+
+
+\subsubsection{Configuration of the FreeRADIUS Server}
+
+	There are several files that have to be modified to configure the
+	RADIUS server. These are presented next.
+
+	File "clients.conf"
+
+	File /usr/local/etc/raddb/clients.conf contains description of 
+	RADIUS clients that are allowed to use the server. For each of the 
+	clients you need to specify its hostname or IP address and also a 
+	shared secret. The shared secret must be the same string you configured
+	in radiusclient library.
+
+	Example:
+\begin{verbatim}
+		client myhost {
+		    secret = mysecret
+		    shortname = foo
+		}
+\end{verbatim}	
+
+	This fragment allows access from RADIUS clients on "myhost" if they use 
+	"mysecret" as the shared secret.	 
+	The file already contains an entry for localhost (127.0.0.1), so if you
+	are running the RADIUS server on the same host as your Asterisk server,
+	then modify the existing entry instead, replacing the default password.
+
+	File "dictionary"
+
+	Note : as of version 1.1.2, the dictionary.digium file ships with FreeRADIUS. 
+	The following procedure brings the dictionary.digium file to previous versions 
+	of FreeRADIUS.
+
+	File /usr/local/etc/raddb/dictionary contains the dictionary of 
+	FreeRADIUS server. You have to add the same dictionary file 
+	(dictionary.digium), which you added to the dictionary of radiusclient-ng
+	library. You can include it into the main file, adding the following line at the
+	end of file '/usr/local/etc/raddb/dictionary':
+
+	\$INCLUDE /path/to/dictionary.digium
+
+	That will include the same new attribute definitions that are used 
+	in radiusclient-ng library so the client and server will understand each 
+	other. 
+
+
+\subsubsection{Asterisk Accounting Configuration}
+
+	Compilation and installation:
+
+        The module will be compiled as long as the radiusclient-ng
+        library has been detected on your system.
+
+	By default FreeRADIUS server will log all accounting requests into 
+	/usr/local/var/log/radius/radacct directory in form of plain text files. 
+	The server will create one file for each hostname in the directory. The 
+	following example shows how the log files look like. 
+
+	Asterisk now generates Call Detail Records. See /include/asterisk/cel.h
+	for all the fields which are recorded. By default, records in comma 
+	separated values will be created in /var/log/asterisk/cel-csv. 
+
+	The configuration file for cel\_radius.so module is :
+
+        /etc/asterisk/cel.conf 
+	This is where you can set CEL related parameters as well as the path to
+	the radiusclient-ng library configuration file.
+
+
+\subsubsection{Logged Values}
+\begin{verbatim}
+  "Asterisk-Acc-Code",          The account name of detail records
+  "Asterisk-CidName",
+  "Asterisk-CidNum",
+  "Asterisk-Cidani",
+  "Asterisk-Cidrdnis",
+  "Asterisk-Ciddnid",
+  "Asterisk-Exten",
+  "Asterisk-Context",           The destination context
+  "Asterisk-Channame",          The channel name
+  "Asterisk-Appname",	        Last application run on the channel 
+  "Asterisk-App-Data",          Argument to the last channel 
+  "Asterisk-Event-Time",        
+  "Asterisk-Event-Type",        
+  "Asterisk-AMA-Flags",       	DOCUMENTATION, BILL, IGNORE etc, specified on 
+                                a per channel basis like accountcode. 
+  "Asterisk-Unique-ID",         Unique call identifier 
+  "Asterisk-User-Field"	        User field set via SetCELUserField 
+  "Asterisk-Peer"	            Name of the Peer for 2-channel events (like bridge)
+  
+\end{verbatim}

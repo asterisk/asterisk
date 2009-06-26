@@ -258,6 +258,7 @@ static struct reload_classes {
 	{ "dsp",	ast_dsp_reload},
 	{ "udptl",	ast_udptl_reload },
 	{ "indications", ast_indications_reload },
+	{ "cel",        ast_cel_engine_reload },
 	{ NULL, 	NULL }
 };
 

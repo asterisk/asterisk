@@ -46,6 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/file.h"
 #include "asterisk/callerid.h"
 #include "asterisk/cdr.h"
+#include "asterisk/cel.h"
 #include "asterisk/config.h"
 #include "asterisk/term.h"
 #include "asterisk/time.h"
@@ -1356,6 +1357,8 @@ int pbx_exec(struct ast_channel *c,	/*!< Channel */
 
 	c->appl = app->name;
 	c->data = data;
+	ast_cel_report_event(c, AST_CEL_APP_START, NULL, NULL, NULL);
+
 	if (app->module)
 		u = __ast_module_user_add(app->module, c);
 	if (strcasecmp(app->name, "system") && !ast_strlen_zero(data) &&
@@ -1367,6 +1370,7 @@ int pbx_exec(struct ast_channel *c,	/*!< Channel */
 	res = app->execute(c, S_OR(data, ""));
 	if (app->module && u)
 		__ast_module_user_remove(app->module, u);
+	ast_cel_report_event(c, AST_CEL_APP_END, NULL, NULL, NULL);
 	/* restore channel values */
 	c->appl = saved_c_appl;
 	c->data = saved_c_data;
@@ -3622,7 +3626,7 @@ void ast_str_substitute_variables_full(struct ast_str **buf, ssize_t maxlen, str
 					cp4 = ast_func_read2(c, finalvars, &substr3, 0) ? NULL : ast_str_buffer(substr3);
 				} else {
 					struct varshead old;
-					struct ast_channel *bogus = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Bogus/%p", vars);
+					struct ast_channel *bogus = ast_dummy_channel_alloc();
 					if (bogus) {
 						memcpy(&old, &bogus->varshead, sizeof(old));
 						memcpy(&bogus->varshead, headp, sizeof(bogus->varshead));
@@ -3821,14 +3825,14 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 					cp4 = ast_func_read(c, vars, workspace, VAR_BUF_SIZE) ? NULL : workspace;
 				else {
 					struct varshead old;
-					struct ast_channel *bogus = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Bogus/%p", vars);
-					if (bogus) {
-						memcpy(&old, &bogus->varshead, sizeof(old));
-						memcpy(&bogus->varshead, headp, sizeof(bogus->varshead));
-						cp4 = ast_func_read(bogus, vars, workspace, VAR_BUF_SIZE) ? NULL : workspace;
+					struct ast_channel *c = ast_dummy_channel_alloc();
+					if (c) {
+						memcpy(&old, &c->varshead, sizeof(old));
+						memcpy(&c->varshead, headp, sizeof(c->varshead));
+						cp4 = ast_func_read(c, vars, workspace, VAR_BUF_SIZE) ? NULL : workspace;
 						/* Don't deallocate the varshead that was passed in */
-						memcpy(&bogus->varshead, &old, sizeof(bogus->varshead));
-						bogus = ast_channel_release(bogus);
+						memcpy(&c->varshead, &old, sizeof(c->varshead));
+						c = ast_channel_release(c);
 					} else {
 						ast_log(LOG_ERROR, "Unable to allocate bogus channel for variable substitution.  Function results may be blank.\n");
 					}
@@ -7598,7 +7602,7 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 		/* In order to do it when the channel doesn't really exist within
 		   the PBX, we have to make a new channel, masquerade, and start the PBX
 		   at the new location */
-		struct ast_channel *tmpchan = ast_channel_alloc(0, chan->_state, 0, 0, chan->accountcode, chan->exten, chan->context, chan->amaflags, "AsyncGoto/%s", chan->name);
+		struct ast_channel *tmpchan = ast_channel_alloc(0, chan->_state, 0, 0, chan->accountcode, chan->exten, chan->context, chan->linkedid, chan->amaflags, "AsyncGoto/%s", chan->name);
 		if (!tmpchan) {
 			res = -1;
 		} else {
@@ -7905,7 +7909,10 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 
 	/* If we are adding a hint evalulate in variables and global variables */
 	if (priority == PRIORITY_HINT && strstr(application, "${") && !strstr(extension, "_")) {
-		struct ast_channel *c = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", extension, con->name, 0, "Bogus/%s", __PRETTY_FUNCTION__);
+		struct ast_channel *c = ast_dummy_channel_alloc();
+		ast_copy_string(c->exten, extension, sizeof(c->exten));
+		ast_copy_string(c->context, con->name, sizeof(c->context));
+
 		pbx_substitute_variables_helper(c, application, expand_buf, sizeof(expand_buf));
 		application = expand_buf;
 		ast_channel_release(c);
@@ -8154,11 +8161,12 @@ static void *async_wait(void *data)
 static int ast_pbx_outgoing_cdr_failed(void)
 {
 	/* allocate a channel */
-	struct ast_channel *chan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "%s", "");
+	struct ast_channel *chan = ast_dummy_channel_alloc();
 
 	if (!chan)
 		return -1;  /* failure */
 
+	chan->cdr = ast_cdr_alloc();
 	if (!chan->cdr) {
 		/* allocation of the cdr failed */
 		chan = ast_channel_release(chan);   /* free the channel */
@@ -8194,7 +8202,7 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 		oh.vars = vars;
 		oh.parent_channel = NULL;
 
-		chan = __ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name, &oh);
+		chan = __ast_request_and_dial(type, format, NULL, data, timeout, reason, cid_num, cid_name, &oh);
 		if (channel) {
 			*channel = chan;
 			if (chan)
@@ -8260,7 +8268,7 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 			/* create a fake channel and execute the "failed" extension (if it exists) within the requested context */
 			/* check if "failed" exists */
 			if (ast_exists_extension(chan, context, "failed", 1, NULL)) {
-				chan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "OutgoingSpoolFailed");
+				chan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", NULL, 0, "OutgoingSpoolFailed");
 				if (chan) {
 					char failed_reason[4] = "";
 					if (!ast_strlen_zero(context))
@@ -8284,7 +8292,7 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 			res = -1;
 			goto outgoing_exten_cleanup;
 		}
-		chan = ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name);
+		chan = ast_request_and_dial(type, format, NULL, data, timeout, reason, cid_num, cid_name);
 		if (channel) {
 			*channel = chan;
 			if (chan)
@@ -8361,7 +8369,7 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 		goto outgoing_app_cleanup;
 	}
 	if (synchronous) {
-		chan = __ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name, &oh);
+		chan = __ast_request_and_dial(type, format, NULL, data, timeout, reason, cid_num, cid_name, &oh);
 		if (chan) {
 			ast_set_variables(chan, vars);
 			if (account)
@@ -8426,7 +8434,7 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 			res = -1;
 			goto outgoing_app_cleanup;
 		}
-		chan = __ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name, &oh);
+		chan = __ast_request_and_dial(type, format, NULL, data, timeout, reason, cid_num, cid_name, &oh);
 		if (!chan) {
 			ast_free(as);
 			res = -1;
@@ -8833,6 +8841,8 @@ static int pbx_builtin_setamaflags(struct ast_channel *chan, const char *data)
  */
 static int pbx_builtin_hangup(struct ast_channel *chan, const char *data)
 {
+	ast_set_hangupsource(chan, "dialplan/builtin", 0);
+
 	if (!ast_strlen_zero(data)) {
 		int cause;
 		char *endptr;
@@ -9549,7 +9559,7 @@ int load_pbx(void)
 	/* Register manager application */
 	ast_manager_register_xml("ShowDialPlan", EVENT_FLAG_CONFIG | EVENT_FLAG_REPORTING, manager_show_dialplan);
 
-	if (!(device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE, device_state_cb, NULL,
+	if (!(device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE_CHANGE, device_state_cb, "pbx Device State Change", NULL,
 			AST_EVENT_IE_END))) {
 		return -1;
 	}

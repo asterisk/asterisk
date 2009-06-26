@@ -94,16 +94,20 @@ struct ast_cdr {
 	/*! Total time call is up, in seconds */
 	long int billsec;				
 	/*! What happened to the call */
-	long int disposition;			
+	long int disposition;
 	/*! What flags to use */
-	long int amaflags;				
+	long int amaflags;
 	/*! What account number to use */
-	char accountcode[AST_MAX_ACCOUNT_CODE];			
+	char accountcode[AST_MAX_ACCOUNT_CODE];
+	/*! Account number of the last person we talked to */
+	char peeraccount[AST_MAX_ACCOUNT_CODE];
 	/*! flags */
-	unsigned int flags;				
+	unsigned int flags;
 	/*! Unique Channel Identifier
 	 * 150 = 127 (max systemname) + "-" + 10 (epoch timestamp) + "." + 10 (monotonically incrementing integer) + NULL */
 	char uniqueid[150];
+	/* Linked group Identifier */
+	char linkedid[32];
 	/*! User field */
 	char userfield[AST_MAX_USER_FIELD];
 
@@ -352,6 +356,9 @@ void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from);
 
 /*! \brief Set account code, will generate AMI event */
 int ast_cdr_setaccount(struct ast_channel *chan, const char *account);
+
+/*! \brief Set the peer account */
+int ast_cdr_setpeeraccount(struct ast_channel *chan, const char *account);
 
 /*! \brief Set AMA flags for channel */
 int ast_cdr_setamaflags(struct ast_channel *chan, const char *amaflags);

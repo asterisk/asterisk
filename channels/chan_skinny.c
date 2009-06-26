@@ -1371,9 +1371,9 @@ struct skinnysession {
 	AST_LIST_ENTRY(skinnysession) list;
 };
 
+static struct ast_channel *skinny_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause);
 static AST_LIST_HEAD_STATIC(sessions, skinnysession);
 
-static struct ast_channel *skinny_request(const char *type, int format, void *data, int *cause);
 static int skinny_devicestate(void *data);
 static int skinny_call(struct ast_channel *ast, char *dest, int timeout);
 static int skinny_hangup(struct ast_channel *ast);
@@ -4348,7 +4348,7 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 	return 0;
 }
 
-static struct ast_channel *skinny_new(struct skinny_line *l, int state)
+static struct ast_channel *skinny_new(struct skinny_line *l, int state, const char *linkedid)
 {
 	struct ast_channel *tmp;
 	struct skinny_subchannel *sub;
@@ -4361,7 +4361,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 		return NULL;
 	}
 
-	tmp = ast_channel_alloc(1, state, l->cid_num, l->cid_name, l->accountcode, l->exten, l->context, l->amaflags, "Skinny/%s@%s-%d", l->name, d->name, callnums);
+	tmp = ast_channel_alloc(1, state, l->cid_num, l->cid_name, l->accountcode, l->exten, l->context, linkedid, l->amaflags, "Skinny/%s@%s-%d", l->name, d->name, callnums);
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
 		return NULL;
@@ -4544,7 +4544,7 @@ static int handle_transfer_button(struct skinny_subchannel *sub)
 		if (!sub->onhold) {
 			skinny_hold(sub);
 		}
-		c = skinny_new(l, AST_STATE_DOWN);
+		c = skinny_new(l, AST_STATE_DOWN, NULL);
 		if (c) {
 			newsub = c->tech_pvt;
 			/* point the sub and newsub at each other so we know they are related */
@@ -4822,7 +4822,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			break;
 		}
 
-		c = skinny_new(l, AST_STATE_DOWN);
+		c = skinny_new(l, AST_STATE_DOWN, NULL);
 		if (!c) {
 			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
 		} else {
@@ -4860,7 +4860,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 		}
 
 		if (!sub || !sub->owner)
-			c = skinny_new(l, AST_STATE_DOWN);
+			c = skinny_new(l, AST_STATE_DOWN, NULL);
 		else
 			c = sub->owner;
 
@@ -4920,7 +4920,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			ast_verb(1, "Received Stimulus: Voicemail(%d/%d)\n", instance, callreference);
 
 		if (!sub || !sub->owner) {
-			c = skinny_new(l, AST_STATE_DOWN);
+			c = skinny_new(l, AST_STATE_DOWN, NULL);
 		} else {
 			c = sub->owner;
 		}
@@ -5005,7 +5005,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			ast_verb(1, "Received Stimulus: Forward All(%d/%d)\n", instance, callreference);
 
 		if (!sub || !sub->owner) {
-			c = skinny_new(l, AST_STATE_DOWN);
+			c = skinny_new(l, AST_STATE_DOWN, NULL);
 		} else {
 			c = sub->owner;
 		}
@@ -5022,7 +5022,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			ast_verb(1, "Received Stimulus: Forward Busy (%d/%d)\n", instance, callreference);
 
 		if (!sub || !sub->owner) {
-			c = skinny_new(l, AST_STATE_DOWN);
+			c = skinny_new(l, AST_STATE_DOWN, NULL);
 		} else {
 			c = sub->owner;
 		}
@@ -5040,7 +5040,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 
 #if 0 /* Not sure how to handle this yet */
 		if (!sub || !sub->owner) {
-			c = skinny_new(l, AST_STATE_DOWN);
+			c = skinny_new(l, AST_STATE_DOWN, NULL);
 		} else {
 			c = sub->owner;
 		}
@@ -5091,7 +5091,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			if (sub && sub->owner) {
 				ast_debug(1, "Current subchannel [%s] already has owner\n", sub->owner->name);
 			} else {
-				c = skinny_new(l, AST_STATE_DOWN);
+				c = skinny_new(l, AST_STATE_DOWN, NULL);
 				if (c) {
 					sub = c->tech_pvt;
 					l->activesub = sub;
@@ -5189,7 +5189,7 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 		if (sub && sub->owner) {
 			ast_debug(1, "Current sub [%s] already has owner\n", sub->owner->name);
 		} else {
-			c = skinny_new(l, AST_STATE_DOWN);
+			c = skinny_new(l, AST_STATE_DOWN, NULL);
 			if (c) {
 				sub = c->tech_pvt;
 				l->activesub = sub;
@@ -5678,7 +5678,7 @@ static int handle_enbloc_call_message(struct skinny_req *req, struct skinnysessi
 		l = sub->parent;
 	}
 
-	c = skinny_new(l, AST_STATE_DOWN);
+	c = skinny_new(l, AST_STATE_DOWN, NULL);
 
 	if(!c) {
 		ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
@@ -5792,7 +5792,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		}
 
 		if (!sub || !sub->owner) {
-			c = skinny_new(l, AST_STATE_DOWN);
+			c = skinny_new(l, AST_STATE_DOWN, NULL);
 		} else {
 			c = sub->owner;
 		}
@@ -5828,7 +5828,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 			ast_verb(1, "Received Softkey Event: New Call(%d/%d)\n", instance, callreference);
 
 		/* New Call ALWAYS gets a new sub-channel */
-		c = skinny_new(l, AST_STATE_DOWN);
+		c = skinny_new(l, AST_STATE_DOWN, NULL);
 		sub = c->tech_pvt;
 	
 		/* transmit_ringer_mode(d, SKINNY_RING_OFF);
@@ -5898,7 +5898,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 			ast_verb(1, "Received Softkey Event: Forward All(%d/%d)\n", instance, callreference);
 
 		if (!sub || !sub->owner) {
-			c = skinny_new(l, AST_STATE_DOWN);
+			c = skinny_new(l, AST_STATE_DOWN, NULL);
 		} else {
 			c = sub->owner;
 		}
@@ -5916,7 +5916,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 			ast_verb(1, "Received Softkey Event: Forward Busy (%d/%d)\n", instance, callreference);
 
 		if (!sub || !sub->owner) {
-			c = skinny_new(l, AST_STATE_DOWN);
+			c = skinny_new(l, AST_STATE_DOWN, NULL);
 		} else {
 			c = sub->owner;
 		}
@@ -5935,7 +5935,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 
 #if 0 /* Not sure how to handle this yet */
 		if (!sub || !sub->owner) {
-			c = skinny_new(l, AST_STATE_DOWN);
+			c = skinny_new(l, AST_STATE_DOWN, NULL);
 		} else {
 			c = sub->owner;
 		}
@@ -6565,7 +6565,7 @@ static int skinny_devicestate(void *data)
 	return get_devicestate(l);
 }
 
-static struct ast_channel *skinny_request(const char *type, int format, void *data, int *cause)
+static struct ast_channel *skinny_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause)
 {
 	int oldformat;
 	
@@ -6592,7 +6592,7 @@ static struct ast_channel *skinny_request(const char *type, int format, void *da
 		return NULL;
 	}
 	ast_verb(3, "skinny_request(%s)\n", tmp);
-	tmpc = skinny_new(l, AST_STATE_DOWN);
+	tmpc = skinny_new(l, AST_STATE_DOWN, requestor ? requestor->linkedid : NULL);
 	if (!tmpc) {
 		ast_log(LOG_WARNING, "Unable to make channel for '%s'\n", tmp);
 	}
@@ -7020,7 +7020,7 @@ static struct ast_channel *skinny_request(const char *type, int format, void *da
  		strsep(&cfg_context, "@");
  		if (ast_strlen_zero(cfg_context))
  			 cfg_context = "default";
-		l->mwi_event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, l,
+		l->mwi_event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, "skinny MWI subsciption", l,
  			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, cfg_mailbox,
  			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, cfg_context,
  			AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,

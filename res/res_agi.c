@@ -2256,6 +2256,7 @@ static int handle_hangup(struct ast_channel *chan, AGI *agi, int argc, const cha
 
 	if (argc == 1) {
 		/* no argument: hangup the current channel */
+		ast_set_hangupsource(chan, "dialplan/agi", 0);
 		ast_softhangup(chan,AST_SOFTHANGUP_EXPLICIT);
 		ast_agi_send(agi->fd, chan, "200 result=1\n");
 		return RESULT_SUCCESS;
@@ -2263,6 +2264,7 @@ static int handle_hangup(struct ast_channel *chan, AGI *agi, int argc, const cha
 		/* one argument: look for info on the specified channel */
 		if ((c = ast_channel_get_by_name(argv[1]))) {
 			/* we have a matching channel */
+			ast_set_hangupsource(c, "dialplan/agi", 0);
 			ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
 			c = ast_channel_unref(c);
 			ast_agi_send(agi->fd, chan, "200 result=1\n");

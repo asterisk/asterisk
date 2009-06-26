@@ -111,7 +111,7 @@ typedef void (*ast_event_cb_t)(const struct ast_event *event, void *userdata);
  * pointer to the peer.
  */
 struct ast_event_sub *ast_event_subscribe(enum ast_event_type event_type,
-	ast_event_cb_t cb, void *userdata, ...);
+       ast_event_cb_t cb, char *description, void *userdata, ...);
 
 /*!
  * \brief Allocate a subscription, but do not activate it
@@ -240,6 +240,15 @@ int ast_event_sub_activate(struct ast_event_sub *sub);
  * \version 1.6.1 return changed to NULL
  */
 struct ast_event_sub *ast_event_unsubscribe(struct ast_event_sub *event_sub);
+
+/*!
+ * \brief Get description for a subscription
+ *
+ * \param sub subscription
+ *
+ * \return string description of the subscription
+ */
+const char *ast_event_subscriber_get_description(struct ast_event_sub *sub);
 
 /*!
  * \brief Check if subscribers exist

@@ -64,7 +64,7 @@ struct sig_pri_callback {
 	int (* const set_echocanceller)(void *pvt, int enable);
 	int (* const train_echocanceller)(void *pvt);
 
-	struct ast_channel * (* const new_ast_channel)(void *pvt, int state, int startpbx, enum sig_pri_law law, int transfercapability, char *exten);
+	struct ast_channel * (* const new_ast_channel)(void *pvt, int state, int startpbx, enum sig_pri_law law, int transfercapability, char *exten, const struct ast_channel *chan);
 
 	void (* const fixup_chans)(void *old_chan, void *new_chan);
 
@@ -239,7 +239,7 @@ void pri_event_alarm(struct sig_pri_pri *pri, int index, int before_start_pri);
 
 void pri_event_noalarm(struct sig_pri_pri *pri, int index, int before_start_pri);
 
-struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law);
+struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law, const struct ast_channel *requestor);
 
 struct sig_pri_chan *sig_pri_chan_new(void *pvt_data, struct sig_pri_callback *callback, struct sig_pri_pri *pri, int logicalspan, int channo);
 

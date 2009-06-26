@@ -184,7 +184,7 @@ static int load_module(void)
 	if (!db) {
 		ast_log(LOG_ERROR, "cdr_sqlite: %s\n", zErr);
 		ast_free(zErr);
-		return -1;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	/* is the table there? */
@@ -203,14 +203,14 @@ static int load_module(void)
 	res = ast_cdr_register(name, ast_module_info->description, sqlite_log);
 	if (res) {
 		ast_log(LOG_ERROR, "Unable to register SQLite CDR handling\n");
-		return -1;
+		return AST_MODULE_LOAD_DECLINE;
 	}
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 
 err:
 	if (db)
 		sqlite_close(db);
-	return -1;
+	return AST_MODULE_LOAD_DECLINE;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "SQLite CDR Backend");

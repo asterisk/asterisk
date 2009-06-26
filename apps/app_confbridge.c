@@ -559,7 +559,7 @@ static int play_sound_file(struct conference_bridge *conference_bridge, const ch
 	if (!(conference_bridge->playback_chan)) {
 		int cause;
 
-		if (!(conference_bridge->playback_chan = ast_request("Bridge", AST_FORMAT_SLINEAR, "", &cause))) {
+		if (!(conference_bridge->playback_chan = ast_request("Bridge", AST_FORMAT_SLINEAR, NULL, "", &cause))) {
 			ast_mutex_unlock(&conference_bridge->playback_lock);
 			return -1;
 		}

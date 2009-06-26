@@ -163,7 +163,7 @@ struct analog_callback {
 	/*! This function is for swapping of the owners with the underlying subs.  Typically it means you need to change the fds
 	 * of the new owner to be the fds of the sub specified, for each of the two subs given */
 	void (* const swap_subs)(void *pvt, enum analog_sub a, struct ast_channel *new_a_owner, enum analog_sub b, struct ast_channel *new_b_owner);
-	struct ast_channel * (* const new_ast_channel)(void *pvt, int state, int startpbx, enum analog_sub sub);
+	struct ast_channel * (* const new_ast_channel)(void *pvt, int state, int startpbx, enum analog_sub sub, const struct ast_channel *requestor);
 
 	/* Add the given sub to a conference */
 	int (* const conf_add)(void *pvt, enum analog_sub sub);
@@ -300,7 +300,7 @@ int analog_answer(struct analog_pvt *p, struct ast_channel *ast);
 
 struct ast_frame *analog_exception(struct analog_pvt *p, struct ast_channel *ast);
 
-struct ast_channel * analog_request(struct analog_pvt *p, int *callwait);
+struct ast_channel * analog_request(struct analog_pvt *p, int *callwait, const struct ast_channel *requestor);
 
 int analog_available(struct analog_pvt *p, int channelmatch, ast_group_t groupmatch, int *busy, int *channelmatched, int *groupmatched);
 

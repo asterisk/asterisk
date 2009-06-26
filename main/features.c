@@ -55,6 +55,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/audiohook.h"
 #include "asterisk/global_datastores.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/cel.h"
 
 /*** DOCUMENTATION
 	<application name="Bridge" language="en_US">
@@ -426,7 +427,7 @@ static void check_goto_on_transfer(struct ast_channel *chan)
 
 	goto_on_transfer = ast_strdupa(val);
 
-	if (!(xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "%s", chan->name)))
+	if (!(xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", chan->linkedid, 0, "%s", chan->name)))
 		return;
 
 	for (x = goto_on_transfer; x && *x; x++) {
@@ -808,6 +809,8 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 	pthread_kill(parking_thread, SIGURG);
 	ast_verb(2, "Parked %s on %d (lot %s). Will timeout back to extension [%s] %s, %d in %d seconds\n", pu->chan->name, pu->parkingnum, pu->parkinglot->name, pu->context, pu->exten, pu->priority, (pu->parkingtime/1000));
 
+	ast_cel_report_event(pu->chan, AST_CEL_PARK_START, NULL, pu->parkinglot->name, peer);
+
 	if (peer) {
 		event_from = peer->name;
 	} else {
@@ -895,7 +898,7 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, i
 	}
 
 	/* Make a new, fake channel that we'll use to masquerade in the real one */
-	if (!(chan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, rchan->accountcode, rchan->exten, rchan->context, rchan->amaflags, "Parked/%s",rchan->name))) {
+	if (!(chan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, rchan->accountcode, rchan->exten, rchan->context, rchan->linkedid, rchan->amaflags, "Parked/%s",rchan->name))) {
 		ast_log(LOG_WARNING, "Unable to create parked channel\n");
 		return -1;
 	}
@@ -1345,6 +1348,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		}
 		/*! \todo XXX Maybe we should have another message here instead of invalid extension XXX */
 	} else if (ast_exists_extension(transferee, transferer_real_context, xferto, 1, transferer->cid.cid_num)) {
+		ast_cel_report_event(transferer, AST_CEL_BLINDTRANSFER, NULL, xferto, transferee);
 		pbx_builtin_setvar_helper(transferer, "BLINDTRANSFER", transferee->name);
 		pbx_builtin_setvar_helper(transferee, "BLINDTRANSFER", transferer->name);
 		res=finishup(transferee);
@@ -1561,6 +1565,9 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 			ast_party_connected_line_free(&connected_line);
 			return AST_FEATURE_RETURN_SUCCESS;
 		}
+
+		ast_cel_report_event(transferee, AST_CEL_ATTENDEDTRANSFER, NULL, NULL, newchan);
+
 		if (check_compat(transferee, newchan)) {
 			finishup(transferee);
 			ast_party_connected_line_free(&connected_line);
@@ -1577,7 +1584,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 			ast_party_connected_line_free(&connected_line);
 			return -1;
 		}
-		xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "Transfered/%s", transferee->name);
+		xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", transferee->linkedid, 0, "Transfered/%s", transferee->name);
 		if (!xferchan) {
 			ast_hangup(newchan);
 			ast_party_connected_line_free(&connected_line);
@@ -1731,6 +1738,8 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		if (!newchan)
 			return -1;
 
+		ast_cel_report_event(transferee, AST_CEL_ATTENDEDTRANSFER, NULL, NULL, newchan);
+
 		/* newchan is up, we should prepare transferee and bridge them */
 		if (check_compat(transferee, newchan)) {
 			finishup(transferee);
@@ -1746,7 +1755,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 			return -1;
 		}
 
-		xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "Transfered/%s", transferee->name);
+		xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", transferee->linkedid, 0, "Transfered/%s", transferee->name);
 		if (!xferchan) {
 			ast_hangup(newchan);
 			return -1;
@@ -2315,7 +2324,7 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller, 
 	int x, len = 0;
 	char *disconnect_code = NULL, *dialed_code = NULL;
 
-	if (!(chan = ast_request(type, format, data, &cause))) {
+	if (!(chan = ast_request(type, format, caller, data, &cause))) {
 		ast_log(LOG_NOTICE, "Unable to request channel %s/%s\n", type, (char *)data);
 		switch(cause) {
 		case AST_CAUSE_BUSY:
@@ -2480,6 +2489,27 @@ done:
 		*outstate = state;
 
 	return chan;
+}
+
+void ast_channel_log(char *title, struct ast_channel *chan);
+
+void ast_channel_log(char *title, struct ast_channel *chan) /* for debug, this is handy enough to justify keeping it in the source */
+{
+       ast_log(LOG_NOTICE, "______ %s (%lx)______\n", title, (unsigned long)chan);
+       ast_log(LOG_NOTICE, "CHAN: name: %s;  appl: %s; data: %s; contxt: %s;  exten: %s; pri: %d;\n",
+                       chan->name, chan->appl, chan->data, chan->context, chan->exten, chan->priority);
+       ast_log(LOG_NOTICE, "CHAN: acctcode: %s;  dialcontext: %s; amaflags: %x; maccontxt: %s;  macexten: %s; macpri: %d;\n",
+                       chan->accountcode, chan->dialcontext, chan->amaflags, chan->macrocontext, chan->macroexten, chan->macropriority);
+       ast_log(LOG_NOTICE, "CHAN: masq: %p;  masqr: %p; _bridge: %p; uniqueID: %s; linkedID:%s\n",
+                       chan->masq, chan->masqr,
+                       chan->_bridge, chan->uniqueid, chan->linkedid);
+       if (chan->masqr)
+               ast_log(LOG_NOTICE, "CHAN: masquerading as: %s;  cdr: %p;\n",
+                               chan->masqr->name, chan->masqr->cdr);
+       if (chan->_bridge)
+               ast_log(LOG_NOTICE, "CHAN: Bridged to %s\n", chan->_bridge->name);
+
+	ast_log(LOG_NOTICE, "===== done ====\n");
 }
 
 /*!
@@ -2661,6 +2691,26 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		}
 	}
 
+#ifdef FOR_DEBUG
+	/* show the two channels and cdrs involved in the bridge for debug & devel purposes */
+	ast_channel_log("Pre-bridge CHAN Channel info", chan);
+	ast_channel_log("Pre-bridge PEER Channel info", peer);
+#endif
+	/* two channels are being marked as linked here */
+	ast_channel_set_linkgroup(chan,peer);
+
+	/* copy the userfield from the B-leg to A-leg if applicable */
+	if (chan->cdr && peer->cdr && !ast_strlen_zero(peer->cdr->userfield)) {
+		char tmp[256];
+		if (!ast_strlen_zero(chan->cdr->userfield)) {
+			snprintf(tmp, sizeof(tmp), "%s;%s", chan->cdr->userfield, peer->cdr->userfield);
+			ast_cdr_appenduserfield(chan, tmp);
+		} else
+			ast_cdr_setuserfield(chan, peer->cdr->userfield);
+		/* free the peer's cdr without ast_cdr_free complaining */
+		ast_free(peer->cdr);
+		peer->cdr = NULL;
+	}
 	ast_copy_string(orig_channame,chan->name,sizeof(orig_channame));
 	ast_copy_string(orig_peername,peer->name,sizeof(orig_peername));
 	orig_peer_cdr = peer_cdr;
@@ -2733,6 +2783,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			}
 		}
 	}
+	ast_cel_report_event(chan, AST_CEL_BRIDGE_START, NULL, NULL, NULL);
 	for (;;) {
 		struct ast_channel *other;	/* used later */
 	
@@ -3213,6 +3264,7 @@ int manage_parkinglot(struct ast_parkinglot *curlot, fd_set *rfds, fd_set *efds,
 				set_c_e_p(chan, pu->context, pu->exten, pu->priority);
 			}
 			post_manager_event("ParkedCallTimeOut", pu);
+			ast_cel_report_event(pu->chan, AST_CEL_PARK_END, NULL, "ParkedCallTimeOut", NULL);
 
 			ast_verb(2, "Timeout for %s parked on %d (%s). Returning to %s,%s,%d\n", pu->chan->name, pu->parkingnum, pu->parkinglot->name, pu->chan->context, pu->chan->exten, pu->chan->priority);
 			/* Start up the PBX, or hang them up */
@@ -3251,6 +3303,7 @@ int manage_parkinglot(struct ast_parkinglot *curlot, fd_set *rfds, fd_set *efds,
 					if (f)
 						ast_frfree(f);
 					post_manager_event("ParkedCallGiveUp", pu);
+					ast_cel_report_event(pu->chan, AST_CEL_PARK_END, NULL, "ParkedCallGiveUp", NULL);
 
 					/* There's a problem, hang them up*/
 					ast_verb(2, "%s got tired of being parked\n", chan->name);
@@ -3495,6 +3548,7 @@ static int park_exec_full(struct ast_channel *chan, const char *data, struct ast
 		} else
 			ast_log(LOG_WARNING, "Whoa, no parking context?\n");
 
+		ast_cel_report_event(pu->chan, AST_CEL_PARK_END, NULL, "UnParkedCall", chan);
 		manager_event(EVENT_FLAG_CALL, "UnParkedCall",
 			"Exten: %s\r\n"
 			"Channel: %s\r\n"
@@ -4294,7 +4348,7 @@ static int action_bridge(struct mansession *s, const struct message *m)
 
 	/* create the placeholder channels and grab the other channels */
 	if (!(tmpchana = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, 
-		NULL, NULL, 0, "Bridge/%s", chana->name))) {
+		NULL, NULL, chana->linkedid, 0, "Bridge/%s", chana->name))) {
 		astman_send_error(s, m, "Unable to create temporary channel!");
 		chana = ast_channel_unref(chana);
 		return 1;
@@ -4321,7 +4375,7 @@ static int action_bridge(struct mansession *s, const struct message *m)
 
 	/* create the placeholder channels and grab the other channels */
 	if (!(tmpchanb = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, 
-		NULL, NULL, 0, "Bridge/%s", chanb->name))) {
+		NULL, NULL, chanb->linkedid, 0, "Bridge/%s", chanb->name))) {
 		astman_send_error(s, m, "Unable to create temporary channels!");
 		ast_hangup(tmpchana);
 		chanb = ast_channel_unref(chanb);
@@ -4715,7 +4769,7 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 
 	/* try to allocate a place holder where current_dest_chan will be placed */
 	if (!(final_dest_chan = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, 
-		NULL, NULL, 0, "Bridge/%s", current_dest_chan->name))) {
+		NULL, NULL, current_dest_chan->linkedid, 0, "Bridge/%s", current_dest_chan->name))) {
 		ast_log(LOG_WARNING, "Cannot create placeholder channel for chan %s\n", args.dest_chan);
 		manager_event(EVENT_FLAG_CALL, "BridgeExec",
 					"Response: Failed\r\n"

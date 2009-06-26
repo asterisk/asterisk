@@ -2488,7 +2488,7 @@ static int action_getvar(struct mansession *s, const struct message *m)
 
 	if (varname[strlen(varname) - 1] == ')') {
 		if (!c) {
-			c = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Bogus/manager");
+			c = ast_dummy_channel_alloc();
 			if (c) {
 				ast_func_read(c, (char *) varname, workspace, sizeof(workspace));
 				c = ast_channel_release(c);

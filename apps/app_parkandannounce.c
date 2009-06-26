@@ -145,7 +145,7 @@ static int parkandannounce_exec(struct ast_channel *chan, const char *data)
 	snprintf(buf, sizeof(buf), "%d", lot);
 	oh.parent_channel = chan;
 	oh.vars = ast_variable_new("_PARKEDAT", buf, "");
-	dchan = __ast_request_and_dial(dialtech, AST_FORMAT_SLINEAR, args.dial, 30000, &outstate, chan->cid.cid_num, chan->cid.cid_name, &oh);
+	dchan = __ast_request_and_dial(dialtech, AST_FORMAT_SLINEAR, chan, args.dial, 30000, &outstate, chan->cid.cid_num, chan->cid.cid_name, &oh);
 
 	if (dchan) {
 		if (dchan->_state == AST_STATE_UP) {

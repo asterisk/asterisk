@@ -1,0 +1,7 @@
+;
+; Mappings for sqlite3 config file
+;
+;[master] ; currently, only file "master.db" is supported, with only one table at a time.
+;table	=> cel
+;columns	=> eventtype, eventtime, cidname, cidnum, cidani, cidrdnis, ciddnid, context, exten, channame, appname, appdata, amaflags, accountcode, uniqueid, userfield, peer
+;values	=> '${eventtype}','${eventtime}','${CALLERID(name)}','${CALLERID(num)}','${CALLERID(ANI)}','${CALLERID(RDNIS)}','${CALLERID(DNID)}','${CHANNEL(context)}','${CHANNEL(exten)}','${CHANNEL(channame)}','${CHANNEL(appname)}','${CHANNEL(appdata)}','${CHANNEL(amaflags)}','${CHANNEL(accountcode)}','${CHANNEL(uniqueid)}','${CHANNEL(userfield)}','${CHANNEL(peer)}'

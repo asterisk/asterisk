@@ -657,7 +657,7 @@ static int *misdn_ports;
 static void chan_misdn_log(int level, int port, char *tmpl, ...)
 	__attribute__((format(printf, 3, 4)));
 
-static struct ast_channel *misdn_new(struct chan_list *cl, int state,  char *exten, char *callerid, int format, int port, int c);
+static struct ast_channel *misdn_new(struct chan_list *cl, int state,  char *exten, char *callerid, int format, const char *linkedid, int port, int c);
 static void send_digit_to_chan(struct chan_list *cl, char digit);
 
 static void hangup_chan(struct chan_list *ch);
@@ -7468,7 +7468,7 @@ static struct chan_list *init_chan_list(int orig)
 	return cl;
 }
 
-static struct ast_channel *misdn_request(const char *type, int format, void *data, int *cause)
+static struct ast_channel *misdn_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause)
 {
 	struct ast_channel *ast;
 	char group[BUFFERSIZE + 1] = "";
@@ -7694,7 +7694,7 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 	}
 	cl->bc = newbc;
 
-	ast = misdn_new(cl, AST_STATE_RESERVED, args.ext, NULL, format, port, channel);
+	ast = misdn_new(cl, AST_STATE_RESERVED, args.ext, NULL, format, requestor ? requestor->linkedid : NULL, port, channel);
 	if (!ast) {
 		ast_log(LOG_ERROR, "Could not create Asterisk channel for Dial(%s)\n", dial_str);
 		return NULL;
@@ -7799,7 +7799,7 @@ static void update_name(struct ast_channel *tmp, int port, int c)
 	}
 }
 
-static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char *exten, char *callerid, int format, int port, int c)
+static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char *exten, char *callerid, int format, const char *linkedid, int port, int c)
 {
 	struct ast_channel *tmp;
 	char *cid_name = 0, *cid_num = 0;
@@ -7821,7 +7821,7 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 		ast_callerid_parse(callerid, &cid_name, &cid_num);
 	}
 
-	tmp = ast_channel_alloc(1, state, cid_num, cid_name, "", exten, "", 0, "%s/%s%d-u%d", misdn_type, c ? "" : "tmp", chan_offset + c, glob_channel++);
+	tmp = ast_channel_alloc(1, state, cid_num, cid_name, "", exten, "", linkedid, 0, "%s/%s%d-u%d", misdn_type, c ? "" : "tmp", chan_offset + c, glob_channel++);
 	if (tmp) {
 		chan_misdn_log(2, 0, " --> * NEW CHANNEL dialed:%s caller:%s\n", exten, callerid);
 
@@ -8436,7 +8436,7 @@ static void misdn_cc_pbx_notify(long record_id, const struct misdn_cc_notify *no
 	/* Create a channel to notify with */
 	snprintf(id_str, sizeof(id_str), "%ld", record_id);
 	chan = ast_channel_alloc(0, AST_STATE_DOWN, id_str, NULL, NULL,
-		notify->exten, notify->context, 0,
+		notify->exten, notify->context, NULL, 0,
 		"mISDN-CC/%ld-%X", record_id, (unsigned) ++sequence);
 	if (!chan) {
 		ast_log(LOG_ERROR, "Unable to allocate channel!\n");
@@ -9581,7 +9581,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		ch->l3id = bc->l3_id;
 		ch->addr = bc->addr;
 
-		chan = misdn_new(ch, AST_STATE_RESERVED, bc->dialed.number, bc->caller.number, AST_FORMAT_ALAW, bc->port, bc->channel);
+		chan = misdn_new(ch, AST_STATE_RESERVED, bc->dialed.number, bc->caller.number, AST_FORMAT_ALAW, NULL, bc->port, bc->channel);
 		if (!chan) {
 			misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
 			ast_log(LOG_ERROR, "cb_events: misdn_new failed !\n");

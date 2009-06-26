@@ -165,7 +165,7 @@ static char *handle_cli_test_substitution(struct ast_cli_entry *e, int cmd, stru
 	}
 
 	ast_cli(a->fd, "Testing variable substitution ...\n");
-	c = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Test/substitution");
+	c = ast_dummy_channel_alloc();
 
 	test_chan_integer(a->fd, c, &c->cid.cid_pres, "${CALLINGPRES}");
 	test_chan_integer(a->fd, c, &c->cid.cid_ani2, "${CALLINGANI2}");
@@ -217,7 +217,7 @@ static char *handle_cli_test_substitution(struct ast_cli_entry *e, int cmd, stru
 		ast_free(cmd);
 	}
 
-	ast_hangup(c);
+	ast_channel_release(c);
 
 	return CLI_SUCCESS;
 }

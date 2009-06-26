@@ -241,7 +241,7 @@ static int sqlite3_log(struct ast_cdr *cdr)
 		struct ast_channel *dummy;
 		struct ast_str *value_string = ast_str_create(1024);
 
-		dummy = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Substitution/%p", cdr);
+		dummy = ast_dummy_channel_alloc();
 		if (!dummy) {
 			ast_log(LOG_ERROR, "Unable to allocate channel for variable subsitution.\n");
 			ast_free(value_string);

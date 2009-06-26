@@ -241,6 +241,8 @@ static int cdr_write(struct ast_channel *chan, const char *cmd, char *parse,
 
 	if (!strcasecmp(args.variable, "accountcode"))  /* the 'l' flag doesn't apply to setting the accountcode, userfield, or amaflags */
 		ast_cdr_setaccount(chan, value);
+	else if (!strcasecmp(args.variable, "peeraccount"))
+		ast_cdr_setpeeraccount(chan, value);
 	else if (!strcasecmp(args.variable, "userfield"))
 		ast_cdr_setuserfield(chan, value);
 	else if (!strcasecmp(args.variable, "amaflags"))

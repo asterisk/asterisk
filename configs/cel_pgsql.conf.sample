@@ -1,0 +1,58 @@
+; Sample Asterisk config file for CEL logging to PostgresSQL
+;
+; CEL field names:
+;
+;  	eventtype
+;	  CEL_CHANNEL_START = 1
+;	  CEL_CHANNEL_END = 2
+;	  CEL_HANGUP = 3
+;	  CEL_ANSWER = 4
+;	  CEL_APP_START = 5
+;	  CEL_APP_END = 6
+;	  CEL_BRIDGE_START = 7
+;	  CEL_BRIDGE_END = 8
+;	  CEL_CONF_START = 9
+;	  CEL_CONF_END = 10
+;	  CEL_PARK_START = 11
+;	  CEL_PARK_END = 12
+;	  CEL_BLINDTRANSFER = 13
+;	  CEL_ATTENDEDTRANSFER = 14
+;	  CEL_TRANSFER = 15
+;	  CEL_HOOKFLASH = 16
+;	  CEL_3WAY_START = 17
+;	  CEL_3WAY_END = 18
+;	  CEL_CONF_ENTER = 19
+;	  CEL_CONF_EXIT = 20
+;	  CEL_USER_DEFINED = 21
+;	  CEL_LINKEDID_END = 22
+;	  CEL_BRIDGE_UPDATE = 23
+;	  CEL_PICKUP = 24
+;	  CEL_FORWARD = 25
+;	eventtime  (timeval, includes microseconds)
+;	userdeftype (set only if eventtype == USER_DEFINED)
+;	cid_name
+;	cid_num
+;	cid_ani
+;	cid_rdnis
+;	cid_dnid
+;	exten
+;	context
+;	channame
+;	appname
+;	appdata
+;	accountcode
+;	peeraccount
+;	uniqueid
+;	linkedid
+;	amaflag  (an int)
+;	userfield
+;	peer
+
+
+[global]
+;hostname=localhost
+;port=5432
+;dbname=asterisk
+;password=password
+;user=postgres
+;table=cel		;SQL table where CEL's will be inserted

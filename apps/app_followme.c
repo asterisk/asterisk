@@ -831,7 +831,7 @@ static void findmeexec(struct fm_args *tpargs)
 				return;
 			}
 
-			outbound = ast_request("Local", ast_best_codec(caller->nativeformats), dialarg, &dg);
+			outbound = ast_request("Local", ast_best_codec(caller->nativeformats), caller, dialarg, &dg);
 			if (outbound) {
 				ast_set_callerid(outbound, caller->cid.cid_num, caller->cid.cid_name, caller->cid.cid_num);
 				ast_channel_inherit_variables(tpargs->chan, outbound);

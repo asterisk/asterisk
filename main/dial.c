@@ -262,7 +262,7 @@ static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_chann
 	ast_copy_string(numsubst, channel->device, sizeof(numsubst));
 
 	/* If we fail to create our owner channel bail out */
-	if (!(channel->owner = ast_request(channel->tech, chan ? chan->nativeformats : AST_FORMAT_AUDIO_MASK, numsubst, &channel->cause)))
+	if (!(channel->owner = ast_request(channel->tech, chan ? chan->nativeformats : AST_FORMAT_AUDIO_MASK, chan, numsubst, &channel->cause)))
 		return -1;
 
 	channel->owner->appl = "AppDial2";

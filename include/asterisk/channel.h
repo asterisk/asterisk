@@ -361,7 +361,7 @@ struct ast_channel_tech {
 	int properties;			/*!< Technology Properties */
 
 	/*! \brief Requester - to set up call data structures (pvt's) */
-	struct ast_channel *(* const requester)(const char *type, int format, void *data, int *cause);
+	struct ast_channel *(* const requester)(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause);
 
 	int (* const devicestate)(void *data);	/*!< Devicestate call back */
 
@@ -612,9 +612,13 @@ struct ast_channel {
 		AST_STRING_FIELD(language);		/*!< Language requested for voice prompts */
 		AST_STRING_FIELD(musicclass);		/*!< Default music class */
 		AST_STRING_FIELD(accountcode);		/*!< Account code for billing */
+		AST_STRING_FIELD(peeraccount);		/*!< Peer account code for billing */
+		AST_STRING_FIELD(userfield);		/*!< Userfield for CEL billing */
 		AST_STRING_FIELD(call_forward);		/*!< Where to forward to if asked to dial on this interface */
 		AST_STRING_FIELD(uniqueid);		/*!< Unique Channel Identifier */
+		AST_STRING_FIELD(linkedid);		/*!< Linked Channel Identifier -- gets propagated by linkage */
 		AST_STRING_FIELD(parkinglot);		/*! Default parking lot, if empty, default parking lot  */
+		AST_STRING_FIELD(hangupsource);		/*! Who is responsible for hanging up this channel */
 		AST_STRING_FIELD(dialcontext);		/*!< Dial: Extension context that we were called from */
 	);
 
@@ -913,16 +917,29 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state);
  * \note By default, new channels are set to the "s" extension
  *       and "default" context.
  */
-struct ast_channel * attribute_malloc __attribute__((format(printf, 12, 13)))
+struct ast_channel * attribute_malloc __attribute__((format(printf, 13, 14)))
 	__ast_channel_alloc(int needqueue, int state, const char *cid_num,
 			    const char *cid_name, const char *acctcode,
 			    const char *exten, const char *context,
-			    const int amaflag, const char *file, int line,
-			    const char *function, const char *name_fmt, ...);
+			    const char *linkedid, const int amaflag,
+			    const char *file, int line, const char *function,
+			    const char *name_fmt, ...);
 
-#define ast_channel_alloc(needqueue, state, cid_num, cid_name, acctcode, exten, context, amaflag, ...) \
-	__ast_channel_alloc(needqueue, state, cid_num, cid_name, acctcode, exten, context, amaflag, \
+#define ast_channel_alloc(needqueue, state, cid_num, cid_name, acctcode, exten, context, linkedid, amaflag, ...) \
+	__ast_channel_alloc(needqueue, state, cid_num, cid_name, acctcode, exten, context, linkedid, amaflag, \
 			    __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
+
+/*! 
+ * \brief Create a fake channel structure 
+ *
+ * \retval NULL failure
+ * \retval non-NULL successfully allocated channel
+ *
+ * \note This function should ONLY be used to create a fake channel
+ *       that can then be populated with data for use in variable
+ *       substitution when a real channel does not exist.
+ */
+struct ast_channel *ast_dummy_channel_alloc(void);
 
 /*!
  * \brief Queue one or more frames to a channel's frame queue
@@ -1035,7 +1052,7 @@ void ast_change_name(struct ast_channel *chan, const char *newname);
  */
 struct ast_channel *ast_channel_release(struct ast_channel *chan);
 
-/*!
+/*! 
  * \brief Requests a channel
  *
  * \param type type of channel to request
@@ -1050,7 +1067,7 @@ struct ast_channel *ast_channel_release(struct ast_channel *chan);
  * \retval NULL failure
  * \retval non-NULL channel on success
  */
-struct ast_channel *ast_request(const char *type, int format, void *data, int *status);
+struct ast_channel *ast_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *status);
 
 /*!
  * \brief Request a channel of a given type, with data as optional information used
@@ -1067,7 +1084,7 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *s
  * \return Returns an ast_channel on success or no answer, NULL on failure.  Check the value of chan->_state
  * to know if the call was answered or not.
  */
-struct ast_channel *ast_request_and_dial(const char *type, int format, void *data,
+struct ast_channel *ast_request_and_dial(const char *type, int format, const struct ast_channel *requestor, void *data,
 	int timeout, int *reason, const char *cid_num, const char *cid_name);
 
 /*!
@@ -1084,7 +1101,7 @@ struct ast_channel *ast_request_and_dial(const char *type, int format, void *dat
  * \return Returns an ast_channel on success or no answer, NULL on failure.  Check the value of chan->_state
  * to know if the call was answered or not.
  */
-struct ast_channel *__ast_request_and_dial(const char *type, int format, void *data,
+struct ast_channel *__ast_request_and_dial(const char *type, int format, const struct ast_channel *requestor, void *data,
 	int timeout, int *reason, const char *cid_num, const char *cid_name, struct outgoing_helper *oh);
 
 /*!
@@ -1187,6 +1204,16 @@ int ast_softhangup(struct ast_channel *chan, int cause);
  * \param cause	Ast hangupcause for hangup (see cause.h)
  */
 int ast_softhangup_nolock(struct ast_channel *chan, int cause);
+
+/*! \brief Set the source of the hangup in this channel and it's bridge
+ * \param chan channel to set the field on
+ * \param source a string describing the source of the hangup for this channel
+ *
+ * Hangupsource is generally the channel name that caused the bridge to be
+ * hung up, but it can also be other things such as "dialplan/agi"
+ * This can then be logged in the CDR or CEL
+ */
+void ast_set_hangupsource(struct ast_channel *chan, const char *source, int force);
 
 /*! \brief Check to see if a channel is needing hang up
  * \param chan channel on which to check for hang up
@@ -2279,6 +2306,12 @@ struct ast_channel *ast_channel_get_by_name_prefix(const char *name, size_t name
 struct ast_channel *ast_channel_get_by_exten(const char *exten, const char *context);
 
 /*! @} End channel search functions. */
+
+/*!
+  \brief propagate the linked id between chan and peer
+ */
+void ast_channel_set_linkgroup(struct ast_channel *chan, struct ast_channel *peer);
+
 
 /*!
  * \since 1.6.3

@@ -272,6 +272,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/event.h"
 #include "asterisk/tcptls.h"
 #include "asterisk/stun.h"
+#include "asterisk/cel.h"
 
 /*** DOCUMENTATION
 	<application name="SIPDtmfMode" language="en_US">
@@ -2339,7 +2340,7 @@ enum t38_action_flag {
 	in coming releases. */
 
 /*--- PBX interface functions */
-static struct ast_channel *sip_request_call(const char *type, int format, void *data, int *cause);
+static struct ast_channel *sip_request_call(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause);
 static int sip_devicestate(void *data);
 static int sip_sendtext(struct ast_channel *ast, const char *text);
 static int sip_call(struct ast_channel *ast, char *dest, int timeout);
@@ -5096,6 +5097,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	ast_string_field_set(dialog, mohinterpret, peer->mohinterpret);
 	ast_string_field_set(dialog, tohost, peer->tohost);
 	ast_string_field_set(dialog, fullcontact, peer->fullcontact);
+	ast_string_field_set(dialog, accountcode, peer->accountcode);
 	ast_string_field_set(dialog, context, peer->context);
 	ast_string_field_set(dialog, cid_num, peer->cid_num);
 	ast_string_field_set(dialog, cid_name, peer->cid_name);
@@ -6518,7 +6520,7 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 	and from handle_request_invite for inbound channels
 	
 */
-static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *title)
+static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *title, const char *linkedid)
 {
 	struct ast_channel *tmp;
 	struct ast_variable *v = NULL;
@@ -6546,7 +6548,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 
 		sip_pvt_unlock(i);
 		/* Don't hold a sip pvt lock while we allocate a channel */
-		tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, i->amaflags, "SIP/%s-%08x", my_name, (int)(long) i);
+		tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, linkedid, i->amaflags, "SIP/%s-%08x", my_name, (int)(long) i);
 
 	}
 	if (!tmp) {
@@ -17936,16 +17938,20 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		/* First we ACK */
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		ast_log(LOG_WARNING, "Received response: \"Forbidden\" from '%s'\n", get_header(&p->initreq, "From"));
-		if (!req->ignore && p->owner)
+		if (!req->ignore && p->owner) {
+			ast_set_hangupsource(p->owner, p->owner->name, 0);
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+		}
 		pvt_set_needdestroy(p, "received 403 response");
 		sip_alreadygone(p);
 		break;
 
 	case 404: /* Not found */
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
-		if (p->owner && !req->ignore)
+		if (p->owner && !req->ignore) {
+			ast_set_hangupsource(p->owner, p->owner->name, 0);
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+		}
 		sip_alreadygone(p);
 		break;
 
@@ -18983,8 +18989,8 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 		/* Chan2m: The transferer, chan1m: The transferee */
 	pthread_t th;
 
-	transferee = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, chan1->accountcode, chan1->exten, chan1->context, chan1->amaflags, "Parking/%s", chan1->name);
-	transferer = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, chan2->accountcode, chan2->exten, chan2->context, chan2->amaflags, "SIPPeer/%s", chan2->name);
+	transferee = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, chan1->accountcode, chan1->exten, chan1->context, chan1->linkedid, chan1->amaflags, "Parking/%s", chan1->name);
+	transferer = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, chan2->accountcode, chan2->exten, chan2->context, chan2->linkedid, chan2->amaflags, "SIPPeer/%s", chan2->name);
 	if ((!transferer) || (!transferee)) {
 		if (transferee) {
 			transferee->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
@@ -20305,7 +20311,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 
 			make_our_tag(p->tag, sizeof(p->tag));
 			/* First invitation - create the channel */
-			c = sip_new(p, AST_STATE_DOWN, S_OR(p->peername, NULL));
+			c = sip_new(p, AST_STATE_DOWN, S_OR(p->peername, NULL), NULL);
 			*recount = 1;
 
 			/* Save Record-Route for any later requests we make on this dialogue */
@@ -20625,6 +20631,7 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 	struct sip_pvt *targetcall_pvt;
 	struct ast_party_connected_line connected_to_transferee;
 	struct ast_party_connected_line connected_to_target;
+	char transferer_linkedid[32];
 
 	/* Check if the call ID of the replaces header does exist locally */
 	if (!(targetcall_pvt = get_sip_pvt_byid_locked(transferer->refer->replaces_callid, transferer->refer->replaces_callid_totag, 
@@ -20685,6 +20692,8 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 
 	ast_set_flag(&transferer->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Delay hangup */
 
+	ast_copy_string(transferer_linkedid, transferer->owner->linkedid, sizeof(transferer_linkedid));
+
 	/* Perform the transfer */
 	manager_event(EVENT_FLAG_CALL, "Transfer", "TransferMethod: SIP\r\nTransferType: Attended\r\nChannel: %s\r\nUniqueid: %s\r\nSIP-Callid: %s\r\nTargetChannel: %s\r\nTargetUniqueid: %s\r\n",
 		transferer->owner->name,
@@ -20711,6 +20720,14 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 	} else {
 		/* Transfer succeeded! */
 		const char *xfersound = pbx_builtin_getvar_helper(target.chan1, "ATTENDED_TRANSFER_COMPLETE_SOUND");
+
+		while (ast_channel_trylock(target.chan1)) {
+			sip_pvt_unlock(targetcall_pvt);
+			sched_yield();
+			sip_pvt_lock(targetcall_pvt);
+		}
+		ast_cel_report_event(target.chan1, AST_CEL_ATTENDEDTRANSFER, NULL, transferer_linkedid, target.chan2);
+		ast_channel_unlock(target.chan1);
 
 		/* Tell transferer that we're done. */
 		transmit_notify_with_sipfrag(transferer, seqno, "200 OK", TRUE);
@@ -21075,6 +21092,17 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 			p->refer->refer_to, p->refer->refer_to_context);
 		/* Success  - we have a new channel */
 		ast_debug(3, "%s transfer succeeded. Telling transferer.\n", p->refer->attendedtransfer? "Attended" : "Blind");
+
+		while (ast_channel_trylock(current.chan1)) {
+			sip_pvt_unlock(p);
+			sched_yield();
+			sip_pvt_lock(p);
+		}
+
+		/* XXX - what to we put in CEL 'extra' for attended transfers to external systems? NULL for now */
+		ast_cel_report_event(current.chan1, p->refer->attendedtransfer? AST_CEL_ATTENDEDTRANSFER : AST_CEL_BLINDTRANSFER, NULL, p->refer->attendedtransfer ? NULL : p->refer->refer_to, current.chan2);
+		ast_channel_unlock(current.chan1);
+
 		transmit_notify_with_sipfrag(p, seqno, "200 Ok", TRUE);
 		if (p->refer->localtransfer)
 			p->refer->status = REFER_200OK;
@@ -21126,8 +21154,10 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 		update_call_counter(p, DEC_CALL_LIMIT);
 
 	stop_media_flows(p); /* Immediately stop RTP, VRTP and UDPTL as applicable */
-	if (p->owner)
+	if (p->owner) {
+		ast_set_hangupsource(p->owner, p->owner->name, 0);
 		ast_queue_hangup(p->owner);
+	}
 	else
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	if (p->initreq.len > 0) {
@@ -21392,6 +21422,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 				ast_queue_hangup_with_cause(p->owner, AST_CAUSE_PROTOCOL_ERROR);
 		}
 	} else if (p->owner) {
+		ast_set_hangupsource(p->owner, p->owner->name, 0);
 		ast_queue_hangup(p->owner);
 		ast_debug(3, "Received bye, issuing owner hangup\n");
 	} else {
@@ -21421,7 +21452,7 @@ static void add_peer_mwi_subs(struct sip_peer *peer)
 	struct sip_mailbox *mailbox;
 
 	AST_LIST_TRAVERSE(&peer->mailboxes, mailbox, entry) {
-		mailbox->event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, peer,
+		mailbox->event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, "SIP mbox event", peer,
 			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox->mailbox,
 			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, S_OR(mailbox->context, "default"),
 			AST_EVENT_IE_END);
@@ -23248,7 +23279,7 @@ static int sip_devicestate(void *data)
  *	or	SIP/host!dnid
  * \endverbatim
 */
-static struct ast_channel *sip_request_call(const char *type, int format, void *data, int *cause)
+static struct ast_channel *sip_request_call(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause)
 {
 	struct sip_pvt *p;
 	struct ast_channel *tmpc = NULL;
@@ -23394,7 +23425,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	p->prefcodec = oldformat;				/* Format for this call */
 	p->jointcapability = oldformat;
 	sip_pvt_lock(p);
-	tmpc = sip_new(p, AST_STATE_DOWN, host);	/* Place the call */
+	tmpc = sip_new(p, AST_STATE_DOWN, host, requestor ? requestor->linkedid : NULL);	/* Place the call */
 	if (sip_cfg.callevents)
 		manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate",
 			"Channel: %s\r\nChanneltype: %s\r\nSIPcallid: %s\r\nSIPfullcontact: %s\r\nPeername: %s\r\n",

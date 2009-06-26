@@ -1,0 +1,103 @@
+;
+; Asterisk Channel Event Logging
+;
+; Channel Event Logging is a mechanism to provide fine-grained event information
+; that can be used to generate billing information. Such event information can
+; be recorded to databases and files via pluggable backend modules.
+;
+
+[general]
+
+; CEL Activation
+;
+; Use the 'enable' keyword to turn CEL on or off.
+;
+; Accepted values: yes and no
+; Default value:   no
+
+;enable=yes
+
+; Application Tracking
+;
+; Use the 'apps' keyword to specify the list of applications for which you want
+; to receive CEL events.  This is a comma separated list of Asterisk dialplan
+; applications, such as Dial, Queue, and Park.
+;
+; Accepted values: A comma separated list of Asterisk dialplan applications
+; Default value:   none
+;
+; Note: You may also use 'all' which will result in CEL events being reported
+;       for all Asterisk applications.  This may affect Asterisk's performance
+;       significantly.
+
+apps=dial,park
+
+; Event Tracking
+;
+; Use the 'events' keyword to specify the list of events which you want to be
+; raised when they occur.  This is a comma separated list of the values in the
+; table below.
+;
+; Accepted values: A comma separated list of one or more of the following:
+;  ALL              -- Generate entries on all events
+;  CHAN_START       -- The time a channel was created
+;  CHAN_END         -- The time a channel was terminated
+;  ANSWER           -- The time a channel was answered (ie, phone taken off-hook)
+;  HANGUP           -- The time at which a hangup occurred
+;  CONF_ENTER       -- The time a channel was connected into a conference room
+;  CONF_EXIT        -- The time a channel was removed from a conference room
+;  CONF_START       -- The time the first person enters a conference room
+;  CONF_END         -- The time the last person left a conference room (and
+;                      turned out the lights?)
+;  APP_START        -- The time a tracked application was started
+;  APP_END          -- the time a tracked application ended
+;  PARK_START       -- The time a call was parked
+;  PARK_END         -- Unpark event
+;  BRIDGE_START     -- The time a bridge is started
+;  BRIDGE_END       -- The time a bridge is ended
+;  3WAY_START       -- When a 3-way conference starts (usually via attended xfer)
+;  3WAY_END         -- When one or all exit a 3-way conference
+;  BLINDTRANSFER    -- When a blind transfer is initiated
+;  ATTENDEDTRANSFER -- When an attended transfer is initiated
+;  TRANSFER         -- Generic transfer initiated; not used yet...?
+;  HOOKFLASH        -- So far, when a hookflash event occurs on a DAHDI
+;                      interface
+;  USER_EVENT       -- Triggered from the dialplan, and has a name given by the
+;                      user
+;
+; Default value: none
+;                (Track no events)
+
+events=APP_START,CHAN_START,CHAN_END,ANSWER,HANGUP,BRIDGE_START,BRIDGE_END
+
+; Date Format
+;
+; Use the 'dateformat' keyword to specify the date format used when CEL events
+; are raised.
+;
+; Accepted values: A strftime format string (see man strftime)
+;
+; Example: "%F %T"
+;  -> This gives the date and time in the format "2009-06-23 17:02:35"
+;
+; If this option is not specified, the default format is "<seconds>.<microseconds>"
+; since epoch.  The microseconds field will always be 6 digits in length, meaning it
+; may have leading zeros.
+;
+;dateformat = %F %T
+
+;
+; Asterisk Manager Interface (AMI) CEL Backend
+;
+
+[manager]
+
+; AMI Backend Activation
+;
+; Use the 'enable' keyword to turn CEL logging to the Asterisk Manager Interface
+; on or off.
+;
+; Accepted values: yes and no
+; Default value:   no
+
+;enabled=yes
