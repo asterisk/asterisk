@@ -253,6 +253,7 @@ enum ast_device_state ast_devstate_aggregate_result(struct ast_devstate_aggregat
  * This struct is only here so that it can be easily declared on the stack.
  */
 struct ast_devstate_aggregate {
+	unsigned int all_unknown:1;
 	unsigned int all_unavail:1;
 	unsigned int all_busy:1;
 	unsigned int all_free:1;
