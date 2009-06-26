@@ -104,12 +104,12 @@ int ast_syslog_priority(const char *priority)
 
 static const int logger_level_to_syslog_map[] = {
 	[__LOG_DEBUG]   = LOG_DEBUG,
-	[1]			 = LOG_INFO,	/* Only kept for backwards compatibility */
+	[1]             = LOG_INFO, /* Only kept for backwards compatibility */
 	[__LOG_NOTICE]  = LOG_NOTICE,
 	[__LOG_WARNING] = LOG_WARNING,
 	[__LOG_ERROR]   = LOG_ERR,
 	[__LOG_VERBOSE] = LOG_DEBUG,
-	[__LOG_DTMF]	= LOG_DEBUG,
+	[__LOG_DTMF]    = LOG_DEBUG,
 };
 
 int ast_syslog_priority_from_loglevel(int level)
