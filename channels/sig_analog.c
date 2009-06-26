@@ -788,6 +788,11 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, char *rdest, int 
 	case ANALOG_SIG_FXSLS:
 	case ANALOG_SIG_FXSGS:
 	case ANALOG_SIG_FXSKS:
+		if (p->answeronpolarityswitch || p->hanguponpolarityswitch) {
+			ast_debug(1, "Ignore possible polarity reversal on line seizure\n");
+			p->polaritydelaytv = ast_tvnow();
+		}
+		/* fall through */
 	case ANALOG_SIG_EMWINK:
 	case ANALOG_SIG_EM:
 	case ANALOG_SIG_EM_E1:
@@ -2826,44 +2831,80 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		break;
 	case ANALOG_EVENT_POLARITY:
 		/*
-		 * If we get a Polarity Switch event, check to see
-		 * if we should change the polarity state and
+ 		 * If we get a Polarity Switch event, this could be
+ 		 * due to line seizure, remote end connect or remote end disconnect.
+ 		 *
+ 		 * Check to see if we should change the polarity state and
 		 * mark the channel as UP or if this is an indication
 		 * of remote end disconnect.
 		 */
-		if (p->polarity == POLARITY_IDLE) {
-			p->polarity = POLARITY_REV;
-			if (p->answeronpolarityswitch &&
-			    ((ast->_state == AST_STATE_DIALING) ||
-				 (ast->_state == AST_STATE_RINGING))) {
-				ast_debug(1, "Answering on polarity switch!\n");
-				ast_setstate(p->owner, AST_STATE_UP);
-				if (p->hanguponpolarityswitch) {
-					gettimeofday(&p->polaritydelaytv, NULL);
-				}
-			} else
-				ast_debug(1, "Ignore switch to REVERSED Polarity on channel %d, state %d\n", p->channel, ast->_state);
-		}
-		/* Removed else statement from here as it was preventing hangups from ever happening*/
-		/* Added AST_STATE_RING in if statement below to deal with calling party hangups that take place when ringing */
-		if (p->hanguponpolarityswitch &&
-			(p->polarityonanswerdelay > 0) &&
-		       (p->polarity == POLARITY_REV) &&
-			((ast->_state == AST_STATE_UP) || (ast->_state == AST_STATE_RING)) ) {
-                               /* Added log_debug information below to provide a better indication of what is going on */
-			ast_debug(1, "Polarity Reversal event occured - DEBUG 1: channel %d, state %d, pol= %d, aonp= %d, honp= %d, pdelay= %d, tv= %d\n", p->channel, ast->_state, p->polarity, p->answeronpolarityswitch, p->hanguponpolarityswitch, p->polarityonanswerdelay, ast_tvdiff_ms(ast_tvnow(), p->polaritydelaytv) );
+		
+		if (p->polarityonanswerdelay > 0) {
+			/* check if event is not too soon after OffHook or Answer */
 
 			if (ast_tvdiff_ms(ast_tvnow(), p->polaritydelaytv) > p->polarityonanswerdelay) {
-				ast_debug(1, "Polarity Reversal detected and now Hanging up on channel %d\n", p->channel);
-				ast_softhangup(p->owner, AST_SOFTHANGUP_EXPLICIT);
-				p->polarity = POLARITY_IDLE;
+				switch (ast->_state) {
+				case AST_STATE_DIALING:			/*!< Digits (or equivalent) have been dialed */
+				case AST_STATE_RINGING:			/*!< Remote end is ringing */
+					if (p->answeronpolarityswitch) {
+						ast_debug(1, "Answering on polarity switch! channel %d\n", p->channel);
+						ast_setstate(p->owner, AST_STATE_UP);
+						p->polarity = POLARITY_REV;
+						if (p->hanguponpolarityswitch) {
+							p->polaritydelaytv = ast_tvnow();
+						}
+					} else {
+						ast_debug(1, "Ignore Answer on polarity switch, channel %d\n", p->channel);
+					}
+					break;
+				case AST_STATE_UP:				/*!< Line is up */
+				case AST_STATE_RING:			/*!< Line is ringing */
+					if (p->hanguponpolarityswitch) {
+						ast_debug(1, "HangingUp on polarity switch! channel %d\n", p->channel);
+						ast_softhangup(p->owner, AST_SOFTHANGUP_EXPLICIT);
+						p->polarity = POLARITY_IDLE;
+					} else {
+						ast_debug(1, "Ignore Hangup on polarity switch, channel %d\n", p->channel);
+					}
+					break;
+
+				case AST_STATE_DOWN:				/*!< Channel is down and available */
+				case AST_STATE_RESERVED:			/*!< Channel is down, but reserved */
+				case AST_STATE_OFFHOOK:				/*!< Channel is off hook */
+				case AST_STATE_BUSY:				/*!< Line is busy */
+				case AST_STATE_DIALING_OFFHOOK:		/*!< Digits (or equivalent) have been dialed while offhook */
+				case AST_STATE_PRERING:				/*!< Channel has detected an incoming call and is waiting for ring */
+				default:
+					if (p->answeronpolarityswitch || p->hanguponpolarityswitch) {
+						ast_debug(1, "Ignoring Polarity switch on channel %d, state %d\n", p->channel, ast->_state);
+					}
+				}
+
 			} else {
-				ast_debug(1, "Polarity Reversal detected but NOT hanging up (too close to answer event) on channel %d, state %d\n", p->channel, ast->_state);
+				/* event is too soon after OffHook or Answer */
+				switch (ast->_state) {
+				case AST_STATE_DIALING:		/*!< Digits (or equivalent) have been dialed */
+				case AST_STATE_RINGING:		/*!< Remote end is ringing */
+					if (p->answeronpolarityswitch) {
+						ast_debug(1, "Polarity switch detected but NOT answering (too close to OffHook event) on channel %d, state %d\n", p->channel, ast->_state);
+					}
+					break;
+
+				case AST_STATE_UP:			/*!< Line is up */
+				case AST_STATE_RING:		/*!< Line is ringing */
+					if (p->hanguponpolarityswitch) {
+						ast_debug(1, "Polarity switch detected but NOT hanging up (too close to Answer event) on channel %d, state %d\n", p->channel, ast->_state);
+					}
+					break;
+
+				default:	
+					if (p->answeronpolarityswitch || p->hanguponpolarityswitch) {
+						ast_debug(1, "Polarity switch detected (too close to previous event) on channel %d, state %d\n", p->channel, ast->_state);
+					}
+				}
 			}
-		} else {
-			p->polarity = POLARITY_IDLE;
-			ast_debug(1, "Ignoring Polarity switch to IDLE on channel %d, state %d\n", p->channel, ast->_state);
 		}
+
 		/* Added more log_debug information below to provide a better indication of what is going on */
 		ast_debug(1, "Polarity Reversal event occured - DEBUG 2: channel %d, state %d, pol= %d, aonp= %d, honp= %d, pdelay= %d, tv= %d\n", p->channel, ast->_state, p->polarity, p->answeronpolarityswitch, p->hanguponpolarityswitch, p->polarityonanswerdelay, ast_tvdiff_ms(ast_tvnow(), p->polaritydelaytv) );
 		break;
