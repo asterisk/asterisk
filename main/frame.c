@@ -857,6 +857,25 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 			}
 			snprintf(subclass, sizeof(subclass), "T38/%s", message);
 			break;
+		case AST_CONTROL_T38_PARAMETERS:
+			if (f->datalen != sizeof(struct ast_control_t38_parameters *)) {
+				message = "Invalid";
+			} else {
+				struct ast_control_t38_parameters *parameters = f->data.ptr;
+				enum ast_control_t38 state = parameters->request_response;
+				if (state == AST_T38_REQUEST_NEGOTIATE)
+					message = "Negotiation Requested";
+				else if (state == AST_T38_REQUEST_TERMINATE)
+					message = "Negotiation Request Terminated";
+				else if (state == AST_T38_NEGOTIATED)
+					message = "Negotiated";
+				else if (state == AST_T38_TERMINATED)
+					message = "Terminated";
+				else if (state == AST_T38_REFUSED)
+					message = "Refused";
+			}
+			snprintf(subclass, sizeof(subclass), "T38_Parameters/%s", message);
+			break;
 		case -1:
 			strcpy(subclass, "Stop generators");
 			break;

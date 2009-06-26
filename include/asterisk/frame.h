@@ -319,6 +319,7 @@ enum ast_control_frame_type {
 	AST_CONTROL_VIDUPDATE = 18,	/*!< Indicate video frame update */
 	AST_CONTROL_T38 = 19,		/*!< T38 state change request/notification */
 	AST_CONTROL_SRCUPDATE = 20,     /*!< Indicate source of media has changed */
+	AST_CONTROL_T38_PARAMETERS = 24, /*!< T38 state change request/notification with parameters */
 };
 
 enum ast_control_t38 {
@@ -327,6 +328,31 @@ enum ast_control_t38 {
 	AST_T38_NEGOTIATED,		/*!< T38 negotiated (fax mode) */
 	AST_T38_TERMINATED,		/*!< T38 terminated (back to voice) */
 	AST_T38_REFUSED			/*!< T38 refused for some reason (usually rejected by remote end) */
+};
+
+enum ast_control_t38_rate {
+	AST_T38_RATE_2400 = 0,
+	AST_T38_RATE_4800,
+	AST_T38_RATE_7200,
+	AST_T38_RATE_9600,
+	AST_T38_RATE_12000,
+	AST_T38_RATE_14400,
+};
+
+enum ast_control_t38_rate_management {
+	AST_T38_RATE_MANAGEMENT_TRANSFERED_TCF = 0,
+	AST_T38_RATE_MANAGEMENT_LOCAL_TCF,
+};
+
+struct ast_control_t38_parameters {
+	enum ast_control_t38 request_response;                /*!< Request or response of the T38 control frame */
+	unsigned int version;                                 /*!< Supported T.38 version */
+	unsigned int max_datagram;                            /*!< Maximum datagram size supported */
+	enum ast_control_t38_rate rate;                       /*!< Maximum fax rate supported */
+	enum ast_control_t38_rate_management rate_management; /*!< Rate management setting */
+	unsigned int fill_bit_removal:1;                      /*!< Set if fill bit removal should be used */
+	unsigned int transcoding_mmr:1;                       /*!< Set if MMR transcoding should be used */
+	unsigned int transcoding_jbig:1;                      /*!< Set if JBIG transcoding should be used */
 };
 
 #define AST_SMOOTHER_FLAG_G729		(1 << 0)

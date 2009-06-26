@@ -431,9 +431,13 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; This has to be enabled in the general section for all devices to work. You can then
 ; disable it on a per device basis. 
 ;
-; T.38 faxing only works in SIP to SIP calls, with no local or agent channel being used.
+; T.38 faxing only works in SIP to SIP calls. It defaults to off.
 ;
-; t38pt_udptl = yes            ; Default false
+; t38pt_udptl = yes            ; Enables T.38 with FEC error correction.
+; t38pt_udptl = yes,fec        ; Enables T.38 with FEC error correction.
+; t38pt_udptl = yes,redundancy ; Enables T.38 with redundancy error correction.
+; t38pt_udptl = yes,none       ; Enables T.38 with no error correction.
+  
 ;
 ; Fax Detect will cause the SIP channel to jump to the 'fax' extension (if it exists)
 ; after T.38 is successfully negotiated.
