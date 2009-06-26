@@ -3998,7 +3998,8 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 			    (fr->subclass == AST_CONTROL_UNHOLD) ||
 			    (fr->subclass == AST_CONTROL_VIDUPDATE) ||
 			    (fr->subclass == AST_CONTROL_T38) ||
-			    (fr->subclass == AST_CONTROL_SRCUPDATE)) {
+			    (fr->subclass == AST_CONTROL_SRCUPDATE) ||
+			    (fr->subclass == AST_CONTROL_T38_PARAMETERS)) {
 				if (fr->subclass == AST_CONTROL_HOLD) {
 					/* If we someone went on hold we want the other side to reinvite back to us */
 					if (who == c0)
@@ -4238,7 +4239,8 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 			    (fr->subclass == AST_CONTROL_UNHOLD) ||
 			    (fr->subclass == AST_CONTROL_VIDUPDATE) ||
 			    (fr->subclass == AST_CONTROL_T38) ||
-			    (fr->subclass == AST_CONTROL_SRCUPDATE)) {
+			    (fr->subclass == AST_CONTROL_SRCUPDATE) ||
+			    (fr->subclass == AST_CONTROL_T38_PARAMETERS)) {
 				/* If we are going on hold, then break callback mode and P2P bridging */
 				if (fr->subclass == AST_CONTROL_HOLD) {
 					if (p0_callback)

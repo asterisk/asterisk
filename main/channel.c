@@ -3040,6 +3040,7 @@ static int attribute_const is_visible_indication(enum ast_control_frame_type con
 	case AST_CONTROL_ANSWER:
 	case AST_CONTROL_HANGUP:
 	case AST_CONTROL_T38:
+	case AST_CONTROL_T38_PARAMETERS:
 		return 0;
 
 	case AST_CONTROL_CONGESTION:
@@ -3136,6 +3137,7 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	case AST_CONTROL_HOLD:
 	case AST_CONTROL_UNHOLD:
 	case AST_CONTROL_T38:
+	case AST_CONTROL_T38_PARAMETERS:
 		/* Nothing left to do for these. */
 		res = 0;
 		break;
@@ -4751,6 +4753,7 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 			case AST_CONTROL_VIDUPDATE:
 			case AST_CONTROL_SRCUPDATE:
 			case AST_CONTROL_T38:
+			case AST_CONTROL_T38_PARAMETERS:
 				ast_indicate_data(other, f->subclass, f->data.ptr, f->datalen);
 				if (jb_in_use) {
 					ast_jb_empty_and_reset(c0, c1);
