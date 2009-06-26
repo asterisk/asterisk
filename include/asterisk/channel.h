@@ -910,6 +910,7 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state);
 
 /*!
  * \brief Create a channel structure
+ * \since 1.6.3
  *
  * \retval NULL failure
  * \retval non-NULL successfully allocated channel
@@ -1205,9 +1206,13 @@ int ast_softhangup(struct ast_channel *chan, int cause);
  */
 int ast_softhangup_nolock(struct ast_channel *chan, int cause);
 
-/*! \brief Set the source of the hangup in this channel and it's bridge
+/*!
+ * \brief Set the source of the hangup in this channel and it's bridge
+ *
  * \param chan channel to set the field on
  * \param source a string describing the source of the hangup for this channel
+ *
+ * \since 1.6.3
  *
  * Hangupsource is generally the channel name that caused the bridge to be
  * hung up, but it can also be other things such as "dialplan/agi"

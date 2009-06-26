@@ -95,31 +95,38 @@
  * \arg See \ref Def_Channel
  */
 
-/*! \page AstAPIChanges Asterisk API Changes
- *  \section Changes161 Version 1.6.1
- *  \li ast_install_vm_functions()
- *  \li vmwi_generate()
- *  \li ast_channel_datastore_alloc()
- *  \li ast_channel_datastore_free()
- *  \li ast_channel_cmpwhentohangup()
- *  \li ast_channel_setwhentohangup()
- *  \li ast_settimeout()
- *  \li ast_datastore_alloc()
- *  \li ast_datastore_free()
- *  \li ast_device_state_changed()
- *  \li ast_device_state_changed_literal()
- *  \li ast_dnsmgr_get()
- *  \li ast_dnsmgr_lookup()
- *  \li ast_dsp_set_digitmode()
- *  \li ast_get_txt()
- *  \li ast_event_unsubscribe()
- *  \li localized_context_find_or_create()
- *  \li localized_merge_contexts_and_delete()
- *  \li ast_console_puts_mutable()
- *  \li ast_rtp_get_quality()
- *  \li ast_tcptls_client_start()
- *  \li ast_tcptls_server_start()
- *  \li ast_tcptls_server_stop()
+/*! 
+ * \page AstAPIChanges Asterisk API Changes
+ *
+ * \section Changes161 Version 1.6.1
+ * \li ast_install_vm_functions()
+ * \li vmwi_generate()
+ * \li ast_channel_datastore_alloc()
+ * \li ast_channel_datastore_free()
+ * \li ast_channel_cmpwhentohangup()
+ * \li ast_channel_setwhentohangup()
+ * \li ast_settimeout()
+ * \li ast_datastore_alloc()
+ * \li ast_datastore_free()
+ * \li ast_device_state_changed()
+ * \li ast_device_state_changed_literal()
+ * \li ast_dnsmgr_get()
+ * \li ast_dnsmgr_lookup()
+ * \li ast_dsp_set_digitmode()
+ * \li ast_get_txt()
+ * \li ast_event_unsubscribe()
+ * \li localized_context_find_or_create()
+ * \li localized_merge_contexts_and_delete()
+ * \li ast_console_puts_mutable()
+ * \li ast_rtp_get_quality()
+ * \li ast_tcptls_client_start()
+ * \li ast_tcptls_server_start()
+ * \li ast_tcptls_server_stop()
+ *
+ * \section Changes162 Version 1.6.2
+ *
+ * \section Changes163 Version 1.6.3
+ * \li ast_channel_alloc()
  */
 
 /*! 
