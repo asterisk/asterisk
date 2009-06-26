@@ -34,6 +34,13 @@ SIP Changes
    will accept the SDP even if the SDP version number is not properly incremented,
    but will generate a warning in the log indicating that the SIP peer that sent
    the SDP should have the 'ignoresdpversion' option set.
+ * The 'nat' option has now been been changed to have yes, no, force_rport, and
+   comedia as valid values. Setting it to yes forces RFC 3581 behavior and enables
+   symmetric RTP support. Setting it to no only enables RFC 3581 behavior if the
+   remote side requests it and disables symmetric RTP support. Setting it to
+   force_rport forces RFC 3581 behavior and disables symmetric RTP support.
+   Setting it to comedia enables RFC 3581 behavior if the remote side requests it
+   and enables symmetric RTP support.
 
 IAX2 Changes
 -----------

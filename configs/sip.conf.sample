@@ -635,11 +635,10 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; However, this is only useful if the external traffic can reach us.
 ; The following settings are allowed (both globally and in individual sections):
 ;
-;        nat = no                ; default. Use NAT mode only according to RFC3581 (;rport)
-;        nat = yes               ; Always ignore info and assume NAT
-;        nat = never             ; Never attempt NAT mode or RFC3581 support
-;        nat = route             ; route = Assume NAT, don't send rport
-;                                ; (work around more UNIDEN bugs)
+;        nat = no                ; Default. Use rport if the remote side says to use it.
+;        nat = force_rport       ; Force rport to always be on.
+;        nat = yes               ; Force rport to always be on and perform symmetric RTP.
+;        nat = comedia           ; Use rport if the remote side says to use it and perform symmetric RTP.
 
 ;----------------------------------- MEDIA HANDLING --------------------------------
 ; By default, Asterisk tries to re-invite the audio to an optimal path. If there's

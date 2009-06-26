@@ -1452,12 +1452,9 @@ struct sip_auth {
 #define SIP_DTMF_AUTO		(3 << 15)	/*!< DP: DTMF Support: AUTO switch between rfc2833 and in-band DTMF */
 #define SIP_DTMF_SHORTINFO      (4 << 15)       /*!< DP: DTMF Support: SIP Info messages - "info" - short variant */
 
-/* NAT settings - see nat2str() */
-#define SIP_NAT			(3 << 18)	/*!< DP: four settings, uses two bits */
-#define SIP_NAT_NEVER		(0 << 18)	/*!< DP: No nat support */
-#define SIP_NAT_RFC3581		(1 << 18)	/*!< DP: NAT RFC3581 */
-#define SIP_NAT_ROUTE		(2 << 18)	/*!< DP: NAT Only ROUTE */
-#define SIP_NAT_ALWAYS		(3 << 18)	/*!< DP: NAT Both ROUTE and RFC3581 */
+/* NAT settings */
+#define SIP_NAT_FORCE_RPORT     (1 << 18)       /*!< DP: Force rport even if not present in the request */
+#define SIP_NAT_RPORT_PRESENT   (1 << 19)       /*!< DP: rport was present in the request */
 
 /* re-INVITE related settings */
 #define SIP_REINVITE		(7 << 20)	/*!< DP: four settings, uses three bits */
@@ -1487,7 +1484,7 @@ struct sip_auth {
 /*! \brief Flags to copy from peer/user to dialog */
 #define SIP_FLAGS_TO_COPY \
 	(SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_SENDRPID | SIP_DTMF | SIP_REINVITE | \
-	 SIP_PROG_INBAND | SIP_USECLIENTCODE | SIP_NAT | SIP_G726_NONSTANDARD | \
+	 SIP_PROG_INBAND | SIP_USECLIENTCODE | SIP_NAT_FORCE_RPORT | SIP_G726_NONSTANDARD | \
 	 SIP_USEREQPHONE | SIP_INSECURE)
 /*@}*/ 
 
@@ -1499,6 +1496,7 @@ struct sip_auth {
 #define SIP_PAGE2_RTAUTOCLEAR		(1 << 2)	/*!< GP: Should we clean memory from peers after expiry? */
 #define SIP_PAGE2_RPID_UPDATE		(1 << 3)
 /* Space for addition of other realtime flags in the future */
+#define SIP_PAGE2_SYMMETRICRTP          (1 << 8)        /*!< GDP: Whether symmetric RTP is enabled or not */
 #define SIP_PAGE2_STATECHANGEQUEUE	(1 << 9)	/*!< D: Unsent state pending change exists */
 
 #define SIP_PAGE2_CONNECTLINEUPDATE_PEND		(1 << 10)
@@ -1535,7 +1533,7 @@ struct sip_auth {
 	SIP_PAGE2_VIDEOSUPPORT | SIP_PAGE2_T38SUPPORT | SIP_PAGE2_RFC2833_COMPENSATE | \
 	SIP_PAGE2_BUGGY_MWI | SIP_PAGE2_TEXTSUPPORT | SIP_PAGE2_FAX_DETECT | \
 	SIP_PAGE2_UDPTL_DESTINATION | SIP_PAGE2_VIDEOSUPPORT_ALWAYS | SIP_PAGE2_PREFERRED_CODEC | \
-	SIP_PAGE2_RPID_IMMEDIATE | SIP_PAGE2_RPID_UPDATE)
+	SIP_PAGE2_RPID_IMMEDIATE | SIP_PAGE2_RPID_UPDATE | SIP_PAGE2_SYMMETRICRTP)
 
 /*@}*/ 
 
@@ -2437,7 +2435,7 @@ static void add_noncodec_to_sdp(const struct sip_pvt *p, int format,
 				struct ast_str **m_buf, struct ast_str **a_buf,
 				int debug);
 static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int oldsdp, int add_audio, int add_t38);
-static void do_setnat(struct sip_pvt *p, int natflags);
+static void do_setnat(struct sip_pvt *p);
 static void stop_media_flows(struct sip_pvt *p);
 
 /*--- Authentication stuff */
@@ -2521,7 +2519,6 @@ static void mwi_event_cb(const struct ast_event *, void *);
 static const char *sip_nat_mode(const struct sip_pvt *p);
 static char *sip_show_inuse(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *transfermode2str(enum transfermodes mode) attribute_const;
-static const char *nat2str(int nat) attribute_const;
 static int peer_status(struct sip_peer *peer, char *status, int statuslen);
 static char *sip_show_sched(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char * _sip_show_peers(int fd, int *total, struct mansession *s, const struct message *m, int argc, const char *argv[]);
@@ -3316,13 +3313,13 @@ static const struct sockaddr_in *sip_real_dst(const struct sip_pvt *p)
 	if (p->outboundproxy)
 		return &p->outboundproxy->ip;
 
-	return ast_test_flag(&p->flags[0], SIP_NAT) & SIP_NAT_ROUTE ? &p->recv : &p->sa;
+	return ast_test_flag(&p->flags[0], SIP_NAT_FORCE_RPORT) || ast_test_flag(&p->flags[0], SIP_NAT_RPORT_PRESENT) ? &p->recv : &p->sa;
 }
 
 /*! \brief Display SIP nat mode */
 static const char *sip_nat_mode(const struct sip_pvt *p)
 {
-	return ast_test_flag(&p->flags[0], SIP_NAT) & SIP_NAT_ROUTE ? "NAT" : "no NAT";
+	return ast_test_flag(&p->flags[0], SIP_NAT_FORCE_RPORT) ? "NAT" : "no NAT";
 }
 
 /*! \brief Test PVT for debugging output */
@@ -3460,7 +3457,7 @@ static int __sip_xmit(struct sip_pvt *p, struct ast_str *data, int len)
 static void build_via(struct sip_pvt *p)
 {
 	/* Work around buggy UNIDEN UIP200 firmware */
-	const char *rport = ast_test_flag(&p->flags[0], SIP_NAT) & SIP_NAT_RFC3581 ? ";rport" : "";
+	const char *rport = (ast_test_flag(&p->flags[0], SIP_NAT_FORCE_RPORT) || ast_test_flag(&p->flags[0], SIP_NAT_RPORT_PRESENT)) ? ";rport" : "";
 
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
 	snprintf(p->via, sizeof(p->via), "SIP/2.0/%s %s:%d;branch=z9hG4bK%08x%s",
@@ -4056,7 +4053,7 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittyp
 
 	add_blank(req);
 	if (sip_debug_test_pvt(p)) {
-		if (ast_test_flag(&p->flags[0], SIP_NAT_ROUTE))
+		if (ast_test_flag(&p->flags[0], SIP_NAT_FORCE_RPORT))
 			ast_verbose("%sTransmitting (NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port), req->data->str);
 		else
 			ast_verbose("%sTransmitting (no NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", ast_inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port), req->data->str);
@@ -4863,9 +4860,13 @@ static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int
 }
 
 /*! \brief Set nat mode on the various data sockets */
-static void do_setnat(struct sip_pvt *p, int natflags)
+static void do_setnat(struct sip_pvt *p)
 {
-	const char *mode = natflags ? "On" : "Off";
+	const char *mode;
+	int natflags;
+
+	natflags = ast_test_flag(&p->flags[1], SIP_PAGE2_SYMMETRICRTP);
+	mode = natflags ? "On" : "Off";
 
 	if (p->rtp) {
 		ast_debug(1, "Setting NAT on RTP to %s\n", mode);
@@ -5064,7 +5065,7 @@ static int dialog_initialize_rtp(struct sip_pvt *dialog)
 
 	ast_rtp_instance_set_qos(dialog->rtp, global_tos_audio, 0, "SIP RTP");
 
-	do_setnat(dialog, ast_test_flag(&dialog->flags[0], SIP_NAT) & SIP_NAT_ROUTE);
+	do_setnat(dialog);
 
 	return 0;
 }
@@ -7200,9 +7201,9 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 
 	if (useglobal_nat && sin) {
 		/* Setup NAT structure according to global settings if we have an address */
-		ast_copy_flags(&p->flags[0], &global_flags[0], SIP_NAT);
+		ast_copy_flags(&p->flags[0], &global_flags[0], SIP_NAT_FORCE_RPORT);
 		p->recv = *sin;
-		do_setnat(p, ast_test_flag(&p->flags[0], SIP_NAT) & SIP_NAT_ROUTE);
+		do_setnat(p);
 	}
 
 	if (p->method != SIP_REGISTER)
@@ -8272,7 +8273,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	if (p->udptl) {
 		if (udptlportno > 0) {
 			sin.sin_port = htons(udptlportno);
-			if (ast_test_flag(&p->flags[0], SIP_NAT) && ast_test_flag(&p->flags[1], SIP_PAGE2_UDPTL_DESTINATION)) {
+			if (ast_test_flag(&p->flags[1], SIP_PAGE2_SYMMETRICRTP) && ast_test_flag(&p->flags[1], SIP_PAGE2_UDPTL_DESTINATION)) {
 				struct sockaddr_in remote_address = { 0, };
 				ast_rtp_instance_get_remote_address(p->rtp, &remote_address);
 				if (remote_address.sin_addr.s_addr) {
@@ -8929,8 +8930,7 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, const st
 			if (rport && *(rport+6) == '=') 
 				rport = NULL;		/* We already have a parameter to rport */
 
-			/* Check rport if NAT=yes or NAT=rfc3581 (which is the default setting)  */
-			if (rport && ((ast_test_flag(&p->flags[0], SIP_NAT) == SIP_NAT_ALWAYS) || (ast_test_flag(&p->flags[0], SIP_NAT) == SIP_NAT_RFC3581))) {
+			if (((ast_test_flag(&p->flags[0], SIP_NAT_FORCE_RPORT)) || (rport && ast_test_flag(&p->flags[0], SIP_NAT_RPORT_PRESENT)))) {
 				/* We need to add received port - rport */
 				char *end;
 
@@ -9438,9 +9438,9 @@ static int transmit_response_using_temp(ast_string_field callid, struct sockaddr
 	p->ocseq = INITIAL_CSEQ;
 
 	if (useglobal_nat && sin) {
-		ast_copy_flags(&p->flags[0], &global_flags[0], SIP_NAT);
+		ast_copy_flags(&p->flags[0], &global_flags[0], SIP_NAT_FORCE_RPORT);
 		p->recv = *sin;
-		do_setnat(p, ast_test_flag(&p->flags[0], SIP_NAT) & SIP_NAT_ROUTE);
+		do_setnat(p);
 	}
 
 	ast_string_field_set(p, fromdomain, default_fromdomain);
@@ -12155,7 +12155,7 @@ static int __set_address_from_contact(const char *fullcontact, struct sockaddr_i
 /*! \brief Change the other partys IP address based on given contact */
 static int set_address_from_contact(struct sip_pvt *pvt)
 {
-	if (ast_test_flag(&pvt->flags[0], SIP_NAT_ROUTE)) {
+	if (ast_test_flag(&pvt->flags[0], SIP_NAT_FORCE_RPORT)) {
 		/* NAT: Don't trust the contact field.  Just use what they came to us
 		   with. */
 		/*! \todo We need to save the TRANSPORT here too */
@@ -12303,7 +12303,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 
 	/*! \todo This could come before the checking of DNS earlier on, to avoid 
 		DNS lookups where we don't need it... */
-	if (!ast_test_flag(&peer->flags[0], SIP_NAT_ROUTE)) {
+	if (!ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) && !ast_test_flag(&peer->flags[0], SIP_NAT_RPORT_PRESENT)) {
 		peer->addr.sin_family = AF_INET;
 		memcpy(&peer->addr.sin_addr, hp->h_addr, sizeof(peer->addr.sin_addr));
 		peer->addr.sin_port = htons(port);
@@ -12941,7 +12941,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 			ast_log(LOG_ERROR, "Peer '%s' is trying to register, but not configured as host=dynamic\n", peer->name);
 			res = AUTH_PEER_NOT_DYNAMIC;
 		} else {
-			ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_NAT);
+			ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_NAT_FORCE_RPORT);
 			if (ast_test_flag(&p->flags[1], SIP_PAGE2_REGISTERTRYING))
 				transmit_response(p, "100 Trying", req);
 			if (!(res = check_auth(p, req, peer->name, peer->secret, peer->md5secret, SIP_REGISTER, uri2, XMIT_UNRELIABLE, req->ignore))) {
@@ -13899,8 +13899,6 @@ static void check_via(struct sip_pvt *p, struct sip_request *req)
 {
 	char via[512];
 	char *c, *pt;
-	struct hostent *hp;
-	struct ast_hostent ahp;
 
 	ast_copy_string(via, get_header(req, "Via"), sizeof(via));
 
@@ -13929,14 +13927,7 @@ static void check_via(struct sip_pvt *p, struct sip_request *req)
 		pt = strchr(c, ':');
 		if (pt)
 			*pt++ = '\0';	/* remember port pointer */
-		hp = ast_gethostbyname(c, &ahp);
-		if (!hp) {
-			ast_log(LOG_WARNING, "'%s' is not a valid host\n", c);
-			return;
-		}
-		memset(&p->sa, 0, sizeof(p->sa));
-		p->sa.sin_family = AF_INET;
-		memcpy(&p->sa.sin_addr, hp->h_addr, sizeof(p->sa.sin_addr));
+		p->sa = p->recv;
 		p->sa.sin_port = htons(pt ? atoi(pt) : STANDARD_SIP_PORT);
 
 		if (sip_debug_test_pvt(p)) {
@@ -14064,7 +14055,7 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 	if (p->sipoptions)
 		peer->sipoptions = p->sipoptions;
 
-	do_setnat(p, ast_test_flag(&p->flags[0], SIP_NAT_ROUTE));
+	do_setnat(p);
 
 	ast_string_field_set(p, peersecret, peer->secret);
 	ast_string_field_set(p, peermd5secret, peer->md5secret);
@@ -14291,7 +14282,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 
 
 	if (ast_test_flag(&p->flags[1], SIP_PAGE2_RPORT_PRESENT)) {
-		ast_set_flag(&p->flags[0], SIP_NAT_ROUTE);
+		ast_set_flag(&p->flags[0], SIP_NAT_RPORT_PRESENT);
 	}
 
 	return res;
@@ -14435,40 +14426,6 @@ static char *transfermode2str(enum transfermodes mode)
 		return "closed";
 	return "strict";
 }
-
-static const struct _map_x_s natmodes[] = {
-	{ SIP_NAT_NEVER,        "No"},
-	{ SIP_NAT_ROUTE,        "Route"},
-	{ SIP_NAT_ALWAYS,       "Always"},
-	{ SIP_NAT_RFC3581,      "RFC3581"},
-	{ -1,                   NULL}, /* terminator */
-};
-
-/*! \brief  Convert NAT setting to text string */
-static const char *nat2str(int nat)
-{
-	return map_x_s(natmodes, nat, "Unknown");
-}
-
-#ifdef NOTUSED
-/* OEJ: This is not used, but may be useful in the future, so I don't want to 
-   delete it. Keeping it enabled generates compiler warnings.
- */
-
-static const struct _map_x_s natcfgmodes[] = {
-	{ SIP_NAT_NEVER,        "never"},
-	{ SIP_NAT_ROUTE,        "route"},
-	{ SIP_NAT_ALWAYS,       "yes"},
-	{ SIP_NAT_RFC3581,      "no"},
-	{ -1,                   NULL}, /* terminator */
-};
-
-/*! \brief  Convert NAT setting to text string appropriate for config files */
-static const char *nat2strconfig(int nat)
-{
-	return map_x_s(natcfgmodes, nat, "Unknown");
-}
-#endif
 
 /*! \brief  Report Peer status in character string
  *  \return 0 if peer is unreachable, 1 if peer is online, -1 if unmonitored
@@ -14618,7 +14575,7 @@ static char *sip_show_users(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		return CLI_SHOWUSAGE;
 	}
 
-	ast_cli(a->fd, FORMAT, "Username", "Secret", "Accountcode", "Def.Context", "ACL", "NAT");
+	ast_cli(a->fd, FORMAT, "Username", "Secret", "Accountcode", "Def.Context", "ACL", "ForcerPort");
 
 	user_iter = ao2_iterator_init(peers, 0);
 	while ((user = ao2_iterator_next(&user_iter))) {
@@ -14640,7 +14597,7 @@ static char *sip_show_users(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 			user->accountcode,
 			user->context,
 			cli_yesno(user->ha != NULL),
-			nat2str(ast_test_flag(&user->flags[0], SIP_NAT)));
+			cli_yesno(ast_test_flag(&user->flags[0], SIP_NAT_FORCE_RPORT)));
 		ao2_unlock(user);
 		unref_peer(user, "sip show users");
 	}
@@ -14752,7 +14709,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 	struct ao2_iterator i;
 	
 /* the last argument is left-aligned, so we don't need a size anyways */
-#define FORMAT2 "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8s %-10s %s\n"
+#define FORMAT2 "%-25.25s  %-15.15s %-3.3s %-10.10s %-3.3s %-8s %-10s %s\n"
 #define FORMAT  "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8d %-10s %s\n"
 
 	char name[256];
@@ -14793,7 +14750,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 	}
 
 	if (!s) /* Normal list */
-		ast_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Nat", "ACL", "Port", "Status", (realtimepeers ? "Realtime" : ""));
+		ast_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Forcerport", "ACL", "Port", "Status", (realtimepeers ? "Realtime" : ""));
 	
 
 	i = ao2_iterator_init(peers, 0);
@@ -14852,7 +14809,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 		snprintf(srch, sizeof(srch), FORMAT, name,
 			peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
 			peer->host_dynamic ? " D " : "   ", 	/* Dynamic or not? */
-			ast_test_flag(&peer->flags[0], SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
+			ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? " N " : "   ",	/* NAT=yes? */
 			peer->ha ? " A " : "   ", 	/* permit/deny */
 			ntohs(peer->addr.sin_port), status,
 			realtimepeers ? (peer->is_realtime ? "Cached RT":"") : "");
@@ -14861,7 +14818,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 			ast_cli(fd, FORMAT, name, 
 			peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
 			peer->host_dynamic ? " D " : "   ", 	/* Dynamic or not? */
-			ast_test_flag(&peer->flags[0], SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
+			ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? " N " : "   ",	/* NAT=yes? */
 			peer->ha ? " A " : "   ",       /* permit/deny */
 			
 			ntohs(peer->addr.sin_port), status,
@@ -14876,7 +14833,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 			"IPaddress: %s\r\n"
 			"IPport: %d\r\n"
 			"Dynamic: %s\r\n"
-			"Natsupport: %s\r\n"
+			"Forcerport: %s\r\n"
 			"VideoSupport: %s\r\n"
 			"TextSupport: %s\r\n"
 			"ACL: %s\r\n"
@@ -14887,7 +14844,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 			peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "-none-",
 			ntohs(peer->addr.sin_port), 
 			peer->host_dynamic ? "yes" : "no", 	/* Dynamic or not? */
-			ast_test_flag(&peer->flags[0], SIP_NAT_ROUTE) ? "yes" : "no",	/* NAT=yes? */
+			ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? "yes" : "no",	/* NAT=yes? */
 			ast_test_flag(&peer->flags[1], SIP_PAGE2_VIDEOSUPPORT) ? "yes" : "no",	/* VIDEOSUPPORT=yes? */
 			ast_test_flag(&peer->flags[1], SIP_PAGE2_TEXTSUPPORT) ? "yes" : "no",	/* TEXTSUPPORT=yes? */
 			peer->ha ? "yes" : "no",       /* permit/deny */
@@ -15495,7 +15452,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  MaxCallBR    : %d kbps\n", peer->maxcallbitrate);
 		ast_cli(fd, "  Expire       : %ld\n", ast_sched_when(sched, peer->expire));
 		ast_cli(fd, "  Insecure     : %s\n", insecure2str(ast_test_flag(&peer->flags[0], SIP_INSECURE)));
-		ast_cli(fd, "  Nat          : %s\n", nat2str(ast_test_flag(&peer->flags[0], SIP_NAT)));
+		ast_cli(fd, "  Force rport  : %s\n", cli_yesno(ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT)));
 		ast_cli(fd, "  ACL          : %s\n", cli_yesno(peer->ha != NULL));
 		ast_cli(fd, "  T38 pt UDPTL : %s\n", cli_yesno(ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT)));
 		ast_cli(fd, "  CanReinvite  : %s\n", cli_yesno(ast_test_flag(&peer->flags[0], SIP_CAN_REINVITE)));
@@ -15600,7 +15557,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		astman_append(s, "Callerid: %s\r\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, ""));
 		astman_append(s, "RegExpire: %ld seconds\r\n", ast_sched_when(sched, peer->expire));
 		astman_append(s, "SIP-AuthInsecure: %s\r\n", insecure2str(ast_test_flag(&peer->flags[0], SIP_INSECURE)));
-		astman_append(s, "SIP-NatSupport: %s\r\n", nat2str(ast_test_flag(&peer->flags[0], SIP_NAT)));
+		astman_append(s, "SIP-Forcerport: %s\r\n", (ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT)?"Y":"N"));
 		astman_append(s, "ACL: %s\r\n", (peer->ha?"Y":"N"));
 		astman_append(s, "SIP-CanReinvite: %s\r\n", (ast_test_flag(&peer->flags[0], SIP_CAN_REINVITE)?"Y":"N"));
 		astman_append(s, "SIP-PromiscRedir: %s\r\n", (ast_test_flag(&peer->flags[0], SIP_PROMISCREDIR)?"Y":"N"));
@@ -16115,6 +16072,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "\n");
 	ast_cli(a->fd, "  Relax DTMF:             %s\n", cli_yesno(global_relaxdtmf));
 	ast_cli(a->fd, "  RFC2833 Compensation:   %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_RFC2833_COMPENSATE)));
+	ast_cli(a->fd, "  Symmetric RTP:          %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_SYMMETRICRTP)));
 	ast_cli(a->fd, "  Compact SIP headers:    %s\n", cli_yesno(sip_cfg.compactheaders));
 	ast_cli(a->fd, "  RTP Keepalive:          %d %s\n", global_rtpkeepalive, global_rtpkeepalive ? "" : "(Disabled)" );
 	ast_cli(a->fd, "  RTP Timeout:            %d %s\n", global_rtptimeout, global_rtptimeout ? "" : "(Disabled)" );
@@ -16152,7 +16110,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Allowed transports:     %s\n", get_transport_list(default_transports)); 
 	ast_cli(a->fd, "  Outbound transport:	  %s\n", get_transport(default_primary_transport));
 	ast_cli(a->fd, "  Context:                %s\n", sip_cfg.default_context);
-	ast_cli(a->fd, "  Nat:                    %s\n", nat2str(ast_test_flag(&global_flags[0], SIP_NAT)));
+	ast_cli(a->fd, "  Force rport:            %s\n", cli_yesno(ast_test_flag(&global_flags[0], SIP_NAT_FORCE_RPORT)));
 	ast_cli(a->fd, "  DTMF:                   %s\n", dtmfmode2str(ast_test_flag(&global_flags[0], SIP_DTMF)));
 	ast_cli(a->fd, "  Qualify:                %d\n", default_qualify);
 	ast_cli(a->fd, "  Use ClientCode:         %s\n", cli_yesno(ast_test_flag(&global_flags[0], SIP_USECLIENTCODE)));
@@ -16519,7 +16477,7 @@ static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			ast_cli(a->fd, "  Theoretical Address:    %s:%d\n", ast_inet_ntoa(cur->sa.sin_addr), ntohs(cur->sa.sin_port));
 			ast_cli(a->fd, "  Received Address:       %s:%d\n", ast_inet_ntoa(cur->recv.sin_addr), ntohs(cur->recv.sin_port));
 			ast_cli(a->fd, "  SIP Transfer mode:      %s\n", transfermode2str(cur->allowtransfer));
-			ast_cli(a->fd, "  NAT Support:            %s\n", nat2str(ast_test_flag(&cur->flags[0], SIP_NAT)));
+			ast_cli(a->fd, "  Force rport:            %s\n", cli_yesno(ast_test_flag(&cur->flags[0], SIP_NAT_FORCE_RPORT)));
 			ast_cli(a->fd, "  Audio IP:               %s %s\n", ast_inet_ntoa(cur->redirip.sin_addr.s_addr ? cur->redirip.sin_addr : cur->ourip.sin_addr), cur->redirip.sin_addr.s_addr ? "(Outside bridge)" : "(local)" );
 			ast_cli(a->fd, "  Our Tag:                %s\n", cur->tag);
 			ast_cli(a->fd, "  Their Tag:              %s\n", cur->theirtag);
@@ -23618,16 +23576,20 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 			ast_set_flag(&flags[0], SIP_DTMF_RFC2833);
 		}
 	} else if (!strcasecmp(v->name, "nat")) {
-		ast_set_flag(&mask[0], SIP_NAT);
-		ast_clear_flag(&flags[0], SIP_NAT);
-		if (!strcasecmp(v->value, "never"))
-			ast_set_flag(&flags[0], SIP_NAT_NEVER);
-		else if (!strcasecmp(v->value, "route"))
-			ast_set_flag(&flags[0], SIP_NAT_ROUTE);
-		else if (ast_true(v->value))
-			ast_set_flag(&flags[0], SIP_NAT_ALWAYS);
-		else
-			ast_set_flag(&flags[0], SIP_NAT_RFC3581);
+		ast_set_flag(&mask[0], SIP_NAT_FORCE_RPORT);
+		if (!strcasecmp(v->value, "no")) {
+			ast_clear_flag(&flags[0], SIP_NAT_FORCE_RPORT);
+		} else if (!strcasecmp(v->value, "force_rport")) {
+			ast_set_flag(&flags[0], SIP_NAT_FORCE_RPORT);
+		} else if (!strcasecmp(v->value, "yes")) {
+			ast_set_flag(&flags[0], SIP_NAT_FORCE_RPORT);
+			ast_set_flag(&mask[1], SIP_PAGE2_SYMMETRICRTP);
+			ast_set_flag(&flags[1], SIP_PAGE2_SYMMETRICRTP);
+		} else if (!strcasecmp(v->value, "comedia")) {
+			ast_clear_flag(&flags[0], SIP_NAT_FORCE_RPORT);
+			ast_set_flag(&mask[1], SIP_PAGE2_SYMMETRICRTP);
+			ast_set_flag(&flags[1], SIP_PAGE2_SYMMETRICRTP);
+		}
 	} else if (!strcasecmp(v->name, "canreinvite")) {
 		ast_set_flag(&mask[0], SIP_REINVITE);
 		ast_clear_flag(&flags[0], SIP_REINVITE);
@@ -24423,7 +24385,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		 * specified, use that address instead. */
 		/* XXX May need to revisit the final argument; does the realtime DB store whether
 		 * the original contact was over TLS or not? XXX */
-		if (!ast_test_flag(&peer->flags[0], SIP_NAT_ROUTE) || !peer->addr.sin_addr.s_addr) {
+		if (!ast_test_flag(&peer->flags[0], SIP_NAT_RPORT_PRESENT) || !peer->addr.sin_addr.s_addr) {
 			__set_address_from_contact(fullcontact->str, &peer->addr, 0);
 		}
 	}
@@ -24725,7 +24687,6 @@ static int reload_config(enum channelreloadreason reason)
 	ast_copy_string(default_mohsuggest, DEFAULT_MOHSUGGEST, sizeof(default_mohsuggest));
 	ast_copy_string(default_vmexten, DEFAULT_VMEXTEN, sizeof(default_vmexten));
 	ast_set_flag(&global_flags[0], SIP_DTMF_RFC2833);			/*!< Default DTMF setting: RFC2833 */
-	ast_set_flag(&global_flags[0], SIP_NAT_RFC3581);			/*!< NAT support if requested by device with rport */
 	ast_set_flag(&global_flags[0], SIP_CAN_REINVITE);			/*!< Allow re-invites */
 	ast_copy_string(default_engine, DEFAULT_ENGINE, sizeof(default_engine));
 
