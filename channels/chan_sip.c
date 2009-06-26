@@ -2247,6 +2247,8 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 		req.ignore = 0;
 		req.debug = 0;
 
+		memset(buf, 0, sizeof(buf));
+
 		if (tcptls_session->ssl) {
 			set_socket_transport(&req.socket, SIP_TRANSPORT_TLS);
 			req.socket.port = htons(ourport_tls);
