@@ -1140,7 +1140,7 @@ Logger changes
      similar to the way syslog rotates files.
   * Added exec_after_rotate option to logger.conf, which allows a system
      command to be run after rotation.  This is primarily useful with
-     rotatestrategry=rotate, to allow a limit on the number of log files kept
+     rotatestrategy=rotate, to allow a limit on the number of log files kept
      and to ensure that the oldest log file gets deleted.
   * Added realtime support for the queue log
 
