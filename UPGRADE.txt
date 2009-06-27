@@ -20,11 +20,16 @@
 
 From 1.6.2 to 1.6.3:
 
+* The rarely used 'event_log' and LOG_EVENT channel have been removed; the few
+  users of this channel in the tree have been converted to LOG_NOTICE or removed
+  (in cases where the same message was already generated to another channel).
+
 * The usage of RTP inside of Asterisk has now become modularized. This means
   the Asterisk RTP stack now exists as a loadable module, res_rtp_asterisk.
   If you are not using autoload=yes in modules.conf you will need to ensure
   it is set to load. If not, then any module which uses RTP (such as chan_sip)
   will not be able to send or receive calls.
+
 * The app_dahdiscan.c file has been removed, but the dialplan app DAHDIScan still 
   remains. It now exists within app_chanspy.c and retains the exact same 
   functionality as before. 
