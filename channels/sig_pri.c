@@ -1811,15 +1811,12 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 	}
 
 	p->digital = IS_DIGITAL(ast->transfercapability);
-	/* Add support for exclusive override */
-	if (p->priexclusive)
+
+	/* Should the picked channel be used exclusively? */
+	if (p->priexclusive || p->pri->nodetype == PRI_NETWORK) {
 		exclusive = 1;
-	else {
-	/* otherwise, traditional behavior */
-		if (p->pri->nodetype == PRI_NETWORK)
-			exclusive = 0;
-		else
-			exclusive = 1;
+	} else {
+		exclusive = 0;
 	}
 	
 	pri_sr_set_channel(sr, PVT_TO_CHANNEL(p), exclusive, 1);
