@@ -700,6 +700,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 	struct ast_dsp *sildet = NULL;   /* silence detector dsp */
 	int totalsilence = 0;
 	int dspsilence = 0;
+	int olddspsilence = 0;
 	int rfmt = 0;
 	struct ast_silence_generator *silgen = NULL;
 	char prependfile[80];
@@ -826,7 +827,10 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 				if (maxsilence > 0) {
 					dspsilence = 0;
 					ast_dsp_silence(sildet, f, &dspsilence);
-					totalsilence += dspsilence;
+					if (olddspsilence > dspsilence) {
+						totalsilence += olddspsilence;
+					}
+					olddspsilence = dspsilence;
 
 					if (dspsilence > maxsilence) {
 						/* Ended happily with silence */
@@ -906,6 +910,10 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 
 	if (!prepend) {
 		/* Reduce duration by a total silence amount */
+		if (olddspsilence <= dspsilence) {
+			totalsilence += dspsilence;
+		}
+
         	if (totalsilence > 0)
 			*duration -= (totalsilence - 200) / 1000;
 		if (*duration < 0) {
