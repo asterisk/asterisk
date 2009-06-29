@@ -273,8 +273,9 @@ static void *mixmonitor_thread(void *obj)
 					ast_writestream(*fs, cur);
 				}
 			}
+		} else {
+			ast_mutex_unlock(&mixmonitor->mixmonitor_ds->lock);
 		}
-		ast_mutex_unlock(&mixmonitor->mixmonitor_ds->lock);
 
 		/* All done! free it. */
 		ast_frame_free(fr, 0);
