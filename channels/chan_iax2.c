@@ -1358,10 +1358,20 @@ retry:
 			goto retry;
 		}
 	}
-	if (!owner && iaxs[callno]) {
-		AST_SCHED_DEL_SPINLOCK(sched, iaxs[callno]->lagid, &iaxsl[callno]);
-		AST_SCHED_DEL_SPINLOCK(sched, iaxs[callno]->pingid, &iaxsl[callno]);
-		iaxs[callno] = NULL;
+
+	/* SPINLOCK gives up the pvt lock so the scheduler and iax2_pvt don't deadlock. Since we
+	 * give up the pvt lock, the pvt could be destroyed from underneath us. To guarantee
+	 * the pvt stays around, a ref count is added to it. */
+	if (!owner && pvt) {
+		ao2_ref(pvt, +1);
+		AST_SCHED_DEL_SPINLOCK(sched, pvt->lagid, &iaxsl[pvt->callno]);
+		AST_SCHED_DEL_SPINLOCK(sched, pvt->pingid, &iaxsl[pvt->callno]);
+		ao2_ref(pvt, -1);
+		if (iaxs[callno]) {
+			iaxs[callno] = NULL;
+		} else {
+			pvt = NULL;
+		}
 	}
 
 	if (pvt) {
