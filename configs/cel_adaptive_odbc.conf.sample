@@ -2,16 +2,15 @@
 ; Asterisk Channel Event Logging (CEL) - Adaptive ODBC Backend
 ;
 
+; This configuration defines the connections and tables for which CEL records
+; may be populated.  Each context specifies a different CEL table to be used.
 ;
-; This configuration defines the connections and tables for which CEL records may
-; be populated.  Each context specifies a different CEL table to be used.
-;
-; The columns in the tables should match up word-for-word (case-insensitive)
-; to the CEL variables set in the dialplan.  The natural advantage to this
-; system is that beyond setting up the configuration file to tell you what
-; tables to look at, there isn't anything more to do beyond creating the
-; columns for the fields that you want, and populating the corresponding
-; CEL variables in the dialplan.
+; The columns in the tables should match up word-for-word (case-insensitive) to
+; the CEL variables set in the dialplan.  The natural advantage to this system
+; is that beyond setting up the configuration file to tell you what tables to
+; look at, there isn't anything more to do beyond creating the columns for the
+; fields that you want, and populating the corresponding CEL variables in the
+; dialplan.
 ;
 ; Please note that after adding columns to the database, it is necessary to
 ; reload this module to get the new column names and types read.
@@ -66,6 +65,12 @@
 ;	userfield
 ;	peer
 
+; The point of this module is to allow you log whatever you like in terms of the
+; CEL variables.  Do you want to log uniqueid?  Then simply ensure that your
+; table has that column.  If you don't want the column, ensure that it does not
+; exist in the table structure.  If you'd like to call uniqueid something else
+; in your table, simply provide an alias in this file that maps the standard CEL
+; field name (uniqueid) to whatever column name you like.
 
 ;[first]
 ;connection=mysql1
@@ -83,24 +88,12 @@
 ;alias channel => source_channel
 ;alias dst => dest
 ;alias dstchannel => dest_channel
-;
-; Any filter specified MUST match exactly or the CDR will be discarded
+
+; Any filter specified MUST match exactly or the CE will be discarded
 ;filter accountcode => somename
 ;filter src => 123
-;
+
 ; Additionally, we now support setting static values per column.  Reason
 ; for this is to allow different sections to specify different values for
 ; a certain named column, presumably separated by filters.
 ;static "Some Special Value" => identifier_code
-
-
-; On Wednesday 10 September 2008 21:11:16 Tilghman Lesher wrote:
-; (this module patterned after the CDR module)
-; I thought that the sample cdr_adaptive_odbc.conf was rather clear, but
-; apparently not.  The point of this module is to allow you log whatever you
-; like in terms of the CDR variables.  Do you want to log uniqueid?  Then simply
-; ensure that your table has that column.  If you don't want the column, ensure
-; that it does not exist in the table structure.  If you'd like to call uniqueid
-; something else in your table, simply provide an alias in the configuration
-; file that maps the standard CDR field name (uniqueid) to whatever column
-; name you like.
