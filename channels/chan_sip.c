@@ -17703,6 +17703,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_clear_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC);
 				if (!obproxyfound || !strcasecmp(v->name, "outboundproxy")) {
 					if (ast_get_ip_or_srv(&peer->addr, v->value, srvlookup ? "_sip._udp" : NULL)) {
+						ast_log(LOG_ERROR, "srvlookup failed for outboundproxy: %s, on peer %s, removing peer\n", v->value, peer->name);
 						ASTOBJ_UNREF(peer, sip_destroy_peer);
 						return NULL;
 					}
