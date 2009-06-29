@@ -940,7 +940,12 @@ struct ast_channel * attribute_malloc __attribute__((format(printf, 13, 14)))
  *       that can then be populated with data for use in variable
  *       substitution when a real channel does not exist.
  */
+#if defined(REF_DEBUG) || defined(__AST_DEBUG_MALLOC)
+#define ast_dummy_channel_alloc()	__ast_dummy_channel_alloc(__FILE__, __LINE__, __PRETTY_FUNCTION__)
+struct ast_channel *__ast_dummy_channel_alloc(const char *file, int line, const char *function);
+#else
 struct ast_channel *ast_dummy_channel_alloc(void);
+#endif
 
 /*!
  * \brief Queue one or more frames to a channel's frame queue

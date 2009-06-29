@@ -1021,17 +1021,21 @@ struct ast_channel *__ast_channel_alloc(int needqueue, int state, const char *ci
 
 /* only do the minimum amount of work needed here to make a channel
  * structure that can be used to expand channel vars */
+#if defined(REF_DEBUG) || defined(__AST_DEBUG_MALLOC)
+struct ast_channel *__ast_dummy_channel_alloc(const char *file, int line, const char *function)
+#else
 struct ast_channel *ast_dummy_channel_alloc(void)
+#endif
 {
 	struct ast_channel *tmp;
 	struct varshead *headp;
 
 #if defined(REF_DEBUG)
-	if (!(tmp = __ao2_alloc_debug(sizeof(*tmp), ast_dummy_channel_destructor, "", file, line, function, 1))) {
+	if (!(tmp = __ao2_alloc_debug(sizeof(*tmp), ast_dummy_channel_destructor, "dummy channel", file, line, function, 1))) {
 		return NULL;
 	}
 #elif defined(__AST_DEBUG_MALLOC)
-	if (!(tmp = __ao2_alloc_debug(sizeof(*tmp), ast_dummy_channel_destructor, "", file, line, function, 0))) {
+	if (!(tmp = __ao2_alloc_debug(sizeof(*tmp), ast_dummy_channel_destructor, "dummy channel", file, line, function, 0))) {
 		return NULL;
 	}
 #else
