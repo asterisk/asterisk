@@ -953,7 +953,7 @@ static const char gain_map[] = {
 static int admin_exec(struct ast_channel *chan, const char *data);
 static void *recordthread(void *args);
 
-static char *istalking(int x)
+static const char *istalking(int x)
 {
 	if (x > 0)
 		return "(talking)";
@@ -1129,7 +1129,9 @@ static void conf_play(struct ast_channel *chan, struct ast_conference *conf, enu
  * \return A pointer to the conference struct, or NULL if it wasn't found and
  *         make or dynamic were not set.
  */
-static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin, int make, int dynamic, int refcount, const struct ast_channel *chan)
+static struct ast_conference *build_conf(const char *confno, const char *pin,
+	const char *pinadmin, int make, int dynamic, int refcount,
+	const struct ast_channel *chan)
 {
 	struct ast_conference *cnf;
 	struct dahdi_confinfo dahdic = { 0, };
@@ -1883,7 +1885,7 @@ static int dispose_conf(struct ast_conference *conf)
 	return res;
 }
 
-static int rt_extend_conf(char *confno)
+static int rt_extend_conf(const char *confno)
 {
 	char currenttime[32];
 	char endtime[32];
@@ -3987,7 +3989,7 @@ static int conf_exec(struct ast_channel *chan, const char *data)
 	return res;
 }
 
-static struct ast_conf_user *find_user(struct ast_conference *conf, char *callerident) 
+static struct ast_conf_user *find_user(struct ast_conference *conf, const char *callerident)
 {
 	struct ast_conf_user *user = NULL;
 	int cid;
@@ -6364,7 +6366,7 @@ static int sla_load_config(int reload)
 	return res;
 }
 
-static int acf_meetme_info_eval(char *keyword, struct ast_conference *conf)
+static int acf_meetme_info_eval(const char *keyword, const struct ast_conference *conf)
 {
 	if (!strcasecmp("lock", keyword)) {
 		return conf->locked;
