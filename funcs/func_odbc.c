@@ -227,9 +227,6 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 	SQLSMALLINT colcount=0;
 	SQLLEN indicator;
 
-	/* Reset, in case of an error */
-	pbx_builtin_setvar_helper(chan, "~ODBCVALUES~", "");
-
 	AST_LIST_LOCK(&queries);
 	AST_LIST_TRAVERSE(&queries, query, list) {
 		if (!strcmp(query->acf->name, cmd)) {
@@ -348,9 +345,9 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 			return -1;
 		}
 
-		/* Copy data, encoding '\', ',', '"', and '|' for the argument parser */
+		/* Copy data, encoding '\' and ',' for the argument parser */
 		for (i = 0; i < sizeof(coldata); i++) {
-			if (escapecommas && strchr("\\,|\"", coldata[i])) {
+			if (escapecommas && (coldata[i] == '\\' || coldata[i] == ',')) {
 				buf[buflen++] = '\\';
 			}
 			buf[buflen++] = coldata[i];
@@ -371,10 +368,6 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 	SQLCloseCursor(stmt);
 	SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 	ast_odbc_release_obj(obj);
-
-	/* Pass an unadulterated string to ARRAY, if needed.  This is only needed
-	 * in 1.4, because of the misfeature in Set. */
-	pbx_builtin_setvar_helper(chan, "~ODBCVALUES~", buf);
 	if (chan)
 		ast_autoservice_stop(chan);
 	if (bogus_chan)

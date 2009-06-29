@@ -162,23 +162,6 @@ static struct ast_custom_function regex_function = {
 	.read = regex,
 };
 
-static int strecmp(const char *pre, const char *post)
-{
-	int res;
-	for (; *pre && *post; pre++, post++) {
-		if (*pre == '"') {
-			post--;
-			continue;
-		} else if (*pre == '\\') {
-			pre++;
-		}
-		if ((res = strncmp(pre, post, 1))) {
-			return res;
-		}
-	}
-	return strncmp(pre, post, 1);
-}
-
 static int array(struct ast_channel *chan, char *cmd, char *var,
 		 const char *value)
 {
@@ -190,15 +173,6 @@ static int array(struct ast_channel *chan, char *cmd, char *var,
 	);
 	char *value2;
 	int i;
-
-	if (chan) {
-		const char *value3;
-		ast_mutex_lock(&chan->lock);
-		if ((value3 = pbx_builtin_getvar_helper(chan, "~ODBCVALUES~")) && strecmp(value3, value) == 0) {
-			value = ast_strdupa(value3);
-		}
-		ast_mutex_unlock(&chan->lock);
-	}
 
 	value2 = ast_strdupa(value);
 	if (!var || !value2)
