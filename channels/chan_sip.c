@@ -21603,6 +21603,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 									 (peer->socket.type & SIP_TRANSPORT_TCP) ? "_sip._tcp" :
 									 "_sip._tls")
 									: NULL)) {
+			ast_log(LOG_ERROR, "srvlookup failed for host: %s, on peer %s, removing peer\n", srvlookup, peer->name);
 			unref_peer(peer);
 			return NULL;
 		}
