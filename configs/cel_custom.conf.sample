@@ -1,6 +1,7 @@
 ;
-; Asterisk Channel Event Logging - Custom CSV Backend
+; Asterisk Channel Event Logging (CEL) - Custom CSV Backend
 ;
+
 ; This is the configuration file for the customizable CSV backend for CEL
 ; logging.
 ;

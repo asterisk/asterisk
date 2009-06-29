@@ -1,4 +1,8 @@
 ;
+; Asterisk Channel Event Logging (CEL) - Adaptive ODBC Backend
+;
+
+;
 ; This configuration defines the connections and tables for which CEL records may
 ; be populated.  Each context specifies a different CEL table to be used.
 ;

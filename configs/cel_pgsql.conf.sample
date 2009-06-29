@@ -1,4 +1,8 @@
-; Sample Asterisk config file for CEL logging to PostgresSQL
+;
+; Asterisk Channel Event Logging (CEL) - PostgreSQL Backend
+;
+
+; Sample Asterisk config file for CEL logging to PostgreSQL
 ;
 ; CEL field names:
 ;

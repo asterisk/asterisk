@@ -1,4 +1,8 @@
 ;
+; Asterisk Channel Event Logging (CEL) - SQLite 3 Backend
+;
+
+;
 ; Mappings for sqlite3 config file
 ;
 ;[master] ; currently, only file "master.db" is supported, with only one table at a time.
