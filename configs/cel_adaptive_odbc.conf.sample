@@ -100,7 +100,3 @@
 ; something else in your table, simply provide an alias in the configuration
 ; file that maps the standard CDR field name (uniqueid) to whatever column
 ; name you like.
-
-At the current time, channel variables are not published with the events.
-If you wish to store variables, put them in the channel userfield and
-extract them from there.
