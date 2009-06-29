@@ -1751,7 +1751,6 @@ struct sip_pvt {
 	ast_group_t callgroup;			/*!< Call group */
 	ast_group_t pickupgroup;		/*!< Pickup group */
 	int lastinvite;				/*!< Last Cseq of invite */
-	int lastnoninvite;                      /*!< Last Cseq of non-invite */
 	struct ast_flags flags[2];		/*!< SIP_ flags */
 
 	/* boolean flags that don't belong in flags */
@@ -2403,7 +2402,7 @@ static struct sip_pvt *sip_destroy(struct sip_pvt *p);
 static void *dialog_unlink_all(struct sip_pvt *dialog, int lockowner, int lockdialoglist);
 static void *registry_unref(struct sip_registry *reg, char *tag);
 static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist);
-static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod);
+static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod);
 static void __sip_pretend_ack(struct sip_pvt *p);
 static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod);
 static int auto_congest(const void *arg);
@@ -3891,10 +3890,11 @@ static int sip_cancel_destroy(struct sip_pvt *p)
 
 /*! \brief Acknowledges receipt of a packet and stops retransmission 
  * called with p locked*/
-static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
+static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 {
 	struct sip_pkt *cur, *prev = NULL;
 	const char *msg = "Not Found";	/* used only for debugging */
+	int res = FALSE;
 
 	/* If we have an outbound proxy for this dialog, then delete it now since
 	  the rest of the requests in this dialog needs to follow the routing.
@@ -3909,6 +3909,7 @@ static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 		if (cur->seqno != seqno || cur->is_resp != resp)
 			continue;
 		if (cur->is_resp || cur->method == sipmethod) {
+			res = TRUE;
 			msg = "Found";
 			if (!resp && (seqno == p->pendinginvite)) {
 				ast_debug(1, "Acked pending invite %d\n", p->pendinginvite);
@@ -3949,6 +3950,7 @@ static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 	}
 	ast_debug(1, "Stopping retransmission on '%s' of %s %d: Match %s\n",
 		p->callid, resp ? "Response" : "Request", seqno, msg);
+	return res;
 }
 
 /*! \brief Pretend to ack all packets
@@ -3973,7 +3975,7 @@ static void __sip_pretend_ack(struct sip_pvt *p)
 static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 {
 	struct sip_pkt *cur;
-	int res = -1;
+	int res = FALSE;
 
 	for (cur = p->packets; cur; cur = cur->next) {
 		if (cur->seqno == seqno && cur->is_resp == resp &&
@@ -3984,7 +3986,7 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 					ast_debug(4, "*** SIP TIMER: Cancelling retransmission #%d - %s (got response)\n", cur->retransid, sip_methods[sipmethod].text);
 			}
 			AST_SCHED_DEL(sched, cur->retransid);
-			res = 0;
+			res = TRUE;
 			break;
 		}
 	}
@@ -11214,8 +11216,6 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *messa
 
 	if (!p->initreq.headers)
 		initialize_initreq(p, &req);
-
-	p->lastnoninvite = p->ocseq;
 
 	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
 }
@@ -18535,6 +18535,7 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 	struct ast_channel *owner;
 	int sipmethod;
 	int res = 1;
+	int ack_res;
 	const char *c = get_header(req, "Cseq");
 	/* GCC 4.2 complains if I try to cast c as a char * when passing it to ast_skip_nonblanks, so make a copy of it */
 	char *c_copy = ast_strdupa(c);
@@ -18552,10 +18553,16 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 		owner->hangupcause = hangup_sip2cause(resp);
 
 	/* Acknowledge whatever it is destined for */
-	if ((resp >= 100) && (resp <= 199))
-		__sip_semi_ack(p, seqno, 0, sipmethod);
-	else
-		__sip_ack(p, seqno, 0, sipmethod);
+	if ((resp >= 100) && (resp <= 199)) {
+		ack_res = __sip_semi_ack(p, seqno, 0, sipmethod);
+	} else {
+		ack_res = __sip_ack(p, seqno, 0, sipmethod);
+	}
+
+	if (ack_res == FALSE) {
+		append_history(p, "Ignore", "Ignoring this retransmit\n");
+		return;
+	}
 
 	/* If this is a NOTIFY for a subscription clear the flag that indicates that we have a NOTIFY pending */
 	if (!p->owner && sipmethod == SIP_NOTIFY && p->pendinginvite) 
@@ -21938,7 +21945,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 	/* Get the command XXX */
 
 	cmd = REQ_OFFSET_TO_STR(req, rlPart1);
-	e = REQ_OFFSET_TO_STR(req, rlPart2);
+	e = ast_skip_blanks(REQ_OFFSET_TO_STR(req, rlPart2));
 
 	/* Save useragent of the client */
 	useragent = get_header(req, "User-Agent");
@@ -21947,40 +21954,32 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 
 	/* Find out SIP method for incoming request */
 	if (req->method == SIP_RESPONSE) {	/* Response to our request */
-		/* When we get here, we know this is a SIP dialog where we've sent
-		 * a request and have a response, or at least get a response
-		 * within an existing dialog. Do some sanity checks, then
-		 * possibly process the request. In all cases, there function
-		 * terminates at the end of this block
+		/* ignore means "don't do anything with it" but still have to 
+		 * respond appropriately.
+		 * But in this case this is a response already, so we really
+		 * have nothing to do with this message, and even setting the
+		 * ignore flag is pointless.
 		 */
-		int ret = 0;
-
-		if (p->ocseq < seqno && p->lastinvite != seqno && p->lastnoninvite != seqno) {
-			ast_debug(1, "Ignoring out of order response %d (expecting %d)\n", seqno, p->ocseq);
-			ret = -1;
-		} else if (p->ocseq != seqno && p->lastinvite != seqno && p->lastnoninvite != seqno) {
-			/* ignore means "don't do anything with it" but still have to 
-			 * respond appropriately.
-			 * But in this case this is a response already, so we really
-			 * have nothing to do with this message, and even setting the
-			 * ignore flag is pointless.
-			 */
-			req->ignore = 1;
-			append_history(p, "Ignore", "Ignoring this retransmit\n");
-		} else if (e) {
-			e = ast_skip_blanks(e);
-			if (sscanf(e, "%d %n", &respid, &len) != 1) {
-				ast_log(LOG_WARNING, "Invalid response: '%s'\n", e);
-				/* XXX maybe should do ret = -1; */
-			} else if (respid <= 0) {
-				ast_log(LOG_WARNING, "Invalid SIP response code: '%d'\n", respid);
-				/* XXX maybe should do ret = -1; */
-			} else { /* finally, something worth processing */
-				/* More SIP ridiculousness, we have to ignore bogus contacts in 100 etc responses */
-				if ((respid == 200) || ((respid >= 300) && (respid <= 399)))
-					extract_uri(p, req);
-				handle_response(p, respid, e + len, req, seqno);
+		if (ast_strlen_zero(e)) {
+			return 0;
+		}
+		if (sscanf(e, "%d %n", &respid, &len) != 1) {
+			ast_log(LOG_WARNING, "Invalid response: '%s'\n", e);
+			return 0;
+		}
+		if (respid <= 0) {
+			ast_log(LOG_WARNING, "Invalid SIP response code: '%d'\n", respid);
+			return 0;
+		}
+		if (p->ocseq && (p->ocseq < seqno)) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Ignoring out of order response %d (expecting %d)\n", seqno, p->ocseq);
+			return -1;
+		} else {
+			if ((respid == 200) || ((respid >= 300) && (respid <= 399))) {
+				extract_uri(p, req);
 			}
+			handle_response(p, respid, e + len, req, seqno);
 		}
 		return 0;
 	}
