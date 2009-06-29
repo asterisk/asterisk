@@ -13142,7 +13142,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 
 	/* Acknowledge whatever it is destined for */
 	if ((resp >= 100) && (resp <= 199)) {
-		ack_res = __sip_semi_ack(p, seqno, 0, sipmethod)
+		ack_res = __sip_semi_ack(p, seqno, 0, sipmethod);
 	} else {
 		ack_res = __sip_ack(p, seqno, 0, sipmethod);
 	}
