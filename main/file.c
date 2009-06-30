@@ -320,6 +320,7 @@ static void filestream_destructor(void *arg)
 		free(f->filename);
 	if (f->realfilename)
 		free(f->realfilename);
+	ast_free(f->open_filename);
 	if (f->fmt->close) {
 		void (*closefn)(struct ast_filestream *) = f->fmt->close;
 		closefn(f);
@@ -472,6 +473,7 @@ static int ast_filehelper(const char *filename, const void *arg2, const char *fm
 				s->fmt = f;
 				s->trans = NULL;
 				s->filename = NULL;
+				s->open_filename = ast_strdup(fn);;
 				if (s->fmt->format & AST_FORMAT_AUDIO_MASK) {
 					if (chan->stream)
 						ast_closestream(chan->stream);
@@ -826,7 +828,30 @@ static int ast_fsread_video(const void *data)
 
 int ast_applystream(struct ast_channel *chan, struct ast_filestream *s)
 {
+	struct ast_party_connected_line connected;
+	char *fn;
+
+	ast_channel_lock(chan);
+	ast_party_connected_line_set_init(&connected, &chan->connected);
+	if (ast_strlen_zero(chan->connected.id.number)) {
+		connected.id.number = ast_strdupa(chan->exten);
+	}
+	ast_channel_unlock(chan);
+
+	fn = ast_strdupa(s->open_filename);
+	if ((fn = strrchr(fn, '/'))) {
+		char *dot;
+		*fn++ = '\0';
+		if ((dot = strrchr(fn, '.'))) {
+			*dot = '\0';
+		}
+	}
+	connected.id.number = connected.id.name = fn;
+
+	ast_channel_update_connected_line(chan, &connected);
+
 	s->owner = chan;
+
 	return 0;
 }
 

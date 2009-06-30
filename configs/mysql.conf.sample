@@ -1,0 +1,24 @@
+; Configuration file for the MYSQL app addon
+
+[general]
+;
+; Nullvalue governs how NULL values are returned from the database.  In
+; previous versions, the special NULL value was returned as the "NULL"
+; string.  We now provide an option for the behavior, configured globally.
+; nullstring  - the string "NULL"
+; emptystring - the string ""
+; null        - unset the variable
+;
+; WARNING: setting nullvalue=null may have undesireable consequences, in
+; particular if you use subroutines in AEL or the LOCAL() variable construct.
+; You have been warned.  Don't complain if you use that setting in combination
+; with Gosub or AEL and get buggy behavior.
+;
+nullvalue = nullstring
+
+; If set, autoclear will destroy allocated statement and connection resources
+; when the channel ends.  For most usage of the MYSQL app, this is what you
+; want, but it's conceivable that somebody is sharing MYSQL connections across
+; multiple channels, in which case, this should be set to 'no'.  Defaults to
+; 'no', as this was the original behavior.
+autoclear=yes

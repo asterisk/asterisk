@@ -1,0 +1,173 @@
+; ---------------------------------------------------------------------------------
+; ---  ******* IMPORTANT NOTE ***********
+; ---
+; ---  This module is currently unsupported.  Use it at your own risk.
+; ---
+; ---------------------------------------------------------------------------------
+
+; Objective System's H323 Configuration example for Asterisk
+; ooh323c driver configuration
+;
+; [general] section defines global parameters
+;
+; This is followed by profiles which can be of three types - user/peer/friend
+; Name of the user profile should match with the h323id of the user device.
+; For peer/friend profiles, host ip address must be provided as "dynamic" is
+; not supported as of now.
+;
+; Syntax for specifying a H323 device in extensions.conf is
+; For Registered peers/friends profiles:
+;        OOH323/name where name is the name of the peer/friend profile.
+;
+; For unregistered H.323 phones:
+;        OOH323/ip[:port] OR if gk is used OOH323/alias where alias can be any H323
+;                          alias
+;
+; For dialing into another asterisk peer at a specific exten
+;       OOH323/exten/peer OR OOH323/exten@ip
+;
+; Domain name resolution is not yet supported.
+; 
+; When a H.323 user calls into asterisk, his H323ID is matched with the profile
+; name and context is determined to route the call
+;
+; The channel driver will register all global aliases and aliases defined in 
+; peer profiles with the gatekeeper, if one exists. So, that when someone
+; outside our pbx (non-user) calls an extension, gatekeeper will route that 
+; call to our asterisk box, from where it will be routed as per dial plan.
+
+
+[general]
+;Define the asetrisk server h323 endpoint
+
+;The port asterisk should listen for incoming H323 connections.
+;Default - 1720
+;port=1720
+
+;The dotted IP address asterisk should listen on for incoming H323
+;connections
+;Default - tries to find out local ip address on it's own
+bindaddr=0.0.0.0    
+
+;This parameter indicates whether channel driver should register with 
+;gatekeeper as a gateway or an endpoint.
+;Default - no
+;gateway=no
+
+;Whether asterisk should use fast-start and tunneling for H323 connections.
+;Default - yes
+;faststart=no
+;h245tunneling=no
+
+;Whether media wait for connect
+;Default - No
+;mediawaitforconnect=yes
+
+;H323-ID to be used for asterisk server
+;Default - Asterisk PBX
+h323id=ObjSysAsterisk 
+e164=100
+
+;CallerID to use for calls
+;Default - Same as h323id
+callerid=asterisk
+
+;Whether this asterisk server will use gatekeeper.
+;Default - DISABLE
+;gatekeeper = DISCOVER
+;gatekeeper = a.b.c.d
+gatekeeper = DISABLE
+
+;Location for H323 log file
+;Default - /var/log/asterisk/h323_log
+;logfile=/var/log/asterisk/h323_log
+
+
+;Following values apply to all users/peers/friends defined below, unless
+;overridden within their client definition
+
+;Sets default context all clients will be placed in.
+;Default - default
+context=default
+
+;Sets rtptimeout for all clients, unless overridden
+;Default - 60 seconds
+;rtptimeout=60	    ; Terminate call if 60 seconds of no RTP activity
+                    ; when we're not on hold
+
+;Type of Service
+;Default - none (lowdelay, thoughput, reliability, mincost, none)
+;tos=lowdelay
+
+;amaflags = default
+
+;The account code used by default for all clients.
+;accountcode=h3230101
+
+;The codecs to be used for all clients.Only ulaw and gsm supported as of now.
+;Default - ulaw
+; ONLY ulaw, gsm, g729 and g7231 supported as of now
+disallow=all     ;Note order of disallow/allow is important.
+allow=gsm
+allow=ulaw
+
+
+; dtmf mode to be used by default for all clients. Supports rfc2833, q931keypad
+; h245alphanumeric, h245signal.
+;Default - rfc 2833
+dtmfmode=rfc2833
+
+; User/peer/friend definitions:
+; User config options                    Peer config options
+; ------------------                     -------------------
+; context                            
+; disallow                               disallow
+; allow                                  allow
+; accountcode                            accountcode
+; amaflags                               amaflags
+; dtmfmode                               dtmfmode
+; rtptimeout                             ip
+;                                        port
+;                                        h323id
+;                                        email
+;                                        url
+;                                        e164
+;                                        rtptimeout
+
+;
+
+;Define users here
+;Section header is extension
+[myuser1]
+type=user
+context=context1
+disallow=all
+allow=gsm
+allow=ulaw    
+
+
+
+[mypeer1]
+type=peer
+context=context2
+ip=a.b.c.d   ; UPDATE with appropriate ip address
+port=1720    ; UPDATE with appropriate port
+e164=101
+
+
+
+[myfriend1]
+type=friend
+context=default
+ip=10.0.0.82   ; UPDATE with appropriate ip address
+port=1820    ; UPDATE with appropriate port
+disallow=all
+allow=ulaw
+e164=12345
+rtptimeout=60
+dtmfmode=rfc2833
+
+
+
+
+

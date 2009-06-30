@@ -1,0 +1,58 @@
+;
+; Note - if the database server is hosted on the same machine as the
+; asterisk server, you can achieve a local Unix socket connection by
+; setting hostname=localhost
+;
+; port and sock are both optional parameters.  If hostname is specified
+; and is not "localhost" (you can use address 127.0.0.1 instead), then 
+; cdr_mysql will attempt to connect to the port specified or use the 
+; default port.  If hostname is not specified or if hostname is 
+; "localhost", then cdr_mysql will attempt to connect to the socket file 
+; specified by sock or otherwise use the default socket file.
+;
+;[global]
+;hostname=database.host.name
+;dbname=asteriskcdrdb
+;table=cdr
+;password=password 
+;user=asteriskcdruser
+;port=3306
+;sock=/tmp/mysql.sock
+;
+; If your system's locale differs from mysql database character set,
+; cdr_mysql can damage non-latin characters in CDR variables. Use this
+; option to protect your data.
+;charset=koi8r
+;
+; Older versions of cdr_mysql set the calldate field to whenever the
+; record was posted, rather than the start date of the call.  This flag
+; reverts to the old (incorrect) behavior.  Note that you'll also need
+; to comment out the "start=calldate" alias, below, to use this.
+;compat=no
+;
+; ssl connections (optional)
+;ssl_ca=<path to CA cert>
+;ssl_cert=<path to cert>
+;ssl_key=<path to keyfile>
+;
+; You may also configure the field names used in the CDR table.
+;
+[columns]
+;static "<value>" => <column>
+;alias <cdrvar> => <column>
+alias start => calldate
+alias callerid => clid
+;alias src => src
+;alias dst => dst
+;alias dcontext => dcontext
+;alias channel => channel
+;alias dstchannel => dstchannel
+;alias lastapp => lastapp
+;alias lastdata => lastdata
+;alias duration => duration
+;alias billsec => billsec
+;alias disposition => disposition
+;alias amaflags => amaflags
+;alias accountcode => accountcode
+;alias userfield => userfield
+;alias uniqueid => uniqueid

@@ -233,6 +233,7 @@ AST_EXT_LIB_SETUP([ALSA], [Advanced Linux Sound Architecture], [asound])
 # BKTR is used for backtrace support on platforms that do not
 # have it natively.
 AST_EXT_LIB_SETUP([BKTR], [Stack Backtrace support], [execinfo])
+AST_EXT_LIB_SETUP([BLUETOOTH], [Bluetooth Support], [bluetooth])
 AST_EXT_LIB_SETUP([CAP], [POSIX 1.e capabilities], [cap])
 AST_EXT_LIB_SETUP([CURL], [cURL], [curl])
 AST_EXT_LIB_SETUP([CURSES], [curses], [curses])
@@ -257,6 +258,7 @@ AST_EXT_LIB_SETUP([LIBXML2], [LibXML2], [libxml2])
 AST_EXT_LIB_SETUP([LTDL], [libtool], [ltdl])
 AST_EXT_LIB_SETUP([LUA], [Lua], [lua])
 AST_EXT_LIB_SETUP([MISDN], [mISDN User Library], [misdn])
+AST_EXT_LIB_SETUP([MYSQLCLIENT], [mysqlclient], [mysqlclient])
 AST_EXT_LIB_SETUP([NBS], [Network Broadcast Sound], [nbs])
 AST_EXT_LIB_SETUP([NCURSES], [ncurses], [ncurses])
 AST_EXT_LIB_SETUP([NEON], [neon], [neon])
@@ -1327,7 +1329,7 @@ AC_ARG_ENABLE([xmldoc],
 	esac], [disable_xmldoc=no])
 
 if test "${disable_xmldoc}" != "yes"; then
-	AST_EXT_TOOL_CHECK([LIBXML2], [xml2], , ,
+	AST_EXT_TOOL_CHECK([LIBXML2], [xml2-config], , ,
 	[#include <libxml/tree.h>
 	#include <libxml/parser.h>],
 	[LIBXML_TEST_VERSION])
@@ -1349,13 +1351,15 @@ if test "${PBX_MISDN}" = 1; then
    AC_CHECK_HEADER([linux/mISDNdsp.h], [AC_DEFINE_UNQUOTED([MISDN_1_2], 1, [Build chan_misdn for mISDN 1.2 or later.])])
 fi
 
+AST_EXT_TOOL_CHECK([MYSQLCLIENT], [mysql_config])
+
 AST_EXT_LIB_CHECK([NBS], [nbs], [nbs_connect], [nbs.h])
 
 AST_EXT_LIB_CHECK([NCURSES], [ncurses], [initscr], [curses.h])
 
-AST_EXT_TOOL_CHECK([NEON], [neon])
+AST_EXT_TOOL_CHECK([NEON], [neon-config])
 
-AST_EXT_TOOL_CHECK([NETSNMP], [net-snmp], , [--agent-libs],
+AST_EXT_TOOL_CHECK([NETSNMP], [net-snmp-config], , [--agent-libs],
 [#include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>],
@@ -1371,6 +1375,8 @@ AST_EXT_LIB_CHECK([OGG], [ogg], [ogg_sync_init], [])
 AST_EXT_LIB_CHECK([BKTR], [execinfo], [backtrace], [execinfo.h])
 # Linux, however, has backtrace directly in glibc
 AST_EXT_LIB_CHECK([BKTR], [c], [backtrace], [execinfo.h])
+
+AST_EXT_LIB_CHECK([BLUETOOTH], [bluetooth], [ba2str], [bluetooth/bluetooth.h])
 
 # possible places for oss definitions
 AST_EXT_LIB_CHECK([OSS], [ossaudio], [], [linux/soundcard.h])
@@ -1563,7 +1569,7 @@ then
     AST_CHECK_OSPTK([3], [5], [0])
 fi
 
-AST_EXT_TOOL_CHECK([GMIME], [gmime], [], [], [#include <gmime/gmime.h>], [gboolean q = g_mime_check_version(0,0,0);])
+AST_EXT_TOOL_CHECK([GMIME], [gmime-config], [], [], [#include <gmime/gmime.h>], [gboolean q = g_mime_check_version(0,0,0);])
 
 AST_EXT_LIB_CHECK([HOARD], [hoard], [malloc], [])
 
@@ -1664,7 +1670,7 @@ AC_CHECK_HEADER([linux/ixjuser.h], [PBX_IXJUSER=1], [PBX_IXJUSER=0], [
 				   ])
 AC_SUBST(PBX_IXJUSER)
 
-AST_EXT_TOOL_CHECK([SDL], [sdl])
+AST_EXT_TOOL_CHECK([SDL], [sdl-config])
 AST_EXT_LIB_CHECK([SDL_IMAGE], [SDL_image], [IMG_Load], [SDL_image.h], [${SDL_LIB}], [${SDL_INCLUDE}])
 AST_EXT_LIB_CHECK([FFMPEG], [avcodec], [sws_getContext], [ffmpeg/avcodec.h], [-lpthread -lz -lm])
 
@@ -1682,7 +1688,7 @@ then
 fi
 
 PBX_GTK=0
-AST_EXT_TOOL_CHECK([GTK], [gtk], [--cflags gthread], [--libs gthread])
+AST_EXT_TOOL_CHECK([GTK], [gtk-config], [--cflags gthread], [--libs gthread])
 
 PBX_GTK2=0
 AC_CHECK_TOOL(PKGCONFIG, pkg-config, No)

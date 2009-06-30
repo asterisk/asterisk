@@ -20,6 +20,11 @@
 
 From 1.6.2 to 1.6.3:
 
+* Asterisk-addons no longer exists as an independent package.  Those modules
+  now live in the addons directory of the main Asterisk source tree.  They
+  are not enabled by default.  For more information about why modules live in
+  addons, see README-addons.txt.
+
 * The rarely used 'event_log' and LOG_EVENT channel have been removed; the few
   users of this channel in the tree have been converted to LOG_NOTICE or removed
   (in cases where the same message was already generated to another channel).

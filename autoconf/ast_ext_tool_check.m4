@@ -7,7 +7,7 @@ AC_DEFUN([AST_EXT_TOOL_CHECK],
 [
     if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
 	PBX_$1=0
-	AC_CHECK_TOOL(CONFIG_$1, $2-config, No)
+	AC_CHECK_TOOL(CONFIG_$1, $2, No)
 	if test ! "x${CONFIG_$1}" = xNo; then
 	    if test x"$3" = x ; then A=--cflags ; else A="$3" ; fi
 	    $1_INCLUDE=$(${CONFIG_$1} $A)

@@ -26,7 +26,7 @@ endif
 	@cp asterisk.tex asterisk.tex.orig
 	@sed -e 's/ASTERISKVERSION/$(shell echo $(ASTERISKVERSION) | sed -e 's/\//\\\//g' | sed -e 's/_/\\\\_/g')/' asterisk.tex > asterisk_local.tex
 	@mv asterisk_local.tex asterisk.tex
-	@$(RUBBER) --pdf asterisk.tex
+	-@$(RUBBER) --pdf asterisk.tex
 	@mv asterisk.tex.orig asterisk.tex
 endif
 

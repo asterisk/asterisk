@@ -1,0 +1,24 @@
+This is a module for asterisk to play mp3 natively.
+They *SHOULD* be already at 8khz and *SHOULD* be mono.
+otherwise they will be consuming CPU alot more than need be.
+
+Convert them to 8k mono like this:
+lame -q -p --mp3input -a --preset 8 in.mp3 8kout.mp3
+
+just run 
+# make clean install 
+to install 
+
+or
+# make clean autoload
+to install and autoload at the same time
+
+
+Comments or improvements
+Anthony Minessale <anthmct@yahoo.com>
+
+Donations Welcomed at paypal:jillkm3@yahoo.com
+
+
+
+

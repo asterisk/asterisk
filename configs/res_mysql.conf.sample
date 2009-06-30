@@ -1,0 +1,40 @@
+;
+; Sample configuration for res_config_mysql.c
+;
+; The value of dbhost may be either a hostname or an IP address.
+; If dbhost is commented out or the string "localhost", a connection
+; to the local host is assumed and dbsock is used instead of TCP/IP
+; to connect to the server.
+;
+; Multiple database contexts may be configured, with the caveat that
+; all context names should be unique and must not contain the slash ('/')
+; character.  If you wish to separate reads from writes in your database
+; configuration, you specify the database (NOT HERE, in other files)
+; separated by a slash, read database first.  If your database
+; specification does not contain a slash, the implication is that reads
+; and writes should be performed to the same database.
+;
+; For example, in extconfig.conf, you could specify a line like:
+;    sippeers => mysql,readhost.asterisk/writehost.asterisk,sipfriends
+; and then define the contexts [readhost.asterisk] and [writehost.asterisk]
+; below.
+;
+; The requirements parameter is available only in Asterisk 1.6.1 and
+; later and must be present in all contexts.  It specifies the behavior
+; when a column name is required by the system.  The default behavior is
+; "warn" and simply sends a warning to the logger that the column does
+; not exist (or is of the wrong type or precision).  The other two
+; possibilities are "createclose", which adds the column with the right
+; type and length, and "createchar", which adds the column as a char
+; type, with the appropriate length to accept the data.  Note that with
+; the MySQL driver, both "createclose" and "createchar" will, on occasion,
+; widen a table column width to meet the requirements specified.
+;
+[general]
+;dbhost = 127.0.0.1
+;dbname = asterisk
+;dbuser = myuser
+;dbpass = mypass
+;dbport = 3306
+;dbsock = /tmp/mysql.sock
+;requirements=warn ; or createclose or createchar
