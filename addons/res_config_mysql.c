@@ -47,7 +47,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/threadstorage.h"
 
-#define RES_CONFIG_MYSQL_CONF "res_mysql.conf"
+#define RES_CONFIG_MYSQL_CONF "res_config_mysql.conf"
+#define RES_CONFIG_MYSQL_CONF_OLD "res_mysql.conf"
 #define	READHANDLE	0
 #define	WRITEHANDLE	1
 
@@ -1413,6 +1414,11 @@ static int parse_config(int reload)
 	struct mysql_conn *cur;
 
 	if ((config = ast_config_load(RES_CONFIG_MYSQL_CONF, config_flags)) == CONFIG_STATUS_FILEMISSING) {
+		/* Support old config file name */
+		config = ast_config_load(RES_CONFIG_MYSQL_CONF_OLD, config_flags);
+	}
+
+	if (config == CONFIG_STATUS_FILEMISSING) {
 		return 0;
 	} else if (config == CONFIG_STATUS_FILEUNCHANGED) {
 		return 0;
