@@ -106,6 +106,14 @@ PBX Core:
   if your dialplan relies on the ability to 'run off the end' of an extension
   and wait for a new extension without using WaitExten() to accomplish that,
   you will need set autofallthrough to 'no' in your extensions.conf file.
+
+Language Support:
+
+* Support for Taiwanese was incorrectly supported with the "tw" language code.
+  In reality, the "tw" language code is reserved for the Twi language, native
+  to Ghana.  If you were previously using the "tw" language code, you should
+  switch to using either "zh" (for Mandarin Chinese) or "zh_TW" for Taiwan
+  specific localizations.
  
 Command Line Interface:
 
