@@ -20800,11 +20800,7 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 		if (target.chan2 && !ast_strlen_zero(xfersound) && ast_streamfile(target.chan2, xfersound, target.chan2->language) >= 0) {
 			ast_waitstream(target.chan2, "");
 		}
-		if (targetcall_pvt->owner) {
-			ast_debug(1, "SIP attended transfer: Unlocking channel %s\n", targetcall_pvt->owner->name);
-			ast_channel_unlock(targetcall_pvt->owner);
-		}
-
+		
 		/* By forcing the masquerade, we know that target.chan1 and target.chan2 are bridged. We then
 		 * can queue connected line updates where they need to go.
 		 *
@@ -20814,6 +20810,12 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 			/* If the channel thread already did the masquerade, then we don't need to do anything */
 			ast_do_masquerade(target.chan1);
 		}
+
+		if (targetcall_pvt->owner) {
+			ast_debug(1, "SIP attended transfer: Unlocking channel %s\n", targetcall_pvt->owner->name);
+			ast_channel_unlock(targetcall_pvt->owner);
+		}
+
 		if (target.chan2) {
 			ast_channel_queue_connected_line_update(target.chan1, &connected_to_transferee);
 			ast_channel_queue_connected_line_update(target.chan2, &connected_to_target);
