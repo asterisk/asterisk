@@ -40,7 +40,8 @@
 /* Channel description */
 static const char type[] = "OOH323";
 static const char tdesc[] = "Objective Systems H323 Channel Driver";
-static const char config[] = "ooh323.conf";
+static const char config[] = "chan_ooh323.conf";
+static const char config_old[] = "ooh323.conf";
 
 
 /* Channel Definition */
@@ -1744,7 +1745,10 @@ int reload_config(int reload)
 	if (gH323Debug)
 		ast_verbose("---   reload_config\n");
 
-	cfg = ast_config_load((char*)config, config_flags);
+	cfg = ast_config_load(config, config_flags);
+	if (!cfg) {
+		cfg = ast_config_load(config_old, config_flags);
+	}
 
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {
