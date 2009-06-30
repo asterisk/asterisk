@@ -64,7 +64,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/io.h"
 
-#define MBL_CONFIG "mobile.conf"
+#define MBL_CONFIG "chan_mobile.conf"
+#define MBL_CONFIG_OLD "mobile.conf"
 
 #define DEVICE_FRAME_SIZE 48
 #define DEVICE_FRAME_FORMAT AST_FORMAT_SLINEAR
@@ -4075,6 +4076,9 @@ static int mbl_load_config(void)
 	struct ast_flags config_flags = { 0 };
 
 	cfg = ast_config_load(MBL_CONFIG, config_flags);
+	if (!cfg) {
+		cfg = ast_config_load(MBL_CONFIG_OLD, config_flags);
+	}
 	if (!cfg)
 		return -1;
 
