@@ -20789,11 +20789,7 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 		/* Transfer succeeded! */
 		const char *xfersound = pbx_builtin_getvar_helper(target.chan1, "ATTENDED_TRANSFER_COMPLETE_SOUND");
 
-		while (ast_channel_trylock(target.chan1)) {
-			sip_pvt_unlock(targetcall_pvt);
-			sched_yield();
-			sip_pvt_lock(targetcall_pvt);
-		}
+		/* target.chan1 was locked in get_sip_pvt_byid_locked */
 		ast_cel_report_event(target.chan1, AST_CEL_ATTENDEDTRANSFER, NULL, transferer_linkedid, target.chan2);
 		ast_channel_unlock(target.chan1);
 
