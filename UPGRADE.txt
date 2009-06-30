@@ -46,6 +46,12 @@ From 1.6.1 to 1.6.2:
   Two applications previously provided by res_indications, PlayTones and
   StopPlayTones, have been moved into a new module, app_playtones.
 
+* Support for Taiwanese was incorrectly supported with the "tw" language code.
+  In reality, the "tw" language code is reserved for the Twi language, native
+  to Ghana.  If you were previously using the "tw" language code, you should
+  switch to using either "zh" (for Mandarin Chinese) or "zh_TW" for Taiwan
+  specific localizations.
+
 From 1.6.0.1 to 1.6.1:
 
 * The ast_agi_register_multiple() and ast_agi_unregister_multiple()
@@ -135,3 +141,4 @@ From 1.6.1 to 1.6.2:
   func_sprintf, and is no longer included in func_strings. If you use this
   function and do not use 'autoload=yes' in modules.conf, you will need
   to explicitly load func_sprintf for it to be available.
+
