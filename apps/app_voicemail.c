@@ -1703,11 +1703,7 @@ static int folder_int(const char *folder)
 	/*assume a NULL folder means INBOX*/
 	if (!folder)
 		return 0;
-#ifdef IMAP_STORAGE
 	if (!strcasecmp(folder, imapfolder))
-#else
-	if (!strcasecmp(folder, "INBOX"))
-#endif
 		return 0;
 	else if (!strcasecmp(folder, "Old"))
 		return 1;
