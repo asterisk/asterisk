@@ -113,7 +113,9 @@ Language Support:
   In reality, the "tw" language code is reserved for the Twi language, native
   to Ghana.  If you were previously using the "tw" language code, you should
   switch to using either "zh" (for Mandarin Chinese) or "zh_TW" for Taiwan
-  specific localizations.
+  specific localizations.  Additionally, "mx" should be changed to "es_MX",
+  Georgian was incorrectly specified as "ge" but should be "ka", and Czech is
+  "cs", not "cz".
  
 Command Line Interface:
 
