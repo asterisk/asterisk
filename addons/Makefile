@@ -11,7 +11,6 @@
 
 -include $(ASTTOPDIR)/menuselect.makeopts $(ASTTOPDIR)/menuselect.makedeps
 
-MODULE_PREFIX=app bridge cdr cel chan codec format func pbx res test
 MENUSELECT_CATEGORY=Addons
 MENUSELECT_DESCRIPTION=Add-ons (See README-addons.txt)
 
@@ -26,6 +25,14 @@ H323OBJS:=ooCmdChannel.o ooLogChan.o ooUtils.o ooGkClient.o context.o \
 	h323/MULTIMEDIA-SYSTEM-CONTROLDec.o h323/MULTIMEDIA-SYSTEM-CONTROLEnc.o
 
 H323CFLAGS:=-Iooh323c/src -Iooh323c/src/h323
+
+ALL_C_MODS:=app_addon_sql_mysql \
+            app_saycountpl \
+            cdr_addon_mysql \
+            chan_mobile \
+            chan_ooh323 \
+            format_mp3 \
+            res_config_mysql
 
 all: _all
 

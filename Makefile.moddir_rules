@@ -38,19 +38,18 @@ include $(ASTTOPDIR)/Makefile.rules
 
 ifneq ($(MODULE_PREFIX),)
     ALL_C_MODS:=
-    ALL_C_MODS+=$(foreach p,$(MODULE_PREFIX),$(patsubst %.c,%,$(wildcard $(p)_*.c)))
     ALL_CC_MODS:=
+    ALL_C_MODS+=$(foreach p,$(MODULE_PREFIX),$(patsubst %.c,%,$(wildcard $(p)_*.c)))
     ALL_CC_MODS+=$(foreach p,$(MODULE_PREFIX),$(patsubst %.cc,%,$(wildcard $(p)_*.cc)))
+endif
  
-    C_MODS:=$(filter-out $(MENUSELECT_$(MENUSELECT_CATEGORY)),$(ALL_C_MODS))
-    CC_MODS:=$(filter-out $(MENUSELECT_$(MENUSELECT_CATEGORY)),$(ALL_CC_MODS))
+C_MODS:=$(filter-out $(MENUSELECT_$(MENUSELECT_CATEGORY)),$(ALL_C_MODS))
+CC_MODS:=$(filter-out $(MENUSELECT_$(MENUSELECT_CATEGORY)),$(ALL_CC_MODS))
 
-    # and store in the list of embedded or loadable modules
-    ifneq ($(findstring $(MENUSELECT_CATEGORY),$(MENUSELECT_EMBED)),)
-	EMBEDDED_MODS:=$(C_MODS) $(CC_MODS)
-    else
-	LOADABLE_MODS:=$(C_MODS) $(CC_MODS)
-    endif
+ifneq ($(findstring $(MENUSELECT_CATEGORY),$(MENUSELECT_EMBED)),)
+    EMBEDDED_MODS:=$(C_MODS) $(CC_MODS)
+else
+    LOADABLE_MODS:=$(C_MODS) $(CC_MODS)
 endif
 
 # Both C++ and C++ sources need their module name in AST_MODULE

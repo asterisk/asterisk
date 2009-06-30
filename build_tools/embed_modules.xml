@@ -1,32 +1,35 @@
 	<category name="MENUSELECT_EMBED" displayname="Module Embedding" positive_output="yes" remove_on_change="main/asterisk">
-		<member name="APPS" displayname="Applications" remove_on_change="apps/*.o">
+		<member name="ADDONS" displayname="Add-ons" remove_on_change="addons/*.o addons/*.oo">
 			<depend>gnu_ld</depend>
 		</member>
-		<member name="BRIDGES" displayname="Bridging Technologies" remove_on_change="bridges/*.o">
+		<member name="APPS" displayname="Applications" remove_on_change="apps/*.o apps/*.oo">
 			<depend>gnu_ld</depend>
 		</member>
-		<member name="CDR" displayname="Call Detail Recording" remove_on_change="cdr/*.o">
+		<member name="BRIDGES" displayname="Bridging Technologies" remove_on_change="bridges/*.o bridges/*.oo">
 			<depend>gnu_ld</depend>
 		</member>
-		<member name="CHANNELS" displayname="Channels" remove_on_change="channels/*.o channels/*/*.o">
+		<member name="CDR" displayname="Call Detail Recording" remove_on_change="cdr/*.o cdr/*.oo">
 			<depend>gnu_ld</depend>
 		</member>
-		<member name="CODECS" displayname="Coders/Decoders" remove_on_change="codecs/*.o codecs/*/*.o codecs/*/*/*.o codecs/*/*.a codecs/*/*/*.a">
+		<member name="CHANNELS" displayname="Channels" remove_on_change="channels/*.o channels/*/*.o channels/*.oo channels/*/*.oo">
 			<depend>gnu_ld</depend>
 		</member>
-		<member name="FORMATS" displayname="File Formats" remove_on_change="formats/*.o">
+		<member name="CODECS" displayname="Coders/Decoders" remove_on_change="codecs/*.o codecs/*/*.o codecs/*/*/*.o codecs/*/*.a codecs/*/*/*.a codecs/*.oo codecs/*/*.oo">
 			<depend>gnu_ld</depend>
 		</member>
-		<member name="FUNCS" displayname="Dialplan Functions" remove_on_change="funcs/*.o">
+		<member name="FORMATS" displayname="File Formats" remove_on_change="formats/*.o formats/*.oo">
 			<depend>gnu_ld</depend>
 		</member>
-		<member name="PBX" displayname="PBX Functionality" remove_on_change="pbx/*.o pbx/*/*.o">
+		<member name="FUNCS" displayname="Dialplan Functions" remove_on_change="funcs/*.o funcs/*.oo">
 			<depend>gnu_ld</depend>
 		</member>
-		<member name="RES" displayname="Resource Modules" remove_on_change="res/*.o res/*/*.o">
+		<member name="PBX" displayname="PBX Functionality" remove_on_change="pbx/*.o pbx/*/*.o pbx/*.oo pbx/*/*.oo">
 			<depend>gnu_ld</depend>
 		</member>
-		<member name="TEST" displayname="Test Modules" remove_on_change="tests/*.o">
+		<member name="RES" displayname="Resource Modules" remove_on_change="res/*.o res/*/*.o res/*.oo res/*/*.oo">
+			<depend>gnu_ld</depend>
+		</member>
+		<member name="TEST" displayname="Test Modules" remove_on_change="tests/*.o tests/*.oo">
 			<depend>gnu_ld</depend>
 		</member>
 	</category>
