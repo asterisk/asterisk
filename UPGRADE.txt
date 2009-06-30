@@ -18,6 +18,14 @@
 ===
 ===========================================================
 
+From 1.6.0.9 to 1.6.0.10:
+
+* Support for Taiwanese was incorrectly supported with the "tw" language code.
+  In reality, the "tw" language code is reserved for the Twi language, native
+  to Ghana.  If you were previously using the "tw" language code, you should
+  switch to using either "zh" (for Mandarin Chinese) or "zh_TW" for Taiwan
+  specific localizations.
+
 From 1.6.0.1 to 1.6.0.2:
 
 * The ast_agi_register_multiple() and ast_agi_unregister_multiple()

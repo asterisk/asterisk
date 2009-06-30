@@ -5869,7 +5869,7 @@ leave_vm_out:
 			res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "'vm-received' q  H 'digits/kai' M ", NULL);
 		else if (!strcasecmp(chan->language, "pt_BR"))
 			res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "'vm-received' Ad 'digits/pt-de' B 'digits/pt-de' Y 'digits/pt-as' HM ", NULL);
-		else if (!strcasecmp(chan->language, "tw"))      /* CHINESE (Taiwan) syntax */
+		else if (!strncasecmp(chan->language, "zh", 2)) /* CHINESE (Taiwan) syntax */
 			res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "qR 'vm-received'", NULL);		
 		else {
 			res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "'vm-received' q 'digits/at' IMp", NULL);
@@ -7114,7 +7114,7 @@ static int vm_intro_cz(struct ast_channel *chan, struct vm_state *vms)
 }
 
 /* CHINESE (Taiwan) syntax */
-static int vm_intro_tw(struct ast_channel *chan, struct vm_state *vms)
+static int vm_intro_zh(struct ast_channel *chan, struct vm_state *vms)
 {
 	int res;
 	/* Introduce messages they have */
@@ -7193,8 +7193,8 @@ static int vm_intro(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm
 		return vm_intro_no(chan, vms);
 	} else if (!strcasecmp(chan->language, "ru")) { /* RUSSIAN syntax */
 		return vm_intro_multilang(chan, vms, "n");
-	} else if (!strcasecmp(chan->language, "tw")) { /* CHINESE (Taiwan) syntax */
-		return vm_intro_tw(chan, vms);
+	} else if (!strncasecmp(chan->language, "zh", 2)) { /* CHINESE (Taiwan) syntax */
+		return vm_intro_zh(chan, vms);
 	} else if (!strcasecmp(chan->language, "ua")) { /* UKRAINIAN syntax */
 		return vm_intro_multilang(chan, vms, "n");
 	} else {					/* Default to ENGLISH */
@@ -7249,7 +7249,7 @@ static int vm_instructions_en(struct ast_channel *chan, struct vm_state *vms, in
 	return res;
 }
 
-static int vm_instructions_tw(struct ast_channel *chan, struct vm_state *vms, int skipadvanced)
+static int vm_instructions_zh(struct ast_channel *chan, struct vm_state *vms, int skipadvanced)
 {
 	int res = 0;
 	/* Play instructions and wait for new command */
@@ -7275,8 +7275,8 @@ static int vm_instructions_tw(struct ast_channel *chan, struct vm_state *vms, in
 
 static int vm_instructions(struct ast_channel *chan, struct vm_state *vms, int skipadvanced)
 {
-	if (vms->starting && !strcasecmp(chan->language, "tw")) { /* CHINESE (Taiwan) syntax */
-		return vm_instructions_tw(chan, vms, skipadvanced);
+	if (vms->starting && !strncasecmp(chan->language, "zh", 2)) { /* CHINESE (Taiwan) syntax */
+		return vm_instructions_zh(chan, vms, skipadvanced);
 	} else {					/* Default to ENGLISH */
 		return vm_instructions_en(chan, vms, skipadvanced);
 	}
@@ -7644,7 +7644,7 @@ static int vm_browse_messages_pt(struct ast_channel *chan, struct vm_state *vms,
 }
 
 /* Chinese (Taiwan)syntax */
-static int vm_browse_messages_tw(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu)
+static int vm_browse_messages_zh(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu)
 {
 	int cmd = 0;
 
@@ -7674,8 +7674,8 @@ static int vm_browse_messages(struct ast_channel *chan, struct vm_state *vms, st
 		return vm_browse_messages_pt(chan, vms, vmu);
 	} else if (!strcasecmp(chan->language, "gr")) {
 		return vm_browse_messages_gr(chan, vms, vmu);   /* GREEK */
-	} else if (!strcasecmp(chan->language, "tw")) {
-		return vm_browse_messages_tw(chan, vms, vmu);   /* CHINESE (Taiwan) */
+	} else if (!strncasecmp(chan->language, "zh", 2)) {
+		return vm_browse_messages_zh(chan, vms, vmu);   /* CHINESE (Taiwan) */
 	} else {	/* Default to English syntax */
 		return vm_browse_messages_en(chan, vms, vmu);
 	}
