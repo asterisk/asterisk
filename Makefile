@@ -293,7 +293,7 @@ endif
 #	value directly to ASTCFLAGS
 ASTCFLAGS+=$(MALLOC_DEBUG)$(OPTIONS)
 
-MOD_SUBDIRS:=addons channels pbx apps codecs formats cdr cel bridges funcs tests main res $(LOCAL_MOD_SUBDIRS)
+MOD_SUBDIRS:=channels pbx apps codecs formats cdr cel bridges funcs tests main res addons $(LOCAL_MOD_SUBDIRS)
 OTHER_SUBDIRS:=utils agi
 SUBDIRS:=$(OTHER_SUBDIRS) $(MOD_SUBDIRS)
 SUBDIRS_INSTALL:=$(SUBDIRS:%=%-install)
