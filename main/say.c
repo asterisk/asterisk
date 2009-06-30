@@ -7295,7 +7295,7 @@ static const char *counted_noun_ending_slavic(int num)
 	if (num == 1) {			/* singular */
 	    return "";
 	}
-	if (num > 0 && num < 5) {	/* 2--5 get genative singular */
+	if (num > 0 && num < 5) {	/* 2--4 get genative singular */
 	    return "x1";
 	} else {			/* 5--19 get genative plural */
 	    return "x2";
@@ -7311,7 +7311,7 @@ int ast_say_counted_noun(struct ast_channel *chan, int num, const char noun[])
 		ending = counted_noun_ending_slavic(num);
 	} else if(!strcasecmp(chan->language, "ua")) {		/* Ukrainian */
 		ending = counted_noun_ending_slavic(num);
-	} else if(!strcasecmp(chan->language, "ua")) {		/* Polish */
+	} else if(!strcasecmp(chan->language, "pl")) {		/* Polish */
 		ending = counted_noun_ending_slavic(num);
 	} else {						/* English and default */
 		ending = counted_noun_ending_en(num);
