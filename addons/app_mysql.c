@@ -92,7 +92,8 @@ exten => s,9,MYSQL(Disconnect ${connid})
 
 AST_MUTEX_DEFINE_STATIC(_mysql_mutex);
 
-#define MYSQL_CONFIG "mysql.conf"
+#define MYSQL_CONFIG "app_mysql.conf"
+#define MYSQL_CONFIG_OLD "mysql.conf"
 #define AST_MYSQL_ID_DUMMY   0
 #define AST_MYSQL_ID_CONNID  1
 #define AST_MYSQL_ID_RESID   2
@@ -585,6 +586,11 @@ static int load_module(void)
 	struct ast_flags config_flags = { 0 };
 	struct ast_config *cfg = ast_config_load(MYSQL_CONFIG, config_flags);
 	const char *temp;
+
+	if (!cfg) {
+		/* Backwards compatibility ftw */
+		cfg = ast_config_load(MYSQL_CONFIG_OLD, config_flags);
+	}
 
 	if (cfg) {
 		if ((temp = ast_variable_retrieve(cfg, "general", "nullvalue"))) {
