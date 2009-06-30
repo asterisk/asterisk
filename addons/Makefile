@@ -28,7 +28,7 @@ H323CFLAGS:=-Iooh323c/src -Iooh323c/src/h323
 
 ALL_C_MODS:=app_mysql \
             app_saycountpl \
-            cdr_addon_mysql \
+            cdr_mysql \
             chan_mobile \
             chan_ooh323 \
             format_mp3 \
