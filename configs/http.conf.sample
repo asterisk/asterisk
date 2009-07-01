@@ -43,7 +43,7 @@ bindaddr=127.0.0.1
 ; For example, if you are using the Asterisk-gui,
 ; it is convenient to enable the following redirect:
 ;
-;redirect = / /static/config/cfgbasic.html
+;redirect = / /static/config/index.html
 ;
 ; HTTPS support. In addition to enabled=yes, you need to
 ; explicitly enable tls, define the port to use,
