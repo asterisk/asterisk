@@ -2431,8 +2431,6 @@ static int misdn_indication(struct ast_channel *ast, int cond, const void *data,
 		if (p->state != MISDN_CONNECTED) {
 			start_bc_tones(p);
 			misdn_lib_send_event( p->bc, EVENT_DISCONNECT);
-		} else {
-			chan_misdn_log(-1, p->bc->port, " --> !! Got Busy in Connected State !?! ast:%s\n", ast->name);
 		}
 		return -1;
 	case AST_CONTROL_RING:
