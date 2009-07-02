@@ -2945,6 +2945,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			ast_frfree(f);
 
 	}
+	ast_cel_report_event(chan, AST_CEL_BRIDGE_END, NULL, NULL, NULL);
    before_you_go:
 
 	if (ast_test_flag(chan,AST_FLAG_BRIDGE_HANGUP_DONT)) {

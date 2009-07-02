@@ -5837,7 +5837,6 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 					      "CallerID1: %s\r\n"
 					      "CallerID2: %s\r\n",
 					      c0->name, c1->name, c0->uniqueid, c1->uniqueid, S_OR(c0->cid.cid_num, "<unknown>"), S_OR(c1->cid.cid_num, "<unknown>"));
-				ast_cel_report_event(c0, AST_CEL_BRIDGE_END, NULL, NULL, NULL);
 
 				ast_debug(1, "Returning from native bridge, channels: %s, %s\n", c0->name, c1->name);
 
@@ -5875,7 +5874,6 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			if (ast_channel_make_compatible(c0, c1)) {
 				ast_log(LOG_WARNING, "Can't make %s and %s compatible\n", c0->name, c1->name);
 				manager_bridge_event(0, 1, c0, c1);
-				/* ast_cel_report_event(c0, AST_CEL_BRIDGE_END, NULL, NULL, NULL); */
 				return AST_BRIDGE_FAILED;
 			}
 			o0nativeformats = c0->nativeformats;
@@ -5903,7 +5901,6 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	c0->_bridge = NULL;
 	c1->_bridge = NULL;
 
-	ast_cel_report_event(c0, AST_CEL_BRIDGE_END, NULL, NULL, NULL);
 	manager_event(EVENT_FLAG_CALL, "Unlink",
 		      "Channel1: %s\r\n"
 		      "Channel2: %s\r\n"
