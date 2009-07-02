@@ -3177,8 +3177,7 @@ static int ast_extension_state2(struct ast_exten *e)
 {
 	char hint[AST_MAX_EXTENSION];
 	char *cur, *rest;
-	int allunavailable = 1, allbusy = 1, allfree = 1;
-	int busy = 0, inuse = 0, ring = 0, onhold = 0;
+	struct ast_devstate_aggregate agg;
 
 	if (!e)
 		return -1;
@@ -3187,67 +3186,10 @@ static int ast_extension_state2(struct ast_exten *e)
 
 	rest = hint;	/* One or more devices separated with a & character */
 	while ( (cur = strsep(&rest, "&")) ) {
-		int res = ast_device_state(cur);
-		switch (res) {
-		case AST_DEVICE_NOT_INUSE:
-			allunavailable = 0;
-			allbusy = 0;
-			break;
-		case AST_DEVICE_INUSE:
-			inuse = 1;
-			allunavailable = 0;
-			allfree = 0;
-			break;
-		case AST_DEVICE_RINGING:
-			ring = 1;
-			allunavailable = 0;
-			allfree = 0;
-			break;
-		case AST_DEVICE_RINGINUSE:
-			inuse = 1;
-			ring = 1;
-			allunavailable = 0;
-			allfree = 0;
-			break;
-		case AST_DEVICE_ONHOLD:
-			allunavailable = 0;
-			allfree = 0;
-			onhold = 1;
-			break;
-		case AST_DEVICE_BUSY:
-			allunavailable = 0;
-			allfree = 0;
-			busy = 1;
-			inuse = 1;
-			break;
-		case AST_DEVICE_UNAVAILABLE:
-		case AST_DEVICE_INVALID:
-			allbusy = 0;
-			allfree = 0;
-			break;
-		default:
-			allunavailable = 0;
-			allbusy = 0;
-			allfree = 0;
-		}
+		ast_devstate_aggregate_add(&agg, ast_device_state(cur));
 	}
 
-	if (allfree)
-		return AST_EXTENSION_NOT_INUSE;
-	if ((inuse || onhold) && ring)
-		return (AST_EXTENSION_INUSE | AST_EXTENSION_RINGING);
-	if (allbusy)
-		return AST_EXTENSION_BUSY;
-	if (inuse)
-		return AST_EXTENSION_INUSE;
-	if (ring)
-		return AST_EXTENSION_RINGING;
-	if (onhold)
-		return AST_EXTENSION_ONHOLD;
-	if (allunavailable)
-		return AST_EXTENSION_UNAVAILABLE;
-
-	return AST_EXTENSION_NOT_INUSE;
+	return ast_devstate_to_extenstate(ast_devstate_aggregate_result(&agg));
 }
 
 /*! \brief Return extension_state as string */
@@ -5420,6 +5362,36 @@ static char *handle_set_global(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	return CLI_SUCCESS;
 }
 
+#ifdef AST_DEVMODE
+static char *handle_show_device2extenstate(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ast_devstate_aggregate agg;
+	int i, j, exten, combined;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show device2extenstate";
+		e->usage =
+			"Usage: core show device2extenstate\n"
+			"       Lists device state to extension state combinations.\n";
+	case CLI_GENERATE:
+		return NULL;
+	}
+	for (i = 0; i < AST_DEVICE_TOTAL; i++) {
+		for (j = 0; j < AST_DEVICE_TOTAL; j++) {
+			ast_devstate_aggregate_init(&agg);
+			ast_devstate_aggregate_add(&agg, i);
+			ast_devstate_aggregate_add(&agg, j);
+			combined = ast_devstate_aggregate_result(&agg);
+			exten = ast_devstate_to_extenstate(combined);
+			ast_cli(a->fd, "\n Exten:%14s  CombinedDevice:%12s  Dev1:%12s  Dev2:%12s", ast_extension_state2str(exten), ast_devstate_str(combined), ast_devstate_str(j), ast_devstate_str(i));
+		}
+	}
+	ast_cli(a->fd, "\n");
+	return CLI_SUCCESS;
+}
+#endif
+
 static char *handle_set_chanvar(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_channel *chan;
@@ -5524,6 +5496,9 @@ static struct ast_cli_entry pbx_cli[] = {
 	AST_CLI_DEFINE(handle_show_hints, "Show dialplan hints"),
 	AST_CLI_DEFINE(handle_show_hint, "Show dialplan hint"),
 	AST_CLI_DEFINE(handle_show_globals, "Show global dialplan variables"),
+#ifdef AST_DEVMODE
+	AST_CLI_DEFINE(handle_show_device2extenstate, "Show expected exten state from multiple device states"),
+#endif
 	AST_CLI_DEFINE(handle_show_function, "Describe a specific dialplan function"),
 	AST_CLI_DEFINE(handle_show_application, "Describe a specific dialplan application"),
 	AST_CLI_DEFINE(handle_set_global, "Set global dialplan variable"),

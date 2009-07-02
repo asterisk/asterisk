@@ -56,6 +56,7 @@ enum ast_device_state {
 	AST_DEVICE_RINGING,      /*!< Device is ringing */
 	AST_DEVICE_RINGINUSE,    /*!< Device is ringing *and* in use */
 	AST_DEVICE_ONHOLD,       /*!< Device is on hold */
+	AST_DEVICE_TOTAL,        /*/ Total num of device states, used for testing */
 };
 
 /*! \brief Devicestate provider call back */
@@ -174,6 +175,64 @@ int ast_device_state_changed(const char *fmt, ...)
  * \note This is deprecated in favor of ast_devstate_changed_literal()
  */
 int ast_device_state_changed_literal(const char *device);
+
+/*!
+ * \brief An object to hold state when calculating aggregate device state
+ */
+struct ast_devstate_aggregate;
+
+/*!
+ * \brief Initialize aggregate device state
+ *
+ * \param[in] agg the state object
+ *
+ * \return nothing
+ */
+void ast_devstate_aggregate_init(struct ast_devstate_aggregate *agg);
+
+/*!
+ * \brief Add a device state to the aggregate device state
+ *
+ * \param[in] agg the state object
+ * \param[in] state the state to add
+ *
+ * \return nothing
+ */
+void ast_devstate_aggregate_add(struct ast_devstate_aggregate *agg, enum ast_device_state state);
+
+/*!
+ * \brief Get the aggregate device state result
+ *
+ * \param[in] agg the state object
+ *
+ * \return the aggregate device state after adding some number of device states.
+ */
+enum ast_device_state ast_devstate_aggregate_result(struct ast_devstate_aggregate *agg);
+
+/*!
+ * \brief Map devstate to an extension state.
+ *
+ * \param[in] device state
+ *
+ * \return the extension state mapping.
+ */
+enum ast_extension_states ast_devstate_to_extenstate(enum ast_device_state devstate);
+
+/*!
+ * \brief You shouldn't care about the contents of this struct
+ *
+ * This struct is only here so that it can be easily declared on the stack.
+ */
+struct ast_devstate_aggregate {
+	unsigned int all_unavail:1;
+	unsigned int all_busy:1;
+	unsigned int all_free:1;
+	unsigned int all_unknown:1;
+	unsigned int on_hold:1;
+	unsigned int busy:1;
+	unsigned int in_use:1;
+	unsigned int ring:1;
+};
 
 /*! 
  * \brief Add device state provider 
