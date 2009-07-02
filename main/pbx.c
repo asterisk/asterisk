@@ -22,7 +22,6 @@
  *
  * \author Mark Spencer <markster@digium.com>
  */
-
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -3263,7 +3262,6 @@ static int ast_extension_state2(struct ast_exten *e)
 	char hint[AST_MAX_EXTENSION] = "";
 	char *cur, *rest;
 	struct ast_devstate_aggregate agg;
-	enum ast_device_state state;
 
 	if (!e)
 		return -1;
@@ -3278,28 +3276,7 @@ static int ast_extension_state2(struct ast_exten *e)
 		ast_devstate_aggregate_add(&agg, ast_device_state(cur));
 	}
 
-	state = ast_devstate_aggregate_result(&agg);
-
-	switch (state) {
-	case AST_DEVICE_ONHOLD:
-		return AST_EXTENSION_ONHOLD;
-	case AST_DEVICE_BUSY:
-		return AST_EXTENSION_BUSY;
-	case AST_DEVICE_UNAVAILABLE:
-	case AST_DEVICE_UNKNOWN:
-	case AST_DEVICE_INVALID:
-		return AST_EXTENSION_UNAVAILABLE;
-	case AST_DEVICE_RINGINUSE:
-		return (AST_EXTENSION_INUSE | AST_EXTENSION_RINGING);
-	case AST_DEVICE_RINGING:
-		return AST_EXTENSION_RINGING;
-	case AST_DEVICE_INUSE:
-		return AST_EXTENSION_INUSE;
-	case AST_DEVICE_NOT_INUSE:
-		return AST_EXTENSION_NOT_INUSE;
-	}
-
-	return AST_EXTENSION_NOT_INUSE;
+	return ast_devstate_to_extenstate(ast_devstate_aggregate_result(&agg));
 }
 
 /*! \brief Return extension_state as string */
@@ -5586,6 +5563,36 @@ static char *handle_show_globals_deprecated(struct ast_cli_entry *e, int cmd, st
 	return res;
 }
 
+#ifdef AST_DEVMODE
+static char *handle_show_device2extenstate(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ast_devstate_aggregate agg;
+	int i, j, exten, combined;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show device2extenstate";
+		e->usage =
+			"Usage: core show device2extenstate\n"
+			"       Lists device state to extension state combinations.\n";
+	case CLI_GENERATE:
+		return NULL;
+	}
+	for (i = 0; i < AST_DEVICE_TOTAL; i++) {
+		for (j = 0; j < AST_DEVICE_TOTAL; j++) {
+			ast_devstate_aggregate_init(&agg);
+			ast_devstate_aggregate_add(&agg, i);
+			ast_devstate_aggregate_add(&agg, j);
+			combined = ast_devstate_aggregate_result(&agg);
+			exten = ast_devstate_to_extenstate(combined);
+			ast_cli(a->fd, "\n Exten:%14s  CombinedDevice:%12s  Dev1:%12s  Dev2:%12s", ast_extension_state2str(exten), ast_devstate_str(combined), ast_devstate_str(j), ast_devstate_str(i));
+		}
+	}
+	ast_cli(a->fd, "\n");
+	return CLI_SUCCESS;
+}
+#endif
+
 /*! \brief CLI support for listing chanvar's variables in a parseable way */
 static char *handle_show_chanvar(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -5766,6 +5773,9 @@ static struct ast_cli_entry pbx_cli[] = {
 	AST_CLI_DEFINE(handle_show_hints, "Show dialplan hints"),
 	AST_CLI_DEFINE(handle_show_hint, "Show dialplan hint"),
 	AST_CLI_DEFINE(handle_show_globals, "Show global dialplan variables", .deprecate_cmd = &cli_show_globals_deprecated),
+#ifdef AST_DEVMODE
+	AST_CLI_DEFINE(handle_show_device2extenstate, "Show expected exten state from multiple device states"),
+#endif
 	AST_CLI_DEFINE(handle_show_chanvar, "Show channel variables"),
 	AST_CLI_DEFINE(handle_show_function, "Describe a specific dialplan function"),
 	AST_CLI_DEFINE(handle_show_application, "Describe a specific dialplan application"),
