@@ -205,6 +205,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>R/O Get the peer's username.</para>
 					</enum>
 				</enumlist>
+				<para><emphasis>chan_dahdi</emphasis> provides the following additional options:</para>
+				<enumlist>
+					<enum name="reversecharge">
+						<para>R/O Reverse Charging Indication, one of:</para>
+						<enumlist>
+							<enum name="-1 - None" />
+							<enum name="1 - Reverse Charging Requested" />
+						</enumlist>
+					</enum>
+				</enumlist>
 			</parameter>
 		</syntax>
 		<description>

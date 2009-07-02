@@ -47,6 +47,11 @@ IAX2 Changes
  * Added rtsavesysname option into iax.conf to allow the systname to be saved
    on realtime updates.
 
+DAHDI Changes
+-------------
+ * Added Reverse Charging Indication receipt & transmission (requires latest
+   LibPRI).
+
 Applications
 ------------
  * Added progress option to the app_dial D() option.  When progress DTMF is

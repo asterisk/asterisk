@@ -1163,7 +1163,8 @@ static void *pri_dchannel(void *vpri)
 							pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
 							if (e->ring.redirectingreason >= 0)
 								pbx_builtin_setvar_helper(c, "PRIREDIRECTREASON", redirectingreason2str(e->ring.redirectingreason));
-						
+							pri->pvts[chanpos]->reverse_charging_indication = e->ring.reversecharge;
+
 							sig_pri_lock_private(pri->pvts[chanpos]);
 							ast_mutex_lock(&pri->lock);
 
@@ -1208,7 +1209,8 @@ static void *pri_dchannel(void *vpri)
 
 								if (e->ring.redirectingreason >= 0)
 									pbx_builtin_setvar_helper(c, "PRIREDIRECTREASON", redirectingreason2str(e->ring.redirectingreason));
-							
+								pri->pvts[chanpos]->reverse_charging_indication = e->ring.reversecharge;
+
 								snprintf(calledtonstr, sizeof(calledtonstr)-1, "%d", e->ring.calledplan);
 								pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
 
@@ -1888,6 +1890,11 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 		case 'r':
 			pridialplan = PRI_NPI_RESERVED | (pridialplan & 0xf0);
 			break;
+#if defined(PRI_REVERSECHARGE_REQUESTED)
+		case 'C':
+			pri_sr_set_reversecharge(sr, PRI_REVERSECHARGE_REQUESTED);
+			break;
+#endif
 		default:
 			if (isalpha(c[p->stripmsd])) {
 				ast_log(LOG_WARNING, "Unrecognized pridialplan %s modifier: %c\n",

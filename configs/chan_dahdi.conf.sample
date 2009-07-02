@@ -77,6 +77,11 @@
 ;service_message_support=yes
 ; Enable service message support for channel. Must be set after switchtype.
 ;
+; PRI Reverse Charging Indication: Indicate to the called party that the
+; call will be reverse charged.  To enable, prefix the dialed number with one
+; of the following letters:
+; C - Reverse Charge Indication Requested
+;
 ; PRI Dialplan: The ISDN-level Type Of Number (TON) or numbering plan, used for
 ; the dialed number.  For most installations, leaving this as 'unknown' (the
 ; default) works in the most cases.  In some very unusual circumstances, you

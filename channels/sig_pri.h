@@ -162,6 +162,7 @@ struct sig_pri_chan {
 	struct sig_pri_callback *calls;
 	void *chan_pvt;
 	ast_mutex_t service_lock;						/*!< Mutex for service messages */
+	int reverse_charging_indication;
 };
 
 struct sig_pri_pri {

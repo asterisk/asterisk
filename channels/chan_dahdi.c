@@ -5403,7 +5403,7 @@ static int dahdi_func_read(struct ast_channel *chan, const char *function, char 
 {
 	struct dahdi_pvt *p = chan->tech_pvt;
 	int res = 0;
-	
+
 	if (!strcasecmp(data, "rxgain")) {
 		ast_mutex_lock(&p->lock);
 		snprintf(buf, len, "%f", p->rxgain);
@@ -5412,8 +5412,19 @@ static int dahdi_func_read(struct ast_channel *chan, const char *function, char 
 		ast_mutex_lock(&p->lock);
 		snprintf(buf, len, "%f", p->txgain);
 		ast_mutex_unlock(&p->lock);
+#ifdef HAVE_PRI
+	} else if (!strcasecmp(data, "reversecharge")) {
+		ast_mutex_lock(&p->lock);
+		if (p->sig == SIG_PRI || p->sig == SIG_BRI || p->sig == SIG_BRI_PTMP) {
+			snprintf(buf, len, "%d", ((struct sig_pri_chan *) p->sig_pvt)->reverse_charging_indication);
+		} else {
+			*buf = '\0';
+			res = -1;
+		}
+		ast_mutex_unlock(&p->lock);
+#endif
 	} else {
-		ast_copy_string(buf, "", len);
+		*buf = '\0';
 		res = -1;
 	}
 
