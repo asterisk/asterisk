@@ -367,3 +367,116 @@ int ast_device_state_engine_init(void)
 
 	return 0;
 }
+
+void ast_devstate_aggregate_init(struct ast_devstate_aggregate *agg)
+{
+	memset(agg, 0, sizeof(*agg));
+	agg->all_unknown = 1;
+	agg->all_unavail = 1;
+	agg->all_busy = 1;
+	agg->all_free = 1;
+}
+
+void ast_devstate_aggregate_add(struct ast_devstate_aggregate *agg, enum ast_device_state state)
+{
+	switch (state) {
+	case AST_DEVICE_NOT_INUSE:
+		agg->all_unknown = 0;
+		agg->all_unavail = 0;
+		agg->all_busy = 0;
+		break;
+	case AST_DEVICE_INUSE:
+		agg->in_use = 1;
+		agg->all_unavail = 0;
+		agg->all_free = 0;
+		agg->all_unknown = 0;
+		break;
+	case AST_DEVICE_RINGING:
+		agg->ring = 1;
+		agg->all_unavail = 0;
+		agg->all_free = 0;
+		agg->all_unknown = 0;
+		break;
+	case AST_DEVICE_RINGINUSE:
+		agg->in_use = 1;
+		agg->ring = 1;
+		agg->all_unavail = 0;
+		agg->all_free = 0;
+		agg->all_unknown = 0;
+		break;
+	case AST_DEVICE_ONHOLD:
+		agg->all_unknown = 0;
+		agg->all_unavail = 0;
+		agg->all_free = 0;
+		agg->on_hold = 1;
+		break;
+	case AST_DEVICE_BUSY:
+		agg->all_unknown = 0;
+		agg->all_unavail = 0;
+		agg->all_free = 0;
+		agg->busy = 1;
+		agg->in_use = 1;
+		break;
+	case AST_DEVICE_UNAVAILABLE:
+		agg->all_unknown = 0;
+	case AST_DEVICE_INVALID:
+		agg->all_busy = 0;
+		agg->all_free = 0;
+		break;
+	case AST_DEVICE_UNKNOWN:
+		agg->all_busy = 0;
+		agg->all_free = 0;
+		break;
+	case AST_DEVICE_TOTAL: /* not a device state, included for completeness. */
+		break;
+	}
+}
+
+enum ast_extension_states ast_devstate_to_extenstate(enum ast_device_state devstate)
+{
+	switch (devstate) {
+	case AST_DEVICE_ONHOLD:
+		return AST_EXTENSION_ONHOLD;
+	case AST_DEVICE_BUSY:
+		return AST_EXTENSION_BUSY;
+	case AST_DEVICE_UNAVAILABLE:
+	case AST_DEVICE_UNKNOWN:
+	case AST_DEVICE_INVALID:
+		return AST_EXTENSION_UNAVAILABLE;
+	case AST_DEVICE_RINGINUSE:
+		return (AST_EXTENSION_INUSE | AST_EXTENSION_RINGING);
+	case AST_DEVICE_RINGING:
+		return AST_EXTENSION_RINGING;
+	case AST_DEVICE_INUSE:
+		return AST_EXTENSION_INUSE;
+	case AST_DEVICE_NOT_INUSE:
+		return AST_EXTENSION_NOT_INUSE;
+	case AST_DEVICE_TOTAL: /* not a device state, included for completeness */
+		break;
+	}
+
+	return AST_EXTENSION_NOT_INUSE;
+}
+enum ast_device_state ast_devstate_aggregate_result(struct ast_devstate_aggregate *agg)
+{
+	if (agg->all_free)
+		return AST_DEVICE_NOT_INUSE;
+	if ((agg->in_use || agg->on_hold) && agg->ring)
+		return AST_DEVICE_RINGINUSE;
+	if (agg->ring)
+		return AST_DEVICE_RINGING;
+	if (agg->busy)
+		return AST_DEVICE_BUSY;
+	if (agg->in_use)
+		return AST_DEVICE_INUSE;
+	if (agg->on_hold)
+		return AST_DEVICE_ONHOLD;
+	if (agg->all_busy)
+		return AST_DEVICE_BUSY;
+	if (agg->all_unknown)
+		return AST_DEVICE_UNKNOWN;
+	if (agg->all_unavail)
+		return AST_DEVICE_UNAVAILABLE;
+
+	return AST_DEVICE_NOT_INUSE;
+}
