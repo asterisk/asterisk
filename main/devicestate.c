@@ -45,15 +45,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /*! \brief Device state strings for printing */
 static const char *devstatestring[] = {
-	/* 0 AST_DEVICE_UNKNOWN */	"Unknown",	/*!< Valid, but unknown state */
-	/* 1 AST_DEVICE_NOT_INUSE */	"Not in use",	/*!< Not used */
-	/* 2 AST_DEVICE IN USE */	"In use",	/*!< In use */
-	/* 3 AST_DEVICE_BUSY */		"Busy",		/*!< Busy */
-	/* 4 AST_DEVICE_INVALID */	"Invalid",	/*!< Invalid - not known to Asterisk */
-	/* 5 AST_DEVICE_UNAVAILABLE */	"Unavailable",	/*!< Unavailable (not registered) */
-	/* 6 AST_DEVICE_RINGING */	"Ringing",	/*!< Ring, ring, ring */
-	/* 7 AST_DEVICE_RINGINUSE */	"Ring+Inuse",	/*!< Ring and in use */
-	/* 8 AST_DEVICE_ONHOLD */	"On Hold"	/*!< On Hold */
+	/* 0 AST_DEVICE_UNKNOWN */    "Unknown",    /*!< Valid, but unknown state */
+	/* 1 AST_DEVICE_NOT_INUSE */  "Not in use", /*!< Not used */
+	/* 2 AST_DEVICE IN USE */     "In use",     /*!< In use */
+	/* 3 AST_DEVICE_BUSY */	      "Busy",       /*!< Busy */
+	/* 4 AST_DEVICE_INVALID */    "Invalid",    /*!< Invalid - not known to Asterisk */
+	/* 5 AST_DEVICE_UNAVAILABLE */"Unavailable",/*!< Unavailable (not registered) */
+	/* 6 AST_DEVICE_RINGING */    "Ringing",    /*!< Ring, ring, ring */
+	/* 7 AST_DEVICE_RINGINUSE */  "Ring+Inuse", /*!< Ring and in use */
+	/* 8 AST_DEVICE_ONHOLD */     "On Hold"     /*!< On Hold */
 };
 
 /*! \brief  A device state provider (not a channel) */
@@ -95,7 +95,7 @@ static ast_cond_t change_pending;
 static int getproviderstate(const char *provider, const char *address);
 
 /*! \brief Find devicestate as text message for output */
-const char *devstate2str(int devstate) 
+const char *devstate2str(enum ast_device_state devstate) 
 {
 	return devstatestring[devstate];
 }

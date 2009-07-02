@@ -27,24 +27,18 @@
 extern "C" {
 #endif
 
-/*! Device is valid but channel didn't know state */
-#define AST_DEVICE_UNKNOWN	0
-/*! Device is not used */
-#define AST_DEVICE_NOT_INUSE	1
-/*! Device is in use */
-#define AST_DEVICE_INUSE	2
-/*! Device is busy */
-#define AST_DEVICE_BUSY		3
-/*! Device is invalid */
-#define AST_DEVICE_INVALID	4
-/*! Device is unavailable */
-#define AST_DEVICE_UNAVAILABLE	5
-/*! Device is ringing */
-#define AST_DEVICE_RINGING	6
-/*! Device is ringing *and* in use */
-#define AST_DEVICE_RINGINUSE	7
-/*! Device is on hold */
-#define AST_DEVICE_ONHOLD	8
+enum ast_device_state {
+	AST_DEVICE_UNKNOWN,      /*!< Device is valid but channel didn't know state */
+	AST_DEVICE_NOT_INUSE,    /*!< Device is not used */
+	AST_DEVICE_INUSE,        /*!< Device is in use */
+	AST_DEVICE_BUSY,         /*!< Device is busy */
+	AST_DEVICE_INVALID,      /*!< Device is invalid */
+	AST_DEVICE_UNAVAILABLE,  /*!< Device is unavailable */
+	AST_DEVICE_RINGING,      /*!< Device is ringing */
+	AST_DEVICE_RINGINUSE,    /*!< Device is ringing *and* in use */
+	AST_DEVICE_ONHOLD,       /*!< Device is on hold */
+	AST_DEVICE_TOTAL,        /*!< Total num of device states, used for testing */
+};
 
 /*! \brief Devicestate watcher call back */
 typedef int (*ast_devstate_cb_type)(const char *dev, int state, void *data);
@@ -55,7 +49,7 @@ typedef int (*ast_devstate_prov_cb_type)(const char *data);
 /*! \brief Convert device state to text string for output 
  * \param devstate Current device state 
  */
-const char *devstate2str(int devstate);
+const char *devstate2str(enum ast_device_state devstate);
 
 /*! \brief Search the Channels by Name
  * \param device like a dialstring
