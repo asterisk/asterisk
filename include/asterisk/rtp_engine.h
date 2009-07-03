@@ -26,34 +26,40 @@
 /*!
  * \page AstRTPEngine Asterisk RTP Engine API
  *
- * The purpose of this API is to provide a way for multiple RTP stacks to be used inside
- * of Asterisk without any module that uses RTP knowing any different. To the module each RTP
- * stack behaves the same.
+ * The purpose of this API is to provide a way for multiple RTP stacks to be
+ * used inside of Asterisk without any module that uses RTP knowing any
+ * different. To the module each RTP stack behaves the same.
  *
- * An RTP session is called an instance and is made up of a combination of codec information,
- * RTP engine, RTP properties, and address information. An engine name may be passed in to explicitly
- * choose an RTP stack to be used but a default one will be used if none is provided. An address to use
- * for RTP may also be provided but the underlying RTP engine may choose a different address depending on
- * it's configuration.
+ * An RTP session is called an instance and is made up of a combination of codec
+ * information, RTP engine, RTP properties, and address information. An engine
+ * name may be passed in to explicitly choose an RTP stack to be used but a
+ * default one will be used if none is provided. An address to use for RTP may
+ * also be provided but the underlying RTP engine may choose a different address
+ * depending on it's configuration.
  *
- * An RTP engine is the layer between the RTP engine core and the RTP stack itself. The RTP engine core provides
- * a set of callbacks to do various things (such as write audio out) that the RTP engine has to have implemented.
+ * An RTP engine is the layer between the RTP engine core and the RTP stack
+ * itself. The RTP engine core provides a set of callbacks to do various things
+ * (such as write audio out) that the RTP engine has to have implemented.
  *
- * Glue is what binds an RTP instance to a channel. It is used to retrieve RTP instance information when
- * performing remote or local bridging and is used to have the channel driver tell the remote side to change
- * destination of the RTP stream.
+ * Glue is what binds an RTP instance to a channel. It is used to retrieve RTP
+ * instance information when performing remote or local bridging and is used to
+ * have the channel driver tell the remote side to change destination of the RTP
+ * stream.
  *
- * Statistics from an RTP instance can be retrieved using the ast_rtp_instance_get_stats API call. This essentially
- * asks the RTP engine in use to fill in a structure with the requested values. It is not required for an RTP engine
- * to support all statistic values.
+ * Statistics from an RTP instance can be retrieved using the
+ * ast_rtp_instance_get_stats API call. This essentially asks the RTP engine in
+ * use to fill in a structure with the requested values. It is not required for
+ * an RTP engine to support all statistic values.
  *
- * Properties allow behavior of the RTP engine and RTP engine core to be changed. For example, there is a property named
- * AST_RTP_PROPERTY_NAT which is used to tell the RTP engine to enable symmetric RTP if it supports it. It is not required
- * for an RTP engine to support all properties.
+ * Properties allow behavior of the RTP engine and RTP engine core to be
+ * changed. For example, there is a property named AST_RTP_PROPERTY_NAT which is
+ * used to tell the RTP engine to enable symmetric RTP if it supports it. It is
+ * not required for an RTP engine to support all properties.
  *
- * Codec information is stored using a separate data structure which has it's own set of API calls to add/remove/retrieve
- * information. They are used by the module after an RTP instance is created so that payload information is available for
- * the RTP engine.
+ * Codec information is stored using a separate data structure which has it's
+ * own set of API calls to add/remove/retrieve information. They are used by the
+ * module after an RTP instance is created so that payload information is
+ * available for the RTP engine.
  */
 
 #ifndef _ASTERISK_RTP_ENGINE_H
