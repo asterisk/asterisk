@@ -1441,6 +1441,8 @@ AST_EXT_LIB_CHECK([PRI_INBANDDISCONNECT], [pri], [pri_set_inbanddisconnect], [li
 
 AST_EXT_LIB_CHECK([PRI_SERVICE_MESSAGES], [pri], [pri_maintenance_service], [libpri.h])
 
+AST_EXT_LIB_CHECK([PRI_REVERSE_CHARGE], [pri], [pri_sr_set_reversecharge], [libpri.h])
+
 AST_EXT_LIB_CHECK([RESAMPLE], [resample], [resample_open], [libresample.h], [-lm])
 
 AST_C_COMPILE_CHECK([SPANDSP], [

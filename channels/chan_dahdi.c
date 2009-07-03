@@ -5412,7 +5412,7 @@ static int dahdi_func_read(struct ast_channel *chan, const char *function, char 
 		ast_mutex_lock(&p->lock);
 		snprintf(buf, len, "%f", p->txgain);
 		ast_mutex_unlock(&p->lock);
-#ifdef HAVE_PRI
+#if defined(HAVE_PRI_REVERSE_CHARGE)
 	} else if (!strcasecmp(data, "reversecharge")) {
 		ast_mutex_lock(&p->lock);
 		if (p->sig == SIG_PRI || p->sig == SIG_BRI || p->sig == SIG_BRI_PTMP) {
