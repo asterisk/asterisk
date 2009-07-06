@@ -1563,6 +1563,7 @@ reconnect_tryagain:
 			ast_log(LOG_ERROR, "MySQL RealTime: Failed to connect database server %s on %s (err %d). Check debug for more info.\n", conn->name, !ast_strlen_zero(conn->host) ? conn->host : conn->sock, mysql_errno(&conn->handle));
 			ast_debug(1, "MySQL RealTime: Cannot Connect (%d): %s\n", mysql_errno(&conn->handle), mysql_error(&conn->handle));
 			conn->connected = 0;
+			conn->connect_time = 0;
 			return 0;
 		}
 	} else {
@@ -1570,13 +1571,16 @@ reconnect_tryagain:
 		 * So the postman pings twice. */
 		if (mysql_ping(&conn->handle) != 0 && (usleep(1) + 2 > 0) && mysql_ping(&conn->handle) != 0) {
 			conn->connected = 0;
+			conn->connect_time = 0;
 			ast_log(LOG_ERROR, "MySQL RealTime: Ping failed (%d).  Trying an explicit reconnect.\n", mysql_errno(&conn->handle));
 			ast_debug(1, "MySQL RealTime: Server Error (%d): %s\n", mysql_errno(&conn->handle), mysql_error(&conn->handle));
 			goto reconnect_tryagain;
 		}
 
-		conn->connected = 1;
-		conn->connect_time = time(NULL);
+		if (!conn->connected) {
+			conn->connected = 1;
+			conn->connect_time = time(NULL);
+		}
 
 		if (mysql_select_db(&conn->handle, conn->name) != 0) {
 			ast_log(LOG_WARNING, "MySQL RealTime: Unable to select database: %s. Still Connected (%u) - %s.\n", conn->name, mysql_errno(&conn->handle), mysql_error(&conn->handle));
@@ -1660,7 +1664,7 @@ static char *handle_cli_realtime_mysql_cache(struct ast_cli_entry *e, int cmd, s
 			AST_LIST_TRAVERSE(&cur->columns, col, list) {
 				ast_cli(a->fd, "%-20.20s %-20.20s %3d\n", col->name, col->type, col->len);
 			}
-			ast_mutex_unlock(&cur->lock);
+			release_table(cur);
 		} else {
 			ast_cli(a->fd, "No such table '%s'\n", a->argv[3]);
 		}
