@@ -37,6 +37,7 @@
 #include "asterisk/manager.h"
 #include "asterisk/astdb.h"
 #include "asterisk/features.h"
+#include "asterisk/cel.h"
 
 #include "sig_analog.h"
 
@@ -508,6 +509,9 @@ static int analog_attempt_transfer(struct analog_pvt *p)
 		if (p->subs[ANALOG_SUB_THREEWAY].owner->_state == AST_STATE_RING) {
 			analog_play_tone(p, ANALOG_SUB_THREEWAY, ANALOG_TONE_RINGTONE);
 		}
+		if (!p->subs[ANALOG_SUB_THREEWAY].inthreeway) {
+			ast_cel_report_event(p->subs[ANALOG_SUB_THREEWAY].owner, AST_CEL_ATTENDEDTRANSFER, NULL, p->subs[ANALOG_SUB_THREEWAY].owner->linkedid, NULL);
+		}
 		 if (ast_channel_masquerade(p->subs[ANALOG_SUB_THREEWAY].owner, ast_bridged_channel(p->subs[ANALOG_SUB_REAL].owner))) {
 			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
 					ast_bridged_channel(p->subs[ANALOG_SUB_REAL].owner)->name, p->subs[ANALOG_SUB_THREEWAY].owner->name);
@@ -524,6 +528,7 @@ static int analog_attempt_transfer(struct analog_pvt *p)
 		if (p->subs[ANALOG_SUB_REAL].owner->_state == AST_STATE_RING) {
 			analog_play_tone(p, ANALOG_SUB_REAL, ANALOG_TONE_RINGTONE);
 		}
+		ast_cel_report_event(p->subs[ANALOG_SUB_THREEWAY].owner, AST_CEL_BLINDTRANSFER, NULL, p->subs[ANALOG_SUB_THREEWAY].owner->linkedid, NULL);
 		if (ast_channel_masquerade(p->subs[ANALOG_SUB_REAL].owner, ast_bridged_channel(p->subs[ANALOG_SUB_THREEWAY].owner))) {
 			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
 					ast_bridged_channel(p->subs[ANALOG_SUB_THREEWAY].owner)->name, p->subs[ANALOG_SUB_REAL].owner->name);
@@ -2338,9 +2343,6 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 						ast_channel_unlock(p->subs[ANALOG_SUB_THREEWAY].owner);
 					} else if ((ast->pbx) || (ast->_state == AST_STATE_UP)) {
 						if (p->transfer) {
-							/* In any case this isn't a threeway call anymore */
-							p->subs[ANALOG_SUB_REAL].inthreeway = 0;
-							p->subs[ANALOG_SUB_THREEWAY].inthreeway = 0;
 							/* Only attempt transfer if the phone is ringing; why transfer to busy tone eh? */
 							if (!p->transfertobusy && ast->_state == AST_STATE_BUSY) {
 								ast_channel_unlock(p->subs[ANALOG_SUB_THREEWAY].owner);
@@ -2355,18 +2357,26 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 									if (p->subs[ANALOG_SUB_THREEWAY].owner)
 										ast_channel_unlock(p->subs[ANALOG_SUB_THREEWAY].owner);
 								} else if (res) {
+									/* this isn't a threeway call anymore */
+									p->subs[ANALOG_SUB_REAL].inthreeway = 0;
+									p->subs[ANALOG_SUB_THREEWAY].inthreeway = 0;
+
 									/* Don't actually hang up at this point */
 									if (p->subs[ANALOG_SUB_THREEWAY].owner)
 										ast_channel_unlock(&p->subs[ANALOG_SUB_THREEWAY].owner);
 									break;
 								}
 							}
+							/* this isn't a threeway call anymore */
+							p->subs[ANALOG_SUB_REAL].inthreeway = 0;
+							p->subs[ANALOG_SUB_THREEWAY].inthreeway = 0;
 						} else {
 							ast_softhangup_nolock(p->subs[ANALOG_SUB_THREEWAY].owner, AST_SOFTHANGUP_DEV);
 							if (p->subs[ANALOG_SUB_THREEWAY].owner)
 								ast_channel_unlock(p->subs[ANALOG_SUB_THREEWAY].owner);
 						}
 					} else {
+						ast_cel_report_event(ast, AST_CEL_BLINDTRANSFER, NULL, ast->linkedid, NULL);
 						ast_channel_unlock(p->subs[ANALOG_SUB_THREEWAY].owner);
 						/* Swap subs and dis-own channel */
 						analog_swap_subs(p, ANALOG_SUB_THREEWAY, ANALOG_SUB_REAL);
