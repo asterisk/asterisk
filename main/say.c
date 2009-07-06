@@ -447,6 +447,8 @@ static int say_number_full(struct ast_channel *chan, int num, const char *ints, 
 	   return ast_say_number_full_gr(chan, num, ints, language, audiofd, ctrlfd);
 	} else if (!strncasecmp(language, "he", 2)) { /* Hebrew syntax */
 	   return ast_say_number_full_he(chan, num, ints, language, options, audiofd, ctrlfd);
+	} else if (!strncasecmp(language, "hu", 2)) { /* Hungarian syntax */
+	   return ast_say_number_full_hu(chan, num, ints, language, audiofd, ctrlfd);
 	} else if (!strncasecmp(language, "it", 2)) { /* Italian syntax */
 	   return ast_say_number_full_it(chan, num, ints, language, audiofd, ctrlfd);
 	} else if (!strncasecmp(language, "ka", 2)) { /* Georgian syntax */
