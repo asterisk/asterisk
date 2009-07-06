@@ -3548,6 +3548,7 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	default:
 		break;
 	}
+
 	if (chan->tech->indicate) {
 		/* See if the channel driver can handle this condition. */
 		res = chan->tech->indicate(chan, condition, data, datalen);
@@ -3557,7 +3558,7 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 
 	ast_channel_unlock(chan);
 
-	if (chan->tech->indicate && !res) {
+	if (!res) {
 		/* The channel driver successfully handled this indication */
 		if (is_visible_indication(condition)) {
 			chan->visible_indication = condition;
@@ -3579,6 +3580,15 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 
 	/* Handle conditions that we have tones for. */
 	switch (condition) {
+	case AST_CONTROL_T38:
+	case AST_CONTROL_T38_PARAMETERS:
+		/* there is no way to provide 'default' behavior for these
+		 * control frames, so we need to return failure, but there
+		 * is also no value in the log message below being emitted
+		 * since failure to handle these frames is not an 'error'
+		 * so just return right now.
+		 */
+		return -1;
 	case AST_CONTROL_RINGING:
 		ts = ast_get_indication_tone(chan->zone, "ring");
 		/* It is common practice for channel drivers to return -1 if trying
@@ -3614,11 +3624,9 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	case AST_CONTROL_RING:
 	case AST_CONTROL_HOLD:
 	case AST_CONTROL_UNHOLD:
-	case AST_CONTROL_T38:
 	case AST_CONTROL_TRANSFER:
 	case AST_CONTROL_CONNECTED_LINE:
 	case AST_CONTROL_REDIRECTING:
-	case AST_CONTROL_T38_PARAMETERS:
 		/* Nothing left to do for these. */
 		res = 0;
 		break;
