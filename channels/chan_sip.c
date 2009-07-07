@@ -23970,7 +23970,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	struct sip_peer tmp_peer;
 	const char *srvlookup = NULL;
 	static int deprecation_warning = 1;
-	int alt_fullcontact = alt ? 1 : 0;
+	int alt_fullcontact = alt ? 1 : 0, headercount = 0;
 	struct ast_str *fullcontact = ast_str_alloca(512);
 
 	if (!realtime || ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS)) {
@@ -24294,6 +24294,10 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			}
 		} else if (!strcasecmp(v->name, "setvar")) {
 			peer->chanvars = add_var(v->value, peer->chanvars);
+		} else if (!strcasecmp(v->name, "header")) {
+			char tmp[4096];
+			snprintf(tmp, sizeof(tmp), "__SIPADDHEADERpre%2d=%s", ++headercount, v->value);
+			peer->chanvars = add_var(tmp, peer->chanvars);
 		} else if (!strcasecmp(v->name, "qualify")) {
 			if (!strcasecmp(v->value, "no")) {
 				peer->maxms = 0;
