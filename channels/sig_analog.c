@@ -536,7 +536,7 @@ static int analog_attempt_transfer(struct analog_pvt *p)
 		}
 		/* Three-way is now the REAL */
 		analog_swap_subs(p, ANALOG_SUB_THREEWAY, ANALOG_SUB_REAL);
-		ast_channel_unlock(p->subs[ANALOG_SUB_THREEWAY].owner);
+		ast_channel_unlock(p->subs[ANALOG_SUB_REAL].owner); /* unlock REAL because THREEWAY has become REAL */
 		analog_unalloc_sub(p, ANALOG_SUB_THREEWAY);
 		/* Tell the caller not to hangup */
 		return 1;
