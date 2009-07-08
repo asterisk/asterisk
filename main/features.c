@@ -258,7 +258,8 @@ struct parkeduser {
 	char exten[AST_MAX_EXTENSION];
 	int priority;
 	int parkingtime;                            /*!< Maximum length in parking lot before return */
-	int notquiteyet;
+	unsigned int notquiteyet:1;
+	unsigned int options_specified:1;
 	char peername[1024];
 	unsigned char moh_trys;
 	struct ast_parkinglot *parkinglot;
@@ -791,13 +792,20 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 
 	/* Remember what had been dialed, so that if the parking
 	   expires, we try to come back to the same place */
+
+	pu->options_specified = (!ast_strlen_zero(args->return_con) || !ast_strlen_zero(args->return_ext) || args->return_pri);
+
+	/* If extension has options specified, they override all other possibilities
+	such as the returntoorigin flag and transferred context. Information on
+	extension options is lost here, so we set a flag */
+
 	ast_copy_string(pu->context, 
 		S_OR(args->return_con, S_OR(chan->macrocontext, chan->context)), 
 		sizeof(pu->context));
 	ast_copy_string(pu->exten, 
 		S_OR(args->return_ext, S_OR(chan->macroexten, chan->exten)), 
 		sizeof(pu->exten));
-	pu->priority = pu->priority ? pu->priority : 
+	pu->priority = args->return_pri ? args->return_pri : 
 		(chan->macropriority ? chan->macropriority : chan->priority);
 
 	/* If parking a channel directly, don't quiet yet get parking running on it.
@@ -3251,13 +3259,18 @@ int manage_parkinglot(struct ast_parkinglot *curlot, fd_set *rfds, fd_set *efds,
 
 					ast_add_extension2(con, 1, peername_flat, 1, NULL, NULL, "Dial", ast_strdup(returnexten), ast_free_ptr, registrar);
 				}
-				if (comebacktoorigin) {
-					set_c_e_p(chan, pu->parkinglot->parking_con_dial, peername_flat, 1);
+				if (pu->options_specified == 1) {
+					/* Park() was called with overriding return arguments, respect those arguments */
+					set_c_e_p(chan, pu->context, pu->exten, pu->priority);
 				} else {
-					ast_log(LOG_WARNING, "now going to parkedcallstimeout,s,1 | ps is %d\n",pu->parkingnum);
-					snprintf(parkingslot, sizeof(parkingslot), "%d", pu->parkingnum);
-					pbx_builtin_setvar_helper(chan, "PARKINGSLOT", parkingslot);
-					set_c_e_p(chan, "parkedcallstimeout", peername_flat, 1);
+					if (comebacktoorigin) {
+						set_c_e_p(chan, pu->parkinglot->parking_con_dial, peername_flat, 1);
+					} else {
+						ast_log(LOG_WARNING, "now going to parkedcallstimeout,s,1 | ps is %d\n",pu->parkingnum);
+						snprintf(parkingslot, sizeof(parkingslot), "%d", pu->parkingnum);
+						pbx_builtin_setvar_helper(chan, "PARKINGSLOT", parkingslot);
+						set_c_e_p(chan, "parkedcallstimeout", peername_flat, 1);
+					}
 				}
 			} else {
 				/* They've been waiting too long, send them back to where they came.  Theoretically they
