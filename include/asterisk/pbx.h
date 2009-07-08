@@ -273,6 +273,14 @@ int ast_add_extension2(struct ast_context *con, int replace, const char *extensi
 	int priority, const char *label, const char *callerid, 
 	const char *application, void *data, void (*datad)(void *), const char *registrar);
 
+/*!
+ * \brief Map devstate to an extension state.
+ *
+ * \param[in] device state
+ *
+ * \return the extension state mapping.
+ */
+enum ast_extension_states ast_devstate_to_extenstate(enum ast_device_state devstate);
 
 /*! 
  * \brief Register an application.

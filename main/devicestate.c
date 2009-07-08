@@ -432,31 +432,6 @@ void ast_devstate_aggregate_add(struct ast_devstate_aggregate *agg, enum ast_dev
 	}
 }
 
-enum ast_extension_states ast_devstate_to_extenstate(enum ast_device_state devstate)
-{
-	switch (devstate) {
-	case AST_DEVICE_ONHOLD:
-		return AST_EXTENSION_ONHOLD;
-	case AST_DEVICE_BUSY:
-		return AST_EXTENSION_BUSY;
-	case AST_DEVICE_UNAVAILABLE:
-	case AST_DEVICE_UNKNOWN:
-	case AST_DEVICE_INVALID:
-		return AST_EXTENSION_UNAVAILABLE;
-	case AST_DEVICE_RINGINUSE:
-		return (AST_EXTENSION_INUSE | AST_EXTENSION_RINGING);
-	case AST_DEVICE_RINGING:
-		return AST_EXTENSION_RINGING;
-	case AST_DEVICE_INUSE:
-		return AST_EXTENSION_INUSE;
-	case AST_DEVICE_NOT_INUSE:
-		return AST_EXTENSION_NOT_INUSE;
-	case AST_DEVICE_TOTAL: /* not a device state, included for completeness */
-		break;
-	}
-
-	return AST_EXTENSION_NOT_INUSE;
-}
 enum ast_device_state ast_devstate_aggregate_result(struct ast_devstate_aggregate *agg)
 {
 	if (agg->all_free)
