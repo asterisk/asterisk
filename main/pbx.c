@@ -9596,7 +9596,7 @@ int load_pbx(void)
 	/* Register manager application */
 	ast_manager_register_xml("ShowDialPlan", EVENT_FLAG_CONFIG | EVENT_FLAG_REPORTING, manager_show_dialplan);
 
-	if (!(device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE_CHANGE, device_state_cb, "pbx Device State Change", NULL,
+	if (!(device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE, device_state_cb, "pbx Device State Change", NULL,
 			AST_EVENT_IE_END))) {
 		return -1;
 	}
