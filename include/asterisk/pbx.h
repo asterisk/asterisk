@@ -24,6 +24,7 @@
 #define _ASTERISK_PBX_H
 
 #include "asterisk/sched.h"
+#include "asterisk/devicestate.h"
 #include "asterisk/chanvars.h"
 #include "asterisk/hashtab.h"
 #include "asterisk/stringfields.h"
@@ -361,6 +362,14 @@ int ast_add_extension2(struct ast_context *con, int replace, const char *extensi
 	int priority, const char *label, const char *callerid, 
 	const char *application, void *data, void (*datad)(void *), const char *registrar);
 
+/*!
+ * \brief Map devstate to an extension state.
+ *
+ * \param[in] device state
+ *
+ * \return the extension state mapping.
+ */
+enum ast_extension_states ast_devstate_to_extenstate(enum ast_device_state devstate);
 
 /*! 
  * \brief Uses hint and devicestate callback to get the state of an extension
