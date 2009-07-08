@@ -163,6 +163,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/file.h"
 #include "asterisk/astobj.h"
+#include "asterisk/astobj2.h"
 #include "asterisk/dnsmgr.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/linkedlists.h"
@@ -1352,9 +1353,25 @@ static void dialoglist_unlock(void)
 #define dialoglist_unlock(x) ast_mutex_unlock(&dialoglock)
 #endif
 
-#define sip_pvt_lock(x) ast_mutex_lock(&x->pvt_lock)
-#define sip_pvt_trylock(x) ast_mutex_trylock(&x->pvt_lock)
-#define sip_pvt_unlock(x) ast_mutex_unlock(&x->pvt_lock)
+#define sip_pvt_lock(x) ao2_lock(x)
+#define sip_pvt_trylock(x) ao2_trylock(x)
+#define sip_pvt_unlock(x) ao2_unlock(x)
+
+static struct sip_pvt *dialog_ref(struct sip_pvt *p)
+{
+	if (p)
+		ao2_ref(p, 1);
+	else
+		ast_log(LOG_ERROR, "Attempt to Ref a null pointer\n");
+	return p;
+}
+
+static struct sip_pvt *dialog_unref(struct sip_pvt *p)
+{
+	if (p)
+		ao2_ref(p, -1);
+	return NULL;
+}
 
 /*! \brief sip packet - raw format for outbound packets that are sent or scheduled for transmission
  * Packets are linked in a list, whose head is in the struct sip_pvt they belong to.
@@ -1757,7 +1774,7 @@ static int __sip_autodestruct(const void *data);
 static void sip_scheddestroy(struct sip_pvt *p, int ms);
 static int sip_cancel_destroy(struct sip_pvt *p);
 static struct sip_pvt *sip_destroy(struct sip_pvt *p);
-static int __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist);
+static int __sip_destroy(struct sip_pvt *p, int lockowner);
 static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod);
 static void __sip_pretend_ack(struct sip_pvt *p);
 static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod);
@@ -2327,6 +2344,66 @@ static struct sip_registry *registry_addref(struct sip_registry *reg)
 	ast_debug(3, "SIP Registry %s: refcount now %d\n", reg->hostname, reg->refcount + 1);
 	return ASTOBJ_REF(reg);	/* Add pointer to registry in packet */
 }
+
+
+static int dialog_check_destroy(struct sip_pvt *p)
+{
+/* We absolutely cannot destroy the rtp struct while a bridge is active or we WILL crash */
+	if (p->rtp && ast_rtp_get_bridged(p->rtp)) {
+		ast_debug(2, "Bridge still active.  Delaying destroy of SIP dialog '%s' Method: %s\n", p->callid, sip_methods[p->method].text);
+		return -1;
+	}
+
+	if (p->vrtp && ast_rtp_get_bridged(p->vrtp)) {
+		ast_debug(2, "Bridge still active.  Delaying destroy of SIP dialog '%s' Method: %s\n", p->callid, sip_methods[p->method].text);
+		return -1;
+	}
+	return 0;
+}
+
+
+/*!
+ * \brief Destroys a dialog by safely removing all existing references.
+ */
+static int dialog_cleanup_and_destroy(struct sip_pvt *p)
+{
+	struct sip_pvt *cur, *prev = NULL;
+	/* if dialog_check_destroy() fails, a bridge is still active,
+	 * after that bridge is closed, cleanup_and_destroy is called
+	 * again. */
+	if (dialog_check_destroy(p)) {
+		return -1;
+	}
+
+	/* Lock dialog list before removing ourselves from the list */
+	dialoglist_lock();
+	for (prev = NULL, cur = dialoglist; cur; prev = cur, cur = cur->next) {
+		if (cur == p) {
+			UNLINK(cur, dialoglist, prev);
+			break;
+		}
+	}
+	dialoglist_unlock();
+	if (!cur) {
+		ast_log(LOG_WARNING, "Trying to destroy \"%s\", not found in dialog list?!?! \n", p->callid);
+		return 0;
+	}
+
+	/* All scheduled items holding a dialog ref must be deleted
+	 * and unrefed here before destruction can take place. */
+
+	/* Destroy Session-Timers if allocated */
+	if (p->stimer) {
+		if (p->stimer->st_active == TRUE && p->stimer->st_schedid > -1) {
+			AST_SCHED_DEL_UNREF(sched, p->stimer->st_schedid, dialog_unref(p));
+		}
+		ast_free(p->stimer);
+	}
+	/* this is the last dialog ref */
+	dialog_unref(p);
+	return 0;
+}
+
 
 /*! \brief Interface structure with callbacks used to connect to UDPTL module*/
 static struct ast_udptl_protocol sip_udptl = {
@@ -3024,7 +3101,7 @@ static int __sip_autodestruct(const void *data)
 	} else {
 		append_history(p, "AutoDestroy", "%s", p->callid);
 		ast_debug(3, "Auto destroying SIP dialog '%s'\n", p->callid);
-		sip_destroy(p);		/* Go ahead and destroy dialog. All attempts to recover is done */
+		dialog_cleanup_and_destroy(p); /* sip_destroy(p);   Go ahead and destroy dialog. All attempts to recover is done */
 		/* sip_destroy also absorbs the reference */
 	}
 	return 0;
@@ -3623,11 +3700,15 @@ static void sip_destroy_peer(struct sip_peer *peer)
 	peer->outboundproxy = NULL;
 
 	/* Delete it, it needs to disappear */
-	if (peer->call)
-		peer->call = sip_destroy(peer->call);
+	if (peer->call) {
+		dialog_cleanup_and_destroy(peer->call);
+		peer->call = NULL; /* sip_destroy(peer->call);*/
+	}
 
-	if (peer->mwipvt) 	/* We have an active subscription, delete it */
-		peer->mwipvt = sip_destroy(peer->mwipvt);
+	if (peer->mwipvt) {    /* We have an active subscription, delete it */
+		dialog_cleanup_and_destroy(peer->mwipvt);
+		peer->mwipvt = NULL;   /*sip_destroy(peer->mwipvt);*/
+	}
 
 	if (peer->chanvars) {
 		ast_variables_destroy(peer->chanvars);
@@ -4472,33 +4553,21 @@ static void sip_registry_destroy(struct sip_registry *reg)
 		   we don't get reentered trying to grab the registry lock */
 		reg->call->registry = NULL;
 		ast_debug(3, "Destroying active SIP dialog for registry %s@%s\n", reg->username, reg->hostname);
-		reg->call = sip_destroy(reg->call);
+		dialog_cleanup_and_destroy(reg->call);
+		reg->call = NULL; /*sip_destroy(reg->call);*/
 	}
 	AST_SCHED_DEL(sched, reg->expire);
 	AST_SCHED_DEL(sched, reg->timeout);
 	ast_string_field_free_memory(reg);
 	regobjs--;
 	ast_free(reg);
-	
 }
 
 /*! \brief Execute destruction of SIP dialog structure, release memory */
-static int __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
+static int __sip_destroy(struct sip_pvt *p, int lockowner)
 {
-	struct sip_pvt *cur, *prev = NULL;
 	struct sip_pkt *cp;
 	struct sip_request *req;
-
-	/* We absolutely cannot destroy the rtp struct while a bridge is active or we WILL crash */
-	if (p->rtp && ast_rtp_get_bridged(p->rtp)) {
-		ast_debug(2, "Bridge still active.  Delaying destroy of SIP dialog '%s' Method: %s\n", p->callid, sip_methods[p->method].text);
-		return -1;
-	}
-
-	if (p->vrtp && ast_rtp_get_bridged(p->vrtp)) {
-		ast_debug(2, "Bridge still active.  Delaying destroy of SIP dialog '%s' Method: %s\n", p->callid, sip_methods[p->method].text);
-		return -1;
-	}
 
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Really destroying SIP dialog '%s' Method: %s\n", p->callid, sip_methods[p->method].text);
@@ -4566,13 +4635,6 @@ static int __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		p->registry = registry_unref(p->registry);
 	}
 
-	/* Destroy Session-Timers if allocated */
-	if (p->stimer) {
-		if (p->stimer->st_active == TRUE && p->stimer->st_schedid > -1)
-			ast_sched_del(sched, p->stimer->st_schedid);
-		ast_free(p->stimer);
-	}
-
 	/* Clear history */
 	if (p->history) {
 		struct sip_history *hist;
@@ -4587,22 +4649,6 @@ static int __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	while ((req = AST_LIST_REMOVE_HEAD(&p->request_queue, next))) {
 		ast_free(req);
 	}
-
-	/* Lock dialog list before removing ourselves from the list */
-	if (lockdialoglist)
-		dialoglist_lock();
-	for (prev = NULL, cur = dialoglist; cur; prev = cur, cur = cur->next) {
-		if (cur == p) {
-			UNLINK(cur, dialoglist, prev);
-			break;
-		}
-	}
-	if (lockdialoglist)
-		dialoglist_unlock();
-	if (!cur) {
-		ast_log(LOG_WARNING, "Trying to destroy \"%s\", not found in dialog list?!?! \n", p->callid);
-		return 0;
-	} 
 
 	/* remove all current packets in this dialog */
 	while((cp = p->packets)) {
@@ -4623,7 +4669,6 @@ static int __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		p->socket.tcptls_session = NULL;
 	}
 
-	ast_free(p);
 	return 0;
 }
 
@@ -4794,6 +4839,12 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 	return 0;
 }
 
+/*! the dialog ao2obj destructor function */
+static void sip_destroy_fn(void *p)
+{
+	sip_destroy(p);
+}
+
 /*! \brief Destroy SIP call structure.
  * Make it return NULL so the caller can do things like
  *	foo = sip_destroy(foo);
@@ -4802,7 +4853,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 static struct sip_pvt * sip_destroy(struct sip_pvt *p)
 {
 	ast_debug(3, "Destroying SIP dialog %s\n", p->callid);
-	__sip_destroy(p, TRUE, TRUE);
+	__sip_destroy(p, TRUE);
 	return NULL;
 }
 
@@ -6117,7 +6168,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 {
 	struct sip_pvt *p;
 
-	if (!(p = ast_calloc(1, sizeof(*p))))
+	if (!(p = ao2_alloc(sizeof(*p), sip_destroy_fn)))
 		return NULL;
 
 	if (ast_string_field_init(p, 512)) {
@@ -9849,7 +9900,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		if (create_addr(p, r->hostname, 0)) {
 			/* we have what we hope is a temporary network error,
 			 * probably DNS.  We need to reschedule a registration try */
-			sip_destroy(p);
+			dialog_cleanup_and_destroy(p); /*sip_destroy(p);*/
 			if (r->timeout > -1) {
 				AST_SCHED_REPLACE(r->timeout, sched, global_reg_timeout * 1000, sip_reg_timeout, r);
 				ast_log(LOG_WARNING, "Still have a registration timeout for %s@%s (create_addr() error), %d\n", r->username, r->hostname, r->timeout);
@@ -14708,7 +14759,7 @@ static char *sip_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 
 		if (create_addr(p, a->argv[i], 1)) {
 			/* Maybe they're not registered, etc. */
-			sip_destroy(p);
+			dialog_cleanup_and_destroy(p); /* sip_destroy(p); */
 			ast_cli(a->fd, "Could not create address for '%s'\n", a->argv[i]);
 			continue;
 		}
@@ -18878,9 +18929,10 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		if (ast_test_flag(&authpeer->flags[1], SIP_PAGE2_SUBSCRIBEMWIONLY)) {
 			add_peer_mwi_subs(authpeer);
 		}
-		if (authpeer->mwipvt && authpeer->mwipvt != p)	/* Destroy old PVT if this is a new one */
+		if (authpeer->mwipvt && authpeer->mwipvt != p) {	/* Destroy old PVT if this is a new one */
 			/* We only allow one subscription per peer */
-			sip_destroy(authpeer->mwipvt);
+			dialog_cleanup_and_destroy(authpeer->mwipvt); /* sip_destroy(authpeer->mwipvt);*/
+		}
 		authpeer->mwipvt = p;		/* Link from peer to pvt */
 		p->relatedpeer = authpeer;	/* Link from pvt to peer */
 		/* Do not release authpeer here */
@@ -19700,7 +19752,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *e
 			return -1;
 		if (create_addr_from_peer(p, peer)) {
 			/* Maybe they're not registered, etc. */
-			sip_destroy(p);
+			dialog_cleanup_and_destroy(p); /*sip_destroy(p);*/
 			return 0;
 		}
 		/* Recalculate our side, and recalculate Call ID */
@@ -19846,7 +19898,7 @@ restartsearch:
 				- if that's the case, wait with destruction */
 			if (dialog->needdestroy && !dialog->packets && !dialog->owner) {
 				sip_pvt_unlock(dialog);
-				__sip_destroy(dialog, TRUE, FALSE);
+				dialog_cleanup_and_destroy(dialog); /* __sip_destroy(dialog, TRUE, FALSE); */
 				dialoglist_unlock();
 				usleep(1);
 				goto restartsearch;
@@ -19913,7 +19965,8 @@ static void restart_session_timer(struct sip_pvt *p)
 	}
 
 	if (p->stimer->st_active == TRUE) {
-		if (ast_sched_del(sched, p->stimer->st_schedid) != 0) {
+		AST_SCHED_DEL_UNREF(sched, p->stimer->st_schedid, dialog_unref(p));
+		if (p->stimer->st_schedid != -1) {
 			ast_log(LOG_WARNING, "ast_sched_del failed: %d - %s\n", p->stimer->st_schedid, p->callid);
 		}
 
@@ -19933,7 +19986,7 @@ static void stop_session_timer(struct sip_pvt *p)
 
 	if (p->stimer->st_active == TRUE) {
 		p->stimer->st_active = FALSE;
-		ast_sched_del(sched, p->stimer->st_schedid);
+		AST_SCHED_DEL_UNREF(sched, p->stimer->st_schedid, dialog_unref(p));
 		ast_debug(2, "Session timer stopped: %d - %s\n", p->stimer->st_schedid, p->callid);
 	}
 }
@@ -19947,10 +20000,12 @@ static void start_session_timer(struct sip_pvt *p)
 		return;
 	}
 
-	p->stimer->st_schedid  = ast_sched_add(sched, p->stimer->st_interval * 1000 / 2, proc_session_timer, p);
+	p->stimer->st_schedid = ast_sched_add(sched, p->stimer->st_interval * 1000 / 2, proc_session_timer, dialog_ref(p));
 	if (p->stimer->st_schedid < 0) {
+		dialog_unref(p); /* removing dialog ref for session timer */
 		ast_log(LOG_ERROR, "ast_sched_add failed.\n");
 	}
+
 	ast_debug(2, "Session timer started: %d - %s\n", p->stimer->st_schedid, p->callid);
 }
 
@@ -19960,60 +20015,67 @@ static int proc_session_timer(const void *vp)
 {
 	struct sip_pvt *p = (struct sip_pvt *) vp;
 	int sendreinv = FALSE;
+	int res = 0;
 
 	if (!p->stimer) {
 		ast_log(LOG_WARNING, "Null stimer in proc_session_timer - %s\n", p->callid);
-		return 0;
+		goto return_unref;
 	}
 
 	ast_debug(2, "Session timer expired: %d - %s\n", p->stimer->st_schedid, p->callid);
 
 	if (!p->owner) {
-		if (p->stimer->st_active == TRUE) {
-			stop_session_timer(p);
-		}
-		return 0;
+		goto return_unref;
 	}
 
 	if ((p->stimer->st_active != TRUE) || (p->owner->_state != AST_STATE_UP)) {
-		return 0;
+		goto return_unref;
 	}
 
 	switch (p->stimer->st_ref) {
 	case SESSION_TIMER_REFRESHER_UAC:
 		if (p->outgoing_call == TRUE) {
-	  		sendreinv = TRUE;
+			sendreinv = TRUE;
 		}
 		break;
 	case SESSION_TIMER_REFRESHER_UAS:
 		if (p->outgoing_call != TRUE) {
-  			sendreinv = TRUE;
+			sendreinv = TRUE;
 		}
 		break;
 	default:
 		ast_log(LOG_ERROR, "Unknown session refresher %d\n", p->stimer->st_ref);
-		return -1;
+		goto return_unref;
 	}
 
 	if (sendreinv == TRUE) {
+		res = 1;
 		transmit_reinvite_with_sdp(p, FALSE, TRUE);
 	} else {
 		p->stimer->st_expirys++;
 		if (p->stimer->st_expirys >= 2) {
 			ast_log(LOG_WARNING, "Session-Timer expired - %s\n", p->callid);
-			stop_session_timer(p);
-
 			while (p->owner && ast_channel_trylock(p->owner)) {
 				sip_pvt_unlock(p);
 				usleep(1);
 				sip_pvt_lock(p);
-          		}
+			}
 
-           		ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
-           		ast_channel_unlock(p->owner);
+			ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
+			ast_channel_unlock(p->owner);
 		}
 	}
-	return 1;
+return_unref:
+	if (!res) {
+		/* An error occurred.  Stop session timer processing */
+		p->stimer->st_schedid = -1; /* this is the sched, so this is safe */
+		stop_session_timer(p); /* will not unref, only mark st_active FALSE */
+
+		/* If we are not asking to be rescheduled, then we need to release our
+		 * reference to the dialog. */
+		dialog_unref(p);
+	}
+	return res;
 }
 
 
@@ -20251,8 +20313,10 @@ static int sip_poke_noanswer(const void *data)
 			register_peer_exten(peer, FALSE);
 		}
 	}
-	if (peer->call)
-		peer->call = sip_destroy(peer->call);
+	if (peer->call) {
+		dialog_cleanup_and_destroy(peer->call);
+		peer->call = NULL; /*sip_destroy(peer->call);*/
+	}
 	peer->lastms = -1;
 	ast_device_state_changed("SIP/%s", peer->name);
 	/* Try again quickly */
@@ -20280,7 +20344,8 @@ static int sip_poke_peer(struct sip_peer *peer)
 	if (peer->call) {
 		if (sipdebug)
 			ast_log(LOG_NOTICE, "Still have a QUALIFY dialog active, deleting\n");
-		peer->call = sip_destroy(peer->call);
+		dialog_cleanup_and_destroy(peer->call);
+		peer->call = NULL; /*sip_destroy(peer->call);*/
 	}
 	if (!(p = peer->call = sip_alloc(NULL, NULL, 0, SIP_OPTIONS, NULL)))
 		return -1;
@@ -20476,7 +20541,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	p->outgoing_call = TRUE;
 
 	if (!(p->options = ast_calloc(1, sizeof(*p->options)))) {
-		sip_destroy(p);
+		dialog_cleanup_and_destroy(p); /*sip_destroy(p);*/
 		ast_log(LOG_ERROR, "Unable to build option SIP data structure - Out of memory\n");
 		*cause = AST_CAUSE_SWITCH_CONGESTION;
 		return NULL;
@@ -20544,7 +20609,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	if (create_addr(p, host, 1)) {
 		*cause = AST_CAUSE_UNREGISTERED;
 		ast_debug(3, "Cant create SIP call - target device not registered\n");
-		sip_destroy(p);
+		dialog_cleanup_and_destroy(p); /*sip_destroy(p);*/
 		return NULL;
 	}
 	if (ast_strlen_zero(p->peername) && ext)
@@ -20583,8 +20648,10 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 			"Channel: %s\r\nChanneltype: %s\r\nSIPcallid: %s\r\nSIPfullcontact: %s\r\nPeername: %s\r\n",
 			p->owner? p->owner->name : "", "SIP", p->callid, p->fullcontact, p->peername);
 	sip_pvt_unlock(p);
-	if (!tmpc)
-		sip_destroy(p);
+	if (!tmpc) {
+		dialog_cleanup_and_destroy(p);
+		dialog_unref(p); /* sip_destroy(p); */
+	}
 	ast_update_use_count();
 	restart_monitor();
 	return tmpc;
@@ -21705,7 +21772,8 @@ static int reload_config(enum channelreloadreason reason)
 			if (iterator->call) {
 				ast_debug(3, "Destroying active SIP dialog for registry %s@%s\n", iterator->username, iterator->hostname);
 				/* This will also remove references to the registry */
-				iterator->call = sip_destroy(iterator->call);
+				dialog_cleanup_and_destroy(iterator->call);
+				iterator->call = NULL; /* sip_destroy(iterator->call);*/
 			}
 			ASTOBJ_UNLOCK(iterator);
 
@@ -23083,7 +23151,7 @@ restartdestroy:
 	while (p) {
 		pl = p;
 		p = p->next;
-		if (__sip_destroy(pl, TRUE, TRUE) < 0) {
+		if (dialog_cleanup_and_destroy(pl) < 0) {
 			/* Something is still bridged, let it react to getting a hangup */
 			dialoglist = p;
 			dialoglist_unlock();

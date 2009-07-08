@@ -58,6 +58,24 @@ extern "C" {
 		id = -1; \
 	} while (0);
 
+/*!
+ * \brief schedule task to get deleted and call unref function
+ * \sa AST_SCHED_DEL
+ * \since 1.6.0
+ */
+#define AST_SCHED_DEL_UNREF(sched, id, refcall)			\
+	do { \
+		int _count = 0; \
+		while (id > -1 && ast_sched_del(sched, id) && ++_count < 10) { \
+			usleep(1); \
+		} \
+		if (_count == 10) \
+			ast_log(LOG_WARNING, "Unable to cancel schedule ID %d.  This is probably a bug (%s: %s, line %d).\n", id, __FILE__, __PRETTY_FUNCTION__, __LINE__); \
+		if (id > -1) \
+			refcall; \
+		id = -1; \
+	} while (0);
+
 #define AST_SCHED_REPLACE_VARIABLE(id, sched, when, callback, data, variable) \
 	do { \
 		int _count = 0; \
