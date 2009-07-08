@@ -38,6 +38,7 @@ int ast_http_init(void);		/*!< Provided by http.c */
 int ast_http_reload(void);		/*!< Provided by http.c */
 int ast_tps_init(void); 		/*!< Provided by taskprocessor.c */
 int ast_timing_init(void);		/*!< Provided by timing.c */
+int ast_ssl_init(void);                 /*!< Porvided by ssl.c */
 
 /*!
  * \brief Reload asterisk modules.

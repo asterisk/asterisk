@@ -3414,6 +3414,11 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	if (ast_ssl_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
 	if (load_modules(1)) {		/* Load modules, pre-load only */
 		printf("%s", term_quit());
 		exit(1);
