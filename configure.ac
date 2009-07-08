@@ -626,6 +626,25 @@ AC_LINK_IFELSE(
 		AC_MSG_RESULT(yes)
 		AC_DEFINE([HAVE_RES_NDESTROY], 1, [Define to 1 if your system has the ndestroy resolver function.]),
 		AC_MSG_RESULT(no)
+	)
+	AC_SEARCH_LIBS(res_9_close, resolv)
+	AC_MSG_CHECKING(for res_close)
+	AC_LINK_IFELSE(
+		AC_LANG_PROGRAM([
+				#ifdef HAVE_SYS_SOCKET_H
+				#include <sys/socket.h>
+				#endif
+				#ifdef HAVE_NETINET_IN_H
+				#include <netinet/in.h>
+				#endif
+				#ifdef HAVE_ARPA_NAMESER_H
+				#include <arpa/nameser.h>
+				#endif
+				#include <resolv.h>],
+				[res_close();]),
+		AC_MSG_RESULT(yes)
+		AC_DEFINE([HAVE_RES_CLOSE], 1, [Define to 1 if your system has the close resolver function.]),
+		AC_MSG_RESULT(no)
 	),
 	AC_MSG_RESULT(no)
 )

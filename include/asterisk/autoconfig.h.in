@@ -785,6 +785,9 @@
 /* Define to indicate the ${RESAMPLE_DESCRIP} library version */
 #undef HAVE_RESAMPLE_VERSION
 
+/* Define to 1 if your system has the close resolver function. */
+#undef HAVE_RES_CLOSE
+
 /* Define to 1 if your system has the ndestroy resolver function. */
 #undef HAVE_RES_NDESTROY
 

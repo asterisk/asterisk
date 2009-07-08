@@ -288,7 +288,7 @@ int ast_search_dns(void *context,
 	res_nclose(&dnsstate);
 #endif
 #else
-#ifndef __APPLE__
+#ifdef HAVE_RES_CLOSE
 	res_close();
 #endif
 	ast_mutex_unlock(&res_lock);
