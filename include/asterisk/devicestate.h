@@ -249,15 +249,6 @@ void ast_devstate_aggregate_add(struct ast_devstate_aggregate *agg, enum ast_dev
 enum ast_device_state ast_devstate_aggregate_result(struct ast_devstate_aggregate *agg);
 
 /*!
- * \brief Map devstate to an extension state.
- *
- * \param[in] device state
- *
- * \return the extension state mapping.
- */
-enum ast_extension_states ast_devstate_to_extenstate(enum ast_device_state devstate);
-
-/*!
  * \brief You shouldn't care about the contents of this struct
  *
  * This struct is only here so that it can be easily declared on the stack.
