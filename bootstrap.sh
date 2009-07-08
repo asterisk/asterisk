@@ -20,7 +20,7 @@ if [ $? = 0 ] ; then	# BSD case
 			MY_AM_VER=19
 			;;
 		*)
-			MY_AC_VER=-2.61
+			MY_AC_VER=-2.62
 			MY_AM_VER=-1.9
 			;;
 	esac
