@@ -137,7 +137,7 @@ static const char * const devstatestring[][2] = {
 	{ /* 5 AST_DEVICE_UNAVAILABLE */ "Unavailable", "UNAVAILABLE" }, /*!< Unavailable (not registered) */
 	{ /* 6 AST_DEVICE_RINGING */     "Ringing",     "RINGING"     }, /*!< Ring, ring, ring */
 	{ /* 7 AST_DEVICE_RINGINUSE */   "Ring+Inuse",  "RINGINUSE"   }, /*!< Ring and in use */
-	{ /* 8 AST_DEVICE_ONHOLD */      "On Hold"      "ONHOLD"      }, /*!< On Hold */
+	{ /* 8 AST_DEVICE_ONHOLD */      "On Hold",      "ONHOLD"      }, /*!< On Hold */
 };
 
 /*!\brief Mapping for channel states to device states */
