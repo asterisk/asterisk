@@ -3571,6 +3571,11 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	if (ast_ssl_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
 #ifdef AST_XML_DOCS
 	/* Load XML documentation. */
 	ast_xmldoc_load_documentation();

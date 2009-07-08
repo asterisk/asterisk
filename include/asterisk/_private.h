@@ -44,6 +44,7 @@ int ast_indications_reload(void);/*!< Provided by indications.c */
 void ast_stun_init(void);               /*!< Provided by stun.c */
 int ast_cel_engine_init(void);		/*!< Provided by cel.c */
 int ast_cel_engine_reload(void);	/*!< Provided by cel.c */
+int ast_ssl_init(void);                 /*!< Porvided by ssl.c */
 
 /*!
  * \brief Reload asterisk modules.

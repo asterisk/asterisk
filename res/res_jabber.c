@@ -639,10 +639,6 @@ static int aji_tls_handshake(struct aji_client *client)
 	
 	ast_debug(1, "Starting TLS handshake\n"); 
 
-	/* Load encryption, hashing algorithms and error strings */
-	SSL_library_init();
-	SSL_load_error_strings();
-
 	/* Choose an SSL/TLS protocol version, create SSL_CTX */
 	client->ssl_method = SSLv3_method();
 	client->ssl_context = SSL_CTX_new(client->ssl_method);                
