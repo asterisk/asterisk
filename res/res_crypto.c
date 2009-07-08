@@ -102,6 +102,30 @@ struct ast_key {
 
 static struct ast_key *keys = NULL;
 
+static ast_mutex_t *ssl_locks;
+
+static int ssl_num_locks;
+
+static unsigned long ssl_threadid(void)
+{
+	return pthread_self();
+}
+
+static void ssl_lock(int mode, int n, const char *file, int line)
+{
+	if (n < 0 || n >= ssl_num_locks) {
+		ast_log(LOG_ERROR, "OpenSSL is full of LIES!!! - "
+				"ssl_num_locks '%d' - n '%d'\n",
+				ssl_num_locks, n);
+		return;
+	}
+
+	if (mode & CRYPTO_LOCK) {
+		ast_mutex_lock(&ssl_locks[n]);
+	} else {
+		ast_mutex_unlock(&ssl_locks[n]);
+	}
+}
 
 #if 0
 static int fdprint(int fd, char *s)
@@ -586,8 +610,27 @@ static struct ast_cli_entry cli_crypto[] = {
 
 static int crypto_init(void)
 {
+	unsigned int i;
+
 	SSL_library_init();
+	SSL_load_error_strings();
 	ERR_load_crypto_strings();
+	ERR_load_BIO_strings();
+	OpenSSL_add_all_algorithms();
+
+	/* Make OpenSSL thread-safe. */
+
+	CRYPTO_set_id_callback(ssl_threadid);
+
+	ssl_num_locks = CRYPTO_num_locks();
+	if (!(ssl_locks = ast_calloc(ssl_num_locks, sizeof(ssl_locks[0])))) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+	for (i = 0; i < ssl_num_locks; i++) {
+		ast_mutex_init(&ssl_locks[i]);
+	}
+	CRYPTO_set_locking_callback(ssl_lock);
+
 	ast_cli_register_multiple(cli_crypto, sizeof(cli_crypto) / sizeof(struct ast_cli_entry));
 
 	/* Install ourselves into stubs */
@@ -598,7 +641,8 @@ static int crypto_init(void)
 	ast_sign_bin = __ast_sign_bin;
 	ast_encrypt_bin = __ast_encrypt_bin;
 	ast_decrypt_bin = __ast_decrypt_bin;
-	return 0;
+
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int reload(void)
