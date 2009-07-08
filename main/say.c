@@ -3517,7 +3517,7 @@ static int say_date_with_format(struct ast_channel *chan, time_t t, const char *
 		if (deprecation_warning++ % 10 == 0) {
 			ast_log(LOG_WARNING, "mx is not a standard language code.  Please switch to using es_MX instead.\n");
 		}
-		return ast_say_date_with_format_es(chan, time, ints, lang, format, timezone);
+		return ast_say_date_with_format_es(chan, t, ints, lang, format, tzone);
 	} else if (!strncasecmp(lang, "nl", 2)) { /* Dutch syntax */
 		return ast_say_date_with_format_nl(chan, t, ints, lang, format, tzone);
 	} else if (!strncasecmp(lang, "pl", 2)) { /* Polish syntax */
@@ -3531,7 +3531,7 @@ static int say_date_with_format(struct ast_channel *chan, time_t t, const char *
 		if (deprecation_warning++ % 10 == 0) {
 			ast_log(LOG_WARNING, "tw is a standard language code for Twi, not Taiwanese.  Please switch to using zh_TW instead.\n");
 		}
-		return ast_say_date_with_format_zh(chan, time, ints, lang, format, timezone);
+		return ast_say_date_with_format_zh(chan, t, ints, lang, format, tzone);
 	} else if (!strncasecmp(lang, "zh", 2)) { /* Taiwanese / Chinese syntax */
 		return ast_say_date_with_format_zh(chan, t, ints, lang, format, tzone);
 	}
