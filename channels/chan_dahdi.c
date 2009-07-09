@@ -13165,6 +13165,7 @@ static void *pri_dchannel(void *vpri)
 						} else if (pri->pvts[chanpos]->confirmanswer) {
 							ast_debug(1, "Waiting on answer confirmation on channel %d!\n", pri->pvts[chanpos]->channel);
 						} else {
+							pri->pvts[chanpos]->dialing = 0;
 							pri->pvts[chanpos]->subs[SUB_REAL].needanswer =1;
 							/* Enable echo cancellation if it's not on already */
 							dahdi_enable_ec(pri->pvts[chanpos]);
