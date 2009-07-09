@@ -1100,10 +1100,10 @@ static int mbl_write(struct ast_channel *ast, struct ast_frame *frame)
 static int mbl_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 
-	struct mbl_pvt *pvt = oldchan->tech_pvt;
+	struct mbl_pvt *pvt = newchan->tech_pvt;
 
 	if (!pvt) {
-		ast_debug(1, "fixup failed, no pvt on oldchan\n");
+		ast_debug(1, "fixup failed, no pvt on newchan\n");
 		return -1;
 	}
 
