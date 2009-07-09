@@ -345,7 +345,7 @@ enum ast_control_t38_rate {
 };
 
 enum ast_control_t38_rate_management {
-	AST_T38_RATE_MANAGEMENT_TRANSFERED_TCF = 0,
+	AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF = 0,
 	AST_T38_RATE_MANAGEMENT_LOCAL_TCF,
 };
 

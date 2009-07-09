@@ -459,7 +459,7 @@ static int transmit_audio(fax_session *s)
 										 .version = 0,
 										 .max_datagram = 400,
 										 .rate = AST_T38_RATE_9600,
-										 .rate_management = AST_T38_RATE_MANAGEMENT_TRANSFERED_TCF,
+										 .rate_management = AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF,
 										 .fill_bit_removal = 1,
 										 .transcoding_mmr = 1,
 				};
@@ -476,7 +476,6 @@ static int transmit_audio(fax_session *s)
 		   that a frame in old format was already queued before we set chanel format
 		   to slinear so it will still be received by ast_read */
 		if (inf->frametype == AST_FRAME_VOICE && inf->subclass == AST_FORMAT_SLINEAR) {
-
 			if (fax_rx(&fax, inf->data.ptr, inf->samples) < 0) {
 				/* I know fax_rx never returns errors. The check here is for good style only */
 				ast_log(LOG_WARNING, "fax_rx returned error\n");
@@ -492,6 +491,24 @@ static int transmit_audio(fax_session *s)
 		} else if (inf->frametype == AST_FRAME_CONTROL && inf->subclass == AST_CONTROL_T38_PARAMETERS) {
 			struct ast_control_t38_parameters *parameters = inf->data.ptr;
 			if (parameters->request_response == AST_T38_NEGOTIATED) {
+				/* T38 switchover completed */
+				s->t38parameters = *parameters;
+				ast_debug(1, "T38 negotiated, finishing audio loop\n");
+				res = 1;
+				break;
+			} else if (parameters->request_response == AST_T38_REQUEST_NEGOTIATE) {
+				if (parameters->version > 0) {
+					/* Only T.38 Version 0 is supported at this time */
+					parameters->version = 0;
+				}
+				if (parameters->max_datagram > 400) {
+					/* Limit incoming datagram size to our default */
+					/* TODO: this need to come from the udptl stack, not be hardcoded */
+					parameters->max_datagram = 400;
+				}
+				/* we only support bit rates up to 9.6kbps */
+				parameters->rate = AST_T38_RATE_9600;
+				ast_indicate_data(s->chan, AST_CONTROL_T38_PARAMETERS, parameters, sizeof(*parameters));
 				/* T38 switchover completed */
 				s->t38parameters = *parameters;
 				ast_debug(1, "T38 negotiated, finishing audio loop\n");

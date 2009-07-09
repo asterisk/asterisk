@@ -1545,7 +1545,7 @@ struct sip_auth {
 #define T38FAX_TRANSCODING_MMR			(1 << 1)	/*!< Default: 0 (unset)*/
 #define T38FAX_TRANSCODING_JBIG			(1 << 2)	/*!< Default: 0 (unset)*/
 /* Rate management */
-#define T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF	(0 << 3)
+#define T38FAX_RATE_MANAGEMENT_TRANSFERRED_TCF	(0 << 3)
 #define T38FAX_RATE_MANAGEMENT_LOCAL_TCF	(1 << 3)	/*!< Unset for transferredTCF (UDPTL), set for localTCF (TPKT) */
 /* UDP Error correction */
 #define T38FAX_UDP_EC_NONE			(0 << 4)	/*!< two bits, if unset NO t38UDPEC field in T38 SDP*/
@@ -4913,8 +4913,8 @@ static void fill_t38_parameters(int capabilities, struct ast_control_t38_paramet
 		parameters->rate = AST_T38_RATE_2400;
 	}
 
-	if (capabilities & T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF) {
-		parameters->rate_management = AST_T38_RATE_MANAGEMENT_TRANSFERED_TCF;
+	if (capabilities & T38FAX_RATE_MANAGEMENT_TRANSFERRED_TCF) {
+		parameters->rate_management = AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF;
 	} else if (capabilities & T38FAX_RATE_MANAGEMENT_LOCAL_TCF) {
 		parameters->rate_management = AST_T38_RATE_MANAGEMENT_LOCAL_TCF;
 	}
@@ -5009,7 +5009,7 @@ static void set_t38_capabilities(struct sip_pvt *p)
 			ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_NONE);
 			p->t38.capability |= T38FAX_UDP_EC_NONE;
 		}
-		p->t38.capability |= T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF;
+		p->t38.capability |= T38FAX_RATE_MANAGEMENT_TRANSFERRED_TCF;
 	}
 }
 
@@ -6447,8 +6447,8 @@ static void interpret_t38_parameters(struct sip_pvt *p, enum ast_control_t38 req
 			p->t38.capability = p->t38.jointcapability |= T38FAX_RATE_2400;
 		}
 
-		if (parameters->rate_management == AST_T38_RATE_MANAGEMENT_TRANSFERED_TCF) {
-			p->t38.capability = p->t38.jointcapability |= T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF;
+		if (parameters->rate_management == AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF) {
+			p->t38.capability = p->t38.jointcapability |= T38FAX_RATE_MANAGEMENT_TRANSFERRED_TCF;
 		} else if (parameters->rate_management == AST_T38_RATE_MANAGEMENT_LOCAL_TCF) {
 			p->t38.capability = p->t38.jointcapability |= T38FAX_RATE_MANAGEMENT_LOCAL_TCF;
 		}
@@ -8600,7 +8600,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				if (!strcasecmp(s, "localTCF"))
 					peert38capability |= T38FAX_RATE_MANAGEMENT_LOCAL_TCF;
 				else if (!strcasecmp(s, "transferredTCF"))
-					peert38capability |= T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF;
+					peert38capability |= T38FAX_RATE_MANAGEMENT_TRANSFERRED_TCF;
 			} else if ((sscanf(a, "T38FaxUdpEC:%255s", s) == 1)) {
 				found = 1;
 				ast_debug(3, "UDP EC: %s\n", s);
