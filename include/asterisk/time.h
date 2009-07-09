@@ -171,7 +171,7 @@ struct timeval ast_tv(ast_time_t sec, ast_suseconds_t usec),
 AST_INLINE_API(
 struct timeval ast_samp2tv(unsigned int _nsamp, unsigned int _rate),
 {
-	return ast_tv(_nsamp / _rate, (_nsamp % _rate) * (1000000 / (float) _rate));
+	return ast_tv(_nsamp / _rate, ((_nsamp % _rate) * (4000000 / _rate)) / 4); /* this calculation is accurate up to 32000Hz. */
 }
 )
 
