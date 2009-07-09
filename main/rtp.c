@@ -726,6 +726,11 @@ int ast_rtcp_fd(struct ast_rtp *rtp)
 	return -1;
 }
 
+static int rtp_get_rate(int subclass)
+{
+	return (subclass == AST_FORMAT_G722) ? 8000 : ast_format_rate(subclass);
+}
+
 unsigned int ast_rtcp_calc_interval(struct ast_rtp *rtp)
 {
 	unsigned int interval;
@@ -984,10 +989,10 @@ static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *
 		}
 	} else if ((rtp->resp == resp) && !power) {
 		f = send_dtmf(rtp, AST_FRAME_DTMF_END);
-		f->samples = rtp->dtmfsamples * 8;
+		f->samples = rtp->dtmfsamples * (rtp_get_rate(f->subclass) / 1000);
 		rtp->resp = 0;
 	} else if (rtp->resp == resp)
-		rtp->dtmfsamples += 20 * 8;
+		rtp->dtmfsamples += 20 * (rtp_get_rate(f->subclass) / 1000);
 	rtp->dtmf_timeout = dtmftimeout;
 	return f;
 }
@@ -1068,7 +1073,7 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 			if ((rtp->lastevent != seqno) && rtp->resp) {
 				rtp->dtmf_duration = new_duration;
 				f = send_dtmf(rtp, AST_FRAME_DTMF_END);
-				f->len = ast_tvdiff_ms(ast_samp2tv(rtp->dtmf_duration, 8000), ast_tv(0, 0));
+				f->len = ast_tvdiff_ms(ast_samp2tv(rtp->dtmf_duration, rtp_get_rate(f->subclass)), ast_tv(0, 0));
 				rtp->resp = 0;
 				rtp->dtmf_duration = rtp->dtmf_timeout = 0;
 			}
@@ -1078,7 +1083,7 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 			if (rtp->resp && rtp->resp != resp) {
 				/* Another digit already began. End it */
 				f = send_dtmf(rtp, AST_FRAME_DTMF_END);
-				f->len = ast_tvdiff_ms(ast_samp2tv(rtp->dtmf_duration, 8000), ast_tv(0, 0));
+				f->len = ast_tvdiff_ms(ast_samp2tv(rtp->dtmf_duration, rtp_get_rate(f->subclass)), ast_tv(0, 0));
 				rtp->resp = 0;
 				rtp->dtmf_duration = rtp->dtmf_timeout = 0;
 			}
@@ -1453,15 +1458,16 @@ static void calc_rxstamp(struct timeval *when, struct ast_rtp *rtp, unsigned int
 	double d;
 	double dtv;
 	double prog;
-	
 	double normdev_rxjitter_current;
+	int rate = rtp_get_rate(rtp->f.subclass);
+
 	if ((!rtp->rxcore.tv_sec && !rtp->rxcore.tv_usec) || mark) {
 		gettimeofday(&rtp->rxcore, NULL);
 		rtp->drxcore = (double) rtp->rxcore.tv_sec + (double) rtp->rxcore.tv_usec / 1000000;
 		/* map timestamp to a real time */
 		rtp->seedrxts = timestamp; /* Their RTP timestamp started with this */
-		rtp->rxcore.tv_sec -= timestamp / 8000;
-		rtp->rxcore.tv_usec -= (timestamp % 8000) * 125;
+		rtp->rxcore.tv_sec -= timestamp / rate;
+		rtp->rxcore.tv_usec -= (timestamp % rate) * 125;
 		/* Round to 0.1ms for nice, pretty timestamps */
 		rtp->rxcore.tv_usec -= rtp->rxcore.tv_usec % 100;
 		if (rtp->rxcore.tv_usec < 0) {
@@ -1473,13 +1479,13 @@ static void calc_rxstamp(struct timeval *when, struct ast_rtp *rtp, unsigned int
 
 	gettimeofday(&now,NULL);
 	/* rxcore is the mapping between the RTP timestamp and _our_ real time from gettimeofday() */
-	when->tv_sec = rtp->rxcore.tv_sec + timestamp / 8000;
-	when->tv_usec = rtp->rxcore.tv_usec + (timestamp % 8000) * 125;
+	when->tv_sec = rtp->rxcore.tv_sec + timestamp / rate;
+	when->tv_usec = rtp->rxcore.tv_usec + (timestamp % rate) * 125;
 	if (when->tv_usec >= 1000000) {
 		when->tv_usec -= 1000000;
 		when->tv_sec += 1;
 	}
-	prog = (double)((timestamp-rtp->seedrxts)/8000.);
+	prog = (double)((timestamp-rtp->seedrxts)/(float)(rate));
 	dtv = (double)rtp->drxcore + (double)(prog);
 	current_time = (double)now.tv_sec + (double)now.tv_usec/1000000;
 	transit = current_time - dtv;
@@ -1791,7 +1797,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		if (rtp->resp) {
 			struct ast_frame *f;
 			f = send_dtmf(rtp, AST_FRAME_DTMF_END);
-			f->len = ast_tvdiff_ms(ast_samp2tv(rtp->dtmf_duration, 8000), ast_tv(0, 0));
+			f->len = ast_tvdiff_ms(ast_samp2tv(rtp->dtmf_duration, rtp_get_rate(f->subclass)), ast_tv(0, 0));
 			rtp->resp = 0;
 			rtp->dtmf_timeout = rtp->dtmf_duration = 0;
 			return f;
@@ -1868,7 +1874,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		calc_rxstamp(&rtp->f.delivery, rtp, timestamp, mark);
 		/* Add timing data to let ast_generic_bridge() put the frame into a jitterbuf */
 		ast_set_flag(&rtp->f, AST_FRFLAG_HAS_TIMING_INFO);
-		rtp->f.ts = timestamp / 8;
+		rtp->f.ts = timestamp / (rtp_get_rate(rtp->f.subclass) / 1000);
 		rtp->f.len = rtp->f.samples / ((ast_format_rate(rtp->f.subclass) / 1000));
 	} else if (rtp->f.subclass & AST_FORMAT_VIDEO_MASK) {
 		/* Video -- samples is # of samples vs. 90000 */
@@ -3605,6 +3611,11 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 	unsigned int ms;
 	int pred;
 	int mark = 0;
+	int rate = rtp_get_rate(f->subclass) / 1000;
+
+	if (f->subclass == AST_FORMAT_G722) {
+		f->samples /= 2;
+	}
 
 	if (rtp->sending_digit) {
 		return 0;
@@ -3616,7 +3627,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 		pred = rtp->lastts + f->samples;
 
 		/* Re-calculate last TS */
-		rtp->lastts = rtp->lastts + ms * 8;
+		rtp->lastts = rtp->lastts + ms * rate;
 		if (ast_tvzero(f->delivery)) {
 			/* If this isn't an absolute delivery time, Check if it is close to our prediction, 
 			   and if so, go with our prediction */
@@ -3671,7 +3682,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 		rtp->lastdigitts = rtp->lastts;
 
 	if (ast_test_flag(f, AST_FRFLAG_HAS_TIMING_INFO))
-		rtp->lastts = f->ts * 8;
+		rtp->lastts = f->ts * rate;
 
 	/* Get a pointer to the header */
 	rtpheader = (unsigned char *)(f->data.ptr - hdrlen);
@@ -3853,11 +3864,6 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 		}
 
 		while ((f = ast_smoother_read(rtp->smoother)) && (f->data.ptr)) {
-			if (f->subclass == AST_FORMAT_G722) {
-				/* G.722 is silllllllllllllly */
-				f->samples /= 2;
-			}
-
 			ast_rtp_raw_write(rtp, f, codec);
 		}
 	} else {
