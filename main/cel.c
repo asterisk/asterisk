@@ -89,7 +89,7 @@ static char cel_dateformat[256];
 /*!
  * \brief Map of ast_cel_event_type to strings
  */
-static const char const *cel_event_types[CEL_MAX_EVENT_IDS] = {
+static const char * const cel_event_types[CEL_MAX_EVENT_IDS] = {
 	[0]                        = "ALL",
 	[AST_CEL_CHANNEL_START]    = "CHAN_START",
 	[AST_CEL_CHANNEL_END]      = "CHAN_END",
@@ -121,7 +121,7 @@ static const char const *cel_event_types[CEL_MAX_EVENT_IDS] = {
 /*!
  * \brief Map of ast_cel_ama_flags to strings
  */
-static const char const *cel_ama_flags[AST_CEL_AMA_FLAG_TOTAL] = {
+static const char * const cel_ama_flags[AST_CEL_AMA_FLAG_TOTAL] = {
 	[AST_CEL_AMA_FLAG_OMIT]          = "OMIT",
 	[AST_CEL_AMA_FLAG_BILLING]       = "BILLING",
 	[AST_CEL_AMA_FLAG_DOCUMENTATION] = "DOCUMENTATION",
