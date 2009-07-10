@@ -497,6 +497,7 @@ static int transmit_audio(fax_session *s)
 				res = 1;
 				break;
 			} else if (parameters->request_response == AST_T38_REQUEST_NEGOTIATE) {
+				ast_debug(1, "T38 request received, accepting\n");
 				if (parameters->version > 0) {
 					/* Only T.38 Version 0 is supported at this time */
 					parameters->version = 0;
@@ -508,12 +509,10 @@ static int transmit_audio(fax_session *s)
 				}
 				/* we only support bit rates up to 9.6kbps */
 				parameters->rate = AST_T38_RATE_9600;
+				/* Complete T38 switchover */
 				ast_indicate_data(s->chan, AST_CONTROL_T38_PARAMETERS, parameters, sizeof(*parameters));
-				/* T38 switchover completed */
-				s->t38parameters = *parameters;
-				ast_debug(1, "T38 negotiated, finishing audio loop\n");
-				res = 1;
-				break;
+				/* Do not break audio loop, wait until channel driver finally acks switchover
+				   with AST_T38_NEGOTIATED */
 			}
 		}
 
@@ -598,7 +597,8 @@ static int transmit_t38(fax_session *s)
 	}
 	if (s->t38parameters.transcoding_mmr) {
 		t38_set_mmr_transcoding(t38state, TRUE);
-	} else if (s->t38parameters.transcoding_jbig) {
+	}
+	if (s->t38parameters.transcoding_jbig) {
 		t38_set_jbig_transcoding(t38state, TRUE);
 	}
 
@@ -647,9 +647,8 @@ static int transmit_t38(fax_session *s)
 			}
 		} else if (inf->frametype == AST_FRAME_CONTROL && inf->subclass == AST_CONTROL_T38_PARAMETERS) {
 			struct ast_control_t38_parameters *parameters = inf->data.ptr;
-			if (parameters->request_response == AST_T38_TERMINATED || parameters->request_response == AST_T38_REFUSED) {
-				ast_debug(1, "T38 down, terminating\n");
-				res = -1;
+			if (parameters->request_response == AST_T38_TERMINATED) {
+				ast_debug(1, "T38 down, finishing\n");
 				break;
 			}
 		}
