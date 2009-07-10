@@ -30,12 +30,11 @@
  *
  * \author Mark Spencer <markster@digium.com>,  Steve Underwood <steveu@coppice.org>
  * 
- * \page T38fax_udptl T38 fax passhtrough :: UDPTL
+ * \page T38fax_udptl T.38 support :: UDPTL
  *
- * Asterisk supports T.38 fax passthrough. Asterisk will not be a client, server
- * or any form of gateway. Currently fax passthrough is only implemented in the
- * SIP channel for strict SIP to SIP calls. If you are using chan_local or chan_agent
- * as a proxy channel, T.38 passthrough will not work.
+ * Asterisk supports T.38 fax passthrough, origination and termination. It does
+ * not support gateway operation. The only channel driver that supports T.38 at
+ * this time is chan_sip.
  *
  * UDPTL is handled very much like RTP. It can be reinvited to go directly between
  * the endpoints, without involving Asterisk in the media stream.
@@ -43,6 +42,7 @@
  * \b References:
  * - chan_sip.c
  * - udptl.c
+ * - app_fax.c
  */
 
 
