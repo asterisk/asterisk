@@ -995,6 +995,7 @@ static struct sip_pvt {
 	int route_persistant;			/*!< Is this the "real" route? */
 	struct sip_auth *peerauth;		/*!< Realm authentication */
 	int noncecount;				/*!< Nonce-count */
+	unsigned int stalenonce:1;	/*!< Marks the current nonce as responded too */
 	char lastmsg[256];			/*!< Last Message sent/received */
 	int amaflags;				/*!< AMA Flags */
 	int pendinginvite;			/*!< Any pending INVITE or state NOTIFY (in subscribe pvt's) ? (seqno of this) */
@@ -8693,6 +8694,20 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 		list_route(p->route);
 }
 
+/*! \brief builds the sip_pvt's randdata field which is used for the nonce
+ *  challenge.  When forceupdate is not set, the nonce is only updated if
+ *  the current one is stale.  In this case, a stalenonce is one which
+ *  has already received a response, if a nonce has not received a response
+ *  it is not always necessary or beneficial to create a new one. */
+
+static void set_nonce_randdata(struct sip_pvt *p, int forceupdate)
+{
+	if (p->stalenonce || forceupdate || ast_strlen_zero(p->randdata)) {
+		ast_string_field_build(p, randdata, "%08lx", ast_random());	/* Create nonce for challenge */
+		p->stalenonce = 0;
+	}
+}
+
 AST_THREADSTORAGE(check_auth_buf, check_auth_buf_init);
 #define CHECK_AUTH_BUF_INITLEN   256
 
@@ -8756,7 +8771,7 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 		return AUTH_CHALLENGE_SENT;
 	} else if (ast_strlen_zero(p->randdata) || ast_strlen_zero(authtoken)) {
 		/* We have no auth, so issue challenge and request authentication */
-		ast_string_field_build(p, randdata, "%08lx", ast_random());	/* Create nonce for challenge */
+		set_nonce_randdata(p, 1); /* Create nonce for challenge */
 		transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
 		/* Schedule auto destroy in 32 seconds */
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
@@ -8807,10 +8822,13 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 		return AUTH_USERNAME_MISMATCH;
 	}
 
-	/* Verify nonce from request matches our nonce.  If not, send 401 with new nonce */
-	if (strcasecmp(p->randdata, keys[K_NONCE].s)) { /* XXX it was 'n'casecmp ? */
+	/* Verify nonce from request matches our nonce, and the nonce has not already been responded to.
+	 * If this check fails, send 401 with new nonce */
+	if (strcasecmp(p->randdata, keys[K_NONCE].s) || p->stalenonce) { /* XXX it was 'n'casecmp ? */
 		wrongnonce = TRUE;
 		usednonce = keys[K_NONCE].s;
+	} else {
+		p->stalenonce = 1; /* now, since the nonce has a response, mark it as stale so it can't be sent or responded to again */
 	}
 
 	if (!ast_strlen_zero(md5secret))
@@ -8841,14 +8859,14 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 			if (sipdebug)
 				ast_log(LOG_NOTICE, "Correct auth, but based on stale nonce received from '%s'\n", get_header(req, "To"));
 			/* We got working auth token, based on stale nonce . */
-			ast_string_field_build(p, randdata, "%08lx", ast_random());
+			set_nonce_randdata(p, 0);
 			transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, TRUE);
 		} else {
 			/* Everything was wrong, so give the device one more try with a new challenge */
 			if (!ast_test_flag(req, SIP_PKT_IGNORE)) {
 				if (sipdebug)
 					ast_log(LOG_NOTICE, "Bad authentication received from '%s'\n", get_header(req, "To"));
-				ast_string_field_build(p, randdata, "%08lx", ast_random());
+				set_nonce_randdata(p, 1);
 			} else {
 				if (sipdebug)
 					ast_log(LOG_NOTICE, "Duplicate authentication received from '%s'\n", get_header(req, "To"));
@@ -8975,7 +8993,7 @@ static void transmit_fake_auth_response(struct sip_pvt *p, int sipmethod, struct
 		return;
 	} else if (ast_strlen_zero(p->randdata) || ast_strlen_zero(authtoken)) {
 		/* We have no auth, so issue challenge and request authentication */
-		ast_string_field_build(p, randdata, "%08lx", ast_random());	/* Create nonce for challenge */
+		set_nonce_randdata(p, 1);
 		transmit_response_with_auth(p, response, req, p->randdata, 0, respheader, 0);
 		/* Schedule auto destroy in 32 seconds */
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
@@ -9020,7 +9038,7 @@ static void transmit_fake_auth_response(struct sip_pvt *p, int sipmethod, struct
 	/* Verify nonce from request matches our nonce.  If not, send 401 with new nonce */
 	if (strcasecmp(p->randdata, keys[K_NONCE].s)) {
 		if (!ast_test_flag(req, SIP_PKT_IGNORE)) {
-			ast_string_field_build(p, randdata, "%08lx", ast_random());
+			set_nonce_randdata(p, 1);
 		}
 		transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, FALSE);
 
