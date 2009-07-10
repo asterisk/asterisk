@@ -9667,8 +9667,11 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 
 	add_header(req, "Via", p->via);
 	add_header(req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
-	/* SLD: FIXME?: do Route: here too?  I think not cos this is the first request.
-	 * OTOH, then we won't have anything in p->route anyway */
+	/* This will be a no-op most of the time. However, under certain circumstances,
+	 * NOTIFY messages will use this function for preparing the request and should
+	 * have Route headers present.
+	 */
+	add_route(req, p->route);
 
 	/* Build Remote Party-ID and From */
 	if (ast_test_flag(&p->flags[0], SIP_SENDRPID) && (sipmethod == SIP_INVITE)) {
@@ -19695,6 +19698,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		if (sipdebug)
 			ast_debug(4, "Initializing initreq for method %s - callid %s\n", sip_methods[req->method].text, p->callid);
 		check_via(p, req);
+		build_route(p, req, 0);
 	} else if (req->debug && req->ignore)
 		ast_verbose("Ignoring this SUBSCRIBE request\n");
 
