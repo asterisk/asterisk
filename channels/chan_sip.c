@@ -3079,9 +3079,20 @@ static int __sip_autodestruct(const void *data)
 
 	/* If there are packets still waiting for delivery, delay the destruction */
 	if (p->packets) {
-		ast_debug(3, "Re-scheduled destruction of SIP call %s\n", p->callid ? p->callid : "<unknown>");
-		append_history(p, "ReliableXmit", "timeout");
-		return 10000;
+		if (!p->needdestroy) {
+			char method_str[30];
+			ast_debug(3, "Re-scheduled destruction of SIP call %s\n", p->callid ? p->callid : "<unknown>");
+			append_history(p, "ReliableXmit", "timeout");
+			if (sscanf(p->lastmsg, "Tx: %s", method_str) == 1 || sscanf(p->lastmsg, "Rx: %s", method_str) == 1) {
+				if (method_match(SIP_CANCEL, method_str) || method_match(SIP_BYE, method_str)) {
+					pvt_set_needdestroy(p, "autodestruct");
+				}
+			}
+			return 10000;
+		} else {
+			/* They've had their chance to respond. Time to bail */
+			__sip_pretend_ack(p);
+		}
 	}
 
 	if (p->subscribed == MWI_NOTIFICATION)
@@ -5115,7 +5126,10 @@ static int sip_hangup(struct ast_channel *ast)
 		if (needcancel) {	/* Outgoing call, not up */
 			if (ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 				/* stop retransmitting an INVITE that has not received a response */
-				__sip_pretend_ack(p);
+				struct sip_pkt *cur;
+				for (cur = p->packets; cur; cur = cur->next) {
+					__sip_semi_ack(p, cur->seqno, cur->is_resp, cur->method ? cur->method : find_sip_method(cur->data->str));
+				}
 
 				/* if we can't send right now, mark it pending */
 				if (p->invitestate == INV_CALLING) {
