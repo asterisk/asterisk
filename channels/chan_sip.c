@@ -3085,7 +3085,7 @@ static int __sip_autodestruct(const void *data)
 			append_history(p, "ReliableXmit", "timeout");
 			if (sscanf(p->lastmsg, "Tx: %s", method_str) == 1 || sscanf(p->lastmsg, "Rx: %s", method_str) == 1) {
 				if (method_match(SIP_CANCEL, method_str) || method_match(SIP_BYE, method_str)) {
-					pvt_set_needdestroy(p, "autodestruct");
+					p->needdestroy = 1;
 				}
 			}
 			return 10000;
@@ -5128,7 +5128,7 @@ static int sip_hangup(struct ast_channel *ast)
 				/* stop retransmitting an INVITE that has not received a response */
 				struct sip_pkt *cur;
 				for (cur = p->packets; cur; cur = cur->next) {
-					__sip_semi_ack(p, cur->seqno, cur->is_resp, cur->method ? cur->method : find_sip_method(cur->data->str));
+					__sip_semi_ack(p, cur->seqno, cur->is_resp, cur->method ? cur->method : find_sip_method(cur->data));
 				}
 
 				/* if we can't send right now, mark it pending */
