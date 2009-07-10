@@ -2120,11 +2120,14 @@ static int __sip_autodestruct(const void *data)
 	* that were created via INVITE, then thru some sequence were CANCELED,
 	* to die, rather than infinitely be rescheduled */
 	if (p->packets && !ast_test_flag(&p->flags[0], SIP_NEEDDESTROY)) {
+		char method_str[30];
 		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Re-scheduled destruction of SIP call %s\n", p->callid ? p->callid : "<unknown>");
 		append_history(p, "ReliableXmit", "timeout");
-		if (p->method == SIP_CANCEL || p->method == SIP_BYE) {
-			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
+		if (sscanf(p->lastmsg, "Tx: %s", method_str) == 1 || sscanf(p->lastmsg, "Rx: %s", method_str) == 1) {
+			if (method_match(SIP_CANCEL, method_str) || method_match(SIP_BYE, method_str)) {
+				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
+			}
 		}
 		return 10000;
 	}
@@ -3665,7 +3668,10 @@ static int sip_hangup(struct ast_channel *ast)
 		if (needcancel) {	/* Outgoing call, not up */
 			if (ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 				/* stop retransmitting an INVITE that has not received a response */
-				__sip_pretend_ack(p);
+				struct sip_pkt *cur;
+				for (cur = p->packets; cur; cur = cur->next) {
+					__sip_semi_ack(p, cur->seqno, ast_test_flag(cur, FLAG_RESPONSE), cur->method ? cur->method : find_sip_method(cur->data));
+				}
 
 				/* if we can't send right now, mark it pending */
 				if (p->invitestate == INV_CALLING) {
