@@ -1559,6 +1559,7 @@ struct sip_registry {
 		AST_STRING_FIELD(md5secret);	/*!< Password in md5 */
 		AST_STRING_FIELD(callback);	/*!< Contact extension */
 		AST_STRING_FIELD(random);
+		AST_STRING_FIELD(peername);	/*!< Peer registering to */
 	);
 	enum sip_transport transport;
 	int portno;			/*!<  Optional port override */
@@ -6480,15 +6481,24 @@ static int sip_register(const char *value, int lineno)
 	char buf[256] = "";
 	char *username = NULL;
 	char *port = NULL;
-	char *hostname=NULL, *secret=NULL, *authuser=NULL;
-	char *callback=NULL;
+	char *hostname=NULL, *secret=NULL, *authuser=NULL, *tmp=NULL;
+	char *callback=NULL, *peername=NULL;
 
 	if (!value)
 		return -1;
 
 	ast_copy_string(buf, value, sizeof(buf));
 
-	sip_parse_host(buf, lineno, &username, &portnum, &transport);
+	/* split [peername?][transport://] */
+	tmp = strchr(buf, '?');
+	if (tmp) {
+		*tmp++ = '\0';
+		peername = buf;
+	} else {
+		tmp = buf;
+	}
+	/* tmp is set at the beginning of [transport://] */
+	sip_parse_host(tmp, lineno, &username, &portnum, &transport);
 
 	/* First split around the last '@' then parse the two components. */
 	hostname = strrchr(username, '@'); /* allow @ in the first part */
@@ -6545,6 +6555,9 @@ static int sip_register(const char *value, int lineno)
 		ast_string_field_set(reg, authuser, authuser);
 	if (secret)
 		ast_string_field_set(reg, secret, secret);
+	if (peername) {
+		ast_string_field_set(reg, peername, peername);
+	}
 	reg->transport = transport;
 	reg->expire = -1;
 	reg->expiry = default_expiry;
@@ -9899,6 +9912,8 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		}
 	} else {
 		/* Build callid for registration if we haven't registered before */
+		struct sip_peer *peer = NULL;
+
 		if (!r->callid_valid) {
 			build_callid_registry(r, internip.sin_addr, default_fromdomain);
 			r->callid_valid = TRUE;
@@ -9908,9 +9923,16 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			ast_log(LOG_WARNING, "Unable to allocate registration transaction (memory or socket error)\n");
 			return 0;
 		}
-		
+
 		if (p->do_history)
 			append_history(p, "RegistryInit", "Account: %s@%s", r->username, r->hostname);
+
+		if (!ast_strlen_zero(r->peername)) {
+			if (!(peer = find_peer(r->peername, NULL, 1, 0))) {
+				ast_log(LOG_WARNING, "Could not find peer %s in transmit_register\n", r->peername);
+			}
+		}
+		obproxy_get(p, peer); /* it is ok to pass a NULL peer into obproxy_get() */
 
 		p->outboundproxy = obproxy_get(p, NULL);
 
@@ -21734,7 +21756,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	if (!ast_strlen_zero(callback)) { /* build string from peer info */
 		char *reg_string;
 
-		if (asprintf(&reg_string, "%s:%s@%s/%s", peer->username, peer->secret, peer->tohost, callback) < 0) {
+		if (asprintf(&reg_string, "%s?%s:%s@%s/%s", peer->name, peer->username, peer->secret, peer->tohost, callback) < 0) {
 			ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
 		} else	if (reg_string) {
 			sip_register(reg_string, 0); /* XXX TODO: count in registry_count */
