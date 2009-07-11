@@ -1,0 +1,250 @@
+\section{Introduction}
+
+   Attacks on Voice over IP networks are becoming increasingly more common.  It
+has become clear that we must do something within Asterisk to help mitigate
+these attacks.
+
+   Through a number of discussions with groups of developers in the Asterisk
+community, the general consensus is that the best thing that we can do within
+Asterisk is to build a framework which recognizes and reports events that could
+potentially have security implications.  Each channel driver has a different
+concept of what is an "event", and then each administrator has different
+thresholds of what is a "bad" event and what is a restorative event.  The
+process of acting upon this information is left to an external program to
+correlate and then take action - block traffic, modify dialing rules, etc.  It
+was decided that embedding actions inside of Asterisk was inappropriate, as the
+complexity of construction of such rule sets is difficult and there was no
+agreement on where rules should be enabled or how they should be processed.  The
+addition of a major section of code to handle rule expiration and severity
+interpretation was significant.  As a final determining factor, there are
+external programs and services which already parse log files and act in concert
+with packet filters or external devices to protect or alter network security
+models for IP connected hosts.
+
+\section{Framework Overview}
+
+    This section discusses the architecture of the Asterisk modifications being
+proposed.
+
+    There are two main components that we propose for the initial
+implementation of the security framework:
+
+\begin{itemize}
+    \item Security Event Generation
+    \item Security Event Logger
+\end{itemize}
+
+\subsection{Security Event Generation}
+
+    The ast\_event API is used for the generation of security events.  That
+way, the events are in an easily interpretable format within Asterisk to
+make it easy to write modules that do things with them.  There are also some
+helper data structures and functions to aid Asterisk modules in reporting these
+security events with the proper contents.
+
+    The next section of this document contains the current list of security events
+being proposed.  Each security event type has some required pieces of
+information and some other optional pieces of information.
+
+    Subscribing to security events from within Asterisk can be done by
+subscribing to events of type AST\_EVENT\_SECURITY.  These events have an
+information element, AST\_EVENT\_IE\_SECURITY\_EVENT, which identifies the security
+event sub-type (from the list described in the next section).  The result of the
+information elements in the events contain the required and optional meta data
+associated with the event sub-type.
+
+\subsection{Security Event Logger}
+
+    In addition to the infrastructure for generating the events, one module that
+is a consumer of these events has been implemented.
+
+    Asterisk trunk was recently updated to include support for dynamic logger
+levels.  This module takes advantage of this functionality to create a
+custom "security" logger level.  Then, when this module is in use, logger.conf
+can be configured to put security events into a file:
+
+\begin{verbatim}
+    security_log => security
+\end{verbatim}
+
+    The content of this file is a well defined and easily interpretable
+format for external scripts to read and act upon.  The definition for the format
+of the log file is described later in this chapter.
+
+\section{Events to Log}
+
+\begin{verbatim}
+(-) required
+(+) optional
+
+Invalid Account ID
+  (-) Local address family/IP address/port/transport
+  (-) Remote address family/IP address/port/transport
+  (-) Service (SIP, AMI, IAX2, ...)
+  (-) System Name
+  (+) Module
+  (+) Account ID (username, etc)
+  (+) Session ID (CallID, etc)
+  (+) Session timestamp (required if Session ID present)
+  (-) Event timestamp (sub-second precision)
+
+Failed ACL match
+  -> everything from invalid account ID
+  (+) Name of ACL (when we have named ACLs)
+
+Invalid Challenge/Response
+  -> everything from invalid account ID
+  (-) Challenge
+  (-) Response
+  (-) Expected Response
+
+Invalid Password
+  -> everything from invalid account ID
+
+Successful Authentication
+  -> informational event
+  -> everything from invalid account ID
+
+Invalid formatting of Request
+  -> everything from invalid account ID
+  -> account ID optional
+  (-) Request Type
+  (+) Request parameters
+
+Session Limit Reached (such as a call limit)
+  -> everything from invalid account ID
+
+Memory Limit Reached
+  -> everything from invalid account ID
+
+Maximum Load Average Reached
+  -> everything from invalid account ID
+
+Request Not Allowed
+  -> everything from invalid account ID
+  (-) Request Type
+  (+) Request parameters
+
+Request Not Supported
+  -> everything from invalid account ID
+  (-) Request Type
+
+Authentication Method Not Allowed
+  -> everything from invalid account ID
+  (-) Authentication Method attempted
+
+In dialog message from unexpected host
+  -> everything from invalid account ID
+  (-) expected host
+\end{verbatim}
+
+\section{Security Log File Format}
+
+    The beginning of each line in the log file is the same as it is for other
+logger levels within Asterisk.
+
+\begin{verbatim}
+    [Feb 11 07:57:03] SECURITY[23736] res_security_log.c: <...>
+\end{verbatim}
+
+    The part of the log entry identified by <...> is where the security event
+content resides.  The security event content is a comma separated list
+of key value pairs.  The key is the information element type, and the value is a
+quoted string that contains the associated meta data for that information
+element.  Any embedded quotes within the content are escaped with a
+backslash.
+
+\begin{verbatim}
+    INFORMATION_ELEMENT_1="IE1 content",INFORMATION_ELEMENT_2="IE2 content"
+\end{verbatim}
+
+The following table includes potential information elements and what the
+associated content looks like:
+
+\begin{verbatim}
+IE: SecurityEvent
+Content: This is the security event sub-type.
+Values: FailedACL, InvalidAccountID, SessionLimit, MemoryLimit, LoadAverageLimit,
+        RequestNotSupported, RequestNotAllowed, AuthMethodNotAllowed,
+        ReqBadFormat, UnexpectedAddress, ChallengeResponseFailed,
+        InvalidPassword
+
+IE: EventVersion
+Content: This is a numeric value that indicates when updates are made to the
+         content of the event.
+Values: Monotonically increasing integer, starting at 1
+
+IE: Service
+Content: This is the Asterisk service that generated the event.
+Values: TEST, SIP, AMI
+
+IE: Module
+Content: This is the Asterisk module that generated the event.
+Values: chan_sip
+
+IE: AccountID
+Content: This is a string used to identify the account associated with the
+         event.  In most cases, this would be a username.
+
+IE: SessionID
+Content: This is a string used to identify the session associated with the
+         event.  The format of the session identifier is specific to the
+         service.  In the case of SIP, this would be the Call-ID.
+
+IE: SessionTV
+Content: The time that the session associated with the SessionID started.
+Values: <seconds>-<microseconds> since epoch
+
+IE: ACLName
+Content: This is a string that identifies which named ACL is associated with
+         this event.
+
+IE: LocalAddress
+Content: This is the local address that was contacted for the related event.
+Values: <Address Family>/<Transport>/<Address>/<Port>
+Examples:
+     -> IPV4/UDP/192.168.1.1/5060
+     -> IPV4/TCP/192.168.1.1/5038
+
+IE: RemoteAddress
+Content: This is the remote address associated with the event.
+Examples:
+     -> IPV4/UDP/192.168.1.2/5060
+     -> IPV4/TCP/192.168.1.2/5038
+
+IE: ExpectedAddress
+Content: This is the address that was expected to be the remote address.
+Examples:
+     -> IPV4/UDP/192.168.1.2/5060
+     -> IPV4/TCP/192.168.1.2/5038
+
+IE: EventTV
+Content: This is the timestamp of when the event occurred.
+Values: <seconds>-<microseconds> since epoch
+
+IE: RequestType
+Content: This is a service specific string that represents the invalid request
+
+IE: RequestParams
+Content: This is a service specific string that represents relevant parameters
+         given with a request that was considered invalid.
+
+IE: AuthMethod
+Content: This is a service specific string that represents an authentication
+         method that was used or requested.
+
+IE: Challenge
+Content: This is a service specific string that represents the challenge
+         provided to a user attempting challenge/response authentication.
+
+IE: Response
+Content: This is a service specific string that represents the response
+         received from a user attempting challenge/response authentication.
+
+IE: ExpectedResponse
+Content: This is a service specific string that represents the response
+         that was expected to be received from a user attempting
+         challenge/response authentication.
+
+\end{verbatim}
+

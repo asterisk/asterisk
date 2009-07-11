@@ -74,6 +74,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/term.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/features.h"
+#include "asterisk/security_events.h"
 
 /*** DOCUMENTATION
 	<manager name="Ping" language="en_US">
@@ -807,6 +808,7 @@ struct mansession_session {
 	pthread_t waiting_thread;	/*!< Sleeping thread using this descriptor */
 	uint32_t managerid;	/*!< Unique manager identifier, 0 for AMI sessions */
 	time_t sessionstart;    /*!< Session start time */
+	struct timeval sessionstart_tv; /*!< Session start time */
 	time_t sessiontimeout;	/*!< Session timeout if HTTP */
 	char username[80];	/*!< Logged in username */
 	char challenge[10];	/*!< Authentication challenge */
@@ -834,6 +836,7 @@ struct mansession_session {
  */
 struct mansession {
 	struct mansession_session *session;
+	struct ast_tcptls_session_instance *tcptls_session;
 	FILE *f;
 	int fd;
 	ast_mutex_t lock;
@@ -1735,6 +1738,241 @@ static int set_eventmask(struct mansession *s, const char *eventmask)
 	return maskint;
 }
 
+static enum ast_security_event_transport_type mansession_get_transport(const struct mansession *s)
+{
+	return s->tcptls_session->parent->tls_cfg ? AST_SECURITY_EVENT_TRANSPORT_TLS :
+			AST_SECURITY_EVENT_TRANSPORT_TCP;
+}
+
+static struct sockaddr_in *mansession_encode_sin_local(const struct mansession *s,
+		struct sockaddr_in *sin_local)
+{
+	*sin_local = s->tcptls_session->parent->local_address;
+
+	return sin_local;
+}
+
+static void report_invalid_user(const struct mansession *s, const char *username)
+{
+	struct sockaddr_in sin_local;
+	char session_id[32];
+	struct ast_security_event_inval_acct_id inval_acct_id = {
+		.common.event_type = AST_SECURITY_EVENT_INVAL_ACCT_ID,
+		.common.version    = AST_SECURITY_EVENT_INVAL_ACCT_ID_VERSION,
+		.common.service    = "AMI",
+		.common.account_id = username,
+		.common.session_tv = &s->session->sessionstart_tv,
+		.common.local_addr = {
+			.sin       = mansession_encode_sin_local(s, &sin_local),
+			.transport = mansession_get_transport(s),
+		},
+		.common.remote_addr = {
+			.sin       = &s->session->sin,
+			.transport = mansession_get_transport(s),
+		},
+		.common.session_id = session_id,
+	};
+
+	snprintf(session_id, sizeof(session_id), "%p", s);
+
+	ast_security_event_report(AST_SEC_EVT(&inval_acct_id));
+}
+
+static void report_failed_acl(const struct mansession *s, const char *username)
+{
+	struct sockaddr_in sin_local;
+	char session_id[32];
+	struct ast_security_event_failed_acl failed_acl_event = {
+		.common.event_type = AST_SECURITY_EVENT_FAILED_ACL,
+		.common.version    = AST_SECURITY_EVENT_FAILED_ACL_VERSION,
+		.common.service    = "AMI",
+		.common.account_id = username,
+		.common.session_tv = &s->session->sessionstart_tv,
+		.common.local_addr = {
+			.sin       = mansession_encode_sin_local(s, &sin_local),
+			.transport = mansession_get_transport(s),
+		},
+		.common.remote_addr = {
+			.sin       = &s->session->sin,
+			.transport = mansession_get_transport(s),
+		},
+		.common.session_id = session_id,
+	};
+
+	snprintf(session_id, sizeof(session_id), "%p", s->session);
+
+	ast_security_event_report(AST_SEC_EVT(&failed_acl_event));
+}
+
+static void report_inval_password(const struct mansession *s, const char *username)
+{
+	struct sockaddr_in sin_local;
+	char session_id[32];
+	struct ast_security_event_inval_password inval_password = {
+		.common.event_type = AST_SECURITY_EVENT_INVAL_PASSWORD,
+		.common.version    = AST_SECURITY_EVENT_INVAL_PASSWORD_VERSION,
+		.common.service    = "AMI",
+		.common.account_id = username,
+		.common.session_tv = &s->session->sessionstart_tv,
+		.common.local_addr = {
+			.sin       = mansession_encode_sin_local(s, &sin_local),
+			.transport = mansession_get_transport(s),
+		},
+		.common.remote_addr = {
+			.sin       = &s->session->sin,
+			.transport = mansession_get_transport(s),
+		},
+		.common.session_id = session_id,
+	};
+
+	snprintf(session_id, sizeof(session_id), "%p", s->session);
+
+	ast_security_event_report(AST_SEC_EVT(&inval_password));
+}
+
+static void report_auth_success(const struct mansession *s)
+{
+	struct sockaddr_in sin_local;
+	char session_id[32];
+	struct ast_security_event_successful_auth successful_auth = {
+		.common.event_type = AST_SECURITY_EVENT_SUCCESSFUL_AUTH,
+		.common.version    = AST_SECURITY_EVENT_SUCCESSFUL_AUTH_VERSION,
+		.common.service    = "AMI",
+		.common.account_id = s->session->username,
+		.common.session_tv = &s->session->sessionstart_tv,
+		.common.local_addr = {
+			.sin       = mansession_encode_sin_local(s, &sin_local),
+			.transport = mansession_get_transport(s),
+		},
+		.common.remote_addr = {
+			.sin       = &s->session->sin,
+			.transport = mansession_get_transport(s),
+		},
+		.common.session_id = session_id,
+	};
+
+	snprintf(session_id, sizeof(session_id), "%p", s->session);
+
+	ast_security_event_report(AST_SEC_EVT(&successful_auth));
+}
+
+static void report_req_not_allowed(const struct mansession *s, const char *action)
+{
+	struct sockaddr_in sin_local;
+	char session_id[32];
+	char request_type[64];
+	struct ast_security_event_req_not_allowed req_not_allowed = {
+		.common.event_type = AST_SECURITY_EVENT_REQ_NOT_ALLOWED,
+		.common.version    = AST_SECURITY_EVENT_REQ_NOT_ALLOWED_VERSION,
+		.common.service    = "AMI",
+		.common.account_id = s->session->username,
+		.common.session_tv = &s->session->sessionstart_tv,
+		.common.local_addr = {
+			.sin       = mansession_encode_sin_local(s, &sin_local),
+			.transport = mansession_get_transport(s),
+		},
+		.common.remote_addr = {
+			.sin       = &s->session->sin,
+			.transport = mansession_get_transport(s),
+		},
+		.common.session_id = session_id,
+
+		.request_type      = request_type,
+	};
+
+	snprintf(session_id, sizeof(session_id), "%p", s->session);
+	snprintf(request_type, sizeof(request_type), "Action: %s", action);
+
+	ast_security_event_report(AST_SEC_EVT(&req_not_allowed));
+}
+
+static void report_req_bad_format(const struct mansession *s, const char *action)
+{
+	struct sockaddr_in sin_local;
+	char session_id[32];
+	char request_type[64];
+	struct ast_security_event_req_bad_format req_bad_format = {
+		.common.event_type = AST_SECURITY_EVENT_REQ_BAD_FORMAT,
+		.common.version    = AST_SECURITY_EVENT_REQ_BAD_FORMAT_VERSION,
+		.common.service    = "AMI",
+		.common.account_id = s->session->username,
+		.common.session_tv = &s->session->sessionstart_tv,
+		.common.local_addr = {
+			.sin       = mansession_encode_sin_local(s, &sin_local),
+			.transport = mansession_get_transport(s),
+		},
+		.common.remote_addr = {
+			.sin       = &s->session->sin,
+			.transport = mansession_get_transport(s),
+		},
+		.common.session_id = session_id,
+
+		.request_type      = request_type,
+	};
+
+	snprintf(session_id, sizeof(session_id), "%p", s->session);
+	snprintf(request_type, sizeof(request_type), "Action: %s", action);
+
+	ast_security_event_report(AST_SEC_EVT(&req_bad_format));
+}
+
+static void report_failed_challenge_response(const struct mansession *s,
+		const char *response, const char *expected_response)
+{
+	struct sockaddr_in sin_local;
+	char session_id[32];
+	struct ast_security_event_chal_resp_failed chal_resp_failed = {
+		.common.event_type = AST_SECURITY_EVENT_CHAL_RESP_FAILED,
+		.common.version    = AST_SECURITY_EVENT_CHAL_RESP_FAILED_VERSION,
+		.common.service    = "AMI",
+		.common.account_id = s->session->username,
+		.common.session_tv = &s->session->sessionstart_tv,
+		.common.local_addr = {
+			.sin       = mansession_encode_sin_local(s, &sin_local),
+			.transport = mansession_get_transport(s),
+		},
+		.common.remote_addr = {
+			.sin       = &s->session->sin,
+			.transport = mansession_get_transport(s),
+		},
+		.common.session_id = session_id,
+
+		.challenge         = s->session->challenge,
+		.response          = response,
+		.expected_response = expected_response,
+	};
+
+	snprintf(session_id, sizeof(session_id), "%p", s->session);
+
+	ast_security_event_report(AST_SEC_EVT(&chal_resp_failed));
+}
+
+static void report_session_limit(const struct mansession *s)
+{
+	struct sockaddr_in sin_local;
+	char session_id[32];
+	struct ast_security_event_session_limit session_limit = {
+		.common.event_type = AST_SECURITY_EVENT_SESSION_LIMIT,
+		.common.version    = AST_SECURITY_EVENT_SESSION_LIMIT_VERSION,
+		.common.service    = "AMI",
+		.common.account_id = s->session->username,
+		.common.session_tv = &s->session->sessionstart_tv,
+		.common.local_addr = {
+			.sin       = mansession_encode_sin_local(s, &sin_local),
+			.transport = mansession_get_transport(s),
+		},
+		.common.remote_addr = {
+			.sin       = &s->session->sin,
+			.transport = mansession_get_transport(s),
+		},
+		.common.session_id = session_id,
+	};
+
+	snprintf(session_id, sizeof(session_id), "%p", s->session);
+
+	ast_security_event_report(AST_SEC_EVT(&session_limit));
+}
+
 /*
  * Here we start with action_ handlers for AMI actions,
  * and the internal functions used by them.
@@ -1757,8 +1995,10 @@ static int authenticate(struct mansession *s, const struct message *m)
 	AST_RWLIST_WRLOCK(&users);
 
 	if (!(user = get_manager_by_name_locked(username))) {
+		report_invalid_user(s, username);
 		ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_inet_ntoa(s->session->sin.sin_addr), username);
 	} else if (user->ha && !ast_apply_ha(user->ha, &(s->session->sin))) {
+		report_failed_acl(s, username);
 		ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", ast_inet_ntoa(s->session->sin.sin_addr), username);
 	} else if (!strcasecmp(astman_get_header(m, "AuthType"), "MD5")) {
 		const char *key = astman_get_header(m, "Key");
@@ -1777,13 +2017,19 @@ static int authenticate(struct mansession *s, const struct message *m)
 				len += sprintf(md5key + len, "%2.2x", digest[x]);
 			if (!strcmp(md5key, key)) {
 				error = 0;
+			} else {
+				report_failed_challenge_response(s, key, md5key);
 			}
 		} else {
 			ast_debug(1, "MD5 authentication is not possible.  challenge: '%s'\n",
 				S_OR(s->session->challenge, ""));
 		}
-	} else if (password && user->secret && !strcmp(password, user->secret)) {
-		error = 0;
+	} else if (user->secret) {
+		if (!strcmp(password, user->secret)) {
+			error = 0;
+		} else {
+			report_inval_password(s, username);
+		}
 	}
 
 	if (error) {
@@ -1799,7 +2045,10 @@ static int authenticate(struct mansession *s, const struct message *m)
 	s->session->writeperm = user->writeperm;
 	s->session->writetimeout = user->writetimeout;
 	s->session->sessionstart = time(NULL);
+	s->session->sessionstart_tv = ast_tvnow();
 	set_eventmask(s, astman_get_header(m, "Events"));
+
+	report_auth_success(s);
 
 	AST_RWLIST_UNLOCK(&users);
 	return 0;
@@ -3550,6 +3799,7 @@ static int process_message(struct mansession *s, const struct message *m)
 	ast_copy_string(action, __astman_get_header(m, "Action", GET_HEADER_SKIP_EMPTY), sizeof(action));
 
 	if (ast_strlen_zero(action)) {
+		report_req_bad_format(s, "NONE");
 		mansession_lock(s);
 		astman_send_error(s, m, "Missing action in request");
 		mansession_unlock(s);
@@ -3557,6 +3807,9 @@ static int process_message(struct mansession *s, const struct message *m)
 	}
 
 	if (!s->session->authenticated && strcasecmp(action, "Login") && strcasecmp(action, "Logoff") && strcasecmp(action, "Challenge")) {
+		if (!s->session->authenticated) {
+			report_req_not_allowed(s, action);
+		}
 		mansession_lock(s);
 		astman_send_error(s, m, "Permission denied");
 		mansession_unlock(s);
@@ -3566,6 +3819,7 @@ static int process_message(struct mansession *s, const struct message *m)
 	if (!allowmultiplelogin && !s->session->authenticated && user &&
 		(!strcasecmp(action, "Login") || !strcasecmp(action, "Challenge"))) {
 		if (check_manager_session_inuse(user)) {
+			report_session_limit(s);
 			sleep(1);
 			mansession_lock(s);
 			astman_send_error(s, m, "Login Already In Use");
@@ -3583,7 +3837,7 @@ static int process_message(struct mansession *s, const struct message *m)
 			call_func = tmp->func;
 		} else {
 			astman_send_error(s, m, "Permission denied");
-			tmp = NULL;
+			report_req_not_allowed(s, action);
 		}
 		break;
 	}
@@ -3595,6 +3849,9 @@ static int process_message(struct mansession *s, const struct message *m)
 		ret = call_func(s, m);
 	} else {
 		char buf[512];
+		if (!tmp) {
+			report_req_bad_format(s, action);
+		}
 		snprintf(buf, sizeof(buf), "Invalid/unknown command: %s. Use Action: ListCommands to show available commands.", action);
 		mansession_lock(s);
 		astman_send_error(s, m, buf);
@@ -3733,7 +3990,9 @@ static void *session_do(void *data)
 {
 	struct ast_tcptls_session_instance *ser = data;
 	struct mansession_session *session = build_mansession(ser->remote_address);
-	struct mansession s = { NULL, };
+	struct mansession s = {
+		.tcptls_session = data,
+	};
 	int flags;
 	int res;
 
