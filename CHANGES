@@ -208,6 +208,14 @@ Multicast RTP Support
    Control address is specific to the linksys type and is used for sending the control
    packets unique to them.
 
+Security Events Framework
+-------------------------
+ * Asterisk has a new C API for reporting security events.  The module res_security_log
+   sends these events to the "security" logger level.  Currently, AMI is the only
+   Asterisk component that reports security events.  However, SIP support will be
+   coming soon.  For more information on the security events framework, see the
+   "Security Events" chapter of the included documentation - doc/tex/asterisk.pdf.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.1 to Asterisk 1.6.2  -------------
 ------------------------------------------------------------------------------
