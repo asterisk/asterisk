@@ -3549,7 +3549,10 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 			dpc->total_prio++;
 
 			/* write extension name and first peer */
-			snprintf(buf, sizeof(buf), "'%s' =>", ast_get_extension_name(e));
+			if (e->matchcid)
+				snprintf(buf, sizeof(buf), "'%s' (CID match '%s') => ", ast_get_extension_name(e), e->cidmatch);
+			else
+				snprintf(buf, sizeof(buf), "'%s' =>", ast_get_extension_name(e));
 
 			print_ext(e, buf2, sizeof(buf2));
 
