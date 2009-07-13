@@ -11,7 +11,7 @@
 
 -include $(ASTTOPDIR)/menuselect.makeopts $(ASTTOPDIR)/menuselect.makedeps
 
-MENUSELECT_CATEGORY=Addons
+MENUSELECT_CATEGORY=ADDONS
 MENUSELECT_DESCRIPTION=Add-ons (See README-addons.txt)
 
 H323OBJS:=ooCmdChannel.o ooLogChan.o ooUtils.o ooGkClient.o context.o \
