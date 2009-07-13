@@ -11039,6 +11039,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 	char tmp[80];
 	char addr[80];
 	struct sip_pvt *p;
+	struct sip_peer *peer;
 	int res;
 	char *fromdomain;
 	char *domainport = NULL;
@@ -11053,8 +11054,12 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 
 	if (r->dnsmgr == NULL) {
 		char transport[MAXHOSTNAMELEN];
+		peer = find_peer(r->hostname, NULL, TRUE, FINDPEERS, FALSE);
 		snprintf(transport, sizeof(transport), "_sip._%s", get_transport(r->transport)); /* have to use static get_transport function */
-		ast_dnsmgr_lookup(r->hostname, &r->us, &r->dnsmgr, sip_cfg.srvlookup ? transport : NULL);
+		ast_dnsmgr_lookup(peer ? peer->tohost : r->hostname, &r->us, &r->dnsmgr, sip_cfg.srvlookup ? transport : NULL);
+		if (peer) {
+			unref_peer(peer, "removing peer ref for dnsmgr_lookup");
+		}
 	}
 
 	if (r->call) {	/* We have a registration */
