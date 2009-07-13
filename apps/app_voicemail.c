@@ -8311,10 +8311,7 @@ static int vm_instructions_en(struct ast_channel *chan, struct ast_vm_user *vmu,
 			}
 		}
 		if (!res) {
-			if (skipadvanced)
-				res = ast_play_and_wait(chan, "vm-helpexit-full");
-			else
-				res = ast_play_and_wait(chan, "vm-helpexit");
+			res = ast_play_and_wait(chan, "vm-helpexit");
 		}
 		if (!res)
 			res = ast_waitfordigit(chan, 6000);
