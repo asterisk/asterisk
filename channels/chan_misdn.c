@@ -435,21 +435,16 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
 
 
 
-static inline void free_robin_list_r (struct robin_list *r)
+static void free_robin_list(void)
 {
-	if (r) {
-		if (r->next)
-			free_robin_list_r(r->next);
-		if (r->group)
-			free(r->group);
+	struct robin_list *r;
+	struct robin_list *next;
+
+	for (r = robin, robin = NULL; r; r = next) {
+		next = r->next;
+		free(r->group);
 		free(r);
 	}
-}
-
-static void free_robin_list ( void )
-{
-	free_robin_list_r(robin);
-	robin = NULL;
 }
 
 static struct robin_list* get_robin_position (char *group) 
@@ -457,11 +452,19 @@ static struct robin_list* get_robin_position (char *group)
 	struct robin_list *new;
 	struct robin_list *iter = robin;
 	for (; iter; iter = iter->next) {
-		if (!strcasecmp(iter->group, group))
+		if (!strcasecmp(iter->group, group)) {
 			return iter;
+		}
 	}
-	new = (struct robin_list *) calloc(1, sizeof(struct robin_list));
-	new->group = strndup(group, strlen(group));
+	new = calloc(1, sizeof(*new));
+	if (!new) {
+		return NULL;
+	}
+	new->group = strdup(group);
+	if (!new->group) {
+		free(new);
+		return NULL;
+	}
 	new->port = 0;
 	new->channel = 0;
 	if (robin) {
@@ -3184,8 +3187,7 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 	int port = 0;
 	struct misdn_bchannel *newbc = NULL;
 	int dec = 0;
-
-	struct chan_list *cl = init_chan_list(ORG_AST);
+	struct chan_list *cl;
 
 	snprintf(dial_str, sizeof(dial_str), "%s/%s", misdn_type, (char *) data);
 
@@ -3348,10 +3350,16 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 	
 
 	/* create ast_channel and link all the objects together */
+	cl = init_chan_list(ORG_AST);
+	if (!cl) {
+		ast_log(LOG_ERROR, "Could not create call record for Dial(%s)\n", dial_str);
+		return NULL;
+	}
 	cl->bc = newbc;
 	
 	tmp = misdn_new(cl, AST_STATE_RESERVED, ext, NULL, format, port, channel);
 	if (!tmp) {
+		free(cl);
 		ast_log(LOG_ERROR,"Could not create Asterisk object\n");
 		return NULL;
 	}
@@ -4267,6 +4275,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 		chan = misdn_new(ch, AST_STATE_RESERVED, bc->dad, bc->oad, AST_FORMAT_ALAW, bc->port, bc->channel);
 		if (!chan) {
+			free(ch);
 			misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
 			ast_log(LOG_ERROR, "cb_events: misdn_new failed !\n"); 
 			return 0;
@@ -5030,11 +5039,11 @@ static int unload_module(void)
 	misdn_cfg_destroy();
 	misdn_lib_destroy();
   
-	if (misdn_debug)
-		free(misdn_debug);
-	if (misdn_debug_only)
-		free(misdn_debug_only);
- 	free(misdn_ports);
+	free(misdn_out_calls);
+	free(misdn_in_calls);
+	free(misdn_debug_only);
+	free(misdn_ports);
+	free(misdn_debug);
  	
 	return 0;
 }
@@ -5072,6 +5081,7 @@ static int load_module(void)
 	}
 	misdn_ports = (int *) malloc(sizeof(int) * (max_ports + 1));
 	if (!misdn_ports) {
+		free(misdn_debug);
 		ast_log(LOG_ERROR, "Out of memory for misdn_ports\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -5082,13 +5092,34 @@ static int load_module(void)
 	}
 	*misdn_ports = 0;
 	misdn_debug_only = (int *) calloc(max_ports + 1, sizeof(int));
+	if (!misdn_debug_only) {
+		free(misdn_ports);
+		free(misdn_debug);
+		ast_log(LOG_ERROR, "Out of memory for misdn_debug_only\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}
 
 	misdn_cfg_get(0, MISDN_GEN_TRACEFILE, tempbuf, BUFFERSIZE);
 	if (!ast_strlen_zero(tempbuf))
 		tracing = 1;
 
 	misdn_in_calls = (int *) malloc(sizeof(int) * (max_ports + 1));
+	if (!misdn_in_calls) {
+		free(misdn_debug_only);
+		free(misdn_ports);
+		free(misdn_debug);
+		ast_log(LOG_ERROR, "Out of memory for misdn_in_calls\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}
 	misdn_out_calls = (int *) malloc(sizeof(int) * (max_ports + 1));
+	if (!misdn_out_calls) {
+		free(misdn_in_calls);
+		free(misdn_debug_only);
+		free(misdn_ports);
+		free(misdn_debug);
+		ast_log(LOG_ERROR, "Out of memory for misdn_out_calls\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}
 
 	for (i = 1; i <= max_ports; i++) {
 		misdn_in_calls[i] = 0;
