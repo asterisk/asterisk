@@ -2954,9 +2954,11 @@ static int handle_l2(msg_t *msg)
 
 	case DL_ESTABLISH | REQUEST:
 		cb_log(1,stack->port,"DL_ESTABLISH|REQUEST \n");
+		free_msg(msg);
 		return 1;
 	case DL_RELEASE | REQUEST:
 		cb_log(1,stack->port,"DL_RELEASE|REQUEST \n");
+		free_msg(msg);
 		return 1;
 
 	case DL_ESTABLISH | INDICATION:
@@ -4191,7 +4193,7 @@ static void manager_event_handler(void *arg)
 				free_msg(msg);
 				break;
 			case MGR_SETSTACK | REQUEST :
-				/* Warning: memory leak here if we get this message */
+				free_msg(msg);
 				break;
 			default:
 				mISDN_write(glob_mgr->midev, frm, mISDN_HEADER_LEN+frm->len, TIMEOUT_1SEC);
