@@ -9,8 +9,12 @@ CREATE TABLE meetme (
 	endtime datetime NULL,
 	-- PIN to enter the conference, if any
 	pin char(20) NULL,
+	-- Options to associate with normal users of the conference
+	opts char(100) NULL,
 	-- PIN to enter the conference as an administrator, if any
 	adminpin char(20) NULL,
+	-- Options to associate with administrator users of the conference
+	adminopts char(100) NULL,
 	-- Current count of conference participants
 	members integer DEFAULT 0 NOT NULL,
 	-- Maximum conference participants allowed concurrently
