@@ -972,7 +972,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				continue;
 			/* here, o->chan == c == winner */
 			if (!ast_strlen_zero(c->call_forward)) {
-				(*sentringing) = 0;
+				pa->sentringing = 0;
 				do_forward(o, &num, peerflags, single, to);
 				continue;
 			}
@@ -1098,7 +1098,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					} else {
 						ast_verb(3, "%s redirecting info has changed, passing it to %s\n", c->name, in->name);
 						ast_indicate_data(in, AST_CONTROL_REDIRECTING, f->data.ptr, f->datalen);
-						(*sentringing) = 0;
+						pa->sentringing = 0;
 					}
 					break;
 				case AST_CONTROL_PROCEEDING:
