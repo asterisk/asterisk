@@ -3102,13 +3102,15 @@ struct parsed_dial_string {
 	char *options;
 };
 
-static int send_apathetic_reply(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int command, int ts, unsigned char seqno)
+static int send_apathetic_reply(unsigned short callno, unsigned short dcallno,
+		struct sockaddr_in *sin, int command, int ts, unsigned char seqno,
+		int sockfd)
 {
 	struct ast_iax2_full_hdr f = { .scallno = htons(0x8000 | callno), .dcallno = htons(dcallno),
 		.ts = htonl(ts), .iseqno = seqno, .oseqno = 0, .type = AST_FRAME_IAX,
 		.csub = compress_subclass(command) };
 
-	return sendto(defaultsockfd, &f, sizeof(f), 0, (struct sockaddr *)sin, sizeof(*sin));
+	return sendto(sockfd, &f, sizeof(f), 0, (struct sockaddr *)sin, sizeof(*sin));
 }
 
 /*!
@@ -6877,7 +6879,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		/* Deal with POKE/PONG without allocating a callno */
 		if (f.frametype == AST_FRAME_IAX && f.subclass == IAX_COMMAND_POKE) {
 			/* Reply back with a PONG, but don't care about the result. */
-			send_apathetic_reply(1, ntohs(fh->scallno), &sin, IAX_COMMAND_PONG, ntohs(fh->ts), fh->iseqno + 1);
+			send_apathetic_reply(1, ntohs(fh->scallno), &sin, IAX_COMMAND_PONG, ntohs(fh->ts), fh->iseqno + 1, fd);
 			return 1;
 		} else if (f.frametype == AST_FRAME_IAX && f.subclass == IAX_COMMAND_ACK && dcallno == 1) {
 			/* Ignore */
