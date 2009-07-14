@@ -38,6 +38,7 @@
 #include "asterisk/astdb.h"
 #include "asterisk/features.h"
 #include "asterisk/cel.h"
+#include "asterisk/causes.h"
 
 #include "sig_analog.h"
 
@@ -88,6 +89,9 @@ static const struct {
 	/* "smdi" is intentionally not supported here, as there is a much better
 	 * way to do this in the dialplan now. */
 };
+
+#define ISTRUNK(p) ((p->sig == ANALOG_SIG_FXSLS) || (p->sig == ANALOG_SIG_FXSKS) || \
+					(p->sig == ANALOG_SIG_FXSGS))
 
 enum analog_sigtype analog_str_to_sigtype(const char *name)
 {
@@ -397,6 +401,14 @@ static int analog_ring(struct analog_pvt *p)
 		return -1;
 }
 
+static int analog_flash(struct analog_pvt *p)
+{
+	if (p->calls->flash)
+		return p->calls->flash(p->chan_pvt);
+	else
+		return -1;
+}
+
 static int analog_start(struct analog_pvt *p)
 {
 	if (p->calls->start)
@@ -676,6 +688,13 @@ static int analog_callwait(struct analog_pvt *p)
 		return 0;
 }
 
+static void analog_set_cadence(struct analog_pvt *p, struct ast_channel *chan)
+{
+	if (p->calls->set_cadence) {
+		return p->calls->set_cadence(p->chan_pvt, &p->cidrings, chan);
+	}
+}
+
 int analog_call(struct analog_pvt *p, struct ast_channel *ast, char *rdest, int timeout)
 {
 	int res, index,mysig;
@@ -712,20 +731,7 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, char *rdest, int 
 
 			/* Don't send audio while on hook, until the call is answered */
 			p->dialing = 1;
-			/* XXX */
-#if 0
-			/* Choose proper cadence */
-			if ((p->distinctivering > 0) && (p->distinctivering <= num_cadence)) {
-				if (ioctl(p->subs[ANALOG_SUB_REAL].dfd, DAHDI_SETCADENCE, &cadences[p->distinctivering - 1]))
-					ast_log(LOG_WARNING, "Unable to set distinctive ring cadence %d on '%s': %s\n", p->distinctivering, ast->name, strerror(errno));
-				p->cidrings = cidrings[p->distinctivering - 1];
-			} else {
-				if (ioctl(p->subs[ANALOG_SUB_REAL].dfd, DAHDI_SETCADENCE, NULL))
-					ast_log(LOG_WARNING, "Unable to reset default ring on '%s': %s\n", ast->name, strerror(errno));
-				p->cidrings = p->sendcalleridafter;
-			}
-#endif
-			p->cidrings = p->sendcalleridafter;
+			analog_set_cadence(p, ast); /* and set p->cidrings */
 
 			/* nick@dccinc.com 4/3/03 mods to allow for deferred dialing */
 			c = strchr(dest, '/');
@@ -1042,13 +1048,10 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 
 	if (!p->subs[ANALOG_SUB_REAL].owner && !p->subs[ANALOG_SUB_CALLWAIT].owner && !p->subs[ANALOG_SUB_THREEWAY].owner) {
 		p->owner = NULL;
-#if 0
 		p->ringt = 0;
-#endif
-#if 0 /* Since we set it in _call */
-		p->cidrings = 1;
-#endif
 		p->outgoing = 0;
+		p->onhooktime = time(NULL);
+		p->cidrings = 1;
 
 		/* Perform low level hangup if no owner left */
 		res = analog_on_hook(p);
@@ -1115,9 +1118,7 @@ int analog_answer(struct analog_pvt *p, struct ast_channel *ast)
 	case ANALOG_SIG_FXSLS:
 	case ANALOG_SIG_FXSGS:
 	case ANALOG_SIG_FXSKS:
-#if 0
 		p->ringt = 0;
-#endif
 		/* Fall through */
 	case ANALOG_SIG_EM:
 	case ANALOG_SIG_EM_E1:
@@ -1259,13 +1260,47 @@ static int analog_decrease_ss_count(struct analog_pvt *p)
 		return -1;
 }
 
+static int analog_distinctive_ring(struct ast_channel *chan, struct analog_pvt *p, int idx, int *ringdata)
+{
+	if (p->calls->distinctive_ring) {
+		return p->calls->distinctive_ring(chan, p->chan_pvt, idx, ringdata);
+	} else
+		return -1;
+
+}
+
+static int analog_set_linear_mode(struct analog_pvt *p, int index, int linear_mode)
+{
+	if (p->calls->set_linear_mode) {
+		return p->calls->set_linear_mode(p->chan_pvt, index, linear_mode);
+	} else
+		return -1;
+}
+
+static void analog_get_and_handle_alarms(struct analog_pvt *p)
+{
+	if (p->calls->get_and_handle_alarms)
+		return p->calls->get_and_handle_alarms(p->chan_pvt);
+}
+
+static void *analog_get_bridged_channel(struct analog_pvt *p, struct ast_channel *chan)
+{
+	if (p->calls->get_sigpvt_bridged_channel)
+		return p->calls->get_sigpvt_bridged_channel;
+	else
+		return NULL;
+}
+
+static int analog_get_sub_fd(struct analog_pvt *p, enum analog_sub sub)
+{
+	if (p->calls->get_sub_fd) {
+		return p->calls->get_sub_fd(p->chan_pvt, sub);
+	} else
+		return -1;
+}
+
 #define ANALOG_NEED_MFDETECT(p) (((p)->sig == ANALOG_SIG_FEATDMF) || ((p)->sig == ANALOG_SIG_FEATDMF_TA) || ((p)->sig == ANALOG_SIG_E911) || ((p)->sig == ANALOG_SIG_FGC_CAMA) || ((p)->sig == ANALOG_SIG_FGC_CAMAMF) || ((p)->sig == ANALOG_SIG_FEATB))
 
-/* Note by jpeeler: This function has a rather large section of code ifdefed
- * away. I'd like to leave the code there until more testing is done and I
- * know for sure that nothing got left out. The plan is at the latest for this
- * comment and code below to be removed shortly after the merging of sig_pri.
- */
 static void *__analog_ss_thread(void *data)
 {
 	struct analog_pvt *p = data;
@@ -1279,16 +1314,6 @@ static void *__analog_ss_thread(void *data)
 	struct callerid_state *cs = NULL;
 	char *name = NULL, *number = NULL;
 	int flags;
-#if 0
-	unsigned char buf[256];
-	int distMatches;
-	int curRingData[3];
-	int receivedRingT;
-	int samples = 0;
-	int counter1;
-	int counter;
-	int i;
-#endif
 	int timeout;
 	int getforward = 0;
 	char *s1, *s2;
@@ -1794,21 +1819,19 @@ static void *__analog_ss_thread(void *data)
 				memset(exten, 0, sizeof(exten));
 				timeout = analog_firstdigittimeout;
 			} else if (!strcmp(exten, "*0")) {
-#ifdef XXX
 				struct ast_channel *nbridge = p->subs[ANALOG_SUB_THREEWAY].owner;
-				struct dahdi_pvt *pbridge = NULL;
+				struct analog_pvt *pbridge = NULL;
 				  /* set up the private struct of the bridged one, if any */
 				if (nbridge && ast_bridged_channel(nbridge))
-					pbridge = ast_bridged_channel(nbridge)->tech_pvt;
+					pbridge = analog_get_bridged_channel(p, nbridge);
 				if (nbridge && pbridge &&
-				    (nbridge->tech == chan_tech) &&
-				    (ast_bridged_channel(nbridge)->tech == chan_tech) &&
+				    (nbridge->tech == p->chan_tech) &&
+				    (ast_bridged_channel(nbridge)->tech == p->chan_tech) &&
 				    ISTRUNK(pbridge)) {
-					int func = DAHDI_FLASH;
 					/* Clear out the dial buffer */
 					p->dop.dialstr[0] = '\0';
 					/* flash hookswitch */
-					if ((ioctl(pbridge->subs[ANALOG_SUB_REAL].dfd,DAHDI_HOOK,&func) == -1) && (errno != EINPROGRESS)) {
+					if ((analog_flash(p) == -1) && (errno != EINPROGRESS)) {
 						ast_log(LOG_WARNING, "Unable to flash external trunk on channel %s: %s\n",
 							nbridge->name, strerror(errno));
 					}
@@ -1829,7 +1852,6 @@ static void *__analog_ss_thread(void *data)
 					ast_hangup(chan);
 					goto quit;
 				}
-#endif
 			} else if (!ast_canmatch_extension(chan, chan->context, exten, 1, chan->cid.cid_num) &&
 							((exten[0] != '*') || (strlen(exten) > 2))) {
 				ast_debug(1, "Can't match %s from '%s' in context %s\n", exten, chan->cid.cid_num ? chan->cid.cid_num : "<Unknown Caller>", chan->context);
@@ -1855,9 +1877,9 @@ static void *__analog_ss_thread(void *data)
 				cs = NULL;
 				ast_debug(1, "Receiving DTMF cid on "
 					"channel %s\n", chan->name);
-#if 0
-				dahdi_setlinear(p->subs[index].dfd, 0);
-#endif
+
+				analog_set_linear_mode(p, index, 0);
+
 				res = 2000;
 				for (;;) {
 					struct ast_frame *f;
@@ -1868,8 +1890,7 @@ static void *__analog_ss_thread(void *data)
 						ast_hangup(chan);
 						goto quit;
 					}
-					f = ast_read(chan);
-					if (!f)
+					if (!(f = ast_read(chan)))
 						break;
 					if (f->frametype == AST_FRAME_DTMF) {
 						dtmfbuf[i++] = f->subclass;
@@ -1882,9 +1903,9 @@ static void *__analog_ss_thread(void *data)
 						break; /* Got ring */
 				}
 				dtmfbuf[i] = '\0';
-#if 0
-				dahdi_setlinear(p->subs[index].dfd, p->subs[index].linear);
-#endif
+
+				analog_set_linear_mode(p, index, 1);
+
 				/* Got cid and ring. */
 				ast_debug(1, "CID got string '%s'\n", dtmfbuf);
 				callerid_get_dtmf(dtmfbuf, dtmfcid, &flags);
@@ -1895,82 +1916,51 @@ static void *__analog_ss_thread(void *data)
 					number = dtmfcid;
 				else
 					number = NULL;
-#if 0
+
 			/* If set to use V23 Signalling, launch our FSK gubbins and listen for it */
 			} else if ((p->cid_signalling == CID_SIG_V23) || (p->cid_signalling == CID_SIG_V23_JP)) {
-				cs = callerid_new(p->cid_signalling);
-				if (cs) {
-					samples = 0;
-#if 1
-					bump_gains(p);
-#endif				
-					/* Take out of linear mode for Caller*ID processing */
-					dahdi_setlinear(p->subs[index].dfd, 0);
-					
-					/* First we wait and listen for the Caller*ID */
-					for (;;) {	
-						i = DAHDI_IOMUX_READ | DAHDI_IOMUX_SIGEVENT;
-						if ((res = ioctl(p->subs[index].dfd, DAHDI_IOMUX, &i)))	{
-							ast_log(LOG_WARNING, "I/O MUX failed: %s\n", strerror(errno));
-							callerid_free(cs);
-							ast_hangup(chan);
-							goto quit;
-						}
-						if (i & DAHDI_IOMUX_SIGEVENT) {
-							res = dahdi_get_event(p->subs[index].dfd);
-							ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
+				int timeout = 10000;  /* Ten seconds */
+				struct timeval start = ast_tvnow();
+				enum analog_event ev;
 
+				namebuf[0] = 0;
+				numbuf[0] = 0;
+
+				if (!analog_start_cid_detect(p, p->cid_signalling)) {
+					while (1) {
+						res = analog_get_callerid(p, namebuf, numbuf, &ev, timeout - ast_tvdiff_ms(ast_tvnow(), start));
+	
+						if (res == 0) {
+							break;
+						}
+
+						if (res == 1) {
 							if (p->cid_signalling == CID_SIG_V23_JP) {
-#ifdef DAHDI_EVENT_RINGBEGIN
-								if (res == ANALOG_EVENT_RINGBEGIN) {
-									res = analog_off_hook(p);
+								if (ev == ANALOG_EVENT_RINGBEGIN) {
+									analog_off_hook(p);
 									usleep(1);
-								}
-#endif
+								} 
 							} else {
-								res = 0;
+								ev = ANALOG_EVENT_NONE;
 								break;
 							}
-						} else if (i & DAHDI_IOMUX_READ) {
-							res = read(p->subs[index].dfd, buf, sizeof(buf));
-							if (res < 0) {
-								if (errno != ELAST) {
-									ast_log(LOG_WARNING, "read returned error: %s\n", strerror(errno));
-									callerid_free(cs);
-									ast_hangup(chan);
-									goto quit;
-								}
-								break;
-							}
-							samples += res;
-
-							if  (p->cid_signalling == CID_SIG_V23_JP) {
-								res = callerid_feed_jp(cs, buf, res, AST_LAW(p));
-							} else {
-								res = callerid_feed(cs, buf, res, AST_LAW(p));
-							}
-
-							if (res < 0) {
-								ast_log(LOG_WARNING, "CallerID feed failed on channel '%s'\n", chan->name);
-								break;
-							} else if (res)
-								break;
-							else if (samples > (8000 * 10))
-								break;
 						}
+	
+						if (ast_tvdiff_ms(ast_tvnow(), start) > timeout)
+							break;
+	
 					}
-					if (res == 1) {
-						callerid_get(cs, &name, &number, &flags);
-						ast_log(LOG_NOTICE, "CallerID number: %s, name: %s, flags=%d\n", number, name, flags);
-					}
+					name = namebuf;
+					number = numbuf;
+	
+					analog_stop_cid_detect(p);
 
 					if (p->cid_signalling == CID_SIG_V23_JP) {
 						res = analog_on_hook(p);
 						usleep(1);
 						res = 4000;
 					} else {
-
-						/* Finished with Caller*ID, now wait for a ring to make sure there really is a call coming */ 
+						/* Finished with Caller*ID, now wait for a ring to make sure there really is a call coming */
 						res = 2000;
 					}
 
@@ -1982,7 +1972,7 @@ static void *__analog_ss_thread(void *data)
 								"Exiting simple switch\n");
 							ast_hangup(chan);
 							goto quit;
-						} 
+						}
 						if (!(f = ast_read(chan))) {
 							ast_log(LOG_WARNING, "Hangup received waiting for ring. Exiting simple switch\n");
 							ast_hangup(chan);
@@ -1990,18 +1980,19 @@ static void *__analog_ss_thread(void *data)
 						}
 						ast_frfree(f);
 						if (chan->_state == AST_STATE_RING ||
-						    chan->_state == AST_STATE_RINGING) 
+							chan->_state == AST_STATE_RINGING)
 							break; /* Got ring */
 					}
+
+					if (analog_distinctive_ring(chan, p, index, NULL))
+						goto quit;
 	
-					/* Restore linear mode (if appropriate) for Caller*ID processing */
-					dahdi_setlinear(p->subs[index].dfd, p->subs[index].linear);
-#if 1
-					restore_gains(p);
-#endif				
+					if (res < 0) {
+						ast_log(LOG_WARNING, "CallerID returned with error on channel '%s'\n", chan->name);
+					}
 				} else
-					ast_log(LOG_WARNING, "Unable to get caller ID space\n");			
-#endif
+					ast_log(LOG_WARNING, "Unable to get caller ID space\n");
+
 			} else {
 				ast_log(LOG_WARNING, "Channel %s in prering "
 					"state, but I have nothing to do. "
@@ -2015,6 +2006,8 @@ static void *__analog_ss_thread(void *data)
 			int timeout = 10000;  /* Ten seconds */
 			struct timeval start = ast_tvnow();
 			enum analog_event ev;
+			int curRingData[3] = { 0 };
+			int receivedRingT = 0;
 
 			namebuf[0] = 0;
 			numbuf[0] = 0;
@@ -2027,19 +2020,33 @@ static void *__analog_ss_thread(void *data)
 						break;
 					}
 
-					if (res == 1) {
+					if (res == 1 || res == 2) {
 						if (ev == ANALOG_EVENT_POLARITY && p->hanguponpolarityswitch && p->polarity == POLARITY_REV) {
 							ast_debug(1, "Hanging up due to polarity reversal on channel %d while detecting callerid\n", p->channel);
 							p->polarity = POLARITY_IDLE;
 							ast_hangup(chan);
 							goto quit;
-						} else if (ev != ANALOG_EVENT_NONE) {
+						} else if (ev != ANALOG_EVENT_NONE && ev != ANALOG_EVENT_RINGBEGIN && ev != ANALOG_EVENT_RINGOFFHOOK) { 
 							break;
+						}
+						if (res != 2) {
+							/* Let us detect callerid when the telco uses distinctive ring */
+							curRingData[receivedRingT] = p->ringt;
+
+							if (p->ringt < p->ringt_base/2) {
+								break;
+							}
+							/* Increment the ringT counter so we can match it against
+							   values in chan_dahdi.conf for distinctive ring */
+							if (++receivedRingT == ARRAY_LEN(curRingData)) {
+								break;
+							}
 						}
 					}
 
-					if (ast_tvdiff_ms(ast_tvnow(), start) > timeout)
+					if (ast_tvdiff_ms(ast_tvnow(), start) > timeout) {
 						break;
+					}
 
 				}
 				name = namebuf;
@@ -2047,106 +2054,12 @@ static void *__analog_ss_thread(void *data)
 
 				analog_stop_cid_detect(p);
 
-#if 0
-			/* XXX */
-			if (strcmp(p->context,p->defcontext) != 0) {
-				ast_copy_string(p->context, p->defcontext, sizeof(p->context));
-				ast_copy_string(chan->context,p->defcontext,sizeof(chan->context));
-			}
+				if (analog_distinctive_ring(chan, p, index, curRingData))
+					goto quit;
 
-			analog_get_callerid(p, name, number);
-			/* FSK Bell202 callerID */
-			cs = callerid_new(p->cid_signalling);
-			if (cs) {
-#if 1
-				bump_gains(p);
-#endif				
-				samples = 0;
-				len = 0;
-				distMatches = 0;
-				/* Clear the current ring data array so we dont have old data in it. */
-				for (receivedRingT = 0; receivedRingT < (sizeof(curRingData) / sizeof(curRingData[0])); receivedRingT++)
-					curRingData[receivedRingT] = 0;
-				receivedRingT = 0;
-				counter = 0;
-				counter1 = 0;
-				/* Check to see if context is what it should be, if not set to be. */
-
-				/* Take out of linear mode for Caller*ID processing */
-				dahdi_setlinear(p->subs[index].dfd, 0);
-				for (;;) {	
-					i = DAHDI_IOMUX_READ | DAHDI_IOMUX_SIGEVENT;
-					if ((res = ioctl(p->subs[index].dfd, DAHDI_IOMUX, &i)))	{
-						ast_log(LOG_WARNING, "I/O MUX failed: %s\n", strerror(errno));
-						callerid_free(cs);
-						ast_hangup(chan);
-						goto quit;
-					}
-					if (i & DAHDI_IOMUX_SIGEVENT) {
-						res = dahdi_get_event(p->subs[index].dfd);
-						ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
-						/* If we get a PR event, they hung up while processing calerid */
-						if ( res == ANALOG_EVENT_POLARITY && p->hanguponpolarityswitch && p->polarity == POLARITY_REV) {
-							ast_debug(1, "Hanging up due to polarity reversal on channel %d while detecting callerid\n", p->channel);
-							p->polarity = POLARITY_IDLE;
-							callerid_free(cs);
-							ast_hangup(chan);
-							goto quit;
-						}
-						res = 0;
-						/* Let us detect callerid when the telco uses distinctive ring */
-
-						curRingData[receivedRingT] = p->ringt;
-
-						if (p->ringt < p->ringt_base/2)
-							break;
-						/* Increment the ringT counter so we can match it against
-						   values in chan_dahdi.conf for distinctive ring */
-						if (++receivedRingT == (sizeof(curRingData) / sizeof(curRingData[0])))
-							break;
-					} else if (i & DAHDI_IOMUX_READ) {
-						res = read(p->subs[index].dfd, buf, sizeof(buf));
-						if (res < 0) {
-							if (errno != ELAST) {
-								ast_log(LOG_WARNING, "read returned error: %s\n", strerror(errno));
-								callerid_free(cs);
-								ast_hangup(chan);
-								goto quit;
-							}
-							break;
-						}
-						if (p->ringt) 
-							p->ringt--;
-						if (p->ringt == 1) {
-							res = -1;
-							break;
-						}
-						samples += res;
-						res = callerid_feed(cs, buf, res, AST_LAW(p));
-						if (res < 0) {
-							ast_log(LOG_WARNING, "CallerID feed failed: %s\n", strerror(errno));
-							break;
-						} else if (res)
-							break;
-						else if (samples > (8000 * 10))
-							break;
-					}
-				}
-				if (res == 1) {
-					callerid_get(cs, &name, &number, &flags);
-					ast_debug(1, "CallerID number: %s, name: %s, flags=%d\n", number, name, flags);
-				}
-				/* Restore linear mode (if appropriate) for Caller*ID processing */
-				dahdi_setlinear(p->subs[index].dfd, p->subs[index].linear);
-#if 1
-				restore_gains(p);
-#endif				
 				if (res < 0) {
 					ast_log(LOG_WARNING, "CallerID returned with error on channel '%s'\n", chan->name);
 				}
-			} else
-				ast_log(LOG_WARNING, "Unable to get caller ID space\n");
-#endif
 			} else
 				ast_log(LOG_WARNING, "Unable to get caller ID space\n");
 		}
@@ -2164,9 +2077,7 @@ static void *__analog_ss_thread(void *data)
 
 		ast_setstate(chan, AST_STATE_RING);
 		chan->rings = 1;
-#if 0
 		p->ringt = p->ringt_base;
-#endif
 		res = ast_pbx_run(chan);
 		if (res) {
 			ast_hangup(chan);
@@ -2287,15 +2198,16 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		break;
 	case ANALOG_EVENT_ALARM:
 		p->inalarm = 1;
-#if 0
-		res = get_alarms(p);
-		handle_alarms(p, res);	
-#endif
+		analog_get_and_handle_alarms(p);
+
 	case ANALOG_EVENT_ONHOOK:
 		switch (p->sig) {
 		case ANALOG_SIG_FXOLS:
 		case ANALOG_SIG_FXOGS:
 		case ANALOG_SIG_FXOKS:
+			p->fxsoffhookstate = 0;
+			p->onhooktime = time(NULL);
+			p->msgstate = -1;
 			/* Check for some special conditions regarding call waiting */
 			if (index == ANALOG_SUB_REAL) {
 				/* The normal line was hung up */
@@ -2337,7 +2249,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 						/* It hasn't been long enough since the last flashook.  This is probably a bounce on
 						   hanging up.  Hangup both channels now */
 						if (p->subs[ANALOG_SUB_THREEWAY].owner)
-							ast_queue_hangup(p->subs[ANALOG_SUB_THREEWAY].owner);
+							ast_queue_hangup_with_cause(p->subs[ANALOG_SUB_THREEWAY].owner, AST_CAUSE_NO_ANSWER);
 						ast_softhangup_nolock(p->subs[ANALOG_SUB_THREEWAY].owner, AST_SOFTHANGUP_DEV);
 						ast_debug(1, "Looks like a bounced flash, hanging up both calls on %d\n", p->channel);
 						ast_channel_unlock(p->subs[ANALOG_SUB_THREEWAY].owner);
@@ -2427,6 +2339,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		case ANALOG_SIG_FXOLS:
 		case ANALOG_SIG_FXOGS:
 		case ANALOG_SIG_FXOKS:
+			p->fxsoffhookstate = 1;
 			switch (ast->_state) {
 			case AST_STATE_RINGING:
 				analog_set_echocanceller(p, 1);
@@ -2484,11 +2397,9 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		case ANALOG_SIG_FXSLS:
 		case ANALOG_SIG_FXSGS:
 		case ANALOG_SIG_FXSKS:
-#if 0
 			if (ast->_state == AST_STATE_RING) {
 				p->ringt = p->ringt_base;
 			}
-#endif
 
 			/* Fall through */
 		case ANALOG_SIG_EM:
@@ -2530,11 +2441,9 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		case ANALOG_SIG_FXSLS:
 		case ANALOG_SIG_FXSGS:
 		case ANALOG_SIG_FXSKS:
-#if 0
 			if (ast->_state == AST_STATE_RING) {
 				p->ringt = p->ringt_base;
 			}
-#endif
 			break;
 		}
 		break;
@@ -2572,10 +2481,9 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		case ANALOG_SIG_FXOLS:
 		case ANALOG_SIG_FXOGS:
 		case ANALOG_SIG_FXOKS:
-#if 0
 			ast_debug(1, "Winkflash, index: %d, normal: %d, callwait: %d, thirdcall: %d\n",
-				index, p->subs[ANALOG_SUB_REAL].dfd, p->subs[ANALOG_SUB_CALLWAIT].dfd, p->subs[ANALOG_SUB_THREEWAY].dfd);
-#endif
+				index, analog_get_sub_fd(p, ANALOG_SUB_REAL), analog_get_sub_fd(p, ANALOG_SUB_CALLWAIT), analog_get_sub_fd(p, ANALOG_SUB_THREEWAY));
+
 			p->callwaitcas = 0;
 
 			if (index != ANALOG_SUB_REAL) {
@@ -3045,6 +2953,7 @@ int analog_handle_init_event(struct analog_pvt *i, int event)
 		case ANALOG_SIG_FXOGS:
 		case ANALOG_SIG_FXOKS:
 			res = analog_off_hook(i);
+			i->fxsoffhookstate = 1;
 			if (res && (errno == EBUSY))
 				break;
 			if (i->immediate) {
@@ -3083,9 +2992,7 @@ int analog_handle_init_event(struct analog_pvt *i, int event)
 		case ANALOG_SIG_FXSLS:
 		case ANALOG_SIG_FXSGS:
 		case ANALOG_SIG_FXSKS:
-#if 0
 				i->ringt = i->ringt_base;
-#endif
 				/* Fall through */
 		case ANALOG_SIG_EMWINK:
 		case ANALOG_SIG_FEATD:
@@ -3139,16 +3046,15 @@ int analog_handle_init_event(struct analog_pvt *i, int event)
 		break;
 	case ANALOG_EVENT_ALARM:
 		i->inalarm = 1;
-#if 0
-		res = get_alarms(i);
-		handle_alarms(i, res);	
-#endif
+		analog_get_and_handle_alarms(i);
+
 		/* fall thru intentionally */
 	case ANALOG_EVENT_ONHOOK:
 		/* Back on hook.  Hang up. */
 		switch (i->sig) {
 		case ANALOG_SIG_FXOLS:
 		case ANALOG_SIG_FXOGS:
+			i->fxsoffhookstate = 0;
 		case ANALOG_SIG_FEATD:
 		case ANALOG_SIG_FEATDMF:
 		case ANALOG_SIG_FEATDMF_TA:
@@ -3172,6 +3078,7 @@ int analog_handle_init_event(struct analog_pvt *i, int event)
 			analog_on_hook(i);
 			break;
 		case ANALOG_SIG_FXOKS:
+			i->fxsoffhookstate = 0;
 			analog_set_echocanceller(i, 0);
 			/* Diddle the battery for the zhone */
 #ifdef ZHONE_HACK
@@ -3244,7 +3151,6 @@ struct analog_pvt * analog_new(enum analog_sigtype signallingtype, struct analog
 	p->chan_pvt = private_data;
 
 	/* Some defaults for values */
-	p->sendcalleridafter = 1;
 	p->cid_start = ANALOG_CID_START_RING;
 	p->cid_signalling = CID_SIG_BELL;
 	/* Sub real is assumed to always be alloc'd */

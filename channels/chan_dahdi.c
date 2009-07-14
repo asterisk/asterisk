@@ -63,6 +63,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <dahdi/user.h>
 #include <dahdi/tonezone.h>
 #include "sig_analog.h"
+/* Analog signaling is currently still present in chan_dahdi for use with
+ * radio. Sig_analog does not currently handle any radio operations. If
+ * radio only uses analog signaling, then the radio handling logic could
+ * be placed in sig_analog and the duplicated code could be removed.
+ */
 
 #ifdef HAVE_PRI
 #include "sig_pri.h"
@@ -363,6 +368,37 @@ static const char config[] = "chan_dahdi.conf";
 #define CALLPROGRESS_FAX_OUTGOING	2
 #define CALLPROGRESS_FAX_INCOMING	4
 #define CALLPROGRESS_FAX		(CALLPROGRESS_FAX_INCOMING | CALLPROGRESS_FAX_OUTGOING)
+
+#define NUM_CADENCE_MAX 25
+static int num_cadence = 4;
+static int user_has_defined_cadences = 0;
+
+static struct dahdi_ring_cadence cadences[NUM_CADENCE_MAX] = {
+	{ { 125, 125, 2000, 4000 } },			/*!< Quick chirp followed by normal ring */
+	{ { 250, 250, 500, 1000, 250, 250, 500, 4000 } }, /*!< British style ring */
+	{ { 125, 125, 125, 125, 125, 4000 } },	/*!< Three short bursts */
+	{ { 1000, 500, 2500, 5000 } },	/*!< Long ring */
+};
+
+/*! \brief cidrings says in which pause to transmit the cid information, where the first pause
+ * is 1, the second pause is 2 and so on.
+ */
+
+static int cidrings[NUM_CADENCE_MAX] = {
+	2,										/*!< Right after first long ring */
+	4,										/*!< Right after long part */
+	3,										/*!< After third chirp */
+	2,										/*!< Second spell */
+};
+
+/* ETSI EN300 659-1 specifies the ring pulse between 200 and 300 mS */
+static struct dahdi_ring_cadence AS_RP_cadence = {{250, 10000}};
+
+#define ISTRUNK(p) ((p->sig == SIG_FXSLS) || (p->sig == SIG_FXSKS) || \
+			(p->sig == SIG_FXSGS) || (p->sig == SIG_PRI))
+
+#define CANBUSYDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_EM_E1 | SIG_SF)) /* || (p->sig & __DAHDI_SIG_FXO) */)
+#define CANPROGRESSDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_EM_E1 | SIG_SF)) /* || (p->sig & __DAHDI_SIG_FXO) */)
 
 static char defaultcic[64] = "";
 static char defaultozz[64] = "";
@@ -1153,19 +1189,12 @@ static struct dahdi_pvt {
 	struct ast_event_sub *mwi_event_sub;
 	/*! \brief Delayed dialing for E911.  Overlap digits for ISDN. */
 	char dialdest[256];
-	/*! \brief Time the interface went on-hook. */
-	int onhooktime;
-	/*! \brief TRUE if the FXS port is off-hook */
-	int fxsoffhookstate;
-	/*! \brief -1 = unknown, 0 = no messages, 1 = new messages available */
-	int msgstate;
 #ifdef HAVE_DAHDI_LINEREVERSE_VMWI
 	struct dahdi_vmwi_info mwisend_setting;				/*!< Which VMWI methods to use */
 	unsigned int mwisend_fsk: 1;		/*! Variable for enabling FSK MWI handling in chan_dahdi */
 	unsigned int mwisend_rpas:1;		/*! Variable for enabling Ring Pulse Alert before MWI FSK Spill */
 #endif
 	int distinctivering;				/*!< Which distinctivering to use */
-	int cidrings;					/*!< Which ring to deliver CID on */
 	int dtmfrelax;					/*!< whether to run in relaxed DTMF mode */
 	/*! \brief Holding place for event injected from outside normal operation. */
 	int fake_event;
@@ -1177,7 +1206,7 @@ static struct dahdi_pvt {
 	/*! \brief Start delay time if polarityonanswerdelay is nonzero. */
 	struct timeval polaritydelaytv;
 	/*!
-	 * \brief Send caller ID after this many rings.
+	 * \brief Send caller ID on FXS after this many rings. Set to 1 for US.
 	 * \note Set from the "sendcalleridafter" value read in from chan_dahdi.conf
 	 */
 	int sendcalleridafter;
@@ -1557,6 +1586,7 @@ static int my_stop_cid_detect(void *pvt)
 static int my_get_callerid(void *pvt, char *namebuf, char *numbuf, enum analog_event *ev, size_t timeout)
 {
 	struct dahdi_pvt *p = pvt;
+	struct analog_pvt *analog_p = p->sig_pvt;
 	struct pollfd poller;
 	char *name, *num;
 	int index = SUB_REAL;
@@ -1578,9 +1608,9 @@ static int my_get_callerid(void *pvt, char *namebuf, char *numbuf, enum analog_e
 	if (poller.revents & POLLIN) {
 		/*** NOTES ***/
 		/* Change API: remove cid_signalling from get_callerid, add a new start_cid_detect and stop_cid_detect function
-		 * to enable slin mode and allocate cid detector.  get_callerid should be able to be called any number of times until
-		 * either a timeout occurss or CID is detected (returns 0).  returning 1 should be event received, and -1 should be fail
-		 * and die */
+		 * to enable slin mode and allocate cid detector. get_callerid should be able to be called any number of times until
+		 * either a timeout occurss or CID is detected (returns 0). returning 1 should be event received, and -1 should be
+		 * a failure and die, and returning 2 means no event was received. */
 		res = read(p->subs[index].dfd, buf, sizeof(buf));
 		if (res < 0) {
 			if (errno != ELAST) {
@@ -1589,7 +1619,20 @@ static int my_get_callerid(void *pvt, char *namebuf, char *numbuf, enum analog_e
 				return -1;
 			}
 		}
-		res = callerid_feed(p->cs, buf, res, AST_LAW(p));
+
+		if (analog_p->ringt) {
+			analog_p->ringt--;
+		}
+		if (analog_p->ringt == 1) {
+			return -1;
+		}
+
+		if (p->cid_signalling == CID_SIG_V23_JP) {
+			res = callerid_feed_jp(p->cs, buf, res, AST_LAW(p));
+		} else {
+			res = callerid_feed(p->cs, buf, res, AST_LAW(p));
+		}
+
 		if (res < 0) {
 			ast_log(LOG_WARNING, "CallerID feed failed: %s\n", strerror(errno));
 			return -1;
@@ -1608,7 +1651,128 @@ static int my_get_callerid(void *pvt, char *namebuf, char *numbuf, enum analog_e
 	}
 
 	*ev = ANALOG_EVENT_NONE;
-	return 1;
+	return 2;
+}
+
+static const char *event2str(int event);
+static int restore_gains(struct dahdi_pvt *p);
+
+static int my_distinctive_ring(struct ast_channel *chan, void *pvt, int idx, int *ringdata)
+{
+	unsigned char buf[256];
+	int distMatches;
+	int curRingData[3];
+	int receivedRingT;
+	int counter1;
+	int counter;
+	int i;
+	int res;
+	int checkaftercid = 0;
+
+	struct dahdi_pvt *p = pvt;
+	struct analog_pvt *analog_p = p->sig_pvt;
+
+	if (ringdata == NULL) {
+		ringdata = curRingData;
+	} else {
+		checkaftercid = 1;
+	}
+
+	/* We must have a ring by now, so, if configured, lets try to listen for
+	 * distinctive ringing */
+	if ((checkaftercid && distinctiveringaftercid) || !checkaftercid) {
+		/* Clear the current ring data array so we dont have old data in it. */
+		for (receivedRingT = 0; receivedRingT < ARRAY_LEN(ringdata); receivedRingT++)
+			ringdata[receivedRingT] = 0;
+		receivedRingT = 0;
+		if (checkaftercid && distinctiveringaftercid)
+			ast_verb(3, "Detecting post-CID distinctive ring\n");
+		/* Check to see if context is what it should be, if not set to be. */
+		else if (strcmp(p->context,p->defcontext) != 0) {
+			ast_copy_string(p->context, p->defcontext, sizeof(p->context));
+			ast_copy_string(chan->context,p->defcontext,sizeof(chan->context));
+		}
+
+		for (;;) {
+			i = DAHDI_IOMUX_READ | DAHDI_IOMUX_SIGEVENT;
+			if ((res = ioctl(p->subs[idx].dfd, DAHDI_IOMUX, &i))) {
+				ast_log(LOG_WARNING, "I/O MUX failed: %s\n", strerror(errno));
+				ast_hangup(chan);
+				return 1;
+			}
+			if (i & DAHDI_IOMUX_SIGEVENT) {
+				res = dahdi_get_event(p->subs[idx].dfd);
+				ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
+				res = 0;
+				/* Let us detect distinctive ring */
+
+				ringdata[receivedRingT] = analog_p->ringt;
+
+				if (analog_p->ringt < analog_p->ringt_base/2)
+					break;
+				/* Increment the ringT counter so we can match it against
+				   values in chan_dahdi.conf for distinctive ring */
+				if (++receivedRingT == ARRAY_LEN(ringdata))
+					break;
+			} else if (i & DAHDI_IOMUX_READ) {
+				res = read(p->subs[idx].dfd, buf, sizeof(buf));
+				if (res < 0) {
+					if (errno != ELAST) {
+						ast_log(LOG_WARNING, "read returned error: %s\n", strerror(errno));
+						ast_hangup(chan);
+						return 1;
+					}
+					break;
+				}
+				if (analog_p->ringt)
+					analog_p->ringt--;
+				if (analog_p->ringt == 1) {
+					res = -1;
+					break;
+				}
+			}
+		}
+	}
+	if ((checkaftercid && usedistinctiveringdetection) || !checkaftercid) {
+		/* this only shows up if you have n of the dring patterns filled in */
+		ast_verb(3, "Detected ring pattern: %d,%d,%d\n",ringdata[0],ringdata[1],ringdata[2]);
+		for (counter = 0; counter < 3; counter++) {
+		/* Check to see if the rings we received match any of the ones in chan_dahdi.conf for this channel */
+			distMatches = 0;
+			/* this only shows up if you have n of the dring patterns filled in */
+			ast_verb(3, "Checking %d,%d,%d\n",
+					p->drings.ringnum[counter].ring[0],
+					p->drings.ringnum[counter].ring[1],
+					p->drings.ringnum[counter].ring[2]);
+			for (counter1 = 0; counter1 < 3; counter1++) {
+				ast_verb(3, "Ring pattern check range: %d\n", p->drings.ringnum[counter].range);
+				if (p->drings.ringnum[counter].ring[counter1] == -1) {
+					ast_verb(3, "Pattern ignore (-1) detected, so matching pattern %d regardless.\n",
+					ringdata[counter1]);
+					distMatches++;
+				} else if (ringdata[counter1] <= (p->drings.ringnum[counter].ring[counter1] + p->drings.ringnum[counter].range) &&
+										ringdata[counter1] >= (p->drings.ringnum[counter].ring[counter1] - p->drings.ringnum[counter].range)) {
+					ast_verb(3, "Ring pattern matched in range: %d to %d\n",
+					(p->drings.ringnum[counter].ring[counter1] - p->drings.ringnum[counter].range),
+					(p->drings.ringnum[counter].ring[counter1] + p->drings.ringnum[counter].range));
+					distMatches++;
+				}
+			}
+
+			if (distMatches == 3) {
+				/* The ring matches, set the context to whatever is for distinctive ring.. */
+				ast_copy_string(p->context, p->drings.ringContext[counter].contextData, sizeof(p->context));
+				ast_copy_string(chan->context, p->drings.ringContext[counter].contextData, sizeof(chan->context));
+				ast_verb(3, "Distinctive Ring matched context %s\n",p->context);
+				break;
+			}
+		}
+	}
+	/* Restore linear mode (if appropriate) for Caller*ID processing */
+	dahdi_setlinear(p->subs[idx].dfd, p->subs[idx].linear);
+	restore_gains(p);
+
+	return 0;
 }
 
 static int send_callerid(struct dahdi_pvt *p);
@@ -1656,7 +1820,7 @@ static int my_send_callerid(void *pvt, int cwcid, struct ast_callerid *cid)
 {
 	struct dahdi_pvt *p = pvt;
 
-	ast_log(LOG_ERROR, "Starting cid spill\n");
+	ast_debug(2, "Starting cid spill\n");
 
 	if (p->cidspill) {
 		ast_log(LOG_WARNING, "cidspill already exists??\n");
@@ -1809,15 +1973,64 @@ static void my_handle_dtmfup(void *pvt, struct ast_channel *ast, enum analog_sub
 static void my_lock_private(void *pvt)
 {
 	struct dahdi_pvt *p = pvt;
-
 	ast_mutex_lock(&p->lock);
 }
 
 static void my_unlock_private(void *pvt)
 {
 	struct dahdi_pvt *p = pvt;
-
 	ast_mutex_unlock(&p->lock);
+}
+
+static int my_set_linear_mode(void *pvt, int idx, int linear_mode)
+{
+	struct dahdi_pvt *p = pvt;
+	if (!linear_mode)
+		linear_mode = p->subs[idx].linear;
+	return dahdi_setlinear(p->subs[idx].dfd, linear_mode);
+}
+
+static int get_alarms(struct dahdi_pvt *p);
+static void handle_alarms(struct dahdi_pvt *p, int alms);
+static void my_get_and_handle_alarms(void *pvt)
+{
+	int res;
+	struct dahdi_pvt *p = pvt;
+	
+	res = get_alarms(p);
+	handle_alarms(p, res);
+}
+
+static void *my_get_sigpvt_bridged_channel(struct ast_channel *chan)
+{
+	struct dahdi_pvt *p = ast_bridged_channel(chan)->tech_pvt;
+	if (p)
+		return p->sig_pvt;
+	else
+		return NULL;
+}
+
+static int my_get_sub_fd(void *pvt, enum analog_sub sub)
+{
+	struct dahdi_pvt *p = pvt;
+	int dahdi_sub = analogsub_to_dahdisub(sub);
+	return p->subs[dahdi_sub].dfd;
+}
+
+static void my_set_cadence(void *pvt, int *cidrings, struct ast_channel *ast)
+{
+	struct dahdi_pvt *p = pvt;
+
+	/* Choose proper cadence */
+	if ((p->distinctivering > 0) && (p->distinctivering <= num_cadence)) {
+		if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETCADENCE, &cadences[p->distinctivering - 1]))
+			ast_log(LOG_WARNING, "Unable to set distinctive ring cadence %d on '%s': %s\n", p->distinctivering, ast->name, strerror(errno));
+		*cidrings = cidrings[p->distinctivering - 1];
+	} else {
+		if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETCADENCE, NULL))
+			ast_log(LOG_WARNING, "Unable to reset default ring on '%s': %s\n", ast->name, strerror(errno));
+		*cidrings = p->sendcalleridafter;
+	}
 }
 
 static void my_increase_ss_count(void)
@@ -2189,6 +2402,13 @@ static int my_ring(void *pvt)
 	return dahdi_ring_phone(p);
 }
 
+static int my_flash(void *pvt)
+{
+	struct dahdi_pvt *p = pvt;
+	int func = DAHDI_FLASH;
+	return ioctl(p->subs[SUB_REAL].dfd, DAHDI_HOOK, &func);
+}
+
 static inline int dahdi_set_hook(int fd, int hs);
 
 static int my_off_hook(void *pvt)
@@ -2263,9 +2483,7 @@ static int my_is_dialing(void *pvt, enum analog_sub sub)
 static int my_on_hook(void *pvt)
 {
 	struct dahdi_pvt *p = pvt;
-	int x = DAHDI_ONHOOK;
-
-	return ioctl(p->subs[ANALOG_SUB_REAL].dfd, DAHDI_HOOK, &x);
+	return dahdi_set_hook(p->subs[ANALOG_SUB_REAL].dfd, DAHDI_ONHOOK);
 }
 
 #ifdef HAVE_PRI
@@ -2316,8 +2534,6 @@ static int sig_pri_tone_to_dahditone(enum analog_tone tone)
 		return -1;
 	}
 }
-
-static const char *event2str(int event);
 
 static void my_handle_dchan_exception(struct sig_pri_pri *pri, int index)
 {
@@ -2433,6 +2649,7 @@ static struct analog_callback dahdi_analog_callbacks =
 	.is_off_hook = my_is_off_hook,
 	.set_echocanceller = my_set_echocanceller,
 	.ring = my_ring,
+	.flash = my_flash,
 	.off_hook = my_off_hook,
 	.dial_digits = my_dial_digits,
 	.train_echocanceller = my_train_echocanceller,
@@ -2464,6 +2681,12 @@ static struct analog_callback dahdi_analog_callbacks =
 	.handle_notify_message = my_handle_notify_message,
 	.increase_ss_count = my_increase_ss_count,
 	.decrease_ss_count = my_decrease_ss_count,
+	.distinctive_ring = my_distinctive_ring,
+	.set_linear_mode = my_set_linear_mode,
+	.get_and_handle_alarms = my_get_and_handle_alarms,
+	.get_sigpvt_bridged_channel = my_get_sigpvt_bridged_channel,
+	.get_sub_fd = my_get_sub_fd,
+	.set_cadence = my_set_cadence,
 };
 
 static struct dahdi_pvt *round_robin[32];
@@ -2492,36 +2715,6 @@ static inline int ss7_grab(struct dahdi_pvt *pvt, struct dahdi_ss7 *pri)
 	return 0;
 }
 #endif	/* defined(HAVE_SS7) */
-#define NUM_CADENCE_MAX 25
-static int num_cadence = 4;
-static int user_has_defined_cadences = 0;
-
-static struct dahdi_ring_cadence cadences[NUM_CADENCE_MAX] = {
-	{ { 125, 125, 2000, 4000 } },			/*!< Quick chirp followed by normal ring */
-	{ { 250, 250, 500, 1000, 250, 250, 500, 4000 } }, /*!< British style ring */
-	{ { 125, 125, 125, 125, 125, 4000 } },	/*!< Three short bursts */
-	{ { 1000, 500, 2500, 5000 } },	/*!< Long ring */
-};
-
-/*! \brief cidrings says in which pause to transmit the cid information, where the first pause
- * is 1, the second pause is 2 and so on.
- */
-
-static int cidrings[NUM_CADENCE_MAX] = {
-	2,										/*!< Right after first long ring */
-	4,										/*!< Right after long part */
-	3,										/*!< After third chirp */
-	2,										/*!< Second spell */
-};
-
-/* ETSI EN300 659-1 specifies the ring pulse between 200 and 300 mS */
-static struct dahdi_ring_cadence AS_RP_cadence = {{250, 10000}};
-
-#define ISTRUNK(p) ((p->sig == SIG_FXSLS) || (p->sig == SIG_FXSKS) || \
-			(p->sig == SIG_FXSGS) || (p->sig == SIG_PRI))
-
-#define CANBUSYDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_EM_E1 | SIG_SF)) /* || (p->sig & __DAHDI_SIG_FXO) */)
-#define CANPROGRESSDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_EM_E1 | SIG_SF)) /* || (p->sig & __DAHDI_SIG_FXO) */)
 
 static int dahdi_get_index(struct ast_channel *ast, struct dahdi_pvt *p, int nullok)
 {
@@ -2673,8 +2866,6 @@ static void dahdi_r2_on_call_init(openr2_chan_t *r2chan)
 	ast_log(LOG_NOTICE, "New MFC/R2 call detected on chan %d.\n", openr2_chan_get_number(r2chan));
 }
 
-static int get_alarms(struct dahdi_pvt *p);
-static void handle_alarms(struct dahdi_pvt *p, int alms);
 static void dahdi_r2_on_hardware_alarm(openr2_chan_t *r2chan, int alarm)
 {
 	int res;
@@ -3050,8 +3241,6 @@ static openr2_transcoder_interface_t dahdi_r2_transcode_iface = {
 };
 
 #endif /* HAVE_OPENR2 */
-
-static int restore_gains(struct dahdi_pvt *p);
 
 static void swap_subs(struct dahdi_pvt *p, int a, int b)
 {
@@ -4111,29 +4300,6 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 	}
 #endif
 
-	/* Set the ring cadence */
-	mysig = p->sig;
-	if (p->outsigmod > -1)
-		mysig = p->outsigmod;
-	switch (mysig) {
-	case SIG_FXOLS:
-	case SIG_FXOGS:
-	case SIG_FXOKS:
-		if (p->owner == ast) {
-			/* Choose proper cadence */
-			if ((p->distinctivering > 0) && (p->distinctivering <= num_cadence)) {
-				if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETCADENCE, &cadences[p->distinctivering - 1]))
-					ast_log(LOG_WARNING, "Unable to set distinctive ring cadence %d on '%s': %s\n", p->distinctivering, ast->name, strerror(errno));
-				p->cidrings = cidrings[p->distinctivering - 1];
-			} else {
-				if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETCADENCE, NULL))
-					ast_log(LOG_WARNING, "Unable to reset default ring on '%s': %s\n", ast->name, strerror(errno));
-				p->cidrings = p->sendcalleridafter;
-			}
-		}
-		break;
-	}
-
 	/* If this is analog signalling we can exit here */
 	if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
 		p->callwaitrings = 0;
@@ -4142,6 +4308,7 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 		return res;
 	}
 
+	mysig = p->outsigmod > -1 ? p->outsigmod : p->sig;
 	switch (mysig) {
 	case 0:
 		/* Special pseudo -- automatically up*/
@@ -4877,12 +5044,10 @@ static int dahdi_hangup(struct ast_channel *ast)
 		p->ringt = 0;
 		p->distinctivering = 0;
 		p->confirmanswer = 0;
-		p->cidrings = 1;
 		p->outgoing = 0;
 		p->digital = 0;
 		p->faxhandled = 0;
 		p->pulsedial = 0;
-		p->onhooktime = time(NULL);
 #if defined(HAVE_PRI) || defined(HAVE_SS7)
 		p->proceeding = 0;
 		p->dialing = 0;
@@ -4970,6 +5135,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 			memset(&par, 0, sizeof(par));
 			res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &par);
 			if (!res) {
+				struct analog_pvt *analog_p = p->sig_pvt;
 #if 0
 				ast_debug(1, "Hanging up channel %d, offhook = %d\n", p->channel, par.rxisoffhook);
 #endif
@@ -4978,14 +5144,14 @@ static int dahdi_hangup(struct ast_channel *ast)
 					tone_zone_play_tone(p->subs[SUB_REAL].dfd, DAHDI_TONE_CONGESTION);
 				else
 					tone_zone_play_tone(p->subs[SUB_REAL].dfd, -1);
-				p->fxsoffhookstate = par.rxisoffhook;
+				analog_p->fxsoffhookstate = par.rxisoffhook;
 			}
 			break;
 		case SIG_FXSGS:
 		case SIG_FXSLS:
 		case SIG_FXSKS:
 			/* Make sure we're not made available for at least two seconds assuming
-			   we were actually used for an inbound or outbound call. */
+			we were actually used for an inbound or outbound call. */
 			if (ast->_state != AST_STATE_RESERVED) {
 				time(&p->guardtime);
 				p->guardtime += 2;
@@ -6371,9 +6537,6 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 		case SIG_FXOLS:
 		case SIG_FXOGS:
 		case SIG_FXOKS:
-			p->onhooktime = time(NULL);
-			p->fxsoffhookstate = 0;
-			p->msgstate = -1;
 			/* Check for some special conditions regarding call waiting */
 			if (idx == SUB_REAL) {
 				/* The normal line was hung up */
@@ -6524,7 +6687,6 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 		case SIG_FXOLS:
 		case SIG_FXOGS:
 		case SIG_FXOKS:
-			p->fxsoffhookstate = 1;
 			switch (ast->_state) {
 			case AST_STATE_RINGING:
 				dahdi_enable_ec(p);
@@ -7324,7 +7486,12 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 				ast_mutex_unlock(&p->lock);
 				return &p->subs[idx].f;
 			} else if (errno == ELAST) {
-				f = __dahdi_exception(ast);
+				if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
+					struct analog_pvt *analog_p = p->sig_pvt;
+					f = analog_exception(analog_p, ast);
+				} else {
+					f = __dahdi_exception(ast);
+				}
 			} else
 				ast_log(LOG_WARNING, "dahdi_rec: %s\n", strerror(errno));
 		}
@@ -7333,7 +7500,12 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 	}
 	if (res != (p->subs[idx].linear ? READ_SIZE * 2 : READ_SIZE)) {
 		ast_debug(1, "Short read (%d/%d), must be an event...\n", res, p->subs[idx].linear ? READ_SIZE * 2 : READ_SIZE);
-		f = __dahdi_exception(ast);
+		if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
+			struct analog_pvt *analog_p = p->sig_pvt;
+			f = analog_exception(analog_p, ast);
+		} else {
+			f = __dahdi_exception(ast);
+		}
 		ast_mutex_unlock(&p->lock);
 		return f;
 	}
@@ -7555,8 +7727,10 @@ static int dahdi_write(struct ast_channel *ast, struct ast_frame *frame)
 	if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
 		struct analog_pvt *ap = p->sig_pvt;
 
-		if (ap->dialing)
+		if (ap->dialing) {
+			ast_debug(1, "Dropping frame since I'm still dialing on %s...\n",ast->name);
 			return 0;
+		}
 	}
 	if (p->dialing) {
 		ast_debug(1, "Dropping frame since I'm still dialing on %s...\n",ast->name);
@@ -8934,8 +9108,9 @@ static void *analog_ss_thread(void *data)
 								}
 								break;
 							}
-							if (p->ringt)
+							if (p->ringt) {
 								p->ringt--;
+							}
 							if (p->ringt == 1) {
 								res = -1;
 								break;
@@ -9488,7 +9663,6 @@ static int handle_init_event(struct dahdi_pvt *i, int event)
 		case SIG_FXOGS:
 		case SIG_FXOKS:
 			res = dahdi_set_hook(i->subs[SUB_REAL].dfd, DAHDI_OFFHOOK);
-			i->fxsoffhookstate = 1;
 			if (res && (errno == EBUSY))
 				break;
 			if (i->cidspill) {
@@ -9635,9 +9809,6 @@ static int handle_init_event(struct dahdi_pvt *i, int event)
 			ast_log(LOG_WARNING, "Don't know how to handle on hook with signalling %s on channel %d\n", sig2str(i->sig), i->channel);
 			res = tone_zone_play_tone(i->subs[SUB_REAL].dfd, -1);
 			return -1;
-		}
-		if (i->sig & __DAHDI_SIG_FXO) {
-			i->fxsoffhookstate = 0;
 		}
 		break;
 	case DAHDI_EVENT_POLARITY:
@@ -9801,12 +9972,13 @@ static void *do_monitor(void *data)
 				if (!found && ((i == last) || ((i == iflist) && !last))) {
 					last = i;
 					if (last) {
+						struct analog_pvt *analog_p = last->sig_pvt;
 						/* Only allow MWI to be initiated on a quiescent fxs port */
 						if (!last->mwisendactive &&	last->sig & __DAHDI_SIG_FXO &&
-								!last->fxsoffhookstate && !last->owner &&
-								!ast_strlen_zero(last->mailbox) && (thispass - last->onhooktime > 3)) {
+								!analog_p->fxsoffhookstate && !last->owner &&
+								!ast_strlen_zero(last->mailbox) && (thispass - analog_p->onhooktime > 3)) {
 							res = has_voicemail(last);
-							if (last->msgstate != res) {
+							if (analog_p->msgstate != res) {
 								/* Set driver resources for signalling VMWI */
 								res2 = ioctl(last->subs[SUB_REAL].dfd, DAHDI_VMWI, &res);
 								if (res2) {
@@ -9817,7 +9989,7 @@ static void *do_monitor(void *data)
 								if (mwi_send_init(last)) {
 									ast_log(LOG_WARNING, "Unable to initiate mwi send sequence on channel %d\n", last->channel);
 								}
-								last->msgstate = res;
+								analog_p->msgstate = res;
 								found ++;
 							}
 						}
@@ -10746,23 +10918,12 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
 				AST_EVENT_IE_END);
 		}
-		tmp->msgstate = -1;
 #ifdef HAVE_DAHDI_LINEREVERSE_VMWI
 		tmp->mwisend_setting = conf->chan.mwisend_setting;
 		tmp->mwisend_fsk  = conf->chan.mwisend_fsk;
 		tmp->mwisend_rpas = conf->chan.mwisend_rpas;
 #endif
-		if (chan_sig & __DAHDI_SIG_FXO) {
-			memset(&p, 0, sizeof(p));
-			res = ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &p);
-			if (!res) {
-				tmp->fxsoffhookstate = p.rxisoffhook;
-			}
-#ifdef HAVE_DAHDI_LINEREVERSE_VMWI
-			res = ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_VMWI_CONFIG, &tmp->mwisend_setting);
-#endif
-		}
-		tmp->onhooktime = time(NULL);
+		
 		tmp->group = conf->chan.group;
 		tmp->callgroup = conf->chan.callgroup;
 		tmp->pickupgroup= conf->chan.pickupgroup;
@@ -10841,7 +11002,6 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				analog_p->polarityonanswerdelay = conf->chan.polarityonanswerdelay;
 				analog_p->answeronpolarityswitch = conf->chan.answeronpolarityswitch;
 				analog_p->hanguponpolarityswitch = conf->chan.hanguponpolarityswitch;
-				analog_p->sendcalleridafter = conf->chan.sendcalleridafter;
 				analog_p->permcallwaiting = 1;
 				analog_p->callreturn = conf->chan.callreturn;
 				analog_p->cancallforward = conf->chan.cancallforward;
@@ -10860,7 +11020,23 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				analog_p->stripmsd = conf->chan.stripmsd;
 				analog_p->cid_start = ANALOG_CID_START_RING;
 				tmp->callwaitingcallerid = analog_p->callwaitingcallerid = 1;
-	
+				analog_p->usedistinctiveringdetection = conf->chan.usedistinctiveringdetection;
+				analog_p->ringt = conf->chan.ringt;
+				analog_p->ringt_base = ringt_base;
+				analog_p->chan_tech = &dahdi_tech;
+				analog_p->onhooktime = time(NULL);
+				if (chan_sig & __DAHDI_SIG_FXO) {
+					memset(&p, 0, sizeof(p));
+					res = ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &p);
+					if (!res) {
+						analog_p->fxsoffhookstate = p.rxisoffhook;
+					}
+#ifdef HAVE_DAHDI_LINEREVERSE_VMWI
+					res = ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_VMWI_CONFIG, &tmp->mwisend_setting);
+#endif
+				}
+				analog_p->msgstate = -1;
+
 				ast_copy_string(analog_p->mohsuggest, conf->chan.mohsuggest, sizeof(analog_p->mohsuggest));
 				ast_copy_string(analog_p->cid_num, conf->chan.cid_num, sizeof(analog_p->cid_num));
 				ast_copy_string(analog_p->cid_name, conf->chan.cid_name, sizeof(analog_p->cid_name));

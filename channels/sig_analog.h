@@ -185,6 +185,13 @@ struct analog_callback {
 	/* callbacks for increasing and decreasing ss_thread_count, will handle locking and condition signal */
 	void (* const increase_ss_count)(void);
 	void (* const decrease_ss_count)(void);
+
+	int (* const distinctive_ring)(struct ast_channel *chan, void *pvt, int idx, int *ringdata);
+	int (* const set_linear_mode)(void *pvt, int idx, int linear_mode);
+	void (* const get_and_handle_alarms)(void *pvt);
+	void * (* const get_sigpvt_bridged_channel)(struct ast_channel *chan);
+	int (* const get_sub_fd)(void *pvt, enum analog_sub sub);
+	void (* const set_cadence)(void *pvt, int *cidrings, struct ast_channel *chan);
 };
 
 
@@ -210,8 +217,12 @@ struct analog_pvt {
 	/* All members after this are giong to be transient, and most will probably change */
 	struct ast_channel *owner;			/*!< Our current active owner (if applicable) */
 
-	struct analog_subchannel subs[3];			/*!< Sub-channels */
+	struct analog_subchannel subs[3];		/*!< Sub-channels */
 	struct analog_dialoperation dop;
+	int onhooktime;							/*< Time the interface went on-hook. */
+	int fxsoffhookstate;					/*< TRUE if the FXS port is off-hook */
+	/*! \brief -1 = unknown, 0 = no messages, 1 = new messages available */
+	int msgstate;
 
 	/* XXX: Option Variables - Set by allocator of private structure */
 	unsigned int answeronpolarityswitch:1;
@@ -228,17 +239,22 @@ struct analog_pvt {
 	unsigned int transfer:1;
 	unsigned int transfertobusy:1;			/*!< allow flash-transfers to busy channels */
 	unsigned int use_callerid:1;			/*!< Whether or not to use caller id on this channel */
+	const struct ast_channel_tech *chan_tech;
+	/*!
+     * \brief TRUE if distinctive rings are to be detected.
+     * \note For FXO lines
+     * \note Set indirectly from the "usedistinctiveringdetection" value read in from chan_dahdi.conf
+     */
+	unsigned int usedistinctiveringdetection:1;
 
 	/* Not used for anything but log messages.  Could be just the TCID */
-	int channel;					/*!< Channel Number or CRV */
+	int channel;					/*!< Channel Number */
 	enum analog_sigtype outsigmod;
 	int echotraining;
 	int cid_signalling;				/*!< Asterisk callerid type we're using */
 	int polarityonanswerdelay;
 	int stripmsd;
 	enum analog_cid_start cid_start;
-	/* Number of rings to wait to send callerid on FXS.  Set to 1 for US */
-	int sendcalleridafter;
 	int callwaitingcallerid;
 	char mohsuggest[MAX_MUSICCLASS];
 	char cid_num[AST_MAX_EXTENSION];
@@ -282,10 +298,8 @@ struct analog_pvt {
 
 	int callwaitcas;
 
-#if 0
 	int ringt;
 	int ringt_base;
-#endif
 };
 
 struct analog_pvt * analog_new(enum analog_sigtype signallingtype, struct analog_callback *c, void *private_data);
