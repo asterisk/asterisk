@@ -753,8 +753,6 @@ void misdn_lib_log_ies(struct misdn_bchannel *bc);
 
 char *manager_isdn_get_info(enum event_e event);
 
-void misdn_lib_transfer(struct misdn_bchannel* holded_bc);
-
 struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel, int inout, int dec);
 #if defined(AST_MISDN_ENHANCEMENTS)
 struct misdn_bchannel *misdn_lib_get_register_bc(int port);
@@ -793,6 +791,7 @@ int misdn_lib_get_port_up (int port) ;
 
 int misdn_lib_maxports_get(void) ;
 
+struct misdn_bchannel *misdn_lib_find_held_bc(int port, int l3_id);
 void misdn_lib_release(struct misdn_bchannel *bc);
 
 int misdn_cap_is_speech(int cap);

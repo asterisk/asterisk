@@ -240,8 +240,6 @@ struct misdn_bchannel *find_bc_by_l3id(struct misdn_stack *stack, unsigned long 
 
 struct misdn_bchannel *find_bc_by_confid(unsigned long confid);
 
-struct misdn_bchannel *stack_holder_find_bychan(struct misdn_stack *stack, int chan);
-
 int setup_bc(struct misdn_bchannel *bc);
 
 int manager_isdn_handler(iframe_t *frm ,msg_t *msg);
@@ -3208,13 +3206,6 @@ void te_lib_destroy(int midev)
 	cb_log(4, 0, "midev closed\n");
 }
 
-
-
-void misdn_lib_transfer(struct misdn_bchannel* holded_bc)
-{
-	holded_bc->holded=0;
-}
-
 struct misdn_bchannel *manager_find_bc_by_pid(int pid)
 {
 	struct misdn_stack *stack;
@@ -3594,7 +3585,7 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 {
 	msg_t *msg;
 	struct misdn_bchannel *bc2;
-	struct misdn_bchannel *holded_bc;
+	struct misdn_bchannel *held_bc;
 	struct misdn_stack *stack;
 	int retval = 0;
 	int channel;
@@ -3705,20 +3696,22 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 		break;
 
 	case EVENT_HOLD_ACKNOWLEDGE:
-		holded_bc = malloc(sizeof(struct misdn_bchannel));
-		if (!holded_bc) {
-			cb_log(0,bc->port, "Could not allocate holded_bc!!!\n");
+		held_bc = malloc(sizeof(struct misdn_bchannel));
+		if (!held_bc) {
+			cb_log(0, bc->port, "Could not allocate held_bc!!!\n");
 			RETURN(-1,OUT);
 		}
 
-		/*backup the bc*/
-		memcpy(holded_bc,bc,sizeof(struct misdn_bchannel));
-		holded_bc->holded=1;
-		bc_state_change(holded_bc,BCHAN_CLEANED);
+		/* backup the bc and put it in storage */
+		*held_bc = *bc;
+		held_bc->holded = 1;
+		held_bc->channel = 0;/* A held call does not have a channel anymore. */
+		held_bc->channel_preselected = 0;
+		held_bc->channel_found = 0;
+		bc_state_change(held_bc, BCHAN_CLEANED);
+		stack_holder_add(stack, held_bc);
 
-		stack_holder_add(stack,holded_bc);
-
-		/*kill the bridge and clean the bchannel*/
+		/* kill the bridge and clean the real b-channel record */
 		if (stack->nt) {
 			if (bc->bc_state == BCHAN_BRIDGED) {
 				misdn_split_conf(bc,bc->conf_id);
@@ -4681,28 +4674,6 @@ void stack_holder_remove(struct misdn_stack *stack, struct misdn_bchannel *holde
 	}
 }
 
-struct misdn_bchannel *stack_holder_find_bychan(struct misdn_stack *stack, int chan)
-{
-	struct misdn_bchannel *help;
-
-	cb_log(4,stack?stack->port:0, "*HOLDER: find_bychan %c\n", chan);
-
-	if (!stack) return NULL;
-
-	for (help=stack->holding;
-	     help;
-	     help=help->next) {
-		if (help->channel == chan) {
-			cb_log(4,stack->port, "*HOLDER: found_bychan bc\n");
-			return help;
-		}
-	}
-
-	cb_log(4,stack->port, "*HOLDER: find_bychan nothing\n");
-	return NULL;
-
-}
-
 struct misdn_bchannel *stack_holder_find(struct misdn_stack *stack, unsigned long l3id)
 {
 	struct misdn_bchannel *help;
@@ -4724,7 +4695,29 @@ struct misdn_bchannel *stack_holder_find(struct misdn_stack *stack, unsigned lon
 	return NULL;
 }
 
+/*!
+ * \brief Find a held call's B channel record.
+ *
+ * \param port Port the call is on.
+ * \param l3_id mISDN Layer 3 ID of held call.
+ *
+ * \return Found bc-record or NULL.
+ */
+struct misdn_bchannel *misdn_lib_find_held_bc(int port, int l3_id)
+{
+	struct misdn_bchannel *bc;
+	struct misdn_stack *stack;
 
+	bc = NULL;
+	for (stack = get_misdn_stack(); stack; stack = stack->next) {
+		if (stack->port == port) {
+			bc = stack_holder_find(stack, l3_id);
+			break;
+		}
+	}
+
+	return bc;
+}
 
 void misdn_lib_send_tone(struct misdn_bchannel *bc, enum tone_e tone)
 {
