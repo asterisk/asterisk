@@ -658,7 +658,7 @@ static int rt_log_members;
 
 #define MAX_CONFNUM 80
 #define MAX_PIN     80
-#define OPTIONS_LEN 32
+#define OPTIONS_LEN 100
 
 enum announcetypes {
 	CONF_HASJOIN,
@@ -1892,7 +1892,7 @@ static int rt_extend_conf(const char *confno)
 	struct timeval now;
 	struct ast_tm tm;
 	struct ast_variable *var, *orig_var;
-	char bookid[8]; 
+	char bookid[51];
 
 	if (!extendby) {
 		return 0;
@@ -3433,13 +3433,13 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 		int maxusers = 0;
 		struct timeval now;
 		char recordingfilename[256] = "";
-		char recordingformat[10] = "";
+		char recordingformat[11] = "";
 		char currenttime[19] = "";
 		char eatime[19] = "";
-		char bookid[19] = "";
+		char bookid[51] = "";
 		char recordingtmp[AST_MAX_EXTENSION] = "";
-		char useropts[OPTIONS_LEN]; /* Used for RealTime conferences */
-		char adminopts[OPTIONS_LEN];
+		char useropts[OPTIONS_LEN + 1]; /* Used for RealTime conferences */
+		char adminopts[OPTIONS_LEN + 1];
 		struct ast_tm tm, etm;
 		struct timeval endtime = { .tv_sec = 0 };
 		const char *var2;
@@ -3503,11 +3503,11 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 			} else if (!strcasecmp(var->name, "bookId")) {
 				ast_copy_string(bookid, var->value, sizeof(bookid));
 			} else if (!strcasecmp(var->name, "opts")) {
-				ast_copy_string(useropts, var->value, sizeof(char[OPTIONS_LEN]));
+				ast_copy_string(useropts, var->value, sizeof(char[OPTIONS_LEN + 1]));
 			} else if (!strcasecmp(var->name, "maxusers")) {
 				maxusers = atoi(var->value);
 			} else if (!strcasecmp(var->name, "adminopts")) {
-				ast_copy_string(adminopts, var->value, sizeof(char[OPTIONS_LEN]));
+				ast_copy_string(adminopts, var->value, sizeof(char[OPTIONS_LEN + 1]));
 			} else if (!strcasecmp(var->name, "recordingfilename")) {
 				ast_copy_string(recordingfilename, var->value, sizeof(recordingfilename));
 			} else if (!strcasecmp(var->name, "recordingformat")) {
