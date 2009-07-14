@@ -165,7 +165,7 @@
 ;
 ;overlapdial=yes
 ;
-; Allow inband audio (progress) when a call is RELEASEd by the far end of a PRI
+; Allow inband audio (progress) when a call is DISCONNECTed by the far end of a PRI
 ;
 ;inbanddisconnect=yes
 ;
