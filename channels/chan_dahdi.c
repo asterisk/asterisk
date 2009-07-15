@@ -2033,6 +2033,12 @@ static void my_set_cadence(void *pvt, int *cidrings, struct ast_channel *ast)
 	}
 }
 
+static void my_set_dialing(void *pvt, int flag)
+{
+	struct dahdi_pvt *p = pvt;
+	p->dialing = flag;
+}
+
 static void my_increase_ss_count(void)
 {
 	ast_mutex_lock(&ss_thread_lock);
@@ -2567,6 +2573,7 @@ static struct sig_pri_callback dahdi_pri_callbacks =
 	.unlock_private = my_unlock_private,
 	.new_ast_channel = my_new_pri_ast_channel,
 	.fixup_chans = my_pri_fixup_chans,
+	.set_dialing = my_set_dialing,
 };
 #endif /* HAVE_PRI */
 
@@ -2687,6 +2694,7 @@ static struct analog_callback dahdi_analog_callbacks =
 	.get_sigpvt_bridged_channel = my_get_sigpvt_bridged_channel,
 	.get_sub_fd = my_get_sub_fd,
 	.set_cadence = my_set_cadence,
+	.set_dialing = my_set_dialing,
 };
 
 static struct dahdi_pvt *round_robin[32];
@@ -7565,9 +7573,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 #if 0
 	ast_debug(1, "Read %d of voice on %s\n", p->subs[idx].f.datalen, ast->name);
 #endif
-	{
-	struct analog_pvt *ap = p->sig_pvt;
-	if ((analog_lib_handles(p->sig ,p->radio, p->oprmode) && ap->dialing) || p->dialing ||  p->radio || /* Transmitting something */
+	if (p->dialing ||  p->radio || /* Transmitting something */
 		(idx && (ast->_state != AST_STATE_UP)) || /* Three-way or callwait that isn't up */
 		((idx == SUB_CALLWAIT) && !p->subs[SUB_CALLWAIT].inthreeway) /* Inactive and non-confed call-wait */
 		) {
@@ -7580,7 +7586,6 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 		p->subs[idx].f.offset = 0;
 		p->subs[idx].f.data.ptr = NULL;
 		p->subs[idx].f.datalen= 0;
-	}
 	}
 	if (p->dsp && (!p->ignoredtmf || p->callwaitcas || p->busydetect || p->callprogress || p->waitingfordt.tv_sec) && !idx) {
 		/* Perform busy detection etc on the dahdi line */
@@ -7723,14 +7728,6 @@ static int dahdi_write(struct ast_channel *ast, struct ast_frame *frame)
 		(frame->subclass != AST_FORMAT_ALAW)) {
 		ast_log(LOG_WARNING, "Cannot handle frames in %d format\n", frame->subclass);
 		return -1;
-	}
-	if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
-		struct analog_pvt *ap = p->sig_pvt;
-
-		if (ap->dialing) {
-			ast_debug(1, "Dropping frame since I'm still dialing on %s...\n",ast->name);
-			return 0;
-		}
 	}
 	if (p->dialing) {
 		ast_debug(1, "Dropping frame since I'm still dialing on %s...\n",ast->name);

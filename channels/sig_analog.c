@@ -695,6 +695,14 @@ static void analog_set_cadence(struct analog_pvt *p, struct ast_channel *chan)
 	}
 }
 
+static void analog_set_dialing(struct analog_pvt *p, int flag)
+{
+	p->dialing = flag;
+	if (p->calls->set_dialing) {
+		return p->calls->set_dialing(p->chan_pvt, flag);
+	}
+}
+
 int analog_call(struct analog_pvt *p, struct ast_channel *ast, char *rdest, int timeout)
 {
 	int res, index,mysig;
@@ -730,7 +738,7 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, char *rdest, int 
 			/* Normal ring, on hook */
 
 			/* Don't send audio while on hook, until the call is answered */
-			p->dialing = 1;
+			analog_set_dialing(p, 1);
 			analog_set_cadence(p, ast); /* and set p->cidrings */
 
 			/* nick@dccinc.com 4/3/03 mods to allow for deferred dialing */
@@ -753,7 +761,7 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, char *rdest, int 
 				ast_log(LOG_WARNING, "Unable to ring phone: %s\n", strerror(errno));
 				return -1;
 			}
-			p->dialing = 1;
+			analog_set_dialing(p, 1);
 		} else {
 			if (ast->connected.id.number)
 				ast_copy_string(p->callwait_num, ast->connected.id.number, sizeof(p->callwait_num));
@@ -912,7 +920,7 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, char *rdest, int 
 			}
 		} else
 			ast_debug(1, "Deferring dialing...\n");
-		p->dialing = 1;
+		analog_set_dialing(p, 1);
 		if (ast_strlen_zero(c))
 			p->dialednone = 1;
 		ast_setstate(ast, AST_STATE_DIALING);
@@ -1091,7 +1099,7 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 		p->callwaitcas = 0;
 		p->callwaiting = p->permcallwaiting;
 		p->hidecallerid = p->permhidecallerid;
-		p->dialing = 0;
+		analog_set_dialing(p, 0);
 		analog_update_conf(p);
 		analog_all_subchannels_hungup(p);
 	}
@@ -1145,7 +1153,7 @@ int analog_answer(struct analog_pvt *p, struct ast_channel *ast)
 		}
 		res = analog_off_hook(p);
 		analog_play_tone(p, index, -1);
-		p->dialing = 0;
+		analog_set_dialing(p, 0);
 		if ((index == ANALOG_SUB_REAL) && p->subs[ANALOG_SUB_THREEWAY].inthreeway) {
 			if (oldstate == AST_STATE_RINGING) {
 				ast_debug(1, "Finally swapping real and threeway\n");
@@ -2166,7 +2174,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 				analog_dial_digits(p, ANALOG_SUB_REAL, &p->dop);
 				p->echobreak = 0;
 			} else {
-				p->dialing = 0;
+				analog_set_dialing(p, 0);
 				if ((mysig == ANALOG_SIG_E911) || (mysig == ANALOG_SIG_FGC_CAMA) || (mysig == ANALOG_SIG_FGC_CAMAMF)) {
 					/* if thru with dialing after offhook */
 					if (ast->_state == AST_STATE_DIALING_OFFHOOK) {
@@ -2220,7 +2228,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 					p->owner = NULL;
 					/* Don't start streaming audio yet if the incoming call isn't up yet */
 					if (p->subs[ANALOG_SUB_REAL].owner->_state != AST_STATE_UP)
-						p->dialing = 1;
+						analog_set_dialing(p, 1);
 					analog_ring(p);
 				} else if (p->subs[ANALOG_SUB_THREEWAY].owner) {
 					unsigned int mssinceflash;
@@ -2332,7 +2340,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 				ast_log(LOG_WARNING, "Dialing failed on channel %d: %s\n", p->channel, strerror(saveerr));
 				return NULL;
 			}
-			p->dialing = 1;
+			analog_set_dialing(p, 1);
 			return &p->subs[index].f;
 		}
 		switch (p->sig) {
@@ -2349,7 +2357,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 				/* Make sure it stops ringing */
 				analog_off_hook(p);
 				ast_debug(1, "channel %d answered\n", p->channel);
-				p->dialing = 0;
+				analog_set_dialing(p, 0);
 				p->callwaitcas = 0;
 				if (!ast_strlen_zero(p->dop.dialstr)) {
 					/* nick@dccinc.com 4/3/03 - fxo should be able to do deferred dialing */
@@ -2362,7 +2370,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 						ast_debug(1, "Sent FXO deferred digit string: %s\n", p->dop.dialstr);
 						p->subs[index].f.frametype = AST_FRAME_NULL;
 						p->subs[index].f.subclass = 0;
-						p->dialing = 1;
+						analog_set_dialing(p, 1);
 					}
 					p->dop.dialstr[0] = '\0';
 					ast_setstate(ast, AST_STATE_DIALING);
@@ -2886,7 +2894,7 @@ struct ast_frame *analog_exception(struct analog_pvt *p, struct ast_channel *ast
 			analog_off_hook(p);
 			if (p->owner && (p->owner->_state == AST_STATE_RINGING)) {
 				ast_queue_control(p->subs[ANALOG_SUB_REAL].owner, AST_CONTROL_ANSWER);
-				p->dialing = 0;
+				analog_set_dialing(p, 0);
 			}
 			break;
 		case ANALOG_EVENT_HOOKCOMPLETE:

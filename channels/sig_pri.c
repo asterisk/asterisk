@@ -94,6 +94,12 @@ static void sig_pri_handle_dchan_exception(struct sig_pri_pri *pri, int index)
 		pri->calls->handle_dchan_exception(pri, index);
 }
 
+static void sig_pri_set_dialing(struct sig_pri_chan *p, int flag)
+{
+	if (p->calls->set_dialing)
+		p->calls->set_dialing(p, flag);
+}
+
 static void sig_pri_unlock_private(struct sig_pri_chan *p)
 {
 	if (p->calls->unlock_private)
@@ -1325,6 +1331,7 @@ static void *pri_dchannel(void *vpri)
 							pri_queue_frame(pri->pvts[chanpos], &f, pri);
 						}
 						pri->pvts[chanpos]->progress = 1;
+						sig_pri_set_dialing(pri->pvts[chanpos], 0);
 						sig_pri_unlock_private(pri->pvts[chanpos]);
 					}
 				}
@@ -1349,6 +1356,7 @@ static void *pri_dchannel(void *vpri)
 							pri_queue_frame(pri->pvts[chanpos], &f, pri);
 						}
 						pri->pvts[chanpos]->proceeding = 1;
+						sig_pri_set_dialing(pri->pvts[chanpos], 0);
 						sig_pri_unlock_private(pri->pvts[chanpos]);
 					}
 				}
@@ -1388,6 +1396,7 @@ static void *pri_dchannel(void *vpri)
 						sig_pri_lock_private(pri->pvts[chanpos]);
 						pri_queue_control(pri->pvts[chanpos], AST_CONTROL_ANSWER, pri);
 						/* Enable echo cancellation if it's not on already */
+						sig_pri_set_dialing(pri->pvts[chanpos], 0);
 						sig_pri_set_echocanceller(pri->pvts[chanpos], 1);
 
 #ifdef SUPPORT_USERUSER
@@ -1698,6 +1707,7 @@ int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 	p->setup_ack = 0;
 	p->rdnis[0] = '\0';
 	p->exten[0] = '\0';
+	sig_pri_set_dialing(p, 0);
 	
 	if (!p->call) {
 		res = 0;
@@ -2016,6 +2026,7 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 	}
 	pri_sr_free(sr);
 	ast_setstate(ast, AST_STATE_DIALING);
+	sig_pri_set_dialing(p, 1);
 	pri_rel(p->pri);
 	return 0;
 }
@@ -2077,6 +2088,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 				}
 			}
 			p->proceeding = 1;
+			sig_pri_set_dialing(p, 0);
 		}
 		/* don't continue in ast_indicate */
 		res = 0;
@@ -2158,6 +2170,7 @@ int sig_pri_answer(struct sig_pri_chan *p, struct ast_channel *ast)
 	/* Send a pri acknowledge */
 	if (!pri_grab(p, p->pri)) {
 		p->proceeding = 1;
+		sig_pri_set_dialing(p, 0);
 		res = pri_answer(p->pri->pri, p->call, 0, !p->digital);
 		pri_rel(p->pri);
 	} else {
