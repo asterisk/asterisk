@@ -57,6 +57,7 @@ struct misdn_stack {
 	/** is first element because &nst equals &mISDNlist **/
 	net_stack_t nst;
 	manager_t mgr;
+	pthread_mutex_t nstlock;
   
 	int d_stid;
   
