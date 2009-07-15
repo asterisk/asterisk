@@ -14293,8 +14293,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 		 * really a mistake and should go away.
 		 */
 		of = domain;
-	}
-	{
+	} else {
 		char *tmp = ast_strdupa(of);
 		/* We need to be able to handle auth-headers looking like
 			<sip:8164444422;phone-context=+1@1.2.3.4:5060;user=phone;tag=SDadkoa01-gK0c3bdb43>
