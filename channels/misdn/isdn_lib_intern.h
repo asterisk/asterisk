@@ -65,6 +65,7 @@ struct misdn_stack {
 	/** is first element because &nst equals &mISDNlist **/
 	net_stack_t nst;
 	manager_t mgr;
+	pthread_mutex_t nstlock;
 
 	/*! \brief D Channel mISDN driver stack ID (Parent stack ID) */
 	int d_stid;
