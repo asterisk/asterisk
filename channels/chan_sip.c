@@ -20469,7 +20469,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	}
 
 	/* Session-Timers */
-	if (p->sipoptions == SIP_OPT_TIMER) {
+	if (p->sipoptions & SIP_OPT_TIMER) {
 		/* The UAC has requested session-timers for this session. Negotiate
 		the session refresh interval and who will be the refresher */
 		ast_debug(2, "Incoming INVITE with 'timer' option enabled\n");
@@ -20538,7 +20538,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			break;
 
 		case SESSION_TIMER_MODE_REFUSE:
-			if (p->reqsipoptions == SIP_OPT_TIMER) {
+			if (p->reqsipoptions & SIP_OPT_TIMER) {
 				transmit_response_with_unsupported(p, "420 Option Disabled", req, required);
 				ast_log(LOG_WARNING, "Received SIP INVITE with supported but disabled option: %s\n", required);
 				p->invitestate = INV_COMPLETED;
