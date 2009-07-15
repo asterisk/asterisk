@@ -793,9 +793,10 @@ static int misdn_lib_get_l2_down(struct misdn_stack *stack)
 		/* L2 */
 		dmsg = create_l2msg(DL_RELEASE| REQUEST, 0, 0);
 		
+		pthread_mutex_lock(&stack->nstlock);
 		if (stack->nst.manager_l3(&stack->nst, dmsg))
 			free_msg(dmsg);
-		
+		pthread_mutex_unlock(&stack->nstlock);
 	} else {
 		iframe_t act;
 		
@@ -834,9 +835,10 @@ int misdn_lib_get_l2_up(struct misdn_stack *stack)
 		/* L2 */
 		dmsg = create_l2msg(DL_ESTABLISH | REQUEST, 0, 0);
 		
+		pthread_mutex_lock(&stack->nstlock);
 		if (stack->nst.manager_l3(&stack->nst, dmsg))
 			free_msg(dmsg);
-		
+		pthread_mutex_unlock(&stack->nstlock);
 	} else {
 		iframe_t act;
 		
@@ -1343,6 +1345,7 @@ static struct misdn_stack *stack_init(int midev, int port, int ptp)
 			stack->nst.l2_id = stack->upper_id;
 			
 			msg_queue_init(&stack->nst.down_queue);
+			pthread_mutex_init(&stack->nstlock, NULL);
 			
 			Isdnl2Init(&stack->nst);
 			Isdnl3Init(&stack->nst);
@@ -1384,6 +1387,7 @@ static void stack_destroy(struct misdn_stack *stack)
 	if (!stack) return;
 
 	if (stack->nt) {
+		pthread_mutex_destroy(&stack->nstlock);
 		cleanup_Isdnl2(&stack->nst);
 		cleanup_Isdnl3(&stack->nst);
 	}
@@ -1820,17 +1824,22 @@ handle_event_nt(void *dat, void *arg)
 	manager_t *mgr = (manager_t *)dat;
 	msg_t *msg = (msg_t *)arg;
 	mISDNuser_head_t *hh;
+	struct misdn_stack *stack;
 	int reject=0;
-
-	struct misdn_stack *stack=find_stack_by_mgr(mgr);
-	int port;
 
 	if (!msg || !mgr)
 		return(-EINVAL);
 
+	stack = find_stack_by_mgr(mgr);
 	hh=(mISDNuser_head_t*)msg->data;
-	port=stack->port;
-	
+
+	/*
+	 * When we are called from the mISDNuser lib, the nstlock is held and it
+	 * must be held when we return.  We unlock here because the lib may be
+	 * entered again recursively.
+	 */
+	pthread_mutex_unlock(&stack->nstlock);
+
 	cb_log(5, stack->port, " --> lib: prim %x dinfo %x\n",hh->prim, hh->dinfo);
 	{
 		switch(hh->prim){
@@ -1850,6 +1859,7 @@ handle_event_nt(void *dat, void *arg)
 				msg_t *dmsg;
 				cb_log(4, stack->port, "Patch from MEIDANIS:Sending RELEASE_COMPLETE %x (No free Chan for you..)\n", hh->dinfo);
 				dmsg = create_l3msg(CC_RELEASE_COMPLETE | REQUEST,MT_RELEASE_COMPLETE, hh->dinfo,sizeof(RELEASE_COMPLETE_t), 1);
+				pthread_mutex_lock(&stack->nstlock);
 				stack->nst.manager_l3(&stack->nst, dmsg);
 				free_msg(msg);
 				return 0;
@@ -1881,12 +1891,16 @@ handle_event_nt(void *dat, void *arg)
 			int l3id = *((int *)(((u_char *)msg->data)+ mISDNUSER_HEAD_SIZE));
 			cb_log(4, stack->port, " --> lib: Event_ind:SETUP CONFIRM [NT] : new L3ID  is %x\n",l3id );
 	
-			if (!bc) { cb_log(4, stack->port, "Bc Not found (after SETUP CONFIRM)\n"); return 0; }
-			cb_log (2,bc->port,"I IND :CC_SETUP|CONFIRM: old l3id:%x new l3id:%x\n", bc->l3_id, l3id);
-			bc->l3_id=l3id;
-			cb_event(EVENT_NEW_L3ID, bc, glob_mgr->user_data);
+			if (bc) {
+				cb_log (2, bc->port, "I IND :CC_SETUP|CONFIRM: old l3id:%x new l3id:%x\n", bc->l3_id, l3id);
+				bc->l3_id = l3id;
+				cb_event(EVENT_NEW_L3ID, bc, glob_mgr->user_data);
+			} else {
+				cb_log(4, stack->port, "Bc Not found (after SETUP CONFIRM)\n");
+			}
 		}
 		free_msg(msg);
+		pthread_mutex_lock(&stack->nstlock);
 		return 0;
       
 		case CC_SETUP|INDICATION:
@@ -1898,6 +1912,7 @@ handle_event_nt(void *dat, void *arg)
 				msg_t *dmsg;
 				cb_log(4, stack->port, "Patch from MEIDANIS:Sending RELEASE_COMPLETE %x (No free Chan for you..)\n", hh->dinfo);
 				dmsg = create_l3msg(CC_RELEASE_COMPLETE | REQUEST,MT_RELEASE_COMPLETE, hh->dinfo,sizeof(RELEASE_COMPLETE_t), 1);
+				pthread_mutex_lock(&stack->nstlock);
 				stack->nst.manager_l3(&stack->nst, dmsg);
 				free_msg(msg);
 				return 0;
@@ -1954,6 +1969,7 @@ handle_event_nt(void *dat, void *arg)
 			msg_t *dmsg;
 			cb_log(4, stack->port, " --> Got Suspend, sending Reject for now\n");
 			dmsg = create_l3msg(CC_SUSPEND_REJECT | REQUEST,MT_SUSPEND_REJECT, hh->dinfo,sizeof(RELEASE_COMPLETE_t), 1);
+			pthread_mutex_lock(&stack->nstlock);
 			stack->nst.manager_l3(&stack->nst, dmsg);
 			free_msg(msg);
 			return 0;
@@ -1979,6 +1995,7 @@ handle_event_nt(void *dat, void *arg)
 		case CC_RELEASE_CR|INDICATION:
 			release_cr(stack, hh);
 			free_msg(msg);
+			pthread_mutex_lock(&stack->nstlock);
 			return 0 ;
 		break;
       
@@ -1988,7 +2005,11 @@ handle_event_nt(void *dat, void *arg)
 		{
 			struct misdn_bchannel *bc=find_bc_by_l3id(stack, hh->dinfo);
 			int l3id = *((int *)(((u_char *)msg->data)+ mISDNUSER_HEAD_SIZE));
-			if (!bc) { cb_log(0, stack->port, " --> In NEW_CR: didn't found bc ??\n"); return -1;};
+			if (!bc) {
+				cb_log(0, stack->port, " --> In NEW_CR: didn't found bc ??\n");
+				pthread_mutex_lock(&stack->nstlock);
+				return -1;
+			}
 			if (((l3id&0xff00)!=0xff00) && ((bc->l3_id&0xff00)==0xff00)) {
 				cb_log(4, stack->port, " --> Removing Process Id:%x on this port.\n", 0xff&bc->l3_id);
 				stack->procids[bc->l3_id&0xff] = 0 ;
@@ -1999,6 +2020,7 @@ handle_event_nt(void *dat, void *arg)
 			cb_event(EVENT_NEW_L3ID, bc, glob_mgr->user_data);
 	
 			free_msg(msg);
+			pthread_mutex_lock(&stack->nstlock);
 			return 0;
 		}
       
@@ -2026,6 +2048,7 @@ handle_event_nt(void *dat, void *arg)
 			stack->l2upcnt=0;
 			
 			free_msg(msg);
+			pthread_mutex_lock(&stack->nstlock);
 			return 0;
 		}
 		break;
@@ -2054,6 +2077,7 @@ handle_event_nt(void *dat, void *arg)
 			
 			stack->l2link = 0;
 			free_msg(msg);
+			pthread_mutex_lock(&stack->nstlock);
 			return 0;
 		}
 		break;
@@ -2127,6 +2151,7 @@ handle_event_nt(void *dat, void *arg)
 	}
 
 
+	pthread_mutex_lock(&stack->nstlock);
 	return 0;
 }
 
@@ -2169,7 +2194,9 @@ static int handle_timers(msg_t* msg)
 				ret = mISDN_write_frame(stack->midev, msg->data, frm->addr,
 							MGR_TIMER | RESPONSE, 0, 0, NULL, TIMEOUT_1SEC);
 				test_and_clear_bit(FLG_TIMER_RUNING, (long unsigned int *)&it->Flags);
+				pthread_mutex_lock(&stack->nstlock);
 				ret = it->function(it->data);
+				pthread_mutex_unlock(&stack->nstlock);
 				free_msg(msg);
 				return 1;
 			}
@@ -2581,8 +2608,9 @@ static int handle_frm_nt(msg_t *msg)
 	}
 
 	
+	pthread_mutex_lock(&stack->nstlock);
 	if ((err=stack->nst.l1_l2(&stack->nst,msg))) {
-    
+		pthread_mutex_unlock(&stack->nstlock);
 		if (nt_err_cnt > 0 ) {
 			if (nt_err_cnt < 100) {
 				nt_err_cnt++; 
@@ -2594,9 +2622,8 @@ static int handle_frm_nt(msg_t *msg)
 		}
 		free_msg(msg);
 		return 1;
-		
 	}
-	
+	pthread_mutex_unlock(&stack->nstlock);
 	return 1;
 }
 
@@ -2770,8 +2797,10 @@ static int handle_l1(msg_t *msg)
 		
 		if (stack->nt) {
 			
+			pthread_mutex_lock(&stack->nstlock);
 			if (stack->nst.l1_l2(&stack->nst, msg))
 				free_msg(msg);
+			pthread_mutex_unlock(&stack->nstlock);
 
 			if (stack->ptp)
 				misdn_lib_get_l2_up(stack);
@@ -2812,8 +2841,10 @@ static int handle_l1(msg_t *msg)
 #endif
 		
 		if (stack->nt) {
+			pthread_mutex_lock(&stack->nstlock);
 			if (stack->nst.l1_l2(&stack->nst, msg))
 				free_msg(msg);
+			pthread_mutex_unlock(&stack->nstlock);
 		} else {
 			free_msg(msg);
 		}
@@ -2902,16 +2933,16 @@ static int handle_mgmt(msg_t *msg)
 	switch(frm->prim) {
 	case MGR_SHORTSTATUS | INDICATION:
 	case MGR_SHORTSTATUS | CONFIRM:
-		cb_log(5, 0, "MGMT: Short status dinfo %x\n",frm->dinfo);
+		cb_log(5, stack->port, "MGMT: Short status dinfo %x\n",frm->dinfo);
 		
 		switch (frm->dinfo) {
 		case SSTATUS_L1_ACTIVATED:
-			cb_log(3, 0, "MGMT: SSTATUS: L1_ACTIVATED \n");
+			cb_log(3, stack->port, "MGMT: SSTATUS: L1_ACTIVATED \n");
 			stack->l1link=1;
 		
 			break;
 		case SSTATUS_L1_DEACTIVATED:
-			cb_log(3, 0, "MGMT: SSTATUS: L1_DEACTIVATED \n");
+			cb_log(3, stack->port, "MGMT: SSTATUS: L1_DEACTIVATED \n");
 			stack->l1link=0;
 #if 0
 			clear_l3(stack);
@@ -3939,9 +3970,10 @@ static void manager_event_handler(void *arg)
 		     
 			while ( (msg=msg_dequeue(&stack->downqueue)) ) {
 				if (stack->nt ) {
+					pthread_mutex_lock(&stack->nstlock);
 					if (stack->nst.manager_l3(&stack->nst, msg))
 						cb_log(0, stack->port, "Error@ Sending Message in NT-Stack.\n");
-	  
+					pthread_mutex_unlock(&stack->nstlock);
 				} else {
 					iframe_t *frm = (iframe_t *)msg->data;
 					struct misdn_bchannel *bc = find_bc_by_l3id(stack, frm->dinfo);
