@@ -306,7 +306,7 @@ inkeys=freeworlddialup
 ;
 ; Further user sections may be added, specifying a context and a secret used
 ; for connections with that given authentication name.  Limited IP based
-; access control is allowed by use of "allow" and "deny" keywords.  Multiple
+; access control is allowed by use of "permit" and "deny" keywords.  Multiple
 ; rules are permitted.  Multiple permitted contexts may be specified, in
 ; which case the first will be the default.  You can also override caller*ID
 ; so that when you receive a call you set the Caller*ID to be what you want
