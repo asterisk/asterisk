@@ -1124,6 +1124,9 @@ static const struct ast_value_translation pres_types[] = {
 int ast_parse_caller_presentation(const char *data)
 {
 	int index;
+	if (!data) {
+		return -1;
+	}
 
 	for (index = 0; index < ARRAY_LEN(pres_types); ++index) {
 		if (!strcasecmp(pres_types[index].name, data)) {
