@@ -1092,6 +1092,10 @@ int ast_parse_caller_presentation(const char *data)
 {
 	int i;
 
+	if (!data) {
+		return -1;
+	}
+
 	for (i = 0; i < ((sizeof(pres_types) / sizeof(pres_types[0]))); i++) {
 		if (!strcasecmp(pres_types[i].name, data))
 			return pres_types[i].val;
