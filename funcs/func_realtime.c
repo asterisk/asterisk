@@ -86,6 +86,8 @@ static int function_realtime_read(struct ast_channel *chan, const char *cmd, cha
 		ast_str_append(&out, 0, "%s%s%s%s", var->name, args.delim2, var->value, args.delim1);
 	ast_copy_string(buf, out->str, len);
 
+	ast_variables_destroy(head);
+
 	if (chan)
 		ast_autoservice_stop(chan);
 
@@ -223,6 +225,7 @@ static int function_realtime_readdestroy(struct ast_channel *chan, const char *c
 	ast_copy_string(buf, out->str, len);
 
 	ast_destroy_realtime(args.family, args.fieldmatch, args.value, SENTINEL);
+	ast_variables_destroy(head);
 
 	if (chan)
 		ast_autoservice_stop(chan);
