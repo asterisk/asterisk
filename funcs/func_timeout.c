@@ -90,7 +90,7 @@ static int timeout_read(struct ast_channel *chan, const char *cmd, char *data,
 			ast_copy_string(buf, "0", len);
 		} else {
 			myt = ast_tvnow();
-			snprintf(buf, len, "%.3f", ast_tvdiff_ms(myt, chan->whentohangup) / 1000.0);
+			snprintf(buf, len, "%.3f", ast_tvdiff_ms(chan->whentohangup, myt) / 1000.0);
 		}
 		break;
 
