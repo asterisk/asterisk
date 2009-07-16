@@ -1128,6 +1128,9 @@ static struct {
 int ast_parse_caller_presentation(const char *data)
 {
 	int i;
+	if (!data) {
+		return -1;
+	}
 
 	for (i = 0; i < ARRAY_LEN(pres_types); i++) {
 		if (!strcasecmp(pres_types[i].name, data))
