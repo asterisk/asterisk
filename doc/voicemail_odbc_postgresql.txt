@@ -235,6 +235,7 @@ CREATE TABLE voicemessages
   callerid varchar(40),
   origtime varchar(40),
   duration varchar(20),
+  flag varchar(8),
   mailboxuser varchar(80),
   mailboxcontext varchar(80),
   recording lo,
