@@ -289,9 +289,13 @@ static void analog_swap_subs(struct analog_pvt *p, enum analog_sub a, enum analo
 
 static int analog_alloc_sub(struct analog_pvt *p, enum analog_sub x)
 {
-	p->subs[x].allocd = 1;
-	if (p->calls->allocate_sub)
-		return p->calls->allocate_sub(p->chan_pvt, x);
+	if (p->calls->allocate_sub) {
+		int res;
+		res = p->calls->allocate_sub(p->chan_pvt, x);
+		if (!res)
+			p->subs[x].allocd = 1;
+		return res;
+	}
 
 	return 0;
 }

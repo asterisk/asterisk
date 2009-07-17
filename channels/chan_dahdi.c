@@ -10999,7 +10999,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				analog_p->polarityonanswerdelay = conf->chan.polarityonanswerdelay;
 				analog_p->answeronpolarityswitch = conf->chan.answeronpolarityswitch;
 				analog_p->hanguponpolarityswitch = conf->chan.hanguponpolarityswitch;
-				analog_p->permcallwaiting = 1;
+				analog_p->permcallwaiting = conf->chan.callwaiting; /* permcallwaiting possibly modified in analog_config_complete */
 				analog_p->callreturn = conf->chan.callreturn;
 				analog_p->cancallforward = conf->chan.cancallforward;
 				analog_p->canpark = conf->chan.canpark;
@@ -11016,7 +11016,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				analog_p->cid_signalling = conf->chan.cid_signalling;
 				analog_p->stripmsd = conf->chan.stripmsd;
 				analog_p->cid_start = ANALOG_CID_START_RING;
-				tmp->callwaitingcallerid = analog_p->callwaitingcallerid = 1;
+				analog_p->callwaitingcallerid = conf->chan.callwaitingcallerid;
 				analog_p->usedistinctiveringdetection = conf->chan.usedistinctiveringdetection;
 				analog_p->ringt = conf->chan.ringt;
 				analog_p->ringt_base = ringt_base;
@@ -11319,12 +11319,6 @@ static struct ast_channel *dahdi_request(const char *type, int format, const str
 			if (p->channel == CHAN_PSEUDO) {
 				p = duplicate_pseudo(p);
 				if (!p) {
-					break;
-				}
-			}
-			if (p->owner) {
-				if (alloc_sub(p, SUB_CALLWAIT)) {
-					p = NULL;
 					break;
 				}
 			}
