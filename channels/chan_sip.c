@@ -198,7 +198,8 @@ static char seen_lastms = 0;
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 #endif
 
-#define CALLERID_UNKNOWN        "Unknown"
+#define CALLERID_UNKNOWN             "Anonymous"
+#define FROMDOMAIN_INVALID           "anonymous.invalid"
 
 #define DEFAULT_MAXMS                2000             /*!< Qualification: Must be faster than 2 seconds by default */
 #define DEFAULT_FREQ_OK              60 * 1000        /*!< Qualification: How often to check for the host to be up */
@@ -7218,7 +7219,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	char to[256];
 	char tmp[SIPBUFSIZE/2];
 	char tmp2[SIPBUFSIZE/2];
-	const char *l = NULL, *n = NULL;
+	const char *l = NULL, *n = NULL, *d = NULL;
 	const char *urioptions = "";
 
 	if (ast_test_flag(&p->flags[0], SIP_USEREQPHONE)) {
@@ -7243,6 +7244,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 
 	snprintf(p->lastmsg, sizeof(p->lastmsg), "Init: %s", sip_methods[sipmethod].text);
 
+	d = S_OR(p->fromdomain, ast_inet_ntoa(p->ourip));
 	if (p->owner) {
 		l = p->owner->cid.cid_num;
 		n = p->owner->cid.cid_name;
@@ -7252,6 +7254,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	    ((p->callingpres & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED)) {
 		l = CALLERID_UNKNOWN;
 		n = l;
+		d = FROMDOMAIN_INVALID;
 	}
 	if (ast_strlen_zero(l))
 		l = default_callerid;
@@ -7277,9 +7280,9 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	}
 
 	if (ourport != STANDARD_SIP_PORT && ast_strlen_zero(p->fromdomain))
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, S_OR(p->fromdomain, ast_inet_ntoa(p->ourip)), ourport, p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, d, ourport, p->tag);
 	else
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, S_OR(p->fromdomain, ast_inet_ntoa(p->ourip)), p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, d, p->tag);
 
 	/* If we're calling a registered SIP peer, use the fullcontact to dial to the peer */
 	if (!ast_strlen_zero(p->fullcontact)) {
