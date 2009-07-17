@@ -8523,8 +8523,7 @@ static void set_hangup_source_and_cause(int callno, unsigned char causecode)
 	do {
 		if (ast_channel_trylock(iaxs[callno]->owner)) {
 			DEADLOCK_AVOIDANCE(&iaxsl[callno]);
-		}
-		else {
+		} else {
 			locked = 1;
 			owner = iaxs[callno]->owner;
 		}
@@ -8537,12 +8536,10 @@ static void set_hangup_source_and_cause(int callno, unsigned char causecode)
 		}
 		ast_set_hangupsource(iaxs[callno]->owner, iaxs[callno]->owner->name, 0);
 		ast_channel_unlock(owner);
-	}
-	if (locked) {
+	} else if(locked) {
 		ast_channel_unlock(owner);
 	}
 }
-
 
 static int socket_process(struct iax2_thread *thread)
 {
