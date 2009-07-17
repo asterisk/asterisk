@@ -163,6 +163,11 @@
 ; Overlap dialing mode (sending overlap digits)
 ; Cannot be changed on a reload.
 ;
+; incoming: incoming direction only
+; outgoing: outgoing direction only
+; no: neither direction
+; yes or both: both directions
+;
 ;overlapdial=yes
 ;
 ; Allow inband audio (progress) when a call is DISCONNECTed by the far end of a PRI
