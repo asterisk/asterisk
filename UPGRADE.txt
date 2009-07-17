@@ -41,6 +41,37 @@ From 1.6.2 to 1.6.3:
 
 From 1.6.1 to 1.6.2:
 
+* The default console now will use colors according to the default background
+  color, instead of forcing the background color to black.  If you are using a
+  light colored background for your console, you may wish to use the option
+  flag '-W' to present better color choices for the various messages.  However,
+  if you'd prefer the old method of forcing colors to white text on a black
+  background, the compatibility option -B is provided for this purpose.
+
+* SendImage() no longer hangs up the channel on transmission error or on
+  any other error; in those cases, a FAILURE status is stored in
+  SENDIMAGESTATUS and dialplan execution continues.  The possible
+  return values stored in SENDIMAGESTATUS are: SUCCESS, FAILURE, and
+  UNSUPPORTED. ('OK' has been replaced with 'SUCCESS', and 'NOSUPPORT'
+  has been replaced with 'UNSUPPORTED').  This change makes the
+  SendImage application more consistent with other applications.
+
+* skinny.conf now has separate sections for lines and devices.
+  Please have a look at configs/skinny.conf.sample and update
+  your skinny.conf.
+
+* Queue names previously were treated in a case-sensitive manner,
+  meaning that queues with names like "sales" and "sALeS" would be
+  seen as unique queues. The parsing logic has changed to use
+  case-insensitive comparisons now when originally hashing based on
+  queue names, meaning that now the two queues mentioned as examples
+  earlier will be seen as having the same name.
+
+* The SPRINTF() dialplan function has been moved into its own module,
+  func_sprintf, and is no longer included in func_strings. If you use this
+  function and do not use 'autoload=yes' in modules.conf, you will need
+  to explicitly load func_sprintf for it to be available.
+
 * The res_indications module has been removed.  Its functionality was important
   enough that most of it has been moved into the Asterisk core.
   Two applications previously provided by res_indications, PlayTones and
@@ -111,36 +142,7 @@ From 1.6.0.x to 1.6.1:
 * The "Join" event from app_queue now uses the CallerIDNum header instead of
   the CallerID header to indicate the CallerID number.
 
-From 1.6.1 to 1.6.2:
-
-* The default console now will use colors according to the default background
-  color, instead of forcing the background color to black.  If you are using a
-  light colored background for your console, you may wish to use the option
-  flag '-W' to present better color choices for the various messages.  However,
-  if you'd prefer the old method of forcing colors to white text on a black
-  background, the compatibility option -B is provided for this purpose.
-
-* SendImage() no longer hangs up the channel on transmission error or on
-  any other error; in those cases, a FAILURE status is stored in
-  SENDIMAGESTATUS and dialplan execution continues.  The possible
-  return values stored in SENDIMAGESTATUS are: SUCCESS, FAILURE, and
-  UNSUPPORTED. ('OK' has been replaced with 'SUCCESS', and 'NOSUPPORT'
-  has been replaced with 'UNSUPPORTED').  This change makes the
-  SendImage application more consistent with other applications.
-
-* skinny.conf now has separate sections for lines and devices.
-  Please have a look at configs/skinny.conf.sample and update
-  your skinny.conf.
-
-* Queue names previously were treated in a case-sensitive manner,
-  meaning that queues with names like "sales" and "sALeS" would be
-  seen as unique queues. The parsing logic has changed to use
-  case-insensitive comparisons now when originally hashing based on
-  queue names, meaning that now the two queues mentioned as examples
-  earlier will be seen as having the same name.
-
-* The SPRINTF() dialplan function has been moved into its own module,
-  func_sprintf, and is no longer included in func_strings. If you use this
-  function and do not use 'autoload=yes' in modules.conf, you will need
-  to explicitly load func_sprintf for it to be available.
+* If you use ODBC storage for voicemail, there is a new field called "flag"
+  which should be a char(8) or larger.  This field specifies whether or not a
+  message has been designated to be "Urgent", "PRIORITY", or not.
 
