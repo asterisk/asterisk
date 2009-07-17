@@ -8391,7 +8391,7 @@ static struct ast_channel *dahdi_request(const char *type, int format, void *dat
 		if (roundrobin)
 			round_robin[x] = p;
 #if 0
-		ast_verbose("name = %s, %d, %d, %d\n",p->owner ? p->owner->name : "<none>", p->channel, channelmatch, groupmatch);
+		ast_verbose("name = %s, %d, %d, %llu\n",p->owner ? p->owner->name : "<none>", p->channel, channelmatch, groupmatch);
 #endif
 
 		if (p && available(p, channelmatch, groupmatch, &busy, &channelmatched, &groupmatched)) {
