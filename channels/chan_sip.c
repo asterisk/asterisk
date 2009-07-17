@@ -603,8 +603,9 @@ static int mwi_expiry = DEFAULT_MWI_EXPIRY;
 #define DEFAULT_QUALIFY_PEERS 1
 
 
-#define CALLERID_UNKNOWN        "Unknown"
-
+#define CALLERID_UNKNOWN             "Anonymous"
+#define FROMDOMAIN_INVALID           "anonymous.invalid"
+ 
 #define DEFAULT_MAXMS                2000             /*!< Qualification: Must be faster than 2 seconds by default */
 #define DEFAULT_QUALIFYFREQ          60 * 1000        /*!< Qualification: How often to check for the host to be up */
 #define DEFAULT_FREQ_NOTOK           10 * 1000        /*!< Qualification: How often to check, if the host is down... */
@@ -10495,6 +10496,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	char tmp_l[SIPBUFSIZE/2];	/* build a local copy of 'l' if needed */
 	const char *l = NULL;	/* XXX what is this, exactly ? */
 	const char *n = NULL;	/* XXX what is this, exactly ? */
+	const char *d = NULL;	/* domain in from header */
 	const char *urioptions = "";
 	int ourport;
 
@@ -10520,9 +10522,15 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 
 	snprintf(p->lastmsg, sizeof(p->lastmsg), "Init: %s", sip_methods[sipmethod].text);
 
+	d = S_OR(p->fromdomain, ast_inet_ntoa(p->ourip.sin_addr));
 	if (p->owner && (p->owner->connected.id.number_presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
 		l = p->owner->connected.id.number; 
 		n = p->owner->connected.id.name;
+	} else if (p->owner && (p->owner->connected.id.number_presentation & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED && (!ast_test_flag(&p->flags[0], SIP_SENDRPID))) {
+		/* if we are not sending RPID and user wants his callerid restricted */		
+		l = CALLERID_UNKNOWN;
+		n = l;
+		d = FROMDOMAIN_INVALID;
 	}
 
 	/* Hey, it's a NOTIFY! See if they've configured a mwi_from.
@@ -10560,9 +10568,9 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 
 	ourport = ntohs(p->ourip.sin_port);
 	if (!sip_standard_port(p->socket.type, ourport) && ast_strlen_zero(p->fromdomain))
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, ast_inet_ntoa(p->ourip.sin_addr), ourport, p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, d, ourport, p->tag);
 	else
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, S_OR(p->fromdomain, ast_inet_ntoa(p->ourip.sin_addr)), p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, d, p->tag);
 
 	/* If we're calling a registered SIP peer, use the fullcontact to dial to the peer */
 	if (!ast_strlen_zero(p->fullcontact)) {
