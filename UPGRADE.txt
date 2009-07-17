@@ -83,6 +83,10 @@ From 1.6.0.x to 1.6.1:
   Georgian was incorrectly specified as "ge" but should be "ka", and Czech is
   "cs", not "cz".
 
+* If you use ODBC storage for voicemail, there is a new field called "flag"
+  which should be a char(8) or larger.  This field specifies whether or not a
+  message has been designated to be "Urgent", "PRIORITY", or not.
+
 From 1.6.1.1 to 1.6.1.2:
 
 * Support for Taiwanese was incorrectly supported with the "tw" language code.
