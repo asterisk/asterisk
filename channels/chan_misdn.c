@@ -9390,6 +9390,26 @@ static void misdn_facility_ie_handler(enum event_e event, struct misdn_bchannel 
 	}
 }
 
+/*!
+ * \internal
+ * \brief Determine if the given dialed party matches our MSN.
+ * \since 1.6.3
+ *
+ * \param port ISDN port
+ * \param dialed Dialed party information of incoming call.
+ *
+ * \retval non-zero if MSN is valid.
+ * \retval 0 if MSN invalid.
+ */
+static int misdn_is_msn_valid(int port, const struct misdn_party_dialing *dialed)
+{
+	char number[sizeof(dialed->number)];
+
+	ast_copy_string(number, dialed->number, sizeof(number));
+	misdn_add_number_prefix(port, dialed->number_type, number, sizeof(number));
+	return misdn_cfg_is_msn_valid(port, number);
+}
+
 /************************************************************/
 /*  Receive Events from isdn_lib  here                     */
 /************************************************************/
@@ -9640,7 +9660,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	case EVENT_SETUP:
 	{
 		struct chan_list *ch = find_chan_by_bc(cl_te, bc);
-		int msn_valid = misdn_cfg_is_msn_valid(bc->port, bc->dialed.number);
 		struct ast_channel *chan;
 		int exceed;
 		int ai;
@@ -9657,7 +9676,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			}
 		}
 
-		if (!bc->nt && ! msn_valid) {
+		if (!bc->nt && !misdn_is_msn_valid(bc->port, &bc->dialed)) {
 			chan_misdn_log(1, bc->port, " --> Ignoring Call, its not in our MSN List\n");
 			return RESPONSE_IGNORE_SETUP; /*  Ignore MSNs which are not in our List */
 		}

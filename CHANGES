@@ -120,7 +120,8 @@ mISDN channel driver (chan_misdn) changes
     used by the rest of the system.
   * Made use the nationalprefix and internationalprefix misdn.conf
     parameters to prefix any received number from the ISDN link if that
-    number has the corresponding Type-Of-Number.
+    number has the corresponding Type-Of-Number.  NOTE:  This includes
+    comparing the incoming call's dialed number against the MSN list.
   * Added the following new parameters: unknownprefix, netspecificprefix,
     subscriberprefix, and abbreviatedprefix in misdn.conf to prefix any
     received number from the ISDN link if that number has the corresponding
