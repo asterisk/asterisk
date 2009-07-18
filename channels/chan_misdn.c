@@ -614,7 +614,7 @@ static const char *bearer2str(int cap)
 		if (allowed_bearers_array[index].cap == cap) {
 			return allowed_bearers_array[index].display;
 		}
-	}	/* end for */
+	}
 
 	return "Unknown Bearer";
 }
@@ -1636,7 +1636,7 @@ static char *handle_cli_misdn_show_port(struct ast_cli_entry *e, int cmd, struct
 	}
 
 	port = atoi(a->argv[3]);
-  
+
 	ast_cli(a->fd, "BEGIN STACK_LIST:\n");
 	get_show_stack_details(port, buf);
 	ast_cli(a->fd, "  %s  Debug:%d%s\n", buf, misdn_debug[port], misdn_debug_only[port] ? "(only)" : "");
@@ -1714,9 +1714,8 @@ static char *handle_cli_misdn_send_facility(struct ast_cli_entry *e, int cmd, st
 
 		misdn_lib_send_event(bc, EVENT_FACILITY);
 	} else if (strstr(a->argv[3], "CFDeactivate")) {
-
 		if (a->argc < 6) {
-			ast_verbose("CFActivate requires 1 arg: FromNumber\n\n");
+			ast_verbose("CFDeactivate requires 1 arg: FromNumber\n\n");
 			return 0;
 		}
 		port = atoi(a->argv[4]);
@@ -1762,7 +1761,7 @@ static char *handle_cli_misdn_send_restart(struct ast_cli_entry *e, int cmd, str
 		channel = atoi(a->argv[4]);
 		misdn_lib_send_restart(port, channel);
 	} else {
- 		misdn_lib_send_restart(port, -1);
+		misdn_lib_send_restart(port, -1);
 	}
 
 	return CLI_SUCCESS;
@@ -2042,7 +2041,6 @@ static int update_config(struct chan_list *ch, int orig)
 		}
 	}
 
-
 	misdn_cfg_get(port, MISDN_CFG_PRES, &pres, sizeof(pres));
 	misdn_cfg_get(port, MISDN_CFG_SCREEN, &screen, sizeof(screen));
 	chan_misdn_log(2, port, " --> pres: %d screen: %d\n", pres, screen);
@@ -2230,7 +2228,7 @@ static int read_config(struct chan_list *ch, int orig)
 	misdn_cfg_get(port, MISDN_CFG_INCOMING_EARLY_AUDIO, &ch->incoming_early_audio, sizeof(ch->incoming_early_audio));
 
 	misdn_cfg_get(port, MISDN_CFG_SENDDTMF, &bc->send_dtmf, sizeof(bc->send_dtmf));
-	
+
 	misdn_cfg_get(port, MISDN_CFG_ASTDTMF, &ch->ast_dsp, sizeof(int));
 
 	if (ch->ast_dsp) {
@@ -2409,7 +2407,7 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 	int r;
 	int exceed;
 	int bridging;
-	struct chan_list *ch = MISDN_ASTERISK_TECH_PVT(ast);
+	struct chan_list *ch;
 	struct misdn_bchannel *newbc;
 	char *dest_cp = ast_strdupa(dest);
 	AST_DECLARE_APP_ARGS(args,
@@ -2418,6 +2416,14 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 		AST_APP_ARG(opts);
 	);
 
+	/*
+	 * dest is ---v
+	 * Dial(mISDN/g:group_name[/extension[/options]])
+	 * Dial(mISDN/port[:preselected_channel][/extension[/options]])
+	 *
+	 * The dial extension could be empty if you are using MISDN_KEYPAD
+	 * to control ISDN provider features.
+	 */
 	AST_NONSTANDARD_APP_ARGS(args, dest_cp, '/');
 
 	if (ast_strlen_zero(args.ext)) {
@@ -2437,6 +2443,7 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 		return -1;
 	}
 
+	ch = MISDN_ASTERISK_TECH_PVT(ast);
 	if (!ch) {
 		ast_log(LOG_WARNING, " --> ! misdn_call called on %s, neither down nor reserved (or dest==NULL)\n", ast->name);
 		ast->hangupcause = AST_CAUSE_NORMAL_TEMPORARY_FAILURE;
@@ -2445,7 +2452,6 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 	
 	newbc = ch->bc;
-	
 	if (!newbc) {
 		ast_log(LOG_WARNING, " --> ! misdn_call called on %s, neither down nor reserved (or dest==NULL)\n", ast->name);
 		ast->hangupcause = AST_CAUSE_NORMAL_TEMPORARY_FAILURE;
@@ -3438,20 +3444,28 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 	struct ast_channel *tmp = NULL;
 	char group[BUFFERSIZE + 1] = "";
 	char dial_str[128];
-	char *buf2 = ast_strdupa(data), *ext = NULL, *port_str;
-	char *tokb = NULL, *p = NULL;
-	int channel = 0, port = 0;
+	char *buf2 = ast_strdupa(data);
+	char *ext;
+	char *port_str;
+	char *p = NULL;
+	int channel = 0;
+	int port = 0;
 	struct misdn_bchannel *newbc = NULL;
 	int dec = 0;
 	struct chan_list *cl;
 
-	snprintf(dial_str, sizeof(dial_str), "%s/%s", misdn_type, (char*)data);
+	snprintf(dial_str, sizeof(dial_str), "%s/%s", misdn_type, (char *) data);
 
-	port_str = strtok_r(buf2, "/", &tokb);
-
-	ext = strtok_r(NULL, "/", &tokb);
-
-	if (port_str) {
+	/*
+	 * data is ---v
+	 * Dial(mISDN/g:group_name[/extension[/options]])
+	 * Dial(mISDN/port[:preselected_channel][/extension[/options]])
+	 *
+	 * The dial extension could be empty if you are using MISDN_KEYPAD
+	 * to control ISDN provider features.
+	 */
+	port_str = strsep(&buf2, "/");
+	if (!ast_strlen_zero(port_str)) {
 		if (port_str[0] == 'g' && port_str[1] == ':' ) {
 			/* We make a group call lets checkout which ports are in my group */
 			port_str += 2;
@@ -3467,8 +3481,13 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 			port = atoi(port_str);
 		}
 	} else {
-		ast_log(LOG_WARNING, " --> ! IND : CALL dad:%s WITHOUT PORT/Group, check extensions.conf\n", ext);
+		ast_log(LOG_WARNING, " --> ! IND : Dial(%s) WITHOUT Port or Group, check extensions.conf\n", dial_str);
 		return NULL;
+	}
+
+	ext = strsep(&buf2, "/");
+	if (!ext) {
+		ext = "";
 	}
 
 	if (misdn_cfg_is_group_method(group, METHOD_STANDARD_DEC)) {
@@ -4167,7 +4186,7 @@ static void do_immediate_setup(struct misdn_bchannel *bc, struct chan_list *ch, 
 
 	chan_misdn_log(1, bc->port, "* Starting Ast ctx:%s dad:%s oad:%s with 's' extension\n", ast->context, ast->exten, ast->cid.cid_num);
   
-	strncpy(ast->exten, "s", 2);
+	strcpy(ast->exten, "s");
   
 	if (!ast_canmatch_extension(ast, ast->context, ast->exten, 1, bc->oad) || pbx_start_chan(ch) < 0) {
 		ast = NULL;
@@ -4378,6 +4397,7 @@ static void wait_for_digits(struct chan_list *ch, struct misdn_bchannel *bc, str
 static enum event_response_e
 cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 {
+	int msn_valid;
 	struct chan_list *held_ch;
 	struct chan_list *ch = find_chan_by_bc(cl_te, bc);
 	
@@ -4610,7 +4630,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	case EVENT_SETUP:
 	{
 		struct chan_list *ch = find_chan_by_bc(cl_te, bc);
-		int msn_valid = misdn_cfg_is_msn_valid(bc->port, bc->dad);
 		struct ast_channel *chan;
 		int exceed;
 		int pres, screen;
@@ -4628,6 +4647,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			}
 		}
 
+		msn_valid = misdn_cfg_is_msn_valid(bc->port, bc->dad);
 		if (!bc->nt && ! msn_valid) {
 			chan_misdn_log(1, bc->port, " --> Ignoring Call, its not in our MSN List\n");
 			return RESPONSE_IGNORE_SETUP; /*  Ignore MSNs which are not in our List */
@@ -4656,7 +4676,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		ch->originator = ORG_MISDN;
 
 		chan = misdn_new(ch, AST_STATE_RESERVED, bc->dad, bc->oad, AST_FORMAT_ALAW, bc->port, bc->channel);
-
 		if (!chan) {
 			ast_free(ch);
 			misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);

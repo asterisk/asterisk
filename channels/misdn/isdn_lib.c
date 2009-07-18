@@ -3301,10 +3301,6 @@ struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel, int inout, i
 	return NULL;
 }
 
-
-
-
-/* ******************************************************************* */
 /*!
  * \internal
  * \brief Convert the facility function enum value into a string.
@@ -3339,10 +3335,10 @@ static const char *fac2str(enum FacFunction facility)
 		if (arr[index].facility == facility) {
 			return arr[index].name;
 		}
-	}	/* end for */
+	}
 
 	return "unknown";
-}	/* end fac2str() */
+}
 
 void misdn_lib_log_ies(struct misdn_bchannel *bc)
 {
