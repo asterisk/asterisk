@@ -2087,7 +2087,8 @@ struct sip_registry {
 		AST_STRING_FIELD(nonce);	/*!< Authorization nonce */
 		AST_STRING_FIELD(opaque);	/*!< Opaque nonsense */
 		AST_STRING_FIELD(qop);		/*!< Quality of Protection, since SIP wasn't complicated enough yet. */
-		AST_STRING_FIELD(domain);	/*!< Authorization domain */
+		AST_STRING_FIELD(authdomain);	/*!< Authorization domain */
+		AST_STRING_FIELD(regdomain);	/*!< Registration domain */
 		AST_STRING_FIELD(username);	/*!< Who we are registering as */
 		AST_STRING_FIELD(authuser);	/*!< Who we *authenticate* as */
 		AST_STRING_FIELD(hostname);	/*!< Domain or host we register to */
@@ -7464,7 +7465,7 @@ static int sip_register(const char *value, int lineno)
 	char buf[256] = "";
 	char *username = NULL;
 	char *hostname=NULL, *secret=NULL, *authuser=NULL, *expire=NULL, *tmp=NULL;
-	char *callback=NULL, *peername=NULL;
+	char *callback=NULL, *peername=NULL, *regdomain=NULL;
 
 	if (!value)
 		return -1;
@@ -7513,10 +7514,17 @@ static int sip_register(const char *value, int lineno)
 			authuser = NULL;
 		}
 	}
- 	if ((authuser) && (ast_strlen_zero(authuser)))
+	if ((authuser) && (ast_strlen_zero(authuser)))
 		authuser = NULL;
- 	if ((secret) && (ast_strlen_zero(secret)))
+	if ((secret) && (ast_strlen_zero(secret)))
 		secret = NULL;
+
+	/* The user portion may be of the form username@regdomain so split off any regdomain */
+	regdomain = strchr(username, '@');
+	if (regdomain) {
+		*regdomain++ = '\0';
+	}
+
 
 	if (!(reg = ast_calloc(1, sizeof(*reg)))) {
 		ast_log(LOG_ERROR, "Out of memory. Can't allocate SIP registry entry\n");
@@ -7536,6 +7544,9 @@ static int sip_register(const char *value, int lineno)
 		ast_string_field_set(reg, username, username);
 	if (hostname)
 		ast_string_field_set(reg, hostname, hostname);
+		ast_string_field_set(reg, regdomain, hostname);
+	if (regdomain)
+		ast_string_field_set(reg, regdomain, regdomain);
 	if (authuser)
 		ast_string_field_set(reg, authuser, authuser);
 	if (secret)
@@ -11586,8 +11597,6 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 	struct sip_pvt *p;
 	struct sip_peer *peer;
 	int res;
-	char *fromdomain;
-	char *domainport = NULL;
 
 	/* exit if we are already in process with this registrar ?*/
 	if (r == NULL || ((auth == NULL) && (r->regstate == REG_STATE_REGSENT || r->regstate == REG_STATE_AUTHSENT))) {
@@ -11670,9 +11679,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		ast_string_field_set(r, callid, p->callid);
 		if (!r->dnsmgr && r->portno) {
 			p->sa.sin_port = htons(r->portno);
- 			p->recv.sin_port = htons(r->portno);
-		} else {	/* Set registry port to the port set from the peer definition/srv or default */
-			r->portno = ntohs(p->sa.sin_port);
+			p->recv.sin_port = htons(r->portno);
 		}
 		ast_set_flag(&p->flags[0], SIP_OUTGOING);	/* Registration is outgoing call */
 		r->call = dialog_ref(p, "copying dialog into registry r->call");		/* Save pointer to SIP dialog */
@@ -11684,7 +11691,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			ast_string_field_set(p, peermd5secret, r->md5secret);
 		/* User name in this realm  
 		- if authuser is set, use that, otherwise use username */
-		if (!ast_strlen_zero(r->authuser)) {	
+		if (!ast_strlen_zero(r->authuser)) {
 			ast_string_field_set(p, peername, r->authuser);
 			ast_string_field_set(p, authname, r->authuser);
 		} else if (!ast_strlen_zero(r->username)) {
@@ -11724,55 +11731,20 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		ast_debug(1, "Scheduled a registration timeout for %s id  #%d \n", r->hostname, r->timeout);
 	}
 
-	if ((fromdomain = strchr(r->username, '@'))) {
-		/* the domain name is just behind '@' */
-		fromdomain++ ;
-		/* We have a domain in the username for registration */
-		snprintf(from, sizeof(from), "<sip:%s>;tag=%s", r->username, p->tag);
-		if (!ast_strlen_zero(p->theirtag))
-			snprintf(to, sizeof(to), "<sip:%s>;tag=%s", r->username, p->theirtag);
-		else
-			snprintf(to, sizeof(to), "<sip:%s>", r->username);
+	snprintf(from, sizeof(from), "<sip:%s@%s>;tag=%s", r->username, r->regdomain, p->tag);
+	if (!ast_strlen_zero(p->theirtag)) {
+		snprintf(to, sizeof(to), "<sip:%s@%s>;tag=%s", r->username, r->regdomain, p->theirtag);
+	} else {
+		snprintf(to, sizeof(to), "<sip:%s@%s>", r->username, r->regdomain);
+	}
 
-		/* If the registration username contains '@', then the domain should be used as
-		   the equivalent of "fromdomain" for the registration */
-		if (ast_strlen_zero(p->fromdomain)) {
-			ast_string_field_set(p, fromdomain, fromdomain);
-		}
-	} else {
-		snprintf(from, sizeof(from), "<sip:%s@%s>;tag=%s", r->username, p->tohost, p->tag);
-		if (!ast_strlen_zero(p->theirtag))
-			snprintf(to, sizeof(to), "<sip:%s@%s>;tag=%s", r->username, p->tohost, p->theirtag);
-		else
-			snprintf(to, sizeof(to), "<sip:%s@%s>", r->username, p->tohost);
-	}
-	
-	/* Fromdomain is what we are registering to, regardless of actual
+	/* Domain is what we are registering to, regardless of actual
 	   host name from SRV */
-	if (!ast_strlen_zero(p->fromdomain)) {
-		domainport = strrchr(p->fromdomain, ':');
-		if (domainport) {
-			*domainport++ = '\0'; /* trim off domainport from p->fromdomain */
-			if (ast_strlen_zero(domainport))
-				domainport = NULL;
-		}		
-		if (domainport) {			
-			if (atoi(domainport) != STANDARD_SIP_PORT)
-				snprintf(addr, sizeof(addr), "sip:%s:%s", p->fromdomain, domainport);
-			else
-				snprintf(addr, sizeof(addr), "sip:%s", p->fromdomain);
-		} else {
-			if (r->portno && r->portno != STANDARD_SIP_PORT)
-				snprintf(addr, sizeof(addr), "sip:%s:%d", p->fromdomain, r->portno);
-			else
-				snprintf(addr, sizeof(addr), "sip:%s", p->fromdomain);
-		}
-	} else {
-		if (r->portno && r->portno != STANDARD_SIP_PORT)
-			snprintf(addr, sizeof(addr), "sip:%s:%d", r->hostname, r->portno);
-		else
-			snprintf(addr, sizeof(addr), "sip:%s", r->hostname);
-	}
+	if (ntohs(p->sa.sin_port) != STANDARD_SIP_PORT)
+		snprintf(addr, sizeof(addr), "sip:%s:%d", r->regdomain, ntohs(p->sa.sin_port));
+	else
+		snprintf(addr, sizeof(addr), "sip:%s", r->regdomain);
+
 	ast_string_field_set(p, uri, addr);
 
 	p->branch ^= ast_random();
@@ -11793,8 +11765,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 	if (!ast_strlen_zero(global_useragent))
 		add_header(&req, "User-Agent", global_useragent);
 
-	
-	if (auth) 	/* Add auth header */
+	if (auth)   /* Add auth header */
 		add_header(&req, authheader, auth);
 	else if (!ast_strlen_zero(r->nonce)) {
 		char digest[1024];
@@ -11808,7 +11779,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			ast_debug(1, "   >>> Re-using Auth data for %s@%s\n", r->username, r->hostname);
 		ast_string_field_set(p, realm, r->realm);
 		ast_string_field_set(p, nonce, r->nonce);
-		ast_string_field_set(p, domain, r->domain);
+		ast_string_field_set(p, domain, r->authdomain);
 		ast_string_field_set(p, opaque, r->opaque);
 		ast_string_field_set(p, qop, r->qop);
 		p->noncecount = ++r->noncecount;
@@ -11818,7 +11789,6 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			add_header(&req, "Authorization", digest);
 		else
 			ast_log(LOG_NOTICE, "No authorization available for authentication of registration to %s@%s\n", r->username, r->hostname);
-	
 	}
 
 	snprintf(tmp, sizeof(tmp), "%d", r->expiry);
@@ -14742,11 +14712,12 @@ static int manager_show_registry(struct mansession *s, const struct message *m)
 			"Host: %s\r\n"
 			"Port: %d\r\n"
 			"Username: %s\r\n"
+			"Domain: %s\r\n"
 			"Refresh: %d\r\n"
 			"State: %s\r\n"
 			"RegistrationTime: %ld\r\n"
 			"\r\n", iterator->hostname, iterator->portno ? iterator->portno : STANDARD_SIP_PORT,
-					  iterator->username, iterator->refresh, regstate2str(iterator->regstate), (long) iterator->regtime.tv_sec);
+					  iterator->username, iterator->regdomain, iterator->refresh, regstate2str(iterator->regstate), (long) iterator->regtime.tv_sec);
 		ASTOBJ_UNLOCK(iterator);
 		total++;
 	} while(0));
@@ -15889,6 +15860,7 @@ static char *sip_show_registry(struct ast_cli_entry *e, int cmd, struct ast_cli_
 #define FORMAT2 "%-30.30s %-6.6s %-12.12s  %8.8s %-20.20s %-25.25s\n"
 #define FORMAT  "%-30.30s %-6.6s %-12.12s  %8d %-20.20s %-25.25s\n"
 	char host[80];
+	char user[80];
 	char tmpdat[256];
 	struct ast_tm tm;
 	int counter = 0;
@@ -15911,12 +15883,13 @@ static char *sip_show_registry(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
 		ASTOBJ_RDLOCK(iterator);
 		snprintf(host, sizeof(host), "%s:%d", iterator->hostname, iterator->portno ? iterator->portno : STANDARD_SIP_PORT);
+		snprintf(user, sizeof(user), "%s@%s", iterator->username, iterator->regdomain);
 		if (iterator->regtime.tv_sec) {
 			ast_localtime(&iterator->regtime, &tm, NULL);
 			ast_strftime(tmpdat, sizeof(tmpdat), "%a, %d %b %Y %T", &tm);
 		} else 
 			tmpdat[0] = '\0';
-		ast_cli(a->fd, FORMAT, host, (iterator->dnsmgr) ? "Y" : "N", iterator->username, iterator->refresh, regstate2str(iterator->regstate), tmpdat);
+		ast_cli(a->fd, FORMAT, host, (iterator->dnsmgr) ? "Y" : "N", user, iterator->refresh, regstate2str(iterator->regstate), tmpdat);
 		ASTOBJ_UNLOCK(iterator);
 		counter++;
 	} while(0));
@@ -17226,7 +17199,7 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 		if (strcmp(r->nonce, p->nonce)) {
 			ast_string_field_set(r, realm, p->realm);
 			ast_string_field_set(r, nonce, p->nonce);
-			ast_string_field_set(r, domain, p->domain);
+			ast_string_field_set(r, authdomain, p->domain);
 			ast_string_field_set(r, opaque, p->opaque);
 			ast_string_field_set(r, qop, p->qop);
 			r->noncecount = 0;
