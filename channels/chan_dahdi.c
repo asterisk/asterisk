@@ -202,8 +202,6 @@ static const char tdesc[] = "DAHDI Telephony Driver"
 #define DAHDI_OVERLAPDIAL_INCOMING 2
 #define DAHDI_OVERLAPDIAL_BOTH (DAHDI_OVERLAPDIAL_INCOMING|DAHDI_OVERLAPDIAL_OUTGOING)
 
-#define OUTBOUND_EM_WINK_RX_TIMEOUT     10000   /*!< Default time to wait for wink on outbound E&M Wink start trunks in ms*/
-
 static char defaultcic[64] = "";
 static char defaultozz[64] = "";
 
@@ -279,35 +277,6 @@ static inline int dahdi_wait_event(int fd)
 	if (ioctl(fd, DAHDI_GETEVENT, &j) == -1)
 		return -1;
 	return j;
-}
-
-static char *event2str(int event);
-
-/*! \brief Waits for a wink from the far party with a timeout, returns 0 on wink received, -1 on timeout */
-static inline int dahdi_wait_for_wink(int dfd, int timeout_ms, int *hookcomplete_evt_rcvd)
-{
-	int res = 0;
-	while (timeout_ms > 0)
-	{
-		res = dahdi_get_event(dfd);
-        if (option_debug > 2)
-            ast_log(LOG_DEBUG, "Detected event: %s, timeout_ms %d\n", event2str(res), timeout_ms);
-		switch (res) {
-		case DAHDI_EVENT_NONE:
-			timeout_ms -= 100;
-			usleep(100000);
-			break;
-		case DAHDI_EVENT_HOOKCOMPLETE:
-			*hookcomplete_evt_rcvd = 1;
-			break;
-		case DAHDI_EVENT_WINKFLASH:
-			return 0;
-			break;
-		default:
-			break;
-        }
-	}
-	return -1; /* indicate timeout has elapsed */
 }
 
 /*! Chunk size to read -- we use 20ms chunks to make things happy. */
@@ -2156,8 +2125,6 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 	char *s = NULL;
 #endif
 	char dest[256]; /* must be same length as p->dialdest */
- 	/* flag for if we got a HOOKCOMPLETE event while waiting for the wink */
-	int em_w_hookcomplete_evt_rcvd = 0;
 	ast_mutex_lock(&p->lock);
 	ast_copy_string(dest, rdest, sizeof(dest));
 	ast_copy_string(p->dialdest, rdest, sizeof(p->dialdest));
@@ -2327,27 +2294,6 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 #ifdef HAVE_PRI
 		}
 #endif
-		/* If the outbound protocol is E&M Wink start, this code will wait for the wink
-		 * before proceeding. It waits for the wink to be detected with a timeout and
-		 * also detects and notes the HOOKCOMPLETE event which will come before the
-		 * WINKFLASH event in the normal operation of outbound E&M Wink trunks.
-		 */
-		if (mysig == SIG_EMWINK) {
-			if (dahdi_wait_for_wink(p->subs[SUB_REAL].dfd, OUTBOUND_EM_WINK_RX_TIMEOUT, &em_w_hookcomplete_evt_rcvd)) {
-				/* we never received a wink from the far side */
-				ast_log(LOG_WARNING, "Timer elapsed while waiting to receive a wink on an E&M Wink trunk\n");
-				/* put this channel on hook and exit */
-				res = dahdi_set_hook(p->subs[SUB_REAL].dfd, DAHDI_ONHOOK);
-				if (res < 0) {
-					ast_log(LOG_WARNING, "Unable to hangup channel: %s\n", strerror(errno));
-				} else {
-					ast_log(LOG_WARNING, "Stopping channel since we did not get a wink before timeout\n");
-				}
-				ast_mutex_unlock(&p->lock);
-				return -1;
-			}
-		}
-
 		ast_log(LOG_DEBUG, "Dialing '%s'\n", c);
 		p->dop.op = DAHDI_DIAL_OP_REPLACE;
 
@@ -2415,7 +2361,7 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 			p->dop.dialstr[strlen(p->dop.dialstr)-2] = '\0';
 		} else
 			p->echobreak = 0;
-		if (!res || em_w_hookcomplete_evt_rcvd) {
+		if (!res) {
 			if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_DIAL, &p->dop)) {
 				int saveerr = errno;
 
