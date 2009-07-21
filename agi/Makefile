@@ -21,7 +21,7 @@ endif
 
 include $(ASTTOPDIR)/Makefile.rules
 
-ASTCFLAGS+=-DSTANDALONE
+_ASTCFLAGS+=-DSTANDALONE
 
 all: $(AGIS)
 

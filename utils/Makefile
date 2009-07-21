@@ -75,7 +75,7 @@ md5.c: ../main/md5.c
 
 astman: astman.o md5.o
 astman: LIBS+=$(NEWT_LIB)
-astman.o: ASTCFLAGS+=-DNO_MALLOC_DEBUG -DSTANDALONE
+astman.o: _ASTCFLAGS+=-DNO_MALLOC_DEBUG -DSTANDALONE
 
 stereorize: stereorize.o frame.o
 stereorize: LIBS+=-lm
@@ -94,12 +94,12 @@ strcompat.c: ../main/strcompat.c
 ast_expr2.c: ../main/ast_expr2.c
 	@cp $< $@
 
-ast_expr2.o: ASTCFLAGS+=-DSTANDALONE_AEL
+ast_expr2.o: _ASTCFLAGS+=-DSTANDALONE_AEL
 
 ast_expr2f.c: ../main/ast_expr2f.c
 	@cp $< $@
 
-ast_expr2f.o: ASTCFLAGS+=-DSTANDALONE_AEL -I../main -Wno-unused
+ast_expr2f.o: _ASTCFLAGS+=-DSTANDALONE_AEL -I../main -Wno-unused
 
 check_expr: check_expr.o ast_expr2.o ast_expr2f.o
 
@@ -110,19 +110,19 @@ check_expr2: ast_expr2.c ast_expr2f.o
 aelbison.c: ../pbx/ael/ael.tab.c
 	@cp $< $@
 aelbison.o: aelbison.c ../pbx/ael/ael.tab.h ../include/asterisk/ael_structs.h
-aelbison.o: ASTCFLAGS+=-I../pbx -DSTANDALONE_AEL
+aelbison.o: _ASTCFLAGS+=-I../pbx -DSTANDALONE_AEL
 
 pbx_ael.c: ../pbx/pbx_ael.c
 	@cp $< $@
-pbx_ael.o: ASTCFLAGS+=-DSTANDALONE_AEL
+pbx_ael.o: _ASTCFLAGS+=-DSTANDALONE_AEL
 
 ael_main.o: ael_main.c ../include/asterisk/ael_structs.h
-ael_main.o: ASTCFLAGS+=-DSTANDALONE_AEL
+ael_main.o: _ASTCFLAGS+=-DSTANDALONE_AEL
 
 aelparse.c: ../pbx/ael/ael_lex.c
 	@cp $< $@
 aelparse.o: aelparse.c ../include/asterisk/ael_structs.h ../pbx/ael/ael.tab.h
-aelparse.o: ASTCFLAGS+=-I../pbx -DSTANDALONE_AEL -Wno-unused
+aelparse.o: _ASTCFLAGS+=-I../pbx -DSTANDALONE_AEL -Wno-unused
 
 aelparse: aelparse.o aelbison.o pbx_ael.o ael_main.o ast_expr2f.o ast_expr2.o strcompat.o
 

@@ -12,7 +12,7 @@
 #
 
 ifeq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)
-  ASTCFLAGS+=${GC_CFLAGS}
+  _ASTCFLAGS+=${GC_CFLAGS}
 endif
 
 ifneq ($(findstring STATIC_BUILD,$(MENUSELECT_CFLAGS)),)
@@ -23,12 +23,12 @@ include $(ASTTOPDIR)/Makefile.rules
 
 comma:=,
 
-$(addsuffix .o,$(C_MODS)): ASTCFLAGS+=-DAST_MODULE=\"$*\" $(MENUSELECT_OPTS_$*:%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_$*),$(value $(dep)_INCLUDE))
-$(addsuffix .oo,$(CC_MODS)): ASTCFLAGS+=-DAST_MODULE=\"$*\" $(MENUSELECT_OPTS_$*:%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_$*),$(value $(dep)_INCLUDE))
+$(addsuffix .o,$(C_MODS)): _ASTCFLAGS+=-DAST_MODULE=\"$*\" $(MENUSELECT_OPTS_$*:%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_$*),$(value $(dep)_INCLUDE))
+$(addsuffix .oo,$(CC_MODS)): _ASTCFLAGS+=-DAST_MODULE=\"$*\" $(MENUSELECT_OPTS_$*:%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_$*),$(value $(dep)_INCLUDE))
 
-$(LOADABLE_MODS:%=%.so): ASTCFLAGS+=-fPIC
+$(LOADABLE_MODS:%=%.so): _ASTCFLAGS+=-fPIC
 $(LOADABLE_MODS:%=%.so): LIBS+=$(foreach dep,$(MENUSELECT_DEPENDS_$*),$(value $(dep)_LIB))
-$(LOADABLE_MODS:%=%.so): ASTLDFLAGS+=$(foreach dep,$(MENUSELECT_DEPENDS_$*),$(value $(dep)_LDFLAGS))
+$(LOADABLE_MODS:%=%.so): _ASTLDFLAGS+=$(foreach dep,$(MENUSELECT_DEPENDS_$*),$(value $(dep)_LDFLAGS))
 
 $(addsuffix .so,$(filter $(LOADABLE_MODS),$(C_MODS))): %.so: %.o
 $(addsuffix .so,$(filter $(LOADABLE_MODS),$(CC_MODS))): %.so: %.oo

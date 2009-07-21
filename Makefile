@@ -13,18 +13,24 @@
 
 # All Makefiles use the following variables:
 #
-# ASTCFLAGS - compiler options
-# ASTLDFLAGS - linker flags (not libraries)
+# ASTCFLAGS - compiler options provided by the user (if any)
+# _ASTCFLAGS - compiler options provided by the build system
+# ASTLDFLAGS - linker flags (not libraries) provided by the user (if any)
+# _ASTLDFLAGS - linker flags (not libraries) provided by the build system
 # AST_LIBS - libraries to build binaries XXX
 # LIBS - additional libraries, at top-level for all links,
 #      on a single object just for that object
 # SOLINK - linker flags used only for creating shared objects (.so files),
 #      used for all .so links
 #
-# Default values fo ASTCFLAGS and ASTLDFLAGS can be specified in the
+# Values for ASTCFLAGS and ASTLDFLAGS can be specified in the
 # environment when running make, as follows:
 #
-# $ ASTCFLAGS="-Werror" make
+#	$ ASTCFLAGS="-Werror" make ...
+#
+# or as a variable value on the make command line itself:
+#
+#	$ make ASTCFLAGS="-Werror" ...
 
 export ASTTOPDIR
 export ASTERISKVERSION
@@ -150,7 +156,7 @@ HTTP_DOCSDIR=/var/www/html
 HTTP_CGIDIR=/var/www/cgi-bin
 
 # Uncomment this to use the older DSP routines
-#ASTCFLAGS+=-DOLD_DSP_ROUTINES
+#_ASTCFLAGS+=-DOLD_DSP_ROUTINES
 
 # If the file .asterisk.makeopts is present in your home directory, you can
 # include all of your favorite menuselect options so that every time you download
@@ -197,53 +203,53 @@ ifeq ($(OSARCH),linux-gnu)
   endif
 endif
 
-ifeq ($(findstring -save-temps,$(ASTCFLAGS)),)
-ASTCFLAGS+=-pipe
+ifeq ($(findstring -save-temps,$(_ASTCFLAGS) $(ASTCFLAGS)),)
+_ASTCFLAGS+=-pipe
 endif
 
-ASTCFLAGS+=-Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG)
+_ASTCFLAGS+=-Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG)
 
 ifeq ($(AST_DEVMODE),yes)
-  ASTCFLAGS+=-Werror
-  ASTCFLAGS+=-Wunused
-  ASTCFLAGS+=$(AST_DECLARATION_AFTER_STATEMENT)
-  ASTCFLAGS+=$(AST_FORTIFY_SOURCE)
-# ASTCFLAGS+=-Wundef 
-  ASTCFLAGS+=-Wformat -Wformat-security
-  ASTCFLAGS+=-Wmissing-format-attribute
-# ASTCFLAGS+=-Wformat=2
+  _ASTCFLAGS+=-Werror
+  _ASTCFLAGS+=-Wunused
+  _ASTCFLAGS+=$(AST_DECLARATION_AFTER_STATEMENT)
+  _ASTCFLAGS+=$(AST_FORTIFY_SOURCE)
+# _ASTCFLAGS+=-Wundef 
+  _ASTCFLAGS+=-Wformat -Wformat-security
+  _ASTCFLAGS+=-Wmissing-format-attribute
+# _ASTCFLAGS+=-Wformat=2
 endif
 
 ifneq ($(findstring BSD,$(OSARCH)),)
-  ASTCFLAGS+=-I/usr/local/include
-  ASTLDFLAGS+=-L/usr/local/lib
+  _ASTCFLAGS+=-I/usr/local/include
+  _ASTLDFLAGS+=-L/usr/local/lib
 endif
 
 ifneq ($(PROC),ultrasparc)
-  ASTCFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
+  _ASTCFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
 endif
 
 ifeq ($(PROC),ppc)
-  ASTCFLAGS+=-fsigned-char
+  _ASTCFLAGS+=-fsigned-char
 endif
 
 ifeq ($(OSARCH),FreeBSD)
   # -V is understood by BSD Make, not by GNU make.
   BSDVERSION=$(shell make -V OSVERSION -f /usr/share/mk/bsd.port.subdir.mk)
-  ASTCFLAGS+=$(shell if test $(BSDVERSION) -lt 500016 ; then echo "-D_THREAD_SAFE"; fi)
+  _ASTCFLAGS+=$(shell if test $(BSDVERSION) -lt 500016 ; then echo "-D_THREAD_SAFE"; fi)
   AST_LIBS+=$(shell if test  $(BSDVERSION) -lt 502102 ; then echo "-lc_r"; else echo "-pthread"; fi)
 endif
 
 ifeq ($(OSARCH),NetBSD)
-  ASTCFLAGS+=-pthread -I/usr/pkg/include
+  _ASTCFLAGS+=-pthread -I/usr/pkg/include
 endif
 
 ifeq ($(OSARCH),OpenBSD)
-  ASTCFLAGS+=-pthread
+  _ASTCFLAGS+=-pthread
 endif
 
 ifeq ($(OSARCH),SunOS)
-  ASTCFLAGS+=-Wcast-align -DSOLARIS -I../include/solaris-compat -I/opt/ssl/include -I/usr/local/ssl/include
+  _ASTCFLAGS+=-Wcast-align -DSOLARIS -I../include/solaris-compat -I/opt/ssl/include -I/usr/local/ssl/include
 endif
 
 ASTERISKVERSION:=$(shell GREP=$(GREP) AWK=$(AWK) build_tools/make_version .)
@@ -256,7 +262,7 @@ ifneq ($(wildcard .svn),)
   ASTERISKVERSIONNUM=999999
 endif
 
-ASTCFLAGS+=$(MALLOC_DEBUG)$(BUSYDETECT)$(OPTIONS)
+_ASTCFLAGS+=$(BUSYDETECT)$(OPTIONS)
 
 MOD_SUBDIRS:=res channels pbx apps codecs formats cdr funcs main
 OTHER_SUBDIRS:=utils agi
@@ -271,7 +277,7 @@ MOD_SUBDIRS_EMBED_LIBS:=$(MOD_SUBDIRS:%=%-embed-libs)
 MOD_SUBDIRS_MENUSELECT_TREE:=$(MOD_SUBDIRS:%=%-menuselect-tree)
 
 ifneq ($(findstring darwin,$(OSARCH)),)
-  ASTCFLAGS+=-D__Darwin__
+  _ASTCFLAGS+=-D__Darwin__
   AUDIO_LIBS=-framework CoreAudio
   SOLINK=-dynamic -bundle -undefined suppress -force_flat_namespace
 else
@@ -348,10 +354,10 @@ $(SUBDIRS): include/asterisk/version.h include/asterisk/buildopts.h defaults.h m
 main: $(filter-out main,$(MOD_SUBDIRS))
 
 $(MOD_SUBDIRS):
-	@ASTCFLAGS="$(MOD_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" AST_LIBS="$(AST_LIBS)" $(MAKE) --no-builtin-rules -C $@ SUBDIR=$@ all
+	@_ASTCFLAGS="$(MOD_SUBDIR_CFLAGS) $(_ASTCFLAGS)" $(MAKE) --no-builtin-rules -C $@ SUBDIR=$@ all
 
 $(OTHER_SUBDIRS):
-	@ASTCFLAGS="$(OTHER_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" AUDIO_LIBS="$(AUDIO_LIBS)" $(MAKE) --no-builtin-rules -C $@ SUBDIR=$@ all
+	@_ASTCFLAGS="$(OTHER_SUBDIR_CFLAGS) $(_ASTCFLAGS)" $(MAKE) --no-builtin-rules -C $@ SUBDIR=$@ all
 
 defaults.h: makeopts
 	@build_tools/make_defaults_h > $@.tmp
@@ -404,7 +410,7 @@ distclean: $(SUBDIRS_DIST_CLEAN) _clean
 	rm -f build_tools/menuselect-deps
 
 datafiles: _all
-	if [ x`$(ID) -un` = xroot ]; then CFLAGS="$(ASTCFLAGS)" bash build_tools/mkpkgconfig $(DESTDIR)/usr/lib/pkgconfig; fi
+	if [ x`$(ID) -un` = xroot ]; then CFLAGS="$(_ASTCFLAGS) $(ASTCFLAGS)" bash build_tools/mkpkgconfig $(DESTDIR)/usr/lib/pkgconfig; fi
 # Should static HTTP be installed during make samples or even with its own target ala
 # webvoicemail?  There are portions here that *could* be customized but might also be
 # improved a lot.  I'll put it here for now.

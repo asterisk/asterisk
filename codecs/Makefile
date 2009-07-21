@@ -56,6 +56,6 @@ $(LIBLPC10):
 $(if $(filter codec_lpc10,$(EMBEDDED_MODS)),modules.link,codec_lpc10.so): $(LIBLPC10)
 
 $(LIBILBC):
-	@$(MAKE) -C ilbc all ASTCFLAGS="$(filter-out -Wmissing-prototypes -Wmissing-declarations,$(ASTCFLAGS)) $(AST_NO_STRICT_OVERFLOW)"
+	@$(MAKE) -C ilbc all _ASTCFLAGS="$(filter-out -Wmissing-prototypes -Wmissing-declarations,$(_ASTCFLAGS)) $(AST_NO_STRICT_OVERFLOW)"
 
 $(if $(filter codec_ilbc,$(EMBEDDED_MODS)),modules.link,codec_ilbc.so): $(LIBILBC)
