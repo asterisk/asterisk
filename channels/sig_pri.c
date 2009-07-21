@@ -1789,10 +1789,11 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 	p->outgoing = 1;
 
 	c = strchr(dest, '/');
-	if (c)
+	if (c) {
 		c++;
-	else
-		c = dest;
+	} else {
+		c = "";
+	}
 
 	l = NULL;
 	n = NULL;
