@@ -19,7 +19,7 @@
 # repeat the left hand side to set multiple variables.
 
 ifeq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)
-  ASTCFLAGS+=${GC_CFLAGS}
+  _ASTCFLAGS+=${GC_CFLAGS}
 endif
 
 ifneq ($(findstring STATIC_BUILD,$(MENUSELECT_CFLAGS)),)
@@ -57,18 +57,18 @@ endif
 # (they are stored in file 'makeopts')
 
 $(addsuffix .oo,$(CC_MODS)) $(addsuffix .o,$(C_MODS)):	\
-	ASTCFLAGS+= -DAST_MODULE=\"$*\" $(MENUSELECT_OPTS_$*:%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_$*),$(value $(dep)_INCLUDE))
+	_ASTCFLAGS+= -DAST_MODULE=\"$*\" $(MENUSELECT_OPTS_$*:%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_$*),$(value $(dep)_INCLUDE))
 
 ifeq ($(findstring $(OSARCH), mingw32 cygwin ),)
    # don't define -fPIC on mingw32 and cygwin, it is the default
-   $(LOADABLE_MODS:%=%.so): ASTCFLAGS+=-fPIC
+   $(LOADABLE_MODS:%=%.so): _ASTCFLAGS+=-fPIC
 endif
 
 # For loadable modules, pass _LIB and _LDFLAGS from menuselect.
 $(LOADABLE_MODS:%=%.so): LIBS+=$(foreach dep,$(MENUSELECT_DEPENDS_$*),$(value $(dep)_LIB))
-$(LOADABLE_MODS:%=%.so): ASTLDFLAGS+=$(foreach dep,$(MENUSELECT_DEPENDS_$*),$(value $(dep)_LDFLAGS))
+$(LOADABLE_MODS:%=%.so): _ASTLDFLAGS+=$(foreach dep,$(MENUSELECT_DEPENDS_$*),$(value $(dep)_LDFLAGS))
 
-$(EMBEDDED_MODS:%=%.o): ASTCFLAGS+=-DEMBEDDED_MODULE=$*
+$(EMBEDDED_MODS:%=%.o): _ASTCFLAGS+=-DEMBEDDED_MODULE=$*
 
 $(addsuffix .so,$(filter $(LOADABLE_MODS),$(C_MODS))): %.so: %.o
 $(addsuffix .so,$(filter $(LOADABLE_MODS),$(CC_MODS))): %.so: %.oo

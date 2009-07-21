@@ -85,11 +85,11 @@ chan_h323.so: chan_h323.o h323/libchanh323.a
 endif
 endif
 
-chan_misdn.o: ASTCFLAGS+=-Imisdn
+chan_misdn.o: _ASTCFLAGS+=-Imisdn
 
-misdn_config.o: ASTCFLAGS+=-Imisdn
+misdn_config.o: _ASTCFLAGS+=-Imisdn
 
-misdn/isdn_lib.o: ASTCFLAGS+=-Wno-strict-aliasing
+misdn/isdn_lib.o: _ASTCFLAGS+=-Wno-strict-aliasing
 
 $(if $(filter chan_misdn,$(EMBEDDED_MODS)),modules.link,chan_misdn.so): misdn_config.o misdn/isdn_lib.o misdn/isdn_msg_parser.o
 
@@ -98,7 +98,7 @@ $(if $(filter chan_oss,$(EMBEDDED_MODS)),modules.link,chan_oss.so): console_vide
 chan_usbradio.o: ./xpmr/xpmr.c ./xpmr/xpmr.h ./xpmr/xpmr_coef.h
 
 chan_usbradio.so: LIBS+=-lusb -lasound
-chan_usbradio.so: ASTCFLAGS+=-DNDEBUG
+chan_usbradio.so: _ASTCFLAGS+=-DNDEBUG
 
 h323/Makefile.ast:
 	$(CMD_PREFIX) $(MAKE) -C h323 Makefile.ast

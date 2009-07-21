@@ -38,26 +38,20 @@ endif
 OPTIMIZE?=-O6
 
 ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS)),)
-    # More GSM codec optimization
-    # Uncomment to enable MMXTM optimizations for x86 architecture CPU's
-    # which support MMX instructions.  This should be newer pentiums,
-    # ppro's, etc, as well as the AMD K6 and K7.  
-    #K6OPT=-DK6OPT
-
-    ASTCFLAGS+=$(OPTIMIZE)
+    _ASTCFLAGS+=$(OPTIMIZE)
 endif
 
 # shortcuts for common combinations of flags; these must be recursively expanded so that
 # per-target settings will be applied
-CC_CFLAGS=$(PTHREAD_CFLAGS) $(ASTCFLAGS)
-CXX_CFLAGS=$(PTHREAD_CFLAGS) $(filter-out -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(AST_DECLARATION_AFTER_STATEMENT),$(ASTCFLAGS))
+CC_CFLAGS=$(PTHREAD_CFLAGS) $(_ASTCFLAGS) $(ASTCFLAGS)
+CXX_CFLAGS=$(PTHREAD_CFLAGS) $(filter-out -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(AST_DECLARATION_AFTER_STATEMENT),$(_ASTCFLAGS) $(ASTCFLAGS))
 
 ifeq ($(GNU_LD),1)
 SO_SUPPRESS_SYMBOLS=-Wl,--version-script,$(if $(wildcard $(subst .so,.exports,$@)),$(subst .so,.exports,$@),$(ASTTOPDIR)/default.exports)
 endif
 
-CC_LDFLAGS_SO=$(PTHREAD_CFLAGS) $(ASTLDFLAGS) $(SOLINK) $(SO_SUPPRESS_SYMBOLS)
-CXX_LDFLAGS_SO=$(PTHREAD_CFLAGS) $(ASTLDFLAGS) $(SOLINK) $(SO_SUPPRESS_SYMBOLS)
+CC_LDFLAGS_SO=$(PTHREAD_CFLAGS) $(_ASTLDFLAGS) $(SOLINK) $(SO_SUPPRESS_SYMBOLS) $(ASTLDFLAGS)
+CXX_LDFLAGS_SO=$(PTHREAD_CFLAGS) $(_ASTLDFLAGS) $(SOLINK) $(SO_SUPPRESS_SYMBOLS) $(ASTLDFLAGS)
 CC_LIBS=$(PTHREAD_LIBS) $(LIBS)
 CXX_LIBS=$(PTHREAD_LIBS) $(LIBS)
 
@@ -73,43 +67,43 @@ endif
 %.o: %.s
 	$(ECHO_PREFIX) echo "   [AS] $< -> $@"
 ifeq ($(COMPILE_DOUBLE),yes)
-	$(CMD_PREFIX) $(CC) -o /dev/null -c $< $(CC_CFLAGS) $(OPTIMIZE)
+	$(CMD_PREFIX) $(CC) -o /dev/null -c $< $(OPTIMIZE) $(CC_CFLAGS)
 endif
 	$(CMD_PREFIX) $(CC) -o $@ -c $< $(CC_CFLAGS)
 
 %.o: %.i
 	$(ECHO_PREFIX) echo "   [CCi] $< -> $@"
 ifeq ($(COMPILE_DOUBLE),yes)
-	$(CMD_PREFIX) $(CC) -o /dev/null -c $< $(CC_CFLAGS) $(OPTIMIZE)
+	$(CMD_PREFIX) $(CC) -o /dev/null -c $< $(OPTIMIZE) $(CC_CFLAGS)
 endif
 	$(CMD_PREFIX) $(CC) -o $@ -c $< $(CC_CFLAGS)
 
 ifneq ($(COMPILE_DOUBLE),yes)
 %.o: %.c
 	$(ECHO_PREFIX) echo "   [CC] $< -> $@"
-	$(CMD_PREFIX) $(CC) -o $@ -c $< $(CC_CFLAGS) $(MAKE_DEPS)
+	$(CMD_PREFIX) $(CC) -o $@ -c $< $(MAKE_DEPS) $(CC_CFLAGS)
 endif
 
 %.i: %.c
 	$(ECHO_PREFIX) echo "   [CPP] $< -> $@"
-	$(CMD_PREFIX) $(CC) -o $@ -E $< $(CC_CFLAGS) $(MAKE_DEPS)
+	$(CMD_PREFIX) $(CC) -o $@ -E $< $(MAKE_DEPS) $(CC_CFLAGS)
 
 %.oo: %.ii
 	$(ECHO_PREFIX) echo "   [CXXi] $< -> $@"
 ifeq ($(COMPILE_DOUBLE),yes)
-	$(CMD_PREFIX) $(CXX) -o /dev/null -c $< $(CXX_CFLAGS) $(OPTIMIZE)
+	$(CMD_PREFIX) $(CXX) -o /dev/null -c $< $(OPTIMIZE) $(CXX_CFLAGS)
 endif
 	$(CMD_PREFIX) $(CXX) -o $@ -c $< $(CXX_CFLAGS)
 
 ifneq ($(COMPILE_DOUBLE),yes)
 %.oo: %.cc
 	$(ECHO_PREFIX) echo "   [CXX] $< -> $@"
-	$(CMD_PREFIX) $(CXX) -o $@ -c $< $(CXX_CFLAGS) $(MAKE_DEPS)
+	$(CMD_PREFIX) $(CXX) -o $@ -c $< $(MAKE_DEPS) $(CXX_CFLAGS)
 endif
 
 %.ii: %.cc
 	$(ECHO_PREFIX) echo "   [CPP] $< -> $@"
-	$(CMD_PREFIX) $(CXX) -o $@ -E $< $(CXX_CFLAGS) $(MAKE_DEPS)
+	$(CMD_PREFIX) $(CXX) -o $@ -E $< $(MAKE_DEPS) $(CXX_CFLAGS)
 
 %.so: %.o
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
@@ -133,6 +127,6 @@ endif
 
 %: %.o
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
-	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(PTHREAD_CFLAGS) $(ASTLDFLAGS) $^ $(CXX_LIBS)
+	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(PTHREAD_CFLAGS) $(_ASTLDFLAGS) $^ $(CXX_LIBS) $(ASTLDFLAGS)
 
 dist-clean:: clean

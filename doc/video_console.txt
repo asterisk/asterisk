@@ -8,7 +8,7 @@ working you need to perform the following steps:
 
     The simplest way to do it is add this one line to channels/Makefile:
 
-    chan_oss.so: ASTCFLAGS += -DHAVE_VIDEO_CONSOLE
+    chan_oss.so: _ASTCFLAGS+=-DHAVE_VIDEO_CONSOLE
 
 +++ Install prerequisite packages +++
 

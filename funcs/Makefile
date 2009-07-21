@@ -24,4 +24,4 @@ include $(ASTTOPDIR)/Makefile.moddir_rules
 # can't check the string and arguments to ensure they match, so this
 # warning must be disabled; for safety reasons, SPRINTF() is kept in
 # a separate module so that as little code as possible is left unchecked
-func_sprintf.o: ASTCFLAGS+=-Wno-format-nonliteral
+func_sprintf.o: _ASTCFLAGS+=-Wno-format-nonliteral

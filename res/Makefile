@@ -29,15 +29,15 @@ ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
   res_agi.so_LIBS:= -lres_speech.so
 endif
 
-res_config_ldap.o: ASTCFLAGS+=-DLDAP_DEPRECATED
+res_config_ldap.o: _ASTCFLAGS+=-DLDAP_DEPRECATED
 
 ael/ael_lex.o: ael/ael_lex.c ../include/asterisk/ael_structs.h ael/ael.tab.h
-ael/ael_lex.o: ASTCFLAGS+=-I. -Iael -Wno-unused
+ael/ael_lex.o: _ASTCFLAGS+=-I. -Iael -Wno-unused
 
 ael/ael.tab.o: ael/ael.tab.c ael/ael.tab.h ../include/asterisk/ael_structs.h
-ael/ael.tab.o: ASTCFLAGS+=-I. -Iael -DYYENABLE_NLS=0
+ael/ael.tab.o: _ASTCFLAGS+=-I. -Iael -DYYENABLE_NLS=0
 
-ais/clm.o ais/evt.o: ASTCFLAGS+=${AIS_INCLUDE}
+ais/clm.o ais/evt.o: _ASTCFLAGS+=${AIS_INCLUDE}
 
 $(if $(filter res_ais,$(EMBEDDED_MODS)),modules.link,res_ais.so): ais/clm.o ais/evt.o
 
