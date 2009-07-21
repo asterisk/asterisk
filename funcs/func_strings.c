@@ -862,6 +862,12 @@ static struct ast_custom_function array_function = {
 static int quote(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	char *bufptr = buf, *dataptr = data;
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "No argument specified!\n");
+		ast_copy_string(buf, "\"\"", len);
+		return 0;
+	}
+
 	*bufptr++ = '"';
 	for (; bufptr < buf + len - 1; dataptr++) {
 		if (*dataptr == '\\') {
