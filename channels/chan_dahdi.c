@@ -5368,7 +5368,6 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 				break;
 			case SIG_EM:
 			case SIG_EM_E1:
-			case SIG_EMWINK:
 			case SIG_FEATD:
 			case SIG_SF:
 			case SIG_SFWINK:
@@ -5404,7 +5403,8 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 			case SIG_FEATB:
 			case SIG_SF_FEATDMF:
 			case SIG_SF_FEATB:
-				/* FGD MF *Must* wait for wink */
+			case SIG_EMWINK:
+				/* FGD MF and EMWINK *Must* wait for wink */
 				if (!ast_strlen_zero(p->dop.dialstr)) {
 					res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_DIAL, &p->dop);
 					if (res < 0) {
