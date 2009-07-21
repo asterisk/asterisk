@@ -32,6 +32,8 @@ UTILS:=$(ALL_UTILS)
 
 LIBS += $(BKTR_LIB) # astobj2 with devmode uses backtrace
 
+_ASTCFLAGS+=-DSTANDALONE
+
 include $(ASTTOPDIR)/Makefile.rules
 
 ifeq ($(OSARCH),SunOS)
@@ -91,11 +93,10 @@ clean:
 md5.c: $(ASTTOPDIR)/main/md5.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
-md5.o: ASTCFLAGS+=-DSTANDALONE
 
 astman: astman.o md5.o
 astman: LIBS+=$(NEWT_LIB)
-astman.o: ASTCFLAGS+=-DNO_MALLOC_DEBUG -DSTANDALONE
+astman.o: _ASTCFLAGS+=-DNO_MALLOC_DEBUG
 
 stereorize: stereorize.o frame.o
 stereorize: LIBS+=-lm
@@ -104,22 +105,17 @@ hashtab.c: $(ASTTOPDIR)/main/hashtab.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
 
-hashtab.o: ASTCFLAGS+=-DSTANDALONE
-
 strcompat.c: $(ASTTOPDIR)/main/strcompat.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
-strcompat.o: ASTCFLAGS+=-DSTANDALONE
 
 pval.c: $(ASTTOPDIR)/res/ael/pval.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
-pval.o : ASTCFLAGS+=-DSTANDALONE
 
 ast_expr2.c: $(ASTTOPDIR)/main/ast_expr2.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
-ast_expr2.o: ASTCFLAGS+=-DSTANDALONE
 
 ast_expr2.h: $(ASTTOPDIR)/main/ast_expr2.h
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
@@ -128,74 +124,61 @@ ast_expr2.h: $(ASTTOPDIR)/main/ast_expr2.h
 ast_expr2f.c: $(ASTTOPDIR)/main/ast_expr2f.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
-ast_expr2f.o: ASTCFLAGS+=-DSTANDALONE -I$(ASTTOPDIR)/main -Wno-unused
+ast_expr2f.o: _ASTCFLAGS+=-I$(ASTTOPDIR)/main -Wno-unused
 
 check_expr: check_expr.o ast_expr2.o ast_expr2f.o strcompat.o threadstorage.o clicompat.o
-check_expr.o: ASTCFLAGS+=-DSTANDALONE
 
 aelbison.c: $(ASTTOPDIR)/res/ael/ael.tab.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
-aelbison.o: ASTCFLAGS+=-I$(ASTTOPDIR)/res/ael  -DYYENABLE_NLS=0 -DSTANDALONE
+aelbison.o: _ASTCFLAGS+=-I$(ASTTOPDIR)/res/ael -DYYENABLE_NLS=0
 
 pbx_ael.c: $(ASTTOPDIR)/pbx/pbx_ael.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
-pbx_ael.o: ASTCFLAGS+=-DSTANDALONE
 
 aelparse.c: $(ASTTOPDIR)/res/ael/ael_lex.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
 
-ael_main.o: ASTCFLAGS+=-DSTANDALONE
-
-aelparse.o: ASTCFLAGS+=-I$(ASTTOPDIR)/res -DSTANDALONE -Wno-unused
+aelparse.o: _ASTCFLAGS+=-I$(ASTTOPDIR)/res -Wno-unused
 aelparse: LIBS+=-lm
 aelparse: aelparse.o aelbison.o pbx_ael.o hashtab.o ael_main.o ast_expr2f.o ast_expr2.o strcompat.o pval.o extconf.o
 
 astobj2.c: $(ASTTOPDIR)/main/astobj2.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
-astobj2.o: ASTCFLAGS+=-DSTANDALONE
 
 utils.c: $(ASTTOPDIR)/main/utils.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
-utils.o: ASTCFLAGS+=-DSTANDALONE
 
 poll.c: $(ASTTOPDIR)/main/poll.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
-poll.o: ASTCFLAGS+=-DSTANDALONE
 
 strings.c: $(ASTTOPDIR)/main/strings.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
-strings.o: ASTCFLAGS+=-DSTANDALONE
 
 sha1.c: $(ASTTOPDIR)/main/sha1.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
-sha1.o: ASTCFLAGS+=-DSTANDALONE
 
 threadstorage.c: $(ASTTOPDIR)/main/threadstorage.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
-threadstorage.o: ASTCFLAGS+=-DSTANDALONE
 
-hashtest2.o: ASTCFLAGS+=-O0 -DSTANDALONE
+hashtest2.o: _ASTCFLAGS+=-O0
 hashtest2: hashtest2.o md5.o utils.o strings.o astobj2.o sha1.o strcompat.o threadstorage.o clicompat.o poll.o
 
 hashtest: hashtest.o md5.o hashtab.o utils.o strings.o sha1.o strcompat.o threadstorage.o clicompat.o poll.o
-hashtest.o: ASTCFLAGS+=-O0 -DSTANDALONE
+hashtest.o: _ASTCFLAGS+=-O0
 
 refcounter: refcounter.o md5.o hashtab.o utils.o strings.o sha1.o strcompat.o threadstorage.o clicompat.o poll.o
-refcounter.o: ASTCFLAGS+=-O0 -DSTANDALONE
+refcounter.o: _ASTCFLAGS+=-O0
 
 extconf.o: extconf.c
-extconf.o: ASTCFLAGS+=-DSTANDALONE
-
-conf2ael.o: ASTCFLAGS+=-DSTANDALONE
 
 conf2ael: conf2ael.o ast_expr2f.o ast_expr2.o hashtab.o aelbison.o aelparse.o pbx_ael.o pval.o extconf.o strcompat.o
 
@@ -209,8 +192,6 @@ check_expr2: $(ASTTOPDIR)/main/ast_expr2f.c $(ASTTOPDIR)/main/ast_expr2.c $(ASTT
 	$(ECHO_PREFIX) echo "   [RM] ast_expr2fz.o ast_expr2z.o"
 	rm ast_expr2z.o ast_expr2fz.o 
 	./check_expr2 expr2.testinput
-
-smsq.o: ASTCFLAGS+=-DSTANDALONE
 
 smsq: smsq.o strcompat.o
 smsq: LIBS+=$(POPT_LIB)
