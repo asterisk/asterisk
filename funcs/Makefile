@@ -19,4 +19,9 @@ all: _all
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
-func_strings.o: ASTCFLAGS+=-Wno-format-nonliteral
+# the SPRINTF() function in func_strings accepts format specifiers
+# and thus passes them to snprintf() as non-literal strings; the compiler
+# can't check the string and arguments to ensure they match, so this
+# warning must be disabled; for safety reasons, SPRINTF() is kept in
+# a separate module so that as little code as possible is left unchecked
+func_strings.o: _ASTCFLAGS+=-Wno-format-nonliteral
