@@ -2670,7 +2670,6 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 			break;
 		case ANALOG_SIG_EM:
 		case ANALOG_SIG_EM_E1:
-		case ANALOG_SIG_EMWINK:
 		case ANALOG_SIG_FEATD:
 		case ANALOG_SIG_SF:
 		case ANALOG_SIG_SFWINK:
@@ -2704,7 +2703,8 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		case ANALOG_SIG_FEATB:
 		case ANALOG_SIG_SF_FEATDMF:
 		case ANALOG_SIG_SF_FEATB:
-			/* FGD MF *Must* wait for wink */
+		case ANALOG_SIG_EMWINK:
+			/* FGD MF and EMWINK *Must* wait for wink */
 			if (!ast_strlen_zero(p->dop.dialstr)) {
 				res = analog_dial_digits(p, ANALOG_SUB_REAL, &p->dop);
 				if (res < 0) {
