@@ -415,8 +415,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="Data">
 				<para>Data to use (requires <literal>Application</literal>).</para>
 			</parameter>
-			<parameter name="Timeout">
-				<para>How long to wait for call to be answered (in ms).</para>
+			<parameter name="Timeout" default="30000">
+				<para>How long to wait for call to be answered (in ms.).</para>
 			</parameter>
 			<parameter name="CallerID">
 				<para>Caller ID to be set on the outgoing channel.</para>
