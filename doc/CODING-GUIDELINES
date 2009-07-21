@@ -41,6 +41,8 @@ can list them in the "svn diff" command:
 * General rules
 ---------------
 
+- Indent code using tabs, not spaces.
+
 - All code, filenames, function names and comments must be in ENGLISH.
 
 - Don't annotate your changes with comments like "/* JMG 4/20/04 */";
