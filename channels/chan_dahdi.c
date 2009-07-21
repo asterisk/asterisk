@@ -2381,14 +2381,14 @@ static int my_is_off_hook(void *pvt)
 		ast_log(LOG_WARNING, "Unable to check hook state on channel %d: %s\n", p->channel, strerror(errno));
 	}
 
-    if ((p->sig == SIG_FXSKS) || (p->sig == SIG_FXSGS)) {
-        /* When "onhook" that means no battery on the line, and thus
-         it is out of service..., if it's on a TDM card... If it's a channel
-         bank, there is no telling... */
-        return (par.rxbits > -1) || par.rxisoffhook;
-    }
+	if ((p->sig == SIG_FXSKS) || (p->sig == SIG_FXSGS)) {
+		/* When "onhook" that means no battery on the line, and thus
+		it is out of service..., if it's on a TDM card... If it's a channel
+		bank, there is no telling... */
+		return (par.rxbits > -1) || par.rxisoffhook;
+	}
 
-    return par.rxisoffhook;
+	return par.rxisoffhook;
 }
 
 static void dahdi_enable_ec(struct dahdi_pvt *p);
