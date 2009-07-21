@@ -25,7 +25,7 @@ CFLAGS+= -fPIC -Wno-comment
 
 # The code here generates lots of warnings, so compiling with -Werror
 # fails miserably. Remove it for the time being.
-ASTCFLAGS:= $(ASTCFLAGS:-Werror=)
+_ASTCFLAGS:=$(_ASTCFLAGS:-Werror=)
 
 #fix for PPC processors and ALPHA, And UltraSparc too
 ifneq ($(OSARCH),Darwin)

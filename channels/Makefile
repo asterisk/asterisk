@@ -84,11 +84,11 @@ chan_h323.so: chan_h323.o h323/libchanh323.a
 endif
 endif
 
-chan_misdn.o: ASTCFLAGS+=-Imisdn
+chan_misdn.o: _ASTCFLAGS+=-Imisdn
 
-misdn_config.o: ASTCFLAGS+=-Imisdn
+misdn_config.o: _ASTCFLAGS+=-Imisdn
 
-misdn/isdn_lib.o: ASTCFLAGS+=-Wno-strict-aliasing
+misdn/isdn_lib.o: _ASTCFLAGS+=-Wno-strict-aliasing
 
 $(if $(filter chan_misdn,$(EMBEDDED_MODS)),modules.link,chan_misdn.so): misdn_config.o misdn/isdn_lib.o misdn/isdn_msg_parser.o
 
