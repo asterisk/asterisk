@@ -98,11 +98,13 @@ static int pickup_do(struct ast_channel *chan, struct ast_channel *target)
 	ast_debug(1, "Call pickup on '%s' by '%s'\n", target->name, chan->name);
 	ast_cel_report_event(target, AST_CEL_PICKUP, NULL, NULL, chan);
 
-	connected_caller = target->connected;
+	ast_party_connected_line_init(&connected_caller);
+	ast_party_connected_line_copy(&connected_caller, &target->connected);
 	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 	if (ast_channel_connected_line_macro(NULL, chan, &connected_caller, 0, 0)) {
 		ast_channel_update_connected_line(chan, &connected_caller);
 	}
+	ast_party_connected_line_free(&connected_caller);
 
 	ast_channel_lock(chan);
 	ast_connected_line_copy_from_caller(&connected_caller, &chan->cid);
