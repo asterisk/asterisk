@@ -930,8 +930,8 @@ struct ast_channel * attribute_malloc __attribute__((format(printf, 13, 14)))
 	__ast_channel_alloc(needqueue, state, cid_num, cid_name, acctcode, exten, context, linkedid, amaflag, \
 			    __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 
-/*! 
- * \brief Create a fake channel structure 
+/*!
+ * \brief Create a fake channel structure
  *
  * \retval NULL failure
  * \retval non-NULL successfully allocated channel
@@ -1058,7 +1058,7 @@ void ast_change_name(struct ast_channel *chan, const char *newname);
  */
 struct ast_channel *ast_channel_release(struct ast_channel *chan);
 
-/*! 
+/*!
  * \brief Requests a channel
  *
  * \param type type of channel to request
@@ -2618,21 +2618,21 @@ void ast_channel_queue_redirecting_update(struct ast_channel *chan, const struct
  * information
  *
  * Whenever we want to update a channel's connected line information, we may need to run
- * a macro so that an administrator can manipulate the information before sending it 
+ * a macro so that an administrator can manipulate the information before sending it
  * out. This function both runs the macro and sends the update to the channel.
  *
- * \param autoservice_chan Channel to place into autoservice while the macro is running. 
- * 	It is perfectly safe for this to be NULL 
- * \param macro_chan The channel to run the macro on. Also the channel from which we 
+ * \param autoservice_chan Channel to place into autoservice while the macro is running.
+ * 	It is perfectly safe for this to be NULL
+ * \param macro_chan The channel to run the macro on. Also the channel from which we
  * 	determine which macro we need to run.
- * \param connected_info Either an ast_party_connected_line or ast_frame pointer of type 
+ * \param connected_info Either an ast_party_connected_line or ast_frame pointer of type
  * 	AST_CONTROL_CONNECTED_LINE
- * \param caller If true, then run CONNECTED_LINE_CALLER_SEND_MACRO, otherwise run 
+ * \param caller If true, then run CONNECTED_LINE_CALLER_SEND_MACRO, otherwise run
  * 	CONNECTED_LINE_CALLEE_SEND_MACRO
- * \param frame If true, then connected_info is an ast_frame pointer, otherwise it is an 
+ * \param frame If true, then connected_info is an ast_frame pointer, otherwise it is an
  * 	ast_party_connected_line pointer.
  * \retval 0 Success
- * \retval -1 Either the macro does not exist, or there was an error while attempting to 
+ * \retval -1 Either the macro does not exist, or there was an error while attempting to
  * 	run the macro
  *
  * \todo Have multiple return codes based on the MACRO_RESULT
