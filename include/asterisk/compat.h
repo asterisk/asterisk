@@ -113,13 +113,8 @@ int unsetenv(const char *name);
 int __attribute__((format(printf, 2, 0))) vasprintf(char **strp, const char *fmt, va_list ap);
 #endif
 
-#ifndef HAVE_STRLCAT
-size_t strlcat(char *dst, const char *src, size_t siz);
-#endif
-
-#ifndef HAVE_STRLCPY
-size_t strlcpy(char *dst, const char *src, size_t siz);
-#endif
+#define	strlcat	__use__ast_str__functions_not__strlcat__
+#define	strlcpy	__use__ast_copy_string__not__strlcpy__
 
 #include <errno.h>
 
