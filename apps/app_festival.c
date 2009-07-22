@@ -128,6 +128,7 @@ static int send_waveform_to_fd(char *waveform, int length, int fd)
 {
 	int res;
 #ifdef __PPC__ 
+	int x;
 	char c;
 #endif
 
