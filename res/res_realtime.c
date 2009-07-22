@@ -120,10 +120,12 @@ static char *cli_realtime_update2(struct ast_cli_entry *e, int cmd, struct ast_c
 		e->command = "realtime update2";
 		e->usage =
 			"Usage: realtime update2 <family> <colmatch> <valuematch> [... <colmatch5> <valuematch5>] NULL <colupdate> <newvalue>\n"
-			"       Update a single variable using the RealTime driver.\n"
-			"       You must supply a family name, a column to update on, a new value, column to match, and value to match.\n"
-			"       Ex: realtime update sipfriends name bobsphone port 4343\n"
-			"       will execute SQL as UPDATE sipfriends SET port = 4343 WHERE name = bobsphone\n";
+			"   Update a single variable, requiring one or more fields to match using the\n"
+			"   RealTime driver.  You must supply a family name, a column to update, a new\n"
+			"   value, and at least one column and value to match.\n"
+			"   Ex: realtime update sipfriends name bobsphone ipaddr 127.0.0.1 NULL port 4343\n"
+			"   will execute SQL as\n"
+			"   UPDATE sipfriends SET port='4343' WHERE name='bobsphone' and ipaddr='127.0.0.1'\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
