@@ -4854,10 +4854,33 @@ static openr2_call_disconnect_cause_t dahdi_ast_cause_to_r2_cause(int cause)
 }
 #endif
 
+static int revert_fax_buffers(struct dahdi_pvt *p, struct ast_channel *ast)
+{
+	if (p->bufferoverrideinuse) {
+		/* faxbuffers are in use, revert them */
+		struct dahdi_bufferinfo bi = {
+			.txbufpolicy = p->buf_policy,
+			.rxbufpolicy = p->buf_policy,
+			.bufsize = p->bufsize,
+			.numbufs = p->buf_no
+		};
+		int bpres;
+
+		if ((bpres = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SET_BUFINFO, &bi)) < 0) {
+			ast_log(LOG_WARNING, "Channel '%s' unable to revert buffer policy: %s\n", ast->name, strerror(errno));
+		}
+		p->bufferoverrideinuse = 0;
+		return bpres;
+	}
+
+	return -1;
+}
+
 static int dahdi_hangup(struct ast_channel *ast)
 {
 	int res = 0;
 	int idx,x;
+	int law;
 	/*static int restore_gains(struct dahdi_pvt *p);*/
 	struct dahdi_pvt *p = ast->tech_pvt;
 	struct dahdi_pvt *tmp = NULL;
@@ -4877,23 +4900,8 @@ static int dahdi_hangup(struct ast_channel *ast)
 		restore_gains(p);
 		p->ignoredtmf = 0;
 
-		if (p->bufferoverrideinuse) {
-			/* faxbuffers are in use, revert them */
-			struct dahdi_bufferinfo bi = {
-				.txbufpolicy = p->buf_policy,
-				.rxbufpolicy = p->buf_policy,
-				.bufsize = p->bufsize,
-				.numbufs = p->buf_no
-			};
-			int bpres;
-
-			if ((bpres = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SET_BUFINFO, &bi)) < 0) {
-				ast_log(LOG_WARNING, "Channel '%s' unable to revert buffer policy: %s\n", ast->name, strerror(errno));
-			}
-			p->bufferoverrideinuse = 0;
-		}
-
 		res = analog_hangup(p->sig_pvt, ast);
+		revert_fax_buffers(p, ast);
 
 		goto hangup_out;
 	}
@@ -4913,6 +4921,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 			ast_dsp_free(p->dsp);
 			p->dsp = NULL;
 		}
+		revert_fax_buffers(p, ast);
 		dahdi_setlinear(p->subs[SUB_REAL].dfd, 0);
 		law = DAHDI_LAW_DEFAULT;
 		res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETLAW, &law);
@@ -5076,22 +5085,10 @@ static int dahdi_hangup(struct ast_channel *ast)
 			p->dsp = NULL;
 		}
 
-		if (p->bufferoverrideinuse) {
-			/* faxbuffers are in use, revert them */
-			struct dahdi_bufferinfo bi = {
-				.txbufpolicy = p->buf_policy,
-				.rxbufpolicy = p->buf_policy,
-				.bufsize = p->bufsize,
-				.numbufs = p->buf_no
-			};
-			int bpres;
+		revert_fax_buffers(p, ast);
 
-			if ((bpres = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SET_BUFINFO, &bi)) < 0) {
-				ast_log(LOG_WARNING, "Channel '%s' unable to revert buffer policy: %s\n", ast->name, strerror(errno));
-			}
-			p->bufferoverrideinuse = 0;
-		}
-
+		law = DAHDI_LAW_DEFAULT;
+		res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETLAW, &law);
 		if (res < 0)
 			ast_log(LOG_WARNING, "Unable to set law on channel %d to default: %s\n", p->channel, strerror(errno));
 		/* Perform low level hangup if no owner left */
