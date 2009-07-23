@@ -20,15 +20,15 @@
 
 From 1.6.0.10 to 1.6.0.11:
 
-Beginning with this release, Asterisk's internal methods of
-negotiating T.38 (FAX over IP) sessions changed in
-non-backwards-compatible ways. Any applications that previously used
-AST_CONTROL_T38 control frames will have to be upgraded to use
-AST_CONTROL_T38_PARAMETERS control frames instead; app_fax.c is a good
-example of how to generate and respond to these frames. These changes
-were made to solve significant T.38 interoperability problems between
-Asterisk and various SIP/T.38 endpoints identified by many users of
-Asterisk.
+* Beginning with this release, Asterisk's internal methods of
+  negotiating T.38 (FAX over IP) sessions changed in
+  non-backwards-compatible ways. Any applications that previously used
+  AST_CONTROL_T38 control frames will have to be upgraded to use
+  AST_CONTROL_T38_PARAMETERS control frames instead; app_fax.c is a good
+  example of how to generate and respond to these frames. These changes
+  were made to solve significant T.38 interoperability problems between
+  Asterisk and various SIP/T.38 endpoints identified by many users of
+  Asterisk.
 
 From 1.6.0.9 to 1.6.0.10:
 
