@@ -78,14 +78,11 @@ static inline void pri_rel(struct sig_pri_pri *pri)
 
 static unsigned int PVT_TO_CHANNEL(struct sig_pri_chan *p)
 {
-	int explicit;
+	int res = (((p)->prioffset) | ((p)->logicalspan << 8) | (p->mastertrunkgroup ? 0x10000 : 0));
+	ast_debug(5, "prioffset: %d mastertrunkgroup: %d logicalspan: %d result: %d\n",
+		p->prioffset, p->mastertrunkgroup, p->logicalspan, res);
 
-	if (p->pri->dchan_logical_span[pri_active_dchan_index(p->pri)] == p->logicalspan)
-		explicit = 1;
-	else
-		explicit = 0;
-
-	return (((p)->prioffset) | ((p)->logicalspan << 8) | (explicit ? 0x10000 : 0));
+	return res;
 }
 
 static void sig_pri_handle_dchan_exception(struct sig_pri_pri *pri, int index)
@@ -202,14 +199,15 @@ static char *pri_order(int level)
 /* Returns index of the active dchan */
 static int pri_active_dchan_index(struct sig_pri_pri *pri)
 {
-	int x = -1;
+	int x;
 
 	for (x = 0; x < NUM_DCHANS; x++) {
 		if ((pri->dchans[x] == pri->pri))
-			break;
+			return x;
 	}
 
-	return x;
+	ast_log(LOG_WARNING, "No active dchan found!\n");
+	return -1;
 }
 
 static int pri_find_dchan(struct sig_pri_pri *pri)
@@ -2330,7 +2328,7 @@ void sig_pri_chan_alarm_notify(struct sig_pri_chan *p, int noalarm)
 	}
 }
 
-struct sig_pri_chan *sig_pri_chan_new(void *pvt_data, struct sig_pri_callback *callback, struct sig_pri_pri *pri, int logicalspan, int channo)
+struct sig_pri_chan *sig_pri_chan_new(void *pvt_data, struct sig_pri_callback *callback, struct sig_pri_pri *pri, int logicalspan, int channo, int trunkgroup)
 {
 	struct sig_pri_chan *p;
 
@@ -2341,6 +2339,7 @@ struct sig_pri_chan *sig_pri_chan_new(void *pvt_data, struct sig_pri_callback *c
 
 	p->logicalspan = logicalspan;
 	p->prioffset = channo;
+	p->mastertrunkgroup = trunkgroup;
 
 	p->calls = callback;
 	p->chan_pvt = pvt_data;

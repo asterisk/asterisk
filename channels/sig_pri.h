@@ -139,7 +139,6 @@ struct sig_pri_chan {
 	/* Internal variables -- Don't touch */
 	/* Probably will need DS0 number, DS1 number, and a few other things */
 	char dialdest[256];				/* Queued up digits for overlap dialing.  They will be sent out as information messages when setup ACK is received */
-	int mastertrunkgroup;
 
 	unsigned int alerting:1;		/*!< TRUE if channel is alerting/ringing */
 	unsigned int alreadyhungup:1;	/*!< TRUE if the call has already gone/hungup */
@@ -159,6 +158,7 @@ struct sig_pri_chan {
 
 	int prioffset;					/*!< channel number in span */
 	int logicalspan;				/*!< logical span number within trunk group */
+	int mastertrunkgroup;			/*!< what trunk group is our master */
 
 	struct sig_pri_callback *calls;
 	void *chan_pvt;
@@ -245,7 +245,7 @@ void pri_event_noalarm(struct sig_pri_pri *pri, int index, int before_start_pri)
 
 struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law, const struct ast_channel *requestor);
 
-struct sig_pri_chan *sig_pri_chan_new(void *pvt_data, struct sig_pri_callback *callback, struct sig_pri_pri *pri, int logicalspan, int channo);
+struct sig_pri_chan *sig_pri_chan_new(void *pvt_data, struct sig_pri_callback *callback, struct sig_pri_pri *pri, int logicalspan, int channo, int trunkgroup);
 
 int pri_is_up(struct sig_pri_pri *pri);
 
