@@ -18869,11 +18869,11 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 				case 301: /* Moved permanently */
 				case 302: /* Moved temporarily */
 				case 305: /* Use Proxy */
-					{
+				if (p->owner) {
 					struct ast_party_redirecting redirecting = {{0,},};
 					change_redirecting_information(p, req, &redirecting, TRUE);
 					ast_channel_set_redirecting(p->owner, &redirecting);
-					}
+				}
 					/* Fall through */
 				case 486: /* Busy here */
 				case 600: /* Busy everywhere */
