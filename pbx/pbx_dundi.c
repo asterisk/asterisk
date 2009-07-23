@@ -1885,7 +1885,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 		break;
 	default:
 		/* Send unknown command if we don't know it, with final flag IFF it's the
-		   first command in the dialog and only if we haven't recieved final notification */
+		   first command in the dialog and only if we haven't received final notification */
 		if (!final) {
 			dundi_ie_append_byte(ied, DUNDI_IE_UNKNOWN, cmd);
 			dundi_send(trans, DUNDI_COMMAND_UNKNOWN, 0, !hdr->oseqno, ied);
