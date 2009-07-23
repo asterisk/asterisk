@@ -17958,10 +17958,6 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 			 * a 100 Trying response. We're just going to treat this sort of thing
 			 * the same as we would treat a 180 Ringing
 			 */
-			/*XXX I'm just following the same procedure for a 180 response, which
-			 * doesn't change the invitestate of p. Shouldn't it be INV_PROCEEDING
-			 * though?
-			 */
 			if (!req->ignore && p->owner) {
 				ast_queue_control(p->owner, AST_CONTROL_RINGING);
 			}
