@@ -1511,10 +1511,10 @@ struct sip_auth {
 #define SIP_PAGE2_SUBSCRIBEMWIONLY	(1 << 18)	/*!< GP: Only issue MWI notification if subscribed to */
 #define SIP_PAGE2_IGNORESDPVERSION	(1 << 19)	/*!< GDP: Ignore the SDP session version number we receive and treat all sessions as new */
 
-#define SIP_PAGE2_T38SUPPORT		        (7 << 20)	/*!< GDP: T38 Fax Passthrough Support */
-#define SIP_PAGE2_T38SUPPORT_UDPTL	        (1 << 20)	/*!< GDP: T38 Fax Passthrough Support (no error correction) */
-#define SIP_PAGE2_T38SUPPORT_UDPTL_FEC	        (2 << 20)	/*!< GDP: T38 Fax Passthrough Support (FEC error correction) */
-#define SIP_PAGE2_T38SUPPORT_UDPTL_REDUNDANCY	(4 << 20)	/*!< GDP: T38 Fax Passthrough Support (redundancy error correction) */
+#define SIP_PAGE2_T38SUPPORT		        (7 << 20)	/*!< GDP: T.38 Fax Support */
+#define SIP_PAGE2_T38SUPPORT_UDPTL	        (1 << 20)	/*!< GDP: T.38 Fax Support (no error correction) */
+#define SIP_PAGE2_T38SUPPORT_UDPTL_FEC	        (2 << 20)	/*!< GDP: T.38 Fax Support (FEC error correction) */
+#define SIP_PAGE2_T38SUPPORT_UDPTL_REDUNDANCY	(4 << 20)	/*!< GDP: T.38 Fax Support (redundancy error correction) */
 
 #define SIP_PAGE2_CALL_ONHOLD		(3 << 23)	/*!< D: Call hold states: */
 #define SIP_PAGE2_CALL_ONHOLD_ACTIVE    (1 << 23)       /*!< D: Active hold */
@@ -1536,36 +1536,6 @@ struct sip_auth {
 	SIP_PAGE2_UDPTL_DESTINATION | SIP_PAGE2_VIDEOSUPPORT_ALWAYS | SIP_PAGE2_PREFERRED_CODEC | \
 	SIP_PAGE2_RPID_IMMEDIATE | SIP_PAGE2_RPID_UPDATE | SIP_PAGE2_SYMMETRICRTP)
 
-/*@}*/ 
-
-/*! \name SIPflagsT38
-	T.38 set of flags */
-
-/*@{*/ 
-#define T38FAX_FILL_BIT_REMOVAL			(1 << 0)	/*!< Default: 0 (unset)*/
-#define T38FAX_TRANSCODING_MMR			(1 << 1)	/*!< Default: 0 (unset)*/
-#define T38FAX_TRANSCODING_JBIG			(1 << 2)	/*!< Default: 0 (unset)*/
-/* Rate management */
-#define T38FAX_RATE_MANAGEMENT_TRANSFERRED_TCF	(0 << 3)
-#define T38FAX_RATE_MANAGEMENT_LOCAL_TCF	(1 << 3)	/*!< Unset for transferredTCF (UDPTL), set for localTCF (TPKT) */
-/* UDP Error correction */
-#define T38FAX_UDP_EC_NONE			(0 << 4)	/*!< two bits, if unset NO t38UDPEC field in T38 SDP*/
-#define T38FAX_UDP_EC_FEC			(1 << 4)	/*!< Set for t38UDPFEC */
-#define T38FAX_UDP_EC_REDUNDANCY		(2 << 4)	/*!< Set for t38UDPRedundancy */
-/* T38 Spec version */
-#define T38FAX_VERSION				(3 << 6)	/*!< two bits, 2 values so far, up to 4 values max */
-#define T38FAX_VERSION_0			(0 << 6)	/*!< Version 0 */
-#define T38FAX_VERSION_1			(1 << 6)	/*!< Version 1 */
-/* Maximum Fax Rate */
-#define T38FAX_RATE_2400			(1 << 8)	/*!< 2400 bps t38FaxRate */
-#define T38FAX_RATE_4800			(1 << 9)	/*!< 4800 bps t38FaxRate */
-#define T38FAX_RATE_7200			(1 << 10)	/*!< 7200 bps t38FaxRate */
-#define T38FAX_RATE_9600			(1 << 11)	/*!< 9600 bps t38FaxRate */
-#define T38FAX_RATE_12000			(1 << 12)	/*!< 12000 bps t38FaxRate */
-#define T38FAX_RATE_14400			(1 << 13)	/*!< 14400 bps t38FaxRate */
-
-/*!< This is default: NO MMR and JBIG transcoding, NO fill bit removal, transferredTCF TCF, UDP FEC, Version 0 and 9600 max fax rate */
-static int global_t38_capability = T38FAX_VERSION_0 | T38FAX_RATE_2400 | T38FAX_RATE_4800 | T38FAX_RATE_7200 | T38FAX_RATE_9600;
 /*@}*/ 
 
 /*! \brief debugging state
@@ -1598,11 +1568,9 @@ enum t38state {
 
 /*! \brief T.38 channel settings (at some point we need to make this alloc'ed */
 struct t38properties {
-	struct ast_flags t38support;	/*!< Flag for udptl, rtp or tcp support for this session */
-	int capability;			/*!< Our T38 capability */
-	int peercapability;		/*!< Peers T38 capability */
-	int jointcapability;		/*!< Supported T38 capability at both ends */
 	enum t38state state;		/*!< T.38 state */
+	struct ast_control_t38_parameters our_parms;
+	struct ast_control_t38_parameters their_parms;
 };
 
 /*! \brief Parameters to know status of transfer */
@@ -4190,7 +4158,7 @@ static int sip_queryoption(struct ast_channel *chan, int option, void *data, int
 		sip_pvt_lock(p);
 
 		/* Now if T38 support is enabled we need to look and see what the current state is to get what we want to report back */
-		if (ast_test_flag(&p->t38.t38support, SIP_PAGE2_T38SUPPORT)) {
+		if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT)) {
 			switch (p->t38.state) {
 			case T38_LOCAL_REINVITE:
 			case T38_PEER_REINVITE:
@@ -4922,57 +4890,12 @@ static void do_setnat(struct sip_pvt *p)
 	}
 }
 
-/*! \brief Helper function which interprets T.38 capabilities and fills a parameters structure in */
-static void fill_t38_parameters(int capabilities, struct ast_control_t38_parameters *parameters, struct sip_pvt *p)
-{
-	if (capabilities & T38FAX_VERSION_0) {
-		parameters->version = 0;
-	} else if (capabilities & T38FAX_VERSION_1) {
-		parameters->version = 1;
-	}
-
-	if (capabilities & T38FAX_RATE_14400) {
-		parameters->rate = AST_T38_RATE_14400;
-	} else if (capabilities & T38FAX_RATE_12000) {
-		parameters->rate = AST_T38_RATE_12000;
-	} else if (capabilities & T38FAX_RATE_9600) {
-		parameters->rate = AST_T38_RATE_9600;
-	} else if (capabilities & T38FAX_RATE_7200) {
-		parameters->rate = AST_T38_RATE_7200;
-	} else if (capabilities & T38FAX_RATE_4800) {
-		parameters->rate = AST_T38_RATE_4800;
-	} else if (capabilities & T38FAX_RATE_2400) {
-		parameters->rate = AST_T38_RATE_2400;
-	}
-
-	if (capabilities & T38FAX_RATE_MANAGEMENT_TRANSFERRED_TCF) {
-		parameters->rate_management = AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF;
-	} else if (capabilities & T38FAX_RATE_MANAGEMENT_LOCAL_TCF) {
-		parameters->rate_management = AST_T38_RATE_MANAGEMENT_LOCAL_TCF;
-	}
-
-	if (capabilities & T38FAX_FILL_BIT_REMOVAL) {
-		parameters->fill_bit_removal = 1;
-	}
-
-	if (capabilities & T38FAX_TRANSCODING_MMR) {
-		parameters->transcoding_mmr = 1;
-	}
-
-	if (capabilities & T38FAX_TRANSCODING_JBIG) {
-		parameters->transcoding_jbig = 1;
-	}
-
-	parameters->max_datagram = ast_udptl_get_far_max_datagram(p->udptl);
-}
-
 /*! \brief Change the T38 state on a SIP dialog */
 static void change_t38_state(struct sip_pvt *p, int state)
 {
 	int old = p->t38.state;
 	struct ast_channel *chan = p->owner;
-	enum ast_control_t38 message = 0;
-	struct ast_control_t38_parameters parameters = { 0, };
+	struct ast_control_t38_parameters parameters = { .request_response = 0 };
 
 	/* Don't bother changing if we are already in the state wanted */
 	if (old == state)
@@ -4987,21 +4910,21 @@ static void change_t38_state(struct sip_pvt *p, int state)
 
 	/* Given the state requested and old state determine what control frame we want to queue up */
 	if (state == T38_PEER_REINVITE) {
-		message = parameters.request_response = AST_T38_REQUEST_NEGOTIATE;
-		fill_t38_parameters(p->t38.peercapability, &parameters, p);
+		parameters = p->t38.their_parms;
+		parameters.max_ifp = ast_udptl_get_far_max_ifp(p->udptl);
+		parameters.request_response = AST_T38_REQUEST_NEGOTIATE;
 	} else if (state == T38_ENABLED) {
-		message = parameters.request_response = AST_T38_NEGOTIATED;
-		fill_t38_parameters(p->t38.jointcapability, &parameters, p);
+		parameters = p->t38.their_parms;
+		parameters.max_ifp = ast_udptl_get_far_max_ifp(p->udptl);
+		parameters.request_response = AST_T38_NEGOTIATED;
 	} else if (state == T38_DISABLED && old == T38_ENABLED)
-		message = parameters.request_response = AST_T38_TERMINATED;
+		parameters.request_response = AST_T38_TERMINATED;
 	else if (state == T38_DISABLED && old == T38_LOCAL_REINVITE)
-		message = parameters.request_response = AST_T38_REFUSED;
+		parameters.request_response = AST_T38_REFUSED;
 
 	/* Woot we got a message, create a control frame and send it on! */
 	if (parameters.request_response)
 		ast_queue_control_data(chan, AST_CONTROL_T38_PARAMETERS, &parameters, sizeof(parameters));
-	if (message)
-		ast_queue_control_data(chan, AST_CONTROL_T38, &message, sizeof(message));
 
 	if (ast_test_flag(&p->flags[1], SIP_PAGE2_FAX_DETECT) && !p->outgoing_call) {
 		/* fax detection is enabled and this is an incoming call */
@@ -5029,19 +4952,14 @@ static void change_t38_state(struct sip_pvt *p, int state)
 /*! \brief Set the global T38 capabilities on a SIP dialog structure */
 static void set_t38_capabilities(struct sip_pvt *p)
 {
-	p->t38.capability = global_t38_capability;
 	if (p->udptl) {
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) == SIP_PAGE2_T38SUPPORT_UDPTL_REDUNDANCY) {
                         ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_REDUNDANCY);
-			p->t38.capability |= T38FAX_UDP_EC_REDUNDANCY;
 		} else if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) == SIP_PAGE2_T38SUPPORT_UDPTL_FEC) {
 			ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_FEC);
-			p->t38.capability |= T38FAX_UDP_EC_FEC;
 		} else if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) == SIP_PAGE2_T38SUPPORT_UDPTL) {
 			ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_NONE);
-			p->t38.capability |= T38FAX_UDP_EC_NONE;
 		}
-		p->t38.capability |= T38FAX_RATE_MANAGEMENT_TRANSFERRED_TCF;
 	}
 }
 
@@ -5139,9 +5057,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 			/* t38pt_udptl was enabled in the peer and not in [general] */
 			dialog->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr.sin_addr);
 		}
-		ast_copy_flags(&dialog->t38.t38support, &peer->flags[1], SIP_PAGE2_T38SUPPORT);
 		set_t38_capabilities(dialog);
-		dialog->t38.jointcapability = dialog->t38.capability;
 	} else if (dialog->udptl) {
 		ast_udptl_destroy(dialog->udptl);
 		dialog->udptl = NULL;
@@ -5440,9 +5356,6 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		res = -1;
 	} else {
 		int xmitres;
-
-		p->t38.jointcapability = p->t38.capability;
-		ast_debug(2, "Our T38 capability (%d), joint T38 capability (%d)\n", p->t38.capability, p->t38.jointcapability);
 
 		sip_pvt_lock(p);
 		xmitres = transmit_invite(p, SIP_INVITE, 1, 2);
@@ -6321,15 +6234,10 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 				we simply forget the frames if we get modem frames before the bridge is up.
 				Fax will re-transmit.
 			*/
-			if (ast->_state == AST_STATE_UP) {
-				if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) && p->t38.state == T38_DISABLED) {
-					if (!p->pendinginvite) {
-						change_t38_state(p, T38_LOCAL_REINVITE);
-						transmit_reinvite_with_sdp(p, TRUE, FALSE);
-					}
-				} else if (p->udptl && p->t38.state == T38_ENABLED) {
-					res = ast_udptl_write(p->udptl, frame);
-				}
+			if ((ast->_state == AST_STATE_UP) &&
+			    p->udptl &&
+			    (p->t38.state == T38_ENABLED)) {
+				res = ast_udptl_write(p->udptl, frame);
 			}
 			sip_pvt_unlock(p);
 		}
@@ -6459,66 +6367,34 @@ static int sip_transfer(struct ast_channel *ast, const char *dest)
 }
 
 /*! \brief Helper function which updates T.38 capability information and triggers a reinvite */
-static void interpret_t38_parameters(struct sip_pvt *p, enum ast_control_t38 request_response, const struct ast_control_t38_parameters *parameters)
+static void interpret_t38_parameters(struct sip_pvt *p, const struct ast_control_t38_parameters *parameters)
 {
-	if (parameters) {
-		if (!parameters->version) {
-			p->t38.capability = p->t38.jointcapability |= T38FAX_VERSION_0;
-		} else if (parameters->version == 1) {
-			p->t38.capability = p->t38.jointcapability |= T38FAX_VERSION_1;
-		}
-
-		if (parameters->rate == AST_T38_RATE_14400) {
-			p->t38.capability = p->t38.jointcapability |= T38FAX_RATE_14400 | T38FAX_RATE_12000 | T38FAX_RATE_9600 | T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400;
-		} else if (parameters->rate == AST_T38_RATE_12000) {
-			p->t38.capability = p->t38.jointcapability |= T38FAX_RATE_12000 | T38FAX_RATE_9600 | T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400;
-		} else if (parameters->rate == AST_T38_RATE_9600) {
-			p->t38.capability = p->t38.jointcapability |= T38FAX_RATE_9600 | T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400;
-		} else if (parameters->rate == AST_T38_RATE_7200) {
-			p->t38.capability = p->t38.jointcapability |= T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400;
-		} else if (parameters->rate == AST_T38_RATE_4800) {
-			p->t38.capability = p->t38.jointcapability |= T38FAX_RATE_4800 | T38FAX_RATE_2400;
-		} else if (parameters->rate == AST_T38_RATE_2400) {
-			p->t38.capability = p->t38.jointcapability |= T38FAX_RATE_2400;
-		}
-
-		if (parameters->rate_management == AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF) {
-			p->t38.capability = p->t38.jointcapability |= T38FAX_RATE_MANAGEMENT_TRANSFERRED_TCF;
-		} else if (parameters->rate_management == AST_T38_RATE_MANAGEMENT_LOCAL_TCF) {
-			p->t38.capability = p->t38.jointcapability |= T38FAX_RATE_MANAGEMENT_LOCAL_TCF;
-		}
-
-		if (parameters->fill_bit_removal) {
-			p->t38.capability = p->t38.jointcapability |= T38FAX_FILL_BIT_REMOVAL;
-		} else {
-			p->t38.capability = p->t38.jointcapability &= ~T38FAX_FILL_BIT_REMOVAL;
-		}
-
-		if (parameters->transcoding_mmr) {
-			p->t38.capability = p->t38.jointcapability |= T38FAX_TRANSCODING_MMR;
-		} else {
-			p->t38.capability = p->t38.jointcapability &= ~T38FAX_TRANSCODING_MMR;
-		}
-
-		if (parameters->transcoding_jbig) {
-			p->t38.capability = p->t38.jointcapability |= T38FAX_TRANSCODING_JBIG;
-		} else {
-			p->t38.capability = p->t38.jointcapability &= ~T38FAX_TRANSCODING_JBIG;
-		}
-
-		if (p->udptl && request_response == AST_T38_REQUEST_NEGOTIATE) {
-			ast_udptl_set_local_max_datagram(p->udptl, parameters->max_datagram ? parameters->max_datagram : 400);
-		}
-	}
-
-	switch (request_response) {
+	switch (parameters->request_response) {
 	case AST_T38_NEGOTIATED:
 	case AST_T38_REQUEST_NEGOTIATE:         /* Request T38 */
 		if (p->t38.state == T38_PEER_REINVITE) {
 			AST_SCHED_DEL_UNREF(sched, p->t38id, dialog_unref(p, "when you delete the t38id sched, you should dec the refcount for the stored dialog ptr"));
+			p->t38.our_parms = *parameters;
+			/* modify our parameters to conform to the peer's parameters,
+			 * based on the rules in the ITU T.38 recommendation
+			 */
+			if (!p->t38.their_parms.fill_bit_removal) {
+				p->t38.our_parms.fill_bit_removal = FALSE;
+			}
+			if (!p->t38.their_parms.transcoding_mmr) {
+				p->t38.our_parms.transcoding_mmr = FALSE;
+			}
+			if (!p->t38.their_parms.transcoding_jbig) {
+				p->t38.our_parms.transcoding_jbig = FALSE;
+			}
+			p->t38.our_parms.version = MIN(p->t38.our_parms.version, p->t38.their_parms.version);
+			p->t38.our_parms.rate_management = p->t38.their_parms.rate_management;
+			ast_udptl_set_local_max_ifp(p->udptl, p->t38.our_parms.max_ifp);
 			change_t38_state(p, T38_ENABLED);
 			transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL);
-		} else if (ast_test_flag(&p->t38.t38support, SIP_PAGE2_T38SUPPORT) && p->t38.state != T38_ENABLED) {
+		} else if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) && p->t38.state != T38_ENABLED) {
+			p->t38.our_parms = *parameters;
+			ast_udptl_set_local_max_ifp(p->udptl, p->t38.our_parms.max_ifp);
 			change_t38_state(p, T38_LOCAL_REINVITE);
 			if (!p->pendinginvite) {
 				transmit_reinvite_with_sdp(p, TRUE, FALSE);
@@ -6626,19 +6502,12 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 		} else
 			res = -1;
 		break;
-	case AST_CONTROL_T38:	/* T38 control frame */
-		if (datalen != sizeof(enum ast_control_t38)) {
-			ast_log(LOG_ERROR, "Invalid datalen for AST_CONTROL_T38. Expected %d, got %d\n", (int)sizeof(enum ast_control_t38), (int)datalen);
-		} else {
-			interpret_t38_parameters(p, *((enum ast_control_t38 *) data), NULL);
-		}
-		break;
 	case AST_CONTROL_T38_PARAMETERS:
 		if (datalen != sizeof(struct ast_control_t38_parameters)) {
-			ast_log(LOG_ERROR, "Invalid datalen for AST_CONTROL_T38_PARAMETERS. Expected %d, got %d\n", (int)sizeof(struct ast_control_t38_parameters), (int)datalen);
+			ast_log(LOG_ERROR, "Invalid datalen for AST_CONTROL_T38_PARAMETERS. Expected %d, got %d\n", (int) sizeof(struct ast_control_t38_parameters), (int) datalen);
 		} else {
 			const struct ast_control_t38_parameters *parameters = data;
-			interpret_t38_parameters(p, parameters->request_response, parameters);
+			interpret_t38_parameters(p, parameters);
 		}
 		break;
 	case AST_CONTROL_SRCUPDATE:
@@ -7062,7 +6931,7 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 	if (f && p->dsp) {
 		f = ast_dsp_process(p->owner, p->dsp, f);
 		if (f && f->frametype == AST_FRAME_DTMF) {
-			if (ast_test_flag(&p->t38.t38support, SIP_PAGE2_T38SUPPORT) && f->subclass == 'f') {
+			if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) && f->subclass == 'f') {
 				ast_debug(1, "Fax CNG detected on %s\n", ast->name);
 				*faxdetect = 1;
 			} else {
@@ -7087,7 +6956,7 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 
 	/* If we are NOT bridged to another channel, and we have detected fax tone we issue T38 re-invite to a peer */
 	/* If we are bridged then it is the responsibility of the SIP device to issue T38 re-invite if it detects CNG or fax preamble */
-	if (faxdetected && ast_test_flag(&p->t38.t38support, SIP_PAGE2_T38SUPPORT) && (p->t38.state == T38_DISABLED) && !(ast_bridged_channel(ast))) {
+	if (faxdetected && ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) && (p->t38.state == T38_DISABLED) && !(ast_bridged_channel(ast))) {
 		if (!ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
 			if (!p->pendinginvite) {
 				ast_debug(3, "Sending reinvite on SIP (%s) for T.38 negotiation.\n", ast->name);
@@ -7261,9 +7130,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	    (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_AUTO))
 		p->noncodeccapability |= AST_RTP_DTMF;
 	if (p->udptl) {
-		ast_copy_flags(&p->t38.t38support, &p->flags[1], SIP_PAGE2_T38SUPPORT);
 		set_t38_capabilities(p);
-		p->t38.jointcapability = p->t38.capability;
 	}
 	ast_string_field_set(p, context, sip_cfg.default_context);
 	ast_string_field_set(p, parkinglot, default_parkinglot);
@@ -8050,7 +7917,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	int vportno = -1;		/*!< RTP Video port number */
 	int tportno = -1;		/*!< RTP Text port number */
 	int udptlportno = -1;
-	int peert38capability = 0;
 	char s[256];
 	int old = 0;
 
@@ -8590,6 +8456,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		int found = 0, x;
 		
 		old = 0;
+		memset(&p->t38.their_parms, 0, sizeof(p->t38.their_parms));
 		
 		/* Scan trough the a= lines for T38 attributes and set apropriate fileds */
 		iterator = req->sdp_start;
@@ -8602,110 +8469,92 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				ast_debug(3, "T38MaxBitRate: %d\n", x);
 				switch (x) {
 				case 14400:
-					peert38capability |= T38FAX_RATE_14400 | T38FAX_RATE_12000 | T38FAX_RATE_9600 | T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400;
+					p->t38.their_parms.rate = AST_T38_RATE_14400;
 					break;
 				case 12000:
-					peert38capability |= T38FAX_RATE_12000 | T38FAX_RATE_9600 | T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400;
+					p->t38.their_parms.rate = AST_T38_RATE_12000;
 					break;
 				case 9600:
-					peert38capability |= T38FAX_RATE_9600 | T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400;
+					p->t38.their_parms.rate = AST_T38_RATE_9600;
 					break;
 				case 7200:
-					peert38capability |= T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400;
+					p->t38.their_parms.rate = AST_T38_RATE_7200;
 					break;
 				case 4800:
-					peert38capability |= T38FAX_RATE_4800 | T38FAX_RATE_2400;
+					p->t38.their_parms.rate = AST_T38_RATE_4800;
 					break;
 				case 2400:
-					peert38capability |= T38FAX_RATE_2400;
+					p->t38.their_parms.rate = AST_T38_RATE_2400;
 					break;
 				}
 			} else if ((sscanf(a, "T38FaxVersion:%d", &x) == 1)) {
 				found = 1;
 				ast_debug(3, "FaxVersion: %d\n", x);
-				if (x == 0)
-					peert38capability |= T38FAX_VERSION_0;
-				else if (x == 1)
-					peert38capability |= T38FAX_VERSION_1;
+				p->t38.their_parms.version = x;
 			} else if ((sscanf(a, "T38FaxMaxDatagram:%d", &x) == 1) || (sscanf(a, "T38MaxDatagram:%d", &x) == 1)) {
 				found = 1;
 				ast_debug(3, "FaxMaxDatagram: %d\n", x);
 				ast_udptl_set_far_max_datagram(p->udptl, x);
-				if (!ast_udptl_get_local_max_datagram(p->udptl)) {
-					ast_udptl_set_local_max_datagram(p->udptl, x);
-				}
 			} else if ((strncmp(a, "T38FaxFillBitRemoval", 20) == 0)) {
 				found = 1;
-				if(sscanf(a, "T38FaxFillBitRemoval:%d", &x) == 1) {
-				    ast_debug(3, "FillBitRemoval: %d\n", x);
-				    if(x == 1)
-					peert38capability |= T38FAX_FILL_BIT_REMOVAL;
+				if (sscanf(a, "T38FaxFillBitRemoval:%d", &x) == 1) {
+					ast_debug(3, "FillBitRemoval: %d\n", x);
+					if (x == 1) {
+						p->t38.their_parms.fill_bit_removal = TRUE;
+					}
 				} else {
-				    ast_debug(3, "FillBitRemoval\n");
-				    peert38capability |= T38FAX_FILL_BIT_REMOVAL;
+					ast_debug(3, "FillBitRemoval\n");
+					p->t38.their_parms.fill_bit_removal = TRUE;
 				}
 			} else if ((strncmp(a, "T38FaxTranscodingMMR", 20) == 0)) {
 				found = 1;
-				if(sscanf(a, "T38FaxTranscodingMMR:%d", &x) == 1) {
-				    ast_debug(3, "Transcoding MMR: %d\n", x);
-				    if(x == 1)
-					peert38capability |= T38FAX_TRANSCODING_MMR;
+				if (sscanf(a, "T38FaxTranscodingMMR:%d", &x) == 1) {
+					ast_debug(3, "Transcoding MMR: %d\n", x);
+					if (x == 1) {
+						p->t38.their_parms.transcoding_mmr = TRUE;
+					}
 				} else {
-				    ast_debug(3, "Transcoding MMR\n");
-				    peert38capability |= T38FAX_TRANSCODING_MMR;
+					ast_debug(3, "Transcoding MMR\n");
+					p->t38.their_parms.transcoding_mmr = TRUE;
 				}
 			} else if ((strncmp(a, "T38FaxTranscodingJBIG", 21) == 0)) {
 				found = 1;
-				if(sscanf(a, "T38FaxTranscodingJBIG:%d", &x) == 1) {
-				    ast_debug(3, "Transcoding JBIG: %d\n", x);
-				    if(x == 1)
-					peert38capability |= T38FAX_TRANSCODING_JBIG;
+				if (sscanf(a, "T38FaxTranscodingJBIG:%d", &x) == 1) {
+					ast_debug(3, "Transcoding JBIG: %d\n", x);
+					if (x == 1) {
+						p->t38.their_parms.transcoding_jbig = TRUE;
+					}
 				} else {
-				    ast_debug(3, "Transcoding JBIG\n");
-				    peert38capability |= T38FAX_TRANSCODING_JBIG;
+					ast_debug(3, "Transcoding JBIG\n");
+					p->t38.their_parms.transcoding_jbig = TRUE;
 				}
 			} else if ((sscanf(a, "T38FaxRateManagement:%255s", s) == 1)) {
 				found = 1;
 				ast_debug(3, "RateManagement: %s\n", s);
 				if (!strcasecmp(s, "localTCF"))
-					peert38capability |= T38FAX_RATE_MANAGEMENT_LOCAL_TCF;
+					p->t38.their_parms.rate_management = AST_T38_RATE_MANAGEMENT_LOCAL_TCF;
 				else if (!strcasecmp(s, "transferredTCF"))
-					peert38capability |= T38FAX_RATE_MANAGEMENT_TRANSFERRED_TCF;
+					p->t38.their_parms.rate_management = AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF;
 			} else if ((sscanf(a, "T38FaxUdpEC:%255s", s) == 1)) {
 				found = 1;
 				ast_debug(3, "UDP EC: %s\n", s);
 				if (!strcasecmp(s, "t38UDPRedundancy")) {
-					peert38capability |= T38FAX_UDP_EC_REDUNDANCY;
 					ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_REDUNDANCY);
 				} else if (!strcasecmp(s, "t38UDPFEC")) {
-					peert38capability |= T38FAX_UDP_EC_FEC;
 					ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_FEC);
 				} else {
-					peert38capability |= T38FAX_UDP_EC_NONE;
 					ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_NONE);
 				}
 			}
 		}
-		if (found) { /* Some cisco equipment returns nothing beside c= and m= lines in 200 OK T38 SDP */
-			p->t38.peercapability = peert38capability;
-			p->t38.jointcapability = (peert38capability & 255); /* Put everything beside supported speeds settings */
-			peert38capability &= (T38FAX_RATE_14400 | T38FAX_RATE_12000 | T38FAX_RATE_9600 | T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400);
-			p->t38.jointcapability |= (peert38capability & p->t38.capability); /* Put the lower of our's and peer's speed */
-		}
-		if (debug)
-			ast_debug(1, "Our T38 capability = (%d), peer T38 capability (%d), joint T38 capability (%d)\n",
-				p->t38.capability,
-				p->t38.peercapability,
-				p->t38.jointcapability);
 
 		/* Remote party offers T38, we need to update state */
-		if (t38action == SDP_T38_ACCEPT) {
-			if (p->t38.state == T38_LOCAL_REINVITE)
-				change_t38_state(p, T38_ENABLED);
-		} else if (t38action == SDP_T38_INITIATE) {
-			if (p->owner && p->lastinvite) {
-				change_t38_state(p, T38_PEER_REINVITE); /* T38 Offered in re-invite from remote party */
-			}
+		if ((t38action == SDP_T38_ACCEPT) &&
+		    (p->t38.state == T38_LOCAL_REINVITE)) {
+			change_t38_state(p, T38_ENABLED);
+		} else if ((t38action == SDP_T38_INITIATE) &&
+			   p->owner && p->lastinvite) {
+			change_t38_state(p, T38_PEER_REINVITE); /* T38 Offered in re-invite from remote party */
 		}
 	} else {
 		change_t38_state(p, T38_DISABLED);
@@ -8744,7 +8593,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	}
 	if (!newjointcapability) {
 		/* If T.38 was not negotiated either, totally bail out... */
-		if (!p->t38.jointcapability || !udptlportno) {
+		if ((p->t38.state == T38_DISABLED) || !udptlportno) {
 			ast_log(LOG_NOTICE, "No compatible codecs, not accepting this offer!\n");
 			/* Do NOT Change current setting */
 			return -1;
@@ -9885,30 +9734,22 @@ static void add_tcodec_to_sdp(const struct sip_pvt *p, int codec,
 
 
 /*! \brief Get Max T.38 Transmission rate from T38 capabilities */
-static int t38_get_rate(int t38cap)
+static unsigned int t38_get_rate(enum ast_control_t38_rate rate)
 {
-	int maxrate = (t38cap & (T38FAX_RATE_14400 | T38FAX_RATE_12000 | T38FAX_RATE_9600 | T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400));
-	
-	if (maxrate & T38FAX_RATE_14400) {
-		ast_debug(2, "T38MaxBitRate 14400 found\n");
-		return 14400;
-	} else if (maxrate & T38FAX_RATE_12000) {
-		ast_debug(2, "T38MaxBitRate 12000 found\n");
-		return 12000;
-	} else if (maxrate & T38FAX_RATE_9600) {
-		ast_debug(2, "T38MaxBitRate 9600 found\n");
-		return 9600;
-	} else if (maxrate & T38FAX_RATE_7200) {
-		ast_debug(2, "T38MaxBitRate 7200 found\n");
-		return 7200;
-	} else if (maxrate & T38FAX_RATE_4800) {
-		ast_debug(2, "T38MaxBitRate 4800 found\n");
-		return 4800;
-	} else if (maxrate & T38FAX_RATE_2400) {
-		ast_debug(2, "T38MaxBitRate 2400 found\n");
+	switch (rate) {
+	case AST_T38_RATE_2400:
 		return 2400;
-	} else {
-		ast_debug(2, "Strange, T38MaxBitRate NOT found in peers T38 SDP.\n");
+	case AST_T38_RATE_4800:
+		return 4800;
+	case AST_T38_RATE_7200:
+		return 7200;
+	case AST_T38_RATE_9600:
+		return 9600;
+	case AST_T38_RATE_12000:
+		return 12000;
+	case AST_T38_RATE_14400:
+		return 14400;
+	default:
 		return 0;
 	}
 }
@@ -10224,35 +10065,38 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		/* We break with the "recommendation" and send our IP, in order that our
 		   peer doesn't have to ast_gethostbyname() us */
 
-		if (debug) {
-			ast_debug(1, "Our T38 capability (%d), peer T38 capability (%d), joint capability (%d)\n",
-				  p->t38.capability,
-				  p->t38.peercapability,
-				  p->t38.jointcapability);
-		}
-
 		ast_str_append(&m_modem, 0, "m=image %d udptl t38", ntohs(udptldest.sin_port));
 
-		if ((p->t38.jointcapability & T38FAX_VERSION) == T38FAX_VERSION_0)
-			ast_str_append(&a_modem, 0, "a=T38FaxVersion:0\r\n");
-		if ((p->t38.jointcapability & T38FAX_VERSION) == T38FAX_VERSION_1)
-			ast_str_append(&a_modem, 0, "a=T38FaxVersion:1\r\n");
-		if ((x = t38_get_rate(p->t38.jointcapability)))
-			ast_str_append(&a_modem, 0, "a=T38MaxBitRate:%d\r\n", x);
-		if ((p->t38.jointcapability & T38FAX_FILL_BIT_REMOVAL) == T38FAX_FILL_BIT_REMOVAL)
+		ast_str_append(&a_modem, 0, "a=T38Faxversion:%d\r\n", p->t38.our_parms.version);
+		ast_str_append(&a_modem, 0, "a=T38MaxBitRate:%d\r\n", t38_get_rate(p->t38.our_parms.rate));
+		if (p->t38.our_parms.fill_bit_removal) {
 			ast_str_append(&a_modem, 0, "a=T38FaxFillBitRemoval\r\n");
-		if ((p->t38.jointcapability & T38FAX_TRANSCODING_MMR) == T38FAX_TRANSCODING_MMR)
+		}
+		if (p->t38.our_parms.transcoding_mmr) {
 			ast_str_append(&a_modem, 0, "a=T38FaxTranscodingMMR\r\n");
-		if ((p->t38.jointcapability & T38FAX_TRANSCODING_JBIG) == T38FAX_TRANSCODING_JBIG)
+		}
+		if (p->t38.our_parms.transcoding_jbig) {
 			ast_str_append(&a_modem, 0, "a=T38FaxTranscodingJBIG\r\n");
-		ast_str_append(&a_modem, 0, "a=T38FaxRateManagement:%s\r\n", (p->t38.jointcapability & T38FAX_RATE_MANAGEMENT_LOCAL_TCF) ? "localTCF" : "transferredTCF");
-		x = ast_udptl_get_local_max_datagram(p->udptl);
-		ast_str_append(&a_modem, 0, "a=T38FaxMaxBuffer:%d\r\n", x);
-		ast_str_append(&a_modem, 0, "a=T38FaxMaxDatagram:%d\r\n", x);
-		if (p->t38.jointcapability & T38FAX_UDP_EC_REDUNDANCY)
-			ast_str_append(&a_modem, 0, "a=T38FaxUdpEC:t38UDPRedundancy\r\n");
-		else if (p->t38.jointcapability & T38FAX_UDP_EC_FEC)
+		}
+		switch (p->t38.our_parms.rate_management) {
+		case AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF:
+			ast_str_append(&a_modem, 0, "a=T38FaxRateManagement:transferredTCF\r\n");
+			break;
+		case AST_T38_RATE_MANAGEMENT_LOCAL_TCF:
+			ast_str_append(&a_modem, 0, "a=T38FaxRateManagement:localTCF\r\n");
+			break;
+		}
+		ast_str_append(&a_modem, 0, "a=T38FaxMaxDatagram:%d\r\n", ast_udptl_get_local_max_datagram(p->udptl));
+		switch (ast_test_flag(&p->flags[1],  SIP_PAGE2_T38SUPPORT)) {
+		case SIP_PAGE2_T38SUPPORT_UDPTL:
+			break;
+		case SIP_PAGE2_T38SUPPORT_UDPTL_FEC:
 			ast_str_append(&a_modem, 0, "a=T38FaxUdpEC:t38UDPFEC\r\n");
+			break;
+		case SIP_PAGE2_T38SUPPORT_UDPTL_REDUNDANCY:
+			ast_str_append(&a_modem, 0, "a=T38FaxUdpEC:t38UDPRedundancy\r\n");
+			break;
+		}
 	}
 
 	if (needaudio)
@@ -10335,7 +10179,6 @@ static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct s
 	}
 	respprep(&resp, p, msg, req);
 	if (p->udptl) {
-		ast_udptl_offered_from_local(p->udptl, 0);
 		add_sdp(&resp, p, 0, 0, 1);
 	} else 
 		ast_log(LOG_ERROR, "Can't add SDP to response, since we have no UDPTL session allocated. Call-ID %s\n", p->callid);
@@ -10862,7 +10705,6 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 	if (sdp) {
 		memset(p->offered_media, 0, sizeof(p->offered_media));
 		if (p->udptl && p->t38.state == T38_LOCAL_REINVITE) {
-			ast_udptl_offered_from_local(p->udptl, 1);
 			ast_debug(1, "T38 is in state %d on channel %s\n", p->t38.state, p->owner ? p->owner->name : "<none>");
 			add_sdp(&req, p, FALSE, FALSE, TRUE);
 		} else if (p->rtp) {
@@ -14132,7 +13974,6 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 
 	if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) && p->udptl) {
 		set_t38_capabilities(p);
-		p->t38.jointcapability = p->t38.capability;
 	}
 
 	/* Copy SIP extensions profile to peer */
@@ -14231,8 +14072,6 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 		else
 			p->noncodeccapability &= ~AST_RTP_DTMF;
 		p->jointnoncodeccapability = p->noncodeccapability;
-		if (p->t38.peercapability)
-			p->t38.jointcapability &= p->t38.peercapability;
 		if (!dialog_initialize_rtp(p)) {
 			if (p->rtp) {
 				ast_rtp_codecs_packetization_set(ast_rtp_instance_get_codecs(p->rtp), p->rtp, &peer->prefs);
@@ -20394,9 +20233,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		/* If T38 is needed but not present, then make it magically appear */
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) && !p->udptl && (p->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr.sin_addr))) {
 			set_t38_capabilities(p);
-			p->t38.jointcapability = p->t38.capability;
-			set_t38_capabilities(p);
-			p->t38.jointcapability = p->t38.capability;
 		}
 
 		/* We have a succesful authentication, process the SDP portion if there is one */

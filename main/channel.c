@@ -3488,11 +3488,11 @@ static int attribute_const is_visible_indication(enum ast_control_frame_type con
 	case AST_CONTROL_TAKEOFFHOOK:
 	case AST_CONTROL_ANSWER:
 	case AST_CONTROL_HANGUP:
-	case AST_CONTROL_T38:
 	case AST_CONTROL_CONNECTED_LINE:
 	case AST_CONTROL_REDIRECTING:
 	case AST_CONTROL_TRANSFER:
 	case AST_CONTROL_T38_PARAMETERS:
+	case _XXX_AST_CONTROL_T38:
 		break;
 
 	case AST_CONTROL_CONGESTION:
@@ -3585,7 +3585,9 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 
 	/* Handle conditions that we have tones for. */
 	switch (condition) {
-	case AST_CONTROL_T38:
+	case _XXX_AST_CONTROL_T38:
+		/* deprecated T.38 control frame */
+		return -1;
 	case AST_CONTROL_T38_PARAMETERS:
 		/* there is no way to provide 'default' behavior for these
 		 * control frames, so we need to return failure, but there
@@ -5503,7 +5505,6 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 			case AST_CONTROL_HOLD:
 			case AST_CONTROL_UNHOLD:
 			case AST_CONTROL_VIDUPDATE:
-			case AST_CONTROL_T38:
 			case AST_CONTROL_SRCUPDATE:
 				ast_indicate_data(other, f->subclass, f->data.ptr, f->datalen);
 				if (jb_in_use) {
