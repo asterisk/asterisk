@@ -18,17 +18,6 @@
 ===
 ===========================================================
 
-T.38 changes in 1.6.0.11, 1.6.1.2, 1.6.2.0:
-
-Beginning with each of these releases in their respective branches,
-Asterisk's internal methods of negotiating T.38 (FAX over IP) sessions
-changed in non-backwards-compatible ways. Any applications that previously
-used AST_CONTROL_T38 control frames will have to be upgraded to use
-AST_CONTROL_T38_PARAMETERS control frames instead; app_fax.c is a good
-example of how to generate and respond to these frames. These changes were
-made to solve significant T.38 interoperability problems between Asterisk
-and various SIP/T.38 endpoints identified by many users of Asterisk.
-
 From 1.6.2 to 1.6.3:
 
 * Asterisk-addons no longer exists as an independent package.  Those modules
