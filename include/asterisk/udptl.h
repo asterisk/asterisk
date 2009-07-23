@@ -33,7 +33,7 @@
 #include "asterisk/channel.h"
 
 
-enum {
+enum ast_t38_ec_modes {
     UDPTL_ERROR_CORRECTION_NONE,
     UDPTL_ERROR_CORRECTION_FEC,
     UDPTL_ERROR_CORRECTION_REDUNDANCY
@@ -60,11 +60,11 @@ struct ast_udptl *ast_udptl_new(struct sched_context *sched, struct io_context *
 
 struct ast_udptl *ast_udptl_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int callbackmode, struct in_addr in);
 
-void ast_udptl_set_peer(struct ast_udptl *udptl, struct sockaddr_in *them);
+void ast_udptl_set_peer(struct ast_udptl *udptl, const struct sockaddr_in *them);
 
-void ast_udptl_get_peer(struct ast_udptl *udptl, struct sockaddr_in *them);
+void ast_udptl_get_peer(const struct ast_udptl *udptl, struct sockaddr_in *them);
 
-void ast_udptl_get_us(struct ast_udptl *udptl, struct sockaddr_in *us);
+void ast_udptl_get_us(const struct ast_udptl *udptl, struct sockaddr_in *us);
 
 void ast_udptl_destroy(struct ast_udptl *udptl);
 
@@ -78,37 +78,33 @@ int ast_udptl_write(struct ast_udptl *udptl, struct ast_frame *f);
 
 struct ast_frame *ast_udptl_read(struct ast_udptl *udptl);
 
-int ast_udptl_fd(struct ast_udptl *udptl);
+int ast_udptl_fd(const struct ast_udptl *udptl);
 
-int ast_udptl_setqos(struct ast_udptl *udptl, int tos, int cos);
+int ast_udptl_setqos(struct ast_udptl *udptl, unsigned int tos, unsigned int cos);
 
-void ast_udptl_set_m_type(struct ast_udptl* udptl, int pt);
+void ast_udptl_set_m_type(struct ast_udptl *udptl, unsigned int pt);
 
-void ast_udptl_set_udptlmap_type(struct ast_udptl* udptl, int pt,
-			 char* mimeType, char* mimeSubtype);
+void ast_udptl_set_udptlmap_type(struct ast_udptl *udptl, unsigned int pt,
+				 char *mimeType, char *mimeSubtype);
 
-int ast_udptl_lookup_code(struct ast_udptl* udptl, int isAstFormat, int code);
+int ast_udptl_get_error_correction_scheme(const struct ast_udptl *udptl);
 
-void ast_udptl_offered_from_local(struct ast_udptl* udptl, int local);
+void ast_udptl_set_error_correction_scheme(struct ast_udptl *udptl, enum ast_t38_ec_modes ec);
 
-int ast_udptl_get_error_correction_scheme(struct ast_udptl* udptl);
+void ast_udptl_set_local_max_ifp(struct ast_udptl *udptl, unsigned int max_ifp);
 
-void ast_udptl_set_error_correction_scheme(struct ast_udptl* udptl, int ec);
+unsigned int ast_udptl_get_local_max_datagram(const struct ast_udptl *udptl);
 
-int ast_udptl_get_local_max_datagram(struct ast_udptl* udptl);
+void ast_udptl_set_far_max_datagram(struct ast_udptl *udptl, unsigned int max_datagram);
 
-void ast_udptl_set_local_max_datagram(struct ast_udptl* udptl, int max_datagram);
+unsigned int ast_udptl_get_far_max_datagram(const struct ast_udptl *udptl);
 
-int ast_udptl_get_far_max_datagram(struct ast_udptl* udptl);
-
-void ast_udptl_set_far_max_datagram(struct ast_udptl* udptl, int max_datagram);
-
-void ast_udptl_get_current_formats(struct ast_udptl* udptl,
-			     int* astFormats, int* nonAstFormats);
+unsigned int ast_udptl_get_far_max_ifp(const struct ast_udptl *udptl);
 
 void ast_udptl_setnat(struct ast_udptl *udptl, int nat);
 
-int ast_udptl_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc);
+int ast_udptl_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
+		     struct ast_frame **fo, struct ast_channel **rc);
 
 int ast_udptl_proto_register(struct ast_udptl_protocol *proto);
 
