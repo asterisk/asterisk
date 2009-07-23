@@ -20150,17 +20150,18 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	}
 
 	if (!req->ignore && p->pendinginvite) {
-		if (!ast_test_flag(&p->flags[0], SIP_OUTGOING) && ast_test_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED)) {
-			/* We have received a reINVITE on an incoming call to which we have sent a 200 OK but not yet received
-			 * an ACK. According to RFC 5407, Section 3.1.4, the proper way to handle this race condition is to accept
-			 * the reINVITE since we have established a dialog.
+		if (!ast_test_flag(&p->flags[0], SIP_OUTGOING) && (p->invitestate == INV_COMPLETED || p->invitestate == INV_TERMINATED)) {
+			/* What do these circumstances mean? We have received an INVITE for an "incoming" dialog for which we
+			 * have sent a final response. We have not yet received an ACK, though (which is why p->pendinginvite is non-zero).
+			 * We also know that the INVITE is not a retransmission, because otherwise the "ignore" flag would be set.
+			 * This means that either we are receiving a reinvite for a terminated dialog, or we are receiving an INVITE with
+			 * credentials based on one we challenged earlier.
+			 *
+			 * The action to take in either case is to treat the INVITE as though it contains an implicit ACK for the previous
+			 * transaction. Calling __sip_ack will take care of this by clearing the p->pendinginvite and removing the response
+			 * from the previous transaction from the list of outstanding packets.
 			 */
-			 
-			/* Note that this will both clear the pendinginvite flag and cancel the 
-			 * retransmission of the 200 OK. Basically, we're accepting this reINVITE as both an ACK
-			 * and a reINVITE in one request.
-			 */
-			__sip_ack(p, p->lastinvite, 1, 0);
+			__sip_ack(p, p->pendinginvite, 1, 0);
 		} else {
 			/* We already have a pending invite. Sorry. You are on hold. */
 			p->glareinvite = seqno;
