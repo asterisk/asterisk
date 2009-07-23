@@ -421,7 +421,8 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 	}
 
 	if (ast_strlen_zero(cel_dateformat)) {
-		snprintf(timebuf, sizeof(timebuf), "%ld.%06ld", record.event_time.tv_sec, record.event_time.tv_usec);
+		snprintf(timebuf, sizeof(timebuf), "%ld.%06ld", record.event_time.tv_sec,
+				(long) record.event_time.tv_usec);
 	} else {
 		struct ast_tm tm;
 		ast_localtime(&record.event_time, &tm, NULL);
