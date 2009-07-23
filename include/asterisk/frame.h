@@ -317,7 +317,7 @@ enum ast_control_frame_type {
 	AST_CONTROL_HOLD = 16,		/*!< Indicate call is placed on hold */
 	AST_CONTROL_UNHOLD = 17,	/*!< Indicate call is left from hold */
 	AST_CONTROL_VIDUPDATE = 18,	/*!< Indicate video frame update */
-	AST_CONTROL_T38 = 19,		/*!< T38 state change request/notification */
+	_XXX_AST_CONTROL_T38 = 19,	/*!< T38 state change request/notification \deprecated This is no longer supported. Use AST_CONTROL_T38_PARAMETERS instead. */
 	AST_CONTROL_SRCUPDATE = 20,     /*!< Indicate source of media has changed */
 	AST_CONTROL_T38_PARAMETERS = 24, /*!< T38 state change request/notification with parameters */
 };
@@ -345,14 +345,14 @@ enum ast_control_t38_rate_management {
 };
 
 struct ast_control_t38_parameters {
-	enum ast_control_t38 request_response;                /*!< Request or response of the T38 control frame */
-	unsigned int version;                                 /*!< Supported T.38 version */
-	unsigned int max_datagram;                            /*!< Maximum datagram size supported */
-	enum ast_control_t38_rate rate;                       /*!< Maximum fax rate supported */
-	enum ast_control_t38_rate_management rate_management; /*!< Rate management setting */
-	unsigned int fill_bit_removal:1;                      /*!< Set if fill bit removal should be used */
-	unsigned int transcoding_mmr:1;                       /*!< Set if MMR transcoding should be used */
-	unsigned int transcoding_jbig:1;                      /*!< Set if JBIG transcoding should be used */
+	enum ast_control_t38 request_response;			/*!< Request or response of the T38 control frame */
+	unsigned int version;					/*!< Supported T.38 version */
+	unsigned int max_ifp; 					/*!< Maximum IFP size supported */
+	enum ast_control_t38_rate rate;				/*!< Maximum fax rate supported */
+	enum ast_control_t38_rate_management rate_management;	/*!< Rate management setting */
+	unsigned int fill_bit_removal:1;			/*!< Set if fill bit removal can be used */
+	unsigned int transcoding_mmr:1;				/*!< Set if MMR transcoding can be used */
+	unsigned int transcoding_jbig:1;			/*!< Set if JBIG transcoding can be used */
 };
 
 #define AST_SMOOTHER_FLAG_G729		(1 << 0)

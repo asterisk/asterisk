@@ -471,11 +471,12 @@ static int transmit_audio(fax_session *s)
 			if (fr && fr->frametype == AST_FRAME_DTMF && fr->subclass == 'f') {
 				struct ast_control_t38_parameters parameters = { .request_response = AST_T38_REQUEST_NEGOTIATE,
 										 .version = 0,
-										 .max_datagram = 400,
+										 .max_ifp = 800,
 										 .rate = AST_T38_RATE_9600,
 										 .rate_management = AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF,
 										 .fill_bit_removal = 1,
 										 .transcoding_mmr = 1,
+										 .transcoding_jbig = 1,
 				};
 				ast_debug(1, "Fax tone detected. Requesting T38\n");
 				ast_indicate_data(s->chan, AST_CONTROL_T38_PARAMETERS, &parameters, sizeof(parameters));
@@ -509,20 +510,18 @@ static int transmit_audio(fax_session *s)
 				res = 1;
 				break;
 			} else if (parameters->request_response == AST_T38_REQUEST_NEGOTIATE) {
+				struct ast_control_t38_parameters our_parameters = { .request_response = AST_T38_NEGOTIATED,
+										     .version = 0,
+										     .max_ifp = 800,
+										     .rate = AST_T38_RATE_9600,
+										     .rate_management = AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF,
+										     .fill_bit_removal = 1,
+										     .transcoding_mmr = 1,
+										     .transcoding_jbig = 1,
+				};
 				ast_debug(1, "T38 request received, accepting\n");
-				if (parameters->version > 0) {
-					/* Only T.38 Version 0 is supported at this time */
-					parameters->version = 0;
-				}
-				if (parameters->max_datagram > 400) {
-					/* Limit incoming datagram size to our default */
-					/* TODO: this need to come from the udptl stack, not be hardcoded */
-					parameters->max_datagram = 400;
-				}
-				/* we only support bit rates up to 9.6kbps */
-				parameters->rate = AST_T38_RATE_9600;
 				/* Complete T38 switchover */
-				ast_indicate_data(s->chan, AST_CONTROL_T38_PARAMETERS, parameters, sizeof(*parameters));
+				ast_indicate_data(s->chan, AST_CONTROL_T38_PARAMETERS, &our_parameters, sizeof(our_parameters));
 				/* Do not break audio loop, wait until channel driver finally acks switchover
 				   with AST_T38_NEGOTIATED */
 			}
@@ -593,7 +592,7 @@ static int transmit_t38(fax_session *s)
 		return -1;
 	}
 
-	t38_set_max_datagram_size(t38state, s->t38parameters.max_datagram);
+	t38_set_max_datagram_size(t38state, s->t38parameters.max_ifp);
 
 	if (s->t38parameters.fill_bit_removal) {
 		t38_set_fill_bit_removal(t38state, TRUE);
