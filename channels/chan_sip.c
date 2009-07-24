@@ -3726,7 +3726,9 @@ static int sip_hangup(struct ast_channel *ast)
 				if (p->vrtp)
 					videoqos = ast_rtp_get_quality(p->vrtp, NULL);
 				/* Send a hangup */
-				transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
+				if (oldowner->_state == AST_STATE_UP) {
+					transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
+				}
 
 				/* Get RTCP quality before end of call */
 				if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY)) {
