@@ -10087,13 +10087,13 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 			break;
 		}
 		ast_str_append(&a_modem, 0, "a=T38FaxMaxDatagram:%d\r\n", ast_udptl_get_local_max_datagram(p->udptl));
-		switch (ast_test_flag(&p->flags[1],  SIP_PAGE2_T38SUPPORT)) {
-		case SIP_PAGE2_T38SUPPORT_UDPTL:
+		switch (ast_udptl_get_error_correction_scheme(p->udptl)) {
+		case UDPTL_ERROR_CORRECTION_NONE:
 			break;
-		case SIP_PAGE2_T38SUPPORT_UDPTL_FEC:
+		case UDPTL_ERROR_CORRECTION_FEC:
 			ast_str_append(&a_modem, 0, "a=T38FaxUdpEC:t38UDPFEC\r\n");
 			break;
-		case SIP_PAGE2_T38SUPPORT_UDPTL_REDUNDANCY:
+		case UDPTL_ERROR_CORRECTION_REDUNDANCY:
 			ast_str_append(&a_modem, 0, "a=T38FaxUdpEC:t38UDPRedundancy\r\n");
 			break;
 		}
