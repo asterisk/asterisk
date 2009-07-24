@@ -87,7 +87,7 @@ void ast_udptl_set_m_type(struct ast_udptl *udptl, unsigned int pt);
 void ast_udptl_set_udptlmap_type(struct ast_udptl *udptl, unsigned int pt,
 				 char *mimeType, char *mimeSubtype);
 
-int ast_udptl_get_error_correction_scheme(const struct ast_udptl *udptl);
+enum ast_t38_ec_modes ast_udptl_get_error_correction_scheme(const struct ast_udptl *udptl);
 
 void ast_udptl_set_error_correction_scheme(struct ast_udptl *udptl, enum ast_t38_ec_modes ec);
 
