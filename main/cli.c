@@ -1631,7 +1631,6 @@ int ast_cli_perms_init(int reload)
 
 	cfg = ast_config_load2(perms_config, "" /* core, can't reload */, config_flags);
 	if (!cfg) {
-		ast_log (LOG_WARNING, "No cli permissions file found (%s)\n", perms_config);
 		ast_mutex_unlock(&permsconfiglock);
 		return 1;
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
