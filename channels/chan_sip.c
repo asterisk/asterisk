@@ -5787,7 +5787,9 @@ static int sip_hangup(struct ast_channel *ast)
 				if (p->trtp)
 					textqos = ast_rtp_get_quality(p->trtp, NULL, RTPQOS_SUMMARY);
 				/* Send a hangup */
-				transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
+				if (oldowner->_state == AST_STATE_UP) {
+					transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
+				}
 
 				/* Get RTCP quality before end of call */
 				if (p->do_history) {
