@@ -45,10 +45,9 @@ in_test_mode() {
   test "$testcmd" != ''
 }
 
-# Fixme: should be done by apt and not by dpkg?
 check_installed_debs() {
-	 dpkg-query -W --showformat '${Status} ${Package}\n' "$@" 2>/dev/null \
-	 | awk '/ not-installed/{print $4}'
+	aptitude -F '%c %p' search "$@" 2>/dev/null \
+	| awk '/^p/{print $2}'
 }
 
 # parsing the output of yum is close to impossible.
@@ -65,7 +64,7 @@ check_installed_rpms() {
 handle_debian() {
 	# echo "# Distribution is Debian or compatible"
 	extra_packs=`check_installed_debs $PACKAGES_DEBIAN`
-	$testcmd apt-get install -y $extra_packs
+	$testcmd aptitude install -y $extra_packs
 }
 
 handle_rh() {
