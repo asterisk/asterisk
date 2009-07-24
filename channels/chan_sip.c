@@ -6060,7 +6060,9 @@ static int sip_hangup(struct ast_channel *ast)
 				}
 
 				/* Send a hangup */
-				transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
+				if (oldowner->_state == AST_STATE_UP) {
+					transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
+				}
 
 			} else {
 				/* Note we will need a BYE when this all settles out
