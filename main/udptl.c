@@ -769,7 +769,7 @@ static void calculate_far_max_ifp(struct ast_udptl *udptl)
 	udptl->far_max_ifp = new_max * 0.75;
 }
 
-int ast_udptl_get_error_correction_scheme(const struct ast_udptl *udptl)
+enum ast_t38_ec_modes ast_udptl_get_error_correction_scheme(const struct ast_udptl *udptl)
 {
 	if (udptl)
 		return udptl->error_correction_scheme;
