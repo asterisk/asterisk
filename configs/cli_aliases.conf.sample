@@ -27,6 +27,7 @@ hangup request=channel request hangup
 originate=channel originate
 help=core show help
 pri intense debug span=pri set debug 2 span
+reload=module reload
 
 ; CLI Alias Templates
 ; -------------------
