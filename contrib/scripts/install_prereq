@@ -20,7 +20,7 @@ usage() {
 # Basic build system:
 PACKAGES_DEBIAN="build-essential"
 # Asterisk: basic requirements:
-PACKAGES_DEBIAN="$PACKAGES_DEBIAN libncurses-dev libz-dev libssl-dev"
+PACKAGES_DEBIAN="$PACKAGES_DEBIAN libncurses-dev libz-dev libssl-dev libxml2-dev"
 # Asterisk: very useful addons:
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libcurl-dev libspeex-dev libogg-dev libvorbis-dev libasound2-dev"
 # Asterisk: nice-to-have addons:
