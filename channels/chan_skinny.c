@@ -5887,6 +5887,7 @@ static int get_input(struct skinnysession *s)
 {
 	int res;
 	int dlen = 0;
+	int *bufaddr;
 	struct pollfd fds[1];
 
 	fds[0].fd = s->fd;
@@ -5933,7 +5934,8 @@ static int get_input(struct skinnysession *s)
 			return -1;
 		}
 
-		dlen = letohl(*(int *)s->inbuf);
+		bufaddr = (int *)s->inbuf;
+		dlen = letohl(*bufaddr);
 		if (dlen < 4) {
 			ast_debug(1, "Skinny Client sent invalid data.\n");
 			ast_mutex_unlock(&s->lock);
@@ -5942,7 +5944,7 @@ static int get_input(struct skinnysession *s)
 		if (dlen+8 > sizeof(s->inbuf)) {
 			dlen = sizeof(s->inbuf) - 8;
 		}
-		*(int *)s->inbuf = htolel(dlen);
+		*bufaddr = htolel(dlen);
 
 		res = read(s->fd, s->inbuf+4, dlen+4);
 		ast_mutex_unlock(&s->lock);
@@ -5961,13 +5963,15 @@ static int get_input(struct skinnysession *s)
 static struct skinny_req *skinny_req_parse(struct skinnysession *s)
 {
 	struct skinny_req *req;
+	int *bufaddr;
 
 	if (!(req = ast_calloc(1, SKINNY_MAX_PACKET)))
 		return NULL;
 
 	ast_mutex_lock(&s->lock);
 	memcpy(req, s->inbuf, skinny_header_size);
-	memcpy(&req->data, s->inbuf+skinny_header_size, letohl(*(int*)(s->inbuf))-4);
+	bufaddr = (int *)(s->inbuf);
+	memcpy(&req->data, s->inbuf+skinny_header_size, letohl(*bufaddr)-4);
 
 	ast_mutex_unlock(&s->lock);
 
