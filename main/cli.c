@@ -266,11 +266,6 @@ static char *handle_load(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 	return CLI_SUCCESS;
 }
 
-/*!
- * \bug The command "reload" needs to be re-added.  Requiring "module reload" to reload everything,
- *      including core stuff, doesn't really make sense.  Adding a "core reload" to reload everything,
- *      including modules, also doesn't really make sense.  So, we should put "reload" back.
- */
 static char *handle_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int x;
