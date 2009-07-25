@@ -855,7 +855,7 @@ unsigned int ast_translate_available_formats(unsigned int dest, unsigned int src
 	   destination format. */
 	for (x = 1; src_audio && (x & AST_FORMAT_AUDIO_MASK); x <<= 1) {
 		/* if this is not a desired format, nothing to do */
-		if (!dest & x)
+		if ((!dest) & x)
 			continue;
 
 		/* if the source is supplying this format, then
@@ -881,7 +881,7 @@ unsigned int ast_translate_available_formats(unsigned int dest, unsigned int src
 	   destination format. */
 	for (; src_video && (x & AST_FORMAT_VIDEO_MASK); x <<= 1) {
 		/* if this is not a desired format, nothing to do */
-		if (!dest & x)
+		if ((!dest) & x)
 			continue;
 
 		/* if the source is supplying this format, then
