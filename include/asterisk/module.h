@@ -70,7 +70,7 @@ enum ast_module_load_result {
  * \param resource_name The name of the module to load.
  *
  * This function is run by the PBX to load the modules.  It performs
- * all loading and initilization tasks.   Basically, to load a module, just
+ * all loading and initialization tasks.   Basically, to load a module, just
  * give it the name of the module and it will do the rest.
  *
  * \return See possible enum values for ast_module_load_result.

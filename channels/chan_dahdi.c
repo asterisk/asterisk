@@ -4737,7 +4737,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 			p->echocanon = 0;
 			break;
 		case DAHDI_EVENT_BITSCHANGED:
-			ast_log(LOG_WARNING, "Recieved bits changed on %s signalling?\n", sig2str(p->sig));
+			ast_log(LOG_WARNING, "Received bits changed on %s signalling?\n", sig2str(p->sig));
 		case DAHDI_EVENT_PULSE_START:
 			/* Stop tone if there's a pulse start and the PBX isn't started */
 			if (!ast->pbx)
@@ -7210,7 +7210,7 @@ static void *ss_thread(void *data)
 				else if (smdi_msg->type == 'N')
 					pbx_builtin_setvar_helper(chan, "_SMDI_VM_TYPE", "u");
 
-				ast_debug(1, "Recieved SMDI message on %s\n", chan->name);
+				ast_debug(1, "Received SMDI message on %s\n", chan->name);
 			} else {
 				ast_log(LOG_WARNING, "SMDI enabled but no SMDI message present\n");
 			}
