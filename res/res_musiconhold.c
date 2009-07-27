@@ -1166,7 +1166,9 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 {
 	struct mohclass *mohclass = NULL;
 	struct moh_files_state *state = chan->music_state;
+	struct ast_variable *var = NULL;
 	int res;
+	int realtime_possible = ast_check_realtime("musiconhold");
 
 	/* The following is the order of preference for which class to use:
 	 * 1) The channels explicitly set musicclass, which should *only* be
@@ -1181,28 +1183,37 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 	 */
 	if (!ast_strlen_zero(chan->musicclass)) {
 		mohclass = get_mohbyname(chan->musicclass, 1);
-	}
-	if (!mohclass && !ast_strlen_zero(mclass)) {
-		mohclass = get_mohbyname(mclass, 1);
-	}
-	if (!mohclass && !ast_strlen_zero(interpclass)) {
-		mohclass = get_mohbyname(interpclass, 1);
-	}
-
-	/* If no moh class found in memory, then check RT */
-	if (!mohclass && ast_check_realtime("musiconhold")) {
-		struct ast_variable *var = NULL, *tmp = NULL;
-
-		if (!ast_strlen_zero(chan->musicclass)) {
+		if (!mohclass && realtime_possible) {
 			var = ast_load_realtime("musiconhold", "name", chan->musicclass, SENTINEL);
 		}
-		if (!var && !ast_strlen_zero(mclass))
+	}
+	if (!mohclass && !var && !ast_strlen_zero(mclass)) {
+		mohclass = get_mohbyname(mclass, 1);
+		if (!mohclass && realtime_possible) {
 			var = ast_load_realtime("musiconhold", "name", mclass, SENTINEL);
-		if (!var && !ast_strlen_zero(interpclass))
+		}
+	}
+	if (!mohclass && !var && !ast_strlen_zero(interpclass)) {
+		mohclass = get_mohbyname(interpclass, 1);
+		if (!mohclass && realtime_possible) {
 			var = ast_load_realtime("musiconhold", "name", interpclass, SENTINEL);
-		if (!var)
+		}
+	}
+
+	if (!mohclass && !var) {
+		mohclass = get_mohbyname("default", 1);
+		if (!mohclass && realtime_possible) {
 			var = ast_load_realtime("musiconhold", "name", "default", SENTINEL);
-		if (var && (mohclass = moh_class_malloc())) {
+		}
+	}
+
+	/* If no moh class found in memory, then check RT. Note that the logic used
+	 * above guarantees that if var is non-NULL, then mohclass must be NULL.
+	 */
+	if (var) {
+		struct ast_variable *tmp = NULL;
+
+		if ((mohclass = moh_class_malloc())) {
 			mohclass->realtime = 1;
 			for (tmp = var; tmp; tmp = tmp->next) {
 				if (!strcasecmp(tmp->name, "name"))
@@ -1333,13 +1344,9 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 					return -1;
 				}
 			}
-		} else if (var) {
+		} else {
 			ast_variables_destroy(var);
 		}
-	}
-
-	if (!mohclass) {
-		mohclass = get_mohbyname("default", 1);
 	}
 
 	if (!mohclass) {
