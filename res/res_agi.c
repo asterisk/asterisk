@@ -217,7 +217,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="maxdigits" />
 		</syntax>
 		<description>
-			<para>Stream the given <replaceable>file</replaceable>, and recieve DTMF data.</para>
+			<para>Stream the given <replaceable>file</replaceable>, and receive DTMF data.</para>
 			<para>Returns the digits received from the channel at the other end.</para>
 		</description>
 	</agi>

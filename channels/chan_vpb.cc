@@ -1509,7 +1509,7 @@ static struct vpb_pvt *mkif(int board, int channel, int mode, int gains, float t
 	tmp->callgroup = callgroup;
 	tmp->pickupgroup = pickupgroup;
 
-	/* Initilize dtmf caller ID position variable */
+	/* Initialize dtmf caller ID position variable */
 	tmp->dtmf_caller_pos = 0;
 
 	ast_copy_string(tmp->language, language, sizeof(tmp->language));

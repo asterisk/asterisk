@@ -659,7 +659,7 @@ static void *smdi_read(void *iface_p)
 			/* add the message to the message queue */
 			md_msg->timestamp = ast_tvnow();
 			ast_smdi_md_message_push(iface, md_msg);
-			ast_log(LOG_DEBUG, "Recieved SMDI MD message on %s\n", iface->name);
+			ast_log(LOG_DEBUG, "Received SMDI MD message on %s\n", iface->name);
 			
 			ASTOBJ_UNREF(md_msg, ast_smdi_md_message_destroy);
 
@@ -708,7 +708,7 @@ static void *smdi_read(void *iface_p)
 			/* add the message to the message queue */
 			mwi_msg->timestamp = ast_tvnow();
 			ast_smdi_mwi_message_push(iface, mwi_msg);
-			ast_log(LOG_DEBUG, "Recieved SMDI MWI message on %s\n", iface->name);
+			ast_log(LOG_DEBUG, "Received SMDI MWI message on %s\n", iface->name);
 			
 			ASTOBJ_UNREF(mwi_msg, ast_smdi_mwi_message_destroy);
 		} else {
