@@ -2078,6 +2078,9 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 		rtp->f.subclass = AST_FORMAT_T140;
 		header_end = memchr(data, ((*data) & 0x7f), rtp->f.datalen);
+		if (header_end == NULL) {
+			return &ast_null_frame;
+		}
 		header_end++;
 
 		header_length = header_end - data;
