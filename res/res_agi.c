@@ -2246,7 +2246,7 @@ static char usage_sayphonetic[] =
 
 static char usage_getdata[] =
 " Usage: GET DATA <file to be streamed> [timeout] [max digits]\n"
-"	Stream the given file, and recieve DTMF data. Returns the digits received\n"
+"	Stream the given file, and receive DTMF data. Returns the digits received\n"
 "from the channel at the other end.\n";
 
 static char usage_setcontext[] =

@@ -462,7 +462,7 @@ static struct ast_custom_function jabberstatus_function = {
 /*!
  * \brief Dial plan function to send a message.
  * \param chan ast_channel
- * \param data  Data is sender|reciever|message.
+ * \param data  Data is sender|receiver|message.
  * \return 0 on success,-1 on error.
  */
 static int aji_send_exec(struct ast_channel *chan, void *data)
@@ -1339,7 +1339,7 @@ static int aji_dinfo_handler(void *data, ikspak *pak)
 
 	resource = aji_find_resource(buddy, pak->from->resource);
 	if (pak->subtype == IKS_TYPE_ERROR) {
-		ast_log(LOG_WARNING, "Recieved error from a client, turn on jabber debug!\n");
+		ast_log(LOG_WARNING, "Received error from a client, turn on jabber debug!\n");
 		return IKS_FILTER_EAT;
 	}
 	if (pak->subtype == IKS_TYPE_RESULT) {
