@@ -366,12 +366,78 @@ static int transmit_audio(fax_session *s)
 	int original_write_fmt = AST_FORMAT_SLINEAR;
 	fax_state_t fax;
 	t30_state_t *t30state;
-	struct ast_dsp *dsp = NULL;
-	int detect_tone = 0;
 	struct ast_frame *inf = NULL;
-	struct ast_frame *fr;
 	int last_state = 0;
 	struct timeval now, start, state_change;
+	enum ast_t38_state t38_state;
+	struct ast_control_t38_parameters t38_parameters = { .version = 0,
+							     .max_ifp = 800,
+							     .rate = AST_T38_RATE_9600,
+							     .rate_management = AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF,
+							     .fill_bit_removal = 1,
+							     .transcoding_mmr = 1,
+							     .transcoding_jbig = 1,
+	};
+
+	/* if in receive mode, try to use T.38 */
+	if (!s->direction) {
+		/* check if we are already in T.38 mode (unlikely), or if we can request
+		 * a switch... if so, request it now and wait for the result, rather
+		 * than starting an audio FAX session that will have to be cancelled
+		 */
+		if ((t38_state = ast_channel_get_t38_state(s->chan)) == T38_STATE_NEGOTIATED) {
+			return 1;
+		} else if ((t38_state != T38_STATE_UNAVAILABLE) &&
+			   (t38_parameters.request_response = AST_T38_REQUEST_NEGOTIATE,
+			    (ast_indicate_data(s->chan, AST_CONTROL_T38_PARAMETERS, &t38_parameters, sizeof(t38_parameters)) == 0))) {
+			/* wait up to five seconds for negotiation to complete */
+			unsigned int timeout = 5000;
+			int ms;
+			
+			ast_log(LOG_NOTICE, "Negotiating T.38 for receive on %s\n", s->chan->name);
+			while (timeout > 0) {
+				ms = ast_waitfor(s->chan, 1000);
+				if (ms < 0) {
+					ast_log(LOG_WARNING, "something bad happened while channel '%s' was polling.\n", s->chan->name);
+					return -1;
+				}
+				if (!ms) {
+					/* nothing happened */
+					if (timeout > 0) {
+						timeout -= 1000;
+						continue;
+					} else {
+						ast_log(LOG_WARNING, "channel '%s' timed-out during the T.38 negotiation.\n", s->chan->name);
+						break;
+					}
+				}
+				if (!(inf = ast_read(s->chan))) {
+					return -1;
+				}
+				if ((inf->frametype == AST_FRAME_CONTROL) &&
+				    (inf->subclass == AST_CONTROL_T38_PARAMETERS) &&
+				    (inf->datalen == sizeof(t38_parameters))) {
+					struct ast_control_t38_parameters *parameters = inf->data.ptr;
+					
+					switch (parameters->request_response) {
+					case AST_T38_NEGOTIATED:
+						ast_log(LOG_NOTICE, "Negotiated T.38 for receive on %s\n", s->chan->name);
+						ast_free(inf);
+						return 1;
+					case AST_T38_REFUSED:
+						ast_log(LOG_WARNING, "channel '%s' refused to negotiate T.38\n", s->chan->name);
+						break;
+					default:
+						ast_log(LOG_ERROR, "channel '%s' failed to negotiate T.38\n", s->chan->name);
+						break;
+					}
+					ast_frfree(inf);
+					break;
+				}
+				ast_frfree(inf);
+			}
+		}
+	}
 
 #if SPANDSP_RELEASE_DATE >= 20080725
         /* for spandsp shaphots 0.0.6 and higher */
@@ -415,18 +481,6 @@ static int transmit_audio(fax_session *s)
 
 	t30_set_phase_e_handler(t30state, phase_e_handler, s);
 
-	if (s->t38state == T38_STATE_UNAVAILABLE) {
-		ast_debug(1, "T38 is unavailable on %s\n", s->chan->name);
-	} else if (!s->direction) {
-		/* We are receiving side and this means we are the side which should
-		   request T38 when the fax is detected. Use DSP to detect fax tone */
-		ast_debug(1, "Setting up CNG detection on %s\n", s->chan->name);
-		dsp = ast_dsp_new();
-		ast_dsp_set_features(dsp, DSP_FEATURE_FAX_DETECT);
-		ast_dsp_set_faxmode(dsp, DSP_FAXMODE_DETECT_CNG);
-		detect_tone = 1;
-	}
-
 	start = state_change = ast_tvnow();
 
 	ast_activate_generator(s->chan, &generator, &fax);
@@ -461,32 +515,6 @@ static int transmit_audio(fax_session *s)
 
 		ast_debug(10, "frame %d/%d, len=%d\n", inf->frametype, inf->subclass, inf->datalen);
 
-		/* Detect fax tone */
-		if (detect_tone && inf->frametype == AST_FRAME_VOICE) {
-			/* Duplicate frame because ast_dsp_process may free the frame passed */
-			fr = ast_frdup(inf);
-
-			/* Do not pass channel to ast_dsp_process otherwise it may queue modified audio frame back */
-			fr = ast_dsp_process(NULL, dsp, fr);
-			if (fr && fr->frametype == AST_FRAME_DTMF && fr->subclass == 'f') {
-				struct ast_control_t38_parameters parameters = { .request_response = AST_T38_REQUEST_NEGOTIATE,
-										 .version = 0,
-										 .max_ifp = 800,
-										 .rate = AST_T38_RATE_9600,
-										 .rate_management = AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF,
-										 .fill_bit_removal = 1,
-										 .transcoding_mmr = 1,
-										 .transcoding_jbig = 1,
-				};
-				ast_debug(1, "Fax tone detected. Requesting T38\n");
-				ast_indicate_data(s->chan, AST_CONTROL_T38_PARAMETERS, &parameters, sizeof(parameters));
-				detect_tone = 0;
-			}
-
-			ast_frfree(fr);
-		}
-
-
 		/* Check the frame type. Format also must be checked because there is a chance
 		   that a frame in old format was already queued before we set channel format
 		   to slinear so it will still be received by ast_read */
@@ -501,8 +529,10 @@ static int transmit_audio(fax_session *s)
 				state_change = ast_tvnow();
 				last_state = t30state->state;
 			}
-		} else if (inf->frametype == AST_FRAME_CONTROL && inf->subclass == AST_CONTROL_T38_PARAMETERS) {
+		} else if ((inf->frametype == AST_FRAME_CONTROL) &&
+			   (inf->subclass == AST_CONTROL_T38_PARAMETERS)) {
 			struct ast_control_t38_parameters *parameters = inf->data.ptr;
+
 			if (parameters->request_response == AST_T38_NEGOTIATED) {
 				/* T38 switchover completed */
 				s->t38parameters = *parameters;
@@ -510,20 +540,13 @@ static int transmit_audio(fax_session *s)
 				res = 1;
 				break;
 			} else if (parameters->request_response == AST_T38_REQUEST_NEGOTIATE) {
-				struct ast_control_t38_parameters our_parameters = { .request_response = AST_T38_NEGOTIATED,
-										     .version = 0,
-										     .max_ifp = 800,
-										     .rate = AST_T38_RATE_9600,
-										     .rate_management = AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF,
-										     .fill_bit_removal = 1,
-										     .transcoding_mmr = 1,
-										     .transcoding_jbig = 1,
-				};
+				t38_parameters.request_response = AST_T38_NEGOTIATED;
 				ast_debug(1, "T38 request received, accepting\n");
 				/* Complete T38 switchover */
-				ast_indicate_data(s->chan, AST_CONTROL_T38_PARAMETERS, &our_parameters, sizeof(our_parameters));
+				ast_indicate_data(s->chan, AST_CONTROL_T38_PARAMETERS, &t38_parameters, sizeof(t38_parameters));
 				/* Do not break audio loop, wait until channel driver finally acks switchover
-				   with AST_T38_NEGOTIATED */
+				 * with AST_T38_NEGOTIATED
+				 */
 			}
 		}
 
@@ -534,9 +557,6 @@ static int transmit_audio(fax_session *s)
 
 	if (inf)
 		ast_frfree(inf);
-
-	if (dsp)
-		ast_dsp_free(dsp);
 
 	ast_deactivate_generator(s->chan);
 
