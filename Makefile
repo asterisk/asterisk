@@ -239,7 +239,6 @@ endif
 
 ifneq ($(findstring BSD,$(OSARCH)),)
   _ASTCFLAGS+=-I/usr/local/include
-  _ASTLDFLAGS+=-L/usr/local/lib
 endif
 
 ifeq ($(findstring -march,$(_ASTCFLAGS) $(ASTCFLAGS)),)
@@ -301,7 +300,7 @@ else
 # These are used for all but Darwin
   SOLINK=-shared
   ifneq ($(findstring BSD,$(OSARCH)),)
-    LDFLAGS+=-L/usr/local/lib
+    _ASTLDFLAGS+=-L/usr/local/lib
   endif
 endif
 
@@ -396,10 +395,10 @@ res:	main
 endif
 
 $(MOD_SUBDIRS):
-	@_ASTCFLAGS="$(MOD_SUBDIR_CFLAGS) $(_ASTCFLAGS)" $(SUBMAKE) --no-builtin-rules -C $@ SUBDIR=$@ all
+	@_ASTCFLAGS="$(MOD_SUBDIR_CFLAGS) $(_ASTCFLAGS)" ASTCFLAGS="$(ASTCFLAGS)" _ASTLDFLAGS="$(_ASTLDFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(SUBMAKE) --no-builtin-rules -C $@ SUBDIR=$@ all
 
 $(OTHER_SUBDIRS):
-	@_ASTCFLAGS="$(OTHER_SUBDIR_CFLAGS) $(_ASTCFLAGS)" $(SUBMAKE) --no-builtin-rules -C $@ SUBDIR=$@ all
+	@_ASTCFLAGS="$(OTHER_SUBDIR_CFLAGS) $(_ASTCFLAGS)" ASTCFLAGS="$(ASTCFLAGS)" _ASTLDFLAGS="$(_ASTLDFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(SUBMAKE) --no-builtin-rules -C $@ SUBDIR=$@ all
 
 defaults.h: makeopts
 	@build_tools/make_defaults_h > $@.tmp
