@@ -4292,7 +4292,7 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 		return AST_BRIDGE_FAILED;
 	}
 	/* Put them in native bridge mode */
-	if ((!flags) & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1)) {
+	if (!(flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))) {
 		iaxs[callno0]->bridgecallno = callno1;
 		iaxs[callno1]->bridgecallno = callno0;
 	}
