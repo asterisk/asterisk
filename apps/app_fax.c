@@ -394,7 +394,7 @@ static int transmit_audio(fax_session *s)
 			unsigned int timeout = 5000;
 			int ms;
 			
-			ast_log(LOG_NOTICE, "Negotiating T.38 for receive on %s\n", s->chan->name);
+			ast_debug(1, "Negotiating T.38 for receive on %s\n", s->chan->name);
 			while (timeout > 0) {
 				ms = ast_waitfor(s->chan, 1000);
 				if (ms < 0) {
@@ -421,9 +421,9 @@ static int transmit_audio(fax_session *s)
 					
 					switch (parameters->request_response) {
 					case AST_T38_NEGOTIATED:
-						ast_log(LOG_NOTICE, "Negotiated T.38 for receive on %s\n", s->chan->name);
-						ast_free(inf);
-						return 1;
+						ast_debug(1, "Negotiated T.38 for receive on %s\n", s->chan->name);
+						res = 1;
+						break;
 					case AST_T38_REFUSED:
 						ast_log(LOG_WARNING, "channel '%s' refused to negotiate T.38\n", s->chan->name);
 						break;
@@ -432,7 +432,11 @@ static int transmit_audio(fax_session *s)
 						break;
 					}
 					ast_frfree(inf);
-					break;
+					if (res == 1) {
+						return 1;
+					} else {
+						break;
+					}
 				}
 				ast_frfree(inf);
 			}
