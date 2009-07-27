@@ -28,3 +28,8 @@ udptlfecentries = 3
 ; The span over which parity is calculated for FEC in a UDPTL packet
 ;
 udptlfecspan = 3
+;
+; Some VoIP providers will only accept an offer with an even-numbered
+; UDPTL port. Set this option so that Asterisk will only attempt to use
+; even-numbered ports when negotiating T.38. Default is no.
+use_even_ports = no

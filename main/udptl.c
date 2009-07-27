@@ -85,6 +85,7 @@ static enum ast_t38_ec_modes udptlfectype;
 static int udptlfecentries;
 static int udptlfecspan;
 static int udptlmaxdatagram;
+static int use_even_ports;
 
 #define LOCAL_FAX_MAX_DATAGRAM      1400
 #define MAX_FEC_ENTRIES             5
@@ -889,6 +890,9 @@ struct ast_udptl *ast_udptl_new_with_bindaddr(struct sched_context *sched, struc
 #endif
 	/* Find us a place */
 	x = (udptlstart == udptlend) ? udptlstart : (ast_random() % (udptlend - udptlstart)) + udptlstart;
+	if (use_even_ports && (x & 1)) {
+		++x;
+	}
 	startplace = x;
 	for (;;) {
 		udptl->us.sin_port = htons(x);
@@ -901,7 +905,12 @@ struct ast_udptl *ast_udptl_new_with_bindaddr(struct sched_context *sched, struc
 			ast_free(udptl);
 			return NULL;
 		}
-		if (++x > udptlend)
+		if (use_even_ports) {
+			x += 2;
+		} else {
+			++x;
+		}
+		if (x > udptlend)
 			x = udptlstart;
 		if (x == startplace) {
 			ast_log(LOG_WARNING, "No UDPTL ports remaining\n");
@@ -1258,6 +1267,7 @@ static void __ast_udptl_reload(int reload)
 	udptlfecentries = 0;
 	udptlfecspan = 0;
 	udptlmaxdatagram = 0;
+	use_even_ports = 0;
 
 	if (cfg) {
 		if ((s = ast_variable_retrieve(cfg, "general", "udptlstart"))) {
@@ -1332,12 +1342,23 @@ static void __ast_udptl_reload(int reload)
 				udptlfecspan = MAX_FEC_SPAN;
 			}
 		}
+		if ((s = ast_variable_retrieve(cfg, "general", "use_even_ports"))) {
+			use_even_ports = ast_true(s);
+		}
 		ast_config_destroy(cfg);
 	}
 	if (udptlstart >= udptlend) {
 		ast_log(LOG_WARNING, "Unreasonable values for UDPTL start/end\n");
 		udptlstart = 4500;
 		udptlend = 4999;
+	}
+	if (use_even_ports && (udptlstart & 1)) {
+		++udptlstart;
+		ast_log(LOG_NOTICE, "Odd numbered udptlstart specified but use_even_ports enabled. udptlstart is now %d\n", udptlstart);
+	}
+	if (use_even_ports && (udptlend & 1)) {
+		--udptlend;
+		ast_log(LOG_NOTICE, "Odd numbered udptlend specified but use_event_ports enabled. udptlend is now %d\n", udptlend);
 	}
 	ast_verb(2, "UDPTL allocating from port range %d -> %d\n", udptlstart, udptlend);
 }
