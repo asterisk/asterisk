@@ -6712,7 +6712,7 @@ struct	ast_frame wf;
 		strcpy(mylink->linklist,tmp + 2);
 		time(&mylink->linklistreceived);
 		rpt_mutex_unlock(&myrpt->lock);
-		if (debug > 6) ast_log(LOG_NOTICE,"@@@@ node %s recieved node list %s from node %s\n",
+		if (debug > 6) ast_log(LOG_NOTICE,"@@@@ node %s received node list %s from node %s\n",
 			myrpt->name,tmp,mylink->name);
 		return;
 	}

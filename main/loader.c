@@ -756,7 +756,7 @@ static enum ast_module_load_result start_resource(struct ast_module *mod)
  *
  *  If the ast_heap is provided (not NULL) the module is found and added to the
  *  heap without running the module's load() function.  By doing this, modules
- *  added to the resource_heap can be initilized later in order by priority. 
+ *  added to the resource_heap can be initialized later in order by priority. 
  *
  *  If the ast_heap is not provided, the module's load function will be executed
  *  immediately */

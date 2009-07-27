@@ -146,7 +146,7 @@ struct mbl_pvt {
 	unsigned int needcallerid:1;	/*!< we need callerid */
 	unsigned int needchup:1;	/*!< we need to send a chup */
 	unsigned int needring:1;	/*!< we need to send a RING */
-	unsigned int answered:1;	/*!< we sent/recieved an answer */
+	unsigned int answered:1;	/*!< we sent/received an answer */
 	unsigned int connected:1;	/*!< do we have an rfcomm connection to a device */
 
 	AST_LIST_ENTRY(mbl_pvt) entry;
@@ -2571,7 +2571,7 @@ static int hsp_send_ring(int rsock)
 /*!
  * \brief Add an item to the back of the queue.
  * \param pvt a mbl_pvt structure
- * \param expect the msg we expect to recieve
+ * \param expect the msg we expect to receive
  * \param response_to the message that was sent to generate the expected
  * response
  */
@@ -2591,7 +2591,7 @@ static int msg_queue_push(struct mbl_pvt *pvt, at_message_t expect, at_message_t
 /*!
  * \brief Add an item to the back of the queue with data.
  * \param pvt a mbl_pvt structure
- * \param expect the msg we expect to recieve
+ * \param expect the msg we expect to receive
  * \param response_to the message that was sent to generate the expected
  * response
  * \param data data associated with this message, it will be freed when the
@@ -2803,9 +2803,9 @@ static int handle_response_brsf(struct mbl_pvt *pvt, char *buf)
 
 		msg_queue_free_and_pop(pvt);
 	} else if (entry) {
-		ast_debug(1, "[%s] recieved unexpected AT message 'BRSF' when expecting %s, ignoring\n", pvt->id, at_msg2str(entry->expected));
+		ast_debug(1, "[%s] received unexpected AT message 'BRSF' when expecting %s, ignoring\n", pvt->id, at_msg2str(entry->expected));
 	} else {
-		ast_debug(1, "[%s] recieved unexpected AT message 'BRSF'\n", pvt->id);
+		ast_debug(1, "[%s] received unexpected AT message 'BRSF'\n", pvt->id);
 	}
 
 	return 0;
@@ -2845,9 +2845,9 @@ static int handle_response_cind(struct mbl_pvt *pvt, char *buf)
 		}
 		msg_queue_free_and_pop(pvt);
 	} else if (entry) {
-		ast_debug(1, "[%s] recieved unexpected AT message 'CIND' when expecting %s, ignoring\n", pvt->id, at_msg2str(entry->expected));
+		ast_debug(1, "[%s] received unexpected AT message 'CIND' when expecting %s, ignoring\n", pvt->id, at_msg2str(entry->expected));
 	} else {
-		ast_debug(1, "[%s] recieved unexpected AT message 'CIND'\n", pvt->id);
+		ast_debug(1, "[%s] received unexpected AT message 'CIND'\n", pvt->id);
 	}
 
 	return 0;
@@ -2870,7 +2870,7 @@ static int handle_response_ok(struct mbl_pvt *pvt, char *buf)
 	if ((entry = msg_queue_head(pvt)) && entry->expected == AT_OK) {
 		switch (entry->response_to) {
 
-		/* initilization stuff */
+		/* initialization stuff */
 		case AT_BRSF:
 			ast_debug(1, "[%s] BSRF sent successfully\n", pvt->id);
 
@@ -2972,7 +2972,7 @@ static int handle_response_ok(struct mbl_pvt *pvt, char *buf)
 			ast_debug(1, "[%s] sms new message indication enabled\n", pvt->id);
 			pvt->has_sms = 1;
 			break;
-		/* end initilization stuff */
+		/* end initialization stuff */
 
 		case AT_A:
 			ast_debug(1, "[%s] answer sent successfully\n", pvt->id);
@@ -3000,14 +3000,14 @@ static int handle_response_ok(struct mbl_pvt *pvt, char *buf)
 			break;
 		case AT_UNKNOWN:
 		default:
-			ast_debug(1, "[%s] recieved OK for unhandled request: %s\n", pvt->id, at_msg2str(entry->response_to));
+			ast_debug(1, "[%s] received OK for unhandled request: %s\n", pvt->id, at_msg2str(entry->response_to));
 			break;
 		}
 		msg_queue_free_and_pop(pvt);
 	} else if (entry) {
-		ast_debug(1, "[%s] recieved AT message 'OK' when expecting %s, ignoring\n", pvt->id, at_msg2str(entry->expected));
+		ast_debug(1, "[%s] received AT message 'OK' when expecting %s, ignoring\n", pvt->id, at_msg2str(entry->expected));
 	} else {
-		ast_debug(1, "[%s] recieved unexpected AT message 'OK'\n", pvt->id);
+		ast_debug(1, "[%s] received unexpected AT message 'OK'\n", pvt->id);
 	}
 	return 0;
 
@@ -3034,7 +3034,7 @@ static int handle_response_error(struct mbl_pvt *pvt, char *buf)
 			|| entry->expected == AT_SMS_PROMPT)) {
 		switch (entry->response_to) {
 
-		/* initilization stuff */
+		/* initialization stuff */
 		case AT_BRSF:
 			ast_debug(1, "[%s] error reading BSRF\n", pvt->id);
 			goto e_return;
@@ -3053,7 +3053,7 @@ static int handle_response_error(struct mbl_pvt *pvt, char *buf)
 		case AT_VGS:
 			ast_debug(1, "[%s] volume level synchronization failed\n", pvt->id);
 
-			/* this is not a fatal error, let's continue with initilization */
+			/* this is not a fatal error, let's continue with initialization */
 
 			/* set the SMS operating mode to text mode */
 			if (hfp_send_cmgf(pvt->hfp, 1) || msg_queue_push(pvt, AT_OK, AT_CMGF)) {
@@ -3069,7 +3069,7 @@ static int handle_response_error(struct mbl_pvt *pvt, char *buf)
 			ast_debug(1, "[%s] error setting CNMI\n", pvt->id);
 			ast_debug(1, "[%s] no SMS support\n", pvt->id);
 			break;
-		/* end initilization stuff */
+		/* end initialization stuff */
 
 		case AT_A:
 			ast_debug(1, "[%s] answer failed\n", pvt->id);
@@ -3096,14 +3096,14 @@ static int handle_response_error(struct mbl_pvt *pvt, char *buf)
 			break;
 		case AT_UNKNOWN:
 		default:
-			ast_debug(1, "[%s] recieved ERROR for unhandled request: %s\n", pvt->id, at_msg2str(entry->response_to));
+			ast_debug(1, "[%s] received ERROR for unhandled request: %s\n", pvt->id, at_msg2str(entry->response_to));
 			break;
 		}
 		msg_queue_free_and_pop(pvt);
 	} else if (entry) {
-		ast_debug(1, "[%s] recieved AT message 'ERROR' when expecting %s, ignoring\n", pvt->id, at_msg2str(entry->expected));
+		ast_debug(1, "[%s] received AT message 'ERROR' when expecting %s, ignoring\n", pvt->id, at_msg2str(entry->expected));
 	} else {
-		ast_debug(1, "[%s] recieved unexpected AT message 'ERROR'\n", pvt->id);
+		ast_debug(1, "[%s] received unexpected AT message 'ERROR'\n", pvt->id);
 	}
 
 	return 0;
@@ -3371,13 +3371,13 @@ static void *do_monitor_phone(void *data)
 	at_message_t at_msg;
 	struct msg_queue_entry *entry;
 
-	/* Note: At one point the initilization procedure was neatly contained
-	 * in the hfp_init() function, but that initilization method did not
-	 * work with non standard devices.  As a result, the initilization
+	/* Note: At one point the initialization procedure was neatly contained
+	 * in the hfp_init() function, but that initialization method did not
+	 * work with non standard devices.  As a result, the initialization
 	 * procedure is not spread throughout the event handling loop.
 	 */
 
-	/* start initilization with the BRSF request */
+	/* start initialization with the BRSF request */
 	ast_mutex_lock(&pvt->lock);
 	pvt->timeout = 10000;
 	if (hfp_send_brsf(hfp, &hfp_our_brsf)  || msg_queue_push(pvt, AT_BRSF, AT_BRSF)) {
@@ -3758,7 +3758,7 @@ static void *do_discovery(void *data)
 								pvt->connected = 1;
 								adapter->inuse = 1;
 								manager_event(EVENT_FLAG_SYSTEM, "MobileStatus", "Status: Connect\r\nDevice: %s\r\n", pvt->id);
-								ast_verb(3, "Bluetooth Device %s has connected, initilizing...\n", pvt->id);
+								ast_verb(3, "Bluetooth Device %s has connected, initializing...\n", pvt->id);
 							}
 						}
 					}

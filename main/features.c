@@ -1363,7 +1363,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		if (!transferer->cdr) { /* this code should never get called (in a perfect world) */
 			transferer->cdr=ast_cdr_alloc();
 			if (transferer->cdr) {
-				ast_cdr_init(transferer->cdr, transferer); /* initilize our channel's cdr */
+				ast_cdr_init(transferer->cdr, transferer); /* initialize our channel's cdr */
 				ast_cdr_start(transferer->cdr);
 			}
 		}
