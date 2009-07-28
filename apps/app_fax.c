@@ -372,7 +372,7 @@ static int transmit_audio(fax_session *s)
 				if ((inf->frametype == AST_FRAME_CONTROL) &&
 				    (inf->subclass == AST_CONTROL_T38_PARAMETERS) &&
 				    (inf->datalen == sizeof(t38_parameters))) {
-					struct ast_control_t38_parameters *parameters = inf->data.ptr;
+					struct ast_control_t38_parameters *parameters = inf->data;
 					
 					switch (parameters->request_response) {
 					case AST_T38_NEGOTIATED:
