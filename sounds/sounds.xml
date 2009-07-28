@@ -65,4 +65,16 @@
 		</member>
 		<member name="EXTRA-SOUNDS-EN-G722" displayname="English, G.722 format">
 		</member>
+		<member name="EXTRA-SOUNDS-FR-WAV" displayname="French, WAV format">
+		</member>
+		<member name="EXTRA-SOUNDS-FR-ULAW" displayname="French, mu-Law format">
+		</member>
+		<member name="EXTRA-SOUNDS-FR-ALAW" displayname="French, a-Law format">
+		</member>
+		<member name="EXTRA-SOUNDS-FR-GSM" displayname="French, GSM format" >
+		</member>
+		<member name="EXTRA-SOUNDS-FR-G729" displayname="French, G.729 format">
+		</member>
+		<member name="EXTRA-SOUNDS-FR-G722" displayname="French, G.722 format">
+		</member>
 	</category>
