@@ -95,4 +95,22 @@
 		</member>
 		<member name="EXTRA-SOUNDS-EN-SIREN14" displayname="English, G.722.1C (Siren14) format">
 		</member>
+		<member name="EXTRA-SOUNDS-FR-WAV" displayname="French, WAV format">
+		</member>
+		<member name="EXTRA-SOUNDS-FR-ULAW" displayname="French, mu-Law format">
+		</member>
+		<member name="EXTRA-SOUNDS-FR-ALAW" displayname="French, a-Law format">
+		</member>
+		<member name="EXTRA-SOUNDS-FR-GSM" displayname="French, GSM format" >
+		</member>
+		<member name="EXTRA-SOUNDS-FR-G729" displayname="French, G.729 format">
+		</member>
+		<member name="EXTRA-SOUNDS-FR-G722" displayname="French, G.722 format">
+		</member>
+		<member name="EXTRA-SOUNDS-FR-SLN16" displayname="French, Signed-linear 16kHz format">
+		</member>
+		<member name="EXTRA-SOUNDS-FR-SIREN7" displayname="French, G.722.1 (Siren7) format">
+		</member>
+		<member name="EXTRA-SOUNDS-FR-SIREN14" displayname="French, G.722.1C (Siren14) format">
+		</member>
 	</category>
