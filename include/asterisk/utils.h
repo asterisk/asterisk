@@ -222,6 +222,11 @@ void ast_sha1_hash(char *output, const char *input);
 
 int ast_base64encode_full(char *dst, const unsigned char *src, int srclen, int max, int linebreaks);
 
+#undef MIN
+#define MIN(a, b) ({ typeof(a) __a = (a); typeof(b) __b = (b); ((__a > __b) ? __b : __a);})
+#undef MAX
+#define MAX(a, b) ({ typeof(a) __a = (a); typeof(b) __b = (b); ((__a < __b) ? __b : __a);})
+
 /*!
  * \brief Encode data in base64
  * \param dst the destination buffer

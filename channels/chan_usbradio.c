@@ -351,13 +351,6 @@ END_CONFIG
 #define DEV_DSP "/dev/dsp"
 #endif
 
-#ifndef MIN
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
-#endif
-#ifndef MAX
-#define MAX(a,b) ((a) > (b) ? (a) : (b))
-#endif
-
 static char *config = "usbradio.conf";	/* default config file */
 static char *config1 = "usbradio_tune_%s.conf";    /* tune config file */
 

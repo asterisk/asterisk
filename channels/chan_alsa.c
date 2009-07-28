@@ -591,9 +591,6 @@ static struct ast_channel *alsa_request(const char *type, int fmt, const struct 
 
 static char *autoanswer_complete(const char *line, const char *word, int pos, int state)
 {
-#ifndef MIN
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
-#endif
 	switch (state) {
 		case 0:
 			if (!ast_strlen_zero(word) && !strncasecmp(word, "on", MIN(strlen(word), 2)))

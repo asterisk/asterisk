@@ -557,10 +557,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define TRUE     1
 #endif
 
-#ifndef MAX
-#define MAX(a,b) ((a) > (b) ? (a) : (b))
-#endif
-
 /* Arguments for find_peer */
 #define FINDUSERS (1 << 0)
 #define FINDPEERS (1 << 1)
