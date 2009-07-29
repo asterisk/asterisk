@@ -1938,8 +1938,7 @@ static int hfp_parse_ciev(struct hfp_pvt *hfp, char *buf, int *value)
  * \param buf the buffer to parse (null terminated)
  * @note buf will be modified when the CID string is parsed
  * \return NULL on error (parse error) or a pointer to the caller id
- * inforamtion in buf
- * success
+ * information in buf
  */
 static char *hfp_parse_clip(struct hfp_pvt *hfp, char *buf)
 {
