@@ -161,17 +161,20 @@ static int handle_response_clip(struct mbl_pvt *pvt, char *buf);
 static int handle_response_ring(struct mbl_pvt *pvt, char *buf);
 static int handle_response_cmti(struct mbl_pvt *pvt, char *buf);
 static int handle_response_cmgr(struct mbl_pvt *pvt, char *buf);
+static int handle_response_cusd(struct mbl_pvt *pvt, char *buf);
 static int handle_sms_prompt(struct mbl_pvt *pvt, char *buf);
 
 /* CLI stuff */
 static char *handle_cli_mobile_show_devices(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *handle_cli_mobile_search(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *handle_cli_mobile_rfcomm(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static char *handle_cli_mobile_cusd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 static struct ast_cli_entry mbl_cli[] = {
 	AST_CLI_DEFINE(handle_cli_mobile_show_devices, "Show Bluetooth Cell / Mobile devices"),
 	AST_CLI_DEFINE(handle_cli_mobile_search,       "Search for Bluetooth Cell / Mobile devices"),
 	AST_CLI_DEFINE(handle_cli_mobile_rfcomm,       "Send commands to the rfcomm port for debugging"),
+	AST_CLI_DEFINE(handle_cli_mobile_cusd,         "Send CUSD commands to the mobile"),
 };
 
 /* App stuff */
@@ -347,6 +350,7 @@ static int hfp_parse_cmgr(struct hfp_pvt *hfp, char *buf, char **from_number, ch
 static int hfp_parse_brsf(struct hfp_pvt *hfp, const char *buf);
 static int hfp_parse_cind(struct hfp_pvt *hfp, char *buf);
 static int hfp_parse_cind_test(struct hfp_pvt *hfp, char *buf);
+static char *hfp_parse_cusd(struct hfp_pvt *hfp, char *buf);
 
 static int hfp_brsf2int(struct hfp_hf *hf);
 static struct hfp_ag *hfp_int2brsf(int brsf, struct hfp_ag *ag);
@@ -370,6 +374,7 @@ static int hfp_send_sms_text(struct hfp_pvt *hfp, const char *message);
 static int hfp_send_chup(struct hfp_pvt *hfp);
 static int hfp_send_atd(struct hfp_pvt *hfp, const char *number);
 static int hfp_send_ata(struct hfp_pvt *hfp);
+static int hfp_send_cusd(struct hfp_pvt *hfp, const char *code);
 
 /*
  * bluetooth headset profile helpers
@@ -414,6 +419,7 @@ typedef enum {
 	AT_CNMI,
 	AT_CMER,
 	AT_CIND_TEST,
+	AT_CUSD,
 } at_message_t;
 
 static int at_match_prefix(char *buf, char *prefix);
@@ -613,6 +619,56 @@ static char *handle_cli_mobile_rfcomm(struct ast_cli_entry *e, int cmd, struct a
 	snprintf(buf, sizeof(buf), "%s\r", a->argv[3]);
 	rfcomm_write(pvt->rfcomm_socket, buf);
 	msg_queue_push(pvt, AT_OK, AT_UNKNOWN);
+
+e_unlock_pvt:
+	ast_mutex_unlock(&pvt->lock);
+e_return:
+	return CLI_SUCCESS;
+}
+
+static char *handle_cli_mobile_cusd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char buf[128];
+	struct mbl_pvt *pvt = NULL;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "mobile cusd";
+		e->usage =
+			"Usage: mobile cusd <device ID> <command>\n"
+			"       Send cusd <command> to the rfcomm port on the device\n"
+			"       with the specified <device ID>.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
+
+	AST_RWLIST_RDLOCK(&devices);
+	AST_RWLIST_TRAVERSE(&devices, pvt, entry) {
+		if (!strcmp(pvt->id, a->argv[2]))
+			break;
+	}
+	AST_RWLIST_UNLOCK(&devices);
+
+	if (!pvt) {
+		ast_cli(a->fd, "Device %s not found.\n", a->argv[2]);
+		goto e_return;
+	}
+
+	ast_mutex_lock(&pvt->lock);
+	if (!pvt->connected) {
+		ast_cli(a->fd, "Device %s not connected.\n", a->argv[2]);
+		goto e_unlock_pvt;
+	}
+
+	snprintf(buf, sizeof(buf), "%s", a->argv[3]);
+	if (hfp_send_cusd(pvt->hfp, buf) || msg_queue_push(pvt, AT_OK, AT_CUSD)) {
+		ast_cli(a->fd, "[%s] error sending CUSD\n", pvt->id);
+		goto e_unlock_pvt;
+	}
 
 e_unlock_pvt:
 	ast_mutex_unlock(&pvt->lock);
@@ -1827,6 +1883,8 @@ static at_message_t at_read_full(int rsock, char *buf, size_t count)
 		return AT_VGM;
 	} else if (at_match_prefix(buf, "AT+VGS=")) {
 		return AT_VGS;
+	} else if (at_match_prefix(buf, "+CUSD:")) {
+		return AT_CUSD;
 	} else {
 		return AT_UNKNOWN;
 	}
@@ -1896,6 +1954,8 @@ static inline const char *at_msg2str(at_message_t msg)
 		return "AT+CMER";
 	case AT_CIND_TEST:
 		return "AT+CIND=?";
+	case AT_CUSD:
+		return "AT+CUSD";
 	}
 }
 
@@ -2064,6 +2124,62 @@ static int hfp_parse_cmgr(struct hfp_pvt *hfp, char *buf, char **from_number, ch
 	}
 
 	return 0;
+}
+
+/*!
+ * \brief Parse a CUSD answer.
+ * \param hfp an hfp_pvt struct
+ * \param buf the buffer to parse (null terminated)
+ * @note buf will be modified when the CUSD string is parsed
+ * \return NULL on error (parse error) or a pointer to the cusd message
+ * information in buf
+ */
+static char *hfp_parse_cusd(struct hfp_pvt *hfp, char *buf)
+{
+	int i, state, message_start, message_end;
+	char *cusd;
+	size_t s;
+
+	/* parse cusd message in the following format:
+	 * +CUSD: 0,"100,00 EURO, valid till 01.01.2010, you are using tariff "Mega Tariff". More informations *111#."
+	 */
+	state = 0;
+	message_start = 0;
+	message_end = 0;
+	s = strlen(buf);
+
+	/* Find the start of the message (") */
+	for (i = 0; i < s; i++) {
+		if (buf[i] == '"') {
+			message_start = i + 1;
+			break;
+		}
+	}
+
+	if (message_start == 0 || message_start >= s) {
+		return NULL;
+	}
+
+	/* Find the end of the message (") */
+	for (i = s; i > 0; i--) {
+		if (buf[i] == '"') {
+			message_end = i;
+			break;
+		}
+	}
+
+	if (message_end == 0) {
+		return NULL;
+	}
+
+	if (message_start >= message_end) {
+		return NULL;
+	}
+
+	cusd = &buf[message_start];
+	buf[message_end] = '\0';
+
+	return cusd;
 }
 
 /*!
@@ -2308,6 +2424,18 @@ static int hfp_send_atd(struct hfp_pvt *hfp, const char *number)
 static int hfp_send_ata(struct hfp_pvt *hfp)
 {
 	return rfcomm_write(hfp->rsock, "ATA\r");
+}
+
+/*!
+ * \brief Send CUSD.
+ * \param hfp an hfp_pvt struct
+ * \param code the CUSD code to send
+ */
+static int hfp_send_cusd(struct hfp_pvt *hfp, const char *code)
+{
+	char cmd[128];
+	snprintf(cmd, sizeof(cmd), "AT+CUSD=1,\"%s\",15\r", code);
+	return rfcomm_write(hfp->rsock, cmd);
 }
 
 /*!
@@ -2997,6 +3125,9 @@ static int handle_response_ok(struct mbl_pvt *pvt, char *buf)
 		case AT_VTS:
 			ast_debug(1, "[%s] digit sent successfully\n", pvt->id);
 			break;
+		case AT_CUSD:
+			ast_debug(1, "[%s] CUSD code sent successfully\n", pvt->id);
+			break;
 		case AT_UNKNOWN:
 		default:
 			ast_debug(1, "[%s] received OK for unhandled request: %s\n", pvt->id, at_msg2str(entry->response_to));
@@ -3092,6 +3223,9 @@ static int handle_response_error(struct mbl_pvt *pvt, char *buf)
 			break;
 		case AT_VTS:
 			ast_debug(1, "[%s] error sending digit\n", pvt->id);
+			break;
+		case AT_CUSD:
+			ast_verb(0, "[%s] error sending CUSD command\n", pvt->id);
 			break;
 		case AT_UNKNOWN:
 		default:
@@ -3360,6 +3494,27 @@ static int handle_sms_prompt(struct mbl_pvt *pvt, char *buf)
 	return 0;
 }
 
+/*!
+ * \brief Handle CUSD messages.
+ * \param pvt a mbl_pvt structure
+ * \param buf a null terminated buffer containing an AT message
+ * \retval 0 success
+ * \retval -1 error
+ */
+static int handle_response_cusd(struct mbl_pvt *pvt, char *buf)
+{
+	char *cusd;
+
+	if (!(cusd = hfp_parse_cusd(pvt->hfp, buf))) {
+		ast_verb(0, "[%s] error parsing CUSD: %s\n", pvt->id, buf);
+		return 0;
+	}
+
+	ast_verb(0, "[%s] CUSD response: %s\n", pvt->id, cusd);
+
+	return 0;
+}
+
 
 static void *do_monitor_phone(void *data)
 {
@@ -3505,6 +3660,14 @@ static void *do_monitor_phone(void *data)
 		case AT_SMS_PROMPT:
 			ast_mutex_lock(&pvt->lock);
 			if (handle_sms_prompt(pvt, buf)) {
+				ast_mutex_unlock(&pvt->lock);
+				goto e_cleanup;
+			}
+			ast_mutex_unlock(&pvt->lock);
+			break;
+		case AT_CUSD:
+			ast_mutex_lock(&pvt->lock);
+			if (handle_response_cusd(pvt, buf)) {
 				ast_mutex_unlock(&pvt->lock);
 				goto e_cleanup;
 			}
