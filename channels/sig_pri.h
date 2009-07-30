@@ -256,6 +256,8 @@ void sig_pri_cli_show_span(int fd, int *dchannels, struct sig_pri_pri *pri);
 int pri_send_keypad_facility_exec(struct sig_pri_chan *p, const char *digits);
 int pri_send_callrerouting_facility_exec(struct sig_pri_chan *p, enum ast_channel_state chanstate, const char *destination, const char *original, const char *reason);
 
+#ifdef HAVE_PRI_SERVICE_MESSAGES
 int pri_maintenance_bservice(struct pri *pri, struct sig_pri_chan *p, int changestatus);
+#endif
 
 #endif /* _SIG_PRI_H */

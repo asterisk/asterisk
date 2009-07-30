@@ -2465,6 +2465,7 @@ int pri_send_callrerouting_facility_exec(struct sig_pri_chan *p, enum ast_channe
 	return res;
 }
 
+#ifdef HAVE_PRI_SERVICE_MESSAGES
 int pri_maintenance_bservice(struct pri *pri, struct sig_pri_chan *p, int changestatus)
 {
 	int channel = PVT_TO_CHANNEL(p);
@@ -2472,5 +2473,6 @@ int pri_maintenance_bservice(struct pri *pri, struct sig_pri_chan *p, int change
 
 	return pri_maintenance_service(pri, span, channel, changestatus);
 }
+#endif
 
 #endif /* HAVE_PRI */
