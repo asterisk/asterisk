@@ -7719,7 +7719,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	p->peercapability = newpeercapability;		        /* The other sides capability in latest offer */
 	p->jointnoncodeccapability = newnoncodeccapability;	/* DTMF capabilities */
 
-	if (p->jointcapability & AST_FORMAT_T140RED) {
+	if (p->trtp && (p->jointcapability & AST_FORMAT_T140RED)) {
 		p->red = 1; 
 		rtp_red_init(p->trtp, 300, red_data_pt, 2);
 	} else {
