@@ -1779,7 +1779,7 @@ static void sms_process(sms_t * h, int samples, signed short *data)
 			h->iphasep = 0;
 		}
 		if (bit && h->ibitc == 200) {       /* sync, restart message */
-			/* Protocol 2: empty connnection ready (I am master) */
+			/* Protocol 2: empty connection ready (I am master) */
 			if (h->framenumber < 0 && h->ibytec >= 160 && !memcmp(h->imsg, "UUUUUUUUUUUUUUUUUUUU", 20)) {
 				h->framenumber = 1;
 				ast_verb(3, "SMS protocol 2 detected\n");

@@ -1041,7 +1041,7 @@ static struct dahdi_pvt {
 	 */
 	char mohinterpret[MAX_MUSICCLASS];
 	/*!
-	 * \brief Sugggested music-on-hold class for peer channel to use for calls.
+	 * \brief Suggested music-on-hold class for peer channel to use for calls.
 	 * \note The "mohsuggest" string read in from chan_dahdi.conf
 	 */
 	char mohsuggest[MAX_MUSICCLASS];
@@ -1609,7 +1609,7 @@ static int my_get_callerid(void *pvt, char *namebuf, char *numbuf, enum analog_e
 		/*** NOTES ***/
 		/* Change API: remove cid_signalling from get_callerid, add a new start_cid_detect and stop_cid_detect function
 		 * to enable slin mode and allocate cid detector. get_callerid should be able to be called any number of times until
-		 * either a timeout occurss or CID is detected (returns 0). returning 1 should be event received, and -1 should be
+		 * either a timeout occurs or CID is detected (returns 0). returning 1 should be event received, and -1 should be
 		 * a failure and die, and returning 2 means no event was received. */
 		res = read(p->subs[index].dfd, buf, sizeof(buf));
 		if (res < 0) {
@@ -7092,7 +7092,7 @@ winkflashdone:
 			p->dop.dialstr[0] = '\0';
 			break;
 		default:
-			ast_log(LOG_WARNING, "Don't know how to handle ring/off hoook for signalling %d\n", p->sig);
+			ast_log(LOG_WARNING, "Don't know how to handle ring/off hook for signalling %d\n", p->sig);
 		}
 		break;
 	case DAHDI_EVENT_HOOKCOMPLETE:

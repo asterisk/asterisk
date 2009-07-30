@@ -73,7 +73,7 @@ extern int pitsyn_(integer *order, integer *voice, integer *pitch, real *rms, re
  * Initial revision
  * */
 /* Revision 1.2  1996/03/25  18:49:07  jaf */
-/* Added commments about which indices of array arguments are read or */
+/* Added comments about which indices of array arguments are read or */
 /* written. */
 
 /* Rearranged local variable declarations to indicate which need to be */

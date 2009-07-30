@@ -411,7 +411,7 @@ EXTERN int ooGkClientHandleUnregistrationRequest
 
 
 /**
- * This function is used to send an unregistration confirm messsage to 
+ * This function is used to send an unregistration confirm message to 
  * gatekeeper.
  * @param pGkClient        Handle to gatekeeper client.
  * @param reqNo            Request Sequence number for the confirm message.

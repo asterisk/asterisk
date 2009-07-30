@@ -132,7 +132,7 @@ struct sig_pri_chan {
 	char rdnis[AST_MAX_EXTENSION];
 	char dnid[AST_MAX_EXTENSION];
 	char exten[AST_MAX_EXTENSION];
-	int callingpres;				/*!< The value of callling presentation that we're going to use when placing a PRI call */
+	int callingpres;				/*!< The value of calling presentation that we're going to use when placing a PRI call */
 	char lastcid_num[AST_MAX_EXTENSION];
 	char lastcid_name[AST_MAX_EXTENSION];
 

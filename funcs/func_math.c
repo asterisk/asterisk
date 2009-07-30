@@ -392,7 +392,7 @@ static int crement_function_read(struct ast_channel *chan, const char *cmd,
 	}
 
 	if (ast_strlen_zero(var)) {
-		ast_log(LOG_NOTICE, "Variable %s doesn't exist - are you sure you wrote it corrrectly?\n", data);
+		ast_log(LOG_NOTICE, "Variable %s doesn't exist - are you sure you wrote it correctly?\n", data);
 		ast_channel_unlock(chan);
 		return -1;
 	}

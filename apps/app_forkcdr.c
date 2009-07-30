@@ -64,7 +64,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						reset.</para>
 					</option>
 					<option name="e">
-						<para>End the original CDR. Do this after all the neccessry data is copied
+						<para>End the original CDR. Do this after all the necessary data is copied
 						from the original CDR to the new forked CDR.</para>
 					</option>
 					<option name="r">
