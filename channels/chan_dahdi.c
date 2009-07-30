@@ -983,7 +983,7 @@ static struct dahdi_pvt {
 	 */
 	char mohinterpret[MAX_MUSICCLASS];
 	/*!
-	 * \brief Sugggested music-on-hold class for peer channel to use for calls.
+	 * \brief Suggested music-on-hold class for peer channel to use for calls.
 	 * \note The "mohsuggest" string read in from chan_dahdi.conf
 	 */
 	char mohsuggest[MAX_MUSICCLASS];
@@ -6456,7 +6456,7 @@ winkflashdone:
 				p->dop.dialstr[0] = '\0';
 				break;
 			default:
-				ast_log(LOG_WARNING, "Don't know how to handle ring/off hoook for signalling %d\n", p->sig);
+				ast_log(LOG_WARNING, "Don't know how to handle ring/off hook for signalling %d\n", p->sig);
 			}
 			break;
 		case DAHDI_EVENT_HOOKCOMPLETE:

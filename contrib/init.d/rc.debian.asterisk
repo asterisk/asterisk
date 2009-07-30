@@ -4,7 +4,7 @@
 # Mon Jun 04 2007 Iñaki Baz Castillo <ibc@in.ilimit.es>
 # - Eliminated SAFE_ASTERISK since it doesn't work as LSB script (it could require a independent "safe_asterisk" init script).
 # - Load and use the standar "/lib/lsb/init-functions".
-# - Addded "--oknodo" to "start-stop-daemon" for compatibility with LSB:
+# - Added "--oknodo" to "start-stop-daemon" for compatibility with LSB:
 #   http://www.linux-foundation.org/spec/refspecs/LSB_3.0.0/LSB-Core-generic/LSB-Core-generic/iniscrptact.html
 #
 # Thu Nov 17 2005 Gregory Boehnlein <damin@nacs.net>
