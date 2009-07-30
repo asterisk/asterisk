@@ -214,8 +214,13 @@ AC_ARG_ENABLE([dev-mode],
 	[case "${enableval}" in
 	      y|ye|yes) AST_DEVMODE=yes ;;
 	      n|no)  AST_DEVMODE=no ;;
+	      noisy)
+	      AST_DEVMODE=yes
+	      NOISY_BUILD=yes
+	      ;;
 	      *) AC_MSG_ERROR(bad value ${enableval} for --enable-dev-mode)  ;;
 	esac])
+AC_SUBST(NOISY_BUILD)
 AC_SUBST(AST_DEVMODE)
 
 # AST_EXT_LIB_SETUP is used to tell configure to handle variables for
