@@ -183,8 +183,8 @@ void ast_jb_destroy(struct ast_channel *chan);
  * \param varname property name.
  * \param value property value.
  *
- * Called from a channel driver to build a jitterbuffer configuration tipically when
- * reading a configuration file. It is not neccessary for a channel driver to know
+ * Called from a channel driver to build a jitterbuffer configuration typically when
+ * reading a configuration file. It is not necessary for a channel driver to know
  * each of the jb configuration property names. The jitterbuffer itself knows them.
  * The channel driver can pass each config var it reads through this function. It will
  * return 0 if the variable was consumed from the jb conf.
