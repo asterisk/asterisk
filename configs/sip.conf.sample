@@ -101,6 +101,27 @@ allowoverlap=no                 ; Disable overlap dialing support. (Default is y
 udpbindaddr=0.0.0.0             ; IP address to bind UDP listen socket to (0.0.0.0 binds to all)
                                 ; Optionally add a port number, 192.168.1.1:5062 (default is port 5060)
 
+; When a dialog is started with another SIP endpoint, the other endpoint
+; should include an Allow header telling us what SIP methods the endpoint
+; implements. However, some endpoints either do not include an Allow header
+; or lie about what methods they implement. In the former case, Asterisk
+; makes the assumption that the endpoint supports all known SIP methods.
+; If you know that your SIP endpoint does not provide support for a specific
+; method, then you may provide a comma-separated list of methods that your
+; endpoint does not implement in the disallowed_methods option. Note that 
+; if your endpoint is truthful with its Allow header, then there is no need 
+; to set this option. This option may be set in the general section or may
+; be set per endpoint. If this option is set both in the general section and
+; in a peer section, then the peer setting completely overrides the general
+; setting (i.e. the result is *not* the union of the two options).
+;
+; Note also that while Asterisk currently will parse an Allow header to learn
+; what methods an endpoint supports, the only actual use for this currently
+; is for determining if Asterisk may send connected line UPDATE requests. Its
+; use may be expanded in the future.
+;
+; disallowed_methods = UPDATE
+
 ;
 ; Note that the TCP and TLS support for chan_sip is currently considered
 ; experimental.  Since it is new, all of the related configuration options are
