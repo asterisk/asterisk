@@ -365,9 +365,9 @@ enum ast_event_subscriber_res ast_event_check_subscriber(enum ast_event_type typ
 	}
 
 	va_start(ap, type);
-	for (ie_type = va_arg(ap, enum ast_event_type);
+	for (ie_type = va_arg(ap, enum ast_event_ie_type);
 		ie_type != AST_EVENT_IE_END;
-		ie_type = va_arg(ap, enum ast_event_type))
+		ie_type = va_arg(ap, enum ast_event_ie_type))
 	{
 		struct ast_event_ie_val *ie_value = alloca(sizeof(*ie_value));
 		int insert = 1;
@@ -819,9 +819,9 @@ struct ast_event_sub *ast_event_subscribe(enum ast_event_type type, ast_event_cb
 	ast_copy_string(sub->description, description, sizeof(sub->description));
 
 	va_start(ap, userdata);
-	for (ie_type = va_arg(ap, enum ast_event_type);
+	for (ie_type = va_arg(ap, enum ast_event_ie_type);
 		ie_type != AST_EVENT_IE_END;
-		ie_type = va_arg(ap, enum ast_event_type))
+		ie_type = va_arg(ap, enum ast_event_ie_type))
 	{
 		enum ast_event_ie_pltype ie_pltype;
 
@@ -1065,7 +1065,7 @@ struct ast_event *ast_event_new(enum ast_event_type type, ...)
 {
 	va_list ap;
 	struct ast_event *event;
-	enum ast_event_type ie_type;
+	enum ast_event_ie_type ie_type;
 	struct ast_event_ie_val *ie_val;
 	AST_LIST_HEAD_NOLOCK_STATIC(ie_vals, ast_event_ie_val);
 
@@ -1077,9 +1077,9 @@ struct ast_event *ast_event_new(enum ast_event_type type, ...)
 	}
 
 	va_start(ap, type);
-	for (ie_type = va_arg(ap, enum ast_event_type);
+	for (ie_type = va_arg(ap, enum ast_event_ie_type);
 		ie_type != AST_EVENT_IE_END;
-		ie_type = va_arg(ap, enum ast_event_type))
+		ie_type = va_arg(ap, enum ast_event_ie_type))
 	{
 		struct ast_event_ie_val *ie_value = alloca(sizeof(*ie_value));
 		int insert = 1;
@@ -1218,9 +1218,9 @@ struct ast_event *ast_event_get_cached(enum ast_event_type type, ...)
 	}
 
 	va_start(ap, type);
-	for (ie_type = va_arg(ap, enum ast_event_type);
+	for (ie_type = va_arg(ap, enum ast_event_ie_type);
 		ie_type != AST_EVENT_IE_END;
-		ie_type = va_arg(ap, enum ast_event_type))
+		ie_type = va_arg(ap, enum ast_event_ie_type))
 	{
 		enum ast_event_ie_pltype ie_pltype;
 
