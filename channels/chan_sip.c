@@ -1187,6 +1187,7 @@ struct sip_settings {
 	int callevents;			/*!< Whether we send manager events or not */
 	int regextenonqualify;  	/*!< Whether to add/remove regexten when qualifying peers */
 	int matchexterniplocally;	/*!< Match externip/externhost setting against localnet setting */
+	unsigned int disallowed_methods; /*!< methods that we should never try to use */
 	int notifyringing;		/*!< Send notifications on ringing */
 	int notifyhold;			/*!< Send notifications on hold */
 	enum notifycid_setting notifycid; /*!< Send CID with ringing notifications */
@@ -1817,11 +1818,15 @@ struct sip_pvt {
 	int hangupcause;			/*!< Storage of hangupcause copied from our owner before we disconnect from the AST channel (only used at hangup) */
 
 	struct sip_subscription_mwi *mwi;       /*!< If this is a subscription MWI dialog, to which subscription */
-	/*! The SIP methods allowed on this dialog. We get this information from the Allow header present in 
-	 * the peer's REGISTER. If peer does not register with us, then we will use the first transaction we
-	 * have with this peer to determine its allowed methods.
+	/*! The SIP methods supported by this peer. We get this information from the Allow header of the first
+	 * message we receive from an endpoint during a dialog.
 	 */
 	unsigned int allowed_methods;
+	/*! Some peers are not trustworthy with their Allow headers, and so we need to override their wicked
+	 * ways through configuration. This is a copy of the peer's disallowed_methods, so that we can apply them
+	 * to the sip_pvt at various stages of dialog establishment
+	 */
+	unsigned int disallowed_methods;
 	/*! When receiving an SDP offer, it is important to take note of what media types were offered.
 	 * By doing this, even if we don't want to answer a particular media stream with something meaningful, we can
 	 * still put an m= line in our answer with the port set to 0.
@@ -2027,7 +2032,7 @@ struct sip_peer {
 	
 	/*XXX Seems like we suddenly have two flags with the same content. Why? To be continued... */
 	enum sip_peer_type type; /*!< Distinguish between "user" and "peer" types. This is used solely for CLI and manager commands */
-	unsigned int allowed_methods;
+	unsigned int disallowed_methods;
 };
 
 
@@ -5107,7 +5112,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	dialog->rtptimeout = peer->rtptimeout;
 	dialog->peerauth = peer->auth;
 	dialog->maxcallbitrate = peer->maxcallbitrate;
-	dialog->allowed_methods = peer->allowed_methods;
+	dialog->disallowed_methods = peer->disallowed_methods;
 	if (ast_strlen_zero(dialog->tohost))
 		ast_string_field_set(dialog, tohost, ast_inet_ntoa(dialog->sa.sin_addr));
 	if (!ast_strlen_zero(peer->fromdomain)) {
@@ -5201,6 +5206,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 	}
 
 	ast_string_field_set(dialog, tohost, peername);
+	dialog->allowed_methods &= ~sip_cfg.disallowed_methods;
 
 	/* Get the outbound proxy information */
 	ref_proxy(dialog, obproxy_get(dialog, NULL));
@@ -7096,6 +7102,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	p->branch = ast_random();	
 	make_our_tag(p->tag, sizeof(p->tag));
 	p->ocseq = INITIAL_CSEQ;
+	p->allowed_methods = UINT_MAX;
 
 	if (sip_methods[intended_method].need_rtp) {
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) && (p->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr.sin_addr))) {
@@ -7521,6 +7528,17 @@ static int is_method_allowed(unsigned int *allowed_methods, enum sipmethod metho
 	return ((*allowed_methods) >> method) & 1;
 }
 
+static void mark_parsed_methods(unsigned int *methods, char *methods_str)
+{
+	char *method;
+	for (method = strsep(&methods_str, ","); !ast_strlen_zero(method); method = strsep(&methods_str, ",")) {
+		int id = find_sip_method(ast_skip_blanks(method));
+		if (id == SIP_UNKNOWN) {
+			continue;
+		}
+		mark_method_allowed(methods, id);
+	}
+}
 /*!
  * \brief parse the Allow header to see what methods the endpoint we
  * are communicating with allows.
@@ -7540,7 +7558,6 @@ static int is_method_allowed(unsigned int *allowed_methods, enum sipmethod metho
 static unsigned int parse_allowed_methods(struct sip_request *req)
 {
 	char *allow = ast_strdupa(get_header(req, "Allow"));
-	char *method;
 	unsigned int allowed_methods = SIP_UNKNOWN;
 
 	if (ast_strlen_zero(allow)) {
@@ -7567,13 +7584,7 @@ static unsigned int parse_allowed_methods(struct sip_request *req)
 		}
 		allow = ast_strip_quoted(methods + 9, "\"", "\"");
 	}
-	for (method = strsep(&allow, ","); !ast_strlen_zero(method); method = strsep(&allow, ",")) {
-		int id = find_sip_method(ast_skip_blanks(method));
-		if (id == SIP_UNKNOWN) {
-			continue;
-		}
-		mark_method_allowed(&allowed_methods, id);
-	}
+	mark_parsed_methods(&allowed_methods, allow);
 	return allowed_methods;
 }
 
@@ -7593,6 +7604,7 @@ static unsigned int set_pvt_allowed_methods(struct sip_pvt *pvt, struct sip_requ
 	if (ast_test_flag(&pvt->flags[1], SIP_PAGE2_RPID_UPDATE)) {
 		mark_method_allowed(&pvt->allowed_methods, SIP_UPDATE);
 	}
+	pvt->allowed_methods &= ~(pvt->disallowed_methods);
 
 	return pvt->allowed_methods;
 }
@@ -11876,7 +11888,6 @@ static int expire_register(const void *data)
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", peer->name);
 	register_peer_exten(peer, FALSE);	/* Remove regexten */
 	ast_devstate_changed(AST_DEVICE_UNKNOWN, "SIP/%s", peer->name);
-	peer->allowed_methods = SIP_UNKNOWN;
 
 	/* Do we need to release this peer from memory? 
 		Only for realtime peers and autocreated peers
@@ -11919,13 +11930,11 @@ static void reg_source_db(struct sip_peer *peer)
 	int expire;
 	int port;
 	char *scan, *addr, *port_str, *expiry_str, *username, *contact;
-	char allowed_methods_str[256] = "";
 
 	if (peer->rt_fromcontact) 
 		return;
 	if (ast_db_get("SIP/Registry", peer->name, data, sizeof(data)))
 		return;
-	ast_db_get("SIP/PeerMethods", peer->name, allowed_methods_str, sizeof(allowed_methods_str));
 
 	scan = data;
 	addr = strsep(&scan, ":");
@@ -11951,10 +11960,6 @@ static void reg_source_db(struct sip_peer *peer)
 		ast_string_field_set(peer, username, username);
 	if (contact)
 		ast_string_field_set(peer, fullcontact, contact);
-
-	if (!ast_strlen_zero(allowed_methods_str)) {
-		peer->allowed_methods = atoi(allowed_methods_str);
-	}
 
 	ast_debug(2, "SIP Seeding peer from astdb: '%s' at %s@%s:%d for %d\n",
 	    peer->name, peer->username, ast_inet_ntoa(in), port, expire);
@@ -13003,16 +13008,6 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 		}
 	}
 	if (peer) {
-		ao2_lock(peer);
-		if (peer->allowed_methods == SIP_UNKNOWN) {
-			peer->allowed_methods = set_pvt_allowed_methods(p, req);
-		}
-		if (!peer->rt_fromcontact) {
-			char allowed_methods_str[256];
-			snprintf(allowed_methods_str, sizeof(allowed_methods_str), "%u", peer->allowed_methods);
-			ast_db_put("SIP/PeerMethods", peer->name, allowed_methods_str);
-		}
-		ao2_unlock(peer);
 		unref_peer(peer, "register_verify: unref_peer: tossing stack peer pointer at end of func");
 	}
 
@@ -13988,11 +13983,8 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 	ast_string_field_set(p, mohsuggest, peer->mohsuggest);
 	ast_string_field_set(p, parkinglot, peer->parkinglot);
 	ast_string_field_set(p, engine, peer->engine);
-	if (peer->allowed_methods == SIP_UNKNOWN) {
-		set_pvt_allowed_methods(p, req);
-	} else {
-		p->allowed_methods = peer->allowed_methods;
-	}
+	p->disallowed_methods = peer->disallowed_methods;
+	set_pvt_allowed_methods(p, req);
 	if (peer->callingpres)	/* Peer calling pres setting will override RPID */
 		p->callingpres = peer->callingpres;
 	if (peer->maxms && peer->lastms)
@@ -17677,21 +17669,6 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 	else
 		ast_debug(4, "SIP response %d to standard invite\n", resp);
 
-	/* If this is a response to our initial INVITE, we need to set what we can use
-	 * for this peer.
-	 */
-	if (!reinvite && p->allowed_methods == SIP_UNKNOWN) {
-		struct sip_peer *peer = find_peer(p->peername, NULL, 1, FINDPEERS, FALSE);
-		if (!peer || peer->allowed_methods == SIP_UNKNOWN) {
-			set_pvt_allowed_methods(p, req);
-		} else {
-			p->allowed_methods = peer->allowed_methods;
-		}
-		if (peer) {
-			unref_peer(peer, "handle_response_invite: Getting supported methods from peer");
-		}
-	}
-
 	if (p->alreadygone) { /* This call is already gone */
 		ast_debug(1, "Got response on call that is already terminated: %s (ignoring)\n", p->callid);
 		return;
@@ -17718,6 +17695,13 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 	/* Final response, clear out pending invite */
 	if ((resp == 200 || resp >= 300) && p->pendinginvite && seqno == p->pendinginvite)
 		p->pendinginvite = 0;
+
+	/* If this is a response to our initial INVITE, we need to set what we can use
+	 * for this peer.
+	 */
+	if (!reinvite) {
+		set_pvt_allowed_methods(p, req);
+	}		
 
 	switch (resp) {
 	case 100:	/* Trying */
@@ -18087,7 +18071,6 @@ static void handle_response_notify(struct sip_pvt *p, int resp, const char *rest
 /* \brief Handle SIP response in SUBSCRIBE transaction */
 static void handle_response_subscribe(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, int seqno)
 {
-	struct sip_peer *peer;
 	if (!p->mwi) {
 		return;
 	}
@@ -18095,15 +18078,7 @@ static void handle_response_subscribe(struct sip_pvt *p, int resp, const char *r
 	switch (resp) {
 	case 200: /* Subscription accepted */
 		ast_debug(3, "Got 200 OK on subscription for MWI\n");
-		peer = find_peer(p->peername, NULL, 1, FINDPEERS, FALSE);
-		if (!peer || peer->allowed_methods == SIP_UNKNOWN) {
-			set_pvt_allowed_methods(p, req);
-		} else {
-			p->allowed_methods = peer->allowed_methods;
-		}
-		if (peer) {
-			unref_peer(peer, "handle_response_subscribe: Getting supported methods");
-		}
+		set_pvt_allowed_methods(p, req);
 		if (p->options) {
 			ast_free(p->options);
 			p->options = NULL;
@@ -18422,12 +18397,6 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
 			"ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: %s\r\nTime: %d\r\n",
 			peer->name, s, pingtime);
-		if (!is_reachable) {
-			peer->allowed_methods = SIP_UNKNOWN;
-		} else {
-			set_pvt_allowed_methods(p, req);
-			peer->allowed_methods = p->allowed_methods;
-		}
 		if (is_reachable && sip_cfg.regextenonqualify)
 			register_peer_exten(peer, TRUE);
 	}
@@ -18682,7 +18651,7 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 		case 501: /* Not Implemented */
 			mark_method_unallowed(&p->allowed_methods, sipmethod);
 			if ((peer = find_peer(p->peername, 0, 1, FINDPEERS, FALSE))) {
-				peer->allowed_methods = p->allowed_methods;
+				mark_method_allowed(&peer->disallowed_methods, sipmethod);
 				unref_peer(peer, "handle_response: marking a specific method as unallowed");
 			}
 			if (sipmethod == SIP_INVITE)
@@ -20209,6 +20178,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		/* This is a new invite */
 		/* Handle authentication if this is our first invite */
 		struct ast_party_redirecting redirecting = {{0,},};
+		set_pvt_allowed_methods(p, req);
 		res = check_user(p, req, SIP_INVITE, e, XMIT_RELIABLE, sin);
 		if (res == AUTH_CHALLENGE_SENT) {
 			p->invitestate = INV_COMPLETED;		/* Needs to restart in another INVITE transaction */
@@ -21494,6 +21464,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	if (!req->ignore && !resubscribe) {	/* Set up dialog, new subscription */
 		const char *to = get_header(req, "To");
 		char totag[128];
+		set_pvt_allowed_methods(p, req);
 
 		/* Check to see if a tag was provided, if so this is actually a resubscription of a dialog we no longer know about */
 		if (!ast_strlen_zero(to) && gettag(req, "To", totag, sizeof(totag))) {
@@ -23830,6 +23801,7 @@ static void set_peer_defaults(struct sip_peer *peer)
 	peer->timer_t1 = global_t1;
 	peer->timer_b = global_timer_b;
 	clear_peer_mailboxes(peer);
+	peer->disallowed_methods = sip_cfg.disallowed_methods;
 }
 
 /*! \brief Create temporary peer (used in autocreatepeer mode) */
@@ -24285,6 +24257,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			} else {
 				peer->stimer.st_ref = i;
 			}
+		} else if (!strcasecmp(v->name, "disallowed_methods")) {
+			char *disallow = ast_strdupa(v->value);
+			mark_parsed_methods(&peer->disallowed_methods, disallow);
 		}
 	}
 
@@ -24572,6 +24547,7 @@ static int reload_config(enum channelreloadreason reason)
 	sip_cfg.directrtpsetup = FALSE;		/* Experimental feature, disabled by default */
 	sip_cfg.alwaysauthreject = DEFAULT_ALWAYSAUTHREJECT;
 	sip_cfg.allowsubscribe = FALSE;
+	sip_cfg.disallowed_methods = SIP_UNKNOWN;
 	snprintf(global_useragent, sizeof(global_useragent), "%s %s", DEFAULT_USERAGENT, ast_get_version());
 	snprintf(global_sdpsession, sizeof(global_sdpsession), "%s %s", DEFAULT_SDPSESSION, ast_get_version());
 	snprintf(global_sdpowner, sizeof(global_sdpowner), "%s", DEFAULT_SDPOWNER);
@@ -25064,6 +25040,9 @@ static int reload_config(enum channelreloadreason reason)
 				ast_log(LOG_WARNING, "Invalid pokepeers '%s' at line %d of %s\n", v->value, v->lineno, config);
 				global_qualify_peers = DEFAULT_QUALIFY_PEERS;
 			}
+		} else if (!strcasecmp(v->name, "disallowed_methods")) {
+			char *disallow = ast_strdupa(v->value);
+			mark_parsed_methods(&sip_cfg.disallowed_methods, disallow);
 		}
 	}
 
