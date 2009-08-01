@@ -1345,7 +1345,7 @@ int pbx_exec(struct ast_channel *c, /*!< Channel */
 			"the pipe.  Did you forget to convert your dialplan?  (%s(%s))\n",
 			app->name, (char *) data);
 	}
-	res = app->execute(c, S_OR(data, ""));
+	res = app->execute(c, S_OR((char *) data, ""));
 	if (app->module && u)
 		__ast_module_user_remove(app->module, u);
 	/* restore channel values */
