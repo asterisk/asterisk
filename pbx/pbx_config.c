@@ -1440,7 +1440,7 @@ static int pbx_load_config(const char *config_file)
 					goto process_extension;
 				}
 			} else if (!strcasecmp(v->name, "exten")) {
-				int ipri = -2;
+				int ipri;
 				char *plus, *firstp;
 				char *pri, *appl, *data, *cidmatch;
 
@@ -1452,6 +1452,7 @@ static int pbx_load_config(const char *config_file)
 				pbx_substitute_variables_helper(NULL, ext, realext, sizeof(realext) - 1);
 				ast_copy_string(lastextension, realext, sizeof(lastextension));
 process_extension:
+				ipri = -2;
 				if ((cidmatch = strchr(realext, '/'))) {
 					*cidmatch++ = '\0';
 					ast_shrink_phone_number(cidmatch);

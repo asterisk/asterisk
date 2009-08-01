@@ -98,7 +98,7 @@ editline/libedit.a: CHECK_SUBDIR
 	$(MAKE) -C editline libedit.a
 
 db1-ast/libdb1.a: CHECK_SUBDIR
-	CFLAGS="$(subst $(ASTTOPDIR),../../,$(_ASTCFLAGS) $(ASTCFLAGS))" LDFLAGS="$(ASTLDFLAGS)" $(MAKE) -C db1-ast libdb1.a
+	_ASTCFLAGS="$(_ASTCFLAGS)" ASTCFLAGS="$(ASTCFLAGS) -Wno-strict-aliasing" $(MAKE) -C db1-ast libdb1.a
 
 ast_expr2.c ast_expr2.h:
 	bison -o $@ -d --name-prefix=ast_yy ast_expr2.y

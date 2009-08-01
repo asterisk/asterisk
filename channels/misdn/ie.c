@@ -247,7 +247,7 @@ static void dec_ie_bearer(unsigned char *p, Q931_info_t *qi, int *coding, int *c
 		if (p[0] <= octet)
 			goto done;
 
-		if (!p[octet++] & 0x80)
+		if (~p[octet++] & 0x80)
 			goto l2;
 
 		/* Wheee. V.110 speed information */

@@ -11081,7 +11081,7 @@ static int misdn_command_cc_deactivate(struct ast_channel *chan, struct misdn_co
 			error_str = misdn_no_response_from_network;
 		} else if (cc_record->reject_code != FacReject_None) {
 			error_str = misdn_to_str_reject_code(cc_record->reject_code);
-		} else if (cc_record->reject_code != FacError_None) {
+		} else if (cc_record->error_code != FacError_None) {
 			error_str = misdn_to_str_error_code(cc_record->error_code);
 		} else {
 			error_str = NULL;

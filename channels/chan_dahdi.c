@@ -2526,7 +2526,7 @@ static void my_pri_fixup_chans(void *old_chan, void *new_chan)
 	old->dsp_features = 0;
 }
 
-static int sig_pri_tone_to_dahditone(enum analog_tone tone)
+static int sig_pri_tone_to_dahditone(enum sig_pri_tone tone)
 {
 	switch (tone) {
 	case SIG_PRI_TONE_RINGTONE:
