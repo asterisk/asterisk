@@ -647,7 +647,7 @@ static int ast_event_dup_and_cache(const struct ast_event *event)
 int ast_event_queue_and_cache(struct ast_event *event, ...)
 {
 	va_list ap;
-	enum ast_event_type ie_type;
+	enum ast_event_ie_type ie_type;
 	uint16_t host_event_type;
 	struct ast_event_ref *event_ref;
 	int res;
