@@ -1906,9 +1906,7 @@ handle_event_nt(void *dat, void *arg)
 		case CC_SETUP|INDICATION:
 		{
 			struct misdn_bchannel* bc=misdn_lib_get_free_bc(stack->port, 0, 1, 0);
-			if (!bc) 
-			ERR_NO_CHANNEL:
-			{
+			if (!bc) {
 				msg_t *dmsg;
 				cb_log(4, stack->port, "Patch from MEIDANIS:Sending RELEASE_COMPLETE %x (No free Chan for you..)\n", hh->dinfo);
 				dmsg = create_l3msg(CC_RELEASE_COMPLETE | REQUEST,MT_RELEASE_COMPLETE, hh->dinfo,sizeof(RELEASE_COMPLETE_t), 1);
@@ -2106,8 +2104,15 @@ handle_event_nt(void *dat, void *arg)
 					if (bc->channel<=0 || bc->channel==0xff) 
 						bc->channel=0;
 				
-					if (find_free_chan_in_stack(stack,bc, bc->channel,0)<0) 
-						goto ERR_NO_CHANNEL;
+					if (find_free_chan_in_stack(stack,bc, bc->channel,0)<0) {
+						msg_t *dmsg;
+						cb_log(4, stack->port, "Patch from MEIDANIS:Sending RELEASE_COMPLETE %x (No free Chan for you..)\n", hh->dinfo);
+						dmsg = create_l3msg(CC_RELEASE_COMPLETE | REQUEST,MT_RELEASE_COMPLETE, hh->dinfo,sizeof(RELEASE_COMPLETE_t), 1);
+						pthread_mutex_lock(&stack->nstlock);
+						stack->nst.manager_l3(&stack->nst, dmsg);
+						free_msg(msg);
+						return 0;
+					}
 					break;
 				case EVENT_RELEASE:
 				case EVENT_RELEASE_COMPLETE:
