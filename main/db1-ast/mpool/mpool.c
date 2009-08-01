@@ -31,6 +31,8 @@
  * SUCH DAMAGE.
  */
 
+#include "asterisk.h"
+
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)mpool.c	8.5 (Berkeley) 7/26/94";
 #endif /* LIBC_SCCS and not lint */
@@ -46,6 +48,8 @@ static char sccsid[] = "@(#)mpool.c	8.5 (Berkeley) 7/26/94";
 #include <unistd.h>
 
 #include "../include/db.h"
+
+#include "asterisk/utils.h"
 
 #define	__MPOOLINTERFACE_PRIVATE
 #include <mpool.h>
@@ -380,7 +384,7 @@ mpool_bkt(mp)
 			return (bp);
 		}
 
-new:	if ((bp = (BKT *)malloc(sizeof(BKT) + mp->pagesize)) == NULL)
+new:	if ((bp = (BKT *) ast_calloc(1, sizeof(BKT) + mp->pagesize)) == NULL)
 		return (NULL);
 #ifdef STATISTICS
 	++mp->pagealloc;
