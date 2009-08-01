@@ -22,7 +22,7 @@ Currently there are three realtime database drivers:
   \item ODBC: Support for UnixODBC, integrated into Asterisk
         The UnixODBC subsystem supports many different databases,
         please check \url{www.unixodbc.org} for more information.
-  \item MySQL: Found in the asterisk-addons subversion repository on \url{svn.digium.com}
+  \item MySQL: Native support for MySQL, integrated into Asterisk
   \item PostgreSQL: Native support for Postgres, integrated into Asterisk
 \end{itemize}
 
@@ -139,3 +139,12 @@ In order to use a FreeTDS-based database with realtime, you need to turn
 connection pooling on in res\_odbc.conf.  This is due to a limitation within
 the FreeTDS protocol itself.  Please note that this includes databases such
 as MS SQL Server and Sybase.  This support is new in the current release.
+
+You may notice a performance issue under high load using UnixODBC. The UnixODBC
+driver supports threading but you must specifically enable threading within the
+UnixODBC configuration file like below for each engine:
+
+	Threading = 2
+
+This will enable the driver to service many requests at a time, rather than
+serially.
