@@ -237,7 +237,7 @@ ifeq ($(AST_DEVMODE),yes)
   _ASTCFLAGS+=$(AST_FORTIFY_SOURCE)
   _ASTCFLAGS+=-Wundef 
   _ASTCFLAGS+=-Wmissing-format-attribute
-  _ASTCFLAGS+=-Wformat=2 -Wno-format-security
+  _ASTCFLAGS+=-Wformat=2
 endif
 
 ifneq ($(findstring BSD,$(OSARCH)),)
