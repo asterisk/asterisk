@@ -590,6 +590,11 @@ When documenting a 'static' function or an internal structure in a module,
 use the \internal modifier to ensure that the resulting documentation
 explicitly says 'for internal use only'.
 
+When adding new API you should also attach a \since note because this will 
+indicate to developers that this API did not exist before this version. It 
+also has the benefit of making the resulting HTML documentation to group 
+the changes for a single version.
+
 Structures should be documented as follows.
 
 /*!
