@@ -1274,7 +1274,7 @@ static struct ast_event_ref *alloc_event_ref(void)
 
 /*! \brief Duplicate an event and add it to the cache
  * \note This assumes this index in to the cache is locked */
-static int attribute_unused ast_event_dup_and_cache(const struct ast_event *event)
+static int ast_event_dup_and_cache(const struct ast_event *event)
 {
 	struct ast_event *dup_event;
 	struct ast_event_ref *event_ref;
@@ -1303,6 +1303,7 @@ int ast_event_queue_and_cache(struct ast_event *event)
 	struct ast_event_ref tmp_event_ref = {
 		.event = event,
 	};
+	int res = -1;
 
 	if (!(container = ast_event_cache[ast_event_get_type(event)].container)) {
 		ast_log(LOG_WARNING, "cache requested for non-cached event type\n");
@@ -1313,8 +1314,10 @@ int ast_event_queue_and_cache(struct ast_event *event)
 	ao2_callback(container, OBJ_POINTER | OBJ_UNLINK | OBJ_MULTIPLE | OBJ_NODATA,
 			ast_event_cmp, &tmp_event_ref);
 
+	res = ast_event_dup_and_cache(event);
+
 queue_event:
-	return ast_event_queue(event);
+	return ast_event_queue(event) ? -1 : res;
 }
 
 static int handle_event(void *data)
