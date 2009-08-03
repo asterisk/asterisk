@@ -272,9 +272,6 @@ static struct ast_jb_conf default_jbconf =
 };
 static struct ast_jb_conf global_jbconf;
 
-/* define this to send PRI user-user information elements */
-#undef SUPPORT_USERUSER
-
 /*!
  * \note Define ZHONE_HACK to cause us to go off hook and then back on hook when
  * the user hangs up to reset the state machine so ring works properly.
@@ -1996,7 +1993,7 @@ static void my_get_and_handle_alarms(void *pvt)
 {
 	int res;
 	struct dahdi_pvt *p = pvt;
-	
+
 	res = get_alarms(p);
 	handle_alarms(p, res);
 }
@@ -2069,7 +2066,7 @@ static void my_all_subchannels_hungup(void *pvt)
 
 	law = DAHDI_LAW_DEFAULT;
 	res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETLAW, &law);
-	if (res < 0) 
+	if (res < 0)
 		ast_log(LOG_WARNING, "Unable to set law on channel %d to default: %s\n", p->channel, strerror(errno));
 
 	dahdi_setlinear(p->subs[SUB_REAL].dfd, 0);
@@ -2219,7 +2216,7 @@ static int dahdi_setlaw(int dfd, int law)
 }
 #endif
 
-#ifdef HAVE_PRI
+#if defined(HAVE_PRI)
 static struct ast_channel *my_new_pri_ast_channel(void *pvt, int state, int startpbx, enum sig_pri_law law, int transfercapability, char *exten, const struct ast_channel *requestor)
 {
 	struct dahdi_pvt *p = pvt;
@@ -2250,7 +2247,7 @@ static struct ast_channel *my_new_pri_ast_channel(void *pvt, int state, int star
 	}
 	return dahdi_new(p, state, startpbx, SUB_REAL, newlaw, transfercapability, requestor ? requestor->linkedid : "");
 }
-#endif
+#endif	/* defined(HAVE_PRI) */
 
 static int unalloc_sub(struct dahdi_pvt *p, int x);
 
@@ -2499,7 +2496,7 @@ static int my_on_hook(void *pvt)
 	return dahdi_set_hook(p->subs[ANALOG_SUB_REAL].dfd, DAHDI_ONHOOK);
 }
 
-#ifdef HAVE_PRI
+#if defined(HAVE_PRI)
 static void my_pri_fixup_chans(void *old_chan, void *new_chan)
 {
 	struct dahdi_pvt *old = old_chan;
@@ -2556,7 +2553,7 @@ static void my_handle_dchan_exception(struct sig_pri_pri *pri, int index)
 	if (x) {
 		ast_log(LOG_NOTICE, "PRI got event: %s (%d) on D-channel of span %d\n", event2str(x), x, pri->span);
 	}
-	/* Keep track of alarm state */	
+	/* Keep track of alarm state */
 	if (x == DAHDI_EVENT_ALARM) {
 		pri_event_alarm(pri, index, 0);
 	} else if (x == DAHDI_EVENT_NOALARM) {
@@ -2582,7 +2579,7 @@ static struct sig_pri_callback dahdi_pri_callbacks =
 	.fixup_chans = my_pri_fixup_chans,
 	.set_dialing = my_set_dialing,
 };
-#endif /* HAVE_PRI */
+#endif	/* defined(HAVE_PRI) */
 
 /*!
  * \brief Send MWI state change
@@ -4301,7 +4298,7 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 	p->outgoing = 1;
 
 	set_actual_gain(p->subs[SUB_REAL].dfd, 0, p->rxgain, p->txgain, p->law);
-	
+
 #ifdef HAVE_PRI
 	if (p->sig == SIG_PRI || p->sig == SIG_BRI || p->sig == SIG_BRI_PTMP) {
 		struct dahdi_params ps;
@@ -4340,7 +4337,8 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 		ast_mutex_unlock(&p->lock);
 		return -1;
 	}
-#ifdef HAVE_SS7
+
+#if defined(HAVE_SS7)
 	if (p->ss7) {
 		char ss7_called_nai;
 		int called_nai_strip;
@@ -4477,7 +4475,8 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 		ast_setstate(ast, AST_STATE_DIALING);
 		ss7_rel(p->ss7);
 	}
-#endif /* HAVE_SS7 */
+#endif	/* defined(HAVE_SS7) */
+
 #ifdef HAVE_OPENR2
 	if (p->mfcr2) {
 		openr2_calling_party_category_t chancat;
@@ -5203,7 +5202,7 @@ hangup_out:
 	if (p->cidspill)
 		ast_free(p->cidspill);
 	p->cidspill = NULL;
-	
+
 	ast_mutex_unlock(&p->lock);
 	ast_module_unref(ast_module_info->self);
 	ast_verb(3, "Hungup '%s'\n", ast->name);
@@ -5614,7 +5613,7 @@ static int parse_buffers_policy(const char *parse, int *num_buffers, int *policy
 {
 	int res;
 	char policy_str[21] = "";
-	
+
 	if ((res = sscanf(parse, "%d,%20s", num_buffers, policy_str)) != 2) {
 		ast_log(LOG_WARNING, "Parsing buffer string '%s' failed.\n", parse);
 		return 1;
@@ -5643,7 +5642,7 @@ static int dahdi_func_write(struct ast_channel *chan, const char *function, char
 {
 	struct dahdi_pvt *p = chan->tech_pvt;
 	int res = 0;
-	
+
 	if (!strcasecmp(data, "buffers")) {
 		int num_bufs, policy;
 
@@ -5668,11 +5667,11 @@ static int dahdi_func_write(struct ast_channel *chan, const char *function, char
 		if (!strcasecmp(value, "on")) {
 			ast_mutex_lock(&p->lock);
 			dahdi_enable_ec(p);
-			ast_mutex_unlock(&p->lock);	
+			ast_mutex_unlock(&p->lock);
 		} else if (!strcasecmp(value, "off")) {
 			ast_mutex_lock(&p->lock);
 			dahdi_disable_ec(p);
-			ast_mutex_unlock(&p->lock);	
+			ast_mutex_unlock(&p->lock);
 #ifdef HAVE_DAHDI_ECHOCANCEL_FAX_MODE
 		} else if (!strcasecmp(value, "fax")) {
 			int blah = 1;
@@ -5684,7 +5683,7 @@ static int dahdi_func_write(struct ast_channel *chan, const char *function, char
 			if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_ECHOCANCEL_FAX_MODE, &blah)) {
 				ast_log(LOG_WARNING, "Unable to place echocan into fax mode on channel %d: %s\n", p->channel, strerror(errno));
 			}
-			ast_mutex_unlock(&p->lock);	
+			ast_mutex_unlock(&p->lock);
 		} else if (!strcasecmp(value, "voice")) {
 			int blah = 0;
 
@@ -5695,7 +5694,7 @@ static int dahdi_func_write(struct ast_channel *chan, const char *function, char
 			if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_ECHOCANCEL_FAX_MODE, &blah)) {
 				ast_log(LOG_WARNING, "Unable to place echocan into voice mode on channel %d: %s\n", p->channel, strerror(errno));
 			}
-			ast_mutex_unlock(&p->lock);	
+			ast_mutex_unlock(&p->lock);
 #endif
 		} else {
 			ast_log(LOG_WARNING, "Unsupported value '%s' provided for '%s' item.\n", value, data);
@@ -7287,7 +7286,7 @@ static struct ast_frame *__dahdi_exception(struct ast_channel *ast)
 		return f;
 	}
 	f = dahdi_handle_event(ast);
- 
+
 	/* tell the cdr this zap device hung up */
 	if (f == NULL) {
 		ast_set_hangupsource(ast, ast->name, 0);
@@ -7660,7 +7659,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 	if (f && (f->frametype == AST_FRAME_DTMF)) {
 		if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
 			analog_handle_dtmfup(p->sig_pvt, ast, idx, &f);
-		} else 
+		} else
 			dahdi_handle_dtmfup(ast, idx, &f);
 	}
 
@@ -7780,6 +7779,7 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 	int res=-1;
 	int idx;
 	int func = DAHDI_FLASH;
+
 	ast_mutex_lock(&p->lock);
 	idx = dahdi_get_index(chan, p, 0);
 	ast_debug(1, "Requested indication %d on channel %s\n", condition, chan->name);
@@ -10924,7 +10924,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		tmp->mwisend_fsk  = conf->chan.mwisend_fsk;
 		tmp->mwisend_rpas = conf->chan.mwisend_rpas;
 #endif
-		
+
 		tmp->group = conf->chan.group;
 		tmp->callgroup = conf->chan.callgroup;
 		tmp->pickupgroup= conf->chan.pickupgroup;
@@ -11044,7 +11044,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 
 				analog_config_complete(analog_p);
 			}
-		} 
+		}
 #ifdef HAVE_PRI
 		else if (pchan != NULL) {
 			pchan->channel = tmp->channel;
@@ -11334,7 +11334,7 @@ static struct ast_channel *dahdi_request(const char *type, int format, const str
 			else if (p->sig == SIG_PRI || p->sig == SIG_BRI || p->sig == SIG_BRI_PTMP) {
 				tmp = sig_pri_request(p->sig_pvt, SIG_PRI_DEFLAW, requestor);
 			}
-#endif   
+#endif
 			else {
 				tmp = dahdi_new(p, AST_STATE_RESERVED, 0, p->owner ? SUB_CALLWAIT : SUB_REAL, 0, 0, requestor ? requestor->linkedid : "");
 			}
@@ -12610,7 +12610,7 @@ static char *handle_pri_service_generic(struct ast_cli_entry *e, int cmd, struct
 	struct dahdi_pvt *start, *tmp = NULL;
 	struct dahdi_pri *pri = NULL;
 	ast_mutex_t *lock;
-	
+
 	lock = &iflock;
 	start = iflist;
 
@@ -12635,7 +12635,7 @@ static char *handle_pri_service_generic(struct ast_cli_entry *e, int cmd, struct
 		}
 	} else
 		channel = atoi(a->argv[4]);
-	
+
 	if (a->argc == 6)
 		interfaceid = atoi(a->argv[5]);
 
@@ -12706,15 +12706,15 @@ static char *handle_pri_service_generic(struct ast_cli_entry *e, int cmd, struct
 static char *handle_pri_service_enable_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
-	case CLI_INIT:	
+	case CLI_INIT:
 		e->command = "pri service enable channel";
-		e->usage = 
+		e->usage =
 			"Usage: pri service enable channel <channel> [<interface id>]\n"
 			"       Send an AT&T / NFAS / CCS ANSI T1.607 maintenance message\n"
 			"	to restore a channel to service, with optional interface id\n"
 			"	as agreed upon with remote switch operator\n";
 		return NULL;
-	case CLI_GENERATE:	
+	case CLI_GENERATE:
 		return NULL;
 	}
 	return handle_pri_service_generic(e, cmd, a, 0);
@@ -12723,15 +12723,15 @@ static char *handle_pri_service_enable_channel(struct ast_cli_entry *e, int cmd,
 static char *handle_pri_service_disable_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
-	case CLI_INIT:	
+	case CLI_INIT:
 		e->command = "pri service disable channel";
-		e->usage = 
+		e->usage =
 			"Usage: pri service disable channel <chan num> [<interface id>]\n"
 			"	Send an AT&T / NFAS / CCS ANSI T1.607 maintenance message\n"
 			"	to remove a channel from service, with optional interface id\n"
 			"	as agreed upon with remote switch operator\n";
 		return NULL;
-	case CLI_GENERATE:	
+	case CLI_GENERATE:
 		return NULL;
 	}
 	return handle_pri_service_generic(e, cmd, a, 2);
