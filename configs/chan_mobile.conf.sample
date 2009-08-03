@@ -38,6 +38,7 @@ port=4				; the rfcomm port number (from mobile search)
 context=incoming-mobile		; dialplan context for incoming calls
 adapter=dlink			; adapter to use
 group=1				; this phone is in channel group 1
+;sms=no				; support SMS, defaults to yes
 ;nocallsetup=yes		; set this only if your phone reports that it supports call progress notification, but does not do it. Motorola L6 for example.
 
 [blackberry]

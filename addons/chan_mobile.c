@@ -3082,9 +3082,11 @@ static int handle_response_ok(struct mbl_pvt *pvt, char *buf)
 			ast_debug(1, "[%s] volume level synchronization successful\n", pvt->id);
 
 			/* set the SMS operating mode to text mode */
-			if (hfp_send_cmgf(pvt->hfp, 1) || msg_queue_push(pvt, AT_OK, AT_CMGF)) {
-				ast_debug(1, "[%s] error setting CMGF\n", pvt->id);
-				goto e_return;
+			if (pvt->has_sms) {
+				if (hfp_send_cmgf(pvt->hfp, 1) || msg_queue_push(pvt, AT_OK, AT_CMGF)) {
+					ast_debug(1, "[%s] error setting CMGF\n", pvt->id);
+					goto e_return;
+				}
 			}
 			break;
 		case AT_CMGF:
@@ -3192,10 +3194,12 @@ static int handle_response_error(struct mbl_pvt *pvt, char *buf)
 			}
 			break;
 		case AT_CMGF:
+			pvt->has_sms = 0;
 			ast_debug(1, "[%s] error setting CMGF\n", pvt->id);
 			ast_debug(1, "[%s] no SMS support\n", pvt->id);
 			break;
 		case AT_CNMI:
+			pvt->has_sms = 0;
 			ast_debug(1, "[%s] error setting CNMI\n", pvt->id);
 			ast_debug(1, "[%s] no SMS support\n", pvt->id);
 			break;
@@ -4157,6 +4161,7 @@ static struct mbl_pvt *mbl_load_device(struct ast_config *cfg, const char *cat)
 	pvt->sco_socket = -1;
 	pvt->monitor_thread = AST_PTHREADT_NULL;
 	pvt->ring_sched_id = -1;
+	pvt->has_sms = 1;
 
 	/* setup the smoother */
 	if (!(pvt->smoother = ast_smoother_new(DEVICE_FRAME_SIZE))) {
@@ -4190,6 +4195,8 @@ static struct mbl_pvt *mbl_load_device(struct ast_config *cfg, const char *cat)
 		} else if (!strcasecmp(v->name, "group")) {
 			/* group is set to 0 if invalid */
 			pvt->group = atoi(v->value);
+		} else if (!strcasecmp(v->name, "sms")) {
+			pvt->has_sms = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "nocallsetup")) {
 			pvt->no_callsetup = ast_true(v->value);
 
@@ -4197,6 +4204,7 @@ static struct mbl_pvt *mbl_load_device(struct ast_config *cfg, const char *cat)
 				ast_debug(1, "Setting nocallsetup mode for device %s.\n", pvt->id);
 		} else if (!strcasecmp(v->name, "blackberry")) {
 			pvt->blackberry = ast_true(v->value);
+			pvt->has_sms = 0;
 		}
 	}
 
@@ -4209,6 +4217,8 @@ static struct mbl_pvt *mbl_load_device(struct ast_config *cfg, const char *cat)
 		pvt->hfp->owner = pvt;
 		pvt->hfp->rport = pvt->rfcomm_port;
 		pvt->hfp->nocallsetup = pvt->no_callsetup;
+	} else {
+		pvt->has_sms = 0;
 	}
 
 	AST_RWLIST_WRLOCK(&devices);
