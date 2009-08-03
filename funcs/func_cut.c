@@ -89,7 +89,7 @@ static int sort_internal(struct ast_channel *chan, char *data, char *buffer, siz
 	/* Parse each into a struct */
 	count2 = 0;
 	while ((ptrkey = strsep(&strings, "|"))) {
-		ptrvalue = index(ptrkey, ':');
+		ptrvalue = strchr(ptrkey, ':');
 		if (!ptrvalue) {
 			count--;
 			continue;
@@ -191,7 +191,7 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 				/* Get to start, if any */
 				if (num1 > 0) {
 					while (tmp2 != (char *)NULL + 1 && curfieldnum < num1) {
-						tmp2 = index(tmp2, d) + 1;
+						tmp2 = strchr(tmp2, d) + 1;
 						curfieldnum++;
 					}
 				}

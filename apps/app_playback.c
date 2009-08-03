@@ -207,13 +207,13 @@ static int do_say(say_args_t *a, const char *s, const char *options, int depth)
 		pbx_substitute_variables_varshead(&head, x, fn, sizeof(fn));
 
 		/* locate prefix and data, if any */
-		fmt = index(fn, ':');
+		fmt = strchr(fn, ':');
 		if (!fmt || fmt == fn)	{	/* regular filename */
 			ret = s_streamwait3(a, fn);
 			continue;
 		}
 		fmt++;
-		data = index(fmt, ':');	/* colon before data */
+		data = strchr(fmt, ':');	/* colon before data */
 		if (!data || data == fmt) {	/* simple prefix-fmt */
 			ret = do_say(a, fn, options, depth);
 			continue;
@@ -226,14 +226,14 @@ static int do_say(say_args_t *a, const char *s, const char *options, int depth)
 			if (*p == '\'') {/* file name - we trim them */
 				char *y;
 				strcpy(fn2, ast_skip_blanks(p+1));	/* make a full copy */
-				y = index(fn2, '\'');
+				y = strchr(fn2, '\'');
 				if (!y) {
 					p = data;	/* invalid. prepare to end */
 					break;
 				}
 				*y = '\0';
 				ast_trim_blanks(fn2);
-				p = index(p+1, '\'');
+				p = strchr(p + 1, '\'');
 				ret = s_streamwait3(a, fn2);
 			} else {
 				int l = fmt-fn;

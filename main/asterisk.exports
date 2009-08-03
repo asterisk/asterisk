@@ -40,7 +40,6 @@
 		getloadavg;
 		strlcat;
 		strlcpy;
-		index;
 	local:
 		*;
 };

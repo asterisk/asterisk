@@ -181,9 +181,6 @@
    or greater. */
 #undef HAVE_IMAP_TK2006
 
-/* Define to 1 if you have the `index' function. */
-#undef HAVE_INDEX
-
 /* Define to 1 if you have the `inet_ntoa' function. */
 #undef HAVE_INET_NTOA
 

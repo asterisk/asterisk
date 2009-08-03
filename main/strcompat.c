@@ -84,13 +84,6 @@ int unsetenv(const char *name)
 }
 #endif
 
-#ifndef HAVE_INDEX
-char *index(const char *haystack, int needle)
-{
-	return strchr(haystack, needle);
-}
-#endif
-
 #ifndef HAVE_STRCASESTR
 static char *upper(const char *orig, char *buf, int bufsize)
 {
