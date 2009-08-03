@@ -17,7 +17,7 @@
  */
 
 /*! \file
- * 
+ *
  * \brief Analog signaling module
  *
  * \author Matthew Fredrickson <creslin@digium.com>
@@ -618,7 +618,7 @@ int analog_available(struct analog_pvt *p, int channelmatch, ast_group_t groupma
 	if (p->dnd)
 		return 0;
 	/* If guard time, definitely not */
-	if (p->guardtime && (time(NULL) < p->guardtime)) 
+	if (p->guardtime && (time(NULL) < p->guardtime))
 		return 0;
 
 	/* If no owner definitely available */
@@ -645,7 +645,7 @@ int analog_available(struct analog_pvt *p, int channelmatch, ast_group_t groupma
 	}
 
 	/* If it's not an FXO, forget about call wait */
-	if ((p->sig != ANALOG_SIG_FXOKS) && (p->sig != ANALOG_SIG_FXOLS) && (p->sig != ANALOG_SIG_FXOGS)) 
+	if ((p->sig != ANALOG_SIG_FXOKS) && (p->sig != ANALOG_SIG_FXOLS) && (p->sig != ANALOG_SIG_FXOGS))
 		return 0;
 
 	if (!p->callwaiting) {
@@ -854,14 +854,14 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, char *rdest, int 
 		switch (mysig) {
 		case ANALOG_SIG_FEATD:
 			l = ast->connected.id.number;
-			if (l) 
+			if (l)
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T*%s*%s*", l, c);
 			else
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T**%s*", c);
 			break;
 		case ANALOG_SIG_FEATDMF:
 			l = ast->connected.id.number;
-			if (l) 
+			if (l)
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*00%s#*%s#", l, c);
 			else
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*02#*%s#", c);
@@ -1027,7 +1027,7 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 				/* This is actually part of a three way, placed on hold.  Place the third part
 				   on music on hold now */
 				if (p->subs[ANALOG_SUB_THREEWAY].owner && ast_bridged_channel(p->subs[ANALOG_SUB_THREEWAY].owner)) {
-					ast_queue_control_data(p->subs[ANALOG_SUB_THREEWAY].owner, AST_CONTROL_HOLD, 
+					ast_queue_control_data(p->subs[ANALOG_SUB_THREEWAY].owner, AST_CONTROL_HOLD,
 						S_OR(p->mohsuggest, NULL),
 						!ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
 				}
@@ -1042,7 +1042,7 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 				/* The other party of the three way call is currently in a call-wait state.
 				   Start music on hold for them, and take the main guy out of the third call */
 				if (p->subs[ANALOG_SUB_CALLWAIT].owner && ast_bridged_channel(p->subs[ANALOG_SUB_CALLWAIT].owner)) {
-					ast_queue_control_data(p->subs[ANALOG_SUB_CALLWAIT].owner, AST_CONTROL_HOLD, 
+					ast_queue_control_data(p->subs[ANALOG_SUB_CALLWAIT].owner, AST_CONTROL_HOLD,
 						S_OR(p->mohsuggest, NULL),
 						!ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
 				}
@@ -1623,12 +1623,12 @@ static void *__analog_ss_thread(void *data)
 		timeout = analog_firstdigittimeout;
 		/* If starting a threeway call, never timeout on the first digit so someone
 		   can use flash-hook as a "hold" feature */
-		if (p->subs[ANALOG_SUB_THREEWAY].owner) 
+		if (p->subs[ANALOG_SUB_THREEWAY].owner)
 			timeout = 999999;
 		while (len < AST_MAX_EXTENSION-1) {
 			/* Read digit unless it's supposed to be immediate, in which case the
 			   only answer is 's' */
-			if (p->immediate) 
+			if (p->immediate)
 				res = 's';
 			else
 				res = ast_waitfordigit(chan, timeout);
@@ -1650,7 +1650,7 @@ static void *__analog_ss_thread(void *data)
 				if (!res || !ast_matchmore_extension(chan, chan->context, exten, 1, p->cid_num)) {
 					if (getforward) {
 						/* Record this as the forwarding extension */
-						ast_copy_string(p->call_forward, exten, sizeof(p->call_forward)); 
+						ast_copy_string(p->call_forward, exten, sizeof(p->call_forward));
 						ast_verb(3, "Setting call forward to '%s' on channel %d\n", p->call_forward, p->channel);
 						res = analog_play_tone(p, index, ANALOG_TONE_DIALRECALL);
 						if (res)
@@ -1667,9 +1667,9 @@ static void *__analog_ss_thread(void *data)
 						ast_copy_string(chan->exten, exten, sizeof(chan->exten));
 						if (!ast_strlen_zero(p->cid_num)) {
 							if (!p->hidecallerid)
-								ast_set_callerid(chan, p->cid_num, NULL, p->cid_num); 
+								ast_set_callerid(chan, p->cid_num, NULL, p->cid_num);
 							else
-								ast_set_callerid(chan, NULL, NULL, p->cid_num); 
+								ast_set_callerid(chan, NULL, NULL, p->cid_num);
 						}
 						if (!ast_strlen_zero(p->cid_name)) {
 							if (!p->hidecallerid)
@@ -1701,7 +1701,7 @@ static void *__analog_ss_thread(void *data)
 				p->callwaiting = 0;
 				res = analog_play_tone(p, index, ANALOG_TONE_DIALRECALL);
 				if (res) {
-					ast_log(LOG_WARNING, "Unable to do dial recall on channel %s: %s\n", 
+					ast_log(LOG_WARNING, "Unable to do dial recall on channel %s: %s\n",
 						chan->name, strerror(errno));
 				}
 				len = 0;
@@ -1941,7 +1941,7 @@ static void *__analog_ss_thread(void *data)
 				if (!analog_start_cid_detect(p, p->cid_signalling)) {
 					while (1) {
 						res = analog_get_callerid(p, namebuf, numbuf, &ev, timeout - ast_tvdiff_ms(ast_tvnow(), start));
-	
+
 						if (res == 0) {
 							break;
 						}
@@ -1951,20 +1951,20 @@ static void *__analog_ss_thread(void *data)
 								if (ev == ANALOG_EVENT_RINGBEGIN) {
 									analog_off_hook(p);
 									usleep(1);
-								} 
+								}
 							} else {
 								ev = ANALOG_EVENT_NONE;
 								break;
 							}
 						}
-	
+
 						if (ast_tvdiff_ms(ast_tvnow(), start) > timeout)
 							break;
-	
+
 					}
 					name = namebuf;
 					number = numbuf;
-	
+
 					analog_stop_cid_detect(p);
 
 					if (p->cid_signalling == CID_SIG_V23_JP) {
@@ -1998,7 +1998,7 @@ static void *__analog_ss_thread(void *data)
 
 					if (analog_distinctive_ring(chan, p, index, NULL))
 						goto quit;
-	
+
 					if (res < 0) {
 						ast_log(LOG_WARNING, "CallerID returned with error on channel '%s'\n", chan->name);
 					}
@@ -2009,7 +2009,7 @@ static void *__analog_ss_thread(void *data)
 				ast_log(LOG_WARNING, "Channel %s in prering "
 					"state, but I have nothing to do. "
 					"Terminating simple switch, should be "
-					"restarted by the actual ring.\n", 
+					"restarted by the actual ring.\n",
 					chan->name);
 				ast_hangup(chan);
 				goto quit;
@@ -2038,7 +2038,7 @@ static void *__analog_ss_thread(void *data)
 							p->polarity = POLARITY_IDLE;
 							ast_hangup(chan);
 							goto quit;
-						} else if (ev != ANALOG_EVENT_NONE && ev != ANALOG_EVENT_RINGBEGIN && ev != ANALOG_EVENT_RINGOFFHOOK) { 
+						} else if (ev != ANALOG_EVENT_NONE && ev != ANALOG_EVENT_RINGBEGIN && ev != ANALOG_EVENT_RINGOFFHOOK) {
 							break;
 						}
 						if (res != 2) {
@@ -2595,7 +2595,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 
 						if (p->subs[ANALOG_SUB_THREEWAY].owner->cdr)
 							cdr3way = 1;
- 						
+
 						ast_verb(3, "Started three way call on channel %d\n", p->channel);
 						/* Start music on hold if appropriate */
 						if (ast_bridged_channel(p->subs[ANALOG_SUB_THREEWAY].owner)) {
@@ -2624,7 +2624,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 					p->subs[ANALOG_SUB_THREEWAY].inthreeway = 0;
 				} else {
 					/* Lets see what we're up to */
-					if (((ast->pbx) || (ast->_state == AST_STATE_UP)) && 
+					if (((ast->pbx) || (ast->_state == AST_STATE_UP)) &&
 					    (p->transfertobusy || (ast->_state != AST_STATE_BUSY))) {
 						int otherindex = ANALOG_SUB_THREEWAY;
 						struct ast_channel *other = ast_bridged_channel(p->subs[ANALOG_SUB_THREEWAY].owner);
@@ -2739,7 +2739,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 					ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d: %s\n", p->channel, strerror(errno));
 					p->dop.dialstr[0] = '\0';
 					return NULL;
-				} else 
+				} else
 					ast_debug(1, "Sent deferred digit string on channel %d: %s\n", p->channel, p->dop.dialstr);
 			}
 			p->dop.dialstr[0] = '\0';
@@ -2768,7 +2768,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		 * mark the channel as UP or if this is an indication
 		 * of remote end disconnect.
 		 */
-		
+
 		if (p->polarityonanswerdelay > 0) {
 			/* check if event is not too soon after OffHook or Answer */
 
@@ -2827,7 +2827,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 					}
 					break;
 
-				default:	
+				default:
 					if (p->answeronpolarityswitch || p->hanguponpolarityswitch) {
 						ast_debug(1, "Polarity switch detected (too close to previous event) on channel %d, state %d\n", p->channel, ast->_state);
 					}

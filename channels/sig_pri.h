@@ -91,7 +91,7 @@ struct sig_pri_callback {
 #define SRVST_DBKEY "service-state"
 /*! \brief The out-of-service SERVICE state */
 #define SRVST_TYPE_OOS "O"
-/*! \brief SRVST_INITIALIZED is used to indicate a channel being out-of-service 
+/*! \brief SRVST_INITIALIZED is used to indicate a channel being out-of-service
  *  The SRVST_INITIALIZED is mostly used maintain backwards compatibility but also may
  *  mean that the channel has not yet received a RESTART message.  If a channel is
  *  out-of-service with this reason a RESTART message will result in the channel
@@ -153,7 +153,7 @@ struct sig_pri_chan {
 
 	struct ast_channel *owner;
 
-	struct sig_pri_pri *pri;		
+	struct sig_pri_pri *pri;
 	q931_call *call;				/*!< opaque libpri call control structure */
 
 	int prioffset;					/*!< channel number in span */
