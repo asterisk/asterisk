@@ -50,6 +50,10 @@ size_t strnlen(const char *, size_t);
 char* strsep(char** str, const char* delims);
 #endif
 
+#ifndef HAVE_INDEX
+char *index(const char *haystack, int needle);
+#endif
+
 #ifndef HAVE_STRTOQ
 uint64_t strtoq(const char *nptr, char **endptr, int base);
 #endif
