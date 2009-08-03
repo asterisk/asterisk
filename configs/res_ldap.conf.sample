@@ -60,7 +60,7 @@ name = cn
 amaflags = AstAccountAMAFlags
 callgroup = AstAccountCallGroup
 callerid = AstAccountCallerID
-canreinvite = AstAccountCanReinvite
+directmedia = AstAccountDirectMedia
 context = AstAccountContext
 dtmfmode = AstAccountDTMFMode
 fromuser = AstAccountFromUser
@@ -131,7 +131,7 @@ additionalFilter=(objectClass=*)
 amaflags = AstAccountAMAFlags
 callgroup = AstAccountCallGroup
 callerid = AstAccountCallerID
-canreinvite = AstAccountCanReinvite
+directmedia = AstAccountDirectMedia
 context = AstAccountContext
 dtmfmode = AstAccountDTMFMode
 fromuser = AstAccountFromUser

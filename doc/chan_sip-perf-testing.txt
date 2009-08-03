@@ -58,7 +58,7 @@ type=friend
 context=test11
 host=192.168.134.240 ;; the address of the host you will be running sipp on
 user=sipp
-canreinvite=no
+directmedia=no
 disallow=all
 allow=ulaw
 

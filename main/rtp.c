@@ -2124,7 +2124,7 @@ int ast_rtp_early_bridge(struct ast_channel *c0, struct ast_channel *c1)
 		text_src_res = srcpr->get_trtp_info ? srcpr->get_trtp_info(c1, &tsrcp) : AST_RTP_GET_FAILED;
 	}
 
-	/* Check if bridge is still possible (In SIP canreinvite=no stops this, like NAT) */
+	/* Check if bridge is still possible (In SIP directmedia=no stops this, like NAT) */
 	if (audio_dest_res != AST_RTP_TRY_NATIVE || (video_dest_res != AST_RTP_GET_FAILED && video_dest_res != AST_RTP_TRY_NATIVE)) {
 		/* Somebody doesn't want to play... */
 		ast_channel_unlock(c0);
@@ -2211,7 +2211,7 @@ int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src, i
 	else
 		destcodec = 0;
 
-	/* Check if bridge is still possible (In SIP canreinvite=no stops this, like NAT) */
+	/* Check if bridge is still possible (In SIP directmedia=no stops this, like NAT) */
 	if (audio_dest_res != AST_RTP_TRY_NATIVE || (video_dest_res != AST_RTP_GET_FAILED && video_dest_res != AST_RTP_TRY_NATIVE) || audio_src_res != AST_RTP_TRY_NATIVE || (video_src_res != AST_RTP_GET_FAILED && video_src_res != AST_RTP_TRY_NATIVE) || !(srccodec & destcodec)) {
 		/* Somebody doesn't want to play... */
 		ast_channel_unlock(dest);

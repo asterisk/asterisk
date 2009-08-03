@@ -1182,7 +1182,7 @@ struct skinny_subchannel {
 	int immediate;					\
 	int hookstate;					\
 	int nat;					\
-	int canreinvite;				\
+	int directmedia;				\
 	int prune;
 
 struct skinny_line {
@@ -1208,7 +1208,7 @@ struct skinny_line_options{
  	.hidecallerid = 0,
 	.amaflags = 0,
  	.instance = 0,
- 	.canreinvite = 0,
+ 	.directmedia = 0,
  	.nat = 0,
  	.confcapability = AST_FORMAT_ULAW | AST_FORMAT_ALAW,
  	.capability = 0,
@@ -2593,7 +2593,7 @@ static enum ast_rtp_get_result skinny_get_rtp_peer(struct ast_channel *c, struct
 
 	l = sub->parent;
 
-	if (!l->canreinvite || l->nat){
+	if (!l->directmedia || l->nat){
 		res = AST_RTP_TRY_PARTIAL;
 		if (skinnydebug)
 			ast_verb(1, "skinny_get_rtp_peer() Using AST_RTP_TRY_PARTIAL \n");
@@ -2653,7 +2653,7 @@ static int skinny_set_rtp_peer(struct ast_channel *c, struct ast_rtp *rtp, struc
 
 		req->data.startmedia.conferenceId = htolel(sub->callid);
 		req->data.startmedia.passThruPartyId = htolel(sub->callid);
-		if (!(l->canreinvite) || (l->nat)){
+		if (!(l->directmedia) || (l->nat)){
 			ast_rtp_get_us(rtp, &us);
 			req->data.startmedia.remoteIp = htolel(d->ourip.s_addr);
 			req->data.startmedia.remotePort = htolel(ntohs(us.sin_port));
@@ -6631,9 +6631,9 @@ static struct ast_channel *skinny_request(const char *type, int format, void *da
  				CLINE_OPTS->callwaiting = ast_true(v->value);
  				continue;
  			}
- 		} else if (!strcasecmp(v->name, "canreinvite")) {
+ 		} else if (!strcasecmp(v->name, "directmedia") || !strcasecmp(v->name, "canreinvite")) {
  			if (type & (TYPE_DEF_LINE | TYPE_LINE)) {
- 				CLINE_OPTS->canreinvite = ast_true(v->value);
+ 				CLINE_OPTS->directmedia = ast_true(v->value);
  				continue;
  			}
  		} else if (!strcasecmp(v->name, "nat")) {
