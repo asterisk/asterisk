@@ -6264,7 +6264,35 @@ static void *ss_thread(void *data)
 				tone_zone_play_tone(p->subs[index].dfd, -1);
 			else
 				tone_zone_play_tone(p->subs[index].dfd, DAHDI_TONE_DIALTONE);
-			if (ast_exists_extension(chan, chan->context, exten, 1, p->cid_num) && strcmp(exten, ast_parking_ext())) {
+			if (!strcmp(exten,ast_pickup_ext())) {
+				/* Scan all channels and see if there are any
+				 * ringing channels that have call groups
+				 * that equal this channels pickup group
+				 */
+				if (index == SUB_REAL) {
+					/* Switch us from Third call to Call Wait */
+					if (p->subs[SUB_THREEWAY].owner) {
+						/* If you make a threeway call and the *8# a call, it should actually
+						   look like a callwait */
+						alloc_sub(p, SUB_CALLWAIT);
+						swap_subs(p, SUB_CALLWAIT, SUB_THREEWAY);
+						unalloc_sub(p, SUB_THREEWAY);
+					}
+					dahdi_enable_ec(p);
+					if (ast_pickup_call(chan)) {
+						ast_log(LOG_DEBUG, "No call pickup possible...\n");
+						res = tone_zone_play_tone(p->subs[index].dfd, DAHDI_TONE_CONGESTION);
+						dahdi_wait_event(p->subs[index].dfd);
+					}
+					ast_hangup(chan);
+					goto quit;
+				} else {
+					ast_log(LOG_WARNING, "Huh?  Got *8# on call not on real\n");
+					ast_hangup(chan);
+					goto quit;
+				}
+
+			} else if (ast_exists_extension(chan, chan->context, exten, 1, p->cid_num) && strcmp(exten, ast_parking_ext())) {
 				if (!res || !ast_matchmore_extension(chan, chan->context, exten, 1, p->cid_num)) {
 					if (getforward) {
 						/* Record this as the forwarding extension */
@@ -6329,34 +6357,6 @@ static void *ss_thread(void *data)
 				memset(exten, 0, sizeof(exten));
 				timeout = firstdigittimeout;
 					
-			} else if (!strcmp(exten,ast_pickup_ext())) {
-				/* Scan all channels and see if there are any
-				 * ringing channels that have call groups
-				 * that equal this channels pickup group  
-				 */
-			  	if (index == SUB_REAL) {
-					/* Switch us from Third call to Call Wait */
-				  	if (p->subs[SUB_THREEWAY].owner) {
-						/* If you make a threeway call and the *8# a call, it should actually 
-						   look like a callwait */
-						alloc_sub(p, SUB_CALLWAIT);	
-					  	swap_subs(p, SUB_CALLWAIT, SUB_THREEWAY);
-						unalloc_sub(p, SUB_THREEWAY);
-					}
-					dahdi_enable_ec(p);
-					if (ast_pickup_call(chan)) {
-						ast_log(LOG_DEBUG, "No call pickup possible...\n");
-						res = tone_zone_play_tone(p->subs[index].dfd, DAHDI_TONE_CONGESTION);
-						dahdi_wait_event(p->subs[index].dfd);
-					}
-					ast_hangup(chan);
-					goto quit;
-				} else {
-					ast_log(LOG_WARNING, "Huh?  Got *8# on call not on real\n");
-					ast_hangup(chan);
-					goto quit;
-				}
-				
 			} else if (!p->hidecallerid && !strcmp(exten, "*67")) {
 				if (option_verbose > 2) 
 					ast_verbose(VERBOSE_PREFIX_3 "Disabling Caller*ID on %s\n", chan->name);
