@@ -5024,18 +5024,14 @@ int ast_do_masquerade(struct ast_channel *original)
 	/* Create the masq name */
 	snprintf(masqn, sizeof(masqn), "%s<MASQ>", newn);
 
-	/* Copy the name from the clone channel */
-	ast_change_name(original, newn);
-
 	/* Mangle the name of the clone channel */
 	ast_change_name(clonechan, masqn);
 
+	/* Copy the name from the clone channel */
+	ast_change_name(original, newn);
+
 	/* share linked id's */
 	ast_channel_set_linkgroup(original, clonechan);
-
-	/* Notify any managers of the change, first the masq then the other */
-	manager_event(EVENT_FLAG_CALL, "Rename", "Channel: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", newn, masqn, clonechan->uniqueid);
-	manager_event(EVENT_FLAG_CALL, "Rename", "Channel: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", orig, newn, original->uniqueid);
 
 	/* Swap the technologies */
 	t = original->tech;
