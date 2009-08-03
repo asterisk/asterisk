@@ -1457,8 +1457,8 @@ struct sip_auth {
 /* re-INVITE related settings */
 #define SIP_REINVITE		(7 << 20)	/*!< DP: four settings, uses three bits */
 #define SIP_REINVITE_NONE	(0 << 20)	/*!< DP: no reinvite allowed */
-#define SIP_CAN_REINVITE	(1 << 20)	/*!< DP: allow peers to be reinvited to send media directly p2p */
-#define SIP_CAN_REINVITE_NAT	(2 << 20)	/*!< DP: allow media reinvite when new peer is behind NAT */
+#define SIP_DIRECT_MEDIA	(1 << 20)	/*!< DP: allow peers to be reinvited to send media directly p2p */
+#define SIP_DIRECT_MEDIA_NAT	(2 << 20)	/*!< DP: allow media reinvite when new peer is behind NAT */
 #define SIP_REINVITE_UPDATE	(4 << 20)	/*!< DP: use UPDATE (RFC3311) when reinviting this peer */
 
 /* "insecure" settings - see insecure2str() */
@@ -15369,7 +15369,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  Force rport  : %s\n", cli_yesno(ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT)));
 		ast_cli(fd, "  ACL          : %s\n", cli_yesno(peer->ha != NULL));
 		ast_cli(fd, "  T38 pt UDPTL : %s\n", cli_yesno(ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT)));
-		ast_cli(fd, "  CanReinvite  : %s\n", cli_yesno(ast_test_flag(&peer->flags[0], SIP_CAN_REINVITE)));
+		ast_cli(fd, "  DirectMedia  : %s\n", cli_yesno(ast_test_flag(&peer->flags[0], SIP_DIRECT_MEDIA)));
 		ast_cli(fd, "  PromiscRedir : %s\n", cli_yesno(ast_test_flag(&peer->flags[0], SIP_PROMISCREDIR)));
 		ast_cli(fd, "  User=Phone   : %s\n", cli_yesno(ast_test_flag(&peer->flags[0], SIP_USEREQPHONE)));
 		ast_cli(fd, "  Video Support: %s\n", cli_yesno(ast_test_flag(&peer->flags[1], SIP_PAGE2_VIDEOSUPPORT)));
@@ -15473,7 +15473,8 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		astman_append(s, "SIP-AuthInsecure: %s\r\n", insecure2str(ast_test_flag(&peer->flags[0], SIP_INSECURE)));
 		astman_append(s, "SIP-Forcerport: %s\r\n", (ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT)?"Y":"N"));
 		astman_append(s, "ACL: %s\r\n", (peer->ha?"Y":"N"));
-		astman_append(s, "SIP-CanReinvite: %s\r\n", (ast_test_flag(&peer->flags[0], SIP_CAN_REINVITE)?"Y":"N"));
+		astman_append(s, "SIP-CanReinvite: %s\r\n", (ast_test_flag(&peer->flags[0], SIP_DIRECT_MEDIA)?"Y":"N"));
+		astman_append(s, "SIP-DirectMedia: %s\r\n", (ast_test_flag(&peer->flags[0], SIP_DIRECT_MEDIA)?"Y":"N"));
 		astman_append(s, "SIP-PromiscRedir: %s\r\n", (ast_test_flag(&peer->flags[0], SIP_PROMISCREDIR)?"Y":"N"));
 		astman_append(s, "SIP-UserPhone: %s\r\n", (ast_test_flag(&peer->flags[0], SIP_USEREQPHONE)?"Y":"N"));
 		astman_append(s, "SIP-VideoSupport: %s\r\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_VIDEOSUPPORT)?"Y":"N"));
@@ -23488,11 +23489,11 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 			ast_set_flag(&mask[1], SIP_PAGE2_SYMMETRICRTP);
 			ast_set_flag(&flags[1], SIP_PAGE2_SYMMETRICRTP);
 		}
-	} else if (!strcasecmp(v->name, "canreinvite")) {
+	} else if (!strcasecmp(v->name, "directmedia") || !strcasecmp(v->name, "canreinvite")) {
 		ast_set_flag(&mask[0], SIP_REINVITE);
 		ast_clear_flag(&flags[0], SIP_REINVITE);
 		if (ast_true(v->value)) {
-			ast_set_flag(&flags[0], SIP_CAN_REINVITE | SIP_CAN_REINVITE_NAT);
+			ast_set_flag(&flags[0], SIP_DIRECT_MEDIA | SIP_DIRECT_MEDIA_NAT);
 		} else if (!ast_false(v->value)) {
 			char buf[64];
 			char *word, *next = buf;
@@ -23500,12 +23501,12 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 			ast_copy_string(buf, v->value, sizeof(buf));
 			while ((word = strsep(&next, ","))) {
 				if (!strcasecmp(word, "update")) {
-					ast_set_flag(&flags[0], SIP_REINVITE_UPDATE | SIP_CAN_REINVITE);
+					ast_set_flag(&flags[0], SIP_REINVITE_UPDATE | SIP_DIRECT_MEDIA);
 				} else if (!strcasecmp(word, "nonat")) {
-					ast_set_flag(&flags[0], SIP_CAN_REINVITE);
-					ast_clear_flag(&flags[0], SIP_CAN_REINVITE_NAT);
+					ast_set_flag(&flags[0], SIP_DIRECT_MEDIA);
+					ast_clear_flag(&flags[0], SIP_DIRECT_MEDIA_NAT);
 				} else {
-					ast_log(LOG_WARNING, "Unknown canreinvite mode '%s' on line %d\n", v->value, v->lineno);
+					ast_log(LOG_WARNING, "Unknown directmedia mode '%s' on line %d\n", v->value, v->lineno);
 				}
 			}
 		}
@@ -24594,7 +24595,7 @@ static int reload_config(enum channelreloadreason reason)
 	ast_copy_string(default_mohsuggest, DEFAULT_MOHSUGGEST, sizeof(default_mohsuggest));
 	ast_copy_string(default_vmexten, DEFAULT_VMEXTEN, sizeof(default_vmexten));
 	ast_set_flag(&global_flags[0], SIP_DTMF_RFC2833);			/*!< Default DTMF setting: RFC2833 */
-	ast_set_flag(&global_flags[0], SIP_CAN_REINVITE);			/*!< Allow re-invites */
+	ast_set_flag(&global_flags[0], SIP_DIRECT_MEDIA);			/*!< Allow re-invites */
 	ast_copy_string(default_engine, DEFAULT_ENGINE, sizeof(default_engine));
 
 	/* Debugging settings, always default to off */
@@ -25291,7 +25292,7 @@ static struct ast_udptl *sip_get_udptl_peer(struct ast_channel *chan)
 		return NULL;
 	
 	sip_pvt_lock(p);
-	if (p->udptl && ast_test_flag(&p->flags[0], SIP_CAN_REINVITE))
+	if (p->udptl && ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA))
 		udptl = p->udptl;
 	sip_pvt_unlock(p);
 	return udptl;
@@ -25342,7 +25343,7 @@ static enum ast_rtp_glue_result sip_get_rtp_peer(struct ast_channel *chan, struc
 	ao2_ref(p->rtp, +1);
 	*instance = p->rtp;
 
-	if (ast_test_flag(&p->flags[0], SIP_CAN_REINVITE | SIP_CAN_REINVITE_NAT)) {
+	if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA | SIP_DIRECT_MEDIA_NAT)) {
                 res = AST_RTP_GLUE_RESULT_REMOTE;
 	} else if (ast_test_flag(&global_jbconf, AST_JB_FORCED)) {
                 res = AST_RTP_GLUE_RESULT_FORBID;
@@ -25371,7 +25372,7 @@ static enum ast_rtp_glue_result sip_get_vrtp_peer(struct ast_channel *chan, stru
 	ao2_ref(p->vrtp, +1);
 	*instance = p->vrtp;
 
-	if (ast_test_flag(&p->flags[0], SIP_CAN_REINVITE)) {
+	if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA)) {
 		res = AST_RTP_GLUE_RESULT_REMOTE;
 	}
 
@@ -25398,7 +25399,7 @@ static enum ast_rtp_glue_result sip_get_trtp_peer(struct ast_channel *chan, stru
 	ao2_ref(p->trtp, +1);
         *instance = p->trtp;
 
-        if (ast_test_flag(&p->flags[0], SIP_CAN_REINVITE)) {
+        if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA)) {
                 res = AST_RTP_GLUE_RESULT_REMOTE;
         }
 
@@ -25430,7 +25431,7 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *i
         /* if this peer cannot handle reinvites of the media stream to devices
            that are known to be behind a NAT, then stop the process now
 	*/
-        if (nat_active && !ast_test_flag(&p->flags[0], SIP_CAN_REINVITE_NAT)) {
+        if (nat_active && !ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA_NAT)) {
                 sip_pvt_unlock(p);
                 return 0;
         }

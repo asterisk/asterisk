@@ -41,6 +41,17 @@ From 1.6.2 to 1.6.3:
 
 From 1.6.1 to 1.6.2:
 
+* The 'canreinvite' option support by the SIP, MGCP and Skinny channel drivers
+  has been renamed to 'directmedia', to better reflect what it actually does.
+  In the case of SIP, there are still re-INVITEs issued for T.38 negotiation,
+  starting and stopping music-on-hold, and other reasons, and the 'canreinvite'
+  option never had any effect on these cases, it only affected the re-INVITEs
+  used for direct media path setup. For MGCP and Skinny, the option was poorly
+  named because those protocols don't even use INVITE messages at all. For
+  backwards compatibility, the old option is still supported in both normal
+  and Realtime configuration files, but all of the sample configuration files,
+  Realtime/LDAP schemas, and other documentation refer to it using the new name.
+
 * The default console now will use colors according to the default background
   color, instead of forcing the background color to black.  If you are using a
   light colored background for your console, you may wish to use the option

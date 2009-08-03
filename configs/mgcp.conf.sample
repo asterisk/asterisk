@@ -41,7 +41,7 @@
 ;[dlinkgw]
 ;host = 192.168.0.64
 ;context = default
-;canreinvite = no
+;directmedia = no
 ;line => aaln/2
 ;line => aaln/1
 
@@ -96,7 +96,7 @@
 ;callwaiting	= no
 ;callreturn	= yes
 ;cancallforward = yes
-;canreinvite	= no
+;directmedia	= no
 ;transfer	= no
 ;dtmfmode	= inband
 ;line => aaln/1			; now lets save this config to line1 aka aaln/1
@@ -104,7 +104,7 @@
 ;callwaiting	= no
 ;callreturn	= yes
 ;cancallforward = yes
-;canreinvite	= no
+;directmedia	= no
 ;transfer	= no
 ;dtmfmode	= inband
 ;line => aaln/2			; now lets save this config to line2 aka aaln/2

@@ -70,7 +70,7 @@ CREATE TABLE ast_sip (
 	callgroup	VARCHAR(10)			DEFAULT NULL,
 	callerid	VARCHAR(80)			DEFAULT NULL,
 	cancallforward	CHAR(3)				DEFAULT 'yes',
-	canreinvite	CHAR(3)				DEFAULT 'yes',
+	directmedia	CHAR(3)				DEFAULT 'yes',
 	context		VARCHAR(80)			DEFAULT NULL,
 	defaultip	VARCHAR(15)			DEFAULT NULL,
 	dtmfmode	VARCHAR(7)			DEFAULT NULL,

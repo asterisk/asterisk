@@ -157,7 +157,7 @@ keepalive=120
 ;device=SEP00D0BA847E6B
 ;version=P002G204	; Thanks critch
 ;context=did
-;canreinvite=yes	; Allow media to go directly between two RTP endpoints.
+;directmedia=yes	; Allow media to go directly between two RTP endpoints.
 ;line=120		; Dial(Skinny/120@florian)
 
 ; Typical config for a 7910

@@ -80,7 +80,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define MGCPDUMPER
 #define DEFAULT_EXPIRY	120
 #define MAX_EXPIRY	3600
-#define CANREINVITE	1
+#define DIRECTMEDIA	1
 
 #ifndef INADDR_NONE
 #define INADDR_NONE (in_addr_t)(-1)
@@ -177,7 +177,7 @@ static int cancallforward = 0;
 
 static int singlepath = 0;
 
-static int canreinvite = CANREINVITE;
+static int directmedia = DIRECTMEDIA;
 
 static char accountcode[AST_MAX_ACCOUNT_CODE] = "";
 
@@ -330,7 +330,7 @@ struct mgcp_endpoint {
 	int threewaycalling;
 	int singlepath;
 	int cancallforward;
-	int canreinvite;
+	int directmedia;
 	int callreturn;
 	int dnd; /* How does this affect callwait? Do we just deny a mgcp_request if we're dnd? */
 	int hascallerid;
@@ -3552,7 +3552,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 	int i=0, y=0;
 	int gw_reload = 0;
 	int ep_reload = 0;
-	canreinvite = CANREINVITE;
+	directmedia = DIRECTMEDIA;
 
 	/* locate existing gateway */
 	gw = gateways;
@@ -3662,8 +3662,8 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 				cancallforward = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "singlepath")) {
 				singlepath = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "canreinvite")) {
-				canreinvite = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "directmedia") || !strcasecmp(v->name, "canreinvite")) {
+				directmedia = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "mailbox")) {
 				ast_copy_string(mailbox, v->value, sizeof(mailbox));
 			} else if (!strcasecmp(v->name, "hasvoicemail")) {
@@ -3748,7 +3748,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					e->callreturn = callreturn;
 					e->cancallforward = cancallforward;
 					e->singlepath = singlepath;
-					e->canreinvite = canreinvite;
+					e->directmedia = directmedia;
 					e->callwaiting = callwaiting;
 					e->hascallwaiting = callwaiting;
 					e->slowsequence = slowsequence;
@@ -3851,7 +3851,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					e->pickupgroup=cur_pickupgroup;
 					e->callreturn = callreturn;
 					e->cancallforward = cancallforward;
-					e->canreinvite = canreinvite;
+					e->directmedia = directmedia;
 					e->singlepath = singlepath;
 					e->callwaiting = callwaiting;
 					e->hascallwaiting = callwaiting;
@@ -3944,7 +3944,7 @@ static enum ast_rtp_glue_result mgcp_get_rtp_peer(struct ast_channel *chan, stru
 
 	*instance = sub->rtp ? ao2_ref(sub->rtp, +1), sub->rtp : NULL;
 
-	if (sub->parent->canreinvite)
+	if (sub->parent->directmedia)
 		return AST_RTP_GLUE_RESULT_REMOTE;
 	else
 		return AST_RTP_GLUE_RESULT_LOCAL;
