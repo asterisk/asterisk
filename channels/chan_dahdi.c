@@ -662,7 +662,6 @@ struct dahdi_subchannel {
 	unsigned int needringing:1;
 	unsigned int needbusy:1;
 	unsigned int needcongestion:1;
-	unsigned int needcallerid:1;
 	unsigned int needanswer:1;
 	unsigned int needflash:1;
 	unsigned int needhold:1;
@@ -1055,10 +1054,6 @@ static struct dahdi_pvt {
 	int cid_ton;
 	/*! \brief Caller ID name from an incoming call. */
 	char cid_name[AST_MAX_EXTENSION];
-	/*! \brief Last Caller ID number from an incoming call. */
-	char lastcid_num[AST_MAX_EXTENSION];
-	/*! \brief Last Caller ID name from an incoming call. */
-	char lastcid_name[AST_MAX_EXTENSION];
 	char *origcid_num;				/*!< malloced original callerid */
 	char *origcid_name;				/*!< malloced original callerid */
 	/*! \brief Call waiting number. */
@@ -4971,7 +4966,6 @@ static int dahdi_hangup(struct ast_channel *ast)
 		p->subs[idx].needbusy = 0;
 		p->subs[idx].needcongestion = 0;
 		p->subs[idx].linear = 0;
-		p->subs[idx].needcallerid = 0;
 		p->polarity = POLARITY_IDLE;
 		dahdi_setlinear(p->subs[idx].dfd, 0);
 		if (idx == SUB_REAL) {
@@ -7408,14 +7402,6 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 		return &p->subs[idx].f;
 	}
 
-	if (p->subs[idx].needcallerid) {
-		ast_set_callerid(ast, S_OR(p->lastcid_num, NULL),
-							S_OR(p->lastcid_name, NULL),
-							S_OR(p->lastcid_num, NULL)
-							);
-		p->subs[idx].needcallerid = 0;
-	}
-
 	if (p->subs[idx].needanswer) {
 		/* Send answer frame if requested */
 		p->subs[idx].needanswer = 0;
@@ -8621,12 +8607,7 @@ static void *analog_ss_thread(void *data)
 				memset(exten, 0, sizeof(exten));
 				timeout = firstdigittimeout;
 			} else if (p->callreturn && !strcmp(exten, "*69")) {
-				res = 0;
-				if (!ast_strlen_zero(p->lastcid_num)) {
-					res = ast_say_digit_str(chan, p->lastcid_num, "", chan->language);
-				}
-				if (!res)
-					res = tone_zone_play_tone(p->subs[idx].dfd, DAHDI_TONE_DIALRECALL);
+				res = tone_zone_play_tone(p->subs[idx].dfd, DAHDI_TONE_DIALRECALL);
 				break;
 			} else if (!strcmp(exten, "*78")) {
 				dahdi_dnd(p, 1);
@@ -8662,14 +8643,6 @@ static void *analog_ss_thread(void *data)
 				ast_masq_park_call(ast_bridged_channel(p->subs[SUB_THREEWAY].owner), chan, 0, NULL);
 				ast_verb(3, "Parking call to '%s'\n", chan->name);
 				break;
-			} else if (!ast_strlen_zero(p->lastcid_num) && !strcmp(exten, "*60")) {
-				ast_verb(3, "Blacklisting number %s\n", p->lastcid_num);
-				res = ast_db_put("blacklist", p->lastcid_num, "1");
-				if (!res) {
-					res = tone_zone_play_tone(p->subs[idx].dfd, DAHDI_TONE_DIALRECALL);
-					memset(exten, 0, sizeof(exten));
-					len = 0;
-				}
 			} else if (p->hidecallerid && !strcmp(exten, "*82")) {
 				ast_verb(3, "Enabling Caller*ID on %s\n", chan->name);
 				/* Enable Caller*ID if enabled */
