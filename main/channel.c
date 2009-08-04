@@ -1579,6 +1579,13 @@ static void ast_party_id_free(struct ast_party_id *doomed)
 	}
 }
 
+void ast_party_caller_init(struct ast_party_caller *init)
+{
+	ast_party_id_init(&init->id);
+	init->ani = NULL;
+	init->ani2 = 0;
+}
+
 void ast_party_caller_copy(struct ast_callerid *dest, const struct ast_callerid *src)
 {
 	if (dest == src) {

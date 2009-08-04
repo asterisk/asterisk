@@ -285,6 +285,23 @@ struct ast_party_id {
 
 /*!
  * \since 1.6.3
+ * \brief Caller Party information.
+ * \note All string fields here are malloc'ed, so they need to be
+ * freed when the structure is deleted.
+ * \note NULL and "" must be considered equivalent.
+ */
+struct ast_party_caller {
+	struct ast_party_id id;		/*! \brief Caller party ID */
+
+	/*! \brief Automatic Number Identification (ANI) (Malloced) */
+	char *ani;
+
+	/*! \brief Automatic Number Identification 2 (Info Digits) */
+	int ani2;
+};
+
+/*!
+ * \since 1.6.3
  * \brief Connected Line/Party information.
  * \note All string fields here are malloc'ed, so they need to be
  * freed when the structure is deleted.
@@ -2322,6 +2339,16 @@ struct ast_channel *ast_channel_get_by_exten(const char *exten, const char *cont
  */
 void ast_channel_set_linkgroup(struct ast_channel *chan, struct ast_channel *peer);
 
+
+/*!
+ * \since 1.6.3
+ * \brief Initialize the given caller structure.
+ *
+ * \param init Caller structure to initialize.
+ *
+ * \return Nothing
+ */
+void ast_party_caller_init(struct ast_party_caller *init);
 
 /*!
  * \since 1.6.3
