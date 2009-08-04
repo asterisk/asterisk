@@ -221,7 +221,7 @@ ifeq ($(AST_DEVMODE),yes)
 endif
 
 ifneq ($(findstring BSD,$(OSARCH)),)
-  _ASTCFLAGS+=-I/usr/local/include
+  _ASTCFLAGS+=-isystem /usr/local/include
   _ASTLDFLAGS+=-L/usr/local/lib
 endif
 
