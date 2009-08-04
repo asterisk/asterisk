@@ -71,6 +71,9 @@ struct sig_pri_callback {
 	/* Note: Called with PRI lock held */
 	void (* const handle_dchan_exception)(struct sig_pri_pri *pri, int index);
 	void (* const set_dialing)(void *pvt, int flag);
+	void (* const set_callerid)(void *pvt, const struct ast_party_caller *caller);
+	void (* const set_dnid)(void *pvt, const char *dnid);
+	void (* const set_rdnis)(void *pvt, const char *rdnis);
 };
 
 #define NUM_DCHANS		4	/*!< No more than 4 d-channels */
@@ -123,16 +126,14 @@ struct sig_pri_chan {
 	char mohinterpret[MAX_MUSICCLASS];
 	int stripmsd;
 
-	/* Options to be  checked by user */
+	/* Options to be checked by user */
 	int cid_ani2;						/*!< Automatic Number Identification number (Alternate PRI caller ID number) */
-	char cid_num[AST_MAX_EXTENSION];
 	int cid_ton;					/*!< Type Of Number (TON) */
+	int callingpres;				/*!< The value of calling presentation that we're going to use when placing a PRI call */
+	char cid_num[AST_MAX_EXTENSION];
 	char cid_name[AST_MAX_EXTENSION];
 	char cid_ani[AST_MAX_EXTENSION];
-	char rdnis[AST_MAX_EXTENSION];
-	char dnid[AST_MAX_EXTENSION];
 	char exten[AST_MAX_EXTENSION];
-	int callingpres;				/*!< The value of calling presentation that we're going to use when placing a PRI call */
 	char lastcid_num[AST_MAX_EXTENSION];
 	char lastcid_name[AST_MAX_EXTENSION];
 
@@ -161,7 +162,7 @@ struct sig_pri_chan {
 	int mastertrunkgroup;			/*!< what trunk group is our master */
 
 	struct sig_pri_callback *calls;
-	void *chan_pvt;
+	void *chan_pvt;					/*!< Private structure of the user of this module. */
 	ast_mutex_t service_lock;						/*!< Mutex for service messages */
 #if defined(HAVE_PRI_REVERSE_CHARGE)
 	int reverse_charging_indication;
@@ -214,7 +215,7 @@ struct sig_pri_pri {
 	int numchans;								/*!< Num of channels we represent */
 	struct sig_pri_chan *pvts[MAX_CHANNELS];	/*!< Member channel pvt structs */
 	pthread_t master;							/*!< Thread of master */
-	ast_mutex_t lock;							/*!< Mutex */
+	ast_mutex_t lock;							/*!< libpri access Mutex */
 	time_t lastreset;							/*!< time when unused channels were last reset */
 	struct sig_pri_callback *calls;
 };

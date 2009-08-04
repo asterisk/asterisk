@@ -2563,6 +2563,62 @@ static int my_pri_play_tone(void *pvt, enum sig_pri_tone tone)
 	return tone_zone_play_tone(p->subs[SUB_REAL].dfd, sig_pri_tone_to_dahditone(tone));
 }
 
+/*!
+ * \internal
+ * \brief Set the caller id information.
+ * \since 1.6.3
+ *
+ * \param pvt DAHDI private structure
+ * \param caller Caller-id information to set.
+ *
+ * \return Nothing
+ */
+static void my_pri_set_callerid(void *pvt, const struct ast_party_caller *caller)
+{
+	struct dahdi_pvt *p = pvt;
+
+	ast_copy_string(p->cid_num, S_OR(caller->id.number, ""), sizeof(p->cid_num));
+	ast_copy_string(p->cid_name, S_OR(caller->id.name, ""), sizeof(p->cid_name));
+	p->cid_ton = caller->id.number_type;
+	p->callingpres = caller->id.number_presentation;
+	ast_copy_string(p->cid_ani, S_OR(caller->ani, ""), sizeof(p->cid_ani));
+	p->cid_ani2 = caller->ani2;
+}
+
+/*!
+ * \internal
+ * \brief Set the Dialed Number Identifier.
+ * \since 1.6.3
+ *
+ * \param pvt DAHDI private structure
+ * \param dnid Dialed Number Identifier string.
+ *
+ * \return Nothing
+ */
+static void my_pri_set_dnid(void *pvt, const char *dnid)
+{
+	struct dahdi_pvt *p = pvt;
+
+	ast_copy_string(p->dnid, dnid, sizeof(p->dnid));
+}
+
+/*!
+ * \internal
+ * \brief Set the Redirecting Directory Number Information Service (RDNIS).
+ * \since 1.6.3
+ *
+ * \param pvt DAHDI private structure
+ * \param rdnis Redirecting Directory Number Information Service (RDNIS) string.
+ *
+ * \return Nothing
+ */
+static void my_pri_set_rdnis(void *pvt, const char *rdnis)
+{
+	struct dahdi_pvt *p = pvt;
+
+	ast_copy_string(p->rdnis, rdnis, sizeof(p->rdnis));
+}
+
 static struct sig_pri_callback dahdi_pri_callbacks =
 {
 	.handle_dchan_exception = my_handle_dchan_exception,
@@ -2573,6 +2629,9 @@ static struct sig_pri_callback dahdi_pri_callbacks =
 	.new_ast_channel = my_new_pri_ast_channel,
 	.fixup_chans = my_pri_fixup_chans,
 	.set_dialing = my_set_dialing,
+	.set_callerid = my_pri_set_callerid,
+	.set_dnid = my_pri_set_dnid,
+	.set_rdnis = my_pri_set_rdnis,
 };
 #endif	/* defined(HAVE_PRI) */
 

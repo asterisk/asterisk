@@ -97,7 +97,66 @@ static void sig_pri_handle_dchan_exception(struct sig_pri_pri *pri, int index)
 static void sig_pri_set_dialing(struct sig_pri_chan *p, int flag)
 {
 	if (p->calls->set_dialing)
-		p->calls->set_dialing(p, flag);
+		p->calls->set_dialing(p->chan_pvt, flag);
+}
+
+/*!
+ * \internal
+ * \brief Set the caller id information in the parent module.
+ * \since 1.6.3
+ *
+ * \param p sig_pri channel structure.
+ *
+ * \return Nothing
+ */
+static void sig_pri_set_caller_id(struct sig_pri_chan *p)
+{
+	struct ast_party_caller caller;
+
+	if (p->calls->set_callerid) {
+		ast_party_caller_init(&caller);
+		caller.id.number = p->cid_num;
+		caller.id.name = p->cid_name;
+		caller.id.number_type = p->cid_ton;
+		caller.id.number_presentation = p->callingpres;
+		caller.ani = p->cid_ani;
+		caller.ani2 = p->cid_ani2;
+		p->calls->set_callerid(p->chan_pvt, &caller);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Set the Dialed Number Identifier.
+ * \since 1.6.3
+ *
+ * \param p sig_pri channel structure.
+ * \param dnid Dialed Number Identifier string.
+ *
+ * \return Nothing
+ */
+static void sig_pri_set_dnid(struct sig_pri_chan *p, const char *dnid)
+{
+	if (p->calls->set_dnid) {
+		p->calls->set_dnid(p->chan_pvt, dnid);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Set the Redirecting Directory Number Information Service (RDNIS).
+ * \since 1.6.3
+ *
+ * \param p sig_pri channel structure.
+ * \param rdnis Redirecting Directory Number Information Service (RDNIS) string.
+ *
+ * \return Nothing
+ */
+static void sig_pri_set_rdnis(struct sig_pri_chan *p, const char *rdnis)
+{
+	if (p->calls->set_rdnis) {
+		p->calls->set_rdnis(p->chan_pvt, rdnis);
+	}
 }
 
 static void sig_pri_unlock_private(struct sig_pri_chan *p)
@@ -638,8 +697,8 @@ static void *pri_dchannel(void *vpri)
 	pthread_t threadid;
 	pthread_attr_t attr;
 	char ani2str[6];
-	char plancallingnum[256];
-	char plancallingani[256];
+	char plancallingnum[AST_MAX_EXTENSION];
+	char plancallingani[AST_MAX_EXTENSION];
 	char calledtonstr[10];
 	struct timeval lastidle = { 0, 0 };
 	pthread_t p;
@@ -944,7 +1003,9 @@ static void *pri_dchannel(void *vpri)
 					if (chanpos > -1) {
 						sig_pri_lock_private(pri->pvts[chanpos]);
 						/* queue DTMF frame if the PBX for this call was already started (we're forwarding KEYPAD_DIGITs further on */
-						if ((pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING) && pri->pvts[chanpos]->call==e->digit.call && pri->pvts[chanpos]->owner) {
+						if ((pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)
+							&& pri->pvts[chanpos]->call == e->digit.call
+							&& pri->pvts[chanpos]->owner) {
 							/* how to do that */
 							int digitlen = strlen(e->digit.digits);
 							char digit;
@@ -972,7 +1033,9 @@ static void *pri_dchannel(void *vpri)
 					if (chanpos > -1) {
 						sig_pri_lock_private(pri->pvts[chanpos]);
 						/* queue DTMF frame if the PBX for this call was already started (we're forwarding INFORMATION further on */
-						if ((pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING) && pri->pvts[chanpos]->call==e->ring.call && pri->pvts[chanpos]->owner) {
+						if ((pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)
+							&& pri->pvts[chanpos]->call == e->ring.call
+							&& pri->pvts[chanpos]->owner) {
 							/* how to do that */
 							int digitlen = strlen(e->ring.callednum);
 							char digit;
@@ -1078,7 +1141,15 @@ static void *pri_dchannel(void *vpri)
 				if (chanpos > -1) {
 					sig_pri_lock_private(pri->pvts[chanpos]);
 					pri->pvts[chanpos]->call = e->ring.call;
+
+					/* Use plancallingnum as a scratch buffer since it is initialized next. */
+					apply_plan_to_number(plancallingnum, sizeof(plancallingnum), pri,
+						e->ring.redirectingnum, e->ring.callingplanrdnis);
+					sig_pri_set_rdnis(pri->pvts[chanpos], plancallingnum);
+
+					/* Setup caller-id info */
 					apply_plan_to_number(plancallingnum, sizeof(plancallingnum), pri, e->ring.callingnum, e->ring.callingplan);
+					pri->pvts[chanpos]->cid_ani2 = 0;
 					if (pri->pvts[chanpos]->use_callerid) {
 						ast_shrink_phone_number(plancallingnum);
 						ast_copy_string(pri->pvts[chanpos]->cid_num, plancallingnum, sizeof(pri->pvts[chanpos]->cid_num));
@@ -1093,14 +1164,22 @@ static void *pri_dchannel(void *vpri)
 #endif
 						ast_copy_string(pri->pvts[chanpos]->cid_name, e->ring.callingname, sizeof(pri->pvts[chanpos]->cid_name));
 						pri->pvts[chanpos]->cid_ton = e->ring.callingplan; /* this is the callingplan (TON/NPI), e->ring.callingplan>>4 would be the TON */
+						pri->pvts[chanpos]->callingpres = e->ring.callingpres;
+						if (e->ring.ani2 >= 0) {
+							pri->pvts[chanpos]->cid_ani2 = e->ring.ani2;
+						}
 					} else {
 						pri->pvts[chanpos]->cid_num[0] = '\0';
 						pri->pvts[chanpos]->cid_ani[0] = '\0';
 						pri->pvts[chanpos]->cid_name[0] = '\0';
 						pri->pvts[chanpos]->cid_ton = 0;
+						pri->pvts[chanpos]->callingpres = 0;
 					}
-					apply_plan_to_number(pri->pvts[chanpos]->rdnis, sizeof(pri->pvts[chanpos]->rdnis), pri,
-						e->ring.redirectingnum, e->ring.callingplanrdnis);
+					sig_pri_set_caller_id(pri->pvts[chanpos]);
+
+					/* Set DNID on all incoming calls -- even immediate */
+					sig_pri_set_dnid(pri->pvts[chanpos], e->ring.callednum);
+
 					/* If immediate=yes go to s|1 */
 					if (pri->pvts[chanpos]->immediate) {
 						ast_verb(3, "Going to extension s|1 because of immediate=yes\n");
@@ -1110,7 +1189,6 @@ static void *pri_dchannel(void *vpri)
 					/* Get called number */
 					else if (!ast_strlen_zero(e->ring.callednum)) {
 						ast_copy_string(pri->pvts[chanpos]->exten, e->ring.callednum, sizeof(pri->pvts[chanpos]->exten));
-						ast_copy_string(pri->pvts[chanpos]->dnid, e->ring.callednum, sizeof(pri->pvts[chanpos]->dnid));
 					} else if (pri->overlapdial)
 						pri->pvts[chanpos]->exten[0] = '\0';
 					else {
@@ -1118,15 +1196,13 @@ static void *pri_dchannel(void *vpri)
 						pri->pvts[chanpos]->exten[0] = 's';
 						pri->pvts[chanpos]->exten[1] = '\0';
 					}
-					/* Set DNID on all incoming calls -- even immediate */
-					if (!ast_strlen_zero(e->ring.callednum))
-						ast_copy_string(pri->pvts[chanpos]->dnid, e->ring.callednum, sizeof(pri->pvts[chanpos]->dnid));
 					/* No number yet, but received "sending complete"? */
 					if (e->ring.complete && (ast_strlen_zero(e->ring.callednum))) {
 						ast_verb(3, "Going to extension s|1 because of Complete received\n");
 						pri->pvts[chanpos]->exten[0] = 's';
 						pri->pvts[chanpos]->exten[1] = '\0';
 					}
+
 					/* Make sure extension exists (or in overlap dial mode, can exist) */
 					if (((pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING) && ast_canmatch_extension(NULL, pri->pvts[chanpos]->context, pri->pvts[chanpos]->exten, 1, pri->pvts[chanpos]->cid_num)) ||
 						ast_exists_extension(NULL, pri->pvts[chanpos]->context, pri->pvts[chanpos]->exten, 1, pri->pvts[chanpos]->cid_num)) {
@@ -1141,12 +1217,15 @@ static void *pri_dchannel(void *vpri)
 							else
 								pri_answer(pri->pri, e->ring.call, PVT_TO_CHANNEL(pri->pvts[chanpos]), 1);
 						}
-						/* Get the use_callingpres state */
-						pri->pvts[chanpos]->callingpres = e->ring.callingpres;
 
 						/* Start PBX */
-						if (!e->ring.complete && (pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING) && ast_matchmore_extension(NULL, pri->pvts[chanpos]->context, pri->pvts[chanpos]->exten, 1, pri->pvts[chanpos]->cid_num)) {
-							/* Release the PRI lock while we create the channel */
+						if (!e->ring.complete
+							&& (pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)
+							&& ast_matchmore_extension(NULL, pri->pvts[chanpos]->context, pri->pvts[chanpos]->exten, 1, pri->pvts[chanpos]->cid_num)) {
+							/*
+							 * Release the PRI lock while we create the channel
+							 * so other threads can send D channel messages.
+							 */
 							ast_mutex_unlock(&pri->lock);
 
 							c = sig_pri_new_ast_channel(pri->pvts[chanpos], AST_STATE_RESERVED, 0, (e->ring.layer1 = PRI_LAYER_1_ALAW) ? SIG_PRI_ALAW : SIG_PRI_ULAW, e->ring.ctype, pri->pvts[chanpos]->exten, NULL);
@@ -1157,9 +1236,8 @@ static void *pri_dchannel(void *vpri)
 								pbx_builtin_setvar_helper(c, "CALLINGSUBADDR", e->ring.callingsubaddr);
 							}
 							if (e->ring.ani2 >= 0) {
-								snprintf(ani2str, 5, "%.2d", e->ring.ani2);
+								snprintf(ani2str, sizeof(ani2str), "%d", e->ring.ani2);
 								pbx_builtin_setvar_helper(c, "ANI2", ani2str);
-								pri->pvts[chanpos]->cid_ani2 = e->ring.ani2;
 							}
 
 #ifdef SUPPORT_USERUSER
@@ -1168,7 +1246,7 @@ static void *pri_dchannel(void *vpri)
 							}
 #endif
 
-							snprintf(calledtonstr, sizeof(calledtonstr)-1, "%d", e->ring.calledplan);
+							snprintf(calledtonstr, sizeof(calledtonstr), "%d", e->ring.calledplan);
 							pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
 							if (e->ring.redirectingreason >= 0)
 								pbx_builtin_setvar_helper(c, "PRIREDIRECTREASON", redirectingreason2str(e->ring.redirectingreason));
@@ -1197,19 +1275,19 @@ static void *pri_dchannel(void *vpri)
 							}
 							pthread_attr_destroy(&attr);
 						} else {
+							/*
+							 * Release the PRI lock while we create the channel
+							 * so other threads can send D channel messages.
+							 */
 							ast_mutex_unlock(&pri->lock);
-							/* Release PRI lock while we create the channel */
 							c = sig_pri_new_ast_channel(pri->pvts[chanpos], AST_STATE_RING, 1, (e->ring.layer1 == PRI_LAYER_1_ALAW) ? SIG_PRI_ALAW : SIG_PRI_ULAW, e->ring.ctype, pri->pvts[chanpos]->exten, NULL);
 
 							if (c) {
-								char calledtonstr[10];
-
 								sig_pri_unlock_private(pri->pvts[chanpos]);
 
 								if (e->ring.ani2 >= 0) {
-									snprintf(ani2str, 5, "%d", e->ring.ani2);
+									snprintf(ani2str, sizeof(ani2str), "%d", e->ring.ani2);
 									pbx_builtin_setvar_helper(c, "ANI2", ani2str);
-									pri->pvts[chanpos]->cid_ani2 = e->ring.ani2;
 								}
 
 #ifdef SUPPORT_USERUSER
@@ -1224,7 +1302,7 @@ static void *pri_dchannel(void *vpri)
 								pri->pvts[chanpos]->reverse_charging_indication = e->ring.reversecharge;
 #endif
 
-								snprintf(calledtonstr, sizeof(calledtonstr)-1, "%d", e->ring.calledplan);
+								snprintf(calledtonstr, sizeof(calledtonstr), "%d", e->ring.calledplan);
 								pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
 
 								sig_pri_lock_private(pri->pvts[chanpos]);
@@ -1711,7 +1789,6 @@ int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 	p->progress = 0;
 	p->alerting = 0;
 	p->setup_ack = 0;
-	p->rdnis[0] = '\0';
 	p->exten[0] = '\0';
 	sig_pri_set_dialing(p, 0);
 
