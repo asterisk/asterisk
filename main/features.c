@@ -4630,13 +4630,13 @@ static int find_channel_by_group(void *obj, void *arg, void *data, int flags)
 	struct ast_channel *c = data;
 	struct ast_channel *chan = obj;
 
-	int i = !c->pbx &&
+	int i = !chan->pbx &&
 		/* Accessing 'chan' here is safe without locking, because there is no way for
 		   the channel do disappear from under us at this point.  pickupgroup *could*
 		   change while we're here, but that isn't a problem. */
 		(c != chan) &&
 		(chan->pickupgroup & c->callgroup) &&
-		((c->_state == AST_STATE_RINGING) || (c->_state == AST_STATE_RING));
+		((chan->_state == AST_STATE_RINGING) || (chan->_state == AST_STATE_RING));
 
 	return i ? CMP_MATCH | CMP_STOP : 0;
 }
