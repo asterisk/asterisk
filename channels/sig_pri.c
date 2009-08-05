@@ -685,6 +685,39 @@ void pri_event_noalarm(struct sig_pri_pri *pri, int index, int before_start_pri)
 		pri_restart(pri->dchans[index]);
 }
 
+#if defined(SUPPORT_USERUSER)
+/*!
+ * \internal
+ * \brief Obtain the sig_pri owner channel lock if the owner exists.
+ * \since 1.6.3
+ *
+ * \param pri sig_pri PRI control structure.
+ * \param chanpos Channel position in the span.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
+ *
+ * \return Nothing
+ */
+static void sig_pri_lock_owner(struct sig_pri_pri *pri, int chanpos)
+{
+	for (;;) {
+		if (!pri->pvts[chanpos]->owner) {
+			/* There is no owner lock to get. */
+			break;
+		}
+		if (!ast_channel_trylock(pri->pvts[chanpos]->owner)) {
+			/* We got the lock */
+			break;
+		}
+		/* We must unlock the PRI to avoid the possibility of a deadlock */
+		ast_mutex_unlock(&pri->lock);
+		PRI_DEADLOCK_AVOIDANCE(pri->pvts[chanpos]);
+		ast_mutex_lock(&pri->lock);
+	}
+}
+#endif	/* defined(SUPPORT_USERUSER) */
+
 static void *pri_dchannel(void *vpri)
 {
 	struct sig_pri_pri *pri = vpri;
@@ -1013,14 +1046,12 @@ static void *pri_dchannel(void *vpri)
 							&& pri->pvts[chanpos]->owner) {
 							/* how to do that */
 							int digitlen = strlen(e->digit.digits);
-							char digit;
 							int i;
+
 							for (i = 0; i < digitlen; i++) {
-								digit = e->digit.digits[i];
-								{
-									struct ast_frame f = { AST_FRAME_DTMF, digit, };
-									pri_queue_frame(pri->pvts[chanpos], &f, pri);
-								}
+								struct ast_frame f = { AST_FRAME_DTMF, e->digit.digits[i], };
+
+								pri_queue_frame(pri->pvts[chanpos], &f, pri);
 							}
 						}
 						sig_pri_unlock_private(pri->pvts[chanpos]);
@@ -1043,14 +1074,12 @@ static void *pri_dchannel(void *vpri)
 							&& pri->pvts[chanpos]->owner) {
 							/* how to do that */
 							int digitlen = strlen(e->ring.callednum);
-							char digit;
 							int i;
+
 							for (i = 0; i < digitlen; i++) {
-								digit = e->ring.callednum[i];
-								{
-									struct ast_frame f = { AST_FRAME_DTMF, digit, };
-									pri_queue_frame(pri->pvts[chanpos], &f, pri);
-								}
+								struct ast_frame f = { AST_FRAME_DTMF, e->ring.callednum[i], };
+
+								pri_queue_frame(pri->pvts[chanpos], &f, pri);
 							}
 						}
 						sig_pri_unlock_private(pri->pvts[chanpos]);
@@ -1361,10 +1390,15 @@ static void *pri_dchannel(void *vpri)
 
 #ifdef SUPPORT_USERUSER
 						if (!ast_strlen_zero(e->ringing.useruserinfo)) {
-							struct ast_channel *owner = pri->pvts[chanpos]->owner;
-							sig_pri_unlock_private(pri->pvts[chanpos]);
-							pbx_builtin_setvar_helper(owner, "USERUSERINFO", e->ringing.useruserinfo);
-							sig_pri_lock_private(pri->pvts[chanpos]);
+							struct ast_channel *owner;
+
+							sig_pri_lock_owner(pri, chanpos);
+							owner = pri->pvts[chanpos]->owner;
+							if (owner) {
+								pbx_builtin_setvar_helper(owner, "USERUSERINFO",
+									e->ringing.useruserinfo);
+								ast_channel_unlock(owner);
+							}
 						}
 #endif
 
@@ -1487,10 +1521,15 @@ static void *pri_dchannel(void *vpri)
 
 #ifdef SUPPORT_USERUSER
 						if (!ast_strlen_zero(e->answer.useruserinfo)) {
-							struct ast_channel *owner = pri->pvts[chanpos]->owner;
-							sig_pri_unlock_private(pri->pvts[chanpos]);
-							pbx_builtin_setvar_helper(owner, "USERUSERINFO", e->answer.useruserinfo);
-							sig_pri_lock_private(pri->pvts[chanpos]);
+							struct ast_channel *owner;
+
+							sig_pri_lock_owner(pri, chanpos);
+							owner = pri->pvts[chanpos]->owner;
+							if (owner) {
+								pbx_builtin_setvar_helper(owner, "USERUSERINFO",
+									e->answer.useruserinfo);
+								ast_channel_unlock(owner);
+							}
 						}
 #endif
 
@@ -1551,11 +1590,16 @@ static void *pri_dchannel(void *vpri)
 								pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span, (int)e->hangup.aoc_units, (e->hangup.aoc_units == 1) ? "" : "s");
 
 #ifdef SUPPORT_USERUSER
-						if (pri->pvts[chanpos]->owner && !ast_strlen_zero(e->hangup.useruserinfo)) {
-							struct ast_channel *owner = pri->pvts[chanpos]->owner;
-							sig_pri_unlock_private(pri->pvts[chanpos]);
-							pbx_builtin_setvar_helper(owner, "USERUSERINFO", e->hangup.useruserinfo);
-							sig_pri_lock_private(pri->pvts[chanpos]);
+						if (!ast_strlen_zero(e->hangup.useruserinfo)) {
+							struct ast_channel *owner;
+
+							sig_pri_lock_owner(pri, chanpos);
+							owner = pri->pvts[chanpos]->owner;
+							if (owner) {
+								pbx_builtin_setvar_helper(owner, "USERUSERINFO",
+									e->hangup.useruserinfo);
+								ast_channel_unlock(owner);
+							}
 						}
 #endif
 
@@ -1617,10 +1661,15 @@ static void *pri_dchannel(void *vpri)
 
 #ifdef SUPPORT_USERUSER
 						if (!ast_strlen_zero(e->hangup.useruserinfo)) {
-							struct ast_channel *owner = pri->pvts[chanpos]->owner;
-							sig_pri_unlock_private(pri->pvts[chanpos]);
-							pbx_builtin_setvar_helper(owner, "USERUSERINFO", e->hangup.useruserinfo);
-							sig_pri_lock_private(pri->pvts[chanpos]);
+							struct ast_channel *owner;
+
+							sig_pri_lock_owner(pri, chanpos);
+							owner = pri->pvts[chanpos]->owner;
+							if (owner) {
+								pbx_builtin_setvar_helper(owner, "USERUSERINFO",
+									e->hangup.useruserinfo);
+								ast_channel_unlock(owner);
+							}
 						}
 #endif
 
@@ -1647,10 +1696,15 @@ static void *pri_dchannel(void *vpri)
 
 #ifdef SUPPORT_USERUSER
 						if (!ast_strlen_zero(e->hangup.useruserinfo)) {
-							struct ast_channel *owner = pri->pvts[chanpos]->owner;
-							sig_pri_unlock_private(pri->pvts[chanpos]);
-							pbx_builtin_setvar_helper(owner, "USERUSERINFO", e->hangup.useruserinfo);
-							sig_pri_lock_private(pri->pvts[chanpos]);
+							struct ast_channel *owner;
+
+							sig_pri_lock_owner(pri, chanpos);
+							owner = pri->pvts[chanpos]->owner;
+							if (owner) {
+								pbx_builtin_setvar_helper(owner, "USERUSERINFO",
+									e->hangup.useruserinfo);
+								ast_channel_unlock(owner);
+							}
 						}
 #endif
 
