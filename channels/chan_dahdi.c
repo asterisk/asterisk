@@ -437,10 +437,6 @@ static int matchdigittimeout = 3000;
 /*! \brief Protect the interface list (of dahdi_pvt's) */
 AST_MUTEX_DEFINE_STATIC(iflock);
 
-/* QSIG channel mapping option types */
-#define DAHDI_CHAN_MAPPING_PHYSICAL	0
-#define DAHDI_CHAN_MAPPING_LOGICAL	1
-
 
 static int ifcount = 0;
 
@@ -614,12 +610,6 @@ struct dahdi_pri {
 };
 
 static struct dahdi_pri pris[NUM_SPANS];
-
-#if 0
-#define DEFAULT_PRI_DEBUG (PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q921_DUMP | PRI_DEBUG_Q921_RAW | PRI_DEBUG_Q921_STATE)
-#else
-#define DEFAULT_PRI_DEBUG 0
-#endif
 
 #else
 /*! Shut up the compiler */

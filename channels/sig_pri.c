@@ -51,6 +51,12 @@
 /* define this to send PRI user-user information elements */
 #undef SUPPORT_USERUSER
 
+#if 0
+#define DEFAULT_PRI_DEBUG (PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q921_DUMP | PRI_DEBUG_Q921_RAW | PRI_DEBUG_Q921_STATE)
+#else
+#define DEFAULT_PRI_DEBUG 0
+#endif
+
 static int pri_matchdigittimeout = 3000;
 
 static int pri_gendigittimeout = 8000;
@@ -695,7 +701,6 @@ static void *pri_dchannel(void *vpri)
 	int i, which=-1;
 	int numdchans;
 	pthread_t threadid;
-	pthread_attr_t attr;
 	char ani2str[6];
 	char plancallingnum[AST_MAX_EXTENSION];
 	char plancallingani[AST_MAX_EXTENSION];
@@ -1252,9 +1257,7 @@ static void *pri_dchannel(void *vpri)
 								pri->pvts[chanpos]->reverse_charging_indication = e->ring.reversecharge;
 #endif
 							}
-							pthread_attr_init(&attr);
-							pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-							if (c && !ast_pthread_create(&threadid, &attr, pri_ss_thread, pri->pvts[chanpos])) {
+							if (c && !ast_pthread_create_detached(&threadid, NULL, pri_ss_thread, pri->pvts[chanpos])) {
 								ast_verb(3, "Accepting overlap call from '%s' to '%s' on channel %d/%d, span %d\n",
 									plancallingnum, S_OR(pri->pvts[chanpos]->exten, "<unspecified>"),
 									pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
@@ -1268,7 +1271,6 @@ static void *pri_dchannel(void *vpri)
 									pri->pvts[chanpos]->call = NULL;
 								}
 							}
-							pthread_attr_destroy(&attr);
 						} else {
 							/*
 							 * Release the PRI lock while we create the channel
@@ -1732,7 +1734,7 @@ static void *pri_dchannel(void *vpri)
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Received NOTIFY on unconfigured channel %d/%d span %d\n",
 						PRI_SPAN(e->notify.channel), PRI_CHANNEL(e->notify.channel), pri->span);
-				} else {
+				} else if (!pri->discardremoteholdretrieval) {
 					struct ast_frame f = { AST_FRAME_CONTROL, };
 
 					sig_pri_lock_private(pri->pvts[chanpos]);
@@ -2353,9 +2355,13 @@ int sig_pri_start_pri(struct sig_pri_pri *pri)
 			break;
 		}
 
-		/* Force overlap dial if we're doing GR-303! */
-		pri_set_overlapdial(pri->dchans[i], pri->overlapdial);
+		pri_set_overlapdial(pri->dchans[i], (pri->overlapdial & DAHDI_OVERLAPDIAL_OUTGOING) ? 1 : 0);
+#ifdef HAVE_PRI_PROG_W_CAUSE
+		pri_set_chan_mapping_logical(pri->dchans[i], pri->qsigchannelmapping == DAHDI_CHAN_MAPPING_LOGICAL);
+#endif
+#ifdef HAVE_PRI_INBANDDISCONNECT
 		pri_set_inbanddisconnect(pri->dchans[i], pri->inbanddisconnect);
+#endif
 		/* Enslave to master if appropriate */
 		if (i)
 			pri_enslave(pri->dchans[0], pri->dchans[i]);
@@ -2366,7 +2372,7 @@ int sig_pri_start_pri(struct sig_pri_pri *pri)
 			ast_log(LOG_ERROR, "Unable to create PRI structure\n");
 			return -1;
 		}
-		pri_set_debug(pri->dchans[i], 0);
+		pri_set_debug(pri->dchans[i], DEFAULT_PRI_DEBUG);
 		pri_set_nsf(pri->dchans[i], pri->nsf);
 #ifdef PRI_GETSET_TIMERS
 		for (x = 0; x < PRI_MAX_TIMERS; x++) {

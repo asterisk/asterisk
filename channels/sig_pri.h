@@ -83,6 +83,10 @@ struct sig_pri_callback {
 #define SIG_BRI		(0x2000000 | DAHDI_SIG_CLEAR)
 #define SIG_BRI_PTMP	(0X4000000 | DAHDI_SIG_CLEAR)
 
+/* QSIG channel mapping option types */
+#define DAHDI_CHAN_MAPPING_PHYSICAL	0
+#define DAHDI_CHAN_MAPPING_LOGICAL	1
+
 /* Overlap dialing option types */
 #define DAHDI_OVERLAPDIAL_NONE 0
 #define DAHDI_OVERLAPDIAL_OUTGOING 1
