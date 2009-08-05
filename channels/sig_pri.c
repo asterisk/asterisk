@@ -1227,42 +1227,37 @@ static void *pri_dchannel(void *vpri)
 							 * so other threads can send D channel messages.
 							 */
 							ast_mutex_unlock(&pri->lock);
-
 							c = sig_pri_new_ast_channel(pri->pvts[chanpos], AST_STATE_RESERVED, 0, (e->ring.layer1 = PRI_LAYER_1_ALAW) ? SIG_PRI_ALAW : SIG_PRI_ULAW, e->ring.ctype, pri->pvts[chanpos]->exten, NULL);
-
-							sig_pri_unlock_private(pri->pvts[chanpos]);
-
-							if (!ast_strlen_zero(e->ring.callingsubaddr)) {
-								pbx_builtin_setvar_helper(c, "CALLINGSUBADDR", e->ring.callingsubaddr);
-							}
-							if (e->ring.ani2 >= 0) {
-								snprintf(ani2str, sizeof(ani2str), "%d", e->ring.ani2);
-								pbx_builtin_setvar_helper(c, "ANI2", ani2str);
-							}
+							ast_mutex_lock(&pri->lock);
+							if (c) {
+								if (!ast_strlen_zero(e->ring.callingsubaddr)) {
+									pbx_builtin_setvar_helper(c, "CALLINGSUBADDR", e->ring.callingsubaddr);
+								}
+								if (e->ring.ani2 >= 0) {
+									snprintf(ani2str, sizeof(ani2str), "%d", e->ring.ani2);
+									pbx_builtin_setvar_helper(c, "ANI2", ani2str);
+								}
 
 #ifdef SUPPORT_USERUSER
-							if (!ast_strlen_zero(e->ring.useruserinfo)) {
-								pbx_builtin_setvar_helper(c, "USERUSERINFO", e->ring.useruserinfo);
-							}
+								if (!ast_strlen_zero(e->ring.useruserinfo)) {
+									pbx_builtin_setvar_helper(c, "USERUSERINFO", e->ring.useruserinfo);
+								}
 #endif
 
-							snprintf(calledtonstr, sizeof(calledtonstr), "%d", e->ring.calledplan);
-							pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
-							if (e->ring.redirectingreason >= 0)
-								pbx_builtin_setvar_helper(c, "PRIREDIRECTREASON", redirectingreason2str(e->ring.redirectingreason));
+								snprintf(calledtonstr, sizeof(calledtonstr), "%d", e->ring.calledplan);
+								pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
+								if (e->ring.redirectingreason >= 0)
+									pbx_builtin_setvar_helper(c, "PRIREDIRECTREASON", redirectingreason2str(e->ring.redirectingreason));
 #if defined(HAVE_PRI_REVERSE_CHARGE)
-							pri->pvts[chanpos]->reverse_charging_indication = e->ring.reversecharge;
+								pri->pvts[chanpos]->reverse_charging_indication = e->ring.reversecharge;
 #endif
-
-							sig_pri_lock_private(pri->pvts[chanpos]);
-							ast_mutex_lock(&pri->lock);
-
+							}
 							pthread_attr_init(&attr);
 							pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 							if (c && !ast_pthread_create(&threadid, &attr, pri_ss_thread, pri->pvts[chanpos])) {
 								ast_verb(3, "Accepting overlap call from '%s' to '%s' on channel %d/%d, span %d\n",
-										plancallingnum, S_OR(pri->pvts[chanpos]->exten, "<unspecified>"),
-										pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
+									plancallingnum, S_OR(pri->pvts[chanpos]->exten, "<unspecified>"),
+									pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
 							} else {
 								ast_log(LOG_WARNING, "Unable to start PBX on channel %d/%d, span %d\n",
 									pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
@@ -1280,11 +1275,20 @@ static void *pri_dchannel(void *vpri)
 							 * so other threads can send D channel messages.
 							 */
 							ast_mutex_unlock(&pri->lock);
-							c = sig_pri_new_ast_channel(pri->pvts[chanpos], AST_STATE_RING, 1, (e->ring.layer1 == PRI_LAYER_1_ALAW) ? SIG_PRI_ALAW : SIG_PRI_ULAW, e->ring.ctype, pri->pvts[chanpos]->exten, NULL);
-
+							c = sig_pri_new_ast_channel(pri->pvts[chanpos], AST_STATE_RING, 0, (e->ring.layer1 == PRI_LAYER_1_ALAW) ? SIG_PRI_ALAW : SIG_PRI_ULAW, e->ring.ctype, pri->pvts[chanpos]->exten, NULL);
+							ast_mutex_lock(&pri->lock);
 							if (c) {
-								sig_pri_unlock_private(pri->pvts[chanpos]);
-
+								/*
+								 * It is reasonably safe to set the following
+								 * channel variables while the PRI and DAHDI private
+								 * structures are locked.  The PBX has not been
+								 * started yet and it is unlikely that any other task
+								 * will do anything with the channel we have just
+								 * created.
+								 */
+								if (!ast_strlen_zero(e->ring.callingsubaddr)) {
+									pbx_builtin_setvar_helper(c, "CALLINGSUBADDR", e->ring.callingsubaddr);
+								}
 								if (e->ring.ani2 >= 0) {
 									snprintf(ani2str, sizeof(ani2str), "%d", e->ring.ani2);
 									pbx_builtin_setvar_helper(c, "ANI2", ani2str);
@@ -1304,22 +1308,21 @@ static void *pri_dchannel(void *vpri)
 
 								snprintf(calledtonstr, sizeof(calledtonstr), "%d", e->ring.calledplan);
 								pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
-
-								sig_pri_lock_private(pri->pvts[chanpos]);
-								ast_mutex_lock(&pri->lock);
-
+							}
+							if (c && !ast_pbx_start(c)) {
 								ast_verb(3, "Accepting call from '%s' to '%s' on channel %d/%d, span %d\n",
 									plancallingnum, pri->pvts[chanpos]->exten,
 									pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
 								sig_pri_set_echocanceller(pri->pvts[chanpos], 1);
 							} else {
-
-								ast_mutex_lock(&pri->lock);
-
 								ast_log(LOG_WARNING, "Unable to start PBX on channel %d/%d, span %d\n",
 									pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
-								pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_SWITCH_CONGESTION);
-								pri->pvts[chanpos]->call = NULL;
+								if (c) {
+									ast_hangup(c);
+								} else {
+									pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_SWITCH_CONGESTION);
+									pri->pvts[chanpos]->call = NULL;
+								}
 							}
 						}
 					} else {
