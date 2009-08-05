@@ -22,8 +22,11 @@ additional voicemail functionality, including:
 If you do not have the University of Washington's IMAP c-client
 installed on your system, you will need to download the c-client
 source distribution (\url{http://www.washington.edu/imap/}) and compile it.
-Asterisk supports both the 2004 and 2006 versions of c-client, however
-mail\_expunge\_full is enabled in the 2006 version.
+Asterisk supports the 2007 version of c-client as there appears to be issues
+with older versions which cause Asterisk to crash in certain scenarios. It
+is highly recommended that you utilize a current version of the c-client
+libraries. Additionally, mail\_expunge\_full is enabled in the 2006 and later
+versions.
 
 Note that Asterisk only uses the 'c-client' portion of the UW IMAP toolkit,
 but building it also builds an IMAP server and various other utilities.
@@ -41,7 +44,7 @@ Debian system there are two possibilities:
 \begin{enumerate}
     \item If you will not be using SSL to connect to the IMAP server:
    \begin{verbatim}
-        $ make slx SSLTYPE=none!
+        $ make slx SSLTYPE=none
    \end{verbatim}
     \item If you will be using SSL to connect to the IMAP server:
    \begin{verbatim}
@@ -55,14 +58,14 @@ need to run 'make install'.
 \subsubsection{Compiling Asterisk}
 
 Configure with ./configure --with-imap=/usr/src/imap
-or where ever you built thfe UWashington IMAP Toolkit. This directory
+or wherever you built the UWashington IMAP Toolkit. This directory
 will be searched for a source installation. If no source installation is
 found there, then a package installation of the IMAP c-client will be 
 searched for in this directory. If one is not found, then configure will fail.
 
 A second configure option is to not specify a directory (i.e.
 ./configure --with-imap). This will assume that you have the
-imap-2004g source installed in the .. directory relative to the
+imap-2007e source installed in the ../imap directory relative to the
 Asterisk source. If you do not have this source, then configure will
 default to the "system" option defined in the next paragraph
 
@@ -164,7 +167,9 @@ UIDPLUS is currently NOT supported on these versions of UW-IMAP.  Please note
 that without UID\_EXPUNGE, Asterisk voicemail will expunge ALL messages marked
 for deletion when a user exits the voicemail system (hangs up the phone).
 
-\subsubsection{UW IMAP-2006 Development Branch}
+This version is *not* recommended for Asterisk.
+
+\subsubsection{UW IMAP-2006}
 
 This version supports UIDPLUS, which allows UID\_EXPUNGE capabilities.  This
 feature allow the system to expunge ONLY pertinent messages, instead of the
@@ -172,6 +177,12 @@ default behavior, which is to expunge ALL messages marked for deletion when
 EXPUNGE is called.  The IMAP storage mechanism is this version of Asterisk
 will check if the UID\_EXPUNGE feature is supported by the server, and use it
 if possible.
+
+This version is *not* recommended for Asterisk.
+
+\subsubsection{UW IMAP-2007}
+
+This is the currently recommended version for use with Asterisk.
 
 \subsubsection{Cyrus IMAP}
 
