@@ -380,7 +380,7 @@ static int gosub_exec(struct ast_channel *chan, const char *data)
 			*endparen = '\0';
 		else
 			ast_log(LOG_WARNING, "Ouch.  No closing paren: '%s'?\n", (char *)data);
-		AST_STANDARD_APP_ARGS(args2, tmp);
+		AST_STANDARD_RAW_ARGS(args2, tmp);
 	} else
 		args2.argc = 0;
 
@@ -444,13 +444,13 @@ static int gosubif_exec(struct ast_channel *chan, const char *data)
 	}
 
 	args = ast_strdupa(data);
-	AST_NONSTANDARD_APP_ARGS(cond, args, '?');
+	AST_NONSTANDARD_RAW_ARGS(cond, args, '?');
 	if (cond.argc != 2) {
 		ast_log(LOG_WARNING, "GosubIf requires an argument: GosubIf(cond?label1(args):label2(args)\n");
 		return 0;
 	}
 
-	AST_NONSTANDARD_APP_ARGS(label, cond.labels, ':');
+	AST_NONSTANDARD_RAW_ARGS(label, cond.labels, ':');
 
 	if (pbx_checkcondition(cond.ition)) {
 		if (!ast_strlen_zero(label.iftrue))
@@ -532,7 +532,7 @@ static int peek_read(struct ast_channel *chan, const char *cmd, char *data, char
 		return -1;
 	}
 
-	AST_STANDARD_APP_ARGS(args, data);
+	AST_STANDARD_RAW_ARGS(args, data);
 	n = atoi(args.n);
 	*buf = '\0';
 

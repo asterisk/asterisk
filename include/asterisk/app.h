@@ -380,7 +380,9 @@ int ast_app_group_list_unlock(void);
   the argc argument counter field.
  */
 #define AST_STANDARD_APP_ARGS(args, parse) \
-	args.argc = ast_app_separate_args(parse, ',', args.argv, ((sizeof(args) - offsetof(typeof(args), argv)) / sizeof(args.argv[0])))
+	args.argc = __ast_app_separate_args(parse, ',', 1, args.argv, ((sizeof(args) - offsetof(typeof(args), argv)) / sizeof(args.argv[0])))
+#define AST_STANDARD_RAW_ARGS(args, parse) \
+	args.argc = __ast_app_separate_args(parse, ',', 0, args.argv, ((sizeof(args) - offsetof(typeof(args), argv)) / sizeof(args.argv[0])))
 
 /*!
   \brief Performs the 'nonstandard' argument separation process for an application.
@@ -393,12 +395,15 @@ int ast_app_group_list_unlock(void);
   the argc argument counter field.
  */
 #define AST_NONSTANDARD_APP_ARGS(args, parse, sep) \
-	args.argc = ast_app_separate_args(parse, sep, args.argv, ((sizeof(args) - offsetof(typeof(args), argv)) / sizeof(args.argv[0])))
+	args.argc = __ast_app_separate_args(parse, sep, 1, args.argv, ((sizeof(args) - offsetof(typeof(args), argv)) / sizeof(args.argv[0])))
+#define AST_NONSTANDARD_RAW_ARGS(args, parse, sep) \
+	args.argc = __ast_app_separate_args(parse, sep, 0, args.argv, ((sizeof(args) - offsetof(typeof(args), argv)) / sizeof(args.argv[0])))
 
 /*!
   \brief Separate a string into arguments in an array
   \param buf The string to be parsed (this must be a writable copy, as it will be modified)
   \param delim The character to be used to delimit arguments
+  \param remove_chars Remove backslashes and quote characters, while parsing
   \param array An array of 'char *' to be filled in with pointers to the found arguments
   \param arraylen The number of elements in the array (i.e. the number of arguments you will accept)
 
@@ -409,7 +414,8 @@ int ast_app_group_list_unlock(void);
 
   \return The number of arguments found, or zero if the function arguments are not valid.
 */
-unsigned int ast_app_separate_args(char *buf, char delim, char **array, int arraylen);
+unsigned int __ast_app_separate_args(char *buf, char delim, int remove_chars, char **array, int arraylen);
+#define ast_app_separate_args(a,b,c,d)	__ast_app_separate_args(a,b,1,c,d)
 
 /*!
   \brief A structure to hold the description of an application 'option'.

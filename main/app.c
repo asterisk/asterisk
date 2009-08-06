@@ -1174,7 +1174,10 @@ int ast_app_group_list_unlock(void)
 	return AST_RWLIST_UNLOCK(&groups);
 }
 
-unsigned int ast_app_separate_args(char *buf, char delim, char **array, int arraylen)
+#undef ast_app_separate_args
+unsigned int ast_app_separate_args(char *buf, char delim, char **array, int arraylen);
+
+unsigned int __ast_app_separate_args(char *buf, char delim, int remove_chars, char **array, int arraylen)
 {
 	int argc;
 	char *scan, *wasdelim = NULL;
@@ -1199,12 +1202,18 @@ unsigned int ast_app_separate_args(char *buf, char delim, char **array, int arra
 				}
 			} else if (*scan == '"' && delim != '"') {
 				quote = quote ? 0 : 1;
-				/* Remove quote character from argument */
-				memmove(scan, scan + 1, strlen(scan));
-				scan--;
+				if (remove_chars) {
+					/* Remove quote character from argument */
+					memmove(scan, scan + 1, strlen(scan));
+					scan--;
+				}
 			} else if (*scan == '\\') {
-				/* Literal character, don't parse */
-				memmove(scan, scan + 1, strlen(scan));
+				if (remove_chars) {
+					/* Literal character, don't parse */
+					memmove(scan, scan + 1, strlen(scan));
+				} else {
+					scan++;
+				}
 			} else if ((*scan == delim) && !paren && !quote) {
 				wasdelim = scan;
 				*scan++ = '\0';
@@ -1220,6 +1229,12 @@ unsigned int ast_app_separate_args(char *buf, char delim, char **array, int arra
 	}
 
 	return argc;
+}
+
+/* ABI compatible function */
+unsigned int ast_app_separate_args(char *buf, char delim, char **array, int arraylen)
+{
+	return __ast_app_separate_args(buf, delim, 1, array, arraylen);
 }
 
 static enum AST_LOCK_RESULT ast_lock_path_lockfile(const char *path)
