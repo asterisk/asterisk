@@ -28,10 +28,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <errno.h>
 #include <tiffio.h>
 
+#define SPANDSP_EXPOSE_INTERNAL_STRUCTURES
 #include <spandsp.h>
-#ifdef HAVE_SPANDSP_EXPOSE_H
-#include <spandsp/expose.h>
-#endif
 #include <spandsp/version.h>
 
 #include "asterisk/lock.h"
@@ -492,24 +490,26 @@ static int transmit_audio(fax_session *s)
 	while (!s->finished) {
 		inf = NULL;
 
-		if ((res = ast_waitfor(s->chan, 20)) < 0) {
+		if ((res = ast_waitfor(s->chan, 25)) < 0) {
+			ast_debug(1, "Error waiting for a frame\n");
 			break;
 		}
 
-		/* if nothing arrived, check the watchdog timers */
-		if (res == 0) {
-			now = ast_tvnow();
-			if (ast_tvdiff_sec(now, start) > WATCHDOG_TOTAL_TIMEOUT || ast_tvdiff_sec(now, state_change) > WATCHDOG_STATE_TIMEOUT) {
-				ast_log(LOG_WARNING, "It looks like we hung. Aborting.\n");
-				res = -1;
-				break;
-			} else {
-				/* timers have not triggered, loop around to wait
-				 * again
-				 */
-				continue;
-			}
+		/* Watchdog */
+		now = ast_tvnow();
+		if (ast_tvdiff_sec(now, start) > WATCHDOG_TOTAL_TIMEOUT || ast_tvdiff_sec(now, state_change) > WATCHDOG_STATE_TIMEOUT) {
+			ast_log(LOG_WARNING, "It looks like we hung. Aborting.\n");
+			res = -1;
+			break;
 		}
+
+		if (!res) {
+			/* There was timeout waiting for a frame. Loop around and wait again */
+			continue;
+		}
+
+		/* There is a frame available. Get it */
+		res = 0;
 
 		if (!(inf = ast_read(s->chan))) {
 			ast_debug(1, "Channel hangup\n");
@@ -644,28 +644,31 @@ static int transmit_t38(fax_session *s)
 
 	while (!s->finished) {
 		inf = NULL;
-		if ((res = ast_waitfor(s->chan, 20)) < 0) {
+
+		if ((res = ast_waitfor(s->chan, 25)) < 0) {
+			ast_debug(1, "Error waiting for a frame\n");
 			break;
 		}
 
 		last_frame = now;
+
+		/* Watchdog */
 		now = ast_tvnow();
-		/* if nothing arrived, check the watchdog timers */
-		if (res == 0) {
-			if (ast_tvdiff_sec(now, start) > WATCHDOG_TOTAL_TIMEOUT || ast_tvdiff_sec(now, state_change) > WATCHDOG_STATE_TIMEOUT) {
-				ast_log(LOG_WARNING, "It looks like we hung. Aborting.\n");
-				res = -1;
-				break;
-			} else {
-				/* timers have not triggered, loop around to wait
-				 * again
-				 */
-				t38_terminal_send_timeout(&t38, ast_tvdiff_us(now, last_frame) / (1000000 / 8000));
-				continue;
-			}
+		if (ast_tvdiff_sec(now, start) > WATCHDOG_TOTAL_TIMEOUT || ast_tvdiff_sec(now, state_change) > WATCHDOG_STATE_TIMEOUT) {
+			ast_log(LOG_WARNING, "It looks like we hung. Aborting.\n");
+			res = -1;
+			break;
+		}
+		
+		t38_terminal_send_timeout(&t38, ast_tvdiff_us(now, last_frame) / (1000000 / 8000));
+
+		if (!res) {
+			/* There was timeout waiting for a frame. Loop around and wait again */
+			continue;
 		}
 
-		t38_terminal_send_timeout(&t38, ast_tvdiff_us(now, last_frame) / (1000000 / 8000));
+		/* There is a frame available. Get it */
+		res = 0;
 
 		if (!(inf = ast_read(s->chan))) {
 			ast_debug(1, "Channel hangup\n");
@@ -714,7 +717,7 @@ static int transmit(fax_session *s)
 
 	pbx_builtin_setvar_helper(s->chan, "FAXMODE", NULL);
 	pbx_builtin_setvar_helper(s->chan, "REMOTESTATIONID", NULL);
-	pbx_builtin_setvar_helper(s->chan, "FAXPAGES", NULL);
+	pbx_builtin_setvar_helper(s->chan, "FAXPAGES", "0");
 	pbx_builtin_setvar_helper(s->chan, "FAXRESOLUTION", NULL);
 	pbx_builtin_setvar_helper(s->chan, "FAXBITRATE", NULL); 
 
