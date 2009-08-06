@@ -1337,10 +1337,14 @@ static void *__analog_ss_thread(void *data)
 
 	ast_log(LOG_DEBUG, "%s %d\n", __FUNCTION__, p->channel);
 
+	if (!chan) {
+		/* What happened to the channel? */
+		goto quit;
+	}
 	/* in the bizarre case where the channel has become a zombie before we
 	   even get started here, abort safely
 	*/
-	if (!p) {
+	if (!chan->tech_pvt) {
 		ast_log(LOG_WARNING, "Channel became a zombie before simple switch could be started (%s)\n", chan->name);
 		ast_hangup(chan);
 		goto quit;
@@ -2098,13 +2102,11 @@ static void *__analog_ss_thread(void *data)
 		goto quit;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to handle simple switch with signalling %s on channel %d\n", analog_sigtype_to_str(p->sig), p->channel);
-		res = analog_play_tone(p, index, ANALOG_TONE_CONGESTION);
-		if (res < 0)
-				ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", p->channel);
+		break;
 	}
 	res = analog_play_tone(p, index, ANALOG_TONE_CONGESTION);
 	if (res < 0)
-			ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", p->channel);
+		ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", p->channel);
 	ast_hangup(chan);
 quit:
 	analog_decrease_ss_count(p);
@@ -2114,7 +2116,8 @@ quit:
 int analog_ss_thread_start(struct analog_pvt *p, struct ast_channel *chan)
 {
 	pthread_t threadid;
-	return ast_pthread_create_detached(&threadid, NULL, __analog_ss_thread, chan);
+
+	return ast_pthread_create_detached(&threadid, NULL, __analog_ss_thread, p);
 }
 
 static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_channel *ast)
