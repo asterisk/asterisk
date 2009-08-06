@@ -1566,10 +1566,12 @@ int ast_hangup(struct ast_channel *chan)
 	if (chan->cdr && !ast_test_flag(chan->cdr, AST_CDR_FLAG_BRIDGED) && 
 		!ast_test_flag(chan->cdr, AST_CDR_FLAG_POST_DISABLED) && 
 	    (chan->cdr->disposition != AST_CDR_NULL || ast_test_flag(chan->cdr, AST_CDR_FLAG_DIALED))) {
+		ast_channel_lock(chan);
 			
 		ast_cdr_end(chan->cdr);
 		ast_cdr_detach(chan->cdr);
 		chan->cdr = NULL;
+		ast_channel_unlock(chan);
 	}
 	
 	ast_channel_free(chan);
