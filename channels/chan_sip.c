@@ -8463,108 +8463,110 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	}
 	
 	if (udptlportno != -1) {
-		int found = 0, x;
+		if (p->t38.state != T38_ENABLED) {
+			int found = 0, x;
 		
-		old = 0;
-		memset(&p->t38.their_parms, 0, sizeof(p->t38.their_parms));
+			old = 0;
+			memset(&p->t38.their_parms, 0, sizeof(p->t38.their_parms));
 		
-		/* Scan trough the a= lines for T38 attributes and set apropriate fileds */
-		iterator = req->sdp_start;
-		while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
-			if ((sscanf(a, "T38FaxMaxBuffer:%d", &x) == 1)) {
-				found = 1;
-				ast_debug(3, "MaxBufferSize:%d\n", x);
-			} else if ((sscanf(a, "T38MaxBitRate:%d", &x) == 1) || (sscanf(a, "T38FaxMaxRate:%d", &x) == 1)) {
-				found = 1;
-				ast_debug(3, "T38MaxBitRate: %d\n", x);
-				switch (x) {
-				case 14400:
-					p->t38.their_parms.rate = AST_T38_RATE_14400;
-					break;
-				case 12000:
-					p->t38.their_parms.rate = AST_T38_RATE_12000;
-					break;
-				case 9600:
-					p->t38.their_parms.rate = AST_T38_RATE_9600;
-					break;
-				case 7200:
-					p->t38.their_parms.rate = AST_T38_RATE_7200;
-					break;
-				case 4800:
-					p->t38.their_parms.rate = AST_T38_RATE_4800;
-					break;
-				case 2400:
-					p->t38.their_parms.rate = AST_T38_RATE_2400;
-					break;
-				}
-			} else if ((sscanf(a, "T38FaxVersion:%d", &x) == 1)) {
-				found = 1;
-				ast_debug(3, "FaxVersion: %d\n", x);
-				p->t38.their_parms.version = x;
-			} else if ((sscanf(a, "T38FaxMaxDatagram:%d", &x) == 1) || (sscanf(a, "T38MaxDatagram:%d", &x) == 1)) {
-				found = 1;
-				ast_debug(3, "FaxMaxDatagram: %d\n", x);
-				ast_udptl_set_far_max_datagram(p->udptl, x);
-			} else if ((strncmp(a, "T38FaxFillBitRemoval", 20) == 0)) {
-				found = 1;
-				if (sscanf(a, "T38FaxFillBitRemoval:%d", &x) == 1) {
-					ast_debug(3, "FillBitRemoval: %d\n", x);
-					if (x == 1) {
+			/* Scan trough the a= lines for T38 attributes and set apropriate fileds */
+			iterator = req->sdp_start;
+			while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
+				if ((sscanf(a, "T38FaxMaxBuffer:%d", &x) == 1)) {
+					found = 1;
+					ast_debug(3, "MaxBufferSize:%d\n", x);
+				} else if ((sscanf(a, "T38MaxBitRate:%d", &x) == 1) || (sscanf(a, "T38FaxMaxRate:%d", &x) == 1)) {
+					found = 1;
+					ast_debug(3, "T38MaxBitRate: %d\n", x);
+					switch (x) {
+					case 14400:
+						p->t38.their_parms.rate = AST_T38_RATE_14400;
+						break;
+					case 12000:
+						p->t38.their_parms.rate = AST_T38_RATE_12000;
+						break;
+					case 9600:
+						p->t38.their_parms.rate = AST_T38_RATE_9600;
+						break;
+					case 7200:
+						p->t38.their_parms.rate = AST_T38_RATE_7200;
+						break;
+					case 4800:
+						p->t38.their_parms.rate = AST_T38_RATE_4800;
+						break;
+					case 2400:
+						p->t38.their_parms.rate = AST_T38_RATE_2400;
+						break;
+					}
+				} else if ((sscanf(a, "T38FaxVersion:%d", &x) == 1)) {
+					found = 1;
+					ast_debug(3, "FaxVersion: %d\n", x);
+					p->t38.their_parms.version = x;
+				} else if ((sscanf(a, "T38FaxMaxDatagram:%d", &x) == 1) || (sscanf(a, "T38MaxDatagram:%d", &x) == 1)) {
+					found = 1;
+					ast_debug(3, "FaxMaxDatagram: %d\n", x);
+					ast_udptl_set_far_max_datagram(p->udptl, x);
+				} else if ((strncmp(a, "T38FaxFillBitRemoval", 20) == 0)) {
+					found = 1;
+					if (sscanf(a, "T38FaxFillBitRemoval:%d", &x) == 1) {
+						ast_debug(3, "FillBitRemoval: %d\n", x);
+						if (x == 1) {
+							p->t38.their_parms.fill_bit_removal = TRUE;
+						}
+					} else {
+						ast_debug(3, "FillBitRemoval\n");
 						p->t38.their_parms.fill_bit_removal = TRUE;
 					}
-				} else {
-					ast_debug(3, "FillBitRemoval\n");
-					p->t38.their_parms.fill_bit_removal = TRUE;
-				}
-			} else if ((strncmp(a, "T38FaxTranscodingMMR", 20) == 0)) {
-				found = 1;
-				if (sscanf(a, "T38FaxTranscodingMMR:%d", &x) == 1) {
-					ast_debug(3, "Transcoding MMR: %d\n", x);
-					if (x == 1) {
+				} else if ((strncmp(a, "T38FaxTranscodingMMR", 20) == 0)) {
+					found = 1;
+					if (sscanf(a, "T38FaxTranscodingMMR:%d", &x) == 1) {
+						ast_debug(3, "Transcoding MMR: %d\n", x);
+						if (x == 1) {
+							p->t38.their_parms.transcoding_mmr = TRUE;
+						}
+					} else {
+						ast_debug(3, "Transcoding MMR\n");
 						p->t38.their_parms.transcoding_mmr = TRUE;
 					}
-				} else {
-					ast_debug(3, "Transcoding MMR\n");
-					p->t38.their_parms.transcoding_mmr = TRUE;
-				}
-			} else if ((strncmp(a, "T38FaxTranscodingJBIG", 21) == 0)) {
-				found = 1;
-				if (sscanf(a, "T38FaxTranscodingJBIG:%d", &x) == 1) {
-					ast_debug(3, "Transcoding JBIG: %d\n", x);
-					if (x == 1) {
+				} else if ((strncmp(a, "T38FaxTranscodingJBIG", 21) == 0)) {
+					found = 1;
+					if (sscanf(a, "T38FaxTranscodingJBIG:%d", &x) == 1) {
+						ast_debug(3, "Transcoding JBIG: %d\n", x);
+						if (x == 1) {
+							p->t38.their_parms.transcoding_jbig = TRUE;
+						}
+					} else {
+						ast_debug(3, "Transcoding JBIG\n");
 						p->t38.their_parms.transcoding_jbig = TRUE;
 					}
-				} else {
-					ast_debug(3, "Transcoding JBIG\n");
-					p->t38.their_parms.transcoding_jbig = TRUE;
-				}
-			} else if ((sscanf(a, "T38FaxRateManagement:%255s", s) == 1)) {
-				found = 1;
-				ast_debug(3, "RateManagement: %s\n", s);
-				if (!strcasecmp(s, "localTCF"))
-					p->t38.their_parms.rate_management = AST_T38_RATE_MANAGEMENT_LOCAL_TCF;
-				else if (!strcasecmp(s, "transferredTCF"))
-					p->t38.their_parms.rate_management = AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF;
-			} else if ((sscanf(a, "T38FaxUdpEC:%255s", s) == 1)) {
-				found = 1;
-				ast_debug(3, "UDP EC: %s\n", s);
-				if (!strcasecmp(s, "t38UDPRedundancy")) {
-					ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_REDUNDANCY);
-				} else if (!strcasecmp(s, "t38UDPFEC")) {
-					ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_FEC);
-				} else {
-					ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_NONE);
+				} else if ((sscanf(a, "T38FaxRateManagement:%255s", s) == 1)) {
+					found = 1;
+					ast_debug(3, "RateManagement: %s\n", s);
+					if (!strcasecmp(s, "localTCF"))
+						p->t38.their_parms.rate_management = AST_T38_RATE_MANAGEMENT_LOCAL_TCF;
+					else if (!strcasecmp(s, "transferredTCF"))
+						p->t38.their_parms.rate_management = AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF;
+				} else if ((sscanf(a, "T38FaxUdpEC:%255s", s) == 1)) {
+					found = 1;
+					ast_debug(3, "UDP EC: %s\n", s);
+					if (!strcasecmp(s, "t38UDPRedundancy")) {
+						ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_REDUNDANCY);
+					} else if (!strcasecmp(s, "t38UDPFEC")) {
+						ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_FEC);
+					} else {
+						ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_NONE);
+					}
 				}
 			}
-		}
 
-		/* Remote party offers T38, we need to update state */
-		if ((t38action == SDP_T38_ACCEPT) &&
-		    (p->t38.state == T38_LOCAL_REINVITE)) {
-			change_t38_state(p, T38_ENABLED);
-		} else if ((t38action == SDP_T38_INITIATE) &&
-			   p->owner && p->lastinvite) {
-			change_t38_state(p, T38_PEER_REINVITE); /* T38 Offered in re-invite from remote party */
+			/* Remote party offers T38, we need to update state */
+			if ((t38action == SDP_T38_ACCEPT) &&
+			    (p->t38.state == T38_LOCAL_REINVITE)) {
+				change_t38_state(p, T38_ENABLED);
+			} else if ((t38action == SDP_T38_INITIATE) &&
+				   p->owner && p->lastinvite) {
+				change_t38_state(p, T38_PEER_REINVITE); /* T38 Offered in re-invite from remote party */
+			}
 		}
 	} else {
 		change_t38_state(p, T38_DISABLED);
