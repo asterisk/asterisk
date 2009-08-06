@@ -601,11 +601,16 @@ static void *pri_ss_thread(void *data)
 	int len;
 	int timeout;
 
+	if (!chan) {
+		/* We lost the owner before we could get started. */
+		return NULL;
+	}
+
 	/*
 	 * In the bizarre case where the channel has become a zombie before we
 	 * even get started here, abort safely.
 	 */
-	if (!p) {
+	if (!chan->tech_pvt) {
 		ast_log(LOG_WARNING, "Channel became a zombie before simple switch could be started (%s)\n", chan->name);
 		ast_hangup(chan);
 		return NULL;
@@ -666,7 +671,7 @@ static void *pri_ss_thread(void *data)
 exit:
 	res = sig_pri_play_tone(p, SIG_PRI_TONE_CONGESTION);
 	if (res < 0)
-			ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", p->channel);
+		ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", p->channel);
 	ast_hangup(chan);
 	return NULL;
 }
