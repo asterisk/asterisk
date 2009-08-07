@@ -1266,7 +1266,11 @@ static void *pri_dchannel(void *vpri)
 							 * so other threads can send D channel messages.
 							 */
 							ast_mutex_unlock(&pri->lock);
-							c = sig_pri_new_ast_channel(pri->pvts[chanpos], AST_STATE_RESERVED, 0, (e->ring.layer1 = PRI_LAYER_1_ALAW) ? SIG_PRI_ALAW : SIG_PRI_ULAW, e->ring.ctype, pri->pvts[chanpos]->exten, NULL);
+							c = sig_pri_new_ast_channel(pri->pvts[chanpos],
+								AST_STATE_RESERVED, 0,
+								(e->ring.layer1 == PRI_LAYER_1_ALAW)
+									? SIG_PRI_ALAW : SIG_PRI_ULAW,
+								e->ring.ctype, pri->pvts[chanpos]->exten, NULL);
 							ast_mutex_lock(&pri->lock);
 							if (c) {
 								if (!ast_strlen_zero(e->ring.callingsubaddr)) {
@@ -1311,7 +1315,11 @@ static void *pri_dchannel(void *vpri)
 							 * so other threads can send D channel messages.
 							 */
 							ast_mutex_unlock(&pri->lock);
-							c = sig_pri_new_ast_channel(pri->pvts[chanpos], AST_STATE_RING, 0, (e->ring.layer1 == PRI_LAYER_1_ALAW) ? SIG_PRI_ALAW : SIG_PRI_ULAW, e->ring.ctype, pri->pvts[chanpos]->exten, NULL);
+							c = sig_pri_new_ast_channel(pri->pvts[chanpos],
+								AST_STATE_RING, 0,
+								(e->ring.layer1 == PRI_LAYER_1_ALAW)
+									? SIG_PRI_ALAW : SIG_PRI_ULAW, e->ring.ctype,
+								pri->pvts[chanpos]->exten, NULL);
 							ast_mutex_lock(&pri->lock);
 							if (c) {
 								/*
