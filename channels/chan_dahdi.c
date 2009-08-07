@@ -5843,10 +5843,9 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 	int priority = 0;
 	struct ast_channel *oc0, *oc1;
 	enum ast_bridge_result res;
-
 #ifdef PRI_2BCT
-	int triedtopribridge = 0;
-	q931_call *q931c0 = NULL, *q931c1 = NULL;
+	q931_call *q931c0;
+	q931_call *q931c1;
 #endif
 
 	/* For now, don't attempt to native bridge if either channel needs DTMF detection.
@@ -6063,13 +6062,28 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 		}
 
 #ifdef PRI_2BCT
-		q931c0 = ((struct sig_pri_chan *)(p0->sig_pvt))->call;
-		q931c1 = ((struct sig_pri_chan *)(p1->sig_pvt))->call;
-		if (p0->transfer && p1->transfer
-			&& q931c0 && q931c1
-			&& !triedtopribridge) {
+		switch (p0->sig) {
+		case SIG_PRI:
+		case SIG_BRI:
+		case SIG_BRI_PTMP:
+			q931c0 = ((struct sig_pri_chan *) (p0->sig_pvt))->call;
+			break;
+		default:
+			q931c0 = NULL;
+			break;
+		}
+		switch (p1->sig) {
+		case SIG_PRI:
+		case SIG_BRI:
+		case SIG_BRI_PTMP:
+			q931c1 = ((struct sig_pri_chan *) (p1->sig_pvt))->call;
+			break;
+		default:
+			q931c1 = NULL;
+			break;
+		}
+		if (q931c0 && q931c1 && p0->transfer && p1->transfer) {
 			pri_channel_bridge(q931c0, q931c1);
-			triedtopribridge = 1;
 		}
 #endif
 
@@ -6419,7 +6433,10 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 		p->pulsedial = (res & DAHDI_EVENT_PULSEDIGIT) ? 1 : 0;
 		ast_debug(1, "Detected %sdigit '%c'\n", p->pulsedial ? "pulse ": "", res & 0xff);
 #ifdef HAVE_PRI
-		if (!((struct sig_pri_chan *)(p->sig_pvt))->proceeding && ((p->sig == SIG_PRI) || (p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP)) && p->pri && (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)) {
+		if ((p->sig == SIG_PRI || p->sig == SIG_BRI || p->sig == SIG_BRI_PTMP)
+			&& !((struct sig_pri_chan *) p->sig_pvt)->proceeding
+			&& p->pri
+			&& (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)) {
 			/* absorb event */
 		} else {
 #endif
@@ -7647,9 +7664,11 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 				}
 			} else if (f->frametype == AST_FRAME_DTMF) {
 #ifdef HAVE_PRI
-				if (!((struct sig_pri_chan *)(p->sig_pvt))->proceeding && ((p->sig == SIG_PRI) || (p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP)) && p->pri &&
-					((!p->outgoing && (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)) ||
-					(p->outgoing && (p->pri->overlapdial & DAHDI_OVERLAPDIAL_OUTGOING)))) {
+				if ((p->sig == SIG_PRI || p->sig == SIG_BRI || p->sig == SIG_BRI_PTMP)
+					&& !((struct sig_pri_chan *) p->sig_pvt)->proceeding
+					&& p->pri
+					&& ((!p->outgoing && (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING))
+						|| (p->outgoing && (p->pri->overlapdial & DAHDI_OVERLAPDIAL_OUTGOING)))) {
 					/* Don't accept in-band DTMF when in overlap dial mode */
 					f->frametype = AST_FRAME_NULL;
 					f->subclass = 0;
@@ -7739,22 +7758,6 @@ static int dahdi_write(struct ast_channel *ast, struct ast_frame *frame)
 		return -1;
 	}
 
-#if 0
-#ifdef HAVE_PRI
-	ast_mutex_lock(&p->lock);
-	if (!p->proceeding && p->sig==SIG_PRI && p->pri && !p->outgoing) {
-		if (p->pri->pri) {
-			if (!pri_grab(p, p->pri)) {
-					pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), !p->digital);
-					pri_rel(p->pri);
-			} else
-					ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
-		}
-		p->proceeding=1;
-	}
-	ast_mutex_unlock(&p->lock);
-#endif
-#endif
 	/* Write a frame of (presumably voice) data */
 	if (frame->frametype != AST_FRAME_VOICE) {
 		if (frame->frametype != AST_FRAME_IMAGE)
