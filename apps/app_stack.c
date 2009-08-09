@@ -474,7 +474,12 @@ static int local_read(struct ast_channel *chan, const char *cmd, char *data, cha
 
 	oldlist = stack_store->data;
 	AST_LIST_LOCK(oldlist);
-	frame = AST_LIST_FIRST(oldlist);
+	if (!(frame = AST_LIST_FIRST(oldlist))) {
+		/* Not within a Gosub routine */
+		AST_LIST_UNLOCK(oldlist);
+		return -1;
+	}
+
 	AST_LIST_TRAVERSE(&frame->varshead, variables, entries) {
 		if (!strcmp(data, ast_var_name(variables))) {
 			const char *tmp;
