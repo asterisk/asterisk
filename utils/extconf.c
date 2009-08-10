@@ -3147,7 +3147,7 @@ static int lookup_name(const char *s, char *const names[], int max)
 			if (!strcasecmp(s, names[i]))
 				return i+1;
 		}
-	} else if (sscanf(s, "%d", &i) == 1 && i >= 1 && i <= max) {
+	} else if (sscanf(s, "%30d", &i) == 1 && i >= 1 && i <= max) {
 		return i;
 	}
 	return 0; /* error return */
@@ -3234,11 +3234,11 @@ static void get_timerange(struct ast_timing *i, char *times)
 		ast_log(LOG_WARNING, "Invalid time range.  Assuming no restrictions based on time.\n");
 		return;
 	}
-	if (sscanf(times, "%d:%d", &s1, &s2) != 2) {
+	if (sscanf(times, "%2d:%2d", &s1, &s2) != 2) {
 		ast_log(LOG_WARNING, "%s isn't a time.  Assuming no restrictions based on time.\n", times);
 		return;
 	}
-	if (sscanf(e, "%d:%d", &e1, &e2) != 2) {
+	if (sscanf(e, "%2d:%2d", &e1, &e2) != 2) {
 		ast_log(LOG_WARNING, "%s isn't a time.  Assuming no restrictions based on time.\n", e);
 		return;
 	}
@@ -5550,7 +5550,7 @@ static int parse_variable_name(char *var, int *offset, int *length, int *isfunc)
 			parens--;
 		} else if (*var == ':' && parens == 0) {
 			*var++ = '\0';
-			sscanf(var, "%d:%d", offset, length);
+			sscanf(var, "%30d:%30d", offset, length);
 			return 1; /* offset:length valid */
 		}
 	}
@@ -5954,7 +5954,7 @@ static int pbx_load_config(const char *config_file)
 							ipri = lastpri;
 						else
 							ast_log(LOG_WARNING, "Can't use 'same' priority on the first entry!\n");
-					} else if (sscanf(pri, "%d", &ipri) != 1 &&
+					} else if (sscanf(pri, "%30d", &ipri) != 1 &&
 					    (ipri = ast_findlabel_extension2(NULL, con, realext, pri, cidmatch)) < 1) {
 						ast_log(LOG_WARNING, "Invalid priority/label '%s' at line %d\n", pri, v->lineno);
 						ipri = 0;

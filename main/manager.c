@@ -1494,7 +1494,7 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 		idText[0] = '\0';
 
 	if (!ast_strlen_zero(timeouts)) {
-		sscanf(timeouts, "%i", &timeout);
+		sscanf(timeouts, "%30i", &timeout);
 		if (timeout < -1)
 			timeout = -1;
 		/* XXX maybe put an upper bound, or prevent the use of 0 ? */
@@ -1937,7 +1937,7 @@ static int action_redirect(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Channel not specified");
 		return 0;
 	}
-	if (!ast_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1)) {
+	if (!ast_strlen_zero(priority) && (sscanf(priority, "%30d", &pi) != 1)) {
 		if ((pi = ast_findlabel_extension(NULL, context, exten, priority, NULL)) < 1) {
 			astman_send_error(s, m, "Invalid priority");
 			return 0;
@@ -2200,13 +2200,13 @@ static int action_originate(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Channel not specified");
 		return 0;
 	}
-	if (!ast_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1)) {
+	if (!ast_strlen_zero(priority) && (sscanf(priority, "%30d", &pi) != 1)) {
 		if ((pi = ast_findlabel_extension(NULL, context, exten, priority, NULL)) < 1) {
 			astman_send_error(s, m, "Invalid priority");
 			return 0;
 		}
 	}
-	if (!ast_strlen_zero(timeout) && (sscanf(timeout, "%d", &to) != 1)) {
+	if (!ast_strlen_zero(timeout) && (sscanf(timeout, "%30d", &to) != 1)) {
 		astman_send_error(s, m, "Invalid timeout");
 		return 0;
 	}
@@ -3568,7 +3568,7 @@ static struct ast_str *generic_http_callback(enum output_format format,
 
 	for (v = params; v; v = v->next) {
 		if (!strcasecmp(v->name, "mansession_id")) {
-			sscanf(v->value, "%x", &ident);
+			sscanf(v->value, "%30x", &ident);
 			break;
 		}
 	}

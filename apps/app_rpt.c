@@ -810,7 +810,7 @@ static int myatoi(const char *str)
 	if (str == NULL)
 		return -1;
 	/* leave this %i alone, non-base-10 input is useful here */
-	if (sscanf(str, "%i", &ret) != 1)
+	if (sscanf(str, "%30i", &ret) != 1)
 		return -1;
 	return ret;
 }
@@ -979,7 +979,7 @@ static void load_rpt_vars(int n, int init)
 			/* do not use atoi() here, we need to be able to have
 			   the input specified in hex or decimal so we use
 			   sscanf with a %i */
-			if (sscanf(var->value, "%i", &rpt_vars[n].p.iobase) != 1)
+			if (sscanf(var->value, "%30i", &rpt_vars[n].p.iobase) != 1)
 				rpt_vars[n].p.iobase = DEFAULT_IOBASE;
 		} else if (!strcmp(var->name, "functions")) {
 			rpt_vars[n].p.simple = 0;
@@ -1671,7 +1671,7 @@ static int send_tone_telemetry(struct ast_channel *chan, const char *tonestring)
 		tonesubset = strsep(&stringp, ")");
 		if (!tonesubset)
 			break;
-		if (sscanf(tonesubset, "(%d,%d,%d,%d", &f1, &f2, &duration, &amplitude) != 4)
+		if (sscanf(tonesubset, "(%30d,%30d,%30d,%30d", &f1, &f2, &duration, &amplitude) != 4)
 			break;
 		res = play_tone_pair(chan, f1, f2, duration, amplitude);
 		if (res)
@@ -3482,6 +3482,8 @@ static int collect_function_digits(struct rpt *myrpt, char *digits, int command_
 
 static void handle_link_data(struct rpt *myrpt, struct rpt_link *mylink, char *str)
 {
+	/* XXX ATTENTION: if you change the size of these arrays you MUST
+	 * change the limits in corresponding sscanf() calls below. */
 	char cmd[300] = "", dest[300], src[300], c;
 	int	seq, res;
 	struct rpt_link *l;
@@ -3499,7 +3501,7 @@ static void handle_link_data(struct rpt *myrpt, struct rpt_link *mylink, char *s
 		ast_softhangup(mylink->chan, AST_SOFTHANGUP_DEV);
 		return;
 	}
-	if (sscanf(str, "%s %s %s %d %c", cmd, dest, src, &seq, &c) != 5) {
+	if (sscanf(str, "%299s %299s %299s %30d %1c", cmd, dest, src, &seq, &c) != 5) {
 		ast_log(LOG_WARNING, "Unable to parse link string %s\n", str);
 		return;
 	}
@@ -4103,7 +4105,7 @@ static int split_decimal(char *input, int *ints, int *decs, int places)
 {
 	double input2 = 0.0;
 	long long modifier = (long long)pow(10.0, (double)places);
-	if (sscanf(input, "%lf", &input2) == 1) {
+	if (sscanf(input, "%30lf", &input2) == 1) {
 		long long input3 = input2 * modifier;
 		*ints = input3 / modifier;
 		*decs = input3 % modifier;
@@ -5370,12 +5372,16 @@ static int handle_remote_dtmf_digit(struct rpt *myrpt, char c, char *keyed, int 
 
 static int handle_remote_data(struct rpt *myrpt, char *str)
 {
+	/* XXX ATTENTION: if you change the size of these arrays you MUST
+	 * change the limits in corresponding sscanf() calls below. */
 	char cmd[300], dest[300], src[300], c;
 	int	seq, res;
 
 	if (!strcmp(str, discstr))
 		return 0;
-	if (sscanf(str, "%s %s %s %d %c", cmd, dest, src, &seq, &c) != 5) {
+	/* XXX WARNING: be very careful with the limits on the folowing
+	 * sscanf() call, make sure they match the values defined above */
+	if (sscanf(str, "%299s %299s %299s %30d %1c", cmd, dest, src, &seq, &c) != 5) {
 		ast_log(LOG_WARNING, "Unable to parse link string %s\n", str);
 		return 0;
 	}

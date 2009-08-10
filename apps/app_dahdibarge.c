@@ -259,8 +259,8 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	char confstr[80] = "";
 	
 	if (!ast_strlen_zero(data)) {
-		if ((sscanf(data, "DAHDI/%d", &confno) != 1) &&
-		    (sscanf(data, "%d", &confno) != 1)) {
+		if ((sscanf(data, "DAHDI/%30d", &confno) != 1) &&
+		    (sscanf(data, "%30d", &confno) != 1)) {
 			ast_log(LOG_WARNING, "DAHDIBarge Argument (if specified) must be a channel number, not '%s'\n", (char *)data);
 			return 0;
 		}
@@ -274,7 +274,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 		confstr[0] = '\0';
 		res = ast_app_getdata(chan, "conf-getchannel",confstr, sizeof(confstr) - 1, 0);
 		if (res <0) goto out;
-		if (sscanf(confstr, "%d", &confno) != 1)
+		if (sscanf(confstr, "%30d", &confno) != 1)
 			confno = 0;
 	}
 	if (confno) {
