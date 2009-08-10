@@ -1904,6 +1904,7 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 			AST_LIST_TRAVERSE(&d->lines, l, list) {
 				/* FIXME: All sorts of issues will occur if this line is already connected to a device */
 				if (l->device) {
+					manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: Skinny\r\nPeer: Skinny/%s@%s\r\nPeerStatus: Rejected\r\nCause: LINE_ALREADY_CONNECTED\r\n", l->name, l->device->name); 
 					ast_verb(1, "Line %s already connected to %s. Not connecting to %s.\n", l->name, l->device->name, d->name);
 				} else {
 					l->device = d;
@@ -1917,6 +1918,7 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 					l->instance = instance;
 					l->newmsgs = ast_app_has_voicemail(l->mailbox, NULL);
 					set_callforwards(l, NULL, 0);
+					manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: Skinny\r\nPeer: Skinny/%s@%s\r\nPeerStatus: Registered\r\n", l->name, d->name);
 					register_exten(l);
 					/* initialize MWI on line and device */
 					mwi_event_cb(0, l);
@@ -1956,6 +1958,7 @@ static int skinny_unregister(struct skinny_req *req, struct skinnysession *s)
 				l->capability = 0;
 				ast_parse_allow_disallow(&l->prefs, &l->capability, "all", 0);			
 				l->instance = 0;
+				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: Skinny\r\nPeer: Skinny/%s@%s\r\nPeerStatus: Unregistered\r\n", l->name, d->name);
 				unregister_exten(l);
 				ast_devstate_changed(AST_DEVICE_UNAVAILABLE, "Skinny/%s@%s", l->name, d->name);
 			}
@@ -7435,6 +7438,7 @@ static int unload_module(void)
 			if (l->mwi_event_sub)
 				ast_event_unsubscribe(l->mwi_event_sub);
 			ast_mutex_unlock(&l->lock);
+			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: Skinny\r\nPeer: Skinny/%s@%s\r\nPeerStatus: Unregistered\r\n", l->name, d->name);
 			unregister_exten(l);
 		}
 		if (s->fd > -1)
