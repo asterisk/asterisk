@@ -4658,7 +4658,7 @@ static void destroy_all_channels(void)
 
 			snprintf(db_chan_name, sizeof(db_chan_name), "%s/%d:%d", dahdi_db, pl->span, x);
 			if (!ast_db_get(db_chan_name, SRVST_DBKEY, db_answer, sizeof(db_answer))) {
-				sscanf(db_answer, "%c:%d", &state, &why);
+				sscanf(db_answer, "%1c:%30d", &state, &why);
 			}
 			if (!why) {
 				/* SRVST persistence is not required */
@@ -5658,7 +5658,7 @@ static int parse_buffers_policy(const char *parse, int *num_buffers, int *policy
 	int res;
 	char policy_str[21] = "";
 
-	if ((res = sscanf(parse, "%d,%20s", num_buffers, policy_str)) != 2) {
+	if ((res = sscanf(parse, "%30d,%20s", num_buffers, policy_str)) != 2) {
 		ast_log(LOG_WARNING, "Parsing buffer string '%s' failed.\n", parse);
 		return 1;
 	}
@@ -10270,7 +10270,7 @@ static unsigned int parse_pointcode(const char *pcstring)
 	unsigned int code1, code2, code3;
 	int numvals;
 
-	numvals = sscanf(pcstring, "%d-%d-%d", &code1, &code2, &code3);
+	numvals = sscanf(pcstring, "%30d-%30d-%30d", &code1, &code2, &code3);
 	if (numvals == 1)
 		return code1;
 	if (numvals == 3)
@@ -11274,7 +11274,7 @@ static struct ast_channel *dahdi_request(const char *type, int format, const str
 
 		stringp = dest + 1;
 		s = strsep(&stringp, "/");
-		if ((res = sscanf(s, "%d%c%d", &x, &opt, &y)) < 1) {
+		if ((res = sscanf(s, "%30d%1c%30d", &x, &opt, &y)) < 1) {
 			ast_log(LOG_WARNING, "Unable to determine group for data %s\n", (char *)data);
 			return NULL;
 		}
@@ -11309,7 +11309,7 @@ static struct ast_channel *dahdi_request(const char *type, int format, const str
 			x = CHAN_PSEUDO;
 			channelmatch = x;
 		}
-		else if ((res = sscanf(s, "%d%c%d", &x, &opt, &y)) < 1) {
+		else if ((res = sscanf(s, "%30d%1c%30d", &x, &opt, &y)) < 1) {
 			ast_log(LOG_WARNING, "Unable to determine channel for data %s\n", (char *)data);
 			return NULL;
 		} else {
@@ -12640,7 +12640,7 @@ static char *handle_pri_service_generic(struct ast_cli_entry *e, int cmd, struct
 	if (a->argc < 5 || a->argc > 6)
 		return CLI_SHOWUSAGE;
 	if ((c = strchr(a->argv[4], ':'))) {
-		if (sscanf(a->argv[4], "%d:%d", &trunkgroup, &channel) != 2)
+		if (sscanf(a->argv[4], "%30d:%30d", &trunkgroup, &channel) != 2)
 			return CLI_SHOWUSAGE;
 		if ((trunkgroup < 1) || (channel < 1))
 			return CLI_SHOWUSAGE;
@@ -12685,7 +12685,7 @@ static char *handle_pri_service_generic(struct ast_cli_entry *e, int cmd, struct
 			why = -1;
 			snprintf(db_chan_name, sizeof(db_chan_name), "%s/%d:%d", dahdi_db, tmp->span, channel);
 			if (!ast_db_get(db_chan_name, SRVST_DBKEY, db_answer, sizeof(db_answer))) {
-				sscanf(db_answer, "%c:%d", &state, &why);
+				sscanf(db_answer, "%1c:%30d", &state, &why);
 				ast_db_del(db_chan_name, SRVST_DBKEY);
 			}
 			switch(changestatus) {
@@ -14850,9 +14850,9 @@ static int build_channels(struct dahdi_chan_conf *conf, const char *value, int r
 	c = ast_strdupa(value);
 
 	while ((chan = strsep(&c, ","))) {
-		if (sscanf(chan, "%d-%d", &start, &finish) == 2) {
+		if (sscanf(chan, "%30d-%30d", &start, &finish) == 2) {
 			/* Range */
-		} else if (sscanf(chan, "%d", &start)) {
+		} else if (sscanf(chan, "%30d", &start)) {
 			/* Just one */
 			finish = start;
 		} else if (!strcasecmp(chan, "pseudo")) {
@@ -14932,7 +14932,7 @@ static void process_echocancel(struct dahdi_chan_conf *confp, const char *data, 
 		strcpy(confp->chan.echocancel.params[confp->chan.echocancel.head.param_count].name, param.name);
 
 		if (param.value) {
-			if (sscanf(param.value, "%d", &confp->chan.echocancel.params[confp->chan.echocancel.head.param_count].value) != 1) {
+			if (sscanf(param.value, "%30d", &confp->chan.echocancel.params[confp->chan.echocancel.head.param_count].value) != 1) {
 				ast_log(LOG_WARNING, "Invalid echocancel parameter value supplied at line %d: '%s'\n", line, param.value);
 				continue;
 			}
@@ -15000,11 +15000,11 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 		} else if (!strcasecmp(v->name, "dring3range")) {
 			confp->chan.drings.ringnum[2].range = atoi(v->value);
 		} else if (!strcasecmp(v->name, "dring1")) {
-			sscanf(v->value, "%d,%d,%d", &confp->chan.drings.ringnum[0].ring[0], &confp->chan.drings.ringnum[0].ring[1], &confp->chan.drings.ringnum[0].ring[2]);
+			sscanf(v->value, "%30d,%30d,%30d", &confp->chan.drings.ringnum[0].ring[0], &confp->chan.drings.ringnum[0].ring[1], &confp->chan.drings.ringnum[0].ring[2]);
 		} else if (!strcasecmp(v->name, "dring2")) {
-			sscanf(v->value,"%d,%d,%d", &confp->chan.drings.ringnum[1].ring[0], &confp->chan.drings.ringnum[1].ring[1], &confp->chan.drings.ringnum[1].ring[2]);
+			sscanf(v->value, "%30d,%30d,%30d", &confp->chan.drings.ringnum[1].ring[0], &confp->chan.drings.ringnum[1].ring[1], &confp->chan.drings.ringnum[1].ring[2]);
 		} else if (!strcasecmp(v->name, "dring3")) {
-			sscanf(v->value, "%d,%d,%d", &confp->chan.drings.ringnum[2].ring[0], &confp->chan.drings.ringnum[2].ring[1], &confp->chan.drings.ringnum[2].ring[2]);
+			sscanf(v->value, "%30d,%30d,%30d", &confp->chan.drings.ringnum[2].ring[0], &confp->chan.drings.ringnum[2].ring[1], &confp->chan.drings.ringnum[2].ring[2]);
 		} else if (!strcasecmp(v->name, "usecallerid")) {
 			confp->chan.use_callerid = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "cidsignalling")) {
@@ -15061,7 +15061,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 		} else if (!strcasecmp(v->name, "busycount")) {
 			confp->chan.busycount = atoi(v->value);
 		} else if (!strcasecmp(v->name, "busypattern")) {
-			if (sscanf(v->value, "%d,%d", &confp->chan.busy_tonelength, &confp->chan.busy_quietlength) != 2) {
+			if (sscanf(v->value, "%30d,%30d", &confp->chan.busy_tonelength, &confp->chan.busy_quietlength) != 2) {
 				ast_log(LOG_ERROR, "busypattern= expects busypattern=tonelength,quietlength at line %d.\n", v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "callprogress")) {
@@ -15081,7 +15081,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 		} else if (!strcasecmp(v->name, "echocancel")) {
 			process_echocancel(confp, v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "echotraining")) {
-			if (sscanf(v->value, "%d", &y) == 1) {
+			if (sscanf(v->value, "%30d", &y) == 1) {
 				if ((y < 10) || (y > 4000)) {
 					ast_log(LOG_WARNING, "Echo training time must be within the range of 10 to 4000 ms at line %d.\n", v->lineno);
 				} else {
@@ -15165,19 +15165,19 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				confp->chan.mwimonitor_fsk = 1;
 			}
 		} else if (!strcasecmp(v->name, "cid_rxgain")) {
-			if (sscanf(v->value, "%f", &confp->chan.cid_rxgain) != 1) {
+			if (sscanf(v->value, "%30f", &confp->chan.cid_rxgain) != 1) {
 				ast_log(LOG_WARNING, "Invalid cid_rxgain: %s at line %d.\n", v->value, v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "rxgain")) {
-			if (sscanf(v->value, "%f", &confp->chan.rxgain) != 1) {
+			if (sscanf(v->value, "%30f", &confp->chan.rxgain) != 1) {
 				ast_log(LOG_WARNING, "Invalid rxgain: %s at line %d.\n", v->value, v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "txgain")) {
-			if (sscanf(v->value, "%f", &confp->chan.txgain) != 1) {
+			if (sscanf(v->value, "%30f", &confp->chan.txgain) != 1) {
 				ast_log(LOG_WARNING, "Invalid txgain: %s at line %d.\n", v->value, v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "tonezone")) {
-			if (sscanf(v->value, "%d", &confp->chan.tonezone) != 1) {
+			if (sscanf(v->value, "%30d", &confp->chan.tonezone) != 1) {
 				ast_log(LOG_WARNING, "Invalid tonezone: %s at line %d.\n", v->value, v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "callerid")) {
@@ -15743,7 +15743,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 
 				ast_copy_string(original_args, v->value, sizeof(original_args));
 				/* 16 cadences allowed (8 pairs) */
-				element_count = sscanf(v->value, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d", &c[0], &c[1], &c[2], &c[3], &c[4], &c[5], &c[6], &c[7], &c[8], &c[9], &c[10], &c[11], &c[12], &c[13], &c[14], &c[15]);
+				element_count = sscanf(v->value, "%30d,%30d,%30d,%30d,%30d,%30d,%30d,%30d,%30d,%30d,%30d,%30d,%30d,%30d,%30d,%30d", &c[0], &c[1], &c[2], &c[3], &c[4], &c[5], &c[6], &c[7], &c[8], &c[9], &c[10], &c[11], &c[12], &c[13], &c[14], &c[15]);
 
 				/* Cadence must be even (on/off) */
 				if (element_count % 2 == 1) {

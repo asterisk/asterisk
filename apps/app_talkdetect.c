@@ -105,16 +105,16 @@ static int background_detect_exec(struct ast_channel *chan, const char *data)
 	tmp = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, tmp);
 
-	if (!ast_strlen_zero(args.silence) && (sscanf(args.silence, "%d", &x) == 1) && (x > 0)) {
+	if (!ast_strlen_zero(args.silence) && (sscanf(args.silence, "%30d", &x) == 1) && (x > 0)) {
 		sil = x;
 	}
-	if (!ast_strlen_zero(args.min) && (sscanf(args.min, "%d", &x) == 1) && (x > 0)) {
+	if (!ast_strlen_zero(args.min) && (sscanf(args.min, "%30d", &x) == 1) && (x > 0)) {
 		min = x;
 	}
-	if (!ast_strlen_zero(args.max) && (sscanf(args.max, "%d", &x) == 1) && (x > 0)) {
+	if (!ast_strlen_zero(args.max) && (sscanf(args.max, "%30d", &x) == 1) && (x > 0)) {
 		max = x;
 	}
-	if (!ast_strlen_zero(args.analysistime) && (sscanf(args.analysistime, "%d", &x) == 1) && (x > 0)) {
+	if (!ast_strlen_zero(args.analysistime) && (sscanf(args.analysistime, "%30d", &x) == 1) && (x > 0)) {
 		analysistime = x;
 	}
 

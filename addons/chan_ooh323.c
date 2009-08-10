@@ -424,7 +424,7 @@ static struct ooh323_pvt *ooh323_alloc(int callref, char *callToken)
 /*
 	Possible data values - peername, exten/peername, exten@ip
  */
-static struct ast_channel *ooh323_request(const char *type, int format, 
+static struct ast_channel *ooh323_request(const char *type, int format, const struct ast_channel *requestor,
 													 void *data, int *cause)
 {
 	struct ast_channel *chan = NULL;
@@ -1886,7 +1886,7 @@ int reload_config(int reload)
 			if (gRTPTimeout <= 0)
 				gRTPTimeout = 60;
 		} else if (!strcasecmp(v->name, "tos")) {
-			if (sscanf(v->value, "%i", &format) == 1)
+			if (sscanf(v->value, "%30i", &format) == 1)
 				gTOS = format & 0xff;
 			else if (!strcasecmp(v->value, "lowdelay"))
 				gTOS = IPTOS_LOWDELAY;

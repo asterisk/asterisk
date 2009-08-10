@@ -351,8 +351,8 @@ END_CONFIG
 #define DEV_DSP "/dev/dsp"
 #endif
 
-static char *config = "usbradio.conf";	/* default config file */
-static char *config1 = "usbradio_tune_%s.conf";    /* tune config file */
+static const char *config = "usbradio.conf";	/* default config file */
+#define config1 "usbradio_tune_%s.conf"    /* tune config file */
 
 static FILE *frxcapraw = NULL, *frxcaptrace = NULL, *frxoutraw = NULL;
 static FILE *ftxcapraw = NULL, *ftxcaptrace = NULL, *ftxoutraw = NULL;
@@ -1642,7 +1642,7 @@ static int usbradio_text(struct ast_channel *c, const char *text)
 	/* print received messages */
 	if(o->debuglevel)ast_verbose(" << Console Received usbradio text %s >> \n", text);
 
-	cnt=sscanf(text,"%s %s %s %s %s %c",cmd,rxs,txs,rxpl,txpl,&pwr);
+	cnt = sscanf(text, "%300s %15s %15s %15s %15s %1c", cmd, rxs, txs, rxpl, txpl, &pwr);
 
 	if (strcmp(cmd,"SETCHAN")==0)
     { 
@@ -2812,7 +2812,7 @@ static void store_rxsdtype(struct chan_usbradio_pvt *o, char *s)
 static void store_rxgain(struct chan_usbradio_pvt *o, char *s)
 {
 	float f;
-	sscanf(s,"%f",&f); 
+	sscanf(s, "%30f", &f); 
 	o->rxgain = f;
 	//ast_log(LOG_WARNING, "set rxgain = %f\n", f);
 }
@@ -2821,7 +2821,7 @@ static void store_rxgain(struct chan_usbradio_pvt *o, char *s)
 static void store_rxvoiceadj(struct chan_usbradio_pvt *o, char *s)
 {
 	float f;
-	sscanf(s,"%f",&f);
+	sscanf(s, "%30f", &f);
 	o->rxvoiceadj = f;
 	//ast_log(LOG_WARNING, "set rxvoiceadj = %f\n", f);
 }
@@ -2830,7 +2830,7 @@ static void store_rxvoiceadj(struct chan_usbradio_pvt *o, char *s)
 static void store_rxctcssadj(struct chan_usbradio_pvt *o, char *s)
 {
 	float f;
-	sscanf(s,"%f",&f);
+	sscanf(s, "%30f", &f);
 	o->rxctcssadj = f;
 	//ast_log(LOG_WARNING, "set rxctcssadj = %f\n", f);
 }
@@ -3815,6 +3815,8 @@ static char *res2cli(int r)
 static char *handle_console_key(struct ast_cli_entry *e,
 	int cmd, struct ast_cli_args *a)
 {
+	char *argv[] = { "radio", "key", NULL };
+
         switch (cmd) {
         case CLI_INIT:
                 e->command = "radio key";
@@ -3823,12 +3825,13 @@ static char *handle_console_key(struct ast_cli_entry *e,
         case CLI_GENERATE:
                 return NULL;
 	}
-	return res2cli(console_key(a->fd,a->argc,a->argv));
+	return res2cli(console_key(a->fd, 2, argv));
 }
 
 static char *handle_console_unkey(struct ast_cli_entry *e,
 	int cmd, struct ast_cli_args *a)
 {
+	char *argv[] = { "radio", "unkey", NULL };
         switch (cmd) {
         case CLI_INIT:
                 e->command = "radio unkey";
@@ -3837,12 +3840,13 @@ static char *handle_console_unkey(struct ast_cli_entry *e,
         case CLI_GENERATE:
                 return NULL;
 	}
-	return res2cli(console_unkey(a->fd,a->argc,a->argv));
+	return res2cli(console_unkey(a->fd, 2, argv));
 }
 
 static char *handle_radio_tune(struct ast_cli_entry *e,
 	int cmd, struct ast_cli_args *a)
 {
+	char *argv[5] = { "radio", "tune", a->argc > 2 ? (char *) a->argv[2] : NULL, a->argc > 3 ? (char *) a->argv[3] : NULL };
         switch (cmd) {
         case CLI_INIT:
                 e->command = "radio tune";
@@ -3851,7 +3855,7 @@ static char *handle_radio_tune(struct ast_cli_entry *e,
         case CLI_GENERATE:
                 return NULL;
 	}
-	return res2cli(radio_tune(a->fd,a->argc,a->argv));
+	return res2cli(radio_tune(a->fd, a->argc, argv));
 }
 
 static char *handle_radio_debug(struct ast_cli_entry *e,
@@ -3865,7 +3869,7 @@ static char *handle_radio_debug(struct ast_cli_entry *e,
         case CLI_GENERATE:
                 return NULL;
 	}
-	return res2cli(radio_set_debug(a->fd,a->argc,a->argv));
+	return res2cli(radio_set_debug(a->fd, a->argc, NULL /* ignored */));
 }
 
 static char *handle_radio_debug_off(struct ast_cli_entry *e,
@@ -3879,12 +3883,13 @@ static char *handle_radio_debug_off(struct ast_cli_entry *e,
         case CLI_GENERATE:
                 return NULL;
 	}
-	return res2cli(radio_set_debug_off(a->fd,a->argc,a->argv));
+	return res2cli(radio_set_debug_off(a->fd, a->argc, NULL /* ignored */));
 }
 
 static char *handle_radio_active(struct ast_cli_entry *e,
 	int cmd, struct ast_cli_args *a)
 {
+	char *argv[4] = { "radio", "active", a->argc > 2 ? (char *) a->argv[2] : NULL, };
         switch (cmd) {
         case CLI_INIT:
                 e->command = "radio active";
@@ -3893,12 +3898,13 @@ static char *handle_radio_active(struct ast_cli_entry *e,
         case CLI_GENERATE:
                 return NULL;
 	}
-	return res2cli(radio_active(a->fd,a->argc,a->argv));
+	return res2cli(radio_active(a->fd, a->argc, argv));
 }
 
 static char *handle_set_xdebug(struct ast_cli_entry *e,
 	int cmd, struct ast_cli_args *a)
 {
+	char *argv[5] = { "radio", "set", "xdebug", a->argc == 4 ? (char *) a->argv[3] : NULL, };
         switch (cmd) {
         case CLI_INIT:
                 e->command = "radio set xdebug";
@@ -3907,7 +3913,7 @@ static char *handle_set_xdebug(struct ast_cli_entry *e,
         case CLI_GENERATE:
                 return NULL;
 	}
-	return res2cli(radio_set_xpmr_debug(a->fd,a->argc,a->argv));
+	return res2cli(radio_set_xpmr_debug(a->fd, a->argc, argv));
 }
 
 

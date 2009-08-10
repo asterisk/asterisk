@@ -475,7 +475,7 @@ static int get_mapping_weight(struct dundi_mapping *map)
 	buf[0] = 0;
 	if (map->weightstr) {
 		pbx_substitute_variables_helper(NULL, map->weightstr, buf, sizeof(buf) - 1);
-		if (sscanf(buf, "%d", &map->_weight) != 1)
+		if (sscanf(buf, "%30d", &map->_weight) != 1)
 			map->_weight = MAX_WEIGHT;
 	}
 
@@ -1088,7 +1088,7 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 			if (expiration > 0) {
 				ast_debug(1, "Found cache expiring in %d seconds!\n", expiration);
 				ptr += length + 1;
-				while((sscanf(ptr, "%d/%d/%d/%n", &(flags.flags), &weight, &tech, &length) == 3)) {
+				while((sscanf(ptr, "%30d/%30d/%30d/%n", &(flags.flags), &weight, &tech, &length) == 3)) {
 					ptr += length;
 					term = strchr(ptr, '|');
 					if (term) {
@@ -4036,7 +4036,7 @@ static int dundi_result_read(struct ast_channel *chan, const char *cmd, char *da
 		goto finish;
 	}
 
-	if (sscanf(args.resultnum, "%u", &num) != 1) {
+	if (sscanf(args.resultnum, "%30u", &num) != 1) {
 		ast_log(LOG_ERROR, "Invalid value '%s' for resultnum to DUNDIRESULT!\n",
 			args.resultnum);
 		goto finish;
@@ -4200,7 +4200,7 @@ static void build_mapping(const char *name, const char *value)
 	} else if (x >= 4) {
 		ast_copy_string(map->dcontext, name, sizeof(map->dcontext));
 		ast_copy_string(map->lcontext, fields[0], sizeof(map->lcontext));
-		if ((sscanf(fields[1], "%d", &map->_weight) == 1) && (map->_weight >= 0) && (map->_weight <= MAX_WEIGHT)) {
+		if ((sscanf(fields[1], "%30d", &map->_weight) == 1) && (map->_weight >= 0) && (map->_weight <= MAX_WEIGHT)) {
 			ast_copy_string(map->dest, fields[3], sizeof(map->dest));
 			if ((map->tech = str2tech(fields[2])))
 				map->dead = 0;
@@ -4302,7 +4302,7 @@ static void populate_addr(struct dundi_peer *peer, dundi_eid *eid)
 		if (c) {
 			*c = '\0';
 			c++;
-			if (sscanf(c, "%d:%d", &port, &expire) == 2) {
+			if (sscanf(c, "%5d:%30d", &port, &expire) == 2) {
 				/* Got it! */
 				inet_aton(data, &peer->addr.sin_addr);
 				peer->addr.sin_family = AF_INET;
@@ -4399,7 +4399,7 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v, int *globalpcmode
 				peer->maxms = 0;
 			} else if (!strcasecmp(v->value, "yes")) {
 				peer->maxms = DEFAULT_MAXMS;
-			} else if (sscanf(v->value, "%d", &peer->maxms) != 1) {
+			} else if (sscanf(v->value, "%30d", &peer->maxms) != 1) {
 				ast_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of dundi.conf\n",
 					ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), v->lineno);
 				peer->maxms = 0;
@@ -4637,14 +4637,14 @@ static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
 		} else if (!strcasecmp(v->name, "authdebug")) {
 			authdebug = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "ttl")) {
-			if ((sscanf(v->value, "%d", &x) == 1) && (x > 0) && (x < DUNDI_DEFAULT_TTL)) {
+			if ((sscanf(v->value, "%30d", &x) == 1) && (x > 0) && (x < DUNDI_DEFAULT_TTL)) {
 				dundi_ttl = x;
 			} else {
 				ast_log(LOG_WARNING, "'%s' is not a valid TTL at line %d, must be number from 1 to %d\n",
 					v->value, v->lineno, DUNDI_DEFAULT_TTL);
 			}
 		} else if (!strcasecmp(v->name, "autokill")) {
-			if (sscanf(v->value, "%d", &x) == 1) {
+			if (sscanf(v->value, "%30d", &x) == 1) {
 				if (x >= 0)
 					global_autokilltimeout = x;
 				else
@@ -4679,7 +4679,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
 		} else if (!strcasecmp(v->name, "storehistory")) {
 			global_storehistory = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "cachetime")) {
-			if ((sscanf(v->value, "%d", &x) == 1)) {
+			if ((sscanf(v->value, "%30d", &x) == 1)) {
 				dundi_cache_time = x;
 			} else {
 				ast_log(LOG_WARNING, "'%s' is not a valid cache time at line %d. Using default value '%d'.\n",

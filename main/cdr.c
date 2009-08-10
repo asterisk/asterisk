@@ -1493,7 +1493,7 @@ static int do_reload(int reload)
 			batchsafeshutdown = ast_true(batchsafeshutdown_value);
 		}
 		if ((size_value = ast_variable_retrieve(config, "general", "size"))) {
-			if (sscanf(size_value, "%d", &cfg_size) < 1)
+			if (sscanf(size_value, "%30d", &cfg_size) < 1)
 				ast_log(LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", size_value);
 			else if (cfg_size < 0)
 				ast_log(LOG_WARNING, "Invalid maximum batch size '%d' specified, using default\n", cfg_size);
@@ -1501,7 +1501,7 @@ static int do_reload(int reload)
 				batchsize = cfg_size;
 		}
 		if ((time_value = ast_variable_retrieve(config, "general", "time"))) {
-			if (sscanf(time_value, "%d", &cfg_time) < 1)
+			if (sscanf(time_value, "%30d", &cfg_time) < 1)
 				ast_log(LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", time_value);
 			else if (cfg_time < 0)
 				ast_log(LOG_WARNING, "Invalid maximum batch time '%d' specified, using default\n", cfg_time);

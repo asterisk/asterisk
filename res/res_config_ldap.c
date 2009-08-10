@@ -1597,7 +1597,7 @@ int parse_config(void)
 	if ((s = ast_variable_retrieve(config, "_general", "url"))) {
 		ast_copy_string(url, s, sizeof(url));
 	} else if ((host = ast_variable_retrieve(config, "_general", "host"))) {
-		if (!(s = ast_variable_retrieve(config, "_general", "port")) || sscanf(s, "%d", &port) != 1) {
+		if (!(s = ast_variable_retrieve(config, "_general", "port")) || sscanf(s, "%5d", &port) != 1 || port > 65535) {
 			ast_log(LOG_NOTICE, "No directory port found, using 389 as default.\n");
 			port = 389;
 		}
@@ -1618,7 +1618,7 @@ int parse_config(void)
 	if (!(s = ast_variable_retrieve(config, "_general", "version")) && !(s = ast_variable_retrieve(config, "_general", "protocol"))) {
 		ast_log(LOG_NOTICE, "No explicit LDAP version found, using 3 as default.\n");
 		version = 3;
-	} else if (sscanf(s, "%d", &version) != 1 || version < 1 || version > 6) {
+	} else if (sscanf(s, "%30d", &version) != 1 || version < 1 || version > 6) {
 		ast_log(LOG_WARNING, "Invalid LDAP version '%s', using 3 as default.\n", s);
 		version = 3;
 	}

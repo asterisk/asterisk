@@ -570,7 +570,7 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, const char
 
 	ast_debug(1, "Gosub called with %d arguments: 0:%s 1:%s 2:%s 3:%s 4:%s\n", argc, argv[0], argv[1], argv[2], argv[3], argc == 5 ? argv[4] : "");
 
-	if (sscanf(argv[3], "%d", &priority) != 1 || priority < 1) {
+	if (sscanf(argv[3], "%30d", &priority) != 1 || priority < 1) {
 		/* Lookup the priority label */
 		if ((priority = ast_findlabel_extension(chan, argv[1], argv[2], argv[3], chan->cid.cid_num)) < 0) {
 			ast_log(LOG_ERROR, "Priority '%s' not found in '%s@%s'\n", argv[3], argv[2], argv[1]);

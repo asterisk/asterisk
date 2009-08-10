@@ -1826,7 +1826,7 @@ int ast_get_timeval(const char *src, struct timeval *dst, struct timeval _defaul
 		return -1;
 
 	/* only integer at the moment, but one day we could accept more formats */
-	if (sscanf(src, "%Lf%n", &dtv, &scanned) > 0) {
+	if (sscanf(src, "%30Lf%n", &dtv, &scanned) > 0) {
 		dst->tv_sec = dtv;
 		dst->tv_usec = (dtv - dst->tv_sec) * 1000000.0;
 		if (consumed)
@@ -1853,7 +1853,7 @@ int ast_get_time_t(const char *src, time_t *dst, time_t _default, int *consumed)
 		return -1;
 
 	/* only integer at the moment, but one day we could accept more formats */
-	if (sscanf(src, "%ld%n", &t, &scanned) == 1) {
+	if (sscanf(src, "%30ld%n", &t, &scanned) == 1) {
 		*dst = t;
 		if (consumed)
 			*consumed = scanned;
@@ -2012,7 +2012,7 @@ int ast_parse_digest(const char *digest, struct ast_http_digest *d, int request,
 			d->qop = 1;
 		} else if (!strcasecmp(key, "nc")) {
 			unsigned long u;
-			if (sscanf(val, "%lx", &u) != 1) {
+			if (sscanf(val, "%30lx", &u) != 1) {
 				ast_log(LOG_WARNING, "Incorrect Digest nc value: \"%s\".\n", val);
 				return -1;
 			}

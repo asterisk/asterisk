@@ -137,7 +137,7 @@ static int timeout_write(struct ast_channel *chan, const char *cmd, char *data,
 	if (!value)
 		return -1;
 
-	res = sscanf(value, "%ld%lf", &sec, &x);
+	res = sscanf(value, "%30ld%30lf", &sec, &x);
 	if (res == 0 || sec < 0) {
 		when.tv_sec = 0;
 		when.tv_usec = 0;

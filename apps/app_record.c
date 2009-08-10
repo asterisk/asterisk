@@ -190,7 +190,7 @@ static int record_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 	if (args.silence) {
-		if ((sscanf(args.silence, "%d", &i) == 1) && (i > -1)) {
+		if ((sscanf(args.silence, "%30d", &i) == 1) && (i > -1)) {
 			silence = i * 1000;
 		} else if (!ast_strlen_zero(args.silence)) {
 			ast_log(LOG_WARNING, "'%s' is not a valid silence duration\n", args.silence);
@@ -198,7 +198,7 @@ static int record_exec(struct ast_channel *chan, const char *data)
 	}
 	
 	if (args.maxduration) {
-		if ((sscanf(args.maxduration, "%d", &i) == 1) && (i > -1))
+		if ((sscanf(args.maxduration, "%30d", &i) == 1) && (i > -1))
 			/* Convert duration to milliseconds */
 			maxduration = i * 1000;
 		else if (!ast_strlen_zero(args.maxduration))

@@ -503,7 +503,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 				case SQL_TYPE_DATE:
 					{
 						int year = 0, month = 0, day = 0;
-						if (sscanf(colptr, "%d-%d-%d", &year, &month, &day) != 3 || year <= 0 ||
+						if (sscanf(colptr, "%4d-%2d-%2d", &year, &month, &day) != 3 || year <= 0 ||
 							month <= 0 || month > 12 || day < 0 || day > 31 ||
 							((month == 4 || month == 6 || month == 9 || month == 11) && day == 31) ||
 							(month == 2 && year % 400 == 0 && day > 29) ||
@@ -526,7 +526,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 				case SQL_TYPE_TIME:
 					{
 						int hour = 0, minute = 0, second = 0;
-						int count = sscanf(colptr, "%d:%d:%d", &hour, &minute, &second);
+						int count = sscanf(colptr, "%2d:%2d:%2d", &hour, &minute, &second);
 
 						if ((count != 2 && count != 3) || hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59) {
 							ast_log(LOG_WARNING, "CEL variable %s is not a valid time ('%s').\n", entry->name, colptr);
@@ -542,7 +542,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 				case SQL_TIMESTAMP:
 					{
 						int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0;
-						int count = sscanf(colptr, "%d-%d-%d %d:%d:%d", &year, &month, &day, &hour, &minute, &second);
+						int count = sscanf(colptr, "%4d-%2d-%2d %2d:%2d:%2d", &year, &month, &day, &hour, &minute, &second);
 
 						if ((count != 3 && count != 5 && count != 6) || year <= 0 ||
 							month <= 0 || month > 12 || day < 0 || day > 31 ||
@@ -570,7 +570,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 						int integer = 0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							integer = (int) record.event_type;
-						} else if (sscanf(colptr, "%d", &integer) != 1) {
+						} else if (sscanf(colptr, "%30d", &integer) != 1) {
 							ast_log(LOG_WARNING, "CEL variable %s is not an integer.\n", entry->name);
 							continue;
 						}
@@ -585,7 +585,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 						long long integer = 0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							integer = (long long) record.event_type;
-						} else if (sscanf(colptr, "%lld", &integer) != 1) {
+						} else if (sscanf(colptr, "%30lld", &integer) != 1) {
 							ast_log(LOG_WARNING, "CEL variable %s is not an integer.\n", entry->name);
 							continue;
 						}
@@ -600,7 +600,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 						short integer = 0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							integer = (short) record.event_type;
-						} else if (sscanf(colptr, "%hd", &integer) != 1) {
+						} else if (sscanf(colptr, "%30hd", &integer) != 1) {
 							ast_log(LOG_WARNING, "CEL variable %s is not an integer.\n", entry->name);
 							continue;
 						}
@@ -615,7 +615,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 						char integer = 0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							integer = (char) record.event_type;
-						} else if (sscanf(colptr, "%hhd", &integer) != 1) {
+						} else if (sscanf(colptr, "%30hhd", &integer) != 1) {
 							ast_log(LOG_WARNING, "CEL variable %s is not an integer.\n", entry->name);
 							continue;
 						}
@@ -630,7 +630,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 						char integer = 0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							integer = (char) record.event_type;
-						} else if (sscanf(colptr, "%hhd", &integer) != 1) {
+						} else if (sscanf(colptr, "%30hhd", &integer) != 1) {
 							ast_log(LOG_WARNING, "CEL variable %s is not an integer.\n", entry->name);
 							continue;
 						}
@@ -648,7 +648,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 						double number = 0.0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							number = (double)record.event_type;
-						} else if (sscanf(colptr, "%lf", &number) != 1) {
+						} else if (sscanf(colptr, "%30lf", &number) != 1) {
 							ast_log(LOG_WARNING, "CEL variable %s is not an numeric type.\n", entry->name);
 							continue;
 						}
@@ -665,7 +665,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 						double number = 0.0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							number = (double) record.event_type;
-						} else if (sscanf(colptr, "%lf", &number) != 1) {
+						} else if (sscanf(colptr, "%30lf", &number) != 1) {
 							ast_log(LOG_WARNING, "CEL variable %s is not an numeric type.\n", entry->name);
 							continue;
 						}

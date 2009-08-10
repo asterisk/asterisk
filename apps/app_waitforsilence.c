@@ -214,9 +214,9 @@ static int waitfor_exec(struct ast_channel *chan, const char *data, int wait_for
 		res = ast_answer(chan); /* Answer the channel */
 	}
 
-	if (!data || ( (sscanf(data, "%d,%d,%d", &timereqd, &iterations, &timeout) != 3) &&
-		(sscanf(data, "%d,%d", &timereqd, &iterations) != 2) &&
-		(sscanf(data, "%d", &timereqd) != 1) ) ) {
+	if (!data || ( (sscanf(data, "%30d,%30d,%30d", &timereqd, &iterations, &timeout) != 3) &&
+		(sscanf(data, "%30d,%30d", &timereqd, &iterations) != 2) &&
+		(sscanf(data, "%30d", &timereqd) != 1) ) ) {
 		ast_log(LOG_WARNING, "Using default value of 1000ms, 1 iteration, no timeout\n");
 	}
 

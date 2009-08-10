@@ -444,7 +444,7 @@ static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		atleast = 1;
 	if (argc != e->args + atleast + 1 && argc != e->args + atleast + 2)
 		return CLI_SHOWUSAGE;
-	if (sscanf(argv[e->args + atleast], "%d", &newlevel) != 1)
+	if (sscanf(argv[e->args + atleast], "%30d", &newlevel) != 1)
 		return CLI_SHOWUSAGE;
 	if (argc == e->args + atleast + 2) {
 		unsigned int debug = (*what == 'C');

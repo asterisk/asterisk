@@ -3979,7 +3979,7 @@ static char *handle_cli_misdn_show_config(struct ast_cli_entry *e, int cmd, stru
 				ok = 1;
 			}
 			return ok ? CLI_SUCCESS : CLI_SHOWUSAGE;
-		} else if (!sscanf(a->argv[3], "%d", &onlyport) || onlyport < 0) {
+		} else if (!sscanf(a->argv[3], "%5d", &onlyport) || onlyport < 0) {
 			ast_cli(a->fd, "Unknown option: %s\n", a->argv[3]);
 			return CLI_SHOWUSAGE;
 		}

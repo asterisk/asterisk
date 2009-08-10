@@ -922,9 +922,9 @@ static int _parse (union misdn_cfg_pt *dest, const char *value, enum misdn_cfg_t
 		int res;
 
 		if (strchr(value,'x')) {
-			res = sscanf(value, "%x", &tmp);
+			res = sscanf(value, "%30x", &tmp);
 		} else {
-			res = sscanf(value, "%d", &tmp);
+			res = sscanf(value, "%30d", &tmp);
 		}
 		if (res) {
 			dest->num = ast_malloc(sizeof(int));
@@ -939,7 +939,7 @@ static int _parse (union misdn_cfg_pt *dest, const char *value, enum misdn_cfg_t
 		break;
 	case MISDN_CTYPE_BOOLINT:
 		dest->num = ast_malloc(sizeof(int));
-		if (sscanf(value, "%d", &tmp)) {
+		if (sscanf(value, "%30d", &tmp)) {
 			memcpy(dest->num, &tmp, sizeof(int));
 		} else {
 			*(dest->num) = (ast_true(value) ? boolint_def : 0);
@@ -1008,7 +1008,7 @@ static void _build_port_config (struct ast_variable *v, char *cat)
 			for (token = strsep(&tmp, ","); token; token = strsep(&tmp, ","), *ptpbuf = 0) {
 				if (!*token)
 					continue;
-				if (sscanf(token, "%d-%d%s", &start, &end, ptpbuf) >= 2) {
+				if (sscanf(token, "%30d-%30d%511s", &start, &end, ptpbuf) >= 2) {
 					for (; start <= end; start++) {
 						if (start <= max_ports && start > 0) {
 							cfg_for_ports[start] = 1;
@@ -1017,7 +1017,7 @@ static void _build_port_config (struct ast_variable *v, char *cat)
 							CLI_ERROR(v->name, v->value, cat);
 					}
 				} else {
-					if (sscanf(token, "%d%s", &start, ptpbuf)) {
+					if (sscanf(token, "%30d%511s", &start, ptpbuf)) {
 						if (start <= max_ports && start > 0) {
 							cfg_for_ports[start] = 1;
 							ptp[start] = (strstr(ptpbuf, "ptp")) ? 1 : 0;

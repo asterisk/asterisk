@@ -237,7 +237,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 				ast_cdr_getvar(cdr, cur->name, &value, buf, sizeof(buf), 0, 0);
 				if (strncmp(cur->type, "int", 3) == 0) {
 					long long whatever;
-					if (value && sscanf(value, "%lld", &whatever) == 1) {
+					if (value && sscanf(value, "%30lld", &whatever) == 1) {
 						LENGTHEN_BUF2(26);
 						ast_str_append(&sql2, 0, "%s%lld", first ? "" : ",", whatever);
 					} else {
@@ -246,7 +246,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 					}
 				} else if (strncmp(cur->type, "float", 5) == 0) {
 					long double whatever;
-					if (value && sscanf(value, "%Lf", &whatever) == 1) {
+					if (value && sscanf(value, "%30Lf", &whatever) == 1) {
 						LENGTHEN_BUF2(51);
 						ast_str_append(&sql2, 0, "%s%30Lf", first ? "" : ",", whatever);
 					} else {
@@ -501,7 +501,7 @@ static int config_module(int reload)
 			ast_verb(4, "Found column '%s' of type '%s'\n", fname, ftype);
 			cur = ast_calloc(1, sizeof(*cur) + strlen(fname) + strlen(ftype) + 2);
 			if (cur) {
-				sscanf(flen, "%d", &cur->len);
+				sscanf(flen, "%30d", &cur->len);
 				cur->name = (char *)cur + sizeof(*cur);
 				cur->type = (char *)cur + sizeof(*cur) + strlen(fname) + 1;
 				strcpy(cur->name, fname);

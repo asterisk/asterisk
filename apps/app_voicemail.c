@@ -926,7 +926,7 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 	} else if (!strcasecmp(var, "sayduration")){
 		ast_set2_flag(vmu, ast_true(value), VM_SAYDURATION);	
 	} else if (!strcasecmp(var, "saydurationm")){
-		if (sscanf(value, "%d", &x) == 1) {
+		if (sscanf(value, "%30d", &x) == 1) {
 			vmu->saydurationm = x;
 		} else {
 			ast_log(AST_LOG_WARNING, "Invalid min duration for say duration\n");
@@ -960,7 +960,7 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 			vmu->maxmsg = MAXMSGLIMIT;
 		}
 	} else if (!strcasecmp(var, "backupdeleted")) {
-		if (sscanf(value, "%d", &x) == 1)
+		if (sscanf(value, "%30d", &x) == 1)
 			vmu->maxdeletedmsg = x;
 		else if (ast_true(value))
 			vmu->maxdeletedmsg = MAXMSG;
@@ -975,7 +975,7 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 			vmu->maxdeletedmsg = MAXMSGLIMIT;
 		}
 	} else if (!strcasecmp(var, "volgain")) {
-		sscanf(value, "%lf", &vmu->volgain);
+		sscanf(value, "%30lf", &vmu->volgain);
 	} else if (!strcasecmp(var, "options")) {
 		apply_options(vmu, value);
 	}
@@ -3105,7 +3105,7 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 			ast_odbc_release_obj(obj);
 			goto yuck;
 		}
-		if (sscanf(rowdata, "%d", &x) != 1)
+		if (sscanf(rowdata, "%30d", &x) != 1)
 			ast_log(AST_LOG_WARNING, "Failed to read message count!\n");
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 		ast_odbc_release_obj(obj);
@@ -3160,7 +3160,7 @@ static int message_exists(char *dir, int msgnum)
 			ast_odbc_release_obj(obj);
 			goto yuck;
 		}
-		if (sscanf(rowdata, "%d", &x) != 1)
+		if (sscanf(rowdata, "%30d", &x) != 1)
 			ast_log(AST_LOG_WARNING, "Failed to read message count!\n");
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 		ast_odbc_release_obj(obj);
@@ -3578,7 +3578,7 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 	 * find each file. */
 	msgdir = opendir(dir);
 	while ((msgdirent = readdir(msgdir))) {
-		if (sscanf(msgdirent->d_name, "msg%d", &msgdirint) == 1 && msgdirint < MAXMSGLIMIT)
+		if (sscanf(msgdirent->d_name, "msg%30d", &msgdirint) == 1 && msgdirint < MAXMSGLIMIT)
 			map[msgdirint] = 1;
 	}
 	closedir(msgdir);
@@ -3903,7 +3903,7 @@ static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu
 		pbx_builtin_setvar_helper(ast, "ORIG_VM_CIDNUM", origcidnum);
 	}
 
-	if ((origtime = ast_variable_retrieve(msg_cfg, "message", "origtime")) && sscanf(origtime, "%d", &inttime) == 1) {
+	if ((origtime = ast_variable_retrieve(msg_cfg, "message", "origtime")) && sscanf(origtime, "%30d", &inttime) == 1) {
 		struct timeval tv = { inttime, };
 		struct ast_tm tm;
 		ast_localtime(&tv, &tm, NULL);
@@ -4258,7 +4258,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 
 				/* You might be tempted to do origdate, except that a) it's in the wrong
 				 * format, and b) it's missing for IMAP recordings. */
-				if ((v = ast_variable_retrieve(msg_cfg, "message", "origtime")) && sscanf(v, "%d", &inttime) == 1) {
+				if ((v = ast_variable_retrieve(msg_cfg, "message", "origtime")) && sscanf(v, "%30d", &inttime) == 1) {
 					struct timeval tv = { inttime, };
 					struct ast_tm tm;
 					ast_localtime(&tv, &tm, NULL);
@@ -9013,7 +9013,7 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 			if (ast_test_flag(&flags, OPT_RECORDGAIN)) {
 				int gain;
 				if (!ast_strlen_zero(opts[OPT_ARG_RECORDGAIN])) {
-					if (sscanf(opts[OPT_ARG_RECORDGAIN], "%d", &gain) != 1) {
+					if (sscanf(opts[OPT_ARG_RECORDGAIN], "%30d", &gain) != 1) {
 						ast_log(AST_LOG_WARNING, "Invalid value '%s' provided for record gain option\n", opts[OPT_ARG_RECORDGAIN]);
 						return -1;
 					} else {
@@ -9026,7 +9026,7 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 			if (ast_test_flag(&flags, OPT_AUTOPLAY) ) {
 				play_auto = 1;
 				if (opts[OPT_ARG_PLAYFOLDER]) {
-					if (sscanf(opts[OPT_ARG_PLAYFOLDER], "%d", &play_folder) != 1) {
+					if (sscanf(opts[OPT_ARG_PLAYFOLDER], "%30d", &play_folder) != 1) {
 						ast_log(AST_LOG_WARNING, "Invalid value '%s' provided for folder autoplay option\n", opts[OPT_ARG_PLAYFOLDER]);
 					}
 				} else {
@@ -9692,7 +9692,7 @@ static int vm_exec(struct ast_channel *chan, const char *data)
 			if (ast_test_flag(&flags, OPT_RECORDGAIN)) {
 				int gain;
 
-				if (sscanf(opts[OPT_ARG_RECORDGAIN], "%d", &gain) != 1) {
+				if (sscanf(opts[OPT_ARG_RECORDGAIN], "%30d", &gain) != 1) {
 					ast_log(AST_LOG_WARNING, "Invalid value '%s' provided for record gain option\n", opts[OPT_ARG_RECORDGAIN]);
 					return -1;
 				} else {
@@ -10529,7 +10529,7 @@ static int load_config(int reload)
 
 		volgain = 0.0;
 		if ((val = ast_variable_retrieve(cfg, "general", "volgain")))
-			sscanf(val, "%lf", &volgain);
+			sscanf(val, "%30lf", &volgain);
 
 #ifdef ODBC_STORAGE
 		strcpy(odbc_database, "asterisk");
@@ -10569,7 +10569,7 @@ static int load_config(int reload)
 		if (!(val = ast_variable_retrieve(cfg, "general", "backupdeleted"))) {
 			maxdeletedmsg = 0;
 		} else {
-			if (sscanf(val, "%d", &x) == 1)
+			if (sscanf(val, "%30d", &x) == 1)
 				maxdeletedmsg = x;
 			else if (ast_true(val))
 				maxdeletedmsg = MAXMSG;
@@ -10721,7 +10721,7 @@ static int load_config(int reload)
 		
 		vmmaxsecs = 0;
 		if ((val = ast_variable_retrieve(cfg, "general", "maxsecs"))) {
-			if (sscanf(val, "%d", &x) == 1) {
+			if (sscanf(val, "%30d", &x) == 1) {
 				vmmaxsecs = x;
 			} else {
 				ast_log(AST_LOG_WARNING, "Invalid max message time length\n");
@@ -10732,7 +10732,7 @@ static int load_config(int reload)
 				maxmessage_deprecate = 1;
 				ast_log(AST_LOG_WARNING, "Setting 'maxmessage' has been deprecated in favor of 'maxsecs'.\n");
 			}
-			if (sscanf(val, "%d", &x) == 1) {
+			if (sscanf(val, "%30d", &x) == 1) {
 				vmmaxsecs = x;
 			} else {
 				ast_log(AST_LOG_WARNING, "Invalid max message time length\n");
@@ -10741,7 +10741,7 @@ static int load_config(int reload)
 
 		vmminsecs = 0;
 		if ((val = ast_variable_retrieve(cfg, "general", "minsecs"))) {
-			if (sscanf(val, "%d", &x) == 1) {
+			if (sscanf(val, "%30d", &x) == 1) {
 				vmminsecs = x;
 				if (maxsilence / 1000 >= vmminsecs) {
 					ast_log(AST_LOG_WARNING, "maxsilence should be less than minmessage or you may get empty messages\n");
@@ -10755,7 +10755,7 @@ static int load_config(int reload)
 				maxmessage_deprecate = 1;
 				ast_log(AST_LOG_WARNING, "Setting 'minmessage' has been deprecated in favor of 'minsecs'.\n");
 			}
-			if (sscanf(val, "%d", &x) == 1) {
+			if (sscanf(val, "%30d", &x) == 1) {
 				vmminsecs = x;
 				if (maxsilence / 1000 >= vmminsecs) {
 					ast_log(AST_LOG_WARNING, "maxsilence should be less than minmessage or you may get empty messages\n");
@@ -10772,7 +10772,7 @@ static int load_config(int reload)
 
 		skipms = 3000;
 		if ((val = ast_variable_retrieve(cfg, "general", "maxgreet"))) {
-			if (sscanf(val, "%d", &x) == 1) {
+			if (sscanf(val, "%30d", &x) == 1) {
 				maxgreet = x;
 			} else {
 				ast_log(AST_LOG_WARNING, "Invalid max message greeting length\n");
@@ -10780,7 +10780,7 @@ static int load_config(int reload)
 		}
 
 		if ((val = ast_variable_retrieve(cfg, "general", "skipms"))) {
-			if (sscanf(val, "%d", &x) == 1) {
+			if (sscanf(val, "%30d", &x) == 1) {
 				skipms = x;
 			} else {
 				ast_log(AST_LOG_WARNING, "Invalid skipms value\n");
@@ -10789,7 +10789,7 @@ static int load_config(int reload)
 
 		maxlogins = 3;
 		if ((val = ast_variable_retrieve(cfg, "general", "maxlogins"))) {
-			if (sscanf(val, "%d", &x) == 1) {
+			if (sscanf(val, "%30d", &x) == 1) {
 				maxlogins = x;
 			} else {
 				ast_log(AST_LOG_WARNING, "Invalid max failed login attempts\n");
@@ -10798,7 +10798,7 @@ static int load_config(int reload)
 
 		minpassword = MINPASSWORD;
 		if ((val = ast_variable_retrieve(cfg, "general", "minpassword"))) {
-			if (sscanf(val, "%d", &x) == 1) {
+			if (sscanf(val, "%30d", &x) == 1) {
 				minpassword = x;
 			} else {
 				ast_log(AST_LOG_WARNING, "Invalid minimum password length.  Default to %d\n", minpassword);
@@ -10894,7 +10894,7 @@ static int load_config(int reload)
 
 		saydurationminfo = 2;
 		if ((val = ast_variable_retrieve(cfg, "general", "saydurationm"))) {
-			if (sscanf(val, "%d", &x) == 1) {
+			if (sscanf(val, "%30d", &x) == 1) {
 				saydurationminfo = x;
 			} else {
 				ast_log(AST_LOG_WARNING, "Invalid min duration for say duration\n");
@@ -10959,7 +10959,7 @@ static int load_config(int reload)
 
 		poll_freq = DEFAULT_POLL_FREQ;
 		if ((val = ast_variable_retrieve(cfg, "general", "pollfreq"))) {
-			if (sscanf(val, "%u", &poll_freq) != 1) {
+			if (sscanf(val, "%30u", &poll_freq) != 1) {
 				poll_freq = DEFAULT_POLL_FREQ;
 				ast_log(AST_LOG_ERROR, "'%s' is not a valid value for the pollfreq option!\n", val);
 			}

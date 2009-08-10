@@ -516,7 +516,7 @@ tryanotherpos:
 
 		/* if so, try next channel */
 		if (!ast_db_get(db_chan_name, SRVST_DBKEY, db_answer, sizeof(db_answer))) {
-			sscanf(db_answer, "%c:%d", &state, &why);
+			sscanf(db_answer, "%1c:%30d", &state, &why);
 			if (why) {
 				ast_log(LOG_NOTICE, "span '%d' channel '%d' out-of-service (reason: %s), not sending RESTART\n", pri->span,
 				pri->pvts[pri->resetpos]->channel, (why & SRVST_FAREND) ? (why & SRVST_NEAREND) ? "both ends" : "far end" : "near end");
@@ -1014,7 +1014,7 @@ static void *pri_dchannel(void *vpri)
 						ast_mutex_unlock(&pri->pvts[chanpos]->service_lock);
 
 						if (!ast_db_get(db_chan_name, SRVST_DBKEY, db_answer, sizeof(db_answer))) {
-							sscanf(db_answer, "%c:%d", &state, &why);
+							sscanf(db_answer, "%1c:%30d", &state, &why);
 							if (why) {
 								ast_log(LOG_NOTICE, "span '%d' channel '%d' out-of-service (reason: %s), ignoring RESTART\n", pri->span,
 									e->restart.channel, (why & SRVST_FAREND) ? (why & SRVST_NEAREND) ? "both ends" : "far end" : "near end");
@@ -1126,7 +1126,7 @@ static void *pri_dchannel(void *vpri)
 
 					snprintf(db_chan_name, sizeof(db_chan_name), "%s/%d:%d", dahdi_db, pri->pvts[chanpos]->pri->span, ch);
 					if (!ast_db_get(db_chan_name, SRVST_DBKEY, db_answer, sizeof(db_answer))) {
-						sscanf(db_answer, "%c:%d", &state, &why);
+						sscanf(db_answer, "%1c:%30d", &state, &why);
 						ast_db_del(db_chan_name, SRVST_DBKEY);
 					}
 					switch (e->service.changestatus) {
@@ -2369,7 +2369,7 @@ int sig_pri_available(struct sig_pri_chan *p, int channelmatch, ast_group_t grou
 
 			snprintf(db_chan_name, sizeof(db_chan_name), "%s/%d:%d", dahdi_db, p->pri->span, p->channel);
 			if (!ast_db_get(db_chan_name, SRVST_DBKEY, db_answer, sizeof(db_answer))) {
-				sscanf(db_answer, "%c:%d", &state, &why);
+				sscanf(db_answer, "%1c:%30d", &state, &why);
 			}
 			if ((p->resetting || p->call) || (why)) {
 				if (why) {

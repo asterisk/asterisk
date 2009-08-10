@@ -2474,7 +2474,7 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 	}
 
 	if (!ast_strlen_zero(timeouts)) {
-		sscanf(timeouts, "%i", &timeout);
+		sscanf(timeouts, "%30i", &timeout);
 		if (timeout < -1) {
 			timeout = -1;
 		}
@@ -2962,7 +2962,7 @@ static int action_redirect(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	if (!ast_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1)) {
+	if (!ast_strlen_zero(priority) && (sscanf(priority, "%30d", &pi) != 1)) {
 		if ((pi = ast_findlabel_extension(NULL, context, exten, priority, NULL)) < 1) {
 			astman_send_error(s, m, "Invalid priority");
 			return 0;
@@ -3270,13 +3270,13 @@ static int action_originate(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Channel not specified");
 		return 0;
 	}
-	if (!ast_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1)) {
+	if (!ast_strlen_zero(priority) && (sscanf(priority, "%30d", &pi) != 1)) {
 		if ((pi = ast_findlabel_extension(NULL, context, exten, priority, NULL)) < 1) {
 			astman_send_error(s, m, "Invalid priority");
 			return 0;
 		}
 	}
-	if (!ast_strlen_zero(timeout) && (sscanf(timeout, "%d", &to) != 1)) {
+	if (!ast_strlen_zero(timeout) && (sscanf(timeout, "%30d", &to) != 1)) {
 		astman_send_error(s, m, "Invalid timeout");
 		return 0;
 	}
@@ -4731,7 +4731,7 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 	cookies = ast_http_get_cookies(headers);
 	for (v = cookies; v; v = v->next) {
 		if (!strcasecmp(v->name, "mansession_id")) {
-			sscanf(v->value, "%x", &ident);
+			sscanf(v->value, "%30x", &ident);
 			break;
 		}
 	}
@@ -4988,7 +4988,7 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 		nonce = 0;
 		goto out_401;
 	}
-	if (sscanf(d.nonce, "%lx", &nonce) != 1) {
+	if (sscanf(d.nonce, "%30lx", &nonce) != 1) {
 		ast_log(LOG_WARNING, "Received incorrect nonce in Digest <%s>\n", d.nonce);
 		nonce = 0;
 		goto out_401;
@@ -5094,7 +5094,7 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 		stale = 1;
 		goto out_401;
 	} else {
-		sscanf(d.nc, "%lx", &nc);
+		sscanf(d.nc, "%30lx", &nc);
 		if (session->nc >= nc || ((time_now - session->noncetime) > 62) ) {
 			/*
 			 * Nonce time expired (> 2 minutes) or something wrong with nonce

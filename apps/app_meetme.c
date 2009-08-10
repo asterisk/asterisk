@@ -1206,7 +1206,7 @@ static struct ast_conference *build_conf(const char *confno, const char *pin,
 	AST_LIST_INSERT_HEAD(&confs, cnf, list);
 
 	/* Reserve conference number in map */
-	if ((sscanf(cnf->confno, "%d", &confno_int) == 1) && (confno_int >= 0 && confno_int < 1024))
+	if ((sscanf(cnf->confno, "%30d", &confno_int) == 1) && (confno_int >= 0 && confno_int < 1024))
 		conf_map[confno_int] = 1;
 	
 cnfout:
@@ -1874,7 +1874,7 @@ static int dispose_conf(struct ast_conference *conf)
 	AST_LIST_LOCK(&confs);
 	if (ast_atomic_dec_and_test(&conf->refcount)) {
 		/* Take the conference room number out of an inuse state */
-		if ((sscanf(conf->confno, "%d", &confno_int) == 1) && (confno_int >= 0 && confno_int < 1024)) {
+		if ((sscanf(conf->confno, "%4d", &confno_int) == 1) && (confno_int >= 0 && confno_int < 1024)) {
 			conf_map[confno_int] = 0;
 		}
 		conf_free(conf);
@@ -2101,7 +2101,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	/* Possible timeout waiting for marked user */
 	if ((confflags & CONFFLAG_WAITMARKED) &&
 		!ast_strlen_zero(optargs[OPT_ARG_WAITMARKED]) &&
-		(sscanf(optargs[OPT_ARG_WAITMARKED], "%d", &opt_waitmarked_timeout) == 1) &&
+		(sscanf(optargs[OPT_ARG_WAITMARKED], "%30d", &opt_waitmarked_timeout) == 1) &&
 		(opt_waitmarked_timeout > 0)) {
 		timeout = time(NULL) + opt_waitmarked_timeout;
 	}
@@ -3857,7 +3857,7 @@ static int conf_exec(struct ast_channel *chan, const char *data)
 				if (!res)
 					ast_waitstream(chan, "");
 			} else {
-				if (sscanf(confno, "%d", &confno_int) == 1) {
+				if (sscanf(confno, "%30d", &confno_int) == 1) {
 					if (!ast_test_flag(&confflags, CONFFLAG_QUIET)) {
 						res = ast_streamfile(chan, "conf-enteringno", chan->language);
 						if (!res) {
@@ -3994,7 +3994,7 @@ static struct ast_conf_user *find_user(struct ast_conference *conf, const char *
 	struct ast_conf_user *user = NULL;
 	int cid;
 	
-	sscanf(callerident, "%i", &cid);
+	sscanf(callerident, "%30i", &cid);
 	if (conf && callerident) {
 		AST_LIST_TRAVERSE(&conf->userlist, user, list) {
 			if (cid == user->user_no)
@@ -4501,7 +4501,7 @@ static void load_config_meetme(void)
 	rt_log_members = 1;  
 
 	if ((val = ast_variable_retrieve(cfg, "general", "audiobuffers"))) {
-		if ((sscanf(val, "%d", &audio_buffers) != 1)) {
+		if ((sscanf(val, "%30d", &audio_buffers) != 1)) {
 			ast_log(LOG_WARNING, "audiobuffers setting must be a number, not '%s'\n", val);
 			audio_buffers = DEFAULT_AUDIO_BUFFERS;
 		} else if ((audio_buffers < DAHDI_DEFAULT_NUM_BUFS) || (audio_buffers > DAHDI_MAX_NUM_BUFS)) {
@@ -4518,25 +4518,25 @@ static void load_config_meetme(void)
 	if ((val = ast_variable_retrieve(cfg, "general", "logmembercount")))
 		rt_log_members = ast_true(val);
 	if ((val = ast_variable_retrieve(cfg, "general", "fuzzystart"))) {
-		if ((sscanf(val, "%d", &fuzzystart) != 1)) {
+		if ((sscanf(val, "%30d", &fuzzystart) != 1)) {
 			ast_log(LOG_WARNING, "fuzzystart must be a number, not '%s'\n", val);
 			fuzzystart = 0;
 		} 
 	}
 	if ((val = ast_variable_retrieve(cfg, "general", "earlyalert"))) {
-		if ((sscanf(val, "%d", &earlyalert) != 1)) {
+		if ((sscanf(val, "%30d", &earlyalert) != 1)) {
 			ast_log(LOG_WARNING, "earlyalert must be a number, not '%s'\n", val);
 			earlyalert = 0;
 		} 
 	}
 	if ((val = ast_variable_retrieve(cfg, "general", "endalert"))) {
-		if ((sscanf(val, "%d", &endalert) != 1)) {
+		if ((sscanf(val, "%30d", &endalert) != 1)) {
 			ast_log(LOG_WARNING, "endalert must be a number, not '%s'\n", val);
 			endalert = 0;
 		} 
 	}
 	if ((val = ast_variable_retrieve(cfg, "general", "extendby"))) {
-		if ((sscanf(val, "%d", &extendby) != 1)) {
+		if ((sscanf(val, "%30d", &extendby) != 1)) {
 			ast_log(LOG_WARNING, "extendby must be a number, not '%s'\n", val);
 			extendby = 0;
 		} 
@@ -6102,7 +6102,7 @@ static int sla_build_trunk(struct ast_config *cfg, const char *cat)
 		if (!strcasecmp(var->name, "autocontext"))
 			ast_string_field_set(trunk, autocontext, var->value);
 		else if (!strcasecmp(var->name, "ringtimeout")) {
-			if (sscanf(var->value, "%u", &trunk->ring_timeout) != 1) {
+			if (sscanf(var->value, "%30u", &trunk->ring_timeout) != 1) {
 				ast_log(LOG_WARNING, "Invalid ringtimeout '%s' specified for trunk '%s'\n",
 					var->value, trunk->name);
 				trunk->ring_timeout = 0;
@@ -6178,13 +6178,13 @@ static void sla_add_trunk_to_station(struct sla_station *station, struct ast_var
 		char *name, *value = cur;
 		name = strsep(&value, "=");
 		if (!strcasecmp(name, "ringtimeout")) {
-			if (sscanf(value, "%u", &trunk_ref->ring_timeout) != 1) {
+			if (sscanf(value, "%30u", &trunk_ref->ring_timeout) != 1) {
 				ast_log(LOG_WARNING, "Invalid ringtimeout value '%s' for "
 					"trunk '%s' on station '%s'\n", value, trunk->name, station->name);
 				trunk_ref->ring_timeout = 0;
 			}
 		} else if (!strcasecmp(name, "ringdelay")) {
-			if (sscanf(value, "%u", &trunk_ref->ring_delay) != 1) {
+			if (sscanf(value, "%30u", &trunk_ref->ring_delay) != 1) {
 				ast_log(LOG_WARNING, "Invalid ringdelay value '%s' for "
 					"trunk '%s' on station '%s'\n", value, trunk->name, station->name);
 				trunk_ref->ring_delay = 0;
@@ -6233,13 +6233,13 @@ static int sla_build_station(struct ast_config *cfg, const char *cat)
 		else if (!strcasecmp(var->name, "autocontext"))
 			ast_string_field_set(station, autocontext, var->value);
 		else if (!strcasecmp(var->name, "ringtimeout")) {
-			if (sscanf(var->value, "%u", &station->ring_timeout) != 1) {
+			if (sscanf(var->value, "%30u", &station->ring_timeout) != 1) {
 				ast_log(LOG_WARNING, "Invalid ringtimeout '%s' specified for station '%s'\n",
 					var->value, station->name);
 				station->ring_timeout = 0;
 			}
 		} else if (!strcasecmp(var->name, "ringdelay")) {
-			if (sscanf(var->value, "%u", &station->ring_delay) != 1) {
+			if (sscanf(var->value, "%30u", &station->ring_delay) != 1) {
 				ast_log(LOG_WARNING, "Invalid ringdelay '%s' specified for station '%s'\n",
 					var->value, station->name);
 				station->ring_delay = 0;

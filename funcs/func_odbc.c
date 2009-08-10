@@ -836,7 +836,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 		if (strcasecmp(tmp, "multirow") == 0)
 			ast_set_flag((*query), OPT_MULTIROW);
 		if ((tmp = ast_variable_retrieve(cfg, catg, "rowlimit")))
-			sscanf(tmp, "%d", &((*query)->rowlimit));
+			sscanf(tmp, "%30d", &((*query)->rowlimit));
 	}
 
 	(*query)->acf = ast_calloc(1, sizeof(struct ast_custom_function));

@@ -2169,7 +2169,7 @@ static int minivm_record_exec(struct ast_channel *chan, const char *data)
 		if (ast_test_flag(&flags, OPT_RECORDGAIN)) {
 			int gain;
 
-			if (sscanf(opts[OPT_ARG_RECORDGAIN], "%d", &gain) != 1) {
+			if (sscanf(opts[OPT_ARG_RECORDGAIN], "%30d", &gain) != 1) {
 				ast_log(LOG_WARNING, "Invalid value '%s' provided for record gain option\n", opts[OPT_ARG_RECORDGAIN]);
 				return -1;
 			} else 
@@ -2596,7 +2596,7 @@ static int create_vmaccount(char *name, struct ast_variable *var, int realtime)
 		} else if (!strcasecmp(var->name, "pager")) {
 			ast_copy_string(vmu->pager, var->value, sizeof(vmu->pager));
 		} else if (!strcasecmp(var->name, "volgain")) {
-			sscanf(var->value, "%lf", &vmu->volgain);
+			sscanf(var->value, "%30lf", &vmu->volgain);
 		} else {
 			ast_log(LOG_ERROR, "Unknown configuration option for minivm account %s : %s\n", name, var->name);
 		}
@@ -2766,7 +2766,7 @@ static int apply_general_options(struct ast_variable *var)
 			global_silencethreshold = atoi(var->value);
 		} else if (!strcmp(var->name, "maxmessage")) {
 			int x;
-			if (sscanf(var->value, "%d", &x) == 1) {
+			if (sscanf(var->value, "%30d", &x) == 1) {
 				global_vmmaxmessage = x;
 			} else {
 				error ++;
@@ -2774,7 +2774,7 @@ static int apply_general_options(struct ast_variable *var)
 			}
 		} else if (!strcmp(var->name, "minmessage")) {
 			int x;
-			if (sscanf(var->value, "%d", &x) == 1) {
+			if (sscanf(var->value, "%30d", &x) == 1) {
 				global_vmminmessage = x;
 				if (global_maxsilence <= global_vmminmessage)
 					ast_log(LOG_WARNING, "maxsilence should be less than minmessage or you may get empty messages\n");

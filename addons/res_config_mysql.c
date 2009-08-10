@@ -245,7 +245,7 @@ static struct tables *find_table(const char *database, const char *tablename)
 			}
 
 			if ((flen = strchr(ftype, '('))) {
-				sscanf(flen, "(%d)", &column->len);
+				sscanf(flen, "(%30d)", &column->len);
 			} else {
 				/* Columns like dates, times, and timestamps don't have a length */
 				column->len = -1;

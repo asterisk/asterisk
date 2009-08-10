@@ -383,7 +383,7 @@ static int my_load_config_number(struct ast_config *cfg, const char *category, c
 
 	tmp = ast_variable_retrieve(cfg, category, variable);
 
-	if (!tmp || sscanf(tmp, "%d", field) < 1)
+	if (!tmp || sscanf(tmp, "%30d", field) < 1)
 		*field = def;
 
 	return 0;

@@ -107,7 +107,7 @@ static int sayword_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
-	if (sscanf(args.num, "%d", &inum) != 1) {
+	if (sscanf(args.num, "%30d", &inum) != 1) {
 		ast_log(LOG_WARNING, "'%s' is not a valid number\n", args.num);
 		return -1;
 	}

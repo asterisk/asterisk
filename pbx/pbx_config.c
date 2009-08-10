@@ -946,7 +946,7 @@ static char *handle_cli_dialplan_add_extension(struct ast_cli_entry *e, int cmd,
 		if (!strcmp(prior, "hint")) {
 			iprior = PRIORITY_HINT;
 		} else {
-			if (sscanf(prior, "%d", &iprior) != 1) {
+			if (sscanf(prior, "%30d", &iprior) != 1) {
 				ast_cli(a->fd, "'%s' is not a valid priority\n", prior);
 				prior = NULL;
 			}
@@ -1485,7 +1485,7 @@ process_extension:
 					} else {
 						ast_log(LOG_WARNING, "Can't use 'same' priority on the first entry!\n");
 					}
-				} else if (sscanf(pri, "%d", &ipri) != 1 &&
+				} else if (sscanf(pri, "%30d", &ipri) != 1 &&
 					   (ipri = ast_findlabel_extension2(NULL, con, realext, pri, cidmatch)) < 1) {
 					ast_log(LOG_WARNING, "Invalid priority/label '%s' at line %d\n", pri, v->lineno);
 					ipri = 0;
@@ -1638,9 +1638,9 @@ static void pbx_load_users(void)
 			c = dahdicopy;
 			chan = strsep(&c, ",");
 			while (chan) {
-				if (sscanf(chan, "%d-%d", &start, &finish) == 2) {
+				if (sscanf(chan, "%30d-%30d", &start, &finish) == 2) {
 					/* Range */
-				} else if (sscanf(chan, "%d", &start)) {
+				} else if (sscanf(chan, "%30d", &start)) {
 					/* Just one */
 					finish = start;
 				} else {

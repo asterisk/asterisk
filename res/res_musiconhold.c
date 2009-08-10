@@ -651,7 +651,7 @@ static int play_moh_exec(struct ast_channel *chan, const char *data)
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (!ast_strlen_zero(args.duration)) {
-		if (sscanf(args.duration, "%d", &timeout) == 1) {
+		if (sscanf(args.duration, "%30d", &timeout) == 1) {
 			timeout *= 1000;
 		} else {
 			ast_log(LOG_WARNING, "Invalid MusicOnHold duration '%s'. Will wait indefinitely.\n", args.duration);

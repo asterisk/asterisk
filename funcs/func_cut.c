@@ -129,7 +129,7 @@ static int sort_internal(struct ast_channel *chan, char *data, char *buffer, siz
 		}
 		*ptrvalue++ = '\0';
 		sortable_keys[count2].key = ptrkey;
-		sscanf(ptrvalue, "%f", &sortable_keys[count2].value);
+		sscanf(ptrvalue, "%30f", &sortable_keys[count2].value);
 		count2++;
 	}
 
@@ -191,15 +191,15 @@ static int cut_internal(struct ast_channel *chan, char *data, struct ast_str **b
 			int start_field, stop_field;
 			char trashchar;
 
-			if (sscanf(next_range, "%d-%d", &start_field, &stop_field) == 2) {
+			if (sscanf(next_range, "%30d-%30d", &start_field, &stop_field) == 2) {
 				/* range with both start and end */
-			} else if (sscanf(next_range, "-%d", &stop_field) == 1) {
+			} else if (sscanf(next_range, "-%30d", &stop_field) == 1) {
 				/* range with end only */
 				start_field = 1;
-			} else if ((sscanf(next_range, "%d%c", &start_field, &trashchar) == 2) && (trashchar == '-')) {
+			} else if ((sscanf(next_range, "%30d%1c", &start_field, &trashchar) == 2) && (trashchar == '-')) {
 				/* range with start only */
 				stop_field = INT_MAX;
-			} else if (sscanf(next_range, "%d", &start_field) == 1) {
+			} else if (sscanf(next_range, "%30d", &start_field) == 1) {
 				/* single number */
 				stop_field = start_field;
 			} else {

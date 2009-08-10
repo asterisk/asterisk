@@ -657,7 +657,7 @@ static struct parkeduser *park_space_reserve(struct ast_channel *chan,
 		 * limitation here.  If extout was not numeric, we could permit
 		 * arbitrary non-numeric extensions.
 		 */
-        if (sscanf(parkingexten, "%d", &parking_space) != 1 || parking_space < 0) {
+        if (sscanf(parkingexten, "%30d", &parking_space) != 1 || parking_space < 0) {
 			AST_LIST_UNLOCK(&parkinglot->parkings);
 			parkinglot_unref(parkinglot);
             free(pu);
@@ -3484,7 +3484,7 @@ static int park_call_exec(struct ast_channel *chan, const char *data)
 
 		if (parse) {
 			if (!ast_strlen_zero(app_args.timeout)) {
-				if (sscanf(app_args.timeout, "%d", &args.timeout) != 1) {
+				if (sscanf(app_args.timeout, "%30d", &args.timeout) != 1) {
 					ast_log(LOG_WARNING, "Invalid timeout '%s' provided\n", app_args.timeout);
 					args.timeout = 0;
 				}
@@ -3496,7 +3496,7 @@ static int park_call_exec(struct ast_channel *chan, const char *data)
 				args.return_ext = app_args.return_ext;
 			}
 			if (!ast_strlen_zero(app_args.return_pri)) {
-				if (sscanf(app_args.return_pri, "%d", &args.return_pri) != 1) {
+				if (sscanf(app_args.return_pri, "%30d", &args.return_pri) != 1) {
 					ast_log(LOG_WARNING, "Invalid priority '%s' specified\n", app_args.return_pri);
 					args.return_pri = 0;
 				}
@@ -3765,13 +3765,13 @@ static struct ast_parkinglot *build_parkinglot(char *name, struct ast_variable *
 		if (!strcasecmp(confvar->name, "context")) {
 			ast_copy_string(parkinglot->parking_con, confvar->value, sizeof(parkinglot->parking_con));
 		} else if (!strcasecmp(confvar->name, "parkingtime")) {
-			if ((sscanf(confvar->value, "%d", &parkinglot->parkingtime) != 1) || (parkinglot->parkingtime < 1)) {
+			if ((sscanf(confvar->value, "%30d", &parkinglot->parkingtime) != 1) || (parkinglot->parkingtime < 1)) {
 				ast_log(LOG_WARNING, "%s is not a valid parkingtime\n", confvar->value);
 				parkinglot->parkingtime = DEFAULT_PARK_TIME;
 			} else
 				parkinglot->parkingtime = parkinglot->parkingtime * 1000;
 		} else if (!strcasecmp(confvar->name, "parkpos")) {
-			if (sscanf(confvar->value, "%d-%d", &start, &end) != 2) {
+			if (sscanf(confvar->value, "%30d-%30d", &start, &end) != 2) {
 				ast_log(LOG_WARNING, "Format for parking positions is a-b, where a and b are numbers at line %d of parking.conf\n", confvar->lineno);
 				error = 1;
 			} else {
@@ -3935,13 +3935,13 @@ static int load_config(void)
 		} else if (!strcasecmp(var->name, "context")) {
 			ast_copy_string(default_parkinglot->parking_con, var->value, sizeof(default_parkinglot->parking_con));
 		} else if (!strcasecmp(var->name, "parkingtime")) {
-			if ((sscanf(var->value, "%d", &default_parkinglot->parkingtime) != 1) || (default_parkinglot->parkingtime < 1)) {
+			if ((sscanf(var->value, "%30d", &default_parkinglot->parkingtime) != 1) || (default_parkinglot->parkingtime < 1)) {
 				ast_log(LOG_WARNING, "%s is not a valid parkingtime\n", var->value);
 				default_parkinglot->parkingtime = DEFAULT_PARK_TIME;
 			} else
 				default_parkinglot->parkingtime = default_parkinglot->parkingtime * 1000;
 		} else if (!strcasecmp(var->name, "parkpos")) {
-			if (sscanf(var->value, "%d-%d", &start, &end) != 2) {
+			if (sscanf(var->value, "%30d-%30d", &start, &end) != 2) {
 				ast_log(LOG_WARNING, "Format for parking positions is a-b, where a and b are numbers at line %d of features.conf\n", var->lineno);
 			} else if (default_parkinglot) {
 				default_parkinglot->parking_start = start;
@@ -3984,24 +3984,24 @@ static int load_config(void)
 		} else if (!strcasecmp(var->name, "adsipark")) {
 			adsipark = ast_true(var->value);
 		} else if (!strcasecmp(var->name, "transferdigittimeout")) {
-			if ((sscanf(var->value, "%d", &transferdigittimeout) != 1) || (transferdigittimeout < 1)) {
+			if ((sscanf(var->value, "%30d", &transferdigittimeout) != 1) || (transferdigittimeout < 1)) {
 				ast_log(LOG_WARNING, "%s is not a valid transferdigittimeout\n", var->value);
 				transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
 			} else
 				transferdigittimeout = transferdigittimeout * 1000;
 		} else if (!strcasecmp(var->name, "featuredigittimeout")) {
-			if ((sscanf(var->value, "%d", &featuredigittimeout) != 1) || (featuredigittimeout < 1)) {
+			if ((sscanf(var->value, "%30d", &featuredigittimeout) != 1) || (featuredigittimeout < 1)) {
 				ast_log(LOG_WARNING, "%s is not a valid featuredigittimeout\n", var->value);
 				featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
 			}
 		} else if (!strcasecmp(var->name, "atxfernoanswertimeout")) {
-			if ((sscanf(var->value, "%d", &atxfernoanswertimeout) != 1) || (atxfernoanswertimeout < 1)) {
+			if ((sscanf(var->value, "%30d", &atxfernoanswertimeout) != 1) || (atxfernoanswertimeout < 1)) {
 				ast_log(LOG_WARNING, "%s is not a valid atxfernoanswertimeout\n", var->value);
 				atxfernoanswertimeout = DEFAULT_NOANSWER_TIMEOUT_ATTENDED_TRANSFER;
 			} else
 				atxfernoanswertimeout = atxfernoanswertimeout * 1000;
 		} else if (!strcasecmp(var->name, "atxferloopdelay")) {
-			if ((sscanf(var->value, "%u", &atxferloopdelay) != 1)) {
+			if ((sscanf(var->value, "%30u", &atxferloopdelay) != 1)) {
 				ast_log(LOG_WARNING, "%s is not a valid atxferloopdelay\n", var->value);
 				atxferloopdelay = DEFAULT_ATXFER_LOOP_DELAY;
 			} else 
@@ -4009,7 +4009,7 @@ static int load_config(void)
 		} else if (!strcasecmp(var->name, "atxferdropcall")) {
 			atxferdropcall = ast_true(var->value);
 		} else if (!strcasecmp(var->name, "atxfercallbackretries")) {
-			if ((sscanf(var->value, "%u", &atxferloopdelay) != 1)) {
+			if ((sscanf(var->value, "%30u", &atxferloopdelay) != 1)) {
 				ast_log(LOG_WARNING, "%s is not a valid atxfercallbackretries\n", var->value);
 				atxfercallbackretries = DEFAULT_ATXFER_CALLBACK_RETRIES;
 			}
@@ -4605,7 +4605,7 @@ static int manager_park(struct mansession *s, const struct message *m)
 	}
 
 	if (!ast_strlen_zero(timeout)) {
-		sscanf(timeout, "%d", &to);
+		sscanf(timeout, "%30d", &to);
 	}
 
 	res = ast_masq_park_call(ch1, ch2, to, &parkExt);

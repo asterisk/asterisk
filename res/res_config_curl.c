@@ -270,7 +270,7 @@ static int update_curl(const char *url, const char *unused, const char *keyfield
 	while (*stringp <= ' ') {
 		stringp++;
 	}
-	sscanf(stringp, "%d", &rowcount);
+	sscanf(stringp, "%30d", &rowcount);
 
 	if (rowcount >= 0) {
 		return (int)rowcount;
@@ -334,7 +334,7 @@ static int update2_curl(const char *url, const char *unused, va_list ap)
 	while (*stringp <= ' ') {
 		stringp++;
 	}
-	sscanf(stringp, "%d", &rowcount);
+	sscanf(stringp, "%30d", &rowcount);
 
 	if (rowcount >= 0) {
 		return (int)rowcount;
@@ -395,7 +395,7 @@ static int store_curl(const char *url, const char *unused, va_list ap)
 	while (*stringp <= ' ') {
 		stringp++;
 	}
-	sscanf(stringp, "%d", &rowcount);
+	sscanf(stringp, "%30d", &rowcount);
 
 	if (rowcount >= 0) {
 		return rowcount;
@@ -461,7 +461,7 @@ static int destroy_curl(const char *url, const char *unused, const char *keyfiel
 	while (*stringp <= ' ') {
 		stringp++;
 	}
-	sscanf(stringp, "%d", &rowcount);
+	sscanf(stringp, "%30d", &rowcount);
 
 	if (rowcount >= 0) {
 		return (int)rowcount;

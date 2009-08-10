@@ -1866,7 +1866,7 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 		ast_log(LOG_WARNING, "Unable to lookup host in c= line, '%s'\n", c);
 		return -1;
 	}
-	if (sscanf(m, "audio %d RTP/AVP %n", &portno, &len) != 1) {
+	if (sscanf(m, "audio %30d RTP/AVP %n", &portno, &len) != 1) {
 		ast_log(LOG_WARNING, "Unable to determine port number for RTP in '%s'\n", m); 
 		return -1;
 	}
@@ -1881,7 +1881,7 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 	ast_rtp_codecs_payloads_clear(ast_rtp_instance_get_codecs(sub->rtp), sub->rtp);
 	codecs = ast_strdupa(m + len);
 	while (!ast_strlen_zero(codecs)) {
-		if (sscanf(codecs, "%d%n", &codec, &len) != 1) {
+		if (sscanf(codecs, "%30d%n", &codec, &len) != 1) {
 			if (codec_count)
 				break;
 			ast_log(LOG_WARNING, "Error in codec string '%s' at '%s'\n", m, codecs);
@@ -1897,7 +1897,7 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 	sdpLineNum_iterator_init(&iterator);
 	while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
 		char* mimeSubtype = ast_strdupa(a); /* ensures we have enough space */
-		if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) != 2)
+		if (sscanf(a, "rtpmap: %30u %127[^/]/", &codec, mimeSubtype) != 2)
 			continue;
 		/* Note: should really look at the 'freq' and '#chans' params too */
 		ast_rtp_codecs_payloads_set_rtpmap_type(ast_rtp_instance_get_codecs(sub->rtp), sub->rtp, codec, "audio", mimeSubtype, 0);
@@ -2030,7 +2030,7 @@ static int transmit_response(struct mgcp_subchannel *sub, char *msg, struct mgcp
 	mgr = ast_calloc(1, sizeof(*mgr) + resp.len + 1);
 	if (mgr) {
 		/* Store MGCP response in case we have to retransmit */
-		sscanf(req->identifier, "%d", &mgr->seqno);
+		sscanf(req->identifier, "%30d", &mgr->seqno);
 		time(&mgr->whensent);
 		mgr->len = resp.len;
 		memcpy(mgr->buf, resp.data, resp.len);
@@ -3259,7 +3259,7 @@ static int find_and_retrans(struct mgcp_subchannel *sub, struct mgcp_request *re
 	time_t now;
 	struct mgcp_response *prev = NULL, *cur, *next, *answer=NULL;
 	time(&now);
-	if (sscanf(req->identifier, "%d", &seqno) != 1) 
+	if (sscanf(req->identifier, "%30d", &seqno) != 1) 
 		seqno = 0;
 	cur = sub->parent->parent->responses;
 	while(cur) {
@@ -3317,7 +3317,7 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 		return 1;
 	}
 
-	if (sscanf(req.verb, "%d", &result) && sscanf(req.identifier, "%d", &ident)) {
+	if (sscanf(req.verb, "%30d", &result) && sscanf(req.identifier, "%30d", &ident)) {
 		/* Try to find who this message is for, if it's important */
 		sub = find_subchannel_and_lock(NULL, ident, &sin);
 		if (sub) {
@@ -4142,7 +4142,7 @@ static int reload_config(int reload)
 			if (ast_str2cos(v->value, &qos.cos_audio))
 			    ast_log(LOG_WARNING, "Invalid cos_audio value at line %d, refer to QoS documentation\n", v->lineno);
 		} else if (!strcasecmp(v->name, "port")) {
-			if (sscanf(v->value, "%d", &ourport) == 1) {
+			if (sscanf(v->value, "%5d", &ourport) == 1) {
 				bindaddr.sin_port = htons(ourport);
 			} else {
 				ast_log(LOG_WARNING, "Invalid port number '%s' at line %d of %s\n", v->value, v->lineno, config);

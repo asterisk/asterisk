@@ -2807,7 +2807,7 @@ static int parse_variable_name(char *var, int *offset, int *length, int *isfunc)
 			parens--;
 		} else if (*var == ':' && parens == 0) {
 			*var++ = '\0';
-			sscanf(var, "%d:%d", offset, length);
+			sscanf(var, "%30d:%30d", offset, length);
 			return 1; /* offset:length valid */
 		}
 	}
@@ -7079,7 +7079,7 @@ static int lookup_name(const char *s, const char * const names[], int max)
 	}
 
 	/* Allow months and weekdays to be specified as numbers, as well */
-	if (sscanf(s, "%d", &i) == 1 && i >= 1 && i <= max) {
+	if (sscanf(s, "%2d", &i) == 1 && i >= 1 && i <= max) {
 		/* What the array offset would have been: "1" would be at offset 0 */
 		return i - 1;
 	}
@@ -7155,7 +7155,7 @@ static void get_timerange(struct ast_timing *i, char *times)
 	/* Otherwise expect a range */
 	while ((part = strsep(&times, "&"))) {
 		if (!(endpart = strchr(part, '-'))) {
-			if (sscanf(part, "%d:%d", &st_h, &st_m) != 2 || st_h < 0 || st_h > 23 || st_m < 0 || st_m > 59) {
+			if (sscanf(part, "%2d:%2d", &st_h, &st_m) != 2 || st_h < 0 || st_h > 23 || st_m < 0 || st_m > 59) {
 				ast_log(LOG_WARNING, "%s isn't a valid time.\n", part);
 				continue;
 			}
@@ -7171,11 +7171,11 @@ static void get_timerange(struct ast_timing *i, char *times)
 			ast_log(LOG_WARNING, "Invalid time range starting with '%s-'.\n", part);
 			continue;
 		}
-		if (sscanf(part, "%d:%d", &st_h, &st_m) != 2 || st_h < 0 || st_h > 23 || st_m < 0 || st_m > 59) {
+		if (sscanf(part, "%2d:%2d", &st_h, &st_m) != 2 || st_h < 0 || st_h > 23 || st_m < 0 || st_m > 59) {
 			ast_log(LOG_WARNING, "'%s' isn't a valid start time.\n", part);
 			continue;
 		}
-		if (sscanf(endpart, "%d:%d", &endh, &endm) != 2 || endh < 0 || endh > 23 || endm < 0 || endm > 59) {
+		if (sscanf(endpart, "%2d:%2d", &endh, &endm) != 2 || endh < 0 || endh > 23 || endm < 0 || endm > 59) {
 			ast_log(LOG_WARNING, "'%s' isn't a valid end time.\n", endpart);
 			continue;
 		}
@@ -8711,7 +8711,7 @@ static void wait_for_hangup(struct ast_channel *chan, const void *data)
 	double waitsec;
 	int waittime;
 
-	if (ast_strlen_zero(data) || (sscanf(data, "%lg", &waitsec) != 1) || (waitsec < 0))
+	if (ast_strlen_zero(data) || (sscanf(data, "%30lg", &waitsec) != 1) || (waitsec < 0))
 		waitsec = -1;
 	if (waitsec > -1) {
 		waittime = waitsec * 1000.0;
@@ -9465,7 +9465,7 @@ int pbx_checkcondition(const char *condition)
 	int res;
 	if (ast_strlen_zero(condition)) {                /* NULL or empty strings are false */
 		return 0;
-	} else if (sscanf(condition, "%d", &res) == 1) { /* Numbers are evaluated for truth */
+	} else if (sscanf(condition, "%30d", &res) == 1) { /* Numbers are evaluated for truth */
 		return res;
 	} else {                                         /* Strings are true */
 		return 1;
@@ -9880,7 +9880,7 @@ static int pbx_parseable_goto(struct ast_channel *chan, const char *goto_string,
 		mode = -1;
 		pri++;
 	}
-	if (sscanf(pri, "%d", &ipri) != 1) {
+	if (sscanf(pri, "%30d", &ipri) != 1) {
 		if ((ipri = ast_findlabel_extension(chan, context ? context : chan->context, exten ? exten : chan->exten,
 			pri, chan->cid.cid_num)) < 1) {
 			ast_log(LOG_WARNING, "Priority '%s' must be a number > 0, or valid label\n", pri);

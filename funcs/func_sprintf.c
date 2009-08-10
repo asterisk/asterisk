@@ -123,7 +123,7 @@ static int acf_sprintf(struct ast_channel *chan, const char *cmd, char *data, ch
 
 				/* Convert the argument into the required type */
 				if (arg.var[argcount]) {
-					if (sscanf(arg.var[argcount++], "%d", &tmpi) != 1) {
+					if (sscanf(arg.var[argcount++], "%30d", &tmpi) != 1) {
 						ast_log(LOG_ERROR, "Argument '%s' is not an integer number for format '%s'\n", arg.var[argcount - 1], formatbuf);
 						goto sprintf_fail;
 					}
@@ -146,7 +146,7 @@ static int acf_sprintf(struct ast_channel *chan, const char *cmd, char *data, ch
 
 				/* Convert the argument into the required type */
 				if (arg.var[argcount]) {
-					if (sscanf(arg.var[argcount++], "%lf", &tmpd) != 1) {
+					if (sscanf(arg.var[argcount++], "%30lf", &tmpd) != 1) {
 						ast_log(LOG_ERROR, "Argument '%s' is not a floating point number for format '%s'\n", arg.var[argcount - 1], formatbuf);
 						goto sprintf_fail;
 					}

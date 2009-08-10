@@ -154,7 +154,7 @@ uint32_t ast_http_manid_from_vars(struct ast_variable *headers)
 	cookies = ast_http_get_cookies(headers);
 	for (v = cookies; v; v = v->next) {
 		if (!strcasecmp(v->name, "mansession_id")) {
-			sscanf(v->value, "%x", &mngid);
+			sscanf(v->value, "%30x", &mngid);
 			break;
 		}
 	}

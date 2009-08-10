@@ -320,7 +320,7 @@ static int http_post_callback(struct ast_tcptls_session_instance *ser, const str
 	cookies = ast_http_get_cookies(headers);
 	for (var = cookies; var; var = var->next) {
 		if (!strcasecmp(var->name, "mansession_id")) {
-			sscanf(var->value, "%lx", &ident);
+			sscanf(var->value, "%30lx", &ident);
 			break;
 		}
 	}
@@ -347,7 +347,7 @@ static int http_post_callback(struct ast_tcptls_session_instance *ser, const str
 		fprintf(f, "%s: %s\r\n", var->name, var->value);
 
 		if (!strcasecmp(var->name, "Content-Length")) {
-			if ((sscanf(var->value, "%u", &content_len)) != 1) {
+			if ((sscanf(var->value, "%30u", &content_len)) != 1) {
 				ast_log(LOG_ERROR, "Invalid Content-Length in POST request!\n");
 				fclose(f);
 				ast_http_error(ser, 500, "Internal server error", "Invalid Content-Length in POST request!");

@@ -333,7 +333,7 @@ static int aMYSQL_connect(struct ast_channel *chan, char *data)
 	}
 
 	ctimeout = pbx_builtin_getvar_helper(chan, "MYSQL_TIMEOUT");
-	if (ctimeout && sscanf(ctimeout, "%d", &timeout) == 1) {
+	if (ctimeout && sscanf(ctimeout, "%30d", &timeout) == 1) {
 		mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (void *)&timeout);
 	}
 
@@ -408,7 +408,7 @@ static int aMYSQL_nextresult(struct ast_channel *chan, char *data)
 	int connid = -1;
 
 	AST_NONSTANDARD_APP_ARGS(args, data, ' ');
-	sscanf(args.connid, "%d", &connid);
+	sscanf(args.connid, "%30d", &connid);
 
 	if (args.argc != 3 || connid <= 0) {
 		ast_log(LOG_WARNING, "missing some arguments\n");
@@ -451,7 +451,7 @@ static int aMYSQL_fetch(struct ast_channel *chan, char *data)
 
 	parse = ast_strdupa(data);
 	AST_NONSTANDARD_APP_ARGS(args, parse, ' ');
-	sscanf(args.fetchid, "%d", &resultid);
+	sscanf(args.fetchid, "%30d", &resultid);
 
 	if (args.resultvar && (resultid >= 0) ) {
 		if ((mysqlres = find_identifier(resultid, AST_MYSQL_ID_RESID)) != NULL) {

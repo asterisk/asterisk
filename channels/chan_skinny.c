@@ -6689,7 +6689,7 @@ static struct ast_channel *skinny_request(const char *type, int format, const st
  					ast_log(LOG_WARNING, "Invalid cos_video value at line %d, refer to QoS documentation\n", v->lineno);
  				continue;
  			} else if (!strcasecmp(v->name, "bindport")) {
- 				if (sscanf(v->value, "%d", &ourport) == 1) {
+ 				if (sscanf(v->value, "%5d", &ourport) == 1) {
  					bindaddr.sin_port = htons(ourport);
  				} else {
  					ast_log(LOG_WARNING, "Invalid bindport '%s' at line %d of %s\n", v->value, v->lineno, config);
@@ -7166,7 +7166,7 @@ static struct ast_channel *skinny_request(const char *type, int format, const st
 	/* load the general section */
 	cat = ast_category_browse(cfg, "general");
 	config_parse_variables(TYPE_GENERAL, NULL, ast_variable_browse(cfg, "general"));
-		
+
 	if (ntohl(bindaddr.sin_addr.s_addr)) {
 		__ourip = bindaddr.sin_addr;
 	} else {
