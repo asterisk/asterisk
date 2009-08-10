@@ -1377,6 +1377,7 @@ static struct ast_channel *ast_channel_get_full(const char *name, size_t name_le
 		 * gets changed, then the compare callback must be changed, too. */
 		.rings = name_len,
 	};
+	struct ast_channel *chan;
 
 	if (exten) {
 		ast_copy_string(tmp_chan.exten, exten, sizeof(tmp_chan.exten));
@@ -1386,7 +1387,25 @@ static struct ast_channel *ast_channel_get_full(const char *name, size_t name_le
 		ast_copy_string(tmp_chan.context, context, sizeof(tmp_chan.context));
 	}
 
-	return ao2_find(channels, &tmp_chan, OBJ_POINTER);
+	if ((chan = ao2_find(channels, &tmp_chan, !ast_strlen_zero(name) ? OBJ_POINTER : 0))) {
+		return chan;
+	}
+
+	if (!name) {
+		return NULL;
+	}
+
+	/* If name was specified, but the result was NULL, 
+	 * try a search on uniqueid, instead. */
+
+	{
+		struct ast_channel tmp_chan2 = {
+			.uniqueid = name,
+			.rings = name_len,
+		};
+
+		return ao2_find(channels, &tmp_chan2, 0);
+	}
 }
 
 struct ast_channel *ast_channel_get_by_name(const char *name)
@@ -6227,6 +6246,11 @@ static int ast_channel_cmp_cb(void *obj, void *arg, int flags)
 		if (ret && strcasecmp(chan->exten, cmp_args->exten) &&
 				strcasecmp(chan->macroexten, cmp_args->exten)) {
 			ret = 0; /* exten match failed */
+		}
+	} else if (cmp_args->uniqueid) {
+		if ((!name_len && strcasecmp(chan->uniqueid, cmp_args->uniqueid)) ||
+				(name_len && strncasecmp(chan->uniqueid, cmp_args->uniqueid, name_len))) {
+			ret = 0; /* uniqueid match failed */
 		}
 	}
 
