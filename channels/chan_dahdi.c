@@ -2614,6 +2614,7 @@ static struct sig_pri_callback dahdi_pri_callbacks =
 	.handle_dchan_exception = my_handle_dchan_exception,
 	.play_tone = my_pri_play_tone,
 	.set_echocanceller = my_set_echocanceller,
+	.dsp_reset_and_flush_digits = my_dsp_reset_and_flush_digits,
 	.lock_private = my_lock_private,
 	.unlock_private = my_unlock_private,
 	.new_ast_channel = my_new_pri_ast_channel,
@@ -8040,9 +8041,9 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 				i->dsp = NULL;
 			if (i->dsp) {
 				i->dsp_features = features;
-#if defined(HAVE_SS7)
-				/* We cannot do progress detection until receives PROGRESS message */
-				if (i->outgoing && (i->sig == SIG_SS7)) {
+#if defined(HAVE_PRI) || defined(HAVE_SS7)
+				/* We cannot do progress detection until receive PROGRESS message */
+				if (i->outgoing && ((i->sig == SIG_PRI) || (i->sig == SIG_BRI) || (i->sig == SIG_BRI_PTMP) || (i->sig == SIG_SS7))) {
 					/* Remember requested DSP features, don't treat
 					   talking as ANSWER */
 					i->dsp_features = features & ~DSP_PROGRESS_TALK;

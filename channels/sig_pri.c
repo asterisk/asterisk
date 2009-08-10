@@ -192,6 +192,22 @@ static inline int pri_grab(struct sig_pri_chan *p, struct sig_pri_pri *pri)
 	return 0;
 }
 
+/*!
+ * \internal
+ * \brief Reset DTMF detector.
+ * \since 1.6.3
+ *
+ * \param p sig_pri channel structure.
+ *
+ * \return Nothing
+ */
+static void sig_pri_dsp_reset_and_flush_digits(struct sig_pri_chan *p)
+{
+	if (p->calls->dsp_reset_and_flush_digits) {
+		p->calls->dsp_reset_and_flush_digits(p->chan_pvt);
+	}
+}
+
 static int sig_pri_set_echocanceller(struct sig_pri_chan *p, int enable)
 {
 	if (p->calls->set_echocanceller)
@@ -618,6 +634,8 @@ static void *pri_ss_thread(void *data)
 
 	ast_verb(3, "Starting simple switch on '%s'\n", chan->name);
 
+	sig_pri_dsp_reset_and_flush_digits(p);
+
 	/* Now loop looking for an extension */
 	ast_copy_string(exten, p->exten, sizeof(exten));
 	len = strlen(exten);
@@ -652,6 +670,7 @@ static void *pri_ss_thread(void *data)
 	if (ast_exists_extension(chan, chan->context, exten, 1, p->cid_num)) {
 		/* Start the real PBX */
 		ast_copy_string(chan->exten, exten, sizeof(chan->exten));
+		sig_pri_dsp_reset_and_flush_digits(p);
 		sig_pri_set_echocanceller(p, 1);
 		ast_setstate(chan, AST_STATE_RING);
 		res = ast_pbx_run(chan);
