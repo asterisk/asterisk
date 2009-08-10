@@ -399,7 +399,7 @@ static int handle_waitfordigit(struct ast_channel *chan, AGI *agi, int argc, cha
 	int to;
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	if (sscanf(argv[3], "%d", &to) != 1)
+	if (sscanf(argv[3], "%30d", &to) != 1)
 		return RESULT_SHOWUSAGE;
 	res = ast_waitfordigit_full(chan, to, agi->audio, agi->ctrl);
 	fdprintf(agi->fd, "200 result=%d\n", res);
@@ -518,7 +518,7 @@ static int handle_controlstreamfile(struct ast_channel *chan, AGI *agi, int argc
 	else
 		stop = NULL;
 	
-	if ((argc > 5) && (sscanf(argv[5], "%d", &skipms) != 1))
+	if ((argc > 5) && (sscanf(argv[5], "%30d", &skipms) != 1))
 		return RESULT_SHOWUSAGE;
 
 	if (argc > 6 && !ast_strlen_zero(argv[6]))
@@ -557,7 +557,7 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char 
 		return RESULT_SHOWUSAGE;
 	if (argc > 5)
 		return RESULT_SHOWUSAGE;
-	if ((argc > 4) && (sscanf(argv[4], "%ld", &sample_offset) != 1))
+	if ((argc > 4) && (sscanf(argv[4], "%30ld", &sample_offset) != 1))
 		return RESULT_SHOWUSAGE;
 	
 	fs = ast_openstream(chan, argv[2], chan->language);
@@ -660,7 +660,7 @@ static int handle_saynumber(struct ast_channel *chan, AGI *agi, int argc, char *
 	int num;
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	if (sscanf(argv[2], "%d", &num) != 1)
+	if (sscanf(argv[2], "%30d", &num) != 1)
 		return RESULT_SHOWUSAGE;
 	res = ast_say_number_full(chan, num, argv[3], chan->language, (char *) NULL, agi->audio, agi->ctrl);
 	if (res == 1)
@@ -679,7 +679,7 @@ static int handle_saydigits(struct ast_channel *chan, AGI *agi, int argc, char *
 
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	if (sscanf(argv[2], "%d", &num) != 1)
+	if (sscanf(argv[2], "%30d", &num) != 1)
 		return RESULT_SHOWUSAGE;
 
 	res = ast_say_digit_str_full(chan, argv[2], argv[3], chan->language, agi->audio, agi->ctrl);
@@ -715,7 +715,7 @@ static int handle_saydate(struct ast_channel *chan, AGI *agi, int argc, char *ar
 	int num;
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	if (sscanf(argv[2], "%d", &num) != 1)
+	if (sscanf(argv[2], "%30d", &num) != 1)
 		return RESULT_SHOWUSAGE;
 	res = ast_say_date(chan, num, argv[3], chan->language);
 	if (res == 1)
@@ -733,7 +733,7 @@ static int handle_saytime(struct ast_channel *chan, AGI *agi, int argc, char *ar
 	int num;
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	if (sscanf(argv[2], "%d", &num) != 1)
+	if (sscanf(argv[2], "%30d", &num) != 1)
 		return RESULT_SHOWUSAGE;
 	res = ast_say_time(chan, num, argv[3], chan->language);
 	if (res == 1)
@@ -767,7 +767,7 @@ static int handle_saydatetime(struct ast_channel *chan, AGI *agi, int argc, char
 	if (argc > 5 && !ast_strlen_zero(argv[5]))
 		zone = argv[5];
 
-	if (sscanf(argv[2], "%ld", &unixtime) != 1)
+	if (sscanf(argv[2], "%30ld", &unixtime) != 1)
 		return RESULT_SHOWUSAGE;
 
 	res = ast_say_date_with_format(chan, (time_t) unixtime, argv[3], chan->language, format, zone);
@@ -853,7 +853,7 @@ static int handle_setpriority(struct ast_channel *chan, AGI *agi, int argc, char
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;	
 
-	if (sscanf(argv[2], "%d", &pri) != 1) {
+	if (sscanf(argv[2], "%30d", &pri) != 1) {
 		if ((pri = ast_findlabel_extension(chan, chan->context, chan->exten, argv[2], chan->cid.cid_num)) < 1)
 			return RESULT_SHOWUSAGE;
 	}
@@ -885,7 +885,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 
 	if (argc < 6)
 		return RESULT_SHOWUSAGE;
-	if (sscanf(argv[5], "%d", &ms) != 1)
+	if (sscanf(argv[5], "%30d", &ms) != 1)
 		return RESULT_SHOWUSAGE;
 
 	if (argc > 6)
@@ -926,7 +926,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 	/* backward compatibility, if no offset given, arg[6] would have been
 	 * caught below and taken to be a beep, else if it is a digit then it is a
 	 * offset */
-	if ((argc >6) && (sscanf(argv[6], "%ld", &sample_offset) != 1) && (!strchr(argv[6], '=')))
+	if ((argc >6) && (sscanf(argv[6], "%30ld", &sample_offset) != 1) && (!strchr(argv[6], '=')))
 		res = ast_streamfile(chan, "beep", chan->language);
 
 	if ((argc > 7) && (!strchr(argv[7], '=')))
@@ -1044,7 +1044,7 @@ static int handle_autohangup(struct ast_channel *chan, AGI *agi, int argc, char 
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	if (sscanf(argv[2], "%d", &timeout) != 1)
+	if (sscanf(argv[2], "%30d", &timeout) != 1)
 		return RESULT_SHOWUSAGE;
 	if (timeout < 0)
 		timeout = 0;
@@ -1215,7 +1215,7 @@ static int handle_verbose(struct ast_channel *chan, AGI *agi, int argc, char **a
 		return RESULT_SHOWUSAGE;
 
 	if (argv[2])
-		sscanf(argv[2], "%d", &level);
+		sscanf(argv[2], "%30d", &level);
 
 	switch (level) {
 		case 4:

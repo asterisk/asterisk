@@ -2973,7 +2973,7 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 	}
 
 	if (!ast_strlen_zero(args.penalty)) {
-		if ((sscanf(args.penalty, "%d", &penalty) != 1) || penalty < 0) {
+		if ((sscanf(args.penalty, "%30d", &penalty) != 1) || penalty < 0) {
 			ast_log(LOG_WARNING, "Penalty '%s' is invalid, must be an integer >= 0\n", args.penalty);
 			penalty = 0;
 		}
@@ -3062,7 +3062,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	/* Get the priority from the variable ${QUEUE_PRIO} */
 	user_priority = pbx_builtin_getvar_helper(chan, "QUEUE_PRIO");
 	if (user_priority) {
-		if (sscanf(user_priority, "%d", &prio) == 1) {
+		if (sscanf(user_priority, "%30d", &prio) == 1) {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "%s: Got priority %d from ${QUEUE_PRIO}.\n",
 					chan->name, prio);
@@ -3716,7 +3716,7 @@ static int manager_add_queue_member(struct mansession *s, struct message *m)
 
 	if (ast_strlen_zero(penalty_s))
 		penalty = 0;
-	else if (sscanf(penalty_s, "%d", &penalty) != 1) {
+	else if (sscanf(penalty_s, "%30d", &penalty) != 1) {
 		penalty = 0;
 	}
 
@@ -3814,7 +3814,7 @@ static int handle_add_queue_member(int fd, int argc, char *argv[])
 	queuename = argv[5];
 	interface = argv[3];
 	if (argc == 8) {
-		if (sscanf(argv[7], "%d", &penalty) == 1) {
+		if (sscanf(argv[7], "%30d", &penalty) == 1) {
 			if (penalty < 0) {
 				ast_cli(fd, "Penalty must be >= 0\n");
 				penalty = 0;

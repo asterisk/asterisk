@@ -165,7 +165,7 @@ struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path)
 			nm++;
 		}
 		if (!strchr(nm, '.')) {
-			if ((sscanf(nm, "%d", &x) == 1) && (x >= 0) && (x <= 32)) {
+			if ((sscanf(nm, "%30d", &x) == 1) && (x >= 0) && (x <= 32)) {
 				y = 0;
 				for (z=0;z<x;z++) {
 					y >>= 1;
@@ -250,7 +250,7 @@ int ast_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *se
 int ast_str2tos(const char *value, int *tos)
 {
 	int fval;
-	if (sscanf(value, "%i", &fval) == 1)
+	if (sscanf(value, "%30i", &fval) == 1)
 		*tos = fval & 0xff;
 	else if (!strcasecmp(value, "lowdelay"))
 		*tos = IPTOS_LOWDELAY;

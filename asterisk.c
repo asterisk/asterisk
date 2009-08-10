@@ -706,7 +706,7 @@ static int ast_makesocket(void)
 	if (!ast_strlen_zero(ast_config_AST_CTL_PERMISSIONS)) {
 		int p1;
 		mode_t p;
-		sscanf(ast_config_AST_CTL_PERMISSIONS, "%o", &p1);
+		sscanf(ast_config_AST_CTL_PERMISSIONS, "%30o", &p1);
 		p = p1;
 		if ((chmod(ast_config_AST_SOCKET, p)) < 0)
 			ast_log(LOG_WARNING, "Unable to change file permissions of %s: %s\n", ast_config_AST_SOCKET, strerror(errno));
@@ -1357,10 +1357,10 @@ static char *cli_prompt(EditLine *el)
 				switch (*t) {
 					case 'C': /* color */
 						t++;
-						if (sscanf(t, "%d;%d%n", &fgcolor, &bgcolor, &i) == 2) {
+						if (sscanf(t, "%30d;%30d%n", &fgcolor, &bgcolor, &i) == 2) {
 							strncat(p, term_color_code(term_code, fgcolor, bgcolor, sizeof(term_code)),sizeof(prompt) - strlen(prompt) - 1);
 							t += i - 1;
-						} else if (sscanf(t, "%d%n", &fgcolor, &i) == 1) {
+						} else if (sscanf(t, "%30d%n", &fgcolor, &i) == 1) {
 							strncat(p, term_color_code(term_code, fgcolor, 0, sizeof(term_code)),sizeof(prompt) - strlen(prompt) - 1);
 							t += i - 1;
 						}
@@ -1405,9 +1405,9 @@ static char *cli_prompt(EditLine *el)
 						if ((LOADAVG = fopen("/proc/loadavg", "r"))) {
 							float avg1, avg2, avg3;
 							int actproc, totproc, npid, which;
-							fscanf(LOADAVG, "%f %f %f %d/%d %d",
+							fscanf(LOADAVG, "%30f %30f %30f %30d/%30d %30d",
 								&avg1, &avg2, &avg3, &actproc, &totproc, &npid);
-							if (sscanf(t, "%d", &which) == 1) {
+							if (sscanf(t, "%30d", &which) == 1) {
 								switch (which) {
 									case 1:
 										snprintf(p, sizeof(prompt) - strlen(prompt), "%.2f", avg1);
@@ -1949,7 +1949,7 @@ static void ast_readconfig(void) {
 		/* debug level (-d at startup) */
 		} else if (!strcasecmp(v->name, "debug")) {
 			option_debug = 0;
-			if (sscanf(v->value, "%d", &option_debug) != 1) {
+			if (sscanf(v->value, "%30d", &option_debug) != 1) {
 				option_debug = ast_true(v->value);
 			}
 		/* Disable forking (-f at startup) */
@@ -1989,7 +1989,7 @@ static void ast_readconfig(void) {
 		} else if (!strcasecmp(v->name, "transmit_silence_during_record")) {
 			option_transmit_silence_during_record = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "maxcalls")) {
-			if ((sscanf(v->value, "%d", &option_maxcalls) != 1) || (option_maxcalls < 0)) {
+			if ((sscanf(v->value, "%30d", &option_maxcalls) != 1) || (option_maxcalls < 0)) {
 				option_maxcalls = 0;
 			}
 		} else if (!strcasecmp(v->name, "maxload")) {
@@ -1998,7 +1998,7 @@ static void ast_readconfig(void) {
 			if (getloadavg(test, 1) == -1) {
 				ast_log(LOG_ERROR, "Cannot obtain load average on this system. 'maxload' option disabled.\n");
 				option_maxload = 0.0;
-			} else if ((sscanf(v->value, "%lf", &option_maxload) != 1) || (option_maxload < 0.0)) {
+			} else if ((sscanf(v->value, "%30lf", &option_maxload) != 1) || (option_maxload < 0.0)) {
 				option_maxload = 0.0;
 			}
 		/* What user to run as */
@@ -2118,11 +2118,11 @@ int main(int argc, char *argv[])
 			option_nofork++;
 			break;
 		case 'M':
-			if ((sscanf(optarg, "%d", &option_maxcalls) != 1) || (option_maxcalls < 0))
+			if ((sscanf(optarg, "%30d", &option_maxcalls) != 1) || (option_maxcalls < 0))
 				option_maxcalls = 0;
 			break;
 		case 'L':
-			if ((sscanf(optarg, "%lf", &option_maxload) != 1) || (option_maxload < 0.0))
+			if ((sscanf(optarg, "%30lf", &option_maxload) != 1) || (option_maxload < 0.0))
 				option_maxload = 0.0;
 			break;
 		case 'q':

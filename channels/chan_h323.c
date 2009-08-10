@@ -2037,7 +2037,7 @@ int reload_config(void)
 				memcpy(&bindaddr.sin_addr, hp->h_addr, sizeof(bindaddr.sin_addr));
 			}
 		} else if (!strcasecmp(v->name, "tos")) {
-			if (sscanf(v->value, "%d", &format)) {
+			if (sscanf(v->value, "%30d", &format)) {
 				tos = format & 0xff;
 			} else if (!strcasecmp(v->value, "lowdelay")) {
 				tos = IPTOS_LOWDELAY;

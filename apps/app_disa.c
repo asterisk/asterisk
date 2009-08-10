@@ -249,7 +249,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 				if (j == '#') /* end of password */
 				{
 					  /* see if this is an integer */
-					if (sscanf(args.passcode,"%d",&j) < 1)
+					if (sscanf(args.passcode,"%30d",&j) < 1)
 					   { /* nope, it must be a filename */
 						fp = fopen(args.passcode,"r");
 						if (!fp)
@@ -274,7 +274,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 							ast_log(LOG_DEBUG, "Mailbox: %s\n",args.mailbox);
 
 							  /* password must be in valid format (numeric) */
-							if (sscanf(args.passcode,"%d",&j) < 1) continue;
+							if (sscanf(args.passcode,"%30d",&j) < 1) continue;
 							  /* if we got it */
 							if (!strcmp(exten,args.passcode)) {
 								if (ast_strlen_zero(args.context))

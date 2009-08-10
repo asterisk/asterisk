@@ -181,13 +181,13 @@ static int math_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	if (sscanf(mvalue1, "%f", &fnum1) != 1) {
+	if (sscanf(mvalue1, "%30f", &fnum1) != 1) {
 		ast_log(LOG_WARNING, "'%s' is not a valid number\n", mvalue1);
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
-	if (sscanf(mvalue2, "%f", &fnum2) != 1) {
+	if (sscanf(mvalue2, "%30f", &fnum2) != 1) {
 		ast_log(LOG_WARNING, "'%s' is not a valid number\n", mvalue2);
 		LOCAL_USER_REMOVE(u);
 		return -1;

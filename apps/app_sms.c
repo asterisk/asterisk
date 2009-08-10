@@ -748,7 +748,7 @@ static void sms_readfile (sms_t * h, char *fn)
 						  H,
 						  M,
 						  S;
-						if (sscanf (p, "%d-%d-%dT%d:%d:%d", &Y, &m, &d, &H, &M, &S) == 6)
+						if (sscanf (p, "%4d-%2d-%2dT%2d:%2d:%2d", &Y, &m, &d, &H, &M, &S) == 6)
 						{
 							struct tm t;
 							t.tm_year = Y - 1900;

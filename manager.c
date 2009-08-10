@@ -870,7 +870,7 @@ static int action_redirect(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "Channel not specified");
 		return 0;
 	}
-	if (!ast_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1)) {
+	if (!ast_strlen_zero(priority) && (sscanf(priority, "%30d", &pi) != 1)) {
 		astman_send_error(s, m, "Invalid priority\n");
 		return 0;
 	}
@@ -1027,11 +1027,11 @@ static int action_originate(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "Channel not specified");
 		return 0;
 	}
-	if (!ast_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1)) {
+	if (!ast_strlen_zero(priority) && (sscanf(priority, "%30d", &pi) != 1)) {
 		astman_send_error(s, m, "Invalid priority\n");
 		return 0;
 	}
-	if (!ast_strlen_zero(timeout) && (sscanf(timeout, "%d", &to) != 1)) {
+	if (!ast_strlen_zero(timeout) && (sscanf(timeout, "%30d", &to) != 1)) {
 		astman_send_error(s, m, "Invalid timeout\n");
 		return 0;
 	}
@@ -1696,12 +1696,12 @@ int init_manager(void)
 		block_sockets = ast_true(val);
 
 	if ((val = ast_variable_retrieve(cfg, "general", "port"))) {
-		if (sscanf(val, "%d", &portno) != 1) {
+		if (sscanf(val, "%5d", &portno) != 1) {
 			ast_log(LOG_WARNING, "Invalid port number '%s'\n", val);
 			portno = DEFAULT_MANAGER_PORT;
 		}
 	} else if ((val = ast_variable_retrieve(cfg, "general", "portno"))) {
-		if (sscanf(val, "%d", &portno) != 1) {
+		if (sscanf(val, "%5d", &portno) != 1) {
 			ast_log(LOG_WARNING, "Invalid port number '%s'\n", val);
 			portno = DEFAULT_MANAGER_PORT;
 		}

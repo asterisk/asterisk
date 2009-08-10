@@ -2095,7 +2095,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	res = 0;
 	ast_set_flag(p, SIP_OUTGOING);
 #ifdef OSP_SUPPORT
-	if (!p->options->osptoken || !osphandle || (sscanf(osphandle, "%d", &p->osphandle) != 1)) {
+	if (!p->options->osptoken || !osphandle || (sscanf(osphandle, "%30d", &p->osphandle) != 1)) {
 		/* Force Disable OSP support */
 		ast_log(LOG_DEBUG, "Disabling OSP support for this call. osptoken = %s, osphandle = %s\n", p->options->osptoken, osphandle);
 		p->options->osptoken = NULL;
@@ -3638,15 +3638,15 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	ast_set_flag(p, SIP_NOVIDEO);	
 	while ((m = get_sdp_iterate(&iterator, req, "m"))[0] != '\0') {
 		int found = 0;
-		if ((sscanf(m, "audio %d/%d RTP/AVP %n", &x, &y, &len) == 2) ||
-		    (sscanf(m, "audio %d RTP/AVP %n", &x, &len) == 1)) {
+		if ((sscanf(m, "audio %30d/%30d RTP/AVP %n", &x, &y, &len) == 2) ||
+		    (sscanf(m, "audio %30d RTP/AVP %n", &x, &len) == 1)) {
 			found = 1;
 			portno = x;
 			/* Scan through the RTP payload types specified in a "m=" line: */
 			ast_rtp_pt_clear(p->rtp);
 			codecs = m + len;
 			while(!ast_strlen_zero(codecs)) {
-				if (sscanf(codecs, "%d%n", &codec, &len) != 1) {
+				if (sscanf(codecs, "%30d%n", &codec, &len) != 1) {
 					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
 					return -1;
 				}
@@ -3659,14 +3659,14 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		if (p->vrtp)
 			ast_rtp_pt_clear(p->vrtp);  /* Must be cleared in case no m=video line exists */
 
-		if (p->vrtp && (sscanf(m, "video %d RTP/AVP %n", &x, &len) == 1)) {
+		if (p->vrtp && (sscanf(m, "video %30d RTP/AVP %n", &x, &len) == 1)) {
 			found = 1;
 			ast_clear_flag(p, SIP_NOVIDEO);	
 			vportno = x;
 			/* Scan through the RTP payload types specified in a "m=" line: */
 			codecs = m + len;
 			while(!ast_strlen_zero(codecs)) {
-				if (sscanf(codecs, "%d%n", &codec, &len) != 1) {
+				if (sscanf(codecs, "%30d%n", &codec, &len) != 1) {
 					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
 					return -1;
 				}
@@ -3747,7 +3747,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		if (!strcasecmp(a, "sendrecv")) {
 		  	sendonly = 0;
 		}
-		if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) != 2) continue;
+		if (sscanf(a, "rtpmap: %30u %127[^/]/", &codec, mimeSubtype) != 2) continue;
 		if (debug)
 			ast_verbose("Found description format %s\n", mimeSubtype);
 		/* Note: should really look at the 'freq' and '#chans' params too */
@@ -4324,7 +4324,7 @@ static int __transmit_response(struct sip_pvt *p, char *msg, struct sip_request 
 	struct sip_request resp;
 	int seqno = 0;
 
-	if (reliable && (sscanf(get_header(req, "CSeq"), "%d ", &seqno) != 1)) {
+	if (reliable && (sscanf(get_header(req, "CSeq"), "%30d ", &seqno) != 1)) {
 		ast_log(LOG_WARNING, "Unable to determine sequence number from '%s'\n", get_header(req, "CSeq"));
 		return -1;
 	}
@@ -4443,7 +4443,7 @@ static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_
 	char tmp[512];
 	int seqno = 0;
 
-	if (reliable && (sscanf(get_header(req, "CSeq"), "%d ", &seqno) != 1)) {
+	if (reliable && (sscanf(get_header(req, "CSeq"), "%30d ", &seqno) != 1)) {
 		ast_log(LOG_WARNING, "Unable to determine sequence number from '%s'\n", get_header(req, "CSeq"));
 		return -1;
 	}
@@ -4755,7 +4755,7 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
 {
 	struct sip_request resp;
 	int seqno;
-	if (sscanf(get_header(req, "CSeq"), "%d ", &seqno) != 1) {
+	if (sscanf(get_header(req, "CSeq"), "%30d ", &seqno) != 1) {
 		ast_log(LOG_WARNING, "Unable to get seqno from '%s'\n", get_header(req, "CSeq"));
 		return -1;
 	}
@@ -6078,7 +6078,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 			char *ptr;
 			if ((ptr = strchr(expires, ';')))
 				*ptr = '\0';
-			if (sscanf(expires + 9, "%d", &expiry) != 1)
+			if (sscanf(expires + 9, "%30d", &expiry) != 1)
 				expiry = default_expiry;
 		} else {
 			/* Nothing has been specified */
@@ -10103,7 +10103,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 			}
 			tmptmp = strcasestr(contact, "expires=");
 			if (tmptmp) {
-				if (sscanf(tmptmp + 8, "%d;", &expires) != 1)
+				if (sscanf(tmptmp + 8, "%30d;", &expires) != 1)
 					expires = 0;
 			}
 
@@ -11430,7 +11430,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		ast_log(LOG_ERROR, "Missing Cseq. Dropping this SIP message, it's incomplete.\n");
 		error = 1;
 	}
-	if (!error && sscanf(cseq, "%d%n", &seqno, &len) != 1) {
+	if (!error && sscanf(cseq, "%30d%n", &seqno, &len) != 1) {
 		ast_log(LOG_ERROR, "No seqno in '%s'. Dropping incomplete message.\n", cmd);
 		error = 1;
 	}
@@ -11465,7 +11465,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			ignore=1;
 		} else if (e) {
 			e = ast_skip_blanks(e);
-			if (sscanf(e, "%d %n", &respid, &len) != 1) {
+			if (sscanf(e, "%30d %n", &respid, &len) != 1) {
 				ast_log(LOG_WARNING, "Invalid response: '%s'\n", e);
 			} else {
 				/* More SIP ridiculousness, we have to ignore bogus contacts in 100 etc responses */
@@ -12659,7 +12659,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 		}
 
 		if (realtime && !strcasecmp(v->name, "regseconds")) {
-			if (sscanf(v->value, "%ld", (time_t *)&regseconds) != 1)
+			if (sscanf(v->value, "%30ld", (time_t *)&regseconds) != 1)
 				regseconds = 0;
 		} else if (realtime && !strcasecmp(v->name, "ipaddr") && !ast_strlen_zero(v->value) ) {
 			inet_aton(v->value, &(peer->addr.sin_addr));
@@ -12774,17 +12774,17 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 		} else if (!strcasecmp(v->name, "disallow")) {
 			ast_parse_allow_disallow(&peer->prefs, &peer->capability, v->value, 0);
 		} else if (!strcasecmp(v->name, "rtptimeout")) {
-			if ((sscanf(v->value, "%d", &peer->rtptimeout) != 1) || (peer->rtptimeout < 0)) {
+			if ((sscanf(v->value, "%30d", &peer->rtptimeout) != 1) || (peer->rtptimeout < 0)) {
 				ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
 				peer->rtptimeout = global_rtptimeout;
 			}
 		} else if (!strcasecmp(v->name, "rtpholdtimeout")) {
-			if ((sscanf(v->value, "%d", &peer->rtpholdtimeout) != 1) || (peer->rtpholdtimeout < 0)) {
+			if ((sscanf(v->value, "%30d", &peer->rtpholdtimeout) != 1) || (peer->rtpholdtimeout < 0)) {
 				ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
 				peer->rtpholdtimeout = global_rtpholdtimeout;
 			}
 		} else if (!strcasecmp(v->name, "rtpkeepalive")) {
-			if ((sscanf(v->value, "%d", &peer->rtpkeepalive) != 1) || (peer->rtpkeepalive < 0)) {
+			if ((sscanf(v->value, "%30d", &peer->rtpkeepalive) != 1) || (peer->rtpkeepalive < 0)) {
 				ast_log(LOG_WARNING, "'%s' is not a valid RTP keepalive time at line %d.  Using default.\n", v->value, v->lineno);
 				peer->rtpkeepalive = global_rtpkeepalive;
 			}
@@ -12804,7 +12804,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 				peer->maxms = 0;
 			} else if (!strcasecmp(v->value, "yes")) {
 				peer->maxms = DEFAULT_MAXMS;
-			} else if (sscanf(v->value, "%d", &peer->maxms) != 1) {
+			} else if (sscanf(v->value, "%30d", &peer->maxms) != 1) {
 				ast_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", peer->name, v->lineno);
 				peer->maxms = 0;
 			}
@@ -12952,24 +12952,24 @@ static int reload_config(void)
 		} else if (!strcasecmp(v->name, "relaxdtmf")) {
 			relaxdtmf = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "checkmwi")) {
-			if ((sscanf(v->value, "%d", &global_mwitime) != 1) || (global_mwitime < 0)) {
+			if ((sscanf(v->value, "%30d", &global_mwitime) != 1) || (global_mwitime < 0)) {
 				ast_log(LOG_WARNING, "'%s' is not a valid MWI time setting at line %d.  Using default (10).\n", v->value, v->lineno);
 				global_mwitime = DEFAULT_MWITIME;
 			}
 		} else if (!strcasecmp(v->name, "vmexten")) {
 			ast_copy_string(global_vmexten, v->value, sizeof(global_vmexten));
 		} else if (!strcasecmp(v->name, "rtptimeout")) {
-			if ((sscanf(v->value, "%d", &global_rtptimeout) != 1) || (global_rtptimeout < 0)) {
+			if ((sscanf(v->value, "%30d", &global_rtptimeout) != 1) || (global_rtptimeout < 0)) {
 				ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
 				global_rtptimeout = 0;
 			}
 		} else if (!strcasecmp(v->name, "rtpholdtimeout")) {
-			if ((sscanf(v->value, "%d", &global_rtpholdtimeout) != 1) || (global_rtpholdtimeout < 0)) {
+			if ((sscanf(v->value, "%30d", &global_rtpholdtimeout) != 1) || (global_rtpholdtimeout < 0)) {
 				ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
 				global_rtpholdtimeout = 0;
 			}
 		} else if (!strcasecmp(v->name, "rtpkeepalive")) {
-			if ((sscanf(v->value, "%d", &global_rtpkeepalive) != 1) || (global_rtpkeepalive < 0)) {
+			if ((sscanf(v->value, "%30d", &global_rtpkeepalive) != 1) || (global_rtpkeepalive < 0)) {
 				ast_log(LOG_WARNING, "'%s' is not a valid RTP keepalive time at line %d.  Using default.\n", v->value, v->lineno);
 				global_rtpkeepalive = 0;
 			}
@@ -13001,7 +13001,7 @@ static int reload_config(void)
 				ast_log(LOG_WARNING, "Unable to locate host '%s'\n", v->value);
 		} else if (!strcasecmp(v->name, "outboundproxyport")) {
 			/* Port needs to be after IP */
-			sscanf(v->value, "%d", &format);
+			sscanf(v->value, "%30d", &format);
 			outboundproxyip.sin_port = htons(format);
 		} else if (!strcasecmp(v->name, "autocreatepeer")) {
 			autocreatepeer = ast_true(v->value);
@@ -13058,7 +13058,7 @@ static int reload_config(void)
 				memcpy(&externip.sin_addr, hp->h_addr, sizeof(externip.sin_addr));
 			time(&externexpire);
 		} else if (!strcasecmp(v->name, "externrefresh")) {
-			if (sscanf(v->value, "%d", &externrefresh) != 1) {
+			if (sscanf(v->value, "%30d", &externrefresh) != 1) {
 				ast_log(LOG_WARNING, "Invalid externrefresh value '%s', must be an integer >0 at line %d\n", v->value, v->lineno);
 				externrefresh = 10;
 			}
@@ -13089,7 +13089,7 @@ static int reload_config(void)
 			if (ast_str2tos(v->value, &tos))
 				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
 		} else if (!strcasecmp(v->name, "bindport")) {
-			if (sscanf(v->value, "%d", &ourport) == 1) {
+			if (sscanf(v->value, "%30d", &ourport) == 1) {
 				bindaddr.sin_port = htons(ourport);
 			} else {
 				ast_log(LOG_WARNING, "Invalid port number '%s' at line %d of %s\n", v->value, v->lineno, config);
@@ -13099,7 +13099,7 @@ static int reload_config(void)
 				default_qualify = 0;
 			} else if (!strcasecmp(v->value, "yes")) {
 				default_qualify = DEFAULT_MAXMS;
-			} else if (sscanf(v->value, "%d", &default_qualify) != 1) {
+			} else if (sscanf(v->value, "%30d", &default_qualify) != 1) {
 				ast_log(LOG_WARNING, "Qualification default should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", v->lineno);
 				default_qualify = 0;
 			}
@@ -13531,7 +13531,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 			memset(lport, 0, sizeof(lport));
 			localtmp++;
 			/* This is okey because lhost and lport are as big as tmp */
-			sscanf(localtmp, "%[^<>:; ]:%[^<>:; ]", lhost, lport);
+			sscanf(localtmp, "%80[^<>:; ]:%80[^<>:; ]", lhost, lport);
 			if (!strlen(lhost)) {
 				ast_log(LOG_ERROR, "Can't find the host address\n");
 				return 0;

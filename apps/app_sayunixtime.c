@@ -96,7 +96,7 @@ static int sayunixtime_exec(struct ast_channel *chan, void *data)
 			timec = strsep(&s,"|");
 			if ((timec) && (*timec != '\0')) {
 				long timein;
-				if (sscanf(timec,"%ld",&timein) == 1) {
+				if (sscanf(timec,"%30ld",&timein) == 1) {
 					unixtime = (time_t)timein;
 				}
 			}

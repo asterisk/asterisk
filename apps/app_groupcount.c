@@ -180,7 +180,7 @@ static int group_check_exec(struct ast_channel *chan, void *data)
 
   	ast_app_group_split_group(args.max, limit, sizeof(limit), category, sizeof(category));
 
- 	if ((sscanf(limit, "%d", &max) == 1) && (max > -1)) {
+ 	if ((sscanf(limit, "%30d", &max) == 1) && (max > -1)) {
 		count = ast_app_group_get_count(pbx_builtin_getvar_helper(chan, category), category);
 		if (count > max) {
 			pbx_builtin_setvar_helper(chan, "CHECKGROUPSTATUS", "OVERMAX");

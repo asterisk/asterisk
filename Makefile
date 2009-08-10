@@ -140,7 +140,7 @@ else
   AGI_DIR=$(ASTVARLIBDIR)/agi-bin
 endif
 
-ASTCFLAGS=
+ASTCFLAGS=-Wformat-security
 
 # Pentium Pro Optimize
 #PROC=i686

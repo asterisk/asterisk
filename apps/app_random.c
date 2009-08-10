@@ -79,7 +79,7 @@ static int random_exec(struct ast_channel *chan, void *data)
 	}
 
 	prob = strsep(&s,":");
-	if ((!prob) || (sscanf(prob, "%d", &probint) != 1))
+	if ((!prob) || (sscanf(prob, "%3d", &probint) != 1))
 		probint = 0;
 
 	if ((random() % 100) + probint >= 100) {

@@ -169,7 +169,7 @@ static char *acf_strftime(struct ast_channel *chan, char *cmd, char *data, char 
 	epoch = strsep(&format, "|");
 	timezone = strsep(&format, "|");
 
-	if (ast_strlen_zero(epoch) || !sscanf(epoch, "%ld", &epochi)) {
+	if (ast_strlen_zero(epoch) || !sscanf(epoch, "%30ld", &epochi)) {
 		struct timeval tv = ast_tvnow();
 		epochi = tv.tv_sec;
 	}

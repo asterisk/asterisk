@@ -3125,7 +3125,7 @@ static int reload_config(void)
 				capability &= ~format;
 			}
 		} else if (!strcasecmp(v->name, "port")) {
-			if (sscanf(v->value, "%d", &ourport) == 1) {
+			if (sscanf(v->value, "%30d", &ourport) == 1) {
 				bindaddr.sin_port = htons(ourport);
 			} else {
 				ast_log(LOG_WARNING, "Invalid port number '%s' at line %d of %s\n", v->value, v->lineno, config);

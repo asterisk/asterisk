@@ -835,7 +835,7 @@ static struct ast_channel *modem_request(const char *type, int format, void *dat
 
 	if (dev[0]=='g' && isdigit(dev[1])) {
 		/* Retrieve the group number */
-		if (sscanf(dev+1, "%u", &groupint) < 1) {
+		if (sscanf(dev+1, "%30u", &groupint) < 1) {
 			ast_log(LOG_WARNING, "Unable to determine group from [%s]\n", (char *)data);
 			return NULL;
 		}
@@ -898,9 +898,9 @@ static ast_group_t get_group(char *s)
 	stringp=copy;
 	piece = strsep(&stringp, ",");
 	while(piece) {
-		if (sscanf(piece, "%d-%d", &start, &finish) == 2) {
+		if (sscanf(piece, "%30d-%30d", &start, &finish) == 2) {
 			/* Range */
-		} else if (sscanf(piece, "%d", &start)) {
+		} else if (sscanf(piece, "%30d", &start)) {
 			/* Just one */
 			finish = start;
 		} else {

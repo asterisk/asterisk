@@ -463,7 +463,7 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 	} else if (!strcasecmp(var, "sayduration")){
 		ast_set2_flag(vmu, ast_true(value), VM_SAYDURATION);	
 	} else if (!strcasecmp(var, "saydurationm")){
-		if (sscanf(value, "%d", &x) == 1) {
+		if (sscanf(value, "%30d", &x) == 1) {
 			vmu->saydurationm = x;
 		} else {
 			ast_log(LOG_WARNING, "Invalid min duration for say duration\n");
@@ -1042,7 +1042,7 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
-		if (sscanf(rowdata, "%d", &x) != 1)
+		if (sscanf(rowdata, "%30d", &x) != 1)
 			ast_log(LOG_WARNING, "Failed to read message count!\n");
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 	} else
@@ -1096,7 +1096,7 @@ static int message_exists(char *dir, int msgnum)
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
-		if (sscanf(rowdata, "%d", &x) != 1)
+		if (sscanf(rowdata, "%30d", &x) != 1)
 			ast_log(LOG_WARNING, "Failed to read message count!\n");
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 	} else
@@ -3695,7 +3695,7 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 	time_t t;
 	long tin;
 
-	if (sscanf(origtime,"%ld",&tin) < 1) {
+	if (sscanf(origtime,"%30ld",&tin) < 1) {
 		ast_log(LOG_WARNING, "Couldn't find origtime in %s\n", filename);
 		return 0;
 	}
@@ -5191,7 +5191,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 					ast_log(LOG_WARNING, "No value provided for record gain option\n");
 					LOCAL_USER_REMOVE(u);
 					return -1;
-				} else if (sscanf(opts[OPT_ARG_RECORDGAIN], "%d", &gain) != 1) {
+				} else if (sscanf(opts[OPT_ARG_RECORDGAIN], "%30d", &gain) != 1) {
 					ast_log(LOG_WARNING, "Invalid value '%s' provided for record gain option\n", opts[OPT_ARG_RECORDGAIN]);
 					LOCAL_USER_REMOVE(u);
 					return -1;
@@ -5633,7 +5633,7 @@ static int vm_exec(struct ast_channel *chan, void *data)
 			if (ast_test_flag(&flags, OPT_RECORDGAIN)) {
 				int gain;
 
-				if (sscanf(opts[OPT_ARG_RECORDGAIN], "%d", &gain) != 1) {
+				if (sscanf(opts[OPT_ARG_RECORDGAIN], "%30d", &gain) != 1) {
 					ast_log(LOG_WARNING, "Invalid value '%s' provided for record gain option\n", opts[OPT_ARG_RECORDGAIN]);
 					LOCAL_USER_REMOVE(u);
 					return -1;
@@ -6067,7 +6067,7 @@ static int load_config(void)
 		
 		vmmaxmessage = 0;
 		if ((s = ast_variable_retrieve(cfg, "general", "maxmessage"))) {
-			if (sscanf(s, "%d", &x) == 1) {
+			if (sscanf(s, "%30d", &x) == 1) {
 				vmmaxmessage = x;
 			} else {
 				ast_log(LOG_WARNING, "Invalid max message time length\n");
@@ -6076,7 +6076,7 @@ static int load_config(void)
 
 		vmminmessage = 0;
 		if ((s = ast_variable_retrieve(cfg, "general", "minmessage"))) {
-			if (sscanf(s, "%d", &x) == 1) {
+			if (sscanf(s, "%30d", &x) == 1) {
 				vmminmessage = x;
 				if (maxsilence <= vmminmessage)
 					ast_log(LOG_WARNING, "maxsilence should be less than minmessage or you may get empty messages\n");
@@ -6091,7 +6091,7 @@ static int load_config(void)
 
 		skipms = 3000;
 		if ((s = ast_variable_retrieve(cfg, "general", "maxgreet"))) {
-			if (sscanf(s, "%d", &x) == 1) {
+			if (sscanf(s, "%30d", &x) == 1) {
 				maxgreet = x;
 			} else {
 				ast_log(LOG_WARNING, "Invalid max message greeting length\n");
@@ -6099,7 +6099,7 @@ static int load_config(void)
 		}
 
 		if ((s = ast_variable_retrieve(cfg, "general", "skipms"))) {
-			if (sscanf(s, "%d", &x) == 1) {
+			if (sscanf(s, "%30d", &x) == 1) {
 				skipms = x;
 			} else {
 				ast_log(LOG_WARNING, "Invalid skipms value\n");
@@ -6108,7 +6108,7 @@ static int load_config(void)
 
 		maxlogins = 3;
 		if ((s = ast_variable_retrieve(cfg, "general", "maxlogins"))) {
-			if (sscanf(s, "%d", &x) == 1) {
+			if (sscanf(s, "%30d", &x) == 1) {
 				maxlogins = x;
 			} else {
 				ast_log(LOG_WARNING, "Invalid max failed login attempts\n");
@@ -6178,7 +6178,7 @@ static int load_config(void)
 
 		saydurationminfo = 2;
 		if ((astsaydurationminfo = ast_variable_retrieve(cfg, "general", "saydurationm"))) {
-			if (sscanf(astsaydurationminfo, "%d", &x) == 1) {
+			if (sscanf(astsaydurationminfo, "%30d", &x) == 1) {
 				saydurationminfo = x;
 			} else {
 				ast_log(LOG_WARNING, "Invalid min duration for say duration\n");

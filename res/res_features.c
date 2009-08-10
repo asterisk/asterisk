@@ -2004,13 +2004,13 @@ static int load_config(void)
 			} else if (!strcasecmp(var->name, "context")) {
 				ast_copy_string(parking_con, var->value, sizeof(parking_con));
 			} else if (!strcasecmp(var->name, "parkingtime")) {
-				if ((sscanf(var->value, "%d", &parkingtime) != 1) || (parkingtime < 1)) {
+				if ((sscanf(var->value, "%30d", &parkingtime) != 1) || (parkingtime < 1)) {
 					ast_log(LOG_WARNING, "%s is not a valid parkingtime\n", var->value);
 					parkingtime = DEFAULT_PARK_TIME;
 				} else
 					parkingtime = parkingtime * 1000;
 			} else if (!strcasecmp(var->name, "parkpos")) {
-				if (sscanf(var->value, "%d-%d", &start, &end) != 2) {
+				if (sscanf(var->value, "%30d-%30d", &start, &end) != 2) {
 					ast_log(LOG_WARNING, "Format for parking positions is a-b, where a and b are numbers at line %d of parking.conf\n", var->lineno);
 				} else {
 					parking_start = start;
@@ -2021,13 +2021,13 @@ static int load_config(void)
 			} else if (!strcasecmp(var->name, "adsipark")) {
 				adsipark = ast_true(var->value);
 			} else if (!strcasecmp(var->name, "transferdigittimeout")) {
-				if ((sscanf(var->value, "%d", &transferdigittimeout) != 1) || (transferdigittimeout < 1)) {
+				if ((sscanf(var->value, "%30d", &transferdigittimeout) != 1) || (transferdigittimeout < 1)) {
 					ast_log(LOG_WARNING, "%s is not a valid transferdigittimeout\n", var->value);
 					transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
 				} else
 					transferdigittimeout = transferdigittimeout * 1000;
 			} else if (!strcasecmp(var->name, "featuredigittimeout")) {
-				if ((sscanf(var->value, "%d", &featuredigittimeout) != 1) || (featuredigittimeout < 1)) {
+				if ((sscanf(var->value, "%30d", &featuredigittimeout) != 1) || (featuredigittimeout < 1)) {
 					ast_log(LOG_WARNING, "%s is not a valid featuredigittimeout\n", var->value);
 					featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
 				}

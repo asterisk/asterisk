@@ -157,8 +157,8 @@ static int waitforsilence_exec(struct ast_channel *chan, void *data)
 	
 	res = ast_answer(chan); /* Answer the channel */
 
-	if (!data || ((sscanf(data, "%d|%d", &maxsilence, &iterations) != 2) &&
-		(sscanf(data, "%d", &maxsilence) != 1))) {
+	if (!data || ((sscanf(data, "%30d|%30d", &maxsilence, &iterations) != 2) &&
+		(sscanf(data, "%30d", &maxsilence) != 1))) {
 		ast_log(LOG_WARNING, "Using default value of 1000ms, 1 iteration\n");
 	}
 

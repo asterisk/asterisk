@@ -1155,12 +1155,12 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 	/* Build request string */
 	if (!ast_db_get("dundi/cache", key, data, sizeof(data))) {
 		ptr = data;
-		if (sscanf(ptr, "%d|%n", (int *)&timeout, &length) == 1) {
+		if (sscanf(ptr, "%30d|%n", (int *)&timeout, &length) == 1) {
 			expiration = timeout - now;
 			if (expiration > 0) {
 				ast_log(LOG_DEBUG, "Found cache expiring in %d seconds!\n", (int)(timeout - now));
 				ptr += length;
-				while((sscanf(ptr, "%d/%d/%d/%n", &(flags.flags), &weight, &tech, &length) == 3)) {
+				while((sscanf(ptr, "%30d/%30d/%30d/%n", &(flags.flags), &weight, &tech, &length) == 3)) {
 					ptr += length;
 					term = strchr(ptr, '|');
 					if (term) {
@@ -2050,7 +2050,7 @@ static void load_password(void)
 	time_t expired;
 	
 	ast_db_get(secretpath, "secretexpiry", tmp, sizeof(tmp));
-	if (sscanf(tmp, "%d", (int *)&expired) == 1) {
+	if (sscanf(tmp, "%30d", (int *)&expired) == 1) {
 		ast_db_get(secretpath, "secret", tmp, sizeof(tmp));
 		current = strchr(tmp, ';');
 		if (!current)
@@ -4169,7 +4169,7 @@ static void build_mapping(char *name, char *value)
 			} else if (x >= 4) {
 				ast_copy_string(map->dcontext, name, sizeof(map->dcontext));
 				ast_copy_string(map->lcontext, fields[0], sizeof(map->lcontext));
-				if ((sscanf(fields[1], "%d", &map->weight) == 1) && (map->weight >= 0) && (map->weight < 60000)) {
+				if ((sscanf(fields[1], "%30d", &map->weight) == 1) && (map->weight >= 0) && (map->weight < 60000)) {
 					ast_copy_string(map->dest, fields[3], sizeof(map->dest));
 					if ((map->tech = str2tech(fields[2]))) {
 						map->dead = 0;
@@ -4272,7 +4272,7 @@ static void populate_addr(struct dundi_peer *peer, dundi_eid *eid)
 		if (c) {
 			*c = '\0';
 			c++;
-			if (sscanf(c, "%d:%d", &port, &expire) == 2) {
+			if (sscanf(c, "%30d:%30d", &port, &expire) == 2) {
 				/* Got it! */
 				inet_aton(data, &peer->addr.sin_addr);
 				peer->addr.sin_family = AF_INET;
@@ -4377,7 +4377,7 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v, int *globalpcmode
 					peer->maxms = 0;
 				} else if (!strcasecmp(v->value, "yes")) {
 					peer->maxms = DEFAULT_MAXMS;
-				} else if (sscanf(v->value, "%d", &peer->maxms) != 1) {
+				} else if (sscanf(v->value, "%30d", &peer->maxms) != 1) {
 					ast_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of dundi.conf\n", 
 						dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), v->lineno);
 					peer->maxms = 0;
@@ -4613,14 +4613,14 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 		} else if (!strcasecmp(v->name, "authdebug")) {
 			authdebug = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "ttl")) {
-			if ((sscanf(v->value, "%d", &x) == 1) && (x > 0) && (x < DUNDI_DEFAULT_TTL)) {
+			if ((sscanf(v->value, "%30d", &x) == 1) && (x > 0) && (x < DUNDI_DEFAULT_TTL)) {
 				dundi_ttl = x;
 			} else {
 				ast_log(LOG_WARNING, "'%s' is not a valid TTL at line %d, must be number from 1 to %d\n",
 					v->value, v->lineno, DUNDI_DEFAULT_TTL);
 			}
 		} else if (!strcasecmp(v->name, "autokill")) {
-			if (sscanf(v->value, "%d", &x) == 1) {
+			if (sscanf(v->value, "%30d", &x) == 1) {
 				if (x >= 0)
 					global_autokilltimeout = x;
 				else
@@ -4636,7 +4636,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 			else
 				ast_log(LOG_WARNING, "Invalid global endpoint identifier '%s' at line %d\n", v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "tos")) {
-			if (sscanf(v->value, "%d", &format) == 1)
+			if (sscanf(v->value, "%30d", &format) == 1)
 				tos = format & 0xff;
 			else if (!strcasecmp(v->value, "lowdelay"))
 				tos = IPTOS_LOWDELAY;
@@ -4673,7 +4673,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 		} else if (!strcasecmp(v->name, "storehistory")) {
 			global_storehistory = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "cachetime")) {
-			if ((sscanf(v->value, "%d", &x) == 1)) {
+			if ((sscanf(v->value, "%30d", &x) == 1)) {
 				dundi_cache_time = x;
 			} else {
 				ast_log(LOG_WARNING, "'%s' is not a valid cache time at line %d. Using default value '%d'.\n",

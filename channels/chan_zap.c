@@ -7666,7 +7666,7 @@ static struct ast_channel *zt_request(const char *type, int format, void *data, 
 		char *stringp=NULL;
 		stringp=dest + 1;
 		s = strsep(&stringp, "/");
-		if ((res = sscanf(s, "%d%c%d", &x, &opt, &y)) < 1) {
+		if ((res = sscanf(s, "%30d%c%30d", &x, &opt, &y)) < 1) {
 			ast_log(LOG_WARNING, "Unable to determine group for data %s\n", (char *)data);
 			return NULL;
 		}
@@ -7701,7 +7701,7 @@ static struct ast_channel *zt_request(const char *type, int format, void *data, 
 			channelmatch = x;
 		} 
 #ifdef ZAPATA_PRI
-		else if ((res = sscanf(s, "%d:%d%c%d", &trunkgroup, &crv, &opt, &y)) > 1) {
+		else if ((res = sscanf(s, "%30d:%30d%c%30d", &trunkgroup, &crv, &opt, &y)) > 1) {
 			if ((trunkgroup < 1) || (crv < 1)) {
 				ast_log(LOG_WARNING, "Unable to determine trunk group and CRV for data %s\n", (char *)data);
 				return NULL;
@@ -7724,7 +7724,7 @@ static struct ast_channel *zt_request(const char *type, int format, void *data, 
 			p = pris[x].crvs;
 		}
 #endif	
-		else if ((res = sscanf(s, "%d%c%d", &x, &opt, &y)) < 1) {
+		else if ((res = sscanf(s, "%30d%c%30d", &x, &opt, &y)) < 1) {
 			ast_log(LOG_WARNING, "Unable to determine channel for data %s\n", (char *)data);
 			return NULL;
 		} else {
@@ -9797,7 +9797,7 @@ static int zap_show_channel(int fd, int argc, char **argv)
 		return RESULT_SHOWUSAGE;
 #ifdef ZAPATA_PRI
 	if ((c = strchr(argv[3], ':'))) {
-		if (sscanf(argv[3], "%d:%d", &trunkgroup, &channel) != 2)
+		if (sscanf(argv[3], "%30d:%30d", &trunkgroup, &channel) != 2)
 			return RESULT_SHOWUSAGE;
 		if ((trunkgroup < 1) || (channel < 1))
 			return RESULT_SHOWUSAGE;
@@ -10423,7 +10423,7 @@ static int setup_zap(int reload)
 #ifdef ZAPATA_PRI
 			pri = NULL;
 			if (!strcasecmp(v->name, "crv")) {
-				if (sscanf(c, "%d:%n", &trunkgroup, &y) != 1) {
+				if (sscanf(c, "%30d:%n", &trunkgroup, &y) != 1) {
 					ast_log(LOG_WARNING, "CRV must begin with trunkgroup followed by a colon at line %d\n", v->lineno);
 					ast_config_destroy(cfg);
 					ast_mutex_unlock(&iflock);
@@ -10452,9 +10452,9 @@ static int setup_zap(int reload)
 #endif			
 			chan = strsep(&c, ",");
 			while(chan) {
-				if (sscanf(chan, "%d-%d", &start, &finish) == 2) {
+				if (sscanf(chan, "%30d-%30d", &start, &finish) == 2) {
 					/* Range */
-				} else if (sscanf(chan, "%d", &start)) {
+				} else if (sscanf(chan, "%30d", &start)) {
 					/* Just one */
 					finish = start;
 				} else if (!strcasecmp(chan, "pseudo")) {
@@ -10511,13 +10511,13 @@ static int setup_zap(int reload)
 			ast_copy_string(drings.ringContext[2].contextData,v->value,sizeof(drings.ringContext[2].contextData));
 		} else if (!strcasecmp(v->name, "dring1")) {
 			ringc = v->value;
-			sscanf(ringc, "%d,%d,%d", &drings.ringnum[0].ring[0], &drings.ringnum[0].ring[1], &drings.ringnum[0].ring[2]);
+			sscanf(ringc, "%30d,%30d,%30d", &drings.ringnum[0].ring[0], &drings.ringnum[0].ring[1], &drings.ringnum[0].ring[2]);
 		} else if (!strcasecmp(v->name, "dring2")) {
 			ringc = v->value;
-			sscanf(ringc,"%d,%d,%d", &drings.ringnum[1].ring[0], &drings.ringnum[1].ring[1], &drings.ringnum[1].ring[2]);
+			sscanf(ringc,"%30d,%30d,%30d", &drings.ringnum[1].ring[0], &drings.ringnum[1].ring[1], &drings.ringnum[1].ring[2]);
 		} else if (!strcasecmp(v->name, "dring3")) {
 			ringc = v->value;
-			sscanf(ringc, "%d,%d,%d", &drings.ringnum[2].ring[0], &drings.ringnum[2].ring[1], &drings.ringnum[2].ring[2]);
+			sscanf(ringc, "%30d,%30d,%30d", &drings.ringnum[2].ring[0], &drings.ringnum[2].ring[1], &drings.ringnum[2].ring[2]);
 		} else if (!strcasecmp(v->name, "usecallerid")) {
 			chan_conf.use_callerid = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "cidsignalling")) {
@@ -10560,7 +10560,7 @@ static int setup_zap(int reload)
 		} else if (!strcasecmp(v->name, "busycount")) {
 			chan_conf.busycount = atoi(v->value);
 		} else if (!strcasecmp(v->name, "busypattern")) {
-			if (sscanf(v->value, "%d,%d", &chan_conf.busy_tonelength, &chan_conf.busy_quietlength) != 2) {
+			if (sscanf(v->value, "%30d,%30d", &chan_conf.busy_tonelength, &chan_conf.busy_quietlength) != 2) {
 				ast_log(LOG_ERROR, "busypattern= expects busypattern=tonelength,quietlength\n");
 			}
 		} else if (!strcasecmp(v->name, "callprogress")) {
@@ -10592,7 +10592,7 @@ static int setup_zap(int reload)
 					chan_conf.echocancel=128;
 			}
 		} else if (!strcasecmp(v->name, "echotraining")) {
-			if (sscanf(v->value, "%d", &y) == 1) {
+			if (sscanf(v->value, "%30d", &y) == 1) {
 				if ((y < 10) || (y > 4000)) {
 					ast_log(LOG_WARNING, "Echo training time must be within the range of 10 to 2000 ms at line %d\n", v->lineno);					
 				} else {
@@ -10635,15 +10635,15 @@ static int setup_zap(int reload)
 		} else if (!strcasecmp(v->name, "transfertobusy")) {
 			chan_conf.transfertobusy = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "rxgain")) {
-			if (sscanf(v->value, "%f", &chan_conf.rxgain) != 1) {
+			if (sscanf(v->value, "%30f", &chan_conf.rxgain) != 1) {
 				ast_log(LOG_WARNING, "Invalid rxgain: %s\n", v->value);
 			}
 		} else if (!strcasecmp(v->name, "txgain")) {
-			if (sscanf(v->value, "%f", &chan_conf.txgain) != 1) {
+			if (sscanf(v->value, "%30f", &chan_conf.txgain) != 1) {
 				ast_log(LOG_WARNING, "Invalid txgain: %s\n", v->value);
 			}
 		} else if (!strcasecmp(v->name, "tonezone")) {
-			if (sscanf(v->value, "%d", &chan_conf.tonezone) != 1) {
+			if (sscanf(v->value, "%30d", &chan_conf.tonezone) != 1) {
 				ast_log(LOG_WARNING, "Invalid tonezone: %s\n", v->value);
 			}
 		} else if (!strcasecmp(v->name, "callerid")) {
@@ -10944,7 +10944,7 @@ static int setup_zap(int reload)
 
 				ast_copy_string(original_args, v->value, sizeof(original_args));
 				/* 16 cadences allowed (8 pairs) */
-				element_count = sscanf(v->value, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d", &c[0], &c[1], &c[2], &c[3], &c[4], &c[5], &c[6], &c[7], &c[8], &c[9], &c[10], &c[11], &c[12], &c[13], &c[14], &c[15]);
+				element_count = sscanf(v->value, "%30d,%30d,%30d,%30d,%30d,%30d,%30d,%30d,%30d,%30d,%30d,%30d,%30d,%30d,%30d,%30d", &c[0], &c[1], &c[2], &c[3], &c[4], &c[5], &c[6], &c[7], &c[8], &c[9], &c[10], &c[11], &c[12], &c[13], &c[14], &c[15]);
 	
 				/* Cadence must be even (on/off) */
 				if (element_count % 2 == 1) {

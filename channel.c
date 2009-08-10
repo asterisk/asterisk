@@ -3875,9 +3875,9 @@ ast_group_t ast_get_group(char *s)
 	c = copy;
 	
 	while((piece = strsep(&c, ","))) {
-		if (sscanf(piece, "%d-%d", &start, &finish) == 2) {
+		if (sscanf(piece, "%30d-%30d", &start, &finish) == 2) {
 			/* Range */
-		} else if (sscanf(piece, "%d", &start)) {
+		} else if (sscanf(piece, "%30d", &start)) {
 			/* Just one */
 			finish = start;
 		} else {

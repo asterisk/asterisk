@@ -159,12 +159,12 @@ static char *builtin_function_math(struct ast_channel *chan, char *cmd, char *da
 		return NULL;
 	}
 
-	if (sscanf(mvalue1, "%lf", &fnum1) != 1) {
+	if (sscanf(mvalue1, "%30lf", &fnum1) != 1) {
 		ast_log(LOG_WARNING, "'%s' is not a valid number\n", mvalue1);
 		return NULL;
 	}
 
-	if (sscanf(mvalue2, "%lf", &fnum2) != 1) {
+	if (sscanf(mvalue2, "%30lf", &fnum2) != 1) {
 		ast_log(LOG_WARNING, "'%s' is not a valid number\n", mvalue2);
 		return NULL;
 	}
