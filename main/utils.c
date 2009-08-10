@@ -1714,7 +1714,7 @@ int ast_get_timeval(const char *src, struct timeval *dst, struct timeval _defaul
 		return -1;
 
 	/* only integer at the moment, but one day we could accept more formats */
-	if (sscanf(src, "%Lf%n", &dtv, &scanned) > 0) {
+	if (sscanf(src, "%30Lf%n", &dtv, &scanned) > 0) {
 		dst->tv_sec = dtv;
 		dst->tv_usec = (dtv - dst->tv_sec) * 1000000.0;
 		if (consumed)
@@ -1741,7 +1741,7 @@ int ast_get_time_t(const char *src, time_t *dst, time_t _default, int *consumed)
 		return -1;
 
 	/* only integer at the moment, but one day we could accept more formats */
-	if (sscanf(src, "%ld%n", &t, &scanned) == 1) {
+	if (sscanf(src, "%30ld%n", &t, &scanned) == 1) {
 		*dst = t;
 		if (consumed)
 			*consumed = scanned;

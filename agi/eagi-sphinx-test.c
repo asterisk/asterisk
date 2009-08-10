@@ -223,7 +223,7 @@ int main(int argc, char *argv[])
 	connect_sphinx();
 	tmp = getenv("agi_enhanced");
 	if (tmp) {
-		if (sscanf(tmp, "%d.%d", &ver, &subver) != 2)
+		if (sscanf(tmp, "%30d.%30d", &ver, &subver) != 2)
 			ver = 0;
 	}
 	if (ver < 1) {
