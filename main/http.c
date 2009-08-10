@@ -137,10 +137,10 @@ static uint32_t manid_from_vars(struct ast_variable *sid) {
 
 	while (sid && strcmp(sid->name, "mansession_id"))
 		sid = sid->next;
-	
-	if (!sid || sscanf(sid->value, "%x", &mngid) != 1)
+
+	if (!sid || sscanf(sid->value, "%30x", &mngid) != 1)
 		return 0;
-	
+
 	return mngid;
 }
 

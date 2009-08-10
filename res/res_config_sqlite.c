@@ -798,7 +798,7 @@ static int cdr_handler(struct ast_cdr *cdr)
 			if (!tmp) {
 				continue;
 			}
-			if (sscanf(tmp, "%d", &scannum) == 1) {
+			if (sscanf(tmp, "%30d", &scannum) == 1) {
 				ast_str_append(&sql1, 0, "%s,", col->name);
 				ast_str_append(&sql2, 0, "%d,", scannum);
 			}

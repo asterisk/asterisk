@@ -70,7 +70,7 @@ int dundi_str_short_to_eid(dundi_eid *eid, const char *s)
 	int x;
 	if (sscanf(s, "%2x%2x%2x%2x%2x%2x", &eid_int[0], &eid_int[1], &eid_int[2],
 		 &eid_int[3], &eid_int[4], &eid_int[5]) != 6)
-		 	return -1;
+			return -1;
 	for (x = 0; x < 6; x++)
 		eid->eid[x] = eid_int[x];
 	return 0;
