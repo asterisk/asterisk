@@ -4760,7 +4760,7 @@ static int reload_config(void)
 		} else if (!strcasecmp(v->name, "disallow")) {
 			ast_parse_allow_disallow(&default_prefs, &default_capability, v->value, 0);
 		} else if (!strcasecmp(v->name, "bindport") || !strcasecmp(v->name, "port")) {
-			if (sscanf(v->value, "%d", &ourport) == 1) {
+			if (sscanf(v->value, "%5d", &ourport) == 1) {
 				bindaddr.sin_port = htons(ourport);
 			} else {
 				ast_log(LOG_WARNING, "Invalid bindport '%s' at line %d of %s\n", v->value, v->lineno, config);

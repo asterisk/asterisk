@@ -208,7 +208,7 @@ static int osp_create_provider(struct ast_config* cfg, const char* provider)
 				ast_log(LOG_WARNING, "OSP: Too many Service Points at line %d\n", v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "maxconnections")) {
-			if ((sscanf(v->value, "%d", &t) == 1) && (t >= OSP_MIN_MAXCONNECTIONS) && (t <= OSP_MAX_MAXCONNECTIONS)) {
+			if ((sscanf(v->value, "%30d", &t) == 1) && (t >= OSP_MIN_MAXCONNECTIONS) && (t <= OSP_MAX_MAXCONNECTIONS)) {
 				p->maxconnections = t;
 				ast_log(LOG_DEBUG, "OSP: maxconnections '%d'\n", t);
 			} else {
@@ -216,7 +216,7 @@ static int osp_create_provider(struct ast_config* cfg, const char* provider)
 					OSP_MIN_MAXCONNECTIONS, OSP_MAX_MAXCONNECTIONS, v->value, v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "retrydelay")) {
-			if ((sscanf(v->value, "%d", &t) == 1) && (t >= OSP_MIN_RETRYDELAY) && (t <= OSP_MAX_RETRYDELAY)) {
+			if ((sscanf(v->value, "%30d", &t) == 1) && (t >= OSP_MIN_RETRYDELAY) && (t <= OSP_MAX_RETRYDELAY)) {
 				p->retrydelay = t;
 				ast_log(LOG_DEBUG, "OSP: retrydelay '%d'\n", t);
 			} else {
@@ -224,7 +224,7 @@ static int osp_create_provider(struct ast_config* cfg, const char* provider)
 					OSP_MIN_RETRYDELAY, OSP_MAX_RETRYDELAY, v->value, v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "retrylimit")) {
-			if ((sscanf(v->value, "%d", &t) == 1) && (t >= OSP_MIN_RETRYLIMIT) && (t <= OSP_MAX_RETRYLIMIT)) {
+			if ((sscanf(v->value, "%30d", &t) == 1) && (t >= OSP_MIN_RETRYLIMIT) && (t <= OSP_MAX_RETRYLIMIT)) {
 				p->retrylimit = t;
 				ast_log(LOG_DEBUG, "OSP: retrylimit '%d'\n", t);
 			} else {
@@ -232,7 +232,7 @@ static int osp_create_provider(struct ast_config* cfg, const char* provider)
 					OSP_MIN_RETRYLIMIT, OSP_MAX_RETRYLIMIT, v->value, v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "timeout")) {
-			if ((sscanf(v->value, "%d", &t) == 1) && (t >= OSP_MIN_TIMEOUT) && (t <= OSP_MAX_TIMEOUT)) {
+			if ((sscanf(v->value, "%30d", &t) == 1) && (t >= OSP_MIN_TIMEOUT) && (t <= OSP_MAX_TIMEOUT)) {
 				p->timeout = t;
 				ast_log(LOG_DEBUG, "OSP: timeout '%d'\n", t);
 			} else {
@@ -243,7 +243,7 @@ static int osp_create_provider(struct ast_config* cfg, const char* provider)
 			ast_copy_string(p->source, v->value, sizeof(p->source));
 			ast_log(LOG_DEBUG, "OSP: source '%s'\n", p->source);
 		} else if (!strcasecmp(v->name, "authpolicy")) {
-			if ((sscanf(v->value, "%d", &t) == 1) && ((t == OSP_AUTH_NO) || (t == OSP_AUTH_YES) || (t == OSP_AUTH_EXCLUSIVE))) {
+			if ((sscanf(v->value, "%30d", &t) == 1) && ((t == OSP_AUTH_NO) || (t == OSP_AUTH_YES) || (t == OSP_AUTH_EXCLUSIVE))) {
 				p->authpolicy = t;
 				ast_log(LOG_DEBUG, "OSP: authpolicy '%d'\n", t);
 			} else {
@@ -1051,11 +1051,11 @@ static int osplookup_exec(struct ast_channel* chan, void* data)
 	headp = &chan->varshead;
 	AST_LIST_TRAVERSE(headp, current, entries) {
 		if (!strcasecmp(ast_var_name(current), "OSPINHANDLE")) {
-			if (sscanf(ast_var_value(current), "%d", &result.inhandle) != 1) {
+			if (sscanf(ast_var_value(current), "%30d", &result.inhandle) != 1) {
 				result.inhandle = OSP_INVALID_HANDLE;
 			}
 		} else if (!strcasecmp(ast_var_name(current), "OSPINTIMELIMIT")) {
-			if (sscanf(ast_var_value(current), "%d", &result.intimelimit) != 1) {
+			if (sscanf(ast_var_value(current), "%30d", &result.intimelimit) != 1) {
 				result.intimelimit = OSP_DEF_TIMELIMIT;
 			}
 		} else if (!strcasecmp(ast_var_name(current), "OSPPEERIP")) {
@@ -1177,7 +1177,7 @@ static int ospnext_exec(struct ast_channel* chan, void* data)
 
 	AST_STANDARD_APP_ARGS(args, tmp);
 
-	if (!ast_strlen_zero(args.cause) && sscanf(args.cause, "%d", &cause) != 1) {
+	if (!ast_strlen_zero(args.cause) && sscanf(args.cause, "%30d", &cause) != 1) {
 		cause = 0;
 	}
 	ast_log(LOG_DEBUG, "OSPNext: cause '%d'\n", cause);
@@ -1195,19 +1195,19 @@ static int ospnext_exec(struct ast_channel* chan, void* data)
 	headp = &chan->varshead;
 	AST_LIST_TRAVERSE(headp, current, entries) {
 		if (!strcasecmp(ast_var_name(current), "OSPINHANDLE")) {
-			if (sscanf(ast_var_value(current), "%d", &result.inhandle) != 1) {
+			if (sscanf(ast_var_value(current), "%30d", &result.inhandle) != 1) {
 				result.inhandle = OSP_INVALID_HANDLE;
 			}
 		} else if (!strcasecmp(ast_var_name(current), "OSPOUTHANDLE")) {
-			if (sscanf(ast_var_value(current), "%d", &result.outhandle) != 1) {
+			if (sscanf(ast_var_value(current), "%30d", &result.outhandle) != 1) {
 				result.outhandle = OSP_INVALID_HANDLE;
 			}
 		} else if (!strcasecmp(ast_var_name(current), "OSPINTIMELIMIT")) {
-			if (sscanf(ast_var_value(current), "%d", &result.intimelimit) != 1) {
+			if (sscanf(ast_var_value(current), "%30d", &result.intimelimit) != 1) {
 				result.intimelimit = OSP_DEF_TIMELIMIT;
 			}
 		} else if (!strcasecmp(ast_var_name(current), "OSPRESULTS")) {
-			if (sscanf(ast_var_value(current), "%d", &result.numresults) != 1) {
+			if (sscanf(ast_var_value(current), "%30d", &result.numresults) != 1) {
 				result.numresults = 0;
 			}
 		}
@@ -1322,11 +1322,11 @@ static int ospfinished_exec(struct ast_channel* chan, void* data)
 	headp = &chan->varshead;
 	AST_LIST_TRAVERSE(headp, current, entries) {
 		if (!strcasecmp(ast_var_name(current), "OSPINHANDLE")) {
-			if (sscanf(ast_var_value(current), "%d", &inhandle) != 1) {
+			if (sscanf(ast_var_value(current), "%30d", &inhandle) != 1) {
 				inhandle = OSP_INVALID_HANDLE;
 			}
 		} else if (!strcasecmp(ast_var_name(current), "OSPOUTHANDLE")) {
-			if (sscanf(ast_var_value(current), "%d", &outhandle) != 1) {
+			if (sscanf(ast_var_value(current), "%30d", &outhandle) != 1) {
 				outhandle = OSP_INVALID_HANDLE;
 			}
 		} else if (!recorded &&
@@ -1343,7 +1343,7 @@ static int ospfinished_exec(struct ast_channel* chan, void* data)
 	ast_log(LOG_DEBUG, "OSPFinish: OSPOUTHANDLE '%d'\n", outhandle);
 	ast_log(LOG_DEBUG, "OSPFinish: recorded '%d'\n", recorded);
 
-	if (!ast_strlen_zero(args.cause) && sscanf(args.cause, "%d", &cause) != 1) {
+	if (!ast_strlen_zero(args.cause) && sscanf(args.cause, "%30d", &cause) != 1) {
 		cause = 0;
 	}
 	ast_log(LOG_DEBUG, "OSPFinish: cause '%d'\n", cause);
@@ -1435,7 +1435,7 @@ static int osp_load(void)
 
 		t = ast_variable_retrieve(cfg, OSP_GENERAL_CAT, "tokenformat");
 		if (t) {
-			if ((sscanf(t, "%d", &v) == 1) && 
+			if ((sscanf(t, "%30d", &v) == 1) && 
 				((v == TOKEN_ALGO_SIGNED) || (v == TOKEN_ALGO_UNSIGNED) || (v == TOKEN_ALGO_BOTH))) 
 			{
 				osp_tokenformat = v;

@@ -1095,7 +1095,7 @@ static int parse_variable_name(char *var, int *offset, int *length, int *isfunc)
 			parens--;
 		} else if (*var == ':' && parens == 0) {
 			*var++ = '\0';
-			sscanf(var, "%d:%d", offset, length);
+			sscanf(var, "%30d:%30d", offset, length);
 			return 1; /* offset:length valid */
 		}
 	}
@@ -4069,7 +4069,7 @@ static int lookup_name(const char *s, char *const names[], int max)
 			if (!strcasecmp(s, names[i]))
 				return i+1;
 		}
-	} else if (sscanf(s, "%d", &i) == 1 && i >= 1 && i <= max) {
+	} else if (sscanf(s, "%30d", &i) == 1 && i >= 1 && i <= max) {
 		return i;
 	}
 	return 0; /* error return */
@@ -4156,11 +4156,11 @@ static void get_timerange(struct ast_timing *i, char *times)
 		ast_log(LOG_WARNING, "Invalid time range.  Assuming no restrictions based on time.\n");
 		return;
 	}
-	if (sscanf(times, "%d:%d", &s1, &s2) != 2) {
+	if (sscanf(times, "%2d:%2d", &s1, &s2) != 2) {
 		ast_log(LOG_WARNING, "%s isn't a time.  Assuming no restrictions based on time.\n", times);
 		return;
 	}
-	if (sscanf(e, "%d:%d", &e1, &e2) != 2) {
+	if (sscanf(e, "%2d:%2d", &e1, &e2) != 2) {
 		ast_log(LOG_WARNING, "%s isn't a time.  Assuming no restrictions based on time.\n", e);
 		return;
 	}
@@ -5369,7 +5369,7 @@ static void wait_for_hangup(struct ast_channel *chan, void *data)
 	struct ast_frame *f;
 	int waittime;
 
-	if (ast_strlen_zero(data) || (sscanf(data, "%d", &waittime) != 1) || (waittime < 0))
+	if (ast_strlen_zero(data) || (sscanf(data, "%30d", &waittime) != 1) || (waittime < 0))
 		waittime = -1;
 	if (waittime > -1) {
 		ast_safe_sleep(chan, waittime * 1000);
@@ -6410,7 +6410,7 @@ int ast_parseable_goto(struct ast_channel *chan, const char *goto_string)
 		mode = -1;
 		pri++;
 	}
-	if (sscanf(pri, "%d", &ipri) != 1) {
+	if (sscanf(pri, "%30d", &ipri) != 1) {
 		if ((ipri = ast_findlabel_extension(chan, context ? context : chan->context, exten ? exten : chan->exten,
 			pri, chan->cid.cid_num)) < 1) {
 			ast_log(LOG_WARNING, "Priority '%s' must be a number > 0, or valid label\n", pri);

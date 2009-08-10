@@ -2086,7 +2086,7 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 	if (resp) {
 		ast_set_flag(pkt, FLAG_RESPONSE);
 		/* Parse out the response code */
-		if (sscanf(pkt->data, "SIP/2.0 %d", &respid) == 1) {
+		if (sscanf(pkt->data, "SIP/2.0 %30d", &respid) == 1) {
 			pkt->response_code = respid;
 		}
 	}
@@ -2144,7 +2144,7 @@ static int __sip_autodestruct(const void *data)
 		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Re-scheduled destruction of SIP call %s\n", p->callid ? p->callid : "<unknown>");
 		append_history(p, "ReliableXmit", "timeout");
-		if (sscanf(p->lastmsg, "Tx: %s", method_str) == 1 || sscanf(p->lastmsg, "Rx: %s", method_str) == 1) {
+		if (sscanf(p->lastmsg, "Tx: %30s", method_str) == 1 || sscanf(p->lastmsg, "Rx: %30s", method_str) == 1) {
 			if (method_match(SIP_CANCEL, method_str) || method_match(SIP_BYE, method_str)) {
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
 			}
@@ -2994,7 +2994,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 	if (sin) {
 		memcpy(&dialog->sa.sin_addr, &sin->sin_addr, sizeof(dialog->sa.sin_addr));
 		if (!sin->sin_port) {
-			if (ast_strlen_zero(port) || sscanf(port, "%u", &portno) != 1) {
+			if (ast_strlen_zero(port) || sscanf(port, "%30u", &portno) != 1) {
 				portno = STANDARD_SIP_PORT;
 			}
 		} else {
@@ -5062,7 +5062,7 @@ static int find_sdp(struct sip_request *req)
 	content_length = get_header(req, "Content-Length");
 
 	if (!ast_strlen_zero(content_length)) {
-		if (sscanf(content_length, "%ud", &x) != 1) {
+		if (sscanf(content_length, "%30u", &x) != 1) {
 			ast_log(LOG_WARNING, "Invalid Content-Length: %s\n", content_length);
 			return 0;
 		}
@@ -5192,10 +5192,10 @@ static int get_ip_and_port_from_sdp(struct sip_request *req, const enum media_ty
 	}
 	/* We only want the m and c lines for audio */
 	for (m = get_sdp_iterate(&miterator, req, "m"); !ast_strlen_zero(m); m = get_sdp_iterate(&miterator, req, "m")) {
-		if ((media == SDP_AUDIO && ((sscanf(m, "audio %d/%d RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
-		    (sscanf(m, "audio %d RTP/AVP %n", &x, &len) == 1 && len > 0))) ||
-			(media == SDP_VIDEO && ((sscanf(m, "video %d/%d RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
-		    (sscanf(m, "video %d RTP/AVP %n", &x, &len) == 1 && len > 0)))) {
+		if ((media == SDP_AUDIO && ((sscanf(m, "audio %30d/%30d RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
+		    (sscanf(m, "audio %30d RTP/AVP %n", &x, &len) == 1 && len > 0))) ||
+			(media == SDP_VIDEO && ((sscanf(m, "video %30d/%30d RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
+		    (sscanf(m, "video %30d RTP/AVP %n", &x, &len) == 1 && len > 0)))) {
 			/* See if there's a c= line for this media stream.
 			 * XXX There is no guarantee that we'll be grabbing the c= line for this
 			 * particular media stream here. However, this is the same logic used in process_sdp.
@@ -5332,8 +5332,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 
 		numberofports = 1;
 		len = -1;
-		if ((sscanf(m, "audio %d/%d RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
-		    (sscanf(m, "audio %d RTP/AVP %n", &x, &len) == 1 && len > 0)) {
+		if ((sscanf(m, "audio %30d/%30d RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
+		    (sscanf(m, "audio %30d RTP/AVP %n", &x, &len) == 1 && len > 0)) {
 			audio = TRUE;
 			p->offered_media[SDP_AUDIO].offered = TRUE;
 			numberofmediastreams++;
@@ -5343,7 +5343,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			codecs = m + len;
 			ast_copy_string(p->offered_media[SDP_AUDIO].text, codecs, sizeof(p->offered_media[SDP_AUDIO].text));
 			for (; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
-				if (sscanf(codecs, "%d%n", &codec, &len) != 1) {
+				if (sscanf(codecs, "%30d%n", &codec, &len) != 1) {
 					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
 					return -1;
 				}
@@ -5351,8 +5351,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 					ast_verbose("Found RTP audio format %d\n", codec);
 				ast_rtp_set_m_type(newaudiortp, codec);
 			}
-		} else if ((sscanf(m, "video %d/%d RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
-		    (sscanf(m, "video %d RTP/AVP %n", &x, &len) == 1 && len >= 0)) {
+		} else if ((sscanf(m, "video %30d/%30d RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
+		    (sscanf(m, "video %30d RTP/AVP %n", &x, &len) == 1 && len >= 0)) {
 			/* If it is not audio - is it video ? */
 			ast_clear_flag(&p->flags[0], SIP_NOVIDEO);
 			p->offered_media[SDP_VIDEO].offered = TRUE;
@@ -5362,7 +5362,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			codecs = m + len;
 			ast_copy_string(p->offered_media[SDP_VIDEO].text, codecs, sizeof(p->offered_media[SDP_VIDEO].text));
 			for (codecs = m + len; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
-				if (sscanf(codecs, "%d%n", &codec, &len) != 1) {
+				if (sscanf(codecs, "%30d%n", &codec, &len) != 1) {
 					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
 					return -1;
 				}
@@ -5370,8 +5370,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 					ast_verbose("Found RTP video format %d\n", codec);
 				ast_rtp_set_m_type(newvideortp, codec);
 			}
-		} else if (p->udptl && ( (sscanf(m, "image %d udptl t38%n", &x, &len) == 1 && len > 0) || 
-		 (sscanf(m, "image %d UDPTL t38%n", &x, &len) == 1 && len >= 0) )) {
+		} else if (p->udptl && ( (sscanf(m, "image %30d udptl t38%n", &x, &len) == 1 && len > 0) || 
+		 (sscanf(m, "image %30d UDPTL t38%n", &x, &len) == 1 && len >= 0) )) {
 			if (debug)
 				ast_verbose("Got T.38 offer in SDP in dialog %s\n", p->callid);
 			p->offered_media[SDP_IMAGE].offered = TRUE;
@@ -5557,7 +5557,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				ast_rtp_codec_setpref(p->rtp, pref);
 			}
 			continue;
-		} else if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) == 2) {
+		} else if (sscanf(a, "rtpmap: %30u %[^/]/", &codec, mimeSubtype) == 2) {
 			/* We have a rtpmap to handle */
 			int found = FALSE;
 			/* We should propably check if this is an audio or video codec
@@ -5607,11 +5607,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		/* Scan trough the a= lines for T38 attributes and set apropriate fileds */
 		iterator = req->sdp_start;
 		while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
-			if ((sscanf(a, "T38FaxMaxBuffer:%d", &x) == 1)) {
+			if ((sscanf(a, "T38FaxMaxBuffer:%30d", &x) == 1)) {
 				found = 1;
 				if (option_debug > 2)
 					ast_log(LOG_DEBUG, "MaxBufferSize:%d\n",x);
-			} else if ((sscanf(a, "T38MaxBitRate:%d", &x) == 1) || (sscanf(a, "T38FaxMaxRate:%d", &x) == 1)) {
+			} else if ((sscanf(a, "T38MaxBitRate:%30d", &x) == 1) || (sscanf(a, "T38FaxMaxRate:%30d", &x) == 1)) {
 				found = 1;
 				if (option_debug > 2)
 					ast_log(LOG_DEBUG,"T38MaxBitRate: %d\n",x);
@@ -5635,7 +5635,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 					peert38capability |= T38FAX_RATE_2400;
 					break;
 				}
-			} else if ((sscanf(a, "T38FaxVersion:%d", &x) == 1)) {
+			} else if ((sscanf(a, "T38FaxVersion:%30d", &x) == 1)) {
 				found = 1;
 				if (option_debug > 2)
 					ast_log(LOG_DEBUG, "FaxVersion: %d\n",x);
@@ -5643,7 +5643,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 					peert38capability |= T38FAX_VERSION_0;
 				else if (x == 1)
 					peert38capability |= T38FAX_VERSION_1;
-			} else if ((sscanf(a, "T38FaxMaxDatagram:%d", &x) == 1) || (sscanf(a, "T38MaxDatagram:%d", &x) == 1)) {
+			} else if ((sscanf(a, "T38FaxMaxDatagram:%30d", &x) == 1) || (sscanf(a, "T38MaxDatagram:%30d", &x) == 1)) {
 				found = 1;
 				if (option_debug > 2)
 					ast_log(LOG_DEBUG, "FaxMaxDatagram: %d\n",x);
@@ -5651,7 +5651,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				ast_udptl_set_local_max_datagram(p->udptl, x);
 			} else if ((strncmp(a, "T38FaxFillBitRemoval", 20) == 0)) {
 				found = 1;
-				if ((sscanf(a, "T38FaxFillBitRemoval:%d", &x) == 1)) {
+				if ((sscanf(a, "T38FaxFillBitRemoval:%30d", &x) == 1)) {
 				    if (option_debug > 2)
 					    ast_log(LOG_DEBUG, "FillBitRemoval: %d\n",x);
 				    if (x == 1)
@@ -5663,7 +5663,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				}
 			} else if ((strncmp(a, "T38FaxTranscodingMMR", 20) == 0)) {
 				found = 1;
-				if ((sscanf(a, "T38FaxTranscodingMMR:%d", &x) == 1)) {
+				if ((sscanf(a, "T38FaxTranscodingMMR:%30d", &x) == 1)) {
 				    if (option_debug > 2)
 					    ast_log(LOG_DEBUG, "Transcoding MMR: %d\n",x);
 				    if (x == 1)
@@ -5675,7 +5675,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				}
 			} else if ((strncmp(a, "T38FaxTranscodingJBIG", 21) == 0)) {
 				found = 1;
-				if ((sscanf(a, "T38FaxTranscodingJBIG:%d", &x) == 1)) {
+				if ((sscanf(a, "T38FaxTranscodingJBIG:%30d", &x) == 1)) {
 				    if (option_debug > 2)
 					    ast_log(LOG_DEBUG, "Transcoding JBIG: %d\n",x);
 				    if (x == 1)
@@ -6357,7 +6357,7 @@ static int __transmit_response(struct sip_pvt *p, const char *msg, const struct 
 	struct sip_request resp;
 	int seqno = 0;
 
-	if (reliable && (sscanf(get_header(req, "CSeq"), "%d ", &seqno) != 1)) {
+	if (reliable && (sscanf(get_header(req, "CSeq"), "%30d ", &seqno) != 1)) {
 		ast_log(LOG_WARNING, "Unable to determine sequence number from '%s'\n", get_header(req, "CSeq"));
 		return -1;
 	}
@@ -6499,7 +6499,7 @@ static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, const
 	char tmp[512];
 	int seqno = 0;
 
-	if (reliable && (sscanf(get_header(req, "CSeq"), "%d ", &seqno) != 1)) {
+	if (reliable && (sscanf(get_header(req, "CSeq"), "%30d ", &seqno) != 1)) {
 		ast_log(LOG_WARNING, "Unable to determine sequence number from '%s'\n", get_header(req, "CSeq"));
 		return -1;
 	}
@@ -6993,7 +6993,7 @@ static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct s
 	struct sip_request resp;
 	int seqno;
 	
-	if (sscanf(get_header(req, "CSeq"), "%d ", &seqno) != 1) {
+	if (sscanf(get_header(req, "CSeq"), "%30d ", &seqno) != 1) {
 		ast_log(LOG_WARNING, "Unable to get seqno from '%s'\n", get_header(req, "CSeq"));
 		return -1;
 	}
@@ -7031,7 +7031,7 @@ static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, const 
 {
 	struct sip_request resp;
 	int seqno;
-	if (sscanf(get_header(req, "CSeq"), "%d ", &seqno) != 1) {
+	if (sscanf(get_header(req, "CSeq"), "%30d ", &seqno) != 1) {
 		ast_log(LOG_WARNING, "Unable to get seqno from '%s'\n", get_header(req, "CSeq"));
 		return -1;
 	}
@@ -8467,7 +8467,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		if (expires) {
 			/* XXX bug here, we overwrite the string */
 			expires = strsep((char **) &expires, ";"); /* trim ; and beyond */
-			if (sscanf(expires + 9, "%d", &expiry) != 1)
+			if (sscanf(expires + 9, "%30d", &expiry) != 1)
 				expiry = default_expiry;
 		} else {
 			/* Nothing has been specified */
@@ -12281,7 +12281,7 @@ static int func_header_read(struct ast_channel *chan, char *function, char *data
 	if (!args.number) {
 		number = 1;
 	} else {
-		sscanf(args.number, "%d", &number);
+		sscanf(args.number, "%30d", &number);
 		if (number < 1)
 			number = 1;
 	}
@@ -13097,7 +13097,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 			}
 			tmptmp = strcasestr(contact, "expires=");
 			if (tmptmp) {
-				if (sscanf(tmptmp + 8, "%d;", &expires) != 1)
+				if (sscanf(tmptmp + 8, "%30d;", &expires) != 1)
 					expires = 0;
 			}
 
@@ -16171,7 +16171,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		ast_log(LOG_ERROR, "Missing Cseq. Dropping this SIP message, it's incomplete.\n");
 		error = 1;
 	}
-	if (!error && sscanf(cseq, "%d%n", &seqno, &len) != 1) {
+	if (!error && sscanf(cseq, "%30d%n", &seqno, &len) != 1) {
 		ast_log(LOG_ERROR, "No seqno in '%s'. Dropping incomplete message.\n", cmd);
 		error = 1;
 	}
@@ -16196,7 +16196,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		if (ast_strlen_zero(e)) {
 			return 0;
 		}
-		if (sscanf(e, "%d %n", &respid, &len) != 1) {
+		if (sscanf(e, "%30d %n", &respid, &len) != 1) {
 			ast_log(LOG_WARNING, "Invalid response: '%s'\n", e);
 			return 0;
 		}
@@ -17712,7 +17712,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		if (realtime && !strcasecmp(v->name, "regseconds")) {
 			ast_get_time_t(v->value, &regseconds, 0, NULL);
 		} else if (realtime && !strcasecmp(v->name, "lastms")) {
-			sscanf(v->value, "%d", &peer->lastms);
+			sscanf(v->value, "%30d", &peer->lastms);
 		} else if (realtime && !strcasecmp(v->name, "ipaddr") && !ast_strlen_zero(v->value) ) {
 			inet_aton(v->value, &(peer->addr.sin_addr));
 		} else if (realtime && !strcasecmp(v->name, "name"))
@@ -17867,17 +17867,17 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		} else if (!strcasecmp(v->name, "autoframing")) {
 			peer->autoframing = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "rtptimeout")) {
-			if ((sscanf(v->value, "%d", &peer->rtptimeout) != 1) || (peer->rtptimeout < 0)) {
+			if ((sscanf(v->value, "%30d", &peer->rtptimeout) != 1) || (peer->rtptimeout < 0)) {
 				ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
 				peer->rtptimeout = global_rtptimeout;
 			}
 		} else if (!strcasecmp(v->name, "rtpholdtimeout")) {
-			if ((sscanf(v->value, "%d", &peer->rtpholdtimeout) != 1) || (peer->rtpholdtimeout < 0)) {
+			if ((sscanf(v->value, "%30d", &peer->rtpholdtimeout) != 1) || (peer->rtpholdtimeout < 0)) {
 				ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
 				peer->rtpholdtimeout = global_rtpholdtimeout;
 			}
 		} else if (!strcasecmp(v->name, "rtpkeepalive")) {
-			if ((sscanf(v->value, "%d", &peer->rtpkeepalive) != 1) || (peer->rtpkeepalive < 0)) {
+			if ((sscanf(v->value, "%30d", &peer->rtpkeepalive) != 1) || (peer->rtpkeepalive < 0)) {
 				ast_log(LOG_WARNING, "'%s' is not a valid RTP keepalive time at line %d.  Using default.\n", v->value, v->lineno);
 				peer->rtpkeepalive = global_rtpkeepalive;
 			}
@@ -17896,7 +17896,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				peer->maxms = 0;
 			} else if (!strcasecmp(v->value, "yes")) {
 				peer->maxms = default_qualify ? default_qualify : DEFAULT_MAXMS;
-			} else if (sscanf(v->value, "%d", &peer->maxms) != 1) {
+			} else if (sscanf(v->value, "%30d", &peer->maxms) != 1) {
 				ast_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", peer->name, v->lineno);
 				peer->maxms = 0;
 			}
@@ -18164,24 +18164,24 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "relaxdtmf")) {
 			global_relaxdtmf = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "checkmwi")) {
-			if ((sscanf(v->value, "%d", &global_mwitime) != 1) || (global_mwitime < 0)) {
+			if ((sscanf(v->value, "%30d", &global_mwitime) != 1) || (global_mwitime < 0)) {
 				ast_log(LOG_WARNING, "'%s' is not a valid MWI time setting at line %d.  Using default (10).\n", v->value, v->lineno);
 				global_mwitime = DEFAULT_MWITIME;
 			}
 		} else if (!strcasecmp(v->name, "vmexten")) {
 			ast_copy_string(default_vmexten, v->value, sizeof(default_vmexten));
 		} else if (!strcasecmp(v->name, "rtptimeout")) {
-			if ((sscanf(v->value, "%d", &global_rtptimeout) != 1) || (global_rtptimeout < 0)) {
+			if ((sscanf(v->value, "%30d", &global_rtptimeout) != 1) || (global_rtptimeout < 0)) {
 				ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
 				global_rtptimeout = 0;
 			}
 		} else if (!strcasecmp(v->name, "rtpholdtimeout")) {
-			if ((sscanf(v->value, "%d", &global_rtpholdtimeout) != 1) || (global_rtpholdtimeout < 0)) {
+			if ((sscanf(v->value, "%30d", &global_rtpholdtimeout) != 1) || (global_rtpholdtimeout < 0)) {
 				ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
 				global_rtpholdtimeout = 0;
 			}
 		} else if (!strcasecmp(v->name, "rtpkeepalive")) {
-			if ((sscanf(v->value, "%d", &global_rtpkeepalive) != 1) || (global_rtpkeepalive < 0)) {
+			if ((sscanf(v->value, "%30d", &global_rtpkeepalive) != 1) || (global_rtpkeepalive < 0)) {
 				ast_log(LOG_WARNING, "'%s' is not a valid RTP keepalive time at line %d.  Using default.\n", v->value, v->lineno);
 				global_rtpkeepalive = 0;
 			}
@@ -18226,7 +18226,7 @@ static int reload_config(enum channelreloadreason reason)
 				ast_log(LOG_WARNING, "Unable to locate host '%s'\n", v->value);
 		} else if (!strcasecmp(v->name, "outboundproxyport")) {
 			/* Port needs to be after IP */
-			sscanf(v->value, "%d", &format);
+			sscanf(v->value, "%30d", &format);
 			outboundproxyip.sin_port = htons(format);
 		} else if (!strcasecmp(v->name, "autocreatepeer")) {
 			autocreatepeer = ast_true(v->value);
@@ -18287,7 +18287,7 @@ static int reload_config(enum channelreloadreason reason)
 				memcpy(&externip.sin_addr, hp->h_addr, sizeof(externip.sin_addr));
 			externexpire = time(NULL);
 		} else if (!strcasecmp(v->name, "externrefresh")) {
-			if (sscanf(v->value, "%d", &externrefresh) != 1) {
+			if (sscanf(v->value, "%30d", &externrefresh) != 1) {
 				ast_log(LOG_WARNING, "Invalid externrefresh value '%s', must be an integer >0 at line %d\n", v->value, v->lineno);
 				externrefresh = 10;
 			}
@@ -18335,7 +18335,7 @@ static int reload_config(enum channelreloadreason reason)
 			if (ast_str2tos(v->value, &global_tos_video))
 				ast_log(LOG_WARNING, "Invalid tos_video value at line %d, recommended value is 'af41'. See doc/ip-tos.txt.\n", v->lineno);
 		} else if (!strcasecmp(v->name, "bindport")) {
-			if (sscanf(v->value, "%d", &ourport) == 1) {
+			if (sscanf(v->value, "%5d", &ourport) == 1) {
 				bindaddr.sin_port = htons(ourport);
 			} else {
 				ast_log(LOG_WARNING, "Invalid port number '%s' at line %d of %s\n", v->value, v->lineno, config);
@@ -18345,7 +18345,7 @@ static int reload_config(enum channelreloadreason reason)
 				default_qualify = 0;
 			} else if (!strcasecmp(v->value, "yes")) {
 				default_qualify = DEFAULT_MAXMS;
-			} else if (sscanf(v->value, "%d", &default_qualify) != 1) {
+			} else if (sscanf(v->value, "%30d", &default_qualify) != 1) {
 				ast_log(LOG_WARNING, "Qualification default should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", v->lineno);
 				default_qualify = 0;
 			}
@@ -18962,7 +18962,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 			memset(lport, 0, sizeof(lport));
 			localtmp++;
 			/* This is okey because lhost and lport are as big as tmp */
-			sscanf(localtmp, "%[^<>:; ]:%[^<>:; ]", lhost, lport);
+			sscanf(localtmp, "%80[^<>:; ]:%80[^<>:; ]", lhost, lport);
 			if (ast_strlen_zero(lhost)) {
 				ast_log(LOG_ERROR, "Can't find the host address\n");
 				return 0;

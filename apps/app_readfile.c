@@ -80,7 +80,7 @@ static int readfile_exec(struct ast_channel *chan, void *data)
 	}
 
 	if (length) {
-		if ((sscanf(length, "%d", &len) != 1) || (len < 0)) {
+		if ((sscanf(length, "%30d", &len) != 1) || (len < 0)) {
 			ast_log(LOG_WARNING, "%s is not a positive number, defaulting length to max\n", length);
 			len = 0;
 		}

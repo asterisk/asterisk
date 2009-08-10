@@ -65,7 +65,7 @@ static int verbose_exec(struct ast_channel *chan, void *data)
 		vtext = ast_strdupa(data);
 		tmp = strsep(&vtext, "|");
 		if (vtext) {
-			if (sscanf(tmp, "%d", &vsize) != 1) {
+			if (sscanf(tmp, "%30d", &vsize) != 1) {
 				vsize = 0;
 				ast_log(LOG_WARNING, "'%s' is not a verboser number\n", vtext);
 			}

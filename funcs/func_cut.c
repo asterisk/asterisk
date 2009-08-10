@@ -96,7 +96,7 @@ static int sort_internal(struct ast_channel *chan, char *data, char *buffer, siz
 		}
 		*ptrvalue++ = '\0';
 		sortable_keys[count2].key = ptrkey;
-		sscanf(ptrvalue, "%f", &sortable_keys[count2].value);
+		sscanf(ptrvalue, "%30f", &sortable_keys[count2].value);
 		count2++;
 	}
 
@@ -173,15 +173,15 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 				int num1 = 0, num2 = MAXRESULT;
 				char trashchar;
 
-				if (sscanf(nextgroup, "%d-%d", &num1, &num2) == 2) {
+				if (sscanf(nextgroup, "%30d-%30d", &num1, &num2) == 2) {
 					/* range with both start and end */
-				} else if (sscanf(nextgroup, "-%d", &num2) == 1) {
+				} else if (sscanf(nextgroup, "-%30d", &num2) == 1) {
 					/* range with end */
 					num1 = 0;
-				} else if ((sscanf(nextgroup, "%d%c", &num1, &trashchar) == 2) && (trashchar == '-')) {
+				} else if ((sscanf(nextgroup, "%30d%1c", &num1, &trashchar) == 2) && (trashchar == '-')) {
 					/* range with start */
 					num2 = MAXRESULT;
-				} else if (sscanf(nextgroup, "%d", &num1) == 1) {
+				} else if (sscanf(nextgroup, "%30d", &num1) == 1) {
 					/* single number */
 					num2 = num1;
 				} else {

@@ -735,7 +735,7 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 		if (ast_test_flag(&flags, OPTION_VOLUME) && opts[OPT_ARG_VOLUME]) {
 			int vol;
 
-			if ((sscanf(opts[OPT_ARG_VOLUME], "%d", &vol) != 1) || (vol > 4) || (vol < -4))
+			if ((sscanf(opts[OPT_ARG_VOLUME], "%30d", &vol) != 1) || (vol > 4) || (vol < -4))
 				ast_log(LOG_NOTICE, "Volume factor must be a number between -4 and 4\n");
 			else
 				volfactor = vol;
@@ -820,7 +820,7 @@ static int extenspy_exec(struct ast_channel *chan, void *data)
 		if (ast_test_flag(&flags, OPTION_VOLUME) && opts[OPT_ARG_VOLUME]) {
 			int vol;
 
-			if ((sscanf(opts[OPT_ARG_VOLUME], "%d", &vol) != 1) || (vol > 4) || (vol < -4))
+			if ((sscanf(opts[OPT_ARG_VOLUME], "%30d", &vol) != 1) || (vol > 4) || (vol < -4))
 				ast_log(LOG_NOTICE, "Volume factor must be a number between -4 and 4\n");
 			else
 				volfactor = vol;

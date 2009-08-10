@@ -125,7 +125,7 @@ static void database_increment( char *key )
 		return;
 	}
 	
-	sscanf(value, "%u", &v);
+	sscanf(value, "%30u", &v);
 	v++;
 	
 	if(option_verbose >= 4)

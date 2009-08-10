@@ -1577,7 +1577,7 @@ static char active_usage[] =
 static void store_boost(struct chan_oss_pvt *o, char *s)
 {
 	double boost = 0;
-	if (sscanf(s, "%lf", &boost) != 1) {
+	if (sscanf(s, "%30lf", &boost) != 1) {
 		ast_log(LOG_WARNING, "invalid boost <%s>\n", s);
 		return;
 	}

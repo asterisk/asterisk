@@ -1444,9 +1444,9 @@ static struct ast_channel *agent_request(const char *type, int format, void *dat
 	struct timeval tv;
 
 	s = data;
-	if ((s[0] == '@') && (sscanf(s + 1, "%d", &groupoff) == 1)) {
+	if ((s[0] == '@') && (sscanf(s + 1, "%30d", &groupoff) == 1)) {
 		groupmatch = (1 << groupoff);
-	} else if ((s[0] == ':') && (sscanf(s + 1, "%d", &groupoff) == 1)) {
+	} else if ((s[0] == ':') && (sscanf(s + 1, "%30d", &groupoff) == 1)) {
 		groupmatch = (1 << groupoff);
 		waitforagent = 1;
 	} else 
@@ -2672,9 +2672,9 @@ static int agent_devicestate(void *data)
 	int res = AST_DEVICE_INVALID;
 	
 	s = data;
-	if ((s[0] == '@') && (sscanf(s + 1, "%d", &groupoff) == 1))
+	if ((s[0] == '@') && (sscanf(s + 1, "%30d", &groupoff) == 1))
 		groupmatch = (1 << groupoff);
-	else if ((s[0] == ':') && (sscanf(s + 1, "%d", &groupoff) == 1)) {
+	else if ((s[0] == ':') && (sscanf(s + 1, "%30d", &groupoff) == 1)) {
 		groupmatch = (1 << groupoff);
 		waitforagent = 1;
 	} else 

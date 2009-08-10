@@ -220,18 +220,18 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 	/* does the user want a deeper rabbit hole? */
 	s = pbx_builtin_getvar_helper(chan, "MACRO_RECURSION");
 	if (s)
-		sscanf(s, "%d", &maxdepth);
+		sscanf(s, "%30d", &maxdepth);
 
 	/* Count how many levels deep the rabbit hole goes */
 	s = pbx_builtin_getvar_helper(chan, "MACRO_DEPTH");
 	if (s)
-		sscanf(s, "%d", &depth);
+		sscanf(s, "%30d", &depth);
 	/* Used for detecting whether to return when a Macro is called from another Macro after hangup */
 	if (strcmp(chan->exten, "h") == 0)
 		pbx_builtin_setvar_helper(chan, "MACRO_IN_HANGUP", "1");
 	inhangupc = pbx_builtin_getvar_helper(chan, "MACRO_IN_HANGUP");
 	if (!ast_strlen_zero(inhangupc))
-		sscanf(inhangupc, "%d", &inhangup);
+		sscanf(inhangupc, "%30d", &inhangup);
 
 	if (depth >= maxdepth) {
 		ast_log(LOG_ERROR, "Macro():  possible infinite loop detected.  Returning early.\n");
@@ -511,7 +511,7 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 			if ((offsets = pbx_builtin_getvar_helper(chan, "MACRO_OFFSET"))) {
 				/* Handle macro offset if it's set by checking the availability of step n + offset + 1, otherwise continue
 			   	normally if there is any problem */
-				if (sscanf(offsets, "%d", &offset) == 1) {
+				if (sscanf(offsets, "%30d", &offset) == 1) {
 					if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + offset + 1, chan->cid.cid_num)) {
 						chan->priority += offset;
 					}

@@ -9837,18 +9837,18 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 					peer->maxms = 0;
 				} else if (!strcasecmp(v->value, "yes")) {
 					peer->maxms = DEFAULT_MAXMS;
-				} else if (sscanf(v->value, "%d", &peer->maxms) != 1) {
+				} else if (sscanf(v->value, "%30d", &peer->maxms) != 1) {
 					ast_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of iax.conf\n", peer->name, v->lineno);
 					peer->maxms = 0;
 				}
 			} else if (!strcasecmp(v->name, "qualifysmoothing")) {
 				peer->smoothing = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "qualifyfreqok")) {
-				if (sscanf(v->value, "%d", &peer->pokefreqok) != 1) {
+				if (sscanf(v->value, "%30d", &peer->pokefreqok) != 1) {
 					ast_log(LOG_WARNING, "Qualification testing frequency of peer '%s' when OK should a number of milliseconds at line %d of iax.conf\n", peer->name, v->lineno);
 				}
 			} else if (!strcasecmp(v->name, "qualifyfreqnotok")) {
-				if (sscanf(v->value, "%d", &peer->pokefreqnotok) != 1) {
+				if (sscanf(v->value, "%30d", &peer->pokefreqnotok) != 1) {
 					ast_log(LOG_WARNING, "Qualification testing frequency of peer '%s' when NOT OK should be a number of milliseconds at line %d of iax.conf\n", peer->name, v->lineno);
 				} else ast_log(LOG_WARNING, "Set peer->pokefreqnotok to %d\n", peer->pokefreqnotok);
 			} else if (!strcasecmp(v->name, "timezone")) {
@@ -10392,7 +10392,7 @@ static int set_config(char *config_file, int reload)
 			if (trunkfreq < 10)
 				trunkfreq = 10;
 		} else if (!strcasecmp(v->name, "autokill")) {
-			if (sscanf(v->value, "%d", &x) == 1) {
+			if (sscanf(v->value, "%30d", &x) == 1) {
 				if (x >= 0)
 					autokill = x;
 				else

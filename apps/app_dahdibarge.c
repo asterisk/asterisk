@@ -277,15 +277,15 @@ static int exec(struct ast_channel *chan, void *data, int dahdimode)
 	
 	if (!ast_strlen_zero(data)) {
 		if (dahdimode) {
-			if ((sscanf(data, "DAHDI/%d", &confno) != 1) &&
-			    (sscanf(data, "%d", &confno) != 1)) {
+			if ((sscanf(data, "DAHDI/%30d", &confno) != 1) &&
+			    (sscanf(data, "%30d", &confno) != 1)) {
 				ast_log(LOG_WARNING, "Argument (if specified) must be a channel number, not '%s'\n", (char *) data);
 				ast_module_user_remove(u);
 				return 0;
 			}
 		} else {
-			if ((sscanf(data, "Zap/%d", &confno) != 1) &&
-			    (sscanf(data, "%d", &confno) != 1)) {
+			if ((sscanf(data, "Zap/%30d", &confno) != 1) &&
+			    (sscanf(data, "%30d", &confno) != 1)) {
 				ast_log(LOG_WARNING, "Argument (if specified) must be a channel number, not '%s'\n", (char *) data);
 				ast_module_user_remove(u);
 				return 0;
@@ -301,7 +301,7 @@ static int exec(struct ast_channel *chan, void *data, int dahdimode)
 		confstr[0] = '\0';
 		res = ast_app_getdata(chan, "conf-getchannel",confstr, sizeof(confstr) - 1, 0);
 		if (res <0) goto out;
-		if (sscanf(confstr, "%d", &confno) != 1)
+		if (sscanf(confstr, "%30d", &confno) != 1)
 			confno = 0;
 	}
 	if (confno) {

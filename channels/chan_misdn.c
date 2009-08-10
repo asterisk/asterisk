@@ -1135,7 +1135,7 @@ static int misdn_show_config (int fd, int argc, char *argv[])
 			}
 			return ok ? 0 : RESULT_SHOWUSAGE;
 		}
-		if (!sscanf(argv[3], "%d", &onlyport) || onlyport < 0) {
+		if (!sscanf(argv[3], "%30d", &onlyport) || onlyport < 0) {
 			ast_cli(fd, "Unknown option: %s\n", argv[3]);
 			return RESULT_SHOWUSAGE;
 		}

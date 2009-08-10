@@ -765,7 +765,7 @@ static int show_codec_n_deprecated(int fd, int argc, char *argv[])
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 
-	if (sscanf(argv[2],"%d",&codec) != 1)
+	if (sscanf(argv[2],"%30d",&codec) != 1)
 		return RESULT_SHOWUSAGE;
 
 	for (i = 0; i < 32; i++)
@@ -787,7 +787,7 @@ static int show_codec_n(int fd, int argc, char *argv[])
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 
-	if (sscanf(argv[3],"%d",&codec) != 1)
+	if (sscanf(argv[3],"%30d",&codec) != 1)
 		return RESULT_SHOWUSAGE;
 
 	for (i = 0; i < 32; i++)

@@ -1243,7 +1243,7 @@ static int parse_gain_value(char *gain_type, char *value)
 	float gain;
 
 	/* try to scan number */
-	if (sscanf(value, "%f", &gain) != 1)
+	if (sscanf(value, "%30f", &gain) != 1)
 	{
 		ast_log(LOG_ERROR, "Invalid %s value '%s' in '%s' config\n",
 			value, gain_type, config);

@@ -116,10 +116,10 @@ static int func_channel_write(struct ast_channel *chan, char *function,
 	} else if (!strcasecmp(data, "callgroup"))
 		chan->callgroup = ast_get_group(value);
 	else if (!strcasecmp(data, "txgain")) {
-		sscanf(value, "%hhd", &gainset);
+		sscanf(value, "%4hhd", &gainset);
 		ast_channel_setoption(chan, AST_OPTION_TXGAIN, &gainset, sizeof(gainset), 0);
 	} else if (!strcasecmp(data, "rxgain")) {
-		sscanf(value, "%hhd", &gainset);
+		sscanf(value, "%4hhd", &gainset);
 		ast_channel_setoption(chan, AST_OPTION_RXGAIN, &gainset, sizeof(gainset), 0);
 	} else if (!strcasecmp(data, "transfercapability")) {
 		unsigned short i;

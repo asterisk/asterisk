@@ -246,7 +246,7 @@ int iax_provision_version(unsigned int *version, const char *template, int force
 
 	ast_mutex_lock(&provlock);
 	ast_db_get("iax/provisioning/cache", template, tmp, sizeof(tmp));
-	if (sscanf(tmp, "v%x", version) != 1) {
+	if (sscanf(tmp, "v%30x", version) != 1) {
 		if (strcmp(tmp, "u")) {
 			ret = iax_provision_build(&ied, version, template, force);
 			if (ret)
@@ -305,7 +305,7 @@ static int iax_template_parse(struct iax_template *cur, struct ast_config *cfg, 
 	v = ast_variable_browse(cfg, s);
 	while(v) {
 		if (!strcasecmp(v->name, "port") || !strcasecmp(v->name, "serverport")) {
-			if ((sscanf(v->value, "%d", &x) == 1) && (x > 0) && (x < 65535)) {
+			if ((sscanf(v->value, "%5d", &x) == 1) && (x > 0) && (x < 65535)) {
 				if (!strcasecmp(v->name, "port")) {
 					cur->port = x;
 					foundportno = 1;
