@@ -2500,12 +2500,11 @@ void sig_pri_chan_alarm_notify(struct sig_pri_chan *p, int noalarm)
 					} else
 						ast_log(LOG_WARNING, "Failed to grab PRI!\n");
 				} else
-					ast_log(LOG_WARNING, "Failed to grab PRI!\n");
-			} else
-				ast_log(LOG_WARNING, "The PRI Call has not been destroyed\n");
+					ast_log(LOG_WARNING, "The PRI Call has not been destroyed\n");
+			}
+			if (p->owner)
+				ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
 		}
-		if (p->owner)
-			ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
 	} else {
 		p->inalarm = 0;
 	}

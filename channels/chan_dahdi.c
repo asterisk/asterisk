@@ -6563,9 +6563,6 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 			if (p->sig == SIG_PRI || p->sig == SIG_BRI || p->sig == SIG_BRI_PTMP) {
 				sig_pri_chan_alarm_notify(p->sig_pvt, 0);
 
-			} else {
-				if (p->owner)
-					p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 			}
 #endif
 		p->inalarm = 1;
