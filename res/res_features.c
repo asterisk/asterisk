@@ -367,7 +367,7 @@ static struct parkeduser *park_space_reserve(struct ast_channel *chan)
 		 * limitation here.  If extout was not numeric, we could permit
 		 * arbitrary non-numeric extensions.
 		 */
-		if (sscanf(parkingexten, "%d", &parking_space) != 1 || parking_space < 0) {
+		if (sscanf(parkingexten, "%30d", &parking_space) != 1 || parking_space < 0) {
 			ast_log(LOG_WARNING, "PARKINGEXTEN does not indicate a valid parking slot: '%s'.\n", parkingexten);
 			ast_mutex_unlock(&parking_lock);
 			free(pu);
@@ -2787,7 +2787,7 @@ static int manager_park(struct mansession *s, const struct message *m)
 	}
 
 	if (!ast_strlen_zero(timeout)) {
-		sscanf(timeout, "%d", &to);
+		sscanf(timeout, "%30d", &to);
 	}
 
 	res = ast_masq_park_call(ch1, ch2, to, &parkExt);
@@ -2904,13 +2904,13 @@ static int load_config(void)
 		} else if (!strcasecmp(var->name, "context")) {
 			ast_copy_string(parking_con, var->value, sizeof(parking_con));
 		} else if (!strcasecmp(var->name, "parkingtime")) {
-			if ((sscanf(var->value, "%d", &parkingtime) != 1) || (parkingtime < 1)) {
+			if ((sscanf(var->value, "%30d", &parkingtime) != 1) || (parkingtime < 1)) {
 				ast_log(LOG_WARNING, "%s is not a valid parkingtime\n", var->value);
 				parkingtime = DEFAULT_PARK_TIME;
 			} else
 				parkingtime = parkingtime * 1000;
 		} else if (!strcasecmp(var->name, "parkpos")) {
-			if (sscanf(var->value, "%d-%d", &start, &end) != 2) {
+			if (sscanf(var->value, "%30d-%30d", &start, &end) != 2) {
 				ast_log(LOG_WARNING, "Format for parking positions is a-b, where a and b are numbers at line %d of features.conf\n", var->lineno);
 			} else {
 				parking_start = start;
@@ -2959,18 +2959,18 @@ static int load_config(void)
 		} else if (!strcasecmp(var->name, "adsipark")) {
 			adsipark = ast_true(var->value);
 		} else if (!strcasecmp(var->name, "transferdigittimeout")) {
-			if ((sscanf(var->value, "%d", &transferdigittimeout) != 1) || (transferdigittimeout < 1)) {
+			if ((sscanf(var->value, "%30d", &transferdigittimeout) != 1) || (transferdigittimeout < 1)) {
 				ast_log(LOG_WARNING, "%s is not a valid transferdigittimeout\n", var->value);
 				transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
 			} else
 				transferdigittimeout = transferdigittimeout * 1000;
 		} else if (!strcasecmp(var->name, "featuredigittimeout")) {
-			if ((sscanf(var->value, "%d", &featuredigittimeout) != 1) || (featuredigittimeout < 1)) {
+			if ((sscanf(var->value, "%30d", &featuredigittimeout) != 1) || (featuredigittimeout < 1)) {
 				ast_log(LOG_WARNING, "%s is not a valid featuredigittimeout\n", var->value);
 				featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
 			}
 		} else if (!strcasecmp(var->name, "atxfernoanswertimeout")) {
-			if ((sscanf(var->value, "%d", &atxfernoanswertimeout) != 1) || (atxfernoanswertimeout < 1)) {
+			if ((sscanf(var->value, "%30d", &atxfernoanswertimeout) != 1) || (atxfernoanswertimeout < 1)) {
 				ast_log(LOG_WARNING, "%s is not a valid atxfernoanswertimeout\n", var->value);
 				atxfernoanswertimeout = DEFAULT_NOANSWER_TIMEOUT_ATTENDED_TRANSFER;
 			} else

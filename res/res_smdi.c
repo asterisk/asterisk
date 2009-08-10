@@ -910,7 +910,7 @@ static int smdi_load(int reload)
 				baud_rate = B9600;
 			}
 		} else if (!strcasecmp(v->name, "msdstrip")) {
-			if (!sscanf(v->value, "%d", &msdstrip)) {
+			if (!sscanf(v->value, "%30d", &msdstrip)) {
 				ast_log(LOG_NOTICE, "Invalid msdstrip value in %s (line %d), using default\n", config_file, v->lineno);
 				msdstrip = 0;
 			} else if (0 > msdstrip || msdstrip > 9) {
@@ -918,7 +918,7 @@ static int smdi_load(int reload)
 				msdstrip = 0;
 			}
 		} else if (!strcasecmp(v->name, "msgexpirytime")) {
-			if (!sscanf(v->value, "%ld", &msg_expiry)) {
+			if (!sscanf(v->value, "%30ld", &msg_expiry)) {
 				ast_log(LOG_NOTICE, "Invalid msgexpirytime value in %s (line %d), using default\n", config_file, v->lineno);
 				msg_expiry = SMDI_MSG_EXPIRY_TIME;
 			}
@@ -1052,7 +1052,7 @@ static int smdi_load(int reload)
 				continue;
 			}
 		} else if (!strcasecmp(v->name, "pollinginterval")) {
-			if (sscanf(v->value, "%u", &mwi_monitor.polling_interval) != 1) {
+			if (sscanf(v->value, "%30u", &mwi_monitor.polling_interval) != 1) {
 				ast_log(LOG_ERROR, "Invalid value for pollinginterval: %s\n", v->value);
 				mwi_monitor.polling_interval = DEFAULT_POLLING_INTERVAL;
 			}
@@ -1173,7 +1173,7 @@ static int smdi_msg_retrieve_read(struct ast_channel *chan, char *cmd, char *dat
 	}
 
 	if (!ast_strlen_zero(args.timeout)) {
-		if (sscanf(args.timeout, "%u", &timeout) != 1) {
+		if (sscanf(args.timeout, "%30u", &timeout) != 1) {
 			ast_log(LOG_ERROR, "'%s' is not a valid timeout\n", args.timeout);
 			timeout = SMDI_RETRIEVE_TIMEOUT_DEFAULT;
 		}

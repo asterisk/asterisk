@@ -140,7 +140,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	if (silstr) {
-		if ((sscanf(silstr, "%d", &i) == 1) && (i > -1)) {
+		if ((sscanf(silstr, "%30d", &i) == 1) && (i > -1)) {
 			silence = i * 1000;
 		} else if (!ast_strlen_zero(silstr)) {
 			ast_log(LOG_WARNING, "'%s' is not a valid silence duration\n", silstr);
@@ -148,7 +148,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 	}
 	
 	if (maxstr) {
-		if ((sscanf(maxstr, "%d", &i) == 1) && (i > -1))
+		if ((sscanf(maxstr, "%30d", &i) == 1) && (i > -1))
 			/* Convert duration to milliseconds */
 			maxduration = i * 1000;
 		else if (!ast_strlen_zero(maxstr))

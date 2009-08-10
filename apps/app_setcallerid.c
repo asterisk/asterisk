@@ -72,7 +72,7 @@ static int setcallerid_pres_exec(struct ast_channel *chan, void *data)
 	u = ast_module_user_add(chan);
 
 	/* For interface consistency, permit the argument to be specified as a number */
-	if (sscanf(data, "%d", &pres) != 1 || pres < 0 || pres > 255 || (pres & 0x9c)) {
+	if (sscanf(data, "%30d", &pres) != 1 || pres < 0 || pres > 255 || (pres & 0x9c)) {
 		pres = ast_parse_caller_presentation(data);
 	}
 

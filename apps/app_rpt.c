@@ -1522,7 +1522,7 @@ int	ret;
 
 	if (str == NULL) return -1;
 	/* leave this %i alone, non-base-10 input is useful here */
-	if (sscanf(str,"%i",&ret) != 1) return -1;
+	if (sscanf(str,"%30i",&ret) != 1) return -1;
 	return ret;
 }
 
@@ -1697,7 +1697,7 @@ static char *cs_keywords[] = {"rptena","rptdis","apena","apdis","lnkena","lnkdis
 	/* do not use atoi() here, we need to be able to have
 		the input specified in hex or decimal so we use
 		sscanf with a %i */
-	if ((!val) || (sscanf(val,"%i",&rpt_vars[n].p.iobase) != 1))
+	if ((!val) || (sscanf(val,"%30i",&rpt_vars[n].p.iobase) != 1))
 	rpt_vars[n].p.iobase = DEFAULT_IOBASE;
 	val = (char *) ast_variable_retrieve(cfg,this,"ioport");
 	rpt_vars[n].p.ioport = val;
@@ -2641,7 +2641,7 @@ static int send_tone_telemetry(struct ast_channel *chan, char *tonestring)
 		tonesubset = strsep(&stringp,")");
 		if(!tonesubset)
 			break;
-		if(sscanf(tonesubset,"(%d,%d,%d,%d", &f1, &f2, &duration, &amplitude) != 4)
+		if(sscanf(tonesubset,"(%30d,%30d,%30d,%30d", &f1, &f2, &duration, &amplitude) != 4)
 			break;
 		res = play_tone_pair(chan, f1, f2, duration, amplitude);
 		if(res)
@@ -3983,7 +3983,7 @@ struct dahdi_params par;
 		p = strstr(tdesc, "version");	
 		if(!p)
 			break;	
-		if(sscanf(p, "version %d.%d", &vmajor, &vminor) != 2)
+		if(sscanf(p, "version %30d.%30d", &vmajor, &vminor) != 2)
 			break;
     		wait_interval(myrpt, DLY_TELEM, mychannel); /* Wait a little bit */
 		/* Say "version" */
@@ -5303,6 +5303,8 @@ static int collect_function_digits(struct rpt *myrpt, char *digits,
 static void handle_link_data(struct rpt *myrpt, struct rpt_link *mylink,
 	char *str)
 {
+/* XXX ATTENTION: if you change the size of these arrays you MUST
+ * change the limits in corresponding sscanf() calls below. */
 char	tmp[512],cmd[300] = "",dest[300],src[300],c;
 int	seq, res;
 struct rpt_link *l;
@@ -5336,7 +5338,9 @@ struct	ast_frame wf;
 	}
 	if (tmp[0] == 'I')
 	{
-		if (sscanf(tmp,"%s %s %x",cmd,src,&seq) != 3)
+		/* XXX WARNING: be very careful with the limits on the folowing
+		 * sscanf() call, make sure they match the values defined above */
+		if (sscanf(tmp,"%299s %299s %30x",cmd,src,&seq) != 3)
 		{
 			ast_log(LOG_WARNING, "Unable to parse ident string %s\n",str);
 			return;
@@ -5346,7 +5350,9 @@ struct	ast_frame wf;
 	}
 	else
 	{
-		if (sscanf(tmp,"%s %s %s %d %c",cmd,dest,src,&seq,&c) != 5)
+		/* XXX WARNING: be very careful with the limits on the folowing
+		 * sscanf() call, make sure they match the values defined above */
+		if (sscanf(tmp,"%299s %299s %299s %30d %1c",cmd,dest,src,&seq,&c) != 5)
 		{
 			ast_log(LOG_WARNING, "Unable to parse link string %s\n",str);
 			return;
@@ -8332,6 +8338,8 @@ int	ret,res = 0,src;
 
 static int handle_remote_data(struct rpt *myrpt, char *str)
 {
+/* XXX ATTENTION: if you change the size of these arrays you MUST
+ * change the limits in corresponding sscanf() calls below. */
 char	tmp[300],cmd[300],dest[300],src[300],c;
 int	seq,res;
 
@@ -8342,7 +8350,9 @@ int	seq,res;
 #ifndef	DO_NOT_NOTIFY_MDC1200_ON_REMOTE_BASES
 	if (tmp[0] == 'I')
 	{
-		if (sscanf(tmp,"%s %s %x",cmd,src,&seq) != 3)
+		/* XXX WARNING: be very careful with the limits on the folowing
+		 * sscanf() call, make sure they match the values defined above */
+		if (sscanf(tmp,"%299s %299s %30x",cmd,src,&seq) != 3)
 		{
 			ast_log(LOG_WARNING, "Unable to parse ident string %s\n",str);
 			return 0;
@@ -8351,7 +8361,9 @@ int	seq,res;
 		return 0;
 	}
 #endif
-	if (sscanf(tmp,"%s %s %s %d %c",cmd,dest,src,&seq,&c) != 5)
+	/* XXX WARNING: be very careful with the limits on the folowing
+	 * sscanf() call, make sure they match the values defined above */
+	if (sscanf(tmp,"%299s %299s %299s %30d %1c",cmd,dest,src,&seq,&c) != 5)
 	{
 		ast_log(LOG_WARNING, "Unable to parse link string %s\n",str);
 		return 0;

@@ -284,6 +284,18 @@ you wish to put into it (even if you did not allocate the buffer yourself),
 use a direct strcpy(), as it can be inlined and optimized to simple
 processor operations, unlike ast_copy_string().
 
+* String conversions
+--------------------
+
+When converting from strings to integers or floats, use the sscanf function
+in preference to the atoi and atof family of functions, as sscanf detects
+errors.  Always check the return value of sscanf to verify that your numeric
+variables successfully scanned before using them.  Also, to avoid a potential
+libc bug, always specify a maximum width for each conversion specifier,
+including integers and floats.  A good length for both integers and floats is
+30, as this is more than generous, even if you're using doubles or long
+integers.
+
 * Use of functions
 ------------------
 

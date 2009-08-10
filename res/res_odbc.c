@@ -247,7 +247,7 @@ static int load_odbc_config(void)
 					if (ast_true(v->value))
 						pooling = 1;
 				} else if (!strcasecmp(v->name, "limit")) {
-					sscanf(v->value, "%d", &limit);
+					sscanf(v->value, "%4d", &limit);
 					if (ast_true(v->value) && !limit) {
 						ast_log(LOG_WARNING, "Limit should be a number, not a boolean: '%s'.  Setting limit to 1023 for ODBC class '%s'.\n", v->value, cat);
 						limit = 1023;
@@ -261,7 +261,7 @@ static int load_odbc_config(void)
 						limit = 1023;
 					}
 				} else if (!strcasecmp(v->name, "idlecheck")) {
-					sscanf(v->value, "%d", &idlecheck);
+					sscanf(v->value, "%30u", &idlecheck);
 				} else if (!strcasecmp(v->name, "enabled")) {
 					enabled = ast_true(v->value);
 				} else if (!strcasecmp(v->name, "pre-connect")) {
@@ -610,7 +610,7 @@ static int reload(void)
 					if (!strcasecmp(v->name, "pooling")) {
 						pooling = 1;
 					} else if (!strcasecmp(v->name, "limit")) {
-						sscanf(v->value, "%d", &limit);
+						sscanf(v->value, "%4d", &limit);
 						if (ast_true(v->value) && !limit) {
 							ast_log(LOG_WARNING, "Limit should be a number, not a boolean: '%s'.  Setting limit to 1023 for ODBC class '%s'.\n", v->value, cat);
 							limit = 1023;
@@ -620,7 +620,7 @@ static int reload(void)
 							break;
 						}
 					} else if (!strcasecmp(v->name, "idlecheck")) {
-						sscanf(v->value, "%ud", &idlecheck);
+						sscanf(v->value, "%30u", &idlecheck);
 					} else if (!strcasecmp(v->name, "enabled")) {
 						enabled = ast_true(v->value);
 					} else if (!strcasecmp(v->name, "pre-connect")) {

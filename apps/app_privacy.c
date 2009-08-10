@@ -115,13 +115,13 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 			AST_STANDARD_APP_ARGS(args, parse);
 
 			if (args.maxretries) {
-				if (sscanf(args.maxretries, "%d", &x) == 1)
+				if (sscanf(args.maxretries, "%30d", &x) == 1)
 					maxretries = x;
 				else
 					ast_log(LOG_WARNING, "Invalid max retries argument\n");
 			}
 			if (args.minlength) {
-				if (sscanf(args.minlength, "%d", &x) == 1)
+				if (sscanf(args.minlength, "%30d", &x) == 1)
 					minlength = x;
 				else
 					ast_log(LOG_WARNING, "Invalid min length argument\n");
@@ -138,14 +138,14 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 			cfg = ast_config_load(PRIV_CONFIG);
 		
 			if (cfg && (s = ast_variable_retrieve(cfg, "general", "maxretries"))) {
-				if (sscanf(s, "%d", &x) == 1) 
+				if (sscanf(s, "%30d", &x) == 1) 
 					maxretries = x;
 				else
 					ast_log(LOG_WARNING, "Invalid max retries argument\n");
         		}
 
 			if (cfg && (s = ast_variable_retrieve(cfg, "general", "minlength"))) {
-				if (sscanf(s, "%d", &x) == 1) 
+				if (sscanf(s, "%30d", &x) == 1) 
 					minlength = x;
 				else
 					ast_log(LOG_WARNING, "Invalid min length argument\n");

@@ -877,12 +877,12 @@ static void check_timerange(pval *p)
 				p->filename, p->startline, p->endline, p->u1.str);
 		warns++;
 	}
-	if (sscanf(times, "%d:%d", &s1, &s2) != 2) {
+	if (sscanf(times, "%2d:%2d", &s1, &s2) != 2) {
 		ast_log(LOG_WARNING, "Warning: file %s, line %d-%d: The start time (%s) isn't quite right!\n",
 				p->filename, p->startline, p->endline, times);
 		warns++;
 	}
-	if (sscanf(e, "%d:%d", &e1, &e2) != 2) {
+	if (sscanf(e, "%2d:%2d", &e1, &e2) != 2) {
 		ast_log(LOG_WARNING, "Warning: file %s, line %d-%d: The end time (%s) isn't quite right!\n",
 				p->filename, p->startline, p->endline, times);
 		warns++;
@@ -974,7 +974,7 @@ static void check_day(pval *DAY)
 		c++;
 	}
 	/* Find the start */
-	if (sscanf(day, "%d", &s) != 1) {
+	if (sscanf(day, "%2d", &s) != 1) {
 		ast_log(LOG_WARNING, "Warning: file %s, line %d-%d: The start day of month (%s) must be a number!\n",
 				DAY->filename, DAY->startline, DAY->endline, day);
 		warns++;
@@ -986,7 +986,7 @@ static void check_day(pval *DAY)
 	}
 	s--;
 	if (c) {
-		if (sscanf(c, "%d", &e) != 1) {
+		if (sscanf(c, "%2d", &e) != 1) {
 			ast_log(LOG_WARNING, "Warning: file %s, line %d-%d: The end day of month (%s) must be a number!\n",
 					DAY->filename, DAY->startline, DAY->endline, c);
 			warns++;

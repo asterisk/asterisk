@@ -71,7 +71,7 @@ static int random_exec(struct ast_channel *chan, void *data)
 	s = ast_strdupa(data);
 
 	prob = strsep(&s,":");
-	if ((!prob) || (sscanf(prob, "%d", &probint) != 1))
+	if ((!prob) || (sscanf(prob, "%30d", &probint) != 1))
 		probint = 0;
 
 	if (!deprecated) {

@@ -195,7 +195,7 @@ static int process_token(void *out, char *src, int maxlen, int argtype)
 		if (!(argtype & ARG_NUMBER))
 			return -1;
 		/* Octal value */
-		if (sscanf(src, "%o", (int *)out) != 1)
+		if (sscanf(src, "%30o", (int *)out) != 1)
 			return -1;
 		if (argtype & ARG_STRING) {
 			/* Convert */
@@ -205,7 +205,7 @@ static int process_token(void *out, char *src, int maxlen, int argtype)
 		if (!(argtype & ARG_NUMBER))
 			return -1;
 		/* Hex value */
-		if (sscanf(src + 2, "%x", (unsigned int *)out) != 1)
+		if (sscanf(src + 2, "%30x", (unsigned int *)out) != 1)
 			return -1;
 		if (argtype & ARG_STRING) {
 			/* Convert */
@@ -215,7 +215,7 @@ static int process_token(void *out, char *src, int maxlen, int argtype)
 		if (!(argtype & ARG_NUMBER))
 			return -1;
 		/* Hex value */
-		if (sscanf(src, "%d", (int *)out) != 1)
+		if (sscanf(src, "%30d", (int *)out) != 1)
 			return -1;
 		if (argtype & ARG_STRING) {
 			/* Convert */

@@ -1329,7 +1329,7 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 
 	if (!ast_strlen_zero(timeouts)) {
-		sscanf(timeouts, "%i", &timeout);
+		sscanf(timeouts, "%30i", &timeout);
 	}
 	
 	ast_mutex_lock(&s->session->__lock);
@@ -1690,7 +1690,7 @@ static int action_redirect(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Channel not specified");
 		return 0;
 	}
-	if (!ast_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1)) {
+	if (!ast_strlen_zero(priority) && (sscanf(priority, "%30d", &pi) != 1)) {
 		if ((pi = ast_findlabel_extension(NULL, context, exten, priority, NULL)) < 1) {
 			astman_send_error(s, m, "Invalid priority");
 			return 0;
@@ -1938,13 +1938,13 @@ static int action_originate(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Channel not specified");
 		return 0;
 	}
-	if (!ast_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1)) {
+	if (!ast_strlen_zero(priority) && (sscanf(priority, "%30d", &pi) != 1)) {
 		if ((pi = ast_findlabel_extension(NULL, context, exten, priority, NULL)) < 1) {
 			astman_send_error(s, m, "Invalid priority");
 			return 0;
 		}
 	}
-	if (!ast_strlen_zero(timeout) && (sscanf(timeout, "%d", &to) != 1)) {
+	if (!ast_strlen_zero(timeout) && (sscanf(timeout, "%30d", &to) != 1)) {
 		astman_send_error(s, m, "Invalid timeout");
 		return 0;
 	}
@@ -2790,7 +2790,7 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 
 	for (v = params; v; v = v->next) {
 		if (!strcasecmp(v->name, "mansession_id")) {
-			sscanf(v->value, "%x", &ident);
+			sscanf(v->value, "%30x", &ident);
 			break;
 		}
 	}
@@ -3068,7 +3068,7 @@ int init_manager(void)
 		webenabled = ast_true(val);
 
 	if ((val = ast_variable_retrieve(cfg, "general", "port"))) {
-		if (sscanf(val, "%d", &portno) != 1) {
+		if (sscanf(val, "%5d", &portno) != 1) {
 			ast_log(LOG_WARNING, "Invalid port number '%s'\n", val);
 			portno = DEFAULT_MANAGER_PORT;
 		}

@@ -355,7 +355,7 @@ int parsetime(char *string, int *result)
     double temp;
     char m, s, end;
 
-    k = sscanf(string, "%lf%c%c%c", &temp, &m, &s, &end);
+    k = sscanf(string, "%30lf%1c%1c%1c", &temp, &m, &s, &end);
     switch (k)
       {
       case 0: case EOF: case 4:
@@ -396,7 +396,7 @@ int parsefreq(char *string, double *result)
     double temp;
     char m, s, end;
 
-    k = sscanf(string, "%lf%c%c%c", &temp, &m, &s, &end);
+    k = sscanf(string, "%30lf%1c%1c%1c", &temp, &m, &s, &end);
     switch (k)
       {
       case 0: case EOF: case 2: case 4:
@@ -476,7 +476,7 @@ int parseintarg( int argcount, char *args[], char *string, int *result)
   if ((i = findoption( argcount, args, string)) > 0)
    {
       switch (sscanf(args[i] + 1 + strlen( string),
-		     "%d%c", &temp, &c))
+		     "%30d%1c", &temp, &c))
       {
 	case 0: case EOF: case 2:
             argerrornum(args[i]+1, ME_NOINT);
@@ -510,7 +510,7 @@ int parsedoublearg( int argcount, char *args[], char *string, double *result)
 
   if ((i = findoption( argcount, args, string)) > 0)
     {
-      switch (sscanf(args[i] + 1 + strlen( string), "%lf%c", &temp, &end))
+      switch (sscanf(args[i] + 1 + strlen( string), "%30lf%1c", &temp, &end))
 	{
 	case 0: case EOF: case 2:
 	  argerrornum(args[i]+1, ME_NODOUBLE);
@@ -545,7 +545,7 @@ int parsevolarg( int argcount, char *args[], char *string, double *result)
   if ((i = findoption( argcount, args, string)) > 0)
     {
       switch (sscanf(args[i] + 1 + strlen( string),
-		     "%lf%c%c%c", &vol, &sbd, &sbb, &end))
+		     "%30lf%1c%1c%1c", &vol, &sbd, &sbb, &end))
 	{
 	  case 0: case EOF: case 4:
 	  weird = TRUE;
@@ -593,7 +593,7 @@ int parsevolume(char *s, double *result)
     char sbd, sbb, end;
 
     *result = 1.0;
-    k = sscanf(s, "%lf%c%c%c", result, &sbd, &sbb, &end);
+    k = sscanf(s, "%30lf%1c%1c%1c", result, &sbd, &sbb, &end);
     switch (k)
     {
       case 0:

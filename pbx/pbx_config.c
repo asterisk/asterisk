@@ -1423,7 +1423,7 @@ static int handle_context_add_extension_deprecated(int fd, int argc, char *argv[
 		if (!strcmp(prior, "hint")) {
 			iprior = PRIORITY_HINT;
 		} else {
-			if (sscanf(prior, "%d", &iprior) != 1) {
+			if (sscanf(prior, "%30d", &iprior) != 1) {
 				ast_cli(fd, "'%s' is not a valid priority\n", prior);
 				prior = NULL;
 			}
@@ -1516,7 +1516,7 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 		if (!strcmp(prior, "hint")) {
 			iprior = PRIORITY_HINT;
 		} else {
-			if (sscanf(prior, "%d", &iprior) != 1) {
+			if (sscanf(prior, "%30d", &iprior) != 1) {
 				ast_cli(fd, "'%s' is not a valid priority\n", prior);
 				prior = NULL;
 			}
@@ -2248,7 +2248,7 @@ static int pbx_load_config(const char *config_file)
 							ipri = lastpri;
 						else
 							ast_log(LOG_WARNING, "Can't use 'same' priority on the first entry!\n");
-					} else if (sscanf(pri, "%d", &ipri) != 1 &&
+					} else if (sscanf(pri, "%30d", &ipri) != 1 &&
 					    (ipri = ast_findlabel_extension2(NULL, con, realext, pri, cidmatch)) < 1) {
 						ast_log(LOG_WARNING, "Invalid priority/label '%s' at line %d\n", pri, v->lineno);
 						ipri = 0;
@@ -2395,9 +2395,9 @@ static void pbx_load_users(void)
 			c = zapcopy;
 			chan = strsep(&c, ",");
 			while (chan) {
-				if (sscanf(chan, "%d-%d", &start, &finish) == 2) {
+				if (sscanf(chan, "%30d-%30d", &start, &finish) == 2) {
 					/* Range */
-				} else if (sscanf(chan, "%d", &start)) {
+				} else if (sscanf(chan, "%30d", &start)) {
 					/* Just one */
 					finish = start;
 				} else {

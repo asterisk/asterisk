@@ -319,7 +319,7 @@ static int handle_set_debug(int fd, int argc, char *argv[])
 		if (argc > 5)
 			return RESULT_SHOWUSAGE;
 
-		if (sscanf(argv[3], "%d", &newlevel) != 1)
+		if (sscanf(argv[3], "%30d", &newlevel) != 1)
 			return RESULT_SHOWUSAGE;
 
 		if (argc == 4) {
@@ -334,7 +334,7 @@ static int handle_set_debug(int fd, int argc, char *argv[])
 		if (argc < 5 || argc > 6)
 			return RESULT_SHOWUSAGE;
 
-		if (sscanf(argv[4], "%d", &newlevel) != 1)
+		if (sscanf(argv[4], "%30d", &newlevel) != 1)
 			return RESULT_SHOWUSAGE;
 
 		if (argc == 5) {
@@ -387,7 +387,7 @@ static int handle_debuglevel_deprecated(int fd, int argc, char *argv[])
 	char *filename = "<any>";
 	if ((argc < 3) || (argc > 4))
 		return RESULT_SHOWUSAGE;
-	if (sscanf(argv[2], "%d", &newlevel) != 1)
+	if (sscanf(argv[2], "%30d", &newlevel) != 1)
 		return RESULT_SHOWUSAGE;
 	option_debug = newlevel;
 	if (argc == 4) {
