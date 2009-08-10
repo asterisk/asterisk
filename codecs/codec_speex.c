@@ -364,7 +364,7 @@ static int parse_config(int reload)
 			} else 
 				ast_log(LOG_ERROR,"Error! Complexity must be 0-10\n");
 		} else if (!strcasecmp(var->name, "vbr_quality")) {
-			if (sscanf(var->value, "%f", &res_f) == 1 && res_f >= 0 && res_f <= 10) {
+			if (sscanf(var->value, "%30f", &res_f) == 1 && res_f >= 0 && res_f <= 10) {
 				ast_verb(3, "CODEC SPEEX: Setting VBR Quality to %f\n",res_f);
 				vbr_quality = res_f;
 			} else
@@ -403,7 +403,7 @@ static int parse_config(int reload)
 			pp_agc = ast_true(var->value) ? 1 : 0;
 			ast_verb(3, "CODEC SPEEX: Preprocessor AGC. [%s]\n",pp_agc ? "on" : "off");
 		} else if (!strcasecmp(var->name, "pp_agc_level")) {
-			if (sscanf(var->value, "%f", &res_f) == 1 && res_f >= 0) {
+			if (sscanf(var->value, "%30f", &res_f) == 1 && res_f >= 0) {
 				ast_verb(3, "CODEC SPEEX: Setting preprocessor AGC Level to %f\n",res_f);
 				pp_agc_level = res_f;
 			} else
@@ -415,13 +415,13 @@ static int parse_config(int reload)
 			pp_dereverb = ast_true(var->value) ? 1 : 0;
 			ast_verb(3, "CODEC SPEEX: Preprocessor Dereverb. [%s]\n",pp_dereverb ? "on" : "off");
 		} else if (!strcasecmp(var->name, "pp_dereverb_decay")) {
-			if (sscanf(var->value, "%f", &res_f) == 1 && res_f >= 0) {
+			if (sscanf(var->value, "%30f", &res_f) == 1 && res_f >= 0) {
 				ast_verb(3, "CODEC SPEEX: Setting preprocessor Dereverb Decay to %f\n",res_f);
 				pp_dereverb_decay = res_f;
 			} else
 				ast_log(LOG_ERROR,"Error! Preprocessor Dereverb Decay must be >= 0\n");
 		} else if (!strcasecmp(var->name, "pp_dereverb_level")) {
-			if (sscanf(var->value, "%f", &res_f) == 1 && res_f >= 0) {
+			if (sscanf(var->value, "%30f", &res_f) == 1 && res_f >= 0) {
 				ast_verb(3, "CODEC SPEEX: Setting preprocessor Dereverb Level to %f\n",res_f);
 				pp_dereverb_level = res_f;
 			} else

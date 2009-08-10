@@ -315,7 +315,7 @@ static struct ast_str *http_post_callback(struct ast_tcptls_session_instance *se
 			continue;
 		}
 
-		if (sscanf(var->value, "%lx", &ident) != 1) {
+		if (sscanf(var->value, "%30lx", &ident) != 1) {
 			return ast_http_error((*status = 400),
 					      (*title = ast_strdup("Bad Request")),
 					      NULL, "The was an error parsing the request.");
@@ -345,7 +345,7 @@ static struct ast_str *http_post_callback(struct ast_tcptls_session_instance *se
 		fprintf(f, "%s: %s\r\n", var->name, var->value);
 
 		if (!strcasecmp(var->name, "Content-Length")) {
-			if ((sscanf(var->value, "%u", &content_len)) != 1) {
+			if ((sscanf(var->value, "%30u", &content_len)) != 1) {
 				ast_log(LOG_ERROR, "Invalid Content-Length in POST request!\n");
 				fclose(f);
 

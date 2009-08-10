@@ -229,7 +229,7 @@ static char *timing_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 
 	if (a->argc == 3) {
 		unsigned int rate;
-		if (sscanf(a->argv[2], "%u", &rate) == 1) {
+		if (sscanf(a->argv[2], "%30u", &rate) == 1) {
 			test_rate = rate;
 		} else {
 			ast_cli(a->fd, "Invalid rate '%s', using default of %u\n", a->argv[2], test_rate);	

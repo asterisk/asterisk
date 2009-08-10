@@ -243,50 +243,50 @@ static struct ast_generator playtones = {
 
 int ast_tone_zone_part_parse(const char *s, struct ast_tone_zone_part *tone_data)
 {
-	if (sscanf(s, "%u+%u/%u", &tone_data->freq1, &tone_data->freq2, 
+	if (sscanf(s, "%30u+%30u/%30u", &tone_data->freq1, &tone_data->freq2, 
 			&tone_data->time) == 3) {
 		/* f1+f2/time format */
-	} else if (sscanf(s, "%u+%u", &tone_data->freq1, &tone_data->freq2) == 2) {
+	} else if (sscanf(s, "%30u+%30u", &tone_data->freq1, &tone_data->freq2) == 2) {
 		/* f1+f2 format */
 		tone_data->time = 0;
-	} else if (sscanf(s, "%u*%u/%u", &tone_data->freq1, &tone_data->freq2, 
+	} else if (sscanf(s, "%30u*%30u/%30u", &tone_data->freq1, &tone_data->freq2, 
 			&tone_data->time) == 3) {
 		/* f1*f2/time format */
 		tone_data->modulate = 1;
-	} else if (sscanf(s, "%u*%u", &tone_data->freq1, &tone_data->freq2) == 2) {
+	} else if (sscanf(s, "%30u*%30u", &tone_data->freq1, &tone_data->freq2) == 2) {
 		/* f1*f2 format */
 		tone_data->time = 0;
 		tone_data->modulate = 1;
-	} else if (sscanf(s, "%u/%u", &tone_data->freq1, &tone_data->time) == 2) {
+	} else if (sscanf(s, "%30u/%30u", &tone_data->freq1, &tone_data->time) == 2) {
 		/* f1/time format */
 		tone_data->freq2 = 0;
-	} else if (sscanf(s, "%u", &tone_data->freq1) == 1) {
+	} else if (sscanf(s, "%30u", &tone_data->freq1) == 1) {
 		/* f1 format */
 		tone_data->freq2 = 0;
 		tone_data->time = 0;
-	} else if (sscanf(s, "M%u+M%u/%u", &tone_data->freq1, &tone_data->freq2, 
+	} else if (sscanf(s, "M%30u+M%30u/%30u", &tone_data->freq1, &tone_data->freq2, 
 			&tone_data->time) == 3) {
 		/* Mf1+Mf2/time format */
 		tone_data->midinote = 1;
-	} else if (sscanf(s, "M%u+M%u", &tone_data->freq1, &tone_data->freq2) == 2) {
+	} else if (sscanf(s, "M%30u+M%30u", &tone_data->freq1, &tone_data->freq2) == 2) {
 		/* Mf1+Mf2 format */
 		tone_data->time = 0;
 		tone_data->midinote = 1;
-	} else if (sscanf(s, "M%u*M%u/%u", &tone_data->freq1, &tone_data->freq2, 
+	} else if (sscanf(s, "M%30u*M%30u/%30u", &tone_data->freq1, &tone_data->freq2, 
 			&tone_data->time) == 3) {
 		/* Mf1*Mf2/time format */
 		tone_data->modulate = 1;
 		tone_data->midinote = 1;
-	} else if (sscanf(s, "M%u*M%u", &tone_data->freq1, &tone_data->freq2) == 2) {
+	} else if (sscanf(s, "M%30u*M%30u", &tone_data->freq1, &tone_data->freq2) == 2) {
 		/* Mf1*Mf2 format */
 		tone_data->time = 0;
 		tone_data->modulate = 1;
 		tone_data->midinote = 1;
-	} else if (sscanf(s, "M%u/%u", &tone_data->freq1, &tone_data->time) == 2) {
+	} else if (sscanf(s, "M%30u/%30u", &tone_data->freq1, &tone_data->time) == 2) {
 		/* Mf1/time format */
 		tone_data->freq2 = -1;
 		tone_data->midinote = 1;
-	} else if (sscanf(s, "M%u", &tone_data->freq1) == 1) {
+	} else if (sscanf(s, "M%30u", &tone_data->freq1) == 1) {
 		/* Mf1 format */
 		tone_data->freq2 = -1;
 		tone_data->time = 0;

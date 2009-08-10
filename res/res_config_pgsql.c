@@ -175,10 +175,10 @@ static struct tables *find_table(const char *tablename)
 		if (strcmp(flen, "-1") == 0) {
 			/* Some types, like chars, have the length stored in a different field */
 			flen = PQgetvalue(result, i, 5);
-			sscanf(flen, "%d", &column->len);
+			sscanf(flen, "%30d", &column->len);
 			column->len -= 4;
 		} else {
-			sscanf(flen, "%d", &column->len);
+			sscanf(flen, "%30d", &column->len);
 		}
 		column->name = (char *)column + sizeof(*column);
 		column->type = (char *)column + sizeof(*column) + strlen(fname) + 1;

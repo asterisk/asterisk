@@ -297,7 +297,7 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 		nm++;
 
 		if (!strchr(nm, '.')) {
-			if ((sscanf(nm, "%d", &x) == 1) && (x >= 0) && (x <= 32)) {
+			if ((sscanf(nm, "%30d", &x) == 1) && (x >= 0) && (x <= 32)) {
 				ha->netmask.s_addr = htonl(0xFFFFFFFF << (32 - x));
 			} else {
 				ast_log(LOG_WARNING, "Invalid CIDR in %s\n", stuff);
@@ -423,7 +423,7 @@ int ast_str2cos(const char *value, unsigned int *cos)
 {
 	int fval;
 
-	if (sscanf(value, "%d", &fval) == 1) {
+	if (sscanf(value, "%30d", &fval) == 1) {
 		if (fval < 8) {
 		    *cos = fval;
 		    return 0;
@@ -438,7 +438,7 @@ int ast_str2tos(const char *value, unsigned int *tos)
 	int fval;
 	unsigned int x;
 
-	if (sscanf(value, "%i", &fval) == 1) {
+	if (sscanf(value, "%30i", &fval) == 1) {
 		*tos = fval & 0xFF;
 		return 0;
 	}

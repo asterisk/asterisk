@@ -63,10 +63,10 @@ static int acf_rand_exec(struct ast_channel *chan, const char *cmd,
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	if (ast_strlen_zero(args.min) || sscanf(args.min, "%d", &min_int) != 1)
+	if (ast_strlen_zero(args.min) || sscanf(args.min, "%30d", &min_int) != 1)
 		min_int = 0;
 
-	if (ast_strlen_zero(args.max) || sscanf(args.max, "%d", &max_int) != 1)
+	if (ast_strlen_zero(args.max) || sscanf(args.max, "%30d", &max_int) != 1)
 		max_int = RAND_MAX;
 
 	if (max_int < min_int) {

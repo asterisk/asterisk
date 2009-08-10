@@ -172,7 +172,7 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 				} else if (!strcasecmp(buf, "data")) {
 					ast_string_field_set(o, data, c);
 				} else if (!strcasecmp(buf, "maxretries")) {
-					if (sscanf(c, "%d", &o->maxretries) != 1) {
+					if (sscanf(c, "%30d", &o->maxretries) != 1) {
 						ast_log(LOG_WARNING, "Invalid max retries at line %d of %s\n", lineno, fn);
 						o->maxretries = 0;
 					}
@@ -183,24 +183,24 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 				} else if (!strcasecmp(buf, "extension")) {
 					ast_string_field_set(o, exten, c);
 				} else if (!strcasecmp(buf, "priority")) {
-					if ((sscanf(c, "%d", &o->priority) != 1) || (o->priority < 1)) {
+					if ((sscanf(c, "%30d", &o->priority) != 1) || (o->priority < 1)) {
 						ast_log(LOG_WARNING, "Invalid priority at line %d of %s\n", lineno, fn);
 						o->priority = 1;
 					}
 				} else if (!strcasecmp(buf, "retrytime")) {
-					if ((sscanf(c, "%d", &o->retrytime) != 1) || (o->retrytime < 1)) {
+					if ((sscanf(c, "%30d", &o->retrytime) != 1) || (o->retrytime < 1)) {
 						ast_log(LOG_WARNING, "Invalid retrytime at line %d of %s\n", lineno, fn);
 						o->retrytime = 300;
 					}
 				} else if (!strcasecmp(buf, "waittime")) {
-					if ((sscanf(c, "%d", &o->waittime) != 1) || (o->waittime < 1)) {
+					if ((sscanf(c, "%30d", &o->waittime) != 1) || (o->waittime < 1)) {
 						ast_log(LOG_WARNING, "Invalid waittime at line %d of %s\n", lineno, fn);
 						o->waittime = 45;
 					}
 				} else if (!strcasecmp(buf, "retry")) {
 					o->retries++;
 				} else if (!strcasecmp(buf, "startretry")) {
-					if (sscanf(c, "%ld", &o->callingpid) != 1) {
+					if (sscanf(c, "%30ld", &o->callingpid) != 1) {
 						ast_log(LOG_WARNING, "Unable to retrieve calling PID!\n");
 						o->callingpid = 0;
 					}

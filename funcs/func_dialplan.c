@@ -72,7 +72,7 @@ static int isexten_function_read(struct ast_channel *chan, const char *cmd, char
 
 	if (!ast_strlen_zero(args.priority)) {
 		int priority_num;
-		if (sscanf(args.priority, "%d", &priority_num) == 1 && priority_num > 0) {
+		if (sscanf(args.priority, "%30d", &priority_num) == 1 && priority_num > 0) {
 			int res;
 			res = ast_exists_extension(chan, args.context, args.exten, priority_num, 
 				chan->cid.cid_num);

@@ -179,7 +179,7 @@ static char *handle_cli_ulimit(struct ast_cli_entry *e, int cmd, struct ast_cli_
 				return CLI_FAILURE;
 			}
 
-			sscanf(a->argv[2], "%d", &x);
+			sscanf(a->argv[2], "%30d", &x);
 			rlimit.rlim_max = rlimit.rlim_cur = x;
 			setrlimit(resource, &rlimit);
 			return CLI_SUCCESS;

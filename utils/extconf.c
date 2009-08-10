@@ -3149,7 +3149,7 @@ static int lookup_name(const char *s, char *const names[], int max)
 	}
 
 	/* Allow months and weekdays to be specified as numbers, as well */
-	if (sscanf(s, "%d", &i) == 1 && i >= 1 && i <= max) {
+	if (sscanf(s, "%2d", &i) == 1 && i >= 1 && i <= max) {
 		/* What the array offset would have been: "1" would be at offset 0 */
 		return i - 1;
 	}
@@ -3226,7 +3226,7 @@ static void get_timerange(struct ast_timing *i, char *times)
 	/* Otherwise expect a range */
 	while ((part = strsep(&times, "&"))) {
 		if (!(endpart = strchr(part, '-'))) {
-			if (sscanf(part, "%d:%d", &st_h, &st_m) != 2 || st_h < 0 || st_h > 23 || st_m < 0 || st_m > 59) {
+			if (sscanf(part, "%2d:%2d", &st_h, &st_m) != 2 || st_h < 0 || st_h > 23 || st_m < 0 || st_m > 59) {
 				ast_log(LOG_WARNING, "%s isn't a valid time.\n", part);
 				continue;
 			}
@@ -3242,11 +3242,11 @@ static void get_timerange(struct ast_timing *i, char *times)
 			ast_log(LOG_WARNING, "Invalid time range starting with '%s-'.\n", part);
 			continue;
 		}
-		if (sscanf(part, "%d:%d", &st_h, &st_m) != 2 || st_h < 0 || st_h > 23 || st_m < 0 || st_m > 59) {
+		if (sscanf(part, "%2d:%2d", &st_h, &st_m) != 2 || st_h < 0 || st_h > 23 || st_m < 0 || st_m > 59) {
 			ast_log(LOG_WARNING, "'%s' isn't a valid start time.\n", part);
 			continue;
 		}
-		if (sscanf(endpart, "%d:%d", &endh, &endm) != 2 || endh < 0 || endh > 23 || endm < 0 || endm > 59) {
+		if (sscanf(endpart, "%2d:%2d", &endh, &endm) != 2 || endh < 0 || endh > 23 || endm < 0 || endm > 59) {
 			ast_log(LOG_WARNING, "'%s' isn't a valid end time.\n", endpart);
 			continue;
 		}
@@ -5541,7 +5541,7 @@ static int parse_variable_name(char *var, int *offset, int *length, int *isfunc)
 			parens--;
 		} else if (*var == ':' && parens == 0) {
 			*var++ = '\0';
-			sscanf(var, "%d:%d", offset, length);
+			sscanf(var, "%30d:%30d", offset, length);
 			return 1; /* offset:length valid */
 		}
 	}
@@ -5945,7 +5945,7 @@ static int pbx_load_config(const char *config_file)
 							ipri = lastpri;
 						else
 							ast_log(LOG_WARNING, "Can't use 'same' priority on the first entry!\n");
-					} else if (sscanf(pri, "%d", &ipri) != 1 &&
+					} else if (sscanf(pri, "%30d", &ipri) != 1 &&
 					    (ipri = ast_findlabel_extension2(NULL, con, realext, pri, cidmatch)) < 1) {
 						ast_log(LOG_WARNING, "Invalid priority/label '%s' at line %d\n", pri, v->lineno);
 						ipri = 0;

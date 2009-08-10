@@ -279,11 +279,11 @@ i16 code_string_parse(t_pmr_chan *pChan)
 		if(!xpmrx(pChan,XXO_LSDCODEPARSE_1))
 		#endif
 		{
-			sscanf(p,"%f",&_f);
+			sscanf(p, "%30f", &_f);
 			ri=CtcssFreqIndex(_f);
 			if(ri>maxctcssindex)maxctcssindex=ri;
 
-			sscanf(pChan->pTxCode[i],"%f",&_f);
+			sscanf(pChan->pTxCode[i], "%30f", &_f);
 		    _ti=CtcssFreqIndex(_f);
 			if(_f>maxctcsstxfreq)maxctcsstxfreq=_f;
 
@@ -350,7 +350,7 @@ i16 code_string_parse(t_pmr_chan *pChan)
 	if(!lsd_code_parse(pChan,3))
 	#endif
 	{
-		sscanf(p,"%f",&f);
+		sscanf(p, "%30f", &f);
 	    ti=CtcssFreqIndex(f);
 		if(f>maxctcsstxfreq)maxctcsstxfreq=f;
 

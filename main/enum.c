@@ -114,7 +114,7 @@ static int cclen(const char *number)
 
 	strncpy(digits, number, 2);
 	
-	if (!sscanf(digits, "%d", &cc)) {
+	if (!sscanf(digits, "%30d", &cc)) {
 		return 0;
 	}
 

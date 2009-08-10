@@ -364,7 +364,7 @@ void ast_variable_insert(struct ast_category *category, struct ast_variable *var
 	int lineno;
 	int insertline;
 
-	if (!variable || sscanf(line, "%d", &insertline) != 1) {
+	if (!variable || sscanf(line, "%30d", &insertline) != 1) {
 		return;
 	}
 	if (!insertline) {
