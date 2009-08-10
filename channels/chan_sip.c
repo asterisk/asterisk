@@ -9892,6 +9892,15 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 			p->sessionversion++;
 	}
 
+	/* Check if we need video in this call */
+	if (add_audio && (capability & AST_FORMAT_VIDEO_MASK) && !p->novideo) {
+		if (p->vrtp) {
+			needvideo = TRUE;
+			ast_debug(2, "This call needs video offers!\n");
+		} else
+			ast_debug(2, "This call needs video offers, but there's no video support enabled!\n");
+	}
+
 	get_our_media_address(p, needvideo, &sin, &vsin, &tsin, &dest, &vdest);
 
 	snprintf(owner, sizeof(owner), "o=%s %d %d IN IP4 %s\r\n", ast_strlen_zero(global_sdpowner) ? "-" : global_sdpowner, p->sessionid, p->sessionversion, ast_inet_ntoa(dest.sin_addr));
@@ -9909,15 +9918,6 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		if (capability & AST_FORMAT_AUDIO_MASK)
 			needaudio = TRUE;
 
-		/* Check if we need video in this call */
-		if ((capability & AST_FORMAT_VIDEO_MASK) && !p->novideo) {
-			if (p->vrtp) {
-				needvideo = TRUE;
-				ast_debug(2, "This call needs video offers!\n");
-			} else
-				ast_debug(2, "This call needs video offers, but there's no video support enabled!\n");
-		}
-
 		if (debug) 
 			ast_verbose("Audio is at %s port %d\n", ast_inet_ntoa(p->ourip.sin_addr), ntohs(sin.sin_port));	
 
@@ -9930,7 +9930,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 			if (p->maxcallbitrate)
 				snprintf(bandwidth, sizeof(bandwidth), "b=CT:%d\r\n", p->maxcallbitrate);
 			if (debug) 
-				ast_verbose("Video is at %s port %d\n", ast_inet_ntoa(p->ourip.sin_addr), ntohs(vsin.sin_port));	
+				ast_verbose("Video is at %s port %d\n", ast_inet_ntoa(p->ourip.sin_addr), ntohs(vdest.sin_port));	
 		}
 
 		/* Check if we need text in this call */
