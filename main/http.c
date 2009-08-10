@@ -150,10 +150,10 @@ static uint32_t manid_from_vars(struct ast_variable *sid) {
 
 	while (sid && strcmp(sid->name, "mansession_id"))
 		sid = sid->next;
-	
-	if (!sid || sscanf(sid->value, "%x", &mngid) != 1)
+
+	if (!sid || sscanf(sid->value, "%30x", &mngid) != 1)
 		return 0;
-	
+
 	return mngid;
 }
 
@@ -489,7 +489,7 @@ static struct ast_str *handle_post(struct ast_tcptls_session_instance *ser, char
 		if (strcasecmp(var->name, "mansession_id"))
 			continue;
 
-		if (sscanf(var->value, "%lx", &ident) != 1) {
+		if (sscanf(var->value, "%30lx", &ident) != 1) {
 			*status = 400;
 			*title = ast_strdup("Bad Request");
 			return ast_http_error(400, "Bad Request", NULL, "The was an error parsing the request.");
@@ -514,7 +514,7 @@ static struct ast_str *handle_post(struct ast_tcptls_session_instance *ser, char
 
 	for (var = headers; var; var = var->next) {
 		if (!strcasecmp(var->name, "Content-Length")) {
-			if ((sscanf(var->value, "%u", &content_len)) != 1) {
+			if ((sscanf(var->value, "%30u", &content_len)) != 1) {
 				ast_log(LOG_ERROR, "Invalid Content-Length in POST request!\n");
 				fclose(f);
 				return NULL;

@@ -259,8 +259,8 @@ END_CONFIG
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 #endif
 
-static char *config = "usbradio.conf";	/* default config file */
-static char *config1 = "usbradio_tune.conf";    /* tune config file */
+static const char *config = "usbradio.conf";	/* default config file */
+static const char *config1 = "usbradio_tune.conf";    /* tune config file */
 
 static FILE *frxcapraw = NULL, *frxcaptrace = NULL, *frxoutraw = NULL;
 static FILE *ftxcapraw = NULL, *ftxcaptrace = NULL, *ftxoutraw = NULL;
@@ -1797,7 +1797,7 @@ static void store_rxsdtype(struct chan_usbradio_pvt *o, const char *s)
 static void store_rxgain(struct chan_usbradio_pvt *o, const char *s)
 {
 	float f;
-	if (sscanf(s, "%f", &f) == 1)
+	if (sscanf(s, "%30f", &f) == 1)
 		o->rxgain = f;
 	ast_debug(4, "set rxgain = %f\n", f);
 }
@@ -1805,7 +1805,7 @@ static void store_rxgain(struct chan_usbradio_pvt *o, const char *s)
 static void store_rxvoiceadj(struct chan_usbradio_pvt *o, const char *s)
 {
 	float f;
-	if (sscanf(s, "%f", &f) == 1)
+	if (sscanf(s, "%30f", &f) == 1)
 		o->rxvoiceadj = f;
 	ast_debug(4, "set rxvoiceadj = %f\n", f);
 }
@@ -1813,7 +1813,7 @@ static void store_rxvoiceadj(struct chan_usbradio_pvt *o, const char *s)
 static void store_rxctcssadj(struct chan_usbradio_pvt *o, const char *s)
 {
 	float f;
-	if (sscanf(s, "%f", &f) == 1)
+	if (sscanf(s, "%30f", &f) == 1)
 		o->rxctcssadj = f;
 	ast_debug(4, "set rxctcssadj = %f\n", f);
 }

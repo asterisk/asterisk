@@ -58,7 +58,7 @@ static int waituntil_exec(struct ast_channel *chan, void *data)
 		return 0;
 	}
 
-	if (sscanf(data, "%ld%lf", (long *)&future.tv_sec, &fraction) == 0) {
+	if (sscanf(data, "%30ld%30lf", (long *)&future.tv_sec, &fraction) == 0) {
 		ast_log(LOG_WARNING, "WaitUntil called with non-numeric argument\n");
 		pbx_builtin_setvar_helper(chan, "WAITUNTILSTATUS", "FAILURE");
 		return 0;

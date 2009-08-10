@@ -264,7 +264,7 @@ static int update_curl(const char *url, const char *unused, const char *keyfield
 	stringp = buffer;
 	while (*stringp <= ' ')
 		stringp++;
-	sscanf(stringp, "%d", &rowcount);
+	sscanf(stringp, "%30d", &rowcount);
 
 	ast_free(buffer);
 	ast_free(query);
@@ -327,7 +327,7 @@ static int store_curl(const char *url, const char *unused, va_list ap)
 	stringp = buffer;
 	while (*stringp <= ' ')
 		stringp++;
-	sscanf(stringp, "%d", &rowcount);
+	sscanf(stringp, "%30d", &rowcount);
 
 	ast_free(buffer);
 	ast_free(query);
@@ -395,7 +395,7 @@ static int destroy_curl(const char *url, const char *unused, const char *keyfiel
 	stringp = buffer;
 	while (*stringp <= ' ')
 		stringp++;
-	sscanf(stringp, "%d", &rowcount);
+	sscanf(stringp, "%30d", &rowcount);
 
 	ast_free(buffer);
 	ast_free(query);

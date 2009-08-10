@@ -308,7 +308,7 @@ static int reload_followme(int reload)
 	featuredigittostr = ast_variable_retrieve(cfg, "general", "featuredigittimeout");
 	
 	if (!ast_strlen_zero(featuredigittostr)) {
-		if (!sscanf(featuredigittostr, "%d", &featuredigittimeout))
+		if (!sscanf(featuredigittostr, "%30d", &featuredigittimeout))
 			featuredigittimeout = 5000;
 	}
 
