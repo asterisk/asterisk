@@ -463,8 +463,6 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 
 static int dahdi_sendtext(struct ast_channel *c, const char *text);
 
-static int analog_lib_handles(int signalling, int radio, int oprmode);
-
 static void mwi_event_cb(const struct ast_event *event, void *userdata)
 {
 	/* This module does not handle MWI in an event-based manner.  However, it
@@ -1442,6 +1440,36 @@ static const struct ast_channel_tech dahdi_tech = {
 };
 
 #define GET_CHANNEL(p) ((p)->channel)
+
+#define SIG_PRI_LIB_HANDLE_CASES	\
+	SIG_PRI:						\
+	case SIG_BRI:					\
+	case SIG_BRI_PTMP
+
+/*!
+ * \internal
+ * \brief Determine if sig_pri handles the signaling.
+ * \since 1.6.3
+ *
+ * \param signaling Signaling to determine if is for sig_pri.
+ *
+ * \return TRUE if the signaling is for sig_pri.
+ */
+static inline int dahdi_sig_pri_lib_handles(int signaling)
+{
+	int handles;
+
+	switch (signaling) {
+	case SIG_PRI_LIB_HANDLE_CASES:
+		handles = 1;
+		break;
+	default:
+		handles = 0;
+		break;
+	}
+
+	return handles;
+}
 
 static enum analog_sigtype dahdisig_to_analogsig(int sig)
 {
@@ -3499,10 +3527,14 @@ static int dahdi_digit_begin(struct ast_channel *chan, char digit)
 		goto out;
 
 #ifdef HAVE_PRI
-	if (pvt->sig == SIG_PRI || pvt->sig == SIG_BRI || pvt->sig == SIG_BRI_PTMP) {
+	switch (pvt->sig) {
+	case SIG_PRI_LIB_HANDLE_CASES:
 		res = sig_pri_digit_begin(pvt->sig_pvt, chan, digit);
 		if (!res)
 			goto out;
+		break;
+	default:
+		break;
 	}
 #endif
 	if ((dtmf = digit_to_dtmfindex(digit)) == -1)
@@ -3550,9 +3582,9 @@ static int dahdi_digit_end(struct ast_channel *chan, char digit, unsigned int du
 
 #ifdef HAVE_PRI
 	/* This means that the digit was already sent via PRI signalling */
-	if (((pvt->sig == SIG_PRI) || (pvt->sig == SIG_BRI) || (pvt->sig == SIG_BRI_PTMP))
-			&& !pvt->begindigit)
+	if (dahdi_sig_pri_lib_handles(pvt->sig) && !pvt->begindigit) {
 		goto out;
+	}
 #endif
 
 	if (pvt->begindigit) {
@@ -3687,7 +3719,9 @@ static char *dahdi_sig2str(int sig)
 	}
 }
 
-int analog_lib_handles(int signalling, int radio, int oprmode)
+#define sig2str dahdi_sig2str
+
+static int analog_lib_handles(int signalling, int radio, int oprmode)
 {
 	switch (signalling) {
 	case SIG_FXOLS:
@@ -3725,8 +3759,6 @@ int analog_lib_handles(int signalling, int radio, int oprmode)
 
 	return 1;
 }
-
-#define sig2str dahdi_sig2str
 
 static int conf_add(struct dahdi_pvt *p, struct dahdi_subchannel *c, int idx, int slavechannel)
 {
@@ -3925,11 +3957,16 @@ static void dahdi_enable_ec(struct dahdi_pvt *p)
 		return;
 	}
 	if (p->echocancel.head.tap_length) {
-		if ((p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP) || (p->sig == SIG_PRI) || (p->sig == SIG_SS7)) {
+		switch (p->sig) {
+		case SIG_PRI_LIB_HANDLE_CASES:
+		case SIG_SS7:
 			x = 1;
 			res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_AUDIOMODE, &x);
 			if (res)
 				ast_log(LOG_WARNING, "Unable to enable audio mode on channel %d (%s)\n", p->channel, strerror(errno));
+			break;
+		default:
+			break;
 		}
 		res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_ECHOCANCEL_PARAMS, &p->echocancel);
 		if (res) {
@@ -4133,12 +4170,18 @@ static inline int dahdi_set_hook(int fd, int hs)
 static inline int dahdi_confmute(struct dahdi_pvt *p, int muted)
 {
 	int x, y, res;
+
 	x = muted;
-	if ((p->sig == SIG_PRI) || (p->sig == SIG_SS7) || (p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP)) {
+	switch (p->sig) {
+	case SIG_PRI_LIB_HANDLE_CASES:
+	case SIG_SS7:
 		y = 1;
 		res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_AUDIOMODE, &y);
 		if (res)
 			ast_log(LOG_WARNING, "Unable to set audio mode on %d: %s\n", p->channel, strerror(errno));
+		break;
+	default:
+		break;
 	}
 	res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_CONFMUTE, &x);
 	if (res < 0)
@@ -4345,8 +4388,9 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 	set_actual_gain(p->subs[SUB_REAL].dfd, 0, p->rxgain, p->txgain, p->law);
 
 #ifdef HAVE_PRI
-	if (p->sig == SIG_PRI || p->sig == SIG_BRI || p->sig == SIG_BRI_PTMP) {
+	if (dahdi_sig_pri_lib_handles(p->sig)) {
 		struct dahdi_params ps;
+
 		memset(&ps, 0, sizeof(ps));
 		if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &ps)) {
 			ast_log(LOG_ERROR, "Could not get params\n");
@@ -4955,8 +4999,9 @@ static int dahdi_hangup(struct ast_channel *ast)
 	idx = dahdi_get_index(ast, p, 1);
 
 #ifdef HAVE_PRI
-	if (p->sig == SIG_PRI || p->sig == SIG_BRI || p->sig == SIG_BRI_PTMP) {
+	if (dahdi_sig_pri_lib_handles(p->sig)) {
 		int law;
+
 		x = 1;
 		ast_channel_setoption(ast,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
 		dahdi_confmute(p, 0);
@@ -5175,11 +5220,16 @@ static int dahdi_hangup(struct ast_channel *ast)
 			dahdi_r2_update_monitor_count(p->mfcr2, 1);
 		}
 #endif
-		if (p->sig && ((p->sig != SIG_PRI) && (p->sig != SIG_SS7)
-			&& (p->sig != SIG_BRI)
-			&& (p->sig != SIG_BRI_PTMP))
-			&& (p->sig != SIG_MFCR2))
+		switch (p->sig) {
+		case SIG_SS7:
+		case SIG_MFCR2:
+		case SIG_PRI_LIB_HANDLE_CASES:
+		case 0:
+			break;
+		default:
 			res = dahdi_set_hook(p->subs[SUB_REAL].dfd, DAHDI_ONHOOK);
+			break;
+		}
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Unable to hangup line %s\n", ast->name);
 		}
@@ -5230,9 +5280,14 @@ static int dahdi_hangup(struct ast_channel *ast)
 		update_conf(p);
 		reset_conf(p);
 		/* Restore data mode */
-		if ((p->sig == SIG_PRI) || (p->sig == SIG_SS7) || (p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP)) {
+		switch (p->sig) {
+		case SIG_PRI_LIB_HANDLE_CASES:
+		case SIG_SS7:
 			x = 0;
 			ast_channel_setoption(ast,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
+			break;
+		default:
+			break;
 		}
 		if (num_restart_pending == 0)
 			restart_monitor();
@@ -5298,9 +5353,7 @@ static int dahdi_answer(struct ast_channel *ast)
 
 	switch (p->sig) {
 #ifdef HAVE_PRI
-	case SIG_BRI:
-	case SIG_BRI_PTMP:
-	case SIG_PRI:
+	case SIG_PRI_LIB_HANDLE_CASES:
 		res = sig_pri_answer(p->sig_pvt, ast);
 		ast_mutex_unlock(&p->lock);
 		return res;
@@ -5636,11 +5689,14 @@ static int dahdi_func_read(struct ast_channel *chan, const char *function, char 
 #if defined(HAVE_PRI_REVERSE_CHARGE)
 	} else if (!strcasecmp(data, "reversecharge")) {
 		ast_mutex_lock(&p->lock);
-		if (p->sig == SIG_PRI || p->sig == SIG_BRI || p->sig == SIG_BRI_PTMP) {
+		switch (p->sig) {
+		case SIG_PRI_LIB_HANDLE_CASES:
 			snprintf(buf, len, "%d", ((struct sig_pri_chan *) p->sig_pvt)->reverse_charging_indication);
-		} else {
+			break;
+		default:
 			*buf = '\0';
 			res = -1;
+			break;
 		}
 		ast_mutex_unlock(&p->lock);
 #endif
@@ -6064,9 +6120,7 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 
 #ifdef PRI_2BCT
 		switch (p0->sig) {
-		case SIG_PRI:
-		case SIG_BRI:
-		case SIG_BRI_PTMP:
+		case SIG_PRI_LIB_HANDLE_CASES:
 			q931c0 = ((struct sig_pri_chan *) (p0->sig_pvt))->call;
 			break;
 		default:
@@ -6074,9 +6128,7 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 			break;
 		}
 		switch (p1->sig) {
-		case SIG_PRI:
-		case SIG_BRI:
-		case SIG_BRI_PTMP:
+		case SIG_PRI_LIB_HANDLE_CASES:
 			q931c1 = ((struct sig_pri_chan *) (p1->sig_pvt))->call;
 			break;
 		default:
@@ -6434,7 +6486,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 		p->pulsedial = (res & DAHDI_EVENT_PULSEDIGIT) ? 1 : 0;
 		ast_debug(1, "Detected %sdigit '%c'\n", p->pulsedial ? "pulse ": "", res & 0xff);
 #ifdef HAVE_PRI
-		if ((p->sig == SIG_PRI || p->sig == SIG_BRI || p->sig == SIG_BRI_PTMP)
+		if (dahdi_sig_pri_lib_handles(p->sig)
 			&& !((struct sig_pri_chan *) p->sig_pvt)->proceeding
 			&& p->pri
 			&& (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)) {
@@ -6560,10 +6612,13 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 		break;
 	case DAHDI_EVENT_ALARM:
 #ifdef HAVE_PRI
-			if (p->sig == SIG_PRI || p->sig == SIG_BRI || p->sig == SIG_BRI_PTMP) {
-				sig_pri_chan_alarm_notify(p->sig_pvt, 0);
-
-			}
+		switch (p->sig) {
+		case SIG_PRI_LIB_HANDLE_CASES:
+			sig_pri_chan_alarm_notify(p->sig_pvt, 0);
+			break;
+		default:
+			break;
+		}
 #endif
 		p->inalarm = 1;
 		res = get_alarms(p);
@@ -6888,8 +6943,12 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 		break;
 	case DAHDI_EVENT_NOALARM:
 #ifdef HAVE_PRI
-		if (p->sig == SIG_PRI || p->sig == SIG_BRI || p->sig == SIG_BRI_PTMP) {
+		switch (p->sig) {
+		case SIG_PRI_LIB_HANDLE_CASES:
 			sig_pri_chan_alarm_notify(p->sig_pvt, 1);
+			break;
+		default:
+			break;
 		}
 #endif
 		p->inalarm = 0;
@@ -7662,7 +7721,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 				}
 			} else if (f->frametype == AST_FRAME_DTMF) {
 #ifdef HAVE_PRI
-				if ((p->sig == SIG_PRI || p->sig == SIG_BRI || p->sig == SIG_BRI_PTMP)
+				if (dahdi_sig_pri_lib_handles(p->sig)
 					&& !((struct sig_pri_chan *) p->sig_pvt)->proceeding
 					&& p->pri
 					&& ((!p->outgoing && (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING))
@@ -7828,10 +7887,13 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 	}
 #endif
 #ifdef HAVE_PRI
-	if (p->sig == SIG_PRI || p->sig == SIG_BRI || p->sig == SIG_BRI_PTMP) {
+	switch (p->sig) {
+	case SIG_PRI_LIB_HANDLE_CASES:
 		res = sig_pri_indicate(p->sig_pvt, chan, condition, data, datalen);
 		ast_mutex_unlock(&p->lock);
 		return res;
+	default:
+		break;
 	}
 #endif
 	if (idx == SUB_REAL) {
@@ -8040,7 +8102,7 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 				i->dsp_features = features;
 #if defined(HAVE_PRI) || defined(HAVE_SS7)
 				/* We cannot do progress detection until receive PROGRESS message */
-				if (i->outgoing && ((i->sig == SIG_PRI) || (i->sig == SIG_BRI) || (i->sig == SIG_BRI_PTMP) || (i->sig == SIG_SS7))) {
+				if (i->outgoing && (dahdi_sig_pri_lib_handles(i->sig) || (i->sig == SIG_SS7))) {
 					/* Remember requested DSP features, don't treat
 					   talking as ANSWER */
 					i->dsp_features = features & ~DSP_PROGRESS_TALK;
@@ -9822,10 +9884,8 @@ static int handle_init_event(struct dahdi_pvt *i, int event)
 			res = tone_zone_play_tone(i->subs[SUB_REAL].dfd, -1);
 			dahdi_set_hook(i->subs[SUB_REAL].dfd, DAHDI_ONHOOK);
 			break;
-		case SIG_PRI:
 		case SIG_SS7:
-		case SIG_BRI:
-		case SIG_BRI_PTMP:
+		case SIG_PRI_LIB_HANDLE_CASES:
 			dahdi_disable_ec(i);
 			res = tone_zone_play_tone(i->subs[SUB_REAL].dfd, -1);
 			break;
@@ -10594,11 +10654,12 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 			}
 #endif
 #ifdef HAVE_PRI
-			if ((chan_sig == SIG_PRI) || (chan_sig == SIG_BRI) || (chan_sig == SIG_BRI_PTMP)) {
+			if (dahdi_sig_pri_lib_handles(chan_sig)) {
 				int offset;
 				int matchesdchan;
 				int x,y;
 				int myswitchtype = 0;
+
 				offset = 0;
 				if (ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_AUDIOMODE, &offset)) {
 					ast_log(LOG_ERROR, "Unable to set clear mode on clear channel %d of span %d: %s\n", channel, p.spanno, strerror(errno));
@@ -10964,10 +11025,16 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				ast_dsp_set_digitmode(tmp->dsp, DSP_DIGITMODE_DTMF | tmp->dtmfrelax);
 			update_conf(tmp);
 			if (!here) {
-				if ((chan_sig != SIG_BRI) && (chan_sig != SIG_BRI_PTMP) && (chan_sig != SIG_PRI)
-				    && (chan_sig != SIG_SS7) && (chan_sig != SIG_MFCR2))
+				switch (chan_sig) {
+				case SIG_PRI_LIB_HANDLE_CASES:
+				case SIG_SS7:
+				case SIG_MFCR2:
+					break;
+				default:
 					/* Hang it up to be sure it's good */
 					dahdi_set_hook(tmp->subs[SUB_REAL].dfd, DAHDI_ONHOOK);
+					break;
+				}
 			}
 			ioctl(tmp->subs[SUB_REAL].dfd,DAHDI_SETTONEZONE,&tmp->tonezone);
 #ifdef HAVE_PRI
@@ -10979,17 +11046,18 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 			}
 #endif
 			if ((res = get_alarms(tmp)) != DAHDI_ALARM_NONE) {
-			/* the dchannel is down so put the channel in alarm */
+				/* the dchannel is down so put the channel in alarm */
+				switch (tmp->sig) {
 #ifdef HAVE_PRI
-				if (tmp->sig == SIG_PRI || tmp->sig == SIG_BRI || tmp->sig == SIG_BRI_PTMP)
+				case SIG_PRI_LIB_HANDLE_CASES:
 					sig_pri_chan_alarm_notify(tmp->sig_pvt, si.alarms);
-				else {
+					break;
 #endif
+				default:
 					tmp->inalarm = 1;
 					handle_alarms(tmp, res);
-#ifdef HAVE_PRI
+					break;
 				}
-#endif
 			}
 		}
 
@@ -11000,7 +11068,9 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 
 		if (!here) {
 			tmp->locallyblocked = tmp->remotelyblocked = 0;
-			if ((chan_sig == SIG_PRI) || (chan_sig == SIG_BRI) || (chan_sig == SIG_BRI_PTMP) || (chan_sig == SIG_SS7)) {
+			switch (chan_sig) {
+			case SIG_PRI_LIB_HANDLE_CASES:
+			case SIG_SS7:
 				tmp->inservice = 0;
 #ifdef HAVE_PRI_SERVICE_MESSAGES
 				if (chan_sig == SIG_PRI) {
@@ -11013,13 +11083,15 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 					}
 				}
 #endif
-			} else {
+				break;
+			default:
 				 /* We default to in service on protocols that don't have a reset */
 				tmp->inservice = 1;
+				break;
 			}
 		}
 
-		if (tmp->sig != SIG_PRI && tmp->sig != SIG_BRI && tmp->sig != SIG_BRI_PTMP) {
+		if (!dahdi_sig_pri_lib_handles(tmp->sig)) {
 			analog_p = tmp->sig_pvt;
 			if (analog_p) {
 				analog_p->channel = tmp->channel;
@@ -11154,28 +11226,31 @@ static inline int available(struct dahdi_pvt *p, int channelmatch, ast_group_t g
 		return analog_available(p->sig_pvt, channelmatch, groupmatch, reason, channelmatched, groupmatched);
 
 #ifdef HAVE_PRI
-	if (p->sig == SIG_PRI || p->sig == SIG_BRI || p->sig == SIG_BRI_PTMP) {
+	switch (p->sig) {
+	case SIG_PRI_LIB_HANDLE_CASES:
 		return sig_pri_available(p->sig_pvt, channelmatch, groupmatch, reason, channelmatched, groupmatched);
+	default:
+		break;
 	}
 #endif
 
 #ifdef HAVE_SS7
-		/* Trust SS7 */
-		if (p->ss7) {
-			if (p->ss7call)
-				return 0;
-			else
-				return 1;
-		}
+	/* Trust SS7 */
+	if (p->ss7) {
+		if (p->ss7call)
+			return 0;
+		else
+			return 1;
+	}
 #endif
 #ifdef HAVE_OPENR2
-		/* Trust MFC/R2 */
-		if (p->mfcr2) {
-			if (p->mfcr2call)
-				return 0;
-			else
-				return 1;
-		}
+	/* Trust MFC/R2 */
+	if (p->mfcr2) {
+		if (p->mfcr2call)
+			return 0;
+		else
+			return 1;
+	}
 #endif
 
 	return 0;
@@ -11352,13 +11427,11 @@ static struct ast_channel *dahdi_request(const char *type, int format, const str
 			p->outgoing = 1;
 			if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
 				tmp = analog_request(p->sig_pvt, &callwait, requestor);
-			}
 #ifdef HAVE_PRI
-			else if (p->sig == SIG_PRI || p->sig == SIG_BRI || p->sig == SIG_BRI_PTMP) {
+			} else if (dahdi_sig_pri_lib_handles(p->sig)) {
 				tmp = sig_pri_request(p->sig_pvt, SIG_PRI_DEFLAW, requestor);
-			}
 #endif
-			else {
+			} else {
 				tmp = dahdi_new(p, AST_STATE_RESERVED, 0, p->owner ? SUB_CALLWAIT : SUB_REAL, 0, 0, requestor ? requestor->linkedid : "");
 			}
 
