@@ -1,4 +1,10 @@
-2009-08-09  Tilghman Lesher <tlesher@digium.com>
+2009-08-11  Tilghman Lesher <tlesher@digium.com>
+
+	* Asterisk 1.6.0.13 released
+
+	* channels/chan_iax2.c: Bad merge from 1.6.0 branch
+
+2009-08-10  Tilghman Lesher <tlesher@digium.com>
 
 	* Asterisk 1.6.0.12 released
 

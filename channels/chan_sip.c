@@ -18666,7 +18666,6 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 		 * possibly process the request. In all cases, there function
 		 * terminates at the end of this block
 		 */
-<<<<<<< .working
 		int ret = 0;
 
 		if (p->ocseq < seqno && seqno != p->lastnoninvite) {
@@ -18683,7 +18682,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 			append_history(p, "Ignore", "Ignoring this retransmit\n");
 		} else if (e) {
 			e = ast_skip_blanks(e);
-			if (sscanf(e, "%d %n", &respid, &len) != 1) {
+			if (sscanf(e, "%30d %n", &respid, &len) != 1) {
 				ast_log(LOG_WARNING, "Invalid response: '%s'\n", e);
 				/* XXX maybe should do ret = -1; */
 			} else if (respid <= 0) {
@@ -18694,26 +18693,6 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 				if ((respid == 200) || ((respid >= 300) && (respid <= 399)))
 					extract_uri(p, req);
 				handle_response(p, respid, e + len, req, seqno);
-=======
-		if (ast_strlen_zero(e)) {
-			return 0;
-		}
-		if (sscanf(e, "%30d %n", &respid, &len) != 1) {
-			ast_log(LOG_WARNING, "Invalid response: '%s'\n", e);
-			return 0;
-		}
-		if (respid <= 0) {
-			ast_log(LOG_WARNING, "Invalid SIP response code: '%d'\n", respid);
-			return 0;
-		}
-		if (p->ocseq && (p->ocseq < seqno)) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Ignoring out of order response %d (expecting %d)\n", seqno, p->ocseq);
-			return -1;
-		} else {
-			if ((respid == 200) || ((respid >= 300) && (respid <= 399))) {
-				extract_uri(p, req);
->>>>>>> .merge-right.r211551
 			}
 		}
 		return 0;
