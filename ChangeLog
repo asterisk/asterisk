@@ -2,7 +2,7 @@
 
 	* Asterisk 1.6.0.13 released
 
-	* channels/chan_iax2.c: Bad merge from 1.6.0 branch
+	* channels/chan_sip.c: Bad merge from 1.6.0 branch
 
 2009-08-10  Tilghman Lesher <tlesher@digium.com>
 
