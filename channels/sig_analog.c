@@ -707,6 +707,15 @@ static void analog_set_dialing(struct analog_pvt *p, int flag)
 	}
 }
 
+static void analog_set_ringtimeout(struct analog_pvt *p, int ringt)
+{
+	p->ringt = ringt;
+	if (!p->calls->set_ringtimeout) {
+		return;
+	}
+	p->calls->set_ringtimeout(p->chan_pvt, ringt);
+}
+
 int analog_call(struct analog_pvt *p, struct ast_channel *ast, char *rdest, int timeout)
 {
 	int res, index,mysig;
@@ -1060,7 +1069,7 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 
 	if (!p->subs[ANALOG_SUB_REAL].owner && !p->subs[ANALOG_SUB_CALLWAIT].owner && !p->subs[ANALOG_SUB_THREEWAY].owner) {
 		p->owner = NULL;
-		p->ringt = 0;
+		analog_set_ringtimeout(p, 0);
 		p->outgoing = 0;
 		p->onhooktime = time(NULL);
 		p->cidrings = 1;
@@ -1130,7 +1139,7 @@ int analog_answer(struct analog_pvt *p, struct ast_channel *ast)
 	case ANALOG_SIG_FXSLS:
 	case ANALOG_SIG_FXSGS:
 	case ANALOG_SIG_FXSKS:
-		p->ringt = 0;
+		analog_set_ringtimeout(p, 0);
 		/* Fall through */
 	case ANALOG_SIG_EM:
 	case ANALOG_SIG_EM_E1:
@@ -2093,7 +2102,7 @@ static void *__analog_ss_thread(void *data)
 
 		ast_setstate(chan, AST_STATE_RING);
 		chan->rings = 1;
-		p->ringt = p->ringt_base;
+		analog_set_ringtimeout(p, p->ringt_base);
 		res = ast_pbx_run(chan);
 		if (res) {
 			ast_hangup(chan);
@@ -2413,7 +2422,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		case ANALOG_SIG_FXSGS:
 		case ANALOG_SIG_FXSKS:
 			if (ast->_state == AST_STATE_RING) {
-				p->ringt = p->ringt_base;
+				analog_set_ringtimeout(p, p->ringt_base);
 			}
 
 			/* Fall through */
@@ -2457,7 +2466,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		case ANALOG_SIG_FXSGS:
 		case ANALOG_SIG_FXSKS:
 			if (ast->_state == AST_STATE_RING) {
-				p->ringt = p->ringt_base;
+				analog_set_ringtimeout(p, p->ringt_base);
 			}
 			break;
 		}
@@ -3007,7 +3016,7 @@ int analog_handle_init_event(struct analog_pvt *i, int event)
 		case ANALOG_SIG_FXSLS:
 		case ANALOG_SIG_FXSGS:
 		case ANALOG_SIG_FXSKS:
-				i->ringt = i->ringt_base;
+				analog_set_ringtimeout(i, i->ringt_base);
 				/* Fall through */
 		case ANALOG_SIG_EMWINK:
 		case ANALOG_SIG_FEATD:

@@ -2049,6 +2049,12 @@ static void my_set_dialing(void *pvt, int flag)
 	p->dialing = flag;
 }
 
+static void my_set_ringtimeout(void *pvt, int ringt)
+{
+	struct dahdi_pvt *p = pvt;
+	p->ringt = ringt;
+}
+
 static void my_increase_ss_count(void)
 {
 	ast_mutex_lock(&ss_thread_lock);
@@ -2772,6 +2778,7 @@ static struct analog_callback dahdi_analog_callbacks =
 	.get_sub_fd = my_get_sub_fd,
 	.set_cadence = my_set_cadence,
 	.set_dialing = my_set_dialing,
+	.set_ringtimeout = my_set_ringtimeout,
 };
 
 static struct dahdi_pvt *round_robin[32];

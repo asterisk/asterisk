@@ -193,6 +193,7 @@ struct analog_callback {
 	int (* const get_sub_fd)(void *pvt, enum analog_sub sub);
 	void (* const set_cadence)(void *pvt, int *cidrings, struct ast_channel *chan);
 	void (* const set_dialing)(void *pvt, int flag);
+	void (* const set_ringtimeout)(void *pvt, int ringt);
 };
 
 
