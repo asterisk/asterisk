@@ -4522,7 +4522,9 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		ast_channel_lock(qe->chan);
 		if (!attended_transfer_occurred(qe->chan)) {
 			struct ast_datastore *tds;
-			if (strcasecmp(oldcontext, qe->chan->context) || strcasecmp(oldexten, qe->chan->exten)) {
+
+			/* detect a blind transfer */
+			if (!(qe->chan->_softhangup | peer->_softhangup) && (strcasecmp(oldcontext, qe->chan->context) || strcasecmp(oldexten, qe->chan->exten))) {
 				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "TRANSFER", "%s|%s|%ld|%ld|%d",
 					qe->chan->exten, qe->chan->context, (long) (callstart - qe->start),
 					(long) (time(NULL) - callstart), qe->opos);
