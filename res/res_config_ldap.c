@@ -1229,16 +1229,21 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 			mods_size++;
 			ldap_mods = ast_realloc(ldap_mods, sizeof(LDAPMod *) * mods_size);
 			ldap_mods[mods_size - 1] = NULL;
+			
 			ldap_mods[mods_size - 2] = ast_calloc(1, sizeof(LDAPMod));
-
-			ldap_mods[mods_size - 2]->mod_op = LDAP_MOD_REPLACE;
 
 			ldap_mods[mods_size - 2]->mod_type = ast_calloc(sizeof(char), strlen(newparam) + 1);
 			strcpy(ldap_mods[mods_size - 2]->mod_type, newparam);
 
-			ldap_mods[mods_size - 2]->mod_values = ast_calloc(sizeof(char *), 2);
-			ldap_mods[mods_size - 2]->mod_values[0] = ast_calloc(sizeof(char), strlen(newval) + 1);
-			strcpy(ldap_mods[mods_size - 2]->mod_values[0], newval);
+			if (strlen(newval) == 0) {
+				ldap_mods[mods_size - 2]->mod_op = LDAP_MOD_DELETE;
+			} else {
+				ldap_mods[mods_size - 2]->mod_op = LDAP_MOD_REPLACE;
+
+				ldap_mods[mods_size - 2]->mod_values = ast_calloc(sizeof(char *), 2);
+				ldap_mods[mods_size - 2]->mod_values[0] = ast_calloc(sizeof(char), strlen(newval) + 1);
+				strcpy(ldap_mods[mods_size - 2]->mod_values[0], newval);
+			}
 		}
 	}
 	/* freeing ldap_mods further down */
@@ -1280,9 +1285,13 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 	/* Ready to update */
 	if ((num_entries = ldap_count_entries(ldapConn, ldap_result_msg)) > 0) {
 		ast_debug(3, "LINE(%d) Modifying %s=%s hits: %d\n", __LINE__, attribute, lookup, num_entries);
-		for (i = 0; option_debug > 2 && i < mods_size - 1; i++)
-			ast_debug(3, "LINE(%d) %s=%s \n", __LINE__, ldap_mods[i]->mod_type, ldap_mods[i]->mod_values[0]);
-
+		for (i = 0; option_debug > 2 && i < mods_size - 1; i++) {
+			if (ldap_mods[i]->mod_op != LDAP_MOD_DELETE) {
+				ast_debug(3, "LINE(%d) %s=%s \n", __LINE__, ldap_mods[i]->mod_type, ldap_mods[i]->mod_values[0]);
+			} else {
+				ast_debug(3, "LINE(%d) deleting %s \n", __LINE__, ldap_mods[i]->mod_type);
+			}
+		}
 		ldap_entry = ldap_first_entry(ldapConn, ldap_result_msg);
 
 		for (i = 0; ldap_entry; i++) { 
