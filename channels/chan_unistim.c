@@ -2061,7 +2061,7 @@ static void start_rtp(struct unistim_subchannel *sub)
 	/* Allocate the RTP */
 	if (unistimdebug)
 		ast_verb(0, "Starting RTP. Bind on %s\n", ast_inet_ntoa(sout.sin_addr));
-	sub->rtp = ast_rtp_instance_new(NULL, sched, &sout, NULL);
+	sub->rtp = ast_rtp_instance_new("asterisk", sched, &sout, NULL);
 	if (!sub->rtp) {
 		ast_log(LOG_WARNING, "Unable to create RTP session: %s binaddr=%s\n",
 				strerror(errno), ast_inet_ntoa(sout.sin_addr));

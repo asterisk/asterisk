@@ -772,7 +772,7 @@ static struct jingle_pvt *jingle_alloc(struct jingle *client, const char *from, 
 		ast_copy_string(tmp->them, idroster, sizeof(tmp->them));
 		tmp->initiator = 1;
 	}
-	tmp->rtp = ast_rtp_instance_new(NULL, sched, &bindaddr, NULL);
+	tmp->rtp = ast_rtp_instance_new("asterisk", sched, &bindaddr, NULL);
 	tmp->parent = client;
 	if (!tmp->rtp) {
 		ast_log(LOG_WARNING, "Out of RTP sessions?\n");

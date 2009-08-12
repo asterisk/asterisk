@@ -958,7 +958,7 @@ static int __oh323_rtp_create(struct oh323_pvt *pvt)
 		ast_log(LOG_ERROR, "Unable to locate local IP address for RTP stream\n");
 		return -1;
 	}
-	pvt->rtp = ast_rtp_instance_new(NULL, sched, &our_addr, NULL);
+	pvt->rtp = ast_rtp_instance_new("asterisk", sched, &our_addr, NULL);
 	if (!pvt->rtp) {
 		ast_mutex_unlock(&pvt->lock);
 		ast_log(LOG_WARNING, "Unable to create RTP session: %s\n", strerror(errno));

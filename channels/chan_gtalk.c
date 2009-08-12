@@ -947,7 +947,7 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 		tmp->initiator = 1;
 	}
 	/* clear codecs */
-	if (!(tmp->rtp = ast_rtp_instance_new(NULL, sched, &bindaddr, NULL))) {
+	if (!(tmp->rtp = ast_rtp_instance_new("asterisk", sched, &bindaddr, NULL))) {
 	  ast_log(LOG_ERROR, "Failed to create a new RTP instance (possibly an invalid bindaddr?)\n");
 	  ast_free(tmp);
 	  return NULL;

@@ -3632,9 +3632,9 @@ static void start_rtp(struct skinny_subchannel *sub)
 
 	ast_mutex_lock(&sub->lock);
 	/* Allocate the RTP */
-	sub->rtp = ast_rtp_instance_new(NULL, sched, &bindaddr, NULL);
+	sub->rtp = ast_rtp_instance_new("asterisk", sched, &bindaddr, NULL);
 	if (hasvideo)
-		sub->vrtp = ast_rtp_instance_new(NULL, sched, &bindaddr, NULL);
+		sub->vrtp = ast_rtp_instance_new("asterisk", sched, &bindaddr, NULL);
 
 	if (sub->rtp) {
 		ast_rtp_instance_set_prop(sub->rtp, AST_RTP_PROPERTY_RTCP, 1);

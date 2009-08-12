@@ -2614,7 +2614,7 @@ static void start_rtp(struct mgcp_subchannel *sub)
 		sub->rtp = NULL;
 	}
 	/* Allocate the RTP now */
-	sub->rtp = ast_rtp_instance_new(NULL, sched, &bindaddr, NULL);
+	sub->rtp = ast_rtp_instance_new("asterisk", sched, &bindaddr, NULL);
 	if (sub->rtp && sub->owner)
 		ast_channel_set_fd(sub->owner, 0, ast_rtp_instance_fd(sub->rtp, 0));
 	if (sub->rtp) {
