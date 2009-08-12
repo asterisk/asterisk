@@ -2070,7 +2070,8 @@ struct sip_registry {
 	enum sip_transport transport;	/*!< Transport for this registration UDP, TCP or TLS */
 	int portno;			/*!<  Optional port override */
 	int expire;			/*!< Sched ID of expiration */
-	int expiry;			/*!< Value to use for the Expires header */
+	int configured_expiry;		/*!< Configured value to use for the Expires header */
+	int expiry;			/*!< Negotiated value used for the Expires header */
 	int regattempts;		/*!< Number of attempts (since the last success) */
 	int timeout; 			/*!< sched id of sip_reg_timeout */
 	int refresh;			/*!< How often to refresh */
@@ -7428,7 +7429,8 @@ static int sip_register(const char *value, int lineno)
 	}
 	reg->transport = transport;
 	reg->expire = -1;
-	reg->expiry = (expire ? atoi(expire) : default_expiry);
+	reg->configured_expiry = (expire ? atoi(expire) : default_expiry);
+	reg->expiry = reg->configured_expiry;
 	reg->timeout =  -1;
 	reg->refresh = reg->expiry;
 	reg->portno = portnum;
@@ -11363,6 +11365,7 @@ static int sip_reregister(const void *data)
 		ast_log(LOG_NOTICE, "   -- Re-registration for  %s@%s\n", r->username, r->hostname);
 
 	r->expire = -1;
+	r->expiry = r->configured_expiry;
 	__sip_do_register(r);
 	registry_unref(r, "unref the re-register scheduled event");
 	return 0;
@@ -18268,7 +18271,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 		}
 		if (r->expiry > max_expiry) {
 			ast_log(LOG_WARNING, "Required expiration time from %s@%s is too high, giving up\n", p->registry->username, p->registry->hostname);
-			r->expiry = default_expiry;
+			r->expiry = r->configured_expiry;
 			r->regstate = REG_STATE_REJECTED;
 		} else {
 			r->regstate = REG_STATE_UNREGISTERED;
