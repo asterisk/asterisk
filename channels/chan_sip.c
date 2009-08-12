@@ -1118,6 +1118,7 @@ static const char *sip_reason_code_to_str(enum AST_REDIRECTING_REASON code)
 #define DEFAULT_COS_TEXT        5		/*!< Level 2 class of service for text media (T.140) */
 #define DEFAULT_ALLOW_EXT_DOM	TRUE		/*!< Allow external domains */
 #define DEFAULT_REALM		"asterisk"	/*!< Realm for HTTP digest authentication */
+#define DEFAULT_DOMAINSASREALM	FALSE		/*!< Use the domain option to guess the realm for registration and invite requests */
 #define DEFAULT_NOTIFYRINGING	TRUE		/*!< Notify devicestate system on ringing state */
 #define DEFAULT_NOTIFYCID		DISABLED	/*!< Include CID with ringing notifications */
 #define DEFAULT_PEDANTIC	FALSE		/*!< Avoid following SIP standards for dialog matching */
@@ -1195,6 +1196,7 @@ struct sip_settings {
 	int allowsubscribe;	        /*!< Flag for disabling ALL subscriptions, this is FALSE only if all peers are FALSE 
 					    the global setting is in globals_flags[1] */
 	char realm[MAXHOSTNAMELEN]; 		/*!< Default realm */
+	int domainsasrealm;			/*!< Use domains lists as realms */
 	struct sip_proxy outboundproxy;	/*!< Outbound proxy */
 	char default_context[AST_MAX_CONTEXT];
 	char default_subscribecontext[AST_MAX_CONTEXT];
@@ -2637,6 +2639,8 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 static void update_connectedline(struct sip_pvt *p, const void *data, size_t datalen);
 static void update_redirecting(struct sip_pvt *p, const void *data, size_t datalen);
 static void change_redirecting_information(struct sip_pvt *p, struct sip_request *req, struct ast_party_redirecting *redirecting, int set_call_forward);
+static int get_domain(const char *str, char *domain, int len); 
+static void get_realm(struct sip_pvt *p, const struct sip_request *req);
 
 /*-- TCP connection handling ---*/
 static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_session_instance *tcptls_session);
@@ -9479,14 +9483,91 @@ static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, const
 		ast_log(LOG_WARNING, "Unable to determine sequence number from '%s'\n", get_header(req, "CSeq"));
 		return -1;
 	}
+	/* Choose Realm */
+	get_realm(p, req);
+
 	/* Stale means that they sent us correct authentication, but 
 	   based it on an old challenge (nonce) */
-	snprintf(tmp, sizeof(tmp), "Digest algorithm=MD5, realm=\"%s\", nonce=\"%s\"%s", sip_cfg.realm, randdata, stale ? ", stale=true" : "");
+	snprintf(tmp, sizeof(tmp), "Digest algorithm=MD5, realm=\"%s\", nonce=\"%s\"%s", p->realm, randdata, stale ? ", stale=true" : "");
 	respprep(&resp, p, msg, req);
 	add_header(&resp, header, tmp);
 	add_header_contentLength(&resp, 0);
 	append_history(p, "AuthChal", "Auth challenge sent for %s - nc %d", p->username, p->noncecount);
 	return send_response(p, &resp, reliable, seqno);
+}
+
+/*! 
+ \brief Extract domain from SIP To/From header
+ \return -1 on error, 1 if domain string is empty, 0 if domain was properly extracted
+ \note TODO: Such code is all over SIP channel, there is a sense to organize 
+      this patern in one function
+*/
+static int get_domain(const char *str, char *domain, int len)
+{
+	char tmpf[256];
+	char *a, *from;
+
+	*domain = '\0';
+	ast_copy_string(tmpf, str, sizeof(tmpf));
+	from = get_in_brackets(tmpf);
+	if (!ast_strlen_zero(from)) {
+		if (strncasecmp(from, "sip:", 4)) {
+			ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", from);
+			return -1;
+		}
+		from += 4;
+	} else
+		from = NULL;
+
+	if (from) {
+		/* Strip any params or options from user */
+		if ((a = strchr(from, ';')))
+			*a = '\0';
+		/* Strip port from domain if present */
+		if ((a = strchr(from, ':')))
+			*a = '\0';
+		if ((a = strchr(from, '@'))) {
+			*a = '\0';
+			ast_copy_string(domain, a + 1, len);
+		} else
+			ast_copy_string(domain, from, len);
+	}
+
+	return ast_strlen_zero(domain);
+}
+
+/*! 
+  \brief Choose realm based on From header and then To header or use globaly configured realm. 
+  Realm from From/To header should be listed among served domains in config file: domain=... 
+*/
+static void get_realm(struct sip_pvt *p, const struct sip_request *req)
+{
+	char domain[MAXHOSTNAMELEN];
+
+	if (!ast_strlen_zero(p->realm))
+		return;
+
+	if (sip_cfg.domainsasrealm &&
+	    !AST_LIST_EMPTY(&domain_list))
+	{
+		/* Check From header first */
+		if (!get_domain(get_header(req, "From"), domain, sizeof(domain))) {
+			if (check_sip_domain(domain, NULL, 0)) {
+				ast_string_field_set(p, realm, domain);
+				return;
+			}
+		}
+		/* Check To header */
+		if (!get_domain(get_header(req, "To"), domain, sizeof(domain))) {
+			if (check_sip_domain(domain, NULL, 0)) {
+				ast_string_field_set(p, realm, domain);
+				return;
+			}
+		}
+	}
+	
+	/* Use default realm from config file */
+	ast_string_field_set(p, realm, sip_cfg.realm);
 }
 
 /*! \brief Add text body to SIP message */
@@ -12561,7 +12642,7 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 		ast_copy_string(a1_hash, md5secret, sizeof(a1_hash));
 	else {
 		char a1[256];
-		snprintf(a1, sizeof(a1), "%s:%s:%s", username, sip_cfg.realm, secret);
+		snprintf(a1, sizeof(a1), "%s:%s:%s", username, p->realm, secret);
 		ast_md5_hash(a1_hash, a1);
 	}
 
@@ -15915,6 +15996,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  SIP domain support:     %s\n", cli_yesno(!AST_LIST_EMPTY(&domain_list)));
 	ast_cli(a->fd, "  Realm. auth:            %s\n", cli_yesno(authl != NULL));
 	ast_cli(a->fd, "  Our auth realm          %s\n", sip_cfg.realm);
+	ast_cli(a->fd, "  Use domains as realms:  %s\n", cli_yesno(sip_cfg.domainsasrealm));
 	ast_cli(a->fd, "  Call to non-local dom.: %s\n", cli_yesno(sip_cfg.allow_external_domains));
 	ast_cli(a->fd, "  URI user is phone no:   %s\n", cli_yesno(ast_test_flag(&global_flags[0], SIP_USEREQPHONE)));
  	ast_cli(a->fd, "  Always auth rejects:    %s\n", cli_yesno(sip_cfg.alwaysauthreject));
@@ -24559,6 +24641,7 @@ static int reload_config(enum channelreloadreason reason)
 	snprintf(global_sdpowner, sizeof(global_sdpowner), "%s", DEFAULT_SDPOWNER);
 	ast_copy_string(default_notifymime, DEFAULT_NOTIFYMIME, sizeof(default_notifymime));
 	ast_copy_string(sip_cfg.realm, S_OR(ast_config_AST_SYSTEM_NAME, DEFAULT_REALM), sizeof(sip_cfg.realm));
+	sip_cfg.domainsasrealm = DEFAULT_DOMAINSASREALM;
 	ast_copy_string(default_callerid, DEFAULT_CALLERID, sizeof(default_callerid));
 	ast_copy_string(default_mwi_from, DEFAULT_MWI_FROM, sizeof(default_mwi_from));
 	sip_cfg.compactheaders = DEFAULT_COMPACTHEADERS;
@@ -24651,6 +24734,8 @@ static int reload_config(enum channelreloadreason reason)
 			sip_cfg.allowguest = ast_true(v->value) ? 1 : 0;
 		} else if (!strcasecmp(v->name, "realm")) {
 			ast_copy_string(sip_cfg.realm, v->value, sizeof(sip_cfg.realm));
+  		} else if (!strcasecmp(v->name, "domainsasrealm")) {
+			sip_cfg.domainsasrealm = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "useragent")) {
 			ast_copy_string(global_useragent, v->value, sizeof(global_useragent));
 			ast_debug(1, "Setting SIP channel User-Agent Name to %s\n", global_useragent);
