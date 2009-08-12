@@ -1,9 +1,10 @@
 #
 # Copyright (c) 2007-2009 Suretec Systems Ltd. - <http://www.suretecsystems.com/>
 #
-# Version: 3.1.8
+# Version: 3.1.9
 #
 # Changes:
+# - https://issues.asterisk.org/view.php?id=13725 - 12/08/2009
 # - Added AsteriskVoiceMail Object class and AstAccountCallLimit attribute - 28/05/2009
 #   https://issues.asterisk.org/view.php?id=15155
 # - Added AstAccountLastQualifyMilliseconds - 28/05/2009
@@ -96,6 +97,9 @@ olcObjectIdentifier: AstVoicemailPager AstAttrType:55
 olcObjectIdentifier: AstVoicemailOptions AstAttrType:56
 olcObjectIdentifier: AstVoicemailTimestamp AstAttrType:57
 olcObjectIdentifier: AstVoicemailContext AstAttrType:58
+olcObjectIdentifier: AstAccountSubscribeContext AstAttrType:59
+olcObjectIdentifier: AstAccountIpAddr AstAttrType:60
+olcObjectIdentifier: AstAccountUserAgent AstAttrType:61
 #
 #
 #############################################################################
@@ -547,6 +551,27 @@ olcAttributeTypes: ( AstVoicemailTimestamp
 olcAttributeTypes: ( AstVoicemailContext
         NAME 'AstVoicemailContext'
         DESC 'Asterisk voicemail context'
+        EQUALITY caseIgnoreMatch
+        SUBSTR caseIgnoreSubstringsMatch
+        SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
+#
+olcAttributeTypes: ( AstAccountSubscribeContext
+        NAME 'AstAccountSubscribeContext'
+        DESC 'Asterisk subscribe context'
+        EQUALITY caseIgnoreMatch
+        SUBSTR caseIgnoreSubstringsMatch
+        SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
+#
+olcAttributeTypes: ( AstAccountIpAddr
+        NAME 'AstAccountIpAddr'
+        DESC 'Asterisk aaccount IP address'
+        EQUALITY caseIgnoreMatch
+        SUBSTR caseIgnoreSubstringsMatch
+        SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
+#
+olcAttributeTypes: ( AstAccountUserAgent
+        NAME 'AstAccountUserAgent'
+        DESC 'Asterisk account user context'
         EQUALITY caseIgnoreMatch
         SUBSTR caseIgnoreSubstringsMatch
         SYNTAX 1.3.6.1.4.1.1466.115.121.1.15)
