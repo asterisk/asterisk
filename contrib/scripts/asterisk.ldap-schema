@@ -1,9 +1,10 @@
 #
 # Copyright (c) 2007-2009 Suretec Systems Ltd. - <http://www.suretecsystems.com/>
 #
-# Version: 3.1.9
+# Version: 3.2.0
 #
 # Changes:
+# - Fixed typo - 13/08/2009
 # - https://issues.asterisk.org/view.php?id=13725 - 12/08/2009
 # - Added AsteriskVoiceMail Object class and AstAccountCallLimit attribute - 28/05/2009
 #   https://issues.asterisk.org/view.php?id=15155
@@ -595,8 +596,7 @@ objectclass ( AsteriskExtension
         AstExtension $ 
         AstPriority $
         AstApplication $ 
-        AstApplicationData $
-		
+        AstApplicationData
     ) 
     )
 
@@ -630,7 +630,7 @@ objectclass ( AsteriskIAXUser
         AstAccountType $
         AstAccountDisallowedCodec $ 
         AstAccountExpirationTimestamp $ 
-        AstAccountRegistrationContext$
+        AstAccountRegistrationContext $
         AstAccountRegistrationExten $ 
         AstAccountNoTransfer $ 
         AstAccountName $
