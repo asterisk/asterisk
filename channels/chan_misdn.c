@@ -8761,9 +8761,18 @@ static void misdn_facility_ie_handler(enum event_e event, struct misdn_bchannel 
 				ast_string_field_set(ch->ast, call_forward, bc->redirecting.to.number);
 
 				/* Send back positive ACK */
+#if 1
+				/*
+				 * Since there are no return result arguments it must be a
+				 * generic result message.  ETSI 300-196
+				 */
+				bc->fac_out.Function = Fac_RESULT;
+				bc->fac_out.u.RESULT.InvokeID = bc->fac_in.u.CallDeflection.InvokeID;
+#else
 				bc->fac_out.Function = Fac_CallDeflection;
 				bc->fac_out.u.CallDeflection.InvokeID = bc->fac_in.u.CallDeflection.InvokeID;
 				bc->fac_out.u.CallDeflection.ComponentType = FacComponent_Result;
+#endif
 				print_facility(&bc->fac_out, bc);
 				misdn_lib_send_event(bc, EVENT_DISCONNECT);
 
