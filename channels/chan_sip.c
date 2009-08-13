@@ -9976,7 +9976,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 	}
 
 	/* Check if we need video in this call */
-	if (add_audio && (capability & AST_FORMAT_VIDEO_MASK) && !p->novideo) {
+	if (add_audio && (p->jointcapability & AST_FORMAT_VIDEO_MASK) && !p->novideo) {
 		if (p->vrtp) {
 			needvideo = TRUE;
 			ast_debug(2, "This call needs video offers!\n");
