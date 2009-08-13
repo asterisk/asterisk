@@ -1615,3 +1615,8 @@ int ast_rtp_instance_get_hold_timeout(struct ast_rtp_instance *instance)
 {
 	return instance->holdtimeout;
 }
+
+struct ast_rtp_engine *ast_rtp_instance_get_engine(struct ast_rtp_instance *instance)
+{
+	return instance->engine;
+}

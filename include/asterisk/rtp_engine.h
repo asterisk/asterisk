@@ -1639,6 +1639,25 @@ int ast_rtp_instance_get_timeout(struct ast_rtp_instance *instance);
  */
 int ast_rtp_instance_get_hold_timeout(struct ast_rtp_instance *instance);
 
+/*!
+ * \brief Get the RTP engine in use on an RTP instance
+ *
+ * \param instance The RTP instance
+ *
+ * \retval pointer to the engine
+ *
+ * Example usage:
+ *
+ * \code
+ * struct ast_rtp_engine *engine = ast_rtp_instance_get_engine(instance);
+ * \endcode
+ *
+ * This gets the RTP engine currently in use on the RTP instance pointed to by 'instance'.
+ *
+ * \since 1.6.3
+ */
+struct ast_rtp_engine *ast_rtp_instance_get_engine(struct ast_rtp_instance *instance);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
