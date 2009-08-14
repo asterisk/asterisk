@@ -148,6 +148,9 @@ static int parse_curlopt_key(const char *name, CURLoption *key, enum optiontype 
 	} else if (!strcasecmp(name, "ftptext")) {
 		*key = CURLOPT_TRANSFERTEXT;
 		*ot = OT_BOOLEAN;
+	} else if (!strcasecmp(name, "ssl_verifypeer")) {
+		*key = CURLOPT_SSL_VERIFYPEER;
+		*ot = OT_BOOLEAN;
 	} else if (!strcasecmp(name, "hashcompat")) {
 		*key = CURLOPT_SPECIAL_HASHCOMPAT;
 		*ot = OT_BOOLEAN;
@@ -585,22 +588,23 @@ static struct ast_custom_function acf_curlopt = {
 	.synopsis = "Set options for use with the CURL() function",
 	.syntax = "CURLOPT(<option>)",
 	.desc =
-"  cookie       - Send cookie with request\n"
-"  conntimeout  - Number of seconds to wait for connection\n"
-"  dnstimeout   - Number of seconds to wait for DNS response\n"
-"  ftptext      - For FTP, force a text transfer (boolean)\n"
-"  ftptimeout   - For FTP, the server response timeout\n"
-"  header       - Retrieve header information (boolean)\n"
-"  httptimeout  - Number of seconds to wait for HTTP response\n"
-"  maxredirs    - Maximum number of redirects to follow\n"
-"  proxy        - Hostname or IP to use as a proxy\n"
-"  proxytype    - http, socks4, or socks5\n"
-"  proxyport    - port number of the proxy\n"
-"  proxyuserpwd - A <user>:<pass> to use for authentication\n"
-"  referer      - Referer URL to use for the request\n"
-"  useragent    - UserAgent string to use\n"
-"  userpwd      - A <user>:<pass> to use for authentication\n"
-"  hashcompat   - Result data will be compatible for use with HASH()\n"
+"  cookie         - Send cookie with request [none]\n"
+"  conntimeout    - Number of seconds to wait for connection\n"
+"  dnstimeout     - Number of seconds to wait for DNS response\n"
+"  ftptext        - For FTP, force a text transfer (boolean)\n"
+"  ftptimeout     - For FTP, the server response timeout\n"
+"  header         - Retrieve header information (boolean)\n"
+"  httptimeout    - Number of seconds to wait for HTTP response\n"
+"  maxredirs      - Maximum number of redirects to follow\n"
+"  proxy          - Hostname or IP to use as a proxy\n"
+"  proxytype      - http, socks4, or socks5\n"
+"  proxyport      - port number of the proxy\n"
+"  proxyuserpwd   - A <user>:<pass> to use for authentication\n"
+"  referer        - Referer URL to use for the request\n"
+"  useragent      - UserAgent string to use\n"
+"  userpwd        - A <user>:<pass> to use for authentication\n"
+"  ssl_verifypeer - Whether to verify the peer certificate (boolean)\n"
+"  hashcompat     - Result data will be compatible for use with HASH()\n"
 "",
 	.read = acf_curlopt_read,
 	.read2 = acf_curlopt_read2,
