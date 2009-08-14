@@ -716,6 +716,47 @@ static void analog_set_ringtimeout(struct analog_pvt *p, int ringt)
 	p->calls->set_ringtimeout(p->chan_pvt, ringt);
 }
 
+static void analog_set_waitingfordt(struct analog_pvt *p, struct ast_channel *ast)
+{
+	if (p->calls->set_waitingfordt) {
+		return p->calls->set_waitingfordt(p->chan_pvt, ast);
+	}
+}
+
+static int analog_check_waitingfordt(struct analog_pvt *p)
+{
+	if (p->calls->check_waitingfordt) {
+		return p->calls->check_waitingfordt(p->chan_pvt);
+	}
+
+	return 0;
+}
+
+static void analog_set_confirmanswer(struct analog_pvt *p, int flag)
+{
+	if (!p->calls->set_confirmanswer) {
+		return;
+	}
+	p->calls->set_confirmanswer(p->chan_pvt, flag);
+}
+
+static int analog_check_confirmanswer(struct analog_pvt *p)
+{
+	if (p->calls->check_confirmanswer) {
+		return p->calls->check_confirmanswer(p->chan_pvt);
+	}
+
+	return 0;
+}
+
+static int analog_set_linear_mode(struct analog_pvt *p, int index, int linear_mode)
+{
+	if (p->calls->set_linear_mode) {
+		return p->calls->set_linear_mode(p->chan_pvt, index, linear_mode);
+	} else
+		return -1;
+}
+
 int analog_call(struct analog_pvt *p, struct ast_channel *ast, char *rdest, int timeout)
 {
 	int res, index,mysig;
@@ -923,6 +964,7 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, char *rdest, int 
 			p->dop.dialstr[strlen(p->dop.dialstr)-2] = '\0';
 		} else
 			p->echobreak = 0;
+		analog_set_waitingfordt(p, ast);
 		if (!res) {
 			if (analog_dial_digits(p, ANALOG_SUB_REAL, &p->dop)) {
 				int saveerr = errno;
@@ -977,8 +1019,8 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 	if (index > -1) {
 		/* Real channel, do some fixup */
 		p->subs[index].owner = NULL;
-		p->subs[index].needcallerid = 0;
 		p->polarity = POLARITY_IDLE;
+		analog_set_linear_mode(p, index, 0);
 		if (index == ANALOG_SUB_REAL) {
 			if (p->subs[ANALOG_SUB_CALLWAIT].allocd && p->subs[ANALOG_SUB_THREEWAY].allocd) {
 				ast_debug(1, "Normal call hung up with both three way call and a call waiting call in place?\n");
@@ -1070,6 +1112,7 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 	if (!p->subs[ANALOG_SUB_REAL].owner && !p->subs[ANALOG_SUB_CALLWAIT].owner && !p->subs[ANALOG_SUB_THREEWAY].owner) {
 		p->owner = NULL;
 		analog_set_ringtimeout(p, 0);
+		analog_set_confirmanswer(p, 0);
 		p->outgoing = 0;
 		p->onhooktime = time(NULL);
 		p->cidrings = 1;
@@ -1217,6 +1260,16 @@ void analog_handle_dtmfup(struct analog_pvt *p, struct ast_channel *ast, enum an
 {
 	struct ast_frame *f = *dest;
 
+	if (analog_check_confirmanswer(p)) {
+		ast_debug(1, "Confirm answer on %s!\n", ast->name);
+		/* Upon receiving a DTMF digit, consider this an answer confirmation instead
+		of a DTMF digit */
+		p->subs[index].f.frametype = AST_FRAME_CONTROL;
+		p->subs[index].f.subclass = AST_CONTROL_ANSWER;
+		*dest = &p->subs[index].f;
+		/* Reset confirmanswer so DTMF's will behave properly for the duration of the call */
+		analog_set_confirmanswer(p, 0);
+	}
 	if (p->callwaitcas) {
 		if ((f->subclass == 'A') || (f->subclass == 'D')) {
 			ast_log(LOG_ERROR, "Got some DTMF, but it's for the CAS\n");
@@ -1288,14 +1341,6 @@ static int analog_distinctive_ring(struct ast_channel *chan, struct analog_pvt *
 	} else
 		return -1;
 
-}
-
-static int analog_set_linear_mode(struct analog_pvt *p, int index, int linear_mode)
-{
-	if (p->calls->set_linear_mode) {
-		return p->calls->set_linear_mode(p->chan_pvt, index, linear_mode);
-	} else
-		return -1;
 }
 
 static void analog_get_and_handle_alarms(struct analog_pvt *p)
@@ -2204,7 +2249,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 					}
 				}
 				if (ast->_state == AST_STATE_DIALING) {
-					if ((!p->dialednone && ((mysig == ANALOG_SIG_EM) || (mysig == ANALOG_SIG_EM_E1) ||  (mysig == ANALOG_SIG_EMWINK) || (mysig == ANALOG_SIG_FEATD) || (mysig == ANALOG_SIG_FEATDMF_TA) || (mysig == ANALOG_SIG_FEATDMF) || (mysig == ANALOG_SIG_E911) || (mysig == ANALOG_SIG_FGC_CAMA) || (mysig == ANALOG_SIG_FGC_CAMAMF) || (mysig == ANALOG_SIG_FEATB) || (mysig == ANALOG_SIG_SF) || (mysig == ANALOG_SIG_SFWINK) || (mysig == ANALOG_SIG_SF_FEATD) || (mysig == ANALOG_SIG_SF_FEATDMF) || (mysig == ANALOG_SIG_SF_FEATB)))) {
+					if (analog_check_confirmanswer(p) || (!p->dialednone && ((mysig == ANALOG_SIG_EM) || (mysig == ANALOG_SIG_EM_E1) ||  (mysig == ANALOG_SIG_EMWINK) || (mysig == ANALOG_SIG_FEATD) || (mysig == ANALOG_SIG_FEATDMF_TA) || (mysig == ANALOG_SIG_FEATDMF) || (mysig == ANALOG_SIG_E911) || (mysig == ANALOG_SIG_FGC_CAMA) || (mysig == ANALOG_SIG_FGC_CAMAMF) || (mysig == ANALOG_SIG_FEATB) || (mysig == ANALOG_SIG_SF) || (mysig == ANALOG_SIG_SFWINK) || (mysig == ANALOG_SIG_SF_FEATD) || (mysig == ANALOG_SIG_SF_FEATDMF) || (mysig == ANALOG_SIG_SF_FEATB)))) {
 						ast_setstate(ast, AST_STATE_RINGING);
 					} else if (!p->answeronpolarityswitch) {
 						ast_setstate(ast, AST_STATE_UP);
@@ -2375,7 +2420,11 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 				ast_debug(1, "channel %d answered\n", p->channel);
 				analog_set_dialing(p, 0);
 				p->callwaitcas = 0;
-				if (!ast_strlen_zero(p->dop.dialstr)) {
+				if (analog_check_confirmanswer(p)) {
+					/* Ignore answer if "confirm answer" is enabled */
+					p->subs[index].f.frametype = AST_FRAME_NULL;
+					p->subs[index].f.subclass = 0;
+				} else if (!ast_strlen_zero(p->dop.dialstr)) {
 					/* nick@dccinc.com 4/3/03 - fxo should be able to do deferred dialing */
 					res = analog_dial_digits(p, ANALOG_SUB_REAL, &p->dop);
 					if (res < 0) {
@@ -2449,9 +2498,14 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 				p->subs[index].f.subclass = AST_CONTROL_RING;
 			} else if (p->outgoing && ((ast->_state == AST_STATE_RINGING) || (ast->_state == AST_STATE_DIALING))) {
 				ast_debug(1, "Line answered\n");
-				p->subs[index].f.frametype = AST_FRAME_CONTROL;
-				p->subs[index].f.subclass = AST_CONTROL_ANSWER;
-				ast_setstate(ast, AST_STATE_UP);
+				if (analog_check_confirmanswer(p)) {
+					p->subs[index].f.frametype = AST_FRAME_NULL;
+					p->subs[index].f.subclass = 0;
+				} else {
+					p->subs[index].f.frametype = AST_FRAME_CONTROL;
+					p->subs[index].f.subclass = AST_CONTROL_ANSWER;
+					ast_setstate(ast, AST_STATE_UP);
+				}
 			} else if (ast->_state != AST_STATE_RING)
 				ast_log(LOG_WARNING, "Ring/Off-hook in strange state %d on channel %d\n", ast->_state, p->channel);
 			break;
@@ -2734,6 +2788,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		break;
 	case ANALOG_EVENT_HOOKCOMPLETE:
 		if (p->inalarm) break;
+		if (analog_check_waitingfordt(p)) break;
 		switch (mysig) {
 		case ANALOG_SIG_FXSLS:  /* only interesting for FXS */
 		case ANALOG_SIG_FXSGS:

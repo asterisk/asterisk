@@ -2055,6 +2055,44 @@ static void my_set_ringtimeout(void *pvt, int ringt)
 	p->ringt = ringt;
 }
 
+static void my_set_waitingfordt(void *pvt, struct ast_channel *ast)
+{
+	struct dahdi_pvt *p = pvt;
+
+	if (p->waitfordialtone && CANPROGRESSDETECT(p) && p->dsp) {
+		ast_log(LOG_DEBUG, "Defer dialing for %dms or dialtone\n", p->waitfordialtone);
+		gettimeofday(&p->waitingfordt, NULL);
+		ast_setstate(ast, AST_STATE_OFFHOOK);
+	}
+}
+
+static int my_check_waitingfordt(void *pvt)
+{
+	struct dahdi_pvt *p = pvt;
+
+	if (p->waitingfordt.tv_usec) {
+		return 1;
+	}
+
+	return 0;
+}
+
+static void my_set_confirmanswer(void *pvt, int flag)
+{
+	struct dahdi_pvt *p = pvt;
+	p->confirmanswer = flag;
+}
+
+static int my_check_confirmanswer(void *pvt)
+{
+	struct dahdi_pvt *p = pvt;
+	if (p->confirmanswer) {
+		return 1;
+	}
+
+	return 0;
+}
+
 static void my_increase_ss_count(void)
 {
 	ast_mutex_lock(&ss_thread_lock);
@@ -2201,9 +2239,9 @@ static void my_swap_subchannels(void *pvt, enum analog_sub a, struct ast_channel
 	p->subs[db].chan = tchan;
 
 	if (ast_a)
-		ast_a->fds[0] = p->subs[da].dfd;
+		ast_channel_set_fd(ast_a, 0, p->subs[da].dfd);
 	if (ast_b)
-		ast_b->fds[0] = p->subs[db].dfd;
+		ast_channel_set_fd(ast_b, 0, p->subs[db].dfd);
 
 	p->subs[da].owner = ast_a;
 	p->subs[db].owner = ast_b;
@@ -2779,6 +2817,10 @@ static struct analog_callback dahdi_analog_callbacks =
 	.set_cadence = my_set_cadence,
 	.set_dialing = my_set_dialing,
 	.set_ringtimeout = my_set_ringtimeout,
+	.set_waitingfordt = my_set_waitingfordt,
+	.check_waitingfordt = my_check_waitingfordt,
+	.set_confirmanswer = my_set_confirmanswer,
+	.check_confirmanswer = my_check_confirmanswer,
 };
 
 static struct dahdi_pvt *round_robin[32];
@@ -4994,6 +5036,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 		dahdi_confmute(p, 0);
 		restore_gains(p);
 		p->ignoredtmf = 0;
+		p->waitingfordt.tv_sec = 0;
 
 		res = analog_hangup(p->sig_pvt, ast);
 		revert_fax_buffers(p, ast);

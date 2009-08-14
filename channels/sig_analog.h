@@ -194,6 +194,10 @@ struct analog_callback {
 	void (* const set_cadence)(void *pvt, int *cidrings, struct ast_channel *chan);
 	void (* const set_dialing)(void *pvt, int flag);
 	void (* const set_ringtimeout)(void *pvt, int ringt);
+	void (* const set_waitingfordt)(void *pvt, struct ast_channel *ast);
+	int (* const check_waitingfordt)(void *pvt);
+	void (* const set_confirmanswer)(void *pvt, int flag);
+	int (* const check_confirmanswer)(void *pvt);
 };
 
 
@@ -203,7 +207,6 @@ struct analog_callback {
 struct analog_subchannel {
 	struct ast_channel *owner;
 	struct ast_frame f;		/*!< One frame for each channel.  How did this ever work before? */
-	unsigned int needcallerid:1;
 	unsigned int inthreeway:1;
 	/* Have we allocated a subchannel yet or not */
 	unsigned int allocd:1;
@@ -292,7 +295,7 @@ struct analog_pvt {
 	char call_forward[AST_MAX_EXTENSION];
 
 	/* Ast channel to pass to __ss_analog_thread */
-	void *ss_astchan;
+	struct ast_channel *ss_astchan;
 
 	/* All variables after this are definitely going to be audited */
 	unsigned int inalarm:1;
