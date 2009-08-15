@@ -1611,6 +1611,7 @@ static void xmldoc_parse_optionlist(struct ast_xml_node *fixnode, const char *ta
 		if (!xmldoc_parse_option(node, tabs, buffer)) {
 			ast_str_append(buffer, 0, "\n");
 		}
+		ast_str_append(buffer, 0, "\n");
 		ast_xml_free_attr(optname);
 		ast_xml_free_attr(hasparams);
 	}
