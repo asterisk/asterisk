@@ -637,8 +637,8 @@ static int calendar_event_notify(const void *data)
 	}
 
 	snprintf(busystate, sizeof(busystate), "%d", event->busy_state);
-	snprintf(start, sizeof(start), "%lu", event->start);
-	snprintf(end, sizeof(end), "%lu", event->end);
+	snprintf(start, sizeof(start), "%lu", (long) event->start);
+	snprintf(end, sizeof(end), "%lu", (long) event->end);
 
 	chan->nativeformats = AST_FORMAT_SLINEAR;
 
@@ -762,7 +762,7 @@ static int schedule_calendar_event(struct ast_calendar *cal, struct ast_calendar
 			ast_mutex_lock(&refreshlock);
 			AST_SCHED_REPLACE(old_event->notify_sched, sched, alarm_notify_sched, calendar_event_notify, old_event);
 			ast_mutex_unlock(&refreshlock);
-			ast_debug(3, "Calendar alarm event notification scheduled to happen in %ld ms\n", alarm_notify_sched);
+			ast_debug(3, "Calendar alarm event notification scheduled to happen in %ld ms\n", (long) alarm_notify_sched);
 		}
 	}
 
@@ -777,7 +777,7 @@ static int schedule_calendar_event(struct ast_calendar *cal, struct ast_calendar
 		ast_mutex_lock(&refreshlock);
 		AST_SCHED_REPLACE(old_event->bs_start_sched, sched, devstate_sched_start, calendar_devstate_change, old_event);
 		ast_mutex_unlock(&refreshlock);
-		ast_debug(3, "Calendar bs_start event notification scheduled to happen in %ld ms\n", devstate_sched_start);
+		ast_debug(3, "Calendar bs_start event notification scheduled to happen in %ld ms\n", (long) devstate_sched_start);
 	}
 
 	if (!cmp_event || old_event->end != event->end) {
@@ -786,7 +786,7 @@ static int schedule_calendar_event(struct ast_calendar *cal, struct ast_calendar
 		ast_mutex_lock(&refreshlock);
 		AST_SCHED_REPLACE(old_event->bs_end_sched, sched, devstate_sched_end, calendar_devstate_change, old_event);
 		ast_mutex_unlock(&refreshlock);
-		ast_debug(3, "Calendar bs_end event notification scheduled to happen in %ld ms\n", devstate_sched_end);
+		ast_debug(3, "Calendar bs_end event notification scheduled to happen in %ld ms\n", (long) devstate_sched_end);
 	}
 
 	if (changed) {
@@ -1040,7 +1040,7 @@ static int calendar_query_exec(struct ast_channel *chan, const char *cmd, char *
 	i = ao2_iterator_init(cal->events, 0);
 	while ((event = ao2_iterator_next(&i))) {
 		if (!(start > event->end || end < event->start)) {
-			ast_debug(10, "%s (%ld - %ld) overlapped with (%ld - %ld)\n", event->summary, event->start, event->end, start, end);
+			ast_debug(10, "%s (%ld - %ld) overlapped with (%ld - %ld)\n", event->summary, (long) event->start, (long) event->end, (long) start, (long) end);
 			if (add_event_to_list(events, event, start, end) < 0) {
 				event = ast_calendar_unref_event(event);
 				return -1;
@@ -1152,9 +1152,9 @@ static int calendar_query_result_exec(struct ast_channel *chan, const char *cmd,
 		} else if (!strcasecmp(args.field, "uid")) {
 			ast_copy_string(buf, entry->event->uid, len);
 		} else if (!strcasecmp(args.field, "start")) {
-			snprintf(buf, len, "%ld", entry->event->start);
+			snprintf(buf, len, "%ld", (long) entry->event->start);
 		} else if (!strcasecmp(args.field, "end")) {
-			snprintf(buf, len, "%ld", entry->event->end);
+			snprintf(buf, len, "%ld", (long) entry->event->end);
 		} else if (!strcasecmp(args.field, "busystate")) {
 			snprintf(buf, len, "%d", entry->event->busy_state);
 		} else if (!strcasecmp(args.field, "attendees")) {
