@@ -1658,6 +1658,46 @@ int ast_rtp_instance_get_hold_timeout(struct ast_rtp_instance *instance);
  */
 struct ast_rtp_engine *ast_rtp_instance_get_engine(struct ast_rtp_instance *instance);
 
+/*!
+ * \brief Get the RTP glue in use on an RTP instance
+ *
+ * \param instance The RTP instance
+ *
+ * \retval pointer to the glue
+ *
+ * Example:
+ *
+ * \code
+ * struct ast_rtp_glue *glue = ast_rtp_instance_get_active_glue(instance);
+ * \endcode
+ *
+ * This gets the RTP glue currently in use on the RTP instance pointed to by 'instance'.
+ *
+ * \since 1.6.3
+ */
+struct ast_rtp_glue *ast_rtp_instance_get_active_glue(struct ast_rtp_instance *instance);
+
+/*!
+ * \brief Get the channel that is associated with an RTP instance while in a bridge
+ *
+ * \param instance The RTP instance
+ *
+ * \retval pointer to the channel
+ *
+ * Example:
+ *
+ * \code
+ * struct ast_channel *chan = ast_rtp_instance_get_chan(instance);
+ * \endcode
+ *
+ * This gets the channel associated with the RTP instance pointed to by 'instance'.
+ *
+ * \note This will only return a channel while in a local or remote bridge.
+ *
+ * \since 1.6.3
+ */
+struct ast_channel *ast_rtp_instance_get_chan(struct ast_rtp_instance *instance);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

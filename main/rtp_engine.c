@@ -63,6 +63,10 @@ struct ast_rtp_instance {
 	int holdtimeout;
 	/*! DTMF mode in use */
 	enum ast_rtp_dtmf_mode dtmf_mode;
+	/*! Glue currently in use */
+	struct ast_rtp_glue *glue;
+	/*! Channel associated with the instance */
+	struct ast_channel *chan;
 };
 
 /*! List of RTP engines that are currently registered */
@@ -1233,6 +1237,11 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
 		goto done;
 	}
 
+	instance0->glue = glue0;
+	instance1->glue = glue1;
+	instance0->chan = c0;
+	instance1->chan = c1;
+
 	/* Depending on the end result for bridging either do a local bridge or remote bridge */
 	if (audio_glue0_res == AST_RTP_GLUE_RESULT_LOCAL || audio_glue1_res == AST_RTP_GLUE_RESULT_LOCAL) {
 		ast_verbose(VERBOSE_PREFIX_3 "Locally bridging %s and %s\n", c0->name, c1->name);
@@ -1243,6 +1252,11 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
 				tinstance0, tinstance1, glue0, glue1, codec0, codec1, timeoutms, flags,
 				fo, rc, c0->tech_pvt, c1->tech_pvt);
 	}
+
+	instance0->glue = NULL;
+	instance1->glue = NULL;
+	instance0->chan = NULL;
+	instance1->chan = NULL;
 
 	unlock_chans = 0;
 
@@ -1619,4 +1633,14 @@ int ast_rtp_instance_get_hold_timeout(struct ast_rtp_instance *instance)
 struct ast_rtp_engine *ast_rtp_instance_get_engine(struct ast_rtp_instance *instance)
 {
 	return instance->engine;
+}
+
+struct ast_rtp_glue *ast_rtp_instance_get_active_glue(struct ast_rtp_instance *instance)
+{
+	return instance->glue;
+}
+
+struct ast_channel *ast_rtp_instance_get_chan(struct ast_rtp_instance *instance)
+{
+	return instance->chan;
 }
