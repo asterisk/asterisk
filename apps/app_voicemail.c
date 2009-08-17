@@ -3576,7 +3576,10 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 	 * doing a stat repeatedly on a predicted sequence.  I suspect this
 	 * is partially due to stat(2) internally doing a readdir(2) itself to
 	 * find each file. */
-	msgdir = opendir(dir);
+	if (!(msgdir = opendir(dir))) {
+		return -1;
+	}
+
 	while ((msgdirent = readdir(msgdir))) {
 		if (sscanf(msgdirent->d_name, "msg%30d", &msgdirint) == 1 && msgdirint < MAXMSGLIMIT)
 			map[msgdirint] = 1;
