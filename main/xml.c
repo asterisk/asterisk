@@ -27,9 +27,6 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #if defined(HAVE_LIBXML2)
-#ifndef _POSIX_C_SOURCE	/* Needed on Mac OS X */
-#define _POSIX_C_SOURCE 200112L
-#endif
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xinclude.h>

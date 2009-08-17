@@ -20,6 +20,18 @@
 
 #include "asterisk/autoconfig.h"
 
+#define _POSIX_C_SOURCE 200112L
+#define _XOPEN_SOURCE 600
+
+#include <unistd.h>
+
+#if _POSIX_VERSION < 200112L
+#error System does not support POSIX version 200112.
+#endif
+#if _XOPEN_VERSION < 600
+#error System does not support XOPEN version 600.
+#endif
+
 #if !defined(NO_MALLOC_DEBUG) && !defined(STANDALONE) && defined(MALLOC_DEBUG)
 #include "asterisk/astmm.h"
 #endif
@@ -49,17 +61,16 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
-#include <unistd.h>
 #include <fcntl.h>
 
 #define	open(a,...)	__ast_fdleak_open(__FILE__,__LINE__,__PRETTY_FUNCTION__, a, __VA_ARGS__)
-#define pipe(a)	__ast_fdleak_pipe(a, __FILE__,__LINE__,__PRETTY_FUNCTION__)
+#define pipe(a)		__ast_fdleak_pipe(a, __FILE__,__LINE__,__PRETTY_FUNCTION__)
 #define socket(a,b,c)	__ast_fdleak_socket(a, b, c, __FILE__,__LINE__,__PRETTY_FUNCTION__)
 #define close(a)	__ast_fdleak_close(a)
 #define	fopen(a,b)	__ast_fdleak_fopen(a, b, __FILE__,__LINE__,__PRETTY_FUNCTION__)
 #define	fclose(a)	__ast_fdleak_fclose(a)
 #define	dup2(a,b)	__ast_fdleak_dup2(a, b, __FILE__,__LINE__,__PRETTY_FUNCTION__)
-#define dup(a)	__ast_fdleak_dup(a, __FILE__,__LINE__,__PRETTY_FUNCTION__)
+#define dup(a)		__ast_fdleak_dup(a, __FILE__,__LINE__,__PRETTY_FUNCTION__)
 
 int __ast_fdleak_open(const char *file, int line, const char *func, const char *path, int flags, ...);
 int __ast_fdleak_pipe(int *fds, const char *file, int line, const char *func);
