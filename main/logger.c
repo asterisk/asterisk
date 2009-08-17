@@ -539,7 +539,7 @@ static int rotate_file(const char *filename)
 		char buf[512];
 		pbx_builtin_setvar_helper(c, "filename", filename);
 		pbx_substitute_variables_helper(c, exec_after_rotate, buf, sizeof(buf));
-		if (ast_safe_system(buf) != -1) {
+		if (ast_safe_system(buf) == -1) {
 			ast_log(LOG_WARNING, "error executing '%s'\n", buf);
 		}
 		c = ast_channel_release(c);
