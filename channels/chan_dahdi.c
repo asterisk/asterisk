@@ -8333,7 +8333,7 @@ static void *analog_ss_thread(void *data)
 	int counter;
 	int samples = 0;
 	struct ast_smdi_md_message *smdi_msg = NULL;
-	int flags;
+	int flags = 0;
 	int i;
 	int timeout;
 	int getforward = 0;

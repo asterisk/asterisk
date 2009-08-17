@@ -1418,7 +1418,7 @@ static void *__analog_ss_thread(void *data)
 	char numbuf[ANALOG_MAX_CID];
 	struct callerid_state *cs = NULL;
 	char *name = NULL, *number = NULL;
-	int flags;
+	int flags = 0;
 	int timeout;
 	int getforward = 0;
 	char *s1, *s2;
