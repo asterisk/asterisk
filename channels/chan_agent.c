@@ -1925,7 +1925,7 @@ static int login_exec(struct ast_channel *chan, const char *data)
 				} else {
 					p->wrapuptime = wrapuptime;
 				}
-				tmpoptions = pbx_builtin_getvar_helper(chan, "AGENTACCEPTDMTF");
+				tmpoptions = pbx_builtin_getvar_helper(chan, "AGENTACCEPTDTMF");
 				if (!ast_strlen_zero(tmpoptions)) {
 					p->acceptdtmf = *tmpoptions;
 					ast_verb(3, "Saw variable AGENTACCEPTDTMF=%s, setting acceptdtmf to: %c for Agent '%s'.\n", tmpoptions, p->acceptdtmf, p->agent);
