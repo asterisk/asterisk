@@ -207,7 +207,7 @@ static struct tables *find_table(const char *database, const char *tablename)
 	}
 
 	if (mysql_real_query(&dbh->handle, ast_str_buffer(sql), ast_str_strlen(sql))) {
-		ast_log(LOG_ERROR, "Failed to query database columns: %s\n", mysql_error(&dbh->handle));
+		ast_log(LOG_ERROR, "Failed to query database '%s', table '%s' columns: %s\n", database, tablename, mysql_error(&dbh->handle));
 		release_database(dbh);
 		AST_LIST_UNLOCK(&mysql_tables);
 		return NULL;
@@ -237,7 +237,7 @@ static struct tables *find_table(const char *database, const char *tablename)
 			}
 
 			if (!(column = ast_calloc(1, sizeof(*column) + strlen(fname) + strlen(ftype) + strlen(fdflt) + 3))) {
-				ast_log(LOG_ERROR, "Unable to allocate column element for %s, %s\n", tablename, fname);
+				ast_log(LOG_ERROR, "Unable to allocate column element %s for %s\n", fname, tablename);
 				destroy_table(table);
 				release_database(dbh);
 				AST_LIST_UNLOCK(&mysql_tables);
@@ -306,7 +306,7 @@ static struct ast_variable *realtime_mysql(const char *database, const char *tab
 	struct ast_variable *var=NULL, *prev=NULL;
 
 	if (!(dbh = find_database(database, 0))) {
-		ast_log(LOG_WARNING, "MySQL RealTime: Invalid database specified: %s\n", database);
+		ast_log(LOG_WARNING, "MySQL RealTime: Invalid database specified: %s (check res_mysql.conf)\n", database);
 		return NULL;
 	}
 
@@ -412,7 +412,7 @@ static struct ast_config *realtime_multi_mysql(const char *database, const char 
 	struct ast_category *cat = NULL;
 
 	if (!(dbh = find_database(database, 0))) {
-		ast_log(LOG_WARNING, "MySQL RealTime: Invalid database specified: '%s'\n", database);
+		ast_log(LOG_WARNING, "MySQL RealTime: Invalid database specified: '%s' (check res_mysql.conf)\n", database);
 		return NULL;
 	}
 
@@ -531,7 +531,7 @@ static int update_mysql(const char *database, const char *tablename, const char 
 	struct columns *column = NULL;
 
 	if (!(dbh = find_database(database, 1))) {
-		ast_log(LOG_WARNING, "MySQL RealTime: Invalid database specified: '%s'.\n", database);
+		ast_log(LOG_WARNING, "MySQL RealTime: Invalid database specified: '%s' (check res_mysql.conf)\n", database);
 		return -1;
 	}
 		
@@ -548,7 +548,7 @@ static int update_mysql(const char *database, const char *tablename, const char 
 	}
 
 	if (!(column = find_column(table, keyfield))) {
-		ast_log(LOG_ERROR, "MySQL RealTime: Updating on column '%s', but that column does not exist within the table '%s'!\n", keyfield, tablename);
+		ast_log(LOG_ERROR, "MySQL RealTime: Updating on column '%s', but that column does not exist within the table '%s' (db '%s')!\n", keyfield, tablename, database);
 		release_table(table);
 		release_database(dbh);
 		return -1;
@@ -558,7 +558,7 @@ static int update_mysql(const char *database, const char *tablename, const char 
 	newparam = va_arg(ap, const char *);
 	newval = va_arg(ap, const char *);
 	if (!newparam || !newval)  {
-		ast_log(LOG_WARNING, "MySQL RealTime: Realtime retrieval requires at least 1 parameter and 1 value to search on.\n");
+		ast_log(LOG_WARNING, "MySQL RealTime: Realtime update requires at least 1 parameter and 1 value to update.\n");
 		release_table(table);
 		release_database(dbh);
 		return -1;
@@ -566,7 +566,7 @@ static int update_mysql(const char *database, const char *tablename, const char 
 
 	/* Check that the column exists in the table */
 	if (!(column = find_column(table, newparam))) {
-		ast_log(LOG_ERROR, "MySQL RealTime: Updating on column '%s', but that column does not exist within the table '%s'!\n", newparam, tablename);
+		ast_log(LOG_ERROR, "MySQL RealTime: Updating column '%s', but that column does not exist within the table '%s' (first pair MUST exist)!\n", newparam, tablename);
 		release_table(table);
 		release_database(dbh);
 		return -1;
@@ -616,7 +616,7 @@ static int update_mysql(const char *database, const char *tablename, const char 
 
 	/* Execution. */
 	if (mysql_real_query(&dbh->handle, ast_str_buffer(sql), ast_str_strlen(sql))) {
-		ast_log(LOG_WARNING, "MySQL RealTime: Failed to query database: %s\n", mysql_error(&dbh->handle));
+		ast_log(LOG_WARNING, "MySQL RealTime: Failed to update database: %s\n", mysql_error(&dbh->handle));
 		release_table(table);
 		release_database(dbh);
 		return -1;
@@ -736,7 +736,7 @@ static int update2_mysql(const char *database, const char *tablename, va_list ap
 
 	/* Execution. */
 	if (mysql_real_query(&dbh->handle, ast_str_buffer(sql), ast_str_strlen(sql))) {
-		ast_log(LOG_WARNING, "MySQL RealTime: Failed to query database: %s\n", mysql_error(&dbh->handle));
+		ast_log(LOG_WARNING, "MySQL RealTime: Failed to update database: %s\n", mysql_error(&dbh->handle));
 		release_table(table);
 		release_database(dbh);
 		return -1;
@@ -767,7 +767,7 @@ static int store_mysql(const char *database, const char *table, va_list ap)
 	const char *newparam, *newval;
 
 	if (!(dbh = find_database(database, 1))) {
-		ast_log(LOG_WARNING, "MySQL RealTime: Invalid database specified: '%s'.\n", database);
+		ast_log(LOG_WARNING, "MySQL RealTime: Invalid database specified: '%s' (check res_mysql.conf)\n", database);
 		return -1;
 	}
 
@@ -815,7 +815,7 @@ static int store_mysql(const char *database, const char *table, va_list ap)
 
 	/* Execution. */
 	if (mysql_real_query(&dbh->handle, ast_str_buffer(sql), ast_str_strlen(sql))) {
-		ast_log(LOG_WARNING, "MySQL RealTime: Failed to query database: %s\n", mysql_error(&dbh->handle));
+		ast_log(LOG_WARNING, "MySQL RealTime: Failed to insert into database: %s\n", mysql_error(&dbh->handle));
 		release_database(dbh);
 		return -1;
 	}
@@ -844,7 +844,7 @@ static int destroy_mysql(const char *database, const char *table, const char *ke
 	const char *newparam, *newval;
 
 	if (!(dbh = find_database(database, 1))) {
-		ast_log(LOG_WARNING, "MySQL RealTime: Invalid database specified: '%s'.\n", database);
+		ast_log(LOG_WARNING, "MySQL RealTime: Invalid database specified: '%s' (check res_mysql.conf)\n", database);
 		return -1;
 	}
 
@@ -884,7 +884,7 @@ static int destroy_mysql(const char *database, const char *table, const char *ke
 
 	/* Execution. */
 	if (mysql_real_query(&dbh->handle, ast_str_buffer(sql), ast_str_strlen(sql))) {
-		ast_log(LOG_WARNING, "MySQL RealTime: Failed to query database: %s\n", mysql_error(&dbh->handle));
+		ast_log(LOG_WARNING, "MySQL RealTime: Failed to delete from database: %s\n", mysql_error(&dbh->handle));
 		release_database(dbh);
 		return -1;
 	}
@@ -923,7 +923,7 @@ static struct ast_config *config_mysql(const char *database, const char *table, 
 	}
 
 	if (!(dbh = find_database(database, 0))) {
-		ast_log(LOG_WARNING, "MySQL RealTime: Invalid database specified: '%s'\n", database);
+		ast_log(LOG_WARNING, "MySQL RealTime: Invalid database specified: '%s' (check res_mysql.conf)\n", database);
 		return NULL;
 	}
 
@@ -1071,7 +1071,7 @@ static int modify_mysql(const char *database, const char *tablename, struct colu
 
 		/* Execution. */
 		if (mysql_real_query(&dbh->handle, ast_str_buffer(sql), ast_str_strlen(sql))) {
-			ast_log(LOG_WARNING, "MySQL RealTime: Failed to query database: %s\n", mysql_error(&dbh->handle));
+			ast_log(LOG_WARNING, "MySQL RealTime: Failed to modify database: %s\n", mysql_error(&dbh->handle));
 			ast_debug(1, "MySQL RealTime: Query: %s\n", ast_str_buffer(sql));
 			res = -1;
 		}
