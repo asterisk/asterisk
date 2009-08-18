@@ -653,7 +653,7 @@ static int earlyalert;
 static int endalert;
 static int extendby;
 
-/* Log participant count to the RealTime backend */
+/*! Log participant count to the RealTime backend */
 static int rt_log_members;
 
 #define MAX_CONFNUM 80
@@ -734,9 +734,9 @@ struct ast_conf_user {
 	int adminflags;                         /*!< Flags set by the Admin */
 	struct ast_channel *chan;               /*!< Connected channel */
 	int talking;                            /*!< Is user talking */
-	int dahdichannel;                         /*!< Is a DAHDI channel */
+	int dahdichannel;                       /*!< Is a DAHDI channel */
 	char usrvalue[50];                      /*!< Custom User Value */
-	char namerecloc[PATH_MAX];				/*!< Name Recorded file Location */
+	char namerecloc[PATH_MAX];		/*!< Name Recorded file Location */
 	time_t jointime;                        /*!< Time the user joined the conference */
  	time_t kicktime;                        /*!< Time the user will be kicked from the conference */
  	struct timeval start_time;              /*!< Time the user entered into the conference */
@@ -925,13 +925,13 @@ static struct {
 	.thread = AST_PTHREADT_NULL,
 };
 
-/*! The number of audio buffers to be allocated on pseudo channels
+/*! \brief The number of audio buffers to be allocated on pseudo channels
  *  when in a conference */
 static int audio_buffers;
 
-/*! Map 'volume' levels from -5 through +5 into
+/*!  \briefMap 'volume' levels from -5 through +5 into
  *  decibel (dB) settings for channel drivers
- *  Note: these are not a straight linear-to-dB
+ *  \note these are not a straight linear-to-dB
  *  conversion... the numbers have been modified
  *  to give the user a better level of adjustability
  */
@@ -1716,7 +1716,8 @@ static void conf_flush(int fd, struct ast_channel *chan)
 
 }
 
-/* Remove the conference from the list and free it.
+/*! \brief Remove the conference from the list and free it.
+
    We assume that this was called while holding conflock. */
 static int conf_free(struct ast_conference *conf)
 {
@@ -1865,7 +1866,7 @@ static void sla_queue_event_conf(enum sla_event_type type, struct ast_channel *c
 	sla_queue_event_full(type, trunk_ref, station, 1);
 }
 
-/* Decrement reference counts, as incremented by find_conf() */
+/*! \brief Decrement reference counts, as incremented by find_conf() */
 static int dispose_conf(struct ast_conference *conf)
 {
 	int res = 0;
@@ -4004,8 +4005,9 @@ static struct ast_conf_user *find_user(struct ast_conference *conf, const char *
 	return NULL;
 }
 
-/*! \brief The MeetMeadmin application */
-/* MeetMeAdmin(confno, command, caller) */
+/*! \brief The MeetMeadmin application 
+
+  MeetMeAdmin(confno, command, caller) */
 static int admin_exec(struct ast_channel *chan, const char *data) {
 	char *params;
 	struct ast_conference *cnf;
@@ -4186,8 +4188,8 @@ static int admin_exec(struct ast_channel *chan, const char *data) {
 	return 0;
 }
 
-/*--- channel_admin_exec: The MeetMeChannelAdmin application */
-/* MeetMeChannelAdmin(channel, command) */
+/*! \brief The MeetMeChannelAdmin application 
+	MeetMeChannelAdmin(channel, command) */
 static int channel_admin_exec(struct ast_channel *chan, const char *data) {
 	char *params;
 	struct ast_conference *conf = NULL;
