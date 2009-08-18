@@ -213,7 +213,7 @@ Brian M. Clapper - poll.c emulation
 	This product includes software developed by Brian M. Clapper <bmc(AT)clapper.org>
 
 === HOLD MUSIC ===
-Music provided by www.freeplaymusic.com
+Music provided by www.opsound.org
 
 === OTHER SOURCE CODE IN ASTERISK ===
 Asterisk uses libedit, the lightweight readline replacement from NetBSD.
