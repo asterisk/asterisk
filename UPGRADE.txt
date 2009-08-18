@@ -64,11 +64,11 @@ Beginning with Asterisk 1.4, the sound files and music on hold files supplied fo
 use with Asterisk have been replaced with new versions produced from high quality
 master recordings, and are available in three languages (English, French and
 Spanish) and in five formats (WAV (uncompressed), mu-Law, a-Law, GSM and G.729).
-In addition, the music on hold files provided by FreePlay Music are now available
+In addition, the music on hold files provided by opsound.org Music are now available
 in the same five formats, but no longer available in MP3 format.
 
 The Asterisk 1.4 tarball packages will only include English prompts in GSM format,
-(as were supplied with previous releases) and the FreePlay MOH files in WAV format.
+(as were supplied with previous releases) and the opsound.org MOH files in WAV format.
 All of the other variations can be installed by running 'make menuselect' and
 selecting the packages you wish to install; when you run 'make install', those
 packages will be downloaded and installed along with the standard files included
