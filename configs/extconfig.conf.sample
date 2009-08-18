@@ -56,11 +56,11 @@
 ;sipregs => odbc,asterisk
 ;voicemail => odbc,asterisk
 ;extensions => odbc,asterisk
-;meetme => mysql,conferences
+;meetme => mysql,general
 ;queues => odbc,asterisk
 ;queue_members => odbc,asterisk
-;musiconhold => mysql,asterisk
-;queue_log => mysql,asterisk
+;musiconhold => mysql,general
+;queue_log => mysql,general
 ;
 ;
 ; While most dynamic realtime engines are automatically used when defined in
