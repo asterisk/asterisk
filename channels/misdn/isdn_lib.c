@@ -42,8 +42,6 @@ int misdn_lib_get_l2_up(struct misdn_stack *stack);
 
 struct misdn_stack* get_misdn_stack( void );
 
-static int set_chan_in_stack(struct misdn_stack *stack, int channel);
-
 int release_cr(struct misdn_stack *stack, mISDNuser_head_t *hh);
 
 int misdn_lib_port_is_pri(int port)
@@ -213,8 +211,6 @@ void misdn_tx_jitter(struct misdn_bchannel *bc, int len);
 
 struct misdn_bchannel *find_bc_by_l3id(struct misdn_stack *stack, unsigned long l3id);
 
-struct misdn_bchannel *find_bc_by_confid(unsigned long confid);
-
 int setup_bc(struct misdn_bchannel *bc);
 
 int manager_isdn_handler(iframe_t *frm ,msg_t *msg);
@@ -257,7 +253,6 @@ struct misdn_bchannel *stack_holder_find(struct misdn_stack *stack, unsigned lon
 int te_lib_init( void ) ; /* returns midev */
 void te_lib_destroy(int midev) ;
 struct misdn_bchannel *manager_find_bc_by_pid(int pid);
-struct misdn_bchannel *manager_find_bc_holded(struct misdn_bchannel* bc);
 void manager_ph_control_block(struct misdn_bchannel *bc, int c1, void *c2, int c2_len);
 void manager_clean_bc(struct misdn_bchannel *bc );
 void manager_bchannel_setup (struct misdn_bchannel *bc);
@@ -463,7 +458,7 @@ void misdn_dump_chanlist()
 
 }
 
-int set_chan_in_stack(struct misdn_stack *stack, int channel)
+static int set_chan_in_stack(struct misdn_stack *stack, int channel)
 {
 
 	cb_log(4,stack->port,"set_chan_in_stack: %d\n",channel);
@@ -544,6 +539,20 @@ static int find_free_chan_in_stack(struct misdn_stack *stack, struct misdn_bchan
 	return 0;
 }
 
+/*!
+ * \internal
+ * \brief Release a B channel to the allocation pool.
+ *
+ * \param stack Which port stack B channel belongs.
+ * \param channel B channel to release. (Range 1-MAX_BCHANS representing B1-Bn)
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.  i.e., The channel is out of range.
+ *
+ * \note
+ * Must be called after clean_up_bc() to make sure that the media stream is
+ * no longer connected.
+ */
 static int empty_chan_in_stack(struct misdn_stack *stack, int channel)
 {
 	if (channel<=0 || channel>MAX_BCHANS) {
@@ -615,7 +624,17 @@ static void bc_next_state_change(struct misdn_bchannel *bc, enum bchannel_state 
 	bc->next_bc_state=state;
 }
 
-
+/*!
+ * \internal
+ * \brief Empty the B channel record of most call data.
+ *
+ * \param bc B channel record to empty of most call data.
+ *
+ * \return Nothing
+ *
+ * \note
+ * Sets the last_used time and must be called before clearing bc->in_use.
+ */
 static void empty_bc(struct misdn_bchannel *bc)
 {
 	bc->dummy=0;
@@ -1458,19 +1477,9 @@ struct misdn_bchannel *find_bc_by_l3id(struct misdn_stack *stack, unsigned long 
 	return stack_holder_find(stack,l3id);
 }
 
-static struct misdn_bchannel *find_bc_holded(struct misdn_stack *stack)
-{
-	int i;
-	for (i=0; i<=stack->b_num; i++) {
-		if (stack->bc[i].holded ) return &stack->bc[i] ;
-	}
-	return NULL;
-}
-
-
 static struct misdn_bchannel *find_bc_by_addr(unsigned long addr)
 {
-	struct misdn_stack* stack;
+	struct misdn_stack *stack;
 	int i;
 
 	for (stack=glob_mgr->stack_list;
@@ -1486,9 +1495,9 @@ static struct misdn_bchannel *find_bc_by_addr(unsigned long addr)
 	return NULL;
 }
 
-struct misdn_bchannel *find_bc_by_confid(unsigned long confid)
+static struct misdn_bchannel *find_bc_by_confid(unsigned long confid)
 {
-	struct misdn_stack* stack;
+	struct misdn_stack *stack;
 	int i;
 	
 	for (stack=glob_mgr->stack_list;
@@ -1506,7 +1515,7 @@ struct misdn_bchannel *find_bc_by_confid(unsigned long confid)
 
 static struct misdn_bchannel *find_bc_by_channel(int port, int channel)
 {
-	struct misdn_stack* stack=find_stack_by_port(port);
+	struct misdn_stack *stack = find_stack_by_port(port);
 	int i;
 
 	if (!stack) return NULL;	
@@ -3149,14 +3158,6 @@ struct misdn_bchannel *manager_find_bc_by_pid(int pid)
   
 	return NULL;
 }
-
-struct misdn_bchannel *manager_find_bc_holded(struct misdn_bchannel* bc)
-{
-	struct misdn_stack *stack=get_stack_by_bc(bc);
-	return find_bc_holded(stack);
-}
-
-
 
 static int test_inuse(struct misdn_bchannel *bc)
 {
