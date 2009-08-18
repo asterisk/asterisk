@@ -56,9 +56,9 @@
 ;sipregs => odbc,asterisk
 ;voicemail => odbc,asterisk
 ;extensions => odbc,asterisk
-;meetme => mysql,conferences
+;meetme => mysql,general
 ;queues => odbc,asterisk
 ;queue_members => odbc,asterisk
-;musiconhold => mysql,asterisk
-;queue_log => mysql,aasterisk
+;musiconhold => mysql,general
+;queue_log => mysql,general
 
