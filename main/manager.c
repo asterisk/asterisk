@@ -3126,7 +3126,7 @@ static int action_command(struct mansession *s, const struct message *m)
 	const char *id = astman_get_header(m, "ActionID");
 	char *buf, *final_buf;
 	char template[] = "/tmp/ast-ami-XXXXXX";	/* template for temporary file */
-	int fd = mkstemp(template);
+	int fd;
 	off_t l;
 
 	if (ast_strlen_zero(cmd)) {
@@ -3138,6 +3138,8 @@ static int action_command(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Command blacklisted");
 		return 0;
 	}
+
+	fd = mkstemp(template);
 
 	astman_append(s, "Response: Follows\r\nPrivilege: Command\r\n");
 	if (!ast_strlen_zero(id)) {
