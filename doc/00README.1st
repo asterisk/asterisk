@@ -35,7 +35,7 @@ ices.txt		Integrating ICEcast streaming in Asterisk
 jitterbuffer.txt	About the IAX2 jitterbuffer implementation
 math.txt		About the math() application
 mp3.txt			About MP3 support in Asterisk
-musiconhold-fpm.txt	Free Music On Hold music
+musiconhold-opsound.txt	Free Music On Hold music
 mysql.txt		About MYSQL support in Asterisk
 odbcstorage.txt		Voicemail storage of messages in UnixODBC
 privacy.txt		Privacy enhancements in Asterisk
