@@ -47,11 +47,6 @@ IAX2 Changes
  * Added rtsavesysname option into iax.conf to allow the systname to be saved
    on realtime updates.
 
-DAHDI Changes
--------------
- * Added Reverse Charging Indication receipt & transmission (requires latest
-   LibPRI).
-
 Applications
 ------------
  * Added progress option to the app_dial D() option.  When progress DTMF is
@@ -157,6 +152,25 @@ http://svn.digium.com/svn/thirdparty/mISDNuser/trunk
 Tagged versions of the modified mISDN code are available under:
 http://svn.digium.com/svn/thirdparty/mISDN/tags
 http://svn.digium.com/svn/thirdparty/mISDNuser/tags
+
+libpri channel driver (chan_dahdi) DAHDI changes
+-------------------------------------------
+ * The channel variable PRIREDIRECTREASON is now just a status variable
+   and it is also deprecated.  Use the REDIRECTING(reason) dialplan function
+   to read and alter the reason.
+ * For Q.SIG and ETSI PRI/BRI-PTP, you should manually send the COLR of the
+   redirected-to party for an incomming redirected call if the incoming call
+   could experience further redirects.  Just set the
+   REDIRECTING(to-num,i) = CALLERID(dnid) and set the REDIRECTING(to-pres)
+   to the COLR.  A call has been redirected if the REDIRECTING(count) is not
+   zero.
+ * For outgoing Q.SIG and ETSI PRI/BRI-PTP redirected calls, you need to
+   use the inhibit(i) option on all of the REDIRECTING statements before
+   dialing the redirected-to party.  You still have to set the
+   REDIRECTING(to-xxx,i) and the REDIRECTING(from-xxx,i) values.  The call
+   will update the redirecting-to presentation (COLR) when it becomes available.
+ * Added Reverse Charging Indication receipt & transmission (requires latest
+   LibPRI).
 
 Asterisk Manager Interface
 --------------------------

@@ -194,6 +194,311 @@ static inline int pri_grab(struct sig_pri_chan *p, struct sig_pri_pri *pri)
 
 /*!
  * \internal
+ * \brief Convert PRI redirecting reason to asterisk version.
+ * \since 1.6.3
+ *
+ * \param pri_reason PRI redirecting reason.
+ *
+ * \return Equivalent asterisk redirecting reason value.
+ */
+static enum AST_REDIRECTING_REASON pri_to_ast_reason(int pri_reason)
+{
+	enum AST_REDIRECTING_REASON ast_reason;
+
+	switch (pri_reason) {
+	case PRI_REDIR_FORWARD_ON_BUSY:
+		ast_reason = AST_REDIRECTING_REASON_USER_BUSY;
+		break;
+	case PRI_REDIR_FORWARD_ON_NO_REPLY:
+		ast_reason = AST_REDIRECTING_REASON_NO_ANSWER;
+		break;
+	case PRI_REDIR_DEFLECTION:
+		ast_reason = AST_REDIRECTING_REASON_DEFLECTION;
+		break;
+	case PRI_REDIR_UNCONDITIONAL:
+		ast_reason = AST_REDIRECTING_REASON_UNCONDITIONAL;
+		break;
+	case PRI_REDIR_UNKNOWN:
+	default:
+		ast_reason = AST_REDIRECTING_REASON_UNKNOWN;
+		break;
+	}
+
+	return ast_reason;
+}
+
+/*!
+ * \internal
+ * \brief Convert asterisk redirecting reason to PRI version.
+ * \since 1.6.3
+ *
+ * \param ast_reason Asterisk redirecting reason.
+ *
+ * \return Equivalent PRI redirecting reason value.
+ */
+static int ast_to_pri_reason(enum AST_REDIRECTING_REASON ast_reason)
+{
+	int pri_reason;
+
+	switch (ast_reason) {
+	case AST_REDIRECTING_REASON_USER_BUSY:
+		pri_reason = PRI_REDIR_FORWARD_ON_BUSY;
+		break;
+	case AST_REDIRECTING_REASON_NO_ANSWER:
+		pri_reason = PRI_REDIR_FORWARD_ON_NO_REPLY;
+		break;
+	case AST_REDIRECTING_REASON_UNCONDITIONAL:
+		pri_reason = PRI_REDIR_UNCONDITIONAL;
+		break;
+	case AST_REDIRECTING_REASON_DEFLECTION:
+		pri_reason = PRI_REDIR_DEFLECTION;
+		break;
+	case AST_REDIRECTING_REASON_UNKNOWN:
+	default:
+		pri_reason = PRI_REDIR_UNKNOWN;
+		break;
+	}
+
+	return pri_reason;
+}
+
+/*!
+ * \internal
+ * \brief Convert PRI number presentation to asterisk version.
+ * \since 1.6.3
+ *
+ * \param pri_presentation PRI number presentation.
+ *
+ * \return Equivalent asterisk number presentation value.
+ */
+static int pri_to_ast_presentation(int pri_presentation)
+{
+	int ast_presentation;
+
+	switch (pri_presentation) {
+	case PRES_ALLOWED_USER_NUMBER_NOT_SCREENED:
+		ast_presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
+		break;
+	case PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN:
+		ast_presentation = AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN;
+		break;
+	case PRES_ALLOWED_USER_NUMBER_FAILED_SCREEN:
+		ast_presentation = AST_PRES_ALLOWED_USER_NUMBER_FAILED_SCREEN;
+		break;
+	case PRES_ALLOWED_NETWORK_NUMBER:
+		ast_presentation = AST_PRES_ALLOWED_NETWORK_NUMBER;
+		break;
+	case PRES_PROHIB_USER_NUMBER_NOT_SCREENED:
+		ast_presentation = AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
+		break;
+	case PRES_PROHIB_USER_NUMBER_PASSED_SCREEN:
+		ast_presentation = AST_PRES_PROHIB_USER_NUMBER_PASSED_SCREEN;
+		break;
+	case PRES_PROHIB_USER_NUMBER_FAILED_SCREEN:
+		ast_presentation = AST_PRES_PROHIB_USER_NUMBER_FAILED_SCREEN;
+		break;
+	case PRES_PROHIB_NETWORK_NUMBER:
+		ast_presentation = AST_PRES_PROHIB_NETWORK_NUMBER;
+		break;
+	case PRES_NUMBER_NOT_AVAILABLE:
+		ast_presentation = AST_PRES_NUMBER_NOT_AVAILABLE;
+		break;
+	default:
+		ast_presentation = AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
+		break;
+	}
+
+	return ast_presentation;
+}
+
+/*!
+ * \internal
+ * \brief Convert asterisk number presentation to PRI version.
+ * \since 1.6.3
+ *
+ * \param ast_presentation Asterisk number presentation.
+ *
+ * \return Equivalent PRI number presentation value.
+ */
+static int ast_to_pri_presentation(int ast_presentation)
+{
+	int pri_presentation;
+
+	switch (ast_presentation) {
+	case AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED:
+		pri_presentation = PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
+		break;
+	case AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN:
+		pri_presentation = PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN;
+		break;
+	case AST_PRES_ALLOWED_USER_NUMBER_FAILED_SCREEN:
+		pri_presentation = PRES_ALLOWED_USER_NUMBER_FAILED_SCREEN;
+		break;
+	case AST_PRES_ALLOWED_NETWORK_NUMBER:
+		pri_presentation = PRES_ALLOWED_NETWORK_NUMBER;
+		break;
+	case AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED:
+		pri_presentation = PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
+		break;
+	case AST_PRES_PROHIB_USER_NUMBER_PASSED_SCREEN:
+		pri_presentation = PRES_PROHIB_USER_NUMBER_PASSED_SCREEN;
+		break;
+	case AST_PRES_PROHIB_USER_NUMBER_FAILED_SCREEN:
+		pri_presentation = PRES_PROHIB_USER_NUMBER_FAILED_SCREEN;
+		break;
+	case AST_PRES_PROHIB_NETWORK_NUMBER:
+		pri_presentation = PRES_PROHIB_NETWORK_NUMBER;
+		break;
+	case AST_PRES_NUMBER_NOT_AVAILABLE:
+		pri_presentation = PRES_NUMBER_NOT_AVAILABLE;
+		break;
+	default:
+		pri_presentation = PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
+		break;
+	}
+
+	return pri_presentation;
+}
+
+/*!
+ * \internal
+ * \brief Determine the overall presentation value for the given party.
+ * \since 1.6.3
+ *
+ * \param id Party to determine the overall presentation value.
+ *
+ * \return Overall presentation value for the given party converted to ast values.
+ */
+static int overall_ast_presentation(const struct pri_party_id *id)
+{
+	int number_priority;
+	int number_value;
+	int number_screening;
+	int name_priority;
+	int name_value;
+
+	/* Determine name presentation priority. */
+	if (!id->name.valid) {
+		name_value = PRI_PRES_UNAVAILABLE;
+		name_priority = 3;
+	} else {
+		name_value = id->name.presentation & PRI_PRES_RESTRICTION;
+		switch (name_value) {
+		case PRI_PRES_RESTRICTED:
+			name_priority = 0;
+			break;
+		case PRI_PRES_ALLOWED:
+			name_priority = 1;
+			break;
+		case PRI_PRES_UNAVAILABLE:
+			name_priority = 2;
+			break;
+		default:
+			name_value = PRI_PRES_UNAVAILABLE;
+			name_priority = 3;
+			break;
+		}
+	}
+
+	/* Determine number presentation priority. */
+	if (!id->number.valid) {
+		number_screening = PRI_PRES_USER_NUMBER_UNSCREENED;
+		number_value = PRI_PRES_UNAVAILABLE;
+		number_priority = 3;
+	} else {
+		number_screening = id->number.presentation & PRI_PRES_NUMBER_TYPE;
+		number_value = id->number.presentation & PRI_PRES_RESTRICTION;
+		switch (number_value) {
+		case PRI_PRES_RESTRICTED:
+			number_priority = 0;
+			break;
+		case PRI_PRES_ALLOWED:
+			number_priority = 1;
+			break;
+		case PRI_PRES_UNAVAILABLE:
+			number_priority = 2;
+			break;
+		default:
+			number_screening = PRI_PRES_USER_NUMBER_UNSCREENED;
+			number_value = PRI_PRES_UNAVAILABLE;
+			number_priority = 3;
+			break;
+		}
+	}
+
+	/* Select the wining presentation value. */
+	if (name_priority < number_priority) {
+		number_value = name_value;
+	}
+
+	return pri_to_ast_presentation(number_value | number_screening);
+}
+
+/*!
+ * \internal
+ * \brief Fill in the PRI party id from the given asterisk party id.
+ * \since 1.6.3
+ *
+ * \param pri_id PRI party id structure.
+ * \param ast_id Asterisk party id structure.
+ *
+ * \return Nothing
+ *
+ * \note Assumes that pri_id has been previously memset to zero.
+ */
+static void sig_pri_party_id_from_ast(struct pri_party_id *pri_id, const struct ast_party_id *ast_id)
+{
+	int presentation;
+
+	presentation = ast_to_pri_presentation(ast_id->number_presentation);
+	if (!ast_strlen_zero(ast_id->name)) {
+		pri_id->name.valid = 1;
+		pri_id->name.presentation = presentation;
+		pri_id->name.char_set = PRI_CHAR_SET_ISO8859_1;
+		ast_copy_string(pri_id->name.str, ast_id->name, sizeof(pri_id->name.str));
+	}
+	if (!ast_strlen_zero(ast_id->number)) {
+		pri_id->number.valid = 1;
+		pri_id->number.presentation = presentation;
+		pri_id->number.plan = ast_id->number_type;
+		ast_copy_string(pri_id->number.str, ast_id->number, sizeof(pri_id->number.str));
+	}
+}
+
+/*!
+ * \internal
+ * \brief Update the PRI redirecting information for the current call.
+ * \since 1.6.3
+ *
+ * \param pvt sig_pri private channel structure.
+ * \param ast Asterisk channel
+ *
+ * \return Nothing
+ *
+ * \note Assumes that the PRI lock is already obtained.
+ */
+static void sig_pri_redirecting_update(struct sig_pri_chan *pvt, struct ast_channel *ast)
+{
+	struct pri_party_redirecting pri_redirecting;
+	struct ast_party_redirecting ast_redirecting;
+
+	/* Gather asterisk redirecting data */
+	ast_redirecting = ast->redirecting;
+	ast_redirecting.from.number = ast->cid.cid_rdnis;
+
+/*! \todo XXX Original called data can be put in a channel data store that is inherited. */
+
+	memset(&pri_redirecting, 0, sizeof(pri_redirecting));
+	sig_pri_party_id_from_ast(&pri_redirecting.from, &ast_redirecting.from);
+	sig_pri_party_id_from_ast(&pri_redirecting.to, &ast_redirecting.to);
+	pri_redirecting.count = ast_redirecting.count;
+	pri_redirecting.reason = ast_to_pri_reason(ast_redirecting.reason);
+
+	pri_redirecting_update(pvt->pri->pri, pvt->call, &pri_redirecting);
+}
+
+/*!
+ * \internal
  * \brief Reset DTMF detector.
  * \since 1.6.3
  *
@@ -320,29 +625,6 @@ static int pri_find_dchan(struct sig_pri_pri *pri)
 			pri->fds[oldslot], pri->fds[newslot]);
 	pri->pri = pri->dchans[newslot];
 	return 0;
-}
-static void pri_update_cid(struct sig_pri_chan *p, struct sig_pri_pri *pri)
-{
-	/* We must unlock the PRI to avoid the possibility of a deadlock */
-	if (pri)
-		ast_mutex_unlock(&pri->lock);
-	for (;;) {
-		if (p->owner) {
-			if (ast_channel_trylock(p->owner)) {
-				PRI_DEADLOCK_AVOIDANCE(p);
-			} else {
-				ast_set_callerid(p->owner, S_OR(p->lastcid_num, NULL),
-							S_OR(p->lastcid_name, NULL),
-							S_OR(p->lastcid_num, NULL)
-							);
-				ast_channel_unlock(p->owner);
-				break;
-			}
-		} else
-			break;
-	}
-	if (pri)
-		ast_mutex_lock(&pri->lock);
 }
 
 static void pri_queue_frame(struct sig_pri_chan *p, struct ast_frame *f, struct sig_pri_pri *pri)
@@ -665,6 +947,11 @@ static void *pri_ss_thread(void *data)
 		ast_verb(3, "Going to extension s|1 because of empty extension received on overlap call\n");
 		exten[0] = 's';
 		exten[1] = '\0';
+	} else {
+		if (chan->cid.cid_dnid) {
+			ast_free(chan->cid.cid_dnid);
+		}
+		chan->cid.cid_dnid = ast_strdup(exten);
 	}
 	sig_pri_play_tone(p, -1);
 	if (ast_exists_extension(chan, chan->context, exten, 1, p->cid_num)) {
@@ -709,7 +996,6 @@ void pri_event_noalarm(struct sig_pri_pri *pri, int index, int before_start_pri)
 		pri_restart(pri->dchans[index]);
 }
 
-#if defined(SUPPORT_USERUSER)
 /*!
  * \internal
  * \brief Obtain the sig_pri owner channel lock if the owner exists.
@@ -740,7 +1026,168 @@ static void sig_pri_lock_owner(struct sig_pri_pri *pri, int chanpos)
 		ast_mutex_lock(&pri->lock);
 	}
 }
-#endif	/* defined(SUPPORT_USERUSER) */
+
+/*!
+ * \internal
+ * \brief Handle the call associated PRI subcommand events.
+ * \since 1.6.3
+ *
+ * \param pri sig_pri PRI control structure.
+ * \param chanpos Channel position in the span.
+ * \param event_id PRI event id
+ * \param channel PRI encoded span/channel
+ * \param subcmds Subcommands to process if any. (Could be NULL).
+ *
+ * \note Assumes the pri->lock is already obtained.
+ * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
+ *
+ * \return Nothing
+ */
+static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int event_id,
+	int channel, const struct pri_subcommands *subcmds)
+{
+	int index;
+	struct ast_channel *owner;
+
+	if (!subcmds) {
+		return;
+	}
+	for (index = 0; index < subcmds->counter_subcmd; ++index) {
+		const struct pri_subcommand *subcmd = &subcmds->subcmd[index];
+
+		switch (subcmd->cmd) {
+		case PRI_SUBCMD_CONNECTED_LINE:
+			sig_pri_lock_owner(pri, chanpos);
+			owner = pri->pvts[chanpos]->owner;
+			if (owner) {
+				struct ast_party_connected_line ast_connected;
+				const struct pri_party_connected_line *pri_connected;
+				int caller_id_update;
+				char connected_number[AST_MAX_EXTENSION];
+
+				caller_id_update = 0;
+
+				/* Extract the connected line information */
+				ast_party_connected_line_init(&ast_connected);
+				pri_connected = &subcmd->u.connected_line;
+				if (pri_connected->id.name.valid) {
+					ast_connected.id.name = (char *) pri_connected->id.name.str;
+
+					/* Save name for Caller-ID update */
+					ast_copy_string(pri->pvts[chanpos]->cid_name,
+						pri_connected->id.name.str,
+						sizeof(pri->pvts[chanpos]->cid_name));
+					caller_id_update = 1;
+				}
+				if (pri_connected->id.number.valid) {
+					apply_plan_to_number(connected_number, sizeof(connected_number), pri,
+						pri_connected->id.number.str,
+						pri_connected->id.number.plan);
+					ast_connected.id.number = connected_number;
+					ast_connected.id.number_type = pri_connected->id.number.plan;
+
+					/* Save number for Caller-ID update */
+					ast_copy_string(pri->pvts[chanpos]->cid_num, connected_number,
+						sizeof(pri->pvts[chanpos]->cid_num));
+					pri->pvts[chanpos]->cid_ton = pri_connected->id.number.plan;
+					caller_id_update = 1;
+				} else {
+					ast_connected.id.number = "";
+				}
+				if (pri_connected->id.name.valid
+					|| pri_connected->id.number.valid) {
+					ast_connected.id.number_presentation =
+						overall_ast_presentation(&pri_connected->id);
+				}
+				ast_connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
+
+				if (caller_id_update) {
+					pri->pvts[chanpos]->callingpres =
+						ast_connected.id.number_presentation;
+					sig_pri_set_caller_id(pri->pvts[chanpos]);
+					ast_set_callerid(owner, S_OR(ast_connected.id.number, NULL),
+						S_OR(ast_connected.id.name, NULL),
+						S_OR(ast_connected.id.number, NULL));
+				}
+
+				/* Update the connected line information on the other channel */
+				if (event_id != PRI_EVENT_RING) {
+					/* This connected_line update was not from a SETUP message. */
+					ast_channel_queue_connected_line_update(owner, &ast_connected);
+				}
+
+				ast_channel_unlock(owner);
+			}
+			break;
+		case PRI_SUBCMD_REDIRECTING:
+			sig_pri_lock_owner(pri, chanpos);
+			owner = pri->pvts[chanpos]->owner;
+			if (owner) {
+				struct ast_party_redirecting ast_redirecting;
+				const struct pri_party_redirecting *pri_redirecting;
+				char from_number[AST_MAX_EXTENSION];
+				char to_number[AST_MAX_EXTENSION];
+
+				ast_party_redirecting_set_init(&ast_redirecting, &owner->redirecting);
+
+				pri_redirecting = &subcmd->u.redirecting;
+
+				/* ast_redirecting.from */
+				if (pri_redirecting->from.name.valid) {
+					ast_redirecting.from.name = (char *) pri_redirecting->from.name.str;
+				}
+				if (pri_redirecting->from.number.valid) {
+					apply_plan_to_number(from_number, sizeof(from_number), pri,
+						pri_redirecting->from.number.str,
+						pri_redirecting->from.number.plan);
+					ast_redirecting.from.number = from_number;
+					ast_redirecting.from.number_type = pri_redirecting->from.number.plan;
+				}
+				if (pri_redirecting->from.name.valid
+					|| pri_redirecting->from.number.valid) {
+					ast_redirecting.from.number_presentation =
+						overall_ast_presentation(&pri_redirecting->from);
+				}
+
+				/* ast_redirecting.to */
+				if (pri_redirecting->to.name.valid) {
+					ast_redirecting.to.name = (char *) pri_redirecting->to.name.str;
+				}
+				if (pri_redirecting->to.number.valid) {
+					apply_plan_to_number(to_number, sizeof(to_number), pri,
+						pri_redirecting->to.number.str, pri_redirecting->to.number.plan);
+					ast_redirecting.to.number = to_number;
+					ast_redirecting.to.number_type = pri_redirecting->to.number.plan;
+				}
+				if (pri_redirecting->to.name.valid
+					|| pri_redirecting->to.number.valid) {
+					ast_redirecting.to.number_presentation =
+						overall_ast_presentation(&pri_redirecting->from);
+				}
+
+				ast_redirecting.count = pri_redirecting->count;
+				ast_redirecting.reason = pri_to_ast_reason(pri_redirecting->reason);
+
+/*! \todo XXX Original called data can be put in a channel data store that is inherited. */
+
+				ast_channel_set_redirecting(owner, &ast_redirecting);
+				if (event_id != PRI_EVENT_RING) {
+					/* This redirection was not from a SETUP message. */
+					ast_channel_queue_redirecting_update(owner, &ast_redirecting);
+				}
+
+				ast_channel_unlock(owner);
+			}
+			break;
+		default:
+			ast_debug(2,
+				"Unknown call subcommand(%d) in %s event on channel %d/%d on span %d.\n",
+				subcmd->cmd, pri_event2str(event_id), PRI_SPAN(channel),
+				PRI_CHANNEL(channel), pri->span);
+			break;
+		}
+	}
+}
 
 static void *pri_dchannel(void *vpri)
 {
@@ -1064,6 +1511,8 @@ static void *pri_dchannel(void *vpri)
 					chanpos = pri_fixup_principle(pri, chanpos, e->digit.call);
 					if (chanpos > -1) {
 						sig_pri_lock_private(pri->pvts[chanpos]);
+						sig_pri_handle_subcmds(pri, chanpos, e->e, e->digit.channel,
+							e->digit.subcmds);
 						/* queue DTMF frame if the PBX for this call was already started (we're forwarding KEYPAD_DIGITs further on */
 						if ((pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)
 							&& pri->pvts[chanpos]->call == e->digit.call
@@ -1092,6 +1541,8 @@ static void *pri_dchannel(void *vpri)
 					chanpos = pri_fixup_principle(pri, chanpos, e->ring.call);
 					if (chanpos > -1) {
 						sig_pri_lock_private(pri->pvts[chanpos]);
+						sig_pri_handle_subcmds(pri, chanpos, e->e, e->ring.channel,
+							e->ring.subcmds);
 						/* queue DTMF frame if the PBX for this call was already started (we're forwarding INFORMATION further on */
 						if ((pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)
 							&& pri->pvts[chanpos]->call == e->ring.call
@@ -1308,11 +1759,16 @@ static void *pri_dchannel(void *vpri)
 
 								snprintf(calledtonstr, sizeof(calledtonstr), "%d", e->ring.calledplan);
 								pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
-								if (e->ring.redirectingreason >= 0)
+								if (e->ring.redirectingreason >= 0) {
+									/* This is now just a status variable.  Use REDIRECTING() dialplan function. */
 									pbx_builtin_setvar_helper(c, "PRIREDIRECTREASON", redirectingreason2str(e->ring.redirectingreason));
+								}
 #if defined(HAVE_PRI_REVERSE_CHARGE)
 								pri->pvts[chanpos]->reverse_charging_indication = e->ring.reversecharge;
 #endif
+
+								sig_pri_handle_subcmds(pri, chanpos, e->e, e->ring.channel,
+									e->ring.subcmds);
 							}
 							if (c && !ast_pthread_create_detached(&threadid, NULL, pri_ss_thread, pri->pvts[chanpos])) {
 								ast_verb(3, "Accepting overlap call from '%s' to '%s' on channel %d/%d, span %d\n",
@@ -1363,14 +1819,19 @@ static void *pri_dchannel(void *vpri)
 								}
 #endif
 
-								if (e->ring.redirectingreason >= 0)
+								if (e->ring.redirectingreason >= 0) {
+									/* This is now just a status variable.  Use REDIRECTING() dialplan function. */
 									pbx_builtin_setvar_helper(c, "PRIREDIRECTREASON", redirectingreason2str(e->ring.redirectingreason));
+								}
 #if defined(HAVE_PRI_REVERSE_CHARGE)
 								pri->pvts[chanpos]->reverse_charging_indication = e->ring.reversecharge;
 #endif
 
 								snprintf(calledtonstr, sizeof(calledtonstr), "%d", e->ring.calledplan);
 								pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
+
+								sig_pri_handle_subcmds(pri, chanpos, e->e, e->ring.channel,
+									e->ring.subcmds);
 							}
 							if (c && !ast_pbx_start(c)) {
 								ast_verb(3, "Accepting call from '%s' to '%s' on channel %d/%d, span %d\n",
@@ -1416,6 +1877,9 @@ static void *pri_dchannel(void *vpri)
 							PRI_SPAN(e->ringing.channel), PRI_CHANNEL(e->ringing.channel), pri->span);
 					} else {
 						sig_pri_lock_private(pri->pvts[chanpos]);
+
+						sig_pri_handle_subcmds(pri, chanpos, e->e, e->ringing.channel,
+							e->ringing.subcmds);
 						sig_pri_set_echocanceller(pri->pvts[chanpos], 1);
 						pri_queue_control(pri->pvts[chanpos], AST_CONTROL_RINGING, pri);
 						pri->pvts[chanpos]->alerting = 1;
@@ -1442,6 +1906,9 @@ static void *pri_dchannel(void *vpri)
 				/* Get chan value if e->e is not PRI_EVNT_RINGING */
 				chanpos = pri_find_principle(pri, e->proceeding.channel);
 				if (chanpos > -1) {
+					sig_pri_lock_private(pri->pvts[chanpos]);
+					sig_pri_handle_subcmds(pri, chanpos, e->e, e->proceeding.channel,
+						e->proceeding.subcmds);
 					if ((!pri->pvts[chanpos]->progress)
 #ifdef PRI_PROGRESS_MASK
 						|| (e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE)
@@ -1465,7 +1932,6 @@ static void *pri_dchannel(void *vpri)
 							}
 						}
 
-						sig_pri_lock_private(pri->pvts[chanpos]);
 						ast_debug(1, "Queuing frame from PRI_EVENT_PROGRESS on channel %d/%d span %d\n",
 							pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset,pri->span);
 						pri_queue_frame(pri->pvts[chanpos], &f, pri);
@@ -1482,17 +1948,19 @@ static void *pri_dchannel(void *vpri)
 						}
 						pri->pvts[chanpos]->progress = 1;
 						sig_pri_set_dialing(pri->pvts[chanpos], 0);
-						sig_pri_unlock_private(pri->pvts[chanpos]);
 					}
+					sig_pri_unlock_private(pri->pvts[chanpos]);
 				}
 				break;
 			case PRI_EVENT_PROCEEDING:
 				chanpos = pri_find_principle(pri, e->proceeding.channel);
 				if (chanpos > -1) {
+					sig_pri_lock_private(pri->pvts[chanpos]);
+					sig_pri_handle_subcmds(pri, chanpos, e->e, e->proceeding.channel,
+						e->proceeding.subcmds);
 					if (!pri->pvts[chanpos]->proceeding) {
 						struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROCEEDING, };
 
-						sig_pri_lock_private(pri->pvts[chanpos]);
 						ast_debug(1, "Queuing frame from PRI_EVENT_PROCEEDING on channel %d/%d span %d\n",
 							pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset,pri->span);
 						pri_queue_frame(pri->pvts[chanpos], &f, pri);
@@ -1509,27 +1977,27 @@ static void *pri_dchannel(void *vpri)
 						}
 						pri->pvts[chanpos]->proceeding = 1;
 						sig_pri_set_dialing(pri->pvts[chanpos], 0);
-						sig_pri_unlock_private(pri->pvts[chanpos]);
 					}
+					sig_pri_unlock_private(pri->pvts[chanpos]);
 				}
 				break;
-			case PRI_EVENT_FACNAME:
-				chanpos = pri_find_principle(pri, e->facname.channel);
+#ifndef PRI_EVENT_FACILITY
+#error please update libpri
+#endif
+			case PRI_EVENT_FACILITY:
+				chanpos = pri_find_principle(pri, e->facility.channel);
 				if (chanpos < 0) {
-					ast_log(LOG_WARNING, "Facility Name requested on unconfigured channel %d/%d span %d\n",
-						PRI_SPAN(e->facname.channel), PRI_CHANNEL(e->facname.channel), pri->span);
+					ast_log(LOG_WARNING, "Facility requested on unconfigured channel %d/%d span %d\n",
+						PRI_SPAN(e->facility.channel), PRI_CHANNEL(e->facility.channel), pri->span);
 				} else {
-					chanpos = pri_fixup_principle(pri, chanpos, e->facname.call);
+					chanpos = pri_fixup_principle(pri, chanpos, e->facility.call);
 					if (chanpos < 0) {
-						ast_log(LOG_WARNING, "Facility Name requested on channel %d/%d not in use on span %d\n",
-							PRI_SPAN(e->facname.channel), PRI_CHANNEL(e->facname.channel), pri->span);
+						ast_log(LOG_WARNING, "Facility requested on channel %d/%d not in use on span %d\n",
+							PRI_SPAN(e->facility.channel), PRI_CHANNEL(e->facility.channel), pri->span);
 					} else {
-						/* Re-use *69 field for PRI */
 						sig_pri_lock_private(pri->pvts[chanpos]);
-						ast_copy_string(pri->pvts[chanpos]->lastcid_num, e->facname.callingnum, sizeof(pri->pvts[chanpos]->lastcid_num));
-						ast_copy_string(pri->pvts[chanpos]->lastcid_name, e->facname.callingname, sizeof(pri->pvts[chanpos]->lastcid_name));
-						pri_update_cid(pri->pvts[chanpos], pri);
-						sig_pri_set_echocanceller(pri->pvts[chanpos], 1);
+						sig_pri_handle_subcmds(pri, chanpos, e->e, e->facility.channel,
+							e->facility.subcmds);
 						sig_pri_unlock_private(pri->pvts[chanpos]);
 					}
 				}
@@ -1546,6 +2014,9 @@ static void *pri_dchannel(void *vpri)
 							PRI_SPAN(e->answer.channel), PRI_CHANNEL(e->answer.channel), pri->span);
 					} else {
 						sig_pri_lock_private(pri->pvts[chanpos]);
+
+						sig_pri_handle_subcmds(pri, chanpos, e->e, e->answer.channel,
+							e->answer.subcmds);
 						pri_queue_control(pri->pvts[chanpos], AST_CONTROL_ANSWER, pri);
 						/* Enable echo cancellation if it's not on already */
 						sig_pri_set_dialing(pri->pvts[chanpos], 0);
@@ -1578,6 +2049,8 @@ static void *pri_dchannel(void *vpri)
 					chanpos = pri_fixup_principle(pri, chanpos, e->hangup.call);
 					if (chanpos > -1) {
 						sig_pri_lock_private(pri->pvts[chanpos]);
+						sig_pri_handle_subcmds(pri, chanpos, e->e, e->hangup.channel,
+							e->hangup.subcmds);
 						if (!pri->pvts[chanpos]->alreadyhungup) {
 							/* we're calling here dahdi_hangup so once we get there we need to clear p->call after calling pri_hangup */
 							pri->pvts[chanpos]->alreadyhungup = 1;
@@ -1654,6 +2127,8 @@ static void *pri_dchannel(void *vpri)
 					chanpos = pri_fixup_principle(pri, chanpos, e->hangup.call);
 					if (chanpos > -1) {
 						sig_pri_lock_private(pri->pvts[chanpos]);
+						sig_pri_handle_subcmds(pri, chanpos, e->e, e->hangup.channel,
+							e->hangup.subcmds);
 						if (pri->pvts[chanpos]->owner) {
 							pri->pvts[chanpos]->owner->hangupcause = e->hangup.cause;
 							if (pri->pvts[chanpos]->owner->_state == AST_STATE_UP)
@@ -1803,6 +2278,8 @@ static void *pri_dchannel(void *vpri)
 					chanpos = pri_fixup_principle(pri, chanpos, e->setup_ack.call);
 					if (chanpos > -1) {
 						sig_pri_lock_private(pri->pvts[chanpos]);
+						sig_pri_handle_subcmds(pri, chanpos, e->e, e->setup_ack.channel,
+							e->setup_ack.subcmds);
 						pri->pvts[chanpos]->setup_ack = 1;
 						/* Send any queued digits */
 						for (x = 0;x < strlen(pri->pvts[chanpos]->dialdest); x++) {
@@ -1824,6 +2301,8 @@ static void *pri_dchannel(void *vpri)
 					struct ast_frame f = { AST_FRAME_CONTROL, };
 
 					sig_pri_lock_private(pri->pvts[chanpos]);
+					sig_pri_handle_subcmds(pri, chanpos, e->e, e->notify.channel,
+						e->notify.subcmds);
 					switch (e->notify.info) {
 					case PRI_NOTIFY_REMOTE_HOLD:
 						f.subclass = AST_CONTROL_HOLD;
@@ -1941,8 +2420,6 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 	int prilocaldialplan;
 	int ldp_strip;
 	int exclusive;
-	const char *rr_str;
-	int redirect_reason;
 
 	ast_log(LOG_DEBUG, "CALLING CID_NAME: %s CID_NUM:: %s\n", ast->cid.cid_name, ast->cid.cid_num);
 
@@ -2167,21 +2644,8 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 		}
 	}
 	pri_sr_set_caller(sr, l ? (l + ldp_strip) : NULL, n, prilocaldialplan,
-		p->use_callingpres ? ast->cid.cid_pres : (l ? PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN : PRES_NUMBER_NOT_AVAILABLE));
-	if ((rr_str = pbx_builtin_getvar_helper(ast, "PRIREDIRECTREASON"))) {
-		if (!strcasecmp(rr_str, "UNKNOWN"))
-			redirect_reason = 0;
-		else if (!strcasecmp(rr_str, "BUSY"))
-			redirect_reason = 1;
-		else if (!strcasecmp(rr_str, "NO_REPLY"))
-			redirect_reason = 2;
-		else if (!strcasecmp(rr_str, "UNCONDITIONAL"))
-			redirect_reason = 15;
-		else
-			redirect_reason = PRI_REDIR_UNCONDITIONAL;
-	} else
-		redirect_reason = PRI_REDIR_UNCONDITIONAL;
-	pri_sr_set_redirecting(sr, ast->cid.cid_rdnis, p->pri->localdialplan - 1, PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN, redirect_reason);
+		p->use_callingpres ? ast->connected.id.number_presentation : (l ? PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN : PRES_NUMBER_NOT_AVAILABLE));
+	sig_pri_redirecting_update(p, ast);
 
 #ifdef SUPPORT_USERUSER
 	/* User-user info */
@@ -2335,6 +2799,25 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 		break;
 	case -1:
 		res = sig_pri_play_tone(p, -1);
+		break;
+	case AST_CONTROL_CONNECTED_LINE:
+		ast_debug(1, "Received AST_CONTROL_CONNECTED_LINE on %s\n", chan->name);
+		if (p->pri && !pri_grab(p, p->pri)) {
+			struct pri_party_connected_line connected;
+
+			memset(&connected, 0, sizeof(connected));
+			sig_pri_party_id_from_ast(&connected.id, &chan->connected.id);
+
+			pri_connected_line_update(p->pri->pri, p->call, &connected);
+			pri_rel(p->pri);
+		}
+		break;
+	case AST_CONTROL_REDIRECTING:
+		ast_debug(1, "Received AST_CONTROL_REDIRECTING on %s\n", chan->name);
+		if (p->pri && !pri_grab(p, p->pri)) {
+			sig_pri_redirecting_update(p, chan);
+			pri_rel(p->pri);
+		}
 		break;
 	}
 

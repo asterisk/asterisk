@@ -139,8 +139,6 @@ struct sig_pri_chan {
 	char cid_name[AST_MAX_EXTENSION];
 	char cid_ani[AST_MAX_EXTENSION];
 	char exten[AST_MAX_EXTENSION];
-	char lastcid_num[AST_MAX_EXTENSION];
-	char lastcid_name[AST_MAX_EXTENSION];
 
 	/* Internal variables -- Don't touch */
 	/* Probably will need DS0 number, DS1 number, and a few other things */
