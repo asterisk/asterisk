@@ -38,18 +38,18 @@
 		</member>
 	</category>
 	<category name="MENUSELECT_MOH" displayname="Music On Hold File Packages" positive_output="yes">
-		<member name="MOH-FREEPLAY-WAV" displayname="FreePlay Music On Hold Files, WAV format" >
+		<member name="MOH-OPSOUND-WAV" displayname="opsound.org Music On Hold Files, WAV format" >
 			<defaultenabled>yes</defaultenabled>
 		</member>
-		<member name="MOH-FREEPLAY-ULAW" displayname="FreePlay Music On Hold Files, mu-Law format" >
+		<member name="MOH-OPSOUND-ULAW" displayname="opsound.org Music On Hold Files, mu-Law format" >
 		</member>
-		<member name="MOH-FREEPLAY-ALAW" displayname="FreePlay Music On Hold Files, a-Law format" >
+		<member name="MOH-OPSOUND-ALAW" displayname="opsound.org Music On Hold Files, a-Law format" >
 		</member>
-		<member name="MOH-FREEPLAY-GSM" displayname="FreePlay Music On Hold Files, GSM format" >
+		<member name="MOH-OPSOUND-GSM" displayname="opsound.org Music On Hold Files, GSM format" >
 		</member>
-		<member name="MOH-FREEPLAY-G729" displayname="FreePlay Music On Hold Files, G.729 format" >
+		<member name="MOH-OPSOUND-G729" displayname="opsound.org Music On Hold Files, G.729 format" >
 		</member>
-		<member name="MOH-FREEPLAY-G722" displayname="FreePlay Music On Hold Files, G.722 format" >
+		<member name="MOH-OPSOUND-G722" displayname="opsound.org Music On Hold Files, G.722 format" >
 		</member>
 	</category>
 	<category name="MENUSELECT_EXTRA_SOUNDS" displayname="Extras Sound Packages" positive_output="yes">
