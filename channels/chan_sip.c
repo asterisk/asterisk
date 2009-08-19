@@ -273,6 +273,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/tcptls.h"
 #include "asterisk/stun.h"
 #include "asterisk/cel.h"
+#include "asterisk/strings.h"
 
 /*** DOCUMENTATION
 	<application name="SIPDtmfMode" language="en_US">
@@ -7341,67 +7342,134 @@ static int sip_register(const char *value, int lineno)
 	enum sip_transport transport = SIP_TRANSPORT_UDP;
 	char buf[256] = "";
 	char *username = NULL;
-	char *hostname=NULL, *secret=NULL, *authuser=NULL, *expire=NULL, *tmp=NULL;
-	char *callback=NULL, *peername=NULL, *regdomain=NULL;
+	char *tmp = NULL, *transport_str = NULL;
+	char *peername = NULL;
+	/* register => [peer?][transport://]user[@domain][:secret[:authuser]]@host[:port][/extension][~expiry] */
+	AST_DECLARE_APP_ARGS(parts,
+		AST_APP_ARG(userpart);
+		AST_APP_ARG(hostpart);
+	);
+	AST_DECLARE_APP_ARGS(user1,
+		AST_APP_ARG(userpart);
+		AST_APP_ARG(secret);
+		AST_APP_ARG(authuser);
+	);
+	AST_DECLARE_APP_ARGS(host1,
+		AST_APP_ARG(hostpart);
+		AST_APP_ARG(expiry);
+	);
+	AST_DECLARE_APP_ARGS(host2,
+		AST_APP_ARG(hostpart);
+		AST_APP_ARG(extension);
+	);
+	AST_DECLARE_APP_ARGS(host3,
+		AST_APP_ARG(host);
+		AST_APP_ARG(port);
+	);
+	AST_DECLARE_APP_ARGS(user2,
+		AST_APP_ARG(userpart);
+		AST_APP_ARG(domain);
+	);
 
 	if (!value)
 		return -1;
 	ast_copy_string(buf, value, sizeof(buf));
-	tmp = strrchr(buf, '@');
 
-	/* split [/extension][~expiry] */
-	expire = strchr(tmp, '~');
-	if (expire)
-		*expire++ = '\0';
-	callback = strrchr(tmp, '/');
-	if (callback)
-		*callback++ = '\0';
-	if (ast_strlen_zero(callback))
-		callback = "s";
+	/*! register => [peer?][transport://]user[@domain][:secret[:authuser]]@host[:port][/extension][~expiry]
+	 * becomes
+	 *   parts.userpart => [peer?][transport://]user[@domain][:secret[:authuser]]
+	 *   parts.hostpart => host[:port][/extension][~expiry]
+	 */
+	AST_NONSTANDARD_RAW_ARGS(parts, buf, '@');
+	/*!
+	 * user1.userpart => [peer?][transport://]user[@domain]
+	 * user1.secret => secret
+	 * user1.authuser => authuser
+	 * parts.hostpart => host[:port][/extension][~expiry]
+	 */
+	AST_NONSTANDARD_RAW_ARGS(user1, parts.userpart, ':');
 
-	/* split [peername?][transport://] */
-	tmp = strchr(buf, '?');
-	if (tmp) {
-		*tmp++ = '\0';
-		peername = buf;
+	/*!
+	 * user1.userpart => [peer?][transport://]user[@domain]
+	 * user1.secret => secret
+	 * user1.authuser => authuser
+	 * host1.hostpart => host[:port][/extension]
+	 * host1.expiry => [expiry]
+	 */
+	AST_NONSTANDARD_RAW_ARGS(host1, parts.hostpart, '~');
+
+	/*!
+	 * user1.userpart => [peer?][transport://]user[@domain]
+	 * user1.secret => secret
+	 * user1.authuser => authuser
+	 * host2.hostpart => host[:port]
+	 * host2.extension => [extension]
+	 * host1.expiry => [expiry]
+	 */
+	AST_NONSTANDARD_RAW_ARGS(host2, parts.hostpart, '/');
+
+	/*!
+	 * user1.userpart => [peer?][transport://]user[@domain]
+	 * user1.secret => secret
+	 * user1.authuser => authuser
+	 * host3.host => host
+	 * host3.port => port
+	 * host2.extension => extension
+	 * host1.expiry => expiry
+	 */
+	AST_NONSTANDARD_RAW_ARGS(host3, parts.hostpart, ':');
+
+	/*!
+	 * user2.userpart => [peer?][transport://]user
+	 * user2.domain => domain (regdomain)
+	 * user1.secret => secret
+	 * user1.authuser => authuser
+	 * host3.host => host
+	 * host3.port => port
+	 * host2.extension => extension (callback)
+	 * host1.expiry => expiry
+	 */
+	AST_NONSTANDARD_RAW_ARGS(user2, user1.userpart, ':');
+
+	if ((tmp = strchr(user2.userpart, '?'))) {
+		*tmp = '\0';
+		peername = user2.userpart;
+		user2.userpart = tmp + 1;
+	}
+
+	if ((tmp = strstr(user2.userpart, "://"))) {
+		*tmp = '\0';
+		transport_str = user2.userpart;
+		username = tmp + 3;
 	} else {
-		tmp = buf;
-	}
-	/* tmp is set at the beginning of [transport://] */
-	sip_parse_host(tmp, lineno, &username, &portnum, &transport);
-
-	/* First split around the last '@' then parse the two components. */
-	hostname = strrchr(username, '@'); /* allow @ in the first part */
-	if (hostname)
-		*hostname++ = '\0';
-	if (ast_strlen_zero(username) || ast_strlen_zero(hostname)) {
-		ast_log(LOG_WARNING, "Format for registration is [transport://]user[@domain][:secret[:authuser]]@host[:port][/extension][~expiry] at line %d\n", lineno);
-		return -1;
+		username = user2.userpart;
 	}
 
-	/* split user[:secret[:authuser]] from the end to allow : character in user portion*/
-	authuser = strrchr(username, ':');
-	if (authuser) {
-		*authuser++ = '\0';
-		secret = strrchr(username, ':');
-		if (secret)
-			*secret++ = '\0';
-		else {
-			secret = authuser;
-			authuser = NULL;
+	if (host3.port) {
+		if (sscanf(host3.port, "%5u", &portnum) != 1 || portnum > 65535) {
+			ast_log(LOG_NOTICE, "'%s' is not a valid port number on line %d of sip.conf. using default.\n", host3.port, lineno);
+			portnum = -1;
 		}
 	}
-	if ((authuser) && (ast_strlen_zero(authuser)))
-		authuser = NULL;
-	if ((secret) && (ast_strlen_zero(secret)))
-		secret = NULL;
 
-	/* The user portion may be of the form username@regdomain so split off any regdomain */
-	regdomain = strchr(username, '@');
-	if (regdomain) {
-		*regdomain++ = '\0';
+	if (!transport_str) {
+		transport = SIP_TRANSPORT_UDP;
+	} else if (!strncasecmp(transport_str, "tcp", 3)) {
+		transport = SIP_TRANSPORT_TCP;
+	} else if (!strncasecmp(transport_str, "tls", 3)) {
+		transport = SIP_TRANSPORT_TLS;
+		if (portnum < 0) {
+			portnum = STANDARD_TLS_PORT;
+		}
+	} else if (!strncasecmp(transport_str, "udp", 3)) {
+		transport = SIP_TRANSPORT_UDP;
+	} else {
+		ast_log(LOG_NOTICE, "'%.3s' is not a valid transport type on line %d of sip.conf. defaulting to udp.\n", transport_str, lineno);
 	}
 
+	if (portnum < 0) {
+		portnum = STANDARD_SIP_PORT;
+	}
 
 	if (!(reg = ast_calloc(1, sizeof(*reg)))) {
 		ast_log(LOG_ERROR, "Out of memory. Can't allocate SIP registry entry\n");
@@ -7416,27 +7484,17 @@ static int sip_register(const char *value, int lineno)
 
 	ast_atomic_fetchadd_int(&regobjs, 1);
 	ASTOBJ_INIT(reg);
-	ast_string_field_set(reg, callback, callback);
-	if (!ast_strlen_zero(username))
-		ast_string_field_set(reg, username, username);
-	if (hostname)
-		ast_string_field_set(reg, hostname, hostname);
-		ast_string_field_set(reg, regdomain, hostname);
-	if (regdomain)
-		ast_string_field_set(reg, regdomain, regdomain);
-	if (authuser)
-		ast_string_field_set(reg, authuser, authuser);
-	if (secret)
-		ast_string_field_set(reg, secret, secret);
-	if (peername) {
-		ast_string_field_set(reg, peername, peername);
-	}
+	ast_string_field_set(reg, callback, ast_strip_quoted(S_OR(host2.extension, ""), "\"", "\""));
+	ast_string_field_set(reg, username, ast_strip_quoted(S_OR(username, ""), "\"", "\""));
+	ast_string_field_set(reg, hostname, ast_strip_quoted(S_OR(host3.host, ""), "\"", "\""));
+	ast_string_field_set(reg, regdomain, ast_strip_quoted(S_OR(user2.domain, S_OR(host3.host, "")), "\"", "\""));
+	ast_string_field_set(reg, authuser, ast_strip_quoted(S_OR(user1.authuser, ""), "\"", "\""));
+	ast_string_field_set(reg, secret, ast_strip_quoted(S_OR(user1.secret, ""), "\"", "\""));
+	ast_string_field_set(reg, peername, ast_strip_quoted(S_OR(peername, ""), "\"", "\""));
+
 	reg->transport = transport;
-	reg->expire = -1;
-	reg->configured_expiry = (expire ? atoi(expire) : default_expiry);
-	reg->expiry = reg->configured_expiry;
-	reg->timeout =  -1;
-	reg->refresh = reg->expiry;
+	reg->timeout = reg->expire = -1;
+	reg->refresh = reg->expiry = reg->configured_expiry = (host1.expiry ? atoi(ast_strip_quoted(host1.expiry, "\"", "\"")) : default_expiry);
 	reg->portno = portnum;
 	reg->callid_valid = FALSE;
 	reg->ocseq = INITIAL_CSEQ;
