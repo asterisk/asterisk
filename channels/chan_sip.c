@@ -23431,7 +23431,7 @@ static int reload_config(enum channelreloadreason reason)
 	char *cat, *stringp, *context, *oldregcontext;
 	char newcontexts[AST_MAX_CONTEXT], oldcontexts[AST_MAX_CONTEXT];
 	struct ast_flags dummy[2];
-	struct ast_flags config_flags = { reason == CHANNEL_MODULE_LOAD ? 0 : CONFIG_FLAG_FILEUNCHANGED };
+	struct ast_flags config_flags = { reason == CHANNEL_MODULE_LOAD ? 0 : ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS) ? 0 : CONFIG_FLAG_FILEUNCHANGED };
 	int auto_sip_domains = FALSE;
 	struct sockaddr_in old_bindaddr = bindaddr;
 	int registry_count = 0, peer_count = 0;
