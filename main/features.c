@@ -2907,7 +2907,9 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				ast_channel_unlock(chan_ptr);
 			}
 			/* new channel */
-			ast_cdr_specialized_reset(new_peer_cdr,0);
+			if (new_peer_cdr) {
+				ast_cdr_specialized_reset(new_peer_cdr, 0);
+			}
 		} else {
 			ast_cdr_specialized_reset(peer_cdr,0); /* nothing changed, reset the peer_cdr  */
 		}
