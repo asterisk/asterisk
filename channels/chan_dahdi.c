@@ -4619,6 +4619,7 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 	if (p->mfcr2) {
 		openr2_calling_party_category_t chancat;
 		int callres = 0;
+		char *c, *l;
 
 		c = strchr(dest, '/');
 		if (c) {
@@ -5255,7 +5256,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 		}
 #endif
 #ifdef HAVE_OPENR2
-		if (p->mfcr2) {
+		if (p->mfcr2 && p->mfcr2call && openr2_chan_get_direction(p->r2chan) != OR2_DIR_STOPPED) {
 			ast_log(LOG_DEBUG, "disconnecting MFC/R2 call on chan %d\n", p->channel);
 			/* If it's an incoming call, check the mfcr2_forced_release setting */
 			if (openr2_chan_get_direction(p->r2chan) == OR2_DIR_BACKWARD && p->mfcr2_forced_release) {
@@ -5268,6 +5269,9 @@ static int dahdi_hangup(struct ast_channel *ast)
 				openr2_chan_disconnect_call(p->r2chan, r2cause);
 			}
 			dahdi_r2_update_monitor_count(p->mfcr2, 1);
+		} else if (p->mfcr2call) {
+			ast_log(LOG_DEBUG, "Clearing call request on channel %d\n", p->channel);
+			p->mfcr2call = 0;
 		}
 #endif
 		switch (p->sig) {
@@ -11510,6 +11514,9 @@ static struct ast_channel *dahdi_request(const char *type, int format, const str
 				tmp->cdrflags |= AST_CDR_CALLWAIT;
 			break;
 		}
+#ifdef HAVE_OPENR2
+next:
+#endif
 		if (backwards) {
 			p = p->prev;
 			if (!p)
