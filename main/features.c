@@ -2769,7 +2769,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		   is before the bridge's start time, so I added in the 
 		   tvcmp check to the if below */
 
-		if (peer_cdr && !ast_tvzero(peer_cdr->answer) && ast_tvcmp(peer->cdr->answer, bridge_cdr->start) >= 0) {
+		if (peer_cdr && !ast_tvzero(peer_cdr->answer) && ast_tvcmp(peer_cdr->answer, bridge_cdr->start) >= 0) {
 			bridge_cdr->answer = peer_cdr->answer;
 			bridge_cdr->disposition = peer_cdr->disposition;
 			if (chan_cdr) {
