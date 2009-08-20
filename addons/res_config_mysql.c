@@ -927,7 +927,7 @@ static struct ast_config *config_mysql(const char *database, const char *table, 
 		return NULL;
 	}
 
-	ast_str_set(&sql, 0, "SELECT category, var_name, var_val, cat_metric FROM %s WHERE filename='%s' and commented=1 ORDER BY filename, cat_metric desc, var_metric asc, category, var_name, var_val, id", table, file);
+	ast_str_set(&sql, 0, "SELECT category, var_name, var_val, cat_metric FROM %s WHERE filename='%s' and commented=0 ORDER BY filename, cat_metric desc, var_metric asc, category, var_name, var_val, id", table, file);
 
 	ast_debug(1, "MySQL RealTime: Static SQL: %s\n", ast_str_buffer(sql));
 
