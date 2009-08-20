@@ -1502,7 +1502,7 @@ static void vm_imap_delete(int msgnum, struct ast_vm_user *vmu)
 	ast_mutex_unlock(&vms->lock);
 }
 
-static int imap_retrieve_greeting (const char *dir, const int msgnum, struct ast_vm_user *vmu)
+static int imap_retrieve_greeting(const char *dir, const int msgnum, struct ast_vm_user *vmu)
 {
 	struct vm_state *vms_p;
 	char *file, *filename;
@@ -1526,9 +1526,16 @@ static int imap_retrieve_greeting (const char *dir, const int msgnum, struct ast
 	}
 
 	/* check if someone is accessing this box right now... */
-	if (!(vms_p = get_vm_state_by_mailbox(vmu->mailbox, vmu->context, 1)) ||!(vms_p = get_vm_state_by_mailbox(vmu->mailbox, vmu->context, 0))) {
-		ast_log(AST_LOG_ERROR, "Voicemail state not found!\n");
-		return -1;
+	if (!(vms_p = get_vm_state_by_mailbox(vmu->mailbox, vmu->context, 1)) && 
+		!(vms_p = get_vm_state_by_mailbox(vmu->mailbox, vmu->context, 0))) {
+		/* Unlike when retrieving a message, it is reasonable not to be able to find a 
+		* vm_state for a mailbox when trying to retrieve a greeting. Just create one,
+		* that's all we need to do.
+		*/
+		if (!(vms_p = create_vm_state_from_user(vmu))) {
+			ast_log(LOG_NOTICE, "Unable to create vm_state object!\n");
+			return -1;
+		}
 	}
 	
 	/* Greetings will never have a prepended message */
@@ -2150,7 +2157,11 @@ static void imap_mailbox_name(char *spec, size_t len, struct vm_state *vms, int 
 		ast_build_string(&t, &left, "/%s", imapflags);
 
 	/* End with username */
+#if 1
 	ast_build_string(&t, &left, "/user=%s}", vms->imapuser);
+#else
+	ast_build_string(&t, &left, "/user=%s/novalidate-cert}", vms->imapuser);
+#endif
 	if (box == NEW_FOLDER || box == OLD_FOLDER)
 		snprintf(spec, len, "%s%s", tmp, use_folder? imapfolder: "INBOX");
 	else if (box == GREETINGS_FOLDER)
