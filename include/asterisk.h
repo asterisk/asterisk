@@ -53,6 +53,9 @@
 #define	dup2(a,b)	__ast_fdleak_dup2(a, b, __FILE__,__LINE__,__PRETTY_FUNCTION__)
 #define dup(a)	__ast_fdleak_dup(a, __FILE__,__LINE__,__PRETTY_FUNCTION__)
 
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
 int __ast_fdleak_open(const char *file, int line, const char *func, const char *path, int flags, ...);
 int __ast_fdleak_pipe(int *fds, const char *file, int line, const char *func);
 int __ast_fdleak_socket(int domain, int type, int protocol, const char *file, int line, const char *func);
@@ -61,6 +64,9 @@ FILE *__ast_fdleak_fopen(const char *path, const char *mode, const char *file, i
 int __ast_fdleak_fclose(FILE *ptr);
 int __ast_fdleak_dup2(int oldfd, int newfd, const char *file, int line, const char *func);
 int __ast_fdleak_dup(int oldfd, const char *file, int line, const char *func);
+#if defined(__cplusplus) || defined(c_plusplus)
+}
+#endif
 #endif
 
 /* provided in asterisk.c */
