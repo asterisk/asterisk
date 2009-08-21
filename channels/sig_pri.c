@@ -47,6 +47,9 @@
 #include "asterisk/features.h"
 
 #include "sig_pri.h"
+#ifndef PRI_EVENT_FACILITY
+#error please update libpri
+#endif
 
 /* define this to send PRI user-user information elements */
 #undef SUPPORT_USERUSER
@@ -1981,9 +1984,6 @@ static void *pri_dchannel(void *vpri)
 					sig_pri_unlock_private(pri->pvts[chanpos]);
 				}
 				break;
-#ifndef PRI_EVENT_FACILITY
-#error please update libpri
-#endif
 			case PRI_EVENT_FACILITY:
 				chanpos = pri_find_principle(pri, e->facility.channel);
 				if (chanpos < 0) {
@@ -2115,9 +2115,6 @@ static void *pri_dchannel(void *vpri)
 					}
 				}
 				break;
-#ifndef PRI_EVENT_HANGUP_REQ
-#error please update libpri
-#endif
 			case PRI_EVENT_HANGUP_REQ:
 				chanpos = pri_find_principle(pri, e->hangup.channel);
 				if (chanpos < 0) {
