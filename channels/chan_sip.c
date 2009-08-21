@@ -7158,7 +7158,7 @@ static int sip_register(const char *value, int lineno)
 	 * host2.extension => [extension]
 	 * host1.expiry => [expiry]
 	 */
-	AST_NONSTANDARD_RAW_ARGS(host2, hostpart, '/');
+	AST_NONSTANDARD_RAW_ARGS(host2, host1.hostpart, '/');
 
 	/*!
 	 * user1.userpart => [peer?][transport://]user[@domain]
@@ -7169,14 +7169,35 @@ static int sip_register(const char *value, int lineno)
 	 * host2.extension => extension
 	 * host1.expiry => expiry
 	 */
-	AST_NONSTANDARD_RAW_ARGS(host3, hostpart, ':');
+	AST_NONSTANDARD_RAW_ARGS(host3, host2.hostpart, ':');
 
+	/*!
+	 * peername => peer
+	 * user2.userpart => [transport://]user[@domain]
+	 * user1.secret => secret
+	 * user1.authuser => authuser
+	 * host3.host => host
+	 * host3.port => port
+	 * host2.extension => extension (callback)
+	 * host1.expiry => expiry
+	 */
 	if ((tmp = strchr(user1.userpart, '?'))) {
 		*tmp = '\0';
 		peername = user1.userpart;
 		user1.userpart = tmp + 1;
 	}
 
+	/*!
+	 * peername => peer
+	 * transport_str => transport
+	 * username => user[@domain]
+	 * user1.secret => secret
+	 * user1.authuser => authuser
+	 * host3.host => host
+	 * host3.port => port
+	 * host2.extension => extension (callback)
+	 * host1.expiry => expiry
+	 */
 	if ((tmp = strstr(user1.userpart, "://"))) {
 		*tmp = '\0';
 		transport_str = user1.userpart;
