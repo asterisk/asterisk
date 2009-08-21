@@ -10113,24 +10113,28 @@ static struct ast_cli_entry cli_voicemail[] = {
 	AST_CLI_DEFINE(handle_voicemail_reload, "Reload voicemail configuration"),
 };
 
+static void poll_subscribed_mailbox(struct mwi_sub *mwi_sub)
+{
+	int new = 0, old = 0, urgent = 0;
+
+	inboxcount2(mwi_sub->mailbox, &urgent, &new, &old);
+
+	if (urgent != mwi_sub->old_urgent || new != mwi_sub->old_new || old != mwi_sub->old_old) {
+		mwi_sub->old_urgent = urgent;
+		mwi_sub->old_new = new;
+		mwi_sub->old_old = old;
+		queue_mwi_event(mwi_sub->mailbox, urgent, new, old);
+	}
+}
+
 static void poll_subscribed_mailboxes(void)
 {
 	struct mwi_sub *mwi_sub;
 
 	AST_RWLIST_RDLOCK(&mwi_subs);
 	AST_RWLIST_TRAVERSE(&mwi_subs, mwi_sub, entry) {
-		int new = 0, old = 0, urgent = 0;
-
-		if (ast_strlen_zero(mwi_sub->mailbox))
-			continue;
-
-		inboxcount2(mwi_sub->mailbox, &urgent, &new, &old);
-
-		if (urgent != mwi_sub->old_urgent || new != mwi_sub->old_new || old != mwi_sub->old_old) {
-			mwi_sub->old_urgent = urgent;
-			mwi_sub->old_new = new;
-			mwi_sub->old_old = old;
-			queue_mwi_event(mwi_sub->mailbox, urgent, new, old);
+		if (!ast_strlen_zero(mwi_sub->mailbox)) {
+			poll_subscribed_mailbox(mwi_sub);
 		}
 	}
 	AST_RWLIST_UNLOCK(&mwi_subs);
@@ -10216,7 +10220,8 @@ static int handle_subscribe(void *datap)
 	AST_RWLIST_UNLOCK(&mwi_subs);
 	ast_free((void *) p->mailbox);
 	ast_free((void *) p->context);
-	ast_free(p);	
+	ast_free(p);
+	poll_subscribed_mailbox(mwi_sub);
 	return 0;
 }
 
