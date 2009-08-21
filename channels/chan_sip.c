@@ -7343,12 +7343,9 @@ static int sip_register(const char *value, int lineno)
 	char buf[256] = "";
 	char *username = NULL;
 	char *tmp = NULL, *transport_str = NULL;
+	char *userpart = NULL, *hostpart = NULL;
 	char *peername = NULL;
 	/* register => [peer?][transport://]user[@domain][:secret[:authuser]]@host[:port][/extension][~expiry] */
-	AST_DECLARE_APP_ARGS(parts,
-		AST_APP_ARG(userpart);
-		AST_APP_ARG(hostpart);
-	);
 	AST_DECLARE_APP_ARGS(user1,
 		AST_APP_ARG(userpart);
 		AST_APP_ARG(secret);
@@ -7377,17 +7374,26 @@ static int sip_register(const char *value, int lineno)
 
 	/*! register => [peer?][transport://]user[@domain][:secret[:authuser]]@host[:port][/extension][~expiry]
 	 * becomes
-	 *   parts.userpart => [peer?][transport://]user[@domain][:secret[:authuser]]
-	 *   parts.hostpart => host[:port][/extension][~expiry]
+	 *   userpart => [peer?][transport://]user[@domain][:secret[:authuser]]
+	 *   hostpart => host[:port][/extension][~expiry]
 	 */
-	AST_NONSTANDARD_RAW_ARGS(parts, buf, '@');
+	if ((hostpart = strrchr(buf, '@'))) {
+		*hostpart++ = '\0';
+		userpart = buf;
+	}
+
+	if (ast_strlen_zero(userpart) || ast_strlen_zero(hostpart)) {
+		ast_log(LOG_WARNING, "Format for registration is [transport://]user[@domain][:secret[:authuser]]@host[:port][/extension][~expiry] at line %d\n", lineno);
+		return -1;
+	}
+
 	/*!
 	 * user1.userpart => [peer?][transport://]user[@domain]
 	 * user1.secret => secret
 	 * user1.authuser => authuser
-	 * parts.hostpart => host[:port][/extension][~expiry]
+	 * hostpart => host[:port][/extension][~expiry]
 	 */
-	AST_NONSTANDARD_RAW_ARGS(user1, parts.userpart, ':');
+	AST_NONSTANDARD_RAW_ARGS(user1, userpart, ':');
 
 	/*!
 	 * user1.userpart => [peer?][transport://]user[@domain]
@@ -7396,7 +7402,7 @@ static int sip_register(const char *value, int lineno)
 	 * host1.hostpart => host[:port][/extension]
 	 * host1.expiry => [expiry]
 	 */
-	AST_NONSTANDARD_RAW_ARGS(host1, parts.hostpart, '~');
+	AST_NONSTANDARD_RAW_ARGS(host1, hostpart, '~');
 
 	/*!
 	 * user1.userpart => [peer?][transport://]user[@domain]
@@ -7406,7 +7412,7 @@ static int sip_register(const char *value, int lineno)
 	 * host2.extension => [extension]
 	 * host1.expiry => [expiry]
 	 */
-	AST_NONSTANDARD_RAW_ARGS(host2, parts.hostpart, '/');
+	AST_NONSTANDARD_RAW_ARGS(host2, hostpart, '/');
 
 	/*!
 	 * user1.userpart => [peer?][transport://]user[@domain]
@@ -7417,7 +7423,18 @@ static int sip_register(const char *value, int lineno)
 	 * host2.extension => extension
 	 * host1.expiry => expiry
 	 */
-	AST_NONSTANDARD_RAW_ARGS(host3, parts.hostpart, ':');
+	AST_NONSTANDARD_RAW_ARGS(host3, hostpart, ':');
+
+	/*!
+	 * user2.userpart => [peer?][transport://]user[@domain]
+	 * user1.secret => secret
+	 * user1.authuser => authuser
+	 * host3.host => host
+	 * host3.port => port
+	 * host2.extension => extension (callback)
+	 * host1.expiry => expiry
+	 */
+	AST_NONSTANDARD_RAW_ARGS(user2, user1.userpart, ':');
 
 	/*!
 	 * user2.userpart => [peer?][transport://]user
@@ -7429,7 +7446,7 @@ static int sip_register(const char *value, int lineno)
 	 * host2.extension => extension (callback)
 	 * host1.expiry => expiry
 	 */
-	AST_NONSTANDARD_RAW_ARGS(user2, user1.userpart, ':');
+	AST_NONSTANDARD_RAW_ARGS(user2, user2.userpart, '@');
 
 	if ((tmp = strchr(user2.userpart, '?'))) {
 		*tmp = '\0';
