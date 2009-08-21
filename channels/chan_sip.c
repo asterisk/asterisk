@@ -5370,8 +5370,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 					ast_verbose("Found RTP video format %d\n", codec);
 				ast_rtp_set_m_type(newvideortp, codec);
 			}
-		} else if (p->udptl && ( (sscanf(m, "image %30d udptl t38%n", &x, &len) == 1 && len > 0) || 
-		 (sscanf(m, "image %30d UDPTL t38%n", &x, &len) == 1 && len >= 0) )) {
+		} else if (p->udptl && ((sscanf(m, "image %30d udptl t38%n", &x, &len) == 1 && len > 0) || 
+					(sscanf(m, "image %30d UDPTL t38%n", &x, &len) == 1 && len >= 0))) {
 			if (debug)
 				ast_verbose("Got T.38 offer in SDP in dialog %s\n", p->callid);
 			p->offered_media[SDP_IMAGE].offered = TRUE;
@@ -5379,9 +5379,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			numberofmediastreams++;
 			
 			if (p->owner && p->lastinvite) {
-				p->t38.state = T38_PEER_REINVITE; /* T38 Offered in re-invite from remote party */
-				if (option_debug > 1)
-					ast_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n", p->t38.state, p->owner ? p->owner->name : "<none>" );
+				if(p->t38.state != T38_LOCAL_REINVITE) {
+					p->t38.state = T38_PEER_REINVITE; /* T38 Offered in re-invite from remote party */
+					if (option_debug > 1)
+						ast_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n", p->t38.state, p->owner ? p->owner->name : "<none>" );
+				}
 			} else {
 				p->t38.state = T38_PEER_DIRECT; /* T38 Offered directly from peer in first invite */
 				p->t38.direct = 1;
