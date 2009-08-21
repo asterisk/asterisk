@@ -10378,20 +10378,13 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		else
 			snprintf(to, sizeof(to), "<sip:%s@%s>", r->username, p->tohost);
 	}
-	
-	/* Fromdomain is what we are registering to, regardless of actual
-	   host name from SRV */
-	if (!ast_strlen_zero(p->fromdomain)) {
-		if (r->portno && r->portno != STANDARD_SIP_PORT)
-			snprintf(addr, sizeof(addr), "sip:%s:%d", p->fromdomain, r->portno);
-		else
-			snprintf(addr, sizeof(addr), "sip:%s", p->fromdomain);
-	} else {
-		if (r->portno && r->portno != STANDARD_SIP_PORT)
-			snprintf(addr, sizeof(addr), "sip:%s:%d", r->hostname, r->portno);
-		else
-			snprintf(addr, sizeof(addr), "sip:%s", r->hostname);
-	}
+
+	/* Host is what we are registered to, regardless if a domain exists in the username */
+	if (r->portno && r->portno != STANDARD_SIP_PORT)
+		snprintf(addr, sizeof(addr), "sip:%s:%d", r->hostname, r->portno);
+	else
+		snprintf(addr, sizeof(addr), "sip:%s", r->hostname);
+
 	ast_string_field_set(p, uri, addr);
 
 	p->branch ^= ast_random();
