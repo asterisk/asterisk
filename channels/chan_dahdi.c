@@ -5271,7 +5271,12 @@ static int dahdi_hangup(struct ast_channel *ast)
 			dahdi_r2_update_monitor_count(p->mfcr2, 1);
 		} else if (p->mfcr2call) {
 			ast_log(LOG_DEBUG, "Clearing call request on channel %d\n", p->channel);
+			/* since ast_request() was called but not ast_call() we have not yet dialed
+			and the openr2 stack will not call on_call_end callback, we need to unset
+			the mfcr2call flag and bump the monitor count so the monitor thread can take
+			care of this channel events from now on */
 			p->mfcr2call = 0;
+			dahdi_r2_update_monitor_count(p->mfcr2, 1);
 		}
 #endif
 		switch (p->sig) {
