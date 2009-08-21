@@ -11751,12 +11751,11 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		snprintf(to, sizeof(to), "<sip:%s@%s>", r->username, r->regdomain);
 	}
 
-	/* Domain is what we are registering to, regardless of actual
-	   host name from SRV */
+	/* Host is what we are registered to, reguardless of domain in username field */
 	if (ntohs(p->sa.sin_port) != STANDARD_SIP_PORT)
-		snprintf(addr, sizeof(addr), "sip:%s:%d", r->regdomain, ntohs(p->sa.sin_port));
+		snprintf(addr, sizeof(addr), "sip:%s:%d", r->hostname, ntohs(p->sa.sin_port));
 	else
-		snprintf(addr, sizeof(addr), "sip:%s", r->regdomain);
+		snprintf(addr, sizeof(addr), "sip:%s", r->hostname);
 
 	ast_string_field_set(p, uri, addr);
 
