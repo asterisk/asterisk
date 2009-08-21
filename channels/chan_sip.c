@@ -10997,7 +10997,6 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 	struct sip_peer *peer;
 	int res;
 	char *fromdomain;
-	char *domainport = NULL;
 
 	/* exit if we are already in process with this registrar ?*/
 	if (r == NULL || ((auth == NULL) && (r->regstate == REG_STATE_REGSENT || r->regstate == REG_STATE_AUTHSENT))) {
@@ -11156,33 +11155,14 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		else
 			snprintf(to, sizeof(to), "<sip:%s@%s>", r->username, p->tohost);
 	}
-	
-	/* Fromdomain is what we are registering to, regardless of actual
-	   host name from SRV */
-	if (!ast_strlen_zero(p->fromdomain)) {
-		domainport = strrchr(p->fromdomain, ':');
-		if (domainport) {
-			*domainport++ = '\0'; /* trim off domainport from p->fromdomain */
-			if (ast_strlen_zero(domainport))
-				domainport = NULL;
-		}		
-		if (domainport) {			
-			if (atoi(domainport) != STANDARD_SIP_PORT)
-				snprintf(addr, sizeof(addr), "sip:%s:%s", p->fromdomain, domainport);
-			else
-				snprintf(addr, sizeof(addr), "sip:%s", p->fromdomain);
-		} else {
-			if (r->portno && r->portno != STANDARD_SIP_PORT)
-				snprintf(addr, sizeof(addr), "sip:%s:%d", p->fromdomain, r->portno);
-			else
-				snprintf(addr, sizeof(addr), "sip:%s", p->fromdomain);
-		}
+
+	/* Host is what we are registered to, regardless if a domain exists in the username */
+	if (r->portno && r->portno != STANDARD_SIP_PORT) {
+		snprintf(addr, sizeof(addr), "sip:%s:%d", r->hostname, r->portno);
 	} else {
-		if (r->portno && r->portno != STANDARD_SIP_PORT)
-			snprintf(addr, sizeof(addr), "sip:%s:%d", r->hostname, r->portno);
-		else
-			snprintf(addr, sizeof(addr), "sip:%s", r->hostname);
+		snprintf(addr, sizeof(addr), "sip:%s", r->hostname);
 	}
+
 	ast_string_field_set(p, uri, addr);
 
 	p->branch ^= ast_random();
