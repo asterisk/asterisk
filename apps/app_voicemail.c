@@ -1874,6 +1874,11 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 	int ret; /* for better error checking */
 	char *imap_flags = NIL;
 
+    /* Back out early if this is a greeting and we don't want to store greetings in IMAP */
+    if (msgnum < 0 && !imapgreetings) {
+        return 0;
+    }
+
 	/* Set urgent flag for IMAP message */
 	if (!ast_strlen_zero(flag) && !strcmp(flag, "Urgent")) {
 		ast_debug(3, "Setting message flag \\\\FLAGGED.\n");
@@ -4352,13 +4357,13 @@ static int add_email_attachment(FILE *p, struct ast_vm_user *vmu, char *format, 
 	if (msgnum > -1)
 		fprintf(p, "Content-Type: %s%s; name=\"%s\"" ENDL, ctype, format, filename);
 	else
-		fprintf(p, "Content-Type: %s%s; name=\"%s.%s\"" ENDL, ctype, format, attach, format);
+		fprintf(p, "Content-Type: %s%s; name=\"%s.%s\"" ENDL, ctype, format, greeting_attachment, format);
 	fprintf(p, "Content-Transfer-Encoding: base64" ENDL);
 	fprintf(p, "Content-Description: Voicemail sound attachment." ENDL);
 	if (msgnum > -1)
 		fprintf(p, "Content-Disposition: attachment; filename=\"%s\"" ENDL ENDL, filename);
 	else
-		fprintf(p, "Content-Disposition: attachment; filename=\"%s.%s\"" ENDL ENDL, attach, format);
+		fprintf(p, "Content-Disposition: attachment; filename=\"%s.%s\"" ENDL ENDL, greeting_attachment, format);
 	snprintf(fname, sizeof(fname), "%s.%s", attach, format);
 	base_encode(fname, p);
 	if (last)
@@ -11500,11 +11505,9 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 					ast_filerename(tempfile, recordfile, NULL);
 				ast_stream_and_wait(chan, "vm-msgsaved", "");
 				if (!outsidecaller) {
-					/* Saves to IMAP server - but SHOULD save to filesystem ONLY if recording greetings! */
-#ifndef IMAP_STORAGE
+					/* Saves to IMAP server only if imapgreeting=yes */
 					STORE(recordfile, vmu->mailbox, vmu->context, -1, chan, vmu, fmt, *duration, vms, flag);
 					DISPOSE(recordfile, -1);
-#endif
 				}
 				cmd = 't';
 				return res;
