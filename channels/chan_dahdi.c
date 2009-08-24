@@ -3052,6 +3052,19 @@ static void dahdi_r2_update_monitor_count(struct dahdi_mfcr2 *mfcr2, int increme
 	ast_mutex_unlock(&mfcr2->monitored_count_lock);
 }
 
+static void dahdi_r2_disconnect_call(struct dahdi_pvt *p, openr2_call_disconnect_cause_t cause)
+{
+	if (openr2_chan_disconnect_call(p->r2chan, cause)) {
+		ast_log(LOG_NOTICE, "Bad! failed to disconnect call on channel %d with reason %s, hope for the best!\n",
+		   p->channel, openr2_proto_get_disconnect_string(cause));
+		/* force the chan to idle and release the call flag now since we will not see a clean on_call_end */
+		openr2_chan_set_idle(p->r2chan);
+		ast_mutex_lock(&p->lock);
+		p->mfcr2call = 0;
+		ast_mutex_unlock(&p->lock);
+	}
+}
+
 static void dahdi_r2_on_call_offered(openr2_chan_t *r2chan, const char *ani, const char *dnis, openr2_calling_party_category_t category)
 {
 	struct dahdi_pvt *p;
@@ -3063,7 +3076,7 @@ static void dahdi_r2_on_call_offered(openr2_chan_t *r2chan, const char *ani, con
 	/* if collect calls are not allowed and this is a collect call, reject it! */
 	if (!p->mfcr2_allow_collect_calls && category == OR2_CALLING_PARTY_CATEGORY_COLLECT_CALL) {
 		ast_log(LOG_NOTICE, "Rejecting MFC/R2 collect call\n");
-		openr2_chan_disconnect_call(r2chan, OR2_CAUSE_COLLECT_CALL_REJECTED);
+		dahdi_r2_disconnect_call(p, OR2_CAUSE_COLLECT_CALL_REJECTED);
 		return;
 	}
 	ast_mutex_lock(&p->lock);
@@ -3084,7 +3097,7 @@ static void dahdi_r2_on_call_offered(openr2_chan_t *r2chan, const char *ani, con
 	if (!ast_exists_extension(NULL, p->context, p->exten, 1, p->cid_num)) {
 		ast_log(LOG_NOTICE, "MFC/R2 call on channel %d requested non-existent extension '%s' in context '%s'. Rejecting call.\n",
 				p->channel, p->exten, p->context);
-		openr2_chan_disconnect_call(r2chan, OR2_CAUSE_UNALLOCATED_NUMBER);
+		dahdi_r2_disconnect_call(p, OR2_CAUSE_UNALLOCATED_NUMBER);
 		return;
 	}
 	if (!p->mfcr2_accept_on_offer) {
@@ -3098,7 +3111,7 @@ static void dahdi_r2_on_call_offered(openr2_chan_t *r2chan, const char *ani, con
 			return;
 		}
 		ast_log(LOG_WARNING, "Unable to create PBX channel in DAHDI channel %d\n", p->channel);
-		openr2_chan_disconnect_call(r2chan, OR2_CAUSE_OUT_OF_ORDER);
+		dahdi_r2_disconnect_call(p, OR2_CAUSE_OUT_OF_ORDER);
 	} else if (p->mfcr2_charge_calls) {
 		ast_log(LOG_DEBUG, "Accepting MFC/R2 call with charge on chan %d\n", p->channel);
 		openr2_chan_accept_call(r2chan, OR2_CALL_WITH_CHARGE);
@@ -3150,7 +3163,7 @@ static void dahdi_r2_on_call_accepted(openr2_chan_t *r2chan, openr2_call_mode_t 
 		}
 		ast_log(LOG_WARNING, "Unable to create PBX channel in DAHDI channel %d\n", p->channel);
 		/* failed to create the channel, bail out and report it as an out of order line */
-		openr2_chan_disconnect_call(r2chan, OR2_CAUSE_OUT_OF_ORDER);
+		dahdi_r2_disconnect_call(p, OR2_CAUSE_OUT_OF_ORDER);
 		return;
 	}
 	/* this is an outgoing call, no need to launch the PBX thread, most likely we're in one already */
@@ -3203,10 +3216,10 @@ static void dahdi_r2_on_call_disconnect(openr2_chan_t *r2chan, openr2_call_disco
 	if (!p->owner) {
 		ast_mutex_unlock(&p->lock);
 		/* no owner, therefore we can't use dahdi_hangup to disconnect, do it right now */
-		openr2_chan_disconnect_call(r2chan, OR2_CAUSE_NORMAL_CLEARING);
+		dahdi_r2_disconnect_call(p, OR2_CAUSE_NORMAL_CLEARING);
 		return;
 	}
-	/* when we have an owner we don't call openr2_chan_disconnect_call here, that will
+	/* when we have an owner we don't call dahdi_r2_disconnect_call here, that will
 	   be done in dahdi_hangup */
 	if (p->owner->_state == AST_STATE_UP) {
 		p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
@@ -5260,13 +5273,13 @@ static int dahdi_hangup(struct ast_channel *ast)
 			ast_log(LOG_DEBUG, "disconnecting MFC/R2 call on chan %d\n", p->channel);
 			/* If it's an incoming call, check the mfcr2_forced_release setting */
 			if (openr2_chan_get_direction(p->r2chan) == OR2_DIR_BACKWARD && p->mfcr2_forced_release) {
-				openr2_chan_disconnect_call(p->r2chan, OR2_CAUSE_FORCED_RELEASE);
+				dahdi_r2_disconnect_call(p, OR2_CAUSE_FORCED_RELEASE);
 			} else {
 				const char *r2causestr = pbx_builtin_getvar_helper(ast, "MFCR2_CAUSE");
 				int r2cause_user = r2causestr ? atoi(r2causestr) : 0;
 				openr2_call_disconnect_cause_t r2cause = r2cause_user ? dahdi_ast_cause_to_r2_cause(r2cause_user)
 					                                              : dahdi_ast_cause_to_r2_cause(ast->hangupcause);
-				openr2_chan_disconnect_call(p->r2chan, r2cause);
+				dahdi_r2_disconnect_call(p, r2cause);
 			}
 			dahdi_r2_update_monitor_count(p->mfcr2, 1);
 		} else if (p->mfcr2call) {
@@ -13305,6 +13318,7 @@ static char *handle_mfcr2_set_idle(struct ast_cli_entry *e, int cmd, struct ast_
 		openr2_chan_set_idle(p->r2chan);
 		ast_mutex_lock(&p->lock);
 		p->locallyblocked = 0;
+		p->mfcr2call = 0;
 		ast_mutex_unlock(&p->lock);
 		if (channo != -1) {
 			break;
