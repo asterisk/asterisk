@@ -800,11 +800,9 @@ if test "${USE_GSM}" != "no"; then
    fi
 fi
 
-if test "${host_os}" != "linux-gnu" ; then
-  AST_EXT_LIB_CHECK([ICONV], [iconv], [iconv_open], [iconv.h])
-else
-  PBX_ICONV=1
-fi
+AST_EXT_LIB_CHECK([ICONV], [iconv], [iconv_open], [iconv.h])
+# Some versions of Linux package iconv in glibc
+AST_EXT_LIB_CHECK([ICONV], [c], [iconv_close], [iconv.h])
 
 AST_EXT_LIB_CHECK([ICAL], [ical], [icaltimezone_new], [libical/ical.h], [-lpthread])
 
