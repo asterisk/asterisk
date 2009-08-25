@@ -3411,14 +3411,14 @@ static char *func_args(char *function)
 	char *args = strchr(function, '(');
 
 	if (!args) {
-		ast_log(LOG_WARNING, "Function doesn't contain parentheses.  Assuming null argument.\n");
+		ast_log(LOG_WARNING, "Function '%s' doesn't contain parentheses.  Assuming null argument.\n", function);
 	} else {
 		char *p;
 		*args++ = '\0';
 		if ((p = strrchr(args, ')'))) {
 			*p = '\0';
 		} else {
-			ast_log(LOG_WARNING, "Can't find trailing parenthesis?\n");
+			ast_log(LOG_WARNING, "Can't find trailing parenthesis for function '%s(%s'?\n", function, args);
 		}
 	}
 	return args;
