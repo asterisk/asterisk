@@ -3802,15 +3802,27 @@ int dundi_query_eid(struct dundi_entity_info *dei, const char *dcontext, dundi_e
 	return dundi_query_eid_internal(dei, dcontext, &eid, &hmd, dundi_ttl, 0, avoid);
 }
 
+enum {
+	OPT_BYPASS_CACHE = (1 << 0),
+};
+
+AST_APP_OPTIONS(dundi_query_opts, BEGIN_OPTIONS
+	AST_APP_OPTION('b', OPT_BYPASS_CACHE),
+END_OPTIONS );
+
 static int dundifunc_read(struct ast_channel *chan, const char *cmd, char *num, char *buf, size_t len)
 {
-	char *context;
-	char *opts;
 	int results;
 	int x;
-	int bypass = 0;
 	struct ast_module_user *u;
 	struct dundi_result dr[MAX_RESULTS];
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(number);
+		AST_APP_ARG(context);
+		AST_APP_ARG(options);
+	);
+	char *parse;
+	struct ast_flags opts = { 0, };
 
 	buf[0] = '\0';
 
@@ -3821,21 +3833,18 @@ static int dundifunc_read(struct ast_channel *chan, const char *cmd, char *num, 
 
 	u = ast_module_user_add(chan);
 
-	context = strchr(num, '|');
-	if (context) {
-		*context++ = '\0';
-		opts = strchr(context, '|');
-		if (opts) {
-			*opts++ = '\0';
-			if (strchr(opts, 'b'))
-				bypass = 1;
-		}
+	parse = ast_strdupa(num);
+
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (!ast_strlen_zero(args.options)) {
+		ast_app_parse_options(dundi_query_opts, &opts, NULL, args.options);
+	}
+	if (ast_strlen_zero(args.context)) {
+		args.context = "e164";
 	}
 
-	if (ast_strlen_zero(context))
-		context = "e164";
-
-	results = dundi_lookup(dr, MAX_RESULTS, NULL, context, num, bypass);
+	results = dundi_lookup(dr, MAX_RESULTS, NULL, args.context, args.number, ast_test_flag(&opts, OPT_BYPASS_CACHE));
 	if (results > 0) {
 		sort_results(dr, results);
 		for (x = 0; x < results; x++) {
@@ -3858,7 +3867,7 @@ static int dundifunc_read(struct ast_channel *chan, const char *cmd, char *num, 
 static struct ast_custom_function dundi_function = {
 	.name = "DUNDILOOKUP",
 	.synopsis = "Do a DUNDi lookup of a phone number.",
-	.syntax = "DUNDILOOKUP(number[|context[|options]])",
+	.syntax = "DUNDILOOKUP(number[,context[,options]])",
 	.desc = "This will do a DUNDi lookup of the given phone number.\n"
 	"If no context is given, the default will be e164. The result of\n"
 	"this function will return the Technology/Resource found in the first result\n"
@@ -3867,14 +3876,6 @@ static struct ast_custom_function dundi_function = {
 	"be bypassed.\n",
 	.read = dundifunc_read,
 };
-
-enum {
-	OPT_BYPASS_CACHE = (1 << 0),
-};
-
-AST_APP_OPTIONS(dundi_query_opts, BEGIN_OPTIONS
-	AST_APP_OPTION('b', OPT_BYPASS_CACHE),
-END_OPTIONS );
 
 static unsigned int dundi_result_id;
 
