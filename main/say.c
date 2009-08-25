@@ -3477,6 +3477,12 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 	return res;
 }
 
+static char next_item(const char *format)
+{
+	const char *next = ast_skip_blanks(format);
+	return *next;
+}
+
 /* Danish syntax */
 int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
 {
@@ -3680,12 +3686,6 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 		}
 	}
 	return res;
-}
-
-char next_item(const char *format)
-{
-	const char *next = ast_skip_blanks(format);
-	return *next;
 }
 
 /* German syntax */
