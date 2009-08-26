@@ -94,6 +94,12 @@ Dialplan Functions
      voice - voice mode (returns from FAX mode, reverting the changes that
              were made when FAX mode was requested)
 
+Dialplan Variables
+------------------
+ * Added DYNAMIC_FEATURENAME which holds the last triggered dynamic feature.
+ * Added DYNAMIC_PEERNAME which holds the unique channel name on the other side
+   and is set when a dynamic feature is triggered.
+
 Queue changes
 -------------
   * A new option, 'I' has been added to both app_queue and app_dial.

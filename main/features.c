@@ -2074,6 +2074,13 @@ static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, 
 
 	ast_autoservice_start(idle);
 	
+	if(work && idle) {
+		pbx_builtin_setvar_helper(work, "DYNAMIC_PEERNAME", idle->name);
+		pbx_builtin_setvar_helper(idle, "DYNAMIC_PEERNAME", work->name);
+		pbx_builtin_setvar_helper(work, "DYNAMIC_FEATURENAME", feature->sname);
+		pbx_builtin_setvar_helper(idle, "DYNAMIC_FEATURENAME", feature->sname);
+	}
+
 	if (!ast_strlen_zero(feature->moh_class))
 		ast_moh_start(idle, feature->moh_class, NULL);
 
