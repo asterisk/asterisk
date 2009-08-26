@@ -2682,7 +2682,7 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 	int res = 0;
 	const struct sockaddr_in *dst = sip_real_dst(p);
 
-	ast_debug(1, "Trying to put '%.10s' onto %s socket destined for %s:%d\n", data, get_transport_pvt(p), ast_inet_ntoa(dst->sin_addr), htons(dst->sin_port));
+	ast_debug(1, "Trying to put '%.11s' onto %s socket destined for %s:%d\n", data, get_transport_pvt(p), ast_inet_ntoa(dst->sin_addr), htons(dst->sin_port));
 
 	if (sip_prepare_socket(p) < 0)
 		return XMIT_ERROR;
