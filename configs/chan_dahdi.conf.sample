@@ -67,8 +67,8 @@
 ;
 ;switchtype=euroisdn
 ;
-; Some switches (AT&T especially) require network specific facility IE
-; supported values are currently 'none', 'sdn', 'megacom', 'tollfreemegacom', 'accunet'
+; Some switches (AT&T especially) require network specific facility IE.
+; Supported values are currently 'none', 'sdn', 'megacom', 'tollfreemegacom', 'accunet'
 ;
 ; nsf cannot be changed on a reload.
 ;
