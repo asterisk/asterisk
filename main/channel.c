@@ -2933,13 +2933,36 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		}
 
 		if (chan->audiohooks) {
-			struct ast_frame *new_frame, *cur;
+			struct ast_frame *prev = NULL, *new_frame, *cur, *dup;
 
+			/* Since ast_audiohook_write may return a new frame, and the cur frame is
+			 * an item in a list of frames, create a new list adding each cur frame back to it
+			 * regardless if the cur frame changes or not. */
 			for (cur = f; cur; cur = AST_LIST_NEXT(cur, frame_list)) {
 				new_frame = ast_audiohook_write_list(chan, chan->audiohooks, AST_AUDIOHOOK_DIRECTION_WRITE, cur);
+
+				/* if this frame is different than cur, preserve the end of the list,
+				 * free the old frames, and set cur to be the new frame */
 				if (new_frame != cur) {
-					ast_frfree(new_frame);
+					/* doing an ast_frisolate here seems silly, but we are not guaranteed the new_frame
+					 * isn't part of local storage, meaning if ast_audiohook_write is called multiple
+					 * times it may override the previous frame we got from it unless we dup it */
+					if ((dup = ast_frisolate(new_frame))) {
+						AST_LIST_NEXT(dup, frame_list) = AST_LIST_NEXT(cur, frame_list);
+						ast_frfree(new_frame);
+						ast_frfree(cur);
+						cur = dup;
+					}
 				}
+
+				/* now, regardless if cur is new or not, add it to the new list,
+				 * if the new list has not started, cur will become the first item. */
+				if (prev) {
+					AST_LIST_NEXT(prev, frame_list) = cur;
+				} else {
+					f = cur; /* set f to be the beginning of our new list */
+				}
+				prev = cur;
 			}
 		}
 		
