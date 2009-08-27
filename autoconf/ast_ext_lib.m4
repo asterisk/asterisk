@@ -29,6 +29,7 @@ AC_DEFUN([AST_EXT_LIB_SETUP],
 	;;
 	esac
     ])
+    AH_TEMPLATE(m4_bpatsubst([[HAVE_$1]], [(.*)]), [Define to 1 if you have the $2 library.])
     AC_SUBST([$1_LIB])
     AC_SUBST([$1_INCLUDE])
     AC_SUBST([$1_DIR])
@@ -73,7 +74,7 @@ if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
       else				# check for the header
          saved_cppflags="${CPPFLAGS}"
          CPPFLAGS="${CPPFLAGS} ${$1_INCLUDE}"
-	 AC_CHECK_HEADER([$4], [$1_HEADER_FOUND=1], [$1_HEADER_FOUND=0])
+         AC_CHECK_HEADER([$4], [$1_HEADER_FOUND=1], [$1_HEADER_FOUND=0])
          CPPFLAGS="${saved_cppflags}"
       fi
       if test "x${$1_HEADER_FOUND}" = "x0" ; then
@@ -84,9 +85,19 @@ if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
 	    $1_LIB=""
 	 fi
          PBX_$1=1
-         # XXX don't know how to evaluate the description (third argument) in AC_DEFINE_UNQUOTED
-         AC_DEFINE_UNQUOTED([HAVE_$1], 1, [Define this to indicate the ${$1_DESCRIP} library])
-	 AC_DEFINE_UNQUOTED([HAVE_$1_VERSION], [$7], [Define to indicate the ${$1_DESCRIP} library version])
+         if test "x${$1_OPTION}" = "x"; then
+            dnl Ensure that we have an autoheader, when AST_EXT_LIB_SETUP was
+            dnl not called.  Note that we cannot use shell substitution in the
+            dnl description, because the shell is never invoked when rendering
+            dnl the autoheader.  Only m4 substitutions will expand correctly.
+            AC_DEFINE_UNQUOTED([HAVE_$1], 1, [Define to 1 to indicate $1 functionality.])
+            AC_DEFINE_UNQUOTED([HAVE_$1_VERSION], [$7], [Define to indicate the $1 library version])
+         else
+            cat >>confdefs.h <<_ACEOF
+[@%:@define] HAVE_$1 1
+[@%:@define] HAVE_$1_VERSION $7
+_ACEOF
+         fi
       fi
    fi
 fi
