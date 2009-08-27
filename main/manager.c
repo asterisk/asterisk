@@ -2083,8 +2083,11 @@ static int action_getconfig(struct mansession *s, const struct message *m)
 		return 0;
 	}
 	cfg = ast_config_load2(fn, "manager", config_flags);
-	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEINVALID) {
+	if (cfg == CONFIG_STATUS_FILEMISSING) {
 		astman_send_error(s, m, "Config file not found");
+		return 0;
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		astman_send_error(s, m, "Config file has invalid format");
 		return 0;
 	}
 
@@ -2121,7 +2124,10 @@ static int action_listcategories(struct mansession *s, const struct message *m)
 		return 0;
 	}
 	if (!(cfg = ast_config_load2(fn, "manager", config_flags))) {
-		astman_send_error(s, m, "Config file not found or file has invalid syntax");
+		astman_send_error(s, m, "Config file not found");
+		return 0;
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		astman_send_error(s, m, "Config file has invalid format");
 		return 0;
 	}
 	astman_start_ack(s, m);
@@ -2171,6 +2177,9 @@ static int action_getconfigjson(struct mansession *s, const struct message *m)
 
 	if (!(cfg = ast_config_load2(fn, "manager", config_flags))) {
 		astman_send_error(s, m, "Config file not found");
+		return 0;
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		astman_send_error(s, m, "Config file has invalid format");
 		return 0;
 	}
 
@@ -2381,6 +2390,9 @@ static int action_updateconfig(struct mansession *s, const struct message *m)
 	}
 	if (!(cfg = ast_config_load2(sfn, "manager", config_flags))) {
 		astman_send_error(s, m, "Config file not found");
+		return 0;
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		astman_send_error(s, m, "Config file has invalid format");
 		return 0;
 	}
 	result = handle_updates(s, m, cfg, dfn);
@@ -5430,8 +5442,8 @@ static int __init_manager(int reload)
 	}
 
 	displayconnects = 1;
-	if (!cfg) {
-		ast_log(LOG_NOTICE, "Unable to open AMI configuration manager.conf. Asterisk management interface (AMI) disabled.\n");
+	if (!cfg || cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_NOTICE, "Unable to open AMI configuration manager.conf, or configuration is invalid. Asterisk management interface (AMI) disabled.\n");
 		return 0;
 	}
 
@@ -5507,7 +5519,7 @@ static int __init_manager(int reload)
 
 	/* First, get users from users.conf */
 	ucfg = ast_config_load2("users.conf", "manager", config_flags);
-	if (ucfg && (ucfg != CONFIG_STATUS_FILEUNCHANGED)) {
+	if (ucfg && (ucfg != CONFIG_STATUS_FILEUNCHANGED) && ucfg != CONFIG_STATUS_FILEINVALID) {
 		const char *hasmanager;
 		int genhasmanager = ast_true(ast_variable_retrieve(ucfg, "general", "hasmanager"));
 
