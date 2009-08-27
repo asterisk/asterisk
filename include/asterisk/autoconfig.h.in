@@ -28,7 +28,7 @@
    */
 #undef HAVE_ALLOCA_H
 
-/* Define to indicate the ${ALSA_DESCRIP} library */
+/* Define to 1 to indicate ALSA functionality. */
 #undef HAVE_ALSA
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
@@ -65,7 +65,7 @@
 /* Define to 1 if you have the `bzero' function. */
 #undef HAVE_BZERO
 
-/* Define to indicate the ${CAP_DESCRIP} library */
+/* Define to 1 to indicate CAP functionality. */
 #undef HAVE_CAP
 
 /* Define to 1 if your system has a working `chown' function. */
@@ -74,7 +74,7 @@
 /* Define if your system has the curl libraries. */
 #undef HAVE_CURL
 
-/* Define to indicate the ${CURSES_DESCRIP} library */
+/* Define to 1 to indicate CURSES functionality. */
 #undef HAVE_CURSES
 
 /* Define if your system has the DAHDI headers. */
@@ -105,7 +105,7 @@
 /* Define to 1 if you have the `fork' function. */
 #undef HAVE_FORK
 
-/* Define to indicate the ${FREETDS_DESCRIP} library */
+/* Define to 1 to indicate FREETDS functionality. */
 #undef HAVE_FREETDS
 
 /* Define to 1 if fseeko (and presumably ftello) exists and is declared. */
@@ -153,7 +153,7 @@
 /* Define to 1 if your glob function supports GLOB_NOMAGIC option. */
 #undef HAVE_GLOB_NOMAGIC
 
-/* Define to indicate the ${GNUTLS_DESCRIP} library */
+/* Define to 1 to indicate GNUTLS functionality. */
 #undef HAVE_GNUTLS
 
 /* Define to indicate the GSM library */
@@ -171,7 +171,7 @@
 /* Define if your system has the GTK2 libraries. */
 #undef HAVE_GTK2
 
-/* Define to indicate the ${IKSEMEL_DESCRIP} library */
+/* Define to 1 to indicate IKSEMEL functionality. */
 #undef HAVE_IKSEMEL
 
 /* Define if your system has the UW IMAP Toolkit c-client library. */
@@ -196,8 +196,11 @@
 /* Define to 1 if you have the `isascii' function. */
 #undef HAVE_ISASCII
 
-/* Define to indicate the ${ISDNNET_DESCRIP} library */
+/* Define to 1 to indicate ISDNNET functionality. */
 #undef HAVE_ISDNNET
+
+/* Define to 1 if you have the KDE library. */
+#undef HAVE_KDE
 
 /* Define to 1 if you have the <libintl.h> header file. */
 #undef HAVE_LIBINTL_H
@@ -217,7 +220,7 @@
 /* Define to 1 if you have the `localtime_r' function. */
 #undef HAVE_LOCALTIME_R
 
-/* Define to indicate the ${LTDL_DESCRIP} library */
+/* Define to 1 to indicate LTDL functionality. */
 #undef HAVE_LTDL
 
 /* Define to 1 if you have the <malloc.h> header file. */
@@ -235,7 +238,7 @@
 /* Define to 1 if you have the `memset' function. */
 #undef HAVE_MEMSET
 
-/* Define to indicate the ${MISDN_DESCRIP} library */
+/* Define to 1 to indicate MISDN functionality. */
 #undef HAVE_MISDN
 
 /* Define to 1 if you have the `mkdir' function. */
@@ -247,10 +250,10 @@
 /* Define to 1 if you have the `munmap' function. */
 #undef HAVE_MUNMAP
 
-/* Define to indicate the ${NBS_DESCRIP} library */
+/* Define to 1 to indicate NBS functionality. */
 #undef HAVE_NBS
 
-/* Define to indicate the ${NCURSES_DESCRIP} library */
+/* Define to 1 to indicate NCURSES functionality. */
 #undef HAVE_NCURSES
 
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
@@ -265,22 +268,22 @@
 /* Define to indicate the Net-SNMP library */
 #undef HAVE_NETSNMP
 
-/* Define to indicate the ${NEWT_DESCRIP} library */
+/* Define to 1 to indicate NEWT functionality. */
 #undef HAVE_NEWT
 
-/* Define to indicate the ${OGG_DESCRIP} library */
+/* Define to 1 to indicate OGG functionality. */
 #undef HAVE_OGG
 
 /* Define if your system has the OpenH323 libraries. */
 #undef HAVE_OPENH323
 
-/* Define to indicate the ${OPENSSL_DESCRIP} library */
+/* Define to 1 to indicate OPENSSL functionality. */
 #undef HAVE_OPENSSL
 
-/* Define to indicate the ${OSPTK_DESCRIP} library */
+/* Define to 1 to indicate OSPTK functionality. */
 #undef HAVE_OSPTK
 
-/* Define to indicate the ${OSS_DESCRIP} library */
+/* Define to 1 to indicate OSS functionality. */
 #undef HAVE_OSS
 
 /* Define to 1 if OSX atomic operations are supported. */
@@ -289,19 +292,19 @@
 /* Define to indicate the PostgreSQL library */
 #undef HAVE_PGSQL
 
-/* Define to indicate the ${POPT_DESCRIP} library */
+/* Define to 1 to indicate POPT functionality. */
 #undef HAVE_POPT
 
 /* Define to 1 if you have the `pow' function. */
 #undef HAVE_POW
 
-/* Define to indicate the ${PRI_DESCRIP} library */
+/* Define to 1 to indicate PRI functionality. */
 #undef HAVE_PRI
 
-/* Define to indicate the ${PRI_INBANDDISCONNECT_DESCRIP} library */
+/* Define to 1 to indicate PRI_INBANDDISCONNECT functionality. */
 #undef HAVE_PRI_INBANDDISCONNECT
 
-/* Define to indicate the ${PRI_VERSION_DESCRIP} library */
+/* Define to 1 to indicate PRI_VERSION functionality. */
 #undef HAVE_PRI_VERSION
 
 /* Define if you have POSIX threads libraries and header files. */
@@ -325,7 +328,7 @@
 /* Define if your system has the PWLib libraries. */
 #undef HAVE_PWLIB
 
-/* Define to indicate the ${RADIUS_DESCRIP} library */
+/* Define to 1 to indicate RADIUS functionality. */
 #undef HAVE_RADIUS
 
 /* Define to 1 if you have the `regcomp' function. */
@@ -358,16 +361,16 @@
 /* Define to 1 if your system has soxmix application. */
 #undef HAVE_SOXMIX
 
-/* Define to indicate the ${SPEEX_DESCRIP} library */
+/* Define to 1 to indicate SPEEX functionality. */
 #undef HAVE_SPEEX
 
-/* Define to indicate the ${SPEEXDSP_DESCRIP} library */
+/* Define to 1 to indicate SPEEXDSP functionality. */
 #undef HAVE_SPEEXDSP
 
-/* Define to indicate the ${SPEEX_PREPROCESS_DESCRIP} library */
+/* Define to 1 to indicate SPEEX_PREPROCESS functionality. */
 #undef HAVE_SPEEX_PREPROCESS
 
-/* Define to indicate the ${SQLITE_DESCRIP} library */
+/* Define to 1 to indicate SQLITE functionality. */
 #undef HAVE_SQLITE
 
 /* Define to 1 if you have the `sqrt' function. */
@@ -456,7 +459,7 @@
 /* Define to 1 if `st_blksize' is member of `struct stat'. */
 #undef HAVE_STRUCT_STAT_ST_BLKSIZE
 
-/* Define to indicate the ${SUPPSERV_DESCRIP} library */
+/* Define to 1 to indicate SUPPSERV functionality. */
 #undef HAVE_SUPPSERV
 
 /* Define to 1 if you have the <syslog.h> header file. */
@@ -500,7 +503,7 @@
 /* Define to 1 if you have <sys/wait.h> that is POSIX.1 compatible. */
 #undef HAVE_SYS_WAIT_H
 
-/* Define to indicate the ${TERMCAP_DESCRIP} library */
+/* Define to 1 to indicate TERMCAP functionality. */
 #undef HAVE_TERMCAP
 
 /* Define to 1 if you have the <termios.h> header file. */
@@ -509,22 +512,22 @@
 /* Define to 1 if your system has timersub in time.h */
 #undef HAVE_TIMERSUB
 
-/* Define to indicate the ${TINFO_DESCRIP} library */
+/* Define to 1 to indicate TINFO functionality. */
 #undef HAVE_TINFO
 
-/* Define to indicate the ${TONEZONE_DESCRIP} library */
+/* Define to 1 to indicate TONEZONE functionality. */
 #undef HAVE_TONEZONE
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
-/* Define to indicate the ${UNIXODBC_DESCRIP} library */
+/* Define to 1 to indicate UNIXODBC functionality. */
 #undef HAVE_UNIXODBC
 
 /* Define to 1 if you have the `unsetenv' function. */
 #undef HAVE_UNSETENV
 
-/* Define to indicate the ${USB_DESCRIP} library */
+/* Define to 1 to indicate USB functionality. */
 #undef HAVE_USB
 
 /* Define to 1 if you have the `utime' function. */
@@ -545,7 +548,7 @@
 /* Define to 1 if you have the <vfork.h> header file. */
 #undef HAVE_VFORK_H
 
-/* Define to indicate the ${VORBIS_DESCRIP} library */
+/* Define to 1 to indicate VORBIS functionality. */
 #undef HAVE_VORBIS
 
 /* Define if your system has the VoiceTronix API libraries. */
@@ -566,7 +569,7 @@
 /* Define if your Zaptel drivers have chan_alarms. */
 #undef HAVE_ZAPTEL_CHANALARMS
 
-/* Define to indicate the ${ZLIB_DESCRIP} library */
+/* Define to 1 to indicate ZLIB functionality. */
 #undef HAVE_ZLIB
 
 /* Define to 1 if the system has the type `_Bool'. */

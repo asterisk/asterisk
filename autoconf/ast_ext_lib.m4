@@ -19,6 +19,7 @@ case ${withval} in
 esac
 ])
 PBX_$1=0
+AH_TEMPLATE(m4_bpatsubst([[HAVE_$1]], [(.*)]), [Define to 1 if you have the $2 library.])
 AC_SUBST([$1_LIB])
 AC_SUBST([$1_INCLUDE])
 AC_SUBST([$1_DIR])
@@ -68,7 +69,17 @@ if test "${USE_$1}" != "no"; then
          PBX_$1=0
       else
          PBX_$1=1
-         AC_DEFINE_UNQUOTED([HAVE_$1], 1, [Define to indicate the ${$1_DESCRIP} library])
+         if test "x${$1_OPTION}" = "x"; then
+            dnl Ensure that we have an autoheader, when AST_EXT_LIB_SETUP was
+            dnl not called.  Note that we cannot use shell substitution in the
+            dnl description, because the shell is never invoked when rendering
+            dnl the autoheader.  Only m4 substitutions will expand correctly.
+            AC_DEFINE_UNQUOTED([HAVE_$1], 1, [Define to 1 to indicate $1 functionality.])
+         else
+            cat >>confdefs.h <<_ACEOF
+[@%:@define] HAVE_$1 1
+_ACEOF
+         fi
       fi
    elif test -n "${$1_MANDATORY}";
    then
