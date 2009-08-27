@@ -26,6 +26,25 @@ AC_SUBST([$1_DIR])
 AC_SUBST([PBX_$1])
 ])
 
+# AST_EXT_LIB_SETUP_DEPENDENT([package symbol name], [package friendly name], [master package symbol name], [master package option name])
+
+AC_DEFUN([AST_EXT_LIB_SETUP_DEPENDENT],
+[
+$1_DESCRIP="$2"
+m4_ifval([$4], [$1_OPTION=$4])
+m4_ifval([$3], [
+if test "x${$3_MANDATORY}" = "xyes" ; then
+   $1_MANDATORY="yes"
+fi
+])
+PBX_$1=0
+AH_TEMPLATE(m4_bpatsubst([[HAVE_$1]], [(.*)]), [Define to 1 if you have the $2 library.])
+AC_SUBST([$1_LIB])
+AC_SUBST([$1_INCLUDE])
+AC_SUBST([$1_DIR])
+AC_SUBST([PBX_$1])
+])
+
 # AST_EXT_LIB_CHECK([package symbol name], [package library name], [function to check], [package header], [additional LIB data], [additional INCLUDE data])
 
 AC_DEFUN([AST_EXT_LIB_CHECK],
@@ -60,8 +79,12 @@ if test "${USE_$1}" != "no"; then
          then
             AC_MSG_NOTICE([***])
             AC_MSG_NOTICE([*** It appears that you do not have the $2 development package installed.])
-            AC_MSG_NOTICE([*** Please install it to include ${$1_DESCRIP} support, or re-run configure])
-            AC_MSG_NOTICE([*** without explicitly specifying --with-${$1_OPTION}])
+            if test "x${$1_OPTION}" = "x" ; then
+               AC_MSG_NOTICE([*** Please install it to include ${$1_DESCRIP} support])
+            else
+               AC_MSG_NOTICE([*** Please install it to include ${$1_DESCRIP} support, or re-run configure])
+               AC_MSG_NOTICE([*** without explicitly specifying --with-${$1_OPTION}])
+            fi
             exit 1
          fi
          $1_LIB=""
@@ -69,24 +92,20 @@ if test "${USE_$1}" != "no"; then
          PBX_$1=0
       else
          PBX_$1=1
-         if test "x${$1_OPTION}" = "x"; then
-            dnl Ensure that we have an autoheader, when AST_EXT_LIB_SETUP was
-            dnl not called.  Note that we cannot use shell substitution in the
-            dnl description, because the shell is never invoked when rendering
-            dnl the autoheader.  Only m4 substitutions will expand correctly.
-            AC_DEFINE_UNQUOTED([HAVE_$1], 1, [Define to 1 to indicate $1 functionality.])
-         else
-            cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 [@%:@define] HAVE_$1 1
 _ACEOF
-         fi
       fi
    elif test -n "${$1_MANDATORY}";
    then
       AC_MSG_NOTICE([***])
       AC_MSG_NOTICE([*** The ${$1_DESCRIP} installation on this system appears to be broken.])
-      AC_MSG_NOTICE([*** Either correct the installation, or run configure])
-      AC_MSG_NOTICE([*** without explicitly specifying --with-${$1_OPTION}])
+      if test "x${$1_OPTION}" = "x" ; then
+         AC_MSG_NOTICE([*** Please correct the installation])
+      else
+         AC_MSG_NOTICE([*** Either correct the installation, or run configure])
+         AC_MSG_NOTICE([*** without explicitly specifying --with-${$1_OPTION}])
+      fi
       exit 1
    fi
 fi

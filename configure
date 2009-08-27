@@ -813,6 +813,14 @@ PRI_LIB
 PRI_INCLUDE
 PRI_DIR
 PBX_PRI
+PRI_VERSION_LIB
+PRI_VERSION_INCLUDE
+PRI_VERSION_DIR
+PBX_PRI_VERSION
+PRI_INBANDDISCONNECT_LIB
+PRI_INBANDDISCONNECT_INCLUDE
+PRI_INBANDDISCONNECT_DIR
+PBX_PRI_INBANDDISCONNECT
 PWLIB_LIB
 PWLIB_INCLUDE
 PWLIB_DIR
@@ -833,6 +841,10 @@ SPEEXDSP_LIB
 SPEEXDSP_INCLUDE
 SPEEXDSP_DIR
 PBX_SPEEXDSP
+SPEEX_PREPROCESS_LIB
+SPEEX_PREPROCESS_INCLUDE
+SPEEX_PREPROCESS_DIR
+PBX_SPEEX_PREPROCESS
 SQLITE_LIB
 SQLITE_INCLUDE
 SQLITE_DIR
@@ -906,7 +918,6 @@ OPENH323_INCDIR
 OPENH323_LIBDIR
 OPENH323_SUFFIX
 OPENH323_BUILD
-PBX_SPEEX_PREPROCESS
 PBX_ZAPTEL_VLDTMF
 EDITLINE_LIB
 PBX_H323
@@ -8483,6 +8494,38 @@ PBX_PRI=0
 
 
 
+PRI_VERSION_DESCRIP="ISDN PRI get_version"
+PRI_VERSION_OPTION=pri
+
+if test "x${PRI_MANDATORY}" = "xyes" ; then
+   PRI_VERSION_MANDATORY="yes"
+fi
+
+PBX_PRI_VERSION=0
+
+
+
+
+
+
+
+
+PRI_INBANDDISCONNECT_DESCRIP="ISDN PRI set_inbanddisconnect"
+PRI_INBANDDISCONNECT_OPTION=pri
+
+if test "x${PRI_MANDATORY}" = "xyes" ; then
+   PRI_INBANDDISCONNECT_MANDATORY="yes"
+fi
+
+PBX_PRI_INBANDDISCONNECT=0
+
+
+
+
+
+
+
+
 PWLIB_DESCRIP="PWlib"
 PWLIB_OPTION="pwlib"
 
@@ -8625,6 +8668,18 @@ esac
 fi
 
 PBX_SPEEXDSP=0
+
+
+
+
+
+
+
+
+SPEEX_PREPROCESS_DESCRIP="speex_preprocess_ctl"
+SPEEX_PREPROCESS_OPTION=speex
+
+PBX_SPEEX_PREPROCESS=0
 
 
 
@@ -17006,10 +17061,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the asound development package installed." >&5
 echo "$as_me: *** It appears that you do not have the asound development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${ALSA_DESCRIP} support, or re-run configure" >&5
+            if test "x${ALSA_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${ALSA_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${ALSA_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${ALSA_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${ALSA_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${ALSA_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${ALSA_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${ALSA_OPTION}" >&6;}
+            fi
             exit 1
          fi
          ALSA_LIB=""
@@ -17017,17 +17077,9 @@ echo "$as_me: *** without explicitly specifying --with-${ALSA_OPTION}" >&6;}
          PBX_ALSA=0
       else
          PBX_ALSA=1
-         if test "x${ALSA_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_ALSA 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_ALSA 1
-_ACEOF
-         fi
       fi
    elif test -n "${ALSA_MANDATORY}";
    then
@@ -17035,10 +17087,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${ALSA_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${ALSA_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${ALSA_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${ALSA_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${ALSA_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${ALSA_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -17279,10 +17336,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the curses development package installed." >&5
 echo "$as_me: *** It appears that you do not have the curses development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${CURSES_DESCRIP} support, or re-run configure" >&5
+            if test "x${CURSES_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${CURSES_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${CURSES_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${CURSES_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${CURSES_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${CURSES_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${CURSES_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${CURSES_OPTION}" >&6;}
+            fi
             exit 1
          fi
          CURSES_LIB=""
@@ -17290,17 +17352,9 @@ echo "$as_me: *** without explicitly specifying --with-${CURSES_OPTION}" >&6;}
          PBX_CURSES=0
       else
          PBX_CURSES=1
-         if test "x${CURSES_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_CURSES 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_CURSES 1
-_ACEOF
-         fi
       fi
    elif test -n "${CURSES_MANDATORY}";
    then
@@ -17308,10 +17362,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${CURSES_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${CURSES_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${CURSES_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${CURSES_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${CURSES_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${CURSES_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -17553,10 +17612,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the cap development package installed." >&5
 echo "$as_me: *** It appears that you do not have the cap development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${CAP_DESCRIP} support, or re-run configure" >&5
+            if test "x${CAP_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${CAP_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${CAP_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${CAP_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${CAP_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${CAP_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${CAP_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${CAP_OPTION}" >&6;}
+            fi
             exit 1
          fi
          CAP_LIB=""
@@ -17564,17 +17628,9 @@ echo "$as_me: *** without explicitly specifying --with-${CAP_OPTION}" >&6;}
          PBX_CAP=0
       else
          PBX_CAP=1
-         if test "x${CAP_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_CAP 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_CAP 1
-_ACEOF
-         fi
       fi
    elif test -n "${CAP_MANDATORY}";
    then
@@ -17582,10 +17638,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${CAP_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${CAP_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${CAP_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${CAP_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${CAP_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${CAP_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -18685,10 +18746,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the iksemel development package installed." >&5
 echo "$as_me: *** It appears that you do not have the iksemel development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${IKSEMEL_DESCRIP} support, or re-run configure" >&5
+            if test "x${IKSEMEL_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${IKSEMEL_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${IKSEMEL_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${IKSEMEL_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${IKSEMEL_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${IKSEMEL_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${IKSEMEL_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${IKSEMEL_OPTION}" >&6;}
+            fi
             exit 1
          fi
          IKSEMEL_LIB=""
@@ -18696,17 +18762,9 @@ echo "$as_me: *** without explicitly specifying --with-${IKSEMEL_OPTION}" >&6;}
          PBX_IKSEMEL=0
       else
          PBX_IKSEMEL=1
-         if test "x${IKSEMEL_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_IKSEMEL 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_IKSEMEL 1
-_ACEOF
-         fi
       fi
    elif test -n "${IKSEMEL_MANDATORY}";
    then
@@ -18714,10 +18772,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${IKSEMEL_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${IKSEMEL_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${IKSEMEL_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${IKSEMEL_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${IKSEMEL_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${IKSEMEL_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -18959,10 +19022,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the gnutls development package installed." >&5
 echo "$as_me: *** It appears that you do not have the gnutls development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${GNUTLS_DESCRIP} support, or re-run configure" >&5
+            if test "x${GNUTLS_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${GNUTLS_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${GNUTLS_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${GNUTLS_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${GNUTLS_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${GNUTLS_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${GNUTLS_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${GNUTLS_OPTION}" >&6;}
+            fi
             exit 1
          fi
          GNUTLS_LIB=""
@@ -18970,17 +19038,9 @@ echo "$as_me: *** without explicitly specifying --with-${GNUTLS_OPTION}" >&6;}
          PBX_GNUTLS=0
       else
          PBX_GNUTLS=1
-         if test "x${GNUTLS_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_GNUTLS 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_GNUTLS 1
-_ACEOF
-         fi
       fi
    elif test -n "${GNUTLS_MANDATORY}";
    then
@@ -18988,10 +19048,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${GNUTLS_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${GNUTLS_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${GNUTLS_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${GNUTLS_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${GNUTLS_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${GNUTLS_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -20078,10 +20143,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the ltdl development package installed." >&5
 echo "$as_me: *** It appears that you do not have the ltdl development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${LTDL_DESCRIP} support, or re-run configure" >&5
+            if test "x${LTDL_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${LTDL_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${LTDL_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${LTDL_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${LTDL_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${LTDL_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${LTDL_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${LTDL_OPTION}" >&6;}
+            fi
             exit 1
          fi
          LTDL_LIB=""
@@ -20089,17 +20159,9 @@ echo "$as_me: *** without explicitly specifying --with-${LTDL_OPTION}" >&6;}
          PBX_LTDL=0
       else
          PBX_LTDL=1
-         if test "x${LTDL_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_LTDL 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_LTDL 1
-_ACEOF
-         fi
       fi
    elif test -n "${LTDL_MANDATORY}";
    then
@@ -20107,10 +20169,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${LTDL_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${LTDL_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${LTDL_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${LTDL_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${LTDL_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${LTDL_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -20568,10 +20635,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the mISDN development package installed." >&5
 echo "$as_me: *** It appears that you do not have the mISDN development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${MISDN_DESCRIP} support, or re-run configure" >&5
+            if test "x${MISDN_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${MISDN_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${MISDN_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${MISDN_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${MISDN_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${MISDN_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${MISDN_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${MISDN_OPTION}" >&6;}
+            fi
             exit 1
          fi
          MISDN_LIB=""
@@ -20579,17 +20651,9 @@ echo "$as_me: *** without explicitly specifying --with-${MISDN_OPTION}" >&6;}
          PBX_MISDN=0
       else
          PBX_MISDN=1
-         if test "x${MISDN_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_MISDN 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_MISDN 1
-_ACEOF
-         fi
       fi
    elif test -n "${MISDN_MANDATORY}";
    then
@@ -20597,10 +20661,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${MISDN_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${MISDN_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${MISDN_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${MISDN_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${MISDN_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${MISDN_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -20842,10 +20911,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the isdnnet development package installed." >&5
 echo "$as_me: *** It appears that you do not have the isdnnet development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${ISDNNET_DESCRIP} support, or re-run configure" >&5
+            if test "x${ISDNNET_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${ISDNNET_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${ISDNNET_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${ISDNNET_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${ISDNNET_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${ISDNNET_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${ISDNNET_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${ISDNNET_OPTION}" >&6;}
+            fi
             exit 1
          fi
          ISDNNET_LIB=""
@@ -20853,17 +20927,9 @@ echo "$as_me: *** without explicitly specifying --with-${ISDNNET_OPTION}" >&6;}
          PBX_ISDNNET=0
       else
          PBX_ISDNNET=1
-         if test "x${ISDNNET_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_ISDNNET 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_ISDNNET 1
-_ACEOF
-         fi
       fi
    elif test -n "${ISDNNET_MANDATORY}";
    then
@@ -20871,10 +20937,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${ISDNNET_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${ISDNNET_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${ISDNNET_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${ISDNNET_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${ISDNNET_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${ISDNNET_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -21114,10 +21185,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the suppserv development package installed." >&5
 echo "$as_me: *** It appears that you do not have the suppserv development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${SUPPSERV_DESCRIP} support, or re-run configure" >&5
+            if test "x${SUPPSERV_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${SUPPSERV_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${SUPPSERV_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${SUPPSERV_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${SUPPSERV_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${SUPPSERV_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${SUPPSERV_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${SUPPSERV_OPTION}" >&6;}
+            fi
             exit 1
          fi
          SUPPSERV_LIB=""
@@ -21125,17 +21201,9 @@ echo "$as_me: *** without explicitly specifying --with-${SUPPSERV_OPTION}" >&6;}
          PBX_SUPPSERV=0
       else
          PBX_SUPPSERV=1
-         if test "x${SUPPSERV_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_SUPPSERV 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_SUPPSERV 1
-_ACEOF
-         fi
       fi
    elif test -n "${SUPPSERV_MANDATORY}";
    then
@@ -21143,10 +21211,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${SUPPSERV_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${SUPPSERV_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${SUPPSERV_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${SUPPSERV_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${SUPPSERV_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${SUPPSERV_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -21527,10 +21600,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the nbs development package installed." >&5
 echo "$as_me: *** It appears that you do not have the nbs development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${NBS_DESCRIP} support, or re-run configure" >&5
+            if test "x${NBS_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${NBS_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${NBS_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${NBS_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${NBS_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${NBS_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${NBS_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${NBS_OPTION}" >&6;}
+            fi
             exit 1
          fi
          NBS_LIB=""
@@ -21538,17 +21616,9 @@ echo "$as_me: *** without explicitly specifying --with-${NBS_OPTION}" >&6;}
          PBX_NBS=0
       else
          PBX_NBS=1
-         if test "x${NBS_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_NBS 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_NBS 1
-_ACEOF
-         fi
       fi
    elif test -n "${NBS_MANDATORY}";
    then
@@ -21556,10 +21626,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${NBS_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${NBS_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${NBS_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${NBS_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${NBS_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${NBS_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -21800,10 +21875,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the ncurses development package installed." >&5
 echo "$as_me: *** It appears that you do not have the ncurses development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${NCURSES_DESCRIP} support, or re-run configure" >&5
+            if test "x${NCURSES_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${NCURSES_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${NCURSES_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${NCURSES_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${NCURSES_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${NCURSES_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${NCURSES_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${NCURSES_OPTION}" >&6;}
+            fi
             exit 1
          fi
          NCURSES_LIB=""
@@ -21811,17 +21891,9 @@ echo "$as_me: *** without explicitly specifying --with-${NCURSES_OPTION}" >&6;}
          PBX_NCURSES=0
       else
          PBX_NCURSES=1
-         if test "x${NCURSES_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_NCURSES 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_NCURSES 1
-_ACEOF
-         fi
       fi
    elif test -n "${NCURSES_MANDATORY}";
    then
@@ -21829,10 +21901,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${NCURSES_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${NCURSES_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${NCURSES_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${NCURSES_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${NCURSES_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${NCURSES_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -22397,10 +22474,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the newt development package installed." >&5
 echo "$as_me: *** It appears that you do not have the newt development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${NEWT_DESCRIP} support, or re-run configure" >&5
+            if test "x${NEWT_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${NEWT_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${NEWT_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${NEWT_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${NEWT_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${NEWT_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${NEWT_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${NEWT_OPTION}" >&6;}
+            fi
             exit 1
          fi
          NEWT_LIB=""
@@ -22408,17 +22490,9 @@ echo "$as_me: *** without explicitly specifying --with-${NEWT_OPTION}" >&6;}
          PBX_NEWT=0
       else
          PBX_NEWT=1
-         if test "x${NEWT_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_NEWT 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_NEWT 1
-_ACEOF
-         fi
       fi
    elif test -n "${NEWT_MANDATORY}";
    then
@@ -22426,10 +22500,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${NEWT_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${NEWT_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${NEWT_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${NEWT_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${NEWT_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${NEWT_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -22670,10 +22749,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the odbc development package installed." >&5
 echo "$as_me: *** It appears that you do not have the odbc development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${UNIXODBC_DESCRIP} support, or re-run configure" >&5
+            if test "x${UNIXODBC_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${UNIXODBC_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${UNIXODBC_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${UNIXODBC_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${UNIXODBC_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${UNIXODBC_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${UNIXODBC_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${UNIXODBC_OPTION}" >&6;}
+            fi
             exit 1
          fi
          UNIXODBC_LIB=""
@@ -22681,17 +22765,9 @@ echo "$as_me: *** without explicitly specifying --with-${UNIXODBC_OPTION}" >&6;}
          PBX_UNIXODBC=0
       else
          PBX_UNIXODBC=1
-         if test "x${UNIXODBC_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_UNIXODBC 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_UNIXODBC 1
-_ACEOF
-         fi
       fi
    elif test -n "${UNIXODBC_MANDATORY}";
    then
@@ -22699,10 +22775,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${UNIXODBC_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${UNIXODBC_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${UNIXODBC_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${UNIXODBC_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${UNIXODBC_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${UNIXODBC_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -22943,10 +23024,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the ogg development package installed." >&5
 echo "$as_me: *** It appears that you do not have the ogg development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${OGG_DESCRIP} support, or re-run configure" >&5
+            if test "x${OGG_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${OGG_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${OGG_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${OGG_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${OGG_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${OGG_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${OGG_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${OGG_OPTION}" >&6;}
+            fi
             exit 1
          fi
          OGG_LIB=""
@@ -22954,17 +23040,9 @@ echo "$as_me: *** without explicitly specifying --with-${OGG_OPTION}" >&6;}
          PBX_OGG=0
       else
          PBX_OGG=1
-         if test "x${OGG_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_OGG 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_OGG 1
-_ACEOF
-         fi
       fi
    elif test -n "${OGG_MANDATORY}";
    then
@@ -22972,10 +23050,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${OGG_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${OGG_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${OGG_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${OGG_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${OGG_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${OGG_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -23505,10 +23588,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the ossaudio development package installed." >&5
 echo "$as_me: *** It appears that you do not have the ossaudio development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${OSS_DESCRIP} support, or re-run configure" >&5
+            if test "x${OSS_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${OSS_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${OSS_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${OSS_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${OSS_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${OSS_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${OSS_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${OSS_OPTION}" >&6;}
+            fi
             exit 1
          fi
          OSS_LIB=""
@@ -23516,17 +23604,9 @@ echo "$as_me: *** without explicitly specifying --with-${OSS_OPTION}" >&6;}
          PBX_OSS=0
       else
          PBX_OSS=1
-         if test "x${OSS_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_OSS 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_OSS 1
-_ACEOF
-         fi
       fi
    elif test -n "${OSS_MANDATORY}";
    then
@@ -23534,10 +23614,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${OSS_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${OSS_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${OSS_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${OSS_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${OSS_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${OSS_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -24120,10 +24205,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the popt development package installed." >&5
 echo "$as_me: *** It appears that you do not have the popt development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${POPT_DESCRIP} support, or re-run configure" >&5
+            if test "x${POPT_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${POPT_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${POPT_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${POPT_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${POPT_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${POPT_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${POPT_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${POPT_OPTION}" >&6;}
+            fi
             exit 1
          fi
          POPT_LIB=""
@@ -24131,17 +24221,9 @@ echo "$as_me: *** without explicitly specifying --with-${POPT_OPTION}" >&6;}
          PBX_POPT=0
       else
          PBX_POPT=1
-         if test "x${POPT_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_POPT 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_POPT 1
-_ACEOF
-         fi
       fi
    elif test -n "${POPT_MANDATORY}";
    then
@@ -24149,10 +24231,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${POPT_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${POPT_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${POPT_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${POPT_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${POPT_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${POPT_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -24393,10 +24480,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the pri development package installed." >&5
 echo "$as_me: *** It appears that you do not have the pri development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${PRI_DESCRIP} support, or re-run configure" >&5
+            if test "x${PRI_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${PRI_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${PRI_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${PRI_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${PRI_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${PRI_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${PRI_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${PRI_OPTION}" >&6;}
+            fi
             exit 1
          fi
          PRI_LIB=""
@@ -24404,17 +24496,9 @@ echo "$as_me: *** without explicitly specifying --with-${PRI_OPTION}" >&6;}
          PBX_PRI=0
       else
          PBX_PRI=1
-         if test "x${PRI_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_PRI 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_PRI 1
-_ACEOF
-         fi
       fi
    elif test -n "${PRI_MANDATORY}";
    then
@@ -24422,10 +24506,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${PRI_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${PRI_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${PRI_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${PRI_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${PRI_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${PRI_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -24666,10 +24755,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the pri development package installed." >&5
 echo "$as_me: *** It appears that you do not have the pri development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${PRI_VERSION_DESCRIP} support, or re-run configure" >&5
+            if test "x${PRI_VERSION_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${PRI_VERSION_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${PRI_VERSION_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${PRI_VERSION_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${PRI_VERSION_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${PRI_VERSION_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${PRI_VERSION_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${PRI_VERSION_OPTION}" >&6;}
+            fi
             exit 1
          fi
          PRI_VERSION_LIB=""
@@ -24677,17 +24771,9 @@ echo "$as_me: *** without explicitly specifying --with-${PRI_VERSION_OPTION}" >&
          PBX_PRI_VERSION=0
       else
          PBX_PRI_VERSION=1
-         if test "x${PRI_VERSION_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_PRI_VERSION 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_PRI_VERSION 1
-_ACEOF
-         fi
       fi
    elif test -n "${PRI_VERSION_MANDATORY}";
    then
@@ -24695,10 +24781,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${PRI_VERSION_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${PRI_VERSION_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${PRI_VERSION_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${PRI_VERSION_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${PRI_VERSION_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${PRI_VERSION_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -24939,10 +25030,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the pri development package installed." >&5
 echo "$as_me: *** It appears that you do not have the pri development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${PRI_INBANDDISCONNECT_DESCRIP} support, or re-run configure" >&5
+            if test "x${PRI_INBANDDISCONNECT_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${PRI_INBANDDISCONNECT_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${PRI_INBANDDISCONNECT_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${PRI_INBANDDISCONNECT_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${PRI_INBANDDISCONNECT_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${PRI_INBANDDISCONNECT_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${PRI_INBANDDISCONNECT_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${PRI_INBANDDISCONNECT_OPTION}" >&6;}
+            fi
             exit 1
          fi
          PRI_INBANDDISCONNECT_LIB=""
@@ -24950,17 +25046,9 @@ echo "$as_me: *** without explicitly specifying --with-${PRI_INBANDDISCONNECT_OP
          PBX_PRI_INBANDDISCONNECT=0
       else
          PBX_PRI_INBANDDISCONNECT=1
-         if test "x${PRI_INBANDDISCONNECT_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_PRI_INBANDDISCONNECT 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_PRI_INBANDDISCONNECT 1
-_ACEOF
-         fi
       fi
    elif test -n "${PRI_INBANDDISCONNECT_MANDATORY}";
    then
@@ -24968,10 +25056,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${PRI_INBANDDISCONNECT_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${PRI_INBANDDISCONNECT_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${PRI_INBANDDISCONNECT_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${PRI_INBANDDISCONNECT_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${PRI_INBANDDISCONNECT_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${PRI_INBANDDISCONNECT_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -27088,10 +27181,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the radiusclient-ng development package installed." >&5
 echo "$as_me: *** It appears that you do not have the radiusclient-ng development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${RADIUS_DESCRIP} support, or re-run configure" >&5
+            if test "x${RADIUS_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${RADIUS_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${RADIUS_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${RADIUS_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${RADIUS_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${RADIUS_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${RADIUS_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${RADIUS_OPTION}" >&6;}
+            fi
             exit 1
          fi
          RADIUS_LIB=""
@@ -27099,17 +27197,9 @@ echo "$as_me: *** without explicitly specifying --with-${RADIUS_OPTION}" >&6;}
          PBX_RADIUS=0
       else
          PBX_RADIUS=1
-         if test "x${RADIUS_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_RADIUS 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_RADIUS 1
-_ACEOF
-         fi
       fi
    elif test -n "${RADIUS_MANDATORY}";
    then
@@ -27117,10 +27207,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${RADIUS_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${RADIUS_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${RADIUS_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${RADIUS_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${RADIUS_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${RADIUS_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -27361,10 +27456,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the speex development package installed." >&5
 echo "$as_me: *** It appears that you do not have the speex development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${SPEEX_DESCRIP} support, or re-run configure" >&5
+            if test "x${SPEEX_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${SPEEX_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${SPEEX_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${SPEEX_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${SPEEX_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${SPEEX_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${SPEEX_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${SPEEX_OPTION}" >&6;}
+            fi
             exit 1
          fi
          SPEEX_LIB=""
@@ -27372,17 +27472,9 @@ echo "$as_me: *** without explicitly specifying --with-${SPEEX_OPTION}" >&6;}
          PBX_SPEEX=0
       else
          PBX_SPEEX=1
-         if test "x${SPEEX_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_SPEEX 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_SPEEX 1
-_ACEOF
-         fi
       fi
    elif test -n "${SPEEX_MANDATORY}";
    then
@@ -27390,10 +27482,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${SPEEX_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${SPEEX_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${SPEEX_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${SPEEX_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${SPEEX_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${SPEEX_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -27635,10 +27732,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the speex development package installed." >&5
 echo "$as_me: *** It appears that you do not have the speex development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${SPEEX_PREPROCESS_DESCRIP} support, or re-run configure" >&5
+            if test "x${SPEEX_PREPROCESS_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${SPEEX_PREPROCESS_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${SPEEX_PREPROCESS_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${SPEEX_PREPROCESS_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${SPEEX_PREPROCESS_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${SPEEX_PREPROCESS_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${SPEEX_PREPROCESS_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${SPEEX_PREPROCESS_OPTION}" >&6;}
+            fi
             exit 1
          fi
          SPEEX_PREPROCESS_LIB=""
@@ -27646,17 +27748,9 @@ echo "$as_me: *** without explicitly specifying --with-${SPEEX_PREPROCESS_OPTION
          PBX_SPEEX_PREPROCESS=0
       else
          PBX_SPEEX_PREPROCESS=1
-         if test "x${SPEEX_PREPROCESS_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_SPEEX_PREPROCESS 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_SPEEX_PREPROCESS 1
-_ACEOF
-         fi
       fi
    elif test -n "${SPEEX_PREPROCESS_MANDATORY}";
    then
@@ -27664,10 +27758,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${SPEEX_PREPROCESS_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${SPEEX_PREPROCESS_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${SPEEX_PREPROCESS_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${SPEEX_PREPROCESS_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${SPEEX_PREPROCESS_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${SPEEX_PREPROCESS_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -27911,10 +28010,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the speexdsp development package installed." >&5
 echo "$as_me: *** It appears that you do not have the speexdsp development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${SPEEXDSP_DESCRIP} support, or re-run configure" >&5
+            if test "x${SPEEXDSP_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${SPEEXDSP_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${SPEEXDSP_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${SPEEXDSP_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${SPEEXDSP_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${SPEEXDSP_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${SPEEXDSP_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${SPEEXDSP_OPTION}" >&6;}
+            fi
             exit 1
          fi
          SPEEXDSP_LIB=""
@@ -27922,17 +28026,9 @@ echo "$as_me: *** without explicitly specifying --with-${SPEEXDSP_OPTION}" >&6;}
          PBX_SPEEXDSP=0
       else
          PBX_SPEEXDSP=1
-         if test "x${SPEEXDSP_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_SPEEXDSP 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_SPEEXDSP 1
-_ACEOF
-         fi
       fi
    elif test -n "${SPEEXDSP_MANDATORY}";
    then
@@ -27940,10 +28036,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${SPEEXDSP_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${SPEEXDSP_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${SPEEXDSP_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${SPEEXDSP_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${SPEEXDSP_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${SPEEXDSP_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -28189,10 +28290,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the sqlite development package installed." >&5
 echo "$as_me: *** It appears that you do not have the sqlite development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${SQLITE_DESCRIP} support, or re-run configure" >&5
+            if test "x${SQLITE_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${SQLITE_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${SQLITE_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${SQLITE_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${SQLITE_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${SQLITE_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${SQLITE_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${SQLITE_OPTION}" >&6;}
+            fi
             exit 1
          fi
          SQLITE_LIB=""
@@ -28200,17 +28306,9 @@ echo "$as_me: *** without explicitly specifying --with-${SQLITE_OPTION}" >&6;}
          PBX_SQLITE=0
       else
          PBX_SQLITE=1
-         if test "x${SQLITE_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_SQLITE 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_SQLITE 1
-_ACEOF
-         fi
       fi
    elif test -n "${SQLITE_MANDATORY}";
    then
@@ -28218,10 +28316,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${SQLITE_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${SQLITE_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${SQLITE_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${SQLITE_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${SQLITE_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${SQLITE_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -28462,10 +28565,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the ssl development package installed." >&5
 echo "$as_me: *** It appears that you do not have the ssl development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${OPENSSL_DESCRIP} support, or re-run configure" >&5
+            if test "x${OPENSSL_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${OPENSSL_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${OPENSSL_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${OPENSSL_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${OPENSSL_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${OPENSSL_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${OPENSSL_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${OPENSSL_OPTION}" >&6;}
+            fi
             exit 1
          fi
          OPENSSL_LIB=""
@@ -28473,17 +28581,9 @@ echo "$as_me: *** without explicitly specifying --with-${OPENSSL_OPTION}" >&6;}
          PBX_OPENSSL=0
       else
          PBX_OPENSSL=1
-         if test "x${OPENSSL_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_OPENSSL 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_OPENSSL 1
-_ACEOF
-         fi
       fi
    elif test -n "${OPENSSL_MANDATORY}";
    then
@@ -28491,10 +28591,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${OPENSSL_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${OPENSSL_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${OPENSSL_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${OPENSSL_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${OPENSSL_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${OPENSSL_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -28736,10 +28841,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the osptk development package installed." >&5
 echo "$as_me: *** It appears that you do not have the osptk development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${OSPTK_DESCRIP} support, or re-run configure" >&5
+            if test "x${OSPTK_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${OSPTK_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${OSPTK_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${OSPTK_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${OSPTK_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${OSPTK_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${OSPTK_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${OSPTK_OPTION}" >&6;}
+            fi
             exit 1
          fi
          OSPTK_LIB=""
@@ -28747,17 +28857,9 @@ echo "$as_me: *** without explicitly specifying --with-${OSPTK_OPTION}" >&6;}
          PBX_OSPTK=0
       else
          PBX_OSPTK=1
-         if test "x${OSPTK_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_OSPTK 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_OSPTK 1
-_ACEOF
-         fi
       fi
    elif test -n "${OSPTK_MANDATORY}";
    then
@@ -28765,10 +28867,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${OSPTK_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${OSPTK_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${OSPTK_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${OSPTK_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${OSPTK_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${OSPTK_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -29010,10 +29117,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the tds development package installed." >&5
 echo "$as_me: *** It appears that you do not have the tds development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${FREETDS_DESCRIP} support, or re-run configure" >&5
+            if test "x${FREETDS_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${FREETDS_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${FREETDS_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${FREETDS_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${FREETDS_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${FREETDS_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${FREETDS_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${FREETDS_OPTION}" >&6;}
+            fi
             exit 1
          fi
          FREETDS_LIB=""
@@ -29021,17 +29133,9 @@ echo "$as_me: *** without explicitly specifying --with-${FREETDS_OPTION}" >&6;}
          PBX_FREETDS=0
       else
          PBX_FREETDS=1
-         if test "x${FREETDS_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_FREETDS 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_FREETDS 1
-_ACEOF
-         fi
       fi
    elif test -n "${FREETDS_MANDATORY}";
    then
@@ -29039,10 +29143,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${FREETDS_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${FREETDS_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${FREETDS_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${FREETDS_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${FREETDS_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${FREETDS_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -29310,10 +29419,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the termcap development package installed." >&5
 echo "$as_me: *** It appears that you do not have the termcap development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${TERMCAP_DESCRIP} support, or re-run configure" >&5
+            if test "x${TERMCAP_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${TERMCAP_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${TERMCAP_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${TERMCAP_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${TERMCAP_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${TERMCAP_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${TERMCAP_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${TERMCAP_OPTION}" >&6;}
+            fi
             exit 1
          fi
          TERMCAP_LIB=""
@@ -29321,17 +29435,9 @@ echo "$as_me: *** without explicitly specifying --with-${TERMCAP_OPTION}" >&6;}
          PBX_TERMCAP=0
       else
          PBX_TERMCAP=1
-         if test "x${TERMCAP_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_TERMCAP 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_TERMCAP 1
-_ACEOF
-         fi
       fi
    elif test -n "${TERMCAP_MANDATORY}";
    then
@@ -29339,10 +29445,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${TERMCAP_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${TERMCAP_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${TERMCAP_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${TERMCAP_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${TERMCAP_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${TERMCAP_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -29583,10 +29694,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the tinfo development package installed." >&5
 echo "$as_me: *** It appears that you do not have the tinfo development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${TINFO_DESCRIP} support, or re-run configure" >&5
+            if test "x${TINFO_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${TINFO_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${TINFO_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${TINFO_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${TINFO_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${TINFO_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${TINFO_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${TINFO_OPTION}" >&6;}
+            fi
             exit 1
          fi
          TINFO_LIB=""
@@ -29594,17 +29710,9 @@ echo "$as_me: *** without explicitly specifying --with-${TINFO_OPTION}" >&6;}
          PBX_TINFO=0
       else
          PBX_TINFO=1
-         if test "x${TINFO_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_TINFO 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_TINFO 1
-_ACEOF
-         fi
       fi
    elif test -n "${TINFO_MANDATORY}";
    then
@@ -29612,10 +29720,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${TINFO_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${TINFO_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${TINFO_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${TINFO_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${TINFO_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${TINFO_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -29875,10 +29988,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the tonezone development package installed." >&5
 echo "$as_me: *** It appears that you do not have the tonezone development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${TONEZONE_DESCRIP} support, or re-run configure" >&5
+            if test "x${TONEZONE_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${TONEZONE_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${TONEZONE_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${TONEZONE_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${TONEZONE_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${TONEZONE_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${TONEZONE_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${TONEZONE_OPTION}" >&6;}
+            fi
             exit 1
          fi
          TONEZONE_LIB=""
@@ -29886,17 +30004,9 @@ echo "$as_me: *** without explicitly specifying --with-${TONEZONE_OPTION}" >&6;}
          PBX_TONEZONE=0
       else
          PBX_TONEZONE=1
-         if test "x${TONEZONE_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_TONEZONE 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_TONEZONE 1
-_ACEOF
-         fi
       fi
    elif test -n "${TONEZONE_MANDATORY}";
    then
@@ -29904,10 +30014,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${TONEZONE_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${TONEZONE_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${TONEZONE_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${TONEZONE_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${TONEZONE_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${TONEZONE_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -30148,10 +30263,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the usb development package installed." >&5
 echo "$as_me: *** It appears that you do not have the usb development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${USB_DESCRIP} support, or re-run configure" >&5
+            if test "x${USB_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${USB_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${USB_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${USB_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${USB_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${USB_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${USB_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${USB_OPTION}" >&6;}
+            fi
             exit 1
          fi
          USB_LIB=""
@@ -30159,17 +30279,9 @@ echo "$as_me: *** without explicitly specifying --with-${USB_OPTION}" >&6;}
          PBX_USB=0
       else
          PBX_USB=1
-         if test "x${USB_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_USB 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_USB 1
-_ACEOF
-         fi
       fi
    elif test -n "${USB_MANDATORY}";
    then
@@ -30177,10 +30289,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${USB_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${USB_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${USB_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${USB_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${USB_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${USB_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -30421,10 +30538,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the vorbis development package installed." >&5
 echo "$as_me: *** It appears that you do not have the vorbis development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${VORBIS_DESCRIP} support, or re-run configure" >&5
+            if test "x${VORBIS_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${VORBIS_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${VORBIS_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${VORBIS_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${VORBIS_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${VORBIS_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${VORBIS_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${VORBIS_OPTION}" >&6;}
+            fi
             exit 1
          fi
          VORBIS_LIB=""
@@ -30432,17 +30554,9 @@ echo "$as_me: *** without explicitly specifying --with-${VORBIS_OPTION}" >&6;}
          PBX_VORBIS=0
       else
          PBX_VORBIS=1
-         if test "x${VORBIS_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_VORBIS 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_VORBIS 1
-_ACEOF
-         fi
       fi
    elif test -n "${VORBIS_MANDATORY}";
    then
@@ -30450,10 +30564,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${VORBIS_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${VORBIS_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${VORBIS_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${VORBIS_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${VORBIS_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${VORBIS_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -30802,10 +30921,15 @@ fi
 echo "$as_me: ***" >&6;}
             { echo "$as_me:$LINENO: *** It appears that you do not have the z development package installed." >&5
 echo "$as_me: *** It appears that you do not have the z development package installed." >&6;}
-            { echo "$as_me:$LINENO: *** Please install it to include ${ZLIB_DESCRIP} support, or re-run configure" >&5
+            if test "x${ZLIB_OPTION}" = "x" ; then
+               { echo "$as_me:$LINENO: *** Please install it to include ${ZLIB_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${ZLIB_DESCRIP} support" >&6;}
+            else
+               { echo "$as_me:$LINENO: *** Please install it to include ${ZLIB_DESCRIP} support, or re-run configure" >&5
 echo "$as_me: *** Please install it to include ${ZLIB_DESCRIP} support, or re-run configure" >&6;}
-            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${ZLIB_OPTION}" >&5
+               { echo "$as_me:$LINENO: *** without explicitly specifying --with-${ZLIB_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${ZLIB_OPTION}" >&6;}
+            fi
             exit 1
          fi
          ZLIB_LIB=""
@@ -30813,17 +30937,9 @@ echo "$as_me: *** without explicitly specifying --with-${ZLIB_OPTION}" >&6;}
          PBX_ZLIB=0
       else
          PBX_ZLIB=1
-         if test "x${ZLIB_OPTION}" = "x"; then
-
-cat >>confdefs.h <<_ACEOF
+         cat >>confdefs.h <<_ACEOF
 #define HAVE_ZLIB 1
 _ACEOF
-
-         else
-            cat >>confdefs.h <<_ACEOF
-#define HAVE_ZLIB 1
-_ACEOF
-         fi
       fi
    elif test -n "${ZLIB_MANDATORY}";
    then
@@ -30831,10 +30947,15 @@ _ACEOF
 echo "$as_me: ***" >&6;}
       { echo "$as_me:$LINENO: *** The ${ZLIB_DESCRIP} installation on this system appears to be broken." >&5
 echo "$as_me: *** The ${ZLIB_DESCRIP} installation on this system appears to be broken." >&6;}
-      { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
+      if test "x${ZLIB_OPTION}" = "x" ; then
+         { echo "$as_me:$LINENO: *** Please correct the installation" >&5
+echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { echo "$as_me:$LINENO: *** Either correct the installation, or run configure" >&5
 echo "$as_me: *** Either correct the installation, or run configure" >&6;}
-      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${ZLIB_OPTION}" >&5
+         { echo "$as_me:$LINENO: *** without explicitly specifying --with-${ZLIB_OPTION}" >&5
 echo "$as_me: *** without explicitly specifying --with-${ZLIB_OPTION}" >&6;}
+      fi
       exit 1
    fi
 fi
@@ -32839,6 +32960,14 @@ _ACEOF
 ac_delim='%!_!# '
 for ac_last_try in false false false false false :; do
   cat >conf$$subs.sed <<_ACEOF
+PRI_VERSION_LIB!$PRI_VERSION_LIB$ac_delim
+PRI_VERSION_INCLUDE!$PRI_VERSION_INCLUDE$ac_delim
+PRI_VERSION_DIR!$PRI_VERSION_DIR$ac_delim
+PBX_PRI_VERSION!$PBX_PRI_VERSION$ac_delim
+PRI_INBANDDISCONNECT_LIB!$PRI_INBANDDISCONNECT_LIB$ac_delim
+PRI_INBANDDISCONNECT_INCLUDE!$PRI_INBANDDISCONNECT_INCLUDE$ac_delim
+PRI_INBANDDISCONNECT_DIR!$PRI_INBANDDISCONNECT_DIR$ac_delim
+PBX_PRI_INBANDDISCONNECT!$PBX_PRI_INBANDDISCONNECT$ac_delim
 PWLIB_LIB!$PWLIB_LIB$ac_delim
 PWLIB_INCLUDE!$PWLIB_INCLUDE$ac_delim
 PWLIB_DIR!$PWLIB_DIR$ac_delim
@@ -32859,6 +32988,10 @@ SPEEXDSP_LIB!$SPEEXDSP_LIB$ac_delim
 SPEEXDSP_INCLUDE!$SPEEXDSP_INCLUDE$ac_delim
 SPEEXDSP_DIR!$SPEEXDSP_DIR$ac_delim
 PBX_SPEEXDSP!$PBX_SPEEXDSP$ac_delim
+SPEEX_PREPROCESS_LIB!$SPEEX_PREPROCESS_LIB$ac_delim
+SPEEX_PREPROCESS_INCLUDE!$SPEEX_PREPROCESS_INCLUDE$ac_delim
+SPEEX_PREPROCESS_DIR!$SPEEX_PREPROCESS_DIR$ac_delim
+PBX_SPEEX_PREPROCESS!$PBX_SPEEX_PREPROCESS$ac_delim
 SQLITE_LIB!$SQLITE_LIB$ac_delim
 SQLITE_INCLUDE!$SQLITE_INCLUDE$ac_delim
 SQLITE_DIR!$SQLITE_DIR$ac_delim
@@ -32924,18 +33057,6 @@ NETSNMP_CONFIG!$NETSNMP_CONFIG$ac_delim
 PG_CONFIG!$PG_CONFIG$ac_delim
 PTLIB_CONFIG!$PTLIB_CONFIG$ac_delim
 PWLIBDIR!$PWLIBDIR$ac_delim
-PWLIB_INCDIR!$PWLIB_INCDIR$ac_delim
-PWLIB_LIBDIR!$PWLIB_LIBDIR$ac_delim
-PWLIB_PLATFORM!$PWLIB_PLATFORM$ac_delim
-OPENH323DIR!$OPENH323DIR$ac_delim
-OPENH323_INCDIR!$OPENH323_INCDIR$ac_delim
-OPENH323_LIBDIR!$OPENH323_LIBDIR$ac_delim
-OPENH323_SUFFIX!$OPENH323_SUFFIX$ac_delim
-OPENH323_BUILD!$OPENH323_BUILD$ac_delim
-PBX_SPEEX_PREPROCESS!$PBX_SPEEX_PREPROCESS$ac_delim
-PBX_ZAPTEL_VLDTMF!$PBX_ZAPTEL_VLDTMF$ac_delim
-EDITLINE_LIB!$EDITLINE_LIB$ac_delim
-PBX_H323!$PBX_H323$ac_delim
 _ACEOF
 
   if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 97; then
@@ -32977,6 +33098,17 @@ _ACEOF
 ac_delim='%!_!# '
 for ac_last_try in false false false false false :; do
   cat >conf$$subs.sed <<_ACEOF
+PWLIB_INCDIR!$PWLIB_INCDIR$ac_delim
+PWLIB_LIBDIR!$PWLIB_LIBDIR$ac_delim
+PWLIB_PLATFORM!$PWLIB_PLATFORM$ac_delim
+OPENH323DIR!$OPENH323DIR$ac_delim
+OPENH323_INCDIR!$OPENH323_INCDIR$ac_delim
+OPENH323_LIBDIR!$OPENH323_LIBDIR$ac_delim
+OPENH323_SUFFIX!$OPENH323_SUFFIX$ac_delim
+OPENH323_BUILD!$OPENH323_BUILD$ac_delim
+PBX_ZAPTEL_VLDTMF!$PBX_ZAPTEL_VLDTMF$ac_delim
+EDITLINE_LIB!$EDITLINE_LIB$ac_delim
+PBX_H323!$PBX_H323$ac_delim
 PBX_IXJUSER!$PBX_IXJUSER$ac_delim
 GTKCONFIG!$GTKCONFIG$ac_delim
 PBX_GTK!$PBX_GTK$ac_delim
@@ -32990,7 +33122,7 @@ CURL_CONFIG!$CURL_CONFIG$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 11; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 22; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5
