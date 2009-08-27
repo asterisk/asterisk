@@ -21,16 +21,16 @@
 /* Define to 1 if using `alloca.c'. */
 #undef C_ALLOCA
 
-/* Define this to indicate the ${ACOS_DESCRIP} library */
+/* Define to 1 to indicate ACOS functionality. */
 #undef HAVE_ACOS
 
-/* Define this to indicate the ${ACOSL_DESCRIP} library */
+/* Define to 1 to indicate ACOSL functionality. */
 #undef HAVE_ACOSL
 
-/* Define to indicate the ${ACOSL_DESCRIP} library version */
+/* Define to indicate the ACOSL library version */
 #undef HAVE_ACOSL_VERSION
 
-/* Define to indicate the ${ACOS_DESCRIP} library version */
+/* Define to indicate the ACOS library version */
 #undef HAVE_ACOS_VERSION
 
 /* Define to 1 if you have `alloca', as a function or macro. */
@@ -40,10 +40,10 @@
    */
 #undef HAVE_ALLOCA_H
 
-/* Define this to indicate the ${ALSA_DESCRIP} library */
+/* Define to 1 to indicate ALSA functionality. */
 #undef HAVE_ALSA
 
-/* Define to indicate the ${ALSA_DESCRIP} library version */
+/* Define to indicate the ALSA library version */
 #undef HAVE_ALSA_VERSION
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
@@ -52,43 +52,43 @@
 /* Define to 1 if you have the <arpa/nameser.h> header file. */
 #undef HAVE_ARPA_NAMESER_H
 
-/* Define this to indicate the ${ASIN_DESCRIP} library */
+/* Define to 1 to indicate ASIN functionality. */
 #undef HAVE_ASIN
 
-/* Define this to indicate the ${ASINL_DESCRIP} library */
+/* Define to 1 to indicate ASINL functionality. */
 #undef HAVE_ASINL
 
-/* Define to indicate the ${ASINL_DESCRIP} library version */
+/* Define to indicate the ASINL library version */
 #undef HAVE_ASINL_VERSION
 
-/* Define to indicate the ${ASIN_DESCRIP} library version */
+/* Define to indicate the ASIN library version */
 #undef HAVE_ASIN_VERSION
 
 /* Define to 1 if you have the `asprintf' function. */
 #undef HAVE_ASPRINTF
 
-/* Define this to indicate the ${ATAN_DESCRIP} library */
+/* Define to 1 to indicate ATAN functionality. */
 #undef HAVE_ATAN
 
-/* Define this to indicate the ${ATAN2_DESCRIP} library */
+/* Define to 1 to indicate ATAN2 functionality. */
 #undef HAVE_ATAN2
 
-/* Define this to indicate the ${ATAN2L_DESCRIP} library */
+/* Define to 1 to indicate ATAN2L functionality. */
 #undef HAVE_ATAN2L
 
-/* Define to indicate the ${ATAN2L_DESCRIP} library version */
+/* Define to indicate the ATAN2L library version */
 #undef HAVE_ATAN2L_VERSION
 
-/* Define to indicate the ${ATAN2_DESCRIP} library version */
+/* Define to indicate the ATAN2 library version */
 #undef HAVE_ATAN2_VERSION
 
-/* Define this to indicate the ${ATANL_DESCRIP} library */
+/* Define to 1 to indicate ATANL functionality. */
 #undef HAVE_ATANL
 
-/* Define to indicate the ${ATANL_DESCRIP} library version */
+/* Define to indicate the ATANL library version */
 #undef HAVE_ATANL_VERSION
 
-/* Define to indicate the ${ATAN_DESCRIP} library version */
+/* Define to indicate the ATAN library version */
 #undef HAVE_ATAN_VERSION
 
 /* Define to 1 if you have the `atexit' function. */
@@ -126,37 +126,37 @@
 /* Define to 1 if your GCC C compiler supports the 'weakref' attribute. */
 #undef HAVE_ATTRIBUTE_weakref
 
-/* Define this to indicate the ${BKTR_DESCRIP} library */
+/* Define to 1 to indicate BKTR functionality. */
 #undef HAVE_BKTR
 
-/* Define to indicate the ${BKTR_DESCRIP} library version */
+/* Define to indicate the BKTR library version */
 #undef HAVE_BKTR_VERSION
 
-/* Define this to indicate the ${BLUETOOTH_DESCRIP} library */
+/* Define to 1 to indicate BLUETOOTH functionality. */
 #undef HAVE_BLUETOOTH
 
-/* Define to indicate the ${BLUETOOTH_DESCRIP} library version */
+/* Define to indicate the BLUETOOTH library version */
 #undef HAVE_BLUETOOTH_VERSION
 
 /* Define to 1 if byteswap.h macros are available. */
 #undef HAVE_BYTESWAP_H
 
-/* Define this to indicate the ${CAP_DESCRIP} library */
+/* Define to 1 to indicate CAP functionality. */
 #undef HAVE_CAP
 
-/* Define to indicate the ${CAP_DESCRIP} library version */
+/* Define to indicate the CAP library version */
 #undef HAVE_CAP_VERSION
 
-/* Define this to indicate the ${CEIL_DESCRIP} library */
+/* Define to 1 to indicate CEIL functionality. */
 #undef HAVE_CEIL
 
-/* Define this to indicate the ${CEILL_DESCRIP} library */
+/* Define to 1 to indicate CEILL functionality. */
 #undef HAVE_CEILL
 
-/* Define to indicate the ${CEILL_DESCRIP} library version */
+/* Define to indicate the CEILL library version */
 #undef HAVE_CEILL_VERSION
 
-/* Define to indicate the ${CEIL_DESCRIP} library version */
+/* Define to indicate the CEIL library version */
 #undef HAVE_CEIL_VERSION
 
 /* Define to 1 if your system has a working `chown' function. */
@@ -165,31 +165,31 @@
 /* Define to 1 if you have the `closefrom' function. */
 #undef HAVE_CLOSEFROM
 
-/* Define this to indicate the ${COS_DESCRIP} library */
+/* Define to 1 to indicate COS functionality. */
 #undef HAVE_COS
 
-/* Define this to indicate the ${COSL_DESCRIP} library */
+/* Define to 1 to indicate COSL functionality. */
 #undef HAVE_COSL
 
-/* Define to indicate the ${COSL_DESCRIP} library version */
+/* Define to indicate the COSL library version */
 #undef HAVE_COSL_VERSION
 
-/* Define to indicate the ${COS_DESCRIP} library version */
+/* Define to indicate the COS library version */
 #undef HAVE_COS_VERSION
 
-/* Define this to indicate the ${CRYPTO_DESCRIP} library */
+/* Define to 1 to indicate CRYPTO functionality. */
 #undef HAVE_CRYPTO
 
-/* Define to indicate the ${CRYPTO_DESCRIP} library version */
+/* Define to indicate the CRYPTO library version */
 #undef HAVE_CRYPTO_VERSION
 
 /* Define if your system has the curl libraries. */
 #undef HAVE_CURL
 
-/* Define this to indicate the ${CURSES_DESCRIP} library */
+/* Define to 1 to indicate CURSES functionality. */
 #undef HAVE_CURSES
 
-/* Define to indicate the ${CURSES_DESCRIP} library version */
+/* Define to indicate the CURSES library version */
 #undef HAVE_CURSES_VERSION
 
 /* Define if your system has the DAHDI headers. */
@@ -238,73 +238,73 @@
 /* Define to 1 if you have the `euidaccess' function. */
 #undef HAVE_EUIDACCESS
 
-/* Define this to indicate the ${EXP_DESCRIP} library */
+/* Define to 1 to indicate EXP functionality. */
 #undef HAVE_EXP
 
-/* Define this to indicate the ${EXP10_DESCRIP} library */
+/* Define to 1 to indicate EXP10 functionality. */
 #undef HAVE_EXP10
 
-/* Define this to indicate the ${EXP10L_DESCRIP} library */
+/* Define to 1 to indicate EXP10L functionality. */
 #undef HAVE_EXP10L
 
-/* Define to indicate the ${EXP10L_DESCRIP} library version */
+/* Define to indicate the EXP10L library version */
 #undef HAVE_EXP10L_VERSION
 
-/* Define to indicate the ${EXP10_DESCRIP} library version */
+/* Define to indicate the EXP10 library version */
 #undef HAVE_EXP10_VERSION
 
-/* Define this to indicate the ${EXP2_DESCRIP} library */
+/* Define to 1 to indicate EXP2 functionality. */
 #undef HAVE_EXP2
 
-/* Define this to indicate the ${EXP2L_DESCRIP} library */
+/* Define to 1 to indicate EXP2L functionality. */
 #undef HAVE_EXP2L
 
-/* Define to indicate the ${EXP2L_DESCRIP} library version */
+/* Define to indicate the EXP2L library version */
 #undef HAVE_EXP2L_VERSION
 
-/* Define to indicate the ${EXP2_DESCRIP} library version */
+/* Define to indicate the EXP2 library version */
 #undef HAVE_EXP2_VERSION
 
-/* Define this to indicate the ${EXPL_DESCRIP} library */
+/* Define to 1 to indicate EXPL functionality. */
 #undef HAVE_EXPL
 
-/* Define to indicate the ${EXPL_DESCRIP} library version */
+/* Define to indicate the EXPL library version */
 #undef HAVE_EXPL_VERSION
 
-/* Define to indicate the ${EXP_DESCRIP} library version */
+/* Define to indicate the EXP library version */
 #undef HAVE_EXP_VERSION
 
 /* Define to 1 if you have the <fcntl.h> header file. */
 #undef HAVE_FCNTL_H
 
-/* Define this to indicate the ${FFMPEG_DESCRIP} library */
+/* Define to 1 to indicate FFMPEG functionality. */
 #undef HAVE_FFMPEG
 
-/* Define to indicate the ${FFMPEG_DESCRIP} library version */
+/* Define to indicate the FFMPEG library version */
 #undef HAVE_FFMPEG_VERSION
 
-/* Define this to indicate the ${FLOOR_DESCRIP} library */
+/* Define to 1 to indicate FLOOR functionality. */
 #undef HAVE_FLOOR
 
-/* Define this to indicate the ${FLOORL_DESCRIP} library */
+/* Define to 1 to indicate FLOORL functionality. */
 #undef HAVE_FLOORL
 
-/* Define to indicate the ${FLOORL_DESCRIP} library version */
+/* Define to indicate the FLOORL library version */
 #undef HAVE_FLOORL_VERSION
 
-/* Define to indicate the ${FLOOR_DESCRIP} library version */
+/* Define to indicate the FLOOR library version */
 #undef HAVE_FLOOR_VERSION
 
-/* Define this to indicate the ${FMOD_DESCRIP} library */
+/* Define to 1 to indicate FMOD functionality. */
 #undef HAVE_FMOD
 
-/* Define this to indicate the ${FMODL_DESCRIP} library */
+/* Define to 1 to indicate FMODL functionality. */
 #undef HAVE_FMODL
 
-/* Define to indicate the ${FMODL_DESCRIP} library version */
+/* Define to indicate the FMODL library version */
 #undef HAVE_FMODL_VERSION
 
-/* Define to indicate the ${FMOD_DESCRIP} library version */
+/* Define to indicate the FMOD library version */
 #undef HAVE_FMOD_VERSION
 
 /* Define to 1 if you have the `fopencookie' function. */
@@ -313,10 +313,10 @@
 /* Define to 1 if you have the `fork' function. */
 #undef HAVE_FORK
 
-/* Define this to indicate the ${FREETDS_DESCRIP} library */
+/* Define to 1 to indicate FREETDS functionality. */
 #undef HAVE_FREETDS
 
-/* Define to indicate the ${FREETDS_DESCRIP} library version */
+/* Define to indicate the FREETDS library version */
 #undef HAVE_FREETDS_VERSION
 
 /* Define to 1 if fseeko (and presumably ftello) exists and is declared. */
@@ -397,28 +397,28 @@
 /* Define if your system has the GTK2 libraries. */
 #undef HAVE_GTK2
 
-/* Define this to indicate the ${HOARD_DESCRIP} library */
+/* Define to 1 to indicate HOARD functionality. */
 #undef HAVE_HOARD
 
-/* Define to indicate the ${HOARD_DESCRIP} library version */
+/* Define to indicate the HOARD library version */
 #undef HAVE_HOARD_VERSION
 
-/* Define this to indicate the ${ICAL_DESCRIP} library */
+/* Define to 1 to indicate ICAL functionality. */
 #undef HAVE_ICAL
 
-/* Define to indicate the ${ICAL_DESCRIP} library version */
+/* Define to indicate the ICAL library version */
 #undef HAVE_ICAL_VERSION
 
-/* Define this to indicate the ${ICONV_DESCRIP} library */
+/* Define to 1 to indicate ICONV functionality. */
 #undef HAVE_ICONV
 
-/* Define to indicate the ${ICONV_DESCRIP} library version */
+/* Define to indicate the ICONV library version */
 #undef HAVE_ICONV_VERSION
 
-/* Define this to indicate the ${IKSEMEL_DESCRIP} library */
+/* Define to 1 to indicate IKSEMEL functionality. */
 #undef HAVE_IKSEMEL
 
-/* Define to indicate the ${IKSEMEL_DESCRIP} library version */
+/* Define to indicate the IKSEMEL library version */
 #undef HAVE_IKSEMEL_VERSION
 
 /* Define if your system has the UW IMAP Toolkit c-client library. */
@@ -434,19 +434,19 @@
 /* Define to 1 if you have the `inet_ntoa' function. */
 #undef HAVE_INET_NTOA
 
-/* Define this to indicate the ${INOTIFY_DESCRIP} library */
+/* Define to 1 to indicate INOTIFY functionality. */
 #undef HAVE_INOTIFY
 
-/* Define to indicate the ${INOTIFY_DESCRIP} library version */
+/* Define to indicate the INOTIFY library version */
 #undef HAVE_INOTIFY_VERSION
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
-/* Define this to indicate the ${IODBC_DESCRIP} library */
+/* Define to 1 to indicate IODBC functionality. */
 #undef HAVE_IODBC
 
-/* Define to indicate the ${IODBC_DESCRIP} library version */
+/* Define to indicate the IODBC library version */
 #undef HAVE_IODBC_VERSION
 
 /* Define to 1 if you have the `ioperm' function. */
@@ -461,22 +461,22 @@
 /* Define to 1 if you have the `isascii' function. */
 #undef HAVE_ISASCII
 
-/* Define this to indicate the ${ISDNNET_DESCRIP} library */
+/* Define to 1 to indicate ISDNNET functionality. */
 #undef HAVE_ISDNNET
 
-/* Define to indicate the ${ISDNNET_DESCRIP} library version */
+/* Define to indicate the ISDNNET library version */
 #undef HAVE_ISDNNET_VERSION
 
-/* Define this to indicate the ${JACK_DESCRIP} library */
+/* Define to 1 to indicate JACK functionality. */
 #undef HAVE_JACK
 
-/* Define to indicate the ${JACK_DESCRIP} library version */
+/* Define to indicate the JACK library version */
 #undef HAVE_JACK_VERSION
 
-/* Define this to indicate the ${LDAP_DESCRIP} library */
+/* Define to 1 to indicate LDAP functionality. */
 #undef HAVE_LDAP
 
-/* Define to indicate the ${LDAP_DESCRIP} library version */
+/* Define to indicate the LDAP library version */
 #undef HAVE_LDAP_VERSION
 
 /* Define to 1 if you have the <libintl.h> header file. */
@@ -497,52 +497,52 @@
 /* Define to 1 if you have the `localtime_r' function. */
 #undef HAVE_LOCALTIME_R
 
-/* Define this to indicate the ${LOG_DESCRIP} library */
+/* Define to 1 to indicate LOG functionality. */
 #undef HAVE_LOG
 
-/* Define this to indicate the ${LOG10_DESCRIP} library */
+/* Define to 1 to indicate LOG10 functionality. */
 #undef HAVE_LOG10
 
-/* Define this to indicate the ${LOG10L_DESCRIP} library */
+/* Define to 1 to indicate LOG10L functionality. */
 #undef HAVE_LOG10L
 
-/* Define to indicate the ${LOG10L_DESCRIP} library version */
+/* Define to indicate the LOG10L library version */
 #undef HAVE_LOG10L_VERSION
 
-/* Define to indicate the ${LOG10_DESCRIP} library version */
+/* Define to indicate the LOG10 library version */
 #undef HAVE_LOG10_VERSION
 
-/* Define this to indicate the ${LOG2_DESCRIP} library */
+/* Define to 1 to indicate LOG2 functionality. */
 #undef HAVE_LOG2
 
-/* Define this to indicate the ${LOG2L_DESCRIP} library */
+/* Define to 1 to indicate LOG2L functionality. */
 #undef HAVE_LOG2L
 
-/* Define to indicate the ${LOG2L_DESCRIP} library version */
+/* Define to indicate the LOG2L library version */
 #undef HAVE_LOG2L_VERSION
 
-/* Define to indicate the ${LOG2_DESCRIP} library version */
+/* Define to indicate the LOG2 library version */
 #undef HAVE_LOG2_VERSION
 
-/* Define this to indicate the ${LOGL_DESCRIP} library */
+/* Define to 1 to indicate LOGL functionality. */
 #undef HAVE_LOGL
 
-/* Define to indicate the ${LOGL_DESCRIP} library version */
+/* Define to indicate the LOGL library version */
 #undef HAVE_LOGL_VERSION
 
-/* Define to indicate the ${LOG_DESCRIP} library version */
+/* Define to indicate the LOG library version */
 #undef HAVE_LOG_VERSION
 
-/* Define this to indicate the ${LTDL_DESCRIP} library */
+/* Define to 1 to indicate LTDL functionality. */
 #undef HAVE_LTDL
 
-/* Define to indicate the ${LTDL_DESCRIP} library version */
+/* Define to indicate the LTDL library version */
 #undef HAVE_LTDL_VERSION
 
-/* Define this to indicate the ${LUA_DESCRIP} library */
+/* Define to 1 to indicate LUA functionality. */
 #undef HAVE_LUA
 
-/* Define to indicate the ${LUA_DESCRIP} library version */
+/* Define to indicate the LUA library version */
 #undef HAVE_LUA_VERSION
 
 /* Define to 1 if you have the <malloc.h> header file. */
@@ -560,7 +560,7 @@
 /* Define to 1 if you have the `memset' function. */
 #undef HAVE_MEMSET
 
-/* Define this to indicate the ${MISDN_DESCRIP} library */
+/* Define to 1 to indicate MISDN functionality. */
 #undef HAVE_MISDN
 
 /* Define if your system has the MISDN_FAC_ERROR headers. */
@@ -575,7 +575,7 @@
 /* Define MISDN_FAC_RESULT headers version */
 #undef HAVE_MISDN_FAC_RESULT_VERSION
 
-/* Define to indicate the ${MISDN_DESCRIP} library version */
+/* Define to indicate the MISDN library version */
 #undef HAVE_MISDN_VERSION
 
 /* Define to 1 if you have the `mkdir' function. */
@@ -590,16 +590,16 @@
 /* Define if your system has the MYSQLCLIENT libraries. */
 #undef HAVE_MYSQLCLIENT
 
-/* Define this to indicate the ${NBS_DESCRIP} library */
+/* Define to 1 to indicate NBS functionality. */
 #undef HAVE_NBS
 
-/* Define to indicate the ${NBS_DESCRIP} library version */
+/* Define to indicate the NBS library version */
 #undef HAVE_NBS_VERSION
 
-/* Define this to indicate the ${NCURSES_DESCRIP} library */
+/* Define to 1 to indicate NCURSES functionality. */
 #undef HAVE_NCURSES
 
-/* Define to indicate the ${NCURSES_DESCRIP} library version */
+/* Define to indicate the NCURSES library version */
 #undef HAVE_NCURSES_VERSION
 
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
@@ -617,46 +617,46 @@
 /* Define if your system has the NETSNMP libraries. */
 #undef HAVE_NETSNMP
 
-/* Define this to indicate the ${NEWT_DESCRIP} library */
+/* Define to 1 to indicate NEWT functionality. */
 #undef HAVE_NEWT
 
-/* Define to indicate the ${NEWT_DESCRIP} library version */
+/* Define to indicate the NEWT library version */
 #undef HAVE_NEWT_VERSION
 
-/* Define this to indicate the ${OGG_DESCRIP} library */
+/* Define to 1 to indicate OGG functionality. */
 #undef HAVE_OGG
 
-/* Define to indicate the ${OGG_DESCRIP} library version */
+/* Define to indicate the OGG library version */
 #undef HAVE_OGG_VERSION
 
-/* Define this to indicate the ${OPENAIS_DESCRIP} library */
+/* Define to 1 to indicate OPENAIS functionality. */
 #undef HAVE_OPENAIS
 
-/* Define to indicate the ${OPENAIS_DESCRIP} library version */
+/* Define to indicate the OPENAIS library version */
 #undef HAVE_OPENAIS_VERSION
 
 /* Define if your system has the OpenH323 libraries. */
 #undef HAVE_OPENH323
 
-/* Define this to indicate the ${OPENR2_DESCRIP} library */
+/* Define to 1 to indicate OPENR2 functionality. */
 #undef HAVE_OPENR2
 
-/* Define to indicate the ${OPENR2_DESCRIP} library version */
+/* Define to indicate the OPENR2 library version */
 #undef HAVE_OPENR2_VERSION
 
-/* Define this to indicate the ${OPENSSL_DESCRIP} library */
+/* Define to 1 to indicate OPENSSL functionality. */
 #undef HAVE_OPENSSL
 
-/* Define to indicate the ${OPENSSL_DESCRIP} library version */
+/* Define to indicate the OPENSSL library version */
 #undef HAVE_OPENSSL_VERSION
 
 /* Define this to indicate the ${OSPTK_DESCRIP} library */
 #undef HAVE_OSPTK
 
-/* Define this to indicate the ${OSS_DESCRIP} library */
+/* Define to 1 to indicate OSS functionality. */
 #undef HAVE_OSS
 
-/* Define to indicate the ${OSS_DESCRIP} library version */
+/* Define to indicate the OSS library version */
 #undef HAVE_OSS_VERSION
 
 /* Define to 1 if OSX atomic operations are supported. */
@@ -668,58 +668,58 @@
 /* Define to 1 if your system defines IP_PKTINFO. */
 #undef HAVE_PKTINFO
 
-/* Define this to indicate the ${POPT_DESCRIP} library */
+/* Define to 1 to indicate POPT functionality. */
 #undef HAVE_POPT
 
-/* Define to indicate the ${POPT_DESCRIP} library version */
+/* Define to indicate the POPT library version */
 #undef HAVE_POPT_VERSION
 
-/* Define this to indicate the ${PORTAUDIO_DESCRIP} library */
+/* Define to 1 to indicate PORTAUDIO functionality. */
 #undef HAVE_PORTAUDIO
 
-/* Define to indicate the ${PORTAUDIO_DESCRIP} library version */
+/* Define to indicate the PORTAUDIO library version */
 #undef HAVE_PORTAUDIO_VERSION
 
-/* Define this to indicate the ${POW_DESCRIP} library */
+/* Define to 1 to indicate POW functionality. */
 #undef HAVE_POW
 
-/* Define this to indicate the ${POWL_DESCRIP} library */
+/* Define to 1 to indicate POWL functionality. */
 #undef HAVE_POWL
 
-/* Define to indicate the ${POWL_DESCRIP} library version */
+/* Define to indicate the POWL library version */
 #undef HAVE_POWL_VERSION
 
-/* Define to indicate the ${POW_DESCRIP} library version */
+/* Define to indicate the POW library version */
 #undef HAVE_POW_VERSION
 
-/* Define this to indicate the ${PRI_DESCRIP} library */
+/* Define to 1 to indicate PRI functionality. */
 #undef HAVE_PRI
 
-/* Define this to indicate the ${PRI_INBANDDISCONNECT_DESCRIP} library */
+/* Define to 1 to indicate PRI_INBANDDISCONNECT functionality. */
 #undef HAVE_PRI_INBANDDISCONNECT
 
-/* Define to indicate the ${PRI_INBANDDISCONNECT_DESCRIP} library version */
+/* Define to indicate the PRI_INBANDDISCONNECT library version */
 #undef HAVE_PRI_INBANDDISCONNECT_VERSION
 
-/* Define this to indicate the ${PRI_PROG_W_CAUSE_DESCRIP} library */
+/* Define to 1 to indicate PRI_PROG_W_CAUSE functionality. */
 #undef HAVE_PRI_PROG_W_CAUSE
 
-/* Define to indicate the ${PRI_PROG_W_CAUSE_DESCRIP} library version */
+/* Define to indicate the PRI_PROG_W_CAUSE library version */
 #undef HAVE_PRI_PROG_W_CAUSE_VERSION
 
-/* Define this to indicate the ${PRI_REVERSE_CHARGE_DESCRIP} library */
+/* Define to 1 to indicate PRI_REVERSE_CHARGE functionality. */
 #undef HAVE_PRI_REVERSE_CHARGE
 
-/* Define to indicate the ${PRI_REVERSE_CHARGE_DESCRIP} library version */
+/* Define to indicate the PRI_REVERSE_CHARGE library version */
 #undef HAVE_PRI_REVERSE_CHARGE_VERSION
 
-/* Define this to indicate the ${PRI_SERVICE_MESSAGES_DESCRIP} library */
+/* Define to 1 to indicate PRI_SERVICE_MESSAGES functionality. */
 #undef HAVE_PRI_SERVICE_MESSAGES
 
-/* Define to indicate the ${PRI_SERVICE_MESSAGES_DESCRIP} library version */
+/* Define to indicate the PRI_SERVICE_MESSAGES library version */
 #undef HAVE_PRI_SERVICE_MESSAGES_VERSION
 
-/* Define to indicate the ${PRI_DESCRIP} library version */
+/* Define to indicate the PRI library version */
 #undef HAVE_PRI_VERSION
 
 /* Define if you have POSIX threads libraries and header files. */
@@ -758,31 +758,31 @@
 /* Define if your system has the PWLib libraries. */
 #undef HAVE_PWLIB
 
-/* Define this to indicate the ${RADIUS_DESCRIP} library */
+/* Define to 1 to indicate RADIUS functionality. */
 #undef HAVE_RADIUS
 
-/* Define to indicate the ${RADIUS_DESCRIP} library version */
+/* Define to indicate the RADIUS library version */
 #undef HAVE_RADIUS_VERSION
 
 /* Define to 1 if you have the `regcomp' function. */
 #undef HAVE_REGCOMP
 
-/* Define this to indicate the ${REMAINDER_DESCRIP} library */
+/* Define to 1 to indicate REMAINDER functionality. */
 #undef HAVE_REMAINDER
 
-/* Define this to indicate the ${REMAINDERL_DESCRIP} library */
+/* Define to 1 to indicate REMAINDERL functionality. */
 #undef HAVE_REMAINDERL
 
-/* Define to indicate the ${REMAINDERL_DESCRIP} library version */
+/* Define to indicate the REMAINDERL library version */
 #undef HAVE_REMAINDERL_VERSION
 
-/* Define to indicate the ${REMAINDER_DESCRIP} library version */
+/* Define to indicate the REMAINDER library version */
 #undef HAVE_REMAINDER_VERSION
 
-/* Define this to indicate the ${RESAMPLE_DESCRIP} library */
+/* Define to 1 to indicate RESAMPLE functionality. */
 #undef HAVE_RESAMPLE
 
-/* Define to indicate the ${RESAMPLE_DESCRIP} library version */
+/* Define to indicate the RESAMPLE library version */
 #undef HAVE_RESAMPLE_VERSION
 
 /* Define to 1 if your system has the close resolver function. */
@@ -797,28 +797,28 @@
 /* Define to 1 if you have the `re_comp' function. */
 #undef HAVE_RE_COMP
 
-/* Define this to indicate the ${RINT_DESCRIP} library */
+/* Define to 1 to indicate RINT functionality. */
 #undef HAVE_RINT
 
-/* Define this to indicate the ${RINTL_DESCRIP} library */
+/* Define to 1 to indicate RINTL functionality. */
 #undef HAVE_RINTL
 
-/* Define to indicate the ${RINTL_DESCRIP} library version */
+/* Define to indicate the RINTL library version */
 #undef HAVE_RINTL_VERSION
 
-/* Define to indicate the ${RINT_DESCRIP} library version */
+/* Define to indicate the RINT library version */
 #undef HAVE_RINT_VERSION
 
-/* Define this to indicate the ${ROUND_DESCRIP} library */
+/* Define to 1 to indicate ROUND functionality. */
 #undef HAVE_ROUND
 
-/* Define this to indicate the ${ROUNDL_DESCRIP} library */
+/* Define to 1 to indicate ROUNDL functionality. */
 #undef HAVE_ROUNDL
 
-/* Define to indicate the ${ROUNDL_DESCRIP} library version */
+/* Define to indicate the ROUNDL library version */
 #undef HAVE_ROUNDL_VERSION
 
-/* Define to indicate the ${ROUND_DESCRIP} library version */
+/* Define to indicate the ROUND library version */
 #undef HAVE_ROUND_VERSION
 
 /* Define to 1 if your system has /sbin/launchd. */
@@ -827,10 +827,10 @@
 /* Define if your system has the SDL libraries. */
 #undef HAVE_SDL
 
-/* Define this to indicate the ${SDL_IMAGE_DESCRIP} library */
+/* Define to 1 to indicate SDL_IMAGE functionality. */
 #undef HAVE_SDL_IMAGE
 
-/* Define to indicate the ${SDL_IMAGE_DESCRIP} library version */
+/* Define to indicate the SDL_IMAGE library version */
 #undef HAVE_SDL_IMAGE_VERSION
 
 /* Define to 1 if you have the `select' function. */
@@ -839,16 +839,16 @@
 /* Define to 1 if you have the `setenv' function. */
 #undef HAVE_SETENV
 
-/* Define this to indicate the ${SIN_DESCRIP} library */
+/* Define to 1 to indicate SIN functionality. */
 #undef HAVE_SIN
 
-/* Define this to indicate the ${SINL_DESCRIP} library */
+/* Define to 1 to indicate SINL functionality. */
 #undef HAVE_SINL
 
-/* Define to indicate the ${SINL_DESCRIP} library version */
+/* Define to indicate the SINL library version */
 #undef HAVE_SINL_VERSION
 
-/* Define to indicate the ${SIN_DESCRIP} library version */
+/* Define to indicate the SIN library version */
 #undef HAVE_SIN_VERSION
 
 /* Define to 1 if you have the `socket' function. */
@@ -857,58 +857,58 @@
 /* Define to 1 if your system has soxmix application. */
 #undef HAVE_SOXMIX
 
-/* Define this to indicate the ${SPANDSP_DESCRIP} library */
+/* Define to 1 to indicate SPANDSP functionality. */
 #undef HAVE_SPANDSP
 
-/* Define to indicate the ${SPANDSP_DESCRIP} library version */
+/* Define to indicate the SPANDSP library version */
 #undef HAVE_SPANDSP_VERSION
 
-/* Define this to indicate the ${SPEEX_DESCRIP} library */
+/* Define to 1 to indicate SPEEX functionality. */
 #undef HAVE_SPEEX
 
-/* Define this to indicate the ${SPEEXDSP_DESCRIP} library */
+/* Define to 1 to indicate SPEEXDSP functionality. */
 #undef HAVE_SPEEXDSP
 
-/* Define to indicate the ${SPEEXDSP_DESCRIP} library version */
+/* Define to indicate the SPEEXDSP library version */
 #undef HAVE_SPEEXDSP_VERSION
 
-/* Define this to indicate the ${SPEEX_PREPROCESS_DESCRIP} library */
+/* Define to 1 to indicate SPEEX_PREPROCESS functionality. */
 #undef HAVE_SPEEX_PREPROCESS
 
-/* Define to indicate the ${SPEEX_PREPROCESS_DESCRIP} library version */
+/* Define to indicate the SPEEX_PREPROCESS library version */
 #undef HAVE_SPEEX_PREPROCESS_VERSION
 
-/* Define to indicate the ${SPEEX_DESCRIP} library version */
+/* Define to indicate the SPEEX library version */
 #undef HAVE_SPEEX_VERSION
 
-/* Define this to indicate the ${SQLITE_DESCRIP} library */
+/* Define to 1 to indicate SQLITE functionality. */
 #undef HAVE_SQLITE
 
-/* Define this to indicate the ${SQLITE3_DESCRIP} library */
+/* Define to 1 to indicate SQLITE3 functionality. */
 #undef HAVE_SQLITE3
 
-/* Define to indicate the ${SQLITE3_DESCRIP} library version */
+/* Define to indicate the SQLITE3 library version */
 #undef HAVE_SQLITE3_VERSION
 
-/* Define to indicate the ${SQLITE_DESCRIP} library version */
+/* Define to indicate the SQLITE library version */
 #undef HAVE_SQLITE_VERSION
 
-/* Define this to indicate the ${SQRT_DESCRIP} library */
+/* Define to 1 to indicate SQRT functionality. */
 #undef HAVE_SQRT
 
-/* Define this to indicate the ${SQRTL_DESCRIP} library */
+/* Define to 1 to indicate SQRTL functionality. */
 #undef HAVE_SQRTL
 
-/* Define to indicate the ${SQRTL_DESCRIP} library version */
+/* Define to indicate the SQRTL library version */
 #undef HAVE_SQRTL_VERSION
 
-/* Define to indicate the ${SQRT_DESCRIP} library version */
+/* Define to indicate the SQRT library version */
 #undef HAVE_SQRT_VERSION
 
-/* Define this to indicate the ${SS7_DESCRIP} library */
+/* Define to 1 to indicate SS7 functionality. */
 #undef HAVE_SS7
 
-/* Define to indicate the ${SS7_DESCRIP} library version */
+/* Define to indicate the SS7 library version */
 #undef HAVE_SS7_VERSION
 
 /* Define to 1 if `stat' has the bug that it succeeds when given the
@@ -985,19 +985,19 @@
 /* Define to 1 if you have the `strstr' function. */
 #undef HAVE_STRSTR
 
-/* Define this to indicate the ${STRTOD_DESCRIP} library */
+/* Define to 1 to indicate STRTOD functionality. */
 #undef HAVE_STRTOD
 
-/* Define to indicate the ${STRTOD_DESCRIP} library version */
+/* Define to indicate the STRTOD library version */
 #undef HAVE_STRTOD_VERSION
 
 /* Define to 1 if you have the `strtol' function. */
 #undef HAVE_STRTOL
 
-/* Define this to indicate the ${STRTOLD_DESCRIP} library */
+/* Define to 1 to indicate STRTOLD functionality. */
 #undef HAVE_STRTOLD
 
-/* Define to indicate the ${STRTOLD_DESCRIP} library version */
+/* Define to indicate the STRTOLD library version */
 #undef HAVE_STRTOLD_VERSION
 
 /* Define to 1 if you have the `strtoq' function. */
@@ -1006,10 +1006,10 @@
 /* Define to 1 if `st_blksize' is member of `struct stat'. */
 #undef HAVE_STRUCT_STAT_ST_BLKSIZE
 
-/* Define this to indicate the ${SUPPSERV_DESCRIP} library */
+/* Define to 1 to indicate SUPPSERV functionality. */
 #undef HAVE_SUPPSERV
 
-/* Define to indicate the ${SUPPSERV_DESCRIP} library version */
+/* Define to indicate the SUPPSERV library version */
 #undef HAVE_SUPPSERV_VERSION
 
 /* Define to 1 if you have the `swapctl' function. */
@@ -1138,22 +1138,22 @@
 /* Define to 1 if you have <sys/wait.h> that is POSIX.1 compatible. */
 #undef HAVE_SYS_WAIT_H
 
-/* Define this to indicate the ${TAN_DESCRIP} library */
+/* Define to 1 to indicate TAN functionality. */
 #undef HAVE_TAN
 
-/* Define this to indicate the ${TANL_DESCRIP} library */
+/* Define to 1 to indicate TANL functionality. */
 #undef HAVE_TANL
 
-/* Define to indicate the ${TANL_DESCRIP} library version */
+/* Define to indicate the TANL library version */
 #undef HAVE_TANL_VERSION
 
-/* Define to indicate the ${TAN_DESCRIP} library version */
+/* Define to indicate the TAN library version */
 #undef HAVE_TAN_VERSION
 
-/* Define this to indicate the ${TERMCAP_DESCRIP} library */
+/* Define to 1 to indicate TERMCAP functionality. */
 #undef HAVE_TERMCAP
 
-/* Define to indicate the ${TERMCAP_DESCRIP} library version */
+/* Define to indicate the TERMCAP library version */
 #undef HAVE_TERMCAP_VERSION
 
 /* Define to 1 if you have the <termios.h> header file. */
@@ -1168,46 +1168,46 @@
 /* Define to 1 if your system defines timersub. */
 #undef HAVE_TIMERSUB
 
-/* Define this to indicate the ${TINFO_DESCRIP} library */
+/* Define to 1 to indicate TINFO functionality. */
 #undef HAVE_TINFO
 
-/* Define to indicate the ${TINFO_DESCRIP} library version */
+/* Define to indicate the TINFO library version */
 #undef HAVE_TINFO_VERSION
 
-/* Define this to indicate the ${TONEZONE_DESCRIP} library */
+/* Define to 1 to indicate TONEZONE functionality. */
 #undef HAVE_TONEZONE
 
-/* Define to indicate the ${TONEZONE_DESCRIP} library version */
+/* Define to indicate the TONEZONE library version */
 #undef HAVE_TONEZONE_VERSION
 
-/* Define this to indicate the ${TRUNC_DESCRIP} library */
+/* Define to 1 to indicate TRUNC functionality. */
 #undef HAVE_TRUNC
 
-/* Define this to indicate the ${TRUNCL_DESCRIP} library */
+/* Define to 1 to indicate TRUNCL functionality. */
 #undef HAVE_TRUNCL
 
-/* Define to indicate the ${TRUNCL_DESCRIP} library version */
+/* Define to indicate the TRUNCL library version */
 #undef HAVE_TRUNCL_VERSION
 
-/* Define to indicate the ${TRUNC_DESCRIP} library version */
+/* Define to indicate the TRUNC library version */
 #undef HAVE_TRUNC_VERSION
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
-/* Define this to indicate the ${UNIXODBC_DESCRIP} library */
+/* Define to 1 to indicate UNIXODBC functionality. */
 #undef HAVE_UNIXODBC
 
-/* Define to indicate the ${UNIXODBC_DESCRIP} library version */
+/* Define to indicate the UNIXODBC library version */
 #undef HAVE_UNIXODBC_VERSION
 
 /* Define to 1 if you have the `unsetenv' function. */
 #undef HAVE_UNSETENV
 
-/* Define this to indicate the ${USB_DESCRIP} library */
+/* Define to 1 to indicate USB functionality. */
 #undef HAVE_USB
 
-/* Define to indicate the ${USB_DESCRIP} library version */
+/* Define to indicate the USB library version */
 #undef HAVE_USB_VERSION
 
 /* Define to 1 if you have the `utime' function. */
@@ -1231,10 +1231,10 @@
 /* Define to 1 if your system has linux/videodev.h. */
 #undef HAVE_VIDEODEV_H
 
-/* Define this to indicate the ${VORBIS_DESCRIP} library */
+/* Define to 1 to indicate VORBIS functionality. */
 #undef HAVE_VORBIS
 
-/* Define to indicate the ${VORBIS_DESCRIP} library version */
+/* Define to indicate the VORBIS library version */
 #undef HAVE_VORBIS_VERSION
 
 /* Define if your system has the VoiceTronix API libraries. */
@@ -1255,16 +1255,16 @@
 /* Define to 1 if `vfork' works. */
 #undef HAVE_WORKING_VFORK
 
-/* Define this to indicate the ${X11_DESCRIP} library */
+/* Define to 1 to indicate X11 functionality. */
 #undef HAVE_X11
 
-/* Define to indicate the ${X11_DESCRIP} library version */
+/* Define to indicate the X11 library version */
 #undef HAVE_X11_VERSION
 
-/* Define this to indicate the ${ZLIB_DESCRIP} library */
+/* Define to 1 to indicate ZLIB functionality. */
 #undef HAVE_ZLIB
 
-/* Define to indicate the ${ZLIB_DESCRIP} library version */
+/* Define to indicate the ZLIB library version */
 #undef HAVE_ZLIB_VERSION
 
 /* Define to 1 if the system has the type `_Bool'. */
