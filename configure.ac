@@ -1650,37 +1650,7 @@ AC_SUBST(PBX_GTK2)
 AC_SUBST(GTK2_INCLUDE)
 AC_SUBST(GTK2_LIB)
 
-if test "${USE_CURL}" != "no"; then
-   AC_PATH_TOOL([CURL_CONFIG], [curl-config], No)
-   if test ! x"${CURL_CONFIG}" = xNo; then
-   # check for version
-      if test $(printf "%d" 0x$(${CURL_CONFIG} --vernum)) -ge $(printf "%d" 0x070907); then
-         CURL_INCLUDE=$(${CURL_CONFIG} --cflags)
-         CURL_LIB=$(${CURL_CONFIG} --libs)
-
-         AC_MSG_CHECKING(for curl_version() in curl/curl.h)
-         saved_cppflags="${CPPFLAGS}"
-         CPPFLAGS="${CPPFLAGS} ${CURL_INCLUDE}"
-         AC_COMPILE_IFELSE(
-            [AC_LANG_PROGRAM(
-                [#include <curl/curl.h>],
-                    [curl_version();])
-            ],[
-                AC_MSG_RESULT(yes)
-                ac_cv_curl_h="yes"
-            ],[
-                AC_MSG_RESULT(no)
-                ac_cv_curl_h="no"
-            ]
-	 )
-	 CPPFLAGS="${saved_cppflags}"
-         if test "${ac_cv_curl_h}" = "yes"; then
-             PBX_CURL=1
-             AC_DEFINE([HAVE_CURL], 1, [Define if your system has the curl libraries.])
-         fi
-      fi
-   fi
-fi
+AST_LIBCURL_CHECK_CONFIG([], [7.10.1])
 
 AC_CONFIG_FILES([build_tools/menuselect-deps makeopts channels/h323/Makefile])
 AC_OUTPUT
