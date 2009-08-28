@@ -2294,20 +2294,26 @@ static void *pri_dchannel(void *vpri)
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Received NOTIFY on unconfigured channel %d/%d span %d\n",
 						PRI_SPAN(e->notify.channel), PRI_CHANNEL(e->notify.channel), pri->span);
-				} else if (!pri->discardremoteholdretrieval) {
-					struct ast_frame f = { AST_FRAME_CONTROL, };
-
+				} else {
 					sig_pri_lock_private(pri->pvts[chanpos]);
 					sig_pri_handle_subcmds(pri, chanpos, e->e, e->notify.channel,
 						e->notify.subcmds);
 					switch (e->notify.info) {
 					case PRI_NOTIFY_REMOTE_HOLD:
-						f.subclass = AST_CONTROL_HOLD;
-						pri_queue_frame(pri->pvts[chanpos], &f, pri);
+						if (!pri->discardremoteholdretrieval) {
+							struct ast_frame f = { AST_FRAME_CONTROL, };
+
+							f.subclass = AST_CONTROL_HOLD;
+							pri_queue_frame(pri->pvts[chanpos], &f, pri);
+						}
 						break;
 					case PRI_NOTIFY_REMOTE_RETRIEVAL:
-						f.subclass = AST_CONTROL_UNHOLD;
-						pri_queue_frame(pri->pvts[chanpos], &f, pri);
+						if (!pri->discardremoteholdretrieval) {
+							struct ast_frame f = { AST_FRAME_CONTROL, };
+
+							f.subclass = AST_CONTROL_UNHOLD;
+							pri_queue_frame(pri->pvts[chanpos], &f, pri);
+						}
 						break;
 					}
 					sig_pri_unlock_private(pri->pvts[chanpos]);
