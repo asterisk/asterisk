@@ -1,6 +1,6 @@
 2009-08-28  Leif Madsen <lmadsen@digium.com>
 
-	* Released 1.6.0.14
+	* Asterisk 1.6.0.14 released
 
 2009-08-11  Tilghman Lesher <tlesher@digium.com>
 
@@ -20,33 +20,33 @@
 	* res/res_config_curl.c, apps/app_waitforring.c,
 	  channels/chan_misdn.c, funcs/func_channel.c, apps/app_macro.c,
 	  pbx/pbx_config.c, apps/app_chanspy.c, apps/app_mixmonitor.c,
-	  main/asterisk.c, res/res_odbc.c, apps/app_voicemail.c,
+	  res/res_odbc.c, main/asterisk.c, apps/app_voicemail.c,
 	  doc/CODING-GUIDELINES, utils/muted.c, apps/app_meetme.c,
 	  main/utils.c, cdr/cdr_pgsql.c, res/res_musiconhold.c,
 	  apps/app_followme.c, channels/misdn_config.c, utils/frame.c,
-	  res/ael/pval.c, main/cdr.c, main/channel.c, funcs/func_enum.c,
-	  channels/chan_phone.c, apps/app_setcallerid.c,
-	  apps/app_osplookup.c, main/manager.c, funcs/func_odbc.c,
-	  res/res_agi.c, apps/app_minivm.c, res/res_config_ldap.c,
+	  main/channel.c, main/cdr.c, res/ael/pval.c, funcs/func_enum.c,
+	  channels/chan_phone.c, apps/app_osplookup.c,
+	  apps/app_setcallerid.c, main/manager.c, funcs/func_odbc.c,
+	  apps/app_minivm.c, res/res_agi.c, res/res_config_ldap.c,
 	  apps/app_rpt.c, channels/chan_mgcp.c, apps/app_adsiprog.c,
 	  funcs/func_dialplan.c, main/dnsmgr.c, channels/chan_sip.c,
 	  res/res_limit.c, apps/app_waitforsilence.c, agi/eagi-test.c,
-	  main/acl.c, apps/app_waituntil.c, apps/app_queue.c,
+	  apps/app_waituntil.c, main/acl.c, apps/app_queue.c,
 	  channels/chan_oss.c, agi/eagi-sphinx-test.c,
 	  channels/chan_usbradio.c, res/snmp/agent.c, pbx/pbx_dundi.c,
 	  apps/app_sms.c, utils/extconf.c, apps/app_verbose.c,
 	  apps/app_stack.c, apps/app_dahdibarge.c, funcs/func_rand.c,
-	  main/frame.c, apps/app_readfile.c, /, apps/app_record.c,
-	  funcs/func_strings.c, apps/app_alarmreceiver.c,
-	  cdr/cdr_adaptive_odbc.c, channels/chan_iax2.c,
+	  apps/app_readfile.c, main/frame.c, /, apps/app_record.c,
+	  funcs/func_strings.c, cdr/cdr_adaptive_odbc.c,
+	  apps/app_alarmreceiver.c, channels/chan_iax2.c,
 	  main/indications.c, main/config.c, main/cli.c,
 	  pbx/pbx_loopback.c, channels/chan_dahdi.c, pbx/pbx_spool.c,
 	  res/res_smdi.c, channels/chan_skinny.c, main/features.c,
 	  main/http.c, main/pbx.c, apps/app_privacy.c,
-	  codecs/codec_speex.c, channels/chan_agent.c, funcs/func_math.c,
-	  apps/app_disa.c, apps/app_morsecode.c, channels/iax2-provision.c,
-	  funcs/func_cut.c, pbx/dundi-parser.c, apps/app_talkdetect.c:
-	  AST-2009-005
+	  codecs/codec_speex.c, funcs/func_math.c, channels/chan_agent.c,
+	  apps/app_morsecode.c, apps/app_disa.c, funcs/func_cut.c,
+	  channels/iax2-provision.c, pbx/dundi-parser.c,
+	  apps/app_talkdetect.c: AST-2009-005
 
 2009-08-10 14:10 +0000 [r211348]  Joshua Colp <jcolp@digium.com>
 
@@ -2176,6 +2176,18 @@
 	  ........ r199138 | dvossel | 2009-06-04 14:00:15 -0500 (Thu, 04
 	  Jun 2009) | 3 lines Additional updates to AST-2009-001 ........
 	  ................
+
+2009-08-11  Tilghman Lesher <tlesher@digium.com>
+
+	* Asterisk 1.6.0.13 released
+
+	* channels/chan_sip.c: Bad merge from 1.6.0 branch
+
+2009-08-10  Tilghman Lesher <tlesher@digium.com>
+
+	* Asterisk 1.6.0.12 released
+
+	* AST-2009-005
 
 2009-06-05  Leif Madsen <lmadsen@digium.com>
 
