@@ -349,8 +349,8 @@ struct ast_sched_thread *ast_sched_thread_destroy(struct ast_sched_thread *st);
  * \param cb the function to call when the scheduled time arrives
  * \param data the parameter to pass to the scheduler callback
  *
- * \retval 0 success
- * \retval non-zero failure
+ * \retval -1 Failure
+ * \retval >=0 Sched ID of added task
  */
 int ast_sched_thread_add(struct ast_sched_thread *st, int when, ast_sched_cb cb,
 		const void *data);
@@ -369,8 +369,8 @@ int ast_sched_thread_add(struct ast_sched_thread *st, int when, ast_sched_cb cb,
  *        non-zero means re-schedule using the time provided when the scheduler
  *        entry was first created.
  *
- * \retval 0 success
- * \retval non-zero failure
+ * \retval -1 Failure
+ * \retval >=0 Sched ID of added task
  */
 int ast_sched_thread_add_variable(struct ast_sched_thread *st, int when, ast_sched_cb cb,
 		const void *data, int variable);
