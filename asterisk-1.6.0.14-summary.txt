@@ -1,0 +1,1336 @@
+                                Release Summary
+
+                               asterisk-1.6.0.14
+
+                                Date: 2009-08-28
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.6.0.10.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   28 mmichelson            12 dvossel               6 alecdavis              
+   25 dvossel               5 aragon                 5 Nick_Lewis             
+   24 tilghman              4 alecdavis              4 klaus3000              
+   23 kpfleming             3 dbrooks                3 pkempgen               
+   16 russell               3 klaus3000              3 rain                   
+   11 jpeeler               3 scottbmilne            2 araasch                
+   11 rmudgett              2 mmichelson             2 aragon                 
+   8 dbrooks                2 mnicholson             2 ffloimair              
+   7 seanbright             2 Nick_Lewis             2 ibc                    
+   5 file                   2 rmudgett               2 mvanbaak               
+   4 alecdavis              1 alexh                  2 p_lindheimer           
+   4 qwell                  1 amilcar                2 pprindeville           
+   3 mnicholson             1 awk                    2 slavon                 
+   3 Nick                   1 caspy                  2 sodom                  
+   2 klaus3000              1 CGMChris               1 adomjan                
+   2 lmadsen                1 contactmayankjain      1 afosorio               
+   2 mvanbaak               1 ffloimair              1 agupta                 
+   2 p                      1 gentian                1 alexh                  
+   1 adomjan                1 Jamuel                 1 atis                   
+   1 araasch                1 jmacz                  1 avinoash               
+   1 atis                   1 jpeeler                1 bcnit                  
+   1 Benjamin               1 jthurman               1 Benjamin Kluck         
+   1 chappell               1 Kristijan              1 caspy                  
+   1 contactmayankjain      1 lacoursj               1 CGMChris               
+   1 dimas                  1 lasko                  1 chappell               
+   1 edantie                1 legart                 1 chris-mac              
+   1 ghenry                 1 lmadsen                1 contactmayankjain      
+   1 Jamuel                 1 madkins                1 corruptor              
+   1 jthurman               1 murf                   1 davidw                 
+   1 Kristijan              1 p_lindheimer           1 dazza76                
+   1 lacoursj               1 pprindeville           1 deuffy                 
+   1 lasko                  1 rain                   1 dimas                  
+   1 latinsud               1 rue_mohr               1 edantie                
+   1 leobrown               1 seanbright             1 fdecher                
+   1 loloski                1 slavon                 1 flefoll                
+   1 makoto                 1 suretec                1 fvdb                   
+   1 mattf                  1 Takehiko_Ooshima       1 gentian                
+   1 murf                   1 tilghman               1 greenfieldtech         
+   1 rain                   1 timeshell              1 huangtx2009            
+   1 twilson                1 tkarl                  1 Jamuel                 
+   1 vrban                  1 toc                    1 JimDickenson           
+   1 xvisor                 1 volivier               1 jpiszcz                
+                            1 vrban                  1 jsmith                 
+                                                     1 jthurman               
+                                                     1 lacoursj               
+                                                     1 lasko                  
+                                                     1 latinsud               
+                                                     1 legart                 
+                                                     1 leobrown               
+                                                     1 lmadsen                
+                                                     1 loic                   
+                                                     1 macogeek               
+                                                     1 madkins                
+                                                     1 makoto                 
+                                                     1 markd                  
+                                                     1 mbrancaleoni           
+                                                     1 mnnojd                 
+                                                     1 Nik Soggia             
+                                                     1 noahisaac              
+                                                     1 okrief                 
+                                                     1 pj                     
+                                                     1 rue_mohr               
+                                                     1 samy                   
+                                                     1 schmidts               
+                                                     1 scottbmilne            
+                                                     1 seadweller             
+                                                     1 st                     
+                                                     1 suretec                
+                                                     1 Takehiko Ooshima       
+                                                     1 timeshell              
+                                                     1 timking                
+                                                     1 tobias_e               
+                                                     1 toc                    
+                                                     1 travisghansen          
+                                                     1 trendboy               
+                                                     1 umberto71              
+                                                     1 vbcrlfuser             
+                                                     1 viraptor               
+                                                     1 volivier               
+                                                     1 wtca                   
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Addons/General
+
+   #15269: [patch] memory leak in asterisk some bug fixing and removing
+   Redundant condition
+   Revision: 201682
+   Reporter: contactmayankjain
+   Testers: contactmayankjain, dvossel
+   Coders: contactmayankjain, dvossel
+
+  Category: Applications/General
+
+   #15022: [patch] Language handling for numbers, dates, etc is misbehaving
+   when utilizing sub-regional languages
+   Revision: 204581
+   Reporter: greenfieldtech
+   Coders: tilghman
+
+  Category: Applications/app_chanspy
+
+   #15660: ChanSpy "whisper" is broken in 1.4.26
+   Revision: 214198
+   Reporter: corruptor
+   Testers: dvossel
+   Coders: dvossel
+
+  Category: Applications/app_fax
+
+   #15355: app_fax does not compile with iaxmodem 1.2.0
+   Revision: 202184
+   Reporter: deuffy
+   Coders: seanbright
+
+   #15480: [patch] Not all fixes from #14849 are committed
+   Revision: 205771
+   Reporter: dimas
+   Coders: dimas
+
+   #15606: app_fax.c is not compiling under OpenBSD
+   Revision: 210239
+   Reporter: mvanbaak
+   Coders: kpfleming
+
+   #15610: T.38 re-INVITE received after T.38 already negotiated fails
+   Revision: 210818
+   Reporter: huangtx2009
+   Coders: file
+
+  Category: Applications/app_meetme
+
+   #15493: [patch] contrib/scripts/meetme.sql doesn't contain all fields
+   Revision: 206585
+   Reporter: lasko
+   Coders: lasko
+
+  Category: Applications/app_milliwatt
+
+   #15386: [patch] Milliwatt() is off by -11dbm
+   Revision: 209840
+   Reporter: rue_mohr
+   Testers: rue_mohr
+   Coders: russell
+
+  Category: Applications/app_mixmonitor
+
+   #15259: MixMonitor is not releasing the file handle on the recorded file
+   Revision: 201449
+   Reporter: travisghansen
+   Testers: dvossel
+   Coders: dvossel
+
+   #15699: [patch] using ast_free instead of mixmonitor_free
+   Revision: 213135
+   Reporter: edantie
+   Coders: edantie
+
+  Category: Applications/app_queue
+
+   #14536: [patch] After a caller is processed by app_queue the queue_log
+   logs the hangup as TRANSFER
+   Revision: 211960
+   Reporter: aragon
+   Testers: aragon, mnicholson
+   Coders: mnicholson
+
+   #14631: [patch] Ghost calls with queues and spa942 and 922
+   Revision: 205351
+   Reporter: latinsud
+   Coders: latinsud
+
+   #15664: [patch] QUEUE_MEMBER_LIST() returns member names instead of
+   interfaces
+   Revision: 211044
+   Reporter: rain
+   Coders: rain
+
+  Category: Applications/app_stack
+
+   #15557: [patch] Gosub() dequotes once more than Macro()
+   Revision: 210909
+   Reporter: rain
+   Testers: rain
+   Coders: tilghman
+
+   #15617: [patch] crash in LOCAL() if Gosub stack is allocated but empty
+   Revision: 211233
+   Reporter: rain
+   Coders: tilghman
+
+  Category: Applications/app_voicemail
+
+   #14554: [patch] # for fastforward goes beyond end of message
+   Revision: 203818
+   Reporter: lacoursj
+   Testers: lacoursj
+   Coders: lacoursj
+
+   #14932: [patch] asterisk-1.6.0.9-x86_64 segfaults when leaving a voicemail
+   internally to another extension
+   Revision: 199632
+   Reporter: jpiszcz
+   Testers: seanbright
+   Coders: seanbright
+
+   #15331: [patch] Log message does not match conditional check
+   Revision: 203722
+   Reporter: markd
+   Coders: dbrooks
+
+   #15333: [patch] add FILE_STORAGE to Voicemail Build Options
+   Revision: 200945
+   Reporter: mvanbaak
+   Coders: mvanbaak
+
+   #15720: opendir() return code is not checked in last_message_index()
+   Revision: 212628
+   Reporter: tobias_e
+   Coders: tilghman
+
+  Category: Applications/app_voicemail/IMAP
+
+   #14496: [patch] IMAP crash multiple callers / callers hangup at beep
+   Revision: 210568
+   Reporter: vbcrlfuser
+   Testers: lmadsen, mmichelson, dbrooks
+   Coders: lmadsen
+
+   #14597: greetings can not be retrieved from IMAP
+   Revision: 213411
+   Reporter: wtca
+   Testers: jpeeler
+   Coders: mmichelson
+
+   #14950: [patch] Greetings are stored as IMAP messages even when
+   imapgreetings=no
+   Revision: 213837
+   Reporter: noahisaac
+   Coders: mmichelson
+
+  Category: CDR/General
+
+   #15751: [patch] Core dump in ast_bridge_call features.c line 2772
+   Revision: 213346
+   Reporter: atis
+   Coders: atis
+
+  Category: Channels/General
+
+   #15330: [patch] Using CHANNEL function from ZOMBIE channel stops Asterisk
+   Revision: 201443
+   Reporter: okrief
+   Testers: dbrooks
+   Coders: dbrooks
+
+   #15416: No voice on PRI calls with asterisk 1.4.25 & 26
+   Revision: 205729
+   Reporter: avinoash
+   Testers: scottbmilne, alecdavis
+   Coders: alecdavis
+
+  Category: Channels/chan_dahdi
+
+   #13917: [patch] fxo modules incorrectly believes channel is answered, if
+   telco reverses line polarity at off hook.
+   Revision: 203698
+   Reporter: alecdavis
+   Testers: alecdavis
+   Coders: alecdavis
+
+   #14383: priexclusive parameter ignored if pri = pri_cpe ?
+   Revision: 203910
+   Reporter: mbrancaleoni
+   Coders: rmudgett
+
+   #14434: [patch] Dahdi does not wait for wink on outbound calls before
+   dialing DTMF with Signalling type = em_w
+   Revision: 207636
+   Reporter: araasch
+   Coders: araasch
+
+   #14434: [patch] Dahdi does not wait for wink on outbound calls before
+   dialing DTMF with Signalling type = em_w
+   Revision: 207860
+   Reporter: araasch
+   Coders: jpeeler
+
+   #14477: pseudo channel disappears after dahdi restart
+   Revision: 203855
+   Reporter: timking
+   Coders: jpeeler
+
+   #14696: reload in console overwrites priindication=outofband setting
+   Revision: 208384
+   Reporter: fdecher
+   Coders: jpeeler
+
+   #14726: Conditional compilation of a diagnostic message needs an L
+   modifier to %d for a 64 bit integer
+   Revision: 207157
+   Reporter: lmadsen
+   Coders: jpeeler
+
+   #15248: [patch] Multiple Groups Not working
+   Revision: 199228
+   Reporter: gentian
+   Testers: gentian
+   Coders: mmichelson
+
+   #15389: [patch] no audio with SIP call to ISDN PRI, if neither Progress or
+   Proceeding are received.
+   Revision: 205729
+   Reporter: alecdavis
+   Testers: scottbmilne, alecdavis
+   Coders: alecdavis
+
+   #15655: [patch] Dialplan starts execution before call is accepted
+   Revision: 210647
+   Reporter: alecdavis
+   Coders: rmudgett
+
+  Category: Channels/chan_iax2
+
+   #15361: [patch] AST-2009-001 breaks IAX2 RFC5456 compliance - Timestamps
+   in POKE/PONG zero in 2 of 4 Bytes
+   Revision: 201997
+   Reporter: ffloimair
+   Coders: dvossel
+
+   #15404: [patch] Unrequired Debug Message
+   Revision: 203716
+   Reporter: leobrown
+   Coders: leobrown
+
+  Category: Channels/chan_misdn
+
+   #11974: external lines connected with message !! Got Busy in Connected
+   State !?!
+   Revision: 204836
+   Reporter: fvdb
+   Coders: rmudgett
+
+   #12113: [patch] asterisk crash at reload chan_misdn.so
+   Revision: 212507
+   Reporter: agupta
+   Coders: jpeeler
+
+   #14355: [patch] Segfault if you transfer a call into a meetme room
+   Revision: 206555
+   Reporter: sodom
+   Testers: rmudgett
+   Coders: rmudgett
+
+   #14692: [patch] ISDN-Transfer causes backcall attempt of attendent phone
+   Revision: 206555
+   Reporter: sodom
+   Testers: rmudgett
+   Coders: rmudgett
+
+  Category: Channels/chan_sip/General
+
+   #11231: [patch] Many retransmits when chan_sip generates multiple
+   outstanding requests
+   Revision: 204248
+   Reporter: flefoll
+   Coders: mmichelson
+
+   #12434: Handle wrong at offer/answer in sdp in media description(m=)
+   Revision: 207425
+   Reporter: mnnojd
+   Coders: mmichelson
+
+   #12869: [patch] 'context' doesn't change when 'sip reload' issued when
+   driven from realtime
+   Revision: 213094
+   Reporter: bcnit
+   Testers: lasko
+   Coders: tilghman
+
+   #13432: [patch] outboundproxy=proxy.mmmydomain.net where domain can not be
+   resolved silently removes the sip section
+   Revision: 204302
+   Reporter: p_lindheimer
+   Coders: p
+
+   #13623: Asterisk segfaults when using SIP session timers
+   Revision: 205117
+   Reporter: Nik Soggia
+   Coders: dvossel
+
+   #14239: [patch] 491-request pending is sent out of dialog
+   Revision: 208389
+   Reporter: klaus3000
+   Testers: klaus3000
+   Coders: mmichelson
+
+   #14464: [patch] lock during simple call processing
+   Revision: 202338
+   Reporter: pj
+   Testers: aragon
+   Coders: mmichelson
+
+   #14575: BYE to 408 Request Timeout
+   Revision: 208589
+   Reporter: chris-mac
+   Coders: mmichelson
+
+   #14659: [patch] MWI NOTIFY contains a wrong URI if Asterisk listens to
+   non-standard port (5060)
+   Revision: 202675
+   Reporter: klaus3000
+   Testers: dvossel, klaus3000
+   Coders: klaus3000, dvossel
+
+   #15213: [patch] asterisk lock in sipsock_read for several seconds and drop
+   sip packets
+   Revision: 202338
+   Reporter: schmidts
+   Testers: aragon
+   Coders: mmichelson
+
+   #15283: [patch] CLI NOTIFY always tries to use UDP, even if the peer is
+   connected via TCP
+   Revision: 199821
+   Reporter: jthurman
+   Testers: jthurman, dvossel
+   Coders: jthurman
+
+   #15345: [patch] SIP deadlock in 1.4 revision 199472
+   Revision: 202338
+   Reporter: aragon
+   Testers: aragon
+   Coders: mmichelson
+
+   #15349: Deadlock in do_monitor() of chan_sip
+   Revision: 202338
+   Reporter: samy
+   Testers: aragon
+   Coders: mmichelson
+
+   #15362: [patch] log message output is truncated
+   Revision: 214200
+   Reporter: klaus3000
+   Coders: klaus3000
+
+   #15376: SIP option (SIP_OPT_ flag) is not handled correctly
+   Revision: 207032
+   Reporter: Takehiko Ooshima
+   Testers: dvossel, Takehiko_Ooshima
+   Coders: dvossel
+
+   #15403: [patch] Session timer is not activated
+   Revision: 206775
+   Reporter: makoto
+   Coders: makoto
+
+  Category: Channels/chan_sip/Interoperability
+
+   #13958: SDP replies incorrect - 'a=inactive' - replied to with
+   'a=sendrecv'
+   Revision: 200724
+   Reporter: toc
+   Testers: toc
+   Coders: kpfleming
+
+   #14465: [patch] Incorrect From: header information when
+   CALLERPRES=PRES_PROHIB
+   Revision: 206947
+   Reporter: Nick_Lewis
+   Testers: Nick_Lewis, dvossel
+   Coders: Nick, dvossel
+
+   #14584: [patch] Asterisk does not stop retransmission
+   Revision: 202344
+   Reporter: klaus3000
+   Testers: klaus3000
+   Coders: mmichelson
+
+   #14725: Asterisk doesn't add Route headers in NOTIFY when the SUBSCRIBE
+   came from a proxy
+   Revision: 205777
+   Reporter: ibc
+   Coders: mmichelson
+
+   #14725: Asterisk doesn't add Route headers in NOTIFY when the SUBSCRIBE
+   came from a proxy
+   Revision: 205879
+   Reporter: ibc
+   Coders: mmichelson
+
+   #15158: [patch] Message: "Unable to handle indication 3"
+   Revision: 200362
+   Reporter: madkins
+   Testers: madkins
+   Coders: mmichelson
+
+   #15442: [patch] Asterisk cannot handle SIP 183 "Session Progress" if no
+   SDP is contained in it
+   Revision: 208264
+   Reporter: ffloimair
+   Testers: tkarl, ffloimair
+   Coders: mmichelson
+
+  Category: Channels/chan_sip/Registration
+
+   #14344: [patch] Outbound proxy not used for registrations
+   Revision: 206017
+   Reporter: Nick_Lewis
+   Testers: dvossel
+   Coders: dvossel
+
+   #14366: [patch] Registration expiry not compatible with some ITSP
+   Revision: 211952
+   Reporter: Nick_Lewis
+   Testers: mnicholson
+   Coders: mnicholson, Nick
+
+   #15102: [patch] Registration Deadlock between Asterisk and Polycom
+   Soundpoint IP 450
+   Revision: 205843
+   Reporter: Jamuel
+   Testers: Jamuel
+   Coders: Jamuel, dvossel
+
+   #15539: [patch] Register request line contains wrong address when domain
+   and registrar host differ
+   Revision: 213727
+   Reporter: Nick_Lewis
+   Testers: Nick_Lewis, dvossel
+   Coders: Nick, dvossel
+
+  Category: Channels/chan_sip/T.38
+
+   #14849: [patch] SendFax function not working as expected on > 1.6.0.7
+   Revision: 205697
+   Reporter: afosorio
+   Coders: kpfleming
+
+   #15182: [patch] T.38 invite does not always comply with RFC 2327
+   Revision: 209133
+   Reporter: CGMChris
+   Testers: CGMChris
+   Coders: mmichelson
+
+  Category: Channels/chan_sip/TCP-TLS
+
+   #13865: [patch] SIP/TLS enabled - just one call possible - 481
+   Call/Transaction Does Not Exist
+   Revision: 200992
+   Reporter: st
+   Testers: mmichelson, Kristijan, vrban, jmacz, dvossel
+   Coders: Kristijan, mmichelson, vrban, dvossel
+
+   #14452: in "_sip_tcp_helper_thread" Buffer is filled with dirty bytes
+   Revision: 203780
+   Reporter: umberto71
+   Coders: russell
+
+  Category: Channels/chan_sip/Video
+
+   #15121: [patch] Video support in SIP channel driver appears to be totally
+   broken
+   Revision: 211348
+   Reporter: jsmith
+   Coders: file
+
+  Category: Core/BuildSystem
+
+   #15697: most cleaner alaw don't compile
+   Revision: 213180
+   Reporter: slavon
+   Coders: qwell
+
+   #15698: [patch] If enable DEBUG_FD_LEAKS - h323 can't start.
+   Revision: 213561
+   Reporter: slavon
+   Testers: slavon, tilghman
+   Coders: tilghman
+
+   #15714: [patch] Asterisk won't build with curl unless curl_config is
+   present
+   Revision: 214519
+   Reporter: pprindeville
+   Testers: pprindeville
+   Coders: tilghman
+
+  Category: Core/Channels
+
+   #14723: ERROR[5003]: channel.c:2043 __ast_read: ast_read() called with no
+   recorded file descriptor.
+   Revision: 207362
+   Reporter: seadweller
+   Coders: russell
+
+  Category: Core/Configuration
+
+   #14509: [patch] users.conf (and other .conf files) have incorrect
+   whitespacing
+   Revision: 202754
+   Reporter: timeshell
+   Testers: awk, timeshell
+   Coders: tilghman
+
+  Category: Core/General
+
+   #14730: [patch] Fix runlevels in Debian rc files
+   Revision: 213901
+   Reporter: pkempgen
+   Coders: tilghman
+
+   #15273: [patch] german time (20:01:00 oh clock) is announced wrong
+   Revision: 214073
+   Reporter: Benjamin Kluck
+   Coders: Benjamin
+
+   #15649: T38 Faxing failing on 1.6.1 svn
+   Revision: 210993
+   Reporter: dazza76
+   Coders: kpfleming
+
+   #15667: LOGGER WARNING : error executing after rotate
+   Revision: 212578
+   Reporter: loic
+   Coders: seanbright
+
+  Category: Core/Internationalization
+
+   #15346: [patch] TW is not an ISO Language Code
+   Revision: 204471
+   Reporter: volivier
+   Testers: volivier
+   Coders: tilghman
+
+  Category: Core/ManagerInterface
+
+   #15397: [patch] segfault in action_coreshowchannels() at manager.c
+   Revision: 210915
+   Reporter: caspy
+   Testers: caspy
+   Coders: tilghman
+
+  Category: Core/PBX
+
+   #15057: [patch] hints with 2+ devices that include ONHOLD are often set
+   wrong
+   Revision: 199301
+   Reporter: p_lindheimer
+   Testers: p_lindheimer, dvossel
+   Coders: dvossel, p
+
+   #15242: [patch] log does not indicate which function is missing closing
+   parenthesis
+   Revision: 213972
+   Reporter: Nick_Lewis
+   Coders: dbrooks, loloski
+
+   #15303: new_find_extension arguments in wrong order
+   Revision: 199994
+   Reporter: JimDickenson
+   Coders: dbrooks
+
+  Category: Documentation
+
+   #15518: iax.conf, IP-based access control
+   Revision: 206876
+   Reporter: pkempgen
+   Coders: dvossel
+
+   #15755: Description in queues.conf on call recording is slightly
+   misleading
+   Revision: 213495
+   Reporter: trendboy
+   Coders: qwell
+
+  Category: Functions/func_callerid
+
+   #15476: callerid(num) is wrong when username is missing
+   Revision: 206705
+   Reporter: viraptor
+   Coders: dvossel
+
+  Category: Functions/func_devstate
+
+   #15413: [patch] Mapping of extension state to device state is incorrect
+   Revision: 204754
+   Reporter: legart
+   Testers: dvossel, legart, amilcar
+   Coders: dvossel
+
+  Category: Functions/func_iconv
+
+   #15169: When building with uClibc, configure script mistakenly assumes
+   iconv is always available
+   Revision: 214153
+   Reporter: pprindeville
+   Coders: tilghman
+
+  Category: Functions/func_realtime
+
+   #15517: [patch] memory leak in func_realtime
+   Revision: 206809
+   Reporter: adomjan
+   Coders: adomjan
+
+  Category: Functions/func_uri
+
+   #15439: [patch] URIENCODE() throws a warning when passed an empty string
+   Revision: 207947
+   Reporter: pkempgen
+   Coders: tilghman
+
+  Category: General
+
+   #15420: [patch] No audio on calls from asterisk sip phones to nortel set
+   until dtmf from sip phone
+   Revision: 205729
+   Reporter: scottbmilne
+   Testers: scottbmilne, alecdavis
+   Coders: alecdavis
+
+   #15571: [patch] 'received' typos in trunk, in 6 files
+   Revision: 209221
+   Reporter: alecdavis
+   Coders: dbrooks
+
+   #15595: [patch] fix spelling for typos, mainly in comments.
+   Revision: 209555
+   Reporter: alecdavis
+   Coders: dbrooks
+
+   #15595: [patch] fix spelling for typos, mainly in comments.
+   Revision: 209587
+   Reporter: alecdavis
+   Coders: dbrooks
+
+  Category: PBX/pbx_dundi
+
+   #15322: [patch] DUNDILOOKUP() does not accept comma as argument separator
+   Revision: 213976
+   Reporter: chappell
+   Coders: chappell
+
+  Category: Resources/res_config_ldap
+
+   #13725: [patch] ERROR[7387]: res_config_ldap.c:1292 update_ldap: Couldn't
+   modify dn:cn=1001,dc=xxx,dc=xxx because Invalid syntax
+   Revision: 211768
+   Reporter: macogeek
+   Testers: suretec
+   Coders: xvisor
+
+   #15710: Typo in LDAP schema files on line 598
+   Revision: 212028
+   Reporter: suretec
+   Coders: ghenry
+
+  Category: Resources/res_features
+
+   #13794: [patch] CDR for picked up parked call gives answer time < start
+   time and no record for parking
+   Revision: 203377
+   Reporter: davidw
+   Testers: murf, dbrooks
+   Coders: murf
+
+  Category: Resources/res_musiconhold
+
+   #15051: [patch] Moh class set in the dialplan is ignored with realtime moh
+   Revision: 209198
+   Reporter: alexh
+   Testers: alexh
+   Coders: mmichelson
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                           | Issues     |
+   |          |            |                                   | Referenced |
+   |----------+------------+-----------------------------------+------------|
+   | 199142   | dvossel    | Additional updates to             |            |
+   |          |            | AST-2009-001                      |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | __WORDSIZE is not available on    |            |
+   | 199858   | seanbright | all platforms, so use sizeof(void |            |
+   |          |            | *) instead.                       |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | The 1.6.0 branch was missing all  |            |
+   | 199975   | mmichelson | invite_branch logic. It has now   |            |
+   |          |            | been added.                       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 200040   | lmadsen    | Fix path for .flavor and .version | #14737     |
+   |----------+------------+-----------------------------------+------------|
+   | 200149   | mmichelson | Fix a crash due to a potentially  |            |
+   |          |            | NULL p->options.                  |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Fix all of the parallel build     |            |
+   | 200228   | seanbright | warnings issued when running make |            |
+   |          |            | -j#.                              |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Add INFO to our allowed methods   |            |
+   | 200515   | mmichelson | so that endpoints know they may   |            |
+   |          |            | send it to us.                    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 200729   | kpfleming  | Document the new automatic        |            |
+   |          |            | 'ignoresdpversion' behavior.      |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Ensure that configure-script      |            |
+   | 200767   | kpfleming  | testing for compiler attributes   |            |
+   |          |            | actually works.                   |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Fix problems with new compiler    |            |
+   | 200986   | kpfleming  | attribute checking in configure   |            |
+   |          |            | script.                           |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Improve support for media paths   |            |
+   | 201093   | kpfleming  | that can generate multiple frames |            |
+   |          |            | at once.                          |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | fix issue with build_contact      |            |
+   | 201226   | dvossel    | introduced by the "SIP trasnport  |            |
+   |          |            | type issues" commit               |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Correct AST_LIST_APPEND_LIST      |            |
+   | 201263   | kpfleming  | behavior when list to be appended |            |
+   |          |            | is empty.                         |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Change the datastore traversal in |            |
+   | 201459   | mmichelson | ast_do_masquerade to use a safe   |            |
+   |          |            | list traversal.                   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 201463   | mmichelson | Fix problem with no audio due to  |            |
+   |          |            | ignoring the SDP.                 |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Fix memory corruption and leakage | #15109,    |
+   | 201612   | russell    | related reloads of non files mode | #15123,    |
+   |          |            | MoH classes.                      | #15195     |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | One of the changes in 1.6.1 was   |            |
+   | 201786   | tilghman   | to allow app_directory to use     |            |
+   |          |            | functionality                     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 201830   | tilghman   | If the "h" extension fails, give  |            |
+   |          |            | it another chance in main/pbx.c.  |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Added deadlock protection to      |            |
+   | 202006   | mnicholson | try_suggested_sip_codec in        |            |
+   |          |            | chan_sip.c.                       |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Standardize return values of      |            |
+   | 202259   | russell    | load_config() so reload() doesn't |            |
+   |          |            | report an error on success.       |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Fix possibility of crashiness     |            |
+   | 202263   | russell    | during reload in custom fields    |            |
+   |          |            | handling.                         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 202416   | russell    | Make Polycom subscription type    |            |
+   |          |            | override check more explicit.     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Fix lock usage in                 |            |
+   | 202471   | seanbright | cdr_sqlite3_custom to avoid       |            |
+   |          |            | potential crashes during reload.  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 202498   | russell    | Report CallerID change during a   |            |
+   |          |            | masquerade.                       |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | I could have sworn I committed    |            |
+   | 202763   | mattf      | this patch ages ago, but... bug   |            |
+   |          |            | fix with setting NAI properly on  |            |
+   |          |            | linksets in certain situations.   |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Ensure the default settings are   |            |
+   | 202926   | file       | applied for T.38 when we set it   |            |
+   |          |            | up for a peer.                    |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Use the handy UNLINK macro        |            |
+   | 202968   | mmichelson | instead of hand-coding the same   |            |
+   |          |            | thing in-line.                    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 203044   | rmudgett   | Improved chan_dahdi.conf pritimer |            |
+   |          |            | error checking.                   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 203117   | russell    | Resolve a crash related to a T.38 |            |
+   |          |            | reinvite race condition.          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 203387   | twilson    | I didn't see that Mark already    |            |
+   |          |            | fixed the underlying issue!       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 203447   | dvossel    | fixes a few redundant conditions  | #15269     |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Improve T.38 negotiation by       |            |
+   | 203701   | file       | exchanging session parameters     |            |
+   |          |            | between application and channel.  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 203711   | jpeeler    | whitespace fix                    |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | reverse whitespace change 203711  |            |
+   |          |            | that was based on looking at      |            |
+   | 203717   | jpeeler    | sig_analog (which has about a     |            |
+   |          |            | 1000 line indentation change that |            |
+   |          |            | is not worth doing here)          |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Fix ast_say_counted_noun to       |            |
+   | 204476   | qwell      | correctly handle Polish. Fix a    |            |
+   |          |            | comment typo in passing.          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 204652   | dvossel    | removes fake dialog_unref and     |            |
+   |          |            | dialog_ref function calls.        |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Improve handling of               |            |
+   | 204949   | kpfleming  | AST_CONTROL_T38 and               |            |
+   |          |            | AST_CONTROL_T38_PARAMETERS for    |            |
+   |          |            | non-T.38-capable channels.        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 204980   | tilghman   | Restore Hungarian (mistakenly     |            |
+   |          |            | removed during merge)             |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Move OpenSSL initialization to a  |            |
+   | 205139   | russell    | single place, make library usage  |            |
+   |          |            | thread-safe.                      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 205152   | russell    | Use tabs instead of spaces for    |            |
+   |          |            | indentation.                      |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Add redirection warnings for the  |            |
+   | 205200   | tilghman   | invalid language codes previously |            |
+   |          |            | removed.                          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 205220   | dvossel    | ast_samp2tv needs floating point  |            |
+   |          |            | for 16khz audio                   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 205224   | tilghman   | oops, fixing build                |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Update config.guess and           |            |
+   | 205296   | qwell      | config.sub from the               |            |
+   |          |            | savannah.gnu.org git repo.        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 205415   | dvossel    | moving ast_devstate_to_extenstate |            |
+   |          |            | to pbx.c from devicestate.c       |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | pthread_self returns a pthread_t  |            |
+   | 205533   | mvanbaak   | which is not an unsigned int on   |            |
+   |          |            | all                               |            |
+   |----------+------------+-----------------------------------+------------|
+   | 205597   | dvossel    | Fixes 8khz assumptions            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 205608   | dvossel    | Changing ast_samp2tv to not use   |            |
+   |          |            | floating point.                   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 205880   | mmichelson | Fix build.                        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 205940   | kpfleming  | Update comments about the level   |            |
+   |          |            | of T.38 support in Asterisk.      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 206369   | rmudgett   | Fix some memory leaks in          |            |
+   |          |            | chan_misdn.                       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 206387   | russell    | Ensure apathetic replies are sent |            |
+   |          |            | out on the proper socket.         |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Only print debug info in          |            |
+   | 206637   | seanbright | codec_dahdi if we are asking for  |            |
+   |          |            | it.                               |            |
+   |----------+------------+-----------------------------------+------------|
+   | 206762   | rmudgett   | Merged revision 206700 from       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 206871   | dvossel    | avoid segfault caused by user     |            |
+   |          |            | error                             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 207097   | jpeeler    | Update some missing allowed       |            |
+   |          |            | options for overlapdial           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 207286   | rmudgett   |                                   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 207683   | kpfleming  | Ensure that user-provided CFLAGS  |            |
+   |          |            | and LDFLAGS are honored.          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 207725   | mmichelson | Document default timeout for AMI  |            |
+   |          |            | originations.                     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Revert r207636, this approach     |            |
+   | 207783   | jpeeler    | could potentially block for an    |            |
+   |          |            | unacceptable                      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 208316   | mmichelson | Remove inaccurate XXX comment.    |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Rework of T.38 negotiation and    |            |
+   | 208468   | kpfleming  | UDPTL API to address              |            |
+   |          |            | interoperability problems         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 208502   | kpfleming  | Use correct formatting for T.38   |            |
+   |          |            | change note in UPGRADE.txt        |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Resolve a T.38 negotiation issue  |            |
+   | 208549   | kpfleming  | left over from the udptl-updates  |            |
+   |          |            | merge.                            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 208594   | russell    | Do not log an ERROR if            |            |
+   |          |            | autoservice_stop() returns -1.    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 208752   | jpeeler    | Fix compiling under dev-mode with |            |
+   |          |            | gcc 4.4.0.                        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 208925   | jpeeler    | Fix logic errors from 208746      |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Restore explicit export of        |            |
+   | 209057   | kpfleming  | ASTCFLAGS/ASTLDFLAGS and          |            |
+   |          |            | underscore-variants to sub-makes. |            |
+   |----------+------------+-----------------------------------+------------|
+   | 209061   | dbrooks    | Just replacing typos "recieved"   | #15360     |
+   |          |            | with "received".                  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 209259   | kpfleming  | Make T.38 switchover in           |            |
+   |          |            | ReceiveFAX synchronous.           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 209280   | kpfleming  | Cleanup T.38 negotiation changes. |            |
+   |----------+------------+-----------------------------------+------------|
+   | 209325   | tilghman   | Publish French extra sounds       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 209394   | kpfleming  | Correct error in backport of      |            |
+   |          |            | latest app_fax fixes.             |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Fix some places where             |            |
+   | 209712   | russell    | ast_event_type was used instead   |            |
+   |          |            | of ast_event_ie_type.             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 209762   | kpfleming  | Minor changes inspired by testing |            |
+   |          |            | with latest GCC.                  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 209896   | russell    | Resolve a valgrind warning about  | #15396     |
+   |          |            | a read from uninitialized memory. |            |
+   |----------+------------+-----------------------------------+------------|
+   | 211114   | russell    | Resolve a deadlock involving      |            |
+   |          |            | app_chanspy and masquerades.      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 211276   | tilghman   | Small oops. Clear the flags which |            |
+   |          |            | have been checked.                |            |
+   |----------+------------+-----------------------------------+------------|
+   | 211551   | tilghman   | AST-2009-005                      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 211587   | tilghman   | Conversion specifiers, not format |            |
+   |          |            | specifiers                        |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Check an actual populated         |            |
+   | 212068   | file       | variable when seeing if we need   |            |
+   |          |            | to do video or not.               |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Ensure that T38FaxVersion is put  |            |
+   | 212114   | kpfleming  | into outgoing SDP in the proper   |            |
+   |          |            | case.                             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 212432   | rmudgett   | Fix uninitialized variable.       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 212765   | rmudgett   | Removed some deadwood and added   |            |
+   |          |            | some doxygen comments.            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 212926   | kpfleming  | Convert this branch to Opsound    |            |
+   |          |            | music-on-hold.                    |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Remove some                       |            |
+   | 212941   | kpfleming  | accidentally-committed            |            |
+   |          |            | properties.                       |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Make autoheader descriptions      |            |
+   | 214361   | tilghman   | render correctly in our           | #14906     |
+   |          |            | autoconfig.h file.                |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | One more build system change, to  |            |
+   | 214474   | tilghman   | make the descriptions look        |            |
+   |          |            | better, if we have better         |            |
+   |          |            | information.                      |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ CHANGES                              |   20
+ CREDITS                              |    2
+ Makefile                             |  111 +-
+ Makefile.moddir_rules                |   10
+ Makefile.rules                       |   32
+ UPGRADE-1.4.txt                      |    4
+ UPGRADE.txt                          |   22
+ agi/Makefile                         |    7
+ agi/eagi-sphinx-test.c               |    2
+ agi/eagi-test.c                      |    2
+ apps/Makefile                        |    1
+ apps/app_adsiprog.c                  |    6
+ apps/app_alarmreceiver.c             |    2
+ apps/app_chanspy.c                   |   38
+ apps/app_dahdibarge.c                |    6
+ apps/app_dial.c                      |    1
+ apps/app_disa.c                      |    4
+ apps/app_fax.c                       |  163 ++-
+ apps/app_followme.c                  |    2
+ apps/app_macro.c                     |    8
+ apps/app_meetme.c                    |   44
+ apps/app_milliwatt.c                 |    9
+ apps/app_minivm.c                    |    8
+ apps/app_mixmonitor.c                |   98 +-
+ apps/app_morsecode.c                 |    4
+ apps/app_osplookup.c                 |   34
+ apps/app_privacy.c                   |    4
+ apps/app_queue.c                     |   32
+ apps/app_readfile.c                  |    2
+ apps/app_record.c                    |    4
+ apps/app_rpt.c                       |   18
+ apps/app_setcallerid.c               |    2
+ apps/app_sms.c                       |   12
+ apps/app_stack.c                     |   15
+ apps/app_talkdetect.c                |    6
+ apps/app_verbose.c                   |    2
+ apps/app_voicemail.c                 |  106 +-
+ apps/app_waitforring.c               |    2
+ apps/app_waitforsilence.c            |    6
+ apps/app_waituntil.c                 |    2
+ autoconf/ast_ext_lib.m4              |   39
+ autoconf/ast_gcc_attribute.m4        |   24
+ autoconf/libcurl.m4                  |  243 +++++
+ build_tools/make_version_c           |    6
+ build_tools/make_version_h           |    6
+ build_tools/prep_tarball             |    2
+ cdr/cdr_adaptive_odbc.c              |   20
+ cdr/cdr_manager.c                    |   38
+ cdr/cdr_pgsql.c                      |    6
+ cdr/cdr_sqlite3_custom.c             |   51 -
+ channels/Makefile                    |    8
+ channels/chan_agent.c                |    8
+ channels/chan_console.c              |    2
+ channels/chan_dahdi.c                |  342 ++++---
+ channels/chan_iax2.c                 |   53 -
+ channels/chan_mgcp.c                 |   14
+ channels/chan_misdn.c                | 1130 +++++++++++++-----------
+ channels/chan_oss.c                  |    2
+ channels/chan_phone.c                |    2
+ channels/chan_sip.c                  | 1645 ++++++++++++++++++++---------------
+ channels/chan_skinny.c               |   12
+ channels/chan_usbradio.c             |   10
+ channels/chan_vpb.cc                 |    2
+ channels/h323/ast_h323.cxx           |   17
+ channels/iax2-provision.c            |    4
+ channels/misdn/ie.c                  |    2
+ channels/misdn/isdn_lib.c            |  441 +++++----
+ channels/misdn/isdn_lib.h            |  298 +++++-
+ channels/misdn/isdn_lib_intern.h     |   77 +
+ channels/misdn_config.c              |   31
+ codecs/Makefile                      |    2
+ codecs/codec_dahdi.c                 |    6
+ codecs/codec_speex.c                 |    8
+ codecs/gsm/Makefile                  |    2
+ codecs/gsm/src/gsm_destroy.c         |    2
+ codecs/lpc10/Makefile                |    2
+ codecs/lpc10/pitsyn.c                |    2
+ config.guess                         |  168 ++-
+ config.sub                           |  160 ++-
+ configs/chan_dahdi.conf.sample       |    5
+ configs/iax.conf.sample              |    2
+ configs/misdn.conf.sample            |    6
+ configs/queues.conf.sample           |    4
+ configs/sip.conf.sample              |   44
+ configs/udptl.conf.sample            |    5
+ configure.ac                         |  100 --
+ contrib/init.d/rc.debian.asterisk    |    2
+ contrib/scripts/asterisk.ldap-schema |   43
+ contrib/scripts/asterisk.ldif        |   30
+ contrib/scripts/meetme.sql           |    4
+ doc/CODING-GUIDELINES                |   12
+ doc/tex/asterisk.tex                 |    2
+ doc/tex/imapstorage.tex              |   23
+ doc/tex/misdn.tex                    |  106 +-
+ funcs/Makefile                       |    7
+ funcs/func_channel.c                 |    4
+ funcs/func_cut.c                     |   10
+ funcs/func_dialplan.c                |    2
+ funcs/func_enum.c                    |    2
+ funcs/func_math.c                    |    4
+ funcs/func_odbc.c                    |    2
+ funcs/func_rand.c                    |    4
+ funcs/func_realtime.c                |    3
+ funcs/func_strings.c                 |   10
+ include/asterisk.h                   |    6
+ include/asterisk/_private.h          |    1
+ include/asterisk/abstract_jb.h       |    4
+ include/asterisk/app.h               |   12
+ include/asterisk/autoconfig.h.in     |  516 +++++-----
+ include/asterisk/channel.h           |   23
+ include/asterisk/devicestate.h       |   50 +
+ include/asterisk/frame.h             |   39
+ include/asterisk/linkedlists.h       |   45
+ include/asterisk/module.h            |    2
+ include/asterisk/pbx.h               |    9
+ include/asterisk/sched.h             |   18
+ include/asterisk/time.h              |    2
+ include/asterisk/udptl.h             |   40
+ include/asterisk/utils.h             |    8
+ main/Makefile                        |   14
+ main/acl.c                           |   12
+ main/alaw.c                          |    1
+ main/app.c                           |   27
+ main/ast_expr2.fl                    |   11
+ main/ast_expr2f.c                    |    5
+ main/asterisk.c                      |   34
+ main/astfd.c                         |    2
+ main/astmm.c                         |    8
+ main/autoservice.c                   |   17
+ main/callerid.c                      |   21
+ main/cdr.c                           |    4
+ main/channel.c                       |  356 +++++--
+ main/cli.c                           |    6
+ main/config.c                        |   31
+ main/db1-ast/Makefile                |    4
+ main/db1-ast/mpool/mpool.c           |    6
+ main/devicestate.c                   |   92 +
+ main/dnsmgr.c                        |    2
+ main/event.c                         |   24
+ main/features.c                      |   35
+ main/file.c                          |   25
+ main/frame.c                         |  132 +-
+ main/http.c                          |   10
+ main/indications.c                   |   24
+ main/logger.c                        |    2
+ main/manager.c                       |   12
+ main/pbx.c                           |  148 +--
+ main/rtp.c                           |   52 -
+ main/say.c                           |  552 ++++++-----
+ main/slinfactory.c                   |   27
+ main/ssl.c                           |  100 ++
+ main/translate.c                     |    4
+ main/udptl.c                         |  308 ++++--
+ main/ulaw.c                          |    1
+ main/utils.c                         |    4
+ pbx/Makefile                         |    4
+ pbx/dundi-parser.c                   |    6
+ pbx/pbx_config.c                     |   17
+ pbx/pbx_dundi.c                      |   71 -
+ pbx/pbx_loopback.c                   |    2
+ pbx/pbx_spool.c                      |   10
+ res/Makefile                         |    4
+ res/ael/ael_lex.c                    |    6
+ res/ael/pval.c                       |    8
+ res/res_agi.c                        |   26
+ res/res_config_curl.c                |    6
+ res/res_config_ldap.c                |   49 -
+ res/res_crypto.c                     |    2
+ res/res_jabber.c                     |    8
+ res/res_limit.c                      |    2
+ res/res_musiconhold.c                |   52 -
+ res/res_odbc.c                       |    8
+ res/res_smdi.c                       |   14
+ res/snmp/agent.c                     |    2
+ sounds/Makefile                      |    2
+ sounds/sounds.xml                    |   24
+ utils/Makefile                       |   33
+ utils/ael_main.c                     |    3
+ utils/conf2ael.c                     |    3
+ utils/extconf.c                      |   13
+ utils/frame.c                        |   14
+ utils/muted.c                        |    4
+ utils/stereorize.c                   |    3
+ 183 files changed, 5780 insertions(+), 3680 deletions(-)
+
+     ----------------------------------------------------------------------
