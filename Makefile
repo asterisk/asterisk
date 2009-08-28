@@ -95,10 +95,17 @@ ifneq ($(wildcard makeopts),)
   include makeopts
 endif
 
+# start the primary CFLAGS and LDFLAGS with any that were provided
+# to the configure script
+_ASTCFLAGS:=$(CONFIG_CFLAGS)
+_ASTLDFLAGS:=$(CONFIG_LDFLAGS)
+
 # Some build systems, such as the one in openwrt, like to pass custom target
-# CFLAGS and LDFLAGS in the COPTS and LDOPTS variables.
-ASTCFLAGS+=$(COPTS)
-ASTLDFLAGS+=$(LDOPTS)
+# CFLAGS and LDFLAGS in the COPTS and LDOPTS variables; these should also
+# go before any build-system computed flags, since they are defaults, not
+# overrides
+_ASTCFLAGS+=$(COPTS)
+_ASTLDFLAGS+=$(LDOPTS)
 
 # libxml2 cflags
 _ASTCFLAGS+=$(LIBXML2_INCLUDE)
