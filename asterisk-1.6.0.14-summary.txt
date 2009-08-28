@@ -1,0 +1,337 @@
+                                Release Summary
+
+                               asterisk-1.6.0.14
+
+                                Date: 2009-08-28
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.6.0.13.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   8 tilghman               2 dvossel                3 Nick_Lewis             
+   3 kpfleming              2 mnicholson             2 pprindeville           
+   2 dvossel                1 aragon                 2 slavon                 
+   2 mmichelson             1 jpeeler                1 agupta                 
+   2 mnicholson             1 lasko                  1 aragon                 
+   2 Nick                   1 Nick_Lewis             1 atis                   
+   2 qwell                  1 pprindeville           1 bcnit                  
+   2 rmudgett               1 slavon                 1 Benjamin Kluck         
+   1 atis                   1 suretec                1 chappell               
+   1 Benjamin               1 tilghman               1 corruptor              
+   1 chappell                                        1 edantie                
+   1 dbrooks                                         1 klaus3000              
+   1 edantie                                         1 loic                   
+   1 file                                            1 macogeek               
+   1 ghenry                                          1 noahisaac              
+   1 jpeeler                                         1 pkempgen               
+   1 klaus3000                                       1 suretec                
+   1 loloski                                         1 tobias_e               
+   1 seanbright                                      1 trendboy               
+   1 xvisor                                          1 wtca                   
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_chanspy
+
+   #15660: ChanSpy "whisper" is broken in 1.4.26
+   Revision: 214198
+   Reporter: corruptor
+   Testers: dvossel
+   Coders: dvossel
+
+  Category: Applications/app_mixmonitor
+
+   #15699: [patch] using ast_free instead of mixmonitor_free
+   Revision: 213135
+   Reporter: edantie
+   Coders: edantie
+
+  Category: Applications/app_queue
+
+   #14536: [patch] After a caller is processed by app_queue the queue_log
+   logs the hangup as TRANSFER
+   Revision: 211960
+   Reporter: aragon
+   Testers: aragon, mnicholson
+   Coders: mnicholson
+
+  Category: Applications/app_voicemail
+
+   #15720: opendir() return code is not checked in last_message_index()
+   Revision: 212628
+   Reporter: tobias_e
+   Coders: tilghman
+
+  Category: Applications/app_voicemail/IMAP
+
+   #14597: greetings can not be retrieved from IMAP
+   Revision: 213411
+   Reporter: wtca
+   Testers: jpeeler
+   Coders: mmichelson
+
+   #14950: [patch] Greetings are stored as IMAP messages even when
+   imapgreetings=no
+   Revision: 213837
+   Reporter: noahisaac
+   Coders: mmichelson
+
+  Category: CDR/General
+
+   #15751: [patch] Core dump in ast_bridge_call features.c line 2772
+   Revision: 213346
+   Reporter: atis
+   Coders: atis
+
+  Category: Channels/chan_misdn
+
+   #12113: [patch] asterisk crash at reload chan_misdn.so
+   Revision: 212507
+   Reporter: agupta
+   Coders: jpeeler
+
+  Category: Channels/chan_sip/General
+
+   #12869: [patch] 'context' doesn't change when 'sip reload' issued when
+   driven from realtime
+   Revision: 213094
+   Reporter: bcnit
+   Testers: lasko
+   Coders: tilghman
+
+   #15362: [patch] log message output is truncated
+   Revision: 214200
+   Reporter: klaus3000
+   Coders: klaus3000
+
+  Category: Channels/chan_sip/Registration
+
+   #14366: [patch] Registration expiry not compatible with some ITSP
+   Revision: 211952
+   Reporter: Nick_Lewis
+   Testers: mnicholson
+   Coders: mnicholson, Nick
+
+   #15539: [patch] Register request line contains wrong address when domain
+   and registrar host differ
+   Revision: 213727
+   Reporter: Nick_Lewis
+   Testers: Nick_Lewis, dvossel
+   Coders: Nick, dvossel
+
+  Category: Core/BuildSystem
+
+   #15697: most cleaner alaw don't compile
+   Revision: 213180
+   Reporter: slavon
+   Coders: qwell
+
+   #15698: [patch] If enable DEBUG_FD_LEAKS - h323 can't start.
+   Revision: 213561
+   Reporter: slavon
+   Testers: slavon, tilghman
+   Coders: tilghman
+
+   #15714: [patch] Asterisk won't build with curl unless curl_config is
+   present
+   Revision: 214519
+   Reporter: pprindeville
+   Testers: pprindeville
+   Coders: tilghman
+
+  Category: Core/General
+
+   #14730: [patch] Fix runlevels in Debian rc files
+   Revision: 213901
+   Reporter: pkempgen
+   Coders: tilghman
+
+   #15273: [patch] german time (20:01:00 oh clock) is announced wrong
+   Revision: 214073
+   Reporter: Benjamin Kluck
+   Coders: Benjamin
+
+   #15667: LOGGER WARNING : error executing after rotate
+   Revision: 212578
+   Reporter: loic
+   Coders: seanbright
+
+  Category: Core/PBX
+
+   #15242: [patch] log does not indicate which function is missing closing
+   parenthesis
+   Revision: 213972
+   Reporter: Nick_Lewis
+   Coders: dbrooks, loloski
+
+  Category: Documentation
+
+   #15755: Description in queues.conf on call recording is slightly
+   misleading
+   Revision: 213495
+   Reporter: trendboy
+   Coders: qwell
+
+  Category: Functions/func_iconv
+
+   #15169: When building with uClibc, configure script mistakenly assumes
+   iconv is always available
+   Revision: 214153
+   Reporter: pprindeville
+   Coders: tilghman
+
+  Category: PBX/pbx_dundi
+
+   #15322: [patch] DUNDILOOKUP() does not accept comma as argument separator
+   Revision: 213976
+   Reporter: chappell
+   Coders: chappell
+
+  Category: Resources/res_config_ldap
+
+   #13725: [patch] ERROR[7387]: res_config_ldap.c:1292 update_ldap: Couldn't
+   modify dn:cn=1001,dc=xxx,dc=xxx because Invalid syntax
+   Revision: 211768
+   Reporter: macogeek
+   Testers: suretec
+   Coders: xvisor
+
+   #15710: Typo in LDAP schema files on line 598
+   Revision: 212028
+   Reporter: suretec
+   Coders: ghenry
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author    | Summary                            | Issues     |
+   |          |           |                                    | Referenced |
+   |----------+-----------+------------------------------------+------------|
+   |          |           | Check an actual populated variable |            |
+   | 212068   | file      | when seeing if we need to do video |            |
+   |          |           | or not.                            |            |
+   |----------+-----------+------------------------------------+------------|
+   |          |           | Ensure that T38FaxVersion is put   |            |
+   | 212114   | kpfleming | into outgoing SDP in the proper    |            |
+   |          |           | case.                              |            |
+   |----------+-----------+------------------------------------+------------|
+   | 212432   | rmudgett  | Fix uninitialized variable.        |            |
+   |----------+-----------+------------------------------------+------------|
+   | 212765   | rmudgett  | Removed some deadwood and added    |            |
+   |          |           | some doxygen comments.             |            |
+   |----------+-----------+------------------------------------+------------|
+   | 212926   | kpfleming | Convert this branch to Opsound     |            |
+   |          |           | music-on-hold.                     |            |
+   |----------+-----------+------------------------------------+------------|
+   | 212941   | kpfleming | Remove some accidentally-committed |            |
+   |          |           | properties.                        |            |
+   |----------+-----------+------------------------------------+------------|
+   |          |           | Make autoheader descriptions       |            |
+   | 214361   | tilghman  | render correctly in our            | #14906     |
+   |          |           | autoconfig.h file.                 |            |
+   |----------+-----------+------------------------------------+------------|
+   |          |           | One more build system change, to   |            |
+   | 214474   | tilghman  | make the descriptions look better, |            |
+   |          |           | if we have better information.     |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ CREDITS                              |    2
+ Makefile                             |    2
+ UPGRADE-1.4.txt                      |    4
+ apps/app_mixmonitor.c                |    4
+ apps/app_queue.c                     |    4
+ apps/app_voicemail.c                 |   29 +
+ autoconf/ast_ext_lib.m4              |   39 +-
+ autoconf/libcurl.m4                  |  243 +++++++++++++++
+ build_tools/prep_tarball             |    2
+ channels/chan_dahdi.c                |    2
+ channels/chan_sip.c                  |   38 +-
+ channels/misdn/isdn_lib.c            |   59 +--
+ channels/misdn_config.c              |    5
+ configs/queues.conf.sample           |    4
+ configure.ac                         |  100 ------
+ contrib/scripts/asterisk.ldap-schema |   43 ++
+ contrib/scripts/asterisk.ldif        |   30 +
+ doc/tex/asterisk.tex                 |    2
+ include/asterisk.h                   |    6
+ include/asterisk/autoconfig.h.in     |  562 ++++++++++++++++-------------------
+ main/alaw.c                          |    1
+ main/channel.c                       |   27 +
+ main/features.c                      |    2
+ main/logger.c                        |    2
+ main/pbx.c                           |    4
+ main/say.c                           |   25 +
+ main/ulaw.c                          |    1
+ pbx/pbx_dundi.c                      |   51 +--
+ res/res_config_ldap.c                |   25 +
+ sounds/Makefile                      |    2
+ sounds/sounds.xml                    |   12
+ 31 files changed, 815 insertions(+), 517 deletions(-)
+
+     ----------------------------------------------------------------------
