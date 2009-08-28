@@ -25,6 +25,12 @@ AC_REVISION($Revision$)
 
 AC_USE_SYSTEM_EXTENSIONS	# note- does not work on FreeBSD
 
+# preserve any CFLAGS or LDFLAGS that may be set
+CONFIG_CFLAGS="${CFLAGS}"
+CONFIG_LDFLAGS="${LDFLAGS}"
+AC_SUBST(CONFIG_CFLAGS)
+AC_SUBST(CONFIG_LDFLAGS)
+
 case "${host_os}" in
      freebsd*)
      ac_default_prefix=/usr/local
