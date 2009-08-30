@@ -20,6 +20,8 @@
 
 #include "asterisk/autoconfig.h"
 
+#ifndef __Darwin__
+
 #define _POSIX_C_SOURCE 200112L
 #define _XOPEN_SOURCE 600
 
@@ -34,6 +36,8 @@
 #error System does not support XOPEN version 600.
 #endif
 */
+
+#endif /* __Darwin__ */
 
 #if !defined(NO_MALLOC_DEBUG) && !defined(STANDALONE) && defined(MALLOC_DEBUG)
 #include "asterisk/astmm.h"
