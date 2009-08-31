@@ -4726,7 +4726,7 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 					     struct ast_variable *get_params,
 					     struct ast_variable *headers)
 {
-	struct mansession s = {.session = NULL, };
+	struct mansession s = { .session = NULL, .tcptls_session = ser };
 	struct mansession_session *session = NULL;
 	uint32_t ident = 0;
 	int blastaway = 0;
