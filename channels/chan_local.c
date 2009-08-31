@@ -204,6 +204,9 @@ static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_fra
 		return and destroy p.  */
 		ast_mutex_unlock(&p->lock);
 		p = local_pvt_destroy(p);
+		if (other) {
+			ast_channel_unlock(other);
+		}
 		return -1;
 	}
 
