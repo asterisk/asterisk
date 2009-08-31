@@ -68,7 +68,7 @@ static void destroy_callback(void *data)
 
 	/* Destroy the audiohook, and destroy ourselves */
 	ast_audiohook_destroy(&vi->audiohook);
-	free(vi);
+	ast_free(vi);
 
 	return;
 }
