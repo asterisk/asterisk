@@ -18630,8 +18630,13 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 	sipmethod = find_sip_method(msg);
 
 	owner = p->owner;
-	if (owner)
+	if (owner) {
+		char causevar[256], causeval[256];
 		owner->hangupcause = hangup_sip2cause(resp);
+		snprintf(causevar, sizeof(causevar), "MASTER_CHANNEL(HASH(SIP_CAUSE,%s))", owner->name);
+		snprintf(causeval, sizeof(causeval), "SIP %s", REQ_OFFSET_TO_STR(req, rlPart2));
+		pbx_builtin_setvar_helper(owner, causevar, causeval);
+	}
 
 	/* Acknowledge whatever it is destined for */
 	if ((resp >= 100) && (resp <= 199)) {

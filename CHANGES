@@ -41,6 +41,9 @@ SIP Changes
    force_rport forces RFC 3581 behavior and disables symmetric RTP support.
    Setting it to comedia enables RFC 3581 behavior if the remote side requests it
    and enables symmetric RTP support.
+ * Slave SIP channels now set HASH(SIP_CAUSE,<slave-channel-name>) on each
+   response.  This permits the master channel to know how each channel dialled
+   in a multi-channel setup resolved in an individual way.
 
 IAX2 Changes
 -----------
@@ -93,6 +96,13 @@ Dialplan Functions
            disabled)
      voice - voice mode (returns from FAX mode, reverting the changes that
              were made when FAX mode was requested)
+ * Added new dialplan function MASTER_CHANNEL(), which permits retrieving
+   and setting variables on the channel which created the current channel.
+   Administrators should take care to avoid naming conflicts, when multiple
+   channels are dialled at once, especially when used with the Local channel
+   construct (which all could set variables on the master channel).  Usage
+   of the HASH() dialplan function, with the key set to the name of the slave
+   channel, is one approach that will avoid conflicts.
 
 Dialplan Variables
 ------------------

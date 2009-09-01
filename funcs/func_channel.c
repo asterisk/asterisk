@@ -55,6 +55,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			will be space-delimited.</para>
 		</description>
 	</function>
+	<function name="MASTER_CHANNEL" language="en_US">
+		<synopsis>
+			Gets or sets variables on the master channel
+		</synopsis>
+		<description>
+			<para>Allows access to the channel which created the current channel, if any.  If the channel is already
+			a master channel, then accesses local channel variables.</para>
+		</description>
+	</function>
 	<function name="CHANNEL" language="en_US">
 		<synopsis>
 			Gets/sets various pieces of information about the channel.
@@ -496,23 +505,55 @@ static struct ast_custom_function channels_function = {
 	.read = func_channels_read,
 };
 
+static int func_mchan_read(struct ast_channel *chan, const char *function,
+			     char *data, struct ast_str **buf, ssize_t len)
+{
+	struct ast_channel *mchan = ast_channel_get_by_name(chan->linkedid);
+	char *template = alloca(4 + strlen(data));
+	sprintf(template, "${%s}", data); /* SAFE */
+	ast_str_substitute_variables(buf, len, mchan ? mchan : chan, template);
+	if (mchan) {
+		ast_channel_unref(mchan);
+	}
+	return 0;
+}
+
+static int func_mchan_write(struct ast_channel *chan, const char *function,
+			      char *data, const char *value)
+{
+	struct ast_channel *mchan = ast_channel_get_by_name(chan->linkedid);
+	pbx_builtin_setvar_helper(mchan ? mchan : chan, data, value);
+	if (mchan) {
+		ast_channel_unref(mchan);
+	}
+	return 0;
+}
+
+static struct ast_custom_function mchan_function = {
+	.name = "MASTER_CHANNEL",
+	.read2 = func_mchan_read,
+	.write = func_mchan_write,
+};
+
 static int unload_module(void)
 {
 	int res = 0;
-	
+
 	res |= ast_custom_function_unregister(&channel_function);
 	res |= ast_custom_function_unregister(&channels_function);
-	
+	res |= ast_custom_function_unregister(&mchan_function);
+
 	return res;
 }
 
 static int load_module(void)
 {
 	int res = 0;
-	
+
 	res |= ast_custom_function_register(&channel_function);
 	res |= ast_custom_function_register(&channels_function);
-	
+	res |= ast_custom_function_register(&mchan_function);
+
 	return res;
 }
 
