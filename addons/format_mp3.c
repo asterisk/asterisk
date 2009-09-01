@@ -98,16 +98,7 @@ static const char name[] = "mp3";
 static int mp3_open(struct ast_filestream *s)
 {
 	struct mp3_private *p = s->_private;
-	
 	InitMP3(&p->mp, OUTSCALE);
-	p->dbuflen = 0;
-	s->fr.data.ptr = s->buf;
-	s->fr.frametype = AST_FRAME_VOICE;
-	s->fr.subclass = AST_FORMAT_SLINEAR;
-	/* datalen will vary for each frame */
-	s->fr.src = name;
-	s->fr.mallocd = 0;
-	p->offset = 0;
 	return 0;
 }
 
@@ -234,9 +225,7 @@ static struct ast_frame *mp3_read(struct ast_filestream *s, int *whennext)
 	delay = p->buflen/2;
 	s->fr.frametype = AST_FRAME_VOICE;
 	s->fr.subclass = AST_FORMAT_SLINEAR;
-	s->fr.offset = AST_FRIENDLY_OFFSET;
-	s->fr.datalen = p->buflen;
-	s->fr.data.ptr = s->buf;
+	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, p->buflen);
 	s->fr.mallocd = 0;
 	s->fr.samples = delay;
 	*whennext = delay;
