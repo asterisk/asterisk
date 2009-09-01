@@ -840,7 +840,7 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 			strcpy(subclass, "Unhold");
 			break;
 		case AST_CONTROL_T38_PARAMETERS:
-			if (f->datalen != sizeof(struct ast_control_t38_parameters *)) {
+			if (f->datalen != sizeof(struct ast_control_t38_parameters)) {
 				message = "Invalid";
 			} else {
 				struct ast_control_t38_parameters *parameters = f->data.ptr;
