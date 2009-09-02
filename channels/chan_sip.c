@@ -15601,6 +15601,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  Sess-Expires : %d secs\n", peer->stimer.st_max_se);
 		ast_cli(fd, "  Min-Sess     : %d secs\n", peer->stimer.st_min_se);
 		ast_cli(fd, "  RTP Engine   : %s\n", peer->engine);
+		ast_cli(fd, "  Parkinglot   : %s\n", peer->parkinglot);
 		ast_cli(fd, "\n");
 		peer = unref_peer(peer, "sip_show_peer: unref_peer: done with peer ptr");
 	} else  if (peer && type == 1) { /* manager listing */
@@ -15680,6 +15681,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
  		astman_append(s, "SIP-Useragent: %s\r\n", peer->useragent);
  		astman_append(s, "Reg-Contact: %s\r\n", peer->fullcontact);
 		astman_append(s, "QualifyFreq: %d ms\r\n", peer->qualifyfreq);
+		astman_append(s, "Parkinglot: %s\r\n", peer->parkinglot);
 		if (peer->chanvars) {
 			for (v = peer->chanvars ; v ; v = v->next) {
  				astman_append(s, "ChanVariable: %s=%s\r\n", v->name, v->value);
