@@ -103,6 +103,8 @@ Dialplan Functions
    construct (which all could set variables on the master channel).  Usage
    of the HASH() dialplan function, with the key set to the name of the slave
    channel, is one approach that will avoid conflicts.
+ * Added new dialplan function MUTEAUDIO() for muting inbound and/or outbound
+   audio in a channel.
 
 Dialplan Variables
 ------------------
@@ -201,6 +203,8 @@ Asterisk Manager Interface
    across all .conf files. All affected sample.conf files have been modified to
    reflect this change.  Previous options such as 'sslenable' still work,
    but options with the 'tls' prefix are preferred.
+ * Added a MuteAudio AMI action for muting inbound and/or outbound audio
+   in a channel. (res_mutestream.so)
 
 Channel Event Logging
 ---------------------
