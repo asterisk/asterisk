@@ -2015,7 +2015,7 @@ void ast_close_fds_above_n(int n)
 	struct rlimit rl;
 	getrlimit(RLIMIT_NOFILE, &rl);
 	null = open("/dev/null", O_RDONLY);
-	for (x = n + 1; x < rl.rlim_max; x++) {
+	for (x = n + 1; x < rl.rlim_cur; x++) {
 		if (x != null) {
 			/* Side effect of dup2 is that it closes any existing fd without error.
 			 * This prevents valgrind and other debugging tools from sending up
