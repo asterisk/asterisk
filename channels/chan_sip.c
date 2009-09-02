@@ -3032,6 +3032,20 @@ static int proxy_update(struct sip_proxy *proxy)
 	return TRUE;
 }
 
+/*! \brief converts ascii port to int representation. If no
+ *  pt buffer is provided or the pt has errors when being converted
+ *  to an int value, the port provided as the standard is used.
+ */
+static int port_str2int(const char *pt, unsigned int standard)
+{
+	int port = standard;
+	if (ast_strlen_zero(pt) || (sscanf(pt, "%30d", &port) != 1) || (port < 0)) {
+		port = standard;
+	}
+
+	return port;
+}
+
 /*! \brief Allocate and initialize sip proxy */
 static struct sip_proxy *proxy_allocate(char *name, char *port, int force)
 {
@@ -3046,7 +3060,7 @@ static struct sip_proxy *proxy_allocate(char *name, char *port, int force)
 		return NULL;
 	proxy->force = force;
 	ast_copy_string(proxy->name, name, sizeof(proxy->name));
-	proxy->ip.sin_port = htons((!ast_strlen_zero(port) ? atoi(port) : STANDARD_SIP_PORT));
+	proxy->ip.sin_port = htons(port_str2int(port, STANDARD_SIP_PORT));
 	proxy_update(proxy);
 	return proxy;
 }
@@ -4977,10 +4991,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 		/* This address should be updated using dnsmgr */
 		memcpy(&dialog->sa.sin_addr, &sin->sin_addr, sizeof(dialog->sa.sin_addr));
 		if (!sin->sin_port) {
-			if (ast_strlen_zero(port) || sscanf(port, "%30u", &portno) != 1) {
-				portno = (dialog->socket.type & SIP_TRANSPORT_TLS) ?
-					STANDARD_TLS_PORT : STANDARD_SIP_PORT;
-			}
+			portno = port_str2int(port, (dialog->socket.type == SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT);
 		} else {
 			portno = ntohs(sin->sin_port);
 		}
@@ -5007,7 +5018,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 			}
 		}
 	 	if (!portno)
-			portno = port ? atoi(port) : (dialog->socket.type & SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT;
+			portno = port_str2int(port, (dialog->socket.type == SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT);
 		hp = ast_gethostbyname(hostn, &ahp);
 		if (!hp) {
 			ast_log(LOG_WARNING, "No such host: %s\n", peername);
@@ -11620,7 +11631,6 @@ static int __set_address_from_contact(const char *fullcontact, struct sockaddr_i
 	char *host, *pt, *transport;
 	char contact_buf[256];
 	char *contact;
-	int use_tls = FALSE;
 
 	/* Work on a copy */
 	ast_copy_string(contact_buf, fullcontact, sizeof(contact_buf));
@@ -11631,19 +11641,19 @@ static int __set_address_from_contact(const char *fullcontact, struct sockaddr_i
 	 *
 	 * Note: The outbound proxy could be using UDP between the proxy and Asterisk.
 	 * We still need to be able to send to the remote agent through the proxy.
-	*/
+	 */
 
-	if (!parse_uri(contact, "sip,sips", &contact, NULL, &host, &pt, NULL, &transport)) {
-		if (((get_transport_str2enum(transport) == SIP_TRANSPORT_TLS)) ||
-			!(strncasecmp(fullcontact, "sips", 4))) {
-			use_tls = TRUE;
-			port = !ast_strlen_zero(pt) ? atoi(pt) : STANDARD_TLS_PORT;
-		} else {
-			port = !ast_strlen_zero(pt) ? atoi(pt) : STANDARD_SIP_PORT;
-		}
-	} else {
+	if (parse_uri(contact, "sip,sips", &contact, NULL, &host, &pt, NULL, &transport)) {
 		ast_log(LOG_WARNING, "Invalid contact uri %s (missing sip: or sips:), attempting to use anyway\n", fullcontact);
 	}
+
+	/* set port */
+	if (((get_transport_str2enum(transport) == SIP_TRANSPORT_TLS)) || !(strncasecmp(fullcontact, "sips", 4))) {
+		port = port_str2int(pt, STANDARD_TLS_PORT);
+	} else {
+		port = port_str2int(pt, STANDARD_SIP_PORT);
+	}
+
 
 	/* XXX This could block for a long time XXX */
 	/* We should only do this if it's a name, not an IP */
@@ -11763,13 +11773,10 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		/* if the port is not specified but the transport is, make sure to set the
 		 * default port to match the specified transport.  This may or may not be the
 		 * same transport used by the pvt struct for the Register dialog. */
-		if (ast_strlen_zero(pt)) {
-			port = (transport_type == SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT;
-		} else {
-			port = atoi(pt);
-		}
+		
+		port = port_str2int(pt, (transport_type == SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT);
 	} else {
-		port = !ast_strlen_zero(pt) ? atoi(pt) : STANDARD_SIP_PORT;
+		port = port_str2int(pt, STANDARD_SIP_PORT);
 		transport_type = pvt->socket.type;
 	}
 
@@ -13255,7 +13262,7 @@ static void check_via(struct sip_pvt *p, struct sip_request *req)
 		memset(&p->sa, 0, sizeof(p->sa));
 		p->sa.sin_family = AF_INET;
 		memcpy(&p->sa.sin_addr, hp->h_addr, sizeof(p->sa.sin_addr));
-		p->sa.sin_port = htons(pt ? atoi(pt) : STANDARD_SIP_PORT);
+		p->sa.sin_port = htons(port_str2int(pt, STANDARD_SIP_PORT));
 
 		if (sip_debug_test_pvt(p)) {
 			const struct sockaddr_in *dst = sip_real_dst(p);
