@@ -4414,6 +4414,8 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state, const ch
 			ast_string_field_set(tmp, language, l->language);
 		if (!ast_strlen_zero(l->accountcode))
 			ast_string_field_set(tmp, accountcode, l->accountcode);
+		if (!ast_strlen_zero(l->parkinglot))
+			ast_string_field_set(tmp, parkinglot, l->parkinglot);
 		if (l->amaflags)
 			tmp->amaflags = l->amaflags;
 
