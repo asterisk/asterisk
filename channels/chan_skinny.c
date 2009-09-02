@@ -2947,6 +2947,7 @@ static char *handle_skinny_show_line(struct ast_cli_entry *e, int cmd, struct as
 			ast_cli(a->fd, "NAT:              %s\n", (l->nat ? "Yes" : "No"));
 			ast_cli(a->fd, "immediate:        %s\n", (l->immediate ? "Yes" : "No"));
 			ast_cli(a->fd, "Group:            %d\n", l->group);
+			ast_cli(a->fd, "Parkinglot:       %s\n", S_OR(l->parkinglot, "<not set>"));
 			ast_cli(a->fd, "Codecs:           ");
 			ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, l->capability);
 			ast_cli(a->fd, "%s\n", codec_buf);
