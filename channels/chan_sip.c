@@ -38,8 +38,6 @@
  * \todo Better support of forking
  * \todo VIA branch tag transaction checking
  * \todo Transaction support
- * \todo Asterisk should send a non-100 provisional response every minute to keep proxies
- *  from cancelling the transaction (RFC 3261 13.3.1.1). See bug #11157.
  *
  * ******** Wishlist: Improvements
  * - Support of SIP domains for devices, so that we match on username@domain in the From: header
@@ -614,6 +612,7 @@ static int mwi_expiry = DEFAULT_MWI_EXPIRY;
                                                       \todo Use known T1 for timeout (peerpoke)
                                                       */
 #define DEFAULT_TRANS_TIMEOUT        -1               /*!< Use default SIP transaction timeout */
+#define PROVIS_KEEPALIVE_TIMEOUT     60000            /*!< How long to wait before retransmitting a provisional response (rfc 3261 13.3.1.1) */
 #define MAX_AUTHTRIES                3                /*!< Try authentication three times, then fail */
 
 #define SIP_MAX_HEADERS              64               /*!< Max amount of SIP headers to read */
@@ -1753,6 +1752,8 @@ struct sip_pvt {
 	int redircodecs;			/*!< Redirect codecs */
 	int maxcallbitrate;			/*!< Maximum Call Bitrate for Video Calls */	
 	int request_queue_sched_id;		/*!< Scheduler ID of any scheduled action to process queued requests */
+	int provisional_keepalive_sched_id; /*!< Scheduler ID for provisional responses that need to be sent out to avoid cancellation */
+	const char *last_provisional;   /*!< The last successfully transmitted provisonal response message */
 	int authtries;				/*!< Times we've tried to authenticate */
 	struct sip_proxy *outboundproxy;	/*!< Outbound proxy for this dialog. Use ref_proxy to set this instead of setting it directly*/
 	struct t38properties t38;		/*!< T38 settings */
@@ -2365,6 +2366,7 @@ static int transmit_response_with_date(struct sip_pvt *p, const char *msg, const
 static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable, int oldsdp, int rpid);
 static int transmit_response_with_unsupported(struct sip_pvt *p, const char *msg, const struct sip_request *req, const char *unsupported);
 static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, const struct sip_request *req, const char *rand, enum xmittype reliable, const char *header, int stale);
+static int transmit_provisional_response(struct sip_pvt *p, const char *msg, const struct sip_request *req, int with_sdp);
 static int transmit_response_with_allow(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable);
 static void transmit_fake_auth_response(struct sip_pvt *p, int sipmethod, struct sip_request *req, enum xmittype reliable);
 static int transmit_request(struct sip_pvt *p, int sipmethod, int inc, enum xmittype reliable, int newbranch);
@@ -3084,6 +3086,8 @@ static void *dialog_unlink_all(struct sip_pvt *dialog, int lockowner, int lockdi
 	if (dialog->request_queue_sched_id > -1) {
 		AST_SCHED_DEL_UNREF(sched, dialog->request_queue_sched_id, dialog_unref(dialog, "when you delete the request_queue_sched_id sched, you should dec the refcount for the stored dialog ptr"));
 	}
+
+	AST_SCHED_DEL_UNREF(sched, dialog->provisional_keepalive_sched_id, dialog_unref(dialog, "when you delete the provisional_keepalive_sched_id, you should dec the refcount for the stored dialog ptr"));
 
 	if (dialog->t38id > -1) {
 		AST_SCHED_DEL_UNREF(sched, dialog->t38id, dialog_unref(dialog, "when you delete the t38id sched, you should dec the refcount for the stored dialog ptr"));
@@ -4033,6 +4037,46 @@ static void add_blank(struct sip_request *req)
 	}
 }
 
+static int send_provisional_keepalive_full(struct sip_pvt *pvt, int with_sdp)
+{
+	const char *msg = NULL;
+
+	if (!pvt->last_provisional || !strncasecmp(pvt->last_provisional, "100", 3)) {
+		msg = "183 Session Progress";
+	}
+
+	if (pvt->invitestate < INV_COMPLETED) {
+		if (with_sdp) {
+			transmit_response_with_sdp(pvt, S_OR(msg, pvt->last_provisional), &pvt->initreq, XMIT_UNRELIABLE, FALSE, FALSE);
+		} else {
+			transmit_response(pvt, S_OR(msg, pvt->last_provisional), &pvt->initreq);
+		}
+		return PROVIS_KEEPALIVE_TIMEOUT;
+	}
+
+	return 0;
+}
+
+static int send_provisional_keepalive(const void *data) {
+	struct sip_pvt *pvt = (struct sip_pvt *) data;
+
+	return send_provisional_keepalive_full(pvt, 0);
+}
+
+static int send_provisional_keepalive_with_sdp(const void *data) {
+	struct sip_pvt *pvt = (void *)data;
+
+	return send_provisional_keepalive_full(pvt, 1);
+}
+
+static void update_provisional_keepalive(struct sip_pvt *pvt, int with_sdp)
+{
+	AST_SCHED_DEL_UNREF(sched, pvt->provisional_keepalive_sched_id, dialog_unref(pvt, "when you delete the provisional_keepalive_sched_id, you should dec the refcount for the stored dialog ptr"));
+
+	pvt->provisional_keepalive_sched_id = ast_sched_add(sched, PROVIS_KEEPALIVE_TIMEOUT,
+		with_sdp ? send_provisional_keepalive_with_sdp : send_provisional_keepalive, dialog_ref(pvt, "Increment refcount to pass dialog pointer to sched callback"));
+}
+
 /*! \brief Transmit response on SIP request*/
 static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, int seqno)
 {
@@ -4054,6 +4098,12 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 			(tmp.method == SIP_RESPONSE || tmp.method == SIP_UNKNOWN) ? REQ_OFFSET_TO_STR(&tmp, rlPart2) : sip_methods[tmp.method].text);
 		ast_free(tmp.data);
 	}
+
+	/* If we are sending a final response to an INVITE, stop retransmitting provisional responses */
+	if (p->initreq.method == SIP_INVITE && reliable == XMIT_CRITICAL) {
+		AST_SCHED_DEL_UNREF(sched, p->provisional_keepalive_sched_id, dialog_unref(p, "when you delete the provisional_keepalive_sched_id, you should dec the refcount for the stored dialog ptr"));
+	}
+
 	res = (reliable) ?
 		 __sip_reliable_xmit(p, seqno, 1, req->data, req->len, (reliable == XMIT_CRITICAL), req->method) :
 		__sip_xmit(p, req->data, req->len);
@@ -6200,7 +6250,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 				    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 					ast_rtp_instance_new_source(p->rtp);
 					p->invitestate = INV_EARLY_MEDIA;
-					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE, FALSE, FALSE);
+					transmit_provisional_response(p, "183 Session Progress", &p->initreq, TRUE);
 					ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);
 				} else if (p->t38.state == T38_ENABLED) {
 					change_t38_state(p, T38_DISABLED);
@@ -6222,7 +6272,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 				    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
 				    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 					p->invitestate = INV_EARLY_MEDIA;
-					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE, FALSE, FALSE);
+					transmit_provisional_response(p, "183 Session Progress", &p->initreq, TRUE);
 					ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);
 				}
 				p->lastrtptx = time(NULL);
@@ -6243,7 +6293,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 					    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
 					    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 						p->invitestate = INV_EARLY_MEDIA;
-						transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE, FALSE, FALSE);
+						transmit_provisional_response(p, "183 Session Progress", &p->initreq, TRUE);
 						ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);
 					}
 					p->lastrtptx = time(NULL);
@@ -6465,7 +6515,7 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 			if (!ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) ||
 			    (ast_test_flag(&p->flags[0], SIP_PROG_INBAND) == SIP_PROG_INBAND_NEVER)) {				
 				/* Send 180 ringing if out-of-band seems reasonable */
-				transmit_response(p, "180 Ringing", &p->initreq);
+				transmit_provisional_response(p, "180 Ringing", &p->initreq, 0);
 				ast_set_flag(&p->flags[0], SIP_RINGING);
 				if (ast_test_flag(&p->flags[0], SIP_PROG_INBAND) != SIP_PROG_INBAND_YES)
 					break;
@@ -6510,7 +6560,7 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 		    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
 		    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 			p->invitestate = INV_EARLY_MEDIA;
-			transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE, FALSE, FALSE);
+			transmit_provisional_response(p, "183 Session Progress", &p->initreq, TRUE);
 			ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);
 			break;
 		}
@@ -7100,6 +7150,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	p->waitid = -1;
 	p->autokillid = -1;
 	p->request_queue_sched_id = -1;
+	p->provisional_keepalive_sched_id = -1;
 	p->t38id = -1;
 	p->subscribed = NONE;
 	p->stateid = -1;
@@ -9685,6 +9736,19 @@ static void get_realm(struct sip_pvt *p, const struct sip_request *req)
 	
 	/* Use default realm from config file */
 	ast_string_field_set(p, realm, sip_cfg.realm);
+}
+
+/* Only use a static string for the msg, here! */
+static int transmit_provisional_response(struct sip_pvt *p, const char *msg, const struct sip_request *req, int with_sdp)
+{
+	int res;
+
+	if (!(res = with_sdp ? transmit_response_with_sdp(p, msg, req, XMIT_UNRELIABLE, FALSE, FALSE) : transmit_response(p, msg, req))) {
+		p->last_provisional = msg;
+		update_provisional_keepalive(p, with_sdp);
+	}
+
+	return res;
 }
 
 /*! \brief Add text body to SIP message */
@@ -20672,7 +20736,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		switch(c_state) {
 		case AST_STATE_DOWN:
 			ast_debug(2, "%s: New call is still down.... Trying... \n", c->name);
-			transmit_response(p, "100 Trying", req);
+			transmit_provisional_response(p, "100 Trying", req, 0);
 			p->invitestate = INV_PROCEEDING;
 			ast_setstate(c, AST_STATE_RING);
 			if (strcmp(p->exten, ast_pickup_ext())) {	/* Call to extension -start pbx on this call */
@@ -20726,11 +20790,11 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			}
 			break;
 		case AST_STATE_RING:
-			transmit_response(p, "100 Trying", req);
+			transmit_provisional_response(p, "100 Trying", req, 0);
 			p->invitestate = INV_PROCEEDING;
 			break;
 		case AST_STATE_RINGING:
-			transmit_response(p, "180 Ringing", req);
+			transmit_provisional_response(p, "180 Ringing", req, 0);
 			p->invitestate = INV_PROCEEDING;
 			break;
 		case AST_STATE_UP:
