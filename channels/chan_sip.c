@@ -4265,6 +4265,7 @@ static char *get_in_brackets(char *tmp)
  * \note
  * - If scheme is specified, drop it from the top.
  * - If a component is not requested, do not split around it.
+ * - Multiple scheme's can be specified ',' delimited. ex: "sip,sips"
  *
  * This means that if we don't have domain, we cannot split
  * name:pass and domain:port.
@@ -4278,7 +4279,7 @@ static char *get_in_brackets(char *tmp)
  * \endverbatim
  *
  */
-static int parse_uri(char *uri, char *scheme,
+static int parse_uri(char *uri, const char *scheme,
 	char **ret_name, char **pass, char **domain, char **port, char **options, char **transport)
 {
 	char *name = NULL;
@@ -4290,11 +4291,18 @@ static int parse_uri(char *uri, char *scheme,
 	if (port)
 		*port = "";
 	if (scheme) {
-		int l = strlen(scheme);
-		if (!strncasecmp(uri, scheme, l))
-			uri += l;
-		else {
-			ast_debug(1, "Missing scheme '%s' in '%s'\n", scheme, uri);
+		int l;
+		char *scheme2 = ast_strdupa(scheme);
+		char *cur = strsep(&scheme2, ",");
+		for (; !ast_strlen_zero(cur); cur = strsep(&scheme2, ",")) {
+			l = strlen(cur);
+			if (!strncasecmp(uri, cur, l)) {
+				uri += l;
+				break;
+			}
+		}
+		if (ast_strlen_zero(cur)) {
+			ast_debug(1, "No supported scheme found in '%s' using the scheme[s] %s\n", uri, scheme);
 			error = -1;
 		}
 	}
@@ -12192,42 +12200,33 @@ static int __set_address_from_contact(const char *fullcontact, struct sockaddr_i
 {
 	struct hostent *hp;
 	struct ast_hostent ahp;
-	int port;
-	char *host, *pt;
+	int port = STANDARD_SIP_PORT;
+	char *host, *pt, *transport;
 	char contact_buf[256];
-	char contact2_buf[256];
-	char *contact, *contact2;
+	char *contact;
 	int use_tls = FALSE;
 
 	/* Work on a copy */
 	ast_copy_string(contact_buf, fullcontact, sizeof(contact_buf));
-	ast_copy_string(contact2_buf, fullcontact, sizeof(contact2_buf));
 	contact = contact_buf;
-	contact2 = contact2_buf;
 
-	/* We have only the part in <brackets> here so we just need to parse a SIP URI.*/
+	/* 
+	 * We have only the part in <brackets> here so we just need to parse a SIP URI.
+	 *
+	 * Note: The outbound proxy could be using UDP between the proxy and Asterisk.
+	 * We still need to be able to send to the remote agent through the proxy.
+	*/
 
-       /*! \brief This code is wrong, it assumes that the contact we receive will use the
-               same transport as the request. It's not a valid assumption. The contact for
-               a udp connection can be a SIPS uri, or request ;transport=tcp
-               \todo Fix this buggy code. It doesn't even parse transport!!!!
-
-		Note: The outbound proxy could be using UDP between the proxy and Asterisk.
-		We still need to be able to send to the remote agent through the proxy.
-       */
-	if (tcp) {
-		if (!parse_uri(contact, "sips:", &contact, NULL, &host, &pt, NULL, NULL)) {
+	if (!parse_uri(contact, "sip,sips", &contact, NULL, &host, &pt, NULL, &transport)) {
+		if (((get_transport_str2enum(transport) == SIP_TRANSPORT_TLS)) ||
+			!(strncasecmp(fullcontact, "sips", 4))) {
 			use_tls = TRUE;
+			port = !ast_strlen_zero(pt) ? atoi(pt) : STANDARD_TLS_PORT;
 		} else {
-			if (parse_uri(contact2, "sip:", &contact, NULL, &host, &pt, NULL, NULL))
-				ast_log(LOG_NOTICE, "'%s' is not a valid SIP contact (missing sip:) trying to use anyway\n", contact);
+			port = !ast_strlen_zero(pt) ? atoi(pt) : STANDARD_SIP_PORT;
 		}
-		port = !ast_strlen_zero(pt) ? atoi(pt) : STANDARD_TLS_PORT;
-		/*! \todo XXX why are we setting TLS port if there's no port given? parse_uri needs to return the transport. */
 	} else {
-		if (parse_uri(contact, "sip:", &contact, NULL, &host, &pt, NULL, NULL))
-			ast_log(LOG_NOTICE, "'%s' is not a valid SIP contact (missing sip:) trying to use anyway\n", contact);
-		port = !ast_strlen_zero(pt) ? atoi(pt) : STANDARD_SIP_PORT;
+		ast_log(LOG_WARNING, "Invalid contact uri %s (missing sip: or sips:), attempting to use anyway\n", fullcontact);
 	}
 
 	/* XXX This could block for a long time XXX */
@@ -12269,7 +12268,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	char data[SIPBUFSIZE];
 	const char *expires = get_header(req, "Expires");
 	int expire = atoi(expires);
-	char *curi, *host, *pt, *curi2, *transport;
+	char *curi, *host, *pt, *transport;
 	int port;
 	int transport_type;
 	const char *useragent;
@@ -12299,7 +12298,6 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	if (strchr(contact, '<') == NULL)	/* No <, check for ; and strip it */
 		strsep(&curi, ";");	/* This is Header options, not URI options */
 	curi = get_in_brackets(contact);
-	curi2 = ast_strdupa(curi);
 
 	/* if they did not specify Contact: or Expires:, they are querying
 	   what we currently have stored as their contact address, so return
@@ -12340,16 +12338,8 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	ast_string_field_build(pvt, our_contact, "<%s>", curi);
 
 	/* Make sure it's a SIP URL */
-	if (pvt->socket.type == SIP_TRANSPORT_TLS) {
-		if (parse_uri(curi, "sips:", &curi, NULL, &host, &pt, NULL, &transport)) {
-			if (parse_uri(curi2, "sip:", &curi, NULL, &host, &pt, NULL, &transport))
-				ast_log(LOG_NOTICE, "Not a valid SIP contact (missing sip:) trying to use anyway\n");
-		}
-		port = !ast_strlen_zero(pt) ? atoi(pt) : STANDARD_TLS_PORT;
-	} else {
-		if (parse_uri(curi, "sip:", &curi, NULL, &host, &pt, NULL, &transport))
-			ast_log(LOG_NOTICE, "Not a valid SIP contact (missing sip:) trying to use anyway\n");
-		port = !ast_strlen_zero(pt) ? atoi(pt) : STANDARD_SIP_PORT;
+	if (parse_uri(curi, "sip,sips", &curi, NULL, &host, &pt, NULL, &transport)) {
+		ast_log(LOG_NOTICE, "Not a valid SIP contact (missing sip:) trying to use anyway\n");
 	}
 
 	/* handle the transport type specified in Contact header. */
@@ -12359,8 +12349,11 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		 * same transport used by the pvt struct for the Register dialog. */
 		if (ast_strlen_zero(pt)) {
 			port = (transport_type == SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT;
+		} else {
+			port = atoi(pt);
 		}
 	} else {
+		port = !ast_strlen_zero(pt) ? atoi(pt) : STANDARD_SIP_PORT;
 		transport_type = pvt->socket.type;
 	}
 
@@ -14271,7 +14264,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	char from[256];
 	char *dummy;	/* dummy return value for parse_uri */
 	char *domain;	/* dummy return value for parse_uri */
-	char *of, *of2;
+	char *of;
 	enum check_auth_result res;
 	char calleridname[50];
 	char *uri2 = ast_strdupa(uri);
@@ -14304,19 +14297,9 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	/* save the URI part of the From header */
 	ast_string_field_set(p, from, of);
 
-	of2 = ast_strdupa(of);
-
 	/* ignore all fields but name */
-	/*! \todo Samme logical error as in many places above. Need a generic function for this.
- 	*/
-	if (p->socket.type == SIP_TRANSPORT_TLS) {
-		if (parse_uri(of, "sips:", &of, &dummy, &domain, &dummy, &dummy, NULL)) {
-			if (parse_uri(of2, "sip:", &of, &dummy, &domain, &dummy, &dummy, NULL))
-				ast_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
-		}
-	} else {
-		if (parse_uri(of, "sip:", &of, &dummy, &domain, &dummy, &dummy, NULL))
-			ast_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
+	if (parse_uri(of, "sip,sips", &of, &dummy, &domain, &dummy, &dummy, NULL)) {
+		ast_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
 	}
 
 	if (ast_strlen_zero(of)) {
