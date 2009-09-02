@@ -6676,6 +6676,8 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	tmp->callgroup = i->callgroup;
 	tmp->pickupgroup = i->pickupgroup;
 	tmp->cid.cid_pres = i->callingpres;
+	if (!ast_strlen_zero(i->parkinglot))
+		ast_string_field_set(tmp, parkinglot, i->parkinglot);
 	if (!ast_strlen_zero(i->accountcode))
 		ast_string_field_set(tmp, accountcode, i->accountcode);
 	if (i->amaflags)
@@ -19173,6 +19175,8 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	/* Make formats okay */
 	transferer->readformat = chan2->readformat;
 	transferer->writeformat = chan2->writeformat;
+	if (!ast_strlen_zero(chan2->parkinglot))
+		ast_string_field_set(transferer, parkinglot, chan2->parkinglot);
 
 	/* Prepare for taking over the channel.  Go ahead and grab this channel
 	 * lock here to avoid a deadlock with callbacks into the channel driver
