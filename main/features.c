@@ -649,7 +649,9 @@ static struct parkeduser *park_space_reserve(struct ast_channel *chan,
 	/* Lock parking list */
 	AST_LIST_LOCK(&parkinglot->parkings);
 	/* Check for channel variable PARKINGEXTEN */
+	ast_channel_lock(chan);
 	parkingexten = pbx_builtin_getvar_helper(chan, "PARKINGEXTEN");
+	ast_channel_unlock(chan);
 	if (!ast_strlen_zero(parkingexten)) {
 		/*!\note The API forces us to specify a numeric parking slot, even
 		 * though the architecture would tend to support non-numeric extensions
@@ -3729,6 +3731,7 @@ static struct ast_parkinglot *create_parkinglot(char *name)
 		return NULL;
 	
 	ast_copy_string(newlot->name, name, sizeof(newlot->name));
+	AST_LIST_HEAD_INIT(&newlot->parkings);
 
 	return newlot;
 }
