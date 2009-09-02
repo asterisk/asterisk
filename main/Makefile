@@ -61,6 +61,7 @@ ifneq ($(findstring darwin,$(OSARCH)),)
   ifneq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)
     ASTLINK=-Wl,-dynamic
   endif
+  ASTLINK+=-Xlinker -macosx_version_min -Xlinker 10.4 -Xlinker -undefined -Xlinker dynamic_lookup -force_flat_namespace
 else
 # These are used for all but Darwin
   ifneq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)
