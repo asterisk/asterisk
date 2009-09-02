@@ -770,6 +770,7 @@ static int analog_check_confirmanswer(struct analog_pvt *p)
 static int analog_set_linear_mode(struct analog_pvt *p, int index, int linear_mode)
 {
 	if (p->calls->set_linear_mode) {
+		/* Return provides old linear_mode setting or error indication */
 		return p->calls->set_linear_mode(p->chan_pvt, index, linear_mode);
 	}
 	return -1;
@@ -2035,11 +2036,12 @@ static void *__analog_ss_thread(void *data)
 			/* If set to use DTMF CID signalling, listen for DTMF */
 			if (p->cid_signalling == CID_SIG_DTMF) {
 				int i = 0;
+				int oldlinearity; 
 				cs = NULL;
 				ast_debug(1, "Receiving DTMF cid on "
 					"channel %s\n", chan->name);
 
-				analog_set_linear_mode(p, index, 0);
+				oldlinearity = analog_set_linear_mode(p, index, 0);
 
 				res = 2000;
 				for (;;) {
@@ -2066,7 +2068,7 @@ static void *__analog_ss_thread(void *data)
 				}
 				dtmfbuf[i] = '\0';
 
-				analog_set_linear_mode(p, index, 1);
+				analog_set_linear_mode(p, index, oldlinearity);
 
 				/* Got cid and ring. */
 				ast_debug(1, "CID got string '%s'\n", dtmfbuf);

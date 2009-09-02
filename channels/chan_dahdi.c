@@ -1992,12 +1992,20 @@ static void my_unlock_private(void *pvt)
 	ast_mutex_unlock(&p->lock);
 }
 
+/* linear_mode = 0 - turn linear mode off, >0 - turn linear mode on
+* 	returns the last value of the linear setting 
+*/ 
 static int my_set_linear_mode(void *pvt, int idx, int linear_mode)
 {
 	struct dahdi_pvt *p = pvt;
-	if (!linear_mode)
-		linear_mode = p->subs[idx].linear;
-	return dahdi_setlinear(p->subs[idx].dfd, linear_mode);
+	int oldval;
+	
+    if (0 > linear_mode || !dahdi_setlinear(p->subs[idx].dfd, linear_mode)) {
+        return -1;
+    }
+	oldval = p->subs[idx].linear;
+	p->subs[idx].linear = linear_mode;
+	return oldval;
 }
 
 static int get_alarms(struct dahdi_pvt *p);
@@ -3494,11 +3502,7 @@ static void dahdi_close_ss7_fd(struct dahdi_ss7 *ss7, int fd_num)
 
 static int dahdi_setlinear(int dfd, int linear)
 {
-	int res;
-	res = ioctl(dfd, DAHDI_SETLINEAR, &linear);
-	if (res)
-		return res;
-	return 0;
+	return ioctl(dfd, DAHDI_SETLINEAR, &linear);
 }
 
 
