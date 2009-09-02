@@ -67,6 +67,14 @@
 ;
 ;switchtype=euroisdn
 ;
+; MSNs for ISDN spans.  Asterisk will listen for the listed numbers on
+; incoming calls and ignore any calls not listed.
+; Here you can give a comma separated list of numbers or dialplan extension
+; patterns.  An empty list disables MSN matching to allow any incoming call.
+; Only set on PTMP CPE side of ISDN span if needed.
+; The default is an empty list.
+;msn=
+;
 ; Some switches (AT&T especially) require network specific facility IE.
 ; Supported values are currently 'none', 'sdn', 'megacom', 'tollfreemegacom', 'accunet'
 ;

@@ -10843,6 +10843,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 						pris[span].pri.inbanddisconnect = conf->pri.pri.inbanddisconnect;
 #endif
 						pris[span].pri.facilityenable = conf->pri.pri.facilityenable;
+						ast_copy_string(pris[span].pri.msn_list, conf->pri.pri.msn_list, sizeof(pris[span].pri.msn_list));
 						ast_copy_string(pris[span].pri.idledial, conf->pri.pri.idledial, sizeof(pris[span].pri.idledial));
 						ast_copy_string(pris[span].pri.idleext, conf->pri.pri.idleext, sizeof(pris[span].pri.idleext));
 						ast_copy_string(pris[span].pri.internationalprefix, conf->pri.pri.internationalprefix, sizeof(pris[span].pri.internationalprefix));
@@ -15614,6 +15615,9 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 					ast_log(LOG_ERROR, "Unknown switchtype '%s' at line %d.\n", v->value, v->lineno);
 					return -1;
 				}
+			} else if (!strcasecmp(v->name, "msn")) {
+				ast_copy_string(confp->pri.pri.msn_list, v->value,
+					sizeof(confp->pri.pri.msn_list));
 			} else if (!strcasecmp(v->name, "nsf")) {
 				if (!strcasecmp(v->value, "sdn"))
 					confp->pri.pri.nsf = PRI_NSF_SDN;

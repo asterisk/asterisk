@@ -1001,6 +1001,39 @@ void pri_event_noalarm(struct sig_pri_pri *pri, int index, int before_start_pri)
 
 /*!
  * \internal
+ * \brief Determine if the given extension matches one of the MSNs in the pattern list.
+ * \since 1.6.3
+ *
+ * \param msn_patterns Comma separated list of MSN patterns to match.
+ * \param exten Extension to match in the MSN list.
+ *
+ * \retval 1 if matches.
+ * \retval 0 if no match.
+ */
+static int sig_pri_msn_match(const char *msn_patterns, const char *exten)
+{
+	char *pattern;
+	char *msn_list;
+	char *list_tail;
+
+	msn_list = strdupa(msn_patterns);
+
+	list_tail = NULL;
+	pattern = strtok_r(msn_list, ",", &list_tail);
+	while (pattern) {
+		pattern = ast_strip(pattern);
+		if (!ast_strlen_zero(pattern) && ast_extension_match(pattern, exten)) {
+			/* Extension matched the pattern. */
+			return 1;
+		}
+		pattern = strtok_r(NULL, ",", &list_tail);
+	}
+	/* Did not match any pattern in the list. */
+	return 0;
+}
+
+/*!
+ * \internal
  * \brief Obtain the sig_pri owner channel lock if the owner exists.
  * \since 1.6.3
  *
@@ -1621,6 +1654,15 @@ static void *pri_dchannel(void *vpri)
 				break;
 #endif
 			case PRI_EVENT_RING:
+				if (!ast_strlen_zero(pri->msn_list)
+					&& !sig_pri_msn_match(pri->msn_list, e->ring.callednum)) {
+					/* The call is not for us so ignore it. */
+					ast_verb(3,
+						"Ignoring call to '%s' on span %d.  Its not in the MSN list: %s\n",
+						e->ring.callednum, pri->span, pri->msn_list);
+					pri_destroycall(pri->pri, e->ring.call);
+					break;
+				}
 				if (e->ring.channel == -1)
 					chanpos = pri_find_empty_chan(pri, 1);
 				else

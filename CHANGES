@@ -189,6 +189,8 @@ libpri channel driver (chan_dahdi) DAHDI changes
    will update the redirecting-to presentation (COLR) when it becomes available.
  * Added Reverse Charging Indication receipt & transmission (requires latest
    LibPRI).
+ * Added the ability to ignore calls that are not in a Multiple Subscriber
+   Number (MSN) list for PTMP CPE interfaces.
 
 Asterisk Manager Interface
 --------------------------

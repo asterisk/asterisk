@@ -195,6 +195,7 @@ struct sig_pri_pri {
 	char privateprefix[20];					/*!< for private dialplans */
 	char unknownprefix[20];					/*!< for unknown dialplans */
 	long resetinterval;						/*!< Interval (in seconds) for resetting unused channels */
+	char msn_list[AST_MAX_EXTENSION];		/*!< Comma separated list of MSNs to handle.  Empty if disabled. */
 	char idleext[AST_MAX_EXTENSION];		/*!< Where to idle extra calls */
 	char idlecontext[AST_MAX_CONTEXT];		/*!< What context to use for idle */
 	char idledial[AST_MAX_EXTENSION];		/*!< What to dial before dumping */
