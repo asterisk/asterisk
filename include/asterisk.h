@@ -20,7 +20,7 @@
 
 #include "asterisk/autoconfig.h"
 
-#ifndef __Darwin__
+#if !defined(__Darwin__) && !defined(__OpenBSD__)
 
 #define _POSIX_C_SOURCE 200112L
 #define _XOPEN_SOURCE 600
@@ -37,7 +37,7 @@
 #endif
 */
 
-#endif /* __Darwin__ */
+#endif /* !__Darwin__ && !__OpenBSD__ */
 
 #if !defined(NO_MALLOC_DEBUG) && !defined(STANDALONE) && defined(MALLOC_DEBUG)
 #include "asterisk/astmm.h"
