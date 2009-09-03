@@ -3,7 +3,7 @@ Information for Upgrading From Previous Asterisk Releases
 
 IAX2:
 
-* There have been some changed to the IAX2 protocol to address the security
+* There have been some changes to the IAX2 protocol to address the security
   concerns documented in the security advisory AST-2009-006.  Please see the
   IAX2 security document, doc/IAX2-security.pdf, for information regarding
   backwards compatibility with versions of Asterisk that do not contain these
