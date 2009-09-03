@@ -2565,30 +2565,31 @@ static int my_on_hook(void *pvt)
 }
 
 #if defined(HAVE_PRI)
-static void my_pri_fixup_chans(void *old_chan, void *new_chan)
+static void my_pri_fixup_chans(void *chan_old, void *chan_new)
 {
-	struct dahdi_pvt *old = old_chan;
-	struct dahdi_pvt *new = new_chan;
-	struct sig_pri_chan *pchan = new->sig_pvt;
+	struct dahdi_pvt *old_chan = chan_old;
+	struct dahdi_pvt *new_chan = chan_new;
+	struct sig_pri_chan *pchan = new_chan->sig_pvt;
 	struct sig_pri_pri *pri = pchan->pri;
 
-	new->owner = old->owner;
-	old->owner = NULL;
-	if (new->owner) {
+	new_chan->owner = old_chan->owner;
+	old_chan->owner = NULL;
+	if (new_chan->owner) {
 		char newname[AST_CHANNEL_NAME];
-		snprintf(newname, sizeof(newname), "DAHDI/%d:%d-%d", pri->trunkgroup, new->channel, 1);
-		ast_change_name(new->owner, newname);
 
-		new->owner->tech_pvt = new;
-		new->owner->fds[0] = new->subs[SUB_REAL].dfd;
-		new->subs[SUB_REAL].owner = old->subs[SUB_REAL].owner;
-		old->subs[SUB_REAL].owner = NULL;
+		snprintf(newname, sizeof(newname), "DAHDI/%d:%d-%d", pri->trunkgroup, new_chan->channel, 1);
+		ast_change_name(new_chan->owner, newname);
+
+		new_chan->owner->tech_pvt = new_chan;
+		new_chan->owner->fds[0] = new_chan->subs[SUB_REAL].dfd;
+		new_chan->subs[SUB_REAL].owner = old_chan->subs[SUB_REAL].owner;
+		old_chan->subs[SUB_REAL].owner = NULL;
 	}
 	/* Copy any DSP that may be present */
-	new->dsp = old->dsp;
-	new->dsp_features = old->dsp_features;
-	old->dsp = NULL;
-	old->dsp_features = 0;
+	new_chan->dsp = old_chan->dsp;
+	new_chan->dsp_features = old_chan->dsp_features;
+	old_chan->dsp = NULL;
+	old_chan->dsp_features = 0;
 }
 
 static int sig_pri_tone_to_dahditone(enum sig_pri_tone tone)

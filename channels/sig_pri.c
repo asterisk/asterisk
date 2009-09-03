@@ -524,10 +524,10 @@ static int sig_pri_set_echocanceller(struct sig_pri_chan *p, int enable)
 		return -1;
 }
 
-static void sig_pri_fixup_chans(struct sig_pri_chan *old, struct sig_pri_chan *new)
+static void sig_pri_fixup_chans(struct sig_pri_chan *old_chan, struct sig_pri_chan *new_chan)
 {
-	if (old->calls->fixup_chans)
-		old->calls->fixup_chans(old->chan_pvt, new->chan_pvt);
+	if (old_chan->calls->fixup_chans)
+		old_chan->calls->fixup_chans(old_chan->chan_pvt, new_chan->chan_pvt);
 }
 
 static int sig_pri_play_tone(struct sig_pri_chan *p, enum sig_pri_tone tone)
@@ -664,10 +664,10 @@ static int pri_find_principle(struct sig_pri_pri *pri, int channel)
 	int x;
 	int span = PRI_SPAN(channel);
 	int principle = -1;
-	int explicit = PRI_EXPLICIT(channel);
+	int explicit_ds1 = PRI_EXPLICIT(channel);
 	channel = PRI_CHANNEL(channel);
 
-	if (!explicit) {
+	if (!explicit_ds1) {
 		int index = pri_active_dchan_index(pri);
 		if (index == -1)
 			return -1;
@@ -687,6 +687,7 @@ static int pri_find_principle(struct sig_pri_pri *pri, int channel)
 static int pri_fixup_principle(struct sig_pri_pri *pri, int principle, q931_call *c)
 {
 	int x;
+
 	if (!c) {
 		if (principle < 0)
 			return -1;
@@ -704,23 +705,24 @@ static int pri_fixup_principle(struct sig_pri_pri *pri, int principle, q931_call
 		if (pri->pvts[x]->call == c) {
 			/* Found our call */
 			if (principle != x) {
-				struct sig_pri_chan *new = pri->pvts[principle], *old = pri->pvts[x];
+				struct sig_pri_chan *new_chan = pri->pvts[principle];
+				struct sig_pri_chan *old_chan = pri->pvts[x];
 
 				ast_verb(3, "Moving call from channel %d to channel %d\n",
-					old->channel, new->channel);
-				if (new->owner) {
+					old_chan->channel, new_chan->channel);
+				if (new_chan->owner) {
 					ast_log(LOG_WARNING, "Can't fix up channel from %d to %d because %d is already in use\n",
-						old->channel, new->channel, new->channel);
+						old_chan->channel, new_chan->channel, new_chan->channel);
 					return -1;
 				}
 
-				sig_pri_fixup_chans(old, new);
+				sig_pri_fixup_chans(old_chan, new_chan);
 				/* Fix it all up now */
-				new->owner = old->owner;
-				old->owner = NULL;
+				new_chan->owner = old_chan->owner;
+				old_chan->owner = NULL;
 
-				new->call = old->call;
-				old->call = NULL;
+				new_chan->call = old_chan->call;
+				old_chan->call = NULL;
 
 			}
 			return principle;
