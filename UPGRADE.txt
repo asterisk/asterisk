@@ -18,7 +18,7 @@
 ===
 ===========================================================
 
-As of 1.6.1.5:
+As of 1.6.1.6:
 
 * There have been some changes to the IAX2 protocol to address the security
   concerns documented in the security advisory AST-2009-006.  Please see the
