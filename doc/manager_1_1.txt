@@ -133,6 +133,12 @@ Changes to manager version 1.1:
 - Action IAXpeers
 	Now includes if the IAX link is a trunk or not
 
+- Action SIPshowpeer
+	Response now includes the configured parkinglot
+
+- Action SKINNYshowline
+	Response now includes the configured parkinglot
+
 * NEW ACTIONS
 -------------
 - Action: ModuleLoad
