@@ -71,6 +71,8 @@ struct iax_ies {
 	unsigned short rr_delay;
 	unsigned int rr_dropped;
 	unsigned int rr_ooo;
+	unsigned char calltoken;
+	unsigned char *calltokendata;
 };
 
 #define DIRECTION_INGRESS 1

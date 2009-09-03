@@ -45,6 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/io.h"
 #include "asterisk/logger.h"
 #include "asterisk/md5.h"
+#include "asterisk/sha1.h"
 #include "asterisk/options.h"
 #include "asterisk/compat.h"
 
@@ -295,6 +296,24 @@ void ast_md5_hash(char *output, char *input)
 	ptr = output;
 	for (x=0; x<16; x++)
 		ptr += sprintf(ptr, "%2.2x", digest[x]);
+}
+
+/*! \brief Produce 40 char SHA1 hash of value. */
+void ast_sha1_hash(char *output, char *input)
+{
+	struct SHA1Context sha;
+	char *ptr;
+	int x;
+	uint8_t Message_Digest[20];
+
+	SHA1Reset(&sha);
+	
+	SHA1Input(&sha, (const unsigned char *) input, strlen(input));
+
+	SHA1Result(&sha, Message_Digest);
+	ptr = output;
+	for (x = 0; x < 20; x++)
+		ptr += sprintf(ptr, "%2.2x", Message_Digest[x]);
 }
 
 int ast_base64decode(unsigned char *dst, const char *src, int max)

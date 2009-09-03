@@ -74,14 +74,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 AST_MUTEX_DEFINE_STATIC(routeseq_lock);
 #endif
 
-struct ast_ha {
-	/* Host access rule */
-	struct in_addr netaddr;
-	struct in_addr netmask;
-	int sense;
-	struct ast_ha *next;
-};
-
 /* Default IP - if not otherwise set, don't breathe garbage */
 static struct in_addr __ourip = { 0x00000000 };
 
@@ -102,7 +94,7 @@ void ast_free_ha(struct ast_ha *ha)
 }
 
 /* Copy HA structure */
-static void ast_copy_ha(struct ast_ha *from, struct ast_ha *to)
+void ast_copy_ha(const struct ast_ha *from, struct ast_ha *to)
 {
 	memcpy(&to->netaddr, &from->netaddr, sizeof(from->netaddr));
 	memcpy(&to->netmask, &from->netmask, sizeof(from->netmask));
@@ -141,7 +133,7 @@ struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original)
 	return ret;    			/* Return start of list */
 }
 
-struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path)
+struct ast_ha *ast_append_ha(char *sense, const char *stuff, struct ast_ha *path)
 {
 	struct ast_ha *ha = malloc(sizeof(struct ast_ha));
 	char *nm = "255.255.255.255";
