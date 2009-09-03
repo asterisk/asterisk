@@ -3477,6 +3477,12 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 	return res;
 }
 
+static char next_item(const char *format)
+{
+	const char *next = ast_skip_blanks(format);
+	return *next;
+}
+
 /* Danish syntax */
 int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
 {
@@ -3570,14 +3576,14 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 				/* FALLTRHU */
 			case 'k':
 				/* 24-Hour */
-				res = ast_say_number(chan, tm.tm_hour, ints, lang, (char *) NULL);	
+				res = ast_say_number(chan, tm.tm_hour, ints, lang, (char *) NULL);
 				break;
 			case 'M':
 				/* Minute */
-				if (tm.tm_min > 0 || format[offset+ 1 ] == 'S' ) { /* zero 'digits/0' only if seconds follow (kind of a hack) */
-					res = ast_say_number(chan, tm.tm_min, ints, lang, "f");	
+				if (tm.tm_min > 0 || next_item(&format[offset + 1]) == 'S') { /* zero 'digits/0' only if seconds follow */
+					res = ast_say_number(chan, tm.tm_min, ints, lang, "f");
 				}
-				if ( !res && format[offset + 1] == 'S' ) { /* minutes only if seconds follow (kind of a hack) */
+				if (!res && next_item(&format[offset + 1]) == 'S') { /* minutes only if seconds follow */
 					if (tm.tm_min == 1) {
 						res = wait_file(chan,ints,"digits/minute",lang);
 					} else {
@@ -3777,10 +3783,13 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 				break;
 			case 'M':
 				/* Minute */
-				if (tm.tm_min > 0 || format[offset+ 1 ] == 'S' ) { /* zero 'digits/0' only if seconds follow (kind of a hack) */
-					res = ast_say_number(chan, tm.tm_min, ints, lang, "f");	
+				if (next_item(&format[offset + 1]) == 'S') { /* zero 'digits/0' only if seconds follow */
+					res = ast_say_number(chan, tm.tm_min, ints, lang, "f"); /* female only if we say digits/minutes */
+				} else if (tm.tm_min > 0) {
+					res = ast_say_number(chan, tm.tm_min, ints, lang, (char *) NULL);
 				}
-				if ( !res && format[offset + 1] == 'S' ) { /* minutes only if seconds follow (kind of a hack) */
+
+				if (!res && next_item(&format[offset + 1]) == 'S') { /* minutes only if seconds follow */
 					if (tm.tm_min == 1) {
 						res = wait_file(chan,ints,"digits/minute",lang);
 					} else {
@@ -3862,7 +3871,7 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 				if (!res) {
 					res = ast_say_number(chan, tm.tm_sec, ints, lang, "f");	
 					if (!res) {
-						res = wait_file(chan,ints, "digits/seconds",lang);
+						res = wait_file(chan, ints, tm.tm_sec == 1 ? "digits/second" : "digits/seconds", lang);
 					}
 				}
 				break;

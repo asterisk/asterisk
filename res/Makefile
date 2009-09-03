@@ -31,7 +31,7 @@ all: _all
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
-snmp/agent.o: ASTCFLAGS+=$(MENUSELECT_OPTS_res_snmp:%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_res_snmp),$(value $(dep)_INCLUDE))
+snmp/agent.o: _ASTCFLAGS+=$(MENUSELECT_OPTS_res_snmp:%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_res_snmp),$(value $(dep)_INCLUDE))
 
 $(if $(filter res_snmp,$(EMBEDDED_MODS)),modules.link,res_snmp.so): snmp/agent.o
 

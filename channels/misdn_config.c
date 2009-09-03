@@ -1001,6 +1001,11 @@ static void _build_port_config (struct ast_variable *v, char *cat)
 	}
 
 	for (i = 0; i < (max_ports + 1); ++i) {
+		if (i > 0 && cfg_for_ports[0]) {
+			/* default category, will populate the port_cfg with additional port
+			categories in subsequent calls to this function */
+			memset(cfg_tmp, 0, sizeof(cfg_tmp));
+		}
 		if (cfg_for_ports[i]) {
 			memcpy(port_cfg[i], cfg_tmp, sizeof(cfg_tmp));
 		}

@@ -422,17 +422,20 @@ static const struct ast_datastore_info chanspy_ds_info = {
 
 static struct chanspy_ds *chanspy_ds_free(struct chanspy_ds *chanspy_ds)
 {
-	if (!chanspy_ds)
+	struct ast_channel *chan;
+
+	if (!chanspy_ds) {
 		return NULL;
+	}
 
 	ast_mutex_lock(&chanspy_ds->lock);
-	if (chanspy_ds->chan) {
+	while ((chan = chanspy_ds->chan)) {
 		struct ast_datastore *datastore;
-		struct ast_channel *chan;
 
-		chan = chanspy_ds->chan;
-
-		ast_channel_lock(chan);
+		if (ast_channel_trylock(chan)) {
+			DEADLOCK_AVOIDANCE(&chanspy_ds->lock);
+			continue;
+		}
 		if ((datastore = ast_channel_datastore_find(chan, &chanspy_ds_info, chanspy_ds->unique_id))) {
 			ast_channel_datastore_remove(chan, datastore);
 			/* chanspy_ds->chan is NULL after this call */
@@ -441,6 +444,7 @@ static struct chanspy_ds *chanspy_ds_free(struct chanspy_ds *chanspy_ds)
 			ast_channel_datastore_free(datastore);
 		}
 		ast_channel_unlock(chan);
+		break;
 	}
 	ast_mutex_unlock(&chanspy_ds->lock);
 

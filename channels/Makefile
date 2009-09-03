@@ -107,19 +107,19 @@ $(if $(filter chan_h323,$(EMBEDDED_MODS)),modules.link,chan_h323.so): h323/libch
 ifeq ($(OSARCH),linux-gnu)
 chan_h323.so: chan_h323.o h323/libchanh323.a h323/Makefile.ast
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
-	$(CMD_PREFIX) $(CXX) $(PTHREAD_CFLAGS) $(ASTLDFLAGS) $(SOLINK) $(H323LDFLAGS) -o $@ $< h323/libchanh323.a $(H323LDLIBS)
+	$(CMD_PREFIX) $(CXX) $(PTHREAD_CFLAGS) $(_ASTLDFLAGS) $(SOLINK) $(H323LDFLAGS) -o $@ $< h323/libchanh323.a $(H323LDLIBS) $(ASTLDFLAGS)
 else
 chan_h323.so: chan_h323.o h323/libchanh323.a
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
-	$(CMD_PREFIX) $(CXX) $(PTHREAD_CFLAGS) $(ASTLDFLAGS) $(SOLINK) -o $@ $< h323/libchanh323.a $(CHANH323LIB) -L$(PWLIBDIR)/lib $(PTLIB) -L$(OPENH323DIR)/lib $(H323LIB) -L/usr/lib -lcrypto -lssl -lexpat
+	$(CMD_PREFIX) $(CXX) $(PTHREAD_CFLAGS) $(_ASTLDFLAGS) $(SOLINK) -o $@ $< h323/libchanh323.a $(CHANH323LIB) -L$(PWLIBDIR)/lib $(PTLIB) -L$(OPENH323DIR)/lib $(H323LIB) -L/usr/lib -lcrypto -lssl -lexpat $(ASTLDFLAGS)
 endif
 
-chan_misdn.o: ASTCFLAGS+=-Imisdn
+chan_misdn.o: _ASTCFLAGS+=-Imisdn
 
-misdn_config.o: ASTCFLAGS+=-Imisdn
+misdn_config.o: _ASTCFLAGS+=-Imisdn
 
-misdn/isdn_lib.o: ASTCFLAGS+=-Wno-strict-aliasing
+misdn/isdn_lib.o: _ASTCFLAGS+=-Wno-strict-aliasing
 
-misdn_config.o misdn/isdn_lib.o misdn/isdn_msg_parser.o: ASTCFLAGS+=$(MENUSELECT_OPTS_chan_misdn:%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_chan_misdn),$(value $(dep)_INCLUDE))
+misdn_config.o misdn/isdn_lib.o misdn/isdn_msg_parser.o: _ASTCFLAGS+=$(MENUSELECT_OPTS_chan_misdn:%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_chan_misdn),$(value $(dep)_INCLUDE))
 
 $(if $(filter chan_misdn,$(EMBEDDED_MODS)),modules.link,chan_misdn.so): chan_misdn.o misdn_config.o misdn/isdn_lib.o misdn/isdn_msg_parser.o

@@ -1674,7 +1674,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			}
 
 			if (ast_autoservice_stop(chan) < 0) {
-				ast_log(LOG_ERROR, "Could not stop autoservice on calling channel\n");
 				res = -1;
 			}
 

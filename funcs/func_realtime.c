@@ -93,6 +93,8 @@ static int function_realtime_read(struct ast_channel *chan, char *cmd, char *dat
 		ast_build_string(&results, &resultslen, "%s%s%s%s", var->name, args.delim2, var->value, args.delim1);
 	ast_copy_string(buf, result_begin, len);
 
+	ast_variables_destroy(head);
+
 	ast_module_user_remove(u);
 
 	if (chan)

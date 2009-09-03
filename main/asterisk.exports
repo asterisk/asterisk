@@ -28,6 +28,18 @@
 		devstate2str;
 		manager_event;
 		dialed_interface_info;
+		strsep;
+		setenv;
+		unsetenv;
+		strcasestr;
+		strnlen;
+		strndup;
+		vasprintf;
+		asprintf;
+		strtoq;
+		getloadavg;
+		strlcat;
+		strlcpy;
 	local:
 		*;
 };

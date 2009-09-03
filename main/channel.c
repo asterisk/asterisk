@@ -1566,10 +1566,12 @@ int ast_hangup(struct ast_channel *chan)
 	if (chan->cdr && !ast_test_flag(chan->cdr, AST_CDR_FLAG_BRIDGED) && 
 		!ast_test_flag(chan->cdr, AST_CDR_FLAG_POST_DISABLED) && 
 	    (chan->cdr->disposition != AST_CDR_NULL || ast_test_flag(chan->cdr, AST_CDR_FLAG_DIALED))) {
+		ast_channel_lock(chan);
 			
 		ast_cdr_end(chan->cdr);
 		ast_cdr_detach(chan->cdr);
 		chan->cdr = NULL;
+		ast_channel_unlock(chan);
 	}
 	
 	ast_channel_free(chan);
@@ -2080,17 +2082,20 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		goto done;
 	}
 
-	if (chan->fdno == -1) {
 #ifdef AST_DEVMODE
+	/* 
+	 * The ast_waitfor() code records which of the channel's file descriptors reported that
+	 * data is available.  In theory, ast_read() should only be called after ast_waitfor()
+	 * reports that a channel has data available for reading.  However, there still may be
+	 * some edge cases throughout the code where ast_read() is called improperly.  This can
+	 * potentially cause problems, so if this is a developer build, make a lot of noise if
+	 * this happens so that it can be addressed. 
+	 */
+	if (chan->fdno == -1) {
 		ast_log(LOG_ERROR, "ast_read() called with no recorded file descriptor.\n");
-#else
-		if (option_debug > 1) {
-			ast_log(LOG_DEBUG, "ast_read() called with no recorded file descriptor.\n");
-		}
-#endif
-		f = &ast_null_frame;
-		goto done;
 	}
+#endif
+
 	prestate = chan->_state;
 
 	/* Read and ignore anything on the alertpipe, but read only
@@ -2928,13 +2933,36 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		}
 
 		if (chan->audiohooks) {
-			struct ast_frame *new_frame, *cur;
+			struct ast_frame *prev = NULL, *new_frame, *cur, *dup;
 
+			/* Since ast_audiohook_write may return a new frame, and the cur frame is
+			 * an item in a list of frames, create a new list adding each cur frame back to it
+			 * regardless if the cur frame changes or not. */
 			for (cur = f; cur; cur = AST_LIST_NEXT(cur, frame_list)) {
 				new_frame = ast_audiohook_write_list(chan, chan->audiohooks, AST_AUDIOHOOK_DIRECTION_WRITE, cur);
+
+				/* if this frame is different than cur, preserve the end of the list,
+				 * free the old frames, and set cur to be the new frame */
 				if (new_frame != cur) {
-					ast_frfree(new_frame);
+					/* doing an ast_frisolate here seems silly, but we are not guaranteed the new_frame
+					 * isn't part of local storage, meaning if ast_audiohook_write is called multiple
+					 * times it may override the previous frame we got from it unless we dup it */
+					if ((dup = ast_frisolate(new_frame))) {
+						AST_LIST_NEXT(dup, frame_list) = AST_LIST_NEXT(cur, frame_list);
+						ast_frfree(new_frame);
+						ast_frfree(cur);
+						cur = dup;
+					}
 				}
+
+				/* now, regardless if cur is new or not, add it to the new list,
+				 * if the new list has not started, cur will become the first item. */
+				if (prev) {
+					AST_LIST_NEXT(prev, frame_list) = cur;
+				} else {
+					f = cur; /* set f to be the beginning of our new list */
+				}
+				prev = cur;
 			}
 		}
 		
@@ -3764,10 +3792,10 @@ int ast_do_masquerade(struct ast_channel *original)
 		ast_log(LOG_DEBUG, "Actually Masquerading %s(%d) into the structure of %s(%d)\n",
 			clone->name, clone->_state, original->name, original->_state);
 
-	/* XXX This is a seriously wacked out operation.  We're essentially putting the guts of
-	   the clone channel into the original channel.  Start by killing off the original
-	   channel's backend.   I'm not sure we're going to keep this function, because
-	   while the features are nice, the cost is very high in terms of pure nastiness. XXX */
+	/* XXX This operation is a bit odd.  We're essentially putting the guts of
+	 * the clone channel into the original channel.  Start by killing off the
+	 * original channel's backend.  While the features are nice, which is the
+	 * reason we're keeping it, it's still awesomely weird. XXX */
 
 	/* We need the clone's lock, too */
 	ast_channel_lock(clone);

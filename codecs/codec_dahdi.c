@@ -412,7 +412,9 @@ static int dahdi_translate(struct ast_trans_pvt *pvt, int dest, int source)
 	ztp->fmts.srcfmt = (1 << source);
 	ztp->fmts.dstfmt = (1 << dest);
 
-	ast_log(LOG_DEBUG, "Opening transcoder channel from %d to %d.\n", source, dest);
+	if (option_debug) {
+		ast_log(LOG_DEBUG, "Opening transcoder channel from %d to %d.\n", source, dest);
+	}
 
 retry:
 	if (ioctl(fd, DAHDI_TC_ALLOCATE, &ztp->fmts)) {
@@ -426,11 +428,15 @@ retry:
 			 * we'll just convert from ulaw to signed linear in
 			 * software. */
 			if (AST_FORMAT_SLINEAR == ztp->fmts.srcfmt) {
-				ast_log(LOG_DEBUG, "Using soft_slin support on source\n");
+				if (option_debug) {
+					ast_log(LOG_DEBUG, "Using soft_slin support on source\n");
+				}
 				ztp->softslin = 1;
 				ztp->fmts.srcfmt = AST_FORMAT_ULAW;
 			} else if (AST_FORMAT_SLINEAR == ztp->fmts.dstfmt) {
-				ast_log(LOG_DEBUG, "Using soft_slin support on destination\n");
+				if (option_debug) {
+					ast_log(LOG_DEBUG, "Using soft_slin support on destination\n");
+				}
 				ztp->softslin = 1;
 				ztp->fmts.dstfmt = AST_FORMAT_ULAW;
 			}

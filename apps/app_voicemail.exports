@@ -1,0 +1,20 @@
+{
+	global:
+		mm_critical;
+		mm_diskerror;
+		mm_dlog;
+		mm_exists;
+		mm_expunged;
+		mm_fatal;
+		mm_flags;
+		mm_list;
+		mm_log;
+		mm_login;
+		mm_lsub;
+		mm_nocritical;
+		mm_notify;
+		mm_searched;
+		mm_status;
+	local:
+		*;
+};

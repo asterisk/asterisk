@@ -214,13 +214,13 @@ monitor-type = MixMonitor
 ; ----------------------- TYPE MIXMONITOR OPTIONS -----------------------------
 ;
 ;
-; You can specify the options supplied to MixMonitor by calling
+; You can specify the options supplied to MixMonitor by calling (from the dialplan)
 ;   Set(MONITOR_OPTIONS=av(<x>)V(<x>)W(<x>))
 ; The 'b' option for MixMonitor (only save audio to the file while bridged) is 
 ; implied.
 ;
 ; You can specify a post recording command to be executed after the end of
-; recording by calling
+; recording by calling (from the dialplan)
 ;   Set(MONITOR_EXEC=mv /var/spool/asterisk/monitor/^{MONITOR_FILENAME} /tmp/^{MONITOR_FILENAME})
 ;
 ; The command specified within the contents of MONITOR_EXEC will be executed when
