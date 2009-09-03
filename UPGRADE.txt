@@ -6,6 +6,14 @@
 === UPGRADE.txt     -- Upgrade info for 1.2 to 1.4
 =========================================================
 
+IAX2:
+
+* There have been some changes to the IAX2 protocol to address the security
+  concerns documented in the security advisory AST-2009-006.  Please see the
+  IAX2 security document, doc/IAX2-security.pdf, for information regarding
+  backwards compatibility with versions of Asterisk that do not contain these
+  changes to IAX2.
+
 Build Process (configure script):
 
 Asterisk now uses an autoconf-generated configuration script to learn how it
