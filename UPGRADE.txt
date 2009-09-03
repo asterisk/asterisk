@@ -20,6 +20,12 @@
 
 From 1.6.2 to 1.6.3:
 
+* There have been some changes to the IAX2 protocol to address the security
+  concerns documented in the security advisory AST-2009-006.  Please see the
+  IAX2 security document, doc/IAX2-security.pdf, for information regarding
+  backwards compatibility with versions of Asterisk that do not contain these
+  changes to IAX2.
+
 * Asterisk-addons no longer exists as an independent package.  Those modules
   now live in the addons directory of the main Asterisk source tree.  They
   are not enabled by default.  For more information about why modules live in
