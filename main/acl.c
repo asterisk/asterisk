@@ -225,7 +225,7 @@ void ast_free_ha(struct ast_ha *ha)
 }
 
 /* Copy HA structure */
-static void ast_copy_ha(struct ast_ha *from, struct ast_ha *to)
+void ast_copy_ha(const struct ast_ha *from, struct ast_ha *to)
 {
 	memcpy(&to->netaddr, &from->netaddr, sizeof(from->netaddr));
 	memcpy(&to->netmask, &from->netmask, sizeof(from->netmask));

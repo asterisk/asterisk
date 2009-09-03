@@ -77,6 +77,8 @@ struct iax_ies {
 	struct ast_variable *vars;
 	char *osptokenblock[IAX_MAX_OSPBLOCK_NUM];
 	unsigned int ospblocklength[IAX_MAX_OSPBLOCK_NUM];
+	unsigned char calltoken;
+	unsigned char *calltokendata;
 };
 
 #define DIRECTION_INGRESS 1

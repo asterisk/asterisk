@@ -111,6 +111,8 @@ enum iax_frame_subclass {
 	IAX_COMMAND_TXMEDIA =   38,
 	/*! Command to rotate key */
 	IAX_COMMAND_RTKEY =     39,
+	/*! Call number token */
+	IAX_COMMAND_CALLTOKEN = 40,
 };
 
 /*! By default require re-registration once per minute */
@@ -176,6 +178,7 @@ enum iax_frame_subclass {
 #define IAX_IE_RR_OOO				51		/*!< Frames received Out of Order u32 */
 #define IAX_IE_VARIABLE				52		/*!< Remote variables */
 #define IAX_IE_OSPTOKEN				53		/*!< OSP token */
+#define IAX_IE_CALLTOKEN			54		/*!< Call number security token */
 
 #define IAX_MAX_OSPBLOCK_SIZE		254		/*!< Max OSP token block size, 255 bytes - 1 byte OSP token block index */
 #define IAX_MAX_OSPBLOCK_NUM		4
