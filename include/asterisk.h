@@ -20,25 +20,6 @@
 
 #include "asterisk/autoconfig.h"
 
-#if !defined(__Darwin__) && !defined(__OpenBSD__)
-
-#define _POSIX_C_SOURCE 200112L
-#define _XOPEN_SOURCE 600
-
-#include <unistd.h>
-
-#if _POSIX_VERSION < 200112L
-#error System does not support POSIX version 200112.
-#endif
-
-/* It is not clear if we need this version check at this time.
-#if _XOPEN_VERSION < 600
-#error System does not support XOPEN version 600.
-#endif
-*/
-
-#endif /* !__Darwin__ && !__OpenBSD__ */
-
 #if !defined(NO_MALLOC_DEBUG) && !defined(STANDALONE) && defined(MALLOC_DEBUG)
 #include "asterisk/astmm.h"
 #endif
