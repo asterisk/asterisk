@@ -18,7 +18,7 @@
 <hr/>
 <a name="summary"><h2 align="center">Summary</h2></a>
 <center><a href="#top">[Back to Top]</a></center><br/><p>This release has been made to address one or more security vulnerabilities that have been identified.  A security advisory document has been published for each vulnerability that includes additional information.  Users of versions of Asterisk that are affected are strongly encouraged to review the advisories and determine what action they should take to protect their systems from these issues.</p>
-<p>Security Advisories: <a href="http://downloads.asterisk.org/pub/security/AST-2009-006.html">AST-2009-006</a></p>
+<p>Security Advisories: <a href="http://downloads.asterisk.org/pub/security/AST-2006-006.html">AST-2006-006</a></p>
 <p>The data in this summary reflects changes that have been made since the previous release, asterisk-1.4.26.1.</p>
 <hr/>
 <a name="contributors"><h2 align="center">Contributors</h2></a>
@@ -31,8 +31,8 @@
 </tr>
 <tr valign="top">
 <td>
-3 lmadsen<br/>
-1 dvossel<br/>
+4 lmadsen<br/>
+3 dvossel<br/>
 </td>
 <td>
 1 dbrooks<br/>
@@ -62,6 +62,9 @@ Coders: dvossel<br/>
 <tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/tags/1.4.26.2?view=revision&revision=215942">215942</a></td><td>lmadsen</td><td>Create 1.4.26.2 from 1.4.26.1.</td>
 <td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/tags/1.4.26.2?view=revision&revision=215947">215947</a></td><td>lmadsen</td><td>Update .version and ChangeLog files.</td>
 <td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/tags/1.4.26.2?view=revision&revision=215953">215953</a></td><td>lmadsen</td><td>Importing release summary for 1.4.26.2 release.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/tags/1.4.26.2?view=revision&revision=216066">216066</a></td><td>lmadsen</td><td>Importing release summary for 1.4.26.2 release.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/tags/1.4.26.2?view=revision&revision=216096">216096</a></td><td>dvossel</td><td>updating UPGRADE.txt to reflect iax2 security changes</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/tags/1.4.26.2?view=revision&revision=216100">216100</a></td><td>dvossel</td><td>IAX2 security user guide</td>
 <td></td></tr></table>
 <hr/>
 <a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
@@ -69,8 +72,9 @@ Coders: dvossel<br/>
 <pre>
 .version                       |    2
 ChangeLog                      |    6
-asterisk-1.4.26.2-summary.html |   58 +
-asterisk-1.4.26.2-summary.txt  |   88 ++
+UPGRADE.txt                    |    8
+asterisk-1.4.26.2-summary.html |   87 ++
+asterisk-1.4.26.2-summary.txt  |  124 +++
 channels/chan_iax2.c           | 1338 +++++++++++++++++++++++++++++++++++++----
 channels/iax2-parser.c         |   10
 channels/iax2-parser.h         |    2
@@ -80,7 +84,7 @@ include/asterisk/acl.h         |   12
 include/asterisk/astobj2.h     |   10
 main/acl.c                     |   12
 main/astobj2.c                 |   19
-13 files changed, 1476 insertions(+), 140 deletions(-)
+14 files changed, 1549 insertions(+), 140 deletions(-)
 </pre><br/>
 <hr/>
 </body>

@@ -29,7 +29,7 @@
    the advisories and determine what action they should take to protect their
    systems from these issues.
 
-   Security Advisories: AST-2009-006
+   Security Advisories: AST-2006-006
 
    The data in this summary reflects changes that have been made since the
    previous release, asterisk-1.4.26.1.
@@ -50,8 +50,8 @@
    release.
 
      Coders                   Testers                  Reporters              
-   3 lmadsen                1 dbrooks                1 rathaus                
-   1 dvossel                1 dvossel                
+   4 lmadsen                1 dbrooks                1 rathaus                
+   3 dvossel                1 dvossel                
                             1 russell                
                             1 tilghman               
 
@@ -95,6 +95,14 @@
    |----------+---------+-------------------------------+-------------------|
    | 215953   | lmadsen | Importing release summary for |                   |
    |          |         | 1.4.26.2 release.             |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 216066   | lmadsen | Importing release summary for |                   |
+   |          |         | 1.4.26.2 release.             |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 216096   | dvossel | updating UPGRADE.txt to       |                   |
+   |          |         | reflect iax2 security changes |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 216100   | dvossel | IAX2 security user guide      |                   |
    +------------------------------------------------------------------------+
 
      ----------------------------------------------------------------------
@@ -108,8 +116,9 @@
 
  .version                       |    2
  ChangeLog                      |    6
- asterisk-1.4.26.2-summary.html |   58 +
- asterisk-1.4.26.2-summary.txt  |   88 ++
+ UPGRADE.txt                    |    8
+ asterisk-1.4.26.2-summary.html |   87 ++
+ asterisk-1.4.26.2-summary.txt  |  124 +++
  channels/chan_iax2.c           | 1338 +++++++++++++++++++++++++++++++++++++----
  channels/iax2-parser.c         |   10
  channels/iax2-parser.h         |    2
@@ -119,6 +128,6 @@
  include/asterisk/astobj2.h     |   10
  main/acl.c                     |   12
  main/astobj2.c                 |   19
- 13 files changed, 1476 insertions(+), 140 deletions(-)
+ 14 files changed, 1549 insertions(+), 140 deletions(-)
 
      ----------------------------------------------------------------------
