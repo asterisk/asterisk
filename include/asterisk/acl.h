@@ -55,6 +55,9 @@ struct ast_ha {
 /*! \brief Free host access list */
 void ast_free_ha(struct ast_ha *ha);
 
+/*! \brief Copy ha structure */
+void ast_copy_ha(const struct ast_ha *from, struct ast_ha *to);
+
 /*! \brief Append ACL entry to host access list. */
 struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha *path, int *error);
 
