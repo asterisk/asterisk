@@ -73,6 +73,8 @@
 #define IAX_COMMAND_FWDOWNL	36	/* Download firmware */
 #define IAX_COMMAND_FWDATA	37	/* Firmware Data */
 #define IAX_COMMAND_TXMEDIA 38  /* Transfer media only */
+#define IAX_COMMAND_CALLTOKEN 40  /*! Call number token */
+
 
 #define IAX_DEFAULT_REG_EXPIRE  60	/* By default require re-registration once per minute */
 
@@ -133,6 +135,7 @@
 #define IAX_IE_RR_DELAY				49		/* Max playout delay for received frames (in ms) u16 */
 #define IAX_IE_RR_DROPPED			50		/* Dropped frames (presumably by jitterbuf) u32 */
 #define IAX_IE_RR_OOO				51		/* Frames received Out of Order u32 */
+#define IAX_IE_CALLTOKEN			54		/* Call number security token */
 
 
 #define IAX_AUTH_PLAINTEXT			(1 << 0)
