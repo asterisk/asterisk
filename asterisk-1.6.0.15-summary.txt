@@ -50,8 +50,8 @@
    release.
 
      Coders                   Testers                  Reporters              
-   2 lmadsen                1 dbrooks                1 rathaus                
-   1 dvossel                1 dvossel                
+   3 lmadsen                1 dbrooks                1 rathaus                
+   2 dvossel                1 dvossel                
                             1 russell                
                             1 tilghman               
 
@@ -92,6 +92,13 @@
    |----------+---------+-------------------------------+-------------------|
    | 215948   | lmadsen | Update .version and ChangeLog |                   |
    |          |         | files.                        |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 216077   | lmadsen | Importing release summary for |                   |
+   |          |         | 1.6.0.15 release.             |                   |
+   |----------+---------+-------------------------------+-------------------|
+   |          |         | Update UPGRADE.txt to reflect |                   |
+   | 216101   | dvossel | iax2 security changes and     |                   |
+   |          |         | added user guide              |                   |
    +------------------------------------------------------------------------+
 
      ----------------------------------------------------------------------
@@ -103,17 +110,20 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .version                   |    2
- ChangeLog                  |    6
- channels/chan_iax2.c       | 1362 ++++++++++++++++++++++++++++++++++++++++-----
- channels/iax2-parser.c     |    9
- channels/iax2-parser.h     |    2
- channels/iax2.h            |    4
- configs/iax.conf.sample    |   56 +
- include/asterisk/acl.h     |    3
- include/asterisk/astobj2.h |    9
- main/acl.c                 |    2
- main/astobj2.c             |   19
- 11 files changed, 1324 insertions(+), 150 deletions(-)
+ .version                       |    2
+ ChangeLog                      |    6
+ UPGRADE.txt                    |    8
+ asterisk-1.6.0.15-summary.html |   84 ++
+ asterisk-1.6.0.15-summary.txt  |  119 +++
+ channels/chan_iax2.c           | 1362 ++++++++++++++++++++++++++++++++++++-----
+ channels/iax2-parser.c         |    9
+ channels/iax2-parser.h         |    2
+ channels/iax2.h                |    4
+ configs/iax.conf.sample        |   56 +
+ include/asterisk/acl.h         |    3
+ include/asterisk/astobj2.h     |    9
+ main/acl.c                     |    2
+ main/astobj2.c                 |   19
+ 14 files changed, 1535 insertions(+), 150 deletions(-)
 
      ----------------------------------------------------------------------
