@@ -557,10 +557,7 @@ static int fileexists_test(const char *filename, const char *fmt, const char *la
 /*!
  * \brief helper routine to locate a file with a given format
  * and language preference.
- * Try preflang, preflang with stripped '_' suffix, or NULL.
- * In the standard asterisk, language goes just before the last component.
- * In an alternative configuration, the language should be a prefix
- * to the actual filename.
+ * Try preflang, preflang with stripped '_' suffices, or NULL.
  *
  * The last parameter(s) point to a buffer of sufficient size,
  * which on success is filled with the matching filename.
@@ -569,36 +566,35 @@ static int fileexists_core(const char *filename, const char *fmt, const char *pr
 			   char *buf, int buflen)
 {
 	int res = -1;
-	char *lang = NULL;
+	char *lang;
 
 	if (buf == NULL) {
 		return -1;
 	}
 
 	/* We try languages in the following order:
-	 *    preflang (may include dialect)
+	 *    preflang (may include dialect and style codes)
 	 *    lang (preflang without dialect - if any)
 	 *    <none>
 	 *    default (unless the same as preflang or lang without dialect)
 	 */
 
-	/* Try preferred language */
-	if (!ast_strlen_zero(preflang)) {
-		/* try the preflang exactly as it was requested */
-		if ((res = fileexists_test(filename, fmt, preflang, buf, buflen)) > 0) {
-			return res;
-		} else {
-			/* try without a dialect */
-			char *postfix = NULL;
-			postfix = lang = ast_strdupa(preflang);
+	lang = ast_strdupa(preflang);
 
-			strsep(&postfix, "_");
-			if (postfix) {
-				if ((res = fileexists_test(filename, fmt, lang, buf, buflen)) > 0) {
-					return res;
-				}
-			}
+	/* Try preferred language, including removing any style or dialect codes */
+	while (!ast_strlen_zero(lang)) {
+		char *end;
+
+		if ((res = fileexists_test(filename, fmt, lang, buf, buflen)) > 0) {
+			return res;
 		}
+
+		if ((end = strrchr(lang, '_')) != NULL) {
+			*end = '\0';
+			continue;
+		}
+
+		break;
 	}
 
 	/* Try without any language */
