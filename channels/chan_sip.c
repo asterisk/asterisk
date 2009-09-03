@@ -25491,10 +25491,14 @@ static int reload_config(enum channelreloadreason reason)
 		char temp[MAXHOSTNAMELEN];
 
 		/* First our default IP address */
-		if (bindaddr.sin_addr.s_addr)
+		if (bindaddr.sin_addr.s_addr) {
 			add_sip_domain(ast_inet_ntoa(bindaddr.sin_addr), SIP_DOMAIN_AUTO, NULL);
-		else
+		} else if (internip.sin_addr.s_addr) {
+		/* Our internal IP address, if configured */
+			add_sip_domain(ast_inet_ntoa(internip.sin_addr), SIP_DOMAIN_AUTO, NULL);
+		} else {
 			ast_log(LOG_NOTICE, "Can't add wildcard IP address to domain list, please add IP address to domain manually.\n");
+		}
 
 		/* If TCP is running on a different IP than UDP, then add it too */
 		if (sip_tcp_desc.local_address.sin_addr.s_addr && !inaddrcmp(&bindaddr, &sip_tcp_desc.local_address))
