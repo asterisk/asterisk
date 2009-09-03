@@ -60,9 +60,10 @@
 #define CID_SIG_V23_JP	4
 #define CID_SIG_SMDI	5
 
-#define CID_START_RING	1
-#define CID_START_POLARITY 2
-#define CID_START_POLARITY_IN 3
+#define CID_START_RING			1
+#define CID_START_POLARITY 		2
+#define CID_START_POLARITY_IN 	3
+#define CID_START_DTMF_NOALERT	4
 
 /* defines dealing with message waiting indication generation */
 /*! MWI SDMF format */

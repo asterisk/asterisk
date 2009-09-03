@@ -416,6 +416,7 @@ static int distinctiveringaftercid = 0;
 static int numbufs = 4;
 
 static int mwilevel = 512;
+static int dtmfcid_level = 256;
 
 #ifdef HAVE_PRI
 #ifdef PRI_GETSET_TIMERS
@@ -1081,7 +1082,9 @@ static struct dahdi_pvt {
 	int span;					/*!< Span number */
 	time_t guardtime;				/*!< Must wait this much time before using for new call */
 	int cid_signalling;				/*!< CID signalling type bell202 or v23 */
-	int cid_start;					/*!< CID start indicator, polarity or ring */
+	int cid_start;					/*!< CID start indicator, polarity or ring or DTMF without warning event */
+	int dtmfcid_holdoff_state;		/*!< State indicator that allows for line to settle before checking for dtmf energy */
+	struct timeval	dtmfcid_delay;  /*!< Time value used for allow line to settle */
 	int callingpres;				/*!< The value of calling presentation that we're going to use when placing a PRI call */
 	int callwaitingrepeat;				/*!< How many samples to wait before repeating call waiting */
 	int cidcwexpire;				/*!< When to expire our muting for CID/CW */
@@ -8924,7 +8927,8 @@ static void *analog_ss_thread(void *data)
 		/* If we want caller id, we're in a prering state due to a polarity reversal
 		 * and we're set to use a polarity reversal to trigger the start of caller id,
 		 * grab the caller id and wait for ringing to start... */
-		} else if (p->use_callerid && (chan->_state == AST_STATE_PRERING && (p->cid_start == CID_START_POLARITY || p->cid_start == CID_START_POLARITY_IN))) {
+		} else if (p->use_callerid && (chan->_state == AST_STATE_PRERING &&
+						 (p->cid_start == CID_START_POLARITY || p->cid_start == CID_START_POLARITY_IN || p->cid_start == CID_START_DTMF_NOALERT))) {
 			/* If set to use DTMF CID signalling, listen for DTMF */
 			if (p->cid_signalling == CID_SIG_DTMF) {
 				int k = 0;
@@ -10082,8 +10086,10 @@ static void *do_monitor(void *data)
 						pfds[count].events = POLLPRI;
 						pfds[count].revents = 0;
 						/* Message waiting or r2 channels also get watched for reading */
-						if (i->cidspill || i->mwisendactive || i->mwimonitor_fsk)
+						if (i->cidspill || i->mwisendactive || i->mwimonitor_fsk || 
+							(i->cid_start == CID_START_DTMF_NOALERT && (i->sig == SIG_FXSLS || i->sig == SIG_FXSGS || i->sig == SIG_FXSKS))) {
 							pfds[count].events |= POLLIN;
+						}
 						count++;
 					}
 				} else {
@@ -10094,8 +10100,10 @@ static void *do_monitor(void *data)
 						pfds[count].revents = 0;
 						/* If we are monitoring for VMWI or sending CID, we need to
 						   read from the channel as well */
-						if (i->cidspill || i->mwisendactive || i->mwimonitor_fsk)
+						if (i->cidspill || i->mwisendactive || i->mwimonitor_fsk ||
+							(i->cid_start == CID_START_DTMF_NOALERT && (i->sig == SIG_FXSLS || i->sig == SIG_FXSGS || i->sig == SIG_FXSKS))) {
 							pfds[count].events |= POLLIN;
+						}
 						count++;
 					}
 				}
@@ -10185,7 +10193,7 @@ static void *do_monitor(void *data)
 						i = i->next;
 						continue;
 					}
-					if (!i->mwimonitor_fsk && !i->mwisendactive) {
+					if (!i->mwimonitor_fsk && !i->mwisendactive  && i->cid_start != CID_START_DTMF_NOALERT) {
 						ast_log(LOG_WARNING, "Whoa....  I'm not looking for MWI or sending MWI but am reading (%d)...\n", i->subs[SUB_REAL].dfd);
 						i = i->next;
 						continue;
@@ -10211,6 +10219,50 @@ static void *do_monitor(void *data)
 										ast_free(mtd);
 									}
 									i->mwimonitoractive = 1;
+								}
+							}
+						/* If configured to check for a DTMF CID spill that comes without alert (e.g no polarity reversal) */
+						} else if (i->cid_start == CID_START_DTMF_NOALERT) {
+							int energy;
+							struct timeval now;
+							/* State machine dtmfcid_holdoff_state allows for the line to settle
+							 * before checking agin for dtmf energy.  Presently waits for 500 mS before checking again 
+							*/
+							if (1 == i->dtmfcid_holdoff_state) {
+								gettimeofday(&i->dtmfcid_delay, NULL);
+								i->dtmfcid_holdoff_state = 2;
+							} else if (2 == i->dtmfcid_holdoff_state) {
+								gettimeofday(&now, NULL);
+								if ((int)(now.tv_sec - i->dtmfcid_delay.tv_sec) * 1000000 + (int)now.tv_usec - (int)i->dtmfcid_delay.tv_usec > 500000) {
+									i->dtmfcid_holdoff_state = 0;
+								}
+							} else {
+								energy = calc_energy((unsigned char *) buf, res, AST_LAW(i));
+								if (!i->mwisendactive && energy > dtmfcid_level) {
+									pthread_t threadid;
+									struct ast_channel *chan;
+									ast_mutex_unlock(&iflock);
+									if (analog_lib_handles(i->sig, i->radio, i->oprmode)) {
+										res = analog_handle_init_event(i->sig_pvt, ANALOG_EVENT_DTMFCID);  
+										if (res) {
+											ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
+										} else {
+											i->dtmfcid_holdoff_state = 1;
+										}
+									} else {
+										chan = dahdi_new(i, AST_STATE_PRERING, 0, SUB_REAL, 0, 0, NULL);
+										if (!chan) {
+											ast_log(LOG_WARNING, "Cannot allocate new structure on channel %d\n", i->channel);
+										} else {
+											res = ast_pthread_create_detached(&threadid, NULL, analog_ss_thread, chan);
+											if (res) {
+												ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
+											} else {
+												i->dtmfcid_holdoff_state = 1;
+											}
+										}
+									}
+									ast_mutex_lock(&iflock);
 								}
 							}
 						}
@@ -11191,7 +11243,19 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				analog_p->echotraining = conf->chan.echotraining;
 				analog_p->cid_signalling = conf->chan.cid_signalling;
 				analog_p->stripmsd = conf->chan.stripmsd;
-				analog_p->cid_start = ANALOG_CID_START_RING;
+				switch (conf->chan.cid_start) {
+					case CID_START_POLARITY:
+						analog_p->cid_start = ANALOG_CID_START_POLARITY;
+						break;
+					case CID_START_POLARITY_IN:
+						analog_p->cid_start = ANALOG_CID_START_POLARITY_IN;
+						break;
+					case CID_START_DTMF_NOALERT:
+						analog_p->cid_start = ANALOG_CID_START_DTMF_NOALERT;
+						break;
+					default:
+						analog_p->cid_start = ANALOG_CID_START_RING;
+				}
 				analog_p->callwaitingcallerid = conf->chan.callwaitingcallerid;
 				analog_p->usedistinctiveringdetection = conf->chan.usedistinctiveringdetection;
 				analog_p->ringt = conf->chan.ringt;
@@ -15181,6 +15245,8 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				confp->chan.cid_start = CID_START_POLARITY_IN;
 			else if (!strcasecmp(v->value, "polarity"))
 				confp->chan.cid_start = CID_START_POLARITY;
+			else if (!strcasecmp(v->value, "dtmf"))
+				confp->chan.cid_start = CID_START_DTMF_NOALERT;
 			else if (ast_true(v->value))
 				confp->chan.cid_start = CID_START_RING;
 		} else if (!strcasecmp(v->name, "threewaycalling")) {
@@ -16016,6 +16082,8 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				ast_copy_string(defaultozz, v->value, sizeof(defaultozz));
 			} else if (!strcasecmp(v->name, "mwilevel")) {
 				mwilevel = atoi(v->value);
+			} else if (!strcasecmp(v->name, "dtmfcidlevel")) {
+				dtmfcid_level = atoi(v->value);
 			}
 		} else if (!(options & PROC_DAHDI_OPT_NOWARN) )
 			ast_log(LOG_WARNING, "Ignoring any changes to '%s' (on reload) at line %d.\n", v->name, v->lineno);

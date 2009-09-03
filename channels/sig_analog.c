@@ -193,6 +193,8 @@ enum analog_cid_start analog_str_to_cidstart(const char *value)
 		return ANALOG_CID_START_POLARITY;
 	} else if (!strcasecmp(value, "polarity_in")) {
 		return ANALOG_CID_START_POLARITY_IN;
+	} else if (!strcasecmp(value, "dtmf")) {
+		return ANALOG_CID_START_DTMF_NOALERT;
 	}
 
 	return 0;
@@ -207,6 +209,8 @@ const char *analog_cidstart_to_str(enum analog_cid_start cid_start)
 		return "Polarity";
 	case ANALOG_CID_START_POLARITY_IN:
 		return "Polarity_In";
+	case ANALOG_CID_START_DTMF_NOALERT:
+		return "DTMF";
 	}
 
 	return "Unknown";
@@ -2032,7 +2036,8 @@ static void *__analog_ss_thread(void *data)
 		/* If we want caller id, we're in a prering state due to a polarity reversal
 		 * and we're set to use a polarity reversal to trigger the start of caller id,
 		 * grab the caller id and wait for ringing to start... */
-		if (p->use_callerid && (chan->_state == AST_STATE_PRERING && (p->cid_start == ANALOG_CID_START_POLARITY || p->cid_start == ANALOG_CID_START_POLARITY_IN))) {
+		if (p->use_callerid && (chan->_state == AST_STATE_PRERING &&
+				  (p->cid_start == ANALOG_CID_START_POLARITY || p->cid_start == ANALOG_CID_START_POLARITY_IN || p->cid_start == ANALOG_CID_START_DTMF_NOALERT))) {
 			/* If set to use DTMF CID signalling, listen for DTMF */
 			if (p->cid_signalling == CID_SIG_DTMF) {
 				int i = 0;
@@ -3239,7 +3244,7 @@ int analog_handle_init_event(struct analog_pvt *i, int event)
 		case ANALOG_SIG_SF_FEATB:
 		case ANALOG_SIG_SF:
 			/* Check for callerid, digits, etc */
-			if (i->cid_start == ANALOG_CID_START_POLARITY_IN) {
+			if (i->cid_start == ANALOG_CID_START_POLARITY_IN || i->cid_start == ANALOG_CID_START_DTMF_NOALERT) {
 				chan = analog_new_ast_channel(i, AST_STATE_PRERING, 0, ANALOG_SUB_REAL, NULL);
 			} else {
 				chan = analog_new_ast_channel(i, AST_STATE_RING, 0, ANALOG_SUB_REAL, NULL);
@@ -3354,6 +3359,27 @@ int analog_handle_init_event(struct analog_pvt *i, int event)
 			ast_log(LOG_WARNING, "handle_init_event detected "
 				"polarity reversal on non-FXO (ANALOG_SIG_FXS) "
 				"interface %d\n", i->channel);
+		}
+		break;
+	case ANALOG_EVENT_DTMFCID:
+		switch (i->sig) {
+			case ANALOG_SIG_FXSLS:
+			case ANALOG_SIG_FXSKS:
+			case ANALOG_SIG_FXSGS:
+				if (i->cid_start == ANALOG_CID_START_DTMF_NOALERT) {
+					ast_verbose(VERBOSE_PREFIX_2 "Starting DTMF CID detection on channel %d\n",
+								i->channel);
+					chan = analog_new_ast_channel(i, AST_STATE_PRERING, 0, ANALOG_SUB_REAL, NULL);
+					i->ss_astchan = chan;
+					if (chan && ast_pthread_create(&threadid, &attr, __analog_ss_thread, i)) {
+						ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
+					}
+				}
+				break;
+			default:
+				ast_log(LOG_WARNING, "handle_init_event detected "
+						"dtmfcid generation event on non-FXO (ANALOG_SIG_FXS) "
+								"interface %d\n", i->channel);
 		}
 		break;
 	case ANALOG_EVENT_NEONMWI_ACTIVE:

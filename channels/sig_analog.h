@@ -80,6 +80,7 @@ enum analog_event {
 	ANALOG_EVENT_ERROR,
 	ANALOG_EVENT_NEONMWI_ACTIVE,
 	ANALOG_EVENT_NEONMWI_INACTIVE,
+	ANALOG_EVENT_DTMFCID,
 };
 
 enum analog_sub {
@@ -97,6 +98,7 @@ enum analog_cid_start {
 	ANALOG_CID_START_POLARITY = 1,
 	ANALOG_CID_START_POLARITY_IN,
 	ANALOG_CID_START_RING,
+	ANALOG_CID_START_DTMF_NOALERT,
 };
 
 #define ANALOG_MAX_CID 300
@@ -187,6 +189,7 @@ struct analog_callback {
 	void (* const decrease_ss_count)(void);
 
 	int (* const distinctive_ring)(struct ast_channel *chan, void *pvt, int idx, int *ringdata);
+	/* Sets the specified sub-channel in and out of signed linear mode, returns the value that was overwritten */
 	int (* const set_linear_mode)(void *pvt, int idx, int linear_mode);
 	void (* const get_and_handle_alarms)(void *pvt);
 	void * (* const get_sigpvt_bridged_channel)(struct ast_channel *chan);
