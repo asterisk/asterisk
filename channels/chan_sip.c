@@ -7594,7 +7594,7 @@ static int sip_register(const char *value, int lineno)
 
 	ast_atomic_fetchadd_int(&regobjs, 1);
 	ASTOBJ_INIT(reg);
-	ast_string_field_set(reg, callback, ast_strip_quoted(S_OR(host2.extension, ""), "\"", "\""));
+	ast_string_field_set(reg, callback, ast_strip_quoted(S_OR(host2.extension, "s"), "\"", "\""));
 	ast_string_field_set(reg, username, ast_strip_quoted(S_OR(user2.userpart, ""), "\"", "\""));
 	ast_string_field_set(reg, hostname, ast_strip_quoted(S_OR(host3.host, ""), "\"", "\""));
 	ast_string_field_set(reg, regdomain, ast_strip_quoted(S_OR(user2.domain, S_OR(host3.host, "")), "\"", "\""));
