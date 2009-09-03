@@ -12,8 +12,9 @@
 
     1. Summary
     2. Contributors
-    3. Other Changes
-    4. Diffstat
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
 
      ----------------------------------------------------------------------
 
@@ -28,7 +29,7 @@
    the advisories and determine what action they should take to protect their
    systems from these issues.
 
-   Security Advisories: AST-2009-006
+   Security Advisories:
 
    The data in this summary reflects changes that have been made since the
    previous release, asterisk-1.2.34.
@@ -49,7 +50,28 @@
    release.
 
      Coders                   Testers                  Reporters              
-   1 lmadsen                
+   1 dvossel                1 dbrooks                1 rathaus                
+   1 russell                1 dvossel                
+                            1 russell                
+                            1 tilghman               
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Channels/chan_iax2
+
+   #12912: An issue with the IAX2 channel allows anonymous connections to
+   cause resource starvation
+   Revision: 215958
+   Reporter: rathaus
+   Testers: tilghman, russell, dvossel, dbrooks
+   Coders: dvossel
 
      ----------------------------------------------------------------------
 
@@ -65,8 +87,8 @@
    +------------------------------------------------------------------------+
    | Revision | Author  | Summary                       | Issues Referenced |
    |----------+---------+-------------------------------+-------------------|
-   | 216104   | lmadsen | Creating tag for the release  |                   |
-   |          |         | of asterisk-1.2.35            |                   |
+   | 216005   | russell | Add IAX2 security document    |                   |
+   |          |         | related to AST-2009-006.      |                   |
    +------------------------------------------------------------------------+
 
      ----------------------------------------------------------------------
@@ -78,6 +100,20 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- 0 files changed
+ Makefile                   |    2
+ acl.c                      |   12
+ astobj2.c                  |   19
+ channels/chan_iax2.c       | 1348 +++++++++++++++++++++++++++++++++++++++++----
+ channels/iax2-parser.c     |   11
+ channels/iax2-parser.h     |    2
+ channels/iax2.h            |    2
+ configs/iax.conf.sample    |   56 +
+ include/asterisk/acl.h     |   13
+ include/asterisk/astobj2.h |   10
+ include/asterisk/sha1.h    |   81 ++
+ include/asterisk/utils.h   |    4
+ sha1.c                     |  385 ++++++++++++
+ utils.c                    |   19
+ 14 files changed, 1829 insertions(+), 135 deletions(-)
 
      ----------------------------------------------------------------------
