@@ -1,0 +1,13 @@
+
+
+context c
+{
+	567 => NoOp(hi there, c);
+}
+
+#include "t2/*.ael"
+
+context w
+{
+	890 => NoOp(hi there, w);
+}

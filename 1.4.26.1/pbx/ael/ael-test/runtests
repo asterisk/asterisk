@@ -1,0 +1,56 @@
+#!/bin/bash
+ORIG=`mktemp /tmp/mytest.XXXXXX`
+NEW=`mktemp /tmp/mytest.XXXXXX`
+
+do_filter() {
+	sed 's/line:[0-9]*//; /^Executed.*/d; s/column=[0-9]*/ /; s/Cols: [0-9]*-[0-9]*/___/'
+}
+
+for i in ael-test*; do
+	echo -n Test: $i..................
+	(cd $i; ../../../../utils/aelparse -n -d | grep -v -i 'seconds' > ../res.$i)
+	do_filter < res.$i > $NEW
+	do_filter < ref.$i > $ORIG
+	if (diff -q $NEW $ORIG > /dev/null 2>&1 ) then
+		echo PASSED
+		rm res.$i
+	else
+		echo %%%%%%FAILED%%%%%%
+		# diff -u ref.$i res.$i
+		diff -u $ORIG $NEW
+	fi
+
+done
+
+for i in ael-ntest*; do
+	echo -n Test: $i.................
+	(cd $i; ../../../../utils/aelparse -d | grep -v -i 'seconds' > ../res.$i)
+	do_filter < res.$i > $NEW
+	do_filter < ref.$i > $ORIG
+	if (diff -q $NEW $ORIG > /dev/null 2>&1 ) then
+		echo PASSED
+		rm res.$i
+	else
+		echo %%%%%%FAILED%%%%%%
+		# diff -u ref.$i res.$i
+		diff -u $ORIG $NEW
+	fi
+
+done
+
+for i in ael-vtest*; do
+	echo -n Test: $i.................
+	(cd $i; ../../../../utils/aelparse -d -w -n | grep -v -i 'seconds' > ../res2.$i)
+	
+	if (diff -q ref.$i $i/extensions.conf.aeldump  > /dev/null 2>&1 ) then
+		echo PASSED
+		rm res2.$i
+		rm $i/extensions.conf.aeldump
+	else
+		echo %%%%%%FAILED%%%%%%
+		# diff -u ref.$i res.$i
+		diff -u ref.$i $i/extensions.conf.aeldump
+	fi
+
+done
+rm $NEW $ORIG

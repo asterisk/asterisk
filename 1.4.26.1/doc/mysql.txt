@@ -1,0 +1,15 @@
+MYSQL LICENSING UPDATE
+======================
+We were recently contacted by MySQL and informed that the MySQL client 
+libraries are now under GPL license and not LGPL license as before.  
+
+Since Asterisk does allow exceptions to GPL, we are removing MySQL support 
+from standard Asterisk.  We will, where appropriate, make it available via 
+a separate package which will only be usable when Asterisk is used completely
+within GPL (i.e. not in conjunction with G.729, OpenH.323, etc).  We 
+apologize for the confusion.
+
+You may find this in the new "asterisk-addons" package.
+
+Mark Spencer
+Digium

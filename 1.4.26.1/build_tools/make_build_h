@@ -1,0 +1,20 @@
+#!/bin/sh
+HOSTNAME=`uname -n`
+KERNEL=`uname -r`
+MACHINE=`uname -m`
+OS=`uname -s`
+USER=`${ID} -un`
+DATE=`date -u "+%Y-%m-%d %H:%M:%S"`
+cat << END
+/*
+ * build.h 
+ * Automatically generated
+ */
+#define BUILD_HOSTNAME "${HOSTNAME}"
+#define BUILD_KERNEL "${KERNEL}"
+#define BUILD_MACHINE "${MACHINE}"
+#define BUILD_OS "${OS}"
+#define BUILD_DATE "${DATE} UTC"
+#define BUILD_USER "${USER}"
+
+END

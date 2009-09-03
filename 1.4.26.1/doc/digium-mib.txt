@@ -1,0 +1,24 @@
+DIGIUM-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+	enterprises, MODULE-IDENTITY
+		FROM SNMPv2-SMI;
+
+digium MODULE-IDENTITY
+	LAST-UPDATED	"200806202000Z"
+	ORGANIZATION	"Digium, Inc."
+	CONTACT-INFO
+		"Mark Spencer
+		Email: markster@digium.com"
+	DESCRIPTION
+		"The Digium private-enterprise MIB"
+	REVISION	"200806202000Z"
+	DESCRIPTION
+		"Corrected imports and missing revision for last update.
+		 Addresses bug 12905. - jeffg@opennms.org"
+	REVISION	"200602041900Z"
+	DESCRIPTION
+		"Initial revision."
+	::= { enterprises 22736 }
+
+END

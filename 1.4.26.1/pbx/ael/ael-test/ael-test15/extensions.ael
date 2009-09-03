@@ -1,0 +1,17 @@
+/* and some comments
+	would make a nice touch */
+
+context t1
+{
+	/* this a test of block comments */
+
+	_15x => {
+			/* more comments
+			across several lines
+			* what do you think*
+			*/
+	}
+
+}
+
+/* amd some more */

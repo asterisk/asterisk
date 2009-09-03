@@ -1,0 +1,79 @@
+#!/bin/sh
+
+if [ -f ${1}/.version ]; then
+    cat ${1}/.version
+elif [ -d .svn ]; then
+    PARTS=`LANG=C svn info ${1} | ${GREP} URL | ${AWK} '{print $2;}' | sed -e 's:^.*/svn/asterisk/::' | sed -e 's:/: :g'`
+    BRANCH=0
+    TEAM=0
+    TAG=0
+
+    REV=`svnversion -c ${1} | cut -d: -f2`
+
+    INTEGRATED=`LANG=C svn pg automerge-propname ${1}`
+    if [ -z "${INTEGRATED}" ] ; then
+        INTEGRATED=svnmerge-integrated
+    fi
+
+    BASE=`LANG=C svn pg ${INTEGRATED} ${1} | cut -d: -f1`
+
+    if [ "${PARTS}" = "trunk" ] ; then
+        echo SVN-trunk-r${REV}
+        exit 0
+    fi
+
+    for PART in $PARTS ; do
+        if [ ${TAG} != 0 ] ; then
+            if [ "${PART}" = "autotag_for_be" ] ; then
+                continue
+            fi
+            if [ "${PART}" = "autotag_for_sx00i" ] ; then
+                continue
+            fi
+            RESULT="${PART}"
+            break
+        fi
+
+        if [ ${BRANCH} != 0 ] ; then
+            if [ -z "${RESULT}" ] ; then
+                RESULT="${PART}"
+            else
+                RESULT="${RESULT}-${PART}"
+            fi
+            break
+        fi
+
+        if [ ${TEAM} != 0 ] ; then
+            if [ -z "${RESULT}" ] ; then
+                RESULT="${PART}"
+            else
+                RESULT="${RESULT}-${PART}"
+            fi
+            continue
+        fi
+
+        if [ "${PART}" = "branches" ] ; then
+            BRANCH=1
+            RESULT="branch"
+            continue
+        fi
+
+        if [ "${PART}" = "tags" ] ; then
+            TAG=1
+            continue
+        fi
+
+        if [ "${PART}" = "team" ] ; then
+            TEAM=1
+            continue
+        fi
+    done
+
+    if [ ${TAG} != 0 ] ; then
+        echo ${RESULT}
+    else
+        echo SVN-${RESULT}-r${REV}${BASE:+-${BASE}}
+    fi
+else
+    echo "UNKNOWN__and_probably_unsupported"
+fi

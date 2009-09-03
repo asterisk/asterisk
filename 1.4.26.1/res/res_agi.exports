@@ -1,0 +1,7 @@
+{
+	global:
+		ast_agi_register;
+		ast_agi_unregister;
+	local:
+		*;
+};

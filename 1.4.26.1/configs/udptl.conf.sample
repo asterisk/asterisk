@@ -1,0 +1,30 @@
+;
+; UDPTL Configuration (UDPTL is one of the transports for T.38)
+;
+[general]
+;
+; UDPTL start and UDPTL end configure start and end addresses
+;
+udptlstart=4000
+udptlend=4999
+;
+; Whether to enable or disable UDP checksums on UDPTL traffic
+;
+;udptlchecksums=no
+;
+; The error correction type to be sent
+;
+T38FaxUdpEC = t38UDPFEC
+;T38FaxUdpEC = t38UDPRedundancy
+;
+; The maximum length of a UDPTL packet
+;
+T38FaxMaxDatagram = 400
+;
+; The number of error correction entries in a UDPTL packet
+;
+udptlfecentries = 3
+;
+; The span over which parity is calculated for FEC in a UDPTL packet
+;
+udptlfecspan = 3

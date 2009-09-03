@@ -1,0 +1,74 @@
+CISCO-H225-MESSAGES DEFINITIONS AUTOMATIC TAGS ::=
+BEGIN
+
+H323_UU_NonStdInfo ::= SEQUENCE
+{
+	version INTEGER OPTIONAL,
+	protoParam ProtoParam OPTIONAL,
+	commonParam CommonParam OPTIONAL,
+	...,
+	dummy1 OCTET STRING OPTIONAL,
+	progIndParam ProgIndParam OPTIONAL,
+	callMgrParam CallMgrParam OPTIONAL,
+	callSignallingParam CallSignallingParam OPTIONAL,
+	dummy2 OCTET STRING OPTIONAL,
+	callPreserveParam CallPreserveParam OPTIONAL
+}
+
+CommonParam ::= SEQUENCE
+{
+	redirectIEinfo RedirectIEinfo,
+	...
+}
+
+RedirectIEinfo ::= SEQUENCE
+{
+	redirectIE OCTET STRING,
+	...
+}
+
+ProgIndParam ::= SEQUENCE
+{
+	progIndIEinfo ProgIndIEinfo,
+	...
+}
+
+ProgIndIEinfo ::= SEQUENCE
+{
+	progIndIE OCTET STRING,
+	...
+}
+
+ProtoParam ::= SEQUENCE
+{
+	qsigNonStdInfo QsigNonStdInfo,
+	...
+}
+
+QsigNonStdInfo ::= SEQUENCE
+{
+	iei	INTEGER,
+	rawMesg OCTET STRING,
+	...
+}
+
+CallMgrParam ::= SEQUENCE
+{
+	interclusterVersion INTEGER,
+	enterpriseID OCTET STRING,
+	...
+}
+
+CallPreserveParam ::= SEQUENCE
+{
+	callPreserveIE BOOLEAN,
+	...
+}
+
+CallSignallingParam ::= SEQUENCE
+{
+	connectedNumber OCTET STRING (1..127) OPTIONAL,
+	...
+}
+
+END

@@ -1,0 +1,33 @@
+In addition to being the console for Asterisk, the CLI also sports several
+features that make it very helpful to use for obtaining information and
+affecting system configuration.  The console can also be seen by starting
+a remote console, which connects to the running daemon and shows much of
+the same information as if using the daemon in foreground mode.
+
+Connecting a remote console is as easy as using the -r or -R flags.  The only
+difference between these flags is that the uppercase variation (-R) will
+automatically reconnect to the daemon (or at least retry) if the daemon
+restarts.  To exit a remote console, simply type 'quit' or 'exit'.  Please note
+that you can differentiate between a remote console and the Asterisk console,
+as 'quit' or 'exit' will not function on the main console, which prevents an
+accidental shutdown of the daemon.  If you would like to shutdown the Asterisk
+daemon, you can use the 'stop' set of commands, such as 'stop now',
+'stop gracefully', or 'stop when convenient'.
+
+Once on the console, the 'help' command may be used to see a list of commands
+available for use.  Note that in addition to the 'help' command, the Asterisk
+CLI sports tab command line completion on all commands, including many
+arguments.  To use tab command line completion, simply press the <Tab> key at
+any time while entering the beginning of any command.  If the command can be
+completed unambiguously, it will do so, otherwise it will complete as much of
+the command as possible.  Additionally, Asterisk will print a list of all
+possible matches, if possible.
+
+The 'help' command may also be used to obtain more detailed information on
+how to use a particular command.  For example, if you type 'help core show',
+Asterisk will respond with a list of all commands that start with that string.
+If you type 'help core show version', specifying a complete command, Asterisk
+will respond with a usage message which describes how to use that command.  As
+with other commands on the Asterisk console, the help command also responds to
+tab command line completion.
+

@@ -1,0 +1,20 @@
+context test1
+{
+	10 => {
+		// nothing but a comment!
+	}
+
+	11 => {
+		switch(${somevar})
+		{
+		case somecase:
+			// nothing but a comment!
+			break;
+		case somecase:
+			// nothing but a comment!
+			continue;
+		}
+		break;
+	}
+
+}

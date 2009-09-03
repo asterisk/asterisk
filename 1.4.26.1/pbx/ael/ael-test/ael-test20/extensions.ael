@@ -1,0 +1,8 @@
+context interesting {
+        eswitches {
+                Realtime/default@extensions;
+         	IAX2/context@${CURSERVER};
+        }
+	13 => NoOp(LuckyNumber!);
+}
+

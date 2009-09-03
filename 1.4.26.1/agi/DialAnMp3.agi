@@ -1,0 +1,82 @@
+#!/usr/bin/perl
+#
+# Simple AGI application to play mp3's selected by a user both using 
+# xmms and over the phone itself.
+#
+$|=1;
+while(<STDIN>) {
+	chomp;
+	last unless length($_);
+	if (/^agi_(\w+)\:\s+(.*)$/) {
+		$AGI{$1} = $2;
+	}
+}
+
+print STDERR "AGI Environment Dump:\n";
+foreach $i (sort keys %AGI) {
+	print STDERR " -- $i = $AGI{$i}\n";
+}
+
+dbmopen(%DIGITS, "/var/lib/asterisk/mp3list", 0644) || die("Unable to open mp3list");;
+
+sub checkresult {
+	my ($res) = @_;
+	my $retval;
+	$tests++;
+	chomp $res;
+	if ($res =~ /^200/) {
+		$res =~ /result=(-?[\w\*\#]+)/;
+		return $1;
+	} else {
+		return -1;
+	}
+}
+
+#print STDERR "1.  Playing beep...\n";
+#print "STREAM FILE beep \"\"\n";
+#$result = <STDIN>;
+#checkresult($result);
+
+print STDERR "2.  Getting song name...\n";
+print "GET DATA demo-enterkeywords\n";
+$result = <STDIN>;
+$digitstr = checkresult($result);
+if ($digitstr < 0) {
+	exit(1);
+}
+$digitstr =~ s/\*/ /g;
+
+print STDERR "Resulting songname is $digitstr\n";
+@searchwords = split (/\s+/, $digitstr);
+print STDERR "Searchwords: " . join(':', @searchwords) . "\n";
+
+foreach $key (sort keys %DIGITS) {
+	@words = split(/\s+/, $DIGITS{$key});
+	$match = 1;
+	foreach $search (@searchwords) {
+		$match = 0 unless grep(/$search/, @words);
+	}
+	if ($match > 0) {
+		print STDERR "File $key matches\n";
+		# Play a beep
+		print "STREAM FILE beep \"\"\n";
+		system("xmms", $key);
+		$result = <STDIN>;
+		if (&checkresult($result) < 0) {
+			exit 0;
+		}
+		print "EXEC MP3Player \"$key\"\n";
+#		print "WAIT FOR DIGIT 60000\n";
+		$result = <STDIN>;
+		if (&checkresult($result) < 0) {
+			exit 0;
+		}
+		print STDERR "Got here...\n";
+	}
+}
+
+print STDERR "4.  Testing 'saynumber' of $digitstr...\n";
+print "STREAM FILE demo-nomatch\"\"\n";
+$result = <STDIN>;
+checkresult($result);
+

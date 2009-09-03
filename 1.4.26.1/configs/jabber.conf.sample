@@ -1,0 +1,18 @@
+[general]
+;debug=yes				;;Turn on debugging by default.
+;autoprune=yes				;;Auto remove users from buddy list.
+;autoregister=yes			;;Auto register users from buddy list. 
+
+;[asterisk]				;;label
+;type=client				;;Client or Component connection
+;serverhost=astjab.org			;;Route to server for example,
+					;;	talk.google.com
+;username=asterisk@astjab.org/asterisk	;;Username with optional roster.
+;secret=blah				;;Password
+;port=5222				;;Port to use defaults to 5222
+;usetls=yes				;;Use tls or not
+;usesasl=yes				;;Use sasl or not
+;buddy=mogorman@astjab.org		;;Manual addition of buddy to list.
+;statusmessage="I am available"		;;Have custom status message for
+					;;Asterisk.
+;timeout=100				;;Timeout on the message stack.

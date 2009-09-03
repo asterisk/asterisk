@@ -1,0 +1,137 @@
+===============================================================================
+===============================================================================
+=== Asterisk SMDI (Simple Message Desk Interface) integration =================
+===============================================================================
+===============================================================================
+
+===============================================================================
+===== 1) Accessing SMDI information in the dialplan. ==========================
+===============================================================================
+
+There are two dialplan functions that can be used to access the details of
+incoming SMDI messages.
+
+*CLI> core show function SMDI_MSG_RETRIEVE
+
+  -= Info about function 'SMDI_MSG_RETRIEVE' =- 
+
+[Syntax]
+SMDI_MSG_RETRIEVE(<smdi port>,<search key>[,timeout[,options]])
+
+[Synopsis]
+Retrieve an SMDI message.
+
+[Description]
+   This function is used to retrieve an incoming SMDI message.  It returns
+an ID which can be used with the SMDI_MSG() function to access details of
+the message.  Note that this is a destructive function in the sense that
+once an SMDI message is retrieved using this function, it is no longer in
+the global SMDI message queue, and can not be accessed by any other Asterisk
+channels.  The timeout for this function is optional, and the default is
+3 seconds.  When providing a timeout, it should be in milliseconds.
+   The default search is done on the forwarding station ID.  However, if
+you set one of the search key options in the options field, you can change
+this behavior.
+   Options:
+     t - Instead of searching on the forwarding station, search on the message
+         desk terminal.
+     n - Instead of searching on the forwarding station, search on the message
+         desk number.
+
+
+*CLI> core show function SMDI_MSG
+
+  -= Info about function 'SMDI_MSG' =-
+
+[Syntax]
+SMDI_MSG(<message_id>,<component>)
+
+[Synopsis]
+Retrieve details about an SMDI message.
+
+[Description]
+   This function is used to access details of an SMDI message that was
+pulled from the incoming SMDI message queue using the SMDI_MSG_RETRIEVE()
+function.
+   Valid message components are:
+      station  - The forwarding station
+      callerid - The callerID of the calling party that was forwarded
+      type     - The call type.  The value here is the exact character
+                 that came in on the SMDI link.  Typically, example values
+                 are: D - Direct Calls, A - Forward All Calls,
+                      B - Forward Busy Calls, N - Forward No Answer Calls
+
+
+Here is an example of how to use these functions:
+
+; Retrieve the SMDI message that is associated with the number that
+; was called in Asterisk.
+exten => _0XXX,1,Set(SMDI_MSG_ID=${SMDI_MSG_RETRIEVE(/dev/tty0,${EXTEN})})
+
+; Ensure that the message was retrieved.
+exten => _0XXX,n,GotoIf($["x${SMDI_MSG_ID}" != "x"]?processcall:hangup)
+exten => _0XXX,n(hangup),NoOp(No SMDI message retrieved for ${EXTEN})
+
+; Grab the details out of the SMDI message.
+exten => _0XXX,n(processcall),NoOp(Message found for ${EXTEN})
+exten => _0XXX,n,Set(SMDI_EXTEN=${SMDI_MSG(${SMDI_MSG_ID},station)})
+exten => _0XXX,n,Set(SMDI_CID=${SMDI_MSG(${SMDI_MSG_ID},callerid)})
+
+; Map SMDI message types to the right voicemail option.  If it is "B", use the
+; busy option.  Otherwise, use the unavailable option.
+exten => _0XXX,n,GotoIf($["${SMDI_MSG(${SMDI_MSG_ID},type)}" == "B"]?usebusy:useunavail)
+
+exten => _0XXX,n(usebusy),Set(SMDI_VM_TYPE=b)
+exten => _0XXX,n,Goto(continue)
+
+exten => _0XXX,n,(useunavil),Set(SMDI_VM_TYPE=u)
+
+exten => _0XXX,n(continue),NoOp( Process the rest of the call ... )
+
+
+===============================================================================
+===== 2) Ensuring complete MWI information over SMDI ==========================
+===============================================================================
+
+Another change has been made to ensure that MWI state is properly propagated
+over the SMDI link.  This replaces the use of externnotify=smdi for
+voicemail.conf.  The issue is that we have to poll mailboxes occasionally for
+changes that were made using an IMAP client.  So, this ability was added to
+res_smdi.  To configure this, there is a new section in smdi.conf.  It looks
+like this:
+
+[mailboxes]
+; This section configures parameters related to MWI handling for the SMDI link.
+ ;
+; This option configures the polling interval used to check to see if the
+; mailboxes have any new messages.  This option is specified in seconds.
+; The default value is 10 seconds.
+;
+;pollinginterval=10
+;
+; Before specifying mailboxes, you must specify an SMDI interface.  All mailbox
+; definitions that follow will correspond to that SMDI interface.  If you
+; specify another interface, then all definitions following that will correspond
+; to the new interface.
+;
+; Every other entry in this section of the configuration file is interpreted as
+; a mapping between the mailbox ID on the SMDI link, and the local Asterisk
+; mailbox name.  In many cases, they are the same thing, but they still must be
+; listed here so that this module knows which mailboxes it needs to pay
+; attention to.
+;
+; Syntax:
+;   <SMDI mailbox ID>=<Asterisk Mailbox Name>[@Asterisk Voicemail Context]
+;
+; If no Asterisk voicemail context is specified, "default" will be assumed.
+;
+;
+;smdiport=/dev/ttyS0
+;2565551234=1234@vmcontext1
+;2565555678=5678@vmcontext2
+;smdiport=/dev/ttyS1
+;2565559999=9999
+
+===============================================================================
+===============================================================================
+===============================================================================

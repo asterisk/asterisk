@@ -1,0 +1,9 @@
+#!/bin/sh -e
+
+# This script will be executed by the 'mkrelease' script to do any tasks
+# necessary during tarball creation of this project.
+#
+# It will be executed from the top-level directory of the project.
+
+make -C sounds MENUSELECT_CORE_SOUNDS=CORE-SOUNDS-EN-GSM MENUSELECT_MOH=MOH-FREEPLAY-WAV WGET=wget DOWNLOAD=wget all
+make AWK=awk GREP=grep menuselect-tree
