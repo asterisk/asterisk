@@ -17,7 +17,6 @@
 #define _COMPAT_H
 
 #include "asterisk/autoconfig.h"
-#include "asterisk/compiler.h"
 #include <inttypes.h>
 #include <sys/types.h>
 #include <stdarg.h>
@@ -63,11 +62,11 @@ int vasprintf(char **strp, const char *fmt, va_list ap);
 #endif
 
 #ifndef HAVE_STRLCAT
-size_t strlcat(char *dst, const char *src, size_t siz) attribute_deprecated;
+size_t strlcat(char *dst, const char *src, size_t siz);
 #endif
 
 #ifndef HAVE_STRLCPY
-size_t strlcpy(char *dst, const char *src, size_t siz) attribute_deprecated;
+size_t strlcpy(char *dst, const char *src, size_t siz);
 #endif
 
 #ifdef SOLARIS

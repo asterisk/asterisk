@@ -1798,7 +1798,7 @@ static int action_command(struct mansession *s, const struct message *m)
 	const char *id = astman_get_header(m, "ActionID");
 	char *buf, *final_buf;
 	char template[] = "/tmp/ast-ami-XXXXXX";	/* template for temporary file */
-	int fd;
+	int fd = mkstemp(template);
 	off_t l;
 
 	if (ast_strlen_zero(cmd)) {
@@ -1810,8 +1810,6 @@ static int action_command(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Command blacklisted");
 		return 0;
 	}
-
-	fd = mkstemp(template);
 
 	astman_append(s, "Response: Follows\r\nPrivilege: Command\r\n");
 	if (!ast_strlen_zero(id))
@@ -1903,7 +1901,7 @@ static char mandescr_originate[] =
 "	Priority: Priority to use (requires 'Exten' and 'Context')\n"
 "	Application: Application to use\n"
 "	Data: Data to use (requires 'Application')\n"
-"	Timeout: How long to wait for call to be answered (in ms. Default: 30000)\n"
+"	Timeout: How long to wait for call to be answered (in ms)\n"
 "	CallerID: Caller ID to be set on the outgoing channel\n"
 "	Variable: Channel variable to set, multiple Variable: headers are allowed\n"
 "	Account: Account code\n"

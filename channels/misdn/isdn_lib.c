@@ -42,6 +42,8 @@ int misdn_lib_get_l2_up(struct misdn_stack *stack);
 
 struct misdn_stack* get_misdn_stack( void );
 
+static int set_chan_in_stack(struct misdn_stack *stack, int channel);
+
 int release_cr(struct misdn_stack *stack, mISDNuser_head_t *hh);
 
 int misdn_lib_port_is_pri(int port)
@@ -211,6 +213,10 @@ void misdn_tx_jitter(struct misdn_bchannel *bc, int len);
 
 struct misdn_bchannel *find_bc_by_l3id(struct misdn_stack *stack, unsigned long l3id);
 
+struct misdn_bchannel *find_bc_by_confid(unsigned long confid);
+
+struct misdn_bchannel *stack_holder_find_bychan(struct misdn_stack *stack, int chan);
+
 int setup_bc(struct misdn_bchannel *bc);
 
 int manager_isdn_handler(iframe_t *frm ,msg_t *msg);
@@ -253,6 +259,7 @@ struct misdn_bchannel *stack_holder_find(struct misdn_stack *stack, unsigned lon
 int te_lib_init( void ) ; /* returns midev */
 void te_lib_destroy(int midev) ;
 struct misdn_bchannel *manager_find_bc_by_pid(int pid);
+struct misdn_bchannel *manager_find_bc_holded(struct misdn_bchannel* bc);
 void manager_ph_control_block(struct misdn_bchannel *bc, int c1, void *c2, int c2_len);
 void manager_clean_bc(struct misdn_bchannel *bc );
 void manager_bchannel_setup (struct misdn_bchannel *bc);
@@ -458,7 +465,7 @@ void misdn_dump_chanlist()
 
 }
 
-static int set_chan_in_stack(struct misdn_stack *stack, int channel)
+int set_chan_in_stack(struct misdn_stack *stack, int channel)
 {
 
 	cb_log(4,stack->port,"set_chan_in_stack: %d\n",channel);
@@ -539,20 +546,6 @@ static int find_free_chan_in_stack(struct misdn_stack *stack, struct misdn_bchan
 	return 0;
 }
 
-/*!
- * \internal
- * \brief Release a B channel to the allocation pool.
- *
- * \param stack Which port stack B channel belongs.
- * \param channel B channel to release. (Range 1-MAX_BCHANS representing B1-Bn)
- *
- * \retval 0 on success.
- * \retval -1 on error.  i.e., The channel is out of range.
- *
- * \note
- * Must be called after clean_up_bc() to make sure that the media stream is
- * no longer connected.
- */
 static int empty_chan_in_stack(struct misdn_stack *stack, int channel)
 {
 	if (channel<=0 || channel>MAX_BCHANS) {
@@ -624,17 +617,7 @@ static void bc_next_state_change(struct misdn_bchannel *bc, enum bchannel_state 
 	bc->next_bc_state=state;
 }
 
-/*!
- * \internal
- * \brief Empty the B channel record of most call data.
- *
- * \param bc B channel record to empty of most call data.
- *
- * \return Nothing
- *
- * \note
- * Sets the last_used time and must be called before clearing bc->in_use.
- */
+
 static void empty_bc(struct misdn_bchannel *bc)
 {
 	bc->dummy=0;
@@ -812,10 +795,9 @@ static int misdn_lib_get_l2_down(struct misdn_stack *stack)
 		/* L2 */
 		dmsg = create_l2msg(DL_RELEASE| REQUEST, 0, 0);
 		
-		pthread_mutex_lock(&stack->nstlock);
 		if (stack->nst.manager_l3(&stack->nst, dmsg))
 			free_msg(dmsg);
-		pthread_mutex_unlock(&stack->nstlock);
+		
 	} else {
 		iframe_t act;
 		
@@ -854,10 +836,9 @@ int misdn_lib_get_l2_up(struct misdn_stack *stack)
 		/* L2 */
 		dmsg = create_l2msg(DL_ESTABLISH | REQUEST, 0, 0);
 		
-		pthread_mutex_lock(&stack->nstlock);
 		if (stack->nst.manager_l3(&stack->nst, dmsg))
 			free_msg(dmsg);
-		pthread_mutex_unlock(&stack->nstlock);
+		
 	} else {
 		iframe_t act;
 		
@@ -1364,7 +1345,6 @@ static struct misdn_stack *stack_init(int midev, int port, int ptp)
 			stack->nst.l2_id = stack->upper_id;
 			
 			msg_queue_init(&stack->nst.down_queue);
-			pthread_mutex_init(&stack->nstlock, NULL);
 			
 			Isdnl2Init(&stack->nst);
 			Isdnl3Init(&stack->nst);
@@ -1406,7 +1386,6 @@ static void stack_destroy(struct misdn_stack *stack)
 	if (!stack) return;
 
 	if (stack->nt) {
-		pthread_mutex_destroy(&stack->nstlock);
 		cleanup_Isdnl2(&stack->nst);
 		cleanup_Isdnl3(&stack->nst);
 	}
@@ -1477,9 +1456,19 @@ struct misdn_bchannel *find_bc_by_l3id(struct misdn_stack *stack, unsigned long 
 	return stack_holder_find(stack,l3id);
 }
 
+static struct misdn_bchannel *find_bc_holded(struct misdn_stack *stack)
+{
+	int i;
+	for (i=0; i<=stack->b_num; i++) {
+		if (stack->bc[i].holded ) return &stack->bc[i] ;
+	}
+	return NULL;
+}
+
+
 static struct misdn_bchannel *find_bc_by_addr(unsigned long addr)
 {
-	struct misdn_stack *stack;
+	struct misdn_stack* stack;
 	int i;
 
 	for (stack=glob_mgr->stack_list;
@@ -1495,9 +1484,9 @@ static struct misdn_bchannel *find_bc_by_addr(unsigned long addr)
 	return NULL;
 }
 
-static struct misdn_bchannel *find_bc_by_confid(unsigned long confid)
+struct misdn_bchannel *find_bc_by_confid(unsigned long confid)
 {
-	struct misdn_stack *stack;
+	struct misdn_stack* stack;
 	int i;
 	
 	for (stack=glob_mgr->stack_list;
@@ -1515,7 +1504,7 @@ static struct misdn_bchannel *find_bc_by_confid(unsigned long confid)
 
 static struct misdn_bchannel *find_bc_by_channel(int port, int channel)
 {
-	struct misdn_stack *stack = find_stack_by_port(port);
+	struct misdn_stack* stack=find_stack_by_port(port);
 	int i;
 
 	if (!stack) return NULL;	
@@ -1833,22 +1822,17 @@ handle_event_nt(void *dat, void *arg)
 	manager_t *mgr = (manager_t *)dat;
 	msg_t *msg = (msg_t *)arg;
 	mISDNuser_head_t *hh;
-	struct misdn_stack *stack;
 	int reject=0;
+
+	struct misdn_stack *stack=find_stack_by_mgr(mgr);
+	int port;
 
 	if (!msg || !mgr)
 		return(-EINVAL);
 
-	stack = find_stack_by_mgr(mgr);
 	hh=(mISDNuser_head_t*)msg->data;
-
-	/*
-	 * When we are called from the mISDNuser lib, the nstlock is held and it
-	 * must be held when we return.  We unlock here because the lib may be
-	 * entered again recursively.
-	 */
-	pthread_mutex_unlock(&stack->nstlock);
-
+	port=stack->port;
+	
 	cb_log(5, stack->port, " --> lib: prim %x dinfo %x\n",hh->prim, hh->dinfo);
 	{
 		switch(hh->prim){
@@ -1868,7 +1852,6 @@ handle_event_nt(void *dat, void *arg)
 				msg_t *dmsg;
 				cb_log(4, stack->port, "Patch from MEIDANIS:Sending RELEASE_COMPLETE %x (No free Chan for you..)\n", hh->dinfo);
 				dmsg = create_l3msg(CC_RELEASE_COMPLETE | REQUEST,MT_RELEASE_COMPLETE, hh->dinfo,sizeof(RELEASE_COMPLETE_t), 1);
-				pthread_mutex_lock(&stack->nstlock);
 				stack->nst.manager_l3(&stack->nst, dmsg);
 				free_msg(msg);
 				return 0;
@@ -1900,26 +1883,23 @@ handle_event_nt(void *dat, void *arg)
 			int l3id = *((int *)(((u_char *)msg->data)+ mISDNUSER_HEAD_SIZE));
 			cb_log(4, stack->port, " --> lib: Event_ind:SETUP CONFIRM [NT] : new L3ID  is %x\n",l3id );
 	
-			if (bc) {
-				cb_log (2, bc->port, "I IND :CC_SETUP|CONFIRM: old l3id:%x new l3id:%x\n", bc->l3_id, l3id);
-				bc->l3_id = l3id;
-				cb_event(EVENT_NEW_L3ID, bc, glob_mgr->user_data);
-			} else {
-				cb_log(4, stack->port, "Bc Not found (after SETUP CONFIRM)\n");
-			}
+			if (!bc) { cb_log(4, stack->port, "Bc Not found (after SETUP CONFIRM)\n"); return 0; }
+			cb_log (2,bc->port,"I IND :CC_SETUP|CONFIRM: old l3id:%x new l3id:%x\n", bc->l3_id, l3id);
+			bc->l3_id=l3id;
+			cb_event(EVENT_NEW_L3ID, bc, glob_mgr->user_data);
 		}
 		free_msg(msg);
-		pthread_mutex_lock(&stack->nstlock);
 		return 0;
       
 		case CC_SETUP|INDICATION:
 		{
 			struct misdn_bchannel* bc=misdn_lib_get_free_bc(stack->port, 0, 1, 0);
-			if (!bc) {
+			if (!bc) 
+			ERR_NO_CHANNEL:
+			{
 				msg_t *dmsg;
 				cb_log(4, stack->port, "Patch from MEIDANIS:Sending RELEASE_COMPLETE %x (No free Chan for you..)\n", hh->dinfo);
 				dmsg = create_l3msg(CC_RELEASE_COMPLETE | REQUEST,MT_RELEASE_COMPLETE, hh->dinfo,sizeof(RELEASE_COMPLETE_t), 1);
-				pthread_mutex_lock(&stack->nstlock);
 				stack->nst.manager_l3(&stack->nst, dmsg);
 				free_msg(msg);
 				return 0;
@@ -1976,7 +1956,6 @@ handle_event_nt(void *dat, void *arg)
 			msg_t *dmsg;
 			cb_log(4, stack->port, " --> Got Suspend, sending Reject for now\n");
 			dmsg = create_l3msg(CC_SUSPEND_REJECT | REQUEST,MT_SUSPEND_REJECT, hh->dinfo,sizeof(RELEASE_COMPLETE_t), 1);
-			pthread_mutex_lock(&stack->nstlock);
 			stack->nst.manager_l3(&stack->nst, dmsg);
 			free_msg(msg);
 			return 0;
@@ -2002,7 +1981,6 @@ handle_event_nt(void *dat, void *arg)
 		case CC_RELEASE_CR|INDICATION:
 			release_cr(stack, hh);
 			free_msg(msg);
-			pthread_mutex_lock(&stack->nstlock);
 			return 0 ;
 		break;
       
@@ -2012,11 +1990,7 @@ handle_event_nt(void *dat, void *arg)
 		{
 			struct misdn_bchannel *bc=find_bc_by_l3id(stack, hh->dinfo);
 			int l3id = *((int *)(((u_char *)msg->data)+ mISDNUSER_HEAD_SIZE));
-			if (!bc) {
-				cb_log(0, stack->port, " --> In NEW_CR: didn't found bc ??\n");
-				pthread_mutex_lock(&stack->nstlock);
-				return -1;
-			}
+			if (!bc) { cb_log(0, stack->port, " --> In NEW_CR: didn't found bc ??\n"); return -1;};
 			if (((l3id&0xff00)!=0xff00) && ((bc->l3_id&0xff00)==0xff00)) {
 				cb_log(4, stack->port, " --> Removing Process Id:%x on this port.\n", 0xff&bc->l3_id);
 				stack->procids[bc->l3_id&0xff] = 0 ;
@@ -2027,7 +2001,6 @@ handle_event_nt(void *dat, void *arg)
 			cb_event(EVENT_NEW_L3ID, bc, glob_mgr->user_data);
 	
 			free_msg(msg);
-			pthread_mutex_lock(&stack->nstlock);
 			return 0;
 		}
       
@@ -2055,7 +2028,6 @@ handle_event_nt(void *dat, void *arg)
 			stack->l2upcnt=0;
 			
 			free_msg(msg);
-			pthread_mutex_lock(&stack->nstlock);
 			return 0;
 		}
 		break;
@@ -2084,7 +2056,6 @@ handle_event_nt(void *dat, void *arg)
 			
 			stack->l2link = 0;
 			free_msg(msg);
-			pthread_mutex_lock(&stack->nstlock);
 			return 0;
 		}
 		break;
@@ -2113,15 +2084,8 @@ handle_event_nt(void *dat, void *arg)
 					if (bc->channel<=0 || bc->channel==0xff) 
 						bc->channel=0;
 				
-					if (find_free_chan_in_stack(stack,bc, bc->channel,0)<0) {
-						msg_t *dmsg;
-						cb_log(4, stack->port, "Patch from MEIDANIS:Sending RELEASE_COMPLETE %x (No free Chan for you..)\n", hh->dinfo);
-						dmsg = create_l3msg(CC_RELEASE_COMPLETE | REQUEST,MT_RELEASE_COMPLETE, hh->dinfo,sizeof(RELEASE_COMPLETE_t), 1);
-						pthread_mutex_lock(&stack->nstlock);
-						stack->nst.manager_l3(&stack->nst, dmsg);
-						free_msg(msg);
-						return 0;
-					}
+					if (find_free_chan_in_stack(stack,bc, bc->channel,0)<0) 
+						goto ERR_NO_CHANNEL;
 					break;
 				case EVENT_RELEASE:
 				case EVENT_RELEASE_COMPLETE:
@@ -2165,7 +2129,6 @@ handle_event_nt(void *dat, void *arg)
 	}
 
 
-	pthread_mutex_lock(&stack->nstlock);
 	return 0;
 }
 
@@ -2208,9 +2171,7 @@ static int handle_timers(msg_t* msg)
 				ret = mISDN_write_frame(stack->midev, msg->data, frm->addr,
 							MGR_TIMER | RESPONSE, 0, 0, NULL, TIMEOUT_1SEC);
 				test_and_clear_bit(FLG_TIMER_RUNING, (long unsigned int *)&it->Flags);
-				pthread_mutex_lock(&stack->nstlock);
 				ret = it->function(it->data);
-				pthread_mutex_unlock(&stack->nstlock);
 				free_msg(msg);
 				return 1;
 			}
@@ -2622,9 +2583,8 @@ static int handle_frm_nt(msg_t *msg)
 	}
 
 	
-	pthread_mutex_lock(&stack->nstlock);
 	if ((err=stack->nst.l1_l2(&stack->nst,msg))) {
-		pthread_mutex_unlock(&stack->nstlock);
+    
 		if (nt_err_cnt > 0 ) {
 			if (nt_err_cnt < 100) {
 				nt_err_cnt++; 
@@ -2636,8 +2596,9 @@ static int handle_frm_nt(msg_t *msg)
 		}
 		free_msg(msg);
 		return 1;
+		
 	}
-	pthread_mutex_unlock(&stack->nstlock);
+	
 	return 1;
 }
 
@@ -2811,10 +2772,8 @@ static int handle_l1(msg_t *msg)
 		
 		if (stack->nt) {
 			
-			pthread_mutex_lock(&stack->nstlock);
 			if (stack->nst.l1_l2(&stack->nst, msg))
 				free_msg(msg);
-			pthread_mutex_unlock(&stack->nstlock);
 
 			if (stack->ptp)
 				misdn_lib_get_l2_up(stack);
@@ -2855,10 +2814,8 @@ static int handle_l1(msg_t *msg)
 #endif
 		
 		if (stack->nt) {
-			pthread_mutex_lock(&stack->nstlock);
 			if (stack->nst.l1_l2(&stack->nst, msg))
 				free_msg(msg);
-			pthread_mutex_unlock(&stack->nstlock);
 		} else {
 			free_msg(msg);
 		}
@@ -2885,11 +2842,9 @@ static int handle_l2(msg_t *msg)
 
 	case DL_ESTABLISH | REQUEST:
 		cb_log(1,stack->port,"DL_ESTABLISH|REQUEST \n");
-		free_msg(msg);
 		return 1;
 	case DL_RELEASE | REQUEST:
 		cb_log(1,stack->port,"DL_RELEASE|REQUEST \n");
-		free_msg(msg);
 		return 1;
 		
 	case DL_ESTABLISH | INDICATION:
@@ -2947,16 +2902,16 @@ static int handle_mgmt(msg_t *msg)
 	switch(frm->prim) {
 	case MGR_SHORTSTATUS | INDICATION:
 	case MGR_SHORTSTATUS | CONFIRM:
-		cb_log(5, stack->port, "MGMT: Short status dinfo %x\n",frm->dinfo);
+		cb_log(5, 0, "MGMT: Short status dinfo %x\n",frm->dinfo);
 		
 		switch (frm->dinfo) {
 		case SSTATUS_L1_ACTIVATED:
-			cb_log(3, stack->port, "MGMT: SSTATUS: L1_ACTIVATED \n");
+			cb_log(3, 0, "MGMT: SSTATUS: L1_ACTIVATED \n");
 			stack->l1link=1;
 		
 			break;
 		case SSTATUS_L1_DEACTIVATED:
-			cb_log(3, stack->port, "MGMT: SSTATUS: L1_DEACTIVATED \n");
+			cb_log(3, 0, "MGMT: SSTATUS: L1_DEACTIVATED \n");
 			stack->l1link=0;
 #if 0
 			clear_l3(stack);
@@ -3144,6 +3099,13 @@ void te_lib_destroy(int midev)
 	cb_log(4, 0, "midev closed\n");
 }
 
+
+
+void misdn_lib_transfer(struct misdn_bchannel* holded_bc)
+{
+	holded_bc->holded=0;
+}
+
 struct misdn_bchannel *manager_find_bc_by_pid(int pid)
 {
 	struct misdn_stack *stack;
@@ -3158,6 +3120,14 @@ struct misdn_bchannel *manager_find_bc_by_pid(int pid)
   
 	return NULL;
 }
+
+struct misdn_bchannel *manager_find_bc_holded(struct misdn_bchannel* bc)
+{
+	struct misdn_stack *stack=get_stack_by_bc(bc);
+	return find_bc_holded(stack);
+}
+
+
 
 static int test_inuse(struct misdn_bchannel *bc)
 {
@@ -3376,7 +3346,6 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 	msg_t *msg; 
 	int retval=0;
 	struct misdn_stack *stack;
-	struct misdn_bchannel *held_bc;
   
 	if (!bc) RETURN(-1,OUT_POST_UNLOCK);
 	
@@ -3463,22 +3432,21 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 		break;
 
 	case EVENT_HOLD_ACKNOWLEDGE:
-		held_bc = malloc(sizeof(struct misdn_bchannel));
-		if (!held_bc) {
-			cb_log(0, bc->port, "Could not allocate held_bc!!!\n");
+	{
+		struct misdn_bchannel *holded_bc=malloc(sizeof(struct misdn_bchannel));
+		if (!holded_bc) {
+			cb_log(0,bc->port, "Could not allocate holded_bc!!!\n");
 			RETURN(-1,OUT);
 		}
 
-		/* backup the bc and put it in storage */
-		*held_bc = *bc;
-		held_bc->holded = 1;
-		held_bc->channel = 0;/* A held call does not have a channel anymore. */
-		held_bc->channel_preselected = 0;
-		held_bc->channel_found = 0;
-		bc_state_change(held_bc, BCHAN_CLEANED);
-		stack_holder_add(stack, held_bc);
+		/*backup the bc*/
+		memcpy(holded_bc,bc,sizeof(struct misdn_bchannel));
+		holded_bc->holded=1;
+		bc_state_change(holded_bc,BCHAN_CLEANED);
+
+		stack_holder_add(stack,holded_bc);
 	
-		/* kill the bridge and clean the real b-channel record */
+		/*kill the bridge and clean the bchannel*/
 		if (stack->nt) {
 			int channel;
 			if (bc->bc_state == BCHAN_BRIDGED) {
@@ -3503,7 +3471,9 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 
 			bc->in_use=0;	
 		}
-		break;
+		
+	}
+	break;
 
 	/* finishing the channel eh ? */
 	case EVENT_DISCONNECT:
@@ -3946,7 +3916,7 @@ static void manager_event_handler(void *arg)
 				free_msg(msg);	
 				break;
 			case MGR_SETSTACK | REQUEST :
-				free_msg(msg);
+				/* Warning: memory leak here if we get this message */
 				break;
 			default:
 				mISDN_write(glob_mgr->midev, frm, mISDN_HEADER_LEN+frm->len, TIMEOUT_1SEC);
@@ -3976,10 +3946,9 @@ static void manager_event_handler(void *arg)
 		     
 			while ( (msg=msg_dequeue(&stack->downqueue)) ) {
 				if (stack->nt ) {
-					pthread_mutex_lock(&stack->nstlock);
 					if (stack->nst.manager_l3(&stack->nst, msg))
 						cb_log(0, stack->port, "Error@ Sending Message in NT-Stack.\n");
-					pthread_mutex_unlock(&stack->nstlock);
+	  
 				} else {
 					iframe_t *frm = (iframe_t *)msg->data;
 					struct misdn_bchannel *bc = find_bc_by_l3id(stack, frm->dinfo);
@@ -4424,6 +4393,28 @@ void stack_holder_remove(struct misdn_stack *stack, struct misdn_bchannel *holde
 	}
 }
 
+struct misdn_bchannel *stack_holder_find_bychan(struct misdn_stack *stack, int chan)
+{
+	struct misdn_bchannel *help;
+
+	cb_log(4,stack?stack->port:0, "*HOLDER: find_bychan %c\n", chan);
+	
+	if (!stack) return NULL;
+	
+	for (help=stack->holding;
+	     help;
+	     help=help->next) {
+		if (help->channel == chan) {
+			cb_log(4,stack->port, "*HOLDER: found_bychan bc\n");
+			return help;
+		}
+	}
+
+	cb_log(4,stack->port, "*HOLDER: find_bychan nothing\n");
+	return NULL;
+
+}
+
 struct misdn_bchannel *stack_holder_find(struct misdn_stack *stack, unsigned long l3id)
 {
 	struct misdn_bchannel *help;
@@ -4445,29 +4436,7 @@ struct misdn_bchannel *stack_holder_find(struct misdn_stack *stack, unsigned lon
 	return NULL;
 }
 
-/*!
- * \brief Find a held call's B channel record.
- *
- * \param port Port the call is on.
- * \param l3_id mISDN Layer 3 ID of held call.
- *
- * \return Found bc-record or NULL.
- */
-struct misdn_bchannel *misdn_lib_find_held_bc(int port, int l3_id)
-{
-	struct misdn_bchannel *bc;
-	struct misdn_stack *stack;
 
-	bc = NULL;
-	for (stack = get_misdn_stack(); stack; stack = stack->next) {
-		if (stack->port == port) {
-			bc = stack_holder_find(stack, l3_id);
-			break;
-		}
-	}
-
-	return bc;
-}
 
 void misdn_lib_send_tone(struct misdn_bchannel *bc, enum tone_e tone) 
 {

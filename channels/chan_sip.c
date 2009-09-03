@@ -198,8 +198,7 @@ static char seen_lastms = 0;
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 #endif
 
-#define CALLERID_UNKNOWN             "Anonymous"
-#define FROMDOMAIN_INVALID           "anonymous.invalid"
+#define CALLERID_UNKNOWN        "Unknown"
 
 #define DEFAULT_MAXMS                2000             /*!< Qualification: Must be faster than 2 seconds by default */
 #define DEFAULT_FREQ_OK              60 * 1000        /*!< Qualification: How often to check for the host to be up */
@@ -211,7 +210,6 @@ static char seen_lastms = 0;
                                                       \todo Use known T1 for timeout (peerpoke)
                                                       */
 #define DEFAULT_TRANS_TIMEOUT        -1               /* Use default SIP transaction timeout */
-#define PROVIS_KEEPALIVE_TIMEOUT     60000            /*!< How long to wait before retransmitting a provisional response (rfc 3261 13.3.1.1) */
 #define MAX_AUTHTRIES                3                /*!< Try authentication three times, then fail */
 
 #define SIP_MAX_HEADERS              64               /*!< Max amount of SIP headers to read */
@@ -912,10 +910,6 @@ struct sip_refer {
 	enum referstatus status;			/*!< REFER status */
 };
 
-struct offered_media {
-	int offered;
-	char text[128];
-};
 /*! \brief sip_pvt: PVT structures are used for each SIP dialog, ie. a call, a registration, a subscribe  */
 static struct sip_pvt {
 	ast_mutex_t lock;			/*!< Dialog private lock */
@@ -1035,27 +1029,10 @@ static struct sip_pvt {
 	struct ast_variable *chanvars;		/*!< Channel variables to set for inbound call */
 	AST_LIST_HEAD_NOLOCK(request_queue, sip_request) request_queue; /*!< Requests that arrived but could not be processed immediately */
 	int request_queue_sched_id;		/*!< Scheduler ID of any scheduled action to process queued requests */
-	int provisional_keepalive_sched_id; /*!< Scheduler ID for provisional responses that need to be sent out to avoid cancellation */
-	const char *last_provisional;   /*!< The last successfully transmitted provisonal response message */
 	struct sip_pvt *next;			/*!< Next dialog in chain */
 	struct sip_invite_param *options;	/*!< Options for INVITE */
 	int autoframing;
 	int hangupcause;			/*!< Storage of hangupcause copied from our owner before we disconnect from the AST channel (only used at hangup) */
-	/*! When receiving an SDP offer, it is important to take note of what media types were offered.
-	 * By doing this, even if we don't want to answer a particular media stream with something meaningful, we can
-	 * still put an m= line in our answer with the port set to 0.
-	 *
-	 * The reason for the length being 3 is that in this branch of Asterisk, the only media types supported are 
-	 * image, audio, and video. Therefore we need to keep track of which types of media were offered.
-	 *
-	 * Note that if we wanted to be 100% correct, we would keep a list of all media streams offered. That way we could respond
-	 * even to unknown media types, and we could respond to multiple streams of the same type. Such large-scale changes
-	 * are not a good idea for released branches, though, so we're compromising by just making sure that for the common cases:
-	 * audio and video, and audio and T.38, we give the appropriate response to both media streams.
-	 *
-	 * The large-scale changes would be a good idea for implementing during an SDP rewrite.
-	 */
-	struct offered_media offered_media[3];
 } *iflist = NULL;
 
 /*! Max entires in the history list for a sip_pvt */
@@ -1293,7 +1270,6 @@ static int transmit_response_with_date(struct sip_pvt *p, const char *msg, const
 static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable);
 static int transmit_response_with_unsupported(struct sip_pvt *p, const char *msg, const struct sip_request *req, const char *unsupported);
 static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, const struct sip_request *req, const char *rand, enum xmittype reliable, const char *header, int stale);
-static int transmit_provisional_response(struct sip_pvt *p, const char *msg, const struct sip_request *req, int with_sdp);
 static int transmit_response_with_allow(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable);
 static void transmit_fake_auth_response(struct sip_pvt *p, int sipmethod, struct sip_request *req, enum xmittype reliable);
 static int transmit_request(struct sip_pvt *p, int sipmethod, int inc, enum xmittype reliable, int newbranch);
@@ -2325,46 +2301,6 @@ static void add_blank(struct sip_request *req)
 	}
 }
 
-static int send_provisional_keepalive_full(struct sip_pvt *pvt, int with_sdp)
-{
-	const char *msg = NULL;
-
-	if (!pvt->last_provisional || !strncasecmp(pvt->last_provisional, "100", 3)) {
-		msg = "183 Session Progress";
-	}
-
-	if (pvt->invitestate < INV_COMPLETED) {
-		if (with_sdp) {
-			transmit_response_with_sdp(pvt, S_OR(msg, pvt->last_provisional), &pvt->initreq, XMIT_UNRELIABLE);
-		} else {
-			transmit_response(pvt, S_OR(msg, pvt->last_provisional), &pvt->initreq);
-		}
-		return PROVIS_KEEPALIVE_TIMEOUT;
-	}
-
-	return 0;
-}
-
-static int send_provisional_keepalive(const void *data) {
-	struct sip_pvt *pvt = (struct sip_pvt *) data;
-
-	return send_provisional_keepalive_full(pvt, 0);
-}
-
-static int send_provisional_keepalive_with_sdp(const void *data) {
-	struct sip_pvt *pvt = (void *)data;
-
-	return send_provisional_keepalive_full(pvt, 1);
-}
-
-static void update_provisional_keepalive(struct sip_pvt *pvt, int with_sdp)
-{
-	AST_SCHED_DEL(sched, pvt->provisional_keepalive_sched_id);
-
-	pvt->provisional_keepalive_sched_id = ast_sched_add(sched, PROVIS_KEEPALIVE_TIMEOUT,
-		with_sdp ? send_provisional_keepalive_with_sdp : send_provisional_keepalive, pvt);
-}
-
 /*! \brief Transmit response on SIP request*/
 static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, int seqno)
 {
@@ -2385,12 +2321,6 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 		append_history(p, reliable ? "TxRespRel" : "TxResp", "%s / %s - %s", tmp.data, get_header(&tmp, "CSeq"), 
 			(tmp.method == SIP_RESPONSE || tmp.method == SIP_UNKNOWN) ? tmp.rlPart2 : sip_methods[tmp.method].text);
 	}
-
-	/* If we are sending a final response to an INVITE, stop retransmitting provisional responses */
-	if (p->initreq.method == SIP_INVITE && reliable == XMIT_CRITICAL) {
-		AST_SCHED_DEL(sched, p->provisional_keepalive_sched_id);
-	}
-
 	res = (reliable) ?
 		 __sip_reliable_xmit(p, seqno, 1, req->data, req->len, (reliable == XMIT_CRITICAL), req->method) :
 		__sip_xmit(p, req->data, req->len);
@@ -3278,7 +3208,6 @@ static int __sip_destroy(struct sip_pvt *p, int lockowner)
 	AST_SCHED_DEL(sched, p->waitid);
 	AST_SCHED_DEL(sched, p->autokillid);
 	AST_SCHED_DEL(sched, p->request_queue_sched_id);
-	AST_SCHED_DEL(sched, p->provisional_keepalive_sched_id);
 
 	if (p->rtp) {
 		ast_rtp_destroy(p->rtp);
@@ -3777,9 +3706,7 @@ static int sip_hangup(struct ast_channel *ast)
 				if (p->vrtp)
 					videoqos = ast_rtp_get_quality(p->vrtp, NULL);
 				/* Send a hangup */
-				if (oldowner->_state == AST_STATE_UP) {
-					transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
-				}
+				transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
 
 				/* Get RTCP quality before end of call */
 				if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY)) {
@@ -3895,7 +3822,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 				    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 					ast_rtp_new_source(p->rtp);
 					p->invitestate = INV_EARLY_MEDIA;
-					transmit_provisional_response(p, "183 Session Progress", &p->initreq, 1);
+					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE);
 					ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);
 				} else if (p->t38.state == T38_ENABLED && !p->t38.direct) {
 					p->t38.state = T38_DISABLED;
@@ -3917,7 +3844,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 				    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
 				    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 					p->invitestate = INV_EARLY_MEDIA;
-					transmit_provisional_response(p, "183 Session Progress", &p->initreq, 1);
+					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE);
 					ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);	
 				}
 				p->lastrtptx = time(NULL);
@@ -4088,7 +4015,7 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 			if (!ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) ||
 			    (ast_test_flag(&p->flags[0], SIP_PROG_INBAND) == SIP_PROG_INBAND_NEVER)) {				
 				/* Send 180 ringing if out-of-band seems reasonable */
-				transmit_provisional_response(p, "180 Ringing", &p->initreq, 0);
+				transmit_response(p, "180 Ringing", &p->initreq);
 				ast_set_flag(&p->flags[0], SIP_RINGING);
 				if (ast_test_flag(&p->flags[0], SIP_PROG_INBAND) != SIP_PROG_INBAND_YES)
 					break;
@@ -4133,7 +4060,7 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 		    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
 		    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 			p->invitestate = INV_EARLY_MEDIA;
-			transmit_provisional_response(p, "183 Session Progress", &p->initreq, 1);
+			transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE);
 			ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);	
 			break;
 		}
@@ -4645,7 +4572,6 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	p->waitid = -1;
 	p->autokillid = -1;
 	p->request_queue_sched_id = -1;
-	p->provisional_keepalive_sched_id = -1;
 	p->subscribed = NONE;
 	p->stateid = -1;
 	p->prefs = default_prefs;		/* Set default codecs for this call */
@@ -5221,7 +5147,6 @@ static void change_hold_state(struct sip_pvt *dialog, struct sip_request *req, i
 enum media_type {
 	SDP_AUDIO,
 	SDP_VIDEO,
-	SDP_IMAGE,
 };
 
 static int get_ip_and_port_from_sdp(struct sip_request *req, const enum media_type media, struct sockaddr_in *sin)
@@ -5348,7 +5273,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	/* Update our last rtprx when we receive an SDP, too */
 	p->lastrtprx = p->lastrtptx = time(NULL); /* XXX why both ? */
 
-	memset(p->offered_media, 0, sizeof(p->offered_media));
 
 	/* Try to find first media stream */
 	m = get_sdp(req, "m");
@@ -5387,14 +5311,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		if ((sscanf(m, "audio %30d/%30d RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
 		    (sscanf(m, "audio %30d RTP/AVP %n", &x, &len) == 1 && len > 0)) {
 			audio = TRUE;
-			p->offered_media[SDP_AUDIO].offered = TRUE;
 			numberofmediastreams++;
 			/* Found audio stream in this media definition */
 			portno = x;
 			/* Scan through the RTP payload types specified in a "m=" line: */
-			codecs = m + len;
-			ast_copy_string(p->offered_media[SDP_AUDIO].text, codecs, sizeof(p->offered_media[SDP_AUDIO].text));
-			for (; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
+			for (codecs = m + len; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
 				if (sscanf(codecs, "%30d%n", &codec, &len) != 1) {
 					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
 					return -1;
@@ -5406,13 +5327,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		} else if ((sscanf(m, "video %30d/%30d RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
 		    (sscanf(m, "video %30d RTP/AVP %n", &x, &len) == 1 && len >= 0)) {
 			/* If it is not audio - is it video ? */
-			ast_clear_flag(&p->flags[0], SIP_NOVIDEO);
-			p->offered_media[SDP_VIDEO].offered = TRUE;
+			ast_clear_flag(&p->flags[0], SIP_NOVIDEO);	
 			numberofmediastreams++;
 			vportno = x;
 			/* Scan through the RTP payload types specified in a "m=" line: */
-			codecs = m + len;
-			ast_copy_string(p->offered_media[SDP_VIDEO].text, codecs, sizeof(p->offered_media[SDP_VIDEO].text));
 			for (codecs = m + len; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
 				if (sscanf(codecs, "%30d%n", &codec, &len) != 1) {
 					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
@@ -5422,20 +5340,17 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 					ast_verbose("Found RTP video format %d\n", codec);
 				ast_rtp_set_m_type(newvideortp, codec);
 			}
-		} else if (p->udptl && ((sscanf(m, "image %30d udptl t38%n", &x, &len) == 1 && len > 0) || 
-					(sscanf(m, "image %30d UDPTL t38%n", &x, &len) == 1 && len >= 0))) {
+		} else if (p->udptl && ( (sscanf(m, "image %30d udptl t38%n", &x, &len) == 1 && len > 0) || 
+		 (sscanf(m, "image %30d UDPTL t38%n", &x, &len) == 1 && len >= 0) )) {
 			if (debug)
 				ast_verbose("Got T.38 offer in SDP in dialog %s\n", p->callid);
-			p->offered_media[SDP_IMAGE].offered = TRUE;
 			udptlportno = x;
 			numberofmediastreams++;
 			
 			if (p->owner && p->lastinvite) {
-				if(p->t38.state != T38_LOCAL_REINVITE) {
-					p->t38.state = T38_PEER_REINVITE; /* T38 Offered in re-invite from remote party */
-					if (option_debug > 1)
-						ast_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n", p->t38.state, p->owner ? p->owner->name : "<none>" );
-				}
+				p->t38.state = T38_PEER_REINVITE; /* T38 Offered in re-invite from remote party */
+				if (option_debug > 1)
+					ast_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n", p->t38.state, p->owner ? p->owner->name : "<none>" );
 			} else {
 				p->t38.state = T38_PEER_DIRECT; /* T38 Offered directly from peer in first invite */
 				p->t38.direct = 1;
@@ -6318,11 +6233,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 		seqno = p->ocseq;
 	}
 	
-	/* A CANCEL must have the same branch as the INVITE that it is canceling.
-	 * Similarly, if we need to re-send an INVITE with auth credentials, then we
-	 * need to use the same branch as we did the first time we sent the INVITE.
-	 */
-	if (sipmethod == SIP_CANCEL || (sipmethod == SIP_INVITE && p->options && !ast_strlen_zero(p->options->auth))) {
+	if (sipmethod == SIP_CANCEL) {
 		p->branch = p->invite_branch;
 		build_via(p);
 	} else if (newbranch) {
@@ -6571,19 +6482,6 @@ static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, const
 	return send_response(p, &resp, reliable, seqno);
 }
 
-/* Only use a static string for the msg, here! */
-static int transmit_provisional_response(struct sip_pvt *p, const char *msg, const struct sip_request *req, int with_sdp)
-{
-	int res;
-
-	if (!(res = with_sdp ? transmit_response_with_sdp(p, msg, req, XMIT_UNRELIABLE) : transmit_response(p, msg, req))) {
-		p->last_provisional = msg;
-		update_provisional_keepalive(p, with_sdp);
-	}
-
-	return res;
-}
-
 /*! \brief Add text body to SIP message */
 static int add_text(struct sip_request *req, const char *text)
 {
@@ -6771,7 +6669,6 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 	size_t a_audio_left = sizeof(a_audio);
 	size_t a_video_left = sizeof(a_video);
 	size_t a_modem_left = sizeof(a_modem);
-	char dummy_answer[256];
 
 	int x;
 	int capability = 0;
@@ -6858,7 +6755,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 				vdest.sin_addr = p->ourip;
 				vdest.sin_port = vsin.sin_port;
 			}
-			ast_build_string(&m_video_next, &m_video_left, "m=video %d RTP/AVP", ntohs(vsin.sin_port));
+			ast_build_string(&m_video_next, &m_video_left, "m=video %d RTP/AVP", ntohs(vdest.sin_port));
 
 			/* Build max bitrate string */
 			if (p->maxcallbitrate)
@@ -7028,23 +6925,15 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		add_line(resp, m_audio);
 		add_line(resp, a_audio);
 		add_line(resp, hold);
-	} else if (p->offered_media[SDP_AUDIO].offered) {
-		snprintf(dummy_answer, sizeof(dummy_answer), "m=audio 0 RTP/AVP %s\r\n", p->offered_media[SDP_AUDIO].text);
-		add_line(resp, dummy_answer);
 	}
 	if (needvideo) { /* only if video response is appropriate */
 		add_line(resp, m_video);
 		add_line(resp, a_video);
 		add_line(resp, hold);	/* Repeat hold for the video stream */
-	} else if (p->offered_media[SDP_VIDEO].offered) {
-		snprintf(dummy_answer, sizeof(dummy_answer), "m=video 0 RTP/AVP %s\r\n", p->offered_media[SDP_VIDEO].text);
-		add_line(resp, dummy_answer);
 	}
 	if (add_t38) {
 		add_line(resp, m_modem);
 		add_line(resp, a_modem);
-	} else if (p->offered_media[SDP_IMAGE].offered) {
-		add_line(resp, "m=image 0 udptl t38\r\n");
 	}
 
 	/* Update lastrtprx when we send our SDP */
@@ -7186,7 +7075,6 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 		add_header(&req, "X-asterisk-Info", "SIP re-invite (External RTP bridge)");
 	if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY))
 		append_history(p, "ReInv", "Re-invite sent");
-	memset(p->offered_media, 0, sizeof(p->offered_media));
 	add_sdp(&req, p, 1, 0);
 	/* Use this as the basis */
 	initialize_initreq(p, &req);
@@ -7209,7 +7097,6 @@ static int transmit_reinvite_with_t38_sdp(struct sip_pvt *p)
 	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
 	if (sipdebug)
 		add_header(&req, "X-asterisk-info", "SIP re-invite (T38 switchover)");
-	memset(p->offered_media, 0, sizeof(p->offered_media));
 	add_sdp(&req, p, 0, 1);
 
 	/* Use this as the basis */
@@ -7331,7 +7218,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	char to[256];
 	char tmp[SIPBUFSIZE/2];
 	char tmp2[SIPBUFSIZE/2];
-	const char *l = NULL, *n = NULL, *d = NULL;
+	const char *l = NULL, *n = NULL;
 	const char *urioptions = "";
 
 	if (ast_test_flag(&p->flags[0], SIP_USEREQPHONE)) {
@@ -7356,7 +7243,6 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 
 	snprintf(p->lastmsg, sizeof(p->lastmsg), "Init: %s", sip_methods[sipmethod].text);
 
-	d = S_OR(p->fromdomain, ast_inet_ntoa(p->ourip));
 	if (p->owner) {
 		l = p->owner->cid.cid_num;
 		n = p->owner->cid.cid_name;
@@ -7366,7 +7252,6 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	    ((p->callingpres & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED)) {
 		l = CALLERID_UNKNOWN;
 		n = l;
-		d = FROMDOMAIN_INVALID;
 	}
 	if (ast_strlen_zero(l))
 		l = default_callerid;
@@ -7392,9 +7277,9 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	}
 
 	if (ourport != STANDARD_SIP_PORT && ast_strlen_zero(p->fromdomain))
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, d, ourport, p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, S_OR(p->fromdomain, ast_inet_ntoa(p->ourip)), ourport, p->tag);
 	else
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, d, p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, S_OR(p->fromdomain, ast_inet_ntoa(p->ourip)), p->tag);
 
 	/* If we're calling a registered SIP peer, use the fullcontact to dial to the peer */
 	if (!ast_strlen_zero(p->fullcontact)) {
@@ -7542,7 +7427,6 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 		ast_channel_unlock(chan);
 	}
 	if (sdp) {
-		memset(p->offered_media, 0, sizeof(p->offered_media));
 		if (p->udptl && p->t38.state == T38_LOCAL_REINVITE) {
 			ast_udptl_offered_from_local(p->udptl, 1);
 			if (option_debug)
@@ -12753,6 +12637,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	case 183:	/* Session progress */
 		if (!ast_test_flag(req, SIP_PKT_IGNORE) && (p->invitestate != INV_CANCELLED) && sip_cancel_destroy(p))
 			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
+		/* Ignore 183 Session progress without SDP */
 		if (find_sdp(req)) {
 			if (p->invitestate != INV_CANCELLED)
 				p->invitestate = INV_EARLY_MEDIA;
@@ -12760,14 +12645,6 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->owner) {
 				/* Queue a progress frame */
 				ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
-			}
-		} else {
-			/* Alcatel PBXs are known to send 183s with no SDP after sending
-			 * a 100 Trying response. We're just going to treat this sort of thing
-			 * the same as we would treat a 180 Ringing
-			 */
-			if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->owner) {
-				ast_queue_control(p->owner, AST_CONTROL_RINGING);
 			}
 		}
 		check_pendings(p);
@@ -14635,7 +14512,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	required = get_header(req, "Require");
 	if (!ast_strlen_zero(required)) {
 		required_profile = parse_sip_options(NULL, required);
-		if (required_profile && !(required_profile & SIP_OPT_REPLACES)) {
+		if (required_profile && required_profile != SIP_OPT_REPLACES) {
 			/* At this point we only support REPLACES */
 			transmit_response_with_unsupported(p, "420 Bad extension (unsupported)", req, required);
 			ast_log(LOG_WARNING,"Received SIP INVITE with unsupported required extension: %s\n", required);
@@ -14691,18 +14568,17 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	}
 	
 	if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->pendinginvite) {
-		if (!ast_test_flag(&p->flags[0], SIP_OUTGOING) && (p->invitestate == INV_COMPLETED || p->invitestate == INV_TERMINATED)) {
-			/* What do these circumstances mean? We have received an INVITE for an "incoming" dialog for which we
-			 * have sent a final response. We have not yet received an ACK, though (which is why p->pendinginvite is non-zero).
-			 * We also know that the INVITE is not a retransmission, because otherwise the "ignore" flag would be set.
-			 * This means that either we are receiving a reinvite for a terminated dialog, or we are receiving an INVITE with
-			 * credentials based on one we challenged earlier.
-			 *
-			 * The action to take in either case is to treat the INVITE as though it contains an implicit ACK for the previous
-			 * transaction. Calling __sip_ack will take care of this by clearing the p->pendinginvite and removing the response
-			 * from the previous transaction from the list of outstanding packets.
+		if (!ast_test_flag(&p->flags[0], SIP_OUTGOING) && ast_test_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED)) {
+			/* We have received a reINVITE on an incoming call to which we have sent a 200 OK but not yet received
+			 * an ACK. According to RFC 5407, Section 3.1.4, the proper way to handle this race condition is to accept
+			 * the reINVITE since we have established a dialog.
 			 */
-			__sip_ack(p, p->pendinginvite, FLAG_RESPONSE, 0);
+			 
+			/* Note that this will both clear the pendinginvite flag and cancel the 
+			 * retransmission of the 200 OK. Basically, we're accepting this reINVITE as both an ACK
+			 * and a reINVITE in one request.
+			 */
+			__sip_ack(p, p->lastinvite, FLAG_RESPONSE, 0);
 		} else {
 			/* We already have a pending invite. Sorry. You are on hold. */
 			p->glareinvite = seqno;
@@ -15040,7 +14916,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		case AST_STATE_DOWN:
 			if (option_debug > 1)
 				ast_log(LOG_DEBUG, "%s: New call is still down.... Trying... \n", c->name);
-			transmit_provisional_response(p, "100 Trying", req, 0);
+			transmit_response(p, "100 Trying", req);
 			p->invitestate = INV_PROCEEDING;
 			ast_setstate(c, AST_STATE_RING);
 			if (strcmp(p->exten, ast_pickup_ext())) {	/* Call to extension -start pbx on this call */
@@ -15104,11 +14980,11 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			}
 			break;
 		case AST_STATE_RING:
-			transmit_provisional_response(p, "100 Trying", req, 0);
+			transmit_response(p, "100 Trying", req);
 			p->invitestate = INV_PROCEEDING;
 			break;
 		case AST_STATE_RINGING:
-			transmit_provisional_response(p, "180 Ringing", req, 0);
+			transmit_response(p, "180 Ringing", req);
 			p->invitestate = INV_PROCEEDING;
 			break;
 		case AST_STATE_UP:

@@ -48,11 +48,11 @@ clean-depend:
 clean:
 	rm -f $(LIBDB) $(LIBDBSO) $(OBJS) $(SHOBJS) */*.s */*.i
 
-_ASTCFLAGS:=-Wall -D__DBINTERFACE_PRIVATE -I. -I.. -Iinclude -Ihash -Ibtree -Irecno $(_ASTCFLAGS)
+ASTCFLAGS:=-Wall -D__DBINTERFACE_PRIVATE -I. -I.. -Iinclude -Ihash -Ibtree -Irecno $(ASTCFLAGS)
 
 OSTYPE=$(shell uname -s)
 ifeq ($(OSTYPE),SunOS)
-_ASTCFLAGS+=-I../../include -I../../include/solaris-compat -DSOLARIS
+ASTCFLAGS+=-I../../include -I../../include/solaris-compat -DSOLARIS
 endif
 
 db_dump185.o: db_dump185.c

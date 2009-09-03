@@ -744,7 +744,7 @@ void checknoargs( int argcount, char *args[])
 void parseargs( int argcount, char *args[], int fileswitch)
 {
    char *filename;
-   int tempint = 0;
+   int tempint;
 
    if ((fileswitch & 1) != 0)     /* If getting infile  */
      in = NULL;

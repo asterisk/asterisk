@@ -38,7 +38,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#include <limits.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
@@ -47,7 +46,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/utils.h"
-#include "asterisk/indications.h"
 
 static char *app = "Milliwatt";
 
@@ -147,6 +145,7 @@ static int old_milliwatt_exec(struct ast_channel *chan)
 static int milliwatt_exec(struct ast_channel *chan, void *data)
 {
 	const char *options = data;
+	struct ast_app *playtones_app;
 	struct ast_module_user *u;
 	int res = -1;
 
@@ -157,7 +156,12 @@ static int milliwatt_exec(struct ast_channel *chan, void *data)
 		goto exit_app;
 	}
 
-	res = ast_playtones_start(chan, 23255, "1004/1000", 0);
+	if (!(playtones_app = pbx_findapp("Playtones"))) {
+		ast_log(LOG_ERROR, "The Playtones application is required to run Milliwatt()\n");
+		goto exit_app;
+	}
+
+	res = pbx_exec(chan, playtones_app, "1004/1000");
 
 	while (!res) {
 		res = ast_safe_sleep(chan, 10000);

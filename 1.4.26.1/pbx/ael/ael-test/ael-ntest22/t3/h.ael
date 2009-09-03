@@ -1,6 +1,0 @@
-
-
-context h
-{
-	456 => NoOp(hithere, h);
-}

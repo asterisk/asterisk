@@ -202,14 +202,11 @@ AST_EXT_LIB_SETUP([OSS], [Open Sound System], [oss])
 AST_EXT_LIB_SETUP([POPT], [popt], [popt])
 AST_EXT_LIB_SETUP([PGSQL], [PostgreSQL], [postgres])
 AST_EXT_LIB_SETUP([PRI], [ISDN PRI], [pri])
-AST_EXT_LIB_SETUP_DEPENDENT([PRI_VERSION], [ISDN PRI get_version], [PRI], [pri])
-AST_EXT_LIB_SETUP_DEPENDENT([PRI_INBANDDISCONNECT], [ISDN PRI set_inbanddisconnect], [PRI], [pri])
 AST_EXT_LIB_SETUP([PWLIB], [PWlib], [pwlib])
 AST_EXT_LIB_SETUP([OPENH323], [OpenH323], [h323])
 AST_EXT_LIB_SETUP([RADIUS], [Radius Client], [radius])
 AST_EXT_LIB_SETUP([SPEEX], [Speex], [speex])
 AST_EXT_LIB_SETUP([SPEEXDSP], [Speexdsp], [speexdsp])
-AST_EXT_LIB_SETUP_DEPENDENT([SPEEX_PREPROCESS], [speex_preprocess_ctl], [], [speex])
 AST_EXT_LIB_SETUP([SQLITE], [SQLite], [sqlite])
 AST_EXT_LIB_SETUP([SUPPSERV], [mISDN Supplemental Services], [suppserv])
 AST_EXT_LIB_SETUP([OPENSSL], [OpenSSL], [ssl])
@@ -1650,7 +1647,37 @@ AC_SUBST(PBX_GTK2)
 AC_SUBST(GTK2_INCLUDE)
 AC_SUBST(GTK2_LIB)
 
-AST_LIBCURL_CHECK_CONFIG([], [7.10.1])
+if test "${USE_CURL}" != "no"; then
+   AC_PATH_TOOL([CURL_CONFIG], [curl-config], No)
+   if test ! x"${CURL_CONFIG}" = xNo; then
+   # check for version
+      if test $(printf "%d" 0x$(${CURL_CONFIG} --vernum)) -ge $(printf "%d" 0x070907); then
+         CURL_INCLUDE=$(${CURL_CONFIG} --cflags)
+         CURL_LIB=$(${CURL_CONFIG} --libs)
+
+         AC_MSG_CHECKING(for curl_version() in curl/curl.h)
+         saved_cppflags="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${CURL_INCLUDE}"
+         AC_COMPILE_IFELSE(
+            [AC_LANG_PROGRAM(
+                [#include <curl/curl.h>],
+                    [curl_version();])
+            ],[
+                AC_MSG_RESULT(yes)
+                ac_cv_curl_h="yes"
+            ],[
+                AC_MSG_RESULT(no)
+                ac_cv_curl_h="no"
+            ]
+	 )
+	 CPPFLAGS="${saved_cppflags}"
+         if test "${ac_cv_curl_h}" = "yes"; then
+             PBX_CURL=1
+             AC_DEFINE([HAVE_CURL], 1, [Define if your system has the curl libraries.])
+         fi
+      fi
+   fi
+fi
 
 AC_CONFIG_FILES([build_tools/menuselect-deps makeopts channels/h323/Makefile])
 AC_OUTPUT

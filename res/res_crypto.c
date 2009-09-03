@@ -108,7 +108,7 @@ static int ssl_num_locks;
 
 static unsigned long ssl_threadid(void)
 {
-	return (unsigned long)pthread_self();
+	return pthread_self();
 }
 
 static void ssl_lock(int mode, int n, const char *file, int line)

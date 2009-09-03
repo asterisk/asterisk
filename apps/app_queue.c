@@ -3231,9 +3231,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		ast_channel_lock(qe->chan);
 		if (!attended_transfer_occurred(qe->chan)) {
 			struct ast_datastore *tds;
-
-			/* detect a blind transfer */
-			if (!(qe->chan->_softhangup | peer->_softhangup) && (strcasecmp(oldcontext, qe->chan->context) || strcasecmp(oldexten, qe->chan->exten))) {
+			if (strcasecmp(oldcontext, qe->chan->context) || strcasecmp(oldexten, qe->chan->exten)) {
 				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "TRANSFER", "%s|%s|%ld|%ld",
 					qe->chan->exten, qe->chan->context, (long) (callstart - qe->start),
 					(long) (time(NULL) - callstart));
@@ -4299,8 +4297,8 @@ static int queue_function_queuememberlist(struct ast_channel *chan, char *cmd, c
 				strncat(buf + buflen, ",", len - buflen - 1);
 				buflen++;
 			}
-			strncat(buf + buflen, m->interface, len - buflen - 1);
-			buflen += strlen(m->interface);
+			strncat(buf + buflen, m->membername, len - buflen - 1);
+			buflen += strlen(m->membername);
 			/* Safeguard against overflow (negative length) */
 			if (buflen >= len - 2) {
 				ao2_ref(m, -1);
@@ -4367,7 +4365,7 @@ static int reload_queues(void)
 	struct ao2_iterator mem_iter;
 	int new;
 	const char *general_val = NULL;
-	char *parse;
+	char parse[80];
 	char *interface, *state_interface;
 	char *membername = NULL;
 	int penalty;
@@ -4452,9 +4450,7 @@ static int reload_queues(void)
 						}
 
 						/* Add a new member */
-						if (!(parse = ast_strdup(var->value))) {
-							continue;
-						}
+						ast_copy_string(parse, var->value, sizeof(parse));
 						
 						AST_NONSTANDARD_APP_ARGS(args, parse, ',');
 
@@ -4500,7 +4496,6 @@ static int reload_queues(void)
 						else {
 							q->membercount++;
 						}
-						ast_free(parse);
 					} else {
 						queue_set_param(q, var->name, var->value, var->lineno, 1);
 					}
