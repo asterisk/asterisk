@@ -1,0 +1,119 @@
+                                Release Summary
+
+                               asterisk-1.6.0.15
+
+                                Date: 2009-09-03
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release has been made to address one or more security vulnerabilities
+   that have been identified. A security advisory document has been published
+   for each vulnerability that includes additional information. Users of
+   versions of Asterisk that are affected are strongly encouraged to review
+   the advisories and determine what action they should take to protect their
+   systems from these issues.
+
+   Security Advisories: AST-2009-006
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.6.0.14.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   2 lmadsen                1 dbrooks                1 rathaus                
+   1 dvossel                1 dvossel                
+                            1 russell                
+                            1 tilghman               
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Channels/chan_iax2
+
+   #12912: An issue with the IAX2 channel allows anonymous connections to
+   cause resource starvation
+   Revision: 216012
+   Reporter: rathaus
+   Testers: tilghman, russell, dvossel, dbrooks
+   Coders: dvossel
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author  | Summary                       | Issues Referenced |
+   |----------+---------+-------------------------------+-------------------|
+   | 215943   | lmadsen | Create 1.6.0.15 from          |                   |
+   |          |         | 1.6.0.14.                     |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 215948   | lmadsen | Update .version and ChangeLog |                   |
+   |          |         | files.                        |                   |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .version                   |    2
+ ChangeLog                  |    6
+ channels/chan_iax2.c       | 1362 ++++++++++++++++++++++++++++++++++++++++-----
+ channels/iax2-parser.c     |    9
+ channels/iax2-parser.h     |    2
+ channels/iax2.h            |    4
+ configs/iax.conf.sample    |   56 +
+ include/asterisk/acl.h     |    3
+ include/asterisk/astobj2.h |    9
+ main/acl.c                 |    2
+ main/astobj2.c             |   19
+ 11 files changed, 1324 insertions(+), 150 deletions(-)
+
+     ----------------------------------------------------------------------
