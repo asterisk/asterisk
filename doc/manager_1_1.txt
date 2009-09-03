@@ -119,6 +119,9 @@ Changes to manager version 1.1:
 	If you call out to a subshell in Originate with the Application parameter,
 		you now also need the System privilege.
 
+- Action SIPshowpeer
+	Response now includes the configured parkinglot
+
 * NEW ACTIONS
 -------------
 - Action: ModuleLoad
