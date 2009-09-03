@@ -36,10 +36,17 @@ extern "C" {
 
 /* Host based access control */
 
-struct ast_ha;
+struct ast_ha {
+	/* Host access rule */
+	struct in_addr netaddr;
+	struct in_addr netmask;
+	int sense;
+	struct ast_ha *next;
+};
 
-extern void ast_free_ha(struct ast_ha *ha);
-extern struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path);
+void ast_free_ha(struct ast_ha *ha);
+void ast_copy_ha(const struct ast_ha *from, struct ast_ha *to);
+struct ast_ha *ast_append_ha(char *sense, const char *stuff, struct ast_ha *path);
 extern int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin);
 extern int ast_get_ip(struct sockaddr_in *sin, const char *value);
 extern int ast_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *service);

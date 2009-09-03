@@ -433,7 +433,10 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 		"TRANSFR",
 		"PROVISN",
 		"FWDWNLD",
-		"FWDATA "
+		"FWDATA ",
+		"TXMEDIA",
+		"RTKEY  ",
+		"CTOKEN ",
 	};
 	const char *cmds[] = {
 		"(0?)",
@@ -872,6 +875,12 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 			} else {
 				ies->rr_ooo = ntohl(get_unaligned_uint32(data + 2));
 			}
+			break;
+		case IAX_IE_CALLTOKEN:
+			if (len) {
+				ies->calltokendata = (unsigned char *) data + 2;
+			}
+			ies->calltoken = 1;
 			break;
 		default:
 			snprintf(tmp, (int)sizeof(tmp), "Ignoring unknown information element '%s' (%d) of length %d\n", iax_ie2str(ie), ie, len);
