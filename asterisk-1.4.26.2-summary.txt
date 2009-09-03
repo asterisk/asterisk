@@ -12,8 +12,9 @@
 
     1. Summary
     2. Contributors
-    3. Other Changes
-    4. Diffstat
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
 
      ----------------------------------------------------------------------
 
@@ -49,7 +50,28 @@
    release.
 
      Coders                   Testers                  Reporters              
-   1 kpfleming              
+   3 lmadsen                1 dbrooks                1 rathaus                
+   1 dvossel                1 dvossel                
+                            1 russell                
+                            1 tilghman               
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Channels/chan_iax2
+
+   #12912: An issue with the IAX2 channel allows anonymous connections to
+   cause resource starvation
+   Revision: 216015
+   Reporter: rathaus
+   Testers: tilghman, russell, dvossel, dbrooks
+   Coders: dvossel
 
      ----------------------------------------------------------------------
 
@@ -63,10 +85,16 @@
    numbers are listed here, as well.
 
    +------------------------------------------------------------------------+
-   | Revision | Author    | Summary                     | Issues Referenced |
-   |----------+-----------+-----------------------------+-------------------|
-   | 216175   | kpfleming | recover this tag that was   |                   |
-   |          |           | accidentally deleted        |                   |
+   | Revision | Author  | Summary                       | Issues Referenced |
+   |----------+---------+-------------------------------+-------------------|
+   | 215942   | lmadsen | Create 1.4.26.2 from          |                   |
+   |          |         | 1.4.26.1.                     |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 215947   | lmadsen | Update .version and ChangeLog |                   |
+   |          |         | files.                        |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 215953   | lmadsen | Importing release summary for |                   |
+   |          |         | 1.4.26.2 release.             |                   |
    +------------------------------------------------------------------------+
 
      ----------------------------------------------------------------------
@@ -78,6 +106,19 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- 0 files changed
+ .version                       |    2
+ ChangeLog                      |    6
+ asterisk-1.4.26.2-summary.html |   58 +
+ asterisk-1.4.26.2-summary.txt  |   88 ++
+ channels/chan_iax2.c           | 1338 +++++++++++++++++++++++++++++++++++++----
+ channels/iax2-parser.c         |   10
+ channels/iax2-parser.h         |    2
+ channels/iax2.h                |    3
+ configs/iax.conf.sample        |   56 +
+ include/asterisk/acl.h         |   12
+ include/asterisk/astobj2.h     |   10
+ main/acl.c                     |   12
+ main/astobj2.c                 |   19
+ 13 files changed, 1476 insertions(+), 140 deletions(-)
 
      ----------------------------------------------------------------------
