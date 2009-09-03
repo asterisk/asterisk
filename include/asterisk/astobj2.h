@@ -673,6 +673,15 @@ enum search_flags {
 	 *  The search function is unaffected (i.e. use the one passed as
 	 *  argument, or match_by_addr if none specified). */
 	OBJ_POINTER	 = (1 << 3),
+	/*! 
+	 * \brief Continue if a match is not found in the hashed out bucket
+	 *
+	 * This flag is to be used in combination with OBJ_POINTER.  This tells
+	 * the ao2_callback() core to keep searching through the rest of the
+	 * buckets if a match is not found in the starting bucket defined by
+	 * the hash value on the argument.
+	 */
+	OBJ_CONTINUE     = (1 << 4),
 };
 
 /*!

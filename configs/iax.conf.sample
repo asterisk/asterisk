@@ -311,6 +311,63 @@ autokill=yes
 				; This can also be configured per device
 				; Parkinglots are defined in features.conf
 
+
+;
+; The following two options are used to disable call token validation for the
+; purposes of interoperability with IAX2 endpoints that do not yet support it.
+;
+; Call token validation can be set as optional for a single IP address or IP
+; address range by using the 'calltokenoptional' option. 'calltokenoptional' is
+; only a global option.  
+;
+;calltokenoptional=209.16.236.73/255.255.255.0
+;
+; In a peer/user/friend definition, the 'requirecalltoken' option may be used.
+; By setting 'requirecalltoken=no', call token validation becomes optional for
+; that peer/user.  By setting 'requirecalltoken=auto', call token validation 
+; is optional until a call token supporting peer registers successfully using
+; call token validation.  This is used as an indication that from now on, we
+; can require it from this peer.  So, requirecalltoken is internally set to yes.
+; By default, 'requirecalltoken=yes'.
+;
+;requirecalltoken=no
+;
+
+;
+; These options are used to limit the amount of call numbers allocated to a
+; single IP address.  Before changing any of these values, it is highly encouraged
+; to read the user guide associated with these options first.  In most cases, the
+; default values for these options are sufficient.
+;
+; The 'maxcallnumbers' option limits the amount of call numbers allowed for each
+; individual remote IP address.  Once an IP address reaches it's call number
+; limit, no more new connections are allowed until the previous ones close.  This
+; option can be used in a peer definition as well, but only takes effect for
+; the IP of a dynamic peer after it completes registration.
+;
+;maxcallnumbers=512
+;
+; The 'maxcallnumbers_nonvalidated' is used to set the combined number of call
+; numbers that can be allocated for connections where call token  validation
+; has been disabled.  Unlike the 'maxcallnumbers' option, this limit is not
+; separate for each individual IP address.  Any connection resulting in a
+; non-call token validated call number being allocated contributes to this
+; limit.  For use cases, see the call token user guide.  This option's 
+; default value of 8192 should be sufficient in most cases.
+;
+;maxcallnumbers_nonvalidated=1024
+;
+; The [callnumberlimits] section allows custom call number limits to be set
+; for specific IP addresses and IP address ranges.  These limits take precedence
+; over the global 'maxcallnumbers' option, but may still be overridden by a
+; peer defined 'maxcallnumbers' entry.  Note that these limits take effect
+; for every individual address within the range, not the range as a whole. 
+;
+;[callnumberlimits]
+;10.1.1.0/255.255.255.0 = 24
+;10.1.2.0/255.255.255.0 = 32
+;
+
 ; Guest sections for unauthenticated connection attempts.  Just specify an
 ; empty secret, or provide no secret section.
 ;

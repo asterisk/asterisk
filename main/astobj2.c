@@ -605,7 +605,7 @@ static void *internal_ao2_callback(struct ao2_container *c,
 				   const enum search_flags flags, void *cb_fn, void *arg, void *data, enum ao2_callback_type type,
 				   char *tag, char *file, int line, const char *funcname)
 {
-	int i, last;	/* search boundaries */
+	int i, start, last;	/* search boundaries */
 	void *ret = NULL;
 	ao2_callback_fn *cb_default = NULL;
 	ao2_callback_data_fn *cb_withdata = NULL;
@@ -642,13 +642,15 @@ static void *internal_ao2_callback(struct ao2_container *c,
 	 * (this only for the time being. We need to optimize this.)
 	 */
 	if ((flags & OBJ_POINTER))	/* we know hash can handle this case */
-		i = c->hash_fn(arg, flags & OBJ_POINTER) % c->n_buckets;
+		start = i = c->hash_fn(arg, flags & OBJ_POINTER) % c->n_buckets;
 	else			/* don't know, let's scan all buckets */
 		i = -1;		/* XXX this must be fixed later. */
 
 	/* determine the search boundaries: i..last-1 */
 	if (i < 0) {
-		i = 0;
+		start = i = 0;
+		last = c->n_buckets;
+	} else if ((flags & OBJ_CONTINUE)) {
 		last = c->n_buckets;
 	} else {
 		last = i + 1;
@@ -716,6 +718,17 @@ static void *internal_ao2_callback(struct ao2_container *c,
 			}
 		}
 		AST_LIST_TRAVERSE_SAFE_END;
+
+		if (ret) {
+			/* This assumes OBJ_MULTIPLE with !OBJ_NODATA is still not implemented */
+			break;
+		}
+
+		if (i == c->n_buckets - 1 && (flags & OBJ_POINTER) && (flags & OBJ_CONTINUE)) {
+			/* Move to the beginning to ensure we check every bucket */
+			i = -1;
+			last = start;
+		}
 	}
 	ao2_unlock(c);
 	return ret;
