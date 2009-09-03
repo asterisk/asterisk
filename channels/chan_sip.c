@@ -15366,12 +15366,12 @@ static int show_chanstats_cb(void *__cur, void *__arg, int flags)
 		rxcount > (unsigned int) 100000 ? (unsigned int) (rxcount)/(unsigned int) 1000 : rxcount,
 		rxcount > (unsigned int) 100000 ? "K":" ",
 		ast_rtp_get_qosvalue(cur->rtp, AST_RTP_RXPLOSS),
-		rxcount > ast_rtp_get_qosvalue(cur->rtp, AST_RTP_RXPLOSS) ? (unsigned int) (ast_rtp_get_qosvalue(cur->rtp, AST_RTP_RXPLOSS) / rxcount * 100) : 0,
+		rxcount > ast_rtp_get_qosvalue(cur->rtp, AST_RTP_RXPLOSS) ? (unsigned int) ((double) ast_rtp_get_qosvalue(cur->rtp, AST_RTP_RXPLOSS) / (ast_rtp_get_qosvalue(cur->rtp, AST_RTP_RXPLOSS) + rxcount) * 100) : 0,
 		ast_rtp_get_qosvalue(cur->rtp, AST_RTP_RXJITTER),
 		txcount > (unsigned int) 100000 ? (unsigned int) (txcount)/(unsigned int) 1000 : txcount,
 		txcount > (unsigned int) 100000 ? "K":" ",
 		ast_rtp_get_qosvalue(cur->rtp, AST_RTP_TXPLOSS),
-		txcount > ast_rtp_get_qosvalue(cur->rtp, AST_RTP_TXPLOSS) ? (unsigned int) (ast_rtp_get_qosvalue(cur->rtp, AST_RTP_TXPLOSS)/ txcount * 100) : 0,
+		txcount > ast_rtp_get_qosvalue(cur->rtp, AST_RTP_TXPLOSS) ? (unsigned int) ((double) ast_rtp_get_qosvalue(cur->rtp, AST_RTP_TXPLOSS)/ txcount * 100) : 0,
 		ast_rtp_get_qosvalue(cur->rtp, AST_RTP_TXJITTER)
 	);
 	arg->numchans++;

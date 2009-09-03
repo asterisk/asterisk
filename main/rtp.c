@@ -2768,7 +2768,7 @@ unsigned int ast_rtp_get_qosvalue(struct ast_rtp *rtp, enum ast_rtp_qos_vars val
 	case AST_RTP_RXCOUNT:
 		return (unsigned int) rtp->rxcount;
 	case AST_RTP_TXJITTER:
-		return (unsigned int) (rtp->rxjitter * 100.0);
+		return (unsigned int) (rtp->rxjitter * 1000.0);
 	case AST_RTP_RXJITTER:
 		return (unsigned int) (rtp->rtcp ? (rtp->rtcp->reported_jitter / (unsigned int) 65536.0) : 0);
 	case AST_RTP_RXPLOSS:
