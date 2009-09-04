@@ -2186,22 +2186,42 @@ static int peer_iphash_cb(const void *obj, const int flags)
 }
 
 /*!
+ * Match Peers by IP and Port number.
+ *
+ * This function has two modes.
+ *  - If the peer arg does not have INSECURE_PORT set, then we will only return
+ *    a match for a peer that matches both the IP and port.
+ *  - If the peer arg does have the INSECURE_PORT flag set, then we will only
+ *    return a match for a peer that matches the IP and has insecure=port
+ *    in its configuration.
+ *
+ * This callback will be used twice when doing peer matching.  There is a first
+ * pass for full IP+port matching, and a second pass in case there is a match
+ * that meets the insecure=port criteria.
+ *
  * \note the peer's addr struct provides to fields combined to make a key: the sin_addr.s_addr and sin_port fields.
  */
 static int peer_ipcmp_cb(void *obj, void *arg, int flags)
 {
 	struct sip_peer *peer = obj, *peer2 = arg;
 
-	if (peer->addr.sin_addr.s_addr != peer2->addr.sin_addr.s_addr)
+	if (peer->addr.sin_addr.s_addr != peer2->addr.sin_addr.s_addr) {
+		/* IP doesn't match */
 		return 0;
-	
-	if (!ast_test_flag(&peer->flags[0], SIP_INSECURE_PORT) && !ast_test_flag(&peer2->flags[0], SIP_INSECURE_PORT)) {
-		if (peer->addr.sin_port == peer2->addr.sin_port)
-			return CMP_MATCH | CMP_STOP;
-		else
-			return 0;
 	}
-	return CMP_MATCH | CMP_STOP;
+
+	/* We matched the IP, now check the port if appropriate. */
+
+	if (ast_test_flag(&peer2->flags[0], SIP_INSECURE_PORT)) {
+		/* We are allowing match without port for peers configured that
+		 * way in this pass through the peers. */
+		return ast_test_flag(&peer->flags[0], SIP_INSECURE_PORT) ?
+				(CMP_MATCH | CMP_STOP) : 0;
+	}
+
+	/* Only return a match if the port matches, as well. */
+
+	return peer->addr.sin_port == peer2->addr.sin_port ? (CMP_MATCH | CMP_STOP) : 0;
 }
 
 /*!
