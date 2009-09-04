@@ -2145,7 +2145,7 @@ static int __sip_autodestruct(const void *data)
 	* that were created via INVITE, then thru some sequence were CANCELED,
 	* to die, rather than infinitely be rescheduled */
 	if (p->packets && !ast_test_flag(&p->flags[0], SIP_NEEDDESTROY)) {
-		char method_str[30];
+		char method_str[31];
 		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Re-scheduled destruction of SIP call %s\n", p->callid ? p->callid : "<unknown>");
 		append_history(p, "ReliableXmit", "timeout");
