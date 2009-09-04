@@ -115,6 +115,12 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                  ; use 'never' to never use in-band signalling, even in cases
                                  ; where some buggy devices might not render it
                                  ; Valid values: yes, no, never Default: never
+;prematuremedia=no		 ; Some ISDN links send empty media frames before 
+				 ; the call is in ringing or progress state. The SIP 
+				 ; channel will then send 183 indicating early media
+				 ; which will be empty - thus users get no ring signal.
+				 ; Setting this to "no" will stop any media before we have
+				 ; call progress. Default is "yes".
 ;useragent=Asterisk PBX          ; Allows you to change the user agent string
 ;promiscredir = no               ; If yes, allows 302 or REDIR to non-local SIP address
                                  ; Note that promiscredir when redirects are made to the

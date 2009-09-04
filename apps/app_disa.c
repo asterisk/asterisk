@@ -176,7 +176,12 @@ static int disa_exec(struct ast_channel *chan, void *data)
 			/* answer */
 			ast_answer(chan);
 		}
-	} else special_noanswer = 1;
+	} else {
+		special_noanswer = 1;
+		if (chan->_state != AST_STATE_UP) {
+			ast_indicate(chan, AST_CONTROL_PROGRESS);
+		}
+	}
 	i = k = x = 0; /* k is 0 for pswd entry, 1 for ext entry */
 	did_ignore = 0;
 	exten[0] = 0;
