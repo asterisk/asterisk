@@ -1554,6 +1554,7 @@ static inline int _ast_rwlock_tryrdlock(ast_rwlock_t *t, const char *name,
 {
 	int res;
 	struct ast_lock_track *lt = &t->track;
+	int canlog = strcmp(filename, "logger.c") & t->tracking;
 #ifdef HAVE_BKTR
 	struct ast_bt *bt = NULL;
 #endif
@@ -1612,6 +1613,7 @@ static inline int _ast_rwlock_trywrlock(ast_rwlock_t *t, const char *name,
 {
 	int res;
 	struct ast_lock_track *lt= &t->track;
+	int canlog = strcmp(filename, "logger.c") & t->tracking;
 #ifdef HAVE_BKTR
 	struct ast_bt *bt = NULL;
 #endif
