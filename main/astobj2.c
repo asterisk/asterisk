@@ -644,7 +644,7 @@ static void *internal_ao2_callback(struct ao2_container *c,
 	if ((flags & OBJ_POINTER))	/* we know hash can handle this case */
 		start = i = c->hash_fn(arg, flags & OBJ_POINTER) % c->n_buckets;
 	else			/* don't know, let's scan all buckets */
-		i = -1;		/* XXX this must be fixed later. */
+		start = i = -1;		/* XXX this must be fixed later. */
 
 	/* determine the search boundaries: i..last-1 */
 	if (i < 0) {
