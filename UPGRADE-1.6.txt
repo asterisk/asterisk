@@ -71,6 +71,12 @@ Core:
   You now only need to quote strings in configuration files if you literally
   want quotation marks within a string.
 
+* Any applications run that contain the pipe symbol but not a comma symbol will
+  get a warning printed to the effect that the application delimiter has changed.
+  However, there are legitimate reasons why this might be useful in certain
+  situations, so this warning can be turned off with the dontwarn option in
+  asterisk.conf.
+
 * The logger.conf option 'rotatetimestamp' has been deprecated in favor of
   'rotatestrategy'.  This new option supports a 'rotate' strategy that more
   closely mimics the system logger in terms of file rotation.
