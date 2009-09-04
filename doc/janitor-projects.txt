@@ -34,3 +34,5 @@
  -- Ensure that Realtime-enabled modules do not depend on the order of columns returned by the database lookup (example: outboundproxy and host settings in chan_sip).
 
  -- Convert all usage of the signal(2) system API to the more portable sigaction(2) system API.
+
+ -- Make the applications in utils/ selectable in menuselect and turn off muted by default. Propably others too.
