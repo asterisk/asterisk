@@ -2357,7 +2357,7 @@ static struct ast_vm_user *find_user_realtime_imapuser(const char *imapuser)
 		ast_variables_destroy(var);
 		return vmu;
 	} else {
-		free(vmu);
+		ast_free(vmu);
 		return NULL;
 	}
 }
