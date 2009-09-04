@@ -1027,7 +1027,7 @@ static inline int _ast_rwlock_timedrdlock(ast_rwlock_t *lock, const char *name,
 	do {
 		struct timeval _start = ast_tvnow(), _diff;
 		for (;;) {
-			if (!(res = pthread_rwlock_tryrdlock(&t->lock))) {
+			if (!(res = pthread_rwlock_tryrdlock(lock))) {
 				break;
 			}
 			_diff = ast_tvsub(ast_tvnow(), _start);
@@ -1076,7 +1076,7 @@ static inline int _ast_rwlock_timedwrlock(ast_rwlock_t *lock, const char *name,
 	do {
 		struct timeval _start = ast_tvnow(), _diff;
 		for (;;) {
-			if (!(res = pthread_rwlock_trywrlock(&t->lock))) {
+			if (!(res = pthread_rwlock_trywrlock(lock))) {
 				break;
 			}
 			_diff = ast_tvsub(ast_tvnow(), _start);
