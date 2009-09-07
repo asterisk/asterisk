@@ -1195,6 +1195,7 @@ struct sip_settings {
 	struct sip_proxy outboundproxy;	/*!< Outbound proxy */
 	char default_context[AST_MAX_CONTEXT];
 	char default_subscribecontext[AST_MAX_CONTEXT];
+	struct ast_ha *contact_ha;  /*! \brief Global list of addresses dynamic peers are not allowed to use */
 };
 
 static struct sip_settings sip_cfg;		/*!< SIP configuration data.
@@ -1246,8 +1247,6 @@ static int global_max_se;                     /*!< Highest threshold for session
 
 /*@}*/
 
-/*! \brief Global list of addresses dynamic peers are not allowed to use */
-static struct ast_ha *global_contact_ha = NULL;
 static int global_dynamic_exclude_static = 0;
 
 /*! \name Object counters @{
@@ -12481,7 +12480,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		return PARSE_REGISTER_FAILED;
 	}
 	memcpy(&testsin.sin_addr, hp->h_addr, sizeof(testsin.sin_addr));
-	if (ast_apply_ha(global_contact_ha, &testsin) != AST_SENSE_ALLOW ||
+	if (ast_apply_ha(sip_cfg.contact_ha, &testsin) != AST_SENSE_ALLOW ||
 			ast_apply_ha(peer->contactha, &testsin) != AST_SENSE_ALLOW) {
 		ast_log(LOG_WARNING, "Host '%s' disallowed by rule\n", host);
 		ast_string_field_set(peer, fullcontact, "");
@@ -24317,7 +24316,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				srvlookup = v->value;
 				if (global_dynamic_exclude_static) {
 					int err = 0;
-					global_contact_ha = ast_append_ha("deny", (char *)ast_inet_ntoa(peer->addr.sin_addr), global_contact_ha, &err);
+					sip_cfg.contact_ha = ast_append_ha("deny", (char *)ast_inet_ntoa(peer->addr.sin_addr), sip_cfg.contact_ha, &err);
 					if (err) {
 						ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
 					}
@@ -24706,8 +24705,8 @@ static int reload_config(enum channelreloadreason reason)
 	memset(&sip_tcp_desc.local_address, 0, sizeof(sip_tcp_desc.local_address));
 	memset(&sip_tls_desc.local_address, 0, sizeof(sip_tls_desc.local_address));
 
-	ast_free_ha(global_contact_ha);
-	global_contact_ha = NULL;
+	ast_free_ha(sip_cfg.contact_ha);
+	sip_cfg.contact_ha = NULL;
 
 	default_tls_cfg.enabled = FALSE;		/* Default: Disable TLS */
 
@@ -24815,6 +24814,7 @@ static int reload_config(enum channelreloadreason reason)
 	sip_cfg.alwaysauthreject = DEFAULT_ALWAYSAUTHREJECT;
 	sip_cfg.allowsubscribe = FALSE;
 	sip_cfg.disallowed_methods = SIP_UNKNOWN;
+	sip_cfg.contact_ha = NULL;		/* Reset the contact ACL */
 	snprintf(global_useragent, sizeof(global_useragent), "%s %s", DEFAULT_USERAGENT, ast_get_version());
 	snprintf(global_sdpsession, sizeof(global_sdpsession), "%s %s", DEFAULT_SDPSESSION, ast_get_version());
 	snprintf(global_sdpowner, sizeof(global_sdpowner), "%s", DEFAULT_SDPOWNER);
@@ -24978,7 +24978,7 @@ static int reload_config(enum channelreloadreason reason)
 			global_dynamic_exclude_static = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "contactpermit") || !strcasecmp(v->name, "contactdeny")) {
 			int ha_error = 0;
-			global_contact_ha = ast_append_ha(v->name + 7, v->value, global_contact_ha, &ha_error);
+			sip_cfg.contact_ha = ast_append_ha(v->name + 7, v->value, sip_cfg.contact_ha, &ha_error);
 			if (ha_error) {
 				ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
 			}
