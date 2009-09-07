@@ -762,6 +762,8 @@ static int pedanticsipchecking;		/*!< Extra checking ?  Default off */
 static int autocreatepeer;		/*!< Auto creation of peers at registration? Default off. */
 static int global_match_auth_username;		/*!< Match auth username if available instead of From: Default off. */
 static int global_relaxdtmf;		/*!< Relax DTMF */
+static int global_prematuremediafilter;	/*!< Enable/disable premature frames in a call (causing 183 early media) */
+static int global_relaxdtmf;			/*!< Relax DTMF */
 static int global_rtptimeout;		/*!< Time out call if no RTP */
 static int global_rtpholdtimeout;	/*!< Time out call if no RTP during hold */
 static int global_rtpkeepalive;		/*!< Send RTP keepalives */
@@ -5569,9 +5571,11 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 				    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
 				    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 					ast_rtp_new_source(p->rtp);
-					p->invitestate = INV_EARLY_MEDIA;
-					transmit_provisional_response(p, "183 Session Progress", &p->initreq, TRUE);
-					ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);
+					if (!global_prematuremediafilter) {
+						p->invitestate = INV_EARLY_MEDIA;
+						transmit_provisional_response(p, "183 Session Progress", &p->initreq, TRUE);
+						ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);
+					}
 				} else if (p->t38.state == T38_ENABLED) {
 					change_t38_state(p, T38_DISABLED);
 					transmit_reinvite_with_sdp(p, FALSE, FALSE);
@@ -14751,6 +14755,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
  	ast_cli(a->fd, "  Timer T1:               %d\n", global_t1);
 	ast_cli(a->fd, "  Timer T1 minimum:       %d\n", global_t1min);
  	ast_cli(a->fd, "  Timer B:                %d\n", global_timer_b);
+	ast_cli(a->fd, "  No premature media:     %s\n", global_prematuremediafilter ? "Yes" : "No");
 
 	ast_cli(a->fd, "\nDefault Settings:\n");
 	ast_cli(a->fd, "-----------------\n");
@@ -22716,6 +22721,7 @@ static int reload_config(enum channelreloadreason reason)
 	snprintf(global_useragent, sizeof(global_useragent), "%s %s", DEFAULT_USERAGENT, ast_get_version());
 	snprintf(global_sdpsession, sizeof(global_sdpsession), "%s %s", DEFAULT_SDPSESSION, ast_get_version());
 	snprintf(global_sdpowner, sizeof(global_sdpowner), "%s", DEFAULT_SDPOWNER);
+	global_prematuremediafilter = TRUE;
 	ast_copy_string(default_notifymime, DEFAULT_NOTIFYMIME, sizeof(default_notifymime));
 	ast_copy_string(global_realm, S_OR(ast_config_AST_SYSTEM_NAME, DEFAULT_REALM), sizeof(global_realm));
 	ast_copy_string(default_callerid, DEFAULT_CALLERID, sizeof(default_callerid));
@@ -22877,6 +22883,8 @@ static int reload_config(enum channelreloadreason reason)
 			ast_set2_flag(&global_flags[1], i || ast_true(v->value), SIP_PAGE2_RTAUTOCLEAR);
 		} else if (!strcasecmp(v->name, "usereqphone")) {
 			ast_set2_flag(&global_flags[0], ast_true(v->value), SIP_USEREQPHONE);	
+		} else if (!strcasecmp(v->name, "prematuremedia")) {
+			global_prematuremediafilter = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "relaxdtmf")) {
 			global_relaxdtmf = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "vmexten")) {
