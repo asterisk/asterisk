@@ -23198,20 +23198,21 @@ int st_get_se(struct sip_pvt *p, int max)
 		}
 		p->stimer->st_cached_max_se = global_max_se;
 		return (p->stimer->st_cached_max_se);
-	} else {
-		if (p->stimer->st_cached_min_se) {
-			return p->stimer->st_cached_min_se;
-		} else if (p->peername) {
-			struct sip_peer *pp = find_peer(p->peername, NULL, TRUE, FINDPEERS, FALSE, 0);
-			if (pp) {
-				p->stimer->st_cached_min_se = pp->stimer.st_min_se;
-				unref_peer(pp, "unref peer pointer from find_peer call in st_get_se (2)");
-				return (p->stimer->st_cached_min_se);
-			}
+	} 
+	/* Find Min SE timer */
+	if (p->stimer->st_cached_min_se) {
+		return p->stimer->st_cached_min_se;
+	} 
+	if (p->peername) {
+		struct sip_peer *pp = find_peer(p->peername, NULL, TRUE, FINDPEERS, FALSE, 0);
+		if (pp) {
+			p->stimer->st_cached_min_se = pp->stimer.st_min_se;
+			unref_peer(pp, "unref peer pointer from find_peer call in st_get_se (2)");
+			return (p->stimer->st_cached_min_se);
 		}
-		p->stimer->st_cached_min_se = global_min_se;
-		return (p->stimer->st_cached_min_se);
 	}
+	p->stimer->st_cached_min_se = global_min_se;
+	return (p->stimer->st_cached_min_se);
 }
 
 
