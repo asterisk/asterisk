@@ -1080,7 +1080,8 @@ static const char *sip_reason_code_to_str(enum AST_REDIRECTING_REASON code)
  * in principle, use a different "default" port number, but
  * we do not support this feature at the moment.
  * You can run Asterisk with SIP on a different port with a configuration
- * option. If you change this value, the signalling will be incorrect.
+ * option. If you change this value in the source code, the signalling will be incorrect.
+ *
  */
 
 /*! \name DefaultValues Default values, set and reset in reload_config before reading configuration
@@ -1099,7 +1100,7 @@ static const char *sip_reason_code_to_str(enum AST_REDIRECTING_REASON code)
 #define DEFAULT_NOTIFYMIME 	"application/simple-message-summary"
 #define DEFAULT_ALLOWGUEST	TRUE
 #define DEFAULT_RTPKEEPALIVE	0		/*!< Default RTPkeepalive setting */
-#define DEFAULT_CALLCOUNTER	FALSE
+#define DEFAULT_CALLCOUNTER	FALSE		/*!< Do not enable call counters by default */
 #define DEFAULT_SRVLOOKUP	TRUE		/*!< Recommended setting is ON */
 #define DEFAULT_COMPACTHEADERS	FALSE		/*!< Send compact (one-character) SIP headers. Default off */
 #define DEFAULT_TOS_SIP         0               /*!< Call signalling packets should be marked as DSCP CS3, but the default is 0 to be compatible with previous versions. */
@@ -1196,7 +1197,8 @@ struct sip_settings {
 	char default_subscribecontext[AST_MAX_CONTEXT];
 };
 
-static struct sip_settings sip_cfg;
+static struct sip_settings sip_cfg;		/*!< SIP configuration data.
+					\note in the future we could have multiple of these (per domain, per device group etc) */
 
 static int global_match_auth_username;		/*!< Match auth username if available instead of From: Default off. */
 
@@ -1205,7 +1207,7 @@ static int global_prematuremediafilter;	/*!< Enable/disable premature frames in 
 static int global_rtptimeout;		/*!< Time out call if no RTP */
 static int global_rtpholdtimeout;	/*!< Time out call if no RTP during hold */
 static int global_rtpkeepalive;		/*!< Send RTP keepalives */
-static int global_reg_timeout;
+static int global_reg_timeout;		/*!< Global time between attempts for outbound registrations */
 static int global_regattempts_max;	/*!< Registration attempts before giving up */
 static int global_callcounter;		/*!< Enable call counters for all devices. This is currently enabled by setting the peer
 						call-limit to UINT_MAX. When we remove the call-limit from the code, we can make it
