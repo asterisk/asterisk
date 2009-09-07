@@ -202,6 +202,13 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;relaxdtmf=yes                  ; Relax dtmf handling
 ;trustrpid = no                 ; If Remote-Party-ID should be trusted
 ;sendrpid = yes                 ; If Remote-Party-ID should be sent
+;prematuremedia=no		; Some ISDN links send empty media frames before 
+				; the call is in ringing or progress state. The SIP 
+				; channel will then send 183 indicating early media
+				; which will be empty - thus users get no ring signal.
+				; Setting this to "no" will stop any media before we have
+				; call progress. Default is "yes".
+
 ;progressinband=never           ; If we should generate in-band ringing always
                                 ; use 'never' to never use in-band signalling, even in cases
                                 ; where some buggy devices might not render it
