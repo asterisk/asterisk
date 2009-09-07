@@ -105,6 +105,10 @@ Dialplan Functions
    channel, is one approach that will avoid conflicts.
  * Added new dialplan function MUTEAUDIO() for muting inbound and/or outbound
    audio in a channel.
+ * func_odbc now allows multiple row results to be retrieved without using
+   mode=multirow.  If rowlimit is set, then additional rows may be retrieved
+   from the same query by using the name of the function which retrieved the
+   first row as an argument to ODBC_FETCH().
 
 Dialplan Variables
 ------------------

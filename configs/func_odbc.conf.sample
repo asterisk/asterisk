@@ -62,10 +62,14 @@
 ;              query was initially performed.  Additionally, as the results are
 ;              associated with a channel, mode=multirow is incompatible with
 ;              the global space.
-; rowlimit     An additional option for within mode=multirow, rowlimit limits
-;              the total number of rows which can be stored for that query.
-;              Otherwise, func_odbc will attempt to store all rows in the
-;              resultset, up to the maximum amount of memory.
+; rowlimit     Rowlimit limits the total number of rows which can be stored for
+;              that query.  For mode=multirow, otherwise, func_odbc will
+;              attempt to store all rows in the resultset, up to the maximum
+;              amount of memory.  In normal mode, rowlimit can be set to allow
+;              additional rows to be fetched, rather than just the first one.
+;              These additional rows can be returned by using the name of the
+;              function which was called to retrieve the first row as an
+;              argument to ODBC_FETCH().
 
 
 ; ODBC_SQL - Allow an SQL statement to be built entirely in the dialplan

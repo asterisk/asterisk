@@ -2,7 +2,7 @@
  * Asterisk -- An open source telephony toolkit.
  *
  * Copyright (c) 2005, 2006 Tilghman Lesher
- * Copyright (c) 2008 Digium, Inc.
+ * Copyright (c) 2008, 2009 Digium, Inc.
  *
  * Tilghman Lesher <func_odbc__200508@the-tilghman.com>
  *
@@ -143,6 +143,8 @@ AST_THREADSTORAGE(sql_buf);
 AST_THREADSTORAGE(sql2_buf);
 AST_THREADSTORAGE(coldata_buf);
 AST_THREADSTORAGE(colnames_buf);
+
+static int acf_fetch(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len);
 
 static void odbc_datastore_free(void *data)
 {
@@ -388,7 +390,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 	struct acf_odbc_query *query;
 	char varname[15], rowcount[12] = "-1";
 	struct ast_str *colnames = ast_str_thread_get(&colnames_buf, 16);
-	int res, x, y, buflen = 0, escapecommas, rowlimit = 1, dsn, bogus_chan = 0;
+	int res, x, y, buflen = 0, escapecommas, rowlimit = 1, multirow = 0, dsn, bogus_chan = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(field)[100];
 	);
@@ -460,12 +462,29 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 	/* Save these flags, so we can release the lock */
 	escapecommas = ast_test_flag(query, OPT_ESCAPECOMMAS);
 	if (!bogus_chan && ast_test_flag(query, OPT_MULTIROW)) {
-		resultset = ast_calloc(1, sizeof(*resultset));
+		if (!(resultset = ast_calloc(1, sizeof(*resultset)))) {
+			pbx_builtin_setvar_helper(chan, "ODBCROWS", rowcount);
+			pbx_builtin_setvar_helper(chan, "ODBCSTATUS", status);
+			ast_autoservice_stop(chan);
+			return -1;
+		}
 		AST_LIST_HEAD_INIT(resultset);
 		if (query->rowlimit) {
 			rowlimit = query->rowlimit;
 		} else {
 			rowlimit = INT_MAX;
+		}
+		multirow = 1;
+	} else if (!bogus_chan) {
+		if (query->rowlimit > 1) {
+			rowlimit = query->rowlimit;
+			if (!(resultset = ast_calloc(1, sizeof(*resultset)))) {
+				pbx_builtin_setvar_helper(chan, "ODBCROWS", rowcount);
+				pbx_builtin_setvar_helper(chan, "ODBCSTATUS", status);
+				ast_autoservice_stop(chan);
+				return -1;
+			}
+			AST_LIST_HEAD_INIT(resultset);
 		}
 	}
 	AST_RWLIST_UNLOCK(&queries);
@@ -480,6 +499,8 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 		if (stmt) {
 			break;
 		}
+		ast_odbc_release_obj(obj);
+		obj = NULL;
 	}
 
 	if (!stmt) {
@@ -654,8 +675,22 @@ end_acf_read:
 		if (resultset) {
 			int uid;
 			struct ast_datastore *odbc_store;
-			uid = ast_atomic_fetchadd_int(&resultcount, +1) + 1;
-			snprintf(buf, len, "%d", uid);
+			if (multirow) {
+				uid = ast_atomic_fetchadd_int(&resultcount, +1) + 1;
+				snprintf(buf, len, "%d", uid);
+			} else {
+				/* Name of the query is name of the resultset */
+				ast_copy_string(buf, cmd, len);
+
+				/* If there's one with the same name already, free it */
+				ast_channel_lock(chan);
+				if ((odbc_store = ast_channel_datastore_find(chan, &odbc_info, buf))) {
+					ast_channel_datastore_remove(chan, odbc_store);
+					odbc_datastore_free(odbc_store->data);
+					ast_free(odbc_store);
+				}
+				ast_channel_unlock(chan);
+			}
 			odbc_store = ast_datastore_alloc(&odbc_info, buf);
 			if (!odbc_store) {
 				ast_log(LOG_ERROR, "Rows retrieved, but unable to store it in the channel.  Results fail.\n");
@@ -676,6 +711,12 @@ end_acf_read:
 	SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 	ast_odbc_release_obj(obj);
 	obj = NULL;
+	if (resultset && !multirow) {
+		/* Fetch the first resultset */
+		if (!acf_fetch(chan, "", buf, buf, len)) {
+			buf[0] = '\0';
+		}
+	}
 	if (!bogus_chan) {
 		ast_autoservice_stop(chan);
 	}
