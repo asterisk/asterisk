@@ -8,6 +8,12 @@
 ===
 ======================================================================
 
+SIP changes
+-----------
+ * Added a new option "prematuremedia" that defaults to "no". If you turn this
+   option on, chan_sip will not automatically initiate early media if it receives
+   audio from the incoming channel before there's been a progress indication.
+
 ----------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.1.1 to Asterisk 1.6.1.2  -------------
 ----------------------------------------------------------------------------------
