@@ -2437,6 +2437,7 @@ static void check_pendings(struct sip_pvt *p);
 static void *sip_park_thread(void *stuff);
 static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct sip_request *req, int seqno);
 static int sip_sipredirect(struct sip_pvt *p, const char *dest);
+static int is_method_allowed(unsigned int *allowed_methods, enum sipmethod method);
 
 /*--- Codec handling / SDP */
 static void try_suggested_sip_codec(struct sip_pvt *p);
@@ -4491,20 +4492,22 @@ static const char *sip_get_callid(struct ast_channel *chan)
 	Called from PBX core sendtext() application */
 static int sip_sendtext(struct ast_channel *ast, const char *text)
 {
-	struct sip_pvt *p = ast->tech_pvt;
-	int debug = sip_debug_test_pvt(p);
+	struct sip_pvt *dialog = ast->tech_pvt;
+	int debug = sip_debug_test_pvt(dialog);
 
-	if (debug)
-		ast_verbose("Sending text %s on %s\n", text, ast->name);
-	if (!p)
+	if (!dialog)
 		return -1;
 	/* NOT ast_strlen_zero, because a zero-length message is specifically
 	 * allowed by RFC 3428 (See section 10, Examples) */
 	if (!text)
 		return 0;
+	if(!is_method_allowed(&dialog->allowed_methods, SIP_MESSAGE)) {
+		ast_debug(2, "Trying to send MESSAGE to device that does not support it.\n");
+		return(0);
+	}
 	if (debug)
-		ast_verbose("Really sending text %s on %s\n", text, ast->name);
-	transmit_message_with_text(p, text);
+		ast_verbose("Sending text %s on %s\n", text, ast->name);
+	transmit_message_with_text(dialog, text);
 	return 0;	
 }
 
@@ -7724,6 +7727,7 @@ static void mark_method_unallowed(unsigned int *allowed_methods, enum sipmethod 
 	(*allowed_methods) &= ~(1 << method);
 }
 
+/*! \brief Check if method is allowed for a device or a dialog */
 static int is_method_allowed(unsigned int *allowed_methods, enum sipmethod method)
 {
 	return ((*allowed_methods) >> method) & 1;
