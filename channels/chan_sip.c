@@ -1183,6 +1183,7 @@ struct sip_settings {
 	int callevents;			/*!< Whether we send manager events or not */
 	int regextenonqualify;  	/*!< Whether to add/remove regexten when qualifying peers */
 	int matchexterniplocally;	/*!< Match externip/externhost setting against localnet setting */
+	char regcontext[AST_MAX_CONTEXT];	/*!< Context for auto-extensions */
 	unsigned int disallowed_methods; /*!< methods that we should never try to use */
 	int notifyringing;		/*!< Send notifications on ringing */
 	int notifyhold;			/*!< Send notifications on hold */
@@ -1223,7 +1224,6 @@ static unsigned int global_cos_video;		/*!< 802.1p class of service for video RT
 static unsigned int global_cos_text;		/*!< 802.1p class of service for text RTP packets */
 static unsigned int recordhistory;		/*!< Record SIP history. Off by default */
 static unsigned int dumphistory;		/*!< Dump history to verbose before destroying SIP dialog */
-static char global_regcontext[AST_MAX_CONTEXT];		/*!< Context for auto-extensions */
 static char global_useragent[AST_MAX_EXTENSION];	/*!< Useragent for the SIP channel */
 static char global_sdpsession[AST_MAX_EXTENSION];	/*!< SDP session name for the SIP channel */
 static char global_sdpowner[AST_MAX_EXTENSION];	/*!< SDP owner name for the SIP channel */
@@ -4561,11 +4561,11 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 	char *stringp, *ext, *context;
 	struct pbx_find_info q = { .stacklen = 0 };
 
-	/* XXX note that global_regcontext is both a global 'enable' flag and
+	/* XXX note that sip_cfg.regcontext is both a global 'enable' flag and
 	 * the name of the global regexten context, if not specified
 	 * individually.
 	 */
-	if (ast_strlen_zero(global_regcontext))
+	if (ast_strlen_zero(sip_cfg.regcontext))
 		return;
 
 	ast_copy_string(multi, S_OR(peer->regexten, peer->name), sizeof(multi));
@@ -4578,7 +4578,7 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 				continue;
 			}
 		} else {
-			context = global_regcontext;
+			context = sip_cfg.regcontext;
 		}
 		if (onoff) {
 			if (!ast_exists_extension(NULL, context, ext, 1, NULL)) {
@@ -15640,7 +15640,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  Defaddr->IP  : %s Port %d\n", ast_inet_ntoa(peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
 		ast_cli(fd, "  Prim.Transp. : %s\n", get_transport(peer->socket.type));
 		ast_cli(fd, "  Allowed.Trsp : %s\n", get_transport_list(peer->transports));
-		if (!ast_strlen_zero(global_regcontext))
+		if (!ast_strlen_zero(sip_cfg.regcontext))
 			ast_cli(fd, "  Reg. exten   : %s\n", peer->regexten);
 		ast_cli(fd, "  Def. Username: %s\n", peer->username);
 		ast_cli(fd, "  SIP Options  : ");
@@ -15740,7 +15740,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		astman_append(s, "Address-IP: %s\r\nAddress-Port: %d\r\n",  peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "", ntohs(peer->addr.sin_port));
 		astman_append(s, "Default-addr-IP: %s\r\nDefault-addr-port: %d\r\n", ast_inet_ntoa(peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
 		astman_append(s, "Default-Username: %s\r\n", peer->username);
-		if (!ast_strlen_zero(global_regcontext))
+		if (!ast_strlen_zero(sip_cfg.regcontext))
 			astman_append(s, "RegExtension: %s\r\n", peer->regexten);
 		astman_append(s, "Codecs: ");
 		ast_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, peer->capability);
@@ -16168,7 +16168,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  User Agent:             %s\n", global_useragent);
 	ast_cli(a->fd, "  SDP Session Name:       %s\n", ast_strlen_zero(global_sdpsession) ? "-" : global_sdpsession);
 	ast_cli(a->fd, "  SDP Owner Name:         %s\n", ast_strlen_zero(global_sdpowner) ? "-" : global_sdpowner);
-	ast_cli(a->fd, "  Reg. context:           %s\n", S_OR(global_regcontext, "(not set)"));
+	ast_cli(a->fd, "  Reg. context:           %s\n", S_OR(sip_cfg.regcontext, "(not set)"));
 	ast_cli(a->fd, "  Regexten on Qualify:    %s\n", cli_yesno(sip_cfg.regextenonqualify));
 	ast_cli(a->fd, "  Caller ID:              %s\n", default_callerid);
 	ast_cli(a->fd, "  From: Domain:           %s\n", default_fromdomain);
@@ -24760,8 +24760,8 @@ static int reload_config(enum channelreloadreason reason)
 	default_tls_cfg.cafile = ast_strdup("");
 	default_tls_cfg.capath = ast_strdup("");
 
-	/* Initialize copy of current global_regcontext for later use in removing stale contexts */
-	ast_copy_string(oldcontexts, global_regcontext, sizeof(oldcontexts));
+	/* Initialize copy of current sip_cfg.regcontext for later use in removing stale contexts */
+	ast_copy_string(oldcontexts, sip_cfg.regcontext, sizeof(oldcontexts));
 	oldregcontext = oldcontexts;
 
 	/* Clear all flags before setting default values */
@@ -24805,7 +24805,7 @@ static int reload_config(enum channelreloadreason reason)
 
 	/* Reset channel settings to default before re-configuring */
 	sip_cfg.allow_external_domains = DEFAULT_ALLOW_EXT_DOM;				/* Allow external invites */
-	global_regcontext[0] = '\0';
+	sip_cfg.regcontext[0] = '\0';
 	sip_cfg.regextenonqualify = DEFAULT_REGEXTENONQUALIFY;
 	sip_cfg.notifyringing = DEFAULT_NOTIFYRINGING;
 	sip_cfg.notifycid = DEFAULT_NOTIFYCID;
@@ -25046,7 +25046,7 @@ static int reload_config(enum channelreloadreason reason)
 				ast_copy_string(used_context, context, sizeof(used_context));
 				ast_context_find_or_create(NULL, NULL, context, "SIP");
 			}
-			ast_copy_string(global_regcontext, v->value, sizeof(global_regcontext));
+			ast_copy_string(sip_cfg.regcontext, v->value, sizeof(sip_cfg.regcontext));
 		} else if (!strcasecmp(v->name, "regextenonqualify")) {
 			sip_cfg.regextenonqualify = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "callerid")) {
