@@ -188,9 +188,9 @@ Changes to manager version 1.1:
 	Variables:
 	  Interface: <tech/name>	The interface of the member whose penalty you wish to change
 	  Penalty:  <number>		The new penalty for the member. Must be nonnegative.
-	  Queue:  <name>			If specified, only set the penalty for the member for this queue;
-	  								Otherwise, set the penalty for the member in all queues to which
-									he belongs.
+	  Queue:  <name>		If specified, only set the penalty for the member for this queue;
+					Otherwise, set the penalty for the member in all queues to which
+					he belongs.
 
 - Action: QueueRule
 	Modules: app_queue
@@ -198,7 +198,7 @@ Changes to manager version 1.1:
 		To list queue rules defined in queuerules.conf
 	Variables:
 	  Rule: <name>			The name of the rule whose contents you wish to list. If this variable
-	  							is not present, all rules in queuerules.conf will be listed.
+	  				is not present, all rules in queuerules.conf will be listed.
 		
 - Action: Atxfer
 	Modules: none
