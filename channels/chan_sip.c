@@ -3443,6 +3443,7 @@ static inline const char *get_transport_pvt(struct sip_pvt *p)
 	Sends a SIP request or response on a given socket (in the pvt)
 	Called by retrans_pkt, send_request, send_response and
 	__sip_reliable_xmit
+	\return length of transmitted message, XMIT_ERROR on known network failures -1 on other failures.
 */
 static int __sip_xmit(struct sip_pvt *p, struct ast_str *data, int len)
 {
@@ -4135,7 +4136,9 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 	return res;
 }
 
-/*! \brief Send SIP Request to the other part of the dialogue */
+/*! \brief Send SIP Request to the other part of the dialogue 
+	\return see \ref __sip_xmit
+*/
 static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, int seqno)
 {
 	int res;
@@ -5079,7 +5082,7 @@ static void copy_socket_data(struct sip_socket *to_sock, const struct sip_socket
 }
 
 /*! \brief Initialize RTP portion of a dialog
- * \returns -1 on failure, 0 on success
+ * \return -1 on failure, 0 on success
  */
 static int dialog_initialize_rtp(struct sip_pvt *dialog)
 {
@@ -11657,7 +11660,9 @@ static int sip_reregister(const void *data)
 	return 0;
 }
 
-/*! \brief Register with SIP proxy */
+/*! \brief Register with SIP proxy 
+	\return see \ref __sip_xmit 
+*/
 static int __sip_do_register(struct sip_registry *r)
 {
 	int res;
