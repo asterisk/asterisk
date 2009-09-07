@@ -213,7 +213,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 				; channel will then send 183 indicating early media
 				; which will be empty - thus users get no ring signal.
 				; Setting this to "no" will stop any media before we have
-				; call progress. Default is "yes".
+				; call progress. Default is "no".
 
 ;progressinband=never           ; If we should generate in-band ringing always
                                 ; use 'never' to never use in-band signalling, even in cases
