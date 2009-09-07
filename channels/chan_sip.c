@@ -563,8 +563,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define SIP_RESERVED ";/?:@&=+$,# "		/*!< Reserved characters in the username part of the URI */
 
-/* #define VOCAL_DATA_HACK */
-
 #define DEFAULT_DEFAULT_EXPIRY  120
 #define DEFAULT_MIN_EXPIRY      60
 #define DEFAULT_MAX_EXPIRY      3600
