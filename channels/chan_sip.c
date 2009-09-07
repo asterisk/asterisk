@@ -711,6 +711,19 @@ enum subscriptiontype {
 	MWI_NOTIFICATION
 };
 
+/*! \brief The number of media types in enum \ref media_type below. */
+#define OFFERED_MEDIA_COUNT	4
+
+/*! \brief Media types generate different "dummy answers" for not accepting the offer of 
+	a media stream. We need to add definitions for each RTP profile. Secure RTP is not
+	the same as normal RTP and will require a new definition */
+enum media_type {
+	SDP_AUDIO,		/*!< RTP/AVP Audio */
+	SDP_VIDEO,		/*!< RTP/AVP Video */
+	SDP_IMAGE,	/*!< Image udptl, not TCP or RTP */
+	SDP_TEXT,		/*!< RTP/AVP Realtime Text */
+};
+
 /*! \brief Subscription types that we support. We support
    - dialoginfo updates (really device status, not dialog info as was the original intent of the standard)
    - SIMPLE presence used for device status
@@ -1653,9 +1666,11 @@ struct sip_st_cfg {
 	int st_max_se;                  /*!< Highest threshold for session refresh interval */
 };
 
+/*! \brief Structure for remembering offered media in an INVITE, to make sure we reply
+	to all media streams. In theory. In practise, we try our best. */
 struct offered_media {
 	int offered;
-	char text[128];
+	char codecs[128];
 };
 
 /*! \brief Structure used for each SIP dialog, ie. a call, a registration, a subscribe.
@@ -1840,7 +1855,7 @@ struct sip_pvt {
 	 *
 	 * The large-scale changes would be a good idea for implementing during an SDP rewrite.
 	 */
-	struct offered_media offered_media[4];
+	struct offered_media offered_media[OFFERED_MEDIA_COUNT];
 };
 
 
@@ -8047,12 +8062,6 @@ static int find_sdp(struct sip_request *req)
 	return FALSE;
 }
 
-enum media_type {
-	SDP_AUDIO,
-	SDP_VIDEO,
-	SDP_IMAGE,
-	SDP_TEXT,
-};
 
 static int get_ip_and_port_from_sdp(struct sip_request *req, const enum media_type media, struct sockaddr_in *sin)
 {
@@ -8309,7 +8318,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			portno = x;
 			/* Scan through the RTP payload types specified in a "m=" line: */
 			codecs = m + len;
-			ast_copy_string(p->offered_media[SDP_AUDIO].text, codecs, sizeof(p->offered_media[SDP_AUDIO].text));
+			ast_copy_string(p->offered_media[SDP_AUDIO].codecs, codecs, sizeof(p->offered_media[SDP_AUDIO].codecs));
 			for (; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
 				if (sscanf(codecs, "%30d%n", &codec, &len) != 1) {
 					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
@@ -8329,7 +8338,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			vportno = x;
 			/* Scan through the RTP payload types specified in a "m=" line: */
 			codecs = m + len;
-			ast_copy_string(p->offered_media[SDP_VIDEO].text, codecs, sizeof(p->offered_media[SDP_VIDEO].text));
+			ast_copy_string(p->offered_media[SDP_VIDEO].codecs, codecs, sizeof(p->offered_media[SDP_VIDEO].codecs));
 			for (; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
 				if (sscanf(codecs, "%30d%n", &codec, &len) != 1) {
 					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
@@ -8348,7 +8357,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			tportno = x;
 			/* Scan through the RTP payload types specified in a "m=" line: */
 			codecs = m + len;
-			ast_copy_string(p->offered_media[SDP_TEXT].text, codecs, sizeof(p->offered_media[SDP_TEXT].text));
+			ast_copy_string(p->offered_media[SDP_TEXT].codecs, codecs, sizeof(p->offered_media[SDP_TEXT].codecs));
 			for (; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
 				if (sscanf(codecs, "%30d%n", &codec, &len) != 1) {
 					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
@@ -10433,7 +10442,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		add_line(resp, a_audio->str);
 		add_line(resp, hold);
 	} else if (p->offered_media[SDP_AUDIO].offered) {
-		snprintf(dummy_answer, sizeof(dummy_answer), "m=audio 0 RTP/AVP %s\r\n", p->offered_media[SDP_AUDIO].text);
+		snprintf(dummy_answer, sizeof(dummy_answer), "m=audio 0 RTP/AVP %s\r\n", p->offered_media[SDP_AUDIO].codecs);
 		add_line(resp, dummy_answer);
 	}
 	if (needvideo) { /* only if video response is appropriate */
@@ -10441,7 +10450,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		add_line(resp, a_video->str);
 		add_line(resp, hold);	/* Repeat hold for the video stream */
 	} else if (p->offered_media[SDP_VIDEO].offered) {
-		snprintf(dummy_answer, sizeof(dummy_answer), "m=video 0 RTP/AVP %s\r\n", p->offered_media[SDP_VIDEO].text);
+		snprintf(dummy_answer, sizeof(dummy_answer), "m=video 0 RTP/AVP %s\r\n", p->offered_media[SDP_VIDEO].codecs);
 		add_line(resp, dummy_answer);
 	}
 	if (needtext) { /* only if text response is appropriate */
@@ -10449,7 +10458,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		add_line(resp, a_text->str);
 		add_line(resp, hold);	/* Repeat hold for the text stream */
 	} else if (p->offered_media[SDP_TEXT].offered) {
-		snprintf(dummy_answer, sizeof(dummy_answer), "m=text 0 RTP/AVP %s\r\n", p->offered_media[SDP_TEXT].text);
+		snprintf(dummy_answer, sizeof(dummy_answer), "m=text 0 RTP/AVP %s\r\n", p->offered_media[SDP_TEXT].codecs);
 		add_line(resp, dummy_answer);
 	}
 	if (add_t38) {
