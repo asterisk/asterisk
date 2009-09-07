@@ -3477,7 +3477,7 @@ static int __sip_xmit(struct sip_pvt *p, struct ast_str *data, int len)
 		switch (errno) {
 		case EBADF: 		/* Bad file descriptor - seems like this is generated when the host exist, but doesn't accept the UDP packet */
 		case EHOSTUNREACH: 	/* Host can't be reached */
-		case ENETDOWN: 		/* Inteface down */
+		case ENETDOWN: 		/* Interface down */
 		case ENETUNREACH:	/* Network failure */
 		case ECONNREFUSED:      /* ICMP port unreachable */
 			res = XMIT_ERROR;	/* Don't bother with trying to transmit again */
