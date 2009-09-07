@@ -1137,7 +1137,7 @@ static const char *sip_reason_code_to_str(enum AST_REDIRECTING_REASON code)
 	configuring devices
 */
 /*@{*/
-static char default_language[MAX_LANGUAGE];
+static char default_language[MAX_LANGUAGE];	/*! Default language setting for new channels */
 static char default_callerid[AST_MAX_EXTENSION];
 static char default_mwi_from[80];
 static char default_fromdomain[AST_MAX_EXTENSION];
@@ -1202,7 +1202,6 @@ static int global_match_auth_username;		/*!< Match auth username if available in
 
 static int global_relaxdtmf;		/*!< Relax DTMF */
 static int global_prematuremediafilter;	/*!< Enable/disable premature frames in a call (causing 183 early media) */
-static int global_relaxdtmf;			/*!< Relax DTMF */
 static int global_rtptimeout;		/*!< Time out call if no RTP */
 static int global_rtpholdtimeout;	/*!< Time out call if no RTP during hold */
 static int global_rtpkeepalive;		/*!< Send RTP keepalives */
