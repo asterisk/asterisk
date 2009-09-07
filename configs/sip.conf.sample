@@ -141,40 +141,10 @@ tcpbindaddr=0.0.0.0             ; IP address for TCP server to bind to (0.0.0.0 
 ;tlsenable=no                   ; Enable server for incoming TLS (secure) connections (default is no)
 ;tlsbindaddr=0.0.0.0            ; IP address for TLS server to bind to (0.0.0.0) binds to all interfaces)
                                 ; Optionally add a port number, 192.168.1.1:5063 (default is port 5061)
-                                ; Remember that the IP address must match the common name (hostname) in the
-                                ; certificate, so you don't want to bind a TLS socket to multiple IP addresses.
+                                ; Remember that the DNS entry for the common name (server name) in the
+				; certificate must point to the IP address you bind to,
+                                ; so you don't want to bind a TLS socket to multiple IP addresses.
 
-;tlscertfile=</path/to/certificate.pem> ; Certificate file (*.pem only) to use for TLS connections
-                                        ; default is to look for "asterisk.pem" in current directory
-
-;tlsprivatekey=</path/to/private.pem> ; Private key file (*.pem only) for TLS connections.
-                                      ; If no tlsprivatekey is specified, tlscertfile is searched for
-                                      ; for both public and private key.
-
-;tlscafile=</path/to/certificate>
-;        If the server your connecting to uses a self signed certificate
-;        you should have their certificate installed here so the code can
-;        verify the authenticity of their certificate.
-
-;tlscadir=</path/to/ca/dir>
-;        A directory full of CA certificates.  The files must be named with
-;        the CA subject name hash value.
-;        (see man SSL_CTX_load_verify_locations for more info)
-
-;tlsdontverifyserver=[yes|no]
-;        If set to yes, don't verify the servers certificate when acting as
-;        a client.  If you don't have the server's CA certificate you can
-;        set this and it will connect without requiring tlscafile to be set.
-;        Default is no.
-
-;tlscipher=<SSL cipher string>
-;        A string specifying which SSL ciphers to use or not use
-;        A list of valid SSL cipher strings can be found at:
-;                http://www.openssl.org/docs/apps/ciphers.html#CIPHER_STRINGS
-;
-;tlsclientmethod=tlsv1     ; values include tlsv1, sslv3, sslv2.
-                           ; Specify protocol for outbound client connections.
-                           ; If left unspecified, the default is sslv2.
 
 srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; Note: Asterisk only uses the first host
@@ -204,21 +174,22 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;minexpiry=60                   ; Minimum length of registrations/subscriptions (default 60)
 ;defaultexpiry=120              ; Default length of incoming/outgoing registration
 ;mwiexpiry=3600                 ; Expiry time for outgoing MWI subscriptions
-;qualifyfreq=60                 ; Qualification: How often to check for the
-                                ; host to be up in seconds
-                                ; Set to low value if you use low timeout for
-                                ; NAT of UDP sessions
+;qualifyfreq=60                 ; Qualification: How often to check for the host to be up in seconds
+                                ; Set to low value if you use low timeout for NAT of UDP sessions
+				; Default: 60
 ;qualifygap=100			; Number of milliseconds between each group of peers being qualified
+				; Default: 100
 ;qualifypeers=1			; Number of peers in a group to be qualified at the same time
+				; Default: 1
 ;notifymimetype=text/plain      ; Allow overriding of mime type in MWI NOTIFY
 ;buggymwi=no                    ; Cisco SIP firmware doesn't support the MWI RFC
                                 ; fully. Enable this option to not get error messages
                                 ; when sending MWI to phones with this bug.
 ;mwi_from=asterisk              ; When sending MWI NOTIFY requests, use this setting in
                                 ; the From: header as the "name" portion. Also fill the
-						        ; "user" portion of the URI in the From: header with this
-						        ; value if no fromuser is set
-						        ; Default: empty
+			        ; "user" portion of the URI in the From: header with this
+			        ; value if no fromuser is set
+			        ; Default: empty
 ;vmexten=voicemail              ; dialplan extension to reach mailbox sets the
                                 ; Message-Account in the MWI notify message
                                 ; defaults to "asterisk"
@@ -253,7 +224,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; This may also be set for individual users/peers
 ;relaxdtmf=yes                  ; Relax dtmf handling
 ;trustrpid = no                 ; If Remote-Party-ID should be trusted
-;sendrpid = yes                 ; If Remote-Party-ID should be sent
+;sendrpid = yes                 ; If Remote-Party-ID should be sent (defaults to no)
 ;sendrpid = rpid                ; Use the "Remote-Party-ID" header
                                 ; to send the identity of the remote party
                                 ; This is identical to sendrpid=yes
@@ -280,11 +251,6 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; The default user agent string also contains the Asterisk
                                 ; version. If you don't want to expose this, change the
                                 ; useragent string.
-;sdpsession=Asterisk PBX        ; Allows you to change the SDP session name string, (s=)
-                                ; Like the useragent parameter, the default user agent string
-                                ; also contains the Asterisk version.
-;sdpowner=root                  ; Allows you to change the username field in the SDP owner string, (o=)
-                                ; This field MUST NOT contain spaces
 ;promiscredir = no              ; If yes, allows 302 or REDIR to non-local SIP address
                                 ; Note that promiscredir when redirects are made to the
                                 ; local system will cause loops since Asterisk is incapable
@@ -368,6 +334,38 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; If you have qualify on and the peer becomes unreachable
                                 ; this setting will enforce inactivation of the regexten
                                 ; extension for the peer
+;------------------------ TLS settings ------------------------------------------------------------
+;tlscertfile=</path/to/certificate.pem> ; Certificate file (*.pem format only) to use for TLS connections
+                                        ; default is to look for "asterisk.pem" in current directory
+
+;tlsprivatekey=</path/to/private.pem> ; Private key file (*.pem format only) for TLS connections.
+                                      ; If no tlsprivatekey is specified, tlscertfile is searched for
+                                      ; for both public and private key.
+
+;tlscafile=</path/to/certificate>
+;        If the server your connecting to uses a self signed certificate
+;        you should have their certificate installed here so the code can
+;        verify the authenticity of their certificate.
+
+;tlscadir=</path/to/ca/dir>
+;        A directory full of CA certificates.  The files must be named with
+;        the CA subject name hash value.
+;        (see man SSL_CTX_load_verify_locations for more info)
+
+;tlsdontverifyserver=[yes|no]
+;        If set to yes, don't verify the servers certificate when acting as
+;        a client.  If you don't have the server's CA certificate you can
+;        set this and it will connect without requiring tlscafile to be set.
+;        Default is no.
+
+;tlscipher=<SSL cipher string>
+;        A string specifying which SSL ciphers to use or not use
+;        A list of valid SSL cipher strings can be found at:
+;                http://www.openssl.org/docs/apps/ciphers.html#CIPHER_STRINGS
+;
+;tlsclientmethod=tlsv1     ; values include tlsv1, sslv3, sslv2.
+                           ; Specify protocol for outbound client connections.
+                           ; If left unspecified, the default is sslv2.
 ;
 ;--------------------------- SIP timers ----------------------------------------------------
 ; These timers are used primarily in INVITE transactions.
@@ -420,6 +418,10 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;session-refresher=uas
 ;
 ;--------------------------- HASH TABLE SIZES ------------------------------------------------
+; Hash tables are used internally by the SIP driver to locate objects in memory.
+; For every incoming call, Asterisk will match properties of the call with in-memory
+; hash tables to locate a matching device, peer or user.
+;
 ; For maximum efficiency, adjust the following
 ; values to be slightly larger than the maximum number of in-memory objects (devices).
 ; Too large, and space is wasted. Too small, and things will run slower.
@@ -575,6 +577,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; 0 = continue forever, hammering the other server
                                 ; until it accepts the registration
                                 ; Default is 0 tries, continue forever
+
 ;----------------------------------------- OUTBOUND MWI SUBSCRIPTIONS -------------------------
 ; Asterisk can subscribe to receive the MWI from another SIP server and store it locally for retrieval
 ; by other phones.
@@ -692,13 +695,6 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; call directly between the endpoints instead of sending
                                 ; a re-INVITE).
 
-;directrtpsetup=yes             ; Enable the new experimental direct RTP setup. This sets up
-                                ; the call directly with media peer-2-peer without re-invites.
-                                ; Will not work for video and cases where the callee sends
-                                ; RTP payloads and fmtp headers in the 200 OK that does not match the
-                                ; callers INVITE. This will also fail if directmedia is enabled when
-                                ; the device is actually behind NAT.
-
 ;directmedia=nonat              ; An additional option is to allow media path redirection
                                 ; (reinvite) but only when the peer where the media is being
                                 ; sent is known to not be behind a NAT (as the RTP core can
@@ -709,6 +705,13 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; instead of INVITE. This can be combined with 'nonat', as
                                 ; 'directmedia=update,nonat'. It implies 'yes'.
 
+;directrtpsetup=yes             ; Enable the new experimental direct RTP setup. This sets up
+                                ; the call directly with media peer-2-peer without re-invites.
+                                ; Will not work for video and cases where the callee sends
+                                ; RTP payloads and fmtp headers in the 200 OK that does not match the
+                                ; callers INVITE. This will also fail if directmedia is enabled when
+                                ; the device is actually behind NAT.
+
 ;ignoresdpversion=yes           ; By default, Asterisk will honor the session version
                                 ; number in SDP packets and will only modify the SDP
                                 ; session if the version number changes. This option will
@@ -717,6 +720,12 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; for devices that send us non standard SDP packets
                                 ; (observed with Microsoft OCS). By default this option is
                                 ; off.
+
+;sdpsession=Asterisk PBX        ; Allows you to change the SDP session name string, (s=)
+                                ; Like the useragent parameter, the default user agent string
+                                ; also contains the Asterisk version.
+;sdpowner=root                  ; Allows you to change the username field in the SDP owner string, (o=)
+                                ; This field MUST NOT contain spaces
 
 ;----------------------------------------- REALTIME SUPPORT ------------------------
 ; For additional information on ARA, the Asterisk Realtime Architecture,
