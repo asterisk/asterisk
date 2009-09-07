@@ -20631,7 +20631,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 					st_interval = uac_max_se;
 				}
 			} else {
-				st_interval = uac_min_se;
+				/* Set to default max value */
+				st_interval = global_max_se;
 			}
 			break;
 
