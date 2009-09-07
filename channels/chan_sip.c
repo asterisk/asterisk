@@ -2562,11 +2562,6 @@ static int acf_channel_read(struct ast_channel *chan, const char *funcname, char
 static void sip_dump_history(struct sip_pvt *dialog);	/* Dump history to debuglog at end of dialog, before destroying data */
 static inline int sip_debug_test_addr(const struct sockaddr_in *addr);
 static inline int sip_debug_test_pvt(struct sip_pvt *p);
-
-
-/*! \brief Append to SIP dialog history
-	\return Always returns 0 */
-#define append_history(p, event, fmt , args... )	append_history_full(p, "%-15s " fmt, event, ## args)
 static void append_history_full(struct sip_pvt *p, const char *fmt, ...);
 static void sip_dump_history(struct sip_pvt *dialog);
 
@@ -2801,6 +2796,10 @@ static struct ast_tcptls_session_args sip_tls_desc = {
 
 /* wrapper macro to tell whether t points to one of the sip_tech descriptors */
 #define IS_SIP_TECH(t)  ((t) == &sip_tech || (t) == &sip_tech_info)
+
+/*! \brief Append to SIP dialog history
+	\return Always returns 0 */
+#define append_history(p, event, fmt , args... )	append_history_full(p, "%-15s " fmt, event, ## args)
 
 /*! \brief map from an integer value to a string.
  * If no match is found, return errorstring
