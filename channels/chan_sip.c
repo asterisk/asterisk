@@ -209,13 +209,9 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <ctype.h>
-#include <sys/ioctl.h>
-#include <fcntl.h>
 #include <signal.h>
 #include <sys/signal.h>
 #include <regex.h>
-#include <time.h>
 
 #include "asterisk/network.h"
 #include "asterisk/paths.h"	/* need ast_config_AST_SYSTEM_NAME */
