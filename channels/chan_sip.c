@@ -738,11 +738,11 @@ static enum st_refresher global_st_refresher; /*!< Session-Timer refresher      
 static int global_min_se;                     /*!< Lowest threshold for session refresh interval  */
 static int global_max_se;                     /*!< Highest threshold for session refresh interval */
 
-/*@}*/ 
+static int global_dynamic_exclude_static = 0;	/*!< Exclude static peers from contact registrations */
+/*@}*/
 
 /*! \brief Global list of addresses dynamic peers are not allowed to use */
 static struct ast_ha *global_contact_ha = NULL;
-static int global_dynamic_exclude_static = 0;
 
 /*! \name Object counters @{
  * \bug These counters are not handled in a thread-safe way ast_atomic_fetchadd_int()
@@ -21895,6 +21895,7 @@ static int reload_config(enum channelreloadreason reason)
 	ast_set_flag(&global_flags[1], SIP_PAGE2_ALLOWSUBSCRIBE);	/* Default for peers, users: TRUE */
 	ast_set_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP);		/* Default for peers, users: TRUE */
 	sip_cfg.peer_rtupdate = TRUE;
+	global_dynamic_exclude_static = 0;	/* Exclude static peers */
 
 	/* Session-Timers */
 	global_st_mode = SESSION_TIMER_MODE_ACCEPT;    
