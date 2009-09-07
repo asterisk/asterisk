@@ -56,6 +56,10 @@ SIP Changes
  * Channel variables set with setvar= in a device configuration is now 
    set both for inbound and outbound calls.
  * Added support for ITU G.722.1 and G.722.1C (Siren7 and Siren14) media streams.
+ * Added a new option "prematuremedia" that defaults to "yes". If you turn this
+   option on, chan_sip will not automatically initiate early media if it receives
+   audio from the incoming channel before there's been a progress indication.
+
 
 IAX2 changes
 ------------

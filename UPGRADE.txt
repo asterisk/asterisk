@@ -91,6 +91,9 @@ From 1.6.1 to 1.6.2:
   Georgian was incorrectly specified as "ge" but should be "ka", and Czech is
   "cs", not "cz".
 
+* The prematuremedia option in sip.conf is from this released enabled by
+  default. See sip.conf.sample
+
 From 1.6.0.1 to 1.6.1:
 
 * The ast_agi_register_multiple() and ast_agi_unregister_multiple()
