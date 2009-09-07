@@ -1999,6 +1999,7 @@ struct sip_peer {
 					 *   or respect the other endpoint's request for frame sizes (on)
 					 *   for incoming calls
 					 */
+	unsigned short deprecated_username:1; /*!< If it's a realtime peer, are they using the deprecated "username" instead of "defaultuser" */
 	struct sip_auth *auth;		/*!< Realm authentication list */
 	int amaflags;			/*!< AMA Flags (for billing) */
 	int callingpres;		/*!< Calling id presentation */
@@ -2041,7 +2042,6 @@ struct sip_peer {
 	struct sip_st_cfg stimer;	/*!<  SIP Session-Timers */
 	int timer_t1;			/*!<  The maximum T1 value for the peer */
 	int timer_b;			/*!<  The maximum timer B (transaction timeouts) */
-	int deprecated_username; /*!< If it's a realtime peer, are they using the deprecated "username" instead of "defaultuser" */
 	
 	/*XXX Seems like we suddenly have two flags with the same content. Why? To be continued... */
 	enum sip_peer_type type; /*!< Distinguish between "user" and "peer" types. This is used solely for CLI and manager commands */
@@ -2588,7 +2588,7 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 static void set_socket_transport(struct sip_socket *socket, int transport);
 
 /* Realtime device support */
-static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, const char *username, const char *fullcontact, const char *useragent, int expirey, int deprecated_username, int lastms);
+static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, const char *username, const char *fullcontact, const char *useragent, int expirey, unsigned short deprecated_username, int lastms);
 static void update_peer(struct sip_peer *p, int expire);
 static struct ast_variable *get_insecure_variable_from_config(struct ast_config *config);
 static const char *get_name_from_variable(struct ast_variable *var, const char *newpeername);
@@ -4525,7 +4525,7 @@ static int sip_sendtext(struct ast_channel *ast, const char *text)
 	that name and store that in the "regserver" field in the sippeers
 	table to facilitate multi-server setups.
 */
-static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, const char *defaultuser, const char *fullcontact, const char *useragent, int expirey, int deprecated_username, int lastms)
+static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, const char *defaultuser, const char *fullcontact, const char *useragent, int expirey, unsigned short deprecated_username, int lastms)
 {
 	char port[10];
 	char ipaddr[INET_ADDRSTRLEN];
