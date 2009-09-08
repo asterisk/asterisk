@@ -63,7 +63,7 @@
 # Likewise, the same trick can be used to build vs. a local copy of zaptel:
 #   ln -s /path/to/checkout/of/zaptel/include .
 #   ln -s /path/to/checkout/of/zaptel/zaptel .
-#LIVE_AST_ZPATEL_PATH="/path/to/checkout/of/zaptel"
+#LIVE_AST_ZAPTEL_PATH="/path/to/checkout/of/zaptel"
 #
 #LIVE_AST_DAHDI_PATH="/path/to/dahdi-linux/dir"
 #LIVE_AST_DAHDITOOLS_PATH="/path/to/dahdi-tools/dir"
@@ -139,8 +139,8 @@ if [ "$LIVE_AST_DAHDITOOLS_PATH" != '' ]; then
   LIVE_AST_LD_PATH_EXTRA="$LIVE_AST_LD_PATH_EXTRA $LIVE_AST_DAHDITOOLS_PATH"
 fi
 
-if [ "$LIVE_AST_ZPALIVE_PATH" != '' ]; then
-  ZAPLIVE_USR_DIR="$LIVE_AST_ZPALIVE_PATH/live/usr"
+if [ "$LIVE_AST_ZAPLIVE_PATH" != '' ]; then
+  ZAPLIVE_USR_DIR="$LIVE_AST_ZAPLIVE_PATH/live/usr"
   LIVE_AST_CONFIGURE_PARAMS="$LIVE_AST_CONFIGURE_PARAMS --with-tonezone=$ZAPLIVE_USR_DIR"
   LIVE_AST_CONFIGURE_PARAMS="$LIVE_AST_CONFIGURE_PARAMS --with-zaptel=$ZAPALIVE_USR_DIR"
   LIVE_AST_CONFIGURE_PARAMS="$LIVE_AST_CONFIGURE_PARAMS --with-zaptel_transcode=$ZAPALIVE_USR_DIR"
@@ -167,9 +167,11 @@ gen_live_conf() {
   | sed  -e '/^#* \(Begin\|End\) Samples/d' >"$LIVE_CONF"
 }
 
-case "$1" in
+command="$1"
+shift
+
+case "$command" in
 configure)
-  shift
   ./configure $LIVE_AST_CONFIGURE_PARAMS "$@"
   if [ "$LIVE_AST_FORCE_DEF_CONF" != '' ]; then
     rm -f menuselect.makeopts
@@ -182,37 +184,20 @@ configure)
   fi
   ;;
 install)
-  make install DESTDIR="$BASE_DIR"
+  make install DESTDIR="$BASE_DIR" "$@"
   ;;
 samples)
-  make samples DESTDIR="$BASE_DIR"
+  make samples DESTDIR="$BASE_DIR" "$@"
+  sed -r -i \
+    -e '/^\[directories\]\(!\)/s/\(!\).*//' \
+    -e "/^\[directories\]/a; rem-out any of the following to use Asterisk's defaults:" \
+    -e "/^ast(etc|mod|varlib|data|agi|run|spool|log|db|key)dir\>/s| /| $BASE_DIR/|" \
+    "$AST_CONF"
   if [ "$LIVE_AST_FOR_SYSTEM" != '' ]; then
-    cat <<EOF >"$AST_CONF"
-[directories]
-; rem-out any of the following to use Asterisk's defaults:
-;astetcdir    => $BASE_DIR/etc/asterisk
-astmoddir    => $BASE_DIR/usr/lib/asterisk/modules
-;astvarlibdir => $BASE_DIR/var/lib/asterisk
-;astdatadir   => $BASE_DIR/var/lib/asterisk
-;astagidir    => $BASE_DIR/var/lib/asterisk/agi
-;astrundir    => $BASE_DIR/var/run
-astrundir    => /var/run/asterisk
-;astspooldir  => $BASE_DIR/var/spool/asterisk
-;astlogdir    => $BASE_DIR/var/log/asterisk
-EOF
-  else
-    cat <<EOF >"$AST_CONF"
-[directories]
-; rem-out any of the following to use Asterisk's defaults:
-astetcdir    => $BASE_DIR/etc/asterisk
-astmoddir    => $BASE_DIR/usr/lib/asterisk/modules
-astvarlibdir => $BASE_DIR/var/lib/asterisk
-astdatadir   => $BASE_DIR/var/lib/asterisk
-astagidir    => $BASE_DIR/var/lib/asterisk/agi
-astrundir    => $BASE_DIR/var/run
-astspooldir  => $BASE_DIR/var/spool/asterisk
-astlogdir    => $BASE_DIR/var/log/asterisk
-EOF
+    sed -r -i \
+      -e "/^ast(etc|varlib|data|agi|run|spool|log|db|key)dir\>/s|^|;|" \
+      -e "/^;astrundir\>/aastrundir    => /var/run/asterisk" \
+      "$AST_CONF"
   fi
   # disable some modules that bind on a port that is already in use by a
   # main Asterisk copy, and would crash asterisk in failing:
@@ -240,7 +225,6 @@ conf-file)
   gen_live_conf
   ;;
 run)
-  shift
   set_ld_env
   $AST_BIN -C $AST_CONF "$@"
   ;;
@@ -249,6 +233,8 @@ gdb)
   gdb -x $GDB_INIT $AST_BIN
   ;;
 *)
+  echo "$0: Unknown command '$command'. Aborting"
+  echo
   echo "$0: Usage:              Equivalent of:"
   echo "$0 configure [params]   ./configure [params]"
   echo "$0 install              make install"
