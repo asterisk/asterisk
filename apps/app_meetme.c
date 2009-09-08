@@ -2055,7 +2055,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	int res;
 	int retrydahdi;
 	int origfd;
-	int musiconhold = 0;
+	int musiconhold = 0, mohtempstopped = 0;
 	int firstpass = 0;
 	int lastmarked = 0;
 	int currentmarked = 0;
@@ -2095,6 +2095,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
  	struct timeval nexteventts = { 0, };
  	int to;
 	int setusercount = 0;
+	int confsilence = 0, totalsilence = 0;
 
 	if (!(user = ast_calloc(1, sizeof(*user))))
 		return ret;
@@ -2525,6 +2526,11 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 
 	conf_flush(fd, chan);
 
+	if (!(dsp = ast_dsp_new())) {
+		ast_log(LOG_WARNING, "Unable to allocate DSP!\n");
+		res = -1;
+	}
+
 	if (confflags & CONFFLAG_AGI) {
 		/* Get name of AGI file to run from $(MEETME_AGI_BACKGROUND)
 		   or use default filename of conf-background.agi */
@@ -2561,10 +2567,6 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			x = 1;
 			ast_channel_setoption(chan, AST_OPTION_TONE_VERIFY, &x, sizeof(char), 0);
 		}	
-		if (confflags & (CONFFLAG_OPTIMIZETALKER | CONFFLAG_MONITORTALKER) && !(dsp = ast_dsp_new())) {
-			ast_log(LOG_WARNING, "Unable to allocate DSP!\n");
-			res = -1;
-		}
 		for (;;) {
 			int menu_was_active = 0;
 
@@ -2933,8 +2935,6 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					}
 
 					if (confflags & (CONFFLAG_OPTIMIZETALKER | CONFFLAG_MONITORTALKER)) {
-						int totalsilence;
-
 						if (user->talking == -1) {
 							user->talking = 0;
 						}
@@ -3275,7 +3275,11 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
  							if ((conf->transframe[idx]->frametype != AST_FRAME_NULL) &&
 							    can_write(chan, confflags)) {
 								struct ast_frame *cur;
-								
+								if (musiconhold && !ast_dsp_silence(dsp, conf->transframe[index], &confsilence) && confsilence < MEETME_DELAYDETECTTALK) {
+									ast_moh_stop(chan);
+									mohtempstopped = 1;
+								}
+
 								/* the translator may have returned a list of frames, so
 								   write each one onto the channel
 								*/
@@ -3285,6 +3289,10 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 										break;
 									}
 								}
+								if (musiconhold && mohtempstopped && confsilence > MEETME_DELAYDETECTENDTALK) {
+									mohtempstopped = 0;
+									ast_moh_start(chan, NULL, NULL);
+								}
 							}
 						} else {
 							ast_mutex_unlock(&conf->listenlock);
@@ -3292,12 +3300,20 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						}
 						ast_mutex_unlock(&conf->listenlock);
 					} else {
-bailoutandtrynormal:					
+bailoutandtrynormal:
+						if (musiconhold && !ast_dsp_silence(dsp, &fr, &confsilence) && confsilence < MEETME_DELAYDETECTTALK) {
+							ast_moh_stop(chan);
+							mohtempstopped = 1;
+						}
 						if (user->listen.actual) {
 							ast_frame_adjust_volume(&fr, user->listen.actual);
 						}
 						if (can_write(chan, confflags) && ast_write(chan, &fr) < 0) {
 							ast_log(LOG_WARNING, "Unable to write frame to channel %s\n", chan->name);
+						}
+						if (musiconhold && mohtempstopped && confsilence > MEETME_DELAYDETECTENDTALK) {
+							mohtempstopped = 0;
+							ast_moh_start(chan, NULL, NULL);
 						}
 					}
 				} else {
