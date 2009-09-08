@@ -3394,12 +3394,11 @@ int analog_handle_init_event(struct analog_pvt *i, int event)
 }
 
 
-struct analog_pvt * analog_new(enum analog_sigtype signallingtype, struct analog_callback *c, void *private_data)
+struct analog_pvt *analog_new(enum analog_sigtype signallingtype, struct analog_callback *c, void *private_data)
 {
 	struct analog_pvt *p;
 
 	p = ast_calloc(1, sizeof(*p));
-
 	if (!p) {
 		return p;
 	}
@@ -3416,6 +3415,19 @@ struct analog_pvt * analog_new(enum analog_sigtype signallingtype, struct analog
 	p->subs[ANALOG_SUB_REAL].allocd = 1;
 
 	return p;
+}
+
+/*!
+ * \brief Delete the analog private structure.
+ * \since 1.6.3
+ *
+ * \param doomed Analog private structure to delete.
+ *
+ * \return Nothing
+ */
+void analog_delete(struct analog_pvt *doomed)
+{
+	ast_free(doomed);
 }
 
 int analog_config_complete(struct analog_pvt *p)

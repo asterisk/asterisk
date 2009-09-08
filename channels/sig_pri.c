@@ -3060,6 +3060,19 @@ struct sig_pri_chan *sig_pri_chan_new(void *pvt_data, struct sig_pri_callback *c
 	return p;
 }
 
+/*!
+ * \brief Delete the sig_pri private channel structure.
+ * \since 1.6.3
+ *
+ * \param doomed sig_pri private channel structure to delete.
+ *
+ * \return Nothing
+ */
+void sig_pri_chan_delete(struct sig_pri_chan *doomed)
+{
+	ast_free(doomed);
+}
+
 static void build_status(char *s, size_t len, int status, int active)
 {
 	if (!s || len < 1) {

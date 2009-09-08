@@ -4683,6 +4683,16 @@ static void destroy_dahdi_pvt(struct dahdi_pvt **pvt)
 		p->prev->next = p->next;
 	if (p->next)
 		p->next->prev = p->prev;
+	if (p->sig_pvt) {
+		if (analog_lib_handles(p->sig, 0, 0)) {
+			analog_delete(p->sig_pvt);
+		}
+#if defined(HAVE_PRI)
+		if (dahdi_sig_pri_lib_handles(p->sig)) {
+			sig_pri_chan_delete(p->sig_pvt);
+		}
+#endif	/* defined(HAVE_PRI) */
+	}
 	if (p->use_smdi)
 		ast_smdi_interface_unref(p->smdi_iface);
 	if (p->mwi_event_sub)
@@ -10693,6 +10703,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 			} else {
 				chan_sig = 0;
 			}
+			tmp->sig = chan_sig;
 
 			if (analog_lib_handles(chan_sig, tmp->radio, tmp->oprmode)) {
 				analog_p = analog_new(dahdisig_to_analogsig(chan_sig), &dahdi_analog_callbacks, tmp);
@@ -11032,7 +11043,6 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 			tmp->mwimonitor_neon = conf->chan.mwimonitor_neon;
 			tmp->mwimonitor_rpas = conf->chan.mwimonitor_rpas;
 		}
-		tmp->sig = chan_sig;
 		tmp->outsigmod = conf->chan.outsigmod;
 		tmp->ringt_base = ringt_base;
 		tmp->firstradio = 0;

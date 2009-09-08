@@ -310,7 +310,8 @@ struct analog_pvt {
 	int ringt_base;
 };
 
-struct analog_pvt * analog_new(enum analog_sigtype signallingtype, struct analog_callback *c, void *private_data);
+struct analog_pvt *analog_new(enum analog_sigtype signallingtype, struct analog_callback *c, void *private_data);
+void analog_delete(struct analog_pvt *doomed);
 
 void analog_free(struct analog_pvt *p);
 
