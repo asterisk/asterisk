@@ -17,19 +17,25 @@ AC_CANONICAL_HOST
 # check existence of the package
 AC_CONFIG_SRCDIR([main/asterisk.c])
 
-# specify output header file
-AC_CONFIG_HEADER(include/asterisk/autoconfig.h)
-
 AC_COPYRIGHT("Asterisk")
 AC_REVISION($Revision$)
 
-AC_USE_SYSTEM_EXTENSIONS	# note- does not work on FreeBSD
-
 # preserve any CFLAGS or LDFLAGS that may be set
+# NOTE: This must be done before calling any macros that end up
+# calling AC_PROG_CC or the like, since they will set a default
+# set of CFLAGS ("-g -O2") if the user did not supply any, and
+# we don't want those default flags to be carried over into the
+# rest of the build system since we have other means of controlling
+# debugging symbol generation and optimization.
 CONFIG_CFLAGS="${CFLAGS}"
 CONFIG_LDFLAGS="${LDFLAGS}"
 AC_SUBST(CONFIG_CFLAGS)
 AC_SUBST(CONFIG_LDFLAGS)
+
+# specify output header file
+AC_CONFIG_HEADER(include/asterisk/autoconfig.h)
+
+AC_USE_SYSTEM_EXTENSIONS	# note- does not work on FreeBSD
 
 case "${host_os}" in
      freebsd*)
