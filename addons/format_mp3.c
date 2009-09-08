@@ -200,7 +200,7 @@ static struct ast_frame *mp3_read(struct ast_filestream *s, int *whennext)
 
 	if(p->dbuflen) {
 		for(p->buflen=0; p->buflen < MP3_BUFLEN && p->buflen < p->dbuflen; p->buflen++) {
-			s->buf[p->buflen] = p->dbuf[p->buflen+p->dbufoffset];
+			s->buf[p->buflen + AST_FRIENDLY_OFFSET] = p->dbuf[p->buflen+p->dbufoffset];
 			p->sbufoffset++;
 		}
 		p->dbufoffset += p->buflen;
@@ -211,7 +211,7 @@ static struct ast_frame *mp3_read(struct ast_filestream *s, int *whennext)
 				return NULL;
 
 			for(save = p->buflen; p->buflen < MP3_BUFLEN; p->buflen++) {
-				s->buf[p->buflen] = p->dbuf[(p->buflen-save)+p->dbufoffset];
+				s->buf[p->buflen + AST_FRIENDLY_OFFSET] = p->dbuf[(p->buflen-save)+p->dbufoffset];
 				p->sbufoffset++;
 			}
 			p->dbufoffset += (MP3_BUFLEN - save);
