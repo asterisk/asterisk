@@ -3045,7 +3045,6 @@ struct sig_pri_chan *sig_pri_chan_new(void *pvt_data, struct sig_pri_callback *c
 	struct sig_pri_chan *p;
 
 	p = ast_calloc(1, sizeof(*p));
-
 	if (!p)
 		return p;
 
@@ -3056,7 +3055,6 @@ struct sig_pri_chan *sig_pri_chan_new(void *pvt_data, struct sig_pri_callback *c
 	p->calls = callback;
 	p->chan_pvt = pvt_data;
 
-	pri->pvts[pri->numchans++] = p;
 	p->pri = pri;
 
 	return p;
