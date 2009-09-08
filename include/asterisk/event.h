@@ -78,6 +78,7 @@ typedef void (*ast_event_cb_t)(const struct ast_event *event, void *userdata);
  *
  * \param event_type The type of events to subscribe to
  * \param cb The function to be called with events
+ * \param description Description of the subscription.
  * \param userdata data to be passed to the event callback
  *
  * The rest of the arguments to this function specify additional parameters for
@@ -109,6 +110,8 @@ typedef void (*ast_event_cb_t)(const struct ast_event *event, void *userdata);
  * information element, AST_EVENT_IE_MAILBOX, with the same string value
  * contained in peer->mailbox.  Also, the event callback will be passed a
  * pointer to the peer.
+ *
+ * \note A NULL description will cause this function to crash, so watch out!
  */
 struct ast_event_sub *ast_event_subscribe(enum ast_event_type event_type,
        ast_event_cb_t cb, char *description, void *userdata, ...);
