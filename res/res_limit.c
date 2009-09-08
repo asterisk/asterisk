@@ -23,8 +23,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#define _XOPEN_SOURCE 600
-
 #include <ctype.h>
 #include <sys/time.h>
 #include <sys/resource.h>
