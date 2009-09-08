@@ -4362,7 +4362,7 @@ static char *get_in_brackets(char *tmp)
  * \note
  * - If scheme is specified, drop it from the top.
  * - If a component is not requested, do not split around it.
- * - Multiple scheme's can be specified ',' delimited. ex: "sip,sips"
+ * - Multiple scheme's can be specified ',' delimited. ex: "sip:,sips:"
  *
  * This means that if we don't have domain, we cannot split
  * name:pass and domain:port.
@@ -12326,7 +12326,7 @@ static int __set_address_from_contact(const char *fullcontact, struct sockaddr_i
 	 * We still need to be able to send to the remote agent through the proxy.
 	 */
 
-	if (parse_uri(contact, "sip,sips", &contact, NULL, &host, &pt, NULL, &transport)) {
+	if (parse_uri(contact, "sip:,sips:", &contact, NULL, &host, &pt, NULL, &transport)) {
 		ast_log(LOG_WARNING, "Invalid contact uri %s (missing sip: or sips:), attempting to use anyway\n", fullcontact);
 	}
 
@@ -12447,7 +12447,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	ast_string_field_build(pvt, our_contact, "<%s>", curi);
 
 	/* Make sure it's a SIP URL */
-	if (parse_uri(curi, "sip,sips", &curi, NULL, &host, &pt, NULL, &transport)) {
+	if (parse_uri(curi, "sip:,sips:", &curi, NULL, &host, &pt, NULL, &transport)) {
 		ast_log(LOG_NOTICE, "Not a valid SIP contact (missing sip:) trying to use anyway\n");
 	}
 
@@ -14388,7 +14388,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	ast_string_field_set(p, from, of);
 
 	/* ignore all fields but name */
-	if (parse_uri(of, "sip,sips", &of, &dummy, &domain, &dummy, &dummy, NULL)) {
+	if (parse_uri(of, "sip:,sips:", &of, &dummy, &domain, &dummy, &dummy, NULL)) {
 		ast_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
 	}
 
