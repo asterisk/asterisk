@@ -10588,16 +10588,30 @@ static int sigtype_to_signalling(int sigtype)
 	return sigtype;
 }
 
+/*!
+ * \internal
+ * \brief Initialize/create a channel interface.
+ *
+ * \param channel Channel interface number to initialize/create.
+ * \param conf Configuration parameters to initialize interface with.
+ * \param reloading What we are doing now:
+ * 0 - initial module load,
+ * 1 - module reload,
+ * 2 - module restart
+ *
+ * \retval Interface-pointer initialized/created
+ * \retval NULL if error
+ */
 static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf, int reloading)
 {
 	/* Make a dahdi_pvt structure for this interface */
-	struct dahdi_pvt *tmp = NULL, *tmp2, *prev = NULL;
+	struct dahdi_pvt *tmp;/*!< Current channel structure initializing */
 	char fn[80];
 	struct dahdi_bufferinfo bi;
 
 	int res;
 	int span = 0;
-	int here = 0;
+	int here = 0;/*!< TRUE if the channel interface already exists. */
 	int x;
 	struct dahdi_pvt **wlist;
 	struct dahdi_pvt **wend;
@@ -10608,29 +10622,25 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 	struct sig_pri_chan *pchan = NULL;
 #endif
 
-	wlist = &iflist;
-	wend = &ifend;
-
-	tmp2 = *wlist;
-	prev = NULL;
-
-	while (tmp2) {
-		if (!tmp2->destroy) {
-			if (tmp2->channel == channel) {
-				tmp = tmp2;
+	/* Search channel interface list to see if it already exists. */
+	for (tmp = iflist; tmp; tmp = tmp->next) {
+		if (!tmp->destroy) {
+			if (tmp->channel == channel) {
+				/* The channel interface already exists. */
 				here = 1;
 				break;
 			}
-			if (tmp2->channel > channel) {
+			if (tmp->channel > channel) {
+				/* No way it can be in the sorted list. */
+				tmp = NULL;
 				break;
 			}
 		}
-		prev = tmp2;
-		tmp2 = tmp2->next;
 	}
 
 	if (!here && reloading != 1) {
-		if (!(tmp = ast_calloc(1, sizeof(*tmp)))) {
+		tmp = ast_calloc(1, sizeof(*tmp));
+		if (!tmp) {
 			return NULL;
 		}
 		ast_mutex_init(&tmp->lock);
@@ -10643,9 +10653,12 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 
 	if (tmp) {
 		int chan_sig = conf->chan.sig;
+
 		if (!here) {
+			/* Can only get here if this is a new channel interface being created. */
 			if ((channel != CHAN_PSEUDO)) {
 				int count = 0;
+
 				snprintf(fn, sizeof(fn), "%d", channel);
 				/* Open non-blocking */
 				tmp->subs[SUB_REAL].dfd = dahdi_open(fn);
@@ -10682,17 +10695,12 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 			}
 
 			if (analog_lib_handles(chan_sig, tmp->radio, tmp->oprmode)) {
-				if (tmp->sig_pvt) {
-					ast_log(LOG_WARNING, "Private already exists!\n");
-					analog_p = tmp->sig_pvt;
-				} else
-					analog_p = analog_new(dahdisig_to_analogsig(chan_sig), &dahdi_analog_callbacks, tmp);
+				analog_p = analog_new(dahdisig_to_analogsig(chan_sig), &dahdi_analog_callbacks, tmp);
 				if (!analog_p) {
 					destroy_dahdi_pvt(&tmp);
 					return NULL;
 				}
 				tmp->sig_pvt = analog_p;
-
 			}
 #ifdef HAVE_SS7
 			if (chan_sig == SIG_SS7) {
@@ -10735,7 +10743,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 			}
 #endif
 #ifdef HAVE_OPENR2
-			if (chan_sig == SIG_MFCR2 && reloading != 1) {
+			if (chan_sig == SIG_MFCR2) {
 				struct dahdi_mfcr2 *r2_link;
 				r2_link = dahdi_r2_get_link();
 				if (!r2_link) {
@@ -10917,8 +10925,6 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 						return NULL;
 					}
 				}
-			} else {
-				tmp->prioffset = 0;
 			}
 #endif
 		} else {
@@ -11300,6 +11306,10 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 #endif
 	}
 	if (tmp && !here) {
+		/* Add the new channel interface to the sorted channel interface list. */
+		wlist = &iflist;
+		wend = &ifend;
+
 		/* nothing on the iflist */
 		if (!*wlist) {
 			*wlist = tmp;
