@@ -3275,7 +3275,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
  							if ((conf->transframe[idx]->frametype != AST_FRAME_NULL) &&
 							    can_write(chan, confflags)) {
 								struct ast_frame *cur;
-								if (musiconhold && !ast_dsp_silence(dsp, conf->transframe[index], &confsilence) && confsilence < MEETME_DELAYDETECTTALK) {
+								if (musiconhold && !ast_dsp_silence(dsp, conf->transframe[idx], &confsilence) && confsilence < MEETME_DELAYDETECTTALK) {
 									ast_moh_stop(chan);
 									mohtempstopped = 1;
 								}
