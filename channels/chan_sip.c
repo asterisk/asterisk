@@ -19506,12 +19506,15 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 		case 100:	/* Trying: */
 		case 101:	/* dialog establishment */
 			/* Don't do anything yet */
+			success = -1;	/* Wait */
 			break;
 		case 183:	/* Ringing: */
 			/* Don't do anything yet */
+			success = -1;	/* Wait */
 			break;
 		case 200:	/* OK: The new call is up, hangup this call */
 			/* Hangup the call that we are replacing */
+			success = -1;	/* Wait */
 			break;
 		case 301: /* Moved permenantly */
 		case 302: /* Moved temporarily */
@@ -19527,11 +19530,11 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 			success = FALSE;
 			break;
 		}
-		if (!success) {
+		if (success == FALSE) {
 			ast_log(LOG_NOTICE, "Transfer failed. Sorry. Nothing further to do with this call\n");
 		}
 
-		if (p->owner) {
+		if (p->owner && success != -1) {
 			enum ast_control_transfer message = success ? AST_TRANSFER_SUCCESS : AST_TRANSFER_FAILED;
 			ast_queue_control_data(p->owner, AST_CONTROL_TRANSFER, &message, sizeof(message));
 		}
