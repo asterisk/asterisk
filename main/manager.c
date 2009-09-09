@@ -2063,7 +2063,12 @@ static int action_ping(struct mansession *s, const struct message *m)
 	if (!ast_strlen_zero(actionid)){
 		astman_append(s, "ActionID: %s\r\n", actionid);
 	}
-	astman_append(s, "Ping: Pong\r\nTimestamp:%ld.%06lu\r\n", now.tv_sec, (unsigned long) now.tv_usec);
+	astman_append(
+		s,
+		"Ping: Pong\r\n"
+		"Timestamp: %ld.%06lu\r\n"
+		"\r\n",
+		now.tv_sec, (unsigned long) now.tv_usec);
 	return 0;
 }
 
