@@ -1922,18 +1922,18 @@ static struct sip_pvt *dialog_unref(struct sip_pvt *p, char *tag)
  * require retransmissions.
  */
 struct sip_pkt {
-	struct sip_pkt *next;			/*!< Next packet in linked list */
-	int retrans;				/*!< Retransmission number */
-	int method;				/*!< SIP method for this packet */
-	int seqno;				/*!< Sequence number */
-	char is_resp;				/*!< 1 if this is a response packet (e.g. 200 OK), 0 if it is a request */
-	char is_fatal;				/*!< non-zero if there is a fatal error */
+	struct sip_pkt *next;		/*!< Next packet in linked list */
+	int retrans;			/*!< Retransmission number */
+	int method;			/*!< SIP method for this packet */
+	int seqno;			/*!< Sequence number */
+	char is_resp;			/*!< 1 if this is a response packet (e.g. 200 OK), 0 if it is a request */
+	char is_fatal;			/*!< non-zero if there is a fatal error */
 	int response_code;		/*!< If this is a response, the response code */
-	struct sip_pvt *owner;			/*!< Owner AST call */
-	int retransid;				/*!< Retransmission ID */
-	int timer_a;				/*!< SIP timer A, retransmission timer */
-	int timer_t1;				/*!< SIP Timer T1, estimated RTT or 500 ms */
-	int packetlen;				/*!< Length of packet */
+	struct sip_pvt *owner;		/*!< Owner AST call */
+	int retransid;			/*!< Retransmission ID */
+	int timer_a;			/*!< SIP timer A, retransmission timer */
+	int timer_t1;			/*!< SIP Timer T1, estimated RTT or 500 ms */
+	int packetlen;			/*!< Length of packet */
 	struct ast_str *data;
 };	
 
@@ -11122,6 +11122,7 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 	return 0;
 }
 
+/*! \brief Find the channel that is causing the RINGING update */
 static int find_calling_channel(void *obj, void *arg, void *data, int flags)
 {
 	struct ast_channel *c = obj;
@@ -11139,7 +11140,7 @@ static int find_calling_channel(void *obj, void *arg, void *data, int flags)
 	return res ? CMP_MATCH | CMP_STOP : 0;
 }
 
-/*! \brief Builds XML portion of state NOTIFY messages */
+/*! \brief Builds XML portion of NOTIFY messages for presence or dialog updates */
 static void state_notify_build_xml(int state, int full, const char *exten, const char *context, struct ast_str **tmp, struct sip_pvt *p, int subscribed, const char *mfrom, const char *mto)
 {
 	enum state { NOTIFY_OPEN, NOTIFY_INUSE, NOTIFY_CLOSED } local_state = NOTIFY_OPEN;
