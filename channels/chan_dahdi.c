@@ -3009,7 +3009,7 @@ static void dahdi_r2_on_call_init(openr2_chan_t *r2chan)
 	p->mfcr2_answer_pending = 0;
 	p->mfcr2_call_accepted = 0;
 	ast_mutex_unlock(&p->lock);
-	ast_log(LOG_NOTICE, "New MFC/R2 call detected on chan %d.\n", openr2_chan_get_number(r2chan));
+	ast_verbose("New MFC/R2 call detected on chan %d.\n", openr2_chan_get_number(r2chan));
 }
 
 static void dahdi_r2_on_hardware_alarm(openr2_chan_t *r2chan, int alarm)
@@ -3081,7 +3081,7 @@ static void dahdi_r2_on_call_offered(openr2_chan_t *r2chan, const char *ani, con
 {
 	struct dahdi_pvt *p;
 	struct ast_channel *c;
-	ast_log(LOG_NOTICE, "MFC/R2 call offered on chan %d. ANI = %s, DNIS = %s, Category = %s\n",
+	ast_verbose("MFC/R2 call offered on chan %d. ANI = %s, DNIS = %s, Category = %s\n",
 			openr2_chan_get_number(r2chan), ani ? ani : "(restricted)", dnis,
 			openr2_proto_get_category_string(category));
 	p = openr2_chan_get_client_data(r2chan);
@@ -3136,7 +3136,7 @@ static void dahdi_r2_on_call_offered(openr2_chan_t *r2chan, const char *ani, con
 static void dahdi_r2_on_call_end(openr2_chan_t *r2chan)
 {
 	struct dahdi_pvt *p = openr2_chan_get_client_data(r2chan);
-	ast_log(LOG_NOTICE, "MFC/R2 call end on chan %d\n", p->channel);
+	ast_verbose("MFC/R2 call end on channel %d\n", p->channel);
 	ast_mutex_lock(&p->lock);
 	p->mfcr2call = 0;
 	ast_mutex_unlock(&p->lock);
@@ -3147,12 +3147,12 @@ static void dahdi_r2_on_call_accepted(openr2_chan_t *r2chan, openr2_call_mode_t 
 {
 	struct dahdi_pvt *p = NULL;
 	struct ast_channel *c = NULL;
-	ast_log(LOG_NOTICE, "MFC/R2 call has been accepted on chan %d\n", openr2_chan_get_number(r2chan));
 	p = openr2_chan_get_client_data(r2chan);
 	dahdi_enable_ec(p);
 	p->mfcr2_call_accepted = 1;
 	/* if it's an incoming call ... */
 	if (OR2_DIR_BACKWARD == openr2_chan_get_direction(r2chan)) {
+		ast_verbose("MFC/R2 call has been accepted on backward channel %d\n", openr2_chan_get_number(r2chan));
 		/* If accept on offer is not set, it means at this point the PBX thread is already
 		   launched (was launched in the 'on call offered' handler) and therefore this callback
 		   is being executed already in the PBX thread rather than the monitor thread, don't launch
@@ -3179,18 +3179,17 @@ static void dahdi_r2_on_call_accepted(openr2_chan_t *r2chan, openr2_call_mode_t 
 		return;
 	}
 	/* this is an outgoing call, no need to launch the PBX thread, most likely we're in one already */
-	ast_log(LOG_NOTICE, "Call accepted on forward channel %d\n", p->channel);
+	ast_verbose("MFC/R2 call has been accepted on forward channel %d\n", p->channel);
 	p->subs[SUB_REAL].needringing = 1;
 	p->dialing = 0;
-	/* chan_dahdi will take care of reading from now on in the PBX thread, tell the
-	   library to forget about it */
+	/* chan_dahdi will take care of reading from now on in the PBX thread, tell the library to forget about it */
 	openr2_chan_disable_read(r2chan);
 }
 
 static void dahdi_r2_on_call_answered(openr2_chan_t *r2chan)
 {
 	struct dahdi_pvt *p = openr2_chan_get_client_data(r2chan);
-	ast_log(LOG_DEBUG, "MFC/R2 call has been answered on chan %d\n", openr2_chan_get_number(r2chan));
+	ast_verbose("MFC/R2 call has been answered on channel %d\n", openr2_chan_get_number(r2chan));
 	p->subs[SUB_REAL].needanswer = 1;
 }
 
@@ -3223,7 +3222,7 @@ static int dahdi_r2_cause_to_ast_cause(openr2_call_disconnect_cause_t cause)
 static void dahdi_r2_on_call_disconnect(openr2_chan_t *r2chan, openr2_call_disconnect_cause_t cause)
 {
 	struct dahdi_pvt *p = openr2_chan_get_client_data(r2chan);
-	ast_verb(3, "MFC/R2 call disconnected on chan %d\n", openr2_chan_get_number(r2chan));
+	ast_verbose("MFC/R2 call disconnected on channel %d\n", openr2_chan_get_number(r2chan));
 	ast_mutex_lock(&p->lock);
 	if (!p->owner) {
 		ast_mutex_unlock(&p->lock);
@@ -3266,7 +3265,7 @@ static void dahdi_r2_write_log(openr2_log_level_t level, char *logmessage)
 {
 	switch (level) {
 	case OR2_LOG_NOTICE:
-		ast_log(LOG_NOTICE, "%s", logmessage);
+		ast_verbose("%s", logmessage);
 		break;
 	case OR2_LOG_WARNING:
 		ast_log(LOG_WARNING, "%s", logmessage);
@@ -3363,6 +3362,11 @@ static void dahdi_r2_on_ani_digit_received(openr2_chan_t *r2chan, char digit)
 	p->cid_name[p->mfcr2_ani_index] = 0;
 }
 
+static void dahdi_r2_on_billing_pulse_received(openr2_chan_t *r2chan)
+{
+	ast_verbose("MFC/R2 billing pulse received on channel %d\n", openr2_chan_get_number(r2chan));
+}
+
 static openr2_event_interface_t dahdi_r2_event_iface = {
 	.on_call_init = dahdi_r2_on_call_init,
 	.on_call_offered = dahdi_r2_on_call_offered,
@@ -3381,7 +3385,7 @@ static openr2_event_interface_t dahdi_r2_event_iface = {
 	.on_dnis_digit_received = dahdi_r2_on_dnis_digit_received,
 	.on_ani_digit_received = dahdi_r2_on_ani_digit_received,
 	/* so far we do nothing with billing pulses */
-	.on_billing_pulse_received = NULL
+	.on_billing_pulse_received = dahdi_r2_on_billing_pulse_received
 };
 
 static inline int16_t dahdi_r2_alaw_to_linear(uint8_t sample)
