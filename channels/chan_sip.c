@@ -3472,6 +3472,7 @@ static int __sip_xmit(struct sip_pvt *p, struct ast_str *data, int len)
 			res = ast_tcptls_server_write(p->socket.tcptls_session, data->str, len);
 		} else {
 			ast_debug(2, "No p->socket.tcptls_session->f len=%d\n", len);
+			return XMIT_ERROR;
 		}
 	} else {
 		ast_debug(2, "Socket type is TCP but no tcptls_session is present to write to\n");
