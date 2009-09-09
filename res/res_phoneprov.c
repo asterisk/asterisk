@@ -487,17 +487,20 @@ static int phoneprov_callback(struct ast_tcptls_session_instance *ser, const str
 		/* Unless we are overridden by serveriface or serveraddr, we set the SERVER variable to
 		 * the IP address we are listening on that the phone contacted for this config file */
 		if (ast_strlen_zero(global_server)) {
-			struct sockaddr name;
-			socklen_t namelen = sizeof(name);
+			union {
+				struct sockaddr sa;
+				struct sockaddr_in sa_in;
+			} name;
+			socklen_t namelen = sizeof(name.sa);
 			int res;
 
-			if ((res = getsockname(ser->fd, &name, &namelen))) {
+			if ((res = getsockname(ser->fd, &name.sa, &namelen))) {
 				ast_log(LOG_WARNING, "Could not get server IP, breakage likely.\n");
 			} else {
 				struct ast_var_t *var;
 				struct extension *exten_iter;
 
-				if ((var = ast_var_assign("SERVER", ast_inet_ntoa(((struct sockaddr_in *)&name)->sin_addr)))) {
+				if ((var = ast_var_assign("SERVER", ast_inet_ntoa(name.sa_in.sin_addr)))) {
 					AST_LIST_TRAVERSE(&route->user->extensions, exten_iter, entry) {
 						AST_LIST_INSERT_TAIL(exten_iter->headp, var, entries);
 					}
