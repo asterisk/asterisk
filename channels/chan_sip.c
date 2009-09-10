@@ -1085,10 +1085,10 @@ static int global_relaxdtmf;			/*!< Relax DTMF */
 static int global_rtptimeout;		/*!< Time out call if no RTP */
 static int global_rtpholdtimeout;	/*!< Time out call if no RTP during hold */
 static int global_rtpkeepalive;		/*!< Send RTP keepalives */
-static int global_reg_timeout;	
+static int global_reg_timeout;
 static int global_regattempts_max;	/*!< Registration attempts before giving up */
 static int global_callcounter;		/*!< Enable call counters for all devices. This is currently enabled by setting the peer
-						call-limit to 999. When we remove the call-limit from the code, we can make it
+						call-limit to INT_MAX. When we remove the call-limit from the code, we can make it
 						with just a boolean flag in the device structure */
 static unsigned int global_tos_sip;		/*!< IP type of service for SIP packets */
 static unsigned int global_tos_audio;		/*!< IP type of service for audio RTP packets */
@@ -22975,7 +22975,7 @@ static void set_peer_defaults(struct sip_peer *peer)
 	peer->autoframing = global_autoframing;
 	peer->qualifyfreq = global_qualifyfreq;
 	if (global_callcounter)
-		peer->call_limit=999;
+		peer->call_limit=INT_MAX;
 	ast_string_field_set(peer, vmexten, default_vmexten);
 	ast_string_field_set(peer, secret, "");
 	ast_string_field_set(peer, remotesecret, "");
@@ -23290,7 +23290,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		} else if (!strcasecmp(v->name, "callbackextension")) {
 			ast_copy_string(callback, v->value, sizeof(callback));
 		} else if (!strcasecmp(v->name, "callcounter")) {
-			peer->call_limit = ast_true(v->value) ? 999 : 0;
+			peer->call_limit = ast_true(v->value) ? INT_MAX : 0;
 		} else if (!strcasecmp(v->name, "call-limit")) {
 			peer->call_limit = atoi(v->value);
 			if (peer->call_limit < 0)
