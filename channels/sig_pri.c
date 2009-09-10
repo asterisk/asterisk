@@ -3198,4 +3198,11 @@ int pri_maintenance_bservice(struct pri *pri, struct sig_pri_chan *p, int change
 }
 #endif
 
+void sig_pri_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, struct sig_pri_chan *pchan)
+{
+	if (pchan->owner == oldchan) {
+		pchan->owner = newchan;
+	}
+}
+
 #endif /* HAVE_PRI */

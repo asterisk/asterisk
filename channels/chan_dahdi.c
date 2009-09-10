@@ -6357,10 +6357,7 @@ static int dahdi_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	} 
 #ifdef HAVE_PRI
 	else if (dahdi_sig_pri_lib_handles(p->sig)) {
-		struct sig_pri_chan *pchan = p->sig_pvt;
-		if (pchan->owner == oldchan) {
-			pchan->owner = newchan;
-		}
+		sig_pri_fixup(oldchan, newchan, p->sig_pvt);
 	}
 #endif
 

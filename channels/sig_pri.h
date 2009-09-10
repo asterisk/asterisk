@@ -266,4 +266,6 @@ int pri_send_callrerouting_facility_exec(struct sig_pri_chan *p, enum ast_channe
 int pri_maintenance_bservice(struct pri *pri, struct sig_pri_chan *p, int changestatus);
 #endif
 
+void sig_pri_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, struct sig_pri_chan *pchan);
+
 #endif /* _SIG_PRI_H */
