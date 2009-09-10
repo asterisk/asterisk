@@ -386,14 +386,10 @@ static void moh_handle_digit(struct ast_channel *chan, char digit)
 	if ((class = get_mohbydigit(digit))) {
 		classname = ast_strdupa(class->name);
 		class = mohclass_unref(class, "Unreffing ao2_find from finding by digit");
+		ast_string_field_set(chan,musicclass,classname);
+		ast_moh_stop(chan);
+		ast_moh_start(chan, classname, NULL);
 	}
-
-	if (!class) {
-		return;
-	}
-
-	ast_moh_stop(chan);
-	ast_moh_start(chan, classname, NULL);
 }
 
 static struct ast_generator moh_file_stream = 
