@@ -1832,7 +1832,7 @@ static int reload_config(enum channelreloadreason reason);
 static int expire_register(const void *data);
 static void *do_monitor(void *data);
 static int restart_monitor(void);
-static int sip_addrcmp(char *name, struct sockaddr_in *sin);	/* Support for peer matching */
+static int sip_addrcmp(char *name, struct sip_peer *p2);     /* Support for peer matching */
 static int sip_refer_allocate(struct sip_pvt *p);
 static void ast_quiet_chan(struct ast_channel *chan);
 static int attempt_transfer(struct sip_dual *transferer, struct sip_dual *target);
@@ -1951,7 +1951,7 @@ static int sip_poke_peer(struct sip_peer *peer);
 static void set_peer_defaults(struct sip_peer *peer);
 static struct sip_peer *temp_peer(const char *name);
 static void register_peer_exten(struct sip_peer *peer, int onoff);
-static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int realtime, int devstate_only);
+static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int realtime, int devstate_only, int transport);
 static struct sip_user *find_user(const char *name, int realtime);
 static int sip_poke_peer_s(const void *data);
 static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_request *req);
@@ -4041,13 +4041,21 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 }
 
 /*! \brief Support routine for find_peer */
-static int sip_addrcmp(char *name, struct sockaddr_in *sin)
+static int sip_addrcmp(char *name, struct sip_peer *p2)
 {
 	/* We know name is the first field, so we can cast */
 	struct sip_peer *p = (struct sip_peer *) name;
-	return 	!(!inaddrcmp(&p->addr, sin) || 
-					(ast_test_flag(&p->flags[0], SIP_INSECURE_PORT) &&
-					(p->addr.sin_addr.s_addr == sin->sin_addr.s_addr)));
+	char tcptls = (p->transports & p2->transports) & (SIP_TRANSPORT_TLS | SIP_TRANSPORT_TCP);
+
+	/* first check to see if it is a perfect ip port match.
+	 * if not, check to see if it valid for the peer to be matched only by ip */
+	if (!inaddrcmp(&p->addr, &p2->addr)) {
+		return 0;
+	} else if ((tcptls || ast_test_flag(&p->flags[0], SIP_INSECURE_PORT)) && (p->addr.sin_addr.s_addr == p2->addr.sin_addr.s_addr)) {
+		return 0;
+	}
+
+	return 1;
 }
 
 /*! \brief Locate peer by name or ip address 
@@ -4056,14 +4064,21 @@ static int sip_addrcmp(char *name, struct sockaddr_in *sin)
 	\note Avoid using this function in new functions if there's a way to avoid it, i
 	since it causes a database lookup or a traversal of the in-memory peer list.
 */
-static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int realtime, int devstate_only)
+static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int realtime, int devstate_only, int transport)
 {
 	struct sip_peer *p = NULL;
+	struct sip_peer tmp_peer;
 
-	if (peer)
+	if (peer) {
 		p = ASTOBJ_CONTAINER_FIND(&peerl, peer);
-	else
-		p = ASTOBJ_CONTAINER_FIND_FULL(&peerl, sin, name, sip_addr_hashfunc, 1, sip_addrcmp);
+	} else {
+		tmp_peer.addr.sin_addr.s_addr = sin->sin_addr.s_addr;
+		tmp_peer.addr.sin_port = sin->sin_port;
+		tmp_peer.flags[0].flags = 0;
+		tmp_peer.transports = transport;
+
+		p = ASTOBJ_CONTAINER_FIND_FULL(&peerl, &tmp_peer, name, sip_addr_hashfunc, 1, sip_addrcmp);
+	}
 
 	if (!p && realtime)
 		p = realtime_peer(peer, sin, devstate_only);
@@ -4386,7 +4401,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, int newdialog)
 	dialog->sa.sin_family = AF_INET;
 	dialog->timer_t1 = global_t1; /* Default SIP retransmission timer T1 (RFC 3261) */
 	dialog->timer_b = global_timer_b; /* Default SIP transaction timer B (RFC 3261) */
-	peer = find_peer(peername, NULL, 1, 0);
+	peer = find_peer(peername, NULL, 1, 0, 0);
 
 	if (peer) {
 		int res;
@@ -4732,7 +4747,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 		call_limit = &u->call_limit;
 		inringing = NULL;
 		pu_lock = &u->_lock;
-	} else if ( (p = find_peer(ast_strlen_zero(fup->peername) ? name : fup->peername, NULL, 1, 0) ) ) { /* Try to find peer */
+	} else if ( (p = find_peer(ast_strlen_zero(fup->peername) ? name : fup->peername, NULL, 1, 0, 0) ) ) { /* Try to find peer */
 		inuse = &p->inUse;
 		call_limit = &p->call_limit;
 		inringing = &p->inRinging;
@@ -9918,7 +9933,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			append_history(p, "RegistryInit", "Account: %s@%s", r->username, r->hostname);
 
 		if (!ast_strlen_zero(r->peername)) {
-			if (!(peer = find_peer(r->peername, NULL, 1, 0))) {
+			if (!(peer = find_peer(r->peername, NULL, 1, 0, 0))) {
 				ast_log(LOG_WARNING, "Could not find peer %s in transmit_register\n", r->peername);
 			}
 		}
@@ -10974,7 +10989,7 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 /*! \brief Change onhold state of a peer using a pvt structure */
 static void sip_peer_hold(struct sip_pvt *p, int hold)
 {
-	struct sip_peer *peer = find_peer(p->peername, NULL, 1, 0);
+	struct sip_peer *peer = find_peer(p->peername, NULL, 1, 0, 0);
 
 	if (!peer)
 		return;
@@ -11208,7 +11223,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 
 	ast_string_field_set(p, exten, name);
 	build_contact(p);
-	peer = find_peer(name, NULL, 1, 0);
+	peer = find_peer(name, NULL, 1, 0, 0);
 	if (!(peer && ast_apply_ha(peer->ha, sin))) {
 		/* Peer fails ACL check */
 		if (peer) {
@@ -12200,23 +12215,8 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 	/* For subscribes, match on peer name only; for other methods,
 	 * match on IP address-port of the incoming request.
 	 */
-	peer = (sipmethod == SIP_SUBSCRIBE) ? find_peer(of, NULL, 1, 0) : find_peer(NULL, &p->recv, 1, 0);
+	peer = (sipmethod == SIP_SUBSCRIBE) ? find_peer(of, NULL, 1, 0, 0) : find_peer(NULL, &p->recv, 1, 0, p->socket.type);
 
-	/* If the peer is still not found, try the address and port from the
-	 * contact header.  If the transport type is TCP or TLS it is not possible
-	 * to find the peer using p->recv. Because of the way TCP works, the received
-	 * packet's destination port will not match the one the peer table is
-	 * built with. */
-	if (!peer && (p->socket.type != SIP_TRANSPORT_UDP)) {
-		struct sockaddr_in tmpsin;
-		char contact[SIPBUFSIZE];
-		char *tmp;
-		memcpy(&tmpsin, &p->recv, sizeof(tmpsin));
-		ast_copy_string(contact, get_header(req, "Contact"), sizeof(contact));
-		tmp = get_in_brackets(contact);
-		__set_address_from_contact(tmp, &tmpsin, 1);
-		peer = find_peer(NULL, &tmpsin, 1, 0);
-	}
 	if (!peer) {
 		if (debug)
 			ast_verbose("No matching peer for '%s' from '%s:%d'\n",
@@ -13431,7 +13431,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		return CLI_SHOWUSAGE;
 
 	load_realtime = (argc == 5 && !strcmp(argv[4], "load")) ? TRUE : FALSE;
-	peer = find_peer(argv[3], NULL, load_realtime, 0);
+	peer = find_peer(argv[3], NULL, load_realtime, 0, 0);
 	if (s) { 	/* Manager */
 		if (peer) {
 			const char *id = astman_get_header(m, "ActionID");
@@ -13786,7 +13786,7 @@ static char *sip_unregister(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	if (a->argc != 3)
 		return CLI_SHOWUSAGE;
 	
-	if ((peer = find_peer(a->argv[2], NULL, load_realtime, 0))) {
+	if ((peer = find_peer(a->argv[2], NULL, load_realtime, 0, 0))) {
 		if (peer->expire > 0) {
 			AST_SCHED_DEL(sched, peer->expire);
 			expire_register(peer);
@@ -14674,7 +14674,7 @@ static char *sip_do_debug_ip(int fd, char *arg)
 /*! \brief  Turn on SIP debugging for a given peer */
 static char *sip_do_debug_peer(int fd, char *arg)
 {
-	struct sip_peer *peer = find_peer(arg, NULL, 1, 0);
+	struct sip_peer *peer = find_peer(arg, NULL, 1, 0, 0);
 	if (!peer)
 		ast_cli(fd, "No such peer '%s'\n", arg);
 	else if (peer->addr.sin_addr.s_addr == 0)
@@ -15173,7 +15173,7 @@ static int function_sippeer(struct ast_channel *chan, const char *cmd, char *dat
 	else
 		colname = "ip";
 
-	if (!(peer = find_peer(data, NULL, 1, 0)))
+	if (!(peer = find_peer(data, NULL, 1, 0, 0)))
 		return -1;
 
 	if (!strcasecmp(colname, "ip")) {
@@ -20227,7 +20227,7 @@ int st_get_se(struct sip_pvt *p, int max)
 				}
 			} 
 			if (p->peername) {
-				struct sip_peer *pp = find_peer(p->peername, NULL, 1, 0);
+				struct sip_peer *pp = find_peer(p->peername, NULL, 1, 0, 0);
 				if (pp) {
 					p->stimer->st_cached_max_se = pp->stimer.st_max_se;
 					unref_peer(pp);
@@ -20250,7 +20250,7 @@ int st_get_se(struct sip_pvt *p, int max)
 				}
 			} 
 			if (p->peername) {
-				struct sip_peer *pp = find_peer(p->peername, NULL, 1, 0);
+				struct sip_peer *pp = find_peer(p->peername, NULL, 1, 0, 0);
 				if (pp) {
 					p->stimer->st_cached_min_se = pp->stimer.st_min_se;
 					unref_peer(pp);
@@ -20281,7 +20281,7 @@ enum st_refresher st_get_refresher(struct sip_pvt *p)
 	} 
 
 	if (p->peername) {
-		struct sip_peer *pp = find_peer(p->peername, NULL, 1, 0);
+		struct sip_peer *pp = find_peer(p->peername, NULL, 1, 0, 0);
 		if (pp) {
 			p->stimer->st_cached_ref = pp->stimer.st_ref;
 			return pp->stimer.st_ref;
@@ -20313,7 +20313,7 @@ enum st_mode st_get_mode(struct sip_pvt *p)
 		}
 	} 
 	if (p->peername) {
-		struct sip_peer *pp = find_peer(p->peername, NULL, 1, 0);
+		struct sip_peer *pp = find_peer(p->peername, NULL, 1, 0, 0);
 		if (pp) {
 			p->stimer->st_cached_mode = pp->stimer.st_mode_oper;
 			unref_peer(pp);
@@ -20474,7 +20474,7 @@ static int sip_devicestate(void *data)
 	 * load it BACK into memory, thus defeating the point of trying to clear dead
 	 * hosts out of memory.
 	 */
-	if ((p = find_peer(host, NULL, 0, 1))) {
+	if ((p = find_peer(host, NULL, 0, 1, 0))) {
 		if (p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) {
 			/* we have an address for the peer */
 		
