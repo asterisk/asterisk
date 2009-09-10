@@ -946,12 +946,12 @@ static struct dahdi_pvt {
 	unsigned int inservice:1;
 	/*!
 	 * \brief TRUE if the channel is locally blocked.
-	 * \note Applies to SS7 channels.
+	 * \note Applies to SS7 and MFCR2 channels.
 	 */
 	unsigned int locallyblocked:1;
 	/*!
 	 * \brief TRUE if the channel is remotely blocked.
-	 * \note Applies to SS7 channels.
+	 * \note Applies to SS7 and MFCR2 channels.
 	 */
 	unsigned int remotelyblocked:1;
 #if defined(HAVE_PRI)
@@ -11400,24 +11400,34 @@ static inline int available(struct dahdi_pvt *p, int channelmatch, ast_group_t g
 	}
 #endif
 
-#ifdef HAVE_SS7
-	/* Trust SS7 */
-	if (p->ss7) {
-		if (p->ss7call)
-			return 0;
-		else
-			return 1;
+	if (p->locallyblocked || p->remotelyblocked) {
+		return 0;
 	}
+
+	/* If no owner definitely available */
+	if (!p->owner) {
+#ifdef HAVE_SS7
+		/* Trust SS7 */
+		if (p->ss7) {
+			if (p->ss7call) {
+				return 0;
+			} else {
+				return 1;
+			}
+		}
 #endif
 #ifdef HAVE_OPENR2
-	/* Trust MFC/R2 */
-	if (p->mfcr2) {
-		if (p->mfcr2call)
-			return 0;
-		else
-			return 1;
-	}
+		/* Trust MFC/R2 */
+		if (p->mfcr2) {
+			if (p->mfcr2call) {
+				return 0;
+			} else {
+				return 1;
+			}
+		}
 #endif
+		return 1;
+	}
 
 	return 0;
 }
