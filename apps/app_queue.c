@@ -1948,6 +1948,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 
 	/* Inherit specially named variables from parent channel */
 	ast_channel_inherit_variables(qe->chan, tmp->chan);
+	ast_channel_datastore_inherit(qe->chan, tmp->chan);
 
 	/* Presense of ADSI CPE on outgoing channel follows ours */
 	tmp->chan->adsicpe = qe->chan->adsicpe;
@@ -2243,7 +2244,11 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 			*to = 0;
 			return NULL;
 		}
+
+		/* Poll for events from both the incoming channel as well as any outgoing channels */
 		winner = ast_waitfor_n(watchers, pos, to);
+
+		/* Service all of the outgoing channels */
 		for (o = start; o; o = o->call_next) {
 			if (o->stillgoing && (o->chan) &&  (o->chan->_state == AST_STATE_UP)) {
 				if (!peer) {
@@ -2342,7 +2347,11 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
 								if (qe->parent->timeoutrestart)
 									*to = orig;
-								ring_one(qe, outgoing, &numbusies);
+								/* Have enough time for a queue member to answer? */
+								if (*to > 500) {
+									ring_one(qe, outgoing, &numbusies);
+									starttime = (long) time(NULL);
+								}
 							}
 							numbusies++;
 							break;
@@ -2358,7 +2367,10 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
 								if (qe->parent->timeoutrestart)
 									*to = orig;
-								ring_one(qe, outgoing, &numbusies);
+								if (*to > 500) {
+									ring_one(qe, outgoing, &numbusies);
+									starttime = (long) time(NULL);
+								}
 							}
 							numbusies++;
 							break;
@@ -2374,18 +2386,23 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						}
 					}
 					ast_frfree(f);
-				} else {
+				} else { /* ast_read() returned NULL */
 					endtime = (long) time(NULL) - starttime;
 					rna(endtime * 1000, qe, on, membername, 1);
 					do_hang(o);
 					if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
 						if (qe->parent->timeoutrestart)
 							*to = orig;
-						ring_one(qe, outgoing, &numbusies);
+						if (*to > 500) {
+							ring_one(qe, outgoing, &numbusies);
+							starttime = (long) time(NULL);
+						}
 					}
 				}
 			}
 		}
+
+		/* If we received an event from the caller, deal with it. */
 		if (winner == in) {
 			f = ast_read(in);
 			if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP))) {
