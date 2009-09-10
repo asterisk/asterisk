@@ -762,9 +762,11 @@ static int require_odbc(const char *database, const char *table, va_list ap)
 				case SQL_CHAR:
 				case SQL_VARCHAR:
 				case SQL_LONGVARCHAR:
+#ifdef HAVE_ODBC_WCHAR
 				case SQL_WCHAR:
 				case SQL_WVARCHAR:
 				case SQL_WLONGVARCHAR:
+#endif
 				case SQL_BINARY:
 				case SQL_VARBINARY:
 				case SQL_LONGVARBINARY:

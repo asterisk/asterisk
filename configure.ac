@@ -1545,6 +1545,20 @@ else
 fi
 AC_SUBST(EDITLINE_LIB)
 
+if test "x${PBX_UNIXODBC}" = "x1" -o "x${PBX_IODBC}" = "x1"; then
+	# Does ODBC support wide characters?
+	AC_MSG_CHECKING(whether ODBC has support for Unicode types)
+	AC_LINK_IFELSE(
+		AC_LANG_PROGRAM(
+			[#include <sql.h>
+#include <sqlext.h>],
+			[int foo = SQL_WCHAR]),
+		AC_MSG_RESULT(yes)
+			AC_DEFINE([HAVE_ODBC_WCHAR], [1], [Define to 1 if your ODBC library has wide (Unicode) types.]),
+		AC_MSG_RESULT(no)
+	)
+fi
+
 AC_CHECK_HEADER([h323.h], [PBX_H323=1], [PBX_H323=0])
 AC_SUBST(PBX_H323)
 
