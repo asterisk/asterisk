@@ -683,7 +683,7 @@ struct mwisend_info {
 	mwisend_states 	mwisend_current;
 };
 
-static struct dahdi_pvt {
+struct dahdi_pvt {
 	ast_mutex_t lock;
 	struct callerid_state *cs;
 	struct ast_channel *owner;			/*!< Our current active owner (if applicable) */
@@ -1248,7 +1248,10 @@ static struct dahdi_pvt {
 	/*! \brief TRUE if confrence is muted. */
 	int muting;
 	void *sig_pvt;
-} *iflist = NULL, *ifend = NULL;
+};
+
+static struct dahdi_pvt *iflist = NULL;
+static struct dahdi_pvt *ifend = NULL;
 
 /*! \brief Channel configuration from chan_dahdi.conf .
  * This struct is used for parsing the [channels] section of chan_dahdi.conf.
@@ -1416,7 +1419,6 @@ static int dahdi_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int datalen);
 static int dahdi_queryoption(struct ast_channel *chan, int option, void *data, int *datalen);
 static int dahdi_func_read(struct ast_channel *chan, const char *function, char *data, char *buf, size_t len);
-static int handle_init_event(struct dahdi_pvt *i, int event);
 static int dahdi_func_write(struct ast_channel *chan, const char *function, char *data, const char *value);
 
 static const struct ast_channel_tech dahdi_tech = {
@@ -1807,7 +1809,7 @@ static int my_callwait(void *pvt)
 	p->callwaitingrepeat = CALLWAITING_REPEAT_SAMPLES;
 	if (p->cidspill) {
 		ast_log(LOG_WARNING, "Spill already exists?!?\n");
-		free(p->cidspill);
+		ast_free(p->cidspill);
 	}
 	if (!(p->cidspill = ast_malloc(2400 /* SAS */ + 680 /* CAS */ + READ_SIZE * 4)))
 		return -1;
@@ -1837,7 +1839,7 @@ static int my_send_callerid(void *pvt, int cwcid, struct ast_callerid *cid)
 
 	if (p->cidspill) {
 		ast_log(LOG_WARNING, "cidspill already exists??\n");
-		free(p->cidspill);
+		ast_free(p->cidspill);
 	}
 
 	if ((p->cidspill = ast_malloc(MAX_CALLERID_SIZE))) {
@@ -4720,7 +4722,7 @@ static void destroy_dahdi_pvt(struct dahdi_pvt **pvt)
 	dahdi_close_sub(p, SUB_REAL);
 	if (p->owner)
 		p->owner->tech_pvt = NULL;
-	free(p);
+	ast_free(p);
 	*pvt = NULL;
 }
 
@@ -13259,7 +13261,6 @@ static char *handle_mfcr2_show_channels(struct ast_cli_entry *e, int cmd, struct
 	}
 	ast_cli(a->fd, FORMAT, "Chan", "Variant", "Max ANI", "Max DNIS", "ANI First", "Immediate Accept", "Tx CAS", "Rx CAS");
 	ast_mutex_lock(&iflock);
-	p = iflist;
 	for (p = iflist; p; p = p->next) {
 		if (!(p->sig & SIG_MFCR2) || !p->r2chan) {
 			continue;
