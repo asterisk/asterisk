@@ -274,7 +274,7 @@ struct analog_pvt {
 	unsigned int callwaiting:1;
 	unsigned int dialednone:1;
 	unsigned int dialing:1;			/*!< TRUE if in the process of dialing digits or sending something */
-	unsigned int dnd:1;
+	unsigned int dnd:1;				/*!< TRUE if Do-Not-Disturb is enabled. */
 	unsigned int echobreak:1;
 	unsigned int hidecallerid:1;
 	unsigned int outgoing:1;
@@ -349,5 +349,7 @@ const char *analog_cidtype_to_str(unsigned int cid_type);
 int analog_ss_thread_start(struct analog_pvt *p, struct ast_channel *ast);
 
 int analog_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, void *newp);
+
+int analog_dnd(struct analog_pvt *p, int flag);
 
 #endif /* _SIG_ANSLOG_H */

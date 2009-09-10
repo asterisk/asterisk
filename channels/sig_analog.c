@@ -3477,3 +3477,22 @@ int analog_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, void 
 	analog_update_conf(new_pvt);
 	return 0;
 }
+
+int analog_dnd(struct analog_pvt *p, int flag)
+{
+	if (flag == -1) {
+		return p->dnd;
+	}
+
+	p->dnd = flag;
+
+	ast_verb(3, "%s DND on channel %d\n",
+			flag? "Enabled" : "Disabled",
+			p->channel);
+	manager_event(EVENT_FLAG_SYSTEM, "DNDState",
+			"Channel: DAHDI/%d\r\n"
+			"Status: %s\r\n", p->channel,
+			flag? "enabled" : "disabled");
+
+	return 0;
+}

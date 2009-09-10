@@ -784,7 +784,7 @@ struct dahdi_pvt {
 	unsigned int dialing:1;
 	/*! \brief TRUE if the transfer capability of the call is digital. */
 	unsigned int digital:1;
-	/*! \brief TRUE if Do-Not-Disturb is enabled. */
+	/*! \brief TRUE if Do-Not-Disturb is enabled, present only for non sig_analog */
 	unsigned int dnd:1;
 	/*! \brief XXX BOOLEAN Purpose??? */
 	unsigned int echobreak:1;
@@ -8399,24 +8399,34 @@ static int dahdi_wink(struct dahdi_pvt *p, int idx)
 
 /*! \brief enable or disable the chan_dahdi Do-Not-Disturb mode for a DAHDI channel
  * \param dahdichan "Physical" DAHDI channel (e.g: DAHDI/5)
- * \param on 1 to enable, 0 to disable
+ * \param on 1 to enable, 0 to disable, -1 return dnd value
  *
  * chan_dahdi has a DND (Do Not Disturb) mode for each dahdichan (physical
  * DAHDI channel). Use this to enable or disable it.
  *
  * \bug the use of the word "channel" for those dahdichans is really confusing.
  */
-static void dahdi_dnd(struct dahdi_pvt *dahdichan, int on)
+static int dahdi_dnd(struct dahdi_pvt *dahdichan, int flag)
 {
+	if (analog_lib_handles(dahdichan->sig, dahdichan->radio, dahdichan->oprmode)) {
+		return analog_dnd(dahdichan->sig_pvt, flag);
+	}
+
+	if (flag == -1) {
+		return dahdichan->dnd;
+	}
+
 	/* Do not disturb */
-	dahdichan->dnd = on;
+	dahdichan->dnd = flag;
 	ast_verb(3, "%s DND on channel %d\n",
-			on? "Enabled" : "Disabled",
+			flag? "Enabled" : "Disabled",
 			dahdichan->channel);
 	manager_event(EVENT_FLAG_SYSTEM, "DNDState",
 			"Channel: DAHDI/%d\r\n"
 			"Status: %s\r\n", dahdichan->channel,
-			on? "enabled" : "disabled");
+			flag? "enabled" : "disabled");
+
+	return 0;
 }
 
 static void *analog_ss_thread(void *data)
@@ -13864,7 +13874,7 @@ static char *dahdi_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli
 			ast_cli(a->fd, "Default law: %s\n", tmp->law == DAHDI_LAW_MULAW ? "ulaw" : tmp->law == DAHDI_LAW_ALAW ? "alaw" : "unknown");
 			ast_cli(a->fd, "Fax Handled: %s\n", tmp->faxhandled ? "yes" : "no");
 			ast_cli(a->fd, "Pulse phone: %s\n", tmp->pulsedial ? "yes" : "no");
-			ast_cli(a->fd, "DND: %s\n", tmp->dnd ? "yes" : "no");
+			ast_cli(a->fd, "DND: %s\n", dahdi_dnd(tmp, -1) ? "yes" : "no");
 			ast_cli(a->fd, "Echo Cancellation:\n");
 
 			if (tmp->echocancel.head.tap_length) {
@@ -14370,7 +14380,7 @@ static int action_dahdidndon(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
-	p->dnd = 1;
+	dahdi_dnd(p, 1);
 	astman_send_ack(s, m, "DND Enabled");
 	return 0;
 }
@@ -14389,7 +14399,7 @@ static int action_dahdidndoff(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
-	p->dnd = 0;
+	dahdi_dnd(p, 0);
 	astman_send_ack(s, m, "DND Disabled");
 	return 0;
 }
@@ -14514,7 +14524,7 @@ static int action_dahdishowchannels(struct mansession *s, const struct message *
 					sig2str(tmp->sig),
 					tmp->sig,
 					tmp->context,
-					tmp->dnd ? "Enabled" : "Disabled",
+					dahdi_dnd(tmp, -1) ? "Enabled" : "Disabled",
 					alarm2str(alm), idText);
 			} else {
 				astman_append(s,
@@ -14529,7 +14539,7 @@ static int action_dahdishowchannels(struct mansession *s, const struct message *
 					"\r\n",
 					tmp->channel, sig2str(tmp->sig), tmp->sig,
 					tmp->context,
-					tmp->dnd ? "Enabled" : "Disabled",
+					dahdi_dnd(tmp, -1) ? "Enabled" : "Disabled",
 					alarm2str(alm), idText);
 			}
 		}
