@@ -2104,6 +2104,15 @@ static int my_check_confirmanswer(void *pvt)
 	return 0;
 }
 
+static void my_cancel_cidspill(void *pvt)
+{
+	struct dahdi_pvt *p = pvt;
+	if (p->cidspill) {
+		ast_free(p->cidspill);
+		p->cidspill = NULL;
+	}
+}
+
 static void my_increase_ss_count(void)
 {
 	ast_mutex_lock(&ss_thread_lock);
@@ -2434,6 +2443,8 @@ static int my_is_off_hook(void *pvt)
 	struct dahdi_pvt *p = pvt;
 	int res;
 	struct dahdi_params par;
+
+	memset(&par, 0, sizeof(par));
 
 	if (p->subs[SUB_REAL].dfd > -1)
 		res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &par);
@@ -2833,6 +2844,7 @@ static struct analog_callback dahdi_analog_callbacks =
 	.check_waitingfordt = my_check_waitingfordt,
 	.set_confirmanswer = my_set_confirmanswer,
 	.check_confirmanswer = my_check_confirmanswer,
+	.cancel_cidspill = my_cancel_cidspill,
 };
 
 static struct dahdi_pvt *round_robin[32];
@@ -4359,6 +4371,7 @@ static int send_callerid(struct dahdi_pvt *p)
 	}
 	while (p->cidpos < p->cidlen) {
 		res = write(p->subs[SUB_REAL].dfd, p->cidspill + p->cidpos, p->cidlen - p->cidpos);
+		ast_debug(4, "writing callerid at pos %d of %d, res = %d\n", p->cidpos, p->cidlen, res);
 		if (res < 0) {
 			if (errno == EAGAIN)
 				return 0;

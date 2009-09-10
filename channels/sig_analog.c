@@ -771,6 +771,15 @@ static int analog_check_confirmanswer(struct analog_pvt *p)
 	return 0;
 }
 
+static void analog_cancel_cidspill(struct analog_pvt *p)
+{
+	if (!p->calls->cancel_cidspill) {
+		return;
+	}
+
+	p->calls->cancel_cidspill(p->chan_pvt);
+}
+
 static int analog_set_linear_mode(struct analog_pvt *p, int index, int linear_mode)
 {
 	if (p->calls->set_linear_mode) {
@@ -2541,6 +2550,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 				/* Make sure it stops ringing */
 				analog_off_hook(p);
 				ast_debug(1, "channel %d answered\n", p->channel);
+				analog_cancel_cidspill(p);
 				analog_set_dialing(p, 0);
 				p->callwaitcas = 0;
 				if (analog_check_confirmanswer(p)) {
@@ -2662,6 +2672,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		}
 
 		if (ast->rings > p->cidrings) {
+			analog_cancel_cidspill(p);
 			p->callwaitcas = 0;
 		}
 		p->subs[index].f.frametype = AST_FRAME_CONTROL;
@@ -3187,6 +3198,7 @@ int analog_handle_init_event(struct analog_pvt *i, int event)
 			if (res && (errno == EBUSY)) {
 				break;
 			}
+			analog_cancel_cidspill(i);
 			if (i->immediate) {
 				analog_set_echocanceller(i, 1);
 				/* The channel is immediately up.  Start right away */

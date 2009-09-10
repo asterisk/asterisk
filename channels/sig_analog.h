@@ -201,6 +201,7 @@ struct analog_callback {
 	int (* const check_waitingfordt)(void *pvt);
 	void (* const set_confirmanswer)(void *pvt, int flag);
 	int (* const check_confirmanswer)(void *pvt);
+	void (* const cancel_cidspill)(void *pvt);
 };
 
 
