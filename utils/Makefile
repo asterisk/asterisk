@@ -26,7 +26,7 @@
 #     changes are made to ast_expr2.y or ast_expr2.fl (or the corresponding .c files),
 #     as a regression test. Others (mere mortals?) need not bother, but they are
 #     more than welcome to play! The regression test itself is in expr2.testinput.
-ALL_UTILS:=astman smsq stereorize streamplayer aelparse muted
+ALL_UTILS:=astman smsq stereorize streamplayer aelparse 
 UTILS:=$(ALL_UTILS)
 
 include $(ASTTOPDIR)/Makefile.rules

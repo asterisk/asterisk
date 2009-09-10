@@ -1832,11 +1832,6 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 			res = XMIT_ERROR;	/* Don't bother with trying to transmit again */
 		}
 
-		if (p->registry && p->registry->regstate < REG_STATE_REGISTERED) {
-			AST_SCHED_DEL(sched, p->registry->timeout);
-			p->registry->needdns = TRUE;
-			p->registry->timeout = ast_sched_add(sched, 1, sip_reg_timeout, p->registry);
-		}
 	}
 
 	if (res != len)
