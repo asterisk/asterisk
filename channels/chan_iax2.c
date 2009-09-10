@@ -783,6 +783,7 @@ AST_MUTEX_DEFINE_STATIC(dpcache_lock);
 
 static void reg_source_db(struct iax2_peer *p);
 static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in *sin);
+static struct iax2_user *realtime_user(const char *username, struct sockaddr_in *sin);
 
 static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt);
 
@@ -1783,7 +1784,11 @@ static int calltoken_required(struct sockaddr_in *sin, const char *name, int sub
 	/* ----- Case 2 ----- */
 	if ((subclass == IAX_COMMAND_NEW) && (user = find_user(find))) {
 		calltoken_required = user->calltoken_required;
-	} else if ((subclass != IAX_COMMAND_NEW) && (peer = find_peer(find, 1))) {
+	} else if ((subclass == IAX_COMMAND_NEW) && (user = realtime_user(find, sin))) {
+		calltoken_required = user->calltoken_required;
+	} else if ((subclass != IAX_COMMAND_NEW) && (peer = find_peer(find, 0))) {
+		calltoken_required = peer->calltoken_required;
+	} else if ((subclass != IAX_COMMAND_NEW) && (peer = realtime_peer(find, sin))) {
 		calltoken_required = peer->calltoken_required;
 	}
 
@@ -3686,7 +3691,7 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 				if (!strcasecmp(tmp->name, "host")) {
 					struct ast_hostent ahp;
 					struct hostent *hp;
-					if (!(hp = ast_gethostbyname(tmp->value, &ahp)) || (memcmp(&hp->h_addr, &sin->sin_addr, sizeof(hp->h_addr)))) {
+					if (!(hp = ast_gethostbyname(tmp->value, &ahp)) || (memcmp(hp->h_addr, &sin->sin_addr, sizeof(hp->h_addr)))) {
 						/* No match */
 						ast_variables_destroy(var);
 						var = NULL;
@@ -3800,7 +3805,7 @@ static struct iax2_user *realtime_user(const char *username, struct sockaddr_in 
 				if (!strcasecmp(tmp->name, "host")) {
 					struct ast_hostent ahp;
 					struct hostent *hp;
-					if (!(hp = ast_gethostbyname(tmp->value, &ahp)) || (memcmp(&hp->h_addr, &sin->sin_addr, sizeof(hp->h_addr)))) {
+					if (!(hp = ast_gethostbyname(tmp->value, &ahp)) || (memcmp(hp->h_addr, &sin->sin_addr, sizeof(hp->h_addr)))) {
 						/* No match */
 						ast_variables_destroy(var);
 						var = NULL;
