@@ -4269,7 +4269,7 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 				ast_verb(2, "Spawn extension (%s, %s, %d) exited INCOMPLETE on '%s'\n", c->context, c->exten, c->priority, c->name);
 
 				/* Don't cycle on incomplete - this will happen if the only extension that matches is our "incomplete" extension */
-				if (!ast_matchmore_extension(c, c->context, c->exten, c->priority, c->cid.cid_num)) {
+				if (!ast_matchmore_extension(c, c->context, c->exten, 1, c->cid.cid_num)) {
 					invalid = 1;
 				} else {
 					ast_copy_string(dst_exten, c->exten, sizeof(dst_exten));
