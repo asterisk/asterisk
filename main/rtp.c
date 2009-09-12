@@ -4496,14 +4496,18 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 	return res;
 }
 
-static char *rtp_do_debug_ip(struct ast_cli_args *a)
+static char *rtp_do_debug_ip(struct ast_cli_args *a, int deprecated)
 {
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	int port = 0;
 	char *p, *arg;
 
-	arg = a->argv[3];
+	if (deprecated == 1) {
+		arg = a->argv[3];
+	} else {
+		arg = a->argv[4];
+	}
 	p = strstr(arg, ":");
 	if (p) {
 		*p = '\0';
@@ -4585,7 +4589,7 @@ static char *handle_cli_rtp_debug_deprecated(struct ast_cli_entry *e, int cmd, s
 	} else {
 		if (strncasecmp(a->argv[2], "ip", 2))
 			return CLI_SHOWUSAGE;
-		return rtp_do_debug_ip(a);
+		return rtp_do_debug_ip(a, 1);
 	}
 
 	return CLI_SUCCESS;
@@ -4618,7 +4622,7 @@ static char *handle_cli_rtp_set_debug(struct ast_cli_entry *e, int cmd, struct a
 			return CLI_SUCCESS;
 		}
 	} else if (a->argc == e->args +1) { /* ip */
-		return rtp_do_debug_ip(a);
+		return rtp_do_debug_ip(a, 0);
 	}
 
 	return CLI_SHOWUSAGE;   /* default, failure */
