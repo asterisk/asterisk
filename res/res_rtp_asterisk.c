@@ -2400,7 +2400,7 @@ static char *rtp_do_debug_ip(struct ast_cli_args *a)
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	int port = 0;
-	char *p, *arg = ast_strdupa(a->argv[3]);
+	char *p, *arg = ast_strdupa(a->argv[4]);
 
 	p = strstr(arg, ":");
 	if (p) {
