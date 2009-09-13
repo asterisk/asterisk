@@ -565,10 +565,8 @@ struct dahdi_mfcr2 {
 	struct dahdi_pvt *pvts[MAX_CHANNELS];     /*!< Member channel pvt structs */
 	int numchans;                          /*!< Number of channels in this R2 block */
 	int monitored_count;                   /*!< Number of channels being monitored */
-	ast_mutex_t monitored_count_lock;      /*!< lock access to the counter */
-	ast_cond_t do_monitor;                 /*!< Condition to wake up the monitor thread when there's work to do */
-
 };
+
 struct dahdi_mfcr2_conf {
 	openr2_variant_t variant;
 	int mfback_timeout;
@@ -3060,24 +3058,6 @@ static void dahdi_r2_on_protocol_error(openr2_chan_t *r2chan, openr2_protocol_er
 	ast_mutex_unlock(&p->lock);
 }
 
-static void dahdi_r2_update_monitor_count(struct dahdi_mfcr2 *mfcr2, int increment)
-{
-	ast_mutex_lock(&mfcr2->monitored_count_lock);
-	if (increment) {
-		mfcr2->monitored_count++;
-		if (mfcr2->monitored_count == 1) {
-			ast_log(LOG_DEBUG, "At least one device needs monitoring, let's wake up the monitor thread.\n");
-			ast_cond_signal(&mfcr2->do_monitor);
-		}
-	} else {
-		mfcr2->monitored_count--;
-		if (mfcr2->monitored_count < 0) {
-			ast_log(LOG_ERROR, "we have a bug here!.\n");
-		}
-	}
-	ast_mutex_unlock(&mfcr2->monitored_count_lock);
-}
-
 static void dahdi_r2_disconnect_call(struct dahdi_pvt *p, openr2_call_disconnect_cause_t cause)
 {
 	if (openr2_chan_disconnect_call(p->r2chan, cause)) {
@@ -3130,7 +3110,6 @@ static void dahdi_r2_on_call_offered(openr2_chan_t *r2chan, const char *ani, con
 		/* The user wants us to start the PBX thread right away without accepting the call first */
 		c = dahdi_new(p, AST_STATE_RING, 1, SUB_REAL, DAHDI_LAW_ALAW, 0, NULL);
 		if (c) {
-			dahdi_r2_update_monitor_count(p->mfcr2, 0);
 			/* Done here, don't disable reading now since we still need to generate MF tones to accept
 			   the call or reject it and detect the tone off condition of the other end, all of this
 			   will be done in the PBX thread now */
@@ -3181,7 +3160,6 @@ static void dahdi_r2_on_call_accepted(openr2_chan_t *r2chan, openr2_call_mode_t 
 		}
 		c = dahdi_new(p, AST_STATE_RING, 1, SUB_REAL, DAHDI_LAW_ALAW, 0, NULL);
 		if (c) {
-			dahdi_r2_update_monitor_count(p->mfcr2, 0);
 			/* chan_dahdi will take care of reading from now on in the PBX thread, tell the
 			   library to forget about it */
 			openr2_chan_disable_read(r2chan);
@@ -5365,7 +5343,6 @@ static int dahdi_hangup(struct ast_channel *ast)
 					                                              : dahdi_ast_cause_to_r2_cause(ast->hangupcause);
 				dahdi_r2_disconnect_call(p, r2cause);
 			}
-			dahdi_r2_update_monitor_count(p->mfcr2, 1);
 		} else if (p->mfcr2call) {
 			ast_log(LOG_DEBUG, "Clearing call request on channel %d\n", p->channel);
 			/* since ast_request() was called but not ast_call() we have not yet dialed
@@ -5373,7 +5350,6 @@ static int dahdi_hangup(struct ast_channel *ast)
 			the mfcr2call flag and bump the monitor count so the monitor thread can take
 			care of this channel events from now on */
 			p->mfcr2call = 0;
-			dahdi_r2_update_monitor_count(p->mfcr2, 1);
 		}
 #endif
 		switch (p->sig) {
@@ -10646,8 +10622,6 @@ static int dahdi_r2_set_context(struct dahdi_mfcr2 *r2_link, const struct dahdi_
 			ast_log(LOG_ERROR, "Failed to configure r2context from advanced configuration file %s\n", conf->mfcr2.r2proto_file);
 		}
 	}
-	ast_cond_init(&r2_link->do_monitor, NULL);
-	ast_mutex_init(&r2_link->monitored_count_lock);
 	r2_link->monitored_count = 0;
 	return 0;
 }
@@ -11608,7 +11582,6 @@ static struct ast_channel *dahdi_request(const char *type, int format, const str
 				}
 				p->mfcr2call = 1;
 				ast_mutex_unlock(&p->lock);
-				dahdi_r2_update_monitor_count(p->mfcr2, 0);
 			}
 #endif
 			if (p->channel == CHAN_PSEUDO) {
@@ -12553,11 +12526,13 @@ static void *mfcr2_monitor(void *data)
 	   could be cancelled at any time and is not
 	   using thread keys, why?, */
 	struct pollfd pollers[sizeof(mfcr2->pvts)];
-	int nextms = 0;
 	int res = 0;
 	int i = 0;
 	int oldstate = 0;
 	int quit_loop = 0;
+	int maxsleep = 20;
+	int was_idle = 0;
+	int pollsize = 0;
 	/* now that we're ready to get calls, unblock our side and
 	   get current line state */
 	for (i = 0; i < mfcr2->numchans; i++) {
@@ -12567,13 +12542,7 @@ static void *mfcr2_monitor(void *data)
 	while (1) {
 		/* we trust here that the mfcr2 channel list will not ever change once
 		   the module is loaded */
-		ast_mutex_lock(&mfcr2->monitored_count_lock);
-		if (mfcr2->monitored_count == 0) {
-			ast_log(LOG_DEBUG, "No one requires my monitoring services :-(\n");
-			ast_cond_wait(&mfcr2->do_monitor, &mfcr2->monitored_count_lock);
-			ast_log(LOG_DEBUG, "Alright, back to work!\n");
-		}
-
+		pollsize = 0;
 		for (i = 0; i < mfcr2->numchans; i++) {
 			pollers[i].revents = 0;
 			pollers[i].events = 0;
@@ -12588,16 +12557,24 @@ static void *mfcr2_monitor(void *data)
 			openr2_chan_enable_read(mfcr2->pvts[i]->r2chan);
 			pollers[i].events = POLLIN | POLLPRI;
 			pollers[i].fd = mfcr2->pvts[i]->subs[SUB_REAL].dfd;
+			pollsize++;
 		}
-		ast_mutex_unlock(&mfcr2->monitored_count_lock);
 		if (quit_loop) {
 			break;
 		}
-		nextms = openr2_context_get_time_to_next_event(mfcr2->protocol_context);
+		if (pollsize == 0) {
+			if (!was_idle) {
+				ast_log(LOG_DEBUG, "Monitor thread going idle since everybody has an owner\n");
+				was_idle = 1;
+			}
+			poll(NULL, 0, maxsleep);
+			continue;
+		}
+		was_idle = 0;
 		/* probably poll() is a valid cancel point, lets just be on the safe side
 		   by calling pthread_testcancel */
 		pthread_testcancel();
-		res = poll(pollers, mfcr2->numchans, nextms);
+		res = poll(pollers, mfcr2->numchans, maxsleep);
 		pthread_testcancel();
 		if ((res < 0) && (errno != EINTR)) {
 			ast_log(LOG_ERROR, "going out, poll failed: %s\n", strerror(errno));
