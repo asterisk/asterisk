@@ -216,7 +216,7 @@ static int pickup_by_exten(struct ast_channel *chan, const char *exten, const ch
 
 	while ((target = ast_channel_iterator_next(iter))) {
 		ast_channel_lock(target);
-		if (can_pickup(target)) {
+		if ((chan != target) && can_pickup(target)) {
 			break;
 		}
 		ast_channel_unlock(target);
