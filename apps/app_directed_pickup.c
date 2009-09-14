@@ -172,6 +172,7 @@ static int pickup_by_channel(struct ast_channel *chan, char *pickup)
 struct pickup_criteria {
 	const char *exten;
 	const char *context;
+	struct ast_channel *chan;
 };
 
 static int find_by_exten(struct ast_channel *c, void *data)
@@ -180,7 +181,7 @@ static int find_by_exten(struct ast_channel *c, void *data)
 
 	return (!strcasecmp(c->macroexten, info->exten) || !strcasecmp(c->exten, info->exten)) &&
 		!strcasecmp(c->dialcontext, info->context) &&
-		can_pickup(c);
+		(info->chan != c) && can_pickup(c);
 }
 
 /* Attempt to pick up specified extension with context */
@@ -190,6 +191,7 @@ static int pickup_by_exten(struct ast_channel *chan, const char *exten, const ch
 	struct pickup_criteria search = {
 		.exten = exten,
 		.context = context,
+		.chan = chan,
 	};
 
 	target = ast_channel_search_locked(find_by_exten, &search);
