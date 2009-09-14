@@ -78,6 +78,7 @@ enum analog_event {
 	ANALOG_EVENT_RINGBEGIN,
 	ANALOG_EVENT_PULSE_START,
 	ANALOG_EVENT_ERROR,
+	ANALOG_EVENT_REMOVED,
 	ANALOG_EVENT_NEONMWI_ACTIVE,
 	ANALOG_EVENT_NEONMWI_INACTIVE,
 	ANALOG_EVENT_DTMFCID,
@@ -328,7 +329,7 @@ struct ast_channel * analog_request(struct analog_pvt *p, int *callwait, const s
 
 int analog_available(struct analog_pvt *p, int channelmatch, ast_group_t groupmatch, int *busy, int *channelmatched, int *groupmatched);
 
-int analog_handle_init_event(struct analog_pvt *i, int event);
+void *analog_handle_init_event(struct analog_pvt *i, int event);
 
 int analog_config_complete(struct analog_pvt *p);
 

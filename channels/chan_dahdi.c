@@ -2411,6 +2411,9 @@ static enum analog_event dahdievent_to_analogevent(int event)
 	case DAHDI_EVENT_PULSE_START:
 		res = ANALOG_EVENT_PULSE_START;
 	break;
+	case DAHDI_EVENT_REMOVED:
+		res = ANALOG_EVENT_REMOVED;
+	break;
 	case DAHDI_EVENT_NEONMWI_ACTIVE:
 		res = ANALOG_EVENT_NEONMWI_ACTIVE;
 		break;
@@ -9916,8 +9919,7 @@ static int dahdi_destroy_channel_bynum(int channel)
 	return RESULT_FAILURE;
 }
 
-/* returns < 0 = error, 0 event handled, >0 event handled and thread spawned */
-static int handle_init_event(struct dahdi_pvt *i, int event)
+static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 {
 	int res;
 	int thread_spawned = 0;
@@ -10026,7 +10028,7 @@ static int handle_init_event(struct dahdi_pvt *i, int event)
 			res = tone_zone_play_tone(i->subs[SUB_REAL].dfd, DAHDI_TONE_CONGESTION);
 			if (res < 0)
 				ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", i->channel);
-			return -1;
+			return NULL;
 		}
 		break;
 	case DAHDI_EVENT_NOALARM:
@@ -10083,7 +10085,7 @@ static int handle_init_event(struct dahdi_pvt *i, int event)
 		default:
 			ast_log(LOG_WARNING, "Don't know how to handle on hook with signalling %s on channel %d\n", sig2str(i->sig), i->channel);
 			res = tone_zone_play_tone(i->subs[SUB_REAL].dfd, -1);
-			return -1;
+			return NULL;
 		}
 		break;
 	case DAHDI_EVENT_POLARITY:
@@ -10118,12 +10120,11 @@ static int handle_init_event(struct dahdi_pvt *i, int event)
 				"interface %d\n", i->channel);
 		}
 		break;
-	case DAHDI_EVENT_REMOVED: /* destroy channel */
+	case DAHDI_EVENT_REMOVED: /* destroy channel, will actually do so in do_monitor */
 		ast_log(LOG_NOTICE,
 				"Got DAHDI_EVENT_REMOVED. Destroying channel %d\n",
 				i->channel);
-		dahdi_destroy_channel_bynum(i->channel);
-		break;
+		return i;
 	case DAHDI_EVENT_NEONMWI_ACTIVE:
 		if (i->mwimonitor_neon) {
 			notify_message(i->mailbox, 1);
@@ -10137,7 +10138,7 @@ static int handle_init_event(struct dahdi_pvt *i, int event)
 		}
 		break;
 	}
-	return thread_spawned;
+	return NULL;
 }
 
 static void *do_monitor(void *data)
@@ -10145,6 +10146,7 @@ static void *do_monitor(void *data)
 	int count, res, res2, spoint, pollres=0;
 	struct dahdi_pvt *i;
 	struct dahdi_pvt *last = NULL;
+	struct dahdi_pvt *doomed;
 	time_t thispass = 0, lastpass = 0;
 	int found;
 	char buf[1024];
@@ -10243,7 +10245,20 @@ static void *do_monitor(void *data)
 		spoint = 0;
 		lastpass = thispass;
 		thispass = time(NULL);
-		for (i = iflist; i; i = i->next) {
+		doomed = NULL;
+		for (i = iflist;; i = i->next) {
+			if (doomed) {
+				int res;
+				res = dahdi_destroy_channel_bynum(doomed->channel);
+				if (!res) {
+					ast_log(LOG_WARNING, "Couldn't find channel to destroy, hopefully another destroy operation just happened.\n");
+				}
+				doomed = NULL;
+			}
+			if (!i) {
+				break;
+			}
+
 			if (thispass != lastpass) {
 				if (!found && ((i == last) || ((i == iflist) && !last))) {
 					last = i;
@@ -10283,9 +10298,9 @@ static void *do_monitor(void *data)
 						/* Don't hold iflock while handling init events */
 						ast_mutex_unlock(&iflock);
 						if (analog_lib_handles(i->sig, i->radio, i->oprmode))
-							analog_handle_init_event(i->sig_pvt, dahdievent_to_analogevent(res));
+							doomed = (struct dahdi_pvt *) analog_handle_init_event(i->sig_pvt, dahdievent_to_analogevent(res));
 						else
-							handle_init_event(i, res);
+							doomed = handle_init_event(i, res);
 						ast_mutex_lock(&iflock);
 					}
 					continue;
@@ -10348,12 +10363,8 @@ static void *do_monitor(void *data)
 									struct ast_channel *chan;
 									ast_mutex_unlock(&iflock);
 									if (analog_lib_handles(i->sig, i->radio, i->oprmode)) {
-										res = analog_handle_init_event(i->sig_pvt, ANALOG_EVENT_DTMFCID);  
-										if (res) {
-											ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
-										} else {
-											i->dtmfcid_holdoff_state = 1;
-										}
+										analog_handle_init_event(i->sig_pvt, ANALOG_EVENT_DTMFCID);  
+										i->dtmfcid_holdoff_state = 1;
 									} else {
 										chan = dahdi_new(i, AST_STATE_PRERING, 0, SUB_REAL, 0, 0, NULL);
 										if (!chan) {
@@ -10392,9 +10403,9 @@ static void *do_monitor(void *data)
 					ast_mutex_unlock(&iflock);
 					if (0 == i->mwisendactive || 0 == mwi_send_process_event(i, res)) {
 						if (analog_lib_handles(i->sig, i->radio, i->oprmode))
-							analog_handle_init_event(i->sig_pvt, dahdievent_to_analogevent(res));
+							doomed = (struct dahdi_pvt *) analog_handle_init_event(i->sig_pvt, dahdievent_to_analogevent(res));
 						else
-							handle_init_event(i, res);
+							doomed = handle_init_event(i, res);
 					}
 					ast_mutex_lock(&iflock);
 				}

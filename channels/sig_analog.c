@@ -256,6 +256,9 @@ static char *analog_event2str(enum analog_event event)
 	case ANALOG_EVENT_PULSE_START:
 		res = "ANALOG_EVENT_PULSE_START";
 		break;
+	case ANALOG_EVENT_REMOVED:
+		res = "ANALOG_EVENT_REMOVED";
+		break;
 	case ANALOG_EVENT_NEONMWI_ACTIVE:
 		res = "ANALOG_EVENT_NEONMWI_ACTIVE";
 		break;
@@ -3169,18 +3172,15 @@ struct ast_frame *analog_exception(struct analog_pvt *p, struct ast_channel *ast
 	return f;
 }
 
-int analog_handle_init_event(struct analog_pvt *i, int event)
+void *analog_handle_init_event(struct analog_pvt *i, int event)
 {
 	int res;
 	pthread_t threadid;
-	pthread_attr_t attr;
 	struct ast_channel *chan;
 
 	ast_debug(1, "channel (%d) - signaling (%d) - event (%s)\n",
 				i->channel, i->sig, analog_event2str(event));
 
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	/* Handle an event on a given channel for the monitor thread. */
 	switch (event) {
 	case ANALOG_EVENT_WINKFLASH:
@@ -3223,7 +3223,8 @@ int analog_handle_init_event(struct analog_pvt *i, int event)
 					}
 					if (res < 0)
 						ast_log(LOG_WARNING, "Unable to play dialtone on channel %d, do you have defaultzone and loadzone defined?\n", i->channel);
-					if (ast_pthread_create(&threadid, &attr, __analog_ss_thread, i)) {
+
+					if (ast_pthread_create_detached(&threadid, NULL, __analog_ss_thread, i)) {
 						ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
 						res = analog_play_tone(i, ANALOG_SUB_REAL, ANALOG_TONE_CONGESTION);
 						if (res < 0) {
@@ -3262,7 +3263,7 @@ int analog_handle_init_event(struct analog_pvt *i, int event)
 				chan = analog_new_ast_channel(i, AST_STATE_RING, 0, ANALOG_SUB_REAL, NULL);
 			}
 			i->ss_astchan = chan;
-			if (chan && ast_pthread_create(&threadid, &attr, __analog_ss_thread, i)) {
+			if (chan && ast_pthread_create_detached(&threadid, NULL, __analog_ss_thread, i)) {
 				ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
 				res = analog_play_tone(i, ANALOG_SUB_REAL, ANALOG_TONE_CONGESTION);
 				if (res < 0) {
@@ -3279,7 +3280,7 @@ int analog_handle_init_event(struct analog_pvt *i, int event)
 			if (res < 0) {
 				ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", i->channel);
 			}
-			return -1;
+			return NULL;
 		}
 		break;
 	case ANALOG_EVENT_NOALARM:
@@ -3339,7 +3340,7 @@ int analog_handle_init_event(struct analog_pvt *i, int event)
 		default:
 			ast_log(LOG_WARNING, "Don't know how to handle on hook with signalling %s on channel %d\n", analog_sigtype_to_str(i->sig), i->channel);
 			res = analog_play_tone(i, ANALOG_SUB_REAL, -1);
-			return -1;
+			return NULL;
 		}
 		break;
 	case ANALOG_EVENT_POLARITY:
@@ -3362,7 +3363,7 @@ int analog_handle_init_event(struct analog_pvt *i, int event)
 					    i->channel);
 				chan = analog_new_ast_channel(i, AST_STATE_PRERING, 0, ANALOG_SUB_REAL, NULL);
 				i->ss_astchan = chan;
-				if (chan && ast_pthread_create(&threadid, &attr, __analog_ss_thread, i)) {
+				if (chan && ast_pthread_create_detached(&threadid, NULL, __analog_ss_thread, i)) {
 					ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
 				}
 			}
@@ -3383,7 +3384,7 @@ int analog_handle_init_event(struct analog_pvt *i, int event)
 								i->channel);
 					chan = analog_new_ast_channel(i, AST_STATE_PRERING, 0, ANALOG_SUB_REAL, NULL);
 					i->ss_astchan = chan;
-					if (chan && ast_pthread_create(&threadid, &attr, __analog_ss_thread, i)) {
+					if (chan && ast_pthread_create_detached(&threadid, NULL, __analog_ss_thread, i)) {
 						ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
 					}
 				}
@@ -3394,6 +3395,12 @@ int analog_handle_init_event(struct analog_pvt *i, int event)
 								"interface %d\n", i->channel);
 		}
 		break;
+	case ANALOG_EVENT_REMOVED: /* destroy channel, will actually do so in do_monitor */
+        ast_log(LOG_NOTICE,
+                "Got DAHDI_EVENT_REMOVED. Destroying channel %d\n",
+                i->channel);
+        return i->chan_pvt;
+        break;
 	case ANALOG_EVENT_NEONMWI_ACTIVE:
 		analog_handle_notify_message(NULL, i, -1, ANALOG_EVENT_NEONMWI_ACTIVE);
 		break;
@@ -3401,8 +3408,7 @@ int analog_handle_init_event(struct analog_pvt *i, int event)
 		analog_handle_notify_message(NULL, i, -1, ANALOG_EVENT_NEONMWI_INACTIVE);
 		break;
 	}
-	pthread_attr_destroy(&attr);
-	return 0;
+	return NULL;
 }
 
 
