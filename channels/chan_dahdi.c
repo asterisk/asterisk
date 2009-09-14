@@ -681,6 +681,12 @@ struct mwisend_info {
 	mwisend_states 	mwisend_current;
 };
 
+/*! Specify the lists dahdi_pvt can be put in. */
+enum DAHDI_IFLIST {
+	DAHDI_IFLIST_NONE,	/*!< The dahdi_pvt is not in any list. */
+	DAHDI_IFLIST_MAIN,	/*!< The dahdi_pvt is in the main interface list */
+};
+
 struct dahdi_pvt {
 	ast_mutex_t lock;
 	struct callerid_state *cs;
@@ -716,6 +722,7 @@ struct dahdi_pvt {
 	/*! \brief Tx gain set by chan_dahdi.conf */
 	float txgain;
 	int tonezone;					/*!< tone zone for this chan, or -1 for default */
+	enum DAHDI_IFLIST which_iflist;	/*!< Which interface list is this structure listed? */
 	struct dahdi_pvt *next;				/*!< Next channel in list */
 	struct dahdi_pvt *prev;				/*!< Prev channel in list */
 
@@ -1248,8 +1255,8 @@ struct dahdi_pvt {
 	void *sig_pvt;
 };
 
-static struct dahdi_pvt *iflist = NULL;
-static struct dahdi_pvt *ifend = NULL;
+static struct dahdi_pvt *iflist = NULL;	/*!< Main interface list start */
+static struct dahdi_pvt *ifend = NULL;	/*!< Main interface list end */
 
 /*! \brief Channel configuration from chan_dahdi.conf .
  * This struct is used for parsing the [channels] section of chan_dahdi.conf.
@@ -4691,6 +4698,8 @@ static void dahdi_iflist_insert(struct dahdi_pvt *pvt)
 {
 	struct dahdi_pvt *cur;
 
+	pvt->which_iflist = DAHDI_IFLIST_MAIN;
+
 	/* Find place in middle of list for the new interface. */
 	for (cur = iflist; cur; cur = cur->next) {
 		if (pvt->channel < cur->channel) {
@@ -4754,16 +4763,58 @@ static void dahdi_iflist_extract(struct dahdi_pvt *pvt)
 	}
 
 	/* Node is no longer in the list. */
+	pvt->which_iflist = DAHDI_IFLIST_NONE;
 	pvt->prev = NULL;
 	pvt->next = NULL;
 }
+
+#if defined(HAVE_PRI)
+/*!
+ * \internal
+ * \brief Unlink the channel interface from the PRI private pointer array.
+ * \since 1.6.3
+ *
+ * \param pvt chan_dahdi private interface structure to unlink.
+ *
+ * \return Nothing
+ */
+static void dahdi_unlink_pri_pvt(struct dahdi_pvt *pvt)
+{
+	unsigned idx;
+	struct sig_pri_pri *pri;
+
+	pri = pvt->pri;
+	if (!pri) {
+		/* Not PRI signaling so cannot be in a PRI private pointer array. */
+		return;
+	}
+	ast_mutex_lock(&pri->lock);
+	for (idx = 0; idx < pri->numchans; ++idx) {
+		if (pri->pvts[idx] == pvt->sig_pvt) {
+			pri->pvts[idx] = NULL;
+			ast_mutex_unlock(&pri->lock);
+			return;
+		}
+	}
+	ast_mutex_unlock(&pri->lock);
+}
+#endif	/* defined(HAVE_PRI) */
 
 static void destroy_dahdi_pvt(struct dahdi_pvt *pvt)
 {
 	struct dahdi_pvt *p = pvt;
 
 	/* Remove channel from the list */
-	dahdi_iflist_extract(p);
+#if defined(HAVE_PRI)
+	dahdi_unlink_pri_pvt(p);
+#endif	/* defined(HAVE_PRI) */
+	switch (pvt->which_iflist) {
+	case DAHDI_IFLIST_NONE:
+		break;
+	case DAHDI_IFLIST_MAIN:
+		dahdi_iflist_extract(p);
+		break;
+	}
 
 	if (p->sig_pvt) {
 		if (analog_lib_handles(p->sig, 0, 0)) {
@@ -11014,8 +11065,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 			p.rxflashtime = 1;
 			p.starttime = 1;
 			p.debouncetime = 5;
-		}
-		if (!tmp->radio) {
+		} else {
 			p.channo = channel;
 			/* Override timing settings based on config file */
 			if (conf->timing.prewinktime >= 0)
@@ -11437,6 +11487,7 @@ static struct dahdi_pvt *duplicate_pseudo(struct dahdi_pvt *src)
 		return NULL;
 	}
 	*p = *src;
+	p->which_iflist = DAHDI_IFLIST_NONE;
 	p->next = NULL;
 	p->prev = NULL;
 	ast_mutex_init(&p->lock);
