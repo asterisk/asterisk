@@ -776,6 +776,7 @@ static char vm_passchanged[80] = "vm-passchanged";
 static char vm_reenterpassword[80] = "vm-reenterpassword";
 static char vm_mismatch[80] = "vm-mismatch";
 static char vm_invalid_password[80] = "vm-invalid-password";
+static char vm_pls_try_again[80] = "vm-pls-try-again";
 
 static struct ast_flags globalflags = {0};
 
@@ -8374,6 +8375,9 @@ static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 		}
 		if (++tries == 3)
 			return -1;
+		if (cmd != 0) {
+			cmd = ast_play_and_wait(chan, vm_pls_try_again);
+		}
 	}
 	if (pwdchange & PWDCHANGE_INTERNAL)
 		vm_change_password(vmu, newpassword);
@@ -8471,6 +8475,9 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 			if (cmd != 0) {
 				ast_log(AST_LOG_NOTICE, "Invalid password for user %s (%s)\n", vms->username, newpassword);
 				cmd = ast_play_and_wait(chan, vm_invalid_password);
+				if (!cmd) {
+					cmd = ast_play_and_wait(chan, vm_pls_try_again);
+				}
 				break;
 			}
 			newpassword2[1] = '\0';
@@ -8488,6 +8495,9 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 			if (strcmp(newpassword, newpassword2)) {
 				ast_log(AST_LOG_NOTICE, "Password mismatch for user %s (%s != %s)\n", vms->username, newpassword, newpassword2);
 				cmd = ast_play_and_wait(chan, vm_mismatch);
+				if (!cmd) {
+					cmd = ast_play_and_wait(chan, vm_pls_try_again);
+				}
 				break;
 			}
 			if (pwdchange & PWDCHANGE_INTERNAL)
@@ -10907,6 +10917,9 @@ static int load_config(int reload)
 			ast_copy_string(vm_reenterpassword, val, sizeof(vm_reenterpassword));
 		if ((val = ast_variable_retrieve(cfg, "general", "vm-mismatch")))
 			ast_copy_string(vm_mismatch, val, sizeof(vm_mismatch));
+		if ((val = ast_variable_retrieve(cfg, "general", "vm-pls-try-again"))) {
+			ast_copy_string(vm_pls_try_again, val, sizeof(vm_pls_try_again));
+		}
 		/* load configurable audio prompts */
 		if ((val = ast_variable_retrieve(cfg, "general", "listen-control-forward-key")) && is_valid_dtmf(val))
 			ast_copy_string(listen_control_forward_key, val, sizeof(listen_control_forward_key));
