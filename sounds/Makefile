@@ -18,7 +18,7 @@
 PWD:=$(shell pwd)
 SOUNDS_DIR:=$(DESTDIR)$(ASTDATADIR)/sounds
 MOH_DIR:=$(DESTDIR)$(ASTDATADIR)/moh
-CORE_SOUNDS_VERSION:=1.4.15
+CORE_SOUNDS_VERSION:=1.4.16
 EXTRA_SOUNDS_VERSION:=1.4.9
 SOUNDS_URL:=http://downloads.digium.com/pub/telephony/sounds/releases
 MCS:=$(subst -EN-,-en-,$(MENUSELECT_CORE_SOUNDS))

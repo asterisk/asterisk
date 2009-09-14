@@ -6861,6 +6861,9 @@ static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 		cmd = ast_play_and_wait(chan, "vm-mismatch");
 		if (++tries == 3)
 			return -1;
+		if (cmd == 0) {
+			cmd = ast_play_and_wait(chan, "vm-pls-try-again");
+		}
 	}
 	if (ast_strlen_zero(ext_pass_cmd)) 
 		vm_change_password(vmu,newpassword);
@@ -6970,6 +6973,9 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 			if (strcmp(newpassword, newpassword2)) {
 				ast_log(LOG_NOTICE,"Password mismatch for user %s (%s != %s)\n", vms->username, newpassword, newpassword2);
 				cmd = ast_play_and_wait(chan, "vm-mismatch");
+				if (!cmd) {
+					cmd = ast_play_and_wait(chan, "vm-pls-try-again");
+				}
 				break;
 			}
 			if (ast_strlen_zero(ext_pass_cmd)) 
