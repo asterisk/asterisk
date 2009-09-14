@@ -3596,7 +3596,7 @@ static struct ast_parkinglot *build_parkinglot(char *name, struct ast_variable *
 	}
 
 	/* Add a parking extension into the context */
-	if (!oldparkinglot) {
+	if (!error && !oldparkinglot) {
 		if (!ast_strlen_zero(ast_parking_ext())) {
 			if (ast_add_extension2(con, 1, ast_parking_ext(), 1, NULL, NULL, parkcall, strdup(""), ast_free_ptr, registrar) == -1)
 				error = 1;
