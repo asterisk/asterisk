@@ -7029,22 +7029,25 @@ static int dahdi_destroy_channel_bynum(int channel)
 	struct dahdi_pvt *tmp = NULL;
 	struct dahdi_pvt *prev = NULL;
 
+	ast_mutex_lock(&iflock);
 	tmp = iflist;
 	while (tmp) {
 		if (tmp->channel == channel) {
 			int x = DAHDI_FLASH;
 			ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_HOOK, &x); /* important to create an event for dahdi_wait_event to register so that all ss_threads terminate */
 			destroy_channel(prev, tmp, 1);
+			ast_mutex_unlock(&iflock);
 			ast_module_unref(ast_module_info->self);
 			return RESULT_SUCCESS;
 		}
 		prev = tmp;
 		tmp = tmp->next;
 	}
+	ast_mutex_unlock(&iflock);
 	return RESULT_FAILURE;
 }
 
-static int handle_init_event(struct dahdi_pvt *i, int event)
+static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 {
 	int res;
 	pthread_t threadid;
@@ -7143,7 +7146,7 @@ static int handle_init_event(struct dahdi_pvt *i, int event)
 			res = tone_zone_play_tone(i->subs[SUB_REAL].dfd, DAHDI_TONE_CONGESTION);
 			if (res < 0)
 					ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", i->channel);
-			return -1;
+			return NULL;
 		}
 		break;
 	case DAHDI_EVENT_NOALARM:
@@ -7209,7 +7212,7 @@ static int handle_init_event(struct dahdi_pvt *i, int event)
 		default:
 			ast_log(LOG_WARNING, "Don't know how to handle on hook with signalling %s on channel %d\n", sig2str(i->sig), i->channel);
 			res = tone_zone_play_tone(i->subs[SUB_REAL].dfd, -1);
-			return -1;
+			return NULL;
 		}
 		break;
 	case DAHDI_EVENT_POLARITY:
@@ -7241,15 +7244,14 @@ static int handle_init_event(struct dahdi_pvt *i, int event)
 				"interface %d\n", i->channel);
 		}
 		break;
-	case DAHDI_EVENT_REMOVED: /* destroy channel */
+	case DAHDI_EVENT_REMOVED: /* destroy channel, will actually do so in do_monitor */
 		ast_log(LOG_NOTICE, 
 				"Got DAHDI_EVENT_REMOVED. Destroying channel %d\n", 
 				i->channel);
-		dahdi_destroy_channel_bynum(i->channel);
-		break;
+		return i;
 	}
 	pthread_attr_destroy(&attr);
-	return 0;
+	return NULL;
 }
 
 static void *do_monitor(void *data)
@@ -7257,6 +7259,7 @@ static void *do_monitor(void *data)
 	int count, res, res2, spoint, pollres=0;
 	struct dahdi_pvt *i;
 	struct dahdi_pvt *last = NULL;
+	struct dahdi_pvt *doomed;
 	time_t thispass = 0, lastpass = 0;
 	int found;
 	char buf[1024];
@@ -7332,8 +7335,19 @@ static void *do_monitor(void *data)
 		spoint = 0;
 		lastpass = thispass;
 		thispass = time(NULL);
-		i = iflist;
-		while (i) {
+		doomed = NULL;
+		for (i = iflist;; i = i->next) {
+			if (doomed) {
+				int res;
+				res = dahdi_destroy_channel_bynum(doomed->channel);
+				if (!res) {
+					ast_log(LOG_WARNING, "Couldn't find channel to destroy, hopefully another destroy operation just happened.\n");
+				}
+				doomed = NULL;
+			}
+			if (!i) {
+				break;
+			}
 			if (thispass != lastpass) {
 				if (!found && ((i == last) || ((i == iflist) && !last))) {
 					last = i;
@@ -7374,10 +7388,9 @@ static void *do_monitor(void *data)
 							ast_log(LOG_DEBUG, "Monitor doohicky got event %s on radio channel %d\n", event2str(res), i->channel);
 						/* Don't hold iflock while handling init events */
 						ast_mutex_unlock(&iflock);
-						handle_init_event(i, res);
+						doomed = handle_init_event(i, res);
 						ast_mutex_lock(&iflock);	
 					}
-					i = i->next;
 					continue;
 				}					
 				pollres = ast_fdisset(pfds, i->subs[SUB_REAL].dfd, count, &spoint);
@@ -7387,12 +7400,10 @@ static void *do_monitor(void *data)
 						if (!i->pri)
 #endif						
 							ast_log(LOG_WARNING, "Whoa....  I'm owned but found (%d) in read...\n", i->subs[SUB_REAL].dfd);
-						i = i->next;
 						continue;
 					}
 					if (!i->cidspill) {
 						ast_log(LOG_WARNING, "Whoa....  I'm reading but have no cidspill (%d)...\n", i->subs[SUB_REAL].dfd);
-						i = i->next;
 						continue;
 					}
 					res = read(i->subs[SUB_REAL].dfd, buf, sizeof(buf));
@@ -7423,7 +7434,6 @@ static void *do_monitor(void *data)
 						if (!i->pri)
 #endif						
 							ast_log(LOG_WARNING, "Whoa....  I'm owned but found (%d)...\n", i->subs[SUB_REAL].dfd);
-						i = i->next;
 						continue;
 					}
 					res = dahdi_get_event(i->subs[SUB_REAL].dfd);
@@ -7431,11 +7441,10 @@ static void *do_monitor(void *data)
 						ast_log(LOG_DEBUG, "Monitor doohicky got event %s on channel %d\n", event2str(res), i->channel);
 					/* Don't hold iflock while handling init events */
 					ast_mutex_unlock(&iflock);
-					handle_init_event(i, res);
+					doomed = handle_init_event(i, res);
 					ast_mutex_lock(&iflock);	
 				}
 			}
-			i=i->next;
 		}
 		ast_mutex_unlock(&iflock);
 	}
