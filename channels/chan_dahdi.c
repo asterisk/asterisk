@@ -10250,7 +10250,7 @@ static void *do_monitor(void *data)
 			if (doomed) {
 				int res;
 				res = dahdi_destroy_channel_bynum(doomed->channel);
-				if (!res) {
+				if (res != RESULT_SUCCESS) {
 					ast_log(LOG_WARNING, "Couldn't find channel to destroy, hopefully another destroy operation just happened.\n");
 				}
 				doomed = NULL;
