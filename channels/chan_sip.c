@@ -2963,7 +2963,7 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 		if (sscanf(get_header(&reqcpy, "Content-Length"), "%30d", &cl)) {
 			while (cl > 0) {
 				ast_mutex_lock(&tcptls_session->lock);
-				if (!fread(buf, (cl < sizeof(buf)) ? cl : sizeof(buf), 1, tcptls_session->f)) {
+				if (!fread(buf, MIN(sizeof(buf) - 1, cl), 1, tcptls_session->f)) {
 					ast_mutex_unlock(&tcptls_session->lock);
 					goto cleanup;
 				}
