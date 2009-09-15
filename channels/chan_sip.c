@@ -2967,6 +2967,7 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 					ast_mutex_unlock(&tcptls_session->lock);
 					goto cleanup;
 				}
+				buf[sizeof(buf)-1] = '\0';
 				ast_mutex_unlock(&tcptls_session->lock);
 				if (me->stop)
 					goto cleanup;
