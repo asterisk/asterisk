@@ -9922,7 +9922,6 @@ static int dahdi_destroy_channel_bynum(int channel)
 static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 {
 	int res;
-	int thread_spawned = 0;
 	pthread_t threadid;
 	struct ast_channel *chan;
 
@@ -9976,8 +9975,6 @@ static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 						if (res < 0)
 							ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", i->channel);
 						ast_hangup(chan);
-					} else {
-						thread_spawned = 1;
 					}
 				} else
 					ast_log(LOG_WARNING, "Unable to create channel\n");
@@ -10019,8 +10016,6 @@ static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 					ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", i->channel);
 				}
 				ast_hangup(chan);
-			} else {
-				thread_spawned = 1;
 			}
 			break;
 		default:
@@ -10109,8 +10104,6 @@ static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 					ast_log(LOG_WARNING, "Cannot allocate new structure on channel %d\n", i->channel);
 				} else if (ast_pthread_create_detached(&threadid, NULL, analog_ss_thread, chan)) {
 					ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
-				} else {
-					thread_spawned = 1;
 				}
 			}
 			break;
@@ -10363,7 +10356,8 @@ static void *do_monitor(void *data)
 									struct ast_channel *chan;
 									ast_mutex_unlock(&iflock);
 									if (analog_lib_handles(i->sig, i->radio, i->oprmode)) {
-										analog_handle_init_event(i->sig_pvt, ANALOG_EVENT_DTMFCID);  
+										/* just in case this event changes or somehow destroys a channel, set doomed here too */
+										doomed = analog_handle_init_event(i->sig_pvt, ANALOG_EVENT_DTMFCID);  
 										i->dtmfcid_holdoff_state = 1;
 									} else {
 										chan = dahdi_new(i, AST_STATE_PRERING, 0, SUB_REAL, 0, 0, NULL);
