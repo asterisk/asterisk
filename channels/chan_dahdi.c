@@ -7146,6 +7146,7 @@ static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 			res = tone_zone_play_tone(i->subs[SUB_REAL].dfd, DAHDI_TONE_CONGESTION);
 			if (res < 0)
 					ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", i->channel);
+			pthread_attr_destroy(&attr);
 			return NULL;
 		}
 		break;
@@ -7212,6 +7213,7 @@ static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 		default:
 			ast_log(LOG_WARNING, "Don't know how to handle on hook with signalling %s on channel %d\n", sig2str(i->sig), i->channel);
 			res = tone_zone_play_tone(i->subs[SUB_REAL].dfd, -1);
+			pthread_attr_destroy(&attr);
 			return NULL;
 		}
 		break;
@@ -7248,6 +7250,7 @@ static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 		ast_log(LOG_NOTICE, 
 				"Got DAHDI_EVENT_REMOVED. Destroying channel %d\n", 
 				i->channel);
+		pthread_attr_destroy(&attr);
 		return i;
 	}
 	pthread_attr_destroy(&attr);
