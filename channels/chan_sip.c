@@ -3211,7 +3211,7 @@ static int proxy_update(struct sip_proxy *proxy)
 static int port_str2int(const char *pt, unsigned int standard)
 {
 	int port = standard;
-	if (ast_strlen_zero(pt) || (sscanf(pt, "%30d", &port) != 1) || (port < 0)) {
+	if (ast_strlen_zero(pt) || (sscanf(pt, "%30d", &port) != 1) || (port < 1) || (port > 65535)) {
 		port = standard;
 	}
 
