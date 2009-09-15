@@ -810,18 +810,17 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 
 static int change_password_realtime(struct ast_vm_user *vmu, const char *password)
 {
-	int res;
-	if (!ast_strlen_zero(vmu->uniqueid)) {
-		res = ast_update_realtime("voicemail", "uniqueid", vmu->uniqueid, "password", password, NULL);
-		if (res > 0) {
+	int res = -1;
+	if (!strcmp(vmu->password, password)) {
+		/* No change (but an update would return 0 rows updated, so we opt out here) */
+		return 0;
+	} else if (!ast_strlen_zero(vmu->uniqueid)) {
+		if (ast_update_realtime("voicemail", "uniqueid", vmu->uniqueid, "password", password, NULL) > 0) {
 			ast_copy_string(vmu->password, password, sizeof(vmu->password));
 			res = 0;
-		} else if (!res) {
-			res = -1;
 		}
-		return res;
 	}
-	return -1;
+	return res;
 }
 
 static void apply_options(struct ast_vm_user *vmu, const char *options)
