@@ -945,28 +945,27 @@ static int check_password(struct ast_vm_user *vmu, char *password)
  * \param vmu The voicemail user to change the password for.
  * \param password The new value to be set to the password for this user.
  * 
- * This only works if the voicemail user has a unique id, and if there is a realtime engine configured.
+ * This only works if there is a realtime engine configured.
  * This is called from the (top level) vm_change_password.
  *
  * \return zero on success, -1 on error.
  */
 static int change_password_realtime(struct ast_vm_user *vmu, const char *password)
 {
-	int res;
-	if (!ast_strlen_zero(vmu->uniqueid)) {
+	int res = -1;
+	if (!strcmp(vmu->password, password)) {
+		/* No change (but an update would return 0 rows updated, so we opt out here) */
+		res = 0;
+	} else if (!ast_strlen_zero(vmu->uniqueid)) {
 		if (strlen(password) > 10) {
 			ast_realtime_require_field("voicemail", "password", RQ_CHAR, strlen(password), SENTINEL);
 		}
-		res = ast_update_realtime("voicemail", "uniqueid", vmu->uniqueid, "password", password, SENTINEL);
-		if (res > 0) {
+		if (ast_update_realtime("voicemail", "uniqueid", vmu->uniqueid, "password", password, SENTINEL) > 0) {
 			ast_copy_string(vmu->password, password, sizeof(vmu->password));
 			res = 0;
-		} else if (!res) {
-			res = -1;
 		}
-		return res;
 	}
-	return -1;
+	return res;
 }
 
 /*!
