@@ -831,6 +831,10 @@ static void findmeexec(struct fm_args *tpargs)
 			if (outbound) {
 				ast_set_callerid(outbound, caller->cid.cid_num, caller->cid.cid_name, caller->cid.cid_num);
 				ast_channel_inherit_variables(tpargs->chan, outbound);
+				ast_channel_datastore_inherit(tpargs->chan, outbound);
+				ast_string_field_set(outbound, language, tpargs->chan->language);
+				ast_string_field_set(outbound, accountcode, tpargs->chan->accountcode);
+				ast_string_field_set(outbound, musicclass, tpargs->chan->musicclass);
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "calling %s\n", dialarg);
 				if (!ast_call(outbound,dialarg,0)) {
