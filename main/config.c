@@ -717,16 +717,25 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 		}
 		if (do_include || do_exec) {
 			if (c) {
-				/* Strip off leading and trailing "'s and <>'s */
-				while((*c == '<') || (*c == '>') || (*c == '\"')) c++;
-				/* Get rid of leading mess */
 				cur = c;
-				while (!ast_strlen_zero(cur)) {
-					c = cur + strlen(cur) - 1;
-					if ((*c == '>') || (*c == '<') || (*c == '\"'))
-						*c = '\0';
-					else
-						break;
+				/* Strip off leading and trailing "'s and <>'s */
+				if (*c == '"') {
+					/* Dequote */
+					while (*c) {
+						if (*c == '"') {
+							strcpy(c, c + 1); /* SAFE */
+							c--;
+						} else if (*c == '\\') {
+							strcpy(c, c + 1); /* SAFE */
+						}
+						c++;
+					}
+				} else if (*c == '<') {
+					/* C-style include */
+					if (*(c + strlen(c) - 1) == '>') {
+						cur++;
+						*(c + strlen(c) - 1) = '\0';
+					}
 				}
 				/* #exec </path/to/executable>
 				   We create a tmp file, then we #include it, then we delete it. */

@@ -73,6 +73,8 @@ clearglobalvars=no
 ; that includes contexts within other contexts. The #include command works
 ; in all asterisk configuration files.
 ;#include "filename.conf"
+;#include <filename.conf>
+;#include filename.conf
 ;
 ; You can execute a program or script that produces config files, and they
 ; will be inserted where you insert the #exec command. The #exec command 
@@ -80,6 +82,9 @@ clearglobalvars=no
 ; activate them within asterisk.conf with the "execincludes" option.  They
 ; are otherwise considered a security risk.
 ;#exec /opt/bin/build-extra-contexts.sh
+;#exec /opt/bin/build-extra-contexts.sh --foo="bar"
+;#exec </opt/bin/build-extra-contexts.sh --foo="bar">
+;#exec "/opt/bin/build-extra-contexts.sh --foo=\"bar\""
 ;
 
 ; The "Globals" category contains global variables that can be referenced
