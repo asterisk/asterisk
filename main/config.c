@@ -1033,45 +1033,55 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 			return 0;	/* XXX is this correct ? or we should return -1 ? */
 		}
 
-				/* Strip off leading and trailing "'s and <>'s */
-				while ((*c == '<') || (*c == '>') || (*c == '\"')) c++;
-				/* Get rid of leading mess */
-				cur = c;
-				cur2 = cur;
-				while (!ast_strlen_zero(cur)) {
-					c = cur + strlen(cur) - 1;
-					if ((*c == '>') || (*c == '<') || (*c == '\"'))
-						*c = '\0';
-					else
-						break;
+		cur = c;
+		/* Strip off leading and trailing "'s and <>'s */
+		if (*c == '"') {
+			/* Dequote */
+			while (*c) {
+				if (*c == '"') {
+					strcpy(c, c + 1); /* SAFE */
+					c--;
+				} else if (*c == '\\') {
+					strcpy(c, c + 1); /* SAFE */
 				}
-				/* #exec </path/to/executable>
-				   We create a tmp file, then we #include it, then we delete it. */
-				if (!do_include) {
-					struct timeval tv = ast_tvnow();
-					if (!ast_test_flag(&flags, CONFIG_FLAG_NOCACHE))
-						config_cache_attribute(configfile, ATTRIBUTE_EXEC, NULL, who_asked);
-					snprintf(exec_file, sizeof(exec_file), "/var/tmp/exec.%d%d.%ld", (int)tv.tv_sec, (int)tv.tv_usec, (long)pthread_self());
-					snprintf(cmd, sizeof(cmd), "%s > %s 2>&1", cur, exec_file);
-					ast_safe_system(cmd);
-					cur = exec_file;
-				} else {
-					if (!ast_test_flag(&flags, CONFIG_FLAG_NOCACHE))
-						config_cache_attribute(configfile, ATTRIBUTE_INCLUDE, cur, who_asked);
-					exec_file[0] = '\0';
-				}
-				/* A #include */
-				/* record this inclusion */
-				inclu = ast_include_new(cfg, cfg->include_level == 1 ? "" : configfile, cur, !do_include, cur2, lineno, real_inclusion_name, sizeof(real_inclusion_name));
+				c++;
+			}
+		} else if (*c == '<') {
+			/* C-style include */
+			if (*(c + strlen(c) - 1) == '>') {
+				cur++;
+				*(c + strlen(c) - 1) = '\0';
+			}
+		}
+		cur2 = cur;
 
-				do_include = ast_config_internal_load(cur, cfg, flags, real_inclusion_name, who_asked) ? 1 : 0;
-				if (!ast_strlen_zero(exec_file))
-					unlink(exec_file);
-				if (!do_include) {
-					ast_log(LOG_ERROR, "The file '%s' was listed as a #include but it does not exist.\n", cur);
-					return -1;
-				}
-				/* XXX otherwise what ? the default return is 0 anyways */
+		/* #exec </path/to/executable>
+		   We create a tmp file, then we #include it, then we delete it. */
+		if (!do_include) {
+			struct timeval tv = ast_tvnow();
+			if (!ast_test_flag(&flags, CONFIG_FLAG_NOCACHE))
+				config_cache_attribute(configfile, ATTRIBUTE_EXEC, NULL, who_asked);
+			snprintf(exec_file, sizeof(exec_file), "/var/tmp/exec.%d%d.%ld", (int)tv.tv_sec, (int)tv.tv_usec, (long)pthread_self());
+			snprintf(cmd, sizeof(cmd), "%s > %s 2>&1", cur, exec_file);
+			ast_safe_system(cmd);
+			cur = exec_file;
+		} else {
+			if (!ast_test_flag(&flags, CONFIG_FLAG_NOCACHE))
+				config_cache_attribute(configfile, ATTRIBUTE_INCLUDE, cur, who_asked);
+			exec_file[0] = '\0';
+		}
+		/* A #include */
+		/* record this inclusion */
+		inclu = ast_include_new(cfg, cfg->include_level == 1 ? "" : configfile, cur, !do_include, cur2, lineno, real_inclusion_name, sizeof(real_inclusion_name));
+
+		do_include = ast_config_internal_load(cur, cfg, flags, real_inclusion_name, who_asked) ? 1 : 0;
+		if (!ast_strlen_zero(exec_file))
+			unlink(exec_file);
+		if (!do_include) {
+			ast_log(LOG_ERROR, "The file '%s' was listed as a #include but it does not exist.\n", cur);
+			return -1;
+		}
+		/* XXX otherwise what ? the default return is 0 anyways */
 
 	} else {
 		/* Just a line (variable = value) */
