@@ -18703,7 +18703,6 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 	struct ast_channel *owner;
 	int sipmethod;
 	int res = 1;
-	int ack_res;
 	const char *c = get_header(req, "Cseq");
 	/* GCC 4.2 complains if I try to cast c as a char * when passing it to ast_skip_nonblanks, so make a copy of it */
 	char *c_copy = ast_strdupa(c);
@@ -18725,16 +18724,20 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 		pbx_builtin_setvar_helper(owner, causevar, causeval);
 	}
 
-	/* Acknowledge whatever it is destined for */
-	if ((resp >= 100) && (resp <= 199)) {
-		ack_res = __sip_semi_ack(p, seqno, 0, sipmethod);
-	} else {
-		ack_res = __sip_ack(p, seqno, 0, sipmethod);
-	}
+	if (p->socket.type == SIP_TRANSPORT_UDP) {
+		int ack_res;
 
-	if (ack_res == FALSE) {
-		append_history(p, "Ignore", "Ignoring this retransmit\n");
-		return;
+		/* Acknowledge whatever it is destined for */
+		if ((resp >= 100) && (resp <= 199)) {
+			ack_res = __sip_semi_ack(p, seqno, 0, sipmethod);
+		} else {
+			ack_res = __sip_ack(p, seqno, 0, sipmethod);
+		}
+
+		if (ack_res == FALSE) {
+			append_history(p, "Ignore", "Ignoring this retransmit\n");
+			return;
+		}
 	}
 
 	/* If this is a NOTIFY for a subscription clear the flag that indicates that we have a NOTIFY pending */
