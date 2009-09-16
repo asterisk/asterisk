@@ -473,6 +473,10 @@
 /* Define to 1 if you have the `logl' function. */
 #undef HAVE_LOGL
 
+/* Define to 1 if the type `long double' works and has more range or precision
+   than `double'. */
+#undef HAVE_LONG_DOUBLE_WIDER
+
 /* Define to 1 if you have the libtool library. */
 #undef HAVE_LTDL
 

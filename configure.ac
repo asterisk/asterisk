@@ -345,6 +345,7 @@ AC_HEADER_STDBOOL
 AC_C_CONST
 AC_TYPE_UID_T
 AC_C_INLINE
+AC_TYPE_LONG_DOUBLE_WIDER
 AC_TYPE_MODE_T
 AC_TYPE_OFF_T
 AC_TYPE_PID_T
@@ -380,9 +381,17 @@ AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([asprintf atexit closefrom dup2 eaccess endpwent euidaccess ftruncate getcwd gethostbyname gethostname getloadavg gettimeofday glob ioperm inet_ntoa isascii localtime_r memchr memmove memset mkdir munmap putenv re_comp regcomp select setenv socket strcasecmp strcasestr strchr strcspn strdup strerror strlcat strlcpy strncasecmp strndup strnlen strrchr strsep strspn strstr strtod strtol strtold strtoq unsetenv utime vasprintf getpeereid sysctl swapctl])
 
-# BSD might not have exp2, and/or log2
+# NOTE: we use AC_CHECK_LIB to get -lm into the arguments for later checks,
+# so that AC_CHECK_FUNCS can detect functions in that library.
 AC_CHECK_LIB([m], [sqrt])
-AC_CHECK_FUNCS([exp2l log2l exp10l log10l sinl cosl tanl asinl acosl atanl atan2l powl sqrtl rintl expl logl remainderl fmodl roundl truncl floorl ceill exp2 log2 exp10 log10 sin cos tan asin acos atan atan2 pow rint exp log remainder fmod round trunc floor ceil])
+# BSD might not have exp2, and/or log2
+AC_CHECK_FUNCS([exp2 log2 exp10 log10 sin cos tan asin acos atan atan2 pow rint exp log remainder fmod round trunc floor ceil])
+
+# Certain architectures don't really have long double, even though
+# AC_CHECK_FUNCS would otherwise find the following functions.
+if test "x${ac_cv_type_long_double_wider}" = "xyes" ; then
+	AC_CHECK_FUNCS([exp2l log2l exp10l log10l sinl cosl tanl asinl acosl atanl atan2l powl sqrtl rintl expl logl remainderl fmodl roundl truncl floorl ceill])
+fi
 
 AC_MSG_CHECKING(for timersub in time.h)
 AC_LINK_IFELSE(
