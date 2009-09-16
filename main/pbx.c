@@ -6864,7 +6864,7 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 			else if (e->matchcid && !tmp->matchcid)
 				res = -1;
 			else
-				res = strcasecmp(e->cidmatch, tmp->cidmatch);
+				res = ext_cmp(e->cidmatch, tmp->cidmatch);
 		}
 		if (res >= 0)
 			break;
