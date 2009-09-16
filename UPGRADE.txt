@@ -18,6 +18,14 @@
 ===
 ===========================================================
 
+As of 1.6.0.16:
+
+* The firmware for the IAXy has been removed from Asterisk.  It can be
+  downloaded from http://downloads.digium.com/pub/iaxy/.  To have Asterisk
+  install the firmware into its proper location, place the firmware in the
+  contrib/firmware/iax/ directory in the Asterisk source tree before running
+  "make install".
+
 As of 1.6.0.15:
 
 * There have been some changes to the IAX2 protocol to address the security
