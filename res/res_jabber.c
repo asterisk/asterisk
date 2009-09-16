@@ -192,14 +192,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  	need to read both files */
 #define JABBER_CONFIG "jabber.conf"
 
-#ifndef FALSE
-#define FALSE 0
-#endif
-
-#ifndef TRUE
-#define TRUE 1
-#endif
-
 /*-- Forward declarations */
 static void aji_buddy_destroy(struct aji_buddy *obj);
 static void aji_client_destroy(struct aji_client *obj);
