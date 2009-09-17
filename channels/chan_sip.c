@@ -19716,7 +19716,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			do_magic_pickup(c, pickup.exten, pickup.context);
 
 			/* Now we're either masqueraded or we failed to pickup, in either case we... */
+			sip_pvt_unlock(p);
 			ast_hangup(c);
+			sip_pvt_lock(p);
 
 			return 0;
 		} else {
