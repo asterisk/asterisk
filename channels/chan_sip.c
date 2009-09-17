@@ -19219,6 +19219,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			char *at = strchr(uri, '@');
 			char *peerorhost;
 			ast_debug(2, "Potential spiral detected. Original RURI was %s, new RURI is %s\n", initial_rlPart2, this_rlPart2);
+			transmit_response(p, "100 Trying", req);
 			if (at) {
 				*at = '\0';
 			}
