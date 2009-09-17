@@ -734,7 +734,6 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 	char *ptr;
 	int num;
 	int num_spyed_upon = 1;
-	int hangup = 0;
 	struct ast_channel_iterator *iter = NULL;
 
 	if (ast_test_flag(flags, OPTION_EXIT)) {
