@@ -14659,6 +14659,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			if (option_debug > 2) {
 				ast_log(LOG_DEBUG, "Potential spiral detected. Original RURI was %s, new RURI is %s\n", p->initreq.rlPart2, req->rlPart2);
 			}
+			transmit_response(p, "100 Trying", req);
 			if (at) {
 				*at = '\0';
 			}
