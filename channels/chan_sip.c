@@ -22088,7 +22088,8 @@ int parse_session_expires(const char *p_hdrval, int *const p_interval, enum st_r
 
 		if (!p_se_hdr)
 			continue;
-		
+
+		p_se_hdr = ast_skip_blanks(p_se_hdr);
 		ref_idx = strlen("refresher=");
 		if (!strncasecmp(p_se_hdr, "refresher=", ref_idx)) {
 			p_se_hdr += ref_idx;
