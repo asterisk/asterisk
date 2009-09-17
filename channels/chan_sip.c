@@ -2560,7 +2560,7 @@ static int handle_request_message(struct sip_pvt *p, struct sip_request *req);
 static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int seqno, char *e);
 static void handle_request_info(struct sip_pvt *p, struct sip_request *req);
 static int handle_request_options(struct sip_pvt *p, struct sip_request *req);
-static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct sockaddr_in *sin);
+static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct sockaddr_in *sin, int *nounlock);
 static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int seqno, char *e);
 static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *current, struct sip_request *req, int seqno);
 
@@ -18674,10 +18674,13 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req)
     meaning a target pickup or an attended transfer.
     Used only once.
 	XXX 'ignore' is unused.
+
+	\note this function is called by handle_request_invite(). Four locks
+	held at the beginning of this function, p, p->owner, p->refer->refer_call->owner...
+	only p's lock should remain at the end of this function.  p's lock is held by sipsock_read()
  */
-static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct sockaddr_in *sin)
+static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct sockaddr_in *sin, int *nounlock)
 {
-	struct ast_frame *f;
 	int earlyreplace = 0;
 	int oneleggedreplace = 0;		/* Call with no bridge, propably IVR or voice message */
 	struct ast_channel *c = p->owner;	/* Our incoming call */
@@ -18714,6 +18717,7 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 		transmit_response_with_sdp(p, "200 OK", req, XMIT_RELIABLE, FALSE);
 		/* Do something more clever here */
 		ast_channel_unlock(c);
+		ast_channel_unlock(replacecall);
 		sip_pvt_unlock(p->refer->refer_call);
 		return 1;
 	} 
@@ -18723,6 +18727,7 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 		transmit_response_reliable(p, "503 Service Unavailable", req);
 		append_history(p, "Xfer", "INVITE/Replace Failed. No new channel.");
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+		ast_channel_unlock(replacecall);
 		sip_pvt_unlock(p->refer->refer_call);
 		return 1;
 	}
@@ -18753,53 +18758,25 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 	ast_quiet_chan(replacecall);
 	ast_quiet_chan(targetcall);
 	ast_debug(4, "Invite/Replaces: preparing to masquerade %s into %s\n", c->name, replacecall->name);
-	/* Unlock clone, but not original (replacecall) */
-	if (!oneleggedreplace)
-		ast_channel_unlock(c);
-
-	/* Unlock PVT */
-	sip_pvt_unlock(p->refer->refer_call);
 
 	/* Make sure that the masq does not free our PVT for the old call */
 	if (! earlyreplace && ! oneleggedreplace )
 		ast_set_flag(&p->refer->refer_call->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Delay hangup */
-		
+
 	/* Prepare the masquerade - if this does not happen, we will be gone */
 	if(ast_channel_masquerade(replacecall, c))
 		ast_log(LOG_ERROR, "Failed to masquerade C into Replacecall\n");
 	else
 		ast_debug(4, "Invite/Replaces: Going to masquerade %s into %s\n", c->name, replacecall->name);
 
-	/* The masquerade will happen as soon as someone reads a frame from the channel */
-
 	/* C should now be in place of replacecall */
-	/* ast_read needs to lock channel */
-	ast_channel_unlock(c);
-	
-	if (earlyreplace || oneleggedreplace ) {
-		/* Force the masq to happen */
-		if ((f = ast_read(replacecall))) {	/* Force the masq to happen */
-			ast_frfree(f);
-			f = NULL;
-			ast_debug(4, "Invite/Replace:  Could successfully read frame from RING channel!\n");
-		} else {
-			ast_log(LOG_WARNING, "Invite/Replace:  Could not read frame from RING channel \n");
-		}
-		c->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
-		if (!oneleggedreplace)
-			ast_channel_unlock(replacecall);
-	} else {	/* Bridged call, UP channel */
-		if ((f = ast_read(replacecall))) {	/* Force the masq to happen */
-			/* Masq ok */
-			ast_frfree(f);
-			f = NULL;
-			ast_debug(3, "Invite/Replace:  Could successfully read frame from channel! Masq done.\n");
-		} else {
-			ast_log(LOG_WARNING, "Invite/Replace:  Could not read frame from channel. Transfer failed\n");
-		}
-		ast_channel_unlock(replacecall);
+	if (ast_do_masquerade(replacecall)) {
+		ast_log(LOG_WARNING, "Failed to perform masquerade with INVITE replaces\n");
 	}
-	sip_pvt_unlock(p->refer->refer_call);
+
+	if (earlyreplace || oneleggedreplace ) {
+		c->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
+	}
 
 	ast_setstate(c, AST_STATE_DOWN);
 	ast_debug(4, "After transfer:----------------------------\n");
@@ -18817,13 +18794,18 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 		ast_debug(4, " -- No channel yet \n");
 	ast_debug(4, "End After transfer:----------------------------\n");
 
-	ast_channel_unlock(p->owner);	/* Unlock new owner */
-	if (!oneleggedreplace)
-		sip_pvt_unlock(p);	/* Unlock SIP structure */
+	/* unlock sip pvt and owner so hangup can do its thing */
+	ast_channel_unlock(replacecall);
+	ast_channel_unlock(c);
+	sip_pvt_unlock(p->refer->refer_call);
+	sip_pvt_unlock(p);
+	*nounlock = 1;
 
 	/* The call should be down with no ast_channel, so hang it up */
 	c->tech_pvt = dialog_unref(c->tech_pvt, "unref dialog c->tech_pvt");
 	ast_hangup(c);
+	sip_pvt_lock(p); /* lock PVT structure again after hangup */
+
 	return 0;
 }
 
@@ -19740,7 +19722,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			/* Go and take over the target call */
 			if (sipdebug)
 				ast_debug(4, "Sending this call to the invite/replcaes handler %s\n", p->callid);
-			return handle_invite_replaces(p, req, debug, seqno, sin);
+			return handle_invite_replaces(p, req, debug, seqno, sin, nounlock);
 		}
 	}
 
