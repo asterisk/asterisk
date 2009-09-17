@@ -931,6 +931,8 @@ alertpipe_failed:
 
 	tmp->tech = &null_tech;
 
+	ast_set_flag(tmp, AST_FLAG_IN_CHANNEL_LIST);
+
 	AST_RWLIST_WRLOCK(&channels);
 	AST_RWLIST_INSERT_HEAD(&channels, tmp, chan_list);
 	AST_RWLIST_UNLOCK(&channels);
@@ -1374,17 +1376,21 @@ void ast_channel_free(struct ast_channel *chan)
 	struct varshead *headp;
 	struct ast_datastore *datastore = NULL;
 	char name[AST_CHANNEL_NAME], *dashptr;
+	int inlist;
 	
 	headp=&chan->varshead;
 	
-	AST_RWLIST_WRLOCK(&channels);
-	if (!AST_RWLIST_REMOVE(&channels, chan, chan_list)) {
-		ast_log(LOG_ERROR, "Unable to find channel in list to free. Assuming it has already been done.\n");
+	inlist = ast_test_flag(chan, AST_FLAG_IN_CHANNEL_LIST);
+	if (inlist) {
+		AST_RWLIST_WRLOCK(&channels);
+		if (!AST_RWLIST_REMOVE(&channels, chan, chan_list)) {
+			ast_debug(1, "Unable to find channel in list to free. Assuming it has already been done.\n");
+		}
+		/* Lock and unlock the channel just to be sure nobody has it locked still
+		   due to a reference retrieved from the channel list. */
+		ast_channel_lock(chan);
+		ast_channel_unlock(chan);
 	}
-	/* Lock and unlock the channel just to be sure nobody has it locked still
-	   due to a reference retrieved from the channel list. */
-	ast_channel_lock(chan);
-	ast_channel_unlock(chan);
 
 	/* Get rid of each of the data stores on the channel */
 	while ((datastore = AST_LIST_REMOVE_HEAD(&chan->datastores, entry)))
@@ -1467,7 +1473,8 @@ void ast_channel_free(struct ast_channel *chan)
 
 	ast_string_field_free_memory(chan);
 	ast_free(chan);
-	AST_RWLIST_UNLOCK(&channels);
+	if (inlist)
+		AST_RWLIST_UNLOCK(&channels);
 
 	/* Queue an unknown state, because, while we know that this particular
 	 * instance is dead, we don't know the state of all other possible
@@ -1690,6 +1697,16 @@ int ast_hangup(struct ast_channel *chan)
 		ast_channel_unlock(chan);
 		return 0;
 	}
+	ast_channel_unlock(chan);
+
+	AST_RWLIST_WRLOCK(&channels);
+	if (!AST_RWLIST_REMOVE(&channels, chan, chan_list)) {
+		ast_log(LOG_ERROR, "Unable to find channel in list to free. Assuming it has already been done.\n");
+	}
+	ast_clear_flag(chan, AST_FLAG_IN_CHANNEL_LIST);
+	AST_RWLIST_UNLOCK(&channels);
+
+	ast_channel_lock(chan);
 	free_translation(chan);
 	/* Close audio stream */
 	if (chan->stream) {
