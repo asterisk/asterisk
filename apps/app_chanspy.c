@@ -71,6 +71,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>Instead of whispering on a single channel barge in on both
 						channels involved in the call.</para>
 					</option>
+					<option name="c">
+						<argument name="digit" required="true">
+							<para>Specify a DTMF digit that can be used to spy on the next available channel.</para>
+						</argument>
+					</option>
 					<option name="d">
 						<para>Override the typical numeric DTMF functionality and instead
 						use DTMF to switch between spy modes.</para>
@@ -85,6 +90,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 								<para>barge mode</para>
 							</enum>
 						</enumlist>
+					</option>
+					<option name="e">
+						<argument name="ext" required="true" />
+						<para>Enable <emphasis>enforced</emphasis> mode, so the spying channel can
+						only monitor extensions whose name is in the <replaceable>ext</replaceable> : delimited 
+						list.</para>
+					</option>
+					<option name="E">
+						<para>Exit when the spied-on channel hangs up.</para>
 					</option>
 					<option name="g">
 						<argument name="grp" required="true">
@@ -106,6 +120,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<argument name="mailbox" />
 						<argument name="context" />
 					</option>
+					<option name="o">
+						<para>Only listen to audio coming from this channel.</para>
+					</option>
 					<option name="q">
 						<para>Don't play a beep when beginning to spy on a channel, or speak the
 						selected channel name.</para>
@@ -118,6 +135,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="s">
 						<para>Skip the playback of the channel type (i.e. SIP, IAX, etc) when
 						speaking the selected channel name.</para>
+					</option>
+					<option name="S">
+						<para>Stop when no more channels are left to spy on.</para>
 					</option>
 					<option name="v">
 						<argument name="value" />
@@ -132,11 +152,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>Enable <literal>private whisper</literal> mode, so the spying channel can
 						talk to the spied-on channel but cannot listen to that channel.</para>
 					</option>
-					<option name="o">
-						<para>Only listen to audio coming from this channel.</para>
-					</option>
-					<option name="s">
-						<para>Stop when no more channels are left to spy on.</para>
+					<option name="x">
+						<argument name="digit" required="true">
+							<para>Specify a DTMF digit that can be used to exit the application.</para>
+						</argument>
 					</option>
 					<option name="X">
 						<para>Allow the user to exit ChanSpy to a valid single digit
@@ -144,22 +163,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						specified by the <variable>SPY_EXIT_CONTEXT</variable> channel variable. The
 						name of the last channel that was spied on will be stored
 						in the <variable>SPY_CHANNEL</variable> variable.</para>
-					</option>
-					<option name="x">
-						<argument name="digit" required="true">
-							<para>Specify a DTMF digit that can be used to exit the application.</para>
-						</argument>
-					</option>
-					<option name="c">
-						<argument name="digit" required="true">
-							<para>Specify a DTMF digit that can be used to spy on the next available channel.</para>
-						</argument>
-					</option>
-					<option name="e">
-						<argument name="ext" required="true" />
-						<para>Enable <emphasis>enforced</emphasis> mode, so the spying channel can
-						only monitor extensions whose name is in the <replaceable>ext</replaceable> : delimited 
-						list.</para>
 					</option>
 				</optionlist>		
 			</parameter>
@@ -205,6 +208,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>Instead of whispering on a single channel barge in on both
 						channels involved in the call.</para>
 					</option>
+					<option name="c">
+						<argument name="digit" required="true">
+							<para>Specify a DTMF digit that can be used to spy on the next available channel.</para>
+						</argument>
+					</option>
 					<option name="d">
 						<para>Override the typical numeric DTMF functionality and instead
 						use DTMF to switch between spy modes.</para>
@@ -219,6 +227,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 								<para>barge mode</para>
 							</enum>
 						</enumlist>
+					</option>
+					<option name="e">
+						<argument name="ext" required="true" />
+						<para>Enable <emphasis>enforced</emphasis> mode, so the spying channel can
+						only monitor extensions whose name is in the <replaceable>ext</replaceable> : delimited 
+						list.</para>
+					</option>
+					<option name="E">
+						<para>Exit when the spied-on channel hangs up.</para>
 					</option>
 					<option name="g">
 						<argument name="grp" required="true">
@@ -240,6 +257,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<argument name="mailbox" />
 						<argument name="context" />
 					</option>
+					<option name="o">
+						<para>Only listen to audio coming from this channel.</para>
+					</option>
 					<option name="q">
 						<para>Don't play a beep when beginning to spy on a channel, or speak the
 						selected channel name.</para>
@@ -252,6 +272,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="s">
 						<para>Skip the playback of the channel type (i.e. SIP, IAX, etc) when
 						speaking the selected channel name.</para>
+					</option>
+					<option name="S">
+						<para>Stop when there are no more extensions left to spy on.</para>
 					</option>
 					<option name="v">
 						<argument name="value" />
@@ -266,11 +289,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>Enable <literal>private whisper</literal> mode, so the spying channel can
 						talk to the spied-on channel but cannot listen to that channel.</para>
 					</option>
-					<option name="o">
-						<para>Only listen to audio coming from this channel.</para>
-					</option>
-					<option name="s">
-						<para>Stop when there are no more extensions left to spy on.</para>
+					<option name="x">
+						<argument name="digit" required="true">
+							<para>Specify a DTMF digit that can be used to exit the application.</para>
+						</argument>
 					</option>
 					<option name="X">
 						<para>Allow the user to exit ChanSpy to a valid single digit
@@ -278,22 +300,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						specified by the <variable>SPY_EXIT_CONTEXT</variable> channel variable. The
 						name of the last channel that was spied on will be stored
 						in the <variable>SPY_CHANNEL</variable> variable.</para>
-					</option>
-					<option name="x">
-						<argument name="digit" required="true">
-							<para>Specify a DTMF digit that can be used to exit the application.</para>
-						</argument>
-					</option>
-					<option name="c">
-						<argument name="digit" required="true">
-							<para>Specify a DTMF digit that can be used to spy on the next available channel.</para>
-						</argument>
-					</option>
-					<option name="e">
-						<argument name="ext" required="true" />
-						<para>Enable <emphasis>enforced</emphasis> mode, so the spying channel can
-						only monitor extensions whose name is in the <replaceable>ext</replaceable> : delimited 
-						list.</para>
 					</option>
 				</optionlist>	
 			</parameter>
@@ -356,6 +362,7 @@ enum {
 	OPTION_DTMF_CYCLE        = (1 << 15),	/* Custom DTMF for cycling next avaliable channel, (default is '*') */
 	OPTION_DAHDI_SCAN        = (1 << 16),	/* Scan groups in DAHDIScan mode */
 	OPTION_STOP              = (1 << 17),
+	OPTION_EXITONHANGUP      = (1 << 18),   /* Hang up when the spied-on channel hangs up. */
 };
 
 enum {
@@ -370,23 +377,24 @@ enum {
 };
 
 AST_APP_OPTIONS(spy_opts, {
-	AST_APP_OPTION('q', OPTION_QUIET),
 	AST_APP_OPTION('b', OPTION_BRIDGED),
 	AST_APP_OPTION('B', OPTION_BARGE),
+	AST_APP_OPTION_ARG('c', OPTION_DTMF_CYCLE, OPT_ARG_CYCLE),
+	AST_APP_OPTION('d', OPTION_DTMF_SWITCH_MODES),
+	AST_APP_OPTION_ARG('e', OPTION_ENFORCED, OPT_ARG_ENFORCED),
+	AST_APP_OPTION('E', OPTION_EXITONHANGUP),
+	AST_APP_OPTION_ARG('g', OPTION_GROUP, OPT_ARG_GROUP),
+	AST_APP_OPTION_ARG('n', OPTION_NAME, OPT_ARG_NAME),
+	AST_APP_OPTION('o', OPTION_READONLY),
+	AST_APP_OPTION('q', OPTION_QUIET),
+	AST_APP_OPTION_ARG('r', OPTION_RECORD, OPT_ARG_RECORD),
+	AST_APP_OPTION('s', OPTION_NOTECH),
+	AST_APP_OPTION('S', OPTION_STOP),
+	AST_APP_OPTION_ARG('v', OPTION_VOLUME, OPT_ARG_VOLUME),
 	AST_APP_OPTION('w', OPTION_WHISPER),
 	AST_APP_OPTION('W', OPTION_PRIVATE),
-	AST_APP_OPTION_ARG('v', OPTION_VOLUME, OPT_ARG_VOLUME),
-	AST_APP_OPTION_ARG('g', OPTION_GROUP, OPT_ARG_GROUP),
-	AST_APP_OPTION_ARG('r', OPTION_RECORD, OPT_ARG_RECORD),
-	AST_APP_OPTION_ARG('e', OPTION_ENFORCED, OPT_ARG_ENFORCED),
-	AST_APP_OPTION('o', OPTION_READONLY),
-	AST_APP_OPTION('s', OPTION_STOP),
-	AST_APP_OPTION('X', OPTION_EXIT),
-	AST_APP_OPTION('s', OPTION_NOTECH),
-	AST_APP_OPTION_ARG('n', OPTION_NAME, OPT_ARG_NAME),
-	AST_APP_OPTION('d', OPTION_DTMF_SWITCH_MODES),
 	AST_APP_OPTION_ARG('x', OPTION_DTMF_EXIT, OPT_ARG_EXIT),
-	AST_APP_OPTION_ARG('c', OPTION_DTMF_CYCLE, OPT_ARG_CYCLE),
+	AST_APP_OPTION('X', OPTION_EXIT),
 });
 
 struct chanspy_translation_helper {
@@ -726,6 +734,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 	char *ptr;
 	int num;
 	int num_spyed_upon = 1;
+	int hangup = 0;
 	struct ast_channel_iterator *iter = NULL;
 
 	if (ast_test_flag(flags, OPTION_EXIT)) {
@@ -957,6 +966,8 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 						next_autochan = NULL;
 					}
 				}
+			} else if (res == 0 && ast_test_flag(flags, OPTION_EXITONHANGUP)) {
+				goto exit;
 			}
 		}
 
@@ -1088,6 +1099,10 @@ static int chanspy_exec(struct ast_channel *chan, const char *data)
 
 	if (oldwf && ast_set_write_format(chan, oldwf) < 0)
 		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
+
+	if (ast_test_flag(&flags, OPTION_EXITONHANGUP)) {
+		ast_verb(3, "Stopped spying due to the spied-on channel hanging up.\n");
+	}
 
 	return res;
 }
