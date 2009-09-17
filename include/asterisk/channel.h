@@ -515,6 +515,8 @@ enum {
 	 *  bridge terminates, this will allow the hangup in the pbx loop to be run instead.
 	 *  */
 	AST_FLAG_BRIDGE_HANGUP_DONT = (1 << 17),
+	/*! This flag indicates whether the channel is in the channel list or not. */
+	AST_FLAG_IN_CHANNEL_LIST = (1 << 19),
 };
 
 /*! \brief ast_bridge_config flags */
