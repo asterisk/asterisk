@@ -2119,6 +2119,11 @@ int ast_hangup(struct ast_channel *chan)
 		ast_channel_unlock(chan);
 		return 0;
 	}
+	ast_channel_unlock(chan);
+
+	ao2_unlink(channels, chan);
+
+	ast_channel_lock(chan);
 	free_translation(chan);
 	/* Close audio stream */
 	if (chan->stream) {
