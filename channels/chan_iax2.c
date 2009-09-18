@@ -1545,6 +1545,7 @@ static void iax2_destroy_helper(struct chan_iax2_pvt *pvt)
 static void iax2_frame_free(struct iax_frame *fr)
 {
 	AST_SCHED_DEL(sched, fr->retrans);
+	fr->retrans = -1;
 	iax_frame_free(fr);
 }
 
@@ -3218,7 +3219,6 @@ static void __attempt_transmit(const void *data)
 		AST_LIST_LOCK(&frame_queue);
 		AST_LIST_REMOVE(&frame_queue, f, list);
 		AST_LIST_UNLOCK(&frame_queue);
-		f->retrans = -1;
 		/* Free the IAX frame */
 		iax2_frame_free(f);
 	}
