@@ -3064,7 +3064,6 @@ static void __attempt_transmit(const void *data)
 		AST_LIST_REMOVE(&iaxq.queue, f, list);
 		iaxq.count--;
 		AST_LIST_UNLOCK(&iaxq.queue);
-		f->retrans = -1;
 		/* Free the IAX frame */
 		iax2_frame_free(f);
 	}
