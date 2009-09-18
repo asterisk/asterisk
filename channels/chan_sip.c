@@ -6316,12 +6316,13 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 		seqno = p->ocseq;
 	}
 	
-	/* A CANCEL must have the same branch as the INVITE that it is canceling.
-	 * Similarly, if we need to re-send an INVITE with auth credentials, then we
-	 * need to use the same branch as we did the first time we sent the INVITE.
-	 */
-	if (sipmethod == SIP_CANCEL || (sipmethod == SIP_INVITE && p->options && !ast_strlen_zero(p->options->auth))) {
+	/* A CANCEL must have the same branch as the INVITE that it is canceling. */
+	if (sipmethod == SIP_CANCEL) {
 		p->branch = p->invite_branch;
+		build_via(p);
+	} else if (newbranch && (sipmethod == SIP_INVITE)) {
+		p->branch ^= ast_random();
+		p->invite_branch = p->branch;
 		build_via(p);
 	} else if (newbranch) {
 		p->branch ^= ast_random();
