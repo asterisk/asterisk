@@ -9448,7 +9448,7 @@ static int socket_process(struct iax2_thread *thread)
 		 * this connection yet. */
 		if ((dcallno != 1) && (fr->callno = find_callno(ntohs(mh->callno) & ~IAX_FLAG_FULL, dcallno, &sin, NEW_PREVENT, fd, 1))) {
 			ast_mutex_lock(&iaxsl[fr->callno]);
-			if (ast_test_flag(iaxs[fr->callno], IAX_ENCRYPTED)) {
+			if (iaxs[fr->callno] && ast_test_flag(iaxs[fr->callno], IAX_ENCRYPTED)) {
 				if (decrypt_frame(fr->callno, fh, &f, &res)) {
 					ast_log(LOG_NOTICE, "Packet Decrypt Failed!\n");
 					ast_mutex_unlock(&iaxsl[fr->callno]);
