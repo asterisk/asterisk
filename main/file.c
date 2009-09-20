@@ -890,6 +890,22 @@ int ast_stream_rewind(struct ast_filestream *fs, off_t ms)
 
 int ast_closestream(struct ast_filestream *f)
 {
+	/* This used to destroy the filestream, but it now just decrements a refcount.
+	 * We need to force the stream to quit queuing frames now, because we might
+	 * change the writeformat, which could result in a subsequent write error, if
+	 * the format is different. */
+
+	/* Stop a running stream if there is one */
+	if (f->owner) {
+		if (f->fmt->format < AST_FORMAT_AUDIO_MASK) {
+			f->owner->stream = NULL;
+			AST_SCHED_DEL(f->owner->sched, f->owner->streamid);
+			ast_settimeout(f->owner, 0, NULL, NULL);
+		} else {
+			f->owner->vstream = NULL;
+			AST_SCHED_DEL(f->owner->sched, f->owner->vstreamid);
+		}
+	}
 
 	if (ast_test_flag(&f->fr, AST_FRFLAG_FROM_FILESTREAM)) {
 		/* If this flag is still set, it essentially means that the reference
