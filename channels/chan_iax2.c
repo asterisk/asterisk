@@ -1685,7 +1685,6 @@ static void iax2_destroy_helper(struct chan_iax2_pvt *pvt)
 static void iax2_frame_free(struct iax_frame *fr)
 {
 	ast_sched_thread_del(sched, fr->retrans);
-	fr->retrans = -1;
 	iax_frame_free(fr);
 }
 
@@ -3353,6 +3352,7 @@ static void __attempt_transmit(const void *data)
 		/* Don't attempt delivery, just remove it from the queue */
 		AST_LIST_REMOVE(&frame_queue[callno], f, list);
 		ast_mutex_unlock(&iaxsl[callno]);
+		f->retrans = -1; /* this is safe because this is the scheduled function */
 		/* Free the IAX frame */
 		iax2_frame_free(f);
 	} else if (callno) {
