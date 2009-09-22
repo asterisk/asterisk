@@ -316,6 +316,7 @@ static char imapparentfolder[64] = "\0";
 static char greetingfolder[64];
 static char authuser[32];
 static char authpassword[42];
+static int imapversion = 1;
 
 static int expungeonhangup = 1;
 static int imapgreetings = 0;
@@ -585,6 +586,7 @@ struct ast_vm_user {
 	char imapuser[80];               /*!< IMAP server login */
 	char imappassword[80];           /*!< IMAP server password if authpassword not defined */
 	char imapvmshareid[80];          /*!< Shared mailbox ID to use rather than the dialed one */
+	int imapversion;                 /*!< If configuration changes, use the new values */
 #endif
 	double volgain;                  /*!< Volume gain for voicemails sent via email */
 	AST_LIST_ENTRY(ast_vm_user) list;
@@ -625,6 +627,7 @@ struct vm_state {
 	MAILSTREAM *mailstream;
 	int vmArrayIndex;
 	char imapuser[80];                   /*!< IMAP server login */
+	int imapversion;
 	int interactive;
 	char introfn[PATH_MAX];              /*!< Name of prepended file */
 	unsigned int quota_limit;
@@ -894,10 +897,13 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 #ifdef IMAP_STORAGE
 	} else if (!strcasecmp(var, "imapuser")) {
 		ast_copy_string(vmu->imapuser, value, sizeof(vmu->imapuser));
+		vmu->imapversion = imapversion;
 	} else if (!strcasecmp(var, "imappassword") || !strcasecmp(var, "imapsecret")) {
 		ast_copy_string(vmu->imappassword, value, sizeof(vmu->imappassword));
+		vmu->imapversion = imapversion;
 	} else if (!strcasecmp(var, "imapvmshareid")) {
 		ast_copy_string(vmu->imapvmshareid, value, sizeof(vmu->imapvmshareid));
+		vmu->imapversion = imapversion;
 #endif
 	} else if (!strcasecmp(var, "delete") || !strcasecmp(var, "deletevoicemail")) {
 		ast_set2_flag(vmu, ast_true(value), VM_DELETE);	
@@ -1132,10 +1138,13 @@ static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *
 #ifdef IMAP_STORAGE
 		} else if (!strcasecmp(var->name, "imapuser")) {
 			ast_copy_string(retval->imapuser, var->value, sizeof(retval->imapuser));
+			retval->imapversion = imapversion;
 		} else if (!strcasecmp(var->name, "imappassword") || !strcasecmp(var->name, "imapsecret")) {
 			ast_copy_string(retval->imappassword, var->value, sizeof(retval->imappassword));
+			retval->imapversion = imapversion;
 		} else if (!strcasecmp(var->name, "imapvmshareid")) {
 			ast_copy_string(retval->imapvmshareid, var->value, sizeof(retval->imapvmshareid));
+			retval->imapversion = imapversion;
 #endif
 		} else
 			apply_option(retval, var->name, var->value);
@@ -1221,6 +1230,11 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, const char *contex
 		context = "default";
 
 	AST_LIST_TRAVERSE(&users, cur, list) {
+#ifdef IMAP_STORAGE
+		if (cur->imapversion != imapversion) {
+			continue;
+		}
+#endif
 		if (ast_test_flag((&globalflags), VM_SEARCH) && !strcasecmp(mailbox, cur->mailbox))
 			break;
 		if (context && (!strcasecmp(context, cur->context)) && (!strcasecmp(mailbox, cur->mailbox)))
@@ -2252,6 +2266,7 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 
 	ast_copy_string(vms->imapuser,vmu->imapuser, sizeof(vms->imapuser));
 	ast_debug(3,"Before init_mailstream, user is %s\n",vmu->imapuser);
+	vms->imapversion = vmu->imapversion;
 
 	if ((ret = init_mailstream(vms, box)) || !vms->mailstream) {
 		ast_log(AST_LOG_ERROR, "Could not initialize mailstream\n");
@@ -2607,6 +2622,7 @@ static struct vm_state *create_vm_state_from_user(struct ast_vm_user *vmu)
 	ast_copy_string(vms_p->username, vmu->mailbox, sizeof(vms_p->username)); /* save for access from interactive entry point */
 	ast_copy_string(vms_p->context, vmu->context, sizeof(vms_p->context));
 	vms_p->mailstream = NIL; /* save for access from interactive entry point */
+	vms_p->imapversion = vmu->imapversion;
 	if (option_debug > 4)
 		ast_log(AST_LOG_DEBUG,"Copied %s to %s\n",vmu->imapuser,vms_p->imapuser);
 	vms_p->updated = 1;
@@ -2632,6 +2648,9 @@ static struct vm_state *get_vm_state_by_imapuser(const char *user, int interacti
 	AST_LIST_TRAVERSE(&vmstates, vlist, list) {
 		if (!vlist->vms) {
 			ast_debug(3, "error: vms is NULL for %s\n", user);
+			continue;
+		}
+		if (vlist->vms->imapversion != imapversion) {
 			continue;
 		}
 		if (!vlist->vms->imapuser) {
@@ -2668,6 +2687,9 @@ static struct vm_state *get_vm_state_by_mailbox(const char *mailbox, const char 
 	AST_LIST_TRAVERSE(&vmstates, vlist, list) {
 		if (!vlist->vms) {
 			ast_debug(3, "error: vms is NULL for %s\n", mailbox);
+			continue;
+		}
+		if (vlist->vms->imapversion != imapversion) {
 			continue;
 		}
 		if (!vlist->vms->username || !vlist->vms->context) {
@@ -10663,6 +10685,8 @@ static int load_config(int reload)
 			mail_parameters(NIL, SET_CLOSETIMEOUT, (void *) 60L);
 		}
 
+		/* Increment configuration version */
+		imapversion++;
 #endif
 		/* External voicemail notify application */
 		if ((val = ast_variable_retrieve(cfg, "general", "externnotify"))) {
