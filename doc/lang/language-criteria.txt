@@ -17,7 +17,7 @@ Criteria for language submission:
 (http://creativecommons.org/licenses/by-sa/3.0/us/) for all
 soundfiles, and the actual artist who performs the prompts must be the
 one who approves (in writing) the CCBYSAv3 license.  Print out the
-license, have the artist sign, and fax to Digium (+1-256-428-6061
+license, have the artist sign, and fax to Digium (+1-256-428-6217
 Attn: Contracts) or mail it to Digium (445 Jan Davis Dr Nw,
 Huntsville, AL 35806, USA Attn: Contracts)
 
@@ -135,7 +135,7 @@ may have an archive name that after processing looks like this:
 
   --- Print out everything below this block --- have artist sign, and
   --- then fax or --- mail signed original to Digium legal ---
-  --- +1-256-428-6061 Attn: Contracts or --- 445 Jan Davis Dr Nw,
+  --- +1-256-428-6217 Attn: Contracts or --- 445 Jan Davis Dr Nw,
   --- Huntsville, --- AL 35806, USA Attn: Contracts ---
 
 LICENSE FOR VOICE PROMPT FILES ------------------------------
