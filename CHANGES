@@ -50,6 +50,12 @@ IAX2 Changes
  * Added rtsavesysname option into iax.conf to allow the systname to be saved
    on realtime updates.
 
+MGCP Changes
+------------
+ * Added ability to preset channel variables on indicated lines with the setvar
+   configuration option.  Also, clearvars=all resets the list of variables back
+   to none.
+
 Applications
 ------------
  * Added progress option to the app_dial D() option.  When progress DTMF is

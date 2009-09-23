@@ -99,7 +99,10 @@
 ;directmedia	= no
 ;transfer	= no
 ;dtmfmode	= inband
+;setvar=one=1           ; Set channel variables associated with this incoming line
+;setvar=two=2
 ;line => aaln/1			; now lets save this config to line1 aka aaln/1
+;clearvars=all          ; Reset list of variables back to none
 ;callerid 	= "Duane Cox" <456>	; now lets setup line 2
 ;callwaiting	= no
 ;callreturn	= yes

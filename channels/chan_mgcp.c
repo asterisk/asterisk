@@ -70,6 +70,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/abstract_jb.h"
 #include "asterisk/event.h"
+#include "asterisk/chanvars.h"
 
 /*
  * Define to work around buggy dlink MGCP phone firmware which
@@ -363,6 +364,7 @@ struct mgcp_endpoint {
 	/* struct ast_rtp *rtp; */
 	/* struct sockaddr_in tmpdest; */
 	/* message go the the endpoint and not the channel so they stay here */
+	struct ast_variable *chanvars;		/*!< Variables to set for channel created by user */
 	struct mgcp_endpoint *next;
 	struct mgcp_gateway *parent;
 };
@@ -430,6 +432,8 @@ static int mgcp_senddigit_begin(struct ast_channel *ast, char digit);
 static int mgcp_senddigit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static int mgcp_devicestate(void *data);
 static void add_header_offhook(struct mgcp_subchannel *sub, struct mgcp_request *resp);
+static struct ast_variable *add_var(const char *buf, struct ast_variable *list);
+static struct ast_variable *copy_vars(struct ast_variable *src);
 
 static const struct ast_channel_tech mgcp_tech = {
 	.type = "MGCP",
@@ -1038,6 +1042,8 @@ static char *handle_mgcp_show_endpoints(struct ast_cli_entry *e, int cmd, struct
 	struct mgcp_gateway  *mg;
 	struct mgcp_endpoint *me;
 	int hasendpoints = 0;
+	struct ast_variable * v = NULL;
+	
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -1058,9 +1064,13 @@ static char *handle_mgcp_show_endpoints(struct ast_cli_entry *e, int cmd, struct
 		me = mg->endpoints;
 		ast_cli(a->fd, "Gateway '%s' at %s (%s)\n", mg->name, mg->addr.sin_addr.s_addr ? ast_inet_ntoa(mg->addr.sin_addr) : ast_inet_ntoa(mg->defaddr.sin_addr), mg->dynamic ? "Dynamic" : "Static");
 		while(me) {
-			/* Don't show wilcard endpoint */
-			if (strcmp(me->name, mg->wcardep) != 0)
-				ast_cli(a->fd, "   -- '%s@%s in '%s' is %s\n", me->name, mg->name, me->context, me->sub->owner ? "active" : "idle");
+			ast_cli(a->fd, "   -- '%s@%s in '%s' is %s\n", me->name, mg->name, me->context, me->sub->owner ? "active" : "idle");
+			if (me->chanvars) {
+				ast_cli(a->fd, "  Variables:\n");
+				for (v = me->chanvars ; v ; v = v->next) {
+					ast_cli(a->fd, "    %s = '%s'\n", v->name, v->value);
+				}
+			}
 			hasendpoints = 1;
 			me = me->next;
 		}
@@ -1469,6 +1479,7 @@ static int mgcp_indicate(struct ast_channel *ast, int ind, const void *data, siz
 static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state, const char *linkedid)
 {
 	struct ast_channel *tmp;
+	struct ast_variable *v = NULL;
 	struct mgcp_endpoint *i = sub->parent;
 	int fmt;
 
@@ -1517,6 +1528,13 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state, cons
 		if (!i->adsi)
 			tmp->adsicpe = AST_ADSI_UNAVAILABLE;
 		tmp->priority = 1;
+
+		/* Set channel variables for this call from configuration */
+		for (v = i->chanvars ; v ; v = v->next) {
+			char valuebuf[1024];
+			pbx_builtin_setvar_helper(tmp, v->name, ast_get_encoded_str(v->value, valuebuf, sizeof(valuebuf)));
+		}
+
 		if (sub->rtp)
 			ast_jb_configure(tmp, &global_jbconf);
 		if (state != AST_STATE_DOWN) {
@@ -3548,6 +3566,8 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 	struct mgcp_gateway *gw;
 	struct mgcp_endpoint *e;
 	struct mgcp_subchannel *sub;
+	struct ast_variable *chanvars = NULL;
+
 	/*char txident[80];*/
 	int i=0, y=0;
 	int gw_reload = 0;
@@ -3647,6 +3667,14 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					ast_log(LOG_WARNING, "Invalid AMA flags: %s at line %d\n", v->value, v->lineno);
 				} else {
 					amaflags = y;
+				}
+
+			} else if (!strcasecmp(v->name, "setvar")) {
+				chanvars = add_var(v->value, chanvars);
+			} else if (!strcasecmp(v->name, "clearvars")) {
+				if (chanvars) {
+					ast_variables_destroy(chanvars);
+					chanvars = NULL;
 				}
 			} else if (!strcasecmp(v->name, "musiconhold")) {
 				ast_copy_string(musicclass, v->value, sizeof(musicclass));
@@ -3757,6 +3785,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					e->onhooktime = time(NULL);
 					/* ASSUME we're onhook */
 					e->hookstate = MGCP_ONHOOK;
+					e->chanvars = copy_vars(chanvars);
 					if (!ep_reload) {
 						/*snprintf(txident, sizeof(txident), "%08lx", ast_random());*/
 						for (i = 0; i < MAX_SUBS; i++) {
@@ -3858,6 +3887,16 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					e->slowsequence = slowsequence;
 					e->transfer = transfer;
 					e->threewaycalling = threewaycalling;
+
+					/* If we already have a valid chanvars, it's not a new endpoint (it's a reload),
+					   so first, free previous mem
+					 */
+					if (e->chanvars) {
+						ast_variables_destroy(e->chanvars);
+						e->chanvars = NULL;
+					}
+					e->chanvars = copy_vars(chanvars);
+
 					if (!ep_reload) {
 						e->onhooktime = time(NULL);
 						/* ASSUME we're onhook */
@@ -3920,18 +3959,27 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 			ast_mutex_destroy(&gw->msgs_lock);
 			ast_free(gw);
 		}
-		return NULL;
-	}
-	gw->defaddr.sin_family = AF_INET;
-	gw->addr.sin_family = AF_INET;
-	if (gw->defaddr.sin_addr.s_addr && !ntohs(gw->defaddr.sin_port)) 
-		gw->defaddr.sin_port = htons(DEFAULT_MGCP_GW_PORT);
-	if (gw->addr.sin_addr.s_addr && !ntohs(gw->addr.sin_port))
-		gw->addr.sin_port = htons(DEFAULT_MGCP_GW_PORT);
-	if (gw->addr.sin_addr.s_addr)
-		if (ast_ouraddrfor(&gw->addr.sin_addr, &gw->ourip))
-			memcpy(&gw->ourip, &__ourip, sizeof(gw->ourip));
 
+		/* Return NULL */
+		gw_reload = 1;
+	} else {
+		gw->defaddr.sin_family = AF_INET;
+		gw->addr.sin_family = AF_INET;
+		if (gw->defaddr.sin_addr.s_addr && !ntohs(gw->defaddr.sin_port)) {
+			gw->defaddr.sin_port = htons(DEFAULT_MGCP_GW_PORT);
+		}
+		if (gw->addr.sin_addr.s_addr && !ntohs(gw->addr.sin_port)) {
+			gw->addr.sin_port = htons(DEFAULT_MGCP_GW_PORT);
+		}
+		if (gw->addr.sin_addr.s_addr && ast_ouraddrfor(&gw->addr.sin_addr, &gw->ourip)) {
+			memcpy(&gw->ourip, &__ourip, sizeof(gw->ourip));
+		}
+	}
+
+	if (chanvars) {
+		ast_variables_destroy(chanvars);
+		chanvars = NULL;
+	}
 	return (gw_reload ? NULL : gw);
 }
 
@@ -4008,6 +4056,11 @@ static void destroy_endpoint(struct mgcp_endpoint *e)
 	if (e->mwi_event_sub)
 		ast_event_unsubscribe(e->mwi_event_sub);
 
+	if (e->chanvars) {
+		ast_variables_destroy(e->chanvars);
+		e->chanvars = NULL;
+	}
+
 	ast_mutex_destroy(&e->lock);
 	ast_mutex_destroy(&e->rqnt_queue_lock);
 	ast_mutex_destroy(&e->cmd_queue_lock);
@@ -4066,6 +4119,38 @@ static void prune_gateways(void)
 
 	ast_mutex_unlock(&gatelock);
 }
+
+static struct ast_variable *add_var(const char *buf, struct ast_variable *list)
+{
+	struct ast_variable *tmpvar = NULL;
+	char *varname = ast_strdupa(buf), *varval = NULL;
+
+	if ((varval = strchr(varname, '='))) {
+		*varval++ = '\0';
+		if ((tmpvar = ast_variable_new(varname, varval, ""))) {
+			tmpvar->next = list;
+			list = tmpvar;
+		}
+	}
+	return list;
+}
+
+/*! \brief
+ * duplicate a list of channel variables, \return the copy.
+ */
+static struct ast_variable *copy_vars(struct ast_variable *src)
+{
+	struct ast_variable *res = NULL, *tmp, *v = NULL;
+
+	for (v = src ; v ; v = v->next) {
+		if ((tmp = ast_variable_new(v->name, v->value, v->file))) {
+			tmp->next = res;
+			res = tmp;
+		}
+	}
+	return res;
+}
+
 
 static int reload_config(int reload)
 {
