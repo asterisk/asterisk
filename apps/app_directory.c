@@ -473,6 +473,11 @@ static int search_directory(const char *context, struct ast_config *vmcfg, struc
 		strsep(&bufptr, ",");
 		pos = strsep(&bufptr, ",");
 
+		/* No name to compare against */
+		if (ast_strlen_zero(pos)) {
+			continue;
+		}
+
 		res = 0;
 		if (ast_test_flag(&flags, OPT_LISTBYLASTNAME)) {
 			res = check_match(&item, pos, v->name, ext, 0 /* use_first_name */);
@@ -645,7 +650,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	int res = 0, digit = 3;
 	struct ast_config *cfg, *ucfg;
 	const char *dirintro;
-	char *parse, *opts[OPT_ARG_ARRAY_SIZE];
+	char *parse, *opts[OPT_ARG_ARRAY_SIZE] = { "", };
 	struct ast_flags flags = { 0 };
 	struct ast_flags config_flags = { 0 };
 	enum { FIRST, LAST, BOTH } which = LAST;
