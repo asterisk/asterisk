@@ -242,6 +242,9 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 				; which will be empty - thus users get no ring signal.
 				; Setting this to "no" will stop any media before we have
 				; call progress. Default is "yes".
+				;
+				; In order for "noanswer" applications to work, you need to run
+				; the progress() application in the priority before the app.
 
 ;progressinband=never           ; If we should generate in-band ringing always
                                 ; use 'never' to never use in-band signalling, even in cases
