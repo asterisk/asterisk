@@ -525,6 +525,11 @@ static int search_directory_sub(const char *context, struct ast_config *vmcfg, s
 		strsep(&bufptr, ",");
 		pos = strsep(&bufptr, ",");
 
+		/* No name to compare against */
+		if (ast_strlen_zero(pos)) {
+			continue;
+		}
+
 		res = 0;
 		if (ast_test_flag(&flags, OPT_LISTBYLASTNAME)) {
 			res = check_match(&item, context, pos, v->name, ext, 0 /* use_first_name */);
