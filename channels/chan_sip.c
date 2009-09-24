@@ -9837,6 +9837,7 @@ static int add_digit(struct sip_request *req, char digit, unsigned int duration,
 static int add_rpid(struct sip_request *req, struct sip_pvt *p)
 {
 	struct ast_str *tmp = ast_str_alloca(256);
+	char tmp2[256];
 	char *lid_num = NULL;
 	char *lid_name = NULL;
 	int lid_pres;
@@ -9860,6 +9861,8 @@ static int add_rpid(struct sip_request *req, struct sip_pvt *p)
 	if (ast_strlen_zero(lid_name))
 		lid_name = lid_num;
 	fromdomain = S_OR(p->fromdomain, ast_inet_ntoa(p->ourip.sin_addr));
+
+	lid_num = ast_uri_encode(lid_num, tmp2, sizeof(tmp2), 1);
 
 	if (ast_test_flag(&p->flags[0], SIP_SENDRPID_PAI)) {
 		if ((lid_pres & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED) {
