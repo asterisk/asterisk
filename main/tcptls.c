@@ -276,7 +276,6 @@ struct ast_tcptls_session_instance *ast_tcptls_client_start(struct server_args *
 		__ssl_setup(desc->tls_cfg, 1);
 	}
 
-	ao2_ref(tcptls_session, +1);
 	if (!ast_make_file_from_fd(tcptls_session))
 		goto error;
 
@@ -374,6 +373,8 @@ void ast_tcptls_server_stop(struct server_args *desc)
 * creates a FILE * from the fd passed by the accept thread.
 * This operation is potentially expensive (certificate verification),
 * so we do it in the child thread context.
+*
+* \note must decrement ref count before returning NULL on error
 */
 void *ast_make_file_from_fd(void *data)
 {
@@ -448,6 +449,7 @@ void *ast_make_file_from_fd(void *data)
 						if (peer)
 							X509_free(peer);
 						fclose(tcptls_session->f);
+						ao2_ref(tcptls_session, -1);
 						return NULL;
 					}
 				}
