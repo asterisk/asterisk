@@ -122,6 +122,8 @@ static void session_instance_destructor(void *obj)
 * creates a FILE * from the fd passed by the accept thread.
 * This operation is potentially expensive (certificate verification),
 * so we do it in the child thread context.
+*
+* \note must decrement ref count before returning NULL on error
 */
 static void *handle_tls_connection(void *data)
 {
@@ -196,6 +198,7 @@ static void *handle_tls_connection(void *data)
 						if (peer)
 							X509_free(peer);
 						fclose(tcptls_session->f);
+						ao2_ref(tcptls_session, -1);
 						return NULL;
 					}
 				}
@@ -262,6 +265,7 @@ void *ast_tcptls_server_root(void *data)
 
 		tcptls_session->client = 0;
 
+		/* This thread is now the only place that controls the single ref to tcptls_session */
 		if (ast_pthread_create_detached_background(&launched, NULL, handle_tls_connection, tcptls_session)) {
 			ast_log(LOG_WARNING, "Unable to launch helper thread: %s\n", strerror(errno));
 			close(tcptls_session->fd);
@@ -418,8 +422,9 @@ struct ast_tcptls_session_instance *ast_tcptls_client_start(struct ast_tcptls_se
 		__ssl_setup(desc->tls_cfg, 1);
 	}
 
-	ao2_ref(tcptls_session, +1);
-	if (!handle_tls_connection(tcptls_session))
+	/* handle_tls_connection controls the single ref to tcptls_session. If
+	 * tcptls_session returns NULL then the session has been destroyed */
+	if (!(tcptls_session = handle_tls_connection(tcptls_session)))
 		goto error;
 
 	return tcptls_session;
