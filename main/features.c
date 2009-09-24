@@ -71,6 +71,69 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="p">
 						<para>Play a courtesy tone to <replaceable>channel</replaceable>.</para>
 					</option>
+					<option name="h">
+						<para>Allow the called party to hang up by sending the
+						<replaceable>*</replaceable> DTMF digit.</para>
+					</option>
+					<option name="H">
+						<para>Allow the calling party to hang up by pressing the
+						<replaceable>*</replaceable> DTMF digit.</para>
+					</option>
+					<option name="k">
+						<para>Allow the called party to enable parking of the call by sending
+						the DTMF sequence defined for call parking in features.conf.</para>
+					</option>
+					<option name="K">
+						<para>Allow the calling party to enable parking of the call by sending
+						 the DTMF sequence defined for call parking in features.conf.</para>
+					</option>
+					<option name="L(x[:y][:z])">
+						<para>Limit the call to <replaceable>x</replaceable> ms. Play a warning
+						when <replaceable>y</replaceable> ms are left. Repeat the warning every
+						<replaceable>z</replaceable> ms. The following special variables can be
+						used with this option:</para>
+						<variablelist>
+							<variable name="LIMIT_PLAYAUDIO_CALLER">
+								<para>Play sounds to the caller. yes|no (default yes)</para>
+							</variable>
+							<variable name="LIMIT_PLAYAUDIO_CALLEE">   
+								<para>Play sounds to the callee. yes|no</para>
+							</variable>
+							<variable name="LIMIT_TIMEOUT_FILE">
+								<para>File to play when time is up.</para>
+							</variable>
+							<variable name="LIMIT_CONNECT_FILE">
+								<para>File to play when call begins.</para>
+							</variable>
+							<variable name="LIMIT_WARNING_FILE">
+								<para>File to play as warning if <replaceable>y</replaceable> is
+								defined. The default is to say the time remaining.</para>
+							</variable>
+						</variablelist>
+					</option>
+					<option name="S(x)">
+						<para>Hang up the call after <replaceable>x</replaceable> seconds *after* the called party has answered the call.</para>
+					</option>
+					<option name="t">
+						<para>Allow the called party to transfer the calling party by sending the
+						DTMF sequence defined in features.conf.</para>
+					</option>
+					<option name="T">
+						<para>Allow the calling party to transfer the called party by sending the
+						DTMF sequence defined in features.conf.</para>
+					</option>
+					<option name="w">
+						<para>Allow the called party to enable recording of the call by sending
+						the DTMF sequence defined for one-touch recording in features.conf.</para>
+					</option>
+					<option name="W">
+						<para>Allow the calling party to enable recording of the call by sending
+						the DTMF sequence defined for one-touch recording in features.conf.</para>
+					</option>
+					<option name="x">
+						<para>Cause the called party to be hung up after the bridge, instead of being
+						restarted in the dialplan.</para>
+					</option>
 				</optionlist>
 			</parameter>
 		</syntax>
@@ -4722,11 +4785,147 @@ static char *app_bridge = "Bridge";
 
 enum {
 	BRIDGE_OPT_PLAYTONE = (1 << 0),
+	OPT_CALLEE_HANGUP =	(1 << 1),
+	OPT_CALLER_HANGUP =	(1 << 2),
+	OPT_DURATION_LIMIT = (1 << 3),
+	OPT_DURATION_STOP =	(1 << 4),
+	OPT_CALLEE_TRANSFER = (1 << 5),
+	OPT_CALLER_TRANSFER = (1 << 6),
+	OPT_CALLEE_MONITOR = (1 << 7),
+	OPT_CALLER_MONITOR = (1 << 8),
+	OPT_CALLEE_PARK = (1 << 9),
+	OPT_CALLER_PARK = (1 << 10),
+	OPT_CALLEE_KILL = (1 << 11),
+};
+ 
+enum {
+	OPT_ARG_DURATION_LIMIT = 0,
+	OPT_ARG_DURATION_STOP,
+	/* note: this entry _MUST_ be the last one in the enum */
+	OPT_ARG_ARRAY_SIZE,
 };
 
 AST_APP_OPTIONS(bridge_exec_options, BEGIN_OPTIONS
-	AST_APP_OPTION('p', BRIDGE_OPT_PLAYTONE)
+	AST_APP_OPTION('p', BRIDGE_OPT_PLAYTONE),
+	AST_APP_OPTION('h', OPT_CALLEE_HANGUP),
+	AST_APP_OPTION('H', OPT_CALLER_HANGUP),
+	AST_APP_OPTION('k', OPT_CALLEE_PARK),
+	AST_APP_OPTION('K', OPT_CALLER_PARK),
+	AST_APP_OPTION_ARG('L', OPT_DURATION_LIMIT, OPT_ARG_DURATION_LIMIT),
+	AST_APP_OPTION_ARG('S', OPT_DURATION_STOP, OPT_ARG_DURATION_STOP),
+	AST_APP_OPTION('t', OPT_CALLEE_TRANSFER),
+	AST_APP_OPTION('T', OPT_CALLER_TRANSFER),
+	AST_APP_OPTION('w', OPT_CALLEE_MONITOR),
+	AST_APP_OPTION('W', OPT_CALLER_MONITOR),
+	AST_APP_OPTION('x', OPT_CALLEE_KILL),
 END_OPTIONS );
+
+int ast_bridge_timelimit(struct ast_channel *chan, struct ast_bridge_config *config,
+	char *parse, struct timeval *calldurationlimit)
+{
+	char *stringp = ast_strdupa(parse);
+	char *limit_str, *warning_str, *warnfreq_str;
+	const char *var;
+	int play_to_caller = 0, play_to_callee = 0;
+	int delta;
+
+	limit_str = strsep(&stringp, ":");
+	warning_str = strsep(&stringp, ":");
+	warnfreq_str = strsep(&stringp, ":");
+
+	config->timelimit = atol(limit_str);
+	if (warning_str)
+		config->play_warning = atol(warning_str);
+	if (warnfreq_str)
+		config->warning_freq = atol(warnfreq_str);
+
+	if (!config->timelimit) {
+		ast_log(LOG_WARNING, "Bridge does not accept L(%s), hanging up.\n", limit_str);
+		config->timelimit = config->play_warning = config->warning_freq = 0;
+		config->warning_sound = NULL;
+		return -1; /* error */
+	} else if ( (delta = config->play_warning - config->timelimit) > 0) {
+		int w = config->warning_freq;
+
+		/* If the first warning is requested _after_ the entire call would end,
+		   and no warning frequency is requested, then turn off the warning. If
+		   a warning frequency is requested, reduce the 'first warning' time by
+		   that frequency until it falls within the call's total time limit.
+		   Graphically:
+				  timelim->|    delta        |<-playwarning
+			0__________________|_________________|
+					 | w  |    |    |    |
+
+		   so the number of intervals to cut is 1+(delta-1)/w
+		*/
+
+		if (w == 0) {
+			config->play_warning = 0;
+		} else {
+			config->play_warning -= w * ( 1 + (delta-1)/w );
+			if (config->play_warning < 1)
+				config->play_warning = config->warning_freq = 0;
+		}
+	}
+	
+	ast_channel_lock(chan);
+
+	var = pbx_builtin_getvar_helper(chan, "LIMIT_PLAYAUDIO_CALLER");
+	play_to_caller = var ? ast_true(var) : 1;
+
+	var = pbx_builtin_getvar_helper(chan, "LIMIT_PLAYAUDIO_CALLEE");
+	play_to_callee = var ? ast_true(var) : 0;
+
+	if (!play_to_caller && !play_to_callee)
+		play_to_caller = 1;
+
+	var = pbx_builtin_getvar_helper(chan, "LIMIT_WARNING_FILE");
+	config->warning_sound = !ast_strlen_zero(var) ? ast_strdup(var) : ast_strdup("timeleft");
+
+	/* The code looking at config wants a NULL, not just "", to decide
+	 * that the message should not be played, so we replace "" with NULL.
+	 * Note, pbx_builtin_getvar_helper _can_ return NULL if the variable is
+	 * not found.
+	 */
+
+	var = pbx_builtin_getvar_helper(chan, "LIMIT_TIMEOUT_FILE");
+	config->end_sound = !ast_strlen_zero(var) ? ast_strdup(var) : NULL;
+
+	var = pbx_builtin_getvar_helper(chan, "LIMIT_CONNECT_FILE");
+	config->start_sound = !ast_strlen_zero(var) ? ast_strdup(var) : NULL;
+
+	ast_channel_unlock(chan);
+
+	/* undo effect of S(x) in case they are both used */
+	calldurationlimit->tv_sec = 0;
+	calldurationlimit->tv_usec = 0;
+
+	/* more efficient to do it like S(x) does since no advanced opts */
+	if (!config->play_warning && !config->start_sound && !config->end_sound && config->timelimit) {
+		calldurationlimit->tv_sec = config->timelimit / 1000;
+		calldurationlimit->tv_usec = (config->timelimit % 1000) * 1000;
+		ast_verb(3, "Setting call duration limit to %.3lf seconds.\n",
+			calldurationlimit->tv_sec + calldurationlimit->tv_usec / 1000000.0);
+		config->timelimit = play_to_caller = play_to_callee =
+		config->play_warning = config->warning_freq = 0;
+	} else {
+		ast_verb(3, "Limit Data for this call:\n");
+		ast_verb(4, "timelimit      = %ld\n", config->timelimit);
+		ast_verb(4, "play_warning   = %ld\n", config->play_warning);
+		ast_verb(4, "play_to_caller = %s\n", play_to_caller ? "yes" : "no");
+		ast_verb(4, "play_to_callee = %s\n", play_to_callee ? "yes" : "no");
+		ast_verb(4, "warning_freq   = %ld\n", config->warning_freq);
+		ast_verb(4, "start_sound    = %s\n", S_OR(config->start_sound, ""));
+		ast_verb(4, "warning_sound  = %s\n", config->warning_sound);
+		ast_verb(4, "end_sound      = %s\n", S_OR(config->end_sound, ""));
+	}
+	if (play_to_caller)
+		ast_set_flag(&(config->features_caller), AST_FEATURE_PLAY_WARNING);
+	if (play_to_callee)
+		ast_set_flag(&(config->features_callee), AST_FEATURE_PLAY_WARNING);
+	return 0;
+}
+
 
 /*!
  * \brief Bridge channels
@@ -4743,6 +4942,8 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 	char *tmp_data  = NULL;
 	struct ast_flags opts = { 0, };
 	struct ast_bridge_config bconfig = { { 0, }, };
+	char *opt_args[OPT_ARG_ARRAY_SIZE];
+	struct timeval calldurationlimit = { 0, };
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(dest_chan);
@@ -4757,7 +4958,7 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 	tmp_data = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, tmp_data);
 	if (!ast_strlen_zero(args.options))
-		ast_app_parse_options(bridge_exec_options, &opts, NULL, args.options);
+		ast_app_parse_options(bridge_exec_options, &opts, opt_args, args.options);
 
 	/* avoid bridge with ourselves */
 	if (!strncmp(chan->name, args.dest_chan, 
@@ -4837,13 +5038,34 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 	}
 	
 	current_dest_chan = ast_channel_unref(current_dest_chan);
+	
+	if (ast_test_flag(&opts, OPT_DURATION_LIMIT) && !ast_strlen_zero(opt_args[OPT_ARG_DURATION_LIMIT])) {
+		if (ast_bridge_timelimit(chan, &bconfig, opt_args[OPT_ARG_DURATION_LIMIT], &calldurationlimit))
+			goto done;
+	}
 
-	/* do the bridge */
+	if (ast_test_flag(&opts, OPT_CALLEE_TRANSFER))
+		ast_set_flag(&(bconfig.features_callee), AST_FEATURE_REDIRECT);
+	if (ast_test_flag(&opts, OPT_CALLER_TRANSFER))
+		ast_set_flag(&(bconfig.features_caller), AST_FEATURE_REDIRECT);
+	if (ast_test_flag(&opts, OPT_CALLEE_HANGUP))
+		ast_set_flag(&(bconfig.features_callee), AST_FEATURE_DISCONNECT);
+	if (ast_test_flag(&opts, OPT_CALLER_HANGUP))
+		ast_set_flag(&(bconfig.features_caller), AST_FEATURE_DISCONNECT);
+	if (ast_test_flag(&opts, OPT_CALLEE_MONITOR))
+		ast_set_flag(&(bconfig.features_callee), AST_FEATURE_AUTOMON);
+	if (ast_test_flag(&opts, OPT_CALLER_MONITOR)) 
+		ast_set_flag(&(bconfig.features_caller), AST_FEATURE_AUTOMON);
+	if (ast_test_flag(&opts, OPT_CALLEE_PARK))
+		ast_set_flag(&(bconfig.features_callee), AST_FEATURE_PARKCALL);
+	if (ast_test_flag(&opts, OPT_CALLER_PARK))
+		ast_set_flag(&(bconfig.features_caller), AST_FEATURE_PARKCALL);
+
 	ast_bridge_call(chan, final_dest_chan, &bconfig);
 
 	/* the bridge has ended, set BRIDGERESULT to SUCCESS. If the other channel has not been hung up, return it to the PBX */
 	pbx_builtin_setvar_helper(chan, "BRIDGERESULT", "SUCCESS");
-	if (!ast_check_hangup(final_dest_chan)) {
+	if (!ast_check_hangup(final_dest_chan) && !ast_test_flag(&opts, OPT_CALLEE_KILL)) {
 		ast_debug(1, "starting new PBX in %s,%s,%d for chan %s\n", 
 			final_dest_chan->context, final_dest_chan->exten, 
 			final_dest_chan->priority, final_dest_chan->name);
@@ -4854,8 +5076,18 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 		} else
 			ast_debug(1, "SUCCESS continuing PBX on chan %s\n", final_dest_chan->name);
 	} else {
-		ast_debug(1, "hangup chan %s since the other endpoint has hung up\n", final_dest_chan->name);
+		ast_debug(1, "hangup chan %s since the other endpoint has hung up or the x flag was passed\n", final_dest_chan->name);
 		ast_hangup(final_dest_chan);
+	}
+done:
+	if (bconfig.warning_sound) {
+		ast_free((char *)bconfig.warning_sound);
+	}
+	if (bconfig.end_sound) {
+		ast_free((char *)bconfig.end_sound);
+	}
+	if (bconfig.start_sound) {
+		ast_free((char *)bconfig.start_sound);
 	}
 
 	return 0;

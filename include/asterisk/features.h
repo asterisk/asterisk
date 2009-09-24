@@ -148,4 +148,9 @@ void ast_unlock_call_features(void);
 /*! \brief Reload call features from features.conf */
 int ast_features_reload(void);
 
+/* !\brief parse L option and read associated channel variables to set warning, warning frequency, and timelimit
+	\note caller must be aware of freeing memory for warning_sound, end_sound, and start_sound
+*/
+int ast_bridge_timelimit(struct ast_channel *chan, struct ast_bridge_config *config, char *parse, struct timeval *calldurationlimit);
+
 #endif /* _AST_FEATURES_H */
