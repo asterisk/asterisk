@@ -8810,8 +8810,6 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 		} else if (!ast_test_flag(&flags, BACKGROUND_NOANSWER)) {
 			res = ast_answer(chan);
 		}
-		/* Send progress control frame to start early media */
-		ast_indicate(chan, AST_CONTROL_PROGRESS);
 	}
 
 	if (!res) {
