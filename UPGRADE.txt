@@ -51,6 +51,15 @@ From 1.6.2 to 1.6.3:
   remains. It now exists within app_chanspy.c and retains the exact same 
   functionality as before. 
 
+* The default behavior for Set, AGI, and pbx_realtime has been changed to implement
+  1.6 behavior by default, if there is no [compat] section in asterisk.conf.  In
+  prior versions, the behavior defaulted to 1.4 behavior, to assist in upgrades.
+  Specifically, that means that pbx_realtime and res_agi expect you to use commas
+  to separate arguments in applications, and Set only takes a single pair of
+  a variable name/value.  The old 1.4 behavior may still be obtained by setting
+  app_set, pbx_realtime, and res_agi each to 1.4 in the [compat] section of
+  asterisk.conf.
+
 From 1.6.1 to 1.6.2:
 
 * The 'canreinvite' option support by the SIP, MGCP and Skinny channel drivers
