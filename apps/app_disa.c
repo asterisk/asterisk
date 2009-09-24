@@ -187,12 +187,7 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 			/* answer */
 			ast_answer(chan);
 		}
-	} else {
-		special_noanswer = 1;
-		if (chan->_state != AST_STATE_UP) {
-			ast_indicate(chan, AST_CONTROL_PROGRESS);
-		}
-	}
+	} else special_noanswer = 1;
 
 	ast_debug(1, "Context: %s\n",args.context);
 

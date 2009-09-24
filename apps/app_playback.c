@@ -452,10 +452,7 @@ static int playback_exec(struct ast_channel *chan, const char *data)
 		} else if (!option_noanswer) {
 			/* Otherwise answer unless we're supposed to send this while on-hook */
 			res = ast_answer(chan);
-		} else {
-			ast_indicate(chan, AST_CONTROL_PROGRESS);
 		}
-
 	}
 	if (!res) {
 		char *back = args.filenames;
