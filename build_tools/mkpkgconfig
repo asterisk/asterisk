@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 PPATH=$1
 ## Make sure we were called from Makefile
 
