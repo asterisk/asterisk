@@ -117,6 +117,8 @@ Dialplan Functions
    mode=multirow.  If rowlimit is set, then additional rows may be retrieved
    from the same query by using the name of the function which retrieved the
    first row as an argument to ODBC_FETCH().
+  * Added JABBER_RECEIVE, which permits receiving XMPP messages from the
+    dialplan. This function returns the content of the received message.
 
 Dialplan Variables
 ------------------
@@ -264,6 +266,11 @@ Security Events Framework
    Asterisk component that reports security events.  However, SIP support will be
    coming soon.  For more information on the security events framework, see the
    "Security Events" chapter of the included documentation - doc/tex/asterisk.pdf.
+
+Miscellaneous
+-------------
+ * SendText is now implemented in chan_gtalk and chan_jingle. It will simply send
+   XMPP text messages to the remote JID.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.1 to Asterisk 1.6.2  -------------
@@ -414,7 +421,7 @@ Miscellaneous
    can connect calls in passthrough mode, as well as record and play back files.
  * Successful and unsuccessful call pickup can now be alerted through sounds, by
    using pickupsound and pickupfailsound in features.conf.
- * ASTVARRUNDIR is now set to $(localstatedir)/run/asterisk by default. 
+ * ASTVARRUNDIR is now set to $(localstatedir)/run/asterisk by default.
    This means the asterisk pid file will now be in /var/run/asterisk/asterisk.pid on LINUX
    instead of the /var/run/asterisk.pid where it used to be. This will make
    installs as non-root easier to manage.

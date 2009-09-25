@@ -169,6 +169,7 @@ AST_MUTEX_DEFINE_STATIC(jinglelock); /*!< Protect the interface list (of jingle_
 
 /* Forward declarations */
 static struct ast_channel *jingle_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause);
+static int jingle_sendtext(struct ast_channel *ast, const char *text);
 static int jingle_digit_begin(struct ast_channel *ast, char digit);
 static int jingle_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static int jingle_call(struct ast_channel *ast, char *dest, int timeout);
@@ -190,6 +191,7 @@ static const struct ast_channel_tech jingle_tech = {
 	.description = "Jingle Channel Driver",
 	.capabilities = AST_FORMAT_AUDIO_MASK,
 	.requester = jingle_request,
+	.send_text = jingle_sendtext,
 	.send_digit_begin = jingle_digit_begin,
 	.send_digit_end = jingle_digit_end,
 	.bridge = ast_rtp_instance_bridge,
@@ -1270,6 +1272,26 @@ static int jingle_indicate(struct ast_channel *ast, int condition, const void *d
 		res = -1;
 	}
 
+	return res;
+}
+
+static int jingle_sendtext(struct ast_channel *chan, const char *text)
+{
+	int res = 0;
+	struct aji_client *client = NULL;
+	struct jingle_pvt *p = chan->tech_pvt;
+
+
+	if (!p->parent) {
+		ast_log(LOG_ERROR, "Parent channel not found\n");
+		return -1;
+	}
+	if (!p->parent->connection) {
+		ast_log(LOG_ERROR, "XMPP client not found\n");
+		return -1;
+	}
+	client = p->parent->connection;
+	res = ast_aji_send_chat(client, p->them, text);
 	return res;
 }
 

@@ -20,4 +20,7 @@
 					;;	xaway, or dnd
 ;statusmessage="I am available"		;;Have custom status message for
 					;;Asterisk.
-;timeout=100				;;Timeout on the message stack.
+;timeout=5				;;Timeout (in seconds) on the message stack, defaults to 5.
+					;;Messages stored longer than this value will be deleted by Asterisk.
+					;;This option applies to incoming messages only, which are intended to
+					;;be processed by the JABBER_RECEIVE dialplan function.

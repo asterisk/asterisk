@@ -117,7 +117,7 @@ struct aji_message {
 	char *from;
 	char *message;
 	char id[25];
-	time_t arrived;
+	struct timeval arrived;
 	AST_LIST_ENTRY(aji_message) list;
 };
 
