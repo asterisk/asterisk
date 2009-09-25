@@ -1367,6 +1367,45 @@ struct ast_channel *ast_channel_iterator_next(struct ast_channel_iterator *i)
 	return chan;
 }
 
+static int ast_channel_cmp_cb(void *obj, void *arg, int flags)
+{
+	struct ast_channel *chan = obj, *cmp_args = arg;
+	size_t name_len;
+	int ret = CMP_MATCH;
+
+	/* This is sort of a hack.  Basically, we're using an arbitrary field
+	 * in ast_channel to pass the name_len for a prefix match.  If this
+	 * gets changed, then the uses of ao2_find() must be changed, too. */
+	name_len = cmp_args->rings;
+
+	ast_channel_lock(chan);
+
+	if (cmp_args->name) { /* match by name */
+		if ((!name_len && strcasecmp(chan->name, cmp_args->name)) ||
+				(name_len && strncasecmp(chan->name, cmp_args->name, name_len))) {
+			ret = 0; /* name match failed */
+		}
+	} else if (cmp_args->exten) {
+		if (cmp_args->context && strcasecmp(chan->context, cmp_args->context) &&
+				strcasecmp(chan->macrocontext, cmp_args->context)) {
+			ret = 0; /* context match failed */
+		}
+		if (ret && strcasecmp(chan->exten, cmp_args->exten) &&
+				strcasecmp(chan->macroexten, cmp_args->exten)) {
+			ret = 0; /* exten match failed */
+		}
+	} else if (cmp_args->uniqueid) {
+		if ((!name_len && strcasecmp(chan->uniqueid, cmp_args->uniqueid)) ||
+				(name_len && strncasecmp(chan->uniqueid, cmp_args->uniqueid, name_len))) {
+			ret = 0; /* uniqueid match failed */
+		}
+	}
+
+	ast_channel_unlock(chan);
+
+	return ret;
+}
+
 static struct ast_channel *ast_channel_get_full(const char *name, size_t name_len,
 	const char *exten, const char *context)
 {
@@ -1387,7 +1426,8 @@ static struct ast_channel *ast_channel_get_full(const char *name, size_t name_le
 		ast_copy_string(tmp_chan.context, context, sizeof(tmp_chan.context));
 	}
 
-	if ((chan = ao2_find(channels, &tmp_chan, !ast_strlen_zero(name) ? OBJ_POINTER : 0))) {
+	if ((chan = ao2_find(channels, &tmp_chan,
+			     (!ast_strlen_zero(name) && (name_len != 0)) ? OBJ_POINTER : 0))) {
 		return chan;
 	}
 
@@ -6246,45 +6286,6 @@ static int ast_channel_hash_cb(const void *obj, const int flags)
 	}
 
 	return ast_str_case_hash(chan->name);
-}
-
-static int ast_channel_cmp_cb(void *obj, void *arg, int flags)
-{
-	struct ast_channel *chan = obj, *cmp_args = arg;
-	size_t name_len;
-	int ret = CMP_MATCH;
-
-	/* This is sort of a hack.  Basically, we're using an arbitrary field
-	 * in ast_channel to pass the name_len for a prefix match.  If this
-	 * gets changed, then the uses of ao2_find() must be changed, too. */
-	name_len = cmp_args->rings;
-
-	ast_channel_lock(chan);
-
-	if (cmp_args->name) { /* match by name */
-		if ((!name_len && strcasecmp(chan->name, cmp_args->name)) ||
-				(name_len && strncasecmp(chan->name, cmp_args->name, name_len))) {
-			ret = 0; /* name match failed */
-		}
-	} else if (cmp_args->exten) {
-		if (cmp_args->context && strcasecmp(chan->context, cmp_args->context) &&
-				strcasecmp(chan->macrocontext, cmp_args->context)) {
-			ret = 0; /* context match failed */
-		}
-		if (ret && strcasecmp(chan->exten, cmp_args->exten) &&
-				strcasecmp(chan->macroexten, cmp_args->exten)) {
-			ret = 0; /* exten match failed */
-		}
-	} else if (cmp_args->uniqueid) {
-		if ((!name_len && strcasecmp(chan->uniqueid, cmp_args->uniqueid)) ||
-				(name_len && strncasecmp(chan->uniqueid, cmp_args->uniqueid, name_len))) {
-			ret = 0; /* uniqueid match failed */
-		}
-	}
-
-	ast_channel_unlock(chan);
-
-	return ret;
 }
 
 void ast_channels_init(void)
