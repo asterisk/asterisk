@@ -1427,7 +1427,7 @@ static struct ast_channel *ast_channel_get_full(const char *name, size_t name_le
 	}
 
 	if ((chan = ao2_find(channels, &tmp_chan,
-			     (!ast_strlen_zero(name) && (name_len != 0)) ? OBJ_POINTER : 0))) {
+			     (!ast_strlen_zero(name) && (name_len == 0)) ? OBJ_POINTER : 0))) {
 		return chan;
 	}
 
