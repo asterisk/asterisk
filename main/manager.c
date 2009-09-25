@@ -70,7 +70,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/ast_version.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/linkedlists.h"
-#include "asterisk/version.h"
 #include "asterisk/term.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/features.h"
