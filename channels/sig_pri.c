@@ -2890,29 +2890,27 @@ int sig_pri_answer(struct sig_pri_chan *p, struct ast_channel *ast)
 int sig_pri_available(struct sig_pri_chan *p, int channelmatch, ast_group_t groupmatch, int *reason, int *channelmatched, int *groupmatched)
 {
 	/* If no owner definitely available */
-	if (!p->owner) {
-		/* Trust PRI */
-		if (p->pri) {
+	if (!p->owner && p->pri) {
 #ifdef HAVE_PRI_SERVICE_MESSAGES
-			char db_chan_name[20], db_answer[5], state;
-			int why = 0;
+		char db_chan_name[20], db_answer[5], state;
+		int why = 0;
 
-			snprintf(db_chan_name, sizeof(db_chan_name), "%s/%d:%d", dahdi_db, p->pri->span, p->channel);
-			if (!ast_db_get(db_chan_name, SRVST_DBKEY, db_answer, sizeof(db_answer))) {
-				sscanf(db_answer, "%1c:%30d", &state, &why);
-			}
-			if ((p->resetting || p->call) || (why)) {
-				if (why) {
-					*reason = AST_CAUSE_REQUESTED_CHAN_UNAVAIL;
-				}
-#else
-			if (p->resetting || p->call) {
-#endif
-				return 0;
-			} else {
-				return 1;
-			}
+		snprintf(db_chan_name, sizeof(db_chan_name), "%s/%d:%d", dahdi_db, p->pri->span, p->channel);
+		if (!ast_db_get(db_chan_name, SRVST_DBKEY, db_answer, sizeof(db_answer))) {
+			sscanf(db_answer, "%1c:%30d", &state, &why);
 		}
+		if (p->resetting || p->call || why) {
+			if (why) {
+				*reason = AST_CAUSE_REQUESTED_CHAN_UNAVAIL;
+			}
+			return 0;
+		}
+#else
+		if (p->resetting || p->call) {
+			return 0;
+		}
+#endif
+		return 1;
 	}
 
 	return 0;
