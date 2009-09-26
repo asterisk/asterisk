@@ -49,6 +49,7 @@ typedef AES_KEY ast_aes_decrypt_key;
 
 /* Use the included AES implementation */
 
+#define AES_128
 #include "aes_internal.h"
 
 typedef aes_encrypt_ctx ast_aes_encrypt_key;
