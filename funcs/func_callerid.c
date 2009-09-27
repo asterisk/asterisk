@@ -17,7 +17,7 @@
 /*! \file
  *
  * \brief Caller ID related dialplan functions
- * 
+ *
  * \ingroup functions
  */
 
@@ -43,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<enumlist>
 					<enum name="all" />
 					<enum name="num" />
+					<enum name="name" />
 					<enum name="ANI" />
 					<enum name="DNID" />
 					<enum name="RDNIS" />
