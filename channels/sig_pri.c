@@ -2360,6 +2360,7 @@ static void *pri_dchannel(void *vpri)
 				break;
 			default:
 				ast_debug(1, "Event: %d\n", e->e);
+				break;
 			}
 		}
 		ast_mutex_unlock(&pri->lock);
@@ -2800,7 +2801,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 			chan->_softhangup |= AST_SOFTHANGUP_DEV;
 			res = 0;
 		} else if (!p->progress && p->pri && !p->outgoing) {
-			if (p->pri) {
+			if (p->pri->pri) {
 				if (!pri_grab(p, p->pri)) {
 #ifdef HAVE_PRI_PROG_W_CAUSE
 					pri_progress_with_cause(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1, PRI_CAUSE_SWITCH_CONGESTION); /* cause = 42 */

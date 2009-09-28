@@ -293,8 +293,6 @@ static struct ast_jb_conf global_jbconf;
 /*! \brief Typically, how many rings before we should send Caller*ID */
 #define DEFAULT_CIDRINGS 1
 
-#define CHANNEL_PSEUDO -12
-
 #define AST_LAW(p) (((p)->law == DAHDI_LAW_ALAW) ? AST_FORMAT_ALAW : AST_FORMAT_ULAW)
 
 
@@ -5194,8 +5192,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 		dahdi_setlinear(p->subs[SUB_REAL].dfd, 0);
 		law = DAHDI_LAW_DEFAULT;
 		res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETLAW, &law);
-		if (p->sig)
-			dahdi_disable_ec(p);
+		dahdi_disable_ec(p);
 		update_conf(p);
 		reset_conf(p);
 		sig_pri_hangup(p->sig_pvt, ast);
@@ -11390,7 +11387,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				analog_config_complete(analog_p);
 			}
 		}
-#ifdef HAVE_PRI
+#if defined(HAVE_PRI)
 		else if (pchan != NULL) {
 			pchan->channel = tmp->channel;
 			pchan->hidecallerid = tmp->hidecallerid;
@@ -11405,7 +11402,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 			ast_copy_string(pchan->mohinterpret, tmp->mohinterpret, sizeof(pchan->mohinterpret));
 			pchan->stripmsd = tmp->stripmsd;
 		}
-#endif
+#endif	/* defined(HAVE_PRI) */
 	}
 	if (tmp && !here) {
 		/* Add the new channel interface to the sorted channel interface list. */
