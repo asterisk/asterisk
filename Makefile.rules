@@ -39,6 +39,8 @@ OPTIMIZE?=-O6
 
 ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS)),)
     _ASTCFLAGS+=$(OPTIMIZE)
+else
+    _ASTCFLAGS+=-O0
 endif
 
 # shortcuts for common combinations of flags; these must be recursively expanded so that
