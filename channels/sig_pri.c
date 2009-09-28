@@ -780,6 +780,7 @@ static void apply_plan_to_number(char *buf, size_t size, const struct sig_pri_pr
 	}
 }
 
+/*! \note Assumes the pri->lock is already obtained. */
 static int pri_check_restart(struct sig_pri_pri *pri)
 {
 #ifdef HAVE_PRI_SERVICE_MESSAGES
@@ -797,16 +798,14 @@ tryanotherpos:
 		int why;
 
 		/* check if the channel is out of service */
-		ast_mutex_lock(&pri->pvts[pri->resetpos]->service_lock);
-		snprintf(db_chan_name, sizeof(db_chan_name), "%s/%d:%d", dahdi_db, pri->pvts[pri->resetpos]->pri->span, pri->pvts[pri->resetpos]->channel);
-		ast_mutex_unlock(&pri->pvts[pri->resetpos]->service_lock);
+		snprintf(db_chan_name, sizeof(db_chan_name), "%s/%d:%d", dahdi_db, pri->span, pri->pvts[pri->resetpos]->channel);
 
 		/* if so, try next channel */
 		if (!ast_db_get(db_chan_name, SRVST_DBKEY, db_answer, sizeof(db_answer))) {
 			sscanf(db_answer, "%1c:%30d", &state, &why);
 			if (why) {
 				ast_log(LOG_NOTICE, "span '%d' channel '%d' out-of-service (reason: %s), not sending RESTART\n", pri->span,
-				pri->pvts[pri->resetpos]->channel, (why & SRVST_FAREND) ? (why & SRVST_NEAREND) ? "both ends" : "far end" : "near end");
+					pri->pvts[pri->resetpos]->channel, (why & SRVST_FAREND) ? (why & SRVST_NEAREND) ? "both ends" : "far end" : "near end");
 				goto tryanotherpos;
 			}
 		}
@@ -1494,25 +1493,24 @@ static void *pri_dchannel(void *vpri)
 						char db_chan_name[20], db_answer[5], state;
 						int why, skipit = 0;
 
-						ast_mutex_lock(&pri->pvts[chanpos]->service_lock);
-						snprintf(db_chan_name, sizeof(db_chan_name), "%s/%d:%d", dahdi_db, pri->pvts[chanpos]->pri->span, pri->pvts[chanpos]->channel);
-						ast_mutex_unlock(&pri->pvts[chanpos]->service_lock);
-
+						snprintf(db_chan_name, sizeof(db_chan_name), "%s/%d:%d", dahdi_db, pri->span, pri->pvts[chanpos]->channel);
 						if (!ast_db_get(db_chan_name, SRVST_DBKEY, db_answer, sizeof(db_answer))) {
 							sscanf(db_answer, "%1c:%30d", &state, &why);
 							if (why) {
 								ast_log(LOG_NOTICE, "span '%d' channel '%d' out-of-service (reason: %s), ignoring RESTART\n", pri->span,
-									e->restart.channel, (why & SRVST_FAREND) ? (why & SRVST_NEAREND) ? "both ends" : "far end" : "near end");
+									PRI_CHANNEL(e->restart.channel), (why & SRVST_FAREND) ? (why & SRVST_NEAREND) ? "both ends" : "far end" : "near end");
 								skipit = 1;
 							} else {
 								ast_db_del(db_chan_name, SRVST_DBKEY);
 							}
 						}
+#endif
+						sig_pri_lock_private(pri->pvts[chanpos]);
+#ifdef HAVE_PRI_SERVICE_MESSAGES
 						if (!skipit) {
 #endif
 							ast_verb(3, "B-channel %d/%d restarted on span %d\n",
 								PRI_SPAN(e->restart.channel), PRI_CHANNEL(e->restart.channel), pri->span);
-							sig_pri_lock_private(pri->pvts[chanpos]);
 							if (pri->pvts[chanpos]->call) {
 								pri_destroycall(pri->pri, pri->pvts[chanpos]->call);
 								pri->pvts[chanpos]->call = NULL;
@@ -1526,7 +1524,7 @@ static void *pri_dchannel(void *vpri)
 						sig_pri_unlock_private(pri->pvts[chanpos]);
 					}
 				} else {
-					ast_verb(3, "Restart on requested on entire span %d\n", pri->span);
+					ast_verb(3, "Restart requested on entire span %d\n", pri->span);
 					for (x = 0; x < pri->numchans; x++)
 						if (pri->pvts[x]) {
 							sig_pri_lock_private(pri->pvts[x]);
@@ -1609,11 +1607,8 @@ static void *pri_dchannel(void *vpri)
 					char db_chan_name[20], db_answer[5], state;
 					int ch, why = -1;
 
-					ast_mutex_lock(&pri->pvts[chanpos]->service_lock);
 					ch = pri->pvts[chanpos]->channel;
-					ast_mutex_unlock(&pri->pvts[chanpos]->service_lock);
-
-					snprintf(db_chan_name, sizeof(db_chan_name), "%s/%d:%d", dahdi_db, pri->pvts[chanpos]->pri->span, ch);
+					snprintf(db_chan_name, sizeof(db_chan_name), "%s/%d:%d", dahdi_db, pri->span, ch);
 					if (!ast_db_get(db_chan_name, SRVST_DBKEY, db_answer, sizeof(db_answer))) {
 						sscanf(db_answer, "%1c:%30d", &state, &why);
 						ast_db_del(db_chan_name, SRVST_DBKEY);
