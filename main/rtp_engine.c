@@ -458,7 +458,6 @@ void ast_rtp_codecs_payloads_clear(struct ast_rtp_codecs *codecs, struct ast_rtp
 	int i;
 
 	for (i = 0; i < AST_RTP_MAX_PT; i++) {
-		ast_debug(2, "Clearing payload %d on %p\n", i, codecs);
 		codecs->payloads[i].asterisk_format = 0;
 		codecs->payloads[i].code = 0;
 		if (instance && instance->engine && instance->engine->payload_set) {
@@ -473,7 +472,6 @@ void ast_rtp_codecs_payloads_default(struct ast_rtp_codecs *codecs, struct ast_r
 
 	for (i = 0; i < AST_RTP_MAX_PT; i++) {
 		if (static_RTP_PT[i].code) {
-			ast_debug(2, "Set default payload %d on %p\n", i, codecs);
 			codecs->payloads[i].asterisk_format = static_RTP_PT[i].asterisk_format;
 			codecs->payloads[i].code = static_RTP_PT[i].code;
 			if (instance && instance->engine && instance->engine->payload_set) {
@@ -627,7 +625,6 @@ int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, const int asteris
 
 	for (i = 0; i < AST_RTP_MAX_PT; i++) {
 		if (codecs->payloads[i].asterisk_format == asterisk_format && codecs->payloads[i].code == code) {
-			ast_debug(2, "Found code %d at payload %d on %p\n", code, i, codecs);
 			return i;
 		}
 	}
