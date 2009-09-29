@@ -338,7 +338,7 @@ AST_THREADSTORAGE(ts_vmstate);
 static int init_mailstream(struct vm_state *vms, int box);
 static void write_file(char *filename, char *buffer, unsigned long len);
 static char *get_header_by_tag(char *header, char *tag, char *buf, size_t len);
-static void vm_imap_delete(int msgnum, struct ast_vm_user *vmu);
+static void vm_imap_delete(char *file, int msgnum, struct ast_vm_user *vmu);
 static char *get_user_by_mailbox(char *mailbox, char *buf, size_t len);
 static struct vm_state *get_vm_state_by_imapuser(const char *user, int interactive);
 static struct vm_state *get_vm_state_by_mailbox(const char *mailbox, const char *context, int interactive);
@@ -661,7 +661,7 @@ static char odbc_table[80];
 #define EXISTS(a,b,c,d) (ast_fileexists(c,NULL,d) > 0)
 #define RENAME(a,b,c,d,e,f,g,h) (rename_file(g,h));
 #define COPY(a,b,c,d,e,f,g,h) (copy_file(g,h));
-#define DELETE(a,b,c,d) (vm_imap_delete(b,d))
+#define DELETE(a,b,c,d) (vm_imap_delete(a,b,d))
 #else
 #define RETRIEVE(a,b,c,d)
 #define DISPOSE(a,b)
@@ -1485,14 +1485,15 @@ static void free_user(struct ast_vm_user *vmu)
 /* All IMAP-specific functions should go in this block. This
  * keeps them from being spread out all over the code */
 #ifdef IMAP_STORAGE
-static void vm_imap_delete(int msgnum, struct ast_vm_user *vmu)
+static void vm_imap_delete(char *file, int msgnum, struct ast_vm_user *vmu)
 {
 	char arg[10];
 	struct vm_state *vms;
 	unsigned long messageNum;
 
-	/* Greetings aren't stored in IMAP, so we can't delete them there */
-	if (msgnum < 0) {
+	/* If greetings aren't stored in IMAP, just delete the file */
+	if (msgnum < 0 && !imapgreetings) {
+		ast_filedelete(file, NULL);
 		return;
 	}
 
@@ -1514,6 +1515,7 @@ static void vm_imap_delete(int msgnum, struct ast_vm_user *vmu)
 	snprintf (arg, sizeof(arg), "%lu", messageNum);
 	ast_mutex_lock(&vms->lock);
 	mail_setflag (vms->mailstream, arg, "\\DELETED");
+	mail_expunge(vms->mailstream);
 	ast_mutex_unlock(&vms->lock);
 }
 
@@ -6482,7 +6484,7 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 #ifdef IMAP_STORAGE
 	vm_delete(fn);  /* Delete the file, but not the IMAP message */
 	if (ast_test_flag(vmu, VM_DELETE))  { /* Delete the IMAP message if delete = yes */
-		vm_imap_delete(vms->curmsg, vmu);
+		vm_imap_delete(NULL, vms->curmsg, vmu);
 		vms->newmessages--;  /* Fix new message count */
 	}
 #endif
