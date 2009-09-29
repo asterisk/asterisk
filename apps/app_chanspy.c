@@ -250,9 +250,10 @@ static int channel_spy(struct ast_channel *chan, struct chanspy_ds *spyee_chansp
 	ast_channel_unlock(chan);
 
 	ast_mutex_lock(&spyee_chanspy_ds->lock);
-	if (spyee_chanspy_ds->chan) {
-		spyee = spyee_chanspy_ds->chan;
-		ast_channel_lock(spyee);
+	while ((spyee = spyee_chanspy_ds->chan) && ast_channel_trylock(spyee)) {
+		/* avoid a deadlock here, just in case spyee is masqueraded and
+		 * chanspy_ds_chan_fixup() is called with the channel locked */
+		DEADLOCK_AVOIDANCE(&spyee_chanspy_ds->lock);
 	}
 	ast_mutex_unlock(&spyee_chanspy_ds->lock);
 
