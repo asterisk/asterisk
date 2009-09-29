@@ -483,6 +483,9 @@ int ast_cel_report_event(struct ast_channel *chan, enum ast_cel_event_type event
 
 	if (!cel_enabled || !ast_cel_track_event(event_type)) {
 		ast_mutex_unlock(&reload_lock);
+		if (peer) {
+			ast_channel_unref(peer);
+		}
 		return 0;
 	}
 
@@ -490,6 +493,9 @@ int ast_cel_report_event(struct ast_channel *chan, enum ast_cel_event_type event
 		char *app;
 		if (!(app = ao2_find(appset, (char *) chan->appl, OBJ_POINTER))) {
 			ast_mutex_unlock(&reload_lock);
+			if (peer) {
+				ast_channel_unref(peer);
+			}
 			return 0;
 		}
 		ao2_ref(app, -1);
