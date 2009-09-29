@@ -97,6 +97,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
                 <description>
                         <para>Enters the user into a specified conference bridge. The user can exit the conference by hangup only.</para>
                         <para>The join sound can be set using the <literal>CONFBRIDGE_JOIN_SOUND</literal> variable and the leave sound can be set using the <literal>CONFBRIDGE_LEAVE_SOUND</literal> variable. These can be unique to the caller.</para>
+			<note>This application will not automatically answer the channel.</note>
                 </description>
         </application>
 ***/
@@ -135,10 +136,10 @@ AST_APP_OPTIONS(app_opts,{
 	AST_APP_OPTION('A', OPTION_MARKEDUSER),
 	AST_APP_OPTION('a', OPTION_ADMIN),
 	AST_APP_OPTION('c', OPTION_ANNOUNCEUSERCOUNT),
-	AST_APP_OPTION('m', OPTION_MENU),
+	AST_APP_OPTION('m', OPTION_STARTMUTED),
 	AST_APP_OPTION_ARG('M', OPTION_MUSICONHOLD, OPTION_MUSICONHOLD_CLASS),
 	AST_APP_OPTION('1', OPTION_NOONLYPERSON),
-	AST_APP_OPTION('s', OPTION_STARTMUTED),
+	AST_APP_OPTION('s', OPTION_MENU),
 	AST_APP_OPTION('w', OPTION_WAITMARKED),
 	AST_APP_OPTION('q', OPTION_QUIET),
 });
