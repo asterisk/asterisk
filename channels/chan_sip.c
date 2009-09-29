@@ -2566,7 +2566,7 @@ static void append_history_full(struct sip_pvt *p, const char *fmt, ...);
 static void sip_dump_history(struct sip_pvt *dialog);
 
 /*--- Device object handling */
-static struct sip_peer *build_peer(const char *name, struct ast_variable *v, struct ast_variable *alt, int realtime);
+static struct sip_peer *build_peer(const char *name, struct ast_variable *v, struct ast_variable *alt, int realtime, int devstate_only);
 static int update_call_counter(struct sip_pvt *fup, int event);
 static void sip_destroy_peer(struct sip_peer *peer);
 static void sip_destroy_peer_fn(void *peer);
@@ -4871,7 +4871,7 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 
 
 	/* Peer found in realtime, now build it in memory */
-	peer = build_peer(newpeername, var, varregs, TRUE);
+	peer = build_peer(newpeername, var, varregs, TRUE, devstate_only);
 	if (!peer) {
 		if(peerlist)
 			ast_config_destroy(peerlist);
@@ -24135,7 +24135,7 @@ static void add_peer_mailboxes(struct sip_peer *peer, const char *value)
 }
 
 /*! \brief Build peer from configuration (file or realtime static/dynamic) */
-static struct sip_peer *build_peer(const char *name, struct ast_variable *v, struct ast_variable *alt, int realtime)
+static struct sip_peer *build_peer(const char *name, struct ast_variable *v, struct ast_variable *alt, int realtime, int devstate_only)
 {
 	struct sip_peer *peer = NULL;
 	struct ast_ha *oldha = NULL;
@@ -24208,275 +24208,327 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	peer->transports = 0;
 
 	for (; v || ((v = alt) && !(alt=NULL)); v = v->next) {
-		if (handle_common_options(&peerflags[0], &mask[0], v))
-			continue;
-		if (!strcasecmp(v->name, "transport") && !ast_strlen_zero(v->value)) {
-			char *val = ast_strdupa(v->value);
-			char *trans;
-
-			while ((trans = strsep(&val, ","))) {
-				trans = ast_skip_blanks(trans);
-
-				if (!strncasecmp(trans, "udp", 3))
-					peer->transports |= SIP_TRANSPORT_UDP;
-				else if (!strncasecmp(trans, "tcp", 3))
-					peer->transports |= SIP_TRANSPORT_TCP;
-				else if (!strncasecmp(trans, "tls", 3))
-					peer->transports |= SIP_TRANSPORT_TLS;
-				else
-					ast_log(LOG_NOTICE, "'%s' is not a valid transport type. if no other is specified, udp will be used.\n", trans);
-
-				if (!peer->default_outbound_transport) { /*!< The first transport listed should be default outbound */
-					peer->default_outbound_transport = peer->transports;
-				}
+		if (!devstate_only) {
+			if (handle_common_options(&peerflags[0], &mask[0], v)) {
+				continue;
 			}
-		} else if (realtime && !strcasecmp(v->name, "regseconds")) {
-			ast_get_time_t(v->value, &regseconds, 0, NULL);
-		} else if (realtime && !strcasecmp(v->name, "lastms")) {
+			if (!strcasecmp(v->name, "transport") && !ast_strlen_zero(v->value)) {
+				char *val = ast_strdupa(v->value);
+				char *trans;
+
+				while ((trans = strsep(&val, ","))) {
+					trans = ast_skip_blanks(trans);
+
+					if (!strncasecmp(trans, "udp", 3)) {
+						peer->transports |= SIP_TRANSPORT_UDP;
+					} else if (!strncasecmp(trans, "tcp", 3)) {
+						peer->transports |= SIP_TRANSPORT_TCP;
+					} else if (!strncasecmp(trans, "tls", 3)) {
+						peer->transports |= SIP_TRANSPORT_TLS;
+					} else {
+						ast_log(LOG_NOTICE, "'%s' is not a valid transport type. if no other is specified, udp will be used.\n", trans);
+					}
+
+					if (!peer->default_outbound_transport) { /*!< The first transport listed should be default outbound */
+						peer->default_outbound_transport = peer->transports;
+					}
+				}
+			} else if (realtime && !strcasecmp(v->name, "regseconds")) {
+				ast_get_time_t(v->value, &regseconds, 0, NULL);
+			} else if (realtime && !strcasecmp(v->name, "name")) {
+				ast_copy_string(peer->name, v->value, sizeof(peer->name));
+			} else if (realtime && !strcasecmp(v->name, "fullcontact")) {
+				if (alt_fullcontact && !alt) {
+					/* Reset, because the alternate also has a fullcontact and we
+					 * do NOT want the field value to be doubled. It might be
+					 * tempting to skip this, but the first table might not have
+					 * fullcontact and since we're here, we know that the alternate
+					 * absolutely does. */
+					alt_fullcontact = 0;
+					ast_str_reset(fullcontact);
+				}
+				/* Reconstruct field, because realtime separates our value at the ';' */
+				if (fullcontact->used > 0) {
+					ast_str_append(&fullcontact, 0, ";%s", v->value);
+				} else {
+					ast_str_set(&fullcontact, 0, "%s", v->value);
+				}
+			} else if (!strcasecmp(v->name, "type")) {
+				if (!strcasecmp(v->value, "peer")) {
+					peer->type |= SIP_TYPE_PEER;
+				} else if (!strcasecmp(v->value, "user")) {
+					peer->type |= SIP_TYPE_USER;
+				} else if (!strcasecmp(v->value, "friend")) {
+					peer->type = SIP_TYPE_USER | SIP_TYPE_PEER;
+				}
+			} else if (!strcasecmp(v->name, "remotesecret")) {
+				ast_string_field_set(peer, remotesecret, v->value);
+			} else if (!strcasecmp(v->name, "secret")) {
+				ast_string_field_set(peer, secret, v->value);
+			} else if (!strcasecmp(v->name, "md5secret")) {
+				ast_string_field_set(peer, md5secret, v->value);
+			} else if (!strcasecmp(v->name, "auth")) {
+				peer->auth = add_realm_authentication(peer->auth, v->value, v->lineno);
+			} else if (!strcasecmp(v->name, "callerid")) {
+				char cid_name[80] = { '\0' }, cid_num[80] = { '\0' };
+
+				ast_callerid_split(v->value, cid_name, sizeof(cid_name), cid_num, sizeof(cid_num));
+				ast_string_field_set(peer, cid_name, cid_name);
+				ast_string_field_set(peer, cid_num, cid_num);
+			} else if (!strcasecmp(v->name, "mwi_from")) {
+				ast_string_field_set(peer, mwi_from, v->value);
+			} else if (!strcasecmp(v->name, "fullname")) {
+				ast_string_field_set(peer, cid_name, v->value);
+			} else if (!strcasecmp(v->name, "cid_number")) {
+				ast_string_field_set(peer, cid_num, v->value);
+			} else if (!strcasecmp(v->name, "context")) {
+				ast_string_field_set(peer, context, v->value);
+			} else if (!strcasecmp(v->name, "subscribecontext")) {
+				ast_string_field_set(peer, subscribecontext, v->value);
+			} else if (!strcasecmp(v->name, "fromdomain")) {
+				ast_string_field_set(peer, fromdomain, v->value);
+			} else if (!strcasecmp(v->name, "usereqphone")) {
+				ast_set2_flag(&peer->flags[0], ast_true(v->value), SIP_USEREQPHONE);
+			} else if (!strcasecmp(v->name, "fromuser")) {
+				ast_string_field_set(peer, fromuser, v->value);
+			} else if (!strcasecmp(v->name, "outboundproxy")) {
+				char *port, *next, *force, *proxyname;
+				int forceopt = FALSE;
+				/* Set peer channel variable */
+				next = proxyname = ast_strdupa(v->value);
+				if ((port = strchr(proxyname, ':'))) {
+					*port++ = '\0';
+					next = port;
+				}
+				if ((force = strchr(next, ','))) {
+					*force++ = '\0';
+					forceopt = strcmp(force, "force");
+				}
+				/* Allocate proxy object */
+				peer->outboundproxy = proxy_allocate(proxyname, port, forceopt);
+			} else if (!strcasecmp(v->name, "host")) {
+				if (!strcasecmp(v->value, "dynamic")) {
+					/* They'll register with us */
+					if (!found || !peer->host_dynamic) {
+						/* Initialize stuff if this is a new peer, or if it used to
+						 * not be dynamic before the reload. */
+						memset(&peer->addr.sin_addr, 0, 4);
+						if (peer->addr.sin_port) {
+							/* If we've already got a port, make it the default rather than absolute */
+							peer->defaddr.sin_port = peer->addr.sin_port;
+							peer->addr.sin_port = 0;
+						}
+					}
+					peer->host_dynamic = TRUE;
+				} else {
+					/* Non-dynamic.  Make sure we become that way if we're not */
+					AST_SCHED_DEL_UNREF(sched, peer->expire,
+							unref_peer(peer, "removing register expire ref"));
+					peer->host_dynamic = FALSE;
+					srvlookup = v->value;
+					if (global_dynamic_exclude_static) {
+						int err = 0;
+						sip_cfg.contact_ha = ast_append_ha("deny", (char *)ast_inet_ntoa(peer->addr.sin_addr), sip_cfg.contact_ha, &err);
+						if (err) {
+							ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
+						}
+					}
+				}
+			} else if (!strcasecmp(v->name, "defaultip")) {
+				if (ast_get_ip(&peer->defaddr, v->value)) {
+					unref_peer(peer, "unref_peer: from build_peer defaultip");
+					return NULL;
+				}
+			} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
+				int ha_error = 0;
+				peer->ha = ast_append_ha(v->name, v->value, peer->ha, &ha_error);
+				if (ha_error) {
+					ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
+				}
+			} else if (!strcasecmp(v->name, "contactpermit") || !strcasecmp(v->name, "contactdeny")) {
+				int ha_error = 0;
+				peer->contactha = ast_append_ha(v->name + 7, v->value, peer->contactha, &ha_error);
+				if (ha_error) {
+					ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
+				}
+			} else if (!strcasecmp(v->name, "port")) {
+				if (!realtime && peer->host_dynamic) {
+					peer->defaddr.sin_port = htons(atoi(v->value));
+				} else {
+					peer->addr.sin_port = htons(atoi(v->value));
+				}
+			} else if (!strcasecmp(v->name, "callingpres")) {
+				peer->callingpres = ast_parse_caller_presentation(v->value);
+				if (peer->callingpres == -1) {
+					peer->callingpres = atoi(v->value);
+				}
+			} else if (!strcasecmp(v->name, "username") || !strcmp(v->name, "defaultuser")) {	/* "username" is deprecated */
+				ast_string_field_set(peer, username, v->value);
+				if (!strcasecmp(v->name, "username")) {
+					if (deprecation_warning) {
+						ast_log(LOG_NOTICE, "The 'username' field for sip peers has been deprecated in favor of the term 'defaultuser'\n");
+						deprecation_warning = 0;
+					}
+					peer->deprecated_username = 1;
+				}
+			} else if (!strcasecmp(v->name, "language")) {
+				ast_string_field_set(peer, language, v->value);
+			} else if (!strcasecmp(v->name, "regexten")) {
+				ast_string_field_set(peer, regexten, v->value);
+			} else if (!strcasecmp(v->name, "callbackextension")) {
+				ast_copy_string(callback, v->value, sizeof(callback));
+			} else if (!strcasecmp(v->name, "amaflags")) {
+				format = ast_cdr_amaflags2int(v->value);
+				if (format < 0) {
+					ast_log(LOG_WARNING, "Invalid AMA Flags for peer: %s at line %d\n", v->value, v->lineno);
+				} else {
+					peer->amaflags = format;
+				}
+			} else if (!strcasecmp(v->name, "accountcode")) {
+				ast_string_field_set(peer, accountcode, v->value);
+			} else if (!strcasecmp(v->name, "mohinterpret")) {
+				ast_string_field_set(peer, mohinterpret, v->value);
+			} else if (!strcasecmp(v->name, "mohsuggest")) {
+				ast_string_field_set(peer, mohsuggest, v->value);
+			} else if (!strcasecmp(v->name, "parkinglot")) {
+				ast_string_field_set(peer, parkinglot, v->value);
+			} else if (!strcasecmp(v->name, "rtp_engine")) {
+				ast_string_field_set(peer, engine, v->value);
+			} else if (!strcasecmp(v->name, "mailbox")) {
+				add_peer_mailboxes(peer, v->value);
+			} else if (!strcasecmp(v->name, "hasvoicemail")) {
+				/* People expect that if 'hasvoicemail' is set, that the mailbox will
+				 * be also set, even if not explicitly specified. */
+				if (ast_true(v->value) && AST_LIST_EMPTY(&peer->mailboxes)) {
+					add_peer_mailboxes(peer, name);
+				}
+			} else if (!strcasecmp(v->name, "subscribemwi")) {
+				ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_SUBSCRIBEMWIONLY);
+			} else if (!strcasecmp(v->name, "vmexten")) {
+				ast_string_field_set(peer, vmexten, v->value);
+			} else if (!strcasecmp(v->name, "callgroup")) {
+				peer->callgroup = ast_get_group(v->value);
+			} else if (!strcasecmp(v->name, "allowtransfer")) {
+				peer->allowtransfer = ast_true(v->value) ? TRANSFER_OPENFORALL : TRANSFER_CLOSED;
+			} else if (!strcasecmp(v->name, "pickupgroup")) {
+				peer->pickupgroup = ast_get_group(v->value);
+			} else if (!strcasecmp(v->name, "allow")) {
+				int error =  ast_parse_allow_disallow(&peer->prefs, &peer->capability, v->value, TRUE);
+				if (error) {
+					ast_log(LOG_WARNING, "Codec configuration errors found in line %d : %s = %s\n", v->lineno, v->name, v->value);
+				}
+			} else if (!strcasecmp(v->name, "disallow")) {
+				int error =  ast_parse_allow_disallow(&peer->prefs, &peer->capability, v->value, FALSE);
+				if (error) {
+					ast_log(LOG_WARNING, "Codec configuration errors found in line %d : %s = %s\n", v->lineno, v->name, v->value);
+				}
+			} else if (!strcasecmp(v->name, "preferred_codec_only")) {
+				ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_PREFERRED_CODEC);
+			} else if (!strcasecmp(v->name, "registertrying")) {
+				ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_REGISTERTRYING);
+			} else if (!strcasecmp(v->name, "autoframing")) {
+				peer->autoframing = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "rtptimeout")) {
+				if ((sscanf(v->value, "%30d", &peer->rtptimeout) != 1) || (peer->rtptimeout < 0)) {
+					ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
+					peer->rtptimeout = global_rtptimeout;
+				}
+			} else if (!strcasecmp(v->name, "rtpholdtimeout")) {
+				if ((sscanf(v->value, "%30d", &peer->rtpholdtimeout) != 1) || (peer->rtpholdtimeout < 0)) {
+					ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
+					peer->rtpholdtimeout = global_rtpholdtimeout;
+				}
+			} else if (!strcasecmp(v->name, "rtpkeepalive")) {
+				if ((sscanf(v->value, "%30d", &peer->rtpkeepalive) != 1) || (peer->rtpkeepalive < 0)) {
+					ast_log(LOG_WARNING, "'%s' is not a valid RTP keepalive time at line %d.  Using default.\n", v->value, v->lineno);
+					peer->rtpkeepalive = global_rtpkeepalive;
+				}
+			} else if (!strcasecmp(v->name, "timert1")) {
+				if ((sscanf(v->value, "%30d", &peer->timer_t1) != 1) || (peer->timer_t1 < 0)) {
+					ast_log(LOG_WARNING, "'%s' is not a valid T1 time at line %d.  Using default.\n", v->value, v->lineno);
+					peer->timer_t1 = global_t1;
+				}
+				/* Note that Timer B is dependent upon T1 and MUST NOT be lower
+				 * than T1 * 64, according to RFC 3261, Section 17.1.1.2 */
+				if (peer->timer_b < peer->timer_t1 * 64) {
+					peer->timer_b = peer->timer_t1 * 64;
+				}
+			} else if (!strcasecmp(v->name, "timerb")) {
+				if ((sscanf(v->value, "%30d", &peer->timer_b) != 1) || (peer->timer_b < 0)) {
+					ast_log(LOG_WARNING, "'%s' is not a valid Timer B time at line %d.  Using default.\n", v->value, v->lineno);
+					peer->timer_b = global_timer_b;
+				}
+				if (peer->timer_b < peer->timer_t1 * 64) {
+					static int warning = 0;
+					if (warning++ % 20 == 0) {
+						ast_log(LOG_WARNING, "Timer B has been set lower than recommended. (RFC 3261, 17.1.1.2)\n");
+					}
+				}
+			} else if (!strcasecmp(v->name, "rtpkeepalive")) {
+				if ((sscanf(v->value, "%30d", &peer->rtpkeepalive) != 1) || (peer->rtpkeepalive < 0)) {
+					ast_log(LOG_WARNING, "'%s' is not a valid RTP keepalive time at line %d.  Using default.\n", v->value, v->lineno);
+					peer->rtpkeepalive = global_rtpkeepalive;
+				}
+			} else if (!strcasecmp(v->name, "setvar")) {
+				peer->chanvars = add_var(v->value, peer->chanvars);
+			} else if (!strcasecmp(v->name, "header")) {
+				char tmp[4096];
+				snprintf(tmp, sizeof(tmp), "__SIPADDHEADERpre%2d=%s", ++headercount, v->value);
+				peer->chanvars = add_var(tmp, peer->chanvars);
+			} else if (!strcasecmp(v->name, "qualifyfreq")) {
+				int i;
+				if (sscanf(v->value, "%30d", &i) == 1) {
+					peer->qualifyfreq = i * 1000;
+				} else {
+					ast_log(LOG_WARNING, "Invalid qualifyfreq number '%s' at line %d of %s\n", v->value, v->lineno, config);
+					peer->qualifyfreq = global_qualifyfreq;
+				}
+			} else if (!strcasecmp(v->name, "maxcallbitrate")) {
+				peer->maxcallbitrate = atoi(v->value);
+				if (peer->maxcallbitrate < 0) {
+					peer->maxcallbitrate = default_maxcallbitrate;
+				}
+			} else if (!strcasecmp(v->name, "session-timers")) {
+				int i = (int) str2stmode(v->value);
+				if (i < 0) {
+					ast_log(LOG_WARNING, "Invalid session-timers '%s' at line %d of %s\n", v->value, v->lineno, config);
+					peer->stimer.st_mode_oper = global_st_mode;
+				} else {
+					peer->stimer.st_mode_oper = i;
+				}
+			} else if (!strcasecmp(v->name, "session-expires")) {
+				if (sscanf(v->value, "%30d", &peer->stimer.st_max_se) != 1) {
+					ast_log(LOG_WARNING, "Invalid session-expires '%s' at line %d of %s\n", v->value, v->lineno, config);
+					peer->stimer.st_max_se = global_max_se;
+				}
+			} else if (!strcasecmp(v->name, "session-minse")) {
+				if (sscanf(v->value, "%30d", &peer->stimer.st_min_se) != 1) {
+					ast_log(LOG_WARNING, "Invalid session-minse '%s' at line %d of %s\n", v->value, v->lineno, config);
+					peer->stimer.st_min_se = global_min_se;
+				}
+				if (peer->stimer.st_min_se < 90) {
+					ast_log(LOG_WARNING, "session-minse '%s' at line %d of %s is not allowed to be < 90 secs\n", v->value, v->lineno, config);
+					peer->stimer.st_min_se = global_min_se;
+				}
+			} else if (!strcasecmp(v->name, "session-refresher")) {
+				int i = (int) str2strefresher(v->value);
+				if (i < 0) {
+					ast_log(LOG_WARNING, "Invalid session-refresher '%s' at line %d of %s\n", v->value, v->lineno, config);
+					peer->stimer.st_ref = global_st_refresher;
+				} else {
+					peer->stimer.st_ref = i;
+				}
+			} else if (!strcasecmp(v->name, "disallowed_methods")) {
+				char *disallow = ast_strdupa(v->value);
+				mark_parsed_methods(&peer->disallowed_methods, disallow);
+			}
+		}
+
+		/* These apply to devstate lookups */
+		if (realtime && !strcasecmp(v->name, "lastms")) {
 			sscanf(v->value, "%30d", &peer->lastms);
 		} else if (realtime && !strcasecmp(v->name, "ipaddr") && !ast_strlen_zero(v->value) ) {
 			inet_aton(v->value, &(peer->addr.sin_addr));
-		} else if (realtime && !strcasecmp(v->name, "name"))
-			ast_copy_string(peer->name, v->value, sizeof(peer->name));
-		else if (realtime && !strcasecmp(v->name, "fullcontact")) {
-			if (alt_fullcontact && !alt) {
-				/* Reset, because the alternate also has a fullcontact and we
-				 * do NOT want the field value to be doubled. It might be
-				 * tempting to skip this, but the first table might not have
-				 * fullcontact and since we're here, we know that the alternate
-				 * absolutely does. */
-				alt_fullcontact = 0;
-				ast_str_reset(fullcontact);
-			}
-			/* Reconstruct field, because realtime separates our value at the ';' */
-			if (fullcontact->used > 0) {
-				ast_str_append(&fullcontact, 0, ";%s", v->value);
-			} else {
-				ast_str_set(&fullcontact, 0, "%s", v->value);
-			}
-		} else if (!strcasecmp(v->name, "type")) {
-			if (!strcasecmp(v->value, "peer")) {
-				peer->type |= SIP_TYPE_PEER;
-			} else if (!strcasecmp(v->value, "user")) {
-				peer->type |= SIP_TYPE_USER;
-			} else if (!strcasecmp(v->value, "friend")) {
-				peer->type = SIP_TYPE_USER | SIP_TYPE_PEER;
-			}
-		} else if (!strcasecmp(v->name, "remotesecret")) {
-			ast_string_field_set(peer, remotesecret, v->value);
-		} else if (!strcasecmp(v->name, "secret")) {
-			ast_string_field_set(peer, secret, v->value);
-		} else if (!strcasecmp(v->name, "md5secret"))
-			ast_string_field_set(peer, md5secret, v->value);
-		else if (!strcasecmp(v->name, "auth"))
-			peer->auth = add_realm_authentication(peer->auth, v->value, v->lineno);
-		else if (!strcasecmp(v->name, "callerid")) {
-			char cid_name[80] = { '\0' }, cid_num[80] = { '\0' };
-
-			ast_callerid_split(v->value, cid_name, sizeof(cid_name), cid_num, sizeof(cid_num));
-			ast_string_field_set(peer, cid_name, cid_name);
-			ast_string_field_set(peer, cid_num, cid_num);
-		} else if (!strcasecmp(v->name, "mwi_from")) {
-			ast_string_field_set(peer, mwi_from, v->value);
-		} else if (!strcasecmp(v->name, "fullname")) {
-			ast_string_field_set(peer, cid_name, v->value);
-		} else if (!strcasecmp(v->name, "cid_number")) {
-			ast_string_field_set(peer, cid_num, v->value);
-		} else if (!strcasecmp(v->name, "context")) {
-			ast_string_field_set(peer, context, v->value);
-		} else if (!strcasecmp(v->name, "subscribecontext")) {
-			ast_string_field_set(peer, subscribecontext, v->value);
-		} else if (!strcasecmp(v->name, "fromdomain")) {
-			ast_string_field_set(peer, fromdomain, v->value);
-		} else if (!strcasecmp(v->name, "usereqphone")) {
-			ast_set2_flag(&peer->flags[0], ast_true(v->value), SIP_USEREQPHONE);
-		} else if (!strcasecmp(v->name, "fromuser")) {
-			ast_string_field_set(peer, fromuser, v->value);
-		} else if (!strcasecmp(v->name, "outboundproxy")) {
-			char *port, *next, *force, *proxyname;
-			int forceopt = FALSE;
-			/* Set peer channel variable */
-			next = proxyname = ast_strdupa(v->value);
-			if ((port = strchr(proxyname, ':'))) {
-				*port++ = '\0';
-				next = port;
-			}
-			if ((force = strchr(next, ','))) {
-				*force++ = '\0';
-				forceopt = strcmp(force, "force");
-			}
-			/* Allocate proxy object */
-			peer->outboundproxy = proxy_allocate(proxyname, port, forceopt);
-		} else if (!strcasecmp(v->name, "host")) {
-			if (!strcasecmp(v->value, "dynamic")) {
-				/* They'll register with us */
-				if (!found || !peer->host_dynamic) {
-					/* Initialize stuff if this is a new peer, or if it used to
-					 * not be dynamic before the reload. */
-					memset(&peer->addr.sin_addr, 0, 4);
-					if (peer->addr.sin_port) {
-						/* If we've already got a port, make it the default rather than absolute */
-						peer->defaddr.sin_port = peer->addr.sin_port;
-						peer->addr.sin_port = 0;
-					}
-				}
-				peer->host_dynamic = TRUE;
-			} else {
-				/* Non-dynamic.  Make sure we become that way if we're not */
-				AST_SCHED_DEL_UNREF(sched, peer->expire,
-						unref_peer(peer, "removing register expire ref"));
-				peer->host_dynamic = FALSE;
-				srvlookup = v->value;
-				if (global_dynamic_exclude_static) {
-					int err = 0;
-					sip_cfg.contact_ha = ast_append_ha("deny", (char *)ast_inet_ntoa(peer->addr.sin_addr), sip_cfg.contact_ha, &err);
-					if (err) {
-						ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
-					}
-				}
-			}
-		} else if (!strcasecmp(v->name, "defaultip")) {
-			if (ast_get_ip(&peer->defaddr, v->value)) {
-				unref_peer(peer, "unref_peer: from build_peer defaultip");
-				return NULL;
-			}
-		} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
-			int ha_error = 0;
-
-			peer->ha = ast_append_ha(v->name, v->value, peer->ha, &ha_error);
-			if (ha_error)
-				ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
-		} else if (!strcasecmp(v->name, "contactpermit") || !strcasecmp(v->name, "contactdeny")) {
-			int ha_error = 0;
-			peer->contactha = ast_append_ha(v->name + 7, v->value, peer->contactha, &ha_error);
-			if (ha_error) {
-				ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
-			}
-		} else if (!strcasecmp(v->name, "port")) {
-			if (!realtime && peer->host_dynamic)
-				peer->defaddr.sin_port = htons(atoi(v->value));
-			else
-				peer->addr.sin_port = htons(atoi(v->value));
-		} else if (!strcasecmp(v->name, "callingpres")) {
-			peer->callingpres = ast_parse_caller_presentation(v->value);
-			if (peer->callingpres == -1)
-				peer->callingpres = atoi(v->value);
-		} else if (!strcasecmp(v->name, "username") || !strcmp(v->name, "defaultuser")) {	/* "username" is deprecated */
-			ast_string_field_set(peer, username, v->value);
-			if (!strcasecmp(v->name, "username")) {
-				if (deprecation_warning) {
-					ast_log(LOG_NOTICE, "The 'username' field for sip peers has been deprecated in favor of the term 'defaultuser'\n");
-					deprecation_warning = 0;
-				}
-				peer->deprecated_username = 1;
-			}
-		} else if (!strcasecmp(v->name, "language")) {
-			ast_string_field_set(peer, language, v->value);
-		} else if (!strcasecmp(v->name, "regexten")) {
-			ast_string_field_set(peer, regexten, v->value);
-		} else if (!strcasecmp(v->name, "callbackextension")) {
-			ast_copy_string(callback, v->value, sizeof(callback));
-		} else if (!strcasecmp(v->name, "callcounter")) {
-			peer->call_limit = ast_true(v->value) ? INT_MAX : 0;
-		} else if (!strcasecmp(v->name, "call-limit")) {
-			peer->call_limit = atoi(v->value);
-			if (peer->call_limit < 0)
-				peer->call_limit = 0;
-		} else if (!strcasecmp(v->name, "busylevel")) {
-			peer->busy_level = atoi(v->value);
-			if (peer->busy_level < 0)
-				peer->busy_level = 0;
-		} else if (!strcasecmp(v->name, "amaflags")) {
-			format = ast_cdr_amaflags2int(v->value);
-			if (format < 0) {
-				ast_log(LOG_WARNING, "Invalid AMA Flags for peer: %s at line %d\n", v->value, v->lineno);
-			} else {
-				peer->amaflags = format;
-			}
-		} else if (!strcasecmp(v->name, "accountcode")) {
-			ast_string_field_set(peer, accountcode, v->value);
-		} else if (!strcasecmp(v->name, "mohinterpret")) {
-			ast_string_field_set(peer, mohinterpret, v->value);
-		} else if (!strcasecmp(v->name, "mohsuggest")) {
-			ast_string_field_set(peer, mohsuggest, v->value);
-		} else if (!strcasecmp(v->name, "parkinglot")) {
-			ast_string_field_set(peer, parkinglot, v->value);
-		} else if (!strcasecmp(v->name, "rtp_engine")) {
-			ast_string_field_set(peer, engine, v->value);
-		} else if (!strcasecmp(v->name, "mailbox")) {
-			add_peer_mailboxes(peer, v->value);
-		} else if (!strcasecmp(v->name, "hasvoicemail")) {
-			/* People expect that if 'hasvoicemail' is set, that the mailbox will
-			 * be also set, even if not explicitly specified. */
-			if (ast_true(v->value) && AST_LIST_EMPTY(&peer->mailboxes)) {
-				add_peer_mailboxes(peer, name);
-			}
-		} else if (!strcasecmp(v->name, "subscribemwi")) {
-			ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_SUBSCRIBEMWIONLY);
-		} else if (!strcasecmp(v->name, "vmexten")) {
-			ast_string_field_set(peer, vmexten, v->value);
-		} else if (!strcasecmp(v->name, "callgroup")) {
-			peer->callgroup = ast_get_group(v->value);
-		} else if (!strcasecmp(v->name, "allowtransfer")) {
-			peer->allowtransfer = ast_true(v->value) ? TRANSFER_OPENFORALL : TRANSFER_CLOSED;
-		} else if (!strcasecmp(v->name, "pickupgroup")) {
-			peer->pickupgroup = ast_get_group(v->value);
-		} else if (!strcasecmp(v->name, "allow")) {
-			int error =  ast_parse_allow_disallow(&peer->prefs, &peer->capability, v->value, TRUE);
-			if (error)
-				ast_log(LOG_WARNING, "Codec configuration errors found in line %d : %s = %s\n", v->lineno, v->name, v->value);
-		} else if (!strcasecmp(v->name, "disallow")) {
-			int error =  ast_parse_allow_disallow(&peer->prefs, &peer->capability, v->value, FALSE);
-			if (error)
-				ast_log(LOG_WARNING, "Codec configuration errors found in line %d : %s = %s\n", v->lineno, v->name, v->value);
-		} else if (!strcasecmp(v->name, "preferred_codec_only")) {
-			ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_PREFERRED_CODEC);
-		} else if (!strcasecmp(v->name, "registertrying")) {
-			ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_REGISTERTRYING);
-		} else if (!strcasecmp(v->name, "autoframing")) {
-			peer->autoframing = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "rtptimeout")) {
-			if ((sscanf(v->value, "%30d", &peer->rtptimeout) != 1) || (peer->rtptimeout < 0)) {
-				ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
-				peer->rtptimeout = global_rtptimeout;
-			}
-		} else if (!strcasecmp(v->name, "rtpholdtimeout")) {
-			if ((sscanf(v->value, "%30d", &peer->rtpholdtimeout) != 1) || (peer->rtpholdtimeout < 0)) {
-				ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
-				peer->rtpholdtimeout = global_rtpholdtimeout;
-			}
-		} else if (!strcasecmp(v->name, "rtpkeepalive")) {
-			if ((sscanf(v->value, "%30d", &peer->rtpkeepalive) != 1) || (peer->rtpkeepalive < 0)) {
-				ast_log(LOG_WARNING, "'%s' is not a valid RTP keepalive time at line %d.  Using default.\n", v->value, v->lineno);
-				peer->rtpkeepalive = global_rtpkeepalive;
-			}
-		} else if (!strcasecmp(v->name, "timert1")) {
-			if ((sscanf(v->value, "%30d", &peer->timer_t1) != 1) || (peer->timer_t1 < 0)) {
-				ast_log(LOG_WARNING, "'%s' is not a valid T1 time at line %d.  Using default.\n", v->value, v->lineno);
-				peer->timer_t1 = global_t1;
-			}
-			/* Note that Timer B is dependent upon T1 and MUST NOT be lower
-			 * than T1 * 64, according to RFC 3261, Section 17.1.1.2 */
-			if (peer->timer_b < peer->timer_t1 * 64) {
-				peer->timer_b = peer->timer_t1 * 64;
-			}
-		} else if (!strcasecmp(v->name, "timerb")) {
-			if ((sscanf(v->value, "%30d", &peer->timer_b) != 1) || (peer->timer_b < 0)) {
-				ast_log(LOG_WARNING, "'%s' is not a valid Timer B time at line %d.  Using default.\n", v->value, v->lineno);
-				peer->timer_b = global_timer_b;
-			}
-			if (peer->timer_b < peer->timer_t1 * 64) {
-				static int warning = 0;
-				if (warning++ % 20 == 0) {
-					ast_log(LOG_WARNING, "Timer B has been set lower than recommended. (RFC 3261, 17.1.1.2)\n");
-				}
-			}
-		} else if (!strcasecmp(v->name, "setvar")) {
-			peer->chanvars = add_var(v->value, peer->chanvars);
-		} else if (!strcasecmp(v->name, "header")) {
-			char tmp[4096];
-			snprintf(tmp, sizeof(tmp), "__SIPADDHEADERpre%2d=%s", ++headercount, v->value);
-			peer->chanvars = add_var(tmp, peer->chanvars);
 		} else if (!strcasecmp(v->name, "qualify")) {
 			if (!strcasecmp(v->value, "no")) {
 				peer->maxms = 0;
@@ -24494,148 +24546,122 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_log(LOG_WARNING, "Qualify is incompatible with dynamic uncached realtime.  Please either turn rtcachefriends on or turn qualify off on peer '%s'\n", peer->name);
 				peer->maxms = 0;
 			}
-		} else if (!strcasecmp(v->name, "qualifyfreq")) {
-			int i;
-			if (sscanf(v->value, "%30d", &i) == 1)
-				peer->qualifyfreq = i * 1000;
-			else {
-				ast_log(LOG_WARNING, "Invalid qualifyfreq number '%s' at line %d of %s\n", v->value, v->lineno, config);
-				peer->qualifyfreq = global_qualifyfreq;
+		} else if (!strcasecmp(v->name, "callcounter")) {
+			peer->call_limit = ast_true(v->value) ? INT_MAX : 0;
+		} else if (!strcasecmp(v->name, "call-limit")) {
+			peer->call_limit = atoi(v->value);
+			if (peer->call_limit < 0) {
+				peer->call_limit = 0;
 			}
-		} else if (!strcasecmp(v->name, "maxcallbitrate")) {
-			peer->maxcallbitrate = atoi(v->value);
-			if (peer->maxcallbitrate < 0)
-				peer->maxcallbitrate = default_maxcallbitrate;
-		} else if (!strcasecmp(v->name, "session-timers")) {
-			int i = (int) str2stmode(v->value);
-			if (i < 0) {
-				ast_log(LOG_WARNING, "Invalid session-timers '%s' at line %d of %s\n", v->value, v->lineno, config);
-				peer->stimer.st_mode_oper = global_st_mode;
-			} else {
-				peer->stimer.st_mode_oper = i;
+		} else if (!strcasecmp(v->name, "busylevel")) {
+			peer->busy_level = atoi(v->value);
+			if (peer->busy_level < 0) {
+				peer->busy_level = 0;
 			}
-		} else if (!strcasecmp(v->name, "session-expires")) {
-			if (sscanf(v->value, "%30d", &peer->stimer.st_max_se) != 1) {
-				ast_log(LOG_WARNING, "Invalid session-expires '%s' at line %d of %s\n", v->value, v->lineno, config);
-				peer->stimer.st_max_se = global_max_se;
-			}
-		} else if (!strcasecmp(v->name, "session-minse")) {
-			if (sscanf(v->value, "%30d", &peer->stimer.st_min_se) != 1) {
-				ast_log(LOG_WARNING, "Invalid session-minse '%s' at line %d of %s\n", v->value, v->lineno, config);
-				peer->stimer.st_min_se = global_min_se;
-			}
-			if (peer->stimer.st_min_se < 90) {
-				ast_log(LOG_WARNING, "session-minse '%s' at line %d of %s is not allowed to be < 90 secs\n", v->value, v->lineno, config);
-				peer->stimer.st_min_se = global_min_se;
-			}
-		} else if (!strcasecmp(v->name, "session-refresher")) {
-			int i = (int) str2strefresher(v->value);
-			if (i < 0) {
-				ast_log(LOG_WARNING, "Invalid session-refresher '%s' at line %d of %s\n", v->value, v->lineno, config);
-				peer->stimer.st_ref = global_st_refresher;
-			} else {
-				peer->stimer.st_ref = i;
-			}
-		} else if (!strcasecmp(v->name, "disallowed_methods")) {
-			char *disallow = ast_strdupa(v->value);
-			mark_parsed_methods(&peer->disallowed_methods, disallow);
 		}
 	}
 
-	if (!peer->default_outbound_transport) {
-		/* Set default set of transports */
-		peer->transports = default_transports;
-		/* Set default primary transport */
-		peer->default_outbound_transport = default_primary_transport;
-	}
+	if (!devstate_only) {
+		if (!peer->default_outbound_transport) {
+			/* Set default set of transports */
+			peer->transports = default_transports;
+			/* Set default primary transport */
+			peer->default_outbound_transport = default_primary_transport;
+		}
 
-	/* The default transport type set during build_peer should only replace the socket.type when...
-	 * 1. Registration is not present and the socket.type and default transport types are different.
-	 * 2. The socket.type is not an acceptable transport type after rebuilding peer.
-	 * 3. The socket.type is not set yet. */
-	if (((peer->socket.type != peer->default_outbound_transport) && (peer->expire == -1)) ||
-		!(peer->socket.type & peer->transports) || !(peer->socket.type)) {
+		/* The default transport type set during build_peer should only replace the socket.type when...
+		 * 1. Registration is not present and the socket.type and default transport types are different.
+		 * 2. The socket.type is not an acceptable transport type after rebuilding peer.
+		 * 3. The socket.type is not set yet. */
+		if (((peer->socket.type != peer->default_outbound_transport) && (peer->expire == -1)) ||
+			!(peer->socket.type & peer->transports) || !(peer->socket.type)) {
 
-		set_socket_transport(&peer->socket, peer->default_outbound_transport);
-	}
+			set_socket_transport(&peer->socket, peer->default_outbound_transport);
+		}
 
-	if (fullcontact->used > 0) {
-		ast_string_field_set(peer, fullcontact, fullcontact->str);
-		peer->rt_fromcontact = TRUE;
-		/* We have a hostname in the fullcontact, but if we don't have an
-		 * address listed on the entry (or if it's 'dynamic'), then we need to
-		 * parse the entry to obtain the IP address, so a dynamic host can be
-		 * contacted immediately after reload (as opposed to waiting for it to
-		 * register once again). But if we have an address for this peer and NAT was
-		 * specified, use that address instead. */
-		/* XXX May need to revisit the final argument; does the realtime DB store whether
-		 * the original contact was over TLS or not? XXX */
-		if (!ast_test_flag(&peer->flags[0], SIP_NAT_RPORT_PRESENT) || !peer->addr.sin_addr.s_addr) {
-			__set_address_from_contact(fullcontact->str, &peer->addr, 0);
+		if (ast_str_strlen(fullcontact)) {
+			ast_string_field_set(peer, fullcontact, ast_str_buffer(fullcontact));
+			peer->rt_fromcontact = TRUE;
+			/* We have a hostname in the fullcontact, but if we don't have an
+			 * address listed on the entry (or if it's 'dynamic'), then we need to
+			 * parse the entry to obtain the IP address, so a dynamic host can be
+			 * contacted immediately after reload (as opposed to waiting for it to
+			 * register once again). But if we have an address for this peer and NAT was
+			 * specified, use that address instead. */
+			/* XXX May need to revisit the final argument; does the realtime DB store whether
+			 * the original contact was over TLS or not? XXX */
+			if (!ast_test_flag(&peer->flags[0], SIP_NAT_RPORT_PRESENT) || !peer->addr.sin_addr.s_addr) {
+				__set_address_from_contact(fullcontact->str, &peer->addr, 0);
+			}
+		}
+
+		if (srvlookup && peer->dnsmgr == NULL) {
+			char transport[MAXHOSTNAMELEN];
+			char _srvlookup[MAXHOSTNAMELEN];
+			char *params;
+
+			ast_copy_string(_srvlookup, srvlookup, sizeof(_srvlookup));
+			if ((params = strchr(_srvlookup, ';'))) {
+				*params++ = '\0';
+			}
+
+			snprintf(transport, sizeof(transport), "_sip._%s", get_transport(peer->socket.type));
+
+			if (ast_dnsmgr_lookup(_srvlookup, &peer->addr, &peer->dnsmgr, sip_cfg.srvlookup ? transport : NULL)) {
+				ast_log(LOG_ERROR, "srvlookup failed for host: %s, on peer %s, removing peer\n", _srvlookup, peer->name);
+				unref_peer(peer, "getting rid of a peer pointer");
+				return NULL;
+			}
+
+			ast_string_field_set(peer, tohost, srvlookup);
+		}
+
+		if (!peer->addr.sin_port) {
+			peer->addr.sin_port = htons(((peer->socket.type & SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT));
+		}
+
+		if (!peer->socket.port) {
+			peer->socket.port = htons(((peer->socket.type & SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT));
+		}
+
+		if (!sip_cfg.ignore_regexpire && peer->host_dynamic && realtime) {
+			time_t nowtime = time(NULL);
+
+			if ((nowtime - regseconds) > 0) {
+				destroy_association(peer);
+				memset(&peer->addr, 0, sizeof(peer->addr));
+				peer->lastms = -1;
+				ast_debug(1, "Bah, we're expired (%d/%d/%d)!\n", (int)(nowtime - regseconds), (int)regseconds, (int)nowtime);
+			}
+		}
+
+		/* Startup regular pokes */
+		if (realtime && peer->lastms > 0) {
+			ref_peer(peer, "schedule qualify");
+			sip_poke_peer(peer, 0);
+		}
+
+		ast_copy_flags(&peer->flags[0], &peerflags[0], mask[0].flags);
+		ast_copy_flags(&peer->flags[1], &peerflags[1], mask[1].flags);
+		if (ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)) {
+			sip_cfg.allowsubscribe = TRUE;	/* No global ban any more */
+		}
+		if (!found && peer->host_dynamic && !peer->is_realtime) {
+			reg_source_db(peer);
+		}
+
+		/* If they didn't request that MWI is sent *only* on subscribe, go ahead and
+		 * subscribe to it now. */
+		if (!ast_test_flag(&peer->flags[1], SIP_PAGE2_SUBSCRIBEMWIONLY) &&
+			!AST_LIST_EMPTY(&peer->mailboxes)) {
+			add_peer_mwi_subs(peer);
+			/* Send MWI from the event cache only.  This is so we can send initial
+			 * MWI if app_voicemail got loaded before chan_sip.  If it is the other
+			 * way, then we will get events when app_voicemail gets loaded. */
+			sip_send_mwi_to_peer(peer, NULL, 1);
 		}
 	}
 
-	if (srvlookup && peer->dnsmgr == NULL) {
-		char transport[MAXHOSTNAMELEN];
-		char _srvlookup[MAXHOSTNAMELEN];
-		char *params;
-
-		ast_copy_string(_srvlookup, srvlookup, sizeof(_srvlookup));
-		if ((params = strchr(_srvlookup, ';'))) {
-			*params++ = '\0';
-		}
-
-		snprintf(transport, sizeof(transport), "_sip._%s", get_transport(peer->socket.type));
-
-		if (ast_dnsmgr_lookup(_srvlookup, &peer->addr, &peer->dnsmgr, sip_cfg.srvlookup ? transport : NULL)) {
-			ast_log(LOG_ERROR, "srvlookup failed for host: %s, on peer %s, removing peer\n", _srvlookup, peer->name);
-			unref_peer(peer, "getting rid of a peer pointer");
-			return NULL;
-		}
-
-		ast_string_field_set(peer, tohost, srvlookup);
-	}
-
-	if (!peer->addr.sin_port)
-		peer->addr.sin_port = htons(((peer->socket.type & SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT));
-
-	if (!peer->socket.port)
-		peer->socket.port = htons(((peer->socket.type & SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT));
-
-	if (!sip_cfg.ignore_regexpire && peer->host_dynamic && realtime) {
-		time_t nowtime = time(NULL);
-
-		if ((nowtime - regseconds) > 0) {
-			destroy_association(peer);
-			memset(&peer->addr, 0, sizeof(peer->addr));
-			peer->lastms = -1;
-			ast_debug(1, "Bah, we're expired (%d/%d/%d)!\n", (int)(nowtime - regseconds), (int)regseconds, (int)nowtime);
-		}
-	}
-
-	/* Startup regular pokes */
-	if (realtime && peer->lastms > 0) {
-		ref_peer(peer, "schedule qualify");
-		sip_poke_peer(peer, 0);
-	}
-
-	ast_copy_flags(&peer->flags[0], &peerflags[0], mask[0].flags);
-	ast_copy_flags(&peer->flags[1], &peerflags[1], mask[1].flags);
-	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE))
-		sip_cfg.allowsubscribe = TRUE;	/* No global ban any more */
-	if (!found && peer->host_dynamic && !peer->is_realtime)
-		reg_source_db(peer);
-
-	/* If they didn't request that MWI is sent *only* on subscribe, go ahead and
-	 * subscribe to it now. */
-	if (!ast_test_flag(&peer->flags[1], SIP_PAGE2_SUBSCRIBEMWIONLY) &&
-		!AST_LIST_EMPTY(&peer->mailboxes)) {
-		add_peer_mwi_subs(peer);
-		/* Send MWI from the event cache only.  This is so we can send initial
-		 * MWI if app_voicemail got loaded before chan_sip.  If it is the other
-		 * way, then we will get events when app_voicemail gets loaded. */
-		sip_send_mwi_to_peer(peer, NULL, 1);
-	}
 	peer->the_mark = 0;
 
 	ast_free_ha(oldha);
@@ -24643,7 +24669,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		char *reg_string;
 		if (asprintf(&reg_string, "%s?%s:%s@%s/%s", peer->name, peer->username, !ast_strlen_zero(peer->remotesecret) ? peer->remotesecret : peer->secret, peer->tohost, callback) < 0) {
 			ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
-		} else	if (reg_string) {
+		} else if (reg_string) {
 			sip_register(reg_string, 0); /* XXX TODO: count in registry_count */
 			ast_free(reg_string);
 		}
@@ -25364,7 +25390,7 @@ static int reload_config(enum channelreloadreason reason)
 				hassip = ast_variable_retrieve(ucfg, cat, "hassip");
 				registersip = ast_variable_retrieve(ucfg, cat, "registersip");
 				if (ast_true(hassip) || (!hassip && genhassip)) {
-					peer = build_peer(cat, gen, ast_variable_browse(ucfg, cat), 0);
+					peer = build_peer(cat, gen, ast_variable_browse(ucfg, cat), 0, 0);
 					if (peer) {
 						ao2_t_link(peers, peer, "link peer into peer table");
 						if ((peer->type & SIP_TYPE_PEER) && peer->addr.sin_addr.s_addr) {
@@ -25426,7 +25452,7 @@ static int reload_config(enum channelreloadreason reason)
 				ast_log(LOG_WARNING, "Unknown type '%s' for '%s' in %s\n", utype, cat, "sip.conf");
 				continue;
 			}
-			peer = build_peer(cat, ast_variable_browse(cfg, cat), NULL, 0);
+			peer = build_peer(cat, ast_variable_browse(cfg, cat), NULL, 0, 0);
 			if (peer) {
 				ao2_t_link(peers, peer, "link peer into peers table");
 				if ((peer->type & SIP_TYPE_PEER) && peer->addr.sin_addr.s_addr) {
