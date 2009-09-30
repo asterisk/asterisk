@@ -991,6 +991,7 @@ static struct sip_pvt {
 	char tag[11];				/*!< Our tag for this session */
 	int sessionid;				/*!< SDP Session ID */
 	int sessionversion;			/*!< SDP Session Version */
+	int portinuri:1;			/*!< Non zero if a port has been specified, will also disable srv lookups */
 	struct sockaddr_in sa;			/*!< Our peer */
 	struct sockaddr_in redirip;		/*!< Where our RTP should be going if not to us */
 	struct sockaddr_in vredirip;		/*!< Where our Video RTP should be going if not to us */
@@ -1161,6 +1162,7 @@ struct sip_peer {
 	ast_group_t pickupgroup;	/*!<  Pickup group */
 	struct sockaddr_in addr;	/*!<  IP address of peer */
 	int maxcallbitrate;		/*!< Maximum Bitrate for a video call */
+	int portinuri;			/*!< Whether the port should be included in the URI */
 	
 	/* Qualification */
 	struct sip_pvt *call;		/*!<  Call pointer */
@@ -3006,6 +3008,8 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	if (peer->call_limit)
 		ast_set_flag(&dialog->flags[0], SIP_CALL_LIMIT);
 	dialog->maxcallbitrate = peer->maxcallbitrate;
+	if (!dialog->portinuri)
+		dialog->portinuri = peer->portinuri;
 	
 	return 0;
 }
@@ -3025,8 +3029,10 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 
 	ast_copy_string(peer, opeer, sizeof(peer));
 	port = strchr(peer, ':');
-	if (port)
+	if (port) {
 		*port++ = '\0';
+		dialog->portinuri = 1;
+	}
 	dialog->sa.sin_family = AF_INET;
 	dialog->timer_t1 = 500; /* Default SIP retransmission timer T1 (RFC 3261) */
 	p = find_peer(peer, NULL, 1, 0);
@@ -7419,7 +7425,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 			ast_build_string(&invite, &invite_max, "%s@", n);
 		}
 		ast_build_string(&invite, &invite_max, "%s", p->tohost);
-		if (ntohs(p->sa.sin_port) != STANDARD_SIP_PORT)
+		if (p->portinuri)
 			ast_build_string(&invite, &invite_max, ":%d", ntohs(p->sa.sin_port));
 		ast_build_string(&invite, &invite_max, "%s", urioptions);
 	}
@@ -8330,6 +8336,7 @@ static int expire_register(const void *data)
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", peer->name);
 	register_peer_exten(peer, FALSE);	/* Remove regexten */
 	peer->expire = -1;
+	peer->portinuri = 0;
 	ast_device_state_changed("SIP/%s", peer->name);
 
 	/* Do we need to release this peer from memory? 
@@ -8583,6 +8590,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		peer->useragent[0] = '\0';
 		peer->sipoptions = 0;
 		peer->lastms = 0;
+		peer->portinuri = 0;
 		pvt->expiry = 0;
 
 		if (option_verbose > 2)
@@ -8616,8 +8624,11 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	if (pt) {
 		*pt++ = '\0';
 		port = atoi(pt);
-	} else
+		peer->portinuri = 1;
+	} else {
 		port = STANDARD_SIP_PORT;
+		peer->portinuri = 0;
+	}
 	oldsin = peer->addr;
 
 	/* Check that they're allowed to register at this IP */
@@ -17780,6 +17791,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		/* XXX should unregister ? */
 	}
 
+	if (found)
+		peer->portinuri = 0;
+
 	/* If we have realm authentication information, remove them (reload) */
 	clear_realm_authentication(peer->auth);
 	peer->auth = NULL;
@@ -17858,7 +17872,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 						ASTOBJ_UNREF(peer_ptr, sip_destroy_peer);
 					}
 					ast_clear_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC);
-					if (!obproxyfound || !strcasecmp(v->name, "outboundproxy")) {
+					if (!strcasecmp(v->name, "outboundproxy")) {
 						if (ast_get_ip_or_srv(&peer->addr, v->value, srvlookup ? "_sip._udp" : NULL)) {
 							ast_log(LOG_ERROR, "srvlookup failed for outboundproxy: %s, on peer %s, removing peer\n", v->value, peer->name);
 							ASTOBJ_UNREF(peer, sip_destroy_peer);
@@ -17886,6 +17900,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			} else if (!strcasecmp(v->name, "contactpermit") || !strcasecmp(v->name, "contactdeny")) {
 				peer->contactha = ast_append_ha(v->name + 7, v->value, peer->contactha);
 			} else if (!strcasecmp(v->name, "port")) {
+				peer->portinuri = 1;
 				if (!realtime && ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC))
 					peer->defaddr.sin_port = htons(atoi(v->value));
 				else
@@ -18006,6 +18021,14 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		 * specified, use that address instead. */
 		if (!ast_test_flag(&peer->flags[0], SIP_NAT_ROUTE) || !peer->addr.sin_addr.s_addr) {
 			__set_address_from_contact(fullcontact, &peer->addr);
+		}
+	}
+
+	if (!ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC) && !obproxyfound && !ast_strlen_zero(peer->tohost)) {
+		if (ast_get_ip_or_srv(&peer->addr, peer->tohost, srvlookup && !peer->portinuri ? "_sip._udp" : NULL)) {
+			ast_log(LOG_ERROR, "host lookup failed for %s, on peer %s, removing peer\n", peer->tohost, peer->name);
+			ASTOBJ_UNREF(peer, sip_destroy_peer);
+			return NULL;
 		}
 	}
 
