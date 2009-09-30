@@ -1233,6 +1233,7 @@ struct sip_pvt {
 	char tag[11];				/*!< Our tag for this session */
 	int sessionid;				/*!< SDP Session ID */
 	int sessionversion;			/*!< SDP Session Version */
+	int portinuri:1;			/*!< Non zero if a port has been specified, will also disable srv lookups */
 	int64_t sessionversion_remote;		/*!< Remote UA's SDP Session Version */
 	int session_modify;			/*!< Session modification request true/false  */
 	struct sockaddr_in sa;			/*!< Our peer */
@@ -1500,6 +1501,7 @@ struct sip_peer {
 	struct ast_dnsmgr_entry *dnsmgr;/*!<  DNS refresh manager for peer */
 	struct sockaddr_in addr;	/*!<  IP address of peer */
 	int maxcallbitrate;		/*!< Maximum Bitrate for a video call */
+	int portinuri:1;		/*!< Whether the port should be included in the URI */
 
 	/* Qualification */
 	struct sip_pvt *call;		/*!<  Call pointer */
@@ -4345,6 +4347,8 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	dialog->rtptimeout = peer->rtptimeout;
 	dialog->peerauth = peer->auth;
 	dialog->maxcallbitrate = peer->maxcallbitrate;
+	if (!dialog->portinuri)
+		dialog->portinuri = peer->portinuri;
 	if (ast_strlen_zero(dialog->tohost))
 		ast_string_field_set(dialog, tohost, ast_inet_ntoa(dialog->sa.sin_addr));
 	if (!ast_strlen_zero(peer->fromdomain)) {
@@ -4406,8 +4410,10 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, int newdialog)
 
 	ast_copy_string(peername, opeer, sizeof(peername));
 	port = strchr(peername, ':');
-	if (port)
+	if (port) {
 		*port++ = '\0';
+		dialog->portinuri = 1;
+	}
 	dialog->sa.sin_family = AF_INET;
 	dialog->timer_t1 = global_t1; /* Default SIP retransmission timer T1 (RFC 3261) */
 	dialog->timer_b = global_timer_b; /* Default SIP transaction timer B (RFC 3261) */
@@ -9334,7 +9340,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 			ast_str_append(&invite, 0, "%s@", n);
 		}
 		ast_str_append(&invite, 0, "%s", p->tohost);
-		if (ntohs(p->sa.sin_port) != STANDARD_SIP_PORT)
+		if (p->portinuri)
 			ast_str_append(&invite, 0, ":%d", ntohs(p->sa.sin_port));
 		ast_str_append(&invite, 0, "%s", urioptions);
 	}
@@ -10335,6 +10341,7 @@ static int expire_register(const void *data)
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", peer->name);
 	register_peer_exten(peer, FALSE);	/* Remove regexten */
 	peer->expire = -1;
+	peer->portinuri = 0;
 	ast_device_state_changed("SIP/%s", peer->name);
 
 	/* Do we need to release this peer from memory? 
@@ -10556,6 +10563,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		peer->useragent[0] = '\0';
 		peer->sipoptions = 0;
 		peer->lastms = 0;
+		peer->portinuri = 0;
 		pvt->expiry = 0;
 
 		ast_verb(3, "Unregistered SIP '%s'\n", peer->name);
@@ -10573,6 +10581,11 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	if (parse_uri(curi, "sip:,sips:", &curi, NULL, &host, &pt, NULL, &transport)) {
 		ast_log(LOG_NOTICE, "Not a valid SIP contact (missing sip:) trying to use anyway\n");
 	}
+
+	if (!ast_strlen_zero(pt))
+		peer->portinuri = 1;
+	else
+		peer->portinuri = 0;
 
 	/* handle the transport type specified in Contact header. */
 	if ((transport_type = get_transport_str2enum(transport))) {
@@ -21337,6 +21350,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		/* XXX should unregister ? */
 	}
 
+	if (found)
+		peer->portinuri = 0;
+
 	/* If we have realm authentication information, remove them (reload) */
 	clear_realm_authentication(peer->auth);
 	peer->auth = NULL;
@@ -21471,6 +21487,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 					ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
 				}
 			} else if (!strcasecmp(v->name, "port")) {
+				peer->portinuri = 1;
 				if (!realtime && peer->host_dynamic) {
 					peer->defaddr.sin_port = htons(atoi(v->value));
 				} else {
@@ -21773,7 +21790,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 
 		if (srvlookup) {
 			if (ast_get_ip_or_srv(&peer->addr, srvlookup, 
-								global_srvlookup ?  
+								global_srvlookup && !peer->portinuri ?
 									((peer->socket.type & SIP_TRANSPORT_UDP) ? "_sip._udp" :
 									 (peer->socket.type & SIP_TRANSPORT_TCP) ? "_sip._tcp" :
 									 "_sip._tls")
