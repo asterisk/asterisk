@@ -222,7 +222,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="a">
 						<argument name="folder" required="true" />
 						<para>Skip folder prompt and go directly to <replaceable>folder</replaceable> specified.
-						Defaults to <literal>INBOX</literal>.</para>
+						Defaults to <literal>0</literal> (INBOX).</para>
+						<enumlist>
+							<enum name="0"><para>INBOX</para></enum>
+							<enum name="1"><para>Old</para></enum>
+							<enum name="2"><para>Work</para></enum>
+							<enum name="3"><para>Family</para></enum>
+							<enum name="4"><para>Friends</para></enum>
+							<enum name="5"><para>Cust1</para></enum>
+							<enum name="6"><para>Cust2</para></enum>
+							<enum name="7"><para>Cust3</para></enum>
+							<enum name="8"><para>Cust4</para></enum>
+							<enum name="9"><para>Cust5</para></enum>
+						</enumlist>
 					</option>
 				</optionlist>
 			</parameter>
