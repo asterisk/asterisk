@@ -1162,7 +1162,7 @@ struct sip_peer {
 	ast_group_t pickupgroup;	/*!<  Pickup group */
 	struct sockaddr_in addr;	/*!<  IP address of peer */
 	int maxcallbitrate;		/*!< Maximum Bitrate for a video call */
-	int portinuri;			/*!< Whether the port should be included in the URI */
+	int portinuri:1;		/*!< Whether the port should be included in the URI */
 	
 	/* Qualification */
 	struct sip_pvt *call;		/*!<  Call pointer */
