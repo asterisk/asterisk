@@ -1629,6 +1629,7 @@ struct sip_pvt {
 	int sessionversion;			/*!< SDP Session Version */
 	int64_t sessionversion_remote;		/*!< Remote UA's SDP Session Version */
 	int session_modify;			/*!< Session modification request true/false  */
+	int portinuri:1;			/*!< Non zero if a port has been specified, will also disable srv lookups */
 	struct sockaddr_in sa;			/*!< Our peer */
 	struct sockaddr_in redirip;		/*!< Where our RTP should be going if not to us */
 	struct sockaddr_in vredirip;		/*!< Where our Video RTP should be going if not to us */
@@ -1874,6 +1875,7 @@ struct sip_peer {
 	struct ast_dnsmgr_entry *dnsmgr;/*!<  DNS refresh manager for peer */
 	struct sockaddr_in addr;	/*!<  IP address of peer */
 	int maxcallbitrate;		/*!< Maximum Bitrate for a video call */
+	int portinuri:1;		/*!< Whether the port should be included in the URI */
 
 	/* Qualification */
 	struct sip_pvt *call;		/*!<  Call pointer */
@@ -3064,11 +3066,15 @@ static int proxy_update(struct sip_proxy *proxy)
  *  pt buffer is provided or the pt has errors when being converted
  *  to an int value, the port provided as the standard is used.
  */
-static int port_str2int(const char *pt, unsigned int standard)
+static int port_str2int(const char *pt, unsigned int standard, int *found_port)
 {
 	int port = standard;
 	if (ast_strlen_zero(pt) || (sscanf(pt, "%30d", &port) != 1) || (port < 1) || (port > 65535)) {
 		port = standard;
+		if (found_port)
+			*found_port = 0;
+	} else if (found_port) {
+		*found_port = 1;
 	}
 
 	return port;
@@ -3088,7 +3094,7 @@ static struct sip_proxy *proxy_allocate(char *name, char *port, int force)
 		return NULL;
 	proxy->force = force;
 	ast_copy_string(proxy->name, name, sizeof(proxy->name));
-	proxy->ip.sin_port = htons(port_str2int(port, STANDARD_SIP_PORT));
+	proxy->ip.sin_port = htons(port_str2int(port, STANDARD_SIP_PORT, NULL));
 	proxy_update(proxy);
 	return proxy;
 }
@@ -5018,6 +5024,8 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 		dialog->noncodeccapability &= ~AST_RTP_DTMF;
 	if (peer->call_limit)
 		ast_set_flag(&dialog->flags[0], SIP_CALL_LIMIT);
+	if (!dialog->portinuri)
+		dialog->portinuri = peer->portinuri;
 	
 	dialog->chanvars = copy_vars(peer->chanvars);
 
@@ -5040,8 +5048,10 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 
 	ast_copy_string(peername, opeer, sizeof(peername));
 	port = strchr(peername, ':');
-	if (port)
+	if (port) {
 		*port++ = '\0';
+		dialog->portinuri = 1;
+	}
 	dialog->sa.sin_family = AF_INET;
 	dialog->timer_t1 = global_t1; /* Default SIP retransmission timer T1 (RFC 3261) */
 	dialog->timer_b = global_timer_b; /* Default SIP transaction timer B (RFC 3261) */
@@ -5073,7 +5083,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 		/* This address should be updated using dnsmgr */
 		memcpy(&dialog->sa.sin_addr, &sin->sin_addr, sizeof(dialog->sa.sin_addr));
 		if (!sin->sin_port) {
-			portno = port_str2int(port, (dialog->socket.type == SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT);
+			portno = port_str2int(port, (dialog->socket.type == SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT, NULL);
 		} else {
 			portno = ntohs(sin->sin_port);
 		}
@@ -5100,7 +5110,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 			}
 		}
 	 	if (!portno)
-			portno = port_str2int(port, (dialog->socket.type == SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT);
+			portno = port_str2int(port, (dialog->socket.type == SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT, NULL);
 		hp = ast_gethostbyname(hostn, &ahp);
 		if (!hp) {
 			ast_log(LOG_WARNING, "No such host: %s\n", peername);
@@ -10340,7 +10350,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 			ast_str_append(&invite, 0, "%s@", n);
 		}
 		ast_str_append(&invite, 0, "%s", p->tohost);
-		if (ntohs(p->sa.sin_port) != STANDARD_SIP_PORT)
+		if (p->portinuri)
 			ast_str_append(&invite, 0, ":%d", ntohs(p->sa.sin_port));
 		ast_str_append(&invite, 0, "%s", urioptions);
 	}
@@ -11597,6 +11607,7 @@ static int expire_register(const void *data)
 		return 0;
 
 	peer->expire = -1;
+	peer->portinuri = 0;
 	memset(&peer->addr, 0, sizeof(peer->addr));
 
 	destroy_association(peer);	/* remove registration data from storage */
@@ -11748,9 +11759,9 @@ static int __set_address_from_contact(const char *fullcontact, struct sockaddr_i
 
 	/* set port */
 	if (((get_transport_str2enum(transport) == SIP_TRANSPORT_TLS)) || !(strncasecmp(fullcontact, "sips", 4))) {
-		port = port_str2int(pt, STANDARD_TLS_PORT);
+		port = port_str2int(pt, STANDARD_TLS_PORT, NULL);
 	} else {
-		port = port_str2int(pt, STANDARD_SIP_PORT);
+		port = port_str2int(pt, STANDARD_SIP_PORT, NULL);
 	}
 
 
@@ -11795,6 +11806,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	int expire = atoi(expires);
 	char *curi, *host, *pt, *transport;
 	int port;
+	int portinuri;
 	int transport_type;
 	const char *useragent;
 	struct hostent *hp;
@@ -11848,6 +11860,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		ast_string_field_set(peer, useragent, "");
 		peer->sipoptions = 0;
 		peer->lastms = 0;
+		peer->portinuri = 0;
 		pvt->expiry = 0;
 
 		ast_verb(3, "Unregistered SIP '%s'\n", peer->name);
@@ -11873,11 +11886,12 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		 * default port to match the specified transport.  This may or may not be the
 		 * same transport used by the pvt struct for the Register dialog. */
 		
-		port = port_str2int(pt, (transport_type == SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT);
+		port = port_str2int(pt, (transport_type == SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT, &portinuri);
 	} else {
-		port = port_str2int(pt, STANDARD_SIP_PORT);
+		port = port_str2int(pt, STANDARD_SIP_PORT, &portinuri);
 		transport_type = pvt->socket.type;
 	}
+	peer->portinuri = portinuri;
 
 	/* if the peer's socket type is different than the Registration
 	 * transport type, change it.  If it got this far, it is a
@@ -13365,7 +13379,7 @@ static void check_via(struct sip_pvt *p, struct sip_request *req)
 		memset(&p->sa, 0, sizeof(p->sa));
 		p->sa.sin_family = AF_INET;
 		memcpy(&p->sa.sin_addr, hp->h_addr, sizeof(p->sa.sin_addr));
-		p->sa.sin_port = htons(port_str2int(pt, STANDARD_SIP_PORT));
+		p->sa.sin_port = htons(port_str2int(pt, STANDARD_SIP_PORT, NULL));
 
 		if (sip_debug_test_pvt(p)) {
 			const struct sockaddr_in *dst = sip_real_dst(p);
@@ -23131,6 +23145,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		/* XXX should unregister ? */
 	}
 
+	if (found)
+		peer->portinuri = 0;
+
 	/* If we have realm authentication information, remove them (reload) */
 	clear_realm_authentication(peer->auth);
 	peer->auth = NULL;
@@ -23280,6 +23297,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 					ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
 				}
 			} else if (!strcasecmp(v->name, "port")) {
+				peer->portinuri = 1;
 				if (!realtime && peer->host_dynamic) {
 					peer->defaddr.sin_port = htons(atoi(v->value));
 				} else {
@@ -23524,7 +23542,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 
 			snprintf(transport, sizeof(transport), "_sip._%s", get_transport(peer->socket.type));
 
-			if (ast_dnsmgr_lookup(_srvlookup, &peer->addr, &peer->dnsmgr, sip_cfg.srvlookup ? transport : NULL)) {
+			if (ast_dnsmgr_lookup(_srvlookup, &peer->addr, &peer->dnsmgr, sip_cfg.srvlookup && !peer->portinuri ? transport : NULL)) {
 				ast_log(LOG_ERROR, "srvlookup failed for host: %s, on peer %s, removing peer\n", _srvlookup, peer->name);
 				unref_peer(peer, "getting rid of a peer pointer");
 				return NULL;
