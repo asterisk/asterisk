@@ -317,6 +317,8 @@ struct ast_rtp_engine {
 	int (*dtmf_end)(struct ast_rtp_instance *instance, char digit);
 	/*! Callback to indicate that a new source of media has come in */
 	void (*new_source)(struct ast_rtp_instance *instance);
+	/*! Callback to tell new_source not to change SSRC */
+	void (*constant_ssrc_set)(struct ast_rtp_instance *instance);
 	/*! Callback for setting an extended RTP property */
 	int (*extended_prop_set)(struct ast_rtp_instance *instance, int property, void *value);
 	/*! Callback for getting an extended RTP property */
@@ -1182,6 +1184,23 @@ int ast_rtp_instance_dtmf_mode_set(struct ast_rtp_instance *instance, enum ast_r
  */
 enum ast_rtp_dtmf_mode ast_rtp_instance_dtmf_mode_get(struct ast_rtp_instance *instance);
 
+/*!
+ * \brief Mark an RTP instance not to update SSRC on a new source
+ *
+ * \param instance Instance to update
+ *
+ * Example usage:
+ *
+ * \code
+ * ast_rtp_instance_set_constantssrc(instance);
+ * \endcode
+ *
+ * This sets the indicated instance to not update the RTP SSRC when new_source
+ * is called.
+ *
+ * \since 1.6.3
+ */
+void ast_rtp_instance_set_constantssrc(struct ast_rtp_instance *instance);
 /*!
  * \brief Indicate a new source of audio has dropped in
  *
