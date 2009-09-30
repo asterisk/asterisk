@@ -550,7 +550,18 @@ static char *descrip_vmain =
 	"           message. The units are whole-number decibels (dB).\n"
 	"    s    - Skip checking the passcode for the mailbox.\n"
 	"    a(#) - Skip folder prompt and go directly to folder specified.\n"
-	"           Defaults to INBOX\n";
+	"           Accepted values are:\n"
+	"               0 for INBOX\n"
+	"               1 for Old\n"
+	"               2 for Work\n"
+	"               3 for Family\n"
+	"               4 for Friends\n"
+	"               5 for Cust1\n"
+	"               6 for Cust2\n"
+	"               7 for Cust3\n"
+	"               8 for Cust4\n"
+	"               9 for Cust5\n"
+	"           Defaults to 0 (INBOX).\n";
 
 static char *synopsis_vm_box_exists =
 "Check to see if Voicemail mailbox exists";
