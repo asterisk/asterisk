@@ -422,7 +422,7 @@ static struct ast_custom_function quote_function = {
 	.read = quote,
 };
 
-static int csv_quote(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+static int csv_quote(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	char *bufptr = buf, *dataptr = data;
 
