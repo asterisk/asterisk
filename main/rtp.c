@@ -174,6 +174,7 @@ struct ast_rtp {
 	struct ast_codec_pref pref;
 	struct ast_rtp *bridged;        /*!< Who we are Packet bridged to */
 	int set_marker_bit:1;           /*!< Whether to set the marker bit or not */
+	unsigned int constantssrc:1;
 };
 
 /* Forward declarations */
@@ -2054,12 +2055,19 @@ int ast_rtp_settos(struct ast_rtp *rtp, int tos)
 	return res;
 }
 
+void ast_rtp_set_constantssrc(struct ast_rtp *rtp)
+{
+	rtp->constantssrc = 1;
+}
+
 void ast_rtp_new_source(struct ast_rtp *rtp)
 {
 	if (rtp) {
 		rtp->set_marker_bit = 1;
+		if (!rtp->constantssrc) {
+			rtp->ssrc = ast_random();
+		}
 	}
-	return;
 }
 
 void ast_rtp_set_peer(struct ast_rtp *rtp, struct sockaddr_in *them)
