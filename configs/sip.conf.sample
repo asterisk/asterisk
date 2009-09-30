@@ -152,6 +152,9 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; Disabling DNS SRV lookups disables the
                                 ; ability to place SIP calls based on domain
                                 ; names to some other SIP users on the Internet
+                                ; Specifying a port in a SIP peer definition or
+                                ; when dialing outbound calls will supress SRV
+                                ; lookups for that peer or call.
 
 ;pedantic=yes                   ; Enable checking of tags in headers,
                                 ; international character conversions in URIs
