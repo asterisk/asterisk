@@ -40,10 +40,6 @@ c-client (http://www.washington.edu/imap/
  *        with a plan to clean this up.
  */
 
-/*** MODULEINFO
-	<depend>res_smdi</depend>
- ***/
-
 /*** MAKEOPTS
 <category name="MENUSELECT_OPTS_app_voicemail" displayname="Voicemail Build Options" positive_output="yes" remove_on_change="apps/app_voicemail.o apps/app_voicemail.so apps/app_directory.o apps/app_directory.so">
 	<member name="FILE_STORAGE" displayname="Storage of Voicemail using filesystem">

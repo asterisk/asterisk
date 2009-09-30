@@ -24,7 +24,6 @@
 #define _ASTERISK_MONITOR_H
 
 #include "asterisk/channel.h"
-#include "asterisk/optional_api.h"
 
 enum AST_MONITORING_STATE {
 	AST_MONITOR_RUNNING,
@@ -51,27 +50,25 @@ struct ast_channel_monitor {
 };
 
 /* Start monitoring a channel */
-AST_OPTIONAL_API(int, ast_monitor_start, (struct ast_channel *chan, const char
-	*format_spec, const char *fname_base, int need_lock, int stream_action),
-	{ return -1; });
+int ast_monitor_start(struct ast_channel *chan, const char
+	*format_spec, const char *fname_base, int need_lock, int stream_action)
+	attribute_weak;
 
 /* Stop monitoring a channel */
-AST_OPTIONAL_API(int, ast_monitor_stop, (struct ast_channel *chan, int
-	need_lock), { return -1; });
+int ast_monitor_stop(struct ast_channel *chan, int need_lock)
+	attribute_weak;
 
 /* Change monitoring filename of a channel */
-AST_OPTIONAL_API(int, ast_monitor_change_fname, (struct ast_channel *chan,
-	const char *fname_base, int need_lock), { return -1; });
+int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base,
+	int need_lock) attribute_weak;
 
-AST_OPTIONAL_API(void, ast_monitor_setjoinfiles, (struct ast_channel *chan,
-	int turnon), { return; });
+void ast_monitor_setjoinfiles(struct ast_channel *chan, int turnon)
+	attribute_weak;
 
 /* Pause monitoring of a channel */
-AST_OPTIONAL_API(int, ast_monitor_pause, (struct ast_channel *chan),
-	{ return -1; });
+int ast_monitor_pause(struct ast_channel *chan) attribute_weak;
 
 /* Unpause monitoring of a channel */
-AST_OPTIONAL_API(int, ast_monitor_unpause, (struct ast_channel *chan),
-	{ return -1; });
+int ast_monitor_unpause(struct ast_channel *chan) attribute_weak;
 
 #endif /* _ASTERISK_MONITOR_H */
