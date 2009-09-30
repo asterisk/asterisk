@@ -1370,6 +1370,7 @@ struct sip_auth {
 #define SIP_PAGE2_RTCACHEFRIENDS	(1 << 0)	/*!< GP: Should we keep RT objects in memory for extended time? */
 #define SIP_PAGE2_RTAUTOCLEAR		(1 << 2)	/*!< GP: Should we clean memory from peers after expiry? */
 /* Space for addition of other realtime flags in the future */
+#define SIP_PAGE2_CONSTANT_SSRC     (1 << 8)	/*!< GDP: Don't change SSRC on reinvite */
 #define SIP_PAGE2_STATECHANGEQUEUE	(1 << 9)	/*!< D: Unsent state pending change exists */
 
 #define SIP_PAGE2_RPORT_PRESENT         (1 << 10)       /*!< Was rport received in the Via header? */
@@ -1402,7 +1403,7 @@ struct sip_auth {
 	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_IGNORESDPVERSION | \
 	SIP_PAGE2_VIDEOSUPPORT | SIP_PAGE2_T38SUPPORT | SIP_PAGE2_RFC2833_COMPENSATE | \
 	SIP_PAGE2_BUGGY_MWI | SIP_PAGE2_TEXTSUPPORT | SIP_PAGE2_FAX_DETECT | \
-	SIP_PAGE2_UDPTL_DESTINATION | SIP_PAGE2_VIDEOSUPPORT_ALWAYS)
+	SIP_PAGE2_UDPTL_DESTINATION | SIP_PAGE2_VIDEOSUPPORT_ALWAYS | SIP_PAGE2_CONSTANT_SSRC)
 
 /*@}*/ 
 
@@ -4929,6 +4930,9 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 		ast_rtp_set_rtptimeout(dialog->rtp, peer->rtptimeout);
 		ast_rtp_set_rtpholdtimeout(dialog->rtp, peer->rtpholdtimeout);
 		ast_rtp_set_rtpkeepalive(dialog->rtp, peer->rtpkeepalive);
+		if (ast_test_flag(&dialog->flags[1], SIP_PAGE2_CONSTANT_SSRC)) {
+			ast_rtp_set_constantssrc(dialog->rtp);
+		}
 		/* Set Frame packetization */
 		ast_rtp_codec_setpref(dialog->rtp, &dialog->prefs);
 		dialog->autoframing = peer->autoframing;
@@ -4939,6 +4943,9 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 		ast_rtp_set_rtptimeout(dialog->vrtp, peer->rtptimeout);
 		ast_rtp_set_rtpholdtimeout(dialog->vrtp, peer->rtpholdtimeout);
 		ast_rtp_set_rtpkeepalive(dialog->vrtp, peer->rtpkeepalive);
+		if (ast_test_flag(&dialog->flags[1], SIP_PAGE2_CONSTANT_SSRC)) {
+			ast_rtp_set_constantssrc(dialog->vrtp);
+		}
 	}
 	if (dialog->trtp) { /* Realtime text */
 		ast_rtp_setdtmf(dialog->trtp, 0);
@@ -19435,6 +19442,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 						sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 					return -1;
 				}
+				ast_queue_control(p->owner, AST_CONTROL_SRCUPDATE);
 			} else {
 				p->jointcapability = p->capability;
 				ast_debug(1, "Hm....  No sdp for the moment\n");
@@ -19482,6 +19490,14 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 				ast_debug(1, "No compatible codecs for this SIP call.\n");
 				return -1;
+			}
+			if (ast_test_flag(&p->flags[1], SIP_PAGE2_CONSTANT_SSRC)) {
+				if (p->rtp) {
+					ast_rtp_set_constantssrc(p->rtp);
+				}
+				if (p->vrtp) {
+					ast_rtp_set_constantssrc(p->vrtp);
+				}
 			}
 		} else {	/* No SDP in invite, call control session */
 			p->jointcapability = p->capability;
@@ -22767,6 +22783,9 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 	} else if (!strcasecmp(v->name, "t38pt_usertpsource")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_UDPTL_DESTINATION);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_UDPTL_DESTINATION);
+	} else if (!strcasecmp(v->name, "constantssrc")) {
+		ast_set_flag(&mask[1], SIP_PAGE2_CONSTANT_SSRC);
+		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_CONSTANT_SSRC);
 	} else
 		res = 0;
 
@@ -24218,6 +24237,8 @@ static int reload_config(enum channelreloadreason reason)
 				default_maxcallbitrate = DEFAULT_MAX_CALL_BITRATE;
 		} else if (!strcasecmp(v->name, "matchexterniplocally")) {
 			sip_cfg.matchexterniplocally = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "constantssrc")) {
+			ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_CONSTANT_SSRC);
 		} else if (!strcasecmp(v->name, "session-timers")) {
 			int i = (int) str2stmode(v->value); 
 			if (i < 0) {
