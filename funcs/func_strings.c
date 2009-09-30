@@ -422,6 +422,43 @@ static struct ast_custom_function quote_function = {
 	.read = quote,
 };
 
+static int csv_quote(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	char *bufptr = buf, *dataptr = data;
+
+	if (len < 3){ /* at least two for quotes and one for binary zero */
+		ast_log(LOG_ERROR, "Not enough buffer");
+		return -1;
+	}
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "No argument specified!\n");
+		ast_copy_string(buf,"\"\"",len);
+		return 0;
+	}
+
+	*bufptr++ = '"';
+	for (; bufptr < buf + len - 3; dataptr++){
+		if (*dataptr == '"') {
+			*bufptr++ = '"';
+			*bufptr++ = '"';
+		} else if (*dataptr == '\0') {
+			break;
+		} else {
+			*bufptr++ = *dataptr;
+		}
+	}
+	*bufptr++ = '"';
+	*bufptr='\0';
+	return 0;
+}
+
+static struct ast_custom_function csv_quote_function = {
+	.name = "CSV_QUOTE",
+	.synopsis = "Quotes a given string for use in a CSV file, escaping embedded quotes as necessary",
+	.syntax = "CSV_QUOTE(<string>)",
+	.read = csv_quote,
+};
 
 static int len(struct ast_channel *chan, char *cmd, char *data, char *buf,
 	       size_t len)
@@ -616,6 +653,7 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&regex_function);
 	res |= ast_custom_function_unregister(&array_function);
 	res |= ast_custom_function_unregister(&quote_function);
+	res |= ast_custom_function_unregister(&csv_quote_function);
 	res |= ast_custom_function_unregister(&len_function);
 	res |= ast_custom_function_unregister(&strftime_function);
 	res |= ast_custom_function_unregister(&strptime_function);
@@ -635,6 +673,7 @@ static int load_module(void)
 	res |= ast_custom_function_register(&regex_function);
 	res |= ast_custom_function_register(&array_function);
 	res |= ast_custom_function_register(&quote_function);
+	res |= ast_custom_function_register(&csv_quote_function);
 	res |= ast_custom_function_register(&len_function);
 	res |= ast_custom_function_register(&strftime_function);
 	res |= ast_custom_function_register(&strptime_function);
