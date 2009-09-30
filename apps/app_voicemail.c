@@ -222,7 +222,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="a">
 						<argument name="folder" required="true" />
 						<para>Skip folder prompt and go directly to <replaceable>folder</replaceable> specified.
-						Defaults to <literal>0</literal> (INBOX).</para>
+						Defaults to <literal>INBOX</literal> (or <literal>0</literal>).</para>
 						<enumlist>
 							<enum name="0"><para>INBOX</para></enum>
 							<enum name="1"><para>Old</para></enum>
@@ -1456,27 +1456,41 @@ static int create_dirpath(char *dest, int len, const char *context, const char *
 	return 0;
 }
 
+static const char * const mailbox_folders[] = {
+#ifdef IMAP_STORAGE
+	imapfolder,
+#else
+	"INBOX",
+#endif
+	"Old",
+	"Work",
+	"Family",
+	"Friends",
+	"Cust1",
+	"Cust2",
+	"Cust3",
+	"Cust4",
+	"Cust5",
+	"Deleted",
+	"Urgent",
+};
+
 static const char *mbox(int id)
 {
-	static const char * const msgs[] = {
-#ifdef IMAP_STORAGE
-		imapfolder,
-#else
-		"INBOX",
-#endif
-		"Old",
-		"Work",
-		"Family",
-		"Friends",
-		"Cust1",
-		"Cust2",
-		"Cust3",
-		"Cust4",
-		"Cust5",
-		"Deleted",
-		"Urgent"
-	};
-	return (id >= 0 && id < ARRAY_LEN(msgs)) ? msgs[id] : "Unknown";
+	return (id >= 0 && id < ARRAY_LEN(mailbox_folders)) ? mailbox_folders[id] : "Unknown";
+}
+
+static int get_folder_by_name(const char *name)
+{
+	size_t i;
+
+	for (i = 0; i < ARRAY_LEN(mailbox_folders); i++) {
+		if (strcasecmp(name, mailbox_folders[i]) == 0) {
+			return i;
+		}
+	}
+
+	return -1;
 }
 
 static void free_user(struct ast_vm_user *vmu)
@@ -9090,15 +9104,22 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 			}
 			if (ast_test_flag(&flags, OPT_AUTOPLAY) ) {
 				play_auto = 1;
-				if (opts[OPT_ARG_PLAYFOLDER]) {
-					if (sscanf(opts[OPT_ARG_PLAYFOLDER], "%30d", &play_folder) != 1) {
-						ast_log(AST_LOG_WARNING, "Invalid value '%s' provided for folder autoplay option\n", opts[OPT_ARG_PLAYFOLDER]);
+				if (!ast_strlen_zero(opts[OPT_ARG_PLAYFOLDER])) {
+					/* See if it is a folder name first */
+					if (isdigit(opts[OPT_ARG_PLAYFOLDER][0])) {
+						if (sscanf(opts[OPT_ARG_PLAYFOLDER], "%30d", &play_folder) != 1) {
+							play_folder = -1;
+						}
+					} else {
+						play_folder = get_folder_by_name(opts[OPT_ARG_PLAYFOLDER]);
 					}
 				} else {
 					ast_log(AST_LOG_WARNING, "Invalid folder set with option a\n");
-				}	
-				if ( play_folder > 9 || play_folder < 0) {
-					ast_log(AST_LOG_WARNING, "Invalid value '%d' provided for folder autoplay option\n", play_folder);
+				}
+				if (play_folder > 9 || play_folder < 0) {
+					ast_log(AST_LOG_WARNING,
+						"Invalid value '%s' provided for folder autoplay option. Defaulting to 'INBOX'\n",
+						opts[OPT_ARG_PLAYFOLDER]);
 					play_folder = 0;
 				}
 			}
