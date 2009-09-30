@@ -276,6 +276,90 @@ AST_THREADSTORAGE(result_buf);
 			<para>Example: ${QUOTE(ab"c"de)} will return "abcde"</para>
 		</description>
 	</function>
+<<<<<<< .working
+=======
+	<function name="CSV_QUOTE" language="en_US">
+		<synopsis>
+			Quotes a given string for use in a CSV file, escaping embedded quotes as necessary
+		</synopsis>
+		<syntax>
+			<parameter name="string" required="true" />
+		</syntax>
+		<description>
+			<para>Example: ${CSV_QUOTE("a,b" 123)} will return """a,b"" 123"</para>
+		</description>
+	</function>
+	<function name="SHIFT" language="en_US">
+		<synopsis>
+			Removes and returns the first item off of a variable containing delimited text
+		</synopsis>
+		<syntax>
+			<parameter name="varname" required="true" />
+			<parameter name="delimiter" required="false" default="," />
+		</syntax>
+		<description>
+			<para>Example:</para>
+			<para>exten => s,1,Set(array=one,two,three)</para>
+			<para>exten => s,n,While($["${SET(var=${SHIFT(array)})}" != ""])</para>
+			<para>exten => s,n,NoOp(var is ${var})</para>
+			<para>exten => s,n,EndWhile</para>
+			<para>This would iterate over each value in array, left to right, and
+				would result in NoOp(var is one), NoOp(var is two), and
+				NoOp(var is three) being executed.
+			</para>
+		</description>
+	</function>	
+	<function name="POP" language="en_US">
+		<synopsis>
+			Removes and returns the last item off of a variable containing delimited text
+		</synopsis>
+		<syntax>
+			<parameter name="varname" required="true" />
+			<parameter name="delimiter" required="false" default="," />
+		</syntax>
+		<description>
+			<para>Example:</para>
+			<para>exten => s,1,Set(array=one,two,three)</para>
+			<para>exten => s,n,While($["${SET(var=${POP(array)})}" != ""])</para>
+			<para>exten => s,n,NoOp(var is ${var})</para>
+			<para>exten => s,n,EndWhile</para>
+			<para>This would iterate over each value in array, right to left, and
+				would result in NoOp(var is three), NoOp(var is two), and
+				NoOp(var is one) being executed.
+			</para>
+		</description>
+	</function>	
+	<function name="PUSH" language="en_US">
+		<synopsis>
+			Appends one or more values to the end of a variable containing delimited text
+		</synopsis>
+		<syntax>
+			<parameter name="varname" required="true" />
+			<parameter name="delimiter" required="false" default="," />
+		</syntax>
+		<description>
+			<para>Example: Set(PUSH(array)=one,two,three) would append one,
+				two, and three to the end of the values stored in the variable
+				"array".
+			</para>
+		</description>
+	</function>
+	<function name="UNSHIFT" language="en_US">
+		<synopsis>
+			Inserts one or more values to the beginning of a variable containing delimited text
+		</synopsis>
+		<syntax>
+			<parameter name="varname" required="true" />
+			<parameter name="delimiter" required="false" default="," />
+		</syntax>
+		<description>
+			<para>Example: Set(UNSHIFT(array)=one,two,three) would insert one,
+				two, and three before the values stored in the variable
+				"array".
+			</para>
+		</description>
+	</function>
+>>>>>>> .merge-right.r221368
  ***/
 
 static int function_fieldqty(struct ast_channel *chan, const char *cmd,
@@ -718,6 +802,12 @@ static struct ast_custom_function array_function = {
 static int quote(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	char *bufptr = buf, *dataptr = data;
+
+	if (len < 3){ /* at least two for quotes and one for binary zero */
+		ast_log(LOG_ERROR, "Not enough buffer");
+		return -1;
+	}
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "No argument specified!\n");
 		ast_copy_string(buf, "\"\"", len);
@@ -725,7 +815,7 @@ static int quote(struct ast_channel *chan, const char *cmd, char *data, char *bu
 	}
 
 	*bufptr++ = '"';
-	for (; bufptr < buf + len - 1; dataptr++) {
+	for (; bufptr < buf + len - 3; dataptr++) {
 		if (*dataptr == '\\') {
 			*bufptr++ = '\\';
 			*bufptr++ = '\\';
@@ -748,9 +838,43 @@ static struct ast_custom_function quote_function = {
 	.read = quote,
 };
 
+static int csv_quote(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	char *bufptr = buf, *dataptr = data;
 
-static int len(struct ast_channel *chan, const char *cmd, char *data, char *buf,
-	       size_t buflen)
+	if (len < 3){ /* at least two for quotes and one for binary zero */
+		ast_log(LOG_ERROR, "Not enough buffer");
+		return -1;
+	}
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "No argument specified!\n");
+		ast_copy_string(buf,"\"\"",len);
+		return 0;
+	}
+
+	*bufptr++ = '"';
+	for (; bufptr < buf + len - 3; dataptr++){
+		if (*dataptr == '"') {
+			*bufptr++ = '"';
+			*bufptr++ = '"';
+		} else if (*dataptr == '\0') {
+			break;
+		} else {
+			*bufptr++ = *dataptr;
+		}
+	}
+	*bufptr++ = '"';
+	*bufptr='\0';
+	return 0;
+}
+
+static struct ast_custom_function csv_quote_function = {
+	.name = "CSV_QUOTE",
+	.read = csv_quote,
+};
+
+static int len(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t buflen)
 {
 	int length = 0;
 
@@ -939,6 +1063,7 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&regex_function);
 	res |= ast_custom_function_unregister(&array_function);
 	res |= ast_custom_function_unregister(&quote_function);
+	res |= ast_custom_function_unregister(&csv_quote_function);
 	res |= ast_custom_function_unregister(&len_function);
 	res |= ast_custom_function_unregister(&strftime_function);
 	res |= ast_custom_function_unregister(&strptime_function);
@@ -963,6 +1088,7 @@ static int load_module(void)
 	res |= ast_custom_function_register(&regex_function);
 	res |= ast_custom_function_register(&array_function);
 	res |= ast_custom_function_register(&quote_function);
+	res |= ast_custom_function_register(&csv_quote_function);
 	res |= ast_custom_function_register(&len_function);
 	res |= ast_custom_function_register(&strftime_function);
 	res |= ast_custom_function_register(&strptime_function);
