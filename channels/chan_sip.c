@@ -5191,11 +5191,9 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	if (dialog->rtp) { /* Audio */
 		ast_rtp_instance_set_prop(dialog->rtp, AST_RTP_PROPERTY_DTMF, ast_test_flag(&dialog->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833);
 		ast_rtp_instance_set_prop(dialog->rtp, AST_RTP_PROPERTY_DTMF_COMPENSATE, ast_test_flag(&dialog->flags[1], SIP_PAGE2_RFC2833_COMPENSATE));
+		ast_rtp_instance_set_prop(dialog->rtp, AST_RTP_PROPERTY_CONSTANT_SSRC, ast_test_flag(&dialog->flags[1], SIP_PAGE2_CONSTANT_SSRC));
 		ast_rtp_instance_set_timeout(dialog->rtp, peer->rtptimeout);
 		ast_rtp_instance_set_hold_timeout(dialog->rtp, peer->rtpholdtimeout);
-		if (ast_test_flag(&dialog->flags[1], SIP_PAGE2_CONSTANT_SSRC)) {
-			ast_rtp_instance_set_constantssrc(dialog->rtp);
-		}
 		/* Set Frame packetization */
 		ast_rtp_codecs_packetization_set(ast_rtp_instance_get_codecs(dialog->rtp), dialog->rtp, &dialog->prefs);
 		dialog->autoframing = peer->autoframing;
@@ -5203,9 +5201,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	if (dialog->vrtp) { /* Video */
 		ast_rtp_instance_set_timeout(dialog->vrtp, peer->rtptimeout);
 		ast_rtp_instance_set_hold_timeout(dialog->vrtp, peer->rtpholdtimeout);
-		if (ast_test_flag(&dialog->flags[1], SIP_PAGE2_CONSTANT_SSRC)) {
-			ast_rtp_instance_set_constantssrc(dialog->vrtp);
-		}
+		ast_rtp_instance_set_prop(dialog->vrtp, AST_RTP_PROPERTY_CONSTANT_SSRC, ast_test_flag(&dialog->flags[1], SIP_PAGE2_CONSTANT_SSRC));
 	}
 	if (dialog->trtp) { /* Realtime text */
 		ast_rtp_instance_set_timeout(dialog->trtp, peer->rtptimeout);
@@ -20495,13 +20491,11 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				ast_debug(1, "No compatible codecs for this SIP call.\n");
 				return -1;
 			}
-			if (ast_test_flag(&p->flags[1], SIP_PAGE2_CONSTANT_SSRC)) {
-				if (p->rtp) {
-					ast_rtp_instance_set_constantssrc(p->rtp);
-				}
-				if (p->vrtp) {
-					ast_rtp_instance_set_constantssrc(p->vrtp);
-				}
+			if (p->rtp) {
+				ast_rtp_instance_set_prop(p->rtp, AST_RTP_PROPERTY_CONSTANT_SSRC, ast_test_flag(&p->flags[1], SIP_PAGE2_CONSTANT_SSRC));
+			}
+			if (p->vrtp) {
+				ast_rtp_instance_set_prop(p->vrtp, AST_RTP_PROPERTY_CONSTANT_SSRC, ast_test_flag(&p->flags[1], SIP_PAGE2_CONSTANT_SSRC));
 			}
 		} else {	/* No SDP in invite, call control session */
 			p->jointcapability = p->capability;

@@ -94,6 +94,8 @@ enum ast_rtp_property {
 	AST_RTP_PROPERTY_RTCP,
 	/*! Maximum number of RTP properties supported */
 	AST_RTP_PROPERTY_MAX,
+	/*! Don't force a new SSRC on new source */
+	AST_RTP_PROPERTY_CONSTANT_SSRC,
 };
 
 /*! Additional RTP options */
@@ -1184,23 +1186,6 @@ int ast_rtp_instance_dtmf_mode_set(struct ast_rtp_instance *instance, enum ast_r
  */
 enum ast_rtp_dtmf_mode ast_rtp_instance_dtmf_mode_get(struct ast_rtp_instance *instance);
 
-/*!
- * \brief Mark an RTP instance not to update SSRC on a new source
- *
- * \param instance Instance to update
- *
- * Example usage:
- *
- * \code
- * ast_rtp_instance_set_constantssrc(instance);
- * \endcode
- *
- * This sets the indicated instance to not update the RTP SSRC when new_source
- * is called.
- *
- * \since 1.6.3
- */
-void ast_rtp_instance_set_constantssrc(struct ast_rtp_instance *instance);
 /*!
  * \brief Indicate a new source of audio has dropped in
  *

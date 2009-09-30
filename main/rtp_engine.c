@@ -726,13 +726,6 @@ enum ast_rtp_dtmf_mode ast_rtp_instance_dtmf_mode_get(struct ast_rtp_instance *i
 	return instance->dtmf_mode;
 }
 
-void ast_rtp_instance_set_constantssrc(struct ast_rtp_instance *instance)
-{
-	if (instance->engine->constant_ssrc_set) {
-		instance->engine->constant_ssrc_set(instance);
-	}
-}
-
 void ast_rtp_instance_new_source(struct ast_rtp_instance *instance)
 {
 	if (instance->engine->new_source) {

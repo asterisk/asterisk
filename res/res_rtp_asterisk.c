@@ -103,7 +103,6 @@ enum strict_rtp_state {
 #define FLAG_NAT_INACTIVE_NOWARN        (1 << 1)
 #define FLAG_NEED_MARKER_BIT            (1 << 3)
 #define FLAG_DTMF_COMPENSATE            (1 << 4)
-#define FLAG_CONSTANT_SSRC              (1 << 5)
 
 /*! \brief RTP session description */
 struct ast_rtp {
@@ -254,7 +253,6 @@ static int ast_rtp_destroy(struct ast_rtp_instance *instance);
 static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit);
 static int ast_rtp_dtmf_end(struct ast_rtp_instance *instance, char digit);
 static void ast_rtp_new_source(struct ast_rtp_instance *instance);
-static void ast_rtp_set_constantssrc(struct ast_rtp_instance *instance);
 static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *frame);
 static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtcp);
 static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_property property, int value);
@@ -277,7 +275,6 @@ static struct ast_rtp_engine asterisk_rtp_engine = {
 	.dtmf_begin = ast_rtp_dtmf_begin,
 	.dtmf_end = ast_rtp_dtmf_end,
 	.new_source = ast_rtp_new_source,
-	.constant_ssrc_set = ast_rtp_set_constantssrc,
 	.write = ast_rtp_write,
 	.read = ast_rtp_read,
 	.prop_set = ast_rtp_prop_set,
@@ -656,13 +653,6 @@ static int ast_rtp_dtmf_end(struct ast_rtp_instance *instance, char digit)
 	return 0;
 }
 
-void ast_rtp_set_constantssrc(struct ast_rtp_instance *instance)
-{
-	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-
-	ast_set_flag(rtp, FLAG_CONSTANT_SSRC);
-}
-
 static void ast_rtp_new_source(struct ast_rtp_instance *instance)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
@@ -670,7 +660,8 @@ static void ast_rtp_new_source(struct ast_rtp_instance *instance)
 	/* We simply set this bit so that the next packet sent will have the marker bit turned on */
 	ast_set_flag(rtp, FLAG_NEED_MARKER_BIT);
 
-	if (!ast_test_flag(rtp, FLAG_CONSTANT_SSRC)) {
+	if (!ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_CONSTANT_SSRC)) {
+		ast_log(LOG_ERROR, "Changing ssrc\n");
 		rtp->ssrc = ast_random();
 	}
 
