@@ -384,6 +384,12 @@ static struct ast_custom_function sprintf_function = {
 static int quote(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	char *bufptr = buf, *dataptr = data;
+
+	if (len < 3){ /* at least two for quotes and one for binary zero */
+		ast_log(LOG_ERROR, "Not enough buffer");
+		return -1;
+	}
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "No argument specified!\n");
 		ast_copy_string(buf, "\"\"", len);
@@ -391,7 +397,7 @@ static int quote(struct ast_channel *chan, char *cmd, char *data, char *buf, siz
 	}
 
 	*bufptr++ = '"';
-	for (; bufptr < buf + len - 1; dataptr++) {
+	for (; bufptr < buf + len - 3; dataptr++) {
 		if (*dataptr == '\\') {
 			*bufptr++ = '\\';
 			*bufptr++ = '\\';
