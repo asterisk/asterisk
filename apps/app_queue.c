@@ -2499,7 +2499,7 @@ static int say_periodic_announcement(struct queue_ent *qe, int ringing)
 
 	ast_verb(3, "Playing periodic announcement\n");
 	
-	if (qe->parent->randomperiodicannounce) {
+	if (qe->parent->randomperiodicannounce && qe->parent->numperiodicannounce) {
 		qe->last_periodic_announce_sound = ((unsigned long) ast_random()) % qe->parent->numperiodicannounce;
 	} else if (qe->last_periodic_announce_sound >= qe->parent->numperiodicannounce || 
 		ast_strlen_zero(qe->parent->sound_periodicannounce[qe->last_periodic_announce_sound]->str)) {
