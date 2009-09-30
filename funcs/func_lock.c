@@ -30,12 +30,16 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include <signal.h>
+
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/astobj2.h"
+#include "asterisk/utils.h"
 
 /*** DOCUMENTATION
 	<function name="LOCK" language="en_US">
@@ -87,20 +91,26 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static AST_LIST_HEAD_STATIC(locklist, lock_frame);
 
 static void lock_free(void *data);
+static void lock_fixup(void *data, struct ast_channel *oldchan, struct ast_channel *newchan);
 static int unloading = 0;
+static pthread_t broker_tid = -1;
 
 static struct ast_datastore_info lock_info = {
 	.type = "MUTEX",
 	.destroy = lock_free,
+	.chan_fixup = lock_fixup,
 };
 
 struct lock_frame {
 	AST_LIST_ENTRY(lock_frame) entries;
 	ast_mutex_t mutex;
+	ast_cond_t cond;
 	/*! count is needed so if a recursive mutex exits early, we know how many times to unlock it. */
 	unsigned int count;
+	/*! Container of requesters for the named lock */
+	struct ao2_container *requesters;
 	/*! who owns us */
-	struct ast_channel *channel;
+	struct ast_channel *owner;
 	/*! name of the lock */
 	char name[0];
 };
@@ -119,12 +129,9 @@ static void lock_free(void *data)
 	AST_LIST_LOCK(oldlist);
 	while ((clframe = AST_LIST_REMOVE_HEAD(oldlist, list))) {
 		/* Only unlock if we own the lock */
-		if (clframe->channel == clframe->lock_frame->channel) {
-			clframe->lock_frame->channel = NULL;
-			while (clframe->lock_frame->count > 0) {
-				clframe->lock_frame->count--;
-				ast_mutex_unlock(&clframe->lock_frame->mutex);
-			}
+		if (clframe->channel == clframe->lock_frame->owner) {
+			clframe->lock_frame->count = 0;
+			clframe->lock_frame->owner = NULL;
 		}
 		ast_free(clframe);
 	}
@@ -133,13 +140,84 @@ static void lock_free(void *data)
 	ast_free(oldlist);
 }
 
+static void lock_fixup(void *data, struct ast_channel *oldchan, struct ast_channel *newchan)
+{
+	struct ast_datastore *lock_store = ast_channel_datastore_find(oldchan, &lock_info, NULL);
+	AST_LIST_HEAD(, channel_lock_frame) *list;
+	struct channel_lock_frame *clframe = NULL;
+
+	if (!lock_store) {
+		return;
+	}
+	list = lock_store->data;
+
+	AST_LIST_LOCK(list);
+	AST_LIST_TRAVERSE(list, clframe, list) {
+		if (clframe->lock_frame->owner == oldchan) {
+			clframe->lock_frame->owner = newchan;
+		}
+		/* We don't move requesters, because the thread stack is different */
+		clframe->channel = newchan;
+	}
+	AST_LIST_UNLOCK(list);
+}
+
+static void *lock_broker(void *unused)
+{
+	struct lock_frame *frame;
+	struct timespec forever = { 1000000, 0 };
+	for (;;) {
+		int found_requester = 0;
+
+		/* Test for cancel outside of the lock */
+		pthread_testcancel();
+		AST_LIST_LOCK(&locklist);
+
+		AST_LIST_TRAVERSE(&locklist, frame, entries) {
+			if (ao2_container_count(frame->requesters)) {
+				found_requester++;
+				ast_mutex_lock(&frame->mutex);
+				if (!frame->owner) {
+					ast_cond_signal(&frame->cond);
+				}
+				ast_mutex_unlock(&frame->mutex);
+			}
+		}
+
+		AST_LIST_UNLOCK(&locklist);
+		pthread_testcancel();
+
+		/* If there are no requesters, then wait for a signal */
+		if (!found_requester) {
+			nanosleep(&forever, NULL);
+		} else {
+			sched_yield();
+		}
+	}
+	/* Not reached */
+	return NULL;
+}
+
+static int ast_channel_hash_cb(const void *obj, const int flags)
+{
+	const struct ast_channel *chan = obj;
+	return ast_str_case_hash(chan->name);
+}
+
+static int ast_channel_cmp_cb(void *obj, void *arg, int flags)
+{
+	struct ast_channel *chan = obj, *cmp_args = arg;
+	return strcasecmp(chan->name, cmp_args->name) ? 0 : CMP_MATCH;
+}
+
 static int get_lock(struct ast_channel *chan, char *lockname, int try)
 {
 	struct ast_datastore *lock_store = ast_channel_datastore_find(chan, &lock_info, NULL);
 	struct lock_frame *current;
-	struct channel_lock_frame *clframe = NULL, *save_clframe = NULL;
+	struct channel_lock_frame *clframe = NULL;
 	AST_LIST_HEAD(, channel_lock_frame) *list;
-	int res, count_channel_locks = 0;
+	int res = 0;
+	struct timespec three_seconds = { .tv_sec = 3 };
 
 	if (!lock_store) {
 		ast_debug(1, "Channel %s has no lock datastore, so we're allocating one.\n", chan->name);
@@ -184,8 +262,27 @@ static int get_lock(struct ast_channel *chan, char *lockname, int try)
 			return -1;
 		}
 
-		strcpy((char *)current + sizeof(*current), lockname);
-		ast_mutex_init(&current->mutex);
+		strcpy(current->name, lockname); /* SAFE */
+		if ((res = ast_mutex_init(&current->mutex))) {
+			ast_log(LOG_ERROR, "Unable to initialize mutex: %s\n", strerror(res));
+			ast_free(current);
+			AST_LIST_UNLOCK(&locklist);
+			return -1;
+		}
+		if ((res = ast_cond_init(&current->cond, NULL))) {
+			ast_log(LOG_ERROR, "Unable to initialize condition variable: %s\n", strerror(res));
+			ast_mutex_destroy(&current->mutex);
+			ast_free(current);
+			AST_LIST_UNLOCK(&locklist);
+			return -1;
+		}
+		if (!(current->requesters = ao2_container_alloc(1, ast_channel_hash_cb, ast_channel_cmp_cb))) {
+			ast_mutex_destroy(&current->mutex);
+			ast_cond_destroy(&current->cond);
+			ast_free(current);
+			AST_LIST_UNLOCK(&locklist);
+			return -1;
+		}
 		AST_LIST_INSERT_TAIL(&locklist, current, entries);
 	}
 	AST_LIST_UNLOCK(&locklist);
@@ -193,25 +290,19 @@ static int get_lock(struct ast_channel *chan, char *lockname, int try)
 	/* Found lock or created one - now find or create the corresponding link in the channel */
 	AST_LIST_LOCK(list);
 	AST_LIST_TRAVERSE(list, clframe, list) {
-		if (clframe->lock_frame == current)
-			save_clframe = clframe;
-
-		/* Only count mutexes that we currently hold */
-		if (clframe->lock_frame->channel == chan)
-			count_channel_locks++;
+		if (clframe->lock_frame == current) {
+			break;
+		}
 	}
 
-	if (save_clframe) {
-		clframe = save_clframe;
-	} else {
+	if (!clframe) {
 		if (unloading) {
 			/* Don't bother */
 			AST_LIST_UNLOCK(list);
 			return -1;
 		}
 
-		clframe = ast_calloc(1, sizeof(*clframe));
-		if (!clframe) {
+		if (!(clframe = ast_calloc(1, sizeof(*clframe)))) {
 			ast_log(LOG_ERROR, "Unable to allocate channel lock frame.  %sLOCK will fail.\n", try ? "TRY" : "");
 			AST_LIST_UNLOCK(list);
 			return -1;
@@ -219,31 +310,48 @@ static int get_lock(struct ast_channel *chan, char *lockname, int try)
 
 		clframe->lock_frame = current;
 		clframe->channel = chan;
-		/* Count the lock just created */
-		count_channel_locks++;
 		AST_LIST_INSERT_TAIL(list, clframe, list);
 	}
 	AST_LIST_UNLOCK(list);
 
-	/* Okay, we have both frames, so now we need to try to lock the mutex. */
-	if (count_channel_locks > 1) {
-		struct timeval start = ast_tvnow();
-		for (;;) {
-			if ((res = ast_mutex_trylock(&current->mutex)) == 0)
-				break;
-			if (ast_tvdiff_ms(ast_tvnow(), start) > 3000)
-				break; /* bail after 3 seconds of waiting */
-			usleep(1);
-		}
-	} else {
-		/* If the channel doesn't have any locks so far, then there's no possible deadlock. */
-		res = try ? ast_mutex_trylock(&current->mutex) : ast_mutex_lock(&current->mutex);
+	/* If we already own the lock, then we're being called recursively.
+	 * Keep track of how many times that is, because we need to unlock
+	 * the same amount, before we'll release this one.
+	 */
+	if (current->owner == chan) {
+		current->count++;
+		return 0;
 	}
 
-	if (res == 0) {
+	/* Okay, we have both frames, so now we need to try to lock.
+	 *
+	 * Locking order: always lock locklist first.  We need the
+	 * locklist lock because the broker thread counts whether
+	 * there are requesters with the locklist lock held, and we
+	 * need to hold it, so that when we send our signal, below,
+	 * to wake up the broker thread, it definitely will see that
+	 * a requester exists at that point in time.  Otherwise, we
+	 * could add to the requesters after it has already seen that
+	 * that lock is unoccupied and wait forever for another signal.
+	 */
+	AST_LIST_LOCK(&locklist);
+	ast_mutex_lock(&current->mutex);
+	/* Add to requester list */
+	ao2_link(current->requesters, chan);
+	pthread_kill(broker_tid, SIGURG);
+	AST_LIST_UNLOCK(&locklist);
+
+	if ((!current->owner) ||
+		(!try && !(res = ast_cond_timedwait(&current->cond, &current->mutex, &three_seconds)))) {
+		res = 0;
+		current->owner = chan;
 		current->count++;
-		current->channel = chan;
+	} else {
+		res = -1;
 	}
+	/* Remove from requester list */
+	ao2_unlink(current->requesters, chan);
+	ast_mutex_unlock(&current->mutex);
 
 	return res;
 }
@@ -269,7 +377,7 @@ static int unlock_read(struct ast_channel *chan, const char *cmd, char *data, ch
 	/* Find item in the channel list */
 	AST_LIST_LOCK(list);
 	AST_LIST_TRAVERSE(list, clframe, list) {
-		if (clframe->lock_frame && clframe->lock_frame->channel == chan && strcmp(clframe->lock_frame->name, data) == 0) {
+		if (clframe->lock_frame && clframe->lock_frame->owner == chan && strcmp(clframe->lock_frame->name, data) == 0) {
 			break;
 		}
 	}
@@ -284,19 +392,16 @@ static int unlock_read(struct ast_channel *chan, const char *cmd, char *data, ch
 		return 0;
 	}
 
-	/* Decrement before we release, because if a channel is waiting on the
-	 * mutex, there's otherwise a race to alter count. */
-	clframe->lock_frame->count--;
-	/* If we get another lock, this one shouldn't count against us for deadlock avoidance. */
-	clframe->lock_frame->channel = NULL;
-	ast_mutex_unlock(&clframe->lock_frame->mutex);
+	if (--clframe->lock_frame->count == 0) {
+		clframe->lock_frame->owner = NULL;
+	}
 
 	ast_copy_string(buf, "1", len);
 	return 0;
 }
 
 static int lock_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
-{	
+{
 	if (chan)
 		ast_autoservice_start(chan);
 
@@ -349,7 +454,7 @@ static int unload_module(void)
 	AST_LIST_LOCK(&locklist);
 	while ((current = AST_LIST_REMOVE_HEAD(&locklist, entries))) {
 		/* If any locks are currently in use, then we cannot unload this module */
-		if (current->channel) {
+		if (current->owner || ao2_container_count(current->requesters)) {
 			/* Put it back */
 			AST_LIST_INSERT_HEAD(&locklist, current, entries);
 			AST_LIST_UNLOCK(&locklist);
@@ -357,6 +462,7 @@ static int unload_module(void)
 			return -1;
 		}
 		ast_mutex_destroy(&current->mutex);
+		ao2_ref(current->requesters, -1);
 		ast_free(current);
 	}
 
@@ -365,7 +471,12 @@ static int unload_module(void)
 	ast_custom_function_unregister(&trylock_function);
 	ast_custom_function_unregister(&unlock_function);
 
+	pthread_cancel(broker_tid);
+	pthread_kill(broker_tid, SIGURG);
+	pthread_join(broker_tid, NULL);
+
 	AST_LIST_UNLOCK(&locklist);
+
 	return 0;
 }
 
@@ -374,6 +485,7 @@ static int load_module(void)
 	int res = ast_custom_function_register(&lock_function);
 	res |= ast_custom_function_register(&trylock_function);
 	res |= ast_custom_function_register(&unlock_function);
+	ast_pthread_create_background(&broker_tid, NULL, lock_broker, NULL);
 	return res;
 }
 
