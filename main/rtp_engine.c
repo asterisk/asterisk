@@ -499,7 +499,7 @@ void ast_rtp_codecs_payloads_copy(struct ast_rtp_codecs *src, struct ast_rtp_cod
 
 void ast_rtp_codecs_payloads_set_m_type(struct ast_rtp_codecs *codecs, struct ast_rtp_instance *instance, int payload)
 {
-	if (payload < 0 || payload > AST_RTP_MAX_PT || !static_RTP_PT[payload].code) {
+	if (payload < 0 || payload >= AST_RTP_MAX_PT || !static_RTP_PT[payload].code) {
 		return;
 	}
 
@@ -521,7 +521,7 @@ int ast_rtp_codecs_payloads_set_rtpmap_type_rate(struct ast_rtp_codecs *codecs, 
 	unsigned int i;
 	int found = 0;
 
-	if (pt < 0 || pt > AST_RTP_MAX_PT)
+	if (pt < 0 || pt >= AST_RTP_MAX_PT)
 		return -1; /* bogus payload type */
 
 	for (i = 0; i < ARRAY_LEN(ast_rtp_mime_types); ++i) {
@@ -569,7 +569,7 @@ int ast_rtp_codecs_payloads_set_rtpmap_type(struct ast_rtp_codecs *codecs, struc
 
 void ast_rtp_codecs_payloads_unset(struct ast_rtp_codecs *codecs, struct ast_rtp_instance *instance, int payload)
 {
-	if (payload < 0 || payload > AST_RTP_MAX_PT) {
+	if (payload < 0 || payload >= AST_RTP_MAX_PT) {
 		return;
 	}
 
@@ -587,7 +587,7 @@ struct ast_rtp_payload_type ast_rtp_codecs_payload_lookup(struct ast_rtp_codecs 
 {
 	struct ast_rtp_payload_type result = { .asterisk_format = 0, };
 
-	if (payload < 0 || payload > AST_RTP_MAX_PT) {
+	if (payload < 0 || payload >= AST_RTP_MAX_PT) {
 		return result;
 	}
 
