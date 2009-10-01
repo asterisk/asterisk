@@ -12,11 +12,6 @@ udptlend=4999
 ;
 ;udptlchecksums=no
 ;
-; The error correction type to be sent
-;
-T38FaxUdpEC = t38UDPFEC
-;T38FaxUdpEC = t38UDPRedundancy
-;
 ; The maximum length of a UDPTL packet
 ;
 T38FaxMaxDatagram = 400
