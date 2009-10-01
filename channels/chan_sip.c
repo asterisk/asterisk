@@ -1233,7 +1233,7 @@ struct sip_pvt {
 	char tag[11];				/*!< Our tag for this session */
 	int sessionid;				/*!< SDP Session ID */
 	int sessionversion;			/*!< SDP Session Version */
-	int portinuri:1;			/*!< Non zero if a port has been specified, will also disable srv lookups */
+	unsigned int portinuri:1;		/*!< Non zero if a port has been specified, will also disable srv lookups */
 	int64_t sessionversion_remote;		/*!< Remote UA's SDP Session Version */
 	int session_modify;			/*!< Session modification request true/false  */
 	struct sockaddr_in sa;			/*!< Our peer */
@@ -1501,7 +1501,7 @@ struct sip_peer {
 	struct ast_dnsmgr_entry *dnsmgr;/*!<  DNS refresh manager for peer */
 	struct sockaddr_in addr;	/*!<  IP address of peer */
 	int maxcallbitrate;		/*!< Maximum Bitrate for a video call */
-	int portinuri:1;		/*!< Whether the port should be included in the URI */
+	unsigned int portinuri:1;	/*!< Whether the port should be included in the URI */
 
 	/* Qualification */
 	struct sip_pvt *call;		/*!<  Call pointer */
@@ -10582,10 +10582,9 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		ast_log(LOG_NOTICE, "Not a valid SIP contact (missing sip:) trying to use anyway\n");
 	}
 
-	if (!ast_strlen_zero(pt))
-		peer->portinuri = 1;
-	else
-		peer->portinuri = 0;
+	/* If we have a port number in the given URI, make sure we do remember to not check for NAPTR/SRV records. 
+	   The domain part is actually a host. */
+	peer->portinuri = !ast_strlen_zero(pt) ? TRUE : FALSE;
 
 	/* handle the transport type specified in Contact header. */
 	if ((transport_type = get_transport_str2enum(transport))) {
