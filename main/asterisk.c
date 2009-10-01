@@ -963,7 +963,7 @@ static void *netconsole(void *vconsole)
 			continue;
 		}
 		if (fds[0].revents) {
-			res = read(con->fd, tmp, sizeof(tmp));
+			res = read(con->fd, tmp, sizeof(tmp) - 1);
 			if (res < 1) {
 				break;
 			}
@@ -2144,7 +2144,7 @@ static char *cli_complete(EditLine *el, int ch)
 	if (ast_opt_remote) {
 		snprintf(buf, sizeof(buf),"_COMMAND NUMMATCHES \"%s\" \"%s\"", lf->buffer, ptr); 
 		fdsend(ast_consock, buf);
-		res = read(ast_consock, buf, sizeof(buf));
+		res = read(ast_consock, buf, sizeof(buf) - 1);
 		buf[res] = '\0';
 		nummatches = atoi(buf);
 
