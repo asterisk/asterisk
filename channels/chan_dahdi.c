@@ -2588,17 +2588,10 @@ static void my_pri_fixup_chans(void *chan_old, void *chan_new)
 {
 	struct dahdi_pvt *old_chan = chan_old;
 	struct dahdi_pvt *new_chan = chan_new;
-	struct sig_pri_chan *pchan = new_chan->sig_pvt;
-	struct sig_pri_pri *pri = pchan->pri;
 
 	new_chan->owner = old_chan->owner;
 	old_chan->owner = NULL;
 	if (new_chan->owner) {
-		char newname[AST_CHANNEL_NAME];
-
-		snprintf(newname, sizeof(newname), "DAHDI/%d:%d-%d", pri->trunkgroup, new_chan->channel, 1);
-		ast_change_name(new_chan->owner, newname);
-
 		new_chan->owner->tech_pvt = new_chan;
 		new_chan->owner->fds[0] = new_chan->subs[SUB_REAL].dfd;
 		new_chan->subs[SUB_REAL].owner = old_chan->subs[SUB_REAL].owner;
@@ -8200,23 +8193,36 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	struct ast_str *chan_name;
 	struct ast_variable *v;
 	struct dahdi_params ps;
+
 	if (i->subs[idx].owner) {
 		ast_log(LOG_WARNING, "Channel %d already has a %s call\n", i->channel,subnames[idx]);
 		return NULL;
 	}
-	y = 1;
+
+	/* Create the new channel name tail. */
 	chan_name = ast_str_alloca(32);
-	do {
-		if (i->channel == CHAN_PSEUDO)
-			ast_str_set(&chan_name, 0, "pseudo-%ld", ast_random());
-		else
+	if (i->channel == CHAN_PSEUDO) {
+		ast_str_set(&chan_name, 0, "pseudo-%ld", ast_random());
+#if defined(HAVE_PRI)
+	} else if (i->pri) {
+		ast_mutex_lock(&i->pri->lock);
+		ast_str_set(&chan_name, 0, "ISDN-%d-%d", i->pri->span, ++i->pri->new_chan_seq);
+		ast_mutex_unlock(&i->pri->lock);
+#endif	/* defined(HAVE_PRI) */
+	} else {
+		y = 1;
+		do {
 			ast_str_set(&chan_name, 0, "%d-%d", i->channel, y);
-		for (x = 0; x < 3; x++) {
-			if ((idx != x) && i->subs[x].owner && !strcasecmp(ast_str_buffer(chan_name), i->subs[x].owner->name + 6))
-				break;
-		}
-		y++;
-	} while (x < 3);
+			for (x = 0; x < 3; ++x) {
+				if (i->subs[x].owner && !strcasecmp(ast_str_buffer(chan_name),
+					i->subs[x].owner->name + 6)) {
+					break;
+				}
+			}
+			++y;
+		} while (x < 3);
+	}
+
 	tmp = ast_channel_alloc(0, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, linkedid, i->amaflags, "DAHDI/%s", ast_str_buffer(chan_name));
 	if (!tmp)
 		return NULL;

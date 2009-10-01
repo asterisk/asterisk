@@ -211,6 +211,7 @@ struct sig_pri_pri {
 	int resetting;							/*!< true if span is being reset/restarted */
 	int resetpos;							/*!< current position during a reset (-1 if not started) */
 	int sig;								/*!< ISDN signalling type (SIG_PRI, SIG_BRI, SIG_BRI_PTMP, etc...) */
+	int new_chan_seq;						/*!< New struct ast_channel sequence number */
 
 	/* Everything after here is internally set */
 	struct pri *dchans[NUM_DCHANS];				/*!< Actual d-channels */
