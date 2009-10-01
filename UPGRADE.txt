@@ -20,18 +20,6 @@
 
 From 1.6.2 to 1.6.3:
 
-* The firmware for the IAXy has been removed from Asterisk.  It can be
-  downloaded from http://downloads.digium.com/pub/iaxy/.  To have Asterisk
-  install the firmware into its proper location, place the firmware in the
-  contrib/firmware/iax/ directory in the Asterisk source tree before running
-  "make install".
-
-* There have been some changes to the IAX2 protocol to address the security
-  concerns documented in the security advisory AST-2009-006.  Please see the
-  IAX2 security document, doc/IAX2-security.pdf, for information regarding
-  backwards compatibility with versions of Asterisk that do not contain these
-  changes to IAX2.
-
 * Asterisk-addons no longer exists as an independent package.  Those modules
   now live in the addons directory of the main Asterisk source tree.  They
   are not enabled by default.  For more information about why modules live in
@@ -61,6 +49,22 @@ From 1.6.2 to 1.6.3:
   asterisk.conf.
 
 From 1.6.1 to 1.6.2:
+
+* The firmware for the IAXy has been removed from Asterisk.  It can be
+  downloaded from http://downloads.digium.com/pub/iaxy/.  To have Asterisk
+  install the firmware into its proper location, place the firmware in the
+  contrib/firmware/iax/ directory in the Asterisk source tree before running
+  "make install".
+
+* T.38 FAX error correction mode can no longer be configured in udptl.conf;
+  instead, it is configured on a per-peer (or global) basis in sip.conf, with
+  the same default as was present in udptl.conf.sample.
+
+* There have been some changes to the IAX2 protocol to address the security
+  concerns documented in the security advisory AST-2009-006.  Please see the
+  IAX2 security document, doc/IAX2-security.pdf, for information regarding
+  backwards compatibility with versions of Asterisk that do not contain these
+  changes to IAX2.
 
 * The 'canreinvite' option support by the SIP, MGCP and Skinny channel drivers
   has been renamed to 'directmedia', to better reflect what it actually does.
