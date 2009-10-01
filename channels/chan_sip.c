@@ -21388,22 +21388,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_get_time_t(v->value, &regseconds, 0, NULL);
 			} else if (realtime && !strcasecmp(v->name, "name")) {
 				ast_copy_string(peer->name, v->value, sizeof(peer->name));
-			} else if (realtime && !strcasecmp(v->name, "fullcontact")) {
-				if (alt_fullcontact && !alt) {
-					/* Reset, because the alternate also has a fullcontact and we
-					 * do NOT want the field value to be doubled. It might be
-					 * tempting to skip this, but the first table might not have
-					 * fullcontact and since we're here, we know that the alternate
-					 * absolutely does. */
-					alt_fullcontact = 0;
-					ast_str_reset(fullcontact);
-				}
-				/* Reconstruct field, because realtime separates our value at the ';' */
-				if (fullcontact->used > 0) {
-					ast_str_append(&fullcontact, 0, ";%s", v->value);
-				} else {
-					ast_str_set(&fullcontact, 0, "%s", v->value);
-				}
 			} else if (!strcasecmp(v->name, "secret")) {
 				ast_copy_string(peer->secret, v->value, sizeof(peer->secret));
 			} else if (!strcasecmp(v->name, "md5secret")) {
@@ -21723,6 +21707,22 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			sscanf(v->value, "%30d", &peer->lastms);
 		} else if (realtime && !strcasecmp(v->name, "ipaddr") && !ast_strlen_zero(v->value) ) {
 			inet_aton(v->value, &(peer->addr.sin_addr));
+		} else if (realtime && !strcasecmp(v->name, "fullcontact")) {
+			if (alt_fullcontact && !alt) {
+				/* Reset, because the alternate also has a fullcontact and we
+				 * do NOT want the field value to be doubled. It might be
+				 * tempting to skip this, but the first table might not have
+				 * fullcontact and since we're here, we know that the alternate
+				 * absolutely does. */
+				alt_fullcontact = 0;
+				ast_str_reset(fullcontact);
+			}
+			/* Reconstruct field, because realtime separates our value at the ';' */
+			if (fullcontact->used > 0) {
+				ast_str_append(&fullcontact, 0, ";%s", v->value);
+			} else {
+				ast_str_set(&fullcontact, 0, "%s", v->value);
+			}
 		} else if (!strcasecmp(v->name, "qualify")) {
 			if (!strcasecmp(v->value, "no")) {
 				peer->maxms = 0;
@@ -21755,89 +21755,87 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		}
 	}
 
-	if (!devstate_only) {
-		if (!peer->default_outbound_transport) {
-			peer->transports  = SIP_TRANSPORT_UDP;
-			peer->default_outbound_transport = SIP_TRANSPORT_UDP;
+	if (!peer->default_outbound_transport) {
+		peer->transports  = SIP_TRANSPORT_UDP;
+		peer->default_outbound_transport = SIP_TRANSPORT_UDP;
+	}
+
+	/* The default transport type set during build_peer should only replace the socket.type when...
+	 * 1. Registration is not present and the socket.type and default transport types are different.
+	 * 2. The socket.type is not an acceptable transport type after rebuilding peer.
+	 * 3. The socket.type is not set yet. */
+	if (((peer->socket.type != peer->default_outbound_transport) && (peer->expire == -1)) ||
+		!(peer->socket.type & peer->transports) || !(peer->socket.type)) {
+
+		set_socket_transport(&peer->socket, peer->default_outbound_transport);
+	}
+
+	if (ast_str_strlen(fullcontact)) {
+		ast_copy_string(peer->fullcontact, fullcontact->str, sizeof(peer->fullcontact));
+		peer->rt_fromcontact = TRUE;
+		/* We have a hostname in the fullcontact, but if we don't have an
+		 * address listed on the entry (or if it's 'dynamic'), then we need to
+		 * parse the entry to obtain the IP address, so a dynamic host can be
+		 * contacted immediately after reload (as opposed to waiting for it to
+		 * register once again). But if we have an address for this peer and NAT was
+		 * specified, use that address instead. */
+		/* XXX May need to revisit the final argument; does the realtime DB store whether
+		 * the original contact was over TLS or not? XXX */
+		if (!ast_test_flag(&peer->flags[0], SIP_NAT_ROUTE) || !peer->addr.sin_addr.s_addr) {
+			__set_address_from_contact(fullcontact->str, &peer->addr, 0);
+		}
+	}
+
+	if (srvlookup) {
+		if (ast_get_ip_or_srv(&peer->addr, srvlookup, 
+							global_srvlookup && !peer->portinuri ?
+								((peer->socket.type & SIP_TRANSPORT_UDP) ? "_sip._udp" :
+								 (peer->socket.type & SIP_TRANSPORT_TCP) ? "_sip._tcp" :
+								 "_sip._tls")
+								: NULL)) {
+			ast_log(LOG_ERROR, "srvlookup failed for host: %s, on peer %s, removing peer\n", srvlookup, peer->name);
+			unref_peer(peer);
+			return NULL;
 		}
 
-		/* The default transport type set during build_peer should only replace the socket.type when...
-		 * 1. Registration is not present and the socket.type and default transport types are different.
-		 * 2. The socket.type is not an acceptable transport type after rebuilding peer.
-		 * 3. The socket.type is not set yet. */
-		if (((peer->socket.type != peer->default_outbound_transport) && (peer->expire == -1)) ||
-			!(peer->socket.type & peer->transports) || !(peer->socket.type)) {
+		ast_copy_string(peer->tohost, srvlookup, sizeof(peer->tohost));
+	}
 
-			set_socket_transport(&peer->socket, peer->default_outbound_transport);
+	if (!sip_cfg.ignore_regexpire && peer->host_dynamic && realtime) {
+		time_t nowtime = time(NULL);
+
+		if ((nowtime - regseconds) > 0) {
+			destroy_association(peer);
+			memset(&peer->addr, 0, sizeof(peer->addr));
+			peer->lastms = -1;
+			ast_debug(1, "Bah, we're expired (%d/%d/%d)!\n", (int)(nowtime - regseconds), (int)regseconds, (int)nowtime);
 		}
+	}
 
-		if (ast_str_strlen(fullcontact)) {
-			ast_copy_string(peer->fullcontact, fullcontact->str, sizeof(peer->fullcontact));
-			peer->rt_fromcontact = TRUE;
-			/* We have a hostname in the fullcontact, but if we don't have an
-			 * address listed on the entry (or if it's 'dynamic'), then we need to
-			 * parse the entry to obtain the IP address, so a dynamic host can be
-			 * contacted immediately after reload (as opposed to waiting for it to
-			 * register once again). But if we have an address for this peer and NAT was
-			 * specified, use that address instead. */
-			/* XXX May need to revisit the final argument; does the realtime DB store whether
-			 * the original contact was over TLS or not? XXX */
-			if (!ast_test_flag(&peer->flags[0], SIP_NAT_ROUTE) || !peer->addr.sin_addr.s_addr) {
-				__set_address_from_contact(fullcontact->str, &peer->addr, 0);
-			}
-		}
+	/* Startup regular pokes */
+	if (!devstate_only && realtime && peer->lastms > 0) {
+		ASTOBJ_REF(peer);
+		sip_poke_peer(peer);
+	}
 
-		if (srvlookup) {
-			if (ast_get_ip_or_srv(&peer->addr, srvlookup, 
-								global_srvlookup && !peer->portinuri ?
-									((peer->socket.type & SIP_TRANSPORT_UDP) ? "_sip._udp" :
-									 (peer->socket.type & SIP_TRANSPORT_TCP) ? "_sip._tcp" :
-									 "_sip._tls")
-									: NULL)) {
-				ast_log(LOG_ERROR, "srvlookup failed for host: %s, on peer %s, removing peer\n", srvlookup, peer->name);
-				unref_peer(peer);
-				return NULL;
-			}
+	ast_copy_flags(&peer->flags[0], &peerflags[0], mask[0].flags);
+	ast_copy_flags(&peer->flags[1], &peerflags[1], mask[1].flags);
+	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)) {
+		global_allowsubscribe = TRUE;	/* No global ban any more */
+	}
+	if (!found && peer->host_dynamic && !peer->is_realtime) {
+		reg_source_db(peer);
+	}
 
-			ast_copy_string(peer->tohost, srvlookup, sizeof(peer->tohost));
-		}
-
-		if (!sip_cfg.ignore_regexpire && peer->host_dynamic && realtime) {
-			time_t nowtime = time(NULL);
-
-			if ((nowtime - regseconds) > 0) {
-				destroy_association(peer);
-				memset(&peer->addr, 0, sizeof(peer->addr));
-				peer->lastms = -1;
-				ast_debug(1, "Bah, we're expired (%d/%d/%d)!\n", (int)(nowtime - regseconds), (int)regseconds, (int)nowtime);
-			}
-		}
-
-		/* Startup regular pokes */
-		if (realtime && peer->lastms > 0) {
-			ASTOBJ_REF(peer);
-			sip_poke_peer(peer);
-		}
-
-		ast_copy_flags(&peer->flags[0], &peerflags[0], mask[0].flags);
-		ast_copy_flags(&peer->flags[1], &peerflags[1], mask[1].flags);
-		if (ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)) {
-			global_allowsubscribe = TRUE;	/* No global ban any more */
-		}
-		if (!found && peer->host_dynamic && !peer->is_realtime) {
-			reg_source_db(peer);
-		}
-
-		/* If they didn't request that MWI is sent *only* on subscribe, go ahead and
-		 * subscribe to it now. */
-		if (!ast_test_flag(&peer->flags[1], SIP_PAGE2_SUBSCRIBEMWIONLY) &&
-			!AST_LIST_EMPTY(&peer->mailboxes)) {
-			add_peer_mwi_subs(peer);
-			/* Send MWI from the event cache only.  This is so we can send initial
-			 * MWI if app_voicemail got loaded before chan_sip.  If it is the other
-			 * way, then we will get events when app_voicemail gets loaded. */
-			sip_send_mwi_to_peer(peer, NULL, 1);
-		}
+	/* If they didn't request that MWI is sent *only* on subscribe, go ahead and
+	 * subscribe to it now. */
+	if (!devstate_only && !ast_test_flag(&peer->flags[1], SIP_PAGE2_SUBSCRIBEMWIONLY) &&
+		!AST_LIST_EMPTY(&peer->mailboxes)) {
+		add_peer_mwi_subs(peer);
+		/* Send MWI from the event cache only.  This is so we can send initial
+		 * MWI if app_voicemail got loaded before chan_sip.  If it is the other
+		 * way, then we will get events when app_voicemail gets loaded. */
+		sip_send_mwi_to_peer(peer, NULL, 1);
 	}
 
 	ASTOBJ_UNMARK(peer);
