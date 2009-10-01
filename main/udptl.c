@@ -81,7 +81,6 @@ static struct sockaddr_in udptldebugaddr;   /*!< Debug packets to/from this host
 #ifdef SO_NO_CHECK
 static int nochecksums;
 #endif
-static enum ast_t38_ec_modes udptlfectype;
 static int udptlfecentries;
 static int udptlfecspan;
 static int udptlmaxdatagram;
@@ -866,7 +865,6 @@ struct ast_udptl *ast_udptl_new_with_bindaddr(struct sched_context *sched, struc
 	if (!(udptl = ast_calloc(1, sizeof(*udptl))))
 		return NULL;
 
-	udptl->error_correction_scheme = udptlfectype;
 	udptl->error_correction_span = udptlfecspan;
 	udptl->error_correction_entries = udptlfecentries;
 	
@@ -1267,7 +1265,6 @@ static void __ast_udptl_reload(int reload)
 
 	udptlstart = 4500;
 	udptlend = 4999;
-	udptlfectype = UDPTL_ERROR_CORRECTION_NONE;
 	udptlfecentries = 0;
 	udptlfecspan = 0;
 	udptlmaxdatagram = 0;
@@ -1308,10 +1305,7 @@ static void __ast_udptl_reload(int reload)
 #endif
 		}
 		if ((s = ast_variable_retrieve(cfg, "general", "T38FaxUdpEC"))) {
-			if (strcmp(s, "t38UDPFEC") == 0)
-				udptlfectype = UDPTL_ERROR_CORRECTION_FEC;
-			else if (strcmp(s, "t38UDPRedundancy") == 0)
-				udptlfectype = UDPTL_ERROR_CORRECTION_REDUNDANCY;
+			ast_log(LOG_WARNING, "T38FaxUdpEC in udptl.conf is no longer supported; use the t38pt_udptl configuration option in sip.conf instead.\n");
 		}
 		if ((s = ast_variable_retrieve(cfg, "general", "T38FaxMaxDatagram"))) {
 			udptlmaxdatagram = atoi(s);

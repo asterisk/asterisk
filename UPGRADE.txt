@@ -26,6 +26,10 @@ From 1.6.1 to 1.6.2:
   contrib/firmware/iax/ directory in the Asterisk source tree before running
   "make install".
 
+* T.38 FAX error correction mode can no longer be configured in udptl.conf;
+  instead, it is configured on a per-peer (or global) basis in sip.conf, with
+  the same default as was present in udptl.conf.sample.
+
 * There have been some changes to the IAX2 protocol to address the security
   concerns documented in the security advisory AST-2009-006.  Please see the
   IAX2 security document, doc/IAX2-security.pdf, for information regarding
