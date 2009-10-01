@@ -991,7 +991,7 @@ static struct sip_pvt {
 	char tag[11];				/*!< Our tag for this session */
 	int sessionid;				/*!< SDP Session ID */
 	int sessionversion;			/*!< SDP Session Version */
-	int portinuri:1;			/*!< Non zero if a port has been specified, will also disable srv lookups */
+	unsigned int portinuri:1;		/*!< Non zero if a port has been specified, will also disable srv lookups */
 	struct sockaddr_in sa;			/*!< Our peer */
 	struct sockaddr_in redirip;		/*!< Where our RTP should be going if not to us */
 	struct sockaddr_in vredirip;		/*!< Where our Video RTP should be going if not to us */
@@ -1162,7 +1162,7 @@ struct sip_peer {
 	ast_group_t pickupgroup;	/*!<  Pickup group */
 	struct sockaddr_in addr;	/*!<  IP address of peer */
 	int maxcallbitrate;		/*!< Maximum Bitrate for a video call */
-	int portinuri:1;		/*!< Whether the port should be included in the URI */
+	unsigned int portinuri:1;	/*!< Whether the port should be included in the URI */
 	
 	/* Qualification */
 	struct sip_pvt *call;		/*!<  Call pointer */
