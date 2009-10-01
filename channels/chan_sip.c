@@ -21297,6 +21297,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	struct ast_ha *oldha = NULL;
 	int found = 0;
 	int firstpass = 1;
+	uint16_t port = 0;
 	int format = 0;		/* Ama flags */
 	time_t regseconds = 0;
 	struct ast_flags peerflags[2] = {{(0)}};
@@ -21432,16 +21433,14 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 						/* Initialize stuff if this is a new peer, or if it used to
 						 * not be dynamic before the reload. */
 						memset(&peer->addr.sin_addr, 0, 4);
-						if (peer->addr.sin_port) {
-							/* If we've already got a port, make it the default rather than absolute */
-							peer->defaddr.sin_port = peer->addr.sin_port;
-							peer->addr.sin_port = 0;
-						}
+						peer->addr.sin_port = 0;
 					}
 					peer->host_dynamic = TRUE;
 				} else {
 					/* Non-dynamic.  Make sure we become that way if we're not */
 					AST_SCHED_DEL(sched, peer->expire);
+					/* the port will either be set to a default value or a config specified value once all option parsing is complete */
+					peer->addr.sin_port = 0;
 					peer->host_dynamic = FALSE;
 					srvlookup = v->value;
 					if (global_dynamic_exclude_static) {
@@ -21471,10 +21470,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				}
 			} else if (!strcasecmp(v->name, "port")) {
 				peer->portinuri = 1;
-				if (!realtime && peer->host_dynamic) {
-					peer->defaddr.sin_port = htons(atoi(v->value));
-				} else {
-					peer->addr.sin_port = htons(atoi(v->value));
+				if (!(port = port_str2int(v->value, 0))) {
+					ast_log(LOG_WARNING, "Invalid peer port configuration at line %d : %s\n", v->lineno, v->value);
 				}
 			} else if (!strcasecmp(v->name, "callingpres")) {
 				peer->callingpres = ast_parse_caller_presentation(v->value);
@@ -21770,6 +21767,12 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		set_socket_transport(&peer->socket, peer->default_outbound_transport);
 	}
 
+	if (port && !realtime && peer->host_dynamic) {
+		peer->defaddr.sin_port = htons(port);
+	} else if (port) {
+		peer->addr.sin_port = htons(port);
+	}
+
 	if (ast_str_strlen(fullcontact)) {
 		ast_copy_string(peer->fullcontact, fullcontact->str, sizeof(peer->fullcontact));
 		peer->rt_fromcontact = TRUE;
@@ -21799,6 +21802,16 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		}
 
 		ast_copy_string(peer->tohost, srvlookup, sizeof(peer->tohost));
+	}
+
+	if (!peer->addr.sin_port) {
+		peer->addr.sin_port = htons(((peer->socket.type & SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT));
+	}
+	if (!peer->defaddr.sin_port) {
+		peer->defaddr.sin_port = htons(((peer->socket.type & SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT));
+	}
+	if (!peer->socket.port) {
+		peer->socket.port = htons(((peer->socket.type & SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT));
 	}
 
 	if (!sip_cfg.ignore_regexpire && peer->host_dynamic && realtime) {
