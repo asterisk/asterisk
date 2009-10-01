@@ -48,6 +48,13 @@ From 1.6.2 to 1.6.3:
   app_set, pbx_realtime, and res_agi each to 1.4 in the [compat] section of
   asterisk.conf.
 
+* The PRI channels in chan_dahdi can no longer change the channel name if a
+  different B channel is selected during call negotiation.  To prevent using
+  the channel name to infer what B channel a call is using and to avoid name
+  collisions, the channel name format is changed.
+  The new channel naming for PRI channels is:
+  DAHDI/ISDN-<span>-<sequence-number>
+
 From 1.6.1 to 1.6.2:
 
 * The firmware for the IAXy has been removed from Asterisk.  It can be

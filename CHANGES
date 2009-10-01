@@ -205,12 +205,6 @@ libpri channel driver (chan_dahdi) DAHDI changes
    LibPRI).
  * Added the ability to ignore calls that are not in a Multiple Subscriber
    Number (MSN) list for PTMP CPE interfaces.
- * The PRI channels can no longer change the channel name if a different B
-   channel is selected during call negotiation.  To prevent using the channel
-   name to infer what B channel a call is using and to avoid name collisions,
-   the channel name format is changed.
-   The new channel naming for PRI channels is:
-   DAHDI/ISDN-<span>-<sequence-number>
 
 Asterisk Manager Interface
 --------------------------
