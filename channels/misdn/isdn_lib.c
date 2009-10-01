@@ -500,6 +500,7 @@ static int find_free_chan_in_stack(struct misdn_stack *stack, struct misdn_bchan
 	
 	channel--;
 
+	pthread_mutex_lock(&stack->st_lock);
  	if (dec) {
 		for (i = bnums; i >=0; i--) {
 			if (i != 15 && (channel < 0 || i == channel)) { /* skip E1 D channel ;) and work with chan preselection */
@@ -523,6 +524,7 @@ static int find_free_chan_in_stack(struct misdn_stack *stack, struct misdn_bchan
 	}
 
 	if (!chan) {
+		pthread_mutex_unlock(&stack->st_lock);
 		cb_log (1, stack->port, " !! NO FREE CHAN IN STACK\n");
 		dump_chan_list(stack);
 		bc->out_cause = AST_CAUSE_NORMAL_CIRCUIT_CONGESTION;
@@ -530,10 +532,12 @@ static int find_free_chan_in_stack(struct misdn_stack *stack, struct misdn_bchan
 	}	
 
 	if (set_chan_in_stack(stack, chan)<0) {
+		pthread_mutex_unlock(&stack->st_lock);
 		cb_log (0, stack->port, "Channel Already in use:%d\n", chan);
 		bc->out_cause = AST_CAUSE_REQUESTED_CHAN_UNAVAIL;
 		return -1;
 	}
+	pthread_mutex_unlock(&stack->st_lock);
 
 	bc->channel=chan;
 	return 0;
@@ -777,9 +781,9 @@ static void clear_l3(struct misdn_stack *stack)
 	for (i=0; i<=stack->b_num; i++) {
 		if (global_state == MISDN_INITIALIZED)  {
 			cb_event(EVENT_CLEANUP, &stack->bc[i], NULL); 
-			empty_chan_in_stack(stack,i+1);
 			empty_bc(&stack->bc[i]);
 			clean_up_bc(&stack->bc[i]);
+			empty_chan_in_stack(stack, i + 1);
 			stack->bc[i].in_use = 0;
 		}
 		
@@ -1242,6 +1246,8 @@ static struct misdn_stack *stack_init(int midev, int port, int ptp)
   
 	msg_queue_init(&stack->downqueue);
 	msg_queue_init(&stack->upqueue);
+
+	pthread_mutex_init(&stack->st_lock, NULL);
   
 	/* query port's requirements */
 	ret = mISDN_get_stack_info(midev, port, buff, sizeof(buff));
@@ -1416,6 +1422,8 @@ static void stack_destroy(struct misdn_stack *stack)
 
 	if (stack->upper_id) 
 		mISDN_write_frame(stack->midev, buf, stack->upper_id, MGR_DELLAYER | REQUEST, 0, 0, NULL, TIMEOUT_1SEC);
+
+	pthread_mutex_destroy(&stack->st_lock);
 }
 
 
@@ -1461,8 +1469,11 @@ static struct misdn_stack * find_stack_by_mgr(manager_t* mgr_nt)
 static struct misdn_bchannel *find_bc_by_masked_l3id(struct misdn_stack *stack, unsigned long l3id, unsigned long mask)
 {
 	int i;
-	for (i=0; i<=stack->b_num; i++) {
-		if ( (stack->bc[i].l3_id & mask)  ==  (l3id & mask)) return &stack->bc[i] ;
+
+	for (i = 0; i <= stack->b_num; i++) {
+		if (stack->bc[i].in_use && (stack->bc[i].l3_id & mask) == (l3id & mask)) {
+			return &stack->bc[i];
+		}
 	}
 	return stack_holder_find(stack,l3id);
 }
@@ -1471,8 +1482,11 @@ static struct misdn_bchannel *find_bc_by_masked_l3id(struct misdn_stack *stack, 
 struct misdn_bchannel *find_bc_by_l3id(struct misdn_stack *stack, unsigned long l3id)
 {
 	int i;
-	for (i=0; i<=stack->b_num; i++) {
-		if (stack->bc[i].l3_id == l3id) return &stack->bc[i] ;
+
+	for (i = 0; i <= stack->b_num; i++) {
+		if (stack->bc[i].in_use && stack->bc[i].l3_id == l3id) {
+			return &stack->bc[i];
+		}
 	}
 	return stack_holder_find(stack,l3id);
 }
@@ -1482,11 +1496,11 @@ static struct misdn_bchannel *find_bc_by_addr(unsigned long addr)
 	struct misdn_stack *stack;
 	int i;
 
-	for (stack=glob_mgr->stack_list;
-	     stack;
-	     stack=stack->next) {
-		for (i=0; i<=stack->b_num; i++) {
-			if ( (stack->bc[i].addr&STACK_ID_MASK)==(addr&STACK_ID_MASK) ||  stack->bc[i].layer_id== addr ) {
+	for (stack = glob_mgr->stack_list; stack; stack = stack->next) {
+		for (i = 0; i <= stack->b_num; i++) {
+			if (stack->bc[i].in_use
+				&& ((stack->bc[i].addr & STACK_ID_MASK) == (addr & STACK_ID_MASK)
+					|| stack->bc[i].layer_id == addr)) {
 				return &stack->bc[i];
 			}
 		}
@@ -1500,11 +1514,9 @@ static struct misdn_bchannel *find_bc_by_confid(unsigned long confid)
 	struct misdn_stack *stack;
 	int i;
 	
-	for (stack=glob_mgr->stack_list;
-	     stack;
-	     stack=stack->next) {
-		for (i=0; i<=stack->b_num; i++) {
-			if ( stack->bc[i].conf_id==confid ) {
+	for (stack = glob_mgr->stack_list; stack; stack = stack->next) {
+		for (i = 0; i <= stack->b_num; i++) {
+			if (stack->bc[i].in_use && stack->bc[i].conf_id == confid) {
 				return &stack->bc[i];
 			}
 		}
@@ -1518,10 +1530,12 @@ static struct misdn_bchannel *find_bc_by_channel(int port, int channel)
 	struct misdn_stack *stack = find_stack_by_port(port);
 	int i;
 
-	if (!stack) return NULL;	
+	if (!stack) {
+		return NULL;
+	}
 	
-	for (i=0; i<=stack->b_num; i++) {
-		if ( stack->bc[i].channel== channel ) {
+	for (i = 0; i <= stack->b_num; i++) {
+		if (stack->bc[i].in_use && stack->bc[i].channel == channel) {
 			return &stack->bc[i];
 		}
 	}
@@ -1588,7 +1602,9 @@ static int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_
 				if (!bc->channel)
 					cb_log(0, stack->port, "Any Channel Requested, but we have no more!!\n");
 				else 
-					cb_log(0, stack->port, "Requested Channel Already in Use releasing this call with cause 34!!!!\n");
+					cb_log(0, stack->port,
+						"Requested Channel Already in Use releasing this call with cause %d!!!!\n",
+						bc->out_cause);
 
 				/* when the channel is already in use, we can't
 				 * simply clear it, we need to make sure that 
@@ -1699,6 +1715,7 @@ static int handle_cr ( struct misdn_stack *stack, iframe_t *frm)
 /* Empties bc if it's reserved (no SETUP out yet) */
 void misdn_lib_release(struct misdn_bchannel *bc)
 {
+	int channel;
 	struct misdn_stack *stack=get_stack_by_bc(bc);
 
 	if (!stack) {
@@ -1706,11 +1723,12 @@ void misdn_lib_release(struct misdn_bchannel *bc)
 		return;
 	}
 	
-	if (bc->channel>0) 
-		empty_chan_in_stack(stack,bc->channel);
-	
+	channel = bc->channel;
 	empty_bc(bc);
 	clean_up_bc(bc);
+	if (channel > 0) {
+		empty_chan_in_stack(stack, channel);
+	}
 	bc->in_use=0;
 }
 
@@ -2753,22 +2771,19 @@ handle_frm_bc:
 				bc->cause=tmpcause;
 				bc->out_cause=tmp_out_cause;
 				clean_up_bc(bc);
+				bc->in_use = 0;
 				
 				if (tmpcause == AST_CAUSE_REQUESTED_CHAN_UNAVAIL) {
-					cb_log(0,stack->port,"**** Received CAUSE:%d, so not cleaning up channel %d\n", AST_CAUSE_REQUESTED_CHAN_UNAVAIL, channel);
-					cb_log(0,stack->port,"**** This channel is now no longer available,\nplease try to restart it with 'misdn send restart <port> <channel>'\n");
-					set_chan_in_stack(stack, channel);
-					bc->channel=channel;
+					cb_log(0, stack->port, "**** Received CAUSE:%d, restarting channel %d\n", AST_CAUSE_REQUESTED_CHAN_UNAVAIL, channel);
 					misdn_lib_send_restart(stack->port, channel);
-				} else {
-					if (channel>0)
-						empty_chan_in_stack(stack, channel);
 				}
-				bc->in_use=0;
+				if (channel > 0) {
+					empty_chan_in_stack(stack, channel);
+				}
 			}
 
 			if (event == EVENT_RESTART) {
-				cb_log(0, stack->port, "**** Received RESTART_ACK channel:%d\n", bc->restart_channel);
+				cb_log(0, stack->port, "**** Received RESTART channel:%d\n", bc->restart_channel);
 				empty_chan_in_stack(stack, bc->restart_channel);
 			}
 
@@ -3149,11 +3164,12 @@ struct misdn_bchannel *manager_find_bc_by_pid(int pid)
 	struct misdn_stack *stack;
 	int i;
   
-	for (stack=glob_mgr->stack_list;
-	     stack;
-	     stack=stack->next) {
-		for (i=0; i<=stack->b_num; i++)
-			if (stack->bc[i].pid == pid) return &stack->bc[i];
+	for (stack = glob_mgr->stack_list; stack; stack = stack->next) {
+		for (i = 0; i <= stack->b_num; i++) {
+			if (stack->bc[i].in_use && stack->bc[i].pid == pid) {
+				return &stack->bc[i];
+			}
+		}
 	}
   
 	return NULL;
@@ -3183,7 +3199,6 @@ static void prepare_bc(struct misdn_bchannel*bc, int channel)
 {
 	bc->channel = channel;
 	bc->channel_preselected = channel?1:0;
-	bc->in_use = 1;
 	bc->need_disconnect=1;
 	bc->need_release=1;
 	bc->need_release_complete=1;
@@ -3197,6 +3212,8 @@ static void prepare_bc(struct misdn_bchannel*bc, int channel)
 	bc->b_stid=0;
 	bc->layer_id=0;
 #endif
+
+	bc->in_use = 1;
 }
 
 struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel, int inout, int dec)
@@ -3209,8 +3226,6 @@ struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel, int inout, i
 		return NULL;
 	}
 
-	usleep(1000);
-
 	for (stack=glob_mgr->stack_list; stack; stack=stack->next) {
     
 		if (stack->port == port) {
@@ -3221,21 +3236,25 @@ struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel, int inout, i
 				return NULL;
 			}
 		
+			pthread_mutex_lock(&stack->st_lock);
 			if (channel > 0) {
 				if (channel <= stack->b_num) {
 					for (i = 0; i < stack->b_num; i++) {
 						if ( stack->bc[i].channel == channel) {
 							if (test_inuse(&stack->bc[i])) { 
+								pthread_mutex_unlock(&stack->st_lock);
 								cb_log(0,port,"Requested channel:%d on port:%d is already in use\n",channel, port);
 								return NULL;
 
 							} else {
 								prepare_bc(&stack->bc[i], channel);
+								pthread_mutex_unlock(&stack->st_lock);
 								return &stack->bc[i];
 							}
 						}
 					}
 				} else {
+					pthread_mutex_unlock(&stack->st_lock);
 					cb_log(0,port,"Requested channel:%d is out of bounds on port:%d\n",channel, port);
 					return NULL;
 				}
@@ -3252,6 +3271,7 @@ struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel, int inout, i
 							
 						prepare_bc(&stack->bc[i], channel);
 						stack->bc[i].dec=1;
+						pthread_mutex_unlock(&stack->st_lock);
 						return &stack->bc[i];
 					}
 				}
@@ -3263,10 +3283,12 @@ struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel, int inout, i
 							stack->bc[i].cw=1;
 
 						prepare_bc(&stack->bc[i], channel);
+						pthread_mutex_unlock(&stack->st_lock);
 						return &stack->bc[i];
 					}
 				}
 			}
+			pthread_mutex_unlock(&stack->st_lock);
 
 			cb_log(1,port,"There is no free channel on port (%d)\n",port);
 			return NULL;
@@ -3849,7 +3871,7 @@ int misdn_lib_send_restart(int port, int channel)
 		/* clean up chan in stack, to be sure we don't think it's
 		 * in use anymore */
 		for (cnt=0; cnt<=stack->b_num; cnt++) {
-			if (stack->bc[cnt].channel == channel) {
+			if (stack->bc[cnt].in_use && stack->bc[cnt].channel == channel) {
 				empty_bc(&stack->bc[cnt]);
 				clean_up_bc(&stack->bc[cnt]);
 				stack->bc[cnt].in_use=0;
