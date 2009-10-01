@@ -1776,7 +1776,7 @@ struct sip_pvt {
 	long branch;				/*!< The branch identifier of this session */
 	long invite_branch;			/*!< The branch used when we sent the initial INVITE */
 	int64_t sessionversion_remote;		/*!< Remote UA's SDP Session Version */
-	int portinuri:1;			/*!< Non zero if a port has been specified, will also disable srv lookups */
+	unsigned int portinuri:1;		/*!< Non zero if a port has been specified, will also disable srv lookups */
 	struct sockaddr_in sa;			/*!< Our peer */
 	struct sockaddr_in redirip;		/*!< Where our RTP should be going if not to us */
 	struct sockaddr_in vredirip;		/*!< Where our Video RTP should be going if not to us */
@@ -2030,7 +2030,7 @@ struct sip_peer {
 	struct sip_proxy *outboundproxy;	/*!< Outbound proxy for this peer */
 	struct ast_dnsmgr_entry *dnsmgr;/*!<  DNS refresh manager for peer */
 	struct sockaddr_in addr;	/*!<  IP address of peer */
-	int portinuri:1;		/*!< Whether the port should be included in the URI */
+	unsigned int portinuri:1;	/*!< Whether the port should be included in the URI */
 	struct sip_pvt *call;		/*!<  Call pointer */
 	int pokeexpire;			/*!<  Qualification: When to expire poke (qualify= checking) */
 	int lastms;			/*!<  Qualification: How long last response took (in ms), or -1 for no response */
