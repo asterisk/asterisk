@@ -12470,10 +12470,9 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		ast_log(LOG_NOTICE, "Not a valid SIP contact (missing sip:) trying to use anyway\n");
 	}
 
-	if (!ast_strlen_zero(pt))
-		peer->portinuri = 1;
-	else
-		peer->portinuri = 0;
+	/* If we have a port number in the given URI, make sure we do remember to not check for NAPTR/SRV records. 
+	   The domain part is actually a host. */
+	peer->portinuri = !ast_strlen_zero(pt) ? TRUE : FALSE;
 
 	/* handle the transport type specified in Contact header. */
 	if ((transport_type = get_transport_str2enum(transport))) {
