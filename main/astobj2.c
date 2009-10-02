@@ -397,7 +397,7 @@ void *__ao2_link(struct ao2_container *c, void *user_data, int iax2_hack)
 	if (!p)
 		return NULL;
 
-	i = c->hash_fn(user_data, OBJ_POINTER);
+	i = abs(c->hash_fn(user_data, OBJ_POINTER));
 
 	ao2_lock(c);
 	i %= c->n_buckets;
