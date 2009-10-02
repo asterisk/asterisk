@@ -2334,7 +2334,7 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 			}
 			/* this searches for transfer call numbers that might not get caught otherwise */
 			memset(&tmp_pvt.addr, 0, sizeof(tmp_pvt.addr));
-			memcpy(&tmp_pvt.transfer, sin, sizeof(tmp_pvt.addr));
+			memcpy(&tmp_pvt.transfer, sin, sizeof(tmp_pvt.transfer));
 			if ((pvt = ao2_find(iax_transfercallno_pvts, &tmp_pvt, OBJ_POINTER))) {
 				if (return_locked) {
 					ast_mutex_lock(&iaxsl[pvt->callno]);
@@ -8458,7 +8458,6 @@ static int socket_process(struct iax2_thread *thread)
 			if (f.frametype == AST_FRAME_IAX) {
 				if (iax_parse_ies(&ies, thread->buf + sizeof(*fh), f.datalen)) {
 					ast_log(LOG_WARNING, "Undecodable frame received from '%s'\n", ast_inet_ntoa(sin.sin_addr));
-					ast_mutex_unlock(&iaxsl[fr->callno]);
 					return 1;
 				}
 				f.data = NULL;
