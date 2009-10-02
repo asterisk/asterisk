@@ -509,7 +509,7 @@ static struct bucket_list *internal_ao2_link(struct ao2_container *c, void *user
 	if (!p)
 		return NULL;
 
-	i = c->hash_fn(user_data, OBJ_POINTER);
+	i = abs(c->hash_fn(user_data, OBJ_POINTER));
 
 	ao2_lock(c);
 	i %= c->n_buckets;
