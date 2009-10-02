@@ -139,7 +139,7 @@ struct logmsg {
 static AST_LIST_HEAD_STATIC(logmsgs, logmsg);
 static pthread_t logthread = AST_PTHREADT_NULL;
 static ast_cond_t logcond;
-static int close_logger_thread;
+static int close_logger_thread = 0;
 
 static FILE *qlog;
 
