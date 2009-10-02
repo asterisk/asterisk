@@ -3332,7 +3332,7 @@ struct misdn_bchannel *misdn_lib_get_free_bc(int port, int channel, int inout, i
 		return NULL;
 	}
 
-    pthread_mutex_lock(&stack->st_lock);
+	pthread_mutex_lock(&stack->st_lock);
 	if (channel > 0) {
 		if (channel <= stack->b_num) {
 			for (i = 0; i < stack->b_num; i++) {
