@@ -3418,7 +3418,7 @@ struct misdn_bchannel *misdn_lib_get_register_bc(int port)
 		return NULL;
 	}
 
-    pthread_mutex_lock(&stack->st_lock);
+	pthread_mutex_lock(&stack->st_lock);
 	for (index = MAX_BCHANS + 1; index < ARRAY_LEN(stack->bc); ++index) {
 		bc = &stack->bc[index];
 		if (!test_inuse(bc)) {
