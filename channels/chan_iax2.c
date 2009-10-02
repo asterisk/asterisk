@@ -2590,7 +2590,7 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 			}
 			/* this searches for transfer call numbers that might not get caught otherwise */
 			memset(&tmp_pvt.addr, 0, sizeof(tmp_pvt.addr));
-			memcpy(&tmp_pvt.transfer, sin, sizeof(tmp_pvt.addr));
+			memcpy(&tmp_pvt.transfer, sin, sizeof(tmp_pvt.transfer));
 			if ((pvt = ao2_find(iax_transfercallno_pvts, &tmp_pvt, OBJ_POINTER))) {
 				if (return_locked) {
 					ast_mutex_lock(&iaxsl[pvt->callno]);
