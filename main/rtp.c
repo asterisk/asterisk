@@ -2241,7 +2241,7 @@ int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src, i
  */
 void ast_rtp_set_m_type(struct ast_rtp* rtp, int pt) 
 {
-	if (pt < 0 || pt > MAX_RTP_PT || static_RTP_PT[pt].code == 0) 
+	if (pt < 0 || pt >= MAX_RTP_PT || static_RTP_PT[pt].code == 0) 
 		return; /* bogus payload type */
 
 	rtp_bridge_lock(rtp);
@@ -2253,7 +2253,7 @@ void ast_rtp_set_m_type(struct ast_rtp* rtp, int pt)
 	an unknown media type */
 void ast_rtp_unset_m_type(struct ast_rtp* rtp, int pt) 
 {
-	if (pt < 0 || pt > MAX_RTP_PT)
+	if (pt < 0 || pt >= MAX_RTP_PT)
 		return; /* bogus payload type */
 
 	rtp_bridge_lock(rtp);
@@ -2274,7 +2274,7 @@ int ast_rtp_set_rtpmap_type_rate(struct ast_rtp *rtp, int pt,
 	unsigned int i;
 	int found = 0;
 
-	if (pt < 0 || pt > MAX_RTP_PT)
+	if (pt < 0 || pt >= MAX_RTP_PT)
 		return -1; /* bogus payload type */
 
 	rtp_bridge_lock(rtp);
@@ -2349,7 +2349,7 @@ struct rtpPayloadType ast_rtp_lookup_pt(struct ast_rtp* rtp, int pt)
 
 	result.isAstFormat = result.code = 0;
 
-	if (pt < 0 || pt > MAX_RTP_PT) 
+	if (pt < 0 || pt >= MAX_RTP_PT) 
 		return result; /* bogus payload type */
 
 	/* Start with negotiated codecs */
@@ -3786,7 +3786,7 @@ struct ast_codec_pref *ast_rtp_codec_getpref(struct ast_rtp *rtp)
 
 int ast_rtp_codec_getformat(int pt)
 {
-	if (pt < 0 || pt > MAX_RTP_PT)
+	if (pt < 0 || pt >= MAX_RTP_PT)
 		return 0; /* bogus payload type */
 
 	if (static_RTP_PT[pt].isAstFormat)
