@@ -153,7 +153,7 @@ static void *lock_broker(void *unused)
 
 static int null_hash_cb(const void *obj, const int flags)
 {
-	return abs((int)(long) obj);
+	return (int)(long) obj;
 }
 
 static int null_cmp_cb(void *obj, void *arg, int flags)
