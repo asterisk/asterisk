@@ -67,6 +67,9 @@ struct misdn_stack {
 	manager_t mgr;
 	pthread_mutex_t nstlock;
 
+	/*! \brief Stack struct critical section lock. */
+	pthread_mutex_t st_lock;
+
 	/*! \brief D Channel mISDN driver stack ID (Parent stack ID) */
 	int d_stid;
 
@@ -134,7 +137,7 @@ struct misdn_stack {
 	 */
 	char channels[MAX_BCHANS + 1 + MISDN_MAX_REGISTER_LINKS];
 
-	/*! \brief List of holded channels */
+	/*! \brief List of held channels */
 	struct misdn_bchannel *holding;
 
 	/*! \brief Next stack in the list of stacks */
