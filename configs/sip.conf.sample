@@ -496,22 +496,32 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;callcounter = yes              ; Enable call counters on devices. This can be set per
                                 ; device too.
 
-;----------------------------------------- T.38 FAX PASSTHROUGH SUPPORT -----------------------
+;----------------------------------------- T.38 FAX SUPPORT ----------------------------------
 ;
 ; This setting is available in the [general] section as well as in device configurations.
-; Setting this to yes, enables T.38 fax (UDPTL) passthrough on SIP to SIP calls, provided
-; both parties have T38 support enabled in their Asterisk configuration
-; This has to be enabled in the general section for all devices to work. You can then
-; disable it on a per device basis.
-;
-; T.38 faxing only works in SIP to SIP calls. It defaults to off.
+; Setting this to yes enables T.38 FAX (UDPTL) on SIP calls; it defaults to off.
 ;
 ; t38pt_udptl = yes            ; Enables T.38 with FEC error correction.
 ; t38pt_udptl = yes,fec        ; Enables T.38 with FEC error correction.
 ; t38pt_udptl = yes,redundancy ; Enables T.38 with redundancy error correction.
 ; t38pt_udptl = yes,none       ; Enables T.38 with no error correction.
 ;
-; Faxs Detect will cause the SIP channel to jump to the 'fax' extension (if it exists)
+; In some cases, T.38 endpoints will provide a T38FaxMaxDatagram value (during T.38 setup) that
+; is based on an incorrect interpretation of the T.38 recommendation, and results in failures
+; because Asterisk does not believe it can send T.38 packets of a reasonable size to that
+; endpoint (Cisco media gateways are one example of this situation). In these cases, during a
+; T.38 call you will see warning messages on the console/in the logs from the Asterisk UDPTL
+; stack complaining about lack of buffer space to send T.38 FAX packets. If this occurs, you
+; can set an override (globally, or on a per-device basis) to make Asterisk ignore the
+; T38FaxMaxDatagram value specified by the other endpoint, and use a configured value instead.
+; This can be done by appending 'maxdatagram=<value>' to the t38pt_udptl configuration option,
+; like this:
+;
+; t38pt_udptl = yes,fec,maxdatagram=400 ; Enables T.38 with FEC error correction and overrides
+;                                       ; the other endpoint's provided value to assume we can
+;                                       ; send 400 byte T.38 FAX packets to it.
+;
+; FAX detection will cause the SIP channel to jump to the 'fax' extension (if it exists)
 ; after T.38 is successfully negotiated.
 ;
 ; faxdetect = yes              ; Default false
