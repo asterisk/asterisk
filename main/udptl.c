@@ -711,7 +711,7 @@ struct ast_frame *ast_udptl_read(struct ast_udptl *udptl)
 
 static void calculate_local_max_datagram(struct ast_udptl *udptl)
 {
-	unsigned int new_max = 200;
+	unsigned int new_max = 0;
 
 	/* calculate the amount of space required to receive an IFP
 	 * using the current error correction mode, and ensure that our
@@ -741,32 +741,28 @@ static void calculate_local_max_datagram(struct ast_udptl *udptl)
 
 static void calculate_far_max_ifp(struct ast_udptl *udptl)
 {
-	unsigned new_max = 60;
+	unsigned new_max = 0;
 
 	/* calculate the maximum IFP the local endpoint should
 	 * generate based on the far end's maximum datagram size
-	 * and the current error correction mode. some endpoints
-	 * bogus 'max datagram' values that would result in unusable
-	 * (too small) maximum IFP values, so we have a a reasonable
-	 * minimum value to ensure that we can actually construct
-	 * UDPTL packets.
+	 * and the current error correction mode.
 	 */
 	switch (udptl->error_correction_scheme) {
 	case UDPTL_ERROR_CORRECTION_NONE:
 		/* only need room for sequence number and length indicators */
-		new_max = MAX(new_max, udptl->far_max_datagram - 6);
+		new_max = udptl->far_max_datagram - 6;
 		break;
 	case UDPTL_ERROR_CORRECTION_REDUNDANCY:
 		/* need room for sequence number, length indicators and the
 		 * configured number of redundant packets
 		 */
-		new_max = MAX(new_max, (udptl->far_max_datagram - 8) / (udptl->error_correction_entries + 1));
+		new_max = (udptl->far_max_datagram - 8) / (udptl->error_correction_entries + 1);
 		break;
 	case UDPTL_ERROR_CORRECTION_FEC:
 		/* need room for sequence number, length indicators and a
 		 * a single IFP of the maximum size expected
 		 */
-		new_max = MAX(new_max, (udptl->far_max_datagram - 10) / 2);
+		new_max = (udptl->far_max_datagram - 10) / 2;
 		break;
 	}
 	/* subtract 25% of space for insurance */
@@ -998,7 +994,9 @@ int ast_udptl_write(struct ast_udptl *s, struct ast_frame *f)
 	}
 
 	if (f->datalen > s->far_max_ifp) {
-		ast_log(LOG_WARNING, "UDPTL asked to send %d bytes of IFP when far end only prepared to accept %d bytes; data loss may occur.\n", f->datalen, s->far_max_ifp);
+		ast_log(LOG_WARNING,
+			"UDPTL asked to send %d bytes of IFP when far end only prepared to accept %d bytes; data loss may occur. "
+			"You may need to override the T38FaxMaxDatagram value for this endpoint in the channel driver configuration.\n", f->datalen, s->far_max_ifp);
 	}
 
 	/* Save seq_no for debug output because udptl_build_packet increments it */
@@ -1367,15 +1365,7 @@ static void __ast_udptl_reload(int reload)
 			ast_log(LOG_WARNING, "T38FaxUdpEC in udptl.conf is no longer supported; use the t38pt_udptl configuration option in sip.conf instead.\n");
 		}
 		if ((s = ast_variable_retrieve(cfg, "general", "T38FaxMaxDatagram"))) {
-			udptlmaxdatagram = atoi(s);
-			if (udptlmaxdatagram < 100) {
-				ast_log(LOG_WARNING, "Too small T38FaxMaxDatagram size.  Defaulting to 100.\n");
-				udptlmaxdatagram = 100;
-			}
-			if (udptlmaxdatagram > LOCAL_FAX_MAX_DATAGRAM) {
-				ast_log(LOG_WARNING, "Too large T38FaxMaxDatagram size.  Defaulting to %d.\n", LOCAL_FAX_MAX_DATAGRAM);
-				udptlmaxdatagram = LOCAL_FAX_MAX_DATAGRAM;
-			}
+			ast_log(LOG_WARNING, "T38FaxMaxDatagram in udptl.conf is no longer supported.\n");
 		}
 		if ((s = ast_variable_retrieve(cfg, "general", "UDPTLFECentries"))) {
 			udptlfecentries = atoi(s);
