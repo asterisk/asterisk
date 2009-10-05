@@ -12,10 +12,6 @@ udptlend=4999
 ;
 ;udptlchecksums=no
 ;
-; The maximum length of a UDPTL packet
-;
-T38FaxMaxDatagram = 400
-;
 ; The number of error correction entries in a UDPTL packet
 ;
 udptlfecentries = 3

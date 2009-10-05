@@ -829,6 +829,8 @@ static int regobjs = 0;                  /*!< Registry objects */
 /* }@ */
 
 static struct ast_flags global_flags[2] = {{0}};        /*!< global SIP_ flags */
+static int global_t38_maxdatagram;			/*!< global T.38 FaxMaxDatagram override */
+
 static char used_context[AST_MAX_CONTEXT];		/*!< name of automatically created context for unloading */
 
 
@@ -1072,10 +1074,10 @@ struct sip_auth {
 #define SIP_PAGE2_SUBSCRIBEMWIONLY	(1 << 18)	/*!< GP: Only issue MWI notification if subscribed to */
 #define SIP_PAGE2_IGNORESDPVERSION	(1 << 19)	/*!< GDP: Ignore the SDP session version number we receive and treat all sessions as new */
 
-#define SIP_PAGE2_T38SUPPORT		        (7 << 20)	/*!< GDP: T.38 Fax Support */
+#define SIP_PAGE2_T38SUPPORT		        (3 << 20)	/*!< GDP: T.38 Fax Support */
 #define SIP_PAGE2_T38SUPPORT_UDPTL	        (1 << 20)	/*!< GDP: T.38 Fax Support (no error correction) */
 #define SIP_PAGE2_T38SUPPORT_UDPTL_FEC	        (2 << 20)	/*!< GDP: T.38 Fax Support (FEC error correction) */
-#define SIP_PAGE2_T38SUPPORT_UDPTL_REDUNDANCY	(4 << 20)	/*!< GDP: T.38 Fax Support (redundancy error correction) */
+#define SIP_PAGE2_T38SUPPORT_UDPTL_REDUNDANCY	(3 << 20)	/*!< GDP: T.38 Fax Support (redundancy error correction) */
 
 #define SIP_PAGE2_CALL_ONHOLD		(3 << 23)	/*!< D: Call hold states: */
 #define SIP_PAGE2_CALL_ONHOLD_ACTIVE    (1 << 23)       /*!< D: Active hold */
@@ -1306,6 +1308,7 @@ struct sip_pvt {
 	int redircodecs;			/*!< Redirect codecs */
 	int maxcallbitrate;			/*!< Maximum Call Bitrate for Video Calls */	
 	struct sip_proxy *outboundproxy;	/*!< Outbound proxy for this dialog. Use ref_proxy to set this instead of setting it directly */
+	int t38_maxdatagram;			/*!< T.38 FaxMaxDatagram override */
 	struct t38properties t38;		/*!< T38 settings */
 	struct sockaddr_in udptlredirip;	/*!< Where our T.38 UDPTL should be going if not to us */
 	struct ast_udptl *udptl;		/*!< T.38 UDPTL session */
@@ -1526,6 +1529,7 @@ struct sip_peer {
 	int inRinging;			/*!< Number of calls ringing */
 	int onHold;                     /*!< Peer has someone on hold */
 	int call_limit;			/*!< Limit of concurrent calls */
+	int t38_maxdatagram;		/*!< T.38 FaxMaxDatagram override */
 	int busy_level;			/*!< Level of active channels where we signal busy */
 	enum transfermodes allowtransfer;	/*! SIP Refer restriction scheme */
 	char vmexten[AST_MAX_EXTENSION]; /*!< Dialplan extension for MWI notify message*/
@@ -4515,6 +4519,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 			/* t38pt_udptl was enabled in the peer and not in [general] */
 			dialog->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr.sin_addr);
 		}
+		dialog->t38_maxdatagram = peer->t38_maxdatagram;
 		set_t38_capabilities(dialog);
 	} else if (dialog->udptl) {
 		ast_udptl_destroy(dialog->udptl);
@@ -6519,6 +6524,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 			}
 			ao2_t_ref(p, -1, "failed to create RTP audio session, drop p");
 			return NULL;
+			p->t38_maxdatagram = global_t38_maxdatagram;
 		}
 		ast_rtp_setqos(p->rtp, global_tos_audio, global_cos_audio, "SIP RTP");
 		ast_rtp_setdtmf(p->rtp, ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833);
@@ -6569,6 +6575,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	    (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_AUTO))
 		p->noncodeccapability |= AST_RTP_DTMF;
 	if (p->udptl) {
+		p->t38_maxdatagram = global_t38_maxdatagram;
 		set_t38_capabilities(p);
 	}
 	ast_string_field_set(p, context, default_context);
@@ -7721,6 +7728,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					ast_debug(3, "FaxVersion: %d\n", x);
 					p->t38.their_parms.version = x;
 				} else if ((sscanf(a, "T38FaxMaxDatagram:%30d", &x) == 1) || (sscanf(a, "T38MaxDatagram:%30d", &x) == 1)) {
+					/* override the supplied value if the configuration requests it */
+					if (p->t38_maxdatagram > x) {
+						ast_debug(1, "Overriding T38FaxMaxDatagram '%d' with '%d'\n", x, p->t38_maxdatagram);
+						x = p->t38_maxdatagram;
+					}
 					found = 1;
 					ast_debug(3, "FaxMaxDatagram: %d\n", x);
 					ast_udptl_set_far_max_datagram(p->udptl, x);
@@ -12695,6 +12707,7 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 	ast_copy_flags(&p->flags[1], &peer->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
 
 	if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) && p->udptl) {
+		p->t38_maxdatagram = peer->t38_maxdatagram;
 		set_t38_capabilities(p);
 	}
 
@@ -14061,6 +14074,18 @@ static void peer_mailboxes_to_str(struct ast_str **mailbox_str, struct sip_peer 
 	}
 }
 
+static struct _map_x_s faxecmodes[] = {
+	{ SIP_PAGE2_T38SUPPORT_UDPTL,			"None"},
+	{ SIP_PAGE2_T38SUPPORT_UDPTL_FEC,		"FEC"},
+	{ SIP_PAGE2_T38SUPPORT_UDPTL_REDUNDANCY,	"Redundancy"},
+	{ -1,						NULL},
+};
+
+static const char *faxec2str(int faxec)
+{
+	return map_x_s(faxecmodes, faxec, "Unknown");
+}
+
 /*! \brief Show one peer in detail (main function) */
 static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct message *m, int argc, const char *argv[])
 {
@@ -14138,7 +14163,9 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  Insecure     : %s\n", insecure2str(ast_test_flag(&peer->flags[0], SIP_INSECURE)));
 		ast_cli(fd, "  Nat          : %s\n", nat2str(ast_test_flag(&peer->flags[0], SIP_NAT)));
 		ast_cli(fd, "  ACL          : %s\n", cli_yesno(peer->ha != NULL));
-		ast_cli(fd, "  T38 pt UDPTL : %s\n", cli_yesno(ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT)));
+		ast_cli(fd, "  T.38 support : %s\n", cli_yesno(ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT)));
+		ast_cli(fd, "  T.38 EC mode : %s\n", faxec2str(ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT)));
+		ast_cli(fd, "  T.38 MaxDtgrm: %d\n", peer->t38_maxdatagram);
 		ast_cli(fd, "  CanReinvite  : %s\n", cli_yesno(ast_test_flag(&peer->flags[0], SIP_CAN_REINVITE)));
 		ast_cli(fd, "  PromiscRedir : %s\n", cli_yesno(ast_test_flag(&peer->flags[0], SIP_PROMISCREDIR)));
 		ast_cli(fd, "  User=Phone   : %s\n", cli_yesno(ast_test_flag(&peer->flags[0], SIP_USEREQPHONE)));
@@ -14246,6 +14273,9 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		astman_append(s, "SIP-UserPhone: %s\r\n", (ast_test_flag(&peer->flags[0], SIP_USEREQPHONE)?"Y":"N"));
 		astman_append(s, "SIP-VideoSupport: %s\r\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_VIDEOSUPPORT)?"Y":"N"));
 		astman_append(s, "SIP-TextSupport: %s\r\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_TEXTSUPPORT)?"Y":"N"));
+		astman_append(s, "SIP-T.38Support: %s\r\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT)?"Y":"N"));
+		astman_append(s, "SIP-T.38EC: %s\r\n", faxec2str(ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT)));
+		astman_append(s, "SIP-T.38MaxDtgrm: %d\r\n", peer->t38_maxdatagram);
 		astman_append(s, "SIP-Sess-Timers: %s\r\n", stmode2str(peer->stimer.st_mode_oper));
 		astman_append(s, "SIP-Sess-Refresh: %s\r\n", strefresher2str(peer->stimer.st_ref));
 		astman_append(s, "SIP-Sess-Expires: %d\r\n", peer->stimer.st_max_se);
@@ -14692,7 +14722,9 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Call Events:            %s\n", global_callevents ? "On" : "Off");
 	ast_cli(a->fd, "  Auth. Failure Events:   %s\n", global_authfailureevents ? "On" : "Off");
 
-	ast_cli(a->fd, "  T38 fax pt UDPTL:       %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT)));
+	ast_cli(a->fd, "  T.38 support:           %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT)));
+	ast_cli(a->fd, "  T.38 EC mode:           %s\n", faxec2str(ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT)));
+	ast_cli(a->fd, "  T.38 MaxDtgrm:          %d\n", global_t38_maxdatagram);
 
 	if (!realtimepeers && !realtimeregs)
 		ast_cli(a->fd, "  SIP realtime:           Disabled\n" );
@@ -18556,6 +18588,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 
 		/* If T38 is needed but not present, then make it magically appear */
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) && !p->udptl && (p->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr.sin_addr))) {
+			p->t38_maxdatagram = global_t38_maxdatagram;
 			set_t38_capabilities(p);
 		}
 
@@ -21689,6 +21722,48 @@ static void set_insecure_flags (struct ast_flags *flags, const char *value, int 
 }
 
 /*!
+  \brief Handle T.38 configuration options common to users and peers
+  \returns non-zero if any config options were handled, zero otherwise
+*/
+static int handle_t38_options(struct ast_flags *flags, struct ast_flags *mask, struct ast_variable *v,
+			      int *maxdatagram)
+{
+	int res = 1;
+
+	if (!strcasecmp(v->name, "t38pt_udptl")) {
+		char *buf = ast_strdupa(v->value);
+		char *word, *next = buf;
+
+		ast_set_flag(&mask[1], SIP_PAGE2_T38SUPPORT);
+
+		while ((word = strsep(&next, ","))) {
+			if (ast_true(word) || !strcasecmp(word, "fec")) {
+				ast_clear_flag(&flags[1], SIP_PAGE2_T38SUPPORT);
+				ast_set_flag(&flags[1], SIP_PAGE2_T38SUPPORT_UDPTL_FEC);
+			} else if (!strcasecmp(word, "redundancy")) {
+				ast_clear_flag(&flags[1], SIP_PAGE2_T38SUPPORT);
+				ast_set_flag(&flags[1], SIP_PAGE2_T38SUPPORT_UDPTL_REDUNDANCY);
+			} else if (!strcasecmp(word, "none")) {
+				ast_clear_flag(&flags[1], SIP_PAGE2_T38SUPPORT);
+				ast_set_flag(&flags[1], SIP_PAGE2_T38SUPPORT_UDPTL);
+			} else if (!strncasecmp(word, "maxdatagram=", 12)) {
+				if (sscanf(&word[12], "%30d", maxdatagram) != 1) {
+					ast_log(LOG_WARNING, "Invalid maxdatagram '%s' at line %d of %s\n", v->value, v->lineno, config);
+					*maxdatagram = global_t38_maxdatagram;
+				}
+			}
+		}
+	} else if (!strcasecmp(v->name, "t38pt_usertpsource")) {
+		ast_set_flag(&mask[1], SIP_PAGE2_UDPTL_DESTINATION);
+		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_UDPTL_DESTINATION);
+	} else {
+		res = 0;
+	}
+
+	return res;
+}
+
+/*!
   \brief Handle flag-type options common to configuration of devices - peers
   \param flags array of two struct ast_flags
   \param mask array of two struct ast_flags
@@ -21795,34 +21870,12 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 	} else if (!strcasecmp(v->name, "ignoresdpversion")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_IGNORESDPVERSION);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_IGNORESDPVERSION);
-	} else if (!strcasecmp(v->name, "t38pt_udptl")) {
-		char buf[16], *word, *next = buf;
-
-		ast_set_flag(&mask[1], SIP_PAGE2_T38SUPPORT);
-
-		ast_copy_string(buf, v->value, sizeof(buf));
-
-		while ((word = strsep(&next, ","))) {
-			if (ast_true(word) || !strcasecmp(word, "fec")) {
-				ast_clear_flag(&flags[1], SIP_PAGE2_T38SUPPORT);
-				ast_set_flag(&flags[1], SIP_PAGE2_T38SUPPORT_UDPTL_FEC);
-			} else if (!strcasecmp(word, "redundancy")) {
-				ast_clear_flag(&flags[1], SIP_PAGE2_T38SUPPORT);
-				ast_set_flag(&flags[1], SIP_PAGE2_T38SUPPORT_UDPTL_REDUNDANCY);
-			} else if (!strcasecmp(word, "none")) {
-				ast_clear_flag(&flags[1], SIP_PAGE2_T38SUPPORT);
-				ast_set_flag(&flags[1], SIP_PAGE2_T38SUPPORT_UDPTL);
-			}
-		}
 	} else if (!strcasecmp(v->name, "rfc2833compensate")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_RFC2833_COMPENSATE);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_RFC2833_COMPENSATE);
 	} else if (!strcasecmp(v->name, "buggymwi")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_BUGGY_MWI);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_BUGGY_MWI);
-	} else if (!strcasecmp(v->name, "t38pt_usertpsource")) {
-		ast_set_flag(&mask[1], SIP_PAGE2_UDPTL_DESTINATION);
-		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_UDPTL_DESTINATION);
 	} else if (!strcasecmp(v->name, "constantssrc")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_CONSTANT_SSRC);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_CONSTANT_SSRC);
@@ -22028,6 +22081,7 @@ static void set_peer_defaults(struct sip_peer *peer)
 	peer->rtpkeepalive = global_rtpkeepalive;
 	peer->allowtransfer = global_allowtransfer;
 	peer->autoframing = global_autoframing;
+	peer->t38_maxdatagram = global_t38_maxdatagram;
 	peer->qualifyfreq = global_qualifyfreq;
 	if (global_callcounter)
 		peer->call_limit=999;
@@ -22173,6 +22227,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	for (; v || ((v = alt) && !(alt=NULL)); v = v->next) {
 		if (!devstate_only) {
 			if (handle_common_options(&peerflags[0], &mask[0], v)) {
+				continue;
+			}
+			if (handle_t38_options(&peerflags[0], &mask[0], v, &peer->t38_maxdatagram)) {
 				continue;
 			}
 			if (!strcasecmp(v->name, "transport") && !ast_strlen_zero(v->value)) {
@@ -22838,6 +22895,7 @@ static int reload_config(enum channelreloadreason reason)
 	global_timer_b = 64 * SIP_TIMER_T1;
 	global_t1min = DEFAULT_T1MIN;
 	global_qualifyfreq = DEFAULT_QUALIFYFREQ;
+	global_t38_maxdatagram = -1;
 
 	global_matchexterniplocally = FALSE;
 
@@ -22853,6 +22911,9 @@ static int reload_config(enum channelreloadreason reason)
 	for (v = ast_variable_browse(cfg, "general"); v; v = v->next) {
 		if (handle_common_options(&global_flags[0], &dummy[0], v))
 			continue;
+		if (handle_t38_options(&global_flags[0], &dummy[0], v, &global_t38_maxdatagram)) {
+			continue;
+		}
 		/* handle jb conf */
 		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value))
 			continue;
