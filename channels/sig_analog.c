@@ -220,17 +220,14 @@ static char *analog_event2str(enum analog_event event)
 {
 	char *res;
 	switch (event) {
-	case ANALOG_EVENT_DIALCOMPLETE:
-		res = "ANALOG_EVENT_DIALCOMPLETE";
-		break;
-	case ANALOG_EVENT_WINKFLASH:
-		res = "ANALOG_EVENT_WINKFLASH";
-		break;
 	case ANALOG_EVENT_ONHOOK:
 		res = "ANALOG_EVENT_ONHOOK";
 		break;
 	case ANALOG_EVENT_RINGOFFHOOK:
 		res = "ANALOG_EVENT_RINGOFFHOOK";
+		break;
+	case ANALOG_EVENT_WINKFLASH:
+		res = "ANALOG_EVENT_WINKFLASH";
 		break;
 	case ANALOG_EVENT_ALARM:
 		res = "ANALOG_EVENT_ALARM";
@@ -238,23 +235,29 @@ static char *analog_event2str(enum analog_event event)
 	case ANALOG_EVENT_NOALARM:
 		res = "ANALOG_EVENT_NOALARM";
 		break;
+	case ANALOG_EVENT_DIALCOMPLETE:
+		res = "ANALOG_EVENT_DIALCOMPLETE";
+		break;
 	case ANALOG_EVENT_HOOKCOMPLETE:
 		res = "ANALOG_EVENT_HOOKCOMPLETE";
 		break;
+	case ANALOG_EVENT_PULSE_START:
+		res = "ANALOG_EVENT_PULSE_START";
+		break;
 	case ANALOG_EVENT_POLARITY:
 		res = "ANALOG_EVENT_POLARITY";
+		break;
+	case ANALOG_EVENT_RINGBEGIN:
+		res = "ANALOG_EVENT_RINGBEGIN";
+		break;
+	case ANALOG_EVENT_EC_DISABLED:
+		res = "ANALOG_EVENT_EC_DISABLED";
 		break;
 	case ANALOG_EVENT_RINGERON:
 		res = "ANALOG_EVENT_RINGERON";
 		break;
 	case ANALOG_EVENT_RINGEROFF:
 		res = "ANALOG_EVENT_RINGEROFF";
-		break;
-	case ANALOG_EVENT_RINGBEGIN:
-		res = "ANALOG_EVENT_RINGBEGIN";
-		break;
-	case ANALOG_EVENT_PULSE_START:
-		res = "ANALOG_EVENT_PULSE_START";
 		break;
 	case ANALOG_EVENT_REMOVED:
 		res = "ANALOG_EVENT_REMOVED";
@@ -264,6 +267,29 @@ static char *analog_event2str(enum analog_event event)
 		break;
 	case ANALOG_EVENT_NEONMWI_INACTIVE:
 		res = "ANALOG_EVENT_NEONMWI_INACTIVE";
+		break;
+#ifdef HAVE_DAHDI_ECHOCANCEL_FAX_MODE
+	case ANALOG_EVENT_TX_CED_DETECTED:
+		res = "ANALOG_EVENT_TX_CED_DETECTED";
+		break;
+	case ANALOG_EVENT_RX_CED_DETECTED:
+		res = "ANALOG_EVENT_RX_CED_DETECTED";
+		break;
+	case ANALOG_EVENT_EC_NLP_DISABLED:
+		res = "ANALOG_EVENT_EC_NLP_DISABLED";
+		break;
+	case ANALOG_EVENT_EC_NLP_ENABLED:
+		res = "ANALOG_EVENT_EC_NLP_ENABLED";
+		break;
+#endif
+	case ANALOG_EVENT_PULSEDIGIT:
+		res = "ANALOG_EVENT_PULSEDIGIT";
+		break;
+	case ANALOG_EVENT_DTMFDOWN:
+		res = "ANALOG_EVENT_DTMFDOWN";
+		break;
+	case ANALOG_EVENT_DTMFUP:
+		res = "ANALOG_EVENT_DTMFUP";
 		break;
 	default:
 		res = "UNKNOWN/OTHER";
@@ -783,6 +809,22 @@ static void analog_cancel_cidspill(struct analog_pvt *p)
 	p->calls->cancel_cidspill(p->chan_pvt);
 }
 
+static int analog_confmute(struct analog_pvt *p, int mute)
+{
+	if (p->calls->confmute) {
+		return p->calls->confmute(p->chan_pvt, mute);
+	}
+	return 0;
+}
+
+static void analog_set_pulsedial(struct analog_pvt *p, int flag)
+{
+	if (!p->calls->set_pulsedial) {
+		return;
+	}
+	p->calls->set_pulsedial(p->chan_pvt, flag);
+}
+
 static int analog_set_linear_mode(struct analog_pvt *p, int index, int linear_mode)
 {
 	if (p->calls->set_linear_mode) {
@@ -1167,6 +1209,7 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 		p->owner = NULL;
 		analog_set_ringtimeout(p, 0);
 		analog_set_confirmanswer(p, 0);
+		analog_set_pulsedial(p, 0);
 		p->outgoing = 0;
 		p->onhooktime = time(NULL);
 		p->cidrings = 1;
@@ -2332,11 +2375,42 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 
 	ast_debug(1, "Got event %s(%d) on channel %d (index %d)\n", analog_event2str(res), res, p->channel, index);
 
+	if (res & (ANALOG_EVENT_PULSEDIGIT | ANALOG_EVENT_DTMFUP)) {
+		analog_set_pulsedial(p, (res & ANALOG_EVENT_PULSEDIGIT));
+		ast_debug(1, "Detected %sdigit '%c'\n", (res & ANALOG_EVENT_PULSEDIGIT) ? "pulse ": "", res & 0xff);
+		analog_confmute(p, 0);
+		p->subs[index].f.frametype = AST_FRAME_DTMF_END;
+		p->subs[index].f.subclass = res & 0xff;
+		analog_handle_dtmfup(p, ast, index, &f);
+		return f;
+	}
+
+	if (res & ANALOG_EVENT_DTMFDOWN) {
+		ast_debug(1, "DTMF Down '%c'\n", res & 0xff);
+		/* Mute conference */
+		analog_confmute(p, 1);
+		p->subs[index].f.frametype = AST_FRAME_DTMF_BEGIN;
+		p->subs[index].f.subclass = res & 0xff;
+		return f;
+	}
+
 	switch (res) {
-#ifdef ANALOG_EVENT_EC_DISABLED
 	case ANALOG_EVENT_EC_DISABLED:
 		ast_verb(3, "Channel %d echo canceler disabled due to CED detection\n", p->channel);
-		p->echocanon = 0;
+		analog_set_echocanceller(p, 0);
+		break;
+#ifdef HAVE_DAHDI_ECHOCANCEL_FAX_MODE
+	case ANALOG_EVENT_TX_CED_DETECTED:
+		ast_verb(3, "Channel %d detected a CED tone towards the network.\n", p->channel);
+		break;
+	case ANALOG_EVENT_RX_CED_DETECTED:
+		ast_verb(3, "Channel %d detected a CED tone from the network.\n", p->channel);
+		break;
+	case ANALOG_EVENT_EC_NLP_DISABLED:
+		ast_verb(3, "Channel %d echo canceler disabled its NLP.\n", p->channel);
+		break;
+	case ANALOG_EVENT_EC_NLP_ENABLED:
+		ast_verb(3, "Channel %d echo canceler enabled its NLP.\n", p->channel);
 		break;
 #endif
 	case ANALOG_EVENT_PULSE_START:

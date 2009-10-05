@@ -65,23 +65,31 @@ enum analog_tone {
 
 enum analog_event {
 	ANALOG_EVENT_NONE = 0,
-	ANALOG_EVENT_DIALCOMPLETE,
-	ANALOG_EVENT_WINKFLASH,
 	ANALOG_EVENT_ONHOOK,
 	ANALOG_EVENT_RINGOFFHOOK,
+	ANALOG_EVENT_WINKFLASH,
 	ANALOG_EVENT_ALARM,
 	ANALOG_EVENT_NOALARM,
-	ANALOG_EVENT_HOOKCOMPLETE,
-	ANALOG_EVENT_POLARITY,
+	ANALOG_EVENT_DIALCOMPLETE,
 	ANALOG_EVENT_RINGERON,
 	ANALOG_EVENT_RINGEROFF,
-	ANALOG_EVENT_RINGBEGIN,
+	ANALOG_EVENT_HOOKCOMPLETE,
 	ANALOG_EVENT_PULSE_START,
-	ANALOG_EVENT_ERROR,
+	ANALOG_EVENT_POLARITY,
+	ANALOG_EVENT_RINGBEGIN,
+	ANALOG_EVENT_EC_DISABLED,
 	ANALOG_EVENT_REMOVED,
 	ANALOG_EVENT_NEONMWI_ACTIVE,
 	ANALOG_EVENT_NEONMWI_INACTIVE,
-	ANALOG_EVENT_DTMFCID,
+	ANALOG_EVENT_TX_CED_DETECTED,
+	ANALOG_EVENT_RX_CED_DETECTED,
+	ANALOG_EVENT_EC_NLP_DISABLED,
+	ANALOG_EVENT_EC_NLP_ENABLED,
+	ANALOG_EVENT_ERROR, /* not a DAHDI event */
+	ANALOG_EVENT_DTMFCID, /* not a DAHDI event */
+	ANALOG_EVENT_PULSEDIGIT = (1 << 16), 
+	ANALOG_EVENT_DTMFDOWN = (1 << 17),
+	ANALOG_EVENT_DTMFUP = (1 << 18),
 };
 
 enum analog_sub {
@@ -203,6 +211,8 @@ struct analog_callback {
 	void (* const set_confirmanswer)(void *pvt, int flag);
 	int (* const check_confirmanswer)(void *pvt);
 	void (* const cancel_cidspill)(void *pvt);
+	int (* const confmute)(void *pvt, int mute);	
+	void (* const set_pulsedial)(void *pvt, int flag);
 };
 
 
@@ -279,7 +289,6 @@ struct analog_pvt {
 	unsigned int echobreak:1;
 	unsigned int hidecallerid:1;
 	unsigned int outgoing:1;
-	unsigned int pulsedial:1;		/*!< TRUE if a pulsed digit was detected. (Pulse dial phone detected) */
 
 	char callwait_num[AST_MAX_EXTENSION];
 	char callwait_name[AST_MAX_EXTENSION];

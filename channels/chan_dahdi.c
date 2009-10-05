@@ -2118,6 +2118,18 @@ static void my_cancel_cidspill(void *pvt)
 	}
 }
 
+static int my_confmute(void *pvt, int mute)
+{
+	struct dahdi_pvt *p = pvt;
+	return dahdi_confmute(p, mute);
+}
+
+static void my_set_pulsedial(void *pvt, int flag)
+{
+	struct dahdi_pvt *p = pvt;
+	p->pulsedial = flag;
+}
+
 static void my_increase_ss_count(void)
 {
 	ast_mutex_lock(&ss_thread_lock);
@@ -2370,20 +2382,17 @@ static int my_play_tone(void *pvt, enum analog_sub sub, enum analog_tone tone)
 
 static enum analog_event dahdievent_to_analogevent(int event)
 {
-	enum analog_event res = ANALOG_EVENT_ERROR;
+	enum analog_event res;
 
 	switch (event) {
-	case DAHDI_EVENT_DIALCOMPLETE:
-		res = ANALOG_EVENT_DIALCOMPLETE;
-		break;
-	case DAHDI_EVENT_WINKFLASH:
-		res = ANALOG_EVENT_WINKFLASH;
-		break;
 	case DAHDI_EVENT_ONHOOK:
 		res = ANALOG_EVENT_ONHOOK;
 		break;
 	case DAHDI_EVENT_RINGOFFHOOK:
 		res = ANALOG_EVENT_RINGOFFHOOK;
+		break;
+	case DAHDI_EVENT_WINKFLASH:
+		res = ANALOG_EVENT_WINKFLASH;
 		break;
 	case DAHDI_EVENT_ALARM:
 		res = ANALOG_EVENT_ALARM;
@@ -2391,11 +2400,8 @@ static enum analog_event dahdievent_to_analogevent(int event)
 	case DAHDI_EVENT_NOALARM:
 		res = ANALOG_EVENT_NOALARM;
 		break;
-	case DAHDI_EVENT_HOOKCOMPLETE:
-		res = ANALOG_EVENT_HOOKCOMPLETE;
-		break;
-	case DAHDI_EVENT_POLARITY:
-		res = ANALOG_EVENT_POLARITY;
+	case DAHDI_EVENT_DIALCOMPLETE:
+		res = ANALOG_EVENT_DIALCOMPLETE;
 		break;
 	case DAHDI_EVENT_RINGERON:
 		res = ANALOG_EVENT_RINGERON;
@@ -2403,20 +2409,55 @@ static enum analog_event dahdievent_to_analogevent(int event)
 	case DAHDI_EVENT_RINGEROFF:
 		res = ANALOG_EVENT_RINGEROFF;
 		break;
-	case DAHDI_EVENT_RINGBEGIN:
-		res = ANALOG_EVENT_RINGBEGIN;
+	case DAHDI_EVENT_HOOKCOMPLETE:
+		res = ANALOG_EVENT_HOOKCOMPLETE;
 		break;
 	case DAHDI_EVENT_PULSE_START:
 		res = ANALOG_EVENT_PULSE_START;
-	break;
+		break;
+	case DAHDI_EVENT_POLARITY:
+		res = ANALOG_EVENT_POLARITY;
+		break;
+	case DAHDI_EVENT_RINGBEGIN:
+		res = ANALOG_EVENT_RINGBEGIN;
+		break;
+	case DAHDI_EVENT_EC_DISABLED:
+		res = ANALOG_EVENT_EC_DISABLED;
+		break;
 	case DAHDI_EVENT_REMOVED:
 		res = ANALOG_EVENT_REMOVED;
-	break;
+		break;
 	case DAHDI_EVENT_NEONMWI_ACTIVE:
 		res = ANALOG_EVENT_NEONMWI_ACTIVE;
 		break;
 	case DAHDI_EVENT_NEONMWI_INACTIVE:
 		res = ANALOG_EVENT_NEONMWI_INACTIVE;
+		break;
+#ifdef HAVE_DAHDI_ECHOCANCEL_FAX_MODE
+	case DAHDI_EVENT_TX_CED_DETECTED:
+		res = ANALOG_EVENT_TX_CED_DETECTED;
+		break;
+	case DAHDI_EVENT_RX_CED_DETECTED:
+		res = ANALOG_EVENT_RX_CED_DETECTED;
+		break;
+	case DAHDI_EVENT_EC_NLP_DISABLED:
+		res = ANALOG_EVENT_EC_NLP_DISABLED;
+		break;
+	case DAHDI_EVENT_EC_NLP_ENABLED:
+		res = ANALOG_EVENT_EC_NLP_ENABLED;
+		break;
+#endif
+	case DAHDI_EVENT_PULSEDIGIT:
+		res = ANALOG_EVENT_PULSEDIGIT;
+		break;
+	case DAHDI_EVENT_DTMFDOWN:
+		res = ANALOG_EVENT_DTMFDOWN;
+		break;
+	case DAHDI_EVENT_DTMFUP:
+		res = ANALOG_EVENT_DTMFUP;
+		break;
+	default:
+		res = ANALOG_EVENT_ERROR;
 		break;
 	}
 
@@ -2846,6 +2887,8 @@ static struct analog_callback dahdi_analog_callbacks =
 	.set_confirmanswer = my_set_confirmanswer,
 	.check_confirmanswer = my_check_confirmanswer,
 	.cancel_cidspill = my_cancel_cidspill,
+	.confmute = my_confmute,
+	.set_pulsedial = my_set_pulsedial,
 };
 
 static struct dahdi_pvt *round_robin[32];
