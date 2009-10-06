@@ -4881,8 +4881,9 @@ static void destroy_dahdi_pvt(struct dahdi_pvt *pvt)
 		ast_smdi_interface_unref(p->smdi_iface);
 	if (p->mwi_event_sub)
 		ast_event_unsubscribe(p->mwi_event_sub);
-	if (p->vars)
+	if (p->vars && iflist && !iflist->next) {
 		ast_variables_destroy(p->vars);
+	}
 	ast_mutex_destroy(&p->lock);
 	dahdi_close_sub(p, SUB_REAL);
 	if (p->owner)
