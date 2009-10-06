@@ -4881,7 +4881,7 @@ static void destroy_dahdi_pvt(struct dahdi_pvt *pvt)
 		ast_smdi_interface_unref(p->smdi_iface);
 	if (p->mwi_event_sub)
 		ast_event_unsubscribe(p->mwi_event_sub);
-	if (p->vars && iflist && !iflist->next) {
+	if (p->vars) {
 		ast_variables_destroy(p->vars);
 	}
 	ast_mutex_destroy(&p->lock);
@@ -11309,7 +11309,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		tmp->callgroup = conf->chan.callgroup;
 		tmp->pickupgroup= conf->chan.pickupgroup;
 		if (conf->chan.vars) {
-			tmp->vars = conf->chan.vars;
+			tmp->vars = ast_variable_new(conf->chan.vars->name, conf->chan.vars->value, "");
 		}
 		tmp->cid_rxgain = conf->chan.cid_rxgain;
 		tmp->rxgain = conf->chan.rxgain;
