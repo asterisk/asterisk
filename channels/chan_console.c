@@ -1017,6 +1017,7 @@ static char *cli_list_devices(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		console_pvt_unlock(pvt);
 		unref_pvt(pvt);
 	}
+	ao2_iterator_destroy(&i);
 
 	ast_cli(a->fd, "=============================================================\n\n");
 
@@ -1168,9 +1169,12 @@ static char *cli_console_active(struct ast_cli_entry *e, int cmd, struct ast_cli
 				if (++x > a->n && !strncasecmp(pvt->name, a->word, strlen(a->word)))
 					res = ast_strdup(pvt->name);
 				unref_pvt(pvt);
-				if (res)
+				if (res) {
+					ao2_iterator_destroy(&i);
 					return res;
+				}
 			}
+			ao2_iterator_destroy(&i);
 		}
 		return NULL;
 	}
@@ -1370,6 +1374,7 @@ static void destroy_pvts(void)
 		}
 		unref_pvt(pvt);
 	}
+	ao2_iterator_destroy(&i);
 }
 
 /*!
@@ -1440,6 +1445,7 @@ static void stop_streams(void)
 			stop_stream(pvt);
 		unref_pvt(pvt);
 	}
+	ao2_iterator_destroy(&i);
 }
 
 static int unload_module(void)

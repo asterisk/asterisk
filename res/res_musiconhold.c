@@ -1586,7 +1586,6 @@ static char *handle_cli_moh_show_files(struct ast_cli_entry *e, int cmd, struct 
 		return CLI_SHOWUSAGE;
 
 	i = ao2_iterator_init(mohclasses, 0);
-
 	for (; (class = ao2_iterator_next(&i)); mohclass_unref(class)) {
 		int x;
 
@@ -1599,6 +1598,7 @@ static char *handle_cli_moh_show_files(struct ast_cli_entry *e, int cmd, struct 
 			ast_cli(a->fd, "\tFile: %s\n", class->filearray[x]);
 		}
 	}
+	ao2_iterator_destroy(&i);
 
 	return CLI_SUCCESS;
 }
@@ -1623,7 +1623,6 @@ static char *handle_cli_moh_show_classes(struct ast_cli_entry *e, int cmd, struc
 		return CLI_SHOWUSAGE;
 
 	i = ao2_iterator_init(mohclasses, 0);
-
 	for (; (class = ao2_iterator_next(&i)); mohclass_unref(class)) {
 		ast_cli(a->fd, "Class: %s\n", class->name);
 		ast_cli(a->fd, "\tMode: %s\n", S_OR(class->mode, "<none>"));
@@ -1635,6 +1634,7 @@ static char *handle_cli_moh_show_classes(struct ast_cli_entry *e, int cmd, struc
 			ast_cli(a->fd, "\tFormat: %s\n", ast_getformatname(class->format));
 		}
 	}
+	ao2_iterator_destroy(&i);
 
 	return CLI_SUCCESS;
 }
