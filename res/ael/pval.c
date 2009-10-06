@@ -3360,30 +3360,44 @@ static void gen_prios(struct ael_extension *exten, char *label, pval *statement,
 		if (contains_switch(statement)) { /* only run contains_switch if you haven't checked before */
 			if (mother_exten) {
 				if (!mother_exten->has_switch) {
-					switch_set = new_prio();
-					switch_set->type = AEL_APPCALL;
-					switch_set->app = strdup("Set");
-					switch_set->appargs = strdup("~~EXTEN~~=${EXTEN}");
-					linkprio(exten, switch_set, mother_exten);
-					mother_exten->has_switch = 1;
-					mother_exten->checked_switch = 1;
-					if (exten) {
-						exten->has_switch = 1;
-						exten->checked_switch = 1;
+					for (first = 1; first >= 0; first--) {
+						switch_set = new_prio();
+						switch_set->type = AEL_APPCALL;
+						switch_set->app = strdup("Set");
+						if (!strcmp(mother_exten->name, "s") && first) {
+							switch_set->appargs = strdup("LOCAL(~~EXTEN~~)=${EXTEN}");
+						} else {
+							switch_set->appargs = strdup("~~EXTEN~~=${EXTEN}");
+							first = 0;
+						}
+						linkprio(exten, switch_set, mother_exten);
+						mother_exten->has_switch = 1;
+						mother_exten->checked_switch = 1;
+						if (exten) {
+							exten->has_switch = 1;
+							exten->checked_switch = 1;
+						}
 					}
 				}
 			} else if (exten) {
 				if (!exten->has_switch) {
-					switch_set = new_prio();
-					switch_set->type = AEL_APPCALL;
-					switch_set->app = strdup("Set");
-					switch_set->appargs = strdup("~~EXTEN~~=${EXTEN}");
-					linkprio(exten, switch_set, mother_exten);
-					exten->has_switch = 1;
-					exten->checked_switch = 1;
-					if (mother_exten) {
-						mother_exten->has_switch = 1;
-						mother_exten->checked_switch = 1;
+					for (first = 1; first >= 0; first--) {
+						switch_set = new_prio();
+						switch_set->type = AEL_APPCALL;
+						switch_set->app = strdup("Set");
+						if (!strcmp(mother_exten->name, "s") && first) {
+							switch_set->appargs = strdup("LOCAL(~~EXTEN~~)=${EXTEN}");
+						} else {
+							switch_set->appargs = strdup("~~EXTEN~~=${EXTEN}");
+							first = 0;
+						}
+						linkprio(exten, switch_set, mother_exten);
+						exten->has_switch = 1;
+						exten->checked_switch = 1;
+						if (mother_exten) {
+							mother_exten->has_switch = 1;
+							mother_exten->checked_switch = 1;
+						}
 					}
 				}
 			}
