@@ -13043,7 +13043,6 @@ static char *sip_show_inuse(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	ast_cli(a->fd, FORMAT, "* Peer name", "In use", "Limit");
 
 	i = ao2_iterator_init(peers, 0);
-
 	while ((peer = ao2_t_iterator_next(&i, "iterate thru peer table"))) {
 		ao2_lock(peer);
 		if (peer->call_limit)
@@ -13056,6 +13055,7 @@ static char *sip_show_inuse(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		ao2_unlock(peer);
 		unref_peer(peer, "toss iterator pointer");
 	}
+	ao2_iterator_destroy(&i);
 
 	return CLI_SUCCESS;
 #undef FORMAT
@@ -13281,6 +13281,7 @@ static char *sip_show_users(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		ao2_unlock(user);
 		unref_peer(user, "sip show users");
 	}
+	ao2_iterator_destroy(&user_iter);
 
 	if (havepattern)
 		regfree(&regexbuf);
@@ -13469,6 +13470,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 		peerarray[total_peers++] = peer;
 		ao2_unlock(peer);
 	}
+	ao2_iterator_destroy(&i);
 	
 	qsort(peerarray, total_peers, sizeof(struct sip_peer *), peercomparefunc);
 
@@ -13858,6 +13860,7 @@ static char *sip_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli
 				ao2_unlock(pi);
 				unref_peer(pi, "toss iterator peer ptr");
 			}
+			ao2_iterator_destroy(&i);
 			if (pruned) {
 				ao2_t_callback(peers, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, peer_is_marked, 0, 
 						"initiating callback to remove marked peers");
@@ -14351,6 +14354,7 @@ static char *complete_sip_user(const char *word, int state)
 		ao2_unlock(user);
 		unref_peer(user, "complete sip user");
 	}
+	ao2_iterator_destroy(&user_iter);
 	return result;
 }
 /*! \brief Support routine for 'sip show user' CLI */
@@ -14987,7 +14991,6 @@ static char *complete_sipch(const char *line, const char *word, int pos, int sta
 	}
 
 	i = ao2_iterator_init(dialogs, 0);
-	
 	while ((cur = ao2_t_iterator_next(&i, "iterate thru dialogs"))) {
 		sip_pvt_lock(cur);
 		if (!strncasecmp(word, cur->callid, wordlen) && ++which > state) {
@@ -14999,6 +15002,7 @@ static char *complete_sipch(const char *line, const char *word, int pos, int sta
 		sip_pvt_unlock(cur);
 		dialog_unref(cur, "drop ref in iterator loop");
 	}
+	ao2_iterator_destroy(&i);
 	return c;
 }
 
@@ -15023,6 +15027,7 @@ static char *complete_sip_peer(const char *word, int state, int flags2)
 			break;
 		}
 	}
+	ao2_iterator_destroy(&i);
 	return result;
 }
 
@@ -15032,21 +15037,22 @@ static char *complete_sip_registered_peer(const char *word, int state, int flags
        char *result = NULL;
        int wordlen = strlen(word);
        int which = 0;
-	   struct ao2_iterator i;
-	   struct sip_peer *peer;
-
-	   i = ao2_iterator_init(peers, 0);
-	   while ((peer = ao2_t_iterator_next(&i, "iterate thru peers table"))) {
-		   if (!strncasecmp(word, peer->name, wordlen) &&
-			   (!flags2 || ast_test_flag(&peer->flags[1], flags2)) &&
-			   ++which > state && peer->expire > 0)
-			   result = ast_strdup(peer->name);
-		   if (result) {
-			   unref_peer(peer, "toss iterator peer ptr before break");
-			   break;
-		   }
-		   unref_peer(peer, "toss iterator peer ptr");
+       struct ao2_iterator i;
+       struct sip_peer *peer;
+       
+       i = ao2_iterator_init(peers, 0);
+       while ((peer = ao2_t_iterator_next(&i, "iterate thru peers table"))) {
+	       if (!strncasecmp(word, peer->name, wordlen) &&
+		   (!flags2 || ast_test_flag(&peer->flags[1], flags2)) &&
+		   ++which > state && peer->expire > 0)
+		       result = ast_strdup(peer->name);
+	       if (result) {
+		       unref_peer(peer, "toss iterator peer ptr before break");
+		       break;
+	       }
+	       unref_peer(peer, "toss iterator peer ptr");
        }
+       ao2_iterator_destroy(&i);
        return result;
 }
 
@@ -15132,7 +15138,6 @@ static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	len = strlen(a->argv[3]);
 	
 	i = ao2_iterator_init(dialogs, 0);
-
 	while ((cur = ao2_t_iterator_next(&i, "iterate thru dialogs"))) {
 		sip_pvt_lock(cur);
 
@@ -15212,6 +15217,7 @@ static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 
 		ao2_t_ref(cur, -1, "toss dialog ptr set by iterator_next");
 	}
+	ao2_iterator_destroy(&i);
 
 	if (!found) 
 		ast_cli(a->fd, "No such SIP Call ID starting with '%s'\n", a->argv[3]);
@@ -15268,6 +15274,7 @@ static char *sip_show_history(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		sip_pvt_unlock(cur);
 		ao2_t_ref(cur, -1, "toss dialog ptr from iterator_next");
 	}
+	ao2_iterator_destroy(&i);
 
 	if (!found) 
 		ast_cli(a->fd, "No such SIP Call ID starting with '%s'\n", a->argv[3]);
@@ -20018,7 +20025,6 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			ignored (or generate errors)
 			*/
 			i = ao2_iterator_init(dialogs, 0);
-
 			while ((p_old = ao2_t_iterator_next(&i, "iterate thru dialogs"))) {
 				if (p_old == p) {
 					ao2_t_ref(p_old, -1, "toss dialog ptr from iterator_next before continue");
@@ -20045,6 +20051,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				sip_pvt_unlock(p_old);
 				ao2_t_ref(p_old, -1, "toss dialog ptr from iterator_next");
 			}
+			ao2_iterator_destroy(&i);
 		}
 		if (!p->expiry)
 			p->needdestroy = 1;
@@ -23911,11 +23918,10 @@ static void sip_poke_all_peers(void)
 	struct ao2_iterator i;
 	struct sip_peer *peer;
 
-	i = ao2_iterator_init(peers, 0);
-	
 	if (!speerobjs)	/* No peers, just give up */
 		return;
 
+	i = ao2_iterator_init(peers, 0);
 	while ((peer = ao2_t_iterator_next(&i, "iterate thru peers table"))) {
 		ao2_lock(peer);
 		ms += 100;
@@ -23926,6 +23932,7 @@ static void sip_poke_all_peers(void)
 		ao2_unlock(peer);
 		unref_peer(peer, "toss iterator peer ptr");
 	}
+	ao2_iterator_destroy(&i);
 }
 
 /*! \brief Send all known registrations */
@@ -24202,6 +24209,7 @@ static int unload_module(void)
 			ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
 		ao2_t_ref(p, -1, "toss dialog ptr from iterator_next");
 	}
+	ao2_iterator_destroy(&i);
 
 	ast_mutex_lock(&monlock);
 	if (monitor_thread && (monitor_thread != AST_PTHREADT_STOP) && (monitor_thread != AST_PTHREADT_NULL)) {
@@ -24218,6 +24226,7 @@ static int unload_module(void)
 		dialog_unlink_all(p, TRUE, TRUE);
 		ao2_t_ref(p, -1, "throw away iterator result"); 
 	}
+	ao2_iterator_destroy(&i);
 
 	/* Free memory for local network address mask */
 	ast_free_ha(localaddr);

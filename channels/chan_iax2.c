@@ -1500,6 +1500,7 @@ static int iax2_getpeername(struct sockaddr_in sin, char *host, int len)
 		}
 		peer_unref(peer);
 	}
+	ao2_iterator_destroy(&i);
 
 	if (!peer) {
 		peer = realtime_peer(NULL, &sin);
@@ -2246,6 +2247,7 @@ static char *handle_cli_iax2_show_callno_limits(struct ast_cli_entry *e, int cmd
 			}
 			ao2_ref(peercnt, -1);
 		}
+		ao2_iterator_destroy(&i);
 
 		if (a->argc == 4) {
 			ast_cli(a->fd, "\nNon-CallToken Validation Limit: %d\nNon-CallToken Validated: %d\n", global_maxcallno_nonval, total_nonval_callno_used);
@@ -3495,6 +3497,7 @@ static char *complete_iax2_peers(const char *line, const char *word, int pos, in
 		}
 		peer_unref(peer);
 	}
+	ao2_iterator_destroy(&i);
 
 	return res;
 }
@@ -5234,6 +5237,7 @@ static int iax2_getpeertrunk(struct sockaddr_in sin)
 		}
 		peer_unref(peer);
 	}
+	ao2_iterator_destroy(&i);
 
 	return res;
 }
@@ -6138,6 +6142,7 @@ static char *handle_cli_iax2_show_users(struct ast_cli_entry *e, int cmd, struct
 			user->contexts ? user->contexts->context : DEFAULT_CONTEXT,
 			user->ha ? "Yes" : "No", pstr);
 	}
+	ao2_iterator_destroy(&i);
 
 	if (havepattern)
 		regfree(&regexbuf);
@@ -6263,6 +6268,7 @@ static int __iax2_show_peers(int manager, int fd, struct mansession *s, int argc
 				peer->encmethods ? "(E)" : "   ", status, term);
 		total_peers++;
 	}
+	ao2_iterator_destroy(&i);
 
 	if (!s)
 		ast_cli(fd,"%d iax2 peers [%d online, %d offline, %d unmonitored]%s", total_peers, online_peers, offline_peers, unmonitored_peers, term);
@@ -6406,6 +6412,7 @@ static char *complete_iax2_unregister(const char *line, const char *word, int po
 			}
 			peer_unref(p);
 		}
+		ao2_iterator_destroy(&i);
 	}
 
 	return res;
@@ -6523,6 +6530,7 @@ static int manager_iax2_show_peer_list(struct mansession *s, const struct messag
 		astman_append(s, "Status: %s\r\n\r\n", status);
 		peer_count++;
 	}
+	ao2_iterator_destroy(&i);
 
 	astman_append(s, "Event: PeerlistComplete\r\n%sListItems: %d\r\n\r\n", idtext, peer_count);
 	return RESULT_SUCCESS;
@@ -7081,6 +7089,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		}
 		user_unref(user);
 	}
+	ao2_iterator_destroy(&i);
 	user = best;
 	if (!user && !ast_strlen_zero(iaxs[callno]->username)) {
 		user = realtime_user(iaxs[callno]->username, sin);
@@ -7614,6 +7623,7 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 			}
 			peer_unref(peer);
 		}
+		ao2_iterator_destroy(&i);
 		if (!peer) {
 			/* We checked our list and didn't find one.  It's unlikely, but possible, 
 			   that we're trying to authenticate *to* a realtime peer */
@@ -12199,6 +12209,7 @@ static void prune_users(void)
 		}
 		user_unref(user);
 	}
+	ao2_iterator_destroy(&i);
 }
 
 /* Prune peers who still are supposed to be deleted */
@@ -12214,6 +12225,7 @@ static void prune_peers(void)
 		}
 		peer_unref(peer);
 	}
+	ao2_iterator_destroy(&i);
 }
 
 static void set_config_destroy(void)
@@ -12657,6 +12669,7 @@ static void poke_all_peers(void)
 		iax2_poke_peer(peer, 0);
 		peer_unref(peer);
 	}
+	ao2_iterator_destroy(&i);
 }
 static int reload_config(void)
 {
