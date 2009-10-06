@@ -643,6 +643,10 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;        externip = 12.34.56.78          ; use this address.
 ;        externip = 12.34.56.78:9900     ; use this address and port.
 ;        externip = mynat.my.org:12600   ; Public address of my nat box.
+;        externtcpport = 9900   ; The externally mapped tcp port, when Asterisk is behind a static NAT or PAT. 
+;                               ; externtcpport will default to the externip or externhost port if either one is set. 
+;        externtlsport = 12600  ; The externally mapped tls port, when Asterisk is behind a static NAT or PAT.
+;                               ; externtlsport port will default to the RFC designated port of 5061.	
 ;
 ;   b. "externhost = hostname[:port]" is similar to "externip" except
 ;      that the hostname is looked up every "externrefresh" seconds

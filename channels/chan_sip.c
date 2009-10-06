@@ -2329,6 +2329,8 @@ static char externhost[MAXHOSTNAMELEN];		/*!< External host name */
 static time_t externexpire;			/*!< Expiration counter for re-resolving external host name in dynamic DNS */
 static int externrefresh = 10;			/*!< Refresh timer for DNS-based external address (dyndns) */
 static struct sockaddr_in stunaddr;		/*!< stun server address */
+uint16_t externtcpport = STANDARD_SIP_PORT;	/*!< external tcp port */ 
+uint16_t externtlsport = STANDARD_TLS_PORT;	/*!< external tls port */
 
 /*! \brief  List of local networks
  * We store "localnet" addresses from the config file into an access list,
@@ -3565,8 +3567,21 @@ static void ast_sip_ouraddrfor(struct in_addr *them, struct sockaddr_in *us, str
 			}
 			externexpire = time(NULL) + externrefresh;
 		}
-		if (externip.sin_addr.s_addr)
+		if (externip.sin_addr.s_addr) {
 			*us = externip;
+			switch (p->socket.type) {
+			case SIP_TRANSPORT_TCP:
+				us->sin_port = htons(externtcpport);
+				break;
+			case SIP_TRANSPORT_TLS:
+				us->sin_port = htons(externtlsport);
+				break;
+			case SIP_TRANSPORT_UDP:
+				break; /* fall through */
+			default:
+				us->sin_port = htons(STANDARD_SIP_PORT); /* we should never get here */
+			}
+		}
 		else
 			ast_log(LOG_WARNING, "stun failed\n");
 		ast_debug(1, "Target address %s is not local, substituting externip\n",
@@ -24926,6 +24941,8 @@ static int reload_config(enum channelreloadreason reason)
 	default_primary_transport = 0;			/*!< Reset default primary transport to zero here, default value later on */
 	ourport_tcp = STANDARD_SIP_PORT;
 	ourport_tls = STANDARD_TLS_PORT;
+	externtcpport = 0;
+	externtlsport = 0;
 	bindaddr.sin_port = htons(STANDARD_SIP_PORT);
 	sip_cfg.srvlookup = DEFAULT_SRVLOOKUP;
 	global_tos_sip = DEFAULT_TOS_SIP;
@@ -25304,6 +25321,16 @@ static int reload_config(enum channelreloadreason reason)
 				ast_log(LOG_WARNING, "Invalid externrefresh value '%s', must be an integer >0 at line %d\n", v->value, v->lineno);
 				externrefresh = 10;
 			}
+		} else if (!strcasecmp(v->name, "externtcpport")) {
+			if (!(externtcpport = port_str2int(v->value, 0))) {
+				ast_log(LOG_WARNING, "Invalid externtcpport value, must be a positive integer between 1 and 65535 at line %d\n", v->lineno);	
+				externtcpport = ntohs(sip_tcp_desc.local_address.sin_port);
+			}
+		} else if (!strcasecmp(v->name, "externtlsport")) {
+			if (!(externtlsport = port_str2int(v->value, 0))) {
+				ast_log(LOG_WARNING, "Invalid externtlsport value, must be a positive integer between 1 and 65535 at line %d\n", v->lineno);
+				externtlsport = ntohs(sip_tls_desc.local_address.sin_port);
+			}
 		} else if (!strcasecmp(v->name, "allow")) {
 			int error =  ast_parse_allow_disallow(&default_prefs, &sip_cfg.capability, v->value, TRUE);
 			if (error)
@@ -25473,7 +25500,14 @@ static int reload_config(enum channelreloadreason reason)
 	if (default_transports == 0) {
 		default_transports = default_primary_transport = SIP_TRANSPORT_UDP;
 	}
-	
+
+	/* if not configured, set the defaults for externtcpport and externtlsport */
+	if (!externtcpport) {
+		externtcpport = ntohs(externip.sin_port); /* for consistency, default to the externip port */
+	}
+	if (!externtlsport) {
+		externtlsport = STANDARD_TLS_PORT;
+	}
 	/* Build list of authentication to various SIP realms, i.e. service providers */
  	for (v = ast_variable_browse(cfg, "authentication"); v ; v = v->next) {
  		/* Format for authentication is auth = username:password@realm */
