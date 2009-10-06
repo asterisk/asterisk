@@ -1139,12 +1139,14 @@ static int get_member_status(struct call_queue *q, int max_penalty, int min_pena
 			} else {
 				ao2_unlock(q);
 				ao2_ref(member, -1);
+				ao2_iterator_destroy(&mem_iter);
 				ast_debug(4, "%s is available.\n", member->membername);
 				return 0;
 			}
 			break;
 		}
 	}
+	ao2_iterator_destroy(&mem_iter);
 
 	ao2_unlock(q);
 	return -1;
@@ -1196,7 +1198,6 @@ static int handle_statechange(void *datap)
 	int found = 0;
 
 	qiter = ao2_iterator_init(queues, 0);
-
 	while ((q = ao2_iterator_next(&qiter))) {
 		ao2_lock(q);
 
@@ -1215,10 +1216,12 @@ static int handle_statechange(void *datap)
 				break;
 			}
 		}
+		ao2_iterator_destroy(&miter);
 
 		ao2_unlock(q);
 		ao2_ref(q, -1);
 	}
+	ao2_iterator_destroy(&qiter);
 
 	if (found)
 		ast_debug(1, "Device '%s' changed to state '%d' (%s)\n", sc->dev, sc->state, ast_devstate2str(sc->state));
@@ -1398,6 +1401,7 @@ static void clear_queue(struct call_queue *q)
 			mem->calls = 0;
 			ao2_ref(mem, -1);
 		}
+		ao2_iterator_destroy(&mem_iter);
 	}
 }
 
@@ -1756,6 +1760,7 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, const
  		}
  		ao2_ref(m, -1);
  	}
+	ao2_iterator_destroy(&mem_iter);
 
  	/* Create a new member */
  	if (!found) {
@@ -1786,6 +1791,7 @@ static void free_members(struct call_queue *q, int all)
 		}
 		ao2_ref(cur, -1);
 	}
+	ao2_iterator_destroy(&mem_iter);
 }
 
 /*! \brief Free queue's member list then its string fields */
@@ -1934,6 +1940,7 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 			m->dead = 1;
 		ao2_ref(m, -1);
 	}
+	ao2_iterator_destroy(&mem_iter);
 
 	while ((interface = ast_category_browse(member_config, interface))) {
 		rt_handle_member_record(q, interface,
@@ -1954,6 +1961,7 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 		}
 		ao2_ref(m, -1);
 	}
+	ao2_iterator_destroy(&mem_iter);
 
 	ao2_unlock(q);
 
@@ -2059,6 +2067,7 @@ static void update_realtime_members(struct call_queue *q)
 			m->dead = 1;
 		ao2_ref(m, -1);
 	}
+	ao2_iterator_destroy(&mem_iter);
 
 	while ((interface = ast_category_browse(member_config, interface))) {
 		rt_handle_member_record(q, interface,
@@ -2079,6 +2088,7 @@ static void update_realtime_members(struct call_queue *q)
 		}
 		ao2_ref(m, -1);
 	}
+	ao2_iterator_destroy(&mem_iter);
 	ao2_unlock(q);
 	ao2_unlock(queues);
 	ast_config_destroy(member_config);
@@ -2506,6 +2516,7 @@ static int num_available_members(struct call_queue *q)
 			break;
 		}
 	}
+	ao2_iterator_destroy(&mem_iter);
 
 	return avl;
 }
@@ -2544,6 +2555,7 @@ static int compare_weight(struct call_queue *rq, struct member *member)
 			break;
 		}
 	}
+	ao2_iterator_destroy(&queue_iter);
 	return found;
 }
 
@@ -3540,6 +3552,7 @@ static int update_queue(struct call_queue *q, struct member *member, int callcom
 			ao2_unlock(qtmp);
 			ao2_ref(qtmp, -1);
 		}
+		ao2_iterator_destroy(&queue_iter);
 	} else {
 		ao2_lock(q);
 		time(&member->lastcall);
@@ -3960,6 +3973,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		if (!tmp) {
 			ao2_ref(cur, -1);
 			ao2_unlock(qe->parent);
+			ao2_iterator_destroy(&memi);
 			if (use_weight)
 				ao2_unlock(queues);
 			goto out;
@@ -3968,6 +3982,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			if (!(datastore = ast_datastore_alloc(&dialed_interface_info, NULL))) {
 				ao2_ref(cur, -1);
 				ao2_unlock(qe->parent);
+				ao2_iterator_destroy(&memi);
 				if (use_weight)
 					ao2_unlock(queues);
 				free(tmp);
@@ -3977,6 +3992,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			if (!(dialed_interfaces = ast_calloc(1, sizeof(*dialed_interfaces)))) {
 				ao2_ref(cur, -1);
 				ao2_unlock(&qe->parent);
+				ao2_iterator_destroy(&memi);
 				if (use_weight)
 					ao2_unlock(queues);
 				free(tmp);
@@ -4025,6 +4041,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			if (!(di = ast_calloc(1, sizeof(*di) + strlen(cur->interface)))) {
 				ao2_ref(cur, -1);
 				ao2_unlock(qe->parent);
+				ao2_iterator_destroy(&memi);
 				if (use_weight)
 					ao2_unlock(queues);
 				free(tmp);
@@ -4060,6 +4077,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			ast_free(tmp);
 		}
 	}
+	ao2_iterator_destroy(&memi);
 
 	if (qe->parent->timeoutpriority == TIMEOUT_PRIORITY_APP) {
 		/* Application arguments have higher timeout priority (behaviour for <=1.6) */
@@ -4597,10 +4615,13 @@ static struct member *interface_exists(struct call_queue *q, const char *interfa
 
 	mem_iter = ao2_iterator_init(q->members, 0);
 	while ((mem = ao2_iterator_next(&mem_iter))) {
-		if (!strcasecmp(interface, mem->interface))
+		if (!strcasecmp(interface, mem->interface)) {
+			ao2_iterator_destroy(&mem_iter);
 			return mem;
+		}
 		ao2_ref(mem, -1);
 	}
+	ao2_iterator_destroy(&mem_iter);
 
 	return NULL;
 }
@@ -4641,6 +4662,7 @@ static void dump_queue_members(struct call_queue *pm_queue)
 		}
 		value_len += res;
 	}
+	ao2_iterator_destroy(&mem_iter);
 	
 	if (value_len && !cur_member) {
 		if (ast_db_put(pm_family, pm_queue->name, value))
@@ -4832,6 +4854,7 @@ static int set_member_paused(const char *queuename, const char *interface, const
 		ao2_unlock(q);
 		queue_unref(q);
 	}
+	ao2_iterator_destroy(&queue_iter);
 
 	return found ? RESULT_SUCCESS : RESULT_FAILURE;
 }
@@ -4870,6 +4893,7 @@ static int set_member_penalty(const char *queuename, const char *interface, int 
 		ao2_unlock(q);
 		queue_unref(q);
 	}
+	ao2_iterator_destroy(&queue_iter);
 
 	if (foundinterface) {
 		return RESULT_SUCCESS;
@@ -5647,6 +5671,7 @@ static int queue_function_qac(struct ast_channel *chan, const char *cmd, char *d
 				}
 				ao2_ref(m, -1);
 			}
+			ao2_iterator_destroy(&mem_iter);
 		} else if (!strcasecmp(option, "free")) {
 			mem_iter = ao2_iterator_init(q->members, 0);
 			while ((m = ao2_iterator_next(&mem_iter))) {
@@ -5656,6 +5681,7 @@ static int queue_function_qac(struct ast_channel *chan, const char *cmd, char *d
 				}
 				ao2_ref(m, -1);
 			}
+			ao2_iterator_destroy(&mem_iter);
 		} else /* must be "count" */
 			count = q->membercount;
 		ao2_unlock(q);
@@ -5701,6 +5727,7 @@ static int queue_function_qac_dep(struct ast_channel *chan, const char *cmd, cha
 			}
 			ao2_ref(m, -1);
 		}
+		ao2_iterator_destroy(&mem_iter);
 		ao2_unlock(q);
 		queue_unref(q);
 	} else
@@ -5784,6 +5811,7 @@ static int queue_function_queuememberlist(struct ast_channel *chan, const char *
 			}
 			ao2_ref(m, -1);
 		}
+		ao2_iterator_destroy(&mem_iter);
 		ao2_unlock(q);
 		queue_unref(q);
 	} else
@@ -6284,6 +6312,7 @@ static int clear_stats(const char *queuename)
 			clear_queue(q);
 		ao2_unlock(q);
 	}
+	ao2_iterator_destroy(&queue_iter);
 	return 0;
 }
 
@@ -6363,7 +6392,7 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
 		}
 	}
 
-	queue_iter = ao2_iterator_init(queues, F_AO2I_DONTLOCK);
+	queue_iter = ao2_iterator_init(queues, AO2_ITERATOR_DONTLOCK);
 	ao2_lock(queues);
 	while ((q = ao2_iterator_next(&queue_iter))) {
 		float sl;
@@ -6427,6 +6456,7 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
 				do_print(s, fd, ast_str_buffer(out));
 				ao2_ref(mem, -1);
 			}
+			ao2_iterator_destroy(&mem_iter);
 		}
 		if (!q->head)
 			do_print(s, fd, "   No Callers");
@@ -6446,6 +6476,7 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
 		ao2_unlock(q);
 		queue_unref(q); /* Unref the iterator's reference */
 	}
+	ao2_iterator_destroy(&queue_iter);
 	ao2_unlock(queues);
 	if (!found) {
 		if (argc == 3)
@@ -6474,6 +6505,7 @@ static char *complete_queue(const char *line, const char *word, int pos, int sta
 		}
 		queue_unref(q);
 	}
+	ao2_iterator_destroy(&queue_iter);
 
 	return ret;
 }
@@ -6582,6 +6614,7 @@ static int manager_queues_summary(struct mansession *s, const struct message *m)
 				}
 				ao2_ref(mem, -1);
 			}
+			ao2_iterator_destroy(&mem_iter);
 			for (qe = q->head; qe; qe = qe->next) {
 				if ((now - qe->start) > qlongestholdtime) {
 					qlongestholdtime = now - qe->start;
@@ -6603,6 +6636,7 @@ static int manager_queues_summary(struct mansession *s, const struct message *m)
 		ao2_unlock(q);
 		queue_unref(q);
 	}
+	ao2_iterator_destroy(&queue_iter);
 	astman_append(s,
 		"Event: QueueSummaryComplete\r\n"
 		"%s"
@@ -6676,6 +6710,7 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 				}
 				ao2_ref(mem, -1);
 			}
+			ao2_iterator_destroy(&mem_iter);
 			/* List Queue Entries */
 			pos = 1;
 			for (qe = q->head; qe; qe = qe->next) {
@@ -6698,6 +6733,7 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 		ao2_unlock(q);
 		queue_unref(q);
 	}
+	ao2_iterator_destroy(&queue_iter);
 
 	astman_append(s,
 		"Event: QueueStatusComplete\r\n"
@@ -7044,13 +7080,17 @@ static char *complete_queue_remove_member(const char *line, const char *word, in
 				tmp = ast_strdup(m->interface);
 				ao2_ref(m, -1);
 				queue_unref(q);
+				ao2_iterator_destroy(&mem_iter);
+				ao2_iterator_destroy(&queue_iter);
 				return tmp;
 			}
 			ao2_ref(m, -1);
 		}
+		ao2_iterator_destroy(&mem_iter);
 		ao2_unlock(q);
 		queue_unref(q);
 	}
+	ao2_iterator_destroy(&queue_iter);
 
 	return NULL;
 }
@@ -7450,6 +7490,7 @@ static int unload_module(void)
 		ao2_unlink(queues, q);
 		queue_unref(q);
 	}
+	ao2_iterator_destroy(&q_iter);
 	ao2_ref(queues, -1);
 	devicestate_tps = ast_taskprocessor_unreference(devicestate_tps);
 	ast_unload_realtime("queue_members");

@@ -1043,12 +1043,14 @@ static int calendar_query_exec(struct ast_channel *chan, const char *cmd, char *
 			ast_debug(10, "%s (%ld - %ld) overlapped with (%ld - %ld)\n", event->summary, (long) event->start, (long) event->end, (long) start, (long) end);
 			if (add_event_to_list(events, event, start, end) < 0) {
 				event = ast_calendar_unref_event(event);
+				ao2_iterator_destroy(&i);
 				return -1;
 			}
 		}
 
 		event = ast_calendar_unref_event(event);
 	}
+	ao2_iterator_destroy(&i);
 
 	ast_channel_lock(chan);
 	do {
@@ -1292,6 +1294,7 @@ static char *handle_show_calendars(struct ast_cli_entry *e, int cmd, struct ast_
 		ast_cli(a->fd, FORMAT, cal->name, cal->tech->type, calendar_is_busy(cal) ? "busy" : "free");
 		cal = unref_calendar(cal);
 	}
+	ao2_iterator_destroy(&i);
 
 	return CLI_SUCCESS;
 #undef FORMAT
@@ -1345,6 +1348,7 @@ static char *handle_show_calendar(struct ast_cli_entry *e, int cmd, struct ast_c
 			}
 			cal = unref_calendar(cal);
 		}
+		ao2_iterator_destroy(&i);
 		return ret;
 	}
 
@@ -1384,6 +1388,7 @@ static char *handle_show_calendar(struct ast_cli_entry *e, int cmd, struct ast_c
 
 		event = ast_calendar_unref_event(event);
 	}
+	ao2_iterator_destroy(&i);
 	cal = unref_calendar(cal);
 	return CLI_SUCCESS;
 #undef FORMAT

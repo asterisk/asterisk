@@ -830,6 +830,7 @@ static void delete_users(void)
 		ao2_unlink(users, user);
 		user = unref_user(user);
 	}
+	ao2_iterator_destroy(&i);
 }
 
 /*! \brief Build and return a user structure based on gathered config data */
@@ -1076,6 +1077,7 @@ static void delete_routes(void)
 		ao2_unlink(http_routes, route);
 		route = unref_route(route);
 	}
+	ao2_iterator_destroy(&i);
 }
 
 /*! \brief Delete all phone profiles, freeing their memory */
@@ -1089,6 +1091,7 @@ static void delete_profiles(void)
 		ao2_unlink(profiles, profile);
 		profile = unref_profile(profile);
 	}
+	ao2_iterator_destroy(&i);
 }
 
 /*! \brief A dialplan function that can be used to print a string for each phoneprov user */
@@ -1126,6 +1129,7 @@ static int pp_each_user_helper(struct ast_channel *chan, char *data, char *buf, 
 		}
 		user = unref_user(user);
 	}
+	ao2_iterator_destroy(&i);
 
 	ast_free(str);
 	return 0;
@@ -1253,6 +1257,7 @@ static char *handle_show_routes(struct ast_cli_entry *e, int cmd, struct ast_cli
 			ast_cli(a->fd, FORMAT, route->uri, route->file->template);
 		route = unref_route(route);
 	}
+	ao2_iterator_destroy(&i);
 
 	ast_cli(a->fd, "\nDynamic routes\n\n");
 	ast_cli(a->fd, FORMAT, "Relative URI", "Template");
@@ -1263,6 +1268,7 @@ static char *handle_show_routes(struct ast_cli_entry *e, int cmd, struct ast_cli
 			ast_cli(a->fd, FORMAT, route->uri, route->file->template);
 		route = unref_route(route);
 	}
+	ao2_iterator_destroy(&i);
 
 	return CLI_SUCCESS;
 }

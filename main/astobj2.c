@@ -784,8 +784,19 @@ struct ao2_iterator ao2_iterator_init(struct ao2_container *c, int flags)
 		.c = c,
 		.flags = flags
 	};
+
+	ao2_ref(c, +1);
 	
 	return a;
+}
+
+/*!
+ * destroy an iterator
+ */
+void ao2_iterator_destroy(struct ao2_iterator *i)
+{
+	ao2_ref(i->c, -1);
+	i->c = NULL;
 }
 
 /*
@@ -802,7 +813,7 @@ static void *internal_ao2_iterator_next(struct ao2_iterator *a, struct bucket_li
 	if (INTERNAL_OBJ(a->c) == NULL)
 		return NULL;
 
-	if (!(a->flags & F_AO2I_DONTLOCK))
+	if (!(a->flags & AO2_ITERATOR_DONTLOCK))
 		ao2_lock(a->c);
 
 	/* optimization. If the container is unchanged and
@@ -858,7 +869,7 @@ void *__ao2_iterator_next_debug(struct ao2_iterator *a, char *tag, char *file, i
 		__ao2_ref_debug(ret, 1, tag, file, line, funcname);
 	}
 
-	if (!(a->flags & F_AO2I_DONTLOCK))
+	if (!(a->flags & AO2_ITERATOR_DONTLOCK))
 		ao2_unlock(a->c);
 
 	return ret;
@@ -876,7 +887,7 @@ void *__ao2_iterator_next(struct ao2_iterator *a)
 		__ao2_ref(ret, 1);
 	}
 
-	if (!(a->flags & F_AO2I_DONTLOCK))
+	if (!(a->flags & AO2_ITERATOR_DONTLOCK))
 		ao2_unlock(a->c);
 
 	return ret;
