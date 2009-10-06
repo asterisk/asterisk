@@ -6725,7 +6725,10 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 		return NULL;
 	}
 
-	if ((p->radio || (p->oprmode < 0)) && p->inalarm) return NULL;
+	if ((p->radio || (p->oprmode < 0)) && p->inalarm) {
+		ast_mutex_unlock(&p->lock);
+		return NULL;
+	}
 
 	p->subs[idx].f.frametype = AST_FRAME_NULL;
 	p->subs[idx].f.datalen = 0;
@@ -7024,6 +7027,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 							if (res < 0) {
 								ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", p->channel);
 								p->dop.dialstr[0] = '\0';
+								ast_mutex_unlock(&p->lock);
 								return NULL;
 							} else {
 								ast_log(LOG_DEBUG, "Sent deferred digit string: %s\n", p->dop.dialstr);
