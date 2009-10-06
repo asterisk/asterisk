@@ -50,6 +50,8 @@ AST_THREADSTORAGE(escapebuf_buf);
 #define RES_CONFIG_PGSQL_CONF "res_pgsql.conf"
 
 static PGconn *pgsqlConn = NULL;
+static int version;
+#define has_schema_support	(version > 70300 ? 1 : 0)
 
 #define MAX_DB_OPTION_SIZE 64
 
@@ -112,7 +114,7 @@ static void destroy_table(struct tables *table)
 	ast_free(table);
 }
 
-static struct tables *find_table(const char *tablename)
+static struct tables *find_table(const char *orig_tablename)
 {
 	struct columns *column;
 	struct tables *table;
@@ -124,7 +126,7 @@ static struct tables *find_table(const char *tablename)
 
 	AST_LIST_LOCK(&psql_tables);
 	AST_LIST_TRAVERSE(&psql_tables, table, list) {
-		if (!strcasecmp(table->name, tablename)) {
+		if (!strcasecmp(table->name, orig_tablename)) {
 			ast_debug(1, "Found table in cache; now locking\n");
 			ast_rwlock_rdlock(&table->lock);
 			ast_debug(1, "Lock cached table; now returning\n");
@@ -133,10 +135,69 @@ static struct tables *find_table(const char *tablename)
 		}
 	}
 
-	ast_debug(1, "Table '%s' not found in cache, querying now\n", tablename);
+	ast_debug(1, "Table '%s' not found in cache, querying now\n", orig_tablename);
 
 	/* Not found, scan the table */
-	ast_str_set(&sql, 0, "SELECT a.attname, t.typname, a.attlen, a.attnotnull, d.adsrc, a.atttypmod FROM pg_class c, pg_type t, pg_attribute a LEFT OUTER JOIN pg_attrdef d ON a.atthasdef AND d.adrelid = a.attrelid AND d.adnum = a.attnum WHERE c.oid = a.attrelid AND a.atttypid = t.oid AND (a.attnum > 0) AND c.relname = '%s' ORDER BY c.relname, attnum", tablename);
+	if (has_schema_support) {
+		char *schemaname, *tablename;
+		if (strchr(orig_tablename, '.')) {
+			schemaname = ast_strdupa(orig_tablename);
+			tablename = strchr(schemaname, '.');
+			*tablename++ = '\0';
+		} else {
+			schemaname = "";
+			tablename = ast_strdupa(orig_tablename);
+		}
+
+		/* Escape special characters in schemaname */
+		if (strchr(schemaname, '\\') || strchr(schemaname, '\'')) {
+			char *tmp = schemaname, *ptr;
+
+			ptr = schemaname = alloca(strlen(tmp) * 2 + 1);
+			for (; *tmp; tmp++) {
+				if (strchr("\\'", *tmp)) {
+					*ptr++ = *tmp;
+				}
+				*ptr++ = *tmp;
+			}
+			*ptr = '\0';
+		}
+		/* Escape special characters in tablename */
+		if (strchr(tablename, '\\') || strchr(tablename, '\'')) {
+			char *tmp = tablename, *ptr;
+
+			ptr = tablename = alloca(strlen(tmp) * 2 + 1);
+			for (; *tmp; tmp++) {
+				if (strchr("\\'", *tmp)) {
+					*ptr++ = *tmp;
+				}
+				*ptr++ = *tmp;
+			}
+			*ptr = '\0';
+		}
+
+		ast_str_set(&sql, 0, "SELECT a.attname, t.typname, a.attlen, a.attnotnull, d.adsrc, a.atttypmod FROM (((pg_catalog.pg_class c INNER JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace AND c.relname = '%s' AND n.nspname = %s%s%s) INNER JOIN pg_catalog.pg_attribute a ON (NOT a.attisdropped) AND a.attnum > 0 AND a.attrelid = c.oid) INNER JOIN pg_catalog.pg_type t ON t.oid = a.atttypid) LEFT OUTER JOIN pg_attrdef d ON a.atthasdef AND d.adrelid = a.attrelid AND d.adnum = a.attnum ORDER BY n.nspname, c.relname, attnum",
+			tablename,
+			ast_strlen_zero(schemaname) ? "" : "'", ast_strlen_zero(schemaname) ? "current_schema()" : schemaname, ast_strlen_zero(schemaname) ? "" : "'");
+	} else {
+		/* Escape special characters in tablename */
+		if (strchr(orig_tablename, '\\') || strchr(orig_tablename, '\'')) {
+			const char *tmp = orig_tablename;
+			char *ptr;
+
+			orig_tablename = ptr = alloca(strlen(tmp) * 2 + 1);
+			for (; *tmp; tmp++) {
+				if (strchr("\\'", *tmp)) {
+					*ptr++ = *tmp;
+				}
+				*ptr++ = *tmp;
+			}
+			*ptr = '\0';
+		}
+
+		ast_str_set(&sql, 0, "SELECT a.attname, t.typname, a.attlen, a.attnotnull, d.adsrc, a.atttypmod FROM pg_class c, pg_type t, pg_attribute a LEFT OUTER JOIN pg_attrdef d ON a.atthasdef AND d.adrelid = a.attrelid AND d.adnum = a.attnum WHERE c.oid = a.attrelid AND a.atttypid = t.oid AND (a.attnum > 0) AND c.relname = '%s' ORDER BY c.relname, attnum", orig_tablename);
+	}
+
 	result = PQexec(pgsqlConn, ast_str_buffer(sql));
 	ast_debug(1, "Query of table structure complete.  Now retrieving results.\n");
 	if (PQresultStatus(result) != PGRES_TUPLES_OK) {
@@ -147,12 +208,12 @@ static struct tables *find_table(const char *tablename)
 		return NULL;
 	}
 
-	if (!(table = ast_calloc(1, sizeof(*table) + strlen(tablename) + 1))) {
+	if (!(table = ast_calloc(1, sizeof(*table) + strlen(orig_tablename) + 1))) {
 		ast_log(LOG_ERROR, "Unable to allocate memory for new table structure\n");
 		AST_LIST_UNLOCK(&psql_tables);
 		return NULL;
 	}
-	strcpy(table->name, tablename); /* SAFE */
+	strcpy(table->name, orig_tablename); /* SAFE */
 	ast_rwlock_init(&table->lock);
 	AST_LIST_HEAD_INIT_NOLOCK(&table->columns);
 
@@ -166,7 +227,7 @@ static struct tables *find_table(const char *tablename)
 		ast_verb(4, "Found column '%s' of type '%s'\n", fname, ftype);
 
 		if (!(column = ast_calloc(1, sizeof(*column) + strlen(fname) + strlen(ftype) + 2))) {
-			ast_log(LOG_ERROR, "Unable to allocate column element for %s, %s\n", tablename, fname);
+			ast_log(LOG_ERROR, "Unable to allocate column element for %s, %s\n", orig_tablename, fname);
 			destroy_table(table);
 			AST_LIST_UNLOCK(&psql_tables);
 			return NULL;
@@ -1409,6 +1470,7 @@ static int pgsql_reconnect(const char *database)
 		if (pgsqlConn && PQstatus(pgsqlConn) == CONNECTION_OK) {
 			ast_debug(1, "PostgreSQL RealTime: Successfully connected to database.\n");
 			connect_time = time(NULL);
+			version = PQserverVersion(pgsqlConn);
 			return 1;
 		} else {
 			ast_log(LOG_ERROR,
