@@ -2457,6 +2457,17 @@ static enum analog_event dahdievent_to_analogevent(int event)
 		res = ANALOG_EVENT_DTMFUP;
 		break;
 	default:
+		switch(event & 0xFFFF0000) {
+		case DAHDI_EVENT_PULSEDIGIT:
+		case DAHDI_EVENT_DTMFDOWN:
+		case DAHDI_EVENT_DTMFUP:
+			/* The event includes a digit number in the low word.
+			 * Converting it to a 'enum analog_event' would remove
+			 * that information. Thus it is returned as-is.
+			 */
+			return event;
+		}
+
 		res = ANALOG_EVENT_ERROR;
 		break;
 	}
