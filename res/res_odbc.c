@@ -898,6 +898,7 @@ static char *handle_cli_odbc_show(struct ast_cli_entry *e, int cmd, struct ast_c
 				break;
 			}
 		}
+		ao2_iterator_destroy(&aoi);
 		if (!ret && !strncasecmp(a->word, "all", length) && ++which > a->n) {
 			ret = ast_strdup("all");
 		}
@@ -932,6 +933,7 @@ static char *handle_cli_odbc_show(struct ast_cli_entry *e, int cmd, struct ast_c
 					ast_mutex_unlock(&current->lock);
 					ao2_ref(current, -1);
 				}
+				ao2_iterator_destroy(&aoi2);
 			} else {
 				/* Should only ever be one of these (unless there are transactions) */
 				struct ao2_iterator aoi2 = ao2_iterator_init(class->obj_container, 0);
@@ -940,11 +942,13 @@ static char *handle_cli_odbc_show(struct ast_cli_entry *e, int cmd, struct ast_c
 						current->up && ast_odbc_sanity_check(current) ? "Yes" : "No");
 					ao2_ref(current, -1);
 				}
+				ao2_iterator_destroy(&aoi2);
 			}
 			ast_cli(a->fd, "\n");
 		}
 		ao2_ref(class, -1);
 	}
+	ao2_iterator_destroy(&aoi);
 
 	return CLI_SUCCESS;
 }
@@ -1609,6 +1613,7 @@ static int reload(void)
 		class->delme = 1;
 		ao2_ref(class, -1);
 	}
+	ao2_iterator_destroy(&aoi);
 
 	load_odbc_config();
 
@@ -1648,6 +1653,7 @@ static int reload(void)
 				 * b) the object has already been destroyed.
 				 */
 			}
+			ao2_iterator_destroy(&aoi2);
 			ao2_unlink(class_container, class); /* unlink C-ref from container (reference handled implicitly) */
 			/* At this point, either
 			 * a) there's an outstanding O-ref, which holds an outstanding C-ref, or
@@ -1657,6 +1663,7 @@ static int reload(void)
 		}
 		ao2_ref(class, -1); /* C-ref-- (by iterator) */
 	}
+	ao2_iterator_destroy(&aoi);
 
 	/* Empty the cache; it will get rebuilt the next time the tables are needed. */
 	AST_RWLIST_WRLOCK(&odbc_tables);
