@@ -3361,38 +3361,60 @@ static void gen_prios(struct ael_extension *exten, char *label, pval *statement,
 		if (contains_switch(statement)) { /* only run contains_switch if you haven't checked before */
 			if (mother_exten) {
 				if (!mother_exten->has_switch) {
-					switch_set = new_prio();
-					switch_set->type = AEL_APPCALL;
-					if (!ast_compat_app_set) {
-						switch_set->app = strdup("MSet");
-					} else {
-						switch_set->app = strdup("Set");
-					}
-					switch_set->appargs = strdup("~~EXTEN~~=${EXTEN}");
-					linkprio(exten, switch_set, mother_exten);
-					mother_exten->has_switch = 1;
-					mother_exten->checked_switch = 1;
-					if (exten) {
-						exten->has_switch = 1;
-						exten->checked_switch = 1;
+					for (first = 1; first >= 0; first--) {
+						switch_set = new_prio();
+						switch_set->type = AEL_APPCALL;
+						if (!ast_compat_app_set) {
+							switch_set->app = strdup("MSet");
+						} else {
+							switch_set->app = strdup("Set");
+						}
+						/* Are we likely inside a gosub subroutine? */
+						if (!strcmp(mother_exten->name, "s") && first) {
+							/* If we're not actually within a gosub, this will fail, but the
+							 * second time through, it will get set.  If we are within gosub,
+							 * the second time through is redundant, but acceptable. */
+							switch_set->appargs = strdup("LOCAL(~~EXTEN~~)=${EXTEN}");
+						} else {
+							switch_set->appargs = strdup("~~EXTEN~~=${EXTEN}");
+							first = 0;
+						}
+						linkprio(exten, switch_set, mother_exten);
+						mother_exten->has_switch = 1;
+						mother_exten->checked_switch = 1;
+						if (exten) {
+							exten->has_switch = 1;
+							exten->checked_switch = 1;
+						}
 					}
 				}
 			} else if (exten) {
 				if (!exten->has_switch) {
-					switch_set = new_prio();
-					switch_set->type = AEL_APPCALL;
-					if (!ast_compat_app_set) {
-						switch_set->app = strdup("MSet");
-					} else {
-						switch_set->app = strdup("Set");
-					}
-					switch_set->appargs = strdup("~~EXTEN~~=${EXTEN}");
-					linkprio(exten, switch_set, mother_exten);
-					exten->has_switch = 1;
-					exten->checked_switch = 1;
-					if (mother_exten) {
-						mother_exten->has_switch = 1;
-						mother_exten->checked_switch = 1;
+					for (first = 1; first >= 0; first--) {
+						switch_set = new_prio();
+						switch_set->type = AEL_APPCALL;
+						if (!ast_compat_app_set) {
+							switch_set->app = strdup("MSet");
+						} else {
+							switch_set->app = strdup("Set");
+						}
+						/* Are we likely inside a gosub subroutine? */
+						if (!strcmp(exten->name, "s")) {
+							/* If we're not actually within a gosub, this will fail, but the
+							 * second time through, it will get set.  If we are within gosub,
+							 * the second time through is redundant, but acceptable. */
+							switch_set->appargs = strdup("LOCAL(~~EXTEN~~)=${EXTEN}");
+						} else {
+							switch_set->appargs = strdup("~~EXTEN~~=${EXTEN}");
+							first = 0;
+						}
+						linkprio(exten, switch_set, mother_exten);
+						exten->has_switch = 1;
+						exten->checked_switch = 1;
+						if (mother_exten) {
+							mother_exten->has_switch = 1;
+							mother_exten->checked_switch = 1;
+						}
 					}
 				}
 			}
