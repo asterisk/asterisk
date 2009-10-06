@@ -9180,8 +9180,8 @@ static void *pri_dchannel(void *vpri)
 								pri_destroycall(pri->pri, pri->pvts[x]->call);
 								pri->pvts[x]->call = NULL;
 							}
-							if (pri->pvts[chanpos]->realcall) 
-								pri_hangup_all(pri->pvts[chanpos]->realcall, pri);
+							if (pri->pvts[x]->realcall) 
+								pri_hangup_all(pri->pvts[x]->realcall, pri);
  							else if (pri->pvts[x]->owner)
 								pri->pvts[x]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							ast_mutex_unlock(&pri->pvts[x]->lock);
