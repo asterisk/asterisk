@@ -263,6 +263,8 @@ Operations on container include:
 		ao2_ref(o, -1);
 	    }
 
+ 	    ao2_iterator_destroy(&i);
+
 	The difference with the callback is that the control
 	on how to iterate is left to us.
 
@@ -505,6 +507,10 @@ int ao2_match_by_addr(void *user_data, void *arg, int flags);
  * ao2_iterator_next() has its refcount incremented,
  * and the reference must be explicitly released when done with it.
  *
+ * In addition, ao2_iterator_init() will hold a reference to the container
+ * being iterated, which will be freed when ao2_iterator_destroy() is called
+ * to free up the resources used by the iterator (if any).
+ *
  * Example:
  *
  *  \code
@@ -519,6 +525,8 @@ int ao2_match_by_addr(void *user_data, void *arg, int flags);
  *     ... do something on o ...
  *     ao2_ref(o, -1);
  *  }
+ *
+ *  ao2_iterator_destroy(&i);
  *
  *  \endcode
  *
@@ -538,13 +546,13 @@ int ao2_match_by_addr(void *user_data, void *arg, int flags);
  * - a bucket number;
  * - the object_id, which is also the container version number
  *   when the object was inserted. This identifies the object
- *   univoquely, however reaching the desired object requires
+ *   uniquely, however reaching the desired object requires
  *   scanning a list.
  * - a pointer, and a container version when we saved the pointer.
  *   If the container has not changed its version number, then we
  *   can safely follow the pointer to reach the object in constant time.
  * Details are in the implementation of ao2_iterator_next()
- * A freshly-initialized iterator has bucket=0, version = 0.
+ * A freshly-initialized iterator has bucket=0, version=0.
  */
 
 struct ao2_iterator {
@@ -552,7 +560,6 @@ struct ao2_iterator {
 	struct ao2_container *c;
 	/*! operation flags */
 	int flags;
-#define	F_AO2I_DONTLOCK	1	/*!< don't lock when iterating */
 	/*! current bucket */
 	int bucket;
 	/*! container version */
@@ -563,7 +570,46 @@ struct ao2_iterator {
 	unsigned int version;
 };
 
+/*! Flags that can be passed to ao2_iterator_init() to modify the behavior
+ * of the iterator.
+ */
+enum ao2_iterator_flags {
+	/*! Prevents ao2_iterator_next() from locking the container
+	 * while retrieving the next object from it.
+	 */
+	AO2_ITERATOR_DONTLOCK = (1 << 0),
+};
+
+/*!
+ * \brief Create an iterator for a container
+ *
+ * \param c the container
+ * \param flags one or more flags from ao2_iterator_flags
+ *
+ * \retval the constructed iterator
+ *
+ * \note This function does \b not take a pointer to an iterator;
+ *       rather, it returns an iterator structure that should be
+ *       assigned to (overwriting) an existing iterator structure
+ *       allocated on the stack or on the heap.
+ *
+ * This function will take a reference on the container being iterated.
+ *
+ */
 struct ao2_iterator ao2_iterator_init(struct ao2_container *c, int flags);
+
+/*!
+ * \brief Destroy a container iterator
+ *
+ * \param i the iterator to destroy
+ *
+ * \retval none
+ *
+ * This function will release the container reference held by the iterator
+ * and any other resources it may be holding.
+ *
+ */
+void ao2_iterator_destroy(struct ao2_iterator *i);
 
 void *ao2_iterator_next(struct ao2_iterator *a);
 

@@ -1349,6 +1349,8 @@ static int cli_files_show(int fd, int argc, char *argv[])
 		}
 	}
 
+ 	ao2_iterator_destroy(&i);
+
 	return 0;
 }
 
@@ -1370,6 +1372,8 @@ static int moh_classes_show(int fd, int argc, char *argv[])
 			ast_cli(fd, "\tFormat: %s\n", ast_getformatname(class->format));
 		}
 	}
+
+ 	ao2_iterator_destroy(&i);
 
 	return 0;
 }

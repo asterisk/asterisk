@@ -578,7 +578,7 @@ static enum queue_member_status get_member_status(struct call_queue *q, int max_
 			return QUEUE_NORMAL;
 		}
 	}
-
+	ao2_iterator_destroy(&mem_iter);
 	ast_mutex_unlock(&q->lock);
 	return result;
 }
@@ -634,6 +634,7 @@ static int update_status(const char *interface, const int status)
 			}
 			ao2_ref(cur, -1);
 		}
+		ao2_iterator_destroy(&mem_iter);
 		ast_mutex_unlock(&q->lock);
 	}
 	AST_LIST_UNLOCK(&queues);
@@ -924,6 +925,7 @@ static int interface_exists_global(const char *interface)
 			}
 			ao2_ref(mem, -1);
 		}
+		ao2_iterator_destroy(&mem_iter);
 		ast_mutex_unlock(&q->lock);
 		if (ret)
 			break;
@@ -1182,6 +1184,7 @@ static void free_members(struct call_queue *q, int all)
 		}
 		ao2_ref(cur, -1);
 	}
+	ao2_iterator_destroy(&mem_iter);
 }
 
 static void destroy_queue(struct call_queue *q)
@@ -1291,6 +1294,7 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 			m->dead = 1;
 		ao2_ref(m, -1);
 	}
+	ao2_iterator_destroy(&mem_iter);
 
 	while ((interface = ast_category_browse(member_config, interface))) {
 		rt_handle_member_record(q, interface,
@@ -1312,6 +1316,7 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 		}
 		ao2_ref(m, -1);
 	}
+	ao2_iterator_destroy(&mem_iter);
 
 	ast_mutex_unlock(&q->lock);
 
@@ -1362,6 +1367,7 @@ static void update_realtime_members(struct call_queue *q)
 			m->dead = 1;
 		ao2_ref(m, -1);
 	}
+	ao2_iterator_destroy(&mem_iter);
 
 	while ((interface = ast_category_browse(member_config, interface))) {
 		rt_handle_member_record(q, interface,
@@ -1383,6 +1389,7 @@ static void update_realtime_members(struct call_queue *q)
 		}
 		ao2_ref(m, -1);
 	}
+	ao2_iterator_destroy(&mem_iter);
 	ast_mutex_unlock(&q->lock);
 	ast_config_destroy(member_config);
 }
@@ -1782,6 +1789,7 @@ static int num_available_members(struct call_queue *q)
 			break;
 		}
 	}
+	ao2_iterator_destroy(&mem_iter);
 
 	return avl;
 }
@@ -2873,6 +2881,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		struct ast_dialed_interface *di;
 		AST_LIST_HEAD(, ast_dialed_interface) *dialed_interfaces;
 		if (!tmp) {
+			ao2_iterator_destroy(&memi);
 			ao2_ref(cur, -1);
 			ast_mutex_unlock(&qe->parent->lock);
 			if (use_weight)
@@ -2881,6 +2890,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		}
 		if (!datastore) {
 			if (!(datastore = ast_channel_datastore_alloc(&dialed_interface_info, NULL))) {
+				ao2_iterator_destroy(&memi);
 				ao2_ref(cur, -1);
 				ast_mutex_unlock(&qe->parent->lock);
 				if (use_weight)
@@ -2890,6 +2900,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			}
 			datastore->inheritance = DATASTORE_INHERIT_FOREVER;
 			if (!(dialed_interfaces = ast_calloc(1, sizeof(*dialed_interfaces)))) {
+				ao2_iterator_destroy(&memi);
 				ao2_ref(cur, -1);
 				ast_mutex_unlock(&qe->parent->lock);
 				if (use_weight)
@@ -2927,6 +2938,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		 * it won't call one that has already been called. */
 		if (strncasecmp(cur->interface, "Local/", 6)) {
 			if (!(di = ast_calloc(1, sizeof(*di) + strlen(cur->interface)))) {
+				ao2_iterator_destroy(&memi);
 				ao2_ref(cur, -1);
 				ast_mutex_unlock(&qe->parent->lock);
 				if (use_weight)
@@ -2962,6 +2974,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			free(tmp);
 		}
 	}
+	ao2_iterator_destroy(&memi);
 	if (qe->expire && (!qe->parent->timeout || (qe->expire - now) <= qe->parent->timeout))
 		to = (qe->expire - now) * 1000;
 	else
@@ -3330,10 +3343,13 @@ static struct member *interface_exists(struct call_queue *q, const char *interfa
 
 	mem_iter = ao2_iterator_init(q->members, 0);
 	while ((mem = ao2_iterator_next(&mem_iter))) {
-		if (!strcasecmp(interface, mem->interface))
+		if (!strcasecmp(interface, mem->interface)) {
+			ao2_iterator_destroy(&mem_iter);
 			return mem;
+		}
 		ao2_ref(mem, -1);
 	}
+	ao2_iterator_destroy(&mem_iter);
 
 	return NULL;
 }
@@ -3375,6 +3391,7 @@ static void dump_queue_members(struct call_queue *pm_queue)
 		}
 		value_len += res;
 	}
+	ao2_iterator_destroy(&mem_iter);
 	
 	if (value_len && !cur_member) {
 		if (ast_db_put(pm_family, pm_queue->name, value))
@@ -4228,6 +4245,7 @@ static int queue_function_qac(struct ast_channel *chan, char *cmd, char *data, c
 			}
 			ao2_ref(m, -1);
 		}
+		ao2_iterator_destroy(&mem_iter);
 		ast_mutex_unlock(&q->lock);
 	} else
 		ast_log(LOG_WARNING, "queue %s was not found\n", data);
@@ -4326,6 +4344,7 @@ static int queue_function_queuememberlist(struct ast_channel *chan, char *cmd, c
 			}
 			ao2_ref(m, -1);
 		}
+		ao2_iterator_destroy(&mem_iter);
 		ast_mutex_unlock(&q->lock);
 	} else
 		ast_log(LOG_WARNING, "queue %s was not found\n", data);
@@ -4458,6 +4477,7 @@ static int reload_queues(void)
 					}
 					ao2_ref(cur, -1);
 				}
+				ao2_iterator_destroy(&mem_iter);
 				for (var = ast_variable_browse(cfg, cat); var; var = var->next) {
 					if (!strcasecmp(var->name, "member")) {
 						struct member tmpmem;
@@ -4536,6 +4556,7 @@ static int reload_queues(void)
 					remove_from_interfaces(cur->state_interface);
 					ao2_ref(cur, -1);
 				}
+				ao2_iterator_destroy(&mem_iter);
 
 				if (q->strategy == QUEUE_STRATEGY_ROUNDROBIN)
 					rr_dep_warning();
@@ -4564,6 +4585,7 @@ static int reload_queues(void)
 				cur->status = ast_device_state(cur->state_interface);
 				ao2_ref(cur, -1);
 			}
+			ao2_iterator_destroy(&mem_iter);
 			ast_mutex_unlock(&q->lock);
 		}
 	}
@@ -4686,6 +4708,7 @@ static int __queues_show(struct mansession *s, int manager, int fd, int argc, ch
 					ast_cli(fd, "      %s%s%s", mem->membername, max_buf, term);
 				ao2_ref(mem, -1);
 			}
+			ao2_iterator_destroy(&mem_iter);
 		} else if (s)
 			astman_append(s, "   No Members%s", term);
 		else	
@@ -4828,6 +4851,7 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 				}
 				ao2_ref(mem, -1);
 			}
+			ao2_iterator_destroy(&mem_iter);
 			/* List Queue Entries */
 			pos = 1;
 			for (qe = q->head; qe; qe = qe->next) {
@@ -4845,6 +4869,7 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 					S_OR(qe->chan->cid.cid_name, "unknown"),
 					(long) (now - qe->start), idText);
 			}
+			ao2_iterator_destroy(&mem_iter);
 		}
 		ast_mutex_unlock(&q->lock);
 	}
@@ -5120,6 +5145,7 @@ static char *complete_queue_remove_member(const char *line, const char *word, in
 			while ((m = ao2_iterator_next(&mem_iter))) {
 				if (++which > state) {
 					char *tmp;
+					ao2_iterator_destroy(&mem_iter);
 					ast_mutex_unlock(&q->lock);
 					tmp = ast_strdup(m->interface);
 					ao2_ref(m, -1);
@@ -5127,6 +5153,7 @@ static char *complete_queue_remove_member(const char *line, const char *word, in
 				}
 				ao2_ref(m, -1);
 			}
+			ao2_iterator_destroy(&mem_iter);
 			ast_mutex_unlock(&q->lock);
 		}
 	}
