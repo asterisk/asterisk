@@ -1638,11 +1638,11 @@ static int my_get_callerid(void *pvt, char *namebuf, char *numbuf, enum analog_e
 			}
 		}
 
-		if (analog_p->ringt) {
-			analog_p->ringt--;
-		}
-		if (analog_p->ringt == 1) {
-			return -1;
+		if (analog_p->ringt > 0) {
+			if (!(--analog_p->ringt)) {
+				/* only return if we timeout from a ring event */
+				return -1;
+			}
 		}
 
 		if (p->cid_signalling == CID_SIG_V23_JP) {
@@ -1742,11 +1742,11 @@ static int my_distinctive_ring(struct ast_channel *chan, void *pvt, int idx, int
 					}
 					break;
 				}
-				if (analog_p->ringt)
-					analog_p->ringt--;
-				if (analog_p->ringt == 1) {
-					res = -1;
-					break;
+				if (analog_p->ringt > 0) {
+					if (!(--analog_p->ringt)) {
+						res = -1;
+						break;
+					}
 				}
 			}
 		}
@@ -7713,12 +7713,12 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 		ast_mutex_unlock(&p->lock);
 		return &p->subs[idx].f;
 	}
-	if (p->ringt == 1) {
-		ast_mutex_unlock(&p->lock);
-		return NULL;
+	if (p->ringt > 0) {
+		if (!(--p->ringt)) {
+			ast_mutex_unlock(&p->lock);
+			return NULL;
+		}
 	}
-	else if (p->ringt > 0)
-		p->ringt--;
 
 #ifdef HAVE_OPENR2
 	if (p->mfcr2) {
@@ -9291,11 +9291,11 @@ static void *analog_ss_thread(void *data)
 									}
 									break;
 								}
-								if (p->ringt)
-									p->ringt--;
-								if (p->ringt == 1) {
-									res = -1;
-									break;
+								if (p->ringt > 0) {
+									if (!(--p->ringt)) {
+										res = -1;
+										break;
+									}
 								}
 							}
 						}
@@ -9448,12 +9448,11 @@ static void *analog_ss_thread(void *data)
 								}
 								break;
 							}
-							if (p->ringt) {
-								p->ringt--;
-							}
-							if (p->ringt == 1) {
-								res = -1;
-								break;
+							if (p->ringt > 0) {
+								if (!(--p->ringt)) {
+									res = -1;
+									break;
+								}
 							}
 							samples += res;
 							res = callerid_feed(cs, buf, res, AST_LAW(p));
@@ -9510,11 +9509,11 @@ static void *analog_ss_thread(void *data)
 									}
 									break;
 								}
-							if (p->ringt)
-								p->ringt--;
-								if (p->ringt == 1) {
-									res = -1;
-									break;
+								if (p->ringt > 0) {
+									if (!(--p->ringt)) {
+										res = -1;
+										break;
+									}
 								}
 							}
 						}
