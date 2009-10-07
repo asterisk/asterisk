@@ -9,11 +9,6 @@
 ;
 persistentmembers = yes
 ;
-; Keep Stats
-;    Keep queue statistics during a reload. Default is 'no'
-;
-keepstats = no
-;
 ; AutoFill Behavior
 ;    The old/current behavior of the queue has a serial type behavior
 ;    in that the queue will make all waiting callers wait in the queue
