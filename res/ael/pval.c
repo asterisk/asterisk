@@ -3385,7 +3385,7 @@ static void gen_prios(struct ael_extension *exten, char *label, pval *statement,
 						switch_set = new_prio();
 						switch_set->type = AEL_APPCALL;
 						switch_set->app = strdup("Set");
-						if (!strcmp(mother_exten->name, "s") && first) {
+						if (!strcmp(exten->name, "s") && first) {
 							switch_set->appargs = strdup("LOCAL(~~EXTEN~~)=${EXTEN}");
 						} else {
 							switch_set->appargs = strdup("~~EXTEN~~=${EXTEN}");
