@@ -33,7 +33,7 @@
  *
  * See also
  * \arg \ref Config_cel
- * \arg http://www.postgresql.org/
+ * \extref PostgreSQL http://www.postgresql.org/
  * \ingroup cel_drivers
  */
 

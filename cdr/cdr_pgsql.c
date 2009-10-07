@@ -29,7 +29,7 @@
  *
  * See also
  * \arg \ref Config_cdr
- * \arg http://www.postgresql.org/
+ * \extref PostgreSQL http://www.postgresql.org/
  * \ingroup cdr_drivers
  */
 

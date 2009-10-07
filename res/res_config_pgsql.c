@@ -19,7 +19,7 @@
  * \author Mark Spencer <markster@digium.com>
  * \author Manuel Guesdon <mguesdon@oxymium.net> - PostgreSQL RealTime Driver Author/Adaptor
  *
- * \arg http://www.postgresql.org
+ * \extref PostgreSQL http://www.postgresql.org
  */
 
 /*** MODULEINFO
