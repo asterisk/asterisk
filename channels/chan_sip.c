@@ -14229,7 +14229,10 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 			can't harm */
 		transmit_response_with_sdp(p, "200 OK", req, XMIT_RELIABLE);
 		/* Do something more clever here */
-		ast_channel_unlock(c);
+		if (c) {
+			*nounlock = 1;
+			ast_channel_unlock(c);
+		}
 		ast_channel_unlock(replacecall);
 		ast_mutex_unlock(&p->refer->refer_call->lock);
 		return 1;
