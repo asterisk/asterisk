@@ -2696,7 +2696,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req);
 static int handle_request_options(struct sip_pvt *p, struct sip_request *req);
 static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct sockaddr_in *sin, int *nounlock);
 static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int seqno, const char *e);
-static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *current, struct sip_request *req, int seqno);
+static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *current, struct sip_request *req, int seqno, int *nounlock);
 
 /*------Response handling functions */
 static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, int seqno);
@@ -19250,17 +19250,14 @@ static void *sip_park_thread(void *stuff)
 	}
 	ast_debug(4, "SIP Park: Transferer channel %s, Transferee %s\n", transferer->name, transferee->name);
 
-	ast_channel_lock(transferee);
 	if (ast_do_masquerade(transferee)) {
 		ast_log(LOG_WARNING, "Masquerade failed.\n");
 		transmit_response(transferer->tech_pvt, "503 Internal error", &req);
-		ast_channel_unlock(transferee);
 		if (d->req.data)
 			ast_free(d->req.data);
 		free(d);
 		return NULL;
 	}
-	ast_channel_unlock(transferee);
 
 	res = ast_park_call(transferee, transferer, 0, &ext);
 	
@@ -19359,15 +19356,12 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	ast_copy_string(transferer->exten, chan2->exten, sizeof(transferer->exten));
 	transferer->priority = chan2->priority;
 
-	ast_channel_lock(transferer);
 	if (ast_do_masquerade(transferer)) {
 		ast_log(LOG_WARNING, "Masquerade failed :(\n");
-		ast_channel_unlock(transferer);
 		transferer->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
 		ast_hangup(transferer);
 		return -1;
 	}
-	ast_channel_unlock(transferer);
 	if (!transferer || !transferee) {
 		if (!transferer) {
 			ast_debug(1, "No transferer channel, giving up parking\n");
@@ -19710,8 +19704,11 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req)
 	XXX 'ignore' is unused.
 
 	\note this function is called by handle_request_invite(). Four locks
-	held at the beginning of this function, p, p->owner, p->refer->refer_call->owner...
-	only p's lock should remain at the end of this function.  p's lock is held by sipsock_read()
+	held at the beginning of this function, p, p->owner, p->refer->refer_call and
+	p->refere->refer_call->owner.  only p's lock should remain at the end of this
+	function.  p's lock as well as the channel p->owner's lock are held by
+	handle_request_do(), we unlock p->owner before the masq.  By setting nounlock
+	we are indicating to handle_request_do() that we have already unlocked the owner.
  */
 static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct sockaddr_in *sin, int *nounlock)
 {
@@ -19720,8 +19717,6 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 	struct ast_channel *c = p->owner;	/* Our incoming call */
 	struct ast_channel *replacecall = p->refer->refer_call->owner;	/* The channel we're about to take over */
 	struct ast_channel *targetcall;		/* The bridge to the take-over target */
-
-	struct ast_channel *test;
 
 	/* Check if we're in ring state */
 	if (replacecall->_state == AST_STATE_RING)
@@ -19788,9 +19783,9 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 
 	/* Answer the incoming call and set channel to UP state */
 	transmit_response_with_sdp(p, "200 OK", req, XMIT_RELIABLE, FALSE, FALSE);
-		
+
 	ast_setstate(c, AST_STATE_UP);
-	
+
 	/* Stop music on hold and other generators */
 	ast_quiet_chan(replacecall);
 	ast_quiet_chan(targetcall);
@@ -19806,43 +19801,35 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 	else
 		ast_debug(4, "Invite/Replaces: Going to masquerade %s into %s\n", c->name, replacecall->name);
 
-	/* C should now be in place of replacecall */
-	if (ast_do_masquerade(replacecall)) {
-		ast_log(LOG_WARNING, "Failed to perform masquerade with INVITE replaces\n");
-	}
-
-	if (earlyreplace || oneleggedreplace ) {
-		c->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
-	}
-
-	ast_setstate(c, AST_STATE_DOWN);
-	ast_debug(4, "After transfer:----------------------------\n");
-	ast_debug(4, " -- C:        %s State %s\n", c->name, ast_state2str(c->_state));
-	if (replacecall)
-		ast_debug(4, " -- replacecall:        %s State %s\n", replacecall->name, ast_state2str(replacecall->_state));
-	if (p->owner) {
-		ast_debug(4, " -- P->owner: %s State %s\n", p->owner->name, ast_state2str(p->owner->_state));
-		test = ast_bridged_channel(p->owner);
-		if (test)
-			ast_debug(4, " -- Call bridged to P->owner: %s State %s\n", test->name, ast_state2str(test->_state));
-		else
-			ast_debug(4, " -- No call bridged to C->owner \n");
-	} else
-		ast_debug(4, " -- No channel yet \n");
-	ast_debug(4, "End After transfer:----------------------------\n");
-
-	/* unlock sip pvt and owner so hangup can do its thing */
+	/* C should now be in place of replacecall. all channel locks and pvt locks should be removed
+	 * before issuing the masq.  Since we are unlocking both the pvt (p) and its owner channel (c)
+	 * it is possible for channel c to be destroyed on us.  To prevent this, we must give c a reference
+	 * before any unlocking takes place and remove it only once we are completely done with it */
+	ast_channel_ref(c);
 	ast_channel_unlock(replacecall);
 	ast_channel_unlock(c);
 	sip_pvt_unlock(p->refer->refer_call);
 	sip_pvt_unlock(p);
-	*nounlock = 1;
+	if (ast_do_masquerade(replacecall)) {
+		ast_log(LOG_WARNING, "Failed to perform masquerade with INVITE replaces\n");
+	}
+	ast_channel_lock(c);
+	if (earlyreplace || oneleggedreplace ) {
+		c->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
+	}
+	ast_setstate(c, AST_STATE_DOWN);
+	ast_channel_unlock(c);
 
 	/* The call should be down with no ast_channel, so hang it up */
 	c->tech_pvt = dialog_unref(c->tech_pvt, "unref dialog c->tech_pvt");
-	ast_hangup(c);
-	sip_pvt_lock(p); /* lock PVT structure again after hangup */
 
+	/* c and c's tech pvt must be unlocked at this point for ast_hangup */
+	ast_hangup(c);
+	/* this indicates to handle_request_do that the owner channel has already been unlocked */
+	*nounlock = 1;
+	/* lock PVT structure again after hangup */
+	sip_pvt_lock(p);
+	ast_channel_unref(c);
 	return 0;
 }
 
@@ -20947,8 +20934,19 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 }
 
 /*! \brief  Find all call legs and bridge transferee with target
- *	called from handle_request_refer */
-static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *current, struct sip_request *req, int seqno)
+ *	called from handle_request_refer
+ *
+ *	\note this function assumes two locks to begin with, sip_pvt transferer and current.chan1 (the pvt's owner)... 
+ *	2 additional locks are held at the beginning of the function, targetcall_pvt, and targetcall_pvt's owner
+ *	channel (which is stored in target.chan1).  These 2 locks _MUST_ be let go by the end of the function.  Do
+ *	not be confused into thinking a pvt's owner is the same thing as the channels locked at the beginning of
+ *	this function, after the masquerade this may not be true.  Be consistent and unlock only the exact same
+ *	pointers that were locked to begin with.
+ *
+ *	If this function is successful, only the transferer pvt lock will remain on return.  Setting nounlock indicates
+ *	to handle_request_do() that the pvt's owner it locked does not require an unlock.
+ */
+static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *current, struct sip_request *req, int seqno, int *nounlock)
 {
 	struct sip_dual target;		/* Chan 1: Call from tranferer to Asterisk */
 					/* Chan 2: Call from Asterisk to target */
@@ -20968,7 +20966,7 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 		   	to follow the standard */
 			transmit_notify_with_sipfrag(transferer, seqno, "481 Call leg/transaction does not exist", TRUE);
 			append_history(transferer, "Xfer", "Refer failed");
-			ast_clear_flag(&transferer->flags[0], SIP_GOTREFER);	
+			ast_clear_flag(&transferer->flags[0], SIP_GOTREFER);
 			transferer->refer->status = REFER_FAILED;
 			return -1;
 		}
@@ -21034,21 +21032,20 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 	ast_party_connected_line_copy(&connected_to_target, &target.chan1->connected);
 	connected_to_target.source = connected_to_transferee.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
 	res = attempt_transfer(current, &target);
-	sip_pvt_unlock(targetcall_pvt);
 	if (res) {
 		/* Failed transfer */
 		transmit_notify_with_sipfrag(transferer, seqno, "486 Busy Here", TRUE);
 		append_history(transferer, "Xfer", "Refer failed");
-		if (targetcall_pvt->owner)
-			ast_channel_unlock(targetcall_pvt->owner);
 		ast_clear_flag(&transferer->flags[0], SIP_DEFER_BYE_ON_TRANSFER);
+		/* if transfer failed, go ahead and unlock targetcall_pvt and it's owner channel */
+		sip_pvt_unlock(targetcall_pvt);
+		ast_channel_unlock(target.chan1);
 	} else {
 		/* Transfer succeeded! */
 		const char *xfersound = pbx_builtin_getvar_helper(target.chan1, "ATTENDED_TRANSFER_COMPLETE_SOUND");
 
-		/* target.chan1 was locked in get_sip_pvt_byid_locked */
+		/* target.chan1 was locked in get_sip_pvt_byid_locked, do not unlock target.chan1 before this */
 		ast_cel_report_event(target.chan1, AST_CEL_ATTENDEDTRANSFER, NULL, transferer_linkedid, target.chan2);
-		ast_channel_unlock(target.chan1);
 
 		/* Tell transferer that we're done. */
 		transmit_notify_with_sipfrag(transferer, seqno, "200 OK", TRUE);
@@ -21057,21 +21054,27 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 		if (target.chan2 && !ast_strlen_zero(xfersound) && ast_streamfile(target.chan2, xfersound, target.chan2->language) >= 0) {
 			ast_waitstream(target.chan2, "");
 		}
-		
+
 		/* By forcing the masquerade, we know that target.chan1 and target.chan2 are bridged. We then
 		 * can queue connected line updates where they need to go.
 		 *
-		 * No need to lock target.chan1 here since it was previously locked in get_sip_pvt_byid_locked
+		 * before a masquerade, all channel and pvt locks must be unlocked.  Any recursive
+		 * channel locks held before this function invalidates channel container locking order.
+		 * Since we are unlocking both the pvt (transferer) and its owner channel (current.chan1)
+		 * it is possible for current.chan1 to be destroyed in the pbx thread.  To prevent this
+		 * we must give c a reference before any unlocking takes place.
 		 */
-		if (target.chan1->masq) {
-			/* If the channel thread already did the masquerade, then we don't need to do anything */
-			ast_do_masquerade(target.chan1);
-		}
 
-		if (targetcall_pvt->owner) {
-			ast_debug(1, "SIP attended transfer: Unlocking channel %s\n", targetcall_pvt->owner->name);
-			ast_channel_unlock(targetcall_pvt->owner);
-		}
+		ast_channel_ref(current->chan1);
+		ast_channel_unlock(current->chan1); /* current.chan1 is p->owner before the masq, it was locked by socket_read()*/
+		ast_channel_unlock(target.chan1);
+		*nounlock = 1;  /* we just unlocked the dialog's channel and have no plans of locking it again. */
+		sip_pvt_unlock(targetcall_pvt);
+		sip_pvt_unlock(transferer);
+
+		ast_do_masquerade(target.chan1);
+
+		ast_channel_lock(transferer); /* the transferer pvt is expected to remain locked on return */
 
 		if (target.chan2) {
 			ast_channel_queue_connected_line_update(target.chan1, &connected_to_transferee);
@@ -21084,7 +21087,10 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 			 */
 			ast_channel_update_connected_line(target.chan1, &connected_to_target);
 		}
+		ast_channel_unref(current->chan1);
 	}
+
+	/* at this point if the transfer is successful only the transferer pvt should be locked. */
 	ast_party_connected_line_free(&connected_to_target);
 	ast_party_connected_line_free(&connected_to_transferee);
 	if (targetcall_pvt)
@@ -21310,7 +21316,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 
 	/* Attended transfer: Find all call legs and bridge transferee with target*/
 	if (p->refer->attendedtransfer) {
-		if ((res = local_attended_transfer(p, &current, req, seqno)))
+		if ((res = local_attended_transfer(p, &current, req, seqno, nounlock)))
 			return res;	/* We're done with the transfer */
 		/* Fall through for remote transfers that we did not find locally */
 		if (sipdebug)
@@ -21735,7 +21741,9 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 				if (bridged_to) {
 					/* Don't actually hangup here... */
 					ast_queue_control(c, AST_CONTROL_UNHOLD);
+					ast_channel_unlock(c);  /* async_goto can do a masquerade, no locks can be held during a masq */
 					ast_async_goto(bridged_to, p->context, p->refer->refer_to, 1);
+					ast_channel_lock(c);
 				} else
 					ast_queue_hangup(p->owner);
 			}

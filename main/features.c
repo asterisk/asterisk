@@ -4378,17 +4378,19 @@ static char *handle_features_reload(struct ast_cli_entry *e, int cmd, struct ast
 static void do_bridge_masquerade(struct ast_channel *chan, struct ast_channel *tmpchan)
 {
 	ast_moh_stop(chan);
-	ast_channel_lock(chan);
+	ast_channel_lock_both(chan, tmpchan);
 	ast_setstate(tmpchan, chan->_state);
 	tmpchan->readformat = chan->readformat;
 	tmpchan->writeformat = chan->writeformat;
 	ast_channel_masquerade(tmpchan, chan);
-	ast_channel_lock(tmpchan);
+	ast_channel_unlock(chan);
+	ast_channel_unlock(tmpchan);
+
+	/* must be done without any channel locks held */
 	ast_do_masquerade(tmpchan);
+
 	/* when returning from bridge, the channel will continue at the next priority */
 	ast_explicit_goto(tmpchan, chan->context, chan->exten, chan->priority + 1);
-	ast_channel_unlock(tmpchan);
-	ast_channel_unlock(chan);
 }
 
 /*!
@@ -5004,9 +5006,10 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 					"Channel1: %s\r\n"
 					"Channel2: %s\r\n", chan->name, args.dest_chan);
 	}
-	do_bridge_masquerade(current_dest_chan, final_dest_chan);
 
 	ast_channel_unlock(current_dest_chan);
+
+	do_bridge_masquerade(current_dest_chan, final_dest_chan);
 
 	/* now current_dest_chan is a ZOMBIE and with softhangup set to 1 and final_dest_chan is our end point */
 	/* try to make compatible, send error if we fail */

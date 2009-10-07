@@ -1054,12 +1054,17 @@ int ast_queue_control_data(struct ast_channel *chan, enum ast_control_frame_type
 /*!
  * \brief Change channel name
  *
- * \pre The channel must be locked before calling this function.
+ * \pre Absolutely all channels _MUST_ be unlocked before calling this function.
  *
  * \param chan the channel to change the name of
  * \param newname the name to change to
  *
  * \return nothing
+ *
+ * \note this function must _NEVER_ be used when any channels are locked
+ * regardless if it is the channel who's name is being changed or not because
+ * it invalidates our channel container locking order... lock container first,
+ * then the individual channels, never the other way around.
  */
 void ast_change_name(struct ast_channel *chan, const char *newname);
 
@@ -1904,6 +1909,7 @@ int ast_transfer(struct ast_channel *chan, char *dest);
 
 /*!
  * \brief Start masquerading a channel
+ * \note absolutely _NO_ channel locks should be held before calling this function.
  * \details
  * XXX This is a seriously whacked out operation.  We're essentially putting the guts of
  *     the clone channel into the original channel.  Start by killing off the original

@@ -7662,10 +7662,12 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 				tmpchan = NULL;
 				res = -1;
 			} else {
-				/* Grab the locks and get going */
-				ast_channel_lock(tmpchan);
+				/* it may appear odd to unlock chan here since the masquerade is on
+				 * tmpchan, but no channel locks should be held when doing a masquerade
+				 * since a masquerade requires a lock on the channels ao2 container. */
+				ast_channel_unlock(chan);
 				ast_do_masquerade(tmpchan);
-				ast_channel_unlock(tmpchan);
+				ast_channel_lock(chan);
 				/* Start the PBX going on our stolen channel */
 				if (ast_pbx_start(tmpchan)) {
 					ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmpchan->name);

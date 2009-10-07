@@ -7762,9 +7762,7 @@ static void update_name(struct ast_channel *tmp, int port, int c)
 	snprintf(newname, sizeof(newname), "%s/%d-", misdn_type, chan_offset + c);
 	if (strncmp(tmp->name, newname, strlen(newname))) {
 		snprintf(newname, sizeof(newname), "%s/%d-u%d", misdn_type, chan_offset + c, glob_channel++);
-		ast_channel_lock(tmp);
 		ast_change_name(tmp, newname);
-		ast_channel_unlock(tmp);
 		chan_misdn_log(3, port, " --> updating channel name to [%s]\n", tmp->name);
 	}
 }
