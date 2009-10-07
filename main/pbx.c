@@ -3208,6 +3208,8 @@ static int ast_extension_state2(struct ast_exten *e)
 	if (!e)
 		return -1;
 
+	ast_devstate_aggregate_init(&agg);
+
 	ast_copy_string(hint, ast_get_extension_app(e), sizeof(hint));
 
 	rest = hint;	/* One or more devices separated with a & character */
