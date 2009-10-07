@@ -2715,8 +2715,12 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
 		return NULL;
 	}
 
- 	if (!f || (f->frametype != AST_FRAME_DTMF))
- 		return frame;
+	if (!f || (f->frametype != AST_FRAME_DTMF)) {
+		if (f) {
+			ast_frfree(f);
+		}
+		return frame;
+	}
  
  	ast_log(LOG_DEBUG, "Detected inband DTMF digit: %c\n", f->subclass);
  
