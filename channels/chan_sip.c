@@ -20117,6 +20117,7 @@ static int sip_uri_cmp(const char *input1, const char *input2)
 	return sip_uri_params_cmp(params1, params2);
 }
 
+/* \note No channel or pvt locks should be held while calling this function. */
 static int do_magic_pickup(struct ast_channel *channel, const char *extension, const char *context)
 {
 	struct ast_str *str = ast_str_alloca(AST_MAX_EXTENSION + AST_MAX_CONTEXT + 2);
@@ -20794,12 +20795,17 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			/* Do the pickup itself */
 			ast_channel_unlock(c);
 			*nounlock = 1;
-			do_magic_pickup(c, pickup.exten, pickup.context);
 
-			/* Now we're either masqueraded or we failed to pickup, in either case we... */
+			/* since p->owner (c) is unlocked, we need to go ahead and unlock pvt for both
+			 * magic pickup and ast_hangup.  Both of these functions will attempt to lock
+			 * p->owner again, which can cause a deadlock if we already hold a lock on p.
+			 * Locking order is, channel then pvt.  Dead lock avoidance must be used if
+			 * called the other way around. */
 			sip_pvt_unlock(p);
+			do_magic_pickup(c, pickup.exten, pickup.context);
+			/* Now we're either masqueraded or we failed to pickup, in either case we... */
 			ast_hangup(c);
-			sip_pvt_lock(p);
+			sip_pvt_lock(p); /* pvt is expected to remain locked on return, so re-lock it */
 
 			return 0;
 		} else {
