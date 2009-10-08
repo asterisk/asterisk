@@ -2329,8 +2329,8 @@ static char externhost[MAXHOSTNAMELEN];		/*!< External host name */
 static time_t externexpire;			/*!< Expiration counter for re-resolving external host name in dynamic DNS */
 static int externrefresh = 10;			/*!< Refresh timer for DNS-based external address (dyndns) */
 static struct sockaddr_in stunaddr;		/*!< stun server address */
-uint16_t externtcpport = STANDARD_SIP_PORT;	/*!< external tcp port */ 
-uint16_t externtlsport = STANDARD_TLS_PORT;	/*!< external tls port */
+static uint16_t externtcpport;	        /*!< external tcp port */ 
+static uint16_t externtlsport;	        /*!< external tls port */
 
 /*! \brief  List of local networks
  * We store "localnet" addresses from the config file into an access list,
