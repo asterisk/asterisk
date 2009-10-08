@@ -688,17 +688,36 @@ struct ast_filestream *ast_openvstream(struct ast_channel *chan, const char *fil
 	return NULL;
 }
 
+static struct ast_frame *read_frame(struct ast_filestream *s, int *whennext)
+{
+	struct ast_frame *fr, *new_fr;
+
+	if (!s || !s->fmt) {
+		return NULL;
+	}
+
+	if (!(fr = s->fmt->read(s, whennext))) {
+		return NULL;
+	}
+
+	if (!(new_fr = ast_frisolate(fr))) {
+		ast_frfree(fr);
+		return NULL;
+	}
+
+	if (new_fr != fr) {
+		ast_frfree(fr);
+		fr = new_fr;
+	}
+
+	return fr;
+}
+
 struct ast_frame *ast_readframe(struct ast_filestream *s)
 {
-	struct ast_frame *f = NULL;
-	int whennext = 0;	
-	if (s && s->fmt)
-		f = s->fmt->read(s, &whennext);
-	if (f) {
-		ast_set_flag(f, AST_FRFLAG_FROM_FILESTREAM);
-		ao2_ref(s, +1);
-	}
-	return f;
+	int whennext = 0;
+
+	return read_frame(s, &whennext);
 }
 
 enum fsread_res {
@@ -715,15 +734,13 @@ static enum fsread_res ast_readaudio_callback(struct ast_filestream *s)
 
 	while (!whennext) {
 		struct ast_frame *fr;
-		
-		if (s->orig_chan_name && strcasecmp(s->owner->name, s->orig_chan_name))
+
+		if (s->orig_chan_name && strcasecmp(s->owner->name, s->orig_chan_name)) {
 			goto return_failure;
-		
-		fr = s->fmt->read(s, &whennext);
-		if (fr) {
-			ast_set_flag(fr, AST_FRFLAG_FROM_FILESTREAM);
-			ao2_ref(s, +1);
 		}
+
+		fr = read_frame(s, &whennext);
+
 		if (!fr /* stream complete */ || ast_write(s->owner, fr) /* error writing */) {
 			if (fr) {
 				ast_log(LOG_WARNING, "Failed to write frame\n");
@@ -731,10 +748,12 @@ static enum fsread_res ast_readaudio_callback(struct ast_filestream *s)
 			}
 			goto return_failure;
 		} 
+
 		if (fr) {
 			ast_frfree(fr);
 		}
 	}
+
 	if (whennext != s->lasttimeout) {
 		if (s->owner->timingfd > -1) {
 			float samp_rate = (float) ast_format_rate(s->fmt->format);
@@ -778,11 +797,8 @@ static enum fsread_res ast_readvideo_callback(struct ast_filestream *s)
 	int whennext = 0;
 
 	while (!whennext) {
-		struct ast_frame *fr = s->fmt->read(s, &whennext);
-		if (fr) {
-			ast_set_flag(fr, AST_FRFLAG_FROM_FILESTREAM);
-			ao2_ref(s, +1);
-		}
+		struct ast_frame *fr = read_frame(s, &whennext);
+
 		if (!fr /* stream complete */ || ast_write(s->owner, fr) /* error writing */) {
 			if (fr) {
 				ast_log(LOG_WARNING, "Failed to write frame\n");
@@ -791,6 +807,7 @@ static enum fsread_res ast_readvideo_callback(struct ast_filestream *s)
 			s->owner->vstreamid = -1;
 			return FSREAD_FAILURE;
 		}
+
 		if (fr) {
 			ast_frfree(fr);
 		}
@@ -882,20 +899,6 @@ int ast_closestream(struct ast_filestream *f)
 		}
 	}
 
-	if (ast_test_flag(&f->fr, AST_FRFLAG_FROM_FILESTREAM)) {
-		/* If this flag is still set, it essentially means that the reference
-		 * count of f is non-zero. We can't destroy this filestream until
-		 * whatever is using the filestream's frame has finished.
-		 *
-		 * Since this was called, however, we need to remove the reference from
-		 * when this filestream was first allocated. That way, when the embedded
-		 * frame is freed, the refcount will reach 0 and we can finish destroying
-		 * this filestream properly.
-		 */
-		ao2_ref(f, -1);
-		return 0;
-	}
-	
 	ao2_ref(f, -1);
 	return 0;
 }
@@ -1325,17 +1328,6 @@ int ast_waitstream_exten(struct ast_channel *c, const char *context)
 		context = c->context;
 	return waitstream_core(c, NULL, NULL, NULL, 0,
 		-1, -1, context);
-}
-
-void ast_filestream_frame_freed(struct ast_frame *fr)
-{
-	struct ast_filestream *fs;
-
-	ast_clear_flag(fr, AST_FRFLAG_FROM_FILESTREAM);
-
-	fs = (struct ast_filestream *) (((char *) fr) - offsetof(struct ast_filestream, fr));
-
-	ao2_ref(fs, -1);
 }
 
 /*
