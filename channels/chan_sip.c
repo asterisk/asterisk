@@ -20117,7 +20117,7 @@ static int sip_uri_cmp(const char *input1, const char *input2)
 	return sip_uri_params_cmp(params1, params2);
 }
 
-/* \note No channel or pvt locks should be held while calling this function. */
+/*! \note No channel or pvt locks should be held while calling this function. */
 static int do_magic_pickup(struct ast_channel *channel, const char *extension, const char *context)
 {
 	struct ast_str *str = ast_str_alloca(AST_MAX_EXTENSION + AST_MAX_CONTEXT + 2);
