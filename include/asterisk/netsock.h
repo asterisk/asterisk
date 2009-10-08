@@ -45,8 +45,6 @@ struct ast_netsock *ast_netsock_bind(struct ast_netsock_list *list, struct io_co
 struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct io_context *ioc,
 					 struct sockaddr_in *bindaddr, int tos, int cos, ast_io_cb callback, void *data);
 
-int ast_netsock_free(struct ast_netsock_list *list, struct ast_netsock *netsock);
-
 int ast_netsock_release(struct ast_netsock_list *list);
 
 struct ast_netsock *ast_netsock_find(struct ast_netsock_list *list,
