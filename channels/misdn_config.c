@@ -878,6 +878,9 @@ static int _parse (union misdn_cfg_pt *dest, char *value, enum misdn_cfg_type ty
 
 	switch (type) {
 	case MISDN_CTYPE_STR:
+		if (dest->str) {
+			free(dest->str);
+		}
 		if ((len = strlen(value))) {
 			dest->str = (char *)malloc((len + 1) * sizeof(char));
 			strncpy(dest->str, value, len);
@@ -895,18 +898,24 @@ static int _parse (union misdn_cfg_pt *dest, char *value, enum misdn_cfg_type ty
 		else
 			pat="%30d";
 		if (sscanf(value, pat, &tmp)) {
-			dest->num = (int *)malloc(sizeof(int));
+			if (!dest->num) {
+				dest->num = (int *)malloc(sizeof(int));
+			}
 			memcpy(dest->num, &tmp, sizeof(int));
 		} else
 			re = -1;
 	}
 		break;
 	case MISDN_CTYPE_BOOL:
-		dest->num = (int *)malloc(sizeof(int));
+		if (!dest->num) {
+			dest->num = (int *)malloc(sizeof(int));
+		}
 		*(dest->num) = (ast_true(value) ? 1 : 0);
 		break;
 	case MISDN_CTYPE_BOOLINT:
-		dest->num = (int *)malloc(sizeof(int));
+		if (!dest->num) {
+			dest->num = (int *)malloc(sizeof(int));
+		}
 		if (sscanf(value, "%30d", &tmp)) {
 			memcpy(dest->num, &tmp, sizeof(int));
 		} else {
@@ -925,7 +934,9 @@ static int _parse (union misdn_cfg_pt *dest, char *value, enum misdn_cfg_type ty
 		}
 		break;
 	case MISDN_CTYPE_ASTGROUP:
-		dest->grp = (ast_group_t *)malloc(sizeof(ast_group_t));
+		if (!dest->grp) {
+			dest->grp = (ast_group_t *)malloc(sizeof(ast_group_t));
+		}
 		*(dest->grp) = ast_get_group(value);
 		break;
 	}
