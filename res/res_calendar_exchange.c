@@ -619,11 +619,12 @@ static int update_exchangecal(struct exchangecal_pvt *pvt)
 static void *exchangecal_load_calendar(void *void_data)
 {
 	struct exchangecal_pvt *pvt;
+	const struct ast_config *cfg;
 	struct ast_variable *v;
 	struct ast_calendar *cal = void_data;
 	ast_mutex_t refreshlock;
 
-	if (!(cal && ast_calendar_config)) {
+	if (!(cal && (cfg = ast_calendar_config_acquire()))) {
 		ast_log(LOG_ERROR, "You must enable calendar support for res_exchangecal to load\n");
 		return NULL;
 	}
@@ -634,11 +635,13 @@ static void *exchangecal_load_calendar(void *void_data)
 		} else {
 			ast_log(LOG_WARNING, "Could not lock calendar, aborting!\n");
 		}
+		ast_calendar_config_release();
 		return NULL;
 	}
 
 	if (!(pvt = ao2_alloc(sizeof(*pvt), exchangecal_destructor))) {
 		ast_log(LOG_ERROR, "Could not allocate exchangecal_pvt structure for calendar: %s\n", cal->name);
+		ast_calendar_config_release();
 		return NULL;
 	}
 
@@ -648,6 +651,7 @@ static void *exchangecal_load_calendar(void *void_data)
 		ast_log(LOG_ERROR, "Could not allocate space for fetching events for calendar: %s\n", cal->name);
 		pvt = unref_exchangecal(pvt);
 		ao2_unlock(cal);
+		ast_calendar_config_release();
 		return NULL;
 	}
 
@@ -655,10 +659,11 @@ static void *exchangecal_load_calendar(void *void_data)
 		ast_log(LOG_ERROR, "Couldn't allocate string field space for calendar: %s\n", cal->name);
 		pvt = unref_exchangecal(pvt);
 		ao2_unlock(cal);
+		ast_calendar_config_release();
 		return NULL;
 	}
 
-	for (v = ast_variable_browse(ast_calendar_config, cal->name); v; v = v->next) {
+	for (v = ast_variable_browse(cfg, cal->name); v; v = v->next) {
 		if (!strcasecmp(v->name, "url")) {
 			ast_string_field_set(pvt, url, v->value);
 		} else if (!strcasecmp(v->name, "user")) {
@@ -667,6 +672,8 @@ static void *exchangecal_load_calendar(void *void_data)
 			ast_string_field_set(pvt, secret, v->value);
 		}
 	}
+
+	ast_calendar_config_release();
 
 	if (ast_strlen_zero(pvt->url)) {
 		ast_log(LOG_WARNING, "No URL was specified for Exchange calendar '%s' - skipping.\n", cal->name);

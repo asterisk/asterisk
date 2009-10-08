@@ -190,7 +190,25 @@ struct evententry {
 static AST_LIST_HEAD_STATIC(techs, ast_calendar_tech);
 AST_LIST_HEAD_NOLOCK(eventlist, evententry); /* define the type */
 
-struct ast_config *ast_calendar_config;
+static struct ast_config *calendar_config;
+AST_RWLOCK_DEFINE_STATIC(config_lock);
+
+const struct ast_config *ast_calendar_config_acquire(void)
+{
+	ast_rwlock_rdlock(&config_lock);
+
+	if (!calendar_config) {
+		ast_rwlock_unlock(&config_lock);
+		return NULL;
+	}
+
+	return calendar_config;
+}
+
+void ast_calendar_config_release(void)
+{
+	ast_rwlock_unlock(&config_lock);
+}
 
 static struct ast_calendar *unref_calendar(struct ast_calendar *cal)
 {
@@ -390,28 +408,32 @@ static int load_tech_calendars(struct ast_calendar_tech *tech)
 	const char *cat = NULL;
 	const char *val;
 
-	if (!ast_calendar_config) {
+	if (!calendar_config) {
 		ast_log(LOG_WARNING, "Calendar support disabled, not loading %s calendar module\n", tech->type);
 		return -1;
 	}
 
-	while ((cat = ast_category_browse(ast_calendar_config, cat))) {
+	ast_rwlock_wrlock(&config_lock);
+	while ((cat = ast_category_browse(calendar_config, cat))) {
 		if (!strcasecmp(cat, "general")) {
 			continue;
 		}
 
-		if (!(val = ast_variable_retrieve(ast_calendar_config, cat, "type")) || strcasecmp(val, tech->type)) {
+		if (!(val = ast_variable_retrieve(calendar_config, cat, "type")) || strcasecmp(val, tech->type)) {
 			continue;
 		}
 
 		/* A serious error occurred loading calendars from this tech and it should be disabled */
-		if (!(cal = build_calendar(ast_calendar_config, cat, tech))) {
+		if (!(cal = build_calendar(calendar_config, cat, tech))) {
 			ast_calendar_unregister(tech);
+			ast_rwlock_unlock(&config_lock);
 			return -1;
 		}
 
 		cal = unref_calendar(cal);
 	}
+
+	ast_rwlock_unlock(&config_lock);
 
 	return 0;
 }
@@ -862,11 +884,13 @@ static int load_config(void *data)
 		return 0;
 	}
 
-	if (ast_calendar_config) {
-		ast_config_destroy(ast_calendar_config);
+	ast_rwlock_wrlock(&config_lock);
+	if (calendar_config) {
+		ast_config_destroy(calendar_config);
 	}
 
-	ast_calendar_config = tmpcfg;
+	calendar_config = tmpcfg;
+	ast_rwlock_unlock(&config_lock);
 
 	return 0;
 }

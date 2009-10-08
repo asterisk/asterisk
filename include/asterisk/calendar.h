@@ -60,8 +60,6 @@
  * to unregister that module's calendar type (usually done in module_unload())
  */
 
-extern struct ast_config *ast_calendar_config;
-
 struct ast_calendar;
 struct ast_calendar_event;
 
@@ -183,5 +181,17 @@ struct ast_calendar_event *ast_calendar_unref_event(struct ast_calendar_event *e
  * \param cal calendar whose events need to be cleared
  */
 void ast_calendar_clear_events(struct ast_calendar *cal);
+
+/*! \brief Grab and lock pointer to the calendar config (read only)
+ *
+ * \note ast_calendar_config_release must be called when finished with the pointer
+ *
+ * \return the parsed calendar config
+ */
+const struct ast_config *ast_calendar_config_acquire(void);
+
+/*! \brief Release the calendar config
+ */
+void ast_calendar_config_release(void);
 
 #endif /* _ASTERISK_CALENDAR_H */
