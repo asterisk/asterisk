@@ -582,6 +582,12 @@ struct chanlist {
 
 static int detect_disconnect(struct ast_channel *chan, char code, struct ast_str *featurecode);
 
+static void chanlist_free(struct chanlist *outgoing)
+{
+	ast_party_connected_line_free(&outgoing->connected);
+	ast_free(outgoing);
+}
+
 static void hanguptree(struct chanlist *outgoing, struct ast_channel *exception, int answered_elsewhere)
 {
 	/* Hang up a tree of stuff */
@@ -600,7 +606,7 @@ static void hanguptree(struct chanlist *outgoing, struct ast_channel *exception,
 		}
 		oo = outgoing;
 		outgoing = outgoing->next;
-		ast_free(oo);
+		chanlist_free(oo);
 	}
 }
 
@@ -1719,14 +1725,15 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		else {
 			if (!(datastore = ast_datastore_alloc(&dialed_interface_info, NULL))) {
 				ast_log(LOG_WARNING, "Unable to create channel datastore for dialed interfaces. Aborting!\n");
-				ast_free(tmp);
+				chanlist_free(tmp);
 				goto out;
 			}
 
 			datastore->inheritance = DATASTORE_INHERIT_FOREVER;
 
 			if (!(dialed_interfaces = ast_calloc(1, sizeof(*dialed_interfaces)))) {
-				ast_free(tmp);
+				ast_datastore_free(datastore);
+				chanlist_free(tmp);
 				goto out;
 			}
 
@@ -1750,7 +1757,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 
 		if (di) {
 			fulldial++;
-			ast_free(tmp);
+			chanlist_free(tmp);
 			continue;
 		}
 
@@ -1761,7 +1768,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		if (strcasecmp(tech, "Local")) {
 			if (!(di = ast_calloc(1, sizeof(*di) + strlen(interface)))) {
 				AST_LIST_UNLOCK(dialed_interfaces);
-				ast_free(tmp);
+				chanlist_free(tmp);
 				goto out;
 			}
 			strcpy(di->interface, interface);
@@ -1779,7 +1786,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			handle_cause(cause, &num);
 			if (!rest) /* we are on the last destination */
 				chan->hangupcause = cause;
-			ast_free(tmp);
+			chanlist_free(tmp);
 			continue;
 		}
 		pbx_builtin_setvar_helper(tc, "DIALEDPEERNUMBER", numsubst);
@@ -1868,7 +1875,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			ast_channel_unlock(chan);
 			ast_hangup(tc);
 			tc = NULL;
-			ast_free(tmp);
+			chanlist_free(tmp);
 			continue;
 		} else {
 			const char *tmpexten = ast_strdupa(S_OR(chan->macroexten, chan->exten));
