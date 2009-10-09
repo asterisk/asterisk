@@ -70,7 +70,7 @@ struct values {
 
 static AST_LIST_HEAD_STATIC(sql_values, values);
 
-static void free_config(void);
+static void free_config(int reload);
 
 static int load_column_config(const char *tmp)
 {
@@ -168,7 +168,7 @@ static int load_config(int reload)
 		return 0;
 
 	if (reload)
-		free_config();
+		free_config(1);
 
 	if (!(mappingvar = ast_variable_browse(cfg, "master"))) {
 		/* Nothing configured */
@@ -189,7 +189,7 @@ static int load_config(int reload)
 	tmp = ast_variable_retrieve(cfg, "master", "columns");
 	if (load_column_config(tmp)) {
 		ast_config_destroy(cfg);
-		free_config();
+		free_config(0);
 		return -1;
 	}
 
@@ -197,7 +197,7 @@ static int load_config(int reload)
 	tmp = ast_variable_retrieve(cfg, "master", "values");
 	if (load_values_config(tmp)) {
 		ast_config_destroy(cfg);
-		free_config();
+		free_config(0);
 		return -1;
 	}
 
@@ -208,11 +208,11 @@ static int load_config(int reload)
 	return 0;
 }
 
-static void free_config(void)
+static void free_config(int reload)
 {
 	struct values *value;
 
-	if (db) {
+	if (!reload && db) {
 		sqlite3_close(db);
 		db = NULL;
 	}
@@ -287,7 +287,7 @@ static int unload_module(void)
 {
 	ast_cdr_unregister(name);
 
-	free_config();
+	free_config(0);
 
 	return 0;
 }
@@ -308,7 +308,7 @@ static int load_module(void)
 	res = sqlite3_open(filename, &db);
 	if (res != SQLITE_OK) {
 		ast_log(LOG_ERROR, "Could not open database %s.\n", filename);
-		free_config();
+		free_config(0);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -324,7 +324,7 @@ static int load_module(void)
 		if (res != SQLITE_OK) {
 			ast_log(LOG_WARNING, "Unable to create table '%s': %s.\n", table, error);
 			sqlite3_free(error);
-			free_config();
+			free_config(0);
 			return AST_MODULE_LOAD_DECLINE;
 		}
 	}
@@ -332,7 +332,7 @@ static int load_module(void)
 	res = ast_cdr_register(name, desc, sqlite3_log);
 	if (res) {
 		ast_log(LOG_ERROR, "Unable to register custom SQLite3 CDR handling\n");
-		free_config();
+		free_config(0);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
