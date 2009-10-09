@@ -3090,7 +3090,8 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 				redirect_reason = 0;
 			else if (!strcasecmp(rr_str, "BUSY"))
 				redirect_reason = 1;
-			else if (!strcasecmp(rr_str, "NO_REPLY"))
+			else if (!strcasecmp(rr_str, "NO_REPLY") || !strcasecmp(rr_str, "NOANSWER"))
+			/* the NOANSWER is to match diversion-reason from chan_sip, (which never reads PRIREDIRECTREASON) */
 				redirect_reason = 2;
 			else if (!strcasecmp(rr_str, "UNCONDITIONAL"))
 				redirect_reason = 15;
