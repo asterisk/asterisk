@@ -9965,6 +9965,8 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		if (!ast_strlen_zero(r->peername)) {
 			if (!(peer = find_peer(r->peername, NULL, 1, 0, 0))) {
 				ast_log(LOG_WARNING, "Could not find peer %s in transmit_register\n", r->peername);
+			} else {
+				p->peerauth = peer->auth;
 			}
 		}
 		obproxy_get(p, peer); /* it is ok to pass a NULL peer into obproxy_get() */
