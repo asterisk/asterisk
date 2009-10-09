@@ -10355,7 +10355,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 	char tmp[80];
 	char addr[80];
 	struct sip_pvt *p;
-	struct sip_peer *peer;
+	struct sip_peer *peer = NULL;
 	int res;
 	char *fromdomain;
 
@@ -10373,7 +10373,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		snprintf(transport, sizeof(transport), "_sip._%s", get_transport(r->transport)); /* have to use static get_transport function */
 		ast_dnsmgr_lookup(peer ? peer->tohost : r->hostname, &r->us, &r->dnsmgr, global_srvlookup ? transport : NULL);
 		if (peer) {
-			unref_peer(peer, "removing peer ref for dnsmgr_lookup");
+			peer = unref_peer(peer, "removing peer ref for dnsmgr_lookup");
 		}
 	}
 
@@ -10388,8 +10388,6 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		}
 	} else {
 		/* Build callid for registration if we haven't registered before */
-		struct sip_peer *peer = NULL;
-
 		if (!r->callid_valid) {
 			build_callid_registry(r, internip.sin_addr, default_fromdomain);
 			r->callid_valid = TRUE;
@@ -10406,6 +10404,8 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		if (!ast_strlen_zero(r->peername)) {
 			if (!(peer = find_peer(r->peername, NULL, 1, FINDPEERS, FALSE, 0))) {
 				ast_log(LOG_WARNING, "Could not find peer %s in transmit_register\n", r->peername);
+			} else {
+				p->peerauth = peer->auth;
 			}
 		}
 		ref_proxy(p, obproxy_get(p, peer)); /* it is ok to pass a NULL peer into obproxy_get() */
