@@ -4374,7 +4374,11 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, const s
 		while (timeout && chan->_state != AST_STATE_UP) {
 			struct ast_frame *f;
 			res = ast_waitfor(chan, timeout);
-			if (res <= 0) /* error, timeout, or done */
+			if (res == 0) { /* timeout, treat it like ringing */
+				*outstate = AST_CONTROL_RINGING;
+				break;
+			}
+			if (res < 0) /* error or done */
 				break;
 			if (timeout > -1)
 				timeout = res;
