@@ -25561,6 +25561,7 @@ static int reload_config(enum channelreloadreason reason)
 					const char *username = ast_variable_retrieve(ucfg, cat, "username");
 					const char *secret = ast_variable_retrieve(ucfg, cat, "secret");
 					const char *contact = ast_variable_retrieve(ucfg, cat, "contact");
+					const char *authuser = ast_variable_retrieve(ucfg, cat, "authuser");
 					if (!host)
 						host = ast_variable_retrieve(ucfg, "general", "host");
 					if (!username)
@@ -25570,10 +25571,17 @@ static int reload_config(enum channelreloadreason reason)
 					if (!contact)
 						contact = "s";
 					if (!ast_strlen_zero(username) && !ast_strlen_zero(host)) {
-						if (!ast_strlen_zero(secret))
-							snprintf(tmp, sizeof(tmp), "%s:%s@%s/%s", username, secret, host, contact);
-						else
+						if (!ast_strlen_zero(secret)) {
+							if (!ast_strlen_zero(authuser)) {
+								snprintf(tmp, sizeof(tmp), "%s:%s:%s@%s/%s", username, secret, authuser, host, contact);
+							} else {
+								snprintf(tmp, sizeof(tmp), "%s:%s@%s/%s", username, secret, host, contact);
+							}
+						} else if (!ast_strlen_zero(authuser)) {
+							snprintf(tmp, sizeof(tmp), "%s::%s@%s/%s", username, authuser, host, contact);
+						} else {
 							snprintf(tmp, sizeof(tmp), "%s@%s/%s", username, host, contact);
+						}
 						if (sip_register(tmp, 0) == 0)
 							registry_count++;
 					}
