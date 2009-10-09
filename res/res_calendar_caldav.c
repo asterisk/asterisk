@@ -322,18 +322,7 @@ static void caldav_add_event(icalcomponent *comp, struct icaltime_span *span, vo
 	event->start = span->start;
 	event->end = span->end;
 
-	switch(icalcomponent_get_status(comp)) {
-	case ICAL_STATUS_CONFIRMED:
-		event->busy_state = AST_CALENDAR_BS_BUSY;
-		break;
-
-	case ICAL_STATUS_TENTATIVE:
-		event->busy_state = AST_CALENDAR_BS_BUSY_TENTATIVE;
-		break;
-
-	default:
-		event->busy_state = AST_CALENDAR_BS_FREE;
-	}
+	event->busy_state = span->is_busy ? AST_CALENDAR_BS_BUSY : AST_CALENDAR_BS_FREE;
 
 	if ((prop = icalcomponent_get_first_property(comp, ICAL_SUMMARY_PROPERTY))) {
 		ast_string_field_set(event, summary, icalproperty_get_value_as_string(prop));
