@@ -637,7 +637,7 @@ static int calendar_event_notify(const void *data)
 		tmp++;
 		ast_copy_string(dest, tmp, sizeof(dest));
 	} else {
-		ast_log(LOG_WARNING, "Channel should be in form Tech/Dest\n");
+		ast_log(LOG_WARNING, "Channel should be in form Tech/Dest (was '%s')\n", tech);
 		goto notify_cleanup;
 	}
 
@@ -753,6 +753,12 @@ static void copy_event_data(struct ast_calendar_event *dst, struct ast_calendar_
 	dst->alarm = src->alarm;
 	dst->busy_state = src->busy_state;
 
+	/* Delete any existing attendees */
+	while ((attendee = AST_LIST_REMOVE_HEAD(&dst->attendees, next))) {
+		ast_free(attendee);
+	}
+
+	/* Copy over the new attendees */
 	while ((attendee = AST_LIST_REMOVE_HEAD(&src->attendees, next))) {
 		AST_LIST_INSERT_TAIL(&dst->attendees, attendee, next);
 	}
