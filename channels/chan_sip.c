@@ -24049,7 +24049,6 @@ static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, cons
 {
 	char authcopy[256];
 	char *username=NULL, *realm=NULL, *secret=NULL, *md5secret=NULL;
-	char *stringp;
 	struct sip_auth *a, *b, *auth;
 
 	if (ast_strlen_zero(configuration))
@@ -24058,25 +24057,24 @@ static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, cons
 	ast_debug(1, "Auth config ::  %s\n", configuration);
 
 	ast_copy_string(authcopy, configuration, sizeof(authcopy));
-	stringp = authcopy;
+	username = authcopy;
 
-	username = stringp;
-	realm = strrchr(stringp, '@');
+	/* split user[:secret] and relm */
+	realm = strrchr(username, '@');
 	if (realm)
 		*realm++ = '\0';
 	if (ast_strlen_zero(username) || ast_strlen_zero(realm)) {
 		ast_log(LOG_WARNING, "Format for authentication entry is user[:secret]@realm at line %d\n", lineno);
 		return authlist;
 	}
-	stringp = username;
-	username = strsep(&stringp, ":");
-	if (username) {
-		secret = strsep(&stringp, ":");
-		if (!secret) {
-			stringp = username;
-			md5secret = strsep(&stringp, "#");
-		}
+
+	/* parse username at ':' for secret, or '#" for md5secret */
+	if ((secret = strchr(username, ':'))) {
+		*secret++ = '\0';
+	} else if ((md5secret = strchr(username, '#'))) {
+		*md5secret++ = '\0';
 	}
+
 	if (!(auth = ast_calloc(1, sizeof(*auth))))
 		return authlist;
 
