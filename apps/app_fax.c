@@ -377,8 +377,8 @@ static int transmit_audio(fax_session *s)
 							     .transcoding_jbig = 1,
 	};
 
-	/* if in receive mode, try to use T.38 */
-	if (!s->direction) {
+	/* if in called party mode, try to use T.38 */
+	if (s->caller_mode == FALSE) {
 		/* check if we are already in T.38 mode (unlikely), or if we can request
 		 * a switch... if so, request it now and wait for the result, rather
 		 * than starting an audio FAX session that will have to be cancelled
