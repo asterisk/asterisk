@@ -626,7 +626,8 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 			pvt->options.redirect_reason = 0;
 		else if (!strcasecmp(addr, "BUSY"))
 			pvt->options.redirect_reason = 1;
-		else if (!strcasecmp(addr, "NO_REPLY"))
+		else if (!strcasecmp(addr, "NO_REPLY") || !strcasecmp(addr, "NOANSWER"))
+		/* the NOANSWER is to match diversion-reason from chan_sip, (which never reads PRIREDIRECTREASON) */
 			pvt->options.redirect_reason = 2;
 		else if (!strcasecmp(addr, "UNCONDITIONAL"))
 			pvt->options.redirect_reason = 15;
