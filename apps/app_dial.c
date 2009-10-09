@@ -1448,6 +1448,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			datastore->inheritance = DATASTORE_INHERIT_FOREVER;
 
 			if (!(dialed_interfaces = ast_calloc(1, sizeof(*dialed_interfaces)))) {
+				ast_channel_datastore_free(datastore);
 				ast_free(tmp);
 				goto out;
 			}
