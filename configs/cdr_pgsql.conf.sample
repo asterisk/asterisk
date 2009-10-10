@@ -1,4 +1,8 @@
 ; Sample Asterisk config file for CDR logging to PostgresSQL
+;
+; Note that you can use TLS connections to your database server.
+; This is configured for your PostgreSQL client installation
+; on this system (check for pgsessions.conf)
 
 [global]
 ;hostname=localhost
