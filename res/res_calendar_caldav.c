@@ -297,6 +297,31 @@ static struct ast_str *caldav_get_events_between(struct caldav_pvt *pvt, time_t 
 	return response;
 }
 
+static time_t icalfloat_to_timet(icaltimetype time) 
+{
+	struct ast_tm tm = {0,};
+	struct timeval tv;
+
+	tm.tm_mday = time.day;
+	tm.tm_mon = time.month - 1;
+	tm.tm_year = time.year - 1900;
+	tm.tm_hour = time.hour;
+	tm.tm_min = time.minute;
+	tm.tm_sec = time.second;
+	tm.tm_isdst = -1;
+	tv = ast_mktime(&tm, NULL);
+
+	return tv.tv_sec;
+}
+
+/* span->start & span->end may be dates or floating times which have no timezone,
+ * which would mean that they should apply to the local timezone for all recepients.
+ * For example, if a meeting was set for 1PM-2PM floating time, people in different time
+ * zones would not be scheduled at the same local times.  Dates are often treated as
+ * floating times, so all day events will need to be converted--so we can trust the
+ * span here, and instead will grab the start and end from the component, which will
+ * allow us to test for floating times or dates.
+ */
 static void caldav_add_event(icalcomponent *comp, struct icaltime_span *span, void *data)
 {
 	struct caldav_pvt *pvt = data;
@@ -317,11 +342,11 @@ static void caldav_add_event(icalcomponent *comp, struct icaltime_span *span, vo
 		return;
 	}
 
-	start = icaltime_from_timet_with_zone(span->start, 0, utc);
-	end = icaltime_from_timet_with_zone(span->end, 0, utc);
-	event->start = span->start;
-	event->end = span->end;
+	start = icalcomponent_get_dtstart(comp);
+	end = icalcomponent_get_dtend(comp);
 
+	event->start = icaltime_get_tzid(start) ? span->start : icalfloat_to_timet(start);
+	event->end = icaltime_get_tzid(end) ? span->end : icalfloat_to_timet(end);
 	event->busy_state = span->is_busy ? AST_CALENDAR_BS_BUSY : AST_CALENDAR_BS_FREE;
 
 	if ((prop = icalcomponent_get_first_property(comp, ICAL_SUMMARY_PROPERTY))) {
