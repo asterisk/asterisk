@@ -2,12 +2,24 @@
 ; Configuration file for res_config_ldap
 ;
 
-; Sample Asterisk config file for res_config_ldap
-; in extconfig.conf; you can use it like this:
-; sipusers = ldap,"dc=myDomain,dc=myDomainExt",sip
-; sippeers = ldap,"dc=myDomain,dc=myDomainExt",sip
-; extensions = ldap,"dc=myDomain,dc=myDomainExt",extensions
-; sip.conf = ldap,"dc=myDomain,dc=myDomainExt",config
+; Realtime configuration
+; ----------------------
+; In order to use this module, you start 
+; in extconfig.conf with a configuration like this:
+;
+; 	sipusers = ldap,"dc=myDomain,dc=myDomainExt",sip
+; 	sippeers = ldap,"dc=myDomain,dc=myDomainExt",sip
+; 	extensions = ldap,"dc=myDomain,dc=myDomainExt",extensions
+; 	sip.conf = ldap,"dc=myDomain,dc=myDomainExt",config
+;
+; In the case of LDAP the last keyword in each line above specifies
+; a section in this file.
+
+; TLS support
+; -----------
+; Note that you can configure an ldaps: url here to get TLS support.
+; Detailed configuration of certificates and supported CAs is done in your 
+; ldap.conf file for OpenLDAP clients on your system.
 
 
 [_general]
