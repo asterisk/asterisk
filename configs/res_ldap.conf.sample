@@ -20,6 +20,7 @@
 ; Note that you can configure an ldaps: url here to get TLS support.
 ; Detailed configuration of certificates and supported CAs is done in your 
 ; ldap.conf file for OpenLDAP clients on your system.
+; This requires that you have OpenLDAP libraries compiled with TLS support
 
 
 [_general]
