@@ -4869,7 +4869,6 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 					S_OR(qe->chan->cid.cid_name, "unknown"),
 					(long) (now - qe->start), idText);
 			}
-			ao2_iterator_destroy(&mem_iter);
 		}
 		ast_mutex_unlock(&q->lock);
 	}
