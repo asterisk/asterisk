@@ -10670,7 +10670,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, int t38version, int old
 			add_header(&req, "X-asterisk-Info", "SIP re-invite (External RTP bridge)");
 	}
 
-	if (ast_test_flag(&p->flags[1], SIP_SENDRPID))
+	if (ast_test_flag(&p->flags[0], SIP_SENDRPID))
 		add_rpid(&req, p);
 
 	if (p->do_history)
