@@ -124,16 +124,13 @@ static void *autoservice_run(void *ign)
 		}
 
 		f = ast_read(chan);
-	
+
 		if (!f) {
 			/* No frame means the channel has been hung up.
 			 * A hangup frame needs to be queued here as ast_waitfor() may
 			 * never return again for the condition to be detected outside
 			 * of autoservice.  So, we'll leave a HANGUP queued up so the
 			 * thread in charge of this channel will know. */
-
-			hangup_frame.frametype = AST_FRAME_CONTROL;
-			hangup_frame.subclass = AST_CONTROL_HANGUP;
 
 			defer_frame = &hangup_frame;
 		} else {
