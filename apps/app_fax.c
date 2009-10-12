@@ -598,6 +598,7 @@ static int transmit_t38(fax_session *s)
 	struct timeval now, start, state_change, last_frame;
 	t30_state_t *t30state;
 	t38_core_state_t *t38state;
+	struct ast_control_t38_parameters t38_parameters = { .request_response = AST_T38_REQUEST_TERMINATE, };
 
 #if SPANDSP_RELEASE_DATE >= 20080725
 	/* for spandsp shaphots 0.0.6 and higher */
@@ -613,7 +614,8 @@ static int transmit_t38(fax_session *s)
 	memset(&t38, 0, sizeof(t38));
 	if (t38_terminal_init(&t38, s->caller_mode, t38_tx_packet_handler, s->chan) == NULL) {
 		ast_log(LOG_WARNING, "Unable to start T.38 termination.\n");
-		return -1;
+		res = -1;
+		goto disable_t38;
 	}
 
 	t38_set_max_datagram_size(t38state, s->t38parameters.max_ifp);
@@ -702,6 +704,57 @@ static int transmit_t38(fax_session *s)
 
 	t30_terminate(t30state);
 	t38_terminal_release(&t38);
+
+disable_t38:
+	if (ast_channel_get_t38_state(s->chan) == T38_STATE_NEGOTIATED) {
+		if (ast_indicate_data(s->chan, AST_CONTROL_T38_PARAMETERS, &t38_parameters, sizeof(t38_parameters)) == 0) {
+			/* wait up to five seconds for negotiation to complete */
+			unsigned int timeout = 5000;
+			int ms;
+			
+			ast_debug(1, "Shutting down T.38 on %s\n", s->chan->name);
+			while (timeout > 0) {
+				ms = ast_waitfor(s->chan, 1000);
+				if (ms < 0) {
+					ast_log(LOG_WARNING, "something bad happened while channel '%s' was polling.\n", s->chan->name);
+					return -1;
+				}
+				if (!ms) {
+					/* nothing happened */
+					if (timeout > 0) {
+						timeout -= 1000;
+						continue;
+					} else {
+						ast_log(LOG_WARNING, "channel '%s' timed-out during the T.38 shutdown.\n", s->chan->name);
+						break;
+					}
+				}
+				if (!(inf = ast_read(s->chan))) {
+					return -1;
+				}
+				if ((inf->frametype == AST_FRAME_CONTROL) &&
+				    (inf->subclass == AST_CONTROL_T38_PARAMETERS) &&
+				    (inf->datalen == sizeof(t38_parameters))) {
+					struct ast_control_t38_parameters *parameters = inf->data.ptr;
+					
+					switch (parameters->request_response) {
+					case AST_T38_NEGOTIATED:
+						ast_debug(1, "Shut down T.38 on %s\n", s->chan->name);
+						break;
+					case AST_T38_REFUSED:
+						ast_log(LOG_WARNING, "channel '%s' refused to disable T.38\n", s->chan->name);
+						break;
+					default:
+						ast_log(LOG_ERROR, "channel '%s' failed to disable T.38\n", s->chan->name);
+						break;
+					}
+					ast_frfree(inf);
+					break;
+				}
+				ast_frfree(inf);
+			}
+		}
+	}
 
 	return res;
 }

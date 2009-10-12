@@ -6323,8 +6323,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 						ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);
 					}
 				} else if (p->t38.state == T38_ENABLED) {
-					change_t38_state(p, T38_DISABLED);
-					transmit_reinvite_with_sdp(p, FALSE, FALSE);
+					/* drop frame, can't sent VOICE frames while in T.38 mode */
 				} else {
 					p->lastrtptx = time(NULL);
 					res = ast_rtp_instance_write(p->rtp, frame);
