@@ -654,8 +654,13 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 					/* Setup early media if appropriate */
 					if (single && CAN_EARLY_BRIDGE(peerflags, in, c))
 						ast_rtp_early_bridge(in, c);
-					if (!ast_test_flag(outgoing, OPT_RINGBACK))
-						ast_indicate(in, AST_CONTROL_PROGRESS);
+					if (!ast_test_flag(outgoing, OPT_RINGBACK)) {
+							if (single || (!single && !(*sentringing))) {
+							/* want progress to go through if it's a single legged call or it's a
+							 * branched call and ringing has not been sent */
+								ast_indicate(in, AST_CONTROL_PROGRESS);
+							}
+					}
 					break;
 				case AST_CONTROL_VIDUPDATE:
 					if (option_verbose > 2)
