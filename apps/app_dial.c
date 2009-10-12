@@ -740,7 +740,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					if (single && CAN_EARLY_BRIDGE(peerflags, in, c))
 						ast_channel_early_bridge(in, c);
 					if (!ast_test_flag64(outgoing, OPT_RINGBACK))
-						ast_indicate(in, AST_CONTROL_PROGRESS);
+						if (single || (!single && !pa->sentringing)) {
+							ast_indicate(in, AST_CONTROL_PROGRESS);
+						}
 					break;
 				case AST_CONTROL_VIDUPDATE:
 					ast_verb(3, "%s requested a video update, passing it to %s\n", c->name, in->name);
