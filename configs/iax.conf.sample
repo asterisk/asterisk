@@ -148,29 +148,10 @@ forcejitterbuffer=no
 ;resyncthreshold=1000
 ;jittertargetextra=40
 
-;trunkfreq=20			; How frequently to send trunk msgs (in ms)
-
-; Should we send timestamps for the individual sub-frames within trunk frames?
-; There is a small bandwidth use for these (less than 1kbps/call), but they
-; ensure that frame timestamps get sent end-to-end properly.  If both ends of
-; all your trunks go directly to TDM, _and_ your trunkfreq equals the frame
-; length for your codecs, you can probably suppress these.  The receiver must
-; also support this feature, although they do not also need to have it enabled.
-;
-; trunktimestamps=yes
-;
 ; Minimum and maximum amounts of time that IAX peers can request as
 ; a registration expiration interval (in seconds).
 ; minregexpire = 60
 ; maxregexpire = 60
-;
-; With a large amount of traffic on IAX2 trunks, there is a risk of bad voice quality due to
-; the fact that the IAX2 trunking scheme depends on the Linux system to handle fragmentation of
-; UDP packets. This may not be very efficient.
-; This setting sets the maximum transmission unit for IAX2 UDP trunking.
-; default is 1240 bytes. Zero disables this functionality and let's the O/S handle fragmentation.
-;
-; trunkmtu = 1240
 ;
 ; Enable IAX2 encryption.  The default is no.
 ;
@@ -181,10 +162,46 @@ forcejitterbuffer=no
 ;
 ; forceencryption = yes
 
-; This option defines the maximum size an IAX2 trunk can grow to. The default value is 128000 bytes which
-; represents 40ms uncompressed linear with 200 channels. Depending on different things though
-; (codec in use and channels) you may need to make this value larger.
-; trunkmaxsize = 128000
+; This option defines the maximum payload in bytes an IAX2 trunk can support at a given time.
+; The best way to explain this is to provide an example.  If the maximum number of calls
+; to be supported is 800, and each call transmits 20ms frames of audio using ulaw
+; ((8000hz / 1000ms) * 20ms * 1 byte per sample = 160 bytes per frame), the maximum load
+; in bytes is (160 bytes per frame) * (800 calls) = 128000 bytes total. Once this limit is
+; reached, calls may be dropped or begin to lose audio.  Depending on the codec in use and
+; number of channels to be supported this value may need to be raised, but in most cases the
+; default value is large enough.
+;
+; trunkmaxsize = 128000 ; defaults to 128000 bytes, which supports up to 800 calls of ulaw
+;                       ; at 20ms a frame.
+
+; With a large amount of traffic on IAX2 trunks, there is a risk of bad voice quality when
+; allowing the Linux system to handle fragmentation of UDP packets. Depending on the size of
+; each payload, allowing the O/S to handle fragmentation may not be very efficient. This
+; setting sets the maximum transmission unit for IAX2 UDP trunking. The default is 1240 bytes
+; which means if a trunk's payload is over 1240 bytes for every 20ms it will be broken into
+; multiple 1240 byte messages.  Zero disables this functionality and let's the O/S handle
+; fragmentation.
+;
+; trunkmtu = 1240 ; trunk data will be sent in 1240 byte messages.
+
+; trunkfreq sets how frequently trunk messages are sent in milliseconds. This value is 20ms by
+; default, which means the trunk will send all the date queued to it in the past 20ms.  By
+; increasing the time between sending trunk messages, the trunk's payload size will increase as
+; well.  Note, depending on the size set by trunkmtu, messages may be sent more often than
+; specified.  For example if a trunk's message size grows to the trunkmtu size before 20ms is
+; reached that message will be sent immediately.
+;
+; trunkfreq=20     ; How frequently to send trunk msgs (in ms). This is 20ms by default.
+
+; Should we send timestamps for the individual sub-frames within trunk frames?
+; There is a small bandwidth use for these (less than 1kbps/call), but they
+; ensure that frame timestamps get sent end-to-end properly.  If both ends of
+; all your trunks go directly to TDM, _and_ your trunkfreq equals the frame
+; length for your codecs, you can probably suppress these.  The receiver must
+; also support this feature, although they do not also need to have it enabled.
+;
+; trunktimestamps=yes
+;
 
 ; IAX helper threads
 
