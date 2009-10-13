@@ -625,7 +625,7 @@ static const struct ast_channel_tech null_tech = {
 static void *do_notify(void *data)
 {
 	struct ast_calendar_event *event = data;
-	struct ast_dial *dial;
+	struct ast_dial *dial = NULL;
 	struct ast_str *apptext = NULL;
 	struct ast_datastore *datastore;
 	enum ast_dial_result res;
