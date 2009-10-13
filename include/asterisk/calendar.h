@@ -24,6 +24,7 @@
 #include "asterisk/config.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/lock.h"
+#include "asterisk/dial.h"
 
 /*! \file calendar.h
  * \brief A general API for managing calendar events with Asterisk
@@ -103,6 +104,8 @@ struct ast_calendar_event {
 	int notify_sched;    /*!< The sched for event notification */
 	int bs_start_sched;  /*!< The sched for changing the device state at the start of an event */
 	int bs_end_sched;    /*!< The sched for changing the device state at the end of an event */
+	struct ast_dial *dial;
+	struct ast_channel *notify_chan;
 	AST_LIST_HEAD_NOLOCK(attendees, ast_calendar_attendee) attendees;
 };
 

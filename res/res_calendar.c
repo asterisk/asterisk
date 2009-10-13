@@ -611,31 +611,33 @@ static char *generate_random_string(char *buf, size_t size)
 	return buf;
 }
 
-static int calendar_event_notify(const void *data)
+static int null_chan_write(struct ast_channel *chan, struct ast_frame *frame)
 {
-	struct ast_calendar_event *event = (void *)data;
-	char tech[256], dest[256], buf[8], *tmp;
-	struct ast_dial *dial = NULL;
-	struct ast_channel *chan = NULL;
+	return 0;
+}
+
+static const struct ast_channel_tech null_tech = {
+        .type = "NULL",
+        .description = "Null channel (should not see this)",
+		.write = null_chan_write,
+};
+
+static void *do_notify(void *data)
+{
+	struct ast_calendar_event *event = data;
+	struct ast_dial *dial;
 	struct ast_str *apptext = NULL;
-	int res = -1;
-	char start[12], end[12], busystate[2];
 	struct ast_datastore *datastore;
+	enum ast_dial_result res;
+	struct ast_channel *chan = NULL;
+	char *tech, *dest;
+	char buf[8];
 
-	if (!(event && event->owner)) {
-		ast_log(LOG_ERROR, "Extremely low-cal...in fact cal is NULL!\n");
-		goto notify_cleanup;
-	}
+	tech = ast_strdupa(event->owner->notify_channel);
 
-	ao2_ref(event, +1);
-	event->notify_sched = -1;
-
-	ast_copy_string(tech, event->owner->notify_channel, sizeof(tech));
-
-	if ((tmp = strchr(tech, '/'))) {
-		*tmp = '\0';
-		tmp++;
-		ast_copy_string(dest, tmp, sizeof(dest));
+	if ((dest = strchr(tech, '/'))) {
+		*dest = '\0';
+		dest++;
 	} else {
 		ast_log(LOG_WARNING, "Channel should be in form Tech/Dest (was '%s')\n", tech);
 		goto notify_cleanup;
@@ -653,16 +655,15 @@ static int calendar_event_notify(const void *data)
 
 	ast_dial_set_global_timeout(dial, event->owner->notify_waittime);
 	generate_random_string(buf, sizeof(buf));
+
 	if (!(chan = ast_channel_alloc(1, AST_STATE_DOWN, 0, 0, 0, 0, 0, 0, 0, "Calendar/%s-%s", event->owner->name, buf))) {
 		ast_log(LOG_ERROR, "Could not allocate notification channel\n");
 		goto notify_cleanup;
 	}
 
-	snprintf(busystate, sizeof(busystate), "%d", event->busy_state);
-	snprintf(start, sizeof(start), "%lu", (long) event->start);
-	snprintf(end, sizeof(end), "%lu", (long) event->end);
-
-	chan->nativeformats = AST_FORMAT_SLINEAR;
+	chan->tech = &null_tech;
+	chan->nativeformats = chan->writeformat = chan->rawwriteformat =
+		chan->readformat = chan->rawreadformat = AST_FORMAT_SLINEAR;
 
 	if (!(datastore = ast_datastore_alloc(&event_notification_datastore, NULL))) {
 		ast_log(LOG_ERROR, "Could not allocate datastore, notification not being sent!\n");
@@ -681,25 +682,63 @@ static int calendar_event_notify(const void *data)
 
 	if (!ast_strlen_zero(event->owner->notify_app)) {
 		ast_str_set(&apptext, 0, "%s,%s", event->owner->notify_app, event->owner->notify_appdata);
+		ast_dial_option_global_enable(dial, AST_DIAL_OPTION_ANSWER_EXEC, ast_str_buffer(apptext));
 	} else {
-		ast_str_set(&apptext, 0, "Dial,Local/%s@%s", event->owner->notify_extension, event->owner->notify_context);
 	}
-	ast_dial_option_global_enable(dial, AST_DIAL_OPTION_ANSWER_EXEC, ast_str_buffer(apptext));
 
-	ast_dial_run(dial, chan, 1);
-	res = 0;
+	ast_verb(3, "Dialing %s for notification on calendar %s\n", event->owner->notify_channel, event->owner->name);
+	res = ast_dial_run(dial, chan, 0);
+
+	if (res != AST_DIAL_RESULT_ANSWERED) {
+		ast_verb(3, "Notification call for %s was not completed\n", event->owner->name);
+	} else {
+		struct ast_channel *answered;
+
+		answered = ast_dial_answered_steal(dial);
+		if (ast_strlen_zero(event->owner->notify_app)) {
+			ast_copy_string(answered->context, event->owner->notify_context, sizeof(answered->context));
+			ast_copy_string(answered->exten, event->owner->notify_extension, sizeof(answered->exten));
+			answered->priority = 1;
+			ast_pbx_run(answered);
+		}
+	}
 
 notify_cleanup:
-	event = ast_calendar_unref_event(event);
-	if (res == -1 && dial) {
-		ast_dial_destroy(dial);
-	}
 	if (apptext) {
 		ast_free(apptext);
+	}
+	if (dial) {
+		ast_dial_destroy(dial);
 	}
 	if (chan) {
 		ast_channel_release(chan);
 	}
+
+	event = ast_calendar_unref_event(event);
+
+	return NULL;
+}
+
+static int calendar_event_notify(const void *data)
+{
+	struct ast_calendar_event *event = (void *)data;
+	int res = -1;
+	pthread_t notify_thread = AST_PTHREADT_NULL;
+
+	if (!(event && event->owner)) {
+		ast_log(LOG_ERROR, "Extremely low-cal...in fact cal is NULL!\n");
+		return res;
+	}
+
+	ao2_ref(event, +1);
+	event->notify_sched = -1;
+
+	if (ast_pthread_create_background(&notify_thread, NULL, do_notify, event) < 0) {
+		ast_log(LOG_ERROR, "Could not create notification thread\n");
+		return res;
+	}
+
+	res = 0;
 
 	return res;
 }
@@ -1342,7 +1381,7 @@ static char *epoch_to_string(char *buf, size_t buflen, time_t epoch)
 		return buf;
 	}
 	ast_localtime(&tv, &tm, NULL);
-	ast_strftime(buf, buflen, "%F %r", &tm);
+	ast_strftime(buf, buflen, "%F %r %z", &tm);
 
 	return buf;
 }

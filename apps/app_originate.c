@@ -41,6 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/app.h"
+#include "asterisk/dial.h"
 
 static const char app_originate[] = "Originate";
 
@@ -105,6 +106,9 @@ static int originate_exec(struct ast_channel *chan, const char *data)
 	int outgoing_status = 0;
 	static const unsigned int timeout = 30;
 	static const char default_exten[] = "s";
+	struct ast_dial *dial = NULL;
+	struct ast_str *buf = NULL;
+	struct ast_channel *c = NULL;
 
 	ast_autoservice_start(chan);
 
@@ -130,7 +134,30 @@ static int originate_exec(struct ast_channel *chan, const char *data)
 		goto return_cleanup;
 	}
 
-	if (!strcasecmp(args.type, "exten")) {
+	if (strstr(args.type, "async")) {
+		if (!(dial = ast_dial_create())) {
+			goto return_cleanup;
+		}
+
+		if (ast_dial_append(dial, chantech, chandata)) {
+			goto return_cleanup;
+		}
+
+		if (!(buf = ast_str_create(32))) {
+			goto return_cleanup;
+		}
+
+		if (!(c = ast_channel_alloc(1, AST_STATE_DOWN, 0, 0, 0, 0, 0, 0, 0, "Originate/%s-%08lx", args.arg1, ast_random()))) {
+			ast_free(buf);
+			goto return_cleanup;
+		}
+
+		c->nativeformats = AST_FORMAT_SLINEAR;
+		ast_dial_set_global_timeout(dial, 30 * 1000);
+
+	}
+
+	if (!strncasecmp(args.type, "exten", 5)) {
 		int priority = 1; /* Initialized in case priority not specified */
 		const char *exten = args.arg2;
 
@@ -148,16 +175,28 @@ static int originate_exec(struct ast_channel *chan, const char *data)
 		ast_debug(1, "Originating call to '%s/%s' and connecting them to extension %s,%s,%d\n",
 				chantech, chandata, args.arg1, exten, priority);
 
-		outgoing_res = ast_pbx_outgoing_exten(chantech, AST_FORMAT_SLINEAR, chandata,
-				timeout * 1000, args.arg1, exten, priority, &outgoing_status, 0, NULL,
-				NULL, NULL, NULL, NULL);
-	} else if (!strcasecmp(args.type, "app")) {
+		if (!strcasecmp(args.type, "exten-async")) {
+			ast_str_set(&buf, 0, "Dial,Local/%s@%s", exten, args.arg1);
+			ast_dial_option_global_enable(dial, AST_DIAL_OPTION_ANSWER_EXEC, ast_str_buffer(buf));
+			ast_dial_run(dial, NULL, 1);
+		} else {
+			outgoing_res = ast_pbx_outgoing_exten(chantech, AST_FORMAT_SLINEAR, chandata,
+					timeout * 1000, args.arg1, exten, priority, &outgoing_status, 0, NULL,
+					NULL, NULL, NULL, NULL);
+		}
+	} else if (!strncasecmp(args.type, "app", 3)) {
 		ast_debug(1, "Originating call to '%s/%s' and connecting them to %s(%s)\n",
 				chantech, chandata, args.arg1, S_OR(args.arg2, ""));
 
-		outgoing_res = ast_pbx_outgoing_app(chantech, AST_FORMAT_SLINEAR, chandata,
-				timeout * 1000, args.arg1, args.arg2, &outgoing_status, 0, NULL,
-				NULL, NULL, NULL, NULL);
+		if (!strcasecmp(args.type, "app-async")) {
+			ast_str_set(&buf, 0, "%s,%s", args.arg1, args.arg2);
+			ast_dial_option_global_enable(dial, AST_DIAL_OPTION_ANSWER_EXEC, ast_str_buffer(buf));
+			ast_dial_run(dial, c, 1);
+		} else {
+			outgoing_res = ast_pbx_outgoing_app(chantech, AST_FORMAT_SLINEAR, chandata,
+					timeout * 1000, args.arg1, args.arg2, &outgoing_status, 0, NULL,
+					NULL, NULL, NULL, NULL);
+		}
 	} else {
 		ast_log(LOG_ERROR, "Incorrect type, it should be 'exten' or 'app': %s\n",
 				args.type);
@@ -193,6 +232,12 @@ return_cleanup:
 			pbx_builtin_setvar_helper(chan, "ORIGINATE_STATUS", "UNKNOWN");
 			break;
 		}
+	}
+	if (buf) {
+		ast_free(buf);
+	}
+	if (c) {
+		ast_channel_release(c);
 	}
 
 	ast_autoservice_stop(chan);
