@@ -4252,7 +4252,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 			p->inalarm = 1;
 			res = get_alarms(p);
 			handle_alarms(p, res);
-#ifdef HAVE_LIBPRI
+#ifdef HAVE_PRI
 			if (!p->pri || !p->pri->pri || pri_get_timer(p->pri->pri, PRI_TIMER_T309) < 0) {
 				/* fall through intentionally */
 			} else {
