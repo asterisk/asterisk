@@ -1640,6 +1640,11 @@ struct sip_refer {
 	enum referstatus status;			/*!< REFER status */
 };
 
+/*! \brief Struct to handle custom SIP notify requests. Dynamically allocated when needed */
+struct sip_notify {
+	struct ast_variable *headers;
+	struct ast_str *content;
+};
 
 /*! \brief Structure that encapsulates all attributes related to running
  *   SIP Session-Timers feature on a per dialog basis.
@@ -1792,7 +1797,7 @@ struct sip_pvt {
 	enum transfermodes allowtransfer;	/*!< REFER: restriction scheme */
 	struct ast_channel *owner;		/*!< Who owns us (if we have an owner) */
 	struct sip_route *route;		/*!< Head of linked list of routing steps (fm Record-Route) */
-	struct ast_variable *notify_headers;    /*!< Custom notify type */
+	struct sip_notify *notify;    /*!< Custom notify type */
 	struct sip_auth *peerauth;		/*!< Realm authentication */
 	int noncecount;				/*!< Nonce-count */
 	unsigned int stalenonce:1;	/*!< Marks the current nonce as responded too */
@@ -2415,7 +2420,6 @@ static int transmit_message_with_text(struct sip_pvt *p, const char *text);
 static int transmit_refer(struct sip_pvt *p, const char *dest);
 static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs, const char *vmexten);
 static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *message, int terminate);
-static int transmit_notify_custom(struct sip_pvt *p, struct ast_variable *vars);
 static int transmit_register(struct sip_registry *r, int sipmethod, const char *auth, const char *authheader);
 static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, int seqno);
 static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, int seqno);
@@ -2502,6 +2506,7 @@ static void peer_mailboxes_to_str(struct ast_str **mailbox_str, struct sip_peer 
 static struct ast_variable *copy_vars(struct ast_variable *src);
 /* static int sip_addrcmp(char *name, struct sockaddr_in *sin);	Support for peer matching */
 static int sip_refer_allocate(struct sip_pvt *p);
+static int sip_notify_allocate(struct sip_pvt *p);
 static void ast_quiet_chan(struct ast_channel *chan);
 static int attempt_transfer(struct sip_dual *transferer, struct sip_dual *target);
 static int do_magic_pickup(struct ast_channel *channel, const char *extension, const char *context);
@@ -5610,9 +5615,10 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	if (p->options)
 		ast_free(p->options);
 
-	if (p->notify_headers) {
-		ast_variables_destroy(p->notify_headers);
-		p->notify_headers = NULL;
+	if (p->notify) {
+		ast_variables_destroy(p->notify->headers);
+		ast_free(p->notify->content);
+		ast_free(p->notify);
 	}
 	if (p->rtp) {
 		ast_rtp_instance_destroy(p->rtp);
@@ -11004,13 +11010,6 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 	add_header(&req, "Allow", ALLOWED_METHODS);
 	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
 
-	if(p->notify_headers) {
-		char buf[512];
-		for (var = p->notify_headers; var; var = var->next) {
-			ast_copy_string(buf, var->value, sizeof(buf));
-			add_header(&req, var->name, ast_unescape_semicolon(buf));
-		}
-	}
 	if (p->options && p->options->addsipheaders && p->owner) {
 		struct ast_channel *chan = p->owner; /* The owner channel */
 		struct varshead *headp;
@@ -11065,11 +11064,15 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 			try_suggested_sip_codec(p);
 			add_sdp(&req, p, FALSE, TRUE, FALSE);
 		}
+	} else if (p->notify) {
+		for (var = p->notify->headers; var; var = var->next)
+			add_header(&req, var->name, var->value);
+		add_header_contentLength(&req, ast_str_strlen(p->notify->content));
+		if (ast_str_strlen(p->notify->content))
+			add_line(&req, ast_str_buffer(p->notify->content));
 	} else {
-		if (!p->notify_headers) {
-			add_header_contentLength(&req, 0);
-		}
-	}
+		add_header_contentLength(&req, 0);
+    }
 
 	if (!p->initreq.headers || init > 2)
 		initialize_initreq(p, &req);
@@ -11510,37 +11513,12 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *messa
 	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
 }
 
-/*! \brief Notify device with custom headers from sip_notify.conf */
-static int transmit_notify_custom(struct sip_pvt *p, struct ast_variable *vars) {
-	struct sip_request req;
-	struct ast_variable *var, *newvar;
-
-	initreqprep(&req, p, SIP_NOTIFY);
-
-	/* Copy notify vars and add headers */
-	p->notify_headers = newvar = ast_variable_new("Subscription-State", "terminated", "");
-	add_header(&req, newvar->name, newvar->value);
-	for (var = vars; var; var = var->next) {
-		char buf[512];
-		ast_debug(2, "  Adding pair %s=%s\n", var->name, var->value);
-		ast_copy_string(buf, var->value, sizeof(buf));
-		add_header(&req, var->name, ast_unescape_semicolon(buf));
-		newvar->next = ast_variable_new(var->name, var->value, "");
-		newvar = newvar->next;
-	}
-
-	if (!p->initreq.headers) { /* Initialize first request before sending */
-		initialize_initreq(p, &req);
-	}
-
-	return send_request(p, &req, XMIT_UNRELIABLE, p->ocseq);
-}
-
 static int manager_sipnotify(struct mansession *s, const struct message *m)
 {
 	const char *channame = astman_get_header(m, "Channel");
 	struct ast_variable *vars = astman_get_variables(m);
 	struct sip_pvt *p;
+	struct ast_variable *header, *var;
 
 	if (ast_strlen_zero(channame)) {
 		astman_send_error(s, m, "SIPNotify requires a channel name");
@@ -11567,21 +11545,26 @@ static int manager_sipnotify(struct mansession *s, const struct message *m)
 
 	/* Notify is outgoing call */
 	ast_set_flag(&p->flags[0], SIP_OUTGOING);
+	sip_notify_allocate(p);
 
-	/* Recalculate our side, and recalculate Call ID */
-	ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip, p);
-	build_via(p);
-	ao2_t_unlink(dialogs, p, "About to change the callid -- remove the old name");
-	build_callid_pvt(p);
-	ao2_t_link(dialogs, p, "Linking in new name");
+	p->notify->headers = header = ast_variable_new("Subscription-State", "terminated", "");
+
+	for (var = vars; var; var = var->next) {
+		if (!strcasecmp(var->name, "Content")) {
+			if (ast_str_strlen(p->notify->content))
+				ast_str_append(&p->notify->content, 0, "\r\n");
+			ast_str_append(&p->notify->content, 0, "%s", var->value);
+		} else {
+			header->next = ast_variable_new(var->name, var->value, "");
+			header = header->next;
+		}
+	}
+
 	dialog_ref(p, "bump the count of p, which transmit_sip_request will decrement.");
 	sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+	transmit_invite(p, SIP_NOTIFY, 0, 2);
 
-	if (!transmit_notify_custom(p, vars)) {
-		astman_send_ack(s, m, "Notify Sent");
-	} else {
-		astman_send_error(s, m, "Unable to send notify");
-	}
+	astman_send_ack(s, m, "Notify Sent");
 	ast_variables_destroy(vars);
 	return 0;
 }
@@ -12022,6 +12005,15 @@ static int sip_refer_allocate(struct sip_pvt *p)
 {
 	p->refer = ast_calloc(1, sizeof(struct sip_refer));
 	return p->refer ? 1 : 0;
+}
+
+/*! \brief Allocate SIP refer structure */
+static int sip_notify_allocate(struct sip_pvt *p)
+{
+	p->notify = ast_calloc(1, sizeof(struct sip_notify));
+	if (p->notify)
+		p->notify->content = ast_str_create(128);
+	return p->notify ? 1 : 0;
 }
 
 /*! \brief Transmit SIP REFER message (initiated by the transfer() dialplan application
@@ -17199,6 +17191,8 @@ static char *sip_cli_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 	for (i = 3; i < a->argc; i++) {
 		struct sip_pvt *p;
+		char buf[512];
+		struct ast_variable *header, *var;
 
 		if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY, NULL))) {
 			ast_log(LOG_WARNING, "Unable to build sip pvt data for notify (memory/socket error)\n");
@@ -17216,17 +17210,28 @@ static char *sip_cli_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 		/* Notify is outgoing call */
 		ast_set_flag(&p->flags[0], SIP_OUTGOING);
+		sip_notify_allocate(p);
+		p->notify->headers = header = ast_variable_new("Subscription-State", "terminated", "");
+
+		for (var = varlist; var; var = var->next) {
+			ast_copy_string(buf, var->value, sizeof(buf));
+			ast_unescape_semicolon(buf);
+
+			if (!strcasecmp(var->name, "Content")) {
+				if (ast_str_strlen(p->notify->content))
+					ast_str_append(&p->notify->content, 0, "\r\n");
+				ast_str_append(&p->notify->content, 0, "%s", buf);
+			} else {
+				header->next = ast_variable_new(var->name, buf, "");
+				header = header->next;
+			}
+		}
 
 		/* Recalculate our side, and recalculate Call ID */
-		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip, p);
-		build_via(p);
-		ao2_t_unlink(dialogs, p, "About to change the callid -- remove the old name");
-		build_callid_pvt(p);
-		ao2_t_link(dialogs, p, "Linking in new name");
 		ast_cli(a->fd, "Sending NOTIFY of type '%s' to '%s'\n", a->argv[2], a->argv[i]);
 		dialog_ref(p, "bump the count of p, which transmit_sip_request will decrement.");
 		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
-		transmit_notify_custom(p, varlist);
+		transmit_invite(p, SIP_NOTIFY, 0, 2);
 	}
 
 	return CLI_SUCCESS;
@@ -18397,7 +18402,7 @@ static void handle_response_notify(struct sip_pvt *p, int resp, const char *rest
 		break;
 	case 401:   /* Not www-authorized on SIP method */
 	case 407:   /* Proxy auth */
-		if (!p->notify_headers) {
+		if (!p->notify) {
 			break; /* Only device notify can use NOTIFY auth */
 		}
 		ast_string_field_set(p, theirtag, NULL);

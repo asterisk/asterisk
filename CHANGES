@@ -46,6 +46,8 @@ SIP Changes
    in a multi-channel setup resolved in an individual way.
  * Added 'externtcpport' and 'externtlsport' options to allow custom port
    configuration for the externip and externhost options when tcp or tls is used.
+ * Added support for message body (stored in content variable) to SIP NOTIFY message
+   accessible via AMI and CLI.
 
 IAX2 Changes
 -----------
