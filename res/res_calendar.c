@@ -1171,6 +1171,7 @@ static int calendar_query_result_exec(struct ast_channel *chan, const char *cmd,
 	struct eventlist *events;
 	struct evententry *entry;
 	int row = 1;
+	size_t listlen = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(id);
 		AST_APP_ARG(field);
@@ -1204,6 +1205,15 @@ static int calendar_query_result_exec(struct ast_channel *chan, const char *cmd,
 
 	if (!ast_strlen_zero(args.row)) {
 		row = atoi(args.row);
+	}
+
+	AST_LIST_TRAVERSE(events, entry, list) {
+		listlen++;
+	}
+
+	if (!strcasecmp(args.field, "getnum")) {
+		snprintf(buf, len, "%zu", listlen);
+		return 0;
 	}
 
 	AST_LIST_TRAVERSE(events, entry, list) {
