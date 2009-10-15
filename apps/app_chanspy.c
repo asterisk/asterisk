@@ -435,7 +435,12 @@ static int spy_generate(struct ast_channel *chan, void *data, int len, int sampl
 		return -1;
 	}
 
-	f = ast_audiohook_read_frame(&csth->spy_audiohook, samples, AST_AUDIOHOOK_DIRECTION_BOTH, AST_FORMAT_SLINEAR);
+	if (ast_test_flag(chan, OPTION_READONLY)) {
+		/* Option 'o' was set, so don't mix channel audio */
+		f = ast_audiohook_read_frame(&csth->spy_audiohook, samples, AST_AUDIOHOOK_DIRECTION_READ, AST_FORMAT_SLINEAR);
+	} else {
+		f = ast_audiohook_read_frame(&csth->spy_audiohook, samples, AST_AUDIOHOOK_DIRECTION_BOTH, AST_FORMAT_SLINEAR);
+	}
 
 	ast_audiohook_unlock(&csth->spy_audiohook);
 
