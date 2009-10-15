@@ -9001,12 +9001,10 @@ static int pbx_builtin_execiftime(struct ast_channel *chan, const char *data)
  */
 static int pbx_builtin_wait(struct ast_channel *chan, const char *data)
 {
-	double s;
 	int ms;
 
 	/* Wait for "n" seconds */
-	if (data && (s = atof(data)) > 0.0) {
-		ms = s * 1000.0;
+	if (!ast_app_parse_timelen(data, &ms, TIMELEN_SECONDS) && ms > 0) {
 		return ast_safe_sleep(chan, ms);
 	}
 	return 0;
@@ -9018,7 +9016,6 @@ static int pbx_builtin_wait(struct ast_channel *chan, const char *data)
 static int pbx_builtin_waitexten(struct ast_channel *chan, const char *data)
 {
 	int ms, res;
-	double s;
 	struct ast_flags flags = {0};
 	char *opts[1] = { NULL };
 	char *parse;
@@ -9050,12 +9047,13 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, const char *data)
 		}
 	}
 	/* Wait for "n" seconds */
-	if (args.timeout && (s = atof(args.timeout)) > 0)
-		 ms = s * 1000.0;
-	else if (chan->pbx)
+	if (!ast_app_parse_timelen(args.timeout, &ms, TIMELEN_SECONDS) && ms > 0) {
+		/* Yay! */
+	} else if (chan->pbx) {
 		ms = chan->pbx->rtimeoutms;
-	else
+	} else {
 		ms = 10000;
+	}
 
 	res = ast_waitfordigit(chan, ms);
 	if (!res) {

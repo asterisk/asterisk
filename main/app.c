@@ -2082,3 +2082,59 @@ void ast_safe_fork_cleanup(void)
 	ast_unreplace_sigchld();
 }
 
+int ast_app_parse_timelen(const char *timestr, int *result, ast_timelen unit)
+{
+	int res;
+	char u[10];
+#ifdef HAVE_LONG_DOUBLE_WIDER
+	long double amount;
+	#define FMT "%30Lf%9s"
+#else
+	double amount;
+	#define FMT "%30lf%9s"
+#endif
+	if (!timestr) {
+		return -1;
+	}
+
+	if ((res = sscanf(timestr, FMT, &amount, u)) == 0) {
+#undef FMT
+		return -1;
+	} else if (res == 2) {
+		switch (u[0]) {
+		case 'h':
+		case 'H':
+			unit = TIMELEN_HOURS;
+			break;
+		case 's':
+		case 'S':
+			unit = TIMELEN_SECONDS;
+			break;
+		case 'm':
+		case 'M':
+			if (toupper(u[1]) == 'S') {
+				unit = TIMELEN_MILLISECONDS;
+			} else if (u[1] == '\0') {
+				unit = TIMELEN_MINUTES;
+			}
+			break;
+		}
+	}
+
+	switch (unit) {
+	case TIMELEN_HOURS:
+		amount *= 60;
+		/* fall-through */
+	case TIMELEN_MINUTES:
+		amount *= 60;
+		/* fall-through */
+	case TIMELEN_SECONDS:
+		amount *= 1000;
+		/* fall-through */
+	case TIMELEN_MILLISECONDS:
+		;
+	}
+	*result = amount > INT_MAX ? INT_MAX : (int) amount;
+	return 0;
+}
+

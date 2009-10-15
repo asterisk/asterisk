@@ -84,6 +84,12 @@ struct ast_ivr_menu {
 	static struct ast_ivr_option __options_##holder[] = foo;\
 	static struct ast_ivr_menu holder = { title, flags, __options_##holder }
 
+typedef enum {
+	TIMELEN_HOURS,
+	TIMELEN_MINUTES,
+	TIMELEN_SECONDS,
+	TIMELEN_MILLISECONDS,
+} ast_timelen;
 
 /*!	\brief Runs an IVR menu
 	\return returns 0 on successful completion, -1 on hangup, or -2 on user error in menu */
@@ -579,6 +585,17 @@ int ast_safe_fork(int stop_reaper);
  * \since 1.6.1
  */
 void ast_safe_fork_cleanup(void);
+
+/*!
+ * \brief Common routine to parse time lengths, with optional time unit specifier
+ * \param[in] timestr String to parse
+ * \param[in] defunit Default unit type
+ * \param[out] result Resulting value, specified in milliseconds
+ * \retval 0 Success
+ * \retval -1 Failure
+ * \since 1.8
+ */
+int ast_app_parse_timelen(const char *timestr, int *result, ast_timelen defunit);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
