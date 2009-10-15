@@ -373,8 +373,19 @@ usecallerid=yes
 ;     polarity_IN = polarity reversal signals the start, for India,
 ;                   for dtmf dialtone detection; using DTMF.
 ;                   (see doc/India-CID.txt)
+;     dtmf        = causes monitor loop to look for dtmf energy on the
+;                   incoming channel to initate cid acquisition
 ;
 ;cidstart=polarity
+;
+; When cidstart=dtmf, the energy level on the line used to trigger dtmf cid
+; acquisition. This number is compared to the average over a packet of audio
+; of the absolute values of 16 bit signed linear samples. The default is set
+; to 256. The choice of 256 is arbitrary. The value you should select should
+; be high enough to prevent false detections while low enough to insure that
+; no dtmf spills are missed.
+;
+;dtmfcidlevel=256
 ;
 ; Whether or not to hide outgoing caller ID (Override with *67 or *82)
 ; (If your dialplan doesn't catch it)
