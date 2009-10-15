@@ -155,7 +155,9 @@ static struct ast_str *caldav_request(struct caldav_pvt *pvt, const char *method
 	ne_request_destroy(req);
 
 	if (ret != NE_OK || !ast_str_strlen(response)) {
-		ast_log(LOG_WARNING, "Unknown response to CalDAV calendar %s, request %s to %s: %s\n", pvt->owner->name, method, pvt->url, ne_get_error(pvt->session));
+		if (ret != NE_OK) {
+			ast_log(LOG_WARNING, "Unknown response to CalDAV calendar %s, request %s to %s: %s\n", pvt->owner->name, method, buf, ne_get_error(pvt->session));
+		}
 		ast_free(response);
 		return NULL;
 	}
@@ -165,6 +167,7 @@ static struct ast_str *caldav_request(struct caldav_pvt *pvt, const char *method
 
 static int caldav_write_event(struct ast_calendar_event *event)
 {
+	struct caldav_pvt *pvt;
 	struct ast_str *body = NULL, *response = NULL, *subdir = NULL;
 	icalcomponent *calendar, *icalevent;
 	icaltimezone *utc = icaltimezone_get_utc_timezone();
@@ -185,6 +188,8 @@ static int caldav_write_event(struct ast_calendar_event *event)
 		ast_log(LOG_ERROR, "Could not allocate memory for request and response!\n");
 		goto write_cleanup;
 	}
+
+	pvt = event->owner->tech_pvt;
 
 	if (ast_strlen_zero(event->uid)) {
 		unsigned short val[8];
@@ -233,9 +238,9 @@ static int caldav_write_event(struct ast_calendar_event *event)
 	icalcomponent_add_component(calendar, icalevent);
 
 	ast_str_append(&body, 0, "%s", icalcomponent_as_ical_string(calendar));
-	ast_str_set(&subdir, 0, "%s%s.ics", ast_str_buffer(body)[ast_str_strlen(body)] == '/' ? "" : "/", event->uid);
+	ast_str_set(&subdir, 0, "%s%s.ics", pvt->url[strlen(pvt->url) - 1] == '/' ? "" : "/", event->uid);
 
-	response = caldav_request(event->owner->tech_pvt, "PUT", body, subdir, "text/calendar");
+	response = caldav_request(pvt, "PUT", body, subdir, "text/calendar");
 
 	ret = 0;
 
