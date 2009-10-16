@@ -13223,9 +13223,12 @@ static void *pri_dchannel(void *vpri)
 							else if (pri->pvts[chanpos]->owner) {
 								/* Queue a BUSY instead of a hangup if our cause is appropriate */
 								pri->pvts[chanpos]->owner->hangupcause = e->hangup.cause;
-								if (pri->pvts[chanpos]->owner->_state == AST_STATE_UP)
+								switch (pri->pvts[chanpos]->owner->_state) {
+								case AST_STATE_BUSY:
+								case AST_STATE_UP:
 									pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
-								else {
+									break;
+								default:
 									switch (e->hangup.cause) {
 									case PRI_CAUSE_USER_BUSY:
 										pri->pvts[chanpos]->subs[SUB_REAL].needbusy =1;
@@ -13241,6 +13244,7 @@ static void *pri_dchannel(void *vpri)
 									default:
 										pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 									}
+									break;
 								}
 							}
 							ast_verb(3, "Channel %d/%d, span %d got hangup, cause %d\n",
@@ -13291,9 +13295,12 @@ static void *pri_dchannel(void *vpri)
 							pri_hangup_all(pri->pvts[chanpos]->realcall, pri);
 						else if (pri->pvts[chanpos]->owner) {
 							pri->pvts[chanpos]->owner->hangupcause = e->hangup.cause;
-							if (pri->pvts[chanpos]->owner->_state == AST_STATE_UP)
+							switch (pri->pvts[chanpos]->owner->_state) {
+							case AST_STATE_BUSY:
+							case AST_STATE_UP:
 								pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
-							else {
+								break;
+							default:
 								switch (e->hangup.cause) {
 								case PRI_CAUSE_USER_BUSY:
 									pri->pvts[chanpos]->subs[SUB_REAL].needbusy =1;
@@ -13310,6 +13317,7 @@ static void *pri_dchannel(void *vpri)
 									pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 									break;
 								}
+								break;
 							}
 							ast_verb(3, "Channel %d/%d, span %d got hangup request, cause %d\n", PRI_SPAN(e->hangup.channel), PRI_CHANNEL(e->hangup.channel), pri->span, e->hangup.cause);
 							if (e->hangup.aoc_units > -1)
