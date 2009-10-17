@@ -2082,7 +2082,7 @@ void ast_safe_fork_cleanup(void)
 	ast_unreplace_sigchld();
 }
 
-int ast_app_parse_timelen(const char *timestr, int *result, ast_timelen unit)
+int ast_app_parse_timelen(const char *timestr, int *result, enum ast_timelen unit)
 {
 	int res;
 	char u[10];

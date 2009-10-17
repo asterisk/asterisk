@@ -84,12 +84,12 @@ struct ast_ivr_menu {
 	static struct ast_ivr_option __options_##holder[] = foo;\
 	static struct ast_ivr_menu holder = { title, flags, __options_##holder }
 
-typedef enum {
+enum ast_timelen {
 	TIMELEN_HOURS,
 	TIMELEN_MINUTES,
 	TIMELEN_SECONDS,
 	TIMELEN_MILLISECONDS,
-} ast_timelen;
+};
 
 /*!	\brief Runs an IVR menu
 	\return returns 0 on successful completion, -1 on hangup, or -2 on user error in menu */
@@ -595,7 +595,7 @@ void ast_safe_fork_cleanup(void);
  * \retval -1 Failure
  * \since 1.8
  */
-int ast_app_parse_timelen(const char *timestr, int *result, ast_timelen defunit);
+int ast_app_parse_timelen(const char *timestr, int *result, enum ast_timelen defunit);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
