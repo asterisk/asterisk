@@ -2410,6 +2410,8 @@ int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 	p->progress = 0;
 	p->alerting = 0;
 	p->setup_ack = 0;
+	p->cid_num[0] = '\0';
+	p->cid_name[0] = '\0';
 	p->exten[0] = '\0';
 	sig_pri_set_dialing(p, 0);
 
