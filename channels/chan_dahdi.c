@@ -4328,6 +4328,8 @@ static int dahdi_hangup(struct ast_channel *ast)
 	if ((p->sig == SIG_PRI) || (p->sig == SIG_SS7) || (p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP)) {
 		x = 1;
 		ast_channel_setoption(ast,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
+		p->cid_num[0] = '\0';
+		p->cid_name[0] = '\0';
 	}
 
 	x = 0;
@@ -4522,6 +4524,8 @@ static int dahdi_hangup(struct ast_channel *ast)
 		}
 #endif
 #ifdef HAVE_OPENR2
+		p->cid_num[0] = '\0';
+		p->cid_name[0] = '\0';
 		if (p->mfcr2 && p->mfcr2call && openr2_chan_get_direction(p->r2chan) != OR2_DIR_STOPPED) {
 			ast_log(LOG_DEBUG, "disconnecting MFC/R2 call on chan %d\n", p->channel);
 			/* If it's an incoming call, check the mfcr2_forced_release setting */
@@ -10466,10 +10470,15 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		ast_copy_string(tmp->mohinterpret, conf->chan.mohinterpret, sizeof(tmp->mohinterpret));
 		ast_copy_string(tmp->mohsuggest, conf->chan.mohsuggest, sizeof(tmp->mohsuggest));
 		ast_copy_string(tmp->context, conf->chan.context, sizeof(tmp->context));
-		ast_copy_string(tmp->cid_num, conf->chan.cid_num, sizeof(tmp->cid_num));
 		ast_copy_string(tmp->parkinglot, conf->chan.parkinglot, sizeof(tmp->parkinglot));
 		tmp->cid_ton = 0;
-		ast_copy_string(tmp->cid_name, conf->chan.cid_name, sizeof(tmp->cid_name));
+		if ((tmp->sig != SIG_PRI) || (tmp->sig != SIG_SS7) || (tmp->sig != SIG_BRI) || (tmp->sig != SIG_BRI_PTMP) || (tmp->sig != SIG_MFCR2)) {
+			ast_copy_string(tmp->cid_num, conf->chan.cid_num, sizeof(tmp->cid_num));
+			ast_copy_string(tmp->cid_name, conf->chan.cid_name, sizeof(tmp->cid_name));
+		} else {
+			tmp->cid_num[0] = '\0';
+			tmp->cid_name[0] = '\0';
+		}
 		ast_copy_string(tmp->mailbox, conf->chan.mailbox, sizeof(tmp->mailbox));
 		if (channel != CHAN_PSEUDO && !ast_strlen_zero(tmp->mailbox)) {
 			char *mailbox, *context;
