@@ -2822,6 +2822,8 @@ static int dahdi_hangup(struct ast_channel *ast)
 	if (p->sig == SIG_PRI) {
 		x = 1;
 		ast_channel_setoption(ast,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
+		p->cid_num[0] = '\0';
+		p->cid_name[0] = '\0';
 	}
 
 	x = 0;
@@ -8004,9 +8006,14 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		ast_copy_string(tmp->mohinterpret, conf->chan.mohinterpret, sizeof(tmp->mohinterpret));
 		ast_copy_string(tmp->mohsuggest, conf->chan.mohsuggest, sizeof(tmp->mohsuggest));
 		ast_copy_string(tmp->context, conf->chan.context, sizeof(tmp->context));
-		ast_copy_string(tmp->cid_num, conf->chan.cid_num, sizeof(tmp->cid_num));
 		tmp->cid_ton = 0;
-		ast_copy_string(tmp->cid_name, conf->chan.cid_name, sizeof(tmp->cid_name));
+		if (chan_sig != SIG_PRI) {
+			ast_copy_string(tmp->cid_num, conf->chan.cid_num, sizeof(tmp->cid_num));
+			ast_copy_string(tmp->cid_name, conf->chan.cid_name, sizeof(tmp->cid_name));
+		} else {
+			tmp->cid_num[0] = '\0';
+			tmp->cid_name[0] = '\0';
+		}
 		ast_copy_string(tmp->mailbox, conf->chan.mailbox, sizeof(tmp->mailbox));
 		tmp->msgstate = -1;
 		tmp->group = conf->chan.group;
