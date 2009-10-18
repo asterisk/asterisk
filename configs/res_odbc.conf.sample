@@ -48,6 +48,11 @@ password => thegrouch
 pre-connect => yes
 sanitysql => select count(*) from systables
 ; forcecommit => no            ; Default to committing uncommitted transactions?
+                               ; Note:  this is NOT the autocommit flag; this
+                               ; determines the end result of transactions which
+                               ; are not explicitly committed or rolled back.  By
+                               ; default, such transactions are rolled back if the
+                               ; call ends without an explicit commit.
 ; isolation => read_committed  ; Isolation level; supported levels are:
                                ; read_uncommitted, read_committed, repeatable_read,
                                ; serializable.  Note that not all databases support
