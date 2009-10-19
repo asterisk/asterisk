@@ -567,7 +567,8 @@ END_OPTIONS );
 
 #define CAN_EARLY_BRIDGE(flags,chan,peer) (!ast_test_flag64(flags, OPT_CALLEE_HANGUP | \
 	OPT_CALLER_HANGUP | OPT_CALLEE_TRANSFER | OPT_CALLER_TRANSFER | \
-	OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR | OPT_CALLEE_PARK | OPT_CALLER_PARK) && \
+	OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR | OPT_CALLEE_PARK |  \
+	OPT_CALLER_PARK | OPT_ANNOUNCE | OPT_CALLEE_MACRO | OPT_CALLEE_GOSUB) && \
 	!chan->audiohooks && !peer->audiohooks)
 
 /*
@@ -789,7 +790,7 @@ static void do_forward(struct chanlist *o,
 		handle_cause(cause, num);
 		ast_hangup(original);
 	} else {
-		if (single) {
+		if (single && CAN_EARLY_BRIDGE(peerflags, c, in)) {
 			ast_rtp_instance_early_bridge_make_compatible(c, in);
 		}
 
@@ -1675,7 +1676,8 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		outbound_group = ast_strdupa(outbound_group);
 	}
 	ast_channel_unlock(chan);	
-	ast_copy_flags64(peerflags, &opts, OPT_DTMF_EXIT | OPT_GO_ON | OPT_ORIGINAL_CLID | OPT_CALLER_HANGUP | OPT_IGNORE_FORWARDING | OPT_IGNORE_CONNECTEDLINE | OPT_CANCEL_TIMEOUT);
+	ast_copy_flags64(peerflags, &opts, OPT_DTMF_EXIT | OPT_GO_ON | OPT_ORIGINAL_CLID | OPT_CALLER_HANGUP | OPT_IGNORE_FORWARDING | OPT_IGNORE_CONNECTEDLINE |
+			 OPT_CANCEL_TIMEOUT | OPT_ANNOUNCE | OPT_CALLEE_MACRO | OPT_CALLEE_GOSUB);
 
 	/* loop through the list of dial destinations */
 	rest = args.peers;
@@ -1798,7 +1800,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			CHANNEL_DEADLOCK_AVOIDANCE(tc);
 		}
 		/* Setup outgoing SDP to match incoming one */
-		if (!outgoing && !rest) {
+		if (!outgoing && !rest && CAN_EARLY_BRIDGE(peerflags, chan, tc)) {
 			ast_rtp_instance_early_bridge_make_compatible(tc, chan);
 		}
 		
