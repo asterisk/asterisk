@@ -3976,7 +3976,6 @@ static void free_zone(struct vm_zone *z)
 }
 
 #ifdef ODBC_STORAGE
-/*! XXX \todo Fix this function to support multiple mailboxes in the intput string */
 static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 {
 	int x = -1;
@@ -3999,7 +3998,24 @@ static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		return 0;
 
 	ast_copy_string(tmp, mailbox, sizeof(tmp));
-	
+
+	if (strchr(mailbox, ',') || strchr(mailbox, ' ')) {
+		char *next, *remaining = tmp;
+		int n, o;
+		while ((next = strsep(&remaining, " ,"))) {
+			if (inboxcount(next, &n, &o)) {
+				return -1;
+			}
+			if (newmsgs) {
+				*newmsgs += n;
+			}
+			if (oldmsgs) {
+				*oldmsgs += o;
+			}
+		}
+		return 0;
+	}
+
 	context = strchr(tmp, '@');
 	if (context) {
 		*context = '\0';
