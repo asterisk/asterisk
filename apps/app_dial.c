@@ -340,7 +340,8 @@ END_OPTIONS );
 
 #define CAN_EARLY_BRIDGE(flags,chan,peer) (!ast_test_flag64(flags, OPT_CALLEE_HANGUP | \
 	OPT_CALLER_HANGUP | OPT_CALLEE_TRANSFER | OPT_CALLER_TRANSFER | \
-	OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR | OPT_CALLEE_PARK | OPT_CALLER_PARK) && \
+	OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR | OPT_CALLEE_PARK |  \
+	OPT_CALLER_PARK | OPT_ANNOUNCE | OPT_CALLEE_MACRO | OPT_CALLEE_GOSUB) && \
 	!chan->audiohooks && !peer->audiohooks)
 
 /*
@@ -541,7 +542,9 @@ static void do_forward(struct chanlist *o,
 		char *new_cid_num, *new_cid_name;
 		struct ast_channel *src;
 
-		ast_rtp_make_compatible(c, in, single);
+		if (CAN_EARLY_BRIDGE(peerflags, c, in)) {
+			ast_rtp_make_compatible(c, in, single);
+		}
 		if (ast_test_flag64(o, OPT_FORCECLID)) {
 			new_cid_num = ast_strdup(S_OR(in->macroexten, in->exten));
 			new_cid_name = NULL; /* XXX no name ? */
@@ -1428,7 +1431,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		outbound_group = ast_strdupa(outbound_group);
 	}
 	ast_channel_unlock(chan);	
-	ast_copy_flags64(peerflags, &opts, OPT_DTMF_EXIT | OPT_GO_ON | OPT_ORIGINAL_CLID | OPT_CALLER_HANGUP | OPT_IGNORE_FORWARDING);
+	ast_copy_flags64(peerflags, &opts, OPT_DTMF_EXIT | OPT_GO_ON | OPT_ORIGINAL_CLID | OPT_CALLER_HANGUP | OPT_IGNORE_FORWARDING | OPT_ANNOUNCE | OPT_CALLEE_MACRO | OPT_CALLEE_GOSUB);
 
 	/* loop through the list of dial destinations */
 	rest = args.peers;
@@ -1539,7 +1542,9 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		pbx_builtin_setvar_helper(tc, "DIALEDPEERNUMBER", numsubst);
 
 		/* Setup outgoing SDP to match incoming one */
-		ast_rtp_make_compatible(tc, chan, !outgoing && !rest);
+		if (CAN_EARLY_BRIDGE(peerflags, chan, tc)) {
+			ast_rtp_make_compatible(tc, chan, !outgoing && !rest);
+		}
 		
 		/* Inherit specially named variables from parent channel */
 		ast_channel_inherit_variables(chan, tc);
