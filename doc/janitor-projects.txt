@@ -2,18 +2,6 @@
     On some systems, that is considered an error.  In any such cases, convert the usage
 	over to use nanosleep(), instead.
 
- -- There a bunch of places where the result of pbx_builtin_getvar_helper()
-    gets stored and used.  This is not threadsafe.  This code should be replaced
-	with the following thread-safe version:
-
-	const char *var;
-
-	ast_channel_lock(chan);
-	if ((var = pbx_builtin_getvar_helper(chan, "MYVAR"))) {
-		var = ast_strdupa(var);
-	}
-	ast_channel_unlock(chan);
-
  -- Convert all existing uses of astobj.h to astobj2.h
     -- (chan_sip already in progress in a branch)
 
@@ -35,4 +23,6 @@
 
  -- Convert all usage of the signal(2) system API to the more portable sigaction(2) system API.
 
- -- Make the applications in utils/ selectable in menuselect and turn off muted by default. Propably others too.
+ -- Make the applications in utils/ selectable in menuselect and turn off muted by default. Probably others too.
+
+ -- Find options and arguments in Asterisk which specify a time period in seconds or milliseconds and convert them to use the new ast_app_parse_timelen() function.
