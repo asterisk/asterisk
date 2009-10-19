@@ -50,7 +50,6 @@ static struct ast_frame *siren14read(struct ast_filestream *s, int *whennext)
 		return NULL;
 	}
 	*whennext = s->fr.samples = BYTES_TO_SAMPLES(res);
-	ast_log(LOG_DEBUG, "Read frame of %d bytes and %d samples\n", res, s->fr.samples);
 	return &s->fr;
 }
 
