@@ -4659,16 +4659,15 @@ static void free_zone(struct vm_zone *z)
 }
 
 #ifdef ODBC_STORAGE
-/*! XXX \todo Fix this function to support multiple mailboxes in the intput string */
 static int inboxcount2(const char *mailbox, int *urgentmsgs, int *newmsgs, int *oldmsgs)
 {
 	int x = -1;
 	int res;
-	SQLHSTMT stmt;
+	SQLHSTMT stmt = NULL;
 	char sql[PATH_MAX];
 	char rowdata[20];
 	char tmp[PATH_MAX] = "";
-	struct odbc_obj *obj;
+	struct odbc_obj *obj = NULL;
 	char *context;
 	struct generic_prepare_struct gps = { .sql = sql, .argc = 0 };
 
@@ -4684,99 +4683,108 @@ static int inboxcount2(const char *mailbox, int *urgentmsgs, int *newmsgs, int *
 		return 0;
 
 	ast_copy_string(tmp, mailbox, sizeof(tmp));
-	
+
+	if (strchr(mailbox, ' ') || strchr(mailbox, ',')) {
+		int u, n, o;
+		char *next, *remaining = tmp;
+		while ((next = strsep(&remaining, " ,"))) {
+			if (inboxcount2(next, urgentmsgs ? &u : NULL, &n, &o)) {
+				return -1;
+			}
+			if (urgentmsgs) {
+				*urgentmsgs += u;
+			}
+			if (newmsgs) {
+				*newmsgs += n;
+			}
+			if (oldmsgs) {
+				*oldmsgs += o;
+			}
+		}
+		return 0;
+	}
+
 	context = strchr(tmp, '@');
 	if (context) {
 		*context = '\0';
 		context++;
 	} else
 		context = "default";
-	
-	obj = ast_odbc_request_obj(odbc_database, 0);
-	if (obj) {
-		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir = '%s%s/%s/%s'", odbc_table, VM_SPOOL_DIR, context, tmp, "INBOX");
-		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
-		if (!stmt) {
-			ast_log(AST_LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
-			ast_odbc_release_obj(obj);
-			goto yuck;
-		}
-		res = SQLFetch(stmt);
-		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			ast_log(AST_LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
-			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-			ast_odbc_release_obj(obj);
-			goto yuck;
-		}
-		res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
-		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			ast_log(AST_LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
-			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-			ast_odbc_release_obj(obj);
-			goto yuck;
-		}
-		*newmsgs = atoi(rowdata);
-		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 
-		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir = '%s%s/%s/%s'", odbc_table, VM_SPOOL_DIR, context, tmp, "Old");
-		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
-		if (!stmt) {
-			ast_log(AST_LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
-			ast_odbc_release_obj(obj);
-			goto yuck;
-		}
-		res = SQLFetch(stmt);
-		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			ast_log(AST_LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
-			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-			ast_odbc_release_obj(obj);
-			goto yuck;
-		}
-		res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
-		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			ast_log(AST_LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
-			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-			ast_odbc_release_obj(obj);
-			goto yuck;
-		}
-		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-		*oldmsgs = atoi(rowdata);
+	if ((obj = ast_odbc_request_obj(odbc_database, 0))) {
+		do {
+			if (newmsgs) {
+				snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir = '%s%s/%s/%s'", odbc_table, VM_SPOOL_DIR, context, tmp, "INBOX");
+				if (!(stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps))) {
+					ast_log(AST_LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+					break;
+				}
+				res = SQLFetch(stmt);
+				if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+					ast_log(AST_LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+					break;
+				}
+				res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
+				if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+					ast_log(AST_LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+					break;
+				}
+				*newmsgs = atoi(rowdata);
+				SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			}
 
-		if (!urgentmsgs) {
+			if (oldmsgs) {
+				snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir = '%s%s/%s/%s'", odbc_table, VM_SPOOL_DIR, context, tmp, "Old");
+				if (!(stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps))) {
+					ast_log(AST_LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+					break;
+				}
+				res = SQLFetch(stmt);
+				if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+					ast_log(AST_LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+					break;
+				}
+				res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
+				if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+					ast_log(AST_LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+					break;
+				}
+				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+				*oldmsgs = atoi(rowdata);
+			}
+
+			if (urgentmsgs) {
+				snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir = '%s%s/%s/%s'", odbc_table, VM_SPOOL_DIR, context, tmp, "Urgent");
+				if (!(stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps))) {
+					ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+					break;
+				}
+				res = SQLFetch(stmt);
+				if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+					ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+					break;
+				}
+				res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
+				if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+					ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+					break;
+				}
+				*urgentmsgs = atoi(rowdata);
+			}
+
 			x = 0;
-			ast_odbc_release_obj(obj);
-			goto yuck;
-		}
-
-		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir = '%s%s/%s/%s'", odbc_table, VM_SPOOL_DIR, context, tmp, "Urgent");
-		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
-		if (!stmt) {
-			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
-			ast_odbc_release_obj(obj);
-			goto yuck;
-		}
-		res = SQLFetch(stmt);
-		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
-			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-			ast_odbc_release_obj(obj);
-			goto yuck;
-		}
-		res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
-		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
-			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-			ast_odbc_release_obj(obj);
-			goto yuck;
-		}
-		*urgentmsgs = atoi(rowdata);
-		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-		ast_odbc_release_obj(obj);
-		x = 0;
-	} else
+		} while (0);
+	} else {
 		ast_log(AST_LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
-		
-yuck:	
+	}
+
+	if (stmt) {
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+	}
+	if (obj) {
+		ast_odbc_release_obj(obj);
+	}
+
 	return x;
 }
 
