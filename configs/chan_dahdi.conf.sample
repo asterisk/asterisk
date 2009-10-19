@@ -577,15 +577,27 @@ echocancelwhenbridged=yes
 ;                increases the volume level on a channel, and a
 ;                negavive value decreases volume level.
 ;
+; Dynamic Range Compression: you can also enable dynamic range compression
+;                on a channel. This will amplify quiet sounds while leaving
+;                louder sounds untouched. This is useful in situations where
+;                a linear gain setting would cause clipping. Acceptable values
+;                are in the range of 0.0 to around 6.0 with higher values
+;                causing more compression to be done.
+;
 ;                There are several independent gain settings:
 ;   rxgain: gain for the rx (receive - into Asterisk) channel. Default: 0.0
 ;   txgain: gain for the tx (transmit - out of Asterisk Asterisk) channel.
 ;           Default: 0.0
 ;   cid_rxgain: set the gain just for the caller ID sounds Asterisk
 ;               emits. Default: 5.0 .
+;   rxdrc: dynamic range compression for the rx channel. Default: 0.0
+;   txdrc: dynamic range compression for the tx channel. Default: 0.0
 
 ;rxgain=2.0
 ;txgain=3.0
+;
+;rxdrc=1.0
+;txdrc=4.0
 ;
 ; Logical groups can be assigned to allow outgoing roll-over.  Groups range
 ; from 0 to 63, and multiple groups can be specified. By default the

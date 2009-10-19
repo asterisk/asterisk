@@ -50,6 +50,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include <values.h>
 #ifdef __NetBSD__
 #include <pthread.h>
 #include <signal.h>
@@ -719,6 +720,10 @@ struct dahdi_pvt {
 	float rxgain;
 	/*! \brief Tx gain set by chan_dahdi.conf */
 	float txgain;
+
+	float txdrc; /*!< Dynamic Range Compression factor. a number between 1 and 6ish */
+	float rxdrc;
+	
 	int tonezone;					/*!< tone zone for this chan, or -1 for default */
 	enum DAHDI_IFLIST which_iflist;	/*!< Which interface list is this structure listed? */
 	struct dahdi_pvt *next;				/*!< Next channel in list */
@@ -4135,17 +4140,43 @@ static void dahdi_disable_ec(struct dahdi_pvt *p)
 	p->echocanon = 0;
 }
 
-static void fill_txgain(struct dahdi_gains *g, float gain, int law)
+/* perform a dynamic range compression transform on the given sample */
+static int drc_sample(int sample, float drc)
+{
+	float neg;
+	float shallow, steep;
+	float max = MAXSHORT;
+	
+	neg = (sample < 0 ? -1 : 1);
+	steep = drc*sample;
+	shallow = neg*(max-max/drc)+(float)sample/drc;
+	if (abs(steep) < abs(shallow)) {
+		sample = steep;
+	}
+	else {
+		sample = shallow;
+	}
+
+	return sample;
+}
+
+
+static void fill_txgain(struct dahdi_gains *g, float gain, float drc, int law)
 {
 	int j;
 	int k;
+
 	float linear_gain = pow(10.0, gain / 20.0);
 
 	switch (law) {
 	case DAHDI_LAW_ALAW:
 		for (j = 0; j < ARRAY_LEN(g->txgain); j++) {
-			if (gain) {
-				k = (int) (((float) AST_ALAW(j)) * linear_gain);
+			if (gain || drc) {
+				k = AST_ALAW(j);
+				if (drc) {
+					k = drc_sample(k, drc);
+				}
+				k = (float)k*linear_gain;
 				if (k > 32767) k = 32767;
 				if (k < -32767) k = -32767;
 				g->txgain[j] = AST_LIN2A(k);
@@ -4156,11 +4187,16 @@ static void fill_txgain(struct dahdi_gains *g, float gain, int law)
 		break;
 	case DAHDI_LAW_MULAW:
 		for (j = 0; j < ARRAY_LEN(g->txgain); j++) {
-			if (gain) {
-				k = (int) (((float) AST_MULAW(j)) * linear_gain);
+			if (gain || drc) {
+				k = AST_MULAW(j);
+				if (drc) {
+					k = drc_sample(k, drc);
+				}
+				k = (float)k*linear_gain;
 				if (k > 32767) k = 32767;
 				if (k < -32767) k = -32767;
 				g->txgain[j] = AST_LIN2MU(k);
+
 			} else {
 				g->txgain[j] = j;
 			}
@@ -4169,7 +4205,7 @@ static void fill_txgain(struct dahdi_gains *g, float gain, int law)
 	}
 }
 
-static void fill_rxgain(struct dahdi_gains *g, float gain, int law)
+static void fill_rxgain(struct dahdi_gains *g, float gain, float drc, int law)
 {
 	int j;
 	int k;
@@ -4178,8 +4214,12 @@ static void fill_rxgain(struct dahdi_gains *g, float gain, int law)
 	switch (law) {
 	case DAHDI_LAW_ALAW:
 		for (j = 0; j < ARRAY_LEN(g->rxgain); j++) {
-			if (gain) {
-				k = (int) (((float) AST_ALAW(j)) * linear_gain);
+			if (gain || drc) {
+				k = AST_ALAW(j);
+				if (drc) {
+					k = drc_sample(k, drc);
+				}
+				k = (float)k*linear_gain;
 				if (k > 32767) k = 32767;
 				if (k < -32767) k = -32767;
 				g->rxgain[j] = AST_LIN2A(k);
@@ -4190,8 +4230,12 @@ static void fill_rxgain(struct dahdi_gains *g, float gain, int law)
 		break;
 	case DAHDI_LAW_MULAW:
 		for (j = 0; j < ARRAY_LEN(g->rxgain); j++) {
-			if (gain) {
-				k = (int) (((float) AST_MULAW(j)) * linear_gain);
+			if (gain || drc) {
+				k = AST_MULAW(j);
+				if (drc) {
+					k = drc_sample(k, drc);
+				}
+				k = (float)k*linear_gain;
 				if (k > 32767) k = 32767;
 				if (k < -32767) k = -32767;
 				g->rxgain[j] = AST_LIN2MU(k);
@@ -4203,7 +4247,7 @@ static void fill_rxgain(struct dahdi_gains *g, float gain, int law)
 	}
 }
 
-static int set_actual_txgain(int fd, int chan, float gain, int law)
+static int set_actual_txgain(int fd, int chan, float gain, float drc, int law)
 {
 	struct dahdi_gains g;
 	int res;
@@ -4216,12 +4260,12 @@ static int set_actual_txgain(int fd, int chan, float gain, int law)
 		return res;
 	}
 
-	fill_txgain(&g, gain, law);
+	fill_txgain(&g, gain, drc, law);
 
 	return ioctl(fd, DAHDI_SETGAINS, &g);
 }
 
-static int set_actual_rxgain(int fd, int chan, float gain, int law)
+static int set_actual_rxgain(int fd, int chan, float gain, float drc, int law)
 {
 	struct dahdi_gains g;
 	int res;
@@ -4234,14 +4278,14 @@ static int set_actual_rxgain(int fd, int chan, float gain, int law)
 		return res;
 	}
 
-	fill_rxgain(&g, gain, law);
+	fill_rxgain(&g, gain, drc, law);
 
 	return ioctl(fd, DAHDI_SETGAINS, &g);
 }
 
-static int set_actual_gain(int fd, int chan, float rxgain, float txgain, int law)
+static int set_actual_gain(int fd, int chan, float rxgain, float txgain, float rxdrc, float txdrc, int law)
 {
-	return set_actual_txgain(fd, chan, txgain, law) | set_actual_rxgain(fd, chan, rxgain, law);
+	return set_actual_txgain(fd, chan, txgain, txdrc, law) | set_actual_rxgain(fd, chan, rxgain, rxdrc, law);
 }
 
 static int bump_gains(struct dahdi_pvt *p)
@@ -4249,7 +4293,7 @@ static int bump_gains(struct dahdi_pvt *p)
 	int res;
 
 	/* Bump receive gain by value stored in cid_rxgain */
-	res = set_actual_gain(p->subs[SUB_REAL].dfd, 0, p->rxgain + p->cid_rxgain, p->txgain, p->law);
+	res = set_actual_gain(p->subs[SUB_REAL].dfd, 0, p->rxgain + p->cid_rxgain, p->txgain, p->rxdrc, p->txdrc, p->law);
 	if (res) {
 		ast_log(LOG_WARNING, "Unable to bump gain: %s\n", strerror(errno));
 		return -1;
@@ -4262,7 +4306,7 @@ static int restore_gains(struct dahdi_pvt *p)
 {
 	int res;
 
-	res = set_actual_gain(p->subs[SUB_REAL].dfd, 0, p->rxgain, p->txgain, p->law);
+	res = set_actual_gain(p->subs[SUB_REAL].dfd, 0, p->rxgain, p->txgain, p->rxdrc, p->txdrc, p->law);
 	if (res) {
 		ast_log(LOG_WARNING, "Unable to restore gains: %s\n", strerror(errno));
 		return -1;
@@ -4507,7 +4551,7 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 		ast_log(LOG_WARNING, "Unable to flush input on channel %d: %s\n", p->channel, strerror(errno));
 	p->outgoing = 1;
 
-	set_actual_gain(p->subs[SUB_REAL].dfd, 0, p->rxgain, p->txgain, p->law);
+	set_actual_gain(p->subs[SUB_REAL].dfd, 0, p->rxgain, p->txgain, p->rxdrc, p->txdrc, p->law);
 
 #ifdef HAVE_PRI
 	if (dahdi_sig_pri_lib_handles(p->sig)) {
@@ -5709,7 +5753,7 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 			return -1;
 		}
 		ast_debug(1, "Setting actual tx gain on %s to %f\n", chan->name, p->txgain + (float) *scp);
-		return set_actual_txgain(p->subs[idx].dfd, 0, p->txgain + (float) *scp, p->law);
+		return set_actual_txgain(p->subs[idx].dfd, 0, p->txgain + (float) *scp, p->txdrc, p->law);
 	case AST_OPTION_RXGAIN:
 		scp = (signed char *) data;
 		idx = dahdi_get_index(chan, p, 0);
@@ -5718,7 +5762,7 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 			return -1;
 		}
 		ast_debug(1, "Setting actual rx gain on %s to %f\n", chan->name, p->rxgain + (float) *scp);
-		return set_actual_rxgain(p->subs[idx].dfd, 0, p->rxgain + (float) *scp, p->law);
+		return set_actual_rxgain(p->subs[idx].dfd, 0, p->rxgain + (float) *scp, p->rxdrc, p->law);
 	case AST_OPTION_TONE_VERIFY:
 		if (!p->dsp)
 			break;
@@ -11325,9 +11369,11 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		tmp->cid_rxgain = conf->chan.cid_rxgain;
 		tmp->rxgain = conf->chan.rxgain;
 		tmp->txgain = conf->chan.txgain;
+		tmp->txdrc = conf->chan.txdrc;
+		tmp->rxdrc = conf->chan.rxdrc;
 		tmp->tonezone = conf->chan.tonezone;
 		if (tmp->subs[SUB_REAL].dfd > -1) {
-			set_actual_gain(tmp->subs[SUB_REAL].dfd, 0, tmp->rxgain, tmp->txgain, tmp->law);
+			set_actual_gain(tmp->subs[SUB_REAL].dfd, 0, tmp->rxgain, tmp->txgain, tmp->rxdrc, tmp->txdrc, tmp->law);
 			if (tmp->dsp)
 				ast_dsp_set_digitmode(tmp->dsp, DSP_DIGITMODE_DTMF | tmp->dtmfrelax);
 			update_conf(tmp);
@@ -13973,6 +14019,8 @@ static char *dahdi_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli
 			ast_cli(a->fd, "Default law: %s\n", tmp->law == DAHDI_LAW_MULAW ? "ulaw" : tmp->law == DAHDI_LAW_ALAW ? "alaw" : "unknown");
 			ast_cli(a->fd, "Fax Handled: %s\n", tmp->faxhandled ? "yes" : "no");
 			ast_cli(a->fd, "Pulse phone: %s\n", tmp->pulsedial ? "yes" : "no");
+			ast_cli(a->fd, "Gains (RX/TX): %.2f/%.2f\n", tmp->rxgain, tmp->txgain);
+			ast_cli(a->fd, "Dynamic Range Compression (RX/TX): %.2f/%.2f\n", tmp->rxdrc, tmp->txdrc);
 			ast_cli(a->fd, "DND: %s\n", dahdi_dnd(tmp, -1) ? "yes" : "no");
 			ast_cli(a->fd, "Echo Cancellation:\n");
 
@@ -14338,9 +14386,9 @@ static char *dahdi_set_swgain(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			break;
 
 		if (tx)
-			res = set_actual_txgain(tmp->subs[SUB_REAL].dfd, channel, gain, tmp->law);
+			res = set_actual_txgain(tmp->subs[SUB_REAL].dfd, channel, gain, tmp->txdrc, tmp->law);
 		else
-			res = set_actual_rxgain(tmp->subs[SUB_REAL].dfd, channel, gain, tmp->law);
+			res = set_actual_rxgain(tmp->subs[SUB_REAL].dfd, channel, gain, tmp->rxdrc, tmp->law);
 
 		if (res) {
 			ast_cli(a->fd, "Unable to set the software gain for channel %d\n", channel);
@@ -15539,6 +15587,14 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 		} else if (!strcasecmp(v->name, "txgain")) {
 			if (sscanf(v->value, "%30f", &confp->chan.txgain) != 1) {
 				ast_log(LOG_WARNING, "Invalid txgain: %s at line %d.\n", v->value, v->lineno);
+			}
+		} else if (!strcasecmp(v->name, "txdrc")) {
+			if (sscanf(v->value, "%f", &confp->chan.txdrc) != 1) {
+				ast_log(LOG_WARNING, "Invalid txdrc: %s\n", v->value);
+			}
+		} else if (!strcasecmp(v->name, "rxdrc")) {
+			if (sscanf(v->value, "%f", &confp->chan.rxdrc) != 1) {
+				ast_log(LOG_WARNING, "Invalid rxdrc: %s\n", v->value);
 			}
 		} else if (!strcasecmp(v->name, "tonezone")) {
 			if (sscanf(v->value, "%30d", &confp->chan.tonezone) != 1) {
