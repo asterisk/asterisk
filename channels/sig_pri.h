@@ -75,6 +75,7 @@ struct sig_pri_callback {
 	void (* const set_callerid)(void *pvt, const struct ast_party_caller *caller);
 	void (* const set_dnid)(void *pvt, const char *dnid);
 	void (* const set_rdnis)(void *pvt, const char *rdnis);
+	void (* const queue_control)(void *pvt, int subclass);
 };
 
 #define NUM_DCHANS		4	/*!< No more than 4 d-channels */

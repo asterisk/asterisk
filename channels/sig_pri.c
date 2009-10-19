@@ -655,6 +655,10 @@ static void pri_queue_control(struct sig_pri_chan *p, int subclass, struct sig_p
 {
 	struct ast_frame f = {AST_FRAME_CONTROL, };
 
+	if (p->calls->queue_control) {
+		p->calls->queue_control(p->chan_pvt, subclass);
+	}
+
 	f.subclass = subclass;
 	pri_queue_frame(p, &f, pri);
 }
