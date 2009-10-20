@@ -142,25 +142,24 @@ static int speex_callback(struct ast_audiohook *audiohook, struct ast_channel *c
 	struct ast_datastore *datastore = NULL;
 	struct speex_direction_info *sdi = NULL;
 	struct speex_info *si = NULL;
+	char source[80];
 
 	/* If the audiohook is stopping it means the channel is shutting down.... but we let the datastore destroy take care of it */
 	if (audiohook->status == AST_AUDIOHOOK_STATUS_DONE || frame->frametype != AST_FRAME_VOICE) {
-		return 0;
+		return -1;
 	}
-	
-	ast_channel_lock(chan);
+
+	/* We are called with chan already locked */
 	if (!(datastore = ast_channel_datastore_find(chan, &speex_datastore, NULL))) {
-		ast_channel_unlock(chan);
-		return 0;
+		return -1;
 	}
-	ast_channel_unlock(chan);
 
 	si = datastore->data;
 
 	sdi = (direction == AST_AUDIOHOOK_DIRECTION_READ) ? si->rx : si->tx;
 
 	if (!sdi) {
-		return 0;
+		return -1;
 	}
 
 	if (sdi->samples != frame->samples) {
@@ -171,7 +170,7 @@ static int speex_callback(struct ast_audiohook *audiohook, struct ast_channel *c
 		if (!(sdi->state = speex_preprocess_state_init((sdi->samples = frame->samples), 8000))) {
 			return -1;
 		}
-		
+
 		speex_preprocess_ctl(sdi->state, SPEEX_PREPROCESS_SET_AGC, &sdi->agc);
 
 		if (sdi->agc) {
@@ -182,6 +181,12 @@ static int speex_callback(struct ast_audiohook *audiohook, struct ast_channel *c
 	}
 
 	speex_preprocess(sdi->state, frame->data.ptr, NULL);
+	snprintf(source, sizeof(source), "%s/speex", frame->src);
+	if (frame->mallocd & AST_MALLOCD_SRC) {
+		ast_free((char *) frame->src);
+	}
+	frame->src = ast_strdup(source);
+	frame->mallocd |= AST_MALLOCD_SRC;
 
 	return 0;
 }
