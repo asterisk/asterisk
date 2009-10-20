@@ -1988,10 +1988,12 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 							f = NULL;
 							ready=1;
 							break;
-						} else if (f->subclass != -1) {
+						} else if (f->subclass != -1 && f->subclass != AST_CONTROL_PROGRESS) {
 							ast_log(LOG_NOTICE, "Don't know what to do about control frame: %d\n", f->subclass);
 						}
 						/* else who cares */
+					} else if (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO) {
+						ast_write(caller, f);
 					}
 
 				} else if (caller && (active_channel == caller)) {
@@ -2027,6 +2029,8 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 							}
 						}
 					}
+				} else if (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO) {
+					ast_write(chan, f);
 				}
 				if (f)
 					ast_frfree(f);
