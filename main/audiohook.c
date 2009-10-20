@@ -574,7 +574,7 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 	struct ast_frame *start_frame = frame, *middle_frame = frame, *end_frame = frame;
 	struct ast_audiohook *audiohook = NULL;
 	int samples = frame->samples;
-	
+
 	/* If the frame coming in is not signed linear we have to send it through the in_translate path */
 	if (frame->subclass != AST_FORMAT_SLINEAR) {
 		if (in_translate->format != frame->subclass) {
@@ -645,11 +645,16 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 				continue;
 			}
 			/* Feed in frame to manipulation */
-			audiohook->manipulate_callback(audiohook, chan, middle_frame, direction);
+			if (audiohook->manipulate_callback(audiohook, chan, middle_frame, direction)) {
+				ast_frfree(middle_frame);
+				middle_frame = NULL;
+			}
 			ast_audiohook_unlock(audiohook);
 		}
 		AST_LIST_TRAVERSE_SAFE_END;
-		end_frame = middle_frame;
+		if (middle_frame) {
+			end_frame = middle_frame;
+		}
 	}
 
 	/* Now we figure out what to do with our end frame (whether to transcode or not) */
@@ -677,7 +682,9 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 		}
 	} else {
 		/* No frame was modified, we can just drop our middle frame and pass the frame we got in out */
-		ast_frfree(middle_frame);
+		if (middle_frame) {
+			ast_frfree(middle_frame);
+		}
 	}
 
 	return end_frame;
