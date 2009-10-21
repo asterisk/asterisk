@@ -296,6 +296,15 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;contactpermit=172.16.0.0/255.255.0.0  ; restrict at what IPs your users may
                                        ; register their phones.
 
+; The shrinkcallerid function removes '(', ' ', ')', non-trailing '.', and '-' not
+; in square brackets.  For example, the caller id value 555.5555 becomes 5555555
+; when this option is enabled.  Disabling this option results in no modification
+; of the caller id value, which is necessary when the caller id represents something
+; that must be preserved.  This option can only be used in the [general] section.
+; By default this option is on.
+;
+;shrinkcallerid=yes     ; on by default
+
 ;
 ; If regcontext is specified, Asterisk will dynamically create and destroy a
 ; NoOp priority 1 extension for a given peer who registers or unregisters with
