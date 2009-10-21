@@ -2407,7 +2407,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	}
 
 	/* Reduce background noise from each participant */
-	if ((mod_speex = ast_module_helper("", "codec_speex.so", 0, 0, 0, 0)) || (mod_speex = ast_module_helper("", "codec_speex", 0, 0, 0, 0))) {
+	if ((mod_speex = ast_module_helper("", "codec_speex", 0, 0, 0, 0))) {
 		ast_free(mod_speex);
 		ast_func_write(chan, "DENOISE(rx)", "on");
 	}
