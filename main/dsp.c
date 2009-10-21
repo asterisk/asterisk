@@ -1486,8 +1486,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 		memset(&dsp->f, 0, sizeof(dsp->f));
 		dsp->f.frametype = AST_FRAME_NULL;
 		ast_frfree(af);
-		ast_set_flag(&dsp->f, AST_FRFLAG_FROM_DSP);
-		return &dsp->f;
+		return ast_frisolate(&dsp->f);
 	}
 	if ((dsp->features & DSP_FEATURE_BUSY_DETECT) && ast_dsp_busydetect(dsp)) {
 		chan->_softhangup |= AST_SOFTHANGUP_DEV;
@@ -1495,8 +1494,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 		dsp->f.frametype = AST_FRAME_CONTROL;
 		dsp->f.subclass = AST_CONTROL_BUSY;
 		ast_frfree(af);
-		ast_set_flag(&dsp->f, AST_FRFLAG_FROM_DSP);
-		return &dsp->f;
+		return ast_frisolate(&dsp->f);
 	}
 	if ((dsp->features & DSP_FEATURE_DTMF_DETECT)) {
 		digit = __ast_dsp_digitdetect(dsp, shortdata, len, &writeback);
@@ -1517,8 +1515,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 					if (chan)
 						ast_queue_frame(chan, af);
 					ast_frfree(af);
-					ast_set_flag(&dsp->f, AST_FRFLAG_FROM_DSP);
-					return &dsp->f;
+					return ast_frisolate(&dsp->f);
 				}
 			} else {
 				if (digit) {
@@ -1544,8 +1541,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 							ast_queue_frame(chan, af);
 						ast_frfree(af);
 					}
-					ast_set_flag(&dsp->f, AST_FRFLAG_FROM_DSP);
-					return &dsp->f;
+					return ast_frisolate(&dsp->f);
 				} else {
 					memset(&dsp->f, 0, sizeof(dsp->f));
 					if (dsp->thinkdigit != 'x') {
@@ -1562,8 +1558,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 					if (chan)
 						ast_queue_frame(chan, af);
 					ast_frfree(af);
-					ast_set_flag(&dsp->f, AST_FRFLAG_FROM_DSP);
-					return &dsp->f;
+					return ast_frisolate(&dsp->f);
 				}
 			}
 		} else if (!digit) {
@@ -1579,8 +1574,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 					if (chan)
 						ast_queue_frame(chan, af);
 					ast_frfree(af);
-					ast_set_flag(&dsp->f, AST_FRFLAG_FROM_DSP);
-					return &dsp->f;
+					return ast_frisolate(&dsp->f);
 				}
 			} else {
 				if (dsp->td.dtmf.current_digits) {
@@ -1593,8 +1587,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 					if (chan)
 						ast_queue_frame(chan, af);
 					ast_frfree(af);
-					ast_set_flag(&dsp->f, AST_FRFLAG_FROM_DSP);
-					return &dsp->f;
+					return ast_frisolate(&dsp->f);
 				}
 			}
 		}
@@ -1664,17 +1657,6 @@ void ast_dsp_set_features(struct ast_dsp *dsp, int features)
 
 void ast_dsp_free(struct ast_dsp *dsp)
 {
-	if (ast_test_flag(&dsp->f, AST_FRFLAG_FROM_DSP)) {
-		/* If this flag is still set, that means that the dsp's destruction 
-		 * been torn down, while we still have a frame out there being used.
-		 * When ast_frfree() gets called on that frame, this ast_trans_pvt
-		 * will get destroyed, too. */
-
-		/* Set the magic hint that this has been requested to be destroyed. */
-		dsp->freqcount = -1;
-
-		return;
-	}
 	free(dsp);
 }
 
@@ -1802,18 +1784,4 @@ int ast_dsp_get_tstate(struct ast_dsp *dsp)
 int ast_dsp_get_tcount(struct ast_dsp *dsp) 
 {
 	return dsp->tcount;
-}
-
-void ast_dsp_frame_freed(struct ast_frame *fr)
-{
-	struct ast_dsp *dsp;
-
-	ast_clear_flag(fr, AST_FRFLAG_FROM_DSP);
-
-	dsp = (struct ast_dsp *) (((char *) fr) - offsetof(struct ast_dsp, f));
-
-	if (dsp->freqcount != -1)
-		return;
-	
-	ast_dsp_free(dsp);
 }

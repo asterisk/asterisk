@@ -249,10 +249,9 @@ static struct ast_frame *dahdi_encoder_frameout(struct ast_trans_pvt *pvt)
 		pvt->f.offset = 0;
 		pvt->f.datalen = 0;
 		pvt->f.mallocd = 0;
-		ast_set_flag(&pvt->f, AST_FRFLAG_FROM_TRANSLATOR);
 		pvt->samples = 0;
 
-		return &pvt->f;
+		return ast_frisolate(&pvt->f);
 
 	} else if (1 == ztp->fake) {
 		ztp->fake = 0;
@@ -277,11 +276,10 @@ static struct ast_frame *dahdi_encoder_frameout(struct ast_trans_pvt *pvt)
 		pvt->f.offset = AST_FRIENDLY_OFFSET;
 		pvt->f.src = pvt->t->name;
 		pvt->f.data = pvt->outbuf;
-		ast_set_flag(&pvt->f, AST_FRFLAG_FROM_TRANSLATOR);
 
 		pvt->samples = 0;
 		pvt->datalen = 0;
-		return &pvt->f;
+		return ast_frisolate(&pvt->f);
 	}
 
 	/* Shouldn't get here... */
@@ -324,9 +322,8 @@ static struct ast_frame *dahdi_decoder_frameout(struct ast_trans_pvt *pvt)
 		pvt->f.offset = 0;
 		pvt->f.datalen = 0;
 		pvt->f.mallocd = 0;
-		ast_set_flag(&pvt->f, AST_FRFLAG_FROM_TRANSLATOR);
 		pvt->samples = 0;
-		return &pvt->f;
+		return ast_frisolate(&pvt->f);
 	} else if (1 == ztp->fake) {
 		pvt->samples = 0;
 		ztp->fake = 0;
@@ -363,10 +360,9 @@ static struct ast_frame *dahdi_decoder_frameout(struct ast_trans_pvt *pvt)
 		pvt->f.src = pvt->t->name;
 		pvt->f.data = pvt->outbuf;
 		pvt->f.samples = ztp->required_samples;
-		ast_set_flag(&pvt->f, AST_FRFLAG_FROM_TRANSLATOR);
 		pvt->samples = 0;
 
-		return &pvt->f;
+		return ast_frisolate(&pvt->f);
 	}
 
 	/* Shouldn't get here... */
