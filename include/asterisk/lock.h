@@ -60,7 +60,6 @@
 #endif
 
 #include "asterisk/logger.h"
-#include "asterisk/astobj2.h"
 
 /* internal macro to profile mutexes. Only computes the delay on
  * non-blocking calls.

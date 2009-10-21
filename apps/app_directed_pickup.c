@@ -210,7 +210,7 @@ static int pickup_by_exten(struct ast_channel *chan, const char *exten, const ch
 	struct ast_channel_iterator *iter;
 	int res = -1;
 
-	if (!(iter = ast_channel_iterator_by_exten_new(0, exten, context))) {
+	if (!(iter = ast_channel_iterator_by_exten_new(exten, context))) {
 		return -1;
 	}
 
@@ -222,6 +222,8 @@ static int pickup_by_exten(struct ast_channel *chan, const char *exten, const ch
 		ast_channel_unlock(target);
 		target = ast_channel_unref(target);
 	}
+
+	ast_channel_iterator_destroy(iter);
 
 	if (target) {
 		res = pickup_do(chan, target);

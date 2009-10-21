@@ -786,11 +786,11 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 
 		/* Set up the iterator we'll be using during this call */
 		if (!ast_strlen_zero(spec)) {
-			iter = ast_channel_iterator_by_name_new(0, spec, strlen(spec));
+			iter = ast_channel_iterator_by_name_new(spec, strlen(spec));
 		} else if (!ast_strlen_zero(exten)) {
-			iter = ast_channel_iterator_by_exten_new(0, exten, context);
+			iter = ast_channel_iterator_by_exten_new(exten, context);
 		} else {
-			iter = ast_channel_iterator_all_new(0);
+			iter = ast_channel_iterator_all_new();
 		}
 
 		if (!iter) {

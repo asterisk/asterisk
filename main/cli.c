@@ -827,7 +827,7 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 				"CallerID", "Duration", "Accountcode", "PeerAccount", "BridgedTo");
 	}
 
-	if (!count && !(iter = ast_channel_iterator_all_new(0))) {
+	if (!count && !(iter = ast_channel_iterator_all_new())) {
 		return CLI_FAILURE;
 	}
 
@@ -1454,7 +1454,7 @@ char *ast_complete_channels(const char *line, const char *word, int pos, int sta
 		return NULL;
 	}
 
-	if (!(iter = ast_channel_iterator_by_name_new(0, word, strlen(word)))) {
+	if (!(iter = ast_channel_iterator_by_name_new(word, strlen(word)))) {
 		return NULL;
 	}
 
@@ -1466,6 +1466,8 @@ char *ast_complete_channels(const char *line, const char *word, int pos, int sta
 		}
 		ast_channel_unref(c);
 	}
+
+	ast_channel_iterator_destroy(iter);
 
 	return ret == &notfound ? NULL : ret;
 }

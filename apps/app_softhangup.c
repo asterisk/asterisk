@@ -94,7 +94,7 @@ static int softhangup_exec(struct ast_channel *chan, const char *data)
 		ast_app_parse_options(app_opts, &flags, opts, args.options);
 	lenmatch = strlen(args.channel);
 
-	if (!(iter = ast_channel_iterator_by_name_new(0, args.channel, lenmatch))) {
+	if (!(iter = ast_channel_iterator_by_name_new(args.channel, lenmatch))) {
 		return -1;
 	}
 

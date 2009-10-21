@@ -2806,7 +2806,7 @@ static int action_status(struct mansession *s, const struct message *m)
 	}
 
 	if (all) {
-		if (!(iter = ast_channel_iterator_all_new(0))) {
+		if (!(iter = ast_channel_iterator_all_new())) {
 			ast_free(str);
 			astman_send_error(s, m, "Memory Allocation Failure");
 			return 1;
@@ -2912,6 +2912,10 @@ static int action_status(struct mansession *s, const struct message *m)
 		if (!all) {
 			break;
 		}
+	}
+
+	if (iter) {
+		ast_channel_iterator_destroy(iter);
 	}
 
 	astman_append(s,
@@ -3643,7 +3647,7 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 		idText[0] = '\0';
 	}
 
-	if (!(iter = ast_channel_iterator_all_new(0))) {
+	if (!(iter = ast_channel_iterator_all_new())) {
 		astman_send_error(s, m, "Memory Allocation Failure");
 		return 1;
 	}

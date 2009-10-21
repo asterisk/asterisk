@@ -465,7 +465,7 @@ static int func_channels_read(struct ast_channel *chan, const char *function, ch
 		}
 	}
 
-	if (!(iter = ast_channel_iterator_all_new(0))) {
+	if (!(iter = ast_channel_iterator_all_new())) {
 		if (!ast_strlen_zero(data)) {
 			regfree(&re);
 		}

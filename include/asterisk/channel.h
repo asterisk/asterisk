@@ -2210,7 +2210,6 @@ struct ast_channel_iterator *ast_channel_iterator_destroy(struct ast_channel_ite
 /*!
  * \brief Create a new channel iterator based on extension
  *
- * \arg ao2_flags astobj2 iterator flags
  * \arg exten The extension that channels must be in
  * \arg context The context that channels must be in (optional)
  *
@@ -2223,13 +2222,11 @@ struct ast_channel_iterator *ast_channel_iterator_destroy(struct ast_channel_ite
  *
  * \since 1.6.3
  */
-struct ast_channel_iterator *ast_channel_iterator_by_exten_new(int ao2_flags, const char *exten,
-	const char *context);
+struct ast_channel_iterator *ast_channel_iterator_by_exten_new(const char *exten, const char *context);
 
 /*!
  * \brief Create a new channel iterator based on name
  *
- * \arg ao2_flags astobj2 iterator flags
  * \arg name channel name or channel uniqueid to match
  * \arg name_len number of characters in the channel name to match on.  This
  *      would be used to match based on name prefix.  If matching on the full
@@ -2244,13 +2241,10 @@ struct ast_channel_iterator *ast_channel_iterator_by_exten_new(int ao2_flags, co
  *
  * \since 1.6.3
  */
-struct ast_channel_iterator *ast_channel_iterator_by_name_new(int ao2_flags, const char *name,
-	size_t name_len);
+struct ast_channel_iterator *ast_channel_iterator_by_name_new(const char *name,	size_t name_len);
 
 /*!
  * \brief Create a new channel iterator
- *
- * \arg ao2_flags astobj2 iterator flags
  *
  * After creating an iterator using this function, the ast_channel_iterator_next()
  * function can be used to iterate through all channels that exist.
@@ -2260,7 +2254,7 @@ struct ast_channel_iterator *ast_channel_iterator_by_name_new(int ao2_flags, con
  *
  * \since 1.6.3
  */
-struct ast_channel_iterator *ast_channel_iterator_all_new(int ao2_flags);
+struct ast_channel_iterator *ast_channel_iterator_all_new(void);
 
 /*!
  * \brief Get the next channel for a channel iterator

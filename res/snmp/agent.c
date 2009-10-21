@@ -243,7 +243,7 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 
 	i = name[*length - 1] - 1;
 
-	if (!(iter = ast_channel_iterator_all_new(0))) {
+	if (!(iter = ast_channel_iterator_all_new())) {
 		return NULL;
 	}
 
@@ -588,7 +588,7 @@ static u_char *ast_var_channel_types_table(struct variable *vp, oid *name, size_
 
 		long_ret = 0;
 
-		if (!(iter = ast_channel_iterator_all_new(0))) {
+		if (!(iter = ast_channel_iterator_all_new())) {
 			return NULL;
 		}
 
@@ -622,7 +622,7 @@ static u_char *ast_var_channel_bridge(struct variable *vp, oid *name, size_t *le
 		return NULL;
 	}
 
-	if (!(iter = ast_channel_iterator_all_new(0))) {
+	if (!(iter = ast_channel_iterator_all_new())) {
 		return NULL;
 	}
 
@@ -634,6 +634,8 @@ static u_char *ast_var_channel_bridge(struct variable *vp, oid *name, size_t *le
 		ast_channel_unlock(chan);
 		chan = ast_channel_unref(chan);
 	}
+
+	ast_channel_iterator_destroy(iter);
 
 	*var_len = sizeof(long_ret);
 

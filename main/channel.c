@@ -1234,37 +1234,67 @@ struct ast_channel *ast_channel_callback(ao2_callback_data_fn *cb_fn, void *arg,
 }
 
 struct ast_channel_iterator {
-	struct ao2_iterator i;
-	const char *name;
-	size_t name_len;
-	const char *exten;
-	const char *context;
+	/* storage for non-dynamically allocated iterator */
+	struct ao2_iterator simple_iterator;
+	/* pointer to the actual iterator (simple_iterator or a dynamically
+	 * allocated iterator)
+	 */
+	struct ao2_iterator *active_iterator;
 };
 
 struct ast_channel_iterator *ast_channel_iterator_destroy(struct ast_channel_iterator *i)
 {
-	if (i->name) {
-		ast_free((void *) i->name);
-		i->name = NULL;
-	}
-
-	if (i->exten) {
-		ast_free((void *) i->exten);
-		i->exten = NULL;
-	}
-
-	if (i->context) {
-		ast_free((void *) i->context);
-		i->context = NULL;
-	}
-
+	ao2_iterator_destroy(i->active_iterator);
 	ast_free(i);
 
 	return NULL;
 }
 
-static struct ast_channel_iterator *ast_channel_iterator_new(int ao2_flags, const char *name,
-	size_t name_len, const char *exten, const char *context)
+static struct ast_channel_iterator *channel_iterator_search(const char *name,
+							    size_t name_len, const char *exten,
+							    const char *context)
+{
+	struct ast_channel_iterator *i;
+	struct ast_channel tmp_chan = {
+		.name = name,
+		/* This is sort of a hack.  Basically, we're using an arbitrary field
+		 * in ast_channel to pass the name_len for a prefix match.  If this
+		 * gets changed, then the compare callback must be changed, too. */
+		.rings = name_len,
+	};
+
+	if (!(i = ast_calloc(1, sizeof(*i)))) {
+		return NULL;
+	}
+
+	if (exten) {
+		ast_copy_string(tmp_chan.exten, exten, sizeof(tmp_chan.exten));
+	}
+
+	if (context) {
+		ast_copy_string(tmp_chan.context, context, sizeof(tmp_chan.context));
+	}
+
+	if (!(i->active_iterator = ao2_find(channels, &tmp_chan,
+					    OBJ_MULTIPLE | ((!ast_strlen_zero(name) && (name_len == 0)) ? OBJ_POINTER : 0)))) {
+		    ast_free(i);
+		    return NULL;
+	}
+
+	return i;
+}
+
+struct ast_channel_iterator *ast_channel_iterator_by_exten_new(const char *exten, const char *context)
+{
+	return channel_iterator_search(NULL, 0, exten, context);
+}
+
+struct ast_channel_iterator *ast_channel_iterator_by_name_new(const char *name, size_t name_len)
+{
+	return channel_iterator_search(name, name_len, NULL, NULL);
+}
+
+struct ast_channel_iterator *ast_channel_iterator_all_new(void)
 {
 	struct ast_channel_iterator *i;
 
@@ -1272,99 +1302,15 @@ static struct ast_channel_iterator *ast_channel_iterator_new(int ao2_flags, cons
 		return NULL;
 	}
 
-	if (!ast_strlen_zero(exten) && !(i->exten = ast_strdup(exten))) {
-		goto return_error;
-	}
-
-	if (!ast_strlen_zero(context) && !(i->context = ast_strdup(context))) {
-		goto return_error;
-	}
-
-	if (!ast_strlen_zero(name) && !(i->name = ast_strdup(name))) {
-		goto return_error;
-	}
-
-	i->name_len = name_len;
-
-	i->i = ao2_iterator_init(channels, ao2_flags);
+	i->simple_iterator = ao2_iterator_init(channels, 0);
+	i->active_iterator = &i->simple_iterator;
 
 	return i;
-
-return_error:
-	if (i->exten) {
-		ast_free((void *) i->exten);
-		i->exten = NULL;
-	}
-
-	if (i->context) {
-		ast_free((void *) i->context);
-		i->context = NULL;
-	}
-
-	ast_free(i);
-
-	return NULL;
 }
 
-struct ast_channel_iterator *ast_channel_iterator_by_exten_new(int ao2_flags, const char *exten,
-	const char *context)
-{
-	return ast_channel_iterator_new(ao2_flags, NULL, 0, exten, context);
-}
-
-struct ast_channel_iterator *ast_channel_iterator_by_name_new(int ao2_flags, const char *name,
-	size_t name_len)
-{
-	return ast_channel_iterator_new(ao2_flags, name, name_len, NULL, NULL);
-}
-
-struct ast_channel_iterator *ast_channel_iterator_all_new(int ao2_flags)
-{
-	return ast_channel_iterator_new(ao2_flags, NULL, 0, NULL, NULL);
-}
-
-/*!
- * \note This function will be reduced to 1 line of code once ao2 supports
- * returning multiple objects from an ao2_callback() using OBJ_MULTIPLE.
- */
 struct ast_channel *ast_channel_iterator_next(struct ast_channel_iterator *i)
 {
-	struct ast_channel *chan = NULL;
-
-	for (; (chan = ao2_iterator_next(&i->i));
-			ast_channel_unlock(chan), ast_channel_unref(chan)) {
-
-		ast_channel_lock(chan);
-
-		if (i->name) { /* match by name */
-			if (!i->name_len) {
-				if (strcasecmp(chan->name, i->name) && strcasecmp(chan->uniqueid, i->name)) {
-					continue; /* name match failed */
-				}
-			} else {
-				if (strncasecmp(chan->name, i->name, i->name_len) &&
-						strncasecmp(chan->uniqueid, i->name, i->name_len)) {
-					continue; /* name match failed */
-				}
-			}
-		} else if (i->exten) {
-			if (i->context && strcasecmp(chan->context, i->context) &&
-					strcasecmp(chan->macrocontext, i->context)) {
-				continue; /* context match failed */
-			}
-
-			if (strcasecmp(chan->exten, i->exten) &&
-					strcasecmp(chan->macroexten, i->exten)) {
-				continue; /* exten match failed */
-			}
-		}
-
-		ast_channel_unlock(chan);
-
-		break; /* chan points to the next chan desired. */
-	}
-
-	return chan;
+	return ao2_iterator_next(i->active_iterator);
 }
 
 static int ast_channel_cmp_cb(void *obj, void *arg, int flags)
@@ -1407,7 +1353,7 @@ static int ast_channel_cmp_cb(void *obj, void *arg, int flags)
 }
 
 static struct ast_channel *ast_channel_get_full(const char *name, size_t name_len,
-	const char *exten, const char *context)
+						const char *exten, const char *context)
 {
 	struct ast_channel tmp_chan = {
 		.name = name,
