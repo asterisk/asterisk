@@ -301,7 +301,7 @@ struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f, int consume)
 {
 	struct ast_trans_pvt *p = path;
-	struct ast_frame *out = f, *ret;
+	struct ast_frame *out = f;
 	struct timeval delivery;
 	int has_timing_info;
 	long ts;
@@ -370,11 +370,7 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 	/* Invalidate prediction if we're entering a silence period */
 	if (out->frametype == AST_FRAME_CNG)
 		path->nextout = ast_tv(0, 0);
-
-	ret = ast_frisolate(out);
-	ast_frfree(out);
-
-	return ret;
+	return out;
 }
 
 /*! \brief compute the cost of a single translation step */
