@@ -269,6 +269,7 @@ enum {
 						     response, so that we've achieved a three-way handshake with
 						     them before sending voice or anything else*/
 	IAX_ALLOWFWDOWNLOAD = (1 << 26),	/*!< Allow the FWDOWNL command? */
+	IAX_SHRINKCALLERID  = (1 << 27),   /*!< Turn on and off caller id shrinking */
 } iax2_flags;
 
 static int global_rtautoclear = 120;
@@ -6315,7 +6316,9 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 	if (ies->called_number)
 		ast_string_field_set(iaxs[callno], exten, ies->called_number);
 	if (ies->calling_number) {
-		ast_shrink_phone_number(ies->calling_number);
+		if (ast_test_flag(&globalflags, IAX_SHRINKCALLERID)) { 
+			ast_shrink_phone_number(ies->calling_number);
+		}
 		ast_string_field_set(iaxs[callno], cid_num, ies->calling_number);
 	}
 	if (ies->calling_name)
@@ -11298,6 +11301,7 @@ static int set_config(const char *config_file, int reload)
 	/* Reset Global Flags */
 	memset(&globalflags, 0, sizeof(globalflags));
 	ast_set_flag(&globalflags, IAX_RTUPDATE);
+	ast_set_flag((&globalflags), IAX_SHRINKCALLERID);
 
 #ifdef SO_NO_CHECK
 	nochecksums = 0;
@@ -11512,9 +11516,17 @@ static int set_config(const char *config_file, int reload)
 			if (sscanf(v->value, "%10hu", &global_maxcallno_nonval) != 1) {
 				ast_log(LOG_WARNING, "maxcallnumbers_nonvalidated must be set to a valid number.  %s is not valid at line %d.\n", v->value, v->lineno);
 			}
-		} else if(!strcasecmp(v->name, "calltokenoptional")) {
+		} else if (!strcasecmp(v->name, "calltokenoptional")) {
 			if (add_calltoken_ignore(v->value)) {
 				ast_log(LOG_WARNING, "Invalid calltokenoptional address range - '%s' line %d\n", v->value, v->lineno);
+			}
+		} else if (!strcasecmp(v->name, "shrinkcallerid")) {
+			if (ast_true(v->value)) {
+				ast_set_flag((&globalflags), IAX_SHRINKCALLERID);
+			} else if (ast_false(v->value)) {
+				ast_clear_flag((&globalflags), IAX_SHRINKCALLERID);
+			} else {
+				ast_log(LOG_WARNING, "shrinkcallerid value %s is not valid at line %d.\n", v->value, v->lineno);
 			}
 		}/*else if (strcasecmp(v->name,"type")) */
 		/*	ast_log(LOG_WARNING, "Ignoring %s\n", v->name); */
