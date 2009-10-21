@@ -2329,6 +2329,7 @@ static struct sockaddr_in internip;
  * to support the above functions.
  */
 static struct sockaddr_in externip;		/*!< External IP address if we are behind NAT */
+static struct sockaddr_in media_address;	/*!< External RTP IP address if we are behind NAT */
 
 static char externhost[MAXHOSTNAMELEN];		/*!< External host name */
 static time_t externexpire;			/*!< Expiration counter for re-resolving external host name in dynamic DNS */
@@ -10154,7 +10155,7 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo,
 		dest->sin_port = p->redirip.sin_port;
 		dest->sin_addr = p->redirip.sin_addr;
 	} else {
-		dest->sin_addr = p->ourip.sin_addr;
+		dest->sin_addr = media_address.sin_addr.s_addr ? media_address.sin_addr : p->ourip.sin_addr;
 		dest->sin_port = sin->sin_port;
 	}
 	if (needvideo) {
@@ -10163,7 +10164,7 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo,
 			vdest->sin_addr = p->vredirip.sin_addr;
 			vdest->sin_port = p->vredirip.sin_port;
 		} else {
-			vdest->sin_addr = p->ourip.sin_addr;
+			vdest->sin_addr = media_address.sin_addr.s_addr ? media_address.sin_addr : p->ourip.sin_addr;
 			vdest->sin_port = vsin->sin_port;
 		}
 	}
@@ -24951,6 +24952,7 @@ static int reload_config(enum channelreloadreason reason)
 	ast_free_ha(localaddr);
 	memset(&localaddr, 0, sizeof(localaddr));
 	memset(&externip, 0, sizeof(externip));
+	memset(&media_address, 0, sizeof(media_address));
 	memset(&default_prefs, 0 , sizeof(default_prefs));
 	memset(&sip_cfg.outboundproxy, 0, sizeof(struct sip_proxy));
 	sip_cfg.outboundproxy.ip.sin_port = htons(STANDARD_SIP_PORT);
@@ -25320,6 +25322,9 @@ static int reload_config(enum channelreloadreason reason)
 				localaddr = na;
 			if (ha_error)
 				ast_log(LOG_ERROR, "Bad localnet configuration value line %d : %s\n", v->lineno, v->value);
+		} else if (!strcasecmp(v->name, "media_address")) {
+			if (ast_parse_arg(v->value, PARSE_INADDR, &media_address))
+				ast_log(LOG_WARNING, "Invalid address for media_address keyword: %s\n", v->value);
 		} else if (!strcasecmp(v->name, "externip")) {
 			if (ast_parse_arg(v->value, PARSE_INADDR, &externip))
 				ast_log(LOG_WARNING, "Invalid address for externip keyword: %s\n", v->value);

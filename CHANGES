@@ -48,6 +48,8 @@ SIP Changes
    configuration for the externip and externhost options when tcp or tls is used.
  * Added support for message body (stored in content variable) to SIP NOTIFY message
    accessible via AMI and CLI.
+ * Added 'media_address' configuration option which can be used to explicitly specify
+   the IP address to use in the SDP for media (audio and video) streams.
 
 IAX2 Changes
 -----------

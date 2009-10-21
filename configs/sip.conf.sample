@@ -695,6 +695,12 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;        nat = force_rport       ; Force rport to always be on.
 ;        nat = yes               ; Force rport to always be on and perform symmetric RTP.
 ;        nat = comedia           ; Use rport if the remote side says to use it and perform symmetric RTP.
+;
+; The IP address used for media (audio and video) in the SDP can also be overridden by using
+; the media_address configuration option. This is only applicable to the general section and
+; can not be set per-user or per-peer.
+;
+; media_address = 172.16.42.1
 
 ;----------------------------------- MEDIA HANDLING --------------------------------
 ; By default, Asterisk tries to re-invite media streams to an optimal path. If there's
