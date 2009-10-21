@@ -1006,6 +1006,67 @@ void pri_event_noalarm(struct sig_pri_pri *pri, int index, int before_start_pri)
 
 /*!
  * \internal
+ * \brief Convert libpri party id into asterisk party id.
+ * \since 1.6.3
+ *
+ * \param ast_id Asterisk party id structure to fill.  Must already be set initialized.
+ * \param pri_id libpri party id structure containing source information.
+ * \param pri Span controlling structure.
+ *
+ * \note The filled in ast_id structure needs to be destroyed by
+ * ast_party_id_free() when it is no longer needed.
+ *
+ * \return Nothing
+ */
+static void sig_pri_party_id_convert(struct ast_party_id *ast_id,
+	const struct pri_party_id *pri_id, struct sig_pri_pri *pri)
+{
+	char number[AST_MAX_EXTENSION];
+
+	if (pri_id->name.valid) {
+		ast_id->name = ast_strdup(pri_id->name.str);
+	}
+	if (pri_id->number.valid) {
+		apply_plan_to_number(number, sizeof(number), pri, pri_id->number.str,
+			pri_id->number.plan);
+		ast_id->number = ast_strdup(number);
+		ast_id->number_type = pri_id->number.plan;
+	}
+	if (pri_id->name.valid || pri_id->number.valid) {
+		ast_id->number_presentation = overall_ast_presentation(pri_id);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Convert libpri redirecting information into asterisk redirecting information.
+ * \since 1.6.3
+ *
+ * \param ast_redirecting Asterisk redirecting structure to fill.
+ * \param pri_redirecting libpri redirecting structure containing source information.
+ * \param ast_guide Asterisk redirecting structure to use as an initialization guide.
+ * \param pri Span controlling structure.
+ *
+ * \note The filled in ast_redirecting structure needs to be destroyed by
+ * ast_party_redirecting_free() when it is no longer needed.
+ *
+ * \return Nothing
+ */
+static void sig_pri_redirecting_convert(struct ast_party_redirecting *ast_redirecting,
+	const struct pri_party_redirecting *pri_redirecting,
+	const struct ast_party_redirecting *ast_guide,
+	struct sig_pri_pri *pri)
+{
+	ast_party_redirecting_set_init(ast_redirecting, ast_guide);
+
+	sig_pri_party_id_convert(&ast_redirecting->from, &pri_redirecting->from, pri);
+	sig_pri_party_id_convert(&ast_redirecting->to, &pri_redirecting->to, pri);
+	ast_redirecting->count = pri_redirecting->count;
+	ast_redirecting->reason = pri_to_ast_reason(pri_redirecting->reason);
+}
+
+/*!
+ * \internal
  * \brief Determine if the given extension matches one of the MSNs in the pattern list.
  * \since 1.6.3
  *
@@ -1089,6 +1150,7 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 {
 	int index;
 	struct ast_channel *owner;
+	struct ast_party_redirecting ast_redirecting;
 
 	if (!subcmds) {
 		return;
@@ -1102,43 +1164,28 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 			owner = pri->pvts[chanpos]->owner;
 			if (owner) {
 				struct ast_party_connected_line ast_connected;
-				const struct pri_party_connected_line *pri_connected;
 				int caller_id_update;
-				char connected_number[AST_MAX_EXTENSION];
-
-				caller_id_update = 0;
 
 				/* Extract the connected line information */
 				ast_party_connected_line_init(&ast_connected);
-				pri_connected = &subcmd->u.connected_line;
-				if (pri_connected->id.name.valid) {
-					ast_connected.id.name = (char *) pri_connected->id.name.str;
+				sig_pri_party_id_convert(&ast_connected.id, &subcmd->u.connected_line.id,
+					pri);
 
+				caller_id_update = 0;
+				if (ast_connected.id.name) {
 					/* Save name for Caller-ID update */
 					ast_copy_string(pri->pvts[chanpos]->cid_name,
-						pri_connected->id.name.str,
-						sizeof(pri->pvts[chanpos]->cid_name));
+						ast_connected.id.name, sizeof(pri->pvts[chanpos]->cid_name));
 					caller_id_update = 1;
 				}
-				if (pri_connected->id.number.valid) {
-					apply_plan_to_number(connected_number, sizeof(connected_number), pri,
-						pri_connected->id.number.str,
-						pri_connected->id.number.plan);
-					ast_connected.id.number = connected_number;
-					ast_connected.id.number_type = pri_connected->id.number.plan;
-
+				if (ast_connected.id.number) {
 					/* Save number for Caller-ID update */
-					ast_copy_string(pri->pvts[chanpos]->cid_num, connected_number,
+					ast_copy_string(pri->pvts[chanpos]->cid_num, ast_connected.id.number,
 						sizeof(pri->pvts[chanpos]->cid_num));
-					pri->pvts[chanpos]->cid_ton = pri_connected->id.number.plan;
+					pri->pvts[chanpos]->cid_ton = ast_connected.id.number_type;
 					caller_id_update = 1;
 				} else {
-					ast_connected.id.number = "";
-				}
-				if (pri_connected->id.name.valid
-					|| pri_connected->id.number.valid) {
-					ast_connected.id.number_presentation =
-						overall_ast_presentation(&pri_connected->id);
+					ast_connected.id.number = ast_strdup("");
 				}
 				ast_connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 
@@ -1157,6 +1204,7 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 					ast_channel_queue_connected_line_update(owner, &ast_connected);
 				}
 
+				ast_party_connected_line_free(&ast_connected);
 				ast_channel_unlock(owner);
 			}
 			break;
@@ -1164,50 +1212,8 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 			sig_pri_lock_owner(pri, chanpos);
 			owner = pri->pvts[chanpos]->owner;
 			if (owner) {
-				struct ast_party_redirecting ast_redirecting;
-				const struct pri_party_redirecting *pri_redirecting;
-				char from_number[AST_MAX_EXTENSION];
-				char to_number[AST_MAX_EXTENSION];
-
-				ast_party_redirecting_set_init(&ast_redirecting, &owner->redirecting);
-
-				pri_redirecting = &subcmd->u.redirecting;
-
-				/* ast_redirecting.from */
-				if (pri_redirecting->from.name.valid) {
-					ast_redirecting.from.name = (char *) pri_redirecting->from.name.str;
-				}
-				if (pri_redirecting->from.number.valid) {
-					apply_plan_to_number(from_number, sizeof(from_number), pri,
-						pri_redirecting->from.number.str,
-						pri_redirecting->from.number.plan);
-					ast_redirecting.from.number = from_number;
-					ast_redirecting.from.number_type = pri_redirecting->from.number.plan;
-				}
-				if (pri_redirecting->from.name.valid
-					|| pri_redirecting->from.number.valid) {
-					ast_redirecting.from.number_presentation =
-						overall_ast_presentation(&pri_redirecting->from);
-				}
-
-				/* ast_redirecting.to */
-				if (pri_redirecting->to.name.valid) {
-					ast_redirecting.to.name = (char *) pri_redirecting->to.name.str;
-				}
-				if (pri_redirecting->to.number.valid) {
-					apply_plan_to_number(to_number, sizeof(to_number), pri,
-						pri_redirecting->to.number.str, pri_redirecting->to.number.plan);
-					ast_redirecting.to.number = to_number;
-					ast_redirecting.to.number_type = pri_redirecting->to.number.plan;
-				}
-				if (pri_redirecting->to.name.valid
-					|| pri_redirecting->to.number.valid) {
-					ast_redirecting.to.number_presentation =
-						overall_ast_presentation(&pri_redirecting->from);
-				}
-
-				ast_redirecting.count = pri_redirecting->count;
-				ast_redirecting.reason = pri_to_ast_reason(pri_redirecting->reason);
+				sig_pri_redirecting_convert(&ast_redirecting, &subcmd->u.redirecting,
+					&owner->redirecting, pri);
 
 /*! \todo XXX Original called data can be put in a channel data store that is inherited. */
 
@@ -1216,6 +1222,7 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 					/* This redirection was not from a SETUP message. */
 					ast_channel_queue_redirecting_update(owner, &ast_redirecting);
 				}
+				ast_party_redirecting_free(&ast_redirecting);
 
 				ast_channel_unlock(owner);
 			}
