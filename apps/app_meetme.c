@@ -3919,7 +3919,7 @@ static void sla_handle_hold_event(struct sla_event *event)
 		ast_indicate(event->trunk_ref->trunk->chan, AST_CONTROL_HOLD);
 	}
 
-	ast_softhangup(event->trunk_ref->chan, AST_CAUSE_NORMAL);
+	ast_softhangup(event->trunk_ref->chan, AST_SOFTHANGUP_DEV);
 	event->trunk_ref->chan = NULL;
 }
 

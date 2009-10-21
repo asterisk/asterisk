@@ -2504,8 +2504,9 @@ static int __ast_pbx_run(struct ast_channel *c)
 	}
 	if (!found && !error)
 		ast_log(LOG_WARNING, "Don't know what to do with '%s'\n", c->name);
-	if (res != AST_PBX_KEEPALIVE)
-		ast_softhangup(c, c->hangupcause ? c->hangupcause : AST_CAUSE_NORMAL_CLEARING);
+	if (res != AST_PBX_KEEPALIVE) {
+		ast_softhangup(c, AST_SOFTHANGUP_APPUNLOAD);
+	}
 	ast_channel_lock(c);
 	if ((emc = pbx_builtin_getvar_helper(c, "EXIT_MACRO_CONTEXT"))) {
 		emc = ast_strdupa(emc);

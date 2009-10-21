@@ -774,14 +774,14 @@ int ast_hangup(struct ast_channel *chan);
  * \param chan channel to be soft-hung-up
  * Call the protocol layer, but don't destroy the channel structure (use this if you are trying to
  * safely hangup a channel managed by another thread.
- * \param cause	Ast hangupcause for hangup
+ * \param reason an AST_SOFTHANGUP_* reason code
  * \return Returns 0 regardless
  */
 int ast_softhangup(struct ast_channel *chan, int cause);
 
 /*! \brief Softly hangup up a channel (no channel lock) 
  * \param chan channel to be soft-hung-up
- * \param cause	Ast hangupcause for hangup (see cause.h) */
+ * \param reason an AST_SOFTHANGUP_* reason code */
 int ast_softhangup_nolock(struct ast_channel *chan, int cause);
 
 /*! \brief Check to see if a channel is needing hang up 
