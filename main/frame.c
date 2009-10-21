@@ -332,12 +332,6 @@ static void frame_cache_cleanup(void *data)
 
 static void __frame_free(struct ast_frame *fr, int cache)
 {
-	if (ast_test_flag(fr, AST_FRFLAG_FROM_TRANSLATOR)) {
-		ast_translate_frame_freed(fr);
-	} else if (ast_test_flag(fr, AST_FRFLAG_FROM_DSP)) {
-		ast_dsp_frame_freed(fr);
-	}
-
 	if (!fr->mallocd)
 		return;
 
@@ -422,8 +416,6 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 			out->seqno = fr->seqno;
 		}
 	} else {
-		ast_clear_flag(fr, AST_FRFLAG_FROM_TRANSLATOR);
-		ast_clear_flag(fr, AST_FRFLAG_FROM_DSP);
 		out = fr;
 	}
 	

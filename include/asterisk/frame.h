@@ -128,14 +128,6 @@ enum ast_frame_type {
 enum {
 	/*! This frame contains valid timing information */
 	AST_FRFLAG_HAS_TIMING_INFO = (1 << 0),
-	/*! This frame came from a translator and is still the original frame.
-	 *  The translator can not be free'd if the frame inside of it still has
-	 *  this flag set. */
-	AST_FRFLAG_FROM_TRANSLATOR = (1 << 1),
-	/*! This frame came from a dsp and is still the original frame.
-	 *  The dsp cannot be free'd if the frame inside of it still has
-	 *  this flag set. */
-	AST_FRFLAG_FROM_DSP = (1 << 2),
 };
 
 /*! \brief Data structure associated with a single frame of data

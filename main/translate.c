@@ -134,17 +134,6 @@ static void destroy(struct ast_trans_pvt *pvt)
 {
 	struct ast_translator *t = pvt->t;
 
-	if (ast_test_flag(&pvt->f, AST_FRFLAG_FROM_TRANSLATOR)) {
-		/* If this flag is still set, that means that the translation path has
-		 * been torn down, while we still have a frame out there being used.
-		 * When ast_frfree() gets called on that frame, this ast_trans_pvt
-		 * will get destroyed, too. */
-
-		pvt->destroy = 1;
-
-		return;
-	}
-
 	if (t->destroy)
 		t->destroy(pvt);
 	ast_free(pvt);
@@ -238,9 +227,7 @@ struct ast_frame *ast_trans_frameout(struct ast_trans_pvt *pvt,
 	f->src = pvt->t->name;
 	f->data.ptr = pvt->outbuf.c;
 
-	ast_set_flag(f, AST_FRFLAG_FROM_TRANSLATOR);
-
-	return f;
+	return ast_frisolate(f);
 }
 
 static struct ast_frame *default_frameout(struct ast_trans_pvt *pvt)
@@ -904,18 +891,4 @@ unsigned int ast_translate_available_formats(unsigned int dest, unsigned int src
 	AST_RWLIST_UNLOCK(&translators);
 
 	return res;
-}
-
-void ast_translate_frame_freed(struct ast_frame *fr)
-{
-	struct ast_trans_pvt *pvt;
-
-	ast_clear_flag(fr, AST_FRFLAG_FROM_TRANSLATOR);
-
-	pvt = (struct ast_trans_pvt *) (((char *) fr) - offsetof(struct ast_trans_pvt, f));
-
-	if (!pvt->destroy)
-		return;
-	
-	destroy(pvt);
 }
