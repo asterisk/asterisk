@@ -340,6 +340,16 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; If you have qualify on and the peer becomes unreachable
                                 ; this setting will enforce inactivation of the regexten
                                 ; extension for the peer
+
+; The shrinkcallerid function removes '(', ' ', ')', non-trailing '.', and '-' not
+; in square brackets.  For example, the caller id value 555.5555 becomes 5555555
+; when this option is enabled.  Disabling this option results in no modification
+; of the caller id value, which is necessary when the caller id represents something
+; that must be preserved.  This option can only be used in the [general] section.
+; By default this option is on.
+;
+;shrinkcallerid=yes     ; on by default
+
 ;------------------------ TLS settings ------------------------------------------------------------
 ;tlscertfile=</path/to/certificate.pem> ; Certificate file (*.pem format only) to use for TLS connections
                                         ; default is to look for "asterisk.pem" in current directory

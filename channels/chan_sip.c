@@ -1227,6 +1227,7 @@ static int global_rtpholdtimeout;	/*!< Time out call if no RTP during hold */
 static int global_rtpkeepalive;		/*!< Send RTP keepalives */
 static int global_reg_timeout;		/*!< Global time between attempts for outbound registrations */
 static int global_regattempts_max;	/*!< Registration attempts before giving up */
+static int global_shrinkcallerid;	/*!< enable or disable shrinking of caller id  */
 static int global_callcounter;		/*!< Enable call counters for all devices. This is currently enabled by setting the peer
 						call-limit to INT_MAX. When we remove the call-limit from the code, we can make it
 						with just a boolean flag in the device structure */
@@ -13420,7 +13421,7 @@ static int get_pai(struct sip_pvt *p, struct sip_request *req)
 		cid_num = (char *)p->cid_num;
 	} else if (!strncasecmp(start, "sip:", 4)) {
 		cid_num = start + 4;
-		if (ast_is_shrinkable_phonenumber(cid_num))
+		if (global_shrinkcallerid && ast_is_shrinkable_phonenumber(cid_num))
 			ast_shrink_phone_number(cid_num);
 		start = end;
 
@@ -13499,7 +13500,7 @@ static int get_rpid(struct sip_pvt *p, struct sip_request *oreq)
 	if (strncasecmp(start, "sip:", 4))
 		return 0;
 	cid_num = start + 4;
-	if (ast_is_shrinkable_phonenumber(cid_num))
+	if (global_shrinkcallerid && ast_is_shrinkable_phonenumber(cid_num))
 		ast_shrink_phone_number(cid_num);
 	start = end;
 
@@ -14347,7 +14348,7 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 		if (!get_rpid(p, req)) {
 			if (!ast_strlen_zero(peer->cid_num)) {
 				char *tmp = ast_strdupa(peer->cid_num);
-				if (ast_is_shrinkable_phonenumber(tmp))
+				if (global_shrinkcallerid && ast_is_shrinkable_phonenumber(tmp))
 					ast_shrink_phone_number(tmp);
 				ast_string_field_set(p, cid_num, tmp);
 			}
@@ -14456,7 +14457,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 			<sip:8164444422;phone-context=+1@1.2.3.4:5060;user=phone;tag=SDadkoa01-gK0c3bdb43>
 		*/
 		tmp = strsep(&tmp, ";");
-		if (ast_is_shrinkable_phonenumber(tmp))
+		if (global_shrinkcallerid && ast_is_shrinkable_phonenumber(tmp))
 			ast_shrink_phone_number(tmp);
 		ast_string_field_set(p, cid_num, tmp);
 	}
@@ -25058,6 +25059,7 @@ static int reload_config(enum channelreloadreason reason)
 	global_t1min = DEFAULT_T1MIN;
 	global_qualifyfreq = DEFAULT_QUALIFYFREQ;
 	global_t38_maxdatagram = -1;
+	global_shrinkcallerid = 1;
 
 	sip_cfg.matchexterniplocally = DEFAULT_MATCHEXTERNIPLOCALLY;
 
@@ -25513,6 +25515,14 @@ static int reload_config(enum channelreloadreason reason)
 			mark_parsed_methods(&sip_cfg.disallowed_methods, disallow);
 		} else if (!strcasecmp(v->name, "constantssrc")) {
 			ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_CONSTANT_SSRC);
+		} else if (!strcasecmp(v->name, "shrinkcallerid")) {
+			if (ast_true(v->value)) {
+				global_shrinkcallerid = 1;
+			} else if (ast_false(v->value)) {
+				global_shrinkcallerid = 0;
+			} else {
+				ast_log(LOG_WARNING, "shrinkcallerid value %s is not valid at line %d.\n", v->value, v->lineno);
+			}
 		}
 	}
 
