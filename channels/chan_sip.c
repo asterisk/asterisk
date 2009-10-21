@@ -2330,6 +2330,7 @@ static struct sockaddr_in internip;
  * to support the above functions.
  */
 static struct sockaddr_in externip;		/*!< External IP address if we are behind NAT */
+static struct sockaddr_in media_address;	/*!< External RTP IP address if we are behind NAT */
 
 static char externhost[MAXHOSTNAMELEN];		/*!< External host name */
 static time_t externexpire;			/*!< Expiration counter for re-resolving external host name in dynamic DNS */
@@ -10138,9 +10139,9 @@ static void add_noncodec_to_sdp(const struct sip_pvt *p, int format,
 /*! \brief Set all IP media addresses for this call
 	\note called from add_sdp()
 */
-static void get_our_media_address(struct sip_pvt *p, int needvideo,
-	struct sockaddr_in *sin, struct sockaddr_in *vsin, struct sockaddr_in *tsin,
-	struct sockaddr_in *dest, struct sockaddr_in *vdest)
+static void get_our_media_address(struct sip_pvt *p, int needvideo, int needtext,
+				  struct sockaddr_in *sin, struct sockaddr_in *vsin, struct sockaddr_in *tsin,
+				  struct sockaddr_in *dest, struct sockaddr_in *vdest, struct sockaddr_in *tdest)
 {
 	/* First, get our address */
 	ast_rtp_instance_get_local_address(p->rtp, sin);
@@ -10155,7 +10156,7 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo,
 		dest->sin_port = p->redirip.sin_port;
 		dest->sin_addr = p->redirip.sin_addr;
 	} else {
-		dest->sin_addr = p->ourip.sin_addr;
+		dest->sin_addr = media_address.sin_addr.s_addr ? media_address.sin_addr : p->ourip.sin_addr;
 		dest->sin_port = sin->sin_port;
 	}
 	if (needvideo) {
@@ -10164,11 +10165,20 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo,
 			vdest->sin_addr = p->vredirip.sin_addr;
 			vdest->sin_port = p->vredirip.sin_port;
 		} else {
-			vdest->sin_addr = p->ourip.sin_addr;
+			vdest->sin_addr = media_address.sin_addr.s_addr ? media_address.sin_addr : p->ourip.sin_addr;
 			vdest->sin_port = vsin->sin_port;
 		}
 	}
-
+	if (needtext) {
+		/* Determine text destination */
+		if (p->tredirip.sin_addr.s_addr) {
+			tdest->sin_addr = p->tredirip.sin_addr;
+			tdest->sin_port = p->tredirip.sin_port;
+		} else {
+			tdest->sin_addr = media_address.sin_addr.s_addr ? media_address.sin_addr : p->ourip.sin_addr;
+			tdest->sin_port = tsin->sin_port;
+		}
+	}
 }
 
 /*! \brief Add Session Description Protocol message
@@ -10250,9 +10260,10 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 			ast_debug(2, "This call needs video offers, but there's no video support enabled!\n");
 	}
 
-	get_our_media_address(p, needvideo, &sin, &vsin, &tsin, &dest, &vdest);
+	get_our_media_address(p, needvideo, needtext, &sin, &vsin, &tsin, &dest, &vdest, &tdest);
 
 	snprintf(owner, sizeof(owner), "o=%s %d %d IN IP4 %s\r\n", ast_strlen_zero(global_sdpowner) ? "-" : global_sdpowner, p->sessionid, p->sessionversion, ast_inet_ntoa(dest.sin_addr));
+
 	snprintf(connection, sizeof(connection), "c=IN IP4 %s\r\n", ast_inet_ntoa(dest.sin_addr));
 
 	if (add_audio) {
@@ -10300,14 +10311,6 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		if (needtext) {
 			if (sipdebug_text)
 				ast_verbose("Lets set up the text sdp\n");
-			/* Determine text destination */
-			if (p->tredirip.sin_addr.s_addr) {
-				tdest.sin_addr = p->tredirip.sin_addr;
-				tdest.sin_port = p->tredirip.sin_port;
-			} else {
-				tdest.sin_addr = p->ourip.sin_addr;
-				tdest.sin_port = tsin.sin_port;
-			}
 			ast_str_append(&m_text, 0, "m=text %d RTP/AVP", ntohs(tdest.sin_port));
 			if (debug) /* XXX should I use tdest below ? */
 				ast_verbose("Text is at %s port %d\n", ast_inet_ntoa(p->ourip.sin_addr), ntohs(tsin.sin_port));	
@@ -10427,6 +10430,10 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		   peer doesn't have to ast_gethostbyname() us */
 
 		ast_str_append(&m_modem, 0, "m=image %d udptl t38", ntohs(udptldest.sin_port));
+
+		if (udptldest.sin_addr.s_addr != dest.sin_addr.s_addr) {
+			ast_str_append(&m_modem, 0, "c=IN IP4 %s\r\n", ast_inet_ntoa(udptldest.sin_addr));
+		}
 
 		ast_str_append(&a_modem, 0, "a=T38FaxVersion:%d\r\n", p->t38.our_parms.version);
 		ast_str_append(&a_modem, 0, "a=T38MaxBitRate:%d\r\n", t38_get_rate(p->t38.our_parms.rate));
@@ -24952,6 +24959,7 @@ static int reload_config(enum channelreloadreason reason)
 	ast_free_ha(localaddr);
 	memset(&localaddr, 0, sizeof(localaddr));
 	memset(&externip, 0, sizeof(externip));
+	memset(&media_address, 0, sizeof(media_address));
 	memset(&default_prefs, 0 , sizeof(default_prefs));
 	memset(&sip_cfg.outboundproxy, 0, sizeof(struct sip_proxy));
 	sip_cfg.outboundproxy.ip.sin_port = htons(STANDARD_SIP_PORT);
@@ -25322,6 +25330,9 @@ static int reload_config(enum channelreloadreason reason)
 				localaddr = na;
 			if (ha_error)
 				ast_log(LOG_ERROR, "Bad localnet configuration value line %d : %s\n", v->lineno, v->value);
+		} else if (!strcasecmp(v->name, "media_address")) {
+			if (ast_parse_arg(v->value, PARSE_INADDR, &media_address))
+				ast_log(LOG_WARNING, "Invalid address for media_address keyword: %s\n", v->value);
 		} else if (!strcasecmp(v->name, "externip")) {
 			if (ast_parse_arg(v->value, PARSE_INADDR, &externip))
 				ast_log(LOG_WARNING, "Invalid address for externip keyword: %s\n", v->value);
