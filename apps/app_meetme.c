@@ -2072,7 +2072,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	struct timeval now;
 	struct ast_dsp *dsp = NULL;
 	struct ast_app *agi_app;
-	char *agifile;
+	char *agifile, *mod_speex;
 	const char *agifiledefault = "conf-background.agi", *tmpvar;
 	char meetmesecs[30] = "";
 	char exitcontext[AST_MAX_CONTEXT] = "";
@@ -2404,6 +2404,12 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	if (ast_set_read_format(chan, AST_FORMAT_SLINEAR) < 0) {
 		ast_log(LOG_WARNING, "Unable to set '%s' to read linear mode\n", chan->name);
 		goto outrun;
+	}
+
+	/* Reduce background noise from each participant */
+	if ((mod_speex = ast_module_helper("", "codec_speex.so", 0, 0, 0, 0)) || (mod_speex = ast_module_helper("", "codec_speex", 0, 0, 0, 0))) {
+		ast_free(mod_speex);
+		ast_func_write(chan, "DENOISE(rx)", "on");
 	}
 
 	retrydahdi = (strcasecmp(chan->tech->type, "DAHDI") || (chan->audiohooks || chan->monitor) ? 1 : 0);

@@ -78,6 +78,9 @@ Applications
    to spy on.
  * The ChanSpy application also now has the 'E' option, which spies on a single
    channel and exits when that channel hangs up.
+ * The MeetMe application now turns on the DENOISE() function by default, for
+   each participant.  In our tests, this has significantly decreased background
+   noise (especially noisy data centers).
 
 Dialplan Functions
 ------------------
