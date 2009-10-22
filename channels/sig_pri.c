@@ -437,6 +437,168 @@ static int overall_ast_presentation(const struct pri_party_id *id)
 	return pri_to_ast_presentation(number_value | number_screening);
 }
 
+#if defined(HAVE_PRI_SUBADDR)
+/*!
+ * \internal
+ * \brief Fill in the asterisk party subaddress from the given PRI party subaddress.
+ * \since 1.6.3
+ *
+ * \param ast_subaddress Asterisk party subaddress structure.
+ * \param pri_subaddress PRI party subaddress structure.
+ *
+ * \return Nothing
+ *
+ */
+static void sig_pri_set_subaddress(struct ast_party_subaddress *ast_subaddress, const struct pri_party_subaddress *pri_subaddress)
+{
+	char *cnum, *ptr;
+	int x, len;
+
+	if (ast_subaddress->str) {
+		ast_free(ast_subaddress->str);
+	}
+	if (pri_subaddress->length <= 0) {
+		ast_party_subaddress_init(ast_subaddress);
+		return;
+	}
+
+	if (!pri_subaddress->type) {
+		/* NSAP */
+		ast_subaddress->str = ast_strdup((char *) pri_subaddress->data);
+	} else {
+		/* User Specified */
+		if (!(cnum = ast_malloc(2 * pri_subaddress->length + 1))) {
+			ast_party_subaddress_init(ast_subaddress);
+			return;
+		}
+
+		ptr = cnum;
+		len = pri_subaddress->length - 1; /* -1 account for zero based indexing */
+		for (x = 0; x < len; ++x) {
+			ptr += sprintf(ptr, "%02x", pri_subaddress->data[x]);
+		}
+
+		if (pri_subaddress->odd_even_indicator) {
+			/* ODD */
+			sprintf(ptr, "%01x", (pri_subaddress->data[len]) >> 4);
+		} else {
+			/* EVEN */
+			sprintf(ptr, "%02x", pri_subaddress->data[len]);
+		}
+		ast_subaddress->str = cnum;
+	}
+	ast_subaddress->type = pri_subaddress->type;
+	ast_subaddress->odd_even_indicator = pri_subaddress->odd_even_indicator;
+	ast_subaddress->valid = 1;
+}
+#endif	/* defined(HAVE_PRI_SUBADDR) */
+
+#if defined(HAVE_PRI_SUBADDR)
+static unsigned char ast_pri_pack_hex_char(char c)
+{
+	unsigned char res;
+
+	if (c < '0') {
+		res = 0;
+	} else if (c < ('9' + 1)) {
+		res = c - '0';
+	} else if (c < 'A') {
+		res = 0;
+	} else if (c < ('F' + 1)) {
+		res = c - 'A' + 10;
+	} else if (c < 'a') {
+		res = 0;
+	} else if (c < ('f' + 1)) {
+		res = c - 'a' + 10;
+	} else {
+		res = 0;
+	}
+	return res;
+}
+#endif	/* defined(HAVE_PRI_SUBADDR) */
+
+#if defined(HAVE_PRI_SUBADDR)
+/*!
+ * \internal
+ * \brief Convert a null terminated hexadecimal string to a packed hex byte array.
+ * \details left justified, with 0 padding if odd length.
+ * \since 1.6.3
+ *
+ * \param dst pointer to packed byte array.
+ * \param src pointer to null terminated hexadecimal string.
+ * \param maxlen destination array size.
+ *
+ * \return Length of byte array
+ *
+ * \note The dst is not an ASCIIz string.
+ * \note The src is an ASCIIz hex string.
+ */
+static int ast_pri_pack_hex_string(unsigned char *dst, char *src, int maxlen)
+{
+	int res = 0;
+	int len = strlen(src);
+
+	if (len > (2 * maxlen)) {
+		len = 2 * maxlen;
+	}
+
+	res = len / 2 + len % 2;
+
+	while (len > 1) {
+		*dst = ast_pri_pack_hex_char(*src) << 4;
+		src++;
+		*dst |= ast_pri_pack_hex_char(*src);
+		dst++, src++;
+		len -= 2;
+	}
+	if (len) { /* 1 left */
+		*dst = ast_pri_pack_hex_char(*src) << 4;
+	}
+	return res;
+}
+#endif	/* defined(HAVE_PRI_SUBADDR) */
+
+#if defined(HAVE_PRI_SUBADDR)
+/*!
+ * \internal
+ * \brief Fill in the PRI party subaddress from the given asterisk party subaddress.
+ * \since 1.6.3
+ *
+ * \param pri_subaddress PRI party subaddress structure.
+ * \param ast_subaddress Asterisk party subaddress structure.
+ *
+ * \return Nothing
+ *
+ * \note Assumes that pri_subaddress has been previously memset to zero.
+ */
+static void sig_pri_party_subaddress_from_ast(struct pri_party_subaddress *pri_subaddress, const struct ast_party_subaddress *ast_subaddress)
+{
+	if (ast_subaddress->valid && !ast_strlen_zero(ast_subaddress->str)) {
+		pri_subaddress->type = ast_subaddress->type;
+		if (!ast_subaddress->type) {
+			/* 0 = NSAP */
+			ast_copy_string((char *) pri_subaddress->data, ast_subaddress->str,
+				sizeof(pri_subaddress->data));
+			pri_subaddress->length = strlen((char *) pri_subaddress->data);
+			pri_subaddress->odd_even_indicator = 0;
+			pri_subaddress->valid = 1;
+		} else {
+			/* 2 = User Specified */
+			/*
+			 * Copy HexString to packed HexData,
+			 * if odd length then right pad trailing byte with 0
+			 */
+			int length = ast_pri_pack_hex_string(pri_subaddress->data,
+				ast_subaddress->str, sizeof(pri_subaddress->data));
+
+			pri_subaddress->length = length;
+			pri_subaddress->odd_even_indicator = (length & 1);
+			pri_subaddress->valid = 1;
+		}
+	}
+}
+#endif	/* defined(HAVE_PRI_SUBADDR) */
+
 /*!
  * \internal
  * \brief Fill in the PRI party id from the given asterisk party id.
@@ -466,6 +628,9 @@ static void sig_pri_party_id_from_ast(struct pri_party_id *pri_id, const struct 
 		pri_id->number.plan = ast_id->number_type;
 		ast_copy_string(pri_id->number.str, ast_id->number, sizeof(pri_id->number.str));
 	}
+#if defined(HAVE_PRI_SUBADDR)
+	sig_pri_party_subaddress_from_ast(&pri_id->subaddress, &ast_id->subaddress);
+#endif	/* defined(HAVE_PRI_SUBADDR) */
 }
 
 /*!
@@ -1035,6 +1200,11 @@ static void sig_pri_party_id_convert(struct ast_party_id *ast_id,
 	if (pri_id->name.valid || pri_id->number.valid) {
 		ast_id->number_presentation = overall_ast_presentation(pri_id);
 	}
+#if defined(HAVE_PRI_SUBADDR)
+	if (pri_id->subaddress.valid) {
+		sig_pri_set_subaddress(&ast_id->subaddress, &pri_id->subaddress);
+	}
+#endif	/* defined(HAVE_PRI_SUBADDR) */
 }
 
 /*!
@@ -1189,6 +1359,12 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 				}
 				ast_connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 
+#if defined(HAVE_PRI_SUBADDR)
+				if (ast_connected.id.subaddress.valid) {
+					ast_party_subaddress_set(&owner->cid.subaddress,
+						&ast_connected.id.subaddress);
+				}
+#endif	/* defined(HAVE_PRI_SUBADDR) */
 				if (caller_id_update) {
 					pri->pvts[chanpos]->callingpres =
 						ast_connected.id.number_presentation;
@@ -1796,9 +1972,42 @@ static void *pri_dchannel(void *vpri)
 								e->ring.ctype, pri->pvts[chanpos]->exten, NULL);
 							ast_mutex_lock(&pri->lock);
 							if (c) {
+#if defined(HAVE_PRI_SUBADDR)
+								if (e->ring.calling.subaddress.valid) {
+									/* Set Calling Subaddress */
+									sig_pri_lock_owner(pri, chanpos);
+									sig_pri_set_subaddress(
+										&pri->pvts[chanpos]->owner->cid.subaddress,
+										&e->ring.calling.subaddress);
+									if (!e->ring.calling.subaddress.type
+										&& !ast_strlen_zero(
+											(char *) e->ring.calling.subaddress.data)) {
+										/* NSAP */
+										pbx_builtin_setvar_helper(c, "CALLINGSUBADDR",
+											(char *) e->ring.calling.subaddress.data);
+									}
+									ast_channel_unlock(c);
+								}
+								if (e->ring.called_subaddress.valid) {
+									/* Set Called Subaddress */
+									sig_pri_lock_owner(pri, chanpos);
+									sig_pri_set_subaddress(
+										&pri->pvts[chanpos]->owner->cid.dialed_subaddress,
+										&e->ring.called_subaddress);
+									if (!e->ring.called_subaddress.type
+										&& !ast_strlen_zero(
+											(char *) e->ring.called_subaddress.data)) {
+										/* NSAP */
+										pbx_builtin_setvar_helper(c, "CALLEDSUBADDR",
+											(char *) e->ring.called_subaddress.data);
+									}
+									ast_channel_unlock(c);
+								}
+#else
 								if (!ast_strlen_zero(e->ring.callingsubaddr)) {
 									pbx_builtin_setvar_helper(c, "CALLINGSUBADDR", e->ring.callingsubaddr);
 								}
+#endif /* !defined(HAVE_PRI_SUBADDR) */
 								if (e->ring.ani2 >= 0) {
 									snprintf(ani2str, sizeof(ani2str), "%d", e->ring.ani2);
 									pbx_builtin_setvar_helper(c, "ANI2", ani2str);
@@ -1858,9 +2067,42 @@ static void *pri_dchannel(void *vpri)
 								 * will do anything with the channel we have just
 								 * created.
 								 */
+#if defined(HAVE_PRI_SUBADDR)
+								if (e->ring.calling.subaddress.valid) {
+									/* Set Calling Subaddress */
+									sig_pri_lock_owner(pri, chanpos);
+									sig_pri_set_subaddress(
+										&pri->pvts[chanpos]->owner->cid.subaddress,
+										&e->ring.calling.subaddress);
+									if (!e->ring.calling.subaddress.type
+										&& !ast_strlen_zero(
+											(char *) e->ring.calling.subaddress.data)) {
+										/* NSAP */
+										pbx_builtin_setvar_helper(c, "CALLINGSUBADDR",
+											(char *) e->ring.calling.subaddress.data);
+									}
+									ast_channel_unlock(c);
+								}
+								if (e->ring.called_subaddress.valid) {
+									/* Set Called Subaddress */
+									sig_pri_lock_owner(pri, chanpos);
+									sig_pri_set_subaddress(
+										&pri->pvts[chanpos]->owner->cid.dialed_subaddress,
+										&e->ring.called_subaddress);
+									if (!e->ring.called_subaddress.type
+										&& !ast_strlen_zero(
+											(char *) e->ring.called_subaddress.data)) {
+										/* NSAP */
+										pbx_builtin_setvar_helper(c, "CALLEDSUBADDR",
+											(char *) e->ring.called_subaddress.data);
+									}
+									ast_channel_unlock(c);
+								}
+#else
 								if (!ast_strlen_zero(e->ring.callingsubaddr)) {
 									pbx_builtin_setvar_helper(c, "CALLINGSUBADDR", e->ring.callingsubaddr);
 								}
+#endif /* !defined(HAVE_PRI_SUBADDR) */
 								if (e->ring.ani2 >= 0) {
 									snprintf(ani2str, sizeof(ani2str), "%d", e->ring.ani2);
 									pbx_builtin_setvar_helper(c, "ANI2", ani2str);
@@ -2474,6 +2716,7 @@ exit:
 int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, int timeout, int layer1)
 {
 	char dest[256]; /* must be same length as p->dialdest */
+	struct ast_party_subaddress dialed_subaddress; /* Called subaddress */
 	struct pri_sr *sr;
 	char *c, *l, *n, *s = NULL;
 #ifdef SUPPORT_USERUSER
@@ -2492,7 +2735,6 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 		return -1;
 	}
 
-
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "sig_pri_call called on %s, neither down nor reserved\n", ast->name);
 		return -1;
@@ -2502,6 +2744,34 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 
 	p->dialdest[0] = '\0';
 	p->outgoing = 1;
+
+	/* setup dialed_subaddress if found */
+	ast_party_subaddress_init(&dialed_subaddress);
+	c = strrchr(dest, ':');
+	if (c) {
+		*c = '\0';
+		c++;
+		/* prefix */
+		/* 'n' = NSAP */
+		/* 'U' = odd, 'u'= even */
+		/* Default = NSAP */
+		switch (*c) {
+		case 'U':
+			dialed_subaddress.odd_even_indicator = 1;
+			/* fall through */
+		case 'u':
+			c++;
+			dialed_subaddress.type = 2;
+			break;
+		case 'N':
+		case 'n':
+			c++;
+			/* default already covered with ast_party_subaddress_init */
+			break;
+		}
+		dialed_subaddress.str = c;
+		dialed_subaddress.valid = 1;
+	}
 
 	c = strchr(dest, '/');
 	if (c) {
@@ -2634,6 +2904,16 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 	}
 	pri_sr_set_called(sr, c + p->stripmsd + dp_strip, pridialplan, s ? 1 : 0);
 
+#if defined(HAVE_PRI_SUBADDR)
+	if (dialed_subaddress.valid) {
+		struct pri_party_subaddress subaddress;
+
+		memset(&subaddress, 0, sizeof(subaddress));
+		sig_pri_party_subaddress_from_ast(&subaddress, &dialed_subaddress);
+		pri_sr_set_called_subaddress(sr, &subaddress);
+	}
+#endif	/* defined(HAVE_PRI_SUBADDR) */
+
 	ldp_strip = 0;
 	prilocaldialplan = p->pri->localdialplan - 1;
 	if ((l != NULL) && (prilocaldialplan == -2 || prilocaldialplan == -3)) { /* compute dynamically */
@@ -2709,6 +2989,17 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 	}
 	pri_sr_set_caller(sr, l ? (l + ldp_strip) : NULL, n, prilocaldialplan,
 		p->use_callingpres ? ast->connected.id.number_presentation : (l ? PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN : PRES_NUMBER_NOT_AVAILABLE));
+
+#if defined(HAVE_PRI_SUBADDR)
+	if (ast->connected.id.subaddress.valid) {
+		struct pri_party_subaddress subaddress;
+
+		memset(&subaddress, 0, sizeof(subaddress));
+		sig_pri_party_subaddress_from_ast(&subaddress, &ast->connected.id.subaddress);
+		pri_sr_set_caller_subaddress(sr, &subaddress);
+	}
+#endif	/* defined(HAVE_PRI_SUBADDR) */
+
 	sig_pri_redirecting_update(p, ast);
 
 #ifdef SUPPORT_USERUSER

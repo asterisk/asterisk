@@ -1449,6 +1449,8 @@ static void free_cid(struct ast_callerid *cid)
 	if (cid->cid_rdnis)
 		ast_free(cid->cid_rdnis);
 	cid->cid_dnid = cid->cid_num = cid->cid_name = cid->cid_ani = cid->cid_rdnis = NULL;
+	ast_party_subaddress_free(&cid->subaddress);
+	ast_party_subaddress_free(&cid->dialed_subaddress);
 }
 
 struct ast_channel *ast_channel_release(struct ast_channel *chan)
@@ -1456,6 +1458,65 @@ struct ast_channel *ast_channel_release(struct ast_channel *chan)
 	/* Safe, even if already unlinked. */
 	ao2_unlink(channels, chan);
 	return ast_channel_unref(chan);
+}
+
+void ast_party_subaddress_init(struct ast_party_subaddress *init)
+{
+	init->str = NULL;
+	init->type = 0;
+	init->odd_even_indicator = 0;
+	init->valid = 0;
+}
+
+void ast_party_subaddress_copy(struct ast_party_subaddress *dest, const struct ast_party_subaddress *src)
+{
+	if (dest == src) {
+		/* Don't copy to self */
+		return;
+	}
+
+	if (dest->str) {
+		ast_free(dest->str);
+	}
+	dest->str = ast_strdup(src->str);
+	dest->type = src->type;
+	dest->odd_even_indicator = src->odd_even_indicator;
+	dest->valid = src->valid;
+}
+
+void ast_party_subaddress_set_init(struct ast_party_subaddress *init, const struct ast_party_subaddress *guide)
+{
+	init->str = NULL;
+	init->type = guide->type;
+	init->odd_even_indicator = guide->odd_even_indicator;
+	init->valid = guide->valid;
+}
+
+void ast_party_subaddress_set(struct ast_party_subaddress *dest, const struct ast_party_subaddress *src)
+{
+	if (dest == src) {
+		/* Don't set to self */
+		return;
+	}
+
+	if (src->str && src->str != dest->str) {
+		if (dest->str) {
+			ast_free(dest->str);
+		}
+		dest->str = ast_strdup(src->str);
+	}
+
+	dest->type = src->type;
+	dest->odd_even_indicator = src->odd_even_indicator;
+	dest->valid = src->valid;
+}
+
+void ast_party_subaddress_free(struct ast_party_subaddress *doomed)
+{
+	if (doomed->str) {
+		ast_free(doomed->str);
+		doomed->str = NULL;
+	}
 }
 
 /*!
@@ -1472,6 +1533,7 @@ static void ast_party_id_init(struct ast_party_id *init)
 	init->name = NULL;
 	init->number_type = 0;	/* Unknown */
 	init->number_presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
+	ast_party_subaddress_init(&init->subaddress);
 }
 
 /*!
@@ -1502,6 +1564,7 @@ static void ast_party_id_copy(struct ast_party_id *dest, const struct ast_party_
 
 	dest->number_type = src->number_type;
 	dest->number_presentation = src->number_presentation;
+	ast_party_subaddress_copy(&dest->subaddress, &src->subaddress);
 }
 
 /*!
@@ -1527,6 +1590,7 @@ static void ast_party_id_set_init(struct ast_party_id *init, const struct ast_pa
 	init->name = NULL;
 	init->number_type = guide->number_type;
 	init->number_presentation = guide->number_presentation;
+	ast_party_subaddress_set_init(&init->subaddress, &guide->subaddress);
 }
 
 /*!
@@ -1561,6 +1625,7 @@ static void ast_party_id_set(struct ast_party_id *dest, const struct ast_party_i
 
 	dest->number_type = src->number_type;
 	dest->number_presentation = src->number_presentation;
+	ast_party_subaddress_set(&dest->subaddress, &src->subaddress);
 }
 
 /*!
@@ -1582,6 +1647,7 @@ static void ast_party_id_free(struct ast_party_id *doomed)
 		ast_free(doomed->name);
 		doomed->name = NULL;
 	}
+	ast_party_subaddress_free(&doomed->subaddress);
 }
 
 void ast_party_caller_init(struct ast_party_caller *init)
@@ -1623,6 +1689,8 @@ void ast_party_caller_copy(struct ast_callerid *dest, const struct ast_callerid 
 	dest->cid_ani = ast_strdup(src->cid_ani);
 
 	dest->cid_ani2 = src->cid_ani2;
+
+	ast_party_subaddress_copy(&dest->subaddress, &src->subaddress);
 
 #else
 
@@ -1695,6 +1763,7 @@ void ast_party_connected_line_collect_caller(struct ast_party_connected_line *co
 	connected->id.name = cid->cid_name;
 	connected->id.number_type = cid->cid_ton;
 	connected->id.number_presentation = cid->cid_pres;
+	connected->id.subaddress = cid->subaddress;
 
 	connected->ani = cid->cid_ani;
 	connected->ani2 = cid->cid_ani2;
@@ -6511,6 +6580,7 @@ void ast_connected_line_copy_from_caller(struct ast_party_connected_line *dest, 
 	dest->ani = ast_strdup(src->cid_ani);
 
 	dest->ani2 = src->cid_ani2;
+	ast_party_subaddress_copy(&dest->id.subaddress, &src->subaddress);
 
 #else
 
@@ -6552,6 +6622,7 @@ void ast_connected_line_copy_to_caller(struct ast_callerid *dest, const struct a
 	dest->cid_ani = ast_strdup(src->ani);
 
 	dest->cid_ani2 = src->ani2;
+	ast_party_subaddress_copy(&dest->subaddress, &src->id.subaddress);
 
 #else
 
@@ -6590,7 +6661,11 @@ enum {
 	AST_CONNECTED_LINE_NAME,
 	AST_CONNECTED_LINE_NUMBER_TYPE,
 	AST_CONNECTED_LINE_NUMBER_PRESENTATION,
-	AST_CONNECTED_LINE_SOURCE
+	AST_CONNECTED_LINE_SOURCE,
+	AST_CONNECTED_LINE_SUBADDRESS,
+	AST_CONNECTED_LINE_SUBADDRESS_TYPE,
+	AST_CONNECTED_LINE_SUBADDRESS_ODD_EVEN,
+	AST_CONNECTED_LINE_SUBADDRESS_VALID
 };
 
 int ast_connected_line_build_data(unsigned char *data, size_t datalen, const struct ast_party_connected_line *connected)
@@ -6656,6 +6731,46 @@ int ast_connected_line_build_data(unsigned char *data, size_t datalen, const str
 	memcpy(data + pos, &value, sizeof(value));
 	pos += sizeof(value);
 
+	/* Connected line Subaddress */
+	if (connected->id.subaddress.str) {
+		length = strlen(connected->id.subaddress.str);
+		if (datalen < pos + (sizeof(data[0]) * 2) + length) {
+			ast_log(LOG_WARNING, "No space left for connected line subaddress\n");
+			return -1;
+		}
+		data[pos++] = AST_CONNECTED_LINE_SUBADDRESS;
+		data[pos++] = length;
+		memcpy(data + pos, connected->id.subaddress.str, length);
+		pos += length;
+	}
+	/* Connected line Subaddress Type */
+	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
+		ast_log(LOG_WARNING, "No space left for connected line type of subaddress\n");
+		return -1;
+	}
+	data[pos++] = AST_CONNECTED_LINE_SUBADDRESS_TYPE;
+	data[pos++] = 1;
+	data[pos++] = connected->id.subaddress.type;
+
+	/* Connected line Subaddress Odd/Even indicator */
+	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
+		ast_log(LOG_WARNING,
+			"No space left for connected line subaddress odd-even indicator\n");
+		return -1;
+	}
+	data[pos++] = AST_CONNECTED_LINE_SUBADDRESS_ODD_EVEN;
+	data[pos++] = 1;
+	data[pos++] = connected->id.subaddress.odd_even_indicator;
+
+	/* Connected line Subaddress Valid */
+	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
+		ast_log(LOG_WARNING, "No space left for connected line subaddress valid\n");
+		return -1;
+	}
+	data[pos++] = AST_CONNECTED_LINE_SUBADDRESS_VALID;
+	data[pos++] = 1;
+	data[pos++] = connected->id.subaddress.valid;
+
 	return pos;
 }
 
@@ -6720,6 +6835,41 @@ int ast_connected_line_parse_data(const unsigned char *data, size_t datalen, str
 			}
 			memcpy(&value, data + pos, sizeof(value));
 			connected->source = ntohl(value);
+			break;
+		case AST_CONNECTED_LINE_SUBADDRESS:
+			if (connected->id.subaddress.str) {
+				ast_free(connected->id.subaddress.str);
+			}
+			connected->id.subaddress.str = ast_malloc(ie_len + 1);
+			if (connected->id.subaddress.str) {
+				memcpy(connected->id.subaddress.str, data + pos, ie_len);
+				connected->id.subaddress.str[ie_len] = 0;
+			}
+			break;
+		case AST_CONNECTED_LINE_SUBADDRESS_TYPE:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid connected line type of subaddress (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			connected->id.subaddress.type = data[pos];
+			break;
+		case AST_CONNECTED_LINE_SUBADDRESS_ODD_EVEN:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING,
+					"Invalid connected line subaddress odd-even indicator (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			connected->id.subaddress.odd_even_indicator = data[pos];
+			break;
+		case AST_CONNECTED_LINE_SUBADDRESS_VALID:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid connected line subaddress valid (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			connected->id.subaddress.valid = data[pos];
 			break;
 		default:
 			ast_log(LOG_DEBUG, "Unknown connected line element: %u (%u)\n", (unsigned) ie_id, (unsigned) ie_len);
@@ -6799,7 +6949,15 @@ enum {
 	AST_REDIRECTING_TO_NUMBER_TYPE,
 	AST_REDIRECTING_TO_NUMBER_PRESENTATION,
 	AST_REDIRECTING_REASON,
-	AST_REDIRECTING_COUNT
+	AST_REDIRECTING_COUNT,
+	AST_REDIRECTING_FROM_SUBADDRESS,
+	AST_REDIRECTING_FROM_SUBADDRESS_TYPE,
+	AST_REDIRECTING_FROM_SUBADDRESS_ODD_EVEN,
+	AST_REDIRECTING_FROM_SUBADDRESS_VALID,
+	AST_REDIRECTING_TO_SUBADDRESS,
+	AST_REDIRECTING_TO_SUBADDRESS_TYPE,
+	AST_REDIRECTING_TO_SUBADDRESS_ODD_EVEN,
+	AST_REDIRECTING_TO_SUBADDRESS_VALID
 };
 
 int ast_redirecting_build_data(unsigned char *data, size_t datalen, const struct ast_party_redirecting *redirecting)
@@ -6854,6 +7012,44 @@ int ast_redirecting_build_data(unsigned char *data, size_t datalen, const struct
 	data[pos++] = 1;
 	data[pos++] = redirecting->from.number_presentation;
 
+	/* subaddress */
+	if (redirecting->from.subaddress.str) {
+		length = strlen(redirecting->from.subaddress.str);
+		if (datalen < pos + (sizeof(data[0]) * 2) + length) {
+			ast_log(LOG_WARNING, "No space left for redirecting-from subaddress\n");
+			return -1;
+		}
+		data[pos++] = AST_REDIRECTING_FROM_SUBADDRESS;
+		data[pos++] = length;
+		memcpy(data + pos, redirecting->from.subaddress.str, length);
+		pos += length;
+	}
+
+	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
+		ast_log(LOG_WARNING, "No space left for redirecting-from type of subaddress\n");
+		return -1;
+	}
+	data[pos++] = AST_REDIRECTING_FROM_SUBADDRESS_TYPE;
+	data[pos++] = 1;
+	data[pos++] = redirecting->from.subaddress.type;
+
+	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
+		ast_log(LOG_WARNING,
+			"No space left for redirecting-from subaddress odd-even indicator\n");
+		return -1;
+	}
+	data[pos++] = AST_REDIRECTING_FROM_SUBADDRESS_ODD_EVEN;
+	data[pos++] = 1;
+	data[pos++] = redirecting->from.subaddress.odd_even_indicator;
+
+	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
+		ast_log(LOG_WARNING, "No space left for redirecting-from subaddress valid\n");
+		return -1;
+	}
+	data[pos++] = AST_REDIRECTING_FROM_SUBADDRESS_VALID;
+	data[pos++] = 1;
+	data[pos++] = redirecting->from.subaddress.valid;
+
 	/* *************** Redirecting to party id *************** */
 	if (redirecting->to.number) {
 		length = strlen(redirecting->to.number);
@@ -6894,6 +7090,44 @@ int ast_redirecting_build_data(unsigned char *data, size_t datalen, const struct
 	data[pos++] = AST_REDIRECTING_TO_NUMBER_PRESENTATION;
 	data[pos++] = 1;
 	data[pos++] = redirecting->to.number_presentation;
+
+	/* subaddress */
+	if (redirecting->to.subaddress.str) {
+		length = strlen(redirecting->to.subaddress.str);
+		if (datalen < pos + (sizeof(data[0]) * 2) + length) {
+			ast_log(LOG_WARNING, "No space left for redirecting-to subaddress\n");
+			return -1;
+		}
+		data[pos++] = AST_REDIRECTING_TO_SUBADDRESS;
+		data[pos++] = length;
+		memcpy(data + pos, redirecting->to.subaddress.str, length);
+		pos += length;
+	}
+
+	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
+		ast_log(LOG_WARNING, "No space left for redirecting-to type of subaddress\n");
+		return -1;
+	}
+	data[pos++] = AST_REDIRECTING_TO_SUBADDRESS_TYPE;
+	data[pos++] = 1;
+	data[pos++] = redirecting->to.subaddress.type;
+
+	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
+		ast_log(LOG_WARNING,
+			"No space left for redirecting-to subaddress odd-even indicator\n");
+		return -1;
+	}
+	data[pos++] = AST_REDIRECTING_TO_SUBADDRESS_ODD_EVEN;
+	data[pos++] = 1;
+	data[pos++] = redirecting->to.subaddress.odd_even_indicator;
+
+	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
+		ast_log(LOG_WARNING, "No space left for redirecting-to subaddress valid\n");
+		return -1;
+	}
+	data[pos++] = AST_REDIRECTING_TO_SUBADDRESS_VALID;
+	data[pos++] = 1;
+	data[pos++] = redirecting->to.subaddress.valid;
 
 	/* Redirecting reason */
 	if (datalen < pos + (sizeof(data[0]) * 2) + sizeof(value)) {
@@ -6974,6 +7208,41 @@ int ast_redirecting_parse_data(const unsigned char *data, size_t datalen, struct
 			}
 			redirecting->from.number_presentation = data[pos];
 			break;
+		case AST_REDIRECTING_FROM_SUBADDRESS:
+			if (redirecting->from.subaddress.str) {
+				ast_free(redirecting->from.subaddress.str);
+			}
+			redirecting->from.subaddress.str = ast_malloc(ie_len + 1);
+			if (redirecting->from.subaddress.str) {
+				memcpy(redirecting->from.subaddress.str, data + pos, ie_len);
+				redirecting->from.subaddress.str[ie_len] = 0;
+			}
+			break;
+		case AST_REDIRECTING_FROM_SUBADDRESS_TYPE:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid redirecting from type of subaddress (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->from.subaddress.type = data[pos];
+			break;
+		case AST_REDIRECTING_FROM_SUBADDRESS_ODD_EVEN:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING,
+					"Invalid redirecting from subaddress odd-even indicator (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->from.subaddress.odd_even_indicator = data[pos];
+			break;
+		case AST_REDIRECTING_FROM_SUBADDRESS_VALID:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid redirecting from subaddress valid (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->from.subaddress.valid = data[pos];
+			break;
 		case AST_REDIRECTING_TO_NUMBER:
 			if (redirecting->to.number) {
 				ast_free(redirecting->to.number);
@@ -7007,6 +7276,41 @@ int ast_redirecting_parse_data(const unsigned char *data, size_t datalen, struct
 				break;
 			}
 			redirecting->to.number_presentation = data[pos];
+			break;
+		case AST_REDIRECTING_TO_SUBADDRESS:
+			if (redirecting->to.subaddress.str) {
+				ast_free(redirecting->to.subaddress.str);
+			}
+			redirecting->to.subaddress.str = ast_malloc(ie_len + 1);
+			if (redirecting->to.subaddress.str) {
+				memcpy(redirecting->to.subaddress.str, data + pos, ie_len);
+				redirecting->to.subaddress.str[ie_len] = 0;
+			}
+			break;
+		case AST_REDIRECTING_TO_SUBADDRESS_TYPE:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid redirecting to type of subaddress (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->to.subaddress.type = data[pos];
+			break;
+		case AST_REDIRECTING_TO_SUBADDRESS_ODD_EVEN:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING,
+					"Invalid redirecting to subaddress odd-even indicator (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->to.subaddress.odd_even_indicator = data[pos];
+			break;
+		case AST_REDIRECTING_TO_SUBADDRESS_VALID:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid redirecting to subaddress valid (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->to.subaddress.valid = data[pos];
 			break;
 		case AST_REDIRECTING_REASON:
 			if (ie_len != sizeof(value)) {

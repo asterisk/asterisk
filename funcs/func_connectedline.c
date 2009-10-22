@@ -43,7 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /*
  * Do not document the CONNECTEDLINE(source) datatype.
- * It has turned out to not be needed.  The source value is really                                      .
+ * It has turned out to not be needed.  The source value is really
  * only useful as a possible tracing aid.
  */
 /*** DOCUMENTATION
@@ -60,6 +60,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name = "name" />
 					<enum name = "ton" />
 					<enum name = "pres" />
+					<enum name = "subaddr[-valid]|[-type]|[-odd]">
+						<para>ISDN Connected line subaddress</para>
+					</enum>
 				</enumlist>
 			</parameter>
 			<parameter name="i">
@@ -102,6 +105,19 @@ static int connectedline_read(struct ast_channel *chan, const char *cmd, char *d
 		ast_copy_string(buf, ast_named_caller_presentation(chan->connected.id.number_presentation), len);
 	} else if (!strncasecmp("source", data, 6)) {
 		ast_copy_string(buf, ast_connected_line_source_name(chan->connected.source), len);
+	} else if (!strncasecmp("subaddr", data, 7)) {
+		/* also matches subaddr-valid, subaddr-type, subaddr-odd, subaddr */
+		if (!strncasecmp(data + 7 ,"-valid", 6)) {		/* subaddr-valid */
+			snprintf(buf, len, "%d", chan->connected.id.subaddress.valid);
+		} else if (!strncasecmp(data + 7 ,"-type", 5)) {	/* subaddr-type */
+			snprintf(buf, len, "%d", chan->connected.id.subaddress.type);
+		} else if (!strncasecmp(data + 7 ,"-odd", 4)) {		/* subaddr-odd */
+			snprintf(buf, len, "%d", chan->connected.id.subaddress.odd_even_indicator);
+		} else {						/* subaddr */
+			if (chan->connected.id.subaddress.str) {
+				ast_copy_string(buf, chan->connected.id.subaddress.str, len);
+			}
+		}
 	} else {
 		ast_log(LOG_ERROR, "Unknown connectedline data type '%s'.\n", data);
 	}
@@ -209,6 +225,19 @@ static int connectedline_write(struct ast_channel *chan, const char *cmd, char *
 			connected.source = source;
 			set_it(chan, &connected);
 		}
+	} else if (!strncasecmp("subaddr", data, 7)) { /* outbound: set calling subaddress */
+		/* also matches subaddr-valid, subaddr-type, subaddr-odd, subaddr */
+		if (!strncasecmp(data + 7 ,"-valid", 6)) {		/* subaddr-valid */
+			connected.id.subaddress.valid = atoi(value) ? 1 : 0;
+		} else if (!strncasecmp(data + 7 ,"-type", 5)) {	/* subaddr-type */
+			connected.id.subaddress.type = atoi(value) ? 2 : 0;
+		} else if (!strncasecmp(data + 7 ,"-odd", 4)) {		/* subaddr-odd */
+			connected.id.subaddress.odd_even_indicator = atoi(value) ? 1 : 0;
+		} else {						/* subaddr */
+			connected.id.subaddress.str = ast_strdupa(value);
+			ast_trim_blanks(connected.id.subaddress.str);
+		}
+		set_it(chan, &connected);
 	} else {
 		ast_log(LOG_ERROR, "Unknown connectedline data type '%s'.\n", data);
 	}

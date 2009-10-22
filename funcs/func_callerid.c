@@ -49,6 +49,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name="RDNIS" />
 					<enum name="pres" />
 					<enum name="ton" />
+					<enum name="subaddr[-valid]|[-type]|[-odd]">
+						<para>ISDN Calling Subaddress</para>
+					</enum>
+					<enum name="dnid-subaddr[-valid]|[-type]|[-odd]">
+						<para>ISDN Called Subaddress</para>
+					</enum>
 				</enumlist>
 			</parameter>
 			<parameter name="CID">
@@ -167,8 +173,40 @@ static int callerid_read(struct ast_channel *chan, const char *cmd, char *data,
 				ast_copy_string(buf, chan->cid.cid_ani, len);
 			}
 		} else if (!strncasecmp("dnid", data, 4)) {
-			if (chan->cid.cid_dnid) {
-				ast_copy_string(buf, chan->cid.cid_dnid, len);
+			/* Called parties info */
+
+			/* also matches dnid-subaddr-valid, dnid-subaddr-type, dnid-subaddr-odd, dnid-subaddr */
+			if (!strncasecmp(data + 4 ,"-subaddr", 8)) {
+				if (!strncasecmp(data + 12 ,"-valid", 6)) {		/* dnid-subaddr-valid */
+					snprintf(buf, len, "%d", chan->cid.dialed_subaddress.valid);
+				} else if (!strncasecmp(data + 12 ,"-type", 5)) {	/* dnid-subaddr-type */
+					snprintf(buf, len, "%d", chan->cid.dialed_subaddress.type);
+				} else if (!strncasecmp(data + 12 ,"-odd", 4)) {	/* dnid-subaddr-odd */
+					snprintf(buf, len, "%d", chan->cid.dialed_subaddress.odd_even_indicator);
+				} else {						/* dnid-subaddr */
+					if (chan->cid.dialed_subaddress.str) {
+						ast_copy_string(buf, chan->cid.dialed_subaddress.str, len);
+					}
+				}
+			} else {							/* dnid */
+				if (chan->cid.cid_dnid) {
+					ast_copy_string(buf, chan->cid.cid_dnid, len);
+				}
+			}
+		} else if (!strncasecmp("subaddr", data, 7)) {
+			/* Calling parties info */
+
+			/* also matches subaddr-valid, subaddr-type, subaddr-odd, subaddr */
+			if (!strncasecmp(data + 7 ,"-valid", 6)) {		/* subaddr-valid */
+				snprintf(buf, len, "%d", chan->cid.subaddress.valid);
+			} else if (!strncasecmp(data + 7 ,"-type", 5)) {	/* subaddr-type */
+				snprintf(buf, len, "%d", chan->cid.subaddress.type);
+			} else if (!strncasecmp(data + 7 ,"-odd", 4)) {		/* subaddr-odd */
+				snprintf(buf, len, "%d", chan->cid.subaddress.odd_even_indicator);
+			} else {						/* subaddr */
+				if (chan->cid.subaddress.str) {
+					ast_copy_string(buf, chan->cid.subaddress.str, len);
+				}
 			}
 		} else if (!strncasecmp("rdnis", data, 5)) {
 			if (chan->cid.cid_rdnis) {
@@ -227,10 +265,46 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 		}
 	} else if (!strncasecmp("dnid", data, 4)) {
 		ast_channel_lock(chan);
-		if (chan->cid.cid_dnid) {
-			ast_free(chan->cid.cid_dnid);
+		/* also matches dnid-subaddr-valid, dnid-subaddr-type, dnid-subaddr-odd, dnid-subaddr */
+		if (!strncasecmp(data + 4 ,"-subaddr", 8)) {
+			if (!strncasecmp(data + 12 ,"-valid", 6)) {		/* dnid-subaddr-valid */
+				chan->cid.dialed_subaddress.valid = atoi(value) ? 1 : 0;
+			} else if (!strncasecmp(data + 12 ,"-type", 5)) {	/* dnid-subaddr-type */
+				chan->cid.dialed_subaddress.type = atoi(value) ? 2 : 0;
+			} else if (!strncasecmp(data + 12 ,"-odd", 4)) {	/* dnid-subaddr-odd */
+				chan->cid.dialed_subaddress.odd_even_indicator = atoi(value) ? 1 : 0;
+			} else {						/* dnid-subaddr */
+				if (chan->cid.dialed_subaddress.str) {
+					ast_free(chan->cid.dialed_subaddress.str);
+				}
+				chan->cid.dialed_subaddress.str = ast_strdup(value);
+			}
+		} else {							/* dnid */
+			if (chan->cid.cid_dnid) {
+				ast_free(chan->cid.cid_dnid);
+			}
+			chan->cid.cid_dnid = ast_strdup(value);
 		}
-		chan->cid.cid_dnid = ast_strdup(value);
+
+		if (chan->cdr) {
+			ast_cdr_setcid(chan->cdr, chan);
+		}
+		ast_channel_unlock(chan);
+	} else if (!strncasecmp("subaddr", data, 7)) {
+		ast_channel_lock(chan);
+		/* also matches subaddr-valid, subaddr-type, subaddr-odd, subaddr */
+		if (!strncasecmp(data + 7 ,"-valid", 6)) {		/* subaddr-valid */
+			chan->cid.subaddress.valid = atoi(value) ? 1 : 0;
+		} else if (!strncasecmp(data + 7 ,"-type", 5)) {	/* subaddr-type */
+			chan->cid.subaddress.type = atoi(value) ? 2 : 0;
+		} else if (!strncasecmp(data + 7 ,"-odd", 4)) {		/* subaddr-odd */
+			chan->cid.subaddress.odd_even_indicator = atoi(value) ? 1 : 0;
+		} else {						/* subaddr */
+			if (chan->cid.subaddress.str) {
+				ast_free(chan->cid.subaddress.str);
+			}
+			chan->cid.subaddress.str = ast_strdup(value);
+		}
 		if (chan->cdr) {
 			ast_cdr_setcid(chan->cdr, chan);
 		}

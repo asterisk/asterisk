@@ -185,6 +185,37 @@ struct ast_generator {
 };
 
 /*!
+ * \since 1.6.3
+ * \brief Information needed to specify a subaddress in a call.
+ * \note All string fields here are malloc'ed, so they need to be
+ * freed when the structure is deleted.
+ * \note NULL and "" must be considered equivalent.
+ */
+struct ast_party_subaddress {
+	/*!
+	 * \brief Malloced subaddress string.
+	 * \note If the subaddress type is user specified then the subaddress is
+	 * a string of ASCII hex because the actual subaddress is likely BCD encoded.
+	 */
+	char *str;
+	/*!
+	 * \brief Q.931 subaddress type.
+	 * \details
+	 * nsap(0),
+	 * user_specified(2)
+	 */
+	int type;
+	/*!
+	 * \brief TRUE if odd number of address signals
+	 * \note The odd/even indicator is used when the type of subaddress is
+	 * user_specified and the coding is BCD.
+	 */
+	unsigned char odd_even_indicator;
+	/*! \brief TRUE if the subaddress information is valid/present */
+	unsigned char valid;
+};
+
+/*!
  * \brief Structure for all kinds of caller ID identifications.
  * \note All string fields here are malloc'ed, so they need to be
  * freed when the structure is deleted.
@@ -260,6 +291,16 @@ struct ast_callerid {
 	 * (Field will eventually move to struct ast_channel.dialed.transit_network_select)
 	 */
 	int cid_tns;
+	/*!
+	 * \brief Caller id subaddress.
+	 * (Field will eventually move to struct ast_channel.caller.id.subaddress)
+	 */
+	struct ast_party_subaddress subaddress;
+	/*!
+	 * \brief Dialed/Called subaddress.
+	 * (Field will eventually move to struct ast_channel.dialed.subaddress)
+	 */
+	struct ast_party_subaddress dialed_subaddress;
 };
 
 /*!
@@ -275,6 +316,9 @@ struct ast_party_id {
 
 	/*! \brief Subscriber name (Malloced) */
 	char *name;
+
+	/*! \brief Subscriber subaddress. */
+	struct ast_party_subaddress subaddress;
 
 	/*! \brief Q.931 encoded type-of-number/numbering-plan fields */
 	int number_type;
@@ -2339,6 +2383,67 @@ struct ast_channel *ast_channel_get_by_exten(const char *exten, const char *cont
  */
 void ast_channel_set_linkgroup(struct ast_channel *chan, struct ast_channel *peer);
 
+
+/*!
+ * \since 1.6.3
+ * \brief Initialize the given subaddress structure.
+ *
+ * \param init Subaddress structure to initialize.
+ *
+ * \return Nothing
+ */
+void ast_party_subaddress_init(struct ast_party_subaddress *init);
+
+/*!
+ * \since 1.6.3
+ * \brief Copy the source party subaddress information to the destination party subaddress.
+ *
+ * \param dest Destination party subaddress
+ * \param src Source party subaddress
+ *
+ * \return Nothing
+ */
+void ast_party_subaddress_copy(struct ast_party_subaddress *dest, const struct ast_party_subaddress *src);
+
+/*!
+ * \since 1.6.3
+ * \brief Initialize the given party subadress structure using the given guide
+ * for a set update operation.
+ *
+ * \details
+ * The initialization is needed to allow a set operation to know if a
+ * value needs to be updated.  Simple integers need the guide's original
+ * value in case the set operation is not trying to set a new value.
+ * String values are simply set to NULL pointers if they are not going
+ * to be updated.
+ *
+ * \param init Party Subaddress structure to initialize.
+ * \param guide Source party subaddress to use as a guide in initializing.
+ *
+ * \return Nothing
+ */
+void ast_party_subaddress_set_init(struct ast_party_subaddress *init, const struct ast_party_subaddress *guide);
+
+/*!
+ * \since 1.6.3
+ * \brief Set the source party subaddress information into the destination party subaddress.
+ *
+ * \param dest Destination party subaddress
+ * \param src Source party subaddress
+ *
+ * \return Nothing
+ */
+void ast_party_subaddress_set(struct ast_party_subaddress *dest, const struct ast_party_subaddress *src);
+
+/*!
+ * \since 1.6.3
+ * \brief Destroy the party subaddress contents
+ *
+ * \param doomed The party subaddress to destroy.
+ *
+ * \return Nothing
+ */
+void ast_party_subaddress_free(struct ast_party_subaddress *doomed);
 
 /*!
  * \since 1.6.3

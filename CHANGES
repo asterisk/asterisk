@@ -88,6 +88,8 @@ Dialplan Functions
 ------------------
  * Added new dialplan functions CONNECTEDLINE and REDIRECTING which permits
    setting various connected line and redirecting party information.
+ * CALLERID and CONNECTEDLINE dialplan functions have been extended to
+   support ISDN subaddressing.
  * The CHANNEL() function now supports the "name" option.
  * For DAHDI channels, the CHANNEL() dialplan function now
    supports changing the channel's buffer policy (for the current
@@ -216,6 +218,8 @@ libpri channel driver (chan_dahdi) DAHDI changes
    Number (MSN) list for PTMP CPE interfaces.
  * Added dynamic range compression support for dahdi channels.  It is
    configured via the rxdrc and txdrc parameters in chan_dahdi.conf.
+ * Added support for ISDN calling and called subaddress with partial support
+   for connected line subaddress.
 
 Asterisk Manager Interface
 --------------------------
