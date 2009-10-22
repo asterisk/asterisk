@@ -4764,7 +4764,7 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 	}
 
 	if (!args || !args->no_hangup_chan) {
-		ast_softhangup(c, c->hangupcause ? c->hangupcause : AST_CAUSE_NORMAL_CLEARING);
+		ast_softhangup(c, AST_SOFTHANGUP_APPUNLOAD);
 	}
 
 	if ((!args || !args->no_hangup_chan) &&
