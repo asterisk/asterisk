@@ -146,8 +146,8 @@ like this:
 
 *CLI>
 
-  You can type "help" at any time to get help with the system.  For help
-with a specific command, type "help <command>".  To start the PBX using
+  You can type "core show help" at any time to get help with the system.  For help
+with a specific command, type "core show help <command>".  To start the PBX using
 your sound card, you can type "console dial" to dial the PBX.  Then you can use
 "console answer", "console hangup", and "console dial" to simulate the actions
 of a telephone.  Remember that if you don't have a full duplex sound card
