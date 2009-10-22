@@ -23,6 +23,4 @@
 
  -- Convert all usage of the signal(2) system API to the more portable sigaction(2) system API.
 
- -- Make the applications in utils/ selectable in menuselect and turn off muted by default. Probably others too.
-
  -- Find options and arguments in Asterisk which specify a time period in seconds or milliseconds and convert them to use the new ast_app_parse_timelen() function.
