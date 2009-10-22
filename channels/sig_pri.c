@@ -2718,7 +2718,7 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 	char dest[256]; /* must be same length as p->dialdest */
 	struct ast_party_subaddress dialed_subaddress; /* Called subaddress */
 	struct pri_sr *sr;
-	char *c, *l, *n, *s = NULL;
+	char *c, *l, *n, *s;
 #ifdef SUPPORT_USERUSER
 	const char *useruser;
 #endif
@@ -2745,39 +2745,40 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 	p->dialdest[0] = '\0';
 	p->outgoing = 1;
 
-	/* setup dialed_subaddress if found */
-	ast_party_subaddress_init(&dialed_subaddress);
-	c = strrchr(dest, ':');
-	if (c) {
-		*c = '\0';
-		c++;
-		/* prefix */
-		/* 'n' = NSAP */
-		/* 'U' = odd, 'u'= even */
-		/* Default = NSAP */
-		switch (*c) {
-		case 'U':
-			dialed_subaddress.odd_even_indicator = 1;
-			/* fall through */
-		case 'u':
-			c++;
-			dialed_subaddress.type = 2;
-			break;
-		case 'N':
-		case 'n':
-			c++;
-			/* default already covered with ast_party_subaddress_init */
-			break;
-		}
-		dialed_subaddress.str = c;
-		dialed_subaddress.valid = 1;
-	}
-
 	c = strchr(dest, '/');
 	if (c) {
 		c++;
 	} else {
 		c = "";
+	}
+
+	/* setup dialed_subaddress if found */
+	ast_party_subaddress_init(&dialed_subaddress);
+	s = strchr(c, ':');
+	if (s) {
+		*s = '\0';
+		s++;
+		/* prefix */
+		/* 'n' = NSAP */
+		/* 'U' = odd, 'u'= even */
+		/* Default = NSAP */
+		switch (*s) {
+		case 'U':
+			dialed_subaddress.odd_even_indicator = 1;
+			/* fall through */
+		case 'u':
+			s++;
+			dialed_subaddress.type = 2;
+			break;
+		case 'N':
+		case 'n':
+			s++;
+			/* default already covered with ast_party_subaddress_init */
+			break;
+		}
+		dialed_subaddress.str = s;
+		dialed_subaddress.valid = 1;
+		s = NULL;
 	}
 
 	l = NULL;
