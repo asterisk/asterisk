@@ -685,7 +685,6 @@ static void *internal_ao2_callback(struct ao2_container *c,
 				match &= cb_default(EXTERNAL_OBJ(cur->astobj), arg, flags);
 			}
 
-			/* we found the object, performing operations according flags */
 			if (match == 0) {	/* no match, no stop, continue */
 				continue;
 			} else if (match == CMP_STOP) {	/* no match but stop, we are done */
@@ -693,6 +692,7 @@ static void *internal_ao2_callback(struct ao2_container *c,
 				break;
 			}
 
+			/* we found the object, performing operations according flags */
 			/* we have a match (CMP_MATCH) here */
 			if (!(flags & OBJ_NODATA)) {	/* if must return the object, record the value */
 				/* it is important to handle this case before the unlink */
@@ -719,12 +719,6 @@ static void *internal_ao2_callback(struct ao2_container *c,
 				AST_LIST_REMOVE_CURRENT(entry);
 				/* update number of elements */
 				ast_atomic_fetchadd_int(&c->elements, -1);
-				if (!(flags & OBJ_NODATA)) {
-					if (tag)
-						__ao2_ref_debug(EXTERNAL_OBJ(cur->astobj), -1, tag, file, line, funcname);
-					else
-						__ao2_ref(EXTERNAL_OBJ(cur->astobj), -1);
-				}
 				ast_free(cur);	/* free the link record */
 			}
 
