@@ -156,12 +156,14 @@ struct ast_tcptls_session_instance {
 #define LEN_T size_t
 #endif
 
-/*!
- * \brief A generic client routine for a TCP client
- * and starts a thread for handling accept()
- * \version 1.6.1 changed desc parameter to be of ast_tcptls_session_args type
- */
-struct ast_tcptls_session_instance *ast_tcptls_client_start(struct ast_tcptls_session_args *desc);
+/*! 
+  * \brief attempts to connect and start tcptls session, on error the tcptls_session's
+  * ref count is decremented, fd and file are closed, and NULL is returned.
+  */
+struct ast_tcptls_session_instance *ast_tcptls_client_start(struct ast_tcptls_session_instance *tcptls_session);
+
+/* \brief Creates a client connection's ast_tcptls_session_instance. */
+struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_session_args *desc);
 
 void *ast_tcptls_server_root(void *);
 

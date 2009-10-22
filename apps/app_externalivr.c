@@ -457,9 +457,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		ivr_desc.local_address.sin_family = AF_INET;
 		ivr_desc.local_address.sin_port = htons(port);
 		memcpy(&ivr_desc.local_address.sin_addr.s_addr, hp.hp.h_addr, hp.hp.h_length);
-		ser = ast_tcptls_client_start(&ivr_desc);
-
-		if (!ser) {
+		if (!(ser = ast_tcptls_client_create(&ivr_desc)) || !(ser = ast_tcptls_client_start(ser))) {
 			goto exit;
 		}
 		res = eivr_comm(chan, u, ser->fd, ser->fd, -1, pipe_delim_args, flags);

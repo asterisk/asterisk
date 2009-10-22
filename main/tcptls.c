@@ -125,7 +125,7 @@ static void session_instance_destructor(void *obj)
 *
 * \note must decrement ref count before returning NULL on error
 */
-static void *handle_tls_connection(void *data)
+static void *handle_tcptls_connection(void *data)
 {
 	struct ast_tcptls_session_instance *tcptls_session = data;
 #ifdef DO_SSL
@@ -197,6 +197,7 @@ static void *handle_tls_connection(void *data)
 						ast_log(LOG_ERROR, "Certificate common name did not match (%s)\n", tcptls_session->parent->hostname);
 						if (peer)
 							X509_free(peer);
+						close(tcptls_session->fd);
 						fclose(tcptls_session->f);
 						ao2_ref(tcptls_session, -1);
 						return NULL;
@@ -266,7 +267,7 @@ void *ast_tcptls_server_root(void *data)
 		tcptls_session->client = 0;
 
 		/* This thread is now the only place that controls the single ref to tcptls_session */
-		if (ast_pthread_create_detached_background(&launched, NULL, handle_tls_connection, tcptls_session)) {
+		if (ast_pthread_create_detached_background(&launched, NULL, handle_tcptls_connection, tcptls_session)) {
 			ast_log(LOG_WARNING, "Unable to launch helper thread: %s\n", strerror(errno));
 			close(tcptls_session->fd);
 			ao2_ref(tcptls_session, -1);
@@ -357,9 +358,45 @@ int ast_ssl_setup(struct ast_tls_config *cfg)
 	return __ssl_setup(cfg, 0);
 }
 
-struct ast_tcptls_session_instance *ast_tcptls_client_start(struct ast_tcptls_session_args *desc)
+struct ast_tcptls_session_instance *ast_tcptls_client_start(struct ast_tcptls_session_instance *tcptls_session)
 {
+	struct ast_tcptls_session_args *desc;
 	int flags;
+
+	if (!(desc = tcptls_session->parent)) {
+		goto client_start_error;
+	}
+
+	if (connect(desc->accept_fd, (const struct sockaddr *) &desc->remote_address, sizeof(desc->remote_address))) {
+		ast_log(LOG_ERROR, "Unable to connect %s to %s:%d: %s\n",
+			desc->name,
+			ast_inet_ntoa(desc->remote_address.sin_addr), ntohs(desc->remote_address.sin_port),
+			strerror(errno));
+		goto client_start_error;
+	}
+
+	flags = fcntl(desc->accept_fd, F_GETFL);
+	fcntl(desc->accept_fd, F_SETFL, flags & ~O_NONBLOCK);
+
+	if (desc->tls_cfg) {
+		desc->tls_cfg->enabled = 1;
+		__ssl_setup(desc->tls_cfg, 1);
+	}
+
+	return handle_tcptls_connection(tcptls_session);
+
+client_start_error:
+	close(desc->accept_fd);
+	desc->accept_fd = -1;
+	if (tcptls_session) {
+		ao2_ref(tcptls_session, -1);
+	}
+	return NULL;
+
+}
+
+struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_session_args *desc)
+{
 	int x = 1;
 	struct ast_tcptls_session_instance *tcptls_session = NULL;
 
@@ -394,38 +431,15 @@ struct ast_tcptls_session_instance *ast_tcptls_client_start(struct ast_tcptls_se
 		}
 	}
 
-	if (connect(desc->accept_fd, (const struct sockaddr *) &desc->remote_address, sizeof(desc->remote_address))) {
-		ast_log(LOG_ERROR, "Unable to connect %s to %s:%d: %s\n",
-			desc->name,
-			ast_inet_ntoa(desc->remote_address.sin_addr), ntohs(desc->remote_address.sin_port),
-			strerror(errno));
-		goto error;
-	}
-
 	if (!(tcptls_session = ao2_alloc(sizeof(*tcptls_session), session_instance_destructor)))
 		goto error;
 
 	ast_mutex_init(&tcptls_session->lock);
-
-	flags = fcntl(desc->accept_fd, F_GETFL);
-	fcntl(desc->accept_fd, F_SETFL, flags & ~O_NONBLOCK);
-
+	tcptls_session->client = 1;
 	tcptls_session->fd = desc->accept_fd;
 	tcptls_session->parent = desc;
 	tcptls_session->parent->worker_fn = NULL;
 	memcpy(&tcptls_session->remote_address, &desc->remote_address, sizeof(tcptls_session->remote_address));
-
-	tcptls_session->client = 1;
-
-	if (desc->tls_cfg) {
-		desc->tls_cfg->enabled = 1;
-		__ssl_setup(desc->tls_cfg, 1);
-	}
-
-	/* handle_tls_connection controls the single ref to tcptls_session. If
-	 * tcptls_session returns NULL then the session has been destroyed */
-	if (!(tcptls_session = handle_tls_connection(tcptls_session)))
-		goto error;
 
 	return tcptls_session;
 
