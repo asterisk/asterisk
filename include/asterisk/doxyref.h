@@ -38,6 +38,7 @@
  * \arg \ref ReleasePolicies : Asterisk Release and Commit Policies
  * \arg \ref Reviewboard : Reviewboard Usage and Guidelines
  * \arg \ref MantisWorkflow : Workflow Guidelines for Asterisk Open Source Issue Tracker
+ * \arg \ref AsteriskGitHowto : How to setup a local GIT mirror of the Asterisk SVN repository
  * \arg \ref AstCREDITS : A Thank You to contributors (unfortunately out of date)
  *
  * \section apisandinterfaces Asterisk APIs and Interfaces
