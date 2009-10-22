@@ -9,7 +9,7 @@
 ======================================================================
 
 ------------------------------------------------------------------------------
---- Functionality changes from Asterisk 1.6.2 to Asterisk 1.6.3  -------------
+--- Functionality changes from Asterisk 1.6.2 to Asterisk 1.8 ----------------
 ------------------------------------------------------------------------------
 
 SIP Changes
@@ -83,6 +83,10 @@ Applications
  * The MeetMe application now turns on the DENOISE() function by default, for
    each participant.  In our tests, this has significantly decreased background
    noise (especially noisy data centers).
+ * Voicemail now permits storage of secrets in a separate file, located in the
+   spool directory of each individual user.  The control for this is located in
+   the "passwordlocation" option in voicemail.conf.  Please see the sample
+   configuration for more information.
 
 Dialplan Functions
 ------------------

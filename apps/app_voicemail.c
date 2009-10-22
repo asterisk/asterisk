@@ -471,6 +471,12 @@ enum vm_option_args {
 	OPT_ARG_ARRAY_SIZE = 3,
 };
 
+enum vm_passwordlocation {
+	OPT_PWLOC_VOICEMAILCONF = 0,
+	OPT_PWLOC_SPOOLDIR      = 1,
+	OPT_PWLOC_USERSCONF     = 2,
+};
+
 AST_APP_OPTIONS(vm_app_options, {
 	AST_APP_OPTION('s', OPT_SILENT),
 	AST_APP_OPTION('b', OPT_BUSY_GREETING),
@@ -601,6 +607,7 @@ struct ast_vm_user {
 	int maxmsg;                      /*!< Maximum number of msgs per folder for this mailbox */
 	int maxdeletedmsg;               /*!< Maximum number of deleted msgs saved for this mailbox */
 	int maxsecs;                     /*!< Maximum number of seconds per message for this mailbox */
+	int passwordlocation;            /*!< Storage location of the password */
 #ifdef IMAP_STORAGE
 	char imapuser[80];               /*!< IMAP server login */
 	char imappassword[80];           /*!< IMAP server password if authpassword not defined */
@@ -738,6 +745,7 @@ static int maxgreet;
 static int skipms;
 static int maxlogins;
 static int minpassword;
+static int passwordlocation;
 
 /*! Poll mailboxes for changes since there is something external to
  *  app_voicemail that may change them. */
@@ -838,6 +846,8 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 static void apply_options(struct ast_vm_user *vmu, const char *options);
 static int add_email_attachment(FILE *p, struct ast_vm_user *vmu, char *format, char *attach, char *greeting_attachment, char *mailbox, char *bound, char *filename, int last, int msgnum);
 static int is_valid_dtmf(const char *key);
+static void read_password_from_file(const char *secretfn, char *password, int passwordlen);
+static int write_password_to_file(const char *secretfn, const char *password);
 
 #if !(defined(ODBC_STORAGE) || defined(IMAP_STORAGE))
 static int __has_voicemail(const char *context, const char *mailbox, const char *folder, int shortcircuit);
@@ -875,6 +885,7 @@ static char *strip_control(const char *input, char *buf, size_t buflen)
 static void populate_defaults(struct ast_vm_user *vmu)
 {
 	ast_copy_flags(vmu, (&globalflags), AST_FLAGS_ALL);	
+	vmu->passwordlocation = passwordlocation;
 	if (saydurationminfo)
 		vmu->saydurationm = saydurationminfo;
 	ast_copy_string(vmu->callback, callcontext, sizeof(vmu->callback));
@@ -996,6 +1007,12 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 		}
 	} else if (!strcasecmp(var, "volgain")) {
 		sscanf(value, "%30lf", &vmu->volgain);
+	} else if (!strcasecmp(var, "passwordlocation")) {
+		if (!strcasecmp(value, "spooldir")) {
+			vmu->passwordlocation = OPT_PWLOC_SPOOLDIR;
+		} else {
+			vmu->passwordlocation = OPT_PWLOC_VOICEMAILCONF;
+		}
 	} else if (!strcasecmp(var, "options")) {
 		apply_options(vmu, value);
 	}
@@ -1316,65 +1333,94 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 	char *category = NULL, *value = NULL, *new = NULL;
 	const char *tmp = NULL;
 	struct ast_flags config_flags = { CONFIG_FLAG_WITHCOMMENTS };
+	char secretfn[PATH_MAX] = "";
+	int found = 0;
+
 	if (!change_password_realtime(vmu, newpassword))
 		return;
 
-	/* check voicemail.conf */
-	if ((cfg = ast_config_load(VOICEMAIL_CONFIG, config_flags)) && cfg != CONFIG_STATUS_FILEINVALID) {
-		while ((category = ast_category_browse(cfg, category))) {
-			if (!strcasecmp(category, vmu->context)) {
-				if (!(tmp = ast_variable_retrieve(cfg, category, vmu->mailbox))) {
-					ast_log(AST_LOG_WARNING, "We could not find the mailbox.\n");
-					break;
+	/* check if we should store the secret in the spool directory next to the messages */
+	switch (vmu->passwordlocation) {
+	case OPT_PWLOC_SPOOLDIR:
+		snprintf(secretfn, sizeof(secretfn), "%s%s/%s/secret.conf", VM_SPOOL_DIR, vmu->context, vmu->mailbox);
+		if (write_password_to_file(secretfn, newpassword) == 0) {
+			ast_verb(4, "Writing voicemail password to file %s succeeded\n", secretfn);
+			reset_user_pw(vmu->context, vmu->mailbox, newpassword);
+			ast_copy_string(vmu->password, newpassword, sizeof(vmu->password));
+			break;
+		} else {
+			ast_verb(4, "Writing voicemail password to file %s failed, falling back to config file\n", secretfn);
+		}
+		/* Fall-through */
+	case OPT_PWLOC_VOICEMAILCONF:
+		if ((cfg = ast_config_load(VOICEMAIL_CONFIG, config_flags)) && cfg != CONFIG_STATUS_FILEINVALID) {
+			while ((category = ast_category_browse(cfg, category))) {
+				if (!strcasecmp(category, vmu->context)) {
+					if (!(tmp = ast_variable_retrieve(cfg, category, vmu->mailbox))) {
+						ast_log(AST_LOG_WARNING, "We could not find the mailbox.\n");
+						break;
+					}
+					value = strstr(tmp, ",");
+					if (!value) {
+						ast_log(AST_LOG_WARNING, "variable has bad format.\n");
+						break;
+					}
+					new = alloca((strlen(value) + strlen(newpassword) + 1));
+					sprintf(new, "%s%s", newpassword, value);
+					if (!(cat = ast_category_get(cfg, category))) {
+						ast_log(AST_LOG_WARNING, "Failed to get category structure.\n");
+						break;
+					}
+					ast_variable_update(cat, vmu->mailbox, new, NULL, 0);
+					found = 1;
 				}
-				value = strstr(tmp, ",");
-				if (!value) {
-					ast_log(AST_LOG_WARNING, "variable has bad format.\n");
-					break;
-				}
-				new = alloca((strlen(value)+strlen(newpassword)+1));
-				sprintf(new, "%s%s", newpassword, value);
-				if (!(cat = ast_category_get(cfg, category))) {
-					ast_log(AST_LOG_WARNING, "Failed to get category structure.\n");
-					break;
-				}
-				ast_variable_update(cat, vmu->mailbox, new, NULL, 0);
+			}
+			/* save the results */
+			if (found) {
+				reset_user_pw(vmu->context, vmu->mailbox, newpassword);
+				ast_copy_string(vmu->password, newpassword, sizeof(vmu->password));
+				ast_config_text_file_save(VOICEMAIL_CONFIG, cfg, "AppVoicemail");
+				break;
 			}
 		}
-		/* save the results */
-		reset_user_pw(vmu->context, vmu->mailbox, newpassword);
-		ast_copy_string(vmu->password, newpassword, sizeof(vmu->password));
-		ast_config_text_file_save(VOICEMAIL_CONFIG, cfg, "AppVoicemail");
-	}
-	category = NULL;
-	var = NULL;
-	/* check users.conf and update the password stored for the mailbox*/
-	/* if no vmsecret entry exists create one. */
-	if ((cfg = ast_config_load("users.conf", config_flags)) && cfg != CONFIG_STATUS_FILEINVALID) {
-		ast_debug(4, "we are looking for %s\n", vmu->mailbox);
-		while ((category = ast_category_browse(cfg, category))) {
-			ast_debug(4, "users.conf: %s\n", category);
-			if (!strcasecmp(category, vmu->mailbox)) {
-				if (!(tmp = ast_variable_retrieve(cfg, category, "vmsecret"))) {
-					ast_debug(3, "looks like we need to make vmsecret!\n");
-					var = ast_variable_new("vmsecret", newpassword, "");
-				} 
-				new = alloca(strlen(newpassword)+1);
-				sprintf(new, "%s", newpassword);
-				if (!(cat = ast_category_get(cfg, category))) {
-					ast_debug(4, "failed to get category!\n");
+		/* Fall-through */
+	case OPT_PWLOC_USERSCONF:
+		/* check users.conf and update the password stored for the mailbox */
+		/* if no vmsecret entry exists create one. */
+		if ((cfg = ast_config_load("users.conf", config_flags)) && cfg != CONFIG_STATUS_FILEINVALID) {
+			ast_debug(4, "we are looking for %s\n", vmu->mailbox);
+			for (category = ast_category_browse(cfg, NULL); category; category = ast_category_browse(cfg, category)) {
+				ast_debug(4, "users.conf: %s\n", category);
+				if (!strcasecmp(category, vmu->mailbox)) {
+					if (!(tmp = ast_variable_retrieve(cfg, category, "vmsecret"))) {
+						ast_debug(3, "looks like we need to make vmsecret!\n");
+						var = ast_variable_new("vmsecret", newpassword, "");
+					} else {
+						var = NULL;
+					}
+					new = alloca(strlen(newpassword) + 1);
+					sprintf(new, "%s", newpassword);
+					if (!(cat = ast_category_get(cfg, category))) {
+						ast_debug(4, "failed to get category!\n");
+						ast_free(var);
+						break;
+					}
+					if (!var) {
+						ast_variable_update(cat, "vmsecret", new, NULL, 0);
+					} else {
+						ast_variable_append(cat, var);
+					}
+					found = 1;
 					break;
 				}
-				if (!var)		
-					ast_variable_update(cat, "vmsecret", new, NULL, 0);
-				else
-					ast_variable_append(cat, var);
+			}
+			/* save the results and clean things up */
+			if (found) {
+				reset_user_pw(vmu->context, vmu->mailbox, newpassword);
+				ast_copy_string(vmu->password, newpassword, sizeof(vmu->password));
+				ast_config_text_file_save("users.conf", cfg, "AppVoicemail");
 			}
 		}
-		/* save the results and clean things up */
-		reset_user_pw(vmu->context, vmu->mailbox, newpassword);	
-		ast_copy_string(vmu->password, newpassword, sizeof(vmu->password));
-		ast_config_text_file_save("users.conf", cfg, "AppVoicemail");
 	}
 }
 
@@ -9860,25 +9906,37 @@ static int append_mailbox(const char *context, const char *box, const char *data
 	struct ast_vm_user *vmu;
 	char *mailbox_full;
 	int new = 0, old = 0, urgent = 0;
+	char secretfn[PATH_MAX] = "";
 
 	tmp = ast_strdupa(data);
 
 	if (!(vmu = find_or_create(context, box)))
 		return -1;
-	
+
 	populate_defaults(vmu);
 
 	stringp = tmp;
-	if ((s = strsep(&stringp, ","))) 
+	if ((s = strsep(&stringp, ","))) {
 		ast_copy_string(vmu->password, s, sizeof(vmu->password));
-	if (stringp && (s = strsep(&stringp, ","))) 
+	}
+	if (stringp && (s = strsep(&stringp, ","))) {
 		ast_copy_string(vmu->fullname, s, sizeof(vmu->fullname));
-	if (stringp && (s = strsep(&stringp, ","))) 
+	}
+	if (stringp && (s = strsep(&stringp, ","))) {
 		ast_copy_string(vmu->email, s, sizeof(vmu->email));
-	if (stringp && (s = strsep(&stringp, ","))) 
+	}
+	if (stringp && (s = strsep(&stringp, ","))) {
 		ast_copy_string(vmu->pager, s, sizeof(vmu->pager));
-	if (stringp && (s = strsep(&stringp, ","))) 
+	}
+	if (stringp && (s = strsep(&stringp, ","))) {
 		apply_options(vmu, s);
+	}
+
+	switch (vmu->passwordlocation) {
+	case OPT_PWLOC_SPOOLDIR:
+		snprintf(secretfn, sizeof(secretfn), "%s%s/%s/secret.conf", VM_SPOOL_DIR, vmu->context, vmu->mailbox);
+		read_password_from_file(secretfn, vmu->password, sizeof(vmu->password));
+	}
 
 	mailbox_full = alloca(strlen(box) + strlen(context) + 1);
 	strcpy(mailbox_full, box);
@@ -10563,6 +10621,7 @@ static int load_config(int reload)
 	int x;
 	int tmpadsi[4];
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	char secretfn[PATH_MAX] = "";
 
 	ast_unload_realtime("voicemail");
 	ast_unload_realtime("voicemail_data");
@@ -11061,6 +11120,15 @@ static int load_config(int reload)
 			val = "no";
 		ast_set2_flag((&globalflags), ast_true(val), VM_DIRECFORWARD);	
 
+		if (!(val = ast_variable_retrieve(cfg, "general", "passwordlocation"))) {
+			val = "voicemail.conf";
+		}
+		if (!(strcmp(val, "spooldir"))) {
+			passwordlocation = OPT_PWLOC_SPOOLDIR;
+		} else {
+			passwordlocation = OPT_PWLOC_VOICEMAILCONF;
+		}
+
 		poll_freq = DEFAULT_POLL_FREQ;
 		if ((val = ast_variable_retrieve(cfg, "general", "pollfreq"))) {
 			if (sscanf(val, "%30u", &poll_freq) != 1) {
@@ -11081,6 +11149,15 @@ static int load_config(int reload)
 					populate_defaults(current);
 					apply_options_full(current, ast_variable_browse(ucfg, cat));
 					ast_copy_string(current->context, userscontext, sizeof(current->context));
+					if (!ast_strlen_zero(current->password) && current->passwordlocation == OPT_PWLOC_VOICEMAILCONF) {
+						current->passwordlocation = OPT_PWLOC_USERSCONF;
+					}
+
+					switch (current->passwordlocation) {
+					case OPT_PWLOC_SPOOLDIR:
+						snprintf(secretfn, sizeof(secretfn), "%s%s/%s/secret.conf", VM_SPOOL_DIR, current->context, current->mailbox);
+						read_password_from_file(secretfn, current->password, sizeof(current->password));
+					}
 				}
 			}
 			ast_config_destroy(ucfg);
@@ -11214,6 +11291,47 @@ static int sayname(struct ast_channel *chan, const char *mailbox, const char *co
 	}
 	DISPOSE(dir, -1);
 	return res;
+}
+
+static void read_password_from_file(const char *secretfn, char *password, int passwordlen) {
+	struct ast_config *pwconf;
+	struct ast_flags config_flags = { 0 };
+
+	pwconf = ast_config_load(secretfn, config_flags);
+	if (pwconf) {
+		const char *val = ast_variable_retrieve(pwconf, "general", "password");
+		if (val) {
+			ast_copy_string(password, val, passwordlen);
+ 			return;
+		}
+	}
+	ast_log(LOG_NOTICE, "Failed reading voicemail password from %s, using secret from config file\n", secretfn);
+}
+
+static int write_password_to_file(const char *secretfn, const char *password) {
+	struct ast_config *conf;
+	struct ast_category *cat;
+	struct ast_variable *var;
+
+	if (!(conf=ast_config_new())) {
+		ast_log(LOG_ERROR, "Error creating new config structure\n");
+		return -1;
+	}
+	if (!(cat=ast_category_new("general","",1))) {
+		ast_log(LOG_ERROR, "Error creating new category structure\n");
+		return -1;
+	}
+	if (!(var=ast_variable_new("password",password,""))) {
+		ast_log(LOG_ERROR, "Error creating new variable structure\n");
+		return -1;
+	}
+	ast_category_append(conf,cat);
+	ast_variable_append(cat,var);
+	if (ast_config_text_file_save(secretfn, conf, "app_voicemail")) {
+		ast_log(LOG_ERROR, "Error writing voicemail password to %s\n", secretfn);
+		return -1;
+	}
+	return 0;
 }
 
 static int reload(void)
