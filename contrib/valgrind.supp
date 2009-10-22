@@ -1,0 +1,41 @@
+#
+# _dl_close errors
+#
+
+{
+   dlclose-1
+   Memcheck:Addr1
+   ...
+   fun:dlclose
+   fun:load_dynamic_module
+   ...
+}
+{
+   dlclose-2
+   Memcheck:Addr2
+   ...
+   fun:dlclose
+   fun:load_dynamic_module
+   ...
+}
+{
+   dlclose-4
+   Memcheck:Addr4
+   ...
+   fun:dlclose
+   fun:load_dynamic_module
+   ...
+}
+
+
+#
+# codec_speex
+#
+
+{
+   speex_decode
+   Memcheck:Cond
+   fun:speex_decode_int
+   ...
+}
+
