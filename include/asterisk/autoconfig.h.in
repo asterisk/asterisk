@@ -656,6 +656,13 @@
 /* Define to 1 if you have the ISDN PRI library. */
 #undef HAVE_PRI
 
+/* Define to 1 if you have the ISDN PRI call hold library. */
+#undef HAVE_PRI_CALL_HOLD
+
+/* Define to 1 if you have the ISDN PRI call rerouting and call deflection
+   library. */
+#undef HAVE_PRI_CALL_REROUTING
+
 /* Define to 1 if you have the ISDN PRI set_inbanddisconnect library. */
 #undef HAVE_PRI_INBANDDISCONNECT
 
@@ -667,6 +674,9 @@
 
 /* Define to 1 if you have the ISDN service messages library. */
 #undef HAVE_PRI_SERVICE_MESSAGES
+
+/* Define to 1 if you have the ISDN PRI keypad facility in SETUP library. */
+#undef HAVE_PRI_SETUP_KEYPAD
 
 /* Define to 1 if you have the ISDN PRI subaddressing library. */
 #undef HAVE_PRI_SUBADDR

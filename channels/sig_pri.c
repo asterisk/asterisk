@@ -67,9 +67,12 @@ static int pri_gendigittimeout = 8000;
 #define DCHAN_NOTINALARM  (1 << 0)
 #define DCHAN_UP          (1 << 1)
 
-#define PRI_CHANNEL(p) ((p) & 0xff)
-#define PRI_SPAN(p) (((p) >> 8) & 0xff)
-#define PRI_EXPLICIT(p) (((p) >> 16) & 0x01)
+/* Defines to help decode the encoded event channel id. */
+#define PRI_CHANNEL(p)	((p) & 0xff)
+#define PRI_SPAN(p)		(((p) >> 8) & 0xff)
+#define PRI_EXPLICIT	(1 << 16)
+#define PRI_CIS_CALL	(1 << 17)	/* Call is using the D channel only. */
+#define PRI_HELD_CALL	(1 << 18)
 
 
 #define DCHAN_AVAILABLE	(DCHAN_NOTINALARM | DCHAN_UP)
@@ -90,7 +93,7 @@ static inline void pri_rel(struct sig_pri_pri *pri)
 
 static unsigned int PVT_TO_CHANNEL(struct sig_pri_chan *p)
 {
-	int res = (((p)->prioffset) | ((p)->logicalspan << 8) | (p->mastertrunkgroup ? 0x10000 : 0));
+	int res = (((p)->prioffset) | ((p)->logicalspan << 8) | (p->mastertrunkgroup ? PRI_EXPLICIT : 0));
 	ast_debug(5, "prioffset: %d mastertrunkgroup: %d logicalspan: %d result: %d\n",
 		p->prioffset, p->mastertrunkgroup, p->logicalspan, res);
 
@@ -828,23 +831,51 @@ static void pri_queue_control(struct sig_pri_chan *p, int subclass, struct sig_p
 	pri_queue_frame(p, &f, pri);
 }
 
-static int pri_find_principle(struct sig_pri_pri *pri, int channel)
+static int pri_find_principle(struct sig_pri_pri *pri, int channel, q931_call *call)
 {
 	int x;
-	int span = PRI_SPAN(channel);
-	int principle = -1;
-	int explicit_ds1 = PRI_EXPLICIT(channel);
-	channel = PRI_CHANNEL(channel);
+	int span;
+	int principle;
 
-	if (!explicit_ds1) {
-		int index = pri_active_dchan_index(pri);
-		if (index == -1)
+	if (channel < 0) {
+		/* Channel is not picked yet. */
+		return -1;
+	}
+
+	if (channel & PRI_HELD_CALL) {
+		if (!call) {
+			/* Cannot find a held call without a call. */
 			return -1;
+		}
+		principle = -1;
+		for (x = 0; x < pri->numchans; ++x) {
+			if (pri->pvts[x]
+				&& pri->pvts[x]->call == call) {
+				principle = x;
+				break;
+			}
+		}
+		return principle;
+	}
+
+	span = PRI_SPAN(channel);
+	if (!(channel & PRI_EXPLICIT)) {
+		int index;
+
+		index = pri_active_dchan_index(pri);
+		if (index == -1) {
+			return -1;
+		}
 		span = pri->dchan_logical_span[index];
 	}
 
+	channel = PRI_CHANNEL(channel);
+	principle = -1;
 	for (x = 0; x < pri->numchans; x++) {
-		if (pri->pvts[x] && (pri->pvts[x]->prioffset == channel) && (pri->pvts[x]->logicalspan == span)) {
+		if (pri->pvts[x]
+			&& pri->pvts[x]->prioffset == channel
+			&& pri->pvts[x]->logicalspan == span
+			&& !pri->pvts[x]->no_b_channel) {
 			principle = x;
 			break;
 		}
@@ -853,49 +884,99 @@ static int pri_find_principle(struct sig_pri_pri *pri, int channel)
 	return principle;
 }
 
-static int pri_fixup_principle(struct sig_pri_pri *pri, int principle, q931_call *c)
+static int pri_fixup_principle(struct sig_pri_pri *pri, int principle, q931_call *call)
 {
 	int x;
 
-	if (!c) {
-		if (principle < 0)
-			return -1;
+	if (principle < 0 || pri->numchans <= principle) {
+		/* Out of rannge */
+		return -1;
+	}
+	if (!call) {
+		/* No call */
 		return principle;
 	}
-	if ((principle > -1) &&
-		(principle < pri->numchans) &&
-		(pri->pvts[principle]) &&
-		(pri->pvts[principle]->call == c))
+	if (pri->pvts[principle] && pri->pvts[principle]->call == call) {
+		/* Call is already on the specified principle. */
 		return principle;
-	/* First, check for other bearers */
+	}
+
+	/* Find the old principle location. */
 	for (x = 0; x < pri->numchans; x++) {
-		if (!pri->pvts[x])
+		struct sig_pri_chan *new_chan;
+		struct sig_pri_chan *old_chan;
+
+		if (!pri->pvts[x] || pri->pvts[x]->call != call) {
 			continue;
-		if (pri->pvts[x]->call == c) {
-			/* Found our call */
-			if (principle != x) {
-				struct sig_pri_chan *new_chan = pri->pvts[principle];
-				struct sig_pri_chan *old_chan = pri->pvts[x];
-
-				ast_verb(3, "Moving call from channel %d to channel %d\n",
-					old_chan->channel, new_chan->channel);
-				if (new_chan->owner) {
-					ast_log(LOG_WARNING, "Can't fix up channel from %d to %d because %d is already in use\n",
-						old_chan->channel, new_chan->channel, new_chan->channel);
-					return -1;
-				}
-
-				sig_pri_fixup_chans(old_chan, new_chan);
-				/* Fix it all up now */
-				new_chan->owner = old_chan->owner;
-				old_chan->owner = NULL;
-
-				new_chan->call = old_chan->call;
-				old_chan->call = NULL;
-
-			}
-			return principle;
 		}
+
+		/* Found our call */
+		new_chan = pri->pvts[principle];
+		old_chan = pri->pvts[x];
+
+		ast_verb(3, "Moving call from channel %d to channel %d\n",
+			old_chan->channel, new_chan->channel);
+		if (new_chan->owner) {
+			ast_log(LOG_WARNING,
+				"Can't fix up channel from %d to %d because %d is already in use\n",
+				old_chan->channel, new_chan->channel, new_chan->channel);
+			return -1;
+		}
+
+		sig_pri_fixup_chans(old_chan, new_chan);
+
+		/* Fix it all up now */
+		new_chan->owner = old_chan->owner;
+		old_chan->owner = NULL;
+
+		new_chan->call = old_chan->call;
+		old_chan->call = NULL;
+
+		/* Transfer flags from the old channel. */
+		new_chan->alerting = old_chan->alerting;
+		new_chan->alreadyhungup = old_chan->alreadyhungup;
+		new_chan->isidlecall = old_chan->isidlecall;
+		new_chan->proceeding = old_chan->proceeding;
+		new_chan->progress = old_chan->progress;
+		new_chan->setup_ack = old_chan->setup_ack;
+		new_chan->outgoing = old_chan->outgoing;
+		new_chan->digital = old_chan->digital;
+		old_chan->alerting = 0;
+		old_chan->alreadyhungup = 0;
+		old_chan->isidlecall = 0;
+		old_chan->proceeding = 0;
+		old_chan->progress = 0;
+		old_chan->setup_ack = 0;
+		old_chan->outgoing = 0;
+		old_chan->digital = 0;
+
+		/* More stuff to transfer to the new channel. */
+#if defined(HAVE_PRI_REVERSE_CHARGE)
+		new_chan->reverse_charging_indication = old_chan->reverse_charging_indication;
+#endif	/* defined(HAVE_PRI_REVERSE_CHARGE) */
+#if defined(HAVE_PRI_SETUP_KEYPAD)
+		strcpy(new_chan->keypad_digits, old_chan->keypad_digits);
+#endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
+
+		if (new_chan->no_b_channel) {
+			/* Copy the real channel configuration to the no B channel interface. */
+			new_chan->hidecallerid = old_chan->hidecallerid;
+			new_chan->hidecalleridname = old_chan->hidecalleridname;
+			new_chan->immediate = old_chan->immediate;
+			new_chan->priexclusive = old_chan->priexclusive;
+			new_chan->priindication_oob = old_chan->priindication_oob;
+			new_chan->use_callerid = old_chan->use_callerid;
+			new_chan->use_callingpres = old_chan->use_callingpres;
+			new_chan->stripmsd = old_chan->stripmsd;
+			strcpy(new_chan->context, old_chan->context);
+			strcpy(new_chan->mohinterpret, old_chan->mohinterpret);
+
+			/* Become a member of the old channel span/trunk-group. */
+			new_chan->logicalspan = old_chan->logicalspan;
+			new_chan->mastertrunkgroup = old_chan->mastertrunkgroup;
+		}
+
+		return principle;
 	}
 	ast_log(LOG_WARNING, "Call specified, but not found?\n");
 	return -1;
@@ -957,10 +1038,11 @@ tryanotherpos:
 #endif
 	do {
 		pri->resetpos++;
-	} while ((pri->resetpos < pri->numchans) &&
-		(!pri->pvts[pri->resetpos] ||
-		pri->pvts[pri->resetpos]->call ||
-		pri->pvts[pri->resetpos]->resetting));
+	} while (pri->resetpos < pri->numchans
+		&& (!pri->pvts[pri->resetpos]
+			|| pri->pvts[pri->resetpos]->no_b_channel
+			|| pri->pvts[pri->resetpos]->call
+			|| pri->pvts[pri->resetpos]->resetting));
 	if (pri->resetpos < pri->numchans) {
 #ifdef HAVE_PRI_SERVICE_MESSAGES
 		char db_chan_name[20], db_answer[5], state;
@@ -1002,7 +1084,10 @@ static int pri_find_empty_chan(struct sig_pri_pri *pri, int backwards)
 			break;
 		if (!backwards && (x >= pri->numchans))
 			break;
-		if (pri->pvts[x] && !pri->pvts[x]->inalarm && !pri->pvts[x]->owner) {
+		if (pri->pvts[x]
+			&& !pri->pvts[x]->no_b_channel
+			&& !pri->pvts[x]->inalarm
+			&& !pri->pvts[x]->owner) {
 			ast_debug(1, "Found empty available channel %d/%d\n",
 				pri->pvts[x]->logicalspan, pri->pvts[x]->prioffset);
 			return x;
@@ -1014,6 +1099,71 @@ static int pri_find_empty_chan(struct sig_pri_pri *pri, int backwards)
 	}
 	return -1;
 }
+
+#if defined(HAVE_PRI_CALL_HOLD)
+/*!
+ * \internal
+ * \brief Find or create an empty no-B-channel interface to use.
+ * \since 1.6.3
+ *
+ * \param pri sig_pri span controller to find interface.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ *
+ * \retval array-index into private pointer array on success.
+ * \retval -1 on error.
+ */
+static int pri_find_empty_nobch(struct sig_pri_pri *pri)
+{
+	int idx;
+
+	for (idx = 0; idx < pri->numchans; ++idx) {
+		if (pri->pvts[idx]
+			&& pri->pvts[idx]->no_b_channel
+			&& !pri->pvts[idx]->inalarm
+			&& !pri->pvts[idx]->owner) {
+			ast_debug(1, "Found empty available no B channel interface\n");
+			return idx;
+		}
+	}
+
+	/* Need to create a new interface. */
+	if (pri->calls->new_nobch_intf) {
+		idx = pri->calls->new_nobch_intf(pri);
+	} else {
+		idx = -1;
+	}
+	return idx;
+}
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+
+#if defined(HAVE_PRI_CALL_HOLD)
+/*!
+ * \internal
+ * \brief Find the channel associated with the libpri call.
+ * \since 1.6.3
+ *
+ * \param pri sig_pri span controller to find interface.
+ * \param call LibPRI opaque call pointer to find.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ *
+ * \retval array-index into private pointer array on success.
+ * \retval -1 on error.
+ */
+static int pri_find_pri_call(struct sig_pri_pri *pri, q931_call *call)
+{
+	int idx;
+
+	for (idx = 0; idx < pri->numchans; ++idx) {
+		if (pri->pvts[idx] && pri->pvts[idx]->call == call) {
+			/* Found the channel */
+			return idx;
+		}
+	}
+	return -1;
+}
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
 
 static void *do_idle_thread(void *vchan)
 {
@@ -1309,6 +1459,10 @@ static void sig_pri_lock_owner(struct sig_pri_pri *pri, int chanpos)
  * \param event_id PRI event id
  * \param channel PRI encoded span/channel
  * \param subcmds Subcommands to process if any. (Could be NULL).
+ * \param call_rsp libpri opaque call structure to send any responses toward.
+ * Could be NULL either because it is not available or the call is for the
+ * dummy call reference.  However, this should not be NULL in the cases that
+ * need to use the pointer to send a response message back.
  *
  * \note Assumes the pri->lock is already obtained.
  * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
@@ -1316,7 +1470,7 @@ static void sig_pri_lock_owner(struct sig_pri_pri *pri, int chanpos)
  * \return Nothing
  */
 static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int event_id,
-	int channel, const struct pri_subcommands *subcmds)
+	int channel, const struct pri_subcommands *subcmds, q931_call *call_rsp)
 {
 	int index;
 	struct ast_channel *owner;
@@ -1403,6 +1557,63 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 				ast_channel_unlock(owner);
 			}
 			break;
+#if defined(HAVE_PRI_CALL_REROUTING)
+		case PRI_SUBCMD_REROUTING:
+			sig_pri_lock_owner(pri, chanpos);
+			owner = pri->pvts[chanpos]->owner;
+			if (owner) {
+				struct pri_party_redirecting pri_deflection;
+
+				if (!call_rsp) {
+					ast_channel_unlock(owner);
+					ast_log(LOG_WARNING,
+						"CallRerouting/CallDeflection to '%s' without call!\n",
+						subcmd->u.rerouting.deflection.to.number.str);
+					break;
+				}
+
+				pri_deflection = subcmd->u.rerouting.deflection;
+
+				ast_string_field_set(owner, call_forward, pri_deflection.to.number.str);
+
+				/* Adjust the deflecting to number based upon the subscription option. */
+				switch (subcmd->u.rerouting.subscription_option) {
+				case 0:	/* noNotification */
+				case 1:	/* notificationWithoutDivertedToNr */
+					/* Delete the number because the far end is not supposed to see it. */
+					pri_deflection.to.number.presentation =
+						PRI_PRES_RESTRICTED | PRI_PRES_USER_NUMBER_UNSCREENED;
+					pri_deflection.to.number.plan =
+						(PRI_TON_UNKNOWN << 4) | PRI_NPI_E163_E164;
+					pri_deflection.to.number.str[0] = '\0';
+					break;
+				case 2:	/* notificationWithDivertedToNr */
+					break;
+				case 3:	/* notApplicable */
+				default:
+					break;
+				}
+				sig_pri_redirecting_convert(&ast_redirecting, &pri_deflection,
+					&owner->redirecting, pri);
+				ast_channel_set_redirecting(owner, &ast_redirecting);
+				ast_party_redirecting_free(&ast_redirecting);
+
+				/*
+				 * Send back positive ACK to CallRerouting/CallDeflection.
+				 *
+				 * Note:  This call will be hungup by the dial application when
+				 * it processes the call_forward string set above.
+				 */
+				pri_rerouting_rsp(pri->pri, call_rsp, subcmd->u.rerouting.invoke_id,
+					PRI_REROUTING_RSP_OK_CLEAR);
+
+				/* This line is BUSY to further attempts by this dialing attempt. */
+				ast_queue_control(owner, AST_CONTROL_BUSY);
+
+				ast_channel_unlock(owner);
+			}
+			break;
+#endif	/* defined(HAVE_PRI_CALL_REROUTING) */
 		default:
 			ast_debug(2,
 				"Unknown call subcommand(%d) in %s event on channel %d/%d on span %d.\n",
@@ -1412,6 +1623,220 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 		}
 	}
 }
+
+#if defined(HAVE_PRI_CALL_HOLD)
+/*!
+ * \internal
+ * \brief Attempt to transfer the active call to the held call.
+ * \since 1.6.3
+ *
+ * \param pri sig_pri PRI control structure.
+ * \param active_call Active call to transfer.
+ * \param held_call Held call to transfer.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int sig_pri_attempt_transfer(struct sig_pri_pri *pri, q931_call *active_call, q931_call *held_call)
+{
+	int retval;
+	int active_chanpos;
+	int held_chanpos;
+	struct ast_channel *active_ast;
+	struct ast_channel *held_ast;
+	struct ast_channel *bridged;
+
+	active_chanpos = pri_find_pri_call(pri, active_call);
+	held_chanpos = pri_find_pri_call(pri, held_call);
+	if (active_chanpos < 0 || held_chanpos < 0) {
+		return -1;
+	}
+
+	sig_pri_lock_private(pri->pvts[active_chanpos]);
+	sig_pri_lock_private(pri->pvts[held_chanpos]);
+	sig_pri_lock_owner(pri, active_chanpos);
+	sig_pri_lock_owner(pri, held_chanpos);
+
+	active_ast = pri->pvts[active_chanpos]->owner;
+	held_ast = pri->pvts[held_chanpos]->owner;
+	if (!active_ast || !held_ast) {
+		if (active_ast) {
+			ast_channel_unlock(active_ast);
+		}
+		if (held_ast) {
+			ast_channel_unlock(held_ast);
+		}
+		sig_pri_unlock_private(pri->pvts[active_chanpos]);
+		sig_pri_unlock_private(pri->pvts[held_chanpos]);
+		return -1;
+	}
+
+	bridged = ast_bridged_channel(held_ast);
+	if (bridged) {
+		ast_queue_control(held_ast, AST_CONTROL_UNHOLD);
+
+		ast_verb(3, "TRANSFERRING %s to %s\n", held_ast->name, active_ast->name);
+		retval = ast_channel_masquerade(active_ast, bridged);
+	} else {
+		/*
+		 * Could not transfer.  Held channel is not bridged anymore.
+		 * Held party probably got tired of waiting and hung up.
+		 */
+		retval = -1;
+	}
+
+	ast_channel_unlock(active_ast);
+	ast_channel_unlock(held_ast);
+	sig_pri_unlock_private(pri->pvts[active_chanpos]);
+	sig_pri_unlock_private(pri->pvts[held_chanpos]);
+
+	return retval;
+}
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+
+#if defined(HAVE_PRI_CALL_HOLD)
+/*!
+ * \internal
+ * \brief Handle the hold event from libpri.
+ * \since 1.6.3
+ *
+ * \param pri sig_pri PRI control structure.
+ * \param ev Hold event received.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int sig_pri_handle_hold(struct sig_pri_pri *pri, pri_event *ev)
+{
+	int retval;
+	int chanpos_old;
+	int chanpos_new;
+	struct ast_channel *bridged;
+	struct ast_channel *owner;
+
+	chanpos_old = pri_find_principle(pri, ev->hold.channel, ev->hold.call);
+	if (chanpos_old < 0) {
+		ast_log(LOG_WARNING,
+			"Received HOLD on unconfigured channel %d/%d span %d\n",
+			PRI_SPAN(ev->hold.channel), PRI_CHANNEL(ev->hold.channel), pri->span);
+		return -1;
+	}
+	if (pri->pvts[chanpos_old]->no_b_channel) {
+		/* Call is already on hold or is call waiting call. */
+		return -1;
+	}
+
+	sig_pri_lock_private(pri->pvts[chanpos_old]);
+	sig_pri_lock_owner(pri, chanpos_old);
+	owner = pri->pvts[chanpos_old]->owner;
+	if (!owner) {
+		retval = -1;
+		goto done_with_private;
+	}
+	bridged = ast_bridged_channel(owner);
+	if (!bridged) {
+		/* Cannot hold a call that is not bridged. */
+		retval = -1;
+		goto done_with_owner;
+	}
+	chanpos_new = pri_find_empty_nobch(pri);
+	if (chanpos_new < 0) {
+		/* No hold channel available. */
+		retval = -1;
+		goto done_with_owner;
+	}
+	sig_pri_handle_subcmds(pri, chanpos_old, ev->e, ev->hold.channel, ev->hold.subcmds,
+		ev->hold.call);
+	chanpos_new = pri_fixup_principle(pri, chanpos_new, ev->hold.call);
+	if (chanpos_new < 0) {
+		/* Should never happen. */
+		retval = -1;
+	} else {
+		struct ast_frame f = { AST_FRAME_CONTROL, };
+
+		f.subclass = AST_CONTROL_HOLD;
+		ast_queue_frame(owner, &f);
+		retval = 0;
+	}
+
+done_with_owner:;
+	ast_channel_unlock(owner);
+done_with_private:;
+	sig_pri_unlock_private(pri->pvts[chanpos_old]);
+
+	return retval;
+}
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+
+#if defined(HAVE_PRI_CALL_HOLD)
+/*!
+ * \internal
+ * \brief Handle the retrieve event from libpri.
+ * \since 1.6.3
+ *
+ * \param pri sig_pri PRI control structure.
+ * \param ev Retrieve event received.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ *
+ * \return Nothing
+ */
+static void sig_pri_handle_retrieve(struct sig_pri_pri *pri, pri_event *ev)
+{
+	int chanpos;
+
+	if (!(ev->retrieve.channel & PRI_HELD_CALL)
+		|| pri_find_principle(pri, ev->retrieve.channel, ev->retrieve.call) < 0) {
+		/* The call is not currently held. */
+		pri_retrieve_rej(pri->pri, ev->retrieve.call,
+			PRI_CAUSE_RESOURCE_UNAVAIL_UNSPECIFIED);
+		return;
+	}
+	if (PRI_CHANNEL(ev->retrieve.channel) == 0xFF) {
+		chanpos = pri_find_empty_chan(pri, 1);
+	} else {
+		chanpos = pri_find_principle(pri,
+			ev->retrieve.channel & ~PRI_HELD_CALL, ev->retrieve.call);
+		if (ev->retrieve.flexible
+			&& (chanpos < 0 || pri->pvts[chanpos]->owner)) {
+			/*
+			 * Channel selection is flexible and the requested channel
+			 * is bad or already in use.  Pick another channel.
+			 */
+			chanpos = pri_find_empty_chan(pri, 1);
+		}
+	}
+	if (chanpos < 0) {
+		pri_retrieve_rej(pri->pri, ev->retrieve.call,
+			ev->retrieve.flexible ? PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION
+			: PRI_CAUSE_REQUESTED_CHAN_UNAVAIL);
+		return;
+	}
+	chanpos = pri_fixup_principle(pri, chanpos, ev->retrieve.call);
+	if (chanpos < 0) {
+		/* Channel is already in use. */
+		pri_retrieve_rej(pri->pri, ev->retrieve.call,
+			PRI_CAUSE_REQUESTED_CHAN_UNAVAIL);
+		return;
+	}
+	sig_pri_lock_private(pri->pvts[chanpos]);
+	sig_pri_handle_subcmds(pri, chanpos, ev->e, ev->retrieve.channel,
+		ev->retrieve.subcmds, ev->retrieve.call);
+	{
+		struct ast_frame f = { AST_FRAME_CONTROL, };
+
+		f.subclass = AST_CONTROL_UNHOLD;
+		pri_queue_frame(pri->pvts[chanpos], &f, pri);
+	}
+	sig_pri_unlock_private(pri->pvts[chanpos]);
+	pri_retrieve_ack(pri->pri, ev->retrieve.call,
+		PVT_TO_CHANNEL(pri->pvts[chanpos]));
+}
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
 
 static void *pri_dchannel(void *vpri)
 {
@@ -1489,8 +1914,10 @@ static void *pri_dchannel(void *vpri)
 			haveidles = 0;
 			activeidles = 0;
 			for (x = pri->numchans; x >= 0; x--) {
-				if (pri->pvts[x] && !pri->pvts[x]->owner &&
-					!pri->pvts[x]->call) {
+				if (pri->pvts[x]
+					&& !pri->pvts[x]->owner
+					&& !pri->pvts[x]->call
+					&& !pri->pvts[x]->no_b_channel) {
 					if (haveidles < pri->minunused) {
 						haveidles++;
 					} else if (!pri->pvts[x]->resetting) {
@@ -1643,6 +2070,11 @@ static void *pri_dchannel(void *vpri)
 				pri_find_dchan(pri);
 				if (!pri_is_up(pri)) {
 					pri->resetting = 0;
+					if (pri->sig == SIG_BRI_PTMP) {
+						/* For PTMP connections with non persistent layer 2 we want
+						 * to *not* declare inalarm unless there actually is an alarm */
+						break;
+					}
 					/* Hangup active channels and put them in alarm mode */
 					for (i = 0; i < pri->numchans; i++) {
 						struct sig_pri_chan *p = pri->pvts[i];
@@ -1660,18 +2092,14 @@ static void *pri_dchannel(void *vpri)
 								if (p->owner)
 									ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
 							}
-							/* For PTMP connections with non persistent layer 2 we want
-							 * to *not* declare inalarm unless there actually is an alarm */
-							if (p->pri->sig != SIG_BRI_PTMP) {
-								p->inalarm = 1;
-							}
+							p->inalarm = 1;
 						}
 					}
 				}
 				break;
 			case PRI_EVENT_RESTART:
 				if (e->restart.channel > -1) {
-					chanpos = pri_find_principle(pri, e->restart.channel);
+					chanpos = pri_find_principle(pri, e->restart.channel, NULL);
 					if (chanpos < 0)
 						ast_log(LOG_WARNING, "Restart requested on odd/unavailable channel number %d/%d on span %d\n",
 							PRI_SPAN(e->restart.channel), PRI_CHANNEL(e->restart.channel), pri->span);
@@ -1726,7 +2154,7 @@ static void *pri_dchannel(void *vpri)
 				}
 				break;
 			case PRI_EVENT_KEYPAD_DIGIT:
-				chanpos = pri_find_principle(pri, e->digit.channel);
+				chanpos = pri_find_principle(pri, e->digit.channel, e->digit.call);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "KEYPAD_DIGITs received on unconfigured channel %d/%d span %d\n",
 						PRI_SPAN(e->digit.channel), PRI_CHANNEL(e->digit.channel), pri->span);
@@ -1735,7 +2163,7 @@ static void *pri_dchannel(void *vpri)
 					if (chanpos > -1) {
 						sig_pri_lock_private(pri->pvts[chanpos]);
 						sig_pri_handle_subcmds(pri, chanpos, e->e, e->digit.channel,
-							e->digit.subcmds);
+							e->digit.subcmds, e->digit.call);
 						/* queue DTMF frame if the PBX for this call was already started (we're forwarding KEYPAD_DIGITs further on */
 						if ((pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)
 							&& pri->pvts[chanpos]->call == e->digit.call
@@ -1756,7 +2184,7 @@ static void *pri_dchannel(void *vpri)
 				break;
 
 			case PRI_EVENT_INFO_RECEIVED:
-				chanpos = pri_find_principle(pri, e->ring.channel);
+				chanpos = pri_find_principle(pri, e->ring.channel, e->ring.call);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "INFO received on unconfigured channel %d/%d span %d\n",
 						PRI_SPAN(e->ring.channel), PRI_CHANNEL(e->ring.channel), pri->span);
@@ -1765,7 +2193,7 @@ static void *pri_dchannel(void *vpri)
 					if (chanpos > -1) {
 						sig_pri_lock_private(pri->pvts[chanpos]);
 						sig_pri_handle_subcmds(pri, chanpos, e->e, e->ring.channel,
-							e->ring.subcmds);
+							e->ring.subcmds, e->ring.call);
 						/* queue DTMF frame if the PBX for this call was already started (we're forwarding INFORMATION further on */
 						if ((pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)
 							&& pri->pvts[chanpos]->call == e->ring.call
@@ -1786,7 +2214,7 @@ static void *pri_dchannel(void *vpri)
 				break;
 #ifdef HAVE_PRI_SERVICE_MESSAGES
 			case PRI_EVENT_SERVICE:
-				chanpos = pri_find_principle(pri, e->service.channel);
+				chanpos = pri_find_principle(pri, e->service.channel, NULL);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Received service change status %d on unconfigured channel %d/%d span %d\n",
 						e->service_ack.changestatus, PRI_SPAN(e->service_ack.channel), PRI_CHANNEL(e->service_ack.channel), pri->span);
@@ -1827,7 +2255,7 @@ static void *pri_dchannel(void *vpri)
 				}
 				break;
 			case PRI_EVENT_SERVICE_ACK:
-				chanpos = pri_find_principle(pri, e->service_ack.channel);
+				chanpos = pri_find_principle(pri, e->service_ack.channel, NULL);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Received service acknowledge change status '%d' on unconfigured channel %d/%d span %d\n",
 						e->service_ack.changestatus, PRI_SPAN(e->service_ack.channel), PRI_CHANNEL(e->service_ack.channel), pri->span);
@@ -1850,7 +2278,7 @@ static void *pri_dchannel(void *vpri)
 				if (e->ring.channel == -1)
 					chanpos = pri_find_empty_chan(pri, 1);
 				else
-					chanpos = pri_find_principle(pri, e->ring.channel);
+					chanpos = pri_find_principle(pri, e->ring.channel, e->ring.call);
 				/* if no channel specified find one empty */
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Ring requested on unconfigured channel %d/%d span %d\n",
@@ -2028,9 +2456,14 @@ static void *pri_dchannel(void *vpri)
 #if defined(HAVE_PRI_REVERSE_CHARGE)
 								pri->pvts[chanpos]->reverse_charging_indication = e->ring.reversecharge;
 #endif
+#if defined(HAVE_PRI_SETUP_KEYPAD)
+								ast_copy_string(pri->pvts[chanpos]->keypad_digits,
+									e->ring.keypad_digits,
+									sizeof(pri->pvts[chanpos]->keypad_digits));
+#endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
 
 								sig_pri_handle_subcmds(pri, chanpos, e->e, e->ring.channel,
-									e->ring.subcmds);
+									e->ring.subcmds, e->ring.call);
 							}
 							if (c && !ast_pthread_create_detached(&threadid, NULL, pri_ss_thread, pri->pvts[chanpos])) {
 								ast_verb(3, "Accepting overlap call from '%s' to '%s' on channel %d/%d, span %d\n",
@@ -2121,12 +2554,17 @@ static void *pri_dchannel(void *vpri)
 #if defined(HAVE_PRI_REVERSE_CHARGE)
 								pri->pvts[chanpos]->reverse_charging_indication = e->ring.reversecharge;
 #endif
+#if defined(HAVE_PRI_SETUP_KEYPAD)
+								ast_copy_string(pri->pvts[chanpos]->keypad_digits,
+									e->ring.keypad_digits,
+									sizeof(pri->pvts[chanpos]->keypad_digits));
+#endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
 
 								snprintf(calledtonstr, sizeof(calledtonstr), "%d", e->ring.calledplan);
 								pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
 
 								sig_pri_handle_subcmds(pri, chanpos, e->e, e->ring.channel,
-									e->ring.subcmds);
+									e->ring.subcmds, e->ring.call);
 							}
 							if (c && !ast_pbx_start(c)) {
 								ast_verb(3, "Accepting call from '%s' to '%s' on channel %d/%d, span %d\n",
@@ -2161,7 +2599,7 @@ static void *pri_dchannel(void *vpri)
 				}
 				break;
 			case PRI_EVENT_RINGING:
-				chanpos = pri_find_principle(pri, e->ringing.channel);
+				chanpos = pri_find_principle(pri, e->ringing.channel, e->ringing.call);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Ringing requested on unconfigured channel %d/%d span %d\n",
 						PRI_SPAN(e->ringing.channel), PRI_CHANNEL(e->ringing.channel), pri->span);
@@ -2174,7 +2612,7 @@ static void *pri_dchannel(void *vpri)
 						sig_pri_lock_private(pri->pvts[chanpos]);
 
 						sig_pri_handle_subcmds(pri, chanpos, e->e, e->ringing.channel,
-							e->ringing.subcmds);
+							e->ringing.subcmds, e->ringing.call);
 						sig_pri_set_echocanceller(pri->pvts[chanpos], 1);
 						pri_queue_control(pri->pvts[chanpos], AST_CONTROL_RINGING, pri);
 						pri->pvts[chanpos]->alerting = 1;
@@ -2199,11 +2637,11 @@ static void *pri_dchannel(void *vpri)
 				break;
 			case PRI_EVENT_PROGRESS:
 				/* Get chan value if e->e is not PRI_EVNT_RINGING */
-				chanpos = pri_find_principle(pri, e->proceeding.channel);
+				chanpos = pri_find_principle(pri, e->proceeding.channel, e->proceeding.call);
 				if (chanpos > -1) {
 					sig_pri_lock_private(pri->pvts[chanpos]);
 					sig_pri_handle_subcmds(pri, chanpos, e->e, e->proceeding.channel,
-						e->proceeding.subcmds);
+						e->proceeding.subcmds, e->proceeding.call);
 					if ((!pri->pvts[chanpos]->progress)
 #ifdef PRI_PROGRESS_MASK
 						|| (e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE)
@@ -2248,11 +2686,11 @@ static void *pri_dchannel(void *vpri)
 				}
 				break;
 			case PRI_EVENT_PROCEEDING:
-				chanpos = pri_find_principle(pri, e->proceeding.channel);
+				chanpos = pri_find_principle(pri, e->proceeding.channel, e->proceeding.call);
 				if (chanpos > -1) {
 					sig_pri_lock_private(pri->pvts[chanpos]);
 					sig_pri_handle_subcmds(pri, chanpos, e->e, e->proceeding.channel,
-						e->proceeding.subcmds);
+						e->proceeding.subcmds, e->proceeding.call);
 					if (!pri->pvts[chanpos]->proceeding) {
 						struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROCEEDING, };
 
@@ -2277,7 +2715,7 @@ static void *pri_dchannel(void *vpri)
 				}
 				break;
 			case PRI_EVENT_FACILITY:
-				chanpos = pri_find_principle(pri, e->facility.channel);
+				chanpos = pri_find_principle(pri, e->facility.channel, e->facility.call);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Facility requested on unconfigured channel %d/%d span %d\n",
 						PRI_SPAN(e->facility.channel), PRI_CHANNEL(e->facility.channel), pri->span);
@@ -2288,14 +2726,19 @@ static void *pri_dchannel(void *vpri)
 							PRI_SPAN(e->facility.channel), PRI_CHANNEL(e->facility.channel), pri->span);
 					} else {
 						sig_pri_lock_private(pri->pvts[chanpos]);
+#if defined(HAVE_PRI_CALL_REROUTING)
 						sig_pri_handle_subcmds(pri, chanpos, e->e, e->facility.channel,
-							e->facility.subcmds);
+							e->facility.subcmds, e->facility.subcall);
+#else
+						sig_pri_handle_subcmds(pri, chanpos, e->e, e->facility.channel,
+							e->facility.subcmds, e->facility.call);
+#endif	/* !defined(HAVE_PRI_CALL_REROUTING) */
 						sig_pri_unlock_private(pri->pvts[chanpos]);
 					}
 				}
 				break;
 			case PRI_EVENT_ANSWER:
-				chanpos = pri_find_principle(pri, e->answer.channel);
+				chanpos = pri_find_principle(pri, e->answer.channel, e->answer.call);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Answer on unconfigured channel %d/%d span %d\n",
 						PRI_SPAN(e->answer.channel), PRI_CHANNEL(e->answer.channel), pri->span);
@@ -2308,7 +2751,7 @@ static void *pri_dchannel(void *vpri)
 						sig_pri_lock_private(pri->pvts[chanpos]);
 
 						sig_pri_handle_subcmds(pri, chanpos, e->e, e->answer.channel,
-							e->answer.subcmds);
+							e->answer.subcmds, e->answer.call);
 						pri_queue_control(pri->pvts[chanpos], AST_CONTROL_ANSWER, pri);
 						/* Enable echo cancellation if it's not on already */
 						sig_pri_set_dialing(pri->pvts[chanpos], 0);
@@ -2333,7 +2776,7 @@ static void *pri_dchannel(void *vpri)
 				}
 				break;
 			case PRI_EVENT_HANGUP:
-				chanpos = pri_find_principle(pri, e->hangup.channel);
+				chanpos = pri_find_principle(pri, e->hangup.channel, e->hangup.call);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Hangup requested on unconfigured channel %d/%d span %d\n",
 						PRI_SPAN(e->hangup.channel), PRI_CHANNEL(e->hangup.channel), pri->span);
@@ -2342,7 +2785,7 @@ static void *pri_dchannel(void *vpri)
 					if (chanpos > -1) {
 						sig_pri_lock_private(pri->pvts[chanpos]);
 						sig_pri_handle_subcmds(pri, chanpos, e->e, e->hangup.channel,
-							e->hangup.subcmds);
+							e->hangup.subcmds, e->hangup.call);
 						if (!pri->pvts[chanpos]->alreadyhungup) {
 							/* we're calling here dahdi_hangup so once we get there we need to clear p->call after calling pri_hangup */
 							pri->pvts[chanpos]->alreadyhungup = 1;
@@ -2412,7 +2855,7 @@ static void *pri_dchannel(void *vpri)
 				}
 				break;
 			case PRI_EVENT_HANGUP_REQ:
-				chanpos = pri_find_principle(pri, e->hangup.channel);
+				chanpos = pri_find_principle(pri, e->hangup.channel, e->hangup.call);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Hangup REQ requested on unconfigured channel %d/%d span %d\n",
 						PRI_SPAN(e->hangup.channel), PRI_CHANNEL(e->hangup.channel), pri->span);
@@ -2421,7 +2864,19 @@ static void *pri_dchannel(void *vpri)
 					if (chanpos > -1) {
 						sig_pri_lock_private(pri->pvts[chanpos]);
 						sig_pri_handle_subcmds(pri, chanpos, e->e, e->hangup.channel,
-							e->hangup.subcmds);
+							e->hangup.subcmds, e->hangup.call);
+#if defined(HAVE_PRI_CALL_HOLD)
+						if (e->hangup.call_active && e->hangup.call_held
+							&& pri->hold_disconnect_transfer) {
+							/* We are to transfer the call instead of simply hanging up. */
+							sig_pri_unlock_private(pri->pvts[chanpos]);
+							if (!sig_pri_attempt_transfer(pri, e->hangup.call_active,
+								e->hangup.call_held)) {
+								break;
+							}
+							sig_pri_lock_private(pri->pvts[chanpos]);
+						}
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
 						if (pri->pvts[chanpos]->owner) {
 							pri->pvts[chanpos]->owner->hangupcause = e->hangup.cause;
 							switch (pri->pvts[chanpos]->owner->_state) {
@@ -2484,7 +2939,7 @@ static void *pri_dchannel(void *vpri)
 				}
 				break;
 			case PRI_EVENT_HANGUP_ACK:
-				chanpos = pri_find_principle(pri, e->hangup.channel);
+				chanpos = pri_find_principle(pri, e->hangup.channel, e->hangup.call);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Hangup ACK requested on unconfigured channel number %d/%d span %d\n",
 						PRI_SPAN(e->hangup.channel), PRI_CHANNEL(e->hangup.channel), pri->span);
@@ -2520,7 +2975,7 @@ static void *pri_dchannel(void *vpri)
 				ast_log(LOG_WARNING, "PRI Error on span %d: %s\n", pri->trunkgroup, e->err.err);
 				break;
 			case PRI_EVENT_RESTART_ACK:
-				chanpos = pri_find_principle(pri, e->restartack.channel);
+				chanpos = pri_find_principle(pri, e->restartack.channel, NULL);
 				if (chanpos < 0) {
 					/* Sometime switches (e.g. I421 / British Telecom) don't give us the
 					   channel number, so we have to figure it out...  This must be why
@@ -2567,7 +3022,7 @@ static void *pri_dchannel(void *vpri)
 				}
 				break;
 			case PRI_EVENT_SETUP_ACK:
-				chanpos = pri_find_principle(pri, e->setup_ack.channel);
+				chanpos = pri_find_principle(pri, e->setup_ack.channel, e->setup_ack.call);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Received SETUP_ACKNOWLEDGE on unconfigured channel %d/%d span %d\n",
 						PRI_SPAN(e->setup_ack.channel), PRI_CHANNEL(e->setup_ack.channel), pri->span);
@@ -2576,7 +3031,7 @@ static void *pri_dchannel(void *vpri)
 					if (chanpos > -1) {
 						sig_pri_lock_private(pri->pvts[chanpos]);
 						sig_pri_handle_subcmds(pri, chanpos, e->e, e->setup_ack.channel,
-							e->setup_ack.subcmds);
+							e->setup_ack.subcmds, e->setup_ack.call);
 						pri->pvts[chanpos]->setup_ack = 1;
 						/* Send any queued digits */
 						for (x = 0;x < strlen(pri->pvts[chanpos]->dialdest); x++) {
@@ -2590,14 +3045,23 @@ static void *pri_dchannel(void *vpri)
 				}
 				break;
 			case PRI_EVENT_NOTIFY:
-				chanpos = pri_find_principle(pri, e->notify.channel);
+#if defined(HAVE_PRI_CALL_HOLD)
+				chanpos = pri_find_principle(pri, e->notify.channel, e->notify.call);
+#else
+				chanpos = pri_find_principle(pri, e->notify.channel, NULL);
+#endif	/* !defined(HAVE_PRI_CALL_HOLD) */
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Received NOTIFY on unconfigured channel %d/%d span %d\n",
 						PRI_SPAN(e->notify.channel), PRI_CHANNEL(e->notify.channel), pri->span);
 				} else {
 					sig_pri_lock_private(pri->pvts[chanpos]);
+#if defined(HAVE_PRI_CALL_HOLD)
 					sig_pri_handle_subcmds(pri, chanpos, e->e, e->notify.channel,
-						e->notify.subcmds);
+						e->notify.subcmds, e->notify.call);
+#else
+					sig_pri_handle_subcmds(pri, chanpos, e->e, e->notify.channel,
+						e->notify.subcmds, NULL);
+#endif	/* !defined(HAVE_PRI_CALL_HOLD) */
 					switch (e->notify.info) {
 					case PRI_NOTIFY_REMOTE_HOLD:
 						if (!pri->discardremoteholdretrieval) {
@@ -2619,6 +3083,41 @@ static void *pri_dchannel(void *vpri)
 					sig_pri_unlock_private(pri->pvts[chanpos]);
 				}
 				break;
+#if defined(HAVE_PRI_CALL_HOLD)
+			case PRI_EVENT_HOLD:
+				if (sig_pri_handle_hold(pri, e)) {
+					pri_hold_rej(pri->pri, e->hold.call,
+						PRI_CAUSE_RESOURCE_UNAVAIL_UNSPECIFIED);
+				} else {
+					pri_hold_ack(pri->pri, e->hold.call);
+				}
+				break;
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+#if defined(HAVE_PRI_CALL_HOLD)
+			case PRI_EVENT_HOLD_ACK:
+				ast_debug(1, "Event: HOLD_ACK\n");
+				break;
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+#if defined(HAVE_PRI_CALL_HOLD)
+			case PRI_EVENT_HOLD_REJ:
+				ast_debug(1, "Event: HOLD_REJ\n");
+				break;
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+#if defined(HAVE_PRI_CALL_HOLD)
+			case PRI_EVENT_RETRIEVE:
+				sig_pri_handle_retrieve(pri, e);
+				break;
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+#if defined(HAVE_PRI_CALL_HOLD)
+			case PRI_EVENT_RETRIEVE_ACK:
+				ast_debug(1, "Event: RETRIEVE_ACK\n");
+				break;
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+#if defined(HAVE_PRI_CALL_HOLD)
+			case PRI_EVENT_RETRIEVE_REJ:
+				ast_debug(1, "Event: RETRIEVE_REJ\n");
+				break;
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
 			default:
 				ast_debug(1, "Event: %d\n", e->e);
 				break;
@@ -2727,6 +3226,9 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 	int prilocaldialplan;
 	int ldp_strip;
 	int exclusive;
+#if defined(HAVE_PRI_SETUP_KEYPAD)
+	const char *keypad;
+#endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
 
 	ast_log(LOG_DEBUG, "CALLING CID_NAME: %s CID_NUM:: %s\n", ast->cid.cid_name, ast->cid.cid_num);
 
@@ -2751,6 +3253,34 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 	} else {
 		c = "";
 	}
+
+#if defined(HAVE_PRI_SETUP_KEYPAD)
+	/*
+	 *  v--- c points here
+	 * /[K<keypad-digits>/]extension
+	 */
+	if (c[0] == 'K') {
+		/* Extract the keypad facility digits. */
+		keypad = c + 1;
+		c = strchr(keypad, '/');
+		if (c) {
+			/* Terminate the keypad facility digits. */
+			*c++ = '\0';
+		} else {
+			c = "";
+		}
+		if (ast_strlen_zero(keypad)) {
+			/* What no keypad digits? */
+			keypad = NULL;
+		}
+	} else {
+		keypad = NULL;
+	}
+	/*
+	 *  v--- c points here
+	 * /extension
+	 */
+#endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
 
 	/* setup dialed_subaddress if found */
 	ast_party_subaddress_init(&dialed_subaddress);
@@ -2894,6 +3424,11 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 			pri_sr_set_reversecharge(sr, PRI_REVERSECHARGE_REQUESTED);
 			break;
 #endif
+#if defined(HAVE_PRI_SETUP_KEYPAD)
+		case 'K':
+			/* Reserve this letter for keypad facility digits. */
+			break;
+#endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
 		default:
 			if (isalpha(c[p->stripmsd])) {
 				ast_log(LOG_WARNING, "Unrecognized pridialplan %s modifier: %c\n",
@@ -2903,7 +3438,15 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 		}
 		c++;
 	}
-	pri_sr_set_called(sr, c + p->stripmsd + dp_strip, pridialplan, s ? 1 : 0);
+#if defined(HAVE_PRI_SETUP_KEYPAD)
+	if (keypad) {
+		pri_sr_set_keypad_digits(sr, keypad);
+	}
+	if (!keypad || !ast_strlen_zero(c + p->stripmsd + dp_strip))
+#endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
+	{
+		pri_sr_set_called(sr, c + p->stripmsd + dp_strip, pridialplan, s ? 1 : 0);
+	}
 
 #if defined(HAVE_PRI_SUBADDR)
 	if (dialed_subaddress.valid) {
@@ -3198,8 +3741,8 @@ int sig_pri_answer(struct sig_pri_chan *p, struct ast_channel *ast)
 
 int sig_pri_available(struct sig_pri_chan *p, int channelmatch, ast_group_t groupmatch, int *reason, int *channelmatched, int *groupmatched)
 {
-	/* If no owner definitely available */
-	if (!p->owner && p->pri) {
+	/* If no owner and interface has a B channel then likely available */
+	if (!p->owner && !p->no_b_channel && p->pri) {
 #ifdef HAVE_PRI_SERVICE_MESSAGES
 		char db_chan_name[20], db_answer[5], state;
 		int why = 0;
@@ -3285,6 +3828,12 @@ int sig_pri_start_pri(struct sig_pri_pri *pri)
 #ifdef HAVE_PRI_INBANDDISCONNECT
 		pri_set_inbanddisconnect(pri->dchans[i], pri->inbanddisconnect);
 #endif
+#if defined(HAVE_PRI_CALL_HOLD)
+		pri_hold_enable(pri->dchans[i], 1);
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+#if defined(HAVE_PRI_CALL_REROUTING)
+		pri_reroute_enable(pri->dchans[i], 1);
+#endif	/* defined(HAVE_PRI_CALL_REROUTING) */
 		/* Enslave to master if appropriate */
 		if (i)
 			pri_enslave(pri->dchans[0], pri->dchans[i]);
@@ -3475,19 +4024,11 @@ int pri_send_callrerouting_facility_exec(struct sig_pri_chan *p, enum ast_channe
 		return -1;
 	}
 
-	switch (p->pri->sig) {
-	case SIG_PRI:
-		if (!pri_grab(p, p->pri)) {
-			if (chanstate == AST_STATE_RING) {
-				res = pri_callrerouting_facility(p->pri->pri, p->call, destination, original, reason);
-			}
-			pri_rel(p->pri);
-		} else {
-			ast_log(LOG_DEBUG, "Unable to grab pri to send callrerouting facility on span %d!\n", p->pri->span);
-			sig_pri_unlock_private(p);
-			return -1;
-		}
-		break;
+	if (!pri_grab(p, p->pri)) {
+		res = pri_callrerouting_facility(p->pri->pri, p->call, destination, original, reason);
+		pri_rel(p->pri);
+	} else {
+		ast_log(LOG_DEBUG, "Unable to grab pri to send callrerouting facility on span %d!\n", p->pri->span);
 	}
 
 	sig_pri_unlock_private(p);

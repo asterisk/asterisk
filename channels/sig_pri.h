@@ -76,6 +76,7 @@ struct sig_pri_callback {
 	void (* const set_dnid)(void *pvt, const char *dnid);
 	void (* const set_rdnis)(void *pvt, const char *rdnis);
 	void (* const queue_control)(void *pvt, int subclass);
+	int (* const new_nobch_intf)(struct sig_pri_pri *pri);
 };
 
 #define NUM_DCHANS		4	/*!< No more than 4 d-channels */
@@ -144,6 +145,10 @@ struct sig_pri_chan {
 	/* Internal variables -- Don't touch */
 	/* Probably will need DS0 number, DS1 number, and a few other things */
 	char dialdest[256];				/* Queued up digits for overlap dialing.  They will be sent out as information messages when setup ACK is received */
+#if defined(HAVE_PRI_SETUP_KEYPAD)
+	/*! \brief Keypad digits that came in with the SETUP message. */
+	char keypad_digits[AST_MAX_EXTENSION];
+#endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
 
 	unsigned int alerting:1;		/*!< TRUE if channel is alerting/ringing */
 	unsigned int alreadyhungup:1;	/*!< TRUE if the call has already gone/hungup */
@@ -155,6 +160,8 @@ struct sig_pri_chan {
 
 	unsigned int outgoing:1;
 	unsigned int digital:1;
+	/*! \brief TRUE if this interface has no B channel.  (call hold and call waiting) */
+	unsigned int no_b_channel:1;
 
 	struct ast_channel *owner;
 
@@ -187,6 +194,10 @@ struct sig_pri_pri {
 #ifdef HAVE_PRI_INBANDDISCONNECT
 	unsigned int inbanddisconnect:1;				/*!< Should we support inband audio after receiving DISCONNECT? */
 #endif
+#if defined(HAVE_PRI_CALL_HOLD)
+	/*! \brief TRUE if held calls are transferred on disconnect. */
+	unsigned int hold_disconnect_transfer:1;
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
 	int dialplan;							/*!< Dialing plan */
 	int localdialplan;						/*!< Local dialing plan */
 	char internationalprefix[10];			/*!< country access code ('00' for european dialplans) */
@@ -217,6 +228,16 @@ struct sig_pri_pri {
 	/* Everything after here is internally set */
 	struct pri *dchans[NUM_DCHANS];				/*!< Actual d-channels */
 	struct pri *pri;							/*!< Currently active D-channel */
+	/*!
+	 * List of private structures of the user of this module for no B channel
+	 * interfaces. (hold and call waiting interfaces)
+	 */
+	void *no_b_chan_iflist;
+	/*!
+	 * List of private structures of the user of this module for no B channel
+	 * interfaces. (hold and call waiting interfaces)
+	 */
+	void *no_b_chan_end;
 	int numchans;								/*!< Num of channels we represent */
 	struct sig_pri_chan *pvts[MAX_CHANNELS];	/*!< Member channel pvt structs */
 	pthread_t master;							/*!< Thread of master */

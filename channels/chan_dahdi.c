@@ -684,6 +684,9 @@ struct mwisend_info {
 enum DAHDI_IFLIST {
 	DAHDI_IFLIST_NONE,	/*!< The dahdi_pvt is not in any list. */
 	DAHDI_IFLIST_MAIN,	/*!< The dahdi_pvt is in the main interface list */
+#if defined(HAVE_PRI)
+	DAHDI_IFLIST_NO_B_CHAN,	/*!< The dahdi_pvt is in a no B channel interface list */
+#endif	/* defined(HAVE_PRI) */
 };
 
 struct dahdi_pvt {
@@ -1260,6 +1263,15 @@ struct dahdi_pvt {
 
 static struct dahdi_pvt *iflist = NULL;	/*!< Main interface list start */
 static struct dahdi_pvt *ifend = NULL;	/*!< Main interface list end */
+
+#if defined(HAVE_PRI)
+static struct dahdi_parms_pseudo {
+	int buf_no;					/*!< Number of buffers */
+	int buf_policy;				/*!< Buffer policy */
+	int faxbuf_no;              /*!< Number of Fax buffers */
+	int faxbuf_policy;          /*!< Fax buffer policy */
+} dahdi_pseudo_parms;
+#endif	/* defined(HAVE_PRI) */
 
 /*! \brief Channel configuration from chan_dahdi.conf .
  * This struct is used for parsing the [channels] section of chan_dahdi.conf.
@@ -2762,6 +2774,8 @@ static void my_pri_set_rdnis(void *pvt, const char *rdnis)
 	ast_copy_string(p->rdnis, rdnis, sizeof(p->rdnis));
 }
 
+static int dahdi_new_pri_nobch_channel(struct sig_pri_pri *pri);
+
 static struct sig_pri_callback dahdi_pri_callbacks =
 {
 	.handle_dchan_exception = my_handle_dchan_exception,
@@ -2776,6 +2790,7 @@ static struct sig_pri_callback dahdi_pri_callbacks =
 	.set_callerid = my_pri_set_callerid,
 	.set_dnid = my_pri_set_dnid,
 	.set_rdnis = my_pri_set_rdnis,
+	.new_nobch_intf = dahdi_new_pri_nobch_channel,
 };
 #endif	/* defined(HAVE_PRI) */
 
@@ -4085,6 +4100,14 @@ static void dahdi_enable_ec(struct dahdi_pvt *p)
 	if (p->echocancel.head.tap_length) {
 		switch (p->sig) {
 		case SIG_PRI_LIB_HANDLE_CASES:
+			if (((struct sig_pri_chan *) p->sig_pvt)->no_b_channel) {
+				/*
+				 * PRI nobch pseudo channel.  Does not need ec anyway.
+				 * Does not handle ioctl(DAHDI_AUDIOMODE)
+				 */
+				return;
+			}
+			/* Fall through */
 		case SIG_SS7:
 			x = 1;
 			res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_AUDIOMODE, &x);
@@ -4339,6 +4362,11 @@ static inline int dahdi_confmute(struct dahdi_pvt *p, int muted)
 	x = muted;
 	switch (p->sig) {
 	case SIG_PRI_LIB_HANDLE_CASES:
+		if (((struct sig_pri_chan *) p->sig_pvt)->no_b_channel) {
+			/* PRI nobch pseudo channel.  Does not handle ioctl(DAHDI_AUDIOMODE) */
+			break;
+		}
+		/* Fall through */
 	case SIG_SS7:
 		y = 1;
 		res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_AUDIOMODE, &y);
@@ -4863,6 +4891,101 @@ static void dahdi_iflist_extract(struct dahdi_pvt *pvt)
 #if defined(HAVE_PRI)
 /*!
  * \internal
+ * \brief Insert the given chan_dahdi interface structure into the no B channel list.
+ * \since 1.6.3
+ *
+ * \param pri sig_pri span control structure holding no B channel list.
+ * \param pvt chan_dahdi private interface structure to insert.
+ *
+ * \details
+ * The interface list is a doubly linked list sorted by the chan_dahdi channel number.
+ * Any duplicates are inserted after the existing entries.
+ *
+ * \note The new interface must not already be in the list.
+ *
+ * \return Nothing
+ */
+static void dahdi_nobch_insert(struct sig_pri_pri *pri, struct dahdi_pvt *pvt)
+{
+	struct dahdi_pvt *cur;
+
+	pvt->which_iflist = DAHDI_IFLIST_NO_B_CHAN;
+
+	/* Find place in middle of list for the new interface. */
+	for (cur = pri->no_b_chan_iflist; cur; cur = cur->next) {
+		if (pvt->channel < cur->channel) {
+			/* New interface goes before the current interface. */
+			pvt->prev = cur->prev;
+			pvt->next = cur;
+			if (cur->prev) {
+				/* Insert into the middle of the list. */
+				cur->prev->next = pvt;
+			} else {
+				/* Insert at head of list. */
+				pri->no_b_chan_iflist = pvt;
+			}
+			cur->prev = pvt;
+			return;
+		}
+	}
+
+	/* New interface goes onto the end of the list */
+	pvt->prev = pri->no_b_chan_end;
+	pvt->next = NULL;
+	if (pri->no_b_chan_end) {
+		((struct dahdi_pvt *) pri->no_b_chan_end)->next = pvt;
+	}
+	pri->no_b_chan_end = pvt;
+	if (!pri->no_b_chan_iflist) {
+		/* List was empty */
+		pri->no_b_chan_iflist = pvt;
+	}
+}
+#endif	/* defined(HAVE_PRI) */
+
+#if defined(HAVE_PRI)
+/*!
+ * \internal
+ * \brief Extract the given chan_dahdi interface structure from the no B channel list.
+ * \since 1.6.3
+ *
+ * \param pri sig_pri span control structure holding no B channel list.
+ * \param pvt chan_dahdi private interface structure to extract.
+ *
+ * \note
+ * The given interface structure can be either in the interface list or a stand alone
+ * structure that has not been put in the list if the next and prev pointers are NULL.
+ *
+ * \return Nothing
+ */
+static void dahdi_nobch_extract(struct sig_pri_pri *pri, struct dahdi_pvt *pvt)
+{
+	/* Extract from the forward chain. */
+	if (pvt->prev) {
+		pvt->prev->next = pvt->next;
+	} else if (pri->no_b_chan_iflist == pvt) {
+		/* Node is at the head of the list. */
+		pri->no_b_chan_iflist = pvt->next;
+	}
+
+	/* Extract from the reverse chain. */
+	if (pvt->next) {
+		pvt->next->prev = pvt->prev;
+	} else if (pri->no_b_chan_end == pvt) {
+		/* Node is at the end of the list. */
+		pri->no_b_chan_end = pvt->prev;
+	}
+
+	/* Node is no longer in the list. */
+	pvt->which_iflist = DAHDI_IFLIST_NONE;
+	pvt->prev = NULL;
+	pvt->next = NULL;
+}
+#endif	/* defined(HAVE_PRI) */
+
+#if defined(HAVE_PRI)
+/*!
+ * \internal
  * \brief Unlink the channel interface from the PRI private pointer array.
  * \since 1.6.3
  *
@@ -4906,6 +5029,13 @@ static void destroy_dahdi_pvt(struct dahdi_pvt *pvt)
 	case DAHDI_IFLIST_MAIN:
 		dahdi_iflist_extract(p);
 		break;
+#if defined(HAVE_PRI)
+	case DAHDI_IFLIST_NO_B_CHAN:
+		if (p->pri) {
+			dahdi_nobch_extract(p->pri, p);
+		}
+		break;
+#endif	/* defined(HAVE_PRI) */
 	}
 
 	if (p->sig_pvt) {
@@ -4956,6 +5086,10 @@ static void destroy_channel(struct dahdi_pvt *cur, int now)
 static void destroy_all_channels(void)
 {
 	int chan;
+#if defined(HAVE_PRI)
+	unsigned span;
+	struct sig_pri_pri *pri;
+#endif	/* defined(HAVE_PRI) */
 	struct dahdi_pvt *p;
 
 	while (num_restart_pending) {
@@ -4989,6 +5123,21 @@ static void destroy_all_channels(void)
 	}
 	ifcount = 0;
 	ast_mutex_unlock(&iflock);
+
+#if defined(HAVE_PRI)
+	/* Destroy all of the no B channel interface lists */
+	for (span = 0; span < NUM_SPANS; ++span) {
+		pri = &pris[span].pri;
+		ast_mutex_lock(&pri->lock);
+		while (pri->no_b_chan_iflist) {
+			p = pri->no_b_chan_iflist;
+
+			/* Free associated memory */
+			destroy_dahdi_pvt(p);
+		}
+		ast_mutex_unlock(&pri->lock);
+	}
+#endif	/* defined(HAVE_PRI) */
 }
 
 #if defined(HAVE_PRI)
@@ -5024,7 +5173,7 @@ static char *dahdi_send_callrerouting_facility_app = "DAHDISendCallreroutingFaci
 static int dahdi_send_callrerouting_facility_exec(struct ast_channel *chan, const char *data)
 {
 	/* Data will be our digit string */
-	struct dahdi_pvt *p;
+	struct dahdi_pvt *pvt;
 	char *parse;
 	int res = -1;
 	AST_DECLARE_APP_ARGS(args,
@@ -5037,11 +5186,21 @@ static int dahdi_send_callrerouting_facility_exec(struct ast_channel *chan, cons
 		ast_log(LOG_DEBUG, "No data sent to application!\n");
 		return -1;
 	}
-
-	p = (struct dahdi_pvt *)chan->tech_pvt;
-
-	if (!p) {
+	if (chan->tech != &dahdi_tech) {
+		ast_log(LOG_DEBUG, "Only DAHDI technology accepted!\n");
+		return -1;
+	}
+	pvt = (struct dahdi_pvt *) chan->tech_pvt;
+	if (!pvt) {
 		ast_log(LOG_DEBUG, "Unable to find technology private\n");
+		return -1;
+	}
+	switch (pvt->sig) {
+	case SIG_PRI_LIB_HANDLE_CASES:
+		break;
+	default:
+		ast_log(LOG_DEBUG, "callrerouting attempted on non-ISDN channel %s\n",
+			chan->name);
 		return -1;
 	}
 
@@ -5063,7 +5222,8 @@ static int dahdi_send_callrerouting_facility_exec(struct ast_channel *chan, cons
 		args.reason = NULL;
 	}
 
-	pri_send_callrerouting_facility_exec(p->sig_pvt, chan->_state, args.destination, args.original, args.reason);
+	pri_send_callrerouting_facility_exec(pvt->sig_pvt, chan->_state, args.destination,
+		args.original, args.reason);
 
 	return res;
 }
@@ -5865,6 +6025,12 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 		ast_dsp_set_digitmode(p->dsp, ((*cp) ? DSP_DIGITMODE_RELAXDTMF : DSP_DIGITMODE_DTMF) | p->dtmfrelax);
 		break;
 	case AST_OPTION_AUDIO_MODE:  /* Set AUDIO mode (or not) */
+		if (dahdi_sig_pri_lib_handles(p->sig)
+			&& ((struct sig_pri_chan *) p->sig_pvt)->no_b_channel) {
+			/* PRI nobch pseudo channel.  Does not handle ioctl(DAHDI_AUDIOMODE) */
+			break;
+		}
+
 		cp = (char *) data;
 		if (!*cp) {
 			ast_debug(1, "Set option AUDIO MODE, value: OFF(0) on %s\n", chan->name);
@@ -5954,6 +6120,7 @@ static int dahdi_func_read(struct ast_channel *chan, const char *function, char 
 		ast_mutex_lock(&p->lock);
 		snprintf(buf, len, "%f", p->txgain);
 		ast_mutex_unlock(&p->lock);
+#if defined(HAVE_PRI)
 #if defined(HAVE_PRI_REVERSE_CHARGE)
 	} else if (!strcasecmp(data, "reversecharge")) {
 		ast_mutex_lock(&p->lock);
@@ -5968,6 +6135,22 @@ static int dahdi_func_read(struct ast_channel *chan, const char *function, char 
 		}
 		ast_mutex_unlock(&p->lock);
 #endif
+#if defined(HAVE_PRI_SETUP_KEYPAD)
+	} else if (!strcasecmp(data, "keypad_digits")) {
+		ast_mutex_lock(&p->lock);
+		switch (p->sig) {
+		case SIG_PRI_LIB_HANDLE_CASES:
+			ast_copy_string(buf, ((struct sig_pri_chan *) p->sig_pvt)->keypad_digits,
+				len);
+			break;
+		default:
+			*buf = '\0';
+			res = -1;
+			break;
+		}
+		ast_mutex_unlock(&p->lock);
+#endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
+#endif	/* defined(HAVE_PRI) */
 	} else {
 		*buf = '\0';
 		res = -1;
@@ -6224,6 +6407,21 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 		ast_channel_unlock(c1);
 		ast_log(LOG_NOTICE, "Avoiding deadlock...\n");
 		return AST_BRIDGE_RETRY;
+	}
+
+	if ((dahdi_sig_pri_lib_handles(p0->sig)
+			&& ((struct sig_pri_chan *) p0->sig_pvt)->no_b_channel)
+		|| (dahdi_sig_pri_lib_handles(p1->sig)
+			&& ((struct sig_pri_chan *) p1->sig_pvt)->no_b_channel)) {
+		/*
+		 * PRI nobch channels (hold and call waiting) are equivalent to
+		 * pseudo channels and cannot be done here.
+		 */
+		ast_mutex_unlock(&p0->lock);
+		ast_mutex_unlock(&p1->lock);
+		ast_channel_unlock(c0);
+		ast_channel_unlock(c1);
+		return AST_BRIDGE_FAILED_NOWARN;
 	}
 
 	if ((oi0 == SUB_REAL) && (oi1 == SUB_REAL)) {
@@ -11115,6 +11313,10 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 #ifdef HAVE_PRI_INBANDDISCONNECT
 						pris[span].pri.inbanddisconnect = conf->pri.pri.inbanddisconnect;
 #endif
+#if defined(HAVE_PRI_CALL_HOLD)
+						pris[span].pri.hold_disconnect_transfer =
+							conf->pri.pri.hold_disconnect_transfer;
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
 						pris[span].pri.facilityenable = conf->pri.pri.facilityenable;
 						ast_copy_string(pris[span].pri.msn_list, conf->pri.pri.msn_list, sizeof(pris[span].pri.msn_list));
 						ast_copy_string(pris[span].pri.idledial, conf->pri.pri.idledial, sizeof(pris[span].pri.idledial));
@@ -11520,6 +11722,16 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 			ast_copy_string(pchan->mohinterpret, tmp->mohinterpret, sizeof(pchan->mohinterpret));
 			pchan->stripmsd = tmp->stripmsd;
 		}
+		if (tmp->channel == CHAN_PSEUDO) {
+			/*
+			 * Save off pseudo channel buffer policy values for dynamic creation of
+			 * no B channel interfaces.
+			 */
+			dahdi_pseudo_parms.buf_no = tmp->buf_no;
+			dahdi_pseudo_parms.buf_policy = tmp->buf_policy;
+			dahdi_pseudo_parms.faxbuf_no = tmp->faxbuf_no;
+			dahdi_pseudo_parms.faxbuf_policy = tmp->faxbuf_policy;
+		}
 #endif	/* defined(HAVE_PRI) */
 	}
 	if (tmp && !here) {
@@ -11590,6 +11802,110 @@ static inline int available(struct dahdi_pvt *p, int channelmatch, ast_group_t g
 
 	return 0;
 }
+
+#if defined(HAVE_PRI)
+/*!
+ * \internal
+ * \brief Create a no B channel interface.
+ * \since 1.6.3
+ *
+ * \param pri sig_pri span controller to add interface.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ *
+ * \retval array-index into private pointer array on success.
+ * \retval -1 on error.
+ */
+static int dahdi_new_pri_nobch_channel(struct sig_pri_pri *pri)
+{
+	int pvt_idx;
+	int res;
+	unsigned idx;
+	struct dahdi_pvt *pvt;
+	struct sig_pri_chan *chan;
+	struct dahdi_bufferinfo bi;
+
+	static int nobch_channel = CHAN_PSEUDO;
+
+	/* Find spot in the private pointer array for new interface. */
+	for (pvt_idx = 0; pvt_idx < pri->numchans; ++pvt_idx) {
+		if (!pri->pvts[pvt_idx]) {
+			break;
+		}
+	}
+	if (pri->numchans == pvt_idx) {
+		if (MAX_CHANNELS <= pvt_idx) {
+			ast_log(LOG_ERROR, "Unable to add a no-B-channel interface!\n");
+			return -1;
+		}
+
+		/* Add new spot to the private pointer array. */
+		pri->pvts[pvt_idx] = NULL;
+		++pri->numchans;
+	}
+
+	pvt = ast_calloc(1, sizeof(*pvt));
+	if (!pvt) {
+		return -1;
+	}
+	ast_mutex_init(&pvt->lock);
+	for (idx = 0; idx < ARRAY_LEN(pvt->subs); ++idx) {
+		pvt->subs[idx].dfd = -1;
+	}
+	pvt->buf_no = dahdi_pseudo_parms.buf_no;
+	pvt->buf_policy = dahdi_pseudo_parms.buf_policy;
+	pvt->faxbuf_no = dahdi_pseudo_parms.faxbuf_no;
+	pvt->faxbuf_policy = dahdi_pseudo_parms.faxbuf_policy;
+
+	chan = sig_pri_chan_new(pvt, &dahdi_pri_callbacks, pri, 0, 0, 0);
+	if (!chan) {
+		destroy_dahdi_pvt(pvt);
+		return -1;
+	}
+	chan->no_b_channel = 1;
+
+	pvt->sig = pri->sig;
+	pvt->pri = pri;
+	pvt->sig_pvt = chan;
+	pri->pvts[pvt_idx] = chan;
+
+	pvt->subs[SUB_REAL].dfd = dahdi_open("/dev/dahdi/pseudo");
+	if (pvt->subs[SUB_REAL].dfd < 0) {
+		ast_log(LOG_ERROR, "Unable to open no B channel interface pseudo channel: %s\n",
+			strerror(errno));
+		destroy_dahdi_pvt(pvt);
+		return -1;
+	}
+	memset(&bi, 0, sizeof(bi));
+	res = ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_GET_BUFINFO, &bi);
+	if (!res) {
+		pvt->bufsize = bi.bufsize;
+		bi.txbufpolicy = pvt->buf_policy;
+		bi.rxbufpolicy = pvt->buf_policy;
+		bi.numbufs = pvt->buf_no;
+		res = ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_SET_BUFINFO, &bi);
+		if (res < 0) {
+			ast_log(LOG_WARNING,
+				"Unable to set buffer policy on no B channel interface: %s\n",
+				strerror(errno));
+		}
+	} else
+		ast_log(LOG_WARNING,
+			"Unable to check buffer policy on no B channel interface: %s\n",
+			strerror(errno));
+
+	--nobch_channel;
+	if (CHAN_PSEUDO < nobch_channel) {
+		nobch_channel = CHAN_PSEUDO - 1;
+	}
+	pvt->channel = nobch_channel;
+	chan->channel = pvt->channel;
+
+	dahdi_nobch_insert(pri, pvt);
+
+	return pvt_idx;
+}
+#endif	/* defined(HAVE_PRI) */
 
 /* This function can *ONLY* be used for copying pseudo (CHAN_PSEUDO) private
    structures; it makes no attempt to safely copy regular channel private
@@ -15771,7 +16087,12 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 					confp->chan.sig = SIG_BRI_PTMP;
 					confp->pri.pri.nodetype = PRI_CPE;
 				} else if (!strcasecmp(v->value, "bri_net_ptmp")) {
+#if defined(HAVE_PRI_CALL_HOLD)
+					confp->chan.sig = SIG_BRI_PTMP;
+					confp->pri.pri.nodetype = PRI_NETWORK;
+#else
 					ast_log(LOG_WARNING, "How cool would it be if someone implemented this mode!  For now, sucks for you. (line %d)\n", v->lineno);
+#endif	/* !defined(HAVE_PRI_CALL_HOLD) */
 #endif
 #ifdef HAVE_SS7
 				} else if (!strcasecmp(v->value, "ss7")) {
@@ -16004,6 +16325,10 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 #endif /* PRI_GETSET_TIMERS */
 			} else if (!strcasecmp(v->name, "facilityenable")) {
 				confp->pri.pri.facilityenable = ast_true(v->value);
+#if defined(HAVE_PRI_CALL_HOLD)
+			} else if (!strcasecmp(v->name, "hold_disconnect_transfer")) {
+				confp->pri.pri.hold_disconnect_transfer = ast_true(v->value);
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
 #endif /* HAVE_PRI */
 #ifdef HAVE_SS7
 			} else if (!strcasecmp(v->name, "ss7type")) {

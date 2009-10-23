@@ -182,6 +182,12 @@
 ;
 ;inbanddisconnect=yes
 ;
+; Allow a held call to be transferred to the active call on disconnect.
+; This is useful on BRI PTMP NT lines where an ISDN phone can simulate the
+; transfer feature of an analog phone.
+; The default is no.
+;hold_disconnect_transfer=yes
+;
 ; PRI Out of band indications.
 ; Enable this to report Busy and Congestion on a PRI using out-of-band
 ; notification. Inband indication, as used by Asterisk doesn't seem to work

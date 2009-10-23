@@ -224,6 +224,16 @@ libpri channel driver (chan_dahdi) DAHDI changes
    configured via the rxdrc and txdrc parameters in chan_dahdi.conf.
  * Added support for ISDN calling and called subaddress with partial support
    for connected line subaddress.
+ * Added support for BRI PTMP NT mode. (Requires latest LibPRI.)
+ * Added handling of received HOLD/RETRIEVE messages and the optional ability
+   to transfer a held call on disconnect similar to an analog phone.
+ * Added CallRerouting/CallDeflection support for Q.SIG, ETSI PTP, ETSI PTMP.
+   Will reroute/deflect an outgoing call when receive the message.
+   Can use the DAHDISendCallreroutingFacility to send the message for the
+   supported switches.
+ * Added ability to send/receive keypad digits in the SETUP message.
+   Send keypad digits in SETUP message: Dial(DAHDI/g1[/K<keypad_digits>][/extension])
+   Access any received keypad digits in SETUP message by: ${CHANNEL(keypad_digits)}
 
 Asterisk Manager Interface
 --------------------------
