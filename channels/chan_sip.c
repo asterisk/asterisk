@@ -14980,6 +14980,7 @@ static char *sip_show_tcp(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 			(th->tcptls_session->client ? "Client" : "Server"));
 		ao2_t_ref(th, -1, "decrement ref from iterator");
 	}
+	ao2_iterator_destroy(&i);
 
 	return CLI_SUCCESS;
 #undef FORMAT
@@ -22934,7 +22935,7 @@ static int sip_prepare_socket(struct sip_pvt *p)
 {
 	struct sip_socket *s = &p->socket;
 	static const char name[] = "SIP socket";
-	struct sip_threadinfo *th;
+	struct sip_threadinfo *th = NULL;
 	struct ast_tcptls_session_instance *tcptls_session;
 	struct ast_tcptls_session_args tmp_ca = {
 		.name = name,
