@@ -322,8 +322,8 @@ makeopts: configure
 	@echo "****"
 	@exit 1
 
-menuselect.makeopts: menuselect/menuselect menuselect-tree
-	menuselect/menuselect --check-deps menuselect.makeopts $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS)
+menuselect.makeopts: menuselect/menuselect menuselect-tree makeopts build_tools/menuselect-deps $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS)
+	menuselect/menuselect --check-deps $@ $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS)
 
 $(MOD_SUBDIRS_EMBED_LDSCRIPT):
 	+@echo "EMBED_LDSCRIPTS+="`$(SUBMAKE) -C $(@:-embed-ldscript=) SUBDIR=$(@:-embed-ldscript=) __embed_ldscript` >> makeopts.embed_rules
@@ -775,6 +775,29 @@ menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(di
 	@cat sounds/sounds.xml >> $@
 	@echo "</menu>" >> $@
 
-.PHONY: menuselect main sounds clean dist-clean distclean all prereqs cleantest uninstall _uninstall uninstall-all dont-optimize $(SUBDIRS_INSTALL) $(SUBDIRS_DIST_CLEAN) $(SUBDIRS_CLEAN) $(SUBDIRS_UNINSTALL) $(SUBDIRS) $(MOD_SUBDIRS_EMBED_LDSCRIPT) $(MOD_SUBDIRS_EMBED_LDFLAGS) $(MOD_SUBDIRS_EMBED_LIBS) badshell menuselect.makeopts installdirs _clean
+.PHONY: menuselect
+.PHONY: main
+.PHONY: sounds
+.PHONY: clean
+.PHONY: dist-clean
+.PHONY: distclean
+.PHONY: all
+.PHONY: prereqs
+.PHONY: cleantest
+.PHONY: uninstall
+.PHONY: _uninstall
+.PHONY: uninstall-all
+.PHONY: dont-optimize
+.PHONY: badshell
+.PHONY: installdirs
+.PHONY: _clean
+.PHONY: $(SUBDIRS_INSTALL)
+.PHONY: $(SUBDIRS_DIST_CLEAN)
+.PHONY: $(SUBDIRS_CLEAN)
+.PHONY: $(SUBDIRS_UNINSTALL)
+.PHONY: $(SUBDIRS)
+.PHONY: $(MOD_SUBDIRS_EMBED_LDSCRIPT)
+.PHONY: $(MOD_SUBDIRS_EMBED_LDFLAGS)
+.PHONY: $(MOD_SUBDIRS_EMBED_LIBS)
 
 FORCE:
