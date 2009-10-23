@@ -369,8 +369,8 @@ makeopts: configure
 	@echo "****"
 	@exit 1
 
-menuselect.makeopts: menuselect/menuselect menuselect-tree makeopts
-	menuselect/menuselect --check-deps menuselect.makeopts $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS)
+menuselect.makeopts: menuselect/menuselect menuselect-tree makeopts build_tools/menuselect-deps $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS)
+	menuselect/menuselect --check-deps $@ $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS)
 
 $(MOD_SUBDIRS_EMBED_LDSCRIPT):
 	+@echo "EMBED_LDSCRIPTS+="`$(SILENTMAKE) -C $(@:-embed-ldscript=) SUBDIR=$(@:-embed-ldscript=) __embed_ldscript` >> makeopts.embed_rules
@@ -960,7 +960,32 @@ pdf: asterisk.pdf
 asterisk.pdf:
 	$(MAKE) -C doc/tex asterisk.pdf
 
-.PHONY: menuselect menuselect.makeopts main sounds clean dist-clean distclean all prereqs cleantest uninstall _uninstall uninstall-all pdf dont-optimize $(SUBDIRS_INSTALL) $(SUBDIRS_DIST_CLEAN) $(SUBDIRS_CLEAN) $(SUBDIRS_UNINSTALL) $(SUBDIRS) $(MOD_SUBDIRS_EMBED_LDSCRIPT) $(MOD_SUBDIRS_EMBED_LDFLAGS) $(MOD_SUBDIRS_EMBED_LIBS) badshell installdirs validate-docs _clean
+.PHONY: menuselect
+.PHONY: main
+.PHONY: sounds
+.PHONY: clean
+.PHONY: dist-clean
+.PHONY: distclean
+.PHONY: all
+.PHONY: prereqs
+.PHONY: cleantest
+.PHONY: uninstall
+.PHONY: _uninstall
+.PHONY: uninstall-all
+.PHONY: pdf
+.PHONY: dont-optimize
+.PHONY: badshell
+.PHONY: installdirs
+.PHONY: validate-docs
+.PHONY: _clean
+.PHONY: $(SUBDIRS_INSTALL)
+.PHONY: $(SUBDIRS_DIST_CLEAN)
+.PHONY: $(SUBDIRS_CLEAN)
+.PHONY: $(SUBDIRS_UNINSTALL)
+.PHONY: $(SUBDIRS)
+.PHONY: $(MOD_SUBDIRS_EMBED_LDSCRIPT)
+.PHONY: $(MOD_SUBDIRS_EMBED_LDFLAGS)
+.PHONY: $(MOD_SUBDIRS_EMBED_LIBS)
 
 FORCE:
 
