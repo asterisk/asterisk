@@ -7522,55 +7522,6 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	return p;
 }
 
-/*! \brief argument to the helper function to identify a call */
-struct find_call_cb_arg {
-	enum sipmethod method;
-	const char *callid;
-	const char *fromtag;
-	const char *totag;
-	const char *tag;
-};
-
-/*!
- * code to determine whether this is the pvt that we are looking for.
- * Return FALSE if not found, true otherwise. p is unlocked.
- */
-static int find_call_cb(void *__pvt, void *__arg, int flags)
-{
-	struct sip_pvt *p = __pvt;
-	struct find_call_cb_arg *arg = __arg;
-	/* In pedantic, we do not want packets with bad syntax to be connected to a PVT */
-	int found = FALSE;
-	
-	if (!ast_strlen_zero(p->callid)) { /* XXX double check, do we allow match on empty p->callid ? */
-		if (arg->method == SIP_REGISTER)
- 	  	  	found = (!strcmp(p->callid, arg->callid));
-		else {
- 	  		found = !strcmp(p->callid, arg->callid);
-			if (sip_cfg.pedanticsipchecking && found) {
-				found = ast_strlen_zero(arg->tag) || ast_strlen_zero(p->theirtag) || !ast_test_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED) || !strcmp(p->theirtag, arg->tag);
-			}
-		}
-		
-		ast_debug(5, "= %s Their Call ID: %s Their Tag %s Our tag: %s\n", found ? "Found" : "No match", p->callid, p->theirtag, p->tag);
-		
-		/* If we get a new request within an existing to-tag - check the to tag as well */
-		if (sip_cfg.pedanticsipchecking && found && arg->method != SIP_RESPONSE) { /* SIP Request */
- 	  	  	if (p->tag[0] == '\0' && arg->totag[0]) {
-				/* We have no to tag, but they have. Wrong dialog */
-				found = FALSE;
-  	  	  	} else if (arg->totag[0]) { /* Both have tags, compare them */
-				if (strcmp(arg->totag, p->tag)) {
-					found = FALSE; /* This is not our packet */
-				}
-			}
-			if (!found)
-				ast_debug(5, "= Being pedantic: This is not our match on request: Call ID: %s Ourtag <null> Totag %s Method %s\n", p->callid, arg->totag, sip_methods[arg->method].text);
-		}
-	}
- 	return found;
-}
-
 /*! \brief find or create a dialog structure for an incoming SIP message.
  * Connect incoming SIP message to current dialog or create new dialog structure
  * Returns a reference to the sip_pvt object, remember to give it back once done.
@@ -7582,7 +7533,6 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	char *tag = "";	/* note, tag is never NULL */
 	char totag[128];
 	char fromtag[128];
-	struct find_call_cb_arg arg;
 	const char *callid = get_header(req, "Call-ID");
 	const char *from = get_header(req, "From");
 	const char *to = get_header(req, "To");
@@ -7594,12 +7544,6 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	if (ast_strlen_zero(callid) || ast_strlen_zero(to) ||
 			ast_strlen_zero(from) || ast_strlen_zero(cseq))
 		return NULL;	/* Invalid packet */
-
-	arg.method = req->method;
-	arg.callid = callid;
-	arg.fromtag = fromtag;
-	arg.totag = totag;
-	arg.tag = ""; /* make sure tag is never NULL */
 
 	if (sip_cfg.pedanticsipchecking) {
 		/* In principle Call-ID's uniquely identify a call, but with a forking SIP proxy
@@ -7628,11 +7572,10 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 		}
 	}
 
-restartsearch:
 	if (!sip_cfg.pedanticsipchecking) {
 		struct sip_pvt tmp_dialog = {
 			.callid = callid,
-		};			
+		};
 		sip_pvt_ptr = ao2_t_find(dialogs, &tmp_dialog, OBJ_POINTER, "ao2_find in dialogs");
 		if (sip_pvt_ptr) {  /* well, if we don't find it-- what IS in there? */
 			/* Found the call */
@@ -7640,18 +7583,44 @@ restartsearch:
 			return sip_pvt_ptr;
 		}
 	} else { /* in pedantic mode! -- do the fancy linear search */
-		ao2_lock(dialogs);
-		p = ao2_t_callback(dialogs, 0 /* single, data */, find_call_cb, &arg, "pedantic linear search for dialog");
-		if (p) {
-			if (sip_pvt_trylock(p)) {
-				ao2_unlock(dialogs);
-				usleep(1);
-				goto restartsearch;
+		struct sip_pvt tmp_dialog = {
+			.callid = callid,
+		};
+		struct ao2_iterator *iterator = ao2_t_find(dialogs, &tmp_dialog, OBJ_POINTER | OBJ_MULTIPLE,
+							   "pedantic ao2_find in dialogs");
+		if (iterator) {
+			int found = TRUE;
+
+			while ((sip_pvt_ptr = ao2_iterator_next(iterator))) {
+				if (req->method != SIP_REGISTER) {
+					found = ast_strlen_zero(tag) || ast_strlen_zero(sip_pvt_ptr->theirtag) ||
+						!ast_test_flag(&sip_pvt_ptr->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED) ||
+						!strcmp(sip_pvt_ptr->theirtag, tag);
+				}
+				ast_debug(5, "= %s Their Call ID: %s Their Tag %s Our tag: %s\n", found ? "Found" : "No match",
+					  sip_pvt_ptr->callid, sip_pvt_ptr->theirtag, sip_pvt_ptr->tag);
+				/* If we get a new request within an existing to-tag - check the to tag as well */
+				if (found && req->method != SIP_RESPONSE) { /* SIP Request */
+					if (sip_pvt_ptr->tag[0] == '\0' && totag[0]) {
+						/* We have no to tag, but they have. Wrong dialog */
+						found = FALSE;
+					} else if (totag[0]) { /* Both have tags, compare them */
+						if (strcmp(totag, sip_pvt_ptr->tag)) {
+							found = FALSE; /* This is not our packet */
+						}
+					}
+					if (!found)
+						ast_debug(5, "= Being pedantic: This is not our match on request: Call ID: %s Ourtag <null> Totag %s Method %s\n",
+							  sip_pvt_ptr->callid, totag, sip_methods[req->method].text);
+				}
+				if (found) {
+					sip_pvt_lock(sip_pvt_ptr);
+					ao2_iterator_destroy(iterator);
+					return sip_pvt_ptr;
+				}
 			}
-			ao2_unlock(dialogs);
-			return p;
+			ao2_iterator_destroy(iterator);
 		}
-		ao2_unlock(dialogs);
 	}
 
 	/* See if the method is capable of creating a dialog */
