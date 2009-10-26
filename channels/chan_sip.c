@@ -1896,7 +1896,7 @@ static struct ao2_container *dialogs;
 static struct sip_pvt *dialog_ref_debug(struct sip_pvt *p, char *tag, char *file, int line, const char *func)
 {
 	if (p)
-		_ao2_ref_debug(p, 1, tag, file, line, func);
+		__ao2_ref_debug(p, 1, tag, file, line, func);
 	else
 		ast_log(LOG_ERROR, "Attempt to Ref a null pointer\n");
 	return p;
@@ -1905,7 +1905,7 @@ static struct sip_pvt *dialog_ref_debug(struct sip_pvt *p, char *tag, char *file
 static struct sip_pvt *dialog_unref_debug(struct sip_pvt *p, char *tag, char *file, int line, const char *func)
 {
 	if (p)
-		_ao2_ref_debug(p, -1, tag, file, line, func);
+		__ao2_ref_debug(p, -1, tag, file, line, func);
 	return NULL;
 }
 #else
