@@ -4085,7 +4085,6 @@ static int update_conf(struct dahdi_pvt *p)
 
 static void dahdi_enable_ec(struct dahdi_pvt *p)
 {
-	int x;
 	int res;
 	if (!p)
 		return;
@@ -4112,10 +4111,15 @@ static void dahdi_enable_ec(struct dahdi_pvt *p)
 			/* Fall through */
 #ifdef HAVE_SS7
 		case SIG_SS7:
-			x = 1;
-			res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_AUDIOMODE, &x);
-			if (res)
-				ast_log(LOG_WARNING, "Unable to enable audio mode on channel %d (%s)\n", p->channel, strerror(errno));
+			{
+				int x = 1;
+				res = ioctl(p->subs[SUB_REAL].dfd, 
+						DAHDI_AUDIOMODE, &x);
+				if (res)
+					ast_log(LOG_WARNING, 
+							"Unable to enable audio mode on channel %d (%s)\n",
+							p->channel, strerror(errno));
+			}
 #endif
 			break;
 		default:
@@ -4361,7 +4365,7 @@ static inline int dahdi_set_hook(int fd, int hs)
 
 static inline int dahdi_confmute(struct dahdi_pvt *p, int muted)
 {
-	int x, y, res;
+	int x, res;
 
 	x = muted;
 	switch (p->sig) {
@@ -4375,10 +4379,13 @@ static inline int dahdi_confmute(struct dahdi_pvt *p, int muted)
 		/* Fall through */
 #ifdef HAVE_SS7
 	case SIG_SS7:
-		y = 1;
-		res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_AUDIOMODE, &y);
-		if (res)
-			ast_log(LOG_WARNING, "Unable to set audio mode on %d: %s\n", p->channel, strerror(errno));
+		{
+			int y = 1;
+			res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_AUDIOMODE, &y);
+			if (res)
+				ast_log(LOG_WARNING, "Unable to set audio mode on %d: %s\n", 
+						p->channel, strerror(errno));
+		}
 #endif
 		break;
 	default:
