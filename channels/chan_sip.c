@@ -14459,7 +14459,11 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 				of, ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 		return AUTH_DONT_KNOW;
 	}
-
+	if (!ast_apply_ha(peer->ha, sin)) {
+		ast_debug(2, "Found peer '%s' for '%s', but fails host access\n", peer->name, of);
+		unref_peer(peer, "unref_peer: check_peer_ok: from find_peer call, early return of AUTH_ACL_FAILED");
+		return AUTH_ACL_FAILED;
+	}
 	if (debug)
 		ast_verbose("Found peer '%s' for '%s' from %s:%d\n",
 			peer->name, of, ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
