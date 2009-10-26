@@ -492,24 +492,26 @@ static int transmit_audio(fax_session *s)
 	while (!s->finished) {
 		inf = NULL;
 
-		if ((res = ast_waitfor(s->chan, 20)) < 0) {
+		if ((res = ast_waitfor(s->chan, 25)) < 0) {
+			ast_debug(1, "Error waiting for a frame\n");
 			break;
 		}
 
-		/* if nothing arrived, check the watchdog timers */
-		if (res == 0) {
-			now = ast_tvnow();
-			if (ast_tvdiff_sec(now, start) > WATCHDOG_TOTAL_TIMEOUT || ast_tvdiff_sec(now, state_change) > WATCHDOG_STATE_TIMEOUT) {
-				ast_log(LOG_WARNING, "It looks like we hung. Aborting.\n");
-				res = -1;
-				break;
-			} else {
-				/* timers have not triggered, loop around to wait
-				 * again
-				 */
-				continue;
-			}
+		/* Watchdog */
+		now = ast_tvnow();
+		if (ast_tvdiff_sec(now, start) > WATCHDOG_TOTAL_TIMEOUT || ast_tvdiff_sec(now, state_change) > WATCHDOG_STATE_TIMEOUT) {
+			ast_log(LOG_WARNING, "It looks like we hung. Aborting.\n");
+			res = -1;
+			break;
 		}
+
+		if (!res) {
+			/* There was timeout waiting for a frame. Loop around and wait again */
+			continue;
+		}
+
+		/* There is a frame available. Get it */
+		res = 0;
 
 		if (!(inf = ast_read(s->chan))) {
 			ast_debug(1, "Channel hangup\n");
