@@ -4099,6 +4099,7 @@ static void dahdi_enable_ec(struct dahdi_pvt *p)
 	}
 	if (p->echocancel.head.tap_length) {
 		switch (p->sig) {
+#ifdef HAVE_PRI
 		case SIG_PRI_LIB_HANDLE_CASES:
 			if (((struct sig_pri_chan *) p->sig_pvt)->no_b_channel) {
 				/*
@@ -4107,12 +4108,15 @@ static void dahdi_enable_ec(struct dahdi_pvt *p)
 				 */
 				return;
 			}
+#endif
 			/* Fall through */
+#ifdef HAVE_SS7
 		case SIG_SS7:
 			x = 1;
 			res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_AUDIOMODE, &x);
 			if (res)
 				ast_log(LOG_WARNING, "Unable to enable audio mode on channel %d (%s)\n", p->channel, strerror(errno));
+#endif
 			break;
 		default:
 			break;
@@ -4361,17 +4365,21 @@ static inline int dahdi_confmute(struct dahdi_pvt *p, int muted)
 
 	x = muted;
 	switch (p->sig) {
+#ifdef HAVE_PRI
 	case SIG_PRI_LIB_HANDLE_CASES:
 		if (((struct sig_pri_chan *) p->sig_pvt)->no_b_channel) {
 			/* PRI nobch pseudo channel.  Does not handle ioctl(DAHDI_AUDIOMODE) */
 			break;
 		}
+#endif
 		/* Fall through */
+#ifdef HAVE_SS7
 	case SIG_SS7:
 		y = 1;
 		res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_AUDIOMODE, &y);
 		if (res)
 			ast_log(LOG_WARNING, "Unable to set audio mode on %d: %s\n", p->channel, strerror(errno));
+#endif
 		break;
 	default:
 		break;
@@ -6025,11 +6033,13 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 		ast_dsp_set_digitmode(p->dsp, ((*cp) ? DSP_DIGITMODE_RELAXDTMF : DSP_DIGITMODE_DTMF) | p->dtmfrelax);
 		break;
 	case AST_OPTION_AUDIO_MODE:  /* Set AUDIO mode (or not) */
+#ifdef HAVE_PRI
 		if (dahdi_sig_pri_lib_handles(p->sig)
 			&& ((struct sig_pri_chan *) p->sig_pvt)->no_b_channel) {
 			/* PRI nobch pseudo channel.  Does not handle ioctl(DAHDI_AUDIOMODE) */
 			break;
 		}
+#endif
 
 		cp = (char *) data;
 		if (!*cp) {
@@ -6409,6 +6419,7 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 		return AST_BRIDGE_RETRY;
 	}
 
+#ifdef HAVE_PRI
 	if ((dahdi_sig_pri_lib_handles(p0->sig)
 			&& ((struct sig_pri_chan *) p0->sig_pvt)->no_b_channel)
 		|| (dahdi_sig_pri_lib_handles(p1->sig)
@@ -6423,6 +6434,7 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 		ast_channel_unlock(c1);
 		return AST_BRIDGE_FAILED_NOWARN;
 	}
+#endif
 
 	if ((oi0 == SUB_REAL) && (oi1 == SUB_REAL)) {
 		if (p0->owner && p1->owner) {
