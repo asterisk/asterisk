@@ -121,6 +121,9 @@ case "${host_os}" in
      OSARCH=cygwin
      PBX_WINARCH=1
      ;;
+     linux-gnueabi)
+     OSARCH=linux-gnu
+     ;;
      *)
      OSARCH=${host_os}
      ;;
@@ -708,7 +711,7 @@ AST_EXT_LIB_CHECK([ALSA], [asound], [snd_spcm_init], [alsa/asoundlib.h], [-lm -l
 
 AST_EXT_LIB_CHECK([CURSES], [curses], [initscr], [curses.h])
 
-if test "x${host_os}" = "xlinux-gnu" ; then
+if test "x${OSARCH}" = "xlinux-gnu" ; then
   AST_EXT_LIB_CHECK([CAP], [cap], [cap_from_text], [sys/capability.h])
 fi
 
