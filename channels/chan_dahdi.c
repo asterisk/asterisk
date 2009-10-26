@@ -13126,6 +13126,8 @@ static void dahdi_pri_message(struct pri *pri, char *s)
 		}
 		if (dchancount > 1 && (span > -1))
 			ast_verbose("[Span %d D-Channel %d]%s", span, dchan, s);
+		else if (span > -1)
+			ast_verbose("%d %s", span+1, s);
 		else
 			ast_verbose("%s", s);
 	} else
@@ -13167,6 +13169,8 @@ static void dahdi_pri_error(struct pri *pri, char *s)
 		}
 		if ((dchancount > 1) && (span > -1))
 			ast_log(LOG_ERROR, "[Span %d D-Channel %d] PRI: %s", span, dchan, s);
+		else if (span > -1)
+			ast_log(LOG_ERROR, "%d %s", span+1, s);
 		else
 			ast_log(LOG_ERROR, "%s", s);
 	} else
