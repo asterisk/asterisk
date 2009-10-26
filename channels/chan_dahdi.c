@@ -4097,8 +4097,9 @@ static void dahdi_enable_ec(struct dahdi_pvt *p)
 		return;
 	}
 	if (p->echocancel.head.tap_length) {
+#if defined(HAVE_PRI) || defined(HAVE_SS7)
 		switch (p->sig) {
-#ifdef HAVE_PRI
+#if defined(HAVE_PRI)
 		case SIG_PRI_LIB_HANDLE_CASES:
 			if (((struct sig_pri_chan *) p->sig_pvt)->no_b_channel) {
 				/*
@@ -4107,24 +4108,25 @@ static void dahdi_enable_ec(struct dahdi_pvt *p)
 				 */
 				return;
 			}
-#endif
 			/* Fall through */
-#ifdef HAVE_SS7
+#endif	/* defined(HAVE_PRI) */
+#if defined(HAVE_SS7)
 		case SIG_SS7:
+#endif	/* defined(HAVE_SS7) */
 			{
 				int x = 1;
-				res = ioctl(p->subs[SUB_REAL].dfd, 
-						DAHDI_AUDIOMODE, &x);
+
+				res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_AUDIOMODE, &x);
 				if (res)
-					ast_log(LOG_WARNING, 
-							"Unable to enable audio mode on channel %d (%s)\n",
-							p->channel, strerror(errno));
+					ast_log(LOG_WARNING,
+						"Unable to enable audio mode on channel %d (%s)\n",
+						p->channel, strerror(errno));
 			}
-#endif
 			break;
 		default:
 			break;
 		}
+#endif	/* defined(HAVE_PRI) || defined(HAVE_SS7) */
 		res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_ECHOCANCEL_PARAMS, &p->echocancel);
 		if (res) {
 			ast_log(LOG_WARNING, "Unable to enable echo cancellation on channel %d (%s)\n", p->channel, strerror(errno));
@@ -4368,29 +4370,32 @@ static inline int dahdi_confmute(struct dahdi_pvt *p, int muted)
 	int x, res;
 
 	x = muted;
+#if defined(HAVE_PRI) || defined(HAVE_SS7)
 	switch (p->sig) {
-#ifdef HAVE_PRI
+#if defined(HAVE_PRI)
 	case SIG_PRI_LIB_HANDLE_CASES:
 		if (((struct sig_pri_chan *) p->sig_pvt)->no_b_channel) {
 			/* PRI nobch pseudo channel.  Does not handle ioctl(DAHDI_AUDIOMODE) */
 			break;
 		}
-#endif
 		/* Fall through */
-#ifdef HAVE_SS7
+#endif	/* defined(HAVE_PRI) */
+#if defined(HAVE_SS7)
 	case SIG_SS7:
+#endif	/* defined(HAVE_SS7) */
 		{
 			int y = 1;
+
 			res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_AUDIOMODE, &y);
 			if (res)
-				ast_log(LOG_WARNING, "Unable to set audio mode on %d: %s\n", 
-						p->channel, strerror(errno));
+				ast_log(LOG_WARNING, "Unable to set audio mode on %d: %s\n",
+					p->channel, strerror(errno));
 		}
-#endif
 		break;
 	default:
 		break;
 	}
+#endif	/* defined(HAVE_PRI) || defined(HAVE_SS7) */
 	res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_CONFMUTE, &x);
 	if (res < 0)
 		ast_log(LOG_WARNING, "DAHDI confmute(%d) failed on channel %d: %s\n", muted, p->channel, strerror(errno));
@@ -6040,13 +6045,13 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 		ast_dsp_set_digitmode(p->dsp, ((*cp) ? DSP_DIGITMODE_RELAXDTMF : DSP_DIGITMODE_DTMF) | p->dtmfrelax);
 		break;
 	case AST_OPTION_AUDIO_MODE:  /* Set AUDIO mode (or not) */
-#ifdef HAVE_PRI
+#if defined(HAVE_PRI)
 		if (dahdi_sig_pri_lib_handles(p->sig)
 			&& ((struct sig_pri_chan *) p->sig_pvt)->no_b_channel) {
 			/* PRI nobch pseudo channel.  Does not handle ioctl(DAHDI_AUDIOMODE) */
 			break;
 		}
-#endif
+#endif	/* defined(HAVE_PRI) */
 
 		cp = (char *) data;
 		if (!*cp) {
@@ -6426,7 +6431,7 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 		return AST_BRIDGE_RETRY;
 	}
 
-#ifdef HAVE_PRI
+#if defined(HAVE_PRI)
 	if ((dahdi_sig_pri_lib_handles(p0->sig)
 			&& ((struct sig_pri_chan *) p0->sig_pvt)->no_b_channel)
 		|| (dahdi_sig_pri_lib_handles(p1->sig)
@@ -6441,7 +6446,7 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 		ast_channel_unlock(c1);
 		return AST_BRIDGE_FAILED_NOWARN;
 	}
-#endif
+#endif	/* defined(HAVE_PRI) */
 
 	if ((oi0 == SUB_REAL) && (oi1 == SUB_REAL)) {
 		if (p0->owner && p1->owner) {
