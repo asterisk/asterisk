@@ -445,7 +445,7 @@ static int __ast_http_post_load(int reload)
 
 			urih->description = ast_strdup("HTTP POST mapping");
 			urih->uri = ast_strdup(v->name);
-			ast_str_set(&ds, 0, "%s/%s", prefix, v->value);
+			ast_str_set(&ds, 0, "%s", v->value);
 			urih->data = ds;
 			urih->has_subtree = 0;
 			urih->callback = http_post_callback;
