@@ -1995,6 +1995,7 @@ struct sip_peer {
 		AST_STRING_FIELD(useragent);		/*!<  User agent in SIP request (saved from registration) */
 		AST_STRING_FIELD(mwi_from);         /*!< Name to place in From header for outgoing NOTIFY requests */
 		AST_STRING_FIELD(engine);               /*!<  RTP Engine to use */
+		AST_STRING_FIELD(unsolicited_mailbox);  /*!< Mailbox to store received unsolicited MWI NOTIFY messages information in */
 		);
 	struct sip_socket socket;	/*!< Socket used for this peer */
 	enum sip_transport default_outbound_transport;    /*!< Peer Registration may change the default outbound transport.
@@ -7628,10 +7629,6 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 		if (intended_method == SIP_REFER) {
 			/* We do support REFER, but not outside of a dialog yet */
 			transmit_response_using_temp(callid, sin, 1, intended_method, req, "603 Declined (no dialog)");
-		} else if (intended_method == SIP_NOTIFY) {
-			/* We do not support out-of-dialog NOTIFY either,
-		   	like voicemail notification, so cancel that early */
-			transmit_response_using_temp(callid, sin, 1, intended_method, req, "489 Bad event");
 		} else {
 			/* Ok, time to create a new SIP dialog object, a pvt */
 			if ((p = sip_alloc(callid, sin, 1, intended_method, req)))  {
@@ -19829,25 +19826,39 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 		}
 		/* Confirm that we received this packet */
 		transmit_response(p, "200 OK", req);
-	} else if (p->mwi && !strcmp(event, "message-summary")) {
+	} else if (!strcmp(event, "message-summary")) {
+		const char *mailbox = NULL;
 		char *c = ast_strdupa(get_body(req, "Voice-Message", ':'));
 
-		if (!ast_strlen_zero(c)) {
+		if (!p->mwi) {
+			struct sip_peer *peer = find_peer(NULL, &p->recv, TRUE, FINDPEERS, FALSE, p->socket.type);
+
+			if (peer) {
+				mailbox = ast_strdupa(peer->unsolicited_mailbox);
+				unref_peer(peer, "removing unsolicited mwi ref");
+			}
+		} else {
+			mailbox = p->mwi->mailbox;
+		}
+
+		if (!ast_strlen_zero(mailbox) && !ast_strlen_zero(c)) {
 			char *old = strsep(&c, " ");
 			char *new = strsep(&old, "/");
 			struct ast_event *event;
 
 			if ((event = ast_event_new(AST_EVENT_MWI,
-						   AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, p->mwi->mailbox,
+						   AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
 						   AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, "SIP_Remote",
 						   AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, atoi(new),
 						   AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_UINT, atoi(old),
 						   AST_EVENT_IE_END))) {
 				ast_event_queue_and_cache(event);
 			}
+			transmit_response(p, "200 OK", req);
+		} else {
+			transmit_response(p, "489 Bad event", req);
+			res = -1;
 		}
-
-		transmit_response(p, "200 OK", req);
 	} else if (!strcmp(event, "keep-alive")) {
 		 /* Used by Sipura/Linksys for NAT pinhole,
 		  * just confirm that we recieved the packet. */
@@ -24897,6 +24908,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			} else if (!strcasecmp(v->name, "disallowed_methods")) {
 				char *disallow = ast_strdupa(v->value);
 				mark_parsed_methods(&peer->disallowed_methods, disallow);
+			} else if (!strcasecmp(v->name, "unsolicited_mailbox")) {
+				ast_string_field_set(peer, unsolicited_mailbox, v->value);
 			}
 		}
 

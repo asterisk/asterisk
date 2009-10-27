@@ -50,6 +50,9 @@ SIP Changes
    accessible via AMI and CLI.
  * Added 'media_address' configuration option which can be used to explicitly specify
    the IP address to use in the SDP for media (audio, video, and text) streams.
+ * Added 'unsolicited_mailbox' configuration option which specifies the virtual mailbox
+   that the new/old count should be stored on if an unsolicited MWI NOTIFY message is
+   received.
 
 IAX2 Changes
 -----------

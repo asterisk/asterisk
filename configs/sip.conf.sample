@@ -975,6 +975,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; contactdeny           ; is to register at the same IP as a SIP provider,
 ;                       ; then call oneself, and get redirected to that
 ;                       ; same location).
+; unsolicited_mailbox
 
 ;[sip_proxy]
 ; For incoming calls only. Example: FWD (Free World Dialup)
@@ -1015,6 +1016,10 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;transport=udp,tcp                ; This sets the transport type to udp for outgoing, and will
 ;                                 ;   accept both tcp and udp. Default is udp. The first transport
 ;                                 ;   listed will always be used for outgoing connections.
+;unsolicited_mailbox=4015552299   ; If the remote SIP server sends an unsolicited MWI NOTIFY message the new/old
+;                                 ;   message count will be stored in the configured virtual mailbox. It can be used
+;                                 ;   by any device supporting MWI by specifying <configured value>@SIP_Remote as the
+;                                 ;   mailbox.
 
 ;
 ; Because you might have a large number of similar sections, it is generally
