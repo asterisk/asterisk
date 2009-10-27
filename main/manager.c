@@ -2882,8 +2882,12 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 		ast_mutex_lock(&s->__lock);
 		if (ss.fd > -1) {
 			char *buf;
-			size_t l = lseek(ss.fd, 0, SEEK_END);
-			if (l) {
+			size_t l;
+
+			/* Ensure buffer is NULL-terminated */
+			fprintf(ss.f, "%c", 0);
+
+			if ((l = lseek(ss.fd, 0, SEEK_END)) > 0) {
 				if (MAP_FAILED == (buf = mmap(NULL, l, PROT_READ | PROT_WRITE, MAP_PRIVATE, ss.fd, 0))) {
 					ast_log(LOG_WARNING, "mmap failed.  Manager request output was not processed\n");
 				} else {
