@@ -701,7 +701,7 @@ ${CALLTYPE}		* Type of call (Speech, Digital, etc)
 ${CALLEDTON}		* Type of number for incoming PRI extension
 			i.e. 0=unknown, 1=international, 2=domestic, 3=net_specific, 
 			4=subscriber, 6=abbreviated, 7=reserved 
-${CALLINGSUBADDR}	* Called PRI Subaddress
+${CALLINGSUBADDR}	* Caller's PRI Subaddress
 ${FAXEXTEN}	 	* The extension called before being redirected to "fax"	
 ${PRIREDIRECTREASON}	* Reason for redirect, if a call was directed
 ${SMDI_VM_TYPE}		* When an call is received with an SMDI message, the 'type'
