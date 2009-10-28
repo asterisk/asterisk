@@ -436,11 +436,11 @@ struct {								\
 #define AST_RWLIST_NEXT AST_LIST_NEXT
 
 /*!
-  \brief Checks whether the specified list contains any entries.
-  \param head This is a pointer to the list head structure
-
-  \return non-zero if the list has entries
-  \return zero if not.
+ * \brief Checks whether the specified list contains any entries.
+ * \param head This is a pointer to the list head structure
+ *
+ * \return zero if the list has entries
+ * \return non-zero if not.
  */
 #define	AST_LIST_EMPTY(head)	(AST_LIST_FIRST(head) == NULL)
 
