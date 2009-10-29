@@ -116,6 +116,7 @@ struct local_pvt {
 #define LOCAL_ALREADY_MASQED  (1 << 2) /*!< Already masqueraded */
 #define LOCAL_LAUNCHED_PBX    (1 << 3) /*!< PBX was launched */
 #define LOCAL_NO_OPTIMIZATION (1 << 4) /*!< Do not optimize using masquerading */
+#define LOCAL_MOH_PASSTHRU    (1 << 6) /*!< Pass through music on hold start/stop frames */
 
 static AST_LIST_HEAD_STATIC(locals, local_pvt);
 
@@ -378,9 +379,9 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 		return -1;
 
 	/* If this is an MOH hold or unhold, do it on the Local channel versus real channel */
-	if (condition == AST_CONTROL_HOLD) {
+	if (!ast_test_flag(p, LOCAL_MOH_PASSTHRU) && condition == AST_CONTROL_HOLD) {
 		ast_moh_start(ast, data, NULL);
-	} else if (condition == AST_CONTROL_UNHOLD) {
+	} else if (!ast_test_flag(p, LOCAL_MOH_PASSTHRU) && condition == AST_CONTROL_UNHOLD) {
 		ast_moh_stop(ast);
 	} else {
 		/* Queue up a frame representing the indication as a control frame */
@@ -639,6 +640,9 @@ static struct local_pvt *local_alloc(const char *data, int format)
 				ast_log(LOG_ERROR, "You must use the 'n' option for chan_local "
 					"to use the 'j' option to enable the jitterbuffer\n");
 			}
+		}
+		if (strchr(opts, 'm')) {
+			ast_set_flag(tmp, LOCAL_MOH_PASSTHRU);
 		}
 	}
 
