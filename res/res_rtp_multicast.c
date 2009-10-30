@@ -24,6 +24,8 @@
  *
  * \author Joshua Colp <jcolp@digium.com>
  * \author Andreas 'MacBrody' Brodmann <andreas.brodmann@gmail.com>
+ *
+ * \ingroup rtp_engines
  */
 
 #include "asterisk.h"

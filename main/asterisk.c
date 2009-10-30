@@ -19,7 +19,7 @@
 
 /* Doxygenified Copyright Header */
 /*!
- * \mainpage Asterisk -- An Open Source Telephony Toolkit
+ * \mainpage Asterisk -- The Open Source Telephony Project
  *
  * \par Developer Documentation for Asterisk
  *
@@ -29,6 +29,8 @@
  * In addition to the information available on the Asterisk source code, 
  * please see the appendices for information on coding guidelines, 
  * release management, commit policies, and more.
+ *
+ * \arg \ref AsteriskArchitecture
  *
  * \par Additional documentation
  * \arg \ref Licensing

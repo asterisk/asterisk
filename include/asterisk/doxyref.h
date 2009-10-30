@@ -659,6 +659,11 @@
  */
 
 /*! 
+ * \addtogroup rtp_engines Module: RTP Engines
+ * \section rtp_engine_blah Asterisk RTP Engines
+ */
+
+/*! 
  * \page AstHTTP AMI over HTTP support
  * The http.c file includes support for manager transactions over
  * http.

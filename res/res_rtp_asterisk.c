@@ -24,6 +24,8 @@
  * \author Mark Spencer <markster@digium.com>
  *
  * \note RTP is defined in RFC 3550.
+ *
+ * \ingroup rtp_engines
  */
 
 #include "asterisk.h"
