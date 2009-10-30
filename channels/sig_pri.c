@@ -725,9 +725,16 @@ static struct ast_channel *sig_pri_new_ast_channel(struct sig_pri_chan *p, int s
 
 struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law, const struct ast_channel *requestor)
 {
+	struct ast_channel *ast;
+
 	ast_log(LOG_DEBUG, "%s %d\n", __FUNCTION__, p->channel);
 
-	return sig_pri_new_ast_channel(p, AST_STATE_RESERVED, 0, law, 0, p->exten, requestor);
+	p->outgoing = 1;
+	ast = sig_pri_new_ast_channel(p, AST_STATE_RESERVED, 0, law, 0, p->exten, requestor);
+	if (!ast) {
+		p->outgoing = 0;
+	}
+	return ast;
 }
 
 int pri_is_up(struct sig_pri_pri *pri)

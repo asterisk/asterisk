@@ -981,27 +981,12 @@ struct dahdi_pvt {
 	/*! \brief TRUE if the call has already gone/hungup */
 	unsigned int alreadyhungup:1;
 	/*!
-	 * \brief TRUE if this is an idle call
-	 * \note Applies to PRI channels.
-	 */
-	unsigned int isidlecall:1;
-	/*!
 	 * \brief TRUE if call is in a proceeding state.
 	 * The call has started working its way through the network.
 	 */
 	unsigned int proceeding:1;
 	/*! \brief TRUE if the call has seen progress through the network. */
 	unsigned int progress:1;
-	/*!
-	 * \brief TRUE if this channel is being reset/restarted
-	 * \note Applies to PRI channels.
-	 */
-	unsigned int resetting:1;
-	/*!
-	 * \brief TRUE if this channel has received a SETUP_ACKNOWLEDGE
-	 * \note Applies to PRI channels.
-	 */
-	unsigned int setup_ack:1;
 #endif
 	/*!
 	 * \brief TRUE if SMDI (Simplified Message Desk Interface) is enabled
@@ -5473,6 +5458,16 @@ static int dahdi_hangup(struct ast_channel *ast)
 		sig_pri_hangup(p->sig_pvt, ast);
 		p->subs[SUB_REAL].owner = NULL;
 		p->owner = NULL;
+		p->ringt = 0;/* Probably not used in this mode.  Reset anyway. */
+		p->distinctivering = 0;/* Probably not used in this mode. Reset anyway. */
+		p->confirmanswer = 0;/* Probably not used in this mode. Reset anyway. */
+		p->outgoing = 0;
+		p->digital = 0;
+		p->faxhandled = 0;
+		p->pulsedial = 0;/* Probably not used in this mode. Reset anyway. */
+		//p->proceeding = 0;
+		//p->progress = 0;
+		//p->alerting = 0;
 		goto hangup_out;
 	}
 #endif
@@ -5617,7 +5612,6 @@ static int dahdi_hangup(struct ast_channel *ast)
 		p->dialing = 0;
 		p->progress = 0;
 		p->alerting = 0;
-		p->setup_ack = 0;
 		p->rlt = 0;
 #endif
 		if (p->dsp) {
@@ -8682,8 +8676,6 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	pbx_builtin_setvar_helper(tmp, "TRANSFERCAPABILITY", ast_transfercapability2str(transfercapability));
 	if (transfercapability & AST_TRANS_CAP_DIGITAL)
 		i->digital = 1;
-	/* Assume calls are not idle calls unless we're told differently */
-	i->isidlecall = 0;
 	i->alreadyhungup = 0;
 #endif
 	/* clear the fake event in case we posted one before we had ast_channel */
@@ -12110,6 +12102,9 @@ static struct ast_channel *dahdi_request(const char *type, int format, const str
 #endif
 			} else {
 				tmp = dahdi_new(p, AST_STATE_RESERVED, 0, p->owner ? SUB_CALLWAIT : SUB_REAL, 0, 0, requestor ? requestor->linkedid : "");
+			}
+			if (!tmp) {
+				p->outgoing = 0;
 			}
 
 			/* Make special notes */
