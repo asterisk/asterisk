@@ -138,6 +138,7 @@ struct sig_pri_chan {
 	int cid_ton;					/*!< Type Of Number (TON) */
 	int callingpres;				/*!< The value of calling presentation that we're going to use when placing a PRI call */
 	char cid_num[AST_MAX_EXTENSION];
+	char cid_subaddr[AST_MAX_EXTENSION];
 	char cid_name[AST_MAX_EXTENSION];
 	char cid_ani[AST_MAX_EXTENSION];
 	char exten[AST_MAX_EXTENSION];
@@ -246,6 +247,7 @@ struct sig_pri_pri {
 	struct sig_pri_callback *calls;
 };
 
+void sig_pri_extract_called_num_subaddr(struct sig_pri_chan *p, const char *rdest, char *called, size_t called_buff_size);
 int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, int timeout, int layer1);
 
 int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast);

@@ -1039,6 +1039,8 @@ struct dahdi_pvt {
 	int cid_ton;
 	/*! \brief Caller ID name from an incoming call. */
 	char cid_name[AST_MAX_EXTENSION];
+	/*! \brief Caller ID subaddress from an incoming call. */
+	char cid_subaddr[AST_MAX_EXTENSION];
 	char *origcid_num;				/*!< malloced original callerid */
 	char *origcid_name;				/*!< malloced original callerid */
 	/*! \brief Call waiting number. */
@@ -2719,6 +2721,12 @@ static void my_pri_set_callerid(void *pvt, const struct ast_party_caller *caller
 
 	ast_copy_string(p->cid_num, S_OR(caller->id.number, ""), sizeof(p->cid_num));
 	ast_copy_string(p->cid_name, S_OR(caller->id.name, ""), sizeof(p->cid_name));
+	if (caller->id.subaddress.valid) {
+		ast_copy_string(p->cid_subaddr, S_OR(caller->id.subaddress.str, ""),
+			sizeof(p->cid_subaddr));
+	} else {
+		p->cid_subaddr[0] = '\0';
+	}
 	p->cid_ton = caller->id.number_type;
 	p->callingpres = caller->id.number_presentation;
 	ast_copy_string(p->cid_ani, S_OR(caller->ani, ""), sizeof(p->cid_ani));
@@ -3073,6 +3081,7 @@ static void dahdi_r2_on_call_init(openr2_chan_t *r2chan)
 	/* better safe than sorry ... */
 	p->cid_name[0] = '\0';
 	p->cid_num[0] = '\0';
+	p->cid_subaddr[0] = '\0';
 	p->rdnis[0] = '\0';
 	p->exten[0] = '\0';
 	p->mfcr2_ani_index = '\0';
@@ -5430,6 +5439,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 	} else {
 		p->cid_num[0] = '\0';
 		p->cid_name[0] = '\0';
+		p->cid_subaddr[0] = '\0';
 	}
 
 	ast_mutex_lock(&p->lock);
@@ -8528,7 +8538,22 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 #if defined(HAVE_PRI)
 	} else if (i->pri) {
 		ast_mutex_lock(&i->pri->lock);
-		ast_str_set(&chan_name, 0, "ISDN-%d-%d", i->pri->span, ++i->pri->new_chan_seq);
+		y = ++i->pri->new_chan_seq;
+		if (i->outgoing) {
+			/*
+			 * The dnid has been stuffed with the called-number[:subaddress]
+			 * by dahdi_request().
+			 */
+			ast_str_set(&chan_name, 0, "i%d/%s-%x", i->pri->span, i->dnid, y);
+			i->dnid[0] = '\0';
+		} else if (ast_strlen_zero(i->cid_subaddr)) {
+			/* Put in caller-id number only since there is no subaddress. */
+			ast_str_set(&chan_name, 0, "i%d/%s-%x", i->pri->span, i->cid_num, y);
+		} else {
+			/* Put in caller-id number and subaddress. */
+			ast_str_set(&chan_name, 0, "i%d/%s:%s-%x", i->pri->span, i->cid_num,
+				i->cid_subaddr, y);
+		}
 		ast_mutex_unlock(&i->pri->lock);
 #endif	/* defined(HAVE_PRI) */
 	} else {
@@ -11559,6 +11584,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 			tmp->cid_num[0] = '\0';
 			tmp->cid_name[0] = '\0';
 		}
+		tmp->cid_subaddr[0] = '\0';
 		ast_copy_string(tmp->mailbox, conf->chan.mailbox, sizeof(tmp->mailbox));
 		if (channel != CHAN_PSEUDO && !ast_strlen_zero(tmp->mailbox)) {
 			char *mailbox, *context;
@@ -12098,6 +12124,8 @@ static struct ast_channel *dahdi_request(const char *type, int format, const str
 				tmp = analog_request(p->sig_pvt, &callwait, requestor);
 #ifdef HAVE_PRI
 			} else if (dahdi_sig_pri_lib_handles(p->sig)) {
+				sig_pri_extract_called_num_subaddr(p->sig_pvt, data, p->dnid,
+					sizeof(p->dnid));
 				tmp = sig_pri_request(p->sig_pvt, SIG_PRI_DEFLAW, requestor);
 #endif
 			} else {
@@ -14319,6 +14347,11 @@ static char *dahdi_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli
 			ast_cli(a->fd, "Context: %s\n", tmp->context);
 			ast_cli(a->fd, "Caller ID: %s\n", tmp->cid_num);
 			ast_cli(a->fd, "Calling TON: %d\n", tmp->cid_ton);
+#if defined(HAVE_PRI)
+#if defined(HAVE_PRI_SUBADDR)
+			ast_cli(a->fd, "Caller ID subaddress: %s\n", tmp->cid_subaddr);
+#endif	/* defined(HAVE_PRI_SUBADDR) */
+#endif	/* defined(HAVE_PRI) */
 			ast_cli(a->fd, "Caller ID name: %s\n", tmp->cid_name);
 			ast_cli(a->fd, "Mailbox: %s\n", S_OR(tmp->mailbox, "none"));
 			if (tmp->vars) {

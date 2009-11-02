@@ -129,6 +129,12 @@ static void sig_pri_set_caller_id(struct sig_pri_chan *p)
 		ast_party_caller_init(&caller);
 		caller.id.number = p->cid_num;
 		caller.id.name = p->cid_name;
+		if (!ast_strlen_zero(p->cid_subaddr)) {
+			caller.id.subaddress.valid = 1;
+			//caller.id.subaddress.type = 0;/* nsap */
+			//caller.id.subaddress.odd_even_indicator = 0;
+			caller.id.subaddress.str = p->cid_subaddr;
+		}
 		caller.id.number_type = p->cid_ton;
 		caller.id.number_presentation = p->callingpres;
 		caller.ani = p->cid_ani;
@@ -1520,10 +1526,16 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 				}
 				ast_connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 
+				pri->pvts[chanpos]->cid_subaddr[0] = '\0';
 #if defined(HAVE_PRI_SUBADDR)
 				if (ast_connected.id.subaddress.valid) {
 					ast_party_subaddress_set(&owner->cid.subaddress,
 						&ast_connected.id.subaddress);
+					if (ast_connected.id.subaddress.str) {
+						ast_copy_string(pri->pvts[chanpos]->cid_subaddr,
+							ast_connected.id.subaddress.str,
+							sizeof(pri->pvts[chanpos]->cid_subaddr));
+					}
 				}
 #endif	/* defined(HAVE_PRI_SUBADDR) */
 				if (caller_id_update) {
@@ -2335,6 +2347,22 @@ static void *pri_dchannel(void *vpri)
 							pri->pvts[chanpos]->cid_ani[0] = '\0';
 						}
 #endif
+						pri->pvts[chanpos]->cid_subaddr[0] = '\0';
+#if defined(HAVE_PRI_SUBADDR)
+						if (e->ring.calling.subaddress.valid) {
+							struct ast_party_subaddress calling_subaddress;
+
+							ast_party_subaddress_init(&calling_subaddress);
+							sig_pri_set_subaddress(&calling_subaddress,
+								&e->ring.calling.subaddress);
+							if (calling_subaddress.str) {
+								ast_copy_string(pri->pvts[chanpos]->cid_subaddr,
+									calling_subaddress.str,
+									sizeof(pri->pvts[chanpos]->cid_subaddr));
+							}
+							ast_party_subaddress_free(&calling_subaddress);
+						}
+#endif /* defined(HAVE_PRI_SUBADDR) */
 						ast_copy_string(pri->pvts[chanpos]->cid_name, e->ring.callingname, sizeof(pri->pvts[chanpos]->cid_name));
 						pri->pvts[chanpos]->cid_ton = e->ring.callingplan; /* this is the callingplan (TON/NPI), e->ring.callingplan>>4 would be the TON */
 						pri->pvts[chanpos]->callingpres = e->ring.callingpres;
@@ -2343,6 +2371,7 @@ static void *pri_dchannel(void *vpri)
 						}
 					} else {
 						pri->pvts[chanpos]->cid_num[0] = '\0';
+						pri->pvts[chanpos]->cid_subaddr[0] = '\0';
 						pri->pvts[chanpos]->cid_ani[0] = '\0';
 						pri->pvts[chanpos]->cid_name[0] = '\0';
 						pri->pvts[chanpos]->cid_ton = 0;
@@ -3170,6 +3199,7 @@ int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 	p->alerting = 0;
 	p->setup_ack = 0;
 	p->cid_num[0] = '\0';
+	p->cid_subaddr[0] = '\0';
 	p->cid_name[0] = '\0';
 	p->exten[0] = '\0';
 	sig_pri_set_dialing(p, 0);
@@ -3219,6 +3249,95 @@ exit:
 	return res;
 }
 
+/*!
+ * \brief Extract the called number and subaddress from the dial string.
+ * \since 1.6.3
+ *
+ * \param p sig_pri channel structure.
+ * \param rdest Dial string buffer to extract called number and subaddress.
+ * \param called Buffer to fill with extracted <number>[:<subaddress>]
+ * \param called_buff_size Size of buffer to fill.
+ *
+ * \note Parsing must remain in sync with sig_pri_call().
+ *
+ * \return Nothing
+ */
+void sig_pri_extract_called_num_subaddr(struct sig_pri_chan *p, const char *rdest, char *called, size_t called_buff_size)
+{
+	char *dial;
+	char *number;
+	char *subaddr;
+
+	/* Get private copy of dial string. */
+	dial = ast_strdupa(rdest);
+
+	/* Skip channel selection section. */
+	number = strchr(dial, '/');
+	if (number) {
+		++number;
+	} else {
+		number = "";
+	}
+
+#if defined(HAVE_PRI_SETUP_KEYPAD)
+	/*
+	 *  v--- number points here
+	 * /[K<keypad-digits>/]extension
+	 */
+	if (number[0] == 'K') {
+		/* Skip the keypad facility digits. */
+		number = strchr(number + 1, '/');
+		if (number) {
+			++number;
+		} else {
+			number = "";
+		}
+	}
+	/*
+	 *  v--- number points here
+	 * /extension
+	 */
+#endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
+
+	/* Find and extract dialed_subaddress */
+	subaddr = strchr(number, ':');
+	if (subaddr) {
+		*subaddr++ = '\0';
+
+		/* Skip subaddress type prefix. */
+		switch (*subaddr) {
+		case 'U':
+		case 'u':
+		case 'N':
+		case 'n':
+			++subaddr;
+			break;
+		default:
+			break;
+		}
+	}
+
+	/* Skip type-of-number/dial-plan prefix characters. */
+	if (strlen(number) < p->stripmsd) {
+		number = "";
+	} else {
+		number += p->stripmsd;
+		while (isalpha(*number)) {
+			++number;
+		}
+	}
+
+	/* Fill buffer with extracted number and subaddress. */
+	if (ast_strlen_zero(subaddr)) {
+		/* Put in called number only since there is no subaddress. */
+		snprintf(called, called_buff_size, "%s", number);
+	} else {
+		/* Put in called number and subaddress. */
+		snprintf(called, called_buff_size, "%s:%s", number, subaddr);
+	}
+}
+
+/*! \note Parsing must remain in sync with sig_pri_extract_called_num_subaddr(). */
 int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, int timeout, int layer1)
 {
 	char dest[256]; /* must be same length as p->dialdest */
