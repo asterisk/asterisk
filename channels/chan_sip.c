@@ -1505,6 +1505,8 @@ struct sip_auth {
 #define SIP_PAGE2_RTCACHEFRIENDS	(1 << 0)	/*!< GP: Should we keep RT objects in memory for extended time? */
 #define SIP_PAGE2_RTAUTOCLEAR		(1 << 2)	/*!< GP: Should we clean memory from peers after expiry? */
 #define SIP_PAGE2_RPID_UPDATE		(1 << 3)
+#define SIP_PAGE2_Q850_REASON		(1 << 4)	/*!< DP: Get/send cause code via Reason header */
+
 /* Space for addition of other realtime flags in the future */
 #define SIP_PAGE2_CONSTANT_SSRC         (1 << 7)       /*!< GDP: Don't change SSRC on reinvite */
 #define SIP_PAGE2_SYMMETRICRTP          (1 << 8)        /*!< GDP: Whether symmetric RTP is enabled or not */
@@ -1544,7 +1546,8 @@ struct sip_auth {
 	SIP_PAGE2_VIDEOSUPPORT | SIP_PAGE2_T38SUPPORT | SIP_PAGE2_RFC2833_COMPENSATE | \
 	SIP_PAGE2_BUGGY_MWI | SIP_PAGE2_TEXTSUPPORT | SIP_PAGE2_FAX_DETECT | \
 	SIP_PAGE2_UDPTL_DESTINATION | SIP_PAGE2_VIDEOSUPPORT_ALWAYS | SIP_PAGE2_PREFERRED_CODEC | \
-	SIP_PAGE2_RPID_IMMEDIATE | SIP_PAGE2_RPID_UPDATE | SIP_PAGE2_SYMMETRICRTP | SIP_PAGE2_CONSTANT_SSRC)
+	SIP_PAGE2_RPID_IMMEDIATE | SIP_PAGE2_RPID_UPDATE | SIP_PAGE2_SYMMETRICRTP | SIP_PAGE2_CONSTANT_SSRC |\
+	SIP_PAGE2_Q850_REASON)
 
 /*@}*/
 
@@ -9750,12 +9753,33 @@ static int __transmit_response(struct sip_pvt *p, const char *msg, const struct 
 	add_header_contentLength(&resp, 0);
 	/* If we are cancelling an incoming invite for some reason, add information
 		about the reason why we are doing this in clear text */
-	if (p->method == SIP_INVITE && msg[0] != '1' && p->owner && p->owner->hangupcause) {
-		char buf[10];
+	if (p->method == SIP_INVITE && msg[0] != '1') {
+		char buf[20];
 
-		add_header(&resp, "X-Asterisk-HangupCause", ast_cause2str(p->owner->hangupcause));
-		snprintf(buf, sizeof(buf), "%d", p->owner->hangupcause);
-		add_header(&resp, "X-Asterisk-HangupCauseCode", buf);
+		if (ast_test_flag(&p->flags[1], SIP_PAGE2_Q850_REASON)) {
+			int hangupcause = 0;
+
+			if (p->owner && p->owner->hangupcause) {
+				hangupcause = p->owner->hangupcause;
+			} else if (p->hangupcause) {
+				hangupcause = p->hangupcause;
+			} else {
+				int respcode;
+				if (sscanf(msg, "%30d ", &respcode))
+					hangupcause = hangup_sip2cause(respcode);
+			}
+
+			if (hangupcause) {
+				sprintf(buf, "Q.850;cause=%i", hangupcause & 0x7f);
+				add_header(&resp, "Reason", buf);
+			}
+		}
+
+		if (p->owner && p->owner->hangupcause) {
+			add_header(&resp, "X-Asterisk-HangupCause", ast_cause2str(p->owner->hangupcause));
+			snprintf(buf, sizeof(buf), "%d", p->owner->hangupcause);
+			add_header(&resp, "X-Asterisk-HangupCauseCode", buf);
+		}
 	}
 	return send_response(p, &resp, reliable, seqno);
 }
@@ -12358,7 +12382,12 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqn
 	/* If we are hanging up and know a cause for that, send it in clear text to make
 		debugging easier. */
 	if (sipmethod == SIP_BYE)	{
-		char buf[10];
+		char buf[20];
+
+		if (ast_test_flag(&p->flags[1], SIP_PAGE2_Q850_REASON) && p->hangupcause) {
+			sprintf(buf, "Q.850;cause=%i", p->hangupcause & 0x7f);
+			add_header(&resp, "Reason", buf);
+		}
 
 		add_header(&resp, "X-Asterisk-HangupCause", ast_cause2str(p->hangupcause));
 		snprintf(buf, sizeof(buf), "%d", p->hangupcause);
@@ -15960,6 +15989,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  Min-Sess     : %d secs\n", peer->stimer.st_min_se);
 		ast_cli(fd, "  RTP Engine   : %s\n", peer->engine);
 		ast_cli(fd, "  Parkinglot   : %s\n", peer->parkinglot);
+		ast_cli(fd, "  Use Reason   : %s\n", ast_test_flag(&peer->flags[1], SIP_PAGE2_Q850_REASON) ? "Yes" : "No");
 		ast_cli(fd, "\n");
 		peer = unref_peer(peer, "sip_show_peer: unref_peer: done with peer ptr");
 	} else  if (peer && type == 1) { /* manager listing */
@@ -16049,6 +16079,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
  				astman_append(s, "ChanVariable: %s=%s\r\n", v->name, v->value);
 			}
 		}
+		astman_append(s, "SIP-Use-Reason-Header : %s\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_Q850_REASON)) ? "Y" : "N");
 
 		peer = unref_peer(peer, "sip_show_peer: unref_peer: done with peer");
 
@@ -16465,6 +16496,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	else
 		ast_cli(a->fd, "  SIP realtime:           Enabled\n" );
 	ast_cli(a->fd, "  Qualify Freq :          %d ms\n", global_qualifyfreq);
+	ast_cli(a->fd, "  User Reson header:      %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_Q850_REASON)));
 	ast_cli(a->fd, "\nNetwork QoS Settings:\n");
 	ast_cli(a->fd, "---------------------------\n");
 	ast_cli(a->fd, "  IP ToS SIP:             %s\n", ast_tos2str(global_tos_sip));
@@ -19000,7 +19032,24 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 	owner = p->owner;
 	if (owner) {
 		char causevar[256], causeval[256];
-		owner->hangupcause = hangup_sip2cause(resp);
+		const char *rp = NULL, *rh = NULL;
+
+		owner->hangupcause = 0;
+		if (ast_test_flag(&p->flags[1], SIP_PAGE2_Q850_REASON) && (rh = get_header(req, "Reason"))) {
+			rh = ast_skip_blanks(rh);
+			if (!strncasecmp(rh, "Q.850", 5)) {
+				rp = strstr(rh, "cause=");
+				if (rp && sscanf(rp + 6, "%30d", &owner->hangupcause) == 1) {
+					owner->hangupcause &= 0x7f;
+					if (req->debug)
+						ast_verbose("Using Reason header for cause code: %d\n", owner->hangupcause);
+				}
+			}
+		}
+
+		if (!owner->hangupcause)
+			owner->hangupcause = hangup_sip2cause(resp);
+
 		snprintf(causevar, sizeof(causevar), "MASTER_CHANNEL(HASH(SIP_CAUSE,%s))", owner->name);
 		snprintf(causeval, sizeof(causeval), "SIP %s", REQ_OFFSET_TO_STR(req, rlPart2));
 		pbx_builtin_setvar_helper(owner, causevar, causeval);
@@ -24910,6 +24959,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				mark_parsed_methods(&peer->disallowed_methods, disallow);
 			} else if (!strcasecmp(v->name, "unsolicited_mailbox")) {
 				ast_string_field_set(peer, unsolicited_mailbox, v->value);
+			} else if (!strcasecmp(v->name, "use_q850_reason")) {
+				ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_Q850_REASON);
 			}
 		}
 
@@ -25799,6 +25850,8 @@ static int reload_config(enum channelreloadreason reason)
 			} else {
 				ast_log(LOG_WARNING, "shrinkcallerid value %s is not valid at line %d.\n", v->value, v->lineno);
 			}
+		} else if (!strcasecmp(v->name, "use_q850_reason")) {
+			ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_Q850_REASON);
 		}
 	}
 

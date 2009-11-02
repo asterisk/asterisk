@@ -53,6 +53,9 @@ SIP Changes
  * Added 'unsolicited_mailbox' configuration option which specifies the virtual mailbox
    that the new/old count should be stored on if an unsolicited MWI NOTIFY message is
    received.
+ * Added 'use_q850_reason' configuration option for generating and parsing
+   if available  Reason: Q.850;cause=<cause code> header. It is implemented
+   in some gateways for better passing PRI/SS7 cause codes via SIP.
 
 IAX2 Changes
 -----------

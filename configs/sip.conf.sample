@@ -350,6 +350,10 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;
 ;shrinkcallerid=yes     ; on by default
 
+
+;use_q850_reason = no ; Default "no"
+                      ; Set to yes add Reason header and use Reason header if it is available.
+;
 ;------------------------ TLS settings ------------------------------------------------------------
 ;tlscertfile=</path/to/certificate.pem> ; Certificate file (*.pem format only) to use for TLS connections
                                         ; default is to look for "asterisk.pem" in current directory
@@ -983,6 +987,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;                       ; then call oneself, and get redirected to that
 ;                       ; same location).
 ; unsolicited_mailbox
+; use_q850_reason
 
 ;[sip_proxy]
 ; For incoming calls only. Example: FWD (Free World Dialup)
