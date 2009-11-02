@@ -25,6 +25,8 @@
  * This program implements a tiny http server
  * and was inspired by micro-httpd by Jef Poskanzer
  *
+ * \extref GMime http://spruce.sourceforge.net/gmime/
+ *
  * \ref AstHTTP - AMI over the http protocol
  */
 
