@@ -99,8 +99,14 @@ start() {
 
 stop() {
 	# Stop daemons.
+	if [ -f $SAFE_ASTERISK ]; then
+		# Kill safe_asterisk first, to prevent us from starting up 2 instances of safe_asterisk
+		echo -n $"Stopping safe_asterisk: "
+		killproc `basename $SAFE_ASTERISK`
+		echo
+	fi
 	echo -n $"Shutting down asterisk: "
-	killproc asterisk
+	killproc `basename $DAEMON`
 	RETVAL=$?
 	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/asterisk
 	echo
