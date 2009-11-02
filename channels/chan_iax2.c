@@ -1899,7 +1899,7 @@ static void set_peercnt_limit(struct peercnt *peercnt)
 	if ((addr_range = ao2_callback(callno_limits, 0, addr_range_match_address_cb, &sin))) {
 		limit = addr_range->limit;
 		if (option_debug) {
-			ast_log(LOG_NOTICE, "custom addr_range %d found for %s\n", limit, ast_inet_ntoa(sin.sin_addr));
+			ast_log(LOG_DEBUG, "custom addr_range %d found for %s\n", limit, ast_inet_ntoa(sin.sin_addr));
 		}
 		ao2_ref(addr_range, -1);
 	}
@@ -1917,7 +1917,7 @@ static int set_peercnt_limit_all_cb(void *obj, void *arg, int flags)
 
 	set_peercnt_limit(peercnt);
 	if (option_debug) {
-		ast_log(LOG_NOTICE, "Reset limits for peercnts table\n");
+		ast_log(LOG_DEBUG, "Reset limits for peercnts table\n");
 	}
 	return 0;
 }
@@ -1953,7 +1953,7 @@ static void peercnt_modify(unsigned char reg, uint16_t limit, struct sockaddr_in
 			set_peercnt_limit(peercnt);
 		}
 		if (option_debug) {
-			ast_log(LOG_NOTICE, "peercnt entry %s modified limit:%d registered:%d", ast_inet_ntoa(sin->sin_addr), peercnt->limit, peercnt->reg);
+			ast_log(LOG_DEBUG, "peercnt entry %s modified limit:%d registered:%d", ast_inet_ntoa(sin->sin_addr), peercnt->limit, peercnt->reg);
 		}
 		ao2_ref(peercnt, -1); /* decrement ref from find */
 	}
@@ -2002,7 +2002,7 @@ static int peercnt_add(struct sockaddr_in *sin)
 	if (peercnt->limit > peercnt->cur) {
 		peercnt->cur++;
 		if (option_debug) {
-			ast_log(LOG_NOTICE, "ip callno count incremented to %d for %s\n", peercnt->cur, ast_inet_ntoa(sin->sin_addr));
+			ast_log(LOG_DEBUG, "ip callno count incremented to %d for %s\n", peercnt->cur, ast_inet_ntoa(sin->sin_addr));
 		}
 	} else { /* max num call numbers for this peer has been reached! */
 		ast_log(LOG_ERROR, "maxcallnumber limit of %d for %s has been reached!\n", peercnt->limit, ast_inet_ntoa(sin->sin_addr));
@@ -2034,7 +2034,7 @@ static void peercnt_remove(struct peercnt *peercnt)
 		ao2_lock(peercnts);
 		peercnt->cur--;
 		if (option_debug) {
-			ast_log(LOG_NOTICE, "ip callno count decremented to %d for %s\n", peercnt->cur, ast_inet_ntoa(sin.sin_addr));
+			ast_log(LOG_DEBUG, "ip callno count decremented to %d for %s\n", peercnt->cur, ast_inet_ntoa(sin.sin_addr));
 		}
 		/* if this was the last connection from the peer remove it from table */
 		if (peercnt->cur == 0) {
@@ -2325,7 +2325,7 @@ static void sched_delay_remove(struct sockaddr_in *sin, struct callno_entry *cal
 	if ((peercnt = ao2_find(peercnts, &tmp, OBJ_POINTER))) {
 		/* refcount is incremented with ao2_find.  keep that ref for the scheduler */
 		if (option_debug) {
-			ast_log(LOG_NOTICE, "schedule decrement of callno used for %s in %d seconds\n", ast_inet_ntoa(sin->sin_addr), MIN_REUSE_TIME);
+			ast_log(LOG_DEBUG, "schedule decrement of callno used for %s in %d seconds\n", ast_inet_ntoa(sin->sin_addr), MIN_REUSE_TIME);
 		}
 		i = iax2_sched_add(sched, MIN_REUSE_TIME * 1000, peercnt_remove_cb, peercnt);
 		if (i == -1) {
