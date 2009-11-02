@@ -264,6 +264,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					Macro()</para></warning>
 				</option>
 				<option name="n">
+				        <argument name="delete">
+					        <para>With <replaceable>delete</replaceable> either not specified or set to <literal>0</literal>,
+						the recorded introduction will not be deleted if the caller hangs up while the remote party has not
+						yet answered.</para>
+						<para>With <replaceable>delete</replaceable> set to <literal>1</literal>, the introduction will
+						always be deleted.</para>
+					</argument>
 					<para>This option is a modifier for the call screening/privacy mode. (See the 
 					<literal>p</literal> and <literal>P</literal> options.) It specifies
 					that no introductions are to be saved in the <directory>priv-callerintros</directory>
@@ -523,6 +530,7 @@ enum {
 	OPT_ARG_PRIVACY,
 	OPT_ARG_DURATION_STOP,
 	OPT_ARG_OPERMODE,
+	OPT_ARG_SCREEN_NOINTRO,
 	/* note: this entry _MUST_ be the last one in the enum */
 	OPT_ARG_ARRAY_SIZE,
 };
@@ -547,7 +555,7 @@ AST_APP_OPTIONS(dial_exec_options, BEGIN_OPTIONS
 	AST_APP_OPTION_ARG('L', OPT_DURATION_LIMIT, OPT_ARG_DURATION_LIMIT),
 	AST_APP_OPTION_ARG('m', OPT_MUSICBACK, OPT_ARG_MUSICBACK),
 	AST_APP_OPTION_ARG('M', OPT_CALLEE_MACRO, OPT_ARG_CALLEE_MACRO),
-	AST_APP_OPTION('n', OPT_SCREEN_NOINTRO),
+	AST_APP_OPTION_ARG('n', OPT_SCREEN_NOINTRO, OPT_ARG_SCREEN_NOINTRO),
 	AST_APP_OPTION('N', OPT_SCREEN_NOCALLERID),
 	AST_APP_OPTION('o', OPT_ORIGINAL_CLID),
 	AST_APP_OPTION_ARG('O', OPT_OPERMODE, OPT_ARG_OPERMODE),
@@ -1581,6 +1589,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	int result = 0;
 	char *parse;
 	int opermode = 0;
+	int delprivintro = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(peers);
 		AST_APP_ARG(timeout);
@@ -1619,6 +1628,15 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		ast_log(LOG_WARNING, "Dial requires an argument (technology/number)\n");
 		pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
 		goto done;
+	}
+
+	if (ast_test_flag64(&opts, OPT_SCREEN_NOINTRO) && !ast_strlen_zero(opt_args[OPT_ARG_SCREEN_NOINTRO])) {
+		delprivintro = atoi(opt_args[OPT_ARG_SCREEN_NOINTRO]);
+
+		if (delprivintro < 0 || delprivintro > 1) {
+			ast_log(LOG_WARNING, "Unknown argument %d specified to n option, ignoring\n", delprivintro);
+			delprivintro = 0;
+		}
 	}
 
 	if (ast_test_flag64(&opts, OPT_OPERMODE)) {
@@ -2323,6 +2341,16 @@ out:
 		sentringing = 0;
 		ast_indicate(chan, -1);
 	}
+
+	if (delprivintro && ast_fileexists(pa.privintro, NULL, NULL) > 0) {
+		ast_filedelete(pa.privintro, NULL);
+		if (ast_fileexists(pa.privintro, NULL, NULL) > 0) {
+			ast_log(LOG_NOTICE, "privacy: ast_filedelete didn't do its job on %s\n", pa.privintro);
+		} else {
+			ast_verb(3, "Successfully deleted %s intro file\n", pa.privintro);
+		}
+	}
+
 	ast_channel_early_bridge(chan, NULL);
 	hanguptree(outgoing, NULL, 0); /* In this case, there's no answer anywhere */
 	pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
