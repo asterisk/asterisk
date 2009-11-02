@@ -398,6 +398,8 @@ static const struct  cfsip_methods {
 	{ SIP_PING,	 NO_RTP, "PING", 	CAN_CREATE_DIALOG_UNSUPPORTED_METHOD }
 };
 
+static unsigned int chan_idx;
+
 /*!  Define SIP option tags, used in Require: and Supported: headers 
  	We need to be aware of these properties in the phones to use 
 	the replace: header. We should not do that without knowing
@@ -4207,7 +4209,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 
 		ast_mutex_unlock(&i->lock);
 		/* Don't hold a sip pvt lock while we allocate a channel */
-		tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, i->amaflags, "SIP/%s-%08x", my_name, (int)(long) i);
+		tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, i->amaflags, "SIP/%s-%08x", my_name, ast_atomic_fetchadd_int((int *)&chan_idx, +1));
 
 	}
 	if (!tmp) {
