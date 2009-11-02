@@ -67,6 +67,8 @@ MGCP Changes
  * Added ability to preset channel variables on indicated lines with the setvar
    configuration option.  Also, clearvars=all resets the list of variables back
    to none.
+ * PacketCable NCS 1.0 support has been added for Docsis/Eurodocsis Networks.
+   See configs/res_pktccops.conf for more information.
 
 Applications
 ------------

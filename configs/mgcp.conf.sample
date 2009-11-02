@@ -11,6 +11,11 @@
 ;cos=3			; Sets 802.1p priority for signaling packets.
 ;cos_audio=5		; Sets 802.1p priority for RTP audio packets.
 
+;---------------------- DIGIT TIMEOUTS ----------------------------
+firstdigittimeout = 30000 ; default 16000 = 16s
+gendigittimeout = 10000   ; default  8000 = 8s 
+matchdigittimeout = 5000  ; defaults 3000 = 3s
+
 ;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
 ; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of a
                               ; MGCP channel. Defaults to "no". An enabled jitterbuffer will
@@ -47,27 +52,27 @@
 
 ;; The MGCP channel supports the following service codes:
 ;; # - Transfer
-;; *67 - Calling Number Delivery Blocking
-;; *70 - Cancel Call Waiting
-;; *72 - Call Forwarding Activation
-;; *73 - Call Forwarding Deactivation
-;; *78 - Do Not Disturb Activation
-;; *79 - Do Not Disturb Deactivation
+;; *67 - Calling Number Delivery Blocking 
+;; *70 - Cancel Call Waiting 
+;; *72 - Call Forwarding Activation 
+;; *73 - Call Forwarding Deactivation 
+;; *78 - Do Not Disturb Activation 
+;; *79 - Do Not Disturb Deactivation 
 ;; *8 - Call pick-up
 ;
-; known to work with Swissvoice IP10s
-;[192.168.1.20]
-;context=local
-;host=192.168.1.20
-;callerid = "John Doe" <123>
+; known to work with Swissvoice IP10s 
+;[192.168.1.20] 
+;context=local 
+;host=192.168.1.20 
+;callerid = "John Doe" <123> 
 ;callgroup=0      ; in the range from 0 to 63
 ;pickupgroup=0    ; in the range from 0 to 63
-;nat=no
-;threewaycalling=yes
+;nat=no 
+;threewaycalling=yes 
 ;transfer=yes     ; transfer requires threewaycalling=yes. Use FLASH to transfer
 ;callwaiting=yes  ; this might be a cause of trouble for ip10s
-;cancallforward=yes
-;line => aaln/1
+;cancallforward=yes 
+;line => aaln/1 
 ;
 
 ;[dph100]
@@ -90,7 +95,7 @@
 				; 'documentation', or 'omit'
 ;context	= local
 ;host		= 192.168.1.20
-;wcardep	= aaln/*	; enables wildcard endpoint and sets it to 'aaln/*'
+;wcardep	= aaln/*	; enables wildcard endpoint and sets it to 'aaln/*' 
 				; another common format is '*'
 ;callerid 	= "Duane Cox" <123>	; now lets setup line 1 using per endpoint configuration...
 ;callwaiting	= no
@@ -111,3 +116,20 @@
 ;transfer	= no
 ;dtmfmode	= inband
 ;line => aaln/2			; now lets save this config to line2 aka aaln/2
+
+; PacketCable
+;[sbv5121e-mta.test.local]
+;host        = 10.0.1.3
+;callwaiting = 1
+;canreinvite = 1
+;dtmfmode    = rfc2833
+;amaflags    = BILLING
+;ncs         = yes ; Use NCS 1.0 signalling
+;pktcgatealloc = yes ; Allocate DQOS gate on CMTS
+;hangupongateremove = yes ; Hangup the channel if the CMTS close the gate
+;callerid    = 3622622225
+;accountcode = test-3622622225
+;line        = aaln/1
+;callerid    = 3622622226
+;accountcode = test-3622622226
+;line        = aaln/2
