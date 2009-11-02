@@ -170,9 +170,12 @@ static char *descrip =
 "           so you will not be able to set timeouts via the TIMEOUT() function in this macro.\n"
 "           Be aware of the limitations that macros have, specifically with regards to use of\n"
 "           the WaitExten application. For more information, see the documentation for Macro()\n"
-"    n    - This option is a modifier for the screen/privacy mode. It specifies\n"
-"           that no introductions are to be saved in the priv-callerintros\n"
-"           directory.\n"
+"    n([x]) - This option is a modifier for the screen/privacy mode. It specifies\n"
+"             that no introductions are to be saved in the priv-callerintros\n"
+"             directory.\n"
+"             Specified without an arg, or with 0, the introduction is saved after\n"
+"             an unanswered call originating from the same CallerID. With\n"
+"             a 1 specified, the introduction is always deleted and rerequested.\n"
 "    N    - This option is a modifier for the screen/privacy mode. It specifies\n"
 "           that if callerID is present, do not screen the call.\n"
 "    o    - Specify that the CallerID that was present on the *calling* channel\n"
@@ -298,6 +301,7 @@ enum {
 	OPT_ARG_PRIVACY,
 	OPT_ARG_DURATION_STOP,
 	OPT_ARG_OPERMODE,
+	OPT_ARG_SCREEN_NOINTRO,
 	/* note: this entry _MUST_ be the last one in the enum */
 	OPT_ARG_ARRAY_SIZE,
 };
@@ -321,7 +325,7 @@ AST_APP_OPTIONS(dial_exec_options, BEGIN_OPTIONS
 	AST_APP_OPTION_ARG('L', OPT_DURATION_LIMIT, OPT_ARG_DURATION_LIMIT),
 	AST_APP_OPTION_ARG('m', OPT_MUSICBACK, OPT_ARG_MUSICBACK),
 	AST_APP_OPTION_ARG('M', OPT_CALLEE_MACRO, OPT_ARG_CALLEE_MACRO),
-	AST_APP_OPTION('n', OPT_SCREEN_NOINTRO),
+	AST_APP_OPTION_ARG('n', OPT_SCREEN_NOINTRO, OPT_ARG_SCREEN_NOINTRO),
 	AST_APP_OPTION('N', OPT_SCREEN_NOCLID),
 	AST_APP_OPTION('o', OPT_ORIGINAL_CLID),
 	AST_APP_OPTION_ARG('O', OPT_OPERMODE, OPT_ARG_OPERMODE),
@@ -1337,6 +1341,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	int result = 0;
 	char *parse;
 	int opermode = 0;
+	int delprivintro = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(peers);
 		AST_APP_ARG(timeout);
@@ -1375,6 +1380,14 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		ast_log(LOG_WARNING, "Dial requires an argument (technology/number)\n");
 		pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
 		goto done;
+	}
+
+	if (ast_test_flag64(&opts, OPT_SCREEN_NOINTRO) && !ast_strlen_zero(opt_args[OPT_ARG_SCREEN_NOINTRO])) {
+		delprivintro = atoi(opt_args[OPT_ARG_SCREEN_NOINTRO]);
+		if (delprivintro < 0 || delprivintro > 1) {
+			ast_log(LOG_WARNING, "Unknown argument %d to n option, ignoring\n", delprivintro);
+			delprivintro = 0;
+		}
 	}
 
 	if (ast_test_flag64(&opts, OPT_OPERMODE)) {
@@ -2034,6 +2047,16 @@ out:
 		sentringing = 0;
 		ast_indicate(chan, -1);
 	}
+
+	if (delprivintro && ast_fileexists(pa.privintro, NULL, NULL) > 0) {
+		ast_filedelete(pa.privintro, NULL);
+		if (ast_fileexists(pa.privintro, NULL, NULL) > 0) {
+			ast_log(LOG_NOTICE, "privacy: ast_filedelete didn't do its job on %s\n", pa.privintro);
+		} else {
+			ast_verb(3, "Successfully deleted %s intro file\n", pa.privintro);
+		}
+	}
+
 	ast_channel_early_bridge(chan, NULL);
 	hanguptree(outgoing, NULL, 0); /* In this case, there's no answer anywhere */
 	pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
