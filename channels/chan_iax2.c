@@ -6422,7 +6422,6 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		ast_codec_pref_convert(&iaxs[callno]->rprefs, ies->codec_prefs, 32, 0);
 		ast_codec_pref_convert(&iaxs[callno]->prefs, ies->codec_prefs, 32, 0);
 	}
-	ao2_iterator_destroy(&i);
 
 	if (!gotcapability) 
 		iaxs[callno]->peercapability = iaxs[callno]->peerformat;
