@@ -277,6 +277,8 @@ CDR
  * Multiple files and formats can now be specified in cdr_custom.conf.
  * cdr_syslog has been added which allows CDRs to be written directly to syslog.
    See configs/cdr_syslog.conf.sample for more information.
+ * A 'sequence' field has been added to CDRs which can be combined with
+   linkedid or uniqueid to uniquely identify a CDR.
 
 Calendaring for Asterisk
 ------------------------

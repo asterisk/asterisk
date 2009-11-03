@@ -184,7 +184,7 @@ static void ast_cdr_fork(struct ast_channel *chan, struct ast_flags optflags, ch
 	while (cdr->next)
 		cdr = cdr->next;
 	
-	if (!(newcdr = ast_cdr_dup(cdr)))
+	if (!(newcdr = ast_cdr_dup_unique(cdr)))
 		return;
 	
 	ast_cdr_append(cdr, newcdr);

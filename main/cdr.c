@@ -74,6 +74,11 @@ static struct ast_cdr_batch {
 	struct ast_cdr_batch_item *tail;
 } *batch = NULL;
 
+
+static int cdr_sequence =  0;
+
+static int cdr_seq_inc(struct ast_cdr *cdr);
+
 static struct sched_context *sched;
 static int cdr_sched = -1;
 static pthread_t cdr_thread = AST_PTHREADT_NULL;
@@ -163,6 +168,26 @@ void ast_cdr_unregister(const char *name)
 int ast_cdr_isset_unanswered(void)
 {
 	return unanswered;
+}
+
+struct ast_cdr *ast_cdr_dup_unique(struct ast_cdr *cdr) 
+{
+	struct ast_cdr *newcdr = ast_cdr_dup(cdr);
+	if (!newcdr)
+		return NULL;
+
+	cdr_seq_inc(newcdr);
+	return newcdr;
+}
+
+struct ast_cdr *ast_cdr_dup_unique_swap(struct ast_cdr *cdr) 
+{
+	struct ast_cdr *newcdr = ast_cdr_dup(cdr);
+	if (!newcdr)
+		return NULL;
+
+	cdr_seq_inc(cdr);
+	return newcdr;
 }
 
 /*! Duplicate a CDR record 
@@ -279,6 +304,8 @@ void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *wor
 		ast_copy_string(workspace, cdr->linkedid, workspacelen);
 	else if (!strcasecmp(name, "userfield"))
 		ast_copy_string(workspace, cdr->userfield, workspacelen);
+	else if (!strcasecmp(name, "sequence"))
+		snprintf(workspace, workspacelen, "%d", cdr->sequence);
 	else if ((varbuf = ast_cdr_getvar_internal(cdr, name, recur)))
 		ast_copy_string(workspace, varbuf, workspacelen);
 	else
@@ -292,7 +319,7 @@ void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *wor
 static const char * const cdr_readonly_vars[] = { "clid", "src", "dst", "dcontext", "channel", "dstchannel",
 						  "lastapp", "lastdata", "start", "answer", "end", "duration",
 						  "billsec", "disposition", "amaflags", "accountcode", "uniqueid", "linkedid",
-						  "userfield", NULL };
+						  "userfield", "sequence", NULL };
 /*! Set a CDR channel variable 
 	\note You can't set the CDR variables that belong to the actual CDR record, like "billsec".
 */
@@ -847,6 +874,11 @@ int ast_cdr_setcid(struct ast_cdr *cdr, struct ast_channel *c)
 	return 0;
 }
 
+static int cdr_seq_inc(struct ast_cdr *cdr)
+{
+	return (cdr->sequence = ast_atomic_fetchadd_int(&cdr_sequence, +1));
+}
+
 int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 {
 	char *chan;
@@ -856,6 +888,7 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 			chan = S_OR(cdr->channel, "<unknown>");
 			ast_copy_string(cdr->channel, c->name, sizeof(cdr->channel));
 			set_one_cid(cdr, c);
+			cdr_seq_inc(cdr);
 
 			cdr->disposition = (c->_state == AST_STATE_UP) ?  AST_CDR_ANSWERED : AST_CDR_NOANSWER;
 			cdr->amaflags = c->amaflags ? c->amaflags :  ast_default_amaflags;
@@ -1116,7 +1149,7 @@ void ast_cdr_reset(struct ast_cdr *cdr, struct ast_flags *_flags)
 		if (ast_test_flag(&flags, AST_CDR_FLAG_LOCKED) || !ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
 			if (ast_test_flag(&flags, AST_CDR_FLAG_POSTED)) {
 				ast_cdr_end(cdr);
-				if ((duplicate = ast_cdr_dup(cdr))) {
+				if ((duplicate = ast_cdr_dup_unique_swap(cdr))) {
 					ast_cdr_detach(duplicate);
 				}
 				ast_set_flag(cdr, AST_CDR_FLAG_POSTED);

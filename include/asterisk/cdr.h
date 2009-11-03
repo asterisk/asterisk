@@ -110,6 +110,8 @@ struct ast_cdr {
 	char linkedid[32];
 	/*! User field */
 	char userfield[AST_MAX_USER_FIELD];
+	/*! Sequence field */
+	int sequence;
 
 	/*! A linked list for variables */
 	struct varshead varshead;
@@ -143,9 +145,37 @@ int check_cdr_enabled(void);
 struct ast_cdr *ast_cdr_alloc(void);
 
 /*! 
- * \brief Duplicate a record 
+ * \brief Duplicate a record and increment the sequence number.
+ * \param cdr the record to duplicate
  * \retval a malloc'd ast_cdr structure, 
  * \retval NULL on error (malloc failure)
+ * \see ast_cdr_dup()
+ * \see ast_cdr_dup_unique_swap()
+ */
+struct ast_cdr *ast_cdr_dup_unique(struct ast_cdr *cdr);
+
+/*! 
+ * \brief Duplicate a record and increment the sequence number of the old
+ * record.
+ * \param cdr the record to duplicate
+ * \retval a malloc'd ast_cdr structure, 
+ * \retval NULL on error (malloc failure)
+ * \note This version increments the original CDR's sequence number rather than
+ * the duplicate's sequence number. The effect is as if the original CDR's
+ * sequence number was swapped with the duplicate's sequence number.
+ *
+ * \see ast_cdr_dup()
+ * \see ast_cdr_dup_unique()
+ */
+struct ast_cdr *ast_cdr_dup_unique_swap(struct ast_cdr *cdr);
+
+/*! 
+ * \brief Duplicate a record 
+ * \param cdr the record to duplicate
+ * \retval a malloc'd ast_cdr structure, 
+ * \retval NULL on error (malloc failure)
+ * \see ast_cdr_dup_unique()
+ * \see ast_cdr_dup_unique_swap()
  */
 struct ast_cdr *ast_cdr_dup(struct ast_cdr *cdr);
 

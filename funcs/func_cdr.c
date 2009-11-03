@@ -99,6 +99,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name="channel">
 						<para>Channel name.</para>
 					</enum>
+					<enum name="sequence">
+						<para>CDR sequence number.</param>
+					</enum>
 				</enumlist>
 			</parameter>
 			<parameter name="options" required="false">
