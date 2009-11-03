@@ -9198,7 +9198,7 @@ static void build_rpid(struct sip_pvt *p)
 	if (!ast_strlen_zero(p->rpid) || !ast_strlen_zero(p->rpid_from))  
 		return;
 
-	if (p->owner && p->owner->cid.cid_num)
+	if (p->owner && !ast_strlen_zero(p->owner->cid.cid_num))
 		clid = p->owner->cid.cid_num;
 	if (p->owner && p->owner->cid.cid_name)
 		clin = p->owner->cid.cid_name;
