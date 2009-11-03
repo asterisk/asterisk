@@ -8646,7 +8646,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	memcpy(&testsin.sin_addr, hp->h_addr, sizeof(testsin.sin_addr));
 	if (	ast_apply_ha(global_contact_ha, &testsin) != AST_SENSE_ALLOW ||
 			ast_apply_ha(peer->contactha, &testsin) != AST_SENSE_ALLOW) {
-		ast_log(LOG_WARNING, "Host '%s' disallowed by contact ACL\n", n);
+		ast_log(LOG_WARNING, "Host '%s' disallowed by contact ACL (violating IP %s)\n", n, ast_inet_ntoa(testsin));
 		*peer->fullcontact = '\0';
 		ast_string_field_set(pvt, our_contact, "");
 		return PARSE_REGISTER_DENIED;
@@ -9272,7 +9272,6 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 				   now, update the peer */
 				switch (parse_register_contact(p, peer, req)) {
 				case PARSE_REGISTER_DENIED:
-					ast_log(LOG_WARNING, "Registration denied because of contact ACL\n");
 					transmit_response_with_date(p, "603 Denied", req);
 					peer->lastmsgssent = -1;
 					res = 0;
