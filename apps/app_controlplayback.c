@@ -175,7 +175,7 @@ static int controlplayback_exec(struct ast_channel *chan, const char *data)
 		else
 			args.rev = NULL;
 	}
-	ast_log(LOG_WARNING, "args.fwd = %s, args.rew = %s\n", args.fwd, args.rev);
+	ast_debug(1, "Forward key = %s, Rewind key = %s\n", args.fwd, args.rev);
 	if (args.stop && !is_on_phonepad(*args.stop))
 		args.stop = NULL;
 	if (args.pause && !is_on_phonepad(*args.pause))
