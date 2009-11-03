@@ -25908,6 +25908,8 @@ static int reload_config(enum channelreloadreason reason)
 				if (ast_true(hassip) || (!hassip && genhassip)) {
 					peer = build_peer(cat, gen, ast_variable_browse(ucfg, cat), 0, 0);
 					if (peer) {
+						/* user.conf entries are always of type friend */
+						peer->type = SIP_TYPE_USER | SIP_TYPE_PEER;
 						ao2_t_link(peers, peer, "link peer into peer table");
 						if ((peer->type & SIP_TYPE_PEER) && peer->addr.sin_addr.s_addr) {
 							ao2_t_link(peers_by_ip, peer, "link peer into peers_by_ip table");
