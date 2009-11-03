@@ -16510,7 +16510,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	else
 		ast_cli(a->fd, "  SIP realtime:           Enabled\n" );
 	ast_cli(a->fd, "  Qualify Freq :          %d ms\n", global_qualifyfreq);
-	ast_cli(a->fd, "  User Reson header:      %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_Q850_REASON)));
+	ast_cli(a->fd, "  Q.850 Reason header:    %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_Q850_REASON)));
 	ast_cli(a->fd, "\nNetwork QoS Settings:\n");
 	ast_cli(a->fd, "---------------------------\n");
 	ast_cli(a->fd, "  IP ToS SIP:             %s\n", ast_tos2str(global_tos_sip));
