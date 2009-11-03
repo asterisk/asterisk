@@ -8646,7 +8646,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	memcpy(&testsin.sin_addr, hp->h_addr, sizeof(testsin.sin_addr));
 	if (	ast_apply_ha(global_contact_ha, &testsin) != AST_SENSE_ALLOW ||
 			ast_apply_ha(peer->contactha, &testsin) != AST_SENSE_ALLOW) {
-		ast_log(LOG_WARNING, "Host '%s' disallowed by contact ACL (violating IP %s)\n", n, ast_inet_ntoa(testsin));
+		ast_log(LOG_WARNING, "Host '%s' disallowed by contact ACL (violating IP %s)\n", n, ast_inet_ntoa(testsin.sin_addr));
 		*peer->fullcontact = '\0';
 		ast_string_field_set(pvt, our_contact, "");
 		return PARSE_REGISTER_DENIED;
