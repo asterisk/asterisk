@@ -1818,7 +1818,7 @@ static void parse(struct mgcp_request *req)
 		if (*c == '\n') {
 			/* We've got a new header */
 			*c = 0;
-			ast_debug(3, "Header: %s (%d)\n", req->header[f], strlen(req->header[f]));
+			ast_debug(3, "Header: %s (%d)\n", req->header[f], (int) strlen(req->header[f]));
 			if (ast_strlen_zero(req->header[f])) {
 				/* Line by itself means we're now in content */
 				c++;
@@ -1847,7 +1847,7 @@ static void parse(struct mgcp_request *req)
 		if (*c == '\n') {
 			/* We've got a new line */
 			*c = 0;
-			ast_debug(3, "Line: %s (%d)\n", req->line[f], strlen(req->line[f]));
+			ast_debug(3, "Line: %s (%d)\n", req->line[f], (int) strlen(req->line[f]));
 			if (f >= MGCP_MAX_LINES - 1) {
 				ast_log(LOG_WARNING, "Too many SDP lines...\n");
 			} else {
