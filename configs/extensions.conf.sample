@@ -439,7 +439,7 @@ exten => stdexten-BUSY,1,Voicemail(${mbx},b)
 exten => stdexten-BUSY,n,NoOp(Finish stdexten BUSY)
 exten => stdexten-BUSY,n,Return()			; If they press #, return to start
 
-exten => _stdexten[\-].,1,Goto(s-NOANSWER,1)		; Treat anything else as no answer
+exten => _stdexten-.,1,Goto(stdexten-NOANSWER,1)	; Treat anything else as no answer
 
 exten => a,1,VoicemailMain(${mbx})		; If they press *, send the user into VoicemailMain
 exten => a,n,Return()
@@ -465,7 +465,7 @@ exten => _X.,n,Set(LOCAL(cntx)=${ARG5})
 exten => _X.,n,Set(LOCAL(mbx)="${ext}"$["${cntx}" ? "@${cntx}" :: ""])
 exten => _X.,n,Dial(${dev},20,p)			; Ring the interface, 20 seconds maximum, call screening 
 						; option (or use P for databased call _X.creening)
-exten => _X.,n,Goto(s-${DIALSTATUS},1)		; Jump based on status (NOANSWER,BUSY,CHANUNAVAIL,CONGESTION,ANSWER)
+exten => _X.,n,Goto(stdexten-${DIALSTATUS},1)		; Jump based on status (NOANSWER,BUSY,CHANUNAVAIL,CONGESTION,ANSWER)
 
 exten => stdexten-NOANSWER,1,Voicemail(${mbx},u)	; If unavailable, send to voicemail w/ unavail announce
 exten => stdexten-NOANSWER,n,NoOp(Finish stdPrivacyexten NOANSWER)
@@ -479,7 +479,7 @@ exten => stdexten-DONTCALL,1,Goto(${dontcntx},s,1)	; Callee chose to send this c
 
 exten => stdexten-TORTURE,1,Goto(${tortcntx},s,1)	; Callee chose to send this call to a telemarketer torture script.
 
-exten => _stdexten-.,1,Goto(s-NOANSWER,1)		; Treat anything else as no answer
+exten => _stdexten-.,1,Goto(stdexten-NOANSWER,1)	; Treat anything else as no answer
 
 exten => a,1,VoicemailMain(${mbx})		; If they press *, send the user into VoicemailMain
 exten => a,n,Return
