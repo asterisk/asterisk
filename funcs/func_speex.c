@@ -26,7 +26,8 @@
  *
  * \ingroup functions
  *
- * \extref The Speex library - http://www.speex.org
+ * \extref The Speex 1.2 library - http://www.speex.org
+ * \note Requires the 1.2 version of the Speex library (which might not be what you find in Linux packages)
  */
 
 /*** MODULEINFO
