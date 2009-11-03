@@ -73,6 +73,7 @@
 #define EVENT_FLAG_DIALPLAN		(1 << 11) /* Dialplan events (VarSet, NewExten) */
 #define EVENT_FLAG_ORIGINATE	(1 << 12) /* Originate a call to an extension */
 #define EVENT_FLAG_AGI			(1 << 13) /* AGI events */
+#define EVENT_FLAG_HOOKRESPONSE		(1 << 14) /* Hook Response */
 /*@} */
 
 /*! \brief Export manager structures */
@@ -106,6 +107,15 @@ void ast_manager_register_hook(struct manager_custom_hook *hook);
     \param hook struct manager_custom_hook object to delete
 */
 void ast_manager_unregister_hook(struct manager_custom_hook *hook);
+
+/*! \brief Registered hooks can call this function to invoke actions and they will receive responses through registered callback
+ * \param hookid the file identifier specified in manager_custom_hook struct when registering a hook
+ * \param msg ami action mesage string e.g. "Action: SipPeers\r\n"
+
+ * \retval 0 on Success
+ * \retval non-zero on Failure
+*/
+int ast_hook_send_action(struct manager_custom_hook *hook, const char *msg);
 
 struct mansession;
 

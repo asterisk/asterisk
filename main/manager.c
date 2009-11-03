@@ -838,6 +838,7 @@ struct mansession {
 	struct ast_tcptls_session_instance *tcptls_session;
 	FILE *f;
 	int fd;
+	struct manager_custom_hook *hook;
 	ast_mutex_t lock;
 };
 
@@ -1597,13 +1598,84 @@ struct ast_variable *astman_get_variables(const struct message *m)
 	return head;
 }
 
+/* access for hooks to send action messages to ami */
+
+int ast_hook_send_action(struct manager_custom_hook *hook, const char *msg)
+{
+	const char *action;
+	int ret = 0;
+	struct manager_action *tmp;
+	struct mansession s = {.session = NULL, };
+	struct message m = { 0 };
+	char header_buf[1025] = { '\0' };
+	const char *src = msg;
+	int x = 0;
+	int curlen;
+
+	if (hook == NULL) {
+		return -1;
+	}
+
+	/* convert msg string to message struct */
+	curlen = strlen(msg);
+	for (x = 0; x < curlen; x++) {
+		int cr;	/* set if we have \r */
+		if (src[x] == '\r' && x+1 < curlen && src[x+1] == '\n')
+			cr = 2;	/* Found. Update length to include \r\n */
+		else if (src[x] == '\n')
+			cr = 1;	/* also accept \n only */
+		else
+			continue;
+		/* don't copy empty lines */
+		if (x) {
+			memmove(header_buf, src, x);	/*... but trim \r\n */
+			header_buf[x] = '\0';		/* terminate the string */
+			m.headers[m.hdrcount++] = ast_strdupa(header_buf);
+		}
+		x += cr;
+		curlen -= x;		/* remaining size */
+		src += x;		/* update pointer */
+		x = -1;			/* reset loop */
+	}
+
+	action = astman_get_header(&m,"Action");
+	if (action && strcasecmp(action,"login")) {
+
+		AST_RWLIST_RDLOCK(&actions);
+		AST_RWLIST_TRAVERSE(&actions, tmp, list) {
+			if (strcasecmp(action, tmp->action))
+				continue;
+			/*
+			* we have to simulate a session for this action request
+			* to be able to pass it down for processing
+			* This is necessary to meet the previous design of manager.c
+			*/
+			s.hook = hook;
+			s.f = (void*)1; /* set this to something so our request will make it through all functions that test it*/
+			ret = tmp->func(&s, &m);
+			break;
+		}
+		AST_RWLIST_UNLOCK(&actions);
+	}
+	return ret;
+}
+
+
 /*!
  * helper function to send a string to the socket.
  * Return -1 on error (e.g. buffer full).
  */
 static int send_string(struct mansession *s, char *string)
 {
-	if (s->f) {
+	/* It's a result from one of the hook's action invocation */
+	if (s->hook) {
+		/*
+		 * to send responses, we're using the same function
+		 * as for receiving events. We call the event "HookResponse"
+		 */
+		s->hook->helper(EVENT_FLAG_HOOKRESPONSE, "HookResponse", string);
+		return 0;
+	} else if (s->f) {
 		return ast_careful_fwrite(s->f, s->fd, string, strlen(string), s->session->writetimeout);
 	} else {
 		return ast_careful_fwrite(s->session->f, s->session->fd, string, strlen(string), s->session->writetimeout);
