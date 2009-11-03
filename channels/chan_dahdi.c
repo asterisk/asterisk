@@ -9451,6 +9451,9 @@ static struct ast_channel *dahdi_request(const char *type, int format, void *dat
 			}
 			p->outgoing = 1;
 			tmp = dahdi_new(p, AST_STATE_RESERVED, 0, p->owner ? SUB_CALLWAIT : SUB_REAL, 0, 0);
+			if (!tmp) {
+				p->outgoing = 0;
+			}
 #ifdef HAVE_PRI
 			if (p->bearer) {
 				/* Log owner to bearer channel, too */
