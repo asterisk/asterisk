@@ -315,6 +315,7 @@ static int cops_getmsg (int sfd, struct copsmsg *recmsg)
 	int len, lent;
 	char buf[COPS_HEADER_SIZE];
 	struct pktcobj *pobject = NULL;
+	uint16_t *ubuf = (uint16_t *) buf;
 	recmsg->msg = NULL;
 	recmsg->object = NULL;
 	len = recv(sfd, buf, COPS_HEADER_SIZE, MSG_DONTWAIT);
@@ -357,7 +358,7 @@ static int cops_getmsg (int sfd, struct copsmsg *recmsg)
 				return lent;
 			}
 			len += lent;
-			pobject->length = ntohs(*((uint16_t *) buf));
+			pobject->length = ntohs(*ubuf);
 			pobject->cnum = *(buf + 2);
 			pobject->ctype = *(buf + 3);
 			if (!(pobject->contents = malloc(pobject->length - COPS_OBJECT_HEADER_SIZE))) {
