@@ -77,7 +77,7 @@ ifeq ($(OSARCH),OpenBSD)
 endif
 
 ifeq ($(OSARCH),SunOS)
-  AST_LIBS+=-lpthread -ldl -lnsl -lsocket -lresolv -L/opt/ssl/lib -L/usr/local/ssl/lib
+  AST_LIBS+=-lpthread -ldl -lrt -lnsl -lsocket -lresolv -L/opt/ssl/lib -L/usr/local/ssl/lib
   ASTLINK=
 endif
 
