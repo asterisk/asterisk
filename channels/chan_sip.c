@@ -631,6 +631,7 @@ enum xmittype {
 
 /*! \brief Results from the parse_register() function */
 enum parse_register_result {
+	PARSE_REGISTER_DENIED,
 	PARSE_REGISTER_FAILED,
 	PARSE_REGISTER_UPDATE,
 	PARSE_REGISTER_QUERY,
@@ -12154,10 +12155,10 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	memcpy(&testsin.sin_addr, hp->h_addr, sizeof(testsin.sin_addr));
 	if (ast_apply_ha(global_contact_ha, &testsin) != AST_SENSE_ALLOW ||
 			ast_apply_ha(peer->contactha, &testsin) != AST_SENSE_ALLOW) {
-		ast_log(LOG_WARNING, "Host '%s' disallowed by rule\n", host);
+		ast_log(LOG_WARNING, "Host '%s' disallowed by contact ACL (violating IP %s)\n", host, ast_inet_ntoa(testsin.sin_addr));
 		ast_string_field_set(peer, fullcontact, "");
 		ast_string_field_set(pvt, our_contact, "");
-		return PARSE_REGISTER_FAILED;
+		return PARSE_REGISTER_DENIED;
 	}
 
 	/*! \todo This could come before the checking of DNS earlier on, to avoid 
@@ -12837,6 +12838,12 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 					/* We have a successful registration attempt with proper authentication,
 				   	now, update the peer */
 					switch (parse_register_contact(p, peer, req)) {
+					case PARSE_REGISTER_DENIED:
+						ast_log(LOG_WARNING, "Registration denied because of contact ACL\n");
+						transmit_response_with_date(p, "603 Denied", req);
+						peer->lastmsgssent = -1;
+						res = 0;
+						break;
 					case PARSE_REGISTER_FAILED:
 						ast_log(LOG_WARNING, "Failed to parse contact info\n");
 						transmit_response_with_date(p, "400 Bad Request", req);
@@ -12876,6 +12883,12 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 			if (sip_cancel_destroy(p))
 				ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 			switch (parse_register_contact(p, peer, req)) {
+			case PARSE_REGISTER_DENIED:
+				ast_log(LOG_WARNING, "Registration denied because of contact ACL\n");
+				transmit_response_with_date(p, "403 Forbidden (ACL)", req);
+				peer->lastmsgssent = -1;
+				res = 0;
+				break;
 			case PARSE_REGISTER_FAILED:
 				ast_log(LOG_WARNING, "Failed to parse contact info\n");
 				transmit_response_with_date(p, "400 Bad Request", req);
