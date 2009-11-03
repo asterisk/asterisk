@@ -1143,10 +1143,12 @@ static struct ast_manager_user *get_manager_by_name_locked(const char *name)
 {
 	struct ast_manager_user *user = NULL;
 
-	AST_RWLIST_TRAVERSE(&users, user, list)
+	AST_RWLIST_TRAVERSE(&users, user, list) {
 		if (!strcasecmp(user->username, name)) {
 			break;
 		}
+	}
+
 	return user;
 }
 

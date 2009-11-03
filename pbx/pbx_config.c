@@ -38,8 +38,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"	/* AST_MAX_EXTENSION */
 #include "asterisk/callerid.h"
 
-static char *config = "extensions.conf";
-static char *registrar = "pbx_config";
+static const char config[] = "extensions.conf";
+static const char registrar[] = "pbx_config";
 static char userscontext[AST_MAX_EXTENSION] = "default";
 
 static int static_config = 0;
