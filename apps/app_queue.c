@@ -824,20 +824,22 @@ struct queue_ent {
 };
 
 struct member {
-	char interface[80];                 /*!< Technology/Location to dial to reach this member*/
-	char state_interface[80];           /*!< Technology/Location from which to read devicestate changes */
-	char membername[80];                /*!< Member name to use in queue logs */
-	int penalty;                        /*!< Are we a last resort? */
-	int calls;                          /*!< Number of calls serviced by this member */
-	int dynamic;                        /*!< Are we dynamically added? */
-	int realtime;                       /*!< Is this member realtime? */
-	int status;                         /*!< Status of queue member */
-	int paused;                         /*!< Are we paused (not accepting calls)? */
-	time_t lastcall;                    /*!< When last successful call was hungup */
-	struct call_queue *lastqueue;	    /*!< Last queue we received a call */
-	unsigned int dead:1;                /*!< Used to detect members deleted in realtime */
-	unsigned int delme:1;               /*!< Flag to delete entry on reload */
-	char rt_uniqueid[80];               /*!< Unique id of realtime member entry */
+	char interface[80];                  /*!< Technology/Location to dial to reach this member*/
+	char state_exten[AST_MAX_EXTENSION]; /*!< Extension to get state from (if using hint) */
+	char state_context[AST_MAX_CONTEXT]; /*!< Context to use when getting state (if using hint) */
+	char state_interface[80];            /*!< Technology/Location from which to read devicestate changes */
+	char membername[80];                 /*!< Member name to use in queue logs */
+	int penalty;                         /*!< Are we a last resort? */
+	int calls;                           /*!< Number of calls serviced by this member */
+	int dynamic;                         /*!< Are we dynamically added? */
+	int realtime;                        /*!< Is this member realtime? */
+	int status;                          /*!< Status of queue member */
+	int paused;                          /*!< Are we paused (not accepting calls)? */
+	time_t lastcall;                     /*!< When last successful call was hungup */
+	struct call_queue *lastqueue;	     /*!< Last queue we received a call */
+	unsigned int dead:1;                 /*!< Used to detect members deleted in realtime */
+	unsigned int delme:1;                /*!< Flag to delete entry on reload */
+	char rt_uniqueid[80];                /*!< Unique id of realtime member entry */
 };
 
 enum empty_conditions {
@@ -1258,6 +1260,81 @@ static void device_state_cb(const struct ast_event *event, void *unused)
 	}
 }
 
+/*! \brief Helper function which converts from extension state to device state values */
+static int extensionstate2devicestate(int state)
+{
+	switch (state) {
+	case AST_EXTENSION_NOT_INUSE:
+		state = AST_DEVICE_NOT_INUSE;
+		break;
+	case AST_EXTENSION_INUSE:
+		state = AST_DEVICE_INUSE;
+		break;
+	case AST_EXTENSION_BUSY:
+		state = AST_DEVICE_BUSY;
+		break;
+	case AST_EXTENSION_RINGING:
+		state = AST_DEVICE_RINGING;
+		break;
+	case AST_EXTENSION_ONHOLD:
+		state = AST_DEVICE_ONHOLD;
+		break;
+	case AST_EXTENSION_UNAVAILABLE:
+		state = AST_DEVICE_UNAVAILABLE;
+		break;
+	case AST_EXTENSION_REMOVED:
+	case AST_EXTENSION_DEACTIVATED:
+	default:
+		state = AST_DEVICE_INVALID;
+		break;
+	}
+
+	return state;
+}
+
+static int extension_state_cb(char *context, char *exten, enum ast_extension_states state, void *data)
+{
+	struct ao2_iterator miter, qiter;
+	struct member *m;
+	struct call_queue *q;
+	int found = 0, device_state = extensionstate2devicestate(state);
+
+	qiter = ao2_iterator_init(queues, 0);
+	while ((q = ao2_iterator_next(&qiter))) {
+		ao2_lock(q);
+
+		miter = ao2_iterator_init(q->members, 0);
+		for (; (m = ao2_iterator_next(&miter)); ao2_ref(m, -1)) {
+			if (!strcmp(m->state_context, context) && !strcmp(m->state_exten, exten)) {
+				update_status(q, m, device_state);
+				ao2_ref(m, -1);
+				found = 1;
+				break;
+			}
+		}
+		ao2_iterator_destroy(&miter);
+
+		ao2_unlock(q);
+		ao2_ref(q, -1);
+	}
+	ao2_iterator_destroy(&qiter);
+
+        if (found) {
+		ast_debug(1, "Extension '%s@%s' changed to state '%d' (%s)\n", exten, context, device_state, ast_devstate2str(device_state));
+	} else {
+		ast_debug(3, "Extension '%s@%s' changed to state '%d' (%s) but we don't care because they're not a member of any queue.\n",
+			  exten, context, device_state, ast_devstate2str(device_state));
+	}
+
+	return 0;
+}
+
+/*! \brief Return the current state of a member */
+static int get_queue_member_status(struct member *cur)
+{
+	return ast_strlen_zero(cur->state_exten) ? ast_device_state(cur->state_interface) : extensionstate2devicestate(ast_extension_state(NULL, cur->state_context, cur->state_exten));
+}
+
 /*! \brief allocate space for new queue member and set fields based on parameters passed */
 static struct member *create_queue_member(const char *interface, const char *membername, int penalty, int paused, const char *state_interface)
 {
@@ -1277,7 +1354,14 @@ static struct member *create_queue_member(const char *interface, const char *mem
 			ast_copy_string(cur->membername, interface, sizeof(cur->membername));
 		if (!strchr(cur->interface, '/'))
 			ast_log(LOG_WARNING, "No location at interface '%s'\n", interface);
-		cur->status = ast_device_state(cur->state_interface);
+		if (!strncmp(state_interface, "hint:", 5)) {
+			char *tmp = ast_strdupa(state_interface), *context = tmp;
+			char *exten = strsep(&context, "@") + 5;
+
+			ast_copy_string(cur->state_exten, exten, sizeof(cur->state_exten));
+			ast_copy_string(cur->state_context, S_OR(context, "default"), sizeof(cur->state_context));
+		}
+		cur->status = get_queue_member_status(cur);
 	}
 
 	return cur;
@@ -2677,7 +2761,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		tmp->stillgoing = 0;	
 
 		ao2_lock(qe->parent);
-		update_status(qe->parent, tmp->member, ast_device_state(tmp->member->state_interface));
+		update_status(qe->parent, tmp->member, get_queue_member_status(tmp->member));
 		qe->parent->rrpos++;
 		qe->linpos++;
 		ao2_unlock(qe->parent);
@@ -2760,7 +2844,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		ast_channel_unlock(qe->chan);
 		do_hang(tmp);
 		(*busies)++;
-		update_status(qe->parent, tmp->member, ast_device_state(tmp->member->state_interface));
+		update_status(qe->parent, tmp->member, get_queue_member_status(tmp->member));
 		return 0;
 	} else if (qe->parent->eventwhencalled) {
 		char vars[2048];
@@ -2788,7 +2872,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	ast_channel_unlock(tmp->chan);
 	ast_channel_unlock(qe->chan);
 
-	update_status(qe->parent, tmp->member, ast_device_state(tmp->member->state_interface));
+	update_status(qe->parent, tmp->member, get_queue_member_status(tmp->member));
 	return 1;
 }
 
@@ -6093,7 +6177,7 @@ static int kill_dead_members(void *obj, void *arg, int flags)
 			 */
 			q->membercount++;
 		}
-		member->status = ast_device_state(member->state_interface);
+		member->status = get_queue_member_status(member);
 		return 0;
 	} else {
 		q->membercount--;
@@ -7480,6 +7564,8 @@ static int unload_module(void)
 	if (device_state_sub)
 		ast_event_unsubscribe(device_state_sub);
 
+	ast_extension_state_del(0, extension_state_cb);
+
 	if ((con = ast_context_find("app_queue_gosub_virtual_context"))) {
 		ast_context_remove_extension2(con, "s", 1, NULL, 0);
 		ast_context_destroy(con, "app_queue"); /* leave no trace */
@@ -7552,6 +7638,8 @@ static int load_module(void)
 	if (!(device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE, device_state_cb, "AppQueue Device state", NULL, AST_EVENT_IE_END))) {
 		res = -1;
 	}
+
+	ast_extension_state_add(NULL, NULL, extension_state_cb, NULL);
 
 	ast_realtime_require_field("queue_members", "paused", RQ_INTEGER1, 1, "uniqueid", RQ_UINTEGER2, 5, SENTINEL);
 

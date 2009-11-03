@@ -474,6 +474,10 @@ shared_lastcall=no
 ; state notifications, even though the first interface specified is the one
 ; that is actually called.
 ;
+; A hint can also be used in place of the state interface using the format
+; hint:<extension>@<context>. If no context is specified then 'default' will
+; be used.
+;
 ; It is important to ensure that channel drivers used for members are loaded
 ; before app_queue.so itself or they may be marked invalid until reload. This
 ; can be accomplished by explicitly listing them in modules.conf before
