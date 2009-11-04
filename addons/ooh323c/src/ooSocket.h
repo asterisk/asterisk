@@ -331,6 +331,11 @@ EXTERN int ooSocketSendTo(OOSOCKET socket, const ASN1OCTET* pdata,
 EXTERN int ooSocketSelect(int nfds, fd_set *readfds, fd_set *writefds, 
                             fd_set *exceptfds, struct timeval * timeout);
 
+EXTERN int ooSocketPoll(struct pollfd *pfds, int nfds, int timeout);
+
+EXTERN int ooPDRead(struct pollfd *pfds, int nfds, int fd);
+EXTERN int ooPDWrite(struct pollfd *pfds, int nfds, int fd);
+
 /**
  * This function converts the string with IP address to a double word
  * representation. The converted address may be used with the ::rtSocketBind
@@ -356,7 +361,7 @@ EXTERN int ooSocketStrToAddr (const char* pIPAddrStr, OOIPADDR* pIPAddr);
  * @return             Completion status of operation: 0 (ASN_OK) = success,
  *                     negative return value is error.
  */
-EXTERN int ooSocketConvertIpToNwAddr(char *inetIp, char *netIp);
+EXTERN int ooSocketConvertIpToNwAddr(char *inetIp, unsigned char *netIp);
 
 /**
  * This function retrives the IP address of the local host.
@@ -370,7 +375,7 @@ EXTERN int ooGetLocalIPAddress(char * pIPAddrs);
 
 
 EXTERN int ooSocketGetSockName(OOSOCKET socket, struct sockaddr_in *name, 
-                                                      int *size);
+                                                      socklen_t *size);
 
 
 EXTERN long ooSocketHTONL(long val);

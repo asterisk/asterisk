@@ -13,9 +13,12 @@
  * maintain this copyright notice.
  *
  *****************************************************************************/
+#include <asterisk.h>
+#include <asterisk/lock.h>
 
 #include "ooasn1.h"
 #include <stdlib.h>
+#include <pthread.h>
 
 int initContext (OOCTXT* pctxt)
 {
@@ -24,6 +27,9 @@ int initContext (OOCTXT* pctxt)
    memHeapCreate (&pctxt->pTypeMemHeap);
    pctxt->pMsgMemHeap = pctxt->pTypeMemHeap;
    memHeapAddRef (&pctxt->pMsgMemHeap);
+
+
+   ast_mutex_init(&pctxt->pLock);
 
    return ASN_OK;
 }
@@ -55,7 +61,9 @@ int initContextBuffer
 
 int initSubContext (OOCTXT* pctxt, OOCTXT* psrc) 
 {
+   /* ast_mutex_lock(&pctxt->pLock); */
    int stat = ASN_OK;
+   ast_mutex_lock(&psrc->pLock);
    memset (pctxt, 0, sizeof(OOCTXT));
    pctxt->pTypeMemHeap = psrc->pTypeMemHeap;
    memHeapAddRef (&pctxt->pTypeMemHeap);
@@ -65,12 +73,17 @@ int initSubContext (OOCTXT* pctxt, OOCTXT* psrc)
    pctxt->buffer.dynamic = TRUE;
    pctxt->buffer.byteIndex = 0;
    pctxt->buffer.bitOffset = 8;
+
+   ast_mutex_unlock(&psrc->pLock);
+   /* ast_mutex_unlock(&pctxt->pLock); */
    return stat;
 }
 
 void freeContext (OOCTXT* pctxt)
 {
-   ASN1BOOL saveBuf = (pctxt->flags & ASN1SAVEBUF) != 0;
+   ASN1BOOL saveBuf;
+   ast_mutex_lock(&pctxt->pLock);
+   saveBuf = (pctxt->flags & ASN1SAVEBUF) != 0;
    
    if (pctxt->buffer.dynamic && pctxt->buffer.data) {
       if (saveBuf) {
@@ -85,27 +98,38 @@ void freeContext (OOCTXT* pctxt)
 
    memHeapRelease (&pctxt->pTypeMemHeap);
    memHeapRelease (&pctxt->pMsgMemHeap);
+
+   ast_mutex_unlock(&pctxt->pLock);
+   ast_mutex_destroy(&pctxt->pLock);
 }
 
 void copyContext (OOCTXT* pdest, OOCTXT* psrc)
 {
+   /* ast_mutex_lock(&pdest->pLock); ast_mutex_lock(&psrc->pLock); */
    memcpy (&pdest->buffer, &psrc->buffer, sizeof(ASN1BUFFER));
    pdest->flags = psrc->flags;
+   /* ast_mutex_unlock(&psrc->pLock); ast_mutex_unlock(&pdest->pLock); */
 }
 
 void setCtxtFlag (OOCTXT* pctxt, ASN1USINT mask)
 {
+   ast_mutex_lock(&pctxt->pLock);
    pctxt->flags |= mask;
+   ast_mutex_unlock(&pctxt->pLock);
 }
 
 void clearCtxtFlag (OOCTXT* pctxt, ASN1USINT mask)
 {
+   ast_mutex_lock(&pctxt->pLock);
    pctxt->flags &= ~mask;
+   ast_mutex_unlock(&pctxt->pLock);
 }
 
 int setPERBufferUsingCtxt (OOCTXT* pTarget, OOCTXT* pSource)
 {
-   int stat = initContextBuffer 
+   int stat;
+   ast_mutex_lock(&pTarget->pLock); ast_mutex_lock(&pSource->pLock);
+   stat = initContextBuffer 
       (pTarget, pSource->buffer.data, pSource->buffer.size);
 
    if (ASN_OK == stat) {
@@ -113,13 +137,17 @@ int setPERBufferUsingCtxt (OOCTXT* pTarget, OOCTXT* pSource)
       pTarget->buffer.bitOffset = pSource->buffer.bitOffset;
    }
 
+   ast_mutex_unlock(&pSource->pLock); ast_mutex_unlock(&pTarget->pLock);
    return stat;
 }
 
 int setPERBuffer (OOCTXT* pctxt,
                   ASN1OCTET* bufaddr, ASN1UINT bufsiz, ASN1BOOL aligned)
 {
-   int stat = initContextBuffer (pctxt, bufaddr, bufsiz);
+   int stat;
+   ast_mutex_lock(&pctxt->pLock);
+   stat = initContextBuffer (pctxt, bufaddr, bufsiz);
+   ast_mutex_unlock(&pctxt->pLock);
    if(stat != ASN_OK) return stat;
 
    
@@ -128,10 +156,12 @@ int setPERBuffer (OOCTXT* pctxt,
 
 OOCTXT* newContext () 
 {
-   OOCTXT* pctxt = (OOCTXT*) ASN1CRTMALLOC0 (sizeof(OOCTXT));
+   /* OOCTXT* pctxt = (OOCTXT*) ASN1CRTMALLOC0 (sizeof(OOCTXT)); */
+   OOCTXT* pctxt = (OOCTXT*) malloc (sizeof(OOCTXT));
    if (pctxt) {
       if (initContext(pctxt) != ASN_OK) {
-         ASN1CRTFREE0 (pctxt);
+         /* ASN1CRTFREE0 (pctxt); */
+	 free(pctxt);
          pctxt = 0;
       }
       pctxt->flags |= ASN1DYNCTXT;

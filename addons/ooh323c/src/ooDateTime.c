@@ -15,6 +15,7 @@
  *****************************************************************************/
 
 #include "ooCommon.h"
+#include "ooDateTime.h"
 
 #if defined(_WIN32) || defined(_MSC_VER) || defined(__MINGW32__)
 

@@ -47,7 +47,7 @@ extern "C" {
 
 
 
-#define MAX_IP_LEN 15
+#define MAX_IP_LEN 18
 #define DEFAULT_GKPORT 1719
 #define MULTICAST_GKADDRESS "224.0.1.41"
 #define MULTICAST_GKPORT 1718
@@ -204,6 +204,7 @@ typedef struct ooGkClient{
    ASN1UINT arqTimeout;
    ASN1UINT drqTimeout;
    enum OOGkClientState  state;
+   ast_mutex_t Lock;
 } ooGkClient;
 
 struct OOAliases;
@@ -552,6 +553,15 @@ int ooGkClientSetCallbacks
 /** 
  * @} 
  */
+
+int ooGkClientReInit(ooGkClient *pGkClient);
+void ooGkClientFillVendor
+   (ooGkClient *pGkClient, H225VendorIdentifier *pVendor );
+void ooGkClientPrintMessage
+   (ooGkClient *pGkClient, ASN1OCTET *msg, ASN1UINT len);
+int ooGkClientSendIRR
+   (ooGkClient *pGkClient, struct OOH323CallData *call);
+
 
 #ifdef __cplusplus
 }

@@ -14,6 +14,9 @@
  *
  *****************************************************************************/
 
+#include <asterisk.h>
+#include <asterisk/lock.h>
+
 #include "ooDateTime.h"
 #include "ooTimer.h"
 #include "ootrace.h"

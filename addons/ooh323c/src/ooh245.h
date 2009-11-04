@@ -69,7 +69,7 @@ typedef struct H245Message {
  * @return          Completion status of operation: 0 (OO_OK) = success,
  *                  negative return value is error.         
  */
-EXTERN int ooCreateH245Message(H245Message **msg, int type);
+EXTERN int ooCreateH245Message(OOH323CallData* call, H245Message **msg, int type);
 
 /**
  * Frees up the memory used by the H245 message.
@@ -123,7 +123,7 @@ EXTERN int ooSendTermCapMsg(struct OOH323CallData *call);
  *
  * @return          Generated status determination number.
  */
-EXTERN ASN1UINT ooGenerateStatusDeterminationNumber();
+EXTERN ASN1UINT ooGenerateStatusDeterminationNumber(void);
 
 /**
  * This fuction is used to handle received MasterSlaveDetermination procedure
@@ -288,7 +288,7 @@ EXTERN int ooOnReceivedTerminalCapabilitySetAck(struct OOH323CallData* call);
  *
  * @return              OO_OK, on success. OO_FAILED, on failure.
  */
-EXTERN int ooCloseAllLogicalChannels(struct OOH323CallData *call);
+EXTERN int ooCloseAllLogicalChannels(struct OOH323CallData *call, char* dir);
 
 
 /**
@@ -550,6 +550,8 @@ int ooSendTerminalCapabilitySetReject
  */
 int ooSendTerminalCapabilitySetRelease(struct OOH323CallData * call);
 
+int ooSendRequestMode(OOH323CallData* call, int isT38Mode);
+
 
 /**
  * This is an helper function used to extract ip address and port info from 
@@ -629,6 +631,18 @@ int ooSessionTimerExpired(void *pdata);
 /** 
  * @} 
  */
+
+int ooHandleRequestMode(OOH323CallData* call,
+                                H245RequestMode *requestMode);
+
+int ooSendRequestModeAck(OOH323CallData* call,
+                                      H245SequenceNumber sequenceNumber);
+
+int ooSendRequestModeReject(OOH323CallData* call,
+                                      H245SequenceNumber sequenceNumber);
+
+void ooOnReceivedRequestModeAck(OOH323CallData* call, H245RequestModeAck * requestModeAck);
+
 #ifdef __cplusplus
 }
 #endif

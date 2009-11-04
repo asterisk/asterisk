@@ -166,7 +166,7 @@ typedef void (*CharStrValue16Bit) (ASN1UINT nchars, ASN116BITCHAR* data) ;
  * @param             - none
  * @return             - none
  */
-typedef void (*NullValue) () ;
+typedef void (*NullValue) (void) ;
 
 /**
  * This is a function pointer for a callback function which is invoked from 

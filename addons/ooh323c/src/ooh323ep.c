@@ -13,6 +13,9 @@
  * maintain this copyright notice.
  *
  *****************************************************************************/
+#include <asterisk.h>
+#include <asterisk/lock.h>
+
 #include "ooh323ep.h"
 #include "ootrace.h"
 #include "ooCalls.h"
@@ -23,6 +26,10 @@
 /** Global endpoint structure */
 ooEndPoint gH323ep;
 
+ast_mutex_t monitorLock;
+ast_mutex_t callListLock;
+ast_mutex_t newCallLock;
+ast_mutex_t bindPortLock;
 
 extern DList g_TimerList;
 
@@ -104,6 +111,10 @@ int ooH323EpInitialize
    gH323ep.myCaps = NULL;
    gH323ep.noOfCaps = 0;
    gH323ep.callList = NULL;
+   ast_mutex_init(&monitorLock);
+   ast_mutex_init(&callListLock);
+   ast_mutex_init(&newCallLock);
+   ast_mutex_init(&bindPortLock);
    gH323ep.dtmfmode = 0;
    gH323ep.callingPartyNumber[0]='\0';     
    gH323ep.callMode = callMode;
@@ -134,6 +145,16 @@ EXTERN int ooH323EpSetAsGateway()
    gH323ep.isGateway = TRUE;
    return OO_OK;
 }
+
+EXTERN void ooH323EpSetVersionInfo(int t35cc, int t35ext, int manc, char* prodid, char* verid) {
+
+   if (t35cc) gH323ep.t35CountryCode = t35cc;
+   if (t35ext) gH323ep.t35Extension = t35ext;
+   if (manc) gH323ep.manufacturerCode = manc;
+   if (prodid != NULL && prodid[0]) gH323ep.productID = prodid;
+   if (verid != NULL && verid[0]) gH323ep.versionID = verid;
+}
+
 
 
 int ooH323EpSetLocalAddress(const char* localip, int listenport)
@@ -316,6 +337,7 @@ int ooH323EpSetH323Callbacks(OOH323CALLBACKS h323Callbacks)
 {
    gH323ep.h323Callbacks.onNewCallCreated = h323Callbacks.onNewCallCreated;
    gH323ep.h323Callbacks.onAlerting = h323Callbacks.onAlerting;
+   gH323ep.h323Callbacks.onProgress = h323Callbacks.onProgress;
    gH323ep.h323Callbacks.onIncomingCall = h323Callbacks.onIncomingCall;
    gH323ep.h323Callbacks.onOutgoingCall = h323Callbacks.onOutgoingCall;
    gH323ep.h323Callbacks.onCallEstablished = h323Callbacks.onCallEstablished;
@@ -323,6 +345,7 @@ int ooH323EpSetH323Callbacks(OOH323CALLBACKS h323Callbacks)
    gH323ep.h323Callbacks.onCallCleared = h323Callbacks.onCallCleared;
    gH323ep.h323Callbacks.openLogicalChannels = h323Callbacks.openLogicalChannels;
    gH323ep.h323Callbacks.onReceivedDTMF = h323Callbacks.onReceivedDTMF;
+   gH323ep.h323Callbacks.onModeChanged = h323Callbacks.onModeChanged;
    return OO_OK;
 }
 
@@ -364,6 +387,7 @@ int ooH323EpDestroy(void)
       }
 
       freeContext(&(gH323ep.ctxt));
+      freeContext(&(gH323ep.msgctxt));
 
       OO_CLRFLAG(gH323ep.flags, OO_M_ENDPOINTCREATED);
    }
@@ -440,6 +464,15 @@ int ooH323EpEnableH245Tunneling(void)
 int ooH323EpDisableH245Tunneling(void)
 {
    OO_CLRFLAG(gH323ep.flags, OO_M_TUNNELING);
+   return OO_OK;
+}
+
+int ooH323EpTryBeMaster(int m)
+{
+   if (m)
+   	OO_SETFLAG(gH323ep.flags, OO_M_TRYBEMASTER);
+   else
+   	OO_CLRFLAG(gH323ep.flags, OO_M_TRYBEMASTER);
    return OO_OK;
 }
 
@@ -626,6 +659,43 @@ int ooH323EpAddG7231Capability(int cap, int txframes, int rxframes,
                              stopTransmitChannel, FALSE);
 }
 
+int ooH323EpAddG726Capability(int cap, int txframes, int rxframes, 
+                              OOBOOL silenceSuppression, int dir,
+                              cb_StartReceiveChannel startReceiveChannel,
+                              cb_StartTransmitChannel startTransmitChannel,
+                              cb_StopReceiveChannel stopReceiveChannel,
+                              cb_StopTransmitChannel stopTransmitChannel)
+{
+   return ooCapabilityAddSimpleCapability(NULL, cap, txframes, rxframes, 
+                             silenceSuppression, dir, startReceiveChannel, 
+                             startTransmitChannel, stopReceiveChannel, 
+                             stopTransmitChannel, FALSE);
+}
+int ooH323EpAddAMRNBCapability(int cap, int txframes, int rxframes, 
+                              OOBOOL silenceSuppression, int dir,
+                              cb_StartReceiveChannel startReceiveChannel,
+                              cb_StartTransmitChannel startTransmitChannel,
+                              cb_StopReceiveChannel stopReceiveChannel,
+                              cb_StopTransmitChannel stopTransmitChannel)
+{
+   return ooCapabilityAddSimpleCapability(NULL, cap, txframes, rxframes, 
+                             silenceSuppression, dir, startReceiveChannel, 
+                             startTransmitChannel, stopReceiveChannel, 
+                             stopTransmitChannel, FALSE);
+}
+int ooH323EpAddSpeexCapability(int cap, int txframes, int rxframes, 
+                              OOBOOL silenceSuppression, int dir,
+                              cb_StartReceiveChannel startReceiveChannel,
+                              cb_StartTransmitChannel startTransmitChannel,
+                              cb_StopReceiveChannel stopReceiveChannel,
+                              cb_StopTransmitChannel stopTransmitChannel)
+{
+   return ooCapabilityAddSimpleCapability(NULL, cap, txframes, rxframes, 
+                             silenceSuppression, dir, startReceiveChannel, 
+                             startTransmitChannel, stopReceiveChannel, 
+                             stopTransmitChannel, FALSE);
+}
+
 int ooH323EpAddGSMCapability(int cap, ASN1USINT framesPerPkt, 
                              OOBOOL comfortNoise, OOBOOL scrambled, int dir,
                              cb_StartReceiveChannel startReceiveChannel,
@@ -658,6 +728,16 @@ int ooH323EpAddH263VideoCapability(int cap, unsigned sqcifMPI,
 
 }
 
+
+int ooH323EpEnableDTMFCISCO(int dynamicRTPPayloadType)
+{
+   return ooCapabilityEnableDTMFCISCO(NULL, dynamicRTPPayloadType);
+}
+
+int ooH323EpDisableDTMFCISCO(void)
+{
+   return ooCapabilityDisableDTMFCISCO(NULL);
+}
 
 int ooH323EpEnableDTMFRFC2833(int dynamicRTPPayloadType)
 {

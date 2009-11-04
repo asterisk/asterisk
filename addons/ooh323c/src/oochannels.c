@@ -13,6 +13,8 @@
  * maintain this copyright notice.
  *
  *****************************************************************************/
+#include <asterisk.h>
+#include <asterisk/lock.h>
 
 #include "ooports.h" 
 #include "oochannels.h"
@@ -30,12 +32,26 @@
 #include "ooCmdChannel.h"
 #include "ootypes.h"
 
+
 /** Global endpoint structure */
 extern OOH323EndPoint gH323ep;
+extern ast_mutex_t callListLock;
+extern ast_mutex_t monitorLock;
 
 extern DList g_TimerList;
 
 static OOBOOL gMonitor = FALSE;
+
+int ooSetCmdFDSETs(struct pollfd *pfds, int *nfds);
+int ooProcessCmdFDSETsAndTimers
+   (struct pollfd *pfds, int nfds, struct timeval *pToMin);
+int ooSetFDSETs(struct pollfd *pfds, int *nfds);
+int ooProcessFDSETsAndTimers
+   (struct pollfd* pfds, int nfds, struct timeval *pToMin);
+int ooProcessCallFDSETsAndTimers
+   (OOH323CallData *call, struct pollfd* pfds, int nfds, struct timeval *pToMin);
+int ooSetCallFDSETs(OOH323CallData* call, struct pollfd* pfds, int *nfds);
+
 
 
 int ooCreateH245Listener(OOH323CallData *call)
@@ -60,7 +76,7 @@ int ooCreateH245Listener(OOH323CallData *call)
    *(call->h245listenport) = ret;
    call->h245listener = (OOSOCKET*)memAlloc(call->pctxt, sizeof(OOSOCKET));
    *(call->h245listener) = channelSocket;
-   ret = ooSocketListen(*(call->h245listener), 20);
+   ret = ooSocketListen(*(call->h245listener), 4096);
    if(ret != ASN_OK)
    {
       OOTRACEERR3("Error:Unable to listen on H.245 socket (%s, %s)\n", 
@@ -199,7 +215,7 @@ int ooSendH225Msg(OOH323CallData *call, Q931Message *msg)
                   "message(%s, %s)\n", call->callType, call->callToken);
       return OO_FAILED;
    }
-   iRet = ooEncodeH225Message(call, msg, encodebuf, MAXMSGLEN);
+   iRet = ooEncodeH225Message(call, msg, (char *)encodebuf, MAXMSGLEN);
    if(iRet != OO_OK)
    {
       OOTRACEERR3("Error:Failed to encode H225 message. (%s, %s)\n", 
@@ -228,8 +244,9 @@ int ooSendH225Msg(OOH323CallData *call, Q931Message *msg)
 
 int ooCreateH225Connection(OOH323CallData *call)
 {
-   int ret=0;
+   int ret=0, i;
    OOSOCKET channelSocket=0;
+   for (i=0;i<3;i++) {
    if((ret=ooSocketCreate (&channelSocket))!=ASN_OK)
    {
       OOTRACEERR3("Failed to create socket for transmit H2250 channel (%s, %s)"
@@ -314,19 +331,23 @@ int ooCreateH225Connection(OOH323CallData *call)
       }
       else
       {
-         OOTRACEERR3("ERROR:Failed to connect to remote destination for "
-                    "transmit H2250 channel(%s, %s)\n",call->callType,
-                     call->callToken);
+         OOTRACEERR5("ERROR:Failed to connect to remote destination for "
+                    "transmit H2250 channel(%s, %s, %d, %s)\n",call->callType,
+                     call->callToken, channelSocket, call->localIP);
+	 close(channelSocket);
+
          if(call->callState < OO_CALL_CLEAR)
          {  /* No one is listening at remote end */
             call->callState = OO_CALL_CLEAR;
             call->callEndReason = OO_REASON_NOUSER;
          }
-         return OO_FAILED;
+         if (i>=2) return OO_FAILED; else continue;
       }
 
       return OO_FAILED;
-   }
+    }
+  }
+  return OO_FAILED;
 }
 
 int ooCloseH225Connection (OOH323CallData *call)
@@ -364,7 +385,7 @@ int ooCreateH323Listener()
       gH323ep.listener = (OOSOCKET*)memAlloc(&gH323ep.ctxt,sizeof(OOSOCKET));
       *(gH323ep.listener) = channelSocket;
           
-      ooSocketListen(channelSocket,20); /*listen on socket*/
+      ooSocketListen(channelSocket,2048); /*listen on socket*/
       OOTRACEINFO1("H323 listener creation - successful\n");
       return OO_OK;
    }
@@ -399,6 +420,7 @@ int ooAcceptH225Connection()
       return OO_FAILED;
    }
 
+   ast_mutex_lock(&call->Lock);
    call->pH225Channel = (OOH323Channel*) 
       memAllocZ (call->pctxt, sizeof(OOH323Channel));
 
@@ -422,13 +444,15 @@ int ooAcceptH225Connection()
             call->callState = OO_CALL_CLEAR;
             call->callEndReason = OO_REASON_TRANSPORTFAILURE;
          }
+	 ast_mutex_unlock(&call->Lock);
          return OO_FAILED;
       }
       OOTRACEDBGA4("Using Local IP address %s for incoming call in multihomed "
                    "mode. (%s, %s)\n", call->localIP, call->callType, 
                     call->callToken);
    }
-
+   
+   ast_mutex_unlock(&call->Lock);
    return OO_OK;
 }
 
@@ -475,81 +499,103 @@ int ooAcceptH245Connection(OOH323CallData *call)
 }
 
 
-int ooSetFDSETs(fd_set *pReadfds, fd_set *pWritefds, int *nfds)
+int ooSetCmdFDSETs(struct pollfd *pfds, int *nfds)
 {
-   OOH323CallData *call=NULL;
-
-   if(gH323ep.gkClient && gH323ep.gkClient->rasSocket != 0)
-   {
-      FD_SET(gH323ep.gkClient->rasSocket, pReadfds );
-      if ( *nfds < (int)gH323ep.gkClient->rasSocket)
-         *nfds = (int)gH323ep.gkClient->rasSocket;
-   }
-   if(gH323ep.listener)
-   {
-      FD_SET(*(gH323ep.listener), pReadfds);
-      if(*nfds < (int)*(gH323ep.listener))
-         *nfds = *((int*)gH323ep.listener);
-   }
-
    if(gH323ep.cmdSock)
    {
-      FD_SET(gH323ep.cmdSock, pReadfds);
-      if(*nfds < (int)gH323ep.cmdSock)
-         *nfds = (int)gH323ep.cmdSock;
+      pfds[*nfds].fd = gH323ep.cmdSock;
+      pfds[*nfds].events = POLLIN;
+      (*nfds)++;
    }
-
-
-      
-   if(gH323ep.callList)
-   {
-      call = gH323ep.callList;
-      while(call)
-      {
-         if (0 != call->pH225Channel && 0 != call->pH225Channel->sock)
-         {
-            FD_SET (call->pH225Channel->sock, pReadfds);
-            if (call->pH225Channel->outQueue.count > 0 ||
-               (OO_TESTFLAG (call->flags, OO_M_TUNNELING) && 
-                0 != call->pH245Channel && 
-                call->pH245Channel->outQueue.count>0))
-               FD_SET (call->pH225Channel->sock, pWritefds);
-            if(*nfds < (int)call->pH225Channel->sock)
-               *nfds = call->pH225Channel->sock;
-         }
-           
-         if (0 != call->pH245Channel &&  call->pH245Channel->sock != 0)
-         {
-            FD_SET(call->pH245Channel->sock, pReadfds);
-            if (call->pH245Channel->outQueue.count>0)
-               FD_SET(call->pH245Channel->sock, pWritefds);
-            if(*nfds < (int)call->pH245Channel->sock)
-               *nfds = call->pH245Channel->sock;
-         }
-         else if(call->h245listener)
-         {
-            OOTRACEINFO3("H.245 Listerner socket being monitored "
-                         "(%s, %s)\n", call->callType, call->callToken);
-             FD_SET(*(call->h245listener), pReadfds);
-             if(*nfds < (int)*(call->h245listener))
-               *nfds = *(call->h245listener);
-          }
-          call = call->next;
-            
-      }/* while(call) */
-   }/*if(gH323ep.callList) */
-
-
-   if(*nfds != 0) *nfds = *nfds+1;
 
    return OO_OK;
 
 }
 
-int ooProcessFDSETsAndTimers
-   (fd_set *pReadfds, fd_set *pWritefds, struct timeval *pToMin)
+int ooProcessCmdFDSETsAndTimers
+   (struct pollfd *pfds, int nfds, struct timeval *pToMin)
 {
-   OOH323CallData *call, *prev=NULL;
+   if(gH323ep.cmdSock) {
+      if(ooPDRead(pfds, nfds, gH323ep.cmdSock)) {
+         if(ooReadAndProcessStackCommand() != OO_OK) {
+			 /* ooReadAndProcessStackCommand prints an error message */
+			 return OO_FAILED;
+		 }
+      }
+   }
+
+   return OO_OK;
+
+}
+
+
+int ooSetFDSETs(struct pollfd *pfds, int *nfds)
+{
+   if(gH323ep.gkClient && gH323ep.gkClient->rasSocket != 0)
+   {
+      pfds[*nfds].fd = gH323ep.gkClient->rasSocket;
+      pfds[*nfds].events = POLLIN;
+      (*nfds)++;
+   }
+   if(gH323ep.listener)
+   {
+      pfds[*nfds].fd = *gH323ep.listener;
+      pfds[*nfds].events = POLLIN;
+      (*nfds)++;
+   }
+
+   return OO_OK;
+
+}
+
+int ooSetCallFDSETs(OOH323CallData* call, struct pollfd* pfds, int *nfds)
+{
+
+   if(call) {
+
+    if(call->cmdSock && call->callState < OO_CALL_CLEAR) {
+      pfds[*nfds].fd = call->cmdSock;
+      pfds[*nfds].events = POLLIN;
+      (*nfds)++;
+    }
+
+    if (0 != call->pH225Channel && 0 != call->pH225Channel->sock) {
+      pfds[*nfds].fd = call->pH225Channel->sock;
+      pfds[*nfds].events = POLLIN;
+
+      if (call->pH225Channel->outQueue.count > 0 ||
+       (OO_TESTFLAG (call->flags, OO_M_TUNNELING) && 
+         0 != call->pH245Channel && 
+         call->pH245Channel->outQueue.count>0))
+       pfds[*nfds].events |= POLLOUT;
+      (*nfds)++;
+
+    }
+           
+    if (0 != call->pH245Channel &&  call->pH245Channel->sock != 0) {
+       pfds[*nfds].fd = call->pH245Channel->sock;
+       pfds[*nfds].events = POLLIN;
+       if (call->pH245Channel->outQueue.count>0)
+        pfds[*nfds].events |= POLLOUT;
+       (*nfds)++;
+      }
+      else if(call->h245listener) {
+       OOTRACEINFO3("H.245 Listerner socket being monitored "
+        "(%s, %s)\n", call->callType, call->callToken);
+       pfds[*nfds].fd = *(call->h245listener);
+       pfds[*nfds].events = POLLIN;
+       (*nfds)++;
+      }
+
+
+   }
+
+   return OO_OK;
+}
+   
+int ooProcessFDSETsAndTimers
+   (struct pollfd* pfds, int nfds, struct timeval *pToMin)
+{
    struct timeval toNext;
 
    /* Process gatekeeper client timers */
@@ -576,20 +622,11 @@ int ooProcessFDSETsAndTimers
       }
    }
 
-   if(gH323ep.cmdSock) {
-      if(FD_ISSET(gH323ep.cmdSock, pReadfds)) {
-         if(ooReadAndProcessStackCommand() != OO_OK) {
-			 /* ooReadAndProcessStackCommand prints an error message */
-			 return OO_FAILED;
-		 }
-      }
-   }
-
    /* Manage ready descriptors after select */
 
    if(0 != gH323ep.gkClient && 0 != gH323ep.gkClient->rasSocket)
    {
-      if(FD_ISSET( gH323ep.gkClient->rasSocket, pReadfds) )
+      if(ooPDRead(pfds, nfds, gH323ep.gkClient->rasSocket) )
       {
          ooGkClientReceive(gH323ep.gkClient);
          if(gH323ep.gkClient->state == GkClientFailed ||
@@ -601,7 +638,7 @@ int ooProcessFDSETsAndTimers
 
    if(gH323ep.listener)
    {
-      if(FD_ISSET(*(gH323ep.listener), pReadfds))
+      if(ooPDRead(pfds, nfds, *(gH323ep.listener)))
       {
          OOTRACEDBGA1("New connection at H225 receiver\n");
          ooAcceptH225Connection();
@@ -609,102 +646,180 @@ int ooProcessFDSETsAndTimers
    }
       
  
-   if(gH323ep.callList)
+   return OO_OK;
+
+}
+int ooProcessCallFDSETsAndTimers
+   (OOH323CallData *call, struct pollfd* pfds, int nfds, struct timeval *pToMin)
+{
+   struct timeval toNext;
+
+   if(call)
    {
-      call = gH323ep.callList;
-      while(call)
+
+    if(call->cmdSock) {
+      if(ooPDRead(pfds, nfds, call->cmdSock)) {
+	 ast_mutex_lock(&call->Lock);
+         if(ooReadAndProcessCallStackCommand(call) != OO_OK) {
+			 /* ooReadAndProcessStackCommand prints an error message */
+	 		 ast_mutex_unlock(&call->Lock);
+			 return OO_FAILED;
+		 }
+	 ast_mutex_unlock(&call->Lock);
+      }
+    }
+
+    ooTimerFireExpired(call->pctxt, &call->timerList);
+    if (0 != call->pH225Channel && 0 != call->pH225Channel->sock)
+    {
+     if(ooPDRead(pfds, nfds, call->pH225Channel->sock))
+     {
+      if(ooH2250Receive(call) != OO_OK)
       {
-         ooTimerFireExpired(call->pctxt, &call->timerList);
-         if (0 != call->pH225Channel && 0 != call->pH225Channel->sock)
-         {
-            if(FD_ISSET(call->pH225Channel->sock, pReadfds))
-            {
-               if(ooH2250Receive(call) != OO_OK)
-               {
-                  OOTRACEERR3("ERROR:Failed ooH2250Receive - Clearing call "
-                             "(%s, %s)\n", call->callType, call->callToken);
-                  if(call->callState < OO_CALL_CLEAR)
-                  {
-                     call->callEndReason = OO_REASON_INVALIDMESSAGE;
-                     call->callState = OO_CALL_CLEAR;
-                  }
-               }
-            }
-         }
+       OOTRACEERR3("ERROR:Failed ooH2250Receive - Clearing call "
+        "(%s, %s)\n", call->callType, call->callToken);
+       if(call->callState < OO_CALL_CLEAR)
+       {
+        call->callEndReason = OO_REASON_INVALIDMESSAGE;
+        call->callState = OO_CALL_CLEAR;
+       }
+      }
+     }
+    }
 
+    if (0 != call->pH245Channel && 0 != call->pH245Channel->sock)
+     if(ooPDRead(pfds, nfds, call->pH245Channel->sock))
+      ooH245Receive(call);
 
-         if (0 != call->pH245Channel && 0 != call->pH245Channel->sock)
-         {
-            if(FD_ISSET(call->pH245Channel->sock, pReadfds))
-            {                           
-               ooH245Receive(call);
-            }
-         }
-            
-         if (0 != call->pH245Channel && 0 != call->pH245Channel->sock)
-         {
-            if(FD_ISSET(call->pH245Channel->sock, pWritefds))
-            {                           
-               if(call->pH245Channel->outQueue.count>0)
-                  ooSendMsg(call, OOH245MSG);
-            }
-         }
-         else if(call->h245listener)
-         {
-            if(FD_ISSET(*(call->h245listener), pReadfds))
-            {
-               OOTRACEDBGC3("Incoming H.245 connection (%s, %s)\n",
-                            call->callType, call->callToken);
-               ooAcceptH245Connection(call);
-            }                           
-         }
+    if (0 != call->pH245Channel && 0 != call->pH245Channel->sock)
+    {
+     if(call->pH245Channel->outQueue.count>0)
+     {                           
+      if(ooPDWrite(pfds, nfds, call->pH245Channel->sock))
+       ooSendMsg(call, OOH245MSG);
+     }
+    }
+    else if(call->h245listener)
+    {
+     if(ooPDRead(pfds, nfds, *(call->h245listener)))
+     {
+      OOTRACEDBGC3("Incoming H.245 connection (%s, %s)\n",
+                    call->callType, call->callToken);
+      ooAcceptH245Connection(call);
+     }                           
+    }
 
-         if (0 != call->pH225Channel && 0 != call->pH225Channel->sock)
-         {
-            if(FD_ISSET(call->pH225Channel->sock, pWritefds))
-            {
-               if(call->pH225Channel->outQueue.count>0)
-               {
-                  OOTRACEDBGC3("Sending H225 message (%s, %s)\n", 
-                              call->callType, call->callToken);
-                  ooSendMsg(call, OOQ931MSG);
-               }
-               if(call->pH245Channel && 
-                  call->pH245Channel->outQueue.count>0 && 
-                  OO_TESTFLAG (call->flags, OO_M_TUNNELING))
-               {
-                  OOTRACEDBGC3("H245 message needs to be tunneled. "
-                               "(%s, %s)\n", call->callType, 
+    if (0 != call->pH225Channel && 0 != call->pH225Channel->sock)
+    {
+     if(ooPDWrite(pfds, nfds, call->pH225Channel->sock))
+     {
+      if(call->pH225Channel->outQueue.count>0)
+      {
+       OOTRACEDBGC3("Sending H225 message (%s, %s)\n", 
+                        call->callType, call->callToken);
+       ooSendMsg(call, OOQ931MSG);
+      }
+      if(call->pH245Channel && 
+         call->pH245Channel->outQueue.count>0 && 
+        OO_TESTFLAG (call->flags, OO_M_TUNNELING))
+      {
+        OOTRACEDBGC3("H245 message needs to be tunneled. "
+                          "(%s, %s)\n", call->callType, 
                                call->callToken);
-                  ooSendMsg(call, OOH245MSG);
-               }
-            }                                
-         }
+        ooSendMsg(call, OOH245MSG);
+      }
+     }                                
+    }
 
-         if(ooTimerNextTimeout(&call->timerList, &toNext))
-         {
-            if(ooCompareTimeouts(pToMin, &toNext) > 0)
-            {
-               pToMin->tv_sec = toNext.tv_sec;
-               pToMin->tv_usec = toNext.tv_usec;
-            }
-         }
-         prev = call;
-         call = call->next;
-         if(prev->callState >= OO_CALL_CLEAR)
-            ooEndCall(prev);
-      }/* while(call) */
-   }/* if(gH323ep.callList) */
+     if(ooTimerNextTimeout(&call->timerList, &toNext))
+     {
+      if(ooCompareTimeouts(pToMin, &toNext) > 0)
+      {
+       pToMin->tv_sec = toNext.tv_sec;
+       pToMin->tv_usec = toNext.tv_usec;
+      }
+     }
+
+     if(call->callState >= OO_CALL_CLEAR && call->callState < OO_CALL_CLEARED) {
+	    ast_mutex_lock(&call->Lock);
+            ooEndCall(call);
+	    ast_mutex_unlock(&call->Lock);
+     } else if(call->callState == OO_CALL_CLEARED) {
+	    ast_mutex_lock(&call->Lock);
+            ooEndCall(call);
+	    ast_mutex_unlock(&call->Lock);
+	    ooStopMonitorCallChannels(call);
+     }
+   }
 
    return OO_OK;
 
 }
    
+int ooMonitorCmdChannels()
+{
+   int ret=0, nfds=0;
+   struct timeval toMin;
+   struct pollfd pfds[1];
+
+   gMonitor = TRUE;
+
+   toMin.tv_sec = 3;
+   toMin.tv_usec = 0;
+   
+   while(1)
+   {
+      nfds = 0;
+      ooSetCmdFDSETs(pfds, &nfds);
+
+      if(!gMonitor) {
+         OOTRACEINFO1("Ending Monitor thread\n");
+         break;
+      }
+
+      
+      if(nfds == 0)
+#ifdef _WIN32
+         Sleep(10);
+#else
+      {
+         toMin.tv_sec = 0;
+         toMin.tv_usec = 10000;
+         ooSocketPoll(pfds, nfds, toMin.tv_usec / 1000);
+      }
+#endif
+      else
+         ret = ooSocketPoll(pfds, nfds, toMin.tv_sec * 1000 + toMin.tv_usec / 1000);
+      
+      if(ret == -1)
+      {
+         
+         OOTRACEERR1("Error in poll ...exiting\n");
+         exit(-1); 
+	 continue;
+      }
+
+      toMin.tv_sec = 2;	 /* 2 sec */
+      toMin.tv_usec = 100000; /* 100ms*/
+
+      ast_mutex_lock(&monitorLock);
+      if(ooProcessCmdFDSETsAndTimers(pfds, nfds, &toMin) != OO_OK)
+      {
+         /* ooStopMonitorCalls(); */
+         ast_mutex_unlock(&monitorLock);
+         continue;
+      }
+      ast_mutex_unlock(&monitorLock);
+
+   }/* while(1)*/
+   return OO_OK;
+}
+
 int ooMonitorChannels()
 {
    int ret=0, nfds=0;
    struct timeval toMin, toNext;
-   fd_set readfds, writefds;
+   struct pollfd pfds[2];
 
    gMonitor = TRUE;
 
@@ -723,10 +838,8 @@ int ooMonitorChannels()
    
    while(1)
    {
-      FD_ZERO(&readfds);
-      FD_ZERO(&writefds);
       nfds = 0;
-      ooSetFDSETs(&readfds, &writefds, &nfds);
+      ooSetFDSETs(pfds, &nfds);
 
       if(!gMonitor) {
          OOTRACEINFO1("Ending Monitor thread\n");
@@ -741,24 +854,24 @@ int ooMonitorChannels()
       {
          toMin.tv_sec = 0;
          toMin.tv_usec = 10000;
-         ooSocketSelect(1, 0, 0, 0, &toMin);
+         ooSocketPoll(pfds, nfds, toMin.tv_usec / 1000);
       }
 #endif
       else
-         ret = ooSocketSelect(nfds, &readfds, &writefds, 
-                           NULL, &toMin);
+         ret = ooSocketPoll(pfds, nfds, toMin.tv_sec * 1000 + toMin.tv_usec / 1000);
       
       if(ret == -1)
       {
          
-         OOTRACEERR1("Error in select ...exiting\n");
+         OOTRACEERR1("Error in poll ...exiting\n");
          exit(-1);
       }
 
-      toMin.tv_sec = 0;
+      toMin.tv_sec = 2; /* 2 sec */
       toMin.tv_usec = 100000; /* 100ms*/
       /*This is for test application. Not part of actual stack */
   
+      ast_mutex_lock(&monitorLock);
       ooTimerFireExpired(&gH323ep.ctxt, &g_TimerList);
       if(ooTimerNextTimeout(&g_TimerList, &toNext))
       {
@@ -769,13 +882,95 @@ int ooMonitorChannels()
          }
       }
 
-      if(ooProcessFDSETsAndTimers(&readfds, &writefds, &toMin) != OO_OK)
+      if(ooProcessFDSETsAndTimers(pfds, nfds, &toMin) != OO_OK)
       {
+         ast_mutex_unlock(&monitorLock);
          ooStopMonitorCalls();
          continue;
       }
 
+      ast_mutex_unlock(&monitorLock);
    }/* while(1)*/
+   return OO_OK;
+}
+int ooMonitorCallChannels(OOH323CallData *call)
+{
+   int ret=0, nfds=0, zeroloops = 0;
+#define MAX_ZERO_LOOP 1020
+   struct timeval toMin;
+   struct pollfd pfds[5];
+
+   OOCTXT* pctxt;
+
+   call->Monitor = TRUE;
+
+   toMin.tv_sec = 3;
+   toMin.tv_usec = 0;
+   
+   while(1)
+   {
+      if(!call->Monitor) {
+         OOTRACEINFO1("Ending Call Monitor thread\n");
+         break;
+      }
+
+      nfds = 0;
+      ooSetCallFDSETs(call, pfds, &nfds);
+
+      
+      if(nfds == 0)
+#ifdef _WIN32
+         Sleep(10);
+#else
+      {
+	 if (zeroloops++ > MAX_ZERO_LOOP) {
+		ooCleanCall(call);
+		ooStopMonitorCallChannels(call);
+		break;
+	 }
+         toMin.tv_sec = 0;
+         toMin.tv_usec = 10000;
+         ooSocketPoll(pfds, nfds, toMin.tv_usec / 1000);
+      }
+#endif
+      else
+         ret = ooSocketPoll(pfds, nfds, toMin.tv_sec * 1000 + toMin.tv_usec / 1000);
+      
+      if(ret == -1)
+      {
+         
+        OOTRACEERR2("Error in poll %d ...exiting\n", errno);
+        call->callEndReason = OO_REASON_INVALIDMESSAGE;
+       	call->callState = OO_CALL_CLEARED;
+	ooCleanCall(call);
+	ooStopMonitorCallChannels(call);
+	break;
+
+      }
+
+      toMin.tv_sec = 2; /* 2 sec */
+      toMin.tv_usec = 100000; /* 100ms*/
+      /*This is for test application. Not part of actual stack */
+  
+      if(ooProcessCallFDSETsAndTimers(call, pfds, nfds, &toMin) != OO_OK)
+      {
+         ooStopMonitorCallChannels(call);
+         continue;
+      }
+
+   }/* while(1)*/
+
+   if (call->cmdSock)
+    ooCloseCallCmdConnection(call);
+
+   ast_mutex_lock(&call->Lock);
+   ast_mutex_unlock(&call->Lock);
+   ast_mutex_destroy(&call->Lock);
+   ast_cond_destroy(&call->gkWait);
+   pctxt = call->pctxt;
+   freeContext(pctxt);
+   free(pctxt);
+
    return OO_OK;
 }
 
@@ -785,9 +980,9 @@ int ooH2250Receive(OOH323CallData *call)
    ASN1OCTET message[MAXMSGLEN], message1[MAXMSGLEN];
    int len;
    Q931Message *pmsg;
-   OOCTXT *pctxt = &gH323ep.msgctxt;
+   OOCTXT *pctxt = call->pctxt;
+   
    struct timeval timeout;
-   fd_set readfds;
 
    
    pmsg = (Q931Message*)memAlloc(pctxt, sizeof(Q931Message));
@@ -795,7 +990,8 @@ int ooH2250Receive(OOH323CallData *call)
    {
       OOTRACEERR3("ERROR:Failed to allocate memory for incoming H.2250 message"
                   " (%s, %s)\n", call->callType, call->callToken);
-      memReset(&gH323ep.msgctxt);
+      /* memReset(&gH323ep.msgctxt); */
+      memReset(call->pctxt);
       return OO_FAILED;
    }
    memset(pmsg, 0, sizeof(Q931Message));
@@ -818,7 +1014,7 @@ int ooH2250Receive(OOH323CallData *call)
          call->callState = OO_CALL_CLEARED;
          
       }
-      ooFreeQ931Message(pmsg);
+      ooFreeQ931Message(pctxt, pmsg);
       return OO_OK;
    }
    OOTRACEDBGC3("Receiving H.2250 message (%s, %s)\n",
@@ -832,7 +1028,7 @@ int ooH2250Receive(OOH323CallData *call)
       OOTRACEERR4("Error: Reading TPKT header for H225 message "
                   "recvLen= %d (%s, %s)\n", recvLen, call->callType, 
                   call->callToken);
-      ooFreeQ931Message(pmsg);
+      ooFreeQ931Message(pctxt, pmsg);
       if(call->callState < OO_CALL_CLEAR)
       {
          call->callEndReason = OO_REASON_INVALIDMESSAGE;
@@ -848,6 +1044,21 @@ int ooH2250Receive(OOH323CallData *call)
    /* Remaining message length is length - tpkt length */
    len = len - 4;
 
+   if(len > MAXMSGLEN - 4)
+   {
+      OOTRACEERR4("Error: Invalid TPKT header for H225 message "
+                  "Len = %d (%s, %s)\n", len, call->callType, 
+                  call->callToken);
+      ooCloseH225Connection(call);
+      ooFreeQ931Message(pctxt, pmsg);
+      if(call->callState < OO_CALL_CLEAR)
+      {
+         call->callEndReason = OO_REASON_INVALIDMESSAGE;
+         call->callState = OO_CALL_CLEAR;
+      }
+      return OO_FAILED;
+   }
+
    /* Now read actual Q931 message body. We should make sure that we
       receive complete message as indicated by len. If we don't then there 
       is something wrong. The loop below receives message, then checks whether
@@ -857,24 +1068,24 @@ int ooH2250Receive(OOH323CallData *call)
    */
    while(total < len)
    {
+      struct pollfd pfds;
       recvLen = ooSocketRecv (call->pH225Channel->sock, message1, len-total);
       memcpy(message+total, message1, recvLen);
       total = total + recvLen;
 
       if(total == len) break; /* Complete message is received */
       
-      FD_ZERO(&readfds);
-      FD_SET(call->pH225Channel->sock, &readfds);
+      pfds.fd = call->pH225Channel->sock;
+      pfds.events = POLLIN;
       timeout.tv_sec = 3;
       timeout.tv_usec = 0;
-      ret = ooSocketSelect(call->pH225Channel->sock+1, &readfds, NULL, 
-                           NULL, &timeout);
+      ret = ooSocketPoll(&pfds, 1,  timeout.tv_sec * 1000);
       if(ret == -1)
       {
          OOTRACEERR3("Error in select while receiving H.2250 message - "
                      "clearing call (%s, %s)\n", call->callType, 
                      call->callToken);
-         ooFreeQ931Message(pmsg);
+         ooFreeQ931Message(pctxt, pmsg);
          if(call->callState < OO_CALL_CLEAR)
          {
             call->callEndReason = OO_REASON_TRANSPORTFAILURE;
@@ -884,11 +1095,11 @@ int ooH2250Receive(OOH323CallData *call)
       }
       /* If remaining part of the message is not received in 3 seconds 
          exit */
-      if(!FD_ISSET(call->pH225Channel->sock, &readfds))
+      if(!ooPDRead(&pfds, 1, call->pH225Channel->sock))
       {
          OOTRACEERR3("Error: Incomplete H.2250 message received - clearing "
                      "call (%s, %s)\n", call->callType, call->callToken);
-         ooFreeQ931Message(pmsg);
+         ooFreeQ931Message(pctxt, pmsg);
          if(call->callState < OO_CALL_CLEAR)
          {
             call->callEndReason = OO_REASON_INVALIDMESSAGE; 
@@ -926,9 +1137,9 @@ int ooH245Receive(OOH323CallData *call)
    ASN1OCTET message[MAXMSGLEN], message1[MAXMSGLEN];
    ASN1BOOL aligned = TRUE;
    H245Message *pmsg;
-   OOCTXT *pctxt = &gH323ep.msgctxt;
+   /* OOCTXT *pctxt = &gH323ep.msgctxt; */
+   OOCTXT *pctxt = call->pctxt;
    struct timeval timeout;
-   fd_set readfds;
    
    pmsg = (H245Message*)memAlloc(pctxt, sizeof(H245Message));
 
@@ -1009,18 +1220,33 @@ int ooH245Receive(OOH323CallData *call)
       for remaining bytes of the message. If message is not received in 3
       seconds, then we have a problem. Report an error and exit.
    */
+
+   if(len > MAXMSGLEN - 4)
+   {
+      OOTRACEERR4("Error: Invalid TPKT header length %d for H245 message (%s, %s)\n",
+                  len, call->callType, call->callToken);
+      ooFreeH245Message(call, pmsg);
+      if(call->callState < OO_CALL_CLEAR)
+      {
+         call->callEndReason = OO_REASON_INVALIDMESSAGE;
+         call->callState = OO_CALL_CLEAR;
+      }
+      return OO_FAILED;
+   }
+
    while(total < len)
    {
+      struct pollfd pfds;
       recvLen = ooSocketRecv (call->pH245Channel->sock, message1, len-total);
       memcpy(message+total, message1, recvLen);
       total = total + recvLen;
       if(total == len) break; /* Complete message is received */
-      FD_ZERO(&readfds);
-      FD_SET(call->pH245Channel->sock, &readfds);
+
+      pfds.fd = call->pH245Channel->sock;
+      pfds.events = POLLIN;
       timeout.tv_sec = 3;
       timeout.tv_usec = 0;
-      ret = ooSocketSelect(call->pH245Channel->sock+1, &readfds, NULL, 
-                           NULL, &timeout);
+      ret = ooSocketPoll(&pfds, 1,  timeout.tv_sec * 1000);
       if(ret == -1)
       {
          OOTRACEERR3("Error in select...H245 Receive-Clearing call (%s, %s)\n",
@@ -1035,7 +1261,7 @@ int ooH245Receive(OOH323CallData *call)
       }
       /* If remaining part of the message is not received in 3 seconds 
          exit */
-      if(!FD_ISSET(call->pH245Channel->sock, &readfds))
+      if(!ooPDRead(&pfds, 1, call->pH245Channel->sock))
       {
          OOTRACEERR3("Error: Incomplete h245 message received (%s, %s)\n",
                      call->callType, call->callToken);
@@ -1352,8 +1578,8 @@ int ooOnSendMsg
          return OO_FAILED;
       }
 
-      if(gH323ep.h323Callbacks.onOutgoingCall)
-         gH323ep.h323Callbacks.onOutgoingCall(call);
+      /* if(gH323ep.h323Callbacks.onOutgoingCall)
+         gH323ep.h323Callbacks.onOutgoingCall(call); */
       break;
    case OOCallProceeding:
       OOTRACEINFO3("Sent Message - CallProceeding (%s, %s)\n", call->callType,
@@ -1362,8 +1588,8 @@ int ooOnSendMsg
    case OOAlert:
       OOTRACEINFO3("Sent Message - Alerting (%s, %s) \n", call->callType,
                     call->callToken);
-      if(gH323ep.h323Callbacks.onAlerting && call->callState < OO_CALL_CLEAR)
-         gH323ep.h323Callbacks.onAlerting(call);
+      /* if(gH323ep.h323Callbacks.onAlerting && call->callState < OO_CALL_CLEAR)
+         gH323ep.h323Callbacks.onAlerting(call); */
       break;
    case OOConnect:
       OOTRACEINFO3("Sent Message - Connect (%s, %s)\n", call->callType,
@@ -1383,6 +1609,8 @@ int ooOnSendMsg
             gH323ep.gkClient->state == GkClientRegistered){
             OOTRACEDBGA3("Sending DRQ after sending ReleaseComplete."
                          "(%s, %s)\n",   call->callType, call->callToken);
+
+	    call->endTime = (H235TimeStamp) time(NULL);
             ooGkClientSendDisengageRequest(gH323ep.gkClient, call);
          }
       }
@@ -1702,6 +1930,12 @@ int ooOnSendMsg
    return OO_OK;
 }
 
+void ooStopMonitorCallChannels(OOH323CallData * call) {
+	if (call->Monitor)
+	 call->Monitor = FALSE;
+	/* if (call->cmdSock)
+	 ooCloseCallCmdConnection(call); */
+}
 
 int ooStopMonitorCalls()
 {
@@ -1771,7 +2005,7 @@ OOBOOL ooChannelsIsConnectionOK(OOH323CallData *call, OOSOCKET sock)
    if(FD_ISSET(sock, &readfds))
    {
       char buf[2];      
-      if(ooSocketRecvPeek(sock, buf, 2) == 0)
+      if(ooSocketRecvPeek(sock, (ASN1OCTET*) buf, 2) == 0)
       {
          OOTRACEWARN3("Broken pipe detected. (%s, %s)", call->callType, 
                        call->callToken);

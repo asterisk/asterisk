@@ -41,6 +41,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #endif
+#include <semaphore.h>
 
 /** 
  * @ingroup cruntime C Runtime Common Constant and Type Definitions.

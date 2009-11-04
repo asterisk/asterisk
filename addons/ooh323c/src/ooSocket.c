@@ -13,6 +13,9 @@
  * maintain this copyright notice.
  *
  *****************************************************************************/
+#include <asterisk.h>
+#include <asterisk/lock.h>
+#include <asterisk/network.h>
 
 #include "ooSocket.h"
 #include "ootrace.h"
@@ -177,7 +180,7 @@ int ooSocketsInit ()
 defined(_HP_UX) || defined(__hpux) || defined(_HPUX_SOURCE)
 typedef int OOSOCKLEN;
 #else
-typedef size_t OOSOCKLEN;
+typedef socklen_t OOSOCKLEN;
 #endif
 
 int ooSocketCreate (OOSOCKET* psocket) 
@@ -270,8 +273,10 @@ int ooSocketBind (OOSOCKET socket, OOIPADDR addr, int port)
    if (bind (socket, (struct sockaddr *) (void*) &m_addr,
                      sizeof (m_addr)) == -1)
    {
-      perror ("bind");
-      OOTRACEERR1("Error:Bind failed\n");
+      if (errno != EADDRINUSE) {
+      	perror ("bind");
+      	OOTRACEERR2("Error:Bind failed, error: %d\n", errno);
+      }
       return ASN_E_INVSOCKET;
    }
 
@@ -279,7 +284,7 @@ int ooSocketBind (OOSOCKET socket, OOIPADDR addr, int port)
 }
 
 
-int ooSocketGetSockName(OOSOCKET socket, struct sockaddr_in *name, int *size)
+int ooSocketGetSockName(OOSOCKET socket, struct sockaddr_in *name, socklen_t *size)
 {
    int ret;
    ret = getsockname(socket, (struct sockaddr*)name, size);
@@ -293,9 +298,10 @@ int ooSocketGetSockName(OOSOCKET socket, struct sockaddr_in *name, int *size)
 
 int ooSocketGetIpAndPort(OOSOCKET socket, char *ip, int len, int *port)
 {
-   int ret=ASN_OK, size;
+   int ret=ASN_OK;
+   socklen_t size;
    struct sockaddr_in addr;
-   char *host=NULL;
+   const char *host=NULL;
 
    size = sizeof(addr);
 
@@ -303,7 +309,7 @@ int ooSocketGetIpAndPort(OOSOCKET socket, char *ip, int len, int *port)
    if(ret != 0)
       return ASN_E_INVSOCKET;
 
-   host = inet_ntoa(addr.sin_addr);
+   host = ast_inet_ntoa(addr.sin_addr);
 
    if(host && strlen(host) < (unsigned)len)
       strcpy(ip, host);   
@@ -338,7 +344,7 @@ int ooSocketAccept (OOSOCKET socket, OOSOCKET *pNewSocket,
    if (pNewSocket == 0) return ASN_E_INVPARAM;
 
    *pNewSocket = accept (socket, (struct sockaddr *) (void*) &m_addr, 
-                         (socklen_t *) &addr_length);
+                         &addr_length);
    if (*pNewSocket <= 0) return ASN_E_INVSOCKET;
 
    if (destAddr != 0) 
@@ -430,21 +436,21 @@ int ooSocketRecvFrom (OOSOCKET socket, ASN1OCTET* pbuf, ASN1UINT bufsize,
 {
    struct sockaddr_in m_addr;
    int len, addrlen;
-   char * host=NULL;
+   const char * host=NULL;
    if (socket == OOSOCKET_INVALID) return ASN_E_INVSOCKET;
    addrlen = sizeof(m_addr);
 
    memset (&m_addr, 0, sizeof (m_addr));
       
    if ((len = recvfrom (socket, (char*) pbuf, bufsize, 0, 
-                        (struct sockaddr*)&m_addr, &addrlen)) == -1)
+                        (struct sockaddr*)&m_addr, (socklen_t *) &addrlen)) == -1)
       return ASN_E_INVSOCKET;
 
    if(remoteport)
       *remoteport = ntohs(m_addr.sin_port);
    if(remotehost)
    {
-      host = inet_ntoa(m_addr.sin_addr);
+      host = ast_inet_ntoa(m_addr.sin_addr);
       if(strlen(host) < (hostBufLen-1))
          strcpy(remotehost, host);
       else
@@ -466,24 +472,54 @@ int ooSocketSelect(int nfds, fd_set *readfds, fd_set *writefds,
    return ret;
 }
 
+int ooSocketPoll(struct pollfd *pfds, int nfds, int timeout)
+{
+ return poll(pfds, nfds, timeout);
+}
+
+int ooPDRead(struct pollfd *pfds, int nfds, int fd)
+{
+ int i;
+ for (i=0;i<nfds;i++) 
+  if (pfds[i].fd == fd && (pfds[i].revents & POLLIN))
+   return 1;
+ return 0;
+}
+
+int ooPDWrite(struct pollfd *pfds, int nfds, int fd)
+{
+ int i;
+ for (i=0;i<nfds;i++)
+  if (pfds[i].fd == fd && (pfds[i].revents & POLLOUT))
+   return 1;
+ return 0;
+}
+
 int ooGetLocalIPAddress(char * pIPAddrs)
 {
    int ret;
-   struct hostent *phost;
+   struct hostent phost;
+   struct hostent* reshost;
+   int h_errnop;
    struct in_addr addr;
    char hostname[100];
+   char buf[2048];
 
    if(pIPAddrs == NULL)
       return -1; /* Need to find suitable return value */
    ret = gethostname(hostname, 100);
    if(ret == 0)
    {
-      phost = gethostbyname(hostname);
-      if(phost == NULL)
+      if (!gethostbyname_r(hostname,
+         &phost, buf, sizeof(buf),
+         &reshost, &h_errnop)) {
+      if(reshost == NULL)
          return -1; /* Need to define a return value if made part of rtsrc */
-      memcpy(&addr, phost->h_addr_list[0], sizeof(struct in_addr));
-      strcpy(pIPAddrs, inet_ntoa(addr));
-     
+      memcpy(&addr, &phost.h_addr_list[0], sizeof(struct in_addr));
+      strcpy(pIPAddrs, (ast_inet_ntoa(addr) == NULL) ? "127.0.0.1" : ast_inet_ntoa(addr));
+      } else {
+         return -1;
+      }
    }
    else{
       return -1;
@@ -504,7 +540,7 @@ int ooSocketStrToAddr (const char* pIPAddrStr, OOIPADDR* pIPAddr)
    return ASN_OK;
 }
 
-int ooSocketConvertIpToNwAddr(char *inetIp, char *netIp)
+int ooSocketConvertIpToNwAddr(char *inetIp, unsigned char *netIp)
 {
 
    struct sockaddr_in sin = {0};
@@ -608,10 +644,7 @@ int ooSocketGetInterfaceList(OOCTXT *pctxt, OOInterface **ifList)
       int flags;
       for (ifName = ifc.ifc_req; (void*)ifName < ifEndList; ifName++) {
          char *pName=NULL;
-         char addr[50];
-#ifdef ifr_netmask
-	 char mask[50];
-#endif
+         char addr[50], mask[50];
          
          pIf = (struct OOInterface*)memAlloc(pctxt, sizeof(struct OOInterface));
          pName = (char*)memAlloc(pctxt, strlen(ifName->ifr_name)+1);
@@ -653,7 +686,7 @@ int ooSocketGetInterfaceList(OOCTXT *pctxt, OOInterface **ifList)
             memFreePtr(pctxt, pIf);
             continue;
          }
-         strcpy(addr, inet_ntoa(((struct sockaddr_in*)&ifReq.ifr_addr)->sin_addr));
+         strcpy(addr, ast_inet_ntoa(((struct sockaddr_in*)&ifReq.ifr_addr)->sin_addr));
          OOTRACEDBGA2("\tIP address is %s\n", addr);
          pIf->addr = (char*)memAlloc(pctxt, strlen(addr)+1);
          if(!pIf->addr)
@@ -676,7 +709,7 @@ int ooSocketGetInterfaceList(OOCTXT *pctxt, OOInterface **ifList)
             memFreePtr(pctxt, pIf);
             continue;
          }
-         strcpy(mask, inet_ntoa(((struct sockaddr_in *)&ifReq.ifr_netmask)->sin_addr));
+         strcpy(mask, ast_inet_ntoa(((struct sockaddr_in *)&ifReq.ifr_netmask)->sin_addr));
          OOTRACEDBGA2("\tMask is %s\n", mask);
          pIf->mask = (char*)memAlloc(pctxt, strlen(mask)+1);
          if(!pIf->mask)

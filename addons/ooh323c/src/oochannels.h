@@ -130,6 +130,8 @@ EXTERN int ooCloseH245Connection(struct OOH323CallData *call);
  * 
  */
 EXTERN int ooMonitorChannels(void);
+EXTERN int ooMonitorCmdChannels(void);
+EXTERN int ooMonitorCallChannels(OOH323CallData *);
 
 /**
  * This function is called to stop the monitor channels event loop.
@@ -138,6 +140,7 @@ EXTERN int ooMonitorChannels(void);
  * @return           OO_OK, on success. OO_FAILED, on failure
  */
 EXTERN int ooStopMonitorCalls(void);
+EXTERN void ooStopMonitorCallChannels(OOH323CallData *);
 
 /**
  * This function is used to receive an H.2250 message received on a calls

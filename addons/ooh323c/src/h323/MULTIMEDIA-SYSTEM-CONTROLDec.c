@@ -159,8 +159,8 @@ EXTERN int asn1PD_H245V42bis (OOCTXT* pctxt, H245V42bis* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -228,7 +228,7 @@ EXTERN int asn1PD_H245CompressionType (OOCTXT* pctxt, H245CompressionType* pvalu
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -284,7 +284,7 @@ EXTERN int asn1PD_H245DataProtocolCapability_v76wCompression (OOCTXT* pctxt, H24
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -366,7 +366,7 @@ EXTERN int asn1PD_H245DataProtocolCapability (OOCTXT* pctxt, H245DataProtocolCap
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -576,7 +576,7 @@ EXTERN int asn1PD_H245T38FaxRateManagement (OOCTXT* pctxt, H245T38FaxRateManagem
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -641,7 +641,7 @@ EXTERN int asn1PD_H245T38FaxUdpOptions_t38FaxUdpEC (OOCTXT* pctxt, H245T38FaxUdp
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -704,7 +704,7 @@ EXTERN int asn1PD_H245T38FaxUdpOptions_t38FaxUdpEC (OOCTXT* pctxt, H245T38FaxUdp
 EXTERN int asn1PD_H245T38FaxUdpOptions (OOCTXT* pctxt, H245T38FaxUdpOptions* pvalue)
 {
    int stat = ASN_OK;
-   ASN1BOOL optbit;
+   ASN1BOOL optbit = 0;
 
    /* optional bits */
 
@@ -765,8 +765,8 @@ EXTERN int asn1PD_H245T38FaxTcpOptions (OOCTXT* pctxt, H245T38FaxTcpOptions* pva
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -827,8 +827,8 @@ EXTERN int asn1PD_H245T38FaxProfile (OOCTXT* pctxt, H245T38FaxProfile* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -969,8 +969,8 @@ EXTERN int asn1PD_H245NonStandardMessage (OOCTXT* pctxt, H245NonStandardMessage*
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -1029,8 +1029,8 @@ EXTERN int asn1PD_H245MasterSlaveDetermination (OOCTXT* pctxt, H245MasterSlaveDe
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -1117,8 +1117,8 @@ EXTERN int asn1PD_H245VCCapability_aal1 (OOCTXT* pctxt, H245VCCapability_aal1* p
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -1258,8 +1258,8 @@ EXTERN int asn1PD_H245VCCapability_aal5 (OOCTXT* pctxt, H245VCCapability_aal5* p
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -1410,8 +1410,8 @@ EXTERN int asn1PD_H245VCCapability_availableBitRates (OOCTXT* pctxt, H245VCCapab
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -1492,7 +1492,7 @@ EXTERN int asn1PD_H245Q2931Address_address (OOCTXT* pctxt, H245Q2931Address_addr
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -1587,8 +1587,8 @@ EXTERN int asn1PD_H245Q2931Address (OOCTXT* pctxt, H245Q2931Address* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -1705,8 +1705,8 @@ EXTERN int asn1PD_H245VCCapability_aal1ViaGateway (OOCTXT* pctxt, H245VCCapabili
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -1856,8 +1856,8 @@ EXTERN int asn1PD_H245VCCapability (OOCTXT* pctxt, H245VCCapability* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -2035,8 +2035,8 @@ EXTERN int asn1PD_H245H222Capability (OOCTXT* pctxt, H245H222Capability* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -2105,8 +2105,8 @@ EXTERN int asn1PD_H245H223Capability_h223MultiplexTableCapability_enhanced (OOCT
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -2233,8 +2233,8 @@ EXTERN int asn1PD_H245H223Capability_mobileOperationTransmitCapability (OOCTXT* 
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -2335,8 +2335,8 @@ EXTERN int asn1PD_H245H223AnnexCCapability (OOCTXT* pctxt, H245H223AnnexCCapabil
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -2544,8 +2544,8 @@ EXTERN int asn1PD_H245H223Capability_mobileMultilinkFrameCapability (OOCTXT* pct
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -2616,8 +2616,8 @@ EXTERN int asn1PD_H245H223Capability (OOCTXT* pctxt, H245H223Capability* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -2891,8 +2891,8 @@ EXTERN int asn1PD_H245V75Capability (OOCTXT* pctxt, H245V75Capability* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -2952,8 +2952,8 @@ EXTERN int asn1PD_H245V76Capability (OOCTXT* pctxt, H245V76Capability* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -3152,8 +3152,8 @@ EXTERN int asn1PD_H245T84Profile_t84Restricted (OOCTXT* pctxt, H245T84Profile_t8
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -3556,7 +3556,7 @@ EXTERN int asn1PD_H245CapabilityIdentifier (OOCTXT* pctxt, H245CapabilityIdentif
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -3677,7 +3677,7 @@ EXTERN int asn1PD_H245ParameterIdentifier (OOCTXT* pctxt, H245ParameterIdentifie
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -3772,7 +3772,7 @@ EXTERN int asn1PD_H245ParameterValue (OOCTXT* pctxt, H245ParameterValue* pvalue)
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -3959,8 +3959,8 @@ EXTERN int asn1PD_H245GenericParameter (OOCTXT* pctxt, H245GenericParameter* pva
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -4090,8 +4090,8 @@ EXTERN int asn1PD_H245GenericCapability (OOCTXT* pctxt, H245GenericCapability* p
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -4224,7 +4224,7 @@ EXTERN int asn1PD_H245DataApplicationCapability_application (OOCTXT* pctxt, H245
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -4458,8 +4458,8 @@ EXTERN int asn1PD_H245DataApplicationCapability (OOCTXT* pctxt, H245DataApplicat
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -4572,8 +4572,8 @@ EXTERN int asn1PD_H245MediaDistributionCapability (OOCTXT* pctxt, H245MediaDistr
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -4759,8 +4759,8 @@ EXTERN int asn1PD_H245MultipointCapability (OOCTXT* pctxt, H245MultipointCapabil
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -4839,8 +4839,8 @@ EXTERN int asn1PD_H245H2250Capability_mcCapability (OOCTXT* pctxt, H245H2250Capa
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -4908,7 +4908,7 @@ EXTERN int asn1PD_H245RTPPayloadType_payloadDescriptor (OOCTXT* pctxt, H245RTPPa
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -5002,8 +5002,8 @@ EXTERN int asn1PD_H245RTPPayloadType (OOCTXT* pctxt, H245RTPPayloadType* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -5122,8 +5122,8 @@ EXTERN int asn1PD_H245MediaPacketizationCapability (OOCTXT* pctxt, H245MediaPack
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -5208,7 +5208,7 @@ EXTERN int asn1PD_H245QOSMode (OOCTXT* pctxt, H245QOSMode* pvalue)
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -5275,8 +5275,8 @@ EXTERN int asn1PD_H245RSVPParameters (OOCTXT* pctxt, H245RSVPParameters* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -5419,8 +5419,8 @@ EXTERN int asn1PD_H245ATMParameters (OOCTXT* pctxt, H245ATMParameters* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -5530,8 +5530,8 @@ EXTERN int asn1PD_H245QOSCapability (OOCTXT* pctxt, H245QOSCapability* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -5667,8 +5667,8 @@ EXTERN int asn1PD_H245MediaTransportType_atm_AAL5_compressed (OOCTXT* pctxt, H24
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -5726,7 +5726,7 @@ EXTERN int asn1PD_H245MediaTransportType (OOCTXT* pctxt, H245MediaTransportType*
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -5837,8 +5837,8 @@ EXTERN int asn1PD_H245MediaChannelCapability (OOCTXT* pctxt, H245MediaChannelCap
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -5946,8 +5946,8 @@ EXTERN int asn1PD_H245TransportCapability (OOCTXT* pctxt, H245TransportCapabilit
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -6077,8 +6077,8 @@ EXTERN int asn1PD_H245RTPH263VideoRedundancyFrameMapping (OOCTXT* pctxt, H245RTP
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -6185,7 +6185,7 @@ EXTERN int asn1PD_H245RTPH263VideoRedundancyEncoding_frameToThreadMapping (OOCTX
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -6288,8 +6288,8 @@ EXTERN int asn1PD_H245RTPH263VideoRedundancyEncoding (OOCTXT* pctxt, H245RTPH263
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -6384,7 +6384,7 @@ EXTERN int asn1PD_H245RedundancyEncodingMethod (OOCTXT* pctxt, H245RedundancyEnc
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -6525,8 +6525,8 @@ EXTERN int asn1PD_H245RedundancyEncodingCapability (OOCTXT* pctxt, H245Redundanc
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -6653,8 +6653,8 @@ EXTERN int asn1PD_H245H2250Capability (OOCTXT* pctxt, H245H2250Capability* pvalu
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -6829,7 +6829,7 @@ EXTERN int asn1PD_H245MultiplexCapability (OOCTXT* pctxt, H245MultiplexCapabilit
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -6962,8 +6962,8 @@ EXTERN int asn1PD_H245H261VideoCapability (OOCTXT* pctxt, H245H261VideoCapabilit
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -7102,8 +7102,8 @@ EXTERN int asn1PD_H245H262VideoCapability (OOCTXT* pctxt, H245H262VideoCapabilit
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -7381,8 +7381,8 @@ EXTERN int asn1PD_H245TransparencyParameters (OOCTXT* pctxt, H245TransparencyPar
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -7482,8 +7482,8 @@ EXTERN int asn1PD_H245RefPictureSelection_additionalPictureMemory (OOCTXT* pctxt
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -7625,7 +7625,7 @@ EXTERN int asn1PD_H245RefPictureSelection_videoBackChannelSend (OOCTXT* pctxt, H
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -7725,8 +7725,8 @@ EXTERN int asn1PD_H245RefPictureSelection_enhancedReferencePicSelect_subPictureR
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -7806,8 +7806,8 @@ EXTERN int asn1PD_H245RefPictureSelection_enhancedReferencePicSelect (OOCTXT* pc
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -7876,8 +7876,8 @@ EXTERN int asn1PD_H245RefPictureSelection (OOCTXT* pctxt, H245RefPictureSelectio
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -7987,8 +7987,8 @@ EXTERN int asn1PD_H245CustomPictureClockFrequency (OOCTXT* pctxt, H245CustomPict
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -8177,8 +8177,8 @@ EXTERN int asn1PD_H245CustomPictureFormat_mPI_customPCF_element (OOCTXT* pctxt, 
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -8298,8 +8298,8 @@ EXTERN int asn1PD_H245CustomPictureFormat_mPI (OOCTXT* pctxt, H245CustomPictureF
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -8416,8 +8416,8 @@ EXTERN int asn1PD_H245CustomPictureFormat_pixelAspectInformation_extendedPAR_ele
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -8525,7 +8525,7 @@ EXTERN int asn1PD_H245CustomPictureFormat_pixelAspectInformation (OOCTXT* pctxt,
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -8608,8 +8608,8 @@ EXTERN int asn1PD_H245CustomPictureFormat (OOCTXT* pctxt, H245CustomPictureForma
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -8757,8 +8757,8 @@ EXTERN int asn1PD_H245H263Version3Options (OOCTXT* pctxt, H245H263Version3Option
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -8889,8 +8889,8 @@ EXTERN int asn1PD_H245H263ModeComboFlags (OOCTXT* pctxt, H245H263ModeComboFlags*
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -9227,8 +9227,8 @@ EXTERN int asn1PD_H245H263VideoModeCombos (OOCTXT* pctxt, H245H263VideoModeCombo
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -9337,8 +9337,8 @@ EXTERN int asn1PD_H245H263Options (OOCTXT* pctxt, H245H263Options* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -9737,8 +9737,8 @@ EXTERN int asn1PD_H245EnhancementOptions (OOCTXT* pctxt, H245EnhancementOptions*
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -10086,8 +10086,8 @@ EXTERN int asn1PD_H245BEnhancementParameters (OOCTXT* pctxt, H245BEnhancementPar
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -10196,8 +10196,8 @@ EXTERN int asn1PD_H245EnhancementLayerInfo (OOCTXT* pctxt, H245EnhancementLayerI
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -10304,8 +10304,8 @@ EXTERN int asn1PD_H245H263VideoCapability (OOCTXT* pctxt, H245H263VideoCapabilit
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -10631,8 +10631,8 @@ EXTERN int asn1PD_H245IS11172VideoCapability (OOCTXT* pctxt, H245IS11172VideoCap
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -10808,7 +10808,7 @@ EXTERN int asn1PD_H245VideoCapability (OOCTXT* pctxt, H245VideoCapability* pvalu
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -10973,8 +10973,8 @@ EXTERN int asn1PD_H245IS11172AudioCapability (OOCTXT* pctxt, H245IS11172AudioCap
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -11114,8 +11114,8 @@ EXTERN int asn1PD_H245IS13818AudioCapability (OOCTXT* pctxt, H245IS13818AudioCap
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -11375,8 +11375,8 @@ EXTERN int asn1PD_H245G7231AnnexCCapability_g723AnnexCAudioMode (OOCTXT* pctxt, 
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -11486,8 +11486,8 @@ EXTERN int asn1PD_H245G7231AnnexCCapability (OOCTXT* pctxt, H245G7231AnnexCCapab
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -11575,8 +11575,8 @@ EXTERN int asn1PD_H245GSMAudioCapability (OOCTXT* pctxt, H245GSMAudioCapability*
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -11656,8 +11656,8 @@ EXTERN int asn1PD_H245G729Extensions (OOCTXT* pctxt, H245G729Extensions* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -11796,8 +11796,8 @@ EXTERN int asn1PD_H245VBDCapability (OOCTXT* pctxt, H245VBDCapability* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -11858,8 +11858,8 @@ EXTERN int asn1PD_H245NoPTAudioTelephonyEventCapability (OOCTXT* pctxt, H245NoPT
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -11919,8 +11919,8 @@ EXTERN int asn1PD_H245NoPTAudioToneCapability (OOCTXT* pctxt, H245NoPTAudioToneC
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -11968,7 +11968,7 @@ EXTERN int asn1PD_H245AudioCapability (OOCTXT* pctxt, H245AudioCapability* pvalu
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -12335,8 +12335,8 @@ EXTERN int asn1PD_H245Capability_h233EncryptionReceiveCapability (OOCTXT* pctxt,
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -12441,8 +12441,8 @@ EXTERN int asn1PD_H245ConferenceCapability (OOCTXT* pctxt, H245ConferenceCapabil
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -12554,7 +12554,7 @@ EXTERN int asn1PD_H245MediaEncryptionAlgorithm (OOCTXT* pctxt, H245MediaEncrypti
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -12667,8 +12667,8 @@ EXTERN int asn1PD_H245AuthenticationCapability (OOCTXT* pctxt, H245Authenticatio
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -12760,8 +12760,8 @@ EXTERN int asn1PD_H245IntegrityCapability (OOCTXT* pctxt, H245IntegrityCapabilit
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -12829,8 +12829,8 @@ EXTERN int asn1PD_H245EncryptionAuthenticationAndIntegrity (OOCTXT* pctxt, H245E
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -12926,8 +12926,8 @@ EXTERN int asn1PD_H245H235SecurityCapability (OOCTXT* pctxt, H245H235SecurityCap
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -13033,7 +13033,7 @@ EXTERN int asn1PD_H245UserInputCapability (OOCTXT* pctxt, H245UserInputCapabilit
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -13164,7 +13164,7 @@ EXTERN int asn1PD_H245MultiplexFormat (OOCTXT* pctxt, H245MultiplexFormat* pvalu
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -13321,8 +13321,8 @@ EXTERN int asn1PD_H245MultiplexedStreamCapability (OOCTXT* pctxt, H245Multiplexe
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -13409,8 +13409,8 @@ EXTERN int asn1PD_H245AudioTelephonyEventCapability (OOCTXT* pctxt, H245AudioTel
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -13480,8 +13480,8 @@ EXTERN int asn1PD_H245AudioToneCapability (OOCTXT* pctxt, H245AudioToneCapabilit
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -13541,8 +13541,8 @@ EXTERN int asn1PD_H245FECCapability_rfc2733_separateStream (OOCTXT* pctxt, H245F
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -13612,8 +13612,8 @@ EXTERN int asn1PD_H245FECCapability_rfc2733 (OOCTXT* pctxt, H245FECCapability_rf
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -13680,7 +13680,7 @@ EXTERN int asn1PD_H245FECCapability (OOCTXT* pctxt, H245FECCapability* pvalue)
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -13778,8 +13778,8 @@ EXTERN int asn1PD_H245MultiplePayloadStreamCapability (OOCTXT* pctxt, H245Multip
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -13836,7 +13836,7 @@ EXTERN int asn1PD_H245Capability (OOCTXT* pctxt, H245Capability* pvalue)
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -14222,7 +14222,7 @@ EXTERN int asn1PD_H245Capability (OOCTXT* pctxt, H245Capability* pvalue)
 EXTERN int asn1PD_H245CapabilityTableEntry (OOCTXT* pctxt, H245CapabilityTableEntry* pvalue)
 {
    int stat = ASN_OK;
-   ASN1BOOL optbit;
+   ASN1BOOL optbit = 0;
 
    /* optional bits */
 
@@ -14360,7 +14360,7 @@ EXTERN int asn1PD_H245CapabilityDescriptor_simultaneousCapabilities (OOCTXT* pct
 EXTERN int asn1PD_H245CapabilityDescriptor (OOCTXT* pctxt, H245CapabilityDescriptor* pvalue)
 {
    int stat = ASN_OK;
-   ASN1BOOL optbit;
+   ASN1BOOL optbit = 0;
 
    /* optional bits */
 
@@ -14445,8 +14445,8 @@ EXTERN int asn1PD_H245TerminalCapabilitySet (OOCTXT* pctxt, H245TerminalCapabili
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -14576,7 +14576,7 @@ EXTERN int asn1PD_H245EncryptionMode (OOCTXT* pctxt, H245EncryptionMode* pvalue)
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -14645,8 +14645,8 @@ EXTERN int asn1PD_H245RedundancyEncodingElement (OOCTXT* pctxt, H245RedundancyEn
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -14770,8 +14770,8 @@ EXTERN int asn1PD_H245RedundancyEncoding_rtpRedundancyEncoding (OOCTXT* pctxt, H
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -14854,8 +14854,8 @@ EXTERN int asn1PD_H245RedundancyEncoding (OOCTXT* pctxt, H245RedundancyEncoding*
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -14957,8 +14957,8 @@ EXTERN int asn1PD_H245MultiplePayloadStreamElement (OOCTXT* pctxt, H245MultipleP
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -15082,8 +15082,8 @@ EXTERN int asn1PD_H245MultiplePayloadStream (OOCTXT* pctxt, H245MultiplePayloadS
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -15142,8 +15142,8 @@ EXTERN int asn1PD_H245FECData_rfc2733_mode_separateStream_differentPort (OOCTXT*
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -15222,8 +15222,8 @@ EXTERN int asn1PD_H245FECData_rfc2733_mode_separateStream_samePort (OOCTXT* pctx
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -15281,7 +15281,7 @@ EXTERN int asn1PD_H245FECData_rfc2733_mode_separateStream (OOCTXT* pctxt, H245FE
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -15350,7 +15350,7 @@ EXTERN int asn1PD_H245FECData_rfc2733_mode (OOCTXT* pctxt, H245FECData_rfc2733_m
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -15419,8 +15419,8 @@ EXTERN int asn1PD_H245FECData_rfc2733 (OOCTXT* pctxt, H245FECData_rfc2733* pvalu
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -15513,7 +15513,7 @@ EXTERN int asn1PD_H245H235Media_mediaType (OOCTXT* pctxt, H245H235Media_mediaTyp
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -15658,8 +15658,8 @@ EXTERN int asn1PD_H245H235Media (OOCTXT* pctxt, H245H235Media* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -15727,8 +15727,8 @@ EXTERN int asn1PD_H245MultiplexedStreamParameter (OOCTXT* pctxt, H245Multiplexed
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -15795,7 +15795,7 @@ EXTERN int asn1PD_H245DataType (OOCTXT* pctxt, H245DataType* pvalue)
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -16003,8 +16003,8 @@ EXTERN int asn1PD_H245H222LogicalChannelParameters (OOCTXT* pctxt, H245H222Logic
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -16154,7 +16154,7 @@ EXTERN int asn1PD_H245H223AL1MParameters_transferMode (OOCTXT* pctxt, H245H223AL
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -16219,7 +16219,7 @@ EXTERN int asn1PD_H245H223AL1MParameters_headerFEC (OOCTXT* pctxt, H245H223AL1MP
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -16284,7 +16284,7 @@ EXTERN int asn1PD_H245H223AL1MParameters_crcLength (OOCTXT* pctxt, H245H223AL1MP
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -16424,7 +16424,7 @@ EXTERN int asn1PD_H245H223AnnexCArqParameters_numberOfRetransmissions (OOCTXT* p
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -16492,8 +16492,8 @@ EXTERN int asn1PD_H245H223AnnexCArqParameters (OOCTXT* pctxt, H245H223AnnexCArqP
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -16560,7 +16560,7 @@ EXTERN int asn1PD_H245H223AL1MParameters_arqType (OOCTXT* pctxt, H245H223AL1MPar
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -16643,8 +16643,8 @@ EXTERN int asn1PD_H245H223AL1MParameters (OOCTXT* pctxt, H245H223AL1MParameters*
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -16786,7 +16786,7 @@ EXTERN int asn1PD_H245H223AL2MParameters_headerFEC (OOCTXT* pctxt, H245H223AL2MP
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -16853,8 +16853,8 @@ EXTERN int asn1PD_H245H223AL2MParameters (OOCTXT* pctxt, H245H223AL2MParameters*
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -16921,7 +16921,7 @@ EXTERN int asn1PD_H245H223AL3MParameters_headerFormat (OOCTXT* pctxt, H245H223AL
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -16986,7 +16986,7 @@ EXTERN int asn1PD_H245H223AL3MParameters_crcLength (OOCTXT* pctxt, H245H223AL3MP
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -17126,7 +17126,7 @@ EXTERN int asn1PD_H245H223AL3MParameters_arqType (OOCTXT* pctxt, H245H223AL3MPar
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -17209,8 +17209,8 @@ EXTERN int asn1PD_H245H223AL3MParameters (OOCTXT* pctxt, H245H223AL3MParameters*
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -17333,7 +17333,7 @@ EXTERN int asn1PD_H245H223LogicalChannelParameters_adaptationLayerType (OOCTXT* 
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -17496,8 +17496,8 @@ EXTERN int asn1PD_H245H223LogicalChannelParameters (OOCTXT* pctxt, H245H223Logic
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -17564,7 +17564,7 @@ EXTERN int asn1PD_H245CRCLength (OOCTXT* pctxt, H245CRCLength* pvalue)
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -17642,8 +17642,8 @@ EXTERN int asn1PD_H245V76HDLCParameters (OOCTXT* pctxt, H245V76HDLCParameters* p
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -17720,7 +17720,7 @@ EXTERN int asn1PD_H245V76LogicalChannelParameters_suspendResume (OOCTXT* pctxt, 
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -17796,7 +17796,7 @@ EXTERN int asn1PD_H245V76LogicalChannelParameters_mode_eRM_recovery (OOCTXT* pct
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -17874,8 +17874,8 @@ EXTERN int asn1PD_H245V76LogicalChannelParameters_mode_eRM (OOCTXT* pctxt, H245V
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -17942,7 +17942,7 @@ EXTERN int asn1PD_H245V76LogicalChannelParameters_mode (OOCTXT* pctxt, H245V76Lo
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -18011,8 +18011,8 @@ EXTERN int asn1PD_H245V75Parameters (OOCTXT* pctxt, H245V75Parameters* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -18072,8 +18072,8 @@ EXTERN int asn1PD_H245V76LogicalChannelParameters (OOCTXT* pctxt, H245V76Logical
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -18192,8 +18192,8 @@ EXTERN int asn1PD_H245UnicastAddress_iPAddress (OOCTXT* pctxt, H245UnicastAddres
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -18331,8 +18331,8 @@ EXTERN int asn1PD_H245UnicastAddress_iPXAddress (OOCTXT* pctxt, H245UnicastAddre
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -18432,8 +18432,8 @@ EXTERN int asn1PD_H245UnicastAddress_iP6Address (OOCTXT* pctxt, H245UnicastAddre
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -18648,8 +18648,8 @@ EXTERN int asn1PD_H245UnicastAddress_iPSourceRouteAddress (OOCTXT* pctxt, H245Un
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -18757,7 +18757,7 @@ EXTERN int asn1PD_H245UnicastAddress (OOCTXT* pctxt, H245UnicastAddress* pvalue)
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -18925,8 +18925,8 @@ EXTERN int asn1PD_H245MulticastAddress_iPAddress (OOCTXT* pctxt, H245MulticastAd
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -19018,8 +19018,8 @@ EXTERN int asn1PD_H245MulticastAddress_iP6Address (OOCTXT* pctxt, H245MulticastA
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -19109,7 +19109,7 @@ EXTERN int asn1PD_H245MulticastAddress (OOCTXT* pctxt, H245MulticastAddress* pva
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -19213,7 +19213,7 @@ EXTERN int asn1PD_H245TransportAddress (OOCTXT* pctxt, H245TransportAddress* pva
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -19318,8 +19318,8 @@ EXTERN int asn1PD_H245TerminalLabel (OOCTXT* pctxt, H245TerminalLabel* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -19385,7 +19385,7 @@ EXTERN int asn1PD_H245H2250LogicalChannelParameters_mediaPacketization (OOCTXT* 
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -19464,8 +19464,8 @@ EXTERN int asn1PD_H245H2250LogicalChannelParameters (OOCTXT* pctxt, H245H2250Log
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -19717,7 +19717,7 @@ EXTERN int asn1PD_H245OpenLogicalChannel_forwardLogicalChannelParameters_multipl
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -19835,8 +19835,8 @@ EXTERN int asn1PD_H245OpenLogicalChannel_forwardLogicalChannelParameters (OOCTXT
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -19955,7 +19955,7 @@ EXTERN int asn1PD_H245OpenLogicalChannel_reverseLogicalChannelParameters_multipl
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -20049,8 +20049,8 @@ EXTERN int asn1PD_H245OpenLogicalChannel_reverseLogicalChannelParameters (OOCTXT
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -20159,7 +20159,7 @@ EXTERN int asn1PD_H245NetworkAccessParameters_distribution (OOCTXT* pctxt, H245N
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -20227,7 +20227,7 @@ EXTERN int asn1PD_H245NetworkAccessParameters_networkAddress (OOCTXT* pctxt, H24
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -20333,7 +20333,7 @@ EXTERN int asn1PD_H245NetworkAccessParameters_t120SetupProcedure (OOCTXT* pctxt,
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -20412,8 +20412,8 @@ EXTERN int asn1PD_H245NetworkAccessParameters (OOCTXT* pctxt, H245NetworkAccessP
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -20561,8 +20561,8 @@ EXTERN int asn1PD_H245EscrowData (OOCTXT* pctxt, H245EscrowData* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -20672,8 +20672,8 @@ EXTERN int asn1PD_H245EncryptionSync (OOCTXT* pctxt, H245EncryptionSync* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -20778,8 +20778,8 @@ EXTERN int asn1PD_H245OpenLogicalChannel (OOCTXT* pctxt, H245OpenLogicalChannel*
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -20942,7 +20942,7 @@ EXTERN int asn1PD_H245CloseLogicalChannel_reason (OOCTXT* pctxt, H245CloseLogica
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -21021,8 +21021,8 @@ EXTERN int asn1PD_H245CloseLogicalChannel (OOCTXT* pctxt, H245CloseLogicalChanne
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -21113,7 +21113,7 @@ EXTERN int asn1PD_H245RequestChannelClose_reason (OOCTXT* pctxt, H245RequestChan
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -21203,8 +21203,8 @@ EXTERN int asn1PD_H245RequestChannelClose (OOCTXT* pctxt, H245RequestChannelClos
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -21519,7 +21519,7 @@ EXTERN int asn1PD_H245MultiplexEntryDescriptor_elementList (OOCTXT* pctxt, H245M
 EXTERN int asn1PD_H245MultiplexEntryDescriptor (OOCTXT* pctxt, H245MultiplexEntryDescriptor* pvalue)
 {
    int stat = ASN_OK;
-   ASN1BOOL optbit;
+   ASN1BOOL optbit = 0;
 
    /* optional bits */
 
@@ -21604,8 +21604,8 @@ EXTERN int asn1PD_H245MultiplexEntrySend (OOCTXT* pctxt, H245MultiplexEntrySend*
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -21706,8 +21706,8 @@ EXTERN int asn1PD_H245RequestMultiplexEntry (OOCTXT* pctxt, H245RequestMultiplex
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -21811,8 +21811,8 @@ EXTERN int asn1PD_H245H261VideoMode (OOCTXT* pctxt, H245H261VideoMode* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -21889,7 +21889,7 @@ EXTERN int asn1PD_H245H262VideoMode_profileAndLevel (OOCTXT* pctxt, H245H262Vide
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -22055,8 +22055,8 @@ EXTERN int asn1PD_H245H262VideoMode (OOCTXT* pctxt, H245H262VideoMode* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -22207,7 +22207,7 @@ EXTERN int asn1PD_H245H263VideoMode_resolution (OOCTXT* pctxt, H245H263VideoMode
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -22328,8 +22328,8 @@ EXTERN int asn1PD_H245H263VideoMode (OOCTXT* pctxt, H245H263VideoMode* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -22488,8 +22488,8 @@ EXTERN int asn1PD_H245IS11172VideoMode (OOCTXT* pctxt, H245IS11172VideoMode* pva
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -22641,7 +22641,7 @@ EXTERN int asn1PD_H245VideoMode (OOCTXT* pctxt, H245VideoMode* pvalue)
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -23008,8 +23008,8 @@ EXTERN int asn1PD_H245IS11172AudioMode (OOCTXT* pctxt, H245IS11172AudioMode* pva
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -23374,8 +23374,8 @@ EXTERN int asn1PD_H245IS13818AudioMode (OOCTXT* pctxt, H245IS13818AudioMode* pva
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -23482,8 +23482,8 @@ EXTERN int asn1PD_H245G7231AnnexCMode_g723AnnexCAudioMode (OOCTXT* pctxt, H245G7
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -23593,8 +23593,8 @@ EXTERN int asn1PD_H245G7231AnnexCMode (OOCTXT* pctxt, H245G7231AnnexCMode* pvalu
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -23673,8 +23673,8 @@ EXTERN int asn1PD_H245VBDMode (OOCTXT* pctxt, H245VBDMode* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -23733,7 +23733,7 @@ EXTERN int asn1PD_H245AudioMode (OOCTXT* pctxt, H245AudioMode* pvalue)
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -24125,7 +24125,7 @@ EXTERN int asn1PD_H245DataMode_application (OOCTXT* pctxt, H245DataMode_applicat
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -24359,8 +24359,8 @@ EXTERN int asn1PD_H245DataMode (OOCTXT* pctxt, H245DataMode* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -24427,7 +24427,7 @@ EXTERN int asn1PD_H245H235Mode_mediaMode (OOCTXT* pctxt, H245H235Mode_mediaMode*
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -24524,8 +24524,8 @@ EXTERN int asn1PD_H245H235Mode (OOCTXT* pctxt, H245H235Mode* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -24591,7 +24591,7 @@ EXTERN int asn1PD_H245RedundancyEncodingDTModeElement_type (OOCTXT* pctxt, H245R
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -24714,8 +24714,8 @@ EXTERN int asn1PD_H245RedundancyEncodingDTModeElement (OOCTXT* pctxt, H245Redund
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -24818,8 +24818,8 @@ EXTERN int asn1PD_H245RedundancyEncodingDTMode (OOCTXT* pctxt, H245RedundancyEnc
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -24896,8 +24896,8 @@ EXTERN int asn1PD_H245MultiplePayloadStreamElementMode (OOCTXT* pctxt, H245Multi
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -25002,8 +25002,8 @@ EXTERN int asn1PD_H245MultiplePayloadStreamMode (OOCTXT* pctxt, H245MultiplePayl
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -25062,8 +25062,8 @@ EXTERN int asn1PD_H245FECMode_rfc2733Mode_mode_separateStream_differentPort (OOC
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -25142,8 +25142,8 @@ EXTERN int asn1PD_H245FECMode_rfc2733Mode_mode_separateStream_samePort (OOCTXT* 
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -25202,7 +25202,7 @@ EXTERN int asn1PD_H245FECMode_rfc2733Mode_mode_separateStream (OOCTXT* pctxt, H2
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -25271,7 +25271,7 @@ EXTERN int asn1PD_H245FECMode_rfc2733Mode_mode (OOCTXT* pctxt, H245FECMode_rfc27
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -25340,8 +25340,8 @@ EXTERN int asn1PD_H245FECMode_rfc2733Mode (OOCTXT* pctxt, H245FECMode_rfc2733Mod
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -25398,7 +25398,7 @@ EXTERN int asn1PD_H245FECMode (OOCTXT* pctxt, H245FECMode* pvalue)
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -25454,7 +25454,7 @@ EXTERN int asn1PD_H245ModeElementType (OOCTXT* pctxt, H245ModeElementType* pvalu
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -25669,7 +25669,7 @@ EXTERN int asn1PD_H245H223ModeParameters_adaptationLayerType (OOCTXT* pctxt, H24
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -25832,8 +25832,8 @@ EXTERN int asn1PD_H245H223ModeParameters (OOCTXT* pctxt, H245H223ModeParameters*
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -25900,7 +25900,7 @@ EXTERN int asn1PD_H245V76ModeParameters (OOCTXT* pctxt, H245V76ModeParameters* p
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -25965,7 +25965,7 @@ EXTERN int asn1PD_H245RedundancyEncodingMode_secondaryEncoding (OOCTXT* pctxt, H
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -26036,8 +26036,8 @@ EXTERN int asn1PD_H245RedundancyEncodingMode (OOCTXT* pctxt, H245RedundancyEncod
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -26114,8 +26114,8 @@ EXTERN int asn1PD_H245H2250ModeParameters (OOCTXT* pctxt, H245H2250ModeParameter
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -26183,8 +26183,8 @@ EXTERN int asn1PD_H245MultiplexedStreamModeParameters (OOCTXT* pctxt, H245Multip
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -26244,8 +26244,8 @@ EXTERN int asn1PD_H245ModeElement (OOCTXT* pctxt, H245ModeElement* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -26458,8 +26458,8 @@ EXTERN int asn1PD_H245RequestMode (OOCTXT* pctxt, H245RequestMode* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -26527,8 +26527,8 @@ EXTERN int asn1PD_H245RoundTripDelayRequest (OOCTXT* pctxt, H245RoundTripDelayRe
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -26585,7 +26585,7 @@ EXTERN int asn1PD_H245MaintenanceLoopRequest_type (OOCTXT* pctxt, H245Maintenanc
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -26663,8 +26663,8 @@ EXTERN int asn1PD_H245MaintenanceLoopRequest (OOCTXT* pctxt, H245MaintenanceLoop
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -26723,8 +26723,8 @@ EXTERN int asn1PD_H245CommunicationModeRequest (OOCTXT* pctxt, H245Communication
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -26775,8 +26775,8 @@ EXTERN int asn1PD_H245Criteria (OOCTXT* pctxt, H245Criteria* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -26888,8 +26888,8 @@ EXTERN int asn1PD_H245ConferenceRequest_requestTerminalCertificate (OOCTXT* pctx
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -26984,7 +26984,7 @@ EXTERN int asn1PD_H245RemoteMCRequest (OOCTXT* pctxt, H245RemoteMCRequest* pvalu
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -27060,7 +27060,7 @@ EXTERN int asn1PD_H245ConferenceRequest (OOCTXT* pctxt, H245ConferenceRequest* p
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -27302,8 +27302,8 @@ EXTERN int asn1PD_H245MultilinkRequest_callInformation (OOCTXT* pctxt, H245Multi
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -27361,7 +27361,7 @@ EXTERN int asn1PD_H245DialingInformationNetworkType (OOCTXT* pctxt, H245DialingI
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -27503,8 +27503,8 @@ EXTERN int asn1PD_H245DialingInformationNumber (OOCTXT* pctxt, H245DialingInform
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -27634,7 +27634,7 @@ EXTERN int asn1PD_H245DialingInformation (OOCTXT* pctxt, H245DialingInformation*
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -27717,8 +27717,8 @@ EXTERN int asn1PD_H245MultilinkRequest_addConnection (OOCTXT* pctxt, H245Multili
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -27786,8 +27786,8 @@ EXTERN int asn1PD_H245ConnectionIdentifier (OOCTXT* pctxt, H245ConnectionIdentif
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -27857,8 +27857,8 @@ EXTERN int asn1PD_H245MultilinkRequest_removeConnection (OOCTXT* pctxt, H245Mult
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -27915,7 +27915,7 @@ EXTERN int asn1PD_H245MultilinkRequest_maximumHeaderInterval_requestType (OOCTXT
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -27983,8 +27983,8 @@ EXTERN int asn1PD_H245MultilinkRequest_maximumHeaderInterval (OOCTXT* pctxt, H24
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -28041,7 +28041,7 @@ EXTERN int asn1PD_H245MultilinkRequest (OOCTXT* pctxt, H245MultilinkRequest* pva
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -28168,8 +28168,8 @@ EXTERN int asn1PD_H245LogicalChannelRateRequest (OOCTXT* pctxt, H245LogicalChann
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -28244,7 +28244,7 @@ EXTERN int asn1PD_H245RequestMessage (OOCTXT* pctxt, H245RequestMessage* pvalue)
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -28538,8 +28538,8 @@ EXTERN int asn1PD_H245MasterSlaveDeterminationAck (OOCTXT* pctxt, H245MasterSlav
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -28596,7 +28596,7 @@ EXTERN int asn1PD_H245MasterSlaveDeterminationReject_cause (OOCTXT* pctxt, H245M
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -28652,8 +28652,8 @@ EXTERN int asn1PD_H245MasterSlaveDeterminationReject (OOCTXT* pctxt, H245MasterS
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -28712,8 +28712,8 @@ EXTERN int asn1PD_H245TerminalCapabilitySetAck (OOCTXT* pctxt, H245TerminalCapab
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -28815,7 +28815,7 @@ EXTERN int asn1PD_H245TerminalCapabilitySetReject_cause (OOCTXT* pctxt, H245Term
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -28906,8 +28906,8 @@ EXTERN int asn1PD_H245TerminalCapabilitySetReject (OOCTXT* pctxt, H245TerminalCa
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -28973,7 +28973,7 @@ EXTERN int asn1PD_H245OpenLogicalChannelAck_reverseLogicalChannelParameters_mult
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -29054,8 +29054,8 @@ EXTERN int asn1PD_H245OpenLogicalChannelAck_reverseLogicalChannelParameters (OOC
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -29171,8 +29171,8 @@ EXTERN int asn1PD_H245H2250LogicalChannelAckParameters (OOCTXT* pctxt, H245H2250
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -29332,7 +29332,7 @@ EXTERN int asn1PD_H245OpenLogicalChannelAck_forwardMultiplexAckParameters (OOCTX
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -29391,8 +29391,8 @@ EXTERN int asn1PD_H245OpenLogicalChannelAck (OOCTXT* pctxt, H245OpenLogicalChann
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -29512,7 +29512,7 @@ EXTERN int asn1PD_H245OpenLogicalChannelReject_cause (OOCTXT* pctxt, H245OpenLog
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -29720,8 +29720,8 @@ EXTERN int asn1PD_H245OpenLogicalChannelReject (OOCTXT* pctxt, H245OpenLogicalCh
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -29789,8 +29789,8 @@ EXTERN int asn1PD_H245CloseLogicalChannelAck (OOCTXT* pctxt, H245CloseLogicalCha
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -29849,8 +29849,8 @@ EXTERN int asn1PD_H245RequestChannelCloseAck (OOCTXT* pctxt, H245RequestChannelC
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -29907,7 +29907,7 @@ EXTERN int asn1PD_H245RequestChannelCloseReject_cause (OOCTXT* pctxt, H245Reques
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -29963,8 +29963,8 @@ EXTERN int asn1PD_H245RequestChannelCloseReject (OOCTXT* pctxt, H245RequestChann
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -30065,8 +30065,8 @@ EXTERN int asn1PD_H245MultiplexEntrySendAck (OOCTXT* pctxt, H245MultiplexEntrySe
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -30132,7 +30132,7 @@ EXTERN int asn1PD_H245MultiplexEntryRejectionDescriptions_cause (OOCTXT* pctxt, 
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -30199,8 +30199,8 @@ EXTERN int asn1PD_H245MultiplexEntryRejectionDescriptions (OOCTXT* pctxt, H245Mu
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -30308,8 +30308,8 @@ EXTERN int asn1PD_H245MultiplexEntrySendReject (OOCTXT* pctxt, H245MultiplexEntr
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -30410,8 +30410,8 @@ EXTERN int asn1PD_H245RequestMultiplexEntryAck (OOCTXT* pctxt, H245RequestMultip
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -30501,7 +30501,7 @@ EXTERN int asn1PD_H245RequestMultiplexEntryRejectionDescriptions_cause (OOCTXT* 
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -30557,8 +30557,8 @@ EXTERN int asn1PD_H245RequestMultiplexEntryRejectionDescriptions (OOCTXT* pctxt,
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -30666,8 +30666,8 @@ EXTERN int asn1PD_H245RequestMultiplexEntryReject (OOCTXT* pctxt, H245RequestMul
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -30733,7 +30733,7 @@ EXTERN int asn1PD_H245RequestModeAck_response (OOCTXT* pctxt, H245RequestModeAck
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -30800,8 +30800,8 @@ EXTERN int asn1PD_H245RequestModeAck (OOCTXT* pctxt, H245RequestModeAck* pvalue)
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -30867,7 +30867,7 @@ EXTERN int asn1PD_H245RequestModeReject_cause (OOCTXT* pctxt, H245RequestModeRej
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -30945,8 +30945,8 @@ EXTERN int asn1PD_H245RequestModeReject (OOCTXT* pctxt, H245RequestModeReject* p
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -31014,8 +31014,8 @@ EXTERN int asn1PD_H245RoundTripDelayResponse (OOCTXT* pctxt, H245RoundTripDelayR
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -31072,7 +31072,7 @@ EXTERN int asn1PD_H245MaintenanceLoopAck_type (OOCTXT* pctxt, H245MaintenanceLoo
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -31150,8 +31150,8 @@ EXTERN int asn1PD_H245MaintenanceLoopAck (OOCTXT* pctxt, H245MaintenanceLoopAck*
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -31208,7 +31208,7 @@ EXTERN int asn1PD_H245MaintenanceLoopReject_type (OOCTXT* pctxt, H245Maintenance
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -31284,7 +31284,7 @@ EXTERN int asn1PD_H245MaintenanceLoopReject_cause (OOCTXT* pctxt, H245Maintenanc
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -31340,8 +31340,8 @@ EXTERN int asn1PD_H245MaintenanceLoopReject (OOCTXT* pctxt, H245MaintenanceLoopR
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -31407,7 +31407,7 @@ EXTERN int asn1PD_H245CommunicationModeTableEntry_dataType (OOCTXT* pctxt, H245C
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -31493,8 +31493,8 @@ EXTERN int asn1PD_H245CommunicationModeTableEntry (OOCTXT* pctxt, H245Communicat
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -31764,7 +31764,7 @@ EXTERN int asn1PD_H245CommunicationModeResponse (OOCTXT* pctxt, H245Communicatio
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -31845,8 +31845,8 @@ EXTERN int asn1PD_H245ConferenceResponse_mCTerminalIDResponse (OOCTXT* pctxt, H2
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -31914,8 +31914,8 @@ EXTERN int asn1PD_H245ConferenceResponse_terminalIDResponse (OOCTXT* pctxt, H245
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -32006,8 +32006,8 @@ EXTERN int asn1PD_H245ConferenceResponse_conferenceIDResponse (OOCTXT* pctxt, H2
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -32098,8 +32098,8 @@ EXTERN int asn1PD_H245ConferenceResponse_passwordResponse (OOCTXT* pctxt, H245Co
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -32205,7 +32205,7 @@ EXTERN int asn1PD_H245ConferenceResponse_makeMeChairResponse (OOCTXT* pctxt, H24
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -32272,8 +32272,8 @@ EXTERN int asn1PD_H245ConferenceResponse_extensionAddressResponse (OOCTXT* pctxt
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -32332,8 +32332,8 @@ EXTERN int asn1PD_H245ConferenceResponse_chairTokenOwnerResponse (OOCTXT* pctxt,
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -32402,8 +32402,8 @@ EXTERN int asn1PD_H245ConferenceResponse_terminalCertificateResponse (OOCTXT* pc
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -32486,7 +32486,7 @@ EXTERN int asn1PD_H245ConferenceResponse_broadcastMyLogicalChannelResponse (OOCT
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -32551,7 +32551,7 @@ EXTERN int asn1PD_H245ConferenceResponse_makeTerminalBroadcasterResponse (OOCTXT
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -32616,7 +32616,7 @@ EXTERN int asn1PD_H245ConferenceResponse_sendThisSourceResponse (OOCTXT* pctxt, 
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -32683,8 +32683,8 @@ EXTERN int asn1PD_H245TerminalInformation (OOCTXT* pctxt, H245TerminalInformatio
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -32796,8 +32796,8 @@ EXTERN int asn1PD_H245RequestAllTerminalIDsResponse (OOCTXT* pctxt, H245RequestA
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -32854,7 +32854,7 @@ EXTERN int asn1PD_H245RemoteMCResponse_reject (OOCTXT* pctxt, H245RemoteMCRespon
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -32919,7 +32919,7 @@ EXTERN int asn1PD_H245RemoteMCResponse (OOCTXT* pctxt, H245RemoteMCResponse* pva
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -32986,7 +32986,7 @@ EXTERN int asn1PD_H245ConferenceResponse (OOCTXT* pctxt, H245ConferenceResponse*
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -33244,8 +33244,8 @@ EXTERN int asn1PD_H245MultilinkResponse_callInformation (OOCTXT* pctxt, H245Mult
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -33312,7 +33312,7 @@ EXTERN int asn1PD_H245MultilinkResponse_addConnection_responseCode_rejected (OOC
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -33377,7 +33377,7 @@ EXTERN int asn1PD_H245MultilinkResponse_addConnection_responseCode (OOCTXT* pctx
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -33446,8 +33446,8 @@ EXTERN int asn1PD_H245MultilinkResponse_addConnection (OOCTXT* pctxt, H245Multil
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -33515,8 +33515,8 @@ EXTERN int asn1PD_H245MultilinkResponse_removeConnection (OOCTXT* pctxt, H245Mul
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -33575,8 +33575,8 @@ EXTERN int asn1PD_H245MultilinkResponse_maximumHeaderInterval (OOCTXT* pctxt, H2
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -33634,7 +33634,7 @@ EXTERN int asn1PD_H245MultilinkResponse (OOCTXT* pctxt, H245MultilinkResponse* p
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -33744,8 +33744,8 @@ EXTERN int asn1PD_H245LogicalChannelRateAcknowledge (OOCTXT* pctxt, H245LogicalC
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -33820,7 +33820,7 @@ EXTERN int asn1PD_H245LogicalChannelRateRejectReason (OOCTXT* pctxt, H245Logical
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -33887,8 +33887,8 @@ EXTERN int asn1PD_H245LogicalChannelRateReject (OOCTXT* pctxt, H245LogicalChanne
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -33981,7 +33981,7 @@ EXTERN int asn1PD_H245ResponseMessage (OOCTXT* pctxt, H245ResponseMessage* pvalu
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -34347,8 +34347,8 @@ EXTERN int asn1PD_H245MaintenanceLoopOffCommand (OOCTXT* pctxt, H245MaintenanceL
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -34466,8 +34466,8 @@ EXTERN int asn1PD_H245SendTerminalCapabilitySet_specificRequest (OOCTXT* pctxt, 
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -34557,7 +34557,7 @@ EXTERN int asn1PD_H245SendTerminalCapabilitySet (OOCTXT* pctxt, H245SendTerminal
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -34655,7 +34655,7 @@ EXTERN int asn1PD_H245EncryptionCommand (OOCTXT* pctxt, H245EncryptionCommand* p
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -34841,8 +34841,8 @@ EXTERN int asn1PD_H245FlowControlCommand (OOCTXT* pctxt, H245FlowControlCommand*
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -34908,7 +34908,7 @@ EXTERN int asn1PD_H245EndSessionCommand_gstnOptions (OOCTXT* pctxt, H245EndSessi
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -35006,7 +35006,7 @@ EXTERN int asn1PD_H245EndSessionCommand_isdnOptions (OOCTXT* pctxt, H245EndSessi
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -35082,7 +35082,7 @@ EXTERN int asn1PD_H245EndSessionCommand (OOCTXT* pctxt, H245EndSessionCommand* p
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -35219,8 +35219,8 @@ EXTERN int asn1PD_H245MiscellaneousCommand_type_videoFastUpdateMB (OOCTXT* pctxt
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -35314,8 +35314,8 @@ EXTERN int asn1PD_H245KeyProtectionMethod (OOCTXT* pctxt, H245KeyProtectionMetho
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -35395,8 +35395,8 @@ EXTERN int asn1PD_H245EncryptionUpdateRequest (OOCTXT* pctxt, H245EncryptionUpda
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -35462,7 +35462,7 @@ EXTERN int asn1PD_H245MiscellaneousCommand_type_progressiveRefinementStart_repea
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -35551,8 +35551,8 @@ EXTERN int asn1PD_H245MiscellaneousCommand_type_progressiveRefinementStart (OOCT
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -35611,8 +35611,8 @@ EXTERN int asn1PD_H245MiscellaneousCommand_type_videoBadMBs (OOCTXT* pctxt, H245
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -35690,7 +35690,7 @@ EXTERN int asn1PD_H245PictureReference (OOCTXT* pctxt, H245PictureReference* pva
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -35803,8 +35803,8 @@ EXTERN int asn1PD_H245MiscellaneousCommand_type_lostPartialPicture (OOCTXT* pctx
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -35881,7 +35881,7 @@ EXTERN int asn1PD_H245MiscellaneousCommand_type (OOCTXT* pctxt, H245Miscellaneou
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -36208,8 +36208,8 @@ EXTERN int asn1PD_H245MiscellaneousCommand (OOCTXT* pctxt, H245MiscellaneousComm
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -36317,8 +36317,8 @@ EXTERN int asn1PD_H245CommunicationModeCommand (OOCTXT* pctxt, H245Communication
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -36400,8 +36400,8 @@ EXTERN int asn1PD_H245SubstituteConferenceIDCommand (OOCTXT* pctxt, H245Substitu
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -36458,7 +36458,7 @@ EXTERN int asn1PD_H245ConferenceCommand (OOCTXT* pctxt, H245ConferenceCommand* p
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -36604,7 +36604,7 @@ EXTERN int asn1PD_H245H223MultiplexReconfiguration_h223ModeChange (OOCTXT* pctxt
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -36691,7 +36691,7 @@ EXTERN int asn1PD_H245H223MultiplexReconfiguration_h223AnnexADoubleFlag (OOCTXT*
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -36756,7 +36756,7 @@ EXTERN int asn1PD_H245H223MultiplexReconfiguration (OOCTXT* pctxt, H245H223Multi
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -36825,7 +36825,7 @@ EXTERN int asn1PD_H245NewATMVCCommand_aal_aal1_clockRecovery (OOCTXT* pctxt, H24
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -36901,7 +36901,7 @@ EXTERN int asn1PD_H245NewATMVCCommand_aal_aal1_errorCorrection (OOCTXT* pctxt, H
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -36990,8 +36990,8 @@ EXTERN int asn1PD_H245NewATMVCCommand_aal_aal1 (OOCTXT* pctxt, H245NewATMVCComma
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -37079,8 +37079,8 @@ EXTERN int asn1PD_H245NewATMVCCommand_aal_aal5 (OOCTXT* pctxt, H245NewATMVCComma
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -37148,7 +37148,7 @@ EXTERN int asn1PD_H245NewATMVCCommand_aal (OOCTXT* pctxt, H245NewATMVCCommand_aa
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -37217,7 +37217,7 @@ EXTERN int asn1PD_H245NewATMVCCommand_multiplex (OOCTXT* pctxt, H245NewATMVCComm
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -37293,7 +37293,7 @@ EXTERN int asn1PD_H245NewATMVCCommand_reverseParameters_multiplex (OOCTXT* pctxt
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -37371,8 +37371,8 @@ EXTERN int asn1PD_H245NewATMVCCommand_reverseParameters (OOCTXT* pctxt, H245NewA
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -37461,8 +37461,8 @@ EXTERN int asn1PD_H245NewATMVCCommand (OOCTXT* pctxt, H245NewATMVCCommand* pvalu
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -37577,7 +37577,7 @@ EXTERN int asn1PD_H245MobileMultilinkReconfigurationCommand_status (OOCTXT* pctx
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -37644,8 +37644,8 @@ EXTERN int asn1PD_H245MobileMultilinkReconfigurationCommand (OOCTXT* pctxt, H245
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -37722,7 +37722,7 @@ EXTERN int asn1PD_H245CommandMessage (OOCTXT* pctxt, H245CommandMessage* pvalue)
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -37994,8 +37994,8 @@ EXTERN int asn1PD_H245MasterSlaveDeterminationRelease (OOCTXT* pctxt, H245Master
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -38045,8 +38045,8 @@ EXTERN int asn1PD_H245TerminalCapabilitySetRelease (OOCTXT* pctxt, H245TerminalC
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -38096,8 +38096,8 @@ EXTERN int asn1PD_H245OpenLogicalChannelConfirm (OOCTXT* pctxt, H245OpenLogicalC
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -38156,8 +38156,8 @@ EXTERN int asn1PD_H245RequestChannelCloseRelease (OOCTXT* pctxt, H245RequestChan
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -38249,8 +38249,8 @@ EXTERN int asn1PD_H245MultiplexEntrySendRelease (OOCTXT* pctxt, H245MultiplexEnt
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -38342,8 +38342,8 @@ EXTERN int asn1PD_H245RequestMultiplexEntryRelease (OOCTXT* pctxt, H245RequestMu
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -38402,8 +38402,8 @@ EXTERN int asn1PD_H245RequestModeRelease (OOCTXT* pctxt, H245RequestModeRelease*
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -38453,8 +38453,8 @@ EXTERN int asn1PD_H245MiscellaneousIndication_type_videoNotDecodedMBs (OOCTXT* p
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -38532,7 +38532,7 @@ EXTERN int asn1PD_H245MiscellaneousIndication_type (OOCTXT* pctxt, H245Miscellan
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -38723,8 +38723,8 @@ EXTERN int asn1PD_H245MiscellaneousIndication (OOCTXT* pctxt, H245MiscellaneousI
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -38849,8 +38849,8 @@ EXTERN int asn1PD_H245JitterIndication (OOCTXT* pctxt, H245JitterIndication* pva
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -38963,8 +38963,8 @@ EXTERN int asn1PD_H245H223SkewIndication (OOCTXT* pctxt, H245H223SkewIndication*
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -39040,7 +39040,7 @@ EXTERN int asn1PD_H245NewATMVCIndication_aal_aal1_clockRecovery (OOCTXT* pctxt, 
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -39116,7 +39116,7 @@ EXTERN int asn1PD_H245NewATMVCIndication_aal_aal1_errorCorrection (OOCTXT* pctxt
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -39205,8 +39205,8 @@ EXTERN int asn1PD_H245NewATMVCIndication_aal_aal1 (OOCTXT* pctxt, H245NewATMVCIn
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -39294,8 +39294,8 @@ EXTERN int asn1PD_H245NewATMVCIndication_aal_aal5 (OOCTXT* pctxt, H245NewATMVCIn
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -39363,7 +39363,7 @@ EXTERN int asn1PD_H245NewATMVCIndication_aal (OOCTXT* pctxt, H245NewATMVCIndicat
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -39432,7 +39432,7 @@ EXTERN int asn1PD_H245NewATMVCIndication_multiplex (OOCTXT* pctxt, H245NewATMVCI
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -39508,7 +39508,7 @@ EXTERN int asn1PD_H245NewATMVCIndication_reverseParameters_multiplex (OOCTXT* pc
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -39586,8 +39586,8 @@ EXTERN int asn1PD_H245NewATMVCIndication_reverseParameters (OOCTXT* pctxt, H245N
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -39677,8 +39677,8 @@ EXTERN int asn1PD_H245NewATMVCIndication (OOCTXT* pctxt, H245NewATMVCIndication*
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -39809,7 +39809,7 @@ EXTERN int asn1PD_H245UserInputIndication_userInputSupportIndication (OOCTXT* pc
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -39900,8 +39900,8 @@ EXTERN int asn1PD_H245UserInputIndication_signal_rtp (OOCTXT* pctxt, H245UserInp
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -39998,8 +39998,8 @@ EXTERN int asn1PD_H245UserInputIndication_signal (OOCTXT* pctxt, H245UserInputIn
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -40117,8 +40117,8 @@ EXTERN int asn1PD_H245UserInputIndication_signalUpdate_rtp (OOCTXT* pctxt, H245U
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -40177,8 +40177,8 @@ EXTERN int asn1PD_H245UserInputIndication_signalUpdate (OOCTXT* pctxt, H245UserI
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -40256,8 +40256,8 @@ EXTERN int asn1PD_H245UserInputIndication_extendedAlphanumeric (OOCTXT* pctxt, H
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -40333,7 +40333,7 @@ EXTERN int asn1PD_H245UserInputIndication (OOCTXT* pctxt, H245UserInputIndicatio
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -40464,8 +40464,8 @@ EXTERN int asn1PD_H245H2250MaximumSkewIndication (OOCTXT* pctxt, H245H2250Maximu
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -40543,8 +40543,8 @@ EXTERN int asn1PD_H245MCLocationIndication (OOCTXT* pctxt, H245MCLocationIndicat
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -40603,8 +40603,8 @@ EXTERN int asn1PD_H245TerminalYouAreSeeingInSubPictureNumber (OOCTXT* pctxt, H24
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -40673,8 +40673,8 @@ EXTERN int asn1PD_H245VideoIndicateCompose (OOCTXT* pctxt, H245VideoIndicateComp
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -40732,7 +40732,7 @@ EXTERN int asn1PD_H245ConferenceIndication (OOCTXT* pctxt, H245ConferenceIndicat
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -41001,8 +41001,8 @@ EXTERN int asn1PD_H245VendorIdentification (OOCTXT* pctxt, H245VendorIdentificat
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -41091,7 +41091,7 @@ EXTERN int asn1PD_H245FunctionNotSupported_cause (OOCTXT* pctxt, H245FunctionNot
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -41169,8 +41169,8 @@ EXTERN int asn1PD_H245FunctionNotSupported (OOCTXT* pctxt, H245FunctionNotSuppor
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -41248,8 +41248,8 @@ EXTERN int asn1PD_H245MultilinkIndication_crcDesired (OOCTXT* pctxt, H245Multili
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -41299,8 +41299,8 @@ EXTERN int asn1PD_H245MultilinkIndication_excessiveError (OOCTXT* pctxt, H245Mul
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -41357,7 +41357,7 @@ EXTERN int asn1PD_H245MultilinkIndication (OOCTXT* pctxt, H245MultilinkIndicatio
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -41441,8 +41441,8 @@ EXTERN int asn1PD_H245LogicalChannelRateRelease (OOCTXT* pctxt, H245LogicalChann
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -41595,8 +41595,8 @@ EXTERN int asn1PD_H245FlowControlIndication (OOCTXT* pctxt, H245FlowControlIndic
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -41664,8 +41664,8 @@ EXTERN int asn1PD_H245MobileMultilinkReconfigurationIndication (OOCTXT* pctxt, H
    ASN1OpenType openType;
    ASN1UINT bitcnt;
    ASN1UINT i;
-   ASN1BOOL optbit;
-   ASN1BOOL extbit;
+   ASN1BOOL optbit = 0;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 
@@ -41733,7 +41733,7 @@ EXTERN int asn1PD_H245IndicationMessage (OOCTXT* pctxt, H245IndicationMessage* p
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
    OOCTXT lctxt;
 
    /* extension bit */
@@ -42084,7 +42084,7 @@ EXTERN int asn1PD_H245MultimediaSystemControlMessage (OOCTXT* pctxt, H245Multime
    int stat = ASN_OK;
    ASN1UINT ui;
    ASN1OpenType openType;
-   ASN1BOOL extbit;
+   ASN1BOOL extbit = 0;
 
    /* extension bit */
 

@@ -48,6 +48,10 @@ EXTERN int ooGetTimeOfDay (struct timeval *tv, struct timezone *tz);
  * @return             Difference between two timevals in milliseconds.
  */
 EXTERN long ooGetTimeDiff(struct timeval *tv1, struct timeval *tv2);
+
+EXTERN int ooGetTimeOfDay (struct timeval *tv, struct timezone *tz);
+EXTERN long ooGetTimeDiff(struct timeval *tv1, struct timeval *tv2);
+
 #ifdef __cplusplus
 }
 #endif

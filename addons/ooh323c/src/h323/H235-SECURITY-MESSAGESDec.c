@@ -162,6 +162,8 @@ EXTERN int asn1PD_H235AuthenticationBES (OOCTXT* pctxt, H235AuthenticationBES* p
    ASN1OpenType openType;
    ASN1BOOL extbit;
 
+   extbit = 0;
+
    /* extension bit */
 
    DECODEBIT (pctxt, &extbit);
@@ -227,6 +229,8 @@ EXTERN int asn1PD_H235AuthenticationMechanism (OOCTXT* pctxt, H235Authentication
    ASN1OpenType openType;
    ASN1BOOL extbit;
    OOCTXT lctxt;
+
+   extbit = 0;
 
    /* extension bit */
 
@@ -446,6 +450,8 @@ EXTERN int asn1PD_H235DHset (OOCTXT* pctxt, H235DHset* pvalue)
    ASN1BOOL optbit;
    ASN1BOOL extbit;
 
+   optbit = extbit = 0;
+
    /* extension bit */
 
    DECODEBIT (pctxt, &extbit);
@@ -523,6 +529,8 @@ EXTERN int asn1PD_H235TypedCertificate (OOCTXT* pctxt, H235TypedCertificate* pva
    ASN1UINT i;
    ASN1BOOL optbit;
    ASN1BOOL extbit;
+
+   optbit = extbit = 0;
 
    /* extension bit */
 
@@ -662,6 +670,8 @@ EXTERN int asn1PD_H235ECpoint (OOCTXT* pctxt, H235ECpoint* pvalue)
    ASN1UINT i;
    ASN1BOOL optbit;
    ASN1BOOL extbit;
+
+   optbit = extbit = 0;
 
    /* extension bit */
 
@@ -1003,6 +1013,8 @@ EXTERN int asn1PD_H235ECKASDH (OOCTXT* pctxt, H235ECKASDH* pvalue)
    ASN1OpenType openType;
    ASN1BOOL extbit;
 
+   extbit = 0;
+
    /* extension bit */
 
    DECODEBIT (pctxt, &extbit);
@@ -1075,6 +1087,8 @@ EXTERN int asn1PD_H235ClearToken (OOCTXT* pctxt, H235ClearToken* pvalue)
    ASN1UINT i;
    ASN1BOOL optbit;
    ASN1BOOL extbit;
+
+   optbit = extbit = 0;
 
    /* extension bit */
 
@@ -1333,6 +1347,8 @@ EXTERN int asn1PD_H235Params (OOCTXT* pctxt, H235Params* pvalue)
    ASN1UINT i;
    ASN1BOOL optbit;
    ASN1BOOL extbit;
+
+   optbit = extbit = 0;
 
    /* extension bit */
 
@@ -1697,6 +1713,8 @@ EXTERN int asn1PD_H235CryptoToken (OOCTXT* pctxt, H235CryptoToken* pvalue)
    ASN1UINT ui;
    ASN1OpenType openType;
    ASN1BOOL extbit;
+
+   extbit = 0;
 
    /* extension bit */
 

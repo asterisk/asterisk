@@ -28,8 +28,8 @@
 extern EventHandler printHandler;
 
 void initializePrintHandler(EventHandler *printHandler, char * varname);
-void finishPrint();
-void indent ();
+void finishPrint(void);
+void indent (void);
 void printStartElement (const char* name, int index );
 void printEndElement (const char* name, int index );
 void printBoolValue (ASN1BOOL value);
@@ -39,7 +39,7 @@ void printBitStrValue (ASN1UINT numbits, const ASN1OCTET* data);
 void printOctStrValue (ASN1UINT numocts, const ASN1OCTET* data);
 void printCharStrValue (const char* value);
 void printCharStr16BitValue (ASN1UINT nchars, ASN116BITCHAR* data);
-void printNullValue ();
+void printNullValue (void);
 void printOidValue (ASN1UINT numSubIds, ASN1UINT* pSubIds);
 void printEnumValue (ASN1UINT value);
 void printOpenTypeValue (ASN1UINT numocts, const ASN1OCTET* data);

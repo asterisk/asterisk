@@ -13,6 +13,9 @@
  * maintain this copyright notice.
  *
  *****************************************************************************/
+#include <asterisk.h>
+#include <asterisk/lock.h>
+
 #include "ooCapability.h"
 #include "ootrace.h"
 #include "ooCalls.h"
@@ -22,6 +25,7 @@
 extern OOH323EndPoint gH323ep;
 
 static int giDynamicRTPPayloadType = 101;
+static int gcDynamicRTPPayloadType = 121;
 
 int ooCapabilityEnableDTMFRFC2833
    (OOH323CallData *call, int dynamicRTPPayloadType)
@@ -30,16 +34,47 @@ int ooCapabilityEnableDTMFRFC2833
    {
       gH323ep.dtmfmode |= OO_CAP_DTMF_RFC2833;
       OOTRACEINFO1("Enabled RFC2833 DTMF capability for end-point\n");
+      /*Dynamic RTP payload type range is from 96 - 127 */
+      if(dynamicRTPPayloadType >= 96 && dynamicRTPPayloadType <= 127)
+        giDynamicRTPPayloadType = dynamicRTPPayloadType;
    }
    else{
       call->dtmfmode |= OO_CAP_DTMF_RFC2833;
       OOTRACEINFO3("Enabled RFC2833 DTMF capability for (%s, %s) \n", 
                    call->callType, call->callToken);
+   if(dynamicRTPPayloadType >= 96 && dynamicRTPPayloadType <= 127)
+      call->dtmfcodec = dynamicRTPPayloadType;
+   else
+      call->dtmfcodec = giDynamicRTPPayloadType;
    }
 
-   /*Dynamic RTP payload type range is from 96 - 127 */
+
+   return OO_OK;
+}
+
+int ooCapabilityEnableDTMFCISCO
+   (OOH323CallData *call, int dynamicRTPPayloadType)
+{
+   if(!call)
+   {
+      gH323ep.dtmfmode |= OO_CAP_DTMF_CISCO;
+      OOTRACEINFO1("Enabled RTP/CISCO DTMF capability for end-point\n");
+      /*Dynamic RTP payload type range is from 96 - 127 */
+      if(dynamicRTPPayloadType >= 96 && dynamicRTPPayloadType <= 127)
+        gcDynamicRTPPayloadType = dynamicRTPPayloadType;
+      else
+        call->dtmfcodec = dynamicRTPPayloadType;
+   }
+   else{
+      call->dtmfmode |= OO_CAP_DTMF_CISCO;
+      OOTRACEINFO3("Enabled RTP/CISCO DTMF capability for (%s, %s) \n", 
+                   call->callType, call->callToken);
    if(dynamicRTPPayloadType >= 96 && dynamicRTPPayloadType <= 127)
-      giDynamicRTPPayloadType = dynamicRTPPayloadType;
+      call->dtmfcodec = dynamicRTPPayloadType;
+   else
+      call->dtmfcodec = gcDynamicRTPPayloadType;
+   }
+
 
    return OO_OK;
 }
@@ -55,6 +90,21 @@ int ooCapabilityDisableDTMFRFC2833(OOH323CallData *call)
    else{
       call->dtmfmode ^= OO_CAP_DTMF_RFC2833;
       OOTRACEINFO3("Disabled RFC2833 DTMF capability for (%s, %s)\n", 
+                    call->callType, call->callToken);
+   }
+
+   return OO_OK;
+}
+
+int ooCapabilityDisableDTMFCISCO(OOH323CallData *call)
+{
+   if(!call){
+      gH323ep.dtmfmode ^= OO_CAP_DTMF_CISCO;
+      OOTRACEINFO1("Disabled RTP/CISCO DTMF capability for end-point\n");
+   }
+   else{
+      call->dtmfmode ^= OO_CAP_DTMF_CISCO;
+      OOTRACEINFO3("Disabled RTP/CISCO DTMF capability for (%s, %s)\n", 
                     call->callType, call->callToken);
    }
 
@@ -335,8 +385,7 @@ int ooCapabilityAddH263VideoCapability_helper(ooCallData *call,
         if(!call->ourCaps){
            call->ourCaps = epCap;
            ooResetCapPrefs(call);
-        }
-        else{
+        }else{
            cur = call->ourCaps;
            while(cur->next) cur = cur->next;
            cur->next = epCap;
@@ -449,6 +498,20 @@ int ooCapabilityAddSimpleCapability
    return OO_OK;
 }
 
+int epCapIsPreferred(OOH323CallData *call, ooH323EpCapability *epCap)
+{
+ ooH323EpCapability *curCap = call->ourCaps;
+ while (curCap) {
+  if (curCap->capType == epCap->capType) {
+   if (curCap->cap == epCap->cap)
+    return 1;
+   else
+    return 0;
+   }
+   curCap = curCap->next;
+ }
+ return 0;
+}
 
 int ooCapabilityAddGSMCapability(OOH323CallData *call, int cap, 
                                 unsigned framesPerPkt, OOBOOL comfortNoise,
@@ -544,6 +607,100 @@ int ooCapabilityAddGSMCapability(OOH323CallData *call, int cap,
    return OO_OK;
 }
 
+/* Used for T38 */
+int ooCapabilityAddT38Capability
+   (OOH323CallData *call, int cap, int dir,
+    cb_StartReceiveChannel startReceiveChannel,
+    cb_StartTransmitChannel startTransmitChannel,
+    cb_StopReceiveChannel stopReceiveChannel,
+    cb_StopTransmitChannel stopTransmitChannel,
+    OOBOOL remote)
+{
+   ooH323EpCapability *epCap = NULL, *cur=NULL;
+   OOCapParams *params=NULL;   
+   OOCTXT *pctxt=NULL;
+   if(!call) pctxt = &gH323ep.ctxt;
+   else pctxt = call->pctxt;
+
+   epCap = (ooH323EpCapability*)memAllocZ(pctxt, sizeof(ooH323EpCapability));
+   params = (OOCapParams*) memAlloc(pctxt, sizeof(OOCapParams));
+   memset(params, 0 , sizeof(OOCapParams));
+   if(!epCap || !params)
+   {
+      OOTRACEERR1("ERROR: Memory - ooCapabilityAddT38Capability - "
+                  "epCap/params\n");
+      return OO_FAILED;
+   }
+
+   if(dir & OORXANDTX) {
+      epCap->dir = OORX;
+      epCap->dir |= OOTX;
+   }
+   else {
+      epCap->dir = dir;
+   }
+   
+   epCap->cap = cap;
+   epCap->capType = OO_CAP_TYPE_DATA;
+   epCap->params = (void*)params;
+   epCap->startReceiveChannel = startReceiveChannel;
+   epCap->startTransmitChannel = startTransmitChannel;
+   epCap->stopReceiveChannel = stopReceiveChannel;
+   epCap->stopTransmitChannel = stopTransmitChannel;
+   epCap->next = NULL;
+
+   if(!call)
+   {
+      /* Add as local capability */
+      OOTRACEDBGC2("Adding endpoint capability %s. \n", 
+                     ooGetCapTypeText(epCap->cap));
+      if(!gH323ep.myCaps) {
+         gH323ep.myCaps = epCap;
+      }
+      else{
+         cur = gH323ep.myCaps;
+         while(cur->next) cur = cur->next;
+         cur->next = epCap;
+      }
+      ooAppendCapToCapPrefs(NULL, cap);
+      gH323ep.noOfCaps++;
+   }
+   else{
+      if(remote)
+      {
+         /* Add as remote capability */
+         if(!call->remoteCaps) {
+            call->remoteCaps = epCap;
+         }
+         else{
+            cur = call->remoteCaps;
+            while(cur->next) cur = cur->next;
+            cur->next = epCap;
+         }
+	 call->t38sides |= 2;
+      }
+      else{
+         /* Add as our capability */
+         OOTRACEDBGC4("Adding call specific capability %s. (%s, %s)\n", 
+                      ooGetCapTypeText(epCap->cap), call->callType, 
+                      call->callToken);
+         if(!call->ourCaps){
+            call->ourCaps = epCap;
+            ooResetCapPrefs(call);
+         }
+         else{
+            cur = call->ourCaps;
+            while(cur->next) cur = cur->next;
+            cur->next = epCap;
+         }
+         ooAppendCapToCapPrefs(call, cap);
+	 call->t38sides |= 1;
+      }
+   }
+           
+   return OO_OK;
+}
+
 
 
 
@@ -609,12 +766,19 @@ struct H245AudioCapability* ooCapabilityCreateAudioCapability
    case OO_G711ALAW56K:
    case OO_G711ULAW64K:
    case OO_G711ULAW56K:
-   /*case OO_G726:*/
    case OO_G728:
    case OO_G729:
    case OO_G729A:
+   case OO_G729B:
    case OO_G7231:
      return ooCapabilityCreateSimpleCapability(epCap, pctxt, dir);
+   case OO_G726:
+   case OO_G726AAL2:
+   case OO_AMRNB:
+   case OO_SPEEX:
+     return ooCapabilityCreateNonStandardCapability(epCap, pctxt, dir);
+   case OO_GSMHALFRATE:
+   case OO_GSMENHANCEDFULLRATE:
    case OO_GSMFULLRATE:
       return ooCapabilityCreateGSMFullRateCapability(epCap, pctxt, dir);
    default:
@@ -626,9 +790,10 @@ struct H245AudioCapability* ooCapabilityCreateAudioCapability
 
 
 
-void* ooCapabilityCreateDTMFCapability(int cap, OOCTXT *pctxt)
+void* ooCapabilityCreateDTMFCapability(int cap, int dtmfcodec, OOCTXT *pctxt)
 {
    H245AudioTelephonyEventCapability *pATECap=NULL;
+   H245DataApplicationCapability *pCSDTMFCap=NULL;
    H245UserInputCapability *userInput = NULL;
    char *events=NULL;
    switch(cap)
@@ -642,8 +807,9 @@ void* ooCapabilityCreateDTMFCapability(int cap, OOCTXT *pctxt)
          return NULL;
       }
       memset(pATECap, 0, sizeof(H245AudioTelephonyEventCapability));
-      pATECap->dynamicRTPPayloadType = giDynamicRTPPayloadType;
+      pATECap->dynamicRTPPayloadType = dtmfcodec;
       events = (char*)memAlloc(pctxt, strlen("0-16")+1);
+      memset(events, 0, strlen("0-16")+1);
       if(!events)
       {
          OOTRACEERR1("Error:Memory - ooCapabilityCreateDTMFCapability - events\n");
@@ -653,6 +819,40 @@ void* ooCapabilityCreateDTMFCapability(int cap, OOCTXT *pctxt)
       strncpy(events, "0-16", strlen("0-16"));
       pATECap->audioTelephoneEvent = events;
       return pATECap;
+   case OO_CAP_DTMF_CISCO:
+      pCSDTMFCap = (H245DataApplicationCapability*)memAlloc(pctxt, 
+                                   sizeof(H245DataApplicationCapability));
+      if(!pCSDTMFCap)
+      {
+         OOTRACEERR1("Error:Memory - ooCapabilityCreateDTMFCapability - pCSDTMFCap\n");
+         return NULL;
+      }
+      memset(pCSDTMFCap, 0, sizeof(H245DataApplicationCapability));
+      pCSDTMFCap->application.t = T_H245DataApplicationCapability_application_nonStandard;
+      if ( (pCSDTMFCap->application.u.nonStandard = (H245NonStandardParameter *)
+		memAllocZ(pctxt, sizeof(H245NonStandardParameter))) == NULL) {
+	OOTRACEERR1("Error:Memory-ooCapabilityCreateDTMFCapability-H245NonStandardParameter\n");
+	memFreePtr(pctxt, pCSDTMFCap);
+	return NULL;
+      }
+
+      pCSDTMFCap->application.u.nonStandard->nonStandardIdentifier.t=T_H245NonStandardIdentifier_h221NonStandard;
+      pCSDTMFCap->application.u.nonStandard->nonStandardIdentifier.u.h221NonStandard =
+        (H245NonStandardIdentifier_h221NonStandard *) memAllocZ(pctxt,
+        sizeof(H245NonStandardIdentifier_h221NonStandard));
+      if (!pCSDTMFCap->application.u.nonStandard->nonStandardIdentifier.u.h221NonStandard) {
+	 OOTRACEERR1("Error:Memory-ooCapabilityCreateDTMFCapability-H245NonStandardParameter\n");
+	 memFreePtr(pctxt, pCSDTMFCap);
+         return NULL;
+      }
+
+      pCSDTMFCap->application.u.nonStandard->data.data = (unsigned char*)"RtpDtmfRelay";
+      pCSDTMFCap->application.u.nonStandard->data.numocts = sizeof("RtpDtmfRelay")-1;
+      pCSDTMFCap->application.u.nonStandard->nonStandardIdentifier.u.h221NonStandard->t35CountryCode = 181;
+      pCSDTMFCap->application.u.nonStandard->nonStandardIdentifier.u.h221NonStandard->t35Extension = 0;
+      pCSDTMFCap->application.u.nonStandard->nonStandardIdentifier.u.h221NonStandard->manufacturerCode = 18;
+      
+      return pCSDTMFCap;
    case OO_CAP_DTMF_H245_alphanumeric:
       userInput = (H245UserInputCapability*)memAllocZ(pctxt, 
                                           sizeof(H245UserInputCapability));
@@ -774,8 +974,16 @@ struct H245AudioCapability* ooCapabilityCreateGSMFullRateCapability
                   "pAudio/pGSMCap\n");
       return NULL;
    }
-   
-   pAudio->t = T_H245AudioCapability_gsmFullRate;
+   switch (epCap->cap) {
+    case OO_GSMHALFRATE:
+   	pAudio->t = T_H245AudioCapability_gsmHalfRate;
+	break;
+    case OO_GSMENHANCEDFULLRATE:
+   	pAudio->t = T_H245AudioCapability_gsmEnhancedFullRate;
+	break;
+    default:
+   	pAudio->t = T_H245AudioCapability_gsmFullRate;
+   }
    pAudio->u.gsmFullRate = pGSMCap;
    if(dir & OORX)
       pGSMCap->audioUnitSize = ((OOGSMCapParams*)epCap->params)->rxframes*OO_GSMFRAMESIZE;
@@ -840,13 +1048,6 @@ struct H245AudioCapability* ooCapabilityCreateSimpleCapability
       else
          pAudio->u.g711Ulaw64k = params->txframes;
       return pAudio;
-   /*case OO_G726:
-      pAudio->t = T_H245AudioCapability_g726;
-      if(dir & OORX)
-         pAudio->u.g726 = params->rxframes;
-      else
-         pAudio->u.g726 = params->txframes;
-      return pAudio;*/
    case OO_G728:
       pAudio->t = T_H245AudioCapability_g728;
       if(dir & OORX)
@@ -863,6 +1064,13 @@ struct H245AudioCapability* ooCapabilityCreateSimpleCapability
       return pAudio;
    case OO_G729A:
       pAudio->t = T_H245AudioCapability_g729AnnexA;
+      if(dir & OORX)
+         pAudio->u.g729AnnexA = params->rxframes;
+      else
+         pAudio->u.g729AnnexA = params->txframes;
+      return pAudio;
+   case OO_G729B:
+      pAudio->t = T_H245AudioCapability_g729wAnnexB;
       if(dir & OORX)
          pAudio->u.g729AnnexA = params->rxframes;
       else
@@ -891,6 +1099,172 @@ struct H245AudioCapability* ooCapabilityCreateSimpleCapability
    }
    return NULL;
 }
+/* This is used for g726, AMRNB, Speex */
+struct H245AudioCapability* ooCapabilityCreateNonStandardCapability
+   (ooH323EpCapability *epCap, OOCTXT* pctxt, int dir)
+{
+   H245AudioCapability *pAudio=NULL;
+   OOCapParams *params;
+   if(!epCap || !epCap->params)
+   {
+     OOTRACEERR1("Error:Invalid capability parameters to "
+                 "ooCapabilityCreateSimpleCapability.\n");
+     return NULL;
+   }
+   params =(OOCapParams*)epCap->params;
+   pAudio = (H245AudioCapability*)memAlloc(pctxt, 
+                                                sizeof(H245AudioCapability));
+   if(!pAudio)
+   {
+      OOTRACEERR1("ERROR:Memory - ooCapabilityCreateSimpleCapability - pAudio\n");
+      return NULL;
+   }
+
+   
+   switch(epCap->cap)
+   {
+   case OO_AMRNB:
+   case OO_G726:
+   case OO_G726AAL2:
+   case OO_SPEEX:
+      pAudio->t = T_H245AudioCapability_nonStandard;
+      pAudio->u.nonStandard = (H245NonStandardParameter*)memAlloc(pctxt, 
+                                           sizeof(H245NonStandardParameter));
+      if(!pAudio->u.nonStandard)
+      {
+         OOTRACEERR1("Error:Memory - ooCapabilityCreateSimpleCapability - g726\n");
+         memFreePtr(pctxt, pAudio);
+         return NULL;
+      }
+
+      pAudio->u.nonStandard->nonStandardIdentifier.t=T_H245NonStandardIdentifier_h221NonStandard;
+      pAudio->u.nonStandard->nonStandardIdentifier.u.h221NonStandard =
+	(H245NonStandardIdentifier_h221NonStandard *) memAlloc(pctxt, 
+	sizeof(H245NonStandardIdentifier_h221NonStandard));
+      if (!pAudio->u.nonStandard->nonStandardIdentifier.u.h221NonStandard) {
+         OOTRACEERR2("Error:Memory - ooCapabilityCreateSimpleCapability - %d\n", epCap->cap);
+         memFreePtr(pctxt, pAudio);
+         return NULL;
+      }
+
+      pAudio->u.nonStandard->nonStandardIdentifier.u.h221NonStandard->t35CountryCode =
+		gH323ep.t35CountryCode;
+      pAudio->u.nonStandard->nonStandardIdentifier.u.h221NonStandard->t35Extension =
+		gH323ep.t35Extension;
+      pAudio->u.nonStandard->nonStandardIdentifier.u.h221NonStandard->manufacturerCode =
+		gH323ep.manufacturerCode;
+
+      switch (epCap->cap) {
+      case OO_G726:
+       pAudio->u.nonStandard->data.data = (unsigned char*)"G.726-32k";
+       pAudio->u.nonStandard->data.numocts = sizeof("G.726-32k")-1;
+       break;
+      case OO_G726AAL2:
+       pAudio->u.nonStandard->data.data = (unsigned char*)"G726r32";
+       pAudio->u.nonStandard->data.numocts = sizeof("G726r32")-1;
+       /* Cisco G726 */
+       pAudio->u.nonStandard->nonStandardIdentifier.u.h221NonStandard->t35CountryCode = 181;
+       pAudio->u.nonStandard->nonStandardIdentifier.u.h221NonStandard->t35Extension = 0;
+       pAudio->u.nonStandard->nonStandardIdentifier.u.h221NonStandard->manufacturerCode = 18;
+
+       break;
+      case OO_AMRNB:
+       pAudio->u.nonStandard->data.data = (unsigned char*)"AMRNB";
+       pAudio->u.nonStandard->data.numocts = sizeof("AMRNB")-1;
+       break;
+
+      case OO_SPEEX:
+       pAudio->u.nonStandard->data.data = (unsigned char*)"Speex";
+       pAudio->u.nonStandard->data.numocts = sizeof("Speex")-1;
+       /* Equivalence OpenH323 SpeexNB */
+       pAudio->u.nonStandard->nonStandardIdentifier.u.h221NonStandard->t35CountryCode = 9;
+       pAudio->u.nonStandard->nonStandardIdentifier.u.h221NonStandard->t35Extension = 0;
+       pAudio->u.nonStandard->nonStandardIdentifier.u.h221NonStandard->manufacturerCode = 61;
+
+       break;
+      }
+      return pAudio;
+
+   default:
+      OOTRACEERR2("ERROR: Don't know how to create audio capability %d\n",
+                   epCap->cap);
+   }
+   return NULL;
+}
+
+/* Our t.38 params */
+
+struct H245DataMode_application* ooCreateT38ApplicationData
+				(OOCTXT* pctxt, H245DataMode_application *app)
+{
+      app->t = T_H245DataApplicationCapability_application_t38fax;
+      app->u.t38fax =
+	(H245DataMode_application_t38fax *) memAlloc(pctxt, 
+	sizeof(H245DataMode_application_t38fax));
+      if (!app->u.t38fax) {
+         OOTRACEERR1("Error:Memory - ooCreateT38AppData\n");
+         return NULL;
+      }
+      memset(app->u.t38fax, 0, sizeof(H245DataApplicationCapability_application_t38fax));
+      app->u.t38fax->t38FaxProtocol.t = T_H245DataProtocolCapability_udp;
+      app->u.t38fax->t38FaxProfile.m.versionPresent = TRUE;
+      app->u.t38fax->t38FaxProfile.version = 0;
+      app->u.t38fax->t38FaxProfile.m.t38FaxRateManagementPresent = TRUE;
+      app->u.t38fax->t38FaxProfile.t38FaxRateManagement.t =
+						T_H245T38FaxRateManagement_transferredTCF;
+      app->u.t38fax->t38FaxProfile.m.t38FaxUdpOptionsPresent = TRUE;
+      app->u.t38fax->t38FaxProfile.t38FaxUdpOptions.m.t38FaxMaxBufferPresent = TRUE;
+      app->u.t38fax->t38FaxProfile.t38FaxUdpOptions.t38FaxMaxBuffer = 200;
+      app->u.t38fax->t38FaxProfile.t38FaxUdpOptions.m.t38FaxMaxDatagramPresent = TRUE;
+      app->u.t38fax->t38FaxProfile.t38FaxUdpOptions.t38FaxMaxDatagram = 72;
+      app->u.t38fax->t38FaxProfile.t38FaxUdpOptions.t38FaxUdpEC.t =
+					T_H245T38FaxUdpOptions_t38FaxUdpEC_t38UDPRedundancy;
+
+      return app;
+}
+
+/* This is used for T.38 */
+struct H245DataApplicationCapability* ooCapabilityCreateT38Capability
+   (ooH323EpCapability *epCap, OOCTXT* pctxt, int dir)
+{
+   H245DataApplicationCapability *pT38=NULL;
+   OOCapParams *params;
+   H245DataMode_application *pT38app;
+   if(!epCap || !epCap->params)
+   {
+     OOTRACEERR1("Error:Invalid capability parameters to "
+                 "ooCapabilityCreateSimpleCapability.\n");
+     return NULL;
+   }
+   params =(OOCapParams*)epCap->params;
+   pT38 = (H245DataApplicationCapability*)memAlloc(pctxt, 
+                                                sizeof(H245DataApplicationCapability));
+   if(!pT38)
+   {
+      OOTRACEERR1("ERROR:Memory - ooCapabilityCreateT38Capability - pT38\n");
+      return NULL;
+   }
+   memset(pT38, 0, sizeof(H245DataApplicationCapability));
+   pT38app = (void *)&pT38->application;
+   
+   switch(epCap->cap)
+   {
+   case OO_T38:
+      pT38->maxBitRate = 144;
+      if (!ooCreateT38ApplicationData(pctxt, pT38app)) {
+         OOTRACEERR2("Error:Memory - ooCapabilityCreateT38Capability - %d\n", epCap->cap);
+         memFreePtr(pctxt, pT38);
+         return NULL;
+      }
+      return pT38;
+
+   default:
+      OOTRACEERR2("ERROR: Don't know how to create T38 capability %d\n",
+                   epCap->cap);
+   }
+   return NULL;
+}
+
 
 /* Used for g711 ulaw/alaw, g728, g729, g729a, g7231 */
 ASN1BOOL ooCapabilityCheckCompatibility_Simple
@@ -935,10 +1309,15 @@ ASN1BOOL ooCapabilityCheckCompatibility_Simple
       cap = OO_G729A;
       noofframes = audioCap->u.g729AnnexA;
       break;   
+   case T_H245AudioCapability_g729wAnnexB:
+      cap = OO_G729B;
+      noofframes = audioCap->u.g729wAnnexB;
+      break;   
    case T_H245AudioCapability_g7231:
      cap = OO_G7231;
      noofframes = audioCap->u.g7231->maxAl_sduAudioFrames;
      break;
+
    default:
       return FALSE;
    }
@@ -978,6 +1357,57 @@ ASN1BOOL ooCapabilityCheckCompatibility_Simple
    return FALSE;
 
 }
+/* Used for g726, AMRNB */
+ASN1BOOL ooCapabilityCheckCompatibility_NonStandard
+   (OOH323CallData *call, ooH323EpCapability* epCap, 
+    H245AudioCapability* audioCap, int dir)
+{
+   int cap;
+
+   OOTRACEDBGC2("Comparing channel with codec type: %d\n", audioCap->t);
+
+   if (audioCap->t == T_H245AudioCapability_nonStandard &&
+       audioCap->u.nonStandard &&
+       audioCap->u.nonStandard->nonStandardIdentifier.t == 
+                 T_H245NonStandardIdentifier_h221NonStandard) {
+       switch (audioCap->u.nonStandard->data.numocts) {
+        case sizeof("G.726-32k")-1:
+	 if (!strncmp((char *)audioCap->u.nonStandard->data.data, "G.726-32k",
+		audioCap->u.nonStandard->data.numocts))
+	  cap = OO_G726;
+	 else
+	  return FALSE;
+	 break;
+        case sizeof("G726r32")-1:
+	 if (!strncmp((char *)audioCap->u.nonStandard->data.data, "G726r32",
+		audioCap->u.nonStandard->data.numocts))
+	  cap = OO_G726AAL2;
+	 else
+	  return FALSE;
+	 break;
+	case sizeof("AMRNB")-1: /* case sizeof("Speex")-1 */
+	 if (!strncmp((char *)audioCap->u.nonStandard->data.data, "AMRNB", 
+		audioCap->u.nonStandard->data.numocts))
+	  cap = OO_AMRNB;
+	 else if (!strncmp((char *)audioCap->u.nonStandard->data.data, "Speex", 
+		audioCap->u.nonStandard->data.numocts))
+	  cap = OO_SPEEX;
+	 else
+	  return FALSE;
+	 break;
+	default:
+	 return FALSE;
+       }
+   } else
+       return FALSE;
+
+   OOTRACEDBGC3("Comparing codecs: current=%d, requested=%d\n", 
+      epCap->cap, cap);
+   if(cap != epCap->cap) { return FALSE; }
+
+   return TRUE;
+
+}
 
 
 OOBOOL ooCapabilityCheckCompatibility_GSM
@@ -1003,6 +1433,8 @@ OOBOOL ooCapabilityCheckCompatibility_GSM
       return FALSE;
    }
 
+   if(cap != epCap->cap) { return FALSE; }
+
    /* can we receive this capability */
    if(dir & OORX)
    {
@@ -1024,6 +1456,25 @@ OOBOOL ooCapabilityCheckCompatibility_GSM
    }
    return FALSE;
 
+}
+
+OOBOOL ooCapabilityCheckCompatibility_T38
+   (OOH323CallData *call, ooH323EpCapability* epCap, 
+    H245DataApplicationCapability* t38Cap, int dir)
+{
+   unsigned cap = 0;
+   switch(t38Cap->application.t)
+   {
+   case T_H245DataApplicationCapability_application_t38fax:
+      cap = OO_T38;
+      break;
+   default:
+      return FALSE;
+   }
+
+   if(cap != epCap->cap) { return FALSE; }
+
+   return TRUE;
 }
 
 
@@ -1202,8 +1653,13 @@ OOBOOL ooCapabilityCheckCompatibility_Audio
    case T_H245AudioCapability_g728:
    case T_H245AudioCapability_g729:
    case T_H245AudioCapability_g729AnnexA:
+   case T_H245AudioCapability_g729wAnnexB:
    case T_H245AudioCapability_g7231:
       return ooCapabilityCheckCompatibility_Simple(call, epCap, audioCap, dir);
+   case T_H245AudioCapability_nonStandard:
+      return ooCapabilityCheckCompatibility_NonStandard(call, epCap, audioCap, dir);
+   case T_H245AudioCapability_gsmHalfRate:
+   case T_H245AudioCapability_gsmEnhancedFullRate:
    case T_H245AudioCapability_gsmFullRate:
       return ooCapabilityCheckCompatibility_GSM(call, epCap, audioCap, dir);
    default:
@@ -1249,6 +1705,8 @@ OOBOOL ooCapabilityCheckCompatibility
                                                    dataType->u.videoData, dir);
       break;
    case T_H245DataType_data:
+      if(epCap->capType == OO_CAP_TYPE_DATA)
+	return ooCapabilityCheckCompatibility_T38(call, epCap, dataType->u.data, dir);
    default:
       OOTRACEDBGC3("ooCapabilityCheckCompatibility - Unsupported  "
                   "capability. (%s, %s)\n", call->callType, call->callToken);
@@ -1280,10 +1738,10 @@ ASN1BOOL ooCheckCompatibility
    case OO_G711ALAW56K:
    case OO_G711ULAW64K:
    case OO_G711ULAW56K:
-   /*case OO_G726:*/
    case OO_G728:
    case OO_G729:
    case OO_G729A:
+   case OO_G729B:
    case OO_G7231:
      if(((OOCapParams*)txCap->params)->txframes <= 
                                 ((OOCapParams*)rxCap->params)->rxframes)
@@ -1485,10 +1943,15 @@ ooH323EpCapability* ooIsAudioDataTypeSimpleSupported
          framesPerPkt = audioCap->u.g729AnnexA;
          cap = OO_G729A;
          break;
+      case T_H245AudioCapability_g729wAnnexB:
+         framesPerPkt = audioCap->u.g729wAnnexB;
+         cap = OO_G729B;
+         break;
       case T_H245AudioCapability_g7231:
          framesPerPkt = audioCap->u.g7231->maxAl_sduAudioFrames;
          cap = OO_G7231;
          break;
+
       default:
          return NULL;
    }
@@ -1526,7 +1989,9 @@ ooH323EpCapability* ooIsAudioDataTypeSimpleSupported
    {
      if(((OOCapParams*)cur->params)->rxframes < framesPerPkt)
          return NULL;
-     else{
+     if(((OOCapParams*)cur->params)->rxframes > framesPerPkt) 
+	 ((OOCapParams*)cur->params)->rxframes = framesPerPkt;
+
         OOTRACEDBGC4("We can receive Simple capability %s. (%s, %s)\n", 
                       ooGetCapTypeText(cur->cap), call->callType, 
                       call->callToken);
@@ -1555,7 +2020,6 @@ ooH323EpCapability* ooIsAudioDataTypeSimpleSupported
                      ooGetCapTypeText(cur->cap), call->callType, 
                      call->callToken);
         return epCap;
-     }
    }
 
    /* Can we transmit compatible stream */
@@ -1601,6 +2065,145 @@ ooH323EpCapability* ooIsAudioDataTypeSimpleSupported
    return NULL;
 }
 
+/* used for g726, AMRNB */
+ooH323EpCapability* ooIsAudioDataTypeNonStandardSupported
+   (OOH323CallData *call, H245AudioCapability* audioCap, int dir)
+{
+   int cap;
+   ooH323EpCapability *cur=NULL, *epCap=NULL;
+   OOCapParams * params= NULL;
+
+   if (audioCap->t == T_H245AudioCapability_nonStandard &&
+       audioCap->u.nonStandard && 
+       audioCap->u.nonStandard->nonStandardIdentifier.t == 
+                 T_H245NonStandardIdentifier_h221NonStandard) {
+       switch (audioCap->u.nonStandard->data.numocts) {
+        case sizeof("G.726-32k")-1:
+	 if (!strncmp((char *)audioCap->u.nonStandard->data.data, "G.726-32k",
+		audioCap->u.nonStandard->data.numocts))
+	  cap = OO_G726;
+	 else
+	  return NULL;
+	 break;
+        case sizeof("G726r32")-1:
+	 if (!strncmp((char *)audioCap->u.nonStandard->data.data, "G726r32",
+		audioCap->u.nonStandard->data.numocts))
+	  cap = OO_G726AAL2;
+	 else
+	  return NULL;
+	 break;
+	case sizeof("AMRNB")-1: /* sizeof("Speex") */
+	 if (!strncmp((char *)audioCap->u.nonStandard->data.data, "AMRNB",
+		audioCap->u.nonStandard->data.numocts))
+	  cap = OO_AMRNB;
+	 else if (!strncmp((char *)audioCap->u.nonStandard->data.data, "Speex",
+		audioCap->u.nonStandard->data.numocts))
+	  cap = OO_SPEEX;
+	 else
+	  return NULL;
+	 break;
+	default:
+	 return NULL;
+       }
+   } else
+       return NULL;
+
+   OOTRACEDBGC4("Determined Simple audio data type to be of type %s. Searching"
+                " for matching capability.(%s, %s)\n", 
+                ooGetCapTypeText(cap), call->callType, call->callToken);
+
+   /* If we have call specific caps, we use them; otherwise use general
+      endpoint caps
+   */   
+   if(call->ourCaps)
+     cur = call->ourCaps;
+   else
+     cur = gH323ep.myCaps;
+
+   while(cur)
+   {
+      OOTRACEDBGC4("Local cap being compared %s. (%s, %s)\n", 
+         ooGetCapTypeText(cur->cap),call->callType, call->callToken);
+      
+      if(cur->cap == cap && (cur->dir & dir))
+         break;
+      cur = cur->next;
+   }
+   
+   if(!cur) return NULL;
+   
+   OOTRACEDBGC4("Found matching simple audio capability type %s. Comparing"
+                " other parameters. (%s, %s)\n", ooGetCapTypeText(cap), 
+                call->callType, call->callToken);
+   
+   /* can we receive this capability */
+   if(dir & OORX)
+   {
+        OOTRACEDBGC4("We can receive Simple capability %s. (%s, %s)\n", 
+                      ooGetCapTypeText(cur->cap), call->callType, 
+                      call->callToken);
+        epCap = (ooH323EpCapability*)memAlloc(call->pctxt, 
+                                                 sizeof(ooH323EpCapability));
+        params=(OOCapParams*)memAlloc(call->pctxt,sizeof(OOCapParams));
+        if(!epCap || !params)
+        {
+           OOTRACEERR3("Error:Memory - ooIsAudioDataTypeSimpleSupported - "
+                       "epCap/params (%s, %s)\n", call->callType, 
+                       call->callToken);
+           return NULL;
+        }
+        epCap->params = params;
+        epCap->cap = cur->cap;
+        epCap->dir = cur->dir;
+        epCap->capType = cur->capType;
+        epCap->startReceiveChannel = cur->startReceiveChannel;
+        epCap->startTransmitChannel= cur->startTransmitChannel;
+        epCap->stopReceiveChannel = cur->stopReceiveChannel;
+        epCap->stopTransmitChannel = cur->stopTransmitChannel;
+        epCap->next = NULL;
+        memcpy(epCap->params, cur->params, sizeof(OOCapParams));
+        OOTRACEDBGC4("Returning copy of matched receive capability %s. "
+                     "(%s, %s)\n", 
+                     ooGetCapTypeText(cur->cap), call->callType, 
+                     call->callToken);
+        return epCap;
+   }
+
+   /* Can we transmit compatible stream */
+   if(dir & OOTX)
+   {
+      OOTRACEDBGC4("We can transmit Simple capability %s. (%s, %s)\n", 
+                   ooGetCapTypeText(cur->cap), call->callType, 
+                   call->callToken);
+      epCap = (ooH323EpCapability*)memAlloc(call->pctxt, 
+                                                sizeof(ooH323EpCapability));
+      params =(OOCapParams*)memAlloc(call->pctxt,sizeof(OOCapParams));
+      if(!epCap || !params)
+      {
+         OOTRACEERR3("Error:Memory - ooIsAudioDataTypeSimpleSupported - "
+                     "epCap/params (%s, %s)\n", call->callType, 
+                     call->callToken);
+         return NULL;
+      }
+      epCap->params = params;
+      epCap->cap = cur->cap;
+      epCap->dir = cur->dir;
+      epCap->capType = cur->capType;
+      epCap->startReceiveChannel = cur->startReceiveChannel;
+      epCap->startTransmitChannel= cur->startTransmitChannel;
+      epCap->stopReceiveChannel = cur->stopReceiveChannel;
+      epCap->stopTransmitChannel = cur->stopTransmitChannel;
+      epCap->next = NULL;
+      memcpy(epCap->params, cur->params, sizeof(OOCapParams));
+      OOTRACEDBGC4("Returning copy of matched transmit capability %s."
+                   "(%s, %s)\n", 
+                   ooGetCapTypeText(cur->cap), call->callType, 
+                   call->callToken);
+      return epCap;
+   }
+   return NULL;
+}
+
 
 
 ooH323EpCapability* ooIsAudioDataTypeSupported
@@ -1617,8 +2220,11 @@ ooH323EpCapability* ooIsAudioDataTypeSupported
       case T_H245AudioCapability_g728:
       case T_H245AudioCapability_g729:
       case T_H245AudioCapability_g729AnnexA:
+      case T_H245AudioCapability_g729wAnnexB:
       case T_H245AudioCapability_g7231:
          return ooIsAudioDataTypeSimpleSupported(call, audioCap, dir);
+      case T_H245AudioCapability_nonStandard:
+         return ooIsAudioDataTypeNonStandardSupported(call, audioCap, dir);
       case T_H245AudioCapability_gsmFullRate:
       case T_H245AudioCapability_gsmHalfRate:
       case T_H245AudioCapability_gsmEnhancedFullRate:
@@ -1628,6 +2234,110 @@ ooH323EpCapability* ooIsAudioDataTypeSupported
    }   
 }
 
+ooH323EpCapability* ooIsT38Supported
+   (OOH323CallData *call, H245DataApplicationCapability* t38Cap, int dir)
+{
+   int cap = 0;
+   ooH323EpCapability *cur=NULL, *epCap=NULL;
+   OOCapParams *params= NULL;
+   /* Find similar capability */
+   switch(t38Cap->application.t)
+   {
+      case T_H245DataApplicationCapability_application_t38fax:
+	 cap = OO_T38;
+	 break;
+      default:
+         return NULL;
+   }   
+
+   if(call->ourCaps)
+     cur = call->ourCaps;
+   else
+     cur = gH323ep.myCaps;
+
+   while(cur)
+   {
+      OOTRACEDBGC4("Local cap being compared %s. (%s, %s)\n", 
+         ooGetCapTypeText(cur->cap),call->callType, call->callToken);
+      
+      if(cur->cap == cap && (cur->dir & dir))
+         break;
+      cur = cur->next;
+   }
+   
+   if(!cur) return NULL;
+   
+   OOTRACEDBGC4("Found matching t38 capability type %s. Comparing"
+                " other parameters. (%s, %s)\n", ooGetCapTypeText(cap), 
+                call->callType, call->callToken);
+   
+   /* can we receive this capability */
+   if(dir & OORX)
+   {
+        OOTRACEDBGC4("We can receive Simple capability %s. (%s, %s)\n", 
+                      ooGetCapTypeText(cur->cap), call->callType, 
+                      call->callToken);
+        epCap = (ooH323EpCapability*)memAllocZ(call->pctxt, 
+                                                 sizeof(ooH323EpCapability));
+        params=(OOCapParams*)memAlloc(call->pctxt,sizeof(OOCapParams));
+        if(!epCap || !params)
+        {
+           OOTRACEERR3("Error:Memory - ooIsT38Supported - "
+                       "epCap/params (%s, %s)\n", call->callType, 
+                       call->callToken);
+           return NULL;
+        }
+        epCap->params = params;
+        epCap->cap = cur->cap;
+        epCap->dir = cur->dir;
+        epCap->capType = cur->capType;
+        epCap->startReceiveChannel = cur->startReceiveChannel;
+        epCap->startTransmitChannel= cur->startTransmitChannel;
+        epCap->stopReceiveChannel = cur->stopReceiveChannel;
+        epCap->stopTransmitChannel = cur->stopTransmitChannel;
+        epCap->next = NULL;
+        memcpy(epCap->params, cur->params, sizeof(OOCapParams));
+        OOTRACEDBGC4("Returning copy of matched receive capability %s. "
+                     "(%s, %s)\n", 
+                     ooGetCapTypeText(cur->cap), call->callType, 
+                     call->callToken);
+        return epCap;
+   }
+
+   /* Can we transmit compatible stream */
+   if(dir & OOTX)
+   {
+      OOTRACEDBGC4("We can transmit Simple capability %s. (%s, %s)\n", 
+                   ooGetCapTypeText(cur->cap), call->callType, 
+                   call->callToken);
+      epCap = (ooH323EpCapability*)memAlloc(call->pctxt, 
+                                                sizeof(ooH323EpCapability));
+      params =(OOCapParams*)memAllocZ(call->pctxt,sizeof(OOCapParams));
+      if(!epCap || !params)
+      {
+         OOTRACEERR3("Error:Memory - ooIsAudioDataTypeSimpleSupported - "
+                     "epCap/params (%s, %s)\n", call->callType, 
+                     call->callToken);
+         return NULL;
+      }
+      epCap->params = params;
+      epCap->cap = cur->cap;
+      epCap->dir = cur->dir;
+      epCap->capType = cur->capType;
+      epCap->startReceiveChannel = cur->startReceiveChannel;
+      epCap->startTransmitChannel= cur->startTransmitChannel;
+      epCap->stopReceiveChannel = cur->stopReceiveChannel;
+      epCap->stopTransmitChannel = cur->stopTransmitChannel;
+      epCap->next = NULL;
+      memcpy(epCap->params, cur->params, sizeof(OOCapParams));
+      OOTRACEDBGC4("Returning copy of matched transmit capability %s."
+                   "(%s, %s)\n", 
+                   ooGetCapTypeText(cur->cap), call->callType, 
+                   call->callToken);
+      return epCap;
+   }
+   return NULL;
+}
 
 ooH323EpCapability* ooIsVideoDataTypeH263Supported
    (OOH323CallData *call, H245H263VideoCapability* pH263Cap, int dir, 
@@ -1828,10 +2538,12 @@ ooH323EpCapability* ooIsDataTypeSupported
       OOTRACEDBGC3("Looking for audio dataType support. (%s, %s)\n",
                     call->callType, call->callToken);
       return ooIsAudioDataTypeSupported(call, data->u.audioData, dir);
+
    case T_H245DataType_data:
-     OOTRACEDBGC3("Data type not supported.(%s, %s)\n", 
+     OOTRACEDBGC3("Looking for application data dataType support.(%s, %s)\n", 
                    call->callType, call->callToken);
-     return NULL;
+     return ooIsT38Supported(call, data->u.data, dir);
+
    case T_H245DataType_encryptionData:
      OOTRACEDBGC3("Encryption data type not supported.(%s, %s)\n", 
                    call->callType, call->callToken);
@@ -1958,7 +2670,6 @@ int ooPreppendCapToCapPrefs(OOH323CallData *call, int cap)
    return OO_OK;
 }
 
-       
 int ooAddRemoteCapability(OOH323CallData *call, H245Capability *cap)
 {
    switch(cap->t)
@@ -1972,12 +2683,42 @@ int ooAddRemoteCapability(OOH323CallData *call, H245Capability *cap)
    case T_H245Capability_receiveAndTransmitAudioCapability:
      return ooAddRemoteAudioCapability(call, 
                              cap->u.receiveAndTransmitAudioCapability, OORXTX);
+
+
+   case T_H245Capability_receiveDataApplicationCapability:
+     return ooAddRemoteDataApplicationCapability(call, cap->u.receiveDataApplicationCapability, 
+                                       OORX);
+   case T_H245Capability_transmitDataApplicationCapability:
+     return ooAddRemoteDataApplicationCapability(call, cap->u.transmitDataApplicationCapability, 
+                                       OOTX);
+   case T_H245Capability_receiveAndTransmitDataApplicationCapability:
+     return ooAddRemoteDataApplicationCapability(call, 
+                             cap->u.receiveAndTransmitDataApplicationCapability, OORXTX);
+
+
    default:
      OOTRACEDBGA3("Unsupported cap type encountered. Ignoring. (%s, %s)\n", 
                    call->callType, call->callToken);
    }
    return OO_OK;
 }
+
+int ooAddRemoteDataApplicationCapability(OOH323CallData *call, 
+                               H245DataApplicationCapability *dataCap,
+                               int dir)
+{
+   switch(dataCap->application.t)
+   {
+   case T_H245DataApplicationCapability_application_t38fax:
+      return ooCapabilityAddT38Capability(call, OO_T38,
+                            		     dir, NULL, NULL, NULL, NULL,TRUE);
+   default:
+     OOTRACEDBGA1("Unsupported data capability type\n");
+   
+   }
+   return OO_OK;
+}
+
 
 int ooAddRemoteAudioCapability(OOH323CallData *call, 
                                H245AudioCapability *audioCap,
@@ -2034,6 +2775,44 @@ int ooAddRemoteAudioCapability(OOH323CallData *call,
       return ooCapabilityAddSimpleCapability(call, OO_G726, txframes, 
                            rxframes, FALSE, dir, NULL, NULL, NULL, NULL, TRUE);
 */
+   case T_H245AudioCapability_nonStandard:
+      if (audioCap->u.nonStandard && 
+          audioCap->u.nonStandard->nonStandardIdentifier.t == 
+           T_H245NonStandardIdentifier_h221NonStandard &&
+          audioCap->u.nonStandard->data.numocts == sizeof("G.726-32k")-1 &&
+          !strncmp((char *)audioCap->u.nonStandard->data.data, "G.726-32k", 
+                   audioCap->u.nonStandard->data.numocts))
+      return ooCapabilityAddSimpleCapability(call, OO_G726, 20, 
+                           240, FALSE, dir, NULL, NULL, NULL, NULL, TRUE);
+
+      if (audioCap->u.nonStandard && 
+          audioCap->u.nonStandard->nonStandardIdentifier.t == 
+           T_H245NonStandardIdentifier_h221NonStandard &&
+          audioCap->u.nonStandard->data.numocts == sizeof("G726r32")-1 &&
+          !strncmp((char *)audioCap->u.nonStandard->data.data, "G726r32", 
+                   audioCap->u.nonStandard->data.numocts))
+      return ooCapabilityAddSimpleCapability(call, OO_G726AAL2, 20, 
+                           240, FALSE, dir, NULL, NULL, NULL, NULL, TRUE);
+
+      if (audioCap->u.nonStandard && 
+          audioCap->u.nonStandard->nonStandardIdentifier.t == 
+           T_H245NonStandardIdentifier_h221NonStandard &&
+          audioCap->u.nonStandard->data.numocts == sizeof("AMRNB")-1 &&
+          !strncmp((char *)audioCap->u.nonStandard->data.data, "AMRNB", 
+                   audioCap->u.nonStandard->data.numocts))
+      return ooCapabilityAddSimpleCapability(call, OO_AMRNB, 4, 
+                           4, FALSE, dir, NULL, NULL, NULL, NULL, TRUE);
+
+      if (audioCap->u.nonStandard && 
+          audioCap->u.nonStandard->nonStandardIdentifier.t == 
+           T_H245NonStandardIdentifier_h221NonStandard &&
+          audioCap->u.nonStandard->data.numocts == sizeof("Speex")-1 &&
+          !strncmp((char *)audioCap->u.nonStandard->data.data, "Speex", 
+                   audioCap->u.nonStandard->data.numocts))
+      return ooCapabilityAddSimpleCapability(call, OO_SPEEX, 4, 
+                           4, FALSE, dir, NULL, NULL, NULL, NULL, TRUE);
+      break;
+
    case T_H245AudioCapability_g728:
       if(dir&OOTX) txframes = audioCap->u.g728;
       else if(dir&OORX) rxframes = audioCap->u.g728;
@@ -2062,6 +2841,16 @@ int ooAddRemoteAudioCapability(OOH323CallData *call,
          rxframes = audioCap->u.g729AnnexA; 
       }
       return ooCapabilityAddSimpleCapability(call, OO_G729A, txframes, 
+                           rxframes, FALSE, dir, NULL, NULL, NULL, NULL, TRUE);
+
+   case T_H245AudioCapability_g729wAnnexB:
+      if(dir&OOTX) txframes = audioCap->u.g729wAnnexB;
+      else if(dir&OORX) rxframes = audioCap->u.g729wAnnexB;
+      else{ 
+         txframes = audioCap->u.g729wAnnexB; 
+         rxframes = audioCap->u.g729wAnnexB; 
+      }
+      return ooCapabilityAddSimpleCapability(call, OO_G729B, txframes, 
                            rxframes, FALSE, dir, NULL, NULL, NULL, NULL, TRUE);
 
    case T_H245AudioCapability_g7231:
@@ -2101,10 +2890,6 @@ int ooAddRemoteAudioCapability(OOH323CallData *call,
    return OO_OK;
 }
 
-
-
-
-
 int ooCapabilityUpdateJointCapabilities
    (OOH323CallData* call, H245Capability *cap)
 {
@@ -2123,7 +2908,9 @@ int ooCapabilityUpdateJointCapabilities
                                         OORX);
       break;
    case T_H245Capability_receiveAndTransmitAudioCapability:
-      epCap = NULL;
+      epCap = ooIsAudioDataTypeSupported(call, cap->u.receiveAudioCapability, OOTX);
+      if (!epCap)
+       epCap = ooIsAudioDataTypeSupported(call, cap->u.transmitAudioCapability, OORX);
       break;
    case T_H245Capability_receiveVideoCapability:
       return ooCapabilityUpdateJointCapabilitiesVideo(call, 
@@ -2131,6 +2918,22 @@ int ooCapabilityUpdateJointCapabilities
    case T_H245Capability_transmitVideoCapability:
       return ooCapabilityUpdateJointCapabilitiesVideo(call, 
                                          cap->u.transmitVideoCapability, OORX);
+
+   case T_H245Capability_receiveDataApplicationCapability:
+      epCap= ooIsT38Supported(call, cap->u.receiveDataApplicationCapability, 
+                                        OOTX);
+      break;
+   case T_H245Capability_transmitDataApplicationCapability:
+      epCap = ooIsT38Supported(call, cap->u.transmitDataApplicationCapability,
+                                        OORX);
+      break;
+   case T_H245Capability_receiveAndTransmitDataApplicationCapability:
+      epCap = ooIsT38Supported(call, cap->u.receiveAndTransmitDataApplicationCapability, OOTX);
+      if (!epCap)
+       epCap = ooIsT38Supported(call, cap->u.receiveAndTransmitDataApplicationCapability, OORX);
+      break;
+
+
    case T_H245Capability_receiveUserInputCapability:
       if((cap->u.receiveUserInputCapability->t == 
                                  T_H245UserInputCapability_basicString) &&
@@ -2310,7 +3113,7 @@ const char* ooGetCapTypeText (OOCapabilities cap)
 {
    static const char *capTypes[]={
       "unknown",
-      "OO_NONSTANDARD",
+      "OO_G726",
       "OO_G711ALAW64K",
       "OO_G711ALAW56K",
       "OO_G711ULAW64K",
@@ -2322,8 +3125,8 @@ const char* ooGetCapTypeText (OOCapabilities cap)
       "OO_G728",
       "OO_G729",
       "OO_G729ANNEXA",
-      "OO_IS11172AUDIO",
-      "OO_IS13818AUDIO",
+      "OO_AMRNB",
+      "OO_G726AAL2",
       "OO_G729WANNEXB",
       "OO_G729ANNEXAWANNEXB",
       "OO_G7231ANNEXC",
@@ -2332,7 +3135,7 @@ const char* ooGetCapTypeText (OOCapabilities cap)
       "OO_GSMENHANCEDFULLRATE",
       "OO_GENERICAUDIO",
       "OO_G729EXTENSIONS",
-      "OO_VBD",
+      "OO_SPEEX",
       "OO_AUDIOTELEPHONYEVENT",
       "OO_AUDIOTONE",
       "OO_EXTELEM1",
@@ -2343,7 +3146,8 @@ const char* ooGetCapTypeText (OOCapabilities cap)
       "OO_H263VIDEO",
       "OO_IS11172VIDEO",  /* mpeg */
       "OO_GENERICVIDEO",
-      "OO_EXTELEMVIDEO"
+      "OO_EXTELEMVIDEO",
+      "OO_T38"		  /* T.38 */
    };
    return ooUtilsGetText (cap, capTypes, OONUMBEROF(capTypes));
 }

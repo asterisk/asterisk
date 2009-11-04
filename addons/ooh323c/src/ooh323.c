@@ -14,6 +14,10 @@
  *
  *****************************************************************************/
 
+#include <asterisk.h>
+#include <asterisk/lock.h>
+#include <time.h>
+
 #include "ootypes.h"
 #include "ooq931.h"
 #include "ootrace.h"
@@ -29,6 +33,202 @@
 /** Global endpoint structure */
 extern OOH323EndPoint gH323ep;
 
+int ooHandleFastStart(OOH323CallData *call, H225Facility_UUIE *facility);
+int ooOnReceivedReleaseComplete(OOH323CallData *call, Q931Message *q931Msg);
+int ooOnReceivedCallProceeding(OOH323CallData *call, Q931Message *q931Msg);
+int ooOnReceivedAlerting(OOH323CallData *call, Q931Message *q931Msg);
+int ooOnReceivedProgress(OOH323CallData *call, Q931Message *q931Msg);
+
+int ooHandleFastStart(OOH323CallData *call, H225Facility_UUIE *facility)
+{
+   H245OpenLogicalChannel* olc;
+   ASN1OCTET msgbuf[MAXMSGLEN];
+   ooLogicalChannel * pChannel = NULL;
+   H245H2250LogicalChannelParameters * h2250lcp = NULL;  
+   int i=0, ret=0;
+
+   /* Handle fast-start */
+   if(OO_TESTFLAG (call->flags, OO_M_FASTSTART))
+   {
+      if(facility->m.fastStartPresent)
+      {
+         /* For printing the decoded message to log, initialize handler. */
+         initializePrintHandler(&printHandler, "FastStart Elements");
+
+         /* Set print handler */
+         setEventHandler (call->pctxt, &printHandler);
+
+         for(i=0; i<(int)facility->fastStart.n; i++)
+         {
+            olc = NULL;
+
+            olc = (H245OpenLogicalChannel*)memAlloc(call->pctxt, 
+                                              sizeof(H245OpenLogicalChannel));
+            if(!olc)
+            {
+               OOTRACEERR3("ERROR:Memory - ooHandleFastStart - olc"
+                           "(%s, %s)\n", call->callType, call->callToken);
+               /*Mark call for clearing */
+               if(call->callState < OO_CALL_CLEAR)
+               {
+                  call->callEndReason = OO_REASON_LOCAL_CLEARED;
+                  call->callState = OO_CALL_CLEAR;
+               }
+               return OO_FAILED;
+            }
+            memset(olc, 0, sizeof(H245OpenLogicalChannel));
+            memcpy(msgbuf, facility->fastStart.elem[i].data, 
+                                    facility->fastStart.elem[i].numocts);
+            setPERBuffer(call->pctxt, msgbuf, 
+                         facility->fastStart.elem[i].numocts, 1);
+            ret = asn1PD_H245OpenLogicalChannel(call->pctxt, olc);
+            if(ret != ASN_OK)
+            {
+               OOTRACEERR3("ERROR:Failed to decode fast start olc element "
+                           "(%s, %s)\n", call->callType, call->callToken);
+               /* Mark call for clearing */
+               if(call->callState < OO_CALL_CLEAR)
+               {
+                  call->callEndReason = OO_REASON_INVALIDMESSAGE;
+                  call->callState = OO_CALL_CLEAR;
+               }
+               return OO_FAILED;
+            }
+
+            dListAppend(call->pctxt, &call->remoteFastStartOLCs, olc);
+
+            pChannel = ooFindLogicalChannelByOLC(call, olc);
+            if(!pChannel)
+            {
+               OOTRACEERR4("ERROR: Logical Channel %d not found, fast start. "
+                           "(%s, %s)\n",
+                            olc->forwardLogicalChannelNumber, call->callType, 
+                            call->callToken);
+               return OO_FAILED;
+            }
+            if(pChannel->channelNo != olc->forwardLogicalChannelNumber)
+            {
+               OOTRACEINFO5("Remote endpoint changed forwardLogicalChannel"
+                            "Number from %d to %d (%s, %s)\n", 
+                            pChannel->channelNo, 
+                            olc->forwardLogicalChannelNumber, call->callType, 
+                            call->callToken);
+               pChannel->channelNo = olc->forwardLogicalChannelNumber;
+            }
+            if(!strcmp(pChannel->dir, "transmit"))
+            {
+
+               if(olc->forwardLogicalChannelParameters.multiplexParameters.t !=
+                  T_H245OpenLogicalChannel_forwardLogicalChannelParameters_multiplexParameters_h2250LogicalChannelParameters)
+               {
+                  OOTRACEERR4("ERROR:Unknown multiplex parameter type for "
+                              "channel %d (%s, %s)\n", 
+                              olc->forwardLogicalChannelNumber, call->callType,
+                              call->callToken);
+                  continue;
+               }
+            
+               /* Extract the remote media endpoint address */
+               h2250lcp = olc->forwardLogicalChannelParameters.multiplexParameters.u.h2250LogicalChannelParameters;
+               if(!h2250lcp)
+               {
+                  OOTRACEERR3("ERROR:Invalid OLC received in fast start. No "
+                              "forward Logical Channel Parameters found. "
+                              "(%s, %s)\n", call->callType, call->callToken);
+                  return OO_FAILED;
+               }
+               if(!h2250lcp->m.mediaChannelPresent)
+               {
+                  OOTRACEERR3("ERROR:Invalid OLC received in fast start. No "
+                              "reverse media channel information found."
+                              "(%s, %s)\n", call->callType, call->callToken);
+                  return OO_FAILED;
+               }
+               ret = ooGetIpPortFromH245TransportAddress(call, 
+                                   &h2250lcp->mediaChannel, pChannel->remoteIP,
+                                   &pChannel->remoteMediaPort);
+               
+               if(ret != OO_OK)
+               {
+               	if(call->callState < OO_CALL_CLEAR)
+               	{
+                  call->callEndReason = OO_REASON_INVALIDMESSAGE;
+                  call->callState = OO_CALL_CLEAR;
+               	}
+                  OOTRACEERR3("ERROR:Unsupported media channel address type "
+                              "(%s, %s)\n", call->callType, call->callToken);
+                  return OO_FAILED;
+               }
+       
+               if(!pChannel->chanCap->startTransmitChannel)
+               {
+                  OOTRACEERR3("ERROR:No callback registered to start transmit "
+                              "channel (%s, %s)\n",call->callType, 
+                              call->callToken);
+                  return OO_FAILED;
+               }
+               pChannel->chanCap->startTransmitChannel(call, pChannel);
+            }
+            /* Mark the current channel as established and close all other 
+               logical channels with same session id and in same direction.
+            */
+            ooOnLogicalChannelEstablished(call, pChannel);
+         }
+         finishPrint();
+         removeEventHandler(call->pctxt);
+         OO_SETFLAG(call->flags, OO_M_FASTSTARTANSWERED);
+      }
+      
+   }
+
+   if(facility->m.h245AddressPresent)
+   {
+      if (OO_TESTFLAG (call->flags, OO_M_TUNNELING))
+      {
+         OO_CLRFLAG (call->flags, OO_M_TUNNELING);
+         OOTRACEINFO3("Tunneling is disabled for call as H245 address is "
+                      "provided in facility message (%s, %s)\n", 
+                      call->callType, call->callToken);
+      }
+      ret = ooH323GetIpPortFromH225TransportAddress(call, 
+                                  &facility->h245Address, call->remoteIP,
+                                  &call->remoteH245Port);
+      if(ret != OO_OK)
+      {
+         OOTRACEERR3("Error: Unknown H245 address type in received "
+                     "CallProceeding message (%s, %s)", call->callType, 
+                     call->callToken);
+         /* Mark call for clearing */
+         if(call->callState < OO_CALL_CLEAR)
+         {
+            call->callEndReason = OO_REASON_INVALIDMESSAGE;
+            call->callState = OO_CALL_CLEAR;
+         }
+         return OO_FAILED;
+      }
+      if(call->remoteH245Port != 0 && !call->pH245Channel) {
+      /* Create an H.245 connection. 
+      */
+       if(ooCreateH245Connection(call)== OO_FAILED)
+       {
+         OOTRACEERR3("Error: H.245 channel creation failed (%s, %s)\n", 
+                     call->callType, call->callToken);
+
+         if(call->callState < OO_CALL_CLEAR)
+         {
+            call->callEndReason = OO_REASON_TRANSPORTFAILURE;
+            call->callState = OO_CALL_CLEAR;
+         }
+         return OO_FAILED;
+       }
+      }
+   } else if (OO_TESTFLAG (call->flags, OO_M_TUNNELING)) {
+	ret =ooSendTCSandMSD(call);
+	if (ret != OO_OK)
+		return ret;
+   }
+   return OO_OK;
+}
 
 int ooOnReceivedReleaseComplete(OOH323CallData *call, Q931Message *q931Msg)
 {
@@ -93,6 +293,7 @@ int ooOnReceivedReleaseComplete(OOH323CallData *call, Q931Message *q931Msg)
    if(call->callEndReason == OO_REASON_UNKNOWN)
       call->callEndReason = ooGetCallClearReasonFromCauseAndReasonCode(cause, 
                                                                    reasonCode);
+   call->q931cause = cause;
 #if 0
    if (q931Msg->userInfo->h323_uu_pdu.m.h245TunnelingPresent &&
        q931Msg->userInfo->h323_uu_pdu.h245Tunneling          &&
@@ -165,9 +366,9 @@ int ooOnReceivedSetup(OOH323CallData *call, Q931Message *q931Msg)
    pDisplayIE = ooQ931GetIE(q931Msg, Q931DisplayIE);
    if(pDisplayIE)
    {
-      call->remoteDisplayName = (ASN1OCTET*) memAlloc(call->pctxt, 
+      call->remoteDisplayName = (char *) memAlloc(call->pctxt, 
                                  pDisplayIE->length*sizeof(ASN1OCTET)+1);
-      strcpy(call->remoteDisplayName, pDisplayIE->data);
+      strcpy(call->remoteDisplayName, (char *)pDisplayIE->data);
    }
    /*Extract Remote Aliases, if present*/
    if(setup->m.sourceAddressPresent)
@@ -501,6 +702,11 @@ int ooOnReceivedCallProceeding(OOH323CallData *call, Q931Message *q931Msg)
                
                if(ret != OO_OK)
                {
+               	if(call->callState < OO_CALL_CLEAR)
+               	{
+                  call->callEndReason = OO_REASON_INVALIDMESSAGE;
+                  call->callState = OO_CALL_CLEAR;
+               	}
                   OOTRACEERR3("ERROR:Unsupported media channel address type "
                               "(%s, %s)\n", call->callType, call->callToken);
                   return OO_FAILED;
@@ -560,6 +766,26 @@ int ooOnReceivedCallProceeding(OOH323CallData *call, Q931Message *q931Msg)
          }
          return OO_FAILED;
       }
+      if(call->remoteH245Port != 0 && !call->pH245Channel) {
+      /* Create an H.245 connection. 
+      */
+       if(ooCreateH245Connection(call)== OO_FAILED)
+       {
+         OOTRACEERR3("Error: H.245 channel creation failed (%s, %s)\n", 
+                     call->callType, call->callToken);
+
+         if(call->callState < OO_CALL_CLEAR)
+         {
+            call->callEndReason = OO_REASON_TRANSPORTFAILURE;
+            call->callState = OO_CALL_CLEAR;
+         }
+         return OO_FAILED;
+       }
+      }
+   } else if (OO_TESTFLAG (call->flags, OO_M_TUNNELING)) {
+	ret =ooSendTCSandMSD(call);
+	if (ret != OO_OK)
+		return ret;
    }
    return OO_OK;
 }
@@ -698,6 +924,11 @@ int ooOnReceivedAlerting(OOH323CallData *call, Q931Message *q931Msg)
                
                if(ret != OO_OK)
                {
+               	if(call->callState < OO_CALL_CLEAR)
+               	{
+                  call->callEndReason = OO_REASON_INVALIDMESSAGE;
+                  call->callState = OO_CALL_CLEAR;
+               	}
                   OOTRACEERR3("ERROR:Unsupported media channel address type "
                               "(%s, %s)\n", call->callType, call->callToken);
                   return OO_FAILED;
@@ -711,17 +942,17 @@ int ooOnReceivedAlerting(OOH323CallData *call, Q931Message *q931Msg)
                   return OO_FAILED;
                }
                pChannel->chanCap->startTransmitChannel(call, pChannel);
-            }
-            /* Mark the current channel as established and close all other 
-               logical channels with same session id and in same direction.
-            */
-            ooOnLogicalChannelEstablished(call, pChannel);
+               /* Mark the current channel as established and close all other 
+                  logical channels with same session id and in same direction.
+               */
+               ooOnLogicalChannelEstablished(call, pChannel);
+	    }
          }
          finishPrint();
          removeEventHandler(call->pctxt);
          OO_SETFLAG(call->flags, OO_M_FASTSTARTANSWERED);
-      }
-      
+      } 
+
    }
 
    /* Retrieve the H.245 control channel address from the connect msg */
@@ -757,7 +988,251 @@ int ooOnReceivedAlerting(OOH323CallData *call, Q931Message *q931Msg)
          }
          return OO_FAILED;
       }
+      if(call->remoteH245Port != 0 && !call->pH245Channel) {
+      /* Create an H.245 connection. 
+      */
+       if(ooCreateH245Connection(call)== OO_FAILED)
+       {
+         OOTRACEERR3("Error: H.245 channel creation failed (%s, %s)\n", 
+                     call->callType, call->callToken);
+
+         if(call->callState < OO_CALL_CLEAR)
+         {
+            call->callEndReason = OO_REASON_TRANSPORTFAILURE;
+            call->callState = OO_CALL_CLEAR;
+         }
+         return OO_FAILED;
+       }
+      }
+   } else if (OO_TESTFLAG (call->flags, OO_M_TUNNELING)) {
+	ret =ooSendTCSandMSD(call);
+	if (ret != OO_OK)
+		return ret;
    }
+
+
+   return OO_OK;
+}
+
+int ooOnReceivedProgress(OOH323CallData *call, Q931Message *q931Msg)
+{
+   H225Progress_UUIE *progress=NULL;
+   H245OpenLogicalChannel* olc;
+   ASN1OCTET msgbuf[MAXMSGLEN];
+   ooLogicalChannel * pChannel = NULL;
+   H245H2250LogicalChannelParameters * h2250lcp = NULL;  
+   int i=0, ret=0;
+
+
+   if(!q931Msg->userInfo)
+   {
+      OOTRACEERR3("ERROR:No User-User IE in received Progress message."
+                  " (%s, %s)\n", call->callType, call->callToken);
+      return OO_FAILED;
+   }
+   progress = q931Msg->userInfo->h323_uu_pdu.h323_message_body.u.progress;
+   if(progress == NULL)
+   {
+      OOTRACEERR3("Error: Received Progress message does not have "
+                  "progress UUIE (%s, %s)\n", call->callType, 
+                  call->callToken);
+      /* Mark call for clearing */
+      if(call->callState < OO_CALL_CLEAR)
+      {
+         call->callEndReason = OO_REASON_INVALIDMESSAGE;
+         call->callState = OO_CALL_CLEAR;
+      }
+      return OO_FAILED;
+   }
+   /*Handle fast-start */
+   if(OO_TESTFLAG (call->flags, OO_M_FASTSTART) &&
+      !OO_TESTFLAG(call->flags, OO_M_FASTSTARTANSWERED))
+   {
+      if(progress->m.fastStartPresent)
+      {
+         /* For printing the decoded message to log, initialize handler. */
+         initializePrintHandler(&printHandler, "FastStart Elements");
+
+         /* Set print handler */
+         setEventHandler (call->pctxt, &printHandler);
+
+         for(i=0; i<(int)progress->fastStart.n; i++)
+         {
+            olc = NULL;
+
+            olc = (H245OpenLogicalChannel*)memAlloc(call->pctxt, 
+                                              sizeof(H245OpenLogicalChannel));
+            if(!olc)
+            {
+               OOTRACEERR3("ERROR:Memory - ooOnReceivedProgress - olc"
+                           "(%s, %s)\n", call->callType, call->callToken);
+               /*Mark call for clearing */
+               if(call->callState < OO_CALL_CLEAR)
+               {
+                  call->callEndReason = OO_REASON_LOCAL_CLEARED;
+                  call->callState = OO_CALL_CLEAR;
+               }
+               return OO_FAILED;
+            }
+            memset(olc, 0, sizeof(H245OpenLogicalChannel));
+            memcpy(msgbuf, progress->fastStart.elem[i].data, 
+                                    progress->fastStart.elem[i].numocts);
+            setPERBuffer(call->pctxt, msgbuf, 
+                         progress->fastStart.elem[i].numocts, 1);
+            ret = asn1PD_H245OpenLogicalChannel(call->pctxt, olc);
+            if(ret != ASN_OK)
+            {
+               OOTRACEERR3("ERROR:Failed to decode fast start olc element "
+                           "(%s, %s)\n", call->callType, call->callToken);
+               /* Mark call for clearing */
+               if(call->callState < OO_CALL_CLEAR)
+               {
+                  call->callEndReason = OO_REASON_INVALIDMESSAGE;
+                  call->callState = OO_CALL_CLEAR;
+               }
+               return OO_FAILED;
+            }
+
+            dListAppend(call->pctxt, &call->remoteFastStartOLCs, olc);
+
+            pChannel = ooFindLogicalChannelByOLC(call, olc);
+            if(!pChannel)
+            {
+               OOTRACEERR4("ERROR: Logical Channel %d not found, fast start. "
+                           "(%s, %s)\n",
+                            olc->forwardLogicalChannelNumber, call->callType, 
+                            call->callToken);
+               return OO_FAILED;
+            }
+            if(pChannel->channelNo != olc->forwardLogicalChannelNumber)
+            {
+               OOTRACEINFO5("Remote endpoint changed forwardLogicalChannel"
+                            "Number from %d to %d (%s, %s)\n", 
+                            pChannel->channelNo, 
+                            olc->forwardLogicalChannelNumber, call->callType, 
+                            call->callToken);
+               pChannel->channelNo = olc->forwardLogicalChannelNumber;
+            }
+            if(!strcmp(pChannel->dir, "transmit"))
+            {
+               if(olc->forwardLogicalChannelParameters.multiplexParameters.t !=
+                  T_H245OpenLogicalChannel_forwardLogicalChannelParameters_multiplexParameters_h2250LogicalChannelParameters)
+               {
+                  OOTRACEERR4("ERROR:Unknown multiplex parameter type for "
+                              "channel %d (%s, %s)\n", 
+                              olc->forwardLogicalChannelNumber, call->callType,
+                              call->callToken);
+                  continue;
+               }
+            
+               /* Extract the remote media endpoint address */
+               h2250lcp = olc->forwardLogicalChannelParameters.multiplexParameters.u.h2250LogicalChannelParameters;
+               if(!h2250lcp)
+               {
+                  OOTRACEERR3("ERROR:Invalid OLC received in fast start. No "
+                              "forward Logical Channel Parameters found. "
+                              "(%s, %s)\n", call->callType, call->callToken);
+                  return OO_FAILED;
+               }
+               if(!h2250lcp->m.mediaChannelPresent)
+               {
+                  OOTRACEERR3("ERROR:Invalid OLC received in fast start. No "
+                              "reverse media channel information found."
+                              "(%s, %s)\n", call->callType, call->callToken);
+                  return OO_FAILED;
+               }
+               ret = ooGetIpPortFromH245TransportAddress(call, 
+                                   &h2250lcp->mediaChannel, pChannel->remoteIP,
+                                   &pChannel->remoteMediaPort);
+               
+               if(ret != OO_OK)
+               {
+               	if(call->callState < OO_CALL_CLEAR)
+               	{
+                  call->callEndReason = OO_REASON_INVALIDMESSAGE;
+                  call->callState = OO_CALL_CLEAR;
+               	}
+                  OOTRACEERR3("ERROR:Unsupported media channel address type "
+                              "(%s, %s)\n", call->callType, call->callToken);
+                  return OO_FAILED;
+               }
+       
+               if(!pChannel->chanCap->startTransmitChannel)
+               {
+                  OOTRACEERR3("ERROR:No callback registered to start transmit "
+                              "channel (%s, %s)\n",call->callType, 
+                              call->callToken);
+                  return OO_FAILED;
+               }
+               pChannel->chanCap->startTransmitChannel(call, pChannel);
+            }
+            /* Mark the current channel as established and close all other 
+               logical channels with same session id and in same direction.
+            */
+            ooOnLogicalChannelEstablished(call, pChannel);
+         }
+         finishPrint();
+         removeEventHandler(call->pctxt);
+         OO_SETFLAG(call->flags, OO_M_FASTSTARTANSWERED);
+      }
+      
+   }
+
+   /* Retrieve the H.245 control channel address from the connect msg */
+   if(q931Msg->userInfo->h323_uu_pdu.m.h245TunnelingPresent &&
+      q931Msg->userInfo->h323_uu_pdu.h245Tunneling &&
+      progress->m.h245AddressPresent) {
+      OOTRACEINFO3("Tunneling and h245address provided."
+                   "Giving preference to Tunneling (%s, %s)\n", 
+                   call->callType, call->callToken);
+   }
+   else if(progress->m.h245AddressPresent)
+   {
+      if (OO_TESTFLAG (call->flags, OO_M_TUNNELING))
+      {
+         OO_CLRFLAG (call->flags, OO_M_TUNNELING);
+         OOTRACEINFO3("Tunneling is disabled for call as H245 address is "
+                      "provided in Progress message (%s, %s)\n", 
+                      call->callType, call->callToken);
+      }
+      ret = ooH323GetIpPortFromH225TransportAddress(call, 
+                                  &progress->h245Address, call->remoteIP,
+                                  &call->remoteH245Port);
+      if(ret != OO_OK)
+      {
+         OOTRACEERR3("Error: Unknown H245 address type in received "
+                     "Progress message (%s, %s)", call->callType, 
+                     call->callToken);
+         /* Mark call for clearing */
+         if(call->callState < OO_CALL_CLEAR)
+         {
+            call->callEndReason = OO_REASON_INVALIDMESSAGE;
+            call->callState = OO_CALL_CLEAR;
+         }
+         return OO_FAILED;
+      }
+      if(call->remoteH245Port != 0 && !call->pH245Channel) {
+       /* Create an H.245 connection. 
+      */
+       if(ooCreateH245Connection(call)== OO_FAILED)
+       {
+         OOTRACEERR3("Error: H.245 channel creation failed (%s, %s)\n", 
+                     call->callType, call->callToken);
+
+         if(call->callState < OO_CALL_CLEAR)
+         {
+            call->callEndReason = OO_REASON_TRANSPORTFAILURE;
+            call->callState = OO_CALL_CLEAR;
+         }
+         return OO_FAILED;
+       }
+      }
+   } else if (OO_TESTFLAG (call->flags, OO_M_TUNNELING)) {
+	ret =ooSendTCSandMSD(call);
+	if (ret != OO_OK)
+		return ret;
+   }
+
    return OO_OK;
 }
    
@@ -920,6 +1395,11 @@ int ooOnReceivedSignalConnect(OOH323CallData* call, Q931Message *q931Msg)
                                    &pChannel->remoteMediaPort);
             if(ret != OO_OK)
             {
+               	if(call->callState < OO_CALL_CLEAR)
+               	{
+                  call->callEndReason = OO_REASON_INVALIDMESSAGE;
+                  call->callState = OO_CALL_CLEAR;
+               	}
                OOTRACEERR3("ERROR:Unsupported media channel address type "
                            "(%s, %s)\n", call->callType, call->callToken);
                finishPrint();
@@ -979,7 +1459,7 @@ int ooOnReceivedSignalConnect(OOH323CallData* call, Q931Message *q931Msg)
       }
    }
 
-   if(call->remoteH245Port != 0)
+   if(call->remoteH245Port != 0 && !call->pH245Channel)
    {
        /* Create an H.245 connection. 
       */
@@ -1056,6 +1536,7 @@ int ooHandleH2250Message(OOH323CallData *call, Q931Message *q931Msg)
    DListNode *pNode = NULL;
    OOTimer *pTimer=NULL;
    int type = q931Msg->messageType;
+   struct timespec ts;
    switch(type)
    {
       case Q931SetupMsg: /* SETUP message is received */
@@ -1065,14 +1546,14 @@ int ooHandleH2250Message(OOH323CallData *call, Q931Message *q931Msg)
 
          /* H225 message callback */
          if(gH323ep.h225Callbacks.onReceivedSetup)
-            gH323ep.h225Callbacks.onReceivedSetup(call, q931Msg);
+            ret = gH323ep.h225Callbacks.onReceivedSetup(call, q931Msg);
 
          /* Free up the mem used by the received message, as it's processing 
             is done. 
          */
-         ooFreeQ931Message(q931Msg);
-         
-         ooSendCallProceeding(call);/* Send call proceeding message*/
+	 if (ret == OO_OK) {
+
+         ooFreeQ931Message(call->msgctxt, q931Msg);
          
          /* DISABLEGK is used to selectively disable gatekeeper use. For 
             incoming calls DISABLEGK can be set in onReceivedSetup callback by 
@@ -1083,19 +1564,31 @@ int ooHandleH2250Message(OOH323CallData *call, Q931Message *q931Msg)
          {
             if(gH323ep.gkClient->state == GkClientRegistered)
             {
+               call->callState = OO_CALL_WAITING_ADMISSION;
+	       ast_mutex_lock(&call->Lock);
                ret = ooGkClientSendAdmissionRequest(gH323ep.gkClient, call, 
                                                     FALSE);
-               call->callState = OO_CALL_WAITING_ADMISSION;
+                clock_gettime(CLOCK_REALTIME, &ts);
+                ts.tv_sec += 24;
+                ast_cond_timedwait(&call->gkWait, &call->Lock, &ts);
+                if (call->callState == OO_CALL_WAITING_ADMISSION)
+			call->callState = OO_CALL_CLEAR;
+                ast_mutex_unlock(&call->Lock);
+
             }
-            else{
+            else {
                /* TODO: Should send Release complete with reject reason */
                OOTRACEERR1("Error:Ignoring incoming call as not yet"
                            "registered with Gk\n");
+	       call->callState = OO_CALL_CLEAR;
             }
          }
-         else {
-            ret = ooH323CallAdmitted (call);
-         }
+	 if (call->callState < OO_CALL_CLEAR) {
+         	ooSendCallProceeding(call);/* Send call proceeding message*/
+         	ret = ooH323CallAdmitted (call);
+	  }
+
+	 } /* end ret == OO_OK */
          break;
 
 
@@ -1104,7 +1597,7 @@ int ooHandleH2250Message(OOH323CallData *call, Q931Message *q931Msg)
                       call->callType, call->callToken);
          ooOnReceivedCallProceeding(call, q931Msg);
 
-         ooFreeQ931Message(q931Msg);
+         ooFreeQ931Message(call->msgctxt, q931Msg);
          break;
 
 
@@ -1112,17 +1605,32 @@ int ooHandleH2250Message(OOH323CallData *call, Q931Message *q931Msg)
          OOTRACEINFO3("H.225 Alerting message received (%s, %s)\n", 
                       call->callType, call->callToken);
 
+	 call->alertingTime = (H235TimeStamp) time(NULL);
          ooOnReceivedAlerting(call, q931Msg);
 
          if(gH323ep.h323Callbacks.onAlerting && call->callState<OO_CALL_CLEAR)
             gH323ep.h323Callbacks.onAlerting(call);
-         ooFreeQ931Message(q931Msg);
+         ooFreeQ931Message(call->msgctxt, q931Msg);
+         break;
+
+
+      case Q931ProgressMsg:/* PROGRESS message received */
+         OOTRACEINFO3("H.225 Progress message received (%s, %s)\n", 
+                      call->callType, call->callToken);
+
+         ooOnReceivedProgress(call, q931Msg);
+
+         if(gH323ep.h323Callbacks.onProgress && call->callState<OO_CALL_CLEAR)
+            gH323ep.h323Callbacks.onProgress(call);
+         ooFreeQ931Message(call->msgctxt, q931Msg);
          break;
 
 
       case Q931ConnectMsg:/* CONNECT message received */
          OOTRACEINFO3("H.225 Connect message received (%s, %s)\n",
                       call->callType, call->callToken);
+
+	 call->connectTime = (H235TimeStamp) time(NULL);
 
          /* Disable call establishment timer */
          for(i = 0; i<call->timerList.count; i++)
@@ -1151,12 +1659,18 @@ int ooHandleH2250Message(OOH323CallData *call, Q931Message *q931Msg)
             if(gH323ep.h323Callbacks.onCallEstablished)
                gH323ep.h323Callbacks.onCallEstablished(call);
          }
-         ooFreeQ931Message(q931Msg);
+         ooFreeQ931Message(call->msgctxt, q931Msg);
+
+         if(gH323ep.gkClient && !OO_TESTFLAG(call->flags, OO_M_DISABLEGK)) {
+            if(gH323ep.gkClient->state == GkClientRegistered) {
+		ooGkClientSendIRR(gH323ep.gkClient, call);
+	    }
+	 }
          break;
       case Q931InformationMsg:
          OOTRACEINFO3("H.225 Information msg received (%s, %s)\n",
                        call->callType, call->callToken);
-         ooFreeQ931Message(q931Msg);
+         ooFreeQ931Message(call->msgctxt, q931Msg);
          break;
 
 
@@ -1164,46 +1678,43 @@ int ooHandleH2250Message(OOH323CallData *call, Q931Message *q931Msg)
          OOTRACEINFO3("H.225 Release Complete message received (%s, %s)\n",
                       call->callType, call->callToken);
 
+	 call->endTime = (H235TimeStamp) time(NULL);
+
          ooOnReceivedReleaseComplete(call, q931Msg);
          
-         ooFreeQ931Message(q931Msg);
+         ooFreeQ931Message(call->msgctxt, q931Msg);
          break;
       case Q931FacilityMsg: 
          OOTRACEINFO3("H.225 Facility message Received (%s, %s)\n",
                        call->callType, call->callToken);
 
          ooOnReceivedFacility(call, q931Msg); 
-         ooFreeQ931Message(q931Msg);
-         break;
-      case Q931ProgressMsg:
-         OOTRACEINFO3("H.225 Progress message received (%s, %s)\n",
-                       call->callType, call->callToken);
-         ooFreeQ931Message(q931Msg);
+         ooFreeQ931Message(call->msgctxt, q931Msg);
          break;
       case Q931StatusMsg:
          OOTRACEINFO3("H.225 Status message received (%s, %s)\n",
                        call->callType, call->callToken);
-         ooFreeQ931Message(q931Msg);
+         ooFreeQ931Message(call->msgctxt, q931Msg);
          break;
       case Q931StatusEnquiryMsg:
          OOTRACEINFO3("H.225 Status Inquiry message Received (%s, %s)\n",
                        call->callType, call->callToken);
-         ooFreeQ931Message(q931Msg);
+         ooFreeQ931Message(call->msgctxt, q931Msg);
          break;
       case Q931SetupAckMsg:
          OOTRACEINFO3("H.225 Setup Ack message received (%s, %s)\n",
                        call->callType, call->callToken);
-         ooFreeQ931Message(q931Msg);
+         ooFreeQ931Message(call->msgctxt, q931Msg);
          break;
       case Q931NotifyMsg: 
          OOTRACEINFO3("H.225 Notify message Received (%s, %s)\n",
                        call->callType, call->callToken);
-         ooFreeQ931Message(q931Msg);
+         ooFreeQ931Message(call->msgctxt, q931Msg);
          break;
       default:
          OOTRACEWARN3("Invalid H.225 message type received (%s, %s)\n",
                       call->callType, call->callToken);
-         ooFreeQ931Message(q931Msg);
+         ooFreeQ931Message(call->msgctxt, q931Msg);
    }
    return ret;
 }
@@ -1329,17 +1840,33 @@ int ooOnReceivedFacility(OOH323CallData *call, Q931Message * pQ931Msg)
            return OO_OK;
          }
       }
+      else if(facility->reason.t == T_H225FacilityReason_forwardedElements)
+      {
+         OOTRACEINFO3("Handling fast start in forwardedElem facility for "
+                      "(%s, %s)\n", call->callType, call->callToken);
+         /*start H.245 channel*/
+         ret = ooHandleFastStart(call, facility);
+         if(ret != OO_OK)
+         {
+            OOTRACEERR3("ERROR: Handling transportedInformation facility message "
+                        "(%s, %s)\n", call->callType, call->callToken);
+            return ret;
+         }
+      }
       else{
          OOTRACEINFO3("Unhandled Facility reason type received (%s, %s)\n", 
                        call->callType, call->callToken);
       }
    }
    else{ /* Empty facility message Check for tunneling */
+      if (pH323UUPdu->h323_message_body.t == 
+	  T_H225H323_UU_PDU_h323_message_body_empty) {
       OOTRACEDBGB3("Handling tunneled messages in empty Facility message."
                    " (%s, %s)\n", call->callType, call->callToken);
       ooHandleTunneledH245Messages(call, pH323UUPdu);
       OOTRACEDBGB3("Finished handling tunneled messages in empty Facility "
                    "message. (%s, %s)\n", call->callType, call->callToken);
+      }
    }
    
    return OO_OK;
@@ -1396,7 +1923,7 @@ int ooHandleTunneledH245Messages
    (OOH323CallData *call, H225H323_UU_PDU * pH323UUPdu)
 {
    H245Message *pmsg;
-   OOCTXT *pctxt = &gH323ep.msgctxt;
+   OOCTXT *pctxt = call->msgctxt;
    int ret=0,i=0;
    
    OOTRACEDBGC3("Checking for tunneled H.245 messages (%s, %s)\n", 
@@ -1608,6 +2135,53 @@ int ooH323RetrieveAliases
 }
 
 
+int ooPopulatePrefixList(OOCTXT *pctxt, OOAliases *pAliases,
+                           H225_SeqOfH225SupportedPrefix *pPrefixList )
+{
+   H225SupportedPrefix *pPrefixEntry=NULL;
+   OOAliases * pAlias=NULL;
+   ASN1BOOL bValid=FALSE;
+
+   dListInit(pPrefixList);
+   if(pAliases)
+   {
+      pAlias = pAliases;
+      while(pAlias)
+      {
+	 pPrefixEntry = NULL;
+         switch(pAlias->type)
+         {
+         case T_H225AliasAddress_dialedDigits:
+            pPrefixEntry = (H225SupportedPrefix *)memAlloc(pctxt, 
+                                                     sizeof(H225SupportedPrefix));
+            if(!pPrefixEntry) {
+            	OOTRACEERR1("ERROR:Memory - ooPopulatePrefixList - pAliasEntry\n");
+            	return OO_FAILED;
+            }
+            pPrefixEntry->prefix.t = T_H225AliasAddress_dialedDigits;
+            pPrefixEntry->prefix.u.dialedDigits = (ASN1IA5String)memAlloc(pctxt,
+                                                     strlen(pAlias->value)+1);
+            if(!pPrefixEntry->prefix.u.dialedDigits) {
+               OOTRACEERR1("ERROR:Memory - ooPopulatePrefixList - "
+                           "dialedDigits\n");
+               memFreePtr(pctxt, pPrefixEntry);
+               return OO_FAILED;
+            }
+            strcpy((char*)pPrefixEntry->prefix.u.dialedDigits, pAlias->value);
+            bValid = TRUE;
+            break;
+         default:
+            bValid = FALSE;                  
+         }
+         
+         if(bValid)
+            dListAppend( pctxt, pPrefixList, (void*)pPrefixEntry );
+         
+         pAlias = pAlias->next;
+      }
+   }
+   return OO_OK;
+}
 int ooPopulateAliasList(OOCTXT *pctxt, OOAliases *pAliases,
                            H225_SeqOfH225AliasAddress *pAliasList )
 {
@@ -1622,6 +2196,10 @@ int ooPopulateAliasList(OOCTXT *pctxt, OOAliases *pAliases,
       pAlias = pAliases;
       while(pAlias)
       {
+	 if (pAlias->value[0] == 0) {
+	  pAlias = pAlias->next;
+	  continue;
+	 }
          pAliasEntry = (H225AliasAddress*)memAlloc(pctxt, 
                                                      sizeof(H225AliasAddress));
          if(!pAliasEntry)

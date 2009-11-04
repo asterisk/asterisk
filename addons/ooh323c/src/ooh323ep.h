@@ -26,12 +26,12 @@
 #include "ooq931.h"
 
 #define DEFAULT_TRACEFILE "trace.log"
-#define DEFAULT_TERMTYPE 50
-#define DEFAULT_PRODUCTID  "objsys"
+#define DEFAULT_TERMTYPE 60
+#define DEFAULT_PRODUCTID  "ooh323"
 #define DEFAULT_CALLERID   "objsyscall"
-#define DEFAULT_T35COUNTRYCODE 1
+#define DEFAULT_T35COUNTRYCODE 184
 #define DEFAULT_T35EXTENSION 0
-#define DEFAULT_MANUFACTURERCODE 71
+#define DEFAULT_MANUFACTURERCODE 39
 #define DEFAULT_H245CONNECTION_RETRYTIMEOUT 2
 #define DEFAULT_CALLESTB_TIMEOUT 60
 #define DEFAULT_MSD_TIMEOUT 30
@@ -58,8 +58,8 @@ struct OOCapPrefs;
  * @{
  */
 /* Default port ranges */
-#define TCPPORTSSTART 12030  /*!< Starting TCP port number */
-#define TCPPORTSEND   12230  /*!< Ending TCP port number   */
+#define TCPPORTSSTART 12000  /*!< Starting TCP port number */
+#define TCPPORTSEND   62230  /*!< Ending TCP port number   */
 #define UDPPORTSSTART 13030  /*!< Starting UDP port number */
 #define UDPPORTSEND   13230  /*!< Ending UDP port number   */
 #define RTPPORTSSTART 14030  /*!< Starting RTP port number */
@@ -170,7 +170,10 @@ EXTERN int ooH323EpInitialize
  *
  * @return               OO_OK, on success. OO_FAILED, on failure.
  */
-EXTERN int ooH323EpSetAsGateway();
+EXTERN int ooH323EpSetAsGateway(void);
+
+EXTERN void ooH323EpSetVersionInfo(int t35countrycode, int t35extensions, int manufacturer, 
+				  char* vendor, char* version);
 
 /**
  * This function is used to assign a local ip address to be used for call
@@ -340,7 +343,7 @@ EXTERN int ooH323EpDisableManualRingback(void);
  *
  * @return            OO_OK, on success. OO_FAILED, on failure.
  */
-EXTERN int ooH323EpDisableMediaWaitForConnect(void);
+EXTERN int ooH323EpEnableMediaWaitForConnect(void);
 
 /**
  * This function is used to disable MediaWaitForConnect.
@@ -376,6 +379,13 @@ EXTERN int ooH323EpEnableH245Tunneling(void);
  * @return            OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooH323EpDisableH245Tunneling(void);
+
+/**
+ * This function is used to setup/clear TryBeMaster flag
+ *
+ * @return            OO_OK, on success. OO_FAILED, on failure.
+ */
+EXTERN int ooH323EpTryBeMaster(int);
 
 /**
  * This function is used to enable GkRouted calls.
@@ -589,28 +599,62 @@ EXTERN int ooH323EpDisableDTMFRFC2833(void);
  * the endpoint.
  * @return                        OO_OK, on success; OO_FAILED, on failure
  */
-EXTERN int ooH323EpEnableDTMFH245Alphanumeric();
+EXTERN int ooH323EpEnableDTMFH245Alphanumeric(void);
 
 /**
  * This function is used to disable the H245(alphanumeric) dtmf capability for
  * the endpoint.
  * @return                        OO_OK, on success; OO_FAILED, on failure
  */
-EXTERN int ooH323EpDisableDTMFH245Alphanumeric();
+EXTERN int ooH323EpDisableDTMFH245Alphanumeric(void);
 
 /**
  * This function is used to enable the H245(signal) dtmf capability for
  * the endpoint.
  * @return                        OO_OK, on success; OO_FAILED, on failure
  */
-EXTERN int ooH323EpEnableDTMFH245Signal();
+EXTERN int ooH323EpEnableDTMFH245Signal(void);
 
 /**
  * This function is used to disable the H245(signal) dtmf capability for
  * the endpoint.
  * @return                        OO_OK, on success; OO_FAILED, on failure
  */
-EXTERN int ooH323EpDisableDTMFH245Signal();
+EXTERN int ooH323EpDisableDTMFH245Signal(void);
+
+/**/
+EXTERN int ooH323EpSetTermType(int value);
+EXTERN int ooH323EpAddG726Capability(int cap, int txframes, int rxframes,
+                              OOBOOL silenceSuppression, int dir,
+                              cb_StartReceiveChannel startReceiveChannel,
+                              cb_StartTransmitChannel startTransmitChannel,
+                              cb_StopReceiveChannel stopReceiveChannel,
+                              cb_StopTransmitChannel stopTransmitChannel);
+EXTERN int ooH323EpAddAMRNBCapability(int cap, int txframes, int rxframes,
+                              OOBOOL silenceSuppression, int dir,
+                              cb_StartReceiveChannel startReceiveChannel,
+                              cb_StartTransmitChannel startTransmitChannel,
+                              cb_StopReceiveChannel stopReceiveChannel,
+                              cb_StopTransmitChannel stopTransmitChannel);
+EXTERN int ooH323EpAddAMRNBCapability(int cap, int txframes, int rxframes,
+                              OOBOOL silenceSuppression, int dir,
+                              cb_StartReceiveChannel startReceiveChannel,
+                              cb_StartTransmitChannel startTransmitChannel,
+                              cb_StopReceiveChannel stopReceiveChannel,
+                              cb_StopTransmitChannel stopTransmitChannel);
+EXTERN int ooH323EpAddSpeexCapability(int cap, int txframes, int rxframes,
+                              OOBOOL silenceSuppression, int dir,
+                              cb_StartReceiveChannel startReceiveChannel,
+                              cb_StartTransmitChannel startTransmitChannel,
+                              cb_StopReceiveChannel stopReceiveChannel,
+                              cb_StopTransmitChannel stopTransmitChannel);
+EXTERN int ooH323EpEnableDTMFCISCO(int dynamicRTPPayloadType);
+EXTERN int ooH323EpDisableDTMFCISCO(void);
+
+EXTERN int ooH323EpEnableDTMFQ931Keypad(void);
+EXTERN int ooH323EpDisableDTMFQ931Keypad(void);
+
+/**/
 
 /**
  * This function is used to add callbacks to the gatekeeper client. If user

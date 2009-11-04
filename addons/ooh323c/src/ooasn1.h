@@ -22,6 +22,9 @@
 #ifndef _OOASN1_H_
 #define _OOASN1_H_
 
+#include <asterisk.h>
+#include <asterisk/lock.h>
+
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -406,6 +409,7 @@ typedef struct OOCTXT {         /* context block                        */
    struct EventHandler* pEventHandler; /* event handler object          */
    ASN1USINT    flags;          /* flag bits                            */
    ASN1OCTET    spare[2];
+   ast_mutex_t pLock;
 } OOCTXT;
 
 /* macros and function prototypes */
@@ -512,8 +516,8 @@ extern "C" {
 #endif /* EXTERN */
 
 #ifndef _NO_MALLOC
-#define ASN1CRTMALLOC0(nbytes)       malloc(nbytes)
-#define ASN1CRTFREE0(ptr)            free(ptr)
+/*#define ASN1CRTMALLOC0(nbytes)       malloc(nbytes)
+#define ASN1CRTFREE0(ptr)            free(ptr) */
 #else
 
 #ifdef _NO_THREADS
@@ -540,9 +544,15 @@ extern EXTERN OOCTXT g_ctxt;
 
 
 #define DE_BIT(pctxt,pvalue) \
+((DE_INCRBITIDX (pctxt) != ASN_OK) ? ASN_E_ENDOFBUF : ( \
+((*(pvalue) = (((pctxt)->buffer.data[(pctxt)->buffer.byteIndex]) & \
+(1 << (pctxt)->buffer.bitOffset)) != 0), ASN_OK) ))
+/*
+#define DE_BIT(pctxt,pvalue) \
 ((DE_INCRBITIDX (pctxt) != ASN_OK) ? ASN_E_ENDOFBUF : ((pvalue) ? \
 ((*(pvalue) = (((pctxt)->buffer.data[(pctxt)->buffer.byteIndex]) & \
 (1 << (pctxt)->buffer.bitOffset)) != 0), ASN_OK) : ASN_OK ))
+*/
 
 
 #define encodeIA5String(pctxt,value,permCharSet) \
@@ -1004,9 +1014,15 @@ EXTERN void memSetStaticBuf (void* memHeapBuf, ASN1UINT blkSize);
 ((pctxt)->buffer.bitOffset = 7, ASN_OK)) : ASN_OK)
 
 #define DECODEBIT(pctxt,pvalue) \
+((INCRBITIDX (pctxt) != ASN_OK) ? ASN_E_ENDOFBUF : ( \
+((*(pvalue) = (((pctxt)->buffer.data[(pctxt)->buffer.byteIndex]) & \
+(1 << (pctxt)->buffer.bitOffset)) != 0), ASN_OK) ))
+/*
+#define DECODEBIT(pctxt,pvalue) \
 ((INCRBITIDX (pctxt) != ASN_OK) ? ASN_E_ENDOFBUF : ((pvalue) ? \
 ((*(pvalue) = (((pctxt)->buffer.data[(pctxt)->buffer.byteIndex]) & \
 (1 << (pctxt)->buffer.bitOffset)) != 0), ASN_OK) : ASN_OK ))
+*/
 
 /*
 #define SETCHARSET(csetvar, canset, abits, ubits) \

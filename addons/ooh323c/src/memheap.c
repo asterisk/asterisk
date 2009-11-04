@@ -13,18 +13,12 @@
  * maintain this copyright notice.
  *
  *****************************************************************************/
-
+#include <asterisk.h>
+#include <asterisk/lock.h>
 #include <stdlib.h>
 #include "memheap.h"
 
 ASN1UINT      g_defBlkSize = XM_K_MEMBLKSIZ;
-OSMallocFunc  g_malloc_func = malloc;
-#ifndef _NO_REALLOC
-OSReallocFunc g_realloc_func = realloc;
-#else
-OSReallocFunc g_realloc_func = 0;
-#endif
-OSFreeFunc    g_free_func = free;
 
 static OSMemLink* memHeapAddBlock (OSMemLink** ppMemLink, 
                                    void* pMemBlk, int blockType);
@@ -172,6 +166,7 @@ void* memHeapAlloc (void** ppvMemHeap, int nbytes)
    nunits = (((unsigned)(nbytes + 7)) >> 3);
 
    pMemHeap = (OSMemHeap*) *ppvMemHeap;
+   ast_mutex_lock(&pMemHeap->pLock);
    ppMemLink = &pMemHeap->phead;
 
    /* if size is greater than 2**19, then allocate as RAW block */
@@ -181,17 +176,18 @@ void* memHeapAlloc (void** ppvMemHeap, int nbytes)
 
       /* allocate raw block */
 
-      data = g_malloc_func (nbytes);
+      data = malloc (nbytes);
       if (data == NULL) {
          return NULL;
       }
       pMemLink = memHeapAddBlock (ppMemLink, data, RTMEMMALLOC | RTMEMRAW);
       if (pMemLink == 0) {
-         g_free_func (data);
+         free (data);
          return NULL;
       }
       /* save size of the RAW memory block behind the pMemLink */
       *(int*)(((char*)pMemLink) + sizeof (OSMemLink)) = nbytes;
+      ast_mutex_unlock(&pMemHeap->pLock);
       return data;   
    }
    
@@ -337,7 +333,7 @@ void* memHeapAlloc (void** ppvMemHeap, int nbytes)
             ((((ASN1UINT)dataUnits) * 8u) + sizeof (OSMemBlk));
       }  
 
-      pmem = (ASN1OCTET*) g_malloc_func (allocSize + sizeof (OSMemLink));
+      pmem = (ASN1OCTET*) malloc (allocSize + sizeof (OSMemLink));
       if (0 != pmem) {
          OSMemElemDescr* pElem;
 
@@ -361,7 +357,8 @@ void* memHeapAlloc (void** ppvMemHeap, int nbytes)
 
          if (memHeapAddBlock (ppMemLink, pMemBlk, RTMEMSTD | RTMEMLINK) == 0) 
          {
-            g_free_func (pmem);
+            free (pmem);
+	    ast_mutex_unlock(&pMemHeap->pLock);
             return NULL;
          }
 
@@ -374,8 +371,10 @@ void* memHeapAlloc (void** ppvMemHeap, int nbytes)
          CHECKMEMELEM (pMemBlk, pElem);
          CHECKMEMBLOCK (pMemHeap, pMemBlk);
       }
-      else 
+      else  {
+	 ast_mutex_unlock(&pMemHeap->pLock);
          return NULL;
+      }
    }
    RTMEMDIAG2 ("memHeapAlloc: pMemBlk = 0x%x\n", pMemBlk);
    RTMEMDIAG2 ("memHeapAlloc: pMemBlk->free_x = %d\n", pMemBlk->free_x);
@@ -384,6 +383,7 @@ void* memHeapAlloc (void** ppvMemHeap, int nbytes)
    RTMEMDIAG2 ("memHeapAlloc: mem_p = 0x%x\n", mem_p);
    RTMEMDIAG2 ("memHeapAlloc: sizeof (short) = %d\n", sizeof(short));
 
+   ast_mutex_unlock(&pMemHeap->pLock);
    return (mem_p);
 }
 
@@ -407,6 +407,9 @@ void memHeapFreePtr (void** ppvMemHeap, void* mem_p)
    if (mem_p == 0 || ppvMemHeap == 0 || *ppvMemHeap == 0) return;
 
    pMemHeap = *(OSMemHeap**)ppvMemHeap;
+
+   ast_mutex_lock(&pMemHeap->pLock);
+
    ppMemLink = &pMemHeap->phead;
 
    /* look for chain of RAW blocks first */
@@ -434,13 +437,14 @@ void memHeapFreePtr (void** ppvMemHeap, void* mem_p)
          if ((pMemLink->blockType & RTMEMLINK) && 
              (pMemLink->blockType & RTMEMMALLOC))
          {
-            g_free_func (pMemLink);
+            free (pMemLink);
          }
          else {
             if (pMemLink->blockType & RTMEMMALLOC)
-               g_free_func (pMemLink->pMemBlk);
-            g_free_func (pMemLink);
+               free (pMemLink->pMemBlk);
+            free (pMemLink);
          }
+	 ast_mutex_unlock(&pMemHeap->pLock);
          return;
       }
       pPrevMemLink = pMemLink;
@@ -455,6 +459,7 @@ void memHeapFreePtr (void** ppvMemHeap, void* mem_p)
    if (ISFREE (pElem)) { /* already freed! */
       RTMEMDIAG2 ("memHeapFreePtr: "
                       "the element 0x%x is already freed!\n", pElem);
+      ast_mutex_unlock(&pMemHeap->pLock);
       return;   
    }
 
@@ -548,11 +553,11 @@ void memHeapFreePtr (void** ppvMemHeap, void* mem_p)
             FILLFREEMEM (pMemBlk->plink, sizeof (*pMemBlk->plink));
             FILLFREEMEM (pMemBlk->data, (pMemBlk->nunits * 8u));
          
-            g_free_func (pMemBlk->plink);
+            free (pMemBlk->plink);
             
             if (!(blockType & RTMEMLINK)) {
                FILLFREEMEM (pMemBlk, sizeof (*pMemBlk));
-               g_free_func (pMemBlk);
+               free (pMemBlk);
             }
             RTMEMDIAG2 ("memHeapFreePtr: pMemBlk = 0x%x was freed\n", 
                              pMemBlk);
@@ -642,6 +647,7 @@ void memHeapFreePtr (void** ppvMemHeap, void* mem_p)
       CHECKMEMELEM (pMemBlk, pElem);
       CHECKMEMBLOCK (pMemHeap, pMemBlk);
    }
+  ast_mutex_unlock(&pMemHeap->pLock);
 } 
 
 static void initNewFreeElement (OSMemBlk* pMemBlk, 
@@ -741,26 +747,12 @@ void* memHeapRealloc (void** ppvMemHeap, void* mem_p, int nbytes_)
       if ((pMemLink->blockType & RTMEMRAW) &&
            pMemLink->pMemBlk == mem_p) 
       {
-         if (pMemLink->blockType & RTMEMMALLOC)
-            if (g_realloc_func != 0) {
-               void *newMemBlk = g_realloc_func (pMemLink->pMemBlk, nbytes_);
-               if (newMemBlk == 0) 
-                  return 0;
-               pMemLink->pMemBlk = newMemBlk;
-            }
-            else {
-               /* use malloc/memcpy/free sequence instead of realloc */
-               ASN1OCTET* newBuf;
-               int oldSize = *(int*)(((char*)pMemLink) + sizeof (OSMemLink));
-
-               if (oldSize == -1) return 0;
-               newBuf = (ASN1OCTET*)g_malloc_func (nbytes_);
-               if (newBuf == 0)
-                  return 0;
-               memcpy (newBuf, pMemLink->pMemBlk, ASN1MIN (oldSize, nbytes_));
-               free (pMemLink->pMemBlk);
-               pMemLink->pMemBlk = newBuf;
-            }
+         if (pMemLink->blockType & RTMEMMALLOC) {
+             void *newMemBlk = realloc (pMemLink->pMemBlk, nbytes_);
+             if (newMemBlk == 0) 
+                return 0;
+             pMemLink->pMemBlk = newMemBlk;
+	 }
          else 
             return 0;
          *(int*)(((char*)pMemLink) + sizeof (OSMemLink)) = nbytes_;
@@ -994,6 +986,8 @@ void memHeapFreeAll (void** ppvMemHeap)
    if (ppvMemHeap == 0 || *ppvMemHeap == 0) return;
    pMemHeap = *(OSMemHeap**)ppvMemHeap;
 
+   ast_mutex_lock(&pMemHeap->pLock);
+
    pMemLink = pMemHeap->phead;
    RTMEMDIAG2 ("memHeapFreeAll: pMemHeap = 0x%x\n", pMemHeap);
 
@@ -1045,10 +1039,11 @@ void memHeapFreeAll (void** ppvMemHeap)
          if (((pMemLink2->blockType & RTMEMSTD) || 
               (pMemLink2->blockType & RTMEMMALLOC)) &&
               !(pMemLink2->blockType & RTMEMLINK)) 
-            g_free_func (pMemLink2->pMemBlk);
-         g_free_func (pMemLink2);
+            free (pMemLink2->pMemBlk);
+         free (pMemLink2);
       }
    }
+   ast_mutex_unlock(&pMemHeap->pLock);
 }
 
 /* increments internal refCnt. use memHeapRelease to decrement and release */
@@ -1058,7 +1053,9 @@ void memHeapAddRef (void** ppvMemHeap)
 
    if (ppvMemHeap == 0 || *ppvMemHeap == 0) return;
    pMemHeap = *(OSMemHeap**)ppvMemHeap;
+   ast_mutex_lock(&pMemHeap->pLock);
    pMemHeap->refCnt++;
+   ast_mutex_unlock(&pMemHeap->pLock);
 }
 
 /* Frees all memory and heap structure as well (if was allocated) */
@@ -1106,6 +1103,9 @@ void* memHeapMarkSaved (void** ppvMemHeap, const void* mem_p,
       return 0;
 
    pMemHeap = *(OSMemHeap**)ppvMemHeap;
+
+   ast_mutex_lock(&pMemHeap->pLock);
+
    pMemLink = pMemHeap->phead;
 
    /* look for chain of RAW blocks first */
@@ -1128,6 +1128,8 @@ void* memHeapMarkSaved (void** ppvMemHeap, const void* mem_p,
       if (ISFREE (pElem)) { /* already freed! */
          RTMEMDIAG2 ("memHeapMarkSaved: the element 0x%x is "
                          "already free!\n", pElem);
+
+	 ast_mutex_unlock(&pMemHeap->pLock);
          return 0;   
       }
 
@@ -1147,12 +1149,15 @@ void* memHeapMarkSaved (void** ppvMemHeap, const void* mem_p,
          nsaved = pMemBlk->nsaved;
       }
       else
+	 ast_mutex_unlock(&pMemHeap->pLock);
          return 0;
    }
    if (saved && nsaved > 0) 
       pMemLink->blockType |= RTMEMSAVED;
    else if (nsaved == 0)
       pMemLink->blockType &= (~RTMEMSAVED);
+
+   ast_mutex_unlock(&pMemHeap->pLock);
    return pMemLink->pMemBlk;
 }
 
@@ -1166,6 +1171,8 @@ void memHeapReset (void** ppvMemHeap)
 
    if (ppvMemHeap == 0 || *ppvMemHeap == 0) return;
    pMemHeap = *(OSMemHeap**)ppvMemHeap;
+
+   ast_mutex_lock(&pMemHeap->pLock);
 
    pMemLink = pMemHeap->phead;
    TRACEFREE (pMemHeap, "memHeapReset\n\n");
@@ -1190,6 +1197,7 @@ void memHeapReset (void** ppvMemHeap)
       }
       pMemLink = pMemLink->pnext;
    }
+  ast_mutex_unlock(&pMemHeap->pLock);
 }
 
 /* add memory block to list */
@@ -1206,7 +1214,7 @@ static OSMemLink* memHeapAddBlock (OSMemLink** ppMemLink,
    if (blockType & RTMEMLINK) 
       pMemLink = (OSMemLink*) (((ASN1OCTET*)pMemBlk) - sizeof (OSMemLink));
    else {
-      pMemLink = (OSMemLink*) g_malloc_func (
+      pMemLink = (OSMemLink*) malloc (
          sizeof(OSMemLink) + sizeof (int));
       if (pMemLink == 0) return 0;
       /* An extra integer is necessary to save a size of a RAW memory block
@@ -1257,6 +1265,8 @@ int memHeapCheckPtr (void** ppvMemHeap, void* mem_p)
       return 0;
    pMemHeap = *(OSMemHeap**)ppvMemHeap;
 
+   ast_mutex_lock(&pMemHeap->pLock);
+
    pMemLink = pMemHeap->phead;
 
    for (; pMemLink != 0; pMemLink = pMemLink->pnext) {
@@ -1264,8 +1274,10 @@ int memHeapCheckPtr (void** ppvMemHeap, void* mem_p)
          
          /* if RAW block, the pointer should be stored in pMemBlk */
 
-         if (pMemLink->pMemBlk == mem_p) 
+         if (pMemLink->pMemBlk == mem_p) {
+	    ast_mutex_unlock(&pMemHeap->pLock);
             return 1;
+	 }
       }
       else {
          OSMemBlk* pMemBlk = (OSMemBlk*)pMemLink->pMemBlk;
@@ -1281,12 +1293,16 @@ int memHeapCheckPtr (void** ppvMemHeap, void* mem_p)
             for (; pElem != 0; pElem = GETNEXT (pElem)) {
               
                void* curMem_p = (void*) pElem_data (pElem);
-               if (curMem_p == mem_p && !ISFREE (pElem))
+               if (curMem_p == mem_p && !ISFREE (pElem)) {
+		  ast_mutex_unlock(&pMemHeap->pLock);
                   return 1;
+	       }
             }
          }
       }
    }
+
+   ast_mutex_unlock(&pMemHeap->pLock);
    return 0;
 }
 
@@ -1301,6 +1317,8 @@ void memHeapSetProperty (void** ppvMemHeap, ASN1UINT propId, void* pProp)
       memHeapCreate (ppvMemHeap);
 
    pMemHeap = *(OSMemHeap**)ppvMemHeap;
+   ast_mutex_lock(&pMemHeap->pLock);
+
    switch (propId) {
       case OSRTMH_PROPID_DEFBLKSIZE:
          pMemHeap->defBlkSize = *(ASN1UINT*)pProp;
@@ -1312,6 +1330,7 @@ void memHeapSetProperty (void** ppvMemHeap, ASN1UINT propId, void* pProp)
          pMemHeap->flags &= ((~(*(ASN1UINT*)pProp)) | RT_MH_INTERNALMASK);
          break;
    }
+   ast_mutex_unlock(&pMemHeap->pLock);
 } 
 
 int memHeapCreate (void** ppvMemHeap) 
@@ -1319,12 +1338,13 @@ int memHeapCreate (void** ppvMemHeap)
    OSMemHeap* pMemHeap;
    if (ppvMemHeap == 0) return ASN_E_INVPARAM;
 
-   pMemHeap = (OSMemHeap*) g_malloc_func (sizeof (OSMemHeap));
+   pMemHeap = (OSMemHeap*) malloc (sizeof (OSMemHeap));
    if (pMemHeap == NULL) return ASN_E_NOMEM;
    memset (pMemHeap, 0, sizeof (OSMemHeap));
    pMemHeap->defBlkSize = g_defBlkSize;
    pMemHeap->refCnt = 1;
    pMemHeap->flags = RT_MH_FREEHEAPDESC;
+   ast_mutex_init(&pMemHeap->pLock);
    *ppvMemHeap = (void*)pMemHeap;
    return ASN_OK;
 }

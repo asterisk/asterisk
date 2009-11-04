@@ -22,6 +22,7 @@
 
 #include "ooLogChan.h"
 #include "ooCapability.h"
+#include <regex.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -54,6 +55,10 @@ extern "C" {
 #define OO_M_DISABLEGK          ASN1UINTCNT(0x01000000)
 #define OO_M_MANUALRINGBACK     ASN1UINTCNT(0x10000000)
 
+#define OO_M_TRYBEMASTER	ASN1UINTCNT(0x00000010)
+#define OO_M_AUDIOSESSION	ASN1UINTCNT(0x00000100)
+#define OO_M_DATASESSION	ASN1UINTCNT(0x00000200)
+#define OO_M_T38SUPPORTED	ASN1UINTCNT(0x00000400)
 
 /** 
  * Call states.
@@ -67,7 +72,8 @@ typedef enum {
    OO_CALL_CLEAR,                 /*!< Call marked for clearing */
    OO_CALL_CLEAR_RELEASERECVD,    /*!< Release command received. */
    OO_CALL_CLEAR_RELEASESENT,     /*!< Release sent */
-   OO_CALL_CLEARED                /*!< Call cleared */
+   OO_CALL_CLEARED,               /*!< Call cleared */
+   OO_CALL_REMOVED		  /* call removed */
 } OOCallState;
 
 /** 
@@ -128,6 +134,12 @@ typedef struct EXTERN FastStartResponse {
    ASN1DynOctStr *elem;
 } FastStartResponse;
 
+typedef struct OOH323Regex {
+   regex_t regex;
+   int inuse;
+   ast_mutex_t lock;
+} OOH323Regex;
+
 
 /**
  * This structure is used to maintain all information on an active call. 
@@ -136,9 +148,19 @@ typedef struct EXTERN FastStartResponse {
  */
 typedef struct OOH323CallData {
    OOCTXT               *pctxt;
+   OOCTXT               *msgctxt;
+   pthread_t		callThread;
+   ast_cond_t		gkWait;
+   ast_mutex_t		Lock;
+   OOBOOL 		Monitor;
+   OOBOOL		fsSent;
+   OOSOCKET		CmdChan;
+   OOSOCKET		cmdSock;
+   ast_mutex_t*		CmdChanLock;
    char                 callToken[20]; /* ex: ooh323c_call_1 */
    char                 callType[10]; /* incoming/outgoing */
    OOCallMode           callMode;
+   int			transfercap;
    ASN1USINT            callReference;
    char                 ourCallerId[256];
    H225CallIdentifier   callIdentifier;/* The call identifier for the active 
@@ -149,9 +171,11 @@ typedef struct OOH323CallData {
    ASN1UINT             flags;
    OOCallState          callState;
    OOCallClearReason    callEndReason;
+   int			q931cause;
    unsigned             h245ConnectionAttempts;
    OOH245SessionState   h245SessionState;
    int                  dtmfmode;
+   int			dtmfcodec;
    OOMediaInfo          *mediaInfo;
    OOCallFwdData        *pCallFwdData;
    char                 localIP[20];/* Local IP address */
@@ -165,7 +189,8 @@ typedef struct OOH323CallData {
    char                 *remoteDisplayName;
    struct OOAliases     *remoteAliases;
    struct OOAliases     *ourAliases; /*aliases used in the call for us */
-   OOMasterSlaveState   masterSlaveState;   /*!< Master-Slave state */ 
+   OOMasterSlaveState   masterSlaveState;   /*!< Master-Slave state */
+   OOMSAckStatus	msAckStatus; /* Master-Slave ack's status */
    ASN1UINT             statusDeterminationNumber;
    OOCapExchangeState   localTermCapState;
    OOCapExchangeState   remoteTermCapState;
@@ -185,7 +210,15 @@ typedef struct OOH323CallData {
    unsigned             nextSessionID; /* Note by default 1 is audio session, 2 is video and 3 is data, from 3 onwards master decides*/
    DList                timerList;
    ASN1UINT             msdRetries;
+   ASN1UINT8		requestSequence;
+   ASN1UINT		reqFlags;
+   ASN1UINT		t38sides;
+   H235TimeStamp	alertingTime, connectTime, endTime; /* time data for gatekeeper */
    FastStartResponse    *pFastStartRes; /* fast start response */
+   struct OOH323Regex*		rtpMask;
+   char			rtpMaskStr[120];
+   char			lastDTMF;
+   ASN1UINT		nextDTMFstamp;
    void                 *usrData; /*!<User can set this to user specific data*/
    struct OOH323CallData* next;
    struct OOH323CallData* prev;
@@ -278,6 +311,14 @@ typedef int (*cb_OnReceivedDTMF)
    (struct OOH323CallData *call, const char *dtmf);
 
 /**
+ * This callback function is triggered when dtmf is received over Q.931(keypad)
+ * or H.245(alphanumeric) or H.245(signal). This is not triggered when rfc
+ * 2833 based dtmf is received.
+ */
+typedef void (*cb_OnModeChanged)
+   (struct OOH323CallData *call, int isT38Mode);
+
+/**
  * This structure holds all of the H.323 signaling callback function 
  * addresses.
  * @see ooH323EpSetH323Callbacks
@@ -285,6 +326,7 @@ typedef int (*cb_OnReceivedDTMF)
 typedef struct OOH323CALLBACKS {
    cb_OnAlerting onNewCallCreated;
    cb_OnAlerting onAlerting;
+   cb_OnAlerting onProgress;
    cb_OnIncomingCall onIncomingCall;
    cb_OnOutgoingCall onOutgoingCall;
    cb_OnCallEstablished onCallEstablished;
@@ -292,6 +334,7 @@ typedef struct OOH323CALLBACKS {
    cb_OnCallCleared onCallCleared;
    cb_OpenLogicalChannels openLogicalChannels;
    cb_OnReceivedDTMF onReceivedDTMF;
+   cb_OnModeChanged onModeChanged;
 } OOH323CALLBACKS;
 
 /**
@@ -717,7 +760,7 @@ EXTERN int ooCallDisableDTMFQ931Keypad(OOH323CallData *call);
  *
  * @return               Pointer to the call if found, NULL otherwise.
  */
-EXTERN OOH323CallData* ooFindCallByToken(char *callToken);
+EXTERN OOH323CallData* ooFindCallByToken(const char *callToken);
 
 /**
  * This function is used to end a call. Based on what stage of clearance the
@@ -814,6 +857,29 @@ EXTERN const char* ooGetCallStateText (OOCallState callState);
 /** 
  * @} 
  */
+
+int isRunning(char *callToken);
+
+int ooCallAddG726Capability(struct OOH323CallData *call, int cap, int txframes,
+                            int rxframes, OOBOOL silenceSuppression, int dir,
+                            cb_StartReceiveChannel startReceiveChannel,
+                            cb_StartTransmitChannel startTransmitChannel,
+                            cb_StopReceiveChannel stopReceiveChannel,
+                            cb_StopTransmitChannel stopTransmitChannel);
+int ooCallAddAMRNBCapability(struct OOH323CallData *call, int cap, int txframes,
+                            int rxframes, OOBOOL silenceSuppression, int dir,
+                            cb_StartReceiveChannel startReceiveChannel,
+                            cb_StartTransmitChannel startTransmitChannel,
+                            cb_StopReceiveChannel stopReceiveChannel,
+                            cb_StopTransmitChannel stopTransmitChannel);
+int ooCallAddSpeexCapability(struct OOH323CallData *call, int cap, int txframes,
+                            int rxframes, OOBOOL silenceSuppression, int dir,
+                            cb_StartReceiveChannel startReceiveChannel,
+                            cb_StartTransmitChannel startTransmitChannel,
+                            cb_StopReceiveChannel stopReceiveChannel,
+                            cb_StopTransmitChannel stopTransmitChannel);
+int ooCallEnableDTMFCISCO(struct OOH323CallData *call, int dynamicRTPPayloadType);
+int ooCallDisableDTMFCISCO(struct OOH323CallData *call);
 
 #ifdef __cplusplus
 }

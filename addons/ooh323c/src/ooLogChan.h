@@ -41,7 +41,8 @@ typedef enum {
    OO_LOGICAL_CHAN_UNKNOWN, 
    OO_LOGICALCHAN_IDLE, 
    OO_LOGICALCHAN_PROPOSED, 
-   OO_LOGICALCHAN_ESTABLISHED
+   OO_LOGICALCHAN_ESTABLISHED,
+   OO_LOGICALCHAN_PROPOSEDFS
 } OOLogicalChannelState;
 
 /**
@@ -178,6 +179,8 @@ EXTERN OOLogicalChannel * ooFindLogicalChannelByOLC
  */
 EXTERN OOLogicalChannel * ooFindLogicalChannel
 (struct OOH323CallData* call, int sessionID, char *dir, H245DataType* dataType);
+
+EXTERN OOLogicalChannel* ooGetTransmitLogicalChannel(struct OOH323CallData *call);
 
 /** 
  * @} 

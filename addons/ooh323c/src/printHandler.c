@@ -17,10 +17,13 @@
    the fields of an encoded PER message to stdout in a structured output 
    format..
 */
+#include <asterisk.h>
+#include <asterisk/lock.h>
+
 #include <stdlib.h>
-#ifdef HAVE_MALLOC_H
+/* #ifdef HAVE_MALLOC_H
 #include <malloc.h>
-#endif
+#endif */
 #include "printHandler.h"
 #include "ootypes.h"
 #include "rtctype.h"
@@ -36,6 +39,10 @@ static const char* bitStrToString
 
 static const char* octStrToString 
 (ASN1UINT numocts, const ASN1OCTET* data, char* buffer, size_t bufsiz);
+
+void printCharStr32BitValue (ASN1UINT nchars, ASN132BITCHAR* data);
+void ooPrintOIDValue (ASN1OBJID* pOID);
+void printRealValue (double value);
 
 void initializePrintHandler(EventHandler *printHandler, char * varname)
 {

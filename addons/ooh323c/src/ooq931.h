@@ -45,7 +45,7 @@ extern "C" {
 #define OO_MAX_NUMBER_LENGTH 50
 
 /* Maximum value for a call token identifier */
-#define OO_MAX_CALL_TOKEN 9999
+#define OO_MAX_CALL_TOKEN 999999
 
 /* Q.931 packet must be at least 5 bytes long */
 #define Q931_E_TOOSHORT         (-1001)  
@@ -346,7 +346,7 @@ EXTERN int ooQ931Decode
  *
  * @return           OO_OK, on success. OO_FAILED, on failure.
  */ 
-EXTERN int ooDecodeUUIE(Q931Message *q931Msg);
+EXTERN int ooDecodeUUIE(OOCTXT* pctxt, Q931Message *q931Msg);
 
 /**
  * This function is used to encode the UUIE field of the Q931 message.
@@ -356,7 +356,7 @@ EXTERN int ooDecodeUUIE(Q931Message *q931Msg);
  *
  * @return               OO_OK, on success. OO_FAILED, on failure.
  */
-EXTERN int ooEncodeUUIE(Q931Message *q931msg);
+EXTERN int ooEncodeUUIE(OOCTXT* pctxt, Q931Message *q931msg);
 
 /**
  * This function is invoked to retrieve an IE element from a Q931 message. 
@@ -388,7 +388,7 @@ EXTERN void ooQ931Print (const Q931Message* q931msg);
  *
  * @return         Completion status - 0 on success, -1 on failure
  */
-EXTERN int ooCreateQ931Message(Q931Message **msg, int msgType);
+EXTERN int ooCreateQ931Message(OOCTXT* pctxt, Q931Message **msg, int msgType);
 
 /**
  * This function is invoked to generate a unique call reference number. 
@@ -414,7 +414,7 @@ EXTERN int ooGenerateCallIdentifier(H225CallIdentifier *callid);
  *
  * @return         Completion status - 0 on success, -1 on failure
  */
-EXTERN int ooFreeQ931Message(Q931Message *q931Msg);
+EXTERN int ooFreeQ931Message(OOCTXT* pctxt, Q931Message *q931Msg);
 
 /**
  * This function is invoked to retrive the outgoing message buffer for 
@@ -466,6 +466,8 @@ EXTERN int ooSendCallProceeding(struct OOH323CallData *call);
  * @return         Completion status - 0 on success, -1 on failure
  */
 EXTERN int ooSendAlerting(struct OOH323CallData *call);
+
+EXTERN int ooSendProgress(struct OOH323CallData *call);
 
 /**
  * This function is invoked to send Facility message.
@@ -549,7 +551,7 @@ EXTERN int ooH323ForwardCall(char* callToken, char *dest);
  *
  * @return          OO_OK, on success. OO_FAILED, on failure.
  */
-EXTERN int ooH323HangCall(char * callToken, OOCallClearReason reason);
+EXTERN int ooH323HangCall(char * callToken, OOCallClearReason reason, int q931);
 
 
 /** 
@@ -648,7 +650,7 @@ int ooCallEstbTimerExpired(void *data);
  *
  * @return                OO_OK on success, OO_FAILED, on failure.
  */
-EXTERN int ooQ931SetKeypadIE(Q931Message *pmsg, const char* data);
+EXTERN int ooQ931SetKeypadIE(OOCTXT* pctxt, Q931Message *pmsg, const char* data);
 
 /**
  * This function is used to add a bearer capability IE to a Q931 message.
@@ -663,7 +665,7 @@ EXTERN int ooQ931SetKeypadIE(Q931Message *pmsg, const char* data);
  * @return                OO_OK on success, OO_FAILED, on failure.
  */
 EXTERN int ooSetBearerCapabilityIE
-   (Q931Message *pmsg, enum Q931CodingStandard codingStandard, 
+   (OOCTXT* pctxt, Q931Message *pmsg, enum Q931CodingStandard codingStandard, 
     enum Q931InformationTransferCapability capability, 
     enum Q931TransferMode transferMode, enum Q931TransferRate transferRate,
     enum Q931UserInfoLayer1Protocol userInfoLayer1);
@@ -679,7 +681,7 @@ EXTERN int ooSetBearerCapabilityIE
  * @return                OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooQ931SetCalledPartyNumberIE
-   (Q931Message *pmsg, const char *number, unsigned plan, unsigned type);
+   (OOCTXT *pctxt, Q931Message *pmsg, const char *number, unsigned plan, unsigned type);
 
 
 /**
@@ -696,7 +698,7 @@ EXTERN int ooQ931SetCalledPartyNumberIE
  * @return                OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooQ931SetCallingPartyNumberIE
-   (Q931Message *pmsg, const char *number, unsigned plan, unsigned type, 
+   (OOCTXT* pctxt, Q931Message *pmsg, const char *number, unsigned plan, unsigned type, 
     unsigned presentation, unsigned screening);
 
 /** 
@@ -709,7 +711,7 @@ EXTERN int ooQ931SetCallingPartyNumberIE
  * @return            OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooQ931SetCauseIE
-   (Q931Message *pmsg,enum Q931CauseValues cause, unsigned coding, 
+   (OOCTXT *pctxt, Q931Message *pmsg,enum Q931CauseValues cause, unsigned coding, 
     unsigned location);
 
 /**
@@ -755,6 +757,13 @@ EXTERN const char* ooGetMsgTypeText (int msgType);
  * @return        The text description string
  */
 EXTERN const char* ooGetQ931CauseValueText (int val);
+
+EXTERN int ooH323NewCall(char *callToken);
+
+EXTERN char* ooQ931GetMessageTypeName(int messageType, char* buf);
+EXTERN char* ooQ931GetIEName(int number, char* buf);
+EXTERN int ooSendTCSandMSD(struct OOH323CallData *call);
+EXTERN int ooSendStartH245Facility(struct OOH323CallData *call);
 
 /** 
  * @} 

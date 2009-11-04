@@ -52,10 +52,11 @@
 #define TRACELVL 1
 #endif
 
-#define OOTRACEERR1(a)        ooTrace(OOTRCLVLERR,"%s", a)
+#define OOTRACEERR1(a)        ooTrace(OOTRCLVLERR,a)
 #define OOTRACEERR2(a,b)      ooTrace(OOTRCLVLERR,a,b)
 #define OOTRACEERR3(a,b,c)    ooTrace(OOTRCLVLERR,a,b,c)
 #define OOTRACEERR4(a,b,c,d)  ooTrace(OOTRCLVLERR,a,b,c,d)
+#define OOTRACEERR5(a,b,c,d,e)  ooTrace(OOTRCLVLERR,a,b,c,d,e)
 #define OOTRACEWARN1(a)       ooTrace(OOTRCLVLWARN,a)
 #define OOTRACEWARN2(a,b)     ooTrace(OOTRCLVLWARN,a,b)
 #define OOTRACEWARN3(a,b,c)   ooTrace(OOTRCLVLWARN,a,b,c)
@@ -72,7 +73,7 @@
 #define OOTRACEDBGA3(a,b,c)   ooTrace(OOTRCLVLDBGA,a,b,c)
 #define OOTRACEDBGA4(a,b,c,d) ooTrace(OOTRCLVLDBGA,a,b,c,d)
 #define OOTRACEDBGA5(a,b,c,d,e) ooTrace(OOTRCLVLDBGA,a,b,c,d,e)
-#define OOTRACEDBGB1(a)       ooTrace(OOTRCLVLDBGB,"%s",a)
+#define OOTRACEDBGB1(a)       ooTrace(OOTRCLVLDBGB,a)
 #define OOTRACEDBGB2(a,b)     ooTrace(OOTRCLVLDBGB,a,b)
 #define OOTRACEDBGB3(a,b,c)   ooTrace(OOTRCLVLDBGB,a,b,c)
 #define OOTRACEDBGB4(a,b,c,d) ooTrace(OOTRCLVLDBGB,a,b,c,d)
@@ -129,7 +130,7 @@ EXTERN void ooSetTraceThreshold(OOUINT32 traceLevel);
  *
  * @return            - none
  */
-EXTERN void ooTrace(OOUINT32 traceLevel, const char * fmtspec, ...)__attribute__((format(printf, 2, 3)));
+EXTERN void ooTrace(OOUINT32 traceLevel, const char * fmtspec, ...);
 
 /**
  * Helper function for the trace function. This function performs actual

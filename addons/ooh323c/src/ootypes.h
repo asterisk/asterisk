@@ -61,7 +61,7 @@
 
 
 
-#define OOH323C_VERSION "v0.8.3"
+#define OOH323C_VERSION "v0.8.3m"
 
 #ifndef EXTERN
 #ifdef MAKE_DLL
@@ -91,6 +91,11 @@ typedef enum OOMasterSlaveState {
    OO_MasterSlave_Master,
    OO_MasterSlave_Slave
 } OOMasterSlaveState;
+
+typedef enum OOMSAckStatus {
+  OO_msAck_localSent,
+  OO_msAck_remoteReceived
+} OOMSAckStatus;
 
 /** 
  * States defined for the capability exchange procedure. 
@@ -180,8 +185,11 @@ typedef enum OOCallClearReason {
 #define OORequestChannelCloseRelease       128
 #define OOEndSessionCommand                129
 #define OOUserInputIndication              130
+#define OORequestModeAck		   131
+#define OORequestModeReject		   132
+#define OORequestMode			   133
 
-#define OO_MSGTYPE_MAX                     130
+#define OO_MSGTYPE_MAX                     133
 
 /* Timer types */
 #define OO_CALLESTB_TIMER  (1<<0)
@@ -238,6 +246,7 @@ typedef struct ooCallOptions {
    OOBOOL tunneling;    /*!< Use H.245 tunneling */
    OOBOOL disableGk;    /*!< Disable use of gatekeeper */
    OOCallMode callMode; /*!< Type of channel to setup with FastStart */
+   int transfercap;	/* q931 cap */
 }ooCallOptions;
  
 

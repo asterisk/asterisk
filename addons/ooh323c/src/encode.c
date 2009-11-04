@@ -14,7 +14,10 @@
  *
  *****************************************************************************/
 
+#include <asterisk.h>
+#include <asterisk/lock.h>
 #include <stdlib.h>
+
 #include "ooasn1.h"
 
 static int encode16BitConstrainedString 
@@ -24,6 +27,11 @@ static int encode2sCompBinInt (OOCTXT* pctxt, ASN1INT value);
 static int encodeNonNegBinInt (OOCTXT* pctxt, ASN1UINT value);
 static int encodeUnconsLength (OOCTXT* pctxt, ASN1UINT value);
 static int getIdentByteCount (ASN1UINT ident);
+
+int encodeBitsFromOctet (OOCTXT* pctxt, ASN1OCTET value, ASN1UINT nbits);
+int encodeGetMsgBitCnt (OOCTXT* pctxt);
+int encodeIdent (OOCTXT* pctxt, ASN1UINT ident);
+
 
 int encodeBit (OOCTXT* pctxt, ASN1BOOL value)
 { 
@@ -129,7 +137,7 @@ int encodeBitsFromOctet (OOCTXT* pctxt, ASN1OCTET value, ASN1UINT nbits)
    int lshift = pctxt->buffer.bitOffset;
    int rshift = 8 - pctxt->buffer.bitOffset;
    int stat = ASN_OK;
-   ASN1OCTET mask;
+   ASN1OCTET mask = 0x0; 
 
    if (nbits == 0) return ASN_OK;
 
@@ -596,7 +604,7 @@ int encodebitsFromOctet (OOCTXT* pctxt, ASN1OCTET value, ASN1UINT nbits)
    int lshift = pctxt->buffer.bitOffset;
    int rshift = 8 - pctxt->buffer.bitOffset;
    int stat = ASN_OK;
-   ASN1OCTET mask;
+   ASN1OCTET mask = 0x0;
 
    if (nbits == 0) return ASN_OK;
 

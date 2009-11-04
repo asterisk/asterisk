@@ -14,7 +14,10 @@
  *
  *****************************************************************************/
 
+#include <asterisk.h>
+#include <asterisk/lock.h>
 #include "ooUtils.h"
+#include <ctype.h>
 
 const char* ooUtilsGetText (OOUINT32 idx, const char** table, size_t tabsiz)
 {

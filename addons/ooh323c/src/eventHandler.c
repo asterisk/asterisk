@@ -14,6 +14,9 @@
  *
  *****************************************************************************/
 
+#include <asterisk.h>
+#include <asterisk/lock.h>
+
 #include "eventHandler.h"
 
 void setEventHandler (OOCTXT* pctxt, EventHandler* pHandler)

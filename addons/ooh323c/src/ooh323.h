@@ -122,6 +122,11 @@ EXTERN int ooH323RetrieveAliases
     OOAliases **aliasList);
 
 /**
+ */
+EXTERN int ooPopulatePrefixList(OOCTXT *pctxt, OOAliases *pAliases,
+                           H225_SeqOfH225SupportedPrefix *pPrefixList );
+
+/**
  * This is a helper function used to populate alias list using aliases.
  * @param pctxt      Pointer to OOCTXT structure which will be used for memory
  *                   allocations.

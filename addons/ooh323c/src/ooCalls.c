@@ -14,6 +14,9 @@
  *
  *****************************************************************************/
 
+#include <asterisk.h>
+#include <asterisk/lock.h>
+
 #include "ootrace.h"
 #include "ootypes.h"
 #include "ooCalls.h"
@@ -28,11 +31,14 @@
 
 /** Global endpoint structure */
 extern OOH323EndPoint gH323ep;
+extern ast_mutex_t callListLock;
+extern ast_mutex_t newCallLock;
 
 OOH323CallData* ooCreateCall(char* type, char*callToken)
 {
    OOH323CallData *call=NULL;
    OOCTXT *pctxt=NULL;
+   OOCTXT *msgctxt=NULL;
 
    pctxt = newContext();
    if(!pctxt)
@@ -40,14 +46,26 @@ OOH323CallData* ooCreateCall(char* type, char*callToken)
       OOTRACEERR1("ERROR:Failed to create OOCTXT for new call\n");
       return NULL;
    }
+   msgctxt = newContext();
+   if(!msgctxt)
+   {
+      OOTRACEERR1("ERROR:Failed to create OOCTXT for new call\n");
+      return NULL;
+   }
+   ast_mutex_lock(&newCallLock);
+   /* call = (OOH323CallData*)memAlloc(&gH323ep.ctxt, sizeof(OOH323CallData));  */
    call = (OOH323CallData*)memAlloc(pctxt, sizeof(OOH323CallData));
+   ast_mutex_unlock(&newCallLock);
    if(!call)
    {
       OOTRACEERR1("ERROR:Memory - ooCreateCall - call\n");
       return NULL;
    } 
-   /*   memset(call, 0, sizeof(OOH323CallData));*/
+   memset(call, 0, sizeof(OOH323CallData));
+   ast_cond_init(&call->gkWait, NULL);
+   ast_mutex_init(&call->Lock);
    call->pctxt = pctxt;
+   call->msgctxt = msgctxt;
    call->callMode = gH323ep.callMode;
    sprintf(call->callToken, "%s", callToken);
    sprintf(call->callType, "%s", type);
@@ -80,6 +98,12 @@ OOH323CallData* ooCreateCall(char* type, char*callToken)
 
    if (OO_TESTFLAG(gH323ep.flags, OO_M_MEDIAWAITFORCONN))
       OO_SETFLAG (call->flags, OO_M_MEDIAWAITFORCONN);
+
+   call->fsSent = FALSE;
+
+// May 20090713. Fix it for Video session
+
+   OO_SETFLAG(call->flags, OO_M_AUDIOSESSION);
    
    call->callState = OO_CALL_CREATED;
    call->callEndReason = OO_REASON_UNKNOWN;
@@ -158,6 +182,8 @@ OOH323CallData* ooCreateCall(char* type, char*callToken)
 
 int ooAddCallToList(OOH323CallData *call)
 {
+   ast_mutex_lock(&callListLock);
+
    if(!gH323ep.callList)
    {
       gH323ep.callList = call;
@@ -170,6 +196,9 @@ int ooAddCallToList(OOH323CallData *call)
       gH323ep.callList->prev = call;
       gH323ep.callList = call;
    }
+
+   ast_mutex_unlock(&callListLock);
+
    return OO_OK;
 }
 
@@ -180,9 +209,16 @@ int ooEndCall(OOH323CallData *call)
                  ooGetCallStateText(call->callState), call->callType, 
                  call->callToken);
 
+   if(call->callState == OO_CALL_REMOVED) {
+      OOTRACEINFO2("Call already removed %s\n",
+                    call->callToken);
+     return OO_OK;
+   }
+
    if(call->callState == OO_CALL_CLEARED)
    {
       ooCleanCall(call); 
+      call->callState = OO_CALL_REMOVED;
       return OO_OK;
    }
 
@@ -230,6 +266,11 @@ int ooRemoveCallFromList (OOH323CallData *call)
    if(!call)
       return OO_OK;
 
+   ast_mutex_lock(&callListLock);
+
+   OOTRACEINFO3("Removing call %lx: %s\n", call, call->callToken);
+
+   if (!gH323ep.callList) return OO_OK;
    if(call == gH323ep.callList)
    {
       if(!call->next)
@@ -244,6 +285,9 @@ int ooRemoveCallFromList (OOH323CallData *call)
       if(call->next)
          call->next->prev = call->prev;
    }
+
+   ast_mutex_unlock(&callListLock);
+
    return OO_OK;
 }
 
@@ -258,7 +302,7 @@ int ooCleanCall(OOH323CallData *call)
    /* First clean all the logical channels, if not already cleaned. */
    if(call->logicalChans)
       ooClearAllLogicalChannels(call);
-   
+
    /* Close H.245 connection, if not already closed */
    if(call->h245SessionState != OO_H245SESSION_CLOSED)
       ooCloseH245Connection(call);
@@ -314,9 +358,24 @@ int ooCleanCall(OOH323CallData *call)
          gH323ep.h323Callbacks.onCallCleared(call);
    }
 
-   pctxt = call->pctxt;
+   if (call->rtpMask) {
+	ast_mutex_lock(&call->rtpMask->lock);
+	call->rtpMask->inuse--;
+	ast_mutex_unlock(&call->rtpMask->lock);
+	if ((call->rtpMask->inuse) == 0) {
+		regfree(&call->rtpMask->regex);
+		ast_mutex_destroy(&call->rtpMask->lock);
+		free(call->rtpMask);
+	}
+   }
+
+   pctxt = call->msgctxt;
    freeContext(pctxt);
-   ASN1CRTFREE0(pctxt);
+   free(pctxt);
+   call->msgctxt = NULL;
+/* May !!!! Fix it !! */
+   /* free(pctxt); */
+
    return OO_OK;
 }
 
@@ -489,6 +548,44 @@ int ooCallAddRemoteAliasDialedDigits
 /* Used to override global end point capabilities and add call specific 
    capabilities */
 
+int ooCallAddG726Capability(OOH323CallData *call, int cap, int txframes, 
+                            int rxframes, OOBOOL silenceSuppression, int dir,
+                            cb_StartReceiveChannel startReceiveChannel,
+                            cb_StartTransmitChannel startTransmitChannel,
+                            cb_StopReceiveChannel stopReceiveChannel,
+                            cb_StopTransmitChannel stopTransmitChannel)
+{
+   return ooCapabilityAddSimpleCapability(call, cap, txframes, rxframes, 
+                                silenceSuppression, dir, startReceiveChannel, 
+                                startTransmitChannel, stopReceiveChannel, 
+                                stopTransmitChannel, FALSE);
+}
+int ooCallAddAMRNBCapability(OOH323CallData *call, int cap, int txframes, 
+                            int rxframes, OOBOOL silenceSuppression, int dir,
+                            cb_StartReceiveChannel startReceiveChannel,
+                            cb_StartTransmitChannel startTransmitChannel,
+                            cb_StopReceiveChannel stopReceiveChannel,
+                            cb_StopTransmitChannel stopTransmitChannel)
+{
+   return ooCapabilityAddSimpleCapability(call, cap, txframes, rxframes, 
+                                silenceSuppression, dir, startReceiveChannel, 
+                                startTransmitChannel, stopReceiveChannel, 
+                                stopTransmitChannel, FALSE);
+}
+
+int ooCallAddSpeexCapability(OOH323CallData *call, int cap, int txframes, 
+                            int rxframes, OOBOOL silenceSuppression, int dir,
+                            cb_StartReceiveChannel startReceiveChannel,
+                            cb_StartTransmitChannel startTransmitChannel,
+                            cb_StopReceiveChannel stopReceiveChannel,
+                            cb_StopTransmitChannel stopTransmitChannel)
+{
+   return ooCapabilityAddSimpleCapability(call, cap, txframes, rxframes, 
+                                silenceSuppression, dir, startReceiveChannel, 
+                                startTransmitChannel, stopReceiveChannel, 
+                                stopTransmitChannel, FALSE);
+}
+
 int ooCallAddG7231Capability(OOH323CallData *call, int cap, int txframes, 
                             int rxframes, OOBOOL silenceSuppression, int dir,
                             cb_StartReceiveChannel startReceiveChannel,
@@ -596,6 +693,16 @@ int ooCallDisableDTMFRFC2833(OOH323CallData *call)
   return ooCapabilityDisableDTMFRFC2833(call);
 }
 
+int ooCallEnableDTMFCISCO(OOH323CallData *call, int dynamicRTPPayloadType)
+{
+   return ooCapabilityEnableDTMFCISCO(call, dynamicRTPPayloadType);
+}
+
+int ooCallDisableDTMFCISCO(OOH323CallData *call)
+{
+  return ooCapabilityDisableDTMFCISCO(call);
+}
+
 
 int ooCallEnableDTMFH245Alphanumeric(OOH323CallData *call)
 {
@@ -628,7 +735,7 @@ int ooCallDisableDTMFQ931Keypad(OOH323CallData *call)
 }
 
 
-OOH323CallData* ooFindCallByToken(char *callToken)
+OOH323CallData* ooFindCallByToken(const char *callToken)
 {
    OOH323CallData *call;
    if(!callToken)
@@ -636,9 +743,13 @@ OOH323CallData* ooFindCallByToken(char *callToken)
       OOTRACEERR1("ERROR:Invalid call token passed - ooFindCallByToken\n");
       return NULL;
    }
+
+   ast_mutex_lock(&callListLock);
+
    if(!gH323ep.callList)
    {
       OOTRACEERR1("ERROR: Empty calllist - ooFindCallByToken failed\n");
+      ast_mutex_unlock(&callListLock);
       return NULL;
    }
    call = gH323ep.callList;
@@ -653,8 +764,14 @@ OOH323CallData* ooFindCallByToken(char *callToken)
    if(!call)
    {
       OOTRACEERR2("ERROR:Call with token %s not found\n", callToken);
+      ast_mutex_unlock(&callListLock);
       return NULL;
    }
+
+   ast_mutex_unlock(&callListLock);
+
+   OOTRACEINFO3("INFO: FinCall returned %lx for call: %s\n", call, callToken);
+
    return call;
 }
 
@@ -745,6 +862,23 @@ unsigned ooCallGenerateSessionID
          else{
             sessionID = 0; /* Will be assigned by remote */
             OOTRACEDBGC4("Session id for %s channel of type video has to be "
+                        "provided by remote.(%s, %s)\n", dir, call->callType, 
+                         call->callToken);
+         }
+      }
+   }
+   if(type == OO_CAP_TYPE_DATA)
+   {
+      if(!ooGetLogicalChannel(call, 3, dir))
+      {
+         sessionID = 3;
+      }
+      else{
+         if(call->masterSlaveState == OO_MasterSlave_Master)
+            sessionID = call->nextSessionID++;
+         else{
+            sessionID = 0; /* Will be assigned by remote */
+            OOTRACEDBGC4("Session id for %s channel of type data has to be "
                         "provided by remote.(%s, %s)\n", dir, call->callType, 
                          call->callToken);
          }

@@ -33,6 +33,7 @@
    supported */
 typedef enum OOCapabilities{
    OO_CAP_AUDIO_BASE      = 0,
+   OO_G726		  = 1,
    OO_G711ALAW64K         = 2,
    OO_G711ALAW56K         = 3,
    OO_G711ULAW64K         = 4,
@@ -44,8 +45,13 @@ typedef enum OOCapabilities{
    OO_G728                = 10,
    OO_G729                = 11,
    OO_G729A               = 12,
+#if 0
    OO_IS11172_AUDIO       = 13,
    OO_IS13818_AUDIO       = 14,
+#else
+   OO_AMRNB		  = 13,
+   OO_G726AAL2		  = 14,
+#endif
    OO_G729B               = 15,
    OO_G729AB              = 16,
    OO_G7231C              = 17,
@@ -54,7 +60,11 @@ typedef enum OOCapabilities{
    OO_GSMENHANCEDFULLRATE = 20,
    OO_GENERICAUDIO        = 21,
    OO_G729EXT             = 22,
+#if 0
    OO_AUDIO_VBD           = 23,
+#else
+   OO_SPEEX		  = 23,
+#endif
    OO_AUDIOTELEPHONYEVENT = 24,
    OO_AUDIO_TONE          = 25,
    OO_EXTELEM1            = 26,
@@ -65,7 +75,8 @@ typedef enum OOCapabilities{
    OO_H263VIDEO           = 31,
    OO_IS11172VIDEO        = 32,  /* mpeg */
    OO_GENERICVIDEO        = 33,
-   OO_EXTELEMVIDEO        = 34
+   OO_EXTELEMVIDEO        = 34,
+   OO_T38		  = 35
 } OOCapabilities;
 
 
@@ -74,6 +85,7 @@ typedef enum OOCapabilities{
 #define OO_CAP_DTMF_Q931                 (1<<1)
 #define OO_CAP_DTMF_H245_alphanumeric    (1<<2)
 #define OO_CAP_DTMF_H245_signal          (1<<3)
+#define OO_CAP_DTMF_CISCO		 (1<<4)
 
 /**
  * This structure defines the preference order for capabilities.
@@ -548,7 +560,7 @@ struct H245VideoCapability* ooCapabilityCreateVideoCapability
  * @return            Pointer to the created DTMF capability, NULL in case of
  *                    failure.
  */
-void * ooCapabilityCreateDTMFCapability(int cap, OOCTXT *pctxt);
+void * ooCapabilityCreateDTMFCapability(int cap, int dtmfcodec, OOCTXT *pctxt);
 
 
 /**
@@ -578,6 +590,8 @@ struct H245AudioCapability* ooCapabilityCreateGSMFullRateCapability
  *                    failure.
  */
 struct H245AudioCapability* ooCapabilityCreateSimpleCapability
+   (ooH323EpCapability *epCap, OOCTXT* pctxt, int dir);
+struct H245AudioCapability* ooCapabilityCreateNonStandardCapability
    (ooH323EpCapability *epCap, OOCTXT* pctxt, int dir);
 
 
@@ -651,6 +665,14 @@ ooH323EpCapability* ooIsVideoDataTypeH263Supported
 ooH323EpCapability* ooIsDataTypeSupported
 (struct OOH323CallData *call, H245DataType *data, int dir);
 
+/* fill t.38 application data */
+H245DataMode_application* ooCreateT38ApplicationData
+                                (OOCTXT* pctxt, H245DataMode_application *app);
+
+H245DataApplicationCapability* ooCapabilityCreateT38Capability
+   (ooH323EpCapability *epCap, OOCTXT* pctxt, int dir);
+
+
 /**
  * This function is used to clear the capability preference order.
  * @param call      Handle to call, if capability preference order for call
@@ -712,6 +734,56 @@ EXTERN int ooPreppendCapToCapPrefs(struct OOH323CallData *call, int cap);
  * @return        The text description string.
  */
 EXTERN const char* ooGetCapTypeText (OOCapabilities cap);
+
+
+EXTERN int epCapIsPreferred(struct OOH323CallData *call, ooH323EpCapability *epCap);
+
+/**/
+ASN1BOOL ooCapabilityCheckCompatibility_Simple
+   (struct OOH323CallData *call, ooH323EpCapability* epCap,
+    H245AudioCapability* audioCap, int dir);
+ASN1BOOL ooCapabilityCheckCompatibility_NonStandard
+   (struct OOH323CallData *call, ooH323EpCapability* epCap,
+    H245AudioCapability* audioCap, int dir);
+OOBOOL ooCapabilityCheckCompatibility_GSM
+   (struct OOH323CallData *call, ooH323EpCapability* epCap,
+    H245AudioCapability* audioCap, int dir);
+OOBOOL ooCapabilityCheckCompatibility_T38
+   (struct OOH323CallData *call, ooH323EpCapability* epCap,
+    H245DataApplicationCapability* t38Cap, int dir);
+OOBOOL ooCapabilityCheckCompatibility_H263Video
+   (struct OOH323CallData *call, ooH323EpCapability *epCap,
+    H245VideoCapability *pVideoCap, int dir);
+OOBOOL ooCapabilityCheckCompatibility_Audio
+   (struct OOH323CallData *call, ooH323EpCapability* epCap,
+    H245AudioCapability* audioCap, int dir);
+OOBOOL ooCapabilityCheckCompatibility_Video
+   (struct OOH323CallData *call, ooH323EpCapability* epCap,
+    H245VideoCapability* videoCap, int dir);
+ooH323EpCapability* ooIsAudioDataTypeGSMSupported
+   (struct OOH323CallData *call, H245AudioCapability* audioCap, int dir);
+ooH323EpCapability* ooIsAudioDataTypeSimpleSupported
+   (struct OOH323CallData *call, H245AudioCapability* audioCap, int dir);
+ooH323EpCapability* ooIsT38Supported
+   (struct OOH323CallData *call, H245DataApplicationCapability* t38Cap, int dir);
+ooH323EpCapability* ooIsAudioDataTypeNonStandardSupported
+   (struct OOH323CallData *call, H245AudioCapability* audioCap, int dir);
+int ooAddRemoteDataApplicationCapability(struct OOH323CallData *call,
+                               H245DataApplicationCapability *dataCap,
+                               int dir);
+int ooCapabilityEnableDTMFCISCO
+   (struct OOH323CallData *call, int dynamicRTPPayloadType);
+int ooCapabilityDisableDTMFCISCO(struct OOH323CallData *call);
+int ooCapabilityAddT38Capability
+   (struct OOH323CallData *call, int cap, int dir,
+    cb_StartReceiveChannel startReceiveChannel,
+    cb_StartTransmitChannel startTransmitChannel,
+    cb_StopReceiveChannel stopReceiveChannel,
+    cb_StopTransmitChannel stopTransmitChannel,
+    OOBOOL remote);
+
+
+/**/
 
 
 /** 

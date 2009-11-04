@@ -16,6 +16,8 @@
 
 /* Error management functions */
 
+#include <asterisk.h>
+#include <asterisk/lock.h>
 #include <stdlib.h>
 #include "ooasn1.h"
 
@@ -86,7 +88,8 @@ int errAddStrParm (ASN1ErrInfo* pErrInfo, const char* errprm_p)
 {
 #if defined(_NO_THREADS) || !defined(_NO_MALLOC)
    if (pErrInfo->parmcnt < ASN_K_MAXERRP) {
-      char* tmpstr = (char*) ASN1CRTMALLOC0 (strlen(errprm_p)+1);
+      /* char* tmpstr = (char*) ASN1CRTMALLOC0 (strlen(errprm_p)+1); */
+      char* tmpstr = (char*) malloc (strlen(errprm_p)+1);
       strcpy (tmpstr, errprm_p);
       pErrInfo->parms[pErrInfo->parmcnt] = tmpstr;
       pErrInfo->parmcnt++;
@@ -114,7 +117,8 @@ void errFreeParms (ASN1ErrInfo* pErrInfo)
    int i;
 
    for (i = 0; i < pErrInfo->parmcnt; i++)
-      ASN1CRTFREE0 ((char*)pErrInfo->parms[i]);
+      /* ASN1CRTFREE0 ((char*)pErrInfo->parms[i]); */
+      free ((char*)pErrInfo->parms[i]);
 #endif
 
    pErrInfo->parmcnt = 0;

@@ -14,6 +14,9 @@
  *
  *****************************************************************************/
 
+#include <asterisk.h>
+#include <asterisk/lock.h>
+
 #include "ooCalls.h"
 #include "ooh323ep.h"
 
@@ -187,7 +190,7 @@ OOLogicalChannel * ooFindLogicalChannel(OOH323CallData *call, int sessionID,
    {
       OOTRACEDBGC3("ooFindLogicalChannel, checking channel: %d:%s\n",
                     pChannel->sessionID, pChannel->dir);
-      if(pChannel->sessionID == sessionID)
+      if(pChannel->sessionID == sessionID || pChannel->sessionID == 0)
       {
          if(!strcmp(pChannel->dir, dir))
          {
@@ -223,6 +226,27 @@ OOLogicalChannel* ooGetLogicalChannel
    while(pChannel)
    {
       if(pChannel->sessionID == sessionID && !strcmp(pChannel->dir, dir))
+         return pChannel;
+      else
+         pChannel = pChannel->next;
+   }
+   return NULL;
+}
+
+/* function is to get channel with particular direction */
+
+OOLogicalChannel* ooGetTransmitLogicalChannel
+   (OOH323CallData *call)
+{
+   OOLogicalChannel * pChannel = NULL;
+   pChannel = call->logicalChans;
+   while(pChannel)
+   {
+      OOTRACEINFO6("Listing logical channel %d cap %d state %d for (%s, %s)\n",
+		pChannel->channelNo, pChannel->chanCap->cap, pChannel->state, 
+		call->callType, call->callToken);
+      if(!strcmp(pChannel->dir, "transmit") && pChannel->state != OO_LOGICALCHAN_IDLE &&
+					       pChannel->state != OO_LOGICALCHAN_PROPOSEDFS)
          return pChannel;
       else
          pChannel = pChannel->next;

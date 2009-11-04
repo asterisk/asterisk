@@ -14,6 +14,8 @@
  *
  *****************************************************************************/
 
+#include <asterisk.h>
+#include <asterisk/lock.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -37,8 +39,9 @@ void ooSetTraceThreshold(OOUINT32 traceLevel)
    gs_traceLevel = traceLevel;
 }
 
-void ooTrace(OOUINT32 traceLevel, const char * fmtspec, ...)
-{
+void ooTrace(OOUINT32 traceLevel, const char * fmtspec, ...) __attribute__((format(printf, 2, 3)));
+
+void ooTrace(OOUINT32 traceLevel, const char * fmtspec, ...) {
    va_list arglist;
    char logMessage[MAXLOGMSGLEN];
    if(traceLevel > gs_traceLevel) return;
@@ -70,7 +73,7 @@ void ooTraceLogMessage(const char * logMessage)
    
 #else
    struct tm *ptime;
-   char dateString[15];
+   char dateString[10];
    time_t t = time(NULL);
    ptime = localtime(&t);
    strftime(timeString, 100, "%H:%M:%S", ptime);
@@ -100,7 +103,7 @@ void ooTraceLogMessage(const char * logMessage)
    if(printDate)
    {
       printDate = 0;
-      strftime(dateString, 15, "%m/%d/%Y", ptime);
+      strftime(dateString, 10, "%d", ptime);
       fprintf(gH323ep.fptraceFile, "---------Date %s---------\n", 
               dateString);
    }

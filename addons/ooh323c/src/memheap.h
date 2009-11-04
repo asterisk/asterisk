@@ -50,6 +50,7 @@ typedef struct OSMemHeap {
    ASN1UINT        defBlkSize;
    ASN1UINT        refCnt;
    ASN1UINT        flags;
+   ast_mutex_t pLock;
 } OSMemHeap;
 
 /* see rtMemDefs.c file */

@@ -14,6 +14,8 @@
  *
  *****************************************************************************/
 
+#include <asterisk.h>
+#include <asterisk/lock.h>
 
 #include "ooports.h"
 #include "ooh323ep.h"
@@ -21,6 +23,7 @@
 
 /** Global endpoint structure */
 extern OOH323EndPoint gH323ep;
+extern ast_mutex_t bindPortLock;
 
 /* Get the next port of type TCP/UDP/RTP */
 int ooGetNextPort (OOH323PortType type)
@@ -63,6 +66,8 @@ int ooBindPort (OOH323PortType type, OOSOCKET socket, char *ip)
    int initialPort, bindPort, ret;
    OOIPADDR ipAddrs;
 
+   ast_mutex_lock(&bindPortLock);
+
    initialPort = ooGetNextPort (type);
    bindPort = initialPort;
 
@@ -72,12 +77,13 @@ int ooBindPort (OOH323PortType type, OOSOCKET socket, char *ip)
    {
       if((ret=ooSocketBind(socket, ipAddrs, bindPort))==0)
       {
+	 ast_mutex_unlock(&bindPortLock);
          return bindPort;
       }
       else
       {
          bindPort = ooGetNextPort (type);
-         if (bindPort == initialPort) return OO_FAILED;
+         if (bindPort == initialPort) { ast_mutex_unlock(&bindPortLock); return OO_FAILED; }
       }
    }
 }
