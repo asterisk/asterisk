@@ -29,6 +29,7 @@
 #include "asterisk/hashtab.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/xmldoc.h"
+#include "asterisk/frame_defs.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
