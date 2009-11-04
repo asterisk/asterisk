@@ -6829,8 +6829,6 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 			   Asterisk uses the From: username for authentication. We need the
 			   users to use the same authentication user name until we support
 			   proper authentication by digest auth name */
-			transmit_response(p, "403 Authentication user name does not match account name", &p->initreq);
-			break;
 		case -3:	/* Unknown domain */
 		case -4:	/* ACL error */
 		case -5:	/* Peer is not supposed to register with us at all */
