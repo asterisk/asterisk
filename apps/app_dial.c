@@ -94,6 +94,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					</argument>
 					<para>Play an announcement to the called party, where <replaceable>x</replaceable> is the prompt to be played</para>
 				</option>
+				<option name="a">
+					<para>Immediately answer the calling channel when the called channel answers in
+					all cases. Normally, the calling channel is answered when the called channel
+					answers, but when options such as A() and M() are used, the calling channel is
+					not answered until all actions on the called channel (such as playing an
+					announcement) are completed.  This option can be used to answer the calling
+					channel before doing anything on the called channel. You will rarely need to use
+					this option, the default behavior is adequate in most cases.</para>
+				</option>
 				<option name="C">
 					<para>Reset the call detail record (CDR) for this call.</para>
 				</option>
@@ -508,6 +517,7 @@ enum {
 	OPT_CALLEE_GOSUB =      (1 << 28),
 	OPT_CALLEE_MIXMONITOR = (1 << 29),
 	OPT_CALLER_MIXMONITOR = (1 << 30),
+	OPT_CALLER_ANSWER =	(1 << 31),
 };
 
 #define DIAL_STILLGOING      (1 << 31)
@@ -537,6 +547,7 @@ enum {
 
 AST_APP_OPTIONS(dial_exec_options, BEGIN_OPTIONS
 	AST_APP_OPTION_ARG('A', OPT_ANNOUNCE, OPT_ARG_ANNOUNCE),
+	AST_APP_OPTION('a', OPT_CALLER_ANSWER),
 	AST_APP_OPTION('C', OPT_RESETCDR),
 	AST_APP_OPTION('c', OPT_CANCEL_ELSEWHERE),
 	AST_APP_OPTION('d', OPT_DTMF_EXIT),
@@ -1987,6 +1998,9 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	} else {
 		const char *number;
 
+		if (ast_test_flag64(&opts, OPT_CALLER_ANSWER))
+			ast_answer(chan);
+
 		strcpy(pa.status, "ANSWER");
 		pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this
@@ -1994,9 +2008,11 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		   conversation.  */
 		hanguptree(outgoing, peer, 1);
 		outgoing = NULL;
-		/* If appropriate, log that we have a destination channel */
-		if (chan->cdr)
+		/* If appropriate, log that we have a destination channel and set the answer time */
+		if (chan->cdr) {
 			ast_cdr_setdestchan(chan->cdr, peer->name);
+			ast_cdr_setanswer(chan->cdr, peer->cdr->answer);
+		}
 		if (peer->name)
 			pbx_builtin_setvar_helper(chan, "DIALEDPEERNAME", peer->name);
 		

@@ -77,6 +77,10 @@ Applications
    regardless if the call has been answered or not.
  * Added functionality to the app_dial F() option to continue with execution
    at the current location when no parameters are provided.
+ * Added the 'a' option to app_dial to answer the calling channel before any
+   announcements or macros are executed.
+ * Modified app_dial to set answertime when the called channel answers even if
+   the called channel hangs up during playback of an announcement.
  * Added c() option to app_chanspy. This option allows custom DTMF to be set
    to cycle through the next available channel.  By default this is still '*'.
  * Added x() option to app_chanspy.  This option allows DTMF to be set to
