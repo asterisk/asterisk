@@ -1363,6 +1363,7 @@ if test "${PBX_MISDN}" = 1; then
    AST_C_DEFINE_CHECK([MISDN_FAC_RESULT], [Fac_RESULT], [mISDNuser/suppserv.h])
    AST_C_DEFINE_CHECK([MISDN_FAC_ERROR], [Fac_ERROR], [mISDNuser/suppserv.h])
    AC_CHECK_HEADER([linux/mISDNdsp.h], [AC_DEFINE_UNQUOTED([MISDN_1_2], 1, [Build chan_misdn for mISDN 1.2 or later.])])
+   AC_CHECK_MEMBER([Q931_info_t.redirect_dn], [], [PBX_MISDN=0], [#include <mISDNuser/mISDNlib.h>])
 fi
 
 AST_EXT_TOOL_CHECK([MYSQLCLIENT], [mysql_config])
