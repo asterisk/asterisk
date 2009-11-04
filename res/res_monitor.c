@@ -176,7 +176,8 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 						directory ? "" : ast_config_AST_MONITOR_DIR, absolute, fname_base);
 			snprintf(monitor->write_filename, FILENAME_MAX, "%s%s%s-out",
 						directory ? "" : ast_config_AST_MONITOR_DIR, absolute, fname_base);
-			ast_copy_string(monitor->filename_base, fname_base, sizeof(monitor->filename_base));
+			snprintf(monitor->filename_base, FILENAME_MAX, "%s/%s",
+					 ast_config_AST_MONITOR_DIR, fname_base);
 		} else {
 			ast_mutex_lock(&monitorlock);
 			snprintf(monitor->read_filename, FILENAME_MAX, "%s/audio-in-%ld",
@@ -421,12 +422,44 @@ int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, i
 		int directory = strchr(fname_base, '/') ? 1 : 0;
 		const char *absolute = *fname_base == '/' ? "" : "/";
 		char tmpstring[sizeof(chan->monitor->filename_base)] = "";
+		int i, fd[2] = { -1, -1 }, doexit = 0;
 
 		/* before continuing, see if we're trying to rename the file to itself... */
 		snprintf(tmpstring, sizeof(tmpstring), "%s%s%s", directory ? "" : ast_config_AST_MONITOR_DIR, absolute, fname_base);
-		if (!strcmp(tmpstring, chan->monitor->filename_base)) {
-			if (option_debug > 2)
-				ast_log(LOG_DEBUG, "No need to rename monitor filename to itself\n");
+
+		/*!\note We cannot just compare filenames, due to symlinks, relative
+		 * paths, and other possible filesystem issues.  We could use
+		 * realpath(3), but its use is discouraged.  However, if we try to
+		 * create the same file from two different paths, the second will
+		 * fail, and so we have our notification that the filenames point to
+		 * the same path.
+		 *
+		 * Remember, also, that we're using the basename of the file (i.e.
+		 * the file without the format suffix), so it does not already exist
+		 * and we aren't interfering with the recording itself.
+		 */
+		ast_debug(2, "comparing tmpstring %s to filename_base %s\n", tmpstring, chan->monitor->filename_base);
+		
+		if ((fd[0] = open(tmpstring, O_CREAT | O_WRONLY, 0644)) < 0 ||
+			(fd[1] = open(chan->monitor->filename_base, O_CREAT | O_EXCL | O_WRONLY, 0644)) < 0) {
+			if (fd[0] < 0) {
+				ast_log(LOG_ERROR, "Unable to compare filenames: %s\n", strerror(errno));
+			} else {
+				ast_debug(2, "No need to rename monitor filename to itself\n");
+			}
+			doexit = 1;
+		}
+
+		/* Cleanup temporary files */
+		for (i = 0; i < 2; i++) {
+			if (fd[i] >= 0) {
+				while (close(fd[i]) < 0 && errno == EINTR);
+			}
+		}
+		unlink(tmpstring);
+		unlink(chan->monitor->filename_base);
+
+		if (doexit) {
 			UNLOCK_IF_NEEDED(chan, need_lock);
 			return 0;
 		}
