@@ -1804,10 +1804,17 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest);
 
 /*--- Codec handling / SDP */
 static void try_suggested_sip_codec(struct sip_pvt *p);
-static const char* get_sdp_iterate(int* start, struct sip_request *req, const char *name);
-static const char *get_sdp(struct sip_request *req, const char *name);
+static const char *get_sdp_iterate(int* start, struct sip_request *req, const char *name);
+static char get_sdp_line(int *start, int stop, struct sip_request *req, const char **value);
 static int find_sdp(struct sip_request *req);
 static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action);
+static int process_sdp_o(const char *o, struct sip_pvt *p);
+static int process_sdp_c(const char *c, struct ast_hostent *hp);
+static int process_sdp_a_sendonly(const char *a, int *sendonly);
+static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp *newaudiortp, int *last_rtpmap_codec);
+static int process_sdp_a_video(const char *a, struct sip_pvt *p, struct ast_rtp *newvideortp, int *last_rtpmap_codec);
+static int process_sdp_a_text(const char *a, struct sip_pvt *p, struct ast_rtp *newtextrtp, int *last_rtpmap_codec);
+static int process_sdp_a_image(const char *a, struct sip_pvt *p);
 static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate,
 			     struct ast_str **m_buf, struct ast_str **a_buf,
 			     int debug, int *min_packet_size);
@@ -5897,12 +5904,27 @@ static const char *get_sdp_iterate(int *start, struct sip_request *req, const ch
 	return "";
 }
 
-/*! \brief Get a line from an SDP message body */
-static const char *get_sdp(struct sip_request *req, const char *name) 
+/*! \brief Fetches the next valid SDP line between the 'start' line
+ * and the 'stop' line. Returns the type ('a', 'c', ...) and 
+ * matching line in reference 'start' is updated with the next line number.
+ */
+static char get_sdp_line(int *start, int stop, struct sip_request *req, const char **value)
 {
-	int dummy = 0;
+	char type = '\0';
+	const char *line = NULL;
 
-	return get_sdp_iterate(&dummy, req, name);
+	if (stop > req->sdp_end || stop < req->sdp_start) stop = req->sdp_end;
+
+	while (*start < stop) {
+		line = req->line[(*start)++];
+		if (line[1] == '=') {
+			type = line[0];
+			*value = ast_skip_blanks(line + 2);
+			break;
+		}
+	}
+
+	return type;
 }
 
 /*! \brief Get a specific line from the message body */
@@ -6879,54 +6901,61 @@ static int get_ip_and_port_from_sdp(struct sip_request *req, const enum media_ty
 */
 static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action)
 {
-	const char *m;		/* SDP media offer */
-	const char *c;
-	const char *a;
-	const char *o;		/* Pointer to o= line */
-	char *o_copy;		/* Copy of o= line */
-	char *token;
-	char host[258];
+	/* Iterators for SDP parsing */
+	int start = req->sdp_start;
+	int next = start;
+	int iterator = start;
+
+	/* Temporary vars for SDP parsing */
+	char type = '\0';
+	const char *value = NULL;
+	const char *m = NULL;           /* SDP media offer */
+	const char *nextm = NULL;
 	int len = -1;
+
+	/* Host information */
+	struct ast_hostent sessionhp;
+	struct ast_hostent audiohp;
+	struct ast_hostent videohp;
+	struct ast_hostent texthp;
+	struct hostent *hp = NULL;	/*!< RTP Audio host IP */
+	struct hostent *vhp = NULL;	/*!< RTP video host IP */
+	struct hostent *thp = NULL;	/*!< RTP text host IP */
 	int portno = -1;		/*!< RTP Audio port number */
 	int vportno = -1;		/*!< RTP Video port number */
 	int tportno = -1;		/*!< RTP Text port number */
-	int udptlportno = -1;
-	char s[256];
-	int old = 0;
+	int udptlportno = -1;		/*!< UDPTL Image port number */
+	struct sockaddr_in sin;		/*!< media socket address */
+	struct sockaddr_in vsin;	/*!< video socket address */
+	struct sockaddr_in isin;	/*!< image socket address */
+	struct sockaddr_in tsin;	/*!< text socket address */
 
 	/* Peer capability is the capability in the SDP, non codec is RFC2833 DTMF (101) */	
 	int peercapability = 0, peernoncodeccapability = 0;
 	int vpeercapability = 0, vpeernoncodeccapability = 0;
 	int tpeercapability = 0, tpeernoncodeccapability = 0;
-	struct sockaddr_in sin;		/*!< media socket address */
-	struct sockaddr_in vsin;	/*!< Video socket address */
-	struct sockaddr_in tsin;	/*!< Text socket address */
 
-	const char *codecs;
-	struct hostent *hp;		/*!< RTP Audio host IP */
-	struct hostent *vhp = NULL;	/*!< RTP video host IP */
-	struct hostent *thp = NULL;	/*!< RTP text host IP */
-	struct ast_hostent audiohp;
-	struct ast_hostent videohp;
-	struct ast_hostent texthp;
-	int codec;
-	int destiterator = 0;
-	int iterator;
-	int sendonly = -1;
-	int numberofports;
-	struct ast_rtp *newaudiortp, *newvideortp, *newtextrtp;	/* Buffers for codec handling */
+	struct ast_rtp *newaudiortp, *newvideortp, *newtextrtp;
 	int newjointcapability;				/* Negotiated capability */
 	int newpeercapability;
 	int newnoncodeccapability;
+
+	const char *codecs;
+	int codec;
+
+	/* Others */
+	int sendonly = -1;
+	int vsendonly = -1;
+	int numberofports;
 	int numberofmediastreams = 0;
+	int last_rtpmap_codec = 0;
 	int debug = sip_debug_test_pvt(p);
-		
-	int found_rtpmap_codecs[SDP_MAX_RTPMAP_CODECS];
-	int last_rtpmap_codec=0;
 
+	/* START UNKNOWN */
 	char buf[SIPBUFSIZE];
-	int64_t rua_version;
+	/* END UNKNOWN */
 
+	/* Initial check */
 	if (!p->rtp) {
 		ast_log(LOG_ERROR, "Got SDP but have no RTP session allocated.\n");
 		return -1;
@@ -6965,102 +6994,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 
 	memset(p->offered_media, 0, sizeof(p->offered_media));
 
-	/* Store the SDP version number of remote UA. This will allow us to 
-	distinguish between session modifications and session refreshes. If 
-	the remote UA does not send an incremented SDP version number in a 
-	subsequent RE-INVITE then that means its not changing media session. 
-	The RE-INVITE may have been sent to update connected party, remote  
-	target or to refresh the session (Session-Timers).  Asterisk must not 
-	change media session and increment its own version number in answer 
-	SDP in this case. */ 
-	
-	o = get_sdp(req, "o");
-	if (ast_strlen_zero(o)) {
-		ast_log(LOG_WARNING, "SDP sytax error. SDP without an o= line\n");
-		return -1;
-	}
 
-	o_copy = ast_strdupa(o);
-	token = strsep(&o_copy, " ");  /* Skip username   */
-	if (!o_copy) { 
-		ast_log(LOG_WARNING, "SDP sytax error in o= line username\n");
-		return -1;
-	}
-	token = strsep(&o_copy, " ");  /* Skip session-id */
-	if (!o_copy) { 
-		ast_log(LOG_WARNING, "SDP sytax error in o= line session-id\n");
-		return -1;
-	}
-	token = strsep(&o_copy, " ");  /* Version         */
-	if (!o_copy) { 
-		ast_log(LOG_WARNING, "SDP sytax error in o= line\n");
-		return -1;
-	}
-	if (!sscanf(token, "%30" SCNd64, &rua_version)) {
-		ast_log(LOG_WARNING, "SDP sytax error in o= line version\n");
-		return -1;
-	}
-
-	/* we need to check the SDP version number the other end sent us;
-	 * our rules for deciding what to accept are a bit complex.
-	 *
-	 * 1) if 'ignoresdpversion' has been set for this dialog, then
-	 *    we will just accept whatever they sent and assume it is
-	 *    a modification of the session, even if it is not
-	 * 2) otherwise, if this is the first SDP we've seen from them
-	 *    we accept it
-	 * 3) otherwise, if the new SDP version number is higher than the
-	 *    old one, we accept it
-	 * 4) otherwise, if this SDP is in response to us requesting a switch
-	 *    to T.38, we accept the SDP, but also generate a warning message
-	 *    that this peer should have the 'ignoresdpversion' option set,
-	 *    because it is not following the SDP offer/answer RFC; if we did
-	 *    not request a switch to T.38, then we stop parsing the SDP, as it
-	 *    has not changed from the previous version
-	 */
-
-	if (ast_test_flag(&p->flags[1], SIP_PAGE2_IGNORESDPVERSION) ||
-	    (p->sessionversion_remote < 0) ||
-	    (p->sessionversion_remote < rua_version)) {
-		p->sessionversion_remote = rua_version;
-		p->session_modify = TRUE;
-	} else {
-		if (p->t38.state == T38_LOCAL_REINVITE) {
-			p->sessionversion_remote = rua_version;
-			p->session_modify = TRUE;
-			ast_log(LOG_WARNING, "Call %s responded to our T.38 reinvite without changing SDP version; 'ignoresdpversion' should be set for this peer.\n", p->callid);
-		} else {
-			p->session_modify = FALSE;
-			ast_debug(2, "Call %s responded to our reinvite without changing SDP version; ignoring SDP.\n", p->callid);
-			return 0;
-		}
-	} 
-
-	/* Try to find first media stream */
-	m = get_sdp(req, "m");
-	destiterator = req->sdp_start;
-	c = get_sdp_iterate(&destiterator, req, "c");
-	if (ast_strlen_zero(m) || ast_strlen_zero(c)) {
-		ast_log(LOG_WARNING, "Insufficient information for SDP (m = '%s', c = '%s')\n", m, c);
-		return -1;
-	}
-
-	/* Check for IPv4 address (not IPv6 yet) */
-	if (sscanf(c, "IN IP4 %256s", host) != 1) {
-		ast_log(LOG_WARNING, "Invalid host in c= line, '%s'\n", c);
-		return -1;
-	}
-
-	/* XXX This could block for a long time, and block the main thread! XXX */
-	hp = ast_gethostbyname(host, &audiohp);
-	if (!hp) {
-		ast_log(LOG_WARNING, "Unable to lookup host in c= line, '%s'\n", c);
-		return -1;
-	}
-	vhp = hp;	/* Copy to video address as default too */
-	thp = hp;	/* Copy to text address as default too */
-	
-	iterator = req->sdp_start;
 	/* default: novideo and notext set */
 	p->novideo = TRUE;
 	p->notext = TRUE;
@@ -7070,23 +7004,75 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
  
 	if (p->trtp)
 		ast_rtp_pt_clear(newtextrtp);  /* Must be cleared in case no m=text line exists */
+	
+	/* Scan for the first media stream (m=) line to limit scanning of globals */
+	nextm = get_sdp_iterate(&next, req, "m");
+	if (ast_strlen_zero(nextm)) {
+		ast_log(LOG_WARNING, "Insufficient information for SDP (m= not found)\n");
+ 		return -1;
+ 	}
 
-	/* Find media streams in this SDP offer */
-	while ((m = get_sdp_iterate(&iterator, req, "m"))[0] != '\0') {
-		int x;
+	/* Scan session level SDP parameters (lines before first media stream) */
+	while ((type = get_sdp_line(&iterator, next - 1, req, &value)) != '\0') {
+		int processed = FALSE;
+		switch (type) {
+		case 'o':
+			if (!process_sdp_o(value, p))
+				return -1;
+			break;
+		case 'c':
+			if (process_sdp_c(value, &sessionhp)) {
+				processed = TRUE;
+				hp = &sessionhp.hp;
+				vhp = hp;
+				thp = hp;
+			}
+			break;
+		case 'a':
+			if (process_sdp_a_sendonly(value, &sendonly)) {
+				processed = TRUE;
+				vsendonly = sendonly;
+			}
+			else if (process_sdp_a_audio(value, p, newaudiortp, &last_rtpmap_codec))
+				processed = TRUE;
+			else if (process_sdp_a_video(value, p, newvideortp, &last_rtpmap_codec))
+				processed = TRUE;
+			else if (process_sdp_a_text(value, p, newtextrtp, &last_rtpmap_codec))
+				processed = TRUE;
+			else if (process_sdp_a_image(value, p))
+				processed = TRUE;
+			break;
+		}
+
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "Processing session-level SDP %c=%s... %s\n", type, value, (processed == TRUE)? "OK." : "UNSUPPORTED.");
+ 	}
+
+
+
+	/* Scan media stream (m=) specific parameters loop */
+	while (!ast_strlen_zero(nextm)) {
 		int audio = FALSE;
 		int video = FALSE;
+		int image = FALSE;
 		int text = FALSE;
+		int x;
 
 		numberofports = 1;
 		len = -1;
+		start = next;
+		m = nextm;
+		iterator = next;
+		nextm = get_sdp_iterate(&next, req, "m");
+
+		/* Search for audio media definition */
 		if ((sscanf(m, "audio %30d/%30d RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
 		    (sscanf(m, "audio %30d RTP/AVP %n", &x, &len) == 1 && len > 0)) {
 			audio = TRUE;
 			p->offered_media[SDP_AUDIO].offered = TRUE;
 			numberofmediastreams++;
-			/* Found audio stream in this media definition */
 			portno = x;
+
 			/* Scan through the RTP payload types specified in a "m=" line: */
 			codecs = m + len;
 			ast_copy_string(p->offered_media[SDP_AUDIO].text, codecs, sizeof(p->offered_media[SDP_AUDIO].text));
@@ -7097,15 +7083,18 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				}
 				if (debug)
 					ast_verbose("Found RTP audio format %d\n", codec);
+
 				ast_rtp_set_m_type(newaudiortp, codec);
 			}
+		/* Search for video media definition */
 		} else if ((sscanf(m, "video %30d/%30d RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
-		    (sscanf(m, "video %30d RTP/AVP %n", &x, &len) == 1 && len >= 0)) {
+			   (sscanf(m, "video %30d RTP/AVP %n", &x, &len) == 1 && len >= 0)) {
 			video = TRUE;
 			p->novideo = FALSE;
 			p->offered_media[SDP_VIDEO].offered = TRUE;
 			numberofmediastreams++;
 			vportno = x;
+
 			/* Scan through the RTP payload types specified in a "m=" line: */
 			codecs = m + len;
 			ast_copy_string(p->offered_media[SDP_VIDEO].text, codecs, sizeof(p->offered_media[SDP_VIDEO].text));
@@ -7118,13 +7107,15 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					ast_verbose("Found RTP video format %d\n", codec);
 				ast_rtp_set_m_type(newvideortp, codec);
 			}
+		/* Search for text media definition */
 		} else if ((sscanf(m, "text %30d/%30d RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
-		    (sscanf(m, "text %30d RTP/AVP %n", &x, &len) == 1 && len > 0)) {
+			   (sscanf(m, "text %30d RTP/AVP %n", &x, &len) == 1 && len > 0)) {
 			text = TRUE;
-			p->offered_media[SDP_TEXT].offered = TRUE;
 			p->notext = FALSE;
+			p->offered_media[SDP_TEXT].offered = TRUE;
 			numberofmediastreams++;
 			tportno = x;
+
 			/* Scan through the RTP payload types specified in a "m=" line: */
 			codecs = m + len;
 			ast_copy_string(p->offered_media[SDP_TEXT].text, codecs, sizeof(p->offered_media[SDP_TEXT].text));
@@ -7137,46 +7128,105 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					ast_verbose("Found RTP text format %d\n", codec);
 				ast_rtp_set_m_type(newtextrtp, codec);
 			}
-		} else if (p->udptl && ( (sscanf(m, "image %30d udptl t38%n", &x, &len) == 1 && len > 0) || 
-			(sscanf(m, "image %30d UDPTL t38%n", &x, &len) == 1 && len > 0) )) {
+		/* Search for image media definition */
+		} else if (p->udptl && ((sscanf(m, "image %30d udptl t38%n", &x, &len) == 1 && len > 0) ||
+					(sscanf(m, "image %30d UDPTL t38%n", &x, &len) == 1 && len > 0) )) {
+			image = TRUE;
 			if (debug)
 				ast_verbose("Got T.38 offer in SDP in dialog %s\n", p->callid);
 			p->offered_media[SDP_IMAGE].offered = TRUE;
 			udptlportno = x;
 			numberofmediastreams++;
-		} else 
+
+			if (p->t38.state != T38_ENABLED) {
+				memset(&p->t38.their_parms, 0, sizeof(p->t38.their_parms));
+
+				/* Remote party offers T38, we need to update state */
+				if ((t38action == SDP_T38_ACCEPT) &&
+				    (p->t38.state == T38_LOCAL_REINVITE)) {
+					change_t38_state(p, T38_ENABLED);
+				} else if ((t38action == SDP_T38_INITIATE) &&
+					   p->owner && p->lastinvite) {
+					change_t38_state(p, T38_PEER_REINVITE); /* T38 Offered in re-invite from remote party */
+				}
+			}
+		} else {
 			ast_log(LOG_WARNING, "Unsupported SDP media type in offer: %s\n", m);
+			continue;
+		}
+
+		/* Check for number of ports */
 		if (numberofports > 1)
 			ast_log(LOG_WARNING, "SDP offered %d ports for media, not supported by Asterisk. Will try anyway...\n", numberofports);
 		
 
-		/* Check for Media-description-level-address for audio */
-		c = get_sdp_iterate(&destiterator, req, "c");
-		if (!ast_strlen_zero(c)) {
-			if (sscanf(c, "IN IP4 %256s", host) != 1) {
-				ast_log(LOG_WARNING, "Invalid secondary host in c= line, '%s'\n", c);
-			} else {
-				/* XXX This could block for a long time, and block the main thread! XXX */
+
+		/* Media stream specific parameters */
+		while ((type = get_sdp_line(&iterator, next - 1, req, &value)) != '\0') {
+			int processed = FALSE;
+
+			switch (type) {
+			case 'c':
 				if (audio) {
-					if ( !(hp = ast_gethostbyname(host, &audiohp))) {
-						ast_log(LOG_WARNING, "Unable to lookup RTP Audio host in secondary c= line, '%s'\n", c);
-						return -2;
+					if (process_sdp_c(value, &audiohp)) {
+						processed = TRUE;
+						hp = &audiohp.hp;
 					}
 				} else if (video) {
-					if (!(vhp = ast_gethostbyname(host, &videohp))) {
-						ast_log(LOG_WARNING, "Unable to lookup RTP video host in secondary c= line, '%s'\n", c);
-						return -2;
+					if (process_sdp_c(value, &videohp)) {
+						processed = TRUE;
+						vhp = &videohp.hp;
 					}
 				} else if (text) {
-					if (!(thp = ast_gethostbyname(host, &texthp))) {
-						ast_log(LOG_WARNING, "Unable to lookup RTP text host in secondary c= line, '%s'\n", c);
-						return -2;
+					if (process_sdp_c(value, &texthp)) {
+						processed = TRUE;
+						thp = &texthp.hp;
 					}
 				}
+				break;
+			case 'a':
+				/* Audio specific scanning */
+				if (audio) {
+					if (process_sdp_a_sendonly(value, &sendonly))
+						processed = TRUE;
+					else if (process_sdp_a_audio(value, p, newaudiortp, &last_rtpmap_codec))
+						processed = TRUE;
+				}
+				/* Video specific scanning */
+				else if (video) {
+					if (process_sdp_a_sendonly(value, &vsendonly))
+						processed = TRUE;
+					else if (process_sdp_a_video(value, p, newvideortp, &last_rtpmap_codec))
+						processed = TRUE;
+				}
+				/* Text (T.140) specific scanning */
+				else if (text) {
+					if (process_sdp_a_text(value, p, newtextrtp, &last_rtpmap_codec))
+						processed = TRUE;
+				}
+				/* Image (T.38 FAX) specific scanning */
+				else if (image) {
+					if (process_sdp_a_image(value, p))
+						processed = TRUE;
+				}
+				break;
 			}
 
+			if (option_debug > 2)
+				ast_log(LOG_DEBUG, "Processing media-level (%s) SDP %c=%s... %s\n",
+						(audio == TRUE)? "audio" : (video == TRUE)? "video" : "image",
+						type, value,
+						(processed == TRUE)? "OK." : "UNSUPPORTED.");
 		}
 	}
+
+
+	/* Sanity checks */
+	if (!hp) {
+		ast_log(LOG_WARNING, "Insufficient information in SDP (c=)...\n");
+		return -1;
+	}
+
 	if (portno == -1 && vportno == -1 && udptlportno == -1  && tportno == -1)
 		/* No acceptable offer found in SDP  - we have no ports */
 		/* Do not change RTP or VRTP if this is a re-invite */
@@ -7186,301 +7236,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		/* We have too many fax, audio and/or video and/or text media streams, fail this offer */
 		return -3;
 
-	/* RTP addresses and ports for audio and video */
-	sin.sin_family = AF_INET;
-	vsin.sin_family = AF_INET;
-	tsin.sin_family = AF_INET;
-	memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
-	if (vhp)
-		memcpy(&vsin.sin_addr, vhp->h_addr, sizeof(vsin.sin_addr));
-	if (thp)
-		memcpy(&tsin.sin_addr, thp->h_addr, sizeof(tsin.sin_addr));
-
-	/* Setup UDPTL port number */
-	if (p->udptl) {
-		if (udptlportno > 0) {
-			sin.sin_port = htons(udptlportno);
-			if (ast_test_flag(&p->flags[0], SIP_NAT) && ast_test_flag(&p->flags[1], SIP_PAGE2_UDPTL_DESTINATION)) {
-				struct sockaddr_in peer;
-				ast_rtp_get_peer(p->rtp, &peer);
-				if (peer.sin_addr.s_addr) {
-					memcpy(&sin.sin_addr, &peer.sin_addr, sizeof(sin.sin_addr));
-					if (debug) {
-						ast_log(LOG_DEBUG, "Peer T.38 UDPTL is set behind NAT and with destination, destination address now %s\n", ast_inet_ntoa(sin.sin_addr));
-					}
-				}
-			}
-			ast_udptl_set_peer(p->udptl, &sin);
-			if (debug)
-				ast_debug(1, "Peer T.38 UDPTL is at port %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
-		} else {
-			ast_udptl_stop(p->udptl);
-			if (debug)
-				ast_debug(1, "Peer doesn't provide T.38 UDPTL\n");
-		}
-	}
-
-		
-	if (p->rtp) {
-		if (portno > 0) {
-			sin.sin_port = htons(portno);
-			ast_rtp_set_peer(p->rtp, &sin);
-			if (debug)
-				ast_verbose("Peer audio RTP is at port %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
-		} else {
-			if (udptlportno > 0) {
-				if (debug)
-					ast_verbose("Got T.38 Re-invite without audio. Keeping RTP active during T.38 session. Callid %s\n", p->callid);
-			} else {
-				ast_rtp_stop(p->rtp);
-				if (debug)
-					ast_verbose("Peer doesn't provide audio. Callid %s\n", p->callid);
-			}
-		}
-	}
-	/* Setup video port number, assumes we have audio */
-	if (vportno != -1)
-		vsin.sin_port = htons(vportno);
-
-	/* Setup text port number, assumes we have audio */
-	if (tportno != -1)
-		tsin.sin_port = htons(tportno);
-
-	/* Next, scan through each "a=xxxx:" line, noting each
-	 * specified RTP payload type (with corresponding MIME subtype):
-	 */
-	/* XXX This needs to be done per media stream, since it's media stream specific */
-	iterator = req->sdp_start;
-	while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
-		char mimeSubtype[128];
-		if (option_debug > 1) {
-			int breakout = FALSE;
-		
-			/* If we're debugging, check for unsupported sdp options */
-			if (!strncasecmp(a, "rtcp:", (size_t) 5)) {
-				if (debug)
-					ast_verbose("Got unsupported a:rtcp in SDP offer \n");
-				breakout = TRUE;
-			} else if (!strncasecmp(a, "fmtp:", (size_t) 5)) {
-				/* Format parameters:  Not supported */
-				/* Note: This is used for codec parameters, like bitrate for
-					G722 and video formats for H263 and H264 
-					See RFC2327 for an example */
-				if (debug)
-					ast_verbose("Got unsupported a:fmtp in SDP offer \n");
-				breakout = TRUE;
-			} else if (!strncasecmp(a, "framerate:", (size_t) 10)) {
-				/* Video stuff:  Not supported */
-				if (debug)
-					ast_verbose("Got unsupported a:framerate in SDP offer \n");
-				breakout = TRUE;
-			} else if (!strncasecmp(a, "maxprate:", (size_t) 9)) {
-				/* Video stuff:  Not supported */
-				if (debug)
-					ast_verbose("Got unsupported a:maxprate in SDP offer \n");
-				breakout = TRUE;
-			} else if (!strncasecmp(a, "crypto:", (size_t) 7)) {
-				/* SRTP stuff, not yet supported */
-				if (debug)
-					ast_verbose("Got unsupported a:crypto in SDP offer \n");
-				breakout = TRUE;
-			}
-			if (breakout)	/* We have a match, skip to next header */
-				continue;
-		}
-		if (!strcasecmp(a, "sendonly")) {
-			if (sendonly == -1)
-				sendonly = 1;
-			continue;
-		} else if (!strcasecmp(a, "inactive")) {
-			if (sendonly == -1)
-				sendonly = 2;
-			continue;
-		}  else if (!strcasecmp(a, "sendrecv")) {
-			if (sendonly == -1)
-				sendonly = 0;
-			continue;
-		} else if (strlen(a) > 5 && !strncasecmp(a, "ptime", 5)) {
-			char *tmp = strrchr(a, ':');
-			long int framing = 0;
-			if (tmp) {
-				tmp++;
-				framing = strtol(tmp, NULL, 10);
-				if (framing == LONG_MIN || framing == LONG_MAX) {
-					framing = 0;
-					ast_debug(1, "Can't read framing from SDP: %s\n", a);
-				}
-			}
-			if (framing && p->autoframing) {
-				struct ast_codec_pref *pref = ast_rtp_codec_getpref(p->rtp);
-				int codec_n;
-				int format = 0;
-				for (codec_n = 0; codec_n < MAX_RTP_PT; codec_n++) {
-					format = ast_rtp_codec_getformat(codec_n);
-					if (!format)	/* non-codec or not found */
-						continue;
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Setting framing for %d to %ld\n", format, framing);
-					ast_codec_pref_setsize(pref, format, framing);
-				}
-				ast_rtp_codec_setpref(p->rtp, pref);
-			}
-			continue;
-		} else if (sscanf(a, "rtpmap: %30u %127[^/]/", &codec, mimeSubtype) == 2) {
-			/* We have a rtpmap to handle */
-
-			if (last_rtpmap_codec < SDP_MAX_RTPMAP_CODECS) {
-				/* Note: should really look at the 'freq' and '#chans' params too */
-				/* Note: This should all be done in the context of the m= above */
-				if (!strncasecmp(mimeSubtype, "H26", 3) || !strncasecmp(mimeSubtype, "MP4", 3)) {         /* Video */
-					if(ast_rtp_set_rtpmap_type(newvideortp, codec, "video", mimeSubtype, 0) != -1) {
-						if (debug)
-							ast_verbose("Found video description format %s for ID %d\n", mimeSubtype, codec);
-						found_rtpmap_codecs[last_rtpmap_codec] = codec;
-						last_rtpmap_codec++;
-					} else {
-						ast_rtp_unset_m_type(newvideortp, codec);
-						if (debug) 
-							ast_verbose("Found unknown media description format %s for ID %d\n", mimeSubtype, codec);
-					}
-				} else if (!strncasecmp(mimeSubtype, "T140", 4)) { /* Text */
-					if (p->trtp) {
-						/* ast_verbose("Adding t140 mimeSubtype to textrtp struct\n"); */
-						ast_rtp_set_rtpmap_type(newtextrtp, codec, "text", mimeSubtype, 0);
-					}
-				} else {                                          /* Must be audio?? */
-					if(ast_rtp_set_rtpmap_type(newaudiortp, codec, "audio", mimeSubtype,
-								   ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0) != -1) {
-						if (debug)
-							ast_verbose("Found audio description format %s for ID %d\n", mimeSubtype, codec);
-						found_rtpmap_codecs[last_rtpmap_codec] = codec;
-						last_rtpmap_codec++;
-					} else {
-						ast_rtp_unset_m_type(newaudiortp, codec);
-						if (debug) 
-							ast_verbose("Found unknown media description format %s for ID %d\n", mimeSubtype, codec);
-					}
-				}
-			} else {
-				if (debug)
-					ast_verbose("Discarded description format %s for ID %d\n", mimeSubtype, codec);
-			}
-
-		}
-	}
-	
-	if (udptlportno != -1) {
-		if (p->t38.state != T38_ENABLED) {
-			int found = 0, x;
-		
-			old = 0;
-			memset(&p->t38.their_parms, 0, sizeof(p->t38.their_parms));
-		
-			/* Scan trough the a= lines for T38 attributes and set apropriate fileds */
-			iterator = req->sdp_start;
-			while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
-				if ((sscanf(a, "T38FaxMaxBuffer:%30d", &x) == 1)) {
-					found = 1;
-					ast_debug(3, "MaxBufferSize:%d\n", x);
-				} else if ((sscanf(a, "T38MaxBitRate:%30d", &x) == 1) || (sscanf(a, "T38FaxMaxRate:%30d", &x) == 1)) {
-					found = 1;
-					ast_debug(3, "T38MaxBitRate: %d\n", x);
-					switch (x) {
-					case 14400:
-						p->t38.their_parms.rate = AST_T38_RATE_14400;
-						break;
-					case 12000:
-						p->t38.their_parms.rate = AST_T38_RATE_12000;
-						break;
-					case 9600:
-						p->t38.their_parms.rate = AST_T38_RATE_9600;
-						break;
-					case 7200:
-						p->t38.their_parms.rate = AST_T38_RATE_7200;
-						break;
-					case 4800:
-						p->t38.their_parms.rate = AST_T38_RATE_4800;
-						break;
-					case 2400:
-						p->t38.their_parms.rate = AST_T38_RATE_2400;
-						break;
-					}
-				} else if ((sscanf(a, "T38FaxVersion:%30d", &x) == 1)) {
-					found = 1;
-					ast_debug(3, "FaxVersion: %d\n", x);
-					p->t38.their_parms.version = x;
-				} else if ((sscanf(a, "T38FaxMaxDatagram:%30d", &x) == 1) || (sscanf(a, "T38MaxDatagram:%30d", &x) == 1)) {
-					/* override the supplied value if the configuration requests it */
-					if (p->t38_maxdatagram > x) {
-						ast_debug(1, "Overriding T38FaxMaxDatagram '%d' with '%d'\n", x, p->t38_maxdatagram);
-						x = p->t38_maxdatagram;
-					}
-					found = 1;
-					ast_debug(3, "FaxMaxDatagram: %d\n", x);
-					ast_udptl_set_far_max_datagram(p->udptl, x);
-				} else if ((strncmp(a, "T38FaxFillBitRemoval", 20) == 0)) {
-					found = 1;
-					if (sscanf(a, "T38FaxFillBitRemoval:%30d", &x) == 1) {
-						ast_debug(3, "FillBitRemoval: %d\n", x);
-						if (x == 1) {
-							p->t38.their_parms.fill_bit_removal = TRUE;
-						}
-					} else {
-						ast_debug(3, "FillBitRemoval\n");
-						p->t38.their_parms.fill_bit_removal = TRUE;
-					}
-				} else if ((strncmp(a, "T38FaxTranscodingMMR", 20) == 0)) {
-					found = 1;
-					if (sscanf(a, "T38FaxTranscodingMMR:%30d", &x) == 1) {
-						ast_debug(3, "Transcoding MMR: %d\n", x);
-						if (x == 1) {
-							p->t38.their_parms.transcoding_mmr = TRUE;
-						}
-					} else {
-						ast_debug(3, "Transcoding MMR\n");
-						p->t38.their_parms.transcoding_mmr = TRUE;
-					}
-				} else if ((strncmp(a, "T38FaxTranscodingJBIG", 21) == 0)) {
-					found = 1;
-					if (sscanf(a, "T38FaxTranscodingJBIG:%30d", &x) == 1) {
-						ast_debug(3, "Transcoding JBIG: %d\n", x);
-						if (x == 1) {
-							p->t38.their_parms.transcoding_jbig = TRUE;
-						}
-					} else {
-						ast_debug(3, "Transcoding JBIG\n");
-						p->t38.their_parms.transcoding_jbig = TRUE;
-					}
-				} else if ((sscanf(a, "T38FaxRateManagement:%255s", s) == 1)) {
-					found = 1;
-					ast_debug(3, "RateManagement: %s\n", s);
-					if (!strcasecmp(s, "localTCF"))
-						p->t38.their_parms.rate_management = AST_T38_RATE_MANAGEMENT_LOCAL_TCF;
-					else if (!strcasecmp(s, "transferredTCF"))
-						p->t38.their_parms.rate_management = AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF;
-				} else if ((sscanf(a, "T38FaxUdpEC:%255s", s) == 1)) {
-					found = 1;
-					ast_debug(3, "UDP EC: %s\n", s);
-					if (!strcasecmp(s, "t38UDPRedundancy")) {
-						ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_REDUNDANCY);
-					} else if (!strcasecmp(s, "t38UDPFEC")) {
-						ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_FEC);
-					} else {
-						ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_NONE);
-					}
-				}
-			}
-
-			/* Remote party offers T38, we need to update state */
-			if ((t38action == SDP_T38_ACCEPT) &&
-			    (p->t38.state == T38_LOCAL_REINVITE)) {
-				change_t38_state(p, T38_ENABLED);
-			} else if ((t38action == SDP_T38_INITIATE) &&
-				   p->owner && p->lastinvite) {
-				change_t38_state(p, T38_PEER_REINVITE); /* T38 Offered in re-invite from remote party */
-			}
-		}
-	} else {
+	if (udptlportno == -1) {
 		change_t38_state(p, T38_DISABLED);
 	}
 
@@ -7547,25 +7303,79 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		}
 	}
 
-	/* Setup audio port number */
-	if (p->rtp && sin.sin_port) {
-		ast_rtp_set_peer(p->rtp, &sin);
-		if (debug)
-			ast_verbose("Peer audio RTP is at port %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+	/* Setup audio address and port */
+	if (p->rtp) {
+		if (portno > 0) {
+			sin.sin_family = AF_INET;
+			sin.sin_port = htons(portno);
+			memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
+			ast_rtp_set_peer(p->rtp, &sin);
+			if (debug)
+				ast_verbose("Peer audio RTP is at port %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+		} else if (udptlportno > 0) {
+			if (debug)
+				ast_verbose("Got T.38 Re-invite without audio. Keeping RTP active during T.38 session.\n");
+		} else {
+			ast_rtp_stop(p->rtp);
+			if (debug)
+				ast_verbose("Peer doesn't provide audio\n");
+		}
 	}
 
-	/* Setup video port number */
-	if (p->vrtp && vsin.sin_port) {
-		ast_rtp_set_peer(p->vrtp, &vsin);
-		if (debug) 
-			ast_verbose("Peer video RTP is at port %s:%d\n", ast_inet_ntoa(vsin.sin_addr), ntohs(vsin.sin_port));
+	/* Setup video address and port */
+	if (p->vrtp) {
+		if (vportno > 0) {
+			vsin.sin_family = AF_INET;
+			vsin.sin_port = htons(vportno);
+			memcpy(&vsin.sin_addr, vhp->h_addr, sizeof(vsin.sin_addr));
+			ast_rtp_set_peer(p->vrtp, &vsin);
+			if (debug) 
+				ast_verbose("Peer video RTP is at port %s:%d\n", ast_inet_ntoa(vsin.sin_addr), ntohs(vsin.sin_port));
+		} else {
+			ast_rtp_stop(p->vrtp);
+			if (debug)
+				ast_verbose("Peer doesn't provide video\n");
+		}
 	}
 
-	/* Setup text port number */
-	if (p->trtp && tsin.sin_port) {
-		ast_rtp_set_peer(p->trtp, &tsin);
-		if (debug) 
-			ast_verbose("Peer text RTP is at port %s:%d\n", ast_inet_ntoa(tsin.sin_addr), ntohs(tsin.sin_port));
+	/* Setup text address and port */
+	if (p->trtp) {
+		if (tportno > 0) {
+			tsin.sin_family = AF_INET;
+			tsin.sin_port = htons(tportno);
+			memcpy(&tsin.sin_addr, thp->h_addr, sizeof(tsin.sin_addr));
+			ast_rtp_set_peer(p->trtp, &tsin);
+			if (debug) 
+				ast_verbose("Peer T.140 RTP is at port %s:%d\n", ast_inet_ntoa(vsin.sin_addr), ntohs(vsin.sin_port));
+		} else {
+			ast_rtp_stop(p->trtp);
+			if (debug)
+				ast_verbose("Peer doesn't provide T.140\n");
+		}
+	}
+	/* Setup image address and port */
+	if (p->udptl) {
+		if (udptlportno > 0) {
+			isin.sin_family = AF_INET;
+			isin.sin_port = htons(udptlportno);
+			if (ast_test_flag(&p->flags[0], SIP_NAT) && ast_test_flag(&p->flags[1], SIP_PAGE2_UDPTL_DESTINATION)) {
+				struct sockaddr_in remote_address = { 0, };
+				ast_rtp_get_peer(p->rtp, &remote_address);
+				if (remote_address.sin_addr.s_addr) {
+					memcpy(&isin, &remote_address, sizeof(isin));
+					if (debug) {
+						ast_log(LOG_DEBUG, "Peer T.38 UDPTL is set behind NAT and with destination, destination address now %s\n", ast_inet_ntoa(isin.sin_addr));
+					}
+				}
+			}
+			ast_udptl_set_peer(p->udptl, &isin);
+			if (debug)
+				ast_debug(1,"Peer T.38 UDPTL is at port %s:%d\n", ast_inet_ntoa(isin.sin_addr), ntohs(isin.sin_port));
+		} else {
+			ast_udptl_stop(p->udptl);
+			if (debug)
+				ast_debug(1, "Peer doesn't provide T.38 UDPTL\n");
+		}
 	}
 
 	/* Ok, we're going with this offer */
@@ -7636,6 +7446,341 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	
 	return 0;
 }
+
+static int process_sdp_o(const char *o, struct sip_pvt *p)
+{
+	char *o_copy;
+	char *token;
+	int64_t rua_version;
+
+	/* Store the SDP version number of remote UA. This will allow us to
+	distinguish between session modifications and session refreshes. If
+	the remote UA does not send an incremented SDP version number in a
+	subsequent RE-INVITE then that means its not changing media session.
+	The RE-INVITE may have been sent to update connected party, remote
+	target or to refresh the session (Session-Timers).  Asterisk must not
+	change media session and increment its own version number in answer
+	SDP in this case. */
+
+	if (ast_strlen_zero(o)) {
+		ast_log(LOG_WARNING, "SDP syntax error. SDP without an o= line\n");
+		return FALSE;
+	}
+
+	o_copy = ast_strdupa(o);
+	token = strsep(&o_copy, " ");  /* Skip username   */
+	if (!o_copy) {
+		ast_log(LOG_WARNING, "SDP syntax error in o= line username\n");
+		return FALSE;
+	}
+	token = strsep(&o_copy, " ");  /* Skip session-id */
+	if (!o_copy) {
+		ast_log(LOG_WARNING, "SDP syntax error in o= line session-id\n");
+		return FALSE;
+	}
+	token = strsep(&o_copy, " ");  /* Version         */
+	if (!o_copy) {
+		ast_log(LOG_WARNING, "SDP syntax error in o= line\n");
+		return FALSE;
+	}
+	if (!sscanf(token, "%30" SCNd64, &rua_version)) {
+		ast_log(LOG_WARNING, "SDP syntax error in o= line version\n");
+		return FALSE;
+	}
+
+	/* we need to check the SDP version number the other end sent us;
+	 * our rules for deciding what to accept are a bit complex.
+	 *
+	 * 1) if 'ignoresdpversion' has been set for this dialog, then
+	 *    we will just accept whatever they sent and assume it is
+	 *    a modification of the session, even if it is not
+	 * 2) otherwise, if this is the first SDP we've seen from them
+	 *    we accept it
+	 * 3) otherwise, if the new SDP version number is higher than the
+	 *    old one, we accept it
+	 * 4) otherwise, if this SDP is in response to us requesting a switch
+	 *    to T.38, we accept the SDP, but also generate a warning message
+	 *    that this peer should have the 'ignoresdpversion' option set,
+	 *    because it is not following the SDP offer/answer RFC; if we did
+	 *    not request a switch to T.38, then we stop parsing the SDP, as it
+	 *    has not changed from the previous version
+	 */
+
+	if (ast_test_flag(&p->flags[1], SIP_PAGE2_IGNORESDPVERSION) ||
+	    (p->sessionversion_remote < 0) ||
+	    (p->sessionversion_remote < rua_version)) {
+		p->sessionversion_remote = rua_version;
+		p->session_modify = TRUE;
+	} else {
+		if (p->t38.state == T38_LOCAL_REINVITE) {
+			p->sessionversion_remote = rua_version;
+			p->session_modify = TRUE;
+			ast_log(LOG_WARNING, "Call %s responded to our T.38 reinvite without changing SDP version; 'ignoresdpversion' should be set for this peer.\n", p->callid);
+		} else {
+			p->session_modify = FALSE;
+			ast_debug(2, "Call %s responded to our reinvite without changing SDP version; ignoring SDP.\n", p->callid);
+			return FALSE;
+		}
+	}
+
+	return TRUE;
+}
+
+static int process_sdp_c(const char *c, struct ast_hostent *ast_hp)
+{
+	char host[258];
+	struct hostent *hp;
+
+	/* Check for Media-description-level-address */
+	if (sscanf(c, "IN IP4 %255s", host) != 1) {
+		ast_log(LOG_WARNING, "Invalid host in c= line, '%s'\n", c);
+		return FALSE;
+	} else {
+		if (!(hp = ast_gethostbyname(host, ast_hp))) {
+			ast_log(LOG_WARNING, "Unable to lookup RTP Audio host in c= line, '%s'\n", c);
+			return FALSE;
+		}
+		return TRUE;
+	}
+	return FALSE;
+}
+
+static int process_sdp_a_sendonly(const char *a, int *sendonly)
+{
+	int found = FALSE;
+
+	if (!strcasecmp(a, "sendonly")) {
+		if (*sendonly == -1)
+			*sendonly = 1;
+		found = TRUE;
+	} else if (!strcasecmp(a, "inactive")) {
+		if (*sendonly == -1)
+			*sendonly = 2;
+		found = TRUE;
+	}  else if (!strcasecmp(a, "sendrecv")) {
+		if (*sendonly == -1)
+			*sendonly = 0;
+		found = TRUE;
+	}
+	return found;
+}
+
+static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp *newaudiortp, int *last_rtpmap_codec)
+{
+	int found = FALSE;
+	int codec;
+	char mimeSubtype[128];
+	int debug = sip_debug_test_pvt(p);
+
+	if (!strncasecmp(a, "ptime", 5)) {
+		char *tmp = strrchr(a, ':');
+		long int framing = 0;
+		if (tmp) {
+			tmp++;
+			framing = strtol(tmp, NULL, 10);
+			if (framing == LONG_MIN || framing == LONG_MAX) {
+				framing = 0;
+				ast_debug(1, "Can't read framing from SDP: %s\n", a);
+			}
+		}
+		if (framing && p->autoframing) {
+			struct ast_codec_pref *pref = ast_rtp_codec_getpref(p->rtp);
+			int codec_n;
+			int format = 0;
+			for (codec_n = 0; codec_n < MAX_RTP_PT; codec_n++) {
+				format = ast_rtp_codec_getformat(codec_n);
+				if (!format)	/* non-codec or not found */
+					continue;
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Setting framing for %d to %ld\n", format, framing);
+				ast_codec_pref_setsize(pref, format, framing);
+			}
+			ast_rtp_codec_setpref(p->rtp, pref);
+		}
+		found = TRUE;
+	} else if (sscanf(a, "rtpmap: %30u %127[^/]/", &codec, mimeSubtype) == 2) {
+		/* We have a rtpmap to handle */
+		if (*last_rtpmap_codec < SDP_MAX_RTPMAP_CODECS) {
+			if (ast_rtp_set_rtpmap_type(newaudiortp, codec, "audio", mimeSubtype,
+			    ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0) != -1) {
+				if (debug)
+					ast_verbose("Found audio description format %s for ID %d\n", mimeSubtype, codec);
+				//found_rtpmap_codecs[last_rtpmap_codec] = codec;
+				(*last_rtpmap_codec)++;
+				found = TRUE;
+			} else {
+				ast_rtp_unset_m_type(newaudiortp, codec);
+				if (debug)
+					ast_verbose("Found unknown media description format %s for ID %d\n", mimeSubtype, codec);
+			}
+		} else {
+			if (debug)
+				ast_verbose("Discarded description format %s for ID %d\n", mimeSubtype, codec);
+		}
+	}
+
+	return found;
+}
+
+static int process_sdp_a_video(const char *a, struct sip_pvt *p, struct ast_rtp *newvideortp, int *last_rtpmap_codec)
+{
+	int found = FALSE;
+	int codec;
+	char mimeSubtype[128];
+	int debug = sip_debug_test_pvt(p);
+
+	if (sscanf(a, "rtpmap: %30u %127[^/]/", &codec, mimeSubtype) == 2) {
+		/* We have a rtpmap to handle */
+		if (*last_rtpmap_codec < SDP_MAX_RTPMAP_CODECS) {
+			/* Note: should really look at the '#chans' params too */
+			if (!strncasecmp(mimeSubtype, "H26", 3) || !strncasecmp(mimeSubtype, "MP4", 3)) {
+				if (ast_rtp_set_rtpmap_type(newvideortp, codec, "video", mimeSubtype, 0) != -1) {
+					if (debug)
+						ast_verbose("Found video description format %s for ID %d\n", mimeSubtype, codec);
+					//found_rtpmap_codecs[last_rtpmap_codec] = codec;
+					(*last_rtpmap_codec)++;
+					found = TRUE;
+				} else {
+					ast_rtp_unset_m_type(newvideortp, codec);
+					if (debug) 
+						ast_verbose("Found unknown media description format %s for ID %d\n", mimeSubtype, codec);
+				}
+			}
+		} else {
+			if (debug)
+				ast_verbose("Discarded description format %s for ID %d\n", mimeSubtype, codec);
+		}
+	}
+
+	return found;
+}
+
+static int process_sdp_a_text(const char *a, struct sip_pvt *p, struct ast_rtp *newtextrtp, int *last_rtpmap_codec)
+{
+	int found = FALSE;
+	int codec;
+	char mimeSubtype[128];
+	int debug = sip_debug_test_pvt(p);
+
+	if (sscanf(a, "rtpmap: %30u %127[^/]/", &codec, mimeSubtype) == 2) {
+		/* We have a rtpmap to handle */
+		if (*last_rtpmap_codec < SDP_MAX_RTPMAP_CODECS) {
+			if (!strncasecmp(mimeSubtype, "T140", 4)) { /* Text */
+				if (p->trtp) {
+					/* ast_verbose("Adding t140 mimeSubtype to textrtp struct\n"); */
+					ast_rtp_set_rtpmap_type(newtextrtp, codec, "text", mimeSubtype, 0);
+					found = TRUE;
+				}
+			}
+		} else {
+			if (debug)
+				ast_verbose("Discarded description format %s for ID %d\n", mimeSubtype, codec);
+		}
+	}
+
+	return found;
+}
+
+static int process_sdp_a_image(const char *a, struct sip_pvt *p)
+{
+	int found = FALSE;
+	char s[256];
+	int x;
+
+	if ((sscanf(a, "T38FaxMaxBuffer:%30d", &x) == 1)) {
+		ast_debug(3, "MaxBufferSize:%d\n", x);
+		found = TRUE;
+	} else if ((sscanf(a, "T38MaxBitRate:%30d", &x) == 1) || (sscanf(a, "T38FaxMaxRate:%30d", &x) == 1)) {
+		ast_debug(3, "T38MaxBitRate: %d\n", x);
+		switch (x) {
+		case 14400:
+			p->t38.their_parms.rate = AST_T38_RATE_14400;
+			break;
+		case 12000:
+			p->t38.their_parms.rate = AST_T38_RATE_12000;
+			break;
+		case 9600:
+			p->t38.their_parms.rate = AST_T38_RATE_9600;
+			break;
+		case 7200:
+			p->t38.their_parms.rate = AST_T38_RATE_7200;
+			break;
+		case 4800:
+			p->t38.their_parms.rate = AST_T38_RATE_4800;
+			break;
+		case 2400:
+			p->t38.their_parms.rate = AST_T38_RATE_2400;
+			break;
+		}
+		found = TRUE;
+	} else if ((sscanf(a, "T38FaxVersion:%30d", &x) == 1)) {
+		ast_debug(3, "FaxVersion: %d\n", x);
+		p->t38.their_parms.version = x;
+		found = TRUE;
+	} else if ((sscanf(a, "T38FaxMaxDatagram:%30d", &x) == 1) || (sscanf(a, "T38MaxDatagram:%30d", &x) == 1)) {
+		/* override the supplied value if the configuration requests it */
+		if (p->t38_maxdatagram > x) {
+			ast_debug(1, "Overriding T38FaxMaxDatagram '%d' with '%d'\n", x, p->t38_maxdatagram);
+			x = p->t38_maxdatagram;
+		}
+		ast_debug(3, "FaxMaxDatagram: %d\n", x);
+		ast_udptl_set_far_max_datagram(p->udptl, x);
+		found = TRUE;
+	} else if ((strncmp(a, "T38FaxFillBitRemoval", 20) == 0)) {
+		if (sscanf(a, "T38FaxFillBitRemoval:%30d", &x) == 1) {
+			ast_debug(3, "FillBitRemoval: %d\n", x);
+			if (x == 1) {
+				p->t38.their_parms.fill_bit_removal = TRUE;
+			}
+		} else {
+			ast_debug(3, "FillBitRemoval\n");
+			p->t38.their_parms.fill_bit_removal = TRUE;
+		}
+		found = TRUE;
+	} else if ((strncmp(a, "T38FaxTranscodingMMR", 20) == 0)) {
+		if (sscanf(a, "T38FaxTranscodingMMR:%30d", &x) == 1) {
+			ast_debug(3, "Transcoding MMR: %d\n", x);
+			if (x == 1) {
+				p->t38.their_parms.transcoding_mmr = TRUE;
+			}
+		} else {
+			ast_debug(3, "Transcoding MMR\n");
+			p->t38.their_parms.transcoding_mmr = TRUE;
+		}
+		found = TRUE;
+	} else if ((strncmp(a, "T38FaxTranscodingJBIG", 21) == 0)) {
+		if (sscanf(a, "T38FaxTranscodingJBIG:%30d", &x) == 1) {
+			ast_debug(3, "Transcoding JBIG: %d\n", x);
+			if (x == 1) {
+				p->t38.their_parms.transcoding_jbig = TRUE;
+			}
+		} else {
+			ast_debug(3, "Transcoding JBIG\n");
+			p->t38.their_parms.transcoding_jbig = TRUE;
+		}
+		found = TRUE;
+	} else if ((sscanf(a, "T38FaxRateManagement:%255s", s) == 1)) {
+		ast_debug(3, "RateManagement: %s\n", s);
+		if (!strcasecmp(s, "localTCF"))
+			p->t38.their_parms.rate_management = AST_T38_RATE_MANAGEMENT_LOCAL_TCF;
+		else if (!strcasecmp(s, "transferredTCF"))
+			p->t38.their_parms.rate_management = AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF;
+		found = TRUE;
+	} else if ((sscanf(a, "T38FaxUdpEC:%255s", s) == 1)) {
+		ast_debug(3, "UDP EC: %s\n", s);
+		if (!strcasecmp(s, "t38UDPRedundancy")) {
+			ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_REDUNDANCY);
+		} else if (!strcasecmp(s, "t38UDPFEC")) {
+			ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_FEC);
+		} else {
+			ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_NONE);
+		}
+		found = TRUE;
+	}
+
+	return found;
+}
+
 
 #ifdef LOW_MEMORY
 static void ts_ast_rtp_destroy(void *data)
