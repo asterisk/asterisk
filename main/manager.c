@@ -1441,7 +1441,7 @@ static char *handle_showmanconn(struct ast_cli_entry *e, int cmd, struct ast_cli
 		ao2_unlock(session);
 		unref_mansession(session);
 	}
-
+	ao2_iterator_destroy(&i);
 	ast_cli(a->fd, "%d users connected.\n", count);
 
 	return CLI_SUCCESS;
@@ -4181,6 +4181,7 @@ static void purge_sessions(int n_max)
 			unref_mansession(session);
 		}
 	}
+	ao2_iterator_destroy(&i);
 }
 
 /*
@@ -4277,6 +4278,7 @@ int __manager_event(int category, const char *event,
 			ao2_unlock(session);
 			unref_mansession(session);
 		}
+		ao2_iterator_destroy(&i);
 	}
 
 	AST_RWLIST_RDLOCK(&manager_hooks);
@@ -4470,6 +4472,7 @@ static struct mansession_session *find_session(uint32_t ident, int incinuse)
 		ao2_unlock(session);
 		unref_mansession(session);
 	}
+	ao2_iterator_destroy(&i);
 
 	return session;
 }
@@ -4505,6 +4508,7 @@ static struct mansession_session *find_session_by_nonce(const char *username, un
 		ao2_unlock(session);
 		unref_mansession(session);
 	}
+	ao2_iterator_destroy(&i);
 	return session;
 }
 
@@ -4546,6 +4550,7 @@ int astman_verify_session_readpermissions(uint32_t ident, int perm)
 		ao2_unlock(session);
 		unref_mansession(session);
 	}
+	ao2_iterator_destroy(&i);
 	return result;
 }
 
@@ -4571,6 +4576,7 @@ int astman_verify_session_writepermissions(uint32_t ident, int perm)
 		ao2_unlock(session);
 		unref_mansession(session);
 	}
+	ao2_iterator_destroy(&i);
 	return result;
 }
 
