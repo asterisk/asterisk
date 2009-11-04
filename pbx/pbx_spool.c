@@ -66,7 +66,7 @@ struct outgoing {
 	int retrytime;                            /*!< How long to wait between retries (in seconds) */
 	int waittime;                             /*!< How long to wait for an answer */
 	long callingpid;                          /*!< PID which is currently calling */
-	int format;                               /*!< Formats (codecs) for this call */
+	format_t format;                          /*!< Formats (codecs) for this call */
 	AST_DECLARE_STRING_FIELDS (
 		AST_STRING_FIELD(fn);                 /*!< File name of call file */
 		AST_STRING_FIELD(tech);               /*!< Which channel technology to use for outgoing call */

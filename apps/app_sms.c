@@ -1603,7 +1603,7 @@ static int sms_generate(struct ast_channel *chan, void *data, int len, int sampl
 	buf = alloca(len);
 
 	f.frametype = AST_FRAME_VOICE;
-	f.subclass = __OUT_FMT;
+	f.subclass.codec = __OUT_FMT;
 	f.datalen = samples * sizeof(*buf);
 	f.offset = AST_FRIENDLY_OFFSET;
 	f.mallocd = 0;

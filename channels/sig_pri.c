@@ -840,7 +840,7 @@ static void pri_queue_control(struct sig_pri_chan *p, int subclass, struct sig_p
 		p->calls->queue_control(p->chan_pvt, subclass);
 	}
 
-	f.subclass = subclass;
+	f.subclass.integer = subclass;
 	pri_queue_frame(p, &f, pri);
 }
 
@@ -1200,7 +1200,7 @@ static void *do_idle_thread(void *vchan)
 			break;
 		}
 		if (f->frametype == AST_FRAME_CONTROL) {
-			switch (f->subclass) {
+			switch (f->subclass.integer) {
 			case AST_CONTROL_ANSWER:
 				/* Launch the PBX */
 				ast_copy_string(chan->exten, pvt->pri->idleext, sizeof(chan->exten));
@@ -1777,7 +1777,7 @@ static int sig_pri_handle_hold(struct sig_pri_pri *pri, pri_event *ev)
 	} else {
 		struct ast_frame f = { AST_FRAME_CONTROL, };
 
-		f.subclass = AST_CONTROL_HOLD;
+		f.subclass.integer = AST_CONTROL_HOLD;
 		ast_queue_frame(owner, &f);
 		retval = 0;
 	}
@@ -1848,7 +1848,7 @@ static void sig_pri_handle_retrieve(struct sig_pri_pri *pri, pri_event *ev)
 	{
 		struct ast_frame f = { AST_FRAME_CONTROL, };
 
-		f.subclass = AST_CONTROL_UNHOLD;
+		f.subclass.integer = AST_CONTROL_UNHOLD;
 		pri_queue_frame(pri->pvts[chanpos], &f, pri);
 	}
 	sig_pri_unlock_private(pri->pvts[chanpos]);
@@ -2192,7 +2192,7 @@ static void *pri_dchannel(void *vpri)
 							int i;
 
 							for (i = 0; i < digitlen; i++) {
-								struct ast_frame f = { AST_FRAME_DTMF, e->digit.digits[i], };
+								struct ast_frame f = { AST_FRAME_DTMF, .subclass.integer = e->digit.digits[i], };
 
 								pri_queue_frame(pri->pvts[chanpos], &f, pri);
 							}
@@ -2222,7 +2222,7 @@ static void *pri_dchannel(void *vpri)
 							int i;
 
 							for (i = 0; i < digitlen; i++) {
-								struct ast_frame f = { AST_FRAME_DTMF, e->ring.callednum[i], };
+								struct ast_frame f = { AST_FRAME_DTMF, .subclass.integer = e->ring.callednum[i], };
 
 								pri_queue_frame(pri->pvts[chanpos], &f, pri);
 							}
@@ -2685,7 +2685,7 @@ static void *pri_dchannel(void *vpri)
 						|| (e->proceeding.progress == 8)
 #endif
 						) {
-						struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, };
+						struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_PROGRESS, };
 
 						if (e->proceeding.cause > -1) {
 							ast_verb(3, "PROGRESS with cause code %d received\n", e->proceeding.cause);
@@ -2696,7 +2696,7 @@ static void *pri_dchannel(void *vpri)
 									ast_verb(3, "PROGRESS with 'user busy' received, signaling AST_CONTROL_BUSY instead of AST_CONTROL_PROGRESS\n");
 
 									pri->pvts[chanpos]->owner->hangupcause = e->proceeding.cause;
-									f.subclass = AST_CONTROL_BUSY;
+									f.subclass.integer = AST_CONTROL_BUSY;
 								}
 							}
 						}
@@ -2712,7 +2712,7 @@ static void *pri_dchannel(void *vpri)
 #endif
 							) {
 							/* Bring voice path up */
-							f.subclass = AST_CONTROL_PROGRESS;
+							f.subclass.integer = AST_CONTROL_PROGRESS;
 							pri_queue_frame(pri->pvts[chanpos], &f, pri);
 						}
 						pri->pvts[chanpos]->progress = 1;
@@ -2728,7 +2728,7 @@ static void *pri_dchannel(void *vpri)
 					sig_pri_handle_subcmds(pri, chanpos, e->e, e->proceeding.channel,
 						e->proceeding.subcmds, e->proceeding.call);
 					if (!pri->pvts[chanpos]->proceeding) {
-						struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROCEEDING, };
+						struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_PROCEEDING, };
 
 						ast_debug(1, "Queuing frame from PRI_EVENT_PROCEEDING on channel %d/%d span %d\n",
 							pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset,pri->span);
@@ -2741,7 +2741,7 @@ static void *pri_dchannel(void *vpri)
 #endif
 							) {
 							/* Bring voice path up */
-							f.subclass = AST_CONTROL_PROGRESS;
+							f.subclass.integer = AST_CONTROL_PROGRESS;
 							pri_queue_frame(pri->pvts[chanpos], &f, pri);
 						}
 						pri->pvts[chanpos]->proceeding = 1;
@@ -3103,7 +3103,7 @@ static void *pri_dchannel(void *vpri)
 						if (!pri->discardremoteholdretrieval) {
 							struct ast_frame f = { AST_FRAME_CONTROL, };
 
-							f.subclass = AST_CONTROL_HOLD;
+							f.subclass.integer = AST_CONTROL_HOLD;
 							pri_queue_frame(pri->pvts[chanpos], &f, pri);
 						}
 						break;
@@ -3111,7 +3111,7 @@ static void *pri_dchannel(void *vpri)
 						if (!pri->discardremoteholdretrieval) {
 							struct ast_frame f = { AST_FRAME_CONTROL, };
 
-							f.subclass = AST_CONTROL_UNHOLD;
+							f.subclass.integer = AST_CONTROL_UNHOLD;
 							pri_queue_frame(pri->pvts[chanpos], &f, pri);
 						}
 						break;

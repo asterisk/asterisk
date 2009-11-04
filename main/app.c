@@ -429,7 +429,7 @@ static int linear_generator(struct ast_channel *chan, void *data, int len, int s
 	struct linear_state *ls = data;
 	struct ast_frame f = {
 		.frametype = AST_FRAME_VOICE,
-		.subclass = AST_FORMAT_SLINEAR,
+		.subclass.codec = AST_FORMAT_SLINEAR,
 		.data.ptr = buf + AST_FRIENDLY_OFFSET / 2,
 		.offset = AST_FRIENDLY_OFFSET,
 	};
@@ -851,20 +851,20 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 			} else if (f->frametype == AST_FRAME_DTMF) {
 				if (prepend) {
 				/* stop recording with any digit */
-					ast_verb(3, "User ended message by pressing %c\n", f->subclass);
+					ast_verb(3, "User ended message by pressing %c\n", f->subclass.integer);
 					res = 't';
 					outmsg = 2;
 					break;
 				}
-				if (strchr(acceptdtmf, f->subclass)) {
-					ast_verb(3, "User ended message by pressing %c\n", f->subclass);
-					res = f->subclass;
+				if (strchr(acceptdtmf, f->subclass.integer)) {
+					ast_verb(3, "User ended message by pressing %c\n", f->subclass.integer);
+					res = f->subclass.integer;
 					outmsg = 2;
 					break;
 				}
-				if (strchr(canceldtmf, f->subclass)) {
-					ast_verb(3, "User cancelled message by pressing %c\n", f->subclass);
-					res = f->subclass;
+				if (strchr(canceldtmf, f->subclass.integer)) {
+					ast_verb(3, "User cancelled message by pressing %c\n", f->subclass.integer);
+					res = f->subclass.integer;
 					outmsg = 0;
 					break;
 				}

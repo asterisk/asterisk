@@ -390,7 +390,7 @@ static void set_state(struct ast_dial *dial, enum ast_dial_result state)
 static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel, struct ast_frame *fr, struct ast_channel *chan)
 {
 	if (fr->frametype == AST_FRAME_CONTROL) {
-		switch (fr->subclass) {
+		switch (fr->subclass.integer) {
 		case AST_CONTROL_ANSWER:
 			ast_verb(3, "%s answered %s\n", channel->owner->name, chan->name);
 			AST_LIST_LOCK(&dial->channels);
@@ -474,7 +474,7 @@ static void handle_frame_ownerless(struct ast_dial *dial, struct ast_dial_channe
 	if (fr->frametype != AST_FRAME_CONTROL)
 		return;
 
-	switch (fr->subclass) {
+	switch (fr->subclass.integer) {
 	case AST_CONTROL_ANSWER:
 		ast_verb(3, "%s answered\n", channel->owner->name);
 		AST_LIST_LOCK(&dial->channels);

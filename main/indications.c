@@ -209,7 +209,7 @@ static int playtones_generator(struct ast_channel *chan, void *data, int len, in
 	}
 
 	ps->f.frametype = AST_FRAME_VOICE;
-	ps->f.subclass = AST_FORMAT_SLINEAR;
+	ps->f.subclass.codec = AST_FORMAT_SLINEAR;
 	ps->f.datalen = len;
 	ps->f.samples = samples;
 	ps->f.offset = AST_FRIENDLY_OFFSET;

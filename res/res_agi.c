@@ -1305,7 +1305,7 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 			}
 			/* is there any other frame we should care about
 			   besides AST_CONTROL_HANGUP? */
-			if (f->frametype == AST_FRAME_CONTROL && f->subclass == AST_CONTROL_HANGUP) {
+			if (f->frametype == AST_FRAME_CONTROL && f->subclass.integer == AST_CONTROL_HANGUP) {
 				ast_log(LOG_DEBUG, "Got HANGUP frame on channel %s, going out ...\n", chan->name);
 				ast_frfree(f);
 				break;
@@ -2164,14 +2164,14 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 			}
 			switch(f->frametype) {
 			case AST_FRAME_DTMF:
-				if (strchr(argv[4], f->subclass)) {
+				if (strchr(argv[4], f->subclass.integer)) {
 					/* This is an interrupting chracter, so rewind to chop off any small
 					   amount of DTMF that may have been recorded
 					*/
 					ast_stream_rewind(fs, 200);
 					ast_truncstream(fs);
 					sample_offset = ast_tellstream(fs);
-					ast_agi_send(agi->fd, chan, "200 result=%d (dtmf) endpos=%ld\n", f->subclass, sample_offset);
+					ast_agi_send(agi->fd, chan, "200 result=%d (dtmf) endpos=%ld\n", f->subclass.integer, sample_offset);
 					ast_closestream(fs);
 					ast_frfree(f);
 					if (sildet)
@@ -2818,8 +2818,8 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 		if (fr) {
 			if (fr->frametype == AST_FRAME_DTMF) {
 				reason = "dtmf";
-				dtmf = fr->subclass;
-			} else if (fr->frametype == AST_FRAME_CONTROL && fr->subclass == AST_CONTROL_HANGUP) {
+				dtmf = fr->subclass.integer;
+			} else if (fr->frametype == AST_FRAME_CONTROL && fr->subclass.integer == AST_CONTROL_HANGUP) {
 				reason = "hangup";
 			}
 			ast_frfree(fr);

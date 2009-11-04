@@ -627,7 +627,7 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  				break;
  			}
  			if (f->frametype == AST_FRAME_DTMF) {
- 				send_eivr_event(eivr_events, f->subclass, NULL, chan);
+ 				send_eivr_event(eivr_events, f->subclass.integer, NULL, chan);
  				if (u->option_autoclear) {
   					if (!u->abort_current_sound && !u->playing_silence)
  						send_eivr_event(eivr_events, 'T', NULL, chan);
@@ -640,7 +640,7 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
   						u->abort_current_sound = 1;
   					AST_LIST_UNLOCK(&u->playlist);
   				}
- 			} else if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP)) {
+ 			} else if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass.integer == AST_CONTROL_HANGUP)) {
  				ast_chan_log(LOG_NOTICE, chan, "Got AST_CONTROL_HANGUP\n");
  				send_eivr_event(eivr_events, 'H', NULL, chan);
 				if (f->data.uint32) {

@@ -81,6 +81,14 @@ int __attribute__((format(printf, 2, 3))) asprintf(char **str, const char *fmt, 
 int getloadavg(double *list, int nelem);
 #endif
 
+#ifndef HAVE_HTONLL
+uint64_t htonll(uint64_t host64);
+#endif
+
+#ifndef HAVE_NTOHLL
+uint64_t ntohll(uint64_t net64);
+#endif
+
 #ifndef HAVE_SETENV
 int setenv(const char *name, const char *value, int overwrite);
 #endif

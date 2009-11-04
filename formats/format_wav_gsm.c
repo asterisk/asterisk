@@ -395,7 +395,7 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 	struct wavg_desc *fs = (struct wavg_desc *)s->_private;
 
 	s->fr.frametype = AST_FRAME_VOICE;
-	s->fr.subclass = AST_FORMAT_GSM;
+	s->fr.subclass.codec = AST_FORMAT_GSM;
 	s->fr.offset = AST_FRIENDLY_OFFSET;
 	s->fr.samples = GSM_SAMPLES;
 	s->fr.mallocd = 0;
@@ -432,8 +432,8 @@ static int wav_write(struct ast_filestream *s, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
 	}
-	if (f->subclass != AST_FORMAT_GSM) {
-		ast_log(LOG_WARNING, "Asked to write non-GSM frame (%d)!\n", f->subclass);
+	if (f->subclass.codec != AST_FORMAT_GSM) {
+		ast_log(LOG_WARNING, "Asked to write non-GSM frame (%s)!\n", ast_getformatname(f->subclass.codec));
 		return -1;
 	}
 	/* XXX this might fail... if the input is a multiple of MSGSM_FRAME_SIZE

@@ -417,12 +417,12 @@ struct ast_channel_tech {
 	const char * const type;
 	const char * const description;
 
-	int capabilities;		/*!< Bitmap of formats this channel can handle */
+	format_t capabilities;  /*!< Bitmap of formats this channel can handle */
 
-	int properties;			/*!< Technology Properties */
+	int properties;         /*!< Technology Properties */
 
 	/*! \brief Requester - to set up call data structures (pvt's) */
-	struct ast_channel *(* const requester)(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause);
+	struct ast_channel *(* const requester)(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause);
 
 	int (* const devicestate)(void *data);	/*!< Devicestate call back */
 
@@ -731,7 +731,7 @@ struct ast_channel {
 	int fdno;					/*!< Which fd had an event detected on */
 	int streamid;					/*!< For streaming playback, the schedule ID */
 	int vstreamid;					/*!< For streaming video playback, the schedule ID */
-	int oldwriteformat;				/*!< Original writer format */
+	format_t oldwriteformat;		/*!< Original writer format */
 	int timingfd;					/*!< Timing fd */
 	enum ast_channel_state _state;			/*!< State of line -- Don't write directly, use ast_setstate() */
 	int rings;					/*!< Number of rings so far */
@@ -746,11 +746,11 @@ struct ast_channel {
 	int hangupcause;				/*!< Why is the channel hanged up. See causes.h */
 	unsigned int flags;				/*!< channel flags of AST_FLAG_ type */
 	int alertpipe[2];
-	int nativeformats;				/*!< Kinds of data this channel can natively handle */
-	int readformat;					/*!< Requested read format */
-	int writeformat;				/*!< Requested write format */
-	int rawreadformat;				/*!< Raw read format */
-	int rawwriteformat;				/*!< Raw write format */
+	format_t nativeformats;         /*!< Kinds of data this channel can natively handle */
+	format_t readformat;            /*!< Requested read format */
+	format_t writeformat;           /*!< Requested write format */
+	format_t rawreadformat;         /*!< Raw read format */
+	format_t rawwriteformat;        /*!< Raw write format */
 	unsigned int emulate_dtmf_duration;		/*!< Number of ms left to emulate DTMF for */
 #ifdef HAVE_EPOLL
 	int epfd;
@@ -1139,7 +1139,7 @@ struct ast_channel *ast_channel_release(struct ast_channel *chan);
  * \retval NULL failure
  * \retval non-NULL channel on success
  */
-struct ast_channel *ast_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *status);
+struct ast_channel *ast_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *status);
 
 /*!
  * \brief Request a channel of a given type, with data as optional information used
@@ -1156,7 +1156,7 @@ struct ast_channel *ast_request(const char *type, int format, const struct ast_c
  * \return Returns an ast_channel on success or no answer, NULL on failure.  Check the value of chan->_state
  * to know if the call was answered or not.
  */
-struct ast_channel *ast_request_and_dial(const char *type, int format, const struct ast_channel *requestor, void *data,
+struct ast_channel *ast_request_and_dial(const char *type, format_t format, const struct ast_channel *requestor, void *data,
 	int timeout, int *reason, const char *cid_num, const char *cid_name);
 
 /*!
@@ -1173,7 +1173,7 @@ struct ast_channel *ast_request_and_dial(const char *type, int format, const str
  * \return Returns an ast_channel on success or no answer, NULL on failure.  Check the value of chan->_state
  * to know if the call was answered or not.
  */
-struct ast_channel *__ast_request_and_dial(const char *type, int format, const struct ast_channel *requestor, void *data,
+struct ast_channel *__ast_request_and_dial(const char *type, format_t format, const struct ast_channel *requestor, void *data,
 	int timeout, int *reason, const char *cid_num, const char *cid_name, struct outgoing_helper *oh);
 
 /*!
@@ -1186,7 +1186,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, const s
  * \param outstate reason why unsuccessful (if uncuccessful)
  * \return Returns the forwarded call's ast_channel on success or NULL on failure
  */
-struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_channel *orig, int *timeout, int format, struct outgoing_helper *oh, int *outstate);
+struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_channel *orig, int *timeout, format_t format, struct outgoing_helper *oh, int *outstate);
 
 /*!
  * \brief Register a channel technology (a new channel driver)
@@ -1591,7 +1591,7 @@ int ast_prod(struct ast_channel *chan);
  * \param format format to change to
  * \return Returns 0 on success, -1 on failure
  */
-int ast_set_read_format(struct ast_channel *chan, int format);
+int ast_set_read_format(struct ast_channel *chan, format_t format);
 
 /*!
  * \brief Sets write format on channel chan
@@ -1600,7 +1600,7 @@ int ast_set_read_format(struct ast_channel *chan, int format);
  * \param format new format for writing
  * \return Returns 0 on success, -1 on failure
  */
-int ast_set_write_format(struct ast_channel *chan, int format);
+int ast_set_write_format(struct ast_channel *chan, format_t format);
 
 /*!
  * \brief Sends text to a channel
@@ -1821,7 +1821,7 @@ int ast_channel_setoption(struct ast_channel *channel, int option, void *data, i
 
 /*! Pick the best codec
  * Choose the best codec...  Uhhh...   Yah. */
-int ast_best_codec(int fmts);
+format_t ast_best_codec(format_t fmts);
 
 
 /*!

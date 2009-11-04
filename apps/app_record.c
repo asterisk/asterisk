@@ -372,7 +372,7 @@ static int record_exec(struct ast_channel *chan, const char *data)
 				break;
 			}
 		} else if ((f->frametype == AST_FRAME_DTMF) &&
-		    (f->subclass == terminator)) {
+		    (f->subclass.integer == terminator)) {
 			ast_frfree(f);
 			pbx_builtin_setvar_helper(chan, "RECORD_STATUS", "DTMF");
 			break;

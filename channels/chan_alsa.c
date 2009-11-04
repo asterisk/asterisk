@@ -130,7 +130,7 @@ static int writedev = -1;
 
 static int autoanswer = 1;
 
-static struct ast_channel *alsa_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *alsa_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause);
 static int alsa_digit(struct ast_channel *c, char digit, unsigned int duration);
 static int alsa_text(struct ast_channel *c, const char *text);
 static int alsa_hangup(struct ast_channel *c);
@@ -312,7 +312,7 @@ static int alsa_call(struct ast_channel *c, char *dest, int timeout)
 		ast_verbose(" << Auto-answered >> \n");
 		grab_owner();
 		if (alsa.owner) {
-			f.subclass = AST_CONTROL_ANSWER;
+			f.subclass.integer = AST_CONTROL_ANSWER;
 			ast_queue_frame(alsa.owner, &f);
 			ast_channel_unlock(alsa.owner);
 		}
@@ -320,7 +320,7 @@ static int alsa_call(struct ast_channel *c, char *dest, int timeout)
 		ast_verbose(" << Type 'answer' to answer, or use 'autoanswer' for future calls >> \n");
 		grab_owner();
 		if (alsa.owner) {
-			f.subclass = AST_CONTROL_RINGING;
+			f.subclass.integer = AST_CONTROL_RINGING;
 			ast_queue_frame(alsa.owner, &f);
 			ast_channel_unlock(alsa.owner);
 			ast_indicate(alsa.owner, AST_CONTROL_RINGING);
@@ -426,7 +426,7 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 
 	ast_mutex_lock(&alsalock);
 	f.frametype = AST_FRAME_NULL;
-	f.subclass = 0;
+	f.subclass.integer = 0;
 	f.samples = 0;
 	f.datalen = 0;
 	f.data.ptr = NULL;
@@ -471,7 +471,7 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 			return &f;
 		}
 		f.frametype = AST_FRAME_VOICE;
-		f.subclass = AST_FORMAT_SLINEAR;
+		f.subclass.codec = AST_FORMAT_SLINEAR;
 		f.samples = FRAME_SIZE;
 		f.datalen = FRAME_SIZE * 2;
 		f.data.ptr = buf;
@@ -565,13 +565,14 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state, const ch
 	return tmp;
 }
 
-static struct ast_channel *alsa_request(const char *type, int fmt, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *alsa_request(const char *type, format_t fmt, const struct ast_channel *requestor, void *data, int *cause)
 {
-	int oldformat = fmt;
+	format_t oldformat = fmt;
+	char buf[256];
 	struct ast_channel *tmp = NULL;
 
 	if (!(fmt &= AST_FORMAT_SLINEAR)) {
-		ast_log(LOG_NOTICE, "Asked to get a channel of format '%d'\n", oldformat);
+		ast_log(LOG_NOTICE, "Asked to get a channel of format '%s'\n", ast_getformatname_multiple(buf, sizeof(buf), oldformat));
 		return NULL;
 	}
 
@@ -669,9 +670,7 @@ static char *console_answer(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		hookstate = 1;
 		grab_owner();
 		if (alsa.owner) {
-			struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_ANSWER };
-
-			ast_queue_frame(alsa.owner, &f);
+			ast_queue_control(alsa.owner, AST_CONTROL_ANSWER);
 			ast_channel_unlock(alsa.owner);
 		}
 	}
@@ -709,7 +708,7 @@ static char *console_sendtext(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		ast_cli(a->fd, "No channel active\n");
 		res = CLI_FAILURE;
 	} else {
-		struct ast_frame f = { AST_FRAME_TEXT, 0 };
+		struct ast_frame f = { AST_FRAME_TEXT };
 		char text2send[256] = "";
 
 		while (tmparg < a->argc) {
@@ -723,11 +722,7 @@ static char *console_sendtext(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		grab_owner();
 		if (alsa.owner) {
 			ast_queue_frame(alsa.owner, &f);
-			f.frametype = AST_FRAME_CONTROL;
-			f.subclass = AST_CONTROL_ANSWER;
-			f.data.ptr = NULL;
-			f.datalen = 0;
-			ast_queue_frame(alsa.owner, &f);
+			ast_queue_control(alsa.owner, AST_CONTROL_ANSWER);
 			ast_channel_unlock(alsa.owner);
 		}
 	}
@@ -802,7 +797,7 @@ static char *console_dial(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 		if (a->argc == 3) {
 			if (alsa.owner) {
 				for (d = a->argv[2]; *d; d++) {
-					struct ast_frame f = { .frametype = AST_FRAME_DTMF, .subclass = *d };
+					struct ast_frame f = { .frametype = AST_FRAME_DTMF, .subclass.integer = *d };
 
 					ast_queue_frame(alsa.owner, &f);
 				}

@@ -78,7 +78,7 @@ static int milliwatt_generate(struct ast_channel *chan, void *data, int len, int
 	int i, *indexp = (int *) data;
 	struct ast_frame wf = {
 		.frametype = AST_FRAME_VOICE,
-		.subclass = AST_FORMAT_ULAW,
+		.subclass.codec = AST_FORMAT_ULAW,
 		.offset = AST_FRIENDLY_OFFSET,
 		.src = __FUNCTION__,
 	};

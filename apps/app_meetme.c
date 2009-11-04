@@ -2931,11 +2931,11 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					break;
 				}
 				if (f->frametype == AST_FRAME_DTMF) {
-					dtmfstr[0] = f->subclass;
+					dtmfstr[0] = f->subclass.integer;
 					dtmfstr[1] = '\0';
 				}
 
-				if ((f->frametype == AST_FRAME_VOICE) && (f->subclass == AST_FORMAT_SLINEAR)) {
+				if ((f->frametype == AST_FRAME_VOICE) && (f->subclass.codec == AST_FORMAT_SLINEAR)) {
 					if (user->talk.actual) {
 						ast_frame_adjust_volume(f, user->talk.actual);
 					}
@@ -2987,7 +2987,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 							careful_write(fd, f->data.ptr, f->datalen, 0);
 						}
 					}
-				} else if (((f->frametype == AST_FRAME_DTMF) && (f->subclass == '*') && (confflags & CONFFLAG_STARMENU)) || ((f->frametype == AST_FRAME_DTMF) && menu_active)) {
+				} else if (((f->frametype == AST_FRAME_DTMF) && (f->subclass.integer == '*') && (confflags & CONFFLAG_STARMENU)) || ((f->frametype == AST_FRAME_DTMF) && menu_active)) {
 					if (confflags & CONFFLAG_PASS_DTMF) {
 						conf_queue_dtmf(conf, user, f);
 					}
@@ -3020,7 +3020,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 								dtmf = 0;
 							}
 						} else {
-							dtmf = f->subclass;
+							dtmf = f->subclass.integer;
 						}
 						if (dtmf) {
 							switch(dtmf) {
@@ -3121,7 +3121,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 								dtmf = 0;
 							}
 						} else {
-							dtmf = f->subclass;
+							dtmf = f->subclass.integer;
 						}
 						if (dtmf) {
 							switch (dtmf) {
@@ -3211,7 +3211,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					} else {
 						ast_debug(2, "Exit by single digit did not work in meetme. Extension %s does not exist in context %s\n", dtmfstr, exitcontext);
 					}
-				} else if ((f->frametype == AST_FRAME_DTMF) && (confflags & CONFFLAG_KEYEXIT) && (strchr(exitkeys, f->subclass))) {
+				} else if ((f->frametype == AST_FRAME_DTMF) && (confflags & CONFFLAG_KEYEXIT) && (strchr(exitkeys, f->subclass.integer))) {
 					pbx_builtin_setvar_helper(chan, "MEETME_EXIT_KEY", dtmfstr);
 						
 					if (confflags & CONFFLAG_PASS_DTMF) {
@@ -3224,7 +3224,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					&& confflags & CONFFLAG_PASS_DTMF) {
 					conf_queue_dtmf(conf, user, f);
 				} else if ((confflags & CONFFLAG_SLA_STATION) && f->frametype == AST_FRAME_CONTROL) {
-					switch (f->subclass) {
+					switch (f->subclass.integer) {
 					case AST_CONTROL_HOLD:
 						sla_queue_event_conf(SLA_EVENT_HOLD, chan, conf);
 						break;
@@ -3236,7 +3236,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 				} else {
 					ast_debug(1, 
 						"Got unrecognized frame on channel %s, f->frametype=%d,f->subclass=%d\n",
-						chan->name, f->frametype, f->subclass);
+						chan->name, f->frametype, f->subclass.integer);
 				}
 				ast_frfree(f);
 			} else if (outfd > -1) {
@@ -3244,7 +3244,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 				if (res > 0) {
 					memset(&fr, 0, sizeof(fr));
 					fr.frametype = AST_FRAME_VOICE;
-					fr.subclass = AST_FORMAT_SLINEAR;
+					fr.subclass.codec = AST_FORMAT_SLINEAR;
 					fr.datalen = res;
 					fr.samples = res / 2;
 					fr.data.ptr = buf;

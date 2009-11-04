@@ -37,8 +37,8 @@ struct ast_slinfactory {
 	short *offset;                           /*!< Offset into the hold where audio begins */
 	size_t holdlen;                          /*!< Number of samples currently in the hold */
 	unsigned int size;                       /*!< Number of samples currently in the factory */
-	unsigned int format;                     /*!< Current format the translation path is converting from */
-	unsigned int output_format;		 /*!< The output format desired */
+	format_t format;                         /*!< Current format the translation path is converting from */
+	format_t output_format;                  /*!< The output format desired */
 };
 
 /*!

@@ -221,7 +221,7 @@ struct ast_rtp_payload_type {
 	/*! Is this an Asterisk value */
 	int asterisk_format;
 	/*! Actual internal value of the payload */
-	int code;
+	format_t code;
 };
 
 /*! Structure that represents statistics from an RTP instance */
@@ -328,7 +328,7 @@ struct ast_rtp_engine {
 	/*! Callback for setting an RTP property */
 	void (*prop_set)(struct ast_rtp_instance *instance, enum ast_rtp_property property, int value);
 	/*! Callback for setting a payload */
-	void (*payload_set)(struct ast_rtp_instance *instance, int payload, int astformat, int format);
+	void (*payload_set)(struct ast_rtp_instance *instance, int payload, int astformat, format_t format);
 	/*! Callback for setting packetization preferences */
 	void (*packetization_set)(struct ast_rtp_instance *instance, struct ast_codec_pref *pref);
 	/*! Callback for setting the remote address that RTP is to be sent to */
@@ -352,9 +352,9 @@ struct ast_rtp_engine {
 	/*! Callback to locally bridge two RTP instances */
 	int (*local_bridge)(struct ast_rtp_instance *instance0, struct ast_rtp_instance *instance1);
 	/*! Callback to set the read format */
-	int (*set_read_format)(struct ast_rtp_instance *instance, int format);
+	int (*set_read_format)(struct ast_rtp_instance *instance, format_t format);
 	/*! Callback to set the write format */
-	int (*set_write_format)(struct ast_rtp_instance *instance, int format);
+	int (*set_write_format)(struct ast_rtp_instance *instance, format_t format);
 	/*! Callback to make two instances compatible */
 	int (*make_compatible)(struct ast_channel *chan0, struct ast_rtp_instance *instance0, struct ast_channel *chan1, struct ast_rtp_instance *instance1);
 	/*! Callback to see if two instances are compatible with DTMF */
@@ -399,9 +399,9 @@ struct ast_rtp_glue {
 	 */
 	enum ast_rtp_glue_result (*get_trtp_info)(struct ast_channel *chan, struct ast_rtp_instance **instance);
 	/*! Callback for updating the destination that the remote side should send RTP to */
-	int (*update_peer)(struct ast_channel *chan, struct ast_rtp_instance *instance, struct ast_rtp_instance *vinstance, struct ast_rtp_instance *tinstance, int codecs, int nat_active);
+	int (*update_peer)(struct ast_channel *chan, struct ast_rtp_instance *instance, struct ast_rtp_instance *vinstance, struct ast_rtp_instance *tinstance, format_t codecs, int nat_active);
 	/*! Callback for retrieving codecs that the channel can do */
-	int (*get_codec)(struct ast_channel *chan);
+	format_t (*get_codec)(struct ast_channel *chan);
 	/*! Linked list information */
 	AST_RWLIST_ENTRY(ast_rtp_glue) entry;
 };
@@ -994,7 +994,7 @@ struct ast_rtp_payload_type ast_rtp_codecs_payload_lookup(struct ast_rtp_codecs 
  *
  * \since 1.6.3
  */
-unsigned int ast_rtp_lookup_sample_rate2(int asterisk_format, int code);
+unsigned int ast_rtp_lookup_sample_rate2(int asterisk_format, format_t code);
 
 /*!
  * \brief Retrieve all formats that were found
@@ -1015,7 +1015,7 @@ unsigned int ast_rtp_lookup_sample_rate2(int asterisk_format, int code);
  *
  * \since 1.6.3
  */
-void ast_rtp_codecs_payload_formats(struct ast_rtp_codecs *codecs, int *astformats, int *nonastformats);
+void ast_rtp_codecs_payload_formats(struct ast_rtp_codecs *codecs, format_t *astformats, int *nonastformats);
 
 /*!
  * \brief Retrieve a payload based on whether it is an Asterisk format and the code
@@ -1036,7 +1036,7 @@ void ast_rtp_codecs_payload_formats(struct ast_rtp_codecs *codecs, int *astforma
  *
  * \since 1.6.3
  */
-int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, const int asterisk_format, const int code);
+int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, const int asterisk_format, const format_t code);
 
 /*!
  * \brief Retrieve mime subtype information on a payload
@@ -1058,7 +1058,7 @@ int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, const int asteris
  *
  * \since 1.6.3
  */
-const char *ast_rtp_lookup_mime_subtype2(const int asterisk_format, const int code, enum ast_rtp_options options);
+const char *ast_rtp_lookup_mime_subtype2(const int asterisk_format, const format_t code, enum ast_rtp_options options);
 
 /*!
  * \brief Convert formats into a string and put them into a buffer
@@ -1082,7 +1082,7 @@ const char *ast_rtp_lookup_mime_subtype2(const int asterisk_format, const int co
  *
  * \since 1.6.3
  */
-char *ast_rtp_lookup_mime_multiple2(struct ast_str *buf, const int capability, const int asterisk_format, enum ast_rtp_options options);
+char *ast_rtp_lookup_mime_multiple2(struct ast_str *buf, const format_t capability, const int asterisk_format, enum ast_rtp_options options);
 
 /*!
  * \brief Set codec packetization preferences
@@ -1464,7 +1464,7 @@ char *ast_rtp_instance_get_quality(struct ast_rtp_instance *instance, enum ast_r
  *
  * \since 1.6.3
  */
-int ast_rtp_instance_set_read_format(struct ast_rtp_instance *instance, int format);
+int ast_rtp_instance_set_read_format(struct ast_rtp_instance *instance, format_t format);
 
 /*!
  * \brief Tell underlying RTP engine that audio frames will be provided in a specific format
@@ -1485,7 +1485,7 @@ int ast_rtp_instance_set_read_format(struct ast_rtp_instance *instance, int form
  *
  * \since 1.6.3
  */
-int ast_rtp_instance_set_write_format(struct ast_rtp_instance *instance, int format);
+int ast_rtp_instance_set_write_format(struct ast_rtp_instance *instance, format_t format);
 
 /*!
  * \brief Request that the underlying RTP engine make two RTP instances compatible with eachother
@@ -1527,7 +1527,7 @@ int ast_rtp_instance_make_compatible(struct ast_channel *chan, struct ast_rtp_in
  *
  * \since 1.6.3
  */
-int ast_rtp_instance_available_formats(struct ast_rtp_instance *instance, int to_endpoint, int to_asterisk);
+format_t ast_rtp_instance_available_formats(struct ast_rtp_instance *instance, int to_endpoint, int to_asterisk);
 
 /*!
  * \brief Indicate to the RTP engine that packets are now expected to be sent/received on the RTP instance

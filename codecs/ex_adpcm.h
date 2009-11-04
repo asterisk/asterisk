@@ -19,7 +19,7 @@ static struct ast_frame *adpcm_sample(void)
 {
 	static struct ast_frame f = {
 		.frametype = AST_FRAME_VOICE,
-		.subclass = AST_FORMAT_ADPCM,
+		.subclass.codec = AST_FORMAT_ADPCM,
 		.datalen = sizeof(ex_adpcm),
 		.samples = ARRAY_LEN(ex_adpcm) * 2,
 		.mallocd = 0,

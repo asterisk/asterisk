@@ -643,7 +643,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 			f = ast_read(winner);
 			if (f) {
 				if (f->frametype == AST_FRAME_CONTROL) {
-					switch(f->subclass) {
+					switch (f->subclass.integer) {
 					case AST_CONTROL_HANGUP:
 						ast_verb(3, "%s received a hangup frame.\n", winner->name);
 						if (f->data.uint32) {
@@ -718,7 +718,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 						ast_verb(3, "%s stopped sounds\n", winner->name);
 						break;
 					default:
-						ast_debug(1, "Dunno what to do with control type %d\n", f->subclass);
+						ast_debug(1, "Dunno what to do with control type %d\n", f->subclass.integer);
 						break;
 					}
 				} 
@@ -726,8 +726,8 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 					if (winner->stream)
 						ast_stopstream(winner);
 					tmpuser->digts = 0;
-					ast_debug(1, "DTMF received: %c\n",(char) f->subclass);
-					tmpuser->yn[tmpuser->ynidx] = (char) f->subclass;
+					ast_debug(1, "DTMF received: %c\n", (char) f->subclass.integer);
+					tmpuser->yn[tmpuser->ynidx] = (char) f->subclass.integer;
 					tmpuser->ynidx++;
 					ast_debug(1, "DTMF string: %s\n", tmpuser->yn);
 					if (tmpuser->ynidx >= ynlongest) {

@@ -41,7 +41,7 @@ static struct ast_frame *siren7read(struct ast_filestream *s, int *whennext)
 	/* Send a frame from the file to the appropriate channel */
 
 	s->fr.frametype = AST_FRAME_VOICE;
-	s->fr.subclass = AST_FORMAT_SIREN7;
+	s->fr.subclass.codec = AST_FORMAT_SIREN7;
 	s->fr.mallocd = 0;
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
 	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
@@ -61,8 +61,8 @@ static int siren7write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
 	}
-	if (f->subclass != AST_FORMAT_SIREN7) {
-		ast_log(LOG_WARNING, "Asked to write non-Siren7 frame (%d)!\n", f->subclass);
+	if (f->subclass.codec != AST_FORMAT_SIREN7) {
+		ast_log(LOG_WARNING, "Asked to write non-Siren7 frame (%s)!\n", ast_getformatname(f->subclass.codec));
 		return -1;
 	}
 	if ((res = fwrite(f->data.ptr, 1, f->datalen, fs->f)) != f->datalen) {

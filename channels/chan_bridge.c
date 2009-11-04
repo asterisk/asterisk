@@ -46,7 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/bridging.h"
 
-static struct ast_channel *bridge_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *bridge_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause);
 static int bridge_call(struct ast_channel *ast, char *dest, int timeout);
 static int bridge_hangup(struct ast_channel *ast);
 static struct ast_frame *bridge_read(struct ast_channel *ast);
@@ -189,7 +189,7 @@ static int bridge_hangup(struct ast_channel *ast)
 }
 
 /*! \brief Called when we want to place a call somewhere, but not actually call it... yet */
-static struct ast_channel *bridge_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *bridge_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause)
 {
 	struct bridge_pvt *p = NULL;
 

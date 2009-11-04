@@ -148,7 +148,7 @@ static int respawn_time = 20;
 
 struct moh_files_state {
 	struct mohclass *class;
-	int origwfmt;
+	format_t origwfmt;
 	int samples;
 	int sample_queue;
 	int pos;
@@ -180,7 +180,7 @@ struct mohclass {
 	int total_files;
 	unsigned int flags;
 	/*! The format from the MOH source, not applicable to "files" mode */
-	int format;
+	format_t format;
 	/*! The pid of the external application delivering MOH */
 	int pid;
 	time_t start;
@@ -198,7 +198,7 @@ struct mohclass {
 
 struct mohdata {
 	int pipe[2];
-	int origwfmt;
+	format_t origwfmt;
 	struct mohclass *parent;
 	struct ast_frame f;
 	AST_LIST_ENTRY(mohdata) list;
@@ -235,7 +235,7 @@ static void moh_files_release(struct ast_channel *chan, void *data)
 	}
 
 	if (state->origwfmt && ast_set_write_format(chan, state->origwfmt)) {
-		ast_log(LOG_WARNING, "Unable to restore channel '%s' to format '%d'\n", chan->name, state->origwfmt);
+		ast_log(LOG_WARNING, "Unable to restore channel '%s' to format '%s'\n", chan->name, ast_getformatname(state->origwfmt));
 	}
 
 	state->save_pos = state->pos;
@@ -773,7 +773,7 @@ static struct mohdata *mohalloc(struct mohclass *cl)
 	fcntl(moh->pipe[1], F_SETFL, flags | O_NONBLOCK);
 
 	moh->f.frametype = AST_FRAME_VOICE;
-	moh->f.subclass = cl->format;
+	moh->f.subclass.codec = cl->format;
 	moh->f.offset = AST_FRIENDLY_OFFSET;
 
 	moh->parent = mohclass_ref(cl, "Reffing music class for mohdata parent");
@@ -789,7 +789,7 @@ static void moh_release(struct ast_channel *chan, void *data)
 {
 	struct mohdata *moh = data;
 	struct mohclass *class = moh->parent;
-	int oldwfmt;
+	format_t oldwfmt;
 
 	ao2_lock(class);
 	AST_LIST_REMOVE(&moh->parent->members, moh, list);	

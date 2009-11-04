@@ -51,7 +51,7 @@ static const char app[] = "Echo";
 static int echo_exec(struct ast_channel *chan, const char *data)
 {
 	int res = -1;
-	int format;
+	format_t format;
 
 	format = ast_best_codec(chan->nativeformats);
 	ast_set_write_format(chan, format);
@@ -68,7 +68,7 @@ static int echo_exec(struct ast_channel *chan, const char *data)
 			ast_frfree(f);
 			goto end;
 		}
-		if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '#')) {
+		if ((f->frametype == AST_FRAME_DTMF) && (f->subclass.integer == '#')) {
 			res = 0;
 			ast_frfree(f);
 			goto end;

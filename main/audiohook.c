@@ -40,7 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 struct ast_audiohook_translate {
 	struct ast_trans_pvt *trans_pvt;
-	int format;
+	format_t format;
 };
 
 struct ast_audiohook_list {
@@ -173,7 +173,7 @@ static struct ast_frame *audiohook_read_frame_single(struct ast_audiohook *audio
 	short buf[samples];
 	struct ast_frame frame = {
 		.frametype = AST_FRAME_VOICE,
-		.subclass = AST_FORMAT_SLINEAR,
+		.subclass.codec = AST_FORMAT_SLINEAR,
 		.data.ptr = buf,
 		.datalen = sizeof(buf),
 		.samples = samples,
@@ -200,7 +200,7 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 	short buf1[samples], buf2[samples], *read_buf = NULL, *write_buf = NULL, *final_buf = NULL, *data1 = NULL, *data2 = NULL;
 	struct ast_frame frame = {
 		.frametype = AST_FRAME_VOICE,
-		.subclass = AST_FORMAT_SLINEAR,
+		.subclass.codec = AST_FORMAT_SLINEAR,
 		.data.ptr = NULL,
 		.datalen = sizeof(buf1),
 		.samples = samples,
@@ -292,7 +292,7 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
  * \param format Format of frame remote side wants back
  * \return Returns frame on success, NULL on failure
  */
-struct ast_frame *ast_audiohook_read_frame(struct ast_audiohook *audiohook, size_t samples, enum ast_audiohook_direction direction, int format)
+struct ast_frame *ast_audiohook_read_frame(struct ast_audiohook *audiohook, size_t samples, enum ast_audiohook_direction direction, format_t format)
 {
 	struct ast_frame *read_frame = NULL, *final_frame = NULL;
 
@@ -576,13 +576,13 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 	int samples = frame->samples;
 
 	/* If the frame coming in is not signed linear we have to send it through the in_translate path */
-	if (frame->subclass != AST_FORMAT_SLINEAR) {
-		if (in_translate->format != frame->subclass) {
+	if (frame->subclass.codec != AST_FORMAT_SLINEAR) {
+		if (in_translate->format != frame->subclass.codec) {
 			if (in_translate->trans_pvt)
 				ast_translator_free_path(in_translate->trans_pvt);
-			if (!(in_translate->trans_pvt = ast_translator_build_path(AST_FORMAT_SLINEAR, frame->subclass)))
+			if (!(in_translate->trans_pvt = ast_translator_build_path(AST_FORMAT_SLINEAR, frame->subclass.codec)))
 				return frame;
-			in_translate->format = frame->subclass;
+			in_translate->format = frame->subclass.codec;
 		}
 		if (!(middle_frame = ast_translate(in_translate->trans_pvt, frame, 0)))
 			return frame;
@@ -660,16 +660,16 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 	/* Now we figure out what to do with our end frame (whether to transcode or not) */
 	if (middle_frame == end_frame) {
 		/* Middle frame was modified and became the end frame... let's see if we need to transcode */
-		if (end_frame->subclass != start_frame->subclass) {
-			if (out_translate->format != start_frame->subclass) {
+		if (end_frame->subclass.codec != start_frame->subclass.codec) {
+			if (out_translate->format != start_frame->subclass.codec) {
 				if (out_translate->trans_pvt)
 					ast_translator_free_path(out_translate->trans_pvt);
-				if (!(out_translate->trans_pvt = ast_translator_build_path(start_frame->subclass, AST_FORMAT_SLINEAR))) {
+				if (!(out_translate->trans_pvt = ast_translator_build_path(start_frame->subclass.codec, AST_FORMAT_SLINEAR))) {
 					/* We can't transcode this... drop our middle frame and return the original */
 					ast_frfree(middle_frame);
 					return start_frame;
 				}
-				out_translate->format = start_frame->subclass;
+				out_translate->format = start_frame->subclass.codec;
 			}
 			/* Transcode from our middle (signed linear) frame to new format of the frame that came in */
 			if (!(end_frame = ast_translate(out_translate->trans_pvt, middle_frame, 0))) {

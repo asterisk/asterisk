@@ -48,7 +48,7 @@ static struct ast_frame *jpeg_read_image(int fd, int len)
 	}
 	memset(&fr, 0, sizeof(fr));
 	fr.frametype = AST_FRAME_IMAGE;
-	fr.subclass = AST_FORMAT_JPEG;
+	fr.subclass.codec = AST_FORMAT_JPEG;
 	fr.data.ptr = buf;
 	fr.src = "JPEG Read";
 	fr.datalen = len;
@@ -74,7 +74,7 @@ static int jpeg_write_image(int fd, struct ast_frame *fr)
 		ast_log(LOG_WARNING, "Not an image\n");
 		return -1;
 	}
-	if (fr->subclass != AST_FORMAT_JPEG) {
+	if (fr->subclass.codec != AST_FORMAT_JPEG) {
 		ast_log(LOG_WARNING, "Not a jpeg image\n");
 		return -1;
 	}

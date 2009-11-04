@@ -19,7 +19,7 @@ static struct ast_frame *ilbc_sample(void)
 {
 	static struct ast_frame f = {
 		.frametype = AST_FRAME_VOICE,
-		.subclass = AST_FORMAT_ILBC,
+		.subclass.codec = AST_FORMAT_ILBC,
 		.datalen = sizeof(ex_ilbc),
 		/* All frames are 30 ms long */
 		.samples = ILBC_SAMPLES,

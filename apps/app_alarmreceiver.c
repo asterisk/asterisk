@@ -191,7 +191,7 @@ static int send_tone_burst(struct ast_channel *chan, float freq, int duration, i
 
 		if (f->frametype == AST_FRAME_VOICE) {
 			wf.frametype = AST_FRAME_VOICE;
-			wf.subclass = AST_FORMAT_ULAW;
+			wf.subclass.codec = AST_FORMAT_ULAW;
 			wf.offset = AST_FRIENDLY_OFFSET;
 			wf.mallocd = 0;
 			wf.data.ptr = tone_block.buf;
@@ -260,7 +260,7 @@ static int receive_dtmf_digits(struct ast_channel *chan, char *digit_string, int
 		}
 
 		/* If they hung up, leave */
-		if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP)) {
+		if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass.integer == AST_CONTROL_HANGUP)) {
 			if (f->data.uint32) {
 				chan->hangupcause = f->data.uint32;
 			}
@@ -275,7 +275,7 @@ static int receive_dtmf_digits(struct ast_channel *chan, char *digit_string, int
 			continue;
 		}
 
-		digit_string[i++] = f->subclass;  /* save digit */
+		digit_string[i++] = f->subclass.integer;  /* save digit */
 
 		ast_frfree(f);
 

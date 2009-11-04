@@ -173,15 +173,15 @@ static int background_detect_exec(struct ast_channel *chan, const char *data)
 					break;
 				} else if (fr->frametype == AST_FRAME_DTMF) {
 					char t[2];
-					t[0] = fr->subclass;
+					t[0] = fr->subclass.integer;
 					t[1] = '\0';
 					if (ast_canmatch_extension(chan, chan->context, t, 1, chan->cid.cid_num)) {
 						/* They entered a valid  extension, or might be anyhow */
-						res = fr->subclass;
+						res = fr->subclass.integer;
 						ast_frfree(fr);
 						break;
 					}
-				} else if ((fr->frametype == AST_FRAME_VOICE) && (fr->subclass == AST_FORMAT_SLINEAR) && continue_analysis) {
+				} else if ((fr->frametype == AST_FRAME_VOICE) && (fr->subclass.codec == AST_FORMAT_SLINEAR) && continue_analysis) {
 					int totalsilence;
 					int ms;
 					res = ast_dsp_silence(dsp, fr, &totalsilence);

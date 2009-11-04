@@ -211,8 +211,8 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 			}
 			if (f->frametype == AST_FRAME_DTMF) {
 				ast_debug(1, "User pressed a key\n");
-				if (intkeys && strchr(intkeys, f->subclass)) {
-					res = f->subclass;
+				if (intkeys && strchr(intkeys, f->subclass.integer)) {
+					res = f->subclass.integer;
 					ast_frfree(f);
 					break;
 				}
@@ -228,7 +228,7 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 				res = read(fds[0], myf.frdata, needed);
 				if (res > 0) {
 					myf.f.frametype = AST_FRAME_VOICE;
-					myf.f.subclass = AST_FORMAT_SLINEAR;
+					myf.f.subclass.codec = AST_FORMAT_SLINEAR;
 					myf.f.datalen = res;
 					myf.f.samples = res / 2;
 					myf.f.offset = AST_FRIENDLY_OFFSET;

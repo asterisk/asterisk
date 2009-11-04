@@ -41,7 +41,7 @@ static struct ast_frame *vox_read(struct ast_filestream *s, int *whennext)
 
 	/* Send a frame from the file to the appropriate channel */
 	s->fr.frametype = AST_FRAME_VOICE;
-	s->fr.subclass = AST_FORMAT_ADPCM;
+	s->fr.subclass.codec = AST_FORMAT_ADPCM;
 	s->fr.mallocd = 0;
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
 	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) < 1) {
@@ -61,8 +61,8 @@ static int vox_write(struct ast_filestream *s, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
 	}
-	if (f->subclass != AST_FORMAT_ADPCM) {
-		ast_log(LOG_WARNING, "Asked to write non-ADPCM frame (%d)!\n", f->subclass);
+	if (f->subclass.codec != AST_FORMAT_ADPCM) {
+		ast_log(LOG_WARNING, "Asked to write non-ADPCM frame (%s)!\n", ast_getformatname(f->subclass.codec));
 		return -1;
 	}
 	if ((res = fwrite(f->data.ptr, 1, f->datalen, s->f)) != f->datalen) {

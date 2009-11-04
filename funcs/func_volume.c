@@ -100,10 +100,10 @@ static int volume_callback(struct ast_audiohook *audiohook, struct ast_channel *
 		/* Only use DTMF coming from the source... not going to it */
 		if (direction != AST_AUDIOHOOK_DIRECTION_READ)
 			return 0;
-		if (frame->subclass == '*') {
+		if (frame->subclass.integer == '*') {
 			vi->tx_gain += 1;
 			vi->rx_gain += 1;
-		} else if (frame->subclass == '#') {
+		} else if (frame->subclass.integer == '#') {
 			vi->tx_gain -= 1;
 			vi->rx_gain -= 1;
 		}

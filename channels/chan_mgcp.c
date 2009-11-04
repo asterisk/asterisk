@@ -216,7 +216,7 @@ static pthread_t monitor_thread = AST_PTHREADT_NULL;
 
 static int restart_monitor(void);
 
-static int capability = AST_FORMAT_ULAW;
+static format_t capability = AST_FORMAT_ULAW;
 static int nonCodecCapability = AST_RTP_DTMF;
 
 static char ourhost[MAXHOSTNAMELEN];
@@ -355,7 +355,7 @@ struct mgcp_endpoint {
 	int iseq; /*!< Not used? */
 	int lastout; /*!< tracking this on the subchannels.  Is it needed here? */
 	int needdestroy; /*!< Not used? */
-	int capability;
+	format_t capability;
 	int nonCodecCapability;
 	int onhooktime;
 	int msgstate; /*!< voicemail message state */
@@ -423,7 +423,7 @@ static int transmit_notify_request(struct mgcp_subchannel *sub, char *tone);
 static int transmit_modify_request(struct mgcp_subchannel *sub);
 static int transmit_connect(struct mgcp_subchannel *sub);
 static int transmit_notify_request_with_callerid(struct mgcp_subchannel *sub, char *tone, char *callernum, char *callername);
-static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp_instance *rtp, int codecs);
+static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp_instance *rtp, format_t codecs);
 static int transmit_connection_del(struct mgcp_subchannel *sub);
 static int transmit_audit_endpoint(struct mgcp_endpoint *p);
 static void start_rtp(struct mgcp_subchannel *sub);
@@ -433,7 +433,7 @@ static void dump_cmd_queues(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 static char *mgcp_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static int reload_config(int reload);
 
-static struct ast_channel *mgcp_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *mgcp_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause);
 static int mgcp_call(struct ast_channel *ast, char *dest, int timeout);
 static int mgcp_hangup(struct ast_channel *ast);
 static int mgcp_answer(struct ast_channel *ast);
@@ -639,8 +639,7 @@ static void mgcp_queue_hangup(struct mgcp_subchannel *sub)
 
 static void mgcp_queue_control(struct mgcp_subchannel *sub, int control)
 {
-	struct ast_frame f = { AST_FRAME_CONTROL, };
-	f.subclass = control;
+	struct ast_frame f = { AST_FRAME_CONTROL, { control } };
 	return mgcp_queue_frame(sub, &f);
 }
 
@@ -1194,9 +1193,9 @@ static struct ast_frame *mgcp_rtp_read(struct mgcp_subchannel *sub)
 	if (sub->owner) {
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {
-			if (f->subclass != sub->owner->nativeformats) {
-				ast_debug(1, "Oooh, format changed to %d\n", f->subclass);
-				sub->owner->nativeformats = f->subclass;
+			if (f->subclass.codec != sub->owner->nativeformats) {
+				ast_debug(1, "Oooh, format changed to %s\n", ast_getformatname(f->subclass.codec));
+				sub->owner->nativeformats = f->subclass.codec;
 				ast_set_read_format(sub->owner, sub->owner->readformat);
 				ast_set_write_format(sub->owner, sub->owner->writeformat);
 			}
@@ -1227,6 +1226,8 @@ static int mgcp_write(struct ast_channel *ast, struct ast_frame *frame)
 {
 	struct mgcp_subchannel *sub = ast->tech_pvt;
 	int res = 0;
+	char buf[256];
+
 	if (frame->frametype != AST_FRAME_VOICE) {
 		if (frame->frametype == AST_FRAME_IMAGE)
 			return 0;
@@ -1235,9 +1236,12 @@ static int mgcp_write(struct ast_channel *ast, struct ast_frame *frame)
 			return 0;
 		}
 	} else {
-		if (!(frame->subclass & ast->nativeformats)) {
-			ast_log(LOG_WARNING, "Asked to transmit frame type %d, while native formats is %d (read/write = %d/%d)\n",
-				frame->subclass, ast->nativeformats, ast->readformat, ast->writeformat);
+		if (!(frame->subclass.codec & ast->nativeformats)) {
+			ast_log(LOG_WARNING, "Asked to transmit frame type %s, while native formats is %s (read/write = %s/%s)\n",
+				ast_getformatname(frame->subclass.codec),
+				ast_getformatname_multiple(buf, sizeof(buf), ast->nativeformats),
+				ast_getformatname(ast->readformat),
+				ast_getformatname(ast->writeformat));
 			/* return -1; */
 		}
 	}
@@ -1911,13 +1915,15 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 	char host[258];
 	int len;
 	int portno;
-	int peercapability, peerNonCodecCapability;
+	format_t peercapability;
+	int peerNonCodecCapability;
 	struct sockaddr_in sin;
 	char *codecs;
 	struct ast_hostent ahp; struct hostent *hp;
 	int codec, codec_count=0;
 	int iterator;
 	struct mgcp_endpoint *p = sub->parent;
+	char tmp1[256], tmp2[256], tmp3[256];
 
 	/* Get codec and RTP info from SDP */
 	m = get_sdp(req, "m");
@@ -1975,8 +1981,10 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 	/* Now gather all of the codecs that were asked for: */
 	ast_rtp_codecs_payload_formats(ast_rtp_instance_get_codecs(sub->rtp), &peercapability, &peerNonCodecCapability);
 	p->capability = capability & peercapability;
-	ast_debug(1, "Capabilities: us - %d, them - %d, combined - %d\n",
-		capability, peercapability, p->capability);
+	ast_debug(1, "Capabilities: us - %s, them - %s, combined - %s\n",
+		ast_getformatname_multiple(tmp1, sizeof(tmp1), capability),
+		ast_getformatname_multiple(tmp2, sizeof(tmp2), peercapability),
+		ast_getformatname_multiple(tmp3, sizeof(tmp3), p->capability));
 	ast_debug(1, "Non-codec capabilities: us - %d, them - %d, combined - %d\n",
 		nonCodecCapability, peerNonCodecCapability, p->nonCodecCapability);
 	if (!p->capability) {
@@ -2131,7 +2139,7 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 	char t[256];
 	char m[256] = "";
 	char a[1024] = "";
-	int x;
+	format_t x;
 	struct sockaddr_in dest = { 0, };
 	struct mgcp_endpoint *p = sub->parent;
 	/* XXX We break with the "recommendation" and send our IP, in order that our
@@ -2162,9 +2170,13 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 	snprintf(c, sizeof(c), "c=IN IP4 %s\r\n", ast_inet_ntoa(dest.sin_addr));
 	ast_copy_string(t, "t=0 0\r\n", sizeof(t));
 	snprintf(m, sizeof(m), "m=audio %d RTP/AVP", ntohs(dest.sin_port));
-	for (x = 1; x <= AST_FORMAT_AUDIO_MASK; x <<= 1) {
+	for (x = 1LL; x <= AST_FORMAT_AUDIO_MASK; x <<= 1) {
+		if (!(x & AST_FORMAT_AUDIO_MASK)) {
+			/* Audio is now discontiguous */
+			continue;
+		}
 		if (p->capability & x) {
-			ast_debug(1, "Answering with capability %d\n", x);
+			ast_debug(1, "Answering with capability %s\n", ast_getformatname(x));
 			codec = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(sub->rtp), 1, x);
 			if (codec > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
@@ -2174,9 +2186,9 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 			}
 		}
 	}
-	for (x = 1; x <= AST_RTP_MAX; x <<= 1) {
+	for (x = 1LL; x <= AST_RTP_MAX; x <<= 1) {
 		if (p->nonCodecCapability & x) {
-			ast_debug(1, "Answering with non-codec capability %d\n", x);
+			ast_debug(1, "Answering with non-codec capability %d\n", (int) x);
 			codec = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(sub->rtp), 0, x);
 			if (codec > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
@@ -2205,13 +2217,13 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 	return 0;
 }
 
-static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp_instance *rtp, int codecs)
+static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp_instance *rtp, format_t codecs)
 {
 	struct mgcp_request resp;
 	char local[256];
 	char tmp[80];
 	struct mgcp_endpoint *p = sub->parent;
-	int x;
+	format_t x;
 
 	if (ast_strlen_zero(sub->cxident) && rtp) {
 		/* We don't have a CXident yet, store the destination and
@@ -2221,6 +2233,10 @@ static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp_
 	}
 	ast_copy_string(local, "e:on, s:off, p:20", sizeof(local));
 	for (x = 1; x <= AST_FORMAT_AUDIO_MASK; x <<= 1) {
+		if (!(x & AST_FORMAT_AUDIO_MASK)) {
+			/* No longer contiguous */
+			continue;
+		}
 		if (p->capability & x) {
 			snprintf(tmp, sizeof(tmp), ", a:%s", ast_rtp_lookup_mime_subtype2(1, x, 0));
 			strncat(local, tmp, sizeof(local) - strlen(local) - 1);
@@ -2270,6 +2286,10 @@ static int transmit_connect_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp
 	ast_copy_string(local, "e:on, s:off, p:20", sizeof(local));
 
 	for (x = 1; x <= AST_FORMAT_AUDIO_MASK; x <<= 1) {
+		if (!(x & AST_FORMAT_AUDIO_MASK)) {
+			/* No longer contiguous */
+			continue;
+		}
 		if (p->capability & x) {
 			snprintf(tmp, sizeof(tmp), ", a:%s", ast_rtp_lookup_mime_subtype2(1, x, 0));
 			strncat(local, tmp, sizeof(local) - strlen(local) - 1);
@@ -2352,12 +2372,12 @@ static int transmit_connect(struct mgcp_subchannel *sub)
 	struct mgcp_request resp;
 	char local[256];
 	char tmp[80];
-	int x;
+	format_t x;
 	struct mgcp_endpoint *p = sub->parent;
 
 	ast_copy_string(local, "p:20, s:off, e:on", sizeof(local));
 
-	for (x = 1; x <= AST_FORMAT_AUDIO_MASK; x <<= 1) {
+	for (x = 1LL; x <= AST_FORMAT_AUDIO_MASK; x <<= 1) {
 		if (p->capability & x) {
 			snprintf(tmp, sizeof(tmp), ", a:%s", ast_rtp_lookup_mime_subtype2(1, x, 0));
 			strncat(local, tmp, sizeof(local) - strlen(local) - 1);
@@ -2455,7 +2475,8 @@ static int transmit_modify_request(struct mgcp_subchannel *sub)
 {
 	struct mgcp_request resp;
 	struct mgcp_endpoint *p = sub->parent;
-	int x, fc;
+	format_t x;
+	int fc = 1;
 	char local[256];
 	char tmp[80];
 
@@ -3468,7 +3489,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 				  (ev[0] == '*') || (ev[0] == '#'))) {
 			if (sub && sub->owner && (sub->owner->_state >=  AST_STATE_UP)) {
 				f.frametype = AST_FRAME_DTMF;
-				f.subclass = ev[0];
+				f.subclass.integer = ev[0];
 				f.src = "mgcp";
 				/* XXX MUST queue this frame to all subs in threeway call if threeway call is active */
 				mgcp_queue_frame(sub, &f);
@@ -3825,9 +3846,9 @@ static int restart_monitor(void)
 	return 0;
 }
 
-static struct ast_channel *mgcp_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *mgcp_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause)
 {
-	int oldformat;
+	format_t oldformat;
 	struct mgcp_subchannel *sub;
 	struct ast_channel *tmpc = NULL;
 	char tmp[256];
@@ -3836,7 +3857,7 @@ static struct ast_channel *mgcp_request(const char *type, int format, const stru
 	oldformat = format;
 	format &= capability;
 	if (!format) {
-		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", format);
+		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%s'\n", ast_getformatname_multiple(tmp, sizeof(tmp), format));
 		/*return NULL;*/
 	}
 	ast_copy_string(tmp, dest, sizeof(tmp));
@@ -4315,7 +4336,7 @@ static enum ast_rtp_glue_result mgcp_get_rtp_peer(struct ast_channel *chan, stru
 		return AST_RTP_GLUE_RESULT_LOCAL;
 }
 
-static int mgcp_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *rtp, struct ast_rtp_instance *vrtp, struct ast_rtp_instance *trtp, int codecs, int nat_active)
+static int mgcp_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *rtp, struct ast_rtp_instance *vrtp, struct ast_rtp_instance *trtp, format_t codecs, int nat_active)
 {
 	/* XXX Is there such thing as video support with MGCP? XXX */
 	struct mgcp_subchannel *sub;
@@ -4327,7 +4348,7 @@ static int mgcp_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *
 	return -1;
 }
 
-static int mgcp_get_codec(struct ast_channel *chan)
+static format_t mgcp_get_codec(struct ast_channel *chan)
 {
 	struct mgcp_subchannel *sub = chan->tech_pvt;
 	struct mgcp_endpoint *p = sub->parent;

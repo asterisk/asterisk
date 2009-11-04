@@ -128,7 +128,7 @@ int ast_stopstream(struct ast_channel *tmp)
 		ast_closestream(tmp->stream);
 		tmp->stream = NULL;
 		if (tmp->oldwriteformat && ast_set_write_format(tmp, tmp->oldwriteformat))
-			ast_log(LOG_WARNING, "Unable to restore format back to %d\n", tmp->oldwriteformat);
+			ast_log(LOG_WARNING, "Unable to restore format back to %s\n", ast_getformatname(tmp->oldwriteformat));
 	}
 	/* Stop the video stream too */
 	if (tmp->vstream != NULL) {
@@ -149,7 +149,7 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 		if (fs->fmt->format & AST_FORMAT_AUDIO_MASK) {
 			/* This is the audio portion.  Call the video one... */
 			if (!fs->vfs && fs->filename) {
-				const char *type = ast_getformatname(f->subclass & ~0x1);
+				const char *type = ast_getformatname(f->subclass.codec & ~0x1);
 				fs->vfs = ast_writefile(fs->filename, type, NULL, fs->flags, 0, fs->mode);
 				ast_debug(1, "Opened video output file\n");
 			}
@@ -165,7 +165,7 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Tried to write non-voice frame\n");
 		return -1;
 	}
-	if (((fs->fmt->format | alt) & f->subclass) == f->subclass) {
+	if (((fs->fmt->format | alt) & f->subclass.codec) == f->subclass.codec) {
 		res =  fs->fmt->write(fs, f);
 		if (res < 0) 
 			ast_log(LOG_WARNING, "Natural write failed\n");
@@ -174,18 +174,18 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 	} else {
 		/* XXX If they try to send us a type of frame that isn't the normal frame, and isn't
 		       the one we've setup a translator for, we do the "wrong thing" XXX */
-		if (fs->trans && f->subclass != fs->lastwriteformat) {
+		if (fs->trans && f->subclass.codec != fs->lastwriteformat) {
 			ast_translator_free_path(fs->trans);
 			fs->trans = NULL;
 		}
 		if (!fs->trans) 
-			fs->trans = ast_translator_build_path(fs->fmt->format, f->subclass);
+			fs->trans = ast_translator_build_path(fs->fmt->format, f->subclass.codec);
 		if (!fs->trans)
 			ast_log(LOG_WARNING, "Unable to translate to format %s, source format %s\n",
-				fs->fmt->name, ast_getformatname(f->subclass));
+				fs->fmt->name, ast_getformatname(f->subclass.codec));
 		else {
 			struct ast_frame *trf;
-			fs->lastwriteformat = f->subclass;
+			fs->lastwriteformat = f->subclass.codec;
 			/* Get the translated frame but don't consume the original in case they're using it on another stream */
 			if ((trf = ast_translate(fs->trans, f, 0))) {
 				struct ast_frame *cur;
@@ -660,7 +660,7 @@ struct ast_filestream *ast_openvstream(struct ast_channel *chan, const char *fil
 	/* As above, but for video. But here we don't have translators
 	 * so we must enforce a format.
 	 */
-	unsigned int format;
+	format_t format;
 	char *buf;
 	int buflen;
 
@@ -1233,15 +1233,15 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 			switch (fr->frametype) {
 			case AST_FRAME_DTMF_END:
 				if (context) {
-					const char exten[2] = { fr->subclass, '\0' };
+					const char exten[2] = { fr->subclass.integer, '\0' };
 					if (ast_exists_extension(c, context, exten, 1, c->cid.cid_num)) {
-						res = fr->subclass;
+						res = fr->subclass.integer;
 						ast_frfree(fr);
 						ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
 						return res;
 					}
 				} else {
-					res = fr->subclass;
+					res = fr->subclass.integer;
 					if (strchr(forward, res)) {
 						int eoftest;
 						ast_stream_fastforward(c->stream, skip_ms);
@@ -1261,7 +1261,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 				}
 				break;
 			case AST_FRAME_CONTROL:
-				switch (fr->subclass) {
+				switch (fr->subclass.integer) {
 				case AST_CONTROL_HANGUP:
 				case AST_CONTROL_BUSY:
 				case AST_CONTROL_CONGESTION:
@@ -1278,7 +1278,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 					/* Unimportant */
 					break;
 				default:
-					ast_log(LOG_WARNING, "Unexpected control subclass '%d'\n", fr->subclass);
+					ast_log(LOG_WARNING, "Unexpected control subclass '%d'\n", fr->subclass.integer);
 				}
 				break;
 			case AST_FRAME_VOICE:

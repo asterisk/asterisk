@@ -824,7 +824,7 @@ static int speech_background(struct ast_channel *chan, const char *data)
 			/* Free the frame we received */
 			switch (f->frametype) {
 			case AST_FRAME_DTMF:
-				if (dtmf_terminator != '\0' && f->subclass == dtmf_terminator) {
+				if (dtmf_terminator != '\0' && f->subclass.integer == dtmf_terminator) {
 					done = 1;
 				} else {
 					if (chan->stream != NULL) {
@@ -836,7 +836,7 @@ static int speech_background(struct ast_channel *chan, const char *data)
 						started = 1;
 					}
 					start = ast_tvnow();
-					snprintf(tmp, sizeof(tmp), "%c", f->subclass);
+					snprintf(tmp, sizeof(tmp), "%c", f->subclass.integer);
 					strncat(dtmf, tmp, sizeof(dtmf) - strlen(dtmf) - 1);
 					/* If the maximum length of the DTMF has been reached, stop now */
 					if (max_dtmf_len && strlen(dtmf) == max_dtmf_len)
@@ -844,7 +844,7 @@ static int speech_background(struct ast_channel *chan, const char *data)
 				}
 				break;
 			case AST_FRAME_CONTROL:
-				switch (f->subclass) {
+				switch (f->subclass.integer) {
 				case AST_CONTROL_HANGUP:
 					/* Since they hung up we should destroy the speech structure */
 					done = 3;

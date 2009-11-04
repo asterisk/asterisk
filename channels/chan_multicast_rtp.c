@@ -52,7 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static const char tdesc[] = "Multicast RTP Paging Channel Driver";
 
 /* Forward declarations */
-static struct ast_channel *multicast_rtp_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *multicast_rtp_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause);
 static int multicast_rtp_call(struct ast_channel *ast, char *dest, int timeout);
 static int multicast_rtp_hangup(struct ast_channel *ast);
 static struct ast_frame *multicast_rtp_read(struct ast_channel *ast);
@@ -107,13 +107,13 @@ static int multicast_rtp_hangup(struct ast_channel *ast)
 }
 
 /*! \brief Function called when we should prepare to call the destination */
-static struct ast_channel *multicast_rtp_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *multicast_rtp_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause)
 {
 	char *tmp = ast_strdupa(data), *multicast_type = tmp, *destination, *control;
 	struct ast_rtp_instance *instance;
 	struct sockaddr_in control_address = { .sin_family = AF_INET, }, destination_address = { .sin_family = AF_INET, };
 	struct ast_channel *chan;
-	int fmt = ast_best_codec(format);
+	format_t fmt = ast_best_codec(format);
 
 	/* If no type was given we can't do anything */
 	if (ast_strlen_zero(multicast_type)) {

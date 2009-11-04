@@ -601,7 +601,7 @@ struct ast_rtp_payload_type ast_rtp_codecs_payload_lookup(struct ast_rtp_codecs 
 	return result;
 }
 
-void ast_rtp_codecs_payload_formats(struct ast_rtp_codecs *codecs, int *astformats, int *nonastformats)
+void ast_rtp_codecs_payload_formats(struct ast_rtp_codecs *codecs, format_t *astformats, int *nonastformats)
 {
 	int i;
 
@@ -619,7 +619,7 @@ void ast_rtp_codecs_payload_formats(struct ast_rtp_codecs *codecs, int *astforma
 	}
 }
 
-int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, const int asterisk_format, const int code)
+int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, const int asterisk_format, const format_t code)
 {
 	int i;
 
@@ -638,7 +638,7 @@ int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, const int asteris
 	return -1;
 }
 
-const char *ast_rtp_lookup_mime_subtype2(const int asterisk_format, const int code, enum ast_rtp_options options)
+const char *ast_rtp_lookup_mime_subtype2(const int asterisk_format, const format_t code, enum ast_rtp_options options)
 {
 	int i;
 
@@ -655,7 +655,7 @@ const char *ast_rtp_lookup_mime_subtype2(const int asterisk_format, const int co
 	return "";
 }
 
-unsigned int ast_rtp_lookup_sample_rate2(int asterisk_format, int code)
+unsigned int ast_rtp_lookup_sample_rate2(int asterisk_format, format_t code)
 {
 	unsigned int i;
 
@@ -668,15 +668,16 @@ unsigned int ast_rtp_lookup_sample_rate2(int asterisk_format, int code)
 	return 0;
 }
 
-char *ast_rtp_lookup_mime_multiple2(struct ast_str *buf, const int capability, const int asterisk_format, enum ast_rtp_options options)
+char *ast_rtp_lookup_mime_multiple2(struct ast_str *buf, const format_t capability, const int asterisk_format, enum ast_rtp_options options)
 {
-	int format, found = 0;
+	format_t format;
+	int found = 0;
 
 	if (!buf) {
 		return NULL;
 	}
 
-	ast_str_append(&buf, 0, "0x%x (", capability);
+	ast_str_append(&buf, 0, "0x%llx (", (unsigned long long) capability);
 
 	for (format = 1; format < AST_RTP_MAX; format <<= 1) {
 		if (capability & format) {
@@ -851,13 +852,13 @@ static enum ast_bridge_result local_bridge_loop(struct ast_channel *c0, struct a
 			res = AST_BRIDGE_COMPLETE;
 			break;
 		} else if ((fr->frametype == AST_FRAME_CONTROL) && !(flags & AST_BRIDGE_IGNORE_SIGS)) {
-			if ((fr->subclass == AST_CONTROL_HOLD) ||
-			    (fr->subclass == AST_CONTROL_UNHOLD) ||
-			    (fr->subclass == AST_CONTROL_VIDUPDATE) ||
-			    (fr->subclass == AST_CONTROL_SRCUPDATE) ||
-			    (fr->subclass == AST_CONTROL_T38_PARAMETERS)) {
+			if ((fr->subclass.integer == AST_CONTROL_HOLD) ||
+			    (fr->subclass.integer == AST_CONTROL_UNHOLD) ||
+			    (fr->subclass.integer == AST_CONTROL_VIDUPDATE) ||
+			    (fr->subclass.integer == AST_CONTROL_SRCUPDATE) ||
+			    (fr->subclass.integer == AST_CONTROL_T38_PARAMETERS)) {
 				/* If we are going on hold, then break callback mode and P2P bridging */
-				if (fr->subclass == AST_CONTROL_HOLD) {
+				if (fr->subclass.integer == AST_CONTROL_HOLD) {
 					if (instance0->engine->local_bridge) {
 						instance0->engine->local_bridge(instance0, NULL);
 					}
@@ -866,7 +867,7 @@ static enum ast_bridge_result local_bridge_loop(struct ast_channel *c0, struct a
 					}
 					instance0->bridged = NULL;
 					instance1->bridged = NULL;
-				} else if (fr->subclass == AST_CONTROL_UNHOLD) {
+				} else if (fr->subclass.integer == AST_CONTROL_UNHOLD) {
 					if (instance0->engine->local_bridge) {
 						instance0->engine->local_bridge(instance0, instance1);
 					}
@@ -876,12 +877,12 @@ static enum ast_bridge_result local_bridge_loop(struct ast_channel *c0, struct a
 					instance0->bridged = instance1;
 					instance1->bridged = instance0;
 				}
-				ast_indicate_data(other, fr->subclass, fr->data.ptr, fr->datalen);
+				ast_indicate_data(other, fr->subclass.integer, fr->data.ptr, fr->datalen);
 				ast_frfree(fr);
 			} else {
 				*fo = fr;
 				*rc = who;
-				ast_debug(1, "rtp-engine-local-bridge: Got a FRAME_CONTROL (%d) frame on channel %s\n", fr->subclass, who->name);
+				ast_debug(1, "rtp-engine-local-bridge: Got a FRAME_CONTROL (%d) frame on channel %s\n", fr->subclass.integer, who->name);
 				res = AST_BRIDGE_COMPLETE;
 				break;
 			}
@@ -923,12 +924,12 @@ static enum ast_bridge_result local_bridge_loop(struct ast_channel *c0, struct a
 
 static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0, struct ast_channel *c1, struct ast_rtp_instance *instance0, struct ast_rtp_instance *instance1,
 						 struct ast_rtp_instance *vinstance0, struct ast_rtp_instance *vinstance1, struct ast_rtp_instance *tinstance0,
-						 struct ast_rtp_instance *tinstance1, struct ast_rtp_glue *glue0, struct ast_rtp_glue *glue1, int codec0, int codec1, int timeoutms,
+						 struct ast_rtp_instance *tinstance1, struct ast_rtp_glue *glue0, struct ast_rtp_glue *glue1, format_t codec0, format_t codec1, int timeoutms,
 						 int flags, struct ast_frame **fo, struct ast_channel **rc, void *pvt0, void *pvt1)
 {
 	enum ast_bridge_result res = AST_BRIDGE_FAILED;
 	struct ast_channel *who = NULL, *other = NULL, *cs[3] = { NULL, };
-	int oldcodec0 = codec0, oldcodec1 = codec1;
+	format_t oldcodec0 = codec0, oldcodec1 = codec1;
 	struct sockaddr_in ac1 = {0,}, vac1 = {0,}, tac1 = {0,}, ac0 = {0,}, vac0 = {0,}, tac0 = {0,};
 	struct sockaddr_in t1 = {0,}, vt1 = {0,}, tt1 = {0,}, t0 = {0,}, vt0 = {0,}, tt0 = {0,};
 	struct ast_frame *fr = NULL;
@@ -1009,18 +1010,18 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0, struct 
 		    (vinstance1 && inaddrcmp(&vt1, &vac1)) ||
 		    (tinstance1 && inaddrcmp(&tt1, &tac1)) ||
 		    (codec1 != oldcodec1)) {
-			ast_debug(1, "Oooh, '%s' changed end address to %s:%d (format %d)\n",
-				  c1->name, ast_inet_ntoa(t1.sin_addr), ntohs(t1.sin_port), codec1);
-			ast_debug(1, "Oooh, '%s' changed end vaddress to %s:%d (format %d)\n",
-				  c1->name, ast_inet_ntoa(vt1.sin_addr), ntohs(vt1.sin_port), codec1);
-			ast_debug(1, "Oooh, '%s' changed end taddress to %s:%d (format %d)\n",
-				  c1->name, ast_inet_ntoa(tt1.sin_addr), ntohs(tt1.sin_port), codec1);
-			ast_debug(1, "Oooh, '%s' was %s:%d/(format %d)\n",
-				  c1->name, ast_inet_ntoa(ac1.sin_addr), ntohs(ac1.sin_port), oldcodec1);
-			ast_debug(1, "Oooh, '%s' was %s:%d/(format %d)\n",
-				  c1->name, ast_inet_ntoa(vac1.sin_addr), ntohs(vac1.sin_port), oldcodec1);
-			ast_debug(1, "Oooh, '%s' was %s:%d/(format %d)\n",
-				  c1->name, ast_inet_ntoa(tac1.sin_addr), ntohs(tac1.sin_port), oldcodec1);
+			ast_debug(1, "Oooh, '%s' changed end address to %s:%d (format %s)\n",
+				  c1->name, ast_inet_ntoa(t1.sin_addr), ntohs(t1.sin_port), ast_getformatname(codec1));
+			ast_debug(1, "Oooh, '%s' changed end vaddress to %s:%d (format %s)\n",
+				  c1->name, ast_inet_ntoa(vt1.sin_addr), ntohs(vt1.sin_port), ast_getformatname(codec1));
+			ast_debug(1, "Oooh, '%s' changed end taddress to %s:%d (format %s)\n",
+				  c1->name, ast_inet_ntoa(tt1.sin_addr), ntohs(tt1.sin_port), ast_getformatname(codec1));
+			ast_debug(1, "Oooh, '%s' was %s:%d/(format %s)\n",
+				  c1->name, ast_inet_ntoa(ac1.sin_addr), ntohs(ac1.sin_port), ast_getformatname(oldcodec1));
+			ast_debug(1, "Oooh, '%s' was %s:%d/(format %s)\n",
+				  c1->name, ast_inet_ntoa(vac1.sin_addr), ntohs(vac1.sin_port), ast_getformatname(oldcodec1));
+			ast_debug(1, "Oooh, '%s' was %s:%d/(format %s)\n",
+				  c1->name, ast_inet_ntoa(tac1.sin_addr), ntohs(tac1.sin_port), ast_getformatname(oldcodec1));
 			if (glue0->update_peer(c0, t1.sin_addr.s_addr ? instance1 : NULL, vt1.sin_addr.s_addr ? vinstance1 : NULL, tt1.sin_addr.s_addr ? tinstance1 : NULL, codec1, 0)) {
 				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c0->name, c1->name);
 			}
@@ -1033,10 +1034,10 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0, struct 
 		    (vinstance0 && inaddrcmp(&vt0, &vac0)) ||
 		    (tinstance0 && inaddrcmp(&tt0, &tac0)) ||
 		    (codec0 != oldcodec0)) {
-			ast_debug(1, "Oooh, '%s' changed end address to %s:%d (format %d)\n",
-				  c0->name, ast_inet_ntoa(t0.sin_addr), ntohs(t0.sin_port), codec0);
-			ast_debug(1, "Oooh, '%s' was %s:%d/(format %d)\n",
-				  c0->name, ast_inet_ntoa(ac0.sin_addr), ntohs(ac0.sin_port), oldcodec0);
+			ast_debug(1, "Oooh, '%s' changed end address to %s:%d (format %s)\n",
+				  c0->name, ast_inet_ntoa(t0.sin_addr), ntohs(t0.sin_port), ast_getformatname(codec0));
+			ast_debug(1, "Oooh, '%s' was %s:%d/(format %s)\n",
+				  c0->name, ast_inet_ntoa(ac0.sin_addr), ntohs(ac0.sin_port), ast_getformatname(oldcodec0));
 			if (glue1->update_peer(c1, t0.sin_addr.s_addr ? instance0 : NULL, vt0.sin_addr.s_addr ? vinstance0 : NULL, tt0.sin_addr.s_addr ? tinstance0 : NULL, codec0, 0)) {
 				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c1->name, c0->name);
 			}
@@ -1070,19 +1071,19 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0, struct 
 			res = AST_BRIDGE_COMPLETE;
 			break;
 		} else if ((fr->frametype == AST_FRAME_CONTROL) && !(flags & AST_BRIDGE_IGNORE_SIGS)) {
-			if ((fr->subclass == AST_CONTROL_HOLD) ||
-			    (fr->subclass == AST_CONTROL_UNHOLD) ||
-			    (fr->subclass == AST_CONTROL_VIDUPDATE) ||
-			    (fr->subclass == AST_CONTROL_SRCUPDATE) ||
-			    (fr->subclass == AST_CONTROL_T38_PARAMETERS)) {
-				if (fr->subclass == AST_CONTROL_HOLD) {
+			if ((fr->subclass.integer == AST_CONTROL_HOLD) ||
+			    (fr->subclass.integer == AST_CONTROL_UNHOLD) ||
+			    (fr->subclass.integer == AST_CONTROL_VIDUPDATE) ||
+			    (fr->subclass.integer == AST_CONTROL_SRCUPDATE) ||
+			    (fr->subclass.integer == AST_CONTROL_T38_PARAMETERS)) {
+				if (fr->subclass.integer == AST_CONTROL_HOLD) {
 					/* If we someone went on hold we want the other side to reinvite back to us */
 					if (who == c0) {
 						glue1->update_peer(c1, NULL, NULL, NULL, 0, 0);
 					} else {
 						glue0->update_peer(c0, NULL, NULL, NULL, 0, 0);
 					}
-				} else if (fr->subclass == AST_CONTROL_UNHOLD) {
+				} else if (fr->subclass.integer == AST_CONTROL_UNHOLD) {
 					/* If they went off hold they should go back to being direct */
 					if (who == c0) {
 						glue1->update_peer(c1, instance0, vinstance0, tinstance0, codec0, 0);
@@ -1102,12 +1103,12 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0, struct 
 				if (glue1->get_codec && c1->tech_pvt) {
 					oldcodec1 = codec1 = glue1->get_codec(c1);
 				}
-				ast_indicate_data(other, fr->subclass, fr->data.ptr, fr->datalen);
+				ast_indicate_data(other, fr->subclass.integer, fr->data.ptr, fr->datalen);
 				ast_frfree(fr);
 			} else {
 				*fo = fr;
 				*rc = who;
-				ast_debug(1, "Got a FRAME_CONTROL (%d) frame on channel %s\n", fr->subclass, who->name);
+				ast_debug(1, "Got a FRAME_CONTROL (%d) frame on channel %s\n", fr->subclass.integer, who->name);
 				return AST_BRIDGE_COMPLETE;
 			}
 		} else {
@@ -1164,7 +1165,7 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
 	enum ast_rtp_glue_result audio_glue0_res = AST_RTP_GLUE_RESULT_FORBID, video_glue0_res = AST_RTP_GLUE_RESULT_FORBID, text_glue0_res = AST_RTP_GLUE_RESULT_FORBID;
 	enum ast_rtp_glue_result audio_glue1_res = AST_RTP_GLUE_RESULT_FORBID, video_glue1_res = AST_RTP_GLUE_RESULT_FORBID, text_glue1_res = AST_RTP_GLUE_RESULT_FORBID;
 	enum ast_bridge_result res = AST_BRIDGE_FAILED;
-	int codec0 = 0, codec1 = 0;
+	format_t codec0 = 0, codec1 = 0;
 	int unlock_chans = 1;
 
 	/* Lock both channels so we can look for the glue that binds them together */
@@ -1229,7 +1230,7 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
 	codec0 = glue0->get_codec ? glue0->get_codec(c0) : 0;
 	codec1 = glue1->get_codec ? glue1->get_codec(c1) : 0;
 	if (codec0 && codec1 && !(codec0 & codec1)) {
-		ast_debug(1, "Channel codec0 = %d is not codec1 = %d, cannot native bridge in RTP.\n", codec0, codec1);
+		ast_debug(1, "Channel codec0 = %s is not codec1 = %s, cannot native bridge in RTP.\n", ast_getformatname(codec0), ast_getformatname(codec1));
 		res = AST_BRIDGE_FAILED_NOWARN;
 		goto done;
 	}
@@ -1286,7 +1287,7 @@ void ast_rtp_instance_early_bridge_make_compatible(struct ast_channel *c0, struc
 	struct ast_rtp_glue *glue0, *glue1;
 	enum ast_rtp_glue_result audio_glue0_res = AST_RTP_GLUE_RESULT_FORBID, video_glue0_res = AST_RTP_GLUE_RESULT_FORBID, text_glue0_res = AST_RTP_GLUE_RESULT_FORBID;
 	enum ast_rtp_glue_result audio_glue1_res = AST_RTP_GLUE_RESULT_FORBID, video_glue1_res = AST_RTP_GLUE_RESULT_FORBID, text_glue1_res = AST_RTP_GLUE_RESULT_FORBID;
-	int codec0 = 0, codec1 = 0;
+	format_t codec0 = 0, codec1 = 0;
 	int res = 0;
 
 	/* Lock both channels so we can look for the glue that binds them together */
@@ -1370,7 +1371,7 @@ int ast_rtp_instance_early_bridge(struct ast_channel *c0, struct ast_channel *c1
 	struct ast_rtp_glue *glue0, *glue1;
 	enum ast_rtp_glue_result audio_glue0_res = AST_RTP_GLUE_RESULT_FORBID, video_glue0_res = AST_RTP_GLUE_RESULT_FORBID, text_glue0_res = AST_RTP_GLUE_RESULT_FORBID;
 	enum ast_rtp_glue_result audio_glue1_res = AST_RTP_GLUE_RESULT_FORBID, video_glue1_res = AST_RTP_GLUE_RESULT_FORBID, text_glue1_res = AST_RTP_GLUE_RESULT_FORBID;
-	int codec0 = 0, codec1 = 0;
+	format_t codec0 = 0, codec1 = 0;
 	int res = 0;
 
 	/* If there is no second channel just immediately bail out, we are of no use in that scenario */
@@ -1538,12 +1539,12 @@ void ast_rtp_instance_set_stats_vars(struct ast_channel *chan, struct ast_rtp_in
 	}
 }
 
-int ast_rtp_instance_set_read_format(struct ast_rtp_instance *instance, int format)
+int ast_rtp_instance_set_read_format(struct ast_rtp_instance *instance, format_t format)
 {
 	return instance->engine->set_read_format ? instance->engine->set_read_format(instance, format) : -1;
 }
 
-int ast_rtp_instance_set_write_format(struct ast_rtp_instance *instance, int format)
+int ast_rtp_instance_set_write_format(struct ast_rtp_instance *instance, format_t format)
 {
 	return instance->engine->set_write_format ? instance->engine->set_write_format(instance, format) : -1;
 }
@@ -1584,9 +1585,9 @@ int ast_rtp_instance_make_compatible(struct ast_channel *chan, struct ast_rtp_in
 	return res;
 }
 
-int ast_rtp_instance_available_formats(struct ast_rtp_instance *instance, int to_endpoint, int to_asterisk)
+format_t ast_rtp_instance_available_formats(struct ast_rtp_instance *instance, int to_endpoint, int to_asterisk)
 {
-	int formats;
+	format_t formats;
 
 	if (instance->engine->available_formats && (formats = instance->engine->available_formats(instance, to_endpoint, to_asterisk))) {
 		return formats;

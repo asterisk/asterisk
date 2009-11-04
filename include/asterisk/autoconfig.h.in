@@ -352,6 +352,9 @@
 /* Define to the version of the Hoard Memory Allocator library. */
 #undef HAVE_HOARD_VERSION
 
+/* Define to 1 if you have the `htonll' function. */
+#undef HAVE_HTONLL
+
 /* Define to 1 if you have the ical libraries library. */
 #undef HAVE_ICAL
 
@@ -575,6 +578,9 @@
 
 /* Define to the version of the newt library. */
 #undef HAVE_NEWT_VERSION
+
+/* Define to 1 if you have the `ntohll' function. */
+#undef HAVE_NTOHLL
 
 /* Define to 1 if your ODBC library has wide (Unicode) types. */
 #undef HAVE_ODBC_WCHAR

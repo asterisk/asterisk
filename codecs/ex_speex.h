@@ -18,7 +18,7 @@ static struct ast_frame *speex_sample(void)
 {
 	static struct ast_frame f = {
 		.frametype = AST_FRAME_VOICE,
-		.subclass = AST_FORMAT_SPEEX,
+		.subclass.codec = AST_FORMAT_SPEEX,
 		.datalen = sizeof(ex_speex),
 		/* All frames are 20 ms long */
 		.samples = SPEEX_SAMPLES,

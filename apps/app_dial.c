@@ -1004,7 +1004,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				continue;
 			}
 			if (f->frametype == AST_FRAME_CONTROL) {
-				switch(f->subclass) {
+				switch (f->subclass.integer) {
 				case AST_CONTROL_ANSWER:
 					/* This is our guy if someone answered. */
 					if (!peer) {
@@ -1145,7 +1145,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					}
 					break;
 				default:
-					ast_debug(1, "Dunno what to do with control type %d\n", f->subclass);
+					ast_debug(1, "Dunno what to do with control type %d\n", f->subclass.integer);
 				}
 			} else if (single) {
 				switch (f->frametype) {
@@ -1157,7 +1157,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						}
 						break;
 					case AST_FRAME_HTML:
-						if (!ast_test_flag64(outgoing, DIAL_NOFORWARDHTML) && ast_channel_sendhtml(in, f->subclass, f->data.ptr, f->datalen) == -1) {
+						if (!ast_test_flag64(outgoing, DIAL_NOFORWARDHTML) && ast_channel_sendhtml(in, f->subclass.integer, f->data.ptr, f->datalen) == -1) {
 							ast_log(LOG_WARNING, "Unable to send URL\n");
 						}
 						break;
@@ -1175,7 +1175,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 			else if (!f || (f->frametype != AST_FRAME_VOICE))
 				printf("Hangup received on %s\n", in->name);
 #endif
-			if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP))) {
+			if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass.integer == AST_CONTROL_HANGUP))) {
 				/* Got hung up */
 				*to = -1;
 				strcpy(pa->status, "CANCEL");
@@ -1195,11 +1195,11 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					const char *context;
 					ast_channel_lock(in);
 					context = pbx_builtin_getvar_helper(in, "EXITCONTEXT");
-					if (onedigit_goto(in, context, (char) f->subclass, 1)) {
-						ast_verb(3, "User hit %c to disconnect call.\n", f->subclass);
+					if (onedigit_goto(in, context, (char) f->subclass.integer, 1)) {
+						ast_verb(3, "User hit %c to disconnect call.\n", f->subclass.integer);
 						*to = 0;
 						ast_cdr_noanswer(in->cdr);
-						*result = f->subclass;
+						*result = f->subclass.integer;
 						strcpy(pa->status, "CANCEL");
 						ast_frfree(f);
 						ast_channel_unlock(in);
@@ -1209,7 +1209,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				}
 
 				if (ast_test_flag64(peerflags, OPT_CALLER_HANGUP) &&
-					detect_disconnect(in, f->subclass, featurecode)) {
+					detect_disconnect(in, f->subclass.integer, featurecode)) {
 					ast_verb(3, "User requested call disconnect.\n");
 					*to = 0;
 					strcpy(pa->status, "CANCEL");
@@ -1221,7 +1221,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 
 			/* Forward HTML stuff */
 			if (single && (f->frametype == AST_FRAME_HTML) && !ast_test_flag64(outgoing, DIAL_NOFORWARDHTML))
-				if (ast_channel_sendhtml(outgoing->chan, f->subclass, f->data.ptr, f->datalen) == -1)
+				if (ast_channel_sendhtml(outgoing->chan, f->subclass.integer, f->data.ptr, f->datalen) == -1)
 					ast_log(LOG_WARNING, "Unable to send URL\n");
 
 			if (single && ((f->frametype == AST_FRAME_VOICE) || (f->frametype == AST_FRAME_DTMF_BEGIN) || (f->frametype == AST_FRAME_DTMF_END)))  {
@@ -1229,16 +1229,16 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					ast_log(LOG_WARNING, "Unable to forward voice or dtmf\n");
 			}
 			if (single && (f->frametype == AST_FRAME_CONTROL)) { 
-				if ((f->subclass == AST_CONTROL_HOLD) ||
-				    (f->subclass == AST_CONTROL_UNHOLD) ||
-				    (f->subclass == AST_CONTROL_VIDUPDATE) ||
-				    (f->subclass == AST_CONTROL_SRCUPDATE) ||
-				    (f->subclass == AST_CONTROL_REDIRECTING)) {
-					ast_verb(3, "%s requested special control %d, passing it to %s\n", in->name, f->subclass, outgoing->chan->name);
-					ast_indicate_data(outgoing->chan, f->subclass, f->data.ptr, f->datalen);
-				} else if (f->subclass == AST_CONTROL_CONNECTED_LINE) {
+				if ((f->subclass.integer == AST_CONTROL_HOLD) ||
+				    (f->subclass.integer == AST_CONTROL_UNHOLD) ||
+				    (f->subclass.integer == AST_CONTROL_VIDUPDATE) ||
+				    (f->subclass.integer == AST_CONTROL_SRCUPDATE) ||
+				    (f->subclass.integer == AST_CONTROL_REDIRECTING)) {
+					ast_verb(3, "%s requested special control %d, passing it to %s\n", in->name, f->subclass.integer, outgoing->chan->name);
+					ast_indicate_data(outgoing->chan, f->subclass.integer, f->data.ptr, f->datalen);
+				} else if (f->subclass.integer == AST_CONTROL_CONNECTED_LINE) {
 					if (ast_channel_connected_line_macro(in, outgoing->chan, f, 0, 1)) {
-						ast_indicate_data(outgoing->chan, f->subclass, f->data.ptr, f->datalen);
+						ast_indicate_data(outgoing->chan, f->subclass.integer, f->data.ptr, f->datalen);
 					}
 				}
 			}

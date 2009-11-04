@@ -32,6 +32,8 @@
 
 #include <sys/time.h>
 
+#include "asterisk/frame_defs.h"
+
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
@@ -92,7 +94,7 @@ struct ast_jb
 	/*! \brief The time the next frame should be played. */
 	long next;
 	/*! \brief Voice format of the last frame in. */
-	int last_format;
+	format_t last_format;
 	/*! \brief File for frame timestamp tracing. */
 	FILE *logfile;
 	/*! \brief Jitterbuffer internal state flags. */

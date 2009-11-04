@@ -676,7 +676,7 @@ static int reload(void);
 static int unload_module(void);
 static int reload_config(void);
 static void show_main_page(struct unistimsession *pte);
-static struct ast_channel *unistim_request(const char *type, int format, const struct ast_channel *requestor, 
+static struct ast_channel *unistim_request(const char *type, format_t format, const struct ast_channel *requestor, 
 	void *data, int *cause);
 static int unistim_call(struct ast_channel *ast, char *dest, int timeout);
 static int unistim_hangup(struct ast_channel *ast);
@@ -2035,7 +2035,7 @@ static void start_rtp(struct unistim_subchannel *sub)
 	struct sockaddr_in us = { 0, };
 	struct sockaddr_in public = { 0, };
 	struct sockaddr_in sin = { 0, };
-	int codec;
+	format_t codec;
 	struct sockaddr_in sout = { 0, };
 
 	/* Sanity checks */
@@ -2085,13 +2085,14 @@ static void start_rtp(struct unistim_subchannel *sub)
 	sin.sin_port = htons(sub->parent->parent->rtp_port);
 	ast_rtp_instance_set_remote_address(sub->rtp, &sin);
 	if (!(sub->owner->nativeformats & sub->owner->readformat)) {
-		int fmt;
+		format_t fmt;
+		char tmp[256];
 		fmt = ast_best_codec(sub->owner->nativeformats);
 		ast_log(LOG_WARNING,
-				"Our read/writeformat has been changed to something incompatible : %s (%d), using %s (%d) best codec from %d\n",
+				"Our read/writeformat has been changed to something incompatible: %s, using %s best codec from %s\n",
 				ast_getformatname(sub->owner->readformat),
-				sub->owner->readformat, ast_getformatname(fmt), fmt,
-				sub->owner->nativeformats);
+				ast_getformatname(fmt),
+				ast_getformatname_multiple(tmp, sizeof(tmp), sub->owner->nativeformats));
 		sub->owner->readformat = fmt;
 		sub->owner->writeformat = fmt;
 	}
@@ -2102,20 +2103,19 @@ static void start_rtp(struct unistim_subchannel *sub)
 	else
 		memcpy(&public, &public_ip, sizeof(public));    /* override  */
 	if (unistimdebug) {
-		ast_verb(0, "RTP started : Our IP/port is : %s:%hd with codec %s (%d)\n",
+		ast_verb(0, "RTP started : Our IP/port is : %s:%hd with codec %s\n",
 			 ast_inet_ntoa(us.sin_addr),
-			 htons(us.sin_port), ast_getformatname(sub->owner->readformat),
-			 sub->owner->readformat);
+			 htons(us.sin_port), ast_getformatname(sub->owner->readformat));
 		ast_verb(0, "Starting phone RTP stack. Our public IP is %s\n",
 					ast_inet_ntoa(public.sin_addr));
 	}
 	if ((sub->owner->readformat == AST_FORMAT_ULAW) ||
 		(sub->owner->readformat == AST_FORMAT_ALAW)) {
 		if (unistimdebug)
-			ast_verb(0, "Sending packet_send_rtp_packet_size for codec %d\n", codec);
+			ast_verb(0, "Sending packet_send_rtp_packet_size for codec %s\n", ast_getformatname(codec));
 		memcpy(buffsend + SIZE_HEADER, packet_send_rtp_packet_size,
 			   sizeof(packet_send_rtp_packet_size));
-		buffsend[10] = codec;
+		buffsend[10] = (int) codec & 0xffffffffLL;
 		send_client(SIZE_HEADER + sizeof(packet_send_rtp_packet_size), buffsend,
 				   sub->parent->parent->session);
 	}
@@ -2214,8 +2214,8 @@ static void start_rtp(struct unistim_subchannel *sub)
 		else if (sub->owner->readformat == AST_FORMAT_G729A)
 			buffsend[42] = 2;       /* 1 = 10ms (10 bytes), 2 = 20ms (20 bytes) */
 		else
-			ast_log(LOG_WARNING, "Unsupported codec %s (%d) !\n",
-					ast_getformatname(sub->owner->readformat), sub->owner->readformat);
+			ast_log(LOG_WARNING, "Unsupported codec %s!\n",
+					ast_getformatname(sub->owner->readformat));
 		/* Source port for transmit RTP and Destination port for receiving RTP */
 		buffsend[45] = (htons(sin.sin_port) & 0xff00) >> 8;
 		buffsend[46] = (htons(sin.sin_port) & 0x00ff);
@@ -2474,7 +2474,7 @@ static void HandleCallIncoming(struct unistimsession *s)
 
 static int unistim_do_senddigit(struct unistimsession *pte, char digit)
 {
-	struct ast_frame f = { .frametype = AST_FRAME_DTMF, .subclass = digit, .src = "unistim" };
+	struct ast_frame f = { .frametype = AST_FRAME_DTMF, .subclass.integer = digit, .src = "unistim" };
 	struct unistim_subchannel *sub;
 	sub = pte->device->lines->subs[SUB_REAL];
 	if (!sub->owner || sub->alreadygone) {
@@ -3936,14 +3936,13 @@ static struct ast_frame *unistim_rtp_read(const struct ast_channel *ast,
 	if (sub->owner) {
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {
-			if (f->subclass != sub->owner->nativeformats) {
+			if (f->subclass.codec != sub->owner->nativeformats) {
 				ast_debug(1,
-						"Oooh, format changed from %s (%d) to %s (%d)\n",
+						"Oooh, format changed from %s to %s\n",
 						ast_getformatname(sub->owner->nativeformats),
-						sub->owner->nativeformats, ast_getformatname(f->subclass),
-						f->subclass);
+						ast_getformatname(f->subclass.codec));
 
-				sub->owner->nativeformats = f->subclass;
+				sub->owner->nativeformats = f->subclass.codec;
 				ast_set_read_format(sub->owner, sub->owner->readformat);
 				ast_set_write_format(sub->owner, sub->owner->writeformat);
 			}
@@ -3979,13 +3978,14 @@ static int unistim_write(struct ast_channel *ast, struct ast_frame *frame)
 			return 0;
 		}
 	} else {
-		if (!(frame->subclass & ast->nativeformats)) {
+		if (!(frame->subclass.codec & ast->nativeformats)) {
+			char tmp[256];
 			ast_log(LOG_WARNING,
-					"Asked to transmit frame type %s (%d), while native formats is %s (%d) (read/write = %s (%d)/%d)\n",
-					ast_getformatname(frame->subclass), frame->subclass,
-					ast_getformatname(ast->nativeformats), ast->nativeformats,
-					ast_getformatname(ast->readformat), ast->readformat,
-					ast->writeformat);
+					"Asked to transmit frame type %s, while native formats is %s (read/write = (%s/%s)\n",
+					ast_getformatname(frame->subclass.codec),
+					ast_getformatname_multiple(tmp, sizeof(tmp), ast->nativeformats),
+					ast_getformatname(ast->readformat),
+					ast_getformatname(ast->writeformat));
 			return -1;
 		}
 	}
@@ -4240,7 +4240,7 @@ static int unistim_senddigit_end(struct ast_channel *ast, char digit, unsigned i
 
 	send_tone(pte, 0, 0);
 	f.frametype = AST_FRAME_DTMF;
-	f.subclass = digit;
+	f.subclass.integer = digit;
 	f.src = "unistim";
 	ast_queue_frame(sub->owner, &f);
 
@@ -4450,9 +4450,14 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 	if (!tmp->nativeformats)
 		tmp->nativeformats = CAPABILITY;
 	fmt = ast_best_codec(tmp->nativeformats);
-	if (unistimdebug)
-		ast_verb(0, "Best codec = %d from nativeformats %d (line cap=%d global=%d)\n", fmt,
-			 tmp->nativeformats, l->capability, CAPABILITY);
+	if (unistimdebug) {
+		char tmp1[256], tmp2[256], tmp3[256];
+		ast_verb(0, "Best codec = %s from nativeformats %s (line cap=%s global=%s)\n",
+			ast_getformatname(fmt),
+			ast_getformatname_multiple(tmp1, sizeof(tmp1), tmp->nativeformats),
+			ast_getformatname_multiple(tmp2, sizeof(tmp2), l->capability),
+			ast_getformatname_multiple(tmp3, sizeof(tmp3), CAPABILITY));
+	}
 	if ((sub->rtp) && (sub->subtype == 0)) {
 		if (unistimdebug)
 			ast_verb(0, "New unistim channel with a previous rtp handle ?\n");
@@ -4617,10 +4622,10 @@ static int restart_monitor(void)
 
 /*--- unistim_request: PBX interface function ---*/
 /* UNISTIM calls initiated by the PBX arrive here */
-static struct ast_channel *unistim_request(const char *type, int format, const struct ast_channel *requestor, void *data,
+static struct ast_channel *unistim_request(const char *type, format_t format, const struct ast_channel *requestor, void *data,
 										   int *cause)
 {
-	int oldformat;
+	format_t oldformat;
 	struct unistim_subchannel *sub;
 	struct ast_channel *tmpc = NULL;
 	char tmp[256];
@@ -4629,12 +4634,14 @@ static struct ast_channel *unistim_request(const char *type, int format, const s
 	oldformat = format;
 	format &= CAPABILITY;
 	ast_log(LOG_NOTICE,
-			"Asked to get a channel of format %s while capability is %d result : %s (%d) \n",
-			ast_getformatname(oldformat), CAPABILITY, ast_getformatname(format), format);
+			"Asked to get a channel of format %s while capability is %s result : %s\n",
+			ast_getformatname(oldformat),
+			ast_getformatname_multiple(tmp, sizeof(tmp), CAPABILITY),
+			ast_getformatname(format));
 	if (!format) {
 		ast_log(LOG_NOTICE,
 				"Asked to get a channel of unsupported format %s while capability is %s\n",
-				ast_getformatname(oldformat), ast_getformatname(CAPABILITY));
+				ast_getformatname(oldformat), ast_getformatname_multiple(tmp, sizeof(tmp), CAPABILITY));
 		return NULL;
 	}
 

@@ -119,7 +119,7 @@ static struct ast_frame *g726_read(struct ast_filestream *s, int *whennext)
 
 	/* Send a frame from the file to the appropriate channel */
 	s->fr.frametype = AST_FRAME_VOICE;
-	s->fr.subclass = AST_FORMAT_G726;
+	s->fr.subclass.codec = AST_FORMAT_G726;
 	s->fr.mallocd = 0;
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, frame_size[fs->rate]);
 	s->fr.samples = 8 * FRAME_TIME;
@@ -141,9 +141,9 @@ static int g726_write(struct ast_filestream *s, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
 	}
-	if (f->subclass != AST_FORMAT_G726) {
-		ast_log(LOG_WARNING, "Asked to write non-G726 frame (%d)!\n", 
-						f->subclass);
+	if (f->subclass.codec != AST_FORMAT_G726) {
+		ast_log(LOG_WARNING, "Asked to write non-G726 frame (%s)!\n", 
+						ast_getformatname(f->subclass.codec));
 		return -1;
 	}
 	if (f->datalen % frame_size[fs->rate]) {

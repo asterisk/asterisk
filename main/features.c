@@ -2483,30 +2483,30 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller, 
 			}
 			
 			if (f->frametype == AST_FRAME_CONTROL || f->frametype == AST_FRAME_DTMF || f->frametype == AST_FRAME_TEXT) {
-				if (f->subclass == AST_CONTROL_RINGING) {
-					state = f->subclass;
+				if (f->subclass.integer == AST_CONTROL_RINGING) {
+					state = f->subclass.integer;
 					ast_verb(3, "%s is ringing\n", chan->name);
 					ast_indicate(caller, AST_CONTROL_RINGING);
-				} else if ((f->subclass == AST_CONTROL_BUSY) || (f->subclass == AST_CONTROL_CONGESTION)) {
-					state = f->subclass;
+				} else if ((f->subclass.integer == AST_CONTROL_BUSY) || (f->subclass.integer == AST_CONTROL_CONGESTION)) {
+					state = f->subclass.integer;
 					ast_verb(3, "%s is busy\n", chan->name);
 					ast_indicate(caller, AST_CONTROL_BUSY);
 					ast_frfree(f);
 					f = NULL;
 					break;
-				} else if (f->subclass == AST_CONTROL_ANSWER) {
+				} else if (f->subclass.integer == AST_CONTROL_ANSWER) {
 					/* This is what we are hoping for */
-					state = f->subclass;
+					state = f->subclass.integer;
 					ast_frfree(f);
 					f = NULL;
 					ready=1;
 					break;
-				} else if (f->subclass == AST_CONTROL_CONNECTED_LINE) {
+				} else if (f->subclass.integer == AST_CONTROL_CONNECTED_LINE) {
 					if (ast_channel_connected_line_macro(chan, caller, f, 1, 1)) {
 						ast_indicate_data(caller, AST_CONTROL_CONNECTED_LINE, f->data.ptr, f->datalen);
 					}
-				} else if (f->subclass != -1 && f->subclass != AST_CONTROL_PROGRESS) {
-					ast_log(LOG_NOTICE, "Don't know what to do about control frame: %d\n", f->subclass);
+				} else if (f->subclass.integer != -1 && f->subclass.integer != AST_CONTROL_PROGRESS) {
+					ast_log(LOG_NOTICE, "Don't know what to do about control frame: %d\n", f->subclass.integer);
 				}
 				/* else who cares */
 			} else if (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO) {
@@ -2529,7 +2529,7 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller, 
 			} else {
 			
 				if (f->frametype == AST_FRAME_DTMF) {
-					dialed_code[x++] = f->subclass;
+					dialed_code[x++] = f->subclass.integer;
 					dialed_code[x] = '\0';
 					if (strlen(dialed_code) == len) {
 						x = 0;
@@ -2941,19 +2941,19 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		}
 		
 		if (!f || (f->frametype == AST_FRAME_CONTROL &&
-				(f->subclass == AST_CONTROL_HANGUP || f->subclass == AST_CONTROL_BUSY ||
-					f->subclass == AST_CONTROL_CONGESTION))) {
+				(f->subclass.integer == AST_CONTROL_HANGUP || f->subclass.integer == AST_CONTROL_BUSY ||
+					f->subclass.integer == AST_CONTROL_CONGESTION))) {
 			res = -1;
 			break;
 		}
 		/* many things should be sent to the 'other' channel */
 		other = (who == chan) ? peer : chan;
 		if (f->frametype == AST_FRAME_CONTROL) {
-			switch (f->subclass) {
+			switch (f->subclass.integer) {
 			case AST_CONTROL_RINGING:
 			case AST_CONTROL_FLASH:
 			case -1:
-				ast_indicate(other, f->subclass);
+				ast_indicate(other, f->subclass.integer);
 				break;
 			case AST_CONTROL_CONNECTED_LINE:
 				if (!ast_channel_connected_line_macro(who, other, f, who != chan, 1)) {
@@ -2962,7 +2962,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				/* The implied "else" falls through purposely */
 			case AST_CONTROL_HOLD:
 			case AST_CONTROL_UNHOLD:
-				ast_indicate_data(other, f->subclass, f->data.ptr, f->datalen);
+				ast_indicate_data(other, f->subclass.integer, f->data.ptr, f->datalen);
 				break;
 			case AST_CONTROL_OPTION:
 				aoh = f->data.ptr;
@@ -2992,7 +2992,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			 * not overflowing it. 
 			 * \todo XXX how do we guarantee the latter ?
 			 */
-			featurecode[strlen(featurecode)] = f->subclass;
+			featurecode[strlen(featurecode)] = f->subclass.integer;
 			/* Get rid of the frame before we start doing "stuff" with the channels */
 			ast_frfree(f);
 			f = NULL;
@@ -3391,7 +3391,7 @@ int manage_parkinglot(struct ast_parkinglot *curlot, fd_set *rfds, fd_set *efds,
 				/* See if they need servicing */
 				f = ast_read(pu->chan);
 				/* Hangup? */
-				if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass ==  AST_CONTROL_HANGUP))) {
+				if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass.integer ==  AST_CONTROL_HANGUP))) {
 					if (f)
 						ast_frfree(f);
 					post_manager_event("ParkedCallGiveUp", pu);

@@ -38,6 +38,8 @@
 		asprintf;
 		strtoq;
 		getloadavg;
+		ntohll;
+		htonll;
 	local:
 		*;
 };

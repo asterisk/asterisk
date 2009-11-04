@@ -3162,12 +3162,12 @@ static int action_atxfer(struct mansession *s, const struct message *m)
 	}
 
 	for (feature_code = atxfer_feature->exten; feature_code && *feature_code; ++feature_code) {
-		struct ast_frame f = { AST_FRAME_DTMF, *feature_code };
+		struct ast_frame f = { AST_FRAME_DTMF, .subclass.integer = *feature_code };
 		ast_queue_frame(chan, &f);
 	}
 
 	for (feature_code = (char *)exten; feature_code && *feature_code; ++feature_code) {
-		struct ast_frame f = { AST_FRAME_DTMF, *feature_code };
+		struct ast_frame f = { AST_FRAME_DTMF, .subclass.integer = *feature_code };
 		ast_queue_frame(chan, &f);
 	}
 
@@ -3274,7 +3274,7 @@ struct fast_originate_helper {
 	/*! data can contain a channel name, extension number, username, password, etc. */
 	char data[512];
 	int timeout;
-	int format;				/*!< Codecs used for a call */
+	format_t format;				/*!< Codecs used for a call */
 	char app[AST_MAX_APP];
 	char appdata[AST_MAX_EXTENSION];
 	char cid_name[AST_MAX_EXTENSION];
@@ -3359,7 +3359,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 	int reason = 0;
 	char tmp[256];
 	char tmp2[256];
-	int format = AST_FORMAT_SLINEAR;
+	format_t format = AST_FORMAT_SLINEAR;
 
 	pthread_t th;
 	if (ast_strlen_zero(name)) {

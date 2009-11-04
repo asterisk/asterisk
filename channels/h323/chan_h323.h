@@ -30,6 +30,7 @@
 #define CHAN_H323_H
 
 #include <arpa/inet.h>
+#include "asterisk/frame_defs.h"
 
 /*
  * Enable support for sending/reception of tunnelled Q.SIG messages and
@@ -64,7 +65,7 @@ typedef struct call_options {
 	int				progress_audio;
 	int				dtmfcodec[2];
 	int				dtmfmode;
-	int				capability;
+	format_t        capability;
 	int				bridge;
 	int				nat;
 	int				tunnelOptions;

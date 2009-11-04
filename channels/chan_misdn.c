@@ -6977,9 +6977,9 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
 		return frame;
 	}
 
-	ast_debug(1, "Detected inband DTMF digit: %c\n", f->subclass);
+	ast_debug(1, "Detected inband DTMF digit: %c\n", f->subclass.integer);
 
- 	if (tmp->faxdetect && (f->subclass == 'f')) {
+ 	if (tmp->faxdetect && (f->subclass.integer == 'f')) {
  		/* Fax tone -- Handle and return NULL */
  		if (!tmp->faxhandled) {
   			struct ast_channel *ast = tmp->ast;
@@ -7028,8 +7028,8 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
 		}
   	}
 
- 	if (tmp->ast_dsp && (f->subclass != 'f')) {
- 		chan_misdn_log(2, tmp->bc->port, " --> * SEND: DTMF (AST_DSP) :%c\n", f->subclass);
+ 	if (tmp->ast_dsp && (f->subclass.integer != 'f')) {
+ 		chan_misdn_log(2, tmp->bc->port, " --> * SEND: DTMF (AST_DSP) :%c\n", f->subclass.integer);
  	}
 
 	return f;
@@ -7084,7 +7084,7 @@ static struct ast_frame *misdn_read(struct ast_channel *ast)
 	}
 
 	tmp->frame.frametype = AST_FRAME_VOICE;
-	tmp->frame.subclass = AST_FORMAT_ALAW;
+	tmp->frame.subclass.codec = AST_FORMAT_ALAW;
 	tmp->frame.datalen = len;
 	tmp->frame.samples = len;
 	tmp->frame.mallocd = 0;
@@ -7150,13 +7150,13 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 	}
 
 
-	if (!frame->subclass) {
+	if (!frame->subclass.codec) {
 		chan_misdn_log(4, ch->bc->port, "misdn_write: * prods us\n");
 		return 0;
 	}
 
-	if (!(frame->subclass & prefformat)) {
-		chan_misdn_log(-1, ch->bc->port, "Got Unsupported Frame with Format:%d\n", frame->subclass);
+	if (!(frame->subclass.codec & prefformat)) {
+		chan_misdn_log(-1, ch->bc->port, "Got Unsupported Frame with Format:%s\n", ast_getformatname(frame->subclass.codec));
 		return 0;
 	}
 
@@ -7301,7 +7301,7 @@ static enum ast_bridge_result misdn_bridge(struct ast_channel *c0,
 			if (!f) {
 				chan_misdn_log(4, ch1->bc->port, "Read Null Frame\n");
 			} else {
-				chan_misdn_log(4, ch1->bc->port, "Read Frame Control class:%d\n", f->subclass);
+				chan_misdn_log(4, ch1->bc->port, "Read Frame Control class:%d\n", f->subclass.integer);
 			}
 
 			*fo = f;
@@ -7310,7 +7310,7 @@ static enum ast_bridge_result misdn_bridge(struct ast_channel *c0,
 		}
 
 		if (f->frametype == AST_FRAME_DTMF) {
-			chan_misdn_log(1, 0, "Read DTMF %d from %s\n", f->subclass, who->exten);
+			chan_misdn_log(1, 0, "Read DTMF %d from %s\n", f->subclass.integer, who->exten);
 
 			*fo = f;
 			*rc = who;
@@ -7437,7 +7437,7 @@ static struct chan_list *init_chan_list(int orig)
 	return cl;
 }
 
-static struct ast_channel *misdn_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *misdn_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause)
 {
 	struct ast_channel *ast;
 	char group[BUFFERSIZE + 1] = "";
@@ -8280,7 +8280,7 @@ static void do_immediate_setup(struct misdn_bchannel *bc, struct chan_list *ch, 
 
 	while (!ast_strlen_zero(predial)) {
 		fr.frametype = AST_FRAME_DTMF;
-		fr.subclass = *predial;
+		fr.subclass.integer = *predial;
 		fr.src = NULL;
 		fr.data.ptr = NULL;
 		fr.datalen = 0;
@@ -9547,7 +9547,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 		memset(&fr, 0, sizeof(fr));
 		fr.frametype = AST_FRAME_DTMF;
-		fr.subclass = bc->dtmf ;
+		fr.subclass.integer = bc->dtmf ;
 		fr.src = NULL;
 		fr.data.ptr = NULL;
 		fr.datalen = 0;
@@ -9647,7 +9647,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 			memset(&fr, 0, sizeof(fr));
 			fr.frametype = AST_FRAME_DTMF;
-			fr.subclass = bc->info_dad[0] ;
+			fr.subclass.integer = bc->info_dad[0] ;
 			fr.src = NULL;
 			fr.data.ptr = NULL;
 			fr.datalen = 0;
@@ -10304,7 +10304,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 			/* In Data Modes we queue frames */
 			frame.frametype = AST_FRAME_VOICE; /* we have no data frames yet */
-			frame.subclass = AST_FORMAT_ALAW;
+			frame.subclass.codec = AST_FORMAT_ALAW;
 			frame.datalen = bc->bframe_len;
 			frame.samples = bc->bframe_len;
 			frame.mallocd = 0;

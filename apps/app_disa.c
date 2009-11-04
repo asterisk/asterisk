@@ -220,7 +220,7 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 			return -1;
 		}
 
-		if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP)) {
+		if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass.integer == AST_CONTROL_HANGUP)) {
 			if (f->data.uint32)
 				chan->hangupcause = f->data.uint32;
 			ast_frfree(f);
@@ -234,7 +234,7 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 			continue;
 		}
 
-		j = f->subclass;  /* save digit */
+		j = f->subclass.integer;  /* save digit */
 		ast_frfree(f);
 
 		if (!i) {

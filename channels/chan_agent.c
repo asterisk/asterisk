@@ -280,10 +280,11 @@ static AST_LIST_HEAD_STATIC(agents, agent_pvt);	/*!< Holds the list of agents (l
 #define CHECK_FORMATS(ast, p) do { \
 	if (p->chan) {\
 		if (ast->nativeformats != p->chan->nativeformats) { \
-			ast_debug(1, "Native formats changing from %d to %d\n", ast->nativeformats, p->chan->nativeformats); \
+			char tmp1[256], tmp2[256]; \
+			ast_debug(1, "Native formats changing from '%s' to '%s'\n", ast_getformatname_multiple(tmp1, sizeof(tmp1), ast->nativeformats), ast_getformatname_multiple(tmp2, sizeof(tmp2), p->chan->nativeformats)); \
 			/* Native formats changed, reset things */ \
 			ast->nativeformats = p->chan->nativeformats; \
-			ast_debug(1, "Resetting read to %d and write to %d\n", ast->readformat, ast->writeformat);\
+			ast_debug(1, "Resetting read to '%s' and write to '%s'\n", ast_getformatname_multiple(tmp1, sizeof(tmp1), ast->readformat), ast_getformatname_multiple(tmp2, sizeof(tmp2), ast->writeformat));\
 			ast_set_read_format(ast, ast->readformat); \
 			ast_set_write_format(ast, ast->writeformat); \
 		} \
@@ -310,7 +311,7 @@ static AST_LIST_HEAD_STATIC(agents, agent_pvt);	/*!< Holds the list of agents (l
 } while(0)
 
 /*--- Forward declarations */
-static struct ast_channel *agent_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *agent_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause);
 static int agent_devicestate(void *data);
 static int agent_digit_begin(struct ast_channel *ast, char digit);
 static int agent_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
@@ -529,7 +530,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 {
 	struct agent_pvt *p = ast->tech_pvt;
 	struct ast_frame *f = NULL;
-	static struct ast_frame answer_frame = { AST_FRAME_CONTROL, AST_CONTROL_ANSWER };
+	static struct ast_frame answer_frame = { AST_FRAME_CONTROL, { AST_CONTROL_ANSWER } };
 	int cur_time = time(NULL);
 	ast_mutex_lock(&p->lock);
 	CHECK_FORMATS(ast, p);
@@ -566,7 +567,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 		}
 		switch (f->frametype) {
 		case AST_FRAME_CONTROL:
-			if (f->subclass == AST_CONTROL_ANSWER) {
+			if (f->subclass.integer == AST_CONTROL_ANSWER) {
 				if (p->ackcall) {
 					ast_verb(3, "%s answered, waiting for '%c' to acknowledge\n", p->chan->name, p->acceptdtmf);
 					/* Don't pass answer along */
@@ -583,18 +584,18 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 			break;
 		case AST_FRAME_DTMF_BEGIN:
 			/*ignore DTMF begin's as it can cause issues with queue announce files*/
-			if((!p->acknowledged && f->subclass == p->acceptdtmf) || (f->subclass == p->enddtmf && endcall)){
+			if((!p->acknowledged && f->subclass.integer == p->acceptdtmf) || (f->subclass.integer == p->enddtmf && endcall)){
 				ast_frfree(f);
 				f = &ast_null_frame;
 			}
 			break;
 		case AST_FRAME_DTMF_END:
-			if (!p->acknowledged && (f->subclass == p->acceptdtmf)) {
+			if (!p->acknowledged && (f->subclass.integer == p->acceptdtmf)) {
 				ast_verb(3, "%s acknowledged\n", p->chan->name);
 				p->acknowledged = 1;
 				ast_frfree(f);
 				f = &answer_frame;
-			} else if (f->subclass == p->enddtmf && endcall) {
+			} else if (f->subclass.integer == p->enddtmf && endcall) {
 				/* terminates call */
 				ast_frfree(f);
 				f = NULL;
@@ -660,7 +661,7 @@ static int agent_write(struct ast_channel *ast, struct ast_frame *f)
 	else {
 		if ((f->frametype != AST_FRAME_VOICE) ||
 		    (f->frametype != AST_FRAME_VIDEO) ||
-		    (f->subclass == p->chan->writeformat)) {
+		    (f->subclass.codec == p->chan->writeformat)) {
 			res = ast_write(p->chan, f);
 		} else {
 			ast_debug(1, "Dropping one incompatible %s frame on '%s' to '%s'\n", 
@@ -951,7 +952,7 @@ static int agent_ack_sleep(void *data)
 		if (!f) 
 			return -1;
 		if (f->frametype == AST_FRAME_DTMF)
-			res = f->subclass;
+			res = f->subclass.integer;
 		else
 			res = 0;
 		ast_frfree(f);
@@ -1334,7 +1335,7 @@ static int check_beep(struct agent_pvt *newlyavailable, int needlock)
 }
 
 /*! \brief Part of the Asterisk PBX interface */
-static struct ast_channel *agent_request(const char *type, int format, const struct ast_channel* requestor, void *data, int *cause)
+static struct ast_channel *agent_request(const char *type, format_t format, const struct ast_channel* requestor, void *data, int *cause)
 {
 	struct agent_pvt *p;
 	struct ast_channel *chan = NULL;
@@ -1958,12 +1959,12 @@ static int login_exec(struct ast_channel *chan, const char *data)
 					if (!res) {
 						res = ast_set_read_format(chan, ast_best_codec(chan->nativeformats));
 						if (res)
-							ast_log(LOG_WARNING, "Unable to set read format to %d\n", ast_best_codec(chan->nativeformats));
+							ast_log(LOG_WARNING, "Unable to set read format to %s\n", ast_getformatname(ast_best_codec(chan->nativeformats)));
 					}
 					if (!res) {
 						res = ast_set_write_format(chan, ast_best_codec(chan->nativeformats));
 						if (res)
-							ast_log(LOG_WARNING, "Unable to set write format to %d\n", ast_best_codec(chan->nativeformats));
+							ast_log(LOG_WARNING, "Unable to set write format to %s\n", ast_getformatname(ast_best_codec(chan->nativeformats)));
 					}
 					/* Check once more just in case */
 					if (p->chan)

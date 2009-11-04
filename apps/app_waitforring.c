@@ -78,7 +78,7 @@ static int waitforring_exec(struct ast_channel *chan, const char *data)
 				res = -1;
 				break;
 			}
-			if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_RING)) {
+			if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass.integer == AST_CONTROL_RING)) {
 				ast_verb(3, "Got a ring but still waiting for timeout\n");
 			}
 			ast_frfree(f);
@@ -99,7 +99,7 @@ static int waitforring_exec(struct ast_channel *chan, const char *data)
 					res = -1;
 					break;
 				}
-				if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_RING)) {
+				if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass.integer == AST_CONTROL_RING)) {
 					ast_verb(3, "Got a ring after the timeout\n");
 					ast_frfree(f);
 					break;

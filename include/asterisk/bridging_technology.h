@@ -45,7 +45,7 @@ struct ast_bridge_technology {
 	/*! Unique name to this bridge technology */
 	const char *name;
 	/*! The capabilities that this bridge technology is capable of */
-	int capabilities;
+	format_t capabilities;
 	/*! Preference level that should be used when determining whether to use this bridge technology or not */
 	enum ast_bridge_preference preference;
 	/*! Callback for when a bridge is being created */
@@ -71,7 +71,7 @@ struct ast_bridge_technology {
 	/*! Callback for poking a bridge thread */
 	int (*poke)(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel);
 	/*! Formats that the bridge technology supports */
-	int formats;
+	format_t formats;
 	/*! Bit to indicate whether the bridge technology is currently suspended or not */
 	unsigned int suspended:1;
 	/*! Module this bridge technology belongs to. Is used for reference counting when creating/destroying a bridge. */

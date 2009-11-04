@@ -165,7 +165,7 @@ static int dictate_exec(struct ast_channel *chan, const char *data)
 		samples = 0;
 		while (!done && ((res = ast_waitfor(chan, -1)) > -1) && fs && (f = ast_read(chan))) {
 			if (digit) {
-				struct ast_frame fr = {AST_FRAME_DTMF, digit};
+				struct ast_frame fr = {AST_FRAME_DTMF, { .integer = digit } };
 				ast_queue_frame(chan, &fr);
 				digit = 0;
 			}
@@ -173,7 +173,7 @@ static int dictate_exec(struct ast_channel *chan, const char *data)
 				int got = 1;
 				switch(mode) {
 				case DMODE_PLAY:
-					switch(f->subclass) {
+					switch (f->subclass.integer) {
 					case '1':
 						ast_set_flag(&flags, DFLAG_PAUSE);
 						mode = DMODE_RECORD;
@@ -202,7 +202,7 @@ static int dictate_exec(struct ast_channel *chan, const char *data)
 					}
 					break;
 				case DMODE_RECORD:
-					switch(f->subclass) {
+					switch (f->subclass.integer) {
 					case '1':
 						ast_set_flag(&flags, DFLAG_PAUSE);
 						mode = DMODE_PLAY;
@@ -219,7 +219,7 @@ static int dictate_exec(struct ast_channel *chan, const char *data)
 					got = 0;
 				}
 				if (!got) {
-					switch(f->subclass) {
+					switch (f->subclass.integer) {
 					case '#':
 						done = 1;
 						continue;

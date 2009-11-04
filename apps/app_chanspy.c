@@ -611,7 +611,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 			continue;
 		}
 		
-		res = (f->frametype == AST_FRAME_DTMF) ? f->subclass : 0;
+		res = (f->frametype == AST_FRAME_DTMF) ? f->subclass.integer : 0;
 		ast_frfree(f);
 		if (!res)
 			continue;

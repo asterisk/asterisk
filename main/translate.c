@@ -70,14 +70,14 @@ static struct translator_path tr_matrix[MAX_FORMAT][MAX_FORMAT];
  */
 
 /*! \brief returns the index of the lowest bit set */
-static force_inline int powerof(unsigned int d)
+static force_inline int powerof(format_t d)
 {
-	int x = ffs(d);
+	int x = ffsll(d);
 
 	if (x)
 		return x - 1;
 
-	ast_log(LOG_WARNING, "No bits set? %d\n", d);
+	ast_log(LOG_WARNING, "No bits set? %llu\n", (unsigned long long) d);
 
 	return -1;
 }
@@ -221,7 +221,7 @@ struct ast_frame *ast_trans_frameout(struct ast_trans_pvt *pvt,
 	}
 
 	f->frametype = AST_FRAME_VOICE;
-	f->subclass = 1 << (pvt->t->dstfmt);
+	f->subclass.codec = 1LL << (pvt->t->dstfmt);
 	f->mallocd = 0;
 	f->offset = AST_FRIENDLY_OFFSET;
 	f->src = pvt->t->name;
@@ -247,7 +247,7 @@ void ast_translator_free_path(struct ast_trans_pvt *p)
 }
 
 /*! \brief Build a chain of translators based upon the given source and dest formats */
-struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
+struct ast_trans_pvt *ast_translator_build_path(format_t dest, format_t source)
 {
 	struct ast_trans_pvt *head = NULL, *tail = NULL;
 	
@@ -271,7 +271,8 @@ struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 			return NULL;
 		}
 		if (!(cur = newpvt(t))) {
-			ast_log(LOG_WARNING, "Failed to build translator step from %d to %d\n", source, dest);
+			ast_log(LOG_WARNING, "Failed to build translator step from %s to %s\n",
+				ast_getformatname(source), ast_getformatname(dest));
 			if (head)
 				ast_translator_free_path(head);	
 			AST_RWLIST_UNLOCK(&translators);
@@ -327,7 +328,7 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 			path->nextout = f->delivery;
 		}
 		/* Predict next incoming sample */
-		path->nextin = ast_tvadd(path->nextin, ast_samp2tv(f->samples, ast_format_rate(f->subclass)));
+		path->nextin = ast_tvadd(path->nextin, ast_samp2tv(f->samples, ast_format_rate(f->subclass.codec)));
 	}
 	delivery = f->delivery;
 	for ( ; out && p ; p = p->next) {
@@ -351,7 +352,7 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 		
 		/* Predict next outgoing timestamp from samples in this
 		   frame. */
-		path->nextout = ast_tvadd(path->nextout, ast_samp2tv(out->samples, ast_format_rate(out->subclass)));
+		path->nextout = ast_tvadd(path->nextout, ast_samp2tv(out->samples, ast_format_rate(out->subclass.codec)));
 	} else {
 		out->delivery = ast_tv(0, 0);
 		ast_set2_flag(out, has_timing_info, AST_FRFLAG_HAS_TIMING_INFO);
@@ -492,7 +493,7 @@ static void rebuild_matrix(int samples)
 					tr_matrix[x][z].cost = newcost;
 					tr_matrix[x][z].multistep = 1;
 					ast_debug(3, "Discovered %d cost path from %s to %s, via %s\n", tr_matrix[x][z].cost,
-						  ast_getformatname(1 << x), ast_getformatname(1 << z), ast_getformatname(1 << y));
+						  ast_getformatname(1LL << x), ast_getformatname(1LL << z), ast_getformatname(1LL << y));
 					changed++;
 				}
 			}
@@ -550,7 +551,7 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 	ast_cli(a->fd, "          Source Format (Rows) Destination Format (Columns)\n\n");
 	/* Get the length of the longest (usable?) codec name, so we know how wide the left side should be */
 	for (x = 0; x < SHOW_TRANS; x++) {
-		curlen = strlen(ast_getformatname(1 << (x)));
+		curlen = strlen(ast_getformatname(1LL << (x)));
 		if (curlen > longest)
 			longest = curlen;
 		for (y = 0; y < SHOW_TRANS; y++) {
@@ -562,15 +563,15 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 	for (x = -1; x < SHOW_TRANS; x++) {
 		struct ast_str *out = ast_str_alloca(125);
 		/*Go ahead and move to next iteration if dealing with an unknown codec*/
-		if(x >= 0 && !strcmp(ast_getformatname(1 << (x)), "unknown"))
+		if(x >= 0 && !strcmp(ast_getformatname(1LL << (x)), "unknown"))
 			continue;
 		ast_str_set(&out, -1, " ");
 		for (y = -1; y < SHOW_TRANS; y++) {
 			/*Go ahead and move to next iteration if dealing with an unknown codec*/
-			if (y >= 0 && !strcmp(ast_getformatname(1 << (y)), "unknown"))
+			if (y >= 0 && !strcmp(ast_getformatname(1LL << (y)), "unknown"))
 				continue;
 			if (y >= 0)
-				curlen = strlen(ast_getformatname(1 << (y)));
+				curlen = strlen(ast_getformatname(1LL << (y)));
 			if (y >= 0 && magnitude[y] + 1 > curlen) {
 				curlen = magnitude[y] + 1;
 			}
@@ -581,10 +582,10 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 				ast_str_append(&out, -1, "%*d", curlen + 1, tr_matrix[x][y].cost);
 			} else if (x == -1 && y >= 0) {
 				/* Top row - use a dynamic size */
-				ast_str_append(&out, -1, "%*s", curlen + 1, ast_getformatname(1 << (y)) );
+				ast_str_append(&out, -1, "%*s", curlen + 1, ast_getformatname(1LL << (y)) );
 			} else if (y == -1 && x >= 0) {
 				/* Left column - use a static size. */
-				ast_str_append(&out, -1, "%*s", longest, ast_getformatname(1 << (x)) );
+				ast_str_append(&out, -1, "%*s", longest, ast_getformatname(1LL << (x)) );
 			} else if (x >= 0 && y >= 0) {
 				/* Codec not supported */
 				ast_str_append(&out, -1, "%*s", curlen + 1, "-");
@@ -638,8 +639,8 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 			return -1;
 		}
 		if (t->dstfmt != powerof(AST_FORMAT_SLINEAR))
-			ast_log(LOG_WARNING, "plc_samples %d format %x\n",
-				t->plc_samples, t->dstfmt);
+			ast_log(LOG_WARNING, "plc_samples %d format %llx\n",
+				t->plc_samples, (unsigned long long) t->dstfmt);
 	}
 	if (t->srcfmt >= MAX_FORMAT) {
 		ast_log(LOG_WARNING, "Source format %s is larger than MAX_FORMAT\n", ast_getformatname(t->srcfmt));
@@ -669,7 +670,7 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 
 	ast_verb(2, "Registered translator '%s' from format %s to %s, cost %d\n",
 			    term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)),
-			    ast_getformatname(1 << t->srcfmt), ast_getformatname(1 << t->dstfmt), t->cost);
+			    ast_getformatname(1LL << t->srcfmt), ast_getformatname(1LL << t->dstfmt), t->cost);
 
 	if (!added_cli) {
 		ast_cli_register_multiple(cli_translate, ARRAY_LEN(cli_translate));
@@ -713,7 +714,7 @@ int ast_unregister_translator(struct ast_translator *t)
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&translators, u, list) {
 		if (u == t) {
 			AST_RWLIST_REMOVE_CURRENT(list);
-			ast_verb(2, "Unregistered translator '%s' from format %s to %s\n", term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), ast_getformatname(1 << t->srcfmt), ast_getformatname(1 << t->dstfmt));
+			ast_verb(2, "Unregistered translator '%s' from format %s to %s\n", term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), ast_getformatname(1LL << t->srcfmt), ast_getformatname(1LL << t->dstfmt));
 			found = 1;
 			break;
 		}
@@ -745,15 +746,15 @@ void ast_translator_deactivate(struct ast_translator *t)
 }
 
 /*! \brief Calculate our best translator source format, given costs, and a desired destination */
-int ast_translator_best_choice(int *dst, int *srcs)
+format_t ast_translator_best_choice(format_t *dst, format_t *srcs)
 {
 	int x,y;
-	int best = -1;
-	int bestdst = 0;
-	int cur, cursrc;
+	format_t best = -1;
+	format_t bestdst = 0;
+	format_t cur, cursrc;
 	int besttime = INT_MAX;
 	int beststeps = INT_MAX;
-	int common = ((*dst) & (*srcs)) & AST_FORMAT_AUDIO_MASK;	/* are there common formats ? */
+	format_t common = ((*dst) & (*srcs)) & AST_FORMAT_AUDIO_MASK;	/* are there common formats ? */
 
 	if (common) { /* yes, pick one and return */
 		for (cur = 1, y = 0; y <= MAX_AUDIO_FORMAT; cur <<= 1, y++) {
@@ -792,7 +793,7 @@ int ast_translator_best_choice(int *dst, int *srcs)
 	}
 }
 
-unsigned int ast_translate_path_steps(unsigned int dest, unsigned int src)
+unsigned int ast_translate_path_steps(format_t dest, format_t src)
 {
 	unsigned int res = -1;
 
@@ -814,12 +815,12 @@ unsigned int ast_translate_path_steps(unsigned int dest, unsigned int src)
 	return res;
 }
 
-unsigned int ast_translate_available_formats(unsigned int dest, unsigned int src)
+format_t ast_translate_available_formats(format_t dest, format_t src)
 {
-	unsigned int res = dest;
-	unsigned int x;
-	unsigned int src_audio = src & AST_FORMAT_AUDIO_MASK;
-	unsigned int src_video = src & AST_FORMAT_VIDEO_MASK;
+	format_t res = dest;
+	format_t x;
+	format_t src_audio = src & AST_FORMAT_AUDIO_MASK;
+	format_t src_video = src & AST_FORMAT_VIDEO_MASK;
 
 	/* if we don't have a source format, we just have to try all
 	   possible destination formats */
@@ -840,7 +841,11 @@ unsigned int ast_translate_available_formats(unsigned int dest, unsigned int src
 	   known audio formats to determine whether there exists
 	   a translation path from the source format to the
 	   destination format. */
-	for (x = 1; src_audio && (x & AST_FORMAT_AUDIO_MASK); x <<= 1) {
+	for (x = 1LL; src_audio && x > 0; x <<= 1) {
+		if (!(x & AST_FORMAT_AUDIO_MASK)) {
+			continue;
+		}
+
 		/* if this is not a desired format, nothing to do */
 		if (!(dest & x))
 			continue;
@@ -866,7 +871,11 @@ unsigned int ast_translate_available_formats(unsigned int dest, unsigned int src
 	   known video formats to determine whether there exists
 	   a translation path from the source format to the
 	   destination format. */
-	for (; src_video && (x & AST_FORMAT_VIDEO_MASK); x <<= 1) {
+	for (x = 1LL; src_video && x > 0; x <<= 1) {
+		if (!(x & AST_FORMAT_VIDEO_MASK)) {
+			continue;
+		}
+
 		/* if this is not a desired format, nothing to do */
 		if (!(dest & x))
 			continue;

@@ -188,7 +188,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(argMaximumWordLength);
 	);
 
-	ast_verb(3, "AMD: %s %s %s (Fmt: %d)\n", chan->name ,chan->cid.cid_ani, chan->cid.cid_rdnis, chan->readformat);
+	ast_verb(3, "AMD: %s %s %s (Fmt: %s)\n", chan->name, chan->cid.cid_ani, chan->cid.cid_rdnis, ast_getformatname(chan->readformat));
 
 	/* Lets parse the arguments. */
 	if (!ast_strlen_zero(parse)) {

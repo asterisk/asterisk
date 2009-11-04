@@ -1092,7 +1092,7 @@ int ast_dsp_call_progress(struct ast_dsp *dsp, struct ast_frame *inf)
 		ast_log(LOG_WARNING, "Can't check call progress of non-voice frames\n");
 		return 0;
 	}
-	if (inf->subclass != AST_FORMAT_SLINEAR) {
+	if (inf->subclass.codec != AST_FORMAT_SLINEAR) {
 		ast_log(LOG_WARNING, "Can only check call progress in signed-linear frames\n");
 		return 0;
 	}
@@ -1266,7 +1266,7 @@ int ast_dsp_silence(struct ast_dsp *dsp, struct ast_frame *f, int *totalsilence)
 		ast_log(LOG_WARNING, "Can't calculate silence on a non-voice frame\n");
 		return 0;
 	}
-	if (f->subclass != AST_FORMAT_SLINEAR) {
+	if (f->subclass.codec != AST_FORMAT_SLINEAR) {
 		ast_log(LOG_WARNING, "Can only calculate silence on signed-linear frames :(\n");
 		return 0;
 	}
@@ -1284,7 +1284,7 @@ int ast_dsp_noise(struct ast_dsp *dsp, struct ast_frame *f, int *totalnoise)
                ast_log(LOG_WARNING, "Can't calculate noise on a non-voice frame\n");
                return 0;
        }
-       if (f->subclass != AST_FORMAT_SLINEAR) {
+       if (f->subclass.codec != AST_FORMAT_SLINEAR) {
                ast_log(LOG_WARNING, "Can only calculate noise on signed-linear frames :(\n");
                return 0;
        }
@@ -1315,12 +1315,13 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 	odata = af->data.ptr;
 	len = af->datalen;
 	/* Make sure we have short data */
-	switch (af->subclass) {
+	switch (af->subclass.codec) {
 	case AST_FORMAT_SLINEAR:
 		shortdata = af->data.ptr;
 		len = af->datalen / 2;
 		break;
 	case AST_FORMAT_ULAW:
+	case AST_FORMAT_TESTLAW:
 		shortdata = alloca(af->datalen * 2);
 		for (x = 0;x < len; x++) {
 			shortdata[x] = AST_MULAW(odata[x]);
@@ -1333,7 +1334,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 		}
 		break;
 	default:
-		ast_log(LOG_WARNING, "Inband DTMF is not supported on codec %s. Use RFC2833\n", ast_getformatname(af->subclass));
+		ast_log(LOG_WARNING, "Inband DTMF is not supported on codec %s. Use RFC2833\n", ast_getformatname(af->subclass.codec));
 		return af;
 	}
 
@@ -1355,7 +1356,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 		chan->_softhangup |= AST_SOFTHANGUP_DEV;
 		memset(&dsp->f, 0, sizeof(dsp->f));
 		dsp->f.frametype = AST_FRAME_CONTROL;
-		dsp->f.subclass = AST_CONTROL_BUSY;
+		dsp->f.subclass.integer = AST_CONTROL_BUSY;
 		ast_frfree(af);
 		ast_debug(1, "Requesting Hangup because the busy tone was detected on channel %s\n", chan->name);
 		return ast_frisolate(&dsp->f);
@@ -1401,7 +1402,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 			if (event) {
 				memset(&dsp->f, 0, sizeof(dsp->f));
 				dsp->f.frametype = event;
-				dsp->f.subclass = event_digit;
+				dsp->f.subclass.integer = event_digit;
 				outf = &dsp->f;
 				goto done;
 			}
@@ -1413,7 +1414,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 
 		memset(&dsp->f, 0, sizeof(dsp->f));
 		dsp->f.frametype = AST_FRAME_DTMF;
-		dsp->f.subclass = fax_digit;
+		dsp->f.subclass.integer = fax_digit;
 		outf = &dsp->f;
 		goto done;
 	}
@@ -1429,7 +1430,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 			case AST_CONTROL_HANGUP:
 				memset(&dsp->f, 0, sizeof(dsp->f));
 				dsp->f.frametype = AST_FRAME_CONTROL;
-				dsp->f.subclass = res;
+				dsp->f.subclass.integer = res;
 				dsp->f.src = "dsp_progress";
 				if (chan) 
 					ast_queue_frame(chan, &dsp->f);
@@ -1448,7 +1449,7 @@ done:
 		memset(shortdata + dsp->mute_data[x].start, 0, sizeof(int16_t) * (dsp->mute_data[x].end - dsp->mute_data[x].start));
 	}
 
-	switch (af->subclass) {
+	switch (af->subclass.codec) {
 	case AST_FORMAT_SLINEAR:
 		break;
 	case AST_FORMAT_ULAW:

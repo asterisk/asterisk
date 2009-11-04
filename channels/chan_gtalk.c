@@ -115,8 +115,8 @@ struct gtalk_pvt {
 	struct ast_channel *owner;       /*!< Master Channel */
 	struct ast_rtp_instance *rtp;             /*!< RTP audio session */
 	struct ast_rtp_instance *vrtp;            /*!< RTP video session */
-	int jointcapability;             /*!< Supported capability at both ends (codecs ) */
-	int peercapability;
+	format_t jointcapability;             /*!< Supported capability at both ends (codecs ) */
+	format_t peercapability;
 	struct gtalk_pvt *next;	/* Next entity */
 };
 
@@ -146,7 +146,7 @@ struct gtalk {
 	char context[AST_MAX_CONTEXT];
 	char parkinglot[AST_MAX_CONTEXT];	/*!<  Parkinglot */
 	char accountcode[AST_MAX_ACCOUNT_CODE];	/*!< Account code */
-	int capability;
+	format_t capability;
 	ast_group_t callgroup;	/*!< Call group */
 	ast_group_t pickupgroup;	/*!< Pickup group */
 	int callingpres;		/*!< Calling presentation */
@@ -161,12 +161,12 @@ struct gtalk_container {
 
 static const char desc[] = "Gtalk Channel";
 
-static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
+static format_t global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
 
 AST_MUTEX_DEFINE_STATIC(gtalklock); /*!< Protect the interface list (of gtalk_pvt's) */
 
 /* Forward declarations */
-static struct ast_channel *gtalk_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *gtalk_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause);
 static int gtalk_digit(struct ast_channel *ast, char digit, unsigned int duration);
 static int gtalk_sendtext(struct ast_channel *ast, const char *text);
 static int gtalk_digit_begin(struct ast_channel *ast, char digit);
@@ -393,7 +393,7 @@ static int gtalk_invite(struct gtalk_pvt *p, char *to, char *from, char *sid, in
 	iks_insert_attrib(dcodecs, "xmlns", "http://www.google.com/session/phone");
 	iks_insert_attrib(dcodecs, "xml:lang", "en");
 
-	for (x = 0; x < 32; x++) {
+	for (x = 0; x < 64; x++) {
 		if (!(pref_codec = ast_codec_pref_index(&client->prefs, x)))
 			break;
 		if (!(client->capability & pref_codec))
@@ -532,13 +532,13 @@ static enum ast_rtp_glue_result gtalk_get_rtp_peer(struct ast_channel *chan, str
 	return res;
 }
 
-static int gtalk_get_codec(struct ast_channel *chan)
+static format_t gtalk_get_codec(struct ast_channel *chan)
 {
 	struct gtalk_pvt *p = chan->tech_pvt;
 	return p->peercapability;
 }
 
-static int gtalk_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *rtp, struct ast_rtp_instance *vrtp, struct ast_rtp_instance *trtp, int codecs, int nat_active)
+static int gtalk_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *rtp, struct ast_rtp_instance *vrtp, struct ast_rtp_instance *trtp, format_t codecs, int nat_active)
 {
 	struct gtalk_pvt *p;
 
@@ -701,19 +701,19 @@ static int gtalk_handle_dtmf(struct gtalk *client, ikspak *pak)
 			if((dtmf = iks_find_attrib(dtmfnode, "code"))) {
 				if(iks_find_with_attrib(pak->x, "dtmf", "action", "button-up")) {
 					struct ast_frame f = {AST_FRAME_DTMF_BEGIN, };
-					f.subclass = dtmf[0];
+					f.subclass.integer = dtmf[0];
 					ast_queue_frame(tmp->owner, &f);
-					ast_verbose("GOOGLE! DTMF-relay event received: %c\n", f.subclass);
+					ast_verbose("GOOGLE! DTMF-relay event received: %c\n", (int) f.subclass.integer);
 				} else if(iks_find_with_attrib(pak->x, "dtmf", "action", "button-down")) {
 					struct ast_frame f = {AST_FRAME_DTMF_END, };
-					f.subclass = dtmf[0];
+					f.subclass.integer = dtmf[0];
 					ast_queue_frame(tmp->owner, &f);
-					ast_verbose("GOOGLE! DTMF-relay event received: %c\n", f.subclass);
+					ast_verbose("GOOGLE! DTMF-relay event received: %c\n", (int) f.subclass.integer);
 				} else if(iks_find_attrib(pak->x, "dtmf")) { /* 250 millasecond default */
 					struct ast_frame f = {AST_FRAME_DTMF, };
-					f.subclass = dtmf[0];
+					f.subclass.integer = dtmf[0];
 					ast_queue_frame(tmp->owner, &f);
-					ast_verbose("GOOGLE! DTMF-relay event received: %c\n", f.subclass);
+					ast_verbose("GOOGLE! DTMF-relay event received: %c\n", (int) f.subclass.integer);
 				}
 			}
 		} else if ((dtmfnode = iks_find_with_attrib(pak->x, "gtalk", "action", "session-info"))) {
@@ -721,14 +721,14 @@ static int gtalk_handle_dtmf(struct gtalk *client, ikspak *pak)
 				if((dtmf = iks_find_attrib(dtmfchild, "code"))) {
 					if(iks_find_with_attrib(dtmfnode, "dtmf", "action", "button-up")) {
 						struct ast_frame f = {AST_FRAME_DTMF_END, };
-						f.subclass = dtmf[0];
+						f.subclass.integer = dtmf[0];
 						ast_queue_frame(tmp->owner, &f);
-						ast_verbose("GOOGLE! DTMF-relay event received: %c\n", f.subclass);
+						ast_verbose("GOOGLE! DTMF-relay event received: %c\n", (int) f.subclass.integer);
 					} else if(iks_find_with_attrib(dtmfnode, "dtmf", "action", "button-down")) {
 						struct ast_frame f = {AST_FRAME_DTMF_BEGIN, };
-						f.subclass = dtmf[0];
+						f.subclass.integer = dtmf[0];
 						ast_queue_frame(tmp->owner, &f);
-						ast_verbose("GOOGLE! DTMF-relay event received: %c\n", f.subclass);
+						ast_verbose("GOOGLE! DTMF-relay event received: %c\n", (int) f.subclass.integer);
 					}
 				}
 			}
@@ -1395,10 +1395,10 @@ static struct ast_frame *gtalk_rtp_read(struct ast_channel *ast, struct gtalk_pv
 	if (p->owner) {
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {
-			if (f->subclass != (p->owner->nativeformats & AST_FORMAT_AUDIO_MASK)) {
-				ast_debug(1, "Oooh, format changed to %d\n", f->subclass);
+			if (f->subclass.codec != (p->owner->nativeformats & AST_FORMAT_AUDIO_MASK)) {
+				ast_debug(1, "Oooh, format changed to %s\n", ast_getformatname(f->subclass.codec));
 				p->owner->nativeformats =
-					(p->owner->nativeformats & AST_FORMAT_VIDEO_MASK) | f->subclass;
+					(p->owner->nativeformats & AST_FORMAT_VIDEO_MASK) | f->subclass.codec;
 				ast_set_read_format(p->owner, p->owner->readformat);
 				ast_set_write_format(p->owner, p->owner->writeformat);
 			}
@@ -1428,14 +1428,17 @@ static int gtalk_write(struct ast_channel *ast, struct ast_frame *frame)
 {
 	struct gtalk_pvt *p = ast->tech_pvt;
 	int res = 0;
+	char buf[256];
 
 	switch (frame->frametype) {
 	case AST_FRAME_VOICE:
-		if (!(frame->subclass & ast->nativeformats)) {
+		if (!(frame->subclass.codec & ast->nativeformats)) {
 			ast_log(LOG_WARNING,
-					"Asked to transmit frame type %d, while native formats is %d (read/write = %d/%d)\n",
-					frame->subclass, ast->nativeformats, ast->readformat,
-					ast->writeformat);
+					"Asked to transmit frame type %s, while native formats is %s (read/write = %s/%s)\n",
+					ast_getformatname(frame->subclass.codec),
+					ast_getformatname_multiple(buf, sizeof(buf), ast->nativeformats),
+					ast_getformatname(ast->readformat),
+					ast_getformatname(ast->writeformat));
 			return 0;
 		}
 		if (p) {
@@ -1655,7 +1658,7 @@ static int gtalk_hangup(struct ast_channel *ast)
 }
 
 /*! \brief Part of PBX interface */
-static struct ast_channel *gtalk_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *gtalk_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause)
 {
 	struct gtalk_pvt *p = NULL;
 	struct gtalk *client = NULL;

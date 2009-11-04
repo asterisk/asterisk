@@ -3299,7 +3299,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 				f = ast_read(winner);
 				if (f) {
 					if (f->frametype == AST_FRAME_CONTROL) {
-						switch (f->subclass) {
+						switch (f->subclass.integer) {
 						case AST_CONTROL_ANSWER:
 							/* This is our guy if someone answered. */
 							if (!peer) {
@@ -3389,7 +3389,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							}
 							break;
 						default:
-							ast_debug(1, "Dunno what to do with control type %d\n", f->subclass);
+							ast_debug(1, "Dunno what to do with control type %d\n", f->subclass.integer);
 							break;
 						}
 					}
@@ -3413,7 +3413,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 		/* If we received an event from the caller, deal with it. */
 		if (winner == in) {
 			f = ast_read(in);
-			if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP))) {
+			if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass.integer == AST_CONTROL_HANGUP))) {
 				/* Got hung up */
 				*to = -1;
 				if (f) {
@@ -3424,16 +3424,16 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 				}
 				return NULL;
 			}
-			if ((f->frametype == AST_FRAME_DTMF) && caller_disconnect && (f->subclass == '*')) {
-				ast_verb(3, "User hit %c to disconnect call.\n", f->subclass);
+			if ((f->frametype == AST_FRAME_DTMF) && caller_disconnect && (f->subclass.integer == '*')) {
+				ast_verb(3, "User hit %c to disconnect call.\n", f->subclass.integer);
 				*to = 0;
 				ast_frfree(f);
 				return NULL;
 			}
-			if ((f->frametype == AST_FRAME_DTMF) && valid_exit(qe, f->subclass)) {
-				ast_verb(3, "User pressed digit: %c\n", f->subclass);
+			if ((f->frametype == AST_FRAME_DTMF) && valid_exit(qe, f->subclass.integer)) {
+				ast_verb(3, "User pressed digit: %c\n", f->subclass.integer);
 				*to = 0;
-				*digit = f->subclass;
+				*digit = f->subclass.integer;
 				ast_frfree(f);
 				return NULL;
 			}

@@ -133,7 +133,7 @@ static int adsi_careful_send(struct ast_channel *chan, unsigned char *buf, int l
 		else
 			*remain = *remain - amt;
 		outf.frametype = AST_FRAME_VOICE;
-		outf.subclass = AST_FORMAT_ULAW;
+		outf.subclass.codec = AST_FORMAT_ULAW;
 		outf.data.ptr = buf;
 		outf.datalen = amt;
 		outf.samples = amt;
@@ -162,7 +162,7 @@ static int adsi_careful_send(struct ast_channel *chan, unsigned char *buf, int l
 			continue;
 		}
 		
-		if (inf->subclass != AST_FORMAT_ULAW) {
+		if (inf->subclass.codec != AST_FORMAT_ULAW) {
 			ast_log(LOG_WARNING, "Channel not in ulaw?\n");
 			ast_frfree(inf);
 			return -1;
@@ -173,7 +173,7 @@ static int adsi_careful_send(struct ast_channel *chan, unsigned char *buf, int l
 		else if (remain)
 			*remain = inf->datalen - amt;
 		outf.frametype = AST_FRAME_VOICE;
-		outf.subclass = AST_FORMAT_ULAW;
+		outf.subclass.codec = AST_FORMAT_ULAW;
 		outf.data.ptr = buf;
 		outf.datalen = amt;
 		outf.samples = amt;
@@ -230,16 +230,16 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 					return -1;
 				}
 				if (f->frametype == AST_FRAME_DTMF) {
-					if (f->subclass == 'A') {
+					if (f->subclass.integer == 'A') {
 						/* Okay, this is an ADSI CPE.  Note this for future reference, too */
 						if (!chan->adsicpe)
 							chan->adsicpe = AST_ADSI_AVAILABLE;
 						break;
 					} else {
-						if (f->subclass == 'D')
+						if (f->subclass.integer == 'D')
 							ast_debug(1, "Off-hook capable CPE only, not ADSI\n");
 						else
-							ast_log(LOG_WARNING, "Unknown ADSI response '%c'\n", f->subclass);
+							ast_log(LOG_WARNING, "Unknown ADSI response '%c'\n", f->subclass.integer);
 						if (!chan->adsicpe)
 							chan->adsicpe = AST_ADSI_UNAVAILABLE;
 						errno =	ENOSYS;

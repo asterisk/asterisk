@@ -80,7 +80,7 @@ static struct ast_frame *pcm_read(struct ast_filestream *s, int *whennext)
 	/* Send a frame from the file to the appropriate channel */
 
 	s->fr.frametype = AST_FRAME_VOICE;
-	s->fr.subclass = s->fmt->format;
+	s->fr.subclass.codec = s->fmt->format;
 	s->fr.mallocd = 0;
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
 	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) < 1) {
@@ -163,8 +163,8 @@ static int pcm_write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
 	}
-	if (f->subclass != fs->fmt->format) {
-		ast_log(LOG_WARNING, "Asked to write incompatible format frame (%d)!\n", f->subclass);
+	if (f->subclass.codec != fs->fmt->format) {
+		ast_log(LOG_WARNING, "Asked to write incompatible format frame (%s)!\n", ast_getformatname(f->subclass.codec));
 		return -1;
 	}
 

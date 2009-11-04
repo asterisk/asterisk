@@ -60,7 +60,7 @@ static struct ast_jb_conf g_jb_conf = {
 	.impl = "",
 };
 
-static struct ast_channel *local_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *local_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause);
 static int local_digit_begin(struct ast_channel *ast, char digit);
 static int local_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static int local_call(struct ast_channel *ast, char *dest, int timeout);
@@ -273,7 +273,7 @@ static int local_answer(struct ast_channel *ast)
 	isoutbound = IS_OUTBOUND(ast, p);
 	if (isoutbound) {
 		/* Pass along answer since somebody answered us */
-		struct ast_frame answer = { AST_FRAME_CONTROL, AST_CONTROL_ANSWER };
+		struct ast_frame answer = { AST_FRAME_CONTROL, { AST_CONTROL_ANSWER } };
 		res = local_queue_frame(p, isoutbound, &answer, ast, 1);
 	} else
 		ast_log(LOG_WARNING, "Huh?  Local is being asked to answer?\n");
@@ -443,7 +443,7 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 			} else {
 				f.datalen = ast_redirecting_build_data(frame_data, sizeof(frame_data), &this_channel->redirecting);
 			}
-			f.subclass = condition;
+			f.subclass.integer = condition;
 			f.data.ptr = frame_data;
 			if (!(res = local_queue_frame(p, isoutbound, &f, ast, 1))) {
 				ast_mutex_unlock(&p->lock);
@@ -455,7 +455,7 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 		/* Queue up a frame representing the indication as a control frame */
 		ast_mutex_lock(&p->lock);
 		isoutbound = IS_OUTBOUND(ast, p);
-		f.subclass = condition;
+		f.subclass.integer = condition;
 		f.data.ptr = (void*)data;
 		f.datalen = datalen;
 		if (!(res = local_queue_frame(p, isoutbound, &f, ast, 1)))
@@ -477,7 +477,7 @@ static int local_digit_begin(struct ast_channel *ast, char digit)
 
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
-	f.subclass = digit;
+	f.subclass.integer = digit;
 	if (!(res = local_queue_frame(p, isoutbound, &f, ast, 0)))
 		ast_mutex_unlock(&p->lock);
 
@@ -496,7 +496,7 @@ static int local_digit_end(struct ast_channel *ast, char digit, unsigned int dur
 
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
-	f.subclass = digit;
+	f.subclass.integer = digit;
 	f.len = duration;
 	if (!(res = local_queue_frame(p, isoutbound, &f, ast, 0)))
 		ast_mutex_unlock(&p->lock);
@@ -535,7 +535,7 @@ static int local_sendhtml(struct ast_channel *ast, int subclass, const char *dat
 	
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
-	f.subclass = subclass;
+	f.subclass.integer = subclass;
 	f.data.ptr = (char *)data;
 	f.datalen = datalen;
 	if (!(res = local_queue_frame(p, isoutbound, &f, ast, 0)))
@@ -646,7 +646,7 @@ static int local_hangup(struct ast_channel *ast)
 {
 	struct local_pvt *p = ast->tech_pvt;
 	int isoutbound;
-	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP, .data.uint32 = ast->hangupcause };
+	struct ast_frame f = { AST_FRAME_CONTROL, { AST_CONTROL_HANGUP }, .data.uint32 = ast->hangupcause };
 	struct ast_channel *ochan = NULL;
 	int glaredetect = 0, res = 0;
 
@@ -857,7 +857,7 @@ static struct ast_channel *local_new(struct local_pvt *p, int state, const char 
 }
 
 /*! \brief Part of PBX interface */
-static struct ast_channel *local_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *local_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause)
 {
 	struct local_pvt *p = NULL;
 	struct ast_channel *chan = NULL;

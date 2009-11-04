@@ -139,7 +139,7 @@ static int sendurl_exec(struct ast_channel *chan, const char *data)
 				break;
 			}
 			if (f->frametype == AST_FRAME_HTML) {
-				switch(f->subclass) {
+				switch (f->subclass.integer) {
 				case AST_HTML_LDCOMPLETE:
 					res = 0;
 					ast_frfree(f);
@@ -154,7 +154,7 @@ static int sendurl_exec(struct ast_channel *chan, const char *data)
 					goto out;
 					break;
 				default:
-					ast_log(LOG_WARNING, "Don't know what to do with HTML subclass %d\n", f->subclass);
+					ast_log(LOG_WARNING, "Don't know what to do with HTML subclass %d\n", f->subclass.integer);
 				};
 			}
 			ast_frfree(f);

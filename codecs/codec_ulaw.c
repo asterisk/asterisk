@@ -87,6 +87,17 @@ static struct ast_translator ulawtolin = {
 	.plc_samples = 160,
 };
 
+static struct ast_translator testlawtolin = {
+	.name = "testlawtolin",
+	.srcfmt = AST_FORMAT_TESTLAW,
+	.dstfmt = AST_FORMAT_SLINEAR,
+	.framein = ulawtolin_framein,
+	.sample = ulaw_sample,
+	.buffer_samples = BUFFER_SAMPLES,
+	.buf_size = BUFFER_SAMPLES * 2,
+	.plc_samples = 160,
+};
+
 /*!
  * \brief The complete translator for LinToulaw.
  */
@@ -95,6 +106,16 @@ static struct ast_translator lintoulaw = {
 	.name = "lintoulaw",
 	.srcfmt = AST_FORMAT_SLINEAR,
 	.dstfmt = AST_FORMAT_ULAW,
+	.framein = lintoulaw_framein,
+	.sample = slin8_sample,
+	.buf_size = BUFFER_SAMPLES,
+	.buffer_samples = BUFFER_SAMPLES,
+};
+
+static struct ast_translator lintotestlaw = {
+	.name = "lintotestlaw",
+	.srcfmt = AST_FORMAT_SLINEAR,
+	.dstfmt = AST_FORMAT_TESTLAW,
 	.framein = lintoulaw_framein,
 	.sample = slin8_sample,
 	.buf_size = BUFFER_SAMPLES,
@@ -131,6 +152,8 @@ static int unload_module(void)
 
 	res = ast_unregister_translator(&lintoulaw);
 	res |= ast_unregister_translator(&ulawtolin);
+	res |= ast_unregister_translator(&testlawtolin);
+	res |= ast_unregister_translator(&lintotestlaw);
 
 	return res;
 }
@@ -142,9 +165,11 @@ static int load_module(void)
 	if (parse_config(0))
 		return AST_MODULE_LOAD_DECLINE;
 	res = ast_register_translator(&ulawtolin);
-	if (!res)
+	if (!res) {
 		res = ast_register_translator(&lintoulaw);
-	else
+		res |= ast_register_translator(&lintotestlaw);
+		res |= ast_register_translator(&testlawtolin);
+	} else
 		ast_unregister_translator(&ulawtolin);
 	if (res)
 		return AST_MODULE_LOAD_FAILURE;

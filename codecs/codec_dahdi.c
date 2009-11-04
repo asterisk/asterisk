@@ -181,7 +181,7 @@ static int dahdi_encoder_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	struct codec_dahdi_pvt *dahdip = pvt->pvt;
 
-	if (!f->subclass) {
+	if (!f->subclass.codec) {
 		/* We're just faking a return for calculation purposes. */
 		dahdip->fake = 2;
 		pvt->samples = f->samples;
@@ -229,7 +229,7 @@ static struct ast_frame *dahdi_encoder_frameout(struct ast_trans_pvt *pvt)
 	if (2 == dahdip->fake) {
 		dahdip->fake = 1;
 		pvt->f.frametype = AST_FRAME_VOICE;
-		pvt->f.subclass = 0;
+		pvt->f.subclass.codec = 0;
 		pvt->f.samples = dahdip->required_samples;
 		pvt->f.data.ptr = NULL;
 		pvt->f.offset = 0;
@@ -257,7 +257,7 @@ static struct ast_frame *dahdi_encoder_frameout(struct ast_trans_pvt *pvt)
 		pvt->f.datalen = res;
 		pvt->f.samples = dahdip->required_samples;
 		pvt->f.frametype = AST_FRAME_VOICE;
-		pvt->f.subclass = 1 <<  (pvt->t->dstfmt);
+		pvt->f.subclass.codec = 1 <<  (pvt->t->dstfmt);
 		pvt->f.mallocd = 0;
 		pvt->f.offset = AST_FRIENDLY_OFFSET;
 		pvt->f.src = pvt->t->name;
@@ -276,7 +276,7 @@ static int dahdi_decoder_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	struct codec_dahdi_pvt *dahdip = pvt->pvt;
 
-	if (!f->subclass) {
+	if (!f->subclass.codec) {
 		/* We're just faking a return for calculation purposes. */
 		dahdip->fake = 2;
 		pvt->samples = f->samples;
@@ -302,7 +302,7 @@ static struct ast_frame *dahdi_decoder_frameout(struct ast_trans_pvt *pvt)
 	if (2 == dahdip->fake) {
 		dahdip->fake = 1;
 		pvt->f.frametype = AST_FRAME_VOICE;
-		pvt->f.subclass = 0;
+		pvt->f.subclass.codec = 0;
 		pvt->f.samples = dahdip->required_samples;
 		pvt->f.data.ptr = NULL;
 		pvt->f.offset = 0;
@@ -340,7 +340,7 @@ static struct ast_frame *dahdi_decoder_frameout(struct ast_trans_pvt *pvt)
 		}
 		pvt->datalen = 0;
 		pvt->f.frametype = AST_FRAME_VOICE;
-		pvt->f.subclass = 1 <<  (pvt->t->dstfmt);
+		pvt->f.subclass.codec = 1 <<  (pvt->t->dstfmt);
 		pvt->f.mallocd = 0;
 		pvt->f.offset = AST_FRIENDLY_OFFSET;
 		pvt->f.src = pvt->t->name;

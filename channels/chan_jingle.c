@@ -103,7 +103,7 @@ struct jingle_pvt {
 	iksrule *ringrule;               /*!< Rule for matching RING request */
 	int initiator;                   /*!< If we're the initiator */
 	int alreadygone;
-	int capability;
+	format_t capability;
 	struct ast_codec_pref prefs;
 	struct jingle_candidate *theircandidates;
 	struct jingle_candidate *ourcandidates;
@@ -115,8 +115,8 @@ struct jingle_pvt {
 	struct ast_rtp_instance *rtp;             /*!< RTP audio session */
 	char video_content_name[100];    /*!< name attribute of content tag */
 	struct ast_rtp_instance *vrtp;            /*!< RTP video session */
-	int jointcapability;             /*!< Supported capability at both ends (codecs ) */
-	int peercapability;
+	format_t jointcapability;             /*!< Supported capability at both ends (codecs ) */
+	format_t peercapability;
 	struct jingle_pvt *next;	/* Next entity */
 };
 
@@ -146,7 +146,7 @@ struct jingle {
 	char user[100];
 	char context[100];
 	char accountcode[AST_MAX_ACCOUNT_CODE];	/*!< Account code */
-	int capability;
+	format_t capability;
 	ast_group_t callgroup;	/*!< Call group */
 	ast_group_t pickupgroup;	/*!< Pickup group */
 	int callingpres;		/*!< Calling presentation */
@@ -163,12 +163,12 @@ struct jingle_container {
 static const char desc[] = "Jingle Channel";
 static const char channel_type[] = "Jingle";
 
-static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
+static format_t global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
 
 AST_MUTEX_DEFINE_STATIC(jinglelock); /*!< Protect the interface list (of jingle_pvt's) */
 
 /* Forward declarations */
-static struct ast_channel *jingle_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *jingle_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause);
 static int jingle_sendtext(struct ast_channel *ast, const char *text);
 static int jingle_digit_begin(struct ast_channel *ast, char digit);
 static int jingle_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
@@ -300,7 +300,7 @@ static int jingle_accept_call(struct jingle *client, struct jingle_pvt *p)
 	struct aji_client *c = client->connection;
 	iks *iq, *jingle, *dcodecs, *payload_red, *payload_audio, *payload_cn;
 	int x;
-	int pref_codec = 0;
+	format_t pref_codec = 0;
 	int alreadysent = 0;
 
 	if (p->initiator)
@@ -312,7 +312,7 @@ static int jingle_accept_call(struct jingle *client, struct jingle_pvt *p)
 	if (iq && jingle && dcodecs) {
 		iks_insert_attrib(dcodecs, "xmlns", JINGLE_AUDIO_RTP_NS);
 
-		for (x = 0; x < 32; x++) {
+		for (x = 0; x < 64; x++) {
 			if (!(pref_codec = ast_codec_pref_index(&client->prefs, x)))
 				break;
 			if (!(client->capability & pref_codec))
@@ -404,13 +404,13 @@ static enum ast_rtp_glue_result jingle_get_rtp_peer(struct ast_channel *chan, st
 	return res;
 }
 
-static int jingle_get_codec(struct ast_channel *chan)
+static format_t jingle_get_codec(struct ast_channel *chan)
 {
 	struct jingle_pvt *p = chan->tech_pvt;
 	return p->peercapability;
 }
 
-static int jingle_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *rtp, struct ast_rtp_instance *vrtp, struct ast_rtp_instance *tpeer, int codecs, int nat_active)
+static int jingle_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *rtp, struct ast_rtp_instance *vrtp, struct ast_rtp_instance *tpeer, format_t codecs, int nat_active)
 {
 	struct jingle_pvt *p;
 
@@ -511,19 +511,19 @@ static int jingle_handle_dtmf(struct jingle *client, ikspak *pak)
 			if((dtmf = iks_find_attrib(dtmfnode, "code"))) {
 				if(iks_find_with_attrib(pak->x, "dtmf", "action", "button-up")) {
 					struct ast_frame f = {AST_FRAME_DTMF_BEGIN, };
-					f.subclass = dtmf[0];
+					f.subclass.integer = dtmf[0];
 					ast_queue_frame(tmp->owner, &f);
-					ast_verbose("JINGLE! DTMF-relay event received: %c\n", f.subclass);
+					ast_verbose("JINGLE! DTMF-relay event received: %c\n", f.subclass.integer);
 				} else if(iks_find_with_attrib(pak->x, "dtmf", "action", "button-down")) {
 					struct ast_frame f = {AST_FRAME_DTMF_END, };
-					f.subclass = dtmf[0];
+					f.subclass.integer = dtmf[0];
 					ast_queue_frame(tmp->owner, &f);
-					ast_verbose("JINGLE! DTMF-relay event received: %c\n", f.subclass);
+					ast_verbose("JINGLE! DTMF-relay event received: %c\n", f.subclass.integer);
 				} else if(iks_find_attrib(pak->x, "dtmf")) { /* 250 millasecond default */
 					struct ast_frame f = {AST_FRAME_DTMF, };
-					f.subclass = dtmf[0];
+					f.subclass.integer = dtmf[0];
 					ast_queue_frame(tmp->owner, &f);
-					ast_verbose("JINGLE! DTMF-relay event received: %c\n", f.subclass);
+					ast_verbose("JINGLE! DTMF-relay event received: %c\n", f.subclass.integer);
 				}
 			}
 		} else if ((dtmfnode = iks_find_with_attrib(pak->x, JINGLE_NODE, "action", "session-info"))) {
@@ -531,14 +531,14 @@ static int jingle_handle_dtmf(struct jingle *client, ikspak *pak)
 				if((dtmf = iks_find_attrib(dtmfchild, "code"))) {
 					if(iks_find_with_attrib(dtmfnode, "dtmf", "action", "button-up")) {
 						struct ast_frame f = {AST_FRAME_DTMF_END, };
-						f.subclass = dtmf[0];
+						f.subclass.integer = dtmf[0];
 						ast_queue_frame(tmp->owner, &f);
-						ast_verbose("JINGLE! DTMF-relay event received: %c\n", f.subclass);
+						ast_verbose("JINGLE! DTMF-relay event received: %c\n", f.subclass.integer);
 					} else if(iks_find_with_attrib(dtmfnode, "dtmf", "action", "button-down")) {
 						struct ast_frame f = {AST_FRAME_DTMF_BEGIN, };
-						f.subclass = dtmf[0];
+						f.subclass.integer = dtmf[0];
 						ast_queue_frame(tmp->owner, &f);
-						ast_verbose("JINGLE! DTMF-relay event received: %c\n", f.subclass);
+						ast_verbose("JINGLE! DTMF-relay event received: %c\n", f.subclass.integer);
 					}
 				}
 			}
@@ -1169,17 +1169,17 @@ static struct ast_frame *jingle_rtp_read(struct ast_channel *ast, struct jingle_
 	if (p->owner) {
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {
-			if (f->subclass != (p->owner->nativeformats & AST_FORMAT_AUDIO_MASK)) {
-				ast_debug(1, "Oooh, format changed to %d\n", f->subclass);
+			if (f->subclass.codec != (p->owner->nativeformats & AST_FORMAT_AUDIO_MASK)) {
+				ast_debug(1, "Oooh, format changed to %s\n", ast_getformatname(f->subclass.codec));
 				p->owner->nativeformats =
-					(p->owner->nativeformats & AST_FORMAT_VIDEO_MASK) | f->subclass;
+					(p->owner->nativeformats & AST_FORMAT_VIDEO_MASK) | f->subclass.codec;
 				ast_set_read_format(p->owner, p->owner->readformat);
 				ast_set_write_format(p->owner, p->owner->writeformat);
 			}
 /*			if ((ast_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) && p->vad) {
 				f = ast_dsp_process(p->owner, p->vad, f);
 				if (f && (f->frametype == AST_FRAME_DTMF))
-					ast_debug(1, "* Detected inband DTMF '%c'\n", f->subclass);
+					ast_debug(1, "* Detected inband DTMF '%c'\n", f->subclass.codec);
 		        } */
 		}
 	}
@@ -1202,14 +1202,17 @@ static int jingle_write(struct ast_channel *ast, struct ast_frame *frame)
 {
 	struct jingle_pvt *p = ast->tech_pvt;
 	int res = 0;
+	char buf[256];
 
 	switch (frame->frametype) {
 	case AST_FRAME_VOICE:
-		if (!(frame->subclass & ast->nativeformats)) {
+		if (!(frame->subclass.codec & ast->nativeformats)) {
 			ast_log(LOG_WARNING,
-					"Asked to transmit frame type %d, while native formats is %d (read/write = %d/%d)\n",
-					frame->subclass, ast->nativeformats, ast->readformat,
-					ast->writeformat);
+					"Asked to transmit frame type %s, while native formats is %s (read/write = %s/%s)\n",
+					ast_getformatname(frame->subclass.codec),
+					ast_getformatname_multiple(buf, sizeof(buf), ast->nativeformats),
+					ast_getformatname(ast->readformat),
+					ast_getformatname(ast->writeformat));
 			return 0;
 		}
 		if (p) {
@@ -1479,7 +1482,7 @@ static int jingle_hangup(struct ast_channel *ast)
 }
 
 /*! \brief Part of PBX interface */
-static struct ast_channel *jingle_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *jingle_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause)
 {
 	struct jingle_pvt *p = NULL;
 	struct jingle *client = NULL;

@@ -86,7 +86,7 @@ static inline struct ast_frame *slin8_sample(void)
 {
 	static struct ast_frame f = {
 		.frametype = AST_FRAME_VOICE,
-		.subclass = AST_FORMAT_SLINEAR,
+		.subclass.codec = AST_FORMAT_SLINEAR,
 		.datalen = sizeof(ex_slin8),
 		.samples = ARRAY_LEN(ex_slin8) / 2,
 		.mallocd = 0,
@@ -102,7 +102,7 @@ static inline struct ast_frame *slin16_sample(void)
 {
 	static struct ast_frame f = {
 		.frametype = AST_FRAME_VOICE,
-		.subclass = AST_FORMAT_SLINEAR16,
+		.subclass.codec = AST_FORMAT_SLINEAR16,
 		.datalen = sizeof(ex_slin16),
 		.samples = ARRAY_LEN(ex_slin16) / 2,
 		.mallocd = 0,
