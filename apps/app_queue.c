@@ -1354,8 +1354,8 @@ static struct member *create_queue_member(const char *interface, const char *mem
 			ast_copy_string(cur->membername, interface, sizeof(cur->membername));
 		if (!strchr(cur->interface, '/'))
 			ast_log(LOG_WARNING, "No location at interface '%s'\n", interface);
-		if (!strncmp(state_interface, "hint:", 5)) {
-			char *tmp = ast_strdupa(state_interface), *context = tmp;
+		if (!strncmp(cur->state_interface, "hint:", 5)) {
+			char *tmp = ast_strdupa(cur->state_interface), *context = tmp;
 			char *exten = strsep(&context, "@") + 5;
 
 			ast_copy_string(cur->state_exten, exten, sizeof(cur->state_exten));
