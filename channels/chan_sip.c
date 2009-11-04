@@ -13534,11 +13534,6 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 			   Asterisk uses the From: username for authentication. We need the
 			   devices to use the same authentication user name until we support
 			   proper authentication by digest auth name */
-			transmit_response(p, "403 Authentication user name does not match account name", &p->initreq);
-			if (global_authfailureevents)
-				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Rejected\r\nCause: AUTH_USERNAME_MISMATCH\r\nAddress: %s\r\nPort: %d\r\n",
-					name, ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
-			break;
 		case AUTH_NOT_FOUND:
 		case AUTH_PEER_NOT_DYNAMIC:
 		case AUTH_ACL_FAILED:
@@ -13560,8 +13555,8 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 				else
 					transmit_response(p, "404 Not found", &p->initreq);
 					if (global_authfailureevents)
-						manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Rejected\r\nCause: URI_NOT_FOUND\r\nAddress: %s\r\nPort: %d\r\n",
-							name, ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+						manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Rejected\r\nCause: %s\r\nAddress: %s\r\nPort: %d\r\n",
+							      name, (res == AUTH_USERNAME_MISMATCH) ? "AUTH_USERNAME_MISMATCH" : "URI_NOT_FOUND", ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
 			}
 			break;
 		case AUTH_BAD_TRANSPORT:
