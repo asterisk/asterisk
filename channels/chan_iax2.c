@@ -1517,7 +1517,7 @@ static unsigned char compress_subclass(format_t subclass)
 	for (x = 0; x < IAX_MAX_SHIFT; x++) {
 		if (subclass & (1LL << x)) {
 			if (power > -1) {
-				ast_log(LOG_WARNING, "Can't compress subclass %Ld\n", subclass);
+				ast_log(LOG_WARNING, "Can't compress subclass %Ld\n", (long long) subclass);
 				return 0;
 			} else
 				power = x;

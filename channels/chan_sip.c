@@ -10194,7 +10194,7 @@ static void add_codec_to_sdp(const struct sip_pvt *p, format_t codec,
 
 
 	if (debug)
-		ast_verbose("Adding codec 0x%Lx (%s) to SDP\n", codec, ast_getformatname(codec));
+		ast_verbose("Adding codec 0x%Lx (%s) to SDP\n", (long long) codec, ast_getformatname(codec));
 	if ((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(p->rtp), 1, codec)) == -1)
 		return;
 
