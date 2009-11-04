@@ -9360,8 +9360,6 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 			   Asterisk uses the From: username for authentication. We need the
 			   users to use the same authentication user name until we support
 			   proper authentication by digest auth name */
-			transmit_response(p, "403 Authentication user name does not match account name", &p->initreq);
-			break;
 		case AUTH_NOT_FOUND:
 		case AUTH_PEER_NOT_DYNAMIC:
 		case AUTH_ACL_FAILED:
