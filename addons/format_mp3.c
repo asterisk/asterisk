@@ -224,7 +224,7 @@ static struct ast_frame *mp3_read(struct ast_filestream *s, int *whennext)
 	p->offset += p->buflen;
 	delay = p->buflen/2;
 	s->fr.frametype = AST_FRAME_VOICE;
-	s->fr.subclass = AST_FORMAT_SLINEAR;
+	s->fr.subclass.codec = AST_FORMAT_SLINEAR;
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, p->buflen);
 	s->fr.mallocd = 0;
 	s->fr.samples = delay;
