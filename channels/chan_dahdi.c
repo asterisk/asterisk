@@ -12623,7 +12623,7 @@ static void *ss7_linkset(void *data)
 				case CPG_EVENT_PROGRESS:
 				case CPG_EVENT_INBANDINFO:
 					{
-						struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, };
+						struct ast_frame f = { AST_FRAME_CONTROL, { AST_CONTROL_PROGRESS } };
 						ast_debug(1, "Queuing frame PROGRESS on CIC %d\n", p->cic);
 						dahdi_queue_frame(p, &f, linkset);
 						p->progress = 1;
@@ -12845,7 +12845,7 @@ static void *ss7_linkset(void *data)
 					isup_rel(ss7, e->acm.call, -1);
 					break;
 				} else {
-					struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROCEEDING, };
+					struct ast_frame f = { AST_FRAME_CONTROL, { AST_CONTROL_PROCEEDING } };
 
 					p = linkset->pvts[chanpos];
 
