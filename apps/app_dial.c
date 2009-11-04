@@ -1696,21 +1696,70 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			res = 0;
 		} else {
 			int digit = 0;
-			/* Start autoservice on the other chan */
-			res = ast_autoservice_start(chan);
-			/* Now Stream the File */
-			if (!res)
-				res = ast_streamfile(peer, opt_args[OPT_ARG_ANNOUNCE], peer->language);
-			if (!res) {
-				digit = ast_waitstream(peer, AST_DIGIT_ANY);
-			}
-			/* Ok, done. stop autoservice */
-			res = ast_autoservice_stop(chan);
-			if (digit > 0 && !res)
-				res = ast_senddigit(chan, digit, 0);
-			else
-				res = digit;
+			struct ast_channel *chans[2];
+			struct ast_channel *active_chan;
 
+			chans[0] = chan;
+			chans[1] = peer;
+
+			/* we need to stream the announcment while monitoring the caller for a hangup */
+
+			/* stream the file */
+			res = ast_streamfile(peer, opt_args[OPT_ARG_ANNOUNCE], peer->language);
+			if (res) {
+				res = 0;
+				ast_log(LOG_ERROR, "error streaming file '%s' to callee\n", opt_args[OPT_ARG_ANNOUNCE]);
+			}
+
+			ast_set_flag(peer, AST_FLAG_END_DTMF_ONLY);
+			while (peer->stream) {
+				int ms;
+
+				ms = ast_sched_wait(peer->sched);
+
+				if (ms < 0 && !peer->timingfunc) {
+					ast_stopstream(peer);
+					break;
+				}
+				if (ms < 0)
+					ms = 1000;
+
+				active_chan = ast_waitfor_n(chans, 2, &ms);
+				if (active_chan) {
+					struct ast_frame *fr = ast_read(active_chan);
+					if (!fr) {
+						ast_hangup(peer);
+						res = -1;
+						goto done;
+					}
+					switch(fr->frametype) {
+						case AST_FRAME_DTMF_END:
+							digit = fr->subclass;
+							if (active_chan == peer && strchr(AST_DIGIT_ANY, res)) {
+								ast_stopstream(peer);
+								res = ast_senddigit(chan, digit, 0);
+							}
+							break;
+						case AST_FRAME_CONTROL:
+							switch (fr->subclass) {
+								case AST_CONTROL_HANGUP:
+									ast_frfree(fr);
+									ast_hangup(peer);
+									res = -1;
+									goto done;
+								default:
+									break;
+							}
+							break;
+						default:
+							/* Ignore all others */
+							break;
+					}
+					ast_frfree(fr);
+				}
+				ast_sched_runq(peer->sched);
+			}
+			ast_clear_flag(peer, AST_FLAG_END_DTMF_ONLY);
 		}
 
 		if (chan && peer && ast_test_flag64(&opts, OPT_GOTO) && !ast_strlen_zero(opt_args[OPT_ARG_GOTO])) {
