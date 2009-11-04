@@ -731,7 +731,7 @@ static char *show_codec_n(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	if (a->argc != 4)
 		return CLI_SHOWUSAGE;
 
-	if (sscanf(a->argv[3], "%30Ld", &codec) != 1)
+	if (sscanf(a->argv[3], "%30Ld", (long long *) &codec) != 1)
 		return CLI_SHOWUSAGE;
 
 	for (i = 0; i < 63; i++)
@@ -741,7 +741,7 @@ static char *show_codec_n(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 		}
 
 	if (!found)
-		ast_cli(a->fd, "Codec %Ld not found\n", codec);
+		ast_cli(a->fd, "Codec %Ld not found\n", (long long) codec);
 
 	return CLI_SUCCESS;
 }
