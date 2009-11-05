@@ -2710,7 +2710,7 @@ static enum ast_module_load_result load_module()
 	int num_cards = 0;
 	try {
 		num_cards = vpb_get_num_cards();
-	} catch (VpbException e) {
+	} catch (std::exception e) {
 		ast_log(LOG_ERROR, "No Voicetronix cards detected\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}
