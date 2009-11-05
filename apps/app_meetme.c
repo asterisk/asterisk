@@ -6448,7 +6448,8 @@ static int acf_meetme_info(struct ast_channel *chan, const char *cmd, char *data
 	if (result > -1) {
 		snprintf(buf, len, "%d", result);
 	} else if (result == -1) {
-		snprintf(buf, len, "%s %s", "Error: invalid keyword:", args.keyword);
+		ast_log(LOG_NOTICE, "Error: invalid keyword: '%s'\n", args.keyword);
+		snprintf(buf, len, "0");
 	} else if (result == -2) {
 		ast_log(LOG_NOTICE, "Error: conference (%s) not found\n", args.confno); 
 		snprintf(buf, len, "0");
