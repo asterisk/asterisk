@@ -349,6 +349,11 @@ static int app_exec(struct ast_channel *chan, void *data)
 	u->abort_current_sound = 0;
 	u->chan = chan;
 
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "ExternalIVR requires a command to execute\n");
+		return -1;
+	}
+
 	buf = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(eivr_args, buf);
 
