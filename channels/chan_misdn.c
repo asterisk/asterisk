@@ -4916,6 +4916,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		if (!misdn_cap_is_speech(ch->bc->capability)) {
 			struct ast_frame frame;
 			/*In Data Modes we queue frames*/
+			memset(&frame, 0, sizeof(frame));
 			frame.frametype  = AST_FRAME_VOICE; /*we have no data frames yet*/
 			frame.subclass = AST_FORMAT_ALAW;
 			frame.datalen = bc->bframe_len;
