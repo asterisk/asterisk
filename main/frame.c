@@ -661,15 +661,15 @@ static char *show_codecs(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "core show codecs [audio|video|image]";
-		e->usage = 
-			"Usage: core show codecs [audio|video|image]\n"
+		e->command = "core show codecs [audio|video|image|text]";
+		e->usage =
+			"Usage: core show codecs [audio|video|image|text]\n"
 			"       Displays codec mapping\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
-	
+
 	if ((a->argc < 3) || (a->argc > 4))
 		return CLI_SHOWUSAGE;
 
@@ -677,39 +677,48 @@ static char *show_codecs(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 		ast_cli(a->fd, "Disclaimer: this command is for informational purposes only.\n"
 				"\tIt does not indicate anything about your configuration.\n");
 
-	ast_cli(a->fd, "%11s %9s %10s   TYPE   %8s   %s\n","INT","BINARY","HEX","NAME","DESC");
-	ast_cli(a->fd, "--------------------------------------------------------------------------------\n");
-	if ((a->argc == 3) || (!strcasecmp(a->argv[3], "audio"))) {
-		found = 1;
-		for (i = 0; i < 48; i++) {
-			if (!((1LL << i) & AST_FORMAT_AUDIO_MASK)) {
+	ast_cli(a->fd, "%19s %9s %20s   TYPE   %8s   %s\n","INT","BINARY","HEX","NAME","DESCRIPTION");
+	ast_cli(a->fd, "-----------------------------------------------------------------------------------\n");
+	for (i = 0; i < 63; i++) {
+
+		if (a->argc == 4) {
+			if (!strcasecmp(a->argv[3], "audio")) {
+				if (!((1LL << i) & AST_FORMAT_AUDIO_MASK)) {
+					continue;
+				}
+			} else if (!strcasecmp(a->argv[3], "video")) {
+				if (!((1LL << i) & AST_FORMAT_VIDEO_MASK)) {
+					continue;
+				}
+			} else if (!strcasecmp(a->argv[3], "image")) {
+				if (i != 16 && i != 17) {
+					continue;
+				}
+			} else if (!strcasecmp(a->argv[3], "text")) {
+				if (!((1LL << i) & AST_FORMAT_TEXT_MASK)) {
+					continue;
+				}
+			} else {
 				continue;
 			}
-			snprintf(hex, sizeof(hex), "(0x%Lx)", 1LL << i);
-			ast_cli(a->fd, "%11Lu (1 << %2d) %10s  audio   %8s   (%s)\n", 1LL << i, i, hex, ast_getformatname(1LL << i), ast_codec2str(1LL << i));
 		}
-	}
 
-	if ((a->argc == 3) || (!strcasecmp(a->argv[3], "image"))) {
+		snprintf(hex, sizeof(hex), "(0x%Lx)", 1LL << i);
+		ast_cli(a->fd, "%19Lu (1 << %2d) %20s  %5s   %8s   (%s)\n", 1LL << i, i, hex,
+			((1LL << i) & AST_FORMAT_AUDIO_MASK) ? "audio" :
+			i == 16 || i == 17 ? "image" :
+			((1LL << i) & AST_FORMAT_VIDEO_MASK) ? "video" :
+			((1LL << i) & AST_FORMAT_TEXT_MASK) ? "text" :
+			"(unk)",
+			ast_getformatname(1LL << i), ast_codec2str(1LL << i));
 		found = 1;
-		for (i = 16; i < 18; i++) {
-			snprintf(hex, sizeof(hex), "(0x%Lx)", 1LL << i);
-			ast_cli(a->fd, "%11Lu (1 << %2d) %10s  image   %8s   (%s)\n", 1LL << i, i, hex, ast_getformatname(1LL << i), ast_codec2str(1LL << i));
-		}
 	}
 
-	if ((a->argc == 3) || (!strcasecmp(a->argv[3], "video"))) {
-		found = 1;
-		for (i = 18; i < 63; i++) {
-			snprintf(hex, sizeof(hex), "(0x%Lx)", 1LL << i);
-			ast_cli(a->fd, "%11Lu (1 << %2d) %10s  video   %8s   (%s)\n", 1LL << i, i, hex, ast_getformatname(1LL << i), ast_codec2str(1LL << i));
-		}
-	}
-
-	if (!found)
+	if (!found) {
 		return CLI_SHOWUSAGE;
-	else
+	} else {
 		return CLI_SUCCESS;
+	}
 }
 
 static char *show_codec_n(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
