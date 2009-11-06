@@ -77,6 +77,7 @@ static void audiohook_inheritance_fixup(void *data, struct ast_channel *old_chan
 				audiohook->source, old_chan->name, old_chan, new_chan->name, new_chan);
 		}
 	}
+	ast_free(datastore);
 	return;
 }
 
