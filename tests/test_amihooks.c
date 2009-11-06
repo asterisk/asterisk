@@ -51,7 +51,7 @@ static struct manager_custom_hook test_hook = {
 	.helper = &amihook_helper,
 };
 
-static int test_send(struct ast_cli_args *a) {
+static int hook_send(void) {
 	int res;
 
 	/* Send a test action (core show version) to the AMI */
@@ -60,19 +60,74 @@ static int test_send(struct ast_cli_args *a) {
 	return res;
 }
 
-static char *handle_cli_amihook_test_send(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+static void register_hook(void) {
+
+	/* Unregister the hook, we don't want a double-registration (Bad Things(tm) happen) */
+	ast_manager_unregister_hook(&test_hook);
+
+	/* Register the hook for AMI events */
+	ast_manager_register_hook(&test_hook);
+
+}
+
+static void unregister_hook(void) {
+
+	/* Unregister the hook */
+	ast_manager_unregister_hook(&test_hook);
+
+}
+
+static char *handle_cli_amihook_send(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "amihook send test";
+		e->command = "amihook send";
 		e->usage = ""
-			"Usage: amihook send test"
+			"Usage: amihook send"
 			"";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	case CLI_HANDLER:
-		test_send(a);
+		hook_send();
+		return CLI_SUCCESS;
+	}
+
+	return CLI_FAILURE;
+}
+
+static char *handle_cli_amihook_register_hook(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "amihook register";
+		e->usage = ""
+			"Usage: amihook register"
+			"";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	case CLI_HANDLER:
+		register_hook();
+		return CLI_SUCCESS;
+	}
+
+	return CLI_FAILURE;
+}
+
+static char *handle_cli_amihook_unregister_hook(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "amihook unregister";
+		e->usage = ""
+			"Usage: amihook unregister"
+			"";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	case CLI_HANDLER:
+		unregister_hook();
 		return CLI_SUCCESS;
 	}
 
@@ -80,7 +135,9 @@ static char *handle_cli_amihook_test_send(struct ast_cli_entry *e, int cmd, stru
 }
 
 static struct ast_cli_entry cli_amihook_evt[] = {
-	AST_CLI_DEFINE(handle_cli_amihook_test_send, "Test module for AMI hook"),
+	AST_CLI_DEFINE(handle_cli_amihook_send, "Send an AMI event"),
+	AST_CLI_DEFINE(handle_cli_amihook_register_hook, "Register module for AMI hook"),
+	AST_CLI_DEFINE(handle_cli_amihook_unregister_hook, "Unregister module for AMI hook"),
 };
 
 static int unload_module(void)
@@ -92,9 +149,6 @@ static int unload_module(void)
 static int load_module(void)
 {
 	int res;
-
-	/* Register the hook for AMI events */
-	ast_manager_register_hook(&test_hook);
 
 	res = ast_cli_register_multiple(cli_amihook_evt, ARRAY_LEN(cli_amihook_evt));
 
