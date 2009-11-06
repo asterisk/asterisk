@@ -15,6 +15,10 @@
  *****************************************************************************/
 
 
+/*** MODULEINFO
+	<defaultenabled>no</defaultenabled>
+ ***/
+
 #include "chan_ooh323.h"
 #include <math.h>
 
