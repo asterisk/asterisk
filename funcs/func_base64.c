@@ -79,13 +79,26 @@ static int base64_helper(struct ast_channel *chan, const char *cmd, char *data,
 			ast_str_update(*str);
 		}
 	} else {
+		int decoded_len;
 		if (buf) {
-			ast_base64decode((unsigned char *) buf, data, len);
+			decoded_len = ast_base64decode((unsigned char *) buf, data, len);
+			/* add a terminating null at the end of buf, or at the
+			 * end of our decoded string, which ever is less */
+			buf[decoded_len <= (len - 1) ? decoded_len : len - 1] = '\0';
 		} else {
 			if (len >= 0) {
 				ast_str_make_space(str, len ? len : ast_str_strlen(*str) + strlen(data) * 3 / 4 + 2);
 			}
-			ast_base64decode((unsigned char *) ast_str_buffer(*str) + ast_str_strlen(*str), data, ast_str_size(*str) - ast_str_strlen(*str));
+			decoded_len = ast_base64decode((unsigned char *) ast_str_buffer(*str) + ast_str_strlen(*str), data, ast_str_size(*str) - ast_str_strlen(*str));
+			if (len)
+				/* add a terminating null at the end of our
+				 * buffer, or at the end of our decoded string,
+				 * which ever is less */
+				ast_str_buffer(*str)[decoded_len <= (len - 1) ? decoded_len : len - 1] = '\0';
+			else
+				/* space for the null is allocated above */
+				ast_str_buffer(*str)[decoded_len] = '\0';
+
 			ast_str_update(*str);
 		}
 	}
