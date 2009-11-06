@@ -35,6 +35,7 @@
 #include "asterisk/utils.h"
 #include "asterisk/options.h"
 #include "asterisk/pbx.h"
+#include "asterisk/app.h"
 #include "asterisk/file.h"
 #include "asterisk/callerid.h"
 #include "asterisk/say.h"
@@ -3267,37 +3268,21 @@ void sig_pri_extract_called_num_subaddr(struct sig_pri_chan *p, const char *rdes
 	char *dial;
 	char *number;
 	char *subaddr;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(group);	/* channel/group token */
+		AST_APP_ARG(ext);	/* extension token */
+		//AST_APP_ARG(opts);	/* options token */
+		AST_APP_ARG(other);	/* Any remining unused arguments */
+	);
 
-	/* Get private copy of dial string. */
+	/* Get private copy of dial string and break it up. */
 	dial = ast_strdupa(rdest);
+	AST_NONSTANDARD_APP_ARGS(args, dial, '/');
 
-	/* Skip channel selection section. */
-	number = strchr(dial, '/');
-	if (number) {
-		++number;
-	} else {
+	number = args.ext;
+	if (!number) {
 		number = "";
 	}
-
-#if defined(HAVE_PRI_SETUP_KEYPAD)
-	/*
-	 *  v--- number points here
-	 * /[K<keypad-digits>/]extension
-	 */
-	if (number[0] == 'K') {
-		/* Skip the keypad facility digits. */
-		number = strchr(number + 1, '/');
-		if (number) {
-			++number;
-		} else {
-			number = "";
-		}
-	}
-	/*
-	 *  v--- number points here
-	 * /extension
-	 */
-#endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
 
 	/* Find and extract dialed_subaddress */
 	subaddr = strchr(number, ':');
@@ -3337,6 +3322,22 @@ void sig_pri_extract_called_num_subaddr(struct sig_pri_chan *p, const char *rdes
 	}
 }
 
+enum SIG_PRI_CALL_OPT_FLAGS {
+	OPT_KEYPAD =         (1 << 0),
+	OPT_REVERSE_CHARGE = (1 << 1),	/* Collect call */
+};
+enum SIG_PRI_CALL_OPT_ARGS {
+	OPT_ARG_KEYPAD = 0,
+
+	/* note: this entry _MUST_ be the last one in the enum */
+	OPT_ARG_ARRAY_SIZE,
+};
+
+AST_APP_OPTIONS(sig_pri_call_opts, BEGIN_OPTIONS
+	AST_APP_OPTION_ARG('K', OPT_KEYPAD, OPT_ARG_KEYPAD),
+	AST_APP_OPTION('R', OPT_REVERSE_CHARGE),
+END_OPTIONS);
+
 /*! \note Parsing must remain in sync with sig_pri_extract_called_num_subaddr(). */
 int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, int timeout, int layer1)
 {
@@ -3355,6 +3356,14 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 #if defined(HAVE_PRI_SETUP_KEYPAD)
 	const char *keypad;
 #endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(group);	/* channel/group token */
+		AST_APP_ARG(ext);	/* extension token */
+		AST_APP_ARG(opts);	/* options token */
+		AST_APP_ARG(other);	/* Any remining unused arguments */
+	);
+	struct ast_flags opts;
+	char *opt_args[OPT_ARG_ARRAY_SIZE];
 
 	ast_log(LOG_DEBUG, "CALLING CID_NAME: %s CID_NUM:: %s\n", ast->cid.cid_name, ast->cid.cid_num);
 
@@ -3368,45 +3377,20 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 		return -1;
 	}
 
-	ast_copy_string(dest, rdest, sizeof(dest));
-
 	p->dialdest[0] = '\0';
 	p->outgoing = 1;
 
-	c = strchr(dest, '/');
-	if (c) {
-		c++;
-	} else {
-		c = "";
+	ast_copy_string(dest, rdest, sizeof(dest));
+	AST_NONSTANDARD_APP_ARGS(args, dest, '/');
+	if (ast_app_parse_options(sig_pri_call_opts, &opts, opt_args, args.opts)) {
+		/* General invalid option syntax. */
+		return -1;
 	}
 
-#if defined(HAVE_PRI_SETUP_KEYPAD)
-	/*
-	 *  v--- c points here
-	 * /[K<keypad-digits>/]extension
-	 */
-	if (c[0] == 'K') {
-		/* Extract the keypad facility digits. */
-		keypad = c + 1;
-		c = strchr(keypad, '/');
-		if (c) {
-			/* Terminate the keypad facility digits. */
-			*c++ = '\0';
-		} else {
-			c = "";
-		}
-		if (ast_strlen_zero(keypad)) {
-			/* What no keypad digits? */
-			keypad = NULL;
-		}
-	} else {
-		keypad = NULL;
+	c = args.ext;
+	if (!c) {
+		c = "";
 	}
-	/*
-	 *  v--- c points here
-	 * /extension
-	 */
-#endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
 
 	/* setup dialed_subaddress if found */
 	ast_party_subaddress_init(&dialed_subaddress);
@@ -3545,16 +3529,6 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 		case 'r':
 			pridialplan = PRI_NPI_RESERVED | (pridialplan & 0xf0);
 			break;
-#if defined(HAVE_PRI_REVERSE_CHARGE)
-		case 'C':
-			pri_sr_set_reversecharge(sr, PRI_REVERSECHARGE_REQUESTED);
-			break;
-#endif
-#if defined(HAVE_PRI_SETUP_KEYPAD)
-		case 'K':
-			/* Reserve this letter for keypad facility digits. */
-			break;
-#endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
 		default:
 			if (isalpha(c[p->stripmsd])) {
 				ast_log(LOG_WARNING, "Unrecognized pridialplan %s modifier: %c\n",
@@ -3565,8 +3539,13 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 		c++;
 	}
 #if defined(HAVE_PRI_SETUP_KEYPAD)
-	if (keypad) {
+	if (ast_test_flag(&opts, OPT_KEYPAD)
+		&& !ast_strlen_zero(opt_args[OPT_ARG_KEYPAD])) {
+		/* We have a keypad facility digits option with digits. */
+		keypad = opt_args[OPT_ARG_KEYPAD];
 		pri_sr_set_keypad_digits(sr, keypad);
+	} else {
+		keypad = NULL;
 	}
 	if (!keypad || !ast_strlen_zero(c + p->stripmsd + dp_strip))
 #endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
@@ -3583,6 +3562,12 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 		pri_sr_set_called_subaddress(sr, &subaddress);
 	}
 #endif	/* defined(HAVE_PRI_SUBADDR) */
+
+#if defined(HAVE_PRI_REVERSE_CHARGE)
+	if (ast_test_flag(&opts, OPT_REVERSE_CHARGE)) {
+		pri_sr_set_reversecharge(sr, PRI_REVERSECHARGE_REQUESTED);
+	}
+#endif	/* defined(HAVE_PRI_REVERSE_CHARGE) */
 
 	ldp_strip = 0;
 	prilocaldialplan = p->pri->localdialplan - 1;

@@ -228,8 +228,6 @@ libpri channel driver (chan_dahdi) DAHDI changes
    dialing the redirected-to party.  You still have to set the
    REDIRECTING(to-xxx,i) and the REDIRECTING(from-xxx,i) values.  The call
    will update the redirecting-to presentation (COLR) when it becomes available.
- * Added Reverse Charging Indication receipt & transmission (requires latest
-   LibPRI).
  * Added the ability to ignore calls that are not in a Multiple Subscriber
    Number (MSN) list for PTMP CPE interfaces.
  * Added dynamic range compression support for dahdi channels.  It is
@@ -243,9 +241,21 @@ libpri channel driver (chan_dahdi) DAHDI changes
    Will reroute/deflect an outgoing call when receive the message.
    Can use the DAHDISendCallreroutingFacility to send the message for the
    supported switches.
+ * Added standard location to add options to chan_dahdi dialing:
+   Dial(DAHDI/g1[/extension[/options]])
+   Current options:
+   K(<keypad_digits>)
+   R Reverse charging indication
+ * Added Reverse Charging Indication (Collect calls) send/receive option.
+   Send reverse charging in SETUP message with the chan_dahdi R dialing option.
+   Dial(DAHDI/g1/extension/R)
+   Access received reverse charge in SETUP message by: ${CHANNEL(reversecharge)}
+   (requires latest LibPRI)
  * Added ability to send/receive keypad digits in the SETUP message.
-   Send keypad digits in SETUP message: Dial(DAHDI/g1[/K<keypad_digits>][/extension])
+   Send keypad digits in SETUP message with the chan_dahdi K(<keypad_digits>)
+   dialing option.  Dial(DAHDI/g1/[extension]/K(<keypad_digits>))
    Access any received keypad digits in SETUP message by: ${CHANNEL(keypad_digits)}
+   (requires latest LibPRI)
 
 Asterisk Manager Interface
 --------------------------

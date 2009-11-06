@@ -12000,7 +12000,7 @@ static struct ast_channel *dahdi_request(const char *type, format_t format, cons
 	int unavailreason = 0;
 	struct dahdi_pvt *p;
 	struct ast_channel *tmp = NULL;
-	char *dest=NULL;
+	char *dest;
 	int x;
 	char *s;
 	char opt=0;
@@ -12009,12 +12009,18 @@ static struct ast_channel *dahdi_request(const char *type, format_t format, cons
 	struct dahdi_pvt *exitpvt;
 	int channelmatched = 0;
 	int groupmatched = 0;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(group);	/* channel/group token */
+		//AST_APP_ARG(ext);	/* extension token */
+		//AST_APP_ARG(opts);	/* options token */
+		AST_APP_ARG(other);	/* Any remining unused arguments */
+	);
 
 	/*
 	 * data is ---v
-	 * Dial(DAHDI/pseudo[/extension])
-	 * Dial(DAHDI/<channel#>[c|r<cadance#>|d][/extension])
-	 * Dial(DAHDI/(g|G|r|R)<group#(0-63)>[c|r<cadance#>|d][/extension])
+	 * Dial(DAHDI/pseudo[/extension[/options]])
+	 * Dial(DAHDI/<channel#>[c|r<cadance#>|d][/extension[/options]])
+	 * Dial(DAHDI/(g|G|r|R)<group#(0-63)>[c|r<cadance#>|d][/extension[/options]])
 	 *
 	 * g - channel group allocation search forward
 	 * G - channel group allocation search backward
@@ -12032,12 +12038,15 @@ static struct ast_channel *dahdi_request(const char *type, format_t format, cons
 		ast_log(LOG_WARNING, "Channel requested with no data\n");
 		return NULL;
 	}
-	if (toupper(dest[0]) == 'G' || toupper(dest[0])=='R') {
-		/* Retrieve the group number */
-		char *stringp;
+	AST_NONSTANDARD_APP_ARGS(args, dest, '/');
+	if (!args.argc || ast_strlen_zero(args.group)) {
+		ast_log(LOG_WARNING, "No channel/group specified\n");
+		return NULL;
+	}
 
-		stringp = dest + 1;
-		s = strsep(&stringp, "/");
+	if (toupper(args.group[0]) == 'G' || toupper(args.group[0])=='R') {
+		/* Retrieve the group number */
+		s = args.group + 1;
 		if ((res = sscanf(s, "%30d%1c%30d", &x, &opt, &y)) < 1) {
 			ast_log(LOG_WARNING, "Unable to determine group for data %s\n", (char *)data);
 			return NULL;
@@ -12047,14 +12056,14 @@ static struct ast_channel *dahdi_request(const char *type, format_t format, cons
 		/* Lock the interface list */
 		ast_mutex_lock(&iflock);
 
-		if (toupper(dest[0]) == 'G') {
-			if (dest[0] == 'G') {
+		if (toupper(args.group[0]) == 'G') {
+			if (args.group[0] == 'G') {
 				backwards = 1;
 				p = ifend;
 			} else
 				p = iflist;
 		} else {
-			if (dest[0] == 'R') {
+			if (args.group[0] == 'R') {
 				backwards = 1;
 				p = round_robin[x]?round_robin[x]->prev:ifend;
 				if (!p)
@@ -12067,16 +12076,12 @@ static struct ast_channel *dahdi_request(const char *type, format_t format, cons
 			roundrobin = 1;
 		}
 	} else {
-		char *stringp;
-
-		stringp = dest;
-		s = strsep(&stringp, "/");
+		s = args.group;
 		if (!strcasecmp(s, "pseudo")) {
 			/* Special case for pseudo */
 			x = CHAN_PSEUDO;
 			channelmatch = x;
-		}
-		else if ((res = sscanf(s, "%30d%1c%30d", &x, &opt, &y)) < 1) {
+		} else if ((res = sscanf(s, "%30d%1c%30d", &x, &opt, &y)) < 1) {
 			ast_log(LOG_WARNING, "Unable to determine channel for data %s\n", (char *)data);
 			return NULL;
 		} else {
