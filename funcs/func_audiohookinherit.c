@@ -126,6 +126,7 @@ static void audiohook_inheritance_fixup(void *data, struct ast_channel *old_chan
 		ast_debug(3, "Moved audiohook %s from %s(%p) to %s(%p)\n",
 			audiohook->source, old_chan->name, old_chan, new_chan->name, new_chan);
 	}
+	ast_free(datastore);
 	return;
 }
 
