@@ -6278,7 +6278,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 			p->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr.sin_addr);
 			p->t38_maxdatagram = global_t38_maxdatagram;
 		}
- 		if (p->rtp|| (ast_test_flag(&p->flags[1], SIP_PAGE2_VIDEOSUPPORT) && !p->vrtp) 
+ 		if (!p->rtp || (ast_test_flag(&p->flags[1], SIP_PAGE2_VIDEOSUPPORT) && !p->vrtp) 
 				|| (ast_test_flag(&p->flags[1], SIP_PAGE2_TEXTSUPPORT) && !p->trtp)) {
  			ast_log(LOG_WARNING, "Unable to create RTP audio %s%ssession: %s\n",
  				ast_test_flag(&p->flags[1], SIP_PAGE2_VIDEOSUPPORT) ? "and video " : "",
