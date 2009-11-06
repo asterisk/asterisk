@@ -24850,6 +24850,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_string_field_set(peer, mwi_from, v->value);
 			} else if (!strcasecmp(v->name, "fullname")) {
 				ast_string_field_set(peer, cid_name, v->value);
+			} else if (!strcasecmp(v->name, "trunkname")) {
+				/* This is actually for a trunk, so we don't want to override callerid */
+				ast_string_field_set(peer, cid_name, "");
 			} else if (!strcasecmp(v->name, "cid_number")) {
 				ast_string_field_set(peer, cid_num, v->value);
 			} else if (!strcasecmp(v->name, "context")) {
