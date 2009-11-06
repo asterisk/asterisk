@@ -6218,7 +6218,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 		return NULL;
 
 	if (ast_string_field_init(p, 512)) {
-		ast_free(p);
+		dialog_unref(p);
 		return NULL;
 	}
 
@@ -6278,27 +6278,12 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 			p->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr.sin_addr);
 			p->t38_maxdatagram = global_t38_maxdatagram;
 		}
- 		if (!p->rtp|| (ast_test_flag(&p->flags[1], SIP_PAGE2_VIDEOSUPPORT) && !p->vrtp) 
+ 		if (p->rtp|| (ast_test_flag(&p->flags[1], SIP_PAGE2_VIDEOSUPPORT) && !p->vrtp) 
 				|| (ast_test_flag(&p->flags[1], SIP_PAGE2_TEXTSUPPORT) && !p->trtp)) {
  			ast_log(LOG_WARNING, "Unable to create RTP audio %s%ssession: %s\n",
  				ast_test_flag(&p->flags[1], SIP_PAGE2_VIDEOSUPPORT) ? "and video " : "",
  				ast_test_flag(&p->flags[1], SIP_PAGE2_TEXTSUPPORT) ? "and text " : "", strerror(errno));
-			if (p->rtp) {
-				ast_rtp_destroy(p->rtp);
-			}
-			if (p->vrtp) {
-				ast_rtp_destroy(p->vrtp);
-			}
-			if (p->udptl) {
-				ast_udptl_destroy(p->udptl);
-			}
-			ast_mutex_destroy(&p->pvt_lock);
-			if (p->chanvars) {
-				ast_variables_destroy(p->chanvars);
-				p->chanvars = NULL;
-			}
-			ast_string_field_free_memory(p);
-			ast_free(p);
+			dialog_unref(p);
 			return NULL;
 		}
 		ast_rtp_setqos(p->rtp, global_tos_audio, global_cos_audio, "SIP RTP");
