@@ -3201,7 +3201,7 @@ int ooSendH245UserInputIndication_alphanumeric
       ooFreeH245Message(call, ph245msg);
       return OO_FAILED;
    }
-   strcpy((char*)indication->u.userInput->u.alphanumeric, data);
+   strcpy(*(char**)indication->u.userInput->u.alphanumeric, data);
    OOTRACEDBGA3 ("Built UserInputIndication_alphanumeric (%s, %s)\n", 
                  call->callType, call->callToken);
 
@@ -3264,7 +3264,7 @@ int ooSendH245UserInputIndication_signal
       ooFreeH245Message(call, ph245msg);
       return OO_FAILED;
    }
-   strcpy((char*)indication->u.userInput->u.signal->signalType, data);
+   strcpy(*(char**)indication->u.userInput->u.signal->signalType, data);
    OOTRACEDBGA3 ("Built UserInputIndication_signal (%s, %s)\n", 
                  call->callType, call->callToken);
 
