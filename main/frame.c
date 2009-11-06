@@ -725,6 +725,7 @@ static char *show_codec_n(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 {
 	format_t codec;
 	int i, found = 0;
+	long long type_punned_codec;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -740,8 +741,10 @@ static char *show_codec_n(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	if (a->argc != 4)
 		return CLI_SHOWUSAGE;
 
-	if (sscanf(a->argv[3], "%30Ld", (long long *) &codec) != 1)
+	if (sscanf(a->argv[3], "%30Ld", &type_punned_codec) != 1) {
 		return CLI_SHOWUSAGE;
+	}
+	codec = type_punned_codec;
 
 	for (i = 0; i < 63; i++)
 		if (codec & (1LL << i)) {
