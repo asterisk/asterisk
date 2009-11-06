@@ -17741,6 +17741,9 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, str
 			ast_callerid_split(v->value, user->cid_name, sizeof(user->cid_name), user->cid_num, sizeof(user->cid_num));
 		} else if (!strcasecmp(v->name, "fullname")) {
 			ast_copy_string(user->cid_name, v->value, sizeof(user->cid_name));
+		} else if (!strcasecmp(v->name, "trunkname")) {
+			/* This is actually for a trunk, so we don't want to override callerid */
+			ast_copy_string(user->cid_name, "", sizeof(user->cid_name));
 		} else if (!strcasecmp(v->name, "cid_number")) {
 			ast_copy_string(user->cid_num, v->value, sizeof(user->cid_num));
 		} else if (!strcasecmp(v->name, "callgroup")) {
@@ -17959,6 +17962,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_callerid_split(v->value, peer->cid_name, sizeof(peer->cid_name), peer->cid_num, sizeof(peer->cid_num));
 			} else if (!strcasecmp(v->name, "fullname")) {
 				ast_copy_string(peer->cid_name, v->value, sizeof(peer->cid_name));
+			} else if (!strcasecmp(v->name, "trunkname")) {
+				/* This is actually for a trunk, so we don't want to override callerid */
+				ast_copy_string(peer->cid_name, "", sizeof(peer->cid_name));
 			} else if (!strcasecmp(v->name, "cid_number")) {
 				ast_copy_string(peer->cid_num, v->value, sizeof(peer->cid_num));
 			} else if (!strcasecmp(v->name, "context")) {
