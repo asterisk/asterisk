@@ -117,7 +117,7 @@ static int ilbctolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	int16_t *dst = pvt->outbuf.i16;
 	float tmpf[ILBC_SAMPLES];
 
-	if (!f->data && f->datalen) {
+	if (!f->data.ptr && f->datalen) {
 		ast_log(LOG_DEBUG, "issue 16070, ILIB ERROR. data = NULL datalen = %d src = %s\n", f->datalen, f->src ? f->src : "no src set");
 		f->datalen = 0;
 	}
