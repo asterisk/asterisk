@@ -130,15 +130,16 @@ int __ast_fdleak_pipe(int *fds, const char *file, int line, const char *func)
 #undef socket
 int __ast_fdleak_socket(int domain, int type, int protocol, const char *file, int line, const char *func)
 {
-	char sdomain[20], stype[20], *sproto;
+	char sdomain[20], stype[20], *sproto = NULL;
 	struct protoent *pe;
 	int res = socket(domain, type, protocol);
 	if (res < 0 || res > 1023) {
 		return res;
 	}
 
-	pe = getprotobynumber(protocol);
-	sproto = pe->p_name;
+	if ((pe = getprotobynumber(protocol))) {
+		sproto = pe->p_name;
+	}
 
 	if (domain == PF_UNIX) {
 		ast_copy_string(sdomain, "PF_UNIX", sizeof(sdomain));
@@ -162,7 +163,11 @@ int __ast_fdleak_socket(int domain, int type, int protocol, const char *file, in
 		snprintf(stype, sizeof(stype), "%d", type);
 	}
 
-	STORE_COMMON(res, "socket", "%s,%s,\"%s\"", sdomain, stype, sproto);
+	if (sproto) {
+		STORE_COMMON(res, "socket", "%s,%s,\"%s\"", sdomain, stype, sproto);
+	} else {
+		STORE_COMMON(res, "socket", "%s,%s,\"%d\"", sdomain, stype, protocol);
+	}
 	return res;
 }
 
