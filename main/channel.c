@@ -2949,6 +2949,11 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 
 		if (chan->audiohooks) {
 			struct ast_frame *prev = NULL, *new_frame, *cur, *dup;
+			int freeoldlist = 0;
+
+			if (f != fr) {
+				freeoldlist = 1;
+			}
 
 			/* Since ast_audiohook_write may return a new frame, and the cur frame is
 			 * an item in a list of frames, create a new list adding each cur frame back to it
@@ -2959,13 +2964,16 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 				/* if this frame is different than cur, preserve the end of the list,
 				 * free the old frames, and set cur to be the new frame */
 				if (new_frame != cur) {
+
 					/* doing an ast_frisolate here seems silly, but we are not guaranteed the new_frame
 					 * isn't part of local storage, meaning if ast_audiohook_write is called multiple
 					 * times it may override the previous frame we got from it unless we dup it */
 					if ((dup = ast_frisolate(new_frame))) {
 						AST_LIST_NEXT(dup, frame_list) = AST_LIST_NEXT(cur, frame_list);
-						ast_frfree(new_frame);
-						ast_frfree(cur);
+						if (freeoldlist) {
+							AST_LIST_NEXT(cur, frame_list) = NULL;
+							ast_frfree(cur);
+						}
 						cur = dup;
 					}
 				}
