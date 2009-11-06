@@ -50,7 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static const char tdesc[] = "Network Broadcast Sound Driver";
 
 /* Only linear is allowed */
-static int prefformat = AST_FORMAT_SLINEAR;
+static format_t prefformat = AST_FORMAT_SLINEAR;
 
 static char context[AST_MAX_EXTENSION] = "default";
 static const char type[] = "NBS";
@@ -66,7 +66,7 @@ struct nbs_pvt {
 	struct ast_module_user *u;		/*! for holding a reference to this module */
 };
 
-static struct ast_channel *nbs_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *nbs_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause);
 static int nbs_call(struct ast_channel *ast, char *dest, int timeout);
 static int nbs_hangup(struct ast_channel *ast);
 static struct ast_frame *nbs_xread(struct ast_channel *ast);
@@ -205,9 +205,9 @@ static int nbs_xwrite(struct ast_channel *ast, struct ast_frame *frame)
 			ast_log(LOG_WARNING, "Don't know what to do with  frame type '%d'\n", frame->frametype);
 		return 0;
 	}
-	if (!(frame->subclass &
+	if (!(frame->subclass.codec &
 		(AST_FORMAT_SLINEAR))) {
-		ast_log(LOG_WARNING, "Cannot handle frames in %d format\n", frame->subclass);
+		ast_log(LOG_WARNING, "Cannot handle frames in %s format\n", ast_getformatname(frame->subclass.codec));
 		return 0;
 	}
 	if (ast->_state != AST_STATE_UP) {
@@ -251,16 +251,16 @@ static struct ast_channel *nbs_new(struct nbs_pvt *i, int state, const char *lin
 }
 
 
-static struct ast_channel *nbs_request(const char *type, int format, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *nbs_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause)
 {
-	int oldformat;
+	format_t oldformat;
 	struct nbs_pvt *p;
 	struct ast_channel *tmp = NULL;
 	
 	oldformat = format;
 	format &= (AST_FORMAT_SLINEAR);
 	if (!format) {
-		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", oldformat);
+		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%s'\n", ast_getformatname(oldformat));
 		return NULL;
 	}
 	p = nbs_alloc(data);

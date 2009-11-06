@@ -71,7 +71,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define DEVICE_FRAME_FORMAT AST_FORMAT_SLINEAR
 #define CHANNEL_FRAME_SIZE 320
 
-static int prefformat = DEVICE_FRAME_FORMAT;
+static format_t prefformat = DEVICE_FRAME_FORMAT;
 
 static int discovery_interval = 60;			/* The device discovery interval, default 60 seconds. */
 static pthread_t discovery_thread = AST_PTHREADT_NULL;	/* The discovery thread */
@@ -196,7 +196,7 @@ static char *mblsendsms_desc =
 
 static struct ast_channel *mbl_new(int state, struct mbl_pvt *pvt, char *cid_num,
 		const struct ast_channel *requestor);
-static struct ast_channel *mbl_request(const char *type, int format,
+static struct ast_channel *mbl_request(const char *type, format_t format,
 		const struct ast_channel *requestor, void *data, int *cause);
 static int mbl_call(struct ast_channel *ast, char *dest, int timeout);
 static int mbl_hangup(struct ast_channel *ast);
@@ -862,7 +862,7 @@ e_return:
 	return NULL;
 }
 
-static struct ast_channel *mbl_request(const char *type, int format,
+static struct ast_channel *mbl_request(const char *type, format_t format,
 		const struct ast_channel *requestor, void *data, int *cause)
 {
 
@@ -870,7 +870,8 @@ static struct ast_channel *mbl_request(const char *type, int format,
 	struct mbl_pvt *pvt;
 	char *dest_dev = NULL;
 	char *dest_num = NULL;
-	int oldformat, group = -1;
+	format_t oldformat;
+	int group = -1;
 
 	if (!data) {
 		ast_log(LOG_WARNING, "Channel requested with no data\n");
@@ -881,7 +882,7 @@ static struct ast_channel *mbl_request(const char *type, int format,
 	oldformat = format;
 	format &= (AST_FORMAT_SLINEAR);
 	if (!format) {
-		ast_log(LOG_WARNING, "Asked to get a channel of unsupported format '%d'\n", oldformat);
+		ast_log(LOG_WARNING, "Asked to get a channel of unsupported format '%s'\n", ast_getformatname(oldformat));
 		*cause = AST_CAUSE_FACILITY_NOT_IMPLEMENTED;
 		return NULL;
 	}
@@ -1089,7 +1090,7 @@ static struct ast_frame *mbl_read(struct ast_channel *ast)
 
 	memset(&pvt->fr, 0x00, sizeof(struct ast_frame));
 	pvt->fr.frametype = AST_FRAME_VOICE;
-	pvt->fr.subclass = DEVICE_FRAME_FORMAT;
+	pvt->fr.subclass.codec = DEVICE_FRAME_FORMAT;
 	pvt->fr.src = "Mobile";
 	pvt->fr.offset = AST_FRIENDLY_OFFSET;
 	pvt->fr.mallocd = 0;
