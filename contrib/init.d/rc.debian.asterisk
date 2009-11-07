@@ -26,6 +26,18 @@ ASTVARRUNDIR=__ASTERISK_VARRUN_DIR__
 ASTETCDIR=__ASTERISK_ETC_DIR__
 TRUE=/bin/true
 
+### BEGIN INIT INFO
+# Provides:		asterisk
+# Required-Start:	$local_fs
+# Required-Stop:	$local_fs
+# Should-Start:		dahdi mysql postgresql
+# Should-Stop:
+# Default-Start:	2 3 4 5
+# Default-Stop:		0 1 6
+# Short-Description:	Asterisk PBX
+# Description:		the Asterisk Open Source PBX
+### END INIT INFO
+
 # Uncomment this ONLY if you know what you are doing.
 # export LD_ASSUME_KERNEL=2.4.1
 
