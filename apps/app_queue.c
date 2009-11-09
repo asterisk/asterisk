@@ -930,6 +930,7 @@ struct call_queue {
 	unsigned int maskmemberstatus:1;
 	unsigned int realtime:1;
 	unsigned int found:1;
+	unsigned int relativeperiodicannounce:1;
 	enum empty_conditions joinempty;
 	enum empty_conditions leavewhenempty;
 	int announcepositionlimit;          /*!< How many positions we announce? */
@@ -1720,6 +1721,8 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		}
 	} else if (!strcasecmp(param, "periodic-announce-frequency")) {
 		q->periodicannouncefrequency = atoi(val);
+	} else if (!strcasecmp(param, "relative-periodic-announce")) {
+		q->relativeperiodicannounce = ast_true(val);
 	} else if (!strcasecmp(param, "random-periodic-announce")) {
 		q->randomperiodicannounce = ast_true(val);
 	} else if (!strcasecmp(param, "retry")) {
@@ -3029,7 +3032,10 @@ static int say_periodic_announcement(struct queue_ent *qe, int ringing)
 	}
 
 	/* update last_periodic_announce_time */
-	qe->last_periodic_announce_time = now;
+	if (qe->parent->relativeperiodicannounce)
+		time(&qe->last_periodic_announce_time);
+	else
+		qe->last_periodic_announce_time = now;
 
 	/* Update the current periodic announcement to the next announcement */
 	if (!qe->parent->randomperiodicannounce) {

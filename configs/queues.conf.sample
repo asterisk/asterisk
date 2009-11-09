@@ -254,6 +254,12 @@ shared_lastcall=no
 ;
 ;random-periodic-announce=no
 ;
+; If set to yes, the periodic announcment frequency will be timed from the end
+; of each announcment rather than from the start of each announcment.  This
+; defaults to off.
+;
+;relative-periodic-announce=yes
+;
 ; Should we include estimated hold time in position announcements?
 ; Either yes, no, or only once.
 ; Hold time will be announced as the estimated time.
