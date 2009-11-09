@@ -183,6 +183,12 @@ static struct ast_channel *local_bridgedchannel(struct ast_channel *chan, struct
 	struct local_pvt *p = bridge->tech_pvt;
 	struct ast_channel *bridged = bridge;
 
+	if (!p) {
+		ast_debug(1, "Asked for bridged channel on '%s'/'%s', returning <none>\n",
+			chan->name, bridge->name);
+		return NULL;
+	}
+
 	ast_mutex_lock(&p->lock);
 
 	if (ast_test_flag(p, LOCAL_BRIDGE)) {
