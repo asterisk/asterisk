@@ -409,6 +409,7 @@ static inline int __ast_pthread_mutex_init(int tracking, const char *filename, i
 #define ast_mutex_init_notracking(pmutex) \
 	__ast_pthread_mutex_init(0, __FILE__, __LINE__, __PRETTY_FUNCTION__, #pmutex, pmutex)
 
+#define	ROFFSET	((lt->reentrancy > 0) ? (lt->reentrancy-1) : 0)
 static inline int __ast_pthread_mutex_destroy(const char *filename, int lineno, const char *func,
 						const char *mutex_name, ast_mutex_t *t)
 {
@@ -446,9 +447,9 @@ static inline int __ast_pthread_mutex_destroy(const char *filename, int lineno, 
 				   filename, lineno, func, mutex_name);
 		ast_reentrancy_lock(lt);
 		__ast_mutex_logger("%s line %d (%s): Error: '%s' was locked here.\n",
-			    lt->file[lt->reentrancy-1], lt->lineno[lt->reentrancy-1], lt->func[lt->reentrancy-1], mutex_name);
+			    lt->file[ROFFSET], lt->lineno[ROFFSET], lt->func[ROFFSET], mutex_name);
 #ifdef HAVE_BKTR
-		__dump_backtrace(&lt->backtrace[lt->reentrancy-1], canlog);
+		__dump_backtrace(&lt->backtrace[ROFFSET], canlog);
 #endif
 		ast_reentrancy_unlock(lt);
 		break;
@@ -539,10 +540,10 @@ static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, con
 					__dump_backtrace(&lt->backtrace[lt->reentrancy], canlog);
 #endif
 					__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
-							   lt->file[lt->reentrancy-1], lt->lineno[lt->reentrancy-1],
-							   lt->func[lt->reentrancy-1], mutex_name);
+							   lt->file[ROFFSET], lt->lineno[ROFFSET],
+							   lt->func[ROFFSET], mutex_name);
 #ifdef HAVE_BKTR
-					__dump_backtrace(&lt->backtrace[lt->reentrancy-1], canlog);
+					__dump_backtrace(&lt->backtrace[ROFFSET], canlog);
 #endif
 					ast_reentrancy_unlock(lt);
 					reported_wait = wait_time;
@@ -688,13 +689,13 @@ static inline int __ast_pthread_mutex_unlock(const char *filename, int lineno, c
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
 	ast_reentrancy_lock(lt);
-	if (lt->reentrancy && (lt->thread[lt->reentrancy-1] != pthread_self())) {
+	if (lt->reentrancy && (lt->thread[ROFFSET] != pthread_self())) {
 		__ast_mutex_logger("%s line %d (%s): attempted unlock mutex '%s' without owning it!\n",
 				   filename, lineno, func, mutex_name);
 		__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
-				   lt->file[lt->reentrancy-1], lt->lineno[lt->reentrancy-1], lt->func[lt->reentrancy-1], mutex_name);
+				   lt->file[ROFFSET], lt->lineno[ROFFSET], lt->func[ROFFSET], mutex_name);
 #ifdef HAVE_BKTR
-		__dump_backtrace(&lt->backtrace[lt->reentrancy-1], canlog);
+		__dump_backtrace(&lt->backtrace[ROFFSET], canlog);
 #endif
 		DO_THREAD_CRASH;
 	}
@@ -785,13 +786,13 @@ static inline int __ast_cond_wait(const char *filename, int lineno, const char *
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
 	ast_reentrancy_lock(lt);
-	if (lt->reentrancy && (lt->thread[lt->reentrancy-1] != pthread_self())) {
+	if (lt->reentrancy && (lt->thread[ROFFSET] != pthread_self())) {
 		__ast_mutex_logger("%s line %d (%s): attempted unlock mutex '%s' without owning it!\n",
 				   filename, lineno, func, mutex_name);
 		__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
-				   lt->file[lt->reentrancy-1], lt->lineno[lt->reentrancy-1], lt->func[lt->reentrancy-1], mutex_name);
+				   lt->file[ROFFSET], lt->lineno[ROFFSET], lt->func[ROFFSET], mutex_name);
 #ifdef HAVE_BKTR
-		__dump_backtrace(&lt->backtrace[lt->reentrancy-1], canlog);
+		__dump_backtrace(&lt->backtrace[ROFFSET], canlog);
 #endif
 		DO_THREAD_CRASH;
 	}
@@ -883,13 +884,13 @@ static inline int __ast_cond_timedwait(const char *filename, int lineno, const c
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
 	ast_reentrancy_lock(lt);
-	if (lt->reentrancy && (lt->thread[lt->reentrancy-1] != pthread_self())) {
+	if (lt->reentrancy && (lt->thread[ROFFSET] != pthread_self())) {
 		__ast_mutex_logger("%s line %d (%s): attempted unlock mutex '%s' without owning it!\n",
 				   filename, lineno, func, mutex_name);
 		__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
-				   lt->file[lt->reentrancy-1], lt->lineno[lt->reentrancy-1], lt->func[lt->reentrancy-1], mutex_name);
+				   lt->file[ROFFSET], lt->lineno[ROFFSET], lt->func[ROFFSET], mutex_name);
 #ifdef HAVE_BKTR
-		__dump_backtrace(&lt->backtrace[lt->reentrancy-1], canlog);
+		__dump_backtrace(&lt->backtrace[ROFFSET], canlog);
 #endif
 		DO_THREAD_CRASH;
 	}
