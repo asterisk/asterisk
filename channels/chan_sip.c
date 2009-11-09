@@ -5674,15 +5674,12 @@ static int sip_hangup(struct ast_channel *ast)
 				 * to lock the bridge. This may get hairy...
 				 */
 				while (bridge && ast_channel_trylock(bridge)) {
-					struct ast_channel *chan = p->owner;
 					sip_pvt_unlock(p);
 					do {
-						/* Use chan since p->owner could go NULL on us
-						 * while p is unlocked
-						 */
-						CHANNEL_DEADLOCK_AVOIDANCE(chan);
+						/* Use oldowner since p->owner is already NULL */
+						CHANNEL_DEADLOCK_AVOIDANCE(oldowner);
 					} while (sip_pvt_trylock(p));
-					bridge = p->owner ? ast_bridged_channel(p->owner) : NULL;
+					bridge = ast_bridged_channel(oldowner);
 				}
 
 				if (p->rtp)
