@@ -1500,6 +1500,7 @@ return_error_pa_init:
 return_error:
 	if (pvts)
 		ao2_ref(pvts, -1);
+	pvts = NULL;
 	pvt_destructor(&globals);
 
 	return AST_MODULE_LOAD_DECLINE;

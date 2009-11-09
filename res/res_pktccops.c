@@ -1446,7 +1446,7 @@ static int load_module(void)
 static int unload_module(void)
 {
 	if (!ast_mutex_lock(&pktccops_lock)) {
-		if (pktccops_thread && (pktccops_thread != AST_PTHREADT_STOP)) {
+		if ((pktccops_thread != AST_PTHREADT_NULL) && (pktccops_thread != AST_PTHREADT_STOP)) {
 			pthread_cancel(pktccops_thread);
 			pthread_kill(pktccops_thread, SIGURG);
 			pthread_join(pktccops_thread, NULL);

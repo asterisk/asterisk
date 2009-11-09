@@ -364,15 +364,15 @@ static int my_load_config_string(struct ast_config *cfg, const char *category, c
 		return -1;
 	}
 
+	tmp = ast_variable_retrieve(cfg, category, variable);
+
+	ast_str_set(field, 0, "%s", tmp ? tmp : def);
+
 	us->str = *field;
 
 	AST_LIST_LOCK(&unload_strings);
 	AST_LIST_INSERT_HEAD(&unload_strings, us, entry);
 	AST_LIST_UNLOCK(&unload_strings);
-
-	tmp = ast_variable_retrieve(cfg, category, variable);
-
-	ast_str_set(field, 0, "%s", tmp ? tmp : def);
 
 	return 0;
 }
