@@ -289,6 +289,7 @@ static inline int __ast_pthread_mutex_init(int track, const char *filename, int 
 #define ast_mutex_init_notracking(pmutex) \
 	__ast_pthread_mutex_init(0, __FILE__, __LINE__, __PRETTY_FUNCTION__, #pmutex, pmutex)
 
+#define	ROFFSET	((t->reentrancy > 0) ? (t->reentrancy-1) : 0)
 static inline int __ast_pthread_mutex_destroy(const char *filename, int lineno, const char *func,
 						const char *mutex_name, ast_mutex_t *t)
 {
@@ -323,7 +324,7 @@ static inline int __ast_pthread_mutex_destroy(const char *filename, int lineno, 
 				   filename, lineno, func, mutex_name);
 		ast_reentrancy_lock(t);
 		__ast_mutex_logger("%s line %d (%s): Error: '%s' was locked here.\n",
-			    t->file[t->reentrancy-1], t->lineno[t->reentrancy-1], t->func[t->reentrancy-1], mutex_name);
+			    t->file[ROFFSET], t->lineno[ROFFSET], t->func[ROFFSET], mutex_name);
 		ast_reentrancy_unlock(t);
 		break;
 	}
@@ -390,8 +391,8 @@ static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, con
 							   filename, lineno, func, (int) wait_time, mutex_name);
 					ast_reentrancy_lock(t);
 					__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
-							   t->file[t->reentrancy-1], t->lineno[t->reentrancy-1],
-							   t->func[t->reentrancy-1], mutex_name);
+							   t->file[ROFFSET], t->lineno[ROFFSET],
+							   t->func[ROFFSET], mutex_name);
 					ast_reentrancy_unlock(t);
 					reported_wait = wait_time;
 				}
@@ -501,11 +502,11 @@ static inline int __ast_pthread_mutex_unlock(const char *filename, int lineno, c
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
 	ast_reentrancy_lock(t);
-	if (t->reentrancy && (t->thread[t->reentrancy-1] != pthread_self())) {
+	if (t->reentrancy && (t->thread[ROFFSET] != pthread_self())) {
 		__ast_mutex_logger("%s line %d (%s): attempted unlock mutex '%s' without owning it!\n",
 				   filename, lineno, func, mutex_name);
 		__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
-				   t->file[t->reentrancy-1], t->lineno[t->reentrancy-1], t->func[t->reentrancy-1], mutex_name);
+				   t->file[ROFFSET], t->lineno[ROFFSET], t->func[ROFFSET], mutex_name);
 		DO_THREAD_CRASH;
 	}
 
@@ -580,11 +581,11 @@ static inline int __ast_cond_wait(const char *filename, int lineno, const char *
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
 	ast_reentrancy_lock(t);
-	if (t->reentrancy && (t->thread[t->reentrancy-1] != pthread_self())) {
+	if (t->reentrancy && (t->thread[ROFFSET] != pthread_self())) {
 		__ast_mutex_logger("%s line %d (%s): attempted unlock mutex '%s' without owning it!\n",
 				   filename, lineno, func, mutex_name);
 		__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
-				   t->file[t->reentrancy-1], t->lineno[t->reentrancy-1], t->func[t->reentrancy-1], mutex_name);
+				   t->file[ROFFSET], t->lineno[ROFFSET], t->func[ROFFSET], mutex_name);
 		DO_THREAD_CRASH;
 	}
 
@@ -651,11 +652,11 @@ static inline int __ast_cond_timedwait(const char *filename, int lineno, const c
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
 	ast_reentrancy_lock(t);
-	if (t->reentrancy && (t->thread[t->reentrancy-1] != pthread_self())) {
+	if (t->reentrancy && (t->thread[ROFFSET] != pthread_self())) {
 		__ast_mutex_logger("%s line %d (%s): attempted unlock mutex '%s' without owning it!\n",
 				   filename, lineno, func, mutex_name);
 		__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
-				   t->file[t->reentrancy-1], t->lineno[t->reentrancy-1], t->func[t->reentrancy-1], mutex_name);
+				   t->file[ROFFSET], t->lineno[ROFFSET], t->func[ROFFSET], mutex_name);
 		DO_THREAD_CRASH;
 	}
 
