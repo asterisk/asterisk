@@ -826,7 +826,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 
 	if (needqueue) {
 		if (pipe(tmp->alertpipe)) {
-			ast_log(LOG_WARNING, "Channel allocation failed: Can't create alert pipe!\n");
+			ast_log(LOG_WARNING, "Channel allocation failed: Can't create alert pipe! Try increasing max file descriptors with ulimit -n\n");
 alertpipe_failed:
 #ifdef HAVE_DAHDI
 			if (tmp->timingfd > -1)
