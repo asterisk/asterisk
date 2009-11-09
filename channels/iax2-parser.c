@@ -797,7 +797,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 				snprintf(tmp, (int)sizeof(tmp), "Expecting capability to be %d bytes long but was %d\n", (int)sizeof(unsigned int), len);
 				errorf(tmp);
 			} else if (ies->capability == 0) { /* Don't overwrite capability2, if specified */
-				ies->capability = ntohll(get_unaligned_uint32(data + 2));
+				ies->capability = ntohl(get_unaligned_uint32(data + 2));
 			}
 			break;
 		case IAX_IE_CAPABILITY2:
