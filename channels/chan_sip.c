@@ -3834,20 +3834,8 @@ static void try_suggested_sip_codec(struct sip_pvt *p)
 	int fmt;
 	const char *codec;
 
-	while (p->owner && ast_channel_trylock(p->owner)) {
-		ast_mutex_unlock(&p->lock);
-		sched_yield();
-		ast_mutex_lock(&p->lock);
-	}
-
-	if (!p->owner)
-		return;
-
-	codec = ast_strdupa(S_OR(pbx_builtin_getvar_helper(p->owner, "SIP_CODEC"), ""));
-
-	ast_channel_unlock(p->owner);
-
-	if (ast_strlen_zero(codec))
+	codec = pbx_builtin_getvar_helper(p->owner, "SIP_CODEC");
+	if (!codec) 
 		return;
 
 	fmt = ast_getformatbyname(codec);
