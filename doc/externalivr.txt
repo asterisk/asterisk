@@ -21,7 +21,7 @@ stderr (2) - Error messages can be sent on this handle
 The application will also create an audio generator to play audio to
 the channel, and will start playing silence. When your application
 wants to send audio to the channel, it can send a command (see below)
-to add file(s) to the generator's playlist. The generator will then
+to add a file to the generator's playlist. The generator will then
 work its way through the list, playing each file in turn until it
 either runs out of files to play, the channel is hung up, or a command
 is received to clear the list and start with a new file. At any time,
@@ -56,8 +56,7 @@ A-D: DTMF event for keys A through D
 #: DTMF event for key #
 H: the channel was hung up by the connected party
 E: the script requested an exit
-Z: the previous command was unable to be executed (file does not
-exist, etc.)
+Z: the previous command was unable to be executed
 T: the play list was interrupted (see S command below)
 D: a file was dropped from the play list due to interruption (the
 data element will be the dropped file name) NOTE: this tag conflicts
@@ -87,11 +86,10 @@ The 'S' command checks to see if there is a playable audio file with
 the specified name, and if so, clear's the generator's playlist and
 places the file onto the list. Note that the playability check does
 not take into account transcoding requirements, so it is possible for
-the file to not be played even though it was found. If the file cannot
-be found, a 'Z' event (see above) will be sent to the child. If the
-generator is not currently playing silence, then T and D events will
-be sent to the child to signal the playlist interruption and notify
-it of the files that will not be played.
+the file to not be played even though it was found. If the generator
+is not currently playing silence, then T and D events will be sent
+to the child to signal the playlist interruption and notify it of
+the files that will not be played.
 
 The 'A' command checks to see if there is a playable audio file with
 the specified name, and if so, adds it to the generator's
