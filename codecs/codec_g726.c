@@ -780,22 +780,6 @@ static int lintog726_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	return 0;
 }
 
-/*! \brief convert G726-32 RFC3551 packed data into AAL2 packed data (or vice-versa) */
-static int g726tog726aal2_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
-{
-	unsigned char *src = f->data;
-	unsigned char *dst = (unsigned char *) pvt->outbuf + pvt->samples;
-	unsigned int i;
-
-	for (i = 0; i < f->datalen; i++)
-		*dst++ = ((src[i] & 0xf) << 4) | (src[i] >> 4);
-
-	pvt->samples += f->samples;
-	pvt->datalen += f->samples; /* 1 byte/sample */
-
-	return 0;
-}
-
 static struct ast_frame *g726tolin_sample(void)
 {
 	static struct ast_frame f = {
@@ -874,26 +858,6 @@ static struct ast_translator lintog726aal2 = {
 	.buf_size = BUFFER_SAMPLES / 2,
 };
 
-static struct ast_translator g726tog726aal2 = {
-	.name = "g726tog726aal2",
-	.srcfmt = AST_FORMAT_G726,
-	.dstfmt = AST_FORMAT_G726_AAL2,
-	.framein = g726tog726aal2_framein,	/* same for both directions */
-	.sample = lintog726_sample,
-	.buffer_samples = BUFFER_SAMPLES,
-	.buf_size = BUFFER_SAMPLES,
-};
-
-static struct ast_translator g726aal2tog726 = {
-	.name = "g726aal2tog726",
-	.srcfmt = AST_FORMAT_G726_AAL2,
-	.dstfmt = AST_FORMAT_G726,
-	.framein = g726tog726aal2_framein,	/* same for both directions */
-	.sample = lintog726_sample,
-	.buffer_samples = BUFFER_SAMPLES,
-	.buf_size = BUFFER_SAMPLES,
-};
-
 static void parse_config(void)
 {
 	struct ast_variable *var;
@@ -929,9 +893,6 @@ static int unload_module(void)
 	res |= ast_unregister_translator(&g726aal2tolin);
 	res |= ast_unregister_translator(&lintog726aal2);
 
-	res |= ast_unregister_translator(&g726aal2tog726);
-	res |= ast_unregister_translator(&g726tog726aal2);
-
 	return res;
 }
 
@@ -947,9 +908,6 @@ static int load_module(void)
 
 	res |= ast_register_translator(&g726aal2tolin);
 	res |= ast_register_translator(&lintog726aal2);
-
-	res |= ast_register_translator(&g726aal2tog726);
-	res |= ast_register_translator(&g726tog726aal2);
 
 	if (res)
 		unload_module();
