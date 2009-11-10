@@ -678,7 +678,6 @@ static int update_pgsql(const char *database, const char *tablename, const char 
 		ast_debug(1, "PostgreSQL RealTime: Query: %s\n", ast_str_buffer(sql));
 		ast_debug(1, "PostgreSQL RealTime: Query Failed because: %s\n", PQerrorMessage(pgsqlConn));
 		ast_mutex_unlock(&pgsql_lock);
-		ast_free(sql);
 		return -1;
 	} else {
 		ExecStatusType result_status = PQresultStatus(result);
@@ -691,14 +690,12 @@ static int update_pgsql(const char *database, const char *tablename, const char 
 			ast_debug(1, "PostgreSQL RealTime: Query Failed because: %s (%s)\n",
 						PQresultErrorMessage(result), PQresStatus(result_status));
 			ast_mutex_unlock(&pgsql_lock);
-			ast_free(sql);
 			return -1;
 		}
 	}
 
 	numrows = atoi(PQcmdTuples(result));
 	ast_mutex_unlock(&pgsql_lock);
-	ast_free(sql);
 
 	ast_debug(1, "PostgreSQL RealTime: Updated %d rows on table: %s\n", numrows, tablename);
 
