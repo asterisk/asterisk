@@ -6468,14 +6468,6 @@ static void try_suggested_sip_codec(struct sip_pvt *p)
 {
 	format_t fmt;
 	const char *codec;
-	struct ast_channel* chan;
-
-	chan = ast_channel_ref(p->owner);
-	while (ast_channel_trylock(chan)) {
-		sip_pvt_unlock(p);
-		sched_yield();
-		sip_pvt_lock(p);
-	}
 
 	if (p->outgoing_call) {
 		codec = pbx_builtin_getvar_helper(p->owner, "SIP_CODEC_OUTBOUND");
@@ -6483,12 +6475,7 @@ static void try_suggested_sip_codec(struct sip_pvt *p)
 		codec = pbx_builtin_getvar_helper(p->owner, "SIP_CODEC");
 	}
 
-	codec = ast_strdupa(S_OR(codec, ""));
-
-	ast_channel_unlock(chan);
-	chan = ast_channel_unref(chan);
-
-	if (ast_strlen_zero(codec))
+	if (!codec) 
 		return;
 
 	fmt = ast_getformatbyname(codec);
