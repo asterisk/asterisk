@@ -44,7 +44,7 @@ DTMF (and other) events
 
 All events will be newline-terminated strings.
 
-Events send to the child's stdin will be in the following format:
+Events sent to the child's stdin will be in the following format:
 
 tag,timestamp[,data]
 
@@ -58,9 +58,11 @@ H: the channel was hung up by the connected party
 E: the script requested an exit
 Z: the previous command was unable to be executed (file does not
 exist, etc.)
-T: the play list was interrupted (see below)
+T: the play list was interrupted (see S command below)
 D: a file was dropped from the play list due to interruption (the
-data element will be the dropped file name)
+data element will be the dropped file name) NOTE: this tag conflicts
+with the D DTMF event tag. The existence of the data element is used
+to differentiate between the two cases
 F: a file has finished playing (the data element will be the file
 name)
 
