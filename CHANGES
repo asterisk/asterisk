@@ -503,6 +503,20 @@ Asterisk Manager Interface
    SKINNYlines
    SKINNYshowline
 
+LDAP Schema File Additions
+--------------------------
+ * Added AsteriskDialplan, AsteriskAccount and AsteriskMailbox  objectClasses
+   to allow standalone dialplan, account and mailbox entries (STRUCTURAL)
+ * Added new Fields:
+   - AstAccountLanguage, AstAccountTransport, AstAccountPromiscRedir,
+   - AstAccountAccountCode, AstAccountSetVar, AstAccountAllowOverlap,
+   - AstAccountVideoSupport, AstAccountIgnoreSDPVersion
+ * Removed redundant IPaddr (there's already IPAddress)
+   - Gives more configuration Flags for SIP-Users available (tested)
+   - Allows to create Asterisk Attributes in defined Asterisk ObjectClasses
+     without extensibleObject (which really should be the last resort); gives
+     also additional possibilities for LDAP-filter 
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.0 to Asterisk 1.6.1  -------------
 ------------------------------------------------------------------------------
