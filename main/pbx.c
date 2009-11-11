@@ -3152,22 +3152,23 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 		}
 	} else {	/* not found anywhere, see what happened */
 		ast_unlock_contexts();
+		/* Using S_OR here because Solaris doesn't like NULL being passed to ast_log */
 		switch (q.status) {
 		case STATUS_NO_CONTEXT:
 			if (!matching_action && !combined_find_spawn)
-				ast_log(LOG_NOTICE, "Cannot find extension context '%s'\n", context);
+				ast_log(LOG_NOTICE, "Cannot find extension context '%s'\n", S_OR(context, ""));
 			break;
 		case STATUS_NO_EXTENSION:
 			if (!matching_action && !combined_find_spawn)
-				ast_log(LOG_NOTICE, "Cannot find extension '%s' in context '%s'\n", exten, context);
+				ast_log(LOG_NOTICE, "Cannot find extension '%s' in context '%s'\n", exten, S_OR(context, ""));
 			break;
 		case STATUS_NO_PRIORITY:
 			if (!matching_action && !combined_find_spawn)
-				ast_log(LOG_NOTICE, "No such priority %d in extension '%s' in context '%s'\n", priority, exten, context);
+				ast_log(LOG_NOTICE, "No such priority %d in extension '%s' in context '%s'\n", priority, exten, S_OR(context, ""));
 			break;
 		case STATUS_NO_LABEL:
 			if (context && !combined_find_spawn)
-				ast_log(LOG_NOTICE, "No such label '%s' in extension '%s' in context '%s'\n", label, exten, context);
+				ast_log(LOG_NOTICE, "No such label '%s' in extension '%s' in context '%s'\n", label, exten, S_OR(context, ""));
 			break;
 		default:
 			ast_debug(1, "Shouldn't happen!\n");
