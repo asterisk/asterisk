@@ -59,7 +59,7 @@ static int softhangup_exec(struct ast_channel *chan, void *data)
 	struct ast_channel *c = NULL;
 	char *cut, *opts[0];
 	char name[AST_CHANNEL_NAME] = "", *parse;
-	struct ast_flags flags;
+	struct ast_flags flags = {0};
 	int lenmatch;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(channel);
