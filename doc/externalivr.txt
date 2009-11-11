@@ -18,15 +18,6 @@ stdin (0) - DTMF and hangup events will be received on this handle
 stdout (1) - Playback and hangup commands can be sent on this handle
 stderr (2) - Error messages can be sent on this handle
 
-The external command can also be executed on another host entirely
-(specified by the ivr:// prefix), with its standard file handles
-connected to the Asterisk process as follows:
-
-stdin (0) - DTMF and hangup events will be received on this handle
-stdout (1) - Playback and hangup commands can be sent on this handle
-There are no error messages available when using ExternalIVR over TCP,
-use the 'L' command as a replacement for this.
-
 The application will also create an audio generator to play audio to
 the channel, and will start playing silence. When your application
 wants to send audio to the channel, it can send a command (see below)
