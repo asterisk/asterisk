@@ -37,6 +37,15 @@ extension=s
 ;input_device=hw:0,0
 ;output_device=hw:0,0
 
+;
+; Default mute state (can also be toggled via CLI)
+;mute=true
+
+;
+; If enabled, no audio capture device will be opened.  This is useful on
+; systems where there will be no return audio path, such as overhead pagers.
+;noaudiocapture=true
+
 ;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
 ; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of an
                               ; ALSA channel. Defaults to "no". An enabled jitterbuffer will
