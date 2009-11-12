@@ -87,12 +87,12 @@
 ;       combination with the "defaultip" setting.
 ;-----------------------------------------------------------------------------
 
-; ** Deprecated configuration options **
-; The "call-limit" configuation option is deprecated. It still works in
-; this version of Asterisk, but will disappear in the next version.
+; ** Old configuration options **
+; The "call-limit" configuation option is considered old is replaced
+; by new functionality. To enable callcounters, you use the new 
+; "callcounter" setting (for extension states in queue and subscriptions)
 ; You are encouraged to use the dialplan groupcount functionality
 ; to enforce call limits instead of using this channel-specific method.
-;
 ; You can still set limits per device in sip.conf or in a database by using
 ; "setvar" to set variables that can be used in the dialplan for various limits.
 
