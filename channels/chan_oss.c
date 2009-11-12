@@ -1140,9 +1140,9 @@ static char *console_mute(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	}
 	s = a->argv[e->args-2];
 	if (!strcasecmp(s, "mute"))
-		o->mute = toggle ? ~o->mute : 1;
+		o->mute = toggle ? !o->mute : 1;
 	else if (!strcasecmp(s, "unmute"))
-		o->mute = toggle ? ~o->mute : 0;
+		o->mute = toggle ? !o->mute : 0;
 	else
 		return CLI_SHOWUSAGE;
 	ast_cli(a->fd, "Console mic is %s\n", o->mute ? "off" : "on");
