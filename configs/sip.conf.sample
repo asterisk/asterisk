@@ -7,11 +7,11 @@
 ;	IP address connected to the Internet, you will want to learn
 ;	about the various security settings BEFORE you start
 ;	Asterisk. 
-;	Specially note the following settings:
-;		- Allowguest (default enabled)
-;		- Permit/deny - IP address filters
-;		- Contactpermit/contactdeny - IP address filters for registrations
-;		- Context - Which set of services you offer various users
+;	Especially note the following settings:
+;		- allowguest (default enabled)
+;		- permit/deny - IP address filters
+;		- contactpermit/contactdeny - IP address filters for registrations
+;		- context - Which set of services you offer various users
 ;
 ; SIP dial strings
 ;-----------------------------------------------------------
