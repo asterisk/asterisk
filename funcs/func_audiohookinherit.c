@@ -77,7 +77,6 @@ static void audiohook_inheritance_fixup(void *data, struct ast_channel *old_chan
 				audiohook->source, old_chan->name, old_chan, new_chan->name, new_chan);
 		}
 	}
-	ast_free(datastore);
 	return;
 }
 
@@ -94,6 +93,8 @@ static void audiohook_inheritance_destroy(void *data)
 	while ((inheritable_audiohook = AST_LIST_REMOVE_HEAD(&audiohook_inheritance_datastore->allowed_list, list))) {
 		ast_free(inheritable_audiohook);
 	}
+
+	ast_free(audiohook_inheritance_datastore);
 }
 
 /*! \brief create an audiohook_inheritance_datastore and attach it to a channel
