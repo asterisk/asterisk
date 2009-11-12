@@ -1,6 +1,18 @@
 ;
 ; SIP Configuration example for Asterisk
 ;
+; Note: Please read the security documentation for Asterisk in order to
+; 	understand the risks of installing Asterisk with the sample
+;	configuration. If your Asterisk is installed on a public
+;	IP address connected to the Internet, you will want to learn
+;	about the various security settings BEFORE you start
+;	Asterisk. 
+;	Specially note the following settings:
+;		- Allowguest (default enabled)
+;		- Permit/deny - IP address filters
+;		- Contactpermit/contactdeny - IP address filters for registrations
+;		- Context - Which set of services you offer various users
+;
 ; SIP dial strings
 ;-----------------------------------------------------------
 ; In the dialplan (extensions.conf) you can use several
@@ -87,6 +99,10 @@
 [general]
 context=default                 ; Default context for incoming calls
 ;allowguest=no                  ; Allow or reject guest calls (default is yes)
+				; If your Asterisk is connected to the Internet
+				; and you have allowguest=yes
+				; you want to check which services you offer everyone
+				; out there, by enabling them in the default context (see below).
 ;match_auth_username=yes        ; if available, match user entry using the
                                 ; 'username' field from the authentication line
                                 ; instead of the From: field.
