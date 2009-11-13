@@ -14490,7 +14490,7 @@ static attribute_unused void check_via_response(struct sip_pvt *p, struct sip_re
 static void check_via(struct sip_pvt *p, struct sip_request *req)
 {
 	char via[512];
-	char *c, *pt;
+	char *c, *pt, *maddr;
 
 	ast_copy_string(via, get_header(req, "Via"), sizeof(via));
 
@@ -14504,12 +14504,23 @@ static void check_via(struct sip_pvt *p, struct sip_request *req)
 	if (c && (c[6] != '='))	/* rport query, not answer */
 		ast_set_flag(&p->flags[1], SIP_PAGE2_RPORT_PRESENT);
 
+	/* Check for maddr */
+	maddr = strstr(via, "maddr=");
+	if (maddr) {
+		maddr += 6;
+		c = maddr + strspn(maddr, "0123456789.");
+		*c = '\0';
+	}
+
 	c = strchr(via, ';');
 	if (c)
 		*c = '\0';
 
 	c = strchr(via, ' ');
 	if (c) {
+		struct hostent *hp;
+		struct ast_hostent ahp;
+
 		*c = '\0';
 		c = ast_skip_blanks(c+1);
 		if (strcasecmp(via, "SIP/2.0/UDP") && strcasecmp(via, "SIP/2.0/TCP") && strcasecmp(via, "SIP/2.0/TLS")) {
@@ -14519,7 +14530,12 @@ static void check_via(struct sip_pvt *p, struct sip_request *req)
 		pt = strchr(c, ':');
 		if (pt)
 			*pt++ = '\0';	/* remember port pointer */
-		p->sa = p->recv;
+
+		if (maddr && (hp = ast_gethostbyname(maddr, &ahp))) {
+			memcpy(&p->sa.sin_addr, hp->h_addr, sizeof(p->sa.sin_addr));
+		} else {
+			p->sa = p->recv;
+		}
 		p->sa.sin_port = htons(port_str2int(pt, STANDARD_SIP_PORT));
 
 		if (sip_debug_test_pvt(p)) {
