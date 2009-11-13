@@ -9932,7 +9932,7 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 static void check_via(struct sip_pvt *p, const struct sip_request *req)
 {
 	char via[512];
-	char *c, *pt;
+	char *c, *pt, *maddr;
 	struct hostent *hp;
 	struct ast_hostent ahp;
 
@@ -9948,8 +9948,16 @@ static void check_via(struct sip_pvt *p, const struct sip_request *req)
 	if (c && (c[6] != '='))	/* rport query, not answer */
 		ast_set_flag(&p->flags[1], SIP_PAGE2_RPORT_PRESENT);
 
+	/* Check for maddr */
+	maddr = strstr(via, "maddr=");
+	if (maddr) {
+		maddr += 6;
+		c = maddr + strspn(maddr, "0123456789.");
+		*c = '\0';
+	}
+
 	c = strchr(via, ';');
-	if (c) 
+	if (c)
 		*c = '\0';
 
 	c = strchr(via, ' ');
@@ -9963,6 +9971,9 @@ static void check_via(struct sip_pvt *p, const struct sip_request *req)
 		pt = strchr(c, ':');
 		if (pt)
 			*pt++ = '\0';	/* remember port pointer */
+		/* Use maddr if found */
+		if (maddr)
+			c = maddr;
 		hp = ast_gethostbyname(c, &ahp);
 		if (!hp) {
 			ast_log(LOG_WARNING, "'%s' is not a valid host\n", c);
