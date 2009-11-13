@@ -85,7 +85,9 @@ static char *app = "ChanIsAvail";
 					<para>The canonical channel name that was used to create the channel</para>
 				</variable>
 				<variable name="AVAILSTATUS">
-					<para>The status code for the available channel</para>
+					<para>The status code for the available channel. This is used for both
+					device state and cause code. It is recommended that you use AVAILORIGCHAN
+					instead to see if a device is available or not.</para>
 				</variable>
 			</variablelist>
 		</description>
