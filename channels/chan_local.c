@@ -692,11 +692,11 @@ static int local_hangup(struct ast_channel *ast)
 		ast_clear_flag(p, LOCAL_LAUNCHED_PBX);
 		ast_module_user_remove(p->u_chan);
 	} else {
-		p->owner = NULL;
 		ast_module_user_remove(p->u_owner);
 		while (p->chan && ast_channel_trylock(p->chan)) {
 			DEADLOCK_AVOIDANCE(&p->lock);
 		}
+		p->owner = NULL;
 		if (p->chan) {
 			ast_queue_hangup(p->chan);
 			ast_channel_unlock(p->chan);
