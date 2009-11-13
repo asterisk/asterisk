@@ -722,7 +722,8 @@ static const char *get_cid_name(char *name, int namelen, struct ast_channel *cha
 
 static void senddialevent(struct ast_channel *src, struct ast_channel *dst, const char *dialstring)
 {
-	manager_event(EVENT_FLAG_CALL, "Dial",
+	struct ast_channel *chans[] = { src, dst };
+	ast_manager_event_multichan(EVENT_FLAG_CALL, "Dial", 2, chans,
 		"SubEvent: Begin\r\n"
 		"Channel: %s\r\n"
 		"Destination: %s\r\n"
@@ -736,9 +737,9 @@ static void senddialevent(struct ast_channel *src, struct ast_channel *dst, cons
 		dst->uniqueid, dialstring ? dialstring : "");
 }
 
-static void senddialendevent(const struct ast_channel *src, const char *dialstatus)
+static void senddialendevent(struct ast_channel *src, const char *dialstatus)
 {
-	manager_event(EVENT_FLAG_CALL, "Dial",
+	ast_manager_event(src, EVENT_FLAG_CALL, "Dial",
 		"SubEvent: End\r\n"
 		"Channel: %s\r\n"
 		"UniqueID: %s\r\n"

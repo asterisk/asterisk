@@ -2508,7 +2508,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	ast_debug(1, "Placed channel %s in DAHDI conf %d\n", chan->name, conf->dahdiconf);
 
 	if (!sent_event) {
-		manager_event(EVENT_FLAG_CALL, "MeetmeJoin", 
+		ast_manager_event(chan, EVENT_FLAG_CALL, "MeetmeJoin",
 			        "Channel: %s\r\n"
 			        "Uniqueid: %s\r\n"
 				"Meetme: %s\r\n"
@@ -2837,7 +2837,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					break;
 				}
 
-				manager_event(EVENT_FLAG_CALL, "MeetmeMute", 
+				ast_manager_event(chan, EVENT_FLAG_CALL, "MeetmeMute",
 						"Channel: %s\r\n"
 						"Uniqueid: %s\r\n"
 						"Meetme: %s\r\n"
@@ -2855,7 +2855,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					break;
 				}
 
-				manager_event(EVENT_FLAG_CALL, "MeetmeMute", 
+				ast_manager_event(chan, EVENT_FLAG_CALL, "MeetmeMute",
 						"Channel: %s\r\n"
 						"Uniqueid: %s\r\n"
 						"Meetme: %s\r\n"
@@ -2868,7 +2868,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 				(user->adminflags & ADMINFLAG_T_REQUEST) && !(talkreq_manager)) {
 				talkreq_manager = 1;
 
-				manager_event(EVENT_FLAG_CALL, "MeetmeTalkRequest", 
+				ast_manager_event(chan, EVENT_FLAG_CALL, "MeetmeTalkRequest",
 					      "Channel: %s\r\n"
 							      "Uniqueid: %s\r\n"
 							      "Meetme: %s\r\n"
@@ -2881,7 +2881,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			if (!(user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED)) && 
 				!(user->adminflags & ADMINFLAG_T_REQUEST) && (talkreq_manager)) {
 				talkreq_manager = 0;
-				manager_event(EVENT_FLAG_CALL, "MeetmeTalkRequest", 
+				ast_manager_event(chan, EVENT_FLAG_CALL, "MeetmeTalkRequest",
 					      "Channel: %s\r\n"
 							      "Uniqueid: %s\r\n"
 							      "Meetme: %s\r\n"
@@ -2949,7 +2949,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						if (!user->talking && totalsilence < MEETME_DELAYDETECTTALK) {
 							user->talking = 1;
 							if (confflags & CONFFLAG_MONITORTALKER)
-								manager_event(EVENT_FLAG_CALL, "MeetmeTalking",
+								ast_manager_event(chan, EVENT_FLAG_CALL, "MeetmeTalking",
 								      "Channel: %s\r\n"
 								      "Uniqueid: %s\r\n"
 								      "Meetme: %s\r\n"
@@ -2960,7 +2960,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						if (user->talking && totalsilence > MEETME_DELAYDETECTENDTALK) {
 							user->talking = 0;
 							if (confflags & CONFFLAG_MONITORTALKER) {
-								manager_event(EVENT_FLAG_CALL, "MeetmeTalking",
+								ast_manager_event(chan, EVENT_FLAG_CALL, "MeetmeTalking",
 								      "Channel: %s\r\n"
 								      "Uniqueid: %s\r\n"
 								      "Meetme: %s\r\n"
@@ -3384,7 +3384,7 @@ bailoutandtrynormal:
 		sec = (now.tv_sec - user->jointime) % 60;
 
 		if (sent_event) {
-			manager_event(EVENT_FLAG_CALL, "MeetmeLeave",
+			ast_manager_event(chan, EVENT_FLAG_CALL, "MeetmeLeave",
 				      "Channel: %s\r\n"
 				      "Uniqueid: %s\r\n"
 				      "Meetme: %s\r\n"

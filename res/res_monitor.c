@@ -382,12 +382,11 @@ int AST_OPTIONAL_API_NAME(ast_monitor_start)(struct ast_channel *chan, const cha
 		/* so we know this call has been monitored in case we need to bill for it or something */
 		pbx_builtin_setvar_helper(chan, "__MONITORED","true");
 
-		manager_event(EVENT_FLAG_CALL, "MonitorStart",
-        	                "Channel: %s\r\n"
-                	        "Uniqueid: %s\r\n",                        
+		ast_manager_event(chan, EVENT_FLAG_CALL, "MonitorStart",
+			                "Channel: %s\r\n"
+					        "Uniqueid: %s\r\n",
 	                        chan->name,
-        	                chan->uniqueid                        
-                	        );
+			                chan->uniqueid);
 	} else {
 		ast_debug(1,"Cannot start monitoring %s, already monitored\n", chan->name);
 		res = -1;
@@ -502,8 +501,8 @@ int AST_OPTIONAL_API_NAME(ast_monitor_stop)(struct ast_channel *chan, int need_l
 		ast_free(chan->monitor);
 		chan->monitor = NULL;
 
-		manager_event(EVENT_FLAG_CALL, "MonitorStop",
-        	                "Channel: %s\r\n"
+		ast_manager_event(chan, EVENT_FLAG_CALL, "MonitorStop",
+			                "Channel: %s\r\n"
 	                        "Uniqueid: %s\r\n",
 	                        chan->name,
 	                        chan->uniqueid

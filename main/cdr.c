@@ -991,7 +991,7 @@ int ast_cdr_setaccount(struct ast_channel *chan, const char *account)
 		}
 	}
 
-	manager_event(EVENT_FLAG_CALL, "NewAccountCode",
+	ast_manager_event(chan, EVENT_FLAG_CALL, "NewAccountCode",
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"
 			"AccountCode: %s\r\n"
@@ -1017,7 +1017,7 @@ int ast_cdr_setpeeraccount(struct ast_channel *chan, const char *account)
 		}
 	}
 
-	manager_event(EVENT_FLAG_CALL, "NewPeerAccount",
+	ast_manager_event(chan, EVENT_FLAG_CALL, "NewPeerAccount",
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"
 			"PeerAccount: %s\r\n"

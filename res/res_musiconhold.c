@@ -1346,7 +1346,7 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 		return -1;
 	}
 
-	manager_event(EVENT_FLAG_CALL, "MusicOnHold",
+	ast_manager_event(chan, EVENT_FLAG_CALL, "MusicOnHold",
 		"State: Start\r\n"
 		"Channel: %s\r\n"
 		"UniqueID: %s\r\n",
@@ -1378,7 +1378,7 @@ static void local_ast_moh_stop(struct ast_channel *chan)
 		}
 	}
 
-	manager_event(EVENT_FLAG_CALL, "MusicOnHold",
+	ast_manager_event(chan, EVENT_FLAG_CALL, "MusicOnHold",
 		"State: Stop\r\n"
 		"Channel: %s\r\n"
 		"UniqueID: %s\r\n",

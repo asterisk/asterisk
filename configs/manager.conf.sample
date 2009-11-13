@@ -57,6 +57,12 @@ bindaddr = 0.0.0.0
 ;
 ;timestampevents = yes
 
+;
+; Display certain channel variables every time a channel-oriented
+; event is emitted:
+;
+;channelvars = var1,var2,var3
+
 ; debug = on	; enable some debugging info in AMI messages (default off).
 		; Also accessible through the "manager debug" CLI command.
 ;[mark]

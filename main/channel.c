@@ -978,7 +978,7 @@ alertpipe_failed:
 	 * a lot of data into this func to do it here!
 	 */
 	if (!ast_strlen_zero(name_fmt)) {
-		manager_event(EVENT_FLAG_CALL, "Newchannel",
+		ast_manager_event(tmp, EVENT_FLAG_CALL, "Newchannel",
 			"Channel: %s\r\n"
 			"ChannelState: %d\r\n"
 			"ChannelStateDesc: %s\r\n"
@@ -2222,7 +2222,7 @@ int ast_hangup(struct ast_channel *chan)
 	}
 			
 	ast_channel_unlock(chan);
-	manager_event(EVENT_FLAG_CALL, "Hangup",
+	ast_manager_event(chan, EVENT_FLAG_CALL, "Hangup",
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"
 			"CallerIDNum: %s\r\n"
@@ -2974,9 +2974,9 @@ int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 	return 0; /* Time is up */
 }
 
-static void send_dtmf_event(const struct ast_channel *chan, const char *direction, const char digit, const char *begin, const char *end)
+static void send_dtmf_event(struct ast_channel *chan, const char *direction, const char digit, const char *begin, const char *end)
 {
-	manager_event(EVENT_FLAG_DTMF,
+	ast_manager_event(chan, EVENT_FLAG_DTMF,
 			"DTMF",
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"
@@ -4839,7 +4839,7 @@ retrymasq:
  */
 static void __ast_change_name_nolink(struct ast_channel *chan, const char *newname)
 {
-	manager_event(EVENT_FLAG_CALL, "Rename", "Channel: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", chan->name, newname, chan->uniqueid);
+	ast_manager_event(chan, EVENT_FLAG_CALL, "Rename", "Channel: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", chan->name, newname, chan->uniqueid);
 	ast_string_field_set(chan, name, newname);
 }
 
@@ -5078,9 +5078,9 @@ static void ast_set_owners_and_peers(struct ast_channel *chan1,
 /*!
  * \pre chan is locked
  */
-static void report_new_callerid(const struct ast_channel *chan)
+static void report_new_callerid(struct ast_channel *chan)
 {
-	manager_event(EVENT_FLAG_CALL, "NewCallerid",
+	ast_manager_event(chan, EVENT_FLAG_CALL, "NewCallerid",
 				"Channel: %s\r\n"
 				"CallerIDNum: %s\r\n"
 				"CallerIDName: %s\r\n"
@@ -5116,7 +5116,7 @@ int ast_do_masquerade(struct ast_channel *original)
 		struct ast_party_connected_line connected;
 		struct ast_party_redirecting redirecting;
 	} exchange;
-	struct ast_channel *clonechan;
+	struct ast_channel *clonechan, *chans[2];
 	struct ast_cdr *cdr;
 	format_t rformat = original->readformat;
 	format_t wformat = original->writeformat;
@@ -5180,7 +5180,9 @@ int ast_do_masquerade(struct ast_channel *original)
 	ast_debug(4, "Actually Masquerading %s(%d) into the structure of %s(%d)\n",
 		clonechan->name, clonechan->_state, original->name, original->_state);
 
-	manager_event(EVENT_FLAG_CALL, "Masquerade", "Clone: %s\r\nCloneState: %s\r\nOriginal: %s\r\nOriginalState: %s\r\n",
+	chans[0] = clonechan;
+	chans[1] = original;
+	ast_manager_event_multichan(EVENT_FLAG_CALL, "Masquerade", 2, chans, "Clone: %s\r\nCloneState: %s\r\nOriginal: %s\r\nOriginalState: %s\r\n",
 		      clonechan->name, ast_state2str(clonechan->_state), original->name, ast_state2str(original->_state));
 
 	/* Having remembered the original read/write formats, we turn off any translation on either
@@ -5409,7 +5411,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	if (ast_test_flag(clonechan, AST_FLAG_ZOMBIE)) {
 		ast_debug(1, "Destroying channel clone '%s'\n", clonechan->name);
 		ast_channel_unlock(clonechan);
-		manager_event(EVENT_FLAG_CALL, "Hangup",
+		ast_manager_event(clonechan, EVENT_FLAG_CALL, "Hangup",
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"
 			"Cause: %d\r\n"
@@ -5491,8 +5493,7 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state state)
 	ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, name);
 
 	/* setstate used to conditionally report Newchannel; this is no more */
-	manager_event(EVENT_FLAG_CALL,
-		      "Newstate",
+	ast_manager_event(chan, EVENT_FLAG_CALL, "Newstate",
 		      "Channel: %s\r\n"
 		      "ChannelState: %d\r\n"
 		      "ChannelStateDesc: %s\r\n"
@@ -5759,7 +5760,8 @@ int ast_channel_early_bridge(struct ast_channel *c0, struct ast_channel *c1)
 */
 static void manager_bridge_event(int onoff, int type, struct ast_channel *c0, struct ast_channel *c1)
 {
-	manager_event(EVENT_FLAG_CALL, "Bridge",
+	struct ast_channel *chans[2] = { c0, c1 };
+	ast_manager_event_multichan(EVENT_FLAG_CALL, "Bridge", 2, chans,
 			"Bridgestate: %s\r\n"
 			"Bridgetype: %s\r\n"
 			"Channel1: %s\r\n"
@@ -5843,7 +5845,7 @@ static void bridge_play_sounds(struct ast_channel *c0, struct ast_channel *c1)
 enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1,
 					  struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc)
 {
-	struct ast_channel *who = NULL;
+	struct ast_channel *who = NULL, *chans[2] = { c0, c1 };
 	enum ast_bridge_result res = AST_BRIDGE_COMPLETE;
 	int nativefailed=0;
 	format_t o0nativeformats;
@@ -6017,7 +6019,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			ast_set_flag(c0, AST_FLAG_NBRIDGE);
 			ast_set_flag(c1, AST_FLAG_NBRIDGE);
 			if ((res = c0->tech->bridge(c0, c1, config->flags, fo, rc, to)) == AST_BRIDGE_COMPLETE) {
-				manager_event(EVENT_FLAG_CALL, "Unlink",
+				ast_manager_event_multichan(EVENT_FLAG_CALL, "Unlink", 2, chans,
 					      "Channel1: %s\r\n"
 					      "Channel2: %s\r\n"
 					      "Uniqueid1: %s\r\n"
@@ -6089,7 +6091,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	c0->_bridge = NULL;
 	c1->_bridge = NULL;
 
-	manager_event(EVENT_FLAG_CALL, "Unlink",
+	ast_manager_event_multichan(EVENT_FLAG_CALL, "Unlink", 2, chans,
 		      "Channel1: %s\r\n"
 		      "Channel2: %s\r\n"
 		      "Uniqueid1: %s\r\n"

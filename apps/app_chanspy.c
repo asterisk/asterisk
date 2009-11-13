@@ -513,6 +513,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 	struct ast_silence_generator *silgen = NULL;
 	struct ast_autochan *spyee_bridge_autochan = NULL;
 	const char *spyer_name;
+	struct ast_channel *chans[] = { chan, spyee_autochan->chan };
 
 	ast_channel_lock(chan);
 	spyer_name = ast_strdupa(chan->name);
@@ -529,7 +530,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 	ast_channel_unlock(spyee_autochan->chan);
 
 	ast_verb(2, "Spying on channel %s\n", name);
-	manager_event(EVENT_FLAG_CALL, "ChanSpyStart",
+	ast_manager_event_multichan(EVENT_FLAG_CALL, "ChanSpyStart", 2, chans,
 			"SpyerChannel: %s\r\n"
 			"SpyeeChannel: %s\r\n",
 			spyer_name, name);
@@ -697,7 +698,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 	}
 
 	ast_verb(2, "Done Spying on channel %s\n", name);
-	manager_event(EVENT_FLAG_CALL, "ChanSpyStop", "SpyeeChannel: %s\r\n", name);
+	ast_manager_event(chan, EVENT_FLAG_CALL, "ChanSpyStop", "SpyeeChannel: %s\r\n", name);
 
 	return running;
 }

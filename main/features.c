@@ -890,7 +890,7 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 		event_from = pbx_builtin_getvar_helper(chan, "BLINDTRANSFER");
 	}
 
-	manager_event(EVENT_FLAG_CALL, "ParkedCall",
+	ast_manager_event(pu->chan, EVENT_FLAG_CALL, "ParkedCall",
 		"Exten: %s\r\n"
 		"Channel: %s\r\n"
 		"Parkinglot: %s\r\n"
@@ -3641,7 +3641,7 @@ static int park_exec_full(struct ast_channel *chan, const char *data, struct ast
 			ast_log(LOG_WARNING, "Whoa, no parking context?\n");
 
 		ast_cel_report_event(pu->chan, AST_CEL_PARK_END, NULL, "UnParkedCall", chan);
-		manager_event(EVENT_FLAG_CALL, "UnParkedCall",
+		ast_manager_event(pu->chan, EVENT_FLAG_CALL, "UnParkedCall",
 			"Exten: %s\r\n"
 			"Channel: %s\r\n"
 			"From: %s\r\n"
@@ -4944,7 +4944,7 @@ int ast_bridge_timelimit(struct ast_channel *chan, struct ast_bridge_config *con
 */
 static int bridge_exec(struct ast_channel *chan, const char *data)
 {
-	struct ast_channel *current_dest_chan, *final_dest_chan;
+	struct ast_channel *current_dest_chan, *final_dest_chan, *chans[2];
 	char *tmp_data  = NULL;
 	struct ast_flags opts = { 0, };
 	struct ast_bridge_config bconfig = { { 0, }, };
@@ -4971,7 +4971,7 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 		strlen(chan->name) < strlen(args.dest_chan) ? 
 		strlen(chan->name) : strlen(args.dest_chan))) {
 		ast_log(LOG_WARNING, "Unable to bridge channel %s with itself\n", chan->name);
-		manager_event(EVENT_FLAG_CALL, "BridgeExec",
+		ast_manager_event(chan, EVENT_FLAG_CALL, "BridgeExec",
 					"Response: Failed\r\n"
 					"Reason: Unable to bridge channel to itself\r\n"
 					"Channel1: %s\r\n"
@@ -4986,7 +4986,7 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 			strlen(args.dest_chan)))) {
 		ast_log(LOG_WARNING, "Bridge failed because channel %s does not exists or we "
 			"cannot get its lock\n", args.dest_chan);
-		manager_event(EVENT_FLAG_CALL, "BridgeExec",
+		ast_manager_event(chan, EVENT_FLAG_CALL, "BridgeExec",
 					"Response: Failed\r\n"
 					"Reason: Cannot grab end point\r\n"
 					"Channel1: %s\r\n"
@@ -5004,7 +5004,7 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 	if (!(final_dest_chan = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, 
 		NULL, NULL, current_dest_chan->linkedid, 0, "Bridge/%s", current_dest_chan->name))) {
 		ast_log(LOG_WARNING, "Cannot create placeholder channel for chan %s\n", args.dest_chan);
-		manager_event(EVENT_FLAG_CALL, "BridgeExec",
+		ast_manager_event(chan, EVENT_FLAG_CALL, "BridgeExec",
 					"Response: Failed\r\n"
 					"Reason: cannot create placeholder\r\n"
 					"Channel1: %s\r\n"
@@ -5015,11 +5015,14 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 
 	do_bridge_masquerade(current_dest_chan, final_dest_chan);
 
+	chans[0] = current_dest_chan;
+	chans[1] = final_dest_chan;
+
 	/* now current_dest_chan is a ZOMBIE and with softhangup set to 1 and final_dest_chan is our end point */
 	/* try to make compatible, send error if we fail */
 	if (ast_channel_make_compatible(chan, final_dest_chan) < 0) {
 		ast_log(LOG_WARNING, "Could not make channels %s and %s compatible for bridge\n", chan->name, final_dest_chan->name);
-		manager_event(EVENT_FLAG_CALL, "BridgeExec",
+		ast_manager_event_multichan(EVENT_FLAG_CALL, "BridgeExec", 2, chans,
 					"Response: Failed\r\n"
 					"Reason: Could not make channels compatible for bridge\r\n"
 					"Channel1: %s\r\n"
@@ -5031,7 +5034,7 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 	}
 
 	/* Report that the bridge will be successfull */
-	manager_event(EVENT_FLAG_CALL, "BridgeExec",
+	ast_manager_event_multichan(EVENT_FLAG_CALL, "BridgeExec", 2, chans,
 				"Response: Success\r\n"
 				"Channel1: %s\r\n"
 				"Channel2: %s\r\n", chan->name, final_dest_chan->name);

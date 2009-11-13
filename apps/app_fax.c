@@ -248,7 +248,7 @@ static void phase_e_handler(t30_state_t *f, void *user_data, int result)
 	ast_debug(1, "  Image resolution:  %d x %d\n", stat.x_resolution, stat.y_resolution);
 	ast_debug(1, "  Transfer Rate:     %d\n", stat.bit_rate);
 	
-	manager_event(EVENT_FLAG_CALL,
+	ast_manager_event(s->chan, EVENT_FLAG_CALL,
 		      s->direction ? "FaxSent" : "FaxReceived", 
 		      "Channel: %s\r\n"
 		      "Exten: %s\r\n"

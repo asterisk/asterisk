@@ -197,11 +197,26 @@ int astman_verify_session_writepermissions(uint32_t ident, int perm);
 /* XXX the parser in gcc 2.95 gets confused if you don't put a space
  * between the last arg before VA_ARGS and the comma */
 #define manager_event(category, event, contents , ...)	\
-        __manager_event(category, event, __FILE__, __LINE__, __PRETTY_FUNCTION__, contents , ## __VA_ARGS__)
+        __ast_manager_event_multichan(category, event, 0, NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__, contents , ## __VA_ARGS__)
+#define ast_manager_event(chan, category, event, contents , ...) \
+	do { \
+		struct ast_channel *_chans[] = { chan, }; \
+		__ast_manager_event_multichan(category, event, 1, _chans, __FILE__, __LINE__, __PRETTY_FUNCTION__, contents , ## __VA_ARGS__); \
+	} while (0)
+#define ast_manager_event_multichan(category, event, nchans, chans, contents , ...) \
+	__ast_manager_event_multichan(category, event, nchans, chans, __FILE__, __LINE__, __PRETTY_FUNCTION__, contents , ## __VA_ARGS__);
 
-int __attribute__((format(printf, 6, 7))) __manager_event(int category, const char *event,
-							   const char *file, int line, const char *func,
-							   const char *contents, ...);
+/*! External routines may send asterisk manager events this way
+ * \param chan1 First channel related to this event (or NULL if none are relevant)
+ * \param chan2 Second channel related to this event (or NULL if none are relevant)
+ * \param category Event category, matches manager authorization
+ * \param event Event name
+ * \param contents Format string describing event
+ * \since 1.6.3
+*/
+int __ast_manager_event_multichan(int category, const char *event, int chancount,
+		struct ast_channel **chans, const char *file, int line, const char *func,
+		const char *contents, ...) __attribute__((format(printf, 8, 9)));
 
 /*! \brief Get header from mananger transaction */
 const char *astman_get_header(const struct message *m, char *var);

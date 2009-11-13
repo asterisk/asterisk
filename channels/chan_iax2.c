@@ -10072,11 +10072,11 @@ retryowner:
 				if (ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED)) {
 				        /* Generate Manager Hold event, if necessary*/
 					if (iaxs[fr->callno]->owner) {
-						manager_event(EVENT_FLAG_CALL, "Hold",
+						ast_manager_event(iaxs[fr->callno]->owner, EVENT_FLAG_CALL, "Hold",
 							"Status: On\r\n"
 							"Channel: %s\r\n"
 							"Uniqueid: %s\r\n",
-							iaxs[fr->callno]->owner->name, 
+							iaxs[fr->callno]->owner->name,
 							iaxs[fr->callno]->owner->uniqueid);
 					}
 
@@ -10099,11 +10099,11 @@ retryowner:
 				if (ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED)) {
 				        /* Generate Manager Unhold event, if necessary*/
 					if (iaxs[fr->callno]->owner && ast_test_flag64(iaxs[fr->callno], IAX_QUELCH)) {
-						manager_event(EVENT_FLAG_CALL, "Hold",
+						ast_manager_event(iaxs[fr->callno]->owner, EVENT_FLAG_CALL, "Hold",
 							"Status: Off\r\n"
 							"Channel: %s\r\n"
 							"Uniqueid: %s\r\n",
-							iaxs[fr->callno]->owner->name, 
+							iaxs[fr->callno]->owner->name,
 							iaxs[fr->callno]->owner->uniqueid);
 					}
 
