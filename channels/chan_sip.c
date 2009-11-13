@@ -6891,9 +6891,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	struct ast_hostent audiohp;
 	struct ast_hostent videohp;
 	struct ast_hostent texthp;
+	struct ast_hostent imagehp;
 	struct hostent *hp = NULL;	/*!< RTP Audio host IP */
 	struct hostent *vhp = NULL;	/*!< RTP video host IP */
 	struct hostent *thp = NULL;	/*!< RTP text host IP */
+	struct hostent *ihp = NULL;     /*!< UDPTL host ip */
 	int portno = -1;		/*!< RTP Audio port number */
 	int vportno = -1;		/*!< RTP Video port number */
 	int tportno = -1;		/*!< RTP Text port number */
@@ -6999,6 +7001,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				hp = &sessionhp.hp;
 				vhp = hp;
 				thp = hp;
+				ihp = hp;
 			}
 			break;
 		case 'a':
@@ -7113,15 +7116,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 
 			if (p->t38.state != T38_ENABLED) {
 				memset(&p->t38.their_parms, 0, sizeof(p->t38.their_parms));
-
-				/* Remote party offers T38, we need to update state */
-				if ((t38action == SDP_T38_ACCEPT) &&
-				    (p->t38.state == T38_LOCAL_REINVITE)) {
-					change_t38_state(p, T38_ENABLED);
-				} else if ((t38action == SDP_T38_INITIATE) &&
-					   p->owner && p->lastinvite) {
-					change_t38_state(p, T38_PEER_REINVITE); /* T38 Offered in re-invite from remote party */
-				}
 			}
 		} else {
 			ast_log(LOG_WARNING, "Unsupported SDP media type in offer: %s\n", m);
@@ -7154,6 +7148,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					if (process_sdp_c(value, &texthp)) {
 						processed = TRUE;
 						thp = &texthp.hp;
+					}
+				} else if (image) {
+					if (process_sdp_c(value, &imagehp)) {
+						processed = TRUE;
+						ihp = &imagehp.hp;
 					}
 				}
 				break;
@@ -7239,41 +7238,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			    ast_rtp_lookup_mime_multiple(s2, SIPBUFSIZE, peernoncodeccapability, 0, 0),
 			    ast_rtp_lookup_mime_multiple(s3, SIPBUFSIZE, newnoncodeccapability, 0, 0));
 	}
-	if (!newjointcapability) {
-		/* If T.38 was not negotiated either, totally bail out... */
-		if ((p->t38.state == T38_DISABLED) || !udptlportno) {
-			ast_log(LOG_NOTICE, "No compatible codecs, not accepting this offer!\n");
-			/* Do NOT Change current setting */
-			return -1;
-		} else {
-			ast_debug(3, "Have T.38 but no audio codecs, accepting offer anyway\n");
-			return 0;
-		}
-	}
 
-	/* We are now ready to change the sip session and p->rtp and p->vrtp with the offered codecs, since
-		they are acceptable */
-	p->jointcapability = newjointcapability;	        /* Our joint codec profile for this call */
-	p->peercapability = newpeercapability;		        /* The other sides capability in latest offer */
-	p->jointnoncodeccapability = newnoncodeccapability;	/* DTMF capabilities */
-
-	ast_rtp_pt_copy(p->rtp, newaudiortp);
-	if (p->vrtp)
-		ast_rtp_pt_copy(p->vrtp, newvideortp);
-	if (p->trtp)
-		ast_rtp_pt_copy(p->trtp, newtextrtp);
-
-	if (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_AUTO) {
-		ast_clear_flag(&p->flags[0], SIP_DTMF);
-		if (newnoncodeccapability & AST_RTP_DTMF) {
-			/* XXX Would it be reasonable to drop the DSP at this point? XXX */
-			ast_set_flag(&p->flags[0], SIP_DTMF_RFC2833);
-			/* Since RFC2833 is now negotiated we need to change some properties of the RTP stream */
-			ast_rtp_setdtmf(p->rtp, 1);
-			ast_rtp_setdtmfcompensate(p->rtp, ast_test_flag(&p->flags[1], SIP_PAGE2_RFC2833_COMPENSATE));
-		} else {
-			ast_set_flag(&p->flags[0], SIP_DTMF_INBAND);
-		}
+	if (!newjointcapability && (portno != -1)) {
+		ast_log(LOG_NOTICE, "No compatible codecs, not accepting this offer!\n");
+		/* Do NOT Change current setting */
+		return -1;
 	}
 
 	/* Setup audio address and port */
@@ -7285,6 +7254,26 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			ast_rtp_set_peer(p->rtp, &sin);
 			if (debug)
 				ast_verbose("Peer audio RTP is at port %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+			/* We are now ready to change the sip session and p->rtp and p->vrtp with the offered codecs, since                                                                                                    
+			   they are acceptable */
+			p->jointcapability = newjointcapability;                /* Our joint codec profile for this call */
+			p->peercapability = newpeercapability;                  /* The other sides capability in latest offer */
+			p->jointnoncodeccapability = newnoncodeccapability;     /* DTMF capabilities */
+
+			ast_rtp_pt_copy(p->rtp, newaudiortp);
+
+			if (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_AUTO) {
+				ast_clear_flag(&p->flags[0], SIP_DTMF);
+				if (newnoncodeccapability & AST_RTP_DTMF) {
+					/* XXX Would it be reasonable to drop the DSP at this point? XXX */
+					ast_set_flag(&p->flags[0], SIP_DTMF_RFC2833);
+					/* Since RFC2833 is now negotiated we need to change some properties of the RTP stream */
+					ast_rtp_setdtmf(p->rtp, 1);
+					ast_rtp_setdtmfcompensate(p->rtp, ast_test_flag(&p->flags[1], SIP_PAGE2_RFC2833_COMPENSATE));
+				} else {
+					ast_set_flag(&p->flags[0], SIP_DTMF_INBAND);
+				}
+			}
 		} else if (udptlportno > 0) {
 			if (debug)
 				ast_verbose("Got T.38 Re-invite without audio. Keeping RTP active during T.38 session.\n");
@@ -7304,6 +7293,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			ast_rtp_set_peer(p->vrtp, &vsin);
 			if (debug) 
 				ast_verbose("Peer video RTP is at port %s:%d\n", ast_inet_ntoa(vsin.sin_addr), ntohs(vsin.sin_port));
+			ast_rtp_pt_copy(p->vrtp, newvideortp);
 		} else {
 			ast_rtp_stop(p->vrtp);
 			if (debug)
@@ -7320,6 +7310,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			ast_rtp_set_peer(p->trtp, &tsin);
 			if (debug) 
 				ast_verbose("Peer T.140 RTP is at port %s:%d\n", ast_inet_ntoa(vsin.sin_addr), ntohs(vsin.sin_port));
+			ast_rtp_pt_copy(p->trtp, newtextrtp);
 		} else {
 			ast_rtp_stop(p->trtp);
 			if (debug)
@@ -7340,16 +7331,32 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 						ast_log(LOG_DEBUG, "Peer T.38 UDPTL is set behind NAT and with destination, destination address now %s\n", ast_inet_ntoa(isin.sin_addr));
 					}
 				}
+			} else {
+				memcpy(&isin.sin_addr, ihp->h_addr, sizeof(sin.sin_addr));
 			}
 			ast_udptl_set_peer(p->udptl, &isin);
 			if (debug)
 				ast_debug(1,"Peer T.38 UDPTL is at port %s:%d\n", ast_inet_ntoa(isin.sin_addr), ntohs(isin.sin_port));
+
+			/* Remote party offers T38, we need to update state */
+			if ((t38action == SDP_T38_ACCEPT) &&
+			    (p->t38.state == T38_LOCAL_REINVITE)) {
+				change_t38_state(p, T38_ENABLED);
+			} else if ((t38action == SDP_T38_INITIATE) &&
+				   p->owner && p->lastinvite) {
+				change_t38_state(p, T38_PEER_REINVITE); /* T38 Offered in re-invite from remote party */
+			}
 		} else {
 			ast_udptl_stop(p->udptl);
 			if (debug)
 				ast_debug(1, "Peer doesn't provide T.38 UDPTL\n");
 		}
 	}
+
+	if ((portno == -1) && (p->t38.state != T38_DISABLED)) {
+		ast_debug(3, "Have T.38 but no audio, accepting offer anyway\n");
+                return 0;
+        }
 
 	/* Ok, we're going with this offer */
 	ast_debug(2, "We're settling with these formats: %s\n", ast_getformatname_multiple(buf, SIPBUFSIZE, p->jointcapability));
