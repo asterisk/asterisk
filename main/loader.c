@@ -853,8 +853,7 @@ static struct load_order_entry *add_to_load_order(const char *resource, struct l
 		if (!resource_name_match(order->resource, resource)) {
 			/* Make sure we have the proper setting for the required field 
 			   (we might have both load= and required= lines in modules.conf) */
-				order->required |= required;
-			}
+			order->required |= required;
 			return NULL;
 		}
 	}
