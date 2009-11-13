@@ -85,8 +85,11 @@ static const char app[] = "ChanIsAvail";
 					<para>The canonical channel name that was used to create the channel</para>
 				</variable>
 				<variable name="AVAILSTATUS">
-					<para>The status code for the available channel</para>
+					<para>The device state for the device</para>
 				</variable>
+				<variable name="AVAILCAUSECODE">
+				        <para>The cause code returned when requesting the channel</para>
+				</variable>	
 			</variablelist>
 		</description>
 	</application>
@@ -100,6 +103,7 @@ static int chanavail_exec(struct ast_channel *chan, const char *data)
 	struct ast_str *tmp_availchan = ast_str_alloca(2048);
 	struct ast_str *tmp_availorig = ast_str_alloca(2048);
 	struct ast_str *tmp_availstat = ast_str_alloca(2048);
+	struct ast_str *tmp_availcause = ast_str_alloca(2048);
 	struct ast_channel *tempchan;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(reqchans);
@@ -159,6 +163,8 @@ static int chanavail_exec(struct ast_channel *chan, const char *data)
 				snprintf(trychan, sizeof(trychan), "%s/%s",cur,number);
 				status = inuse = ast_device_state(trychan);
 			}
+			snprintf(tmp, sizeof(tmp), "%d", status);
+			ast_str_append(&tmp_availstat, 0, "%s%s", ast_str_strlen(tmp_availstat) ? "&" : "", tmp);
 			if ((inuse <= 1) && (tempchan = ast_request(tech, chan->nativeformats, chan, number, &status))) {
 					ast_str_append(&tmp_availchan, 0, "%s%s", ast_str_strlen(tmp_availchan) ? "&" : "", tempchan->name);
 					
@@ -166,7 +172,7 @@ static int chanavail_exec(struct ast_channel *chan, const char *data)
 					ast_str_append(&tmp_availorig, 0, "%s%s", ast_str_strlen(tmp_availorig) ? "&" : "", tmp);
 
 					snprintf(tmp, sizeof(tmp), "%d", status);
-					ast_str_append(&tmp_availstat, 0, "%s%s", ast_str_strlen(tmp_availstat) ? "&" : "", tmp);
+					ast_str_append(&tmp_availcause, 0, "%s%s", ast_str_strlen(tmp_availcause) ? "&" : "", tmp);
 
 					ast_hangup(tempchan);
 					tempchan = NULL;
@@ -174,9 +180,6 @@ static int chanavail_exec(struct ast_channel *chan, const char *data)
 					if (!option_all_avail) {
 						break;
 					}
-			} else {
-				snprintf(tmp, sizeof(tmp), "%d", status);
-				ast_str_append(&tmp_availstat, 0, "%s%s", ast_str_strlen(tmp_availstat) ? "&" : "", tmp);
 			}
 			cur = rest;
 		} while (cur);
@@ -186,6 +189,7 @@ static int chanavail_exec(struct ast_channel *chan, const char *data)
 	/* Store the originally used channel too */
 	pbx_builtin_setvar_helper(chan, "AVAILORIGCHAN", ast_str_buffer(tmp_availorig));
 	pbx_builtin_setvar_helper(chan, "AVAILSTATUS", ast_str_buffer(tmp_availstat));
+	pbx_builtin_setvar_helper(chan, "AVAILCAUSECODE", ast_str_buffer(tmp_availcause));
 
 	return 0;
 }

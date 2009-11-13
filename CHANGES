@@ -99,6 +99,8 @@ Applications
    spool directory of each individual user.  The control for this is located in
    the "passwordlocation" option in voicemail.conf.  Please see the sample
    configuration for more information.
+ * The ChanIsAvail application now exposes the returned cause code using a separate
+   variable, AVAILCAUSECODE, instead of overwriting the device state in AVAILSTATUS.
 
 Dialplan Functions
 ------------------
