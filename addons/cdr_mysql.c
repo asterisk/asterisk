@@ -524,7 +524,7 @@ static int my_load_module(int reload)
 			connected = 0;
 			AST_RWLIST_UNLOCK(&columns);
 			ast_config_destroy(cfg);
-			return AST_MODULE_LOAD_SUCCESS;
+			return AST_MODULE_LOAD_FAILURE;
 		}
 
 		if (!(result = mysql_store_result(&mysql))) {
@@ -533,7 +533,7 @@ static int my_load_module(int reload)
 			connected = 0;
 			AST_RWLIST_UNLOCK(&columns);
 			ast_config_destroy(cfg);
-			return AST_MODULE_LOAD_SUCCESS;
+			return AST_MODULE_LOAD_FAILURE;
 		}
 
 		while ((row = mysql_fetch_row(result))) {
