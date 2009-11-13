@@ -327,6 +327,10 @@ Miscellaneous
 -------------
  * SendText is now implemented in chan_gtalk and chan_jingle. It will simply send
    XMPP text messages to the remote JID.
+ * Modules.conf has a new option - "require" - that marks a module as critical for 
+   the execution of Asterisk.
+   If one of the required modules fail to load, Asterisk will exit with a return
+   code set to 2. 
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.1 to Asterisk 1.6.2  -------------

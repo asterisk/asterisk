@@ -3108,6 +3108,7 @@ int main(int argc, char *argv[])
 	char *buf;
 	const char *runuser = NULL, *rungroup = NULL;
 	char *remotesock = NULL;
+	int moduleresult; 		/*!< Result from the module load subsystem */
 
 	/* Remember original args for restart */
 	if (argc > ARRAY_LEN(_argv) - 1) {
@@ -3583,9 +3584,9 @@ int main(int argc, char *argv[])
 	ast_xmldoc_load_documentation();
 #endif
 
-	if (load_modules(1)) {		/* Load modules, pre-load only */
+	if ((moduleresult = load_modules(1))) {		/* Load modules, pre-load only */
 		printf("%s", term_quit());
-		exit(1);
+		exit(moduleresult == -2 ? 2 : 1);
 	}
 
 	if (dnsmgr_init()) {		/* Initialize the DNS manager */
@@ -3657,9 +3658,9 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (load_modules(0)) {
+	if ((moduleresult = load_modules(0))) {		/* Load modules */
 		printf("%s", term_quit());
-		exit(1);
+		exit(moduleresult == -2 ? 2 : 1);
 	}
 
 	/* loads the cli_permissoins.conf file needed to implement cli restrictions. */

@@ -21,6 +21,14 @@ autoload=yes
 ; Uncomment the following if you wish to use the Speech Recognition API
 ;preload => res_speech.so
 ;
+; If you want Asterisk to fail if a module does not load, then use
+; the "require" keyword. Asterisk will exit with a status code of 2
+; if a required module does not load.
+;
+; require = chan_sip.so
+; If you want you can combine with preload
+; preload-require = res_odbc.so
+;
 ; If you want, load the GTK console right away.
 ;
 noload => pbx_gtkconsole.so
