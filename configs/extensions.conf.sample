@@ -449,7 +449,7 @@ exten => a,1,VoicemailMain(${ARG1})		; If they press *, send the user into Voice
 ;   ${ARG1} - Device to page
 
 exten => s,1,ChanIsAvail(${ARG1}|js)			; j is for Jump and s is for ANY call
-exten => s,n,GoToIf([${AVAILSTATUS} = "1"]?autoanswer:fail)
+exten => s,n,GoToIf([${AVAILORIGCHAN} = ""]?fail:autoanswer)
 exten => s,n(autoanswer),Set(_ALERT_INFO="RA")			; This is for the PolyComs
 exten => s,n,SIPAddHeader(Call-Info: Answer-After=0)	; This is for the Grandstream, Snoms, and Others
 exten => s,n,NoOp()					; Add others here and Post on the Wiki!!!!

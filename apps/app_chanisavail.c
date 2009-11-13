@@ -55,7 +55,12 @@ static char *synopsis = "Check channel availability";
 static char *descrip = 
 "  ChanIsAvail(Technology/resource[&Technology2/resource2...][|options]): \n"
 "This application will check to see if any of the specified channels are\n"
-"available. The following variables will be set by this application:\n"
+"available. Note that the AVAILSTATUS variable is used for both device state\n"
+"and cause code. It is therefore possible for it to give a value that may\n"
+"indicate a device is available when it is not. It is suggested that the\n"
+"AVAILORIGCHAN variable is used instead to see whether a device is available\n"
+"or not.\n"
+"The following variables will be set by this application:\n"
 "  ${AVAILCHAN}     - the name of the available channel, if one exists\n"
 "  ${AVAILORIGCHAN} - the canonical channel name that was used to create the channel\n"
 "  ${AVAILSTATUS}   - the status code for the available channel\n"
