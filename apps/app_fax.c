@@ -706,7 +706,11 @@ static int transmit_t38(fax_session *s)
 	t38_terminal_release(&t38);
 
 disable_t38:
-	if (ast_channel_get_t38_state(s->chan) == T38_STATE_NEGOTIATED) {
+	/* if we are not the caller, it's our job to shut down the T.38
+	 * session when the FAX transmisson is complete.
+	 */
+	if ((s->caller_mode == FALSE) &&
+	    (ast_channel_get_t38_state(s->chan) == T38_STATE_NEGOTIATED)) {
 		if (ast_indicate_data(s->chan, AST_CONTROL_T38_PARAMETERS, &t38_parameters, sizeof(t38_parameters)) == 0) {
 			/* wait up to five seconds for negotiation to complete */
 			unsigned int timeout = 5000;
