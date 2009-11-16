@@ -598,7 +598,6 @@ static int transmit_t38(fax_session *s)
 	struct timeval now, start, state_change, last_frame;
 	t30_state_t *t30state;
 	t38_core_state_t *t38state;
-	struct ast_control_t38_parameters t38_parameters = { .request_response = AST_T38_REQUEST_TERMINATE, };
 
 #if SPANDSP_RELEASE_DATE >= 20080725
 	/* for spandsp shaphots 0.0.6 and higher */
@@ -711,6 +710,8 @@ disable_t38:
 	 */
 	if ((s->caller_mode == FALSE) &&
 	    (ast_channel_get_t38_state(s->chan) == T38_STATE_NEGOTIATED)) {
+		struct ast_control_t38_parameters t38_parameters = { .request_response = AST_T38_REQUEST_TERMINATE, };
+
 		if (ast_indicate_data(s->chan, AST_CONTROL_T38_PARAMETERS, &t38_parameters, sizeof(t38_parameters)) == 0) {
 			/* wait up to five seconds for negotiation to complete */
 			unsigned int timeout = 5000;
@@ -742,7 +743,7 @@ disable_t38:
 					struct ast_control_t38_parameters *parameters = inf->data.ptr;
 					
 					switch (parameters->request_response) {
-					case AST_T38_NEGOTIATED:
+					case AST_T38_TERMINATED:
 						ast_debug(1, "Shut down T.38 on %s\n", s->chan->name);
 						break;
 					case AST_T38_REFUSED:
