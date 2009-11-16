@@ -308,8 +308,14 @@ struct osp_npparam {
 	int npdi;			/* NP Database Dip Indicator */
 };
 
+/* SIP Diversion Header Parameters */
+struct osp_diversion {
+	const char* user;
+	const char* host;
+};
+
 /* OSP Application In/Output Results */
-struct osp_result {
+struct osp_results {
 	int inhandle;						/* Inbound transaction handle */
 	int outhandle;						/* Outbound transaction handle */
 	unsigned int intimelimit;			/* Inbound duration limit */
@@ -666,23 +672,41 @@ static int osp_create_transaction(
 }
 
 /*!
- * \brief Convert address to "[x.x.x.x]" or "host.domain" format
+ * \brief Convert address to "[x.x.x.x]:port" or "hostname:port" format
  * \param src Source address string
  * \param dst Destination address string
- * \param buffersize Size of dst buffer
+ * \param dstsize Size of dst buffer
  */
 static void osp_convert_address(
 	const char* src,
 	char* dst,
-	int buffersize)
+	int dstsize)
 {
 	struct in_addr inp;
+	char buffer[OSP_NORSTR_SIZE];
+	char* port;
+	int size;
 
-	if (inet_aton(src, &inp) != 0) {
-		snprintf(dst, buffersize, "[%s]", src);
-	} else {
-		snprintf(dst, buffersize, "%s", src);
+	size = sizeof(buffer) - 1;
+	strncpy(buffer, src, size);
+	buffer[size] = '\0';
+
+	if((port = strchr(buffer, ':')) != NULL) {
+		*port = '\0';
+		port++;
 	}
+
+	size = dstsize - 1;
+	if (inet_pton(AF_INET, buffer, &inp) == 1) {
+		if (port != NULL) {
+			snprintf(dst, size, "[%s]:%s", buffer, port);
+		} else {
+			snprintf(dst, size, "[%s]", buffer);
+		}
+	} else {
+		strncpy(dst, src, size);
+	}
+	dst[size] = '\0';
 }
 
 /*!
@@ -778,7 +802,7 @@ static unsigned int osp_choose_timelimit(
  * \param tokenlen OSP token length
  * \param token OSP token
  * \param reason Failure reason, output
- * \param result OSP lookup results, in/output
+ * \param results OSP lookup results, in/output
  * \return 1 Success, 0 Failed, -1 Error
  */
 static int osp_check_destination(
@@ -789,7 +813,7 @@ static int osp_check_destination(
 	unsigned int tokenlen,
 	const char* token,
 	OSPEFAILREASON* reason,
-	struct osp_result* result)
+	struct osp_results* results)
 {
 	int res;
 	OSPE_DEST_OSPENABLED enabled;
@@ -802,38 +826,38 @@ static int osp_check_destination(
 		return -1;
 	}
 
-	if ((error = OSPPTransactionIsDestOSPEnabled(result->outhandle, &enabled)) != OSPC_ERR_NO_ERROR) {
+	if ((error = OSPPTransactionIsDestOSPEnabled(results->outhandle, &enabled)) != OSPC_ERR_NO_ERROR) {
 		ast_debug(1, "OSP: Unable to get destination OSP version, error '%d'\n", error);
 		*reason = OSPC_FAIL_NORMAL_UNSPECIFIED;
 		return -1;
 	}
 
 	if (enabled == OSPC_DOSP_FALSE) {
-		result->token[0] = '\0';
+		results->token[0] = '\0';
 	} else {
-		ast_base64encode(result->token, (const unsigned char*)token, tokenlen, sizeof(result->token) - 1);
+		ast_base64encode(results->token, (const unsigned char*)token, tokenlen, sizeof(results->token) - 1);
 	}
 
-	if ((error = OSPPTransactionGetDestNetworkId(result->outhandle, result->networkid)) != OSPC_ERR_NO_ERROR) {
+	if ((error = OSPPTransactionGetDestNetworkId(results->outhandle, results->networkid)) != OSPC_ERR_NO_ERROR) {
 		ast_debug(1, "OSP: Unable to get destination network ID, error '%d'\n", error);
-		result->networkid[0] = '\0';
+		results->networkid[0] = '\0';
 	}
 
-	if ((error = OSPPTransactionGetNumberPortability(result->outhandle, result->nprn, result->npcic, &result->npdi)) != OSPC_ERR_NO_ERROR) {
+	if ((error = OSPPTransactionGetNumberPortability(results->outhandle, results->nprn, results->npcic, &results->npdi)) != OSPC_ERR_NO_ERROR) {
 		ast_debug(1, "OSP: Unable to get number portability parameters, error '%d'\n", error);
-		result->nprn[0] = '\0';
-		result->npcic[0] = '\0';
-		result->npdi = 0;
+		results->nprn[0] = '\0';
+		results->npcic[0] = '\0';
+		results->npdi = 0;
 	}
 
-	if ((error = OSPPTransactionGetDestProtocol(result->outhandle, &protocol)) != OSPC_ERR_NO_ERROR) {
+	if ((error = OSPPTransactionGetDestProtocol(results->outhandle, &protocol)) != OSPC_ERR_NO_ERROR) {
 		ast_debug(1, "OSP: Unable to get destination protocol, error '%d'\n", error);
 		*reason = OSPC_FAIL_NORMAL_UNSPECIFIED;
-		result->token[0] = '\0';
-		result->networkid[0] = '\0';
-		result->nprn[0] = '\0';
-		result->npcic[0] = '\0';
-		result->npdi = 0;
+		results->token[0] = '\0';
+		results->networkid[0] = '\0';
+		results->nprn[0] = '\0';
+		results->npcic[0] = '\0';
+		results->npdi = 0;
 		return -1;
 	}
 
@@ -843,44 +867,44 @@ static int osp_check_destination(
 	switch(protocol) {
 	case OSPC_DPROT_Q931:
 		ast_debug(1, "OSP: protocol '%s'\n", OSP_PROT_H323);
-		ast_copy_string(result->tech, OSP_TECH_H323, sizeof(result->tech));
-		ast_copy_string(result->dest, destination + 1, sizeof(result->dest));
-		ast_copy_string(result->calling, calling, sizeof(result->calling));
-		ast_copy_string(result->called, called, sizeof(result->called));
+		ast_copy_string(results->tech, OSP_TECH_H323, sizeof(results->tech));
+		ast_copy_string(results->dest, destination + 1, sizeof(results->dest));
+		ast_copy_string(results->calling, calling, sizeof(results->calling));
+		ast_copy_string(results->called, called, sizeof(results->called));
 		break;
 	case OSPC_DPROT_SIP:
 		ast_debug(1, "OSP: protocol '%s'\n", OSP_PROT_SIP);
-		ast_copy_string(result->tech, OSP_TECH_SIP, sizeof(result->tech));
-		ast_copy_string(result->dest, destination + 1, sizeof(result->dest));
-		ast_copy_string(result->calling, calling, sizeof(result->calling));
-		ast_copy_string(result->called, called, sizeof(result->called));
+		ast_copy_string(results->tech, OSP_TECH_SIP, sizeof(results->tech));
+		ast_copy_string(results->dest, destination + 1, sizeof(results->dest));
+		ast_copy_string(results->calling, calling, sizeof(results->calling));
+		ast_copy_string(results->called, called, sizeof(results->called));
 		break;
 	case OSPC_DPROT_IAX:
 		ast_debug(1, "OSP: protocol '%s'\n", OSP_PROT_IAX);
-		ast_copy_string(result->tech, OSP_TECH_IAX, sizeof(result->tech));
-		ast_copy_string(result->dest, destination + 1, sizeof(result->dest));
-		ast_copy_string(result->calling, calling, sizeof(result->calling));
-		ast_copy_string(result->called, called, sizeof(result->called));
+		ast_copy_string(results->tech, OSP_TECH_IAX, sizeof(results->tech));
+		ast_copy_string(results->dest, destination + 1, sizeof(results->dest));
+		ast_copy_string(results->calling, calling, sizeof(results->calling));
+		ast_copy_string(results->called, called, sizeof(results->called));
 		break;
 	case OSPC_DPROT_UNDEFINED:
 	case OSPC_DPROT_UNKNOWN:
 		ast_debug(1, "OSP: unknown/undefined protocol '%d'\n", protocol);
 		ast_debug(1, "OSP: use default protocol '%s'\n", provider->defaultprotocol);
 
-		ast_copy_string(result->tech, provider->defaultprotocol, sizeof(result->tech));
-		ast_copy_string(result->dest, destination + 1, sizeof(result->dest));
-		ast_copy_string(result->calling, calling, sizeof(result->calling));
-		ast_copy_string(result->called, called, sizeof(result->called));
+		ast_copy_string(results->tech, provider->defaultprotocol, sizeof(results->tech));
+		ast_copy_string(results->dest, destination + 1, sizeof(results->dest));
+		ast_copy_string(results->calling, calling, sizeof(results->calling));
+		ast_copy_string(results->called, called, sizeof(results->called));
 		break;
 	case OSPC_DPROT_LRQ:
 	default:
 		ast_log(LOG_WARNING, "OSP: unsupported protocol '%d'\n", protocol);
 		*reason = OSPC_FAIL_PROTOCOL_ERROR;
-		result->token[0] = '\0';
-		result->networkid[0] = '\0';
-		result->nprn[0] = '\0';
-		result->npcic[0] = '\0';
-		result->npdi = 0;
+		results->token[0] = '\0';
+		results->networkid[0] = '\0';
+		results->nprn[0] = '\0';
+		results->npcic[0] = '\0';
+		results->npdi = 0;
 		res = 0;
 		break;
 	}
@@ -966,22 +990,22 @@ static int osp_auth(
 /*!
  * \brief Create a UUID
  * \param uuid UUID buffer
- * \param buffersize UUID buffer size
+ * \param bufsize UUID buffer size
  * \return 1 Created, -1 Error
  */
 static int osp_create_uuid(
 	unsigned char* uuid,
-	unsigned int* buffersize)
+	unsigned int* bufsize)
 {
 	int i, res;
-	long int* tmp;
+	long int tmp[OSP_UUID_SIZE / sizeof(long int)];
 
-	if (*buffersize >= OSP_UUID_SIZE) {
-		tmp = (long int*)uuid;
+	if (*bufsize >= OSP_UUID_SIZE) {
 		for (i = 0; i < OSP_UUID_SIZE / sizeof(long int); i++) {
 			tmp[i] = ast_random();
 		}
-		*buffersize = OSP_UUID_SIZE;
+		memcpy(uuid, tmp, OSP_UUID_SIZE);
+		*bufsize = OSP_UUID_SIZE;
 		res = 1;
 	} else {
 		res = -1;
@@ -994,18 +1018,18 @@ static int osp_create_uuid(
  * \brief UUID to string
  * \param uuid UUID
  * \param buffer String buffer
- * \param buffersize String buffer size
+ * \param bufsize String buffer size
  * \return 1 Successed, -1 Error
  */
 static int osp_uuid2str(
 	unsigned char* uuid,
 	char* buffer,
-	unsigned int buffersize)
+	unsigned int bufsize)
 {
 	int res;
 
-	if (buffersize > OSP_UUIDSTR_SIZE) {
-		snprintf(buffer, buffersize, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+	if (bufsize > OSP_UUIDSTR_SIZE) {
+		snprintf(buffer, bufsize, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
 			uuid[0], uuid[1], uuid[2], uuid[3], uuid[4], uuid[5], uuid[6], uuid[7],
 			uuid[8], uuid[9], uuid[10], uuid[11], uuid[12], uuid[13], uuid[14], uuid[15]);
 		res = 1;
@@ -1052,24 +1076,26 @@ static int osp_create_callid(
 /*!
  * \brief OSP Lookup function
  * \param provider OSP provider context name
+ * \param callidtypes Call ID types
  * \param srcdev Source device of outbound call
  * \param calling Calling number
  * \param called Called number
  * \param snetid Source network ID
  * \param np NP parameters
- * \param callidtypes Call ID types
- * \param result Lookup results
+ * \param div SIP Diversion header parameters
+ * \param results Lookup results
  * \return 1 Found , 0 No route, -1 Error
  */
 static int osp_lookup(
 	const char* provider,
+	unsigned int callidtypes,
 	const char* srcdev,
 	const char* calling,
 	const char* called,
 	const char* snetid,
 	struct osp_npparam* np,
-	unsigned int callidtypes,
-	struct osp_result* result)
+	struct osp_diversion* div,
+	struct osp_results* results)
 {
 	int res;
 	struct osp_provider* p = NULL;
@@ -1081,6 +1107,7 @@ static int osp_lookup(
 	char token[OSP_TOKSTR_SIZE];
 	char src[OSP_NORSTR_SIZE];
 	char dev[OSP_NORSTR_SIZE];
+	char host[OSP_NORSTR_SIZE];
 	unsigned int i, type;
 	struct osp_callid callid;
 	unsigned int callidnum;
@@ -1089,38 +1116,41 @@ static int osp_lookup(
 	OSPEFAILREASON reason;
 	int error;
 
-	result->outhandle = OSP_INVALID_HANDLE;
-	result->tech[0] = '\0';
-	result->dest[0] = '\0';
-	result->calling[0] = '\0';
-	result->called[0] = '\0';
-	result->token[0] = '\0';
-	result->networkid[0] = '\0';
-	result->nprn[0] = '\0';
-	result->npcic[0] = '\0';
-	result->npdi = 0;
-	result->numresults = 0;
-	result->outtimelimit = OSP_DEF_TIMELIMIT;
+	results->outhandle = OSP_INVALID_HANDLE;
+	results->tech[0] = '\0';
+	results->dest[0] = '\0';
+	results->calling[0] = '\0';
+	results->called[0] = '\0';
+	results->token[0] = '\0';
+	results->networkid[0] = '\0';
+	results->nprn[0] = '\0';
+	results->npcic[0] = '\0';
+	results->npdi = 0;
+	results->numresults = 0;
+	results->outtimelimit = OSP_DEF_TIMELIMIT;
 
 	if ((res = osp_get_provider(provider, &p)) <= 0) {
 		ast_debug(1, "OSP: Unabe to find OSP provider '%s'\n", provider);
 		return res;
 	}
 
-	if ((res = osp_create_transaction(provider, &result->outhandle, sizeof(source), source)) <= 0) {
+	if ((res = osp_create_transaction(provider, &results->outhandle, sizeof(source), source)) <= 0) {
 		ast_debug(1, "OSP: Unable to generate transaction handle\n");
-		result->outhandle = OSP_INVALID_HANDLE;
-		if (result->inhandle != OSP_INVALID_HANDLE) {
-			OSPPTransactionRecordFailure(result->inhandle, OSPC_FAIL_NORMAL_UNSPECIFIED);
+		results->outhandle = OSP_INVALID_HANDLE;
+		if (results->inhandle != OSP_INVALID_HANDLE) {
+			OSPPTransactionRecordFailure(results->inhandle, OSPC_FAIL_NORMAL_UNSPECIFIED);
 		}
 		return -1;
 	}
 
 	if (!ast_strlen_zero(snetid)) {
-		OSPPTransactionSetNetworkIds(result->outhandle, snetid, "");
+		OSPPTransactionSetNetworkIds(results->outhandle, snetid, "");
 	}
 
-	OSPPTransactionSetNumberPortability(result->outhandle, np->rn, np->cic, np->npdi);
+	OSPPTransactionSetNumberPortability(results->outhandle, np->rn, np->cic, np->npdi);
+
+	osp_convert_address(div->host, host, sizeof(host));
+	OSPPTransactionSetDiversion(results->outhandle, div->user, host);
 
 	callidnum = 0;
 	callids[0] = NULL;
@@ -1137,9 +1167,9 @@ static int osp_lookup(
 
 	osp_convert_address(source, src, sizeof(src));
 	osp_convert_address(srcdev, dev, sizeof(dev));
-	result->numresults = OSP_DEF_DESTINATIONS;
+	results->numresults = OSP_DEF_DESTINATIONS;
 	error = OSPPTransactionRequestAuthorisation(
-		result->outhandle,
+		results->outhandle,
 		src,
 		dev,
 		calling ? calling : "",
@@ -1150,7 +1180,7 @@ static int osp_lookup(
 		callidnum,
 		callids,
 		NULL,
-		&result->numresults,
+		&results->numresults,
 		&dummy,
 		NULL);
 
@@ -1160,31 +1190,31 @@ static int osp_lookup(
 
 	if (error != OSPC_ERR_NO_ERROR) {
 		ast_debug(1, "OSP: Unable to request authorization, error '%d'\n", error);
-		result->numresults = 0;
-		if (result->inhandle != OSP_INVALID_HANDLE) {
-			OSPPTransactionRecordFailure(result->inhandle, OSPC_FAIL_NORMAL_UNSPECIFIED);
+		results->numresults = 0;
+		if (results->inhandle != OSP_INVALID_HANDLE) {
+			OSPPTransactionRecordFailure(results->inhandle, OSPC_FAIL_NORMAL_UNSPECIFIED);
 		}
 		return -1;
 	}
 
-	if (!result->numresults) {
+	if (!results->numresults) {
 		ast_debug(1, "OSP: No more destination\n");
-		if (result->inhandle != OSP_INVALID_HANDLE) {
-			OSPPTransactionRecordFailure(result->inhandle, OSPC_FAIL_NO_ROUTE_TO_DEST);
+		if (results->inhandle != OSP_INVALID_HANDLE) {
+			OSPPTransactionRecordFailure(results->inhandle, OSPC_FAIL_NO_ROUTE_TO_DEST);
 		}
 		return 0;
 	}
 
-	result->outcallid.len = sizeof(result->outcallid.buf);
+	results->outcallid.len = sizeof(results->outcallid.buf);
 	tokenlen = sizeof(token);
 	error = OSPPTransactionGetFirstDestination(
-		result->outhandle,
+		results->outhandle,
 		0,
 		NULL,
 		NULL,
-		&result->outtimelimit,
-		&result->outcallid.len,
-		result->outcallid.buf,
+		&results->outtimelimit,
+		&results->outcallid.len,
+		results->outcallid.buf,
 		sizeof(callednum),
 		callednum,
 		sizeof(callingnum),
@@ -1197,48 +1227,48 @@ static int osp_lookup(
 		token);
 	if (error != OSPC_ERR_NO_ERROR) {
 		ast_debug(1, "OSP: Unable to get first route, error '%d'\n", error);
-		result->numresults = 0;
-		result->outtimelimit = OSP_DEF_TIMELIMIT;
-		if (result->inhandle != OSP_INVALID_HANDLE) {
-			OSPPTransactionRecordFailure(result->inhandle, OSPC_FAIL_NO_ROUTE_TO_DEST);
+		results->numresults = 0;
+		results->outtimelimit = OSP_DEF_TIMELIMIT;
+		if (results->inhandle != OSP_INVALID_HANDLE) {
+			OSPPTransactionRecordFailure(results->inhandle, OSPC_FAIL_NO_ROUTE_TO_DEST);
 		}
 		return -1;
 	}
 
-	result->numresults--;
-	result->outtimelimit = osp_choose_timelimit(result->intimelimit, result->outtimelimit);
-	ast_debug(1, "OSP: outtimelimit '%d'\n", result->outtimelimit);
+	results->numresults--;
+	results->outtimelimit = osp_choose_timelimit(results->intimelimit, results->outtimelimit);
+	ast_debug(1, "OSP: outtimelimit '%d'\n", results->outtimelimit);
 	ast_debug(1, "OSP: calling '%s'\n", callingnum);
 	ast_debug(1, "OSP: called '%s'\n", callednum);
 	ast_debug(1, "OSP: destination '%s'\n", destination);
 	ast_debug(1, "OSP: token size '%d'\n", tokenlen);
 
-	if ((res = osp_check_destination(p, callingnum, callednum, destination, tokenlen, token, &reason, result)) > 0) {
+	if ((res = osp_check_destination(p, callingnum, callednum, destination, tokenlen, token, &reason, results)) > 0) {
 		return 1;
 	}
 
-	if (!result->numresults) {
+	if (!results->numresults) {
 		ast_debug(1, "OSP: No more destination\n");
-		result->outtimelimit = OSP_DEF_TIMELIMIT;
-		OSPPTransactionRecordFailure(result->outhandle, reason);
-		if (result->inhandle != OSP_INVALID_HANDLE) {
-			OSPPTransactionRecordFailure(result->inhandle, OSPC_FAIL_NO_ROUTE_TO_DEST);
+		results->outtimelimit = OSP_DEF_TIMELIMIT;
+		OSPPTransactionRecordFailure(results->outhandle, reason);
+		if (results->inhandle != OSP_INVALID_HANDLE) {
+			OSPPTransactionRecordFailure(results->inhandle, OSPC_FAIL_NO_ROUTE_TO_DEST);
 		}
 		return 0;
 	}
 
-	while(result->numresults) {
-		result->outcallid.len = sizeof(result->outcallid.buf);
+	while(results->numresults) {
+		results->outcallid.len = sizeof(results->outcallid.buf);
 		tokenlen = sizeof(token);
 		error = OSPPTransactionGetNextDestination(
-			result->outhandle,
+			results->outhandle,
 			reason,
 			0,
 			NULL,
 			NULL,
-			&result->outtimelimit,
-			&result->outcallid.len,
-			result->outcallid.buf,
+			&results->outtimelimit,
+			&results->outcallid.len,
+			results->outcallid.buf,
 			sizeof(callednum),
 			callednum,
 			sizeof(callingnum),
@@ -1250,31 +1280,31 @@ static int osp_lookup(
 			&tokenlen,
 			token);
 		if (error == OSPC_ERR_NO_ERROR) {
-			result->numresults--;
-			result->outtimelimit = osp_choose_timelimit(result->intimelimit, result->outtimelimit);
-			ast_debug(1, "OSP: outtimelimit '%d'\n", result->outtimelimit);
+			results->numresults--;
+			results->outtimelimit = osp_choose_timelimit(results->intimelimit, results->outtimelimit);
+			ast_debug(1, "OSP: outtimelimit '%d'\n", results->outtimelimit);
 			ast_debug(1, "OSP: calling '%s'\n", callingnum);
 			ast_debug(1, "OSP: called '%s'\n", callednum);
 			ast_debug(1, "OSP: destination '%s'\n", destination);
 			ast_debug(1, "OSP: token size '%d'\n", tokenlen);
 
-			if ((res = osp_check_destination(p, callingnum, callednum, destination, tokenlen, token, &reason, result)) > 0) {
+			if ((res = osp_check_destination(p, callingnum, callednum, destination, tokenlen, token, &reason, results)) > 0) {
 				break;
-			} else if (!result->numresults) {
+			} else if (!results->numresults) {
 				ast_debug(1, "OSP: No more destination\n");
-				OSPPTransactionRecordFailure(result->outhandle, reason);
-				if (result->inhandle != OSP_INVALID_HANDLE) {
-					OSPPTransactionRecordFailure(result->inhandle, OSPC_FAIL_NO_ROUTE_TO_DEST);
+				OSPPTransactionRecordFailure(results->outhandle, reason);
+				if (results->inhandle != OSP_INVALID_HANDLE) {
+					OSPPTransactionRecordFailure(results->inhandle, OSPC_FAIL_NO_ROUTE_TO_DEST);
 				}
 				res = 0;
 				break;
 			}
 		} else {
 			ast_debug(1, "OSP: Unable to get route, error '%d'\n", error);
-			result->numresults = 0;
-			result->outtimelimit = OSP_DEF_TIMELIMIT;
-			if (result->inhandle != OSP_INVALID_HANDLE) {
-				OSPPTransactionRecordFailure(result->inhandle, OSPC_FAIL_NORMAL_UNSPECIFIED);
+			results->numresults = 0;
+			results->outtimelimit = OSP_DEF_TIMELIMIT;
+			if (results->inhandle != OSP_INVALID_HANDLE) {
+				OSPPTransactionRecordFailure(results->inhandle, OSPC_FAIL_NORMAL_UNSPECIFIED);
 			}
 			res = -1;
 			break;
@@ -1287,13 +1317,13 @@ static int osp_lookup(
  * \brief OSP Lookup Next function
  * \param provider OSP provider name
  * \param cause Asterisk hangup cuase
- * \param result Lookup results, in/output
+ * \param results Lookup results, in/output
  * \return 1 Found , 0 No route, -1 Error
  */
 static int osp_next(
 	const char* provider,
 	int cause,
-	struct osp_result* result)
+	struct osp_results* results)
 {
 	int res;
 	struct osp_provider* p = NULL;
@@ -1305,54 +1335,54 @@ static int osp_next(
 	OSPEFAILREASON reason;
 	int error;
 
-	result->tech[0] = '\0';
-	result->dest[0] = '\0';
-	result->calling[0] = '\0';
-	result->called[0] = '\0';
-	result->token[0] = '\0';
-	result->networkid[0] = '\0';
-	result->nprn[0] = '\0';
-	result->npcic[0] = '\0';
-	result->npdi = 0;
-	result->outtimelimit = OSP_DEF_TIMELIMIT;
+	results->tech[0] = '\0';
+	results->dest[0] = '\0';
+	results->calling[0] = '\0';
+	results->called[0] = '\0';
+	results->token[0] = '\0';
+	results->networkid[0] = '\0';
+	results->nprn[0] = '\0';
+	results->npcic[0] = '\0';
+	results->npdi = 0;
+	results->outtimelimit = OSP_DEF_TIMELIMIT;
 
 	if ((res = osp_get_provider(provider, &p)) <= 0) {
 		ast_debug(1, "OSP: Unabe to find OSP provider '%s'\n", provider);
 		return res;
 	}
 
-	if (result->outhandle == OSP_INVALID_HANDLE) {
+	if (results->outhandle == OSP_INVALID_HANDLE) {
 		ast_debug(1, "OSP: Transaction handle undefined\n");
-		result->numresults = 0;
-		if (result->inhandle != OSP_INVALID_HANDLE) {
-			OSPPTransactionRecordFailure(result->inhandle, OSPC_FAIL_NORMAL_UNSPECIFIED);
+		results->numresults = 0;
+		if (results->inhandle != OSP_INVALID_HANDLE) {
+			OSPPTransactionRecordFailure(results->inhandle, OSPC_FAIL_NORMAL_UNSPECIFIED);
 		}
 		return -1;
 	}
 
 	reason = asterisk2osp(cause);
 
-	if (!result->numresults) {
+	if (!results->numresults) {
 		ast_debug(1, "OSP: No more destination\n");
-		OSPPTransactionRecordFailure(result->outhandle, reason);
-		if (result->inhandle != OSP_INVALID_HANDLE) {
-			OSPPTransactionRecordFailure(result->inhandle, OSPC_FAIL_NO_ROUTE_TO_DEST);
+		OSPPTransactionRecordFailure(results->outhandle, reason);
+		if (results->inhandle != OSP_INVALID_HANDLE) {
+			OSPPTransactionRecordFailure(results->inhandle, OSPC_FAIL_NO_ROUTE_TO_DEST);
 		}
 		return 0;
 	}
 
-	while(result->numresults) {
-		result->outcallid.len = sizeof(result->outcallid.buf);
+	while(results->numresults) {
+		results->outcallid.len = sizeof(results->outcallid.buf);
 		tokenlen = sizeof(token);
 		error = OSPPTransactionGetNextDestination(
-			result->outhandle,
+			results->outhandle,
 			reason,
 			0,
 			NULL,
 			NULL,
-			&result->outtimelimit,
-			&result->outcallid.len,
-			result->outcallid.buf,
+			&results->outtimelimit,
+			&results->outcallid.len,
+			results->outcallid.buf,
 			sizeof(callednum),
 			callednum,
 			sizeof(callingnum),
@@ -1364,33 +1394,33 @@ static int osp_next(
 			&tokenlen,
 			token);
 		if (error == OSPC_ERR_NO_ERROR) {
-			result->numresults--;
-			result->outtimelimit = osp_choose_timelimit(result->intimelimit, result->outtimelimit);
-			ast_debug(1, "OSP: outtimelimit '%d'\n", result->outtimelimit);
+			results->numresults--;
+			results->outtimelimit = osp_choose_timelimit(results->intimelimit, results->outtimelimit);
+			ast_debug(1, "OSP: outtimelimit '%d'\n", results->outtimelimit);
 			ast_debug(1, "OSP: calling '%s'\n", callingnum);
 			ast_debug(1, "OSP: called '%s'\n", callednum);
 			ast_debug(1, "OSP: destination '%s'\n", destination);
 			ast_debug(1, "OSP: token size '%d'\n", tokenlen);
 
-			if ((res = osp_check_destination(p, callingnum, callednum, destination, tokenlen, token, &reason, result)) > 0) {
+			if ((res = osp_check_destination(p, callingnum, callednum, destination, tokenlen, token, &reason, results)) > 0) {
 				res = 1;
 				break;
-			} else if (!result->numresults) {
+			} else if (!results->numresults) {
 				ast_debug(1, "OSP: No more destination\n");
-				OSPPTransactionRecordFailure(result->outhandle, reason);
-				if (result->inhandle != OSP_INVALID_HANDLE) {
-					OSPPTransactionRecordFailure(result->inhandle, OSPC_FAIL_NO_ROUTE_TO_DEST);
+				OSPPTransactionRecordFailure(results->outhandle, reason);
+				if (results->inhandle != OSP_INVALID_HANDLE) {
+					OSPPTransactionRecordFailure(results->inhandle, OSPC_FAIL_NO_ROUTE_TO_DEST);
 				}
 				res = 0;
 				break;
 			}
 		} else {
 			ast_debug(1, "OSP: Unable to get route, error '%d'\n", error);
-			result->token[0] = '\0';
-			result->numresults = 0;
-			result->outtimelimit = OSP_DEF_TIMELIMIT;
-			if (result->inhandle != OSP_INVALID_HANDLE) {
-				OSPPTransactionRecordFailure(result->inhandle, OSPC_FAIL_NORMAL_UNSPECIFIED);
+			results->token[0] = '\0';
+			results->numresults = 0;
+			results->outtimelimit = OSP_DEF_TIMELIMIT;
+			if (results->inhandle != OSP_INVALID_HANDLE) {
+				OSPPTransactionRecordFailure(results->inhandle, OSPC_FAIL_NORMAL_UNSPECIFIED);
 			}
 			res = -1;
 			break;
@@ -1560,14 +1590,15 @@ static int osplookup_exec(
 {
 	int res, cres;
 	const char* provider = OSP_DEF_PROVIDER;
+	unsigned int callidtypes = OSP_CALLID_UNDEFINED;
 	struct varshead* headp;
 	struct ast_var_t* current;
 	const char* srcdev = "";
 	const char* snetid = "";
 	struct osp_npparam np;
+	struct osp_diversion div;
 	char buffer[OSP_TOKSTR_SIZE];
-	unsigned int callidtypes = OSP_CALLID_UNDEFINED;
-	struct osp_result result;
+	struct osp_results results;
 	const char* status;
 	char* tmp;
 
@@ -1613,18 +1644,23 @@ static int osplookup_exec(
     np.cic = "";
     np.npdi = 0;
 
-	result.inhandle = OSP_INVALID_HANDLE;
-	result.intimelimit = OSP_DEF_TIMELIMIT;
+	div.user = "";
+	div.host = "";
+
+	results.inhandle = OSP_INVALID_HANDLE;
+	results.intimelimit = OSP_DEF_TIMELIMIT;
 
 	headp = &chan->varshead;
 	AST_LIST_TRAVERSE(headp, current, entries) {
-		if (!strcasecmp(ast_var_name(current), "OSPINHANDLE")) {
-			if (sscanf(ast_var_value(current), "%30d", &result.inhandle) != 1) {
-				result.inhandle = OSP_INVALID_HANDLE;
+		if (!strcasecmp(ast_var_name(current), "OSPPEERIP")) {
+			srcdev = ast_var_value(current);
+		} else if (!strcasecmp(ast_var_name(current), "OSPINHANDLE")) {
+			if (sscanf(ast_var_value(current), "%30d", &results.inhandle) != 1) {
+				results.inhandle = OSP_INVALID_HANDLE;
 			}
 		} else if (!strcasecmp(ast_var_name(current), "OSPINTIMELIMIT")) {
-			if (sscanf(ast_var_value(current), "%30d", &result.intimelimit) != 1) {
-				result.intimelimit = OSP_DEF_TIMELIMIT;
+			if (sscanf(ast_var_value(current), "%30d", &results.intimelimit) != 1) {
+				results.intimelimit = OSP_DEF_TIMELIMIT;
 			}
 		} else if (!strcasecmp(ast_var_name(current), "OSPINNETWORKID")) {
 			snetid = ast_var_value(current);
@@ -1636,38 +1672,42 @@ static int osplookup_exec(
 			if (ast_true(ast_var_value(current))) {
 				np.npdi = 1;
 			}
-		} else if (!strcasecmp(ast_var_name(current), "OSPPEERIP")) {
-			srcdev = ast_var_value(current);
+		} else if (!strcasecmp(ast_var_name(current), "OSPINDIVUSER")) {
+			div.user = ast_var_value(current);
+		} else if (!strcasecmp(ast_var_name(current), "OSPINDIVHOST")) {
+			div.host = ast_var_value(current);
 		}
 	}
-	ast_debug(1, "OSPLookup: OSPINHANDLE '%d'\n", result.inhandle);
-	ast_debug(1, "OSPLookup: OSPINTIMELIMIT '%d'\n", result.intimelimit);
+	ast_debug(1, "OSPLookup: source device '%s'\n", srcdev);
+	ast_debug(1, "OSPLookup: OSPINHANDLE '%d'\n", results.inhandle);
+	ast_debug(1, "OSPLookup: OSPINTIMELIMIT '%d'\n", results.intimelimit);
 	ast_debug(1, "OSPLookup: OSPINNETWORKID '%s'\n", snetid);
 	ast_debug(1, "OSPLookup: OSPINNPRN '%s'\n", np.rn);
 	ast_debug(1, "OSPLookup: OSPINNPCIC '%s'\n", np.cic);
 	ast_debug(1, "OSPLookup: OSPINNPDI '%d'\n", np.npdi);
-	ast_debug(1, "OSPLookup: source device '%s'\n", srcdev);
+	ast_debug(1, "OSPLookup: OSPINDIVUSER '%s'\n", div.user);
+	ast_debug(1, "OSPLookup: OSPINDIVHOST'%s'\n", div.host);
 
 	if ((cres = ast_autoservice_start(chan)) < 0) {
 		return -1;
 	}
 
-	if ((res = osp_lookup(provider, srcdev, chan->cid.cid_num, args.exten, snetid, &np, callidtypes, &result)) > 0) {
+	if ((res = osp_lookup(provider, callidtypes, srcdev, chan->cid.cid_num, args.exten, snetid, &np, &div, &results)) > 0) {
 		status = AST_OSP_SUCCESS;
 	} else {
-		result.tech[0] = '\0';
-		result.dest[0] = '\0';
-		result.calling[0] = '\0';
-		result.called[0] = '\0';
-		result.token[0] = '\0';
-		result.networkid[0] = '\0';
-		result.nprn[0] = '\0';
-		result.npcic[0] = '\0';
-		result.npdi = 0;
-		result.numresults = 0;
-		result.outtimelimit = OSP_DEF_TIMELIMIT;
-		result.outcallid.buf[0] = '\0';
-		result.outcallid.len = 0;
+		results.tech[0] = '\0';
+		results.dest[0] = '\0';
+		results.calling[0] = '\0';
+		results.called[0] = '\0';
+		results.token[0] = '\0';
+		results.networkid[0] = '\0';
+		results.nprn[0] = '\0';
+		results.npcic[0] = '\0';
+		results.npdi = 0;
+		results.numresults = 0;
+		results.outtimelimit = OSP_DEF_TIMELIMIT;
+		results.outcallid.buf[0] = '\0';
+		results.outcallid.len = 0;
 		if (!res) {
 			status = AST_OSP_FAILED;
 		} else {
@@ -1675,32 +1715,32 @@ static int osplookup_exec(
 		}
 	}
 
-	snprintf(buffer, sizeof(buffer), "%d", result.outhandle);
+	snprintf(buffer, sizeof(buffer), "%d", results.outhandle);
 	pbx_builtin_setvar_helper(chan, "OSPOUTHANDLE", buffer);
 	ast_debug(1, "OSPLookup: OSPOUTHANDLE '%s'\n", buffer);
-	pbx_builtin_setvar_helper(chan, "OSPTECH", result.tech);
-	ast_debug(1, "OSPLookup: OSPTECH '%s'\n", result.tech);
-	pbx_builtin_setvar_helper(chan, "OSPDEST", result.dest);
-	ast_debug(1, "OSPLookup: OSPDEST '%s'\n", result.dest);
-	pbx_builtin_setvar_helper(chan, "OSPCALLING", result.calling);
-	ast_debug(1, "OSPLookup: OSPCALLING '%s'\n", result.calling);
-	pbx_builtin_setvar_helper(chan, "OSPCALLED", result.called);
-	ast_debug(1, "OSPLookup: OSPCALLED '%s'\n", result.called);
-	pbx_builtin_setvar_helper(chan, "OSPOUTNETWORKID", result.networkid);
-	ast_debug(1, "OSPLookup: OSPOUTNETWORKID '%s'\n", result.networkid);
-	pbx_builtin_setvar_helper(chan, "OSPOUTNPRN", result.nprn);
-	ast_debug(1, "OSPLookup: OSPOUTNPRN '%s'\n", result.nprn);
-	pbx_builtin_setvar_helper(chan, "OSPOUTNPCIC", result.npcic);
-	ast_debug(1, "OSPLookup: OSPOUTNPCIC '%s'\n", result.npcic);
-	snprintf(buffer, sizeof(buffer), "%d", result.npdi);
+	pbx_builtin_setvar_helper(chan, "OSPTECH", results.tech);
+	ast_debug(1, "OSPLookup: OSPTECH '%s'\n", results.tech);
+	pbx_builtin_setvar_helper(chan, "OSPDEST", results.dest);
+	ast_debug(1, "OSPLookup: OSPDEST '%s'\n", results.dest);
+	pbx_builtin_setvar_helper(chan, "OSPCALLING", results.calling);
+	ast_debug(1, "OSPLookup: OSPCALLING '%s'\n", results.calling);
+	pbx_builtin_setvar_helper(chan, "OSPCALLED", results.called);
+	ast_debug(1, "OSPLookup: OSPCALLED '%s'\n", results.called);
+	pbx_builtin_setvar_helper(chan, "OSPOUTNETWORKID", results.networkid);
+	ast_debug(1, "OSPLookup: OSPOUTNETWORKID '%s'\n", results.networkid);
+	pbx_builtin_setvar_helper(chan, "OSPOUTNPRN", results.nprn);
+	ast_debug(1, "OSPLookup: OSPOUTNPRN '%s'\n", results.nprn);
+	pbx_builtin_setvar_helper(chan, "OSPOUTNPCIC", results.npcic);
+	ast_debug(1, "OSPLookup: OSPOUTNPCIC '%s'\n", results.npcic);
+	snprintf(buffer, sizeof(buffer), "%d", results.npdi);
 	pbx_builtin_setvar_helper(chan, "OSPOUTNPDI", buffer);
 	ast_debug(1, "OSPLookup: OSPOUTNPDI'%s'\n", buffer);
-	pbx_builtin_setvar_helper(chan, "OSPOUTTOKEN", result.token);
-	ast_debug(1, "OSPLookup: OSPOUTTOKEN size '%zd'\n", strlen(result.token));
-	snprintf(buffer, sizeof(buffer), "%d", result.numresults);
+	pbx_builtin_setvar_helper(chan, "OSPOUTTOKEN", results.token);
+	ast_debug(1, "OSPLookup: OSPOUTTOKEN size '%zd'\n", strlen(results.token));
+	snprintf(buffer, sizeof(buffer), "%d", results.numresults);
 	pbx_builtin_setvar_helper(chan, "OSPRESULTS", buffer);
 	ast_debug(1, "OSPLookup: OSPRESULTS '%s'\n", buffer);
-	snprintf(buffer, sizeof(buffer), "%d", result.outtimelimit);
+	snprintf(buffer, sizeof(buffer), "%d", results.outtimelimit);
 	pbx_builtin_setvar_helper(chan, "OSPOUTTIMELIMIT", buffer);
 	ast_debug(1, "OSPLookup: OSPOUTTIMELIMIT '%s'\n", buffer);
 	snprintf(buffer, sizeof(buffer), "%d", callidtypes);
@@ -1709,25 +1749,25 @@ static int osplookup_exec(
 	pbx_builtin_setvar_helper(chan, "OSPLOOKUPSTATUS", status);
 	ast_debug(1, "OSPLookup: %s\n", status);
 
-	if (!strcasecmp(result.tech, OSP_TECH_H323)) {
-		if ((callidtypes & OSP_CALLID_H323) && (result.outcallid.len != 0)) {
-			osp_uuid2str(result.outcallid.buf, buffer, sizeof(buffer));
+	if (!strcasecmp(results.tech, OSP_TECH_H323)) {
+		if ((callidtypes & OSP_CALLID_H323) && (results.outcallid.len != 0)) {
+			osp_uuid2str(results.outcallid.buf, buffer, sizeof(buffer));
 		} else {
 			buffer[0] = '\0';
 		}
 		pbx_builtin_setvar_helper(chan, "OSPOUTCALLID", buffer);
-		snprintf(buffer, sizeof(buffer), "%s/%s@%s", result.tech, result.called, result.dest);
+		snprintf(buffer, sizeof(buffer), "%s/%s@%s", results.tech, results.called, results.dest);
 		pbx_builtin_setvar_helper(chan, "OSPDIALSTR", buffer);
-	} else if (!strcasecmp(result.tech, OSP_TECH_SIP)) {
-		snprintf(buffer, sizeof(buffer), "%s/%s@%s", result.tech, result.called, result.dest);
+	} else if (!strcasecmp(results.tech, OSP_TECH_SIP)) {
+		snprintf(buffer, sizeof(buffer), "%s/%s@%s", results.tech, results.called, results.dest);
 		pbx_builtin_setvar_helper(chan, "OSPDIALSTR", buffer);
-		if (!ast_strlen_zero(result.token)) {
-			snprintf(buffer, sizeof(buffer), "%s%s", OSP_SIP_HEADER, result.token);
+		if (!ast_strlen_zero(results.token)) {
+			snprintf(buffer, sizeof(buffer), "%s%s", OSP_SIP_HEADER, results.token);
 			pbx_builtin_setvar_helper(chan, "_SIPADDHEADER", buffer);
 			ast_debug(1, "OSPLookup: SIPADDHEADER size '%zd'\n", strlen(buffer));
 		}
-	} else if (!strcasecmp(result.tech, OSP_TECH_IAX)) {
-		snprintf(buffer, sizeof(buffer), "%s/%s/%s", result.tech, result.dest, result.called);
+	} else if (!strcasecmp(results.tech, OSP_TECH_IAX)) {
+		snprintf(buffer, sizeof(buffer), "%s/%s/%s", results.tech, results.dest, results.called);
 		pbx_builtin_setvar_helper(chan, "OSPDIALSTR", buffer);
 	}
 
@@ -1759,7 +1799,7 @@ static int ospnext_exec(
 	int cause = 0;
 	struct varshead* headp;
 	struct ast_var_t* current;
-	struct osp_result result;
+	struct osp_results results;
 	char buffer[OSP_TOKSTR_SIZE];
 	unsigned int callidtypes = OSP_CALLID_UNDEFINED;
 	const char* status;
@@ -1793,57 +1833,57 @@ static int ospnext_exec(
 	}
 	ast_debug(1, "OSPlookup: provider '%s'\n", provider);
 
-	result.inhandle = OSP_INVALID_HANDLE;
-	result.outhandle = OSP_INVALID_HANDLE;
-	result.intimelimit = OSP_DEF_TIMELIMIT;
-	result.numresults = 0;
+	results.inhandle = OSP_INVALID_HANDLE;
+	results.outhandle = OSP_INVALID_HANDLE;
+	results.intimelimit = OSP_DEF_TIMELIMIT;
+	results.numresults = 0;
 
 	headp = &chan->varshead;
 	AST_LIST_TRAVERSE(headp, current, entries) {
 		if (!strcasecmp(ast_var_name(current), "OSPINHANDLE")) {
-			if (sscanf(ast_var_value(current), "%30d", &result.inhandle) != 1) {
-				result.inhandle = OSP_INVALID_HANDLE;
+			if (sscanf(ast_var_value(current), "%30d", &results.inhandle) != 1) {
+				results.inhandle = OSP_INVALID_HANDLE;
 			}
 		} else if (!strcasecmp(ast_var_name(current), "OSPOUTHANDLE")) {
-			if (sscanf(ast_var_value(current), "%30d", &result.outhandle) != 1) {
-				result.outhandle = OSP_INVALID_HANDLE;
+			if (sscanf(ast_var_value(current), "%30d", &results.outhandle) != 1) {
+				results.outhandle = OSP_INVALID_HANDLE;
 			}
 		} else if (!strcasecmp(ast_var_name(current), "OSPINTIMELIMIT")) {
-			if (sscanf(ast_var_value(current), "%30d", &result.intimelimit) != 1) {
-				result.intimelimit = OSP_DEF_TIMELIMIT;
+			if (sscanf(ast_var_value(current), "%30d", &results.intimelimit) != 1) {
+				results.intimelimit = OSP_DEF_TIMELIMIT;
 			}
 		} else if (!strcasecmp(ast_var_name(current), "OSPOUTCALLIDTYPES")) {
 			if (sscanf(ast_var_value(current), "%30d", &callidtypes) != 1) {
 				callidtypes = OSP_CALLID_UNDEFINED;
 			}
 		} else if (!strcasecmp(ast_var_name(current), "OSPRESULTS")) {
-			if (sscanf(ast_var_value(current), "%30d", &result.numresults) != 1) {
-				result.numresults = 0;
+			if (sscanf(ast_var_value(current), "%30d", &results.numresults) != 1) {
+				results.numresults = 0;
 			}
 		}
 	}
-	ast_debug(1, "OSPNext: OSPINHANDLE '%d'\n", result.inhandle);
-	ast_debug(1, "OSPNext: OSPOUTHANDLE '%d'\n", result.outhandle);
-	ast_debug(1, "OSPNext: OSPINTIMELIMIT '%d'\n", result.intimelimit);
+	ast_debug(1, "OSPNext: OSPINHANDLE '%d'\n", results.inhandle);
+	ast_debug(1, "OSPNext: OSPOUTHANDLE '%d'\n", results.outhandle);
+	ast_debug(1, "OSPNext: OSPINTIMELIMIT '%d'\n", results.intimelimit);
 	ast_debug(1, "OSPNext: OSPOUTCALLIDTYPES '%d'\n", callidtypes);
-	ast_debug(1, "OSPNext: OSPRESULTS '%d'\n", result.numresults);
+	ast_debug(1, "OSPNext: OSPRESULTS '%d'\n", results.numresults);
 
-	if ((res = osp_next(provider, cause, &result)) > 0) {
+	if ((res = osp_next(provider, cause, &results)) > 0) {
 		status = AST_OSP_SUCCESS;
 	} else {
-		result.tech[0] = '\0';
-		result.dest[0] = '\0';
-		result.calling[0] = '\0';
-		result.called[0] = '\0';
-		result.token[0] = '\0';
-		result.networkid[0] = '\0';
-		result.nprn[0] = '\0';
-		result.npcic[0] = '\0';
-		result.npdi = 0;
-		result.numresults = 0;
-		result.outtimelimit = OSP_DEF_TIMELIMIT;
-		result.outcallid.buf[0] = '\0';
-		result.outcallid.len = 0;
+		results.tech[0] = '\0';
+		results.dest[0] = '\0';
+		results.calling[0] = '\0';
+		results.called[0] = '\0';
+		results.token[0] = '\0';
+		results.networkid[0] = '\0';
+		results.nprn[0] = '\0';
+		results.npcic[0] = '\0';
+		results.npdi = 0;
+		results.numresults = 0;
+		results.outtimelimit = OSP_DEF_TIMELIMIT;
+		results.outcallid.buf[0] = '\0';
+		results.outcallid.len = 0;
 		if (!res) {
 			status = AST_OSP_FAILED;
 		} else {
@@ -1851,53 +1891,53 @@ static int ospnext_exec(
 		}
 	}
 
-	pbx_builtin_setvar_helper(chan, "OSPTECH", result.tech);
-	ast_debug(1, "OSPNext: OSPTECH '%s'\n", result.tech);
-	pbx_builtin_setvar_helper(chan, "OSPDEST", result.dest);
-	ast_debug(1, "OSPNext: OSPDEST '%s'\n", result.dest);
-	pbx_builtin_setvar_helper(chan, "OSPCALLING", result.calling);
-	ast_debug(1, "OSPNext: OSPCALLING '%s'\n", result.calling);
-	pbx_builtin_setvar_helper(chan, "OSPCALLED", result.called);
-	ast_debug(1, "OSPNext: OSPCALLED'%s'\n", result.called);
-	pbx_builtin_setvar_helper(chan, "OSPOUTNETWORKID", result.networkid);
-	ast_debug(1, "OSPLookup: OSPOUTNETWORKID '%s'\n", result.networkid);
-	pbx_builtin_setvar_helper(chan, "OSPOUTNPRN", result.nprn);
-	ast_debug(1, "OSPLookup: OSPOUTNPRN '%s'\n", result.nprn);
-	pbx_builtin_setvar_helper(chan, "OSPOUTNPCIC", result.npcic);
-	ast_debug(1, "OSPLookup: OSPOUTNPCIC '%s'\n", result.npcic);
-	snprintf(buffer, sizeof(buffer), "%d", result.npdi);
+	pbx_builtin_setvar_helper(chan, "OSPTECH", results.tech);
+	ast_debug(1, "OSPNext: OSPTECH '%s'\n", results.tech);
+	pbx_builtin_setvar_helper(chan, "OSPDEST", results.dest);
+	ast_debug(1, "OSPNext: OSPDEST '%s'\n", results.dest);
+	pbx_builtin_setvar_helper(chan, "OSPCALLING", results.calling);
+	ast_debug(1, "OSPNext: OSPCALLING '%s'\n", results.calling);
+	pbx_builtin_setvar_helper(chan, "OSPCALLED", results.called);
+	ast_debug(1, "OSPNext: OSPCALLED'%s'\n", results.called);
+	pbx_builtin_setvar_helper(chan, "OSPOUTNETWORKID", results.networkid);
+	ast_debug(1, "OSPLookup: OSPOUTNETWORKID '%s'\n", results.networkid);
+	pbx_builtin_setvar_helper(chan, "OSPOUTNPRN", results.nprn);
+	ast_debug(1, "OSPLookup: OSPOUTNPRN '%s'\n", results.nprn);
+	pbx_builtin_setvar_helper(chan, "OSPOUTNPCIC", results.npcic);
+	ast_debug(1, "OSPLookup: OSPOUTNPCIC '%s'\n", results.npcic);
+	snprintf(buffer, sizeof(buffer), "%d", results.npdi);
 	pbx_builtin_setvar_helper(chan, "OSPOUTNPDI", buffer);
 	ast_debug(1, "OSPLookup: OSPOUTNPDI'%s'\n", buffer);
-	pbx_builtin_setvar_helper(chan, "OSPOUTTOKEN", result.token);
-	ast_debug(1, "OSPNext: OSPOUTTOKEN size '%zd'\n", strlen(result.token));
-	snprintf(buffer, sizeof(buffer), "%d", result.numresults);
+	pbx_builtin_setvar_helper(chan, "OSPOUTTOKEN", results.token);
+	ast_debug(1, "OSPNext: OSPOUTTOKEN size '%zd'\n", strlen(results.token));
+	snprintf(buffer, sizeof(buffer), "%d", results.numresults);
 	pbx_builtin_setvar_helper(chan, "OSPRESULTS", buffer);
 	ast_debug(1, "OSPNext: OSPRESULTS '%s'\n", buffer);
-	snprintf(buffer, sizeof(buffer), "%d", result.outtimelimit);
+	snprintf(buffer, sizeof(buffer), "%d", results.outtimelimit);
 	pbx_builtin_setvar_helper(chan, "OSPOUTTIMELIMIT", buffer);
 	ast_debug(1, "OSPNext: OSPOUTTIMELIMIT '%s'\n", buffer);
 	pbx_builtin_setvar_helper(chan, "OSPNEXTSTATUS", status);
 	ast_debug(1, "OSPNext: %s\n", status);
 
-	if (!strcasecmp(result.tech, OSP_TECH_H323)) {
-		if ((callidtypes & OSP_CALLID_H323) && (result.outcallid.len != 0)) {
-			osp_uuid2str(result.outcallid.buf, buffer, sizeof(buffer));
+	if (!strcasecmp(results.tech, OSP_TECH_H323)) {
+		if ((callidtypes & OSP_CALLID_H323) && (results.outcallid.len != 0)) {
+			osp_uuid2str(results.outcallid.buf, buffer, sizeof(buffer));
 		} else {
 			buffer[0] = '\0';
 		}
 		pbx_builtin_setvar_helper(chan, "OSPOUTCALLID", buffer);
-		snprintf(buffer, sizeof(buffer), "%s/%s@%s", result.tech, result.called, result.dest);
+		snprintf(buffer, sizeof(buffer), "%s/%s@%s", results.tech, results.called, results.dest);
 		pbx_builtin_setvar_helper(chan, "OSPDIALSTR", buffer);
-	} else if (!strcasecmp(result.tech, OSP_TECH_SIP)) {
-		snprintf(buffer, sizeof(buffer), "%s/%s@%s", result.tech, result.called, result.dest);
+	} else if (!strcasecmp(results.tech, OSP_TECH_SIP)) {
+		snprintf(buffer, sizeof(buffer), "%s/%s@%s", results.tech, results.called, results.dest);
 		pbx_builtin_setvar_helper(chan, "OSPDIALSTR", buffer);
-		if (!ast_strlen_zero(result.token)) {
-			snprintf(buffer, sizeof(buffer), "%s%s", OSP_SIP_HEADER, result.token);
+		if (!ast_strlen_zero(results.token)) {
+			snprintf(buffer, sizeof(buffer), "%s%s", OSP_SIP_HEADER, results.token);
 			pbx_builtin_setvar_helper(chan, "_SIPADDHEADER", buffer);
 			ast_debug(1, "OSPLookup: SIPADDHEADER size '%zd'\n", strlen(buffer));
 		}
-	} else if (!strcasecmp(result.tech, OSP_TECH_IAX)) {
-		snprintf(buffer, sizeof(buffer), "%s/%s/%s", result.tech, result.dest, result.called);
+	} else if (!strcasecmp(results.tech, OSP_TECH_IAX)) {
+		snprintf(buffer, sizeof(buffer), "%s/%s/%s", results.tech, results.dest, results.called);
 		pbx_builtin_setvar_helper(chan, "OSPDIALSTR", buffer);
 	}
 
@@ -2150,7 +2190,7 @@ static char *handle_cli_osp_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 
 	if ((a->argc < 2) || (a->argc > 3))
 		return CLI_SHOWUSAGE;
-	if (a->argc > 2) 
+	if (a->argc > 2)
 		provider = a->argv[2];
 	if (!provider) {
 		switch (osp_tokenformat) {
@@ -2166,9 +2206,9 @@ static char *handle_cli_osp_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 			break;
 		}
 		ast_cli(a->fd, "OSP: %s/%s/%s/%s\n",
-			osp_initialized ? "Initialized" : "Uninitialized", 
-			osp_hardware ? "Accelerated" : "Normal", 
-			osp_security ? "Enabled" : "Disabled", 
+			osp_initialized ? "Initialized" : "Uninitialized",
+			osp_hardware ? "Accelerated" : "Normal",
+			osp_security ? "Enabled" : "Disabled",
 			tokenalgo);
 	}
 
