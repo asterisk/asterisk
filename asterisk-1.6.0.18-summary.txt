@@ -1,0 +1,1271 @@
+                                Release Summary
+
+                               asterisk-1.6.0.18
+
+                                Date: 2009-11-18
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.6.0.14.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                  Testers                     Reporters            
+   33 tilghman             8 dvossel                   7 atis                 
+   27 dvossel              6 atis                      4 ebroad               
+   17 file                 4 mnicholson                3 frawd                
+   16 kpfleming            3 amorsen                   3 kobaz                
+   11 jpeeler              3 davidw                    3 tzafrir              
+   10 russell              3 ebroad                    2 alecdavis            
+   8 dbrooks               3 mnick                     2 amorsen              
+   8 mnicholson            3 russell                   2 davidw               
+   7 oej                   3 tilghman                  2 dimas                
+   6 rmudgett              3 zerohalo                  2 dvossel              
+   6 seanbright            2 aragon                    2 fnordian             
+   4 ebroad                2 dbrooks                   2 jamicque             
+   4 mvanbaak              2 FabienToune               2 jsmith               
+   4 tzafrir               2 farisraouf                2 klaus3000            
+   3 lmadsen               2 frawd                     2 lmadsen              
+   3 mmichelson            2 kobaz                     2 marhbere             
+   3 mnick                 2 pkempgen                  2 mbeckwell            
+   2 amorsen               2 pprindeville              2 palbrecht            
+   2 atis                  2 rmudgett                  2 pkempgen             
+   2 davidw                2 slutec18                  2 pprindeville         
+   2 frawd                 1 alecdavis                 2 steinwej             
+   2 thedavidfactor        1 asgaroth                  2 thedavidfactor       
+   2 twilson               1 bklang                    2 zerohalo             
+   1 alecdavis             1 boroda                    1 aragon               
+   1 chappell              1 cervajs                   1 asgaroth             
+   1 dhubbard              1 dougm                     1 bklang               
+   1 dimas                 1 falves11                  1 bmh                  
+   1 fhackenberger         1 irroot                    1 boroda               
+   1 lmsteffan             1 jgutierrez on users list: 1 caspy                
+   1 Medozas               1 jsmith                    1 cbbs70a              
+   1 nic                   1 karesmakro                1 chappell             
+   1 noahisaac             1 klaus3000                 1 covici               
+   1 pkempgen              1 lmadsen                   1 cupotka              
+   1 pprindeville          1 lottc                     1 dhubbard             
+   1 ravindrad             1 maniax                    1 dkerr                
+   1 snuffy                1 markwaters                1 FabienToune          
+   1 steinwej              1 Medozas                   1 falves11             
+   1 tim                   1 mmichelson                1 fhackenberger        
+   1 tsearle               1 nblasgen                  1 francesco_r          
+   1 tweety                1 pdf                       1 globalnetinc         
+                           1 qwell                     1 irroot               
+                           1 ravindrad                 1 john8675309          
+                           1 snuffy                    1 jvandal              
+                           1 suretec                   1 karesmakro           
+                           1 thedavidfactor            1 kpfleming            
+                           1 tim_ringenbach            1 licedey              
+                           1 tornblad                  1 lmsteffan            
+                           1 twilson                   1 macli                
+                           1 twisted                   1 majorbloodnok        
+                           1 viniciusfontes            1 maniax               
+                           1 vrban                     1 Medozas              
+                                                       1 nblasgen             
+                                                       1 nic_bellamy          
+                                                       1 noahisaac            
+                                                       1 paravoid             
+                                                       1 paul-tg              
+                                                       1 pdf                  
+                                                       1 rathaus              
+                                                       1 ravindrad            
+                                                       1 rjain                
+                                                       1 Romik                
+                                                       1 samy                 
+                                                       1 slavon               
+                                                       1 slutec18             
+                                                       1 sroberts             
+                                                       1 tim_ringenbach       
+                                                       1 tornblad             
+                                                       1 tsearle              
+                                                       1 ulogic               
+                                                       1 viniciusfontes       
+                                                       1 vmarrone             
+                                                       1 voipas               
+                                                       1 wetwired             
+                                                       1 yrashk               
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Addons/res_config_mysql
+
+   #15492: [patch] Voicemail.conf gets overwritten when using Realtime for
+   voicemail
+   Revision: 218732
+   Reporter: cbbs70a
+   Coders: tilghman
+
+  Category: Applications/app_chanisavail
+
+   #14426: app_chanisavail always set AVAILSTATUS to 0 with option 's' set
+   Revision: 229967
+   Reporter: macli
+   Coders: file
+
+  Category: Applications/app_chanspy
+
+   #15588: [patch] crash in chanspy on hangup - locked mutex
+   '&chanspy_ds.lock'
+   Revision: 228861
+   Reporter: zerohalo
+   Testers: zerohalo
+   Coders: tilghman
+
+   #15675: [patch] o option not working
+   Revision: 224179
+   Reporter: john8675309
+   Testers: jgutierrez on users list:
+   Coders: dbrooks
+
+   #15965: [patch] Deadlock in ChanSpy
+   Revision: 220940
+   Reporter: atis
+   Testers: atis
+   Coders: mnicholson
+
+   #16133: ChanSpy crashes Asterisk
+   Revision: 228696
+   Reporter: wetwired
+   Coders: dvossel
+
+  Category: Applications/app_controlplayback
+
+   #16071: [patch] Warning log message with debug info
+   Revision: 227369
+   Reporter: atis
+   Coders: atis
+
+  Category: Applications/app_dial
+
+   #14674: [patch] Dial application with the 'n' option not removing
+   introductions
+   Revision: 226891
+   Reporter: ulogic
+   Coders: jpeeler
+
+   #14763: [patch] On Dial with Macro, re-INVITE to the caller happens upon
+   callee answer, and not when Macro
+   Revision: 224568
+   Reporter: cupotka
+   Coders: file
+
+   #15028: [patch] silent 'ringing' for branched calls
+   Revision: 223833
+   Reporter: fnordian
+   Coders: jpeeler
+
+   #16005: [patch] Call does not drop when caller hangs up
+   Revision: 227833
+   Reporter: falves11
+   Testers: mnicholson, falves11
+   Coders: mnicholson
+
+  Category: Applications/app_directed_pickup
+
+   #15100: [patch] Directed pickup : picker picks own channel instead of
+   called party's channel
+   Revision: 218244
+   Reporter: lmsteffan
+   Coders: lmsteffan
+
+  Category: Applications/app_fax
+
+   #16039: SendFax 'a' option
+   Revision: 223331
+   Reporter: jamicque
+   Coders: kpfleming
+
+  Category: Applications/app_followme
+
+   #15372: [patch] app_followme does not set correct language/inherit from
+   calling channel for Local/xxxxx channels it creates
+   Revision: 218580
+   Reporter: Romik
+   Testers: cervajs
+   Coders: tilghman
+
+  Category: Applications/app_macro
+
+   #16103: Sometimes macro in h extension returns to s extension
+   Revision: 225361
+   Reporter: majorbloodnok
+   Coders: tilghman
+
+  Category: Applications/app_meetme
+
+   #14588: [patch] meetme doesn't play conf-has left prompts
+   Revision: 217209
+   Reporter: voipas
+   Testers: lmadsen, twisted, tilghman
+   Coders: tilghman
+
+  Category: Applications/app_queue
+
+   #15832: [patch] music on hold digit=X not persistent across periodic
+   announcements
+   Revision: 217736
+   Reporter: mbeckwell
+   Testers: mnick
+   Coders: mnick
+
+  Category: Applications/app_softhangup
+
+   #15810: [patch] SoftHangup() incorrectly truncates multi-hyphen channel
+   names
+   Revision: 215352
+   Reporter: dhubbard
+   Coders: dhubbard
+
+   #16129: flags not initalized in app_softhangup, causes undefined behavoir
+   Revision: 229475
+   Reporter: kobaz
+   Coders: dbrooks
+
+  Category: Applications/app_stack
+
+   #16216: [patch] Invalid behaviour of Return within Gosub and AGI
+   Revision: 229352
+   Reporter: atis
+   Testers: atis
+   Coders: tilghman
+
+  Category: Applications/app_voicemail
+
+   #15696: [patch] Individual maxmessage/maxsecs does not work
+   Revision: 219413
+   Reporter: fhackenberger
+   Coders: fhackenberger
+
+  Category: Applications/app_voicemail/IMAP
+
+   #14949: [patch] Can't delete temporary greeting when using IMAP storage
+   Revision: 220834
+   Reporter: noahisaac
+   Coders: noahisaac
+
+   #15934: [patch] app_voicemail.so doesn't refresh information from database
+   on reload
+   Revision: 219819
+   Reporter: viniciusfontes
+   Testers: viniciusfontes
+   Coders: tilghman
+
+  Category: CDR/cdr_custom
+
+   #15471: cdr_custom produces incorrect csv format for clid
+   Revision: 221369
+   Reporter: dkerr
+   Testers: mnick
+   Coders: mnick
+
+  Category: CDR/cdr_sqlite3_custom
+
+   #15953: [patch] sqlite3 CDRs not working after a reload
+   Revision: 223172
+   Reporter: frawd
+   Testers: frawd
+   Coders: frawd
+
+  Category: Channels/General
+
+   #14970: [patch] chan_vpb fails to catch exception on 1.4
+   Revision: 228081
+   Reporter: tzafrir
+   Testers: markwaters
+   Coders: tzafrir
+
+   #15940: [patch] IAX does not allow CALLERID(num) contain non-numbers.
+   Revision: 225310
+   Reporter: dimas
+   Testers: dvossel
+   Coders: dimas, dvossel
+
+   #15957: Automatic progress indication breaks some scenarios
+   Revision: 220290
+   Reporter: lmadsen
+   Coders: tilghman
+
+  Category: Channels/chan_dahdi
+
+   #15129: [patch] Incoming DTMF causes "Cannot handle frames in 2 format"
+   error, call dies
+   Revision: 219663
+   Reporter: bmh
+   Coders: tilghman
+
+   #15378: [patch] Crash in do_monitor() in chan_dahdi.c
+   Revision: 218431
+   Reporter: samy
+   Coders: jpeeler
+
+   #15683: [patch] dahdi_read unbalanced ast_mutex_lock and ast_mutex_unlock
+   Revision: 222464
+   Reporter: alecdavis
+   Coders: jpeeler
+
+   #15883: NewChannel AMI event on DAHDI (or Zaptel) channels contains
+   CallerID information from previous call
+   Revision: 224332
+   Reporter: jsmith
+   Coders: jpeeler
+
+   #15899: crash on second 'dahdi destroy channel' if a var was set
+   Revision: 222302
+   Reporter: tzafrir
+   Coders: jpeeler
+
+   #15909: When no callerid is recieved, cannot override callerid
+   Revision: 227168
+   Reporter: kobaz
+   Coders: file
+
+   #15998: [patch] Reset entire span request can result in a crash
+   Revision: 222395
+   Reporter: tsearle
+   Coders: tsearle
+
+  Category: Channels/chan_iax2
+
+   #12912: An issue with the IAX2 channel allows anonymous connections to
+   cause resource starvation
+   Revision: 216003
+   Reporter: rathaus
+   Testers: tilghman, russell, dvossel, dbrooks
+   Coders: dvossel
+
+   #15834: [patch] iax2 encryption failed on asterisk 1.4.26.2
+   Revision: 217858
+   Reporter: karesmakro
+   Testers: dvossel, karesmakro
+   Coders: dvossel
+
+   #16206: [patch] Segfault in chan_iax2.so when receiving call without
+   CallToken support
+   Revision: 229234
+   Reporter: bklang
+   Testers: bklang
+   Coders: dvossel
+
+  Category: Channels/chan_local
+
+   #14709: [patch] chan_local generates MoH instead of just passing
+   HOLD/UNHOLD further
+   Revision: 226533
+   Reporter: dimas
+   Coders: file
+
+   #15314: [patch] Seg fault in chan_local - local_pvt_destroy
+   Revision: 230040
+   Reporter: sroberts
+   Testers: davidw, lottc
+   Coders: davidw
+
+   #15787: [patch] chan_local deadlock
+   Revision: 214957
+   Reporter: tim_ringenbach
+   Testers: tim_ringenbach
+   Coders: tim
+
+  Category: Channels/chan_misdn
+
+   #15458: [patch] mISDN rejects calls - NO FREE CHAN IN STACK
+   Revision: 221853
+   Reporter: FabienToune
+   Testers: rmudgett, slutec18, FabienToune
+   Coders: rmudgett
+
+   #15490: [patch] mISDN rejects incoming calls (reopened)
+   Revision: 221853
+   Reporter: slutec18
+   Testers: rmudgett, slutec18, FabienToune
+   Coders: rmudgett
+
+   #16041: [patch] Asterisk 1.4.27-rc2 crash
+   Revision: 228146
+   Reporter: francesco_r
+   Coders: dbrooks
+
+  Category: Channels/chan_sip/CodecHandling
+
+   #15504: [patch] G726 Codec has choppy audio on Version 1.6.1
+   Revision: 229283
+   Reporter: globalnetinc
+   Coders: file
+
+   #16175: Revision 202007 Introduces Deadlock
+   Revision: 229100
+   Reporter: paul-tg
+   Coders: mnicholson
+
+  Category: Channels/chan_sip/General
+
+   #11157: Asterisk does not send a provisional response at every minute
+   Revision: 215759
+   Reporter: rjain
+   Testers: twilson
+   Coders: twilson
+
+   #14309: [patch] SIP/realtime problems => 100 % CPU
+   Revision: 220976
+   Reporter: pkempgen
+   Testers: pkempgen, vrban
+   Coders: tilghman
+
+   #14828: Asterisk generates Ring instead of Coloring Ring Back Tone (Early
+   Media).
+   Revision: 224775
+   Reporter: licedey
+   Coders: file
+
+   #14994: [patch] Invalid SDP connection information (c=) parsing leading to
+   one way audio
+   Revision: 227763
+   Reporter: frawd
+   Coders: mnicholson
+
+   #15033: chan_sip sets PRIREDIRECTREASON incorrectly for reason no-answer
+   Revision: 223404
+   Reporter: steinwej
+   Coders: jpeeler
+
+   #15262: [patch] RFC3261 Via-header branches not done right (section
+   Revision: 219454
+   Reporter: maniax
+   Testers: maniax, dvossel
+   Coders: tweety, dvossel
+
+   #15621: [patch] session-expires default timer wrong
+   Revision: 216696
+   Reporter: fnordian
+   Testers: atis
+   Coders: oej
+
+   #15839: [patch] caller id number is empty
+   Revision: 216996
+   Reporter: ebroad
+   Testers: ebroad, dvossel
+   Coders: ebroad, dvossel
+
+   #15868: [patch] SIPshowregistry manager action obmits ActionID from
+   RegistryEntry events
+   Revision: 217596
+   Reporter: nic_bellamy
+   Coders: nic
+
+   #15949: [patch] correct auth keyword parsing in add_realm_authentication()
+   Revision: 223135
+   Reporter: ebroad
+   Testers: ebroad
+   Coders: ebroad, dvossel
+
+   #15955: [patch] p->peerauth is always empty in transmit_register()
+   Revision: 223091
+   Reporter: ebroad
+   Coders: ebroad
+
+   #16097: [patch] asterisk crashes when there are no RTP port left
+   Revision: 228415
+   Reporter: steinwej
+   Coders: steinwej
+
+  Category: Channels/chan_sip/Interoperability
+
+   #14418: [patch] If a SIP URI is resolved with SRV records, the port must
+   no be in the Request-URI
+   Revision: 221486
+   Reporter: klaus3000
+   Testers: klaus3000, mnicholson
+   Coders: mnicholson
+
+   #14446: [patch] chan_sip does not support the maddr attribute in Via
+   headers
+   Revision: 230146
+   Reporter: frawd
+   Testers: frawd
+   Coders: frawd
+
+  Category: Channels/chan_sip/Registration
+
+   #14438: [patch] registration query
+   Revision: 218601
+   Reporter: ravindrad
+   Testers: ravindrad
+   Coders: ravindrad
+
+   #14954: Trunk registration / Auth user
+   Revision: 223210
+   Reporter: tornblad
+   Testers: mmichelson, tornblad, dvossel
+   Coders: dvossel
+
+  Category: Channels/chan_sip/Subscriptions
+
+   #15852: [patch] Hints/extension state random in 1.6.0.15
+   Revision: 222605
+   Reporter: amorsen
+   Testers: amorsen, farisraouf
+   Coders: amorsen
+
+  Category: Channels/chan_sip/T.38
+
+   #16025: [patch] failed to negiotate t38
+   Revision: 223653
+   Reporter: jamicque
+   Coders: kpfleming
+
+  Category: Channels/chan_sip/TCP-TLS
+
+   #15854: [patch] with 'transport=tls' and host not dynamic, port defaults
+   to 5060 rather than 5061.
+   Revision: 221745
+   Reporter: dvossel
+   Testers: dvossel
+   Coders: dvossel
+
+   #15905: [patch] TCP/TLS invites(and possibly others) broken from r218504
+   and onward
+   Revision: 218935
+   Reporter: ebroad
+   Testers: ebroad
+   Coders: ebroad
+
+   #15939: memory leak, tcptls_session never destroyed in chan_sip for client
+   connections
+   Revision: 220372
+   Reporter: dvossel
+   Coders: dvossel
+
+  Category: Channels/chan_sip/Transfers
+
+   #15151: [patch] Deadlock On One-legged Transfer [SIP / REPLACES] (Call
+   Pickup)
+   Revision: 219305
+   Reporter: irroot
+   Testers: irroot, dvossel
+   Coders: dvossel
+
+   #15817: crash in local_attended_transfer, likely related to moh - 1.4.26.1
+   Revision: 222881
+   Reporter: zerohalo
+   Testers: aragon, russell, zerohalo
+   Coders: russell
+
+  Category: Core/BuildSystem
+
+   #14517: [patch] signals.h - syntax error before '*' token
+   Revision: 227373
+   Reporter: asgaroth
+   Testers: asgaroth, snuffy, dougm, qwell
+   Coders: snuffy
+
+  Category: Core/Channels
+
+   #15152: [patch] 64 bit system channel name uniqueness
+   Revision: 226975
+   Reporter: palbrecht
+   Coders: dbrooks
+
+   #15152: [patch] 64 bit system channel name uniqueness
+   Revision: 226976
+   Reporter: palbrecht
+   Coders: dbrooks
+
+   #16219: Crash revision 229091 in audiohook_inheritance_destroy
+   Revision: 229673
+   Reporter: aragon
+   Coders: dvossel
+
+  Category: Core/Configuration
+
+   #15583: [patch] #exec strips too many leading and trailing quotes
+   Revision: 219064
+   Reporter: pkempgen
+   Testers: pkempgen
+   Coders: tilghman, pkempgen
+
+   #15857: [patch] Revision 152765 introduces regression in stdexten
+   Revision: 227163
+   Reporter: pprindeville
+   Testers: pprindeville
+   Coders: pprindeville
+
+   #15858: [patch] Revision 152765 introduces scoping difficulties in
+   stdexten
+   Revision: 227362
+   Reporter: pprindeville
+   Testers: pprindeville
+   Coders: lmadsen
+
+  Category: Core/General
+
+   #15973: [patch] Huge memory consumption after few hours of load
+   Revision: 221921
+   Reporter: atis
+   Coders: tilghman
+
+   #15981: Crash becouse don't check null return...
+   Revision: 228342
+   Reporter: slavon
+   Coders: dvossel
+
+   #15987: ao2_iterator_init() does not hold a reference to the container it
+   is iterating
+   Revision: 222185
+   Reporter: kpfleming
+   Coders: kpfleming
+
+  Category: Core/HTTP
+
+   #15495: [patch] Asterisk runs over end of buffer reading manager input
+   over HTTP and segfaults
+   Revision: 226167
+   Reporter: pdf
+   Testers: pdf
+   Coders: tilghman
+
+  Category: Core/Jitterbuffer
+
+   #15560: Crash on chan_local
+   Revision: 228411
+   Reporter: jvandal
+   Coders: file
+
+   #15709: segmentation fault when using mixmonitor with two calls
+   Revision: 228411
+   Reporter: covici
+   Coders: file
+
+  Category: Core/ManagerInterface
+
+   #15316: [patch] Segfault after Manager Bridge
+   Revision: 219198
+   Reporter: vmarrone
+   Testers: mnicholson
+   Coders: mnicholson
+
+  Category: Core/PBX
+
+   #14708: CID matching is wrong
+   Revision: 218869
+   Reporter: klaus3000
+   Coders: dbrooks
+
+  Category: Core/RTP
+
+   #15711: [patch] Only deprecated "rtp debug ip " works, not "rtp set debug
+   ip "
+   Revision: 218108
+   Reporter: davidw
+   Testers: davidw
+   Coders: mvanbaak
+
+  Category: Documentation
+
+   #15644: Update docs to state that canreinvite does NOT stop Asterisk from
+   issuing reinvites for non-direct-media purposes.
+   Revision: 226387
+   Reporter: lmadsen
+   Coders: lmadsen
+
+   #15734: [patch] CALLINGSUBADDR incorrectly stated as "Called PRI
+   Subaddress"
+   Revision: 226381
+   Reporter: alecdavis
+   Testers: alecdavis
+   Coders: alecdavis
+
+   #16007: [patch] Clean valgrind output by suppressing false errors
+   Revision: 225486
+   Reporter: atis
+   Testers: atis, amorsen
+   Coders: atis
+
+   #16198: WARNING channel.c __ast_channel_alloc_ap: Channel allocation
+   failed: Can't create alert pipe!
+   Revision: 228898
+   Reporter: atis
+   Testers: atis
+   Coders: lmadsen
+
+   #16211: [patch] Event collision in ExternalIVR resolved by documenting
+   issue
+   Revision: 229229
+   Reporter: thedavidfactor
+   Coders: thedavidfactor
+
+   #16220: [patch] Fix ExternalIVR Documentation in 1.4
+   Revision: 229357
+   Reporter: thedavidfactor
+   Coders: thedavidfactor
+
+  Category: Functions/General
+
+   #15394: [patch] Memory leak in func_audiohookinherit.c
+   Revision: 228271
+   Reporter: boroda
+   Testers: dbrooks, boroda
+   Coders: dbrooks
+
+  Category: Functions/func_base64
+
+   #15271: [patch] BASE64_DECODE() adds garbage end end of decoded string
+   Revision: 228651
+   Reporter: chappell
+   Testers: kobaz
+   Coders: chappell
+
+  Category: Functions/func_lock
+
+   #14859: [patch] lock is not released on channel masquerade
+   Revision: 221045
+   Reporter: atis
+   Testers: atis, tilghman
+   Coders: tilghman
+
+  Category: General
+
+   #14562: [patch] safe_asterisk can get multiple instances if killproc
+   escalates to SIGKILL in service asterisk restart
+   Revision: 226813
+   Reporter: davidw
+   Testers: davidw
+   Coders: tilghman, davidw
+
+   #15104: [patch] Asterisk Manager API Action Originate / OriginateResponse
+   Revision: 223276
+   Reporter: nblasgen
+   Testers: nblasgen, mnicholson
+   Coders: mnicholson
+
+   #15838: Please remove IAXy's firmware from the main tarball
+   Revision: 218800
+   Reporter: paravoid
+   Coders: russell
+
+  Category: PBX/General
+
+   #15392: [patch] 1.6.1.1: Memory handling error in main/pbx.c
+   (pbx_extension_helper)
+   Revision: 229500
+   Reporter: yrashk
+   Coders: dbrooks
+
+  Category: PBX/pbx_config
+
+   #15421: [patch] Serious problem in pattern matching
+   Revision: 229363
+   Reporter: jsmith
+   Testers: jsmith, thedavidfactor
+   Coders: tilghman
+
+  Category: Resources/res_config_ldap
+
+   #15874: [Patch] Asterisk updated LDAP Schema
+   Revision: 229057
+   Reporter: Medozas
+   Testers: Medozas, suretec
+   Coders: Medozas
+
+  Category: Resources/res_limit
+
+   #15851: [patch] res_limit.c: refinition of _XOPEN_SOURCE
+   Revision: 217034
+   Reporter: tzafrir
+   Coders: tilghman
+
+  Category: Resources/res_monitor
+
+   #15313: [patch] incorrect comparation in ast_monitor_change_fname() leads
+   to deletion of recorded files
+   Revision: 227946
+   Reporter: caspy
+   Coders: jpeeler
+
+  Category: Resources/res_musiconhold
+
+   #15279: music on hold digit=X non-functional
+   Revision: 217736
+   Reporter: mbeckwell
+   Testers: mnick
+   Coders: mnick
+
+   #15841: [patch] double free or corruption (!prev) in moh_files_generator
+   Revision: 222605
+   Reporter: amorsen
+   Testers: amorsen, farisraouf
+   Coders: amorsen
+
+   #15845: Crash during attended transfer occurs
+   Revision: 222881
+   Reporter: marhbere
+   Testers: aragon, russell, zerohalo
+   Coders: russell
+
+   #15865: [patch] musiconhold crash on unload
+   Revision: 221202
+   Reporter: kobaz
+   Testers: kobaz
+   Coders: tilghman
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                           | Issues     |
+   |          |            |                                   | Referenced |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Ensure that CFLAGS and/or LDFLAGS |            |
+   | 214697   | kpfleming  | provided to configure script are  |            |
+   |          |            | preserved.                        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 214703   | tilghman   | Modify comment to be a bit more   |            |
+   |          |            | accurate.                         |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | If lua is detected with the       |            |
+   | 214820   | tilghman   | lua5.1 prefix (or not), adjust    |            |
+   |          |            | the include path accordingly.     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Ensure that frame dumps of        |            |
+   | 215162   | kpfleming  | AST_CONTROL_T38_PARAMETERS frames |            |
+   |          |            | are properly                      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 215525   | dvossel    | SIP uri parsing cleanup           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 215687   | dvossel    | port string to int conversion     |            |
+   |          |            | using sscanf                      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 216011   | russell    | Add IAX2 security document        |            |
+   |          |            | related to AST-2009-006.          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 216093   | russell    | Add a note about IAX2 to          |            |
+   |          |            | UPGRADE.txt.                      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 216097   | russell    | tweak                             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 216223   | mvanbaak   | make sure 'start' is always       |            |
+   |          |            | initialized.                      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 216265   | russell    | Add a plain text version of the   |            |
+   |          |            | IAX2 security document.           |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | make asterisk compile under       |            |
+   | 216507   | mvanbaak   | devmode with DEBUG_THREADS        |            |
+   |          |            | enabled on OpenBSD                |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Enable turning off the            |            |
+   | 216548   | tilghman   | application delimiter warning     |            |
+   |          |            | with the 'dontwarn' option.       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 216595   | seanbright | Use ast_free() instead of free(). |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Make apps send PROGRESS control   |            |
+   | 216645   | oej        | frame for early media and fix too |            |
+   |          |            | early media issue in SIP          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 216654   | oej        | Add doc and turn off premature    |            |
+   |          |            | media filter by default           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 216656   | oej        | fix documentation so it agrees    |            |
+   |          |            | with code                         |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Make sure we reset                |            |
+   | 216843   | oej        | global_exclude_static at channel  |            |
+   |          |            | reload                            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 217075   | kpfleming  | Ensure that the default autoconf  |            |
+   |          |            | CFLAGS are not used.              |            |
+   |----------+------------+-----------------------------------+------------|
+   | 217281   | kpfleming  | Commit regenerated configure      |            |
+   |          |            | script that I missed earlier.     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 217405   | oej        | Not having any TLS session to     |            |
+   |          |            | write to is a serious XMIT_ERROR. |            |
+   |----------+------------+-----------------------------------+------------|
+   | 217484   | tzafrir    | gcc 4.4 fix: union instead of     |            |
+   |          |            | cast                              |            |
+   |----------+------------+-----------------------------------+------------|
+   | 217913   | dvossel    | sip peer matching by address only |            |
+   |          |            | with TCP/TLS                      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 217920   | tilghman   | Make calltoken support work with  |            |
+   |          |            | realtime users and peers.         |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Don't ring another channel, if    |            |
+   | 218051   | tilghman   | there's not enough time for a     |            |
+   |          |            | queue member to answer.           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 218216   | tzafrir    | gcc 4.4: Remove a nop memset size |            |
+   |          |            | 0 that annoys gcc                 |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Don't say "Please try again" if   |            |
+   | 218362   | tilghman   | we don't give the user another    | #15055     |
+   |          |            | chance to try again.              |            |
+   |----------+------------+-----------------------------------+------------|
+   | 218501   | kpfleming  | Use proper hostname for           |            |
+   |          |            | downloading sound files.          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 218505   | mmichelson | Fix off-by-one error when reading |            |
+   |          |            | SDP sent over TCP.                |            |
+   |----------+------------+-----------------------------------+------------|
+   | 218573   | mmichelson | Use a better method of ensuring   |            |
+   |          |            | null-termination of the buffer    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 218690   | dvossel    | upward bound checking for port    |            |
+   |          |            | string to int conversion          |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | On TCP and TLS connections do not |            |
+   | 218931   | file       | attempt to stop retransmission of |            |
+   |          |            | the packet internally.            |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Ensure no spaces exist before     |            |
+   | 219265   | file       | "refresher=" when doing the       |            |
+   |          |            | comparison.                       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 219365   | file       | Send a 100 Trying response when   |            |
+   |          |            | we detect a spiral.               |            |
+   |----------+------------+-----------------------------------+------------|
+   | 219523   | dvossel    | iax2 frame double free            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 219588   | russell    | Make sure the iax_pvt exists      | #15609     |
+   |          |            | before dereferencing it.          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 219724   | dvossel    | Reverting merge 219520. This      |            |
+   |          |            | change was not necessary.         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 220029   | mvanbaak   | mkpkgconfig does not need bash so |            |
+   |          |            | make it use /bin/sh               |            |
+   |----------+------------+-----------------------------------+------------|
+   | 220101   | seanbright | Remove the remaining bashisms in  |            |
+   |          |            | the Makefile/mkpkgconfig          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 220219   | seanbright | Resolve parallel build warnings.  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 220587   | tilghman   | Allow AES to compile, when        |            |
+   |          |            | OpenSSL is not present.           |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | When selecting DONT_OPTIMIZE in   |            |
+   | 220723   | seanbright | menuselect, explicitly pass -O0   |            |
+   |          |            | to the compiler                   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 221087   | seanbright | Clarify documentation for         | #14740     |
+   |          |            | VoiceMailMain()'s a() option.     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 221301   | twilson    | Change the SSRC by default when   |            |
+   |          |            | our media stream changes          |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Remove ability to control T.38    |            |
+   | 221598   | kpfleming  | FAX error correction from         |            |
+   |          |            | udptl.conf.                       |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Simplify code for porturi, use    |            |
+   | 221662   | mnicholson | TRUE/FALSE constructs when it's   |            |
+   |          |            | just TRUE or FALSE.               |            |
+   |----------+------------+-----------------------------------+------------|
+   | 221712   | dvossel    | Fixes issue with non dynamic      |            |
+   |          |            | hosts not being set for peers     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Revision 220906 (a merge from     |            |
+   | 221742   | tilghman   | 1.4) was not merged correctly,    |            |
+   |          |            | causing a problem with            |            |
+   |          |            | non-dynamic peers.                |            |
+   |----------+------------+-----------------------------------+------------|
+   | 221778   | tilghman   | Fix a bunch of off-by-one errors  |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Revert XML docs that ended up in  |            |
+   | 221963   | seanbright | the 1.6.0 and 1.6.1 branches      |            |
+   |          |            | during a merge.                   |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Ensure the result of the hash     |            |
+   | 221972   | tilghman   | function is positive. Negative    |            |
+   |          |            | array offsets suck.               |            |
+   |----------+------------+-----------------------------------+------------|
+   | 222038   | dvossel    | Removes unnecessary unlock,       |            |
+   |          |            | clarifies a memcpy.               |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Allow non-compliant T.38          |            |
+   | 222111   | kpfleming  | endpoints to be supportable via   | #15586     |
+   |          |            | configuration option.             |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | When we call a gosub routine, the |            |
+   | 222279   | tilghman   | variables should be scoped to     |            |
+   |          |            | avoid contaminating the caller.   |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Fix 222298 (crash during          |            |
+   | 222352   | jpeeler    | destruction of second channel     |            |
+   |          |            | when variable set with            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 222541   | tilghman   | Small typo (thanks, jpeeler)      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 222546   | dvossel    | crash on transfer                 | #16027     |
+   |----------+------------+-----------------------------------+------------|
+   | 222693   | rmudgett   | chan_misdn.c:process_ast_dsp()    |            |
+   |          |            | memory leak                       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 222800   | rmudgett   | Fix memory leak if chan_misdn     |            |
+   |          |            | config parameter is repeated.     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 222876   | dvossel    | fixes an ast_netsock_list memory  |            |
+   |          |            | leak.                             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 223226   | mmichelson | Fix potential memory leak in      |            |
+   |          |            | app_dial.c                        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 223488   | russell    | Don't use data outside of its     |            |
+   |          |            | scope.                            |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Clarifies trunkmaxsize,           |            |
+   | 223759   | dvossel    | trunkfreq, and trunkmtu iax2      |            |
+   |          |            | options                           |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Never released PRI channels when  |            |
+   | 224262   | rmudgett   | using Busy() or Congestion()      |            |
+   |          |            | dialplan apps.                    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 224337   | jpeeler    | fix typo, sorry                   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 224449   | tilghman   | Allow ODBC storage to be queried  |            |
+   |          |            | with multiple mailboxes.          |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Correct timestamp calculations    |            |
+   | 224672   | kpfleming  | when RTP sample rates over 8kHz   |            |
+   |          |            | are used.                         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 224857   | tilghman   | Pay attention to the return value |            |
+   |          |            | of the manipulate function.       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 224933   | russell    | Isolate frames returned from a    |            |
+   |          |            | DSP instance or codec translator. |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | IAX2: VNAK loop caused by         |            |
+   | 225311   | dvossel    | signaling frames with no          |            |
+   |          |            | destination call number           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 225583   | kpfleming  | Don't force menuselect.makeopts   |            |
+   |          |            | to be rebuilt on every build.     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Backport audio handling loop      |            |
+   | 225869   | kpfleming  | fixes from trunk version of       | #16127     |
+   |          |            | app_fax.                          |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | detect ARM Linux EABI OSARCH as   |            |
+   | 226019   | tzafrir    | linux-gnu instead of              |            |
+   |          |            | linux-gnueabi                     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 226306   | tilghman   | Fix documentation (pointed out by |            |
+   |          |            | TheDavidFactor on #-dev)          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 227102   | oej        | Use proper response code when     |            |
+   |          |            | violating Contact ACL's.          |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Make sure the outgoing flag is    |            |
+   | 227278   | rmudgett   | cleared if a new channel fails to |            |
+   |          |            | get created for outgoing calls.   |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Fix a security issue where        |            |
+   | 227717   | file       | sending a REGISTER with a         |            |
+   |          |            | differing username in the From    |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Fix a security issue where it may |            |
+   | 227743   | file       | be possible for someone to        |            |
+   |          |            | execute a cross-site              |            |
+   |----------+------------+-----------------------------------+------------|
+   | 228423   | dvossel    | fixes segfault in iLBC            | #16979     |
+   |----------+------------+-----------------------------------+------------|
+   | 228479   | file       | Fix a logic flaw I introduced     |            |
+   |          |            | when I was testing stuff out.     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 228500   | file       | Fix the localchannel.tex file.    |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Don't overwrite caller ID name on |            |
+   | 228549   | file       | a trunk with the configured       |            |
+   |          |            | fullname when using users.conf    |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Fix T.38 negotiation regression   |            |
+   | 229913   | file       | introduced with the SDP parser    |            |
+   |          |            | changes.                          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 230248   | kpfleming  | Correct mistaken option name in   |            |
+   |          |            | error message.                    |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Ensure that only one end of a     |            |
+   | 230344   | kpfleming  | T.38 session initiates teardown   |            |
+   |          |            | at completion.                    |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Fix another buglet in T.38        |            |
+   | 230382   | kpfleming  | session teardown at the end of    |            |
+   |          |            | FAX sessions.                     |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ CHANGES                              |    6
+ Makefile                             |   53
+ Makefile.rules                       |    2
+ UPGRADE-1.6.txt                      |    6
+ UPGRADE.txt                          |   28
+ apps/app_chanisavail.c               |    5
+ apps/app_chanspy.c                   |   15
+ apps/app_controlplayback.c           |    2
+ apps/app_dial.c                      |  124 +
+ apps/app_directed_pickup.c           |    2
+ apps/app_disa.c                      |    3
+ apps/app_fax.c                       |  105 +
+ apps/app_followme.c                  |    4
+ apps/app_meetme.c                    |   36
+ apps/app_playback.c                  |    3
+ apps/app_queue.c                     |   72 -
+ apps/app_softhangup.c                |   10
+ apps/app_stack.c                     |   12
+ apps/app_voicemail.c                 |   97 +
+ build_tools/mkpkgconfig              |    4
+ cdr/cdr_sqlite3_custom.c             |   20
+ channels/chan_console.c              |    8
+ channels/chan_dahdi.c                |   86 -
+ channels/chan_h323.c                 |    3
+ channels/chan_iax2.c                 | 1519 ++++++++++++++++++---
+ channels/chan_local.c                |   13
+ channels/chan_misdn.c                |    9
+ channels/chan_phone.c                |    1
+ channels/chan_sip.c                  | 2503 ++++++++++++++++++++---------------
+ channels/chan_vpb.cc                 |    2
+ channels/iax2-parser.c               |    9
+ channels/iax2-parser.h               |    2
+ channels/iax2.h                      |    4
+ channels/misdn/isdn_lib.c            |  102 -
+ channels/misdn/isdn_lib_intern.h     |    5
+ channels/misdn_config.c              |   19
+ codecs/codec_dahdi.c                 |   12
+ codecs/codec_g726.c                  |   42
+ codecs/codec_ilbc.c                  |    5
+ configs/cdr_custom.conf.sample       |    3
+ configs/extensions.conf.sample       |   37
+ configs/iax.conf.sample              |  120 +
+ configs/sip.conf.sample              |   51
+ configs/udptl.conf.sample            |    9
+ configs/voicemail.conf.sample        |    5
+ configure.ac                         |   27
+ contrib/init.d/rc.redhat.asterisk    |    8
+ contrib/scripts/asterisk.ldap-schema |  156 +-
+ contrib/scripts/iax-friends.sql      |   89 -
+ contrib/valgrind.supp                |   41
+ doc/IAX2-security.txt                |  440 ++++++
+ doc/externalivr.txt                  |   22
+ doc/tex/channelvariables.tex         |    2
+ doc/tex/localchannel.tex             |    4
+ doc/valgrind.txt                     |   14
+ funcs/func_audiohookinherit.c        |    2
+ funcs/func_base64.c                  |    9
+ funcs/func_dialgroup.c               |    1
+ funcs/func_lock.c                    |  213 ++
+ funcs/func_strings.c                 |   48
+ include/asterisk/acl.h               |    3
+ include/asterisk/aes.h               |    1
+ include/asterisk/astobj2.h           |   75 -
+ include/asterisk/autoconfig.h.in     |   49
+ include/asterisk/cdr.h               |    6
+ include/asterisk/channel.h           |   11
+ include/asterisk/dsp.h               |   12
+ include/asterisk/file.h              |   15
+ include/asterisk/frame.h             |   12
+ include/asterisk/linkedlists.h       |   10
+ include/asterisk/lock.h              |   19
+ include/asterisk/netsock.h           |    2
+ include/asterisk/rtp.h               |    3
+ include/asterisk/translate.h         |   15
+ main/Makefile                        |    2
+ main/abstract_jb.c                   |    6
+ main/acl.c                           |    2
+ main/asterisk.c                      |    4
+ main/astfd.c                         |   13
+ main/astobj2.c                       |   38
+ main/audiohook.c                     |   15
+ main/autoservice.c                   |   11
+ main/channel.c                       |   68
+ main/config.c                        |   84 -
+ main/dsp.c                           |   42
+ main/features.c                      |    6
+ main/file.c                          |   99 -
+ main/frame.c                         |   13
+ main/logger.c                        |    2
+ main/manager.c                       |    7
+ main/netsock.c                       |    1
+ main/pbx.c                           |   71
+ main/rtp.c                           |   55
+ main/say.c                           |   27
+ main/tcptls.c                        |    4
+ main/translate.c                     |   29
+ main/udptl.c                         |   38
+ main/utils.c                         |    4
+ makeopts.in                          |    3
+ pbx/pbx_lua.c                        |    6
+ res/ael/pval.c                       |   54
+ res/res_limit.c                      |    2
+ res/res_monitor.c                    |   41
+ res/res_musiconhold.c                |   14
+ res/res_phoneprov.c                  |   14
+ sounds/Makefile                      |    4
+ static-http/prototype.js             | 2332 ++++++++++++++++++++++++++------
+ 107 files changed, 7094 insertions(+), 2504 deletions(-)
+
+     ----------------------------------------------------------------------
