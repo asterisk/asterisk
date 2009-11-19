@@ -149,11 +149,15 @@ struct mixmonitor_ds {
 	 * immediately during stop_mixmonitor or channel destruction. */
 	int fs_quit;
 	struct ast_filestream *fs;
+	struct ast_audiohook *audiohook;
 };
 
+/*!
+ * \internal
+ * \pre mixmonitor_ds must be locked before calling this function
+ */
 static void mixmonitor_ds_close_fs(struct mixmonitor_ds *mixmonitor_ds)
 {
-	ast_mutex_lock(&mixmonitor_ds->lock);
 	if (mixmonitor_ds->fs) {
 		ast_closestream(mixmonitor_ds->fs);
 		mixmonitor_ds->fs = NULL;
@@ -161,7 +165,6 @@ static void mixmonitor_ds_close_fs(struct mixmonitor_ds *mixmonitor_ds)
 		if (option_verbose > 1)
 			ast_verbose(VERBOSE_PREFIX_2 "MixMonitor close filestream\n");
 	}
-	ast_mutex_unlock(&mixmonitor_ds->lock);
 }
 
 static void mixmonitor_ds_destroy(void *data)
@@ -169,6 +172,7 @@ static void mixmonitor_ds_destroy(void *data)
 	struct mixmonitor_ds *mixmonitor_ds = data;
 
 	ast_mutex_lock(&mixmonitor_ds->lock);
+	mixmonitor_ds->audiohook = NULL;
 	mixmonitor_ds->chan = NULL;
 	mixmonitor_ds->destruction_ok = 1;
 	ast_cond_signal(&mixmonitor_ds->destruction_condition);
@@ -189,6 +193,20 @@ static struct ast_datastore_info mixmonitor_ds_info = {
 	.destroy = mixmonitor_ds_destroy,
 	.chan_fixup = mixmonitor_ds_chan_fixup,
 };
+
+static void destroy_monitor_audiohook(struct mixmonitor *mixmonitor)
+{
+	if (mixmonitor->mixmonitor_ds) {
+		ast_mutex_lock(&mixmonitor->mixmonitor_ds->lock);
+		mixmonitor->mixmonitor_ds->audiohook = NULL;
+		ast_mutex_unlock(&mixmonitor->mixmonitor_ds->lock);
+	}
+	/* kill the audiohook.*/
+	ast_audiohook_lock(&mixmonitor->audiohook);
+	ast_audiohook_detach(&mixmonitor->audiohook);
+	ast_audiohook_unlock(&mixmonitor->audiohook);
+	ast_audiohook_destroy(&mixmonitor->audiohook);
+}
 
 static int startmon(struct ast_channel *chan, struct ast_audiohook *audiohook) 
 {
@@ -231,10 +249,10 @@ static void *mixmonitor_thread(void *obj)
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "Begin MixMonitor Recording %s\n", mixmonitor->name);
 
-	ast_audiohook_lock(&mixmonitor->audiohook);
-
 	fs = &mixmonitor->mixmonitor_ds->fs;
 
+	/* The audiohook must enter and exit the loop locked */
+	ast_audiohook_lock(&mixmonitor->audiohook);
 	while (mixmonitor->audiohook.status == AST_AUDIOHOOK_STATUS_RUNNING && !mixmonitor->mixmonitor_ds->fs_quit) {
 		struct ast_frame *fr = NULL;
 
@@ -245,6 +263,10 @@ static void *mixmonitor_thread(void *obj)
 
 		if (!(fr = ast_audiohook_read_frame(&mixmonitor->audiohook, SAMPLES_PER_FRAME, AST_AUDIOHOOK_DIRECTION_BOTH, AST_FORMAT_SLINEAR)))
 			continue;
+
+		/* audiohook lock is not required for the next block.
+		 * Unlock it, but remember to lock it before looping or exiting */
+		ast_audiohook_unlock(&mixmonitor->audiohook);
 
 		ast_mutex_lock(&mixmonitor->mixmonitor_ds->lock);
 		if (!ast_test_flag(mixmonitor, MUXFLAG_BRIDGED) || (mixmonitor->mixmonitor_ds->chan && ast_bridged_channel(mixmonitor->mixmonitor_ds->chan))) {
@@ -279,25 +301,27 @@ static void *mixmonitor_thread(void *obj)
 
 		/* All done! free it. */
 		ast_frame_free(fr, 0);
+
+		ast_audiohook_lock(&mixmonitor->audiohook);
 	}
-
-	ast_audiohook_detach(&mixmonitor->audiohook);
 	ast_audiohook_unlock(&mixmonitor->audiohook);
-	ast_audiohook_destroy(&mixmonitor->audiohook);
 
+	/* Datastore cleanup.  close the filestream and wait for ds destruction */
+	ast_mutex_lock(&mixmonitor->mixmonitor_ds->lock);
 	mixmonitor_ds_close_fs(mixmonitor->mixmonitor_ds);
+	if (!mixmonitor->mixmonitor_ds->destruction_ok) {
+		ast_cond_wait(&mixmonitor->mixmonitor_ds->destruction_condition, &mixmonitor->mixmonitor_ds->lock);
+	}
+	ast_mutex_unlock(&mixmonitor->mixmonitor_ds->lock);
+
+	/* kill the audiohook */
+	destroy_monitor_audiohook(mixmonitor);
 
 	if (mixmonitor->post_process) {
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_2 "Executing [%s]\n", mixmonitor->post_process);
 		ast_safe_system(mixmonitor->post_process);
 	}
-
-	ast_mutex_lock(&mixmonitor->mixmonitor_ds->lock);
-	if (!mixmonitor->mixmonitor_ds->destruction_ok) {
-		ast_cond_wait(&mixmonitor->mixmonitor_ds->destruction_condition, &mixmonitor->mixmonitor_ds->lock);
-	}
-	ast_mutex_unlock(&mixmonitor->mixmonitor_ds->lock);
 
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "End MixMonitor Recording %s\n", mixmonitor->name);
@@ -328,6 +352,7 @@ static int setup_mixmonitor_ds(struct mixmonitor *mixmonitor, struct ast_channel
 
 	/* No need to lock mixmonitor_ds since this is still operating in the channel's thread */
 	mixmonitor_ds->chan = chan;
+	mixmonitor_ds->audiohook = &mixmonitor->audiohook;
 	datastore->data = mixmonitor_ds;
 
 	ast_channel_lock(chan);
@@ -370,6 +395,12 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 		return;
 	}
 
+	/* Setup the actual spy before creating our thread */
+	if (ast_audiohook_init(&mixmonitor->audiohook, AST_AUDIOHOOK_TYPE_SPY, mixmonitor_spy_type)) {
+		mixmonitor_free(mixmonitor);
+		return;
+	}
+
 	/* Copy over flags and channel name */
 	mixmonitor->flags = flags;
 	if (setup_mixmonitor_ds(mixmonitor, chan)) {
@@ -386,12 +417,6 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 	mixmonitor->filename = (char *) mixmonitor + sizeof(*mixmonitor) + strlen(chan->name) + 1;
 	strcpy(mixmonitor->filename, filename);
 
-	/* Setup the actual spy before creating our thread */
-	if (ast_audiohook_init(&mixmonitor->audiohook, AST_AUDIOHOOK_TYPE_SPY, mixmonitor_spy_type)) {
-		mixmonitor_free(mixmonitor);
-		return;
-	}
-	
 	ast_set_flag(&mixmonitor->audiohook, AST_AUDIOHOOK_TRIGGER_SYNC);
 	
 	if (readvol)
@@ -498,20 +523,37 @@ static int mixmonitor_exec(struct ast_channel *chan, void *data)
 
 static int stop_mixmonitor_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *u;
 	struct ast_datastore *datastore = NULL;
 
-	/* closing the filestream here guarantees the file is avaliable to the dialplan
-	 * after calling StopMixMonitor */
-	if ((datastore = ast_channel_datastore_find(chan, &mixmonitor_ds_info, NULL))) {
-		mixmonitor_ds_close_fs(datastore->data);
-	}
-
-	u = ast_module_user_add(chan);
-
+	ast_channel_lock(chan);
 	ast_audiohook_detach_source(chan, mixmonitor_spy_type);
+	if ((datastore = ast_channel_datastore_find(chan, &mixmonitor_ds_info, NULL))) {
+		struct mixmonitor_ds *mixmonitor_ds = datastore->data;
 
-	ast_module_user_remove(u);
+		ast_mutex_lock(&mixmonitor_ds->lock);
+
+		/* closing the filestream here guarantees the file is avaliable to the dialplan
+	 	 * after calling StopMixMonitor */
+		mixmonitor_ds_close_fs(mixmonitor_ds);
+
+		/* The mixmonitor thread may be waiting on the audiohook trigger.
+		 * In order to exit from the mixmonitor loop before waiting on channel
+		 * destruction, poke the audiohook trigger. */
+		if (mixmonitor_ds->audiohook) {
+			ast_audiohook_lock(mixmonitor_ds->audiohook);
+			ast_cond_signal(&mixmonitor_ds->audiohook->trigger);
+			ast_audiohook_unlock(mixmonitor_ds->audiohook);
+			mixmonitor_ds->audiohook = NULL;
+		}
+
+		ast_mutex_unlock(&mixmonitor_ds->lock);
+
+		/* Remove the datastore so the monitor thread can exit */
+		if (!ast_channel_datastore_remove(chan, datastore)) {
+			ast_channel_datastore_free(datastore);
+		}
+	}
+	ast_channel_unlock(chan);
 
 	return 0;
 }
