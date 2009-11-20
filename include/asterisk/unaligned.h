@@ -50,16 +50,9 @@ static inline unsigned short get_unaligned_uint16(const void *p)
 
 static inline void put_unaligned_uint64(void *p, uint64_t datum)
 {
-	unsigned char *cp = p;
+	struct { unsigned int d; } __attribute__((packed,may_alias)) *pp = p;
 
-	cp[0] = (datum >> 56) & 0xff;
-	cp[1] = (datum >> 48) & 0xff;
-	cp[2] = (datum >> 40) & 0xff;
-	cp[3] = (datum >> 32) & 0xff;
-	cp[4] = (datum >> 24) & 0xff;
-	cp[5] = (datum >> 16) & 0xff;
-	cp[6] = (datum >>  8) & 0xff;
-	cp[7] = (datum >>  0) & 0xff;
+	pp->d = datum;
 }
 
 static inline void put_unaligned_uint32(void *p, unsigned int datum)
