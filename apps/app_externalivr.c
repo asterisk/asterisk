@@ -98,7 +98,7 @@ static const char app[] = "ExternalIVR";
 /* Commands */
 #define EIVR_CMD_PARM 'P' /* return supplied params */
 #define EIVR_CMD_ANS 'T'  /* answer channel */
-#define EIVR_CMD_STRT 'S' /* start prompt queue over */
+#define EIVR_CMD_SQUE 'S' /* (re)set prompt queue */
 #define EIVR_CMD_APND 'A' /* append to prompt queue */
 #define EIVR_CMD_GET 'G'  /* get channel varable(s) */
 #define EIVR_CMD_SVAR 'V' /* set channel varable(s) */
@@ -706,23 +706,23 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
 						u->gen_active = 1;
 					}
 				}
- 			} else if (input[0] == EIVR_CMD_STRT) {
+ 			} else if (input[0] == EIVR_CMD_SQUE) {
 				if (chan->_state != AST_STATE_UP || ast_check_hangup(chan)) {
-					ast_chan_log(LOG_WARNING, chan, "Queue 'S'et called on unanswered channel\n");
+					ast_chan_log(LOG_WARNING, chan, "Queue re'S'et called on unanswered channel\n");
 					send_eivr_event(eivr_events, 'Z', NULL, chan);
 					continue;
 				}
- 				if (ast_fileexists(&input[2], NULL, u->chan->language) == -1) {
+ 				if (!ast_fileexists(&input[2], NULL, u->chan->language)) {
  					ast_chan_log(LOG_WARNING, chan, "Unknown file requested '%s'\n", &input[2]);
- 					send_eivr_event(eivr_events, 'Z', NULL, chan);
- 					strcpy(&input[2], "exception");
- 				}
- 				if (!u->abort_current_sound && !u->playing_silence)
- 					send_eivr_event(eivr_events, 'T', NULL, chan);
- 				AST_LIST_LOCK(&u->playlist);
- 				while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
- 					send_eivr_event(eivr_events, 'D', entry->filename, chan);
- 					ast_free(entry);
+ 					send_eivr_event(eivr_events, 'Z', &input[2], chan);
+ 				} else {
+	 				if (!u->abort_current_sound && !u->playing_silence)
+ 						send_eivr_event(eivr_events, 'T', NULL, chan);
+ 					AST_LIST_LOCK(&u->playlist);
+ 					while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
+ 						send_eivr_event(eivr_events, 'D', entry->filename, chan);
+ 						ast_free(entry);
+					}
  				}
  				if (!u->playing_silence)
  					u->abort_current_sound = 1;
@@ -736,16 +736,16 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
 					send_eivr_event(eivr_events, 'Z', NULL, chan);
 					continue;
 				}
- 				if (ast_fileexists(&input[2], NULL, u->chan->language) == -1) {
+ 				if (!ast_fileexists(&input[2], NULL, u->chan->language)) {
  					ast_chan_log(LOG_WARNING, chan, "Unknown file requested '%s'\n", &input[2]);
- 					send_eivr_event(eivr_events, 'Z', NULL, chan);
- 					strcpy(&input[2], "exception");
- 				}
- 				entry = make_entry(&input[2]);
- 				if (entry) {
- 					AST_LIST_LOCK(&u->playlist);
- 					AST_LIST_INSERT_TAIL(&u->playlist, entry, list);
- 					AST_LIST_UNLOCK(&u->playlist);
+ 					send_eivr_event(eivr_events, 'Z', &input[2], chan);
+ 				} else {
+	 				entry = make_entry(&input[2]);
+ 					if (entry) {
+ 						AST_LIST_LOCK(&u->playlist);
+ 						AST_LIST_INSERT_TAIL(&u->playlist, entry, list);
+ 						AST_LIST_UNLOCK(&u->playlist);
+					}
  				}
  			} else if (input[0] == EIVR_CMD_GET) {
  				char response[2048];
