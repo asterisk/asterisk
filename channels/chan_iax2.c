@@ -3862,7 +3862,7 @@ static char *handle_cli_iax2_show_cache(struct ast_cli_entry *e, int cmd, struct
 		}
 	}
 
-	AST_LIST_LOCK(&dpcache);
+	AST_LIST_UNLOCK(&dpcache);
 
 	return CLI_SUCCESS;
 }
