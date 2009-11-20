@@ -202,6 +202,12 @@ int ast_audiohook_remove(struct ast_channel *chan, struct ast_audiohook *audioho
  */
 struct ast_frame *ast_audiohook_write_list(struct ast_channel *chan, struct ast_audiohook_list *audiohook_list, enum ast_audiohook_direction direction, struct ast_frame *frame);
 
+/*! \brief Update audiohook's status
+ * \param audiohook Audiohook structure
+ * \param audiohook status enum
+ */
+void ast_audiohook_update_status(struct ast_audiohook *audiohook, enum ast_audiohook_status status);
+
 /*! \brief Wait for audiohook trigger to be triggered
  * \param audiohook Audiohook to wait on
  */
