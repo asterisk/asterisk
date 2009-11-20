@@ -2268,6 +2268,10 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			bridge_cdr = ast_cdr_dup(chan_cdr);
 			ast_copy_string(bridge_cdr->lastapp, S_OR(chan->appl, ""), sizeof(bridge_cdr->lastapp));
 			ast_copy_string(bridge_cdr->lastdata, S_OR(chan->data, ""), sizeof(bridge_cdr->lastdata));
+			if (peer_cdr && !ast_strlen_zero(peer_cdr->userfield)) {
+				ast_copy_string(bridge_cdr->userfield, peer_cdr->userfield, sizeof(bridge_cdr->userfield));
+			}
+
 		} else {
 			/* better yet, in a xfer situation, find out why the chan cdr got zapped (pun unintentional) */
 			bridge_cdr = ast_cdr_alloc(); /* this should be really, really rare/impossible? */
