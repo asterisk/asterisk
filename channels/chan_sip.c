@@ -7113,7 +7113,7 @@ static const char *get_sdp_iterate(int *start, struct sip_request *req, const ch
 {
 	int len = strlen(name);
 
-	while (*start < req->sdp_end) {
+	while (*start <= req->sdp_end) {
 		const char *r = get_body_by_line(REQ_OFFSET_TO_STR(req, line[(*start)++]), name, len, '=');
 		if (r[0] != '\0')
 			return r;
@@ -7123,15 +7123,16 @@ static const char *get_sdp_iterate(int *start, struct sip_request *req, const ch
 }
 
 /*! \brief Fetches the next valid SDP line between the 'start' line
- * and the 'stop' line. Returns the type ('a', 'c', ...) and 
- * matching line in reference 'start' is updated with the next line number.
+ * and the 'stop' line (*excluding* the 'stop' line). Returns the type
+ * ('a', 'c', ...) and matching line in reference 'start' is updated with the
+ * next line number.
  */
 static char get_sdp_line(int *start, int stop, struct sip_request *req, const char **value)
 {
 	char type = '\0';
 	const char *line = NULL;
 
-	if (stop > req->sdp_end || stop < req->sdp_start) stop = req->sdp_end;
+	if (stop > req->sdp_end || stop < req->sdp_start) stop = req->sdp_end + 1;
 
 	while (*start < stop) {
 		line = REQ_OFFSET_TO_STR(req, line[(*start)++]);
