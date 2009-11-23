@@ -1091,6 +1091,7 @@ struct sip_auth {
 #define SIP_PAGE2_RFC2833_COMPENSATE    (1 << 25)	/*!< DP: Compensate for buggy RFC2833 implementations */
 #define SIP_PAGE2_BUGGY_MWI		(1 << 26)	/*!< DP: Buggy CISCO MWI fix */
 #define SIP_PAGE2_DIALOG_ESTABLISHED    (1 << 27)       /*!< 29: Has a dialog been established? */
+#define SIP_PAGE2_FAX_DETECT		(1 << 28)		/*!< DP: Fax Detection support */
 #define SIP_PAGE2_REGISTERTRYING        (1 << 29)       /*!< DP: Send 100 Trying on REGISTER attempts */
 #define SIP_PAGE2_UDPTL_DESTINATION     (1 << 30)       /*!< DP: Use source IP of RTP as destination if NAT is enabled */
 #define SIP_PAGE2_VIDEOSUPPORT_ALWAYS	(1 << 31)       /*!< DP: Always set up video, even if endpoints don't support it */
@@ -1099,7 +1100,7 @@ struct sip_auth {
 	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_IGNORESDPVERSION | \
 	SIP_PAGE2_VIDEOSUPPORT | SIP_PAGE2_T38SUPPORT | SIP_PAGE2_RFC2833_COMPENSATE | \
 	SIP_PAGE2_BUGGY_MWI | SIP_PAGE2_TEXTSUPPORT | \
-	SIP_PAGE2_UDPTL_DESTINATION | SIP_PAGE2_VIDEOSUPPORT_ALWAYS | SIP_PAGE2_CONSTANT_SSRC)
+	SIP_PAGE2_UDPTL_DESTINATION | SIP_PAGE2_VIDEOSUPPORT_ALWAYS | SIP_PAGE2_CONSTANT_SSRC | SIP_PAGE2_FAX_DETECT)
 
 /*@}*/ 
 
@@ -1364,7 +1365,7 @@ struct sip_pvt {
 	int laststate;				/*!< SUBSCRIBE: Last known extension state */
 	int dialogver;				/*!< SUBSCRIBE: Version for subscription dialog-info */
 
-	struct ast_dsp *vad;			/*!< Inband DTMF Detection dsp */
+	struct ast_dsp *dsp;			/*!< A DSP for inband DTMF and fax CNG tone detection */
 
 	struct sip_peer *relatedpeer;		/*!< If this dialog is related to a peer, which one 
 							Used in peerpoke, mwi subscriptions */
@@ -5607,8 +5608,8 @@ static int sip_hangup(struct ast_channel *ast)
 	append_history(p, needcancel ? "Cancel" : "Hangup", "Cause %s", p->owner ? ast_cause2str(p->hangupcause) : "Unknown");
 
 	/* Disconnect */
-	if (p->vad)
-		ast_dsp_free(p->vad);
+	if (p->dsp)
+		ast_dsp_free(p->dsp);
 
 	p->owner = NULL;
 	ast->tech_pvt = dialog_unref(ast->tech_pvt, "unref ast->tech_pvt");
@@ -6250,12 +6251,19 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	else
 		ast_debug(3, "This channel will not be able to handle video.\n");
 
-	if ((ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_INBAND) || (ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_AUTO)) {
-		i->vad = ast_dsp_new();
-		ast_dsp_set_features(i->vad, DSP_FEATURE_DIGIT_DETECT);
+	if ((ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_INBAND) || (ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_AUTO) ||
+	    (ast_test_flag(&i->flags[1], SIP_PAGE2_FAX_DETECT))) {
+		int features = DSP_FEATURE_DIGIT_DETECT;
+
+		if (ast_test_flag(&i->flags[1], SIP_PAGE2_FAX_DETECT)) {
+			features |= DSP_FEATURE_FAX_DETECT;
+		}
+
+		i->dsp = ast_dsp_new();
+		ast_dsp_set_features(i->dsp, features);
 		if (global_relaxdtmf)
-			ast_dsp_set_digitmode(i->vad, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
-	}
+			ast_dsp_set_digitmode(i->dsp, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
+         }
 
 	/* Set file descriptors for audio, video, realtime text and UDPTL as needed */
 	if (i->rtp) {
@@ -6566,12 +6574,20 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 		ast_set_write_format(p->owner, p->owner->writeformat);
 	}
 
-	if (f && (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_INBAND) && p->vad) {
-		f = ast_dsp_process(p->owner, p->vad, f);
-		if (f && f->frametype == AST_FRAME_DTMF) {
-			if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) && f->subclass == 'f') {
-				ast_debug(1, "Fax CNG detected on %s\n", ast->name);
-				*faxdetect = 1;
+	if (f && ((ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_INBAND) || ast_test_flag(&p->flags[1], SIP_PAGE2_FAX_DETECT)) && p->dsp) {
+		f = ast_dsp_process(p->owner, p->dsp, f);
+                if (f && f->frametype == AST_FRAME_DTMF) {
+			if (f->subclass == 'f') {
+                                if (option_debug)
+                                        ast_log(LOG_DEBUG, "Fax CNG detected on %s\n", ast->name);
+                                *faxdetect = 1;
+				/* If we only needed this DSP for fax detection purposes we can just drop it now */
+				if (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_INBAND) {
+					ast_dsp_set_features(p->dsp, DSP_FEATURE_DIGIT_DETECT);
+				} else {
+					ast_dsp_free(p->dsp);
+					p->dsp = NULL;
+				}
 			} else {
 				ast_debug(1, "* Detected inband DTMF '%c'\n", f->subclass);
 			}
@@ -6592,20 +6608,26 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 	fr = sip_rtp_read(ast, p, &faxdetected);
 	p->lastrtprx = time(NULL);
 
-	/* If we are NOT bridged to another channel, and we have detected fax tone we issue T38 re-invite to a peer */
-	/* If we are bridged then it is the responsibility of the SIP device to issue T38 re-invite if it detects CNG or fax preamble */
-	if (faxdetected && ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) && (p->t38.state == T38_DISABLED) && !(ast_bridged_channel(ast))) {
-		if (!ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
-			if (!p->pendinginvite) {
-				ast_debug(3, "Sending reinvite on SIP (%s) for T.38 negotiation.\n", ast->name);
-				change_t38_state(p, T38_LOCAL_REINVITE);
-				transmit_reinvite_with_sdp(p, TRUE, FALSE);
-			}
-		} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
-			ast_debug(3, "Deferring reinvite on SIP (%s) - it will be re-negotiated for T.38\n", ast->name);
-			ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);
-		}
-	}
+	/* If we detect a CNG tone and fax detection is enabled then send us off to the fax extension */
+	if (faxdetected && ast_test_flag(&p->flags[1], SIP_PAGE2_FAX_DETECT)) {
+		ast_channel_lock(ast);
+		if (strcmp(ast->exten, "fax")) {
+			const char *target_context = S_OR(ast->macrocontext, ast->context);
+			ast_channel_unlock(ast);
+			if (ast_exists_extension(ast, target_context, "fax", 1, ast->cid.cid_num)) {
+				ast_verbose(VERBOSE_PREFIX_2 "Redirecting '%s' to fax extension\n", ast->name);
+				pbx_builtin_setvar_helper(ast, "FAXEXTEN", ast->exten);
+				if (ast_async_goto(ast, target_context, "fax", 1)) {
+					ast_log(LOG_NOTICE, "Failed to async goto '%s' into fax of '%s'\n", ast->name, target_context);
+				}
+				fr = &ast_null_frame;
+			} else {
+				ast_log(LOG_NOTICE, "Fax detected but no fax extension\n");
+                        }
+		} else {
+			ast_channel_unlock(ast);
+                }
+        }
 
 	/* Only allow audio through if they sent progress with SDP, or if the channel is actually answered */
 	if (fr && fr->frametype == AST_FRAME_VOICE && p->invitestate != INV_EARLY_MEDIA && ast->_state != AST_STATE_UP) {
@@ -22330,6 +22352,9 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 	} else if (!strcasecmp(v->name, "constantssrc")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_CONSTANT_SSRC);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_CONSTANT_SSRC);
+	} else if (!strcasecmp(v->name, "faxdetect")) {
+                ast_set_flag(&mask[1], SIP_PAGE2_FAX_DETECT);
+                ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_FAX_DETECT);
 	} else
 		res = 0;
 
@@ -23358,6 +23383,7 @@ static int reload_config(enum channelreloadreason reason)
 	ast_clear_flag(&global_flags[1], SIP_PAGE2_VIDEOSUPPORT | SIP_PAGE2_VIDEOSUPPORT_ALWAYS);
 	ast_clear_flag(&global_flags[1], SIP_PAGE2_TEXTSUPPORT);
 	ast_clear_flag(&global_flags[1], SIP_PAGE2_IGNORESDPVERSION);
+	ast_clear_flag(&global_flags[1], SIP_PAGE2_FAX_DETECT);
 
 
 	/* Read the [general] config section of sip.conf (or from realtime config) */
@@ -24251,14 +24277,14 @@ static int sip_dtmfmode(struct ast_channel *chan, void *data)
 	if (p->rtp)
 		ast_rtp_setdtmf(p->rtp, ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833);
 	if (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_INBAND) {
-		if (!p->vad) {
-			p->vad = ast_dsp_new();
-			ast_dsp_set_features(p->vad, DSP_FEATURE_DIGIT_DETECT);
+		if (!p->dsp) {
+			p->dsp = ast_dsp_new();
+			ast_dsp_set_features(p->dsp, DSP_FEATURE_DIGIT_DETECT);
 		}
 	} else {
-		if (p->vad) {
-			ast_dsp_free(p->vad);
-			p->vad = NULL;
+		if (p->dsp) {
+			ast_dsp_free(p->dsp);
+			p->dsp = NULL;
 		}
 	}
 	sip_pvt_unlock(p);
