@@ -429,6 +429,11 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;                                       ; the other endpoint's provided value to assume we can
 ;                                       ; send 400 byte T.38 FAX packets to it.
 ;
+; Fax Detect will cause the SIP channel to jump to the 'fax' extension (if it exists)
+; if a CNG tone is detected on a received call.
+; 
+; faxdetect = yes              ; Default false	
+;
 ;----------------------------------------- OUTBOUND SIP REGISTRATIONS  ------------------------
 ; Asterisk can register as a SIP user agent to a SIP proxy (provider)
 ; Format for the register statement is:
