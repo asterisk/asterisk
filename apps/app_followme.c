@@ -79,6 +79,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>Playback the unreachable status message if we've run out
 						of steps to reach the or the callee has elected not to be reachable.</para>
 					</option>
+					<option name="d">
+						<para>Disable the 'Please hold while we try to connect your call' announcement.</para>
+					</option>
 				</optionlist>
 			</parameter>
 		</syntax>
@@ -159,13 +162,15 @@ struct findme_user {
 enum {
 	FOLLOWMEFLAG_STATUSMSG = (1 << 0),
 	FOLLOWMEFLAG_RECORDNAME = (1 << 1),
-	FOLLOWMEFLAG_UNREACHABLEMSG = (1 << 2)
+	FOLLOWMEFLAG_UNREACHABLEMSG = (1 << 2),
+	FOLLOWMEFLAG_DISABLEHOLDPROMPT = (1 << 3)
 };
 
 AST_APP_OPTIONS(followme_opts, {
 	AST_APP_OPTION('s', FOLLOWMEFLAG_STATUSMSG ),
 	AST_APP_OPTION('a', FOLLOWMEFLAG_RECORDNAME ),
 	AST_APP_OPTION('n', FOLLOWMEFLAG_UNREACHABLEMSG ),
+	AST_APP_OPTION('d', FOLLOWMEFLAG_DISABLEHOLDPROMPT ),
 });
 
 static int ynlongest = 0;
@@ -1095,11 +1100,12 @@ static int app_exec(struct ast_channel *chan, const char *data)
 
 	if (!ast_fileexists(namerecloc, NULL, chan->language))
 		ast_copy_string(namerecloc, "", sizeof(namerecloc));
-
-	if (ast_streamfile(chan, targs.plsholdprompt, chan->language))
-		goto outrun;
-	if (ast_waitstream(chan, "") < 0)
-		goto outrun;
+	if (!ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_DISABLEHOLDPROMPT)) {
+		if (ast_streamfile(chan, targs.plsholdprompt, chan->language))
+			goto outrun;
+		if (ast_waitstream(chan, "") < 0)
+			goto outrun;
+	}
 	ast_moh_start(chan, S_OR(targs.mohclass, NULL), NULL);
 
 	targs.status = 0;
