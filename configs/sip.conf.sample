@@ -552,7 +552,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;                                       ; send 400 byte T.38 FAX packets to it.
 ;
 ; FAX detection will cause the SIP channel to jump to the 'fax' extension (if it exists)
-; after T.38 is successfully negotiated.
+; when a CNG tone is detected on an incoming call.
 ;
 ; faxdetect = yes              ; Default false
 ;
