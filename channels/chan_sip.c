@@ -5111,6 +5111,8 @@ static int parse_request(struct sip_request *req)
 
 	/* Check a non-newline-terminated last line */
 	if (!ast_strlen_zero(req->line[f])) {
+		if (sipdebug && option_debug > 3)
+			ast_log(LOG_DEBUG, "Line: %s (%d)\n", req->line[f], (int) strlen(req->line[f]));
 		req->lines++;
 	}
 
