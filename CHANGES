@@ -101,6 +101,8 @@ Applications
    configuration for more information.
  * The ChanIsAvail application now exposes the returned cause code using a separate
    variable, AVAILCAUSECODE, instead of overwriting the device state in AVAILSTATUS.
+ * Added 'd' option to app_followme.  This option disables the "Please hold"
+   announcement.
 
 Dialplan Functions
 ------------------
