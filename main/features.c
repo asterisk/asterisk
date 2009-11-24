@@ -3085,6 +3085,10 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		while ((spawn_error = ast_spawn_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num, &found, 1)) == 0) {
 			chan->priority++;
 		}
+		if (spawn_error && (!ast_exists_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num) || ast_check_hangup(chan))) {
+			/* if the extension doesn't exist or a hangup occurred, this isn't really a spawn error */
+			spawn_error = 0;
+		}
 		if (found && spawn_error) {
 			/* Something bad happened, or a hangup has been requested. */
 			ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", chan->context, chan->exten, chan->priority, chan->name);
@@ -3101,7 +3105,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				bridge_cdr = NULL;
 			}
 		}
-		if (chan->priority != 1 || !spawn_error) {
+		if (!spawn_error) {
 			ast_set_flag(chan, AST_FLAG_BRIDGE_HANGUP_RUN);
 		}
 		ast_channel_unlock(chan);
