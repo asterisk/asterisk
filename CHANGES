@@ -146,8 +146,13 @@ Dialplan Functions
    mode=multirow.  If rowlimit is set, then additional rows may be retrieved
    from the same query by using the name of the function which retrieved the
    first row as an argument to ODBC_FETCH().
-  * Added JABBER_RECEIVE, which permits receiving XMPP messages from the
-    dialplan. This function returns the content of the received message.
+ * Added JABBER_RECEIVE, which permits receiving XMPP messages from the
+   dialplan. This function returns the content of the received message.
+ * Added REPLACE, which searches a given variable name for a set of characters,
+   then either replaces them with a single character or deletes them.
+ * Added PASSTHRU, which literally passes the same argument back as its return
+   value.  The intent is to be able to use a literal string argument to
+   functions that currently require a variable name as an argument.
 
 Dialplan Variables
 ------------------

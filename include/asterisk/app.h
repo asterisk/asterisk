@@ -555,12 +555,21 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
 /*! \brief Allow to record message and have a review option */
 int ast_record_review(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, const char *path);
 
-/*! \brief Decode an encoded control or extended ASCII character 
-    \return Returns a pointer to the result string
-*/
+/*!\brief Decode an encoded control or extended ASCII character 
+ * \param[in] stream String to decode
+ * \param[out] result Decoded character
+ * \param[out] consumed Number of characters used in stream to encode the character
+ * \retval -1 Stream is of zero length
+ * \retval 0 Success
+ */
 int ast_get_encoded_char(const char *stream, char *result, size_t *consumed);
 
-/*! \brief Decode a stream of encoded control or extended ASCII characters */
+/*!\brief Decode a stream of encoded control or extended ASCII characters
+ * \param[in] stream Encoded string
+ * \param[out] result Decoded string
+ * \param[in] result_len Maximum size of the result buffer
+ * \return A pointer to the result string
+ */
 char *ast_get_encoded_str(const char *stream, char *result, size_t result_len);
 
 /*! \brief Decode a stream of encoded control or extended ASCII characters */
