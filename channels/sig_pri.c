@@ -113,6 +113,13 @@ static void sig_pri_set_dialing(struct sig_pri_chan *p, int flag)
 		p->calls->set_dialing(p->chan_pvt, flag);
 }
 
+static void sig_pri_set_digital(struct sig_pri_chan *p, int flag)
+{
+	p->digital = flag;
+	if (p->calls->set_digital)
+		p->calls->set_digital(p->chan_pvt, flag);
+}
+
 /*!
  * \internal
  * \brief Set the caller id information in the parent module.
@@ -726,18 +733,23 @@ static struct ast_channel *sig_pri_new_ast_channel(struct sig_pri_chan *p, int s
 		p->owner = c;
 	p->isidlecall = 0;
 	p->alreadyhungup = 0;
+	if (transfercapability & AST_TRANS_CAP_DIGITAL) {
+		c->transfercapability = transfercapability;
+		pbx_builtin_setvar_helper(c, "TRANSFERCAPABILITY", ast_transfercapability2str(transfercapability));
+		sig_pri_set_digital(p, 1);
+	}
 
 	return c;
 }
 
-struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law, const struct ast_channel *requestor)
+struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law, const struct ast_channel *requestor, int transfercapability)
 {
 	struct ast_channel *ast;
 
 	ast_log(LOG_DEBUG, "%s %d\n", __FUNCTION__, p->channel);
 
 	p->outgoing = 1;
-	ast = sig_pri_new_ast_channel(p, AST_STATE_RESERVED, 0, law, 0, p->exten, requestor);
+	ast = sig_pri_new_ast_channel(p, AST_STATE_RESERVED, 0, law, transfercapability, p->exten, requestor);
 	if (!ast) {
 		p->outgoing = 0;
 	}
@@ -1951,7 +1963,7 @@ static void *pri_dchannel(void *vpri)
 				if (ast_tvdiff_ms(ast_tvnow(), lastidle) > 1000) {
 					/* Don't create a new idle call more than once per second */
 					snprintf(idlen, sizeof(idlen), "%d/%s", pri->pvts[nextidle]->channel, pri->idledial);
-					idle = sig_pri_request(pri->pvts[nextidle], AST_FORMAT_ULAW, NULL);
+					idle = sig_pri_request(pri->pvts[nextidle], AST_FORMAT_ULAW, NULL, 0);
 					if (idle) {
 						pri->pvts[nextidle]->isidlecall = 1;
 						if (ast_pthread_create_background(&p, NULL, do_idle_thread, idle)) {
@@ -3194,7 +3206,7 @@ int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 
 	p->owner = NULL;
 	p->outgoing = 0;
-	p->digital = 0;
+	sig_pri_set_digital(p, 0);	/* push up to parent for EC*/
 	p->proceeding = 0;
 	p->progress = 0;
 	p->alerting = 0;
@@ -3451,7 +3463,7 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 		return -1;
 	}
 
-	p->digital = IS_DIGITAL(ast->transfercapability);
+	sig_pri_set_digital(p, IS_DIGITAL(ast->transfercapability));	/* push up to parent for EC */
 
 	/* Should the picked channel be used exclusively? */
 	if (p->priexclusive || p->pri->nodetype == PRI_NETWORK) {
@@ -3742,7 +3754,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 		break;
 	case AST_CONTROL_PROGRESS:
 		ast_debug(1,"Received AST_CONTROL_PROGRESS on %s\n",chan->name);
-		p->digital = 0;	/* Digital-only calls isn't allowing any inband progress messages */
+		sig_pri_set_digital(p, 0);	/* Digital-only calls isn't allowing any inband progress messages */
 		if (!p->progress && p->pri && !p->outgoing) {
 			if (p->pri->pri) {
 				if (!pri_grab(p, p->pri)) {

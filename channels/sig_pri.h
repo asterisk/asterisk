@@ -72,6 +72,7 @@ struct sig_pri_callback {
 	/* Note: Called with PRI lock held */
 	void (* const handle_dchan_exception)(struct sig_pri_pri *pri, int index);
 	void (* const set_dialing)(void *pvt, int flag);
+	void (* const set_digital)(void *pvt, int flag);
 	void (* const set_callerid)(void *pvt, const struct ast_party_caller *caller);
 	void (* const set_dnid)(void *pvt, const char *dnid);
 	void (* const set_rdnis)(void *pvt, const char *rdnis);
@@ -272,7 +273,7 @@ void pri_event_alarm(struct sig_pri_pri *pri, int index, int before_start_pri);
 
 void pri_event_noalarm(struct sig_pri_pri *pri, int index, int before_start_pri);
 
-struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law, const struct ast_channel *requestor);
+struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law, const struct ast_channel *requestor, int transfercapability);
 
 struct sig_pri_chan *sig_pri_chan_new(void *pvt_data, struct sig_pri_callback *callback, struct sig_pri_pri *pri, int logicalspan, int channo, int trunkgroup);
 void sig_pri_chan_delete(struct sig_pri_chan *doomed);

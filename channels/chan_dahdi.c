@@ -2069,6 +2069,14 @@ static void my_set_dialing(void *pvt, int flag)
 	p->dialing = flag;
 }
 
+#if defined(HAVE_PRI)
+static void my_set_digital(void *pvt, int flag)
+{
+	struct dahdi_pvt *p = pvt;
+	p->digital = flag;
+}
+#endif
+
 static void my_set_ringtimeout(void *pvt, int ringt)
 {
 	struct dahdi_pvt *p = pvt;
@@ -2780,6 +2788,7 @@ static struct sig_pri_callback dahdi_pri_callbacks =
 	.new_ast_channel = my_new_pri_ast_channel,
 	.fixup_chans = my_pri_fixup_chans,
 	.set_dialing = my_set_dialing,
+	.set_digital = my_set_digital,
 	.set_callerid = my_pri_set_callerid,
 	.set_dnid = my_pri_set_dnid,
 	.set_rdnis = my_pri_set_rdnis,
@@ -8696,7 +8705,7 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	tmp->cid.cid_pres = i->callingpres;
 	tmp->cid.cid_ton = i->cid_ton;
 	tmp->cid.cid_ani2 = i->cid_ani2;
-#if defined(HAVE_PRI) || defined(HAVE_SS7)
+#if defined(HAVE_SS7)
 	tmp->transfercapability = transfercapability;
 	pbx_builtin_setvar_helper(tmp, "TRANSFERCAPABILITY", ast_transfercapability2str(transfercapability));
 	if (transfercapability & AST_TRANS_CAP_DIGITAL)
@@ -12009,6 +12018,7 @@ static struct ast_channel *dahdi_request(const char *type, format_t format, cons
 	struct dahdi_pvt *exitpvt;
 	int channelmatched = 0;
 	int groupmatched = 0;
+	int transcapdigital = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(group);	/* channel/group token */
 		//AST_APP_ARG(ext);	/* extension token */
@@ -12124,21 +12134,6 @@ static struct ast_channel *dahdi_request(const char *type, format_t format, cons
 					break;
 				}
 			}
-			p->outgoing = 1;
-			if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
-				tmp = analog_request(p->sig_pvt, &callwait, requestor);
-#ifdef HAVE_PRI
-			} else if (dahdi_sig_pri_lib_handles(p->sig)) {
-				sig_pri_extract_called_num_subaddr(p->sig_pvt, data, p->dnid,
-					sizeof(p->dnid));
-				tmp = sig_pri_request(p->sig_pvt, SIG_PRI_DEFLAW, requestor);
-#endif
-			} else {
-				tmp = dahdi_new(p, AST_STATE_RESERVED, 0, p->owner ? SUB_CALLWAIT : SUB_REAL, 0, 0, requestor ? requestor->linkedid : "");
-			}
-			if (!tmp) {
-				p->outgoing = 0;
-			}
 
 			/* Make special notes */
 			if (res > 1) {
@@ -12153,12 +12148,26 @@ static struct ast_channel *dahdi_request(const char *type, format_t format, cons
 						p->distinctivering = y;
 				} else if (opt == 'd') {
 					/* If this is an ISDN call, make it digital */
-					p->digital = 1;
-					if (tmp)
-						tmp->transfercapability = AST_TRANS_CAP_DIGITAL;
+					transcapdigital = AST_TRANS_CAP_DIGITAL;
 				} else {
 					ast_log(LOG_WARNING, "Unknown option '%c' in '%s'\n", opt, (char *)data);
 				}
+			}
+
+			p->outgoing = 1;
+			if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
+				tmp = analog_request(p->sig_pvt, &callwait, requestor);
+#ifdef HAVE_PRI
+			} else if (dahdi_sig_pri_lib_handles(p->sig)) {
+				sig_pri_extract_called_num_subaddr(p->sig_pvt, data, p->dnid,
+					sizeof(p->dnid));
+				tmp = sig_pri_request(p->sig_pvt, SIG_PRI_DEFLAW, requestor, transcapdigital);
+#endif
+			} else {
+				tmp = dahdi_new(p, AST_STATE_RESERVED, 0, p->owner ? SUB_CALLWAIT : SUB_REAL, 0, transcapdigital, requestor ? requestor->linkedid : "");
+			}
+			if (!tmp) {
+				p->outgoing = 0;
 			}
 			/* Note if the call is a call waiting call */
 			if (tmp && callwait)
