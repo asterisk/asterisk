@@ -5692,7 +5692,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			isin.sin_family = AF_INET;
 			isin.sin_port = htons(udptlportno);
 			if (ast_test_flag(&p->flags[0], SIP_NAT) && ast_test_flag(&p->flags[1], SIP_PAGE2_UDPTL_DESTINATION)) {
-				struct sockaddr_in peer;
+				struct sockaddr_in peer = { 0, };
 				ast_rtp_get_peer(p->rtp, &peer);
 				if (peer.sin_addr.s_addr) {
 					memcpy(&isin.sin_addr, &peer.sin_addr, sizeof(isin.sin_addr));
@@ -16932,7 +16932,7 @@ restartsearch:
 					(ast_rtp_get_rtptimeout(sip->rtp) || ast_rtp_get_rtpholdtimeout(sip->rtp)) &&
 				    (t > sip->lastrtprx + ast_rtp_get_rtptimeout(sip->rtp))) {
 					/* Might be a timeout now -- see if we're on hold */
-					struct sockaddr_in sin;
+					struct sockaddr_in sin = { 0, };
 					ast_rtp_get_peer(sip->rtp, &sin);
 					if (!ast_test_flag(&sip->flags[1], SIP_PAGE2_CALL_ONHOLD) || 
 					    (ast_rtp_get_rtpholdtimeout(sip->rtp) &&
