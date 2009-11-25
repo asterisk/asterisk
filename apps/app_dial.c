@@ -1044,10 +1044,10 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		warning_sound = S_OR(var, "timeleft");
 		
 		var = pbx_builtin_getvar_helper(chan,"LIMIT_TIMEOUT_FILE");
-		end_sound = S_OR(var, NULL);	/* XXX not much of a point in doing this! */
+		end_sound = S_OR(var, "");
 		
 		var = pbx_builtin_getvar_helper(chan,"LIMIT_CONNECT_FILE");
-		start_sound = S_OR(var, NULL);	/* XXX not much of a point in doing this! */
+		start_sound = S_OR(var, "");
 
 		/* undo effect of S(x) in case they are both used */
 		calldurationlimit = -1;
