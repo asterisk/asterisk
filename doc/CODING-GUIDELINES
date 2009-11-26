@@ -435,9 +435,9 @@ functions.
 When making applications, always ast_strdupa(data) to a local pointer if you
 intend to parse the incoming data string.
 
-	if (data)
+	if (data) {
 		mydata = ast_strdupa(data);
-
+	}
 
 - Use the argument parsing macros to declare arguments and parse them, i.e.:
 
@@ -521,10 +521,11 @@ throughout the code to log that this has occurred.
 The functions strdup and strndup can *not* accept a NULL argument. This results
 in having code like this:
 
-	if (str)
+	if (str) {
 		newstr = strdup(str);
-	else
+	} else {
 		newstr = NULL;
+	}
 
 However, the ast_strdup and ast_strdupa functions will happily accept a NULL
 argument without generating an error.  The same code can be written as:
@@ -666,8 +667,9 @@ const char *postfix = "post";
 char *newname;
 char *name = "data";
 
-if (name && (newname = alloca(strlen(name) + strlen(prefix) + strlen(postfix) + 3)))
+if (name && (newname = alloca(strlen(name) + strlen(prefix) + strlen(postfix) + 3))) {
 	snprintf(newname, strlen(name) + strlen(prefix) + strlen(postfix) + 3, "%s/%s/%s", prefix, name, postfix);
+|
 
 ...vs this alternative:
 
@@ -677,8 +679,9 @@ char *newname;
 char *name = "data";
 int len = 0;
 
-if (name && (len = strlen(name) + strlen(prefix) + strlen(postfix) + 3) && (newname = alloca(len)))
+if (name && (len = strlen(name) + strlen(prefix) + strlen(postfix) + 3) && (newname = alloca(len))) {
 	snprintf(newname, len, "%s/%s/%s", prefix, name, postfix);
+}
 
 * Creating new manager events?
 ------------------------------
