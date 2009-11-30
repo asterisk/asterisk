@@ -1101,6 +1101,11 @@ static inline void insert_entry(struct call_queue *q, struct queue_ent *prev, st
 		q->head = new;
 	}
 	new->next = cur;
+
+	/* every queue_ent must have a reference to it's parent call_queue, this
+	 * reference does not go away until the end of the queue_ent's life, meaning
+	 * that even when the queue_ent leaves the call_queue this ref must remain. */
+	queue_ref(q);
 	new->parent = q;
 	new->pos = ++(*pos);
 	new->opos = *pos;
@@ -5441,7 +5446,7 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(position);
 	);
 	/* Our queue entry */
-	struct queue_ent qe;
+	struct queue_ent qe = { 0 };
 	
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Queue requires an argument: queuename[,options[,URL[,announceoverride[,timeout[,agi[,macro[,gosub[,rule[,position]]]]]]]]]\n");
@@ -5452,7 +5457,6 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	/* Setup our queue entry */
-	memset(&qe, 0, sizeof(qe));
 	qe.start = time(NULL);
 
 	/* set the expire time based on the supplied timeout; */
@@ -5692,6 +5696,13 @@ stop:
 	leave_queue(&qe);
 	if (reason != QUEUE_UNKNOWN)
 		set_queue_result(chan, reason);
+
+	if (qe.parent) {
+		/* every queue_ent is given a reference to it's parent call_queue when it joins the queue.
+		 * This ref must be taken away right before the queue_ent is destroyed.  In this case
+		 * the queue_ent is about to be returned on the stack */
+		qe.parent = queue_unref(qe.parent);
+	}
 
 	return res;
 }
