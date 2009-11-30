@@ -95,7 +95,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/global_datastores.h"
 #include "asterisk/taskprocessor.h"
 
-#define REF_DEBUG_ONLY_QUEUES
+/* #define REF_DEBUG_ONLY_QUEUES */
 
 /*!
  * \par Please read before modifying this file.
@@ -603,10 +603,10 @@ static int queue_cmp_cb(void *obj, void *arg, int flags)
 }
 
 #ifdef REF_DEBUG_ONLY_QUEUES
-#define queue_ref(a)	_ao2_ref_debug(a,1,"",__FILE__,__LINE__,__PRETTY_FUNCTION__)
-#define queue_unref(a)	_ao2_ref_debug(a,-1,"",__FILE__,__LINE__,__PRETTY_FUNCTION__)
-#define queue_t_ref(a,b)	_ao2_ref_debug(a,1,b,__FILE__,__LINE__,__PRETTY_FUNCTION__)
-#define queue_t_unref(a,b)	_ao2_ref_debug(a,-1,b,__FILE__,__LINE__,__PRETTY_FUNCTION__)
+#define queue_ref(a)	_ao2_ref_debug(a,1,"",__FILE__,__LINE__,__PRETTY_FUNCTION__), a
+#define queue_unref(a)	_ao2_ref_debug(a,-1,"",__FILE__,__LINE__,__PRETTY_FUNCTION__), NULL
+#define queue_t_ref(a,b)	_ao2_ref_debug(a,1,b,__FILE__,__LINE__,__PRETTY_FUNCTION__), a
+#define queue_t_unref(a,b)	_ao2_ref_debug(a,-1,b,__FILE__,__LINE__,__PRETTY_FUNCTION__), NULL
 #define queues_t_link(c,q,tag)	_ao2_link_debug(c,q,tag,__FILE__,__LINE__,__PRETTY_FUNCTION__)
 #define queues_t_unlink(c,q,tag)	_ao2_unlink_debug(c,q,tag,__FILE__,__LINE__,__PRETTY_FUNCTION__)
 #else
