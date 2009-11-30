@@ -21531,6 +21531,8 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 
 		ast_channel_lock(transferer); /* the transferer pvt is expected to remain locked on return */
 
+		ast_indicate(target.chan1, AST_CONTROL_UNHOLD);
+
 		if (target.chan2) {
 			ast_channel_queue_connected_line_update(target.chan1, &connected_to_transferee);
 			ast_channel_queue_connected_line_update(target.chan2, &connected_to_target);
