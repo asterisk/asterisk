@@ -8333,7 +8333,7 @@ static int load_config(void)
 	const char *astforcename;
 	const char *astforcegreet;
 	const char *s;
-	char *q,*stringp;
+	char *q,*stringp, *tmp;
 	const char *dialoutcxt = NULL;
 	const char *callbackcxt = NULL;	
 	const char *exitcxt = NULL;	
@@ -8542,8 +8542,17 @@ static int load_config(void)
 			}
 		}
 		fmt = ast_variable_retrieve(cfg, "general", "format");
-		if (!fmt)
+		if (!fmt) {
 			fmt = "wav";	
+		} else {
+			tmp = ast_strdupa(fmt);
+			fmt = ast_format_str_reduce(tmp);
+			if (!fmt) {
+				ast_log(LOG_ERROR, "Error processing format string, defaulting to format 'wav'\n");
+				fmt = "wav";
+			}
+		}
+
 		ast_copy_string(vmfmts, fmt, sizeof(vmfmts));
 
 		skipms = 3000;

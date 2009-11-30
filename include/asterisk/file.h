@@ -35,6 +35,8 @@
 extern "C" {
 #endif
 
+/*! The maximum number of formats we expect to see in a format string */
+#define AST_MAX_FORMATS 10
 
 /*! Convenient for waiting */
 #define AST_DIGIT_ANY "0123456789#*ABCD"
@@ -401,6 +403,14 @@ off_t ast_tellstream(struct ast_filestream *fs);
  * Returns a frame or NULL if read failed
  */ 
 struct ast_frame *ast_readframe(struct ast_filestream *s);
+
+/*! Remove duplicate formats from a format string. */
+/*!
+ * \param fmts a format string, this string will be modified
+ * \retval NULL error
+ * \return a pointer to the reduced format string, this is a pointer to fmts
+ */
+char *ast_format_str_reduce(char *fmts);
 
 /*! Initialize file stuff */
 /*!

@@ -1358,6 +1358,66 @@ int ast_stream_and_wait(struct ast_channel *chan, const char *file,
         return res;
 } 
 
+char *ast_format_str_reduce(char *fmts)
+{
+	struct ast_format *f;
+	struct ast_format *fmts_ptr[AST_MAX_FORMATS];
+	char *fmts_str[AST_MAX_FORMATS];
+	char *stringp, *type;
+	char *orig = fmts;
+	int i, j, x, found;
+	int len = strlen(fmts) + 1;
+
+	if (AST_LIST_LOCK(&formats)) {
+		ast_log(LOG_WARNING, "Unable to lock format list\n");
+		return NULL;
+	}
+
+	stringp = ast_strdupa(fmts);
+
+	for (x = 0; (type = strsep(&stringp, "|")) && x < AST_MAX_FORMATS; x++) {
+		AST_LIST_TRAVERSE(&formats, f, list) {
+			if (exts_compare(f->exts, type)) {
+				found = 1;
+				break;
+			}
+		}
+
+		fmts_str[x] = type;
+		if (found) {
+			fmts_ptr[x] = f;
+		} else {
+			fmts_ptr[x] = NULL;
+		}
+	}
+	AST_LIST_UNLOCK(&formats);
+
+	for (i = 0; i < x; i++) {
+		/* special handling for the first entry */
+		if (i == 0) {
+			fmts += snprintf(fmts, len, "%s", fmts_str[i]);
+			len -= (fmts - orig);
+			continue;
+		}
+
+		found = 0;
+		for (j = 0; j < i; j++) {
+			/* this is a duplicate */
+			if (fmts_ptr[j] == fmts_ptr[i]) {
+				found = 1;
+				break;
+			}
+		}
+
+		if (!found) {
+			fmts += snprintf(fmts, len, "|%s", fmts_str[i]);
+			len -= (fmts - orig);
+		}
+	}
+
+	return orig;
+}
+
 static int show_file_formats(int fd, int argc, char *argv[])
 {
 #define FORMAT "%-10s %-10s %-20s\n"
