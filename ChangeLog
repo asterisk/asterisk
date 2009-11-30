@@ -1,3 +1,11 @@
+2009-11-30  Leif Madsen <lmadsen@digium.com>
+
+	* Release Asterisk 1.6.1.11
+
+	* AST-2009-010
+
+	* SDP parser regression fix
+
 2009-11-18  Leif Madsen <lmadsen@digium.com>
 
 	* Release Asterisk 1.6.1.10
