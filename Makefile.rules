@@ -49,7 +49,10 @@ CC_CFLAGS=$(PTHREAD_CFLAGS) $(_ASTCFLAGS) $(ASTCFLAGS)
 CXX_CFLAGS=$(PTHREAD_CFLAGS) $(filter-out -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(AST_DECLARATION_AFTER_STATEMENT),$(_ASTCFLAGS) $(ASTCFLAGS))
 
 ifeq ($(GNU_LD),1)
-SO_SUPPRESS_SYMBOLS=-Wl,--version-script,$(if $(wildcard $(subst .so,.exports,$@)),$(subst .so,.exports,$@),$(ASTTOPDIR)/default.exports)
+SO_SUPPRESS_SYMBOLS=-Wl,--version-script,$(if $(wildcard $(subst .so,.exports,$@)),$(subst .so,.exports,$@),$(ASTTOPDIR)/default.exports),--warn-common
+ifneq ($(wildcard $(subst .so,.dynamics,$@)),)
+SO_SUPPRESS_SYMBOLS+=-Wl,--dynamic-list,$(subst .so,.dynamics,$@)
+endif
 endif
 
 CC_LDFLAGS_SO=$(PTHREAD_CFLAGS) $(_ASTLDFLAGS) $(SOLINK) $(SO_SUPPRESS_SYMBOLS) $(ASTLDFLAGS)

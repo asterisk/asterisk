@@ -1,0 +1,6 @@
+{
+	ast_agi_*;
+	ast_pktccops_*;
+	ast_smdi_*;
+	ast_monitor_*;
+};
