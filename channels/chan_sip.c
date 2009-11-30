@@ -902,7 +902,7 @@ struct sip_request {
 	int method;             /*!< Method of this request */
 	int lines;              /*!< Body Content */
 	unsigned int sdp_start; /*!< the line number where the SDP begins */
-	unsigned int sdp_end;   /*!< the line number where the SDP ends */
+	unsigned int sdp_count; /*!< the number of lines of SDP */
 	char debug;		/*!< print extra debugging if non zero */
 	char has_to_tag;	/*!< non-zero if packet has To: tag */
 	char ignore;		/*!< if non-zero This is a re-transmit, ignore it */
@@ -6361,25 +6361,31 @@ static const char *get_sdp_iterate(int *start, struct sip_request *req, const ch
 {
 	int len = strlen(name);
 
-	while (*start < req->sdp_end) {
+	while (*start < (req->sdp_start + req->sdp_count)) {
 		const char *r = get_body_by_line(REQ_OFFSET_TO_STR(req, line[(*start)++]), name, len);
 		if (r[0] != '\0')
 			return r;
 	}
 
+	/* if the line was not found, ensure that *start points past the SDP */
+	(*start)++;
+
 	return "";
 }
 
 /*! \brief Fetches the next valid SDP line between the 'start' line
- * and the 'stop' line. Returns the type ('a', 'c', ...) and 
- * matching line in reference 'start' is updated with the next line number.
+ * (inclusive) and the 'stop' line (exclusive). Returns the type
+ * ('a', 'c', ...) and matching line in reference 'start' is updated
+ * with the next line number.
  */
 static char get_sdp_line(int *start, int stop, struct sip_request *req, const char **value)
 {
 	char type = '\0';
 	const char *line = NULL;
 
-	if (stop > req->sdp_end || stop < req->sdp_start) stop = req->sdp_end;
+	if (stop > (req->sdp_start + req->sdp_count)) {
+		stop = req->sdp_start + req->sdp_count;
+	}
 
 	while (*start < stop) {
 		line = REQ_OFFSET_TO_STR(req, line[(*start)++]);
@@ -7234,7 +7240,7 @@ static int parse_request(struct sip_request *req)
   \param req the SIP request to process
   \return 1 if SDP found, 0 if not found
 
-  Also updates req->sdp_start and req->sdp_end to indicate where the SDP
+  Also updates req->sdp_start and req->sdp_count to indicate where the SDP
   lives in the message body.
 */
 static int find_sdp(struct sip_request *req)
@@ -7267,7 +7273,7 @@ static int find_sdp(struct sip_request *req)
 	/* if the body contains only SDP, this is easy */
 	if (!strncasecmp(content_type, "application/sdp", 15)) {
 		req->sdp_start = 0;
-		req->sdp_end = req->lines;
+		req->sdp_count = req->lines;
 		return req->lines ? 1 : 0;
 	}
 
@@ -7307,7 +7313,7 @@ static int find_sdp(struct sip_request *req)
 		char *line = REQ_OFFSET_TO_STR(req, line[x]);
 		if (!strncasecmp(line, boundary, strlen(boundary))){
 			if (found_application_sdp && found_end_of_headers) {
-				req->sdp_end = x-1;
+				req->sdp_count = (x - 1) - req->sdp_start;
 				return 1;
 			}
 			found_application_sdp = FALSE;
@@ -7323,7 +7329,7 @@ static int find_sdp(struct sip_request *req)
 		}
 	}
 	if (found_application_sdp && found_end_of_headers) {
-		req->sdp_end = x;
+		req->sdp_count = x - req->sdp_start;
 		return TRUE;
 	}
 	return FALSE;
