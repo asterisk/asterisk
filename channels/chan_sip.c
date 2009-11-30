@@ -8495,8 +8495,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		int processed = FALSE;
 		switch (type) {
 		case 'o':
+			/* If we end up receiving SDP that doesn't actually modify the session we don't want to treat this as a fatal
+			 * error. We just want to ignore the SDP and let the rest of the packet be handled as normal.
+			 */
 			if (!process_sdp_o(value, p))
-				return -1;
+				return (p->session_modify == FALSE) ? 0 : -1;
 			break;
 		case 'c':
 			if (process_sdp_c(value, &sessionhp)) {
@@ -8959,6 +8962,8 @@ static int process_sdp_o(const char *o, struct sip_pvt *p)
 	change media session and increment its own version number in answer
 	SDP in this case. */
 
+	p->session_modify = TRUE;
+
 	if (ast_strlen_zero(o)) {
 		ast_log(LOG_WARNING, "SDP syntax error. SDP without an o= line\n");
 		return FALSE;
@@ -9007,11 +9012,9 @@ static int process_sdp_o(const char *o, struct sip_pvt *p)
 	    (p->sessionversion_remote < 0) ||
 	    (p->sessionversion_remote < rua_version)) {
 		p->sessionversion_remote = rua_version;
-		p->session_modify = TRUE;
 	} else {
 		if (p->t38.state == T38_LOCAL_REINVITE) {
 			p->sessionversion_remote = rua_version;
-			p->session_modify = TRUE;
 			ast_log(LOG_WARNING, "Call %s responded to our T.38 reinvite without changing SDP version; 'ignoresdpversion' should be set for this peer.\n", p->callid);
 		} else {
 			p->session_modify = FALSE;
