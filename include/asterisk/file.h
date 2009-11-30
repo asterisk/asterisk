@@ -40,9 +40,6 @@ extern "C" {
 struct ast_filestream;
 struct ast_format;
 
-/*! The maximum number of formats we expect to see in a format string */
-#define AST_MAX_FORMATS 10
-
 /*! Convenient for waiting */
 #define AST_DIGIT_ANY "0123456789#*ABCD"
 #define AST_DIGIT_ANYNUM "0123456789"
@@ -327,14 +324,6 @@ int ast_file_init(void);
 
 
 #define AST_RESERVED_POINTERS 20
-
-/*! Remove duplicate formats from a format string. */
-/*!
- * \param fmts a format string, this string will be modified
- * \retval NULL error
- * \return a pointer to the reduced format string, this is a pointer to fmts
- */
-char *ast_format_str_reduce(char *fmts);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
