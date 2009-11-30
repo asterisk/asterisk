@@ -55,7 +55,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 AST_THREADSTORAGE_PUBLIC(ast_str_thread_global_buf);
 
 
-#define MAX_OTHER_FORMATS 10
+#define AST_MAX_FORMATS 10
 
 static AST_RWLIST_HEAD_STATIC(groups, ast_group_info);
 
@@ -693,8 +693,8 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 	char *fmts;
 	char comment[256];
 	int x, fmtcnt = 1, res = -1, outmsg = 0;
-	struct ast_filestream *others[MAX_OTHER_FORMATS];
-	char *sfmt[MAX_OTHER_FORMATS];
+	struct ast_filestream *others[AST_MAX_FORMATS];
+	char *sfmt[AST_MAX_FORMATS];
 	char *stringp = NULL;
 	time_t start, end;
 	struct ast_dsp *sildet = NULL;   /* silence detector dsp */
@@ -747,8 +747,8 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 	sfmt[0] = ast_strdupa(fmts);
 
 	while ((fmt = strsep(&stringp, "|"))) {
-		if (fmtcnt > MAX_OTHER_FORMATS - 1) {
-			ast_log(LOG_WARNING, "Please increase MAX_OTHER_FORMATS in app.c\n");
+		if (fmtcnt > AST_MAX_FORMATS - 1) {
+			ast_log(LOG_WARNING, "Please increase AST_MAX_FORMATS in file.h\n");
 			break;
 		}
 		sfmt[fmtcnt++] = ast_strdupa(fmt);
@@ -938,7 +938,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 	}
 
 	if (prepend && outmsg) {
-		struct ast_filestream *realfiles[MAX_OTHER_FORMATS];
+		struct ast_filestream *realfiles[AST_MAX_FORMATS];
 		struct ast_frame *fr;
 
 		for (x = 0; x < fmtcnt; x++) {
