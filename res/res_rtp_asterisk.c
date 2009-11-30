@@ -1530,7 +1530,6 @@ static struct ast_frame *process_cn_rfc3389(struct ast_rtp_instance *instance, u
 	}
 	rtp->f.frametype = AST_FRAME_CNG;
 	rtp->f.subclass.integer = data[0] & 0x7f;
-	rtp->f.datalen = len - 1;
 	rtp->f.samples = 0;
 	rtp->f.delivery.tv_usec = rtp->f.delivery.tv_sec = 0;
 
