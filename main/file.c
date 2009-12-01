@@ -1354,7 +1354,7 @@ char *ast_format_str_reduce(char *fmts)
 	char *fmts_str[AST_MAX_FORMATS];
 	char *stringp, *type;
 	char *orig = fmts;
-	int i, j, x, found;
+	int i, j, x, first, found;
 	int len = strlen(fmts) + 1;
 
 	if (AST_RWLIST_RDLOCK(&formats)) {
@@ -1381,11 +1381,19 @@ char *ast_format_str_reduce(char *fmts)
 	}
 	AST_RWLIST_UNLOCK(&formats);
 
+	first = 1;
 	for (i = 0; i < x; i++) {
+		/* ignore invalid entries */
+		if (!fmts_ptr[i]) {
+			ast_log(LOG_WARNING, "ignoring unknown format '%s'\n", fmts_str[i]);
+			continue;
+		}
+
 		/* special handling for the first entry */
-		if (i == 0) {
+		if (first) {
 			fmts += snprintf(fmts, len, "%s", fmts_str[i]);
 			len -= (fmts - orig);
+			first = 0;
 			continue;
 		}
 
@@ -1402,6 +1410,11 @@ char *ast_format_str_reduce(char *fmts)
 			fmts += snprintf(fmts, len, "|%s", fmts_str[i]);
 			len -= (fmts - orig);
 		}
+	}
+
+	if (first) {
+		ast_log(LOG_WARNING, "no known formats found in format list (%s)\n", orig);
+		return NULL;
 	}
 
 	return orig;
