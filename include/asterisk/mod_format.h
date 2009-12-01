@@ -44,7 +44,7 @@ struct ast_format {
 	char name[80];		/*!< Name of format */
 	char exts[80];		/*!< Extensions (separated by | if more than one) 
 	    			this format can read.  First is assumed for writing (e.g. .mp3) */
-	int format;		/*!< Format of frames it uses/provides (one only) */
+	format_t format;		/*!< Format of frames it uses/provides (one only) */
 	/*! 
 	 * \brief Prepare an input stream for playback. 
 	 * \return 0 on success, -1 on error.
