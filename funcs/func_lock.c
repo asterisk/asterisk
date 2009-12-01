@@ -93,7 +93,7 @@ static AST_LIST_HEAD_STATIC(locklist, lock_frame);
 static void lock_free(void *data);
 static void lock_fixup(void *data, struct ast_channel *oldchan, struct ast_channel *newchan);
 static int unloading = 0;
-static pthread_t broker_tid = -1;
+static pthread_t broker_tid = AST_PTHREADT_NULL;
 
 static struct ast_datastore_info lock_info = {
 	.type = "MUTEX",
