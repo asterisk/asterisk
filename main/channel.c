@@ -2517,7 +2517,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		/* fix invalid pointer */
 		f->data = NULL;
 #ifdef AST_DEVMODE
-		ast_log(LOG_ERROR, "Found frame with src '%s' with datalen zero, but non-null data pointer!\n", f->src);
+		ast_log(LOG_ERROR, "Found frame with src '%s' on channel '%s' with datalen zero, but non-null data pointer!\n", f->src, chan->name);
 		ast_frame_dump(chan->name, f, "<<");
 #else
 		ast_debug(3, "Found frame with src '%s' on channel '%s' with datalen zero, but non-null data pointer!\n", f->src, chan->name);
