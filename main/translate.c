@@ -72,7 +72,7 @@ static struct translator_path tr_matrix[MAX_FORMAT][MAX_FORMAT];
 /*! \brief returns the index of the lowest bit set */
 static force_inline int powerof(format_t d)
 {
-	int x = ffsll(d);
+	int x = __builtin_ffsll(d);
 
 	if (x)
 		return x - 1;
