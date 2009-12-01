@@ -1365,7 +1365,7 @@ char *ast_format_str_reduce(char *fmts)
 	char *fmts_str[AST_MAX_FORMATS];
 	char *stringp, *type;
 	char *orig = fmts;
-	int i, j, x, first, found;
+	int i, j, x, first, found = 0;
 	int len = strlen(fmts) + 1;
 
 	if (AST_LIST_LOCK(&formats)) {
