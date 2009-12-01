@@ -407,7 +407,7 @@ struct unistim_line {
 	/*! AMA flags (for billing) */
 	int amaflags;
 	/*! Codec supported */
-	int capability;
+	format_t capability;
 	/*! Parkinglot */
 	char parkinglot[AST_MAX_CONTEXT];
 	struct unistim_line *next;
@@ -4710,7 +4710,7 @@ static char *unistim_info(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 		line = device->lines;
 		while (line) {
 			ast_cli(a->fd,
-					"->name=%s fullname=%s exten=%s callid=%s cap=%d device=%p line=%p\n",
+					"->name=%s fullname=%s exten=%s callid=%s cap=%" PRId64 " device=%p line=%p\n",
 					line->name, line->fullname, line->exten, line->cid_num,
 					line->capability, line->parent, line);
 			for (i = 0; i < MAX_SUBS; i++) {

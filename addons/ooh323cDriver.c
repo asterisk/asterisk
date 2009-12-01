@@ -594,7 +594,7 @@ int ooh323c_set_aliases(ooAliases * aliases)
    
 int ooh323c_start_receive_channel(ooCallData *call, ooLogicalChannel *pChannel)
 {
-   int fmt=-1;
+   format_t fmt=-1;
    fmt = convertH323CapToAsteriskCap(pChannel->chanCap->cap);
    if(fmt>0) {
       /* ooh323_set_read_format(call, fmt); */
@@ -608,7 +608,7 @@ int ooh323c_start_receive_channel(ooCallData *call, ooLogicalChannel *pChannel)
 
 int ooh323c_start_transmit_channel(ooCallData *call, ooLogicalChannel *pChannel)
 {
-   int fmt=-1;
+   format_t fmt;
    fmt = convertH323CapToAsteriskCap(pChannel->chanCap->cap);
    if(fmt>0) {
       switch (fmt) {
@@ -665,7 +665,7 @@ int ooh323c_stop_transmit_datachannel(ooCallData *call, ooLogicalChannel *pChann
    return 1;
 }
 
-int convertH323CapToAsteriskCap(int cap)
+format_t convertH323CapToAsteriskCap(int cap)
 {
 
    switch(cap)

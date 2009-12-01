@@ -3154,7 +3154,7 @@ static enum ast_rtp_glue_result oh323_get_rtp_peer(struct ast_channel *chan, str
 	return res;
 }
 
-static char *convertcap(int cap)
+static char *convertcap(format_t cap)
 {
 	switch (cap) {
 	case AST_FORMAT_G723_1:
@@ -3176,7 +3176,7 @@ static char *convertcap(int cap)
 	case AST_FORMAT_ILBC:
 		return "ILBC";
 	default:
-		ast_log(LOG_NOTICE, "Don't know how to deal with mode %d\n", cap);
+		ast_log(LOG_NOTICE, "Don't know how to deal with mode %" PRId64 "\n", cap);
 		return NULL;
 	}
 }

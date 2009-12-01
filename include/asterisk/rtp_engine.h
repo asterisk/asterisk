@@ -364,7 +364,7 @@ struct ast_rtp_engine {
 	/*! Callback to request that the RTP engine send a STUN BIND request */
 	void (*stun_request)(struct ast_rtp_instance *instance, struct sockaddr_in *suggestion, const char *username);
 	/*! Callback to get the transcodeable formats supported */
-	int (*available_formats)(struct ast_rtp_instance *instance, int to_endpoint, int to_asterisk);
+	int (*available_formats)(struct ast_rtp_instance *instance, format_t to_endpoint, format_t to_asterisk);
 	/*! Linked list information */
 	AST_RWLIST_ENTRY(ast_rtp_engine) entry;
 };
@@ -1527,7 +1527,7 @@ int ast_rtp_instance_make_compatible(struct ast_channel *chan, struct ast_rtp_in
  *
  * \since 1.6.3
  */
-format_t ast_rtp_instance_available_formats(struct ast_rtp_instance *instance, int to_endpoint, int to_asterisk);
+format_t ast_rtp_instance_available_formats(struct ast_rtp_instance *instance, format_t to_endpoint, format_t to_asterisk);
 
 /*!
  * \brief Indicate to the RTP engine that packets are now expected to be sent/received on the RTP instance

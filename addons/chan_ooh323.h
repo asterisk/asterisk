@@ -60,7 +60,7 @@
 #include <asterisk/manager.h>
 #include <asterisk/dsp.h>
 #include <asterisk/stringfields.h>
-
+#include <asterisk/frame_defs.h>
 #include <asterisk/udptl.h>
 
 #include "ootypes.h"
@@ -104,7 +104,7 @@ void ooh323_set_read_format(ooCallData *call, int fmt);
 int ooh323_update_capPrefsOrderForCall
    (ooCallData *call, struct ast_codec_pref *prefs);
 
-int ooh323_convertAsteriskCapToH323Cap(int cap);
+int ooh323_convertAsteriskCapToH323Cap(format_t cap);
 
 int ooh323_convert_hangupcause_asteriskToH323(int cause);
 int ooh323_convert_hangupcause_h323ToAsterisk(int cause);

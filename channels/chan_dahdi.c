@@ -8527,7 +8527,7 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpbx, int idx, int law, int transfercapability, const char *linkedid)
 {
 	struct ast_channel *tmp;
-	int deflaw;
+	format_t deflaw;
 	int res;
 	int x,y;
 	int features;
@@ -9909,7 +9909,7 @@ struct mwi_thread_data {
 	size_t len;
 };
 
-static int calc_energy(const unsigned char *buf, int len, int law)
+static int calc_energy(const unsigned char *buf, int len, format_t law)
 {
 	int x;
 	int sum = 0;

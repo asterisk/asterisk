@@ -67,7 +67,7 @@ static char speeddial[ADSI_MAX_SPEED_DIAL][3][SPEEDDIAL_MAX_LEN];
 
 static int alignment = 0;
 
-static int adsi_generate(unsigned char *buf, int msgtype, unsigned char *msg, int msglen, int msgnum, int last, int codec)
+static int adsi_generate(unsigned char *buf, int msgtype, unsigned char *msg, int msglen, int msgnum, int last, format_t codec)
 {
 	int sum, x, bytes = 0;
 	/* Initial carrier (imaginary) */

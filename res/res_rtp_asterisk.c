@@ -131,8 +131,8 @@ struct ast_rtp {
 	unsigned int cycles;            /*!< Shifted count of sequence number cycles */
 	double rxjitter;                /*!< Interarrival jitter at the moment */
 	double rxtransit;               /*!< Relative transit time for previous packet */
-	int lasttxformat;
-	int lastrxformat;
+	format_t lasttxformat;
+	format_t lastrxformat;
 
 	int rtptimeout;			/*!< RTP timeout time (negative or zero means disabled, negative value means temporarily disabled) */
 	int rtpholdtimeout;		/*!< RTP timeout when on hold (negative or zero means disabled, negative value means temporarily disabled). */
@@ -1137,7 +1137,7 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 	/* Grab the subclass and look up the payload we are going to use */
 	subclass = frame->subclass.codec;
 	if (frame->frametype == AST_FRAME_VIDEO) {
-		subclass &= ~0x1;
+		subclass &= ~0x1LL;
 	}
 	if ((codec = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(instance), 1, subclass)) < 0) {
 		ast_log(LOG_WARNING, "Don't know how to send format %s packets with RTP\n", ast_getformatname(frame->subclass.codec));
@@ -1503,7 +1503,7 @@ static struct ast_frame *process_cn_rfc3389(struct ast_rtp_instance *instance, u
 	   totally help us out becuase we don't have an engine to keep it going and we are not
 	   guaranteed to have it every 20ms or anything */
 	if (rtpdebug)
-		ast_debug(0, "- RTP 3389 Comfort noise event: Level %d (len = %d)\n", rtp->lastrxformat, len);
+		ast_debug(0, "- RTP 3389 Comfort noise event: Level %" PRId64 " (len = %d)\n", rtp->lastrxformat, len);
 
 	if (ast_test_flag(rtp, FLAG_3389_WARNING)) {
 		struct sockaddr_in remote_address = { 0, };

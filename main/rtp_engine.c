@@ -1585,7 +1585,7 @@ int ast_rtp_instance_make_compatible(struct ast_channel *chan, struct ast_rtp_in
 	return res;
 }
 
-format_t ast_rtp_instance_available_formats(struct ast_rtp_instance *instance, int to_endpoint, int to_asterisk)
+format_t ast_rtp_instance_available_formats(struct ast_rtp_instance *instance, format_t to_endpoint, format_t to_asterisk)
 {
 	format_t formats;
 

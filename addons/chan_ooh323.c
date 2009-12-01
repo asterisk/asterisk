@@ -169,9 +169,9 @@ static struct ooh323_pvt {
 	char callee_url[AST_MAX_EXTENSION];
  
 	int port;
-	int readformat;   /* negotiated read format */
-	int writeformat;  /* negotiated write format */
-	int capability;
+	format_t readformat;   /* negotiated read format */
+	format_t writeformat;  /* negotiated write format */
+	format_t capability;
 	struct ast_codec_pref prefs;
 	int dtmfmode;
 	int dtmfcodec;
@@ -3673,7 +3673,7 @@ int ooh323_update_capPrefsOrderForCall
 }
 
 
-int ooh323_convertAsteriskCapToH323Cap(int cap)
+int ooh323_convertAsteriskCapToH323Cap(format_t cap)
 {
 	char formats[FORMAT_STRING_SIZE];
 	switch (cap) {
@@ -3744,7 +3744,8 @@ int configure_local_rtp(struct ooh323_pvt *p, ooCallData *call)
 {
 	struct sockaddr_in us;
 	ooMediaInfo mediaInfo;
-	int x, format = 0;	  
+	int x;
+	format_t format = 0;
 
 	if (gH323Debug)
 		ast_verbose("---   configure_local_rtp\n");

@@ -1715,7 +1715,7 @@ static struct skinny_speeddial *find_speeddial_by_instance(struct skinny_device 
 	return sd;
 }
 
-static int codec_skinny2ast(enum skinny_codecs skinnycodec)
+static format_t codec_skinny2ast(enum skinny_codecs skinnycodec)
 {
 	switch (skinnycodec) {
 	case SKINNY_CODEC_ALAW:
@@ -1737,7 +1737,7 @@ static int codec_skinny2ast(enum skinny_codecs skinnycodec)
 	}
 }
 
-static int codec_ast2skinny(int astcodec)
+static int codec_ast2skinny(format_t astcodec)
 {
 	switch (astcodec) {
 	case AST_FORMAT_ALAW:
@@ -5307,7 +5307,7 @@ static int handle_capabilities_res_message(struct skinny_req *req, struct skinny
 	struct skinny_device *d = s->device;
 	struct skinny_line *l;
 	uint32_t count = 0;
-	int codecs = 0;
+	format_t codecs = 0;
 	int i;
 	char buf[256];
 
@@ -5318,12 +5318,12 @@ static int handle_capabilities_res_message(struct skinny_req *req, struct skinny
 	}
 
 	for (i = 0; i < count; i++) {
-		int acodec = 0;
+		format_t acodec = 0;
 		int scodec = 0;
 		scodec = letohl(req->data.caps.caps[i].codec);
 		acodec = codec_skinny2ast(scodec);
 		if (skinnydebug)
-			ast_verb(1, "Adding codec capability '%d (%d)'\n", acodec, scodec);
+			ast_verb(1, "Adding codec capability '%" PRId64 " (%d)'\n", acodec, scodec);
 		codecs |= acodec;
 	}
 
