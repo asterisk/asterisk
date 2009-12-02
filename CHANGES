@@ -103,6 +103,8 @@ Applications
    variable, AVAILCAUSECODE, instead of overwriting the device state in AVAILSTATUS.
  * Added 'd' option to app_followme.  This option disables the "Please hold"
    announcement.
+ * Added 'y' option to app_record. This option enables a mode where any DTMF digit
+   received will terminate recording.
 
 Dialplan Functions
 ------------------
