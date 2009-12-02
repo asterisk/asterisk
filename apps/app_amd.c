@@ -209,6 +209,7 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Got hangup\n");
 			strcpy(amdStatus, "HANGUP");
+			res = 1;
 			break;
 		}
 
