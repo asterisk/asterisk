@@ -1947,7 +1947,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 
 		ao2_lock(qe->parent);
 		qe->parent->rrpos++;
-		ao2_unlock(&qe->parent);
+		ao2_unlock(qe->parent);
 
 		(*busies)++;
 		return 0;
@@ -2173,7 +2173,7 @@ static void record_abandoned(struct queue_ent *qe)
 		qe->parent->name, qe->chan->uniqueid, qe->pos, qe->opos, (int)(time(NULL) - qe->start));
 
 	qe->parent->callsabandoned++;
-	ao2_unlock(&qe->parent);
+	ao2_unlock(qe->parent);
 }
 
 /*! \brief RNA == Ring No Answer. Common code that is executed when we try a queue member and they don't answer. */
