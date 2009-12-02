@@ -2689,10 +2689,10 @@ static int action_events(struct mansession *s, const struct message *m)
 	res = set_eventmask(s, mask);
 	if (res > 0)
 		astman_append(s, "Response: Success\r\n"
-				 "Events: On\r\n");
+				 "Events: On\r\n\r\n");
 	else if (res == 0)
 		astman_append(s, "Response: Success\r\n"
-				 "Events: Off\r\n");
+				 "Events: Off\r\n\r\n");
 	return 0;
 }
 
