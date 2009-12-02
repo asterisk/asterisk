@@ -212,6 +212,7 @@ static void do_alignment_detection(struct mbl_pvt *pvt, char *buf, int buflen);
 static int mbl_queue_control(struct mbl_pvt *pvt, enum ast_control_frame_type control);
 static int mbl_queue_hangup(struct mbl_pvt *pvt);
 static int mbl_ast_hangup(struct mbl_pvt *pvt);
+static int mbl_has_service(struct mbl_pvt *pvt);
 
 static int rfcomm_connect(bdaddr_t src, bdaddr_t dst, int remote_channel);
 static int rfcomm_write(int rsock, char *buf);
@@ -270,6 +271,10 @@ static int headset_send_ring(const void *data);
 #define HFP_CIND_CALLSETUP_INCOMING	1
 #define HFP_CIND_CALLSETUP_OUTGOING	2
 #define HFP_CIND_CALLSETUP_ALERTING	3
+
+/* service indicator values */
+#define HFP_CIND_SERVICE_NONE		0
+#define HFP_CIND_SERVICE_AVAILABLE	1
 
 /*!
  * \brief This struct holds HFP features that we support.
@@ -468,7 +473,7 @@ static char *handle_cli_mobile_show_devices(struct ast_cli_entry *e, int cmd, st
 	char bdaddr[18];
 	char group[6];
 
-#define FORMAT1 "%-15.15s %-17.17s %-5.5s %-15.15s %-9.9s %-5.5s %-3.3s\n"
+#define FORMAT1 "%-15.15s %-17.17s %-5.5s %-15.15s %-9.9s %-10.10s %-3.3s\n"
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -496,7 +501,7 @@ static char *handle_cli_mobile_show_devices(struct ast_cli_entry *e, int cmd, st
 				group,
 				pvt->adapter->id,
 				pvt->connected ? "Yes" : "No",
-				(!pvt->connected) ? "None" : (pvt->owner) ? "Busy" : (pvt->outgoing_sms || pvt->incoming_sms) ? "SMS" : "Free",
+				(!pvt->connected) ? "None" : (pvt->owner) ? "Busy" : (pvt->outgoing_sms || pvt->incoming_sms) ? "SMS" : (mbl_has_service(pvt)) ? "Free" : "No Service",
 				(pvt->has_sms) ? "Yes" : "No"
 		       );
 		ast_mutex_unlock(&pvt->lock);
@@ -901,6 +906,10 @@ static struct ast_channel *mbl_request(const char *type, format_t format,
 	AST_RWLIST_RDLOCK(&devices);
 	AST_RWLIST_TRAVERSE(&devices, pvt, entry) {
 		if (group > -1 && pvt->group == group && pvt->connected && !pvt->owner) {
+			if (!mbl_has_service(pvt)) {
+				continue;
+			}
+
 			break;
 		} else if (!strcmp(pvt->id, dest_dev)) {
 			break;
@@ -1200,6 +1209,9 @@ static int mbl_devicestate(void *data)
 			res = AST_DEVICE_INUSE;
 		else
 			res = AST_DEVICE_NOT_INUSE;
+
+		if (!mbl_has_service(pvt))
+			res = AST_DEVICE_UNAVAILABLE;
 	}
 	ast_mutex_unlock(&pvt->lock);
 
@@ -1324,6 +1336,30 @@ static int mbl_ast_hangup(struct mbl_pvt *pvt)
 			break;
 	}
 	return res;
+}
+
+/*!
+ * \brief Check if a mobile device has service.
+ * \param pvt a mbl_pvt struct
+ * \retval 1 this device has service
+ * \retval 0 no service
+ *
+ * \note This function will always indicate that service is available if the
+ * given device does not support service indication.
+ */
+static int mbl_has_service(struct mbl_pvt *pvt)
+{
+
+	if (pvt->type != MBL_TYPE_PHONE)
+		return 1;
+
+	if (!pvt->hfp->cind_map.service)
+		return 1;
+
+	if (pvt->hfp->cind_state[pvt->hfp->cind_map.service] == HFP_CIND_SERVICE_AVAILABLE)
+		return 1;
+
+	return 0;
 }
 
 /*
@@ -3021,6 +3057,7 @@ static int handle_response_ok(struct mbl_pvt *pvt, char *buf)
 
 			ast_debug(2, "[%s] call: %d\n", pvt->id, pvt->hfp->cind_map.call);
 			ast_debug(2, "[%s] callsetup: %d\n", pvt->id, pvt->hfp->cind_map.callsetup);
+			ast_debug(2, "[%s] service: %d\n", pvt->id, pvt->hfp->cind_map.service);
 
 			if (hfp_send_cind(pvt->hfp) || msg_queue_push(pvt, AT_CIND, AT_CIND)) {
 				ast_debug(1, "[%s] error requesting CIND state\n", pvt->id);
