@@ -11949,10 +11949,6 @@ static void update_redirecting(struct sip_pvt *p, const void *data, size_t datal
 		return;
 	}
 
-	if (!ast_strlen_zero(p->owner->redirecting.to.number)) {
-		ast_string_field_set(p, exten, p->owner->redirecting.to.number);
-		build_contact(p);
-	}
 	respprep(&resp, p, "181 Call is being forwarded", &p->initreq);
 	add_diversion_header(&resp, p);
 	send_response(p, &resp, XMIT_UNRELIABLE, 0);
