@@ -482,7 +482,7 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 		return -1;
 	}
 	sin.sin_family = AF_INET;
-	sin.sin_port = 5060;
+	sin.sin_port = htons(5060);
 	sin.sin_addr = *them;
 	if (connect(s, (struct sockaddr *)&sin, sizeof(sin))) {
 		ast_log(LOG_WARNING, "Cannot connect\n");
