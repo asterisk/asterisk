@@ -63,6 +63,10 @@ From 1.6.2 to 1.8:
 
 From 1.6.1 to 1.6.2:
 
+* SIP no longer sends the 183 progress message for early media by
+  default.  Applications requiring early media should use the
+  progress() dialplan app to generate the progress message. 
+
 * The firmware for the IAXy has been removed from Asterisk.  It can be
   downloaded from http://downloads.digium.com/pub/iaxy/.  To have Asterisk
   install the firmware into its proper location, place the firmware in the

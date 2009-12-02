@@ -354,6 +354,9 @@ Miscellaneous
 
 SIP Changes
 -----------
+ * The prematuremedia option is disabled by default.  Applications requiring
+   SIP early audio must use the Progress() dialplan application to generate
+   the 183 progress message.
  * Added support for SUBSCRIBE/NOTIFY with dialog-info based call pickups.
    Snom phones use this for call pickup of extensions that the phone is
    subscribed to.
