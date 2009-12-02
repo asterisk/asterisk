@@ -344,7 +344,9 @@ Miscellaneous
  * Modules.conf has a new option - "require" - that marks a module as critical for 
    the execution of Asterisk.
    If one of the required modules fail to load, Asterisk will exit with a return
-   code set to 2. 
+   code set to 2.
+ * An 'X' option has been added to the asterisk application which enables #exec support.
+   This allows #exec to be used in asterisk.conf.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.1 to Asterisk 1.6.2  -------------

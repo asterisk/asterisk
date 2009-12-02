@@ -2777,6 +2777,7 @@ static int show_cli_help(void) {
 	printf("                   of output to the CLI\n");
 	printf("   -v              Increase verbosity (multiple v's = more verbose)\n");
 	printf("   -x <cmd>        Execute command <cmd> (only valid with -r)\n");
+	printf("   -X              Execute includes by default (allows #exec in asterisk.conf)\n");
 	printf("   -W              Adjust terminal colors to compensate for a light background\n");
 	printf("\n");
 	return 0;
@@ -3141,7 +3142,7 @@ int main(int argc, char *argv[])
 	if (getenv("HOME")) 
 		snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
 	/* Check for options */
-	while ((c = getopt(argc, argv, "BC:cde:FfG:ghIiL:M:mnpqRrs:TtU:VvWx:")) != -1) {
+	while ((c = getopt(argc, argv, "BC:cde:FfG:ghIiL:M:mnpqRrs:TtU:VvWXx:")) != -1) {
 		/*!\note Please keep the ordering here to alphabetical, capital letters
 		 * first.  This will make it easier in the future to select unused
 		 * option flags for new features. */
@@ -3149,6 +3150,9 @@ int main(int argc, char *argv[])
 		case 'B': /* Force black background */
 			ast_set_flag(&ast_options, AST_OPT_FLAG_FORCE_BLACK_BACKGROUND);
 			ast_clear_flag(&ast_options, AST_OPT_FLAG_LIGHT_BACKGROUND);
+			break;
+		case 'X':
+			ast_set_flag(&ast_options, AST_OPT_FLAG_EXEC_INCLUDES);
 			break;
 		case 'C':
 			ast_copy_string(cfg_paths.config_file, optarg, sizeof(cfg_paths.config_file));

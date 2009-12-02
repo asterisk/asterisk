@@ -310,6 +310,16 @@
 			</para>
 		</listitem>
 	</varlistentry>
+	<varlistentry>
+		<term>-X</term>
+		<listitem>
+			<para>
+			Enables executing of includes via <command>#exec</command> directive.
+			This can be useful if You want to do <command>#exec</command> inside
+			<filename>asterisk.conf</filename>
+			</para>
+		</listitem>
+	</varlistentry>
 	</variablelist>
 </refsect1>
 <refsect1>
