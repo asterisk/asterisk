@@ -77,6 +77,10 @@
 int __attribute__((format(printf, 2, 3))) asprintf(char **str, const char *fmt, ...);
 #endif
 
+#ifndef HAVE_FFSLL
+int ffsll(long long n);
+#endif
+
 #ifndef HAVE_GETLOADAVG
 int getloadavg(double *list, int nelem);
 #endif

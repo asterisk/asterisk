@@ -386,3 +386,16 @@ uint64_t htonll(uint64_t host64)
 }
 #endif
 
+#ifndef HAVE_FFSLL
+int ffsll(long long n)
+{
+	int i;
+	for (i = 0; i < 64; i++) {
+		if ((1LL << i) & n) {
+			return i + 1;
+		}
+	}
+	return 0;
+}
+#endif
+

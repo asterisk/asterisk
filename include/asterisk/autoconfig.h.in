@@ -232,6 +232,9 @@
 /* Define to the version of the Ffmpeg and avcodec library library. */
 #undef HAVE_FFMPEG_VERSION
 
+/* Define to 1 if you have the `ffsll' function. */
+#undef HAVE_FFSLL
+
 /* Define to 1 if you have the `floor' function. */
 #undef HAVE_FLOOR
 
