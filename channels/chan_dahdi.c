@@ -4602,7 +4602,11 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 		ast_log(LOG_WARNING, "Unable to flush input on channel %d: %s\n", p->channel, strerror(errno));
 	p->outgoing = 1;
 
-	set_actual_gain(p->subs[SUB_REAL].dfd, 0, p->rxgain, p->txgain, p->rxdrc, p->txdrc, p->law);
+	if (IS_DIGITAL(ast->transfercapability)){
+		set_actual_gain(p->subs[SUB_REAL].dfd, 0, 0, 0, p->rxdrc, p->txdrc, p->law);
+	} else {
+		set_actual_gain(p->subs[SUB_REAL].dfd, 0, p->rxgain, p->txgain, p->rxdrc, p->txdrc, p->law);
+	}	
 
 #ifdef HAVE_PRI
 	if (dahdi_sig_pri_lib_handles(p->sig)) {
