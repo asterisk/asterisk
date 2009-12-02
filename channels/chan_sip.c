@@ -15978,6 +15978,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			sip_alreadygone(p);
 		}
 		break;
+	case 415: /* Unsupported media type */
 	case 488: /* Not acceptable here */
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		if (p->udptl && p->t38.state == T38_LOCAL_REINVITE) {
@@ -16518,6 +16519,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, seqno);
 			break;
+		case 415: /* Unsupported media type */
 		case 488: /* Not acceptable here - codec error */
 			if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, seqno);
@@ -16720,6 +16722,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				if ((resp != 487))
 					ast_verb(3, "Incoming call: Got SIP response %d \"%s\" back from %s\n", resp, rest, ast_inet_ntoa(p->sa.sin_addr));
 				switch(resp) {
+				case 415: /* Unsupported media type */
 				case 488: /* Not acceptable here - codec error */
 				case 603: /* Decline */
 				case 500: /* Server error */
