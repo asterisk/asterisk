@@ -2215,6 +2215,7 @@ static int action_userevent(struct mansession *s, const struct message *m)
 		}
 	}
 
+	astman_send_ack(s, m, "Event Sent");	
 	manager_event(EVENT_FLAG_USER, "UserEvent", "UserEvent: %s\r\n%s", event, body);
 	return 0;
 }
