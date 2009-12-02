@@ -149,6 +149,10 @@ static int group_function_write(struct ast_channel *chan, char *cmd,
 {
 	char grpcat[256];
 
+	if (!value) {
+		return -1;
+	}
+
 	if (!ast_strlen_zero(data)) {
 		snprintf(grpcat, sizeof(grpcat), "%s@%s", value, data);
 	} else {
