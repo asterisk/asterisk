@@ -1585,6 +1585,121 @@ e_return:
 }
 
 /*!
+ * \brief Read until a \r\nOK\r\n message.
+ */
+static int rfcomm_read_until_ok(int rsock, char **buf, size_t count, size_t *in_count)
+{
+	int res;
+	char c;
+
+	/* here, we read until finding a \r\n, then we read one character at a
+	 * time looking for the string '\r\nOK\r\n'.  If we only find a partial
+	 * match, we place that in the buffer and try again. */
+
+	for (;;) {
+		if ((res = rfcomm_read_until_crlf(rsock, buf, count, in_count)) != 1) {
+			break;
+		}
+
+		rfcomm_append_buf(buf, count, in_count, '\r');
+		rfcomm_append_buf(buf, count, in_count, '\n');
+
+		if ((res = rfcomm_read_and_expect_char(rsock, &c, '\r')) != 1) {
+			if (res != -2) {
+				break;
+			}
+
+			rfcomm_append_buf(buf, count, in_count, c);
+			continue;
+		}
+
+		if ((res = rfcomm_read_and_expect_char(rsock, &c, '\n')) != 1) {
+			if (res != -2) {
+				break;
+			}
+
+			rfcomm_append_buf(buf, count, in_count, '\r');
+			rfcomm_append_buf(buf, count, in_count, c);
+			continue;
+		}
+		if ((res = rfcomm_read_and_expect_char(rsock, &c, 'O')) != 1) {
+			if (res != -2) {
+				break;
+			}
+
+			rfcomm_append_buf(buf, count, in_count, '\r');
+			rfcomm_append_buf(buf, count, in_count, '\n');
+			rfcomm_append_buf(buf, count, in_count, c);
+			continue;
+		}
+
+		if ((res = rfcomm_read_and_expect_char(rsock, &c, 'K')) != 1) {
+			if (res != -2) {
+				break;
+			}
+
+			rfcomm_append_buf(buf, count, in_count, '\r');
+			rfcomm_append_buf(buf, count, in_count, '\n');
+			rfcomm_append_buf(buf, count, in_count, 'O');
+			rfcomm_append_buf(buf, count, in_count, c);
+			continue;
+		}
+
+		if ((res = rfcomm_read_and_expect_char(rsock, &c, '\r')) != 1) {
+			if (res != -2) {
+				break;
+			}
+
+			rfcomm_append_buf(buf, count, in_count, '\r');
+			rfcomm_append_buf(buf, count, in_count, '\n');
+			rfcomm_append_buf(buf, count, in_count, 'O');
+			rfcomm_append_buf(buf, count, in_count, 'K');
+			rfcomm_append_buf(buf, count, in_count, c);
+			continue;
+		}
+
+		if ((res = rfcomm_read_and_expect_char(rsock, &c, '\n')) != 1) {
+			if (res != -2) {
+				break;
+			}
+
+			rfcomm_append_buf(buf, count, in_count, '\r');
+			rfcomm_append_buf(buf, count, in_count, '\n');
+			rfcomm_append_buf(buf, count, in_count, 'O');
+			rfcomm_append_buf(buf, count, in_count, 'K');
+			rfcomm_append_buf(buf, count, in_count, '\r');
+			rfcomm_append_buf(buf, count, in_count, c);
+			continue;
+		}
+
+		/* we have successfully parsed a '\r\nOK\r\n' string */
+		return 1;
+	}
+
+	return res;
+}
+
+
+/*!
+ * \brief Read the remainder of a +CMGR message.
+ * \note the entire parsed string is '+CMGR: ...\r\n...\r\n...\r\n...\r\nOK\r\n'
+ */
+static int rfcomm_read_cmgr(int rsock, char **buf, size_t count, size_t *in_count)
+{
+	int res;
+
+	/* append the \r\n that was stripped by the calling function */
+	rfcomm_append_buf(buf, count, in_count, '\r');
+	rfcomm_append_buf(buf, count, in_count, '\n');
+
+	if ((res = rfcomm_read_until_ok(rsock, buf, count, in_count)) != 1) {
+		ast_log(LOG_ERROR, "error reading +CMGR message on rfcomm socket\n");
+	}
+
+	return res;
+}
+
+/*!
  * \brief Read and AT result code.
  * \note the entire parsed string is '\r\n<result code>\r\n'
  */
@@ -1609,11 +1724,10 @@ static int rfcomm_read_result(int rsock, char **buf, size_t count, size_t *in_co
 	if (res != 1)
 		return res;
 
-	/* check for CMGR, which contains an embedded \r\n */
+	/* check for CMGR, which contains an embedded \r\n pairs terminated by
+	 * an \r\nOK\r\n message */
 	if (*in_count >= 5 && !strncmp(*buf - *in_count, "+CMGR", 5)) {
-		rfcomm_append_buf(buf, count, in_count, '\r');
-		rfcomm_append_buf(buf, count, in_count, '\n');
-		return rfcomm_read_until_crlf(rsock, buf, count, in_count);
+		return rfcomm_read_cmgr(rsock, buf, count, in_count);
 	}
 
 	return 1;
@@ -3154,10 +3268,6 @@ static int handle_response_ok(struct mbl_pvt *pvt, char *buf)
 		case AT_CHUP:
 			ast_debug(1, "[%s] successful hangup\n", pvt->id);
 			break;
-		case AT_CMGR:
-			ast_debug(1, "[%s] successfully read sms message\n", pvt->id);
-			pvt->incoming_sms = 0;
-			break;
 		case AT_CMGS:
 			ast_debug(1, "[%s] successfully sent sms message\n", pvt->id);
 			pvt->outgoing_sms = 0;
@@ -3477,12 +3587,13 @@ static int handle_response_cmgr(struct mbl_pvt *pvt, char *buf)
 	if ((msg = msg_queue_head(pvt)) && msg->expected == AT_CMGR) {
 		msg_queue_free_and_pop(pvt);
 
-		if (hfp_parse_cmgr(pvt->hfp, buf, &from_number, &text)
-				|| msg_queue_push(pvt, AT_OK, AT_CMGR)) {
-
+		if (hfp_parse_cmgr(pvt->hfp, buf, &from_number, &text)) {
 			ast_debug(1, "[%s] error parsing sms message, disconnecting\n", pvt->id);
 			return -1;
 		}
+
+		ast_debug(1, "[%s] successfully read sms message\n", pvt->id);
+		pvt->incoming_sms = 0;
 
 		/* XXX this channel probably does not need to be associated with this pvt */
 		if (!(chan = mbl_new(AST_STATE_DOWN, pvt, NULL, NULL))) {
