@@ -105,6 +105,9 @@ Applications
    announcement.
  * Added 'y' option to app_record. This option enables a mode where any DTMF digit
    received will terminate recording.
+ * Voicemail now supports per mailbox settings for folders when using IMAP storage.
+   Previously the folder could only be set per context, but has now been extended 
+   using the imapfolder option.
 
 Dialplan Functions
 ------------------

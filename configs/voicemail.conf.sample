@@ -377,9 +377,9 @@ european=Europe/Copenhagen|'vm-received' a d b 'digits/at' HM
 ;
 
 ;
-; When using IMAP storage, imapuser and imappassword can be used to specify the
+; When using IMAP storage, imapuser, imappassword, and imapfolder can be used to specify the
 ; user's credentials.
 ;
 ;[imapvm]
-;4324 => 7764,Ellis Redding,red@buxton.us,,imapuser=eredding|imappassword=g3tbusy
+;4324 => 7764,Ellis Redding,red@buxton.us,,imapuser=eredding|imappassword=g3tbusy|imapfolder=notinbox
 ;4325 => 2392,Andrew Dufresne,andy@dufresne.info,,imapuser=adufresne|imappassword=rockh@mmer
