@@ -50,8 +50,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <dahdi/user.h>
 #endif
 
-#define REF_DEBUG
-
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
 #include "asterisk/channel.h"
