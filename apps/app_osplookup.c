@@ -901,12 +901,18 @@ static int osp_check_destination(
 		ast_base64encode(results->token, (const unsigned char*)token, tokenlen, sizeof(results->token) - 1);
 	}
 
-	if ((error = OSPPTransactionGetDestNetworkId(results->outhandle, results->networkid)) != OSPC_ERR_NO_ERROR) {
+	if ((error = OSPPTransactionGetDestinationNetworkId(results->outhandle, sizeof(results->networkid), results->networkid)) != OSPC_ERR_NO_ERROR) {
 		ast_debug(1, "OSP: Unable to get destination network ID, error '%d'\n", error);
 		results->networkid[0] = '\0';
 	}
 
-	if ((error = OSPPTransactionGetNumberPortability(results->outhandle, results->nprn, results->npcic, &results->npdi)) != OSPC_ERR_NO_ERROR) {
+	error = OSPPTransactionGetNumberPortabilityParameters(results->outhandle,
+		sizeof(results->nprn),
+		results->nprn,
+		sizeof(results->npcic),
+		results->npcic,
+		&results->npdi);
+	if (error != OSPC_ERR_NO_ERROR) {
 		ast_debug(1, "OSP: Unable to get number portability parameters, error '%d'\n", error);
 		results->nprn[0] = '\0';
 		results->npcic[0] = '\0';
