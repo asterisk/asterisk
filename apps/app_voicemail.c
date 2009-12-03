@@ -833,6 +833,7 @@ static unsigned char adsifdn[4] = "\x00\x00\x00\x0F";
 static unsigned char adsisec[4] = "\x9B\xDB\xF7\xAC";
 static int adsiver = 1;
 static char emaildateformat[32] = "%A, %B %d, %Y at %r";
+static char pagerdateformat[32] = "%A, %B %d, %Y at %r";
 
 /* Forward declarations - generic */
 static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box);
@@ -4565,6 +4566,9 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 	ast_strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", vmu_tm(vmu, &tm));
 	fprintf(p, "Date: %s\n", date);
 
+	/* Reformat for custom pager format */
+	ast_strftime(date, sizeof(date), pagerdateformat, vmu_tm(vmu, &tm));
+
 	if (!ast_strlen_zero(pagerfromstring)) {
 		struct ast_channel *ast;
 		if ((ast = ast_dummy_channel_alloc())) {
@@ -4642,7 +4646,6 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 		}
 	}
 
-	ast_strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
 	if (pagerbody) {
 		struct ast_channel *ast;
 		if ((ast = ast_dummy_channel_alloc())) {
@@ -10781,6 +10784,11 @@ static int load_config(int reload)
 		/* Load date format config for voicemail mail */
 		if ((val = ast_variable_retrieve(cfg, "general", "emaildateformat"))) {
 			ast_copy_string(emaildateformat, val, sizeof(emaildateformat));
+		}
+
+		/* Load date format config for voicemail pager mail */
+		if ((val = ast_variable_retrieve(cfg, "general", "pagerdateformat"))) {
+			ast_copy_string(pagerdateformat, val, sizeof(pagerdateformat));
 		}
 
 		/* External password changing command */

@@ -147,6 +147,11 @@ emaildateformat=%A, %B %d, %Y at %r
 ; 24h date format
 ;emaildateformat=%A, %d %B %Y at %H:%M:%S
 ;
+; Default for pager use
+pagerdateformat=%A, %B %d, %Y at %r
+; Short 24h date format for pager use
+;pagerdateformat=%T %D
+;
 ; You can override the default program to send e-mail if you wish, too
 ;
 ;mailcmd=/usr/sbin/sendmail -t
