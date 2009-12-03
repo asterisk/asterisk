@@ -2167,7 +2167,7 @@ int ooPopulatePrefixList(OOCTXT *pctxt, OOAliases *pAliases,
                memFreePtr(pctxt, pPrefixEntry);
                return OO_FAILED;
             }
-            strcpy(*(char**)pPrefixEntry->prefix.u.dialedDigits, pAlias->value);
+            strcpy(*(char**)&pPrefixEntry->prefix.u.dialedDigits, pAlias->value);
             bValid = TRUE;
             break;
          default:
@@ -2220,7 +2220,7 @@ int ooPopulateAliasList(OOCTXT *pctxt, OOAliases *pAliases,
                memFreePtr(pctxt, pAliasEntry);
                return OO_FAILED;
             }
-            strcpy(*(char**)pAliasEntry->u.dialedDigits, pAlias->value);
+            strcpy(*(char**)&pAliasEntry->u.dialedDigits, pAlias->value);
             bValid = TRUE;
             break;
          case T_H225AliasAddress_h323_ID:
@@ -2249,7 +2249,7 @@ int ooPopulateAliasList(OOCTXT *pctxt, OOAliases *pAliases,
                memFreePtr(pctxt, pAliasEntry);               
                return OO_FAILED;
             }
-            strcpy(*(char**)pAliasEntry->u.url_ID, pAlias->value);
+            strcpy(*(char**)&pAliasEntry->u.url_ID, pAlias->value);
             bValid = TRUE;
             break;
          case T_H225AliasAddress_email_ID:
@@ -2262,7 +2262,7 @@ int ooPopulateAliasList(OOCTXT *pctxt, OOAliases *pAliases,
                            "alias entry \n");
                return OO_FAILED;
             }
-            strcpy(*(char**)pAliasEntry->u.email_ID, pAlias->value);
+            strcpy(*(char**)&pAliasEntry->u.email_ID, pAlias->value);
             bValid = TRUE;
             break;
          default:
