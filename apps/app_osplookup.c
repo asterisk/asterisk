@@ -273,6 +273,7 @@ enum osp_authpolicy {
 #define OSP_DEF_DESTINATIONS	((unsigned int)5)			/* OSP default max number of destinations */
 #define OSP_DEF_TIMELIMIT		((unsigned int)0)			/* OSP default duration limit, no limit */
 #define OSP_DEF_PROTOCOL		OSP_PROT_SIP				/* OSP default destination protocol, SIP */
+#define OSP_MAX_CUSTOMINFO		((unsigned int)8)			/* OSP max number of custom info */
 
 /* OSP Provider */
 struct osp_provider {
@@ -1154,6 +1155,7 @@ static int osp_create_callid(
  * \param snetid Source network ID
  * \param np NP parameters
  * \param div SIP Diversion header parameters
+ * \param cinfo Custom info
  * \param results Lookup results
  * \return 1 Found , 0 No route, -1 Error
  */
@@ -1166,6 +1168,7 @@ static int osp_lookup(
 	const char* snetid,
 	struct osp_npparam* np,
 	struct osp_diversion* div,
+	const char* cinfo[],
 	struct osp_results* results)
 {
 	int res;
@@ -1222,6 +1225,14 @@ static int osp_lookup(
 
 	osp_convert_inout(div->host, host, sizeof(host));
 	OSPPTransactionSetDiversion(results->outhandle, div->user, host);
+
+	if (cinfo != NULL) {
+		for (i = 0; i < OSP_MAX_CUSTOMINFO; i++) {
+			if (!ast_strlen_zero(cinfo[i])) {
+				OSPPTransactionSetCustomInfo(results->outhandle, i, cinfo[i]);
+			}
+		}
+	}
 
 	callidnum = 0;
 	callids[0] = NULL;
@@ -1921,6 +1932,8 @@ static int osplookup_exec(
 	const char* snetid = "";
 	struct osp_npparam np;
 	struct osp_diversion div;
+	unsigned int i;
+	const char* cinfo[OSP_MAX_CUSTOMINFO] = { NULL };
 	char buffer[OSP_TOKSTR_SIZE];
 	struct osp_results results;
 	const char* status;
@@ -2000,6 +2013,22 @@ static int osplookup_exec(
 			div.user = ast_var_value(current);
 		} else if (!strcasecmp(ast_var_name(current), "OSPINDIVHOST")) {
 			div.host = ast_var_value(current);
+		} else if (!strcasecmp(ast_var_name(current), "OSPINCUSTOMINFO1")) {
+			cinfo[0] = ast_var_value(current);
+		} else if (!strcasecmp(ast_var_name(current), "OSPINCUSTOMINFO2")) {
+			cinfo[1] = ast_var_value(current);
+		} else if (!strcasecmp(ast_var_name(current), "OSPINCUSTOMINFO3")) {
+			cinfo[2] = ast_var_value(current);
+		} else if (!strcasecmp(ast_var_name(current), "OSPINCUSTOMINFO4")) {
+			cinfo[3] = ast_var_value(current);
+		} else if (!strcasecmp(ast_var_name(current), "OSPINCUSTOMINFO5")) {
+			cinfo[4] = ast_var_value(current);
+		} else if (!strcasecmp(ast_var_name(current), "OSPINCUSTOMINFO6")) {
+			cinfo[5] = ast_var_value(current);
+		} else if (!strcasecmp(ast_var_name(current), "OSPINCUSTOMINFO7")) {
+			cinfo[6] = ast_var_value(current);
+		} else if (!strcasecmp(ast_var_name(current), "OSPINCUSTOMINFO8")) {
+			cinfo[7] = ast_var_value(current);
 		}
 	}
 	ast_debug(1, "OSPLookup: source device '%s'\n", srcdev);
@@ -2011,12 +2040,17 @@ static int osplookup_exec(
 	ast_debug(1, "OSPLookup: OSPINNPDI '%d'\n", np.npdi);
 	ast_debug(1, "OSPLookup: OSPINDIVUSER '%s'\n", div.user);
 	ast_debug(1, "OSPLookup: OSPINDIVHOST'%s'\n", div.host);
+	for (i = 0; i < OSP_MAX_CUSTOMINFO; i++) {
+		if (!ast_strlen_zero(cinfo[i])) {
+			ast_debug(1, "OSPLookup: OSPINCUSTOMINFO%d '%s'\n", i, cinfo[i]);
+		}
+	}
 
 	if ((cres = ast_autoservice_start(chan)) < 0) {
 		return -1;
 	}
 
-	if ((res = osp_lookup(provider, callidtypes, srcdev, chan->cid.cid_num, args.exten, snetid, &np, &div, &results)) > 0) {
+	if ((res = osp_lookup(provider, callidtypes, srcdev, chan->cid.cid_num, args.exten, snetid, &np, &div, cinfo, &results)) > 0) {
 		status = AST_OSP_SUCCESS;
 	} else {
 		results.tech[0] = '\0';
