@@ -353,6 +353,7 @@ struct ast_dsp {
 	int tcount;
 	int digitmode;
 	int thinkdigit;
+	int display_inband_dtmf_warning;
 	float genergy;
 	union {
 		dtmf_detect_state_t dtmf;
@@ -1478,7 +1479,10 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 			shortdata[x] = AST_ALAW(odata[x]);
 		break;
 	default:
-		ast_log(LOG_WARNING, "Inband DTMF is not supported on codec %s. Use RFC2833\n", ast_getformatname(af->subclass));
+		/*Display warning only once. Otherwise you would get hundreds of warnings every second */
+		if (dsp->display_inband_dtmf_warning)
+			ast_log(LOG_WARNING, "Inband DTMF is not supported on codec %s. Use RFC2833\n", ast_getformatname(af->subclass));
+		dsp->display_inband_dtmf_warning = 0;
 		return af;
 	}
 	silence = __ast_dsp_silence(dsp, shortdata, len, NULL);
@@ -1642,6 +1646,7 @@ struct ast_dsp *ast_dsp_new(void)
 		dsp->threshold = DEFAULT_THRESHOLD;
 		dsp->features = DSP_FEATURE_SILENCE_SUPPRESS;
 		dsp->busycount = DSP_HISTORY;
+		dsp->display_inband_dtmf_warning = 1;
 		/* Initialize DTMF detector */
 		ast_dtmf_detect_init(&dsp->td.dtmf);
 		/* Initialize initial DSP progress detect parameters */
