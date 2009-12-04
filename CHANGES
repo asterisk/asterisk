@@ -171,6 +171,9 @@ Dialplan Variables
 
 Queue changes
 -------------
+  * A new config option, penaltymemberslimit, has been added to queues.conf.
+    When set this option will disregard penalty settings when a queue has too
+    few members.
   * A new option, 'I' has been added to both app_queue and app_dial.
     By setting this option, Asterisk will not update the caller with
     connected line changes or redirecting party changes when they occur.
