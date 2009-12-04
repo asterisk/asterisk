@@ -4544,8 +4544,8 @@ static int handle_hold_button(struct skinny_subchannel *sub)
 
 static int handle_transfer_button(struct skinny_subchannel *sub)
 {
-	struct skinny_line *l = sub->parent;
-	struct skinny_device *d = l->device;
+	struct skinny_line *l;
+	struct skinny_device *d;
 	struct skinny_subchannel *newsub;
 	struct ast_channel *c;
 	pthread_t t;
@@ -4554,6 +4554,10 @@ static int handle_transfer_button(struct skinny_subchannel *sub)
 		ast_verbose("Transfer: No subchannel to transfer\n");
 		return -1;
 	}
+
+	l = sub->parent;
+	d = l->device;
+
 	if (!sub->related) {
 		/* Another sub has not been created so this must be first XFER press */
 		if (!sub->onhold) {
