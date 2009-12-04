@@ -342,6 +342,7 @@ struct ast_dsp {
 	int digitmode;
 	int faxmode;
 	int thinkdigit;
+	int display_inband_dtmf_warning;
 	float genergy;
 	digit_detect_state_t digit_state;
 	tone_detect_state_t cng_tone_state;
@@ -1233,7 +1234,10 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 			shortdata[x] = AST_ALAW(odata[x]);
 		break;
 	default:
-		ast_log(LOG_WARNING, "Inband DTMF is not supported on codec %s. Use RFC2833\n", ast_getformatname(af->subclass));
+		/*Display warning only once. Otherwise you would get hundreds of warnings every second */
+		if (dsp->display_inband_dtmf_warning)
+			ast_log(LOG_WARNING, "Inband DTMF is not supported on codec %s. Use RFC2833\n", ast_getformatname(af->subclass));
+		dsp->display_inband_dtmf_warning = 0;
 		return af;
 	}
 	silence = __ast_dsp_silence(dsp, shortdata, len, NULL);
@@ -1388,6 +1392,7 @@ struct ast_dsp *ast_dsp_new(void)
 		dsp->faxmode = DSP_FAXMODE_DETECT_CNG;
 		/* Initialize digit detector */
 		ast_digit_detect_init(&dsp->digit_state, dsp->digitmode & DSP_DIGITMODE_MF);
+		dsp->display_inband_dtmf_warning = 1;
 		/* Initialize initial DSP progress detect parameters */
 		ast_dsp_prog_reset(dsp);
 		/* Initialize fax detector */
