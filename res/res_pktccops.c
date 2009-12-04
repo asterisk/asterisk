@@ -378,7 +378,7 @@ static int cops_getmsg (int sfd, struct copsmsg *recmsg)
 static int cops_sendmsg (int sfd, struct copsmsg * sendmsg)
 {
 	char *buf;
-	int bufpos, res;
+	int bufpos;
 	struct pktcobj *pobject;
 	
 	if (sfd < 0) {
