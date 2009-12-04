@@ -3519,14 +3519,14 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		ast_frame_dump(chan->name, f, "<<");
 	chan->fin = FRAMECOUNT_INC(chan->fin);
 
-	if (f && f->datalen == 0 && f->data.ptr) {
+	if (f && f->frametype == AST_FRAME_CONTROL && f->subclass.integer == AST_CONTROL_HOLD && f->datalen == 0 && f->data.ptr) {
 		/* fix invalid pointer */
 		f->data.ptr = NULL;
 #ifdef AST_DEVMODE
-		ast_log(LOG_ERROR, "Found frame with src '%s' on channel '%s' with datalen zero, but non-null data pointer!\n", f->src, chan->name);
+		ast_log(LOG_ERROR, "Found HOLD frame with src '%s' on channel '%s' with datalen zero, but non-null data pointer!\n", f->src, chan->name);
 		ast_frame_dump(chan->name, f, "<<");
 #else
-		ast_debug(3, "Found frame with src '%s' on channel '%s' with datalen zero, but non-null data pointer!\n", f->src, chan->name);
+		ast_debug(3, "Found HOLD frame with src '%s' on channel '%s' with datalen zero, but non-null data pointer!\n", f->src, chan->name);
 #endif
 	}
 
