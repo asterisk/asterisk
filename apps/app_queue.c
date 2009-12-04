@@ -1755,7 +1755,9 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 	} else if (!strcasecmp(param, "wrapuptime")) {
 		q->wrapuptime = atoi(val);
 	} else if (!strcasecmp(param, "penaltymemberslimit")) {
-		q->penaltymemberslimit = atoi(val);
+		if ((sscanf(val, "%10d", &q->penaltymemberslimit) != 1)) {
+			q->penaltymemberslimit = 0;
+		}
 	} else if (!strcasecmp(param, "autofill")) {
 		q->autofill = ast_true(val);
 	} else if (!strcasecmp(param, "monitor-type")) {
