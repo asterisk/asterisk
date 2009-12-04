@@ -21,6 +21,9 @@
  * \brief Silly application to play an MP3 file -- uses mpg123
  *
  * \author Mark Spencer <markster@digium.com>
+ *
+ * \note Add feature to play local M3U playlist file
+ * Vincent Li <mchun.li@gmail.com>
  * 
  * \ingroup applications
  */
@@ -47,7 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*** DOCUMENTATION
 	<application name="MP3Player" language="en_US">
 		<synopsis>
-			Play an MP3 file or stream.
+			Play an MP3 file or M3U playlist file or stream.
 		</synopsis>
 		<syntax>
 			<parameter name="Location" required="true">
@@ -56,7 +59,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</parameter>
 		</syntax>
 		<description>
-			<para>Executes mpg123 to play the given location, which typically would be a filename or a URL.
+			<para>Executes mpg123 to play the given location, which typically would be a mp3 filename
+			or m3u playlist filename or a URL. Please read http://en.wikipedia.org/wiki/M3U
+			to see how M3U playlist file format is like, Example usage would be 
+			exten => 1234,1,MP3Player(/var/lib/asterisk/playlist.m3u)
 			User can exit by pressing any key on the dialpad, or by hanging up.</para>
 		</description>
 	</application>
@@ -88,6 +94,14 @@ static int mp3play(const char *filename, int fd)
 	    execl(MPG_123, "mpg123", "-q", "-s", "-b", "1024","-f", "8192", "--mono", "-r", "8000", filename, (char *)NULL);
 		/* As a last-ditch effort, try to use PATH */
 	    execlp("mpg123", "mpg123", "-q", "-s", "-b", "1024",  "-f", "8192", "--mono", "-r", "8000", filename, (char *)NULL);
+	}
+	else if (strstr(filename, ".m3u")) {
+		/* Most commonly installed in /usr/local/bin */
+	    execl(LOCAL_MPG_123, "mpg123", "-q", "-z", "-s", "-b", "1024", "-f", "8192", "--mono", "-r", "8000", "-@", filename, (char *)NULL);
+		/* But many places has it in /usr/bin */
+	    execl(MPG_123, "mpg123", "-q", "-z", "-s", "-b", "1024","-f", "8192", "--mono", "-r", "8000", "-@", filename, (char *)NULL);
+		/* As a last-ditch effort, try to use PATH */
+	    execlp("mpg123", "mpg123", "-q", "-z", "-s", "-b", "1024",  "-f", "8192", "--mono", "-r", "8000", "-@", filename, (char *)NULL);
 	}
 	else {
 		/* Most commonly installed in /usr/local/bin */
