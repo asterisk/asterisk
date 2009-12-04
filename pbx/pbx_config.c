@@ -2266,16 +2266,30 @@ static int pbx_load_config(const char *config_file)
 						/* Neither found */
 						data = "";
 					} else {
+						char *orig_appl = strdup(appl);
+
+						if (!orig_appl)
+							return -1;
+
 						/* Final remaining case is parenthesis found first */
 						appl = strsep(&stringp, "(");
-						data = stringp;
-						end = strrchr(data, ')');
-						if ((end = strrchr(data, ')'))) {
-							*end = '\0';
+
+						/* check if there are variables or expressions without an application, like: exten => 100,hint,DAHDI/g0/${GLOBAL(var)} */
+						if (strstr(appl, "${") || strstr(appl, "$[")){
+							/* set appl to original one */
+							strcpy(appl, orig_appl);
+							data = "";
 						} else {
-							ast_log(LOG_WARNING, "No closing parenthesis found? '%s(%s'\n", appl, data);
+							data = stringp;
+							end = strrchr(data, ')');
+							if ((end = strrchr(data, ')'))) {
+								*end = '\0';
+							} else {
+								ast_log(LOG_WARNING, "No closing parenthesis found? '%s(%s'\n", appl, data);
+							}
+							ast_process_quotes_and_slashes(data, ',', '|');
 						}
-						ast_process_quotes_and_slashes(data, ',', '|');
+						ast_free(orig_appl);
 					}
 
 					if (!data)
