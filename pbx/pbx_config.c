@@ -1426,21 +1426,36 @@ static int pbx_load_config(const char *config_file)
 						ast_log(LOG_WARNING, "Invalid priority/label '%s' at line %d\n", pri, v->lineno);
 						ipri = 0;
 					}
+
 					appl = S_OR(stringp, "");
 					/* Find the first occurrence of '(' */
-					firstp = strchr(appl, '(');
-					if (!firstp) {
+					if (!(firstp = strchr(appl, '('))) {
 						/* No arguments */
 						data = "";
 					} else {
+						char *orig_appl = ast_strdup(appl);
+
+						if (!orig_appl)
+							return -1;
+
 						appl = strsep(&stringp, "(");
-						data = stringp;
-						end = strrchr(data, ')');
-						if ((end = strrchr(data, ')'))) {
-							*end = '\0';
+
+						/* check if there are variables or expressions without an application, like: exten => 100,hint,DAHDI/g0/${GLOBAL(var)}  */
+						if (strstr(appl, "${") || strstr(appl, "$[")){
+							/* set appl to original one */
+							strcpy(appl, orig_appl);
+							/* set no data */
+							data = "";
+						/* no variable before application found -> go ahead */
 						} else {
-							ast_log(LOG_WARNING, "No closing parenthesis found? '%s(%s'\n", appl, data);
+							data = S_OR(stringp, "");
+							if ((end = strrchr(data, ')'))) {
+								*end = '\0';
+							} else {
+								ast_log(LOG_WARNING, "No closing parenthesis found? '%s(%s'\n", appl, data);
+							}
 						}
+						ast_free(orig_appl);
 					}
 
 					if (!data)
