@@ -367,12 +367,13 @@ static struct ast_variable *realtime_mysql(const char *database, const char *tab
 
 		while ((row = mysql_fetch_row(result))) {
 			for (i = 0; i < numFields; i++) {
-				if (ast_strlen_zero(row[i]))
-					continue;
+				/* Encode NULL values separately from blank values, for the Realtime API */
+				if (row[i] == NULL) {
+					row[i] = "";
+				} else if (ast_strlen_zero(row[i])) {
+					row[i] = " ";
+				}
 				for (stringp = ast_strdupa(row[i]), chunk = strsep(&stringp, ";"); chunk; chunk = strsep(&stringp, ";")) {
-					if (!chunk || ast_strlen_zero(ast_strip(chunk))) {
-						continue;
-					}
 					if (prev) {
 						if ((prev->next = ast_variable_new(fields[i].name, chunk, ""))) {
 							prev = prev->next;
