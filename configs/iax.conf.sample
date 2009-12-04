@@ -339,12 +339,13 @@ autokill=yes
 ;
 ;calltokenoptional=209.16.236.73/255.255.255.0
 ;
-; In a peer/user/friend definition, the 'requirecalltoken' option may be used.
 ; By setting 'requirecalltoken=no', call token validation becomes optional for
 ; that peer/user.  By setting 'requirecalltoken=auto', call token validation 
 ; is optional until a call token supporting peer registers successfully using
 ; call token validation.  This is used as an indication that from now on, we
 ; can require it from this peer.  So, requirecalltoken is internally set to yes.
+; requirecalltoken may only be used in peer/user/friend definitions,
+; not in the global scope.
 ; By default, 'requirecalltoken=yes'.
 ;
 ;requirecalltoken=no
