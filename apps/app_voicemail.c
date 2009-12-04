@@ -582,7 +582,13 @@ static int adsiver = 1;
 static char emaildateformat[32] = "%A, %B %d, %Y at %r";
 
 
-static char *strip_control(const char *input, char *buf, size_t buflen)
+/*!
+ * \brief Strips control and non 7-bit clean characters from input string.
+ *
+ * \note To map control and none 7-bit characters to a 7-bit clean characters
+ *  please use ast_str_encode_mine().
+ */
+static char *strip_control_and_high(const char *input, char *buf, size_t buflen)
 {
 	char *bufptr = buf;
 	for (; *input; input++) {
@@ -3198,10 +3204,10 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	passdata2 = alloca(len_passdata2);
 
 	if (cidnum) {
-		strip_control(cidnum, enc_cidnum, sizeof(enc_cidnum));
+		strip_control_and_high(cidnum, enc_cidnum, sizeof(enc_cidnum));
 	}
 	if (cidname) {
-		strip_control(cidname, enc_cidname, sizeof(enc_cidname));
+		strip_control_and_high(cidname, enc_cidname, sizeof(enc_cidname));
 	}
 	gethostname(host, sizeof(host) - 1);
 	if (strchr(srcemail, '@'))
