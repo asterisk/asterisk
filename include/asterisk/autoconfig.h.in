@@ -534,6 +534,12 @@
 /* Define to 1 if you have a working `mmap' system call. */
 #undef HAVE_MMAP
 
+/* Define if your system has the MSG_NOSIGNAL headers. */
+#undef HAVE_MSG_NOSIGNAL
+
+/* Define MSG_NOSIGNAL headers version */
+#undef HAVE_MSG_NOSIGNAL_VERSION
+
 /* Define to 1 if you have the `munmap' function. */
 #undef HAVE_MUNMAP
 
@@ -809,6 +815,12 @@
 
 /* Define to 1 if your system has soxmix application. */
 #undef HAVE_SOXMIX
+
+/* Define if your system has the SO_NOSIGPIPE headers. */
+#undef HAVE_SO_NOSIGPIPE
+
+/* Define SO_NOSIGPIPE headers version */
+#undef HAVE_SO_NOSIGPIPE_VERSION
 
 /* Define if your system has the SPANDSP headers. */
 #undef HAVE_SPANDSP

@@ -378,7 +378,7 @@ static int cops_getmsg (int sfd, struct copsmsg *recmsg)
 static int cops_sendmsg (int sfd, struct copsmsg * sendmsg)
 {
 	char *buf;
-	int bufpos;
+	int bufpos, res;
 	struct pktcobj *pobject;
 	
 	if (sfd < 0) {
@@ -425,11 +425,17 @@ static int cops_sendmsg (int sfd, struct copsmsg * sendmsg)
 	}
 	
 	errno = 0;
-	if (send(sfd, buf, sendmsg->length, MSG_NOSIGNAL | MSG_DONTWAIT ) == -1) {
+#ifdef HAVE_MSG_NOSIGNAL
+#define	SENDFLAGS	MSG_NOSIGNAL | MSG_DONTWAIT
+#else
+#define	SENDFLAGS	MSG_DONTWAIT
+#endif
+	if (send(sfd, buf, sendmsg->length, SENDFLAGS) == -1) {
 		ast_log(LOG_WARNING, "COPS: Send failed errno=%i\n", errno);
 		free(buf);
 		return -2;
 	}
+#undef SENDFLAGS
 	free(buf);
 	return 0;
 }
@@ -636,6 +642,9 @@ static int cops_connect(char *host, char *port)
 	struct addrinfo hints;
 	struct addrinfo *rp;
 	struct addrinfo *result;
+#ifdef HAVE_SO_NOSIGPIPE
+	int trueval = 1;
+#endif
 
 	memset(&hints, 0, sizeof(struct addrinfo));
 
@@ -657,6 +666,9 @@ static int cops_connect(char *host, char *port)
 		}
 		flags = fcntl(sfd, F_GETFL);
 		fcntl(sfd, F_SETFL, flags | O_NONBLOCK);
+#ifdef HAVE_SO_NOSIGPIPE
+		setsockopt(sfd, SO_SOCKET, SO_NOSIGPIPE, &trueval, sizeof(trueval));
+#endif
 		connect(sfd, rp->ai_addr, rp->ai_addrlen);
 		if (sfd == -1) {
 			ast_log(LOG_WARNING, "Failed connect\n");

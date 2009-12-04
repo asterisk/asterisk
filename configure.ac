@@ -1706,6 +1706,10 @@ AC_CHECK_HEADER([linux/ixjuser.h], [PBX_IXJUSER=1], [PBX_IXJUSER=0], [
 				   ])
 AC_SUBST(PBX_IXJUSER)
 
+# Used in res/res_pktccops
+AST_C_DEFINE_CHECK([MSG_NOSIGNAL], [MSG_NOSIGNAL], [sys/socket.h])
+AST_C_DEFINE_CHECK([SO_NOSIGPIPE], [SO_NOSIGPIPE], [sys/socket.h])
+
 AST_EXT_TOOL_CHECK([SDL], [sdl-config])
 AST_EXT_LIB_CHECK([SDL_IMAGE], [SDL_image], [IMG_Load], [SDL_image.h], [${SDL_LIB}], [${SDL_INCLUDE}])
 AST_EXT_LIB_CHECK([FFMPEG], [avcodec], [sws_getContext], [ffmpeg/avcodec.h], [-lpthread -lz -lm])
