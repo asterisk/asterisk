@@ -72,6 +72,7 @@ MGCP Changes
 
 Applications
 ------------
+ * Added .m3u support for Mp3Player application.
  * Added progress option to the app_dial D() option.  When progress DTMF is
    present, those values are sent immediately upon receiving a PROGRESS message
    regardless if the call has been answered or not.
