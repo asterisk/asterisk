@@ -3347,8 +3347,8 @@ static char *_skinny_show_lines(int fd, int *total, struct mansession *s, const 
 				l->instance,
 				l->label);
 		}
-		AST_LIST_UNLOCK(&lines);
 	}
+	AST_LIST_UNLOCK(&lines);
 
 	if (total) {
 		*total = total_lines;
