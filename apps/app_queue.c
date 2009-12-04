@@ -954,6 +954,7 @@ struct call_queue {
 	int count;                          /*!< How many entries */
 	int maxlen;                         /*!< Max number of entries */
 	int wrapuptime;                     /*!< Wrapup Time */
+	int penaltymemberslimit;            /*!< Disregard penalty when queue has fewer than this many members */
 
 	int retry;                          /*!< Retry calling everyone after this amount of time */
 	int timeout;                        /*!< How long to wait for an answer */
@@ -1447,6 +1448,7 @@ static void init_queue(struct call_queue *q)
 	q->monfmt[0] = '\0';
 	q->reportholdtime = 0;
 	q->wrapuptime = 0;
+	q->penaltymemberslimit = 0;
 	q->joinempty = 0;
 	q->leavewhenempty = 0;
 	q->memberdelay = 0;
@@ -1752,6 +1754,8 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 			q->retry = DEFAULT_RETRY;
 	} else if (!strcasecmp(param, "wrapuptime")) {
 		q->wrapuptime = atoi(val);
+	} else if (!strcasecmp(param, "penaltymemberslimit")) {
+		q->penaltymemberslimit = atoi(val);
 	} else if (!strcasecmp(param, "autofill")) {
 		q->autofill = ast_true(val);
 	} else if (!strcasecmp(param, "monitor-type")) {
@@ -3691,13 +3695,23 @@ static int update_queue(struct call_queue *q, struct member *member, int callcom
  */
 static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct queue_ent *qe, struct callattempt *tmp)
 {
-	if ((qe->max_penalty && (mem->penalty > qe->max_penalty)) || (qe->min_penalty && (mem->penalty < qe->min_penalty)))
-		return -1;
+	/* disregarding penalty on too few members? */
+	unsigned char usepenalty = (q->membercount <= q->penaltymemberslimit) ? 0 : 1;
+
+	if (usepenalty) {
+		if ((qe->max_penalty && (mem->penalty > qe->max_penalty)) ||
+			(qe->min_penalty && (mem->penalty < qe->min_penalty))) {
+			return -1;
+		}
+	} else {
+		ast_debug(1, "Disregarding penalty, %d members and %d in penaltymemberslimit.\n",
+			  q->membercount, q->penaltymemberslimit);
+	}
 
 	switch (q->strategy) {
 	case QUEUE_STRATEGY_RINGALL:
 		/* Everyone equal, except for penalty */
-		tmp->metric = mem->penalty * 1000000;
+		tmp->metric = mem->penalty * 1000000 * usepenalty;
 		break;
 	case QUEUE_STRATEGY_LINEAR:
 		if (pos < qe->linpos) {
@@ -3708,7 +3722,7 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 				qe->linwrapped = 1;
 			tmp->metric = pos;
 		}
-		tmp->metric += mem->penalty * 1000000;
+		tmp->metric += mem->penalty * 1000000 * usepenalty;
 		break;
 	case QUEUE_STRATEGY_RRMEMORY:
 		if (pos < q->rrpos) {
@@ -3719,25 +3733,25 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 				q->wrapped = 1;
 			tmp->metric = pos;
 		}
-		tmp->metric += mem->penalty * 1000000;
+		tmp->metric += mem->penalty * 1000000 * usepenalty;
 		break;
 	case QUEUE_STRATEGY_RANDOM:
 		tmp->metric = ast_random() % 1000;
-		tmp->metric += mem->penalty * 1000000;
+		tmp->metric += mem->penalty * 1000000 * usepenalty;
 		break;
 	case QUEUE_STRATEGY_WRANDOM:
 		tmp->metric = ast_random() % ((1 + mem->penalty) * 1000);
 		break;
 	case QUEUE_STRATEGY_FEWESTCALLS:
 		tmp->metric = mem->calls;
-		tmp->metric += mem->penalty * 1000000;
+		tmp->metric += mem->penalty * 1000000 * usepenalty;
 		break;
 	case QUEUE_STRATEGY_LEASTRECENT:
 		if (!mem->lastcall)
 			tmp->metric = 0;
 		else
 			tmp->metric = 1000000 - (time(NULL) - mem->lastcall);
-		tmp->metric += mem->penalty * 1000000;
+		tmp->metric += mem->penalty * 1000000 * usepenalty;
 		break;
 	default:
 		ast_log(LOG_WARNING, "Can't calculate metric for unknown strategy %d\n", q->strategy);

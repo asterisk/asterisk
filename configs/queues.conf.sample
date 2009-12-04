@@ -112,6 +112,12 @@ shared_lastcall=no
 ;
 ;context = qoutcon
 ;
+; A limit can be set to disregard penalty settings when the queue has
+; too few members.  No penalty will be weighed in if there are only X
+; or fewer queue members. (default 0)
+;
+;penaltymemberslimit = 5
+;
 ;----------------------QUEUE TIMING OPTIONS------------------------------------
 ; A Queue has two different "timeout" values associated with it. One is the
 ; timeout parameter configured in queues.conf. This timeout specifies the
