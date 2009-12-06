@@ -33,8 +33,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <regex.h>
 #include <sys/file.h> /* added this to allow to compile, sorry! */
 #include <signal.h>
-#include <sys/time.h>       /* for getrlimit(2) */
-#include <sys/resource.h>   /* for getrlimit(2) */
 #include <stdlib.h>         /* for closefrom(3) */
 #ifdef HAVE_CAP
 #include <sys/capability.h>
@@ -2008,24 +2006,7 @@ int ast_str_get_encoded_str(struct ast_str **str, int maxlen, const char *stream
 
 void ast_close_fds_above_n(int n)
 {
-#ifdef HAVE_CLOSEFROM
 	closefrom(n + 1);
-#else
-	int x, null;
-	struct rlimit rl;
-	getrlimit(RLIMIT_NOFILE, &rl);
-	null = open("/dev/null", O_RDONLY);
-	for (x = n + 1; x < rl.rlim_cur; x++) {
-		if (x != null) {
-			/* Side effect of dup2 is that it closes any existing fd without error.
-			 * This prevents valgrind and other debugging tools from sending up
-			 * false error reports. */
-			while (dup2(null, x) < 0 && errno == EINTR);
-			close(x);
-		}
-	}
-	close(null);
-#endif
 }
 
 int ast_safe_fork(int stop_reaper)
