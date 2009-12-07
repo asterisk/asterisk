@@ -111,6 +111,8 @@ Applications
    using the imapfolder option.
  * Voicemail now allows the pager date format to be specified separately from the
    email date format.
+ * New applications JabberJoin, JabberLeave, and JabberSendGroup have been added
+   to allow joining, leaving, and sending text to group chats.
 
 Dialplan Functions
 ------------------

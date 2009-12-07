@@ -34,6 +34,31 @@
 	<depend>iksemel</depend>
 	<use>openssl</use>
  ***/
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+#include <ctype.h>
+#include <iksemel.h>
+
+#include "asterisk/channel.h"
+#include "asterisk/jabber.h"
+#include "asterisk/file.h"
+#include "asterisk/config.h"
+#include "asterisk/callerid.h"
+#include "asterisk/lock.h"
+#include "asterisk/cli.h"
+#include "asterisk/app.h"
+#include "asterisk/pbx.h"
+#include "asterisk/md5.h"
+#include "asterisk/acl.h"
+#include "asterisk/utils.h"
+#include "asterisk/module.h"
+#include "asterisk/astobj.h"
+#include "asterisk/astdb.h"
+#include "asterisk/manager.h"
+
 /*** DOCUMENTATION
 	<application name="JabberSend" language="en_US">
 		<synopsis>
@@ -124,50 +149,66 @@
 			<ref type="application">JabberSend</ref>
 		</see-also>
 	</function>
- ***/
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
-
-#include <ctype.h>
-#include <iksemel.h>
-
-#include "asterisk/channel.h"
-#include "asterisk/jabber.h"
-#include "asterisk/file.h"
-#include "asterisk/config.h"
-#include "asterisk/callerid.h"
-#include "asterisk/lock.h"
-#include "asterisk/cli.h"
-#include "asterisk/app.h"
-#include "asterisk/pbx.h"
-#include "asterisk/md5.h"
-#include "asterisk/acl.h"
-#include "asterisk/utils.h"
-#include "asterisk/module.h"
-#include "asterisk/astobj.h"
-#include "asterisk/astdb.h"
-#include "asterisk/manager.h"
-
-/*** DOCUMENTATION
-	<application name="JabberSend" language="en_US">
+	<application name="JabberSendGroup" language="en_US">
 		<synopsis>
-			Send a Jabber Message
+			Send a Jabber Message to a specified chat room
 		</synopsis>
 		<syntax>
 			<parameter name="Jabber" required="true">
 				<para>Client or transport Asterisk uses to connect to Jabber.</para>
 			</parameter>
-			<parameter name="JID" required="true">
-				<para>XMPP/Jabber JID (Name) of recipient.</para>
+			<parameter name="RoomJID" required="true">
+				<para>XMPP/Jabber JID (Name) of chat room.</para>
 			</parameter>
 			<parameter name="Message" required="true">
-				<para>Message to be sent to the buddy.</para>
+				<para>Message to be sent to the chat room.</para>
+			</parameter>
+			<parameter name="Nickname" required="false">
+				<para>The nickname Asterisk uses in the chat room.</para>
 			</parameter>
 		</syntax>
 		<description>
-			<para>Allows user to send a message to a receipent via XMPP.</para>
+			<para>Allows user to send a message to a chat room via XMPP.</para>
+			<note><para>To be able to send messages to a chat room, a user must have previously joined it. Use the <replaceable>JabberJoin</replaceable> function to do so.</para></note>
+		</description>
+	</application>
+	<application name="JabberJoin" language="en_US">
+		<synopsis>
+			<para>Join a chat room</para>
+		</synopsis>
+		<syntax>
+			<parameter name="Jabber" required="true">
+				<para>Client or transport Asterisk uses to connect to Jabber.</para>
+			</parameter>
+			<parameter name="RoomJID" required="true">
+				<para>XMPP/Jabber JID (Name) of chat room.</para>
+			</parameter>
+			<parameter name="Nickname" required="false">
+				<para>The nickname Asterisk will use in the chat room.</para>
+				<note><para>If a different nickname is supplied to an already joined room, the old nick will be changed to the new one.</para></note>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Allows Asterisk to join a chat room.</para>
+		</description>
+	</application>
+	<application name="JabberLeave" language="en_US">
+		<synopsis>
+			<para>Leave a chat room</para>
+		</synopsis>
+		<syntax>
+			<parameter name="Jabber" required="true">
+				<para>Client or transport Asterisk uses to connect to Jabber.</para>
+			</parameter>
+			<parameter name="RoomJID" required="true">
+				<para>XMPP/Jabber JID (Name) of chat room.</para>
+			</parameter>
+			<parameter name="Nickname" required="false">
+				<para>The nickname Asterisk uses in the chat room.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Allows Asterisk to leave a chat room.</para>
 		</description>
 	</application>
 	<application name="JabberStatus" language="en_US">
@@ -213,50 +254,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</enum>
 			</enumlist>
 		</description>
-	</application>
-	<function name="JABBER_STATUS" language="en_US">
-		<synopsis>
-			Retrieve the status of a jabber list member
-		</synopsis>
-		<syntax>
-			<parameter name="sender" required="true">
-				<para>XMPP/Jabber ID (Name) of sender.</para>
-			</parameter>
-			<parameter name="buddy" required="true">
-				<para>XMPP/Jabber JID (Name) of recipient.</para>
-			</parameter>
-			<parameter name="resource">
-				<para>Client or transport Asterisk users to connect to Jabber.</para>
-			</parameter>
-		</syntax>
-		<description>
-			<para>Retrieves the numeric status associated with the specified buddy <replaceable>JID</replaceable>.
-			The return value will be one of the following.</para>
-			<enumlist>
-				<enum name="1">
-					<para>Online.</para>
-				</enum>
-				<enum name="2">
-					<para>Chatty.</para>
-				</enum>
-				<enum name="3">
-					<para>Away.</para>
-				</enum>
-				<enum name="4">
-					<para>Extended Away.</para>
-				</enum>
-				<enum name="5">
-					<para>Do Not Disturb.</para>
-				</enum>
-				<enum name="6">
-					<para>Offline.</para>
-				</enum>
-				<enum name="7">
-					<para>Not In Roster.</para>
-				</enum>
-			</enumlist>
-		</description>
-	</function>
+        </application>
 	<manager name="JabberSend" language="en_US">
 		<synopsis>
 			Sends a message to a Jabber Client.
@@ -303,10 +301,12 @@ static void aji_handle_iq(struct aji_client *client, iks *node);
 static void aji_handle_message(struct aji_client *client, ikspak *pak);
 static void aji_handle_presence(struct aji_client *client, ikspak *pak);
 static void aji_handle_subscribe(struct aji_client *client, ikspak *pak);
+static int aji_send_raw_chat(struct aji_client *client, int groupchat, const char *nick, const char *address, const char *message);
 static void *aji_recv_loop(void *data);
 static int aji_initialize(struct aji_client *client);
 static int aji_client_connect(void *data, ikspak *pak);
 static void aji_set_presence(struct aji_client *client, char *to, char *from, int level, char *desc);
+static int aji_set_group_presence(struct aji_client *client, char *room, int level, char *nick, char *desc);
 static char *aji_do_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *aji_do_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *aji_show_clients(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
@@ -342,8 +342,10 @@ static struct ast_cli_entry aji_cli[] = {
 };
 
 static char *app_ajisend = "JabberSend";
-
+static char *app_ajisendgroup = "JabberSendGroup";
 static char *app_ajistatus = "JabberStatus";
+static char *app_ajijoin = "JabberJoin";
+static char *app_ajileave = "JabberLeave";
 
 static struct aji_client_container clients;
 static struct aji_capabilities *capabilities = NULL;
@@ -909,6 +911,125 @@ static int delete_old_messages_all(struct aji_client *client)
 }
 
 /*!
+* \brief Application to join a chat room
+* \param chan ast_channel
+* \param data  Data is sender|jid|nickname.
+* \retval 0 success
+* \retval -1 error
+*/
+static int aji_join_exec(struct ast_channel *chan, const char *data)
+{
+	struct aji_client *client = NULL;
+	char *s;
+	char nick[AJI_MAX_RESJIDLEN];
+
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(sender);
+		AST_APP_ARG(jid);
+		AST_APP_ARG(nick);
+	);
+
+	if (!data) {
+		ast_log(LOG_ERROR, "%s requires arguments (sender,jid[,nickname])\n", app_ajijoin);
+		return -1;
+	}
+	s = ast_strdupa(data);
+
+	AST_STANDARD_APP_ARGS(args, s);
+	if (args.argc < 2 || args.argc > 3) {
+		ast_log(LOG_ERROR, "%s requires arguments (sender,jid[,nickname])\n", app_ajijoin);
+		return -1;
+	}
+	
+	if (!(client = ast_aji_get_client(args.sender))) {
+		ast_log(LOG_ERROR, "Could not find sender connection: '%s'\n", args.sender);
+		return -1;
+	}
+	
+	if (strchr(args.jid, '/')) {
+		ast_log(LOG_ERROR, "Invalid room name : resource must not be appended\n");
+		ASTOBJ_UNREF(client, aji_client_destroy);
+		return -1;
+	}	
+	
+	if (!ast_strlen_zero(args.nick)) {
+		snprintf(nick, AJI_MAX_RESJIDLEN, "%s", args.nick);
+	} else {
+		if (client->component) {
+			sprintf(nick, "asterisk"); 			
+		} else {
+			snprintf(nick, AJI_MAX_RESJIDLEN, "%s", client->jid->user);
+		}
+	}
+
+	if (!ast_strlen_zero(args.jid) && strchr(args.jid, '@')) {
+		ast_aji_join_chat(client, args.jid, nick);
+	} else {
+		ast_log(LOG_ERROR, "Problem with specified jid of '%s'\n", args.jid);
+	}
+	
+	ASTOBJ_UNREF(client, aji_client_destroy);
+	return 0;
+}
+	
+/*!
+* \brief Application to leave a chat room
+* \param chan ast_channel
+* \param data  Data is sender|jid|nickname.
+* \retval 0 success
+* \retval -1 error
+*/
+static int aji_leave_exec(struct ast_channel *chan, const char *data)
+{
+	struct aji_client *client = NULL;
+	char *s;
+	char nick[AJI_MAX_RESJIDLEN];
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(sender);
+		AST_APP_ARG(jid);
+		AST_APP_ARG(nick);
+	);
+	
+	if (!data) {
+		ast_log(LOG_ERROR, "%s requires arguments (sender,jid[,nickname])\n", app_ajileave);
+		return -1;
+	}
+	s = ast_strdupa(data);
+	
+	AST_STANDARD_APP_ARGS(args, s);
+	if (args.argc < 2 || args.argc > 3) {
+		ast_log(LOG_ERROR, "%s requires arguments (sender,jid[,nickname])\n", app_ajileave);
+		return -1;
+	}
+	
+	if (!(client = ast_aji_get_client(args.sender))) {
+		ast_log(LOG_ERROR, "Could not find sender connection: '%s'\n", args.sender);
+		return -1;
+	}
+	
+	if (strchr(args.jid, '/')) {
+		ast_log(LOG_ERROR, "Invalid room name, resource must not be appended\n");
+		ASTOBJ_UNREF(client, aji_client_destroy);
+		return -1;
+	} 
+	if (!ast_strlen_zero(args.nick)) {
+		snprintf(nick, AJI_MAX_RESJIDLEN, "%s", args.nick);
+	} else {
+		if (client->component) {
+			sprintf(nick, "asterisk");
+		} else {
+			snprintf(nick, AJI_MAX_RESJIDLEN, "%s", client->jid->user);
+		}
+	}
+	
+	if (!ast_strlen_zero(args.jid) && strchr(args.jid, '@')) {
+		ast_aji_leave_chat(client, args.jid, nick);
+	} 
+	ASTOBJ_UNREF(client, aji_client_destroy);
+	return 0;
+}
+
+/*!
  * \internal
  * \brief Dial plan function to send a message.
  * \param chan ast_channel
@@ -944,6 +1065,64 @@ static int aji_send_exec(struct ast_channel *chan, const char *data)
 	}
 	if (strchr(args.recipient, '@') && !ast_strlen_zero(args.message)) {
 		ast_aji_send_chat(client, args.recipient, args.message);
+	}
+	return 0;
+}
+
+/*!
+* \brief Application to send a message to a groupchat.
+* \param chan ast_channel
+* \param data  Data is sender|groupchat|message.
+* \retval 0 success
+* \retval -1 error
+*/
+static int aji_sendgroup_exec(struct ast_channel *chan, const char *data)
+{
+	struct aji_client *client = NULL;
+	char *s;
+	char nick[AJI_MAX_RESJIDLEN];
+	int res = 0;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(sender);
+		AST_APP_ARG(groupchat);
+		AST_APP_ARG(message);
+		AST_APP_ARG(nick);
+	);
+	
+	if (!data) {
+		ast_log(LOG_ERROR, "%s requires arguments (sender,groupchatid,message[,nickname])\n", app_ajisendgroup);
+		return -1;
+	}
+	s = ast_strdupa(data);
+	
+	AST_STANDARD_APP_ARGS(args, s);
+	if (args.argc < 3 || args.argc > 4) {
+		ast_log(LOG_ERROR, "%s requires arguments (sender,groupchatid,message[,nickname])\n", app_ajisendgroup);
+		return -1;
+	}
+	
+	if (!(client = ast_aji_get_client(args.sender))) {
+		ast_log(LOG_ERROR, "Could not find sender connection: '%s'\n", args.sender);
+		return -1;
+	}
+	
+	if (ast_strlen_zero(args.nick) || args.argc == 3) {
+		if (client->component) {
+			sprintf(nick, "asterisk");
+		} else {
+			snprintf(nick, AJI_MAX_RESJIDLEN, "%s", client->jid->user);
+		}
+	} else {
+		snprintf(nick, AJI_MAX_RESJIDLEN, "%s", args.nick);
+	}
+	
+	if (strchr(args.groupchat, '@') && !ast_strlen_zero(args.message)) {
+		res = ast_aji_send_groupchat(client, nick, args.groupchat, args.message);
+	}
+	
+	ASTOBJ_UNREF(client, aji_client_destroy);
+	if (res != IKS_OK) {
+		return -1;
 	}
 	return 0;
 }
@@ -2272,24 +2451,56 @@ static void aji_handle_subscribe(struct aji_client *client, ikspak *pak)
  */
 int ast_aji_send_chat(struct aji_client *client, const char *address, const char *message)
 {
+	return aji_send_raw_chat(client, 0, NULL, address, message);
+}
+
+/*!
+* \brief sends message to a groupchat
+* Prior to sending messages to a groupchat, one must be connected to it.
+* \param client the configured XMPP client we use to connect to a XMPP server
+* \param nick the nickname we use in the chatroom
+* \param address the user the messages must be sent to
+* \param message the message to send
+* \return IKS_OK on success, any other value on failure
+*/
+int ast_aji_send_groupchat(struct aji_client *client, const char *nick, const char *address, const char *message) {
+	return aji_send_raw_chat(client, 1, nick, address, message);
+}
+
+/*!
+* \brief sends messages.
+* \param client the configured XMPP client we use to connect to a XMPP server
+* \param nick the nickname we use in chatrooms
+* \param address
+* \param message
+* \return IKS_OK on success, any other value on failure
+*/
+static int aji_send_raw_chat(struct aji_client *client, int groupchat, const char *nick, const char *address, const char *message)
+{
 	int res = 0;
 	iks *message_packet = NULL;
-
+	char from[AJI_MAX_JIDLEN];
+	/* the nickname is used only in component mode */
+	if (nick && client->component) {
+		snprintf(from, AJI_MAX_JIDLEN, "%s@%s/%s", nick, client->jid->full, nick);
+	} else {
+		snprintf(from, AJI_MAX_JIDLEN, "%s", client->jid->full);
+	}
+	
 	if (client->state != AJI_CONNECTED) {
 		ast_log(LOG_WARNING, "JABBER: Not connected can't send\n");
 		return -1;
-	}
-
-	message_packet = iks_make_msg(IKS_TYPE_CHAT, address, message);
+	}   
+	
+	message_packet = iks_make_msg(groupchat ? IKS_TYPE_GROUPCHAT : IKS_TYPE_CHAT, address, message);
 	if (!message_packet) {
 		ast_log(LOG_ERROR, "Out of memory.\n");
 		return -1;
 	}
-
-	iks_insert_attrib(message_packet, "from", client->jid->full);
+	iks_insert_attrib(message_packet, "from", from);
 	res = ast_aji_send(client, message_packet);
 	iks_delete(message_packet);
-
+	
 	return res;
 }
 
@@ -2325,31 +2536,25 @@ int ast_aji_create_chat(struct aji_client *client, char *room, char *server, cha
  * \brief join a chatroom.
  * \param client the configured XMPP client we use to connect to a XMPP server
  * \param room room to join
- * \return res.
+ * \param nick the nickname to use in this room
+ * \return IKS_OK on success, any other value on failure.
  */
-int ast_aji_join_chat(struct aji_client *client, char *room)
+int ast_aji_join_chat(struct aji_client *client, char *room, char *nick)
 {
-	int res = 0;
-	iks *presence = NULL, *priority = NULL;
-	presence = iks_new("presence");
-	priority = iks_new("priority");
-	if (presence && priority && client) {
-		iks_insert_cdata(priority, "0", 1);
-		iks_insert_attrib(presence, "to", room);
-		iks_insert_node(presence, priority);
-		res = ast_aji_send(client, presence);
-		iks_insert_cdata(priority, "5", 1);
-		iks_insert_attrib(presence, "to", room);
-		res = ast_aji_send(client, presence);
-	} else 
-		ast_log(LOG_ERROR, "Out of memory.\n");
-	
-	iks_delete(presence);
-	iks_delete(priority);
-	
-	return res;
+	return aji_set_group_presence(client, room, IKS_SHOW_AVAILABLE, nick, NULL);
 }
 
+/*!
+ * \brief leave a chatroom.
+ * \param client the configured XMPP client we use to connect to a XMPP server
+ * \param room room to leave
+ * \param nick the nickname used in this room
+ * \return IKS_OK on success, any other value on failure.
+ */
+int ast_aji_leave_chat(struct aji_client *client, char *room, char *nick)
+{
+	return aji_set_group_presence(client, room, IKS_SHOW_UNAVAILABLE, nick, NULL);
+}
 /*!
  * \brief invite to a chatroom.
  * \param client the configured XMPP client we use to connect to a XMPP server
@@ -2854,6 +3059,52 @@ static void aji_set_presence(struct aji_client *client, char *to, char *from, in
 	iks_delete(cnode);
 	iks_delete(presence);
 	iks_delete(priority);
+}
+
+/*
+* \brief set the presence of the client in a groupchat context.
+* \param client the configured XMPP client we use to connect to a XMPP server
+* \param room the groupchat identifier in the from roomname@service
+* \param from user it came from
+* \param level the type of action, i.e. join or leave the chatroom
+* \param nick the nickname to use in the chatroom
+* \param desc a text that details the action to be taken
+* \return res.
+*/
+static int aji_set_group_presence(struct aji_client *client, char *room, int level, char *nick, char *desc)
+{
+	int res = 0;
+	iks *presence = NULL, *x = NULL;
+	char from[AJI_MAX_JIDLEN];
+	char roomid[AJI_MAX_JIDLEN];
+	
+	presence = iks_make_pres(level, NULL);
+	x = iks_new("x");
+	
+	if (client->component) {
+		snprintf(from, AJI_MAX_JIDLEN, "%s@%s/%s", nick, client->jid->full, nick);
+		snprintf(roomid, AJI_MAX_JIDLEN, "%s/%s", room, nick);
+	} else {
+		snprintf(from, AJI_MAX_JIDLEN, "%s", client->jid->full);
+		snprintf(roomid, AJI_MAX_JIDLEN, "%s/%s", room, nick ? nick : client->jid->user);
+	}
+	
+	if (!presence || !x || !client) {
+		ast_log(LOG_ERROR, "Out of memory.\n");
+		res = -1;
+		goto safeout;
+	} else { 
+		iks_insert_attrib(presence, "to", roomid);
+		iks_insert_attrib(presence, "from", from);
+		iks_insert_attrib(x, "xmlns", MUC_NS);
+		iks_insert_node(presence, x);
+		res = ast_aji_send(client, presence);
+	}
+	
+safeout:
+	iks_delete(presence);
+	iks_delete(x);
+	return res;
 }
 
 /*!
@@ -3491,7 +3742,10 @@ static int unload_module(void)
 
 	ast_cli_unregister_multiple(aji_cli, ARRAY_LEN(aji_cli));
 	ast_unregister_application(app_ajisend);
+	ast_unregister_application(app_ajisendgroup);
 	ast_unregister_application(app_ajistatus);
+	ast_unregister_application(app_ajijoin);
+	ast_unregister_application(app_ajileave);
 	ast_manager_unregister("JabberSend");
 	ast_custom_function_unregister(&jabberstatus_function);
 	ast_custom_function_unregister(&jabberreceive_function);
@@ -3525,7 +3779,10 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	ast_manager_register_xml("JabberSend", EVENT_FLAG_SYSTEM, manager_jabber_send);
 	ast_register_application_xml(app_ajisend, aji_send_exec);
+	ast_register_application_xml(app_ajisendgroup, aji_sendgroup_exec);
 	ast_register_application_xml(app_ajistatus, aji_status_exec);
+ 	ast_register_application_xml(app_ajijoin, aji_join_exec);
+ 	ast_register_application_xml(app_ajileave, aji_leave_exec);
 	ast_cli_register_multiple(aji_cli, ARRAY_LEN(aji_cli));
 	ast_custom_function_register(&jabberstatus_function);
 	ast_custom_function_register(&jabberreceive_function);

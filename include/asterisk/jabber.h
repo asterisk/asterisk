@@ -73,6 +73,8 @@
 #define AJI_MAX_JIDLEN 3071
 #define AJI_MAX_RESJIDLEN 1023
 
+#define MUC_NS "http://jabber.org/protocol/muc"
+
 enum aji_state {
 	AJI_DISCONNECTING,
 	AJI_DISCONNECTED,
@@ -185,6 +187,9 @@ struct aji_client_container{
 int ast_aji_send(struct aji_client *client, iks *x);
 /*! Send jabber chat message from connected client to jabber URI */
 int ast_aji_send_chat(struct aji_client *client, const char *address, const char *message);
+/*! Send jabber chat message from connected client to a groupchat using 
+ *  a given nickname */
+int ast_aji_send_groupchat(struct aji_client *client, const char *nick, const char *address, const char *message);
 /*! Disconnect jabber client */
 int ast_aji_disconnect(struct aji_client *client);
 int ast_aji_check_roster(void);
@@ -193,8 +198,9 @@ void ast_aji_increment_mid(char *mid);
 int ast_aji_create_chat(struct aji_client *client,char *room, char *server, char *topic);
 /*! Invite to opened Chat session */
 int ast_aji_invite_chat(struct aji_client *client, char *user, char *room, char *message);
-/*! Join existing Chat session */
-int ast_aji_join_chat(struct aji_client *client,char *room);
+/*! Join/leave existing Chat session */
+int ast_aji_join_chat(struct aji_client *client, char *room, char *nick);
+int ast_aji_leave_chat(struct aji_client *client, char *room, char *nick);
 struct aji_client *ast_aji_get_client(const char *name);
 struct aji_client_container *ast_aji_get_clients(void);
 
