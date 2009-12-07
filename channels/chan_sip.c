@@ -7227,7 +7227,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 
 
 	/* Sanity checks */
-	if (!hp) {
+	if (!hp && !vhp && !thp && !ihp) {
 		ast_log(LOG_WARNING, "Insufficient information in SDP (c=)...\n");
 		return -1;
 	}
