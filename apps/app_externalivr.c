@@ -419,7 +419,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 	}
 
 	/* Get rid of any extraneous arguments */
-	if ((s = strchr(eivr_args.options, ','))) {
+	if (eivr_args.options && (s = strchr(eivr_args.options, ','))) {
 		*s = '\0';
 	}
 
@@ -473,9 +473,9 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		}
 
 		ast_gethostbyname(hostname, &hp);
-		ivr_desc.local_address.sin_family = AF_INET;
-		ivr_desc.local_address.sin_port = htons(port);
-		memcpy(&ivr_desc.local_address.sin_addr.s_addr, hp.hp.h_addr, hp.hp.h_length);
+		ivr_desc.remote_address.sin_family = AF_INET;
+		ivr_desc.remote_address.sin_port = htons(port);
+		memcpy(&ivr_desc.remote_address.sin_addr.s_addr, hp.hp.h_addr, sizeof(hp.hp.h_addr));
 		if (!(ser = ast_tcptls_client_create(&ivr_desc)) || !(ser = ast_tcptls_client_start(ser))) {
 			goto exit;
 		}
