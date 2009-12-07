@@ -6411,7 +6411,9 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 		add_header(resp, "Expires", tmp);
 		if (p->expiry) {	/* Only add contact if we have an expiry time */
 			char contact[SIPBUFSIZE];
-			snprintf(contact, sizeof(contact), "%s;expires=%d", (p->method == SIP_SUBSCRIBE ? p->our_contact : p->fullcontact), p->expiry);
+			const char *contact_uri = p->method == SIP_SUBSCRIBE ? p->our_contact : p->fullcontact;
+			char *brackets = strchr(contact_uri, '<');
+			snprintf(contact, sizeof(contact), "%s%s%s;expires=%d", brackets ? "" : "<", contact_uri, brackets ? "" : ">", p->expiry);
 			add_header(resp, "Contact", contact);	/* Not when we unregister */
 		}
 	} else if (!ast_strlen_zero(p->our_contact) && resp_needs_contact(msg, p->method)) {
