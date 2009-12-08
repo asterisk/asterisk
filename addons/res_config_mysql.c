@@ -1227,7 +1227,7 @@ static int require_mysql(const char *database, const char *tablename, va_list ap
 					} else {
 						res = -1;
 					}
-				} else if ((strncmp(column->type, "datetime", 8) == 0 || strncmp(column->type, "timestamp", 9)) && type != RQ_DATETIME) {
+				} else if ((strncmp(column->type, "datetime", 8) == 0 || strncmp(column->type, "timestamp", 9) == 0) && type != RQ_DATETIME) {
 					if (table->database->requirements == RQ_WARN) {
 						ast_log(LOG_WARNING, "Realtime table %s@%s: Column %s cannot be a %s\n", tablename, database, column->name, column->type);
 						res = -1;
