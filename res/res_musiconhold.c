@@ -188,8 +188,6 @@ struct mohdata {
 };
 
 static struct ao2_container *mohclasses;
-static struct ao2_container *deleted_classes;
-static pthread_t deleted_thread;
 
 #define LOCAL_MPG_123 "/usr/local/bin/mpg123"
 #define MPG_123 "/usr/bin/mpg123"
@@ -326,6 +324,7 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 
 	if (!chan->music_state && (state = ast_calloc(1, sizeof(*state)))) {
 		chan->music_state = state;
+		ast_module_ref(ast_module_info->self);
 	} else {
 		state = chan->music_state;
 	}
@@ -557,43 +556,6 @@ static int spawn_mp3(struct mohclass *class)
 		close(fds[1]);
 	}
 	return fds[0];
-}
-
-static void *deleted_monitor(void *data)
-{
-	struct ao2_iterator iter;
-	struct mohclass *class;
-	struct ast_module *mod = NULL;
-
-	for (;;) {
-		pthread_testcancel();
-		if (ao2_container_count(deleted_classes) == 0) {
-			if (mod) {
-				ast_module_unref(mod);
-				mod = NULL;
-			}
-			poll(NULL, 0, -1);
-		} else {
-			/* While deleted classes are still in use, prohibit unloading */
-			mod = ast_module_ref(ast_module_info->self);
-		}
-		pthread_testcancel();
-		iter = ao2_iterator_init(deleted_classes, 0);
-		while ((class = ao2_iterator_next(&iter))) {
-			if (ao2_ref(class, 0) == 2) {
-				ao2_unlink(deleted_classes, class);
-			}
-			ao2_ref(class, -1);
-		}
-		ao2_iterator_destroy(&iter);
-		if (ao2_container_count(deleted_classes) == 0 && mod) {
-			ast_module_unref(mod);
-			mod = NULL;
-		}
-		pthread_testcancel();
-		sleep(60);
-	}
-	return NULL;
 }
 
 static void *monmp3thread(void *data)
@@ -894,7 +856,8 @@ static void *moh_alloc(struct ast_channel *chan, void *params)
 	/* Initiating music_state for current channel. Channel should know name of moh class */
 	if (!chan->music_state && (state = ast_calloc(1, sizeof(*state)))) {
 		chan->music_state = state;
-		state->class = class;
+		state->class = mohclass_ref(class);
+		ast_module_ref(ast_module_info->self);
 	} else
 		state = chan->music_state;
 	if (state && state->class != class) {
@@ -1170,19 +1133,25 @@ static int _moh_register(struct mohclass *moh, int reload, int unref, const char
 
 	if (!strcasecmp(moh->mode, "files")) {
 		if (init_files_class(moh)) {
-			moh = mohclass_unref(moh);
+			if (unref) {
+				moh = mohclass_unref(moh);
+			}
 			return -1;
 		}
 	} else if (!strcasecmp(moh->mode, "mp3") || !strcasecmp(moh->mode, "mp3nb") || 
 			!strcasecmp(moh->mode, "quietmp3") || !strcasecmp(moh->mode, "quietmp3nb") || 
 			!strcasecmp(moh->mode, "httpmp3") || !strcasecmp(moh->mode, "custom")) {
 		if (init_app_class(moh)) {
-			moh = mohclass_unref(moh);
+			if (unref) {
+				moh = mohclass_unref(moh);
+			}
 			return -1;
 		}
 	} else {
 		ast_log(LOG_WARNING, "Don't know how to do a mode '%s' music on hold\n", moh->mode);
-		moh = mohclass_unref(moh);
+		if (unref) {
+			moh = mohclass_unref(moh);
+		}
 		return -1;
 	}
 
@@ -1205,6 +1174,8 @@ static void local_ast_moh_cleanup(struct ast_channel *chan)
 		}
 		ast_free(chan->music_state);
 		chan->music_state = NULL;
+		/* Only held a module reference if we had a music state */
+		ast_module_unref(ast_module_info->self);
 	}
 }
 
@@ -1533,12 +1504,7 @@ static int moh_classes_delete_marked(void *obj, void *arg, int flags)
 {
 	struct mohclass *class = obj;
 
-	if (class->delete) {
-		ao2_link(deleted_classes, obj);
-		pthread_kill(deleted_thread, SIGURG);
-		return CMP_MATCH;
-	}
-	return 0;
+	return class->delete ? CMP_MATCH : 0;
 }
 
 static int load_moh_classes(int reload)
@@ -1740,20 +1706,6 @@ static char *handle_cli_moh_show_classes(struct ast_cli_entry *e, int cmd, struc
 		}
 	}
 	ao2_iterator_destroy(&i);
-	i = ao2_iterator_init(deleted_classes, 0);
-	for (; (class = ao2_iterator_next(&i)); mohclass_unref(class)) {
-		ast_cli(a->fd, "(Deleted) Class: %s (%d)\n", class->name, ao2_ref(class, 0) - 2);
-		ast_cli(a->fd, "\tMode: %s\n", S_OR(class->mode, "<none>"));
-		ast_cli(a->fd, "\tDirectory: %s\n", S_OR(class->dir, "<none>"));
-		ast_cli(a->fd, "\tRealtime: %s\n", class->realtime ? "yes" : "no");
-		if (ast_test_flag(class, MOH_CUSTOM)) {
-			ast_cli(a->fd, "\tApplication: %s\n", S_OR(class->args, "<none>"));
-		}
-		if (strcasecmp(class->mode, "files")) {
-			ast_cli(a->fd, "\tFormat: %s\n", ast_getformatname(class->format));
-		}
-	}
-	ao2_iterator_destroy(&i);
 
 	return CLI_SUCCESS;
 }
@@ -1785,14 +1737,6 @@ static int load_module(void)
 	int res;
 
 	if (!(mohclasses = ao2_container_alloc(53, moh_class_hash, moh_class_cmp))) {
-		return AST_MODULE_LOAD_DECLINE;
-	}
-
-	if (!(deleted_classes = ao2_container_alloc(53, moh_class_hash, moh_class_cmp))) {
-		return AST_MODULE_LOAD_DECLINE;
-	}
-
-	if (ast_pthread_create_background(&deleted_thread, NULL, deleted_monitor, NULL)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -1862,10 +1806,6 @@ static int unload_module(void)
 	res |= ast_unregister_application(start_moh);
 	res |= ast_unregister_application(stop_moh);
 	ast_cli_unregister_multiple(cli_moh, sizeof(cli_moh) / sizeof(struct ast_cli_entry));
-
-	pthread_cancel(deleted_thread);
-	pthread_kill(deleted_thread, SIGURG);
-	pthread_join(deleted_thread, NULL);
 
 	return res;
 }
