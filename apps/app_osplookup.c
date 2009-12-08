@@ -143,8 +143,8 @@ struct osp_provider {
 
 /* Call ID */
 struct osp_callid {
-	unsigned char buf[OSPC_CALLID_MAXSIZE];		/* Call ID string */
-	unsigned int len;							/* Call ID length */
+	unsigned char buf[OSP_NORSTR_SIZE];	/* Call ID string */
+	unsigned int len;					/* Call ID length */
 };
 
 /* OSP Application In/Output Results */
