@@ -815,7 +815,7 @@ static enum ast_module_load_result load_resource(const char *resource_name, enum
 int ast_load_resource(const char *resource_name)
 {
        AST_LIST_LOCK(&module_list);
-       load_resource(resource_name, 0);
+       load_resource(resource_name, LOAD_ALL);
        AST_LIST_UNLOCK(&module_list);
 
        return 0;
