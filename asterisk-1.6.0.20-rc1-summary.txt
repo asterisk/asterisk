@@ -1,0 +1,414 @@
+                                Release Summary
+
+                             asterisk-1.6.0.20-rc1
+
+                                Date: 2009-12-09
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.6.0.18.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   9 dvossel                5 dvossel                2 atis                   
+   5 russell                3 mnicholson             2 parisioa               
+   5 tilghman               3 parisioa               2 wdoekes                
+   4 mnicholson             3 tilghman               1 ajohnson               
+   3 kpfleming              2 alecdavis              1 alecdavis              
+   2 alecdavis              2 mnick                  1 AlexMS                 
+   2 atis                   1 ajohnson               1 amorsen                
+   2 file                   1 AlexMS                 1 bklang                 
+   2 jpeeler                1 amorsen                1 CGMChris               
+   2 mnick                  1 diLLec                 1 dcabot                 
+   1 bklang                 1 falves11               1 diLLec                 
+   1 dimas                  1 Laureano               1 dimas                  
+   1 diruggles              1 oej                    1 falves11               
+   1 Laureano               1 Parantido              1 jiddings               
+   1 oej                    1 rmudgett               1 mgernoth               
+   1 vnovy                  1 russell                1 msetim                 
+                            1 thedavidfactor         1 Parantido              
+                            1 zalex1953              1 patrol-cz              
+                                                     1 rmudgett               
+                                                     1 sgimeno                
+                                                     1 Shagg63                
+                                                     1 udosw                  
+                                                     1 vnovy                  
+                                                     1 zalex1953              
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_amd
+
+   #16239: AMD() incorrectly sets AMDCAUSE channel variable
+   Revision: 232357
+   Reporter: CGMChris
+   Coders: file
+
+  Category: Applications/app_dial
+
+   #16337: [patch] Segmentation Fault on Originate command.
+   Revision: 232272
+   Reporter: Parantido
+   Testers: Parantido, dvossel
+   Coders: dvossel
+
+  Category: Applications/app_externalivr
+
+   #16305: [patch] ExternalIVR confuses AGI by double closing FDs
+   Revision: 232811
+   Reporter: diLLec
+   Testers: thedavidfactor, diLLec
+   Coders: diruggles
+
+  Category: Applications/app_mixmonitor
+
+   #16152: [patch] MixMonitor thread doesn't exit until channel is dropped
+   Revision: 230512
+   Reporter: AlexMS
+   Testers: dvossel, AlexMS
+   Coders: dvossel
+
+  Category: Applications/app_voicemail
+
+   #15625: [patch] Prepending to a voicemail on forward causes locked sip
+   channel and large file filling disk space
+   Revision: 231691
+   Reporter: Shagg63
+   Testers: mnicholson
+   Coders: mnicholson
+
+   #16291: app_voicemail.c strip_control() strips more than just control
+   chars
+   Revision: 233167
+   Reporter: wdoekes
+   Coders: dvossel
+
+  Category: Channels/General
+
+   #16058: [patch] Crash in local_ast_moh_start / ast_indicate_data due to
+   AST_CONTROL_HOLD with bad pointer
+   Revision: 231928
+   Reporter: atis
+   Coders: jpeeler
+
+   #16242: [patch] Comfort noise frame with f->data NULL but f->datalen 160
+   Revision: 231517
+   Reporter: amorsen
+   Testers: amorsen, oej, dvossel
+   Coders: oej
+
+  Category: Channels/chan_agent
+
+   #14590: [patch] updatecdr='yes' in agents.conf is not working
+   Revision: 230631
+   Reporter: msetim
+   Testers: Laureano, mnicholson
+   Coders: Laureano
+
+  Category: Channels/chan_dahdi
+
+   #15972: [patch] Dropping frame since I'm still dialing on Zap/... (resp.
+   DAHDi/...) with DIGITAL calls
+   Revision: 232092
+   Reporter: udosw
+   Testers: alecdavis
+   Coders: alecdavis
+
+  Category: Channels/chan_iax2
+
+   #16094: [patch] iax2 show cache, locks channels.
+   Revision: 230729
+   Reporter: alecdavis
+   Testers: alecdavis, dvossel
+   Coders: alecdavis
+
+  Category: Channels/chan_sip/General
+
+   #16268: [patch] Last line of SDP is not being parsed
+   Revision: 230782
+   Reporter: sgimeno
+   Coders: kpfleming
+
+  Category: Channels/chan_sip/Interoperability
+
+   #16186: [patch] T.38 reinvite fails after receiving "415 Unsupported media
+   type" when it could continue in audio mode
+   Revision: 232346
+   Reporter: atis
+   Coders: atis
+
+  Category: Channels/chan_sip/Registration
+
+   #16298: [patch] After upgrading to asterisk 1.4.27 Optipoint SIP phone can
+   no longer register
+   Revision: 233475
+   Reporter: mgernoth
+   Testers: dvossel
+   Coders: dvossel
+
+  Category: Channels/chan_sip/T.38
+
+   #16387: [patch] Missing session level connection data (c=) breaks
+   process_sdp()
+   Revision: 233397
+   Reporter: zalex1953
+   Testers: mnicholson, zalex1953
+   Coders: mnicholson
+
+  Category: Core/General
+
+   #15769: [patch] useless message pops hundreds of times per minute
+   Revision: 233047
+   Reporter: falves11
+   Testers: mnick, falves11
+   Coders: mnick
+
+   #16106: [patch] Hangup extension executed twice in 1.6.2 RC2
+   Revision: 231096
+   Reporter: ajohnson
+   Testers: ajohnson
+   Coders: jpeeler
+
+   #16290: ast_ouraddrfor doesn't do htons() on the port
+   Revision: 232354
+   Reporter: wdoekes
+   Coders: dvossel
+
+  Category: Core/ManagerInterface
+
+   #16264: [patch] UserEvent manager action is not ACKed
+   Revision: 232583
+   Reporter: dimas
+   Coders: dimas
+
+   #16275: [patch] response to "Action: Events" is not finished by empty line
+   Revision: 232577
+   Reporter: vnovy
+   Coders: vnovy
+
+  Category: Documentation
+
+   #16223: [patch] "requirecalltoken" config directive not respected globally
+   Revision: 233284
+   Reporter: bklang
+   Coders: bklang
+
+  Category: Formats/General
+
+   #16412: Ignoring unknown format wav & wav49...
+   Revision: 233841
+   Reporter: jiddings
+   Testers: russell
+   Coders: russell
+
+  Category: General
+
+   #16272: [patch] Language code collisions for certan languages
+   Revision: 232864
+   Reporter: patrol-cz
+   Coders: tilghman
+
+  Category: PBX/General
+
+   #16166: [patch] Setting dialplan hint and using a global variable gives
+   incorrect warning.
+   Revision: 233236
+   Reporter: rmudgett
+   Testers: mnick, rmudgett
+   Coders: mnick
+
+  Category: Resources/res_musiconhold
+
+   #16207: [patch] asterisk keeps starting new processes for streaming audio
+   MOH
+   Revision: 232699
+   Reporter: dcabot
+   Testers: parisioa, tilghman
+   Coders: tilghman
+
+   #16279: [patch] asterisk reload causes mpg123 streams to be recreated
+   Revision: 232699
+   Reporter: parisioa
+   Testers: parisioa, tilghman
+   Coders: tilghman
+
+   #16388: [patch] New music on hold patches cause asterisk + full system
+   hard lock
+   Revision: 233729
+   Reporter: parisioa
+   Testers: parisioa, tilghman
+   Coders: tilghman
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                           | Issues     |
+   |          |            |                                   | Referenced |
+   |----------+------------+-----------------------------------+------------|
+   | 230587   | dvossel    | audiohook signal trigger on every | #14618     |
+   |          |            | status change                     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Correct fix for issue #16268...   |            |
+   | 230878   | kpfleming  | the reporter's original patch was | #16268     |
+   |          |            | very close to correct.            |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Change fax detection in chan_sip  |            |
+   | 230882   | file       | so it behaves as one would        |            |
+   |          |            | expect.                           |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Load pbx_lua with global symbols  |            |
+   | 231192   | mnicholson | to allow linking with other lua   |            |
+   |          |            | libraries.                        |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | After a frame duplication         |            |
+   | 231300   | tilghman   | failure, unlock the channel       |            |
+   |          |            | before returning.                 |            |
+   |----------+------------+-----------------------------------+------------|
+   | 231560   | dvossel    | app_queue crashes randomly, often |            |
+   |          |            | during call-transfers             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 231693   | kpfleming  | Another round of UDPTL stack      |            |
+   |          |            | fixes/improvements:               |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Ignore unknown formats in         |            |
+   | 231744   | mnicholson | ast_format_str_reduce() and       |            |
+   |          |            | return an error if no know        |            |
+   |          |            | formats are found.                |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | WaitExten m option with no        |            |
+   | 231879   | dvossel    | parameters generates frame with   |            |
+   |          |            | zero datalen but non-null data    |            |
+   |          |            | ptr                               |            |
+   |----------+------------+-----------------------------------+------------|
+   | 232009   | russell    | Fix a warning pointed out by      |            |
+   |          |            | buildbot.                         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 232013   | russell    | Fix a build error on FreeBSD.     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 233112   | russell    | Only do frame payload check for   |            |
+   |          |            | HOLD frames.                      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 233230   | russell    | unblock a rev.                    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 233614   | dvossel    | fixes incorrect logic in          | #16299     |
+   |          |            | ast_uri_encode                    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 233617   | atis       | Fix compatibility with valgrind   | #16388     |
+   |          |            | 3.3 and older.                    |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ apps/app_amd.c               |    1
+ apps/app_externalivr.c       |  115 +++++-----
+ apps/app_mixmonitor.c        |   94 ++++++--
+ apps/app_queue.c             |   15 +
+ apps/app_voicemail.c         |  456 ++++++++++++++++++++++++++++---------------
+ channels/chan_dahdi.c        |    6
+ channels/chan_iax2.c         |    2
+ channels/chan_sip.c          |  142 ++++++++-----
+ configs/iax.conf.sample      |    3
+ configs/sip.conf.sample      |    5
+ contrib/valgrind.supp        |   12 -
+ formats/format_g723.c        |    5
+ formats/format_g726.c        |    5
+ formats/format_g729.c        |    5
+ formats/format_gsm.c         |    5
+ formats/format_h263.c        |    5
+ formats/format_h264.c        |    5
+ formats/format_ilbc.c        |    5
+ formats/format_jpeg.c        |    5
+ formats/format_ogg_vorbis.c  |    5
+ formats/format_pcm.c         |    5
+ formats/format_sln.c         |    5
+ formats/format_sln16.c       |    5
+ formats/format_vox.c         |    5
+ formats/format_wav.c         |    5
+ formats/format_wav_gsm.c     |    5
+ funcs/func_groupcount.c      |    4
+ funcs/func_lock.c            |    2
+ include/asterisk/audiohook.h |    6
+ include/asterisk/file.h      |   11 +
+ include/asterisk/module.h    |    8
+ include/asterisk/udptl.h     |   19 +
+ main/acl.c                   |    2
+ main/app.c                   |   12 -
+ main/audiohook.c             |   51 ++--
+ main/channel.c               |   12 +
+ main/dsp.c                   |    7
+ main/features.c              |   10
+ main/file.c                  |   73 ++++++
+ main/loader.c                |  121 ++++++-----
+ main/manager.c               |    5
+ main/pbx.c                   |    2
+ main/rtp.c                   |    1
+ main/udptl.c                 |  307 +++++++++++++++++-----------
+ main/utils.c                 |    2
+ pbx/pbx_config.c             |   29 ++
+ pbx/pbx_lua.c                |    2
+ res/res_musiconhold.c        |  159 ++++++++++----
+ 48 files changed, 1188 insertions(+), 583 deletions(-)
+
+     ----------------------------------------------------------------------
