@@ -556,5 +556,8 @@ static int unload_module(void)
 	return ast_format_unregister(vorbis_f.name);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "OGG/Vorbis audio");
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_FIRST, "OGG/Vorbis audio",
+	.load = load_module,
+	.unload = unload_module,
+);
 

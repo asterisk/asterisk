@@ -692,7 +692,13 @@ static int is_valid_dtmf(const char *key);
 static int __has_voicemail(const char *context, const char *mailbox, const char *folder, int shortcircuit);
 #endif
 
-static char *strip_control(const char *input, char *buf, size_t buflen)
+/*!
+ * \brief Strips control and non 7-bit clean characters from input string.
+ *
+ * \note To map control and none 7-bit characters to a 7-bit clean characters
+ *  please use ast_str_encode_mine().
+ */
+static char *strip_control_and_high(const char *input, char *buf, size_t buflen)
 {
 	char *bufptr = buf;
 	for (; *input; input++) {
@@ -3542,10 +3548,10 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	passdata2 = alloca(len_passdata2);
 
 	if (!ast_strlen_zero(cidnum)) {
-		strip_control(cidnum, enc_cidnum, sizeof(enc_cidnum));
+		strip_control_and_high(cidnum, enc_cidnum, sizeof(enc_cidnum));
 	}
 	if (!ast_strlen_zero(cidname)) {
-		strip_control(cidname, enc_cidname, sizeof(enc_cidname));
+		strip_control_and_high(cidname, enc_cidname, sizeof(enc_cidname));
 	}
 	gethostname(host, sizeof(host) - 1);
 

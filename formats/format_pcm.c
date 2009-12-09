@@ -494,4 +494,7 @@ static int unload_module(void)
 		|| ast_format_unregister(g722_f.name);
 }	
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Raw/Sun uLaw/ALaw 8KHz (PCM,PCMA,AU), G.722 16Khz");
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_FIRST, "Raw/Sun uLaw/ALaw 8KHz (PCM,PCMA,AU), G.722 16Khz",
+	.load = load_module,
+	.unload = unload_module,
+);

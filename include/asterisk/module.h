@@ -189,6 +189,14 @@ struct ast_module_user_list;
 enum ast_module_flags {
 	AST_MODFLAG_DEFAULT = 0,
 	AST_MODFLAG_GLOBAL_SYMBOLS = (1 << 0),
+	/*!
+	 * \brief Load this module in the first pass on auto loading
+	 *
+	 * When module auto loading is used, modules with this flag set will
+	 * be loaded after preloaded modules, but before all modules being
+	 * automatically loaded without this flag set on them.
+	 */
+	AST_MODFLAG_LOAD_FIRST = (1 << 2),
 };
 
 struct ast_module_info {

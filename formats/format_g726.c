@@ -258,4 +258,7 @@ static int unload_module(void)
 	return(0);
 }	
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Raw G.726 (16/24/32/40kbps) data");
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_FIRST, "Raw G.726 (16/24/32/40kbps) data",
+	.load = load_module,
+	.unload = unload_module,
+);
