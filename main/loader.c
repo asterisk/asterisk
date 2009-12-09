@@ -828,7 +828,7 @@ int ast_load_resource(const char *resource_name)
 {
 	int res;
 	AST_LIST_LOCK(&module_list);
-	res = load_resource(resource_name, 0);
+	res = load_resource(resource_name, LOAD_ALL);
 	AST_LIST_UNLOCK(&module_list);
 
 	return res;
