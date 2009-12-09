@@ -124,4 +124,7 @@ static int unload_module(void)
 	return 0;
 }	
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "JPEG (Joint Picture Experts Group) Image Format");
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_FIRST, "JPEG (Joint Picture Experts Group) Image Format",
+	.load = load_module,
+	.unload = unload_module,
+);
