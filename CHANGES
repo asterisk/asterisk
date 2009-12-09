@@ -452,8 +452,6 @@ Dialplan Functions
 
 Applications
 ------------
- * DAHDISendCallreroutingFacility parameters are now comma-separated,
-   instead of the old pipe.
  * Scheduled meetme conferences may now have their end times extended by
    using MeetMeAdmin.
  * app_authenticate now gives the ability to select a prompt other than
