@@ -471,9 +471,6 @@ Miscellaneous
 -------------
  * The Asterisk CLI has a new command, "channel redirect", which is similar in
    operation to the AMI Redirect action.
- * res_jabber: autoprune has been disabled by default, to avoid misconfiguration 
-   that would end up being interpreted as a bug once Asterisk started removing 
-   the contacts from a user list.
  * extensions.conf now allows you to use keyword "same" to define an extension
    without actually specifying an extension.  It uses exactly the same pattern
    as previously used on the last "exten" line.  For example:
