@@ -368,8 +368,6 @@ SIP Changes
  * Added support for SUBSCRIBE/NOTIFY with dialog-info based call pickups.
    Snom phones use this for call pickup of extensions that the phone is
    subscribed to.
- * Added support for subscribing to a voice mailbox on a remote server and
-   making the new/old message count available to local devices.
  * Added support for setting the domain in the URI for caller of an
    outbound call by using the SIPFROMDOMAIN channel variable.
  * Added a new configuration option "remotesecret" for authentication to
