@@ -143,6 +143,10 @@ CLI Changes
 
 SIP changes
 -----------
+ * Added a new 'faxdetect=yes|no' configuration option to sip.conf.  When this
+    option is enabled, Asterisk will watch for a CNG tone in the incoming audio
+    for a received call.  If it is detected, the channel will jump to the 
+    'fax' extension in the dialplan.
   * Improved NAT and STUN support.
      chan_sip now can use port numbers in bindaddr, externip and externhost
      options, as well as contact a STUN server to detect its external address
