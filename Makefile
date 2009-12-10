@@ -371,6 +371,7 @@ makeopts: configure
 	@exit 1
 
 menuselect.makeopts: menuselect/menuselect menuselect-tree makeopts build_tools/menuselect-deps $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS)
+	menuselect/menuselect --check-deps $@
 	menuselect/menuselect --check-deps $@ $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS)
 
 $(MOD_SUBDIRS_EMBED_LDSCRIPT):
@@ -914,14 +915,14 @@ menuselect: menuselect/cmenuselect menuselect/nmenuselect menuselect/gmenuselect
 		echo "'make menuselect'."; \
 	fi
 
-cmenuselect: menuselect/cmenuselect menuselect-tree
-	-@menuselect/cmenuselect menuselect.makeopts $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
+cmenuselect: menuselect/cmenuselect menuselect-tree menuselect.makeopts
+	-@menuselect/cmenuselect menuselect.makeopts && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
 
-gmenuselect: menuselect/gmenuselect menuselect-tree
-	-@menuselect/gmenuselect menuselect.makeopts $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
+gmenuselect: menuselect/gmenuselect menuselect-tree menuselect.makeopts
+	-@menuselect/gmenuselect menuselect.makeopts && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
 
-nmenuselect: menuselect/nmenuselect menuselect-tree
-	-@menuselect/nmenuselect menuselect.makeopts $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
+nmenuselect: menuselect/nmenuselect menuselect-tree menuselect.makeopts
+	-@menuselect/nmenuselect menuselect.makeopts && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
 
 # options for make in menuselect/
 MAKE_MENUSELECT=CC="$(HOST_CC)" CXX="$(CXX)" LD="" AR="" RANLIB="" CFLAGS="" $(MAKE) -C menuselect CONFIGURE_SILENT="--silent"
