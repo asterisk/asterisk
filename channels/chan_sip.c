@@ -4523,6 +4523,9 @@ static int auto_congest(const void *arg)
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 			ast_channel_unlock(p->owner);
 		}
+
+		/* Give the channel a chance to act before we proceed with destruction */
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	}
 	sip_pvt_unlock(p);
 	return 0;
@@ -5186,19 +5189,20 @@ static int sip_hangup(struct ast_channel *ast)
 		if (needcancel) {	/* Outgoing call, not up */
 			if (ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 				/* stop retransmitting an INVITE that has not received a response */
-				struct sip_pkt *cur;
-				for (cur = p->packets; cur; cur = cur->next) {
-					__sip_semi_ack(p, cur->seqno, cur->is_resp, cur->method ? cur->method : find_sip_method(cur->data));
-				}
-
 				/* if we can't send right now, mark it pending */
 				if (p->invitestate == INV_CALLING) {
 					/* We can't send anything in CALLING state */
 					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);
-					/* Do we need a timer here if we don't hear from them at all? */
+					__sip_pretend_ack(p);
+					/* Do we need a timer here if we don't hear from them at all? Yes we do or else we will get hung dialogs and those are no fun. */
 					sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 					append_history(p, "DELAY", "Not sending cancel, waiting for timeout");
 				} else {
+					struct sip_pkt *cur;
+
+					for (cur = p->packets; cur; cur = cur->next) {
+						__sip_semi_ack(p, cur->seqno, cur->is_resp, cur->method ? cur->method : find_sip_method(cur->data));
+					}
 					p->invitestate = INV_CANCELLED;
 					/* Send a new request: CANCEL */
 					transmit_request(p, SIP_CANCEL, p->lastinvite, XMIT_RELIABLE, FALSE);
