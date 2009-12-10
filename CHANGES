@@ -113,6 +113,10 @@ Applications
    email date format.
  * New applications JabberJoin, JabberLeave, and JabberSendGroup have been added
    to allow joining, leaving, and sending text to group chats.
+ * MeetMe has a new option 'G' to play an announcement before joining a conference.
+ * Page has a new option 'A(x)' which will playback an announcement simultaneously
+   to all paged phones (and optionally excluding the caller's one using the new
+   option 'n') before the call is bridged.
 
 Dialplan Functions
 ------------------

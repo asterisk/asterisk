@@ -1836,10 +1836,6 @@ int ast_app_parse_options(const struct ast_app_option *options, struct ast_flags
 	return res;
 }
 
-/* the following function will probably only be used in app_dial, until app_dial is reorganized to
-   better handle the large number of options it provides. After it is, you need to get rid of this variant 
-   -- unless, of course, someone else digs up some use for large flag fields. */
-
 int ast_app_parse_options64(const struct ast_app_option *options, struct ast_flags64 *flags, char **args, char *optstr)
 {
 	char *s, *arg;

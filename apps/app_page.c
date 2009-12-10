@@ -80,6 +80,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="s">
 						<para>Only dial a channel if its device state says that it is <literal>NOT_INUSE</literal></para>
 					</option>
+					<option name="A">
+						<argument name="x" required="true">
+							<para>The announcement to playback in all devices</para>
+						</argument>
+						<para>Play an announcement simultaneously to all paged participants</para>
+					</option>
+					<option name="n">
+						<para>Do not play simultaneous announcement to caller (implies <literal>A(x)</literal>)</para>
+					</option>
 				</optionlist>
 			</parameter>
 			<parameter name="timeout">
@@ -107,6 +116,13 @@ enum page_opt_flags {
 	PAGE_RECORD = (1 << 2),
 	PAGE_SKIP = (1 << 3),
 	PAGE_IGNORE_FORWARDS = (1 << 4),
+	PAGE_ANNOUNCE = (1 << 5),
+	PAGE_NOCALLERANNOUNCE = (1 << 6),
+};
+
+enum {
+	OPT_ARG_ANNOUNCE = 0,
+	OPT_ARG_ARRAY_SIZE = 1,
 };
 
 AST_APP_OPTIONS(page_opts, {
@@ -115,13 +131,16 @@ AST_APP_OPTIONS(page_opts, {
 	AST_APP_OPTION('r', PAGE_RECORD),
 	AST_APP_OPTION('s', PAGE_SKIP),
 	AST_APP_OPTION('i', PAGE_IGNORE_FORWARDS),
+	AST_APP_OPTION('i', PAGE_IGNORE_FORWARDS),
+	AST_APP_OPTION_ARG('A', PAGE_ANNOUNCE, OPT_ARG_ANNOUNCE),
+	AST_APP_OPTION('n', PAGE_NOCALLERANNOUNCE),
 });
 
 
 static int page_exec(struct ast_channel *chan, const char *data)
 {
 	char *tech, *resource, *tmp;
-	char meetmeopts[88], originator[AST_CHANNEL_NAME], *opts[0];
+	char meetmeopts[128], originator[AST_CHANNEL_NAME], *opts[OPT_ARG_ARRAY_SIZE];
 	struct ast_flags flags = { 0 };
 	unsigned int confid = ast_random();
 	struct ast_app *app;
@@ -164,8 +183,13 @@ static int page_exec(struct ast_channel *chan, const char *data)
 		timeout = atoi(args.timeout);
 	}
 
-	snprintf(meetmeopts, sizeof(meetmeopts), "MeetMe,%ud,%s%sqxdw(5)", confid, (ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "m"),
+	if (ast_test_flag(&flags, PAGE_ANNOUNCE) && !ast_strlen_zero(opts[OPT_ARG_ANNOUNCE])) {
+		snprintf(meetmeopts, sizeof(meetmeopts), "MeetMe,%ud,%s%sqxdw(5)G(%s)", confid, (ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "m"),
+						 (ast_test_flag(&flags, PAGE_RECORD) ? "r" : ""), opts[OPT_ARG_ANNOUNCE] );
+	} else {
+		snprintf(meetmeopts, sizeof(meetmeopts), "MeetMe,%ud,%s%sqxdw(5)", confid, (ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "m"),
 		(ast_test_flag(&flags, PAGE_RECORD) ? "r" : "") );
+	}
 
 	/* Count number of extensions in list by number of ampersands + 1 */
 	num_dials = 1;
@@ -247,8 +271,14 @@ static int page_exec(struct ast_channel *chan, const char *data)
 	}
 
 	if (!res) {
+		/* Default behaviour */
 		snprintf(meetmeopts, sizeof(meetmeopts), "%ud,A%s%sqxd", confid, (ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "t"), 
 			(ast_test_flag(&flags, PAGE_RECORD) ? "r" : "") );
+		if (ast_test_flag(&flags, PAGE_ANNOUNCE) && !ast_strlen_zero(opts[OPT_ARG_ANNOUNCE]) &&
+				!ast_test_flag(&flags, PAGE_NOCALLERANNOUNCE)) {
+			snprintf(meetmeopts, sizeof(meetmeopts), "%ud,A%s%sqxdG(%s)", confid, (ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "t"), 
+ 			  (ast_test_flag(&flags, PAGE_RECORD) ? "r" : ""), opts[OPT_ARG_ANNOUNCE] );
+		}
 		pbx_exec(chan, app, meetmeopts);
 	}
 
