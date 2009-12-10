@@ -620,6 +620,9 @@ static void *monmp3thread(void *data)
 				if (class->pid > 1) {
 					do {
 						if (killpg(class->pid, SIGHUP) < 0) {
+							if (errno == ESRCH) {
+								break;
+							}
 							ast_log(LOG_WARNING, "Unable to send a SIGHUP to MOH process?!!: %s\n", strerror(errno));
 						}
 						usleep(100000);
