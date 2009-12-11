@@ -1601,6 +1601,35 @@ static int can_write(struct ast_channel *chan, int confflags)
 	return (chan->_state == AST_STATE_UP);
 }
 
+static void send_talking_event(struct ast_channel *chan, struct ast_conference *conf, struct ast_conf_user *user, int talking)
+{
+	manager_event(EVENT_FLAG_CALL, "MeetmeTalking",
+	      "Channel: %s\r\n"
+	      "Uniqueid: %s\r\n"
+	      "Meetme: %s\r\n"
+	      "Usernum: %d\r\n"
+	      "Status: %s\r\n",
+	      chan->name, chan->uniqueid, conf->confno, user->user_no, talking ? "on" : "off");
+}
+
+static void set_user_talking(struct ast_channel *chan, struct ast_conference *conf, struct ast_conf_user *user, int talking, int monitor)
+{
+	int last_talking = user->talking;
+	if (last_talking == talking)
+		return;
+
+	user->talking = talking;
+
+	if (monitor) {
+		/* Check if talking state changed. Take care of -1 which means unmonitored */
+		int was_talking = (last_talking > 0);
+		int now_talking = (talking > 0);
+		if (was_talking != now_talking) {
+			send_talking_event(chan, conf, user, now_talking);
+		}
+	}
+}
+
 static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int confflags, char *optargs[])
 {
 	struct ast_conf_user *user = NULL;
@@ -2316,6 +2345,11 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					break;
 				}
 
+				/* Indicate user is not talking anymore - change him to unmonitored state */
+				if ((confflags & (CONFFLAG_MONITORTALKER | CONFFLAG_OPTIMIZETALKER))) {
+					set_user_talking(chan, conf, user, -1, confflags & CONFFLAG_MONITORTALKER);
+				}
+
 				manager_event(EVENT_FLAG_CALL, "MeetmeMute", 
 						"Channel: %s\r\n"
 						"Uniqueid: %s\r\n"
@@ -2420,27 +2454,11 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 							user->talking = 0;
 
 						res = ast_dsp_silence(dsp, f, &totalsilence);
-						if (!user->talking && totalsilence < MEETME_DELAYDETECTTALK) {
-							user->talking = 1;
-							if (confflags & CONFFLAG_MONITORTALKER)
-								manager_event(EVENT_FLAG_CALL, "MeetmeTalking",
-								      "Channel: %s\r\n"
-								      "Uniqueid: %s\r\n"
-								      "Meetme: %s\r\n"
-								      "Usernum: %d\r\n"
-								      "Status: on\r\n",
-								      chan->name, chan->uniqueid, conf->confno, user->user_no);
+						if (totalsilence < MEETME_DELAYDETECTTALK) {
+							set_user_talking(chan, conf, user, 1, confflags & CONFFLAG_MONITORTALKER);
 						}
-						if (user->talking && totalsilence > MEETME_DELAYDETECTENDTALK) {
-							user->talking = 0;
-							if (confflags & CONFFLAG_MONITORTALKER)
-								manager_event(EVENT_FLAG_CALL, "MeetmeTalking",
-								      "Channel: %s\r\n"
-								      "Uniqueid: %s\r\n"
-								      "Meetme: %s\r\n"
-								      "Usernum: %d\r\n"
-								      "Status: off\r\n",
-								      chan->name, chan->uniqueid, conf->confno, user->user_no);
+						if (totalsilence > MEETME_DELAYDETECTENDTALK) {
+							set_user_talking(chan, conf, user, 0, confflags & CONFFLAG_MONITORTALKER);
 						}
 					}
 					if (using_pseudo) {
