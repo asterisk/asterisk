@@ -9148,7 +9148,7 @@ static int pbx_builtin_background(struct ast_channel *chan, const char *data)
 	}
 
 	if (!res) {
-		char *back = args.filename;
+		char *back = ast_strip(args.filename);
 		char *front;
 
 		ast_stopstream(chan);		/* Stop anything playing */
