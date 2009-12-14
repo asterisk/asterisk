@@ -997,7 +997,8 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 			ast_log(AST_LOG_WARNING, "Option 'maxmessage' has been deprecated in favor of 'maxsecs'.  Please make that change in your voicemail config.\n");
 	} else if (!strcasecmp(var, "maxmsg")) {
 		vmu->maxmsg = atoi(value);
-		if (vmu->maxmsg <= 0) {
+		/* Accept maxmsg=0 (Greetings only voicemail) */
+		if (vmu->maxmsg < 0) {
 			ast_log(AST_LOG_WARNING, "Invalid number of messages per folder maxmsg=%s. Using default value %d\n", value, MAXMSG);
 			vmu->maxmsg = MAXMSG;
 		} else if (vmu->maxmsg > MAXMSGLIMIT) {
@@ -5393,6 +5394,13 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		ast_set_flag(options, OPT_SILENT);
 		res = 0;
 	}
+	/* If maxmsg is zero, act as a "greetings only" voicemail: Exit successfully without recording */
+	if (vmu->maxmsg == 0) {
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "Greetings only VM (maxmsg=0), Skipping voicemail recording\n");
+		pbx_builtin_setvar_helper(chan, "VMSTATUS", "SUCCESS");
+		goto leave_vm_out;
+	}
 	if (!res && !ast_test_flag(options, OPT_SILENT)) {
 		res = ast_stream_and_wait(chan, INTRO, ecodes);
 		if (res == '#') {
@@ -7403,10 +7411,12 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 #endif
 
 done:
-	if (vms->deleted)
+	if (vms->deleted && vmu->maxmsg) {
 		memset(vms->deleted, 0, vmu->maxmsg * sizeof(int)); 
-	if (vms->heard)
+	}
+	if (vms->heard && vmu->maxmsg) {
 		memset(vms->heard, 0, vmu->maxmsg * sizeof(int)); 
+	}
 
 	return 0;
 }
@@ -9278,12 +9288,13 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 	vmstate_insert(&vms);
 	init_vm_state(&vms);
 #endif
-	if (!(vms.deleted = ast_calloc(vmu->maxmsg, sizeof(int)))) {
+	/* Avoid allocating a buffer of 0 bytes, because some platforms really don't like that. */
+	if (!(vms.deleted = ast_calloc(vmu->maxmsg ? vmu->maxmsg : 1, sizeof(int)))) {
 		ast_log(AST_LOG_ERROR, "Could not allocate memory for deleted message storage!\n");
 		cmd = ast_play_and_wait(chan, "an-error-has-occured");
 		return -1;
 	}
-	if (!(vms.heard = ast_calloc(vmu->maxmsg, sizeof(int)))) {
+	if (!(vms.heard = ast_calloc(vmu->maxmsg ? vmu->maxmsg : 1, sizeof(int)))) {
 		ast_log(AST_LOG_ERROR, "Could not allocate memory for heard message storage!\n");
 		cmd = ast_play_and_wait(chan, "an-error-has-occured");
 		return -1;
@@ -10759,7 +10770,7 @@ static int load_config(int reload)
 			maxmsg = MAXMSG;
 		} else {
 			maxmsg = atoi(val);
-			if (maxmsg <= 0) {
+			if (maxmsg < 0) {
 				ast_log(AST_LOG_WARNING, "Invalid number of messages per folder '%s'. Using default value %i\n", val, MAXMSG);
 				maxmsg = MAXMSG;
 			} else if (maxmsg > MAXMSGLIMIT) {

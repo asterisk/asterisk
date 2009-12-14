@@ -34,7 +34,8 @@ serveremail=asterisk
 ; Should the email contain the voicemail as an attachment
 attach=yes
 ; Maximum number of messages per folder.  If not specified, a default value
-; (100) is used.  Maximum value for this option is 9999.
+; (100) is used.  Maximum value for this option is 9999.  If set to 0, a
+; mailbox will be greetings-only.
 ;maxmsg=100
 ; Maximum length of a voicemail message in seconds
 ;maxsecs=180

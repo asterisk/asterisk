@@ -88,6 +88,8 @@ Applications
    exit the application.
  * The Voicemail application has been improved to automatically ignore messages
    that only contain silence.
+ * If you set maxmsg to 0 in voicemail.conf, Voicemail will consider the
+   associated mailbox(es) to be greetings-only.
  * The ChanSpy application now has the 'S' option, which makes the application
    automatically exit once it hits a point where no more channels are available
    to spy on.
