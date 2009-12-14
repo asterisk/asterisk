@@ -55,7 +55,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					</option>
 					<option name="i">
 						<para>Play <replaceable>filename</replaceable> as an indication tone from your
-						<filename>indications.conf</filename></para>
+						<filename>indications.conf</filename> or a directly specified list of
+						frequencies and durations.</para>
 					</option>
 					<option name="n">
 						<para>Read digits even if the channel is not answered.</para>
@@ -204,10 +205,21 @@ static int readexten_exec(struct ast_channel *chan, const char *data)
 		ast_playtones_stop(chan);
 		ast_stopstream(chan);
 
-		if (ts && ts->data[0])
+		if (ts && ts->data[0]) {
 			res = ast_playtones_start(chan, 0, ts->data, 0);
-		else if (arglist.filename)
-			res = ast_streamfile(chan, arglist.filename, chan->language);
+		} else if (arglist.filename) {
+			if (ast_test_flag(&flags, OPT_INDICATION) && ast_fileexists(arglist.filename, NULL, chan->language) <= 0) {
+				/*
+				 * We were asked to play an indication that did not exist in the config.
+				 * If no such file exists, play it as a tonelist.  With any luck they won't
+				 * have a file named "350+440.ulaw"
+				 * (but honestly, who would do something so silly?)
+				 */
+				res = ast_playtones_start(chan, 0, arglist.filename, 0);
+			} else {
+				res = ast_streamfile(chan, arglist.filename, chan->language);
+			}
+		}
 
 		for (x = 0; x < maxdigits; x++) {
 			ast_debug(3, "extension so far: '%s', timeout: %d\n", exten, timeout);
