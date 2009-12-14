@@ -52,6 +52,20 @@ Debian system there are two possibilities:
    \end{verbatim}
 \end{enumerate}
 
+Additionally, you may wish to build on a 64-bit machine, in which case you
+need to add -fPIC to EXTRACFLAGS. So, building on a 64-bit machine with
+SSL support would look something like:
+
+\begin{verbatim}
+   $ make slx EXTRACFLAGS="-fPIC -I/usr/include/openssl"
+\end{verbatim}
+
+Or without SSL support:
+
+\begin{verbatim}
+   $ make slx SSLTYPE=none EXTRACFLAGS=-fPIC
+\end{verbatim}
+
 Once this completes you can proceed with the Asterisk build; there is no
 need to run 'make install'.
 
