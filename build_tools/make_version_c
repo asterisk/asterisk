@@ -1,6 +1,9 @@
 #!/bin/sh
-if [ ! -f .flavor ]; then
+if test ! -f .flavor ; then
     EXTRA=""
+elif test ! -f .version ; then
+	aadkflavor=`cat .flavor`
+    EXTRA=" (${aadkflavor})"
 else
     aadkver=`cat .version`
     aadkflavor=`cat .flavor`
