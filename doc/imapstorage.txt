@@ -58,13 +58,23 @@ toolkit at all. If you want to also install the UW IMAPD server, that
 is outside the scope of this document.
 
 Building the c-client library is fairly straightforward; for example, on a
-Debian system there are two possibilities:
+Debian system there are a few possibilities:
 
 1) if you will not be using SSL to connect to the IMAP server:
    $ make slx SSLTYPE=none
 
 2) if you will be using SSL to connect to the IMAP server:
    $ make slx EXTRACFLAGS="-I/usr/include/openssl"
+
+Additionally, you may wish to build on a 64-bit machine, in which case you
+need to add -fPIC to EXTRACFLAGS. So, building on a 64-bit machine with
+SSL support would look something like:
+
+$ make slx EXTRACFLAGS="-fPIC -I/usr/include/openssl"
+
+Or without SSL support:
+
+$ make slx SSLTYPE=none EXTRACFLAGS=-fPIC
 
 Once this completes you can proceed with the Asterisk build; there is no
 need to run 'make install'.
