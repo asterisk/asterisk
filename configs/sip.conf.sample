@@ -704,6 +704,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;defaultip=192.168.0.60         ; IP address to use if peer has not registered
 ;deny=0.0.0.0/0.0.0.0           ; ACL: Control access to this account based on IP address
 ;permit=192.168.0.60/255.255.255.0
+;permit=192.168.0.60/24          ; we can also use CIDR notation for subnet masks
 
 ;[cisco1]
 ;type=friend
