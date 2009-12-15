@@ -370,7 +370,7 @@ static int transmit_audio(fax_session *s)
 	enum ast_t38_state t38_state;
 	struct ast_control_t38_parameters t38_parameters = { .version = 0,
 							     .max_ifp = 800,
-							     .rate = AST_T38_RATE_9600,
+							     .rate = AST_T38_RATE_14400,
 							     .rate_management = AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF,
 							     .fill_bit_removal = 1,
 							     .transcoding_mmr = 1,
