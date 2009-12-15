@@ -1322,12 +1322,12 @@ static int ast_channel_cmp_cb(void *obj, void *arg, int flags)
 
 	ast_channel_lock(chan);
 
-	if (cmp_args->name) { /* match by name */
+	if (!ast_strlen_zero(cmp_args->name)) { /* match by name */
 		if ((!name_len && strcasecmp(chan->name, cmp_args->name)) ||
 				(name_len && strncasecmp(chan->name, cmp_args->name, name_len))) {
 			ret = 0; /* name match failed */
 		}
-	} else if (cmp_args->exten) {
+	} else if (!ast_strlen_zero(cmp_args->exten)) {
 		if (cmp_args->context && strcasecmp(chan->context, cmp_args->context) &&
 				strcasecmp(chan->macrocontext, cmp_args->context)) {
 			ret = 0; /* context match failed */
@@ -1336,11 +1336,13 @@ static int ast_channel_cmp_cb(void *obj, void *arg, int flags)
 				strcasecmp(chan->macroexten, cmp_args->exten)) {
 			ret = 0; /* exten match failed */
 		}
-	} else if (cmp_args->uniqueid) {
+	} else if (!ast_strlen_zero(cmp_args->uniqueid)) {
 		if ((!name_len && strcasecmp(chan->uniqueid, cmp_args->uniqueid)) ||
 				(name_len && strncasecmp(chan->uniqueid, cmp_args->uniqueid, name_len))) {
 			ret = 0; /* uniqueid match failed */
 		}
+	} else {
+		ret = 0;
 	}
 
 	ast_channel_unlock(chan);
