@@ -88,6 +88,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>Instead of reading each name sequentially and asking for
 						confirmation, create a menu of up to 8 names.</para>
 					</option>
+					<option name="n">
+						<para>Read digits even if the channel is not answered.</para>
+					</option>
 					<option name="p">
 						<para>Pause for n milliseconds after the digits are typed.  This is
 						helpful for people with cellphones, who are not holding the
@@ -128,6 +131,7 @@ enum {
 	OPT_LISTBYLASTNAME =  (1 << 4),
 	OPT_LISTBYEITHER =    OPT_LISTBYFIRSTNAME | OPT_LISTBYLASTNAME,
 	OPT_PAUSE =           (1 << 5),
+	OPT_NOANSWER =        (1 << 6),
 };
 
 enum {
@@ -156,6 +160,7 @@ AST_APP_OPTIONS(directory_app_options, {
 	AST_APP_OPTION('e', OPT_SAYEXTENSION),
 	AST_APP_OPTION('v', OPT_FROMVOICEMAIL),
 	AST_APP_OPTION('m', OPT_SELECTFROMMENU),
+	AST_APP_OPTION('n', OPT_NOANSWER),
 });
 
 static int compare(const char *text, const char *template)
@@ -786,9 +791,12 @@ static int directory_exec(struct ast_channel *chan, const char *data)
 	}
 	digits[7] = digit + '0';
 
-	if (chan->_state != AST_STATE_UP)
-		res = ast_answer(chan);
-
+	if (chan->_state != AST_STATE_UP) {
+		if (!ast_test_flag(&flags, OPT_NOANSWER)) {
+			/* Otherwise answer unless we're supposed to read while on-hook */
+			res = ast_answer(chan);
+		}
+	}
 	for (;;) {
 		if (!ast_strlen_zero(dirintro) && !res) {
 			res = ast_stream_and_wait(chan, dirintro, AST_DIGIT_ANY);
