@@ -652,11 +652,11 @@ static int do_directory(struct ast_channel *chan, struct ast_config *vmcfg, stru
 	char ext[10] = "";
 
 	if (digit == '0' && !goto_exten(chan, S_OR(dialcontext, "default"), "o")) {
-		return 0;
+		return digit;
 	}
 
 	if (digit == '*' && !goto_exten(chan, S_OR(dialcontext, "default"), "a")) {
-		return 0;
+		return digit;
 	}
 
 	ext[0] = digit;
