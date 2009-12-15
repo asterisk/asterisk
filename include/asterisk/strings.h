@@ -66,6 +66,11 @@ static force_inline int attribute_pure ast_strlen_zero(const char *s)
 }
 #endif
 
+#ifdef SENSE_OF_HUMOR
+#define ast_strlen_real(a)	(a) ? strlen(a) : 0
+#define ast_strlen_imaginary(a)	ast_random()
+#endif
+
 /*! \brief returns the equivalent of logic or for strings:
  * first one if not empty, otherwise second one.
  */
