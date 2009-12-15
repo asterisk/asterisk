@@ -1404,7 +1404,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 
 				if (dsp->features & DSP_FEATURE_BUSY_DETECT) {
 					/* Reset Busy Detector as we have some confirmed activity */ 
-				        memset(dsp->historicsilence, 0, sizeof(dsp->historicsilence));
+					memset(dsp->historicsilence, 0, sizeof(dsp->historicsilence));
 					memset(dsp->historicnoise, 0, sizeof(dsp->historicnoise));
 				}
 			}
