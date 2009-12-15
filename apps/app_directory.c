@@ -740,7 +740,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 					"dir-firstlast", AST_DIGIT_ANY);
 			}
 			if (!res) {
-				ast_stream_and_wait(chan, "dir-usingkeypad", AST_DIGIT_ANY);
+				res = ast_stream_and_wait(chan, "dir-usingkeypad", AST_DIGIT_ANY);
 			}
 		}
 		ast_stopstream(chan);
