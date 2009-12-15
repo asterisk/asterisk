@@ -1721,6 +1721,9 @@ static int handle_noop(struct ast_channel *chan, AGI *agi, int arg, char *argv[]
 
 static int handle_setmusic(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
+	if (argc < 3) {
+		return RESULT_SHOWUSAGE;
+	}
 	if (!strncasecmp(argv[2], "on", 2))
 		ast_moh_start(chan, argc > 3 ? argv[3] : NULL, NULL);
 	else if (!strncasecmp(argv[2], "off", 3))
