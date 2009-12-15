@@ -1401,6 +1401,12 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 				memmove(dsp->digit_state.digits, dsp->digit_state.digits + 1, dsp->digit_state.current_digits);
 				dsp->digit_state.current_digits--;
 				dsp->dtmf_began = 0;
+
+				if (dsp->features & DSP_FEATURE_BUSY_DETECT) {
+					/* Reset Busy Detector as we have some confirmed activity */ 
+				        memset(dsp->historicsilence, 0, sizeof(dsp->historicsilence));
+					memset(dsp->historicnoise, 0, sizeof(dsp->historicnoise));
+				}
 			}
 
 			if (event) {
