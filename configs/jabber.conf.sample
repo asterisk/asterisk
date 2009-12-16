@@ -4,6 +4,9 @@
 					;;setup (ie, using your personal Gtalk account for a test)
 					;;you might lose your contacts list. Default is 'no'.
 ;autoregister=yes			;;Auto register users from buddy list.
+;auth_policy=accept			;;Auto accept users' subscription requests (default).
+							;;Set to deny for auto denial.
+
 
 ;[asterisk]				;;label
 ;type=client				;;Client or Component connection

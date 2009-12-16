@@ -84,7 +84,8 @@ enum aji_state {
 
 enum {
 	AJI_AUTOPRUNE = (1 << 0),
-	AJI_AUTOREGISTER = (1 << 1)
+	AJI_AUTOREGISTER = (1 << 1),
+	AJI_AUTOACCEPT = (1 << 2)
 };
 
 enum aji_btype {

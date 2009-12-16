@@ -353,7 +353,7 @@ static ast_cond_t message_received_condition;
 static ast_mutex_t messagelock;
 
 /*! \brief Global flags, initialized to default values */
-static struct ast_flags globalflags = { AJI_AUTOREGISTER };
+static struct ast_flags globalflags = { AJI_AUTOREGISTER | AJI_AUTOACCEPT };
 
 /*!
  * \internal
@@ -2410,22 +2410,24 @@ static void aji_handle_subscribe(struct aji_client *client, ikspak *pak)
 
 	switch (pak->subtype) { 
 	case IKS_TYPE_SUBSCRIBE:
-		presence = iks_new("presence");
-		status = iks_new("status");
-		if (presence && status) {
-			iks_insert_attrib(presence, "type", "subscribed");
-			iks_insert_attrib(presence, "to", pak->from->full);
-			iks_insert_attrib(presence, "from", client->jid->full);
-			if (pak->id)
-				iks_insert_attrib(presence, "id", pak->id);
-			iks_insert_cdata(status, "Asterisk has approved subscription", 0);
-			iks_insert_node(presence, status);
-			ast_aji_send(client, presence);
-		} else
-			ast_log(LOG_ERROR, "Unable to allocate nodes\n");
+		if (ast_test_flag(&client->flags, AJI_AUTOACCEPT)) {
+			presence = iks_new("presence");
+			status = iks_new("status");
+			if (presence && status) {
+				iks_insert_attrib(presence, "type", "subscribed");
+				iks_insert_attrib(presence, "to", pak->from->full);
+				iks_insert_attrib(presence, "from", client->jid->full);
+				if (pak->id)
+					iks_insert_attrib(presence, "id", pak->id);
+				iks_insert_cdata(status, "Asterisk has approved subscription", 0);
+				iks_insert_node(presence, status);
+				ast_aji_send(client, presence);
+			} else
+				ast_log(LOG_ERROR, "Unable to allocate nodes\n");
 
-		iks_delete(presence);
-		iks_delete(status);
+			iks_delete(presence);
+			iks_delete(status);
+		}
 
 		if (client->component)
 			aji_set_presence(client, pak->from->full, iks_find_attrib(pak->x, "to"), client->status, client->statusmessage);
@@ -3410,6 +3412,13 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 			ast_set2_flag(&client->flags, ast_true(var->value), AJI_AUTOPRUNE);
 		else if (!strcasecmp(var->name, "autoregister"))
 			ast_set2_flag(&client->flags, ast_true(var->value), AJI_AUTOREGISTER);
+		else if (!strcasecmp(var->name, "auth_policy")) {
+			if (!strcasecmp(var->value, "accept")) {
+				ast_set_flag(&client->flags, AJI_AUTOACCEPT);
+			} else {
+				ast_clear_flag(&client->flags, AJI_AUTOACCEPT);
+			}
+		}
 		else if (!strcasecmp(var->name, "buddy"))
 			aji_create_buddy((char *)var->value, client);
 		else if (!strcasecmp(var->name, "priority"))
@@ -3595,7 +3604,7 @@ static int aji_load_config(int reload)
 		return -1;
 
 	/* Reset flags to default value */
-	ast_set_flag(&globalflags, AJI_AUTOREGISTER);
+	ast_set_flag(&globalflags, AJI_AUTOREGISTER | AJI_AUTOACCEPT);
 
 	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_WARNING, "No such configuration file %s\n", JABBER_CONFIG);
@@ -3610,6 +3619,12 @@ static int aji_load_config(int reload)
 			ast_set2_flag(&globalflags, ast_true(var->value), AJI_AUTOPRUNE);
 		} else if (!strcasecmp(var->name, "autoregister")) {
 			ast_set2_flag(&globalflags, ast_true(var->value), AJI_AUTOREGISTER);
+		} else if (!strcasecmp(var->name, "auth_policy")) {
+			if (!strcasecmp(var->value, "accept")) {
+				ast_set_flag(&globalflags, AJI_AUTOACCEPT);
+			} else {
+				ast_clear_flag(&globalflags, AJI_AUTOACCEPT);
+			}
 		}
 	}
 
