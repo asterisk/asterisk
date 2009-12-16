@@ -306,6 +306,9 @@ Asterisk Manager Interface
  * The configuration file manager.conf now supports a channelvars option, which
    specifies a list of channel variables to include in each channel-oriented
    event.
+ * The redirect command now has new parameters ExtraContext, ExtraExtension, 
+   and ExtraPriority to allow redirecting the second channel to a different
+   location than the first.
 
 Channel Event Logging
 ---------------------

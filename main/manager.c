@@ -353,11 +353,20 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="Exten" required="true">
 				<para>Extension to transfer to.</para>
 			</parameter>
+			<parameter name="ExtraExten">
+				<para>Extension to transfer extrachannel to (optional).</para>
+			</parameter>
 			<parameter name="Context" required="true">
 				<para>Context to transfer to.</para>
 			</parameter>
+			<parameter name="ExtraContext">
+				<para>Context to transfer extrachannel to (optional).</para>
+			</parameter>
 			<parameter name="Priority" required="true">
 				<para>Priority to transfer to.</para>
+			</parameter>
+			<parameter name="ExtraPriority">
+				<para>Priority to transfer extrachannel to (optional).</para>
 			</parameter>
 		</syntax>
 		<description>
@@ -3054,10 +3063,13 @@ static int action_redirect(struct mansession *s, const struct message *m)
 	const char *name = astman_get_header(m, "Channel");
 	const char *name2 = astman_get_header(m, "ExtraChannel");
 	const char *exten = astman_get_header(m, "Exten");
+	const char *exten2 = astman_get_header(m, "ExtraExten");
 	const char *context = astman_get_header(m, "Context");
+	const char *context2 = astman_get_header(m, "ExtraContext");
 	const char *priority = astman_get_header(m, "Priority");
+	const char *priority2 = astman_get_header(m, "ExtraPriority");
 	struct ast_channel *chan, *chan2 = NULL;
-	int pi = 0;
+	int pi, pi2 = 0;
 	int res;
 
 	if (ast_strlen_zero(name)) {
@@ -3068,6 +3080,13 @@ static int action_redirect(struct mansession *s, const struct message *m)
 	if (!ast_strlen_zero(priority) && (sscanf(priority, "%30d", &pi) != 1)) {
 		if ((pi = ast_findlabel_extension(NULL, context, exten, priority, NULL)) < 1) {
 			astman_send_error(s, m, "Invalid priority");
+			return 0;
+		}
+	}
+
+	if (!ast_strlen_zero(priority2) && (sscanf(priority2, "%30d", &pi2) != 1)) {
+		if ((pi2 = ast_findlabel_extension(NULL, context2, exten2, priority2, NULL)) < 1) {
+			astman_send_error(s, m, "Invalid ExtraPriority");
 			return 0;
 		}
 	}
@@ -3111,7 +3130,11 @@ static int action_redirect(struct mansession *s, const struct message *m)
 					ast_set_flag(chan2, AST_FLAG_BRIDGE_HANGUP_DONT); /* don't let the after-bridge code run the h-exten */
 					ast_channel_unlock(chan2);
 				}
-				res = ast_async_goto(chan2, context, exten, pi);
+				if (context2) {
+					res = ast_async_goto(chan2, context2, exten2, pi2);
+				} else {
+					res = ast_async_goto(chan2, context, exten, pi);
+				}
 			} else {
 				res = -1;
 			}
