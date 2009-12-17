@@ -8810,8 +8810,16 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 	if (ast_strlen_zero(args.lang))
 		args.lang = (char *)chan->language;	/* XXX this is const */
 
-	if (ast_strlen_zero(args.context))
-		args.context = chan->context;
+	if (ast_strlen_zero(args.context)) {
+		const char *context;
+		ast_channel_lock(chan);
+		if ((context = pbx_builtin_getvar_helper(chan, "MACRO_CONTEXT"))) {
+			args.context = ast_strdupa(context);
+		} else {
+			args.context = chan->context;
+		}
+		ast_channel_unlock(chan);
+	}
 
 	if (args.options) {
 		if (!strcasecmp(args.options, "skip"))
@@ -8869,7 +8877,9 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 	 * gone immediately to the "i" extension, but will now need to wait for a
 	 * timeout.
 	 */
-	if ((exten[0] = res) && !ast_matchmore_extension(chan, args.context, exten, 1, chan->cid.cid_num)) {
+	if ((exten[0] = res) &&
+			ast_canmatch_extension(chan, args.context, exten, 1, chan->cid.cid_num) &&
+			!ast_matchmore_extension(chan, args.context, exten, 1, chan->cid.cid_num)) {
 		snprintf(chan->exten, sizeof(chan->exten), "%c", res);
 		ast_copy_string(chan->context, args.context, sizeof(chan->context));
 		chan->priority = 0;
