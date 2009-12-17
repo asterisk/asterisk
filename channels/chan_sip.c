@@ -5319,28 +5319,6 @@ static void change_t38_state(struct sip_pvt *p, int state)
 	/* Woot we got a message, create a control frame and send it on! */
 	if (parameters.request_response)
 		ast_queue_control_data(chan, AST_CONTROL_T38_PARAMETERS, &parameters, sizeof(parameters));
-
-	if (ast_test_flag(&p->flags[1], SIP_PAGE2_FAX_DETECT) && !p->outgoing_call) {
-		/* fax detection is enabled and this is an incoming call */
-		ast_channel_lock(chan);
-		if (strcmp(chan->exten, "fax") && state == T38_ENABLED) {
-			const char *target_context = S_OR(chan->macrocontext, chan->context);
-			ast_channel_unlock(chan);
-			if (ast_exists_extension(chan, target_context, "fax", 1, chan->cid.cid_num)) {
-				/* save the DID/DNIS when we transfer the fax call to a 'fax' extension */
-				ast_verb(3, "Redirecting '%s' to fax extension\n", chan->name);
-				pbx_builtin_setvar_helper(chan, "FAXEXTEN", chan->exten);
-				if (ast_async_goto(chan, target_context, "fax", 1)) {
-					ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", chan->name, target_context);
-				}
-			} else {
-				ast_log(LOG_NOTICE, "Fax detected but no fax extension.\n");
-			}
-		} else {
-			ast_channel_unlock(chan);
-			ast_debug(1, "Already in a fax extension (or T38 was not enabled, state: '%d'), not redirecting.\n", state);
-		}
-	}
 }
 
 /*! \brief Set the global T38 capabilities on a SIP dialog structure */
