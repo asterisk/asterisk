@@ -8685,7 +8685,9 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 		tmp->amaflags = i->amaflags;
 	i->subs[idx].owner = tmp;
 	ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
-	ast_string_field_set(tmp, call_forward, i->call_forward);
+	if (!analog_lib_handles(i->sig, i->radio, i->oprmode)) {
+		ast_string_field_set(tmp, call_forward, i->call_forward);
+	}
 	/* If we've been told "no ADSI" then enforce it */
 	if (!i->adsi)
 		tmp->adsicpe = AST_ADSI_UNAVAILABLE;
