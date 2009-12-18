@@ -1674,7 +1674,7 @@ elif test "x$CURSES_LIB" != "x" ; then
 elif test "x$NCURSES_LIB" != "x" ; then
   EDITLINE_LIB="$NCURSES_LIB"
 else
-  AC_MSG_ERROR(*** termcap support not found)
+  AC_MSG_ERROR([*** termcap support not found (on modern systems, this typically means libncurses5-dev is missing)])
 fi
 AC_SUBST(EDITLINE_LIB)
 
