@@ -40,10 +40,10 @@
 #define AST_CDR_FLAG_ORIGINATED		(1 << 11)
 
 /*! Disposition */
-#define AST_CDR_NULL                0
-#define AST_CDR_FAILED				(1 << 0)
-#define AST_CDR_BUSY				(1 << 1)
-#define AST_CDR_NOANSWER			(1 << 2)
+#define AST_CDR_NOANSWER			0
+#define AST_CDR_NULL                (1 << 0)
+#define AST_CDR_FAILED				(1 << 1)
+#define AST_CDR_BUSY				(1 << 2)
 #define AST_CDR_ANSWERED			(1 << 3)
 
 /*! AMA Flags */
