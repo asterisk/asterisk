@@ -2141,7 +2141,6 @@ void ast_set_hangupsource(struct ast_channel *chan, const char *source, int forc
 int ast_hangup(struct ast_channel *chan)
 {
 	int res = 0;
-	struct ast_cdr *cdr = NULL;
 	char extra_str[64]; /* used for cel logging below */
 
 	/* Don't actually hang up a channel that will masquerade as someone else, or
@@ -2205,11 +2204,6 @@ int ast_hangup(struct ast_channel *chan)
 	snprintf(extra_str, sizeof(extra_str), "%d,%s,%s", chan->hangupcause, chan->hangupsource, S_OR(pbx_builtin_getvar_helper(chan, "DIALSTATUS"), ""));
 	ast_cel_report_event(chan, AST_CEL_HANGUP, NULL, extra_str, NULL);
 
-	if (chan->cdr) {		/* End the CDR if it hasn't already */
-		ast_cdr_end(chan->cdr);
-		cdr = chan->cdr;
-		chan->cdr = NULL;
-	}
 	if (ast_test_flag(chan, AST_FLAG_BLOCKING)) {
 		ast_log(LOG_WARNING, "Hard hangup called by thread %ld on %s, while fd "
 					"is blocked by thread %ld in procedure %s!  Expect a failure\n",
@@ -4568,8 +4562,10 @@ int ast_call(struct ast_channel *chan, char *addr, int timeout)
 	/* Stop if we're a zombie or need a soft hangup */
 	ast_channel_lock(chan);
 	if (!ast_test_flag(chan, AST_FLAG_ZOMBIE) && !ast_check_hangup(chan)) {
-		if (chan->cdr)
+		if (chan->cdr) {
 			ast_set_flag(chan->cdr, AST_CDR_FLAG_DIALED);
+			ast_set_flag(chan->cdr, AST_CDR_FLAG_ORIGINATED);
+		}
 		if (chan->tech->call)
 			res = chan->tech->call(chan, addr, timeout);
 		ast_set_flag(chan, AST_FLAG_OUTGOING);

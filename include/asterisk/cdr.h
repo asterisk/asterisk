@@ -39,15 +39,15 @@
 #define AST_CDR_FLAG_DONT_TOUCH     (1 << 9)
 #define AST_CDR_FLAG_POST_ENABLE    (1 << 10)
 #define AST_CDR_FLAG_DIALED         (1 << 11)
+#define AST_CDR_FLAG_ORIGINATED		(1 << 12)
 /*@} */
-#define AST_CDR_FLAG_ORIGINATED		(1 << 11)
 
 /*! \name CDR Flags - Disposition */
 /*@{ */
-#define AST_CDR_NULL                0
-#define AST_CDR_FAILED				(1 << 0)
-#define AST_CDR_BUSY				(1 << 1)
-#define AST_CDR_NOANSWER			(1 << 2)
+#define AST_CDR_NOANSWER			0
+#define AST_CDR_NULL                (1 << 0)
+#define AST_CDR_FAILED				(1 << 1)
+#define AST_CDR_BUSY				(1 << 2)
 #define AST_CDR_ANSWERED			(1 << 3)
 /*@} */
 
