@@ -62,6 +62,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/global_datastores.h"
 #include "asterisk/dsp.h"
 #include "asterisk/cel.h"
+#include "asterisk/indications.h"
 
 /*** DOCUMENTATION
 	<application name="Dial" language="en_US">
@@ -319,8 +320,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					it is provided. The current extension is used if a database family/key is not specified.</para>
 				</option>
 				<option name="r">
-					<para>Indicate ringing to the calling party, even if the called party isn't actually ringing. Pass no audio to the calling
+					<para>Default: Indicate ringing to the calling party, even if the called party isn't actually ringing. Pass no audio to the calling
 					party until the called channel has answered.</para>
+					<argument name="tone" required="false">
+						<para>Indicate progress to calling party. Send audio 'tone' from indications.conf</para>
+					</argument>
 				</option>
 				<option name="S">
 					<argument name="x" required="true" />
@@ -535,6 +539,7 @@ enum {
 	OPT_ARG_DURATION_LIMIT,
 	OPT_ARG_MUSICBACK,
 	OPT_ARG_CALLEE_MACRO,
+	OPT_ARG_RINGBACK,
 	OPT_ARG_CALLEE_GOSUB,
 	OPT_ARG_CALLEE_GO_ON,
 	OPT_ARG_PRIVACY,
@@ -572,7 +577,7 @@ AST_APP_OPTIONS(dial_exec_options, BEGIN_OPTIONS
 	AST_APP_OPTION_ARG('O', OPT_OPERMODE, OPT_ARG_OPERMODE),
 	AST_APP_OPTION('p', OPT_SCREENING),
 	AST_APP_OPTION_ARG('P', OPT_PRIVACY, OPT_ARG_PRIVACY),
-	AST_APP_OPTION('r', OPT_RINGBACK),
+	AST_APP_OPTION_ARG('r', OPT_RINGBACK, OPT_ARG_RINGBACK),
 	AST_APP_OPTION_ARG('S', OPT_DURATION_STOP, OPT_ARG_DURATION_STOP),
 	AST_APP_OPTION('t', OPT_CALLEE_TRANSFER),
 	AST_APP_OPTION('T', OPT_CALLER_TRANSFER),
@@ -890,6 +895,7 @@ struct privacy_args {
 
 static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	struct chanlist *outgoing, int *to, struct ast_flags64 *peerflags,
+	char *opt_args[],
 	struct privacy_args *pa,
 	const struct cause_args *num_in, int *result, char *dtmf_progress)
 {
@@ -908,11 +914,12 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	ast_party_connected_line_init(&connected_caller);
 	if (single) {
 		/* Turn off hold music, etc */
-		if (!ast_test_flag64(outgoing, OPT_MUSICBACK | OPT_RINGBACK))
+		if (!ast_test_flag64(outgoing, OPT_MUSICBACK | OPT_RINGBACK)) {
 			ast_deactivate_generator(in);
-
-		/* If we are calling a single channel, make them compatible for in-band tone purpose */
-		ast_channel_make_compatible(outgoing->chan, in);
+			/* If we are calling a single channel, and not providing ringback or music, */
+			/* then, make them compatible for in-band tone purpose */
+			ast_channel_make_compatible(outgoing->chan, in);
+		}
 
 		if (!ast_test_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE) && !ast_test_flag64(outgoing, DIAL_NOCONNECTEDLINE)) {
 			ast_channel_lock(outgoing->chan);
@@ -1078,7 +1085,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					/* Setup early media if appropriate */
 					if (single && CAN_EARLY_BRIDGE(peerflags, in, c))
 						ast_channel_early_bridge(in, c);
-					if (!(pa->sentringing) && !ast_test_flag64(outgoing, OPT_MUSICBACK)) {
+					if (!(pa->sentringing) && !ast_test_flag64(outgoing, OPT_MUSICBACK) && ast_strlen_zero(opt_args[OPT_ARG_RINGBACK])) {
 						ast_indicate(in, AST_CONTROL_RINGING);
 						pa->sentringing++;
 					}
@@ -1576,6 +1583,36 @@ static void end_bridge_callback_data_fixup(struct ast_bridge_config *bconfig, st
 	bconfig->end_bridge_callback_data = originator;
 }
 
+static int dial_handle_playtones(struct ast_channel *chan, const char *data)
+{
+	struct ast_tone_zone_sound *ts = NULL;
+	int res;
+	const char *str = data;
+
+	if (ast_strlen_zero(str)) {
+		ast_debug(1,"Nothing to play\n");
+		return -1;
+	}
+
+	ts = ast_get_indication_tone(chan->zone, str);
+
+	if (ts && ts->data[0]) {
+		res = ast_playtones_start(chan, 0, ts->data, 0);
+	} else {
+		res = -1;
+	}
+
+	if (ts) {
+		ts = ast_tone_zone_sound_unref(ts);
+	}
+
+	if (res) {
+		ast_log(LOG_WARNING, "Unable to start playtone \'%s\'\n", str);
+	}
+
+	return res;
+}
+
 static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast_flags64 *peerflags, int *continue_exec)
 {
 	int res = -1; /* default: error */
@@ -1649,6 +1686,10 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			ast_log(LOG_WARNING, "Unknown argument %d specified to n option, ignoring\n", delprivintro);
 			delprivintro = 0;
 		}
+	}
+
+	if (!ast_test_flag64(&opts, OPT_RINGBACK)) {
+		opt_args[OPT_ARG_RINGBACK] = NULL;
 	}
 
 	if (ast_test_flag64(&opts, OPT_OPERMODE)) {
@@ -1965,12 +2006,21 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			}
 			ast_indicate(chan, AST_CONTROL_PROGRESS);
 		} else if (ast_test_flag64(outgoing, OPT_RINGBACK)) {
-			ast_indicate(chan, AST_CONTROL_RINGING);
-			sentringing++;
+			if (!ast_strlen_zero(opt_args[OPT_ARG_RINGBACK])) {
+				if (dial_handle_playtones(chan, opt_args[OPT_ARG_RINGBACK])){
+					ast_indicate(chan, AST_CONTROL_RINGING);
+					sentringing++;
+				} else {
+					ast_indicate(chan, AST_CONTROL_PROGRESS);
+				}
+			} else {
+				ast_indicate(chan, AST_CONTROL_RINGING);
+				sentringing++;
+			}
 		}
 	}
 
-	peer = wait_for_answer(chan, outgoing, &to, peerflags, &pa, &num, &result, dtmf_progress);
+	peer = wait_for_answer(chan, outgoing, &to, peerflags, opt_args, &pa, &num, &result, dtmf_progress);
 
 	/* The ast_channel_datastore_remove() function could fail here if the
 	 * datastore was moved to another channel during a masquerade. If this is
