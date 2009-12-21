@@ -696,10 +696,10 @@ static struct parkeduser *park_space_reserve(struct ast_channel *chan,
 			ast_log(LOG_DEBUG, "Found chanvar Parkinglot: %s\n", parkinglotname);
 		parkinglot = find_parkinglot(parkinglotname);	
 	}
-	if (!parkinglot)
-		parkinglot = default_parkinglot;
+	if (!parkinglot) {
+		parkinglot = parkinglot_addref(default_parkinglot);
+	}
 
-	parkinglot_addref(parkinglot);
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Parkinglot: %s\n", parkinglot->name);
 
@@ -713,7 +713,7 @@ static struct parkeduser *park_space_reserve(struct ast_channel *chan,
 	AST_LIST_LOCK(&parkinglot->parkings);
 	/* Check for channel variable PARKINGEXTEN */
 	ast_channel_lock(chan);
-	parkingexten = pbx_builtin_getvar_helper(chan, "PARKINGEXTEN");
+	parkingexten = ast_strdupa(S_OR(pbx_builtin_getvar_helper(chan, "PARKINGEXTEN"), ""));
 	ast_channel_unlock(chan);
 	if (!ast_strlen_zero(parkingexten)) {
 		/*!\note The API forces us to specify a numeric parking slot, even
@@ -732,10 +732,10 @@ static struct parkeduser *park_space_reserve(struct ast_channel *chan,
         snprintf(pu->parkingexten, sizeof(pu->parkingexten), "%d", parking_space);
 
 		if (ast_exists_extension(NULL, parkinglot->parking_con, pu->parkingexten, 1, NULL)) {
+			ast_log(LOG_WARNING, "Requested parking extension already exists: %s@%s\n", parkingexten, parkinglot->parking_con);
 			AST_LIST_UNLOCK(&parkinglot->parkings);
 			parkinglot_unref(parkinglot);
 			ast_free(pu);
-			ast_log(LOG_WARNING, "Requested parking extension already exists: %s@%s\n", parkingexten, parkinglot->parking_con);
 			return NULL;
 		}
 	} else {
@@ -784,7 +784,7 @@ static struct parkeduser *park_space_reserve(struct ast_channel *chan,
 
 	pu->notquiteyet = 1;
 	pu->parkingnum = parking_space;
-	pu->parkinglot = parkinglot;
+	pu->parkinglot = parkinglot_addref(parkinglot);
 	AST_LIST_INSERT_TAIL(&parkinglot->parkings, pu, list);
 	parkinglot_unref(parkinglot);
 
@@ -993,7 +993,7 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, i
 	}
 
 	if (!play_announcement && args == &park_args) {
-		args->orig_chan_name = ast_strdupa(chan->name);
+		args->orig_chan_name = ast_strdupa(peer->name);
 	}
 
 	park_status = park_call_full(chan, peer, args);
