@@ -591,7 +591,8 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, i
 	}
 
 	if (!play_announcement || !orig_chan_name) {
-		orig_chan_name = ast_strdupa(chan->name);
+		/* chan is the channel being parked, peer is the effective park-er */
+		orig_chan_name = ast_strdupa(peer->name);
 	}
 
 	park_status = park_call_full(chan, peer, timeout, extout, orig_chan_name, pu);
