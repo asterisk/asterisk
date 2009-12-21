@@ -123,7 +123,7 @@ static void sig_pri_set_digital(struct sig_pri_chan *p, int flag)
 /*!
  * \internal
  * \brief Set the caller id information in the parent module.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param p sig_pri channel structure.
  *
@@ -154,7 +154,7 @@ static void sig_pri_set_caller_id(struct sig_pri_chan *p)
 /*!
  * \internal
  * \brief Set the Dialed Number Identifier.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param p sig_pri channel structure.
  * \param dnid Dialed Number Identifier string.
@@ -171,7 +171,7 @@ static void sig_pri_set_dnid(struct sig_pri_chan *p, const char *dnid)
 /*!
  * \internal
  * \brief Set the Redirecting Directory Number Information Service (RDNIS).
- * \since 1.6.3
+ * \since 1.8
  *
  * \param p sig_pri channel structure.
  * \param rdnis Redirecting Directory Number Information Service (RDNIS) string.
@@ -215,7 +215,7 @@ static inline int pri_grab(struct sig_pri_chan *p, struct sig_pri_pri *pri)
 /*!
  * \internal
  * \brief Convert PRI redirecting reason to asterisk version.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param pri_reason PRI redirecting reason.
  *
@@ -250,7 +250,7 @@ static enum AST_REDIRECTING_REASON pri_to_ast_reason(int pri_reason)
 /*!
  * \internal
  * \brief Convert asterisk redirecting reason to PRI version.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param ast_reason Asterisk redirecting reason.
  *
@@ -285,7 +285,7 @@ static int ast_to_pri_reason(enum AST_REDIRECTING_REASON ast_reason)
 /*!
  * \internal
  * \brief Convert PRI number presentation to asterisk version.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param pri_presentation PRI number presentation.
  *
@@ -334,7 +334,7 @@ static int pri_to_ast_presentation(int pri_presentation)
 /*!
  * \internal
  * \brief Convert asterisk number presentation to PRI version.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param ast_presentation Asterisk number presentation.
  *
@@ -383,7 +383,7 @@ static int ast_to_pri_presentation(int ast_presentation)
 /*!
  * \internal
  * \brief Determine the overall presentation value for the given party.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param id Party to determine the overall presentation value.
  *
@@ -458,7 +458,7 @@ static int overall_ast_presentation(const struct pri_party_id *id)
 /*!
  * \internal
  * \brief Fill in the asterisk party subaddress from the given PRI party subaddress.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param ast_subaddress Asterisk party subaddress structure.
  * \param pri_subaddress PRI party subaddress structure.
@@ -539,7 +539,7 @@ static unsigned char ast_pri_pack_hex_char(char c)
  * \internal
  * \brief Convert a null terminated hexadecimal string to a packed hex byte array.
  * \details left justified, with 0 padding if odd length.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param dst pointer to packed byte array.
  * \param src pointer to null terminated hexadecimal string.
@@ -579,7 +579,7 @@ static int ast_pri_pack_hex_string(unsigned char *dst, char *src, int maxlen)
 /*!
  * \internal
  * \brief Fill in the PRI party subaddress from the given asterisk party subaddress.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param pri_subaddress PRI party subaddress structure.
  * \param ast_subaddress Asterisk party subaddress structure.
@@ -619,7 +619,7 @@ static void sig_pri_party_subaddress_from_ast(struct pri_party_subaddress *pri_s
 /*!
  * \internal
  * \brief Fill in the PRI party id from the given asterisk party id.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param pri_id PRI party id structure.
  * \param ast_id Asterisk party id structure.
@@ -653,7 +653,7 @@ static void sig_pri_party_id_from_ast(struct pri_party_id *pri_id, const struct 
 /*!
  * \internal
  * \brief Update the PRI redirecting information for the current call.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param pvt sig_pri private channel structure.
  * \param ast Asterisk channel
@@ -685,7 +685,7 @@ static void sig_pri_redirecting_update(struct sig_pri_chan *pvt, struct ast_chan
 /*!
  * \internal
  * \brief Reset DTMF detector.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param p sig_pri channel structure.
  *
@@ -1130,7 +1130,7 @@ static int pri_find_empty_chan(struct sig_pri_pri *pri, int backwards)
 /*!
  * \internal
  * \brief Find or create an empty no-B-channel interface to use.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param pri sig_pri span controller to find interface.
  *
@@ -1167,7 +1167,7 @@ static int pri_find_empty_nobch(struct sig_pri_pri *pri)
 /*!
  * \internal
  * \brief Find the channel associated with the libpri call.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param pri sig_pri span controller to find interface.
  * \param call LibPRI opaque call pointer to find.
@@ -1348,7 +1348,7 @@ void pri_event_noalarm(struct sig_pri_pri *pri, int index, int before_start_pri)
 /*!
  * \internal
  * \brief Convert libpri party id into asterisk party id.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param ast_id Asterisk party id structure to fill.  Must already be set initialized.
  * \param pri_id libpri party id structure containing source information.
@@ -1386,7 +1386,7 @@ static void sig_pri_party_id_convert(struct ast_party_id *ast_id,
 /*!
  * \internal
  * \brief Convert libpri redirecting information into asterisk redirecting information.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param ast_redirecting Asterisk redirecting structure to fill.
  * \param pri_redirecting libpri redirecting structure containing source information.
@@ -1414,7 +1414,7 @@ static void sig_pri_redirecting_convert(struct ast_party_redirecting *ast_redire
 /*!
  * \internal
  * \brief Determine if the given extension matches one of the MSNs in the pattern list.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param msn_patterns Comma separated list of MSN patterns to match.
  * \param exten Extension to match in the MSN list.
@@ -1447,7 +1447,7 @@ static int sig_pri_msn_match(const char *msn_patterns, const char *exten)
 /*!
  * \internal
  * \brief Obtain the sig_pri owner channel lock if the owner exists.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param pri sig_pri PRI control structure.
  * \param chanpos Channel position in the span.
@@ -1478,7 +1478,7 @@ static void sig_pri_lock_owner(struct sig_pri_pri *pri, int chanpos)
 /*!
  * \internal
  * \brief Handle the call associated PRI subcommand events.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param pri sig_pri PRI control structure.
  * \param chanpos Channel position in the span.
@@ -1660,7 +1660,7 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 /*!
  * \internal
  * \brief Attempt to transfer the active call to the held call.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param pri sig_pri PRI control structure.
  * \param active_call Active call to transfer.
@@ -1732,7 +1732,7 @@ static int sig_pri_attempt_transfer(struct sig_pri_pri *pri, q931_call *active_c
 /*!
  * \internal
  * \brief Handle the hold event from libpri.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param pri sig_pri PRI control structure.
  * \param ev Hold event received.
@@ -1808,7 +1808,7 @@ done_with_private:;
 /*!
  * \internal
  * \brief Handle the retrieve event from libpri.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param pri sig_pri PRI control structure.
  * \param ev Retrieve event received.
@@ -3264,7 +3264,7 @@ exit:
 
 /*!
  * \brief Extract the called number and subaddress from the dial string.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param p sig_pri channel structure.
  * \param rdest Dial string buffer to extract called number and subaddress.
@@ -4041,7 +4041,7 @@ struct sig_pri_chan *sig_pri_chan_new(void *pvt_data, struct sig_pri_callback *c
 
 /*!
  * \brief Delete the sig_pri private channel structure.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param doomed sig_pri private channel structure to delete.
  *

@@ -2378,7 +2378,7 @@ static int ast_say_number_full_zh(struct ast_channel *chan, int num, const char 
 
 /*!\internal
  * \brief Counting in Urdu, the national language of Pakistan
- * \since 1.6.3
+ * \since 1.8
  */
 static int ast_say_number_full_ur(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
 {

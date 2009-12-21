@@ -3512,7 +3512,7 @@ struct analog_pvt *analog_new(enum analog_sigtype signallingtype, struct analog_
 
 /*!
  * \brief Delete the analog private structure.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param doomed Analog private structure to delete.
  *

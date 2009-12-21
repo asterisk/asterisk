@@ -115,7 +115,7 @@ int ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxl
 int ast_app_getdata_full(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd);
 
 /*!
- * \since 1.6.3
+ * \since 1.8
  * \brief Run a macro on a channel, placing a second channel into autoservice.
  *
  * This is a shorthand method that makes it very easy to run a macro on any given 

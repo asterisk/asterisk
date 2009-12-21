@@ -429,7 +429,7 @@ struct ast_rtp_glue {
  * \note It is recommended that you use the ast_rtp_engine_register macro so that the module is
  *       associated with the RTP engine and use counting is performed.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_engine_register2(struct ast_rtp_engine *engine, struct ast_module *module);
 
@@ -450,7 +450,7 @@ int ast_rtp_engine_register2(struct ast_rtp_engine *engine, struct ast_module *m
  * This unregisters the RTP engine declared as example_rtp_engine from the RTP engine core. If a module
  * reference was provided when it was registered then this will only be called once the RTP engine is no longer in use.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_engine_unregister(struct ast_rtp_engine *engine);
 
@@ -477,7 +477,7 @@ int ast_rtp_engine_unregister(struct ast_rtp_engine *engine);
  * \note It is recommended that you use the ast_rtp_glue_register macro so that the module is
  *       associated with the RTP glue and use counting is performed.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_glue_register2(struct ast_rtp_glue *glue, struct ast_module *module);
 
@@ -498,7 +498,7 @@ int ast_rtp_glue_register2(struct ast_rtp_glue *glue, struct ast_module *module)
  * This unregisters the RTP glue declared as example_rtp_gkue from the RTP engine core. If a module
  * reference was provided when it was registered then this will only be called once the RTP engine is no longer in use.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_glue_unregister(struct ast_rtp_glue *glue);
 
@@ -526,7 +526,7 @@ int ast_rtp_glue_unregister(struct ast_rtp_glue *glue);
  * \note The RTP engine does not have to use the address provided when creating an RTP instance. It may choose to use
  *       another depending on it's own configuration.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 struct ast_rtp_instance *ast_rtp_instance_new(const char *engine_name, struct sched_context *sched, struct sockaddr_in *sin, void *data);
 
@@ -547,7 +547,7 @@ struct ast_rtp_instance *ast_rtp_instance_new(const char *engine_name, struct sc
  * This destroys the RTP instance pointed to by instance. Once this function returns instance no longer points to valid
  * memory and may not be used again.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_instance_destroy(struct ast_rtp_instance *instance);
 
@@ -566,7 +566,7 @@ int ast_rtp_instance_destroy(struct ast_rtp_instance *instance);
  * This sets the data pointer on the RTP instance pointed to by 'instance' to
  * blob.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 void ast_rtp_instance_set_data(struct ast_rtp_instance *instance, void *data);
 
@@ -583,7 +583,7 @@ void ast_rtp_instance_set_data(struct ast_rtp_instance *instance, void *data);
  *
  * This gets the data pointer on the RTP instance pointed to by 'instance'.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 void *ast_rtp_instance_get_data(struct ast_rtp_instance *instance);
 
@@ -604,7 +604,7 @@ void *ast_rtp_instance_get_data(struct ast_rtp_instance *instance);
  * This gives the frame pointed to by frame to the RTP engine being used for the instance
  * and asks that it be transmitted to the current remote address set on the RTP instance.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_instance_write(struct ast_rtp_instance *instance, struct ast_frame *frame);
 
@@ -626,7 +626,7 @@ int ast_rtp_instance_write(struct ast_rtp_instance *instance, struct ast_frame *
  *
  * This asks the RTP engine to read in RTP from the instance and return it as an Asterisk frame.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 struct ast_frame *ast_rtp_instance_read(struct ast_rtp_instance *instance, int rtcp);
 
@@ -648,7 +648,7 @@ struct ast_frame *ast_rtp_instance_read(struct ast_rtp_instance *instance, int r
  * This changes the remote address that RTP will be sent to on instance to the address given in the sin
  * structure.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_instance_set_remote_address(struct ast_rtp_instance *instance, struct sockaddr_in *address);
 
@@ -670,7 +670,7 @@ int ast_rtp_instance_set_remote_address(struct ast_rtp_instance *instance, struc
  * This changes the alternate remote address that RTP will be sent to on instance to the address given in the sin
  * structure.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_instance_set_alt_remote_address(struct ast_rtp_instance *instance, struct sockaddr_in *address);
 
@@ -692,7 +692,7 @@ int ast_rtp_instance_set_alt_remote_address(struct ast_rtp_instance *instance, s
  * This changes the local address that RTP is expected on to the address given in the sin
  * structure.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_instance_set_local_address(struct ast_rtp_instance *instance, struct sockaddr_in *address);
 
@@ -714,7 +714,7 @@ int ast_rtp_instance_set_local_address(struct ast_rtp_instance *instance, struct
  *
  * This gets the local address that we are expecting RTP on and stores it in the 'sin' structure.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_instance_get_local_address(struct ast_rtp_instance *instance, struct sockaddr_in *address);
 
@@ -737,7 +737,7 @@ int ast_rtp_instance_get_local_address(struct ast_rtp_instance *instance, struct
  * This retrieves the current remote address set on the instance pointed to by instance and puts the value
  * into the sin structure.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_instance_get_remote_address(struct ast_rtp_instance *instance, struct sockaddr_in *address);
 
@@ -748,7 +748,7 @@ int ast_rtp_instance_get_remote_address(struct ast_rtp_instance *instance, struc
  * \param property The extended property to set
  * \param value The value to set the extended property to
  *
- * \since 1.6.3
+ * \since 1.8
  */
 void ast_rtp_instance_set_extended_prop(struct ast_rtp_instance *instance, int property, void *value);
 
@@ -758,7 +758,7 @@ void ast_rtp_instance_set_extended_prop(struct ast_rtp_instance *instance, int p
  * \param instance The RTP instance to get the extended property on
  * \param property The extended property to get
  *
- * \since 1.6.3
+ * \since 1.8
  */
 void *ast_rtp_instance_get_extended_prop(struct ast_rtp_instance *instance, int property);
 
@@ -777,7 +777,7 @@ void *ast_rtp_instance_get_extended_prop(struct ast_rtp_instance *instance, int 
  *
  * This enables the AST_RTP_PROPERTY_NAT property on the instance pointed to by instance.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 void ast_rtp_instance_set_prop(struct ast_rtp_instance *instance, enum ast_rtp_property property, int value);
 
@@ -797,7 +797,7 @@ void ast_rtp_instance_set_prop(struct ast_rtp_instance *instance, enum ast_rtp_p
  *
  * This returns the current value of the NAT property on the instance pointed to by instance.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_instance_get_prop(struct ast_rtp_instance *instance, enum ast_rtp_property property);
 
@@ -814,7 +814,7 @@ int ast_rtp_instance_get_prop(struct ast_rtp_instance *instance, enum ast_rtp_pr
  *
  * This gets the codecs structure on the RTP instance pointed to by 'instance'.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 struct ast_rtp_codecs *ast_rtp_instance_get_codecs(struct ast_rtp_instance *instance);
 
@@ -833,7 +833,7 @@ struct ast_rtp_codecs *ast_rtp_instance_get_codecs(struct ast_rtp_instance *inst
  *
  * This clears the codecs structure and puts it into a pristine state.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 void ast_rtp_codecs_payloads_clear(struct ast_rtp_codecs *codecs, struct ast_rtp_instance *instance);
 
@@ -852,7 +852,7 @@ void ast_rtp_codecs_payloads_clear(struct ast_rtp_codecs *codecs, struct ast_rtp
  *
  * This sets the default payloads on the codecs structure.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 void ast_rtp_codecs_payloads_default(struct ast_rtp_codecs *codecs, struct ast_rtp_instance *instance);
 
@@ -871,7 +871,7 @@ void ast_rtp_codecs_payloads_default(struct ast_rtp_codecs *codecs, struct ast_r
  *
  * This copies the payloads from the codecs0 structure to the codecs1 structure, overwriting any current values.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 void ast_rtp_codecs_payloads_copy(struct ast_rtp_codecs *src, struct ast_rtp_codecs *dest, struct ast_rtp_instance *instance);
 
@@ -890,7 +890,7 @@ void ast_rtp_codecs_payloads_copy(struct ast_rtp_codecs *src, struct ast_rtp_cod
  *
  * This records that the numerical payload '0' was seen in the codecs structure.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 void ast_rtp_codecs_payloads_set_m_type(struct ast_rtp_codecs *codecs, struct ast_rtp_instance *instance, int payload);
 
@@ -915,7 +915,7 @@ void ast_rtp_codecs_payloads_set_m_type(struct ast_rtp_codecs *codecs, struct as
  *
  * This records that the numerical payload '0' was seen with mime type 'audio' and sub mime type 'PCMU' in the codecs structure.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_codecs_payloads_set_rtpmap_type(struct ast_rtp_codecs *codecs, struct ast_rtp_instance *instance, int payload, char *mimetype, char *mimesubtype, enum ast_rtp_options options);
 
@@ -937,7 +937,7 @@ int ast_rtp_codecs_payloads_set_rtpmap_type(struct ast_rtp_codecs *codecs, struc
  * \retval -1 if the payload type is out of range
  * \retval -2 if the mimeType/mimeSubtype combination was not found
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_codecs_payloads_set_rtpmap_type_rate(struct ast_rtp_codecs *codecs, struct ast_rtp_instance *instance, int pt,
 				  char *mimetype, char *mimesubtype,
@@ -959,7 +959,7 @@ int ast_rtp_codecs_payloads_set_rtpmap_type_rate(struct ast_rtp_codecs *codecs, 
  *
  * This clears the payload '0' from the codecs structure. It will be as if it was never set.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 void ast_rtp_codecs_payloads_unset(struct ast_rtp_codecs *codecs, struct ast_rtp_instance *instance, int payload);
 
@@ -980,7 +980,7 @@ void ast_rtp_codecs_payloads_unset(struct ast_rtp_codecs *codecs, struct ast_rtp
  *
  * This looks up the information for payload '0' from the codecs structure.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 struct ast_rtp_payload_type ast_rtp_codecs_payload_lookup(struct ast_rtp_codecs *codecs, int payload);
 
@@ -992,7 +992,7 @@ struct ast_rtp_payload_type ast_rtp_codecs_payload_lookup(struct ast_rtp_codecs 
  *
  * \return the sample rate if the format was found, zero if it was not found
  *
- * \since 1.6.3
+ * \since 1.8
  */
 unsigned int ast_rtp_lookup_sample_rate2(int asterisk_format, format_t code);
 
@@ -1013,7 +1013,7 @@ unsigned int ast_rtp_lookup_sample_rate2(int asterisk_format, format_t code);
  * This retrieves all the formats known about in the codecs structure and puts the Asterisk ones in the integer
  * pointed to by astformats and the non-Asterisk ones in the integer pointed to by nonastformats.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 void ast_rtp_codecs_payload_formats(struct ast_rtp_codecs *codecs, format_t *astformats, int *nonastformats);
 
@@ -1034,7 +1034,7 @@ void ast_rtp_codecs_payload_formats(struct ast_rtp_codecs *codecs, format_t *ast
  *
  * This looks for the numerical payload for ULAW in the codecs structure.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, const int asterisk_format, const format_t code);
 
@@ -1056,7 +1056,7 @@ int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, const int asteris
  *
  * This looks up the mime subtype for the ULAW format.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 const char *ast_rtp_lookup_mime_subtype2(const int asterisk_format, const format_t code, enum ast_rtp_options options);
 
@@ -1080,7 +1080,7 @@ const char *ast_rtp_lookup_mime_subtype2(const int asterisk_format, const format
  *
  * This returns the mime values for ULAW and ALAW in the buffer pointed to by buf.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 char *ast_rtp_lookup_mime_multiple2(struct ast_str *buf, const format_t capability, const int asterisk_format, enum ast_rtp_options options);
 
@@ -1099,7 +1099,7 @@ char *ast_rtp_lookup_mime_multiple2(struct ast_str *buf, const format_t capabili
  *
  * This sets the packetization preferences pointed to by prefs on the codecs structure pointed to by codecs.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 void ast_rtp_codecs_packetization_set(struct ast_rtp_codecs *codecs, struct ast_rtp_instance *instance, struct ast_codec_pref *prefs);
 
@@ -1121,7 +1121,7 @@ void ast_rtp_codecs_packetization_set(struct ast_rtp_codecs *codecs, struct ast_
  * This starts sending the DTMF '1' on the RTP instance pointed to by instance. It will
  * continue being sent until it is ended.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_instance_dtmf_begin(struct ast_rtp_instance *instance, char digit);
 
@@ -1142,7 +1142,7 @@ int ast_rtp_instance_dtmf_begin(struct ast_rtp_instance *instance, char digit);
  *
  * This stops sending the DTMF '1' on the RTP instance pointed to by instance.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_instance_dtmf_end(struct ast_rtp_instance *instance, char digit);
 
@@ -1163,7 +1163,7 @@ int ast_rtp_instance_dtmf_end(struct ast_rtp_instance *instance, char digit);
  *
  * This sets the RTP instance to use RFC2833 for DTMF transmission and receiving.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_instance_dtmf_mode_set(struct ast_rtp_instance *instance, enum ast_rtp_dtmf_mode dtmf_mode);
 
@@ -1182,7 +1182,7 @@ int ast_rtp_instance_dtmf_mode_set(struct ast_rtp_instance *instance, enum ast_r
  *
  * This gets the DTMF mode set on the RTP instance pointed to by 'instance'.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 enum ast_rtp_dtmf_mode ast_rtp_instance_dtmf_mode_get(struct ast_rtp_instance *instance);
 
@@ -1200,7 +1200,7 @@ enum ast_rtp_dtmf_mode ast_rtp_instance_dtmf_mode_get(struct ast_rtp_instance *i
  * This indicates that a new source of media is feeding the instance pointed to by
  * instance.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 void ast_rtp_instance_new_source(struct ast_rtp_instance *instance);
 
@@ -1223,7 +1223,7 @@ void ast_rtp_instance_new_source(struct ast_rtp_instance *instance);
  *
  * This sets the TOS and COS values to 0 on the instance pointed to by instance.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_instance_set_qos(struct ast_rtp_instance *instance, int tos, int cos, const char *desc);
 
@@ -1241,7 +1241,7 @@ int ast_rtp_instance_set_qos(struct ast_rtp_instance *instance, int tos, int cos
  * This tells the RTP engine being used for the instance pointed to by instance
  * that media is no longer going to it at this time, but may in the future.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 void ast_rtp_instance_stop(struct ast_rtp_instance *instance);
 
@@ -1263,7 +1263,7 @@ void ast_rtp_instance_stop(struct ast_rtp_instance *instance);
  * This retrieves the file descriptor for the socket carrying media on the instance
  * pointed to by instance.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_instance_fd(struct ast_rtp_instance *instance, int rtcp);
 
@@ -1283,7 +1283,7 @@ int ast_rtp_instance_fd(struct ast_rtp_instance *instance, int rtcp);
  *
  * This retrieves the RTP glue that has the name 'Example'.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 struct ast_rtp_glue *ast_rtp_instance_get_glue(const char *type);
 
@@ -1301,7 +1301,7 @@ struct ast_rtp_glue *ast_rtp_instance_get_glue(const char *type);
  *
  * \note This should only be used by channel drivers in their technology declaration.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
 
@@ -1321,7 +1321,7 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
  *
  * This gets the RTP instance that instance0 is bridged to.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 struct ast_rtp_instance *ast_rtp_instance_get_bridged(struct ast_rtp_instance *instance);
 
@@ -1331,7 +1331,7 @@ struct ast_rtp_instance *ast_rtp_instance_get_bridged(struct ast_rtp_instance *i
  * \param c0 First channel part of the bridge
  * \param c1 Second channel part of the bridge
  *
- * \since 1.6.3
+ * \since 1.8
  */
 void ast_rtp_instance_early_bridge_make_compatible(struct ast_channel *c0, struct ast_channel *c1);
 
@@ -1346,7 +1346,7 @@ void ast_rtp_instance_early_bridge_make_compatible(struct ast_channel *c0, struc
  *
  * \note This should only be used by channel drivers in their technology declaration.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_instance_early_bridge(struct ast_channel *c0, struct ast_channel *c1);
 
@@ -1361,7 +1361,7 @@ int ast_rtp_instance_early_bridge(struct ast_channel *c0, struct ast_channel *c1
  * \retval 0 success
  * \retval -1 failure
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_red_init(struct ast_rtp_instance *instance, int buffer_time, int *payloads, int generations);
 
@@ -1374,7 +1374,7 @@ int ast_rtp_red_init(struct ast_rtp_instance *instance, int buffer_time, int *pa
  * \retval 0 success
  * \retval -1 failure
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_red_buffer(struct ast_rtp_instance *instance, struct ast_frame *frame);
 
@@ -1398,7 +1398,7 @@ int ast_rtp_red_buffer(struct ast_rtp_instance *instance, struct ast_frame *fram
  * This retrieves all statistics the underlying RTP engine supports and puts the values into the
  * stats structure.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_instance_get_stats(struct ast_rtp_instance *instance, struct ast_rtp_instance_stats *stats, enum ast_rtp_instance_stat stat);
 
@@ -1417,7 +1417,7 @@ int ast_rtp_instance_get_stats(struct ast_rtp_instance *instance, struct ast_rtp
  * This retrieves standard statistics from the RTP instance rtp and sets it on the channel pointed to
  * by chan.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 void ast_rtp_instance_set_stats_vars(struct ast_channel *chan, struct ast_rtp_instance *instance);
 
@@ -1441,7 +1441,7 @@ void ast_rtp_instance_set_stats_vars(struct ast_channel *chan, struct ast_rtp_in
  *
  * This retrieves general quality statistics and places a text representation into the buf pointed to by buf.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 char *ast_rtp_instance_get_quality(struct ast_rtp_instance *instance, enum ast_rtp_instance_stat_field field, char *buf, size_t size);
 
@@ -1462,7 +1462,7 @@ char *ast_rtp_instance_get_quality(struct ast_rtp_instance *instance, enum ast_r
  *
  * This requests that the RTP engine provide audio frames in the ULAW format.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_instance_set_read_format(struct ast_rtp_instance *instance, format_t format);
 
@@ -1483,7 +1483,7 @@ int ast_rtp_instance_set_read_format(struct ast_rtp_instance *instance, format_t
  *
  * This tells the underlying RTP engine that audio frames will be provided to it in ULAW format.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_instance_set_write_format(struct ast_rtp_instance *instance, format_t format);
 
@@ -1505,7 +1505,7 @@ int ast_rtp_instance_set_write_format(struct ast_rtp_instance *instance, format_
  *
  * This makes the RTP instance for 'peer' compatible with 'instance' and vice versa.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_instance_make_compatible(struct ast_channel *chan, struct ast_rtp_instance *instance, struct ast_channel *peer);
 
@@ -1525,7 +1525,7 @@ int ast_rtp_instance_make_compatible(struct ast_channel *chan, struct ast_rtp_in
  *
  * This sees if it is possible to have ulaw communicated to the endpoint but signed linear received into Asterisk.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 format_t ast_rtp_instance_available_formats(struct ast_rtp_instance *instance, format_t to_endpoint, format_t to_asterisk);
 
@@ -1545,7 +1545,7 @@ format_t ast_rtp_instance_available_formats(struct ast_rtp_instance *instance, f
  *
  * This tells the underlying RTP engine of instance that packets will now flow.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_instance_activate(struct ast_rtp_instance *instance);
 
@@ -1565,7 +1565,7 @@ int ast_rtp_instance_activate(struct ast_rtp_instance *instance);
  * This requests that the RTP engine send a STUN BIND request on the session pointed to by
  * 'instance'.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 void ast_rtp_instance_stun_request(struct ast_rtp_instance *instance, struct sockaddr_in *suggestion, const char *username);
 
@@ -1583,7 +1583,7 @@ void ast_rtp_instance_stun_request(struct ast_rtp_instance *instance, struct soc
  *
  * This sets the RTP timeout value on 'instance' to be 5000.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 void ast_rtp_instance_set_timeout(struct ast_rtp_instance *instance, int timeout);
 
@@ -1601,7 +1601,7 @@ void ast_rtp_instance_set_timeout(struct ast_rtp_instance *instance, int timeout
  *
  * This sets the RTP hold timeout value on 'instance' to be 5000.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 void ast_rtp_instance_set_hold_timeout(struct ast_rtp_instance *instance, int timeout);
 
@@ -1620,7 +1620,7 @@ void ast_rtp_instance_set_hold_timeout(struct ast_rtp_instance *instance, int ti
  *
  * This gets the RTP timeout value for the RTP instance pointed to by 'instance'.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_instance_get_timeout(struct ast_rtp_instance *instance);
 
@@ -1639,7 +1639,7 @@ int ast_rtp_instance_get_timeout(struct ast_rtp_instance *instance);
  *
  * This gets the RTP hold timeout value for the RTP instance pointed to by 'instance'.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_rtp_instance_get_hold_timeout(struct ast_rtp_instance *instance);
 
@@ -1658,7 +1658,7 @@ int ast_rtp_instance_get_hold_timeout(struct ast_rtp_instance *instance);
  *
  * This gets the RTP engine currently in use on the RTP instance pointed to by 'instance'.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 struct ast_rtp_engine *ast_rtp_instance_get_engine(struct ast_rtp_instance *instance);
 
@@ -1677,7 +1677,7 @@ struct ast_rtp_engine *ast_rtp_instance_get_engine(struct ast_rtp_instance *inst
  *
  * This gets the RTP glue currently in use on the RTP instance pointed to by 'instance'.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 struct ast_rtp_glue *ast_rtp_instance_get_active_glue(struct ast_rtp_instance *instance);
 
@@ -1698,7 +1698,7 @@ struct ast_rtp_glue *ast_rtp_instance_get_active_glue(struct ast_rtp_instance *i
  *
  * \note This will only return a channel while in a local or remote bridge.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 struct ast_channel *ast_rtp_instance_get_chan(struct ast_rtp_instance *instance);
 

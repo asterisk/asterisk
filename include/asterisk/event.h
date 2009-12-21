@@ -168,7 +168,7 @@ int ast_event_sub_append_ie_uint(struct ast_event_sub *sub,
  *
  * \retval 0 success
  * \retval non-zero failure
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_event_sub_append_ie_bitflags(struct ast_event_sub *sub,
 	enum ast_event_ie_type ie_type, uint32_t flags);
@@ -481,7 +481,7 @@ int ast_event_append_ie_uint(struct ast_event **event, enum ast_event_ie_type ie
  *
  * \retval 0 success
  * \retval -1 failure
- * \since 1.6.3
+ * \since 1.8
  *
  * The pointer to the event will get updated with the new location for the event
  * that now contains the appended information element.  If the re-allocation of

@@ -96,7 +96,7 @@ enum ast_cel_event_type {
 /*! 
  * \brief Check to see if CEL is enabled
  *
- * \since 1.6.3
+ * \since 1.8
  *
  * \retval zero not enabled
  * \retval non-zero enabled
@@ -106,7 +106,7 @@ unsigned int ast_cel_check_enabled(void);
 /*! 
  * \brief Allocate a CEL record 
  *
- * \since 1.6.3
+ * \since 1.8
  *
  * \note The CEL record must be destroyed with ast_cel_destroy().
  *
@@ -120,7 +120,7 @@ struct ast_cel *ast_cel_alloc(void);
  *
  * \param cel the record to destroy
  *
- * \since 1.6.3
+ * \since 1.8
  *
  * \return nothing.
  */
@@ -131,7 +131,7 @@ void ast_cel_destroy(struct ast_cel *cel);
  *
  * \param type the type to get the name of
  *
- * \since 1.6.3
+ * \since 1.8
  *
  * \return the string representation of the type
  */
@@ -142,7 +142,7 @@ const char *ast_cel_get_type_name(enum ast_cel_event_type type);
  *
  * \param name the event type name as a string
  *
- * \since 1.6.3
+ * \since 1.8
  *
  * \return the ast_cel_event_type given by the string
  */
@@ -153,7 +153,7 @@ enum ast_cel_event_type ast_cel_str_to_event_type(const char *name);
  * 
  * \param[in] flag the flag to convert to a string
  *
- * \since 1.6.3
+ * \since 1.8
  *
  * \return the string representation of the flag
  */
@@ -164,7 +164,7 @@ const char *ast_cel_get_ama_flag_name(enum ast_cel_ama_flag flag);
  *
  * \param chan channel that is being destroyed or its linkedid is changing
  *
- * \since 1.6.3
+ * \since 1.8
  *
  * If at least one CEL backend is looking for CEL_LINKEDID_END
  * events, this function will check if the given channel is the last
@@ -183,7 +183,7 @@ void ast_cel_check_retire_linkedid(struct ast_channel *chan);
  *
  * \param event the CEL event
  *
- * \since 1.6.3
+ * \since 1.8
  *
  * \return a channel with the data filled in, or NULL on error
  *
@@ -208,7 +208,7 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
  *        of peer2 will go into the "peer name" field.  If neither are available, the
  *        peer name field will be blank.
  *
- * \since 1.6.3
+ * \since 1.8
  *
  * \pre chan and peer2 are both unlocked
  *
@@ -262,7 +262,7 @@ struct ast_cel_event_record {
  * \param[in] event the CEL event
  * \param[out] r the ast_cel_event_record to fill in
  *
- * \since 1.6.3
+ * \since 1.8
  *
  * \retval 0 success
  * \retval non-zero failure

@@ -199,7 +199,7 @@ unsigned int ast_verbose_get_by_file(const char *file);
  * \param name The name of the level to be registered
  * \retval -1 if an error occurs
  * \retval non-zero level to be used with ast_log for sending messages to this level
- * \since 1.6.3
+ * \since 1.8
  */
 int ast_logger_register_level(const char *name);
 
@@ -207,7 +207,7 @@ int ast_logger_register_level(const char *name);
  * \brief Unregister a previously registered logger level
  * \param name The name of the level to be unregistered
  * \return nothing
- * \since 1.6.3
+ * \since 1.8
  */
 void ast_logger_unregister_level(const char *name);
 
@@ -220,7 +220,7 @@ void ast_logger_unregister_level(const char *name);
  * the log message.
  *
  * \return nothing
- * \since 1.6.3
+ * \since 1.8
  */
 
 #define ast_log_dynamic_level(level, ...) ast_log(level, __FILE__, __LINE__, __PRETTY_FUNCTION__, __VA_ARGS__)

@@ -64,7 +64,7 @@ struct ast_security_event_ie_type {
  * \retval NULL invalid event_type
  * \retval non-NULL An array terminated with the value AST_EVENT_IE_END
  *
- * \since 1.6.3
+ * \since 1.8
  */
 const struct ast_security_event_ie_type *ast_security_event_get_required_ies(
 		const enum ast_security_event_type event_type);
@@ -77,7 +77,7 @@ const struct ast_security_event_ie_type *ast_security_event_get_required_ies(
  * \retval NULL invalid event_type
  * \retval non-NULL An array terminated with the value AST_EVENT_IE_END
  *
- * \since 1.6.3
+ * \since 1.8
  */
 const struct ast_security_event_ie_type *ast_security_event_get_optional_ies(
 		const enum ast_security_event_type event_type);
@@ -90,7 +90,7 @@ const struct ast_security_event_ie_type *ast_security_event_get_optional_ies(
  * \retval NULL if event_type is invalid
  * \retval non-NULL the name of the security event type
  *
- * \since 1.6.3
+ * \since 1.8
  */
 const char *ast_security_event_get_name(const enum ast_security_event_type event_type);
 
@@ -102,7 +102,7 @@ const char *ast_security_event_get_name(const enum ast_security_event_type event
  * \retval NULL if severity is invalid
  * \retval non-NULL the name of the security event severity
  *
- * \since 1.6.3
+ * \since 1.8
  */
 const char *ast_security_event_severity_get_name(
 		const enum ast_security_event_severity severity);

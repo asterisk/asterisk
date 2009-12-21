@@ -127,7 +127,7 @@
  *
  * \section Changes162 Version 1.6.2
  *
- * \section Changes163 Version 1.6.3
+ * \section Changes18 Version 1.8
  * \li ast_channel_alloc()
  */
 

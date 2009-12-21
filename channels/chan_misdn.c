@@ -9404,7 +9404,7 @@ static void misdn_facility_ie_handler(enum event_e event, struct misdn_bchannel 
 /*!
  * \internal
  * \brief Determine if the given dialed party matches our MSN.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param port ISDN port
  * \param dialed Dialed party information of incoming call.

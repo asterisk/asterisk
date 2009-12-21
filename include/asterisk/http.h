@@ -117,21 +117,21 @@ void ast_http_uri_unlink(struct ast_http_uri *urihandler);
 void ast_http_uri_unlink_all_with_key(const char *key);
 
 /*!\brief Return http method name string
- * \since 1.6.3
+ * \since 1.8
  */
 const char *ast_get_http_method(enum ast_http_method method) attribute_pure;
 
 /*!\brief Return mime type based on extension
  * \param ftype filename extension
  * \return String containing associated MIME type
- * \since 1.6.3
+ * \since 1.8
  */
 const char *ast_http_ftype2mtype(const char *ftype) attribute_pure;
 
 /*!\brief Return manager id, if exist, from request headers
  * \param headers List of HTTP headers
  * \return 32-bit associated manager session identifier
- * \since 1.6.3
+ * \since 1.8
  */
 uint32_t ast_http_manid_from_vars(struct ast_variable *headers) attribute_pure;
 
@@ -159,7 +159,7 @@ uint32_t ast_http_manid_from_vars(struct ast_variable *headers) attribute_pure;
  * Both the http_header and out arguments will be freed by this function;
  * however, if FD is open, it will remain open.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 void ast_http_send(struct ast_tcptls_session_instance *ser, enum ast_http_method method, int status_code, const char *status_title, struct ast_str *http_header, struct ast_str *out, const int fd, unsigned int static_content);
 
@@ -183,7 +183,7 @@ void ast_http_prefix(char *buf, int len);
  * \param headers List of HTTP headers
  * \return List of variables within the POST body
  * \note Since returned list is malloc'd, list should be free'd by the calling function
- * \since 1.6.3
+ * \since 1.8
  */
 struct ast_variable *ast_http_get_post_vars(struct ast_tcptls_session_instance *ser, struct ast_variable *headers);
 

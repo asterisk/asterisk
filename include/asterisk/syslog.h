@@ -29,7 +29,7 @@ extern "C" {
 #endif
 
 /*!
- * \since 1.6.3
+ * \since 1.8
  * \brief Maps a syslog facility name from a string to a syslog facility
  *        constant.
  *
@@ -41,7 +41,7 @@ extern "C" {
 int ast_syslog_facility(const char *facility);
 
 /*!
- * \since 1.6.3
+ * \since 1.8
  * \brief Maps a syslog facility constant to a string.
  *
  * \param facility syslog facility constant to map (i.e. LOG_DAEMON)
@@ -52,7 +52,7 @@ int ast_syslog_facility(const char *facility);
 const char *ast_syslog_facility_name(int facility);
 
 /*!
- * \since 1.6.3
+ * \since 1.8
  * \brief Maps a syslog priority name from a string to a syslog priority
  *        constant.
  *
@@ -64,7 +64,7 @@ const char *ast_syslog_facility_name(int facility);
 int ast_syslog_priority(const char *priority);
 
 /*!
- * \since 1.6.3
+ * \since 1.8
  * \brief Maps a syslog priority constant to a string.
  *
  * \param priority syslog priority constant to map (i.e. LOG_NOTICE)
@@ -75,7 +75,7 @@ int ast_syslog_priority(const char *priority);
 const char *ast_syslog_priority_name(int priority);
 
 /*!
- * \since 1.6.3
+ * \since 1.8
  * \brief Maps an Asterisk log level (i.e. LOG_ERROR) to a syslog priority
  *        constant.
  *

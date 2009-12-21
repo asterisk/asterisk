@@ -264,7 +264,7 @@ int __ast_string_field_init(struct ast_string_field_mgr *mgr, struct ast_string_
  * also allocate space for the stringfields and initialize the stringfield management
  * structure embedded in the outer structure.
  *
- * \since 1.6.3
+ * \since 1.8
  */
 #define ast_calloc_with_stringfields(n, type, size) \
 	__ast_calloc_with_stringfields(n, sizeof(type), offsetof(type, __field_mgr), offsetof(type, __field_mgr_pool), \

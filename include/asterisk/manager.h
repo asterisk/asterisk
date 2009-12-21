@@ -212,7 +212,7 @@ int astman_verify_session_writepermissions(uint32_t ident, int perm);
  * \param category Event category, matches manager authorization
  * \param event Event name
  * \param contents Format string describing event
- * \since 1.6.3
+ * \since 1.8
 */
 int __ast_manager_event_multichan(int category, const char *event, int chancount,
 		struct ast_channel **chans, const char *file, int line, const char *func,

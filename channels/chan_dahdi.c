@@ -1461,7 +1461,7 @@ static const struct ast_channel_tech dahdi_tech = {
 /*!
  * \internal
  * \brief Determine if sig_pri handles the signaling.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param signaling Signaling to determine if is for sig_pri.
  *
@@ -2716,7 +2716,7 @@ static int my_pri_play_tone(void *pvt, enum sig_pri_tone tone)
 /*!
  * \internal
  * \brief Set the caller id information.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param pvt DAHDI private structure
  * \param caller Caller-id information to set.
@@ -2744,7 +2744,7 @@ static void my_pri_set_callerid(void *pvt, const struct ast_party_caller *caller
 /*!
  * \internal
  * \brief Set the Dialed Number Identifier.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param pvt DAHDI private structure
  * \param dnid Dialed Number Identifier string.
@@ -2761,7 +2761,7 @@ static void my_pri_set_dnid(void *pvt, const char *dnid)
 /*!
  * \internal
  * \brief Set the Redirecting Directory Number Information Service (RDNIS).
- * \since 1.6.3
+ * \since 1.8
  *
  * \param pvt DAHDI private structure
  * \param rdnis Redirecting Directory Number Information Service (RDNIS) string.
@@ -4829,7 +4829,7 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 /*!
  * \internal
  * \brief Insert the given chan_dahdi interface structure into the interface list.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param pvt chan_dahdi private interface structure to insert.
  *
@@ -4881,7 +4881,7 @@ static void dahdi_iflist_insert(struct dahdi_pvt *pvt)
 /*!
  * \internal
  * \brief Extract the given chan_dahdi interface structure from the interface list.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param pvt chan_dahdi private interface structure to extract.
  *
@@ -4919,7 +4919,7 @@ static void dahdi_iflist_extract(struct dahdi_pvt *pvt)
 /*!
  * \internal
  * \brief Insert the given chan_dahdi interface structure into the no B channel list.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param pri sig_pri span control structure holding no B channel list.
  * \param pvt chan_dahdi private interface structure to insert.
@@ -4974,7 +4974,7 @@ static void dahdi_nobch_insert(struct sig_pri_pri *pri, struct dahdi_pvt *pvt)
 /*!
  * \internal
  * \brief Extract the given chan_dahdi interface structure from the no B channel list.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param pri sig_pri span control structure holding no B channel list.
  * \param pvt chan_dahdi private interface structure to extract.
@@ -5014,7 +5014,7 @@ static void dahdi_nobch_extract(struct sig_pri_pri *pri, struct dahdi_pvt *pvt)
 /*!
  * \internal
  * \brief Unlink the channel interface from the PRI private pointer array.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param pvt chan_dahdi private interface structure to unlink.
  *
@@ -11864,7 +11864,7 @@ static inline int available(struct dahdi_pvt *p, int channelmatch, ast_group_t g
 /*!
  * \internal
  * \brief Create a no B channel interface.
- * \since 1.6.3
+ * \since 1.8
  *
  * \param pri sig_pri span controller to add interface.
  *

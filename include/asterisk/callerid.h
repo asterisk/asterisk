@@ -398,7 +398,7 @@ enum AST_REDIRECTING_REASON {
 };
 
 /*!
- * \since 1.6.3
+ * \since 1.8
  * \brief Convert redirecting reason text code to value (used in config file parsing)
  *
  * \param data text string from config file
@@ -409,7 +409,7 @@ enum AST_REDIRECTING_REASON {
 int ast_redirecting_reason_parse(const char *data);
 
 /*!
- * \since 1.6.3
+ * \since 1.8
  * \brief Convert redirecting reason value to explanatory string
  *
  * \param data Q931_REDIRECTING_REASON from callerid.h
@@ -419,7 +419,7 @@ int ast_redirecting_reason_parse(const char *data);
 const char *ast_redirecting_reason_describe(int data);
 
 /*!
- * \since 1.6.3
+ * \since 1.8
  * \brief Convert redirecting reason value to text code
  *
  * \param data Q931_REDIRECTING_REASON from callerid.h
@@ -445,7 +445,7 @@ enum AST_CONNECTED_LINE_UPDATE_SOURCE {
 };
 
 /*!
- * \since 1.6.3
+ * \since 1.8
  * \brief Convert connected line update source text code to value (used in config file parsing)
  *
  * \param data text string from config file
@@ -456,7 +456,7 @@ enum AST_CONNECTED_LINE_UPDATE_SOURCE {
 int ast_connected_line_source_parse(const char *data);
 
 /*!
- * \since 1.6.3
+ * \since 1.8
  * \brief Convert connected line update source value to explanatory string
  *
  * \param data AST_CONNECTED_LINE_UPDATE_SOURCE from callerid.h
@@ -466,7 +466,7 @@ int ast_connected_line_source_parse(const char *data);
 const char *ast_connected_line_source_describe(int data);
 
 /*!
- * \since 1.6.3
+ * \since 1.8
  * \brief Convert connected line update source value to text code
  *
  * \param data AST_CONNECTED_LINE_UPDATE_SOURCE from callerid.h
