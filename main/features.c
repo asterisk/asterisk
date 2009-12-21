@@ -430,7 +430,7 @@ static struct parkeduser *park_space_reserve(struct ast_channel *chan)
 	/* Lock parking lot */
 	AST_LIST_LOCK(&parkinglot);
 	/* Check for channel variable PARKINGEXTEN */
-	parkingexten = pbx_builtin_getvar_helper(chan, "PARKINGEXTEN");
+	parkingexten = ast_strdupa(S_OR(pbx_builtin_getvar_helper(chan, "PARKINGEXTEN"), ""));
 	if (!ast_strlen_zero(parkingexten)) {
 		/*!\note The API forces us to specify a numeric parking slot, even
 		 * though the architecture would tend to support non-numeric extensions
@@ -649,7 +649,7 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, i
 	}
 
 	if (!play_announcement && !orig_chan_name) {
-		orig_chan_name = ast_strdupa(chan->name);
+		orig_chan_name = ast_strdupa(peer->name);
 	}
 
 	park_status = park_call_full(chan, peer, timeout, extout, orig_chan_name, pu);
