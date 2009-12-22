@@ -140,6 +140,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/buildinfo.h"
 #include "asterisk/xmldoc.h"
 #include "asterisk/poll-compat.h"
+#include "asterisk/test.h"
 
 #include "../defaults.h"
 
@@ -3546,6 +3547,13 @@ int main(int argc, char *argv[])
 		printf("%s", term_quit());
 		exit(1);
 	}
+
+#ifdef TEST_FRAMEWORK
+	if (ast_test_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+#endif
 
 	ast_makesocket();
 	sigemptyset(&sigs);

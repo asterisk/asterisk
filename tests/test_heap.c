@@ -32,9 +32,9 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/module.h"
-#include "asterisk/cli.h"
 #include "asterisk/utils.h"
 #include "asterisk/heap.h"
+#include "asterisk/test.h"
 
 struct node {
 	long val;
@@ -55,24 +55,32 @@ static int node_cmp(void *_n1, void *_n2)
 	}
 }
 
-static int test1(int fd)
+AST_TEST_DEFINE(heap_test_1)
 {
 	struct ast_heap *h;
 	struct node *obj;
 	struct node nodes[3] = {
-		{ 1, },
-		{ 2, },
-		{ 3, },
+		{ 1, } ,
+		{ 2, } ,
+		{ 3, } ,
 	};
 
-	if (!(h = ast_heap_create(8, node_cmp, offsetof(struct node, index)))) {
-		return -1;
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "heap_test_1";
+		info->category = "main/heap/";
+		info->summary = "push and pop elements";
+		info->description = "Push a few elements onto a heap and make sure that they come back off in the right order.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
 	}
 
-	/* Pushing 1 2 3, and then popping 3 elements */
+	if (!(h = ast_heap_create(8, node_cmp, offsetof(struct node, index)))) {
+		return AST_TEST_FAIL;
+	}
 
-	ast_cli(fd, "Test #1 - Push a few elements onto a heap and make sure that they "
-			"come back off in the right order.\n");
+	ast_test_status_update(&args->status_update, "pushing nodes\n");
 
 	ast_heap_push(h, &nodes[0]);
 
@@ -82,52 +90,59 @@ static int test1(int fd)
 
 	obj = ast_heap_pop(h);
 	if (obj->val != 3) {
-		return -2;
+		return AST_TEST_FAIL;
 	}
 
+	ast_test_status_update(&args->status_update, "popping nodes\n");
 	obj = ast_heap_pop(h);
 	if (obj->val != 2) {
-		return -3;
+		return AST_TEST_FAIL;
 	}
 
 	obj = ast_heap_pop(h);
 	if (obj->val != 1) {
-		return -4;
+		return AST_TEST_FAIL;
 	}
 
 	obj = ast_heap_pop(h);
 	if (obj) {
-		return -5;
+		return AST_TEST_FAIL;
 	}
 
 	h = ast_heap_destroy(h);
 
-	ast_cli(fd, "Test #1 successful.\n");
-
-	return 0;
+	return AST_TEST_PASS;
 }
 
-static int test2(int fd)
+AST_TEST_DEFINE(heap_test_2)
 {
 	struct ast_heap *h = NULL;
 	static const unsigned int one_million = 1000000;
 	struct node *nodes = NULL;
 	struct node *node;
 	unsigned int i = one_million;
-	long last = LONG_MAX, cur;
-	int res = 0;
+	long last = LONG_MAX;
+	long cur;
+	enum ast_test_result_state res = AST_TEST_PASS;
 
-	ast_cli(fd, "Test #2 - Push a million random elements on to a heap, "
-			"verify that the heap has been properly constructed, "
-			"and then ensure that the elements are come back off in the proper order\n");
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "heap_test_2";
+		info->category = "main/heap/";
+		info->summary = "load test";
+		info->description = "Push a million random elements on to a heap,verify that the heap has been properly constructed, and then ensure that the elements are come back off in the proper order";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
 
 	if (!(nodes = ast_malloc(one_million * sizeof(*node)))) {
-		res = -1;
+		res = AST_TEST_FAIL;
 		goto return_cleanup;
 	}
 
 	if (!(h = ast_heap_create(20, node_cmp, offsetof(struct node, index)))) {
-		res = -2;
+		res = AST_TEST_FAIL;
 		goto return_cleanup;
 	}
 
@@ -137,7 +152,7 @@ static int test2(int fd)
 	}
 
 	if (ast_heap_verify(h)) {
-		res = -3;
+		res = AST_TEST_FAIL;
 		goto return_cleanup;
 	}
 
@@ -145,8 +160,8 @@ static int test2(int fd)
 	while ((node = ast_heap_pop(h))) {
 		cur = node->val;
 		if (cur > last) {
-			ast_cli(fd, "i: %u, cur: %ld, last: %ld\n", i, cur, last);
-			res = -4;
+			ast_str_set(&args->ast_test_error_str, 0, "i: %u, cur: %ld, last: %ld\n", i, cur, last);
+			res = AST_TEST_FAIL;
 			goto return_cleanup;
 		}
 		last = cur;
@@ -154,12 +169,10 @@ static int test2(int fd)
 	}
 
 	if (i != one_million) {
-		ast_cli(fd, "Stopped popping off after only getting %u nodes\n", i);
-		res = -5;
+		ast_str_set(&args->ast_test_error_str, 0, "Stopped popping off after only getting %u nodes\n", i);
+		res = AST_TEST_FAIL;
 		goto return_cleanup;
 	}
-
-	ast_cli(fd, "Test #2 successful.\n");
 
 return_cleanup:
 	if (h) {
@@ -172,51 +185,20 @@ return_cleanup:
 	return res;
 }
 
-static char *handle_cli_heap_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	int res;
-
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "heap test";
-		e->usage = ""
-			"Usage: heap test\n"
-			"";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-
-	if (a->argc != e->args) {
-		return CLI_SHOWUSAGE;
-	}
-
-	if ((res = test1(a->fd))) {
-		ast_cli(a->fd, "Test 1 failed! (%d)\n", res);
-		return CLI_FAILURE;
-	}
-
-	if ((res = test2(a->fd))) {
-		ast_cli(a->fd, "Test 2 failed! (%d)\n", res);
-		return CLI_FAILURE;
-	}
-
-	return CLI_SUCCESS;
-}
-
-static struct ast_cli_entry cli_heap[] = {
-	AST_CLI_DEFINE(handle_cli_heap_test, "Test the heap implementation"),
-};
-
 static int unload_module(void)
 {
-	ast_cli_unregister_multiple(cli_heap, ARRAY_LEN(cli_heap));
+	AST_TEST_UNREGISTER(heap_test_1);
+	AST_TEST_UNREGISTER(heap_test_2);
 	return 0;
 }
 
 static int load_module(void)
 {
-	ast_cli_register_multiple(cli_heap, ARRAY_LEN(cli_heap));
+
+	AST_TEST_REGISTER(heap_test_1);
+
+	AST_TEST_REGISTER(heap_test_2);
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

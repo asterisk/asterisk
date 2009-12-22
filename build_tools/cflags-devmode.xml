@@ -20,4 +20,7 @@
 		</member>
 		<member name="SKINNY_DEVMODE" displayname="Enable Skinny Dev Mode">
 		</member>
+		<member name="TEST_FRAMEWORK" displayname="Enable Test Framework API">
+		</member>
+
 	</category>
