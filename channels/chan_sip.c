@@ -21499,6 +21499,8 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 	int debug = sip_debug_test_pvt(p);
 	char *e;
 	int error = 0;
+	int oldmethod = p->method;
+	int acked = 0;
 
 	/* Get Method and Cseq */
 	cseq = get_header(req, "Cseq");
@@ -21671,7 +21673,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 		if (seqno == p->pendinginvite) {
 			p->invitestate = INV_TERMINATED;
 			p->pendinginvite = 0;
-			__sip_ack(p, seqno, 1 /* response */, 0);
+			acked = __sip_ack(p, seqno, 1 /* response */, 0);
 			if (find_sdp(req)) {
 				if (process_sdp(p, req, SDP_T38_NONE))
 					return -1;
@@ -21680,9 +21682,13 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 		} else if (p->glareinvite == seqno) {
 			/* handle ack for the 491 pending sent for glareinvite */
 			p->glareinvite = 0;
-			__sip_ack(p, seqno, 1, 0);
+			acked = __sip_ack(p, seqno, 1, 0);
 		}
-		/* Got an ACK that we did not match. Ignore silently */
+		if (!acked) {
+			/* Got an ACK that did not match anything. Ignore
+			 * silently and restore previous method */
+			p->method = oldmethod;
+		}
 		if (!p->lastinvite && ast_strlen_zero(p->randdata)) {
 			pvt_set_needdestroy(p, "unmatched ACK");
 		}
