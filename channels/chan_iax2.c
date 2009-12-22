@@ -6248,10 +6248,15 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 		if (!transfer)
 			pvt->aseqno = fr->iseqno;
 		fh->type = fr->af.frametype & 0xFF;
-		if (fr->af.frametype == AST_FRAME_VIDEO)
+
+		if (fr->af.frametype == AST_FRAME_VIDEO) {
 			fh->csub = compress_subclass(fr->af.subclass.codec & ~0x1LL) | ((fr->af.subclass.codec & 0x1LL) << 6);
-		else
+		} else if (fr->af.frametype == AST_FRAME_VOICE) {
 			fh->csub = compress_subclass(fr->af.subclass.codec);
+		} else {
+			fh->csub = compress_subclass(fr->af.subclass.integer);
+		}
+
 		if (transfer) {
 			fr->dcallno = pvt->transfercallno;
 		} else
