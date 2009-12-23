@@ -5259,7 +5259,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		return -1;
 	}
 
-	ext = ast_strdupa(ext);
+	ast_str_set(&tmp, 0, "%s", ext);
+	ext = ast_str_buffer(tmp);
 	if ((context = strchr(ext, '@'))) {
 		*context++ = '\0';
 		tmpptr = strchr(context, '&');
