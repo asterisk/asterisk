@@ -72,6 +72,10 @@ MGCP Changes
 
 Applications
 ------------
+ * Added 'R' option to app_queue.  This option stops moh and indicates ringing
+   to the caller when an Agent's phone is ringing.  This can be used to indicate
+   to the caller that their call is about to be picked up, which is nice when
+   one has been on hold for an extened period of time.
  * Added .m3u support for Mp3Player application.
  * Added progress option to the app_dial D() option.  When progress DTMF is
    present, those values are sent immediately upon receiving a PROGRESS message

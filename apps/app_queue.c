@@ -5546,8 +5546,6 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 
 	if (ringing != 1 && args.options && (strchr(args.options, 'R'))) {
 		qe.ring_when_ringing = 1;
-	} else {
-		qe.ring_when_ringing = 0;
 	}
 
 	if (args.options && (strchr(args.options, 'c')))
