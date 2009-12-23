@@ -1473,7 +1473,7 @@ static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, char **argv
 		}
 		if (ast_compat_res_agi && !ast_strlen_zero(argv[2])) {
 			char *compat = alloca(strlen(argv[2]) * 2 + 1), *cptr, *vptr;
-			for (cptr = compat, vptr = argv[2]; *vptr; vptr++) {
+			for (cptr = compat, vptr = (argc == 2) ? "" : argv[2]; *vptr; vptr++) {
 				if (*vptr == ',') {
 					*cptr++ = '\\';
 					*cptr++ = ',';
@@ -1486,7 +1486,7 @@ static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, char **argv
 			*cptr = '\0';
 			res = pbx_exec(chan, app_to_exec, compat);
 		} else {
-			res = pbx_exec(chan, app_to_exec, argv[2]);
+			res = pbx_exec(chan, app_to_exec, argc == 2 ? "" : argv[2]);
 		}
 	} else {
 		ast_log(LOG_WARNING, "Could not find application (%s)\n", argv[1]);
