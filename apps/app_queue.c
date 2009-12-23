@@ -437,7 +437,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>Returns the number of logged-in members for the specified queue.</para>
 					</enum>
 					<enum name="free">
-						<para>Returns the number of logged-in members for the specified queue available to take a call.</para>
+						<para>Returns the number of logged-in members for the specified queue that either can take calls or are currently wrapping up after a previous call.</para>
+					</enum>
+					<enum name="ready">
+						<para>Returns the number of logged-in members for the specified queue that are immediately available to answer a call.</para>
 					</enum>
 					<enum name="count">
 						<para>Returns the total number of members for the specified queue.</para>
@@ -5793,8 +5796,8 @@ static int queue_function_var(struct ast_channel *chan, const char *cmd, char *d
 }
 
 /*! 
- * \brief Get number either busy / free or total members of a specific queue
- * \retval number of members (busy / free / total)
+ * \brief Get number either busy / free / ready or total members of a specific queue
+ * \retval number of members (busy / free / ready / total)
  * \retval -1 on error
 */
 static int queue_function_qac(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
@@ -5831,6 +5834,19 @@ static int queue_function_qac(struct ast_channel *chan, const char *cmd, char *d
 			while ((m = ao2_iterator_next(&mem_iter))) {
 				/* Count the agents who are logged in and presently answering calls */
 				if ((m->status == AST_DEVICE_NOT_INUSE) && (!m->paused)) {
+					count++;
+				}
+				ao2_ref(m, -1);
+			}
+			ao2_iterator_destroy(&mem_iter);
+		} else if (!strcasecmp(option, "ready")) {
+			time_t now;
+			time(&now);
+			mem_iter = ao2_iterator_init(q->members, 0);
+			while ((m = ao2_iterator_next(&mem_iter))) {
+				/* Count the agents who are logged in, not paused and not wrapping up */
+				if ((m->status == AST_DEVICE_NOT_INUSE) && (!m->paused) &&
+						!(m->lastcall && q->wrapuptime && ((now - q->wrapuptime) < m->lastcall))) {
 					count++;
 				}
 				ao2_ref(m, -1);
