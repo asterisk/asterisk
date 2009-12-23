@@ -1140,7 +1140,7 @@ static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, char **argv
 		if(!strcasecmp(argv[1], PARK_APP_NAME)) {
 			ast_masq_park_call(chan, NULL, 0, NULL);
 		}
-		res = pbx_exec(chan, app, argv[2]);
+		res = pbx_exec(chan, app, argc == 2 ? "" : argv[2]);
 	} else {
 		ast_log(LOG_WARNING, "Could not find application (%s)\n", argv[1]);
 		res = -2;
