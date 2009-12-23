@@ -5619,6 +5619,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			    ast_rtp_lookup_mime_multiple(s1, SIPBUFSIZE, p->noncodeccapability, 0, 0),
 			    ast_rtp_lookup_mime_multiple(s2, SIPBUFSIZE, peernoncodeccapability, 0, 0),
 			    ast_rtp_lookup_mime_multiple(s3, SIPBUFSIZE, newnoncodeccapability, 0, 0));
+
+		ast_log(LOG_DEBUG, "Our T38 capability = (%d), peer T38 capability (%d), joint T38 capability (%d)\n",
+			p->t38.capability,
+			p->t38.peercapability,
+			p->t38.jointcapability);
+
 	}
 	if (!newjointcapability) {
 		/* If T.38 was not negotiated either, totally bail out... */
@@ -5629,7 +5635,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		} else {
 			if (option_debug > 2)
 				ast_log(LOG_DEBUG, "Have T.38 but no audio codecs, accepting offer anyway\n");
-			return 0;
 		}
 	}
 
@@ -5903,10 +5908,8 @@ static int process_sdp_a_video(const char *a, struct sip_pvt *p, struct ast_rtp 
 static int process_sdp_a_image(const char *a, struct sip_pvt *p)
 {
 	int found = FALSE;
-	int peert38capability = 0;
 	char s[256];
 	int x;
-	int debug = sip_debug_test_pvt(p);
 
 	/* Scan trough the a= lines for T38 attributes and set apropriate fileds */
 	if ((sscanf(a, "T38FaxMaxBuffer:%30d", &x) == 1)) {
@@ -5919,22 +5922,22 @@ static int process_sdp_a_image(const char *a, struct sip_pvt *p)
 			ast_log(LOG_DEBUG,"T38MaxBitRate: %d\n",x);
 		switch (x) {
 		case 14400:
-			peert38capability |= T38FAX_RATE_14400 | T38FAX_RATE_12000 | T38FAX_RATE_9600 | T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400;
+			p->t38.peercapability |= T38FAX_RATE_14400 | T38FAX_RATE_12000 | T38FAX_RATE_9600 | T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400;
 			break;
 		case 12000:
-			peert38capability |= T38FAX_RATE_12000 | T38FAX_RATE_9600 | T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400;
+			p->t38.peercapability |= T38FAX_RATE_12000 | T38FAX_RATE_9600 | T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400;
 			break;
 		case 9600:
-			peert38capability |= T38FAX_RATE_9600 | T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400;
+			p->t38.peercapability |= T38FAX_RATE_9600 | T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400;
 			break;
 		case 7200:
-			peert38capability |= T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400;
+			p->t38.peercapability |= T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400;
 			break;
 		case 4800:
-			peert38capability |= T38FAX_RATE_4800 | T38FAX_RATE_2400;
+			p->t38.peercapability |= T38FAX_RATE_4800 | T38FAX_RATE_2400;
 			break;
 		case 2400:
-			peert38capability |= T38FAX_RATE_2400;
+			p->t38.peercapability |= T38FAX_RATE_2400;
 			break;
 		}
 	} else if ((sscanf(a, "T38FaxVersion:%30d", &x) == 1)) {
@@ -5942,9 +5945,9 @@ static int process_sdp_a_image(const char *a, struct sip_pvt *p)
 		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "FaxVersion: %d\n",x);
 		if (x == 0)
-			peert38capability |= T38FAX_VERSION_0;
+			p->t38.peercapability |= T38FAX_VERSION_0;
 		else if (x == 1)
-			peert38capability |= T38FAX_VERSION_1;
+			p->t38.peercapability |= T38FAX_VERSION_1;
 	} else if ((sscanf(a, "T38FaxMaxDatagram:%30d", &x) == 1) || (sscanf(a, "T38MaxDatagram:%30d", &x) == 1)) {
 		found = TRUE;
 		if (option_debug > 2)
@@ -5957,11 +5960,11 @@ static int process_sdp_a_image(const char *a, struct sip_pvt *p)
 		    if (option_debug > 2)
 			ast_log(LOG_DEBUG, "FillBitRemoval: %d\n",x);
 		    if (x == 1)
-			peert38capability |= T38FAX_FILL_BIT_REMOVAL;
+			p->t38.peercapability |= T38FAX_FILL_BIT_REMOVAL;
 		} else {
 		    if (option_debug > 2)
 			ast_log(LOG_DEBUG, "FillBitRemoval\n");
-		    peert38capability |= T38FAX_FILL_BIT_REMOVAL;
+		    p->t38.peercapability |= T38FAX_FILL_BIT_REMOVAL;
 		}
 	} else if ((strncmp(a, "T38FaxTranscodingMMR", 20) == 0)) {
 		found = TRUE;
@@ -5969,11 +5972,11 @@ static int process_sdp_a_image(const char *a, struct sip_pvt *p)
 		    if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Transcoding MMR: %d\n",x);
 		    if (x == 1)
-			peert38capability |= T38FAX_TRANSCODING_MMR;
+			p->t38.peercapability |= T38FAX_TRANSCODING_MMR;
 		} else {
 		    if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Transcoding MMR\n");
-		    peert38capability |= T38FAX_TRANSCODING_MMR;
+		    p->t38.peercapability |= T38FAX_TRANSCODING_MMR;
 		}
 	} else if ((strncmp(a, "T38FaxTranscodingJBIG", 21) == 0)) {
 		found = TRUE;
@@ -5981,47 +5984,42 @@ static int process_sdp_a_image(const char *a, struct sip_pvt *p)
 		    if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Transcoding JBIG: %d\n",x);
 		    if (x == 1)
-			peert38capability |= T38FAX_TRANSCODING_JBIG;
+			p->t38.peercapability |= T38FAX_TRANSCODING_JBIG;
 		} else {
 		    if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Transcoding JBIG\n");
-		    peert38capability |= T38FAX_TRANSCODING_JBIG;
+		    p->t38.peercapability |= T38FAX_TRANSCODING_JBIG;
 		}
 	} else if ((sscanf(a, "T38FaxRateManagement:%255s", s) == 1)) {
 		found = TRUE;
 		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "RateManagement: %s\n", s);
 		if (!strcasecmp(s, "localTCF"))
-			peert38capability |= T38FAX_RATE_MANAGEMENT_LOCAL_TCF;
+			p->t38.peercapability |= T38FAX_RATE_MANAGEMENT_LOCAL_TCF;
 		else if (!strcasecmp(s, "transferredTCF"))
-			peert38capability |= T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF;
+			p->t38.peercapability |= T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF;
 	} else if ((sscanf(a, "T38FaxUdpEC:%255s", s) == 1)) {
 		found = TRUE;
 		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "UDP EC: %s\n", s);
 		if (!strcasecmp(s, "t38UDPRedundancy")) {
-			peert38capability |= T38FAX_UDP_EC_REDUNDANCY;
+			p->t38.peercapability |= T38FAX_UDP_EC_REDUNDANCY;
 			ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_REDUNDANCY);
 		} else if (!strcasecmp(s, "t38UDPFEC")) {
-			peert38capability |= T38FAX_UDP_EC_FEC;
+			p->t38.peercapability |= T38FAX_UDP_EC_FEC;
 			ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_FEC);
 		} else {
-			peert38capability |= T38FAX_UDP_EC_NONE;
+			p->t38.peercapability |= T38FAX_UDP_EC_NONE;
 			ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_NONE);
 		}
 	}
 
 	if (found) { /* Some cisco equipment returns nothing beside c= and m= lines in 200 OK T38 SDP */
-		p->t38.peercapability = peert38capability;
-		p->t38.jointcapability = (peert38capability & 255); /* Put everything beside supported speeds settings */
-		peert38capability &= (T38FAX_RATE_14400 | T38FAX_RATE_12000 | T38FAX_RATE_9600 | T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400);
-		p->t38.jointcapability |= (peert38capability & p->t38.capability); /* Put the lower of our's and peer's speed */
+		int t38speed = p->t38.peercapability & (T38FAX_RATE_14400 | T38FAX_RATE_12000 | T38FAX_RATE_9600 | T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400);
+
+		p->t38.jointcapability = (p->t38.peercapability & 255); /* Put everything beside supported speeds settings */
+		p->t38.jointcapability |= (t38speed & p->t38.capability); /* Put the lower of our's and peer's speed */
 	}
-	if (debug)
-		ast_log(LOG_DEBUG, "Our T38 capability = (%d), peer T38 capability (%d), joint T38 capability (%d)\n",
-			p->t38.capability,
-			p->t38.peercapability,
-			p->t38.jointcapability);
 
 	return found;
 }
