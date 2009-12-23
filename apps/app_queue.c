@@ -153,6 +153,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="r">
 						<para>Ring instead of playing MOH. Periodic Announcements are still made, if applicable.</para>
 					</option>
+					<option name="R">
+						<para>Ring instead of playing MOH when a member channel is actually ringing.</para>
+					</option>
 					<option name="t">
 						<para>Allow the <emphasis>called</emphasis> user to transfer the calling user.</para>
 					</option>
@@ -807,6 +810,7 @@ struct queue_ent {
 	int pos;                               /*!< Where we are in the queue */
 	int prio;                              /*!< Our priority */
 	int last_pos_said;                     /*!< Last position we told the user */
+	int ring_when_ringing;                 /*!< Should we only use ring indication when a channel is ringing? */
 	time_t last_periodic_announce_time;    /*!< The last time we played a periodic announcement */
 	int last_periodic_announce_sound;      /*!< The last periodic announcement we made */
 	time_t last_pos;                       /*!< Last time we told the user their position */
@@ -3092,6 +3096,13 @@ static void record_abandoned(struct queue_ent *qe)
 static void rna(int rnatime, struct queue_ent *qe, char *interface, char *membername, int pause)
 {
 	ast_verb(3, "Nobody picked up in %d ms\n", rnatime);
+
+	/* Stop ringing, and resume MOH if specified */
+	if (qe->ring_when_ringing) {
+		ast_indicate(qe->chan, -1);
+		ast_moh_start(qe->chan, qe->moh, NULL);
+	}
+
 	if (qe->parent->eventwhencalled) {
 		char vars[2048];
 
@@ -3392,6 +3403,12 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							break;
 						case AST_CONTROL_RINGING:
 							ast_verb(3, "%s is ringing\n", ochan_name);
+
+							/* Start ring indication when the channel is ringing, if specified */
+							if (qe->ring_when_ringing) {
+								ast_moh_stop(qe->chan);
+								ast_indicate(qe->chan, AST_CONTROL_RINGING);
+							}
 							break;
 						case AST_CONTROL_OFFHOOK:
 							/* Ignore going off hook */
@@ -5526,6 +5543,12 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 
 	if (args.options && (strchr(args.options, 'r')))
 		ringing = 1;
+
+	if (ringing != 1 && args.options && (strchr(args.options, 'R'))) {
+		qe.ring_when_ringing = 1;
+	} else {
+		qe.ring_when_ringing = 0;
+	}
 
 	if (args.options && (strchr(args.options, 'c')))
 		qcontinue = 1;
