@@ -586,6 +586,9 @@ static int rt_log_members;
 #define MAX_PIN     80
 #define OPTIONS_LEN 100
 
+/* Enough space for "<conference #>,<pin>,<admin pin>" followed by a 0 byte. */
+#define MAX_SETTINGS (MAX_CONFNUM + MAX_PIN + MAX_PIN + 3)
+
 enum announcetypes {
 	CONF_HASJOIN,
 	CONF_HASLEFT
@@ -3547,7 +3550,7 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 	struct ast_variable *var;
 	struct ast_flags config_flags = { 0 };
 	struct ast_conference *cnf;
-	char *parse;
+
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(confno);
 		AST_APP_ARG(pin);
@@ -3591,13 +3594,15 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 				ast_log(LOG_ERROR, "Config file " CONFIG_FILE_NAME " is in an invalid format.  Aborting.\n");
 				return NULL;
 			}
+
 			for (var = ast_variable_browse(cfg, "rooms"); var; var = var->next) {
+				char parse[MAX_SETTINGS];
+
 				if (strcasecmp(var->name, "conf"))
 					continue;
-				
-				if (!(parse = ast_strdupa(var->value)))
-					return NULL;
-				
+
+				ast_copy_string(parse, var->value, sizeof(parse));
+
 				AST_STANDARD_APP_ARGS(args, parse);
 				ast_debug(3, "Will conf %s match %s?\n", confno, args.confno);
 				if (!strcasecmp(args.confno, confno)) {
@@ -3757,33 +3762,32 @@ static int conf_exec(struct ast_channel *chan, void *data)
 				if (cfg && cfg != CONFIG_STATUS_FILEINVALID) {
 					var = ast_variable_browse(cfg, "rooms");
 					while (var) {
+						char parse[MAX_SETTINGS], *stringp = parse, *confno_tmp;
 						if (!strcasecmp(var->name, "conf")) {
-							char *stringp = ast_strdupa(var->value);
-							if (stringp) {
-								char *confno_tmp = strsep(&stringp, "|,");
-								int found = 0;
-								if (!dynamic) {
-									/* For static:  run through the list and see if this conference is empty */
-									AST_LIST_LOCK(&confs);
-									AST_LIST_TRAVERSE(&confs, cnf, list) {
-										if (!strcmp(confno_tmp, cnf->confno)) {
-											/* The conference exists, therefore it's not empty */
-											found = 1;
-											break;
-										}
+							int found = 0;
+							ast_copy_string(parse, var->value, sizeof(parse));
+							confno_tmp = strsep(&stringp, "|,");
+							if (!dynamic) {
+								/* For static:  run through the list and see if this conference is empty */
+								AST_LIST_LOCK(&confs);
+								AST_LIST_TRAVERSE(&confs, cnf, list) {
+									if (!strcmp(confno_tmp, cnf->confno)) {
+										/* The conference exists, therefore it's not empty */
+										found = 1;
+										break;
 									}
-									AST_LIST_UNLOCK(&confs);
-									if (!found) {
-										/* At this point, we have a confno_tmp (static conference) that is empty */
-										if ((empty_no_pin && ast_strlen_zero(stringp)) || (!empty_no_pin)) {
-											/* Case 1:  empty_no_pin and pin is nonexistent (NULL)
-											 * Case 2:  empty_no_pin and pin is blank (but not NULL)
-											 * Case 3:  not empty_no_pin
-											 */
-											ast_copy_string(confno, confno_tmp, sizeof(confno));
-											break;
-											/* XXX the map is not complete (but we do have a confno) */
-										}
+								}
+								AST_LIST_UNLOCK(&confs);
+								if (!found) {
+									/* At this point, we have a confno_tmp (static conference) that is empty */
+									if ((empty_no_pin && ast_strlen_zero(stringp)) || (!empty_no_pin)) {
+										/* Case 1:  empty_no_pin and pin is nonexistent (NULL)
+										 * Case 2:  empty_no_pin and pin is blank (but not NULL)
+										 * Case 3:  not empty_no_pin
+										 */
+										ast_copy_string(confno, confno_tmp, sizeof(confno));
+										break;
+										/* XXX the map is not complete (but we do have a confno) */
 									}
 								}
 							}
