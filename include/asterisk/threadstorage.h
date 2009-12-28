@@ -67,11 +67,17 @@ void __ast_threadstorage_object_replace(void *key_old, void *key_new, size_t len
 #define AST_THREADSTORAGE(name, name_init) \
 	AST_THREADSTORAGE_CUSTOM(name, name_init, ast_free_ptr) 
 
+#if defined(PTHREAD_ONCE_INIT_NEEDS_BRACES)
+# define AST_PTHREAD_ONCE_INIT { PTHREAD_ONCE_INIT }
+#else
+# define AST_PTHREAD_ONCE_INIT PTHREAD_ONCE_INIT
+#endif
+
 #if !defined(DEBUG_THREADLOCALS)
 #define AST_THREADSTORAGE_CUSTOM(name, name_init, cleanup)  \
 static void name_init(void);                                \
 static struct ast_threadstorage name = {                    \
-	.once = PTHREAD_ONCE_INIT,                              \
+	.once = AST_PTHREAD_ONCE_INIT,                          \
 	.key_init = name_init,                                  \
 };                                                          \
 static void name_init(void)                                 \
@@ -82,7 +88,7 @@ static void name_init(void)                                 \
 #define AST_THREADSTORAGE_CUSTOM(name, name_init, cleanup)  \
 static void name_init(void);                                \
 static struct ast_threadstorage name = {                    \
-	.once = PTHREAD_ONCE_INIT,                              \
+	.once = AST_PTHREAD_ONCE_INIT,                          \
 	.key_init = name_init,                                  \
 };                                                          \
 static void __cleanup_##name(void *data)                    \
