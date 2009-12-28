@@ -10965,7 +10965,7 @@ static int load_config(int reload)
 			if (sscanf(val, "%30d", &x) == 1) {
 				vmminsecs = x;
 				if (maxsilence / 1000 >= vmminsecs) {
-					ast_log(AST_LOG_WARNING, "maxsilence should be less than minmessage or you may get empty messages\n");
+					ast_log(AST_LOG_WARNING, "maxsilence should be less than minsecs or you may get empty messages\n");
 				}
 			} else {
 				ast_log(AST_LOG_WARNING, "Invalid min message time length\n");
