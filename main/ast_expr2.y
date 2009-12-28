@@ -106,10 +106,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define FUNC_LOG	(long double)log
 #endif
 
-#ifdef HAVE_REMINDERL
-#define FUNC_REMINDER   reminderl
-#elif defined(HAVE_REMINDER)
-#define FUNC_REMINDER	(long double)reminder
+#ifdef HAVE_REMAINDERL
+#define FUNC_REMAINDER   remainderl
+#elif defined(HAVE_REMAINDER)
+#define FUNC_REMAINDER	(long double)remainder
 #endif
 
 #ifdef HAVE_FMODL
