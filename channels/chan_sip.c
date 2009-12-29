@@ -1128,6 +1128,7 @@ struct sip_st_dlg {
 	int st_cached_max_se;                   /*!< Session-Timers cached Session-Expires */
 	enum st_mode st_cached_mode;            /*!< Session-Timers cached M.O. */
 	enum st_refresher st_cached_ref;        /*!< Session-Timers cached refresher */
+	unsigned char quit_flag:1;              /*!< Stop trying to lock; just quit */
 };
 
 
@@ -2412,10 +2413,10 @@ static int dialog_cleanup_and_destroy(struct sip_pvt *p)
 
 	/* Destroy Session-Timers if allocated */
 	if (p->stimer) {
+		p->stimer->quit_flag = 1;
 		if (p->stimer->st_active == TRUE && p->stimer->st_schedid > -1) {
-			AST_SCHED_DEL_UNREF(sched, p->stimer->st_schedid, dialog_unref(p));
+			AST_SCHED_DEL_UNREF(sched, p->stimer->st_schedid, if (_count < 10) dialog_unref(p));
 		}
-		ast_free(p->stimer);
 	}
 	/* this is the last dialog ref */
 	dialog_unref(p);
@@ -4642,6 +4643,11 @@ static int __sip_destroy(struct sip_pvt *p, int lockowner)
 {
 	struct sip_pkt *cp;
 	struct sip_request *req;
+
+	if (p->stimer) {
+		ast_free(p->stimer);
+		p->stimer = NULL;
+	}
 
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Really destroying SIP dialog '%s' Method: %s\n", p->callid, sip_methods[p->method].text);
@@ -20352,22 +20358,32 @@ static int proc_session_timer(const void *vp)
 	} else {
 		p->stimer->st_expirys++;
 		if (p->stimer->st_expirys >= 2) {
+			if (p->stimer->quit_flag) {
+				goto return_unref;
+			}
 			ast_log(LOG_WARNING, "Session-Timer expired - %s\n", p->callid);
+			sip_pvt_lock(p);
 			while (p->owner && ast_channel_trylock(p->owner)) {
 				sip_pvt_unlock(p);
 				usleep(1);
+				if (p->stimer && p->stimer->quit_flag) {
+					goto return_unref;
+				}
 				sip_pvt_lock(p);
 			}
 
 			ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
 			ast_channel_unlock(p->owner);
+			sip_pvt_unlock(p);
 		}
 	}
 return_unref:
 	if (!res) {
 		/* An error occurred.  Stop session timer processing */
-		p->stimer->st_schedid = -1; /* this is the sched, so this is safe */
-		stop_session_timer(p); /* will not unref, only mark st_active FALSE */
+		if (p->stimer) {
+			p->stimer->st_schedid = -1; /* this is the sched, so this is safe */
+			stop_session_timer(p); /* will not unref, only mark st_active FALSE */
+		}
 
 		/* If we are not asking to be rescheduled, then we need to release our
 		 * reference to the dialog. */
