@@ -1608,7 +1608,7 @@ fi
 
 if test "$PBX_OPENSSL" = "1";
 then
-    AST_CHECK_OSPTK([3], [5], [0])
+    AST_CHECK_OSPTK([3], [6], [0])
 fi
 
 AST_EXT_TOOL_CHECK([GMIME], [gmime-config], [], [], [#include <gmime/gmime.h>], [gboolean q = g_mime_check_version(0,0,0);])

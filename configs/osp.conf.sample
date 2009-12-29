@@ -101,3 +101,10 @@
 ; IAX protocols.  The default protocol is set to SIP.
 ;
 ;defaultprotocol=SIP
+;
+; Set the service type.
+; 0 - Normal voice service
+; 1 - Ported number query service
+; Default is 0,
+;
+;servicetype=0
