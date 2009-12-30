@@ -318,7 +318,7 @@ static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
 #define LENGTHEN_BUF1(size)														\
 			do {																\
 				/* Lengthen buffer, if necessary */								\
-				if (ast_str_strlen(sql) + size + 1 > ast_str_size(sql)) {       \
+				if (ast_str_strlen(sql) + size + 1 > ast_str_size(sql)) {		\
 					if (ast_str_make_space(&sql, ((ast_str_size(sql) + size + 1) / 512 + 1) * 512) != 0) { \
 						ast_log(LOG_ERROR, "Unable to allocate sufficient memory.  Insert CEL '%s:%s' failed.\n", tableptr->connection, tableptr->table); \
 						ast_free(sql);											\
@@ -331,7 +331,7 @@ static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
 
 #define LENGTHEN_BUF2(size)														\
 			do {																\
-				if (ast_str_strlen(sql2) + size + 1 > ast_str_size(sql2)) {     \
+				if (ast_str_strlen(sql2) + size + 1 > ast_str_size(sql2)) {		\
 					if (ast_str_make_space(&sql2, ((ast_str_size(sql2) + size + 3) / 512 + 1) * 512) != 0) { \
 						ast_log(LOG_ERROR, "Unable to allocate sufficient memory.  Insert CEL '%s:%s' failed.\n", tableptr->connection, tableptr->table); \
 						ast_free(sql);											\
@@ -403,39 +403,39 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 				colptr = colbuf;
 			} else {
 				if (strcmp(entry->celname, "userdeftype") == 0) {
-					strncpy(colbuf, record.user_defined_name, sizeof(colbuf));
+					ast_copy_string(colbuf, record.user_defined_name, sizeof(colbuf));
 				} else if (strcmp(entry->celname, "cid_name") == 0) {
-					strncpy(colbuf, record.caller_id_name, sizeof(colbuf));
+					ast_copy_string(colbuf, record.caller_id_name, sizeof(colbuf));
 				} else if (strcmp(entry->celname, "cid_num") == 0) {
-					strncpy(colbuf, record.caller_id_num, sizeof(colbuf));
+					ast_copy_string(colbuf, record.caller_id_num, sizeof(colbuf));
 				} else if (strcmp(entry->celname, "cid_ani") == 0) {
-					strncpy(colbuf, record.caller_id_ani, sizeof(colbuf));
+					ast_copy_string(colbuf, record.caller_id_ani, sizeof(colbuf));
 				} else if (strcmp(entry->celname, "cid_rdnis") == 0) {
-					strncpy(colbuf, record.caller_id_rdnis, sizeof(colbuf));
+					ast_copy_string(colbuf, record.caller_id_rdnis, sizeof(colbuf));
 				} else if (strcmp(entry->celname, "cid_dnid") == 0) {
-					strncpy(colbuf, record.caller_id_dnid, sizeof(colbuf));
+					ast_copy_string(colbuf, record.caller_id_dnid, sizeof(colbuf));
 				} else if (strcmp(entry->celname, "exten") == 0) {
-					strncpy(colbuf, record.extension, sizeof(colbuf));
+					ast_copy_string(colbuf, record.extension, sizeof(colbuf));
 				} else if (strcmp(entry->celname, "context") == 0) {
-					strncpy(colbuf, record.context, sizeof(colbuf));
+					ast_copy_string(colbuf, record.context, sizeof(colbuf));
 				} else if (strcmp(entry->celname, "channame") == 0) {
-					strncpy(colbuf, record.channel_name, sizeof(colbuf));
+					ast_copy_string(colbuf, record.channel_name, sizeof(colbuf));
 				} else if (strcmp(entry->celname, "appname") == 0) {
-					strncpy(colbuf, record.application_name, sizeof(colbuf));
+					ast_copy_string(colbuf, record.application_name, sizeof(colbuf));
 				} else if (strcmp(entry->celname, "appdata") == 0) {
-					strncpy(colbuf, record.application_data, sizeof(colbuf));
+					ast_copy_string(colbuf, record.application_data, sizeof(colbuf));
 				} else if (strcmp(entry->celname, "accountcode") == 0) {
-					strncpy(colbuf, record.account_code, sizeof(colbuf));
+					ast_copy_string(colbuf, record.account_code, sizeof(colbuf));
 				} else if (strcmp(entry->celname, "peeraccount") == 0) {
-					strncpy(colbuf, record.peer_account, sizeof(colbuf));
+					ast_copy_string(colbuf, record.peer_account, sizeof(colbuf));
 				} else if (strcmp(entry->celname, "uniqueid") == 0) {
-					strncpy(colbuf, record.unique_id, sizeof(colbuf));
+					ast_copy_string(colbuf, record.unique_id, sizeof(colbuf));
 				} else if (strcmp(entry->celname, "linkedid") == 0) {
-					strncpy(colbuf, record.linked_id, sizeof(colbuf));
+					ast_copy_string(colbuf, record.linked_id, sizeof(colbuf));
 				} else if (strcmp(entry->celname, "userfield") == 0) {
-					strncpy(colbuf, record.user_field, sizeof(colbuf));
+					ast_copy_string(colbuf, record.user_field, sizeof(colbuf));
 				} else if (strcmp(entry->celname, "peer") == 0) {
-					strncpy(colbuf, record.peer, sizeof(colbuf));
+					ast_copy_string(colbuf, record.peer, sizeof(colbuf));
 				} else if (strcmp(entry->celname, "amaflags") == 0) {
 					snprintf(colbuf, sizeof(colbuf), "%d", record.amaflag);
 				} else {
@@ -501,7 +501,9 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 					ast_str_append(&sql2, 0, "'");
 					break;
 				case SQL_TYPE_DATE:
-					{
+					if (ast_strlen_zero(colptr)) {
+						continue;
+					} else {
 						int year = 0, month = 0, day = 0;
 						if (sscanf(colptr, "%4d-%2d-%2d", &year, &month, &day) != 3 || year <= 0 ||
 							month <= 0 || month > 12 || day < 0 || day > 31 ||
@@ -524,7 +526,9 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 					}
 					break;
 				case SQL_TYPE_TIME:
-					{
+					if (ast_strlen_zero(colptr)) {
+						continue;
+					} else {
 						int hour = 0, minute = 0, second = 0;
 						int count = sscanf(colptr, "%2d:%2d:%2d", &hour, &minute, &second);
 
@@ -540,7 +544,9 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 					break;
 				case SQL_TYPE_TIMESTAMP:
 				case SQL_TIMESTAMP:
-					{
+					if (ast_strlen_zero(colptr)) {
+						continue;
+					} else {
 						int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0;
 						int count = sscanf(colptr, "%4d-%2d-%2d %2d:%2d:%2d", &year, &month, &day, &hour, &minute, &second);
 
@@ -570,6 +576,8 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 						int integer = 0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							integer = (int) record.event_type;
+						} else if (ast_strlen_zero(colptr)) {
+							continue;
 						} else if (sscanf(colptr, "%30d", &integer) != 1) {
 							ast_log(LOG_WARNING, "CEL variable %s is not an integer.\n", entry->name);
 							continue;
@@ -585,6 +593,8 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 						long long integer = 0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							integer = (long long) record.event_type;
+						} else if (ast_strlen_zero(colptr)) {
+							continue;
 						} else if (sscanf(colptr, "%30lld", &integer) != 1) {
 							ast_log(LOG_WARNING, "CEL variable %s is not an integer.\n", entry->name);
 							continue;
@@ -600,6 +610,8 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 						short integer = 0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							integer = (short) record.event_type;
+						} else if (ast_strlen_zero(colptr)) {
+							continue;
 						} else if (sscanf(colptr, "%30hd", &integer) != 1) {
 							ast_log(LOG_WARNING, "CEL variable %s is not an integer.\n", entry->name);
 							continue;
@@ -615,6 +627,8 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 						char integer = 0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							integer = (char) record.event_type;
+						} else if (ast_strlen_zero(colptr)) {
+							continue;
 						} else if (sscanf(colptr, "%30hhd", &integer) != 1) {
 							ast_log(LOG_WARNING, "CEL variable %s is not an integer.\n", entry->name);
 							continue;
@@ -630,6 +644,8 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 						char integer = 0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							integer = (char) record.event_type;
+						} else if (ast_strlen_zero(colptr)) {
+							continue;
 						} else if (sscanf(colptr, "%30hhd", &integer) != 1) {
 							ast_log(LOG_WARNING, "CEL variable %s is not an integer.\n", entry->name);
 							continue;
@@ -648,6 +664,8 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 						double number = 0.0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							number = (double)record.event_type;
+						} else if (ast_strlen_zero(colptr)) {
+							continue;
 						} else if (sscanf(colptr, "%30lf", &number) != 1) {
 							ast_log(LOG_WARNING, "CEL variable %s is not an numeric type.\n", entry->name);
 							continue;
@@ -665,6 +683,8 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 						double number = 0.0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							number = (double) record.event_type;
+						} else if (ast_strlen_zero(colptr)) {
+							continue;
 						} else if (sscanf(colptr, "%30lf", &number) != 1) {
 							ast_log(LOG_WARNING, "CEL variable %s is not an numeric type.\n", entry->name);
 							continue;
