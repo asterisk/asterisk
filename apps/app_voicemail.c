@@ -6966,6 +6966,8 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "'vm-received' dB 'digits/at' k 'and' M", NULL);
 	} else if (!strncasecmp(chan->language, "zh", 2)) {     /* CHINESE (Taiwan) syntax */
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "qR 'vm-received'", NULL);
+	} else if (!strncasecmp(chan->language, "vi", 2)) {     /* VIETNAMESE syntax */
+		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "'vm-received' A 'digits/day' dB 'digits/year' Y 'digits/at' k 'hours' M 'minutes'", NULL);
 	} else {
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "'vm-received' q 'digits/at' IMp", NULL);
 	}
@@ -7122,6 +7124,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	}
 
 	if (!res) {
+		/* XXX Why are we playing messages above, and then playing the same language-specific stuff here? */
 		/* POLISH syntax */
 		if (!strncasecmp(chan->language, "pl", 2)) {
 			if (vms->curmsg && (vms->curmsg != vms->lastmsg)) {
@@ -7148,6 +7151,19 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 				res = wait_file2(chan, vms, "vm-message");
 		/* HEBREW syntax */
 		} else if (!strncasecmp(chan->language, "he", 2)) {
+			if (!vms->curmsg) {
+				res = wait_file2(chan, vms, "vm-message");
+				res = wait_file2(chan, vms, "vm-first");
+			} else if (vms->curmsg == vms->lastmsg) {
+				res = wait_file2(chan, vms, "vm-message");
+				res = wait_file2(chan, vms, "vm-last");
+			} else {
+				res = wait_file2(chan, vms, "vm-message");
+				res = wait_file2(chan, vms, "vm-number");
+				res = ast_say_number(chan, vms->curmsg + 1, AST_DIGIT_ANY, chan->language, "f");
+			}
+		/* VIETNAMESE syntax */
+		} else if (!strncasecmp(chan->language, "vi", 2)) {
 			if (!vms->curmsg) {
 				res = wait_file2(chan, vms, "vm-message");
 				res = wait_file2(chan, vms, "vm-first");
@@ -7492,6 +7508,8 @@ static int vm_play_folder_name(struct ast_channel *chan, char *box)
 		return vm_play_folder_name_pl(chan, box);
 	} else if (!strncasecmp(chan->language, "ua", 2)) {  /* Ukrainian syntax */
 		return vm_play_folder_name_ua(chan, box);
+	} else if (!strncasecmp(chan->language, "vi", 2)) {
+		return ast_play_and_wait(chan, box);
 	} else {  /* Default English */
 		cmd = ast_play_and_wait(chan, box);
 		return cmd ? cmd : ast_play_and_wait(chan, "vm-messages"); /* "messages */
@@ -8365,6 +8383,37 @@ static int vm_intro_zh(struct ast_channel *chan, struct vm_state *vms)
 	return res;
 }
 
+/* Vietnamese syntax */
+static int vm_intro_vi(struct ast_channel *chan, struct vm_state *vms)
+{
+	int res;
+
+	/* Introduce messages they have */
+	res = ast_play_and_wait(chan, "vm-youhave");
+	if (!res) {
+		if (vms->newmessages) {
+			res = say_and_wait(chan, vms->newmessages, chan->language);
+			if (!res)
+				res = ast_play_and_wait(chan, "vm-INBOX");
+			if (vms->oldmessages && !res)
+				res = ast_play_and_wait(chan, "vm-and");
+		}
+		if (!res && vms->oldmessages) {
+			res = say_and_wait(chan, vms->oldmessages, chan->language);
+			if (!res)
+				res = ast_play_and_wait(chan, "vm-Old");			
+		}
+		if (!res) {
+			if (!vms->oldmessages && !vms->newmessages) {
+				res = ast_play_and_wait(chan, "vm-no");
+				if (!res)
+					res = ast_play_and_wait(chan, "vm-message");
+			}
+		}
+	}
+	return res;
+}
+
 static int vm_intro(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms)
 {
 	char prefile[256];
@@ -8417,6 +8466,8 @@ static int vm_intro(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm
 		return vm_intro_se(chan, vms);
 	} else if (!strncasecmp(chan->language, "ua", 2)) {  /* UKRAINIAN syntax */
 		return vm_intro_multilang(chan, vms, "n");
+	} else if (!strncasecmp(chan->language, "vi", 2)) { /* VIETNAMESE syntax */
+		return vm_intro_vi(chan, vms);
 	} else if (!strncasecmp(chan->language, "zh", 2)) { /* CHINESE (Taiwan) syntax */
 		return vm_intro_zh(chan, vms);
 	} else {                                             /* Default to ENGLISH */
@@ -9012,6 +9063,30 @@ static int vm_browse_messages_zh(struct ast_channel *chan, struct vm_state *vms,
 	return cmd;
 }
 
+/*! 
+ * \brief Vietnamese syntax for 'You have N messages' greeting.
+ * \param chan
+ * \param vms
+ * \param vmu
+ *
+ * \return zero on success, -1 on error.
+ */
+static int vm_browse_messages_vi(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu)
+{
+	int cmd = 0;
+
+	if (vms->lastmsg > -1) {
+		cmd = play_message(chan, vmu, vms);
+	} else {
+		cmd = ast_play_and_wait(chan, "vm-no");
+		if (!cmd) {
+			snprintf(vms->fn, sizeof(vms->fn), "vm-%s", vms->curbox);
+			cmd = ast_play_and_wait(chan, vms->fn);
+		}
+	}
+	return cmd;
+}
+
 /*!
  * \brief Top level method to invoke the language variant vm_browse_messages_XX function.
  * \param chan The channel for the current user. We read the language property from this.
@@ -9035,8 +9110,10 @@ static int vm_browse_messages(struct ast_channel *chan, struct vm_state *vms, st
 		return vm_browse_messages_it(chan, vms, vmu);
 	} else if (!strncasecmp(chan->language, "pt", 2)) {  /* PORTUGUESE */
 		return vm_browse_messages_pt(chan, vms, vmu);
-	} else if (!strncasecmp(chan->language, "zh", 2)){
-		return vm_browse_messages_zh(chan, vms, vmu);   /* CHINESE (Taiwan) */
+	} else if (!strncasecmp(chan->language, "vi", 2)) {  /* VIETNAMESE */
+		return vm_browse_messages_vi(chan, vms, vmu);
+	} else if (!strncasecmp(chan->language, "zh", 2)) {  /* CHINESE (Taiwan) */
+		return vm_browse_messages_zh(chan, vms, vmu);
 	} else {                                             /* Default to English syntax */
 		return vm_browse_messages_en(chan, vms, vmu);
 	}
