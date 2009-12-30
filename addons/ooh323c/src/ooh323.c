@@ -782,10 +782,6 @@ int ooOnReceivedCallProceeding(OOH323CallData *call, Q931Message *q931Msg)
          return OO_FAILED;
        }
       }
-   } else if (OO_TESTFLAG (call->flags, OO_M_TUNNELING)) {
-	ret =ooSendTCSandMSD(call);
-	if (ret != OO_OK)
-		return ret;
    }
    return OO_OK;
 }

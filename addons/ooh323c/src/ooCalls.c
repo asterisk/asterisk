@@ -215,7 +215,9 @@ int ooEndCall(OOH323CallData *call)
      return OO_OK;
    }
 
-   if(call->callState == OO_CALL_CLEARED)
+   if (call->callIdentifier.guid.numocts == 0) call->callState = OO_CALL_CLEARED;
+
+   if(call->callState == OO_CALL_CLEARED || call->callState == OO_CALL_CLEAR_RELEASESENT)
    {
       ooCleanCall(call); 
       call->callState = OO_CALL_REMOVED;

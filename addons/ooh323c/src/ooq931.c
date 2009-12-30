@@ -237,7 +237,7 @@ EXTERN int ooQ931Decode
    /*cisco router sends Q931Notify without UU ie, 
      we just ignore notify message as of now as handling is optional for
      end point*/
-   if(msg->messageType != Q931NotifyMsg)
+   if(msg->messageType != Q931NotifyMsg && msg->messageType != Q931StatusMsg)
       rv = ooDecodeUUIE(pctxt, msg);
    return rv;
 }
