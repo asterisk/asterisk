@@ -377,10 +377,18 @@ static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	case CLI_INIT:
 		e->command = "core set {debug|verbose}";
 		e->usage =
+#if !defined(LOW_MEMORY)
 			"Usage: core set {debug|verbose} [atleast] <level> [filename]\n"
+#else
+			"Usage: core set {debug|verbose} [atleast] <level>\n"
+#endif
 			"       core set {debug|verbose} off\n"
+#if !defined(LOW_MEMORY)
 			"       Sets level of debug or verbose messages to be displayed or \n"
 			"       sets a filename to display debug messages from.\n"
+#else
+			"       Sets level of debug or verbose messages to be displayed.\n"
+#endif
 			"	0 or off means no messages should be displayed.\n"
 			"	Equivalent to -d[d[...]] or -v[v[v...]] on startup\n";
 		return NULL;
@@ -406,8 +414,10 @@ static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 			} else if (a->n == (22 - numbermatch) && a->pos == 3 && ast_strlen_zero(argv3)) {
 				return ast_strdup("atleast");
 			}
+#if !defined(LOW_MEMORY)
 		} else if (a->pos == 4 || (a->pos == 5 && !strcasecmp(argv3, "atleast"))) {
 			return ast_complete_source_filename(a->pos == 4 ? S_OR(a->argv[4], "") : S_OR(a->argv[5], ""), a->n);
+#endif
 		}
 		return NULL;
 	}

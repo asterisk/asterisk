@@ -2306,14 +2306,6 @@ static void temp_pvt_cleanup(void *);
 /*! \brief A per-thread temporary pvt structure */
 AST_THREADSTORAGE_CUSTOM(ts_temp_pvt, temp_pvt_init, temp_pvt_cleanup);
 
-#ifdef LOW_MEMORY
-static void ts_ast_rtp_destroy(void *);
-
-AST_THREADSTORAGE_CUSTOM(ts_audio_rtp, NULL, ts_ast_rtp_destroy);
-AST_THREADSTORAGE_CUSTOM(ts_video_rtp, NULL, ts_ast_rtp_destroy);
-AST_THREADSTORAGE_CUSTOM(ts_text_rtp, NULL, ts_ast_rtp_destroy);
-#endif
-
 /*! \brief Authentication list for realm authentication
  * \todo Move the sip_auth list to AST_LIST */
 static struct sip_auth *authl = NULL;
@@ -9308,15 +9300,6 @@ static int process_sdp_a_image(const char *a, struct sip_pvt *p)
 
 	return found;
 }
-
-
-#ifdef LOW_MEMORY
-static void ts_ast_rtp_destroy(void *data)
-{
-    struct ast_rtp *tmp = data;
-    ast_rtp_destroy(tmp);
-}
-#endif
 
 /*! \brief Add header to SIP message */
 static int add_header(struct sip_request *req, const char *var, const char *value)
