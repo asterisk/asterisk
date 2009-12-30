@@ -417,7 +417,9 @@ static int odbc_log(struct ast_cdr *cdr)
 					ast_str_append(&sql2, 0, "',");
 					break;
 				case SQL_TYPE_DATE:
-					{
+					if (ast_strlen_zero(colptr)) {
+						continue;
+					} else {
 						int year = 0, month = 0, day = 0;
 						if (sscanf(colptr, "%4d-%2d-%2d", &year, &month, &day) != 3 || year <= 0 ||
 							month <= 0 || month > 12 || day < 0 || day > 31 ||
@@ -439,7 +441,9 @@ static int odbc_log(struct ast_cdr *cdr)
 					}
 					break;
 				case SQL_TYPE_TIME:
-					{
+					if (ast_strlen_zero(colptr)) {
+						continue;
+					} else {
 						int hour = 0, minute = 0, second = 0;
 						int count = sscanf(colptr, "%2d:%2d:%2d", &hour, &minute, &second);
 
@@ -455,7 +459,9 @@ static int odbc_log(struct ast_cdr *cdr)
 					break;
 				case SQL_TYPE_TIMESTAMP:
 				case SQL_TIMESTAMP:
-					{
+					if (ast_strlen_zero(colptr)) {
+						continue;
+					} else {
 						int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0;
 						int count = sscanf(colptr, "%4d-%2d-%2d %2d:%2d:%2d", &year, &month, &day, &hour, &minute, &second);
 
@@ -480,7 +486,9 @@ static int odbc_log(struct ast_cdr *cdr)
 					}
 					break;
 				case SQL_INTEGER:
-					{
+					if (ast_strlen_zero(colptr)) {
+						continue;
+					} else {
 						int integer = 0;
 						if (sscanf(colptr, "%30d", &integer) != 1) {
 							ast_log(LOG_WARNING, "CDR variable %s is not an integer.\n", entry->name);
@@ -493,7 +501,9 @@ static int odbc_log(struct ast_cdr *cdr)
 					}
 					break;
 				case SQL_BIGINT:
-					{
+					if (ast_strlen_zero(colptr)) {
+						continue;
+					} else {
 						long long integer = 0;
 						if (sscanf(colptr, "%30lld", &integer) != 1) {
 							ast_log(LOG_WARNING, "CDR variable %s is not an integer.\n", entry->name);
@@ -506,7 +516,9 @@ static int odbc_log(struct ast_cdr *cdr)
 					}
 					break;
 				case SQL_SMALLINT:
-					{
+					if (ast_strlen_zero(colptr)) {
+						continue;
+					} else {
 						short integer = 0;
 						if (sscanf(colptr, "%30hd", &integer) != 1) {
 							ast_log(LOG_WARNING, "CDR variable %s is not an integer.\n", entry->name);
@@ -519,7 +531,9 @@ static int odbc_log(struct ast_cdr *cdr)
 					}
 					break;
 				case SQL_TINYINT:
-					{
+					if (ast_strlen_zero(colptr)) {
+						continue;
+					} else {
 						char integer = 0;
 						if (sscanf(colptr, "%30hhd", &integer) != 1) {
 							ast_log(LOG_WARNING, "CDR variable %s is not an integer.\n", entry->name);
@@ -532,7 +546,9 @@ static int odbc_log(struct ast_cdr *cdr)
 					}
 					break;
 				case SQL_BIT:
-					{
+					if (ast_strlen_zero(colptr)) {
+						continue;
+					} else {
 						char integer = 0;
 						if (sscanf(colptr, "%30hhd", &integer) != 1) {
 							ast_log(LOG_WARNING, "CDR variable %s is not an integer.\n", entry->name);
@@ -548,7 +564,9 @@ static int odbc_log(struct ast_cdr *cdr)
 					break;
 				case SQL_NUMERIC:
 				case SQL_DECIMAL:
-					{
+					if (ast_strlen_zero(colptr)) {
+						continue;
+					} else {
 						double number = 0.0;
 						if (sscanf(colptr, "%30lf", &number) != 1) {
 							ast_log(LOG_WARNING, "CDR variable %s is not an numeric type.\n", entry->name);
@@ -563,7 +581,9 @@ static int odbc_log(struct ast_cdr *cdr)
 				case SQL_FLOAT:
 				case SQL_REAL:
 				case SQL_DOUBLE:
-					{
+					if (ast_strlen_zero(colptr)) {
+						continue;
+					} else {
 						double number = 0.0;
 						if (sscanf(colptr, "%30lf", &number) != 1) {
 							ast_log(LOG_WARNING, "CDR variable %s is not an numeric type.\n", entry->name);
