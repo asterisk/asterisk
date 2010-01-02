@@ -23668,6 +23668,7 @@ restartdestroy:
 
 	clear_realm_authentication(authl);
 	clear_sip_domains();
+	ast_free_ha(global_contact_ha);
 	close(sipsock);
 	sched_context_destroy(sched);
 	con = ast_context_find(used_context);
