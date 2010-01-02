@@ -24785,6 +24785,7 @@ static int unload_module(void)
 	ao2_t_ref(threadt, -1, "unref the thread table");
 
 	clear_sip_domains();
+	ast_free_ha(global_contact_ha);
 	close(sipsock);
 	sched_context_destroy(sched);
 	con = ast_context_find(used_context);
