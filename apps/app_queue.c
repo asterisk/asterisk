@@ -1585,6 +1585,11 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, const
 	int paused  = 0;
 	int found = 0;
 
+	if (ast_strlen_zero(rt_uniqueid)) {
+		ast_log(LOG_WARNING, "Realtime field uniqueid is empty for memeber %s\n", S_OR(membername, "NULL"));
+		return;
+	}
+
 	if (penalty_str) {
 		penalty = atoi(penalty_str);
 		if (penalty < 0)
