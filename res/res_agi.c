@@ -2788,7 +2788,7 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 		switch (speech->state) {
 		case AST_SPEECH_STATE_READY:
 			/* If the stream is done, start timeout calculation */
-			if ((timeout > 0) && ((!chan->stream) || (chan->streamid == -1 && chan->timingfunc == NULL))) {
+			if ((timeout > 0) && start == 0 && ((!chan->stream) || (chan->streamid == -1 && chan->timingfunc == NULL))) {
 				ast_stopstream(chan);
 				time(&start);
 			}
