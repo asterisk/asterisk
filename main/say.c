@@ -3495,9 +3495,9 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t t, const char *
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
 				/* Literal name of a sound file */
-				sndoffset=0;
-				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++)
+				for (sndoffset = 0; !strchr("\'\0", format[++offset]) && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++) {
 					sndfile[sndoffset] = format[offset];
+				}
 				sndfile[sndoffset] = '\0';
 				res = wait_file(chan, ints, sndfile, lang);
 				break;
@@ -3742,9 +3742,9 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t t, const char *
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
 				/* Literal name of a sound file */
-				sndoffset=0;
-				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++)
+				for (sndoffset = 0; !strchr("\'\0", format[++offset]) && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++) {
 					sndfile[sndoffset] = format[offset];
+				}
 				sndfile[sndoffset] = '\0';
 				res = wait_file(chan, ints, sndfile, lang);
 				break;
@@ -3944,9 +3944,9 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t t, const char *
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
 				/* Literal name of a sound file */
-				sndoffset=0;
-				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++)
+				for (sndoffset = 0; !strchr("\'\0", format[++offset]) && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++) {
 					sndfile[sndoffset] = format[offset];
+				}
 				sndfile[sndoffset] = '\0';
 				res = wait_file(chan, ints, sndfile, lang);
 				break;
@@ -4147,9 +4147,9 @@ int ast_say_date_with_format_th(struct ast_channel *chan, time_t t, const char *
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
 				/* Literal name of a sound file */
-				sndoffset=0;
-				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++)
+				for (sndoffset = 0; !strchr("\'\0", format[++offset]) && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++) {
 					sndfile[sndoffset] = format[offset];
+				}
 				sndfile[sndoffset] = '\0';
 				res = wait_file(chan, ints, sndfile, lang);
 				break;
@@ -4341,9 +4341,9 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t t, const char *
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
 				/* Literal name of a sound file */
-				sndoffset=0;
-				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++)
+				for (sndoffset = 0; !strchr("\'\0", format[++offset]) && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++) {
 					sndfile[sndoffset] = format[offset];
+				}
 				sndfile[sndoffset] = '\0';
 				res = wait_file(chan, ints, sndfile, lang);
 				break;
@@ -4481,9 +4481,9 @@ int ast_say_date_with_format_es(struct ast_channel *chan, time_t t, const char *
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
 				/* Literal name of a sound file */
-				sndoffset=0;
-				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++)
+				for (sndoffset = 0; !strchr("\'\0", format[++offset]) && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++) {
 					sndfile[sndoffset] = format[offset];
+				}
 				sndfile[sndoffset] = '\0';
 				snprintf(nextmsg, sizeof(nextmsg), "%s", sndfile);
 				res = wait_file(chan, ints, nextmsg, lang);
@@ -4670,9 +4670,9 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t t, const char *
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
 				/* Literal name of a sound file */
-				sndoffset=0;
-				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++)
+				for (sndoffset = 0; !strchr("\'\0", format[++offset]) && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++) {
 					sndfile[sndoffset] = format[offset];
+				}
 				sndfile[sndoffset] = '\0';
 				res = wait_file(chan, ints, sndfile, lang);
 				break;
@@ -4865,9 +4865,9 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t t, const char *
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
 				/* Literal name of a sound file */
-				sndoffset=0;
-				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++)
+				for (sndoffset = 0; !strchr("\'\0", format[++offset]) && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++) {
 					sndfile[sndoffset] = format[offset];
+				}
 				sndfile[sndoffset] = '\0';
 				res = wait_file(chan, ints, sndfile, lang);
 				break;
@@ -5095,9 +5095,9 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t t, const char *
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
 				/* Literal name of a sound file */
-				sndoffset=0;
-				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++)
+				for (sndoffset = 0; !strchr("\'\0", format[++offset]) && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++) {
 					sndfile[sndoffset] = format[offset];
+				}
 				sndfile[sndoffset] = '\0';
 				res = wait_file(chan, ints, sndfile, lang);
 				break;
@@ -5298,9 +5298,9 @@ int ast_say_date_with_format_pl(struct ast_channel *chan, time_t thetime, const 
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
 				/* Literal name of a sound file */
-				sndoffset = 0;
-				for (sndoffset = 0 ; (format[++offset] != '\'') && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++)
+				for (sndoffset = 0; !strchr("\'\0", format[++offset]) && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++) {
 					sndfile[sndoffset] = format[offset];
+				}
 				sndfile[sndoffset] = '\0';
 				res = wait_file(chan, ints, sndfile, lang);
 				break;
@@ -5517,9 +5517,9 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t t, const char *
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
 				/* Literal name of a sound file */
-				sndoffset=0;
-				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++)
+				for (sndoffset = 0; !strchr("\'\0", format[++offset]) && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++) {
 					sndfile[sndoffset] = format[offset];
+				}
 				sndfile[sndoffset] = '\0';
 				snprintf(nextmsg, sizeof(nextmsg), "%s", sndfile);
 				res = wait_file(chan, ints, nextmsg, lang);
@@ -5809,9 +5809,9 @@ int ast_say_date_with_format_zh(struct ast_channel *chan, time_t t, const char *
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
 				/* Literal name of a sound file */
-				sndoffset=0;
-				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++)
+				for (sndoffset = 0; !strchr("\'\0", format[++offset]) && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++) {
 					sndfile[sndoffset] = format[offset];
+				}
 				sndfile[sndoffset] = '\0';
 				res = wait_file(chan, ints, sndfile, lang);
 				break;
@@ -7298,9 +7298,9 @@ static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t t, const
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 		case '\'':
 			/* Literal name of a sound file */
-			sndoffset=0;
-			for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++)
+			for (sndoffset = 0; !strchr("\'\0", format[++offset]) && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++) {
 				sndfile[sndoffset] = format[offset];
+			}
 			sndfile[sndoffset] = '\0';
 			res = wait_file(chan, ints, sndfile, lang);
 			break;
