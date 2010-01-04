@@ -21,7 +21,18 @@
  * \brief PacketCable COPS
  * 
  * \author Attila Domjan <attila.domjan.hu@gmail.com>
+ *
+ * \note 
+ * This module is an add-on to chan_mgcp. It adds support for the
+ * PacketCable MGCP variation called NCS. Res_pktccops implements COPS
+ * (RFC 2748), a protocol used to manage dynamic bandwith allocation in
+ * CMTS's (HFC gateways). When you use NCS, you need to talk COPS with
+ * the CMTS to complete the calls.
  */
+
+/*** MODULEINFO
+        <defaultenabled>no</defaultenabled>
+ ***/
 
 #include "asterisk.h"
 
@@ -1368,7 +1379,7 @@ static char *pktccops_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		e->command = "pktccops set debug {on|off}";
 		e->usage = 
 			"Usage: pktccops set debug {on|off}\n"
-			"				Turn on/off debuging\n";
+			"	Turn on/off debuging\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
@@ -1466,7 +1477,7 @@ static int unload_module(void)
 		pktccops_thread = AST_PTHREADT_STOP;
 		ast_mutex_unlock(&pktccops_lock);
 	} else {
-		ast_log(LOG_WARNING, "Unable to lock the pktccops_thread\n");
+		ast_log(LOG_ERROR, "Unable to lock the pktccops_thread\n");
 		return -1;
 	}
 
@@ -1488,7 +1499,7 @@ static int reload_module(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "PktcCOPS manager",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "PktcCOPS manager for MGCP",
 		.load = load_module,
 		.unload = unload_module,
 		.reload = reload_module,
