@@ -2280,22 +2280,25 @@ static int handle_hangup(struct ast_channel *chan, AGI *agi, int argc, const cha
 
 static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, const char * const argv[])
 {
-	int res;
+	int res, workaround;
 	struct ast_app *app_to_exec;
 
 	if (argc < 2)
 		return RESULT_SHOWUSAGE;
 
-	ast_verb(3, "AGI Script Executing Application: (%s) Options: (%s)\n", argv[1], argv[2]);
+	ast_verb(3, "AGI Script Executing Application: (%s) Options: (%s)\n", argv[1], argc >= 3 ? argv[2] : "");
 
 	if ((app_to_exec = pbx_findapp(argv[1]))) {
 		if(!strcasecmp(argv[1], PARK_APP_NAME)) {
 			ast_masq_park_call(chan, NULL, 0, NULL);
 		}
-		if (ast_compat_res_agi && !ast_strlen_zero(argv[2])) {
+		if (!(workaround = ast_test_flag(chan, AST_FLAG_DISABLE_WORKAROUNDS))) {
+			ast_set_flag(chan, AST_FLAG_DISABLE_WORKAROUNDS);
+		}
+		if (ast_compat_res_agi && argc >= 3 && !ast_strlen_zero(argv[2])) {
 			char *compat = alloca(strlen(argv[2]) * 2 + 1), *cptr;
 			const char *vptr;
-			for (cptr = compat, vptr = (argc == 2) ? "" : argv[2]; *vptr; vptr++) {
+			for (cptr = compat, vptr = argv[2]; *vptr; vptr++) {
 				if (*vptr == ',') {
 					*cptr++ = '\\';
 					*cptr++ = ',';
@@ -2309,6 +2312,9 @@ static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, const char 
 			res = pbx_exec(chan, app_to_exec, compat);
 		} else {
 			res = pbx_exec(chan, app_to_exec, argc == 2 ? "" : argv[2]);
+		}
+		if (!workaround) {
+			ast_clear_flag(chan, AST_FLAG_DISABLE_WORKAROUNDS);
 		}
 	} else {
 		ast_log(LOG_WARNING, "Could not find application (%s)\n", argv[1]);

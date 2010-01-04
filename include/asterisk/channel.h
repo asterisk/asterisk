@@ -829,6 +829,10 @@ enum {
 	 *  bridge terminates, this will allow the hangup in the pbx loop to be run instead.
 	 *  */
 	AST_FLAG_BRIDGE_HANGUP_DONT = (1 << 18),
+	/*! Disable certain workarounds.  This reintroduces certain bugs, but allows
+	 *  some non-traditional dialplans (like AGI) to continue to function.
+	 */
+	AST_FLAG_DISABLE_WORKAROUNDS = (1 << 20),
 };
 
 /*! \brief ast_bridge_config flags */
