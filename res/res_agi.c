@@ -1125,7 +1125,7 @@ static int handle_hangup(struct ast_channel *chan, AGI *agi, int argc, char **ar
 
 static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, char **argv)
 {
-	int res;
+	int res, workaround;
 	struct ast_app *app;
 
 	if (argc < 2)
@@ -1140,7 +1140,13 @@ static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, char **argv
 		if(!strcasecmp(argv[1], PARK_APP_NAME)) {
 			ast_masq_park_call(chan, NULL, 0, NULL);
 		}
+		if (!(workaround = ast_test_flag(chan, AST_FLAG_DISABLE_WORKAROUNDS))) {
+			ast_set_flag(chan, AST_FLAG_DISABLE_WORKAROUNDS);
+		}
 		res = pbx_exec(chan, app, argc == 2 ? "" : argv[2]);
+		if (!workaround) {
+			ast_clear_flag(chan, AST_FLAG_DISABLE_WORKAROUNDS);
+		}
 	} else {
 		ast_log(LOG_WARNING, "Could not find application (%s)\n", argv[1]);
 		res = -2;
