@@ -217,7 +217,7 @@ static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_fra
 	}
 
 	if (other) {
-		if (other->pbx || other->_bridge) {
+		if (other->pbx || other->_bridge || !ast_strlen_zero(other->appl)) {
 			ast_queue_frame(other, f);
 		} /* else the frame won't go anywhere */
 		ast_channel_unlock(other);
