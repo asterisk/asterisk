@@ -652,32 +652,29 @@ static int ext_cmp1(const char **p, unsigned char *bitwise)
 	int c, cmin = 0xff, count = 0;
 	const char *end;
 
-	/* load, sign extend and advance pointer until we find
-	 * a valid character.
-	 */
+	/* load value and advance pointer */
 	while ( (c = *(*p)++) && (c == ' ' || c == '-') )
 		;	/* ignore some characters */
-	memset(bitwise, 0xff, 32);
 
 	/* always return unless we have a set of chars */
 	switch (c) {
 	default:	/* ordinary character */
-		return 0x0000 | (c & 0xff);
+		bitwise[c / 8] = 1 << (c % 8);
+		return 0x0100 | (c & 0xff);
 
 	case 'N':	/* 2..9 */
-		bitwise[6] = 0x01;
-		bitwise[7] = 0xfe;
+		bitwise[6] = 0xfc;
+		bitwise[7] = 0x03;
 		return 0x0800 | '2';
 
 	case 'X':	/* 0..9 */
-		bitwise[5] = 0x7f;
-		bitwise[6] = 0x00;
-		bitwise[7] = 0xfe;
+		bitwise[6] = 0xff;
+		bitwise[7] = 0x03;
 		return 0x0A00 | '0';
 
 	case 'Z':	/* 1..9 */
-		bitwise[6] = 0x00;
-		bitwise[7] = 0xfe;
+		bitwise[6] = 0xfe;
+		bitwise[7] = 0x03;
 		return 0x0900 | '1';
 
 	case '.':	/* wildcard */
@@ -715,14 +712,13 @@ static int ext_cmp1(const char **p, unsigned char *bitwise)
 		}
 		for (; c1 <= c2; c1++) {
 			unsigned char mask = 1 << (c1 % 8);
-			/* Count the number of characters in the class, discarding duplicates. */
-			if ( (bitwise[ c1 / 8 ] & mask) == 1) {
+			/*!\note If two patterns score the same, the one with the lowest
+			 * ascii values will compare as coming first. */
+			/* Flag the character as included (used) and count it. */
+			if (!(bitwise[ c1 / 8 ] & mask)) {
+				bitwise[ c1 / 8 ] |= mask;
 				count += 0x100;
 			}
-			/*!\note If two patterns score the same, but one includes '0' (as
-			 * the lowest ASCII value in the given class) and the other does
-			 * not, then the one including '0' will compare as coming first. */
-			bitwise[ c1 / 8 ] &= ~mask;
 		}
 	}
 	(*p)++;
@@ -738,7 +734,6 @@ static int ext_cmp(const char *a, const char *b)
 	 * If a is not a pattern, it either comes first or
 	 * we do a more complex pattern comparison.
 	 */
-	unsigned char bitwise[2][32];
 	int ret = 0;
 
 	if (a[0] != '_')
@@ -748,14 +743,17 @@ static int ext_cmp(const char *a, const char *b)
 	if (b[0] != '_')
 		return 1;
 
-	/* ok we need full pattern sorting routine */
-	while (!ret && a && b) {
+	/* ok we need full pattern sorting routine.
+	 * skip past the underscores */
+	++a; ++b;
+	do {
+		unsigned char bitwise[2][32] = { { 0, } };
 		ret = ext_cmp1(&a, bitwise[0]) - ext_cmp1(&b, bitwise[1]);
 		if (ret == 0) {
 			/* Are the classes different, even though they score the same? */
 			ret = memcmp(bitwise[0], bitwise[1], 32);
 		}
-	}
+	} while (!ret && a && b);
 	if (ret == 0) {
 		return 0;
 	} else {
