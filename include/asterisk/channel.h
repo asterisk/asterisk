@@ -564,6 +564,10 @@ enum {
 	AST_FLAG_BRIDGE_HANGUP_DONT = (1 << 18),
 	/*! This flag indicates whether the channel is in the channel list or not. */
 	AST_FLAG_IN_CHANNEL_LIST = (1 << 19),
+	/*! Disable certain workarounds.  This reintroduces certain bugs, but allows
+	 *  some non-traditional dialplans (like AGI) to continue to function.
+	 */
+	AST_FLAG_DISABLE_WORKAROUNDS = (1 << 20),
 };
 
 /*! \brief ast_bridge_config flags */
