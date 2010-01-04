@@ -2091,6 +2091,9 @@ struct ast_variable *ast_load_realtime(const char *family, ...)
 			else
 				res = cur->next;
 			freeme = cur;
+		} else if (cur->value[0] == ' ' && cur->value[1] == '\0') {
+			cur->value[0] = '\0';
+			prev = cur;
 		} else {
 			prev = cur;
 		}
