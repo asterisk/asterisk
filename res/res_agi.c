@@ -1485,18 +1485,21 @@ static int handle_hangup(struct ast_channel *chan, AGI *agi, int argc, char **ar
 
 static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, char **argv)
 {
-	int res;
+	int res, workaround;
 	struct ast_app *app;
 
 	if (argc < 2)
 		return RESULT_SHOWUSAGE;
 
-	ast_verb(3, "AGI Script Executing Application: (%s) Options: (%s)\n", argv[1], argv[2]);
+	ast_verb(3, "AGI Script Executing Application: (%s) Options: (%s)\n", argv[1], argc >= 3 ? argv[2] : "");
 
 	if ((app = pbx_findapp(argv[1]))) {
-		if (ast_compat_res_agi && !ast_strlen_zero(argv[2])) {
+		if (!(workaround = ast_test_flag(chan, AST_FLAG_DISABLE_WORKAROUNDS))) {
+			ast_set_flag(chan, AST_FLAG_DISABLE_WORKAROUNDS);
+		}
+		if (ast_compat_res_agi && argc >= 3 && !ast_strlen_zero(argv[2])) {
 			char *compat = alloca(strlen(argv[2]) * 2 + 1), *cptr, *vptr;
-			for (cptr = compat, vptr = (argc == 2) ? "" : argv[2]; *vptr; vptr++) {
+			for (cptr = compat, vptr = argv[2]; *vptr; vptr++) {
 				if (*vptr == ',') {
 					*cptr++ = '\\';
 					*cptr++ = ',';
@@ -1510,6 +1513,9 @@ static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, char **argv
 			res = pbx_exec(chan, app, compat);
 		} else {
 			res = pbx_exec(chan, app, argc == 2 ? "" : argv[2]);
+		}
+		if (!workaround) {
+			ast_clear_flag(chan, AST_FLAG_DISABLE_WORKAROUNDS);
 		}
 	} else {
 		ast_log(LOG_WARNING, "Could not find application (%s)\n", argv[1]);

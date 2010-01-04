@@ -7985,8 +7985,13 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 	 * (but a longer extension COULD have matched), it would have previously
 	 * gone immediately to the "i" extension, but will now need to wait for a
 	 * timeout.
+	 *
+	 * Later, we had to add a flag to disable this workaround, because AGI
+	 * users can EXEC Background and reasonably expect that the DTMF code will
+	 * be returned (see #16434).
 	 */
-	if ((exten[0] = res) &&
+	if (!ast_test_flag(chan, AST_FLAG_DISABLE_WORKAROUNDS) &&
+			(exten[0] = res) &&
 			ast_canmatch_extension(chan, args.context, exten, 1, chan->cid.cid_num) &&
 			!ast_matchmore_extension(chan, args.context, exten, 1, chan->cid.cid_num)) {
 		snprintf(chan->exten, sizeof(chan->exten), "%c", res);
