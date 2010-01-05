@@ -6656,12 +6656,13 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 	AST_RWLIST_WRLOCK(&hints);
 	writelocktime = ast_tvnow();
 
-	/* preserve all watchers for hints associated with this registrar */
+	/* preserve all watchers for hints */
 	AST_RWLIST_TRAVERSE(&hints, hint, list) {
-		if (!AST_LIST_EMPTY(&hint->callbacks) && !strcmp(registrar, hint->exten->parent->registrar)) {
+		if (!AST_LIST_EMPTY(&hint->callbacks)) {
 			length = strlen(hint->exten->exten) + strlen(hint->exten->parent->name) + 2 + sizeof(*this);
 			if (!(this = ast_calloc(1, length)))
 				continue;
+			/* this removes all the callbacks from the hint into this. */
 			AST_LIST_APPEND_LIST(&this->callbacks, &hint->callbacks, entry);
 			this->laststate = hint->laststate;
 			this->context = this->data;
@@ -6692,7 +6693,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 		 */
 		if (exten && exten->exten[0] == '_') {
 			ast_add_extension_nolock(exten->parent->name, 0, this->exten, PRIORITY_HINT, NULL,
-				0, exten->app, ast_strdup(exten->data), ast_free_ptr, registrar);
+				0, exten->app, ast_strdup(exten->data), ast_free_ptr, exten->registrar);
 			/* rwlocks are not recursive locks */
 			exten = ast_hint_extension_nolock(NULL, this->context, this->exten);
 		}
