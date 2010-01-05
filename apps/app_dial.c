@@ -1910,7 +1910,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			connected.id.number_presentation = AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN;
 			ast_channel_set_connected_line(tmp->chan, &connected);
 		} else {
-			ast_connected_line_copy_from_caller(&tmp->chan->connected, &chan->cid);
+			ast_connected_line_copy_from_caller(&tc->connected, &chan->cid);
 		}
 
 		S_REPLACE(tc->cid.cid_rdnis, ast_strdup(chan->cid.cid_rdnis));
