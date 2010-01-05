@@ -5836,9 +5836,9 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 	AST_RWLIST_WRLOCK(&hints);
 	writelocktime = ast_tvnow();
 
-	/* preserve all watchers for hints associated with this registrar */
+	/* preserve all watchers for hints */
 	AST_RWLIST_TRAVERSE(&hints, hint, list) {
-		if (hint->callbacks && !strcmp(registrar, hint->exten->parent->registrar)) {
+		if (hint->callbacks) {
 			length = strlen(hint->exten->exten) + strlen(hint->exten->parent->name) + 2 + sizeof(*this);
 			if (!(this = ast_calloc(1, length)))
 				continue;
