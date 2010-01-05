@@ -11817,12 +11817,12 @@ static inline int available(struct dahdi_pvt *p, int channelmatch, ast_group_t g
 		return 0;
 
 	if (analog_lib_handles(p->sig, p->radio, p->oprmode))
-		return analog_available(p->sig_pvt, channelmatch, groupmatch, reason, channelmatched, groupmatched);
+		return analog_available(p->sig_pvt, reason);
 
 #ifdef HAVE_PRI
 	switch (p->sig) {
 	case SIG_PRI_LIB_HANDLE_CASES:
-		return sig_pri_available(p->sig_pvt, channelmatch, groupmatch, reason, channelmatched, groupmatched);
+		return sig_pri_available(p->sig_pvt, reason);
 	default:
 		break;
 	}

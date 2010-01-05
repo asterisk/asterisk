@@ -649,7 +649,7 @@ struct ast_channel * analog_request(struct analog_pvt *p, int *callwait, const s
 	return analog_new_ast_channel(p, AST_STATE_RESERVED, 0, p->owner ? ANALOG_SUB_CALLWAIT : ANALOG_SUB_REAL, requestor);
 }
 
-int analog_available(struct analog_pvt *p, int channelmatch, ast_group_t groupmatch, int *busy, int *channelmatched, int *groupmatched)
+int analog_available(struct analog_pvt *p, int *busy)
 {
 	int offhook;
 

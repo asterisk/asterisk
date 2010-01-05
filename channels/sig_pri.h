@@ -257,7 +257,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 
 int sig_pri_answer(struct sig_pri_chan *p, struct ast_channel *ast);
 
-int sig_pri_available(struct sig_pri_chan *p, int channelmatch, ast_group_t groupmatch, int *busy, int *channelmatched, int *groupmatched);
+int sig_pri_available(struct sig_pri_chan *p, int *reason);
 
 void sig_pri_init_pri(struct sig_pri_pri *pri);
 

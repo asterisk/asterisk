@@ -3862,7 +3862,7 @@ int sig_pri_answer(struct sig_pri_chan *p, struct ast_channel *ast)
 	return res;
 }
 
-int sig_pri_available(struct sig_pri_chan *p, int channelmatch, ast_group_t groupmatch, int *reason, int *channelmatched, int *groupmatched)
+int sig_pri_available(struct sig_pri_chan *p, int *reason)
 {
 	/* If no owner and interface has a B channel then likely available */
 	if (!p->owner && !p->no_b_channel && p->pri) {

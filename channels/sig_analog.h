@@ -336,7 +336,7 @@ struct ast_frame *analog_exception(struct analog_pvt *p, struct ast_channel *ast
 
 struct ast_channel * analog_request(struct analog_pvt *p, int *callwait, const struct ast_channel *requestor);
 
-int analog_available(struct analog_pvt *p, int channelmatch, ast_group_t groupmatch, int *busy, int *channelmatched, int *groupmatched);
+int analog_available(struct analog_pvt *p, int *busy);
 
 void *analog_handle_init_event(struct analog_pvt *i, int event);
 
