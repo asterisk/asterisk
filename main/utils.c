@@ -935,7 +935,9 @@ int ast_carefulwrite(int fd, char *s, int len, int timeoutms)
 		while ((res = ast_poll(&pfd, 1, timeoutms - elapsed)) <= 0) {
 			if (res == 0) {
 				/* timed out. */
-				ast_log(LOG_NOTICE, "Timed out trying to write\n");
+				if (option_debug) {
+					ast_log(LOG_DEBUG, "Timed out trying to write\n");
+				}
 				return -1;
 			} else if (res == -1) {
 				/* poll() returned an error, check to see if it was fatal */
