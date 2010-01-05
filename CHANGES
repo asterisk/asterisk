@@ -127,6 +127,10 @@ Applications
  * Page has a new option 'A(x)' which will playback an announcement simultaneously
    to all paged phones (and optionally excluding the caller's one using the new
    option 'n') before the call is bridged.
+ * The 'f' option to Dial has been augmented to take an optional argument. If no
+   argument is provided, the 'f' option works as it always has. If an argument is
+   provided, then the connected party information of all outgoing channels created
+   during the Dial will be set to the argument passed to the 'f' option.
 
 Dialplan Functions
 ------------------
