@@ -3626,11 +3626,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 
 						time(&now);
 						holdtime = abs((now - qe->start) / 60);
-						holdtimesecs = abs((now - qe->start));
-						if (holdtime == 1) {
-							ast_say_number(peer, holdtime, AST_DIGIT_ANY, peer->language, NULL);
-							play_file(peer, qe->parent->sound_minute);
-						} else {
+						holdtimesecs = abs((now - qe->start) % 60);
+						if (holdtime > 0) {
 							ast_say_number(peer, holdtime, AST_DIGIT_ANY, peer->language, NULL);
 							play_file(peer, qe->parent->sound_minutes);
 						}
