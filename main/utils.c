@@ -1071,7 +1071,9 @@ static int ast_wait_for_output(int fd, int timeoutms)
 	while ((res = ast_poll(&pfd, 1, timeoutms - elapsed)) <= 0) {
 		if (res == 0) {
 			/* timed out. */
-			ast_log(LOG_NOTICE, "Timed out trying to write\n");
+#ifndef STANDALONE
+			ast_debug(1, "Timed out trying to write\n");
+#endif
 			return -1;
 		} else if (res == -1) {
 			/* poll() returned an error, check to see if it was fatal */
