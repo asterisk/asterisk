@@ -4975,9 +4975,7 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 		ast_app_parse_options(bridge_exec_options, &opts, opt_args, args.options);
 
 	/* avoid bridge with ourselves */
-	if (!strncmp(chan->name, args.dest_chan, 
-		strlen(chan->name) < strlen(args.dest_chan) ? 
-		strlen(chan->name) : strlen(args.dest_chan))) {
+	if (!strcmp(chan->name, args.dest_chan)) {
 		ast_log(LOG_WARNING, "Unable to bridge channel %s with itself\n", chan->name);
 		ast_manager_event(chan, EVENT_FLAG_CALL, "BridgeExec",
 					"Response: Failed\r\n"
