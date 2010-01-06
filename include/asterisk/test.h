@@ -126,7 +126,7 @@
 #define AST_TEST_DEFINE(hdr) static enum ast_test_result_state attribute_unused hdr(struct ast_test_info *info, enum ast_test_command cmd, struct ast_test_args *args)
 #define AST_TEST_REGISTER(cb)
 #define AST_TEST_UNREGISTER(cb)
-#define ast_test_status_update(a,b)
+#define ast_test_status_update(a,b,c...)
 
 #endif
 
