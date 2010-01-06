@@ -23940,11 +23940,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 						ast_log(LOG_WARNING, "Timer B has been set lower than recommended. (RFC 3261, 17.1.1.2)\n");
 					}
 				}
-			} else if (!strcasecmp(v->name, "rtpkeepalive")) {
-				if ((sscanf(v->value, "%30d", &peer->rtpkeepalive) != 1) || (peer->rtpkeepalive < 0)) {
-					ast_log(LOG_WARNING, "'%s' is not a valid RTP keepalive time at line %d.  Using default.\n", v->value, v->lineno);
-					peer->rtpkeepalive = global_rtpkeepalive;
-				}
 			} else if (!strcasecmp(v->name, "setvar")) {
 				peer->chanvars = add_var(v->value, peer->chanvars);
 			} else if (!strcasecmp(v->name, "qualifyfreq")) {
