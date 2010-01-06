@@ -155,8 +155,10 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 		struct ast_frame f;
 		char offset[AST_FRIENDLY_OFFSET];
 		short frdata[160];
-	} myf;
-	
+	} myf = {
+		.f = { 0, },
+	};
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "MP3 Playback requires an argument (filename)\n");
 		return -1;
