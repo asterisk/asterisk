@@ -3032,7 +3032,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 						   don't want to block, but we do want to at least *try*
 						   to write out all the samples.
 						 */
-						if (user->talking && !ast_test_flag64(confflags, CONFFLAG_OPTIMIZETALKER)) {
+						if (user->talking || !ast_test_flag64(confflags, CONFFLAG_OPTIMIZETALKER)) {
 							careful_write(fd, f->data.ptr, f->datalen, 0);
 						}
 					}
