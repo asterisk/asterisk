@@ -264,7 +264,7 @@ static int mp3_seek(struct ast_filestream *s, off_t sample_offset, int whence)
 	}
 
 	p->seek = offset;
-	return p->seek;
+	return fseek(s->f, offset, SEEK_SET);
 	
 }
 
