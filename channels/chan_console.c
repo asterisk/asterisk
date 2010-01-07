@@ -101,13 +101,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  */
 #define TEXT_SIZE	256
 
-#ifndef MIN
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
-#endif
-#ifndef MAX
-#define MAX(a,b) ((a) > (b) ? (a) : (b))
-#endif
-
 /*! \brief Dance, Kirby, Dance! @{ */
 #define V_BEGIN " --- <(\"<) --- "
 #define V_END   " --- (>\")> ---\n"
