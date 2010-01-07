@@ -6134,7 +6134,7 @@ static char *__queues_show(struct mansession *s, int fd, int argc, char **argv)
 		}
 		found = 1;
 
-		ast_str_set(&out, 0, "%-12.12s has %d calls (max ", q->name, q->count);
+		ast_str_set(&out, 0, "%s has %d calls (max ", q->name, q->count);
 		if (q->maxlen)
 			ast_str_append(&out, 0, "%d", q->maxlen);
 		else
