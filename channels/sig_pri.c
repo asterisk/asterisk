@@ -1191,14 +1191,15 @@ static int pri_find_pri_call(struct sig_pri_pri *pri, q931_call *call)
 }
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
 
-static void *do_idle_thread(void *vchan)
+static void *do_idle_thread(void *v_pvt)
 {
-	struct ast_channel *chan = vchan;
-	struct sig_pri_chan *pvt = chan->tech_pvt;
+	struct sig_pri_chan *pvt = v_pvt;
+	struct ast_channel *chan = pvt->owner;
 	struct ast_frame *f;
 	char ex[80];
 	/* Wait up to 30 seconds for an answer */
 	int newms, ms = 30000;
+
 	ast_verb(3, "Initiating idle call on channel %s\n", chan->name);
 	snprintf(ex, sizeof(ex), "%d/%s", pvt->channel, pvt->pri->idledial);
 	if (ast_call(chan, ex, 0)) {
@@ -1966,7 +1967,7 @@ static void *pri_dchannel(void *vpri)
 					idle = sig_pri_request(pri->pvts[nextidle], AST_FORMAT_ULAW, NULL, 0);
 					if (idle) {
 						pri->pvts[nextidle]->isidlecall = 1;
-						if (ast_pthread_create_background(&p, NULL, do_idle_thread, idle)) {
+						if (ast_pthread_create_background(&p, NULL, do_idle_thread, pri->pvts[nextidle])) {
 							ast_log(LOG_WARNING, "Unable to start new thread for idle channel '%s'\n", idle->name);
 							ast_hangup(idle);
 						}
