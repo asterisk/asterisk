@@ -4597,7 +4597,7 @@ int ast_transfer(struct ast_channel *chan, char *dest)
 	}
 	ast_channel_unlock(chan);
 
-	if (res < 0) {
+	if (res <= 0) {
 		return res;
 	}
 
