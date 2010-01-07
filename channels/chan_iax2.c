@@ -1656,7 +1656,7 @@ static void iax2_frame_free(struct iax_frame *fr)
 
 static int scheduled_destroy(const void *vid)
 {
-	short callno = PTR_TO_CALLNO(vid);
+	unsigned short callno = PTR_TO_CALLNO(vid);
 	ast_mutex_lock(&iaxsl[callno]);
 	if (iaxs[callno]) {
 		if (option_debug) {
