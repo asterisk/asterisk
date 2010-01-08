@@ -1,0 +1,277 @@
+                                Release Summary
+
+                              asterisk-1.4.29-rc1
+
+                                Date: 2010-01-08
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.4.28.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   11 tilghman              1 aragon                 2 wdoekes                
+   3 dvossel                1 mihaill                1 aatef                  
+   2 dant                   1 rickead2000            1 alexrecarey            
+   2 jpeeler                1 seanbright             1 aragon                 
+   2 russell                1 tilghman               1 bcnit                  
+   2 seanbright             1 vrban                  1 bird_of_Luck           
+   1 kpfleming              1 wdoekes                1 bklang                 
+   1 mnicholson             1 yeshuawatso            1 galeras                
+   1 oej                                             1 jensvb                 
+   1 wdoekes                                         1 john8675309            
+                                                     1 Kashif Raza            
+                                                     1 omolenkamp             
+                                                     1 qwell                  
+                                                     1 rickead2000            
+                                                     1 yeshuawatso            
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_meetme
+
+   #16509: [patch] meetme can support only 6341 rooms
+   Revision: 236509
+   Reporter: Kashif Raza
+   Testers: seanbright
+   Coders: seanbright
+
+  Category: Applications/app_mp3
+
+   #16531: [regression] chan_local audio crash
+   Revision: 238009
+   Reporter: john8675309
+   Coders: russell
+
+  Category: CDR/General
+
+   #16180: [patch] CDR dispositions BUSY and FAILED are reported as NO ANSWER
+   Revision: 235635
+   Reporter: aatef
+   Coders: jpeeler
+
+  Category: Channels/chan_iax2
+
+   #16565: crash: in "scheduled_destroy" at chan_iax2.c:1511
+   Revision: 238411
+   Reporter: jensvb
+   Coders: dvossel
+
+  Category: Channels/chan_sip/General
+
+   #16295: [patch] handle_incoming() incorrectly sets p->method to SIP_ACK
+   Revision: 236062
+   Reporter: omolenkamp
+   Coders: dvossel
+
+  Category: Channels/chan_sip/T.38
+
+   #16318: [patch] New SDP handling code totally broke T.38 reinvites
+   Revision: 236261
+   Reporter: bird_of_Luck
+   Testers: vrban, mihaill
+   Coders: mnicholson
+
+  Category: Core/Channels
+
+   #15609: [patch] WARNING[23025]: channel.c:952 __ast_queue_frame:
+   Exceptionally long voice queue length queuing to Local
+   Revision: 236981
+   Reporter: aragon
+   Testers: aragon
+   Coders: tilghman
+
+  Category: Core/General
+
+   #16407: [patch] potential buffer overflow in say_date_with_format()
+   Revision: 237573
+   Reporter: qwell
+   Coders: tilghman
+
+   #16434: [patch] Background() when called from AGI script no longer gives
+   digit code when interrupted
+   Revision: 237405
+   Reporter: rickead2000
+   Testers: rickead2000
+   Coders: tilghman
+
+  Category: Core/PBX
+
+   #16479: "sip show peers" returns notice
+   Revision: 237697
+   Reporter: alexrecarey
+   Coders: russell
+
+  Category: Features/Parking
+
+   #16234: [patch] Call parking via AMI causes announcment and ringback to
+   caller channel
+   Revision: 235821
+   Reporter: yeshuawatso
+   Testers: yeshuawatso
+   Coders: tilghman
+
+  Category: Functions/func_cdr
+
+   #16289: [patch] core show function CDR reports wrong disposition values
+   Revision: 238230
+   Reporter: wdoekes
+   Coders: tilghman
+
+  Category: PBX/pbx_config
+
+   #16482: [patch] Serious problem with pattern matching (regression in
+   #15421)
+   Revision: 237493
+   Reporter: wdoekes
+   Testers: wdoekes, tilghman
+   Coders: wdoekes, tilghman
+
+  Category: Resources/res_agi
+
+   #16504: Segfault in res_agi with no second paramter to EXEC
+   Revision: 236184
+   Reporter: bklang
+   Coders: tilghman
+
+  Category: Resources/res_monitor
+
+   #16376: [patch] Incorrect path passed to MONITOR_EXEC application after
+   'Monitor()' call finishes.
+   Revision: 235940
+   Reporter: bcnit
+   Coders: dant
+
+   #16377: res_monitor.c chan->monitor->filename_base has duplicated path
+   Revision: 235940
+   Reporter: galeras
+   Coders: dant
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                           | Issues     |
+   |          |            |                                   | Referenced |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Point to the typical missing      |            |
+   | 235572   | tilghman   | package, not the cryptic "termcap |            |
+   |          |            | support".                         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 235652   | tilghman   | Revise verbiage, per              |            |
+   |          |            | #asterisk-dev discussion          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 236357   | kpfleming  | update to latest releases with    |            |
+   |          |            | zero uid/gid                      |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Turn on colors in the daemon,     |            |
+   | 236433   | tilghman   | since there's many requests for   |            |
+   |          |            | it on Ubuntu.                     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Try a test compile to see if      |            |
+   | 236585   | seanbright | PTHREAD_ONCE_INIT requires extra  |            |
+   |          |            | braces.                           |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Remove conflicting function       |            |
+   | 236890   | jpeeler    | definitions (asterisk.h) so       |            |
+   |          |            | LOW_MEMORY compiles.              |            |
+   |----------+------------+-----------------------------------+------------|
+   | 237135   | oej        | Release memory of the contact acl |            |
+   |          |            | before unloading module           |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | It's also possible for the Local  |            |
+   | 237318   | tilghman   | channel to directly execute an    |            |
+   |          |            | Application.                      |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Change in sip show channels       |            |
+   | 238409   | dvossel    | display format allowing more      |            |
+   |          |            | digits for CID                    |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ apps/app_meetme.c                 |   63 ++++++++++++++++--------------
+ apps/app_mp3.c                    |    6 +-
+ channels/chan_iax2.c              |    2
+ channels/chan_local.c             |    4 +
+ channels/chan_sip.c               |   78 ++++++++++++++++++++------------------
+ configure.ac                      |   22 ++++++++++
+ contrib/init.d/rc.debian.asterisk |   11 ++++-
+ funcs/func_cdr.c                  |    9 ++--
+ include/asterisk/autoconfig.h.in  |   54 +++++++++++---------------
+ include/asterisk/cdr.h            |    8 +--
+ include/asterisk/channel.h        |    4 +
+ include/asterisk/threadstorage.h  |   10 +++-
+ main/channel.c                    |    4 +
+ main/pbx.c                        |   49 ++++++++++++-----------
+ main/say.c                        |   50 ++++++++++++------------
+ main/utils.c                      |    4 +
+ res/res_agi.c                     |   10 +++-
+ res/res_features.c                |    3 -
+ res/res_monitor.c                 |    4 -
+ sounds/Makefile                   |    4 -
+ utils/astman.c                    |   18 --------
+ 21 files changed, 230 insertions(+), 187 deletions(-)
+
+     ----------------------------------------------------------------------

@@ -1,0 +1,219 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /><title>Release Summary - asterisk-1.4.29-rc1</title></head>
+<body>
+<h1 align="center"><a name="top">Release Summary</a></h1>
+<h3 align="center">asterisk-1.4.29-rc1</h3>
+<h3 align="center">Date: 2010-01-08</h3>
+<h3 align="center">&lt;asteriskteam@digium.com&gt;</h3>
+<hr/>
+<h2 align="center">Table of Contents</h2>
+<ol>
+   <li><a href="#summary">Summary</a></li>
+   <li><a href="#contributors">Contributors</a></li>
+   <li><a href="#issues">Closed Issues</a></li>
+   <li><a href="#commits">Other Changes</a></li>
+   <li><a href="#diffstat">Diffstat</a></li>
+</ol>
+<hr/>
+<a name="summary"><h2 align="center">Summary</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This release includes only bug fixes.  The changes included were made only to address problems that have been identified in this release series.  Users should be able to safely upgrade to this version if this release series is already in use.  Users considering upgrading from a previous release series are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p>
+<p>The data in this summary reflects changes that have been made since the previous release, asterisk-1.4.28.</p>
+<hr/>
+<a name="contributors"><h2 align="center">Contributors</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release.  For coders, the number is how many of their patches (of any size) were committed into this release.  For testers, the number is the number of times their name was listed as assisting with testing a patch.  Finally, for reporters, the number is the number of issues that they reported that were closed by commits that went into this release.</p>
+<table width="100%" border="0">
+<tr>
+<td width="33%"><h3>Coders</h3></td>
+<td width="33%"><h3>Testers</h3></td>
+<td width="33%"><h3>Reporters</h3></td>
+</tr>
+<tr valign="top">
+<td>
+11 tilghman<br/>
+3 dvossel<br/>
+2 dant<br/>
+2 jpeeler<br/>
+2 russell<br/>
+2 seanbright<br/>
+1 kpfleming<br/>
+1 mnicholson<br/>
+1 oej<br/>
+1 wdoekes<br/>
+</td>
+<td>
+1 aragon<br/>
+1 mihaill<br/>
+1 rickead2000<br/>
+1 seanbright<br/>
+1 tilghman<br/>
+1 vrban<br/>
+1 wdoekes<br/>
+1 yeshuawatso<br/>
+</td>
+<td>
+2 wdoekes<br/>
+1 aatef<br/>
+1 alexrecarey<br/>
+1 aragon<br/>
+1 bcnit<br/>
+1 bird_of_Luck<br/>
+1 bklang<br/>
+1 galeras<br/>
+1 jensvb<br/>
+1 john8675309<br/>
+1 Kashif Raza<br/>
+1 omolenkamp<br/>
+1 qwell<br/>
+1 rickead2000<br/>
+1 yeshuawatso<br/>
+</td>
+</tr>
+</table>
+<hr/>
+<a name="issues"><h2 align="center">Closed Issues</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p>
+<h3>Category: Applications/app_meetme</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16509">#16509</a>: [patch] meetme can support only 6341 rooms<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=236509">236509</a><br/>
+Reporter: Kashif Raza<br/>
+Testers: seanbright<br/>
+Coders: seanbright<br/>
+<br/>
+<h3>Category: Applications/app_mp3</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16531">#16531</a>: [regression] chan_local audio crash<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=238009">238009</a><br/>
+Reporter: john8675309<br/>
+Coders: russell<br/>
+<br/>
+<h3>Category: CDR/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16180">#16180</a>: [patch] CDR dispositions BUSY and FAILED are reported as NO ANSWER<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=235635">235635</a><br/>
+Reporter: aatef<br/>
+Coders: jpeeler<br/>
+<br/>
+<h3>Category: Channels/chan_iax2</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16565">#16565</a>: crash: in "scheduled_destroy" at chan_iax2.c:1511<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=238411">238411</a><br/>
+Reporter: jensvb<br/>
+Coders: dvossel<br/>
+<br/>
+<h3>Category: Channels/chan_sip/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16295">#16295</a>: [patch] handle_incoming() incorrectly sets p->method to SIP_ACK<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=236062">236062</a><br/>
+Reporter: omolenkamp<br/>
+Coders: dvossel<br/>
+<br/>
+<h3>Category: Channels/chan_sip/T.38</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16318">#16318</a>: [patch] New SDP handling code totally broke T.38 reinvites<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=236261">236261</a><br/>
+Reporter: bird_of_Luck<br/>
+Testers: vrban, mihaill<br/>
+Coders: mnicholson<br/>
+<br/>
+<h3>Category: Core/Channels</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=15609">#15609</a>: [patch] WARNING[23025]: channel.c:952 __ast_queue_frame: Exceptionally long voice queue length queuing to Local<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=236981">236981</a><br/>
+Reporter: aragon<br/>
+Testers: aragon<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: Core/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16407">#16407</a>: [patch] potential buffer overflow in say_date_with_format()<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=237573">237573</a><br/>
+Reporter: qwell<br/>
+Coders: tilghman<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=16434">#16434</a>: [patch] Background() when called from AGI script no longer gives digit code when interrupted<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=237405">237405</a><br/>
+Reporter: rickead2000<br/>
+Testers: rickead2000<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: Core/PBX</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16479">#16479</a>: "sip show peers" returns notice<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=237697">237697</a><br/>
+Reporter: alexrecarey<br/>
+Coders: russell<br/>
+<br/>
+<h3>Category: Features/Parking</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16234">#16234</a>: [patch] Call parking via AMI causes announcment and ringback to caller channel<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=235821">235821</a><br/>
+Reporter: yeshuawatso<br/>
+Testers: yeshuawatso<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: Functions/func_cdr</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16289">#16289</a>: [patch] core show function CDR reports wrong disposition values<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=238230">238230</a><br/>
+Reporter: wdoekes<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: PBX/pbx_config</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16482">#16482</a>: [patch] Serious problem with pattern matching (regression in #15421)<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=237493">237493</a><br/>
+Reporter: wdoekes<br/>
+Testers: wdoekes, tilghman<br/>
+Coders: wdoekes, tilghman<br/>
+<br/>
+<h3>Category: Resources/res_agi</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16504">#16504</a>: Segfault in res_agi with no second paramter to EXEC<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=236184">236184</a><br/>
+Reporter: bklang<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: Resources/res_monitor</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16376">#16376</a>: [patch] Incorrect path passed to MONITOR_EXEC application after 'Monitor()' call finishes.<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=235940">235940</a><br/>
+Reporter: bcnit<br/>
+Coders: dant<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=16377">#16377</a>: res_monitor.c chan->monitor->filename_base has duplicated path<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=235940">235940</a><br/>
+Reporter: galeras<br/>
+Coders: dant<br/>
+<br/>
+<hr/>
+<a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all changes that went into this release that did not directly close an issue from the issue tracker.  The commits may have been marked as being related to an issue.  If that is the case, the issue numbers are listed here, as well.</p>
+<table width="100%" border="1">
+<tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=235572">235572</a></td><td>tilghman</td><td>Point to the typical missing package, not the cryptic "termcap support".</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=235652">235652</a></td><td>tilghman</td><td>Revise verbiage, per #asterisk-dev discussion</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=236357">236357</a></td><td>kpfleming</td><td>update to latest releases with zero uid/gid</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=236433">236433</a></td><td>tilghman</td><td>Turn on colors in the daemon, since there's many requests for it on Ubuntu.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=236585">236585</a></td><td>seanbright</td><td>Try a test compile to see if PTHREAD_ONCE_INIT requires extra braces.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=236890">236890</a></td><td>jpeeler</td><td>Remove conflicting function definitions (asterisk.h) so LOW_MEMORY compiles.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=237135">237135</a></td><td>oej</td><td>Release memory of the contact acl before unloading module</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=237318">237318</a></td><td>tilghman</td><td>It's also possible for the Local channel to directly execute an Application.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=238409">238409</a></td><td>dvossel</td><td>Change in sip show channels display format allowing more digits for CID</td>
+<td></td></tr></table>
+<hr/>
+<a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p>
+<pre>
+apps/app_meetme.c                 |   63 ++++++++++++++++--------------
+apps/app_mp3.c                    |    6 +-
+channels/chan_iax2.c              |    2
+channels/chan_local.c             |    4 +
+channels/chan_sip.c               |   78 ++++++++++++++++++++------------------
+configure.ac                      |   22 ++++++++++
+contrib/init.d/rc.debian.asterisk |   11 ++++-
+funcs/func_cdr.c                  |    9 ++--
+include/asterisk/autoconfig.h.in  |   54 +++++++++++---------------
+include/asterisk/cdr.h            |    8 +--
+include/asterisk/channel.h        |    4 +
+include/asterisk/threadstorage.h  |   10 +++-
+main/channel.c                    |    4 +
+main/pbx.c                        |   49 ++++++++++++-----------
+main/say.c                        |   50 ++++++++++++------------
+main/utils.c                      |    4 +
+res/res_agi.c                     |   10 +++-
+res/res_features.c                |    3 -
+res/res_monitor.c                 |    4 -
+sounds/Makefile                   |    4 -
+utils/astman.c                    |   18 --------
+21 files changed, 230 insertions(+), 187 deletions(-)
+</pre><br/>
+<hr/>
+</body>
+</html>
