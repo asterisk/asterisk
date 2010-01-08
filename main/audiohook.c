@@ -361,7 +361,11 @@ int ast_audiohook_attach(struct ast_channel *chan, struct ast_audiohook *audioho
 /*! \brief Update audiohook's status
  * \param audiohook status enum
  * \param audiohook Audiohook structure
+ *
+ * \note once status is updated to DONE, this function can not be used to set the
+ * status back to any other setting.  Setting DONE effectively locks the status as such.
  */
+
 void ast_audiohook_update_status(struct ast_audiohook *audiohook, enum ast_audiohook_status status)
 {
 	ast_audiohook_lock(audiohook);
@@ -458,6 +462,7 @@ static struct ast_audiohook *find_audiohook_by_source(struct ast_audiohook_list 
 void ast_audiohook_move_by_source(struct ast_channel *old_chan, struct ast_channel *new_chan, const char *source)
 {
 	struct ast_audiohook *audiohook;
+	enum ast_audiohook_status oldstatus;
 
 	if (!old_chan->audiohooks || !(audiohook = find_audiohook_by_source(old_chan->audiohooks, source))) {
 		return;
@@ -466,11 +471,15 @@ void ast_audiohook_move_by_source(struct ast_channel *old_chan, struct ast_chann
 	/* By locking both channels and the audiohook, we can assure that
 	 * another thread will not have a chance to read the audiohook's status
 	 * as done, even though ast_audiohook_remove signals the trigger
-	 * condition
+	 * condition.
 	 */
 	ast_audiohook_lock(audiohook);
+	oldstatus = audiohook->status;
+
 	ast_audiohook_remove(old_chan, audiohook);
 	ast_audiohook_attach(new_chan, audiohook);
+
+	audiohook->status = oldstatus;
 	ast_audiohook_unlock(audiohook);
 }
 

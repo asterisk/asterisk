@@ -205,6 +205,9 @@ struct ast_frame *ast_audiohook_write_list(struct ast_channel *chan, struct ast_
 /*! \brief Update audiohook's status
  * \param audiohook Audiohook structure
  * \param audiohook status enum
+ *
+ * \note once status is updated to DONE, this function can not be used to set the
+ * status back to any other setting.  Setting DONE effectively locks the status as such.
  */
 void ast_audiohook_update_status(struct ast_audiohook *audiohook, enum ast_audiohook_status status);
 
