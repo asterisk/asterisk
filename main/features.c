@@ -635,7 +635,7 @@ static struct parkeduser *park_space_reserve(struct ast_channel *chan,
 		for (i = start; 1; i++) {
 			if (i == parkinglot->parking_stop + 1) {
 				i = parkinglot->parking_start - 1;
-				continue;
+				break;
 			}
 
 			AST_LIST_TRAVERSE(&parkinglot->parkings, cur, list) {
@@ -643,8 +643,7 @@ static struct parkeduser *park_space_reserve(struct ast_channel *chan,
 					break;
 				}
 			}
-
-			if (!cur || i == start - 1) {
+			if (!cur) {
 				parking_space = i;
 				break;
 			}
