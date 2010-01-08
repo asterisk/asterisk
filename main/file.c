@@ -1344,6 +1344,7 @@ char *ast_format_str_reduce(char *fmts)
 	char *orig = fmts;
 	int i, j, x, first, found = 0;
 	int len = strlen(fmts) + 1;
+	int res;
 
 	if (AST_RWLIST_RDLOCK(&formats)) {
 		ast_log(LOG_WARNING, "Unable to lock format list\n");
@@ -1379,8 +1380,9 @@ char *ast_format_str_reduce(char *fmts)
 
 		/* special handling for the first entry */
 		if (first) {
-			fmts += snprintf(fmts, len, "%s", fmts_str[i]);
-			len -= (fmts - orig);
+			res = snprintf(fmts, len, "%s", fmts_str[i]);
+			fmts += res;
+			len -= res;
 			first = 0;
 			continue;
 		}
@@ -1395,8 +1397,9 @@ char *ast_format_str_reduce(char *fmts)
 		}
 
 		if (!found) {
-			fmts += snprintf(fmts, len, "|%s", fmts_str[i]);
-			len -= (fmts - orig);
+			res = snprintf(fmts, len, "|%s", fmts_str[i]);
+			fmts += res;
+			len -= res;
 		}
 	}
 
