@@ -1235,6 +1235,7 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 	async_agi.ctrl = fds[1];
 	async_agi.audio = -1; /* no audio support */
 	async_agi.fast = 0;
+	async_agi.speech = NULL;
 
 	/* notify possible manager users of a new channel ready to
 	   receive commands */
