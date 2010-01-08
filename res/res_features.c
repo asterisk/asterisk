@@ -590,7 +590,7 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, i
 		peer = chan;
 	}
 
-	if (!play_announcement || !orig_chan_name) {
+	if (peer && (!play_announcement || !orig_chan_name)) {
 		/* chan is the channel being parked, peer is the effective park-er */
 		orig_chan_name = ast_strdupa(peer->name);
 	}
