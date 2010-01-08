@@ -1436,8 +1436,10 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 	ast_manager_event(chan, EVENT_FLAG_CALL, "MusicOnHold",
 		"State: Start\r\n"
 		"Channel: %s\r\n"
-		"UniqueID: %s\r\n",
-		chan->name, chan->uniqueid);
+		"UniqueID: %s\r\n"
+		"Class: %s\r\n",
+		chan->name, chan->uniqueid,
+		mohclass->name);
 
 	ast_set_flag(chan, AST_FLAG_MOH);
 
