@@ -980,7 +980,7 @@ static const struct permalias {
 	{ EVENT_FLAG_DIALPLAN, "dialplan" },
 	{ EVENT_FLAG_ORIGINATE, "originate" },
 	{ EVENT_FLAG_AGI, "agi" },
-	{ -1, "all" },
+	{ INT_MAX, "all" },
 	{ 0, "none" },
 };
 
@@ -1062,7 +1062,7 @@ static int strings_to_mask(const char *string)
 			break;
 		}
 	}
-	if (!p)	{ /* all digits */
+	if (!*p) { /* all digits */
 		return atoi(string);
 	}
 	if (ast_false(string)) {
