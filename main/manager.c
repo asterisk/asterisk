@@ -129,7 +129,7 @@ static struct permalias {
 	{ EVENT_FLAG_AGENT, "agent" },
 	{ EVENT_FLAG_USER, "user" },
 	{ EVENT_FLAG_CONFIG, "config" },
-	{ -1, "all" },
+	{ INT_MAX, "all" },
 	{ 0, "none" },
 };
 
