@@ -381,7 +381,7 @@ static struct permalias {
 	{ EVENT_FLAG_DIALPLAN, "dialplan" },
 	{ EVENT_FLAG_ORIGINATE, "originate" },
 	{ EVENT_FLAG_AGI, "agi" },
-	{ -1, "all" },
+	{ INT_MAX, "all" },
 	{ 0, "none" },
 };
 
@@ -456,7 +456,7 @@ static int strings_to_mask(const char *string)
 	for (p = string; *p; p++)
 		if (*p < '0' || *p > '9')
 			break;
-	if (!p)	/* all digits */
+	if (!*p) /* all digits */
 		return atoi(string);
 	if (ast_false(string))
 		return 0;
