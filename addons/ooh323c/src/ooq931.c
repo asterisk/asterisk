@@ -47,7 +47,7 @@ static ASN1OBJID gProtocolID = {
 };
 
 EXTERN int ooQ931Decode 
-   (OOH323CallData *call, Q931Message* msg, int length, ASN1OCTET *data) 
+   (OOH323CallData *call, Q931Message* msg, int length, ASN1OCTET *data, int docallbacks)
 {
    int offset, x;
    int rv = ASN_OK;
@@ -173,7 +173,7 @@ EXTERN int ooQ931Decode
          OOTRACEDBGB1("   Keypad IE = {\n");
          OOTRACEDBGB2("      %s\n", ie->data);
          OOTRACEDBGB1("   }\n");
-         if(gH323ep.h323Callbacks.onReceivedDTMF)
+         if(docallbacks && gH323ep.h323Callbacks.onReceivedDTMF)
          {
             gH323ep.h323Callbacks.onReceivedDTMF(call, (char *)ie->data);
          }
@@ -626,7 +626,7 @@ static void ooQ931PrintMessage
 
    setPERBuffer (pctxt, msgbuf, msglen, TRUE);
 
-   ret = ooQ931Decode (call, &q931Msg, msglen, msgbuf);
+   ret = ooQ931Decode (call, &q931Msg, msglen, msgbuf, 0);
    if(ret != OO_OK)
    {
       OOTRACEERR3("Error:Failed decoding Q931 message. (%s, %s)\n", 

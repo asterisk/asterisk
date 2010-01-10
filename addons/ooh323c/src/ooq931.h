@@ -335,7 +335,7 @@ typedef struct OOH225MsgCallbacks {
  * @return         Completion status - 0 on success, -1 on failure
  */
 EXTERN int ooQ931Decode 
-(struct OOH323CallData *call, Q931Message* msg, int length, ASN1OCTET *data);
+(struct OOH323CallData *call, Q931Message* msg, int length, ASN1OCTET *data, int docallbacks);
 
 /**
  * This function is used to decode the UUIE of the message from the list of
