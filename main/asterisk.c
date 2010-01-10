@@ -170,7 +170,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 /*! @{ */
 
 struct ast_flags ast_options = { AST_DEFAULT_OPTIONS };
-struct ast_flags ast_compat = { 0 };
+struct ast_flags ast_compat = { 0x07 };
 
 int option_verbose;				/*!< Verbosity level */
 int option_debug;				/*!< Debug level */
