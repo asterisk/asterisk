@@ -558,7 +558,7 @@ static struct ast_channel *ooh323_request(const char *type, format_t format,
 	oldformat = format;
 	format &= AST_FORMAT_AUDIO_MASK;
 	if (!format) {
-		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%Ld'\n", (long long) format);
+		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%lld'\n", (long long) format);
 		return NULL;
 	}
 

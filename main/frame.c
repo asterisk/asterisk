@@ -703,8 +703,8 @@ static char *show_codecs(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 			}
 		}
 
-		snprintf(hex, sizeof(hex), "(0x%Lx)", 1LL << i);
-		ast_cli(a->fd, "%19Lu (1 << %2d) %20s  %5s   %8s   (%s)\n", 1LL << i, i, hex,
+		snprintf(hex, sizeof(hex), "(0x%llx)", 1LL << i);
+		ast_cli(a->fd, "%19llu (1 << %2d) %20s  %5s   %8s   (%s)\n", 1LL << i, i, hex,
 			((1LL << i) & AST_FORMAT_AUDIO_MASK) ? "audio" :
 			i == 16 || i == 17 ? "image" :
 			((1LL << i) & AST_FORMAT_VIDEO_MASK) ? "video" :
@@ -741,7 +741,7 @@ static char *show_codec_n(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	if (a->argc != 4)
 		return CLI_SHOWUSAGE;
 
-	if (sscanf(a->argv[3], "%30Ld", &type_punned_codec) != 1) {
+	if (sscanf(a->argv[3], "%30lld", &type_punned_codec) != 1) {
 		return CLI_SHOWUSAGE;
 	}
 	codec = type_punned_codec;
@@ -749,11 +749,11 @@ static char *show_codec_n(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	for (i = 0; i < 63; i++)
 		if (codec & (1LL << i)) {
 			found = 1;
-			ast_cli(a->fd, "%11Lu (1 << %2d)  %s\n", 1LL << i, i, ast_codec2str(1LL << i));
+			ast_cli(a->fd, "%11llu (1 << %2d)  %s\n", 1LL << i, i, ast_codec2str(1LL << i));
 		}
 
 	if (!found)
-		ast_cli(a->fd, "Codec %Ld not found\n", (long long) codec);
+		ast_cli(a->fd, "Codec %lld not found\n", (long long) codec);
 
 	return CLI_SUCCESS;
 }
