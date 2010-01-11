@@ -18,6 +18,7 @@
 ;user=asteriskcdruser
 ;port=3306
 ;sock=/tmp/mysql.sock
+;timezone=UTC ; Previously called usegmtime
 ;
 ; If your system's locale differs from mysql database character set,
 ; cdr_mysql can damage non-latin characters in CDR variables. Use this
