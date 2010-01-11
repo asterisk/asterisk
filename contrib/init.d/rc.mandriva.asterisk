@@ -37,7 +37,7 @@ else
 fi
 
 # Put overrides in /etc/sysconfig/asterisk
-[ -f $CONFIGFILE ] && . $CONFIGFILE
+[ -r $CONFIGFILE ] && . $CONFIGFILE
 
 LD_LIBRARY_PATH=$OPENH323DIR/lib:$PWLIBDIR/lib
 export OPENH323DIR PWLIBDIR LD_LIBRARY_PATH

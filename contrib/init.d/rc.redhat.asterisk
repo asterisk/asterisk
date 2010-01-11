@@ -26,14 +26,6 @@
 # Installation directory
 AST_SBIN=/usr/sbin
 
-# Uncomment the following and set them to the user/groups that you
-# want to run Asterisk as. NOTE: this requires substantial work to
-# be sure that Asterisk's environment has permission to write the
-# files required  for  its  operation, including logs, its comm
-# socket, the asterisk database, etc.
-#AST_USER="asterisk"
-#AST_GROUP="asterisk"
-
 # Source function library.
 . /etc/rc.d/init.d/functions
 
@@ -46,9 +38,6 @@ if ! [ -d $AST_CONFIG ] ; then
 	echo "ERROR: $AST_CONFIG directory not found"
 	exit 0
 fi
-
-# Uncomment this ONLY if you know what you are doing.
-# export LD_ASSUME_KERNEL=2.4.1
 
 # Full path to asterisk binary
 DAEMON=$AST_SBIN/asterisk
@@ -63,7 +52,7 @@ if [ "$CONFIG0" = "" ]; then
 else
 	CONFIGFILE=/etc/sysconfig/`basename $CONFIG0`
 fi
-[ -x $CONFIGFILE ] && . $CONFIGFILE
+[ -r $CONFIGFILE ] && . $CONFIGFILE
 
 RETVAL=0
 
@@ -89,8 +78,35 @@ start() {
 	fi
 	if [ $AST_CONFIG ]; then
 		ASTARGS="$ASTARGS -C $AST_CONFIG/asterisk.conf"
+	elif [ $ALTCONF ]; then
+		ASTARGS="$ASTARGS -C $ALTCONF"
 	fi
-	daemon $DAEMON $ASTARGS
+	if [ "x$COREDUMP" = "xyes" ]; then
+		ASTARGS="$ASTARGS -g"
+	fi
+	if [ "0$MAXLOAD" -gt "0" ]; then
+		ASTARGS="$ASTARGS -L $MAXLOAD"
+	fi
+	if [ "0$MAXCALLS" -gt "0" ]; then
+		ASTARGS="$ASTARGS -M $MAXCALLS"
+	fi
+	if [ "0$VERBOSITY" -gt "0" ]; then
+		for i in `seq 1 $VERBOSITY`; do
+			ASTARGS="$ASTARGS -v"
+		done
+	fi
+	if [ "x$INTERNALTIMING" = "xyes" ]; then
+		ASTARGS="$ASTARGS -I"
+	fi
+	if [ "x$TEMPRECORDINGLOCATION" = "xyes" -o "x$TMPRECORDINGLOCATION" = "xyes" ]; then
+		ASTARGS="$ASTARGS -t"
+	fi
+	if [ "x$COLOR" = "xyes" ]; then
+		export TERM=linux
+		daemon sh -c "$DAEMON $ASTARGS -c" >/dev/null </dev/null 2>&1 &
+	else
+		daemon $DAEMON $ASTARGS
+	fi
 	RETVAL=$?
 	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/asterisk
 	echo
