@@ -21,12 +21,15 @@
 # - Modified "reload" to call asterisk -rx 'reload' 
 
 ### BEGIN INIT INFO
-# Provides:                    asterisk
-# Required-Start:      +dahdi $network $named
-# Required-Stop:
-# Default-Start:     3 5
-# Default-Stop:      0 1 2 4 6
-# Description: dahdi - dahdi modules for Asterisk
+# Provides:		asterisk
+# Required-Start:    $network $syslog $named $local_fs $remote_fs
+# Required-Stop:     $network $syslog $named $local_fs $remote_fs
+# Should-Start:      dahdi misdn lcr wanrouter mysql postgresql
+# Should-Stop:       dahdi misdn lcr wanrouter mysql postgresql
+# Default-Start:	2 3 4 5
+# Default-Stop:		0 1 6
+# Short-Description:	Asterisk PBX
+# Description:		the Asterisk Open Source PBX
 ### END INIT INFO
 
 # Source function library.

@@ -6,6 +6,19 @@
 #
 # 10.10.2008 - Initial Version
 #
+
+### BEGIN INIT INFO
+# Provides:		asterisk
+# Required-Start:    $network $syslog $named $local_fs $remote_fs
+# Required-Stop:     $network $syslog $named $local_fs $remote_fs
+# Should-Start:      dahdi misdn lcr wanrouter mysql postgresql
+# Should-Stop:       dahdi misdn lcr wanrouter mysql postgresql
+# Default-Start:	2 3 4 5
+# Default-Stop:		0 1 6
+# Short-Description:	Asterisk PBX
+# Description:		the Asterisk Open Source PBX
+### END INIT INFO
+
 . /etc/rc.conf
 . /etc/rc.d/functions
 DAEMON=__ASTERISK_SBIN_DIR__/asterisk

@@ -28,10 +28,10 @@ TRUE=/bin/true
 
 ### BEGIN INIT INFO
 # Provides:		asterisk
-# Required-Start:	$local_fs
-# Required-Stop:	$local_fs
-# Should-Start:		dahdi mysql postgresql
-# Should-Stop:
+# Required-Start:    $network $syslog $named $local_fs $remote_fs
+# Required-Stop:     $network $syslog $named $local_fs $remote_fs
+# Should-Start:      dahdi misdn lcr wanrouter mysql postgresql
+# Should-Stop:       dahdi misdn lcr wanrouter mysql postgresql
 # Default-Start:	2 3 4 5
 # Default-Stop:		0 1 6
 # Short-Description:	Asterisk PBX
