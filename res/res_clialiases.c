@@ -168,12 +168,6 @@ static struct ast_cli_entry cli_alias[] = {
 	AST_CLI_DEFINE(alias_show, "Show CLI command aliases"),
 };
 
-/*! \brief Function called to to see if an alias is marked for destruction, they always are! */
-static int alias_marked(void *obj, void *arg, int flags)
-{
-	return CMP_MATCH;
-}
-
 /*! \brief Function called to load or reload the configuration file */
 static void load_config(int reload)
 {
@@ -191,7 +185,7 @@ static void load_config(int reload)
 
 	/* Destroy any existing CLI aliases */
 	if (reload) {
-		ao2_callback(cli_aliases, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE , alias_marked, NULL);
+		ao2_callback(cli_aliases, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL);
 	}
 
 	for (v = ast_variable_browse(cfg, "general"); v; v = v->next) {

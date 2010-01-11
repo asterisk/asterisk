@@ -68,11 +68,6 @@ struct caldav_pvt {
 	struct ao2_container *events;
 };
 
-static int cb_true(void *user_data, void *arg, int flags)
-{
-	return CMP_MATCH;
-}
-
 static void caldav_destructor(void *obj)
 {
 	struct caldav_pvt *pvt = obj;
@@ -83,7 +78,7 @@ static void caldav_destructor(void *obj)
 	}
 	ast_string_field_free_memory(pvt);
 
-	ao2_callback(pvt->events, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, cb_true, NULL);
+	ao2_callback(pvt->events, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL);
 
 	ao2_ref(pvt->events, -1);
 }
