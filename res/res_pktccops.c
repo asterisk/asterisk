@@ -678,7 +678,7 @@ static int cops_connect(char *host, char *port)
 		flags = fcntl(sfd, F_GETFL);
 		fcntl(sfd, F_SETFL, flags | O_NONBLOCK);
 #ifdef HAVE_SO_NOSIGPIPE
-		setsockopt(sfd, SO_SOCKET, SO_NOSIGPIPE, &trueval, sizeof(trueval));
+		setsockopt(sfd, SOL_SOCKET, SO_NOSIGPIPE, &trueval, sizeof(trueval));
 #endif
 		connect(sfd, rp->ai_addr, rp->ai_addrlen);
 		if (sfd == -1) {
