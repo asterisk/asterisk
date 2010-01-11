@@ -593,6 +593,8 @@ static int cb_true_data(void *user_data, void *arg, void *data, int flags)
 	return CMP_MATCH;
 }
 
+#define USE_CONTAINER(x) (((x) & (OBJ_MULTIPLE | OBJ_NODATA)) == OBJ_MULTIPLE)
+
 /*!
  * Browse the container using different stategies accoding the flags.
  * \return Is a pointer to an object or to a list of object if OBJ_MULTIPLE is 
@@ -615,7 +617,7 @@ static void *internal_ao2_callback(struct ao2_container *c,
 	if (INTERNAL_OBJ(c) == NULL)	/* safety check on the argument */
 		return NULL;
 
-	if ((flags & (OBJ_MULTIPLE | OBJ_NODATA)) == OBJ_MULTIPLE) {
+	if (USE_CONTAINER(flags)) {
 		/* we need to return an ao2_iterator with the results,
 		 * as there could be more than one. the iterator will
 		 * hold the only reference to a container that has all the
@@ -708,7 +710,7 @@ static void *internal_ao2_callback(struct ao2_container *c,
 			/* if we are in OBJ_MULTIPLE mode, link the object into the
 			 * container that will hold the results
 			 */
-			if (ret && (multi_container != NULL)) {
+			if (ret && USE_CONTAINER(flags)) {
 				__ao2_link(multi_container, ret);
 				ret = NULL;
 			}
@@ -731,9 +733,10 @@ static void *internal_ao2_callback(struct ao2_container *c,
 				ast_free(cur);	/* free the link record */
 			}
 
-			if ((match & CMP_STOP) || (multi_container == NULL)) {
-				/* We found the only match we need */
-				i = last;	/* force exit from outer loop */
+			if ((match & CMP_STOP) || USE_CONTAINER(flags)) {
+				/* We found our only (or last) match, so force an exit from
+				   the outside loop. */
+				i = last;
 				break;
 			}
 		}
@@ -750,7 +753,7 @@ static void *internal_ao2_callback(struct ao2_container *c,
 		}
 	}
 	ao2_unlock(c);
-	if (multi_container != NULL) {
+	if (USE_CONTAINER(flags)) {
 		*multi_iterator = ao2_iterator_init(multi_container,
 						    AO2_ITERATOR_DONTLOCK | AO2_ITERATOR_UNLINK | AO2_ITERATOR_MALLOCD);
 		ao2_ref(multi_container, -1);
