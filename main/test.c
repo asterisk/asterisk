@@ -201,7 +201,7 @@ static void test_txt_entry(struct ast_test *test, FILE *f)
 	}
 
 	fprintf(f, "\nName:              %s\n", test->info.name);
-	fprintf(f,   "Catagory:          %s\n", test->info.category);
+	fprintf(f,   "Category:          %s\n", test->info.category);
 	fprintf(f,   "Summary:           %s\n", test->info.summary);
 	fprintf(f,   "Description:       %s\n", test->info.description);
 	fprintf(f,   "Result:            %s\n", test_result2str[test->state]);
@@ -501,7 +501,7 @@ static struct ast_test *test_remove(ast_test_cb_t *cb)
 }
 
 /*!
- * \brief compares two test catagories to determine if cat1 resides in cat2
+ * \brief compares two test categories to determine if cat1 resides in cat2
  * \internal
  *
  * \return 0 if true
@@ -604,7 +604,7 @@ static char *test_cli_show_registered(struct ast_cli_entry *e, int cmd, struct a
 			((a->argc == 7) && strcmp(a->argv[5], "name"))) {
 			return CLI_SHOWUSAGE;
 		}
-		ast_cli(a->fd, FORMAT, "Name", "Catagory", "Summary", "Test Result");
+		ast_cli(a->fd, FORMAT, "Name", "Category", "Summary", "Test Result");
 		AST_LIST_LOCK(&tests);
 		AST_LIST_TRAVERSE(&tests, test, entry) {
 			if ((a->argc == 4) ||
@@ -721,7 +721,7 @@ static char *test_cli_show_results(struct ast_cli_entry *e, int cmd, struct ast_
 			return CLI_SHOWUSAGE;
 		}
 
-		ast_cli(a->fd, FORMAT_RES_ALL, "Result", "", "Name", "Catagory", "Error Description");
+		ast_cli(a->fd, FORMAT_RES_ALL, "Result", "", "Name", "Category", "Error Description");
 		AST_LIST_LOCK(&tests);
 		AST_LIST_TRAVERSE(&tests, test, entry) {
 			if (test->state == AST_TEST_NOT_RUN) {
