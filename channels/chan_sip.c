@@ -8860,13 +8860,29 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 			p->sessionversion++;
 	}
 
-	/* Check if we need video in this call */
-	if (add_audio && (p->jointcapability & AST_FORMAT_VIDEO_MASK) && !p->novideo) {
-		if (p->vrtp) {
-			needvideo = TRUE;
-			ast_debug(2, "This call needs video offers!\n");
-		} else
-			ast_debug(2, "This call needs video offers, but there's no video support enabled!\n");
+	if (add_audio) {
+		/* Check if we need video in this call */
+		if ((p->jointcapability & AST_FORMAT_VIDEO_MASK) && !p->novideo) {
+			if (p->vrtp) {
+				needvideo = TRUE;
+				ast_debug(2, "This call needs video offers!\n");
+			} else
+				ast_debug(2, "This call needs video offers, but there's no video support enabled!\n");
+		}
+		/* Check if we need text in this call */
+		if ((p->jointcapability & AST_FORMAT_TEXT_MASK) && !p->notext) {
+			if (sipdebug_text)
+				ast_verbose("We think we can do text\n");
+			if (p->trtp) {
+				if (sipdebug_text) {
+					ast_verbose("And we have a text rtp object\n");
+				}
+				needtext = TRUE;
+				ast_debug(2, "This call needs text offers! \n");
+			} else {
+				ast_debug(2, "This call needs text offers, but there's no text support enabled ! \n");
+			}
+		}
 	}
 
 	get_our_media_address(p, needvideo, &sin, &vsin, &tsin, &dest, &vdest);
@@ -8901,19 +8917,6 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 				ast_verbose("Video is at %s port %d\n", ast_inet_ntoa(p->ourip.sin_addr), ntohs(vdest.sin_port));	
 		}
 
-		/* Check if we need text in this call */
-		if((capability & AST_FORMAT_TEXT_MASK) && !p->notext) {
-			if (sipdebug_text)
-				ast_verbose("We think we can do text\n");
-			if (p->trtp) {
-				if (sipdebug_text)
-					ast_verbose("And we have a text rtp object\n");
-				needtext = TRUE;
-				ast_debug(2, "This call needs text offers! \n");
-			} else
-				ast_debug(2, "This call needs text offers, but there's no text support enabled ! \n");
-		}
-		
 		/* Ok, we need text. Let's add what we need for text and set codecs.
 		   Text is handled differently than audio since we can not transcode. */
 		if (needtext) {
