@@ -29,7 +29,7 @@ PRIORITY=0
 # Check if Asterisk is already running.  If it is, then bug out, because
 # starting safe_asterisk when Asterisk is running is very bad.
 VERSION=`${ASTSBINDIR}/asterisk -rx 'core show version'`
-if [ "`echo $VERSION | cut -c 1-8`" = "Asterisk" ]; then
+if test "`echo $VERSION | cut -c 1-8`" = "Asterisk" ; then
 	echo "Asterisk is already running.  $0 will exit now."
 	exit 1
 fi
@@ -38,35 +38,28 @@ fi
 # root. if running asterisk as other users, pass that to asterisk on the command
 # line.
 # if we're not root, fall back to standard everything.
-if [ `id -u` != 0 ]
-then
+if test `id -u` != 0 ; then
 	echo "Oops. I'm not root. Falling back to standard prio and file max." >&2
 	echo "This is NOT suitable for large systems." >&2
 	PRIORITY=0
 else
-	if `uname -s | grep Linux 2>&1 > /dev/null `
-	then
+	if `uname -s | grep Linux >/dev/null 2>&1`; then
 		# maximum number of open files is set to the system maximum divided by two if
 		# MAXFILES is not set.
-		if [ "$MAXFILES" = "" ]
-		then
+		if test "x$MAXFILES" = "x" ; then
 			# just check if file-max is readable
-			if [ -r /proc/sys/fs/file-max ]
-			then
+			if test -r /proc/sys/fs/file-max ; then
 				MAXFILES=$(( `cat /proc/sys/fs/file-max` / 2 ))
 			fi
 		fi
 		SYSCTL_MAXFILES="fs.file-max"
-	elif `uname -s | grep Darwin 2>&1 > /dev/null `
-	then
+	elif `uname -s | grep Darwin /dev/null 2>&1`; then
 		SYSCTL_MAXFILES="kern.maxfiles"
 	fi
 
 
-	if [ "$SYSMAXFILES" != "" ]
-	then
-		if [ "$SYSCTL_MAXFILES" != "" ]
-		then
+	if test "x$SYSMAXFILES" != "x"; then
+		if test "x$SYSCTL_MAXFILES" != "x"; then
 			sysctl -w $SYSCTL_MAXFILES=$SYSMAXFILES
 		fi
 	fi
@@ -85,21 +78,21 @@ ulimit -c unlimited
 # Don't fork when running "safely"
 #
 ASTARGS=""
-if [ "$TTY" != "" ]; then
-	if [ -c /dev/tty${TTY} ]; then
+if test "x$TTY" != "x" ; then
+	if test -c /dev/tty${TTY} ; then
 		TTY=tty${TTY}
-	elif [ -c /dev/vc/${TTY} ]; then
+	elif test -c /dev/vc/${TTY} ; then
 		TTY=vc/${TTY}
 	else
 		echo "Cannot find your TTY (${TTY})" >&2
 		exit 1
 	fi
 	ASTARGS="${ASTARGS} -vvvg"
-	if [ "$CONSOLE" != "no" ]; then
+	if test "x$CONSOLE" != "xno" ; then
 		ASTARGS="${ASTARGS} -c"
 	fi
 fi
-if [ ! -w ${DUMPDROP} ]; then	
+if test ! -w "${DUMPDROP}" ; then	
 	echo "Cannot write to ${DUMPDROP}" >&2
 	exit 1
 fi
@@ -113,9 +106,9 @@ trap '' PIPE
 # Run scripts to set any environment variables or do any other system-specific setup needed
 #
 
-if [ -d /etc/asterisk/startup.d ]; then
+if test -d /etc/asterisk/startup.d ; then
 	for script in /etc/asterisk/startup.d/*.sh; do
-		if [ -x ${script} ]; then
+		if test -r ${script} ; then
 			. ${script}
 		fi
 	done
@@ -125,7 +118,7 @@ run_asterisk()
 {
 	while :; do 
 
-		if [ "$TTY" != "" ]; then
+		if test "x$TTY" != "x" ; then
 			cd /tmp
 			stty sane < /dev/${TTY}
 			nice -n $PRIORITY ${ASTSBINDIR}/asterisk -f ${CLIARGS} ${ASTARGS} >& /dev/${TTY} < /dev/${TTY}
@@ -135,41 +128,42 @@ run_asterisk()
 		fi
 		EXITSTATUS=$?
 		echo "Asterisk ended with exit status $EXITSTATUS"
-		if [ "$EXITSTATUS" = "0" ]; then
+		if test "x$EXITSTATUS" = "x0" ; then
 			# Properly shutdown....
 			echo "Asterisk shutdown normally."
 			exit 0
-		elif [ $EXITSTATUS -gt 128 ]; then
-			EXITSIGNAL=EXITSTATUS-128
+		elif test "0$EXITSTATUS" -gt "128" ; then
+			EXITSIGNAL=$(($EXITSTATUS - 128))
 			echo "Asterisk exited on signal $EXITSIGNAL."
-			if [ "$NOTIFY" != "" ]; then
+			if test "x$NOTIFY" != "x" ; then
 				echo "Asterisk on $MACHINE exited on signal $EXITSIGNAL.  Might want to take a peek." | \
 				mail -s "Asterisk Died" $NOTIFY
 			fi
-			if [ "$EXEC" != "" ]; then
+			if test "x$EXEC" != "x" ; then
 				$EXEC
 			fi
 
 			PID=`cat ${ASTPIDFILE}`
-			if [ -f /tmp/core.${PID} ]; then
-				mv /tmp/core.${PID} ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
-			elif [ -f /tmp/core ]; then
-				mv /tmp/core ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
+			DATE=`date "+%Y-%m-%dT%H:%M:%S%z"`
+			if test -f /tmp/core.${PID} ; then
+				mv /tmp/core.${PID} ${DUMPDROP}/core.`hostname`-$DATE &
+			elif test -f /tmp/core ; then
+				mv /tmp/core ${DUMPDROP}/core.`hostname`-$DATE &
 			fi
 		else
 			echo "Asterisk died with code $EXITSTATUS."
 
 			PID=`cat ${ASTPIDFILE}`
-			if [ -f /tmp/core.${PID} ]; then
-				mv /tmp/core.${PID} ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
-			elif [ -f /tmp/core ]; then
-				mv /tmp/core ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
+			DATE=`date "+%Y-%m-%dT%H:%M:%S%z"`
+			if test -f /tmp/core.${PID} ; then
+				mv /tmp/core.${PID} ${DUMPDROP}/core.`hostname`-$DATE &
+			elif test -f /tmp/core ; then
+				mv /tmp/core ${DUMPDROP}/core.`hostname`-$DATE &
 			fi
 		fi
 		echo "Automatically restarting Asterisk."
 		sleep $SLEEPSECS
-		if [ $KILLALLMPG123 ]
-		then
+		if test "0$KILLALLMPG123" -gt "0" ; then
 			killall -9 mpg123
 		fi
 	done
