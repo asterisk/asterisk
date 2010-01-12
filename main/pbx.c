@@ -7688,7 +7688,9 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 	p += ext_strncpy(p, extension, strlen(extension) + 1) + 1;
 	tmp->priority = priority;
 	tmp->cidmatch = p;	/* but use p for assignments below */
-	if (!ast_strlen_zero(callerid)) {
+
+	/* Blank callerid and NULL callerid are two SEPARATE things.  Do NOT confuse the two!!! */
+	if (callerid) {
 		p += ext_strncpy(p, callerid, strlen(callerid) + 1) + 1;
 		tmp->matchcid = 1;
 	} else {
