@@ -1201,12 +1201,10 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 	ldap_mods[0] = ast_calloc(1, sizeof(LDAPMod));
 
 	ldap_mods[0]->mod_op = LDAP_MOD_REPLACE;
-	ldap_mods[0]->mod_type = ast_calloc(sizeof(char), strlen(newparam) + 1);
-	strcpy(ldap_mods[0]->mod_type, newparam);
+	ldap_mods[0]->mod_type = ast_strdup(newparam);
 
-	ldap_mods[0]->mod_values = ast_calloc(sizeof(char), 2);
-	ldap_mods[0]->mod_values[0] = ast_calloc(sizeof(char), strlen(newval) + 1);
-	strcpy(ldap_mods[0]->mod_values[0], newval);
+	ldap_mods[0]->mod_values = ast_calloc(sizeof(char *), 2);
+	ldap_mods[0]->mod_values[0] = ast_strdup(newval);
 
 	while ((newparam = va_arg(ap, const char *))) {
 		newparam = convert_attribute_name_to_ldap(table_config, newparam);
