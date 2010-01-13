@@ -15804,11 +15804,10 @@ static char *sip_unregister(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 /*! \brief Callback for show_chanstats */
 static int show_chanstats_cb(void *__cur, void *__arg, int flags)
 {
-#define FORMAT2 "%-15.15s  %-11.11s  %-8.8s %-10.10s  %-10.10s (%-2.2s) %-6.6s %-10.10s  %-10.10s ( %%) %-6.6s\n"
-#define FORMAT  "%-15.15s  %-11.11s  %-8.8s %-10.10u%-1.1s %-10.10u (%-2.2u%%) %-6.6u %-10.10u%-1.1s %-10.10u (%-2.2u%%) %-6.6u\n"
+#define FORMAT2 "%-15.15s  %-11.11s  %-8.8s %-10.10s  %-10.10s (     %%) %-6.6s %-10.10s  %-10.10s (     %%) %-6.6s\n"
+#define FORMAT  "%-15.15s  %-11.11s  %-8.8s %-10.10u%-1.1s %-10.10u (%5.2f%%) %-6.6u %-10.10u%-1.1s %-10.10u (%5.2f%%) %-6.6u\n"
 	struct sip_pvt *cur = __cur;
-	unsigned int rxcount;
-	unsigned int txcount;
+	unsigned int rxcount, txcount, rxploss, txploss;
 	char durbuf[10];
         int duration;
         int durh, durm, durs;
@@ -15827,6 +15826,8 @@ static int show_chanstats_cb(void *__cur, void *__arg, int flags)
 	}
 	rxcount = ast_rtp_get_qosvalue(cur->rtp, AST_RTP_RXCOUNT);
 	txcount = ast_rtp_get_qosvalue(cur->rtp, AST_RTP_TXCOUNT);
+	rxploss = ast_rtp_get_qosvalue(cur->rtp, AST_RTP_RXPLOSS);
+	txploss = ast_rtp_get_qosvalue(cur->rtp, AST_RTP_TXPLOSS);
 
 	/* Find the duration of this channel */
 	if (c && c->cdr && !ast_tvzero(c->cdr->start)) {
@@ -15845,13 +15846,13 @@ static int show_chanstats_cb(void *__cur, void *__arg, int flags)
 		durbuf,
 		rxcount > (unsigned int) 100000 ? (unsigned int) (rxcount)/(unsigned int) 1000 : rxcount,
 		rxcount > (unsigned int) 100000 ? "K":" ",
-		ast_rtp_get_qosvalue(cur->rtp, AST_RTP_RXPLOSS),
-		rxcount > ast_rtp_get_qosvalue(cur->rtp, AST_RTP_RXPLOSS) ? (unsigned int) ((double) ast_rtp_get_qosvalue(cur->rtp, AST_RTP_RXPLOSS) / (ast_rtp_get_qosvalue(cur->rtp, AST_RTP_RXPLOSS) + rxcount) * 100) : 0,
+		rxploss,
+		(rxcount + rxploss) > 0 ? (double) rxploss / (rxcount + rxploss) * 100 : 0,
 		ast_rtp_get_qosvalue(cur->rtp, AST_RTP_RXJITTER),
 		txcount > (unsigned int) 100000 ? (unsigned int) (txcount)/(unsigned int) 1000 : txcount,
 		txcount > (unsigned int) 100000 ? "K":" ",
-		ast_rtp_get_qosvalue(cur->rtp, AST_RTP_TXPLOSS),
-		txcount > ast_rtp_get_qosvalue(cur->rtp, AST_RTP_TXPLOSS) ? (unsigned int) ((double) ast_rtp_get_qosvalue(cur->rtp, AST_RTP_TXPLOSS)/ txcount * 100) : 0,
+		txploss,
+		txcount > 0 ? (double) txploss / txcount * 100 : 0,
 		ast_rtp_get_qosvalue(cur->rtp, AST_RTP_TXJITTER)
 	);
 	arg->numchans++;
@@ -15879,7 +15880,7 @@ static char *sip_show_channelstats(struct ast_cli_entry *e, int cmd, struct ast_
 	if (a->argc != 3)
 		return CLI_SHOWUSAGE;
 
-	ast_cli(a->fd, FORMAT2, "Peer", "Call ID", "Duration", "Recv: Pack", "Lost", "%", "Jitter", "Send: Pack", "Lost", "Jitter");
+	ast_cli(a->fd, FORMAT2, "Peer", "Call ID", "Duration", "Recv: Pack", "Lost", "Jitter", "Send: Pack", "Lost", "Jitter");
 	/* iterate on the container and invoke the callback on each item */
 	ao2_t_callback(dialogs, OBJ_NODATA, show_chanstats_cb, &arg, "callback to sip show chanstats");
 	ast_cli(a->fd, "%d active SIP channel%s\n", arg.numchans, (arg.numchans != 1) ? "s" : ""); 
