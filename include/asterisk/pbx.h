@@ -147,6 +147,14 @@ int ast_build_timing(struct ast_timing *i, const char *info);
 int ast_check_timing(const struct ast_timing *i);
 
 /*!
+ * \brief Evaluate a pre-constructed bitmap as to whether a particular time falls within the range specified.
+ * \param i Pointer to an ast_timing structure.
+ * \param tv Specified time
+ * \retval Returns 1, if the time matches or 0, if the time falls outside of the specified range.
+ */
+int ast_check_timing2(const struct ast_timing *i, const struct timeval tv);
+
+/*!
  * \brief Deallocates memory structures associated with a timing bitmap.
  * \param i Pointer to an ast_timing structure.
  * \retval 0 success

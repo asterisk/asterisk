@@ -332,6 +332,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<see-also>
 			<ref type="application">GotoIf</ref>
 			<ref type="function">IFTIME</ref>
+			<ref type="function">TESTTIME</ref>
 		</see-also>
 	</application>
 	<application name="ImportVar" language="en_US">
@@ -715,6 +716,30 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</description>
 		<see-also>
 			<ref type="application">RaiseException</ref>
+		</see-also>
+	</function>
+	<function name="TESTTIME" language="en_US">
+		<synopsis>
+			Sets a time to be used with the channel to test logical conditions.
+		<synopsis>
+		<syntax>
+			<parameter name="date" required="true" argsep=" ">
+				<para>Date in ISO 8601 format</para>
+			</parameter>
+			<parameter name="time" required="true" argsep=" ">
+				<para>Time in HH:MM:SS format (24-hour time)</para>
+			</parameter>
+			<parameter name="zone" required="false">
+				<para>Timezone name</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>To test dialplan timing conditions at times other than the current time, use
+			this function to set an alternate date and time.  For example, you may wish to evaluate
+			whether a location will correctly identify to callers that the area is closed on Christmas
+			Day, when Christmas would otherwise fall on a day when the office is normally open.</para>
+		<see-also>
+			<ref type="application">GotoIfTime</ref>
 		</see-also>
 	</function>
 	<manager name="ShowDialPlan" language="en_US">
@@ -7284,10 +7309,14 @@ int ast_build_timing(struct ast_timing *i, const char *info_in)
 
 int ast_check_timing(const struct ast_timing *i)
 {
-	struct ast_tm tm;
-	struct timeval now = ast_tvnow();
+	return ast_check_timing2(i, ast_tvnow());
+}
 
-	ast_localtime(&now, &tm, i->timezone);
+int ast_check_timing2(const struct ast_timing *i, const struct timeval tv)
+{
+	struct ast_tm tm;
+
+	ast_localtime(&tv, &tm, i->timezone);
 
 	/* If it's not the right month, return */
 	if (!(i->monthmask & (1 << tm.tm_mon)))
@@ -8928,12 +8957,47 @@ static int pbx_builtin_hangup(struct ast_channel *chan, const char *data)
 }
 
 /*!
+ * \ingroup functions
+ */
+static int testtime_write(struct ast_channel *chan, const char *cmd, char *var, const char *value)
+{
+	struct ast_tm tm;
+	struct timeval tv;
+	char *remainder, result[30], timezone[80];
+
+	/* Turn off testing? */
+	if (!pbx_checkcondition(value)) {
+		pbx_builtin_setvar_helper(chan, "TESTTIME", NULL);
+		return 0;
+	}
+
+	/* Parse specified time */
+	if (!(remainder = ast_strptime(value, "%Y/%m/%d %H:%M:%S", &tm))) {
+		return -1;
+	}
+	sscanf(remainder, "%79s", timezone);
+	tv = ast_mktime(&tm, S_OR(timezone, NULL));
+
+	snprintf(result, sizeof(result), "%ld", (long) tv.tv_sec);
+	pbx_builtin_setvar_helper(chan, "__TESTTIME", result);
+	return 0;
+}
+
+static struct ast_custom_function testtime_function = {
+	.name = "TESTTIME",
+	.write = testtime_write,
+};
+
+/*!
  * \ingroup applications
  */
 static int pbx_builtin_gotoiftime(struct ast_channel *chan, const char *data)
 {
 	char *s, *ts, *branch1, *branch2, *branch;
 	struct ast_timing timing;
+	const char *ctime;
+	struct timeval tv = ast_tvnow();
+	long timesecs;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "GotoIfTime requires an argument:\n  <time range>,<days of week>,<days of month>,<months>[,<timezone>]?'labeliftrue':'labeliffalse'\n");
@@ -8942,16 +9006,28 @@ static int pbx_builtin_gotoiftime(struct ast_channel *chan, const char *data)
 
 	ts = s = ast_strdupa(data);
 
+	if (chan) {
+		ast_channel_lock(chan);
+		if ((ctime = pbx_builtin_getvar_helper(chan, "TESTTIME")) && sscanf(ctime, "%ld", &timesecs) == 1) {
+			tv.tv_sec = timesecs;
+		} else if (ctime) {
+			ast_log(LOG_WARNING, "Using current time to evaluate\n");
+			/* Reset when unparseable */
+			pbx_builtin_setvar_helper(chan, "TESTTIME", NULL);
+		}
+		ast_channel_unlock(chan);
+	}
 	/* Separate the Goto path */
 	strsep(&ts, "?");
 	branch1 = strsep(&ts,":");
 	branch2 = strsep(&ts,"");
 
 	/* struct ast_include include contained garbage here, fixed by zeroing it on get_timerange */
-	if (ast_build_timing(&timing, s) && ast_check_timing(&timing))
+	if (ast_build_timing(&timing, s) && ast_check_timing2(&timing, tv)) {
 		branch = branch1;
-	else
+	} else {
 		branch = branch2;
+	}
 	ast_destroy_timing(&timing);
 
 	if (ast_strlen_zero(branch)) {
@@ -9618,6 +9694,7 @@ int load_pbx(void)
 	ast_verb(1, "Registering builtin applications:\n");
 	ast_cli_register_multiple(pbx_cli, ARRAY_LEN(pbx_cli));
 	__ast_custom_function_register(&exception_function, NULL);
+	__ast_custom_function_register(&testtime_function, NULL);
 
 	/* Register builtin applications */
 	for (x = 0; x < ARRAY_LEN(builtins); x++) {
