@@ -16508,8 +16508,8 @@ static char *sip_unregister(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 /*! \brief Callback for show_chanstats */
 static int show_chanstats_cb(void *__cur, void *__arg, int flags)
 {
-#define FORMAT2 "%-15.15s  %-11.11s  %-8.8s %-10.10s  %-10.10s (%-2.2s) %-6.6s %-10.10s  %-10.10s ( %%) %-6.6s\n"
-#define FORMAT  "%-15.15s  %-11.11s  %-8.8s %-10.10u%-1.1s %-10.10u (%-2.2u%%) %-6.6u %-10.10u%-1.1s %-10.10u (%-2.2u%%) %-6.6u\n"
+#define FORMAT2 "%-15.15s  %-11.11s  %-8.8s %-10.10s  %-10.10s (     %%) %-6.6s %-10.10s  %-10.10s (     %%) %-6.6s\n"
+#define FORMAT  "%-15.15s  %-11.11s  %-8.8s %-10.10u%-1.1s %-10.10u (%5.2f%%) %-6.6u %-10.10u%-1.1s %-10.10u (%5.2f%%) %-6.6u\n"
 	struct sip_pvt *cur = __cur;
 	struct ast_rtp_instance_stats stats;
 	char durbuf[10];
@@ -16548,12 +16548,12 @@ static int show_chanstats_cb(void *__cur, void *__arg, int flags)
 		stats.rxcount > (unsigned int) 100000 ? (unsigned int) (stats.rxcount)/(unsigned int) 1000 : stats.rxcount,
 		stats.rxcount > (unsigned int) 100000 ? "K":" ",
 		stats.rxploss,
-		stats.rxcount > stats.rxploss ? (stats.rxploss / stats.rxcount * 100) : 0,
+		(stats.rxcount + stats.rxploss) > 0 ? (double) stats.rxploss / (stats.rxcount + stats.rxploss) * 100 : 0,
 		stats.rxjitter,
 		stats.txcount > (unsigned int) 100000 ? (unsigned int) (stats.txcount)/(unsigned int) 1000 : stats.txcount,
 		stats.txcount > (unsigned int) 100000 ? "K":" ",
 		stats.txploss,
-		stats.txcount > stats.txploss ? (stats.txploss / stats.txcount * 100) : 0,
+		stats.txcount > 0 ? (double) stats.txploss / stats.txcount * 100 : 0,
 		stats.txjitter
 	);
 	arg->numchans++;
@@ -16581,7 +16581,7 @@ static char *sip_show_channelstats(struct ast_cli_entry *e, int cmd, struct ast_
 	if (a->argc != 3)
 		return CLI_SHOWUSAGE;
 
-	ast_cli(a->fd, FORMAT2, "Peer", "Call ID", "Duration", "Recv: Pack", "Lost", "%", "Jitter", "Send: Pack", "Lost", "Jitter");
+	ast_cli(a->fd, FORMAT2, "Peer", "Call ID", "Duration", "Recv: Pack", "Lost", "Jitter", "Send: Pack", "Lost", "Jitter");
 	/* iterate on the container and invoke the callback on each item */
 	ao2_t_callback(dialogs, OBJ_NODATA, show_chanstats_cb, &arg, "callback to sip show chanstats");
 	ast_cli(a->fd, "%d active SIP channel%s\n", arg.numchans, (arg.numchans != 1) ? "s" : "");
