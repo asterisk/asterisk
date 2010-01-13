@@ -58,15 +58,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<synopsis>
 			OSP Authentication.
 		</synopsis>
-		<syntax>
-			<parameter name="provider" />
-			<parameter name="options" />
-		</syntax>
 		<description>
-			<para>Authenticate a call by OSP and sets the variables:</para>
+			<para>Authenticate a call by OSP.</para>
+			<para>Input variables:</para>
+			<variablelist>
+				<variable name="OSPINPEERIP">
+					<para>The last hop IP address.</para>
+				</variable>
+				<variable name="OSPINTOKEN">
+					<para>The inbound OSP token.</para>
+				</variable>
+			</variablelist>
+			<para>Output variables:</para>
 			<variablelist>
 				<variable name="OSPINHANDLE">
-					<para>The inbound call transaction handle.</para>
+					<para>The inbound call OSP transaction handle.</para>
 				</variable>
 				<variable name="OSPINTIMELIMIT">
 					<para>The inbound call duration limit in seconds.</para>
@@ -75,133 +81,352 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>This application sets the following channel variable upon completion:</para>
 			<variablelist>
 				<variable name="OSPAUTHSTATUS">
-					<para>The status of the OSP Auth attempt as a text string, one of</para>
+					<para>The status of OSPAuth attempt as a text string, one of</para>
 					<value name="SUCCESS" />
 					<value name="FAILED" />
 					<value name="ERROR" />
 				</variable>
 			</variablelist>
 		</description>
+		<syntax>
+			<parameter name="provider">
+				<para>The name of the provider that authenticates the call.</para>
+			</parameter>
+			<parameter name="options">
+				<para>Reserverd.</para>
+			</parameter>
+		</syntax>
+		<see-also>
+			<ref type="application">OSPLookup</ref>
+			<ref type="application">OSPNext</ref>
+			<ref type="application">OSPFinish</ref>
+		</see-also>
 	</application>
 	<application name="OSPLookup" language="en_US">
 		<synopsis>
 			Lookup destination by OSP.
 		</synopsis>
+		<description>
+			<para>Looks up destination via OSP.</para>
+			<para>Input variables:</para>
+			<variablelist>
+				<variable name="OSPINPEERIP">
+					<para>The last hop IP address.</para>
+				</variable>
+				<variable name="OSPINHANDLE">
+					<para>The inbound call OSP transaction handle.</para>
+				</variable>
+				<variable name="OSPINTIMELIMIT">
+					<para>The inbound call duration limit in seconds.</para>
+				</variable>
+				<variable name="OSPINNETWORKID">
+					<para>The inbound source network ID.</para>
+				</variable>
+				<variable name="OSPINNPRN">
+					<para>The inbound routing number.</para>
+				</variable>
+				<variable name="OSPINNPCIC">
+					<para>The inbound carrier identification code.</para>
+				</variable>
+				<variable name="OSPINNPDI">
+					<para>The inbound number portability database dip indicator.</para>
+				</variable>
+				<variable name="OSPINSPID">
+					<para>The inbound service provider identity.</para>
+				</variable>
+				<variable name="OSPINOCN">
+					<para>The inbound operator company number.</para>
+				</variable>
+				<variable name="OSPINSPN">
+					<para>The inbound service provider name.</para>
+				</variable>
+				<variable name="OSPINALTSPN">
+					<para>The inbound alternate service provider name.</para>
+				</variable>
+				<variable name="OSPINMCC">
+					<para>The inbound mobile country code.</para>
+				</variable>
+				<variable name="OSPINMNC">
+					<para>The inbound mobile network code.</para>
+				</variable>
+				<variable name="OSPINTOHOST">
+					<para>The inbound To header host part.</para>
+				</variable>
+				<variable name="OSPINDIVUSER">
+					<para>The inbound Diversion header user part.</para>
+				</variable>
+				<variable name="OSPINDIVHOST">
+					<para>The inbound Diversion header host part.</para>
+				</variable>
+				<variable name="OSPINCUSTOMINFOn">
+					<para>The inbound custom information, where <literal>n</literal> is the index beginning with <literal>1</literal>
+					upto <literal>8</literal>.</para>
+				</variable>
+			</variablelist>
+			<para>Output variables:</para>
+			<variablelist>
+				<variable name="OSPOUTHANDLE">
+					<para>The outbound call OSP transaction handle.</para>
+				</variable>
+				<variable name="OSPOUTTECH">
+					<para>The outbound channel technology for the call.</para>
+				</variable>
+				<variable name="OSPDESTINATION">
+					<para>The outbound destination IP address.</para>
+				</variable>
+				<variable name="OSPOUTCALLING">
+					<para>The outbound calling number.</para>
+				</variable>
+				<variable name="OSPOUTCALLED">
+					<para>The outbound called number.</para>
+				</variable>
+				<variable name="OSPOUTNETWORKID">
+					<para>The outbound destination network ID.</para>
+				</variable>
+				<variable name="OSPOUTNPRN">
+					<para>The outbound routing number.</para>
+				</variable>
+				<variable name="OSPOUTNPCIC">
+					<para>The outbound carrier identification code.</para>
+				</variable>
+				<variable name="OSPOUTNPDI">
+					<para>The outbound number portability database dip indicator.</para>
+				</variable>
+				<variable name="OSPOUTSPID">
+					<para>The outbound service provider identity.</para>
+				</variable>
+				<variable name="OSPOUTOCN">
+					<para>The outbound operator company number.</para>
+				</variable>
+				<variable name="OSPOUTSPN">
+					<para>The outbound service provider name.</para>
+				</variable>
+				<variable name="OSPOUTALTSPN">
+					<para>The outbound alternate service provider name.</para>
+				</variable>
+				<variable name="OSPOUTMCC">
+					<para>The outbound mobile country code.</para>
+				</variable>
+				<variable name="OSPOUTMNC">
+					<para>The outbound mobile network code.</para>
+				</variable>
+				<variable name="OSPOUTTOKEN">
+					<para>The outbound OSP token.</para>
+				</variable>
+				<variable name="OSPDESTREMAILS">
+					<para>The number of remained destinations.</para>
+				</variable>
+				<variable name="OSPOUTTIMELIMIT">
+					<para>The outbound call duration limit in seconds.</para>
+				</variable>
+				<variable name="OSPOUTCALLIDTYPES">
+					<para>The outbound Call-ID types.</para>
+				</variable>
+				<variable name="OSPDIALSTR">
+					<para>The outbound Dial command string.</para>
+				</variable>
+			</variablelist>
+			<para>This application sets the following channel variable upon completion:</para>
+			<variablelist>
+				<variable name="OSPLOOKUPSTATUS">
+					<para>The status of OSPLookup attempt as a text string, one of</para>
+					<value name="SUCCESS" />
+					<value name="FAILED" />
+					<value name="ERROR" />
+				</variable>
+			</variablelist>
+		</description>
 		<syntax>
-			<parameter name="exten" required="true" />
-			<parameter name="provider" />
+			<parameter name="exten" required="true">
+				<para>The exten of the call.</para>
+			</parameter>
+			<parameter name="provider">
+				<para>The name of the provider that is used to route the call.</para>
+			</parameter>
 			<parameter name="options">
 				<enumlist>
 					<enum name="h">
 						<para>generate H323 call id for the outbound call</para>
 					</enum>
 					<enum name="s">
-						<para>generate SIP call id for the outbound call.
-						Have not been implemented</para>
+						<para>generate SIP call id for the outbound call. Have not been implemented</para>
 					</enum>
 					<enum name="i">
-						<para>generate IAX call id for the outbound call.
-						Have not been implemented</para>
+						<para>generate IAX call id for the outbound call. Have not been implemented</para>
 					</enum>
 				</enumlist>
 			</parameter>
 		</syntax>
-		<description>
-			<para>Looks up an extension via OSP and sets the variables, where <literal>n</literal> is the
-			number of the result beginning with <literal>1</literal>:</para>
-			<variablelist>
-				<variable name="OSPOUTHANDLE">
-					<para>The OSP Handle for anything remaining.</para>
-				</variable>
-				<variable name="OSPTECH">
-					<para>The technology to use for the call.</para>
-				</variable>
-				<variable name="OSPDESTINATION">
-					<para>The destination to use for the call.</para>
-				</variable>
-				<variable name="OSPOUTCALLING">
-					<para>The calling number to use for the call.</para>
-				</variable>
-				<variable name="OSPOUTCALLED">
-					<para>The called number to use for the call.</para>
-				</variable>
-				<variable name="OSPDIALSTR">
-					<para>The dial command string.</para>
-				</variable>
-				<variable name="OSPOUTTOKEN">
-					<para>The actual OSP token as a string.</para>
-				</variable>
-				<variable name="OSPOUTTIMELIMIT">
-					<para>The outbound call duraction limit in seconds.</para>
-				</variable>
-				<variable name="OSPOUTCALLIDTYPES">
-					<para>The outbound call id types.</para>
-				</variable>
-				<variable name="OSPOUTCALLID">
-					<para>The outbound call id.</para>
-				</variable>
-				<variable name="OSPDESTREMAILS">
-					<para>The number of OSP results total remaining.</para>
-				</variable>
-			</variablelist>
-			<variablelist>
-				<variable name="OSPLOOKUPSTATUS">
-					<para>This application sets the following channel variable upon completion:</para>
-					<value name="SUCCESS" />
-					<value name="FAILED" />
-					<value name="ERROR" />
-				</variable>
-			</variablelist>
-		</description>
+		<see-also>
+			<ref type="application">OSPAuth</ref>
+			<ref type="application">OSPNext</ref>
+			<ref type="application">OSPFinish</ref>
+		</see-also>
 	</application>
 	<application name="OSPNext" language="en_US">
 		<synopsis>
 			Lookup next destination by OSP.
 		</synopsis>
-		<syntax>
-			<parameter name="cause" required="true" />
-			<parameter name="provider" />
-			<parameter name="options" />
-		</syntax>
 		<description>
-			<para>Looks up the next OSP Destination for <variable>OSPOUTHANDLE</variable>.</para>
+			<para>Looks up the next destination via OSP.</para>
+			<para>Input variables:</para>
+			<variablelist>
+				<variable name="OSPINHANDLE">
+					<para>The inbound call OSP transaction handle.</para>
+				</variable>
+				<variable name="OSPOUTHANDLE">
+					<para>The outbound call OSP transaction handle.</para>
+				</variable>
+				<variable name="OSPINTIMELIMIT">
+					<para>The inbound call duration limit in seconds.</para>
+				</variable>
+				<variable name="OSPOUTCALLIDTYPES">
+					<para>The outbound Call-ID types.</para>
+				</variable>
+				<variable name="OSPDESTREMAILS">
+					<para>The number of remained destinations.</para>
+				</variable>
+			</variablelist>
+			<para>Output variables:</para>
+			<variablelist>
+				<variable name="OSPOUTTECH">
+					<para>The outbound channel technology.</para>
+				</variable>
+				<variable name="OSPDESTINATION">
+					<para>The destination IP address.</para>
+				</variable>
+				<variable name="OSPOUTCALLING">
+					<para>The outbound calling number.</para>
+				</variable>
+				<variable name="OSPOUTCALLED">
+					<para>The outbound called number.</para>
+				</variable>
+				<variable name="OSPOUTNETWORKID">
+					<para>The outbound destination network ID.</para>
+				</variable>
+				<variable name="OSPOUTNPRN">
+					<para>The outbound routing number.</para>
+				</variable>
+				<variable name="OSPOUTNPCIC">
+					<para>The outbound carrier identification code.</para>
+				</variable>
+				<variable name="OSPOUTNPDI">
+					<para>The outbound number portability database dip indicator.</para>
+				</variable>
+				<variable name="OSPOUTSPID">
+					<para>The outbound service provider identity.</para>
+				</variable>
+				<variable name="OSPOUTOCN">
+					<para>The outbound operator company number.</para>
+				</variable>
+				<variable name="OSPOUTSPN">
+					<para>The outbound service provider name.</para>
+				</variable>
+				<variable name="OSPOUTALTSPN">
+					<para>The outbound alternate service provider name.</para>
+				</variable>
+				<variable name="OSPOUTMCC">
+					<para>The outbound mobile country code.</para>
+				</variable>
+				<variable name="OSPOUTMNC">
+					<para>The outbound mobile network code.</para>
+				</variable>
+				<variable name="OSPOUTTOKEN">
+					<para>The outbound OSP token.</para>
+				</variable>
+				<variable name="OSPDESTREMAILS">
+					<para>The number of remained destinations.</para>
+				</variable>
+				<variable name="OSPOUTTIMELIMIT">
+					<para>The outbound call duration limit in seconds.</para>
+				</variable>
+				<variable name="OSPOUTCALLID">
+					<para>The outbound Call-ID. Only for H.323.</para>
+				</variable>
+				<variable name="OSPDIALSTR">
+					<para>The outbound Dial command string.</para>
+				</variable>
+			</variablelist>
 			<para>This application sets the following channel variable upon completion:</para>
 			<variablelist>
 				<variable name="OSPNEXTSTATUS">
-					<para>The status of the OSP Next attempt as a text string, one of</para>
+					<para>The status of the OSPNext attempt as a text string, one of</para>
 					<value name="SUCCESS" />
 					<value name="FAILED" />
 					<value name="ERROR" />
 				</variable>
 			</variablelist>
 		</description>
+		<syntax>
+			<parameter name="cause" required="true">
+				<para>The termaintion cause of the previous call attempt.</para>
+			</parameter>
+			<parameter name="provider">
+				<para>The name of the provider that is used to route the call.</para>
+			</parameter>
+			<parameter name="options">
+				<para>Reserved.</para>
+			</parameter>
+		</syntax>
 		<see-also>
+			<ref type="application">OSPAuth</ref>
 			<ref type="application">OSPLookup</ref>
+			<ref type="application">OSPFinish</ref>
 		</see-also>
 	</application>
 	<application name="OSPFinish" language="en_US">
 		<synopsis>
-			Record OSP entry.
+			Report OSP entry.
 		</synopsis>
-		<syntax>
-			<parameter name="status" />
-			<parameter name="options" />
-		</syntax>
 		<description>
-			<para>Records call state for <variable>OSPINHANDLE</variable>, according to status, which should
-			be one of <literal>BUSY</literal>, <literal>CONGESTION</literal>, <literal>ANSWER</literal>,
-			<literal>NOANSWER</literal>, or <literal>CHANUNAVAIL</literal> or coincidentally, just what the
-			Dial application stores in its <variable>DIALSTATUS</variable>.</para>
+			<para>Report call state.</para>
+			<para>Input variables:</para>
+			<variablelist>
+				<variable name="OSPINHANDLE">
+					<para>The inbound call OSP transaction handle.</para>
+				</variable>
+				<variable name="OSPOUTHANDLE">
+					<para>The outbound call OSP transaction handle.</para>
+				</variable>
+				<variable name="OSPAUTHSTATUS">
+					<para>The OSPAuth status.</para>
+				</variable>
+				<variable name="OSPLOOKUPSTATUS">
+					<para>The OSPLookup status.</para>
+				</variable>
+				<variable name="OSPNEXTSTATUS">
+					<para>The OSPNext status.</para>
+				</variable>
+				<variable name="OSPINAUDIOQOS">
+					<para>The inbound call leg audio QoS string.</para>
+				</variable>
+				<variable name="OSPOUTAUDIOQOS">
+					<para>The outbound call leg audio QoS string.</para>
+				</variable>
+			</variablelist>
 			<para>This application sets the following channel variable upon completion:</para>
 			<variablelist>
 				<variable name="OSPFINISHSTATUS">
-					<para>The status of the OSP Finish attempt as a text string, one of</para>
+					<para>The status of the OSPFinish attempt as a text string, one of</para>
 					<value name="SUCCESS" />
 					<value name="FAILED" />
 					<value name="ERROR" />
 				</variable>
 			</variablelist>
 		</description>
+		<syntax>
+			<parameter name="cause">
+				<para>Hangup cause.</para>
+			</parameter>
+			<parameter name="options">
+				<para>Reserved.</para>
+			</parameter>
+		</syntax>
+		<see-also>
+			<ref type="application">OSPAuth</ref>
+			<ref type="application">OSPLookup</ref>
+			<ref type="application">OSPNext</ref>
+		</see-also>
 	</application>
  ***/
 
@@ -2071,7 +2296,7 @@ static int osplookup_exec(
 	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "OSPLookup: Arg required, OSPLookup(exten[|provider[|options]])\n");
+		ast_log(LOG_WARNING, "OSPLookup: Arg required, OSPLookup(exten[,provider[,options]])\n");
 		return OSP_AST_ERROR;
 	}
 
@@ -2339,7 +2564,7 @@ static int ospnext_exec(
 	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "OSPNext: Arg required, OSPNext(cause[|provider[|options]])\n");
+		ast_log(LOG_WARNING, "OSPNext: Arg required, OSPNext(cause[,provider[,options]])\n");
 		return OSP_AST_ERROR;
 	}
 
