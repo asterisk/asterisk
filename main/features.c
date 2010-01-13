@@ -791,6 +791,11 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, i
 	/* Setup the extensions and such */
 	set_c_e_p(chan, rchan->context, rchan->exten, rchan->priority);
 
+	/* Setup the macro extension and such */
+	ast_copy_string(chan->macrocontext,rchan->macrocontext,sizeof(chan->macrocontext));
+	ast_copy_string(chan->macroexten,rchan->macroexten,sizeof(chan->macroexten));
+	chan->macropriority = rchan->macropriority;
+
 	/* Make the masq execute */
 	if ((f = ast_read(chan)))
 		ast_frfree(f);
