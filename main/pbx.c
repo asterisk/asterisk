@@ -738,6 +738,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			this function to set an alternate date and time.  For example, you may wish to evaluate
 			whether a location will correctly identify to callers that the area is closed on Christmas
 			Day, when Christmas would otherwise fall on a day when the office is normally open.</para>
+		</description>
 		<see-also>
 			<ref type="application">GotoIfTime</ref>
 		</see-also>
