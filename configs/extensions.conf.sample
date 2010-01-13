@@ -723,6 +723,70 @@ include => demo
 ;
 ; end of acme example
 
+;
+; Time context: you can patch this in via the following.
+;
+; [acme-internal]
+; ...
+; exten => 777,1,Gosub(time)
+; exten => 777,n,Hangup()
+;
+; ...
+; include => time
+;
+; Note: if you're geographically spread out, you can have SIP extensions
+; specify their own local timezone in sip.conf as:
+;
+; [boi]
+; type=friend
+; context=acme-internal
+; callerid="Boise Ofc. <2083451111>"
+; ...
+; ; use system-wide default timezone of MST7MDT
+;
+; [lws]
+; type=friend
+; context=acme-internal
+; callerid="Lewiston Ofc. <2087431111>"
+; ...
+; setvar=timezone=PST8PDT
+;
+; "timezone" isn't a 'reserved' name in any way, and other places where
+; the timezone is significant (e.g. calls to "SayUnixTime()", etc) will
+; require modification as well.  Note that voicemail.conf already has
+; a mechanism for timezones.
+;
+
+[time]
+exten => _X.,30000(time),NoOp(Time: ${EXTEN} ${timezone})
+exten => _X.,n,Wait(0.25)
+exten => _X.,n,Answer()
+; the amount of delay is set for English; you may need to adjust this time
+; for other languages if there's no pause before the synchronizing beep.
+exten => _X.,n,Set(FUTURETIME=$[${EPOCH} + 12])
+exten => _X.,n,SayUnixTime(${FUTURETIME},Zulu,HNS)
+exten => _X.,n,SayPhonetic(z)
+; use the timezone associated with the extension (sip only), or system-wide
+; default if one hasn't been set.
+exten => _X.,n,SayUnixTime(${FUTURETIME},${timezone},HNS)
+exten => _X.,n,Playback(spy-local)
+exten => _X.,n,WaitUntil(${FUTURETIME})
+exten => _X.,n,Playback(beep)
+exten => _X.,n,Return()
+
+;
+; ANI context: use in the same way as "time" above
+;
+
+[ani]
+exten => _X.,40000(ani),NoOp(ANI: ${EXTEN})
+exten => _X.,n,Wait(0.25)
+exten => _X.,n,Answer()
+exten => _X.,n,Playback(vm-from)
+exten => _X.,n,SayDigits(${CALLERID(ani)})
+exten => _X.,n,Wait(1.25)
+exten => _X.,n,SayDigits(${CALLERID(ani)})	; playback again in case of missed digit
+exten => _X.,n,Return()
 
 ; For more information on applications, just type "core show applications" at your
 ; friendly Asterisk CLI prompt.
