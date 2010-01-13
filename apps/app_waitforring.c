@@ -48,6 +48,7 @@ static char *app = "WaitForRing";
 static int waitforring_exec(struct ast_channel *chan, void *data)
 {
 	struct ast_frame *f;
+	struct ast_silence_generator *silgen = NULL;
 	int res = 0;
 	double s;
 	int ms;
@@ -55,6 +56,10 @@ static int waitforring_exec(struct ast_channel *chan, void *data)
 	if (!data || (sscanf(data, "%30lg", &s) != 1)) {
                 ast_log(LOG_WARNING, "WaitForRing requires an argument (minimum seconds)\n");
 		return 0;
+	}
+
+	if (ast_opt_transmit_silence) {
+		silgen = ast_channel_start_silence_generator(chan);
 	}
 
 	ms = s*1000.0;
@@ -99,6 +104,10 @@ static int waitforring_exec(struct ast_channel *chan, void *data)
 				ast_frfree(f);
 			}
 		}
+	}
+
+	if (silgen) {
+		ast_channel_stop_silence_generator(chan, silgen);
 	}
 
 	return res;

@@ -1287,21 +1287,39 @@ struct ast_channel *ast_walk_channel_by_exten_locked(const struct ast_channel *c
 int ast_safe_sleep_conditional(struct ast_channel *chan, int ms, int (*cond)(void*), void *data)
 {
 	struct ast_frame *f;
+	struct ast_silence_generator *silgen = NULL;
+	int res = 0;
+
+	/* If no other generator is present, start silencegen while waiting */
+	if (ast_opt_transmit_silence && !chan->generatordata) {
+		silgen = ast_channel_start_silence_generator(chan);
+	}
 
 	while (ms > 0) {
-		if (cond && ((*cond)(data) == 0))
-			return 0;
+		if (cond && ((*cond)(data) == 0)) {
+			break;
+		}
 		ms = ast_waitfor(chan, ms);
-		if (ms < 0)
-			return -1;
+		if (ms < 0) {
+			res = -1;
+			break;
+		}
 		if (ms > 0) {
 			f = ast_read(chan);
-			if (!f)
-				return -1;
+			if (!f) {
+				res = -1;
+				break;
+			}
 			ast_frfree(f);
 		}
 	}
-	return 0;
+
+	/* stop silgen if present */
+	if (silgen) {
+		ast_channel_stop_silence_generator(chan, silgen);
+	}
+
+	return res;
 }
 
 /*! \brief Wait, look for hangups */
