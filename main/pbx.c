@@ -721,7 +721,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	<function name="TESTTIME" language="en_US">
 		<synopsis>
 			Sets a time to be used with the channel to test logical conditions.
-		<synopsis>
+		</synopsis>
 		<syntax>
 			<parameter name="date" required="true" argsep=" ">
 				<para>Date in ISO 8601 format</para>
