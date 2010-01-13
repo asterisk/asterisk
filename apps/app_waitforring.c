@@ -57,6 +57,7 @@ static int waitforring_exec(struct ast_channel *chan, void *data)
 {
 	struct ast_module_user *u;
 	struct ast_frame *f;
+	struct ast_silence_generator *silgen = NULL;
 	int res = 0;
 	int ms;
 
@@ -66,6 +67,10 @@ static int waitforring_exec(struct ast_channel *chan, void *data)
 	}
 
 	u = ast_module_user_add(chan);
+
+	if (ast_opt_transmit_silence) {
+		silgen = ast_channel_start_silence_generator(chan);
+	}
 
 	ms *= 1000;
 	while(ms > 0) {
@@ -113,6 +118,10 @@ static int waitforring_exec(struct ast_channel *chan, void *data)
 		}
 	}
 	ast_module_user_remove(u);
+
+	if (silgen) {
+		ast_channel_stop_silence_generator(chan, silgen);
+	}
 
 	return res;
 }

@@ -164,6 +164,7 @@ static int waitforsilence_exec(struct ast_channel *chan, void *data)
 	int timeout = 0;
 	int iterations = 1, i;
 	time_t waitstart;
+	struct ast_silence_generator *silgen = NULL;
 
 	res = ast_answer(chan); /* Answer the channel */
 
@@ -176,11 +177,18 @@ static int waitforsilence_exec(struct ast_channel *chan, void *data)
 	if (option_verbose > 2)
 		ast_verbose(VERBOSE_PREFIX_3 "Waiting %d time(s) for %d ms silence with %d timeout\n", iterations, silencereqd, timeout);
 
+	if (ast_opt_transmit_silence) {
+		silgen = ast_channel_start_silence_generator(chan);
+	}
 	time(&waitstart);
 	res = 1;
 	for (i=0; (i<iterations) && (res == 1); i++) {
 		res = do_waiting(chan, silencereqd, waitstart, timeout);
 	}
+	if (silgen) {
+		ast_channel_stop_silence_generator(chan, silgen);
+	}
+
 	if (res > 0)
 		res = 0;
 	return res;
