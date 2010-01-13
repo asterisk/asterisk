@@ -11,7 +11,7 @@
 #define FLEX_SCANNER
 #define YY_FLEX_MAJOR_VERSION 2
 #define YY_FLEX_MINOR_VERSION 5
-#define YY_FLEX_SUBMINOR_VERSION 35
+#define YY_FLEX_SUBMINOR_VERSION 34
 #if YY_FLEX_SUBMINOR_VERSION > 0
 #define FLEX_BETA
 #endif
@@ -56,6 +56,7 @@ typedef int flex_int32_t;
 typedef unsigned char flex_uint8_t; 
 typedef unsigned short int flex_uint16_t;
 typedef unsigned int flex_uint32_t;
+#endif /* ! C99 */
 
 /* Limits of integral types. */
 #ifndef INT8_MIN
@@ -85,8 +86,6 @@ typedef unsigned int flex_uint32_t;
 #ifndef UINT32_MAX
 #define UINT32_MAX             (4294967295U)
 #endif
-
-#endif /* ! C99 */
 
 #endif /* ! FLEXINT_H */
 
@@ -194,6 +193,13 @@ typedef struct yy_buffer_state *YY_BUFFER_STATE;
 	while ( 0 )
 
 #define unput(c) yyunput( c, yyg->yytext_ptr , yyscanner )
+
+/* The following is because we cannot portably get our hands on size_t
+ * (without autoconf's help, which isn't available because we want
+ * flex-generated scanners to compile on their own).
+ * Given that the standard has decreed that size_t exists since 1989,
+ * I guess we can afford to depend on it. Manoj.
+ */
 
 #ifndef YY_TYPEDEF_YY_SIZE_T
 #define YY_TYPEDEF_YY_SIZE_T
@@ -596,7 +602,7 @@ int ast_yyget_column(yyscan_t yyscanner);
 static int curlycount = 0;
 static char *expr2_token_subst(const char *mess);
 
-#line 598 "ast_expr2f.c"
+#line 604 "ast_expr2f.c"
 
 #define INITIAL 0
 #define var 1
@@ -743,7 +749,7 @@ static int input (yyscan_t yyscanner );
 /* This used to be an fputs(), but since the string might contain NUL's,
  * we now use fwrite().
  */
-#define ECHO do { if (fwrite( yytext, yyleng, 1, yyout )) {} } while (0)
+#define ECHO fwrite( yytext, yyleng, 1, yyout )
 #endif
 
 /* Gets input and stuffs it into "buf".  number of characters read, or YY_NULL,
@@ -754,7 +760,7 @@ static int input (yyscan_t yyscanner );
 	if ( YY_CURRENT_BUFFER_LVALUE->yy_is_interactive ) \
 		{ \
 		int c = '*'; \
-		size_t n; \
+		int n; \
 		for ( n = 0; n < max_size && \
 			     (c = getc( yyin )) != EOF && c != '\n'; ++n ) \
 			buf[n] = (char) c; \
@@ -842,7 +848,7 @@ YY_DECL
 #line 125 "ast_expr2.fl"
 
 
-#line 844 "ast_expr2f.c"
+#line 850 "ast_expr2f.c"
 
     yylval = yylval_param;
 
@@ -1188,7 +1194,7 @@ YY_RULE_SETUP
 #line 233 "ast_expr2.fl"
 ECHO;
 	YY_BREAK
-#line 1190 "ast_expr2f.c"
+#line 1196 "ast_expr2f.c"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(var):
 	yyterminate();
@@ -1962,8 +1968,8 @@ YY_BUFFER_STATE ast_yy_scan_string (yyconst char * yystr , yyscan_t yyscanner)
 
 /** Setup the input buffer state to scan the given bytes. The next call to ast_yylex() will
  * scan from a @e copy of @a bytes.
- * @param yybytes the byte buffer to scan
- * @param _yybytes_len the number of bytes in the buffer pointed to by @a bytes.
+ * @param bytes the byte buffer to scan
+ * @param len the number of bytes in the buffer pointed to by @a bytes.
  * @param yyscanner The scanner object.
  * @return the newly allocated buffer state object.
  */
@@ -2124,7 +2130,7 @@ void ast_yyset_lineno (int  line_number , yyscan_t yyscanner)
 }
 
 /** Set the current column.
- * @param column_no
+ * @param line_number
  * @param yyscanner The scanner object.
  */
 void ast_yyset_column (int  column_no , yyscan_t yyscanner)
@@ -2379,10 +2385,10 @@ int ast_yyerror(const char *, YYLTYPE *, struct parse_io *); /* likewise */
 
 void ast_yyfree(void *ptr, yyscan_t yyscanner)
 {
-       /* the normal generated ast_yyfree func just frees its first arg;
-                    this get complaints on some systems, as sometimes this
-                    arg is a nil ptr! It's usually not fatal, but is irritating! */
-              free( (char *) ptr );
+    /* the normal generated ast_yyfree func just frees its first arg;
+     this get complaints on some systems, as sometimes this
+     arg is a nil ptr! It's usually not fatal, but is irritating! */
+	free( (char *) ptr );
 }
 
 int ast_expr(char *expr, char *buf, int length, struct ast_channel *chan)
@@ -2391,8 +2397,11 @@ int ast_expr(char *expr, char *buf, int length, struct ast_channel *chan)
 	int return_value = 0;
 
 	ast_yylex_init(&io.scanner);
+
 	ast_yy_scan_string(expr, io.scanner);
+
 	ast_yyparse ((void *) &io);
+
 	ast_yylex_destroy(io.scanner);
 
 	if (!io.val) {
@@ -2423,7 +2432,7 @@ int ast_expr(char *expr, char *buf, int length, struct ast_channel *chan)
 	return return_value;
 }
 
-#if !defined(STANDALONE)
+#ifndef STANDALONE
 int ast_str_expr(struct ast_str **str, ssize_t maxlen, struct ast_channel *chan, char *expr)
 {
 	struct parse_io io = { .string = expr, .chan = chan };
@@ -2467,7 +2476,7 @@ void  ast_expr_clear_extra_error_info(void)
        extra_error_message[0] = 0;
 }
 
-static char *expr2_token_equivs1[] = 
+static const char * const expr2_token_equivs1[] = 
 {
 	"TOKEN",
 	"TOK_COND",
@@ -2493,7 +2502,7 @@ static char *expr2_token_equivs1[] =
 	"TOK_LP"
 };
 
-static char *expr2_token_equivs2[] = 
+static const char * const expr2_token_equivs2[] = 
 {
 	"<token>",
 	"?",
@@ -2525,7 +2534,8 @@ static char *expr2_token_subst(const char *mess)
 	/* calc a length, malloc, fill, and return; yyerror had better free it! */
 	int len=0,i;
 	const char *p;
-	char *res, *s,*t;
+	char *res, *s;
+	const char *t;
 	int expr2_token_equivs_entries = sizeof(expr2_token_equivs1)/sizeof(char*);
 
 	for (p=mess; *p; p++) {

@@ -17,7 +17,8 @@ all: asterisk
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
-SRC=$(wildcard *.c)
+# Must include the extra ast_expr2.c, ast_expr2f.c, in case they need to be regenerated (because to force regeneration, we delete them)
+SRC=$(wildcard *.c) ast_expr2.c ast_expr2f.c
 OBJSFILTER=fskmodem_int.o fskmodem_float.o cygload.o buildinfo.o
 OBJS=$(filter-out $(OBJSFILTER),$(SRC:.c=.o))
 
