@@ -209,6 +209,7 @@ static int waitfor_exec(struct ast_channel *chan, void *data, int wait_for_silen
 	int timeout = 0;
 	int iterations = 1, i;
 	time_t waitstart;
+	struct ast_silence_generator *silgen = NULL;
 
 	if (chan->_state != AST_STATE_UP) {
 		res = ast_answer(chan); /* Answer the channel */
@@ -222,11 +223,19 @@ static int waitfor_exec(struct ast_channel *chan, void *data, int wait_for_silen
 
 	ast_verb(3, "Waiting %d time(s) for %d ms silence with %d timeout\n", iterations, timereqd, timeout);
 
+	if (ast_opt_transmit_silence) {
+		silgen = ast_channel_start_silence_generator(chan);
+	}
 	time(&waitstart);
 	res = 1;
 	for (i=0; (i<iterations) && (res == 1); i++) {
 		res = do_waiting(chan, timereqd, waitstart, timeout, wait_for_silence);
 	}
+	if (silgen) {
+		ast_channel_stop_silence_generator(chan, silgen);
+	}
+
+
 	if (res > 0)
 		res = 0;
 	return res;
