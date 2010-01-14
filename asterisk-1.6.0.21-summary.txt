@@ -1,0 +1,508 @@
+                                Release Summary
+
+                               asterisk-1.6.0.21
+
+                                Date: 2010-01-14
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.6.0.20.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   22 tilghman              3 dvossel                3 bklang                 
+   7 dvossel                2 wdoekes                3 wdoekes                
+   4 jpeeler                1 applsplatz             2 corruptor              
+   2 dant                   1 aragon                 2 kobaz                  
+   2 mnicholson             1 atis                   1 aatef                  
+   2 russell                1 bklang                 1 alexrecarey            
+   2 seanbright             1 corruptor              1 aragon                 
+   2 wdoekes                1 globalnetinc           1 asgaroth               
+   1 applsplatz             1 lmadsen                1 atis                   
+   1 bklang                 1 nickilo                1 bcnit                  
+   1 dimas                  1 peterj                 1 djrodman               
+   1 kpfleming              1 pprindeville           1 galeras                
+   1 lmadsen                1 rickead2000            1 globalnetinc           
+   1 mnick                  1 seanbright             1 goldwein               
+   1 nickilo                1 sergee                 1 jensvb                 
+   1 oej                    1 shanermn               1 jlaroff                
+   1 peterj                 1 tilghman               1 john8675309            
+   1 pprindeville           1 tzafrir                1 Kashif Raza            
+   1 ppyy                   1 wonderg                1 ManChicken             
+   1 Rzadzins               1 yahsyn                 1 nickilo                
+   1 telecos82              1 yeshuawatso            1 omolenkamp             
+   1 vnovy                                           1 peterj                 
+                                                     1 pprindeville           
+                                                     1 qwell                  
+                                                     1 rickead2000            
+                                                     1 RoadKill               
+                                                     1 Rzadzins               
+                                                     1 semond                 
+                                                     1 sergee                 
+                                                     1 shanermn               
+                                                     1 stanusr                
+                                                     1 telecos82              
+                                                     1 vnovy                  
+                                                     1 yahsyn                 
+                                                     1 yeshuawatso            
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Addons/res_config_mysql
+
+   #16533: [patch] Realtime is broken, blank strings aren't valid any more
+   Revision: 237411
+   Reporter: sergee
+   Testers: sergee
+   Coders: tilghman
+
+  Category: Applications/app_chanspy
+
+   #16523: When hanging up a channel running chanspy, chanspy does not exit
+   Revision: 239716
+   Reporter: kobaz
+   Testers: dvossel
+   Coders: dvossel
+
+   #16524: Chanspy cannot spy on a non-bridged channel
+   Revision: 239716
+   Reporter: kobaz
+   Testers: dvossel
+   Coders: dvossel
+
+  Category: Applications/app_meetme
+
+   #15725: [patch][regression] set talker detection (T) does not work unless
+   set talker optimization (o) is enabled.
+   Revision: 238182
+   Reporter: shanermn
+   Testers: shanermn
+   Coders: dimas
+
+   #16509: [patch] meetme can support only 6341 rooms
+   Revision: 236511
+   Reporter: Kashif Raza
+   Testers: seanbright
+   Coders: seanbright
+
+  Category: Applications/app_mixmonitor
+
+   #16522: [regression] MixMonitor stops recording after transfer using
+   AUDIOHOOK_INHERIT
+   Revision: 238639
+   Reporter: corruptor
+   Coders: dvossel
+
+  Category: Applications/app_mp3
+
+   #16531: [regression] chan_local audio crash
+   Revision: 238011
+   Reporter: john8675309
+   Coders: russell
+
+  Category: Applications/app_queue
+
+   #16078: [patch] length of queue name is static
+   Revision: 238364
+   Reporter: RoadKill
+   Testers: dvossel
+   Coders: ppyy
+
+   #16168: Hold Time report (reportholdtime) issue
+   Revision: 237923
+   Reporter: nickilo
+   Testers: nickilo, wonderg
+   Coders: nickilo
+
+  Category: Applications/app_stack
+
+   #16510: [patch] Local values not set within gosub
+   Revision: 236301
+   Reporter: atis
+   Testers: atis
+   Coders: tilghman
+
+  Category: Applications/app_voicemail
+
+   #16515: depreciated minmessage still referred to in warning
+   Revision: 236668
+   Reporter: ManChicken
+   Coders: tilghman
+
+   #16560: [regression] Voicemail message not recording when voicemail.conf
+   format=wav|gsm|wav49
+   Revision: 238633
+   Reporter: goldwein
+   Coders: mnicholson
+
+  Category: CDR/General
+
+   #16180: [patch] CDR dispositions BUSY and FAILED are reported as NO ANSWER
+   Revision: 235662
+   Reporter: aatef
+   Coders: jpeeler
+
+  Category: Channels/chan_iax2
+
+   #16565: crash: in "scheduled_destroy" at chan_iax2.c:1511
+   Revision: 238441
+   Reporter: jensvb
+   Coders: dvossel
+
+  Category: Channels/chan_sip/General
+
+   #16295: [patch] handle_incoming() incorrectly sets p->method to SIP_ACK
+   Revision: 236066
+   Reporter: omolenkamp
+   Coders: dvossel
+
+   #16457: [Patch] always m=text 0 in sdp answer
+   Revision: 239447
+   Reporter: peterj
+   Testers: peterj
+   Coders: peterj, dvossel
+
+   #16459: [patch] Change in sip show channels display format allowing more
+   digits for CID
+   Revision: 238408
+   Reporter: Rzadzins
+   Coders: Rzadzins
+
+  Category: Channels/chan_sip/Subscriptions
+
+   #16093: SIP subscriptions are lost after a reload
+   Revision: 237843
+   Reporter: jlaroff
+   Coders: dvossel
+
+  Category: Channels/chan_sip/T.38
+
+   #16411: [patch] IP and port is not transferred for t.38
+   Revision: 239521
+   Reporter: stanusr
+   Coders: lmadsen
+
+   #16497: [patch] [regression] T.38 no longer functions
+   Revision: 240092
+   Reporter: globalnetinc
+   Testers: globalnetinc
+   Coders: mnicholson
+
+  Category: Core/Channels
+
+   #15609: [patch] WARNING[23025]: channel.c:952 __ast_queue_frame:
+   Exceptionally long voice queue length queuing to Local
+   Revision: 236983
+   Reporter: aragon
+   Testers: aragon
+   Coders: tilghman
+
+  Category: Core/Configuration
+
+   #16090: [patch] Add couple of useful extensions as examples
+   Revision: 239835
+   Reporter: pprindeville
+   Testers: tzafrir, pprindeville, lmadsen
+   Coders: pprindeville
+
+  Category: Core/General
+
+   #16407: [patch] potential buffer overflow in say_date_with_format()
+   Revision: 237575
+   Reporter: qwell
+   Coders: tilghman
+
+   #16427: [patch] remainder ast_expr2 func misspelt as reminder
+   Revision: 236714
+   Reporter: wdoekes
+   Testers: wdoekes
+   Coders: wdoekes
+
+   #16434: [patch] Background() when called from AGI script no longer gives
+   digit code when interrupted
+   Revision: 237407
+   Reporter: rickead2000
+   Testers: rickead2000
+   Coders: tilghman
+
+   #16452: [patch] Lots of crashes after upgrading to latest 1.6.0.20-rc1
+   Revision: 236805
+   Reporter: corruptor
+   Testers: corruptor
+   Coders: tilghman
+
+  Category: Core/ManagerInterface
+
+   #16241: [patch] issues in processing "Action: Events" eventmask
+   Revision: 238968
+   Reporter: vnovy
+   Coders: vnovy
+
+  Category: Core/PBX
+
+   #16479: "sip show peers" returns notice
+   Revision: 237712
+   Reporter: alexrecarey
+   Coders: russell
+
+  Category: Core/Portability
+
+   #16416: [patch] Portability tweaks to contrib/scripts/safe_asterisk
+   Revision: 239309
+   Reporter: bklang
+   Testers: bklang
+   Coders: bklang, tilghman
+
+  Category: Features/Parking
+
+   #16234: [patch] Call parking via AMI causes announcment and ringback to
+   caller channel
+   Revision: 235824
+   Reporter: yeshuawatso
+   Testers: yeshuawatso
+   Coders: tilghman
+
+  Category: Functions/func_cdr
+
+   #16289: [patch] core show function CDR reports wrong disposition values
+   Revision: 238232
+   Reporter: wdoekes
+   Coders: tilghman
+
+  Category: General
+
+   #16251: Symbol referencing errors (MIN/MAX in channel.o/udptl.o)
+   Revision: 238494
+   Reporter: asgaroth
+   Coders: tilghman
+
+  Category: PBX/General
+
+   #16528: [patch] Bridge application fails when both channels have a similar
+   name
+   Revision: 238135
+   Reporter: telecos82
+   Coders: telecos82
+
+  Category: PBX/pbx_config
+
+   #16482: [patch] Serious problem with pattern matching (regression in
+   #15421)
+   Revision: 237495
+   Reporter: wdoekes
+   Testers: wdoekes, tilghman
+   Coders: wdoekes, tilghman
+
+  Category: Resources/res_agi
+
+   #16297: [patch] Timeout in SPEECH RECOGNIZE not working.
+   Revision: 237324
+   Reporter: semond
+   Coders: jpeeler
+
+   #16302: [patch] Asterisk crashes with Asyc AGI when hangup
+   Revision: 238758
+   Reporter: yahsyn
+   Testers: yahsyn
+   Coders: tilghman
+
+   #16504: Segfault in res_agi with no second paramter to EXEC
+   Revision: 236187
+   Reporter: bklang
+   Coders: tilghman
+
+  Category: Resources/res_config_ldap
+
+   #16397: [patch] Segfault in res_config_ldap
+   Revision: 239475
+   Reporter: bklang
+   Testers: applsplatz
+   Coders: applsplatz
+
+  Category: Resources/res_features
+
+   #15459: [regression] parking c-e-p is missing, so timed-out parked call
+   never returns to parker
+   Revision: 239842
+   Reporter: djrodman
+   Coders: mnick
+
+  Category: Resources/res_monitor
+
+   #16376: [patch] Incorrect path passed to MONITOR_EXEC application after
+   'Monitor()' call finishes.
+   Revision: 235942
+   Reporter: bcnit
+   Coders: dant
+
+   #16377: res_monitor.c chan->monitor->filename_base has duplicated path
+   Revision: 235942
+   Reporter: galeras
+   Coders: dant
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                           | Issues     |
+   |          |            |                                   | Referenced |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Point to the typical missing      |            |
+   | 235574   | tilghman   | package, not the cryptic "termcap |            |
+   |          |            | support".                         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 235657   | tilghman   | Revise verbiage, per              |            |
+   |          |            | #asterisk-dev discussion          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 236359   | kpfleming  | update to latest releases with    |            |
+   |          |            | zero uid/gid                      |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Turn on colors in the daemon,     |            |
+   | 236435   | tilghman   | since there's many requests for   |            |
+   |          |            | it on Ubuntu.                     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Try a test compile to see if      |            |
+   | 236633   | seanbright | PTHREAD_ONCE_INIT requires extra  |            |
+   |          |            | braces.                           |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | When the field is blank, don't    |            |
+   | 236849   | tilghman   | warn about the field being unable |            |
+   |          |            | to be coerced, just skip the      |            |
+   |          |            | column.                           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 236903   | jpeeler    | One more LOW_MEMORY compile fix.  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 237137   | oej        | Release memory of the contact acl |            |
+   |          |            | before unloading module           |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | It's also possible for the Local  |            |
+   | 237320   | tilghman   | channel to directly execute an    |            |
+   |          |            | Application.                      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 237415   | tilghman   | Oops, didn't compile (thanks,     |            |
+   |          |            | kpfleming)                        |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Something clearly went wrong with |            |
+   | 237966   | tilghman   | a merge somewhere, because these  |            |
+   |          |            | are all duplicates (and therefore |            |
+   |          |            | dead code).                       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 238836   | jpeeler    | Stop a crash when no peer is      | #16406     |
+   |          |            | passed to masq_park_call.         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 239573   | tilghman   | Blank callerid and NULL callerid  |            |
+   |          |            | should not compare equal.         |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ Makefile                          |    2
+ apps/app_meetme.c                 |   66 ++++++++--------
+ apps/app_mp3.c                    |    6 -
+ apps/app_queue.c                  |    9 --
+ apps/app_stack.c                  |    4
+ apps/app_voicemail.c              |    2
+ apps/app_waitforring.c            |    9 ++
+ apps/app_waitforsilence.c         |    8 +
+ cdr/cdr_adaptive_odbc.c           |   40 +++++++--
+ channels/chan_alsa.c              |    3
+ channels/chan_console.c           |    7 -
+ channels/chan_iax2.c              |    2
+ channels/chan_local.c             |    4
+ channels/chan_oss.c               |    7 -
+ channels/chan_sip.c               |  155 +++++++++++++-------------------------
+ channels/chan_usbradio.c          |    7 -
+ configs/extensions.conf.sample    |   64 +++++++++++++++
+ configs/sip.conf.sample           |    2
+ configure.ac                      |   22 +++++
+ contrib/init.d/rc.debian.asterisk |   11 ++
+ contrib/scripts/safe_asterisk     |   74 ++++++++----------
+ funcs/func_cdr.c                  |    9 +-
+ include/asterisk/audiohook.h      |    3
+ include/asterisk/autoconfig.h.in  |    8 +
+ include/asterisk/cdr.h            |   10 +-
+ include/asterisk/channel.h        |    4
+ include/asterisk/threadstorage.h  |   10 +-
+ include/asterisk/utils.h          |    5 +
+ main/ast_expr2.c                  |    8 -
+ main/ast_expr2.y                  |    8 -
+ main/audiohook.c                  |   11 ++
+ main/channel.c                    |   37 +++++++--
+ main/config.c                     |    4
+ main/features.c                   |   15 ++-
+ main/file.c                       |   11 +-
+ main/manager.c                    |    4
+ main/pbx.c                        |   57 +++++++------
+ main/poll.c                       |    8 -
+ main/say.c                        |   51 ++++++------
+ main/udptl.c                      |   13 ++-
+ main/utils.c                      |    4
+ res/res_agi.c                     |   17 ++--
+ res/res_config_ldap.c             |    8 -
+ res/res_monitor.c                 |    4
+ sounds/Makefile                   |    4
+ utils/ael_main.c                  |    2
+ 46 files changed, 479 insertions(+), 340 deletions(-)
+
+     ----------------------------------------------------------------------
