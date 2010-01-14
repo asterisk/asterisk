@@ -262,6 +262,16 @@ static unsigned int timerfd_timer_get_max_rate(int handle)
 
 static int load_module(void)
 {
+	int fd;
+
+	/* Make sure we support the necessary clock type */
+	if ((fd = timerfd_create(CLOCK_MONOTONIC, 0)) < 0) {
+		ast_log(LOG_ERROR, "CLOCK_MONOTONIC not supported.  Not loading.\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	close(fd);
+
 	if (!(timerfd_timers = ao2_container_alloc(TIMERFD_TIMER_BUCKETS, timerfd_timer_hash, timerfd_timer_cmp))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
