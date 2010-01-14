@@ -364,8 +364,10 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 	ldap_entry = ldap_first_entry(ldapConn, ldap_result);
 
 	for (tot_count = 0; ldap_entry; tot_count++){ 
-		tot_count += semicolon_count_var(realtime_ldap_entry_to_var(table_config, ldap_entry));
+		struct ast_variable *tmp = realtime_ldap_entry_to_var(table_config, ldap_entry);
+		tot_count += semicolon_count_var(tmp);
 		ldap_entry = ldap_next_entry(ldapConn, ldap_entry);
+		ast_variables_destroy(tmp);
 	}
 
 	if (entries_count_ptr)
