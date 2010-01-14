@@ -802,10 +802,17 @@ static void calculate_far_max_ifp(struct ast_udptl *udptl)
 		 * zero in this loop; we'd rather send smaller IFPs (and thus reduce
 		 * the image data transfer rate) than sacrifice redundancy completely
 		 */
-		for ( ;
-		      (new_max < 80) && (udptl->error_correction_entries > 1);
-		      --udptl->error_correction_entries) {
+		for (;;) {
 			new_max = (udptl->far_max_datagram - 8) / (udptl->error_correction_entries + 1);
+
+			if ((new_max < 80) && (udptl->error_correction_entries > 1)) {
+				/* the max ifp is not large enough, subtract an
+				 * error correction entry and calculate again
+				 * */
+				--udptl->error_correction_entries;
+			} else {
+				break;
+			}
 		}
 		break;
 	case UDPTL_ERROR_CORRECTION_FEC:
