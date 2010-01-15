@@ -115,6 +115,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/smdi.h"
+#include "asterisk/astobj2.h"
 #include "asterisk/event.h"
 
 #ifdef ODBC_STORAGE
@@ -687,6 +688,56 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, const char *fromfolder, char *cidnum, char *cidname, char *attach, char *format, int duration, int attach_user_voicemail, struct ast_channel *chan, const char *category, int imap);
 static void apply_options(struct ast_vm_user *vmu, const char *options);
 static int is_valid_dtmf(const char *key);
+
+struct ao2_container *inprocess_container;
+
+struct inprocess {
+	int count;
+	char *context;
+	char mailbox[0];
+};
+
+static int inprocess_hash_fn(const void *obj, const int flags)
+{
+	const struct inprocess *i = obj;
+	return atoi(i->mailbox);
+}
+
+static int inprocess_cmp_fn(void *obj, void *arg, int flags)
+{
+	struct inprocess *i = obj, *j = arg;
+	if (!strcmp(i->mailbox, j->mailbox)) {
+		return 0;
+	}
+	return !strcmp(i->context, j->context) ? CMP_MATCH : 0;
+}
+
+static int inprocess_count(const char *context, const char *mailbox, int delta)
+{
+	struct inprocess *i, *arg = alloca(sizeof(*arg) + strlen(context) + strlen(mailbox) + 2);
+	arg->context = arg->mailbox + strlen(mailbox) + 1;
+	strcpy(arg->mailbox, mailbox); /* SAFE */
+	strcpy(arg->context, context); /* SAFE */
+	ao2_lock(inprocess_container);
+	if ((i = ao2_find(inprocess_container, &arg, 0))) {
+		int ret = ast_atomic_fetchadd_int(&i->count, delta);
+		ao2_unlock(inprocess_container);
+		ao2_ref(i, -1);
+		return ret;
+	}
+	if (!(i = ao2_alloc(sizeof(*i) + strlen(context) + strlen(mailbox) + 2, NULL))) {
+		ao2_unlock(inprocess_container);
+		return 0;
+	}
+	i->context = i->mailbox + strlen(mailbox) + 1;
+	strcpy(i->mailbox, mailbox); /* SAFE */
+	strcpy(i->context, context); /* SAFE */
+	i->count = delta;
+	ao2_link(inprocess_container, i);
+	ao2_unlock(inprocess_container);
+	ao2_ref(i, -1);
+	return 0;
+}
 
 #if !(defined(ODBC_STORAGE) || defined(IMAP_STORAGE))
 static int __has_voicemail(const char *context, const char *mailbox, const char *folder, int shortcircuit);
@@ -4174,7 +4225,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
 			return ERROR_LOCK_PATH;
 
 		recipmsgnum = last_message_index(recip, todir) + 1;
-		if (recipmsgnum < recip->maxmsg) {
+		if (recipmsgnum < recip->maxmsg - (imbox ? 0 : inprocess_count(vmu->mailbox, vmu->context, 0))) {
 			make_file(topath, sizeof(topath), todir, recipmsgnum);
 			COPY(fromdir, msgnum, todir, recipmsgnum, recip->mailbox, recip->context, frompath, topath);
 		} else {
@@ -4594,20 +4645,21 @@ transfer:
 		}
 
 		/* Check if we have exceeded maxmsg */
-		if (msgnum >= vmu->maxmsg) {
+		if (msgnum >= vmu->maxmsg - inprocess_count(vmu->mailbox, vmu->context, 0)) {
 			ast_log(LOG_WARNING, "Unable to leave message since we will exceed the maximum number of messages allowed (%u > %u)\n", msgnum, vmu->maxmsg);
 			ast_play_and_wait(chan, "vm-mailboxfull");
 			ast_free(tmp);
 			return -1;
 		}
 #else
-		if (count_messages(vmu, dir) >= vmu->maxmsg) {
+		if (count_messages(vmu, dir) >= vmu->maxmsg - inprocess_count(vmu->mailbox, vmu->context, +1)) {
 			res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
 			if (!res) {
 				res = ast_waitstream(chan, "");
 			}
 			ast_log(LOG_WARNING, "No more messages possible\n");
 			pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
+			inprocess_count(vmu->mailbox, vmu->context, -1);
 			goto leave_vm_out;
 		}
 
@@ -4622,6 +4674,7 @@ transfer:
 			}
 			ast_log(LOG_ERROR, "Unable to create message file: %s\n", strerror(errno));
 			pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
+			inprocess_count(vmu->mailbox, vmu->context, -1);
 			goto leave_vm_out;
 		}
 
@@ -4669,6 +4722,12 @@ transfer:
 				category ? category : "");
 		} else {
 			ast_log(LOG_WARNING, "Error opening text file for output\n");
+			inprocess_count(vmu->mailbox, vmu->context, -1);
+			if (ast_check_realtime("voicemail_data")) {
+				ast_destroy_realtime("voicemail_data", "filename", tmptxtfile, NULL);
+			}
+			res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
+			goto leave_vm_out;
 		}
 		res = play_record_review(chan, NULL, tmptxtfile, vmu->maxsecs, fmt, 1, vmu, &duration, NULL, options->record_gain, vms);
 
@@ -4682,6 +4741,7 @@ transfer:
 					snprintf(tmpid, sizeof(tmpid), "%d", rtmsgid);
 					ast_destroy_realtime("voicemail_data", "id", tmpid, NULL);
 				}
+				inprocess_count(vmu->mailbox, vmu->context, -1);
 			} else {
 				fprintf(txt, "duration=%d\n", duration);
 				fclose(txt);
@@ -4690,10 +4750,12 @@ transfer:
 					/* Delete files */
 					ast_filedelete(tmptxtfile, NULL);
 					unlink(tmptxtfile);
+					inprocess_count(vmu->mailbox, vmu->context, -1);
 				} else if (ast_fileexists(tmptxtfile, NULL, NULL) <= 0) {
 					ast_debug(1, "The recorded media file is gone, so we should remove the .txt file too!\n");
 					unlink(tmptxtfile);
 					ast_unlock_path(dir);
+					inprocess_count(vmu->mailbox, vmu->context, -1);
 					if (ast_check_realtime("voicemail_data")) {
 						snprintf(tmpid, sizeof(tmpid), "%d", rtmsgid);
 						ast_destroy_realtime("voicemail_data", "id", tmpid, NULL);
@@ -4714,6 +4776,7 @@ transfer:
 					snprintf(txtfile, sizeof(txtfile), "%s.txt", fn);
 					ast_filerename(tmptxtfile, fn, NULL);
 					rename(tmptxtfile, txtfile);
+					inprocess_count(vmu->mailbox, vmu->context, -1);
 
 					/* Properly set permissions on voicemail text descriptor file.
 					Unfortunately mkstemp() makes this file 0600 on most unix systems. */
@@ -4761,6 +4824,8 @@ transfer:
 					}
 				}
 			}
+		} else {
+			inprocess_count(vmu->mailbox, vmu->context, -1);
 		}
 		if (res == '0') {
 			goto transfer;
@@ -9952,6 +10017,7 @@ static int unload_module(void)
 	res |= ast_manager_unregister("VoicemailUsersList");
 	ast_cli_unregister_multiple(cli_voicemail, sizeof(cli_voicemail) / sizeof(struct ast_cli_entry));
 	ast_uninstall_vm_functions();
+	ao2_ref(inprocess_container, -1);
 
 	if (poll_thread != AST_PTHREADT_NULL)
 		stop_poll_thread();
@@ -9967,6 +10033,10 @@ static int load_module(void)
 	int res;
 	my_umask = umask(0);
 	umask(my_umask);
+
+	if (!(inprocess_container = ao2_container_alloc(573, inprocess_hash_fn, inprocess_cmp_fn))) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
 
 	/* compute the location of the voicemail spool directory */
 	snprintf(VM_SPOOL_DIR, sizeof(VM_SPOOL_DIR), "%s/voicemail/", ast_config_AST_SPOOL_DIR);
