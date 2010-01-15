@@ -1792,6 +1792,11 @@ void *__ast_calloc_with_stringfields(unsigned int num_structs, size_t struct_siz
 		mgr->embedded_pool = pool;
 		*pool_head = pool;
 		pool->size = size_to_alloc - struct_size - sizeof(*pool);
+#if defined(__AST_DEBUG_MALLOC)
+		mgr->owner_file = file;
+		mgr->owner_func = func;
+		mgr->owner_line = lineno;
+#endif
 	}
 
 	return allocation;
