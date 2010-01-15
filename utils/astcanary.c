@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 /*!\brief
  * At one time, canaries were carried along with coal miners down
@@ -87,9 +88,25 @@ static const char explanation[] =
 int main(int argc, char *argv[])
 {
 	int fd;
+	pid_t parent;
+
+	if (argc < 3) {
+		fprintf(stderr, "Usage: %s <monitor-filename> <ppid>\n", argv[0]);
+		exit(1);
+	}
+
 	/* Run at normal priority */
 	setpriority(PRIO_PROCESS, 0, 0);
-	for (;;) {
+
+	/*!\note
+	 * See http://www.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap03.html#tag_03_265
+	 * for a justification of this approach.  The PPID after the creator dies in Linux and
+	 * most other Unix-like systems will be 1, but this is not strictly the case.  The POSIX
+	 * specification allows it to be an implementation-defined system process.  However, it
+	 * most certainly will not be the original parent PID, which makes the following code
+	 * POSIX-compliant.
+	 */
+	for (parent = atoi(argv[2]); parent == getppid() ;) {
 		/* Update the modification times (checked from Asterisk) */
 		if (utime(argv[1], NULL)) {
 			/* Recreate the file if it doesn't exist */
@@ -108,7 +125,7 @@ int main(int argc, char *argv[])
 		sleep(5);
 	}
 
-	/* Never reached */
+	/* Exit when the parent dies */
 	return 0;
 }
 
