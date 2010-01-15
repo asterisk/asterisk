@@ -729,8 +729,20 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;
 ;        nat = no                ; Default. Use rport if the remote side says to use it.
 ;        nat = force_rport       ; Force rport to always be on.
-;        nat = yes               ; Force rport to always be on and perform symmetric RTP.
-;        nat = comedia           ; Use rport if the remote side says to use it and perform symmetric RTP.
+;        nat = yes               ; Force rport to always be on and perform comedia RTP handling.
+;        nat = comedia           ; Use rport if the remote side says to use it and perform comedia RTP handling.
+;
+; 'comedia RTP handling' refers to the technique of sending RTP to the port that the
+; the other endpoint's RTP arrived from, and means 'connection-oriented media'. This is
+; only partially related to RFC 4145 which was referred to as COMEDIA while it was in
+; draft form. This method is used to accomodate endpoints that may be located behind
+; NAT devices, and as such the port number they tell Asterisk to send RTP packets to
+; for their media streams is not actual port number that will be used on the nearer
+; side of the NAT.
+;
+; In addition to these settings, Asterisk *always* uses 'symmetric RTP' mode as defined by
+; RFC 4961; Asterisk will always send RTP packets from the same port number it expects
+; to receive them on.
 ;
 ; The IP address used for media (audio, video, and text) in the SDP can also be overridden by using
 ; the media_address configuration option. This is only applicable to the general section and
