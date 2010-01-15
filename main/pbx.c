@@ -3114,13 +3114,7 @@ int pbx_builtin_raise_exception(struct ast_channel *chan, const char *reason)
 		ds = ast_datastore_alloc(&exception_store_info, NULL);
 		if (!ds)
 			return -1;
-		exception = ast_calloc(1, sizeof(struct pbx_exception));
-		if (!exception) {
-			ast_datastore_free(ds);
-			return -1;
-		}
-		if (ast_string_field_init(exception, 128)) {
-			ast_free(exception);
+		if (!(exception = ast_calloc_with_stringfields(1, struct pbx_exception, 128))) {
 			ast_datastore_free(ds);
 			return -1;
 		}

@@ -538,13 +538,9 @@ static int load_module(void)
 	dberrhandle(tds_error_handler);
 	dbmsghandle(tds_message_handler);
 
-	settings = ast_calloc(1, sizeof(*settings));
+	settings = ast_calloc_with_stringfields(1, struct cdr_tds_config, 256);
 
-	if (!settings || ast_string_field_init(settings, 256)) {
-		if (settings) {
-			ast_free(settings);
-			settings = NULL;
-		}
+	if (!settings) {
 		dbexit();
 		return AST_MODULE_LOAD_DECLINE;
 	}

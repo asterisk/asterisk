@@ -676,11 +676,7 @@ static struct jack_data *jack_data_alloc(void)
 {
 	struct jack_data *jack_data;
 
-	if (!(jack_data = ast_calloc(1, sizeof(*jack_data))))
-		return NULL;
-
-	if (ast_string_field_init(jack_data, 32)) {
-		ast_free(jack_data);
+	if (!(jack_data = ast_calloc_with_stringfields(1, struct jack_data, 32))) {
 		return NULL;
 	}
 

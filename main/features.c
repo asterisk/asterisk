@@ -1940,13 +1940,8 @@ static struct feature_group* register_group(const char *fgname)
 		return NULL;
 	}
 
-	if (!(fg = ast_calloc(1, sizeof(*fg))))
+	if (!(fg = ast_calloc_with_stringfields(1, struct feature_group, 128)))
 		return NULL;
-
-	if (ast_string_field_init(fg, 128)) {
-		ast_free(fg);
-		return NULL;
-	}
 
 	ast_string_field_set(fg, gname, fgname);
 
@@ -1980,13 +1975,8 @@ static void register_group_feature(struct feature_group *fg, const char *exten, 
 		return;
 	}
 
-	if (!(fge = ast_calloc(1, sizeof(*fge))))
+	if (!(fge = ast_calloc_with_stringfields(1, struct feature_group_exten, 128)))
 		return;
-
-	if (ast_string_field_init(fge, 128)) {
-		ast_free(fge);
-		return;
-	}
 
 	ast_string_field_set(fge, exten, S_OR(exten, feature->exten));
 

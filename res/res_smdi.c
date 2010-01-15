@@ -848,13 +848,8 @@ static void append_mailbox_mapping(struct ast_variable *var, struct ast_smdi_int
 	struct mailbox_mapping *mm;
 	char *mailbox, *context;
 
-	if (!(mm = ast_calloc(1, sizeof(*mm))))
+	if (!(mm = ast_calloc_with_stringfields(1, struct mailbox_mapping, 32)))
 		return;
-	
-	if (ast_string_field_init(mm, 32)) {
-		free(mm);
-		return;
-	}
 
 	ast_string_field_set(mm, smdi, var->name);
 

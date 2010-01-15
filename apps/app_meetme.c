@@ -6166,10 +6166,7 @@ static int sla_build_trunk(struct ast_config *cfg, const char *cat)
 		return -1;
 	}
 
-	if (!(trunk = ast_calloc(1, sizeof(*trunk))))
-		return -1;
-	if (ast_string_field_init(trunk, 32)) {
-		ast_free(trunk);
+	if (!(trunk = ast_calloc_with_stringfields(1, struct sla_trunk, 32))) {
 		return -1;
 	}
 
@@ -6295,10 +6292,7 @@ static int sla_build_station(struct ast_config *cfg, const char *cat)
 		return -1;
 	}
 
-	if (!(station = ast_calloc(1, sizeof(*station))))
-		return -1;
-	if (ast_string_field_init(station, 32)) {
-		ast_free(station);
+	if (!(station = ast_calloc_with_stringfields(1, struct sla_station, 32))) {
 		return -1;
 	}
 

@@ -7859,14 +7859,8 @@ static int sip_register(const char *value, int lineno)
 		}
 	}
 
-	if (!(reg = ast_calloc(1, sizeof(*reg)))) {
+	if (!(reg = ast_calloc_with_stringfields(1, struct sip_registry, 256))) {
 		ast_log(LOG_ERROR, "Out of memory. Can't allocate SIP registry entry\n");
-		return -1;
-	}
-
-	if (ast_string_field_init(reg, 256)) {
-		ast_log(LOG_ERROR, "Out of memory. Can't allocate SIP registry strings\n");
-		ast_free(reg);
 		return -1;
 	}
 
@@ -7935,12 +7929,7 @@ static int sip_subscribe_mwi(const char *value, int lineno)
 		}
 	}
 	
-	if (!(mwi = ast_calloc(1, sizeof(*mwi)))) {
-		return -1;
-	}
-	
-	if (ast_string_field_init(mwi, 256)) {
-		ast_free(mwi);
+	if (!(mwi = ast_calloc_with_stringfields(1, struct sip_subscription_mwi, 256))) {
 		return -1;
 	}
 	

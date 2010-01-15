@@ -4430,12 +4430,7 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 	char *tmpxml;
 #endif
 
-	if (!(cur = ast_calloc(1, sizeof(*cur)))) {
-		return -1;
-	}
-
-	if (ast_string_field_init(cur, 128)) {
-		ast_free(cur);
+	if (!(cur = ast_calloc_with_stringfields(1, struct manager_action, 128))) {
 		return -1;
 	}
 
