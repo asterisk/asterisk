@@ -681,7 +681,7 @@ samples: adsi
 		echo ";maxfiles = 1000 ; Maximum amount of openfiles" ; \
 		echo ";minmemfree = 1 ; in MBs, Asterisk stops accepting new calls if the amount of free memory falls below this watermark" ; \
 		echo ";cache_record_files = yes ; Cache recorded sound files to another directory during recording" ; \
-		echo ";record_cache_dir = /tmp ; Specify cache directory (used in cnjunction with cache_record_files)" ; \
+		echo ";record_cache_dir = /tmp ; Specify cache directory (used in conjunction with cache_record_files)" ; \
 		echo ";transmit_silence_during_record = yes ; Transmit SLINEAR silence while a channel is being recorded" ; \
 		echo ";transmit_silence = yes ; Transmit SLINEAR silence while a channel is waiting, being recorded, or DTMF is being generated" ; \
 		echo ";transcode_via_sln = yes ; Build transcode paths via SLINEAR, instead of directly" ; \
