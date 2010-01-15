@@ -887,7 +887,7 @@ static int inprocess_count(const char *context, const char *mailbox, int delta)
 		int ret = ast_atomic_fetchadd_int(&i->count, delta);
 		ao2_unlock(inprocess_container);
 		ao2_ref(i, -1);
-		return ret + delta;
+		return ret;
 	}
 	if (!(i = ao2_alloc(sizeof(*i) + strlen(context) + strlen(mailbox) + 2, NULL))) {
 		ao2_unlock(inprocess_container);
@@ -900,7 +900,7 @@ static int inprocess_count(const char *context, const char *mailbox, int delta)
 	ao2_link(inprocess_container, i);
 	ao2_unlock(inprocess_container);
 	ao2_ref(i, -1);
-	return delta;
+	return 0;
 }
 
 #if !(defined(ODBC_STORAGE) || defined(IMAP_STORAGE))
