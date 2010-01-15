@@ -266,7 +266,7 @@ static int load_module(void)
 
 	/* Make sure we support the necessary clock type */
 	if ((fd = timerfd_create(CLOCK_MONOTONIC, 0)) < 0) {
-		ast_log(LOG_ERROR, "CLOCK_MONOTONIC not supported.  Not loading.\n");
+		ast_log(LOG_ERROR, "timerfd_create() not supported by the kernel.  Not loading.\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
