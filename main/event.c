@@ -1482,6 +1482,7 @@ static int ast_event_cmp(void *obj, void *arg, int flags)
 
 	for (i = 0; i < ARRAY_LEN(ast_event_cache[0].cache_args) && cache_args[i]; i++) {
 		struct ast_event_ie_val ie_val = {
+			.ie_pltype = ast_event_get_ie_pltype(cache_args[i]),
 			.ie_type = cache_args[i],
 		};
 
