@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 /*!\brief
  * At one time, canaries were carried along with coal miners down
