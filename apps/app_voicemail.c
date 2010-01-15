@@ -102,6 +102,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/smdi.h"
+#include "asterisk/astobj2.h"
 #ifdef ODBC_STORAGE
 #include "asterisk/res_odbc.h"
 #endif
@@ -407,6 +408,56 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 static int __has_voicemail(const char *context, const char *mailbox, const char *folder, int shortcircuit);
 #endif
 static void apply_options(struct ast_vm_user *vmu, const char *options);
+
+struct ao2_container *inprocess_container;
+
+struct inprocess {
+	int count;
+	char *context;
+	char mailbox[0];
+};
+
+static int inprocess_hash_fn(const void *obj, const int flags)
+{
+	const struct inprocess *i = obj;
+	return atoi(i->mailbox);
+}
+
+static int inprocess_cmp_fn(void *obj, void *arg, int flags)
+{
+	struct inprocess *i = obj, *j = arg;
+	if (!strcmp(i->mailbox, j->mailbox)) {
+		return 0;
+	}
+	return !strcmp(i->context, j->context) ? CMP_MATCH : 0;
+}
+
+static int inprocess_count(const char *context, const char *mailbox, int delta)
+{
+	struct inprocess *i, *arg = alloca(sizeof(*arg) + strlen(context) + strlen(mailbox) + 2);
+	arg->context = arg->mailbox + strlen(mailbox) + 1;
+	strcpy(arg->mailbox, mailbox); /* SAFE */
+	strcpy(arg->context, context); /* SAFE */
+	ao2_lock(inprocess_container);
+	if ((i = ao2_find(inprocess_container, &arg, 0))) {
+		int ret = ast_atomic_fetchadd_int(&i->count, delta);
+		ao2_unlock(inprocess_container);
+		ao2_ref(i, -1);
+		return ret;
+	}
+	if (!(i = ao2_alloc(sizeof(*i) + strlen(context) + strlen(mailbox) + 2, NULL))) {
+		ao2_unlock(inprocess_container);
+		return 0;
+	}
+	i->context = i->mailbox + strlen(mailbox) + 1;
+	strcpy(i->mailbox, mailbox); /* SAFE */
+	strcpy(i->context, context); /* SAFE */
+	i->count = delta;
+	ao2_link(inprocess_container, i);
+	ao2_unlock(inprocess_container);
+	ao2_ref(i, -1);
+	return 0;
+}
 
 #ifdef ODBC_STORAGE
 static char odbc_database[80];
@@ -3811,7 +3862,7 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 			break;
 		recipmsgnum++;
 	} while (recipmsgnum < recip->maxmsg);
-	if (recipmsgnum < recip->maxmsg) {
+	if (recipmsgnum < recip->maxmsg - (imbox ? 0 : inprocess_count(vmu->mailbox, vmu->context, 0))) {
 		if (EXISTS(fromdir, msgnum, frompath, chan->language)) {
 			COPY(fromdir, msgnum, todir, recipmsgnum, recip->mailbox, recip->context, frompath, topath);
 		} else {
@@ -4202,7 +4253,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		}
 		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Checking message number quota - mailbox has %d messages, maximum is set to %d\n",msgnum,vmu->maxmsg);
-		if (msgnum >= vmu->maxmsg) {
+		if (msgnum >= vmu->maxmsg - inprocess_count(vmu->mailbox, vmu->context, 0)) {
 			res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
 			if (!res)
 				res = ast_waitstream(chan, "");
@@ -4212,18 +4263,20 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		}
 
 		/* Check if we have exceeded maxmsg */
-		if (msgnum >= vmu->maxmsg) {
+		if (msgnum >= vmu->maxmsg - inprocess_count(vmu->mailbox, vmu->context, +1)) {
 			ast_log(LOG_WARNING, "Unable to leave message since we will exceed the maximum number of messages allowed (%u > %u)\n", msgnum, vmu->maxmsg);
 			ast_play_and_wait(chan, "vm-mailboxfull");
+			inprocess_count(vmu->mailbox, vmu->context, -1);
 			return -1;
 		}
 #else
-		if (count_messages(vmu, dir) >= vmu->maxmsg) {
+		if (count_messages(vmu, dir) >= vmu->maxmsg - inprocess_count(vmu->mailbox, vmu->context, +1)) {
 			res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
 			if (!res)
 				res = ast_waitstream(chan, "");
 			ast_log(LOG_WARNING, "No more messages possible\n");
 			pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
+			inprocess_count(vmu->mailbox, vmu->context, -1);
 			goto leave_vm_out;
 		}
 
@@ -4237,6 +4290,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				res = ast_waitstream(chan, "");
 			ast_log(LOG_ERROR, "Unable to create message file: %s\n", strerror(errno));
 			pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
+			inprocess_count(vmu->mailbox, vmu->context, -1);
 			goto leave_vm_out;
 		}
 
@@ -4285,6 +4339,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 					ast_verbose( VERBOSE_PREFIX_3 "Recording was %d seconds long but needs to be at least %d - abandoning\n", duration, vmminmessage);
 				ast_filedelete(tmptxtfile, NULL);
 				unlink(tmptxtfile);
+				inprocess_count(vmu->mailbox, vmu->context, -1);
 			} else {
 				fprintf(txt, "duration=%d\n", duration);
 				fclose(txt);
@@ -4293,11 +4348,13 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 					/* Delete files */
 					ast_filedelete(tmptxtfile, NULL);
 					unlink(tmptxtfile);
+					inprocess_count(vmu->mailbox, vmu->context, -1);
 				} else if (ast_fileexists(tmptxtfile, NULL, NULL) <= 0) {
 					if (option_debug) 
 						ast_log(LOG_DEBUG, "The recorded media file is gone, so we should remove the .txt file too!\n");
 					unlink(tmptxtfile);
 					ast_unlock_path(dir);
+					inprocess_count(vmu->mailbox, vmu->context, -1);
 				} else {
 					for (;;) {
 						make_file(fn, sizeof(fn), dir, msgnum);
@@ -4316,6 +4373,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 					snprintf(txtfile, sizeof(txtfile), "%s.txt", fn);
 					ast_filerename(tmptxtfile, fn, NULL);
 					rename(tmptxtfile, txtfile);
+					inprocess_count(vmu->mailbox, vmu->context, -1);
 
 					ast_unlock_path(dir);
 					/* We must store the file first, before copying the message, because
@@ -4348,6 +4406,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 					}
 				}
 			}
+		} else {
+			inprocess_count(vmu->mailbox, vmu->context, -1);
 		}
 		if (res == '0') {
 			goto transfer;
@@ -4379,7 +4439,7 @@ static int resequence_mailbox(struct ast_vm_user *vmu, char *dir)
 	if (vm_lock_path(dir))
 		return ERROR_LOCK_PATH;
 
-	for (x = 0, dest = 0; x < vmu->maxmsg; x++) {
+	for (x = 0, dest = 0; x < vmu->maxmsg + 10; x++) {
 		make_file(sfn, sizeof(sfn), dir, x);
 		if (EXISTS(dir, x, sfn, NULL)) {
 			
@@ -7501,9 +7561,11 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 #endif
 	if (!(vms.deleted = ast_calloc(vmu->maxmsg, sizeof(int)))) {
 		/* TODO: Handle memory allocation failure */
+		goto out;
 	}
 	if (!(vms.heard = ast_calloc(vmu->maxmsg, sizeof(int)))) {
 		/* TODO: Handle memory allocation failure */
+		goto out;
 	}
 	
 	/* Set language from config to override channel language */
@@ -8907,6 +8969,7 @@ static int unload_module(void)
 	res |= ast_unregister_application(app4);
 	ast_cli_unregister_multiple(cli_voicemail, sizeof(cli_voicemail) / sizeof(struct ast_cli_entry));
 	ast_uninstall_vm_functions();
+	ao2_ref(inprocess_container, -1);
 	
 	ast_module_user_hangup_all();
 
@@ -8928,6 +8991,10 @@ static int load_module(void)
 
 	if (!smdi_loaded) {
 		ast_log(LOG_ERROR, "app_voicemail.so depends upon res_smdi.so\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	if (!(inprocess_container = ao2_container_alloc(573, inprocess_hash_fn, inprocess_cmp_fn))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
