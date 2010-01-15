@@ -31,8 +31,12 @@
  *
   \verbatim
   <One-liner summary of changes>
- 
+
+  <Empty Line> 
+
   <Verbose description of the changes>
+
+  <Empty Line> 
 
   <Special Tags>
   \endverbatim
