@@ -616,7 +616,7 @@ samples: adsi
 		echo ";maxcalls = 10 ; Maximum amount of calls allowed" ; \
 		echo ";maxload = 0.9 ; Asterisk stops accepting new calls if the load average exceed this limit" ; \
 		echo ";cache_record_files = yes ; Cache recorded sound files to another directory during recording" ; \
-		echo ";record_cache_dir = /tmp ; Specify cache directory (used in cnjunction with cache_record_files)" ; \
+		echo ";record_cache_dir = /tmp ; Specify cache directory (used in conjunction with cache_record_files)" ; \
 		echo ";transmit_silence_during_record = yes ; Transmit SLINEAR silence while a channel is being recorded" ; \
 		echo ";transmit_silence = yes ; Transmit SLINEAR silence while a channel is waiting, being recorded, or DTMF is being generated" ; \
 		echo ";transcode_via_sln = yes ; Build transcode paths via SLINEAR, instead of directly" ; \
