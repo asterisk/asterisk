@@ -207,10 +207,10 @@ int astman_verify_session_writepermissions(uint32_t ident, int perm);
 	__ast_manager_event_multichan(category, event, nchans, chans, __FILE__, __LINE__, __PRETTY_FUNCTION__, contents , ## __VA_ARGS__);
 
 /*! External routines may send asterisk manager events this way
- * \param chan1 First channel related to this event (or NULL if none are relevant)
- * \param chan2 Second channel related to this event (or NULL if none are relevant)
  * \param category Event category, matches manager authorization
  * \param event Event name
+ * \param chancount Number of channels in chans parameter
+ * \param chans A pointer to an array of channels involved in the event
  * \param contents Format string describing event
  * \since 1.8
 */

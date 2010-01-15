@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
 #include "asterisk/features.h"
+#include "asterisk/manager.h"
 #include "asterisk/callerid.h"
 #include "asterisk/cel.h"
 
@@ -94,6 +95,7 @@ static int pickup_do(struct ast_channel *chan, struct ast_channel *target)
 {
 	int res = 0;
 	struct ast_party_connected_line connected_caller;
+	struct ast_channel *chans[2] = { chan, target };
 
 	ast_debug(1, "Call pickup on '%s' by '%s'\n", target->name, chan->name);
 	ast_cel_report_event(target, AST_CEL_PICKUP, NULL, NULL, chan);
@@ -127,6 +129,10 @@ static int pickup_do(struct ast_channel *chan, struct ast_channel *target)
 		ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, target->name);
 		return -1;
 	}
+
+	/* If you want UniqueIDs, set channelvars in manager.conf to CHANNEL(uniqueid) */
+	ast_manager_event_multichan(EVENT_FLAG_CALL, "Pickup", 2, chans,
+		"Channel: %s\r\nTargetChannel: %s\r\n", chan->name, target->name);
 
 	return res;
 }

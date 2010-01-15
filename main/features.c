@@ -4734,7 +4734,7 @@ static int find_channel_by_group(void *obj, void *arg, void *data, int flags)
 */
 int ast_pickup_call(struct ast_channel *chan)
 {
-	struct ast_channel *cur;
+	struct ast_channel *cur, *chans[2] = { chan, };
 	struct ast_party_connected_line connected_caller;
 	int res;
 	const char *chan_name;
@@ -4747,6 +4747,8 @@ int ast_pickup_call(struct ast_channel *chan)
 		}
 		return -1;
 	}
+
+	chans[1] = cur;
 
 	ast_channel_lock_both(cur, chan);
 
@@ -4783,6 +4785,10 @@ int ast_pickup_call(struct ast_channel *chan)
 	if (!ast_strlen_zero(pickupsound)) {
 		ast_stream_and_wait(cur, pickupsound, "");
 	}
+
+	/* If you want UniqueIDs, set channelvars in manager.conf to CHANNEL(uniqueid) */
+	ast_manager_event_multichan(EVENT_FLAG_CALL, "Pickup", 2, chans,
+		"Channel: %s\r\nTargetChannel: %s\r\n", chan->name, cur->name);
 
 	cur = ast_channel_unref(cur);
 
