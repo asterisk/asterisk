@@ -47,6 +47,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <thread.h>
 #endif
 
+#ifdef SOLARIS
+#include <thread.h>
+#endif
+
 #ifdef HAVE_DAHDI
 #include <dahdi/user.h>
 #endif
