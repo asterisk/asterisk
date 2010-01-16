@@ -79,6 +79,7 @@
 #include <assert.h>                          /* assertion macros */
 #include <string.h>                          /* string functions */
 
+#include "asterisk/utils.h"                            /* this package */
 #include "asterisk/poll-compat.h"                            /* this package */
 
 #ifdef AST_POLL_COMPAT
