@@ -3079,7 +3079,10 @@ static char *handle_show_functions(struct ast_cli_entry *e, int cmd, struct ast_
 	AST_RWLIST_TRAVERSE(&acf_root, acf, acflist) {
 		if (!like || strstr(acf->name, a->argv[4])) {
 			count_acf++;
-			ast_cli(a->fd, "%-20.20s  %-35.35s  %s\n", acf->name, acf->syntax, acf->synopsis);
+			ast_cli(a->fd, "%-20.20s  %-35.35s  %s\n",
+				S_OR(acf->name, ""),
+				S_OR(acf->syntax, ""),
+				S_OR(acf->synopsis, ""));
 		}
 	}
 	AST_RWLIST_UNLOCK(&acf_root);
