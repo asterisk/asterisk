@@ -30,6 +30,10 @@ ALL_UTILS:=astman smsq stereorize streamplayer aelparse muted
 UTILS:=$(ALL_UTILS)
 
 include $(ASTTOPDIR)/Makefile.rules
+ifneq ($(findstring darwin,$(OSARCH)),)
+  _ASTCFLAGS+=-D__Darwin__
+  AUDIO_LIBS=-framework CoreAudio
+endif
 
 ifeq ($(OSARCH),SunOS)
   LIBS+=-lsocket -lnsl
