@@ -205,7 +205,7 @@ static int gen_nextfile(struct gen_state *state)
 	gen_closestream(state);
 
 	while (!state->stream) {
-		state->current = AST_LIST_REMOVE_HEAD(&u->playlist, list);
+		state->current = AST_LIST_FIRST(&u->playlist);
 		if (state->current) {
 			file_to_stream = state->current->filename;
 		} else {
@@ -215,6 +215,9 @@ static int gen_nextfile(struct gen_state *state)
 
 		if (!(state->stream = ast_openstream_full(u->chan, file_to_stream, u->chan->language, 1))) {
 			ast_chan_log(LOG_WARNING, u->chan, "File '%s' could not be opened: %s\n", file_to_stream, strerror(errno));
+			AST_LIST_LOCK(&u->playlist);
+			AST_LIST_REMOVE_HEAD(&u->playlist, list);
+			AST_LIST_UNLOCK(&u->playlist);
 			if (!u->playing_silence) {
 				continue;
 			} else {
@@ -241,6 +244,11 @@ static struct ast_frame *gen_readframe(struct gen_state *state)
 
 	if (!(state->stream && (f = ast_readframe(state->stream)))) {
 		if (state->current) {
+			/* remove finished file from playlist */
+                        AST_LIST_LOCK(&u->playlist);
+                        AST_LIST_REMOVE_HEAD(&u->playlist, list);
+                        AST_LIST_UNLOCK(&u->playlist);
+			/* add finished file to finishlist */
 			AST_LIST_LOCK(&u->finishlist);
 			AST_LIST_INSERT_TAIL(&u->finishlist, state->current, list);
 			AST_LIST_UNLOCK(&u->finishlist);
@@ -642,8 +650,12 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  			if (f->frametype == AST_FRAME_DTMF) {
  				send_eivr_event(eivr_events, f->subclass.integer, NULL, chan);
  				if (u->option_autoclear) {
-  					if (!u->abort_current_sound && !u->playing_silence)
- 						send_eivr_event(eivr_events, 'T', NULL, chan);
+  					if (!u->abort_current_sound && !u->playing_silence) {
+						/* send interrupted file as T data */
+ 						entry = AST_LIST_REMOVE_HEAD(&u->playlist, list);
+ 						send_eivr_event(eivr_events, 'T', entry->filename, chan);
+						ast_free(entry);
+					}
   					AST_LIST_LOCK(&u->playlist);
   					while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
  						send_eivr_event(eivr_events, 'D', entry->filename, chan);
@@ -673,8 +685,8 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
   
  			if (!fgets(input, sizeof(input), eivr_commands))
  				continue;
- 
- 			ast_verb(4, "got command '%s'\n", ast_strip(input));
+			ast_strip(input); 
+ 			ast_verb(4, "got command '%s'\n", input);
   
  			if (strlen(input) < 4) {
  				continue;
@@ -715,20 +727,26 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  					ast_chan_log(LOG_WARNING, chan, "Unknown file requested '%s'\n", &input[2]);
  					send_eivr_event(eivr_events, 'Z', &input[2], chan);
  				} else {
-	 				if (!u->abort_current_sound && !u->playing_silence)
- 						send_eivr_event(eivr_events, 'T', NULL, chan);
  					AST_LIST_LOCK(&u->playlist);
+	 				if (!u->abort_current_sound && !u->playing_silence) {
+						/* send interrupted file as T data */
+ 						entry = AST_LIST_REMOVE_HEAD(&u->playlist, list);
+ 						send_eivr_event(eivr_events, 'T', entry->filename, chan);
+						ast_free(entry);
+					}
  					while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
  						send_eivr_event(eivr_events, 'D', entry->filename, chan);
  						ast_free(entry);
 					}
- 				}
- 				if (!u->playing_silence)
- 					u->abort_current_sound = 1;
- 				entry = make_entry(&input[2]);
- 				if (entry)
- 					AST_LIST_INSERT_TAIL(&u->playlist, entry, list);
- 				AST_LIST_UNLOCK(&u->playlist);
+	 				if (!u->playing_silence) {
+ 						u->abort_current_sound = 1;
+					}
+ 					entry = make_entry(&input[2]);
+ 					if (entry) {
+ 						AST_LIST_INSERT_TAIL(&u->playlist, entry, list);
+					}
+	 				AST_LIST_UNLOCK(&u->playlist);
+				}
  			} else if (input[0] == EIVR_CMD_APND) {
 				if (chan->_state != AST_STATE_UP || ast_check_hangup(chan)) {
 					ast_chan_log(LOG_WARNING, chan, "Queue 'A'ppend called on unanswered channel\n");
