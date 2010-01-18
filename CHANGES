@@ -371,6 +371,10 @@ Security Events Framework
 
 Miscellaneous
 -------------
+ * The transmit_silence_during_record option in asterisk.conf.sample has been removed.
+   Now, in order to enable transmitting silence during record the transmit_silence
+   option should be used.  transmit_silence_during_record remains a valid option, but
+   defaults to the behavior of the transmit_silence option.
  * Addition of the Unit Test Framework API for managing registration and execution
    of unit tests with the purpose of verifying the operation of C functions.
  * SendText is now implemented in chan_gtalk and chan_jingle. It will simply send

@@ -732,7 +732,6 @@ samples: adsi
 		echo ";minmemfree = 1 ; in MBs, Asterisk stops accepting new calls if the amount of free memory falls below this watermark" ; \
 		echo ";cache_record_files = yes ; Cache recorded sound files to another directory during recording" ; \
 		echo ";record_cache_dir = /tmp ; Specify cache directory (used in conjunction with cache_record_files)" ; \
-		echo ";transmit_silence_during_record = yes ; Transmit SLINEAR silence while a channel is being recorded" ; \
 		echo ";transmit_silence = yes ; Transmit silence while a channel is in a waiting state, a recording only state, or when DTMF is \
 		echo "                        ; being generated.  Note that the silence internally is generated in raw signed linear format. \
 		echo "                        ; This means that it must be transcoded into the native format of the channel before it can be sent \
