@@ -323,6 +323,7 @@ struct ast_rtp_instance *ast_rtp_instance_new(const char *engine_name, struct sc
 	instance->local_address.sin_family = AF_INET;
 	instance->local_address.sin_addr = sin->sin_addr;
 	instance->remote_address.sin_family = AF_INET;
+	address.sin_family = AF_INET;
 	address.sin_addr = sin->sin_addr;
 
 	ast_debug(1, "Using engine '%s' for RTP instance '%p'\n", engine->name, instance);
