@@ -831,7 +831,16 @@ static int array(struct ast_channel *chan, const char *cmd, char *var,
 				arg2.val[i]);
 		if (i < arg2.argc) {
 			if (ishash) {
-				snprintf(varname, sizeof(varname), HASH_FORMAT, origvar, arg1.var[i]);
+				if (origvar[0] == '_') {
+					if (origvar[1] == '_') {
+						snprintf(varname, sizeof(varname), "__" HASH_FORMAT, origvar + 2, arg1.var[i]);
+					} else {
+						snprintf(varname, sizeof(varname), "_" HASH_FORMAT, origvar + 1, arg1.var[i]);
+					}
+				} else {
+					snprintf(varname, sizeof(varname), HASH_FORMAT, origvar, arg1.var[i]);
+				}
+
 				pbx_builtin_setvar_helper(chan, varname, arg2.val[i]);
 			} else {
 				pbx_builtin_setvar_helper(chan, arg1.var[i], arg2.val[i]);
@@ -909,7 +918,15 @@ static int hash_write(struct ast_channel *chan, const char *cmd, char *var, cons
 	}
 
 	AST_STANDARD_APP_ARGS(arg, var);
-	snprintf(varname, sizeof(varname), HASH_FORMAT, arg.hashname, arg.hashkey);
+	if (arg.hashname[0] == '_') {
+		if (arg.hashname[1] == '_') {
+			snprintf(varname, sizeof(varname), "__" HASH_FORMAT, arg.hashname + 2, arg.hashkey);
+		} else {
+			snprintf(varname, sizeof(varname), "_" HASH_FORMAT, arg.hashname + 1, arg.hashkey);
+		}
+	} else {
+		snprintf(varname, sizeof(varname), HASH_FORMAT, arg.hashname, arg.hashkey);
+	}
 	pbx_builtin_setvar_helper(chan, varname, value);
 
 	return 0;

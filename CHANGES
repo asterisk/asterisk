@@ -183,6 +183,9 @@ Dialplan Functions
  * Added PASSTHRU, which literally passes the same argument back as its return
    value.  The intent is to be able to use a literal string argument to
    functions that currently require a variable name as an argument.
+ * HASH-associated variables now can be inherited across channel creation, by
+   prefixing the name of the hash at assignment with the appropriate number of
+   underscores, just like variables.
 
 Dialplan Variables
 ------------------
