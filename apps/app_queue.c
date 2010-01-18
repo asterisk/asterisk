@@ -1359,7 +1359,7 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
  * \brief Find rt member record to update otherwise create one.
  *
  * Search for member in queue, if found update penalty/paused state,
- * if no memeber exists create one flag it as a RT member and add to queue member list. 
+ * if no member exists create one flag it as a RT member and add to queue member list. 
 */
 static void rt_handle_member_record(struct call_queue *q, char *interface, const char *membername, const char *penalty_str, const char *paused_str, const char* state_interface)
 {
