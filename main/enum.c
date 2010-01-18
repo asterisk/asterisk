@@ -851,7 +851,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 	ret = ast_search_dns(context, tmp, C_IN, T_NAPTR, enum_callback);
 	time_end = ast_tvnow();
 
-	ast_verb(2, "ast_get_enum() profiling: %s, %s, %d ms\n", 
+	ast_verb(2, "ast_get_enum() profiling: %s, %s, %" PRIi64 " ms\n", 
 			(ret == 0) ? "OK" : "FAIL", tmp, ast_tvdiff_ms(time_end, time_start));
 
 	if (ret < 0) {

@@ -2393,7 +2393,7 @@ static char *dundi_do_lookup(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		ast_cli(a->fd, "%3d. %5d %s/%s (%s)\n", x + 1, dr[x].weight, dr[x].tech, dr[x].dest, dundi_flags2str(fs, sizeof(fs), dr[x].flags));
 		ast_cli(a->fd, "     from %s, expires in %d s\n", dr[x].eid_str, dr[x].expiration);
 	}
-	ast_cli(a->fd, "DUNDi lookup completed in %d ms\n", ast_tvdiff_ms(ast_tvnow(), start));
+	ast_cli(a->fd, "DUNDi lookup completed in %" PRIi64 " ms\n", ast_tvdiff_ms(ast_tvnow(), start));
 	return CLI_SUCCESS;
 }
 
@@ -2430,7 +2430,7 @@ static char *dundi_do_precache(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		ast_cli(a->fd, "DUNDi precache returned error.\n");
 	else if (!res)
 		ast_cli(a->fd, "DUNDi precache returned no error.\n");
-	ast_cli(a->fd, "DUNDi lookup completed in %d ms\n", ast_tvdiff_ms(ast_tvnow(), start));
+	ast_cli(a->fd, "DUNDi lookup completed in %" PRIi64 " ms\n", ast_tvdiff_ms(ast_tvnow(), start));
 	return CLI_SUCCESS;
 }
 

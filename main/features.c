@@ -4923,12 +4923,12 @@ int ast_bridge_timelimit(struct ast_channel *chan, struct ast_bridge_config *con
 		config->timelimit = play_to_caller = play_to_callee =
 		config->play_warning = config->warning_freq = 0;
 	} else {
-		ast_verb(3, "Limit Data for this call:\n");
-		ast_verb(4, "timelimit      = %ld\n", config->timelimit);
-		ast_verb(4, "play_warning   = %ld\n", config->play_warning);
+		ast_verb(4, "Limit Data for this call:\n");
+		ast_verb(4, "timelimit      = %ld ms (%.3lf s)\n", config->timelimit, config->timelimit / 1000.0);
+		ast_verb(4, "play_warning   = %ld ms (%.3lf s)\n", config->play_warning, config->play_warning / 1000.0);
 		ast_verb(4, "play_to_caller = %s\n", play_to_caller ? "yes" : "no");
 		ast_verb(4, "play_to_callee = %s\n", play_to_callee ? "yes" : "no");
-		ast_verb(4, "warning_freq   = %ld\n", config->warning_freq);
+		ast_verb(4, "warning_freq   = %ld ms (%.3lf s)\n", config->warning_freq, config->warning_freq / 1000.0);
 		ast_verb(4, "start_sound    = %s\n", S_OR(config->start_sound, ""));
 		ast_verb(4, "warning_sound  = %s\n", config->warning_sound);
 		ast_verb(4, "end_sound      = %s\n", S_OR(config->end_sound, ""));
