@@ -359,6 +359,18 @@ void ast_variable_insert(struct ast_category *category, struct ast_variable *var
 	}
 }
 
+static void ast_comment_destroy(struct ast_comment **comment)
+{
+	struct ast_comment *n, *p;
+
+	for (p = *comment; p; p = n) {
+		n = p->next;
+		ast_free(p);
+	}
+
+	*comment = NULL;
+}
+
 void ast_variables_destroy(struct ast_variable *v)
 {
 	struct ast_variable *vn;
@@ -366,6 +378,9 @@ void ast_variables_destroy(struct ast_variable *v)
 	while (v) {
 		vn = v;
 		v = v->next;
+		ast_comment_destroy(&vn->precomments);
+		ast_comment_destroy(&vn->sameline);
+		ast_comment_destroy(&vn->trailing);
 		ast_free(vn);
 	}
 }
@@ -506,27 +521,6 @@ void ast_category_insert(struct ast_config *config, struct ast_category *cat, co
 	}
 }
 
-static void ast_destroy_comments(struct ast_category *cat)
-{
-	struct ast_comment *n, *p;
-
-	for (p=cat->precomments; p; p=n) {
-		n = p->next;
-		free(p);
-	}
-	for (p=cat->sameline; p; p=n) {
-		n = p->next;
-		free(p);
-	}
-	for (p=cat->trailing; p; p=n) {
-		n = p->next;
-		free(p);
-	}
-	cat->precomments = NULL;
-	cat->sameline = NULL;
-	cat->trailing = NULL;
-}
-
 static void ast_destroy_template_list(struct ast_category *cat)
 {
 	struct ast_category_template_instance *x;
@@ -542,7 +536,9 @@ void ast_category_destroy(struct ast_category *cat)
 		free(cat->file);
 		cat->file = 0;
 	}
-	ast_destroy_comments(cat);
+	ast_comment_destroy(&cat->precomments);
+	ast_comment_destroy(&cat->sameline);
+	ast_comment_destroy(&cat->trailing);
 	ast_destroy_template_list(cat);
 	ast_free(cat);
 }
