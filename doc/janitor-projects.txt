@@ -24,3 +24,5 @@
  -- Convert all usage of the signal(2) system API to the more portable sigaction(2) system API.
 
  -- Find options and arguments in Asterisk which specify a time period in seconds or milliseconds and convert them to use the new ast_app_parse_timelen() function.
+
+ -- Find applications and functions in Asterisk that would benefit from being able to encode control characters and extended ASCII and embed calls to ast_get_encoded_char, ast_get_encoded_str, and ast_str_get_encoded_str.

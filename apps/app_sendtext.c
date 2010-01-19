@@ -74,22 +74,21 @@ static const char * const app = "SendText";
 
 static int sendtext_exec(struct ast_channel *chan, const char *data)
 {
-	int res = 0;
 	char *status = "UNSUPPORTED";
-	char *parse = NULL;
-	AST_DECLARE_APP_ARGS(args,
-		AST_APP_ARG(text);
-	);
+	struct ast_str *str;
 
 	/* NOT ast_strlen_zero, because some protocols (e.g. SIP) MUST be able to
 	 * send a zero-length message. */
 	if (!data) {
 		ast_log(LOG_WARNING, "SendText requires an argument (text)\n");
 		return -1;
-	} else
-		parse = ast_strdupa(data);
-	
-	AST_STANDARD_APP_ARGS(args, parse);
+	}
+
+	if (!(str = ast_str_alloca(strlen(data) + 1))) {
+		return -1;
+	}
+
+	ast_str_get_encoded_str(&str, -1, data);
 
 	ast_channel_lock(chan);
 	if (!chan->tech->send_text) {
@@ -100,9 +99,9 @@ static int sendtext_exec(struct ast_channel *chan, const char *data)
 	}
 	status = "FAILURE";
 	ast_channel_unlock(chan);
-	res = ast_sendtext(chan, args.text);
-	if (!res)
+	if (!ast_sendtext(chan, ast_str_buffer(str))) {
 		status = "SUCCESS";
+	}
 	pbx_builtin_setvar_helper(chan, "SENDTEXTSTATUS", status);
 	return 0;
 }
