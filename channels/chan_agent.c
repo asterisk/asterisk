@@ -562,7 +562,25 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 			int howlong = cur_time - p->start;
 			if (p->autologoff && (howlong >= p->autologoff)) {
 				ast_log(LOG_NOTICE, "Agent '%s' didn't answer/confirm within %d seconds (waited %d)\n", p->name, p->autologoff, howlong);
-				agent_logoff(p->agent, 0);
+				if (p->owner || p->chan) {
+					while (p->owner && ast_channel_trylock(p->owner)) {
+						DEADLOCK_AVOIDANCE(&p->lock);
+					}
+					if (p->owner) {
+						ast_softhangup(p->owner, AST_SOFTHANGUP_EXPLICIT);
+						ast_channel_unlock(p->owner);
+					}
+
+					while (p->chan && ast_channel_trylock(p->chan)) {
+						DEADLOCK_AVOIDANCE(&p->lock);
+					}
+					if (p->chan) {
+						ast_softhangup(p->chan, AST_SOFTHANGUP_EXPLICIT);
+						ast_channel_unlock(p->chan);
+					}
+				} else {
+					p->deferlogoff = 1;
+				}
 			}
 		}
 		switch (f->frametype) {
