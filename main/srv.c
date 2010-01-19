@@ -64,6 +64,7 @@ struct srv_entry {
 
 struct srv_context {
 	unsigned int have_weights:1;
+	struct srv_entry *prev;
 	AST_LIST_HEAD_NOLOCK(srv_entries, srv_entry) entries;
 };
 
@@ -195,6 +196,55 @@ static void process_weights(struct srv_context *context)
 	   put it in place */
 
 	AST_LIST_APPEND_LIST(&context->entries, &newlist, list);
+}
+
+int ast_srv_lookup(struct srv_context **context, const char *service, const char **host, unsigned short *port)
+{
+	struct srv_entry *cur;
+
+	if (*context == NULL) {
+		if (!(*context = ast_calloc(1, sizeof(struct srv_context)))) {
+			return -1;
+		}
+		AST_LIST_HEAD_INIT_NOLOCK(&(*context)->entries);
+
+		if ((ast_search_dns(*context, service, C_IN, T_SRV, srv_callback)) < 0) {
+			ast_free(*context);
+			*context = NULL;
+			return -1;
+		}
+
+		if ((*context)->have_weights) {
+			process_weights(*context);
+		}
+
+		(*context)->prev = AST_LIST_FIRST(&(*context)->entries);
+		*host = (*context)->prev->host;
+		*port = (*context)->prev->port;
+		return 0;
+	}
+
+	if (((*context)->prev = AST_LIST_NEXT((*context)->prev, list))) {
+		/* Retrieve next item in result */
+		*host = (*context)->prev->host;
+		*port = (*context)->prev->port;
+		return 0;
+	} else {
+		/* No more results */
+		while ((cur = AST_LIST_REMOVE_HEAD(&(*context)->entries, list))) {
+			ast_free(cur);
+		}
+		ast_free(*context);
+		*context = NULL;
+		return 1;
+	}
+}
+
+void ast_srv_cleanup(struct srv_context **context)
+{
+	const char *host;
+	unsigned short port;
+	while (!(ast_srv_lookup(context, NULL, &host, &port)));
 }
 
 int ast_get_srv(struct ast_channel *chan, char *host, int hostlen, int *port, const char *service)

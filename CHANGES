@@ -1325,6 +1325,11 @@ AGI Changes
   * If app_stack is loaded, GOSUB is a native AGI command that may be used to
     invoke subroutines in the dialplan.  Note that calling EXEC with Gosub
     does not behave as expected; the native command needs to be used, instead.
+  * Added the ability to perform SRV lookups on fast AGI calls. To use this
+    feature, simply use hagi: instead of agi: as the protocol portion
+    of the URI parameter to the AGI function call in your dial plan. Also note
+    that specifying a port number in the AGI URI will disable SRV lookups,
+    even if you use the hagi: protocol.
 
 Logger changes
 --------------

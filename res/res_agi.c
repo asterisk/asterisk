@@ -60,6 +60,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/features.h"
 #include "asterisk/term.h"
 #include "asterisk/xmldoc.h"
+#include "asterisk/srv.h"
 
 #define AST_API_MODULE
 #include "asterisk/agi.h"
@@ -897,6 +898,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define MAX_CMD_LEN 80
 #define AGI_NANDFS_RETRY 3
 #define AGI_BUF_LEN 2048
+#define SRV_PREFIX "_agi._tcp."
 
 static char *app = "AGI";
 
@@ -1339,31 +1341,27 @@ quit:
 
 /* launch_netscript: The fastagi handler.
 	FastAGI defaults to port 4573 */
-static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int *opid)
+static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds)
 {
 	int s, flags, res, port = AGI_PORT;
 	struct pollfd pfds[1];
-	char *host, *c, *script = "";
+	char *host, *c, *script;
 	struct sockaddr_in addr_in;
 	struct hostent *hp;
 	struct ast_hostent ahp;
 
-	/* agiusl is "agi://host.domain[:port][/script/name]" */
+	/* agiurl is "agi://host.domain[:port][/script/name]" */
 	host = ast_strdupa(agiurl + 6);	/* Remove agi:// */
 	/* Strip off any script name */
-	if ((c = strchr(host, '/'))) {
-		*c = '\0';
-		c++;
-		script = c;
+	if ((script = strchr(host, '/'))) {
+		*script++ = '\0';
+	} else {
+		script = "";
 	}
+
 	if ((c = strchr(host, ':'))) {
-		*c = '\0';
-		c++;
+		*c++ = '\0';
 		port = atoi(c);
-	}
-	if (efd) {
-		ast_log(LOG_WARNING, "AGI URI's don't support Enhanced AGI yet\n");
-		return -1;
 	}
 	if (!(hp = ast_gethostbyname(host, &ahp))) {
 		ast_log(LOG_WARNING, "Unable to locate host '%s'\n", host);
@@ -1423,8 +1421,75 @@ static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds, in
 	ast_debug(4, "Wow, connected!\n");
 	fds[0] = s;
 	fds[1] = s;
-	*opid = -1;
 	return AGI_RESULT_SUCCESS_FAST;
+}
+
+/*!
+ * \internal
+ * \brief The HA fastagi handler.
+ * \param agiurl The request URL as passed to Agi() in the dial plan
+ * \param argv The parameters after the URL passed to Agi() in the dial plan
+ * \param fds Input/output file descriptors
+ *
+ * Uses SRV lookups to try to connect to a list of FastAGI servers. The hostname in
+ * the URI is prefixed with _agi._tcp. prior to the DNS resolution. For
+ * example, if you specify the URI \a hagi://agi.example.com/foo.agi the DNS
+ * query would be for \a _agi._tcp.agi.example.com and you'll need to make sure
+ * this resolves.
+ *
+ * This function parses the URI, resolves the SRV service name, forms new URIs
+ * with the results of the DNS lookup, and then calls launch_netscript on the
+ * new URIs until one succeeds.
+ *
+ * \return the result of the AGI operation.
+ */
+static enum agi_result launch_ha_netscript(char *agiurl, char *argv[], int *fds)
+{
+	char *host, *script;
+	enum agi_result result = AGI_RESULT_FAILURE;
+	struct srv_context *context = NULL;
+	int srv_ret;
+	char service[256];
+	char resolved_uri[1024];
+	const char *srvhost;
+	unsigned short srvport;
+
+	/* format of agiurl is "hagi://host.domain[:port][/script/name]" */
+	if (!(host = ast_strdupa(agiurl + 7))) { /* Remove hagi:// */
+		ast_log(LOG_WARNING, "An error occurred parsing the AGI URI: %s", agiurl);
+		return AGI_RESULT_FAILURE;
+	}
+
+	/* Strip off any script name */
+	if ((script = strchr(host, '/'))) {
+		*script++ = '\0';
+	} else {
+		script = "";
+	}
+
+	if (strchr(host, ':')) {
+		ast_log(LOG_WARNING, "Specifying a port number disables SRV lookups: %s\n", agiurl);
+		return launch_netscript(agiurl + 1, argv, fds); /* +1 to strip off leading h from hagi:// */
+	}
+
+	snprintf(service, sizeof(service), "%s%s", SRV_PREFIX, host);
+
+	while (!(srv_ret = ast_srv_lookup(&context, service, &srvhost, &srvport))) {
+		snprintf(resolved_uri, sizeof(resolved_uri), "agi://%s:%d/%s", srvhost, srvport, script);
+		result = launch_netscript(resolved_uri, argv, fds);
+		if (result == AGI_RESULT_FAILURE || result == AGI_RESULT_NOTFOUND) {
+			ast_log(LOG_WARNING, "AGI request failed for host '%s' (%s:%d)\n", host, srvhost, srvport);
+		} else {
+			break;
+		}
+	}
+	if (srv_ret < 0) {
+		ast_log(LOG_WARNING, "SRV lookup failed for %s\n", agiurl);
+	} else {
+        ast_srv_cleanup(&context);
+    }
+
+	return result;
 }
 
 static enum agi_result launch_script(struct ast_channel *chan, char *script, char *argv[], int *fds, int *efd, int *opid)
@@ -1433,10 +1498,15 @@ static enum agi_result launch_script(struct ast_channel *chan, char *script, cha
 	int pid, toast[2], fromast[2], audio[2], res;
 	struct stat st;
 
-	if (!strncasecmp(script, "agi://", 6))
-		return launch_netscript(script, argv, fds, efd, opid);
-	if (!strncasecmp(script, "agi:async", sizeof("agi:async")-1))
+	if (!strncasecmp(script, "agi://", 6)) {
+		return (efd == NULL) ? launch_netscript(script, argv, fds) : AGI_RESULT_FAILURE;
+	}
+	if (!strncasecmp(script, "hagi://", 7)) {
+		return (efd == NULL) ? launch_ha_netscript(script, argv, fds) : AGI_RESULT_FAILURE;
+	}
+	if (!strncasecmp(script, "agi:async", sizeof("agi:async") - 1)) {
 		return launch_asyncagi(chan, argv, efd);
+	}
 
 	if (script[0] != '/') {
 		snprintf(tmp, sizeof(tmp), "%s/%s", ast_config_AST_AGI_DIR, script);
@@ -3590,7 +3660,7 @@ static int agi_exec_full(struct ast_channel *chan, const char *data, int enhance
 {
 	enum agi_result res;
 	char *buf;
-	int fds[2], efd = -1, pid;
+	int fds[2], efd = -1, pid = -1;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(arg)[MAX_ARGS];
 	);
