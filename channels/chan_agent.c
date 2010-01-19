@@ -578,8 +578,6 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 						ast_softhangup(p->chan, AST_SOFTHANGUP_EXPLICIT);
 						ast_channel_unlock(p->chan);
 					}
-				} else {
-					p->deferlogoff = 1;
 				}
 			}
 		}
