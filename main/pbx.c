@@ -3042,8 +3042,10 @@ static void pbx_substitute_variables(char *passdata, int datalen, struct ast_cha
 	const char *tmp;
 
 	/* Nothing more to do */
-	if (!e->data)
+	if (!e->data) {
+		*passdata = '\0';
 		return;
+	}
 
 	/* No variables or expressions in e->data, so why scan it? */
 	if ((!(tmp = strchr(e->data, '$'))) || (!strstr(tmp, "${") && !strstr(tmp, "$["))) {
