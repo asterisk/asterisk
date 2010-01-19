@@ -2514,6 +2514,8 @@ static void *pri_dchannel(void *vpri)
 
 								sig_pri_handle_subcmds(pri, chanpos, e->e, e->ring.channel,
 									e->ring.subcmds, e->ring.call);
+
+								ast_cdr_update(c);
 							}
 							if (c && !ast_pthread_create_detached(&threadid, NULL, pri_ss_thread, pri->pvts[chanpos])) {
 								ast_verb(3, "Accepting overlap call from '%s' to '%s' on channel %d/%d, span %d\n",
