@@ -865,7 +865,14 @@ static void set_one_cid(struct ast_cdr *cdr, struct ast_channel *c)
 	ast_copy_string(cdr->src, S_OR(num, ""), sizeof(cdr->src));
 	ast_cdr_setvar(cdr, "dnid", S_OR(c->cid.cid_dnid, ""), 0);
 
+	if (c->cid.subaddress.valid) {
+		ast_cdr_setvar(cdr, "callingsubaddr", S_OR(c->cid.subaddress.str, ""), 0);
+	}
+	if (c->cid.dialed_subaddress.valid) {
+		ast_cdr_setvar(cdr, "calledsubaddr", S_OR(c->cid.dialed_subaddress.str, ""), 0);
+	}
 }
+
 int ast_cdr_setcid(struct ast_cdr *cdr, struct ast_channel *c)
 {
 	for (; cdr; cdr = cdr->next) {
