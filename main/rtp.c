@@ -1456,21 +1456,10 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 	return f;
 }
 
-static void sanitize_tv(struct timeval *tv)
-{
-	while (tv->tv_usec < 0) {
-		tv->tv_usec += 1000000;
-		tv->tv_sec -= 1;
-	}
-	while (tv->tv_usec >= 1000000) {
-		tv->tv_usec -= 1000000;
-		tv->tv_sec += 1;
-	}
-}
-
 static void calc_rxstamp(struct timeval *when, struct ast_rtp *rtp, unsigned int timestamp, int mark)
 {
 	struct timeval now;
+	struct timeval tmp;
 	double transit;
 	double current_time;
 	double d;
@@ -1484,18 +1473,17 @@ static void calc_rxstamp(struct timeval *when, struct ast_rtp *rtp, unsigned int
 		rtp->drxcore = (double) rtp->rxcore.tv_sec + (double) rtp->rxcore.tv_usec / 1000000;
 		/* map timestamp to a real time */
 		rtp->seedrxts = timestamp; /* Their RTP timestamp started with this */
-		rtp->rxcore.tv_sec -= timestamp / rate;
-		rtp->rxcore.tv_usec -= (timestamp % rate) * 125;
+		tmp = ast_samp2tv(timestamp, rate);
+		rtp->rxcore = ast_tvsub(rtp->rxcore, tmp);
 		/* Round to 0.1ms for nice, pretty timestamps */
 		rtp->rxcore.tv_usec -= rtp->rxcore.tv_usec % 100;
-		sanitize_tv(&rtp->rxcore);
 	}
 
 	gettimeofday(&now,NULL);
 	/* rxcore is the mapping between the RTP timestamp and _our_ real time from gettimeofday() */
-	when->tv_sec = rtp->rxcore.tv_sec + timestamp / rate;
-	when->tv_usec = rtp->rxcore.tv_usec + (timestamp % rate) * 125;
-	sanitize_tv(when);
+	tmp = ast_samp2tv(timestamp, rate);
+	*when = ast_tvadd(rtp->rxcore, tmp);
+
 	prog = (double)((timestamp-rtp->seedrxts)/(float)(rate));
 	dtv = (double)rtp->drxcore + (double)(prog);
 	current_time = (double)now.tv_sec + (double)now.tv_usec/1000000;
