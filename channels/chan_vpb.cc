@@ -644,7 +644,7 @@ static void get_callerid(struct vpb_pvt *p)
 			vpb_sleep(RING_SKIP);
 		}
 
-		ast_verb(4, "CID record - skipped %dms trailing ring\n",
+		ast_verb(4, "CID record - skipped %ldms trailing ring\n",
 				 ast_tvdiff_ms(ast_tvnow(), cid_record_time));
 		cid_record_time = ast_tvnow();
 
@@ -658,7 +658,7 @@ static void get_callerid(struct vpb_pvt *p)
 		vpb_wave_close_write(ws);
 #endif
 
-		ast_verb(4, "CID record - recorded %dms between rings\n",
+		ast_verb(4, "CID record - recorded %ldms between rings\n",
 				 ast_tvdiff_ms(ast_tvnow(), cid_record_time));
 
 		ast_mutex_unlock(&p->record_lock);
