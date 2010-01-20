@@ -3686,6 +3686,10 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 			ast_copy_string(c->context, "default", sizeof(c->context));
 		}
 	}
+	if (c->cdr) {
+		/* allow CDR variables that have been collected after channel was created to be visible during call */
+		ast_cdr_update(c);
+	}
 	for (;;) {
 		char dst_exten[256];	/* buffer to accumulate digits */
 		int pos = 0;		/* XXX should check bounds */
