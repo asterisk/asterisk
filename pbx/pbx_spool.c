@@ -122,8 +122,11 @@ static void init_outgoing(struct outgoing *o)
 	ast_set_flag(&o->options, SPOOL_FLAG_ALWAYS_DELETE);
 }
 
-static void free_outgoing(struct outgoing *o)
+static void free_outgoing(struct outgoing *o, int free_vars)
 {
+	if (free_vars && o->vars) {
+		ast_variables_destroy(o->vars);
+	}
 	free(o);
 }
 
@@ -367,7 +370,7 @@ static void *attempt_thread(void *data)
 		ast_log(LOG_EVENT, "Queued call to %s/%s completed\n", o->tech, o->dest);
 		remove_from_queue(o, "Completed");
 	}
-	free_outgoing(o);
+	free_outgoing(o, 0);
 	return NULL;
 }
 
@@ -380,7 +383,7 @@ static void launch_service(struct outgoing *o)
  	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	if ((ret = ast_pthread_create(&t,&attr,attempt_thread, o)) != 0) {
 		ast_log(LOG_WARNING, "Unable to create thread :( (returned error: %d)\n", ret);
-		free_outgoing(o);
+		free_outgoing(o, 1);
 	}
 	pthread_attr_destroy(&attr);
 }
@@ -404,7 +407,7 @@ static int scan_service(char *fn, time_t now, time_t atime)
 					if (o->callingpid && (o->callingpid == ast_mainpid)) {
 						safe_append(o, time(NULL), "DelayedRetry");
 						ast_log(LOG_DEBUG, "Delaying retry since we're currently running '%s'\n", o->fn);
-						free_outgoing(o);
+						free_outgoing(o, 1);
 					} else {
 						/* Increment retries */
 						o->retries++;
@@ -420,19 +423,19 @@ static int scan_service(char *fn, time_t now, time_t atime)
 				} else {
 					ast_log(LOG_EVENT, "Queued call to %s/%s expired without completion after %d attempt%s\n", o->tech, o->dest, o->retries - 1, ((o->retries - 1) != 1) ? "s" : "");
 					remove_from_queue(o, "Expired");
-					free_outgoing(o);
+					free_outgoing(o, 1);
 					return 0;
 				}
 			} else {
 				ast_log(LOG_WARNING, "Invalid file contents in %s, deleting\n", fn);
 				fclose(f);
 				remove_from_queue(o, "Failed");
-				free_outgoing(o);
+				free_outgoing(o, 1);
 			}
 		} else {
 			ast_log(LOG_WARNING, "Unable to open %s: %s, deleting\n", fn, strerror(errno));
 			remove_from_queue(o, "Failed");
-			free_outgoing(o);
+			free_outgoing(o, 1);
 		}
 	} else
 		ast_log(LOG_WARNING, "Out of memory :(\n");
