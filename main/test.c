@@ -172,26 +172,21 @@ static void test_execute(struct ast_test *test)
 
 static void test_xml_entry(struct ast_test *test, FILE *f)
 {
-	if (!f || !test) {
+	if (!f || !test || test->state == AST_TEST_NOT_RUN) {
 		return;
 	}
 
-	fprintf(f, "\n<test>\n");
-	fprintf(f, "<name>%s</name>\n", test->info.name);
-	fprintf(f, "<category>%s</category>\n", test->info.category);
-	fprintf(f, "<summary>%s</summary>\n", test->info.summary);
-	fprintf(f, "<description>\n%s\n</description>\n", test->info.description);
+	fprintf(f, "\t<testcase time=\"%d.%d\" name=\"%s%s\"%s>\n",
+			test->time / 1000, test->time % 1000,
+			test->info.category, test->info.name,
+			test->state == AST_TEST_PASS ? "/" : "");
 
-	fprintf(f, "<result>\n\t%s\n", test_result2str[test->state]);
 	if (test->state == AST_TEST_FAIL) {
-		fprintf(f, "\t<error>\n\t\t%s\n\t</error>\n", S_OR(ast_str_buffer(test->args.ast_test_error_str), "NA"));
+		fprintf(f, "\t\t<failure>%s</failure>\n",
+				S_OR(ast_str_buffer(test->args.ast_test_error_str), "NA"));
+		fprintf(f, "\t</testcase>\n");
 	}
-	if (test->state != AST_TEST_NOT_RUN) {
-		fprintf(f, "\t<time>\n\t\t%d\n\t</time>\n", test->time);
-	}
-	fprintf(f, "</result>\n");
 
-	fprintf(f, "</test>\n");
 }
 
 static void test_txt_entry(struct ast_test *test, FILE *f)
@@ -376,15 +371,13 @@ static int test_generate_results(const char *name, const char *category, const c
 	/* xml header information */
 	if (f_xml) {
 		fprintf(f_xml, "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n");
-		fprintf(f_xml, "\n<results>\n");
-		fprintf(f_xml, "<version>%s</version>\n", ASTERISK_VERSION);
-		fprintf(f_xml, "<versionnum>%d</versionnum>\n", ASTERISK_VERSION_NUM);
-		fprintf(f_xml, "<numtests>%d</numtests>\n", (last_results.total_tests));
-		fprintf(f_xml, "<executedtests>%d</executedtests>\n", (last_results.total_passed + last_results.total_failed));
-		fprintf(f_xml, "<passedtests>%d</passedtests>\n", last_results.total_passed);
-		fprintf(f_xml, "<failedtests>%d</failedtests>\n", last_results.total_failed);
-		fprintf(f_xml, "<totaltime>%d</totaltime>\n", last_results.total_time);
-		fprintf(f_xml, "</results>\n");
+		fprintf(f_xml, "<testsuite errors=\"0\" time=\"%d.%d\" tests=\"%d\" "
+				"name=\"AsteriskUnitTests\">\n",
+				last_results.total_time / 1000, last_results.total_time % 1000,
+				last_results.total_tests);
+		fprintf(f_xml, "\t<properties>\n");
+		fprintf(f_xml, "\t\t<property name=\"version\" value=\"%s\"/>\n", ASTERISK_VERSION);
+		fprintf(f_xml, "\t</properties>\n");
 	}
 
 	/* txt header information */
@@ -422,6 +415,7 @@ static int test_generate_results(const char *name, const char *category, const c
 
 done:
 	if (f_xml) {
+		fprintf(f_xml, "</testsuite>\n");
 		fclose(f_xml);
 	}
 	if (f_txt) {
