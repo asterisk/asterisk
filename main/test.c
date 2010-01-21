@@ -370,6 +370,9 @@ static int test_generate_results(const char *name, const char *category, const c
 	AST_LIST_LOCK(&tests);
 	/* xml header information */
 	if (f_xml) {
+		/*
+		 * http://confluence.atlassian.com/display/BAMBOO/JUnit+parsing+in+Bamboo
+		 */
 		fprintf(f_xml, "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n");
 		fprintf(f_xml, "<testsuite errors=\"0\" time=\"%d.%d\" tests=\"%d\" "
 				"name=\"AsteriskUnitTests\">\n",
