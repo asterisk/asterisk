@@ -13491,10 +13491,11 @@ CFLAGS="${CFLAGS} -Werror -Wmissing-braces"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 #include <pthread.h>
+     void empty(){}
 int
 main ()
 {
-pthread_once_t once = PTHREAD_ONCE_INIT;
+pthread_once_t once = PTHREAD_ONCE_INIT; pthread_once(&once, empty);
   ;
   return 0;
 }
