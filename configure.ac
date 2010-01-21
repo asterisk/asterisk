@@ -357,8 +357,9 @@ saved_CFLAGS="${CFLAGS}"
 CFLAGS="${CFLAGS} -Werror -Wmissing-braces"
 AC_COMPILE_IFELSE(
   [AC_LANG_PROGRAM(
-    [#include <pthread.h>],
-	[pthread_once_t once = PTHREAD_ONCE_INIT;])
+    [#include <pthread.h>
+     void empty(){}],
+	[pthread_once_t once = PTHREAD_ONCE_INIT; pthread_once(&once, empty);])
   ],[
     AC_MSG_RESULT(no)
     ac_cv_pthread_once_needsbraces="no"
