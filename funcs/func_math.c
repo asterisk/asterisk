@@ -289,7 +289,11 @@ static int math(struct ast_channel *chan, const char *cmd, char *parse,
 			int inum1 = fnum1;
 			int inum2 = fnum2;
 
-			ftmp = (inum1 % inum2);
+			if (inum2 == 0) {
+				ftmp = 0;
+			} else {
+				ftmp = (inum1 % inum2);
+			}
 
 			break;
 		}
