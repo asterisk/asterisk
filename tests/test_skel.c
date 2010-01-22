@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*! \file
- *
+/*! 
+ * \file
  * \brief Skeleton Test
  *
  * \author\verbatim <Your Name Here> <<Your Email Here>> \endverbatim
@@ -34,21 +34,48 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include "asterisk/file.h"
-#include "asterisk/channel.h"
-#include "asterisk/pbx.h"
+#include "asterisk/utils.h"
 #include "asterisk/module.h"
-#include "asterisk/lock.h"
-#include "asterisk/app.h"
-#include "asterisk/cli.h"
+#include "asterisk/test.h"
+
+AST_TEST_DEFINE(sample_test)
+{
+	void *ptr;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "sample_test";
+		info->category = "main/sample/";
+		info->summary = "sample unit test";
+		info->description =
+			"This demonstrates what is required to implement "
+			"a unit test.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	ast_test_status_update(&args->status_update, "Executing sample test.\n");
+
+	if (!(ptr = ast_malloc(8))) {
+		ast_str_set(&args->ast_test_error_str, 0, "ast_malloc() failed\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_free(ptr);
+
+	return AST_TEST_PASS;
+}
 
 static int unload_module(void)
 {
+	AST_TEST_UNREGISTER(sample_test);
 	return 0;
 }
 
 static int load_module(void)
 {
+	AST_TEST_REGISTER(sample_test);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
