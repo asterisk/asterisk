@@ -40,7 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #include "asterisk/paths.h"
 #include "asterisk/time.h"
 
-/*! This array corrisponds to the values defined in the ast_test_state enum */
+/*! This array corresponds to the values defined in the ast_test_state enum */
 static const char * const test_result2str[] = {
 	[AST_TEST_NOT_RUN] = "NOT RUN",
 	[AST_TEST_PASS] = "PASS",
@@ -49,23 +49,23 @@ static const char * const test_result2str[] = {
 
 /*! holds all the information pertaining to a single defined test */
 struct ast_test {
-	struct ast_test_info info;        /*! holds test callback information */
-	struct ast_test_args args;        /*! function callback arguments */
-	enum ast_test_result_state state; /*! current test state */
-	unsigned int time;                /*! time in ms test took */
-	ast_test_cb_t *cb;                /*! test callback function */
+	struct ast_test_info info;        /*!< holds test callback information */
+	struct ast_test_args args;        /*!< function callback arguments */
+	enum ast_test_result_state state; /*!< current test state */
+	unsigned int time;                /*!< time in ms test took */
+	ast_test_cb_t *cb;                /*!< test callback function */
 	AST_LIST_ENTRY(ast_test) entry;
 };
 
 /*! global structure containing both total and last test execution results */
 static struct ast_test_execute_results {
-	unsigned int total_tests;  /* total number of tests, reguardless if they have been executed or not */
-	unsigned int total_passed; /* total number of executed tests passed */
-	unsigned int total_failed; /* total number of executed tests failed */
-	unsigned int total_time;   /* total time of all executed tests */
-	unsigned int last_passed;  /* number of passed tests during last execution */
-	unsigned int last_failed;  /* number of failed tests during last execution */
-	unsigned int last_time;    /* total time of the last test execution */
+	unsigned int total_tests;  /*!< total number of tests, regardless if they have been executed or not */
+	unsigned int total_passed; /*!< total number of executed tests passed */
+	unsigned int total_failed; /*!< total number of executed tests failed */
+	unsigned int total_time;   /*!< total time of all executed tests */
+	unsigned int last_passed;  /*!< number of passed tests during last execution */
+	unsigned int last_failed;  /*!< number of failed tests during last execution */
+	unsigned int last_time;    /*!< total time of the last test execution */
 } last_results;
 
 enum test_mode {
