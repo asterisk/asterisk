@@ -96,17 +96,18 @@ static const char app[] = "ExternalIVR";
 #define ast_chan_log(level, channel, format, ...) ast_log(level, "%s: " format, channel->name , ## __VA_ARGS__)
 
 /* Commands */
-#define EIVR_CMD_PARM 'P' /* return supplied params */
-#define EIVR_CMD_ANS 'T'  /* answer channel */
-#define EIVR_CMD_SQUE 'S' /* (re)set prompt queue */
 #define EIVR_CMD_APND 'A' /* append to prompt queue */
-#define EIVR_CMD_GET 'G'  /* get channel varable(s) */
-#define EIVR_CMD_SVAR 'V' /* set channel varable(s) */
-#define EIVR_CMD_LOG 'L'  /* log message */
-#define EIVR_CMD_XIT 'X'  /* exit **depricated** */
+#define EIVR_CMD_DTMF 'D' /* send DTMF */
 #define EIVR_CMD_EXIT 'E' /* exit */
+#define EIVR_CMD_GET  'G' /* get channel varable(s) */
 #define EIVR_CMD_HGUP 'H' /* hangup */
-#define EIVR_CMD_OPT 'O'  /* option */
+#define EIVR_CMD_LOG  'L' /* log message */
+#define EIVR_CMD_OPT  'O' /* option */
+#define EIVR_CMD_PARM 'P' /* return supplied params */
+#define EIVR_CMD_SQUE 'S' /* (re)set prompt queue */
+#define EIVR_CMD_ANS  'T' /* answer channel */
+#define EIVR_CMD_SVAR 'V' /* set channel varable(s) */
+#define EIVR_CMD_XIT  'X' /* exit **depricated** */
 
 enum options_flags {
 	noanswer = (1 << 0),
@@ -342,6 +343,30 @@ static void ast_eivr_setvariable(struct ast_channel *chan, char *data)
 		}
 		pbx_builtin_setvar_helper(chan, variable, value);
 	}
+}
+
+static void ast_eivr_senddtmf(struct ast_channel *chan, char *vdata)
+{
+
+	char *data;
+	int dinterval = 0, duration = 0;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(digits);
+		AST_APP_ARG(dinterval);
+		AST_APP_ARG(duration);
+	);
+
+	data = ast_strdupa(vdata);
+	AST_STANDARD_APP_ARGS(args, data);
+
+	if (!ast_strlen_zero(args.dinterval)) {
+		ast_app_parse_timelen(args.dinterval, &dinterval, TIMELEN_MILLISECONDS);
+	}
+	if (!ast_strlen_zero(args.duration)) {
+		ast_app_parse_timelen(args.duration, &duration, TIMELEN_MILLISECONDS);
+	}
+	ast_verb(4, "Sending DTMF: %s %d %d\n", args.digits, dinterval <= 0 ? 250 : dinterval, duration);
+	ast_dtmf_stream(chan, NULL, args.digits, dinterval <= 0 ? 250 : dinterval, duration);
 }
 
 static struct playlist_entry *make_entry(const char *filename)
@@ -683,18 +708,23 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
   				break;
   			}
   
- 			if (!fgets(input, sizeof(input), eivr_commands))
- 				continue;
-			ast_strip(input); 
- 			ast_verb(4, "got command '%s'\n", input);
-  
- 			if (strlen(input) < 4) {
- 				continue;
+			if (!fgets(input, sizeof(input), eivr_commands)) {
+				continue;
 			}
-  
+
+			ast_strip(input);
+			ast_verb(4, "got command '%s'\n", input);
+
+			if (strlen(input) < 3) {
+				continue;
+			}
+
 			if (input[0] == EIVR_CMD_PARM) {
 				struct ast_str *tmp = (struct ast_str *) args;
- 				send_eivr_event(eivr_events, 'P', ast_str_buffer(tmp), chan);
+				send_eivr_event(eivr_events, 'P', ast_str_buffer(tmp), chan);
+			} else if (input[0] == EIVR_CMD_DTMF) {
+				ast_verb(4, "Sending DTMF: %s\n", &input[2]);
+				ast_eivr_senddtmf(chan, &input[2]);
 			} else if (input[0] == EIVR_CMD_ANS) {
 				ast_verb(3, "Answering channel if needed and starting generator\n");
 				if (chan->_state != AST_STATE_UP) {
