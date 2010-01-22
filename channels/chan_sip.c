@@ -2219,7 +2219,7 @@ static int ourport_tcp;				/*!< The port used for TCP connections */
 static int ourport_tls;				/*!< The port used for TCP/TLS connections */
 static struct sockaddr_in debugaddr;
 
-static struct ast_config *notify_types;		/*!< The list of manual NOTIFY types we know how to send */
+static struct ast_config *notify_types = NULL;		/*!< The list of manual NOTIFY types we know how to send */
 
 /*! some list management macros. */
  
