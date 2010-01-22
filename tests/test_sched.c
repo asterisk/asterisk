@@ -34,122 +34,123 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/module.h"
-#include "asterisk/cli.h"
 #include "asterisk/utils.h"
 #include "asterisk/sched.h"
+#include "asterisk/test.h"
 
 static int sched_cb(const void *data)
 {
 	return 0;
 }
 
-static char *handle_cli_sched_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+AST_TEST_DEFINE(sched_test_order)
 {
 	struct sched_context *con;
-	char *res = CLI_FAILURE;
+	enum ast_test_result_state res = AST_TEST_FAIL;
 	int id1, id2, id3, wait;
 
 	switch (cmd) {
-	case CLI_INIT:
-		e->command = "sched test";
-		e->usage = ""
-			"Usage: sched test\n"
-			"   Test scheduler entry ordering.\n"
-			"";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
+	case TEST_INIT:
+		info->name = "sched_test_order";
+		info->category = "main/sched/";
+		info->summary = "Test ordering of events in the scheduler API";
+		info->description =
+			"This test ensures that events are properly ordered by the "
+			"time they are scheduled to execute in the scheduler API.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
 	}
-
-	if (a->argc != e->args) {
-		return CLI_SHOWUSAGE;
-	}
-
-	ast_cli(a->fd, "Testing scheduler entry ordering ...\n");
 
 	if (!(con = sched_context_create())) {
-		ast_cli(a->fd, "Test failed - could not create scheduler context\n");
-		return CLI_FAILURE;
+		ast_str_set(&args->ast_test_error_str, 0,
+				"Test failed - could not create scheduler context\n");
+		return AST_TEST_FAIL;
 	}
 
 	/* Add 3 scheduler entries, and then remove them, ensuring that the result
 	 * of ast_sched_wait() looks appropriate at each step along the way. */
 
 	if ((wait = ast_sched_wait(con)) != -1) {
-		ast_cli(a->fd, "ast_sched_wait() should have returned -1, returned '%d'\n",
+		ast_str_set(&args->ast_test_error_str, 0,
+				"ast_sched_wait() should have returned -1, returned '%d'\n",
 				wait);
 		goto return_cleanup;
 	}
 
 	if ((id1 = ast_sched_add(con, 100000, sched_cb, NULL)) == -1) {
-		ast_cli(a->fd, "Failed to add scheduler entry\n");
+		ast_str_set(&args->ast_test_error_str, 0,  "Failed to add scheduler entry\n");
 		goto return_cleanup;
 	}
 
 	if ((wait = ast_sched_wait(con)) > 100000) {
-		ast_cli(a->fd, "ast_sched_wait() should have returned <= 100000, returned '%d'\n",
+		ast_str_set(&args->ast_test_error_str, 0,
+				"ast_sched_wait() should have returned <= 100000, returned '%d'\n",
 				wait);
 		goto return_cleanup;
 	}
 
 	if ((id2 = ast_sched_add(con, 10000, sched_cb, NULL)) == -1) {
-		ast_cli(a->fd, "Failed to add scheduler entry\n");
+		ast_str_set(&args->ast_test_error_str, 0, "Failed to add scheduler entry\n");
 		goto return_cleanup;
 	}
 
 	if ((wait = ast_sched_wait(con)) > 10000) {
-		ast_cli(a->fd, "ast_sched_wait() should have returned <= 10000, returned '%d'\n",
+		ast_str_set(&args->ast_test_error_str, 0,
+				"ast_sched_wait() should have returned <= 10000, returned '%d'\n",
 				wait);
 		goto return_cleanup;
 	}
 
 	if ((id3 = ast_sched_add(con, 1000, sched_cb, NULL)) == -1) {
-		ast_cli(a->fd, "Failed to add scheduler entry\n");
+		ast_str_set(&args->ast_test_error_str, 0, "Failed to add scheduler entry\n");
 		goto return_cleanup;
 	}
 
 	if ((wait = ast_sched_wait(con)) > 1000) {
-		ast_cli(a->fd, "ast_sched_wait() should have returned <= 1000, returned '%d'\n",
+		ast_str_set(&args->ast_test_error_str, 0,
+				"ast_sched_wait() should have returned <= 1000, returned '%d'\n",
 				wait);
 		goto return_cleanup;
 	}
 
 	if (ast_sched_del(con, id3) == -1) {
-		ast_cli(a->fd, "Failed to remove scheduler entry\n");
+		ast_str_set(&args->ast_test_error_str, 0, "Failed to remove scheduler entry\n");
 		goto return_cleanup;
 	}
 
 	if ((wait = ast_sched_wait(con)) <= 1000) {
-		ast_cli(a->fd, "ast_sched_wait() should have returned > 1000, returned '%d'\n",
+		ast_str_set(&args->ast_test_error_str, 0,
+				"ast_sched_wait() should have returned > 1000, returned '%d'\n",
 				wait);
 		goto return_cleanup;
 	}
 
 	if (ast_sched_del(con, id2) == -1) {
-		ast_cli(a->fd, "Failed to remove scheduler entry\n");
+		ast_str_set(&args->ast_test_error_str, 0, "Failed to remove scheduler entry\n");
 		goto return_cleanup;
 	}
 
 	if ((wait = ast_sched_wait(con)) <= 10000) {
-		ast_cli(a->fd, "ast_sched_wait() should have returned > 10000, returned '%d'\n",
+		ast_str_set(&args->ast_test_error_str, 0,
+				"ast_sched_wait() should have returned > 10000, returned '%d'\n",
 				wait);
 		goto return_cleanup;
 	}
 
 	if (ast_sched_del(con, id1) == -1) {
-		ast_cli(a->fd, "Failed to remove scheduler entry\n");
+		ast_str_set(&args->ast_test_error_str, 0,  "Failed to remove scheduler entry\n");
 		goto return_cleanup;
 	}
 
 	if ((wait = ast_sched_wait(con)) != -1) {
-		ast_cli(a->fd, "ast_sched_wait() should have returned -1, returned '%d'\n",
+		ast_str_set(&args->ast_test_error_str, 0,
+				"ast_sched_wait() should have returned -1, returned '%d'\n",
 				wait);
 		goto return_cleanup;
 	}
 
-	res = CLI_SUCCESS;
-
-	ast_cli(a->fd, "Test passed!\n");
+	res = AST_TEST_PASS;
 
 return_cleanup:
 	sched_context_destroy(con);
@@ -233,17 +234,18 @@ return_cleanup:
 
 static struct ast_cli_entry cli_sched[] = {
 	AST_CLI_DEFINE(handle_cli_sched_bench, "Benchmark ast_sched add/del performance"),
-	AST_CLI_DEFINE(handle_cli_sched_test, "Test scheduler entry ordering"),
 };
 
 static int unload_module(void)
 {
+	AST_TEST_UNREGISTER(sched_test_order);
 	ast_cli_unregister_multiple(cli_sched, ARRAY_LEN(cli_sched));
 	return 0;
 }
 
 static int load_module(void)
 {
+	AST_TEST_REGISTER(sched_test_order);
 	ast_cli_register_multiple(cli_sched, ARRAY_LEN(cli_sched));
 	return AST_MODULE_LOAD_SUCCESS;
 }
