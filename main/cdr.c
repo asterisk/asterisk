@@ -841,6 +841,7 @@ static void set_one_cid(struct ast_cdr *cdr, struct ast_channel *c)
 		cdr->clid[0] = '\0';
 	}
 	ast_copy_string(cdr->src, S_OR(num, ""), sizeof(cdr->src));
+	ast_cdr_setvar(cdr, "dnid", S_OR(c->cid.cid_dnid, ""), 0);
 
 }
 int ast_cdr_setcid(struct ast_cdr *cdr, struct ast_channel *c)
