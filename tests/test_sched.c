@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/sched.h"
 #include "asterisk/test.h"
+#include "asterisk/cli.h"
 
 static int sched_cb(const void *data)
 {
