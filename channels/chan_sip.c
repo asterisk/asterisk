@@ -1267,7 +1267,7 @@ static struct sockaddr_in outboundproxyip;
 static int ourport;
 static struct sockaddr_in debugaddr;
 
-static struct ast_config *notify_types;		/*!< The list of manual NOTIFY types we know how to send */
+static struct ast_config *notify_types = NULL;		/*!< The list of manual NOTIFY types we know how to send */
 
 /*---------------------------- Forward declarations of functions in chan_sip.c */
 /*! \note This is added to help splitting up chan_sip.c into several files
