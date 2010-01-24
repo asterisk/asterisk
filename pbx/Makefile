@@ -9,7 +9,7 @@
 # the GNU General Public License
 #
 
--include $(ASTTOPDIR)/menuselect.makeopts $(ASTTOPDIR)/menuselect.makedeps
+-include $(ASTTOPDIR)/menuselect.makeopts $(ASTTOPDIR)/menuselect.makedeps $(ASTTOPDIR)/makeopts
 
 MODULE_PREFIX=pbx
 MENUSELECT_CATEGORY=PBX
