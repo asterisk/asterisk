@@ -55,6 +55,7 @@ typedef int flex_int32_t;
 typedef unsigned char flex_uint8_t; 
 typedef unsigned short int flex_uint16_t;
 typedef unsigned int flex_uint32_t;
+#endif /* ! C99 */
 
 /* Limits of integral types. */
 #ifndef INT8_MIN
@@ -84,8 +85,6 @@ typedef unsigned int flex_uint32_t;
 #ifndef UINT32_MAX
 #define UINT32_MAX             (4294967295U)
 #endif
-
-#endif /* ! C99 */
 
 #endif /* ! FLEXINT_H */
 
@@ -951,7 +950,7 @@ static void pbcwhere(const char *text, int *line, int *col )
 #define	STORE_POS
 #define	STORE_LOC
 #endif
-#line 954 "ael_lex.c"
+#line 953 "ael_lex.c"
 
 #define INITIAL 0
 #define paren 1
@@ -1103,7 +1102,7 @@ static int input (yyscan_t yyscanner );
 /* This used to be an fputs(), but since the string might contain NUL's,
  * we now use fwrite().
  */
-#define ECHO do { if (fwrite( yytext, yyleng, 1, yyout )) {} } while (0)
+#define ECHO fwrite( yytext, yyleng, 1, yyout )
 #endif
 
 /* Gets input and stuffs it into "buf".  number of characters read, or YY_NULL,
@@ -1114,7 +1113,7 @@ static int input (yyscan_t yyscanner );
 	if ( YY_CURRENT_BUFFER_LVALUE->yy_is_interactive ) \
 		{ \
 		int c = '*'; \
-		size_t n; \
+		int n; \
 		for ( n = 0; n < max_size && \
 			     (c = getc( yyin )) != EOF && c != '\n'; ++n ) \
 			buf[n] = (char) c; \
@@ -1202,7 +1201,7 @@ YY_DECL
 #line 216 "ael.flex"
 
 
-#line 1205 "ael_lex.c"
+#line 1204 "ael_lex.c"
 
     yylval = yylval_param;
 
@@ -2028,7 +2027,7 @@ YY_RULE_SETUP
 #line 649 "ael.flex"
 YY_FATAL_ERROR( "flex scanner jammed" );
 	YY_BREAK
-#line 2031 "ael_lex.c"
+#line 2030 "ael_lex.c"
 
 	case YY_END_OF_BUFFER:
 		{
