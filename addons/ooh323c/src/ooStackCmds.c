@@ -494,6 +494,54 @@ OOStkCmdStat ooSendDTMFDigit(const char *callToken, const char* dtmf)
    return OO_STKCMD_SUCCESS;
 }
 
+OOStkCmdStat ooSetANI(const char *callToken, const char* ani)
+{
+   OOStackCommand cmd;
+   OOH323CallData *call;
+
+   if(!callToken)
+   {
+      return OO_STKCMD_INVALIDPARAM;
+   }
+
+   if(!(call = ooFindCallByToken(callToken))) {
+      return OO_STKCMD_INVALIDPARAM;
+   }
+
+   if(call->CmdChan == 0)
+   {
+      if(ooCreateCallCmdConnection(call) != OO_OK)
+         return OO_STKCMD_CONNECTIONERR;
+   }
+
+   memset(&cmd, 0, sizeof(OOStackCommand));
+   cmd.type = OO_CMD_SETANI;
+
+   cmd.param1 = (void*) malloc(strlen(callToken)+1);
+   cmd.param2 = (void*) malloc(strlen(ani)+1);
+   if(!cmd.param1 || !cmd.param2)
+   {
+      if(cmd.param1)   free(cmd.param1); /* Release memory */
+      if(cmd.param2)   free(cmd.param2);
+      return OO_STKCMD_MEMERR;
+   }
+   strcpy((char*)cmd.param1, callToken);
+   cmd.plen1 = strlen(callToken);
+   strcpy((char*)cmd.param2, ani);
+   cmd.plen2 = strlen(ani);
+   
+   if(ooWriteCallStackCommand(call,&cmd) != OO_OK)
+   {
+      free(cmd.param1);
+      free(cmd.param2);
+      return OO_STKCMD_WRITEERR;
+   }
+   free(cmd.param1);
+   free(cmd.param2);
+
+   return OO_STKCMD_SUCCESS;
+}
+
 OOStkCmdStat ooRequestChangeMode(const char *callToken, int isT38Mode)
 {
    OOStackCommand cmd;

@@ -1124,7 +1124,7 @@ int ooH2250Receive(OOH323CallData *call)
    finishPrint();
    removeEventHandler(pctxt);
    if(ret == OO_OK) {
-      ooHandleH2250Message(call, pmsg);
+      ret = ooHandleH2250Message(call, pmsg);
    }
    return ret;
 }

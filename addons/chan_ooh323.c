@@ -902,6 +902,10 @@ static int ooh323_call(struct ast_channel *ast, char *dest, int timeout)
       		if(p->callerid_name)
 			free(p->callerid_name);
 		p->callerid_name = strdup(ast->connected.id.name);
+	} else if (ast->connected.id.number) {
+      		if(p->callerid_name)
+			free(p->callerid_name);
+		p->callerid_name = strdup(ast->connected.id.number);
 	} else {
 		ast->connected.id.name = strdup(gCallerID);
       		if(p->callerid_name)
@@ -1204,6 +1208,13 @@ static int ooh323_indicate(struct ast_channel *ast, int condition, const void *d
 	 break;
       case AST_CONTROL_SRCUPDATE:
 		ast_rtp_instance_new_source(p->rtp);
+		break;
+
+      case AST_CONTROL_CONNECTED_LINE:
+		if (gH323Debug)
+			ast_log(LOG_DEBUG, "Sending connected line info for %s (%s)\n",
+				callToken, ast->connected.id.name);
+		ooSetANI(callToken, ast->connected.id.name);
 		break;
 
       case AST_CONTROL_T38_PARAMETERS:

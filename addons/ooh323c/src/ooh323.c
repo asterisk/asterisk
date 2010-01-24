@@ -1533,6 +1533,17 @@ int ooHandleH2250Message(OOH323CallData *call, Q931Message *q931Msg)
    OOTimer *pTimer=NULL;
    int type = q931Msg->messageType;
    struct timespec ts;
+
+/* checking of message validity for first/next messages of calls */
+
+   if (!strcmp(call->callType, "incoming")) {
+	if ((call->callState != OO_CALL_CREATED && type == Q931SetupMsg) ||
+	    (call->callState == OO_CALL_CREATED && type != Q931SetupMsg)) {
+		ooFreeQ931Message(call->msgctxt, q931Msg);
+		return OO_FAILED;
+	}
+   }
+
    switch(type)
    {
       case Q931SetupMsg: /* SETUP message is received */

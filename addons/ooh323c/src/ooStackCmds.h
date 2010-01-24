@@ -67,7 +67,8 @@ typedef enum OOStackCmdID {
    OO_CMD_MANUALRINGBACK,    /*!< Send Alerting - ringback */
    OO_CMD_MANUALPROGRESS,    /*!< Send progress */
    OO_CMD_STOPMONITOR,       /*!< Stop the event monitor */
-   OO_CMD_REQMODE	     /*!< Request new mode */
+   OO_CMD_REQMODE,	     /*!< Request new mode */
+   OO_CMD_SETANI	     /*! <Set conncted info */
    
 } OOStackCmdID;
 
@@ -175,6 +176,8 @@ EXTERN OOStkCmdStat ooRequestChangeMode(const char *callToken, int isT38Mode);
 EXTERN OOStkCmdStat ooRunCall(const char* dest, char* callToken, size_t bufsiz, ooCallOptions *opts);
 
 int ooGenerateOutgoingCallToken (char *callToken, size_t size);
+
+EXTERN OOStkCmdStat ooSetANI(const char *callToken, const char* ani);
 
 #ifdef __cplusplus
 }

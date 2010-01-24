@@ -402,6 +402,15 @@ int ooReadAndProcessCallStackCommand(OOH323CallData* call)
 	       ooSendRequestMode(call, *(int *)cmd.param2);
 	       break;
 
+	    case OO_CMD_SETANI:
+		OOTRACEINFO3("Processing SetANI command %s, ani is %s\n",
+				(char *)cmd.param1, (char *)cmd.param2);
+   		if(cmd.param2) {
+     			strncpy(call->ourCallerId, cmd.param2, sizeof(call->ourCallerId)-1);
+     			call->ourCallerId[sizeof(call->ourCallerId)-1] = '\0';
+   		}
+		break;
+
             default: OOTRACEERR1("ERROR:Unknown command\n");
          }
       }
