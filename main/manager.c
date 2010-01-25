@@ -1507,15 +1507,14 @@ static int action_setvar(struct mansession *s, const struct message *m)
 	if (varname[strlen(varname)-1] == ')') {
 		char *function = ast_strdupa(varname);
 		res = ast_func_write(c, function, varval);
-		ast_log(LOG_DEBUG, "---- RESULT of ast_func_write %d \n", res);
 	} else {
 		pbx_builtin_setvar_helper(c, varname, S_OR(varval, ""));
 	}
 	  
-	if (c)
+	if (c) {
 		ast_channel_unlock(c);
+	}
 
-	ast_log(LOG_DEBUG, "---- RESULT 2 :: ast_func_write %d \n", res);
 	if (res == 0) {
 		astman_send_ack(s, m, "Variable Set");	
 	} else {
