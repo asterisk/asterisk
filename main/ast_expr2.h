@@ -94,13 +94,13 @@
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 345 "/home/murf/asterisk/1.6.1/main/ast_expr2.y"
+#line 345 "ast_expr2.y"
 {
 	struct val *val;
 	struct expr_node *arglist;
 }
 /* Line 1489 of yacc.c.  */
-#line 104 "/home/murf/asterisk/1.6.1/main/ast_expr2.h"
+#line 104 "ast_expr2.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
