@@ -290,7 +290,7 @@ _ASTCFLAGS+=$(OPTIONS)
 
 MOD_SUBDIRS:=channels pbx apps codecs formats cdr funcs tests main res $(LOCAL_MOD_SUBDIRS)
 OTHER_SUBDIRS:=utils agi
-SUBDIRS:=$(OTHER_SUBDIRS) $(MOD_SUBDIRS)
+SUBDIRS:=$(MOD_SUBDIRS) $(OTHER_SUBDIRS)
 SUBDIRS_INSTALL:=$(SUBDIRS:%=%-install)
 SUBDIRS_CLEAN:=$(SUBDIRS:%=%-clean)
 SUBDIRS_DIST_CLEAN:=$(SUBDIRS:%=%-dist-clean)
