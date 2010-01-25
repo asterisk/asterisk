@@ -42,57 +42,66 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/strings.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/threadstorage.h"
-#include "asterisk/cli.h"
+#include "asterisk/test.h"
 
-AST_THREADSTORAGE(buf_buf);
-AST_THREADSTORAGE(var_buf);
-
-static void test_chan_integer(int fd, struct ast_channel *c, int *ifield, const char *expression)
+static enum ast_test_result_state test_chan_integer(void *status, struct ast_str **err,
+		struct ast_channel *c, int *ifield, const char *expression)
 {
 	int i, okay = 1, value1 = -1, value2 = -1;
 	char workspace[4096];
-	struct ast_str *str = ast_str_thread_get(&buf_buf, 16);
+	struct ast_str *str = ast_str_create(16);
 
 	for (i = 0; i < 256; i++) {
 		*ifield = i;
 		ast_str_substitute_variables(&str, 0, c, expression);
 		pbx_substitute_variables_helper(c, expression, workspace, sizeof(workspace));
 		if (sscanf(workspace, "%d", &value1) != 1 || value1 != i || sscanf(ast_str_buffer(str), "%d", &value2) != 1 || value2 != i) {
-			ast_cli(fd, "%s != %s and/or %d != %d != %d\n", ast_str_buffer(str), workspace, value1, value2, i);
+			ast_str_set(err, 0, "%s != %s and/or %d != %d != %d\n", ast_str_buffer(str), workspace, value1, value2, i);
 			okay = 0;
 			break;
 		}
 	}
-	ast_cli(fd, "Testing '%s' . . . . . %s\n", expression, okay ? "passed" : "FAILED");
+	ast_test_status_update(status, "Testing '%s' . . . . . %s\n", expression, okay ? "passed" : "FAILED");
+
+	ast_free(str);
+
+	return okay ? AST_TEST_PASS : AST_TEST_FAIL;
 }
 
-static void test_chan_string(int fd, struct ast_channel *c, char *cfield, size_t cfieldsize, const char *expression)
+static enum ast_test_result_state test_chan_string(void *status, struct ast_str **err,
+		struct ast_channel *c, char *cfield, size_t cfieldsize,
+		const char *expression)
 {
 	const char *values[] = { "one", "three", "reallylongdinosaursoundingthingwithwordsinit" };
 	int i, okay = 1;
 	char workspace[4096];
-	struct ast_str *str = ast_str_thread_get(&buf_buf, 16);
+	struct ast_str *str = ast_str_create(16);
 
 	for (i = 0; i < ARRAY_LEN(values); i++) {
 		ast_copy_string(cfield, values[i], cfieldsize);
 		ast_str_substitute_variables(&str, 0, c, expression);
 		pbx_substitute_variables_helper(c, expression, workspace, sizeof(workspace));
 		if (strcmp(cfield, ast_str_buffer(str)) != 0 || strcmp(cfield, workspace) != 0) {
-			ast_cli(fd, "%s != %s != %s\n", cfield, ast_str_buffer(str), workspace);
+			ast_str_set(err, 0, "%s != %s != %s\n", cfield, ast_str_buffer(str), workspace);
 			okay = 0;
 			break;
 		}
 	}
-	ast_cli(fd, "Testing '%s' . . . . . %s\n", expression, okay ? "passed" : "FAILED");
+	ast_test_status_update(status, "Testing '%s' . . . . . %s\n", expression, okay ? "passed" : "FAILED");
+
+	ast_free(str);
+
+	return okay ? AST_TEST_PASS : AST_TEST_FAIL;
 }
 
-static void test_chan_variable(int fd, struct ast_channel *c, const char *varname)
+static enum ast_test_result_state test_chan_variable(void *status, struct ast_str **err,
+		struct ast_channel *c, const char *varname)
 {
 	const char *values[] = { "one", "three", "reallylongdinosaursoundingthingwithwordsinit" };
 	int i, okay = 1;
 	char workspace[4096];
-	struct ast_str *str = ast_str_thread_get(&buf_buf, 16);
-	struct ast_str *var = ast_str_thread_get(&var_buf, 16);
+	struct ast_str *str = ast_str_create(16);
+	struct ast_str *var = ast_str_create(16);
 
 	ast_str_set(&var, 0, "${%s}", varname);
 	for (i = 0; i < ARRAY_LEN(values); i++) {
@@ -100,118 +109,167 @@ static void test_chan_variable(int fd, struct ast_channel *c, const char *varnam
 		ast_str_substitute_variables(&str, 0, c, ast_str_buffer(var));
 		pbx_substitute_variables_helper(c, ast_str_buffer(var), workspace, sizeof(workspace));
 		if (strcmp(values[i], ast_str_buffer(str)) != 0 || strcmp(values[i], workspace) != 0) {
-			ast_cli(fd, "%s != %s != %s\n", values[i], ast_str_buffer(str), workspace);
+			ast_str_set(err, 0, "%s != %s != %s\n", values[i], ast_str_buffer(str), workspace);
 			okay = 0;
 			break;
 		}
 	}
-	ast_cli(fd, "Testing '%s' . . . . . %s\n", ast_str_buffer(var), okay ? "passed" : "FAILED");
+	ast_test_status_update(status, "Testing '%s' . . . . . %s\n", ast_str_buffer(var), okay ? "passed" : "FAILED");
+
+	ast_free(str);
+	ast_free(var);
+
+	return okay ? AST_TEST_PASS : AST_TEST_FAIL;
 }
 
-static void test_chan_function(int fd, struct ast_channel *c, const char *expression)
+static enum ast_test_result_state test_chan_function(void *status, struct ast_str **err,
+		struct ast_channel *c, const char *expression)
 {
 	int okay = 1;
 	char workspace[4096];
-	struct ast_str *str = ast_str_thread_get(&buf_buf, 16);
+	struct ast_str *str = ast_str_create(16);
 
 	ast_str_substitute_variables(&str, 0, c, expression);
 	pbx_substitute_variables_helper(c, expression, workspace, sizeof(workspace));
 	if (strcmp(workspace, ast_str_buffer(str)) != 0) {
-		ast_cli(fd, "%s != %s\n", ast_str_buffer(str), workspace);
+		ast_str_set(err, 0, "test_chan_function, expr: '%s' ... %s != %s\n",
+				expression, ast_str_buffer(str), workspace);
 		okay = 0;
 	}
-	ast_cli(fd, "Testing '%s' . . . . . %s\n", expression, okay ? "passed" : "FAILED");
+	ast_test_status_update(status, "Testing '%s' . . . . . %s\n", expression, okay ? "passed" : "FAILED");
+
+	ast_free(str);
+
+	return okay ? AST_TEST_PASS : AST_TEST_FAIL;
 }
 
-static void test_2way_function(int fd, struct ast_channel *c, const char *encode1, const char *encode2, const char *decode1, const char *decode2)
+static enum ast_test_result_state test_2way_function(void *status, struct ast_str **err,
+		struct ast_channel *c, const char *encode1, const char *encode2,
+		const char *decode1, const char *decode2)
 {
-	struct ast_str *str = ast_str_thread_get(&buf_buf, 16), *expression = ast_str_alloca(120);
+	struct ast_str *str = ast_str_create(16), *expression = ast_str_alloca(120);
+	int okay;
 
 	ast_str_set(&expression, 0, "%s%s%s", encode1, "foobarbaz", encode2);
 	ast_str_substitute_variables(&str, 0, c, ast_str_buffer(expression));
 	ast_str_set(&expression, 0, "%s%s%s", decode1, ast_str_buffer(str), decode2);
 	ast_str_substitute_variables(&str, 0, c, ast_str_buffer(expression));
-	ast_cli(fd, "Testing '%s%s' and '%s%s' . . . . . %s\n", encode1, encode2, decode1, decode2, !strcmp(ast_str_buffer(str), "foobarbaz") ? "passed" : "FAILED");
-	if (strcmp(ast_str_buffer(str), "foobarbaz")) {
-		ast_cli(fd, "  '%s' != 'foobarbaz'\n", ast_str_buffer(str));
+
+	okay = !strcmp(ast_str_buffer(str), "foobarbaz");
+
+	ast_test_status_update(status, "Testing '%s%s' and '%s%s' . . . . . %s\n", 
+			encode1, encode2, decode1, decode2, 
+			okay ? "passed" : "FAILED");
+
+	if (!okay) {
+		ast_str_set(err, 0, "  '%s' != 'foobarbaz'\n", ast_str_buffer(str));
 	}
+
+	ast_free(str);
+
+	return okay ? AST_TEST_PASS : AST_TEST_FAIL;
 }
 
-static void test_expected_result(int fd, struct ast_channel *c, const char *expression, const char *result)
+static enum ast_test_result_state test_expected_result(void *status, struct ast_str **err,
+		struct ast_channel *c, const char *expression, const char *result)
 {
-	struct ast_str *str = ast_str_thread_get(&buf_buf, 16);
+	struct ast_str *str = ast_str_create(16);
+	int okay;
+
 	ast_str_substitute_variables(&str, 0, c, expression);
-	ast_cli(fd, "Testing '%s' ('%s') == '%s' . . . . . %s\n", ast_str_buffer(str), expression, result, !strcmp(ast_str_buffer(str), result) ? "passed" : "FAILED");
+	okay = !strcmp(ast_str_buffer(str), result);
+
+	ast_test_status_update(status, "Testing '%s' ('%s') == '%s' . . . . . %s\n",
+			ast_str_buffer(str), expression, result,
+			okay ? "passed" : "FAILED");
+
+	if (!okay) {
+		ast_test_status_update(status, "test_expected_result: '%s' != '%s'\n",
+				ast_str_buffer(str), result);
+	}
+
+	ast_free(str);
+
+	return okay ? AST_TEST_PASS : AST_TEST_FAIL;
 }
 
-static char *handle_cli_test_substitution(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+AST_TEST_DEFINE(test_substitution)
 {
 	struct ast_channel *c;
 	int i;
+	enum ast_test_result_state res = AST_TEST_PASS;
 
 	switch (cmd) {
-	case CLI_INIT:
-		e->command = "test substitution";
-		e->usage = ""
-			"Usage: test substitution\n"
-			"   Test variable and function substitution.\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
+	case TEST_INIT:
+		info->name = "test_substitution";
+		info->category = "main/pbx/";
+		info->summary = "Test variable and function substitution";
+		info->description =
+			"This test executes a variety of variable and function substitutions "
+			"and ensures that the expected results are received.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
 	}
 
-	if (a->argc != e->args) {
-		return CLI_SHOWUSAGE;
-	}
+	ast_test_status_update(&args->status_update, "Testing variable substitution ...\n");
 
-	ast_cli(a->fd, "Testing variable substitution ...\n");
 	c = ast_dummy_channel_alloc();
 
-	test_chan_integer(a->fd, c, &c->cid.cid_pres, "${CALLINGPRES}");
-	test_chan_integer(a->fd, c, &c->cid.cid_ani2, "${CALLINGANI2}");
-	test_chan_integer(a->fd, c, &c->cid.cid_ton, "${CALLINGTON}");
-	test_chan_integer(a->fd, c, &c->cid.cid_tns, "${CALLINGTNS}");
-	test_chan_integer(a->fd, c, &c->hangupcause, "${HANGUPCAUSE}");
-	test_chan_integer(a->fd, c, &c->priority, "${PRIORITY}");
-	test_chan_string(a->fd, c, c->context, sizeof(c->context), "${CONTEXT}");
-	test_chan_string(a->fd, c, c->exten, sizeof(c->exten), "${EXTEN}");
-	test_chan_variable(a->fd, c, "CHANNEL(language)");
-	test_chan_variable(a->fd, c, "CHANNEL(musicclass)");
-	test_chan_variable(a->fd, c, "CHANNEL(parkinglot)");
-	test_chan_variable(a->fd, c, "CALLERID(name)");
-	test_chan_variable(a->fd, c, "CURLOPT(proxyuserpwd)");
-	test_chan_variable(a->fd, c, "CDR(foo)");
-	test_chan_variable(a->fd, c, "ENV(foo)");
-	test_chan_variable(a->fd, c, "GLOBAL(foo)");
-	test_chan_variable(a->fd, c, "GROUP()");
-	test_2way_function(a->fd, c, "${AES_ENCRYPT(abcdefghijklmnop,", ")}", "${AES_DECRYPT(abcdefghijklmnop,", ")}");
-	test_2way_function(a->fd, c, "${BASE64_ENCODE(", ")}", "${BASE64_DECODE(", ")}");
-	pbx_builtin_setvar_helper(c, "foo", "123");
-	pbx_builtin_setvar_helper(c, "bar", "foo");
-	pbx_builtin_setvar_helper(c, "baz", "fo");
-	test_expected_result(a->fd, c, "${foo}${foo}", "123123");
-	test_expected_result(a->fd, c, "A${foo}A${foo}A", "A123A123A");
-	test_expected_result(a->fd, c, "A${${bar}}A", "A123A");
-	test_expected_result(a->fd, c, "A${${baz}o}A", "A123A");
-	test_expected_result(a->fd, c, "A${${baz}o:1}A", "A23A");
-	test_expected_result(a->fd, c, "A${${baz}o:1:1}A", "A2A");
-	test_expected_result(a->fd, c, "A${${baz}o:1:-1}A", "A2A");
-	test_expected_result(a->fd, c, "A${${baz}o:-1:1}A", "A3A");
-	test_expected_result(a->fd, c, "A${${baz}o:-2:1}A", "A2A");
-	test_expected_result(a->fd, c, "A${${baz}o:-2:-1}A", "A2A");
+	do {
+#define TEST(t) if ((res = t) == AST_TEST_FAIL) { break; }
+	TEST(test_chan_integer(&args->status_update, &args->ast_test_error_str, c, &c->cid.cid_pres, "${CALLINGPRES}"));
+	TEST(test_chan_integer(&args->status_update, &args->ast_test_error_str, c, &c->cid.cid_ani2, "${CALLINGANI2}"));
+	TEST(test_chan_integer(&args->status_update, &args->ast_test_error_str, c, &c->cid.cid_ton, "${CALLINGTON}"));
+	TEST(test_chan_integer(&args->status_update, &args->ast_test_error_str, c, &c->cid.cid_tns, "${CALLINGTNS}"));
+	TEST(test_chan_integer(&args->status_update, &args->ast_test_error_str, c, &c->hangupcause, "${HANGUPCAUSE}"));
+	TEST(test_chan_integer(&args->status_update, &args->ast_test_error_str, c, &c->priority, "${PRIORITY}"));
+	TEST(test_chan_string(&args->status_update, &args->ast_test_error_str, c, c->context, sizeof(c->context), "${CONTEXT}"));
+	TEST(test_chan_string(&args->status_update, &args->ast_test_error_str, c, c->exten, sizeof(c->exten), "${EXTEN}"));
+	TEST(test_chan_variable(&args->status_update, &args->ast_test_error_str, c, "CHANNEL(language)"));
+	TEST(test_chan_variable(&args->status_update, &args->ast_test_error_str, c, "CHANNEL(musicclass)"));
+	TEST(test_chan_variable(&args->status_update, &args->ast_test_error_str, c, "CHANNEL(parkinglot)"));
+	TEST(test_chan_variable(&args->status_update, &args->ast_test_error_str, c, "CALLERID(name)"));
+	TEST(test_chan_variable(&args->status_update, &args->ast_test_error_str, c, "CURLOPT(proxyuserpwd)"));
+	TEST(test_chan_variable(&args->status_update, &args->ast_test_error_str, c, "CDR(foo)"));
+	TEST(test_chan_variable(&args->status_update, &args->ast_test_error_str, c, "ENV(foo)"));
+	TEST(test_chan_variable(&args->status_update, &args->ast_test_error_str, c, "GLOBAL(foo)"));
+	TEST(test_chan_variable(&args->status_update, &args->ast_test_error_str, c, "GROUP()"));
+	TEST(test_2way_function(&args->status_update, &args->ast_test_error_str, c, "${AES_ENCRYPT(abcdefghijklmnop,", ")}", "${AES_DECRYPT(abcdefghijklmnop,", ")}"));
+	TEST(test_2way_function(&args->status_update, &args->ast_test_error_str, c, "${BASE64_ENCODE(", ")}", "${BASE64_DECODE(", ")}"));
+	pbx_builtin_setvar_helper(c, "foo&args->ast_test_error_str, ", "123");
+	pbx_builtin_setvar_helper(c, "bar&args->ast_test_error_str, ", "foo");
+	pbx_builtin_setvar_helper(c, "baz&args->ast_test_error_str, ", "fo");
+	TEST(test_expected_result(&args->status_update, &args->ast_test_error_str, c, "${foo}${foo}", "123123"));
+	TEST(test_expected_result(&args->status_update, &args->ast_test_error_str, c, "A${foo}A${foo}A", "A123A123A"));
+	TEST(test_expected_result(&args->status_update, &args->ast_test_error_str, c, "A${${bar}}A", "A123A"));
+	TEST(test_expected_result(&args->status_update, &args->ast_test_error_str, c, "A${${baz}o}A", "A123A"));
+	TEST(test_expected_result(&args->status_update, &args->ast_test_error_str, c, "A${${baz}o:1}A", "A23A"));
+	TEST(test_expected_result(&args->status_update, &args->ast_test_error_str, c, "A${${baz}o:1:1}A", "A2A"));
+	TEST(test_expected_result(&args->status_update, &args->ast_test_error_str, c, "A${${baz}o:1:-1}A", "A2A"));
+	TEST(test_expected_result(&args->status_update, &args->ast_test_error_str, c, "A${${baz}o:-1:1}A", "A3A"));
+	TEST(test_expected_result(&args->status_update, &args->ast_test_error_str, c, "A${${baz}o:-2:1}A", "A2A"));
+	TEST(test_expected_result(&args->status_update, &args->ast_test_error_str, c, "A${${baz}o:-2:-1}A", "A2A"));
+#undef TEST
+	} while (0);
 
 	/* For testing dialplan functions */
-	for (i = 0; ; i++) {
+	for (i = 0; res != AST_TEST_PASS; i++) {
 		char *cmd = ast_cli_generator("core show function", "", i);
 		if (cmd == NULL) {
 			break;
 		}
-		if (strcmp(cmd, "CHANNEL") && strcmp(cmd, "CALLERID") && strcmp(cmd, "CURLOPT") && strncmp(cmd, "AES", 3) && strncmp(cmd, "BASE64", 6) && strcmp(cmd, "CDR") && strcmp(cmd, "ENV") && strcmp(cmd, "GLOBAL") && strcmp(cmd, "GROUP") && strcmp(cmd, "CUT") && strcmp(cmd, "LISTFILTER") && strcmp(cmd, "PP_EACH_EXTENSION") && strcmp(cmd, "SET")) {
+		if (strcmp(cmd, "CHANNEL") && strcmp(cmd, "CALLERID") && strcmp(cmd, "CURLOPT") &&
+				strncmp(cmd, "AES", 3) && strncmp(cmd, "BASE64", 6) &&
+				strcmp(cmd, "CDR") && strcmp(cmd, "ENV") && strcmp(cmd, "GLOBAL") &&
+				strcmp(cmd, "GROUP") && strcmp(cmd, "CUT") && strcmp(cmd, "LISTFILTER") &&
+				strcmp(cmd, "PP_EACH_EXTENSION") && strcmp(cmd, "SET")) {
 			struct ast_custom_function *acf = ast_custom_function_find(cmd);
 			if (acf->read && acf->read2) {
 				char expression[80];
 				snprintf(expression, sizeof(expression), "${%s(foo)}", cmd);
-				test_chan_function(a->fd, c, expression);
+				res = test_chan_function(&args->status_update,
+						&args->ast_test_error_str,c, expression);
 			}
 		}
 		ast_free(cmd);
@@ -219,22 +277,18 @@ static char *handle_cli_test_substitution(struct ast_cli_entry *e, int cmd, stru
 
 	ast_channel_release(c);
 
-	return CLI_SUCCESS;
+	return res;
 }
-
-static struct ast_cli_entry cli_substitution[] = {
-	AST_CLI_DEFINE(handle_cli_test_substitution, "Test variable substitution"),
-};
 
 static int unload_module(void)
 {
-	ast_cli_unregister_multiple(cli_substitution, ARRAY_LEN(cli_substitution));
+	AST_TEST_UNREGISTER(test_substitution);
 	return 0;
 }
 
 static int load_module(void)
 {
-	ast_cli_register_multiple(cli_substitution, ARRAY_LEN(cli_substitution));
+	AST_TEST_REGISTER(test_substitution);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
