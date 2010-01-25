@@ -113,21 +113,21 @@ editline/libedit.a: CHECK_SUBDIR
 db1-ast/libdb1.a: CHECK_SUBDIR
 	_ASTCFLAGS="$(_ASTCFLAGS)" ASTCFLAGS="$(ASTCFLAGS) -Wno-strict-aliasing" $(MAKE) -C db1-ast libdb1.a
 
-ifneq ($(BISON),)
+ifneq ($(BISON),:)
 ast_expr2.c ast_expr2.h: ast_expr2.y
 else
 ast_expr2.c ast_expr2.h:
 endif
 	$(ECHO_PREFIX) echo "   [BISON] $< -> $@"
-	$(CMD_PREFIX) bison -o $@ -d --name-prefix=ast_yy ast_expr2.y
+	$(CMD_PREFIX) $(BISON) -o $@ -d --name-prefix=ast_yy ast_expr2.y
 
-ifneq ($(FLEX),)
+ifneq ($(FLEX),:)
 ast_expr2f.c: ast_expr2.fl
 else
 ast_expr2f.c:
 endif
 	$(ECHO_PREFIX) echo "   [FLEX] $< -> $@"
-	$(CMD_PREFIX) flex -o $@ ast_expr2.fl
+	$(CMD_PREFIX) $(FLEX) -o $@ ast_expr2.fl
 	$(CMD_PREFIX) sed 's@#if __STDC_VERSION__ >= 199901L@#if !defined __STDC_VERSION__ || __STDC_VERSION__ >= 199901L@' $@ > $@.fix
 	$(CMD_PREFIX) echo "#include \"asterisk.h\"" > $@
 	$(CMD_PREFIX) echo >> $@
