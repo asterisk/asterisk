@@ -224,7 +224,17 @@ __EOL__
 	])
 if test "x${ac_cv_path_BISON2}" = "x" ; then
 	BISON=:
+	PBX_BISON=0
+else
+	PBX_BISON=1
 fi
+AC_SUBST(PBX_BISON)
+if test "x${FLEX}" = "x:" ; then
+	PBX_FLEX=0
+else
+	PBX_FLEX=1
+fi
+AC_SUBST(PBX_FLEX)
 
 AC_CHECK_TOOL([SOXMIX], [soxmix], [:])
 if test "${SOXMIX}" != ":" ; then

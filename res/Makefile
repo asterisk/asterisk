@@ -39,7 +39,7 @@ $(if $(filter res_snmp,$(EMBEDDED_MODS)),modules.link,res_snmp.so): snmp/agent.o
 
 $(if $(filter res_ael_share,$(EMBEDDED_MODS)),modules.link,res_ael_share.so): ael/ael_lex.o ael/ael.tab.o ael/pval.o
 
-ifneq ($(and $(findstring bison,$(BISON)),$(findstring flex,$(FLEX))),)
+ifneq ($(findstring REBUILD_PARSERS,$(MENUSELECT_CFLAGS)),)
 ael/ael_lex.c: ael/ael.flex
 else
 ael/ael_lex.c:
@@ -48,7 +48,7 @@ endif
 	$(CMD_PREFIX) (cd ael; $(FLEX) ael.flex; sed -e "/begin standard C headers/i#include \"asterisk.h\"" ael_lex.c > zz; mv zz ael_lex.c)
 	$(CMD_PREFIX) (cd ael; sed 's@#if __STDC_VERSION__ >= 199901L@#if !defined __STDC_VERSION__ || __STDC_VERSION__ >= 199901L@' ael_lex.c > zz; mv zz ael_lex.c)
 
-ifneq ($(and $(findstring bison,$(BISON)),$(findstring flex,$(FLEX))),)
+ifneq ($(findstring REBUILD_PARSERS,$(MENUSELECT_CFLAGS)),)
 ael/ael.tab.c ael/ael.tab.h: ael/ael.y
 else
 ael/ael.tab.c ael/ael.tab.h:
