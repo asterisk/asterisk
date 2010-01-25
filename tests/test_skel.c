@@ -27,7 +27,7 @@
  */
 
 /*** MODULEINFO
-	<defaultenabled>no</defaultenabled>
+	<depend>TEST_FRAMEWORK</depend>
  ***/
 
 #include "asterisk.h"
