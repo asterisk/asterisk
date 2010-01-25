@@ -193,6 +193,39 @@ else
 fi
 AC_SUBST(DOWNLOAD)
 
+AC_CACHE_CHECK([for bison that supports parse-param], [ac_cv_path_BISON2], [
+	if test "x$BISON" != "x:" ; then
+		# Create a temporary directory $tmp in $TMPDIR (default /tmp).
+		# Use mktemp if possible; otherwise fall back on mkdir,
+		# with $RANDOM to make collisions less likely.
+		: ${TMPDIR=/tmp}
+		{
+		  tmp=`
+		    (umask 077 && mktemp -d "$TMPDIR/fooXXXXXX") 2>/dev/null
+		  ` &&
+		  test -n "$tmp" && test -d "$tmp"
+		} || {
+		  tmp=$TMPDIR/foo$$-$RANDOM
+		  (umask 077 && mkdir "$tmp")
+		} || exit $?
+		cat >$tmp/test.y <<__EOL__
+%parse-param {struct parse_io *parseio}
+%%
+file : { \$\$ = parseio->pval = 1; }
+	;
+%%
+__EOL__
+		${BISON} -o ${tmp}/test.tab.c ${tmp}/test.y >/dev/null 2>&1
+		if test -e "${tmp}/test.tab.c"; then
+			ac_cv_path_BISON2=${BISON}
+		fi
+		rm -rf ${tmp}
+	fi
+	])
+if test "x${ac_cv_path_BISON2}" = "x" ; then
+	BISON=:
+fi
+
 AC_CHECK_TOOL([SOXMIX], [soxmix], [:])
 if test "${SOXMIX}" != ":" ; then
 	AC_DEFINE([HAVE_SOXMIX], 1, [Define to 1 if your system has soxmix application.])

@@ -110,7 +110,7 @@ editline/libedit.a: CHECK_SUBDIR
 db1-ast/libdb1.a: CHECK_SUBDIR
 	_ASTCFLAGS="$(_ASTCFLAGS)" ASTCFLAGS="$(ASTCFLAGS) -Wno-strict-aliasing" $(MAKE) -C db1-ast libdb1.a
 
-ifneq ($(BISON),:)
+ifneq ($(and $(findstring bison,$(BISON)),$(findstring flex,$(FLEX))),)
 ast_expr2.c ast_expr2.h: ast_expr2.y
 else
 ast_expr2.c ast_expr2.h:
@@ -118,7 +118,7 @@ endif
 	$(ECHO_PREFIX) echo "   [BISON] $< -> $@"
 	$(CMD_PREFIX) $(BISON) -o $@ -d --name-prefix=ast_yy ast_expr2.y
 
-ifneq ($(FLEX),:)
+ifneq ($(and $(findstring bison,$(BISON)),$(findstring flex,$(FLEX))),)
 ast_expr2f.c: ast_expr2.fl
 else
 ast_expr2f.c:
