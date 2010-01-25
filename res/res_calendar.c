@@ -1647,14 +1647,14 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	if (load_config(NULL)) {
-		/* We don't have calendar support enabled */
-		return 0;
-	}
-
 	if (!(calendars = ao2_container_alloc(CALENDAR_BUCKETS, calendar_hash_fn, calendar_cmp_fn))) {
 		ast_log(LOG_ERROR, "Unable to allocate calendars container!\n");
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
+	}
+
+	if (load_config(NULL)) {
+		/* We don't have calendar support enabled */
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	ast_mutex_init(&refreshlock);
@@ -1663,7 +1663,7 @@ static int load_module(void)
 
 	if (!(sched = sched_context_create())) {
 		ast_log(LOG_ERROR, "Unable to create sched context\n");
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (ast_pthread_create_background(&refresh_thread, NULL, do_refresh, NULL) < 0) {
@@ -1682,7 +1682,7 @@ static int load_module(void)
 	/* Since other modules depend on this, disable unloading */
 	ast_module_ref(ast_module_info->self);
 
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Asterisk Calendar integration",
 		.load = load_module,
