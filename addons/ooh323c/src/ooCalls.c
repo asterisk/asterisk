@@ -371,10 +371,11 @@ int ooCleanCall(OOH323CallData *call)
 	}
    }
 
-   pctxt = call->msgctxt;
-   freeContext(pctxt);
-   free(pctxt);
-   call->msgctxt = NULL;
+   if ((pctxt = call->msgctxt) != NULL) {
+   	freeContext(pctxt);
+   	free(pctxt);
+   	call->msgctxt = NULL;
+   }
 /* May !!!! Fix it !! */
    /* free(pctxt); */
 

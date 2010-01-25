@@ -1595,6 +1595,8 @@ int ooHandleH2250Message(OOH323CallData *call, Q931Message *q931Msg)
          	ret = ooH323CallAdmitted (call);
 	  }
 
+	 call->callState = OO_CALL_CONNECTING;
+
 	 } /* end ret == OO_OK */
          break;
 

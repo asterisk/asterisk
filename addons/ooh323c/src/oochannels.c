@@ -748,8 +748,9 @@ int ooProcessCallFDSETsAndTimers
 	    ast_mutex_lock(&call->Lock);
             ooEndCall(call);
 	    ast_mutex_unlock(&call->Lock);
-	    ooStopMonitorCallChannels(call);
      }
+     if(call->callState >= OO_CALL_CLEARED)
+		ooStopMonitorCallChannels(call);
    }
 
    return OO_OK;
