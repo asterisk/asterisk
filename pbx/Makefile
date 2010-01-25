@@ -44,22 +44,22 @@ ael/ael.tab.o ael/ael_lex.o: _ASTCFLAGS+=$(MENUSELECT_OPTS_pbx_ael:%=-D%) $(fore
 
 $(if $(filter pbx_ael,$(EMBEDDED_MODS)),modules.link,pbx_ael.so): ael/ael.tab.o ael/ael_lex.o
 
-ifneq ($(FLEX),)
+ifneq ($(FLEX),:)
 ael/ael_lex.c: ael/ael.flex
 else
 ael/ael_lex.c:
 endif
 	$(ECHO_PREFIX) echo "   [FLEX] $< -> $@"
-	$(CMD_PREFIX) (cd ael; flex ael.flex; sed -i -e "/begin standard C headers/i#include \"asterisk.h\"" ael_lex.c)
+	$(CMD_PREFIX) (cd ael; $(FLEX) ael.flex; sed -i -e "/begin standard C headers/i#include \"asterisk.h\"" ael_lex.c)
 	$(CMD_PREFIX) (cd ael; sed 's@#if __STDC_VERSION__ >= 199901L@#if !defined __STDC_VERSION__ || __STDC_VERSION__ >= 199901L@' ael_lex.c > zz; mv zz ael_lex.c)
 
-ifneq ($(BISON),)
+ifneq ($(BISON),:)
 ael/ael.tab.c ael/ael.tab.h: ael/ael.y
 else
 ael/ael.tab.c ael/ael.tab.h:
 endif
 	$(ECHO_PREFIX) echo "   [BISON] $< -> $@"
-	$(CMD_PREFIX) (cd ael; bison -v -d ael.y)
+	$(CMD_PREFIX) (cd ael; $(BISON) -v -d ael.y)
 
 dundi-parser.o: dundi-parser.h
 dundi-parser.o: _ASTCFLAGS+=-I.
