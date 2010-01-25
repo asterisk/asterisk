@@ -990,8 +990,10 @@ void pbx_builtin_pushvar_helper(struct ast_channel *chan, const char *name, cons
  * \brief Add a variable to the channel variable stack, removing the most recently set value for the same name.
  * \note Will lock the channel.  May also be used to set a channel dialplan function to a particular value.
  * \see ast_func_write
+ * \return -1 if the dialplan function fails to be set
+ * \version 1.8 changed the function to return an error code
  */
-void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const char *value);
+int pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const char *value);
 
 /*!
  * \brief Retrieve the value of a builtin variable or variable from the channel variable stack.

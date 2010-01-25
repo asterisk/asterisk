@@ -2813,12 +2813,8 @@ static int action_setvar(struct mansession *s, const struct message *m)
 			return 0;
 		}
 	}
-	if (varname[strlen(varname)-1] == ')') {
-		char *function = ast_strdupa(varname);
-		res = ast_func_write(c, function, varval);
-	} else {
-		pbx_builtin_setvar_helper(c, varname, S_OR(varval, ""));
-	}
+
+	res = pbx_builtin_setvar_helper(c, varname, S_OR(varval, ""));
 
 	if (c) {
 		c = ast_channel_unref(c);

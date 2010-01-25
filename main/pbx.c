@@ -9407,7 +9407,7 @@ void pbx_builtin_pushvar_helper(struct ast_channel *chan, const char *name, cons
 		ast_rwlock_unlock(&globalslock);
 }
 
-void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const char *value)
+int pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const char *value)
 {
 	struct ast_var_t *newvariable;
 	struct varshead *headp;
@@ -9416,8 +9416,7 @@ void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const
 	if (name[strlen(name) - 1] == ')') {
 		char *function = ast_strdupa(name);
 
-		ast_func_write(chan, function, value);
-		return;
+		return ast_func_write(chan, function, value);
 	}
 
 	if (chan) {
@@ -9462,6 +9461,7 @@ void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const
 		ast_channel_unlock(chan);
 	else
 		ast_rwlock_unlock(&globalslock);
+	return 0;
 }
 
 int pbx_builtin_setvar(struct ast_channel *chan, const char *data)
