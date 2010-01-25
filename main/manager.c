@@ -2800,7 +2800,8 @@ static int action_setvar(struct mansession *s, const struct message *m)
 	const char *name = astman_get_header(m, "Channel");
 	const char *varname = astman_get_header(m, "Variable");
 	const char *varval = astman_get_header(m, "Value");
-
+	int res = 0;
+	
 	if (ast_strlen_zero(varname)) {
 		astman_send_error(s, m, "No variable specified");
 		return 0;
@@ -2812,15 +2813,21 @@ static int action_setvar(struct mansession *s, const struct message *m)
 			return 0;
 		}
 	}
-
-	pbx_builtin_setvar_helper(c, varname, S_OR(varval, ""));
+	if (varname[strlen(varname)-1] == ')') {
+		char *function = ast_strdupa(varname);
+		res = ast_func_write(c, function, varval);
+	} else {
+		pbx_builtin_setvar_helper(c, varname, S_OR(varval, ""));
+	}
 
 	if (c) {
 		c = ast_channel_unref(c);
 	}
-
-	astman_send_ack(s, m, "Variable Set");
-
+	if (res == 0) {
+		astman_send_ack(s, m, "Variable Set");	
+	} else {
+		astman_send_error(s, m, "Variable not set");
+	}
 	return 0;
 }
 
