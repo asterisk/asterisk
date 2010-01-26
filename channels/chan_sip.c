@@ -240,6 +240,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/file.h"
 #include "asterisk/astobj.h"
+#include "asterisk/test.h"
 /*
    Uncomment the define below,  if you are having refcount related memory leaks.
    With this uncommented, this module will generate a file, /tmp/refs, which contains
@@ -1221,6 +1222,12 @@ struct sip_settings {
 
 static struct sip_settings sip_cfg;		/*!< SIP configuration data.
 					\note in the future we could have multiple of these (per domain, per device group etc) */
+
+/*!< use this macro when ast_uri_decode is dependent on pedantic checking to be on. */
+#define SIP_PEDANTIC_DECODE(str)	\
+	if (sip_cfg.pedanticsipchecking && !ast_strlen_zero(str)) {	\
+		ast_uri_decode(str);	\
+	}	\
 
 static int global_match_auth_username;		/*!< Match auth username if available instead of From: Default off. */
 
@@ -2677,7 +2684,7 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq);
 static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req);
 static int set_address_from_contact(struct sip_pvt *pvt);
 static void check_via(struct sip_pvt *p, struct sip_request *req);
-static char *get_calleridname(const char *input, char *output, size_t outputsize);
+static const char *get_calleridname(const char *input, char *output, size_t outputsize);
 static int get_rpid(struct sip_pvt *p, struct sip_request *oreq);
 static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, char **number, int *reason);
 static int get_destination(struct sip_pvt *p, struct sip_request *oreq);
@@ -13499,47 +13506,33 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 	enum check_auth_result res = AUTH_NOT_FOUND;
 	struct sip_peer *peer;
 	char tmp[256];
-	char *name, *c;
-	char *domain;
+	char *name = NULL, *c, *domain = NULL;
 	char *uri2 = ast_strdupa(uri);
 
 	terminate_uri(uri2);
 
 	ast_copy_string(tmp, get_header(req, "To"), sizeof(tmp));
-	if (sip_cfg.pedanticsipchecking)
-		ast_uri_decode(tmp);
 
 	c = get_in_brackets(tmp);
 	c = remove_uri_parameters(c);
 
-	if (!strncasecmp(c, "sip:", 4)) {
-		name = c + 4;
-	} else if (!strncasecmp(c, "sips:", 5)) {
-		name = c + 5;
-	} else {
-		name = c;
+	if (parse_uri(c, "sip:,sips:", &name, NULL, &domain, NULL, NULL, NULL)) {
 		ast_log(LOG_NOTICE, "Invalid to address: '%s' from %s (missing sip:) trying to use anyway...\n", c, ast_inet_ntoa(sin->sin_addr));
+		return -1;
 	}
+
+	SIP_PEDANTIC_DECODE(name);
+	SIP_PEDANTIC_DECODE(domain);
 
 	/*! \todo XXX here too we interpret a missing @domain as a name-only
 	 * URI, whereas the RFC says this is a domain-only uri.
 	 */
-	/* Strip off the domain name */
-	if ((c = strchr(name, '@'))) {
-		*c++ = '\0';
-		domain = c;
-		if ((c = strchr(domain, ':')))	/* Remove :port */
-			*c = '\0';
-		if (!AST_LIST_EMPTY(&domain_list)) {
-			if (!check_sip_domain(domain, NULL, 0)) {
-				transmit_response(p, "404 Not found (unknown domain)", &p->initreq);
-				return AUTH_UNKNOWN_DOMAIN;
-			}
+	if (!ast_strlen_zero(domain) && !AST_LIST_EMPTY(&domain_list)) {
+		if (!check_sip_domain(domain, NULL, 0)) {
+			transmit_response(p, "404 Not found (unknown domain)", &p->initreq);
+			return AUTH_UNKNOWN_DOMAIN;
 		}
 	}
-	c = strchr(name, ';');	/* Remove any Username parameters */
-	if (c)
-		*c = '\0';
 
 	ast_string_field_set(p, exten, name);
 	build_contact(p);
@@ -14016,10 +14009,9 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, c
 */
 static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 {
-	char tmp[256] = "", *uri, *a;
+	char tmp[256] = "", *uri, *domain;
 	char tmpf[256] = "", *from = NULL;
 	struct sip_request *req;
-	char *colon;
 	char *decoded_uri;
 	
 	req = oreq;
@@ -14030,19 +14022,17 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	if (req->rlPart2)
 		ast_copy_string(tmp, REQ_OFFSET_TO_STR(req, rlPart2), sizeof(tmp));
 	
-	if (sip_cfg.pedanticsipchecking)
-		ast_uri_decode(tmp);
-
 	uri = get_in_brackets(tmp);
-	
-	if (!strncasecmp(uri, "sip:", 4)) {
-		uri += 4;
-	} else if (!strncasecmp(uri, "sips:", 5)) {
-		uri += 5;
-	} else {
-		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", uri);
+
+	if (parse_uri(uri, "sip:,sips:", &uri, NULL, &domain, NULL, NULL, NULL)) {
+		ast_log(LOG_WARNING, "Not a SIP header (%s)?\n", uri);
 		return -1;
 	}
+
+	SIP_PEDANTIC_DECODE(domain);
+	SIP_PEDANTIC_DECODE(uri);
+
+	ast_string_field_set(p, domain, domain);
 
 	/* Now find the From: caller ID and name */
 	/* XXX Why is this done in get_destination? Isn't it already done?
@@ -14050,46 +14040,17 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
         */
 	ast_copy_string(tmpf, get_header(req, "From"), sizeof(tmpf));
 	if (!ast_strlen_zero(tmpf)) {
-		if (sip_cfg.pedanticsipchecking)
-			ast_uri_decode(tmpf);
 		from = get_in_brackets(tmpf);
-	}
-	
-	if (!ast_strlen_zero(from)) {
-		if (!strncasecmp(from, "sip:", 4)) {
-			from += 4;
-		} else if (!strncasecmp(from, "sips:", 5)) {
-			from += 5;
-		} else {
-			ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", from);
+		if (parse_uri(from, "sip:,sips:", &from, NULL, &domain, NULL, NULL, NULL)) {
+			ast_log(LOG_WARNING, "Not a SIP header (%s)?\n", from);
 			return -1;
 		}
-		if ((a = strchr(from, '@')))
-			*a++ = '\0';
-		else
-			a = from;	/* just a domain */
-		from = strsep(&from, ";");	/* Remove userinfo options */
-		a = strsep(&a, ";");		/* Remove URI options */
-		ast_string_field_set(p, fromdomain, a);
+
+		SIP_PEDANTIC_DECODE(from);
+		SIP_PEDANTIC_DECODE(domain);
+
+		ast_string_field_set(p, fromdomain, domain);
 	}
-
-	/* Skip any options and find the domain */
-
-	/* Get the target domain */
-	if ((a = strchr(uri, '@'))) {
-		*a++ = '\0';
-	} else {	/* No username part */
-		a = uri;
-		uri = "s";	/* Set extension to "s" */
-	}
-	colon = strchr(a, ':'); /* Remove :port */
-	if (colon)
-		*colon = '\0';
-
-	uri = strsep(&uri, ";");	/* Remove userinfo options */
-	a = strsep(&a, ";");		/* Remove URI options */
-
-	ast_string_field_set(p, domain, a);
 
 	if (!AST_LIST_EMPTY(&domain_list)) {
 		char domain_context[AST_MAX_EXTENSION];
@@ -14262,9 +14223,6 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 	}
 	h_refer_to = ast_strdupa(p_refer_to);
 	refer_to = get_in_brackets(h_refer_to);
-	if (sip_cfg.pedanticsipchecking)
-		ast_uri_decode(refer_to);
-
 	if (!strncasecmp(refer_to, "sip:", 4)) {
 		refer_to += 4;			/* Skip sip: */
 	} else if (!strncasecmp(refer_to, "sips:", 5)) {
@@ -14289,8 +14247,6 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 	if (!ast_strlen_zero(p_referred_by)) {
 		char *lessthan;
 		h_referred_by = ast_strdupa(p_referred_by);
-		if (sip_cfg.pedanticsipchecking)
-			ast_uri_decode(h_referred_by);
 
 		/* Store referrer's caller ID name */
 		ast_copy_string(referdata->referred_by_name, h_referred_by, sizeof(referdata->referred_by_name));
@@ -14299,6 +14255,7 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 		}
 
 		referred_by_uri = get_in_brackets(h_referred_by);
+
 		if (!strncasecmp(referred_by_uri, "sip:", 4)) {
 			referred_by_uri += 4;		/* Skip sip: */
 		} else if (!strncasecmp(referred_by_uri, "sips:", 5)) {
@@ -14316,7 +14273,6 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 		/* This is an attended transfer */
 		referdata->attendedtransfer = 1;
 		ast_copy_string(referdata->replaces_callid, ptr+9, sizeof(referdata->replaces_callid));
-		ast_uri_decode(referdata->replaces_callid);
 		if ((ptr = strchr(referdata->replaces_callid, ';'))) 	/* Find options */ {
 			*ptr++ = '\0';
 		}
@@ -14334,6 +14290,7 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 				*to = '\0';
 			if ((to = strchr(ptr, ';')))
 				*to = '\0';
+			ast_uri_decode(ptr);
 			ast_copy_string(referdata->replaces_callid_totag, ptr, sizeof(referdata->replaces_callid_totag));
 		}
 		
@@ -14343,6 +14300,7 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 				*to = '\0';
 			if ((to = strchr(ptr, ';')))
 				*to = '\0';
+			ast_uri_decode(ptr);
 			ast_copy_string(referdata->replaces_callid_fromtag, ptr, sizeof(referdata->replaces_callid_fromtag));
 		}
 		
@@ -14363,19 +14321,26 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 		if ((ptr = strchr(domain, ':')))	/* Remove :port */
 			*ptr = '\0';
 		
+		SIP_PEDANTIC_DECODE(domain);
+		SIP_PEDANTIC_DECODE(urioption);
+
 		/* Save the domain for the dial plan */
 		ast_copy_string(referdata->refer_to_domain, domain, sizeof(referdata->refer_to_domain));
-		if (urioption)
+		if (urioption) {
 			ast_copy_string(referdata->refer_to_urioption, urioption, sizeof(referdata->refer_to_urioption));
+		}
 	}
 
 	if ((ptr = strchr(refer_to, ';'))) 	/* Remove options */
 		*ptr = '\0';
+
+	SIP_PEDANTIC_DECODE(refer_to);
 	ast_copy_string(referdata->refer_to, refer_to, sizeof(referdata->refer_to));
 	
 	if (referred_by_uri) {
 		if ((ptr = strchr(referred_by_uri, ';'))) 	/* Remove options */
 			*ptr = '\0';
+		SIP_PEDANTIC_DECODE(referred_by_uri);
 		ast_copy_string(referdata->referred_by, referred_by_uri, sizeof(referdata->referred_by));
 	} else {
 		referdata->referred_by[0] = '\0';
@@ -14427,26 +14392,18 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 	ast_copy_string(tmp, get_header(req, "Also"), sizeof(tmp));
 	c = get_in_brackets(tmp);
 
-	if (sip_cfg.pedanticsipchecking)
-		ast_uri_decode(c);
-
-	if (!strncasecmp(c, "sip:", 4)) {
-		c += 4;
-	} else if (!strncasecmp(c, "sips:", 5)) {
-		c += 5;
-	} else {
+	if (parse_uri(c, "sip:,sips:", &c, NULL, &a, NULL, NULL, NULL)) {
 		ast_log(LOG_WARNING, "Huh?  Not a SIP header in Also: transfer (%s)?\n", c);
 		return -1;
 	}
-
-	if ((a = strchr(c, ';'))) 	/* Remove arguments */
-		*a = '\0';
 	
-	if ((a = strchr(c, '@'))) {	/* Separate Domain */
-		*a++ = '\0';
+	SIP_PEDANTIC_DECODE(c);
+	SIP_PEDANTIC_DECODE(a);
+
+	if (!ast_strlen_zero(a)) {
 		ast_copy_string(referdata->refer_to_domain, a, sizeof(referdata->refer_to_domain));
 	}
-	
+
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Looking for %s in %s\n", c, p->context);
 
@@ -14573,48 +14530,185 @@ static void check_via(struct sip_pvt *p, struct sip_request *req)
 	}
 }
 
-/*! \brief  Get caller id name from SIP headers */
-static char *get_calleridname(const char *input, char *output, size_t outputsize)
+/*! \brief  Get caller id name from SIP headers, copy into output buffer
+ *
+ *  \retval input string pointer placed after display-name field if possible
+ */
+static const char *get_calleridname(const char *input, char *output, size_t outputsize)
 {
-	const char *end = strchr(input, '<');	/* first_bracket */
-	const char *tmp = strchr(input, '"');	/* first quote */
-	int bytes = 0;
-	int maxbytes = outputsize - 1;
+	/* From RFC3261:
+	 * 
+	 * From           =  ( "From" / "f" ) HCOLON from-spec
+	 * from-spec      =  ( name-addr / addr-spec ) *( SEMI from-param )
+	 * name-addr      =  [ display-name ] LAQUOT addr-spec RAQUOT
+	 * display-name   =  *(token LWS)/ quoted-string
+	 * token          =  1*(alphanum / "-" / "." / "!" / "%" / "*"
+	 *                     / "_" / "+" / "`" / "'" / "~" )
+	 * quoted-string  =  SWS DQUOTE *(qdtext / quoted-pair ) DQUOTE
+	 * qdtext         =  LWS / %x21 / %x23-5B / %x5D-7E
+	 *                     / UTF8-NONASCII
+	 * quoted-pair    =  "\" (%x00-09 / %x0B-0C / %x0E-7F)
+	 *
+	 * HCOLON         = *WSP ":" SWS
+	 * SWS            = [LWS]
+	 * LWS            = *[*WSP CRLF] 1*WSP
+	 * WSP            = (SP / HTAB)
+	 *
+	 * Deviations from it:
+	 * - following CRLF's in LWS is not done (here at least)
+	 * - ascii NUL is never legal as it terminates the C-string
+	 * - utf8-nonascii is not checked for validity
+	 */
+	char *orig_output = output;
+	const char *orig_input = input;
 
-	if (!end || end == input)	/* we require a part in brackets */
-		return NULL;
+	/* clear any empty characters in the beginning */
+	input = ast_skip_blanks(input);
 
-	end--; /* move just before "<" */
-
-	if (tmp && tmp <= end) {
-		/* The quote (tmp) precedes the bracket (end+1).
-		 * Find the matching quote and return the content.
-		 */
-		end = strchr(tmp+1, '"');
-		if (!end)
-			return NULL;
-		bytes = (int) (end - tmp);
-		/* protect the output buffer */
-		if (bytes > maxbytes)
-			bytes = maxbytes;
-		ast_copy_string(output, tmp + 1, bytes);
-	} else {
-		/* No quoted string, or it is inside brackets. */
-		/* clear the empty characters in the begining*/
-		input = ast_skip_blanks(input);
-		/* clear the empty characters in the end */
-		while(*end && *end < 33 && end > input)
-			end--;
-		if (end >= input) {
-			bytes = (int) (end - input) + 2;
-			/* protect the output buffer */
-			if (bytes > maxbytes)
-				bytes = maxbytes;
-			ast_copy_string(output, input, bytes);
-		} else
-			return NULL;
+	/* no data at all or no storage room? */
+	if (!input || *input == '<' || !outputsize || !output) {
+		return orig_input;
 	}
-	return output;
+
+	/* make sure the output buffer is initilized */
+	*orig_output = '\0';
+
+	/* make room for '\0' at the end of the output buffer */
+	outputsize--;
+
+	/* quoted-string rules */
+	if (input[0] == '"') {
+		input++; /* skip the first " */
+
+		for (;((outputsize > 0) && *input); input++) {
+			if (*input == '"') {  /* end of quoted-string */
+				break;
+			} else if (*input == 0x5c) { /* quoted-pair = "\" (%x00-09 / %x0B-0C / %x0E-7F) */
+				input++;
+				if (!*input || (unsigned char)*input > 0x7f || *input == 0xa || *input == 0xd) {
+					continue;  /* not a valid quoted-pair, so skip it */
+				}
+			} else if (((*input != 0x9) && ((unsigned char) *input < 0x20)) ||
+			            (*input == 0x7f)) {
+				continue; /* skip this invalid character. */
+			}
+
+			*output++ = *input;
+			outputsize--;
+		}
+
+		/* if this is successful, input should be at the ending quote */
+		if (!input || *input != '"') {
+			ast_log(LOG_WARNING, "No ending quote for display-name was found\n");
+			*orig_output = '\0';
+			return orig_input;
+		}
+
+		/* make sure input is past the last quote */
+		input++;
+
+		/* terminate outbuf */
+		*output = '\0';
+	} else {  /* either an addr-spec or tokenLWS-combo */
+		for (;((outputsize > 0) && *input); input++) {
+			/* token or WSP (without LWS) */
+			if ((*input >= '0' && *input <= '9') || (*input >= 'A' && *input <= 'Z')
+				|| (*input >= 'a' && *input <= 'z') || *input == '-' || *input == '.'
+				|| *input == '!' || *input == '%' || *input == '*' || *input == '_'
+				|| *input == '+' || *input == '`' || *input == '\'' || *input == '~'
+				|| *input == 0x9 || *input == ' ') {
+				*output++ = *input;
+				outputsize -= 1;
+			} else if (*input == '<') {   /* end of tokenLWS-combo */
+				/* we could assert that the previous char is LWS, but we don't care */
+				break;
+			} else if (*input == ':') {
+				/* This invalid character which indicates this is addr-spec rather than display-name. */
+				*orig_output = '\0';
+				return orig_input;
+			} else {         /* else, invalid character we can skip. */
+				continue;    /* skip this character */
+			}
+		}
+
+		/* set NULL while trimming trailing whitespace */
+		do {
+			*output-- = '\0';
+		} while (*output == 0x9 || *output == ' '); /* we won't go past orig_output as first was a non-space */
+	}
+
+	return input;
+}
+
+AST_TEST_DEFINE(get_calleridname_test)
+{
+	int res = AST_TEST_PASS;
+	const char *in1 = "\" quoted-text internal \\\" quote \"<stuff>";
+	const char *in2 = " token text with no quotes <stuff>";
+	const char *overflow1 = " \"quoted-text overflow 1234567890123456789012345678901234567890\" <stuff>";
+	const char *noendquote = " \"quoted-text no end <stuff>";
+	const char *addrspec = " \"sip:blah@blah <stuff>";
+	const char *after_dname;
+	char dname[40];
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "sip_get_calleridname_test";
+		info->category = "channels/chan_sip/";
+		info->summary = "decodes callerid name from sip header";
+		info->description = "Decodes display-name field of sip header.  Checks for valid output and expected failure cases.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	/* quoted-text with backslash escaped quote */
+	after_dname = get_calleridname(in1, dname, sizeof(dname));
+	ast_test_status_update(&args->status_update, "display-name1: %s\nafter: %s\n", dname, after_dname);
+	if (strcmp(dname, " quoted-text internal \" quote ")) {
+		ast_test_status_update(&args->status_update, "display-name1 test failed\n");
+		ast_str_append(&args->ast_test_error_str, 0, "quoted-text with internal backslash decode failed. \n");
+		res = AST_TEST_FAIL;
+	}
+
+	/* token text */
+	after_dname = get_calleridname(in2, dname, sizeof(dname));
+	ast_test_status_update(&args->status_update, "display-name2: %s\nafter: %s\n", dname, after_dname);
+	if (strcmp(dname, "token text with no quotes")) {
+		ast_test_status_update(&args->status_update, "display-name2 test failed\n");
+		ast_str_append(&args->ast_test_error_str, 0, "token text with decode failed. \n");
+		res = AST_TEST_FAIL;
+	}
+
+	/* quoted-text buffer overflow */
+	after_dname = get_calleridname(overflow1, dname, sizeof(dname));
+	ast_test_status_update(&args->status_update, "overflow display-name1: %s\nafter: %s\n", dname, after_dname);
+	if (*dname != '\0' && after_dname != overflow1) {
+		ast_test_status_update(&args->status_update, "overflow display-name1 test failed\n");
+		ast_str_append(&args->ast_test_error_str, 0, "quoted-text buffer overflow check failed. \n");
+		res = AST_TEST_FAIL;
+	}
+
+	/* quoted-text buffer with no terminating end quote */
+	after_dname = get_calleridname(noendquote, dname, sizeof(dname));
+	ast_test_status_update(&args->status_update, "noendquote display-name1: %s\nafter: %s\n", dname, after_dname);
+	if (*dname != '\0' && after_dname != noendquote) {
+		ast_test_status_update(&args->status_update, "no end quote for quoted-text display-name failed\n");
+		ast_str_append(&args->ast_test_error_str, 0, "quoted-text buffer check no terminating end quote failed. \n");
+		res = AST_TEST_FAIL;
+	}
+
+	/* addr-spec rather than display-name. */
+	after_dname = get_calleridname(addrspec, dname, sizeof(dname));
+	ast_test_status_update(&args->status_update, "noendquote display-name1: %s\nafter: %s\n", dname, after_dname);
+	if (*dname != '\0' && after_dname != addrspec) {
+		ast_test_status_update(&args->status_update, "detection of addr-spec failed\n");
+		ast_str_append(&args->ast_test_error_str, 0, "detection of addr-spec failed. \n");
+		res = AST_TEST_FAIL;
+	}
+
+
+	return res;
 }
 
 
@@ -14790,26 +14884,29 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 					      int sipmethod, const char *uri, enum xmittype reliable,
 					      struct sockaddr_in *sin, struct sip_peer **authpeer)
 {
-	char from[256];
+	char from[256] = { 0, };
 	char *dummy;	/* dummy return value for parse_uri */
 	char *domain;	/* dummy return value for parse_uri */
 	char *of;
-	enum check_auth_result res;
+	enum check_auth_result res = AUTH_DONT_KNOW;
 	char calleridname[50];
 	char *uri2 = ast_strdupa(uri);
 
 	terminate_uri(uri2);	/* trim extra stuff */
 
 	ast_copy_string(from, get_header(req, "From"), sizeof(from));
-	if (sip_cfg.pedanticsipchecking)
-		ast_uri_decode(from);
 	/* XXX here tries to map the username for invite things */
 	memset(calleridname, 0, sizeof(calleridname));
-	get_calleridname(from, calleridname, sizeof(calleridname));
+
+	/* strip the display-name portion off the beginning of the FROM header. */
+	if (!(of = (char *) get_calleridname(from, calleridname, sizeof(calleridname)))) {
+		ast_log(LOG_ERROR, "FROM header can not be parsed \n");
+		return res;
+	}
+
 	if (calleridname[0])
 		ast_string_field_set(p, cid_name, calleridname);
 
-	of = get_in_brackets(from);
 	if (ast_strlen_zero(p->exten)) {
 		char *t = uri2;
 		if (!strncasecmp(t, "sip:", 4))
@@ -14820,9 +14917,13 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 		t = strchr(p->exten, '@');
 		if (t)
 			*t = '\0';
+
 		if (ast_strlen_zero(p->our_contact))
 			build_contact(p);
 	}
+
+	of = get_in_brackets(of);
+
 	/* save the URI part of the From header */
 	ast_string_field_set(p, from, of);
 
@@ -14830,6 +14931,9 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	if (parse_uri(of, "sip:,sips:", &of, &dummy, &domain, &dummy, &dummy, NULL)) {
 		ast_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
 	}
+
+	SIP_PEDANTIC_DECODE(of);
+	SIP_PEDANTIC_DECODE(domain);
 
 	if (ast_strlen_zero(of)) {
 		/* XXX note: the original code considered a missing @host
@@ -20785,7 +20889,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			ast_debug(3, "INVITE part of call transfer. Replaces [%s]\n", p_replaces);
 		/* Create a buffer we can manipulate */
 		replace_id = ast_strdupa(p_replaces);
-		ast_uri_decode(replace_id);
 
 		if (!p->refer && !sip_refer_allocate(p)) {
 			transmit_response_reliable(p, "500 Server Internal Error", req);
@@ -20816,6 +20919,10 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				fromtag = strsep(&fromtag, "&"); /* trim what ? */
 			}
 		}
+
+		ast_uri_decode(fromtag);
+		ast_uri_decode(totag);
+		ast_uri_decode(replace_id);
 
 		if (sipdebug)
 			ast_debug(4, "Invite/replaces: Will use Replace-Call-ID : %s Fromtag: %s Totag: %s\n",
@@ -26861,6 +26968,18 @@ static struct ast_cli_entry cli_sip[] = {
 	AST_CLI_DEFINE(sip_show_tcp, "List TCP Connections")
 };
 
+/*! \brief SIP test registration */
+static void sip_register_tests(void)
+{
+	AST_TEST_REGISTER(get_calleridname_test);
+}
+
+/*! \brief SIP test registration */
+static void sip_unregister_tests(void)
+{
+	AST_TEST_UNREGISTER(get_calleridname_test);
+}
+
 /*! \brief PBX load module - initialization */
 static int load_module(void)
 {
@@ -26950,6 +27069,9 @@ static int load_module(void)
 		"useragent", RQ_CHAR, 20,
 		"lastms", RQ_INTEGER4, 11,
 		SENTINEL);
+
+
+	sip_register_tests();
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
@@ -27073,6 +27195,8 @@ static int unload_module(void)
 		ast_context_destroy(con, "SIP");
 	ast_unload_realtime("sipregs");
 	ast_unload_realtime("sippeers");
+
+	sip_unregister_tests();
 
 	return 0;
 }

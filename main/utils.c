@@ -368,41 +368,44 @@ static void base64_init(void)
 	b2a[(int)'/'] = 63;
 }
 
-/*! \brief  ast_uri_encode: Turn text string to URI-encoded %XX version
-\note 	At this point, we're converting from ISO-8859-x (8-bit), not UTF8
-	as in the SIP protocol spec 
-	If doreserved == 1 we will convert reserved characters also.
-	RFC 2396, section 2.4
-	outbuf needs to have more memory allocated than the instring
-	to have room for the expansion. Every char that is converted
-	is replaced by three ASCII characters.
-
-	Note: The doreserved option is needed for replaces header in
-	SIP transfers.
-*/
-char *ast_uri_encode(const char *string, char *outbuf, int buflen, int doreserved) 
+/*! \brief Turn text string to URI-encoded %XX version 
+ *
+ * \note 
+ *  At this point, this function is encoding agnostic; it does not
+ *  check whether it is fed legal UTF-8. We escape control
+ *  characters (\x00-\x1F\x7F), '%', and all characters above 0x7F.
+ *  If do_special_char == 1 we will convert all characters except alnum
+ *  and mark.
+ *  Outbuf needs to have more memory allocated than the instring
+ *  to have room for the expansion. Every char that is converted
+ *  is replaced by three ASCII characters.
+ */
+char *ast_uri_encode(const char *string, char *outbuf, int buflen, int do_special_char)
 {
-	char *reserved = ";/?:@&=+$,# ";	/* Reserved chars */
-
- 	const char *ptr  = string;	/* Start with the string */
+	const char *ptr  = string;	/* Start with the string */
 	char *out = NULL;
 	char *buf = NULL;
-
+	const char *mark = "-_.!~*'()"; /* no encode set, RFC 2396 section 2.3, RFC 3261 sec 25 */
 	ast_copy_string(outbuf, string, buflen);
 
-	/* If there's no characters to convert, just go through and don't do anything */
 	while (*ptr) {
-		if ((*ptr < 32) || (doreserved && strchr(reserved, *ptr))) {
+		if ((const signed char) *ptr < 32 || *ptr == 0x7f || *ptr == '%' ||
+				(do_special_char &&
+				!(*ptr >= '0' && *ptr <= '9') &&      /* num */
+				!(*ptr >= 'A' && *ptr <= 'Z') &&      /* ALPHA */
+				!(*ptr >= 'a' && *ptr <= 'z') &&      /* alpha */
+				!strchr(mark, *ptr))) {               /* mark set */
+
 			/* Oops, we need to start working here */
 			if (!buf) {
 				buf = outbuf;
 				out = buf + (ptr - string) ;	/* Set output ptr */
 			}
-			out += sprintf(out, "%%%02x", (unsigned char) *ptr);
+			out += sprintf(out, "%%%02X", (unsigned char) *ptr);
 		} else if (buf) {
 			*out = *ptr;	/* Continue copying the string */
 			out++;
-		} 
+		}
 		ptr++;
 	}
 	if (buf)

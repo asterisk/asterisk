@@ -833,9 +833,6 @@ int ast_test_init()
 #ifdef TEST_FRAMEWORK
 	/* Register cli commands */
 	ast_cli_register_multiple(test_cli, ARRAY_LEN(test_cli));
-
-	/* in the future this function could be used to register functions not
-	 * defined within a module */
 #endif
 
 	return 0;

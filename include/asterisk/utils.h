@@ -248,22 +248,25 @@ int ast_base64encode(char *dst, const unsigned char *src, int srclen, int max);
  */
 int ast_base64decode(unsigned char *dst, const char *src, int max);
 
-/*!  \brief Turn text string to URI-encoded %XX version 
-
-\note 	At this point, we're converting from ISO-8859-x (8-bit), not UTF8
-	as in the SIP protocol spec 
-	If doreserved == 1 we will convert reserved characters also.
-	RFC 2396, section 2.4
-	outbuf needs to have more memory allocated than the instring
-	to have room for the expansion. Every char that is converted
-	is replaced by three ASCII characters.
-	\param string	String to be converted
-	\param outbuf	Resulting encoded string
-	\param buflen	Size of output buffer
-	\param doreserved	Convert reserved characters
-*/
-
-char *ast_uri_encode(const char *string, char *outbuf, int buflen, int doreserved);
+/*! \brief Turn text string to URI-encoded %XX version 
+ *
+ * \note 
+ *  At this point, this function is encoding agnostic; it does not
+ *  check whether it is fed legal UTF-8. We escape control
+ *  characters (\x00-\x1F\x7F), '%', and all characters above 0x7F.
+ *  If do_special_char == 1 we will convert all characters except alnum
+ *  and the mark set.
+ *  Outbuf needs to have more memory allocated than the instring
+ *  to have room for the expansion. Every char that is converted
+ *  is replaced by three ASCII characters.
+ *
+ *  \param string	String to be converted
+ *  \param outbuf	Resulting encoded string
+ *  \param buflen	Size of output buffer
+ *  \param do_special_char	Convert all non alphanum characters execept
+ *         those in the mark set as defined by rfc 3261 section 25.1
+ */
+char *ast_uri_encode(const char *string, char *outbuf, int buflen, int do_special_char);
 
 /*!	\brief Decode URI, URN, URL (overwrite string)
 	\param s	String to be decoded 
@@ -755,4 +758,8 @@ int ast_str_to_eid(struct ast_eid *eid, const char *s);
  */
 int ast_eid_cmp(const struct ast_eid *eid1, const struct ast_eid *eid2);
 
+/*!
+ * \brief Registers util api unit tests
+ */
+void ast_utils_register_tests(void);
 #endif /* _ASTERISK_UTILS_H */
