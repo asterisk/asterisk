@@ -3717,8 +3717,12 @@ static int park_exec_full(struct ast_channel *chan, const char *data, struct ast
 		}
 		ast_channel_unlock(peer);
 
+		/* When the datastores for both caller and callee are created, both the callee and caller channels
+		 * use the features_caller flag variable to represent themselves. With that said, the config.features_callee
+		 * flags should be copied from the datastore's caller feature flags regardless if peer was a callee
+		 * or caller. */
 		if (dialfeatures) {
-			ast_copy_flags(&(config.features_callee), dialfeatures->is_caller ? &(dialfeatures->features_caller) : &(dialfeatures->features_callee), AST_FLAGS_ALL);
+			ast_copy_flags(&(config.features_callee), &(dialfeatures->features_caller), AST_FLAGS_ALL);
 		}
 
 		if ((parkinglot->parkedcalltransfers == AST_FEATURE_FLAG_BYCALLEE) || (parkinglot->parkedcalltransfers == AST_FEATURE_FLAG_BYBOTH)) {
