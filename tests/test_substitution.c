@@ -58,6 +58,9 @@ static enum ast_test_result_state test_chan_integer(void *status, struct ast_str
 		pbx_substitute_variables_helper(c, expression, workspace, sizeof(workspace));
 		if (sscanf(workspace, "%d", &value1) != 1 || value1 != i || sscanf(ast_str_buffer(str), "%d", &value2) != 1 || value2 != i) {
 			ast_test_status_update(status, "%s != %s and/or %d != %d != %d\n", ast_str_buffer(str), workspace, value1, value2, i);
+			ast_str_set(err, 0, "%s: '%s' != '%s' and/or %d != %d != %d\n",
+					__PRETTY_FUNCTION__, ast_str_buffer(str),
+					workspace, value1, value2, i);
 			okay = 0;
 		}
 	}
@@ -83,6 +86,8 @@ static enum ast_test_result_state test_chan_string(void *status, struct ast_str 
 		ast_test_status_update(status, "Testing '%s' . . . . . %s\n", expression, okay ? "passed" : "FAILED");
 		if (strcmp(cfield, ast_str_buffer(str)) != 0 || strcmp(cfield, workspace) != 0) {
 			ast_test_status_update(status, "%s != %s != %s\n", cfield, ast_str_buffer(str), workspace);
+			ast_str_set(err, 0, "%s: '%s' != '%s' != '%s'\n",
+					__PRETTY_FUNCTION__, cfield, ast_str_buffer(str), workspace);
 			okay = 0;
 		}
 	}
@@ -109,6 +114,8 @@ static enum ast_test_result_state test_chan_variable(void *status, struct ast_st
 		ast_test_status_update(status, "Testing '%s' . . . . . %s\n", ast_str_buffer(var), okay ? "passed" : "FAILED");
 		if (strcmp(values[i], ast_str_buffer(str)) != 0 || strcmp(values[i], workspace) != 0) {
 			ast_test_status_update(status, "%s != %s != %s\n", values[i], ast_str_buffer(str), workspace);
+			ast_str_set(err, 0, "%s: '%s' != '%s' != '%s'\n",
+					__PRETTY_FUNCTION__, values[i], ast_str_buffer(str), workspace);
 			okay = 0;
 		}
 	}
@@ -132,6 +139,8 @@ static enum ast_test_result_state test_chan_function(void *status, struct ast_st
 	if (strcmp(workspace, ast_str_buffer(str)) != 0) {
 		ast_test_status_update(status, "test_chan_function, expr: '%s' ... %s != %s\n",
 				expression, ast_str_buffer(str), workspace);
+		ast_str_set(err, 0, "%s: expr: '%s' ... '%s' != '%s'\n",
+				__PRETTY_FUNCTION__, expression, ast_str_buffer(str), workspace);
 		okay = 0;
 	}
 
@@ -154,12 +163,14 @@ static enum ast_test_result_state test_2way_function(void *status, struct ast_st
 
 	okay = !strcmp(ast_str_buffer(str), "foobarbaz");
 
-	ast_test_status_update(status, "Testing '%s%s' and '%s%s' . . . . . %s\n", 
-			encode1, encode2, decode1, decode2, 
+	ast_test_status_update(status, "Testing '%s%s' and '%s%s' . . . . . %s\n",
+			encode1, encode2, decode1, decode2,
 			okay ? "passed" : "FAILED");
 
 	if (!okay) {
 		ast_test_status_update(status, "  '%s' != 'foobarbaz'\n", ast_str_buffer(str));
+		ast_str_set(err, 0, "%s: '%s' != 'foobarbaz'\n",
+				__PRETTY_FUNCTION__, ast_str_buffer(str));
 	}
 
 	ast_free(str);
@@ -182,6 +193,8 @@ static enum ast_test_result_state test_expected_result(void *status, struct ast_
 
 	if (!okay) {
 		ast_test_status_update(status, "test_expected_result: '%s' != '%s'\n",
+				ast_str_buffer(str), result);
+		ast_str_set(err, 0, "%s: '%s' != '%s'\n", __PRETTY_FUNCTION__,
 				ast_str_buffer(str), result);
 	}
 
