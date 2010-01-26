@@ -211,7 +211,7 @@ AST_TEST_DEFINE(test_substitution)
 
 	ast_test_status_update(&args->status_update, "Testing variable substitution ...\n");
 
-	c = ast_dummy_channel_alloc();
+	c = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Test/substitution");
 
 #define TEST(t) if (t == AST_TEST_FAIL) { res = AST_TEST_FAIL; }
 	TEST(test_chan_integer(&args->status_update, &args->ast_test_error_str, c, &c->cid.cid_pres, "${CALLINGPRES}"));
@@ -270,7 +270,7 @@ AST_TEST_DEFINE(test_substitution)
 		ast_free(cmd);
 	}
 
-	ast_channel_release(c);
+	ast_hangup(c);
 
 	return res;
 }
