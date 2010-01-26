@@ -83,10 +83,10 @@ static int senddtmf_exec(struct ast_channel *chan, const char *vdata)
 {
 	int res = 0;
 	char *data;
-	int timeout = 0, duration = 0;
+	int dinterval = 0, duration = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(digits);
-		AST_APP_ARG(timeout);
+		AST_APP_ARG(dinterval);
 		AST_APP_ARG(duration);
 	);
 
@@ -98,11 +98,14 @@ static int senddtmf_exec(struct ast_channel *chan, const char *vdata)
 	data = ast_strdupa(vdata);
 	AST_STANDARD_APP_ARGS(args, data);
 
-	if (!ast_strlen_zero(args.timeout))
-		timeout = atoi(args.timeout);
-	if (!ast_strlen_zero(args.duration))
-		duration = atoi(args.duration);
-	res = ast_dtmf_stream(chan, NULL, args.digits, timeout <= 0 ? 250 : timeout, duration);
+	if (!ast_strlen_zero(args.dinterval)) {
+		ast_app_parse_timelen(args.dinterval, &dinterval, TIMELEN_MILLISECONDS);
+	}
+	if (!ast_strlen_zero(args.duration)) {
+		ast_app_parse_timelen(args.duration, &duration, TIMELEN_MILLISECONDS);
+	}
+
+	res = ast_dtmf_stream(chan, NULL, args.digits, dinterval <= 0 ? 250 : dinterval, duration);
 
 	return res;
 }
