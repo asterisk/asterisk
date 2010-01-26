@@ -211,7 +211,7 @@ AST_TEST_DEFINE(test_substitution)
 
 	ast_test_status_update(&args->status_update, "Testing variable substitution ...\n");
 
-	c = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Test/substitution");
+	c = ast_channel_alloc(0, 0, "", "", "", "", "", "", 0, "Test/substitution");
 
 #define TEST(t) if (t == AST_TEST_FAIL) { res = AST_TEST_FAIL; }
 	TEST(test_chan_integer(&args->status_update, &args->ast_test_error_str, c, &c->cid.cid_pres, "${CALLINGPRES}"));
@@ -263,15 +263,15 @@ AST_TEST_DEFINE(test_substitution)
 			if (acf->read && acf->read2) {
 				char expression[80];
 				snprintf(expression, sizeof(expression), "${%s(foo)}", cmd);
-				res = test_chan_function(&args->status_update,
-						&args->ast_test_error_str,c, expression);
+				if (AST_TEST_FAIL == test_chan_function(&args->status_update, &args->ast_test_error_str,c, expression)) {
+					res = AST_TEST_FAIL;
+				}
 			}
 		}
 		ast_free(cmd);
 	}
 
 	ast_hangup(c);
-
 	return res;
 }
 
