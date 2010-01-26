@@ -441,6 +441,11 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 	}
 	
 	if (!(fr->mallocd & AST_MALLOCD_DATA))  {
+		if (!fr->datalen) {
+			out->data.uint32 = fr->data.uint32;
+			out->mallocd = AST_MALLOCD_HDR | AST_MALLOCD_SRC;
+			return out;
+		}
 		if (!(newdata = ast_malloc(fr->datalen + AST_FRIENDLY_OFFSET))) {
 			if (out->src != fr->src) {
 				ast_free((void *) out->src);
