@@ -31,7 +31,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/app.h"
 #include "asterisk/aes.h"
-#include "asterisk/strings.h"
 
 #define AES_BLOCK_SIZE 16
 
@@ -72,15 +71,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 
 static int aes_helper(struct ast_channel *chan, const char *cmd, char *data,
-	       char *buf, struct ast_str **str, ssize_t maxlen)
+	       char *buf, size_t len)
 {
 	unsigned char curblock[AES_BLOCK_SIZE] = { 0, };
-	char *tmp = NULL;
+	char *tmp;
 	char *tmpP;
 	int data_len, encrypt;
-	int keylen, len, tmplen, elen = 0;
 	ast_aes_encrypt_key ecx;                        /*  AES 128 Encryption context */
 	ast_aes_decrypt_key dcx;
+
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(key);
 		AST_APP_ARG(data);
@@ -93,37 +92,22 @@ static int aes_helper(struct ast_channel *chan, const char *cmd, char *data,
 		return -1;
 	}
 
-	if ((keylen = strlen(args.key)) != AES_BLOCK_SIZE) {        /* key must be of 16 characters in length, 128 bits */
-		ast_log(LOG_WARNING, "Syntax: %s(<key>,<data>) - <key> parameter must be exactly 16 characters%s!\n", cmd, keylen < 16 ? " - padding" : "");
+	if (strlen(args.key) != AES_BLOCK_SIZE) {        /* key must be of 16 characters in length, 128 bits */
+		ast_log(LOG_WARNING, "Syntax: %s(<key>,<data>) - <key> parameter must be exactly 16 characters!\n", cmd);
 		return -1;
 	}
 
-	if (buf) {
-		len = maxlen;
-	} else if (maxlen == -1) {
-		len = ast_str_size(*str);
-	} else if (maxlen > 0) {
-		len = maxlen;
-	} else {
-		len = INT_MAX;
-	}
-	ast_debug(3, "len=%d\n", len);
-
-	encrypt = strcmp("AES_DECRYPT", cmd);           /* -1 if encrypting, 0 if decrypting */
-	/* Round up the buffer to an even multiple of 16, plus 1 */
-	tmplen = (strlen(args.data) / 16 + 1) * 16 + 1;
-	tmp = ast_calloc(1, tmplen);
+	ast_aes_encrypt_key((unsigned char *) args.key, &ecx);   /* encryption:  plaintext -> encryptedtext -> base64 */
+	ast_aes_decrypt_key((unsigned char *) args.key, &dcx);   /* decryption:  base64 -> encryptedtext -> plaintext */
+	tmp = ast_calloc(1, len);                     /* requires a tmp buffer for the base64 decode */
 	tmpP = tmp;
+	encrypt = strcmp("AES_DECRYPT", cmd);           /* -1 if encrypting, 0 if decrypting */
 
 	if (encrypt) {                                  /* if decrypting first decode src to base64 */
-		/* encryption:  plaintext -> encryptedtext -> base64 */
-		ast_aes_encrypt_key((unsigned char *) args.key, &ecx);
-		strcpy(tmp, args.data);
+		ast_copy_string(tmp, args.data, len);
 		data_len = strlen(tmp);
 	} else {
-		/* decryption:  base64 -> encryptedtext -> plaintext */
-		ast_aes_decrypt_key((unsigned char *) args.key, &dcx);
-		data_len = ast_base64decode((unsigned char *) tmp, args.data, tmplen);
+		data_len = ast_base64decode((unsigned char *) tmp, args.data, len);
 	}
 
 	if (data_len >= len) {                        /* make sure to not go over buffer len */
@@ -132,11 +116,8 @@ static int aes_helper(struct ast_channel *chan, const char *cmd, char *data,
 	}
 
 	while (data_len > 0) {
-		/* Tricky operation.  We first copy the data into curblock, then
-		 * the data is encrypted or decrypted and put back into the original
-		 * buffer. */
 		memset(curblock, 0, AES_BLOCK_SIZE);
-		memcpy(curblock, tmpP, AES_BLOCK_SIZE);
+		memcpy(curblock, tmpP, (data_len < AES_BLOCK_SIZE) ? data_len : AES_BLOCK_SIZE);
 		if (encrypt) {
 			ast_aes_encrypt(curblock, (unsigned char *) tmpP, &ecx);
 		} else {
@@ -144,53 +125,26 @@ static int aes_helper(struct ast_channel *chan, const char *cmd, char *data,
 		}
 		tmpP += AES_BLOCK_SIZE;
 		data_len -= AES_BLOCK_SIZE;
-		elen += AES_BLOCK_SIZE;
 	}
 
 	if (encrypt) {                            /* if encrypting encode result to base64 */
-		if (buf) {
-			ast_base64encode(buf, (unsigned char *) tmp, elen, len);
-		} else {
-			if (maxlen >= 0) {
-				ast_str_make_space(str, maxlen ? maxlen : elen * 4 / 3 + 2);
-			}
-			ast_base64encode(ast_str_buffer(*str), (unsigned char *) tmp, elen, ast_str_size(*str));
-			ast_str_update(*str);
-		}
+		ast_base64encode(buf, (unsigned char *) tmp, strlen(tmp), len);
 	} else {
-		if (buf) {
-			memcpy(buf, tmp, len);
-		} else {
-			ast_str_set(str, maxlen, "%s", tmp);
-		}
+		memcpy(buf, tmp, len);
 	}
 	ast_free(tmp);
 
 	return 0;
 }
 
-static int aes_buf_helper(struct ast_channel *chan, const char *cmd, char *data,
-	       char *buf, size_t maxlen)
-{
-	return aes_helper(chan, cmd, data, buf, NULL, maxlen);
-}
-
-static int aes_str_helper(struct ast_channel *chan, const char *cmd, char *data,
-	       struct ast_str **buf, ssize_t maxlen)
-{
-	return aes_helper(chan, cmd, data, NULL, buf, maxlen);
-}
-
 static struct ast_custom_function aes_encrypt_function = {
 	.name = "AES_ENCRYPT",
-	.read = aes_buf_helper,
-	.read2 = aes_str_helper,
+	.read = aes_helper,
 };
 
 static struct ast_custom_function aes_decrypt_function = {
 	.name = "AES_DECRYPT",
-	.read = aes_buf_helper,
-	.read2 = aes_str_helper,
+	.read = aes_helper,
 };
 
 static int unload_module(void)
