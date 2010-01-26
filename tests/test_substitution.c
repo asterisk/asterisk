@@ -114,7 +114,7 @@ static enum ast_test_result_state test_chan_variable(void *status, struct ast_st
 		ast_test_status_update(status, "Testing '%s' . . . . . %s\n", ast_str_buffer(var), okay ? "passed" : "FAILED");
 		if (strcmp(values[i], ast_str_buffer(str)) != 0 || strcmp(values[i], workspace) != 0) {
 			ast_test_status_update(status, "%s != %s != %s\n", values[i], ast_str_buffer(str), workspace);
-			ast_str_set(err, 0, "%s: '%s' != '%s' != '%s'\n",
+			ast_str_set(err, 0, "%s: Variable: '%s' ... '%s' != '%s' != '%s'\n", varname,
 					__PRETTY_FUNCTION__, values[i], ast_str_buffer(str), workspace);
 			okay = 0;
 		}
