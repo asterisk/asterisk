@@ -570,7 +570,7 @@ static struct ast_test *test_alloc(ast_test_cb_t *cb)
 /* CLI commands */
 static char *test_cli_show_registered(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-#define FORMAT "%-15s %-20s %-30s %-10s\n"
+#define FORMAT "%-20.20s %-20.20s %-30.30s %-10.10s\n"
 	static const char * const option1[] = { "all", "category", NULL };
 	static const char * const option2[] = { "name", NULL };
 	struct ast_test *test = NULL;
@@ -681,7 +681,7 @@ static char *test_cli_execute_registered(struct ast_cli_entry *e, int cmd, struc
 
 static char *test_cli_show_results(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-#define FORMAT_RES_ALL "%s%s %-15s %-20s %-30s\n"
+#define FORMAT_RES_ALL "%s%s %-20.20s %-20.20s %-30.30s\n"
 	static const char * const option1[] = { "all", "failed", "passed", NULL };
 	char result_buf[32] = { 0 };
 	struct ast_test *test = NULL;
