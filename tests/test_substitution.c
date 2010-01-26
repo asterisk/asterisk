@@ -51,17 +51,16 @@ static enum ast_test_result_state test_chan_integer(void *status, struct ast_str
 	char workspace[4096];
 	struct ast_str *str = ast_str_create(16);
 
+	ast_test_status_update(status, "Testing '%s' . . . . . %s\n", expression, okay ? "passed" : "FAILED");
 	for (i = 0; i < 256; i++) {
 		*ifield = i;
 		ast_str_substitute_variables(&str, 0, c, expression);
 		pbx_substitute_variables_helper(c, expression, workspace, sizeof(workspace));
 		if (sscanf(workspace, "%d", &value1) != 1 || value1 != i || sscanf(ast_str_buffer(str), "%d", &value2) != 1 || value2 != i) {
-			ast_str_set(err, 0, "%s != %s and/or %d != %d != %d\n", ast_str_buffer(str), workspace, value1, value2, i);
+			ast_test_status_update(status, "%s != %s and/or %d != %d != %d\n", ast_str_buffer(str), workspace, value1, value2, i);
 			okay = 0;
-			break;
 		}
 	}
-	ast_test_status_update(status, "Testing '%s' . . . . . %s\n", expression, okay ? "passed" : "FAILED");
 
 	ast_free(str);
 
@@ -81,13 +80,12 @@ static enum ast_test_result_state test_chan_string(void *status, struct ast_str 
 		ast_copy_string(cfield, values[i], cfieldsize);
 		ast_str_substitute_variables(&str, 0, c, expression);
 		pbx_substitute_variables_helper(c, expression, workspace, sizeof(workspace));
+		ast_test_status_update(status, "Testing '%s' . . . . . %s\n", expression, okay ? "passed" : "FAILED");
 		if (strcmp(cfield, ast_str_buffer(str)) != 0 || strcmp(cfield, workspace) != 0) {
-			ast_str_set(err, 0, "%s != %s != %s\n", cfield, ast_str_buffer(str), workspace);
+			ast_test_status_update(status, "%s != %s != %s\n", cfield, ast_str_buffer(str), workspace);
 			okay = 0;
-			break;
 		}
 	}
-	ast_test_status_update(status, "Testing '%s' . . . . . %s\n", expression, okay ? "passed" : "FAILED");
 
 	ast_free(str);
 
@@ -108,13 +106,12 @@ static enum ast_test_result_state test_chan_variable(void *status, struct ast_st
 		pbx_builtin_setvar_helper(c, varname, values[i]);
 		ast_str_substitute_variables(&str, 0, c, ast_str_buffer(var));
 		pbx_substitute_variables_helper(c, ast_str_buffer(var), workspace, sizeof(workspace));
+		ast_test_status_update(status, "Testing '%s' . . . . . %s\n", ast_str_buffer(var), okay ? "passed" : "FAILED");
 		if (strcmp(values[i], ast_str_buffer(str)) != 0 || strcmp(values[i], workspace) != 0) {
-			ast_str_set(err, 0, "%s != %s != %s\n", values[i], ast_str_buffer(str), workspace);
+			ast_test_status_update(status, "%s != %s != %s\n", values[i], ast_str_buffer(str), workspace);
 			okay = 0;
-			break;
 		}
 	}
-	ast_test_status_update(status, "Testing '%s' . . . . . %s\n", ast_str_buffer(var), okay ? "passed" : "FAILED");
 
 	ast_free(str);
 	ast_free(var);
@@ -131,12 +128,12 @@ static enum ast_test_result_state test_chan_function(void *status, struct ast_st
 
 	ast_str_substitute_variables(&str, 0, c, expression);
 	pbx_substitute_variables_helper(c, expression, workspace, sizeof(workspace));
+	ast_test_status_update(status, "Testing '%s' . . . . . %s\n", expression, okay ? "passed" : "FAILED");
 	if (strcmp(workspace, ast_str_buffer(str)) != 0) {
-		ast_str_set(err, 0, "test_chan_function, expr: '%s' ... %s != %s\n",
+		ast_test_status_update(status, "test_chan_function, expr: '%s' ... %s != %s\n",
 				expression, ast_str_buffer(str), workspace);
 		okay = 0;
 	}
-	ast_test_status_update(status, "Testing '%s' . . . . . %s\n", expression, okay ? "passed" : "FAILED");
 
 	ast_free(str);
 
@@ -162,7 +159,7 @@ static enum ast_test_result_state test_2way_function(void *status, struct ast_st
 			okay ? "passed" : "FAILED");
 
 	if (!okay) {
-		ast_str_set(err, 0, "  '%s' != 'foobarbaz'\n", ast_str_buffer(str));
+		ast_test_status_update(status, "  '%s' != 'foobarbaz'\n", ast_str_buffer(str));
 	}
 
 	ast_free(str);
@@ -216,8 +213,7 @@ AST_TEST_DEFINE(test_substitution)
 
 	c = ast_dummy_channel_alloc();
 
-	do {
-#define TEST(t) if ((res = t) == AST_TEST_FAIL) { break; }
+#define TEST(t) if (t == AST_TEST_FAIL) { res = AST_TEST_FAIL; }
 	TEST(test_chan_integer(&args->status_update, &args->ast_test_error_str, c, &c->cid.cid_pres, "${CALLINGPRES}"));
 	TEST(test_chan_integer(&args->status_update, &args->ast_test_error_str, c, &c->cid.cid_ani2, "${CALLINGANI2}"));
 	TEST(test_chan_integer(&args->status_update, &args->ast_test_error_str, c, &c->cid.cid_ton, "${CALLINGTON}"));
@@ -237,9 +233,9 @@ AST_TEST_DEFINE(test_substitution)
 	TEST(test_chan_variable(&args->status_update, &args->ast_test_error_str, c, "GROUP()"));
 	TEST(test_2way_function(&args->status_update, &args->ast_test_error_str, c, "${AES_ENCRYPT(abcdefghijklmnop,", ")}", "${AES_DECRYPT(abcdefghijklmnop,", ")}"));
 	TEST(test_2way_function(&args->status_update, &args->ast_test_error_str, c, "${BASE64_ENCODE(", ")}", "${BASE64_DECODE(", ")}"));
-	pbx_builtin_setvar_helper(c, "foo&args->ast_test_error_str, ", "123");
-	pbx_builtin_setvar_helper(c, "bar&args->ast_test_error_str, ", "foo");
-	pbx_builtin_setvar_helper(c, "baz&args->ast_test_error_str, ", "fo");
+	pbx_builtin_setvar_helper(c, "foo", "123");
+	pbx_builtin_setvar_helper(c, "bar", "foo");
+	pbx_builtin_setvar_helper(c, "baz", "fo");
 	TEST(test_expected_result(&args->status_update, &args->ast_test_error_str, c, "${foo}${foo}", "123123"));
 	TEST(test_expected_result(&args->status_update, &args->ast_test_error_str, c, "A${foo}A${foo}A", "A123A123A"));
 	TEST(test_expected_result(&args->status_update, &args->ast_test_error_str, c, "A${${bar}}A", "A123A"));
@@ -251,15 +247,14 @@ AST_TEST_DEFINE(test_substitution)
 	TEST(test_expected_result(&args->status_update, &args->ast_test_error_str, c, "A${${baz}o:-2:1}A", "A2A"));
 	TEST(test_expected_result(&args->status_update, &args->ast_test_error_str, c, "A${${baz}o:-2:-1}A", "A2A"));
 #undef TEST
-	} while (0);
 
 	/* For testing dialplan functions */
-	for (i = 0; res != AST_TEST_PASS; i++) {
+	for (i = 0; ; i++) {
 		char *cmd = ast_cli_generator("core show function", "", i);
 		if (cmd == NULL) {
 			break;
 		}
-		if (strcmp(cmd, "CHANNEL") && strcmp(cmd, "CALLERID") && strcmp(cmd, "CURLOPT") &&
+		if (strcmp(cmd, "CHANNEL") && strcmp(cmd, "CALLERID") && strncmp(cmd, "CURL", 4) &&
 				strncmp(cmd, "AES", 3) && strncmp(cmd, "BASE64", 6) &&
 				strcmp(cmd, "CDR") && strcmp(cmd, "ENV") && strcmp(cmd, "GLOBAL") &&
 				strcmp(cmd, "GROUP") && strcmp(cmd, "CUT") && strcmp(cmd, "LISTFILTER") &&
