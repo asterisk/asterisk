@@ -235,7 +235,6 @@ static struct ast_custom_function channel_function = {
 		"    video                 Get video destination\n"
 		"\n"
 		"chan_iax2 provides the following additional options:\n"
-		"R/W    osptoken           Get or set the OSP token information for a call\n"
 		"R/O    peerip             Get the peer's ip address\n"
 		"R/O    peername           Get the peer's username\n"
 		"\n"
