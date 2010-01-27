@@ -1018,7 +1018,6 @@ static void prune_users(void);
 static void iax2_free_variable_datastore(void *);
 
 static int acf_channel_read(struct ast_channel *chan, const char *funcname, char *preparse, char *buf, size_t buflen);
-static int acf_channel_write(struct ast_channel *chan, const char *function, char *data, const char *value);
 static int decode_frame(ast_aes_decrypt_key *dcx, struct ast_iax2_full_hdr *fh, struct ast_frame *f, int *datalen);
 static int encrypt_frame(ast_aes_encrypt_key *ecx, struct ast_iax2_full_hdr *fh, unsigned char *poo, int *datalen);
 static void build_ecx_key(const unsigned char *digest, struct chan_iax2_pvt *pvt);
@@ -1051,7 +1050,6 @@ static const struct ast_channel_tech iax2_tech = {
 	.transfer = iax2_transfer,
 	.fixup = iax2_fixup,
 	.func_channel_read = acf_channel_read,
-	.func_channel_write = acf_channel_write,
 };
 
 static void mwi_event_cb(const struct ast_event *event, void *userdata)
@@ -4759,8 +4757,8 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		iaxs[callno]->initid = iax2_sched_add(sched, autokill * 2, auto_congest, CALLNO_TO_PTR(callno));
 	}
 
-	/* Check if there is an OSP token set by IAXCHANINFO function */
-	osp_token_ptr = iaxs[callno]->osptoken;
+	/* Check if there is an OSP token */
+	osp_token_ptr = pbx_builtin_getvar_helper(c, "IAX2OSPTOKEN");
 	if (!ast_strlen_zero(osp_token_ptr)) {
 		if ((osp_token_length = strlen(osp_token_ptr)) <= IAX_MAX_OSPTOKEN_SIZE) {
 			osp_block_index = 0;
@@ -13160,34 +13158,6 @@ struct ast_custom_function iaxpeer_function = {
 	"If CURRENTCHANNEL specified, returns IP address of current channel\n"
 	"\n"
 };
-
-static int acf_channel_write(struct ast_channel *chan, const char *function, char *args, const char *value)
-{
-	struct chan_iax2_pvt *pvt;
-	unsigned int callno;
-	int res = 0;
-
-	if (!chan || chan->tech != &iax2_tech) {
-		ast_log(LOG_ERROR, "This function requires a valid IAX2 channel\n");
-		return -1;
-	}
-
-	callno = PTR_TO_CALLNO(chan->tech_pvt);
-	ast_mutex_lock(&iaxsl[callno]);
-	if (!(pvt = iaxs[callno])) {
-		ast_mutex_unlock(&iaxsl[callno]);
-		return -1;
-	}
-
-	if (!strcasecmp(args, "osptoken"))
-		ast_string_field_set(pvt, osptoken, value);
-	else
-		res = -1;
-
-	ast_mutex_unlock(&iaxsl[callno]);
-
-	return res;
-}
 
 static int acf_channel_read(struct ast_channel *chan, const char *funcname, char *args, char *buf, size_t buflen)
 {
