@@ -389,6 +389,8 @@ Miscellaneous
  * An 'X' option has been added to the asterisk application which enables #exec support.
    This allows #exec to be used in asterisk.conf.
  * jabber.conf supports a new option auth_policy that toggles auto user registration.
+ * A new lockconfdir option has been added to asterisk.conf to protect the
+   AST_CONFIG_DIR during reloads.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.1 to Asterisk 1.6.2  -------------

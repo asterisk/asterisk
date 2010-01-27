@@ -49,6 +49,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/dsp.h"
 #include "asterisk/udptl.h"
 #include "asterisk/heap.h"
+#include "asterisk/app.h"
 
 #include <dlfcn.h>
 
@@ -652,6 +653,22 @@ int ast_module_reload(const char *name)
 	}
 	ast_lastreloadtime = ast_tvnow();
 
+	if (ast_opt_lock_confdir) {
+		int try;
+		int res;
+		for (try = 1, res = AST_LOCK_TIMEOUT; try < 6 && (res == AST_LOCK_TIMEOUT); try++) {
+			res = ast_lock_path(ast_config_AST_CONFIG_DIR);
+			if (res == AST_LOCK_TIMEOUT) {
+				ast_log(LOG_WARNING, "Failed to grab lock on %s, try %d\n", ast_config_AST_CONFIG_DIR, try);
+			}
+		}
+		if (res != AST_LOCK_SUCCESS) {
+			ast_verbose("Cannot grab lock on %s\n", ast_config_AST_CONFIG_DIR);
+			ast_mutex_unlock(&reloadlock);
+			return -1;
+		}
+	}
+
 	/* Call "predefined" reload here first */
 	for (i = 0; reload_classes[i].name; i++) {
 		if (!name || !strcasecmp(name, reload_classes[i].name)) {
@@ -661,6 +678,9 @@ int ast_module_reload(const char *name)
 	}
 
 	if (name && res) {
+		if (ast_opt_lock_confdir) {
+			ast_unlock_path(ast_config_AST_CONFIG_DIR);
+		}
 		ast_mutex_unlock(&reloadlock);
 		return res;
 	}
@@ -695,6 +715,9 @@ int ast_module_reload(const char *name)
 	}
 	AST_LIST_UNLOCK(&module_list);
 
+	if (ast_opt_lock_confdir) {
+		ast_unlock_path(ast_config_AST_CONFIG_DIR);
+	}
 	ast_mutex_unlock(&reloadlock);
 
 	return res;

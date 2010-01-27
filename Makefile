@@ -743,6 +743,7 @@ samples: adsi
 		echo ";lightbackground = yes ; If your terminal is set for a light-colored background" ; \
 		echo "documentation_language = en_US ; Set the Language you want Documentation displayed in. Value is in the same format as locale names" ; \
 		echo ";hideconnect = yes ; Hide messages displayed when a remote console connects and disconnects" ; \
+		echo ";lockconfdir = no ; Protect the directory containing the configuration files (/etc/asterisk) with a lock" ; \
 		echo "" ; \
 		echo "; Changing the following lines may compromise your security." ; \
 		echo ";[files]" ; \

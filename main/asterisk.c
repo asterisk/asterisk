@@ -2997,6 +2997,8 @@ static void ast_readconfig(void)
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_FORCE_BLACK_BACKGROUND);
 		} else if (!strcasecmp(v->name, "hideconnect")) {
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_HIDE_CONSOLE_CONNECT);
+		} else if (!strcasecmp(v->name, "lockconfdir")) {
+			ast_set2_flag(&ast_options, ast_true(v->value),	AST_OPT_FLAG_LOCK_CONFIG_DIR);
 		}
 	}
 	for (v = ast_variable_browse(cfg, "compat"); v; v = v->next) {
