@@ -4286,6 +4286,10 @@ int __ast_manager_event_multichan(int category, const char *event, int chancount
 	struct ast_str *buf;
 	int i;
 
+	if (!sessions && AST_RWLIST_EMPTY(&manager_hooks)) {
+		return 0;
+	}
+	
 	if (!(buf = ast_str_thread_get(&manager_event_buf, MANAGER_EVENT_BUF_INITSIZE))) {
 		return -1;
 	}
@@ -4343,11 +4347,13 @@ int __ast_manager_event_multichan(int category, const char *event, int chancount
 		ao2_iterator_destroy(&i);
 	}
 
-	AST_RWLIST_RDLOCK(&manager_hooks);
-	AST_RWLIST_TRAVERSE(&manager_hooks, hook, list) {
-		hook->helper(category, event, ast_str_buffer(buf));
+	if (!AST_RWLIST_EMPTY(&manager_hooks)) {
+		AST_RWLIST_RDLOCK(&manager_hooks);
+		AST_RWLIST_TRAVERSE(&manager_hooks, hook, list) {
+			hook->helper(category, event, ast_str_buffer(buf));
+		}
+		AST_RWLIST_UNLOCK(&manager_hooks);
 	}
-	AST_RWLIST_UNLOCK(&manager_hooks);
 
 	return 0;
 }
