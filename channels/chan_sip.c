@@ -10745,7 +10745,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		/* We break with the "recommendation" and send our IP, in order that our
 		   peer doesn't have to ast_gethostbyname() us */
 
-		ast_str_append(&m_modem, 0, "m=image %d udptl t38", ntohs(udptldest.sin_port));
+		ast_str_append(&m_modem, 0, "m=image %d udptl t38\r\n", ntohs(udptldest.sin_port));
 
 		if (udptldest.sin_addr.s_addr != dest.sin_addr.s_addr) {
 			ast_str_append(&m_modem, 0, "c=IN IP4 %s\r\n", ast_inet_ntoa(udptldest.sin_addr));
