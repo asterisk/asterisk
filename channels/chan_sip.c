@@ -15738,10 +15738,11 @@ static int function_sipchaninfo_read(struct ast_channel *chan, const char *cmd, 
 	} else  if (!strcasecmp(data, "peername")) {
 		ast_copy_string(buf, p->peername, len);
 	} else if (!strcasecmp(data, "t38passthrough")) {
-		if (p->t38.state == T38_DISABLED)
-			ast_copy_string(buf, "0", sizeof("0"));
-		else    /* T38 is offered or enabled in this call */
-			ast_copy_string(buf, "1", sizeof("1"));
+		if (p->t38.state == T38_DISABLED) {
+			ast_copy_string(buf, "0", len);
+		} else { /* T38 is offered or enabled in this call */
+			ast_copy_string(buf, "1", len);
+		}
 	} else {
 		ast_channel_unlock(chan);
 		return -1;
