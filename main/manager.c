@@ -3283,8 +3283,8 @@ int __manager_event(int category, const char *event,
 	struct timeval now;
 	struct ast_str *buf;
 
-	/* Abort if there aren't any manager sessions */
-	if (!num_sessions)
+	/* Abort if there are neither any manager sessions nor hooks */
+	if (!num_sessions && AST_RWLIST_EMPTY(&manager_hooks))
 		return 0;
 
 	if (!(buf = ast_str_thread_get(&manager_event_buf, MANAGER_EVENT_BUF_INITSIZE)))
@@ -3319,27 +3319,31 @@ int __manager_event(int category, const char *event,
 	append_event(buf->str, category);
 
 	/* Wake up any sleeping sessions */
-	AST_LIST_LOCK(&sessions);
-	AST_LIST_TRAVERSE(&sessions, session, list) {
-		ast_mutex_lock(&session->__lock);
-		if (session->waiting_thread != AST_PTHREADT_NULL)
-			pthread_kill(session->waiting_thread, SIGURG);
-		else
-			/* We have an event to process, but the mansession is
-			 * not waiting for it. We still need to indicate that there
-			 * is an event waiting so that get_input processes the pending
-			 * event instead of polling.
-			 */
-			session->pending_event = 1;
-		ast_mutex_unlock(&session->__lock);
+	if (num_sessions) {
+		AST_LIST_LOCK(&sessions);
+		AST_LIST_TRAVERSE(&sessions, session, list) {
+			ast_mutex_lock(&session->__lock);
+			if (session->waiting_thread != AST_PTHREADT_NULL)
+				pthread_kill(session->waiting_thread, SIGURG);
+			else
+				/* We have an event to process, but the mansession is
+				 * not waiting for it. We still need to indicate that there
+				 * is an event waiting so that get_input processes the pending
+				 * event instead of polling.
+				 */
+				session->pending_event = 1;
+			ast_mutex_unlock(&session->__lock);
+		}
+		AST_LIST_UNLOCK(&sessions);
 	}
-	AST_LIST_UNLOCK(&sessions);
 
-	AST_RWLIST_RDLOCK(&manager_hooks);
-	AST_RWLIST_TRAVERSE(&manager_hooks, hook, list) {
-		hook->helper(category, event, buf->str);
+	if (!AST_RWLIST_EMPTY(&manager_hooks)) {
+		AST_RWLIST_RDLOCK(&manager_hooks);
+		AST_RWLIST_TRAVERSE(&manager_hooks, hook, list) {
+			hook->helper(category, event, buf->str);
+		}
+		AST_RWLIST_UNLOCK(&manager_hooks);
 	}
-	AST_RWLIST_UNLOCK(&manager_hooks);
 
 	return 0;
 }
