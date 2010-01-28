@@ -1086,7 +1086,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 							ies->vars = var;
 						}
 						snprintf(tmp, sizeof(tmp), "Assigned (%p)%s to (%p)%s\n", var->name, var->name, var->value, var->value);
-						errorf(tmp);
+						outputf(tmp);
 						ast_free(var2);
 						break;
 					}
@@ -1097,7 +1097,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 			if (!var2) {
 				var = ast_variable_new(tmp, tmp2, "");
 				snprintf(tmp, sizeof(tmp), "Assigned (%p)%s to (%p)%s\n", var->name, var->name, var->value, var->value);
-				errorf(tmp);
+				outputf(tmp);
 				var->next = ies->vars;
 				ies->vars = var;
 			}
