@@ -1104,22 +1104,22 @@ static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, in
 		}
 	}
 
-	if ((queued_frames + new_frames) > 128) {
-		ast_log(LOG_WARNING, "Exceptionally long queue length queuing to %s\n", chan->name);
-		while ((f = AST_LIST_REMOVE_HEAD(&frames, frame_list))) {
-			ast_frfree(f);
+	if ((queued_frames + new_frames > 128 || queued_voice_frames + new_voice_frames > 96)) {
+		int count = 0;
+		ast_log(LOG_WARNING, "Exceptionally long %squeue length queuing to %s\n", queued_frames + new_frames > 128 ? "" : "voice ", chan->name);
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->readq, cur, frame_list) {
+			/* Save the most recent frame */
+			if (!AST_LIST_NEXT(cur, frame_list)) {
+				break;
+			} else if (cur->frametype == AST_FRAME_VOICE || cur->frametype == AST_FRAME_VIDEO || cur->frametype == AST_FRAME_NULL) {
+				if (++count > 64) {
+					break;
+				}
+				AST_LIST_REMOVE_CURRENT(frame_list);
+				ast_frfree(cur);
+			}
 		}
-		ast_channel_unlock(chan);
-		return 0;
-	}
-
-	if ((queued_voice_frames + new_voice_frames) > 96) {
-		ast_log(LOG_WARNING, "Exceptionally long voice queue length queuing to %s\n", chan->name);
-		while ((f = AST_LIST_REMOVE_HEAD(&frames, frame_list))) {
-			ast_frfree(f);
-		}
-		ast_channel_unlock(chan);
-		return 0;
+		AST_LIST_TRAVERSE_SAFE_END;
 	}
 
 	if (after) {
