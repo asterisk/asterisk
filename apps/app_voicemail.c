@@ -6447,7 +6447,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 #endif
 	int cmd = 0;
 	int retries = 0, prepend_duration = 0, already_recorded = 0;
-	char msgfile[PATH_MAX], backup[PATH_MAX];
+	char msgfile[PATH_MAX], backup[PATH_MAX], backup_textfile[PATH_MAX];
 	char textfile[PATH_MAX];
 	struct ast_config *msg_cfg;
 	struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE };
@@ -6460,8 +6460,10 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 	make_file(msgfile, sizeof(msgfile), curdir, curmsg);
 	strcpy(textfile, msgfile);
 	strcpy(backup, msgfile);
+	strcpy(backup_textfile, msgfile);
 	strncat(textfile, ".txt", sizeof(textfile) - strlen(textfile) - 1);
 	strncat(backup, "-bak", sizeof(backup) - strlen(backup) - 1);
+	strncat(backup_textfile, "-bak.txt", sizeof(backup_textfile) - strlen(backup_textfile) - 1);
 
 	if ((msg_cfg = ast_config_load(textfile, config_flags)) && msg_cfg != CONFIG_STATUS_FILEINVALID && (duration_str = ast_variable_retrieve(msg_cfg, "message", "duration"))) {
 		*duration = atoi(duration_str);
@@ -6498,11 +6500,15 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 				break;
 			}
 			
-			/* Back up the original file, so we can retry the prepend */
-			if (already_recorded)
+			/* Back up the original file, so we can retry the prepend and restore it after forward. */
+			if (already_recorded) {
 				ast_filecopy(backup, msgfile, NULL);
-			else
+				copy(backup_textfile, textfile);
+			}
+			else {
 				ast_filecopy(msgfile, backup, NULL);
+				copy(textfile,backup_textfile);
+			}
 			already_recorded = 1;
 
 			if (record_gain)
@@ -6558,10 +6564,14 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 
 	if (msg_cfg)
 		ast_config_destroy(msg_cfg);
-	if (already_recorded)
-		ast_filedelete(backup, NULL);
 	if (prepend_duration)
 		*duration = prepend_duration;
+
+	if (already_recorded && cmd == -1) {
+		/* restore original message if prepention cancelled */
+		ast_filerename(backup, msgfile, NULL);
+		rename(backup_textfile, textfile);
+	}
 
 	if (cmd == 't' || cmd == 'S')
 		cmd = 0;
@@ -6724,7 +6734,9 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 	int curmsg;
 	char urgent_str[7] = "";
 	char tmptxtfile[PATH_MAX];
-
+#ifndef IMAP_STORAGE
+	char msgfile[PATH_MAX], textfile[PATH_MAX], backup[PATH_MAX], backup_textfile[PATH_MAX];
+#endif
 	if (ast_test_flag((&globalflags), VM_FWDURGAUTO)) {
 		ast_copy_string(urgent_str, urgent ? "Urgent" : "", sizeof(urgent_str));
 	}
@@ -6933,6 +6945,20 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 #endif
 				res = ast_play_and_wait(chan, "vm-msgsaved");
 			}	
+#ifndef IMAP_STORAGE
+			/* Restore original message without prepended message if backup exists */
+			make_file(msgfile, sizeof(msgfile), dir, curmsg);
+			strcpy(textfile, msgfile);
+			strcpy(backup, msgfile);
+			strcpy(backup_textfile, msgfile);
+			strncat(textfile, ".txt", sizeof(textfile) - strlen(textfile) - 1);
+			strncat(backup, "-bak", sizeof(backup) - strlen(backup) - 1);
+			strncat(backup_textfile, "-bak.txt", sizeof(backup_textfile) - strlen(backup_textfile) - 1);
+			if (ast_fileexists(backup, NULL, NULL) > 0) {
+				ast_filerename(backup, msgfile, NULL);
+				rename(backup_textfile, textfile);
+			}
+#endif
 		}
 		DISPOSE(dir, curmsg);
 	}
