@@ -967,22 +967,55 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		return FEATURE_RETURN_SUCCESS;
 	}
 
-	if (check_compat(transferer, newchan)) {
-		/* we do mean transferee here, NOT transferer */
-		finishup(transferee);
-		return -1;
-	}
-	memset(&bconfig,0,sizeof(struct ast_bridge_config));
-	ast_set_flag(&(bconfig.features_caller), AST_FEATURE_DISCONNECT);
-	ast_set_flag(&(bconfig.features_callee), AST_FEATURE_DISCONNECT);
-	res = ast_bridge_call(transferer, newchan, &bconfig);
-	if (newchan->_softhangup || !transferer->_softhangup) {
-		ast_hangup(newchan);
-		if (ast_stream_and_wait(transferer, xfersound, transferer->language, ""))
-			ast_log(LOG_WARNING, "Failed to play transfer sound!\n");
-		finishup(transferee);
-		transferer->_softhangup = 0;
-		return FEATURE_RETURN_SUCCESS;
+	if (!ast_check_hangup(transferer)) {
+		if (check_compat(transferer, newchan)) {
+			/* we do mean transferee here, NOT transferer */
+			finishup(transferee);
+			return -1;
+		}
+		memset(&bconfig,0,sizeof(struct ast_bridge_config));
+		ast_set_flag(&(bconfig.features_caller), AST_FEATURE_DISCONNECT);
+		ast_set_flag(&(bconfig.features_callee), AST_FEATURE_DISCONNECT);
+		res = ast_bridge_call(transferer, newchan, &bconfig);
+		if (newchan->_softhangup || !transferer->_softhangup) {
+			ast_hangup(newchan);
+			if (ast_stream_and_wait(transferer, xfersound, transferer->language, ""))
+				ast_log(LOG_WARNING, "Failed to play transfer sound!\n");
+			finishup(transferee);
+			transferer->_softhangup = 0;
+			return FEATURE_RETURN_SUCCESS;
+		}
+	} else {
+		ast_log(LOG_DEBUG, "transferer hangup; outstate = %d\n", outstate);
+		switch (outstate) {
+		case AST_CONTROL_RINGING:
+		{
+			int connected = 0;
+			while (!connected && (ast_waitfor(newchan, -1) >= 0)) {
+				if ((f = ast_read(newchan)) == NULL) {
+					break;
+				}
+				if (f->frametype == AST_FRAME_CONTROL && f->subclass == AST_CONTROL_ANSWER) {
+					connected = 1;
+				}
+				ast_frfree(f);
+			}
+			if (!connected) {
+				ast_hangup(newchan);
+				finishup(transferee);
+				return -1;
+			}
+			/* fall through */
+		}
+		case AST_CONTROL_ANSWER:
+			ast_log(LOG_DEBUG, "transferer hangup; callee answered\n");
+			break;
+
+		default:
+			ast_hangup(newchan);
+			finishup(transferee);
+			return FEATURE_RETURN_SUCCESS;
+		}
 	}
 
 	if (check_compat(transferee, newchan)) {
