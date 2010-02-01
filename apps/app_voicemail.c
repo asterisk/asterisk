@@ -5508,15 +5508,17 @@ leave_vm_out:
 		struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE };
 		struct ast_config *msg_cfg;
 		const char *duration_str;
-		char msgfile[PATH_MAX], backup[PATH_MAX];
+		char msgfile[PATH_MAX], backup[PATH_MAX], backup_textfile[PATH_MAX];
 		char textfile[PATH_MAX];
 
 		/* Must always populate duration correctly */
 		make_file(msgfile, sizeof(msgfile), curdir, curmsg);
 		strcpy(textfile, msgfile);
 		strcpy(backup, msgfile);
+		strcpy(backup_textfile, msgfile);
 		strncat(textfile, ".txt", sizeof(textfile) - strlen(textfile) - 1);
 		strncat(backup, "-bak", sizeof(backup) - strlen(backup) - 1);
+		strncat(backup_textfile, "-bak.txt", sizeof(backup_textfile) - strlen(backup_textfile) - 1);
 
 		if ((msg_cfg = ast_config_load(textfile, config_flags)) && (duration_str = ast_variable_retrieve(msg_cfg, "message", "duration"))) {
 			*duration = atoi(duration_str);
@@ -5539,10 +5541,13 @@ leave_vm_out:
 				}
 
 				/* Back up the original file, so we can retry the prepend */
-				if (already_recorded)
+				if (already_recorded) {
 					ast_filecopy(backup, msgfile, NULL);
-				else
+					copy(backup_textfile, textfile);
+				} else {
 					ast_filecopy(msgfile, backup, NULL);
+					copy(textfile,backup_textfile);
+				}
 				already_recorded = 1;
 
 				if (record_gain)
@@ -5590,10 +5595,12 @@ leave_vm_out:
 
 		if (msg_cfg)
 			ast_config_destroy(msg_cfg);
-		if (already_recorded)
-			ast_filedelete(backup, NULL);
 		if (prepend_duration)
 			*duration = prepend_duration;
+		if (already_recorded) {
+			ast_filerename(backup, msgfile, NULL);
+			rename(backup_textfile, textfile);
+		}
 
 		if (cmd == 't' || cmd == 'S')
 			cmd = 0;
@@ -5691,6 +5698,8 @@ leave_vm_out:
 #ifdef IMAP_STORAGE
 		int todircount = 0;
 		struct vm_state *dstvms;
+#else
+		char textfile[PATH_MAX], backup[PATH_MAX], backup_textfile[PATH_MAX];
 #endif
 		char username[70] = "";
 		char fn[PATH_MAX]; /* for playback of name greeting */
@@ -5911,7 +5920,21 @@ leave_vm_out:
 					if (!res)
 						res = ast_play_and_wait(chan, "vm-saved"); */
 					res = ast_play_and_wait(chan, "vm-msgsaved");
-				}	
+				}
+#ifndef IMAP_STORAGE
+				/* Restore original message without prepended message if backup exists */
+				make_file(msgfile, sizeof(msgfile), dir, curmsg);
+				strcpy(textfile, msgfile);
+				strcpy(backup, msgfile);
+				strcpy(backup_textfile, msgfile);
+				strncat(textfile, ".txt", sizeof(textfile) - strlen(textfile) - 1);
+				strncat(backup, "-bak", sizeof(backup) - strlen(backup) - 1);
+				strncat(backup_textfile, "-bak.txt", sizeof(backup_textfile) - strlen(backup_textfile) - 1);
+				if (ast_fileexists(backup, NULL, NULL) > 0) {
+					ast_filerename(backup, msgfile, NULL);
+					rename(backup_textfile, textfile);
+				}
+#endif
 			}
 			/* Remove surrogate file */
 			DISPOSE(dir, curmsg);
