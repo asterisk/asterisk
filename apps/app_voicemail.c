@@ -34,7 +34,7 @@
  ***/
 
 /*** MAKEOPTS
-<category name="MENUSELECT_OPTS_app_voicemail" displayname="Voicemail Build Options" positive_output="yes" remove_on_change="apps/app_voicemail.o apps/app_directory.o">
+<category name="MENUSELECT_OPTS_app_voicemail" displayname="Voicemail Build Options" positive_output="yes" remove_on_change="apps/app_voicemail.o apps/app_voicemail.so apps/app_directory.o apps/app_directory.so">
 	<member name="ODBC_STORAGE" displayname="Storage of Voicemail using ODBC">
 		<depend>unixodbc</depend>
 		<depend>ltdl</depend>
@@ -5064,15 +5064,17 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 	signed char zero_gain = 0;
 	struct ast_config *msg_cfg;
 	const char *duration_str;
-	char msgfile[PATH_MAX], backup[PATH_MAX];
+	char msgfile[PATH_MAX], backup[PATH_MAX], backup_textfile[PATH_MAX];
 	char textfile[PATH_MAX];
 
 	/* Must always populate duration correctly */
 	make_file(msgfile, sizeof(msgfile), curdir, curmsg);
 	strcpy(textfile, msgfile);
 	strcpy(backup, msgfile);
+	strcpy(backup_textfile, msgfile);
 	strncat(textfile, ".txt", sizeof(textfile) - strlen(textfile) - 1);
 	strncat(backup, "-bak", sizeof(backup) - strlen(backup) - 1);
+	strncat(backup_textfile, "-bak.txt", sizeof(backup_textfile) - strlen(backup_textfile) - 1);
 
 	if (!(msg_cfg = ast_config_load(textfile))) {
 		return -1;
@@ -5098,10 +5100,13 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 			}
 
 			/* Back up the original file, so we can retry the prepend */
-			if (already_recorded)
+			if (already_recorded) {
 				ast_filecopy(backup, msgfile, NULL);
-			else
+				copy(backup_textfile, textfile);
+			} else {
 				ast_filecopy(msgfile, backup, NULL);
+				copy(textfile, backup_textfile);
+			}
 			already_recorded = 1;
 
 			if (record_gain)
@@ -5148,8 +5153,11 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 	}
 
 	ast_config_destroy(msg_cfg);
-	if (already_recorded)
-		ast_filedelete(backup, NULL);
+	if (already_recorded) {
+		/* Restore original files */
+		ast_filerename(backup, msgfile, NULL);
+		rename(backup_textfile, textfile);
+	}
 	if (prepend_duration)
 		*duration = prepend_duration;
 
@@ -5223,6 +5231,8 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 #ifdef IMAP_STORAGE
 	int todircount=0;
 	struct vm_state *dstvms;
+#else
+	char textfile[PATH_MAX], backup[PATH_MAX], backup_textfile[PATH_MAX];
 #endif
 	char username[70]="";
 	int res = 0, cmd = 0;
@@ -5428,6 +5438,20 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 					res = ast_play_and_wait(chan, "vm-saved"); */
 				res = ast_play_and_wait(chan, "vm-msgsaved");
 			}	
+#ifndef IMAP_STORAGE
+			/* Restore original message without prepended message if backup exists */
+			make_file(msgfile, sizeof(msgfile), dir, curmsg);
+			strcpy(textfile, msgfile);
+			strcpy(backup, msgfile);
+			strcpy(backup_textfile, msgfile);
+			strncat(textfile, ".txt", sizeof(textfile) - strlen(textfile) - 1);
+			strncat(backup, "-bak", sizeof(backup) - strlen(backup) - 1);
+			strncat(backup_textfile, "-bak.txt", sizeof(backup_textfile) - strlen(backup_textfile) - 1);
+			if (ast_fileexists(backup, NULL, NULL) > 0) {
+				ast_filerename(backup, msgfile, NULL);
+				rename(backup_textfile, textfile);
+			}
+#endif
 		}
 
 		/* Remove surrogate file */
