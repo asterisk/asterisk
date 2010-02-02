@@ -1,3 +1,13 @@
+2010-02-02  Leif Madsen <lmadsen@digium.com>
+
+	* Release Asterisk 1.6.0.22
+
+	* AST-2010-001: An attacker attempting to negotiate T.38 over SIP can 
+	  remotely crash Asterisk by modifying the FaxMaxDatagram field of 
+	  the SDP to contain either a negative or exceptionally large value.
+	  The same crash occurs when the FaxMaxDatagram field is omitted from 
+	  the SDP as well.
+
 2010-01-14  Leif Madsen <lmadsen@digium.com>
 
 	* Release Asterisk 1.6.0.21
