@@ -108,12 +108,28 @@ void ast_udptl_set_error_correction_scheme(struct ast_udptl *udptl, enum ast_t38
 
 void ast_udptl_set_local_max_ifp(struct ast_udptl *udptl, unsigned int max_ifp);
 
+/*! 
+ * \brief retrieves local_max_datagram.
+ * 
+ * \retval positive value representing max datagram size.
+ * \retval 0 if no value is present
+ */
 unsigned int ast_udptl_get_local_max_datagram(struct ast_udptl *udptl);
 
+/*! 
+ * \brief sets far max datagram size.  If max_datagram is = 0, the far max datagram
+ *  size is set to a default value.
+ */
 void ast_udptl_set_far_max_datagram(struct ast_udptl *udptl, unsigned int max_datagram);
 
 unsigned int ast_udptl_get_far_max_datagram(const struct ast_udptl *udptl);
 
+/*! 
+ * \brief retrieves far max ifp
+ * 
+ * \retval positive value representing max ifp size
+ * \retval 0 if no value is present
+ */
 unsigned int ast_udptl_get_far_max_ifp(struct ast_udptl *udptl);
 
 void ast_udptl_setnat(struct ast_udptl *udptl, int nat);

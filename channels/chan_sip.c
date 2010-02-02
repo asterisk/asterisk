@@ -3508,7 +3508,7 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 	p->packets = pkt;	/* Add it to the queue */
 	if (resp) {
 		/* Parse out the response code */
-		if (sscanf(ast_str_buffer(pkt->data), "SIP/2.0 %30d", &respid) == 1) {
+		if (sscanf(ast_str_buffer(pkt->data), "SIP/2.0 %30u", &respid) == 1) {
 			pkt->response_code = respid;
 		}
 	}
@@ -4657,20 +4657,30 @@ static void change_t38_state(struct sip_pvt *p, int state)
 		return;
 
 	/* Given the state requested and old state determine what control frame we want to queue up */
-	if (state == T38_PEER_REINVITE) {
+	switch (state) {
+	case T38_PEER_REINVITE:
 		parameters = p->t38.their_parms;
 		parameters.max_ifp = ast_udptl_get_far_max_ifp(p->udptl);
 		parameters.request_response = AST_T38_REQUEST_NEGOTIATE;
 		ast_udptl_set_tag(p->udptl, "SIP/%s", p->username);
-	} else if (state == T38_ENABLED) {
+		break;
+	case T38_ENABLED:
 		parameters = p->t38.their_parms;
 		parameters.max_ifp = ast_udptl_get_far_max_ifp(p->udptl);
 		parameters.request_response = AST_T38_NEGOTIATED;
 		ast_udptl_set_tag(p->udptl, "SIP/%s", p->username);
-	} else if (state == T38_DISABLED && old == T38_ENABLED)
-		parameters.request_response = AST_T38_TERMINATED;
-	else if (state == T38_DISABLED && old == T38_LOCAL_REINVITE)
-		parameters.request_response = AST_T38_REFUSED;
+		break;
+	case T38_DISABLED:
+		if (old == T38_ENABLED) {
+			parameters.request_response = AST_T38_TERMINATED;
+		} else if (old == T38_LOCAL_REINVITE) {
+			parameters.request_response = AST_T38_REFUSED;
+		}
+		break;
+	case T38_LOCAL_REINVITE:
+		/* wait until we get a peer response before responding to local reinvite */
+		break;
+	}
 
 	/* Woot we got a message, create a control frame and send it on! */
 	if (parameters.request_response)
@@ -6009,10 +6019,21 @@ static int sip_transfer(struct ast_channel *ast, const char *dest)
 /*! \brief Helper function which updates T.38 capability information and triggers a reinvite */
 static void interpret_t38_parameters(struct sip_pvt *p, const struct ast_control_t38_parameters *parameters)
 {
+	if (!ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT)) {
+		return;
+	}
 	switch (parameters->request_response) {
 	case AST_T38_NEGOTIATED:
 	case AST_T38_REQUEST_NEGOTIATE:         /* Request T38 */
-		if (p->t38.state == T38_PEER_REINVITE) {
+		/* Negotiation can not take place without a valid max_ifp value. */
+		if (!parameters->max_ifp) {
+				change_t38_state(p, T38_DISABLED);
+				if (p->t38.state == T38_PEER_REINVITE) {
+					AST_SCHED_DEL_UNREF(sched, p->t38id, dialog_unref(p, "when you delete the t38id sched, you should dec the refcount for the stored dialog ptr"));
+					transmit_response_reliable(p, "488 Not acceptable here", &p->initreq);
+				}
+				break;
+		} else if (p->t38.state == T38_PEER_REINVITE) {
 			AST_SCHED_DEL_UNREF(sched, p->t38id, dialog_unref(p, "when you delete the t38id sched, you should dec the refcount for the stored dialog ptr"));
 			p->t38.our_parms = *parameters;
 			/* modify our parameters to conform to the peer's parameters,
@@ -6032,7 +6053,7 @@ static void interpret_t38_parameters(struct sip_pvt *p, const struct ast_control
 			ast_udptl_set_local_max_ifp(p->udptl, p->t38.our_parms.max_ifp);
 			change_t38_state(p, T38_ENABLED);
 			transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL);
-		} else if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) && p->t38.state != T38_ENABLED) {
+		} else if (p->t38.state != T38_ENABLED) {
 			p->t38.our_parms = *parameters;
 			ast_udptl_set_local_max_ifp(p->udptl, p->t38.our_parms.max_ifp);
 			change_t38_state(p, T38_LOCAL_REINVITE);
@@ -7394,10 +7415,10 @@ static int get_ip_and_port_from_sdp(struct sip_request *req, const enum media_ty
 	}
 	/* We only want the m and c lines for audio */
 	for (m = get_sdp_iterate(&miterator, req, "m"); !ast_strlen_zero(m); m = get_sdp_iterate(&miterator, req, "m")) {
-		if ((media == SDP_AUDIO && ((sscanf(m, "audio %30d/%30d RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
-		    (sscanf(m, "audio %30d RTP/AVP %n", &x, &len) == 1 && len > 0))) ||
-			(media == SDP_VIDEO && ((sscanf(m, "video %30d/%30d RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
-		    (sscanf(m, "video %30d RTP/AVP %n", &x, &len) == 1 && len > 0)))) {
+		if ((media == SDP_AUDIO && ((sscanf(m, "audio %30u/%30u RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
+		    (sscanf(m, "audio %30u RTP/AVP %n", &x, &len) == 1 && len > 0))) ||
+			(media == SDP_VIDEO && ((sscanf(m, "video %30u/%30u RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
+		    (sscanf(m, "video %30u RTP/AVP %n", &x, &len) == 1 && len > 0)))) {
 			/* See if there's a c= line for this media stream.
 			 * XXX There is no guarantee that we'll be grabbing the c= line for this
 			 * particular media stream here. However, this is the same logic used in process_sdp.
@@ -7607,8 +7628,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		nextm = get_sdp_iterate(&next, req, "m");
 
 		/* Search for audio media definition */
-		if ((sscanf(m, "audio %30d/%30d RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
-		    (sscanf(m, "audio %30d RTP/AVP %n", &x, &len) == 1 && len > 0)) {
+		if ((sscanf(m, "audio %30u/%30u RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
+		    (sscanf(m, "audio %30u RTP/AVP %n", &x, &len) == 1 && len > 0)) {
 			audio = TRUE;
 			p->offered_media[SDP_AUDIO].offered = TRUE;
 			numberofmediastreams++;
@@ -7618,7 +7639,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			codecs = m + len;
 			ast_copy_string(p->offered_media[SDP_AUDIO].text, codecs, sizeof(p->offered_media[SDP_AUDIO].text));
 			for (; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
-				if (sscanf(codecs, "%30d%n", &codec, &len) != 1) {
+				if (sscanf(codecs, "%30u%n", &codec, &len) != 1) {
 					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
 					return -1;
 				}
@@ -7628,8 +7649,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				ast_rtp_set_m_type(newaudiortp, codec);
 			}
 		/* Search for video media definition */
-		} else if ((sscanf(m, "video %30d/%30d RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
-			   (sscanf(m, "video %30d RTP/AVP %n", &x, &len) == 1 && len >= 0)) {
+		} else if ((sscanf(m, "video %30u/%30u RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
+			   (sscanf(m, "video %30u RTP/AVP %n", &x, &len) == 1 && len >= 0)) {
 			video = TRUE;
 			p->novideo = FALSE;
 			p->offered_media[SDP_VIDEO].offered = TRUE;
@@ -7640,7 +7661,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			codecs = m + len;
 			ast_copy_string(p->offered_media[SDP_VIDEO].text, codecs, sizeof(p->offered_media[SDP_VIDEO].text));
 			for (; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
-				if (sscanf(codecs, "%30d%n", &codec, &len) != 1) {
+				if (sscanf(codecs, "%30u%n", &codec, &len) != 1) {
 					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
 					return -1;
 				}
@@ -7649,8 +7670,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				ast_rtp_set_m_type(newvideortp, codec);
 			}
 		/* Search for text media definition */
-		} else if ((sscanf(m, "text %30d/%30d RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
-			   (sscanf(m, "text %30d RTP/AVP %n", &x, &len) == 1 && len > 0)) {
+		} else if ((sscanf(m, "text %30u/%30u RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
+			   (sscanf(m, "text %30u RTP/AVP %n", &x, &len) == 1 && len > 0)) {
 			text = TRUE;
 			p->notext = FALSE;
 			p->offered_media[SDP_TEXT].offered = TRUE;
@@ -7661,7 +7682,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			codecs = m + len;
 			ast_copy_string(p->offered_media[SDP_TEXT].text, codecs, sizeof(p->offered_media[SDP_TEXT].text));
 			for (; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
-				if (sscanf(codecs, "%30d%n", &codec, &len) != 1) {
+				if (sscanf(codecs, "%30u%n", &codec, &len) != 1) {
 					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
 					return -1;
 				}
@@ -7670,8 +7691,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				ast_rtp_set_m_type(newtextrtp, codec);
 			}
 		/* Search for image media definition */
-		} else if (p->udptl && ((sscanf(m, "image %30d udptl t38%n", &x, &len) == 1 && len > 0) ||
-					(sscanf(m, "image %30d UDPTL t38%n", &x, &len) == 1 && len > 0) )) {
+		} else if (p->udptl && ((sscanf(m, "image %30u udptl t38%n", &x, &len) == 1 && len > 0) ||
+					(sscanf(m, "image %30u UDPTL t38%n", &x, &len) == 1 && len > 0) )) {
 			image = TRUE;
 			if (debug)
 				ast_verbose("Got T.38 offer in SDP in dialog %s\n", p->callid);
@@ -7907,6 +7928,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			ast_udptl_set_peer(p->udptl, &isin);
 			if (debug)
 				ast_debug(1,"Peer T.38 UDPTL is at port %s:%d\n", ast_inet_ntoa(isin.sin_addr), ntohs(isin.sin_port));
+
+			/* verify the far max ifp can be calculated. this requires far max datagram to be set. */
+			if (!ast_udptl_get_far_max_datagram(p->udptl)) {
+				/* setting to zero will force a default if none was provided by the SDP */
+				ast_udptl_set_far_max_datagram(p->udptl, 0);
+			}
 
 			/* Remote party offers T38, we need to update state */
 			if ((t38action == SDP_T38_ACCEPT) &&
@@ -8257,12 +8284,12 @@ static int process_sdp_a_image(const char *a, struct sip_pvt *p)
 {
 	int found = FALSE;
 	char s[256];
-	int x;
+	unsigned int x;
 
-	if ((sscanf(a, "T38FaxMaxBuffer:%30d", &x) == 1)) {
+	if ((sscanf(a, "T38FaxMaxBuffer:%30u", &x) == 1)) {
 		ast_debug(3, "MaxBufferSize:%d\n", x);
 		found = TRUE;
-	} else if ((sscanf(a, "T38MaxBitRate:%30d", &x) == 1) || (sscanf(a, "T38FaxMaxRate:%30d", &x) == 1)) {
+	} else if ((sscanf(a, "T38MaxBitRate:%30u", &x) == 1) || (sscanf(a, "T38FaxMaxRate:%30u", &x) == 1)) {
 		ast_debug(3, "T38MaxBitRate: %d\n", x);
 		switch (x) {
 		case 14400:
@@ -8285,21 +8312,21 @@ static int process_sdp_a_image(const char *a, struct sip_pvt *p)
 			break;
 		}
 		found = TRUE;
-	} else if ((sscanf(a, "T38FaxVersion:%30d", &x) == 1)) {
-		ast_debug(3, "FaxVersion: %d\n", x);
+	} else if ((sscanf(a, "T38FaxVersion:%30u", &x) == 1)) {
+		ast_debug(3, "FaxVersion: %u\n", x);
 		p->t38.their_parms.version = x;
 		found = TRUE;
-	} else if ((sscanf(a, "T38FaxMaxDatagram:%30d", &x) == 1) || (sscanf(a, "T38MaxDatagram:%30d", &x) == 1)) {
+	} else if ((sscanf(a, "T38FaxMaxDatagram:%30u", &x) == 1) || (sscanf(a, "T38MaxDatagram:%30u", &x) == 1)) {
 		/* override the supplied value if the configuration requests it */
 		if (p->t38_maxdatagram > x) {
 			ast_debug(1, "Overriding T38FaxMaxDatagram '%d' with '%d'\n", x, p->t38_maxdatagram);
 			x = p->t38_maxdatagram;
 		}
-		ast_debug(3, "FaxMaxDatagram: %d\n", x);
+		ast_debug(3, "FaxMaxDatagram: %u\n", x);
 		ast_udptl_set_far_max_datagram(p->udptl, x);
 		found = TRUE;
 	} else if ((strncmp(a, "T38FaxFillBitRemoval", 20) == 0)) {
-		if (sscanf(a, "T38FaxFillBitRemoval:%30d", &x) == 1) {
+		if (sscanf(a, "T38FaxFillBitRemoval:%30u", &x) == 1) {
 			ast_debug(3, "FillBitRemoval: %d\n", x);
 			if (x == 1) {
 				p->t38.their_parms.fill_bit_removal = TRUE;
@@ -8310,7 +8337,7 @@ static int process_sdp_a_image(const char *a, struct sip_pvt *p)
 		}
 		found = TRUE;
 	} else if ((strncmp(a, "T38FaxTranscodingMMR", 20) == 0)) {
-		if (sscanf(a, "T38FaxTranscodingMMR:%30d", &x) == 1) {
+		if (sscanf(a, "T38FaxTranscodingMMR:%30u", &x) == 1) {
 			ast_debug(3, "Transcoding MMR: %d\n", x);
 			if (x == 1) {
 				p->t38.their_parms.transcoding_mmr = TRUE;
@@ -8321,7 +8348,7 @@ static int process_sdp_a_image(const char *a, struct sip_pvt *p)
 		}
 		found = TRUE;
 	} else if ((strncmp(a, "T38FaxTranscodingJBIG", 21) == 0)) {
-		if (sscanf(a, "T38FaxTranscodingJBIG:%30d", &x) == 1) {
+		if (sscanf(a, "T38FaxTranscodingJBIG:%30u", &x) == 1) {
 			ast_debug(3, "Transcoding JBIG: %d\n", x);
 			if (x == 1) {
 				p->t38.their_parms.transcoding_jbig = TRUE;
@@ -9622,7 +9649,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 			ast_str_append(&a_modem, 0, "a=T38FaxRateManagement:localTCF\r\n");
 			break;
 		}
-		ast_str_append(&a_modem, 0, "a=T38FaxMaxDatagram:%d\r\n", ast_udptl_get_local_max_datagram(p->udptl));
+		ast_str_append(&a_modem, 0, "a=T38FaxMaxDatagram:%u\r\n", ast_udptl_get_local_max_datagram(p->udptl));
 		switch (ast_udptl_get_error_correction_scheme(p->udptl)) {
 		case UDPTL_ERROR_CORRECTION_NONE:
 			break;
@@ -22265,7 +22292,7 @@ static int handle_t38_options(struct ast_flags *flags, struct ast_flags *mask, s
 				ast_clear_flag(&flags[1], SIP_PAGE2_T38SUPPORT);
 				ast_set_flag(&flags[1], SIP_PAGE2_T38SUPPORT_UDPTL);
 			} else if (!strncasecmp(word, "maxdatagram=", 12)) {
-				if (sscanf(&word[12], "%30d", maxdatagram) != 1) {
+				if (sscanf(&word[12], "%30u", maxdatagram) != 1) {
 					ast_log(LOG_WARNING, "Invalid maxdatagram '%s' at line %d of %s\n", v->value, v->lineno, config);
 					*maxdatagram = global_t38_maxdatagram;
 				}
