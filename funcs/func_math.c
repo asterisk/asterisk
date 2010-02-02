@@ -114,47 +114,47 @@ static int math(struct ast_channel *chan, const char *cmd, char *parse,
 		*op = '\0';
 	} else if ((op = strstr(mvalue1, "AND"))) {
 		iaction = BITWISEANDFUNCTION;
-		op += 3;
 		*op = '\0';
+		op += 2;
 	} else if ((op = strstr(mvalue1, "XOR"))) {
 		iaction = BITWISEXORFUNCTION;
-		op += 3;
 		*op = '\0';
+		op += 2;
 	} else if ((op = strstr(mvalue1, "OR"))) {
 		iaction = BITWISEORFUNCTION;
-		op += 2;
 		*op = '\0';
+		++op;
 	} else if ((op = strchr(mvalue1, '>'))) {
 		iaction = GTFUNCTION;
 		*op = '\0';
 		if (*(op + 1) == '=') {
-			*++op = '\0';
 			iaction = GTEFUNCTION;
+			++op;
 		} else if (*(op + 1) == '>') {
-			*++op = '\0';
 			iaction = SHRIGHTFUNCTION;
+			++op;
 		}
 	} else if ((op = strchr(mvalue1, '<'))) {
 		iaction = LTFUNCTION;
 		*op = '\0';
 		if (*(op + 1) == '=') {
-			*++op = '\0';
 			iaction = LTEFUNCTION;
+			++op;
 		} else if (*(op + 1) == '<') {
-			*++op = '\0';
 			iaction = SHLEFTFUNCTION;
+			++op;
 		}
 	} else if ((op = strchr(mvalue1, '='))) {
 		*op = '\0';
 		if (*(op + 1) == '=') {
-			*++op = '\0';
 			iaction = EQFUNCTION;
+			++op;
 		} else
 			op = NULL;
 	} else if ((op = strchr(mvalue1, '+'))) {
 		iaction = ADDFUNCTION;
 		*op = '\0';
-	} else if ((op = strchr(mvalue1, '-'))) { /* subtraction MUST always be last, in case we have a negative first number */
+	} else if ((op = strchr(mvalue1, '-'))) { /* subtraction MUST always be last, in case we have a negative second number */
 		iaction = SUBTRACTFUNCTION;
 		*op = '\0';
 	}
