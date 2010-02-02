@@ -91,6 +91,8 @@ static int udptlfecspan;
 static int use_even_ports;
 
 #define LOCAL_FAX_MAX_DATAGRAM      1400
+#define DEFAULT_FAX_MAX_DATAGRAM    400
+#define FAX_MAX_DATAGRAM_LIMIT      1400
 #define MAX_FEC_ENTRIES             5
 #define MAX_FEC_SPAN                5
 
@@ -854,9 +856,13 @@ void ast_udptl_set_error_correction_scheme(struct ast_udptl *udptl, enum ast_t38
 
 void ast_udptl_set_local_max_ifp(struct ast_udptl *udptl, unsigned int max_ifp)
 {
-	udptl->local_max_ifp = max_ifp;
-	/* reset calculated values so they'll be computed again */
-	udptl->local_max_datagram = -1;
+	/* make sure max_ifp is a positive value since a cast will take place when
+	 * when setting local_max_ifp */
+	if ((signed int) max_ifp > 0) {
+		udptl->local_max_ifp = max_ifp;
+		/* reset calculated values so they'll be computed again */
+		udptl->local_max_datagram = -1;
+	}
 }
 
 unsigned int ast_udptl_get_local_max_datagram(struct ast_udptl *udptl)
@@ -864,18 +870,30 @@ unsigned int ast_udptl_get_local_max_datagram(struct ast_udptl *udptl)
 	if (udptl->local_max_datagram == -1) {
 		calculate_local_max_datagram(udptl);
 	}
+
+	/* this function expects a unsigned value in return. */
+	if (udptl->local_max_datagram < 0) {
+		return 0;
+	}
 	return udptl->local_max_datagram;
 }
 
 void ast_udptl_set_far_max_datagram(struct ast_udptl *udptl, unsigned int max_datagram)
 {
-	udptl->far_max_datagram = max_datagram;
+	if (!max_datagram || (max_datagram > FAX_MAX_DATAGRAM_LIMIT)) {
+		udptl->far_max_datagram = DEFAULT_FAX_MAX_DATAGRAM;
+	} else {
+		udptl->far_max_datagram = max_datagram;
+	}
 	/* reset calculated values so they'll be computed again */
 	udptl->far_max_ifp = -1;
 }
 
 unsigned int ast_udptl_get_far_max_datagram(const struct ast_udptl *udptl)
 {
+	if (udptl->far_max_datagram < 0) {
+		return 0;
+	}
 	return udptl->far_max_datagram;
 }
 
@@ -883,6 +901,10 @@ unsigned int ast_udptl_get_far_max_ifp(struct ast_udptl *udptl)
 {
 	if (udptl->far_max_ifp == -1) {
 		calculate_far_max_ifp(udptl);
+	}
+
+	if (udptl->far_max_ifp < 0) {
+		return 0;
 	}
 	return udptl->far_max_ifp;
 }
@@ -1033,7 +1055,11 @@ int ast_udptl_write(struct ast_udptl *s, struct ast_frame *f)
 	unsigned int seq;
 	unsigned int len = f->datalen;
 	int res;
-	uint8_t buf[s->far_max_datagram];
+	/* if no max datagram size is provided, use default value */
+	const int bufsize = (s->far_max_datagram > 0) ? s->far_max_datagram : DEFAULT_FAX_MAX_DATAGRAM;
+	uint8_t buf[bufsize];
+
+	memset(buf, 0, sizeof(buf));
 
 	/* If we have no peer, return immediately */	
 	if (s->them.sin_addr.s_addr == INADDR_ANY)
