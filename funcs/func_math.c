@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 #include "asterisk/config.h"
+#include "asterisk/test.h"
 
 /*** DOCUMENTATION
 	<function name="MATH" language="en_US">
@@ -179,47 +180,47 @@ static int math(struct ast_channel *chan, const char *cmd, char *parse,
 		*op = '\0';
 	} else if ((op = strstr(mvalue1, "AND"))) {
 		iaction = BITWISEANDFUNCTION;
-		op += 3;
 		*op = '\0';
+		op += 2;
 	} else if ((op = strstr(mvalue1, "XOR"))) {
 		iaction = BITWISEXORFUNCTION;
-		op += 3;
 		*op = '\0';
+		op += 2;
 	} else if ((op = strstr(mvalue1, "OR"))) {
 		iaction = BITWISEORFUNCTION;
-		op += 2;
 		*op = '\0';
+		++op;
 	} else if ((op = strchr(mvalue1, '>'))) {
 		iaction = GTFUNCTION;
 		*op = '\0';
 		if (*(op + 1) == '=') {
-			*++op = '\0';
 			iaction = GTEFUNCTION;
+			++op;
 		} else if (*(op + 1) == '>') {
-			*++op = '\0';
 			iaction = SHRIGHTFUNCTION;
+			++op;
 		}
 	} else if ((op = strchr(mvalue1, '<'))) {
 		iaction = LTFUNCTION;
 		*op = '\0';
 		if (*(op + 1) == '=') {
-			*++op = '\0';
 			iaction = LTEFUNCTION;
+			++op;
 		} else if (*(op + 1) == '<') {
-			*++op = '\0';
 			iaction = SHLEFTFUNCTION;
+			++op;
 		}
 	} else if ((op = strchr(mvalue1, '='))) {
 		*op = '\0';
 		if (*(op + 1) == '=') {
-			*++op = '\0';
 			iaction = EQFUNCTION;
+			++op;
 		} else
 			op = NULL;
 	} else if ((op = strchr(mvalue1, '+'))) {
 		iaction = ADDFUNCTION;
 		*op = '\0';
-	} else if ((op = strchr(mvalue1, '-'))) { /* subtraction MUST always be last, in case we have a negative first number */
+	} else if ((op = strchr(mvalue1, '-'))) { /* subtraction MUST always be last, in case we have a negative second number */
 		iaction = SUBTRACTFUNCTION;
 		*op = '\0';
 	}
@@ -454,6 +455,55 @@ static struct ast_custom_function decrement_function = {
 	.read = crement_function_read,
 };
 
+#ifdef TEST_FRAMEWORK
+AST_TEST_DEFINE(test_MATH_function)
+{
+	enum ast_test_result_state res = AST_TEST_PASS;
+	struct ast_str *expr, *result;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "test_MATH_function";
+		info->category = "main/pbx/";
+		info->summary = "Test MATH function substitution";
+		info->description =
+			"Executes a series of variable substitutions using the MATH function and ensures that the expected results are received.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	ast_test_status_update(&args->status_update, "Testing MATH() substitution ...\n");
+	ast_str_reset(args->ast_test_error_str);
+
+	if (!(expr = ast_str_create(16)) || !(result = ast_str_create(16))) {
+		if (expr) {
+			ast_free(expr);
+		}
+		if (result) {
+			ast_free(result);
+		}
+		return AST_TEST_FAIL;
+	}
+
+	ast_str_set(&expr, 0, "${MATH(170 AND 63,i)}");
+	ast_str_substitute_variables(&result, 0, NULL, ast_str_buffer(expr));
+	if (strcmp(ast_str_buffer(result), "42") != 0) {
+		ast_str_append(&args->ast_test_error_str, 0, "Expected result '42' not returned! ('%s')\n", ast_str_buffer(result));
+		res = AST_TEST_FAIL;
+	}
+
+	ast_str_set(&expr, 0, "${MATH(170AND63,i)}");
+	ast_str_substitute_variables(&result, 0, NULL, ast_str_buffer(expr));
+	if (strcmp(ast_str_buffer(result), "42") != 0) {
+		ast_str_append(&args->ast_test_error_str, 0, "Expected result '42' not returned! ('%s')\n", ast_str_buffer(result));
+		res = AST_TEST_FAIL;
+	}
+
+	return res;
+}
+#endif
+
 static int unload_module(void)
 {
 	int res = 0;
@@ -461,6 +511,7 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&math_function);
 	res |= ast_custom_function_unregister(&increment_function);
 	res |= ast_custom_function_unregister(&decrement_function);
+	AST_TEST_UNREGISTER(test_MATH_function);
 
 	return res;
 }
@@ -472,6 +523,7 @@ static int load_module(void)
 	res |= ast_custom_function_register(&math_function);
 	res |= ast_custom_function_register(&increment_function);
 	res |= ast_custom_function_register(&decrement_function);
+	AST_TEST_REGISTER(test_MATH_function);
 
 	return res;
 }
