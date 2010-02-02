@@ -131,6 +131,8 @@ Applications
    argument is provided, the 'f' option works as it always has. If an argument is
    provided, then the connected party information of all outgoing channels created
    during the Dial will be set to the argument passed to the 'f' option.
+ * Dial now inherits the GOSUB_RETVAL from the peer, when the U() option runs a
+   Gosub on the peer.
 
 Dialplan Functions
 ------------------

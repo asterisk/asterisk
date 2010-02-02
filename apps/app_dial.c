@@ -2319,27 +2319,33 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 
 			if (!res9 && (gosub_result = pbx_builtin_getvar_helper(peer, "GOSUB_RESULT"))) {
 				char *gosub_transfer_dest;
+				const char *gosub_retval = pbx_builtin_getvar_helper(peer, "GOSUB_RETVAL");
+
+				/* Inherit return value from the peer, so it can be used in the master */
+				if (gosub_retval) {
+					pbx_builtin_setvar_helper(chan, "GOSUB_RETVAL", gosub_retval);
+				}
 
 				if (!strcasecmp(gosub_result, "BUSY")) {
 					ast_copy_string(pa.status, gosub_result, sizeof(pa.status));
 					ast_set_flag64(peerflags, OPT_GO_ON);
-					res9 = -1;
+					res = -1;
 				} else if (!strcasecmp(gosub_result, "CONGESTION") || !strcasecmp(gosub_result, "CHANUNAVAIL")) {
 					ast_copy_string(pa.status, gosub_result, sizeof(pa.status));
 					ast_set_flag64(peerflags, OPT_GO_ON);
-					res9 = -1;
+					res = -1;
 				} else if (!strcasecmp(gosub_result, "CONTINUE")) {
 					/* hangup peer and keep chan alive assuming the macro has changed
 					   the context / exten / priority or perhaps
 					   the next priority in the current exten is desired.
 					*/
 					ast_set_flag64(peerflags, OPT_GO_ON);
-					res9 = -1;
+					res = -1;
 				} else if (!strcasecmp(gosub_result, "ABORT")) {
 					/* Hangup both ends unless the caller has the g flag */
-					res9 = -1;
+					res = -1;
 				} else if (!strncasecmp(gosub_result, "GOTO:", 5) && (gosub_transfer_dest = ast_strdupa(gosub_result + 5))) {
-					res9 = -1;
+					res = -1;
 					/* perform a transfer to a new extension */
 					if (strchr(gosub_transfer_dest, '^')) { /* context^exten^priority*/
 						replace_macro_delimiter(gosub_transfer_dest);
