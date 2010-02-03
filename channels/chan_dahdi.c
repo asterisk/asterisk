@@ -10517,7 +10517,13 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		tmp->callgroup = conf->chan.callgroup;
 		tmp->pickupgroup= conf->chan.pickupgroup;
 		if (conf->chan.vars) {
-			tmp->vars = ast_variable_new(conf->chan.vars->name, conf->chan.vars->value, "");
+			struct ast_variable *v, *tmpvar;
+	                for (v = conf->chan.vars ; v ; v = v->next) {
+        	                if ((tmpvar = ast_variable_new(v->name, v->value, v->file))) {
+                	                tmpvar->next = tmp->vars;
+                        	        tmp->vars = tmpvar;
+                        	}
+                	}
 		}
 		tmp->cid_rxgain = conf->chan.cid_rxgain;
 		tmp->rxgain = conf->chan.rxgain;
