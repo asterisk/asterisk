@@ -3865,7 +3865,39 @@ static struct ast_parkinglot *build_parkinglot(char *name, struct ast_variable *
 			}
 		} else if (!strcasecmp(confvar->name, "findslot")) {
 			parkinglot->parkfindnext = (!strcasecmp(confvar->value, "next"));
-		}
+		} else if (!strcasecmp(confvar->name, "parkedcalltransfers")) {
+                        ast_log(LOG_DEBUG, "Setting parking lot %s %s to %s\n", name, confvar->name, confvar->value);
+                        if (!strcasecmp(confvar->value, "both"))
+                                parkinglot->parkedcalltransfers = AST_FEATURE_FLAG_BYBOTH;
+                        else if (!strcasecmp(confvar->value, "caller"))
+                                parkinglot->parkedcalltransfers = AST_FEATURE_FLAG_BYCALLER;
+                        else if (!strcasecmp(confvar->value, "callee"))
+                                parkinglot->parkedcalltransfers = AST_FEATURE_FLAG_BYCALLEE;
+                } else if (!strcasecmp(confvar->name, "parkedcallreparking")) {
+                        ast_log(LOG_DEBUG, "Setting parking lot %s %s to %s\n", name, confvar->name, confvar->value);
+                        if (!strcasecmp(confvar->value, "both"))
+                                parkinglot->parkedcallreparking = AST_FEATURE_FLAG_BYBOTH;
+                        else if (!strcasecmp(confvar->value, "caller"))
+                                parkinglot->parkedcallreparking = AST_FEATURE_FLAG_BYCALLER;
+                        else if (!strcasecmp(confvar->value, "callee"))
+                                parkinglot->parkedcallreparking = AST_FEATURE_FLAG_BYCALLEE;
+                } else if (!strcasecmp(confvar->name, "parkedcallhangup")) {
+                        ast_log(LOG_DEBUG, "Setting parking lot %s %s to %s\n", name, confvar->name, confvar->value);
+                        if (!strcasecmp(confvar->value, "both"))
+                                parkinglot->parkedcallhangup = AST_FEATURE_FLAG_BYBOTH;
+                        else if (!strcasecmp(confvar->value, "caller"))
+                                parkinglot->parkedcallhangup = AST_FEATURE_FLAG_BYCALLER;
+                        else if (!strcasecmp(confvar->value, "callee"))
+                                parkinglot->parkedcallhangup = AST_FEATURE_FLAG_BYCALLEE;
+                } else if (!strcasecmp(confvar->name, "parkedcallrecording")) {
+                        ast_log(LOG_DEBUG, "Setting parking lot %s %s to %s\n", name, confvar->name, confvar->value);
+                        if (!strcasecmp(confvar->value, "both"))
+                                parkinglot->parkedcallrecording = AST_FEATURE_FLAG_BYBOTH;
+                        else if (!strcasecmp(confvar->value, "caller"))
+                                parkinglot->parkedcallrecording = AST_FEATURE_FLAG_BYCALLER;
+                        else if (!strcasecmp(confvar->value, "callee"))
+                                parkinglot->parkedcallrecording = AST_FEATURE_FLAG_BYCALLEE;
+                }
 		confvar = confvar->next;
 	}
 	/* make sure parkingtime is set if not specified */

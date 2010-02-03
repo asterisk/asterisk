@@ -1300,6 +1300,8 @@ Call Features (res_features) Changes
     pickup
   * Added parkedcallrecording option to control one-touch record w/ parking
     pickup
+  * Added parkedcallparking, parkedcallhangup, parkedcallrecording, and
+    parkedcalltransfers option support for multiple parking lots.
   * Added BRIDGE_FEATURES variable to set available features for a channel
   * The built-in method for doing attended transfers has been updated to
      include some new options that allow you to have the transferee sent
