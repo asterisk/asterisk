@@ -57,6 +57,13 @@
 #define AMI_VERSION                     "1.1"
 #define DEFAULT_MANAGER_PORT 5038	/* Default port for Asterisk management via TCP */
 
+/*! \name Constant return values
+ *\note Currently, returning anything other than zero causes the session to terminate.
+ */
+/*@{ */
+#define	AMI_SUCCESS	(0)
+#define	AMI_DESTROY	(-1)
+
 /*! \name Manager event classes */
 /*@{ */
 #define EVENT_FLAG_SYSTEM 		(1 << 0) /* System events such as module load/unload */
