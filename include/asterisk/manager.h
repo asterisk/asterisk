@@ -63,6 +63,7 @@
 /*@{ */
 #define	AMI_SUCCESS	(0)
 #define	AMI_DESTROY	(-1)
+/*@} */
 
 /*! \name Manager event classes */
 /*@{ */
