@@ -16559,14 +16559,6 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req, char
 	if ((separator = strchr(contact, ',')))
 		*separator = '\0';
 
-	/* ooh, a name */
-	if (*contact == '"') {
-		contact_name = contact + 1;
-		if ((separator = strchr(contact_name, '"'))) {
-			*separator++ = '\0';
-		}
-	}
-
 	contact_number = get_in_brackets(contact);
 	if ((trans = strcasestr(contact_number, ";transport="))) {
 		trans += 11;
