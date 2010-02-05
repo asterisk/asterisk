@@ -1,0 +1,443 @@
+                                Release Summary
+
+                             asterisk-1.6.1.15-rc1
+
+                                Date: 2010-02-04
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.6.1.13.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   17 tilghman              5 atis                   2 atis                   
+   8 dvossel                3 kobaz                  2 bklang                 
+   6 jpeeler                2 DLNoah                 1 alan_mousty            
+   5 seanbright             1 Chainsaw               1 alexr1                 
+   2 alecdavis              1 dvossel                1 asgaroth               
+   2 mmichelson             1 frawd                  1 barthpbx               
+   2 oej                    1 jsutton                1 Chainsaw               
+   2 russell                1 qwell                  1 ddv2005                
+   1 atis                   1 raarts                 1 DLNoah                 
+   1 bklang                                          1 elsto                  
+   1 Chainsaw                                        1 frawd                  
+   1 ddv2005                                         1 homesick               
+   1 homesick                                        1 kobaz                  
+   1 lmadsen                                         1 krn                    
+   1 raarts                                          1 nito                   
+   1 syspert                                         1 raarts                 
+   1 tomo1657                                        1 romain_proformatique   
+   1 wdoekes                                         1 sohosys                
+   1 Yasuhiro                                        1 syspert                
+                                                     1 tomo1657               
+                                                     1 valon24                
+                                                     1 wdoekes                
+                                                     1 Yasuhiro Konishi       
+                                                     1 ZX81                   
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_chanspy
+
+   #16525: [patch] Cannot spy on channel when a local channel is involved
+   Revision: 244074
+   Reporter: kobaz
+   Testers: kobaz, atis
+   Coders: tilghman
+
+  Category: Applications/app_dial
+
+   #16686: [patch] app_dial does not respect GOSUB_RESULT
+   Revision: 244394
+   Reporter: bklang
+   Coders: bklang
+
+  Category: Applications/app_parkandannounce
+
+   #16406: Calls transfered to parking lot immediatly timeout and ring back
+   extension that tried to park call
+   Revision: 241368
+   Reporter: alan_mousty
+   Testers: DLNoah
+   Coders: jpeeler
+
+   #16586: [patch] features.conf auto-included park function sometimes
+   included junk in Park() command
+   Revision: 241368
+   Reporter: DLNoah
+   Testers: DLNoah
+   Coders: jpeeler
+
+  Category: Applications/app_queue
+
+   #16488: [patch] When setting a soundfile for announce with a length longer
+   then 80 chars a storage overlay happens
+   Revision: 243574
+   Reporter: syspert
+   Coders: syspert
+
+  Category: Applications/app_voicemail
+
+   #16271: [patch] message limit (maxmsg) can be exceeded in 1.6.x creating
+   orphan voicemail
+   Revision: 240417
+   Reporter: sohosys
+   Testers: jsutton
+   Coders: tilghman
+
+   #16415: [patch] Message forwarding with prepention does not backup
+   original message and length as intended
+   Revision: 244307
+   Reporter: tomo1657
+   Coders: tomo1657
+
+  Category: Channels/General
+
+   #16058: [patch] Crash in local_ast_moh_start / ast_indicate_data due to
+   AST_CONTROL_HOLD with bad pointer
+   Revision: 243246
+   Reporter: atis
+   Testers: atis
+   Coders: jpeeler
+
+  Category: Channels/chan_agent
+
+   #16321: [patch] [regression] asterisk deadlocks and calls will stop
+   queueing.
+   Revision: 241317
+   Reporter: valon24
+   Coders: jpeeler
+
+  Category: Channels/chan_dahdi
+
+   #16359: [patch] Only the last setvar is effective for a given channel
+   Revision: 244507
+   Reporter: raarts
+   Testers: raarts
+   Coders: raarts
+
+  Category: Channels/chan_iax2
+
+   #16711: [patch] CHANNEL function cannot set OSP token for outbound IAX
+   calls.
+   Revision: 243484
+   Reporter: homesick
+   Coders: homesick
+
+  Category: Channels/chan_local
+
+   #16581: Chan Local Fails to bridge from originate
+   Revision: 244074
+   Reporter: ZX81
+   Testers: kobaz, atis
+   Coders: tilghman
+
+   #16681: [regression] .call file not connecting to context: when channel:
+   answers
+   Revision: 244074
+   Reporter: alexr1
+   Testers: kobaz, atis
+   Coders: tilghman
+
+  Category: Channels/chan_sip/T.38
+
+   #16485: after udp error sip phones get kicked
+   Revision: 244446
+   Reporter: elsto
+   Coders: dvossel
+
+   #16517: Segfault while setting up T.38 fax reception
+   Revision: 244446
+   Reporter: bklang
+   Coders: dvossel
+
+   #16634: asterisk crashes while fax sending
+   Revision: 244446
+   Reporter: krn
+   Coders: dvossel
+
+   #16724: coredump on T.38 Session with 1.6.2.1
+   Revision: 244446
+   Reporter: barthpbx
+   Coders: dvossel
+
+  Category: Core/BuildSystem
+
+   #16489: [patch] Missing plus signs in MAKE/SUBMAKE calls prevent parallel
+   make from operating correctly
+   Revision: 241232
+   Reporter: Chainsaw
+   Testers: Chainsaw, qwell
+   Coders: Chainsaw
+
+   #16666: [patch] Check on ac_cv_pthread_once_needsbraces fails
+   Revision: 241940
+   Reporter: romain_proformatique
+   Coders: seanbright
+
+  Category: Core/General
+
+   #16607: [patch] ast_event_cmp always return 1.
+   Revision: 240412
+   Reporter: ddv2005
+   Coders: ddv2005
+
+  Category: Core/ManagerInterface
+
+   #16455: [patch] Manager hooks don't execute if there aren't any manager
+   sessions
+   Revision: 243988
+   Reporter: atis
+   Testers: atis
+   Coders: atis
+
+  Category: Features/Parking
+
+   #16429: [patch] Callee on outside line can take parking and forwarding
+   rights
+   Revision: 243393
+   Reporter: Yasuhiro Konishi
+   Testers: dvossel
+   Coders: Yasuhiro
+
+  Category: Functions/General
+
+   #16309: segfault in "core show functions"
+   Revision: 240719
+   Reporter: asgaroth
+   Coders: seanbright
+
+  Category: Functions/func_math
+
+   #16667: [patch] func_math MATH off by one's
+   Revision: 244333
+   Reporter: wdoekes
+   Coders: wdoekes
+
+  Category: Resources/res_config_ldap
+
+   #16257: [patch] Memory leak in res_config_ldap when using realtime
+   extensions
+   Revision: 240279
+   Reporter: nito
+   Coders: seanbright
+
+  Category: Utilities/General
+
+   #16602: [patch] astcanary does not exit when asterisk 1.6.2 dies => reopen
+   of #14538
+   Revision: 240502
+   Reporter: frawd
+   Testers: frawd
+   Coders: tilghman
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                           | Issues     |
+   |          |            |                                   | Referenced |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Ensure that the callerid is NULL  |            |
+   | 240131   | tilghman   | when the parent is effectively    |            |
+   |          |            | NULL.                             |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Similarly, ensure that matchcid   |            |
+   | 240177   | tilghman   | is duplicated correctly when      |            |
+   |          |            | merging contexts.                 |            |
+   |----------+------------+-----------------------------------+------------|
+   | 240550   | russell    | Fix a spelling error in the       |            |
+   |          |            | asterisk.conf sample.             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 240669   | seanbright | Get MoH building on OpenSolaris.  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 240844   | dvossel    | fixes spelling error.             |            |
+   |          |            | s/memeber/member                  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 240889   | dvossel    | updated transmit_silence option   |            |
+   |          |            | documentation in asterisk.conf    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 241018   | seanbright | Plug a memory leak when reading   | #16554     |
+   |          |            | configs with their comments.      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 241456   | alecdavis  | Update CDR variables as pbx       | #16638     |
+   |          |            | starts                            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 241630   | dvossel    | fixes parsing error in Makefile.  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 241740   | dvossel    | rtp timestamp to timeval          |            |
+   |          |            | calculation fix                   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 241768   | tilghman   | Guard against division by zero.   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 242140   | alecdavis  | Add Dialed Number Identifier      |            |
+   |          |            | (DNID) field to cdr.              |            |
+   |----------+------------+-----------------------------------+------------|
+   | 242231   | oej        | Initialize notify_types to NULL   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 242426   | tilghman   | Rebuild from flex, bison sources  | #14629     |
+   |          |            | when necessary.                   |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Only rebuild bison and flex       |            |
+   | 242523   | tilghman   | source files on demand, if bison  |            |
+   |          |            | and flex are detected by the      |            |
+   |          |            | configure script.                 |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Make the build of the Asterisk    |            |
+   | 242721   | tilghman   | expression parser match that of   |            |
+   |          |            | the AEL parser.                   |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Oops, should have used            |            |
+   | 242726   | tilghman   | CMD_PREFIX, not ECHO_PREFIX, for  |            |
+   |          |            | the commands.                     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 242731   | tilghman   | Buildbot pointed out an error     |            |
+   |          |            | (thanks, buildbot!)               |            |
+   |----------+------------+-----------------------------------+------------|
+   | 242887   | tilghman   | Restore FreeBSD to                |            |
+   |          |            | able-to-compile-ish-mode          |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Report error when writing to      |            |
+   | 242916   | oej        | functions returns error in AMI    |            |
+   |          |            | setvar action                     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 242973   | tilghman   | Only rebuild parsers by an option |            |
+   |          |            | in menuselect                     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Flex uses fwrite incorrectly,     |            |
+   | 243058   | tilghman   | which breaks the build. Providing |            |
+   |          |            | a workaround.                     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Remove unnecessary code in        |            |
+   | 243292   | jpeeler    | ast_read as issue 16058 has been  |            |
+   |          |            | fully solved now.                 |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Use a safe list traversal while   |            |
+   | 243489   | mmichelson | checking for duplicate vars in    |            |
+   |          |            | pbx_builtin_setvar_helper.        |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Revert 243570, I should have      |            |
+   | 243695   | jpeeler    | looked at this closer. Will       | #16488     |
+   |          |            | reopen the issue, but             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 243853   | russell    | Fix a bogus third argument to     |            |
+   |          |            | ast_copy_string().                |            |
+   |----------+------------+-----------------------------------+------------|
+   | 243865   | lmadsen    | Update location of bug tracker in |            |
+   |          |            | documentation.                    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 243944   | tilghman   | Informational message, not an     |            |
+   |          |            | error.                            |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Initialize counters in            |            |
+   | 244553   | mmichelson | ast_sched_report so that          |            |
+   |          |            | resulting data is not bogus.      |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ BUGS                             |    2
+ Makefile                         |   14 ++-
+ apps/app_dial.c                  |   10 +-
+ apps/app_queue.c                 |    4
+ apps/app_voicemail.c             |  119 ++++++++++++++++++++++++++---
+ build_tools/cflags.xml           |    5 +
+ build_tools/menuselect-deps.in   |    2
+ channels/chan_agent.c            |   23 +++++
+ channels/chan_dahdi.c            |    8 +
+ channels/chan_iax2.c             |   34 --------
+ channels/chan_local.c            |    4
+ channels/chan_sip.c              |  110 ++++++++++++++++----------
+ channels/iax2-parser.c           |    4
+ configure.ac                     |   50 +++++++++++-
+ funcs/func_channel.c             |    1
+ funcs/func_math.c                |   24 +++--
+ include/asterisk/autoconfig.h.in |   51 +++++++-----
+ include/asterisk/udptl.h         |   16 +++
+ main/Makefile                    |   26 ++++--
+ main/ast_expr2.c                 |  160 +++++++++++++++++++--------------------
+ main/ast_expr2.fl                |    5 +
+ main/ast_expr2.h                 |    4
+ main/ast_expr2f.c                |  117 +++++++++++++++-------------
+ main/asterisk.c                  |   20 ----
+ main/cdr.c                       |    1
+ main/channel.c                   |   41 +++------
+ main/config.c                    |   40 ++++-----
+ main/event.c                     |    1
+ main/features.c                  |    6 +
+ main/frame.c                     |    5 +
+ main/manager.c                   |   63 +++++++++------
+ main/pbx.c                       |   22 +++--
+ main/rtp.c                       |   24 +----
+ main/sched.c                     |    1
+ main/udptl.c                     |   36 +++++++-
+ makeopts.in                      |    2
+ pbx/Makefile                     |    2
+ res/Makefile                     |   16 +++
+ res/res_config_ldap.c            |    4
+ res/res_musiconhold.c            |    4
+ utils/astcanary.c                |   21 ++++-
+ 41 files changed, 694 insertions(+), 408 deletions(-)
+
+     ----------------------------------------------------------------------
