@@ -666,7 +666,8 @@ enum search_flags {
 	 *  its refcount.
 	 */
 	OBJ_NODATA	 = (1 << 1),
-	/*! Don't stop at the first match in ao2_callback().
+	/*! Don't stop at the first match in ao2_callback() unless the result of
+	 *  of the callback function == (CMP_STOP | CMP_MATCH).
 	 */
 	OBJ_MULTIPLE = (1 << 2),
 	/*! obj is an object of the same type as the one being searched for,
