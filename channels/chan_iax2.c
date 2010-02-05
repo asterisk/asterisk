@@ -2449,10 +2449,21 @@ static char *handle_cli_iax2_show_callno_limits(struct ast_cli_entry *e, int cmd
 		ao2_iterator_destroy(&i);
 
 		if (a->argc == 4) {
-			ast_cli(a->fd, "\nNon-CallToken Validation Limit: %d\nNon-CallToken Validated: %d\n", global_maxcallno_nonval, total_nonval_callno_used);
+			ast_cli(a->fd, "\nNon-CallToken Validation Callno Limit: %d\n"
+			                 "Non-CallToken Validated Callno Used:   %d\n",
+				global_maxcallno_nonval,
+				total_nonval_callno_used);
+
+			ast_cli(a->fd,   "Total Available Callno:                %d\n"
+			                 "Regular Callno Available:              %d\n"
+			                 "Trunk Callno Available:                %d\n",
+				ao2_container_count(callno_pool) + ao2_container_count(callno_pool_trunk),
+				ao2_container_count(callno_pool),
+				ao2_container_count(callno_pool_trunk));
 		} else if (a->argc == 5 && !found) {
 			ast_cli(a->fd, "No callnumber table entries for %s found\n", a->argv[4] );
 		}
+
 
 		return CLI_SUCCESS;
 	default:
