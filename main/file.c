@@ -1464,63 +1464,8 @@ static struct ast_cli_entry cli_file[] = {
 	AST_CLI_DEFINE(handle_cli_core_show_file_formats, "Displays file formats")
 };
 
-#ifdef TEST_FRAMEWORK
-AST_TEST_DEFINE(test_ast_format_str_reduce)
-{
-	enum ast_test_result_state res = AST_TEST_PASS;
-	int i;
-	struct {
-		const char *input;
-		const char *output;
-	} tests[] = {
-		{ "wav", "wav" },
-		{ "wav|gsm", "wav|gsm" },
-		{ "wav|ulaw|gsm", "wav|ulaw|gsm" },
-		{ "wav|WAV|gsm", "wav|WAV|gsm" },
-		{ "wav|wav49|gsm", "wav|wav49|gsm" },
-		{ "wav|invalid|gsm", "wav|gsm" },
-		{ "invalid|gsm", "gsm" },
-		{ "ulaw|gsm|invalid", "ulaw|gsm" },
-		{ "g723|g726-40|g729|gsm|ilbc|ogg|wav|WAV|siren7|siren14|sln", "g723|g726-40|g729|gsm|ilbc|ogg|wav|WAV|siren7|siren14" },
-		{ "ulaw|gsm|ulaw", "ulaw|gsm" },
-		{ "ulaw|alaw|gsm|wav|alaw|g729", "ulaw|alaw|gsm|wav|g729" },
-		{ "", "" },
-		{ NULL, },
-	};
-
-	switch (cmd) {
-	case TEST_INIT:
-		info->name = "test_ast_format_str_reduce";
-		info->category = "main/file/";
-		info->summary = "Test functionality of ast_format_str_reduce API";
-		info->description =
-			"This test runs the format string reduction API through a series of tests to ensure that it is functioning properly.";
-		return AST_TEST_NOT_RUN;
-	case TEST_EXECUTE:
-		break;
-	}
-
-	ast_str_reset(args->ast_test_error_str);
-	for (i = 0; tests[i].input; i++) {
-		char tmp[256], *ret;
-		ast_copy_string(tmp, tests[i].input, sizeof(tmp));
-		if ((ret = ast_format_str_reduce(tmp)) && strcmp(ret, tests[i].output)) {
-			res = AST_TEST_FAIL;
-			ast_str_append(&args->ast_test_error_str, 0, "Format reduction of string '%s' produced '%s', but should have produced '%s'.\n",
-					tests[i].input, tmp, tests[i].output);
-		} else if (!ret && !ast_strlen_zero(tests[i].output)) {
-			res = AST_TEST_FAIL;
-			ast_str_append(&args->ast_test_error_str, 0, "Format reduction of string '%s' errored out, but should have produced '%s'.\n",
-					tests[i].input, tests[i].output);
-		}
-	}
-	return res;
-}
-#endif
-
 int ast_file_init(void)
 {
 	ast_cli_register_multiple(cli_file, ARRAY_LEN(cli_file));
-	AST_TEST_REGISTER(test_ast_format_str_reduce);
 	return 0;
 }

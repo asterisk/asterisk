@@ -49,6 +49,10 @@ static char *test_strings[][2] = {
 	{"wav|ulaw|pcm|alaw|sln|raw", "wav|ulaw|alaw|sln"},
 	{"wav|gsm|wav49",             "wav|gsm|wav49"},
 	{"WAV|gsm|wav49",             "WAV|gsm"},
+	{"wav|invalid|gsm",           "wav|gsm"},
+	{"invalid|gsm",               "gsm"},
+	{"ulaw|gsm|invalid",          "ulaw|gsm"},
+	{"g723|g726-40|g729|gsm|ilbc|ogg|wav|WAV|siren7|siren14|sln", "g723|g726-40|g729|gsm|ilbc|ogg|wav|WAV|siren7|siren14"},
 	{NULL, NULL},
 };
 
