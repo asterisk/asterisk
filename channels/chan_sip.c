@@ -6268,7 +6268,7 @@ static int sip_register(const char *value, int lineno)
 	ast_atomic_fetchadd_int(&regobjs, 1);
 	ASTOBJ_INIT(reg);
 
-	if (sip_parse_register_line(reg, value, lineno)) {
+	if (sip_parse_register_line(reg, default_expiry, value, lineno)) {
 		registry_unref(reg, "failure to parse, unref the reg pointer");
 		return -1;
 	}

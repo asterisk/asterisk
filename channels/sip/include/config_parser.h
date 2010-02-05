@@ -30,7 +30,7 @@
  *  \retval 0 on success
  *  \retval -1 on failure
  */
-int sip_parse_register_line(struct sip_registry *reg, const char *value, int lineno);
+int sip_parse_register_line(struct sip_registry *reg, int default_expiry, const char *value, int lineno);
 
 /*!
  * \brief parses a config line for a host with a transport

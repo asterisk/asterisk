@@ -32,7 +32,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * \retval 0 on success
  * \retval -1 on failure
  */
-int sip_parse_register_line(struct sip_registry *reg, const char *value, int lineno)
+int sip_parse_register_line(struct sip_registry *reg, int default_expiry, const char *value, int lineno)
 {
 	int portnum = 0;
 	enum sip_transport transport = SIP_TRANSPORT_UDP;
@@ -208,9 +208,7 @@ int sip_parse_register_line(struct sip_registry *reg, const char *value, int lin
 	reg->portno = portnum;
 	reg->callid_valid = FALSE;
 	reg->ocseq = INITIAL_CSEQ;
-	if (!ast_strlen_zero(host1.expiry)) {
-		reg->refresh = reg->expiry = reg->configured_expiry = atoi(ast_strip_quoted(host1.expiry, "\"", "\""));
-	}
+	reg->refresh = reg->expiry = reg->configured_expiry = (host1.expiry ? atoi(ast_strip_quoted(host1.expiry, "\"", "\"")) : default_expiry);
 
 	return 0;
 }
@@ -219,6 +217,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 {
 	int res = AST_TEST_PASS;
 	struct sip_registry *reg;
+	int default_expiry = 120;
 	const char *reg1 = "name@domain";
 	const char *reg2 = "name:pass@domain";
 	const char *reg3 = "name@namedomain:pass:authuser@domain";
@@ -247,7 +246,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 	if (!(reg = ast_calloc_with_stringfields(1, struct sip_registry, 256))) {
 		goto alloc_fail;
 	} else if (
-	    sip_parse_register_line(reg, reg1, 1) ||
+	    sip_parse_register_line(reg, default_expiry, reg1, 1) ||
 		strcmp(reg->callback, "s")           ||
 		strcmp(reg->username, "name")       ||
 		strcmp(reg->hostname, "domain")     ||
@@ -257,9 +256,9 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		reg->transport != SIP_TRANSPORT_UDP ||
 		reg->timeout != -1                  ||
 		reg->expire != -1                   ||
-		reg->refresh ||
-		reg->expiry ||
-		reg->configured_expiry ||
+		reg->refresh != default_expiry ||
+		reg->expiry != default_expiry ||
+		reg->configured_expiry != default_expiry ||
 		reg->portno != STANDARD_SIP_PORT    ||
 		reg->callid_valid != FALSE          ||
 		reg->ocseq != INITIAL_CSEQ) {
@@ -274,7 +273,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 	if (!(reg = ast_calloc_with_stringfields(1, struct sip_registry, 256))) {
 		goto alloc_fail;
 	} else if (
-	    sip_parse_register_line(reg, reg2, 1) ||
+	    sip_parse_register_line(reg, default_expiry, reg2, 1) ||
 		strcmp(reg->callback, "s")           ||
 		strcmp(reg->username, "name")       ||
 		strcmp(reg->hostname, "domain")     ||
@@ -284,9 +283,9 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		reg->transport != SIP_TRANSPORT_UDP ||
 		reg->timeout != -1                  ||
 		reg->expire != -1                   ||
-		reg->refresh ||
-		reg->expiry ||
-		reg->configured_expiry ||
+		reg->refresh != default_expiry ||
+		reg->expiry != default_expiry ||
+		reg->configured_expiry != default_expiry ||
 		reg->portno != STANDARD_SIP_PORT    ||
 		reg->callid_valid != FALSE          ||
 		reg->ocseq != INITIAL_CSEQ) {
@@ -301,7 +300,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 	if (!(reg = ast_calloc_with_stringfields(1, struct sip_registry, 256))) {
 		goto alloc_fail;
 	} else if (
-	    sip_parse_register_line(reg, reg3, 1) ||
+	    sip_parse_register_line(reg, default_expiry, reg3, 1) ||
 		strcmp(reg->callback, "s")           ||
 		strcmp(reg->username, "name@namedomain") ||
 		strcmp(reg->hostname, "domain")     ||
@@ -311,9 +310,9 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		reg->transport != SIP_TRANSPORT_UDP ||
 		reg->timeout != -1                  ||
 		reg->expire != -1                   ||
-		reg->refresh ||
-		reg->expiry ||
-		reg->configured_expiry ||
+		reg->refresh != default_expiry ||
+		reg->expiry != default_expiry ||
+		reg->configured_expiry != default_expiry ||
 		reg->portno != STANDARD_SIP_PORT    ||
 		reg->callid_valid != FALSE          ||
 		reg->ocseq != INITIAL_CSEQ) {
@@ -328,7 +327,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 	if (!(reg = ast_calloc_with_stringfields(1, struct sip_registry, 256))) {
 		goto alloc_fail;
 	} else if (
-	    sip_parse_register_line(reg, reg4, 1) ||
+	    sip_parse_register_line(reg, default_expiry, reg4, 1) ||
 		strcmp(reg->callback, "extension")           ||
 		strcmp(reg->username, "name@namedomain") ||
 		strcmp(reg->hostname, "domain")     ||
@@ -338,9 +337,9 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		reg->transport != SIP_TRANSPORT_UDP ||
 		reg->timeout != -1                  ||
 		reg->expire != -1                   ||
-		reg->refresh ||
-		reg->expiry ||
-		reg->configured_expiry ||
+		reg->refresh != default_expiry ||
+		reg->expiry != default_expiry ||
+		reg->configured_expiry != default_expiry ||
 		reg->portno != STANDARD_SIP_PORT    ||
 		reg->callid_valid != FALSE          ||
 		reg->ocseq != INITIAL_CSEQ) {
@@ -355,7 +354,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 	if (!(reg = ast_calloc_with_stringfields(1, struct sip_registry, 256))) {
 		goto alloc_fail;
 	} else if (
-	    sip_parse_register_line(reg, reg5, 1) ||
+	    sip_parse_register_line(reg, default_expiry, reg5, 1) ||
 		strcmp(reg->callback, "extension")           ||
 		strcmp(reg->username, "name@namedomain") ||
 		strcmp(reg->hostname, "domain")     ||
@@ -365,9 +364,9 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		reg->transport != SIP_TRANSPORT_TCP ||
 		reg->timeout != -1                  ||
 		reg->expire != -1                   ||
-		reg->refresh ||
-		reg->expiry ||
-		reg->configured_expiry ||
+		reg->refresh != default_expiry ||
+		reg->expiry != default_expiry ||
+		reg->configured_expiry != default_expiry ||
 		reg->portno != STANDARD_SIP_PORT    ||
 		reg->callid_valid != FALSE          ||
 		reg->ocseq != INITIAL_CSEQ) {
@@ -382,7 +381,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 	if (!(reg = ast_calloc_with_stringfields(1, struct sip_registry, 256))) {
 		goto alloc_fail;
 	} else if (
-	    sip_parse_register_line(reg, reg6, 1) ||
+	    sip_parse_register_line(reg, default_expiry, reg6, 1) ||
 		strcmp(reg->callback, "extension")           ||
 		strcmp(reg->username, "name@namedomain") ||
 		strcmp(reg->hostname, "domain")     ||
@@ -409,7 +408,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 	if (!(reg = ast_calloc_with_stringfields(1, struct sip_registry, 256))) {
 		goto alloc_fail;
 	} else if (
-	    sip_parse_register_line(reg, reg7, 1) ||
+	    sip_parse_register_line(reg, default_expiry, reg7, 1) ||
 		strcmp(reg->callback, "extension")           ||
 		strcmp(reg->username, "name@namedomain") ||
 		strcmp(reg->hostname, "domain")     ||
@@ -436,7 +435,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 	if (!(reg = ast_calloc_with_stringfields(1, struct sip_registry, 256))) {
 		goto alloc_fail;
 	} else if (
-	    sip_parse_register_line(reg, reg8, 1) ||
+	    sip_parse_register_line(reg, default_expiry, reg8, 1) ||
 		strcmp(reg->callback, "extension")           ||
 		strcmp(reg->username, "name@namedomain") ||
 		strcmp(reg->hostname, "domain")     ||
@@ -462,7 +461,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 	/* ---Test reg 9, missing domain, expected to fail --- */
 	if (!(reg = ast_calloc_with_stringfields(1, struct sip_registry, 256))) {
 		goto alloc_fail;
-	} else if (!sip_parse_register_line(reg, reg9, 1)) {
+	} else if (!sip_parse_register_line(reg, default_expiry, reg9, 1)) {
 
 		ast_str_append(&args->ast_test_error_str, 0, "Test 9, missing domain, expected to fail but did not.\n");
 		res = AST_TEST_FAIL;
@@ -473,7 +472,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 	/* ---Test reg 10,  missing user, expected to fail --- */
 	if (!(reg = ast_calloc_with_stringfields(1, struct sip_registry, 256))) {
 		goto alloc_fail;
-	} else if (!sip_parse_register_line(reg, reg10, 1)) {
+	} else if (!sip_parse_register_line(reg, default_expiry, reg10, 1)) {
 
 		ast_str_append(&args->ast_test_error_str, 0, "Test 10, missing user expected to fail but did not\n");
 		res = AST_TEST_FAIL;
@@ -482,7 +481,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 	ast_free(reg);
 
 	/* ---Test reg 11, no registry object, expected to fail--- */
-	if (!sip_parse_register_line(NULL, reg1, 1)) {
+	if (!sip_parse_register_line(NULL, default_expiry, reg1, 1)) {
 
 		ast_str_append(&args->ast_test_error_str, 0, "Test 11, no registery object, expected to fail but did not.\n");
 		res = AST_TEST_FAIL;
@@ -491,7 +490,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 	/* ---Test reg 11,  no registry line, expected to fail --- */
 	if (!(reg = ast_calloc_with_stringfields(1, struct sip_registry, 256))) {
 		goto alloc_fail;
-	} else if (!sip_parse_register_line(reg, NULL, 1)) {
+	} else if (!sip_parse_register_line(reg, default_expiry, NULL, 1)) {
 
 		ast_str_append(&args->ast_test_error_str, 0, "Test 11, NULL register line expected to fail but did not.\n");
 		res = AST_TEST_FAIL;
