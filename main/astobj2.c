@@ -1099,12 +1099,14 @@ static char *handle_astobj2_test(struct ast_cli_entry *e, int cmd, struct ast_cl
 				ao2_t_unlink(c1, obj,"test");
 			ao2_t_ref(obj, -1,"test");
 		}
+		ao2_iterator_destroy(&ai);
 		ast_cli(a->fd, "testing iterators again\n");
 		ai = ao2_iterator_init(c1, 0);
 		while ( (obj = ao2_t_iterator_next(&ai,"test")) ) {
 			ast_cli(a->fd, "iterator on <%s>\n", obj);
 			ao2_t_ref(obj, -1,"test");
 		}
+		ao2_iterator_destroy(&ai);
 	}
 	ast_cli(a->fd, "testing callbacks again\n");
 	ao2_t_callback(c1, 0, print_cb, a, "test callback");
