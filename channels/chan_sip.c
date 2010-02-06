@@ -841,13 +841,11 @@ static const struct _map_x_s referstatusstrings[] = {
 
 /* --- Hash tables of various objects --------*/
 #ifdef LOW_MEMORY
-static int hash_peer_size = 17;
-static int hash_dialog_size = 17;
-static int hash_user_size = 17;
+static const int HASH_PEER_SIZE = 17;
+static const int HASH_DIALOG_SIZE = 17;
 #else
-static int hash_peer_size = 563;	/*!< Size of peer hash table, prime number preferred! */
-static int hash_dialog_size = 563;
-static int hash_user_size = 563;
+static const int HASH_PEER_SIZE = 563;	/*!< Size of peer hash table, prime number preferred! */
+static const int HASH_DIALOG_SIZE = 563;
 #endif
 
 /*! \brief
@@ -24205,27 +24203,6 @@ static int reload_config(enum channelreloadreason reason)
 			} else {
 				ast_log(LOG_WARNING, "Invalid port number '%s' at line %d of %s\n", v->value, v->lineno, config);
 			}
-		} else if (!strcasecmp(v->name, "hash_user")) {
-			int i;
-			if (sscanf(v->value, "%30d", &i) == 1 && i > 2) {
-				hash_user_size = i;
-			} else {
-				ast_log(LOG_WARNING, "Invalid hash_user size '%s' at line %d of %s -- should be much larger than 2\n", v->value, v->lineno, config);
-			}
-		} else if (!strcasecmp(v->name, "hash_peer")) {
-			int i;
-			if (sscanf(v->value, "%30d", &i) == 1 && i > 2) {
-				hash_peer_size = i;
-			} else {
-				ast_log(LOG_WARNING, "Invalid hash_peer size '%s' at line %d of %s -- should be much larger than 2\n", v->value, v->lineno, config);
-			}
-		} else if (!strcasecmp(v->name, "hash_dialog")) {
-			int i;
-			if (sscanf(v->value, "%30d", &i) == 1 && i > 2) {
-				hash_dialog_size = i;
-			} else {
-				ast_log(LOG_WARNING, "Invalid hash_dialog size '%s' at line %d of %s -- should be much larger than 2\n", v->value, v->lineno, config);
-			}
 		} else if (!strcasecmp(v->name, "qualify")) {
 			if (!strcasecmp(v->value, "no")) {
 				default_qualify = 0;
@@ -25264,10 +25241,10 @@ static int load_module(void)
 	ast_verbose("SIP channel loading...\n");
 	/* the fact that ao2_containers can't resize automatically is a major worry! */
 	/* if the number of objects gets above MAX_XXX_BUCKETS, things will slow down */
-	peers = ao2_t_container_alloc(hash_peer_size, peer_hash_cb, peer_cmp_cb, "allocate peers");
-	peers_by_ip = ao2_t_container_alloc(hash_peer_size, peer_iphash_cb, peer_ipcmp_cb, "allocate peers_by_ip");
-	dialogs = ao2_t_container_alloc(hash_dialog_size, dialog_hash_cb, dialog_cmp_cb, "allocate dialogs");
-	threadt = ao2_t_container_alloc(hash_dialog_size, threadt_hash_cb, threadt_cmp_cb, "allocate threadt table");
+	peers = ao2_t_container_alloc(HASH_PEER_SIZE, peer_hash_cb, peer_cmp_cb, "allocate peers");
+	peers_by_ip = ao2_t_container_alloc(HASH_PEER_SIZE, peer_iphash_cb, peer_ipcmp_cb, "allocate peers_by_ip");
+	dialogs = ao2_t_container_alloc(HASH_DIALOG_SIZE, dialog_hash_cb, dialog_cmp_cb, "allocate dialogs");
+	threadt = ao2_t_container_alloc(HASH_DIALOG_SIZE, threadt_hash_cb, threadt_cmp_cb, "allocate threadt table");
 	
 	ASTOBJ_CONTAINER_INIT(&regl); /* Registry object list -- not searched for anything */
 	ASTOBJ_CONTAINER_INIT(&submwil); /* MWI subscription object list */
