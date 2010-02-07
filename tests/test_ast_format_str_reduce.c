@@ -25,6 +25,17 @@
 
 /*** MODULEINFO
 	<depend>TEST_FRAMEWORK</depend>
+	<depend>format_g723</depend>
+	<depend>format_g726</depend>
+	<depend>format_g729</depend>
+	<depend>format_gsm</depend>
+	<depend>format_ogg_vorbis</depend>
+	<depend>format_pcm</depend>
+	<depend>format_siren14</depend>
+	<depend>format_siren7</depend>
+	<depend>format_sln</depend>
+	<depend>format_wav</depend>
+	<depend>format_wav_gsm</depend>
  ***/
 
 #include "asterisk.h"
@@ -35,7 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/file.h"
 #include "asterisk/test.h"
 
-/* this is an array containting a list of strings to test and the expected
+/* this is an array containing a list of strings to test and the expected
  * result for each test string.  The list should be terminated by an entry
  * containing NULL for both elements {NULL, NULL}) */
 static char *test_strings[][2] = {
@@ -56,7 +67,7 @@ static char *test_strings[][2] = {
 	{NULL, NULL},
 };
 
-/* this is a NULL terminated array contating a list of strings that should
+/* this is a NULL terminated array containing a list of strings that should
  * cause ast_format_str_reduce() to fail */
 static char *fail_strings[] = {
 	"this will fail",            /* format does not exist */
