@@ -24273,8 +24273,6 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "disallowed_methods")) {
 			char *disallow = ast_strdupa(v->value);
 			mark_parsed_methods(&sip_cfg.disallowed_methods, disallow);
-		} else if (!strcasecmp(v->name, "constantssrc")) {
-			ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_CONSTANT_SSRC);
 		} else if (!strcasecmp(v->name, "shrinkcallerid")) {
 			if (ast_true(v->value)) {
 				global_shrinkcallerid = 1;
