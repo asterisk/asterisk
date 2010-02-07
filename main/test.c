@@ -373,7 +373,7 @@ static int test_generate_results(const char *name, const char *category, const c
 		/*
 		 * http://confluence.atlassian.com/display/BAMBOO/JUnit+parsing+in+Bamboo
 		 */
-		fprintf(f_xml, "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n");
+		fprintf(f_xml, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
 		fprintf(f_xml, "<testsuite errors=\"0\" time=\"%d.%d\" tests=\"%d\" "
 				"name=\"AsteriskUnitTests\">\n",
 				last_results.total_time / 1000, last_results.total_time % 1000,
