@@ -22,12 +22,14 @@
 #ifndef _SIP_UTILS_H
 #define _SIP_UTILS_H
 
-
-/*! \brief converts ascii port to int representation. If no
- *  pt buffer is provided or the pt has errors when being converted
- *  to an int value, the port provided as the standard is used.
+/*! 
+ * \brief converts ascii port to int representation. 
  *
- *  \retval positive numeric port 
+ * \arg pt[in] string that contains a port.
+ * \arg standard[in] port to return in case the port string input is NULL
+ *      or if there is a parsing error.
+ *
+ * \return An integer port representation.
  */
 unsigned int port_str2int(const char *pt, unsigned int standard);
 

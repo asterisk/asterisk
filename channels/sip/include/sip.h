@@ -1207,6 +1207,8 @@ struct sip_peer {
  * or once the previously completed registration one expires).
  * The registration can be in one of many states, though at the moment
  * the handling is a bit mixed.
+ *
+ * \todo Convert this to astobj2
  */
 struct sip_registry {
 	ASTOBJ_COMPONENTS_FULL(struct sip_registry,1,1);
@@ -1259,7 +1261,11 @@ struct sip_threadinfo {
 	AST_LIST_HEAD_NOLOCK(, tcptls_packet) packet_q;
 };
 
-/*! \brief Definition of an MWI subscription to another server */
+/*!
+ * \brief Definition of an MWI subscription to another server
+ * 
+ * \todo Convert this to astobj2.
+ */
 struct sip_subscription_mwi {
 	ASTOBJ_COMPONENTS_FULL(struct sip_subscription_mwi,1,1);
 	AST_DECLARE_STRING_FIELDS(

@@ -24,27 +24,33 @@
 #ifndef _SIP_CONF_PARSE_H
 #define _SIP_CONF_PARSE_H
 
-
-/*! \brief Parse register=> line in sip.conf
+/*!
+ * \brief Parse register=> line in sip.conf
  *
- *  \retval 0 on success
- *  \retval -1 on failure
+ * \retval 0 on success
+ * \retval -1 on failure
  */
 int sip_parse_register_line(struct sip_registry *reg, int default_expiry, const char *value, int lineno);
 
 /*!
  * \brief parses a config line for a host with a transport
- *        i.e. tls://www.google.com:8056
  *
- *  \retval 0 on success
- *  \retval -1 on failure
+ * An example input would be: 
+ *     <code>tls://www.google.com:8056</code>
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
  */
 int sip_parse_host(char *line, int lineno, char **hostname, int *portnum, enum sip_transport *transport);
 
-/*! \brief register config parsing tests */
+/*! 
+ * \brief register config parsing tests
+ */
 void sip_config_parser_register_tests(void);
 
-/*! \brief unregister config parsing tests */
+/*!
+ * \brief unregister config parsing tests
+ */
 void sip_config_parser_unregister_tests(void);
 
 #endif

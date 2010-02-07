@@ -22,7 +22,8 @@
 #ifndef _SIP_REQRESP_H
 #define _SIP_REQRESP_H
 
-/*! \brief parses a URI in its components.
+/*!
+ * \brief parses a URI in its components.
  *
  * \note
  * - Multiple scheme's can be specified ',' delimited. ex: "sip:,sips:"
@@ -38,20 +39,24 @@
  * \verbatim
  * general form we are expecting is sip:user:password;user-parameters@host:port;uri-parameters?headers
  * \endverbatim
- *
  */
 int parse_uri(char *uri, const char *scheme, char **ret_name, char **pass, char **domain, char **port, char **transport);
 
-/*! \brief  Get caller id name from SIP headers, copy into output buffer
+/*!
+ * \brief  Get caller id name from SIP headers, copy into output buffer
  *
- *  \retval input string pointer placed after display-name field if possible
+ * \retval input string pointer placed after display-name field if possible
  */
 const char *get_calleridname(const char *input, char *output, size_t outputsize);
 
-/*! \brief register request parsing tests */
+/*!
+ * \brief register request parsing tests
+ */
 void sip_request_parser_register_tests(void);
 
-/*! \brief unregister request parsing tests */
+/*!
+ * \brief unregister request parsing tests
+ */
 void sip_request_parser_unregister_tests(void);
 
 #endif
