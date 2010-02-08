@@ -36,7 +36,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/module.h"
 #include "asterisk/test.h"
-#include "asterisk/md5.h"
 
 AST_TEST_DEFINE(md5_test)
 {
