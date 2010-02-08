@@ -22,9 +22,9 @@ PACKAGES_DEBIAN="build-essential"
 # Asterisk: basic requirements:
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libncurses-dev libz-dev libssl-dev libxml2-dev"
 # Asterisk: very useful addons:
-PACKAGES_DEBIAN="$PACKAGES_DEBIAN libcurl-dev libspeex-dev libogg-dev libvorbis-dev libasound2-dev"
+PACKAGES_DEBIAN="$PACKAGES_DEBIAN libcurl-dev libspeex-dev libspeexdsp-dev libogg-dev libvorbis-dev libasound2-dev portaudio19-dev"
 # Asterisk: nice-to-have addons:
-PACKAGES_DEBIAN="$PACKAGES_DEBIAN libpq-dev unixodbc-dev libsqlite-dev"
+PACKAGES_DEBIAN="$PACKAGES_DEBIAN libpq-dev unixodbc-dev libsqlite0-dev libsqlite3-dev libmysqlclient15-dev libneon27-dev libgmime-2.0-2-dev libusb-dev liblua5.1-0-dev"
 # Not so nice addon:
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libopenh323-dev"
 # Extras for 1.4:
