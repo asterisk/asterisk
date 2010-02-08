@@ -16,10 +16,11 @@
  * at the top of the source tree.
  */
 
-/*! \file
- *
+/*!
+ * \file
  * \brief GTK Console monitor -- very kludgy right now
- * 
+ *
+ * \todo Convert this to gtk2.
  */
 
 /*** MODULEINFO
