@@ -6176,14 +6176,6 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	else if (vms->curmsg == vms->lastmsg)
 		res = wait_file2(chan, vms, "vm-last");		/* "last" */
 
-	snprintf(filename, sizeof(filename), "%s.txt", vms->fn);
-	RETRIEVE(vms->curdir, vms->curmsg, vmu->mailbox, vmu->context);
-	msg_cfg = ast_config_load(filename, config_flags);
-	if (!msg_cfg) {
-		ast_log(LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
-		return 0;
-	}
-
 	/* POLISH syntax */
 	if (!strncasecmp(chan->language, "pl", 2)) {
 		if (vms->curmsg && (vms->curmsg != vms->lastmsg)) {
@@ -6230,11 +6222,6 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 		if (vms->curmsg && (vms->curmsg != vms->lastmsg)) {
 			if (!res) {
 				res = ast_say_number(chan, vms->curmsg + 1, AST_DIGIT_ANY, chan->language, NULL);
-			}
-			if (vms->curmsg && (vms->curmsg != vms->lastmsg)) {
-				if (!res) {
-					res = ast_say_number(chan, vms->curmsg + 1, AST_DIGIT_ANY, chan->language, NULL);
-				}
 			}
 		}
 	}
