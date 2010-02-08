@@ -796,7 +796,7 @@ const char *ast_event_iterator_get_ie_str(struct ast_event_iterator *iterator)
 
 	str_payload = (struct ast_event_ie_str_payload *) iterator->ie->ie_payload;
 
-	return str_payload->str;
+	return str_payload ? str_payload->str : NULL;
 }
 
 void *ast_event_iterator_get_ie_raw(struct ast_event_iterator *iterator)
@@ -824,7 +824,7 @@ uint32_t ast_event_get_ie_str_hash(const struct ast_event *event, enum ast_event
 
 	str_payload = ast_event_get_ie_raw(event, ie_type);
 
-	return str_payload->hash;
+	return str_payload ? str_payload->hash : 0;
 }
 
 const char *ast_event_get_ie_str(const struct ast_event *event, enum ast_event_ie_type ie_type)
@@ -833,7 +833,7 @@ const char *ast_event_get_ie_str(const struct ast_event *event, enum ast_event_i
 
 	str_payload = ast_event_get_ie_raw(event, ie_type);
 
-	return str_payload->str;
+	return str_payload ? str_payload->str : NULL;
 }
 
 const void *ast_event_get_ie_raw(const struct ast_event *event, enum ast_event_ie_type ie_type)
