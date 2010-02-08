@@ -2927,7 +2927,7 @@ static const char *ast_str_substring(struct ast_str *value, int offset, int leng
 
 	if (offset > 0) {
 		/* Go ahead and chop off the beginning */
-		memcpy(ast_str_buffer(value), ast_str_buffer(value) + offset, ast_str_strlen(value) - offset + 1);
+		memmove(ast_str_buffer(value), ast_str_buffer(value) + offset, ast_str_strlen(value) - offset + 1);
 		lr -= offset;
 	}
 
