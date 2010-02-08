@@ -101,7 +101,7 @@ AST_TEST_DEFINE(uri_encode_decode_test)
 
 static int unload_module(void)
 {
-	AST_TEST_REGISTER(uri_encode_decode_test);
+	AST_TEST_UNREGISTER(uri_encode_decode_test);
 	return 0;
 }
 
