@@ -25,6 +25,7 @@
 
 /*** MODULEINFO
         <depend>chan_local</depend>
+        <depend>res_adsi</depend>
  ***/
 
 #include "asterisk.h"
