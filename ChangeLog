@@ -1,3 +1,15 @@
+2010-02-09  Leif Madsen <lmadsen@digium.com>
+
+	* Import regression fix from revision 221754.
+
+	* Days are days of month, not days of week.
+	  Fixes regression due to AST-2009-005.
+	  (closes issue #15765)
+	   Reported by: hooi
+	   Patches: 
+		 20090825__issue15765.diff.txt uploaded by tilghman (license 14)
+	   Tested by: nic_bellamy
+
 2009-11-30  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.2.37 released
