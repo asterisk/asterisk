@@ -80,8 +80,6 @@ AST_TEST_DEFINE(heap_test_1)
 		return AST_TEST_FAIL;
 	}
 
-	ast_test_status_update(&args->status_update, "pushing nodes\n");
-
 	ast_heap_push(h, &nodes[0]);
 
 	ast_heap_push(h, &nodes[1]);
@@ -90,22 +88,25 @@ AST_TEST_DEFINE(heap_test_1)
 
 	obj = ast_heap_pop(h);
 	if (obj->val != 3) {
+		ast_test_status_update(test, "expected 3, got %ld\n", obj->val);
 		return AST_TEST_FAIL;
 	}
 
-	ast_test_status_update(&args->status_update, "popping nodes\n");
 	obj = ast_heap_pop(h);
 	if (obj->val != 2) {
+		ast_test_status_update(test, "expected 2, got %ld\n", obj->val);
 		return AST_TEST_FAIL;
 	}
 
 	obj = ast_heap_pop(h);
 	if (obj->val != 1) {
+		ast_test_status_update(test, "expected 1, got %ld\n", obj->val);
 		return AST_TEST_FAIL;
 	}
 
 	obj = ast_heap_pop(h);
 	if (obj) {
+		ast_test_status_update(test, "got unexpected object\n");
 		return AST_TEST_FAIL;
 	}
 
@@ -117,10 +118,10 @@ AST_TEST_DEFINE(heap_test_1)
 AST_TEST_DEFINE(heap_test_2)
 {
 	struct ast_heap *h = NULL;
-	static const unsigned int one_million = 1000000;
+	static const unsigned int total = 100000;
 	struct node *nodes = NULL;
 	struct node *node;
-	unsigned int i = one_million;
+	unsigned int i = total;
 	long last = LONG_MAX;
 	long cur;
 	enum ast_test_result_state res = AST_TEST_PASS;
@@ -130,13 +131,18 @@ AST_TEST_DEFINE(heap_test_2)
 		info->name = "heap_test_2";
 		info->category = "main/heap/";
 		info->summary = "load test";
-		info->description = "Push a million random elements on to a heap,verify that the heap has been properly constructed, and then ensure that the elements are come back off in the proper order";
+		info->description =
+				"Push one hundred thousand random elements on to a heap, "
+				"verify that the heap has been properly constructed, "
+				"and then ensure that the elements are come back off "
+				"in the proper order."
+				"\n";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
 	}
 
-	if (!(nodes = ast_malloc(one_million * sizeof(*node)))) {
+	if (!(nodes = ast_malloc(total * sizeof(*node)))) {
 		res = AST_TEST_FAIL;
 		goto return_cleanup;
 	}
@@ -160,7 +166,7 @@ AST_TEST_DEFINE(heap_test_2)
 	while ((node = ast_heap_pop(h))) {
 		cur = node->val;
 		if (cur > last) {
-			ast_str_set(&args->ast_test_error_str, 0, "i: %u, cur: %ld, last: %ld\n", i, cur, last);
+			ast_test_status_update(test, "i: %u, cur: %ld, last: %ld\n", i, cur, last);
 			res = AST_TEST_FAIL;
 			goto return_cleanup;
 		}
@@ -168,8 +174,8 @@ AST_TEST_DEFINE(heap_test_2)
 		i++;
 	}
 
-	if (i != one_million) {
-		ast_str_set(&args->ast_test_error_str, 0, "Stopped popping off after only getting %u nodes\n", i);
+	if (i != total) {
+		ast_test_status_update(test, "Stopped popping off after only getting %u nodes\n", i);
 		res = AST_TEST_FAIL;
 		goto return_cleanup;
 	}

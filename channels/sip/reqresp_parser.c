@@ -139,66 +139,62 @@ AST_TEST_DEFINE(sip_parse_uri_test)
 	/* Test 1, simple URI */
 	name = pass = domain = port = transport = NULL;
 	if (parse_uri(uri1, "sip:,sips:", &name, &pass, &domain, &port, &transport) ||
-		strcmp(name, "name")        ||
-		!ast_strlen_zero(pass)      ||
-		strcmp(domain, "host")      ||
-		!ast_strlen_zero(port)      ||
-		!ast_strlen_zero(transport)) {
-
-		ast_str_append(&args->ast_test_error_str, 0, "Test 1: simple uri failed. \n");
+			strcmp(name, "name")        ||
+			!ast_strlen_zero(pass)      ||
+			strcmp(domain, "host")      ||
+			!ast_strlen_zero(port)      ||
+			!ast_strlen_zero(transport)) {
+		ast_test_status_update(test, "Test 1: simple uri failed. \n");
 		res = AST_TEST_FAIL;
 	}
 
 	/* Test 2, add tcp transport */
 	name = pass = domain = port = transport = NULL;
 	if (parse_uri(uri2, "sip:,sips:", &name, &pass, &domain, &port, &transport) ||
-		strcmp(name, "name")        ||
-		!ast_strlen_zero(pass)      ||
-		strcmp(domain, "host")    ||
-		!ast_strlen_zero(port)      ||
-		strcmp(transport, "tcp")) {
-
-		ast_str_append(&args->ast_test_error_str, 0, "Test 2: uri with addtion of tcp transport failed. \n");
+			strcmp(name, "name")        ||
+			!ast_strlen_zero(pass)      ||
+			strcmp(domain, "host")    ||
+			!ast_strlen_zero(port)      ||
+			strcmp(transport, "tcp")) {
+		ast_test_status_update(test, "Test 2: uri with addtion of tcp transport failed. \n");
 		res = AST_TEST_FAIL;
 	}
 
 	/* Test 3, add secret */
 	name = pass = domain = port = transport = NULL;
 	if (parse_uri(uri3, "sip:,sips:", &name, &pass, &domain, &port, &transport) ||
-	    strcmp(name, "name")        ||
-		strcmp(pass, "secret")      ||
-		strcmp(domain, "host")    ||
-		!ast_strlen_zero(port)      ||
-		strcmp(transport, "tcp")) {
-
-		ast_str_append(&args->ast_test_error_str, 0, "Test 3: uri with addition of secret failed.\n");
+			strcmp(name, "name")        ||
+			strcmp(pass, "secret")      ||
+			strcmp(domain, "host")    ||
+			!ast_strlen_zero(port)      ||
+			strcmp(transport, "tcp")) {
+		ast_test_status_update(test, "Test 3: uri with addition of secret failed.\n");
 		res = AST_TEST_FAIL;
 	}
 
 	/* Test 4, add port and unparsed header field*/
 	name = pass = domain = port = transport = NULL;
 	if (parse_uri(uri4, "sip:,sips:", &name, &pass, &domain, &port, &transport) ||
-	    strcmp(name, "name")        ||
-		strcmp(pass, "secret")      ||
-		strcmp(domain, "host")    ||
-		strcmp(port, "port")      ||
-		strcmp(transport, "tcp")) {
-
-		ast_str_append(&args->ast_test_error_str, 0, "Test 4: add port and unparsed header field failed.\n");
+			strcmp(name, "name")        ||
+			strcmp(pass, "secret")      ||
+			strcmp(domain, "host")    ||
+			strcmp(port, "port")      ||
+			strcmp(transport, "tcp")) {
+		ast_test_status_update(test, "Test 4: add port and unparsed header field failed.\n");
 		res = AST_TEST_FAIL;
 	}
 
 	/* Test 5, verify parse_uri does not crash when given a NULL uri */
 	name = pass = domain = port = transport = NULL;
 	if (!parse_uri(NULL, "sip:,sips:", &name, &pass, &domain, &port, &transport)) {
-		ast_str_append(&args->ast_test_error_str, 0, "Test 5: passing a NULL uri failed.\n");
+		ast_test_status_update(test, "Test 5: passing a NULL uri failed.\n");
 		res = AST_TEST_FAIL;
 	}
 
 	/* Test 6, verify parse_uri does not crash when given a NULL output parameters */
 	name = pass = domain = port = transport = NULL;
 	if (parse_uri(uri4, "sip:,sips:", NULL, NULL, NULL, NULL, NULL)) {
-		ast_str_append(&args->ast_test_error_str, 0, "Test 6: passing NULL output parameters failed.\n");
+		ast_test_status_update(test, "Test 6: passing NULL output parameters failed.\n");
 		res = AST_TEST_FAIL;
 	}
 
@@ -339,46 +335,41 @@ AST_TEST_DEFINE(get_calleridname_test)
 
 	/* quoted-text with backslash escaped quote */
 	after_dname = get_calleridname(in1, dname, sizeof(dname));
-	ast_test_status_update(&args->status_update, "display-name1: %s\nafter: %s\n", dname, after_dname);
+	ast_test_status_update(test, "display-name1: %s\nafter: %s\n", dname, after_dname);
 	if (strcmp(dname, " quoted-text internal \" quote ")) {
-		ast_test_status_update(&args->status_update, "display-name1 test failed\n");
-		ast_str_append(&args->ast_test_error_str, 0, "quoted-text with internal backslash decode failed. \n");
+		ast_test_status_update(test, "display-name1 test failed\n");
 		res = AST_TEST_FAIL;
 	}
 
 	/* token text */
 	after_dname = get_calleridname(in2, dname, sizeof(dname));
-	ast_test_status_update(&args->status_update, "display-name2: %s\nafter: %s\n", dname, after_dname);
+	ast_test_status_update(test, "display-name2: %s\nafter: %s\n", dname, after_dname);
 	if (strcmp(dname, "token text with no quotes")) {
-		ast_test_status_update(&args->status_update, "display-name2 test failed\n");
-		ast_str_append(&args->ast_test_error_str, 0, "token text with decode failed. \n");
+		ast_test_status_update(test, "display-name2 test failed\n");
 		res = AST_TEST_FAIL;
 	}
 
 	/* quoted-text buffer overflow */
 	after_dname = get_calleridname(overflow1, dname, sizeof(dname));
-	ast_test_status_update(&args->status_update, "overflow display-name1: %s\nafter: %s\n", dname, after_dname);
+	ast_test_status_update(test, "overflow display-name1: %s\nafter: %s\n", dname, after_dname);
 	if (*dname != '\0' && after_dname != overflow1) {
-		ast_test_status_update(&args->status_update, "overflow display-name1 test failed\n");
-		ast_str_append(&args->ast_test_error_str, 0, "quoted-text buffer overflow check failed. \n");
+		ast_test_status_update(test, "overflow display-name1 test failed\n");
 		res = AST_TEST_FAIL;
 	}
 
 	/* quoted-text buffer with no terminating end quote */
 	after_dname = get_calleridname(noendquote, dname, sizeof(dname));
-	ast_test_status_update(&args->status_update, "noendquote display-name1: %s\nafter: %s\n", dname, after_dname);
+	ast_test_status_update(test, "noendquote display-name1: %s\nafter: %s\n", dname, after_dname);
 	if (*dname != '\0' && after_dname != noendquote) {
-		ast_test_status_update(&args->status_update, "no end quote for quoted-text display-name failed\n");
-		ast_str_append(&args->ast_test_error_str, 0, "quoted-text buffer check no terminating end quote failed. \n");
+		ast_test_status_update(test, "no end quote for quoted-text display-name failed\n");
 		res = AST_TEST_FAIL;
 	}
 
 	/* addr-spec rather than display-name. */
 	after_dname = get_calleridname(addrspec, dname, sizeof(dname));
-	ast_test_status_update(&args->status_update, "noendquote display-name1: %s\nafter: %s\n", dname, after_dname);
+	ast_test_status_update(test, "noendquote display-name1: %s\nafter: %s\n", dname, after_dname);
 	if (*dname != '\0' && after_dname != addrspec) {
-		ast_test_status_update(&args->status_update, "detection of addr-spec failed\n");
-		ast_str_append(&args->ast_test_error_str, 0, "detection of addr-spec failed. \n");
+		ast_test_status_update(test, "detection of addr-spec failed\n");
 		res = AST_TEST_FAIL;
 	}
 

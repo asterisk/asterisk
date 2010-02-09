@@ -263,7 +263,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		reg->callid_valid != FALSE          ||
 		reg->ocseq != INITIAL_CSEQ) {
 
-		ast_str_append(&args->ast_test_error_str, 0, "Test 1: simple config failed\n");
+		ast_test_status_update(test, "Test 1: simple config failed\n");
 		res = AST_TEST_FAIL;
 	}
 	ast_string_field_free_memory(reg);
@@ -290,7 +290,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		reg->callid_valid != FALSE          ||
 		reg->ocseq != INITIAL_CSEQ) {
 
-		ast_str_append(&args->ast_test_error_str, 0, "Test 2: add secret failed\n");
+		ast_test_status_update(test,  "Test 2: add secret failed\n");
 		res = AST_TEST_FAIL;
 	}
 	ast_string_field_free_memory(reg);
@@ -317,7 +317,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		reg->callid_valid != FALSE          ||
 		reg->ocseq != INITIAL_CSEQ) {
 
-		ast_str_append(&args->ast_test_error_str, 0, "Test 3: add userdomain and authuser failed\n");
+		ast_test_status_update(test, "Test 3: add userdomain and authuser failed\n");
 		res = AST_TEST_FAIL;
 	}
 	ast_string_field_free_memory(reg);
@@ -344,7 +344,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		reg->callid_valid != FALSE          ||
 		reg->ocseq != INITIAL_CSEQ) {
 
-		ast_str_append(&args->ast_test_error_str, 0, "Test 4: add callback extension failed\n");
+		ast_test_status_update(test, "Test 4: add callback extension failed\n");
 		res = AST_TEST_FAIL;
 	}
 	ast_string_field_free_memory(reg);
@@ -371,7 +371,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		reg->callid_valid != FALSE          ||
 		reg->ocseq != INITIAL_CSEQ) {
 
-		ast_str_append(&args->ast_test_error_str, 0, "Test 5: add transport failed\n");
+		ast_test_status_update(test, "Test 5: add transport failed\n");
 		res = AST_TEST_FAIL;
 	}
 	ast_string_field_free_memory(reg);
@@ -398,7 +398,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		reg->callid_valid != FALSE          ||
 		reg->ocseq != INITIAL_CSEQ) {
 
-		ast_str_append(&args->ast_test_error_str, 0, "Test 6: change to tls transport and add expiry failed\n");
+		ast_test_status_update(test, "Test 6: change to tls transport and add expiry failed\n");
 		res = AST_TEST_FAIL;
 	}
 	ast_string_field_free_memory(reg);
@@ -425,7 +425,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		reg->callid_valid != FALSE          ||
 		reg->ocseq != INITIAL_CSEQ) {
 
-		ast_str_append(&args->ast_test_error_str, 0, "Test 7, change transport to tcp, add custom port, and add peer failed.\n");
+		ast_test_status_update(test, "Test 7, change transport to tcp, add custom port, and add peer failed.\n");
 		res = AST_TEST_FAIL;
 	}
 	ast_string_field_free_memory(reg);
@@ -452,7 +452,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		reg->callid_valid != FALSE          ||
 		reg->ocseq != INITIAL_CSEQ) {
 
-		ast_str_append(&args->ast_test_error_str, 0, "Test 8, remove transport failed.\n");
+		ast_test_status_update(test, "Test 8, remove transport failed.\n");
 		res = AST_TEST_FAIL;
 	}
 	ast_string_field_free_memory(reg);
@@ -462,8 +462,8 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 	if (!(reg = ast_calloc_with_stringfields(1, struct sip_registry, 256))) {
 		goto alloc_fail;
 	} else if (!sip_parse_register_line(reg, default_expiry, reg9, 1)) {
-
-		ast_str_append(&args->ast_test_error_str, 0, "Test 9, missing domain, expected to fail but did not.\n");
+		ast_test_status_update(test,
+				"Test 9, missing domain, expected to fail but did not.\n");
 		res = AST_TEST_FAIL;
 	}
 	ast_string_field_free_memory(reg);
@@ -473,8 +473,8 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 	if (!(reg = ast_calloc_with_stringfields(1, struct sip_registry, 256))) {
 		goto alloc_fail;
 	} else if (!sip_parse_register_line(reg, default_expiry, reg10, 1)) {
-
-		ast_str_append(&args->ast_test_error_str, 0, "Test 10, missing user expected to fail but did not\n");
+		ast_test_status_update(test,
+				"Test 10, missing user expected to fail but did not\n");
 		res = AST_TEST_FAIL;
 	}
 	ast_string_field_free_memory(reg);
@@ -482,8 +482,8 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 
 	/* ---Test reg 11, no registry object, expected to fail--- */
 	if (!sip_parse_register_line(NULL, default_expiry, reg1, 1)) {
-
-		ast_str_append(&args->ast_test_error_str, 0, "Test 11, no registery object, expected to fail but did not.\n");
+		ast_test_status_update(test,
+				"Test 11, no registery object, expected to fail but did not.\n");
 		res = AST_TEST_FAIL;
 	}
 
@@ -492,7 +492,8 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		goto alloc_fail;
 	} else if (!sip_parse_register_line(reg, default_expiry, NULL, 1)) {
 
-		ast_str_append(&args->ast_test_error_str, 0, "Test 11, NULL register line expected to fail but did not.\n");
+		ast_test_status_update(test,
+				"Test 11, NULL register line expected to fail but did not.\n");
 		res = AST_TEST_FAIL;
 	}
 	ast_string_field_free_memory(reg);
@@ -502,7 +503,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 	return res;
 
 alloc_fail:
-	ast_str_set(&args->ast_test_error_str, 0, "Out of memory. \n");
+	ast_test_status_update(test, "Out of memory. \n");
 	return res;
 }
 
@@ -582,60 +583,54 @@ AST_TEST_DEFINE(sip_parse_host_line_test)
 	/* test 1, simple host */
 	sip_parse_host(host1, 1, &host, &port, &transport);
 	if (port != STANDARD_SIP_PORT ||
-		ast_strlen_zero(host) || strcmp(host, "www.blah.com") ||
-		transport != SIP_TRANSPORT_UDP) {
-
-		ast_str_append(&args->ast_test_error_str, 0, "Test 1: simple host failed.\n");
+			ast_strlen_zero(host) || strcmp(host, "www.blah.com") ||
+			transport != SIP_TRANSPORT_UDP) {
+		ast_test_status_update(test, "Test 1: simple host failed.\n");
 		res = AST_TEST_FAIL;
 	}
 
 	/* test 2, add tcp transport */
 	sip_parse_host(host2, 1, &host, &port, &transport);
 	if (port != STANDARD_SIP_PORT ||
-		ast_strlen_zero(host) || strcmp(host, "www.blah.com") ||
-		transport != SIP_TRANSPORT_TCP) {
-
-		ast_str_append(&args->ast_test_error_str, 0, "Test 2: tcp host failed.\n");
+			ast_strlen_zero(host) || strcmp(host, "www.blah.com") ||
+			transport != SIP_TRANSPORT_TCP) {
+		ast_test_status_update(test, "Test 2: tcp host failed.\n");
 		res = AST_TEST_FAIL;
 	}
 
 	/* test 3, add tls transport */
 	sip_parse_host(host3, 1, &host, &port, &transport);
 	if (port != STANDARD_TLS_PORT ||
-		ast_strlen_zero(host) || strcmp(host, "10.10.10.10") ||
-		transport != SIP_TRANSPORT_TLS) {
-
-		ast_str_append(&args->ast_test_error_str, 0, "Test 3: tls host failed. \n");
+			ast_strlen_zero(host) || strcmp(host, "10.10.10.10") ||
+			transport != SIP_TRANSPORT_TLS) {
+		ast_test_status_update(test, "Test 3: tls host failed. \n");
 		res = AST_TEST_FAIL;
 	}
 
 	/* test 4, add custom port with tls */
 	sip_parse_host(host4, 1, &host, &port, &transport);
-	if (port != 1234 ||
-		ast_strlen_zero(host) || strcmp(host, "10.10.10.10") ||
-		transport != SIP_TRANSPORT_TLS) {
-
-		ast_str_append(&args->ast_test_error_str, 0, "Test 4: tls host with custom port failed.\n");
+	if (port != 1234 || ast_strlen_zero(host) ||
+			strcmp(host, "10.10.10.10") ||
+			transport != SIP_TRANSPORT_TLS) {
+		ast_test_status_update(test, "Test 4: tls host with custom port failed.\n");
 		res = AST_TEST_FAIL;
 	}
 
 	/* test 5, simple host with custom port */
 	sip_parse_host(host5, 1, &host, &port, &transport);
-	if (port != 1234 ||
-		ast_strlen_zero(host) || strcmp(host, "10.10.10.10") ||
-		transport != SIP_TRANSPORT_UDP) {
-
-		ast_str_append(&args->ast_test_error_str, 0, "Test 5: simple host with custom port failed.\n");
+	if (port != 1234 || ast_strlen_zero(host) ||
+			strcmp(host, "10.10.10.10") ||
+			transport != SIP_TRANSPORT_UDP) {
+		ast_test_status_update(test, "Test 5: simple host with custom port failed.\n");
 		res = AST_TEST_FAIL;
 	}
-	return res;
 
 	/* test 6, expected failure with NULL input */
-	if (sip_parse_host(NULL, 1, &host, &port, &transport)) {
-
-		ast_str_append(&args->ast_test_error_str, 0, "Test 6: expected error on NULL input did not occur.\n");
+	if (!sip_parse_host(NULL, 1, &host, &port, &transport)) {
+		ast_test_status_update(test, "Test 6: expected error on NULL input did not occur.\n");
 		res = AST_TEST_FAIL;
 	}
+
 	return res;
 
 }

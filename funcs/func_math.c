@@ -473,8 +473,7 @@ AST_TEST_DEFINE(test_MATH_function)
 		break;
 	}
 
-	ast_test_status_update(&args->status_update, "Testing MATH() substitution ...\n");
-	ast_str_reset(args->ast_test_error_str);
+	ast_test_status_update(test, "Testing MATH() substitution ...\n");
 
 	if (!(expr = ast_str_create(16)) || !(result = ast_str_create(16))) {
 		if (expr) {
@@ -489,14 +488,16 @@ AST_TEST_DEFINE(test_MATH_function)
 	ast_str_set(&expr, 0, "${MATH(170 AND 63,i)}");
 	ast_str_substitute_variables(&result, 0, NULL, ast_str_buffer(expr));
 	if (strcmp(ast_str_buffer(result), "42") != 0) {
-		ast_str_append(&args->ast_test_error_str, 0, "Expected result '42' not returned! ('%s')\n", ast_str_buffer(result));
+		ast_test_status_update(test, "Expected result '42' not returned! ('%s')\n",
+				ast_str_buffer(result));
 		res = AST_TEST_FAIL;
 	}
 
 	ast_str_set(&expr, 0, "${MATH(170AND63,i)}");
 	ast_str_substitute_variables(&result, 0, NULL, ast_str_buffer(expr));
 	if (strcmp(ast_str_buffer(result), "42") != 0) {
-		ast_str_append(&args->ast_test_error_str, 0, "Expected result '42' not returned! ('%s')\n", ast_str_buffer(result));
+		ast_test_status_update(test, "Expected result '42' not returned! ('%s')\n",
+				ast_str_buffer(result));
 		res = AST_TEST_FAIL;
 	}
 

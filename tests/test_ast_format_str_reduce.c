@@ -94,12 +94,14 @@ AST_TEST_DEFINE(ast_format_str_reduce_test_1)
 	for (i = 0; test_strings[i][0]; i++) {
 		c = ast_strdupa(test_strings[i][0]);
 		if (!(c = ast_format_str_reduce(c))) {
-			ast_str_set(&args->ast_test_error_str, 0, "Error running ast_format_str_reduce() on string '%s'\n", test_strings[i][0]);
+			ast_test_status_update(test, "Error running ast_format_str_reduce() on string '%s'\n",
+					test_strings[i][0]);
 			return AST_TEST_FAIL;
 		}
 
 		if (strcmp(test_strings[i][1], c)) {
-			ast_str_set(&args->ast_test_error_str, 0, "Format string '%s' reduced to '%s'.  Expected '%s'\n", test_strings[i][0], c, test_strings[i][1]);
+			ast_test_status_update(test, "Format string '%s' reduced to '%s'.  Expected '%s'\n",
+					test_strings[i][0], c, test_strings[i][1]);
 			return AST_TEST_FAIL;
 		}
 	}
@@ -107,7 +109,9 @@ AST_TEST_DEFINE(ast_format_str_reduce_test_1)
 	for (i = 0; fail_strings[i]; i++) {
 		c = ast_strdupa(fail_strings[i]);
 		if ((c = ast_format_str_reduce(c))) {
-			ast_str_set(&args->ast_test_error_str, 0, "ast_format_str_reduce() succeded on string '%s' with result '%s', but we expected it to fail\n", fail_strings[i], c);
+			ast_test_status_update(test, "ast_format_str_reduce() succeded on string '%s' "
+					"with result '%s', but we expected it to fail\n",
+					fail_strings[i], c);
 			return AST_TEST_FAIL;
 		}
 	}

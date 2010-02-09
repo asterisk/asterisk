@@ -1,9 +1,10 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2009, Digium, Inc.
+ * Copyright (C) 2009-2010, Digium, Inc.
  *
  * David Vossel <dvossel@digium.com>
+ * Russell Bryant <russell@digium.com>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -23,6 +24,7 @@
  * For an overview on how to use the test API, see \ref AstUnitTestAPI
  *
  * \author David Vossel <dvossel@digium.com>
+ * \author Russell Bryant <russell@digium.com>
  */
 
 #ifndef _AST_TEST_H_
@@ -46,7 +48,7 @@
    Each defined test has three arguments avaliable to it's test code.
        \param struct ast_test_info *info
        \param enum ast_test_command cmd
-       \param struct ast_test_args *args
+       \param struct ast_test *test
 
    While these arguments are not visible they are passed to every test function
    defined using the AST_TEST_DEFINE macro.
@@ -72,7 +74,7 @@
       .
       .
       if (fail) {                 \\ the following is just some example logic
-          ast_str_set(&args->ast_test_error_str, 0 , "an error occured because...");
+          ast_test_status_update(test, "an error occured because...");
           res = AST_RESULT_FAIL;
       } else {
           res = AST_RESULT_PASS
@@ -81,10 +83,8 @@
    }
 \endcode
 
-   Every callback function is passed an ast_test_args object which contains
-   an ast_str allowing the function to provide an optional short description of
-   what went wrong if the test failed. This is done by writing to
-   args->ast_test_error_str.
+      Details of the test execution, especially failure details, should be provided
+      by using the ast_test_status_update() function.
 
 \subsection RegisterTest Register a Test 
 
@@ -117,13 +117,13 @@
 /*! Macros used for defining and registering a test */
 #ifdef TEST_FRAMEWORK
 
-#define AST_TEST_DEFINE(hdr) static enum ast_test_result_state hdr(struct ast_test_info *info, enum ast_test_command cmd, struct ast_test_args *args)
+#define AST_TEST_DEFINE(hdr) static enum ast_test_result_state hdr(struct ast_test_info *info, enum ast_test_command cmd, struct ast_test *test)
 #define AST_TEST_REGISTER(cb) ast_test_register(cb)
 #define AST_TEST_UNREGISTER(cb) ast_test_unregister(cb)
 
 #else
 
-#define AST_TEST_DEFINE(hdr) static enum ast_test_result_state attribute_unused hdr(struct ast_test_info *info, enum ast_test_command cmd, struct ast_test_args *args)
+#define AST_TEST_DEFINE(hdr) static enum ast_test_result_state attribute_unused hdr(struct ast_test_info *info, enum ast_test_command cmd, struct ast_test *test)
 #define AST_TEST_REGISTER(cb)
 #define AST_TEST_UNREGISTER(cb)
 #define ast_test_status_update(a,b,c...)
@@ -142,34 +142,23 @@ enum ast_test_command {
 };
 
 /*!
- *  This struct is passed to ast_test_status_update() providing a place to push
- *  the update to. In the future this structure may expand beyond simply being
- *  a wrapper for cli args to including other status update options as well.
+ * \brief An Asterisk unit test.
+ *
+ * This is an opaque type.
  */
-struct ast_test_status_args {
-	/*! pointer to cli arg used for updating status */
-	struct ast_cli_args *cli;
-};
+struct ast_test;
 
 /*!
- * tools made available to the callback function during test execution
- */
-struct ast_test_args {
-	struct ast_str *ast_test_error_str;  /*! optional error str to describe error result */
-	struct ast_test_status_args status_update;
-};
-
-/*!
- * Contains all the initilization information required to store a new test definition
+ * \brief Contains all the initialization information required to store a new test definition
  */
 struct ast_test_info {
-	/*! name of test, unique to category */
+	/*! \brief name of test, unique to category */
 	const char *name;
-	/*! test category */
+	/*! \brief test category */
 	const char *category;
-	/*! optional short summary of test */
+	/*! \brief optional short summary of test */
 	const char *summary;
-	/*! optional brief detailed description of test */
+	/*! \brief optional brief detailed description of test */
 	const char *description;
 };
 
@@ -182,7 +171,8 @@ struct ast_test_info {
  * \retval AST_TEST_PASS for pass
  * \retval AST_TEST_FAIL for failure
  */
-typedef enum ast_test_result_state (ast_test_cb_t)(struct ast_test_info *info, enum ast_test_command cmd, struct ast_test_args *args);
+typedef enum ast_test_result_state (ast_test_cb_t)(struct ast_test_info *info,
+		enum ast_test_command cmd, struct ast_test *test);
 
 /*!
  * \brief unregisters a test with the test framework
@@ -207,13 +197,19 @@ int ast_test_register(ast_test_cb_t *cb);
 /*!
  * \brief update test's status during testing.
  *
- * \param ast_test_status_args defines everywhere the update should go.
+ * \param test currently executing test
  *
  * \retval 0 success
  * \retval -1 failure
  */
-int ast_test_status_update(struct ast_test_status_args *args, const char *fmt, ...)
-__attribute__((format(printf, 2, 3)));
+int __ast_test_status_update(const char *file, const char *func, int line,
+		struct ast_test *test, const char *fmt, ...)
+		__attribute__((format(printf, 5, 6)));
+
+/*!
+ * \ref __ast_test_status_update()
+ */
+#define ast_test_status_update(t, f, ...) __ast_test_status_update(__FILE__, __PRETTY_FUNCTION__, __LINE__, (t), (f), ## __VA_ARGS__)
 
 #endif /* TEST_FRAMEWORK */
 #endif /* _AST_TEST_H */

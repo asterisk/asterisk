@@ -55,10 +55,10 @@ AST_TEST_DEFINE(sample_test)
 		break;
 	}
 
-	ast_test_status_update(&args->status_update, "Executing sample test.\n");
+	ast_test_status_update(test, "Executing sample test...\n");
 
 	if (!(ptr = ast_malloc(8))) {
-		ast_str_set(&args->ast_test_error_str, 0, "ast_malloc() failed\n");
+		ast_test_status_update(test, "ast_malloc() failed\n");
 		return AST_TEST_FAIL;
 	}
 

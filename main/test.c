@@ -1,9 +1,10 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2009, Digium, Inc.
+ * Copyright (C) 2009-2010, Digium, Inc.
  *
  * David Vossel <dvossel@digium.com>
+ * Russell Bryant <russell@digium.com>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -16,11 +17,12 @@
  * at the top of the source tree.
  */
 
-/*! \file
- *
+/*!
+ * \file
  * \brief Unit Test Framework
  *
  * \author David Vossel <dvossel@digium.com>
+ * \author Russell Bryant <russell@digium.com>
  */
 
 #include "asterisk.h"
@@ -43,14 +45,24 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 /*! This array corresponds to the values defined in the ast_test_state enum */
 static const char * const test_result2str[] = {
 	[AST_TEST_NOT_RUN] = "NOT RUN",
-	[AST_TEST_PASS] = "PASS",
-	[AST_TEST_FAIL] = "FAIL",
+	[AST_TEST_PASS]    = "PASS",
+	[AST_TEST_FAIL]    = "FAIL",
 };
 
 /*! holds all the information pertaining to a single defined test */
 struct ast_test {
 	struct ast_test_info info;        /*!< holds test callback information */
-	struct ast_test_args args;        /*!< function callback arguments */
+	/*!
+	 * \brief Test defined status output from last execution
+	 */
+	struct ast_str *status_str;
+	/*!
+	 * \brief CLI arguments, if tests being run from the CLI
+	 *
+	 * If this is set, status updates from the tests will be sent to the
+	 * CLI in addition to being saved off in status_str.
+	 */
+	struct ast_cli_args *cli;
 	enum ast_test_result_state state; /*!< current test state */
 	unsigned int time;                /*!< time in ms test took */
 	ast_test_cb_t *cb;                /*!< test callback function */
@@ -77,22 +89,17 @@ enum test_mode {
 /*! List of registered test definitions */
 static AST_LIST_HEAD_STATIC(tests, ast_test);
 
-/*! static function prototypes */
 static struct ast_test *test_alloc(ast_test_cb_t *cb);
 static struct ast_test *test_free(struct ast_test *test);
 static int test_insert(struct ast_test *test);
 static struct ast_test *test_remove(ast_test_cb_t *cb);
 static int test_cat_cmp(const char *cat1, const char *cat2);
 
-int ast_test_status_update(struct ast_test_status_args *args, const char *fmt, ...)
+int __ast_test_status_update(const char *file, const char *func, int line,
+		struct ast_test *test, const char *fmt, ...)
 {
 	struct ast_str *buf = NULL;
 	va_list ap;
-
-	/* it is not an error if no cli args exist. */
-	if (!args->cli) {
-		return 0;
-	}
 
 	if (!(buf = ast_str_create(128))) {
 		return -1;
@@ -102,9 +109,16 @@ int ast_test_status_update(struct ast_test_status_args *args, const char *fmt, .
 	ast_str_set_va(&buf, 0, fmt, ap);
 	va_end(ap);
 
-	ast_cli(args->cli->fd, "%s", ast_str_buffer(buf));
+	if (test->cli) {
+		ast_cli(test->cli->fd, "[%s:%s:%d]: %s",
+				file, func, line, ast_str_buffer(buf));
+	}
+
+	ast_str_append(&test->status_str, 0, "[%s:%s:%d]: %s",
+			file, func, line, ast_str_buffer(buf));
 
 	ast_free(buf);
+
 	return 0;
 }
 
@@ -112,18 +126,15 @@ int ast_test_register(ast_test_cb_t *cb)
 {
 	struct ast_test *test;
 
-	/* verify data.*/
 	if (!cb) {
 		ast_log(LOG_WARNING, "Attempted to register test without all required information\n");
 		return -1;
 	}
 
-	/* create test object */
 	if (!(test = test_alloc(cb))) {
 		return -1;
 	}
 
-	/* insert into list */
 	if (test_insert(test)) {
 		test_free(test);
 		return -1;
@@ -136,12 +147,10 @@ int ast_test_unregister(ast_test_cb_t *cb)
 {
 	struct ast_test *test;
 
-	/* find test and remove */
 	if (!(test = test_remove(cb))) {
 		return -1; /* not found */
 	}
 
-	/* free test object */
 	test_free(test);
 
 	return 0;
@@ -158,16 +167,11 @@ static void test_execute(struct ast_test *test)
 {
 	struct timeval begin;
 
-	/* clear any previous error results before starting */
-	ast_str_reset(test->args.ast_test_error_str);
-	/* get start time */
+	ast_str_reset(test->status_str);
+
 	begin = ast_tvnow();
-	/* the callback gets the pointer to the pointer of the error buf */
-	test->state = test->cb(&test->info, TEST_EXECUTE, &test->args);
-	/* record the total time the test took */
+	test->state = test->cb(&test->info, TEST_EXECUTE, test);
 	test->time = ast_tvdiff_ms(ast_tvnow(), begin);
-	/* clear any status update args that may have been set */
-	memset(&test->args.status_update, 0, sizeof(struct ast_test_status_args));
 }
 
 static void test_xml_entry(struct ast_test *test, FILE *f)
@@ -183,7 +187,7 @@ static void test_xml_entry(struct ast_test *test, FILE *f)
 
 	if (test->state == AST_TEST_FAIL) {
 		fprintf(f, "\t\t<failure>%s</failure>\n",
-				S_OR(ast_str_buffer(test->args.ast_test_error_str), "NA"));
+				S_OR(ast_str_buffer(test->status_str), "NA"));
 		fprintf(f, "\t</testcase>\n");
 	}
 
@@ -200,11 +204,11 @@ static void test_txt_entry(struct ast_test *test, FILE *f)
 	fprintf(f,   "Summary:           %s\n", test->info.summary);
 	fprintf(f,   "Description:       %s\n", test->info.description);
 	fprintf(f,   "Result:            %s\n", test_result2str[test->state]);
-	if (test->state == AST_TEST_FAIL) {
-		fprintf(f,   "Error Description: %s\n", S_OR(ast_str_buffer(test->args.ast_test_error_str), "NA"));
-	}
 	if (test->state != AST_TEST_NOT_RUN) {
 		fprintf(f,   "Time:              %d\n", test->time);
+	}
+	if (test->state == AST_TEST_FAIL) {
+		fprintf(f,   "Error Description: %s\n\n", S_OR(ast_str_buffer(test->status_str), "NA"));
 	}
 }
 
@@ -266,10 +270,12 @@ static int test_execute_multiple(const char *name, const char *category, struct 
 			}
 
 			/* set the test status update argument. it is ok if cli is NULL */
-			test->args.status_update.cli = cli;
+			test->cli = cli;
 
 			/* execute the test and save results */
 			test_execute(test);
+
+			test->cli = NULL;
 
 			/* update execution specific counts here */
 			last_results.last_time += test->time;
@@ -285,12 +291,11 @@ static int test_execute_multiple(const char *name, const char *category, struct 
 					(test->state == AST_TEST_FAIL) ? COLOR_RED : COLOR_GREEN,
 					0,
 					sizeof(result_buf));
-				ast_cli(cli->fd, "END    %s - %s Time: %dms Result: %s %s\n",
+				ast_cli(cli->fd, "END    %s - %s Time: %dms Result: %s\n",
 					test->info.category,
 					test->info.name,
 					test->time,
-					result_buf,
-					ast_str_buffer(test->args.ast_test_error_str));
+					result_buf);
 			}
 		}
 
@@ -432,46 +437,20 @@ done:
  * \internal
  * \brief adds test to container sorted first by category then by name
  *
- * \return 0 on success, -1 on failure
+ * \retval 0 success
+ * \retval -1 failure
  */
 static int test_insert(struct ast_test *test)
 {
-	struct ast_test *cur = NULL;
-	int res = 0;
-	int i = 0;
-	int inserted = 0;
-
 	/* This is a slow operation that may need to be optimized in the future
 	 * as the test framework expands.  At the moment we are doing string
 	 * comparisons on every item within the list to insert in sorted order. */
+
 	AST_LIST_LOCK(&tests);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&tests, cur, entry) {
-		if ((i = strcmp(test->info.category, cur->info.category)) < 0) {
-			AST_LIST_INSERT_BEFORE_CURRENT(test, entry);
-			inserted = 1;
-			break;
-		} else if (!i) {  /* same category, now insert by name within that category*/
-			if ((i = strcmp(test->info.name, cur->info.name)) < 0) {
-				AST_LIST_INSERT_BEFORE_CURRENT(test, entry);
-				inserted = 1;
-				break;
-			} else if (!i) {
-				/* Error, duplicate found */
-				res = -1;
-				break;
-			}
-		}
-	}
-	AST_LIST_TRAVERSE_SAFE_END;
-
-	if (!inserted && !res) {
-		AST_LIST_INSERT_TAIL(&tests, test, entry);
-		inserted = 1;
-	}
-
+	AST_LIST_INSERT_SORTALPHA(&tests, test, entry, info.category);
 	AST_LIST_UNLOCK(&tests);
 
-	return res;
+	return 0;
 }
 
 /*!
@@ -501,7 +480,8 @@ static struct ast_test *test_remove(ast_test_cb_t *cb)
  * \brief compares two test categories to determine if cat1 resides in cat2
  * \internal
  *
- * \return 0 if true
+ * \retval 0 true
+ * \retval non-zero false
  */
 
 static int test_cat_cmp(const char *cat1, const char *cat2)
@@ -524,8 +504,8 @@ static int test_cat_cmp(const char *cat1, const char *cat2)
 }
 
 /*!
- * \brief frees a ast_test object and all it's data members
  * \internal
+ * \brief free an ast_test object and all it's data members
  */
 static struct ast_test *test_free(struct ast_test *test)
 {
@@ -533,7 +513,7 @@ static struct ast_test *test_free(struct ast_test *test)
 		return NULL;
 	}
 
-	ast_free(test->args.ast_test_error_str);
+	ast_free(test->status_str);
 	ast_free(test);
 
 	return NULL;
@@ -541,7 +521,7 @@ static struct ast_test *test_free(struct ast_test *test)
 
 /*!
  * \internal
- * \brief allocates an ast_test object.
+ * \brief allocate an ast_test object.
  */
 static struct ast_test *test_alloc(ast_test_cb_t *cb)
 {
@@ -553,14 +533,32 @@ static struct ast_test *test_alloc(ast_test_cb_t *cb)
 
 	test->cb = cb;
 
-	test->cb(&test->info, TEST_INIT, &test->args);
+	test->cb(&test->info, TEST_INIT, test);
 
-	if (ast_strlen_zero(test->info.name) ||
-		ast_strlen_zero(test->info.category) ||
-		ast_strlen_zero(test->info.summary) ||
-		ast_strlen_zero(test->info.description) ||
-		!(test->args.ast_test_error_str = ast_str_create(128))) {
+	if (ast_strlen_zero(test->info.name)) {
+		ast_log(LOG_WARNING, "Test has no name, test registration refused.\n");
+		return test_free(test);
+	}
 
+	if (ast_strlen_zero(test->info.category)) {
+		ast_log(LOG_WARNING, "Test %s has no category, test registration refused.\n",
+				test->info.name);
+		return test_free(test);
+	}
+
+	if (ast_strlen_zero(test->info.summary)) {
+		ast_log(LOG_WARNING, "Test %s/%s has no summary, test registration refused.\n",
+				test->info.category, test->info.name);
+		return test_free(test);
+	}
+
+	if (ast_strlen_zero(test->info.description)) {
+		ast_log(LOG_WARNING, "Test %s/%s has no description, test registration refused.\n",
+				test->info.category, test->info.name);
+		return test_free(test);
+	}
+
+	if (!(test->status_str = ast_str_create(128))) {
 		return test_free(test);
 	}
 
@@ -570,7 +568,7 @@ static struct ast_test *test_alloc(ast_test_cb_t *cb)
 /* CLI commands */
 static char *test_cli_show_registered(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-#define FORMAT "%-30.30s %-25.25s %-40.40s %-13.13s\n"
+#define FORMAT "%-25.25s %-30.30s %-40.40s %-13.13s\n"
 	static const char * const option1[] = { "all", "category", NULL };
 	static const char * const option2[] = { "name", NULL };
 	struct ast_test *test = NULL;
@@ -601,19 +599,22 @@ static char *test_cli_show_registered(struct ast_cli_entry *e, int cmd, struct a
 			((a->argc == 7) && strcmp(a->argv[5], "name"))) {
 			return CLI_SHOWUSAGE;
 		}
-		ast_cli(a->fd, FORMAT, "Name", "Category", "Summary", "Test Result");
+		ast_cli(a->fd, FORMAT, "Category", "Name", "Summary", "Test Result");
+		ast_cli(a->fd, FORMAT, "--------", "----", "-------", "-----------");
 		AST_LIST_LOCK(&tests);
 		AST_LIST_TRAVERSE(&tests, test, entry) {
 			if ((a->argc == 4) ||
 				 ((a->argc == 5) && !test_cat_cmp(test->info.category, a->argv[4])) ||
 				 ((a->argc == 7) && !strcmp(test->info.category, a->argv[4]) && !strcmp(test->info.name, a->argv[6]))) {
 
-				ast_cli(a->fd, FORMAT, test->info.name, test->info.category, test->info.summary, test_result2str[test->state]);
-				count ++;
+				ast_cli(a->fd, FORMAT, test->info.category, test->info.name,
+						test->info.summary, test_result2str[test->state]);
+				count++;
 			}
 		}
 		AST_LIST_UNLOCK(&tests);
-		ast_cli(a->fd, "%d Registered Tests Matched\n", count);
+		ast_cli(a->fd, FORMAT, "--------", "----", "-------", "-----------");
+		ast_cli(a->fd, "\n%d Registered Tests Matched\n", count);
 	default:
 		return NULL;
 	}
@@ -625,6 +626,7 @@ static char *test_cli_execute_registered(struct ast_cli_entry *e, int cmd, struc
 {
 	static const char * const option1[] = { "all", "category", NULL };
 	static const char * const option2[] = { "name", NULL };
+
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "test execute";
@@ -681,7 +683,7 @@ static char *test_cli_execute_registered(struct ast_cli_entry *e, int cmd, struc
 
 static char *test_cli_show_results(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-#define FORMAT_RES_ALL "%s%s %-30.30s %-25.25s %-40.40s\n"
+#define FORMAT_RES_ALL "%s%s %-30.30s %-25.25s\n"
 	static const char * const option1[] = { "all", "failed", "passed", NULL };
 	char result_buf[32] = { 0 };
 	struct ast_test *test = NULL;
@@ -718,7 +720,7 @@ static char *test_cli_show_results(struct ast_cli_entry *e, int cmd, struct ast_
 			return CLI_SHOWUSAGE;
 		}
 
-		ast_cli(a->fd, FORMAT_RES_ALL, "Result", "", "Name", "Category", "Error Description");
+		ast_cli(a->fd, FORMAT_RES_ALL, "Result", "", "Name", "Category");
 		AST_LIST_LOCK(&tests);
 		AST_LIST_TRAVERSE(&tests, test, entry) {
 			if (test->state == AST_TEST_NOT_RUN) {
@@ -735,8 +737,7 @@ static char *test_cli_show_results(struct ast_cli_entry *e, int cmd, struct ast_
 					result_buf,
 					"  ",
 					test->info.name,
-					test->info.category,
-					(test->state == AST_TEST_FAIL) ? S_OR(ast_str_buffer(test->args.ast_test_error_str), "Not Avaliable") : "");
+					test->info.category);
 			}
 		}
 		AST_LIST_UNLOCK(&tests);

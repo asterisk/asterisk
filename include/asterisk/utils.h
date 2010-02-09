@@ -758,8 +758,4 @@ int ast_str_to_eid(struct ast_eid *eid, const char *s);
  */
 int ast_eid_cmp(const struct ast_eid *eid1, const struct ast_eid *eid2);
 
-/*!
- * \brief Registers util api unit tests
- */
-void ast_utils_register_tests(void);
 #endif /* _ASTERISK_UTILS_H */

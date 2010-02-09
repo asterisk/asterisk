@@ -64,7 +64,7 @@ AST_TEST_DEFINE(sched_test_order)
 	}
 
 	if (!(con = sched_context_create())) {
-		ast_str_set(&args->ast_test_error_str, 0,
+		ast_test_status_update(test,
 				"Test failed - could not create scheduler context\n");
 		return AST_TEST_FAIL;
 	}
@@ -73,79 +73,79 @@ AST_TEST_DEFINE(sched_test_order)
 	 * of ast_sched_wait() looks appropriate at each step along the way. */
 
 	if ((wait = ast_sched_wait(con)) != -1) {
-		ast_str_set(&args->ast_test_error_str, 0,
+		ast_test_status_update(test,
 				"ast_sched_wait() should have returned -1, returned '%d'\n",
 				wait);
 		goto return_cleanup;
 	}
 
 	if ((id1 = ast_sched_add(con, 100000, sched_cb, NULL)) == -1) {
-		ast_str_set(&args->ast_test_error_str, 0,  "Failed to add scheduler entry\n");
+		ast_test_status_update(test, "Failed to add scheduler entry\n");
 		goto return_cleanup;
 	}
 
 	if ((wait = ast_sched_wait(con)) > 100000) {
-		ast_str_set(&args->ast_test_error_str, 0,
+		ast_test_status_update(test,
 				"ast_sched_wait() should have returned <= 100000, returned '%d'\n",
 				wait);
 		goto return_cleanup;
 	}
 
 	if ((id2 = ast_sched_add(con, 10000, sched_cb, NULL)) == -1) {
-		ast_str_set(&args->ast_test_error_str, 0, "Failed to add scheduler entry\n");
+		ast_test_status_update(test, "Failed to add scheduler entry\n");
 		goto return_cleanup;
 	}
 
 	if ((wait = ast_sched_wait(con)) > 10000) {
-		ast_str_set(&args->ast_test_error_str, 0,
+		ast_test_status_update(test,
 				"ast_sched_wait() should have returned <= 10000, returned '%d'\n",
 				wait);
 		goto return_cleanup;
 	}
 
 	if ((id3 = ast_sched_add(con, 1000, sched_cb, NULL)) == -1) {
-		ast_str_set(&args->ast_test_error_str, 0, "Failed to add scheduler entry\n");
+		ast_test_status_update(test, "Failed to add scheduler entry\n");
 		goto return_cleanup;
 	}
 
 	if ((wait = ast_sched_wait(con)) > 1000) {
-		ast_str_set(&args->ast_test_error_str, 0,
+		ast_test_status_update(test,
 				"ast_sched_wait() should have returned <= 1000, returned '%d'\n",
 				wait);
 		goto return_cleanup;
 	}
 
 	if (ast_sched_del(con, id3) == -1) {
-		ast_str_set(&args->ast_test_error_str, 0, "Failed to remove scheduler entry\n");
+		ast_test_status_update(test, "Failed to remove scheduler entry\n");
 		goto return_cleanup;
 	}
 
 	if ((wait = ast_sched_wait(con)) <= 1000) {
-		ast_str_set(&args->ast_test_error_str, 0,
+		ast_test_status_update(test,
 				"ast_sched_wait() should have returned > 1000, returned '%d'\n",
 				wait);
 		goto return_cleanup;
 	}
 
 	if (ast_sched_del(con, id2) == -1) {
-		ast_str_set(&args->ast_test_error_str, 0, "Failed to remove scheduler entry\n");
+		ast_test_status_update(test, "Failed to remove scheduler entry\n");
 		goto return_cleanup;
 	}
 
 	if ((wait = ast_sched_wait(con)) <= 10000) {
-		ast_str_set(&args->ast_test_error_str, 0,
+		ast_test_status_update(test,
 				"ast_sched_wait() should have returned > 10000, returned '%d'\n",
 				wait);
 		goto return_cleanup;
 	}
 
 	if (ast_sched_del(con, id1) == -1) {
-		ast_str_set(&args->ast_test_error_str, 0,  "Failed to remove scheduler entry\n");
+		ast_test_status_update(test, "Failed to remove scheduler entry\n");
 		goto return_cleanup;
 	}
 
 	if ((wait = ast_sched_wait(con)) != -1) {
-		ast_str_set(&args->ast_test_error_str, 0,
+		ast_test_status_update(test,
 				"ast_sched_wait() should have returned -1, returned '%d'\n",
 				wait);
 		goto return_cleanup;
