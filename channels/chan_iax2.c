@@ -1080,7 +1080,7 @@ static struct ao2_container *iax_transfercallno_pvts;
 
 /* Flag to use with trunk calls, keeping these calls high up.  It halves our effective use
    but keeps the division between trunked and non-trunked better. */
-#define TRUNK_CALL_START	ARRAY_LEN(iaxs) / 2
+#define TRUNK_CALL_START	IAX_MAX_CALLS / 2
 
 /* Debug routines... */
 static struct sockaddr_in debugaddr;
