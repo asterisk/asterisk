@@ -848,7 +848,7 @@ static const unsigned int CALLNO_POOL_BUCKETS = 2699;
  *
  * \note Contents protected by the iaxsl[] locks
  */
-static AST_LIST_HEAD_NOLOCK(, iax_frame) frame_queue[IAX_MAX_CALLS];
+static AST_LIST_HEAD_NOLOCK(, iax_frame) frame_queue[IAX_MAX_CALLS + 1];
 
 static struct ast_taskprocessor *transmit_processor;
 
@@ -1049,7 +1049,7 @@ static void signal_condition(ast_mutex_t *lock, ast_cond_t *cond)
  * based on the local call number.  The local call number is used as the
  * index into the array where the associated pvt structure is stored.
  */
-static struct chan_iax2_pvt *iaxs[IAX_MAX_CALLS];
+static struct chan_iax2_pvt *iaxs[IAX_MAX_CALLS + 1];
 
 /*!
  * \brief Another container of iax2_pvt structures
