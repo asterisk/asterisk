@@ -824,8 +824,8 @@ static void jb_debug_output(const char *fmt, ...)
 
 
 /* XXX We probably should use a mutex when working with this XXX */
-static struct chan_iax2_pvt *iaxs[IAX_MAX_CALLS];
-static ast_mutex_t iaxsl[IAX_MAX_CALLS];
+static struct chan_iax2_pvt *iaxs[IAX_MAX_CALLS + 1];
+static ast_mutex_t iaxsl[IAX_MAX_CALLS + 1];
 
 /*!
  * \brief Another container of iax2_pvt structures
