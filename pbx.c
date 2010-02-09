@@ -4016,7 +4016,7 @@ static unsigned int get_day(char *day)
 		c++;
 	}
 	/* Find the start */
-	if (sscanf(day, "%1d", &s) != 1) {
+	if (sscanf(day, "%2d", &s) != 1) {
 		ast_log(LOG_WARNING, "Invalid day '%s', assuming none\n", day);
 		return 0;
 	}
@@ -4026,7 +4026,7 @@ static unsigned int get_day(char *day)
 	}
 	s--;
 	if (c) {
-		if (sscanf(c, "%1d", &e) != 1) {
+		if (sscanf(c, "%2d", &e) != 1) {
 			ast_log(LOG_WARNING, "Invalid day '%s', assuming none\n", c);
 			return 0;
 		}
