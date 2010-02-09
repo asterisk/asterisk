@@ -1005,7 +1005,7 @@ static void signal_condition(ast_mutex_t *lock, ast_cond_t *cond)
  * based on the local call number.  The local call number is used as the
  * index into the array where the associated pvt structure is stored.
  */
-static struct chan_iax2_pvt *iaxs[IAX_MAX_CALLS];
+static struct chan_iax2_pvt *iaxs[IAX_MAX_CALLS + 1];
 
 /*!
  * \brief Another container of iax2_pvt structures
@@ -1036,7 +1036,7 @@ static struct ao2_container *iax_transfercallno_pvts;
 
 /* Flag to use with trunk calls, keeping these calls high up.  It halves our effective use
    but keeps the division between trunked and non-trunked better. */
-#define TRUNK_CALL_START	ARRAY_LEN(iaxs) / 2
+#define TRUNK_CALL_START	IAX_MAX_CALLS / 2
 
 /* Debug routines... */
 static struct sockaddr_in debugaddr;
