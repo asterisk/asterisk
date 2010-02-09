@@ -10304,8 +10304,6 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
  		ast_str_append(&m_video, 0, "\r\n");
  	if (needtext)
  		ast_str_append(&m_text, 0, "\r\n");
-	if (add_t38)
-		ast_str_append(&m_modem, 0, "\r\n");
 
  	len = strlen(version) + strlen(subject) + strlen(owner) +
 		strlen(connection) + strlen(session_time);
