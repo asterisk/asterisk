@@ -912,8 +912,8 @@ static void __attribute__((format(printf, 1, 2))) jb_debug_output(const char *fm
 	ast_verbose("%s", buf);
 }
 
-/* XXX We probably should use a mutex when working with this XXX */
-static struct chan_iax2_pvt *iaxs[IAX_MAX_CALLS];
+/* IAX_MAX_CALLS + 1 to avoid the off by one error case when accessing the max call number */
+static struct chan_iax2_pvt *iaxs[IAX_MAX_CALLS + 1];
 static ast_mutex_t iaxsl[ARRAY_LEN(iaxs)];
 
 /*!
@@ -936,7 +936,7 @@ static struct ao2_container *iax_transfercallno_pvts;
 
 /* Flag to use with trunk calls, keeping these calls high up.  It halves our effective use
    but keeps the division between trunked and non-trunked better. */
-#define TRUNK_CALL_START	ARRAY_LEN(iaxs) / 2
+#define TRUNK_CALL_START	IAX_MAX_CALLS / 2
 
 static int maxtrunkcall = TRUNK_CALL_START;
 static int maxnontrunkcall = 1;
