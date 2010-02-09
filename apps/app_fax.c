@@ -516,6 +516,7 @@ static int transmit_audio(fax_session *s)
 		}
 
 		ast_frfree(inf);
+		inf = NULL;
 	}
 
 	ast_debug(1, "Loop finished, res=%d\n", res);
