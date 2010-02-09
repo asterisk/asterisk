@@ -373,8 +373,12 @@ static int transmit_audio(fax_session *s)
 							     .rate = AST_T38_RATE_14400,
 							     .rate_management = AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF,
 							     .fill_bit_removal = 1,
-							     .transcoding_mmr = 1,
-							     .transcoding_jbig = 1,
+/*
+ * spandsp has API calls to support MMR and JBIG transcoding, but they aren't
+ * implemented quite yet... so don't offer them to the remote endpoint
+ *							     .transcoding_mmr = 1,
+ *							     .transcoding_jbig = 1,
+*/
 	};
 
 	/* if in called party mode, try to use T.38 */
