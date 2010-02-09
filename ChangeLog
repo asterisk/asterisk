@@ -1,25 +1,13 @@
-2010-02-04  Leif Madsen
+2010-02-08  Leif Madsen <lmadsen@digium.com>
+
+	* Release Asterisk 1.4.30-rc2
+
+	* Only change here is the removal of commits after revision 244242 as
+	  those need to percolate longer in the branch for additional testing.
+
+2010-02-04  Leif Madsen <lmadsen@digium.com>
 
 	* Release Asterisk 1.4.30-rc1
-
-2010-02-04 23:20 +0000 [r244785]  Jeff Peeler <jpeeler@digium.com>
-
-	* channels/chan_local.c: Change channel state on local channels for
-	  busy,answer,ring. Previously local channels channel state never
-	  changed. This became problematic when the state of the other side
-	  of the local channel was lost, for example during a masquerade.
-	  Changing the state of the local channel allows for the scenario
-	  to be detected when the channel state is set to ringing, but the
-	  peer isn't ringing. The specific problem scenario is described in
-	  164201. Although this was noted on one of the issues, here is the
-	  tested dialplan verified to work: exten =>
-	  9700,1,Dial(Local/*9700@default&Local/#9700@default) exten =>
-	  *9700,1,Set(GLOBAL(TESTCHAN)=${CHANNEL:0:${MATH(${LEN(${CHANNEL})}-1):0:2}}1)
-	  exten => *9700,n,wait(3) ;3 works, 1 did not exten =>
-	  *9700,n,Dial(SIP/5001) exten => #9700,1,Wait(1) ;1 works, 3 did
-	  not exten =>
-	  #9700,n,ChannelRedirect(${TESTCHAN},parkedcalls,701,1) (closes
-	  issue #14992) Reported by: davidw
 
 2010-02-01 23:13 +0000 [r244070-244242]  Tilghman Lesher <tlesher@digium.com>
 
