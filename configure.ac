@@ -589,6 +589,18 @@ AC_DEFINE([HAVE_GCC_ATOMICS], 1, [Define to 1 if your GCC C compiler provides at
 AC_MSG_RESULT(no)
 )
 
+# glibc, AFAIK, is the only C library that makes printing a NULL to a string safe.
+AC_MSG_CHECKING([if your system printf is NULL-safe.])
+AC_RUN_IFELSE(
+	AC_LANG_PROGRAM([#include <stdio.h>],
+		[printf("%s", NULL)]),
+	AC_DEFINE([HAVE_NULLSAFE_PRINTF], 1, [Define to 1 if your C library can safely print NULL to string formats.])
+	AC_MSG_RESULT(yes),
+	AC_MSG_RESULT(no),
+	# It's unlikely an embedded system will have this.
+	AC_MSG_RESULT(unknown)
+)
+
 AST_GCC_ATTRIBUTE(pure)
 AST_GCC_ATTRIBUTE(malloc)
 AST_GCC_ATTRIBUTE(const)

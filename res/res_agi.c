@@ -2546,7 +2546,7 @@ static char *help_workhorse(int fd, char *match[])
 		ast_join(fullcmd, sizeof(fullcmd), e->cmda);
 		if (match && strncasecmp(matchstr, fullcmd, strlen(matchstr)))
 			continue;
-		ast_cli(fd, "%5.5s %30.30s   %s\n", e->dead ? "Yes" : "No" , fullcmd, e->summary);
+		ast_cli(fd, "%5.5s %30.30s   %s\n", e->dead ? "Yes" : "No" , fullcmd, S_OR(e->summary, "Not available"));
 	}
 	AST_RWLIST_UNLOCK(&agi_commands);
 
@@ -2561,15 +2561,21 @@ int ast_agi_register(struct ast_module *mod, agi_command *cmd)
 
 	if (!find_command(cmd->cmda,1)) {
 		cmd->docsrc = AST_STATIC_DOC;
-#ifdef AST_XML_DOCS
 		if (ast_strlen_zero(cmd->summary) && ast_strlen_zero(cmd->usage)) {
-			cmd->summary = ast_xmldoc_build_synopsis("agi", fullcmd);
-			cmd->usage = ast_xmldoc_build_description("agi", fullcmd);
-			cmd->syntax = ast_xmldoc_build_syntax("agi", fullcmd);
-			cmd->seealso = ast_xmldoc_build_seealso("agi", fullcmd);
-			cmd->docsrc = AST_XML_DOC;
-		}
+#ifdef AST_XML_DOCS
+			*((char **) &cmd->summary) = ast_xmldoc_build_synopsis("agi", fullcmd);
+			*((char **) &cmd->usage) = ast_xmldoc_build_description("agi", fullcmd);
+			*((char **) &cmd->syntax) = ast_xmldoc_build_syntax("agi", fullcmd);
+			*((char **) &cmd->seealso) = ast_xmldoc_build_seealso("agi", fullcmd);
+			*((enum ast_doc_src *) &cmd->docsrc) = AST_XML_DOC;
+#elif (!defined(HAVE_NULLSAFE_PRINTF))
+			*((char **) &cmd->summary) = ast_strdup("");
+			*((char **) &cmd->usage) = ast_strdup("");
+			*((char **) &cmd->syntax) = ast_strdup("");
+			*((char **) &cmd->seealso) = ast_strdup("");
 #endif
+		}
+
 		cmd->mod = mod;
 		AST_RWLIST_WRLOCK(&agi_commands);
 		AST_LIST_INSERT_TAIL(&agi_commands, cmd, list);
@@ -2810,9 +2816,13 @@ static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf, int
 				"Result: %s\r\n", chan->name, command_id, ami_cmd, resultcode, ami_res);
 		switch(res) {
 		case RESULT_SHOWUSAGE:
-			ast_agi_send(agi->fd, chan, "520-Invalid command syntax.  Proper usage follows:\n");
-			ast_agi_send(agi->fd, chan, "%s", c->usage);
-			ast_agi_send(agi->fd, chan, "520 End of proper usage.\n");
+			if (ast_strlen_zero(c->usage)) {
+				ast_agi_send(agi->fd, chan, "520 Invalid command syntax.  Proper usage not available.\n");
+			} else {
+				ast_agi_send(agi->fd, chan, "520-Invalid command syntax.  Proper usage follows:\n");
+				ast_agi_send(agi->fd, chan, "%s", c->usage);
+				ast_agi_send(agi->fd, chan, "520 End of proper usage.\n");
+			}
 			break;
 		case RESULT_FAILURE:
 			/* They've already given the failure.  We've been hung up on so handle this
@@ -2993,7 +3003,7 @@ static char *handle_cli_agi_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 	case CLI_INIT:
 		e->command = "agi show commands [topic]";
 		e->usage =
-			"Usage: agi show commands [topic]\n"
+			"Usage: agi show commands [topic] <topic>\n"
 			"       When called with a topic as an argument, displays usage\n"
 			"       information on the given command.  If called without a\n"
 			"       topic, it provides a list of AGI commands.\n";

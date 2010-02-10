@@ -533,6 +533,9 @@
 /* Define to the version of the newt library. */
 #undef HAVE_NEWT_VERSION
 
+/* Define to 1 if your C library can safely print NULL to string formats. */
+#undef HAVE_NULLSAFE_PRINTF
+
 /* Define to 1 if your ODBC library has wide (Unicode) types. */
 #undef HAVE_ODBC_WCHAR
 
