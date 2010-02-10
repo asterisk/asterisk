@@ -1361,9 +1361,11 @@ static int load_module(void)
 		unload_module();
 		return res;
 	} else if (res == 1) {
-		unload_module();
 		ast_log(LOG_WARNING, "No SMDI interfaces are available to listen on, not starting SMDI listener.\n");
-		return AST_MODULE_LOAD_DECLINE;
+		/*! \note Since chan_dahdi depends on this module, we need to load the module in inactive state
+			instead of AST_MODULE_LOAD_DECLINE. This is fixed in later releases of Asterisk. 
+		*/
+		return AST_MODULE_LOAD_SUCCESS;
 	}
 
 	return 0;
