@@ -591,6 +591,9 @@
 /* Define to 1 if you have the `ntohll' function. */
 #undef HAVE_NTOHLL
 
+/* Define to 1 if your C library can safely print NULL to string formats. */
+#undef HAVE_NULLSAFE_PRINTF
+
 /* Define to 1 if your ODBC library has wide (Unicode) types. */
 #undef HAVE_ODBC_WCHAR
 

@@ -61,6 +61,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/term.h"
 #include "asterisk/xmldoc.h"
 #include "asterisk/srv.h"
+#include "asterisk/test.h"
 
 #define AST_API_MODULE
 #include "asterisk/agi.h"
@@ -816,7 +817,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			correspondingly receive a HANGUP in OOB data. Both of these signals may be disabled
 			by setting the <variable>AGISIGHUP</variable> channel variable to <literal>no</literal>
 			before executing the AGI application.</para>
-			<para>Use the CLI command <literal>agi show commnands</literal> to list available agi
+			<para>Use the CLI command <literal>agi show commands</literal> to list available agi
 			commands.</para>
 			<para>This application sets the following channel variable upon completion:</para>
 			<variablelist>
@@ -3000,7 +3001,7 @@ static char *help_workhorse(int fd, const char * const match[])
 		ast_join(fullcmd, sizeof(fullcmd), e->cmda);
 		if (match && strncasecmp(matchstr, fullcmd, strlen(matchstr)))
 			continue;
-		ast_cli(fd, "%5.5s %30.30s   %s\n", e->dead ? "Yes" : "No" , fullcmd, e->summary);
+		ast_cli(fd, "%5.5s %30.30s   %s\n", e->dead ? "Yes" : "No" , fullcmd, S_OR(e->summary, "Not available"));
 	}
 	AST_RWLIST_UNLOCK(&agi_commands);
 
@@ -3014,16 +3015,22 @@ int AST_OPTIONAL_API_NAME(ast_agi_register)(struct ast_module *mod, agi_command 
 	ast_join(fullcmd, sizeof(fullcmd), cmd->cmda);
 
 	if (!find_command(cmd->cmda, 1)) {
-#ifdef AST_XML_DOCS
 		*((enum ast_doc_src *) &cmd->docsrc) = AST_STATIC_DOC;
 		if (ast_strlen_zero(cmd->summary) && ast_strlen_zero(cmd->usage)) {
+#ifdef AST_XML_DOCS
 			*((char **) &cmd->summary) = ast_xmldoc_build_synopsis("agi", fullcmd);
 			*((char **) &cmd->usage) = ast_xmldoc_build_description("agi", fullcmd);
 			*((char **) &cmd->syntax) = ast_xmldoc_build_syntax("agi", fullcmd);
 			*((char **) &cmd->seealso) = ast_xmldoc_build_seealso("agi", fullcmd);
 			*((enum ast_doc_src *) &cmd->docsrc) = AST_XML_DOC;
-		}
+#elif (!defined(HAVE_NULLSAFE_PRINTF))
+			*((char **) &cmd->summary) = ast_strdup("");
+			*((char **) &cmd->usage) = ast_strdup("");
+			*((char **) &cmd->syntax) = ast_strdup("");
+			*((char **) &cmd->seealso) = ast_strdup("");
 #endif
+		}
+
 		cmd->mod = mod;
 		AST_RWLIST_WRLOCK(&agi_commands);
 		AST_LIST_INSERT_TAIL(&agi_commands, cmd, list);
@@ -3266,9 +3273,13 @@ static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf, int
 				"Result: %s\r\n", chan->name, command_id, ami_cmd, resultcode, ami_res);
 		switch(res) {
 		case RESULT_SHOWUSAGE:
-			ast_agi_send(agi->fd, chan, "520-Invalid command syntax.  Proper usage follows:\n");
-			ast_agi_send(agi->fd, chan, "%s", c->usage);
-			ast_agi_send(agi->fd, chan, "520 End of proper usage.\n");
+			if (ast_strlen_zero(c->usage)) {
+				ast_agi_send(agi->fd, chan, "520 Invalid command syntax.  Proper usage not available.\n");
+			} else {
+				ast_agi_send(agi->fd, chan, "520-Invalid command syntax.  Proper usage follows:\n");
+				ast_agi_send(agi->fd, chan, "%s", c->usage);
+				ast_agi_send(agi->fd, chan, "520 End of proper usage.\n");
+			}
 			break;
 		case RESULT_FAILURE:
 			/* They've already given the failure.  We've been hung up on so handle this
@@ -3449,7 +3460,7 @@ static char *handle_cli_agi_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 	case CLI_INIT:
 		e->command = "agi show commands [topic]";
 		e->usage =
-			"Usage: agi show commands [topic]\n"
+			"Usage: agi show commands [topic] <topic>\n"
 			"       When called with a topic as an argument, displays usage\n"
 			"       information on the given command.  If called without a\n"
 			"       topic, it provides a list of AGI commands.\n";
@@ -3766,6 +3777,43 @@ static struct ast_cli_entry cli_agi[] = {
 	AST_CLI_DEFINE(handle_cli_agi_dump_html, "Dumps a list of AGI commands in HTML format")
 };
 
+#ifdef TEST_FRAMEWORK
+AST_TEST_DEFINE(test_agi_null_docs)
+{
+	int res = AST_TEST_PASS;
+	struct agi_command noop_command =
+		{ { "testnoop", NULL }, handle_noop, NULL, NULL, 0 };
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "null_agi_docs";
+		info->category = "res/agi/";
+		info->summary = "AGI command with no documentation";
+		info->description = "Test whether an AGI command with no documentation will crash Asterisk";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (ast_agi_register(ast_module_info->self, &noop_command) == 0) {
+		return AST_TEST_NOT_RUN;
+	}
+
+#ifndef HAVE_NULLSAFE_PRINTF
+	/* Test for condition without actually crashing Asterisk */
+	if (noop_command.usage == NULL) {
+		res = AST_TEST_FAIL;
+	}
+	if (noop_command.description == NULL) {
+		res = AST_TEST_FAIL;
+	}
+#endif
+
+	ast_agi_unregister(ast_module_info->self, &noop_command);
+	return res;
+}
+#endif
+
 static int unload_module(void)
 {
 	ast_cli_unregister_multiple(cli_agi, ARRAY_LEN(cli_agi));
@@ -3776,6 +3824,7 @@ static int unload_module(void)
 	ast_unregister_application(eapp);
 	ast_unregister_application(deadapp);
 	ast_manager_unregister("AGI");
+	AST_TEST_UNREGISTER(test_agi_null_docs);
 	return ast_unregister_application(app);
 }
 
@@ -3789,6 +3838,7 @@ static int load_module(void)
 	ast_register_application_xml(deadapp, deadagi_exec);
 	ast_register_application_xml(eapp, eagi_exec);
 	ast_manager_register_xml("AGI", EVENT_FLAG_AGI, action_add_agi_cmd);
+	AST_TEST_REGISTER(test_agi_null_docs);
 	return ast_register_application_xml(app, agi_exec);
 }
 
