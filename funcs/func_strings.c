@@ -99,6 +99,10 @@ static int filter(struct ast_channel *chan, const char *cmd, char *parse, char *
 		return -1;
 	}
 
+	if (args.allowed[0] == '"' && !ast_opt_dont_warn) {
+		ast_log(LOG_WARNING, "FILTER allowed characters includes the quote (\") character.  This may not be what you want.\n");
+	}
+
 	/* Expand ranges */
 	for (; *(args.allowed) && allowedlen < sizeof(allowed); ) {
 		char c1 = 0, c2 = 0;
@@ -112,6 +116,10 @@ static int filter(struct ast_channel *chan, const char *cmd, char *parse, char *
 			if (ast_get_encoded_char(args.allowed + 1, &c2, &consumed))
 				c2 = -1;
 			args.allowed += consumed + 1;
+
+			if ((c2 < c1 || c2 == -1) && !ast_opt_dont_warn) {
+				ast_log(LOG_WARNING, "Range wrapping in FILTER(%s,%s).  This may not be what you want.\n", parse, args.string);
+			}
 
 			/*!\note
 			 * Looks a little strange, until you realize that we can overflow
