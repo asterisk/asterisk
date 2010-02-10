@@ -38,6 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 #include "asterisk/localtime.h"
+#include "asterisk/test.h"
 
 AST_THREADSTORAGE(result_buf);
 AST_THREADSTORAGE(tmp_buf);
@@ -593,8 +594,9 @@ static int filter(struct ast_channel *chan, const char *cmd, char *parse, char *
 	char *outbuf = buf, ac;
 	char allowed[256] = "";
 	size_t allowedlen = 0;
+	int32_t bitfield[8] = { 0, }; /* 256 bits */
 
-	AST_STANDARD_APP_ARGS(args, parse);
+	AST_STANDARD_RAW_ARGS(args, parse);
 
 	if (!args.string) {
 		ast_log(LOG_ERROR, "Usage: FILTER(<allowed-chars>,<string>)\n");
@@ -619,16 +621,23 @@ static int filter(struct ast_channel *chan, const char *cmd, char *parse, char *
 			 * Looks a little strange, until you realize that we can overflow
 			 * the size of a char.
 			 */
-			for (ac = c1; ac != c2 && allowedlen < sizeof(allowed) - 1; ac++)
-				allowed[allowedlen++] = ac;
-			allowed[allowedlen++] = ac;
+			for (ac = c1; ac != c2; ac++) {
+				bitfield[ac / 32] |= 1 << (ac % 32);
+			}
 
 			ast_debug(4, "c1=%d, c2=%d\n", c1, c2);
 
 			/* Decrement before the loop increment */
 			(args.allowed)--;
-		} else
-			allowed[allowedlen++] = c1;
+		} else {
+			bitfield[c1 / 32] |= 1 << (c1 % 32);
+		}
+	}
+
+	for (ac = 1; ac != 0; ac++) {
+		if (bitfield[ac / 32] & (1 << (ac % 32))) {
+			allowed[allowedlen++] = ac;
+		}
 	}
 
 	ast_debug(1, "Allowed: %s\n", allowed);
@@ -1421,10 +1430,48 @@ static struct ast_custom_function passthru_function = {
 	.read2 = passthru,
 };
 
+#ifdef TEST_FRAMEWORK
+AST_TEST_DEFINE(test_FILTER)
+{
+	int i, res = AST_TEST_PASS;
+	const char *test_strings[][2] = {
+		{"A-R",            "DAHDI"},
+		{"A\\-R",          "A"},
+		{"\\x41-R",        "DAHDI"},
+		{"0-9A-Ca-c",      "0042133333A12212"},
+		{"0-9a-cA-C_+\\-", "0042133333A12212"},
+		{NULL,             NULL},
+	};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "func_FILTER_test";
+		info->category = "funcs/func_strings/";
+		info->summary = "Test FILTER function";
+		info->description = "Verify FILTER behavior";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	for (i = 0; test_strings[i][0]; i++) {
+		char tmp[256], tmp2[256] = "";
+		snprintf(tmp, sizeof(tmp), "${FILTER(%s,0042133333&DAHDI/g1/2212)}", test_strings[i][0]);
+		pbx_substitute_variables_helper(NULL, tmp, tmp2, sizeof(tmp2) - 1);
+		if (strcmp(test_strings[i][1], tmp2)) {
+			ast_test_status_update(test, "Format string '%s' substituted to '%s'.  Expected '%s'.\n", test_strings[i][0], tmp2, test_strings[i][1]);
+			res = AST_TEST_FAIL;
+		}
+	}
+	return res;
+}
+#endif
+
 static int unload_module(void)
 {
 	int res = 0;
 
+	AST_TEST_UNREGISTER(test_FILTER);
 	res |= ast_custom_function_unregister(&fieldqty_function);
 	res |= ast_custom_function_unregister(&filter_function);
 	res |= ast_custom_function_unregister(&replace_function);
@@ -1456,6 +1503,7 @@ static int load_module(void)
 {
 	int res = 0;
 
+	AST_TEST_REGISTER(test_FILTER);
 	res |= ast_custom_function_register(&fieldqty_function);
 	res |= ast_custom_function_register(&filter_function);
 	res |= ast_custom_function_register(&replace_function);
