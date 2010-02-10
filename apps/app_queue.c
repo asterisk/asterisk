@@ -3414,6 +3414,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	struct ao2_iterator memi;
 	struct ast_datastore *datastore, *transfer_ds;
 	struct queue_end_bridge *queue_end_bridge = NULL;
+	const int need_weight = use_weight;
 
 	ast_channel_lock(qe->chan);
 	datastore = ast_channel_datastore_find(qe->chan, &dialed_interface_info, NULL);
@@ -3485,7 +3486,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		}
 
 	/* Hold the lock while we setup the outgoing calls */
-	if (use_weight)
+	if (need_weight)
 		ao2_lock(queues);
 	ao2_lock(qe->parent);
 	ast_debug(1, "%s is trying to call a queue member.\n",
@@ -3505,7 +3506,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			ao2_ref(cur, -1);
 			ao2_unlock(qe->parent);
 			ao2_iterator_destroy(&memi);
-			if (use_weight)
+			if (need_weight)
 				ao2_unlock(queues);
 			goto out;
 		}
@@ -3514,7 +3515,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ao2_ref(cur, -1);
 				ao2_unlock(qe->parent);
 				ao2_iterator_destroy(&memi);
-				if (use_weight)
+				if (need_weight)
 					ao2_unlock(queues);
 				free(tmp);
 				goto out;
@@ -3524,7 +3525,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ao2_ref(cur, -1);
 				ao2_unlock(&qe->parent);
 				ao2_iterator_destroy(&memi);
-				if (use_weight)
+				if (need_weight)
 					ao2_unlock(queues);
 				free(tmp);
 				goto out;
@@ -3562,7 +3563,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ao2_ref(cur, -1);
 				ao2_unlock(qe->parent);
 				ao2_iterator_destroy(&memi);
-				if (use_weight)
+				if (need_weight)
 					ao2_unlock(queues);
 				free(tmp);
 				goto out;
@@ -3618,7 +3619,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	++qe->pending;
 	ao2_unlock(qe->parent);
 	ring_one(qe, outgoing, &numbusies);
-	if (use_weight)
+	if (need_weight)
 		ao2_unlock(queues);
 	lpeer = wait_for_answer(qe, outgoing, &to, &digit, numbusies, ast_test_flag(&(bridge_config.features_caller), AST_FEATURE_DISCONNECT), forwardsallowed);
 	/* The ast_channel_datastore_remove() function could fail here if the
