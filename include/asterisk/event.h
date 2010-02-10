@@ -331,6 +331,9 @@ void ast_event_dump_cache(const struct ast_event_sub *event_sub);
  * because it makes no sense to do so.  So, a payload must also be specified
  * after the IE payload type.
  *
+ * \note The EID IE will be appended automatically when this function is used
+ *       with at least one IE specified.
+ *
  * \return This returns the event that has been created.  If there is an error
  *         creating the event, NULL will be returned.
  *
@@ -507,6 +510,19 @@ int ast_event_append_ie_bitflags(struct ast_event **event, enum ast_event_ie_typ
  */
 int ast_event_append_ie_raw(struct ast_event **event, enum ast_event_ie_type ie_type,
 	const void *data, size_t data_len);
+
+/*!
+ * \brief Append the global EID IE
+ *
+ * \param event the event to append IE to
+ *
+ * \note For ast_event_new() that includes IEs, this is done automatically
+ *       for you.
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_event_append_eid(struct ast_event **event);
 
 /*!
  * \brief Get the value of an information element that has an integer payload

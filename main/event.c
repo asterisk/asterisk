@@ -913,7 +913,7 @@ struct ast_event_sub *ast_event_unsubscribe(struct ast_event_sub *sub)
 
 void ast_event_iterator_init(struct ast_event_iterator *iterator, const struct ast_event *event)
 {
-	iterator->event_len = ntohs(event->event_len);
+	iterator->event_len = ast_event_get_size(event);
 	iterator->event = event;
 	iterator->ie = (struct ast_event_ie *) ( ((char *) event) + sizeof(*event) );
 }
@@ -1159,10 +1159,16 @@ struct ast_event *ast_event_new(enum ast_event_type type, ...)
 	if (has_ie && !ast_event_get_ie_raw(event, AST_EVENT_IE_EID)) {
 		/* If the event is originating on this server, add the server's
 		 * entity ID to the event. */
-		ast_event_append_ie_raw(&event, AST_EVENT_IE_EID, &ast_eid_default, sizeof(ast_eid_default));
+		ast_event_append_eid(&event);
 	}
 
 	return event;
+}
+
+int ast_event_append_eid(struct ast_event **event)
+{
+	return ast_event_append_ie_raw(event, AST_EVENT_IE_EID,
+			&ast_eid_default, sizeof(ast_eid_default));
 }
 
 void ast_event_destroy(struct ast_event *event)
