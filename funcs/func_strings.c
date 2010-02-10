@@ -431,7 +431,8 @@ static int filter(struct ast_channel *chan, const char *cmd, char *parse, char *
 			     AST_APP_ARG(allowed);
 			     AST_APP_ARG(string);
 	);
-	char *outbuf = buf, ac;
+	char *outbuf = buf;
+	unsigned char ac;
 	char allowed[256] = "";
 	size_t allowedlen = 0;
 	int32_t bitfield[8] = { 0, }; /* 256 bits */
@@ -448,7 +449,7 @@ static int filter(struct ast_channel *chan, const char *cmd, char *parse, char *
 	}
 
 	/* Expand ranges */
-	for (; *(args.allowed) && allowedlen < sizeof(allowed); ) {
+	for (; *(args.allowed);) {
 		char c1 = 0, c2 = 0;
 		size_t consumed = 0;
 
@@ -472,13 +473,13 @@ static int filter(struct ast_channel *chan, const char *cmd, char *parse, char *
 			for (ac = c1; ac != c2; ac++) {
 				bitfield[ac / 32] |= 1 << (ac % 32);
 			}
+			bitfield[ac / 32] |= 1 << (ac % 32);
 
 			ast_debug(4, "c1=%d, c2=%d\n", c1, c2);
-
-			/* Decrement before the loop increment */
-			(args.allowed)--;
 		} else {
-			bitfield[c1 / 32] |= 1 << (c1 % 32);
+			ac = (unsigned char) c1;
+			ast_debug(4, "c1=%d, consumed=%d, args.allowed=%s\n", c1, consumed, args.allowed - consumed);
+			bitfield[ac / 32] |= 1 << (ac % 32);
 		}
 	}
 
