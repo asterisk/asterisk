@@ -316,7 +316,7 @@ exten => _91700XXXXXXX,1,Dial(IAX2/${GLOBAL(IAXINFO)}@iaxtel.com/${EXTEN:1}@iaxt
 ; International long distance through trunk
 ;
 exten => _9011.,1,Macro(dundi-e164,${EXTEN:4})
-exten => _9011.,n,Dial(${GLOBAL(TRUNK)}/${EXTEN:${GLOBAL(TRUNKMSD)}})
+exten => _9011.,n,Dial(${GLOBAL(TRUNK)}/${FILTER(0-9,${EXTEN:${GLOBAL(TRUNKMSD)}})})
 
 [trunkld]
 ;
@@ -624,7 +624,7 @@ include => demo
 ; An extension like the one below can be used for FWD, Nikotel, sipgate etc.
 ; Note that you must have a [sipprovider] section in sip.conf
 ;
-;exten => _41X.,1,Dial(SIP/${EXTEN:2}@sipprovider,,r)
+;exten => _41X.,1,Dial(SIP/${FILTER(0-9,${EXTEN:2})}@sipprovider,,r)
 
 ; Real extensions would go here. Generally you want real extensions to be
 ; 4 or 5 digits long (although there is no such requirement) and start with a

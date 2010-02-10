@@ -434,8 +434,9 @@ static int filter(struct ast_channel *chan, const char *cmd, char *parse, char *
 	char *outbuf = buf, ac;
 	char allowed[256] = "";
 	size_t allowedlen = 0;
+	int32_t bitfield[8] = { 0, }; /* 256 bits */
 
-	AST_STANDARD_APP_ARGS(args, parse);
+	AST_STANDARD_RAW_ARGS(args, parse);
 
 	if (!args.string) {
 		ast_log(LOG_ERROR, "Usage: FILTER(<allowed-chars>,<string>)\n");
@@ -460,16 +461,23 @@ static int filter(struct ast_channel *chan, const char *cmd, char *parse, char *
 			 * Looks a little strange, until you realize that we can overflow
 			 * the size of a char.
 			 */
-			for (ac = c1; ac != c2 && allowedlen < sizeof(allowed) - 1; ac++)
-				allowed[allowedlen++] = ac;
-			allowed[allowedlen++] = ac;
+			for (ac = c1; ac != c2; ac++) {
+				bitfield[ac / 32] |= 1 << (ac % 32);
+			}
 
 			ast_debug(4, "c1=%d, c2=%d\n", c1, c2);
 
 			/* Decrement before the loop increment */
 			(args.allowed)--;
-		} else
-			allowed[allowedlen++] = c1;
+		} else {
+			bitfield[c1 / 32] |= 1 << (c1 % 32);
+		}
+	}
+
+	for (ac = 1; ac != 0; ac++) {
+		if (bitfield[ac / 32] & (1 << (ac % 32))) {
+			allowed[allowedlen++] = ac;
+		}
 	}
 
 	ast_debug(1, "Allowed: %s\n", allowed);
