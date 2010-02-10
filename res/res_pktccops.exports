@@ -1,0 +1,6 @@
+{
+	global:
+		ast_pktccops_gate_alloc;
+	local:
+		*;
+};
