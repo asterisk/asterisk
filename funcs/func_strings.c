@@ -638,7 +638,7 @@ static int filter(struct ast_channel *chan, const char *cmd, char *parse, char *
 			ast_debug(4, "c1=%d, c2=%d\n", c1, c2);
 		} else {
 			ac = (unsigned char) c1;
-			ast_debug(4, "c1=%d, consumed=%d, args.allowed=%s\n", c1, consumed, args.allowed - consumed);
+			ast_debug(4, "c1=%d, consumed=%d, args.allowed=%s\n", c1, (int) consumed, args.allowed - consumed);
 			bitfield[ac / 32] |= 1 << (ac % 32);
 		}
 	}
