@@ -123,6 +123,10 @@ AST_TEST_DEFINE(sip_parse_uri_test)
 	char uri2[] = "sip:name@host;transport=tcp";
 	char uri3[] = "sip:name:secret@host;transport=tcp";
 	char uri4[] = "sip:name:secret@host:port;transport=tcp?headers=%40%40testblah&headers2=blah%20blah";
+	/* test 5 is for NULL input */
+	char uri6[] = "sip:name:secret@host:port;transport=tcp?headers=%40%40testblah&headers2=blah%20blah";
+	char uri7[] = "sip:name:secret@host:port;transport=tcp?headers=%40%40testblah&headers2=blah%20blah";
+
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "sip_uri_parse_test";
@@ -193,11 +197,20 @@ AST_TEST_DEFINE(sip_parse_uri_test)
 
 	/* Test 6, verify parse_uri does not crash when given a NULL output parameters */
 	name = pass = domain = port = transport = NULL;
-	if (parse_uri(uri4, "sip:,sips:", NULL, NULL, NULL, NULL, NULL)) {
+	if (parse_uri(uri6, "sip:,sips:", NULL, NULL, NULL, NULL, NULL)) {
 		ast_test_status_update(test, "Test 6: passing NULL output parameters failed.\n");
 		res = AST_TEST_FAIL;
 	}
 
+	/* Test 7, verify parse_uri returns user:secret and domain:port when no port or secret output parameters are supplied. */
+	name = pass = domain = port = transport = NULL;
+	if (parse_uri(uri7, "sip:,sips:", &name, NULL, &domain, NULL, NULL) ||
+			strcmp(name, "name:secret")        ||
+			strcmp(domain, "host:port")) {
+
+		ast_test_status_update(test, "Test 7: providing no port and secret output parameters failed.\n");
+		res = AST_TEST_FAIL;
+	}
 	return res;
 }
 
