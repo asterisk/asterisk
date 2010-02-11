@@ -104,8 +104,7 @@ AST_TEST_DEFINE(event_new_test)
 		info->summary = "Test event creation";
 		info->description =
 			"This test exercises the API calls that allow allocation "
-			"of an ast_event."
-			"\n";
+			"of an ast_event.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;

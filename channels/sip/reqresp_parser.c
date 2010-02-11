@@ -133,8 +133,8 @@ AST_TEST_DEFINE(sip_parse_uri_test)
 		info->category = "channels/chan_sip/";
 		info->summary = "tests sip uri parsing";
 		info->description =
-							" Tests parsing of various URIs"
-							" Verifies output matches expected behavior.";
+							"Tests parsing of various URIs "
+							"Verifies output matches expected behavior.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;

@@ -235,8 +235,8 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 		info->category = "channels/chan_sip/";
 		info->summary = "tests sip register line parsing";
 		info->description =
-							" Tests parsing of various register line configurations."
-							" Verifies output matches expected behavior.";
+							"Tests parsing of various register line configurations. "
+							"Verifies output matches expected behavior.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -573,8 +573,8 @@ AST_TEST_DEFINE(sip_parse_host_line_test)
 		info->category = "channels/chan_sip/";
 		info->summary = "tests sip.conf host line parsing";
 		info->description =
-							" Tests parsing of various host line configurations."
-							" Verifies output matches expected behavior.";
+							"Tests parsing of various host line configurations. "
+							"Verifies output matches expected behavior.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;

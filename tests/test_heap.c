@@ -135,8 +135,7 @@ AST_TEST_DEFINE(heap_test_2)
 				"Push one hundred thousand random elements on to a heap, "
 				"verify that the heap has been properly constructed, "
 				"and then ensure that the elements are come back off "
-				"in the proper order."
-				"\n";
+				"in the proper order.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
