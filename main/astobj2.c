@@ -724,10 +724,14 @@ static void *internal_ao2_callback(struct ao2_container *c,
 				AST_LIST_REMOVE_CURRENT(entry);
 				/* update number of elements */
 				ast_atomic_fetchadd_int(&c->elements, -1);
-				/* if the object is not going to be returned, we must decrement the reference count
-				 * to account for the reference the container was holding
-				 */
-				if (flags & OBJ_NODATA) {
+
+				/* - When unlinking and not returning the result, (OBJ_NODATA), the ref from the container
+				 * must be decremented.
+				 * - When unlinking with OBJ_MULTIPLE the ref from the original container
+				 * must be decremented regardless if OBJ_NODATA is used. This is because the result is
+				 * returned in a new container that already holds its own ref for the object. If the ref
+				 * from the original container is not accounted for here a memory leak occurs. */
+				if (flags & (OBJ_NODATA | OBJ_MULTIPLE)) {
 					if (tag)
 						__ao2_ref_debug(EXTERNAL_OBJ(cur->astobj), -1, tag, file, line, funcname);
 					else
