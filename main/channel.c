@@ -1389,9 +1389,11 @@ void ast_channel_free(struct ast_channel *chan)
 	}
 
 	/* Get rid of each of the data stores on the channel */
+	ast_channel_lock(chan);
 	while ((datastore = AST_LIST_REMOVE_HEAD(&chan->datastores, entry)))
 		/* Free the data store */
 		ast_datastore_free(datastore);
+	ast_channel_unlock(chan);
 
 	/* Lock and unlock the channel just to be sure nobody has it locked still
 	   due to a reference that was stored in a datastore. (i.e. app_chanspy) */
