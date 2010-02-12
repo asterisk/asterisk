@@ -5669,13 +5669,13 @@ int __ast_channel_unlock(struct ast_channel *chan, const char *filename, int lin
 #endif
 		if (!res)
 			ast_debug(3, "::::==== Channel %s was unlocked\n", chan->name);
-			if (res == EINVAL) {
-				ast_debug(3, "::::==== Channel %s had no lock by this thread. Failed unlocking\n", chan->name);
-			}
+		if (res == EINVAL) {
+			ast_debug(3, "::::==== Channel %s had no lock by this thread. Failed unlocking\n", chan->name);
 		}
-		if (res == EPERM) {
-			/* We had no lock, so okay any way*/
-			ast_debug(4, "::::==== Channel %s was not locked at all \n", chan->name);
+	}
+	if (res == EPERM) {
+		/* We had no lock, so okay any way*/
+		ast_debug(4, "::::==== Channel %s was not locked at all \n", chan->name);
 		res = 0;
 	}
 	return res;
