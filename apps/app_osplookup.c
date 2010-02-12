@@ -222,6 +222,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<variable name="OSPOUTCALLIDTYPES">
 					<para>The outbound Call-ID types.</para>
 				</variable>
+				<variable name="OSPOUTCALLID">
+					<para>The outbound Call-ID. Only for H.323.</para>
+				</variable>
 				<variable name="OSPDIALSTR">
 					<para>The outbound Dial command string.</para>
 				</variable>
@@ -908,7 +911,7 @@ static int osp_get_provider(
  * \param name OSP provider context name
  * \param trans OSP transaction handle, output
  * \param source Source of provider, output
- * \param sourcesize Size of source buffer, in
+ * \param srcsize Size of source buffer, in
  * \return OSK_OK Success, OSK_FAILED Failed, OSP_ERROR Error
  */
 static int osp_create_transaction(
@@ -2910,7 +2913,6 @@ static int osp_load(int reload)
 			osp_security = 1;
 		}
 		ast_debug(1, "OSP: osp_security '%d'\n", osp_security);
-
 		
 		if ((cvar = ast_variable_retrieve(cfg, OSP_GENERAL_CAT, "tokenformat"))) {
 			if ((sscanf(cvar, "%30d", &ivar) == 1) &&
