@@ -5086,17 +5086,15 @@ int __ast_channel_unlock(struct ast_channel *chan, const char *filename, int lin
 			ast_log(LOG_DEBUG, ":::=== Still have %d locks (recursive)\n", count);
 #endif
 		if (!res)
-			if (option_debug)
-				ast_log(LOG_DEBUG, "::::==== Channel %s was unlocked\n", chan->name);
-			if (res == EINVAL) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "::::==== Channel %s had no lock by this thread. Failed unlocking\n", chan->name);
-			}
+			ast_log(LOG_DEBUG, "::::==== Channel %s was unlocked\n", chan->name);
+		if (res == EINVAL) {
+			ast_log(LOG_DEBUG, "::::==== Channel %s had no lock by this thread. Failed unlocking\n", chan->name);
 		}
-		if (res == EPERM) {
-			/* We had no lock, so okay any way*/
-			if (option_debug > 3)
-				ast_log(LOG_DEBUG, "::::==== Channel %s was not locked at all \n", chan->name);
+	}
+	if (res == EPERM) {
+		/* We had no lock, so okay any way*/
+		if (option_debug > 3)
+			ast_log(LOG_DEBUG, "::::==== Channel %s was not locked at all \n", chan->name);
 		res = 0;
 	}
 	return res;
@@ -5126,13 +5124,11 @@ int __ast_channel_lock(struct ast_channel *chan, const char *filename, int linen
 		if (!res)
 			ast_log(LOG_DEBUG, "::::==== Channel %s was locked\n", chan->name);
 		if (res == EDEADLK) {
-		/* We had no lock, so okey any way */
-		if (option_debug > 3)
+			/* We had no lock, so okey any way */
 			ast_log(LOG_DEBUG, "::::==== Channel %s was not locked by us. Lock would cause deadlock.\n", chan->name);
 		}
 		if (res == EINVAL) {
-			if (option_debug > 3)
-				ast_log(LOG_DEBUG, "::::==== Channel %s lock failed. No mutex.\n", chan->name);
+			ast_log(LOG_DEBUG, "::::==== Channel %s lock failed. No mutex.\n", chan->name);
 		}
 	}
 	return res;
@@ -5162,15 +5158,13 @@ int __ast_channel_trylock(struct ast_channel *chan, const char *filename, int li
 			ast_log(LOG_DEBUG, "::::==== Channel %s was locked\n", chan->name);
 		if (res == EBUSY) {
 			/* We failed to lock */
-			if (option_debug > 2)
-				ast_log(LOG_DEBUG, "::::==== Channel %s failed to lock. Not waiting around...\n", chan->name);
+			ast_log(LOG_DEBUG, "::::==== Channel %s failed to lock. Not waiting around...\n", chan->name);
 		}
 		if (res == EDEADLK) {
 			/* We had no lock, so okey any way*/
-			if (option_debug > 2)
-				ast_log(LOG_DEBUG, "::::==== Channel %s was not locked. Lock would cause deadlock.\n", chan->name);
+			ast_log(LOG_DEBUG, "::::==== Channel %s was not locked. Lock would cause deadlock.\n", chan->name);
 		}
-		if (res == EINVAL && option_debug > 2)
+		if (res == EINVAL)
 			ast_log(LOG_DEBUG, "::::==== Channel %s lock failed. No mutex.\n", chan->name);
 	}
 	return res;
