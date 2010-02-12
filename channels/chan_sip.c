@@ -11904,7 +11904,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 	enum check_auth_result res = AUTH_NOT_FOUND;
 	struct sip_peer *peer;
 	char tmp[256];
-	char *name = NULL, *c, *domain = NULL;
+	char *name = NULL, *c, *domain = NULL, *dummy = NULL;
 	char *uri2 = ast_strdupa(uri);
 
 	terminate_uri(uri2);
@@ -11914,7 +11914,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 	c = get_in_brackets(tmp);
 	c = remove_uri_parameters(c);
 
-	if (parse_uri(c, "sip:,sips:", &name, NULL, &domain, NULL, NULL)) {
+	if (parse_uri(c, "sip:,sips:", &name, &dummy, &domain, &dummy, NULL)) {
 		ast_log(LOG_NOTICE, "Invalid to address: '%s' from %s (missing sip:) trying to use anyway...\n", c, ast_inet_ntoa(sin->sin_addr));
 		return -1;
 	}
@@ -12407,7 +12407,7 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, c
 */
 static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 {
-	char tmp[256] = "", *uri, *domain;
+	char tmp[256] = "", *uri, *domain, *dummy = NULL;
 	char tmpf[256] = "", *from = NULL;
 	struct sip_request *req;
 	char *decoded_uri;
@@ -12422,7 +12422,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	
 	uri = get_in_brackets(tmp);
 
-	if (parse_uri(uri, "sip:,sips:", &uri, NULL, &domain, NULL, NULL)) {
+	if (parse_uri(uri, "sip:,sips:", &uri, &dummy, &domain, &dummy, NULL)) {
 		ast_log(LOG_WARNING, "Not a SIP header (%s)?\n", uri);
 		return -1;
 	}
