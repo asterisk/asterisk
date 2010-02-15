@@ -7,6 +7,7 @@
   </member>
   <member name="astman">
 	<defaultenabled>no</defaultenabled>
+	<depend>newt</depend>
   </member>
   <member name="check_expr">
 	<defaultenabled>no</defaultenabled>
@@ -31,6 +32,7 @@
   </member>
   <member name="smsq">
 	<defaultenabled>no</defaultenabled>
+	<depend>popt</depend>
   </member>
   <member name="stereorize">
 	<defaultenabled>no</defaultenabled>
