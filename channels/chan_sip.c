@@ -1234,7 +1234,6 @@ static const char *get_header(const struct sip_request *req, const char *name);
 static const char *referstatus2str(enum referstatus rstatus) attribute_pure;
 static int method_match(enum sipmethod id, const char *name);
 static void parse_copy(struct sip_request *dst, const struct sip_request *src);
-static char *get_in_brackets(char *tmp);
 static const char *find_alias(const char *name, const char *_default);
 static const char *__get_header(const struct sip_request *req, const char *name, int *start);
 static int lws2sws(char *msgbuf, int len);
@@ -3200,7 +3199,7 @@ static int sip_queryoption(struct ast_channel *chan, int option, void *data, int
  * optionally with a limit on the search.
  * start must be past the first quote.
  */
-static const char *find_closing_quote(const char *start, const char *lim)
+const char *find_closing_quote(const char *start, const char *lim)
 {
 	char last_char = '\0';
 	const char *s;
@@ -3209,54 +3208,6 @@ static const char *find_closing_quote(const char *start, const char *lim)
 			break;
 	}
 	return s;
-}
-
-/*! \brief Pick out text in brackets from character string
-	\return pointer to terminated stripped string
-	\param tmp input string that will be modified
-	Examples:
-\verbatim
-	"foo" <bar>	valid input, returns bar
-	foo		returns the whole string
-	< "foo ... >	returns the string between brackets
-	< "foo...	bogus (missing closing bracket), returns the whole string
-			XXX maybe should still skip the opening bracket
-\endverbatim
- */
-static char *get_in_brackets(char *tmp)
-{
-	const char *parse = tmp;
-	char *first_bracket;
-
-	/*
-	 * Skip any quoted text until we find the part in brackets.
-	* On any error give up and return the full string.
-	*/
-	while ( (first_bracket = strchr(parse, '<')) ) {
-		char *first_quote = strchr(parse, '"');
-
-		if (!first_quote || first_quote > first_bracket)
-			break; /* no need to look at quoted part */
-		/* the bracket is within quotes, so ignore it */
-		parse = find_closing_quote(first_quote + 1, NULL);
-		if (!*parse) { /* not found, return full string ? */
-			/* XXX or be robust and return in-bracket part ? */
-			ast_log(LOG_WARNING, "No closing quote found in '%s'\n", tmp);
-			break;
-		}
-		parse++;
-	}
-	if (first_bracket) {
-		char *second_bracket = strchr(first_bracket + 1, '>');
-		if (second_bracket) {
-			*second_bracket = '\0';
-			tmp = first_bracket + 1;
-		} else {
-			ast_log(LOG_WARNING, "No closing bracket found in '%s'\n", tmp);
-		}
-	}
-	
-	return tmp;
 }
 
 /*! \brief Send message with Access-URL header, if this is an HTML URL only! */
@@ -16425,54 +16376,6 @@ static struct ast_custom_function sipchaninfo_function = {
 	.read = function_sipchaninfo_read,
 };
 
-static int read_to_parts(struct sip_pvt *p, struct sip_request *req, char **name, char **number)
-{
-
-	char to_header[256];
-	char *to_name = NULL;
-	char *to_number = NULL;
-	char *separator;
-
-	ast_copy_string(to_header, get_header(req, "To"), sizeof(to_header));
-
-	/* Let's get that number first! */
-	to_number = get_in_brackets(to_header);
-
-	if (!strncasecmp(to_number, "sip:", 4)) {
-		to_number += 4;
-	} else if (!strncasecmp(to_number, "sips:", 5)) {
-		to_number += 5;
-	} else {
-		ast_log(LOG_WARNING, "Not a SIP URI? (%s)!\n", to_number);
-		return -1;
-	}
-
-	/* Remove the host and such since we just want the number */
-	if ((separator = strchr(to_number, '@'))) {
-		*separator = '\0';
-	}
-
-	/* We have the number. Let's get the name now. */
-
-	if (*to_header == '\"') {
-		to_name = to_header + 1;
-		if (!(separator = (char *)find_closing_quote(to_name, NULL))) {
-			ast_log(LOG_NOTICE, "No closing quote in name section of To: header (%s)\n", to_header);
-			return -1;
-		}
-		*separator = '\0';
-	}
-
-	if (number) {
-		*number = ast_strdup(to_number);
-	}
-	if (name && !ast_strlen_zero(to_name)) {
-		*name = ast_strdup(to_name);
-	}
-
-	return 0;
-}
-
 /*! \brief update redirecting information for a channel based on headers
  *
  */
@@ -16489,7 +16392,7 @@ static void change_redirecting_information(struct sip_pvt *p, struct sip_request
 	res = get_rdnis(p, req, &redirecting_from_name, &redirecting_from_number, &reason);
 	if (res == -1) {
 		if (is_response) {
-			read_to_parts(p, req, &redirecting_from_name, &redirecting_from_number);
+			get_name_and_number(get_header(req, "TO"), &redirecting_from_name, &redirecting_from_number);
 		} else {
 			return;
 		}
@@ -16502,7 +16405,7 @@ static void change_redirecting_information(struct sip_pvt *p, struct sip_request
 	if (is_response) {
 		parse_moved_contact(p, req, &redirecting_to_name, &redirecting_to_number, set_call_forward);
 	} else {
-		read_to_parts(p, req, &redirecting_to_name, &redirecting_to_number);
+		get_name_and_number(get_header(req, "TO"), &redirecting_to_name, &redirecting_to_number);
 	}
 
 	if (!ast_strlen_zero(redirecting_from_number)) {

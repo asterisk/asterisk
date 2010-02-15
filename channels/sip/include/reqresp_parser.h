@@ -52,6 +52,31 @@ int parse_uri(char *uri, const char *scheme, char **ret_name, char **pass, char 
 const char *get_calleridname(const char *input, char *output, size_t outputsize);
 
 /*!
+ * \brief  Get name and number from sip header
+ *
+ * \note name and number point to malloced memory on return and must be
+ * freed. If name or number is not found, they will be returned as NULL.
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int get_name_and_number(const char *hdr, char **name, char **number);
+
+/*! \brief Pick out text in brackets from character string
+ * \return pointer to terminated stripped string
+ * \param tmp input string that will be modified
+ *
+ * Examples:
+ * \verbatim
+ * "foo" <bar>	valid input, returns bar
+ *  foo returns the whole string
+ * < "foo ... >	returns the string between brackets
+ * < "foo...    bogus (missing closing bracket), returns the whole string
+ * \endverbatim
+ */
+char *get_in_brackets(char *tmp);
+
+/*!
  * \brief register request parsing tests
  */
 void sip_request_parser_register_tests(void);

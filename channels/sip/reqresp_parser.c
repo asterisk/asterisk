@@ -24,6 +24,7 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "include/sip.h"
+#include "include/sip_utils.h"
 #include "include/reqresp_parser.h"
 
 /*! \brief * parses a URI in its components.*/
@@ -389,14 +390,272 @@ AST_TEST_DEFINE(get_calleridname_test)
 	return res;
 }
 
+int get_name_and_number(const char *hdr, char **name, char **number)
+{
+	char header[256];
+	char tmp_name[50] = { 0, };
+	char *tmp_number = NULL;
+	char *domain = NULL;
+	char *dummy = NULL;
+
+	if (!name || !number || ast_strlen_zero(hdr)) {
+		return -1;
+	}
+
+	*number = NULL;
+	*name = NULL;
+	ast_copy_string(header, hdr, sizeof(header));
+
+	/* strip the display-name portion off the beginning of the header. */
+	get_calleridname(header, tmp_name, sizeof(tmp_name));
+
+	/* get uri within < > brackets */
+	tmp_number = get_in_brackets(header);
+
+	/* parse out the number here */
+	if (parse_uri(tmp_number, "sip:,sips:", &tmp_number, &dummy, &domain, &dummy, NULL) || ast_strlen_zero(tmp_number)) {
+		ast_log(LOG_ERROR, "can not parse name and number from sip header.\n");
+		return -1;
+	}
+
+	/* number is not option, and must be present at this point */
+	*number = ast_strdup(tmp_number);
+	ast_uri_decode(*number);
+
+	/* name is optional and may not be present at this point */
+	if (!ast_strlen_zero(tmp_name)) {
+		*name = ast_strdup(tmp_name);
+	}
+
+	return 0;
+}
+
+AST_TEST_DEFINE(get_name_and_number_test)
+{
+	int res = AST_TEST_PASS;
+	char *name = NULL;
+	char *number = NULL;
+	const char *in1 = "NAME <sip:NUMBER@place>";
+	const char *in2 = "\"NA><ME\" <sip:NUMBER@place>";
+	const char *in3 = "NAME";
+	const char *in4 = "<sip:NUMBER@place>";
+	const char *in5 = "This is a screwed up string <sip:LOLCLOWNS<sip:>@place>";
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "sip_get_name_and_number_test";
+		info->category = "channels/chan_sip/";
+		info->summary = "Tests getting name and number from sip header";
+		info->description =
+				"Runs through various test situations in which a name and "
+				"and number can be retrieved from a sip header.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	/* Test 1. get name and number */
+	number = name = NULL;
+	if ((get_name_and_number(in1, &name, &number)) ||
+		strcmp(name, "NAME") ||
+		strcmp(number, "NUMBER")) {
+
+		ast_test_status_update(test, "Test 1, simple get name and number failed.\n");
+		res = AST_TEST_FAIL;
+	}
+	ast_free(name);
+	ast_free(number);
+
+	/* Test 2. get quoted name and number */
+	number = name = NULL;
+	if ((get_name_and_number(in2, &name, &number)) ||
+		strcmp(name, "NA><ME") ||
+		strcmp(number, "NUMBER")) {
+
+		ast_test_status_update(test, "Test 2, get quoted name and number failed.\n");
+		res = AST_TEST_FAIL;
+	}
+	ast_free(name);
+	ast_free(number);
+
+	/* Test 3. name only */
+	number = name = NULL;
+	if (!(get_name_and_number(in3, &name, &number))) {
+
+		ast_test_status_update(test, "Test 3, get name only was expected to fail but did not.\n");
+		res = AST_TEST_FAIL;
+	}
+	ast_free(name);
+	ast_free(number);
+
+	/* Test 4. number only */
+	number = name = NULL;
+	if ((get_name_and_number(in4, &name, &number)) ||
+		!ast_strlen_zero(name) ||
+		strcmp(number, "NUMBER")) {
+
+		ast_test_status_update(test, "Test 4, get number with no name present failed.\n");
+		res = AST_TEST_FAIL;
+	}
+	ast_free(name);
+	ast_free(number);
+
+	/* Test 5. malformed string, since number can not be parsed, this should return an error.  */
+	number = name = NULL;
+	if (!(get_name_and_number(in5, &name, &number)) ||
+		!ast_strlen_zero(name) ||
+		!ast_strlen_zero(number)) {
+
+		ast_test_status_update(test, "Test 5, processing malformed string failed.\n");
+		res = AST_TEST_FAIL;
+	}
+	ast_free(name);
+	ast_free(number);
+
+	/* Test 6. NULL output parameters */
+	number = name = NULL;
+	if (!(get_name_and_number(in5, NULL, NULL))) {
+
+		ast_test_status_update(test, "Test 6, NULL output parameters failed.\n");
+		res = AST_TEST_FAIL;
+	}
+
+	/* Test 7. NULL input parameter */
+	number = name = NULL;
+	if (!(get_name_and_number(NULL, &name, &number)) ||
+		!ast_strlen_zero(name) ||
+		!ast_strlen_zero(number)) {
+
+		ast_test_status_update(test, "Test 7, NULL input parameter failed.\n");
+		res = AST_TEST_FAIL;
+	}
+	ast_free(name);
+	ast_free(number);
+
+	return res;
+}
+
+char *get_in_brackets(char *tmp)
+{
+	const char *parse = tmp;
+	char *first_bracket;
+
+
+	if (ast_strlen_zero(tmp)) {
+		return tmp;
+	}
+
+	/*
+	 * Skip any quoted text until we find the part in brackets.
+	* On any error give up and return the full string.
+	*/
+	while ( (first_bracket = strchr(parse, '<')) ) {
+		char *first_quote = strchr(parse, '"');
+
+		if (!first_quote || first_quote > first_bracket)
+			break; /* no need to look at quoted part */
+		/* the bracket is within quotes, so ignore it */
+		parse = find_closing_quote(first_quote + 1, NULL);
+		if (!*parse) {
+			ast_log(LOG_WARNING, "No closing quote found in '%s'\n", tmp);
+			break;
+		}
+		parse++;
+	}
+	if (first_bracket) {
+		char *second_bracket = strchr(first_bracket + 1, '>');
+		if (second_bracket) {
+			*second_bracket = '\0';
+			tmp = first_bracket + 1;
+		} else {
+			ast_log(LOG_WARNING, "No closing bracket found in '%s'\n", tmp);
+		}
+	}
+
+	return tmp;
+}
+
+AST_TEST_DEFINE(get_in_brackets_test)
+{
+	int res = AST_TEST_PASS;
+	char *in_brackets = "<sip:name:secret@host:port;transport=tcp?headers=testblah&headers2=blahblah>";
+	char no_name[] = "<sip:name:secret@host:port;transport=tcp?headers=testblah&headers2=blahblah>";
+	char quoted_string[] = "\"I'm a quote stri><ng\" <sip:name:secret@host:port;transport=tcp?headers=testblah&headers2=blahblah>";
+	char missing_end_quote[] = "\"I'm a quote string <sip:name:secret@host:port;transport=tcp?headers=testblah&headers2=blahblah>";
+	char name_no_quotes[] = "name not in quotes <sip:name:secret@host:port;transport=tcp?headers=testblah&headers2=blahblah>";
+	char no_end_bracket[] = "name not in quotes <sip:name:secret@host:port;transport=tcp?headers=testblah&headers2=blahblah";
+	char *uri = NULL;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "sip_get_in_brackets_test";
+		info->category = "channels/chan_sip/";
+		info->summary = "Tests getting a sip uri in <> brackets within a sip header.";
+		info->description =
+				"Runs through various test situations in which a sip uri "
+				"in angle brackets needs to be retrieved";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	/* Test 1, simple get in brackets */
+	if (!(uri = get_in_brackets(no_name)) || !(strcmp(uri, in_brackets))) {
+
+		ast_test_status_update(test, "Test 1, simple get in brackets failed.\n");
+		res = AST_TEST_FAIL;
+	}
+
+	/* Test 2, starts with quoted string */
+	if (!(uri = get_in_brackets(quoted_string)) || !(strcmp(uri, in_brackets))) {
+
+		ast_test_status_update(test, "Test 2, get in brackets with quoted string in front failed.\n");
+		res = AST_TEST_FAIL;
+	}
+
+	/* Test 3, missing end quote */
+	if (!(uri = get_in_brackets(missing_end_quote)) || !(strcmp(uri, in_brackets))) {
+
+		ast_test_status_update(test, "Test 3, missing end quote failed.\n");
+		res = AST_TEST_FAIL;
+	}
+
+	/* Test 4, starts with a name not in quotes */
+	if (!(uri = get_in_brackets(name_no_quotes)) || !(strcmp(uri, in_brackets))) {
+
+		ast_test_status_update(test, "Test 4, passing name not in quotes failed.\n");
+		res = AST_TEST_FAIL;
+	}
+
+	/* Test 5, no end bracket, should just return everything after the first '<'  */
+	if (!(uri = get_in_brackets(no_end_bracket)) || !(strcmp(uri, in_brackets))) {
+
+		ast_test_status_update(test, "Test 5, no end bracket failed.\n");
+		res = AST_TEST_FAIL;
+	}
+
+	/* Test 6, NULL input  */
+	if ((uri = get_in_brackets(NULL))) {
+
+		ast_test_status_update(test, "Test 6, NULL input failed.\n");
+		res = AST_TEST_FAIL;
+	}
+
+
+	return res;
+}
 
 void sip_request_parser_register_tests(void)
 {
 	AST_TEST_REGISTER(get_calleridname_test);
 	AST_TEST_REGISTER(sip_parse_uri_test);
+	AST_TEST_REGISTER(get_in_brackets_test);
+	AST_TEST_REGISTER(get_name_and_number_test);
 }
 void sip_request_parser_unregister_tests(void)
 {
 	AST_TEST_UNREGISTER(sip_parse_uri_test);
 	AST_TEST_UNREGISTER(get_calleridname_test);
+	AST_TEST_UNREGISTER(get_in_brackets_test);
+	AST_TEST_UNREGISTER(get_name_and_number_test);
 }

@@ -33,4 +33,11 @@
  */
 unsigned int port_str2int(const char *pt, unsigned int standard);
 
+/*! \brief Locate closing quote in a string, skipping escaped quotes.
+ * optionally with a limit on the search.
+ * start must be past the first quote.
+ */
+const char *find_closing_quote(const char *start, const char *lim);
+
+
 #endif
