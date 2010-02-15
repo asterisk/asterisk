@@ -6391,6 +6391,7 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 	struct ast_channel *oc0, *oc1;
 	enum ast_bridge_result res;
 #ifdef PRI_2BCT
+	int triedtopribridge = 0;
 	q931_call *q931c0;
 	q931_call *q931c1;
 #endif
@@ -6642,7 +6643,8 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 			q931c1 = NULL;
 			break;
 		}
-		if (q931c0 && q931c1 && p0->transfer && p1->transfer) {
+		if (q931c0 && q931c1 && p0->transfer && p1->transfer && !triedtopribridge) {
+			triedtopribridge = 1;
 			pri_channel_bridge(q931c0, q931c1);
 		}
 #endif
