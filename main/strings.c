@@ -24,8 +24,8 @@
  */
 
 /*** MAKEOPTS
-<category name="MENUSELECT_CFLAGS" displayname="Compiler Flags" positive_output="yes" remove_on_change=".lastclean">
-	<member name="DEBUG_OPAQUE" displayname="Change ast_str internals to detect improper usage">
+<category name="MENUSELECT_CFLAGS" displayname="Compiler Flags" positive_output="yes">
+	<member name="DEBUG_OPAQUE" displayname="Change ast_str internals to detect improper usage" touch_on_change="include/asterisk/strings.h">
 		<defaultenabled>yes</defaultenabled>
 	</member>
 </category>

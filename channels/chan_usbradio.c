@@ -40,12 +40,12 @@
  ***/
 
 /*** MAKEOPTS
-<category name="MENUSELECT_CFLAGS" displayname="Compiler Flags" positive_output="yes" remove_on_change=".lastclean">
-	<member name="RADIO_RTX" displayname="Build RTX/DTX Radio Programming">
+<category name="MENUSELECT_CFLAGS" displayname="Compiler Flags" positive_output="yes">
+	<member name="RADIO_RTX" displayname="Build RTX/DTX Radio Programming" touch_on_change="channels/chan_usbradio.c channels/xpmr/xpmr.h">
 		<defaultenabled>no</defaultenabled>
 		<depend>chan_usbradio</depend>
 	</member>
-	<member name="RADIO_XPMRX" displayname="Build Experimental Radio Protocols">
+	<member name="RADIO_XPMRX" displayname="Build Experimental Radio Protocols" touch_on_change="channels/chan_usbradio.c">
 		<defaultenabled>no</defaultenabled>
 		<depend>chan_usbradio</depend>
 	</member>

@@ -42,7 +42,7 @@
  ***/
 
 /*** MAKEOPTS
-<category name="MENUSELECT_OPTS_app_voicemail" displayname="Voicemail Build Options" positive_output="yes" remove_on_change="apps/app_voicemail.o apps/app_voicemail.so apps/app_directory.o apps/app_directory.so">
+<category name="MENUSELECT_OPTS_app_voicemail" displayname="Voicemail Build Options" positive_output="yes" touch_on_change="apps/app_voicemail.c apps/app_directory.c">
 	<member name="FILE_STORAGE" displayname="Storage of Voicemail using filesystem">
 		<conflict>ODBC_STORAGE</conflict>
 		<conflict>IMAP_STORAGE</conflict>
