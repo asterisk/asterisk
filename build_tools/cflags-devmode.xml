@@ -3,7 +3,7 @@
 		</member>
 		<member name="DEBUG_SCHEDULER" displayname="Enable Scheduler Debugging Output" touch_on_change="main/sched.c">
 		</member>
-		<member name="DEBUG_THREADLOCALS" displayname="Enable Thread-Local-Storage Debugging" touch_on_change="include/asterisk/strings.h">
+		<member name="DEBUG_THREADLOCALS" displayname="Enable Thread-Local-Storage Debugging" touch_on_change="include/asterisk/strings.h include/asterisk/threadstorage.h main/threadstorage.c utils/check_expr.c">
 		</member>
 		<member name="DETECT_DEADLOCKS" displayname="Detect Deadlocks" touch_on_change="include/asterisk/lock.h utils/extconf.c">
 			<depend>DEBUG_THREADS</depend>
