@@ -1503,6 +1503,14 @@ int onAlerting(ooCallData *call)
 		return 0;
 	}
 	c = p->owner;
+
+	if (call->remoteDisplayName) {
+		struct ast_party_connected_line connected;
+		ast_party_connected_line_init(&connected);
+		connected.id.name = (char *) call->remoteDisplayName;
+		connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
+		ast_channel_queue_connected_line_update(c, &connected);
+	}
 	if (c->_state != AST_STATE_UP)
 		ast_setstate(c, AST_STATE_RINGING);
 
@@ -1546,6 +1554,14 @@ int onProgress(ooCallData *call)
 		return 0;
 	}
 	c = p->owner;
+
+	if (call->remoteDisplayName) {
+		struct ast_party_connected_line connected;
+		ast_party_connected_line_init(&connected);
+		connected.id.name = (char *) call->remoteDisplayName;
+		connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
+		ast_channel_queue_connected_line_update(c, &connected);
+	}
 	if (c->_state != AST_STATE_UP)
 		ast_setstate(c, AST_STATE_RINGING);
 
@@ -1927,6 +1943,15 @@ int onCallEstablished(ooCallData *call)
 		}
 		if (p->owner) {
 			struct ast_channel* c = p->owner;
+
+			if (call->remoteDisplayName) {
+				struct ast_party_connected_line connected;
+				ast_party_connected_line_init(&connected);
+				connected.id.name = (char *) call->remoteDisplayName;
+				connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
+				ast_channel_queue_connected_line_update(c, &connected);
+			}
+
 			ast_queue_control(c, AST_CONTROL_ANSWER);
    			ast_channel_unlock(p->owner);
 			manager_event(EVENT_FLAG_SYSTEM,"ChannelUpdate","Channel: %s\r\nChanneltype: %s\r\n"

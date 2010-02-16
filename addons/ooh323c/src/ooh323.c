@@ -38,6 +38,23 @@ int ooOnReceivedReleaseComplete(OOH323CallData *call, Q931Message *q931Msg);
 int ooOnReceivedCallProceeding(OOH323CallData *call, Q931Message *q931Msg);
 int ooOnReceivedAlerting(OOH323CallData *call, Q931Message *q931Msg);
 int ooOnReceivedProgress(OOH323CallData *call, Q931Message *q931Msg);
+int ooHandleDisplayIE(OOH323CallData *call, Q931Message *q931Msg);
+
+int ooHandleDisplayIE(OOH323CallData *call, Q931Message *q931Msg) {
+   Q931InformationElement* pDisplayIE;
+
+   /* check for display ie */
+   pDisplayIE = ooQ931GetIE(q931Msg, Q931DisplayIE);
+   if(pDisplayIE) {
+      if (call->remoteDisplayName)
+	memFreePtr(call->pctxt, call->remoteDisplayName);
+      call->remoteDisplayName = (char *) memAllocZ(call->pctxt, 
+                                 pDisplayIE->length*sizeof(ASN1OCTET)+1);
+      strncpy(call->remoteDisplayName, (char *)pDisplayIE->data, pDisplayIE->length*sizeof(ASN1OCTET));
+   }
+
+   return OO_OK;
+}
 
 int ooHandleFastStart(OOH323CallData *call, H225Facility_UUIE *facility)
 {
@@ -796,6 +813,7 @@ int ooOnReceivedAlerting(OOH323CallData *call, Q931Message *q931Msg)
    H245H2250LogicalChannelParameters * h2250lcp = NULL;  
    int i=0, ret=0;
 
+   ooHandleDisplayIE(call, q931Msg);
 
    if(!q931Msg->userInfo)
    {
@@ -1019,6 +1037,7 @@ int ooOnReceivedProgress(OOH323CallData *call, Q931Message *q931Msg)
    H245H2250LogicalChannelParameters * h2250lcp = NULL;  
    int i=0, ret=0;
 
+   ooHandleDisplayIE(call, q931Msg);
 
    if(!q931Msg->userInfo)
    {
@@ -1241,6 +1260,8 @@ int ooOnReceivedSignalConnect(OOH323CallData* call, Q931Message *q931Msg)
    ASN1OCTET msgbuf[MAXMSGLEN];
    ooLogicalChannel * pChannel = NULL;
    H245H2250LogicalChannelParameters * h2250lcp = NULL;  
+
+   ooHandleDisplayIE(call, q931Msg);
 
    if(!q931Msg->userInfo)
    {
