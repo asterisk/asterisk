@@ -217,7 +217,7 @@ static void *handle_tcptls_connection(void *data)
 		ast_log(LOG_WARNING, "FILE * open failed!\n");
 #ifndef DO_SSL
 		if (tcptls_session->parent->tls_cfg) {
-			ast_log(LOG_WARNING, "Attempted a TLS connection without openssl support.  This will not work!\n");
+			ast_log(LOG_WARNING, "Attempted a TLS connection without OpenSSL support.  This will not work!\n");
 		}
 #endif
 		ao2_ref(tcptls_session, -1);
