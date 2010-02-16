@@ -2792,6 +2792,8 @@ static void sip_scheddestroy(struct sip_pvt *p, int ms)
 	if (ms < 0) {
 		if (p->timer_t1 == 0) {
 			p->timer_t1 = global_t1;	/* Set timer T1 if not set (RFC 3261) */
+		}
+		if (p->timer_b == 0) {
 			p->timer_b = global_timer_b;  /* Set timer B if not set (RFC 3261) */
 		}
 		ms = p->timer_t1 * 64;
@@ -22948,6 +22950,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	int firstpass = 1;
 	uint16_t port = 0;
 	int format = 0;		/* Ama flags */
+	int timerb_set = 0, timert1_set = 0;
 	time_t regseconds = 0;
 	struct ast_flags peerflags[2] = {{(0)}};
 	struct ast_flags mask[2] = {{(0)}};
@@ -23240,26 +23243,17 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 					peer->rtpkeepalive = global_rtpkeepalive;
 				}
 			} else if (!strcasecmp(v->name, "timert1")) {
-				if ((sscanf(v->value, "%30d", &peer->timer_t1) != 1) || (peer->timer_t1 < 0)) {
+				if ((sscanf(v->value, "%30d", &peer->timer_t1) != 1) || (peer->timer_t1 < 200) || (peer->timer_t1 < global_t1min)) {
 					ast_log(LOG_WARNING, "'%s' is not a valid T1 time at line %d.  Using default.\n", v->value, v->lineno);
-					peer->timer_t1 = global_t1;
+					peer->timer_t1 = global_t1min;
 				}
-				/* Note that Timer B is dependent upon T1 and MUST NOT be lower
-				 * than T1 * 64, according to RFC 3261, Section 17.1.1.2 */
-				if (peer->timer_b < peer->timer_t1 * 64) {
-					peer->timer_b = peer->timer_t1 * 64;
-				}
+				timert1_set = 1;
 			} else if (!strcasecmp(v->name, "timerb")) {
-				if ((sscanf(v->value, "%30d", &peer->timer_b) != 1) || (peer->timer_b < 0)) {
+				if ((sscanf(v->value, "%30d", &peer->timer_b) != 1) || (peer->timer_b < 200)) {
 					ast_log(LOG_WARNING, "'%s' is not a valid Timer B time at line %d.  Using default.\n", v->value, v->lineno);
 					peer->timer_b = global_timer_b;
 				}
-				if (peer->timer_b < peer->timer_t1 * 64) {
-					static int warning = 0;
-					if (warning++ % 20 == 0) {
-						ast_log(LOG_WARNING, "Timer B has been set lower than recommended. (RFC 3261, 17.1.1.2)\n");
-					}
-				}
+				timerb_set = 1;
 			} else if (!strcasecmp(v->name, "setvar")) {
 				peer->chanvars = add_var(v->value, peer->chanvars);
 			} else if (!strcasecmp(v->name, "header")) {
@@ -23369,6 +23363,23 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			if (peer->busy_level < 0) {
 				peer->busy_level = 0;
 			}
+		}
+	}
+
+	/* Note that Timer B is dependent upon T1 and MUST NOT be lower
+	 * than T1 * 64, according to RFC 3261, Section 17.1.1.2 */
+	if (peer->timer_b < peer->timer_t1 * 64) {
+		if (timerb_set && timert1_set) {
+			ast_log(LOG_WARNING, "Timer B has been set lower than recommended for peer %s (%d < 64 * Timer-T1=%d)\n", peer->name, peer->timer_b, peer->timer_t1);
+		} else if (timerb_set) {
+			if ((peer->timer_t1 = peer->timer_b / 64) < global_t1min) {
+				ast_log(LOG_WARNING, "Timer B has been set lower than recommended (%d < 64 * timert1=%d). (RFC 3261, 17.1.1.2)\n", peer->timer_b, peer->timer_t1);
+				peer->timer_t1 = global_t1min;
+				peer->timer_b = peer->timer_t1 * 64;
+			}
+			peer->timer_t1 = peer->timer_b / 64;
+		} else {
+			peer->timer_b = peer->timer_t1 * 64;
 		}
 	}
 
@@ -23518,7 +23529,7 @@ static int reload_config(enum channelreloadreason reason)
 	struct ast_flags config_flags = { reason == CHANNEL_MODULE_LOAD ? 0 : ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS) ? 0 : CONFIG_FLAG_FILEUNCHANGED };
 	int auto_sip_domains = FALSE;
 	struct sockaddr_in old_bindaddr = bindaddr;
-	int registry_count = 0, peer_count = 0;
+	int registry_count = 0, peer_count = 0, timerb_set = 0, timert1_set = 0;
 	time_t run_start, run_end;
 	
 	run_start = time(0);
@@ -23808,8 +23819,13 @@ static int reload_config(enum channelreloadreason reason)
 			 * for the value to be set higher, though a lower value is only
 			 * allowed on private networks unconnected to the Internet. */
 			global_t1 = atoi(v->value);
-			/* Note that timer B is dependent on the value of T1 */
-			global_timer_b = global_t1 * 64;
+		} else if (!strcasecmp(v->name, "timerb")) {
+			int tmp = atoi(v->value);
+			if (tmp < 500) {
+				global_timer_b = global_t1 * 64;
+				ast_log(LOG_WARNING, "Invalid value for timerb ('%s').  Setting to default ('%d').\n", v->value, global_timer_b);
+			}
+			timerb_set = 1;
 		} else if (!strcasecmp(v->name, "t1min")) {
 			global_t1min = atoi(v->value);
 		} else if (!strcasecmp(v->name, "transport") && !ast_strlen_zero(v->value)) {
@@ -24187,6 +24203,24 @@ static int reload_config(enum channelreloadreason reason)
 		}
 	}
 
+	if (global_t1 < global_t1min) {
+		ast_log(LOG_WARNING, "'t1min' (%d) cannot be greater than 't1timer' (%d).  Resetting 't1timer' to the value of 't1min'\n", global_t1min, global_t1);
+		global_t1 = global_t1min;
+	}
+
+	if (global_timer_b < global_t1 * 64) {
+		if (timerb_set && timert1_set) {
+			ast_log(LOG_WARNING, "Timer B has been set lower than recommended (%d < 64 * timert1=%d). (RFC 3261, 17.1.1.2)\n", global_timer_b, global_t1);
+		} else if (timerb_set) {
+			if ((global_t1 = global_timer_b / 64) < global_t1min) {
+				ast_log(LOG_WARNING, "Timer B has been set lower than recommended (%d < 64 * timert1=%d). (RFC 3261, 17.1.1.2)\n", global_timer_b, global_t1);
+				global_t1 = global_t1min;
+				global_timer_b = global_t1 * 64;
+			}
+		} else {
+			global_timer_b = global_t1 * 64;
+		}
+	}
 	if (!sip_cfg.allow_external_domains && AST_LIST_EMPTY(&domain_list)) {
 		ast_log(LOG_WARNING, "To disallow external domains, you need to configure local SIP domains.\n");
 		sip_cfg.allow_external_domains = 1;
