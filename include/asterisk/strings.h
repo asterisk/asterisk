@@ -342,11 +342,16 @@ int ast_get_timeval(const char *src, struct timeval *tv, struct timeval _default
  *	ast_str_set_va(&buf, max_len, ap)
  *	ast_str_append_va(&buf, max_len, ap)
  *
- * \param max_len The maximum allowed length, reallocating if needed.
+ * \param max_len The maximum allowed capacity of the ast_str. Note that
+ *  if the value of max_len is less than the current capacity of the
+ *  ast_str (as returned by ast_str_size), then the parameter is effectively
+ *  ignored.
  * 	0 means unlimited, -1 means "at most the available space"
  *
  * \return All the functions return <0 in case of error, or the
- *	length of the string added to the buffer otherwise.
+ *	length of the string added to the buffer otherwise. Note that
+ *	in most cases where an error is returned, characters ARE written
+ *	to the ast_str.
  */
 
 /*! \brief The descriptor of a dynamic string
