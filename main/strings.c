@@ -93,6 +93,7 @@ int __ast_str_helper(struct ast_str **buf, size_t max_len,
 #endif
 				) {
 				ast_verbose("failed to extend from %d to %d\n", (int)(*buf)->__AST_STR_LEN, need);
+				va_end(aq);
 				return AST_DYNSTR_BUILD_FAILED;
 			}
 			(*buf)->__AST_STR_STR[offset] = '\0';	/* Truncate the partial write. */
@@ -101,6 +102,7 @@ int __ast_str_helper(struct ast_str **buf, size_t max_len,
 			va_end(aq);
 			continue;
 		}
+		va_end(aq);
 		break;
 	} while (1);
 	/* update space used, keep in mind the truncation */
