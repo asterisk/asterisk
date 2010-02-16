@@ -1,57 +1,57 @@
-	<category name="MENUSELECT_CFLAGS" displayname="Compiler Flags" positive_output="yes">
-		<member name="DONT_OPTIMIZE" displayname="Disable Optimizations by the Compiler" remove_on_change=".lastclean">
+	<category name="MENUSELECT_CFLAGS" displayname="Compiler Flags" positive_output="yes" remove_on_change=".lastclean">
+		<member name="DONT_OPTIMIZE" displayname="Disable Optimizations by the Compiler">
 		</member>
-		<member name="DEBUG_THREADS" displayname="Enable Thread Debugging" touch_on_change="include/asterisk/lock.h include/asterisk/astobj2.h">
+		<member name="DEBUG_THREADS" displayname="Enable Thread Debugging">
 		</member>
-		<member name="STATIC_BUILD" displayname="Build static binaries" remove_on_change=".lastclean">
+		<member name="STATIC_BUILD" displayname="Build static binaries">
 		</member>
-		<member name="LOADABLE_MODULES" displayname="Runtime module loading" remove_on_change=".lastclean">
+		<member name="LOADABLE_MODULES" displayname="Runtime module loading">
 			<defaultenabled>yes</defaultenabled>
 		</member>
-		<member name="DEBUG_FD_LEAKS" displayname="Enable File Descriptor Leak Detection" remove_on_change=".lastclean">
+		<member name="DEBUG_FD_LEAKS" displayname="Enable File Descriptor Leak Detection">
 		</member>
 		<member name="REBUILD_PARSERS" displayname="Rebuild AEL and expression parsers from bison/flex source files">
 			<depend>bison</depend>
 			<depend>flex</depend>
 			<defaultenabled>no</defaultenabled>
 		</member>
-		<member name="LOW_MEMORY" displayname="Optimize for Low Memory Usage" remove_on_change=".lastclean">
+		<member name="LOW_MEMORY" displayname="Optimize for Low Memory Usage">
 		</member>
-		<member name="USE_HOARD_ALLOCATOR" displayname="Use the Hoard Memory Allocator instead of the default system one" remove_on_change=".lastclean">
+		<member name="USE_HOARD_ALLOCATOR" displayname="Use the Hoard Memory Allocator instead of the default system one">
 			<defaultenabled>no</defaultenabled>
 			<depend>hoard</depend>
 		</member>
-		<member name="LOTS_OF_SPANS" displayname="More than 32 DAHDI spans" touch_on_change="channels/chan_dahdi.c">
+		<member name="LOTS_OF_SPANS" displayname="More than 32 DAHDI spans">
 		</member>
-		<member name="RADIO_RELAX" displayname="Relax DTMF for Radio Applications" touch_on_change="main/dsp.c">
+		<member name="RADIO_RELAX" displayname="Relax DTMF for Radio Applications">
 		</member>
-		<member name="G711_NEW_ALGORITHM" displayname="Use the NEW ulaw/alaw codecs (slower, but cleaner)" touch_on_change="include/asterisk/alaw.h include/asterisk/ulaw.h">
+		<member name="G711_NEW_ALGORITHM" displayname="Use the NEW ulaw/alaw codecs (slower, but cleaner)">
 			<defaultenabled>no</defaultenabled>
 		</member>
-		<member name="G711_REDUCED_BRANCHING" displayname="New ulaw/alaw codec, reduced branching (might help it run faster in some architectures)" touch_on_change="include/asterisk/alaw.h include/asterisk/ulaw.h">
+		<member name="G711_REDUCED_BRANCHING" displayname="New ulaw/alaw codec, reduced branching (might help it run faster in some architectures)">
 			<depend>G711_NEW_ALGORITHM</depend>
 		</member>
-		<member name="TEST_CODING_TABLES" displayname="New ulaw/alaw codec, turn on table tests on init" touch_on_change="main/ulaw.c main/alaw.c">
+		<member name="TEST_CODING_TABLES" displayname="New ulaw/alaw codec, turn on table tests on init">
 			<depend>G711_NEW_ALGORITHM</depend>
 		</member>
-		<member name="TEST_TANDEM_TRANSCODING" displayname="New ulaw/alaw codec, turn on transcoding tests on init" touch_on_change="main/ulaw.c main/alaw.c">
+		<member name="TEST_TANDEM_TRANSCODING" displayname="New ulaw/alaw codec, turn on transcoding tests on init">
 			<depend>G711_NEW_ALGORITHM</depend>
 		</member>
-		<member name="MALLOC_DEBUG" displayname="Keep Track of Memory Allocations" remove_on_change=".lastclean">
+		<member name="MALLOC_DEBUG" displayname="Keep Track of Memory Allocations">
 		</member>
-		<member name="BUSYDETECT_TONEONLY" displayname="Enable additional comparison of only the tone duration not the silence part" touch_on_change="main/dsp.c channels/chan_dahdi.c">
+		<member name="BUSYDETECT_TONEONLY" displayname="Enable additional comparision of only the tone duration not the silence part">
 			<conflict>BUSYDETECT_COMPARE_TONE_AND_SILENCE</conflict>
 			<defaultenabled>no</defaultenabled>
 		</member>
-		<member name="BUSYDETECT_COMPARE_TONE_AND_SILENCE" displayname="Assume that tone and silence have the same duration" touch_on_change="main/dsp.c channels/chan_dahdi.c">
+		<member name="BUSYDETECT_COMPARE_TONE_AND_SILENCE" displayname="Assume that tone and silence have the same duration">
 			<conflict>BUSYDETECT_TONEONLY</conflict>
 			<defaultenabled>no</defaultenabled>
 		</member>
-		<member name="BUSYDETECT_DEBUG" displayname="Enable additional busy detection debugging" touch_on_change="main/dsp.c channels/chan_dahdi.c">
+		<member name="BUSYDETECT_DEBUG" displayname="Enable additional busy detection debugging">
 			<defaultenabled>no</defaultenabled>
 		</member>
-		<member name="IAX_OLD_FIND" displayname="Use the old, slow method of searching for IAX callnos" touch_on_change="channels/chan_iax2.c">
+		<member name="IAX_OLD_FIND" displayname="Use the old, slow method of searching for IAX callnos">
 		</member>
-		<member name="INTEGER_CALLERID" displayname="Use the (less accurate) integer-based method for decoding FSK tones (for embedded systems)" touch_on_change="include/asterisk/fskmodem.h">
+		<member name="INTEGER_CALLERID" displayname="Use the (less accurate) integer-based method for decoding FSK tones (for embedded systems)">
 		</member>
 	</category>

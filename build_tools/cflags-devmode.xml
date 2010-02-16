@@ -1,24 +1,26 @@
 	<category name="MENUSELECT_CFLAGS" displayname="Compiler Flags - Development">
-		<member name="MTX_PROFILE" displayname="Enable Code Profiling Using TSC Counters" remove_on_change=".lastclean">
+		<member name="MTX_PROFILE" displayname="Enable Code Profiling Using TSC Counters">
 		</member>
-		<member name="DEBUG_SCHEDULER" displayname="Enable Scheduler Debugging Output" touch_on_change="main/sched.c">
+		<member name="DEBUG_SCHEDULER" displayname="Enable Scheduler Debugging Output">
 		</member>
-		<member name="DEBUG_THREADLOCALS" displayname="Enable Thread-Local-Storage Debugging" touch_on_change="include/asterisk/strings.h include/asterisk/threadstorage.h main/threadstorage.c utils/check_expr.c">
+		<member name="DEBUG_THREADLOCALS" displayname="Enable Thread-Local-Storage Debugging">
 		</member>
-		<member name="DETECT_DEADLOCKS" displayname="Detect Deadlocks" touch_on_change="include/asterisk/lock.h utils/extconf.c">
+		<member name="DETECT_DEADLOCKS" displayname="Detect Deadlocks">
 			<depend>DEBUG_THREADS</depend>
 		</member>
-		<member name="DUMP_SCHEDULER" displayname="Dump Scheduler Contents for Debugging" touch_on_change="main/sched.c">
+		<member name="DUMP_SCHEDULER" displayname="Dump Scheduler Contents for Debugging">
 		</member>
-		<member name="DO_CRASH" displayname="Crash on fatal errors" touch_on_change="include/asterisk/utils.h">
+		<member name="TRACE_FRAMES" displayname="Trace Frame Allocations">
 		</member>
-		<member name="THREAD_CRASH" displayname="Crash on mutex errors" touch_on_change="include/asterisk/lock.h utils/extconf.c">
+		<member name="DO_CRASH" displayname="Crash on fatal errors">
 		</member>
-		<member name="CHANNEL_TRACE" displayname="Enable CHANNEL(trace) function" touch_on_change="include/asterisk/channel.h">
+		<member name="THREAD_CRASH" displayname="Crash on mutex errors">
 		</member>
-		<member name="SKINNY_DEVMODE" displayname="Enable Skinny Dev Mode" touch_on_change="channels/chan_skinny.c">
+		<member name="CHANNEL_TRACE" displayname="Enable CHANNEL(trace) function">
 		</member>
-		<member name="TEST_FRAMEWORK" displayname="Enable Test Framework API" touch_on_change="include/asterisk/test.h">
+		<member name="SKINNY_DEVMODE" displayname="Enable Skinny Dev Mode">
+		</member>
+		<member name="TEST_FRAMEWORK" displayname="Enable Test Framework API">
 		</member>
 
 	</category>
