@@ -465,6 +465,11 @@ void *ast_make_file_from_fd(void *data)
 	if (!tcptls_session->f) {
 		close(tcptls_session->fd);
 		ast_log(LOG_WARNING, "FILE * open failed!\n");
+#ifndef DO_SSL
+		if (tcptls_session->parent->tls_cfg) {
+			ast_log(LOG_WARNING, "Attempted a TLS connection without OpenSSL support.  This will not work!\n");
+		}
+#endif
 		ao2_ref(tcptls_session, -1);
 		return NULL;
 	}
