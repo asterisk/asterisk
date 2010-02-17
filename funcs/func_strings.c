@@ -77,6 +77,44 @@ struct ast_custom_function fieldqty_function = {
 	.read = function_fieldqty,
 };
 
+static char *filter(struct ast_channel *chan, char *cmd, char *parse, char *buf, size_t len)
+{
+	char *string, *allowed;
+	char *outbuf = buf;
+
+	ast_copy_string(buf, "0", len);
+
+	if (!(string = ast_strdupa(parse))) {
+		return buf;
+	}
+
+	allowed = strsep(&string, "|");
+
+	if (!string) {
+		ast_log(LOG_ERROR, "Usage: FILTER(<allowed-chars>|<string>)\n");
+		return buf;
+	}
+
+	for (; *string && (buf + len - 1 > outbuf); string++) {
+		if (strchr(allowed, *string)) {
+			*outbuf++ = *string;
+		}
+	}
+	*outbuf = '\0';
+
+	return buf;
+}
+
+#ifndef BUILTIN_FUNC
+static
+#endif
+struct ast_custom_function filter_function = {
+	.name = "FILTER",
+	.synopsis = "Filter the string to include only the allowed characters",
+	.syntax = "FILTER(<allowed-chars>|<string>)",
+	.read = filter,
+};
+
 static char *builtin_function_regex(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	char *arg, *earg = NULL, *tmp, errstr[256] = "";
