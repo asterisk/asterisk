@@ -263,9 +263,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stun.h"
 #include "asterisk/cel.h"
 #include "sip/include/sip.h"
+#include "sip/include/globals.h"
 #include "sip/include/config_parser.h"
 #include "sip/include/reqresp_parser.h"
 #include "sip/include/sip_utils.h"
+#include "sip/include/dialog.h"
+#include "sip/include/dialplan_functions.h"
 
 /*** DOCUMENTATION
 	<application name="SIPDtmfMode" language="en_US">
@@ -810,7 +813,7 @@ static pthread_t monitor_thread = AST_PTHREADT_NULL;
 static int sip_reloading = FALSE;                       /*!< Flag for avoiding multiple reloads at the same time */
 static enum channelreloadreason sip_reloadreason;       /*!< Reason for last reload/load of configuration */
 
-static struct sched_context *sched;     /*!< The scheduling context */
+struct sched_context *sched;     /*!< The scheduling context */
 static struct io_context *io;           /*!< The IO context */
 static int *sipsock_read_id;            /*!< ID of IO entry for sipsock FD */
 struct sip_pkt;
@@ -906,7 +909,7 @@ static struct sip_auth *authl = NULL;
  */
 static int sipsock  = -1;
 
-static struct sockaddr_in bindaddr;	/*!< UDP: The address we bind to */
+struct sockaddr_in bindaddr;	/*!< UDP: The address we bind to */
 
 /*! \brief our (internal) default address/port to put in SIP/SDP messages
  *  internip is initialized picking a suitable address from one of the
@@ -1028,23 +1031,11 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req);
 static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req, char **name, char **number, int set_call_forward);
 static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *event, int cache_only);
 
-/*--- Dialog management */
-static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *sin,
-				 int useglobal_nat, const int intended_method, struct sip_request *req);
+/* Misc dialog routines */
 static int __sip_autodestruct(const void *data);
-static void sip_scheddestroy(struct sip_pvt *p, int ms);
-static int sip_cancel_destroy(struct sip_pvt *p);
-static struct sip_pvt *sip_destroy(struct sip_pvt *p);
-static void *dialog_unlink_all(struct sip_pvt *dialog, int lockowner, int lockdialoglist);
 static void *registry_unref(struct sip_registry *reg, char *tag);
-static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist);
-static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod);
-static void __sip_pretend_ack(struct sip_pvt *p);
-static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod);
-static int auto_congest(const void *arg);
 static int update_call_counter(struct sip_pvt *fup, int event);
-static int hangup_sip2cause(int cause);
-static const char *hangup_cause2sip(int cause);
+static int auto_congest(const void *arg);
 static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *sin, const int intended_method);
 static void free_old_route(struct sip_route *route);
 static void list_route(struct sip_route *route);
@@ -1172,7 +1163,6 @@ static int sip_dtmfmode(struct ast_channel *chan, const char *data);
 static int sip_addheader(struct ast_channel *chan, const char *data);
 static int sip_do_reload(enum channelreloadreason reason);
 static char *sip_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
-static int acf_channel_read(struct ast_channel *chan, const char *funcname, char *preparse, char *buf, size_t buflen);
 
 /*--- Debugging
 	Functions for enabling debug per IP or fully, or enabling history logging for
@@ -1345,7 +1335,7 @@ static int sip_subscribe_mwi_do(const void *data);
 static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi);
 
 /*! \brief Definition of this channel for PBX channel registration */
-static const struct ast_channel_tech sip_tech = {
+const struct ast_channel_tech sip_tech = {
 	.type = "SIP",
 	.description = "Session Initiation Protocol (SIP)",
 	.capabilities = AST_FORMAT_AUDIO_MASK,	/* all audio formats */
@@ -1368,7 +1358,7 @@ static const struct ast_channel_tech sip_tech = {
 	.bridge = ast_rtp_instance_bridge,			/* XXX chan unlocked ? */
 	.early_bridge = ast_rtp_instance_early_bridge,
 	.send_text = sip_sendtext,		/* called with chan locked */
-	.func_channel_read = acf_channel_read,
+	.func_channel_read = sip_acf_channel_read,
 	.setoption = sip_setoption,
 	.queryoption = sip_queryoption,
 	.get_pvt_uniqueid = sip_get_callid,
@@ -1380,7 +1370,7 @@ static const struct ast_channel_tech sip_tech = {
  * The struct is initialized just before registering the channel driver,
  * and is for use with channels using SIP INFO DTMF.
  */
-static struct ast_channel_tech sip_tech_info;
+struct ast_channel_tech sip_tech_info;
 
 /*! \brief Working TLS connection configuration */
 static struct ast_tls_config sip_tls_cfg;
@@ -1410,54 +1400,33 @@ static struct ast_tcptls_session_args sip_tls_desc = {
 	.worker_fn = sip_tcp_worker_fn,
 };
 
-/* wrapper macro to tell whether t points to one of the sip_tech descriptors */
-#define IS_SIP_TECH(t)  ((t) == &sip_tech || (t) == &sip_tech_info)
-
 /*! \brief Append to SIP dialog history
 	\return Always returns 0 */
 #define append_history(p, event, fmt , args... )	append_history_full(p, "%-15s " fmt, event, ## args)
 
-/*! \brief
- * when we create or delete references, make sure to use these
- * functions so we keep track of the refcounts.
- * To simplify the code, we allow a NULL to be passed to dialog_unref().
- */
+struct sip_pvt *dialog_ref_debug(struct sip_pvt *p, char *tag, char *file, int line, const char *func)
+{
+	if (p)
 #ifdef REF_DEBUG
-#define dialog_ref(arg1,arg2) dialog_ref_debug((arg1),(arg2), __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define dialog_unref(arg1,arg2) dialog_unref_debug((arg1),(arg2), __FILE__, __LINE__, __PRETTY_FUNCTION__)
-
-static struct sip_pvt *dialog_ref_debug(struct sip_pvt *p, char *tag, char *file, int line, const char *func)
-{
-	if (p)
 		__ao2_ref_debug(p, 1, tag, file, line, func);
-	else
-		ast_log(LOG_ERROR, "Attempt to Ref a null pointer\n");
-	return p;
-}
-
-static struct sip_pvt *dialog_unref_debug(struct sip_pvt *p, char *tag, char *file, int line, const char *func)
-{
-	if (p)
-		__ao2_ref_debug(p, -1, tag, file, line, func);
-	return NULL;
-}
 #else
-static struct sip_pvt *dialog_ref(struct sip_pvt *p, char *tag)
-{
-	if (p)
 		ao2_ref(p, 1);
+#endif
 	else
 		ast_log(LOG_ERROR, "Attempt to Ref a null pointer\n");
 	return p;
 }
 
-static struct sip_pvt *dialog_unref(struct sip_pvt *p, char *tag)
+struct sip_pvt *dialog_unref_debug(struct sip_pvt *p, char *tag, char *file, int line, const char *func)
 {
 	if (p)
+#ifdef REF_DEBUG
+		__ao2_ref_debug(p, -1, tag, file, line, func);
+#else
 		ao2_ref(p, -1);
+#endif
 	return NULL;
 }
-#endif
 
 /*! \brief map from an integer value to a string.
  * If no match is found, return errorstring
@@ -1941,7 +1910,7 @@ static void ref_proxy(struct sip_pvt *pvt, struct sip_proxy *proxy)
  * \note A reference to the dialog must be held before calling this function, and this
  * function does not release that reference.
  */
-static void *dialog_unlink_all(struct sip_pvt *dialog, int lockowner, int lockdialoglist)
+void *dialog_unlink_all(struct sip_pvt *dialog, int lockowner, int lockdialoglist)
 {
 	struct sip_pkt *cp;
 
@@ -2006,7 +1975,7 @@ static void *dialog_unlink_all(struct sip_pvt *dialog, int lockowner, int lockdi
 	return NULL;
 }
 
-static void *registry_unref(struct sip_registry *reg, char *tag)
+void *registry_unref(struct sip_registry *reg, char *tag)
 {
 	ast_debug(3, "SIP Registry %s: refcount now %d\n", reg->hostname, reg->refcount - 1);
 	ASTOBJ_UNREF(reg, sip_registry_destroy);
@@ -2787,7 +2756,7 @@ static int __sip_autodestruct(const void *data)
 }
 
 /*! \brief Schedule destruction of SIP dialog */
-static void sip_scheddestroy(struct sip_pvt *p, int ms)
+void sip_scheddestroy(struct sip_pvt *p, int ms)
 {
 	if (ms < 0) {
 		if (p->timer_t1 == 0) {
@@ -2815,7 +2784,7 @@ static void sip_scheddestroy(struct sip_pvt *p, int ms)
  * Be careful as this also absorbs the reference - if you call it
  * from within the scheduler, this might be the last reference.
  */
-static int sip_cancel_destroy(struct sip_pvt *p)
+int sip_cancel_destroy(struct sip_pvt *p)
 {
 	int res = 0;
 	if (p->autokillid > -1) {
@@ -2832,7 +2801,7 @@ static int sip_cancel_destroy(struct sip_pvt *p)
 
 /*! \brief Acknowledges receipt of a packet and stops retransmission
  * called with p locked*/
-static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
+int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 {
 	struct sip_pkt *cur, *prev = NULL;
 	const char *msg = "Not Found";	/* used only for debugging */
@@ -2897,7 +2866,7 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 
 /*! \brief Pretend to ack all packets
  * called with p locked */
-static void __sip_pretend_ack(struct sip_pvt *p)
+void __sip_pretend_ack(struct sip_pvt *p)
 {
 	struct sip_pkt *cur = NULL;
 
@@ -2914,7 +2883,7 @@ static void __sip_pretend_ack(struct sip_pvt *p)
 }
 
 /*! \brief Acks receipt of packet, keep it around (used for provisional responses) */
-static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
+int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 {
 	struct sip_pkt *cur;
 	int res = FALSE;
@@ -4282,7 +4251,7 @@ static void sip_subscribe_mwi_destroy(struct sip_subscription_mwi *mwi)
 }
 
 /*! \brief Execute destruction of SIP dialog structure, release memory */
-static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
+void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 {
 	struct sip_request *req;
 
@@ -4415,7 +4384,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
  *
  * \return 0 if call is ok (no call limit, below threshold)
  *	-1 on rejection of call
- *		
+ *
  */
 static int update_call_counter(struct sip_pvt *fup, int event)
 {
@@ -4569,7 +4538,7 @@ static void sip_destroy_fn(void *p)
  *	foo = sip_destroy(foo);
  * and reduce the chance of bugs due to dangling pointers.
  */
-static struct sip_pvt * sip_destroy(struct sip_pvt *p)
+struct sip_pvt *sip_destroy(struct sip_pvt *p)
 {
 	ast_debug(3, "Destroying SIP dialog %s\n", p->callid);
 	__sip_destroy(p, TRUE, TRUE);
@@ -4577,7 +4546,7 @@ static struct sip_pvt * sip_destroy(struct sip_pvt *p)
 }
 
 /*! \brief Convert SIP hangup causes to Asterisk hangup causes */
-static int hangup_sip2cause(int cause)
+int hangup_sip2cause(int cause)
 {
 	/* Possible values taken from causes.h */
 
@@ -4634,7 +4603,7 @@ static int hangup_sip2cause(int cause)
 			return AST_CAUSE_FAILURE;
 		case 501:	/* Call rejected */
 			return AST_CAUSE_FACILITY_REJECTED;
-		case 502:	
+		case 502:
 			return AST_CAUSE_DESTINATION_OUT_OF_ORDER;
 		case 503:	/* Service unavailable */
 			return AST_CAUSE_CONGESTION;
@@ -4675,7 +4644,7 @@ static int hangup_sip2cause(int cause)
 
 	In addition to these, a lot of PRI codes is defined in causes.h
 	...should we take care of them too ?
-	
+
 	Quote RFC 3398
 
    ISUP Cause value                        SIP response
@@ -4699,7 +4668,7 @@ static int hangup_sip2cause(int cause)
    31 normal unspecified                   480 Temporarily unavailable
 \endverbatim
 */
-static const char *hangup_cause2sip(int cause)
+const char *hangup_cause2sip(int cause)
 {
 	switch (cause) {
 		case AST_CAUSE_UNALLOCATED:		/* 1 */
@@ -5958,7 +5927,7 @@ static struct sip_st_dlg* sip_st_alloc(struct sip_pvt *const p)
  * Returns a reference to the object so whoever uses it later must
  * remember to release the reference.
  */
-static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *sin,
+struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *sin,
 				 int useglobal_nat, const int intended_method, struct sip_request *req)
 {
 	struct sip_pvt *p;
@@ -20187,122 +20156,6 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 	}
 }
 
-static int acf_channel_read(struct ast_channel *chan, const char *funcname, char *preparse, char *buf, size_t buflen)
-{
-	struct sip_pvt *p = chan->tech_pvt;
-	char *parse = ast_strdupa(preparse);
-	int res = 0;
-	AST_DECLARE_APP_ARGS(args,
-		AST_APP_ARG(param);
-		AST_APP_ARG(type);
-		AST_APP_ARG(field);
-	);
-	AST_STANDARD_APP_ARGS(args, parse);
-
-	/* Sanity check */
-	if (!IS_SIP_TECH(chan->tech)) {
-		ast_log(LOG_ERROR, "Cannot call %s on a non-SIP channel\n", funcname);
-		return 0;
-	}
-
-	memset(buf, 0, buflen);
-
-	if (p == NULL) {
-		return -1;
-	}
-
-	if (!strcasecmp(args.param, "peerip")) {
-		ast_copy_string(buf, p->sa.sin_addr.s_addr ? ast_inet_ntoa(p->sa.sin_addr) : "", buflen);
-	} else if (!strcasecmp(args.param, "recvip")) {
-		ast_copy_string(buf, p->recv.sin_addr.s_addr ? ast_inet_ntoa(p->recv.sin_addr) : "", buflen);
-	} else if (!strcasecmp(args.param, "from")) {
-		ast_copy_string(buf, p->from, buflen);
-	} else if (!strcasecmp(args.param, "uri")) {
-		ast_copy_string(buf, p->uri, buflen);
-	} else if (!strcasecmp(args.param, "useragent")) {
-		ast_copy_string(buf, p->useragent, buflen);
-	} else if (!strcasecmp(args.param, "peername")) {
-		ast_copy_string(buf, p->peername, buflen);
-	} else if (!strcasecmp(args.param, "t38passthrough")) {
-		ast_copy_string(buf, (p->t38.state == T38_DISABLED) ? "0" : "1", buflen);
-	} else if (!strcasecmp(args.param, "rtpdest")) {
-		struct sockaddr_in sin;
-
-		if (ast_strlen_zero(args.type))
-			args.type = "audio";
-
-		if (!strcasecmp(args.type, "audio"))
-			ast_rtp_instance_get_remote_address(p->rtp, &sin);
-		else if (!strcasecmp(args.type, "video"))
-			ast_rtp_instance_get_remote_address(p->vrtp, &sin);
-		else if (!strcasecmp(args.type, "text"))
-			ast_rtp_instance_get_remote_address(p->trtp, &sin);
-		else
-			return -1;
-
-		snprintf(buf, buflen, "%s:%d", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
-	} else if (!strcasecmp(args.param, "rtpqos")) {
-		struct ast_rtp_instance *rtp = NULL;
-
-		if (ast_strlen_zero(args.type)) {
-			args.type = "audio";
-		}
-
-		if (!strcasecmp(args.type, "audio")) {
-			rtp = p->rtp;
-		} else if (!strcasecmp(args.type, "video")) {
-			rtp = p->vrtp;
-		} else if (!strcasecmp(args.type, "text")) {
-			rtp = p->trtp;
-		} else {
-		        return -1;
-		}
-
-		if (ast_strlen_zero(args.field) || !strcasecmp(args.field, "all")) {
-			char quality_buf[AST_MAX_USER_FIELD], *quality;
-
-			if (!(quality = ast_rtp_instance_get_quality(rtp, AST_RTP_INSTANCE_STAT_FIELD_QUALITY, quality_buf, sizeof(quality_buf)))) {
-				return -1;
-			}
-
-			ast_copy_string(buf, quality_buf, buflen);
-			return res;
-		} else {
-			struct ast_rtp_instance_stats stats;
-
-			if (ast_rtp_instance_get_stats(rtp, &stats, AST_RTP_INSTANCE_STAT_ALL)) {
-				return -1;
-			}
-
-			if (!strcasecmp(args.field, "local_ssrc")) {
-				snprintf(buf, buflen, "%u", stats.local_ssrc);
-			} else if (!strcasecmp(args.field, "local_lostpackets")) {
-				snprintf(buf, buflen, "%u", stats.rxploss);
-			} else if (!strcasecmp(args.field, "local_jitter")) {
-				snprintf(buf, buflen, "%u", stats.rxjitter);
-			} else if (!strcasecmp(args.field, "local_count")) {
-				snprintf(buf, buflen, "%u", stats.rxcount);
-			} else if (!strcasecmp(args.field, "remote_ssrc")) {
-				snprintf(buf, buflen, "%u", stats.remote_ssrc);
-			} else if (!strcasecmp(args.field, "remote_lostpackets")) {
-				snprintf(buf, buflen, "%u", stats.txploss);
-			} else if (!strcasecmp(args.field, "remote_jitter")) {
-				snprintf(buf, buflen, "%u", stats.txjitter);
-			} else if (!strcasecmp(args.field, "remote_count")) {
-				snprintf(buf, buflen, "%u", stats.txcount);
-			} else if (!strcasecmp(args.field, "rtt")) {
-				snprintf(buf, buflen, "%u", stats.rtt);
-			} else {
-				ast_log(LOG_WARNING, "Unrecognized argument '%s' to %s\n", preparse, funcname);
-				return -1;
-			}
-		}
-	} else {
-		res = -1;
-	}
-	return res;
-}
-
 /*! \brief Handle incoming BYE request */
 static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 {
@@ -25159,6 +25012,7 @@ static void sip_register_tests(void)
 {
 	sip_config_parser_register_tests();
 	sip_request_parser_register_tests();
+	sip_dialplan_function_register_tests();
 }
 
 /*! \brief SIP test registration */
@@ -25166,6 +25020,7 @@ static void sip_unregister_tests(void)
 {
 	sip_config_parser_unregister_tests();
 	sip_request_parser_unregister_tests();
+	sip_dialplan_function_unregister_tests();
 }
 
 /*! \brief PBX load module - initialization */

@@ -70,7 +70,7 @@ dist-clean::
 	rm -f h323/Makefile
 
 $(if $(filter chan_iax2,$(EMBEDDED_MODS)),modules.link,chan_iax2.so): iax2-parser.o iax2-provision.o
-$(if $(filter chan_sip,$(EMBEDDED_MODS)),modules.link,chan_sip.so): sip/config_parser.o sip/reqresp_parser.o
+$(if $(filter chan_sip,$(EMBEDDED_MODS)),modules.link,chan_sip.so): $(subst .c,.o,$(wildcard sip/*.c))
 $(if $(filter chan_dahdi,$(EMBEDDED_MODS)),modules.link,chan_dahdi.so): sig_analog.o sig_pri.o
 
 ifneq ($(filter chan_h323,$(EMBEDDED_MODS)),)

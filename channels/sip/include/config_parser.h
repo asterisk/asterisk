@@ -43,7 +43,7 @@ int sip_parse_register_line(struct sip_registry *reg, int default_expiry, const 
  */
 int sip_parse_host(char *line, int lineno, char **hostname, int *portnum, enum sip_transport *transport);
 
-/*! 
+/*!
  * \brief register config parsing tests
  */
 void sip_config_parser_register_tests(void);
