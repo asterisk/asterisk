@@ -1762,7 +1762,7 @@ int ast_get_time_t(const char *src, time_t *dst, time_t _default, int *consumed)
  *	ast_str_append_va(...)
  */
 
-int __ast_str_helper(struct ast_str **buf, size_t max_len,
+int __ast_str_helper(struct ast_str **buf, ssize_t max_len,
 	int append, const char *fmt, va_list ap)
 {
 	int res, need;
@@ -1809,7 +1809,7 @@ int __ast_str_helper(struct ast_str **buf, size_t max_len,
 		break;
 	} while (1);
 	/* update space used, keep in mind the truncation */
-	(*buf)->used = (res + offset > (*buf)->len) ? (*buf)->len : res + offset;
+	(*buf)->used = (res + offset > (*buf)->len) ? (*buf)->len - 1 : res + offset;
 
 	return res;
 }

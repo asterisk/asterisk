@@ -592,7 +592,7 @@ enum {
  *       through calling one of the other functions or macros defined in this
  *       file.
  */
-int __attribute__((format(printf, 4, 0))) __ast_str_helper(struct ast_str **buf, size_t max_len,
+int __attribute__((format(printf, 4, 0))) __ast_str_helper(struct ast_str **buf, ssize_t max_len,
 							   int append, const char *fmt, va_list ap);
 
 /*!
@@ -633,7 +633,7 @@ int __attribute__((format(printf, 4, 0))) __ast_str_helper(struct ast_str **buf,
  * }
  * \endcode
  */
-AST_INLINE_API(int __attribute__((format(printf, 3, 0))) ast_str_set_va(struct ast_str **buf, size_t max_len, const char *fmt, va_list ap),
+AST_INLINE_API(int __attribute__((format(printf, 3, 0))) ast_str_set_va(struct ast_str **buf, ssize_t max_len, const char *fmt, va_list ap),
 {
 	return __ast_str_helper(buf, max_len, 0, fmt, ap);
 }
@@ -644,7 +644,7 @@ AST_INLINE_API(int __attribute__((format(printf, 3, 0))) ast_str_set_va(struct a
  *
  * Same as ast_str_set_va(), but append to the current content.
  */
-AST_INLINE_API(int __attribute__((format(printf, 3, 0))) ast_str_append_va(struct ast_str **buf, size_t max_len, const char *fmt, va_list ap),
+AST_INLINE_API(int __attribute__((format(printf, 3, 0))) ast_str_append_va(struct ast_str **buf, ssize_t max_len, const char *fmt, va_list ap),
 {
 	return __ast_str_helper(buf, max_len, 1, fmt, ap);
 }
@@ -669,7 +669,7 @@ AST_INLINE_API(int __attribute__((format(printf, 3, 0))) ast_str_append_va(struc
  */
 AST_INLINE_API(
 int __attribute__((format(printf, 3, 4))) ast_str_set(
-	struct ast_str **buf, size_t max_len, const char *fmt, ...),
+	struct ast_str **buf, ssize_t max_len, const char *fmt, ...),
 {
 	int res;
 	va_list ap;
@@ -690,7 +690,7 @@ int __attribute__((format(printf, 3, 4))) ast_str_set(
  */
 AST_INLINE_API(
 int __attribute__((format(printf, 3, 4))) ast_str_append(
-	struct ast_str **buf, size_t max_len, const char *fmt, ...),
+	struct ast_str **buf, ssize_t max_len, const char *fmt, ...),
 {
 	int res;
 	va_list ap;
