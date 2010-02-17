@@ -2857,9 +2857,11 @@ static int is_our_turn(struct queue_ent *qe)
 	}
 
 	ao2_unlock(qe->parent);
-
-	/* If the queue entry is within avl [the number of available members] calls from the top ... */
-	if (ch && idx < avl) {
+	/* If the queue entry is within avl [the number of available members] calls from the top ... 
+	 * Autofill and position check added to support autofill=no (as only calls
+	 * from the front of the queue are valid when autofill is disabled)
+	 */
+	if (ch && idx < avl && (qe->parent->autofill || qe->pos == 1)) {
 		ast_debug(1, "It's our turn (%s).\n", qe->chan->name);
 		res = 1;
 	} else {
