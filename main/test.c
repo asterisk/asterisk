@@ -256,7 +256,7 @@ static int test_execute_multiple(const char *name, const char *category, struct 
 			}
 			break;
 		case TEST_NAME_CATEGORY:
-			if (!(strcmp(test->info.category, category)) && !(strcmp(test->info.name, name))) {
+			if (!(test_cat_cmp(test->info.category, category)) && !(strcmp(test->info.name, name))) {
 				execute = 1;
 			}
 			break;
@@ -565,6 +565,40 @@ static struct ast_test *test_alloc(ast_test_cb_t *cb)
 	return test;
 }
 
+static char *complete_test_category(const char *line, const char *word, int pos, int state)
+{
+	int which = 0;
+	int wordlen = strlen(word);
+	char *ret = NULL;
+	struct ast_test *test;
+
+	AST_LIST_LOCK(&tests);
+	AST_LIST_TRAVERSE(&tests, test, entry) {
+		if (!strncasecmp(word, test->info.category, wordlen) && ++which > state) {
+			ret = ast_strdup(test->info.category);
+			break;
+		}
+	}
+	return ret;
+}
+
+static char *complete_test_name(const char *line, const char *word, int pos, int state, const char *category)
+{
+	int which = 0;
+	int wordlen = strlen(word);
+	char *ret = NULL;
+	struct ast_test *test;
+
+	AST_LIST_LOCK(&tests);
+	AST_LIST_TRAVERSE(&tests, test, entry) {
+		if (!test_cat_cmp(category, test->info.category) && (!strncasecmp(word, test->info.name, wordlen) && ++which > state)) {
+			ret = ast_strdup(test->info.name);
+			break;
+		}
+	}
+	return ret;
+}
+
 /* CLI commands */
 static char *test_cli_show_registered(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -589,8 +623,14 @@ static char *test_cli_show_registered(struct ast_cli_entry *e, int cmd, struct a
 		if (a->pos == 3) {
 			return ast_cli_complete(a->word, option1, a->n);
 		}
+		if (a->pos == 4) {
+			return complete_test_category(a->line, a->word, a->pos, a->n);
+		}
 		if (a->pos == 5) {
 			return ast_cli_complete(a->word, option2, a->n);
+		}
+		if (a->pos == 6) {
+			return complete_test_name(a->line, a->word, a->pos, a->n, a->argv[3]);
 		}
 		return NULL;
 	case CLI_HANDLER:
@@ -642,8 +682,14 @@ static char *test_cli_execute_registered(struct ast_cli_entry *e, int cmd, struc
 		if (a->pos == 2) {
 			return ast_cli_complete(a->word, option1, a->n);
 		}
+		if (a->pos == 3) {
+			return complete_test_category(a->line, a->word, a->pos, a->n);
+		}
 		if (a->pos == 4) {
 			return ast_cli_complete(a->word, option2, a->n);
+		}
+		if (a->pos == 5) {
+			return complete_test_name(a->line, a->word, a->pos, a->n, a->argv[3]);
 		}
 		return NULL;
 	case CLI_HANDLER:
