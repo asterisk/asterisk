@@ -579,6 +579,7 @@ static char *complete_test_category(const char *line, const char *word, int pos,
 			break;
 		}
 	}
+	AST_LIST_UNLOCK(&tests);
 	return ret;
 }
 
@@ -591,11 +592,12 @@ static char *complete_test_name(const char *line, const char *word, int pos, int
 
 	AST_LIST_LOCK(&tests);
 	AST_LIST_TRAVERSE(&tests, test, entry) {
-		if (!test_cat_cmp(category, test->info.category) && (!strncasecmp(word, test->info.name, wordlen) && ++which > state)) {
+		if (!test_cat_cmp(test->info.category, category) && (!strncasecmp(word, test->info.name, wordlen) && ++which > state)) {
 			ret = ast_strdup(test->info.name);
 			break;
 		}
 	}
+	AST_LIST_UNLOCK(&tests);
 	return ret;
 }
 
