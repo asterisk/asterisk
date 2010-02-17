@@ -191,6 +191,7 @@ Dialplan Functions
  * HASH-associated variables now can be inherited across channel creation, by
    prefixing the name of the hash at assignment with the appropriate number of
    underscores, just like variables.
+ * GROUP_MATCH_COUNT has been improved to allow regex matching on category
 
 Dialplan Variables
 ------------------

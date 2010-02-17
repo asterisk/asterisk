@@ -1091,27 +1091,34 @@ int ast_app_group_get_count(const char *group, const char *category)
 int ast_app_group_match_get_count(const char *groupmatch, const char *category)
 {
 	struct ast_group_info *gi = NULL;
-	regex_t regexbuf;
+	regex_t regexbuf_group;
+	regex_t regexbuf_category;
 	int count = 0;
 
-	if (ast_strlen_zero(groupmatch)) {
+	if (ast_strlen_zero(groupmatch))
+		return 0;
+
+	/* if regex compilation fails, return zero matches */
+	if (regcomp(&regexbuf_group, groupmatch, REG_EXTENDED | REG_NOSUB)) {
+		ast_log(LOG_ERROR, "Regex compile failed on: %s\n", groupmatch);
 		return 0;
 	}
 
-	/* if regex compilation fails, return zero matches */
-	if (regcomp(&regexbuf, groupmatch, REG_EXTENDED | REG_NOSUB)) {
+	if (regcomp(&regexbuf_category, category, REG_EXTENDED | REG_NOSUB)) {
+		ast_log(LOG_ERROR, "Regex compile failed on: %s\n", category);
 		return 0;
 	}
 
 	AST_RWLIST_RDLOCK(&groups);
 	AST_RWLIST_TRAVERSE(&groups, gi, group_list) {
-		if (!regexec(&regexbuf, gi->group, 0, NULL, 0) && (ast_strlen_zero(category) || (!ast_strlen_zero(gi->category) && !strcasecmp(gi->category, category)))) {
+		if (!regexec(&regexbuf_group, gi->group, 0, NULL, 0) && (ast_strlen_zero(category) || (!ast_strlen_zero(gi->category) && !regexec(&regexbuf_category, gi->category, 0, NULL, 0)))) {
 			count++;
 		}
 	}
 	AST_RWLIST_UNLOCK(&groups);
 
-	regfree(&regexbuf);
+	regfree(&regexbuf_group);
+	regfree(&regexbuf_category);
 
 	return count;
 }

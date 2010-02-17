@@ -58,12 +58,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<para>A standard regular expression used to match a group name.</para>
 			</parameter>
 			<parameter name="category">
-				<para>Category name.</para>
+				<para>A standard regular expression used to match a category name.</para>
 			</parameter>
 		</syntax>
 		<description>
 			<para>Calculates the group count for all groups that match the specified pattern.
-			Uses standard regular expression matching (see regex(7)).</para>
+			Note: category matching is applied after matching based on group.
+			Uses standard regular expression matching on both (see regex(7)).</para>
 		</description>
 	</function>
 	<function name="GROUP" language="en_US">
