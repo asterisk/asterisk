@@ -640,7 +640,7 @@ enum {
  *       through calling one of the other functions or macros defined in this
  *       file.
  */
-int __attribute__((format(printf, 4, 0))) __ast_str_helper(struct ast_str **buf, size_t max_len,
+int __attribute__((format(printf, 4, 0))) __ast_str_helper(struct ast_str **buf, ssize_t max_len,
 							   int append, const char *fmt, va_list ap);
 
 /*!
@@ -662,7 +662,7 @@ int __attribute__((format(printf, 4, 0))) __ast_str_helper(struct ast_str **buf,
  */
 AST_INLINE_API(
 int __attribute__((format(printf, 3, 4))) ast_str_set(
-	struct ast_str **buf, size_t max_len, const char *fmt, ...),
+	struct ast_str **buf, ssize_t max_len, const char *fmt, ...),
 {
 	int res;
 	va_list ap;
@@ -683,7 +683,7 @@ int __attribute__((format(printf, 3, 4))) ast_str_set(
  */
 AST_INLINE_API(
 int __attribute__((format(printf, 3, 4))) ast_str_append(
-	struct ast_str **buf, size_t max_len, const char *fmt, ...),
+	struct ast_str **buf, ssize_t max_len, const char *fmt, ...),
 {
 	int res;
 	va_list ap;
