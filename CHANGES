@@ -197,6 +197,15 @@ Dialplan Variables
  * Added DYNAMIC_FEATURENAME which holds the last triggered dynamic feature.
  * Added DYNAMIC_PEERNAME which holds the unique channel name on the other side
    and is set when a dynamic feature is triggered.
+ * Added PARKINGLOT which can be used with parkeddynamic feature.conf option
+   to dynamically create a new parking lot matching the value this varible is
+   set to.
+ * Added PARKINGDYNAMIC which represents the template parkinglot defined in
+   features.conf that should be the base for dynamic parkinglots.
+ * Added PARKINGDYNCONTEXT which tells what context a newly created dynamic
+   parkinglot should have.
+ * Added PARKINGDYNPOS which holds what parking positions a dynamic parkinglot
+   should have.
 
 Queue changes
 -------------
@@ -396,6 +405,8 @@ Miscellaneous
  * jabber.conf supports a new option auth_policy that toggles auto user registration.
  * A new lockconfdir option has been added to asterisk.conf to protect the
    configuration directory (/etc/asterisk by default) during reloads.
+ * The parkeddynamic option has been added to features.conf to enable the creation
+   of dynamic parkinglots.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.1 to Asterisk 1.6.2  -------------

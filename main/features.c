@@ -212,6 +212,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>If you set the <variable>PARKINGEXTEN</variable> variable to an extension in your
 			parking context, Park() will park the call on that extension, unless
 			it already exists. In that case, execution will continue at next priority.</para>
+			<para>If you set the <variable>PARKINGLOT</variable> variable, Park() will park the call
+			in that parkinglot.</para>
+			<para>If you set the <variable>PARKINGDYNAMIC</variable> variable, this parkinglot from features.conf
+			will be used as template for the newly created dynamic lot.</para>
+			<para>If you set the <variable>PARKINGDYNCONTEXT</variable> variable the newly created dynamic
+			parking lot will use this context.</para>
+			<para>If you set the <variable>PARKINGDYNPOS</variable> variable the newly created dynamic parkinglot
+			will use those parking postitions.</para>
 		</description>
 		<see-also>
 			<ref type="application">ParkAndAnnounce</ref>
@@ -356,6 +364,7 @@ char parking_ext[AST_MAX_EXTENSION];            /*!< Extension you type to park 
 
 static char courtesytone[256];                             /*!< Courtesy tone */
 static int parkedplay = 0;                                 /*!< Who to play the courtesy tone to */
+static int parkeddynamic = 0;                              /*!< Enable creation of parkinglots dynamically */
 static char xfersound[256];                                /*!< Call transfer sound */
 static char xferfailsound[256];                            /*!< Call transfer failure sound */
 static char pickupsound[256];                              /*!< Pickup sound */
@@ -426,7 +435,8 @@ static void parkinglot_unref(struct ast_parkinglot *parkinglot);
 static void parkinglot_destroy(void *obj);
 int manage_parkinglot(struct ast_parkinglot *curlot, fd_set *rfds, fd_set *efds, fd_set *nrfds, fd_set *nefds, int *fs, int *max);
 struct ast_parkinglot *find_parkinglot(const char *name);
-
+static struct ast_parkinglot *create_parkinglot(const char *name);
+static struct ast_parkinglot *copy_parkinglot(const char *name, const struct ast_parkinglot *parkinglot);
 
 const char *ast_parking_ext(void)
 {
@@ -679,23 +689,67 @@ struct ast_park_call_args {
 	struct parkeduser *pu;
 };
 
-static struct parkeduser *park_space_reserve(struct ast_channel *chan,
- struct ast_channel *peer, struct ast_park_call_args *args)
+static struct parkeduser *park_space_reserve(struct ast_channel *chan, struct ast_channel *peer, struct ast_park_call_args *args)
 {
 	struct parkeduser *pu;
 	int i, parking_space = -1, parking_range;
 	const char *parkinglotname = NULL;
 	const char *parkingexten;
 	struct ast_parkinglot *parkinglot = NULL;
-	
+
 	if (peer)
 		parkinglotname = findparkinglotname(peer);
 
 	if (parkinglotname) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Found chanvar Parkinglot: %s\n", parkinglotname);
-		parkinglot = find_parkinglot(parkinglotname);	
+		ast_debug(1, "Found chanvar Parkinglot: %s\n", parkinglotname);
+		parkinglot = find_parkinglot(parkinglotname);
+
 	}
+
+	/* Dynamically create parkinglot */
+	if (!parkinglot && parkeddynamic && !ast_strlen_zero(parkinglotname)) {
+		const char *dyn_context, *dyn_range;
+		const char *parkinglotname_copy = NULL;
+		struct ast_parkinglot *parkinglot_copy = NULL;
+		int dyn_start, dyn_end;
+
+		ast_channel_lock(chan);
+		parkinglotname_copy = ast_strdupa(S_OR(pbx_builtin_getvar_helper(chan, "PARKINGDYNAMIC"), ""));
+		dyn_context = ast_strdupa(S_OR(pbx_builtin_getvar_helper(chan, "PARKINGDYNCONTEXT"), ""));
+		dyn_range = ast_strdupa(S_OR(pbx_builtin_getvar_helper(chan, "PARKINGDYNPOS"), ""));
+		ast_channel_unlock(chan);
+
+		if (!ast_strlen_zero(parkinglotname_copy)) {
+			parkinglot_copy = find_parkinglot(parkinglotname_copy);
+		}
+		if (!parkinglot_copy) {
+			parkinglot_copy = parkinglot_addref(default_parkinglot);
+			ast_debug(1, "Using default parking lot for copy\n");
+		}
+		if (!(parkinglot = copy_parkinglot(parkinglotname, parkinglot_copy))) {
+			ast_log(LOG_ERROR, "Could not build dynamic parking lot!\n");
+		} else {
+			if (!ast_strlen_zero(dyn_context)) {
+				ast_copy_string(parkinglot->parking_con, dyn_context, sizeof(parkinglot->parking_con));
+			}
+			if (!ast_strlen_zero(dyn_range)) {
+				if (sscanf(dyn_range, "%30d-%30d", &dyn_start, &dyn_end) != 2) {
+					ast_log(LOG_WARNING, "Format for parking positions is a-b, where a and b are numbers\n");
+				} else {
+					parkinglot->parking_start = dyn_start;
+					parkinglot->parking_stop = dyn_end;
+				}
+			}
+			ao2_link(parkinglots, parkinglot);
+		}
+
+		if (parkinglot_copy) {
+			/* unref our tempory copy */
+			parkinglot_unref(parkinglot_copy);
+			parkinglot_copy = NULL;
+		}
+	}
+
 	if (!parkinglot) {
 		parkinglot = parkinglot_addref(default_parkinglot);
 	}
@@ -3508,6 +3562,27 @@ struct ast_parkinglot *find_parkinglot(const char *name)
 	return parkinglot;
 }
 
+/*! \brief Copy parkinglot and store it with new name */
+struct ast_parkinglot *copy_parkinglot(const char *name, const struct ast_parkinglot *parkinglot) {
+	struct ast_parkinglot *copylot;
+
+	if (ast_strlen_zero(name)) { /* No name specified */
+		return NULL;
+	}
+	if (find_parkinglot(name)) { /* Parkinglot with that name allready exists */
+		return NULL;
+	}
+
+	copylot = create_parkinglot(name);
+	ast_debug(1, "Building parking lot %s\n", name);
+
+	memcpy(copylot, parkinglot, sizeof(struct ast_parkinglot));
+	ast_copy_string(copylot->name, name, sizeof(copylot->name));
+	AST_LIST_HEAD_INIT(&copylot->parkings);
+
+	return copylot;
+}
+
 AST_APP_OPTIONS(park_call_options, BEGIN_OPTIONS
 	AST_APP_OPTION('r', AST_PARK_OPT_RINGING),
 	AST_APP_OPTION('R', AST_PARK_OPT_RANDOMIZE),
@@ -3792,7 +3867,7 @@ static struct ast_parkinglot *parkinglot_addref(struct ast_parkinglot *parkinglo
 }
 
 /*! \brief Allocate parking lot structure */
-static struct ast_parkinglot *create_parkinglot(char *name)
+static struct ast_parkinglot *create_parkinglot(const char *name)
 {
 	struct ast_parkinglot *newlot = (struct ast_parkinglot *) NULL;
 
@@ -3842,9 +3917,8 @@ static struct ast_parkinglot *build_parkinglot(char *name, struct ast_variable *
 
 	ao2_lock(parkinglot);
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Building parking lot %s\n", name);
-	
+	ast_debug(1, "Building parking lot %s\n", name);
+
 	/* Do some config stuff */
 	while(confvar) {
 		if (!strcasecmp(confvar->name, "context")) {
@@ -4027,6 +4101,7 @@ static int load_config(void)
 	pickupfailsound[0] = '\0';
 	adsipark = 0;
 	comebacktoorigin = 1;
+	parkeddynamic = 0;
 
 	default_parkinglot->parkaddhints = 0;
 	default_parkinglot->parkedcalltransfers = 0;
@@ -4098,6 +4173,8 @@ static int load_config(void)
 				default_parkinglot->parkedcallrecording = AST_FEATURE_FLAG_BYCALLER;
 			else if (!strcasecmp(var->value, "callee"))
 				default_parkinglot->parkedcallrecording = AST_FEATURE_FLAG_BYCALLEE;
+		} else if (!strcasecmp(var->name, "parkeddynamic")) {
+			parkeddynamic = ast_true(var->value);
 		} else if (!strcasecmp(var->name, "adsipark")) {
 			adsipark = ast_true(var->value);
 		} else if (!strcasecmp(var->name, "transferdigittimeout")) {
