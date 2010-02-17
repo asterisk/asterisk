@@ -1200,6 +1200,10 @@ int ast_loader_unregister(int (*v)(void))
 
 struct ast_module *ast_module_ref(struct ast_module *mod)
 {
+	if (!mod) {
+		return NULL;
+	}
+
 	ast_atomic_fetchadd_int(&mod->usecount, +1);
 	ast_update_use_count();
 
@@ -1208,6 +1212,10 @@ struct ast_module *ast_module_ref(struct ast_module *mod)
 
 void ast_module_unref(struct ast_module *mod)
 {
+	if (!mod) {
+		return;
+	}
+
 	ast_atomic_fetchadd_int(&mod->usecount, -1);
 	ast_update_use_count();
 }
