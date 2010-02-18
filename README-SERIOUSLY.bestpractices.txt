@@ -33,6 +33,9 @@ security are listed below.
 * Seven Steps to Better SIP Security:
         http://blogs.digium.com/2009/03/28/sip-security/
 
+* Asterisk VoIP Security (webinar):
+        http://www.asterisk.org/security/webinar/
+
 
 ==============
 Filtering Data
