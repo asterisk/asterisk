@@ -1,3 +1,24 @@
+2010-02-18  Leif Madsen <lmadsen@digium.com>
+
+	* Release Asterisk 1.4.29.1
+
+	* AST-2010-002
+
+2010-02-18  Leif Madsen <lmadsen@digium.com>
+
+	* Add additional link to best practices document per jsmith.
+
+	* Add best practices documentation.
+
+	  (issue #16808)
+	  Reported by: lmadsen
+
+	  (issue #16810)
+	  Reported by: Nick_Lewis
+	  Tested by: lmadsen
+
+	  Review: https://reviewboard.asterisk.org/r/507/
+
 2010-01-14  Leif Madsen <lmadsen@digium.com>
 
 	* Release Asterisk 1.4.29
