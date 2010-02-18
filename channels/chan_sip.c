@@ -23007,7 +23007,12 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			} else if (!strcasecmp(v->name, "port")) {
 				peer->portinuri = 1;
 				if (!(port = port_str2int(v->value, 0))) {
-					ast_log(LOG_WARNING, "Invalid peer port configuration at line %d : %s\n", v->lineno, v->value);
+					if (realtime) {
+						/* If stored as integer, could be 0 for some DBs (notably MySQL) */
+						peer->portinuri = 0;
+					} else {
+						ast_log(LOG_WARNING, "Invalid peer port configuration at line %d : %s\n", v->lineno, v->value);
+					}
 				}
 			} else if (!strcasecmp(v->name, "callingpres")) {
 				peer->callingpres = ast_parse_caller_presentation(v->value);
