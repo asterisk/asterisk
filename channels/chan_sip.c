@@ -21150,8 +21150,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 			p->owner? p->owner->name : "", "SIP", p->callid, p->fullcontact, p->peername);
 	sip_pvt_unlock(p);
 	if (!tmpc) {
-		dialog_cleanup_and_destroy(p);
-		dialog_unref(p); /* sip_destroy(p); */
+		dialog_cleanup_and_destroy(p); /* sip_destroy(p); */
 	}
 	ast_update_use_count();
 	restart_monitor();
