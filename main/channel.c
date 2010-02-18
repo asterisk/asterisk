@@ -5890,7 +5890,6 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 {
 	struct ast_channel *who = NULL, *chans[2] = { c0, c1 };
 	enum ast_bridge_result res = AST_BRIDGE_COMPLETE;
-	int nativefailed=0;
 	format_t o0nativeformats;
 	format_t o1nativeformats;
 	long time_left_ms=0;
@@ -6055,7 +6054,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 
 		if (c0->tech->bridge &&
 		    (c0->tech->bridge == c1->tech->bridge) &&
-		    !nativefailed && !c0->monitor && !c1->monitor &&
+		    !c0->monitor && !c1->monitor &&
 		    !c0->audiohooks && !c1->audiohooks && 
 		    !c0->masq && !c0->masqr && !c1->masq && !c1->masqr) {
 			/* Looks like they share a bridge method and nothing else is in the way */
@@ -6096,7 +6095,6 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 				ast_verb(3, "Native bridging %s and %s ended\n", c0->name, c1->name);
 				/* fallthrough */
 			case AST_BRIDGE_FAILED_NOWARN:
-				nativefailed++;
 				break;
 			}
 		}
