@@ -313,8 +313,9 @@ int ast_speech_unregister(const char *engine_name)
 			/* We have our engine... removed it */
 			AST_RWLIST_REMOVE_CURRENT(list);
 			/* If this was the default engine, we need to pick a new one */
-			if (!default_engine)
+			if (engine == default_engine) {
 				default_engine = AST_RWLIST_FIRST(&engines);
+			}
 			ast_verb(2, "Unregistered speech recognition engine '%s'\n", engine_name);
 			/* All went well */
 			res = 0;
