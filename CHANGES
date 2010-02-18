@@ -339,6 +339,8 @@ Asterisk Manager Interface
  * The redirect command now has new parameters ExtraContext, ExtraExtension, 
    and ExtraPriority to allow redirecting the second channel to a different
    location than the first.
+ * Added new event "JabberStatus" in the Jabber module to monitor buddies
+   status.
 
 Channel Event Logging
 ---------------------
