@@ -1,3 +1,12 @@
+2010-02-18  Leif Madsen <lmadsen@digium.com>
+
+        * Release Asterisk 1.6.1.16
+
+        * AST-2010-002: This security release is intended to raise awareness
+          of how it is possible to insert malicious strings into dialplans,
+          and to advise developers to read the best practices documents so
+          that they may easily avoid these dangers.
+
 2010-02-02  Leif Madsen <lmadsen@digium.com>
 
 	* Release Asterisk 1.6.1.14
