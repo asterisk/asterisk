@@ -99,6 +99,9 @@ static int softmix_bridge_create(struct ast_bridge *bridge)
 /*! \brief Function called when a bridge is destroyed */
 static int softmix_bridge_destroy(struct ast_bridge *bridge)
 {
+	if (!bridge->bridge_pvt) {
+		return -1;
+	}
 	ast_timer_close((struct ast_timer *) bridge->bridge_pvt);
 
 	return 0;
