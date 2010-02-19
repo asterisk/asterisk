@@ -18835,7 +18835,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		char exten[AST_MAX_EXTENSION];
 		char context[AST_MAX_CONTEXT];
 	} pickup = {
-		.exten = "",	
+		.exten = "",
 	};
 	st_ref = SESSION_TIMER_REFRESHER_AUTO;
 
@@ -18988,7 +18988,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 
 			If it's not in early mode, 486 Busy.
 		*/
-		
+
 		/* Skip leading whitespace */
 		replace_id = ast_skip_blanks(replace_id);
 
@@ -19036,13 +19036,12 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			}
 		}
 
+		/* This locks both refer_call pvt and refer_call pvt's owner!!!*/
 		if (!error && ast_strlen_zero(pickup.exten) && (p->refer->refer_call = get_sip_pvt_byid_locked(replace_id, totag, fromtag)) == NULL) {
 			ast_log(LOG_NOTICE, "Supervised transfer attempted to replace non-existent call id (%s)!\n", replace_id);
 			transmit_response_reliable(p, "481 Call Leg Does Not Exist (Replaces)", req);
 			error = 1;
 		}
-
-		/* At this point, bot the pvt and the owner of the call to be replaced is locked */
 
 		/* The matched call is the call from the transferer to Asterisk .
 			We want to bridge the bridged part of the call to the
@@ -19136,7 +19135,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	} else if (debug)
 		ast_verbose("Ignoring this INVITE request\n");
 
-	
 	if (!p->lastinvite && !req->ignore && !p->owner) {
 		/* This is a new invite */
 		/* Handle authentication if this is our first invite */
@@ -19155,7 +19153,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				ast_log(LOG_NOTICE, "Failed to authenticate device %s\n", get_header(req, "From"));
 				transmit_response_reliable(p, "403 Forbidden", req);
 			}
-			p->invitestate = INV_COMPLETED;	
+			p->invitestate = INV_COMPLETED;
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			ast_string_field_set(p, theirtag, NULL);
 			return 0;
@@ -19172,7 +19170,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			if (process_sdp(p, req, SDP_T38_INITIATE)) {
 				/* Unacceptable codecs */
 				transmit_response_reliable(p, "488 Not acceptable here", req);
-				p->invitestate = INV_COMPLETED;	
+				p->invitestate = INV_COMPLETED;
 				sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 				ast_debug(1, "No compatible codecs for this SIP call.\n");
 				return -1;
@@ -19206,7 +19204,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				ast_log(LOG_NOTICE, "Failed to place call for device %s, too many calls\n", p->username);
 				transmit_response_reliable(p, "480 Temporarily Unavailable (Call limit) ", req);
 				sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
-				p->invitestate = INV_COMPLETED;	
+				p->invitestate = INV_COMPLETED;
 			}
 			return 0;
 		}
@@ -19225,14 +19223,14 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				transmit_response_reliable(p, "484 Address Incomplete", req);
 			else {
 				char *decoded_exten = ast_strdupa(p->exten);
-				
+
 				transmit_response_reliable(p, "404 Not Found", req);
 				ast_uri_decode(decoded_exten);
 				ast_log(LOG_NOTICE, "Call from '%s' to extension"
 					" '%s' rejected because extension not found.\n",
 					S_OR(p->username, p->peername), decoded_exten);
 			}
-			p->invitestate = INV_COMPLETED;	
+			p->invitestate = INV_COMPLETED;
 			update_call_counter(p, DEC_CALL_LIMIT);
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			return 0;
@@ -19242,7 +19240,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			/* Basically for calling to IP/Host name only */
 			if (ast_strlen_zero(p->exten))
 				ast_string_field_set(p, exten, "s");
-			/* Initialize our tag */	
+			/* Initialize our tag */
 
 			make_our_tag(p->tag, sizeof(p->tag));
 			/* First invitation - create the channel */
@@ -19304,9 +19302,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		if (!ast_strlen_zero(p_uac_min_se)) {
 			rtn = parse_minse(p_uac_min_se, &uac_min_se);
 			if (rtn != 0) {
-        			transmit_response_reliable(p, "400 Min-SE Invalid Syntax", req);
-       	   			p->invitestate = INV_COMPLETED;
-       	   			if (!p->lastinvite) {
+				transmit_response_reliable(p, "400 Min-SE Invalid Syntax", req);
+				p->invitestate = INV_COMPLETED;
+				if (!p->lastinvite) {
 					sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 				}
 				return -1;
@@ -19409,7 +19407,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	if (!req->ignore && p)
 		p->lastinvite = seqno;
 
-	if (replace_id) { 	/* Attended transfer or call pickup - we're the target */
+	if (replace_id) {	/* Attended transfer or call pickup - we're the target */
 		if (!ast_strlen_zero(pickup.exten)) {
 			append_history(p, "Xfer", "INVITE/Replace received");
 
@@ -19821,7 +19819,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 			pvt_set_needdestroy(p, "outside of dialog");
 		}
 		return 0;
-	}	
+	}
 
 
 	/* Check if transfer is allowed from this device */
@@ -19834,7 +19832,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 	}
 
 	if (!req->ignore && ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
-		/* Already have a pending REFER */	
+		/* Already have a pending REFER */
 		transmit_response(p, "491 Request pending", req);
 		append_history(p, "Xfer", "Refer failed. Request pending.");
 		return 0;
@@ -19890,7 +19888,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		p->refer->localtransfer = 1;
 	} else if (sipdebug)
 			ast_debug(3, "This SIP transfer is to a remote SIP extension (remote domain %s)\n", p->refer->refer_to_domain);
-	
+
 	/* Is this a repeat of a current request? Ignore it */
 	/* Don't know what else to do right now. */
 	if (req->ignore)
@@ -19949,7 +19947,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		ast_queue_control(current.chan1, AST_CONTROL_UNHOLD);
 	}
 
-	ast_set_flag(&p->flags[0], SIP_GOTREFER);	
+	ast_set_flag(&p->flags[0], SIP_GOTREFER);
 
 	/* Attended transfer: Find all call legs and bridge transferee with target*/
 	if (p->refer->attendedtransfer) {
@@ -19968,7 +19966,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		*nounlock = 1;
 		ast_channel_unlock(current.chan1);
 		copy_request(&current.req, req);
-		ast_clear_flag(&p->flags[0], SIP_GOTREFER);	
+		ast_clear_flag(&p->flags[0], SIP_GOTREFER);
 		p->refer->status = REFER_200OK;
 		append_history(p, "Xfer", "REFER to call parking.");
 		ast_manager_event_multichan(EVENT_FLAG_CALL, "Transfer", 2, chans, "TransferMethod: SIP\r\nTransferType: Blind\r\nChannel: %s\r\nUniqueid: %s\r\nSIP-Callid: %s\r\nTargetChannel: %s\r\nTargetUniqueid: %s\r\nTransferExten: %s\r\nTransfer2Parking: Yes\r\n",
@@ -20022,7 +20020,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 	/* FAKE ringing if not attended transfer */
 	if (!p->refer->attendedtransfer)
 		transmit_notify_with_sipfrag(p, seqno, "183 Ringing", FALSE);
-		
+
 	/* For blind transfer, this will lead to a new call */
 	/* For attended transfer to remote host, this will lead to
 	   a new SIP call with a replaces header, if the dial plan allows it
