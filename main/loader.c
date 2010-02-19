@@ -443,26 +443,39 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 void ast_module_shutdown(void)
 {
 	struct ast_module *mod;
-	AST_LIST_HEAD_NOLOCK_STATIC(local_module_list, ast_module);
-
-	/* We have to call the unload() callbacks in reverse order that the modules
-	 * exist in the module list so it is the reverse order of how they were
-	 * loaded. */
+	int somethingchanged = 1, final = 0;
 
 	AST_LIST_LOCK(&module_list);
-	while ((mod = AST_LIST_REMOVE_HEAD(&module_list, entry)))
-		AST_LIST_INSERT_HEAD(&local_module_list, mod, entry);
-	AST_LIST_UNLOCK(&module_list);
 
-	while ((mod = AST_LIST_REMOVE_HEAD(&local_module_list, entry))) {
-		if (mod->info->unload)
-			mod->info->unload();
-		/* Since this should only be called when shutting down "gracefully",
-		 * all channels should be down before we get to this point, meaning
-		 * there will be no module users left. */
-		AST_LIST_HEAD_DESTROY(&mod->users);
-		free(mod);
-	}
+	/*!\note Some resources, like timers, are started up dynamically, and thus
+	 * may be still in use, even if all channels are dead.  We must therefore
+	 * check the usecount before asking modules to unload. */
+	do {
+		if (!somethingchanged) {
+			/*!\note If we go through the entire list without changing
+			 * anything, ignore the usecounts and unload, then exit. */
+			final = 1;
+		}
+
+		/* Reset flag before traversing the list */
+		somethingchanged = 0;
+
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&module_list, mod, entry) {
+			if (!final && mod->usecount) {
+				continue;
+			}
+			AST_LIST_REMOVE_CURRENT(entry);
+			if (mod->info->unload) {
+				mod->info->unload();
+			}
+			AST_LIST_HEAD_DESTROY(&mod->users);
+			free(mod);
+			somethingchanged = 1;
+		}
+		AST_LIST_TRAVERSE_SAFE_END;
+	} while (somethingchanged && !final);
+
+	AST_LIST_UNLOCK(&module_list);
 }
 
 int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode force)
