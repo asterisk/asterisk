@@ -477,13 +477,6 @@ struct chan_list {
 	struct ast_dsp *dsp;
 
 	/*!
-	 * \brief Allocated audio frame sample translator
-	 * \note ast_translator_build_path() creates the translator path.
-	 * \note Must use ast_translator_free_path() to clean up.
-	 */
-	struct ast_trans_pvt *trans;
-
-	/*!
 	 * \brief Associated Asterisk channel structure.
 	 */
 	struct ast_channel * ast;
@@ -5940,9 +5933,6 @@ static int read_config(struct chan_list *ch)
 		if (ch->dsp) {
 			ast_dsp_set_features(ch->dsp, DSP_FEATURE_DIGIT_DETECT | (ch->faxdetect ? DSP_FEATURE_FAX_DETECT : 0));
 		}
-		if (!ch->trans) {
-			ch->trans = ast_translator_build_path(AST_FORMAT_SLINEAR, AST_FORMAT_ALAW);
-		}
 	}
 
 	/* AOCD initialization */
@@ -6615,12 +6605,6 @@ static int misdn_digit_end(struct ast_channel *ast, char digit, unsigned int dur
 		misdn_lib_send_event(bc, EVENT_INFORMATION);
 		break;
 	default:
-		/* Do not send Digits in CONNECTED State, when
-		 * the other side is also mISDN. */
-		if (p->other_ch) {
-			return 0;
-		}
-
 		if (bc->send_dtmf) {
 			send_digit_to_chan(p, digit);
 		}
@@ -6960,21 +6944,17 @@ static int misdn_hangup(struct ast_channel *ast)
 
 static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame *frame)
 {
-	struct ast_frame *f,*f2;
+	struct ast_frame *f;
 
- 	if (tmp->trans) {
- 		f2 = ast_translate(tmp->trans, frame, 0);
- 		f = ast_dsp_process(tmp->ast, tmp->dsp, f2);
+ 	if (tmp->dsp) {
+ 		f = ast_dsp_process(tmp->ast, tmp->dsp, frame);
  	} else {
-		chan_misdn_log(0, tmp->bc->port, "No T-Path found\n");
+		chan_misdn_log(0, tmp->bc->port, "No DSP-Path found\n");
 		return NULL;
 	}
 
 	if (!f || (f->frametype != AST_FRAME_DTMF)) {
-		if (f) {
-			ast_frfree(f);
-		}
-		return frame;
+		return f;
 	}
 
 	ast_debug(1, "Detected inband DTMF digit: %c\n", f->subclass.integer);
@@ -7970,9 +7950,6 @@ static void cl_dequeue_chan(struct chan_list **list, struct chan_list *chan)
 
 	if (chan->dsp) {
 		ast_dsp_free(chan->dsp);
-	}
-	if (chan->trans) {
-		ast_translator_free_path(chan->trans);
 	}
 
 	ast_mutex_lock(&cl_te_lock);
@@ -11914,9 +11891,6 @@ static int misdn_set_opt_exec(struct ast_channel *chan, const char *data)
 		}
 		if (ch->dsp) {
 			ast_dsp_set_features(ch->dsp, DSP_FEATURE_DIGIT_DETECT | DSP_FEATURE_FAX_DETECT);
-		}
-		if (!ch->trans) {
-			ch->trans = ast_translator_build_path(AST_FORMAT_SLINEAR, AST_FORMAT_ALAW);
 		}
 	}
 
