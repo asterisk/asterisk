@@ -572,17 +572,17 @@ struct dahdi_mfcr2_conf {
 	int metering_pulse_timeout;
 	int max_ani;
 	int max_dnis;
-	int get_ani_first:1;
+	signed int get_ani_first:2;
 #if defined(OR2_LIB_INTERFACE) && OR2_LIB_INTERFACE > 1
-	int skip_category_request:1;
+	signed int skip_category_request:2;
 #endif
-	int call_files:1;
-	int allow_collect_calls:1;
-	int charge_calls:1;
-	int accept_on_offer:1;
-	int forced_release:1;
-	int double_answer:1;
-	int immediate_accept:1;
+	unsigned int call_files:1;
+	unsigned int allow_collect_calls:1;
+	unsigned int charge_calls:1;
+	unsigned int accept_on_offer:1;
+	unsigned int forced_release:1;
+	unsigned int double_answer:1;
+	signed int immediate_accept:2;
 	char logdir[OR2_MAX_PATH];
 	char r2proto_file[OR2_MAX_PATH];
 	openr2_log_level_t loglevel;
@@ -16524,7 +16524,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			} else if (!strcasecmp(v->name, "mfcr2_charge_calls")) {
 				confp->mfcr2.charge_calls = ast_true(v->value) ? 1 : 0;
 			} else if (!strcasecmp(v->name, "mfcr2_accept_on_offer")) {
-				confp->mfcr2.accept_on_offer = ast_true(v->value);
+				confp->mfcr2.accept_on_offer = ast_true(v->value) ? 1 : 0;
 			} else if (!strcasecmp(v->name, "mfcr2_allow_collect_calls")) {
 				confp->mfcr2.allow_collect_calls = ast_true(v->value) ? 1 : 0;
 			} else if (!strcasecmp(v->name, "mfcr2_forced_release")) {
