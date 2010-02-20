@@ -1585,6 +1585,10 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 		}
 
 		i += 2; /* Advance past header and ssrc */
+		if (rc == 0 && pt == RTCP_PT_RR) {      /* We're receiving a receiver report with no reports, which is ok */
+			position += (length + 1);
+			continue;
+		}
 
 		switch (pt) {
 		case RTCP_PT_SR:
