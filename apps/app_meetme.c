@@ -1847,7 +1847,9 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		close(fd);
 		goto outrun;
 	}
-	ast_log(LOG_DEBUG, "Placed channel %s in %s conf %d\n", chan->name, dahdi_chan_name, conf->zapconf);
+	if (option_debug) {
+		ast_log(LOG_DEBUG, "Placed channel %s in %s conf %d\n", chan->name, dahdi_chan_name, conf->zapconf);
+	}
 
 	if (!sent_event) {
 		manager_event(EVENT_FLAG_CALL, "MeetmeJoin", 
