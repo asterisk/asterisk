@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2007-2008, Dwayne M. Hubbard 
+ * Copyright (C) 2007-2008, Digium, Inc.
  *
  * Dwayne M. Hubbard <dhubbard@digium.com>
  *
@@ -15,14 +15,6 @@
  * the GNU General Public License Version 2. See the LICENSE file
  * at the top of the source tree.
  */
-#include "asterisk.h"
-#include "asterisk/lock.h"
-#include "asterisk/linkedlists.h"
-#include "asterisk/utils.h"
-#include "asterisk/options.h"
-
-#ifndef __taskprocessor_h__
-#define __taskprocessor_h__
 
 /*!
  * \file taskprocessor.h
@@ -47,14 +39,20 @@
  * to be processed in the taskprocessor queue when the taskprocessor reference count reaches zero
  * will be purged and released from the taskprocessor queue without being processed.
  */
+
+#ifndef __AST_TASKPROCESSOR_H__
+#define __AST_TASKPROCESSOR_H__
+
 struct ast_taskprocessor;
 
-/*! \brief ast_tps_options for specification of taskprocessor options
+/*!
+ * \brief ast_tps_options for specification of taskprocessor options
  *
  * Specify whether a taskprocessor should be created via ast_taskprocessor_get() if the taskprocessor 
  * does not already exist.  The default behavior is to create a taskprocessor if it does not already exist 
  * and provide its reference to the calling function.  To only return a reference to a taskprocessor if 
- * and only if it exists, use the TPS_REF_IF_EXISTS option in ast_taskprocessor_get(). */
+ * and only if it exists, use the TPS_REF_IF_EXISTS option in ast_taskprocessor_get().
+ */
 enum ast_tps_options {
 	/*! \brief return a reference to a taskprocessor, create one if it does not exist */
 	TPS_REF_DEFAULT = 0,
@@ -62,7 +60,8 @@ enum ast_tps_options {
 	TPS_REF_IF_EXISTS = (1 << 0),
 };
 
-/*! \brief Get a reference to a taskprocessor with the specified name and create the taskprocessor if necessary
+/*!
+ * \brief Get a reference to a taskprocessor with the specified name and create the taskprocessor if necessary
  *
  * The default behavior of instantiating a taskprocessor if one does not already exist can be
  * disabled by specifying the TPS_REF_IF_EXISTS ast_tps_options as the second argument to ast_taskprocessor_get().
@@ -75,7 +74,8 @@ enum ast_tps_options {
  */
 struct ast_taskprocessor *ast_taskprocessor_get(const char *name, enum ast_tps_options create);
 
-/*! \brief Unreference the specified taskprocessor and its reference count will decrement.
+/*!
+ * \brief Unreference the specified taskprocessor and its reference count will decrement.
  *
  * Taskprocessors use astobj2 and will unlink from the taskprocessor singleton container and destroy
  * themself when the taskprocessor reference count reaches zero.
@@ -85,18 +85,21 @@ struct ast_taskprocessor *ast_taskprocessor_get(const char *name, enum ast_tps_o
  */
 void *ast_taskprocessor_unreference(struct ast_taskprocessor *tps);
 
-/*! \brief Push a task into the specified taskprocessor queue and signal the taskprocessor thread
+/*!
+ * \brief Push a task into the specified taskprocessor queue and signal the taskprocessor thread
  * \param tps The taskprocessor structure
  * \param task_exe The task handling function to push into the taskprocessor queue
  * \param datap The data to be used by the task handling function
- * \return zero on success, -1 on failure
+ * \retval 0 success
+ * \retval -1 failure
  * \since 1.6.1
  */
 int ast_taskprocessor_push(struct ast_taskprocessor *tps, int (*task_exe)(void *datap), void *datap);
 
-/*! \brief Return the name of the taskprocessor singleton
+/*!
+ * \brief Return the name of the taskprocessor singleton
  * \since 1.6.1
  */
 const char *ast_taskprocessor_name(struct ast_taskprocessor *tps);
-#endif
 
+#endif /* __AST_TASKPROCESSOR_H__ */
