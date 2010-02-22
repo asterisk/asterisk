@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2010, David Vossel
+ * Copyright (C) 2010, Digium, Inc.
  *
  * David Vossel <dvossel@digium.com>
  *
@@ -20,7 +20,7 @@
  * \file
  * \brief Device State Test Module
  *
- * \author\verbatim David Vossel <dvossel@digium.com> \endverbatim
+ * \author David Vossel <dvossel@digium.com>
  *
  * \ingroup tests
  */
