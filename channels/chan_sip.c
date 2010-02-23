@@ -14763,6 +14763,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	int gotdest;
 	const char *p_replaces;
 	char *replace_id = NULL;
+	int refer_locked = 0;
 	const char *required;
 	unsigned int required_profile = 0;
 	struct ast_channel *c = NULL;		/* New channel */
@@ -14786,7 +14787,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			p->invitestate = INV_COMPLETED;
 			if (!p->lastinvite)
 				sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
-			return -1;
+			res = -1;
+			goto request_invite_cleanup;
 		}
 	}
 
@@ -14806,7 +14808,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			transmit_response(p, "482 Loop Detected", req);
 			p->invitestate = INV_COMPLETED;
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
-			return 0;
+			res = 0;
+			goto request_invite_cleanup;
 		} else {
 			/* This is a spiral. What we need to do is to just change the outgoing INVITE
 			 * so that it now routes to the new Request URI. Since we created the INVITE ourselves
@@ -14831,7 +14834,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			 */
 			ast_string_field_set(p->owner, call_forward, peerorhost);
 			ast_queue_control(p->owner, AST_CONTROL_BUSY);
-			return 0;
+			res = 0;
+			goto request_invite_cleanup;
 		}
 	}
 	
@@ -14870,7 +14874,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Got INVITE on call where we already have pending INVITE, deferring that - %s\n", p->callid);
 			/* Don't destroy dialog here */
-			return 0;
+			res = 0;
+			goto request_invite_cleanup;
 		}
 	}
 
@@ -14888,7 +14893,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				ast_log(LOG_DEBUG, "INVITE w Replaces on existing call? Refusing action. [%s]\n", p->callid);
 			transmit_response_reliable(p, "400 Bad request", req);	/* The best way to not not accept the transfer */
 			/* Do not destroy existing call */
-			return -1;
+			res = -1;
+			goto request_invite_cleanup;
 		}
 
 		if (sipdebug && option_debug > 2)
@@ -14902,7 +14908,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			append_history(p, "Xfer", "INVITE/Replace Failed. Out of memory.");
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			p->invitestate = INV_COMPLETED;
-			return -1;
+			res = -1;
+			goto request_invite_cleanup;
 		}
 
 		/*  Todo: (When we find phones that support this)
@@ -14938,6 +14945,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			ast_log(LOG_NOTICE, "Supervised transfer attempted to replace non-existent call id (%s)!\n", replace_id);
 			transmit_response_reliable(p, "481 Call Leg Does Not Exist (Replaces)", req);
 			error = 1;
+		} else {
+			refer_locked = 1;
 		}
 
 		/* At this point, bot the pvt and the owner of the call to be replaced is locked */
@@ -14977,8 +14986,10 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 					ast_channel_unlock(p->refer->refer_call->owner);
 				}
 			}
+			refer_locked = 0;
 			p->invitestate = INV_COMPLETED;
-			return -1;
+			res = -1;
+			goto request_invite_cleanup;
 		}
 	}
 
@@ -15010,7 +15021,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 					transmit_response_reliable(p, "488 Not acceptable here", req);
 					if (!p->lastinvite)
 						sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
-					return -1;
+					res = -1;
+					goto request_invite_cleanup;
 				}
 				ast_queue_control(p->owner, AST_CONTROL_SRCUPDATE);
 			} else {
@@ -15040,7 +15052,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		res = check_user(p, req, SIP_INVITE, e, XMIT_RELIABLE, sin);
 		if (res == AUTH_CHALLENGE_SENT) {
 			p->invitestate = INV_COMPLETED;		/* Needs to restart in another INVITE transaction */
-			return 0;
+			res = 0;
+			goto request_invite_cleanup;
 		}
 		if (res < 0) { /* Something failed in authentication */
 			if (res == AUTH_FAKE_AUTH) {
@@ -15053,7 +15066,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			p->invitestate = INV_COMPLETED;	
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			ast_string_field_free(p, theirtag);
-			return 0;
+			res = 0;
+			goto request_invite_cleanup;
+
 		}
 
 		/* We have a succesful authentication, process the SDP portion if there is one */
@@ -15065,7 +15080,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 				if (option_debug)
 					ast_log(LOG_DEBUG, "No compatible codecs for this SIP call.\n");
-				return -1;
+				res = -1;
+				goto request_invite_cleanup;
 			}
 			if (ast_test_flag(&p->flags[1], SIP_PAGE2_CONSTANT_SSRC)) {
 				if (p->rtp) {
@@ -15102,7 +15118,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 				p->invitestate = INV_COMPLETED;	
 			}
-			return 0;
+			res = 0;
+			goto request_invite_cleanup;
 		}
 		gotdest = get_destination(p, NULL);	/* Get destination right away */
 		get_rdnis(p, NULL);			/* Get redirect information */
@@ -15129,7 +15146,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			p->invitestate = INV_COMPLETED;	
 			update_call_counter(p, DEC_CALL_LIMIT);
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
-			return 0;
+			res = 0;
+			goto request_invite_cleanup;
 		} else {
 			/* If no extension was specified, use the s one */
 			/* Basically for calling to IP/Host name only */
@@ -15169,7 +15187,10 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		/* Go and take over the target call */
 		if (sipdebug && option_debug > 3)
 			ast_log(LOG_DEBUG, "Sending this call to the invite/replcaes handler %s\n", p->callid);
-		return handle_invite_replaces(p, req, debug, ast_test_flag(req, SIP_PKT_IGNORE), seqno, sin, nounlock);
+
+		res = handle_invite_replaces(p, req, debug, ast_test_flag(req, SIP_PKT_IGNORE), seqno, sin, nounlock);
+		refer_locked = 0;
+		goto request_invite_cleanup;
 	}
 
 
@@ -15356,6 +15377,17 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		}
 	}
+	return res;
+
+request_invite_cleanup:
+
+	if (refer_locked && p->refer && p->refer->refer_call) {
+		ast_mutex_unlock(&p->refer->refer_call->lock);
+		if (p->refer->refer_call->owner) {
+			ast_channel_unlock(p->refer->refer_call->owner);
+		}
+	}
+
 	return res;
 }
 
