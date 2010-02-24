@@ -832,12 +832,13 @@ static void logger_print_normal(struct logmsg *logmsg)
 				int res = 0;
 
 				/* If no file pointer exists, skip it */
-				if (!chan->fileptr)
+				if (!chan->fileptr) {
 					continue;
-				
+				}
+
 				/* Print out to the file */
 				res = fprintf(chan->fileptr, "[%s] %s[%ld] %s: %s",
-					      logmsg->date, logmsg->level_name, logmsg->process_id, logmsg->file, logmsg->message);
+					      logmsg->date, logmsg->level_name, logmsg->process_id, logmsg->file, term_strip(buf, logmsg->message, BUFSIZ));
 				if (res <= 0 && !ast_strlen_zero(logmsg->message)) {
 					fprintf(stderr, "**** Asterisk Logging Error: ***********\n");
 					if (errno == ENOMEM || errno == ENOSPC)

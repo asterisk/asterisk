@@ -268,9 +268,10 @@ char *term_color_code(char *outbuf, int fgcolor, int bgcolor, int maxout)
 	return outbuf;
 }
 
-char *term_strip(char *outbuf, char *inbuf, int maxout)
+char *term_strip(char *outbuf, const char *inbuf, int maxout)
 {
-	char *outbuf_ptr = outbuf, *inbuf_ptr = inbuf;
+	char *outbuf_ptr = outbuf;
+	const char *inbuf_ptr = inbuf;
 
 	while (outbuf_ptr < outbuf + maxout) {
 		switch (*inbuf_ptr) {

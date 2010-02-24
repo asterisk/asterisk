@@ -92,7 +92,7 @@ int ast_term_color_code(struct ast_str **str, int fgcolor, int bgcolor);
  */
 char *term_color_code(char *outbuf, int fgcolor, int bgcolor, int maxout);
 
-char *term_strip(char *outbuf, char *inbuf, int maxout);
+char *term_strip(char *outbuf, const char *inbuf, int maxout);
 
 void term_filter_escapes(char *line);
 
