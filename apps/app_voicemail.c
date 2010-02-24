@@ -133,7 +133,7 @@ static int init_mailstream (struct vm_state *vms, int box);
 static void write_file (char *filename, char *buffer, unsigned long len);
 /*static void status (MAILSTREAM *stream); */ /* No need for this. */
 static char *get_header_by_tag(char *header, char *tag);
-static void vm_imap_delete(int msgnum, struct ast_vm_user *vmu);
+static void vm_imap_delete(char *file, int msgnum, struct ast_vm_user *vmu);
 static char *get_user_by_mailbox(char *mailbox);
 static struct vm_state *get_vm_state_by_imapuser(char *user, int interactive);
 static struct vm_state *get_vm_state_by_mailbox(const char *mailbox, const char *context, int interactive);
@@ -477,7 +477,7 @@ static char odbc_table[80];
 #define EXISTS(a,b,c,d) (ast_fileexists(c,NULL,d) > 0)
 #define RENAME(a,b,c,d,e,f,g,h) (rename_file(g,h));
 #define COPY(a,b,c,d,e,f,g,h) (copy_file(g,h));
-#define DELETE(a,b,c,d) (vm_imap_delete(b,d))
+#define DELETE(a,b,c,d) (vm_imap_delete(a,b,d))
 #else
 #define RETRIEVE(a,b,c)
 #define DISPOSE(a,b)
@@ -1062,14 +1062,15 @@ static void free_user(struct ast_vm_user *vmu)
 /* All IMAP-specific functions should go in this block. This
  * keeps them from being spread out all over the code */
 #ifdef IMAP_STORAGE
-static void vm_imap_delete(int msgnum, struct ast_vm_user *vmu)
+static void vm_imap_delete(char *file, int msgnum, struct ast_vm_user *vmu)
 {
 	char arg[10];
 	struct vm_state *vms;
 	unsigned long messageNum;
 
-	/* Greetings aren't stored in IMAP, so we can't delete them there */
+	/* Greetings aren't stored in IMAP, so we delete them from disk */
 	if (msgnum < 0) {
+		ast_filedelete(file, NULL);
 		return;
 	}
 
@@ -1091,6 +1092,7 @@ static void vm_imap_delete(int msgnum, struct ast_vm_user *vmu)
 	snprintf (arg, sizeof(arg), "%lu",messageNum);
 	ast_mutex_lock(&vms->lock);
 	mail_setflag (vms->mailstream,arg,"\\DELETED");
+	mail_expunge(vms->mailstream);
 	ast_mutex_unlock(&vms->lock);
 }
 
