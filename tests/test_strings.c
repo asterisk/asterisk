@@ -16,13 +16,14 @@
  * at the top of the source tree.
  */
 
-/*! \file
- *
+/*!
+ * \file
  * \brief Dynamic string tests
  *
  * \author Mark Michelson <mmichelson@digium.com>
  *
  * This module will run some dyanmic string tests.
+ *
  * \ingroup tests
  */
 
@@ -31,6 +32,9 @@
  ***/
 
 #include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/test.h"
 #include "asterisk/utils.h"
 #include "asterisk/strings.h"
