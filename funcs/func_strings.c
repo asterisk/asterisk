@@ -1056,14 +1056,13 @@ static int csv_quote(struct ast_channel *chan, const char *cmd, char *data, char
 {
 	char *bufptr = buf, *dataptr = data;
 
-	if (len < 3){ /* at least two for quotes and one for binary zero */
+	if (len < 3) { /* at least two for quotes and one for binary zero */
 		ast_log(LOG_ERROR, "Not enough buffer");
 		return -1;
 	}
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "No argument specified!\n");
-		ast_copy_string(buf,"\"\"",len);
+		ast_copy_string(buf, "\"\"", len);
 		return 0;
 	}
 
