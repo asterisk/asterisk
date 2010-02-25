@@ -298,7 +298,14 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 
 		if (!strchr(nm, '.')) {
 			if ((sscanf(nm, "%30d", &x) == 1) && (x >= 0) && (x <= 32)) {
-				ha->netmask.s_addr = htonl(0xFFFFFFFF << (32 - x));
+				if (x == 0) {
+					/* This is special-cased to prevent unpredictable
+					 * behavior of shifting left 32 bits
+					 */
+					ha->netmask.s_addr = 0;
+				} else {
+					ha->netmask.s_addr = htonl(0xFFFFFFFF << (32 - x));
+				}
 			} else {
 				ast_log(LOG_WARNING, "Invalid CIDR in %s\n", stuff);
 				ast_free(ha);
