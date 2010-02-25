@@ -316,7 +316,8 @@ int AST_OPTIONAL_API_NAME(ast_monitor_start)(struct ast_channel *chan, const cha
 
 			/* try creating the directory just in case it doesn't exist */
 			if (directory) {
-				ast_mkdir(dirname(monitor->filename_base), 0777);
+				char *name = ast_strdupa(monitor->filename_base);
+				ast_mkdir(dirname(name), 0777);
 			}
 		} else {
 			ast_mutex_lock(&monitorlock);
@@ -559,12 +560,12 @@ int AST_OPTIONAL_API_NAME(ast_monitor_change_fname)(struct ast_channel *chan, co
 
 	if (chan->monitor) {
 		int directory = strchr(fname_base, '/') ? 1 : 0;
-		const char *absolute = *fname_base == '/' ? "" : "/";
+		const char *absolute = *fname_base == '/' ? "" : ast_config_AST_MONITOR_DIR;
 		char tmpstring[sizeof(chan->monitor->filename_base)] = "";
 		int i, fd[2] = { -1, -1 }, doexit = 0;
 
 		/* before continuing, see if we're trying to rename the file to itself... */
-		snprintf(tmpstring, sizeof(tmpstring), "%s%s%s", directory ? "" : ast_config_AST_MONITOR_DIR, absolute, fname_base);
+		snprintf(tmpstring, sizeof(tmpstring), "%s/%s", absolute, fname_base);
 
 		/*!\note We cannot just compare filenames, due to symlinks, relative
 		 * paths, and other possible filesystem issues.  We could use
