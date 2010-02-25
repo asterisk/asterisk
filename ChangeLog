@@ -1,3 +1,9 @@
+2010-02-25  Leif Madsen <lmadsen@digium.com>
+
+	* Release Asterisk 1.6.2.5
+
+	* AST-2010-002: Invalid parsing of ACL rules can compromise security
+
 2010-02-18  Leif Madsen <lmadsen@digium.com>
 
 	* Release Asterisk 1.6.2.4
@@ -6,6 +12,12 @@
 	  of how it is possible to insert malicious strings into dialplans, 
 	  and to advise developers to read the best practices documents so 
 	  that they may easily avoid these dangers.
+
+2010-02-18  Leif Madsen <lmadsen@digium.com>
+
+        * Asterisk 1.6.2.3 intentionally skipped due to security release.
+          Changes in release candidates for this version will be available
+          in the next non-security release of Asterisk.
 
 2010-02-02  Leif Madsen <lmadsen@digium.com>
 
