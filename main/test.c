@@ -731,7 +731,8 @@ static char *test_cli_execute_registered(struct ast_cli_entry *e, int cmd, struc
 
 static char *test_cli_show_results(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-#define FORMAT_RES_ALL "%s%s %-30.30s %-25.25s\n"
+#define FORMAT_RES_ALL1 "%s%s %-30.30s %-25.25s %-10.10s\n"
+#define FORMAT_RES_ALL2 "%s%s %-30.30s %-25.25s %s%ums\n"
 	static const char * const option1[] = { "all", "failed", "passed", NULL };
 	char result_buf[32] = { 0 };
 	struct ast_test *test = NULL;
@@ -768,7 +769,7 @@ static char *test_cli_show_results(struct ast_cli_entry *e, int cmd, struct ast_
 			return CLI_SHOWUSAGE;
 		}
 
-		ast_cli(a->fd, FORMAT_RES_ALL, "Result", "", "Name", "Category");
+		ast_cli(a->fd, FORMAT_RES_ALL1, "Result", "", "Name", "Category", "Time");
 		AST_LIST_LOCK(&tests);
 		AST_LIST_TRAVERSE(&tests, test, entry) {
 			if (test->state == AST_TEST_NOT_RUN) {
@@ -781,11 +782,13 @@ static char *test_cli_show_results(struct ast_cli_entry *e, int cmd, struct ast_
 					(test->state == AST_TEST_FAIL) ? COLOR_RED : COLOR_GREEN,
 					0, sizeof(result_buf));
 
-				ast_cli(a->fd, FORMAT_RES_ALL,
+				ast_cli(a->fd, FORMAT_RES_ALL2,
 					result_buf,
 					"  ",
 					test->info.name,
-					test->info.category);
+					test->info.category,
+					test->time ? " " : "<",
+					test->time ? test->time : 1);
 			}
 		}
 		AST_LIST_UNLOCK(&tests);
