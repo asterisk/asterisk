@@ -24,7 +24,8 @@
  * \ingroup cdr_drivers
  */
 
-/*! \verbatim
+/*!
+ * \verbatim
  *
  * Table Structure for `cdr`
  *
@@ -74,8 +75,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define DATE_FORMAT "%Y/%m/%d %T"
 
-static char *name = "FreeTDS (MSSQL)";
-static char *config = "cdr_tds.conf";
+static const char name[] = "FreeTDS (MSSQL)";
+static const char config[] = "cdr_tds.conf";
 
 struct cdr_tds_config {
 	AST_DECLARE_STRING_FIELDS(

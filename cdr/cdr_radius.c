@@ -16,9 +16,10 @@
  * at the top of the source tree.
  */
 
-/*! \file
- *
+/*!
+ * \file
  * \brief RADIUS CDR Support
+ *
  * \author Philippe Sultan
  * \extref The Radius Client Library - http://developer.berlios.de/projects/radiusclient-ng/
  *
@@ -34,7 +35,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <time.h>
 #include <radiusclient-ng.h>
 
 #include "asterisk/channel.h"
@@ -77,9 +77,9 @@ enum {
 	RADIUS_FLAG_LOGUSERFIELD = (1 << 2)
 };
 
-static char *desc = "RADIUS CDR Backend";
-static char *name = "radius";
-static char *cdr_config = "cdr.conf";
+static const char desc[] = "RADIUS CDR Backend";
+static const char name[] = "radius";
+static const char cdr_config[] = "cdr.conf";
 
 static char radiuscfg[PATH_MAX] = "/etc/radiusclient-ng/radiusclient.conf";
 

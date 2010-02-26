@@ -18,8 +18,8 @@
  * at the top of the source tree.
  */
 
-/*! \file
- *
+/*!
+ * \file
  * \brief Comma Separated Value CDR records.
  *
  * \author Mark Spencer <markster@digium.com>
@@ -49,7 +49,7 @@ static int usegmtime = 0;
 static int loguniqueid = 0;
 static int loguserfield = 0;
 static int loaded = 0;
-static char *config = "cdr.conf";
+static const char config[] = "cdr.conf";
 
 /* #define CSV_LOGUNIQUEID 1 */
 /* #define CSV_LOGUSERFIELD 1 */

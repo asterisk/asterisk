@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*! \file
- *
+/*!
+ * \file
  * \brief ODBC CDR Backend
  *
  * \author Brian K. West <brian@bkw.org>
@@ -37,8 +37,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <time.h>
-
 #include "asterisk/config.h"
 #include "asterisk/channel.h"
 #include "asterisk/cdr.h"
@@ -47,8 +45,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define DATE_FORMAT "%Y-%m-%d %T"
 
-static char *name = "ODBC";
-static char *config_file = "cdr_odbc.conf";
+static const char name[] = "ODBC";
+static const char config_file[] = "cdr_odbc.conf";
 static char *dsn = NULL, *table = NULL;
 
 enum {

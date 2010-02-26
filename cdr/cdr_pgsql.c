@@ -20,8 +20,8 @@
  * at the top of the source tree.
  */
 
-/*! \file
- *
+/*!
+ * \file
  * \brief PostgreSQL CDR logger
  *
  * \author Matthew D. Hardeman <mhardemn@papersoft.com>

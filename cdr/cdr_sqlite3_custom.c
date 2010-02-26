@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*! \file
- *
+/*!
+ * \file
  * \brief Custom SQLite3 CDR records.
  *
  * \author Adapted by Alejandro Rios <alejandro.rios@avatar.com.co> and

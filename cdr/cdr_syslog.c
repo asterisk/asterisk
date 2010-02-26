@@ -16,9 +16,10 @@
  * at the top of the source tree.
  */
 
-/*! \file cdr_syslog.c
- *
+/*!
+ * \file
  * \brief syslog CDR logger
+ *
  * \author Sean Bright <sean@malleable.com>
  *
  * See also

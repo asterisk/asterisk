@@ -14,8 +14,8 @@
  * at the top of the source tree.
  */
 
-/*! \file
- *
+/*!
+ * \file
  * \brief Asterisk Call Manager CDR records.
  *
  * See also
@@ -43,7 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define CONF_FILE	"cdr_manager.conf"
 #define CUSTOM_FIELDS_BUF_SIZE 1024
 
-static char *name = "cdr_manager";
+static const char name[] = "cdr_manager";
 
 static int enablecdr = 0;
 

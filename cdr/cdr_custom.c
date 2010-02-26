@@ -18,8 +18,8 @@
  * at the top of the source tree.
  */
 
-/*! \file
- *
+/*!
+ * \file
  * \brief Custom Comma Separated Value CDR records.
  *
  * \author Mark Spencer <markster@digium.com>

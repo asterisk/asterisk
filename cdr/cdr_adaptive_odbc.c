@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*! \file
- *
+/*!
+ * \file
  * \brief Adaptive ODBC CDR backend
  *
  * \author Tilghman Lesher <cdr_adaptive_odbc__v1@the-tilghman.com>
@@ -50,7 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define	CONFIG	"cdr_adaptive_odbc.conf"
 
-static char *name = "Adaptive ODBC";
+static const char name[] = "Adaptive ODBC";
 /* Optimization to reduce number of memory allocations */
 static int maxsize = 512, maxsize2 = 512;
 
