@@ -40,7 +40,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <time.h>
 #include <sqlite3.h>
 
 #include "asterisk/paths.h"	/* use ast_config_AST_LOG_DIR */
