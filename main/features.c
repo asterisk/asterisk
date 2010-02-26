@@ -4534,7 +4534,7 @@ static int action_bridge(struct mansession *s, const struct message *m)
 	const char *channela = astman_get_header(m, "Channel1");
 	const char *channelb = astman_get_header(m, "Channel2");
 	const char *playtone = astman_get_header(m, "Tone");
-	struct ast_channel *chana = NULL, *chanb = NULL;
+	struct ast_channel *chana = NULL, *chanb = NULL, *chans[2];
 	struct ast_channel *tmpchana = NULL, *tmpchanb = NULL;
 	struct ast_bridge_thread_obj *tobj = NULL;
 
@@ -4627,6 +4627,14 @@ static int action_bridge(struct mansession *s, const struct message *m)
 				ast_log(LOG_WARNING, "Failed to play a courtesy tone on chan %s\n", tmpchanb->name);
 		}
 	}
+
+	chans[0] = tmpchana;
+	chans[1] = tmpchanb;
+
+	ast_manager_event_multichan(EVENT_FLAG_CALL, "BridgeAction", 2, chans,
+				"Response: Success\r\n"
+				"Channel1: %s\r\n"
+				"Channel2: %s\r\n", tmpchana->name, tmpchanb->name);
 
 	bridge_call_thread_launch(tobj);
 
