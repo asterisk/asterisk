@@ -41,8 +41,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <time.h>
-
 #include <libpq-fe.h>
 
 #include "asterisk/config.h"
@@ -52,8 +50,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define DATE_FORMAT "'%Y-%m-%d %T'"
 
-static char *name = "pgsql";
-static char *config = "cdr_pgsql.conf";
+static const char name[] = "pgsql";
+static const char config[] = "cdr_pgsql.conf";
 static char *pghostname = NULL, *pgdbname = NULL, *pgdbuser = NULL, *pgpassword = NULL, *pgdbport = NULL, *table = NULL;
 static int connected = 0;
 static int maxsize = 512, maxsize2 = 512;
