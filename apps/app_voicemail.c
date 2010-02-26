@@ -1687,16 +1687,7 @@ static int folder_int(const char *folder)
 		return 0;
 }
 
-/*!
- * \brief Gets the number of messages that exist in a mailbox folder.
- * \param context
- * \param mailbox
- * \param folder
- * 
- * This method is used when IMAP backend is used.
- * \return The number of messages in this mailbox folder (zero or more).
- */
-static int messagecount(const char *context, const char *mailbox, const char *folder)
+static int __messagecount(const char *context, const char *mailbox, const char *folder)
 {
 	SEARCHPGM *pgm;
 	SEARCHHEADER *hdr;
@@ -1812,6 +1803,24 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 		ast_mutex_unlock(&vms_p->lock);
 	}
 	return 0;
+}
+
+/*!
+ * \brief Gets the number of messages that exist in a mailbox folder.
+ * \param context
+ * \param mailbox
+ * \param folder
+ * 
+ * This method is used when IMAP backend is used.
+ * \return The number of messages in this mailbox folder (zero or more).
+ */
+static int messagecount(const char *context, const char *mailbox, const char *folder)
+{
+	if (!strcmp(folder, "INBOX")) {
+		return __messagecount(context, mailbox, "INBOX") + __messagecount(context, mailbox, "Urgent");
+	} else {
+		return __messagecount(context, mailbox, folder);
+	}
 }
 
 static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms, const char *flag)
@@ -1998,23 +2007,21 @@ static int inboxcount2(const char *mailbox_context, int *urgentmsgs, int *newmsg
 		mailboxnc = (char *)mailbox_context;
 	}
 	if (newmsgs) {
-		if ((*newmsgs = messagecount(context, mailboxnc, imapfolder)) < 0)
+		if ((*newmsgs = __messagecount(context, mailboxnc, imapfolder)) < 0) {
 			return -1;
+		}
 	}
 	if (oldmsgs) {
-		if ((*oldmsgs = messagecount(context, mailboxnc, "Old")) < 0)
+		if ((*oldmsgs = __messagecount(context, mailboxnc, "Old")) < 0) {
 			return -1;
+		}
 	}
 	if (urgentmsgs) {
-		if((*urgentmsgs = messagecount(context, mailboxnc, "Urgent")) < 0)
+		if ((*urgentmsgs = __messagecount(context, mailboxnc, "Urgent")) < 0) {
 			return -1;
+		}
 	}
 	return 0;
-}
-
-static int inboxcount(const char *mailbox_context, int *newmsgs, int *oldmsgs)
-{
-	return inboxcount2(mailbox_context, NULL, newmsgs, oldmsgs);
 }
 
 /** 
@@ -2032,19 +2039,21 @@ static int has_voicemail(const char *mailbox, const char *folder)
 	char tmp[256], *tmp2, *box, *context;
 	ast_copy_string(tmp, mailbox, sizeof(tmp));
 	tmp2 = tmp;
-	if (strchr(tmp2, ',')) {
-		while ((box = strsep(&tmp2, ","))) {
+	if (strchr(tmp2, ',') || strchr(tmp2, '&')) {
+		while ((box = strsep(&tmp2, ",&"))) {
 			if (!ast_strlen_zero(box)) {
-				if (has_voicemail(box, folder))
+				if (has_voicemail(box, folder)) {
 					return 1;
+				}
 			}
 		}
 	}
-	if ((context= strchr(tmp, '@')))
+	if ((context = strchr(tmp, '@'))) {
 		*context++ = '\0';
-	else
+	} else {
 		context = "default";
-	return messagecount(context, tmp, folder) ? 1 : 0;
+	}
+	return __messagecount(context, tmp, folder) ? 1 : 0;
 }
 
 /*!
@@ -4648,11 +4657,6 @@ static int inboxcount2(const char *mailbox, int *urgentmsgs, int *newmsgs, int *
 	return x;
 }
 
-static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
-{
-	return inboxcount2(mailbox, NULL, newmsgs, oldmsgs);
-}
-
 /*!
  * \brief Gets the number of messages that exist in a mailbox folder.
  * \param context
@@ -4679,7 +4683,11 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 
 	obj = ast_odbc_request_obj(odbc_database, 0);
 	if (obj) {
-		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir = '%s%s/%s/%s'", odbc_table, VM_SPOOL_DIR, context, mailbox, folder);
+		if (!strcmp(folder, "INBOX")) {
+			snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir = '%s%s/%s/INBOX' OR dir = '%s%s/%s/Urgent", odbc_table, VM_SPOOL_DIR, context, mailbox, VM_SPOOL_DIR, context, mailbox);
+		} else {
+			snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir = '%s%s/%s/%s'", odbc_table, VM_SPOOL_DIR, context, mailbox, folder);
+		}
 		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
 		if (!stmt) {
 			ast_log(AST_LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
@@ -4720,7 +4728,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
 {
 	char tmp[256], *tmp2 = tmp, *box, *context;
 	ast_copy_string(tmp, mailbox, sizeof(tmp));
-	while ((context = box = strsep(&tmp2, ","))) {
+	while ((context = box = strsep(&tmp2, ",&"))) {
 		strsep(&context, "@");
 		if (ast_strlen_zero(context))
 			context = "default";
@@ -4799,7 +4807,7 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 
 static int messagecount(const char *context, const char *mailbox, const char *folder)
 {
-	return __has_voicemail(context, mailbox, folder, 0);
+	return __has_voicemail(context, mailbox, folder, 0) + (strcmp(folder, "INBOX") ? 0 : __has_voicemail(context, mailbox, "Urgent", 0));
 }
 
 static int __has_voicemail(const char *context, const char *mailbox, const char *folder, int shortcircuit)
@@ -4829,7 +4837,6 @@ static int __has_voicemail(const char *context, const char *mailbox, const char 
 				ret = 1;
 				break;
 			} else if (!strncasecmp(de->d_name + 8, "txt", 3)) {
-				if (shortcircuit) return 1;
 				ret++;
 			}
 		}
@@ -4837,12 +4844,7 @@ static int __has_voicemail(const char *context, const char *mailbox, const char 
 
 	closedir(dir);
 
-	/* If we are checking INBOX, we should check Urgent as well */
-	if (strcmp(folder, "INBOX") == 0) {
-		return (ret + __has_voicemail(context, mailbox, "Urgent", shortcircuit));
-	} else {
-		return ret;
-	}
+	return ret;
 }
 
 /** 
@@ -4851,20 +4853,24 @@ static int __has_voicemail(const char *context, const char *mailbox, const char 
  * \param folder the folder to look in
  *
  * This function is used when the mailbox is stored in a filesystem back end.
- * This invokes the messagecount(). Here we are interested in the presence of messages (> 0) only, not the actual count.
+ * This invokes the __has_voicemail(). Here we are interested in the presence of messages (> 0) only, not the actual count.
  * \return 1 if the folder has one or more messages. zero otherwise.
  */
 static int has_voicemail(const char *mailbox, const char *folder)
 {
 	char tmp[256], *tmp2 = tmp, *box, *context;
 	ast_copy_string(tmp, mailbox, sizeof(tmp));
-	while ((box = strsep(&tmp2, ","))) {
+	while ((box = strsep(&tmp2, ",&"))) {
 		if ((context = strchr(box, '@')))
 			*context++ = '\0';
 		else
 			context = "default";
 		if (__has_voicemail(context, box, folder, 1))
 			return 1;
+		/* If we are checking INBOX, we should check Urgent as well */
+		if (!strcmp(folder, "INBOX") && __has_voicemail(context, box, "Urgent", 1)) {
+			return 1;
+		}
 	}
 	return 0;
 }
@@ -4926,12 +4932,18 @@ static int inboxcount2(const char *mailbox, int *urgentmsgs, int *newmsgs, int *
 	return 0;
 }
 
+#endif
+
+/* Exactly the same function for file-based, ODBC-based, and IMAP-based, so why create 3 different copies? */
 static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 {
-	return inboxcount2(mailbox, NULL, newmsgs, oldmsgs);
+	int urgentmsgs = 0;
+	int res = inboxcount2(mailbox, &urgentmsgs, newmsgs, oldmsgs);
+	if (newmsgs) {
+		*newmsgs += urgentmsgs;
+	}
+	return res;
 }
-
-#endif
 
 static void run_externnotify(char *context, char *extension, const char *flag)
 {
@@ -5456,11 +5468,14 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 						int x;
 						/* It's easier just to try to make it than to check for its existence */
 						create_dirpath(urgdir, sizeof(urgdir), vmu->context, ext, "Urgent");
-						ast_debug(5, "Created an Urgent message, moving file from %s to %s.\n",sfn,dfn);
 						x = last_message_index(vmu, urgdir) + 1;
 						make_file(sfn, sizeof(sfn), dir, msgnum);
 						make_file(dfn, sizeof(dfn), urgdir, x);
+						ast_debug(5, "Created an Urgent message, moving file from %s to %s.\n", sfn, dfn);
 						RENAME(dir, msgnum, vmu->mailbox, vmu->context, urgdir, x, sfn, dfn);
+						/* Notification must happen for this new message in Urgent folder, not INBOX */
+						ast_copy_string(fn, dfn, sizeof(fn));
+						msgnum = x;
 					}
 #endif
 					/* Notification needs to happen after the copy, though. */
@@ -6352,7 +6367,7 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 	}
 	ast_channel_unlock(chan);
 
-	make_dir(todir, sizeof(todir), vmu->context, vmu->mailbox, "INBOX");
+	make_dir(todir, sizeof(todir), vmu->context, vmu->mailbox, !ast_strlen_zero(flag) && !strcmp(flag, "Urgent") ? "Urgent" : "INBOX");
 	make_file(fn, sizeof(fn), todir, msgnum);
 	snprintf(ext_context, sizeof(ext_context), "%s@%s", vmu->mailbox, vmu->context);
 
