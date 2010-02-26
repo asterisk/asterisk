@@ -17,8 +17,8 @@
  * at the top of the source tree.
  */
 
-/*! \file
- *
+/*!
+ * \file
  * \brief Store CDR records in a SQLite database.
  *
  * \author Holger Schurig <hs4233@mail.mn-solutions.de>
