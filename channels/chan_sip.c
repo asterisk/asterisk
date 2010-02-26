@@ -16903,6 +16903,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		break;
 	case 415: /* Unsupported media type */
 	case 488: /* Not acceptable here */
+	case 606: /* Not Acceptable */
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		if (p->udptl && p->t38.state == T38_LOCAL_REINVITE) {
 			change_t38_state(p, T38_DISABLED);
@@ -17596,6 +17597,7 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 			break;
 		case 415: /* Unsupported media type */
 		case 488: /* Not acceptable here - codec error */
+		case 606: /* Not Acceptable */
 			if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, seqno);
 			break;
