@@ -18,10 +18,10 @@
 
 /*! \file
  *
- * \brief Call Detail Record API 
+ * \brief Call Detail Record API
  *
  * \author Mark Spencer <markster@digium.com>
- * 
+ *
  * \note Includes code and algorithms from the Zapata library.
  *
  * \note We do a lot of checking here in the CDR code to try to be sure we don't ever let a CDR slip
@@ -107,8 +107,8 @@ int check_cdr_enabled()
 	return enabled;
 }
 
-/*! Register a CDR driver. Each registered CDR driver generates a CDR 
-	\return 0 on success, -1 on failure 
+/*! Register a CDR driver. Each registered CDR driver generates a CDR
+	\return 0 on success, -1 on failure
 */
 int ast_cdr_register(const char *name, const char *desc, ast_cdrbe be)
 {
@@ -131,7 +131,7 @@ int ast_cdr_register(const char *name, const char *desc, ast_cdrbe be)
 		}
 	}
 
-	if (!(i = ast_calloc(1, sizeof(*i)))) 	
+	if (!(i = ast_calloc(1, sizeof(*i))))
 		return -1;
 
 	i->be = be;
@@ -170,7 +170,7 @@ int ast_cdr_isset_unanswered(void)
 	return unanswered;
 }
 
-struct ast_cdr *ast_cdr_dup_unique(struct ast_cdr *cdr) 
+struct ast_cdr *ast_cdr_dup_unique(struct ast_cdr *cdr)
 {
 	struct ast_cdr *newcdr = ast_cdr_dup(cdr);
 	if (!newcdr)
@@ -180,7 +180,7 @@ struct ast_cdr *ast_cdr_dup_unique(struct ast_cdr *cdr)
 	return newcdr;
 }
 
-struct ast_cdr *ast_cdr_dup_unique_swap(struct ast_cdr *cdr) 
+struct ast_cdr *ast_cdr_dup_unique_swap(struct ast_cdr *cdr)
 {
 	struct ast_cdr *newcdr = ast_cdr_dup(cdr);
 	if (!newcdr)
@@ -190,13 +190,13 @@ struct ast_cdr *ast_cdr_dup_unique_swap(struct ast_cdr *cdr)
 	return newcdr;
 }
 
-/*! Duplicate a CDR record 
+/*! Duplicate a CDR record
 	\returns Pointer to new CDR record
 */
-struct ast_cdr *ast_cdr_dup(struct ast_cdr *cdr) 
+struct ast_cdr *ast_cdr_dup(struct ast_cdr *cdr)
 {
 	struct ast_cdr *newcdr;
-	
+
 	if (!cdr) /* don't die if we get a null cdr pointer */
 		return NULL;
 	newcdr = ast_cdr_alloc();
@@ -212,7 +212,7 @@ struct ast_cdr *ast_cdr_dup(struct ast_cdr *cdr)
 	return newcdr;
 }
 
-static const char *ast_cdr_getvar_internal(struct ast_cdr *cdr, const char *name, int recur) 
+static const char *ast_cdr_getvar_internal(struct ast_cdr *cdr, const char *name, int recur)
 {
 	if (ast_strlen_zero(name))
 		return NULL;
@@ -236,7 +236,7 @@ static void cdr_get_tv(struct timeval when, const char *fmt, char *buf, int bufs
 	} else {
 		if (when.tv_sec) {
 			struct ast_tm tm;
-			
+
 			ast_localtime(&when, &tm, NULL);
 			ast_strftime(buf, bufsize, fmt, &tm);
 		}
@@ -244,7 +244,7 @@ static void cdr_get_tv(struct timeval when, const char *fmt, char *buf, int bufs
 }
 
 /*! CDR channel variable retrieval */
-void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *workspace, int workspacelen, int recur, int raw) 
+void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *workspace, int workspacelen, int recur, int raw)
 {
 	const char *fmt = "%Y-%m-%d %T";
 	const char *varbuf;
@@ -253,7 +253,7 @@ void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *wor
 		return;
 
 	*ret = NULL;
-	/* special vars (the ones from the struct ast_cdr when requested by name) 
+	/* special vars (the ones from the struct ast_cdr when requested by name)
 	   I'd almost say we should convert all the stringed vals to vars */
 
 	if (!strcasecmp(name, "clid"))
@@ -320,15 +320,15 @@ static const char * const cdr_readonly_vars[] = { "clid", "src", "dst", "dcontex
 						  "lastapp", "lastdata", "start", "answer", "end", "duration",
 						  "billsec", "disposition", "amaflags", "accountcode", "uniqueid", "linkedid",
 						  "userfield", "sequence", NULL };
-/*! Set a CDR channel variable 
+/*! Set a CDR channel variable
 	\note You can't set the CDR variables that belong to the actual CDR record, like "billsec".
 */
-int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int recur) 
+int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int recur)
 {
 	struct ast_var_t *newvariable;
 	struct varshead *headp;
 	int x;
-	
+
 	for (x = 0; cdr_readonly_vars[x]; x++) {
 		if (!strcasecmp(name, cdr_readonly_vars[x])) {
 			ast_log(LOG_ERROR, "Attempt to set the '%s' read-only variable!.\n", name);
@@ -354,7 +354,7 @@ int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int
 			}
 		}
 		AST_LIST_TRAVERSE_SAFE_END;
-		
+
 		if (value) {
 			newvariable = ast_var_assign(name, value);
 			AST_LIST_INSERT_HEAD(headp, newvariable, entries);
@@ -390,7 +390,7 @@ int ast_cdr_copy_vars(struct ast_cdr *to_cdr, struct ast_cdr *from_cdr)
 	return x;
 }
 
-int ast_cdr_serialize_variables(struct ast_cdr *cdr, struct ast_str **buf, char delim, char sep, int recur) 
+int ast_cdr_serialize_variables(struct ast_cdr *cdr, struct ast_str **buf, char delim, char sep, int recur)
 {
 	struct ast_var_t *variables;
 	const char *var, *val;
@@ -413,7 +413,7 @@ int ast_cdr_serialize_variables(struct ast_cdr *cdr, struct ast_str **buf, char 
  					break;
 				} else
 					total++;
-			} else 
+			} else
 				break;
 		}
 
@@ -422,7 +422,7 @@ int ast_cdr_serialize_variables(struct ast_cdr *cdr, struct ast_str **buf, char 
 			ast_cdr_getvar(cdr, cdr_readonly_vars[i], &tmp, workspace, sizeof(workspace), 0, 0);
 			if (!tmp)
 				continue;
-			
+
 			if (ast_str_append(buf, 0, "level %d: %s%c%s%c", x, cdr_readonly_vars[i], delim, tmp, sep) < 0) {
 				ast_log(LOG_ERROR, "Data Buffer Size Exceeded!\n");
 				break;
@@ -530,7 +530,7 @@ void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from)
 	struct ast_cdr *lto = NULL;
 	struct ast_cdr *lfrom = NULL;
 	int discard_from = 0;
-	
+
 	if (!to || !from)
 		return;
 
@@ -541,7 +541,7 @@ void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from)
 			lto = to;
 			to = to->next;
 		}
-		
+
 		if (ast_test_flag(to, AST_CDR_FLAG_LOCKED)) {
 			ast_log(LOG_WARNING, "Merging into locked CDR... no choice.");
 			to = zcdr; /* safety-- if all there are is locked CDR's, then.... ?? */
@@ -559,7 +559,7 @@ void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from)
 			while (lfrom && lfrom->next) {
 				if (!lfrom->next->next)
 					llfrom = lfrom;
-				lfrom = lfrom->next; 
+				lfrom = lfrom->next;
 			}
 			/* rip off the last entry and put a copy of the to at the end */
 			llfrom->next = to;
@@ -574,7 +574,7 @@ void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from)
 			while (lfrom && lfrom->next) {
 				if (!lfrom->next->next)
 					llfrom = lfrom;
-				lfrom = lfrom->next; 
+				lfrom = lfrom->next;
 			}
 			from->next = NULL;
 			/* rip off the last entry and put a copy of the to at the end */
@@ -585,7 +585,7 @@ void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from)
 			from = lfrom;
 		}
 	}
-	
+
 	if (!ast_tvzero(from->start)) {
 		if (!ast_tvzero(to->start)) {
 			if (ast_tvcmp(to->start, from->start) > 0 ) {
@@ -707,7 +707,7 @@ void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from)
 
 void ast_cdr_start(struct ast_cdr *cdr)
 {
-	char *chan; 
+	char *chan;
 
 	for (; cdr; cdr = cdr->next) {
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
@@ -722,7 +722,7 @@ void ast_cdr_answer(struct ast_cdr *cdr)
 {
 
 	for (; cdr; cdr = cdr->next) {
-		if (ast_test_flag(cdr, AST_CDR_FLAG_ANSLOCKED)) 
+		if (ast_test_flag(cdr, AST_CDR_FLAG_ANSLOCKED))
 			continue;
 		if (ast_test_flag(cdr, AST_CDR_FLAG_DONT_TOUCH) && ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
 			continue;
@@ -760,7 +760,7 @@ void ast_cdr_failed(struct ast_cdr *cdr)
 
 void ast_cdr_noanswer(struct ast_cdr *cdr)
 {
-	char *chan; 
+	char *chan;
 
 	while (cdr) {
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
@@ -774,7 +774,7 @@ void ast_cdr_noanswer(struct ast_cdr *cdr)
 	}
 }
 
-/* everywhere ast_cdr_disposition is called, it will call ast_cdr_failed() 
+/* everywhere ast_cdr_disposition is called, it will call ast_cdr_failed()
    if ast_cdr_disposition returns a non-zero value */
 
 int ast_cdr_disposition(struct ast_cdr *cdr, int cause)
@@ -914,14 +914,14 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 	return 0;
 }
 
-/* Three routines were "fixed" via 10668, and later shown that 
+/* Three routines were "fixed" via 10668, and later shown that
    users were depending on this behavior. ast_cdr_end,
    ast_cdr_setvar and ast_cdr_answer are the three routines.
-   While most of the other routines would not touch 
+   While most of the other routines would not touch
    LOCKED cdr's, these three routines were designed to
    operate on locked CDR's as a matter of course.
    I now appreciate how this plays with the ForkCDR app,
-   which forms these cdr chains in the first place. 
+   which forms these cdr chains in the first place.
    cdr_end is pretty key: all cdrs created are closed
    together. They only vary by start time. Arithmetically,
    users can calculate the subintervals they wish to track. */
@@ -960,9 +960,9 @@ char *ast_cdr_disp2str(int disposition)
 	case AST_CDR_NOANSWER:
 		return "NO ANSWER";
 	case AST_CDR_FAILED:
-		return "FAILED";		
+		return "FAILED";
 	case AST_CDR_BUSY:
-		return "BUSY";		
+		return "BUSY";
 	case AST_CDR_ANSWERED:
 		return "ANSWERED";
 	}
@@ -1055,7 +1055,7 @@ int ast_cdr_setuserfield(struct ast_channel *chan, const char *userfield)
 	struct ast_cdr *cdr = chan->cdr;
 
 	for ( ; cdr ; cdr = cdr->next) {
-		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) 
+		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
 			ast_copy_string(cdr->userfield, userfield, sizeof(cdr->userfield));
 	}
 
@@ -1084,7 +1084,7 @@ int ast_cdr_update(struct ast_channel *c)
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
 			set_one_cid(cdr, c);
 
-			/* Copy account code et-al */	
+			/* Copy account code et-al */
 			ast_copy_string(cdr->accountcode, c->accountcode, sizeof(cdr->accountcode));
 			ast_copy_string(cdr->peeraccount, c->peeraccount, sizeof(cdr->peeraccount));
 			ast_copy_string(cdr->linkedid, c->linkedid, sizeof(cdr->linkedid));
@@ -1175,7 +1175,7 @@ void ast_cdr_reset(struct ast_cdr *cdr, struct ast_flags *_flags)
 			}
 
 			/* Reset to initial state */
-			ast_clear_flag(cdr, AST_FLAGS_ALL);	
+			ast_clear_flag(cdr, AST_FLAGS_ALL);
 			memset(&cdr->start, 0, sizeof(cdr->start));
 			memset(&cdr->end, 0, sizeof(cdr->end));
 			memset(&cdr->answer, 0, sizeof(cdr->answer));
@@ -1193,15 +1193,15 @@ void ast_cdr_specialized_reset(struct ast_cdr *cdr, struct ast_flags *_flags)
 
 	if (_flags)
 		ast_copy_flags(&flags, _flags, AST_FLAGS_ALL);
-	
+
 	/* Reset to initial state */
 	if (ast_test_flag(cdr, AST_CDR_FLAG_POST_DISABLED)) { /* But do NOT lose the NoCDR() setting */
-		ast_clear_flag(cdr, AST_FLAGS_ALL);	
+		ast_clear_flag(cdr, AST_FLAGS_ALL);
 		ast_set_flag(cdr, AST_CDR_FLAG_POST_DISABLED);
 	} else {
-		ast_clear_flag(cdr, AST_FLAGS_ALL);	
+		ast_clear_flag(cdr, AST_FLAGS_ALL);
 	}
-	
+
 	memset(&cdr->start, 0, sizeof(cdr->start));
 	memset(&cdr->end, 0, sizeof(cdr->end));
 	memset(&cdr->answer, 0, sizeof(cdr->answer));
@@ -1211,7 +1211,7 @@ void ast_cdr_specialized_reset(struct ast_cdr *cdr, struct ast_flags *_flags)
 	cdr->disposition = AST_CDR_NULL;
 }
 
-struct ast_cdr *ast_cdr_append(struct ast_cdr *cdr, struct ast_cdr *newcdr) 
+struct ast_cdr *ast_cdr_append(struct ast_cdr *cdr, struct ast_cdr *newcdr)
 {
 	struct ast_cdr *ret;
 
@@ -1405,7 +1405,7 @@ static char *handle_cli_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "cdr show status";
-		e->usage = 
+		e->usage =
 			"Usage: cdr show status\n"
 			"	Displays the Call Detail Record engine system status.\n";
 		return NULL;
@@ -1459,7 +1459,7 @@ static char *handle_cli_submit(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "cdr submit";
-		e->usage = 
+		e->usage =
 			"Usage: cdr submit\n"
 			"       Posts all pending batched CDR data to the configured CDR backend engine modules.\n";
 		return NULL;
