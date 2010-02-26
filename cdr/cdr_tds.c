@@ -14,8 +14,8 @@
  * at the top of the source tree.
  */
 
-/*! \file
- *
+/*!
+ * \file
  * \brief FreeTDS CDR logger
  *
  * See also
@@ -63,9 +63,6 @@ CREATE TABLE [dbo].[cdr] (
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
-
-#include <time.h>
-#include <math.h>
 
 #include "asterisk/config.h"
 #include "asterisk/channel.h"
