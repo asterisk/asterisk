@@ -6636,7 +6636,20 @@ static void *ss_thread(void *data)
 		if (ast_exists_extension(chan, chan->context, exten, 1, p->cid_num)) {
 			/* Start the real PBX */
 			ast_copy_string(chan->exten, exten, sizeof(chan->exten));
-			if (p->dsp) ast_dsp_digitreset(p->dsp);
+			if (p->dsp) {
+				ast_dsp_digitreset(p->dsp);
+			}
+			if (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING) {
+				if (p->pri->pri) {		
+					if (!pri_grab(p, p->pri)) {
+						pri_proceeding(p->pri->pri, p->call, PVT_TO_CHANNEL(p), 0);
+						p->proceeding = 1;
+						pri_rel(p->pri);
+					} else {
+						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
+					}
+				}
+			}
 			dahdi_enable_ec(p);
 			ast_setstate(chan, AST_STATE_RING);
 			res = ast_pbx_run(chan);
