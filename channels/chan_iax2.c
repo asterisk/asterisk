@@ -19,6 +19,7 @@
 /*! \file
  *
  * \brief Implementation of Inter-Asterisk eXchange Version 2
+ *        as specified in RFC 5456
  *
  * \author Mark Spencer <markster@digium.com>
  *
