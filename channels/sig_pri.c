@@ -1308,6 +1308,18 @@ static void *pri_ss_thread(void *data)
 		/* Start the real PBX */
 		ast_copy_string(chan->exten, exten, sizeof(chan->exten));
 		sig_pri_dsp_reset_and_flush_digits(p);
+		if (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING) {
+			if (p->pri->pri) {		
+				if (!pri_grab(p, p->pri)) {
+					pri_proceeding(p->pri->pri, p->call, PVT_TO_CHANNEL(p), 0);
+					p->proceeding = 1;
+					pri_rel(p->pri);
+				} else {
+					ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->pri->span);
+				}
+			}
+		}
+
 		sig_pri_set_echocanceller(p, 1);
 		ast_setstate(chan, AST_STATE_RING);
 		res = ast_pbx_run(chan);
