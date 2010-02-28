@@ -2023,7 +2023,7 @@ static int __messagecount(const char *context, const char *mailbox, const char *
  */
 static int messagecount(const char *context, const char *mailbox, const char *folder)
 {
-	if (!strcmp(folder, "INBOX")) {
+	if (ast_strlen_zero(folder) || !strcmp(folder, "INBOX")) {
 		return __messagecount(context, mailbox, "INBOX") + __messagecount(context, mailbox, "Urgent");
 	} else {
 		return __messagecount(context, mailbox, folder);
@@ -5130,6 +5130,9 @@ static int has_voicemail(const char *mailbox, const char *folder)
 {
 	char tmp[256], *tmp2 = tmp, *box, *context;
 	ast_copy_string(tmp, mailbox, sizeof(tmp));
+	if (ast_strlen_zero(folder)) {
+		folder = "INBOX";
+	}
 	while ((box = strsep(&tmp2, ",&"))) {
 		if ((context = strchr(box, '@')))
 			*context++ = '\0';
