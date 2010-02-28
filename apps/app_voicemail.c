@@ -11682,7 +11682,8 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 
 		/* hasvm-old, hasvm-urgent, hasvm-new, ic-old, ic-urgent, ic-new, ic2-old, ic2-urgent, ic2-new, mc-old, mc-urgent, mc-new */
 		for (j = 0; j < 3; j++) {
-			if (ast_app_has_voicemail(testspec, folders[j]) != expected_results[i][0 + j]) {
+			/* folder[2] is INBOX, __has_voicemail will default back to INBOX */ 
+			if (ast_app_has_voicemail(testspec, (j==2 ? NULL : folders[j])) != expected_results[i][0 + j]) {
 				ast_test_status_update(test, "has_voicemail(%s, %s) returned %d and we expected %d\n",
 					testspec, folders[j], ast_app_has_voicemail(testspec, folders[j]), expected_results[i][0 + j]);
 				res = AST_TEST_FAIL;
