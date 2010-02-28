@@ -5077,7 +5077,7 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 
 static int messagecount(const char *context, const char *mailbox, const char *folder)
 {
-	return __has_voicemail(context, mailbox, folder, 0) + (strcmp(folder, "INBOX") ? 0 : __has_voicemail(context, mailbox, "Urgent", 0));
+	return __has_voicemail(context, mailbox, folder, 0) + (folder && strcmp(folder, "INBOX") ? 0 : __has_voicemail(context, mailbox, "Urgent", 0));
 }
 
 static int __has_voicemail(const char *context, const char *mailbox, const char *folder, int shortcircuit)

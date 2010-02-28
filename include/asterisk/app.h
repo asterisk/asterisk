@@ -150,10 +150,26 @@ void ast_install_vm_functions(int (*has_voicemail_func)(const char *mailbox, con
 
 void ast_uninstall_vm_functions(void);
 
-/*! \brief Determine if a given mailbox has any voicemail */
+/*!
+ * \brief Determine if a given mailbox has any voicemail
+ * If folder is NULL, defaults to "INBOX".  If folder is "INBOX", includes the
+ * number of messages in the "Urgent" folder.
+ * \retval 1 Mailbox has voicemail
+ * \retval 0 No new voicemail in specified mailbox
+ * \retval -1 Failure
+ * \since 1.0
+ */
 int ast_app_has_voicemail(const char *mailbox, const char *folder);
 
-/*! \brief Determine number of new/old messages in a mailbox */
+/*!
+ * \brief Determine number of new/old messages in a mailbox
+ * \since 1.0
+ * \param[in] mailbox Mailbox specification in the format mbox[@context][&mbox2[@context2]][...]
+ * \param[out] newmsgs Number of messages in the "INBOX" folder.  Includes number of messages in the "Urgent" folder, if any.
+ * \param[out] oldmsgs Number of messages in the "Old" folder.
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
 int ast_app_inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs);
 
 /*!
@@ -169,15 +185,24 @@ int ast_app_inboxcount2(const char *mailbox, int *urgentmsgs, int *newmsgs, int 
 
 /*!
  * \brief Given a mailbox and context, play that mailbox owner's name to the channel specified
- * \param[in] chan channel to announce name to
- * \param[in] mailbox mailbox to retrieve name for
- * \param[in] context context to retrieve name for
- * \return Returns 0 for success, negative upon error
+ * \param[in] chan Channel on which to play the name
+ * \param[in] mailbox Mailbox number from which to retrieve the recording
+ * \param[in] context Mailbox context from which to locate the mailbox number
+ * \retval 0 Name played without interruption
+ * \retval dtmf ASCII value of the DTMF which interrupted playback.
+ * \retval -1 Unable to locate mailbox or hangup occurred.
  * \since 1.6.1
  */
 int ast_app_sayname(struct ast_channel *chan, const char *mailbox, const char *context);
 
-/*! \brief Determine number of messages in a given mailbox and folder */
+/*!
+ * \brief Check number of messages in a given context, mailbox, and folder
+ * \since 1.4
+ * \param[in] context Mailbox context
+ * \param[in] mailbox Mailbox number
+ * \param[in] folder Mailbox folder
+ * \return Number of messages in the given context, mailbox, and folder.  If folder is NULL, folder "INBOX" is assumed.  If folder is "INBOX", includes number of messages in the "Urgent" folder.
+ */
 int ast_app_messagecount(const char *context, const char *mailbox, const char *folder);
 
 /*! \brief Safely spawn an external program while closing file descriptors
