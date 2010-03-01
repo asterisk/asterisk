@@ -257,44 +257,8 @@ static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_fra
 	}
 
 	if (other) {
-		if (f->frametype == AST_FRAME_CONTROL) {
-			switch (f->subclass.integer) {
-			case AST_CONTROL_RINGING:
-				ast_setstate(other, AST_STATE_RINGING);
-				break;
-			case AST_CONTROL_ANSWER:
-				ast_setstate(other, AST_STATE_UP);
-				break;
-			case AST_CONTROL_BUSY:
-				ast_setstate(other, AST_STATE_BUSY);
-				break;
-
-			/* not going to handle these */
-			case AST_CONTROL_HANGUP:
-			case AST_CONTROL_RING:
-			case AST_CONTROL_TAKEOFFHOOK:
-			case AST_CONTROL_OFFHOOK:
-			case AST_CONTROL_CONGESTION:
-			case AST_CONTROL_FLASH:
-			case AST_CONTROL_WINK:
-			case AST_CONTROL_OPTION:
-			case AST_CONTROL_RADIO_KEY:
-			case AST_CONTROL_RADIO_UNKEY:
-			case AST_CONTROL_PROGRESS:
-			case AST_CONTROL_PROCEEDING:
-			case AST_CONTROL_HOLD:
-			case AST_CONTROL_UNHOLD:
-			case AST_CONTROL_VIDUPDATE:
-			case AST_CONTROL_SRCUPDATE:
-			case AST_CONTROL_TRANSFER:
-			case AST_CONTROL_CONNECTED_LINE:
-			case AST_CONTROL_REDIRECTING:
-			case AST_CONTROL_T38_PARAMETERS:
-				break;
-			default:
-				/* since we're switching on an int, we can't rely on the compiler */
-				ast_log(LOG_WARNING, "New unhandled control frame added!!!\n");
-			}
+		if (f->frametype == AST_FRAME_CONTROL && f->subclass.integer == AST_CONTROL_RINGING) {
+			ast_setstate(other, AST_STATE_RINGING);
 		}
 		ast_queue_frame(other, f);
 		ast_channel_unlock(other);
