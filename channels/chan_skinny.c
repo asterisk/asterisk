@@ -2288,35 +2288,40 @@ static void transmit_ringer_mode(struct skinny_device *d, int mode)
 	transmit_response(d, req);
 }
 
-static void transmit_displaymessage(struct skinny_device *d, const char *text, int instance, int reference)
+static void transmit_clear_display_message(struct skinny_device *d, int instance, int reference)
+{
+	struct skinny_req *req;
+	if (!(req = req_alloc(0, CLEAR_DISPLAY_MESSAGE)))
+		return;
+
+	//what do we want hear CLEAR_DISPLAY_MESSAGE or CLEAR_PROMPT_STATUS???
+	//if we are clearing the display, it appears there is no instance and refernece info (size 0)
+	//req->data.clearpromptstatus.lineInstance = instance;
+	//req->data.clearpromptstatus.callReference = reference;
+
+	if (skinnydebug)
+		ast_verb(1, "Clearing Display\n");
+	transmit_response(d, req);
+}
+
+/* This function is not currently used, but will be (wedhorn)*/
+/* static void transmit_display_message(struct skinny_device *d, const char *text, int instance, int reference)
 {
 	struct skinny_req *req;
 
 	if (text == 0) {
-		if (!(req = req_alloc(0, CLEAR_DISPLAY_MESSAGE)))
-			return;
-
-		//what do we want hear CLEAR_DISPLAY_MESSAGE or CLEAR_PROMPT_STATUS???
-		//if we are clearing the display, it appears there is no instance and refernece info (size 0)
-		//req->data.clearpromptstatus.lineInstance = instance;
-		//req->data.clearpromptstatus.callReference = reference;
-
-		/* send datetime message. We have to do it here because it will clear the display on the phone if we do it elsewhere */
-		handle_time_date_req_message(NULL, d->session);
-
-		if (skinnydebug)
-			ast_verb(1, "Clearing Display\n");
-	} else {
-		if (!(req = req_alloc(sizeof(struct displaytext_message), DISPLAYTEXT_MESSAGE)))
-			return;
-
-		ast_copy_string(req->data.displaytext.text, text, sizeof(req->data.displaytext.text));
-		if (skinnydebug)
-			ast_verb(1, "Displaying message '%s'\n", req->data.displaytext.text);
+		ast_verb(1, "Bug, Asked to display empty message\n");
+		return;
 	}
 
+	if (!(req = req_alloc(sizeof(struct displaytext_message), DISPLAYTEXT_MESSAGE)))
+		return;
+
+	ast_copy_string(req->data.displaytext.text, text, sizeof(req->data.displaytext.text));
+	if (skinnydebug)
+		ast_verb(1, "Displaying message '%s'\n", req->data.displaytext.text);
 	transmit_response(d, req);
-}
+} */
 
 static void transmit_displaynotify(struct skinny_device *d, const char *text, int t)
 {
@@ -2338,27 +2343,32 @@ static void transmit_displaypromptstatus(struct skinny_device *d, const char *te
 {
 	struct skinny_req *req;
 
-	if (text == 0) {
-		if (!(req = req_alloc(sizeof(struct clear_prompt_message), CLEAR_PROMPT_MESSAGE)))
-			return;
+	if (!(req = req_alloc(sizeof(struct display_prompt_status_message), DISPLAY_PROMPT_STATUS_MESSAGE)))
+		return;
 
-		req->data.clearpromptstatus.lineInstance = htolel(instance);
-		req->data.clearpromptstatus.callReference = htolel(callid);
+	ast_copy_string(req->data.displaypromptstatus.promptMessage, text, sizeof(req->data.displaypromptstatus.promptMessage));
+	req->data.displaypromptstatus.messageTimeout = htolel(t);
+	req->data.displaypromptstatus.lineInstance = htolel(instance);
+	req->data.displaypromptstatus.callReference = htolel(callid);
 
-		if (skinnydebug)
-			ast_verb(1, "Clearing Prompt\n");
-	} else {
-		if (!(req = req_alloc(sizeof(struct display_prompt_status_message), DISPLAY_PROMPT_STATUS_MESSAGE)))
-			return;
+	if (skinnydebug)
+		ast_verb(1, "Displaying Prompt Status '%s'\n", text);
 
-		ast_copy_string(req->data.displaypromptstatus.promptMessage, text, sizeof(req->data.displaypromptstatus.promptMessage));
-		req->data.displaypromptstatus.messageTimeout = htolel(t);
-		req->data.displaypromptstatus.lineInstance = htolel(instance);
-		req->data.displaypromptstatus.callReference = htolel(callid);
+	transmit_response(d, req);
+}
 
-		if (skinnydebug)
-			ast_verb(1, "Displaying Prompt Status '%s'\n", text);
-	}
+static void transmit_clearpromptmessage(struct skinny_device *d, int instance, int callid)
+{
+	struct skinny_req *req;
+
+	if (!(req = req_alloc(sizeof(struct clear_prompt_message), CLEAR_PROMPT_MESSAGE)))
+		return;
+
+	req->data.clearpromptstatus.lineInstance = htolel(instance);
+	req->data.clearpromptstatus.callReference = htolel(callid);
+
+	if (skinnydebug)
+		ast_verb(1, "Clearing Prompt\n");
 
 	transmit_response(d, req);
 }
@@ -2446,7 +2456,7 @@ static void transmit_callstate(struct skinny_device *d, int instance, int state,
 
 		transmit_speaker_mode(d, SKINNY_SPEAKEROFF);
 
-		transmit_displaypromptstatus(d, NULL, 0, instance, callid);
+		transmit_clearpromptmessage(d, instance, callid);
 	}
 
 	if (!(req = req_alloc(sizeof(struct call_state_message), CALL_STATE_MESSAGE)))
@@ -3915,7 +3925,7 @@ static int skinny_hangup(struct ast_channel *ast)
 				transmit_stopmediatransmission(d, sub);
 				transmit_speaker_mode(d, SKINNY_SPEAKEROFF);
 				transmit_ringer_mode(d, SKINNY_RING_OFF);
-				transmit_displaymessage(d, NULL, l->instance, sub->callid); /* clear display */
+				transmit_clear_display_message(d, l->instance, sub->callid);
 				transmit_stop_tone(d, l->instance, sub->callid);
 				/* we should check to see if we can start the ringer if another line is ringing */
 			}
@@ -4563,9 +4573,7 @@ static int handle_transfer_button(struct skinny_subchannel *sub)
 			newsub->xferor = 1;
 			l->activesub = newsub;
 			transmit_callstate(d, l->instance, SKINNY_OFFHOOK, newsub->callid);
-			if (skinnydebug)
-				ast_debug(1, "Attempting to Clear display on Skinny %s@%s\n", l->name, d->name);
-			transmit_displaymessage(d, NULL, l->instance, newsub->callid); /* clear display */
+			transmit_clear_display_message(d, l->instance, newsub->callid);
 			transmit_start_tone(d, SKINNY_DIALTONE, l->instance, newsub->callid);
 			transmit_selectsoftkeys(d, l->instance, newsub->callid, KEYDEF_OFFHOOKWITHFEAT);
 			/* start the switch thread */
@@ -4684,9 +4692,7 @@ static int handle_callforward_button(struct skinny_subchannel *sub, int cfwdtype
 		transmit_speaker_mode(d, SKINNY_SPEAKERON);
 		transmit_callstate(d, l->instance, SKINNY_OFFHOOK, sub->callid);
 	}
-	if (skinnydebug)
-		ast_verb(1, "Attempting to Clear display on Skinny %s@%s\n", l->name, d->name);
-	transmit_displaymessage(d, NULL, l->instance, sub->callid); /* clear display */
+	transmit_clear_display_message(d, l->instance, sub->callid);
 
 	if (l->cfwdtype & cfwdtype) {
 		set_callforwards(l, NULL, cfwdtype);
@@ -4843,9 +4849,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 				l->hookstate = SKINNY_OFFHOOK;
 				transmit_callstate(d, l->instance, SKINNY_OFFHOOK, sub->callid);
 			}
-			if (skinnydebug)
-				ast_verb(1, "Attempting to Clear display on Skinny %s@%s\n", l->name, d->name);
-			transmit_displaymessage(d, NULL, l->instance, sub->callid); /* clear display */
+			transmit_clear_display_message(d, l->instance, sub->callid);
 			transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
 			transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGOUT);
 
@@ -4885,9 +4889,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 				transmit_speaker_mode(d, SKINNY_SPEAKERON);
 				transmit_callstate(d, l->instance, SKINNY_OFFHOOK, sub->callid);
 			}
-			if (skinnydebug)
-				ast_verb(1, "Attempting to Clear display on Skinny %s@%s\n", l->name, d->name);
-			transmit_displaymessage(d, NULL, l->instance, sub->callid); /* clear display */
+			transmit_clear_display_message(d, l->instance, sub->callid);
 			transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
 			transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGOUT);
 
@@ -4950,10 +4952,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 				transmit_callstate(d, l->instance, SKINNY_OFFHOOK, sub->callid);
 			}
 
-			if (skinnydebug)
-				ast_verb(1, "Attempting to Clear display on Skinny %s@%s\n", l->name, d->name);
-
-			transmit_displaymessage(d, NULL, l->instance, sub->callid); /* clear display */
+			transmit_clear_display_message(d, l->instance, sub->callid);
 			transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
 			transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGOUT);
 
@@ -5106,9 +5105,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 					sub = c->tech_pvt;
 					l->activesub = sub;
 					transmit_callstate(d, l->instance, SKINNY_OFFHOOK, sub->callid);
-					if (skinnydebug)
-						ast_verb(1, "Attempting to Clear display on Skinny %s@%s\n", l->name, d->name);
-					transmit_displaymessage(d, NULL, l->instance, sub->callid); /* clear display */
+					transmit_clear_display_message(d, l->instance, sub->callid);
 					transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
 					transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_OFFHOOK);
 
@@ -5175,6 +5172,9 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 		sub = l->activesub;
 	}
 
+	/* Not ideal, but let's send updated time at onhook and offhook, as it clears the display */
+	handle_time_date_req_message(NULL, d->session);
+	
 	transmit_ringer_mode(d, SKINNY_RING_OFF);
 	l->hookstate = SKINNY_OFFHOOK;
 
@@ -5204,9 +5204,7 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 				sub = c->tech_pvt;
 				l->activesub = sub;
 				transmit_callstate(d, l->instance, SKINNY_OFFHOOK, sub->callid);
-				if (skinnydebug)
-					ast_verb(1, "Attempting to Clear display on Skinny %s@%s\n", l->name, d->name);
-				transmit_displaymessage(d, NULL, l->instance, sub->callid); /* clear display */
+				transmit_clear_display_message(d, l->instance, sub->callid);
 				transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
 				transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_OFFHOOK);
 
@@ -5293,6 +5291,8 @@ static int handle_onhook_message(struct skinny_req *req, struct skinnysession *s
 			ast_log(LOG_WARNING, "Skinny(%s@%s-%d) channel already destroyed\n",
 				l->name, d->name, sub->callid);
 		}
+		/* Not ideal, but let's send updated time at onhook and offhook, as it clears the display */
+		handle_time_date_req_message(NULL, d->session);
 	}
 	return 1;
 }
@@ -5699,9 +5699,7 @@ static int handle_enbloc_call_message(struct skinny_req *req, struct skinnysessi
 		sub = c->tech_pvt;
 		l->activesub = sub;
 		transmit_callstate(d, l->instance, SKINNY_OFFHOOK, sub->callid);
-		if (skinnydebug)
-			ast_verb(1, "Attempting to Clear display on Skinny %s@%s\n", l->name, d->name);
-		transmit_displaymessage(d, NULL, l->instance, sub->callid); /* clear display */
+		transmit_clear_display_message(d, l->instance, sub->callid);
 		transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
 
 		if (!ast_ignore_pattern(c->context, req->data.enbloccallmessage.calledParty)) {
@@ -5820,9 +5818,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 				transmit_speaker_mode(d, SKINNY_SPEAKERON);
 				transmit_callstate(d, l->instance, SKINNY_OFFHOOK, sub->callid);
 			}
-			if (skinnydebug)
-				ast_verb(1, "Attempting to Clear display on Skinny %s@%s\n", l->name, d->name);
-			transmit_displaymessage(d, NULL, l->instance, sub->callid); /* clear display */
+			transmit_clear_display_message(d, l->instance, sub->callid);
 			transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
 			transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGOUT);
 
@@ -5862,9 +5858,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 
 			transmit_callstate(d, l->instance, SKINNY_OFFHOOK, sub->callid);
 
-			if (skinnydebug)
-				ast_verb(1, "Attempting to Clear display on Skinny %s@%s\n", l->name, d->name);
-			transmit_displaymessage(d, NULL, l->instance, sub->callid); /* clear display */
+			transmit_clear_display_message(d, l->instance, sub->callid);
 			transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
 			transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_OFFHOOK);
 
