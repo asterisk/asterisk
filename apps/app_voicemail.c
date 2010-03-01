@@ -884,7 +884,7 @@ static int inprocess_count(const char *context, const char *mailbox, int delta)
 	strcpy(arg->mailbox, mailbox); /* SAFE */
 	strcpy(arg->context, context); /* SAFE */
 	ao2_lock(inprocess_container);
-	if ((i = ao2_find(inprocess_container, &arg, 0))) {
+	if ((i = ao2_find(inprocess_container, arg, 0))) {
 		int ret = ast_atomic_fetchadd_int(&i->count, delta);
 		ao2_unlock(inprocess_container);
 		ao2_ref(i, -1);
