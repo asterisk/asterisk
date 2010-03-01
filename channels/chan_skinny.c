@@ -1973,7 +1973,7 @@ static char *message2str(int type)
 {
 	char *tmp;
 
-	switch (type) {
+	switch (letohl(type)) {
 	case KEEP_ALIVE_MESSAGE:
 		return "KEEP_ALIVE_MESSAGE";
 	case REGISTER_MESSAGE:
@@ -2113,8 +2113,8 @@ static int transmit_response(struct skinny_device *d, struct skinny_req *req)
 
 	SKINNY_DEVONLY(if (skinnydebug>1) ast_verb(4, "Transmitting %s to %s\n", message2str(req->e), d->name);)
 
-	if (letohl(req->len > SKINNY_MAX_PACKET) || letohl(req->len < 0)) {
-		ast_log(LOG_WARNING, "transmit_response: the length of the request is out of bounds\n");
+	if ((letohl(req->len) > SKINNY_MAX_PACKET) || (letohl(req->len) < 0)) {
+		ast_log(LOG_WARNING, "transmit_response: the length of the request (%d) is out of bounds (%d)\n", letohl(req->len), SKINNY_MAX_PACKET);
 		ast_mutex_unlock(&s->lock);
 		return -1;
 	}
@@ -2745,10 +2745,10 @@ static int skinny_set_rtp_peer(struct ast_channel *c, struct ast_rtp_instance *r
 		req->data.startmedia.passThruPartyId = htolel(sub->callid);
 		if (!(l->directmedia) || (l->nat)){
 			ast_rtp_instance_get_local_address(rtp, &us);
-			req->data.startmedia.remoteIp = htolel(d->ourip.s_addr);
+			req->data.startmedia.remoteIp = d->ourip.s_addr;
 			req->data.startmedia.remotePort = htolel(ntohs(us.sin_port));
 		} else {
-			req->data.startmedia.remoteIp = htolel(them.sin_addr.s_addr);
+			req->data.startmedia.remoteIp = them.sin_addr.s_addr;
 			req->data.startmedia.remotePort = htolel(ntohs(them.sin_port));
 		}
 		req->data.startmedia.packetSize = htolel(fmt.cur_ms);
@@ -4626,8 +4626,8 @@ static int handle_register_message(struct skinny_req *req, struct skinnysession 
 		/* transmit_respons in line as we don't have a valid d */
 		ast_mutex_lock(&s->lock);
 
-		if (letohl(req->len > SKINNY_MAX_PACKET) || letohl(req->len < 0)) {
-			ast_log(LOG_WARNING, "transmit_response: the length of the request is out of bounds\n");
+		if (letohl(req->len) > SKINNY_MAX_PACKET || letohl(req->len) < 0) {
+			ast_log(LOG_WARNING, "transmit_response: the length (%d) of the request is out of bounds (%d) \n",  letohl(req->len), SKINNY_MAX_PACKET);
 			ast_mutex_unlock(&s->lock);
 			return -1;
 		}
@@ -5443,13 +5443,13 @@ static int handle_button_template_req_message(struct skinny_req *req, struct ski
 			case BT_CUST_LINE:
 				/* assume failure */
 				req->data.buttontemplate.definition[i].buttonDefinition = BT_NONE;
-				req->data.buttontemplate.definition[i].instanceNumber = htolel(0);
+				req->data.buttontemplate.definition[i].instanceNumber = 0;
 
 				AST_LIST_TRAVERSE(&d->lines, l, list) {
 					if (l->instance == lineInstance) {
 						ast_verb(0, "Adding button: %d, %d\n", BT_LINE, lineInstance);
 						req->data.buttontemplate.definition[i].buttonDefinition = BT_LINE;
-						req->data.buttontemplate.definition[i].instanceNumber = htolel(lineInstance);
+						req->data.buttontemplate.definition[i].instanceNumber = lineInstance;
 						lineInstance++;
 						buttonCount++;
 						btnSet = 1;
@@ -5462,7 +5462,7 @@ static int handle_button_template_req_message(struct skinny_req *req, struct ski
 						if (sd->isHint && sd->instance == lineInstance) {
 							ast_verb(0, "Adding button: %d, %d\n", BT_LINE, lineInstance);
 							req->data.buttontemplate.definition[i].buttonDefinition = BT_LINE;
-							req->data.buttontemplate.definition[i].instanceNumber = htolel(lineInstance);
+							req->data.buttontemplate.definition[i].instanceNumber = lineInstance;
 							lineInstance++;
 							buttonCount++;
 							btnSet = 1;
@@ -5474,13 +5474,13 @@ static int handle_button_template_req_message(struct skinny_req *req, struct ski
 			case BT_CUST_LINESPEEDDIAL:
 				/* assume failure */
 				req->data.buttontemplate.definition[i].buttonDefinition = BT_NONE;
-				req->data.buttontemplate.definition[i].instanceNumber = htolel(0);
+				req->data.buttontemplate.definition[i].instanceNumber = 0;
 
 				AST_LIST_TRAVERSE(&d->lines, l, list) {
 					if (l->instance == lineInstance) {
 						ast_verb(0, "Adding button: %d, %d\n", BT_LINE, lineInstance);
 						req->data.buttontemplate.definition[i].buttonDefinition = BT_LINE;
-						req->data.buttontemplate.definition[i].instanceNumber = htolel(lineInstance);
+						req->data.buttontemplate.definition[i].instanceNumber = lineInstance;
 						lineInstance++;
 						buttonCount++;
 						btnSet = 1;
@@ -5493,7 +5493,7 @@ static int handle_button_template_req_message(struct skinny_req *req, struct ski
 						if (sd->isHint && sd->instance == lineInstance) {
 							ast_verb(0, "Adding button: %d, %d\n", BT_LINE, lineInstance);
 							req->data.buttontemplate.definition[i].buttonDefinition = BT_LINE;
-							req->data.buttontemplate.definition[i].instanceNumber = htolel(lineInstance);
+							req->data.buttontemplate.definition[i].instanceNumber = lineInstance;
 							lineInstance++;
 							buttonCount++;
 							btnSet = 1;
@@ -5501,7 +5501,7 @@ static int handle_button_template_req_message(struct skinny_req *req, struct ski
 						} else if (!sd->isHint && sd->instance == speeddialInstance) {
 							ast_verb(0, "Adding button: %d, %d\n", BT_SPEEDDIAL, speeddialInstance);
 							req->data.buttontemplate.definition[i].buttonDefinition = BT_SPEEDDIAL;
-							req->data.buttontemplate.definition[i].instanceNumber = htolel(speeddialInstance);
+							req->data.buttontemplate.definition[i].instanceNumber = speeddialInstance;
 							speeddialInstance++;
 							buttonCount++;
 							btnSet = 1;
@@ -5518,7 +5518,7 @@ static int handle_button_template_req_message(struct skinny_req *req, struct ski
 					if (l->instance == lineInstance) {
 						ast_verb(0, "Adding button: %d, %d\n", BT_LINE, lineInstance);
 						req->data.buttontemplate.definition[i].buttonDefinition = BT_LINE;
-						req->data.buttontemplate.definition[i].instanceNumber = htolel(lineInstance);
+						req->data.buttontemplate.definition[i].instanceNumber = lineInstance;
 						lineInstance++;
 						buttonCount++;
 						btnSet = 1;
@@ -5534,7 +5534,7 @@ static int handle_button_template_req_message(struct skinny_req *req, struct ski
 					if (!sd->isHint && sd->instance == speeddialInstance) {
 						ast_verb(0, "Adding button: %d, %d\n", BT_SPEEDDIAL, speeddialInstance);
 						req->data.buttontemplate.definition[i].buttonDefinition = BT_SPEEDDIAL;
-						req->data.buttontemplate.definition[i].instanceNumber = htolel(speeddialInstance - 1);
+						req->data.buttontemplate.definition[i].instanceNumber = speeddialInstance - 1;
 						speeddialInstance++;
 						buttonCount++;
 						btnSet = 1;
@@ -5547,14 +5547,14 @@ static int handle_button_template_req_message(struct skinny_req *req, struct ski
 			default:
 				ast_verb(0, "Adding button: %d, %d\n", btn[i].buttonDefinition, 0);
 				req->data.buttontemplate.definition[i].buttonDefinition = htolel(btn[i].buttonDefinition);
-				req->data.buttontemplate.definition[i].instanceNumber = htolel(0);
+				req->data.buttontemplate.definition[i].instanceNumber = 0;
 				buttonCount++;
 				btnSet = 1;
 				break;
 		}
 	}
 
-	req->data.buttontemplate.buttonOffset = htolel(0);
+	req->data.buttontemplate.buttonOffset = 0;
 	req->data.buttontemplate.buttonCount = htolel(buttonCount);
 	req->data.buttontemplate.totalButtonCount = htolel(buttonCount);
 
@@ -5618,7 +5618,7 @@ static int handle_open_receive_channel_ack_message(struct skinny_req *req, struc
 		ast_log(LOG_ERROR, "Open Receive Channel Failure\n");
 		return 0;
 	}
-	addr = letohl(req->data.openreceivechannelack.ipAddr);
+	addr = req->data.openreceivechannelack.ipAddr;
 	port = letohl(req->data.openreceivechannelack.port);
 	passthruid = letohl(req->data.openreceivechannelack.passThruId);
 
@@ -5654,7 +5654,7 @@ static int handle_open_receive_channel_ack_message(struct skinny_req *req, struc
 
 	req->data.startmedia.conferenceId = htolel(sub->callid);
 	req->data.startmedia.passThruPartyId = htolel(sub->callid);
-	req->data.startmedia.remoteIp = htolel(d->ourip.s_addr);
+	req->data.startmedia.remoteIp = d->ourip.s_addr;
 	req->data.startmedia.remotePort = htolel(ntohs(us.sin_port));
 	req->data.startmedia.packetSize = htolel(fmt.cur_ms);
 	req->data.startmedia.payloadType = htolel(codec_ast2skinny(fmt.bits));
@@ -5739,8 +5739,10 @@ static int handle_soft_key_set_req_message(struct skinny_req *req, struct skinny
 		for (y = 0; y < softkeymode->count; y++) {
 			for (i = 0; i < (sizeof(soft_key_template_default) / sizeof(struct soft_key_template_definition)); i++) {
 				if (defaults[y] == i+1) {
-					req->data.softkeysets.softKeySetDefinition[softkeymode->mode].softKeyTemplateIndex[y] = htolel(i+1);
-					req->data.softkeysets.softKeySetDefinition[softkeymode->mode].softKeyInfoIndex[y] = htolel(i+301);
+					req->data.softkeysets.softKeySetDefinition[softkeymode->mode].softKeyTemplateIndex[y] = (i+1);
+					req->data.softkeysets.softKeySetDefinition[softkeymode->mode].softKeyInfoIndex[y] = htoles(i+301);
+				        if (skinnydebug)	
+						ast_verbose("softKeySetDefinition : softKeyTemplateIndex: %d softKeyInfoIndex: %d\n", i+1, i+301);
 				}
 			}
 		}
