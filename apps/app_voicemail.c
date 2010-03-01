@@ -365,7 +365,7 @@ static int save_body(BODY *body, struct vm_state *vms, char *section, char *form
 static void get_mailbox_delimiter(MAILSTREAM *stream);
 static void mm_parsequota (MAILSTREAM *stream, unsigned char *msg, QUOTALIST *pquota);
 static void imap_mailbox_name(char *spec, size_t len, struct vm_state *vms, int box, int target);
-static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms, const char *flag);
+static int imap_store_file(const char *dir, const char *mailboxuser, const char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms, const char *flag);
 static void update_messages_by_imapuser(const char *user, unsigned long number);
 static int vm_delete(char *file);
 
@@ -2030,7 +2030,7 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 	}
 }
 
-static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms, const char *flag)
+static int imap_store_file(const char *dir, const char *mailboxuser, const char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms, const char *flag)
 {
 	char *myserveremail = serveremail;
 	char fn[PATH_MAX];
@@ -3401,15 +3401,17 @@ static int count_messages(struct ast_vm_user *vmu, char *dir)
  * 
  * \return the value greater than zero on success to indicate the number of messages, less than zero on error.
  */
-static void delete_file(char *sdir, int smsg)
+static void delete_file(const char *sdir, int smsg)
 {
 	SQLHSTMT stmt;
 	char sql[PATH_MAX];
 	char msgnums[20];
-	char *argv[] = { sdir, msgnums };
+	char *argv[] = { NULL, msgnums };
 	struct generic_prepare_struct gps = { .sql = sql, .argc = 2, .argv = argv };
-
 	struct odbc_obj *obj;
+
+	argv[0] = ast_strdupa(sdir);
+
 	obj = ast_odbc_request_obj(odbc_database, 0);
 	if (obj) {
 		snprintf(msgnums, sizeof(msgnums), "%d", smsg);
@@ -3465,8 +3467,8 @@ static void copy_file(char *sdir, int smsg, char *ddir, int dmsg, char *dmailbox
 
 struct insert_data {
 	char *sql;
-	char *dir;
-	char *msgnums;
+	const char *dir;
+	const char *msgnums;
 	void *data;
 	SQLLEN datalen;
 	SQLLEN indlen;
@@ -3475,8 +3477,8 @@ struct insert_data {
 	const char *callerid;
 	const char *origtime;
 	const char *duration;
-	char *mailboxuser;
-	char *mailboxcontext;
+	const char *mailboxuser;
+	const char *mailboxcontext;
 	const char *category;
 	const char *flag;
 };
@@ -3531,7 +3533,7 @@ static SQLHSTMT insert_data_cb(struct odbc_obj *obj, void *vdata)
  *
  * \return the zero on success -1 on error.
  */
-static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum)
+static int store_file(const char *dir, const char *mailboxuser, const char *mailboxcontext, int msgnum)
 {
 	int res = 0;
 	int fd = -1;
