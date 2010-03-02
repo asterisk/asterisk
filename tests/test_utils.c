@@ -185,11 +185,64 @@ AST_TEST_DEFINE(sha1_test)
 	return res;
 }
 
+AST_TEST_DEFINE(base64_test)
+{
+	static const struct {
+		const char *input;
+		const char *decoded;
+	} tests[] = {
+		{ "giraffe",
+			"Z2lyYWZmZQ==" },
+		{ "platypus",
+			"cGxhdHlwdXM=" },
+		{ "ParastratiosphecomyiaStratiosphecomyioides",
+			"UGFyYXN0cmF0aW9zcGhlY29teWlhU3RyYXRpb3NwaGVjb215aW9pZGVz" },
+	};
+	int i;
+	enum ast_test_result_state res = AST_TEST_PASS;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "base64_test";
+		info->category = "main/utils/";
+		info->summary = "base64 test";
+		info->description = "This test exercises the base64 conversions.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+
+	for (i = 0; i < ARRAY_LEN(tests); i++) {
+		char tmp[64];
+		ast_base64encode(tmp, (unsigned char *)tests[i].input, strlen(tests[i].input), sizeof(tmp));
+		if (strcasecmp(tmp, tests[i].decoded)) {
+			ast_test_status_update(test,
+					"input: '%s'  base64 output: '%s'  expected base64 output: '%s'\n",
+					tests[i].input, tmp, tests[i].decoded);
+			res = AST_TEST_FAIL;
+		}
+
+		memset(tmp, 0, sizeof(tmp));
+		ast_base64decode((unsigned char *) tmp, tests[i].decoded, (sizeof(tmp) - 1));
+		if (strcasecmp(tmp, tests[i].input)) {
+			ast_test_status_update(test,
+					"base64 input: '%s'  output: '%s'  expected output: '%s'\n",
+					tests[i].decoded, tmp, tests[i].input);
+			res = AST_TEST_FAIL;
+		}
+	}
+
+	return res;
+}
+
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(uri_encode_decode_test);
 	AST_TEST_UNREGISTER(md5_test);
 	AST_TEST_UNREGISTER(sha1_test);
+	AST_TEST_UNREGISTER(base64_test);
 	return 0;
 }
 
@@ -198,6 +251,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(uri_encode_decode_test);
 	AST_TEST_REGISTER(md5_test);
 	AST_TEST_REGISTER(sha1_test);
+	AST_TEST_REGISTER(base64_test);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
