@@ -59,6 +59,7 @@ static struct ast_jb_conf g_jb_conf = {
 	.max_size = -1,
 	.resync_threshold = -1,
 	.impl = "",
+	.target_extra = -1,
 };
 
 static struct ast_channel *local_request(const char *type, int format, void *data, int *cause);
