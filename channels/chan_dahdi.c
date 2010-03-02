@@ -418,9 +418,6 @@ static int mwilevel = 512;
 static int dtmfcid_level = 256;
 
 #ifdef HAVE_PRI
-#ifdef PRI_GETSET_TIMERS
-static int pritimers[PRI_MAX_TIMERS];
-#endif
 static int pridebugfd = -1;
 static char pridebugfilename[1024] = "";
 #endif
@@ -11386,6 +11383,10 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 						ast_copy_string(pris[span].pri.unknownprefix, conf->pri.pri.unknownprefix, sizeof(pris[span].pri.unknownprefix));
 						pris[span].pri.resetinterval = conf->pri.pri.resetinterval;
 
+						for (x = 0; x < PRI_MAX_TIMERS; x++) {
+							pris[span].pri.pritimers[x] = conf->pri.pri.pritimers[x];
+						}
+
 						if (si.spanno != span + 1) { /* in another trunkgroup */
 							tmp->prioffset = pris[span].pri.numchans;
 						} else {
@@ -16399,7 +16400,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 							"'%s' is not a valid value for ISDN timer '%s' at line %d.\n",
 							c, timerc, v->lineno);
 					} else {
-						pritimers[timeridx] = timer;
+						confp->pri.pri.pritimers[timeridx] = timer;
 					}
 				} else {
 					ast_log(LOG_WARNING,
