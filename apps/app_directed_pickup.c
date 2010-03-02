@@ -79,6 +79,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax>
 			<parameter name="channel" required="true" />
 			<parameter name="channel2" multiple="true" />
+			<parameter name="options" required="false">
+				<optionlist>
+					<option name="p">
+						<para>Channel name specified partial name. Used when find channel by callid.</para>
+					</option>
+				</optionlist>
+			</parameter>
 		</syntax>
 		<description>
 			<para>This will pickup a specified <replaceable>channel</replaceable> if ringing.</para>
@@ -303,24 +310,71 @@ static int pickup_exec(struct ast_channel *chan, const char *data)
 	return res;
 }
 
+/* Find channel for pick up specified by partial channel name */ 
+static int find_by_part(void *obj, void *arg, void *data, int flags)
+{
+	struct ast_channel *c = obj; 
+	const char *part = data;
+	int res = 0;
+	int len = strlen(part);
+
+	ast_channel_lock(c);
+	if (len <= strlen(c->name)) {
+		res = !(strncmp(c->name, part, len)) && (can_pickup(c));
+	}
+	ast_channel_unlock(c);
+
+	return res ? CMP_MATCH | CMP_STOP : 0;
+}
+
+/* Attempt to pick up specified by partial channel name */ 
+static int pickup_by_part(struct ast_channel *chan, const char *part)
+{
+	struct ast_channel *target;
+	int res = -1;
+
+	if ((target = ast_channel_callback(find_by_part, NULL, (char *) part, 0))) {
+		ast_channel_lock(target);
+		res = pickup_do(chan, target);
+		ast_channel_unlock(target);
+		target = ast_channel_unref(target);
+	}
+
+	return res;
+}
+
 /* application entry point for PickupChan() */
 static int pickupchan_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
-	char *tmp = ast_strdupa(data);
+	int partial_pickup = 0;
 	char *pickup = NULL;
+	char *parse = ast_strdupa(data);
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(channel);
+		AST_APP_ARG(options);
+	);
+	AST_STANDARD_APP_ARGS(args, parse);
 
-	if (ast_strlen_zero(data)) {
+	if (ast_strlen_zero(args.channel)) {
 		ast_log(LOG_WARNING, "PickupChan requires an argument (channel)!\n");
-		return -1;	
+		return -1;
+	}
+
+	if (!ast_strlen_zero(args.options) && strchr(args.options, 'p')) {
+		partial_pickup = 1;
 	}
 
 	/* Parse channel */
-	while (!ast_strlen_zero(tmp) && (pickup = strsep(&tmp, "&"))) {
+	while (!ast_strlen_zero(args.channel) && (pickup = strsep(&args.channel, "&"))) {
 		if (!strncasecmp(chan->name, pickup, strlen(pickup))) {
 			ast_log(LOG_NOTICE, "Cannot pickup your own channel %s.\n", pickup);
 		} else {
-			if (!pickup_by_channel(chan, pickup)) {
+			if (partial_pickup) {
+				if (!pickup_by_part(chan, pickup)) {
+					break;
+				}
+			} else if (!pickup_by_channel(chan, pickup)) {
 				break;
 			}
 			ast_log(LOG_NOTICE, "No target channel found for %s.\n", pickup);
