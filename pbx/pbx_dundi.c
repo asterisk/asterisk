@@ -65,6 +65,82 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "dundi-parser.h"
 
+/*** DOCUMENTATION
+	<function name="DUNDILOOKUP" language="en_US">
+		<synopsis>
+			Do a DUNDi lookup of a phone number.
+		</synopsis>
+		<syntax>
+			<parameter name="number" required="true"/>
+			<parameter name="context">
+				<para>If not specified the default will be <literal>e164</literal>.</para>
+			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="b">
+						<para>Bypass the internal DUNDi cache</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This will do a DUNDi lookup of the given phone number.</para>
+			<para>This function will return the Technology/Resource found in the first result
+			in the DUNDi lookup. If no results were found, the result will be blank.</para>
+		</description>
+	</function>
+			
+		
+	<function name="DUNDIQUERY" language="en_US">
+		<synopsis>
+			Initiate a DUNDi query.
+		</synopsis>
+		<syntax>
+			<parameter name="number" required="true"/>
+			<parameter name="context">
+				<para>If not specified the default will be <literal>e164</literal>.</para>
+			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="b">
+						<para>Bypass the internal DUNDi cache</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This will do a DUNDi lookup of the given phone number.</para>
+			<para>The result of this function will be a numeric ID that can be used to retrieve
+			the results with the <literal>DUNDIRESULT</literal> function.</para>
+		</description>
+	</function>
+
+	<function name="DUNDIRESULT" language="en_US">
+		<synopsis>
+			Retrieve results from a DUNDIQUERY.
+		</synopsis>
+		<syntax>
+			<parameter name="id" required="true">
+				<para>The identifier returned by the <literal>DUNDIQUERY</literal> function.</para>
+			</parameter>
+			<parameter name="resultnum">
+				<optionlist>
+					<option name="number">
+						<para>The number of the result that you want to retrieve, this starts at <literal>1</literal></para>
+					</option>
+					<option name="getnum">
+						<para>The total number of results that are available.</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This function will retrieve results from a previous use\n"
+			of the <literal>DUNDIQUERY</literal> function.</para>
+		</description>
+	</function>
+ ***/
+
 #define MAX_RESULTS	64
 
 #define MAX_PACKET_SIZE 8192
@@ -3866,14 +3942,6 @@ static int dundifunc_read(struct ast_channel *chan, const char *cmd, char *num, 
 
 static struct ast_custom_function dundi_function = {
 	.name = "DUNDILOOKUP",
-	.synopsis = "Do a DUNDi lookup of a phone number.",
-	.syntax = "DUNDILOOKUP(number[,context[,options]])",
-	.desc = "This will do a DUNDi lookup of the given phone number.\n"
-	"If no context is given, the default will be e164. The result of\n"
-	"this function will return the Technology/Resource found in the first result\n"
-	"in the DUNDi lookup. If no results were found, the result will be blank.\n"
-	"If the 'b' option is specified, the internal DUNDi cache will\n"
-	"be bypassed.\n",
 	.read = dundifunc_read,
 };
 
@@ -3971,13 +4039,6 @@ static int dundi_query_read(struct ast_channel *chan, const char *cmd, char *dat
 
 static struct ast_custom_function dundi_query_function = {
 	.name = "DUNDIQUERY",
-	.synopsis = "Initiate a DUNDi query.",
-	.syntax = "DUNDIQUERY(number[|context[|options]])",
-	.desc = "This will do a DUNDi lookup of the given phone number.\n"
-	"If no context is given, the default will be e164. The result of\n"
-	"this function will be a numeric ID that can be used to retrieve\n"
-	"the results with the DUNDIRESULT function. If the 'b' option is\n"
-	"is specified, the internal DUNDi cache will be bypassed.\n",
 	.read = dundi_query_read,
 };
 
@@ -4057,14 +4118,6 @@ finish:
 
 static struct ast_custom_function dundi_result_function = {
 	.name = "DUNDIRESULT",
-	.synopsis = "Retrieve results from a DUNDIQUERY",
-	.syntax = "DUNDIRESULT(id|resultnum)",
-	.desc = "This function will retrieve results from a previous use\n"
-	"of the DUNDIQUERY function.\n"
-	"  id - This argument is the identifier returned by the DUNDIQUERY function.\n"
-	"  resultnum - This is the number of the result that you want to retrieve.\n"
-	"       Results start at 1.  If this argument is specified as \"getnum\",\n"
-	"       then it will return the total number of results that are available.\n",
 	.read = dundi_result_read,
 };
 
