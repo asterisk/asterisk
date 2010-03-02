@@ -11707,7 +11707,10 @@ AST_TEST_DEFINE(test_voicemail_vmsayname)
 			snprintf(dir, sizeof(dir), "%s/sounds/beep.gsm", ast_config_AST_VAR_DIR);
 			snprintf(dir2, sizeof(dir2), "%s%s/%s/greet.gsm", VM_SPOOL_DIR, TEST_CONTEXT, TEST_EXTENSION);
 			/* we're not going to hear the sound anyway, just use a valid gsm audio file */
-			symlink(dir, dir2);
+			if ((res = symlink(dir, dir2))) {
+				ast_log(LOG_WARNING, "Symlink reported %s\n", strerror(errno));
+				goto exit_vmsayname_test;
+			}
 			ast_test_status_update(test, "Test playing created mailbox greeting...\n");
 			snprintf(dir, sizeof(dir), "%s@%s", TEST_EXTENSION, TEST_CONTEXT); /* not a dir, don't get confused */
 			res = vmsayname_exec(test_channel1, dir);
