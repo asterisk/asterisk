@@ -97,7 +97,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
                 <description>
                         <para>Enters the user into a specified conference bridge. The user can exit the conference by hangup only.</para>
                         <para>The join sound can be set using the <literal>CONFBRIDGE_JOIN_SOUND</literal> variable and the leave sound can be set using the <literal>CONFBRIDGE_LEAVE_SOUND</literal> variable. These can be unique to the caller.</para>
-			<note>This application will not automatically answer the channel.</note>
+			<note><para>This application will not automatically answer the channel.</para></note>
                 </description>
         </application>
 ***/
