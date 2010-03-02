@@ -174,7 +174,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</application>
 	<application name="JabberJoin" language="en_US">
 		<synopsis>
-			<para>Join a chat room</para>
+			Join a chat room
 		</synopsis>
 		<syntax>
 			<parameter name="Jabber" required="true">
@@ -194,7 +194,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</application>
 	<application name="JabberLeave" language="en_US">
 		<synopsis>
-			<para>Leave a chat room</para>
+			Leave a chat room
 		</synopsis>
 		<syntax>
 			<parameter name="Jabber" required="true">

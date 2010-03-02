@@ -58,6 +58,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<synopsis>
 			OSP Authentication.
 		</synopsis>
+		<syntax>
+			<parameter name="provider">
+				<para>The name of the provider that authenticates the call.</para>
+			</parameter>
+			<parameter name="options">
+				<para>Reserverd.</para>
+			</parameter>
+		</syntax>
 		<description>
 			<para>Authenticate a call by OSP.</para>
 			<para>Input variables:</para>
@@ -88,14 +96,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</variable>
 			</variablelist>
 		</description>
-		<syntax>
-			<parameter name="provider">
-				<para>The name of the provider that authenticates the call.</para>
-			</parameter>
-			<parameter name="options">
-				<para>Reserverd.</para>
-			</parameter>
-		</syntax>
 		<see-also>
 			<ref type="application">OSPLookup</ref>
 			<ref type="application">OSPNext</ref>
@@ -106,6 +106,27 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<synopsis>
 			Lookup destination by OSP.
 		</synopsis>
+		<syntax>
+			<parameter name="exten" required="true">
+				<para>The exten of the call.</para>
+			</parameter>
+			<parameter name="provider">
+				<para>The name of the provider that is used to route the call.</para>
+			</parameter>
+			<parameter name="options">
+				<enumlist>
+					<enum name="h">
+						<para>generate H323 call id for the outbound call</para>
+					</enum>
+					<enum name="s">
+						<para>generate SIP call id for the outbound call. Have not been implemented</para>
+					</enum>
+					<enum name="i">
+						<para>generate IAX call id for the outbound call. Have not been implemented</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
 		<description>
 			<para>Looks up destination via OSP.</para>
 			<para>Input variables:</para>
@@ -239,27 +260,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</variable>
 			</variablelist>
 		</description>
-		<syntax>
-			<parameter name="exten" required="true">
-				<para>The exten of the call.</para>
-			</parameter>
-			<parameter name="provider">
-				<para>The name of the provider that is used to route the call.</para>
-			</parameter>
-			<parameter name="options">
-				<enumlist>
-					<enum name="h">
-						<para>generate H323 call id for the outbound call</para>
-					</enum>
-					<enum name="s">
-						<para>generate SIP call id for the outbound call. Have not been implemented</para>
-					</enum>
-					<enum name="i">
-						<para>generate IAX call id for the outbound call. Have not been implemented</para>
-					</enum>
-				</enumlist>
-			</parameter>
-		</syntax>
 		<see-also>
 			<ref type="application">OSPAuth</ref>
 			<ref type="application">OSPNext</ref>
@@ -360,17 +360,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</variable>
 			</variablelist>
 		</description>
-		<syntax>
-			<parameter name="cause" required="true">
-				<para>The termaintion cause of the previous call attempt.</para>
-			</parameter>
-			<parameter name="provider">
-				<para>The name of the provider that is used to route the call.</para>
-			</parameter>
-			<parameter name="options">
-				<para>Reserved.</para>
-			</parameter>
-		</syntax>
 		<see-also>
 			<ref type="application">OSPAuth</ref>
 			<ref type="application">OSPLookup</ref>
@@ -381,6 +370,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<synopsis>
 			Report OSP entry.
 		</synopsis>
+		<syntax>
+			<parameter name="cause">
+				<para>Hangup cause.</para>
+			</parameter>
+			<parameter name="options">
+				<para>Reserved.</para>
+			</parameter>
+		</syntax>
 		<description>
 			<para>Report call state.</para>
 			<para>Input variables:</para>
@@ -417,14 +414,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</variable>
 			</variablelist>
 		</description>
-		<syntax>
-			<parameter name="cause">
-				<para>Hangup cause.</para>
-			</parameter>
-			<parameter name="options">
-				<para>Reserved.</para>
-			</parameter>
-		</syntax>
 		<see-also>
 			<ref type="application">OSPAuth</ref>
 			<ref type="application">OSPLookup</ref>
