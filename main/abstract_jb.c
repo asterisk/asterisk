@@ -592,6 +592,10 @@ int ast_jb_read_conf(struct ast_jb_conf *conf, const char *varname, const char *
 	} else if (!strcasecmp(name, AST_JB_CONF_IMPL)) {
 		if (!ast_strlen_zero(value))
 			snprintf(conf->impl, sizeof(conf->impl), "%s", value);
+	} else if (!strcasecmp(name, AST_JB_CONF_TARGET_EXTRA)) {
+		if (sscanf(value, "%30d", &tmp) == 1) {
+			conf->target_extra = tmp;
+		}
 	} else if (!strcasecmp(name, AST_JB_CONF_LOG)) {
 		ast_set2_flag(conf, ast_true(value), AST_JB_LOG);
 	} else {
@@ -738,6 +742,7 @@ static void *jb_create_adaptive(struct ast_jb_conf *general_config, long resynch
 		jbconf.max_jitterbuf = general_config->max_size;
 		jbconf.resync_threshold = general_config->resync_threshold;
 		jbconf.max_contig_interp = 10;
+		jbconf.target_extra = general_config->target_extra;
 		jb_setconf(adaptivejb, &jbconf);
 	}
 

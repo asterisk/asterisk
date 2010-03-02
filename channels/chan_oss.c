@@ -72,6 +72,7 @@ static struct ast_jb_conf default_jbconf =
 	.max_size = -1,
 	.resync_threshold = -1,
 	.impl = "",
+	.target_extra = -1,
 };
 static struct ast_jb_conf global_jbconf;
 

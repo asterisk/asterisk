@@ -855,6 +855,13 @@ pickupgroup=1
                               ; (with size always equals to jbmax-size) and "adaptive" (with
                               ; variable size, actually the new jb of IAX2). Defaults to fixed.
 
+; jbtargetextra = 40          ; This option only affects the jb when 'jbimpl = adaptive' is set.
+                              ; The option represents the number of milliseconds by which the new
+                              ; jitter buffer will pad its size. the default is 40, so without
+                              ; modification, the new jitter buffer will set its size to the jitter
+                              ; value plus 40 milliseconds. increasing this value may help if your
+                              ; network normally has low jitter, but occasionally has spikes.
+
 ; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
 ;-----------------------------------------------------------------------------------
 ;

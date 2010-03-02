@@ -59,9 +59,11 @@ struct ast_jb_conf
 	/*! \brief Max size of the jitterbuffer implementation. */
 	long max_size;
 	/*! \brief Resynchronization threshold of the jitterbuffer implementation. */
- 	long resync_threshold;
+	long resync_threshold;
 	/*! \brief Name of the jitterbuffer implementation to be used. */
- 	char impl[AST_JB_IMPL_NAME_SIZE];
+	char impl[AST_JB_IMPL_NAME_SIZE];
+	/*! \brief amount of additional jitterbuffer adjustment */
+	long target_extra;
 };
 
 
@@ -71,6 +73,7 @@ struct ast_jb_conf
 #define AST_JB_CONF_FORCE "force"
 #define AST_JB_CONF_MAX_SIZE "maxsize"
 #define AST_JB_CONF_RESYNCH_THRESHOLD "resyncthreshold"
+#define AST_JB_CONF_TARGET_EXTRA "targetextra"
 #define AST_JB_CONF_IMPL "impl"
 #define AST_JB_CONF_LOG "log"
 
