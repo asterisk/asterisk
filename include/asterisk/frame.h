@@ -131,16 +131,18 @@ enum {
 	AST_FRFLAG_HAS_TIMING_INFO = (1 << 0),
 };
 
+union ast_frame_subclass {
+	int integer;
+	format_t codec;
+};
+
 /*! \brief Data structure associated with a single frame of data
  */
 struct ast_frame {
 	/*! Kind of frame */
 	enum ast_frame_type frametype;				
 	/*! Subclass, frame dependent */
-	union {
-		int integer;
-		format_t codec;
-	} subclass;
+	union ast_frame_subclass subclass;
 	/*! Length of data */
 	int datalen;				
 	/*! Number of samples in this frame */
