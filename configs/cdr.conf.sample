@@ -21,6 +21,12 @@
 ; mode, you will see one CDR, with one of the call targets on one side, and the originating
 ; channel on the other, and then one CDR for each channel attempted. This may seem
 ; redundant, but cannot be helped.
+;
+; In brief, this option controls the reporting of unanswered calls which only have an A 
+; party. Calls which get offered to an outgoing line, but are unanswered, are still 
+; logged, and that is the intended behaviour. (It also results in some B side CDRs being
+; output, as they have the B side channel as their source channel, and no destination 
+; channel.)
 ;unanswered = no
 
 ; Define the CDR batch mode, where instead of posting the CDR at the end of
