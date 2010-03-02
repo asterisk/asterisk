@@ -209,6 +209,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			registered internally and does not need to be explicitly added
 			into the dialplan, although you should include the <literal>parkedcalls</literal>
 			context (or the context specified in <filename>features.conf</filename>).</para>
+			<para>If you set the <variable>PARKINGLOT</variable> variable, the call will be parked
+			in the specifed parking context. Note setting this variable overrides the <variable>
+			PARKINGLOT</variable> set by the <literal>CHANNEL</literal> function.</para>
 			<para>If you set the <variable>PARKINGEXTEN</variable> variable to an extension in your
 			parking context, Park() will park the call on that extension, unless
 			it already exists. In that case, execution will continue at next priority.</para>
