@@ -136,6 +136,8 @@ Applications
  * The OSP lookup application adds in/outbound network ID, optional security,
    number portability, QoS reporting, destination IP port, custom info and service
    type features.
+ * Added new application VMSayName that will play the recorded name of the voicemail
+   user if it exists, otherwise will play the mailbox number.
 
 Dialplan Functions
 ------------------

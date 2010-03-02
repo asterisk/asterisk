@@ -302,6 +302,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			mailbox.</para>
 		</description>
 	</application>
+	<application name="VMSayName" language="en_US">
+		<synopsis>
+			Play the name of a voicemail user
+		</synopsis>
+		<syntax>
+			<parameter name="mailbox" required="true" argsep="@">
+				<argument name="mailbox" />
+				<argument name="context" />
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application will say the recorded name of the voicemail user specified as the
+			argument to this application. If no context is provided, <literal>default</literal> is assumed.</para>
+		</description>
+	</application>
 	<function name="MAILBOX_EXISTS" language="en_US">
 		<synopsis>
 			Tell if a mailbox is configured.
@@ -729,6 +744,8 @@ static char *app2 = "VoiceMailMain";
 
 static char *app3 = "MailboxExists";
 static char *app4 = "VMAuthenticate";
+
+static char *sayname_app = "VMSayName";
 
 static AST_LIST_HEAD_STATIC(users, ast_vm_user);
 static AST_LIST_HEAD_STATIC(zones, vm_zone);
@@ -11593,6 +11610,126 @@ static int write_password_to_file(const char *secretfn, const char *password) {
 	return 0;
 }
 
+static int vmsayname_exec(struct ast_channel *chan, const char *data)
+{
+	char *context;
+	char *args_copy;
+	int res;
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "VMSayName requires argument mailbox@context");
+		return -1;
+	}
+
+	args_copy = ast_strdupa(data);
+	if ((context = strchr(args_copy, '@'))) {
+		*context++ = '\0';
+	} else {
+		context = "default";
+	}
+
+	if ((res = sayname(chan, args_copy, context) < 0)) {
+		ast_debug(3, "Greeting not found for '%s@%s', falling back to mailbox number.\n", args_copy, context);
+		res = ast_stream_and_wait(chan, "vm-extension", AST_DIGIT_ANY);
+		if (!res) {
+			res = ast_say_character_str(chan, args_copy, AST_DIGIT_ANY, chan->language);
+		}
+	}
+
+	return res;
+}
+
+#ifdef TEST_FRAMEWORK
+static int fake_write(struct ast_channel *ast, struct ast_frame *frame)
+{
+	return 0;
+}
+
+static struct ast_frame *fake_read(struct ast_channel *ast)
+{
+	return &ast_null_frame;
+}
+
+AST_TEST_DEFINE(test_voicemail_vmsayname)
+{
+	char dir[PATH_MAX];
+	char dir2[PATH_MAX];
+	static const char TEST_CONTEXT[] = "very_long_unique_context_so_that_nobody_will_ever_have_the_same_one_configured_3141592653";
+	static const char TEST_EXTENSION[] = "1234";
+
+	struct ast_channel *test_channel1 = NULL;
+	int res = -1;
+
+	static const struct ast_channel_tech fake_tech = {
+		.write = fake_write,
+		.read = fake_read,
+	};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "vmsayname_exec";
+		info->category = "apps/app_voicemail/";
+		info->summary = "Vmsayname unit test";
+		info->description =
+			"This tests passing various parameters to vmsayname";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(test_channel1 = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL,
+        NULL, NULL, 0, 0, "TestChannel1"))) {
+		goto exit_vmsayname_test;
+	}
+
+	/* normally this is done in the channel driver */
+	test_channel1->nativeformats = AST_FORMAT_GSM;
+	test_channel1->writeformat = AST_FORMAT_GSM;
+	test_channel1->rawwriteformat = AST_FORMAT_GSM;
+	test_channel1->readformat = AST_FORMAT_GSM;
+	test_channel1->rawreadformat = AST_FORMAT_GSM;
+	test_channel1->tech = &fake_tech;
+
+	ast_test_status_update(test, "Test playing of extension when greeting is not available...\n");
+	snprintf(dir, sizeof(dir), "%s@%s", TEST_EXTENSION, TEST_CONTEXT); /* not a dir, don't get confused */
+	if (!(res = vmsayname_exec(test_channel1, dir))) {
+		snprintf(dir, sizeof(dir), "%s%s/%s/greet", VM_SPOOL_DIR, TEST_CONTEXT, TEST_EXTENSION);
+		if (ast_fileexists(dir, NULL, NULL)) {
+			ast_test_status_update(test, "This should not happen, most likely means clean up from previous test failed\n");
+			res = -1;
+			goto exit_vmsayname_test;
+		} else {
+			/* no greeting already exists as expected, let's create one to fully test sayname */
+			if ((res = create_dirpath(dir, sizeof(dir), TEST_CONTEXT, TEST_EXTENSION, ""))) {
+				ast_log(AST_LOG_WARNING, "Failed to make test directory\n");
+				goto exit_vmsayname_test;
+			}
+			snprintf(dir, sizeof(dir), "%s/sounds/beep.gsm", ast_config_AST_VAR_DIR);
+			snprintf(dir2, sizeof(dir2), "%s%s/%s/greet.gsm", VM_SPOOL_DIR, TEST_CONTEXT, TEST_EXTENSION);
+			/* we're not going to hear the sound anyway, just use a valid gsm audio file */
+			symlink(dir, dir2);
+			ast_test_status_update(test, "Test playing created mailbox greeting...\n");
+			snprintf(dir, sizeof(dir), "%s@%s", TEST_EXTENSION, TEST_CONTEXT); /* not a dir, don't get confused */
+			res = vmsayname_exec(test_channel1, dir);
+
+			/* TODO: there may be a better way to do this */
+			unlink(dir2);
+			snprintf(dir2, sizeof(dir2), "%s%s/%s", VM_SPOOL_DIR, TEST_CONTEXT, TEST_EXTENSION);
+			rmdir(dir2);
+			snprintf(dir2, sizeof(dir2), "%s%s", VM_SPOOL_DIR, TEST_CONTEXT);
+			rmdir(dir2);
+		}
+	}
+
+exit_vmsayname_test:
+
+	if (test_channel1) {
+		ast_hangup(test_channel1);
+	}
+
+	return res ? AST_TEST_FAIL : AST_TEST_PASS;
+}
+
 AST_TEST_DEFINE(test_voicemail_msgcount)
 {
 	int i, j, res = AST_TEST_PASS, syserr;
@@ -11755,6 +11892,7 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 
 	return res;
 }
+#endif
 
 static int reload(void)
 {
@@ -11771,6 +11909,10 @@ static int unload_module(void)
 	res |= ast_unregister_application(app4);
 	res |= ast_custom_function_unregister(&mailbox_exists_acf);
 	res |= ast_manager_unregister("VoicemailUsersList");
+#ifdef TEST_FRAMEWORK
+	res |= AST_TEST_UNREGISTER(test_voicemail_vmsayname);
+	res |= AST_TEST_UNREGISTER(test_voicemail_msgcount);
+#endif
 	ast_cli_unregister_multiple(cli_voicemail, ARRAY_LEN(cli_voicemail));
 	ast_uninstall_vm_functions();
 	ao2_ref(inprocess_container, -1);
@@ -11784,7 +11926,6 @@ static int unload_module(void)
 
 	free_vm_users();
 	free_vm_zones();
-	AST_TEST_UNREGISTER(test_voicemail_msgcount);
 	return res;
 }
 
@@ -11812,8 +11953,14 @@ static int load_module(void)
 	res |= ast_register_application_xml(app2, vm_execmain);
 	res |= ast_register_application_xml(app3, vm_box_exists);
 	res |= ast_register_application_xml(app4, vmauthenticate);
+	res |= ast_register_application_xml(sayname_app, vmsayname_exec);
 	res |= ast_custom_function_register(&mailbox_exists_acf);
 	res |= ast_manager_register_xml("VoicemailUsersList", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, manager_list_voicemail_users);
+#ifdef TEST_FRAMEWORK
+	res |= AST_TEST_REGISTER(test_voicemail_vmsayname);
+	res |= AST_TEST_REGISTER(test_voicemail_msgcount);
+#endif
+
 	if (res)
 		return res;
 
@@ -11822,8 +11969,6 @@ static int load_module(void)
 	ast_install_vm_functions(has_voicemail, inboxcount, inboxcount2, messagecount, sayname);
 	ast_realtime_require_field("voicemail", "uniqueid", RQ_UINTEGER3, 11, "password", RQ_CHAR, 10, SENTINEL);
 	ast_realtime_require_field("voicemail_data", "filename", RQ_CHAR, 30, "duration", RQ_UINTEGER3, 5, SENTINEL);
-
-	AST_TEST_REGISTER(test_voicemail_msgcount);
 
 	return res;
 }
