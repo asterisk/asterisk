@@ -2161,6 +2161,9 @@ static void *__analog_ss_thread(void *data)
 						}
 
 						if (res == 1) {
+							if (ev == ANALOG_EVENT_NOALARM) {
+								p->inalarm = 0;
+							}
 							if (p->cid_signalling == CID_SIG_V23_JP) {
 								if (ev == ANALOG_EVENT_RINGBEGIN) {
 									analog_off_hook(p);
@@ -2249,7 +2252,9 @@ static void *__analog_ss_thread(void *data)
 					}
 
 					if (res == 1 || res == 2) {
-						if (ev == ANALOG_EVENT_POLARITY && p->hanguponpolarityswitch && p->polarity == POLARITY_REV) {
+						if (ev == ANALOG_EVENT_NOALARM) {
+							p->inalarm = 0;
+						} else if (ev == ANALOG_EVENT_POLARITY && p->hanguponpolarityswitch && p->polarity == POLARITY_REV) {
 							ast_debug(1, "Hanging up due to polarity reversal on channel %d while detecting callerid\n", p->channel);
 							p->polarity = POLARITY_IDLE;
 							ast_hangup(chan);
