@@ -75,11 +75,13 @@ char	*fgetln(FILE *fp, size_t *len);
 #endif
 
 #ifndef HAVE_STRLCPY
+#undef strlcpy /* We define this in top-level Asterisk to point towards ast_copy_string */
 #define	strlcpy libedit_strlcpy
 size_t strlcpy(char *dst, const char *src, size_t siz);
 #endif
 
 #ifndef HAVE_STRLCAT
+#undef strlcat /* We define this in top-level Asterisk to point towards the ast_str_* APIs */
 #define	strlcat libedit_strlcat
 size_t strlcat(char *dst, const char *src, size_t siz);
 #endif
