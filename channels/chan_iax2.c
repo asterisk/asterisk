@@ -7088,9 +7088,14 @@ static int try_transfer(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 	memcpy(&pvt->transfer, &new, sizeof(pvt->transfer));
 	inet_aton(newip, &pvt->transfer.sin_addr);
 	pvt->transfer.sin_family = AF_INET;
-	pvt->transferring = TRANSFER_BEGIN;
 	pvt->transferid = ies->transferid;
-	store_by_transfercallno(pvt);
+	/* only store by transfercallno if this is a new transfer,
+	 * just in case we get a duplicate TXREQ */
+	if (pvt->transferring == TRANSFER_NONE) {
+		store_by_transfercallno(pvt);
+	}
+	pvt->transferring = TRANSFER_BEGIN;
+
 	if (ies->transferid)
 		iax_ie_append_int(&ied, IAX_IE_TRANSFERID, ies->transferid);
 	send_command_transfer(pvt, AST_FRAME_IAX, IAX_COMMAND_TXCNT, 0, ied.buf, ied.pos);
@@ -7197,7 +7202,7 @@ static int complete_transfer(int callno, struct iax_ies *ies)
 	pvt->voiceformat = 0;
 	pvt->svideoformat = -1;
 	pvt->videoformat = 0;
-	pvt->transfercallno = -1;
+	pvt->transfercallno = 0;
 	memset(&pvt->rxcore, 0, sizeof(pvt->rxcore));
 	memset(&pvt->offset, 0, sizeof(pvt->offset));
 	/* reset jitterbuffer */
