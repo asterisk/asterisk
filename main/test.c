@@ -291,10 +291,11 @@ static int test_execute_multiple(const char *name, const char *category, struct 
 					(test->state == AST_TEST_FAIL) ? COLOR_RED : COLOR_GREEN,
 					0,
 					sizeof(result_buf));
-				ast_cli(cli->fd, "END    %s - %s Time: %dms Result: %s\n",
+				ast_cli(cli->fd, "END    %s - %s Time: %s%dms Result: %s\n",
 					test->info.category,
 					test->info.name,
-					test->time,
+					test->time ? "" : "<",
+					test->time ? test->time : 1,
 					result_buf);
 			}
 		}
