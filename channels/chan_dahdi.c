@@ -418,6 +418,10 @@ static int numbufs = 4;
 static int mwilevel = 512;
 static int dtmfcid_level = 256;
 
+#define REPORT_CHANNEL_ALARMS 1
+#define REPORT_SPAN_ALARMS    2 
+static int report_alarms = REPORT_CHANNEL_ALARMS;
+
 #ifdef HAVE_PRI
 static int pridebugfd = -1;
 static char pridebugfilename[1024] = "";
@@ -963,6 +967,12 @@ struct dahdi_pvt {
 	 * \note Applies to SS7 and MFCR2 channels.
 	 */
 	unsigned int remotelyblocked:1;
+	/*!
+	 * \brief TRUE if the channel alarms will be managed also as Span ones
+	 * \note Applies to all channels
+	 */
+	unsigned int manages_span_alarms:1;
+
 #if defined(HAVE_PRI)
 	struct sig_pri_pri *pri;
 	int prioffset;
@@ -3022,6 +3032,18 @@ static void dahdi_queue_frame(struct dahdi_pvt *p, struct ast_frame *f, void *da
 #endif
 }
 
+static void handle_clear_alarms(struct dahdi_pvt *p)
+{
+	if (report_alarms & REPORT_CHANNEL_ALARMS) {
+		ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", p->channel);
+		manager_event(EVENT_FLAG_SYSTEM, "AlarmClear", "Channel: %d\r\n", p->channel);
+	}
+	if (report_alarms & REPORT_SPAN_ALARMS && p->manages_span_alarms) {
+		ast_log(LOG_NOTICE, "Alarm cleared on span %d\n", p->span);
+		manager_event(EVENT_FLAG_SYSTEM, "SpanAlarmClear", "Span: %d\r\n", p->span);
+	}
+}
+
 #ifdef HAVE_OPENR2
 
 static int dahdi_r2_answer(struct dahdi_pvt *p)
@@ -3110,8 +3132,7 @@ static void dahdi_r2_on_hardware_alarm(openr2_chan_t *r2chan, int alarm)
 		res = get_alarms(p);
 		handle_alarms(p, res);
 	} else {
-		ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", p->channel);
-		manager_event(EVENT_FLAG_SYSTEM, "AlarmClear", "Channel: %d\r\n", p->channel);
+		handle_clear_alarms(p);
 	}
 	ast_mutex_unlock(&p->lock);
 }
@@ -5040,9 +5061,27 @@ static void dahdi_unlink_pri_pvt(struct dahdi_pvt *pvt)
 }
 #endif	/* defined(HAVE_PRI) */
 
+static struct dahdi_pvt *find_next_iface_in_span(struct dahdi_pvt *cur)
+{
+	if (cur->next && cur->next->span == cur->span) {
+		return cur->next;
+	} else if (cur->prev && cur->prev->span == cur->span) {
+		return cur->prev;
+	}
+
+	return NULL;
+}
+
 static void destroy_dahdi_pvt(struct dahdi_pvt *pvt)
 {
 	struct dahdi_pvt *p = pvt;
+
+	if (p->manages_span_alarms) {
+		struct dahdi_pvt *next = find_next_iface_in_span(p);
+		if (next) {
+			next->manages_span_alarms = 1;
+		}
+	}
 
 	/* Remove channel from the list */
 #if defined(HAVE_PRI)
@@ -6953,11 +6992,21 @@ static void handle_alarms(struct dahdi_pvt *p, int alms)
 {
 	const char *alarm_str = alarm2str(alms);
 
-	ast_log(LOG_WARNING, "Detected alarm on channel %d: %s\n", p->channel, alarm_str);
-	manager_event(EVENT_FLAG_SYSTEM, "Alarm",
-		"Alarm: %s\r\n"
-		"Channel: %d\r\n",
-		alarm_str, p->channel);
+	if (report_alarms & REPORT_CHANNEL_ALARMS) {
+		ast_log(LOG_WARNING, "Detected alarm on channel %d: %s\n", p->channel, alarm_str);
+		manager_event(EVENT_FLAG_SYSTEM, "Alarm",
+					  "Alarm: %s\r\n"
+					  "Channel: %d\r\n",
+					  alarm_str, p->channel);
+	}
+
+	if (report_alarms & REPORT_SPAN_ALARMS && p->manages_span_alarms) {
+		ast_log(LOG_WARNING, "Detected alarm on span %d: %s\n", p->span, alarm_str);
+		manager_event(EVENT_FLAG_SYSTEM, "SpanAlarm",
+					  "Alarm: %s\r\n"
+					  "Span: %d\r\n",
+					  alarm_str, p->span);
+	}
 }
 
 static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
@@ -7464,9 +7513,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 		}
 #endif
 		p->inalarm = 0;
-		ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", p->channel);
-		manager_event(EVENT_FLAG_SYSTEM, "AlarmClear",
-							"Channel: %d\r\n", p->channel);
+		handle_clear_alarms(p);
 		break;
 	case DAHDI_EVENT_WINKFLASH:
 		if (p->inalarm) break;
@@ -9974,9 +10021,7 @@ static void *mwi_thread(void *data)
 				break;
 			case DAHDI_EVENT_NOALARM:
 				mtd->pvt->inalarm = 0;
-				ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", mtd->pvt->channel);
-				manager_event(EVENT_FLAG_SYSTEM, "AlarmClear",
-					"Channel: %d\r\n", mtd->pvt->channel);
+				handle_clear_alarms(mtd->pvt);
 				break;
 			case DAHDI_EVENT_ALARM:
 				mtd->pvt->inalarm = 1;
@@ -10390,9 +10435,7 @@ static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 		break;
 	case DAHDI_EVENT_NOALARM:
 		i->inalarm = 0;
-		ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", i->channel);
-		manager_event(EVENT_FLAG_SYSTEM, "AlarmClear",
-			"Channel: %d\r\n", i->channel);
+		handle_clear_alarms(i);
 		break;
 	case DAHDI_EVENT_ALARM:
 		i->inalarm = 1;
@@ -16695,7 +16738,16 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				mwilevel = atoi(v->value);
 			} else if (!strcasecmp(v->name, "dtmfcidlevel")) {
 				dtmfcid_level = atoi(v->value);
-			}
+			} else if (!strcasecmp(v->name, "reportalarms")) {
+				if (!strcasecmp(v->value, "all"))
+					report_alarms = REPORT_CHANNEL_ALARMS | REPORT_SPAN_ALARMS;
+				if (!strcasecmp(v->value, "none"))
+					report_alarms = 0;
+				else if (!strcasecmp(v->value, "channels"))
+					report_alarms = REPORT_CHANNEL_ALARMS;
+			   else if (!strcasecmp(v->value, "spans"))
+					report_alarms = REPORT_SPAN_ALARMS;
+			 }
 		} else if (!(options & PROC_DAHDI_OPT_NOWARN) )
 			ast_log(LOG_WARNING, "Ignoring any changes to '%s' (on reload) at line %d.\n", v->name, v->lineno);
 	}
@@ -16706,6 +16758,17 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			return -1;
 		}
 	}
+
+	/* mark the first channels of each DAHDI span to watch for their span alarms */
+	for (tmp = iflist, y=-1; tmp; tmp = tmp->next) {
+		if (!tmp->destroy && tmp->span != y) {
+			tmp->manages_span_alarms = 1;
+			y = tmp->span; 
+		} else {
+			tmp->manages_span_alarms = 0;
+		}
+	}
+
 	/*< \todo why check for the pseudo in the per-channel section.
 	 * Any actual use for manual setup of the pseudo channel? */
 	if (!found_pseudo && reload != 1) {

@@ -421,6 +421,8 @@ Miscellaneous
    configuration directory (/etc/asterisk by default) during reloads.
  * The parkeddynamic option has been added to features.conf to enable the creation
    of dynamic parkinglots.
+ * chan_dahdi now supports reporting alarms over AMI either by channel or span via
+   the reportalarms config option.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.1 to Asterisk 1.6.2  -------------

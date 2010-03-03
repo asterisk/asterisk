@@ -964,6 +964,14 @@ pickupgroup=1
 ;context=default
 ;channel => 1
 
+; AMI alarm event reporting
+;reportalarms=channels
+;Possible values are:
+;channels - report each channel alarms (current behavior, default for backward compatibility)
+;spans - report an "SpanAlarm" event when the span of any configured channel is alarmed
+;all - report channel and span alarms (aggregated behavior)
+;none - do not report any alarms.
+
 ; ---------------- Options for use with signalling=ss7 -----------------
 ; None of them can be changed by a reload.
 ;
