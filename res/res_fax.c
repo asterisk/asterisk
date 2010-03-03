@@ -17,6 +17,10 @@
  * at the top of the source tree.
  */
 
+/*** MODULEINFO
+	<conflict>app_fax</conflict>
+***/
+
 /*! \file
  *
  * \brief Generic FAX Resource for FAX technology resource modules

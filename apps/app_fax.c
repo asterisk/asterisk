@@ -13,7 +13,9 @@
  */
 
 /*** MODULEINFO
-	 <depend>spandsp</depend>
+	<defaultenabled>no</defaultenabled>
+	<depend>spandsp</depend>
+	<conflict>res_fax</conflict>
 ***/
  
 #include "asterisk.h"

@@ -393,6 +393,13 @@ Security Events Framework
    coming soon.  For more information on the security events framework, see the
    "Security Events" chapter of the included documentation - doc/tex/asterisk.pdf.
 
+Fax
+---
+ * A technology independent fax frontend (res_fax) has been added to Asterisk.
+ * A spandsp based fax backend (res_fax_spandsp) has been added.
+ * The app_fax module has been deprecated in favor of the res_fax module and
+   the new res_fax_spandsp backend.
+
 Miscellaneous
 -------------
  * The transmit_silence_during_record option in asterisk.conf.sample has been removed.
