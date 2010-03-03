@@ -8319,7 +8319,7 @@ static int process_sdp_a_image(const char *a, struct sip_pvt *p)
 		found = TRUE;
 	} else if ((sscanf(a, "T38FaxMaxDatagram:%30u", &x) == 1) || (sscanf(a, "T38MaxDatagram:%30u", &x) == 1)) {
 		/* override the supplied value if the configuration requests it */
-		if (p->t38_maxdatagram > x) {
+		if (((signed int) p->t38_maxdatagram >= 0) && ((unsigned int) p->t38_maxdatagram > x)) {
 			ast_debug(1, "Overriding T38FaxMaxDatagram '%d' with '%d'\n", x, p->t38_maxdatagram);
 			x = p->t38_maxdatagram;
 		}
