@@ -615,7 +615,6 @@ start_over:
 	ast_string_field_set(p->chan, accountcode, p->owner->accountcode);
 	ast_string_field_set(p->chan, musicclass, p->owner->musicclass);
 	ast_cdr_update(p->chan);
-	p->chan->cdrflags = p->owner->cdrflags;
 
 	if (!ast_exists_extension(NULL, p->chan->context, p->chan->exten, 1, p->owner->cid.cid_num)) {
 		ast_log(LOG_NOTICE, "No such extension/context %s@%s while calling Local channel\n", p->chan->exten, p->chan->context);

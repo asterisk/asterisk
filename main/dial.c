@@ -284,7 +284,6 @@ static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_chann
 
 		ast_string_field_set(channel->owner, language, chan->language);
 		ast_string_field_set(channel->owner, accountcode, chan->accountcode);
-		channel->owner->cdrflags = chan->cdrflags;
 		if (ast_strlen_zero(channel->owner->musicclass))
 			ast_string_field_set(channel->owner, musicclass, chan->musicclass);
 

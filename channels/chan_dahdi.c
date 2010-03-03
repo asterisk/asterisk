@@ -12244,9 +12244,6 @@ static struct ast_channel *dahdi_request(const char *type, format_t format, cons
 			if (!tmp) {
 				p->outgoing = 0;
 			}
-			/* Note if the call is a call waiting call */
-			if (tmp && callwait)
-				tmp->cdrflags |= AST_CDR_CALLWAIT;
 			break;
 		}
 #ifdef HAVE_OPENR2

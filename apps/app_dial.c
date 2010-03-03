@@ -823,8 +823,6 @@ static void do_forward(struct chanlist *o,
 			ast_rtp_instance_early_bridge_make_compatible(c, in);
 		}
 
-		c->cdrflags = in->cdrflags;
-
 		ast_channel_set_redirecting(c, apr);
 		ast_channel_lock(c);
 		while (ast_channel_trylock(in)) {
@@ -1921,7 +1919,6 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		if (!ast_strlen_zero(chan->accountcode)) {
 			ast_string_field_set(tc, peeraccount, chan->accountcode);
 		}
-		tc->cdrflags = chan->cdrflags;
 		if (ast_strlen_zero(tc->musicclass))
 			ast_string_field_set(tc, musicclass, chan->musicclass);
 

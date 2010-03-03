@@ -725,7 +725,6 @@ struct ast_channel {
 	int fds[AST_MAX_FDS];				/*!< File descriptors for channel -- Drivers will poll on
 							 *   these file descriptors, so at least one must be non -1.
 							 *   See \arg \ref AstFileDesc */
-	int cdrflags;					/*!< Call Detail Record Flags */
 	int _softhangup;				/*!< Whether or not we have been hung up...  Do not set this value
 							 *   directly, use ast_softhangup() */
 	int fdno;					/*!< Which fd had an event detected on */
@@ -882,13 +881,6 @@ struct outgoing_helper {
 	const char *account;
 	struct ast_variable *vars;
 	struct ast_channel *parent_channel;
-};
-
-enum {
-	AST_CDR_TRANSFER =   (1 << 0),
-	AST_CDR_FORWARD =    (1 << 1),
-	AST_CDR_CALLWAIT =   (1 << 2),
-	AST_CDR_CONFERENCE = (1 << 3),
 };
 
 enum {

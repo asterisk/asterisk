@@ -3312,7 +3312,6 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						ast_channel_datastore_inherit(in, o->chan);
 
 						ast_string_field_set(o->chan, accountcode, in->accountcode);
-						o->chan->cdrflags = in->cdrflags;
 
 						ast_channel_set_redirecting(o->chan, apr);
 
