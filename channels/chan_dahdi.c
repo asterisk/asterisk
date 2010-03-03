@@ -6653,6 +6653,9 @@ static void *ss_thread(void *data)
 						if (i & DAHDI_IOMUX_SIGEVENT) {
 							res = dahdi_get_event(p->subs[index].dfd);
 							ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
+							if (res == DAHDI_EVENT_NOALARM) {
+								p->inalarm = 0;
+							}
 
 							if (p->cid_signalling == CID_SIG_V23_JP) {
 #ifdef DAHDI_EVENT_RINGBEGIN
@@ -6756,6 +6759,9 @@ static void *ss_thread(void *data)
 							if (i & DAHDI_IOMUX_SIGEVENT) {
 								res = dahdi_get_event(p->subs[index].dfd);
 								ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
+								if (res == DAHDI_EVENT_NOALARM) {
+									p->inalarm = 0;
+								}
 								res = 0;
 								/* Let us detect distinctive ring */
 		
@@ -6861,6 +6867,9 @@ static void *ss_thread(void *data)
 					if (i & DAHDI_IOMUX_SIGEVENT) {
 						res = dahdi_get_event(p->subs[index].dfd);
 						ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
+						if (res == DAHDI_EVENT_NOALARM) {
+							p->inalarm = 0;
+						}
 						/* If we get a PR event, they hung up while processing calerid */
 						if ( res == DAHDI_EVENT_POLARITY && p->hanguponpolarityswitch && p->polarity == POLARITY_REV) {
 							ast_log(LOG_DEBUG, "Hanging up due to polarity reversal on channel %d while detecting callerid\n", p->channel);
@@ -6932,6 +6941,9 @@ static void *ss_thread(void *data)
 						if (i & DAHDI_IOMUX_SIGEVENT) {
 							res = dahdi_get_event(p->subs[index].dfd);
 							ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
+							if (res == DAHDI_EVENT_NOALARM) {
+								p->inalarm = 0;
+							}
 							res = 0;
 							/* Let us detect callerid when the telco uses distinctive ring */
 
