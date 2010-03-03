@@ -281,7 +281,7 @@ static int test_execute_multiple(const char *name, const char *category, struct 
 			last_results.last_time += test->time;
 			if (test->state == AST_TEST_PASS) {
 				last_results.last_passed++;
-			} else {
+			} else if (test->state == AST_TEST_FAIL) {
 				last_results.last_failed++;
 			}
 
