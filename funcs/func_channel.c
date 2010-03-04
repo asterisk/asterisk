@@ -233,6 +233,7 @@ static struct ast_custom_function channel_function = {
 		"  Argument 1:\n"
 		"    audio                 Get audio destination\n"
 		"    video                 Get video destination\n"
+		"    text                  Get text destination\n"
 		"\n"
 		"chan_iax2 provides the following additional options:\n"
 		"R/O    peerip             Get the peer's ip address\n"
