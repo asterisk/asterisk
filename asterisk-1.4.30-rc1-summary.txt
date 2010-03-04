@@ -2,7 +2,7 @@
 
                               asterisk-1.4.30-rc1
 
-                                Date: 2010-02-04
+                                Date: 2010-03-04
 
                            <asteriskteam@digium.com>
 
@@ -122,8 +122,8 @@
 
   Category: Channels/chan_local
 
-   #14992: [regression] #0013747 not fixed for local channel (Indications are
-   not passed from old peer to new peer during masquerade)
+   #14992: [patch] [regression] #0013747 not fixed for local channel
+   (Indications are not passed from old peer to new peer during masquerad
    Revision: 244785
    Reporter: davidw
    Coders: jpeeler
