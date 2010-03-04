@@ -206,6 +206,7 @@ static struct ast_custom_function channel_function = {
 		"  Argument 1:\n"
 		"    audio                 Get audio destination\n"
 		"    video                 Get video destination\n"
+		"    text                  Get text destination\n"
 		"\n"
 		"Additional items may be available from the channel driver providing\n"
 		"the channel; see its documentation for details.\n"
