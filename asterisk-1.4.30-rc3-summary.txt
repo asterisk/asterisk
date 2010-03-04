@@ -1,0 +1,541 @@
+                                Release Summary
+
+                              asterisk-1.4.30-rc3
+
+                                Date: 2010-03-04
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.4.29.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   17 tilghman              4 dvossel                2 tim_ringenbach         
+   8 jpeeler                3 atis                   1 alecdavis              
+   8 lmadsen                3 kobaz                  1 alexr1                 
+   8 oej                    1 alecdavis              1 bluefox                
+   6 seanbright             1 Chainsaw               1 Brian                  
+   5 alecdavis              1 corruptor              1 davidw                 
+   4 dvossel                1 davidw                 1 dodo                   
+   3 qwell                  1 elsto                  1 elsto                  
+   3 russell                1 jamhed                 1 exarv                  
+   2 kpfleming              1 jsutton                1 francesco_r            
+   2 tim                    1 litnimax               1 jamhed                 
+   1 dodo                   1 lmadsen                1 jedi98                 
+   1 gknispel               1 mattbrown              1 kebl0155               
+   1 jedi98                 1 mav3rick               1 kjotte                 
+   1 kebl0155               1 mikeeccleston          1 kobaz                  
+   1 mmichelson             1 mnicholson             1 litnimax               
+   1 mnicholson             1 pwalker                1 mav3rick               
+   1 rain                   1 rain                   1 pwalker                
+   1 rmudgett               1 tilghman               1 rain                   
+   1 syspert                1 TimeHider              1 romain_proformatique   
+   1 tomo1657               1 tzafrir                1 sohosys                
+   1 vrban                  1 whardier               1 syspert                
+   1 Yasuhiro                                        1 TimeHider              
+                                                     1 tomo1657               
+                                                     1 valon24                
+                                                     1 vrban                  
+                                                     1 whardier               
+                                                     1 Yasuhiro Konishi       
+                                                     1 ZX81                   
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/General
+
+   #16554: [patch] Huge memory leak
+   Revision: 241543
+   Reporter: mav3rick
+   Testers: mav3rick
+   Coders: seanbright
+
+  Category: Applications/app_chanspy
+
+   #16525: [patch] Cannot spy on channel when a local channel is involved
+   Revision: 244070
+   Reporter: kobaz
+   Testers: kobaz, atis
+   Coders: tilghman
+
+   #16678: [patch] segfault on chanspy due to race in main/channel.c
+   Revision: 246545
+   Reporter: tim_ringenbach
+   Testers: dvossel
+   Coders: tim
+
+  Category: Applications/app_queue
+
+   #16488: [patch] When setting a soundfile for announce with a length longer
+   then 80 chars a storage overlay happens
+   Revision: 243570
+   Reporter: syspert
+   Coders: syspert
+
+   #16677: [patch] deadlock in app_queue with use_weight during reload
+   Revision: 246115
+   Reporter: tim_ringenbach
+   Coders: tim
+
+   #16834: [patch] [regression] autofill=no always IGNORED.
+   Revision: 247168
+   Reporter: kebl0155
+   Coders: kebl0155
+
+  Category: Applications/app_transfer
+
+   #16331: [patch] A blind transfer results in a call with empty accountcode
+   in a specific circumstance
+   Revision: 247651
+   Reporter: bluefox
+   Testers: mnicholson
+   Coders: mnicholson
+
+  Category: Applications/app_voicemail
+
+   #16271: [patch] message limit (maxmsg) can be exceeded in 1.6.x creating
+   orphan voicemail
+   Revision: 240414
+   Reporter: sohosys
+   Testers: jsutton
+   Coders: tilghman
+
+   #16415: [patch] Message forwarding with prepention does not backup
+   original message and length as intended
+   Revision: 244242
+   Reporter: tomo1657
+   Coders: tomo1657
+
+   #16921: [patch] VoiceMail(vmbox@context,s) -> Regularly segfaults asterisk
+   Revision: 249671
+   Reporter: whardier
+   Testers: whardier
+   Coders: seanbright
+
+  Category: Applications/app_voicemail/IMAP
+
+   #16170: [patch] temporary greetings can't be erased in 1.4
+   Revision: 248668
+   Reporter: francesco_r
+   Coders: jpeeler
+
+   #16704: Lags when using imap
+   Revision: 250050
+   Reporter: TimeHider
+   Testers: lmadsen, TimeHider
+   Coders: lmadsen
+
+  Category: Channels/chan_agent
+
+   #16321: [patch] [regression] asterisk deadlocks and calls will stop
+   queueing.
+   Revision: 241227
+   Reporter: valon24
+   Coders: jpeeler
+
+  Category: Channels/chan_dahdi
+
+   #14163: [patch] UK (BT) lines produce uncleared red alarm on TDM400P
+   during line tests
+   Revision: 250480
+   Reporter: jedi98
+   Testers: mattbrown, Chainsaw, mikeeccleston
+   Coders: jedi98
+
+   #16789: [patch] Overlap receiving timeout, plus dialplan latency, causes
+   network to retry SETUP
+   Revision: 249365
+   Reporter: alecdavis
+   Testers: alecdavis
+   Coders: alecdavis
+
+  Category: Channels/chan_iax2
+
+   #15997: [patch] segfault in 1.6.1.6 in _ao2_find, called from chan_iax2
+   after approx. 75.000 calls
+   Revision: 245792
+   Reporter: exarv
+   Coders: dvossel
+
+   #16904: [patch] [regression] Duplicate TXREQ packets will cause chan_iax2
+   to reject an unrelated call in the future
+   Revision: 250394
+   Reporter: rain
+   Testers: rain, dvossel
+   Coders: rain
+
+  Category: Channels/chan_local
+
+   #14992: [patch] [regression] #0013747 not fixed for local channel
+   (Indications are not passed from old peer to new peer during masquerad
+   Revision: 244785
+   Reporter: davidw
+   Coders: jpeeler
+
+   #16581: Chan Local Fails to bridge from originate
+   Revision: 244070
+   Reporter: ZX81
+   Testers: kobaz, atis
+   Coders: tilghman
+
+   #16681: [regression] .call file not connecting to context: when channel:
+   answers
+   Revision: 244070
+   Reporter: alexr1
+   Testers: kobaz, atis
+   Coders: tilghman
+
+  Category: Channels/chan_sip/T.38
+
+   #16792: [patch] 606 Not Acceptable is also a valid response to reject a
+   T.38 re-INVITE
+   Revision: 249100
+   Reporter: vrban
+   Coders: vrban
+
+  Category: Channels/chan_sip/Transfers
+
+   #16862: [patch] [regression] One-legged Transfer (INVITE / Replaces) not
+   working anymore
+   Revision: 248396
+   Reporter: pwalker
+   Testers: pwalker, dvossel
+   Coders: dvossel
+
+  Category: Core/BuildSystem
+
+   #16666: [patch] Check on ac_cv_pthread_once_needsbraces fails
+   Revision: 241932
+   Reporter: romain_proformatique
+   Coders: seanbright
+
+  Category: Core/General
+
+   #16786: [patch] Remove coloring escape sequences from log files.
+   Revision: 248582
+   Reporter: dodo
+   Testers: tilghman
+   Coders: dodo
+
+  Category: Core/PBX
+
+   #16802: [patch] Unable to open pid file '/var/run/asterisk/asterisk.pid':
+   No such file or directory
+   Revision: 248859
+   Reporter: Brian
+   Testers: tzafrir
+   Coders: tilghman
+
+  Category: Documentation
+
+   #16267: [patch] unanswered has no effect
+   Revision: 250043
+   Reporter: elsto
+   Testers: davidw, elsto
+   Coders: lmadsen
+
+  Category: Features/Parking
+
+   #16429: [patch] Callee on outside line can take parking and forwarding
+   rights
+   Revision: 243390
+   Reporter: Yasuhiro Konishi
+   Testers: dvossel
+   Coders: Yasuhiro
+
+  Category: General
+
+   #16470: [patch] 'core stop when convenient' causes segfault
+   Revision: 248012
+   Reporter: kjotte
+   Coders: tilghman
+
+  Category: PBX/General
+
+   #16513: [patch] Transferee can hear silence on attended transfer when
+   tranferer hangs up (MOH stops to play)
+   Revision: 244151
+   Reporter: litnimax
+   Testers: litnimax
+   Coders: gknispel
+
+   #16816: [patch] Attended transfer broken in 1.6.2.2
+   Revision: 249536
+   Reporter: jamhed
+   Testers: jamhed, corruptor
+   Coders: jpeeler
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                           | Issues     |
+   |          |            |                                   | Referenced |
+   |----------+------------+-----------------------------------+------------|
+   | 240547   | russell    | Fix a spelling error in the       |            |
+   |          |            | asterisk.conf sample.             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 240768   | oej        | Fix muted compilation in 1.4 only |            |
+   |----------+------------+-----------------------------------+------------|
+   | 240891   | dvossel    | updated transmit_silence option   |            |
+   |          |            | documentation in asterisk.conf    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 241015   | seanbright | Plug a memory leak when reading   | #16554     |
+   |          |            | configs with their comments.      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 241228   | qwell      | Allow parallel make (-j) to work  | #16489     |
+   |          |            | properly.                         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 241458   | alecdavis  | Update CDR variables as pbx       | #16638     |
+   |          |            | starts                            |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Modify fix for issue 16554 to be  |            |
+   | 241544   | seanbright | more inline with what is already  | #16554     |
+   |          |            | in trunk.                         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 241626   | dvossel    | fixes parsing error in Makefile.  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 241765   | tilghman   | Guard against division by zero.   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 242142   | alecdavis  | Add Dialed Number Identifier      |            |
+   |          |            | (DNID) field to cdr.              |            |
+   |----------+------------+-----------------------------------+------------|
+   | 242226   | oej        | Initialize notify_types to NULL   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 242423   | tilghman   | Rebuild from flex, bison sources  | #14629     |
+   |          |            | when necessary.                   |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Only rebuild bison and flex       |            |
+   | 242520   | tilghman   | source files on demand, if bison  |            |
+   |          |            | and flex are detected by the      |            |
+   |          |            | configure script.                 |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Make the build of the Asterisk    |            |
+   | 242683   | tilghman   | expression parser match that of   |            |
+   |          |            | the AEL parser.                   |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Oops, should have used            |            |
+   | 242723   | tilghman   | CMD_PREFIX, not ECHO_PREFIX, for  |            |
+   |          |            | the commands.                     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 242728   | tilghman   | Buildbot pointed out an error     |            |
+   |          |            | (thanks, buildbot!)               |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Report error when writing to      |            |
+   | 242850   | oej        | functions returns error in AMI    |            |
+   |          |            | setvar action                     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Remove debugging that indeed      |            |
+   | 242851   | oej        | should have been gone before      |            |
+   |          |            | commit. Sorry.                    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 242852   | tilghman   | Restore FreeBSD to                |            |
+   |          |            | able-to-compile-ish-mode          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 242966   | tilghman   | Only rebuild parsers by an option |            |
+   |          |            | in menuselect                     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 242969   | tilghman   | Err, and use the new menuselect   |            |
+   |          |            | define, too.                      |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Remove unnecessary code in        |            |
+   | 243258   | jpeeler    | ast_read as issue 16058 has been  |            |
+   |          |            | fully solved now.                 |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Use a safe list traversal while   |            |
+   | 243486   | mmichelson | checking for duplicate vars in    |            |
+   |          |            | pbx_builtin_setvar_helper.        |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Revert 243570, I should have      |            |
+   | 243691   | jpeeler    | looked at this closer. Will       | #16488     |
+   |          |            | reopen the issue, but             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 243779   | russell    | Fix a bogus third argument to     |            |
+   |          |            | ast_copy_string().                |            |
+   |----------+------------+-----------------------------------+------------|
+   | 243862   | lmadsen    | Update location of bug tracker in |            |
+   |          |            | documentation.                    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 243863   | lmadsen    | Oops, correct wrong link (https   |            |
+   |          |            | vs. http) in previous commit.     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 244926   | seanbright | Update main copyright date.       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 245044   | kpfleming  | Remove contrib/firmware directory |            |
+   |          |            | as it is empty                    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 245422   | oej        | Res_features depends on res_adsi  |            |
+   |          |            | in 1.4                            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 245496   | qwell      | Remove reference of documentation |            |
+   |          |            | in source directory.              |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Make sure that res_smdi loads     |            |
+   | 245909   | oej        | regardless of configuration,      |            |
+   |          |            | since chan_dahdi depends on       |            |
+   |          |            | res_smdi                          |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Include examples of FILTER usage  |            |
+   | 245944   | tilghman   | in extension patterns where a "." |            |
+   |          |            | may be a risk.                    |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Fix some silly formatting, and    |            |
+   | 246460   | qwell      | remove unnecessary option_debug   |            |
+   |          |            | checks                            |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Make the menuselect instructions  |            |
+   | 246709   | tilghman   | correct by allowing 'make         |            |
+   |          |            | menuselect' to actually solve     |            |
+   |          |            | dependency problems.              |            |
+   |----------+------------+-----------------------------------+------------|
+   | 247422   | russell    | Tweak argument handling for wget  |            |
+   |          |            | in the sounds Makefile.           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 247502   | lmadsen    | Add best practices documentation. | #16808,    |
+   |          |            |                                   | #16810     |
+   |----------+------------+-----------------------------------+------------|
+   | 247508   | lmadsen    | Add additional link to best       |            |
+   |          |            | practices document per jsmith.    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 247910   | rmudgett   | Merged revision 247904 from       |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Make sure we support RTCP         |            |
+   | 248106   | oej        | compound messages with zero       |            |
+   |          |            | reports                           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 248268   | oej        | Don't log to debug unless debug   |            |
+   |          |            | is turned on                      |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Ensure that monitor recordings    |            |
+   | 248757   | jpeeler    | are written to the correct        |            |
+   |          |            | location.                         |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Ensure that monitor recordings    |            |
+   | 248860   | jpeeler    | are written to the correct        |            |
+   |          |            | location (again)                  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 249234   | kpfleming  | add a reference to the            |            |
+   |          |            | now-published IAX2 RFC            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 249845   | alecdavis  | fixes ability to exit echo app    | #16880     |
+   |----------+------------+-----------------------------------+------------|
+   | 249946   | alecdavis  | revert ability to exit echo app   | #16880     |
+   |----------+------------+-----------------------------------+------------|
+   | 250041   | lmadsen    | Update documentation to not imply | #16855     |
+   |          |            | we support overriding options.    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 250613   | lmadsen    | Update existing Local channel     | #16637     |
+   |          |            | documentation.                    |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ BUGS                               |    2
+ LICENSE                            |   11
+ Makefile                           |   15 -
+ README-SERIOUSLY.bestpractices.txt |  295 ++++++++++++++++++++++++
+ apps/app_echo.c                    |    3
+ apps/app_meetme.c                  |    4
+ apps/app_queue.c                   |   22 +
+ apps/app_voicemail.c               |  123 +++++++++-
+ build_tools/cflags.xml             |    5
+ build_tools/menuselect-deps.in     |    2
+ channels/chan_agent.c              |   23 +
+ channels/chan_dahdi.c              |   27 ++
+ channels/chan_iax2.c               |   18 +
+ channels/chan_local.c              |    7
+ channels/chan_misdn.c              |   32 --
+ channels/chan_sip.c                |   73 ++++--
+ configs/cdr.conf.sample            |    6
+ configs/extensions.conf.sample     |    4
+ configure.ac                       |   50 ++++
+ doc/configuration.txt              |   34 +-
+ doc/imapstorage.txt                |    6
+ doc/localchannel.txt               |  437 ++++++++++++++++++++++++++++++++++---
+ funcs/func_math.c                  |    6
+ include/asterisk/autoconfig.h.in   |   51 ++--
+ main/Makefile                      |   20 +
+ main/ast_expr2.fl                  |    2
+ main/ast_expr2f.c                  |    2
+ main/asterisk.c                    |   16 +
+ main/cdr.c                         |    1
+ main/channel.c                     |   77 ++----
+ main/config.c                      |   23 +
+ main/loader.c                      |   47 ++-
+ main/logger.c                      |    2
+ main/manager.c                     |   18 +
+ main/pbx.c                         |    9
+ main/rtp.c                         |    4
+ makeopts.in                        |    2
+ pbx/Makefile                       |   18 +
+ pbx/ael/ael_lex.c                  |   13 -
+ pbx/pbx_spool.c                    |    4
+ res/res_features.c                 |   75 ++++--
+ res/res_monitor.c                  |   22 -
+ res/res_smdi.c                     |    6
+ sounds/Makefile                    |    4
+ utils/Makefile                     |    4
+ 45 files changed, 1326 insertions(+), 299 deletions(-)
+
+     ----------------------------------------------------------------------
