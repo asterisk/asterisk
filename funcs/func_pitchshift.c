@@ -90,6 +90,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name = "low" />
 					<enum name = "lower" />
 					<enum name = "lowest" />
+				</enumlist>
 			</parameter>
 		</syntax>
 		<description>
