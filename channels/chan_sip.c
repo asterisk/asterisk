@@ -8791,7 +8791,19 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo, int needtext
 		dest->sin_port = p->redirip.sin_port;
 		dest->sin_addr = p->redirip.sin_addr;
 	} else {
-		dest->sin_addr = media_address.sin_addr.s_addr ? media_address.sin_addr : p->ourip.sin_addr;
+		/*
+		 * Audio Destination IP:
+		 *
+		 * 1. Specifically configured media address.
+		 * 2. Local address as specified by the RTP engine.
+		 * 3. The local IP as defined by chan_sip.
+		 *
+		 * Audio Destination Port:
+		 *
+		 * 1. Provided by the RTP engine.
+		 */
+		dest->sin_addr = media_address.sin_addr.s_addr ? media_address.sin_addr :
+					(sin->sin_addr.s_addr ? sin->sin_addr : p->ourip.sin_addr);
 		dest->sin_port = sin->sin_port;
 	}
 	if (needvideo) {
@@ -8800,7 +8812,19 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo, int needtext
 			vdest->sin_addr = p->vredirip.sin_addr;
 			vdest->sin_port = p->vredirip.sin_port;
 		} else {
-			vdest->sin_addr = media_address.sin_addr.s_addr ? media_address.sin_addr : p->ourip.sin_addr;
+			/*
+			 * Video Destination IP:
+			 *
+			 * 1. Specifically configured media address.
+			 * 2. Local address as specified by the RTP engine.
+			 * 3. The local IP as defined by chan_sip.
+			 *
+			 * Video Destination Port:
+			 *
+			 * 1. Provided by the RTP engine.
+			 */
+			vdest->sin_addr = media_address.sin_addr.s_addr ? media_address.sin_addr :
+						(vsin->sin_addr.s_addr ? vsin->sin_addr : p->ourip.sin_addr);
 			vdest->sin_port = vsin->sin_port;
 		}
 	}
@@ -8810,7 +8834,19 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo, int needtext
 			tdest->sin_addr = p->tredirip.sin_addr;
 			tdest->sin_port = p->tredirip.sin_port;
 		} else {
-			tdest->sin_addr = media_address.sin_addr.s_addr ? media_address.sin_addr : p->ourip.sin_addr;
+			/*
+			 * Text Destination IP:
+			 *
+			 * 1. Specifically configured media address.
+			 * 2. Local address as specified by the RTP engine.
+			 * 3. The local IP as defined by chan_sip.
+			 *
+			 * Text Destination Port:
+			 *
+			 * 1. Provided by the RTP engine.
+			 */
+			tdest->sin_addr = media_address.sin_addr.s_addr ? media_address.sin_addr :
+						(tsin->sin_addr.s_addr ? tsin->sin_addr : p->ourip.sin_addr);
 			tdest->sin_port = tsin->sin_port;
 		}
 	}
@@ -9235,6 +9271,7 @@ static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, const 
 			ast_debug(1, "Setting framing from config on incoming call\n");
 			ast_rtp_codecs_packetization_set(ast_rtp_instance_get_codecs(p->rtp), p->rtp, &p->prefs);
 		}
+		ast_rtp_instance_activate(p->rtp);
 		try_suggested_sip_codec(p);
 		if (p->t38.state == T38_ENABLED) {
 			add_sdp(&resp, p, oldsdp, TRUE, TRUE);
@@ -16671,6 +16708,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 				/* Queue a progress frame only if we have SDP in 180 or 182 */
 				ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
 			}
+			ast_rtp_instance_activate(p->rtp);
 		}
 		check_pendings(p);
 		break;
@@ -16708,6 +16746,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 				/* Queue a progress frame */
 				ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
 			}
+			ast_rtp_instance_activate(p->rtp);
 		} else {
 			/* Alcatel PBXs are known to send 183s with no SDP after sending
 			 * a 100 Trying response. We're just going to treat this sort of thing
@@ -16730,6 +16769,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 					/* This 200 OK's SDP is not acceptable, so we need to ack, then hangup */
 					/* For re-invites, we try to recover */
 					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);
+			ast_rtp_instance_activate(p->rtp);
 		}
 
 		if (!req->ignore && p->owner && (get_rpid(p, req) || !reinvite)) {
