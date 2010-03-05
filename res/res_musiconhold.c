@@ -510,7 +510,7 @@ static int spawn_mp3(struct mohclass *class)
 #ifdef HAVE_CAP
 		cap_t cap;
 #endif
-		if (strcasecmp(class->dir, "nodir") && chdir(class->dir) < 0) {
+		if (strncasecmp(class->dir, "http://", 7) && strcasecmp(class->dir, "nodir") && chdir(class->dir) < 0) {
 			ast_log(LOG_WARNING, "chdir() failed: %s\n", strerror(errno));
 			_exit(1);
 		}
