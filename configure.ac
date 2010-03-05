@@ -306,7 +306,6 @@ AST_EXT_LIB_SETUP([CRYPTO], [OpenSSL Cryptography support], [crypto])
 AST_EXT_LIB_SETUP([DAHDI], [DAHDI], [dahdi])
 AST_EXT_LIB_SETUP([FFMPEG], [Ffmpeg and avcodec library], [avcodec])
 AST_EXT_LIB_SETUP([GSM], [External GSM library], [gsm], [, use 'internal' GSM otherwise])
-AST_EXT_LIB_SETUP([GTK], [gtk libraries], [gtk])
 AST_EXT_LIB_SETUP([GTK2], [gtk2 libraries], [gtk2])
 AST_EXT_LIB_SETUP([GMIME], [GMime library], [gmime])
 AST_EXT_LIB_SETUP([HOARD], [Hoard Memory Allocator], [hoard])
@@ -1804,9 +1803,6 @@ if test "${cross_compiling}" = "no";
 then
   AC_CHECK_FILE(/sbin/launchd, AC_DEFINE([HAVE_SBIN_LAUNCHD], 1, [Define to 1 if your system has /sbin/launchd.]))
 fi
-
-PBX_GTK=0
-AST_EXT_TOOL_CHECK([GTK], [gtk-config], [--cflags gthread], [--libs gthread])
 
 PBX_GTK2=0
 AC_CHECK_TOOL(PKGCONFIG, pkg-config, No)
