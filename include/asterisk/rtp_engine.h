@@ -92,10 +92,15 @@ enum ast_rtp_property {
 	AST_RTP_PROPERTY_STUN,
 	/*! Enable RTCP support */
 	AST_RTP_PROPERTY_RTCP,
-	/*! Maximum number of RTP properties supported */
-	AST_RTP_PROPERTY_MAX,
 	/*! Don't force a new SSRC on new source */
 	AST_RTP_PROPERTY_CONSTANT_SSRC,
+
+	/*!
+	 * \brief Maximum number of RTP properties supported
+	 *
+	 * \note THIS MUST BE THE LAST ENTRY IN THIS ENUM.
+	 */
+	AST_RTP_PROPERTY_MAX,
 };
 
 /*! Additional RTP options */
