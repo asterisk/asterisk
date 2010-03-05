@@ -2,6 +2,15 @@
 
 	* Asterisk 1.6.2.6-rc2 released
 
+2010-03-05  Tilghman Lesher <tlesher@digium.com>
+
+	* /, apps/app_voicemail.c: Merged revisions 250913 via svnmerge from
+    https://origsvn.digium.com/svn/asterisk/trunk ........ r250913 | tilghman
+    | 2010-03-04 22:37:36 -0600 (Thu, 04 Mar 2010) | 7 lines Missing quote in
+    ODBC query. (closes issue #16953) Reported by: elguero Patches:
+    app_voicemail-odbc-syntax-fix.diff uploaded by elguero (license 37)
+    ........
+
 2010-03-04  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.6.2.6-rc1 released
