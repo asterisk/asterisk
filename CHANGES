@@ -143,6 +143,8 @@ Applications
 
 Dialplan Functions
 ------------------
+ * PITCH_SHIFT dialplan function added. This function can be used to modify the
+   pitch of a channel's tx and rx audio streams.
  * Added new dialplan functions CONNECTEDLINE and REDIRECTING which permits
    setting various connected line and redirecting party information.
  * CALLERID and CONNECTEDLINE dialplan functions have been extended to
