@@ -20089,6 +20089,11 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 	/* Must release lock now, because it will not longer
 	   be accessible after the transfer! */
 	*nounlock = 1;
+	/*
+	 * Increase ref count so that we can delay channel destruction until after
+	 * we get a chance to fire off some events.
+	 */
+	ast_channel_ref(current.chan1);
 	ast_channel_unlock(current.chan1);
 
 	/* Connect the call */
@@ -20113,6 +20118,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		transmit_notify_with_sipfrag(p, seqno, "503 Service Unavailable (can't handle one-legged xfers)", TRUE);
 		ast_clear_flag(&p->flags[0], SIP_GOTREFER);	
 		append_history(p, "Xfer", "Refer failed (only bridged calls).");
+		ast_channel_unref(current.chan1);
 		return -1;
 	}
 	ast_set_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Delay hangup */
@@ -20163,6 +20169,9 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		ast_clear_flag(&p->flags[0], SIP_GOTREFER);	
 		res = -1;
 	}
+
+	ast_channel_unref(current.chan1);
+
 	return res;
 }
 
