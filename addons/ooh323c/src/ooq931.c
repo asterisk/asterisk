@@ -171,7 +171,7 @@ EXTERN int ooQ931Decode
       if(ie->discriminator == Q931KeypadIE)
       {
          OOTRACEDBGB1("   Keypad IE = {\n");
-         OOTRACEDBGB2("      %s\n", ie->data);
+         OOTRACEDBGB2("      %c\n", ie->data[0]);
          OOTRACEDBGB1("   }\n");
          if(docallbacks && gH323ep.h323Callbacks.onReceivedDTMF)
          {
