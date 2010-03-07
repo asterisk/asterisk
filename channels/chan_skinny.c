@@ -2412,6 +2412,26 @@ static void transmit_stopmediatransmission(struct skinny_device *d, struct skinn
 	transmit_response(d, req);
 }
 
+static void transmit_startmediatransmission(struct skinny_device *d, struct skinny_subchannel *sub, struct sockaddr_in dest, struct ast_format_list fmt)
+{
+	struct skinny_req *req;
+
+	if (!(req = req_alloc(sizeof(struct start_media_transmission_message), START_MEDIA_TRANSMISSION_MESSAGE)))
+		return;
+
+	req->data.startmedia.conferenceId = htolel(sub->callid);
+	req->data.startmedia.passThruPartyId = htolel(sub->callid);
+	req->data.startmedia.remoteIp = dest.sin_addr.s_addr;
+	req->data.startmedia.remotePort = htolel(ntohs(dest.sin_port));
+	req->data.startmedia.packetSize = htolel(fmt.cur_ms);
+	req->data.startmedia.payloadType = htolel(codec_ast2skinny(fmt.bits));
+	req->data.startmedia.qualifier.precedence = htolel(127);
+	req->data.startmedia.qualifier.vad = htolel(0);
+	req->data.startmedia.qualifier.packets = htolel(0);
+	req->data.startmedia.qualifier.bitRate = htolel(0);
+	transmit_response(d, req);
+}
+
 static void transmit_activatecallplane(struct skinny_device *d, struct skinny_line *l)
 {
 	struct skinny_req *req;
@@ -2479,6 +2499,8 @@ static void transmit_cfwdstate(struct skinny_device *d, struct skinny_line *l)
 
 	transmit_response(d, req);
 }
+
+
 
 static int skinny_extensionstate_cb(char *context, char *exten, int state, void *data)
 {
@@ -2661,11 +2683,9 @@ static int skinny_set_rtp_peer(struct ast_channel *c, struct ast_rtp_instance *r
 	struct skinny_subchannel *sub;
 	struct skinny_line *l;
 	struct skinny_device *d;
-	struct skinnysession *s;
 	struct ast_format_list fmt;
 	struct sockaddr_in us = { 0, };
 	struct sockaddr_in them = { 0, };
-	struct skinny_req *req;
 	
 	sub = c->tech_pvt;
 
@@ -2678,47 +2698,28 @@ static int skinny_set_rtp_peer(struct ast_channel *c, struct ast_rtp_instance *r
 
 	l = sub->parent;
 	d = l->device;
-	s = d->session;
 
 	if (rtp){
 		ast_rtp_instance_get_remote_address(rtp, &them);
 
 		/* Shutdown any early-media or previous media on re-invite */
-		if (!(req = req_alloc(sizeof(struct stop_media_transmission_message), STOP_MEDIA_TRANSMISSION_MESSAGE)))
-			return -1;
-
-		req->data.stopmedia.conferenceId = htolel(sub->callid);
-		req->data.stopmedia.passThruPartyId = htolel(sub->callid);
-		transmit_response(d, req);
-
+		transmit_stopmediatransmission(d, sub);
+		
 		if (skinnydebug)
 			ast_verb(1, "Peerip = %s:%d\n", ast_inet_ntoa(them.sin_addr), ntohs(them.sin_port));
-
-		if (!(req = req_alloc(sizeof(struct start_media_transmission_message), START_MEDIA_TRANSMISSION_MESSAGE)))
-			return -1;
 
 		fmt = ast_codec_pref_getsize(&l->prefs, ast_best_codec(l->capability));
 
 		if (skinnydebug)
 			ast_verb(1, "Setting payloadType to '%s' (%d ms)\n", ast_getformatname(fmt.bits), fmt.cur_ms);
 
-		req->data.startmedia.conferenceId = htolel(sub->callid);
-		req->data.startmedia.passThruPartyId = htolel(sub->callid);
 		if (!(l->directmedia) || (l->nat)){
 			ast_rtp_instance_get_local_address(rtp, &us);
-			req->data.startmedia.remoteIp = d->ourip.s_addr;
-			req->data.startmedia.remotePort = htolel(ntohs(us.sin_port));
+			us.sin_addr.s_addr = us.sin_addr.s_addr ? us.sin_addr.s_addr : d->ourip.s_addr;
+			transmit_startmediatransmission(d, sub, us, fmt);
 		} else {
-			req->data.startmedia.remoteIp = them.sin_addr.s_addr;
-			req->data.startmedia.remotePort = htolel(ntohs(them.sin_port));
+			transmit_startmediatransmission(d, sub, them, fmt);
 		}
-		req->data.startmedia.packetSize = htolel(fmt.cur_ms);
-		req->data.startmedia.payloadType = htolel(codec_ast2skinny(fmt.bits));
-		req->data.startmedia.qualifier.precedence = htolel(127);
-		req->data.startmedia.qualifier.vad = htolel(0);
-		req->data.startmedia.qualifier.packets = htolel(0);
-		req->data.startmedia.qualifier.bitRate = htolel(0);
-		transmit_response(d, req);
 
 		return 0;
 	}
@@ -5628,33 +5629,23 @@ static int handle_open_receive_channel_ack_message(struct skinny_req *req, struc
 	if (sub->rtp) {
 		ast_rtp_instance_set_remote_address(sub->rtp, &sin);
 		ast_rtp_instance_get_local_address(sub->rtp, &us);
+		us.sin_addr.s_addr = us.sin_addr.s_addr ? us.sin_addr.s_addr : d->ourip.s_addr;
 	} else {
 		ast_log(LOG_ERROR, "No RTP structure, this is very bad\n");
 		return 0;
 	}
 
-	if (skinnydebug)
-		ast_verb(1, "ipaddr = %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
-
-	if (!(req = req_alloc(sizeof(struct start_media_transmission_message), START_MEDIA_TRANSMISSION_MESSAGE)))
-		return -1;
+	if (skinnydebug) {
+		ast_verb(1, "device ipaddr = %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+		ast_verb(1, "asterisk ipaddr = %s:%d\n", ast_inet_ntoa(us.sin_addr), ntohs(us.sin_port));
+	}
 
 	fmt = ast_codec_pref_getsize(&l->prefs, ast_best_codec(l->capability));
 
 	if (skinnydebug)
 		ast_verb(1, "Setting payloadType to '%s' (%d ms)\n", ast_getformatname(fmt.bits), fmt.cur_ms);
 
-	req->data.startmedia.conferenceId = htolel(sub->callid);
-	req->data.startmedia.passThruPartyId = htolel(sub->callid);
-	req->data.startmedia.remoteIp = d->ourip.s_addr;
-	req->data.startmedia.remotePort = htolel(ntohs(us.sin_port));
-	req->data.startmedia.packetSize = htolel(fmt.cur_ms);
-	req->data.startmedia.payloadType = htolel(codec_ast2skinny(fmt.bits));
-	req->data.startmedia.qualifier.precedence = htolel(127);
-	req->data.startmedia.qualifier.vad = htolel(0);
-	req->data.startmedia.qualifier.packets = htolel(0);
-	req->data.startmedia.qualifier.bitRate = htolel(0);
-	transmit_response(d, req);
+	transmit_startmediatransmission(d, sub, us, fmt);
 
 	return 1;
 }
