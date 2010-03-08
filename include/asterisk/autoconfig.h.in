@@ -425,6 +425,12 @@
 /* Define to the version of the Jack Audio Connection Kit library. */
 #undef HAVE_JACK_VERSION
 
+/* Define to 1 if you have the kqueue support library. */
+#undef HAVE_KQUEUE
+
+/* Define to the version of the kqueue support library. */
+#undef HAVE_KQUEUE_VERSION
+
 /* Define to 1 if you have the OpenLDAP library. */
 #undef HAVE_LDAP
 

@@ -46,6 +46,9 @@ endif
 ifneq ($(findstring darwin,$(OSARCH)),)
   AST_LIBS+=-lresolv
   ASTLINK=-Xlinker -macosx_version_min -Xlinker 10.4 -Xlinker -undefined -Xlinker dynamic_lookup -force_flat_namespace
+  ifeq ($(shell /usr/bin/sw_vers -productVersion | cut -c1-4),10.6)
+    ASTLINK+=/usr/lib/bundle1.o
+  endif
 else
 # These are used for all but Darwin
   ifneq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)

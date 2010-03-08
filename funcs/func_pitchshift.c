@@ -108,7 +108,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</function>
  ***/
 
+#ifndef M_PI
 #define M_PI 3.14159265358979323846
+#endif
 #define MAX_FRAME_LENGTH 256
 
 #define HIGHEST 2
