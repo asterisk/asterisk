@@ -112,7 +112,7 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 		timeout *= 1000;
 	}
 	dial = strsep(&s, "|");
-	if(!dial) {
+	if (ast_strlen_zero(dial)) {
 		ast_log(LOG_WARNING, "PARK: A dial resource must be specified i.e: Console/dsp or Zap/g1/5551212\n");
 		ast_module_user_remove(u);
 		return -1;
