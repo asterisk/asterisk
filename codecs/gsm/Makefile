@@ -40,7 +40,12 @@ WAV49	= -DWAV49
 ifeq (, $(findstring $(OSARCH) , Darwin SunOS ))
 ifeq (, $(findstring $(PROC) , x86_64 amd64 ultrasparc sparc64 arm armv5b armeb ppc powerpc ppc64 ia64 s390 bfin mipsel mips))
 ifeq (, $(findstring $(shell uname -m) , ppc ppc64 alpha armv4l s390 ))
+ifeq ($(shell /usr/bin/sw_vers -productVersion | cut -c1-4),10.6)
+# Wow... Snow Leopard is BROKEN!
+OPTIMIZE+=-mtune=native
+else
 OPTIMIZE+=-march=$(PROC)
+endif
 endif
 endif
 endif
