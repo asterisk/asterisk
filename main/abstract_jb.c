@@ -498,12 +498,14 @@ static int create_jb(struct ast_channel *chan, struct ast_frame *frr)
 
 		snprintf(logfile_pathname, sizeof(logfile_pathname),
 			"/tmp/ast_%s_jb_%s--%s.log", jbimpl->name, name1, name2);
-		if (!(safe_fd = mkstemp(safe_logfile)) > -1 || unlink(logfile_pathname) || link(safe_logfile, logfile_pathname) || unlink(safe_logfile) || !(jb->logfile = fdopen(safe_fd, "w+b"))) {
+		unlink(logfile_pathname);
+		safe_fd = mkstemp(safe_logfile);
+		if (safe_fd < 0 || link(safe_logfile, logfile_pathname) || unlink(safe_logfile) || !(jb->logfile = fdopen(safe_fd, "w+b"))) {
+			ast_log(LOG_ERROR, "Failed to create frame log file with pathname '%s': %s\n", logfile_pathname, strerror(errno));
 			jb->logfile = NULL;
 			if (safe_fd > -1) {
 				close(safe_fd);
 			}
-			ast_log(LOG_ERROR, "Failed to create frame log file with pathname '%s': %s\n", logfile_pathname, strerror(errno));
 		}
 
 		if (res == JB_IMPL_OK) {
