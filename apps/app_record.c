@@ -76,7 +76,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>Ignore all terminator keys (DTMF) and keep recording until hangup.</para>
 					</option>
 					<option name="k">
-					        <para>Keep recording if channel hangs up.</para>
+					        <para>Keep recorded file upon hangup.</para>
 					</option>
 					<option name="y">
 					        <para>Terminate recording if *any* DTMF digit is received.</para>
