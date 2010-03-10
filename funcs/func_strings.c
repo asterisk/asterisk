@@ -552,7 +552,7 @@ static int listfilter(struct ast_channel *chan, const char *cmd, char *parse, ch
 				ast_str_append(result_ptr, len, "%s", delim);
 			}
 
-			ast_str_append_substr(result_ptr, len, begin, cur - begin + 1);
+			ast_str_append_substr(result_ptr, len, begin, cur - begin);
 			first = 0;
 			begin = cur + dlen;
 		}
