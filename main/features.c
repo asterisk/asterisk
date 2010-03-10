@@ -574,6 +574,8 @@ static struct parkeduser *park_space_reserve(struct ast_channel *chan,
 	
 	if (peer)
 		parkinglotname = findparkinglotname(peer);
+	else /* peer was NULL, check chan (ParkAndAnnounce / res_agi) */
+		parkinglotname = findparkinglotname(chan);
 
 	if (parkinglotname) {
 		if (option_debug)
@@ -890,7 +892,7 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, i
 	return 0;
 }
 
-/* Park call via masquraded channel */
+/* Park call via masqueraded channel */
 int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout)
 {
 	return masq_park_call(rchan, peer, timeout, extout, 0, NULL);
