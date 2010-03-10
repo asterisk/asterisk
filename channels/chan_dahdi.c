@@ -11880,7 +11880,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 	return tmp;
 }
 
-static inline int available(struct dahdi_pvt *p, int channelmatch, ast_group_t groupmatch, int *reason, int *channelmatched, int *groupmatched)
+static inline int available(struct dahdi_pvt *p, int channelmatch, ast_group_t groupmatch, int *channelmatched, int *groupmatched)
 {
 	/* First, check group matching */
 	if (groupmatch) {
@@ -11899,12 +11899,12 @@ static inline int available(struct dahdi_pvt *p, int channelmatch, ast_group_t g
 		return 0;
 
 	if (analog_lib_handles(p->sig, p->radio, p->oprmode))
-		return analog_available(p->sig_pvt, reason);
+		return analog_available(p->sig_pvt);
 
 #ifdef HAVE_PRI
 	switch (p->sig) {
 	case SIG_PRI_LIB_HANDLE_CASES:
-		return sig_pri_available(p->sig_pvt, reason);
+		return sig_pri_available(p->sig_pvt);
 	default:
 		break;
 	}
@@ -12094,7 +12094,6 @@ static struct ast_channel *dahdi_request(const char *type, format_t format, cons
 	int channelmatch = -1;
 	int roundrobin = 0;
 	int callwait = 0;
-	int unavailreason = 0;
 	struct dahdi_pvt *p;
 	struct ast_channel *tmp = NULL;
 	char *dest;
@@ -12200,7 +12199,7 @@ static struct ast_channel *dahdi_request(const char *type, format_t format, cons
 		ast_verbose("name = %s, %d, %d, %llu\n",p->owner ? p->owner->name : "<none>", p->channel, channelmatch, groupmatch);
 #endif
 
-		if (p && available(p, channelmatch, groupmatch, &unavailreason, &channelmatched, &groupmatched)) {
+		if (p && available(p, channelmatch, groupmatch, &channelmatched, &groupmatched)) {
 			ast_debug(1, "Using channel %d\n", p->channel);
 
 			callwait = (p->owner != NULL);
@@ -12277,14 +12276,16 @@ next:
 	}
 	ast_mutex_unlock(&iflock);
 	restart_monitor();
-	if (callwait)
-		*cause = AST_CAUSE_BUSY;
-	else if (!tmp) {
-		if (channelmatched) {
-			if (unavailreason)
-				*cause = AST_CAUSE_BUSY;
+	if (cause && !tmp) {
+		if (callwait || channelmatched) {
+			*cause = AST_CAUSE_BUSY;
 		} else if (groupmatched) {
-			*cause = (unavailreason) ? unavailreason : AST_CAUSE_CONGESTION;
+			*cause = AST_CAUSE_CONGESTION;
+		} else {
+			/*
+			 * We did not match any channel requested.
+			 * Dialplan error requesting non-existant channel?
+			 */
 		}
 	}
 

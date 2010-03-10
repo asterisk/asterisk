@@ -649,17 +649,11 @@ struct ast_channel * analog_request(struct analog_pvt *p, int *callwait, const s
 	return analog_new_ast_channel(p, AST_STATE_RESERVED, 0, p->owner ? ANALOG_SUB_CALLWAIT : ANALOG_SUB_REAL, requestor);
 }
 
-int analog_available(struct analog_pvt *p, int *busy)
+int analog_available(struct analog_pvt *p)
 {
 	int offhook;
 
 	ast_log(LOG_DEBUG, "%s %d\n", __FUNCTION__, p->channel);
-	/* We're at least busy at this point */
-	if (busy) {
-		if ((p->sig == ANALOG_SIG_FXOKS) || (p->sig == ANALOG_SIG_FXOLS) || (p->sig == ANALOG_SIG_FXOGS)) {
-			*busy = 1;
-		}
-	}
 	/* If do not disturb, definitely not */
 	if (p->dnd) {
 		return 0;

@@ -3863,22 +3863,17 @@ int sig_pri_answer(struct sig_pri_chan *p, struct ast_channel *ast)
 	return res;
 }
 
-int sig_pri_available(struct sig_pri_chan *p, int *reason)
+int sig_pri_available(struct sig_pri_chan *p)
 {
 	/* If no owner and interface has a B channel then likely available */
 	if (!p->owner && !p->no_b_channel && p->pri) {
+		if (p->resetting || p->call
 #if defined(HAVE_PRI_SERVICE_MESSAGES)
-		if (p->resetting || p->call || p->service_status) {
-			if (p->service_status) {
-				*reason = AST_CAUSE_REQUESTED_CHAN_UNAVAIL;
-			}
-			return 0;
-		}
-#else
-		if (p->resetting || p->call) {
-			return 0;
-		}
+			|| p->service_status
 #endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */
+			) {
+			return 0;
+		}
 		return 1;
 	}
 
