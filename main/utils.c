@@ -1561,6 +1561,7 @@ int __ast_string_field_init(struct ast_string_field_mgr *mgr, struct ast_string_
 #endif
 	if (needed > 0) {		/* allocate the initial pool */
 		*pool_head = NULL;
+		mgr->embedded_pool = NULL;
 		return add_string_pool(mgr, pool_head, needed, file, lineno, func);
 	}
 
