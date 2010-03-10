@@ -56,6 +56,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/global_datastores.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/cel.h"
+#include "asterisk/test.h"
 
 /*** DOCUMENTATION
 	<application name="Bridge" language="en_US">
@@ -702,6 +703,8 @@ static struct parkeduser *park_space_reserve(struct ast_channel *chan, struct as
 
 	if (peer)
 		parkinglotname = findparkinglotname(peer);
+	else /* peer was NULL, check chan (ParkAndAnnounce / res_agi) */
+		parkinglotname = findparkinglotname(chan);
 
 	if (parkinglotname) {
 		ast_debug(1, "Found chanvar Parkinglot: %s\n", parkinglotname);
@@ -856,17 +859,17 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 	const char *event_from;
 
 	if (pu == NULL)
-		pu = park_space_reserve(chan, peer, args);
+		args->pu = pu = park_space_reserve(chan, peer, args);
 	if (pu == NULL)
 		return 1; /* Continue execution if possible */
 
 	snprintf(pu->parkingexten, sizeof(pu->parkingexten), "%d", pu->parkingnum);
-	
+
 	chan->appl = "Parked Call";
-	chan->data = NULL; 
+	chan->data = NULL;
 
 	pu->chan = chan;
-	
+
 	/* Put the parked channel on hold if we have two different channels */
 	if (chan != peer) {
 		if (ast_test_flag(args, AST_PARK_OPT_RINGING)) {
@@ -1067,7 +1070,7 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, i
 	return 0;
 }
 
-/* Park call via masquraded channel */
+/* Park call via masqueraded channel */
 int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int timeout, int *extout)
 {
 	return masq_park_call(rchan, peer, timeout, extout, 0, NULL);
@@ -1083,8 +1086,176 @@ static int masq_park_call_announce(struct ast_channel *rchan, struct ast_channel
 	return masq_park_call(rchan, peer, timeout, extout, 1, NULL);
 }
 
-/*! 
- * \brief set caller and callee according to the direction 
+#ifdef TEST_FRAMEWORK
+static int fake_fixup(struct ast_channel *clonechan, struct ast_channel *original)
+{
+	return 0;
+}
+
+static struct ast_channel *create_test_channel(const struct ast_channel_tech *fake_tech)
+{
+	struct ast_channel *test_channel1;
+	if (!(test_channel1 = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL,
+        NULL, NULL, 0, 0, "TestChannel1"))) {
+		return NULL;
+	}
+
+	/* normally this is done in the channel driver */
+	test_channel1->nativeformats = AST_FORMAT_GSM;
+	test_channel1->writeformat = AST_FORMAT_GSM;
+	test_channel1->rawwriteformat = AST_FORMAT_GSM;
+	test_channel1->readformat = AST_FORMAT_GSM;
+	test_channel1->rawreadformat = AST_FORMAT_GSM;
+	test_channel1->tech = fake_tech;
+
+	return test_channel1;
+}
+
+static int unpark_test_channel(struct ast_channel *toremove, struct ast_park_call_args *args)
+{
+	struct ast_context *con;
+	struct parkeduser *pu_toremove;
+	args->pu->notquiteyet = 1; /* go ahead and stop processing the test parking */
+	AST_LIST_LOCK(&args->pu->parkinglot->parkings);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&args->pu->parkinglot->parkings, pu_toremove, list) {
+		con = ast_context_find(args->pu->parkinglot->parking_con);
+		if (con) {
+			if (ast_context_remove_extension2(con, args->pu->parkingexten, 1, NULL, 0)) {
+				ast_log(LOG_WARNING, "Whoa, failed to remove the parking extension!\n");
+				return -1;
+			} else {
+				notify_metermaids(args->pu->parkingexten, pu_toremove->parkinglot->parking_con, AST_DEVICE_NOT_INUSE);
+			}
+		} else {
+			ast_log(LOG_WARNING, "Whoa, no parking context?\n");
+			return -1;
+		}
+		if (pu_toremove == args->pu) {
+			AST_LIST_REMOVE_CURRENT(list);
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+	AST_LIST_UNLOCK(&args->pu->parkinglot->parkings);
+
+	/* the only way this would be unsafe is if a timeout occurred, which is set at 45 sec */
+	ast_free(args->pu);
+	args->pu = NULL;
+
+	ast_hangup(toremove);
+	return 0;
+}
+
+AST_TEST_DEFINE(features_test)
+{
+	int saved_parkeddynamic;
+	struct ast_channel *test_channel1 = NULL;
+	struct ast_channel *parked_chan = NULL;
+	struct ast_parkinglot *dynlot = NULL;
+	struct ast_park_call_args args = {
+		.timeout = DEFAULT_PARK_TIME,
+	};
+
+	int res = -1;
+
+	static const struct ast_channel_tech fake_tech = {
+		.fixup = fake_fixup, /* silence warning from masquerade */
+	};
+
+	static const char unique_parkinglot[] = "myuniquetestparkinglot3141592654";
+	static const char parkinglot_range[] = "750-760";
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "features_test";
+		info->category = "main/features/";
+		info->summary = "Features unit test";
+		info->description =
+			"Tests whether parking respects PARKINGLOT settings";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	/* changing a config option is a bad practice, but must be done in this case */
+	saved_parkeddynamic = parkeddynamic;
+	parkeddynamic = 1;
+
+	if (!(test_channel1 = create_test_channel(&fake_tech))) {
+		goto exit_features_test;
+	}
+
+	ast_test_status_update(test, "Test parking functionality with defaults\n");
+	if (park_call_full(test_channel1, NULL, &args)) {
+		goto exit_features_test;
+	}
+	if (unpark_test_channel(test_channel1, &args)) {
+		goto exit_features_test;
+	}
+
+	ast_test_status_update(test, "Check that certain parking options are respected\n");
+	if (!(test_channel1 = create_test_channel(&fake_tech))) {
+		goto exit_features_test;
+	}
+	pbx_builtin_setvar_helper(test_channel1, "PARKINGLOT", unique_parkinglot);
+	pbx_builtin_setvar_helper(test_channel1, "PARKINGDYNPOS", parkinglot_range);
+	if (park_call_full(test_channel1, NULL, &args)) {
+		goto exit_features_test;
+	}
+	/* grab newly created parking lot for destruction in the end */
+	dynlot = args.pu->parkinglot;
+	if (!args.pu->parkingnum == 750 || strcasecmp(args.pu->parkinglot->name, unique_parkinglot)) {
+		ast_test_status_update(test, "Parking settings were not respected\n");
+		goto exit_features_test;
+	} else {
+		ast_test_status_update(test, "Parking settings for non-masquerading park verified\n");
+	}
+	if (unpark_test_channel(test_channel1, &args)) {
+		goto exit_features_test;
+	}
+
+	ast_test_status_update(test, "Check #2 that certain parking options are respected\n");
+	if (!(test_channel1 = create_test_channel(&fake_tech))) {
+		goto exit_features_test;
+	}
+	pbx_builtin_setvar_helper(test_channel1, "PARKINGLOT", unique_parkinglot);
+	pbx_builtin_setvar_helper(test_channel1, "PARKINGDYNPOS", parkinglot_range);
+	if (masq_park_call(test_channel1, NULL, 0, NULL, 0, &args) == AST_FEATURE_RETURN_PARKFAILED) {
+		goto exit_features_test;
+	}
+	/* hangup zombie channel */
+	ast_hangup(test_channel1);
+	test_channel1 = NULL;
+	if (!args.pu->parkingnum == 750 || strcasecmp(args.pu->parkinglot->name, unique_parkinglot)) {
+		ast_test_status_update(test, "Parking settings were not respected\n");
+		goto exit_features_test;
+	} else {
+		ast_test_status_update(test, "Parking settings for masquerading park verified\n");
+	}
+	/* find the real channel */
+	parked_chan = ast_channel_get_by_name("TestChannel1");
+	if (unpark_test_channel(parked_chan, &args)) {
+		goto exit_features_test;
+	}
+
+	res = 0;
+
+exit_features_test:
+
+	if (test_channel1) {
+		ast_hangup(test_channel1);
+	}
+
+	/* careful, if PARKINGDYNCONTEXT is tested, need to delete context */
+	ao2_unlink(parkinglots, dynlot);
+	parkeddynamic = saved_parkeddynamic;
+	return res ? AST_TEST_FAIL : AST_TEST_PASS;
+}
+#endif
+
+
+/*!
+ * \brief set caller and callee according to the direction
  * \param caller, callee, peer, chan, sense
  *
  * Detect who triggered feature and set callee/caller variables accordingly
@@ -5258,6 +5429,9 @@ int ast_features_init(void)
 	}
 
 	res |= ast_devstate_prov_add("Park", metermaidstate);
+#ifdef TEST_FRAMEWORK
+	res |= AST_TEST_REGISTER(features_test);
+#endif
 
 	return res;
 }
