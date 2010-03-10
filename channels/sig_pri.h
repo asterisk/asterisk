@@ -97,7 +97,7 @@ struct sig_pri_callback {
 #define DAHDI_OVERLAPDIAL_INCOMING 2
 #define DAHDI_OVERLAPDIAL_BOTH (DAHDI_OVERLAPDIAL_INCOMING|DAHDI_OVERLAPDIAL_OUTGOING)
 
-#ifdef HAVE_PRI_SERVICE_MESSAGES
+#if defined(HAVE_PRI_SERVICE_MESSAGES)
 /*! \brief Persistent Service State */
 #define SRVST_DBKEY "service-state"
 /*! \brief The out-of-service SERVICE state */
@@ -117,7 +117,7 @@ struct sig_pri_callback {
 
 /*! \brief The AstDB family */
 static const char dahdi_db[] = "dahdi/registry";
-#endif
+#endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */
 
 struct sig_pri_chan {
 	/* Options to be set by user */
@@ -173,6 +173,10 @@ struct sig_pri_chan {
 	int prioffset;					/*!< channel number in span */
 	int logicalspan;				/*!< logical span number within trunk group */
 	int mastertrunkgroup;			/*!< what trunk group is our master */
+#if defined(HAVE_PRI_SERVICE_MESSAGES)
+	/*! \brief Active SRVST_DBKEY out-of-service status value. */
+	unsigned service_status;
+#endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */
 
 	struct sig_pri_callback *calls;
 	void *chan_pvt;					/*!< Private structure of the user of this module. */
@@ -190,9 +194,9 @@ struct sig_pri_pri {
 	int facilityenable;								/*!< Enable facility IEs */
 	int dchan_logical_span[NUM_DCHANS];				/*!< Logical offset the DCHAN sits in */
 	int fds[NUM_DCHANS];							/*!< FD's for d-channels */
-#ifdef HAVE_PRI_SERVICE_MESSAGES
+#if defined(HAVE_PRI_SERVICE_MESSAGES)
 	unsigned int enable_service_message_support:1;	/*!< enable SERVICE message support */
-#endif
+#endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */
 #ifdef HAVE_PRI_INBANDDISCONNECT
 	unsigned int inbanddisconnect:1;				/*!< Should we support inband audio after receiving DISCONNECT? */
 #endif
@@ -287,9 +291,9 @@ void sig_pri_cli_show_span(int fd, int *dchannels, struct sig_pri_pri *pri);
 int pri_send_keypad_facility_exec(struct sig_pri_chan *p, const char *digits);
 int pri_send_callrerouting_facility_exec(struct sig_pri_chan *p, enum ast_channel_state chanstate, const char *destination, const char *original, const char *reason);
 
-#ifdef HAVE_PRI_SERVICE_MESSAGES
+#if defined(HAVE_PRI_SERVICE_MESSAGES)
 int pri_maintenance_bservice(struct pri *pri, struct sig_pri_chan *p, int changestatus);
-#endif
+#endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */
 
 void sig_pri_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, struct sig_pri_chan *pchan);
 

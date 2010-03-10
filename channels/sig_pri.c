@@ -1059,9 +1059,9 @@ static void apply_plan_to_number(char *buf, size_t size, const struct sig_pri_pr
 /*! \note Assumes the pri->lock is already obtained. */
 static int pri_check_restart(struct sig_pri_pri *pri)
 {
-#ifdef HAVE_PRI_SERVICE_MESSAGES
+#if defined(HAVE_PRI_SERVICE_MESSAGES)
 tryanotherpos:
-#endif
+#endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */
 	do {
 		pri->resetpos++;
 	} while (pri->resetpos < pri->numchans
@@ -1070,23 +1070,16 @@ tryanotherpos:
 			|| pri->pvts[pri->resetpos]->call
 			|| pri->pvts[pri->resetpos]->resetting));
 	if (pri->resetpos < pri->numchans) {
-#ifdef HAVE_PRI_SERVICE_MESSAGES
-		char db_chan_name[20], db_answer[5], state;
-		int why;
+#if defined(HAVE_PRI_SERVICE_MESSAGES)
+		unsigned why;
 
-		/* check if the channel is out of service */
-		snprintf(db_chan_name, sizeof(db_chan_name), "%s/%d:%d", dahdi_db, pri->span, pri->pvts[pri->resetpos]->channel);
-
-		/* if so, try next channel */
-		if (!ast_db_get(db_chan_name, SRVST_DBKEY, db_answer, sizeof(db_answer))) {
-			sscanf(db_answer, "%1c:%30d", &state, &why);
-			if (why) {
-				ast_log(LOG_NOTICE, "span '%d' channel '%d' out-of-service (reason: %s), not sending RESTART\n", pri->span,
-					pri->pvts[pri->resetpos]->channel, (why & SRVST_FAREND) ? (why & SRVST_NEAREND) ? "both ends" : "far end" : "near end");
-				goto tryanotherpos;
-			}
+		why = pri->pvts[pri->resetpos]->service_status;
+		if (why) {
+			ast_log(LOG_NOTICE, "span '%d' channel '%d' out-of-service (reason: %s), not sending RESTART\n", pri->span,
+				pri->pvts[pri->resetpos]->channel, (why & SRVST_FAREND) ? (why & SRVST_NEAREND) ? "both ends" : "far end" : "near end");
+			goto tryanotherpos;
 		}
-#endif
+#endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */
 
 		/* Mark the channel as resetting and restart it */
 		pri->pvts[pri->resetpos]->resetting = 1;
@@ -2149,35 +2142,28 @@ static void *pri_dchannel(void *vpri)
 						ast_log(LOG_WARNING, "Restart requested on odd/unavailable channel number %d/%d on span %d\n",
 							PRI_SPAN(e->restart.channel), PRI_CHANNEL(e->restart.channel), pri->span);
 					else {
-#ifdef HAVE_PRI_SERVICE_MESSAGES
-						char db_chan_name[20], db_answer[5], state;
-						int why, skipit = 0;
+						int skipit = 0;
+#if defined(HAVE_PRI_SERVICE_MESSAGES)
+						unsigned why;
 
-						snprintf(db_chan_name, sizeof(db_chan_name), "%s/%d:%d", dahdi_db, pri->span, pri->pvts[chanpos]->channel);
-						if (!ast_db_get(db_chan_name, SRVST_DBKEY, db_answer, sizeof(db_answer))) {
-							sscanf(db_answer, "%1c:%30d", &state, &why);
-							if (why) {
-								ast_log(LOG_NOTICE, "span '%d' channel '%d' out-of-service (reason: %s), ignoring RESTART\n", pri->span,
-									PRI_CHANNEL(e->restart.channel), (why & SRVST_FAREND) ? (why & SRVST_NEAREND) ? "both ends" : "far end" : "near end");
-								skipit = 1;
-							} else {
-								ast_db_del(db_chan_name, SRVST_DBKEY);
-							}
+						why = pri->pvts[chanpos]->service_status;
+						if (why) {
+							ast_log(LOG_NOTICE,
+								"span '%d' channel '%d' out-of-service (reason: %s), ignoring RESTART\n",
+								pri->span, PRI_CHANNEL(e->restart.channel),
+								(why & SRVST_FAREND) ? (why & SRVST_NEAREND) ? "both ends" : "far end" : "near end");
+							skipit = 1;
 						}
-#endif
+#endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */
 						sig_pri_lock_private(pri->pvts[chanpos]);
-#ifdef HAVE_PRI_SERVICE_MESSAGES
 						if (!skipit) {
-#endif
 							ast_verb(3, "B-channel %d/%d restarted on span %d\n",
 								PRI_SPAN(e->restart.channel), PRI_CHANNEL(e->restart.channel), pri->span);
 							if (pri->pvts[chanpos]->call) {
 								pri_destroycall(pri->pri, pri->pvts[chanpos]->call);
 								pri->pvts[chanpos]->call = NULL;
 							}
-#ifdef HAVE_PRI_SERVICE_MESSAGES
 						}
-#endif
 						/* Force soft hangup if appropriate */
 						if (pri->pvts[chanpos]->owner)
 							ast_softhangup_nolock(pri->pvts[chanpos]->owner, AST_SOFTHANGUP_DEV);
@@ -2257,43 +2243,43 @@ static void *pri_dchannel(void *vpri)
 					}
 				}
 				break;
-#ifdef HAVE_PRI_SERVICE_MESSAGES
+#if defined(HAVE_PRI_SERVICE_MESSAGES)
 			case PRI_EVENT_SERVICE:
 				chanpos = pri_find_principle(pri, e->service.channel, NULL);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Received service change status %d on unconfigured channel %d/%d span %d\n",
 						e->service_ack.changestatus, PRI_SPAN(e->service_ack.channel), PRI_CHANNEL(e->service_ack.channel), pri->span);
 				} else {
-					char db_chan_name[20], db_answer[5], state;
-					int ch, why = -1;
+					char db_chan_name[20];
+					char db_answer[5];
+					int ch;
+					unsigned *why;
 
 					ch = pri->pvts[chanpos]->channel;
 					snprintf(db_chan_name, sizeof(db_chan_name), "%s/%d:%d", dahdi_db, pri->span, ch);
-					if (!ast_db_get(db_chan_name, SRVST_DBKEY, db_answer, sizeof(db_answer))) {
-						sscanf(db_answer, "%1c:%30d", &state, &why);
-						ast_db_del(db_chan_name, SRVST_DBKEY);
-					}
+					why = &pri->pvts[chanpos]->service_status;
 					switch (e->service.changestatus) {
 					case 0: /* in-service */
-						if (why > -1) {
-							if (why & SRVST_NEAREND) {
-								snprintf(db_answer, sizeof(db_answer), "%s:%d", SRVST_TYPE_OOS, SRVST_NEAREND);
-								ast_db_put(db_chan_name, SRVST_DBKEY, db_answer);
-								ast_debug(2, "channel '%d' service state { near: out-of-service,  far: in-service }\n", ch);
-							}
+						/* Far end wants to be in service now. */
+						ast_db_del(db_chan_name, SRVST_DBKEY);
+						*why &= ~SRVST_FAREND;
+						if (*why) {
+							snprintf(db_answer, sizeof(db_answer), "%s:%u",
+								SRVST_TYPE_OOS, *why);
+							ast_db_put(db_chan_name, SRVST_DBKEY, db_answer);
 						}
 						break;
 					case 2: /* out-of-service */
-						if (why == -1) {
-							why = SRVST_FAREND;
-						} else {
-							why |= SRVST_FAREND;
-						}
-						snprintf(db_answer, sizeof(db_answer), "%s:%d", SRVST_TYPE_OOS, why);
+						/* Far end wants to be out-of-service now. */
+						ast_db_del(db_chan_name, SRVST_DBKEY);
+						*why |= SRVST_FAREND;
+						snprintf(db_answer, sizeof(db_answer), "%s:%u", SRVST_TYPE_OOS,
+							*why);
 						ast_db_put(db_chan_name, SRVST_DBKEY, db_answer);
 						break;
 					default:
 						ast_log(LOG_ERROR, "Huh?  changestatus is: %d\n", e->service.changestatus);
+						break;
 					}
 					ast_log(LOG_NOTICE, "Channel %d/%d span %d (logical: %d) received a change of service message, status '%d'\n",
 						PRI_SPAN(e->service.channel), PRI_CHANNEL(e->service.channel), pri->span, ch, e->service.changestatus);
@@ -2309,7 +2295,7 @@ static void *pri_dchannel(void *vpri)
 						PRI_SPAN(e->service_ack.channel), PRI_CHANNEL(e->service_ack.channel), pri->span, e->service_ack.changestatus);
 				}
 				break;
-#endif
+#endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */
 			case PRI_EVENT_RING:
 				if (!ast_strlen_zero(pri->msn_list)
 					&& !sig_pri_msn_match(pri->msn_list, e->ring.callednum)) {
@@ -3881,16 +3867,9 @@ int sig_pri_available(struct sig_pri_chan *p, int *reason)
 {
 	/* If no owner and interface has a B channel then likely available */
 	if (!p->owner && !p->no_b_channel && p->pri) {
-#ifdef HAVE_PRI_SERVICE_MESSAGES
-		char db_chan_name[20], db_answer[5], state;
-		int why = 0;
-
-		snprintf(db_chan_name, sizeof(db_chan_name), "%s/%d:%d", dahdi_db, p->pri->span, p->channel);
-		if (!ast_db_get(db_chan_name, SRVST_DBKEY, db_answer, sizeof(db_answer))) {
-			sscanf(db_answer, "%1c:%30d", &state, &why);
-		}
-		if (p->resetting || p->call || why) {
-			if (why) {
+#if defined(HAVE_PRI_SERVICE_MESSAGES)
+		if (p->resetting || p->call || p->service_status) {
+			if (p->service_status) {
 				*reason = AST_CAUSE_REQUESTED_CHAN_UNAVAIL;
 			}
 			return 0;
@@ -3899,7 +3878,7 @@ int sig_pri_available(struct sig_pri_chan *p, int *reason)
 		if (p->resetting || p->call) {
 			return 0;
 		}
-#endif
+#endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */
 		return 1;
 	}
 
@@ -3951,11 +3930,11 @@ int sig_pri_start_pri(struct sig_pri_pri *pri)
 			break;
 		default:
 			pri->dchans[i] = pri_new(pri->fds[i], pri->nodetype, pri->switchtype);
-#ifdef HAVE_PRI_SERVICE_MESSAGES
+#if defined(HAVE_PRI_SERVICE_MESSAGES)
 			if (pri->enable_service_message_support) {
 				pri_set_service_message_support(pri->dchans[i], 1);
 			}
-#endif
+#endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */
 			break;
 		}
 
@@ -4174,7 +4153,7 @@ int pri_send_callrerouting_facility_exec(struct sig_pri_chan *p, enum ast_channe
 	return res;
 }
 
-#ifdef HAVE_PRI_SERVICE_MESSAGES
+#if defined(HAVE_PRI_SERVICE_MESSAGES)
 int pri_maintenance_bservice(struct pri *pri, struct sig_pri_chan *p, int changestatus)
 {
 	int channel = PVT_TO_CHANNEL(p);
@@ -4182,7 +4161,7 @@ int pri_maintenance_bservice(struct pri *pri, struct sig_pri_chan *p, int change
 
 	return pri_maintenance_service(pri, span, channel, changestatus);
 }
-#endif
+#endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */
 
 void sig_pri_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, struct sig_pri_chan *pchan)
 {
