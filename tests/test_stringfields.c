@@ -107,7 +107,7 @@ AST_TEST_DEFINE(string_field_test)
 
 	if (AST_STRING_FIELD_ALLOCATION(test_struct.string1) != strlen("elephant") + 1) {
 		ast_test_status_update(test, "string1 has allocation area of %hu but we expect %lu\n",
-				AST_STRING_FIELD_ALLOCATION(test_struct.string1), strlen("elephant") + 1);
+				AST_STRING_FIELD_ALLOCATION(test_struct.string1), (unsigned long) strlen("elephant") + 1);
 		goto error;
 	} else {
 		ast_test_status_update(test, "string1 has the allocation area we expect: %hu\n", AST_STRING_FIELD_ALLOCATION(test_struct.string1));
@@ -115,7 +115,7 @@ AST_TEST_DEFINE(string_field_test)
 
 	if (AST_STRING_FIELD_ALLOCATION(test_struct.string2) != strlen("hippopotamus") + 1) {
 		ast_test_status_update(test, "string2 has allocation area of %hu but we expect %lu\n",
-				AST_STRING_FIELD_ALLOCATION(test_struct.string2), strlen("hippopotamus") + 1);
+				AST_STRING_FIELD_ALLOCATION(test_struct.string2), (unsigned long) strlen("hippopotamus") + 1);
 		goto error;
 	} else {
 		ast_test_status_update(test, "string2 has the allocation area we expect: %hu\n", AST_STRING_FIELD_ALLOCATION(test_struct.string2));
@@ -212,7 +212,7 @@ AST_TEST_DEFINE(string_field_test)
 
 	if (AST_STRING_FIELD_ALLOCATION(test_struct.string2) != strlen("hippopotamus face") + 1) {
 		ast_test_status_update(test, "The allocation amount is incorrect for string2. We expect %lu but it has %hu\n",
-				strlen("hippopotamus face"), AST_STRING_FIELD_ALLOCATION(test_struct.string2) + 1);
+				(unsigned long) strlen("hippopotamus face"), AST_STRING_FIELD_ALLOCATION(test_struct.string2) + 1);
 		goto error;
 	} else {
 		ast_test_status_update(test, "The allocation amount successfully increased for string2 when it grew\n");
@@ -246,7 +246,7 @@ AST_TEST_DEFINE(string_field_test)
 
 	if (AST_STRING_FIELD_ALLOCATION(test_struct.string1) != strlen(LONG_STRING) + 1) {
 		ast_test_status_update(test, "The string field allocation for string1 indicates a length of %hu instead of the expected %lu\n",
-				AST_STRING_FIELD_ALLOCATION(test_struct.string1), strlen(LONG_STRING) + 1);
+				AST_STRING_FIELD_ALLOCATION(test_struct.string1), (unsigned long) strlen(LONG_STRING) + 1);
 		goto error;
 	} else {
 		ast_test_status_update(test, "The stored allocation size of string1 is what we expect\n");
