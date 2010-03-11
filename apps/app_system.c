@@ -104,7 +104,8 @@ static int system_exec_helper(struct ast_channel *chan, const char *data, int fa
 {
 	int res = 0;
 	struct ast_str *buf = ast_str_thread_get(&buf_buf, 16);
-	
+	char *cbuf;
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "System requires an argument(command)\n");
 		pbx_builtin_setvar_helper(chan, chanvar, "FAILURE");
@@ -115,7 +116,15 @@ static int system_exec_helper(struct ast_channel *chan, const char *data, int fa
 
 	/* Do our thing here */
 	ast_str_get_encoded_str(&buf, 0, (char *) data);
-	res = ast_safe_system(ast_str_buffer(buf));
+	cbuf = ast_str_buffer(buf);
+
+	if (strchr("\"'", cbuf[0]) && cbuf[ast_str_strlen(buf) - 1] == cbuf[0]) {
+		cbuf[ast_str_strlen(buf) - 1] = '\0';
+		cbuf++;
+		ast_log(LOG_NOTICE, "It is not necessary to quote the argument to the System application.\n");
+	}
+
+	res = ast_safe_system(cbuf);
 
 	if ((res < 0) && (errno != ECHILD)) {
 		ast_log(LOG_WARNING, "Unable to execute '%s'\n", (char *)data);
