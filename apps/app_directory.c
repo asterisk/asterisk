@@ -289,17 +289,35 @@ static int select_entry(struct ast_channel *chan, const char *dialcontext, const
 	return 0;
 }
 
-static int select_item_seq(struct ast_channel *chan, struct directory_item **items, int count, const char *dialcontext, struct ast_flags *flags)
+static int select_item_pause(struct ast_channel *chan, struct ast_flags *flags, char *opts[])
+{
+	int res = 0, opt_pause = 0;
+
+	if (ast_test_flag(flags, OPT_PAUSE) && !ast_strlen_zero(opts[OPT_ARG_PAUSE])) {
+		opt_pause = atoi(opts[OPT_ARG_PAUSE]);
+		if (opt_pause > 3000) {
+			opt_pause = 3000;
+		}
+		res = ast_waitfordigit(chan, opt_pause);
+	}
+	return res;
+}
+
+static int select_item_seq(struct ast_channel *chan, struct directory_item **items, int count, const char *dialcontext, struct ast_flags *flags, char *opts[])
 {
 	struct directory_item *item, **ptr;
 	int i, res, loop;
+
+	/* option p(n): cellphone pause option */
+	/* allow early press of selection key */
+	res = select_item_pause(chan, flags, opts);
 
 	for (ptr = items, i = 0; i < count; i++, ptr++) {
 		item = *ptr;
 
 		for (loop = 3 ; loop > 0; loop--) {
-			res = play_mailbox_owner(chan, item->context, item->exten, item->name, flags);
-
+			if (!res)
+				res = play_mailbox_owner(chan, item->context, item->exten, item->name, flags);
 			if (!res)
 				res = ast_stream_and_wait(chan, "dir-instr", AST_DIGIT_ANY);
 			if (!res)
@@ -318,17 +336,21 @@ static int select_item_seq(struct ast_channel *chan, struct directory_item **ite
 
 			res = 0;
 		}
+		res = 0;
 	}
 
 	/* Nothing was selected */
 	return 0;
 }
 
-static int select_item_menu(struct ast_channel *chan, struct directory_item **items, int count, const char *dialcontext, struct ast_flags *flags)
+static int select_item_menu(struct ast_channel *chan, struct directory_item **items, int count, const char *dialcontext, struct ast_flags *flags, char *opts[])
 {
 	struct directory_item **block, *item;
 	int i, limit, res = 0;
 	char buf[9];
+
+	/* option p(n): cellphone pause option */
+	select_item_pause(chan, flags, opts);
 
 	for (block = items; count; block += limit, count -= limit) {
 		limit = count;
@@ -648,7 +670,7 @@ static int goto_exten(struct ast_channel *chan, const char *dialcontext, char *e
 	}
 }
 
-static int do_directory(struct ast_channel *chan, struct ast_config *vmcfg, struct ast_config *ucfg, char *context, char *dialcontext, char digit, int digits, struct ast_flags *flags)
+static int do_directory(struct ast_channel *chan, struct ast_config *vmcfg, struct ast_config *ucfg, char *context, char *dialcontext, char digit, int digits, struct ast_flags *flags, char *opts[])
 {
 	/* Read in the first three digits..  "digit" is the first digit, already read */
 	int res = 0;
@@ -705,10 +727,10 @@ static int do_directory(struct ast_channel *chan, struct ast_config *vmcfg, stru
 
 	if (ast_test_flag(flags, OPT_SELECTFROMMENU)) {
 		/* Offer multiple entries at the same time */
-		res = select_item_menu(chan, sorted, count, dialcontext, flags);
+		res = select_item_menu(chan, sorted, count, dialcontext, flags, opts);
 	} else {
 		/* Offer entries one by one */
-		res = select_item_seq(chan, sorted, count, dialcontext, flags);
+		res = select_item_seq(chan, sorted, count, dialcontext, flags, opts);
 	}
 
 	if (!res) {
@@ -827,7 +849,7 @@ static int directory_exec(struct ast_channel *chan, const char *data)
 		if (res <= 0)
 			break;
 
-		res = do_directory(chan, cfg, ucfg, args.vmcontext, args.dialcontext, res, digit, &flags);
+		res = do_directory(chan, cfg, ucfg, args.vmcontext, args.dialcontext, res, digit, &flags, opts);
 		if (res)
 			break;
 
