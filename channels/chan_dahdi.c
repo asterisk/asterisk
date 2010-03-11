@@ -16859,7 +16859,7 @@ static int setup_dahdi(int reload)
 		}
 	}
 
-	/* It's a little silly to lock it, but we mind as well just to be sure */
+	/* It's a little silly to lock it, but we might as well just to be sure */
 	ast_mutex_lock(&iflock);
 #ifdef HAVE_PRI
 	if (reload != 1) {

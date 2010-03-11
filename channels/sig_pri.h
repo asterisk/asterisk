@@ -124,15 +124,14 @@ struct sig_pri_chan {
 	unsigned int hidecallerid:1;
 	unsigned int hidecalleridname:1;      /*!< Hide just the name not the number for legacy PBX use */
 	unsigned int immediate:1;			/*!< Answer before getting digits? */
-	unsigned int inalarm:1;
 	unsigned int priexclusive:1;			/*!< Whether or not to override and use exculsive mode for channel selection */
 	unsigned int priindication_oob:1;
 	unsigned int use_callerid:1;			/*!< Whether or not to use caller id on this channel */
 	unsigned int use_callingpres:1;			/*!< Whether to use the callingpres the calling switch sends */
 	char context[AST_MAX_CONTEXT];
-	int channel;					/*!< Channel Number or CRV */
 	char mohinterpret[MAX_MUSICCLASS];
 	int stripmsd;
+	int channel;					/*!< Channel Number or CRV */
 
 	/* Options to be checked by user */
 	int cid_ani2;						/*!< Automatic Number Identification number (Alternate PRI caller ID number) */
@@ -152,6 +151,7 @@ struct sig_pri_chan {
 	char keypad_digits[AST_MAX_EXTENSION];
 #endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
 
+	unsigned int inalarm:1;
 	unsigned int alerting:1;		/*!< TRUE if channel is alerting/ringing */
 	unsigned int alreadyhungup:1;	/*!< TRUE if the call has already gone/hungup */
 	unsigned int isidlecall:1;		/*!< TRUE if this is an idle call */
@@ -181,6 +181,13 @@ struct sig_pri_chan {
 	struct sig_pri_callback *calls;
 	void *chan_pvt;					/*!< Private structure of the user of this module. */
 #if defined(HAVE_PRI_REVERSE_CHARGE)
+	/*!
+	 * \brief Reverse charging indication
+	 * \details
+	 * -1 - No reverse charging,
+	 *  1 - Reverse charging,
+	 * 0,2-7 - Reserved for future use
+	 */
 	int reverse_charging_indication;
 #endif
 };
