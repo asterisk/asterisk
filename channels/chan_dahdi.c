@@ -5959,7 +5959,20 @@ static void *ss_thread(void *data)
 		if (ast_exists_extension(chan, chan->context, exten, 1, p->cid_num)) {
 			/* Start the real PBX */
 			ast_copy_string(chan->exten, exten, sizeof(chan->exten));
-			if (p->dsp) ast_dsp_digitreset(p->dsp);
+			if (p->dsp) {
+				ast_dsp_digitreset(p->dsp);
+			}
+			if (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING) {
+				if (p->pri->pri) {		
+					if (!pri_grab(p, p->pri)) {
+						pri_proceeding(p->pri->pri, p->call, PVT_TO_CHANNEL(p), 0);
+						p->proceeding = 1;
+						pri_rel(p->pri);
+					} else {
+						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
+					}
+				}
+			}
 			dahdi_enable_ec(p);
 			ast_setstate(chan, AST_STATE_RING);
 			res = ast_pbx_run(chan);
@@ -6640,6 +6653,9 @@ static void *ss_thread(void *data)
 						if (i & DAHDI_IOMUX_SIGEVENT) {
 							res = dahdi_get_event(p->subs[index].dfd);
 							ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
+							if (res == DAHDI_EVENT_NOALARM) {
+								p->inalarm = 0;
+							}
 
 							if (p->cid_signalling == CID_SIG_V23_JP) {
 #ifdef DAHDI_EVENT_RINGBEGIN
@@ -6743,6 +6759,9 @@ static void *ss_thread(void *data)
 							if (i & DAHDI_IOMUX_SIGEVENT) {
 								res = dahdi_get_event(p->subs[index].dfd);
 								ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
+								if (res == DAHDI_EVENT_NOALARM) {
+									p->inalarm = 0;
+								}
 								res = 0;
 								/* Let us detect distinctive ring */
 		
@@ -6848,6 +6867,9 @@ static void *ss_thread(void *data)
 					if (i & DAHDI_IOMUX_SIGEVENT) {
 						res = dahdi_get_event(p->subs[index].dfd);
 						ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
+						if (res == DAHDI_EVENT_NOALARM) {
+							p->inalarm = 0;
+						}
 						/* If we get a PR event, they hung up while processing calerid */
 						if ( res == DAHDI_EVENT_POLARITY && p->hanguponpolarityswitch && p->polarity == POLARITY_REV) {
 							ast_log(LOG_DEBUG, "Hanging up due to polarity reversal on channel %d while detecting callerid\n", p->channel);
@@ -6919,6 +6941,9 @@ static void *ss_thread(void *data)
 						if (i & DAHDI_IOMUX_SIGEVENT) {
 							res = dahdi_get_event(p->subs[index].dfd);
 							ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
+							if (res == DAHDI_EVENT_NOALARM) {
+								p->inalarm = 0;
+							}
 							res = 0;
 							/* Let us detect callerid when the telco uses distinctive ring */
 

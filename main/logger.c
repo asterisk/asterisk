@@ -785,7 +785,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 			ast_dynamic_str_thread_set(&buf, BUFSIZ, &log_buf, 
 				"[%s] %s[%ld] %s: ",
 				date, levels[level], (long)GETTID(), file);
-			res = fprintf(chan->fileptr, "%s", buf->str);
+			res = fprintf(chan->fileptr, "%s", term_strip(buf->str, buf->str, strlen(buf->str) + 1));
 			if (res <= 0 && !ast_strlen_zero(buf->str)) {	/* Error, no characters printed */
 				fprintf(stderr,"**** Asterisk Logging Error: ***********\n");
 				if (errno == ENOMEM || errno == ENOSPC) {

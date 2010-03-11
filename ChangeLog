@@ -1,6 +1,335 @@
-2010-02-04  Leif Madsen
+2010-03-04  Leif Madsen <lmadsen@digium.com>
 
-	* Release Asterisk 1.4.30-rc1
+	* Asterisk 1.4.30-rc3 released
+
+2010-03-03 21:28 +0000 [r250613]  Leif Madsen <lmadsen@digium.com>
+
+	* doc/localchannel.txt: Update existing Local channel
+	  documentation. A complete re-write of the Local channel
+	  documentation has been performed, with the existing information
+	  from localchannel.txt and localchannel.tex merged in. (issue
+	  #16637) Reported by: kobaz Patches: localchannel.tex uploaded by
+	  lmadsen (license 10) localchannel.txt uploaded by lmadsen
+	  (license 10) Tested by: lmadsen, jsmith, mmichelson
+
+2010-03-03 19:04 +0000 [r250480]  Jeff Peeler <jpeeler@digium.com>
+
+	* channels/chan_dahdi.c: Make sure to clear red alarm after
+	  polarity reversal. From the issue: The automatic overnight line
+	  tests (or manual ones) used on UK (BT) lines causes a red alarm
+	  on a dahdi / TDM400P connected channel. This is because the line
+	  uses voltage tests (battery loss) and polarity reversal. The
+	  polarity reversal causes chan_dahdi to initiate v23 CallerID
+	  processing but during this the event DAHDI_EVENT_NOALARM is
+	  ignored so that the alarm is never cleared. (closes issue #14163)
+	  Reported by: jedi98 Patches: chan_dahdi-1.4-inalarm.diff uploaded
+	  by jedi98 (license 653) Tested by: mattbrown, Chainsaw,
+	  mikeeccleston
+
+2010-03-03 18:02 +0000 [r250394]  David Vossel <dvossel@digium.com>
+
+	* channels/chan_iax2.c: fixes problem with duplicate TXREQ packets
+	  When Asterisk receives an IAX2 TXREQ packet, try_transfer() will
+	  call store_by_transfercallno() to link the chan_iax2_pvt struct
+	  into iax_transfercallno_pvts. If a duplicate TXREQ packet is
+	  received for the same call, the pvt struct will be linked into
+	  iax_transfercallno_pvts multiple times. This patch fixes this.
+	  Thanks rain for debugging this and providing a patch! (closes
+	  issue #16904) Reported by: rain Patches:
+	  iax2-double-txreq-fix.diff uploaded by rain (license 327) Tested
+	  by: rain, dvossel
+
+2010-03-02 21:08 +0000 [r250041-250050]  Leif Madsen <lmadsen@digium.com>
+
+	* doc/imapstorage.txt: Update IMAP documentation. Update the IMAP
+	  documentation to make it clear that storing voicemails in the
+	  same folder as a large number of emails could potentially cause
+	  significant slow downs when writing or retrieving voicemails.
+	  (closes issue #16704) Reported by: TimeHider Tested by: lmadsen,
+	  TimeHider
+
+	* configs/cdr.conf.sample: Update documentation to clarify purpose
+	  of unanswered option. (closes issue #16267) Reported by: elsto
+	  Patches: cdr.conf.sample.patch.txt uploaded by lmadsen (license
+	  10) Tested by: davidw, elsto
+
+	* doc/configuration.txt: Update documentation to not imply we
+	  support overriding options. (issue #16855) Reported by: davidw
+
+2010-03-02 19:36 +0000 [r249845-249946]  Alec L Davis <sivad.a@paradise.net.nz>
+
+	* apps/app_echo.c: revert ability to exit echo app caused a
+	  regression, as only supported VOICE, not VIDEO etc. Left in small
+	  formatting change. (issue #16880)
+
+	* apps/app_echo.c: fixes ability to exit echo app when called from
+	  a ISDN channel, null frames prevent '#' exit. Now only echo back
+	  VOICE and DTMF frames (issue #16880) Reported by: alecdavis
+	  Patches: based on echo_exit_1-6-1.diff.txt uploaded by alecdavis
+	  (license 585) Tested by: alecdavis
+
+2010-03-01 19:35 +0000 [r249671]  Sean Bright <sean@malleable.com>
+
+	* apps/app_voicemail.c: Fix crash in app_voicemail related to
+	  message counting. We were passing a 'struct inprocess **' and
+	  treating it like a 'struct inprocess *' causing a segfault.
+	  (closes issue #16921) Reported by: whardier Patches:
+	  20100301_issue16921.patch uploaded by seanbright (license 71)
+	  Tested by: whardier
+
+2010-03-01 17:02 +0000 [r249536]  Jeff Peeler <jpeeler@digium.com>
+
+	* channels/chan_local.c: Modify queued frames from local channels
+	  to not set the other side to up In this case, attended transfers
+	  were broken due to ast_feature_request_and_dial detecting the
+	  channel being set to up before the answer frame could be read and
+	  therefore failing to mark the channel as ready. This fix is a
+	  regression fix for 244785, which should continue to work properly
+	  as well. (closes issue #16816) Reported by: jamhed Tested by:
+	  jamhed, corruptor
+
+2010-02-27 23:51 +0000 [r249365]  Alec L Davis <sivad.a@paradise.net.nz>
+
+	* channels/chan_dahdi.c: overlap receiving: automatically send CALL
+	  PROCEEDING when dialplan starts Following Q.931 5.2.4 When the
+	  user has determined that sufficient call information has been
+	  received the user shall stop T302 and send CALL PROCEEDING to the
+	  network. Previously timeouts were possible if the dialplan took a
+	  long time to issue any response back to the network. Verified
+	  that our local TELCO also does the same. (issue #16789) Reported
+	  by: alecdavis Patches: based on overlap_receiving_trunk.diff.txt
+	  uploaded by alecdavis (license 585) Tested by: alecdavis (closes
+	  issue #16789)
+
+2010-02-27 14:07 +0000 [r249234]  Kevin P. Fleming <kpfleming@digium.com>
+
+	* channels/chan_iax2.c: add a reference to the now-published IAX2
+	  RFC
+
+2010-02-26 17:04 +0000 [r249100]  Mark Michelson <mmichelson@digium.com>
+
+	* channels/chan_sip.c: For T.38 reINVITEs treat a 606 the same as a
+	  488. (closes issue #16792) Reported by: vrban Patches:
+	  t38_606.patch uploaded by vrban (license 756)
+
+2010-02-25 21:22 +0000 [r248860]  Jeff Peeler <jpeeler@digium.com>
+
+	* res/res_monitor.c: Ensure that monitor recordings are written to
+	  the correct location (again) This is an extension to 248757. As
+	  such the dialplan test has been extended: exten => 5040, 1,
+	  monitor(wav,tmp/jeff/monitor_test,b) exten => 5040, n,
+	  dial(sip/5001) exten => 5041, 1,
+	  monitor(wav,/tmp/jeff/monitor_test2,b) exten => 5041, n,
+	  dial(sip/5001) exten => 5042, 1, monitor(wav,monitor_test3,b)
+	  exten => 5042, n, dial(sip/5001) exten => 5043, 1,
+	  monitor(wav,tmp/jeff/monitor_test3,m) exten => 5043, n,
+	  changemonitor(monitor_test4) exten => 5043, n, dial(sip/5001)
+	  exten => 5044, 1, monitor(wav,monitor_test4,m) exten => 5044, n,
+	  changemonitor(tmp/jeff/monitor_test5) ; this looks to fail by
+	  design and emits a warning exten => 5044, n, dial(sip/5001)
+
+2010-02-25 21:21 +0000 [r248859]  Tilghman Lesher <tlesher@digium.com>
+
+	* main/asterisk.c: Some platforms clear /var/run at boot, which
+	  makes connecting a remote console... difficult. Previously, we
+	  only created the default /var/run/asterisk directory at install
+	  time. While we could create it in the init script, that would not
+	  work for those who start asterisk manually from the command line.
+	  So the safest thing to do is to create it as part of the Asterisk
+	  boot process. This also changes the ownership of the directory,
+	  because the pid and ctl files are created after we setuid/setgid.
+	  (closes issue #16802) Reported by: Brian Patches:
+	  20100224__issue16802.diff.txt uploaded by tilghman (license 14)
+	  Tested by: tzafrir
+
+2010-02-25 18:06 +0000 [r248668-248757]  Jeff Peeler <jpeeler@digium.com>
+
+	* res/res_monitor.c: Ensure that monitor recordings are written to
+	  the correct location. Recordings should be placed in the monitor
+	  directory when a non-absolute path is used. Exact dialplan used
+	  for testing: exten => 5040, 1,
+	  monitor(wav,tmp/jeff/monitor_test,b) exten => 5040, n,
+	  dial(sip/5001) exten => 5041, 1,
+	  monitor(wav,/tmp/jeff/monitor_test2,b) exten => 5041, n,
+	  dial(sip/5001) exten => 5042, 1, monitor(wav,monitor_test3,b)
+	  exten => 5042, n, dial(sip/5001) ABE-2101
+
+	* apps/app_voicemail.c: Make deletion of temporary greetings work
+	  properly with IMAP_STORAGE This same patch was merged in 220833,
+	  but was skipped in this branch erroneously. (closes issue #16170)
+	  Reported by: francesco_r
+
+2010-02-24 21:02 +0000 [r248582]  Tilghman Lesher <tlesher@digium.com>
+
+	* main/logger.c: Remove color code sequences from verbose messages
+	  that go to logfiles. (closes issue #16786) Reported by: dodo
+	  Patches: logger2.patch uploaded by dodo (license 989) Tested by:
+	  tilghman
+
+2010-02-23 16:26 +0000 [r248396]  David Vossel <dvossel@digium.com>
+
+	* channels/chan_sip.c: fixes invite with replaces deadlock (closes
+	  issue #16862) Reported by: pwalker Patches: replaces_deadlock_1.4
+	  uploaded by dvossel (license 671) Tested by: pwalker, dvossel
+
+2010-02-22 13:52 +0000 [r248268]  Olle Johansson <oej@edvina.net>
+
+	* apps/app_meetme.c: Don't log to debug unless debug is turned on
+
+2010-02-20 22:25 +0000 [r248106]  Olle Johansson <oej@edvina.net>
+
+	* main/rtp.c: Make sure we support RTCP compound messages with zero
+	  reports
+
+2010-02-19 19:11 +0000 [r248012]  Tilghman Lesher <tlesher@digium.com>
+
+	* main/loader.c, /: Backport crash fix from trunk to 1.4, whereby
+	  'core show gracefully' could crash Asterisk. (closes issue
+	  #16470) Reported by: kjotte
+
+2010-02-19 17:18 +0000 [r247910]  Richard Mudgett <rmudgett@digium.com>
+
+	* channels/chan_misdn.c: Merged revision 247904 from
+	  https://origsvn.digium.com/svn/asterisk/be/branches/C.2-...
+	  .......... r247904 | rmudgett | 2010-02-19 10:49:44 -0600 (Fri,
+	  19 Feb 2010) | 49 lines Make chan_misdn DTMF processing
+	  consistent with other channel technologies. The processing of
+	  DTMF tones on the receiving side of an ISDN channel is
+	  inconsistent with the way it is handled in other channels,
+	  especially DAHDI analog. This causes DTMF tones sent from an ISDN
+	  phone to be doubled at the connected party. We are using the
+	  following 2 options of misdn.conf 1) astdtmf=yes 2) senddtmf=yes
+	  Option one is necessary because the asterisk DSP DTMF detection
+	  is better than mISDN's internal DSP. Not as many false positives.
+	  Option two is necessary to transmit DTMF tones end to end when
+	  mISDN channels are connected to SIP channels with out of band
+	  DTMF for example. The symptom is that DTMF tones sent by an ISDN
+	  phone are doubled on the way through asterisk when two mISDN
+	  channels are connected with a Local channel in between or if it
+	  is bridged to an analog channel. The doubling of DTMF tones is
+	  because DTMF is passed inband to asterisk by the mISDN channel
+	  and passed out of band once again after the release of the DTMF
+	  tone. Passing it inband is wrong. Neither an analog channel nor
+	  SIP channel passes DTMF inband if configured to inband DTMF.
+	  Analog and SIP channels filter out the DTMF tones because they
+	  use the voice frames returned by ast_dsp_process. But chan_misdn
+	  passes the unfiltered input voice frames instead. To overcome one
+	  aspect of the problem, the doubling of DTMF tones when two mISDN
+	  channels are directly bridged, someone made an 'optimization',
+	  where in that case the DTMF tone passed out-of-band to the peer
+	  channel is not translated to an inband tone at the transmit side.
+	  This optimization is bad because it does not work in general. For
+	  example, analog channels or mISDN channels when bridged through
+	  an intermediary local channel will generate DTMF tones from
+	  out-of-band information. Also, of course, it must not be done
+	  when there is no inband DTMF available. This patch fixes the
+	  issue. Now chan_misdn will filter the received inband DTMF signal
+	  the same as other channel types. Another change included: No need
+	  to build an extra translation path because ast_process_dsp does
+	  it if required. Patches: misdn-dtmf.patch JIRA ABE-2080
+
+2010-02-18 19:38 +0000 [r247651]  Matthew Nicholson <mnicholson@digium.com>
+
+	* res/res_features.c: Copy the calling party's account code to the
+	  called party if they don't already have one. (closes issue
+	  #16331) Reported by: bluefox Tested by: mnicholson
+
+2010-02-18 16:53 +0000 [r247502-247508]  Leif Madsen <lmadsen@digium.com>
+
+	* README-SERIOUSLY.bestpractices.txt: Add additional link to best
+	  practices document per jsmith.
+
+	* README-SERIOUSLY.bestpractices.txt (added): Add best practices
+	  documentation. (issue #16808) Reported by: lmadsen (issue #16810)
+	  Reported by: Nick_Lewis Tested by: lmadsen Review:
+	  https://reviewboard.asterisk.org/r/507/
+
+2010-02-18 04:19 +0000 [r247422]  Russell Bryant <russell@digium.com>
+
+	* Makefile, sounds/Makefile: Tweak argument handling for wget in
+	  the sounds Makefile. 1) Fix the check to see if we are using wget
+	  to not be full of fail. The configure script populates this
+	  variable with the absolute path to wget if it is found, so it
+	  didn't work. 2) Allow some extra arguments to be passed in for
+	  wget. This is just a simple change to allow our Bamboo build
+	  script to tell wget to be quiet and not fill up our logs with
+	  download status output.
+
+2010-02-17 16:24 +0000 [r247168]  Mark Michelson <mmichelson@digium.com>
+
+	* apps/app_queue.c: Make sure that when autofill is disabled that
+	  callers not in the front of the queue cannot place calls. (closes
+	  issue #16834) Reported by: kebl0155 Patches:
+	  app_queue_no_autofill.v1.patch uploaded by kebl0155 (license 356)
+
+2010-02-15 23:42 +0000 [r246709]  Tilghman Lesher <tlesher@digium.com>
+
+	* Makefile: Make the menuselect instructions correct by allowing
+	  'make menuselect' to actually solve dependency problems.
+	  (Previously, it would fail out again with the same message about
+	  running 'make menuselect', which was NOT at all helpful.)
+
+2010-02-12 23:30 +0000 [r246545]  David Vossel <dvossel@digium.com>
+
+	* main/channel.c: lock channel during datastore removal On channel
+	  destruction the channel's datastores are removed and destroyed.
+	  Since there are public API calls to find and remove datastores on
+	  a channel, a lock should be held whenever datastores are removed
+	  and destroyed. This resolves a crash caused by a race condition
+	  in app_chanspy.c. (closes issue #16678) Reported by:
+	  tim_ringenbach Patches: datastore_destroy_race.diff uploaded by
+	  tim ringenbach (license 540) Tested by: dvossel
+
+2010-02-12 18:52 +0000 [r246460]  Jason Parker <jparker@digium.com>
+
+	* main/channel.c: Fix some silly formatting, and remove unnecessary
+	  option_debug checks
+
+2010-02-10 17:44 +0000 [r246115]  David Vossel <dvossel@digium.com>
+
+	* apps/app_queue.c: fixes random deadlock in app_queue with
+	  use_weight during reload (closes issue #16677) Reported by:
+	  tim_ringenbach Patches: app_queue_use_weight_deadlock.diff
+	  uploaded by tim ringenbach (license 540)
+
+2010-02-10 13:37 +0000 [r245944]  Tilghman Lesher <tlesher@digium.com>
+
+	* configs/extensions.conf.sample: Include examples of FILTER usage
+	  in extension patterns where a "." may be a risk.
+
+2010-02-10 08:24 +0000 [r245909]  Olle Johansson <oej@edvina.net>
+
+	* res/res_smdi.c: Make sure that res_smdi loads regardless of
+	  configuration, since chan_dahdi depends on res_smdi
+
+2010-02-09 22:55 +0000 [r245792]  David Vossel <dvossel@digium.com>
+
+	* channels/chan_iax2.c: Fixes iaxs and iaxsl size off by one issue.
+	  2^15 = 32768 which is the maximum allowed iax2 callnumber.
+	  Creating the iaxs and iaxsl array of size 32768 means the maximum
+	  callnumber is actually out of bounds. This causes a nasty crash.
+	  (closes issue #15997) Reported by: exarv Patches: iax_fix.diff
+	  uploaded by dvossel (license 671)
+
+2010-02-08 20:39 +0000 [r245496]  Jason Parker <jparker@digium.com>
+
+	* main/ast_expr2.fl, main/ast_expr2f.c: Remove reference of
+	  documentation in source directory. People don't always build
+	  Asterisk from source (distro packages, anybody?).
+
+2010-02-08 11:57 +0000 [r245422]  Olle Johansson <oej@edvina.net>
+
+	* res/res_features.c: Res_features depends on res_adsi in 1.4
+
+2010-02-05 18:32 +0000 [r245044]  Kevin P. Fleming <kpfleming@digium.com>
+
+	* contrib/firmware (removed), LICENSE: Remove contrib/firmware
+	  directory as it is empty Remove explicit license for IAXy
+	  firmware as it is no longer included in the tree
+
+2010-02-05 17:03 +0000 [r244926]  Sean Bright <sean@malleable.com>
+
+	* main/asterisk.c: Update main copyright date.
 
 2010-02-04 23:20 +0000 [r244785]  Jeff Peeler <jpeeler@digium.com>
 

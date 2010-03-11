@@ -157,20 +157,20 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 		/* Determine file names */
 		if (!ast_strlen_zero(fname_base)) {
 			int directory = strchr(fname_base, '/') ? 1 : 0;
-			const char *absolute = *fname_base == '/' ? "" : "/";
+			const char *absolute = *fname_base == '/' ? "" : ast_config_AST_MONITOR_DIR;
 			/* try creating the directory just in case it doesn't exist */
 			if (directory) {
 				char *name = strdup(fname_base);
-				snprintf(tmp, sizeof(tmp), "mkdir -p \"%s\"",dirname(name));
+				snprintf(tmp, sizeof(tmp), "mkdir -p \"%s/%s\"", absolute, dirname(name));
 				free(name);
 				ast_safe_system(tmp);
 			}
-			snprintf(monitor->read_filename, FILENAME_MAX, "%s%s%s-in",
-						directory ? "" : ast_config_AST_MONITOR_DIR, absolute, fname_base);
-			snprintf(monitor->write_filename, FILENAME_MAX, "%s%s%s-out",
-						directory ? "" : ast_config_AST_MONITOR_DIR, absolute, fname_base);
-			snprintf(monitor->filename_base, FILENAME_MAX, "%s%s%s",
-					 	directory ? "" : ast_config_AST_MONITOR_DIR, absolute, fname_base);
+			snprintf(monitor->read_filename, FILENAME_MAX, "%s/%s-in",
+						absolute, fname_base);
+			snprintf(monitor->write_filename, FILENAME_MAX, "%s/%s-out",
+						absolute, fname_base);
+			snprintf(monitor->filename_base, FILENAME_MAX, "%s/%s",
+					 	absolute, fname_base);
 		} else {
 			ast_mutex_lock(&monitorlock);
 			snprintf(monitor->read_filename, FILENAME_MAX, "%s/audio-in-%ld",
@@ -377,12 +377,12 @@ int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, i
 
 	if (chan->monitor) {
 		int directory = strchr(fname_base, '/') ? 1 : 0;
-		const char *absolute = *fname_base == '/' ? "" : "/";
+		const char *absolute = *fname_base == '/' ? "" : ast_config_AST_MONITOR_DIR;
 		char tmpstring[sizeof(chan->monitor->filename_base)] = "";
 		int i, fd[2] = { -1, -1 }, doexit = 0;
 
 		/* before continuing, see if we're trying to rename the file to itself... */
-		snprintf(tmpstring, sizeof(tmpstring), "%s%s%s", directory ? "" : ast_config_AST_MONITOR_DIR, absolute, fname_base);
+		snprintf(tmpstring, sizeof(tmpstring), "%s/%s", absolute, fname_base);
 
 		/*!\note We cannot just compare filenames, due to symlinks, relative
 		 * paths, and other possible filesystem issues.  We could use
@@ -427,7 +427,7 @@ int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, i
 		/* try creating the directory just in case it doesn't exist */
 		if (directory) {
 			char *name = strdup(fname_base);
-			snprintf(tmp, sizeof(tmp), "mkdir -p %s",dirname(name));
+			snprintf(tmp, sizeof(tmp), "mkdir -p \"%s/%s\"", absolute, dirname(name));
 			free(name);
 			ast_safe_system(tmp);
 		}

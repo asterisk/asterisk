@@ -118,31 +118,39 @@ previously based upon) were included in the new section.  For example
 consider the following:
 
 [foo]
-permit=192.168.0.2
-host=asdf
-deny=192.168.0.1
+disallow=all
+allow=ulaw
+allow=alaw
 
 [bar]
-permit=192.168.1.2
-host=jkl
-deny=192.168.1.1
+allow=gsm
+allow=g729
+permit=192.168.2.1
 
 [baz](foo,bar)
+type=friend
 permit=192.168.3.1
+context=incoming
 host=bnm
 
-The [baz] section will be processed as though it had been written in the 
+The [baz] section will be processed as though it had been written in the
 following way:
 
 [baz]
-permit=192.168.0.2
-host=asdf
-deny=192.168.0.1
-permit=192.168.1.2
-host=jkl
-deny=192.168.1.1
+disallow=all
+allow=ulaw
+allow=alaw
+allow=gsm
+allow=g729
+permit=192.168.2.1
+type=friend
 permit=192.168.3.1
+context=incoming
 host=bnm
+
+It should also be noted that there are no guaranteed overriding semantics, 
+meaning that if you define something in one template, you should not expect to
+be able to override it by defining it again in another template.
 
 Additional Examples:
 --------------------

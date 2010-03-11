@@ -2492,9 +2492,11 @@ static int is_our_turn(struct queue_ent *qe)
 	}
 
 	ao2_unlock(qe->parent);
-
-	/* If the queue entry is within avl [the number of available members] calls from the top ... */
-	if (ch && idx < avl) {
+	/* If the queue entry is within avl [the number of available members] calls from the top ... 
+	 * Autofill and position check added to support autofill=no (as only calls
+	 * from the front of the queue are valid when autofill is disabled)
+	 */
+	if (ch && idx < avl && (qe->parent->autofill || qe->pos == 1)) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "It's our turn (%s).\n", qe->chan->name);
 		res = 1;
@@ -2822,6 +2824,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	int callcompletedinsl;
 	struct ao2_iterator memi;
 	struct ast_datastore *datastore, *transfer_ds;
+	const int need_weight = use_weight;
 
 	ast_channel_lock(qe->chan);
 	datastore = ast_channel_datastore_find(qe->chan, &dialed_interface_info, NULL);
@@ -2875,7 +2878,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		}
 
 	/* Hold the lock while we setup the outgoing calls */
-	if (use_weight)
+
+	if (need_weight)
 		AST_LIST_LOCK(&queues);
 	ao2_lock(qe->parent);
 	if (option_debug)
@@ -2896,7 +2900,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			ao2_iterator_destroy(&memi);
 			ao2_ref(cur, -1);
 			ao2_unlock(qe->parent);
-			if (use_weight)
+			if (need_weight)
 				AST_LIST_UNLOCK(&queues);
 			goto out;
 		}
@@ -2905,7 +2909,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ao2_iterator_destroy(&memi);
 				ao2_ref(cur, -1);
 				ao2_unlock(qe->parent);
-				if (use_weight)
+				if (need_weight)
 					AST_LIST_UNLOCK(&queues);
 				free(tmp);
 				goto out;
@@ -2915,7 +2919,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ao2_iterator_destroy(&memi);
 				ao2_ref(cur, -1);
 				ao2_unlock(qe->parent);
-				if (use_weight)
+				if (need_weight)
 					AST_LIST_UNLOCK(&queues);
 				free(tmp);
 				goto out;
@@ -2953,7 +2957,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ao2_iterator_destroy(&memi);
 				ao2_ref(cur, -1);
 				ao2_unlock(qe->parent);
-				if (use_weight)
+				if (need_weight)
 					AST_LIST_UNLOCK(&queues);
 				free(tmp);
 				goto out;
@@ -2994,7 +2998,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	++qe->pending;
 	ao2_unlock(qe->parent);
 	ring_one(qe, outgoing, &numbusies);
-	if (use_weight)
+	if (need_weight)
 		AST_LIST_UNLOCK(&queues);
 	lpeer = wait_for_answer(qe, outgoing, &to, &digit, numbusies, ast_test_flag(&(bridge_config.features_caller), AST_FEATURE_DISCONNECT), forwardsallowed);
 	/* The ast_channel_datastore_remove() function could fail here if the
