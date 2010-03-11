@@ -169,8 +169,6 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 	if (chan)
 		ast_autoservice_start(chan);
 
-	ast_str_make_space(&buf, strlen(query->sql_write) * 2);
-
 	/* Parse our arguments */
 	t = value ? ast_strdupa(value) : "";
 
@@ -201,7 +199,11 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 	/* Additionally set the value as a whole (but push an empty string if value is NULL) */
 	pbx_builtin_pushvar_helper(chan, "VALUE", value ? value : "");
 
-	pbx_substitute_variables_helper(chan, query->sql_write, buf->str, buf->len - 1);
+	do {
+		ast_str_make_space(&buf, 2 * (strlen(query->sql_write) > ast_str_size(buf) ? strlen(query->sql_write) : ast_str_size(buf)));
+		pbx_substitute_variables_helper(chan, query->sql_write, ast_str_buffer(buf), ast_str_size(buf) - 1);
+		ast_str_update(buf);
+	} while (ast_str_strlen(buf) > ast_str_size(buf) - 5);
 
 	/* Restore prior values */
 	for (i = 0; i < args.argc; i++) {
@@ -308,8 +310,11 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 		pbx_builtin_pushvar_helper(chan, varname, args.field[x]);
 	}
 
-	ast_str_make_space(&sql, strlen(query->sql_read) * 2);
-	pbx_substitute_variables_helper(chan, query->sql_read, sql->str, sql->len - 1);
+	do {
+		ast_str_make_space(&sql, 2 * (strlen(query->sql_read) > ast_str_size(sql) ? strlen(query->sql_read) : ast_str_size(sql)));
+		pbx_substitute_variables_helper(chan, query->sql_read, ast_str_buffer(sql), ast_str_size(sql) - 1);
+		ast_str_update(sql);
+	} while (ast_str_strlen(sql) > ast_str_size(sql) - 5);
 
 	/* Restore prior values */
 	for (x = 0; x < args.argc; x++) {
