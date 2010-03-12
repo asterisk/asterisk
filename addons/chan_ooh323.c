@@ -1206,10 +1206,12 @@ static int ooh323_indicate(struct ast_channel *ast, int condition, const void *d
 	    		ooManualRingback(callToken);
 	    }
 	 break;
-      case AST_CONTROL_SRCUPDATE:
-		ast_rtp_instance_new_source(p->rtp);
+	case AST_CONTROL_SRCUPDATE:
+		ast_rtp_instance_update_source(p->rtp);
 		break;
-
+	case AST_CONTROL_SRCCHANGE:
+		ast_rtp_instance_change_source(p->rtp);
+		break;
       case AST_CONTROL_CONNECTED_LINE:
 		if (gH323Debug)
 			ast_log(LOG_DEBUG, "Sending connected line info for %s (%s)\n",

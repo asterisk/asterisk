@@ -254,7 +254,8 @@ static int ast_rtp_new(struct ast_rtp_instance *instance, struct sched_context *
 static int ast_rtp_destroy(struct ast_rtp_instance *instance);
 static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit);
 static int ast_rtp_dtmf_end(struct ast_rtp_instance *instance, char digit);
-static void ast_rtp_new_source(struct ast_rtp_instance *instance);
+static void ast_rtp_update_source(struct ast_rtp_instance *instance);
+static void ast_rtp_change_source(struct ast_rtp_instance *instance);
 static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *frame);
 static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtcp);
 static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_property property, int value);
@@ -276,7 +277,8 @@ static struct ast_rtp_engine asterisk_rtp_engine = {
 	.destroy = ast_rtp_destroy,
 	.dtmf_begin = ast_rtp_dtmf_begin,
 	.dtmf_end = ast_rtp_dtmf_end,
-	.new_source = ast_rtp_new_source,
+	.update_source = ast_rtp_update_source,
+	.change_source = ast_rtp_change_source,
 	.write = ast_rtp_write,
 	.read = ast_rtp_read,
 	.prop_set = ast_rtp_prop_set,
@@ -655,16 +657,27 @@ static int ast_rtp_dtmf_end(struct ast_rtp_instance *instance, char digit)
 	return 0;
 }
 
-static void ast_rtp_new_source(struct ast_rtp_instance *instance)
+static void ast_rtp_update_source(struct ast_rtp_instance *instance)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
 	/* We simply set this bit so that the next packet sent will have the marker bit turned on */
 	ast_set_flag(rtp, FLAG_NEED_MARKER_BIT);
+	ast_debug(3, "Setting the marker bit due to a source update\n");
 
-	if (!ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_CONSTANT_SSRC)) {
-		rtp->ssrc = ast_random();
-	}
+	return;
+}
+
+static void ast_rtp_change_source(struct ast_rtp_instance *instance)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+	unsigned int ssrc = ast_random();
+
+	/* We simply set this bit so that the next packet sent will have the marker bit turned on */
+	ast_set_flag(rtp, FLAG_NEED_MARKER_BIT);
+
+	ast_debug(3, "Changing ssrc from %u to %u due to a source change\n", rtp->ssrc, ssrc);
+	rtp->ssrc = ssrc;
 
 	return;
 }
@@ -1854,6 +1867,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 	unsigned int *rtpheader = (unsigned int*)(rtp->rawdata + AST_FRIENDLY_OFFSET), seqno, ssrc, timestamp;
 	struct ast_rtp_payload_type payload;
 	struct sockaddr_in remote_address = { 0, };
+	AST_LIST_HEAD_NOLOCK(, ast_frame) frames;
 
 	/* If this is actually RTCP let's hop on over and handle it */
 	if (rtcp) {
@@ -1951,13 +1965,26 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 	timestamp = ntohl(rtpheader[1]);
 	ssrc = ntohl(rtpheader[2]);
 
-	/* Force a marker bit if the SSRC changes */
-	if (!mark && rtp->rxssrc && rtp->rxssrc != ssrc) {
-		if (option_debug || rtpdebug) {
-			ast_debug(1, "Forcing Marker bit, because SSRC has changed\n");
+	AST_LIST_HEAD_INIT_NOLOCK(&frames);
+	/* Force a marker bit and change SSRC if the SSRC changes */
+	if (rtp->rxssrc && rtp->rxssrc != ssrc) {
+		struct ast_frame *f, srcupdate = {
+			AST_FRAME_CONTROL,
+			.subclass.integer = AST_CONTROL_SRCCHANGE,
+		};
+
+		if (!mark) {
+			if (option_debug || rtpdebug) {
+				ast_debug(1, "Forcing Marker bit, because SSRC has changed\n");
+			}
+			mark = 1;
 		}
-		mark = 1;
+
+		f = ast_frisolate(&srcupdate);
+		AST_LIST_INSERT_TAIL(&frames, f, frame_list);
 	}
+
+	rtp->rxssrc = ssrc;
 
 	/* Remove any padding bytes that may be present */
 	if (padding) {
@@ -1986,7 +2013,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 	/* Make sure after we potentially mucked with the header length that it is once again valid */
 	if (res < hdrlen) {
 		ast_log(LOG_WARNING, "RTP Read too short (%d, expecting %d\n", res, hdrlen);
-		return &ast_null_frame;
+		return AST_LIST_FIRST(&frames) ? AST_LIST_FIRST(&frames) : &ast_null_frame;
 	}
 
 	rtp->rxcount++;
@@ -2029,7 +2056,11 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 			ast_log(LOG_NOTICE, "Unknown RTP codec %d received from '%s'\n", payloadtype, ast_inet_ntoa(remote_address.sin_addr));
 		}
 
-		return f ? f : &ast_null_frame;
+		if (f) {
+			AST_LIST_INSERT_TAIL(&frames, f, frame_list);
+			return AST_LIST_FIRST(&frames);
+		}
+		return &ast_null_frame;
 	}
 
 	rtp->lastrxformat = rtp->f.subclass.codec = payload.code;
@@ -2046,7 +2077,8 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 			f->len = ast_tvdiff_ms(ast_samp2tv(rtp->dtmf_duration, rtp_get_rate(f->subclass.codec)), ast_tv(0, 0));
 			rtp->resp = 0;
 			rtp->dtmf_timeout = rtp->dtmf_duration = 0;
-			return f;
+			AST_LIST_INSERT_TAIL(&frames, f, frame_list);
+			return AST_LIST_FIRST(&frames);
 		}
 	}
 
@@ -2081,7 +2113,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		rtp->f.subclass.codec = AST_FORMAT_T140;
 		header_end = memchr(data, ((*data) & 0x7f), rtp->f.datalen);
 		if (header_end == NULL) {
-			return &ast_null_frame;
+			return AST_LIST_FIRST(&frames) ? AST_LIST_FIRST(&frames) : &ast_null_frame;
 		}
 		header_end++;
 
@@ -2094,7 +2126,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 				len += data[x * 4 + 3];
 
 			if (!(rtp->f.datalen - len))
-				return &ast_null_frame;
+				return AST_LIST_FIRST(&frames) ? AST_LIST_FIRST(&frames) : &ast_null_frame;
 
 			rtp->f.data.ptr += len;
 			rtp->f.datalen -= len;
@@ -2150,7 +2182,8 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		rtp->f.delivery.tv_usec = 0;
 	}
 
-	return &rtp->f;
+	AST_LIST_INSERT_TAIL(&frames, &rtp->f, frame_list);
+	return AST_LIST_FIRST(&frames);
 }
 
 static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_property property, int value)

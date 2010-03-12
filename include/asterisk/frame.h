@@ -85,7 +85,8 @@ struct ast_codec_pref {
  * \arg \b HOLD            Call is placed on hold
  * \arg \b UNHOLD          Call is back from hold
  * \arg \b VIDUPDATE       Video update requested
- * \arg \b SRCUPDATE       The source of media has changed
+ * \arg \b SRCUPDATE       The source of media has changed (RTP marker bit must change)
+ * \arg \b SRCCHANGE       Media source has changed (RTP marker bit and SSRC must change)
  * \arg \b CONNECTED_LINE  Connected line has changed
  * \arg \b REDIRECTING     Call redirecting information has changed.
  */
@@ -323,6 +324,7 @@ enum ast_control_frame_type {
 	AST_CONTROL_CONNECTED_LINE = 22,/*!< Indicate connected line has changed */
 	AST_CONTROL_REDIRECTING = 23,    /*!< Indicate redirecting id has changed */
 	AST_CONTROL_T38_PARAMETERS = 24, /*! T38 state change request/notification with parameters */
+	AST_CONTROL_SRCCHANGE = 25,  /*!< Media source has changed and requires a new RTP SSRC */
 };
 
 enum ast_control_t38 {

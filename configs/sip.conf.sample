@@ -789,8 +789,6 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;sdpowner=root                  ; Allows you to change the username field in the SDP owner string, (o=)
                                 ; This field MUST NOT contain spaces
 
-;constantssrc=yes               ; Don't change the RTP SSRC when our media stream changes
-
 ;----------------------------------------- REALTIME SUPPORT ------------------------
 ; For additional information on ARA, the Asterisk Realtime Architecture,
 ; please read realtime.txt and extconfig.txt in the /doc directory of the
@@ -1003,7 +1001,6 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; timerb
 ; qualifyfreq
 ; t38pt_usertpsource
-; constantssrc
 ; contactpermit         ; Limit what a host may register as (a neat trick
 ; contactdeny           ; is to register at the same IP as a SIP provider,
 ;                       ; then call oneself, and get redirected to that

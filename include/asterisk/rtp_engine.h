@@ -92,8 +92,6 @@ enum ast_rtp_property {
 	AST_RTP_PROPERTY_STUN,
 	/*! Enable RTCP support */
 	AST_RTP_PROPERTY_RTCP,
-	/*! Don't force a new SSRC on new source */
-	AST_RTP_PROPERTY_CONSTANT_SSRC,
 
 	/*!
 	 * \brief Maximum number of RTP properties supported
@@ -322,10 +320,10 @@ struct ast_rtp_engine {
 	int (*dtmf_begin)(struct ast_rtp_instance *instance, char digit);
 	/*! Callback for stopping RFC2833 DTMF transmission */
 	int (*dtmf_end)(struct ast_rtp_instance *instance, char digit);
-	/*! Callback to indicate that a new source of media has come in */
-	void (*new_source)(struct ast_rtp_instance *instance);
-	/*! Callback to tell new_source not to change SSRC */
-	void (*constant_ssrc_set)(struct ast_rtp_instance *instance);
+	/*! Callback to indicate that we should update the marker bit */
+	void (*update_source)(struct ast_rtp_instance *instance);
+	/*! Callback to indicate that we should update the marker bit and ssrc */
+	void (*change_source)(struct ast_rtp_instance *instance);
 	/*! Callback for setting an extended RTP property */
 	int (*extended_prop_set)(struct ast_rtp_instance *instance, int property, void *value);
 	/*! Callback for getting an extended RTP property */
@@ -1192,22 +1190,40 @@ int ast_rtp_instance_dtmf_mode_set(struct ast_rtp_instance *instance, enum ast_r
 enum ast_rtp_dtmf_mode ast_rtp_instance_dtmf_mode_get(struct ast_rtp_instance *instance);
 
 /*!
- * \brief Indicate a new source of audio has dropped in
+ * \brief Indicate that the RTP marker bit should be set on an RTP stream
  *
  * \param instance Instance that the new media source is feeding into
  *
  * Example usage:
  *
  * \code
- * ast_rtp_instance_new_source(instance);
+ * ast_rtp_instance_update_source(instance);
  * \endcode
  *
- * This indicates that a new source of media is feeding the instance pointed to by
- * instance.
+ * This indicates that the source of media that is feeding the instance pointed to by
+ * instance has been updated and that the marker bit should be set.
  *
  * \since 1.8
  */
-void ast_rtp_instance_new_source(struct ast_rtp_instance *instance);
+void ast_rtp_instance_update_source(struct ast_rtp_instance *instance);
+
+/*!
+ * \brief Indicate a new source of audio has dropped in and the ssrc should change
+ *
+ * \param instance Instance that the new media source is feeding into
+ *
+ * Example usage:
+ *
+ * \code
+ * ast_rtp_instance_change_source(instance);
+ * \endcode
+ *
+ * This indicates that the source of media that is feeding the instance pointed to by
+ * instance has changed and that the marker bit should be set and the SSRC updated.
+ *
+ * \since 1.8
+ */
+void ast_rtp_instance_change_source(struct ast_rtp_instance *instance);
 
 /*!
  * \brief Set QoS parameters on an RTP session

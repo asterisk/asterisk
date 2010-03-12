@@ -308,7 +308,6 @@
 #define SIP_PAGE2_Q850_REASON           (1 << 4)    /*!< DP: Get/send cause code via Reason header */
 
 /* Space for addition of other realtime flags in the future */
-#define SIP_PAGE2_CONSTANT_SSRC         (1 << 7)    /*!< GDP: Don't change SSRC on reinvite */
 #define SIP_PAGE2_SYMMETRICRTP          (1 << 8)    /*!< GDP: Whether symmetric RTP is enabled or not */
 #define SIP_PAGE2_STATECHANGEQUEUE      (1 << 9)    /*!< D: Unsent state pending change exists */
 
@@ -346,7 +345,7 @@
 	SIP_PAGE2_VIDEOSUPPORT | SIP_PAGE2_T38SUPPORT | SIP_PAGE2_RFC2833_COMPENSATE | \
 	SIP_PAGE2_BUGGY_MWI | SIP_PAGE2_TEXTSUPPORT | SIP_PAGE2_FAX_DETECT | \
 	SIP_PAGE2_UDPTL_DESTINATION | SIP_PAGE2_VIDEOSUPPORT_ALWAYS | SIP_PAGE2_PREFERRED_CODEC | \
-	SIP_PAGE2_RPID_IMMEDIATE | SIP_PAGE2_RPID_UPDATE | SIP_PAGE2_SYMMETRICRTP | SIP_PAGE2_CONSTANT_SSRC |\
+	SIP_PAGE2_RPID_IMMEDIATE | SIP_PAGE2_RPID_UPDATE | SIP_PAGE2_SYMMETRICRTP |\
 	SIP_PAGE2_Q850_REASON)
 
 /*@}*/
