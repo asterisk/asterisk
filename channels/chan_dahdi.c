@@ -646,7 +646,7 @@ struct mwisend_info {
 };
 
 static struct dahdi_pvt {
-	ast_mutex_t lock;
+	ast_mutex_t lock;					/*!< Channel private lock. */
 	struct ast_channel *owner;			/*!< Our current active owner (if applicable) */
 							/*!< Up to three channels can be associated with this call */
 
