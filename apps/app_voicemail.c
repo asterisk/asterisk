@@ -6686,8 +6686,6 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 
 	if (!ast_strlen_zero(vmu->email)) {
 		int attach_user_voicemail = ast_test_flag(vmu, VM_ATTACH);
-		if (!attach_user_voicemail)
-			attach_user_voicemail = ast_test_flag((&globalflags), VM_ATTACH);
 
 		if (attach_user_voicemail)
 			RETRIEVE(todir, msgnum, vmu->mailbox, vmu->context);
