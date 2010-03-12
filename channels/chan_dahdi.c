@@ -328,7 +328,6 @@ static inline int dahdi_wait_event(int fd)
 #define DEFAULT_RINGT 				( (8000 * 8) / READ_SIZE) /*!< 8,000 ms */
 
 struct dahdi_pvt;
-struct dahdi_pri;
 
 /*!
  * \brief Configured ring timeout base.
