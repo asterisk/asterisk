@@ -292,6 +292,7 @@ static inline int dahdi_wait_event(int fd)
 #define DEFAULT_RINGT 				( (8000 * 8) / READ_SIZE) /*!< 8,000 ms */
 
 struct dahdi_pvt;
+struct dahdi_pri;
 
 /*!
  * \brief Configured ring timeout base.
@@ -427,7 +428,7 @@ struct dahdi_subchannel {
 #define MAX_SLAVES	4
 
 static struct dahdi_pvt {
-	ast_mutex_t lock;
+	ast_mutex_t lock;					/*!< Channel private lock. */
 	struct ast_channel *owner;			/*!< Our current active owner (if applicable) */
 							/*!< Up to three channels can be associated with this call */
 		
@@ -1117,11 +1118,7 @@ static int dahdi_get_index(struct ast_channel *ast, struct dahdi_pvt *p, int nul
 	return res;
 }
 
-#ifdef HAVE_PRI
 static void wakeup_sub(struct dahdi_pvt *p, int a, struct dahdi_pri *pri)
-#else
-static void wakeup_sub(struct dahdi_pvt *p, int a, void *pri)
-#endif
 {
 #ifdef HAVE_PRI
 	if (pri)
