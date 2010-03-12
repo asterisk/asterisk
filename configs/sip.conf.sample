@@ -623,8 +623,6 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; (observed with Microsoft OCS). By default this option is
                                 ; off.
 
-;constantssrc=yes               ; Don't change the RTP SSRC when our media stream changes
-
 ;----------------------------------------- REALTIME SUPPORT ------------------------
 ; For additional information on ARA, the Asterisk Realtime Architecture,
 ; please read realtime.txt and extconfig.txt in the /doc directory of the

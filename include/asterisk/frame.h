@@ -83,7 +83,8 @@ struct ast_codec_pref {
 	\arg \b HOLD	Call is placed on hold
 	\arg \b UNHOLD	Call is back from hold
 	\arg \b VIDUPDATE	Video update requested
-	\arg \b SRCUPDATE       The source of media has changed
+	\arg \b SRCUPDATE The source of media has changed (RTP marker bit must change)
+	\arg \b SRCCHANGE Media source has changed (RTP marker bit and SSRC must change)
 
 */
 
@@ -302,6 +303,7 @@ enum ast_control_frame_type {
 	_XXX_AST_CONTROL_T38 = 19,	/*!< T38 state change request/notification \deprecated This is no longer supported. Use AST_CONTROL_T38_PARAMETERS instead. */
 	AST_CONTROL_SRCUPDATE = 20,     /*!< Indicate source of media has changed */
 	AST_CONTROL_T38_PARAMETERS = 24, /*!< T38 state change request/notification with parameters */
+	AST_CONTROL_SRCCHANGE = 25,  /*!< Media source has changed and requires a new RTP SSRC */
 };
 
 enum ast_control_t38 {

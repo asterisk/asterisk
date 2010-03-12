@@ -1008,13 +1008,12 @@ struct sip_auth {
 #define SIP_PAGE2_FAX_DETECT		(1 << 28)		/*!< DP: Fax Detection support */
 #define SIP_PAGE2_REGISTERTRYING        (1 << 29)       /*!< DP: Send 100 Trying on REGISTER attempts */
 #define SIP_PAGE2_UDPTL_DESTINATION     (1 << 30)       /*!< DP: Use source IP of RTP as destination if NAT is enabled */
-#define SIP_PAGE2_CONSTANT_SSRC         (1 << 31)       /*!< GDP: Don't change SSRC on reinvite */
 
 #define SIP_PAGE2_FLAGS_TO_COPY \
 	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_IGNORESDPVERSION | \
 	SIP_PAGE2_VIDEOSUPPORT | SIP_PAGE2_T38SUPPORT | SIP_PAGE2_RFC2833_COMPENSATE | \
 	 SIP_PAGE2_BUGGY_MWI | SIP_PAGE2_TEXTSUPPORT | SIP_PAGE2_UDPTL_DESTINATION | \
-	 SIP_PAGE2_CONSTANT_SSRC | SIP_PAGE2_FAX_DETECT)
+	 SIP_PAGE2_FAX_DETECT)
 
 /*@}*/ 
 
@@ -4333,9 +4332,6 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 		ast_rtp_set_rtptimeout(dialog->rtp, peer->rtptimeout);
 		ast_rtp_set_rtpholdtimeout(dialog->rtp, peer->rtpholdtimeout);
 		ast_rtp_set_rtpkeepalive(dialog->rtp, peer->rtpkeepalive);
-		if (ast_test_flag(&dialog->flags[1], SIP_PAGE2_CONSTANT_SSRC)) {
-			ast_rtp_set_constantssrc(dialog->rtp);
-		}
 		/* Set Frame packetization */
 		ast_rtp_codec_setpref(dialog->rtp, &dialog->prefs);
 		dialog->autoframing = peer->autoframing;
@@ -4346,9 +4342,6 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 		ast_rtp_set_rtptimeout(dialog->vrtp, peer->rtptimeout);
 		ast_rtp_set_rtpholdtimeout(dialog->vrtp, peer->rtpholdtimeout);
 		ast_rtp_set_rtpkeepalive(dialog->vrtp, peer->rtpkeepalive);
-		if (ast_test_flag(&dialog->flags[1], SIP_PAGE2_CONSTANT_SSRC)) {
-			ast_rtp_set_constantssrc(dialog->vrtp);
-		}
 	}
 	if (dialog->trtp) { /* Realtime text */
 		ast_rtp_setdtmf(dialog->trtp, 0);
@@ -5322,7 +5315,7 @@ static int sip_answer(struct ast_channel *ast)
 
 		ast_setstate(ast, AST_STATE_UP);
 		ast_debug(1, "SIP answering channel: %s\n", ast->name);
-		ast_rtp_new_source(p->rtp);
+		ast_rtp_update_source(p->rtp);
 		ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
 		res = transmit_response_with_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL, FALSE);
 	}
@@ -5357,7 +5350,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 				if ((ast->_state != AST_STATE_UP) &&
 				    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
 				    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
-					ast_rtp_new_source(p->rtp);
+					ast_rtp_update_source(p->rtp);
 					if (!global_prematuremediafilter) {
 						p->invitestate = INV_EARLY_MEDIA;
 						transmit_provisional_response(p, "183 Session Progress", &p->initreq, TRUE);
@@ -5677,11 +5670,11 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 		res = -1;
 		break;
 	case AST_CONTROL_HOLD:
-		ast_rtp_new_source(p->rtp);
+		ast_rtp_update_source(p->rtp);
 		ast_moh_start(ast, data, p->mohinterpret);
 		break;
 	case AST_CONTROL_UNHOLD:
-		ast_rtp_new_source(p->rtp);
+		ast_rtp_update_source(p->rtp);
 		ast_moh_stop(ast);
 		break;
 	case AST_CONTROL_VIDUPDATE:	/* Request a video frame update */
@@ -5700,7 +5693,10 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 		}
 		break;
 	case AST_CONTROL_SRCUPDATE:
-		ast_rtp_new_source(p->rtp);
+		ast_rtp_update_source(p->rtp);
+		break;
+	case AST_CONTROL_SRCCHANGE:
+		ast_rtp_change_source(p->rtp);
 		break;
 	case -1:
 		res = -1;
@@ -18168,14 +18164,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				res = -1;
 				goto request_invite_cleanup;
 			}
-			if (ast_test_flag(&p->flags[1], SIP_PAGE2_CONSTANT_SSRC)) {
-				if (p->rtp) {
-					ast_rtp_set_constantssrc(p->rtp);
-				}
-				if (p->vrtp) {
-					ast_rtp_set_constantssrc(p->vrtp);
-				}
-			}
 		} else {	/* No SDP in invite, call control session */
 			p->jointcapability = p->capability;
 			ast_debug(2, "No SDP in Invite, third party call control\n");
@@ -21367,9 +21355,6 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 	} else if (!strcasecmp(v->name, "t38pt_usertpsource")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_UDPTL_DESTINATION);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_UDPTL_DESTINATION);
-	} else if (!strcasecmp(v->name, "constantssrc")) {
-		ast_set_flag(&mask[1], SIP_PAGE2_CONSTANT_SSRC);
-		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_CONSTANT_SSRC);
 	} else if (!strcasecmp(v->name, "faxdetect")) {
                 ast_set_flag(&mask[1], SIP_PAGE2_FAX_DETECT);
                 ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_FAX_DETECT);
@@ -22878,8 +22863,6 @@ static int reload_config(enum channelreloadreason reason)
 				default_maxcallbitrate = DEFAULT_MAX_CALL_BITRATE;
 		} else if (!strcasecmp(v->name, "matchexterniplocally")) {
 			global_matchexterniplocally = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "constantssrc")) {
-			ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_CONSTANT_SSRC);
 		} else if (!strcasecmp(v->name, "session-timers")) {
 			int i = (int) str2stmode(v->value); 
 			if (i < 0) {
