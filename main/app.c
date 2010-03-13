@@ -1095,8 +1095,10 @@ int ast_app_group_match_get_count(const char *groupmatch, const char *category)
 	regex_t regexbuf_category;
 	int count = 0;
 
-	if (ast_strlen_zero(groupmatch))
+	if (ast_strlen_zero(groupmatch)) {
+		ast_log(LOG_NOTICE, "groupmatch empty\n");
 		return 0;
+	}
 
 	/* if regex compilation fails, return zero matches */
 	if (regcomp(&regexbuf_group, groupmatch, REG_EXTENDED | REG_NOSUB)) {
@@ -1104,7 +1106,7 @@ int ast_app_group_match_get_count(const char *groupmatch, const char *category)
 		return 0;
 	}
 
-	if (regcomp(&regexbuf_category, category, REG_EXTENDED | REG_NOSUB)) {
+	if (!ast_strlen_zero(category) && regcomp(&regexbuf_category, category, REG_EXTENDED | REG_NOSUB)) {
 		ast_log(LOG_ERROR, "Regex compile failed on: %s\n", category);
 		return 0;
 	}
@@ -1118,7 +1120,9 @@ int ast_app_group_match_get_count(const char *groupmatch, const char *category)
 	AST_RWLIST_UNLOCK(&groups);
 
 	regfree(&regexbuf_group);
-	regfree(&regexbuf_category);
+	if (!ast_strlen_zero(category)) {
+		regfree(&regexbuf_category);
+	}
 
 	return count;
 }
