@@ -79,8 +79,11 @@ AST_TEST_DEFINE(test_timezone_watch)
 	for (type = 0; type < 2; type++) {
 		ast_test_status_update(test, "Executing %s test...\n", type == 0 ? "deletion" : "symlink");
 		for (i = 0; i < ARRAY_LEN(zones); i++) {
+			int system_res;
 			snprintf(syscmd, sizeof(syscmd), "%s " TZDIR "/%s %s", type == 0 ? "cp" : "ln -sf", zones[i], tzfile);
-			system(syscmd);
+			if ((system_res = system(syscmd))) {
+				ast_log(LOG_WARNING, "system() returned non-zero: %d\n", system_res);
+			}
 			ast_localtime(&tv, &atm[i], tzfile);
 			if (i != 0) {
 				if (atm[i].tm_hour == atm[i - 1].tm_hour) {
