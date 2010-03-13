@@ -2460,6 +2460,7 @@ int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 				case AST_CONTROL_RINGING:
 				case AST_CONTROL_ANSWER:
 				case AST_CONTROL_SRCUPDATE:
+				case AST_CONTROL_SRCCHANGE:
 					/* Unimportant */
 					break;
 				default:
@@ -3095,6 +3096,7 @@ static int attribute_const is_visible_indication(enum ast_control_frame_type con
 	case AST_CONTROL_PROCEEDING:
 	case AST_CONTROL_VIDUPDATE:
 	case AST_CONTROL_SRCUPDATE:
+	case AST_CONTROL_SRCCHANGE:
 	case AST_CONTROL_RADIO_KEY:
 	case AST_CONTROL_RADIO_UNKEY:
 	case AST_CONTROL_OPTION:
@@ -3200,6 +3202,7 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	case AST_CONTROL_PROCEEDING:
 	case AST_CONTROL_VIDUPDATE:
 	case AST_CONTROL_SRCUPDATE:
+	case AST_CONTROL_SRCCHANGE:
 	case AST_CONTROL_RADIO_KEY:
 	case AST_CONTROL_RADIO_UNKEY:
 	case AST_CONTROL_OPTION:
@@ -3904,6 +3907,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 				case AST_CONTROL_UNHOLD:
 				case AST_CONTROL_VIDUPDATE:
 				case AST_CONTROL_SRCUPDATE:
+				case AST_CONTROL_SRCCHANGE:
 				case -1:			/* Ignore -- just stopping indications */
 					break;
 
@@ -4863,6 +4867,7 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 			case AST_CONTROL_UNHOLD:
 			case AST_CONTROL_VIDUPDATE:
 			case AST_CONTROL_SRCUPDATE:
+			case AST_CONTROL_SRCCHANGE:
 			case AST_CONTROL_T38_PARAMETERS:
 				ast_indicate_data(other, f->subclass, f->data.ptr, f->datalen);
 				if (jb_in_use) {
