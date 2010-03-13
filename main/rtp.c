@@ -179,7 +179,6 @@ struct ast_rtp {
 	struct sockaddr_in strict_rtp_address;  /*!< Remote address information for strict RTP purposes */
 
 	int set_marker_bit:1;           /*!< Whether to set the marker bit or not */
-	unsigned int constantssrc:1;
 };
 
 /* Forward declarations */
