@@ -385,8 +385,6 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; instead of INVITE. This can be combined with 'nonat', as
                                 ; 'canreinvite=update,nonat'. It implies 'yes'.
 
-;constantssrc=yes               ; Don't change the RTP SSRC when our media stream changes
-
 ;----------------------------------------- REALTIME SUPPORT ------------------------
 ; For additional information on ARA, the Asterisk Realtime Architecture,
 ; please read realtime.txt and extconfig.txt in the /doc directory of the
@@ -546,7 +544,6 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; maxcallbitrate              maxcallbitrate
 ; rfc2833compensate           mailbox
 ; t38pt_usertpsource          username
-; constantssrc                template
 ;                             fromdomain
 ;                             regexten
 ;                             fromuser
@@ -559,7 +556,6 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;                             sendrpid
 ;                             outboundproxy
 ;                             rfc2833compensate
-;                             constantssrc
 ;                             t38pt_usertpsource
 ;                             contactpermit         ; Limit what a host may register as (a neat trick
 ;                             contactdeny           ; is to register at the same IP as a SIP provider,

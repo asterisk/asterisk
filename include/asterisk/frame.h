@@ -85,7 +85,8 @@ struct ast_codec_pref {
 	\arg \b HOLD	Call is placed on hold
 	\arg \b UNHOLD	Call is back from hold
 	\arg \b VIDUPDATE	Video update requested
-	\arg \b SRCUPDATE       The source of media has changed
+	\arg \b SRCUPDATE The source of media has changed (RTP marker bit must change)
+	\arg \b SRCCHANGE Media source has changed (RTP marker bit and SSRC must change)
 
 */
 
@@ -290,6 +291,7 @@ enum ast_control_frame_type {
 	AST_CONTROL_UNHOLD = 17,	/*!< Indicate call is left from hold */
 	AST_CONTROL_VIDUPDATE = 18,	/*!< Indicate video frame update */
 	AST_CONTROL_SRCUPDATE = 20,     /*!< Indicate source of media has changed */
+	AST_CONTROL_SRCCHANGE = 21,     /*!< Media has changed and requires a new RTP SSRC */
 };
 
 #define AST_SMOOTHER_FLAG_G729		(1 << 0)
