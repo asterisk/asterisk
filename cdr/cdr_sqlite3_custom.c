@@ -220,7 +220,7 @@ static void free_config(int reload)
 	}
 }
 
-static int sqlite3_log(struct ast_cdr *cdr)
+static int write_cdr(struct ast_cdr *cdr)
 {
 	int res = 0;
 	char *error = NULL;
@@ -321,7 +321,7 @@ static int load_module(void)
 		}
 	}
 
-	res = ast_cdr_register(name, desc, sqlite3_log);
+	res = ast_cdr_register(name, desc, write_cdr);
 	if (res) {
 		ast_log(LOG_ERROR, "Unable to register custom SQLite3 CDR handling\n");
 		free_config(0);
