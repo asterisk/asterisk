@@ -611,6 +611,7 @@ int ooSocketGetInterfaceList(OOCTXT *pctxt, OOInterface **ifList)
    struct ifconf ifc;
    int ifNum;
    OOInterface *pIf=NULL;
+   struct sockaddr_in sin;
 
    OOTRACEDBGA1("Retrieving local interfaces\n");
    if(ooSocketCreateUDP(&sock)!= ASN_OK)
@@ -686,7 +687,8 @@ int ooSocketGetInterfaceList(OOCTXT *pctxt, OOInterface **ifList)
             memFreePtr(pctxt, pIf);
             continue;
          }
-         strcpy(addr, ast_inet_ntoa(((struct sockaddr_in*)&ifReq.ifr_addr)->sin_addr));
+	 memcpy(&sin, &ifReq.ifr_addr, sizeof(struct sockaddr_in));
+	 strcpy(addr, ast_inet_ntoa(sin.sin_addr));
          OOTRACEDBGA2("\tIP address is %s\n", addr);
          pIf->addr = (char*)memAlloc(pctxt, strlen(addr)+1);
          if(!pIf->addr)
@@ -709,7 +711,8 @@ int ooSocketGetInterfaceList(OOCTXT *pctxt, OOInterface **ifList)
             memFreePtr(pctxt, pIf);
             continue;
          }
-         strcpy(mask, ast_inet_ntoa(((struct sockaddr_in *)&ifReq.ifr_netmask)->sin_addr));
+	 memcpy(&sin, &ifReq.ifr_netmask, sizeof(struct sockaddr_in));
+	 strcpy(mask, ast_inet_ntoa(sin.sin_addr));
          OOTRACEDBGA2("\tMask is %s\n", mask);
          pIf->mask = (char*)memAlloc(pctxt, strlen(mask)+1);
          if(!pIf->mask)

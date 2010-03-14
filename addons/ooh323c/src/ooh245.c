@@ -2409,6 +2409,132 @@ int ooOnReceivedRequestChannelClose(OOH323CallData *call,
    return ret;
 }
 
+int ooSendRoundTripDelayRequest(OOH323CallData *call)
+{
+   int ret=0;
+   H245Message *ph245msg=NULL;
+   H245RequestMessage *request = NULL;
+   OOCTXT *pctxt=NULL;
+   H245RoundTripDelayRequest *rtdr;
+   ooTimerCallback *cbData=NULL;
+
+   if (call->rtdrSend > call->rtdrRecv + call->rtdrCount) {
+	if(call->callState < OO_CALL_CLEAR) {
+		call->callState = OO_CALL_CLEAR;
+		call->callEndReason = OO_REASON_UNKNOWN;
+		call->q931cause = Q931RecoveryOnTimerExpiry;
+	}
+	return OO_FAILED;
+   }
+   
+   ret = ooCreateH245Message(call, &ph245msg, 
+                             T_H245MultimediaSystemControlMessage_request);
+   if(ret != OO_OK)
+   {
+      OOTRACEERR3("ERROR:Memory allocation for RoundTripDelayResponse message "
+                  "failed (%s, %s)\n", call->callType, call->callToken);
+      return OO_FAILED;
+   }
+
+   pctxt = call->msgctxt;
+   ph245msg->msgType = OORequestDelayRequest;
+   request = ph245msg->h245Msg.u.request;
+   request->t = T_H245RequestMessage_roundTripDelayRequest;
+   request->u.roundTripDelayRequest = (H245RoundTripDelayRequest *)ASN1MALLOC
+                                   (pctxt, sizeof(H245RoundTripDelayRequest));
+   if(!request->u.roundTripDelayRequest)
+   {
+      OOTRACEERR3("ERROR:Failed to allocate memory for H245RoundTripDelayRequest "
+                  "message (%s, %s)\n", call->callType, call->callToken);
+      return OO_FAILED;
+   }
+   rtdr = request->u.roundTripDelayRequest;
+   memset(rtdr, 0, sizeof(H245RoundTripDelayRequest));
+   rtdr->sequenceNumber = ++call->rtdrSend;
+
+   OOTRACEDBGA3("Built RoundTripDelayRequest message (%s, %s)\n", 
+                 call->callType, call->callToken);
+   ret = ooSendH245Msg(call, ph245msg);
+   if(ret != OO_OK)
+   {
+      OOTRACEERR3("Error:Failed to enqueue RoundTripDelayRequest to outbound queue. (%s, %s)\n",
+	call->callType, call->callToken);
+      return OO_FAILED;
+   } else {
+      cbData = (ooTimerCallback*) memAlloc(call->pctxt,
+                                     sizeof(ooTimerCallback));
+      if(!cbData)
+      {
+         OOTRACEERR3("Error:Unable to allocate memory for timer callback data."
+                     "(%s, %s)\n", call->callType, call->callToken);
+         return OO_FAILED;
+      }
+      cbData->call = call;
+      cbData->timerType = OO_RTD_TIMER;
+      if(!ooTimerCreate(call->pctxt, &call->timerList, &ooRTDTimerExpired,
+                        call->rtdrInterval, cbData, FALSE))
+      {
+         OOTRACEERR3("Error:Unable to create RTDR timer. "
+                     "(%s, %s)\n", call->callType, call->callToken);
+         memFreePtr(call->pctxt, cbData);
+         return OO_FAILED;
+      }
+
+   }
+
+   ooFreeH245Message(call, ph245msg);
+
+   return ret;
+}
+
+int ooOnReceivedRoundTripDelayRequest(OOH323CallData *call, 
+                                     H245SequenceNumber sequenceNumber)
+{
+   int ret=0;
+   H245Message *ph245msg=NULL;
+   H245ResponseMessage *response = NULL;
+   OOCTXT *pctxt=NULL;
+   H245RoundTripDelayResponse *rtdr;
+
+   ret = ooCreateH245Message(call, &ph245msg, 
+                             T_H245MultimediaSystemControlMessage_response);
+   if(ret != OO_OK)
+   {
+      OOTRACEERR3("ERROR:Memory allocation for RoundTripDelayResponse message "
+                  "failed (%s, %s)\n", call->callType, call->callToken);
+      return OO_FAILED;
+   }
+
+   pctxt = call->msgctxt;
+   ph245msg->msgType = OORequestDelayResponse;
+   response = ph245msg->h245Msg.u.response;
+   response->t = T_H245ResponseMessage_roundTripDelayResponse;
+   response->u.roundTripDelayResponse = (H245RoundTripDelayResponse *)ASN1MALLOC
+                                   (pctxt, sizeof(H245RoundTripDelayResponse));
+   if(!response->u.roundTripDelayResponse)
+   {
+      OOTRACEERR3("ERROR:Failed to allocate memory for H245RoundTripDelayResponse "
+                  "message (%s, %s)\n", call->callType, call->callToken);
+      return OO_FAILED;
+   }
+   rtdr = response->u.roundTripDelayResponse;
+   memset(rtdr, 0, sizeof(H245RoundTripDelayResponse));
+   rtdr->sequenceNumber = sequenceNumber;
+
+   OOTRACEDBGA3("Built RoundTripDelayResponse message (%s, %s)\n", 
+                 call->callType, call->callToken);
+   ret = ooSendH245Msg(call, ph245msg);
+   if(ret != OO_OK)
+   {
+      OOTRACEERR3("Error:Failed to enqueue RoundTripDelayResponse to outbound queue. (%s, %s)\n",
+	call->callType, call->callToken);
+   }
+
+   ooFreeH245Message(call, ph245msg);
+   
+   return ret;
+}
+
 /*
   We clear channel here. Ideally the remote endpoint should send 
   CloseLogicalChannel and then the channel should be cleared. But there's no
@@ -2609,6 +2735,11 @@ int ooHandleH245Message(OOH323CallData *call, H245Message * pmsg)
                ooOnReceivedRequestChannelClose(call, 
                                                request->u.requestChannelClose);
                break;
+	     case T_H245RequestMessage_roundTripDelayRequest:
+	       OOTRACEINFO4("Received roundTripDelayRequest - %d (%s, %s)\n",
+		  request->u.roundTripDelayRequest->sequenceNumber,  call->callType, call->callToken);
+	       ooOnReceivedRoundTripDelayRequest(call, request->u.roundTripDelayRequest->sequenceNumber);
+	       break;
             default:
                ;
          } /* End of Request Message */
@@ -2833,6 +2964,11 @@ int ooHandleH245Message(OOH323CallData *call, H245Message * pmsg)
                ooOnReceivedRequestChannelCloseReject(call, 
                                            response->u.requestChannelCloseReject);
                break;
+	     case T_H245ResponseMessage_roundTripDelayResponse:
+	       OOTRACEINFO4("Received roundTripDelayResponse - %d (%s, %s)\n",
+		  response->u.roundTripDelayResponse->sequenceNumber,  call->callType, call->callToken);
+	       call->rtdrRecv = response->u.roundTripDelayResponse->sequenceNumber;
+	       break;
             default:
                ;
          }
@@ -3930,6 +4066,18 @@ int ooTCSTimerExpired(void *data)
    }
 
    return OO_OK;
+}
+
+int ooRTDTimerExpired(void *data)
+{
+   ooTimerCallback *cbData = (ooTimerCallback*)data;
+   OOH323CallData *call = cbData->call;
+   OOTRACEINFO3("Time to send new RTD request. (%s, %s)\n",
+                 call->callType, call->callToken);
+   ASN1MEMFREEPTR(call->pctxt, cbData);
+   ooSendRoundTripDelayRequest(call);
+   return OO_OK;
+
 }
 
 int ooOpenLogicalChannelTimerExpired(void *pdata)

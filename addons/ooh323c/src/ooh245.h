@@ -631,6 +631,7 @@ int ooSessionTimerExpired(void *pdata);
 /** 
  * @} 
  */
+int ooRTDTimerExpired(void *pdata);
 
 int ooHandleRequestMode(OOH323CallData* call,
                                 H245RequestMode *requestMode);
@@ -642,6 +643,12 @@ int ooSendRequestModeReject(OOH323CallData* call,
                                       H245SequenceNumber sequenceNumber);
 
 void ooOnReceivedRequestModeAck(OOH323CallData* call, H245RequestModeAck * requestModeAck);
+
+int ooOnReceivedRoundTripDelayRequest(OOH323CallData *call,
+                                     H245SequenceNumber sequenceNumber);
+
+int ooSendRoundTripDelayRequest(OOH323CallData *call);
+
 
 #ifdef __cplusplus
 }

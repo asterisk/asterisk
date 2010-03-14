@@ -187,6 +187,7 @@ static struct ooh323_pvt {
 	struct ast_dsp *vad;
 	struct OOH323Regex *rtpmask;	/* rtp ip regexp */
 	char rtpmaskstr[120];
+	int rtdrcount, rtdrinterval;	/* roundtripdelayreq */
 	struct ooh323_pvt *next;	/* Next entity */
 } *iflist = NULL;
 
@@ -212,6 +213,7 @@ struct ooh323_user{
 	char        mIP[20];
 	struct OOH323Regex	    *rtpmask;
 	char	    rtpmaskstr[120];
+	int	    rtdrcount, rtdrinterval;
 	struct ooh323_user *next;
 };
 
@@ -238,6 +240,7 @@ struct ooh323_peer{
 	int         rtptimeout;
 	struct OOH323Regex	    *rtpmask;
 	char	    rtpmaskstr[120];
+	int	    rtdrcount,rtdrinterval;
 	struct ooh323_peer *next;
 };
 
@@ -302,6 +305,7 @@ static int  gIncomingLimit = 1024;
 static int  gOutgoingLimit = 1024;
 OOBOOL gH323Debug = FALSE;
 static int gTRCLVL = OOTRCLVLERR;
+static int gRTDRCount = 0, gRTDRInterval = 0;
 
 static int t35countrycode = 0;
 static int t35extensions = 0;
@@ -502,6 +506,8 @@ static struct ooh323_pvt *ooh323_alloc(int callref, char *callToken)
 	pvt->faxmode = 0;
 	pvt->t38support = gT38Support;
 	pvt->rtptimeout = gRTPTimeout;
+	pvt->rtdrinterval = gRTDRInterval;
+	pvt->rtdrcount = gRTDRCount;
 
 	pvt->call_reference = callref;
 	if (callToken)
@@ -627,6 +633,12 @@ static struct ast_channel *ooh323_request(const char *type, format_t format,
 			p->rtpmask = peer->rtpmask;
 			ast_copy_string(p->rtpmaskstr, peer->rtpmaskstr, sizeof(p->rtpmaskstr));
 		}
+
+		if (peer->rtdrinterval) {
+			p->rtdrinterval = peer->rtdrinterval;
+			p->rtdrcount = peer->rtdrcount;
+		}
+
 		ast_copy_string(p->accountcode, peer->accountcode, sizeof(p->accountcode));
 		p->amaflags = peer->amaflags;
 	} else {
@@ -635,6 +647,8 @@ static struct ast_channel *ooh323_request(const char *type, format_t format,
 		p->t38support = gT38Support;
 		p->rtptimeout = gRTPTimeout;
 		p->capability = gCapability;
+		p->rtdrinterval = gRTDRInterval;
+		p->rtdrcount = gRTDRCount;
 
 		memcpy(&p->prefs, &gPrefs, sizeof(struct ast_codec_pref));
 		p->username = strdup(dest);
@@ -1721,6 +1735,10 @@ int ooh323_onReceivedSetup(ooCallData *call, Q931Message *pmsg)
 			ast_copy_string(p->rtpmaskstr, user->rtpmaskstr, 
 							 sizeof(p->rtpmaskstr));
 		}
+		if (user->rtdrcount > 0 && user->rtdrinterval > 0) {
+			p->rtdrcount = user->rtdrcount;
+			p->rtdrinterval = user->rtdrinterval;
+		}
 	 	if (user->incominglimit) user->inUse++;
 		ast_mutex_unlock(&user->lock);
 	} else {
@@ -2129,6 +2147,8 @@ static struct ooh323_user *build_user(const char *name, struct ast_variable *v)
 			} else if (!strcasecmp(v->name, "accountcode")) {
             			strncpy(user->accountcode, v->value, 
 						sizeof(user->accountcode)-1);
+			} else if (!strcasecmp(v->name, "roundtrip")) {
+				sscanf(v->value, "%d,%d", &user->rtdrcount, &user->rtdrinterval);
 			} else if (!strcasecmp(v->name, "rtptimeout")) {
 				user->rtptimeout = atoi(v->value);
 				if (user->rtptimeout < 0)
@@ -2288,6 +2308,8 @@ static struct ooh323_peer *build_peer(const char *name, struct ast_variable *v, 
 												 tcodecs, 1);				 
 			} else if (!strcasecmp(v->name,  "amaflags")) {
 				peer->amaflags = ast_cdr_amaflags2int(v->value);
+			} else if (!strcasecmp(v->name, "roundtrip")) {
+				sscanf(v->value, "%d,%d", &peer->rtdrcount, &peer->rtdrinterval);
 			} else if (!strcasecmp(v->name, "dtmfmode")) {
 				if (!strcasecmp(v->value, "rfc2833"))
 					peer->dtmfmode = H323_DTMF_RFC2833;
@@ -2431,6 +2453,8 @@ int reload_config(int reload)
 	gRasGkMode = RasNoGatekeeper;
 	gGatekeeper[0] = '\0';
 	gRTPTimeout = 60;
+	gRTDRInterval = 0;
+	gRTDRCount = 0;
 	strcpy(gAccountcode, DEFAULT_H323ACCNT);
 	gFastStart = 1;
 	gTunneling = 1;
@@ -2488,6 +2512,8 @@ int reload_config(int reload)
 				ooH323EpEnableH245Tunneling();
 			else
 				ooH323EpDisableH245Tunneling();
+		} else if (!strcasecmp(v->name, "roundtrip")) {
+			sscanf(v->value, "%d,%d", &gRTDRCount, &gRTDRInterval);
       		} else if (!strcasecmp(v->name, "trybemaster")) {
 			gBeMaster = ast_true(v->value);
 			if (gBeMaster)
@@ -2757,6 +2783,8 @@ static char *handle_cli_ooh323_show_peer(struct ast_cli_entry *e, int cmd, struc
 	ast_cli(a->fd, "%-15.15s%d\n", "rtptimeout: ", peer->rtptimeout);
 	if (peer->rtpmaskstr[0])
 		ast_cli(a->fd, "%-15.15s%s\n", "rtpmask: ", peer->rtpmaskstr);
+	if (peer->rtdrcount && peer->rtdrinterval) 
+		ast_cli(a->fd, "%-15.15s%d,%d\n", "RoundTrip: ", peer->rtdrcount, peer->rtdrinterval);
 	ast_mutex_unlock(&peer->lock);
 	} else {
 	ast_cli(a->fd, "Peer %s not found\n", a->argv[3]);
@@ -2900,6 +2928,8 @@ static char *handle_cli_ooh323_show_user(struct ast_cli_entry *e, int cmd, struc
 	if (user->rtpmaskstr[0])
 		ast_cli(a->fd, "%-15.15s%s\n", "rtpmask: ", user->rtpmaskstr);
 		ast_mutex_unlock(&user->lock);
+	if (user->rtdrcount && user->rtdrinterval) 
+		ast_cli(a->fd, "%-15.15s%d,%d\n", "RoundTrip: ", user->rtdrcount, user->rtdrinterval);
 	} else {
      ast_cli(a->fd, "User %s not found\n", a->argv[3]);
      ast_cli(a->fd, "\n");
@@ -3065,6 +3095,9 @@ static char *handle_cli_ooh323_show_config(struct ast_cli_entry *e, int cmd, str
 		ast_cli(a->fd, "%s\n", "disabled");
 	else if (gT38Support == T38_FAXGW)
 		ast_cli(a->fd, "%s\n", "faxgw/chan_sip compatible");
+
+	if (gRTDRCount && gRTDRInterval)
+		ast_cli(a->fd, "%-15.15s%d,%d\n", "RoundTrip: ", gRTDRCount, gRTDRInterval);
 
    ast_cli(a->fd, "%-20s%ld\n", "Call counter: ", callnumber);
    ast_cli(a->fd, "%-20s%s\n", "AccountCode: ", gAccountcode);
@@ -3809,6 +3842,13 @@ int configure_local_rtp(struct ooh323_pvt *p, ooCallData *call)
 		}
 		ast_rtp_instance_set_prop(p->rtp, AST_RTP_PROPERTY_RTCP, 1);
 		
+	}
+
+	if (p->rtdrcount) {
+		if (gH323Debug)
+			ast_verbose("Setup RTDR info: %d, %d\n", p->rtdrinterval, p->rtdrcount);
+		call->rtdrInterval = p->rtdrinterval;
+		call->rtdrCount = p->rtdrcount;
 	}
 
 

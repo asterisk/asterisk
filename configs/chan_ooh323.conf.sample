@@ -116,6 +116,11 @@ allow=ulaw
 ; h245alphanumeric, h245signal.
 ;Default - rfc 2833
 dtmfmode=rfc2833
+;
+; round trip delay request, default = 0,0 (not send)
+; x - count of unreplied requests before hangup, y - interval in sec between requests
+;
+;roundtrip=x,y
 
 ; User/peer/friend definitions:
 ; User config options                    Peer config options

@@ -2003,6 +2003,11 @@ int ooAcceptCall(OOH323CallData *call)
    /* memReset(&gH323ep.msgctxt); */
    memReset(call->msgctxt);
 
+   call->callState = OO_CALL_CONNECTED;
+   
+   if (call->rtdrCount > 0 && call->rtdrInterval > 0) {
+	return ooSendRoundTripDelayRequest(call);
+   }
    return OO_OK;
 }
 
@@ -3669,7 +3674,9 @@ const char* ooGetMsgTypeText (int msgType)
       "OOUserInputIndication",
       "OORequestModeAck",
       "OORequestModeReject",
-      "OORequestMode"
+      "OORequestMode",
+      "OORequestDelayResponse",
+      "OORequestDelayRequest"
    };
    int idx = msgType - OO_MSGTYPE_MIN;
    return ooUtilsGetText (idx, msgTypeText, OONUMBEROF(msgTypeText));

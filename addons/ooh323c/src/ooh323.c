@@ -1543,6 +1543,10 @@ int ooOnReceivedSignalConnect(OOH323CallData* call, Q931Message *q931Msg)
       }
 
    }
+   call->callState = OO_CALL_CONNECTED;
+   if (call->rtdrCount > 0 && call->rtdrInterval > 0) {
+        return ooSendRoundTripDelayRequest(call);
+   }
    return OO_OK;  
 }
 
@@ -2239,7 +2243,8 @@ int ooPopulateAliasList(OOCTXT *pctxt, OOAliases *pAliases,
          }
          switch(pAlias->type)
          {
-         case T_H225AliasAddress_dialedDigits:
+	 /* Don't populate DialedDigits as alias they populate as prefixes
+            case T_H225AliasAddress_dialedDigits:
             pAliasEntry->t = T_H225AliasAddress_dialedDigits;
             pAliasEntry->u.dialedDigits = (ASN1IA5String)memAlloc(pctxt,
                                                      strlen(pAlias->value)+1);
@@ -2252,7 +2257,7 @@ int ooPopulateAliasList(OOCTXT *pctxt, OOAliases *pAliases,
             }
             strcpy(*(char**)&pAliasEntry->u.dialedDigits, pAlias->value);
             bValid = TRUE;
-            break;
+            break; */
          case T_H225AliasAddress_h323_ID:
             pAliasEntry->t = T_H225AliasAddress_h323_ID;
             pAliasEntry->u.h323_ID.nchars = strlen(pAlias->value);

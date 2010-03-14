@@ -188,8 +188,10 @@ typedef enum OOCallClearReason {
 #define OORequestModeAck		   131
 #define OORequestModeReject		   132
 #define OORequestMode			   133
+#define OORequestDelayResponse		   134
+#define OORequestDelayRequest		   135
 
-#define OO_MSGTYPE_MAX                     133
+#define OO_MSGTYPE_MAX                     135
 
 /* Timer types */
 #define OO_CALLESTB_TIMER  (1<<0)
@@ -200,6 +202,7 @@ typedef enum OOCallClearReason {
 #define OO_RCC_TIMER       (1<<5)
 #define OO_SESSION_TIMER   (1<<6)
 #define OO_H245CONNECT_TIMER (1<<7)
+#define OO_RTD_TIMER	   (1<<8)
 
 /** Maximum length for received messages */
 #define MAXMSGLEN 4096
