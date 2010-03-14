@@ -226,7 +226,7 @@ static void free_config(void)
 	}
 }
 
-static void sqlite3_log(const struct ast_event *event, void *userdata)
+static void write_cel(const struct ast_event *event, void *userdata)
 {
 	char *error = NULL;
 	char *sql = NULL;
@@ -336,7 +336,7 @@ static int load_module(void)
 		}
 	}
 
-	event_sub = ast_event_subscribe(AST_EVENT_CEL, sqlite3_log, "CEL sqlite3 custom backend", NULL, AST_EVENT_IE_END);
+	event_sub = ast_event_subscribe(AST_EVENT_CEL, write_cel, "CEL sqlite3 custom backend", NULL, AST_EVENT_IE_END);
 	if (!event_sub) {
 		ast_log(LOG_ERROR, "Unable to register custom SQLite3 CEL handling\n");
 		free_config();
