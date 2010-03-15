@@ -12042,15 +12042,30 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 				/* URI not found */
 				if (res == AUTH_PEER_NOT_DYNAMIC) {
 					transmit_response(p, "403 Forbidden", &p->initreq);
-					if (global_authfailureevents)
-						manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Rejected\r\nCause: AUTH_PEER_NOT_DYNAMIC\r\nAddress: %s\r\nPort: %d\r\n",
+					if (global_authfailureevents) {
+						manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
+							"ChannelType: SIP\r\n"
+							"Peer: SIP/%s\r\n"
+							"PeerStatus: Rejected\r\n"
+							"Cause: AUTH_PEER_NOT_DYNAMIC\r\n"
+							"Address: %s\r\n"
+							"Port: %d\r\n",
 							name, ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
 					}
-				else
+				} else {
 					transmit_response(p, "404 Not found", &p->initreq);
-					if (global_authfailureevents)
-						manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Rejected\r\nCause: %s\r\nAddress: %s\r\nPort: %d\r\n",
-							      name, (res == AUTH_USERNAME_MISMATCH) ? "AUTH_USERNAME_MISMATCH" : "URI_NOT_FOUND", ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+					if (global_authfailureevents) {
+						manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
+							"ChannelType: SIP\r\n"
+							"Peer: SIP/%s\r\n"
+							"PeerStatus: Rejected\r\n"
+							"Cause: %s\r\n"
+							"Address: %s\r\n"
+							"Port: %d\r\n",
+							name, (res == AUTH_USERNAME_MISMATCH) ? "AUTH_USERNAME_MISMATCH" : "URI_NOT_FOUND",
+							ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+					}
+				}
 			}
 			break;
 		case AUTH_BAD_TRANSPORT:
