@@ -3303,7 +3303,7 @@ int main(int argc, char *argv[])
 		} else
 			ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", ast_config_AST_PID, strerror(errno));
 #else
-		ast_log(LOG_WARNING, "Mac OS X detected.  Use '/sbin/launchd -d' to launch with the nofork option.\n");
+		ast_log(LOG_WARNING, "Mac OS X detected.  Use 'launchctl load /Library/LaunchDaemon/org.asterisk.asterisk.plist'.\n");
 #endif
 	}
 #endif
