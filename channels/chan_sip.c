@@ -5504,10 +5504,15 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	if (state == AST_STATE_RING)
 		tmp->rings = 1;
 	tmp->adsicpe = AST_ADSI_UNAVAILABLE;
+
 	tmp->writeformat = fmt;
 	tmp->rawwriteformat = fmt;
+	ast_rtp_instance_set_write_format(i->rtp, fmt);
+
 	tmp->readformat = fmt;
 	tmp->rawreadformat = fmt;
+	ast_rtp_instance_set_read_format(i->rtp, fmt);
+
 	tmp->tech_pvt = dialog_ref(i, "sip_new: set chan->tech_pvt to i");
 
 	tmp->callgroup = i->callgroup;
