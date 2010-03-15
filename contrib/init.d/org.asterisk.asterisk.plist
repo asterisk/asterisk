@@ -17,7 +17,7 @@
 	<key>RunAtLoad</key>
 	<true/>
 	<key>Umask</key>
-	<integer>432</integer><!-- 0660 -->
+	<integer>7</integer><!-- 0007 -->
 	<key>Program</key>
 	<string>/usr/local/sbin/asterisk</string>
 	<key>ProgramArguments</key>
