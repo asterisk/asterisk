@@ -564,7 +564,7 @@ ac_hostname=`(hostname || uname -n) 2>/dev/null | sed 1q`
 #
 # Initializations.
 #
-ac_default_prefix=/usr/local
+ac_default_prefix=/usr
 ac_clean_files=
 ac_config_libobj_dir=.
 LIBOBJS=
@@ -1479,7 +1479,7 @@ Installation directories:
 			  [PREFIX]
 
 By default, \`make install' will install all the files in
-\`$ac_default_prefix/bin', \`$ac_default_prefix/lib' etc.  You can specify
+\`$ac_default_prefix/sbin', \`$ac_default_prefix/lib' etc.  You can specify
 an installation prefix other than \`$ac_default_prefix' using \`--prefix',
 for instance \`--prefix=\$HOME'.
 
