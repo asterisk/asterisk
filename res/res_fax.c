@@ -1775,7 +1775,14 @@ static int acf_faxopt_write(struct ast_channel *chan, const char *cmd, char *dat
 	ast_debug(3, "channel '%s' setting FAXOPT(%s) to '%s'\n", chan->name, data, value);
 
 	if (!strcasecmp(data, "ecm")) {
-		details->option.ecm = ast_true(value) ? 1 : 0;
+		const char *val = ast_skip_blanks(value);
+		if (ast_true(val)) {
+			details->option.ecm = AST_FAX_OPTFLAG_TRUE;
+		} else if (ast_false(val)) {
+			details->option.ecm = AST_FAX_OPTFLAG_FALSE;
+		} else {
+			ast_log(LOG_WARNING, "Unsupported value '%s' passed to FAXOPT(ecm).\n", value);
+		}
 	} else if (!strcasecmp(data, "headerinfo")) {
 		ast_string_field_set(details, headerinfo, value);
 	} else if (!strcasecmp(data, "localstationid")) {
