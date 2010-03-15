@@ -5954,7 +5954,6 @@ static int sla_trunk_exec(struct ast_channel *chan, const char *data)
 	if (!trunk) {
 		ast_log(LOG_ERROR, "SLA Trunk '%s' not found!\n", args.trunk_name);
 		pbx_builtin_setvar_helper(chan, "SLATRUNK_STATUS", "FAILURE");
-		ast_atomic_fetchadd_int((int *) &trunk->ref_count, -1);
 		sla_queue_event(SLA_EVENT_CHECK_RELOAD);	
 		return 0;
 	}
