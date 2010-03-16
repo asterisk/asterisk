@@ -38,11 +38,18 @@ WAV49	= -DWAV49
 ######### probably require gcc. 
 
 ifeq (, $(findstring $(OSARCH) , Darwin SunOS ))
-ifeq (, $(findstring $(PROC) , x86_64 amd64 ultrasparc sparc64 arm armv5b armeb hppa2.0 ppc powerpc ppc64 ia64 s390 bfin mipsel mips))
-ifeq (, $(findstring $(shell uname -m) , ppc ppc64 alpha armv4l s390 ))
-OPTIMIZE+=-march=$(PROC)
-endif
-endif
+  ifeq (, $(findstring $(PROC) , x86_64 amd64 ultrasparc sparc64 arm armv5b armeb hppa2.0 ppc powerpc ppc64 ia64 s390 bfin mipsel mips))
+    ifeq (, $(findstring $(shell uname -m) , ppc ppc64 alpha armv4l s390 ))
+      OPTIMIZE+=-march=$(PROC)
+    endif
+  endif
+else
+  ifneq (,$(findstring $(OSARCH),Darwin))
+    ifeq ($(shell /usr/bin/sw_vers -productVersion | cut -c1-4),10.6)
+      # Snow Leopard reports i386, even though it's really x86_64
+      OPTIMIZE+=-mtune=native
+    endif
+  endif
 endif
 
 #The problem with sparc is the best stuff is in newer versions of gcc (post 3.0) only.
