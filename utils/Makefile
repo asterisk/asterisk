@@ -179,6 +179,7 @@ streamplayer: streamplayer.o
 
 muted: muted.o
 muted: LIBS+=$(AUDIO_LIBS)
+muted: _ASTCFLAGS:=$(filter-out -Werror,$(_ASTCFLAGS))
 
 ifneq ($(wildcard .*.d),)
    include .*.d
