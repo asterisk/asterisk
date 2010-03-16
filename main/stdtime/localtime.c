@@ -239,12 +239,11 @@ static void *inotify_daemon(void *data)
 	} buf;
 	ssize_t res;
 	struct state *cur;
-	struct timespec ten_seconds = { 10, 0 };
 
 	inotify_fd = inotify_init();
 
 	ast_mutex_lock(&initialization_lock);
-	ast_cond_signal(&initialization);
+	ast_cond_broadcast(&initialization);
 	ast_mutex_unlock(&initialization_lock);
 
 	if (inotify_fd < 0) {
@@ -261,8 +260,7 @@ static void *inotify_daemon(void *data)
 			break;
 		} else if (res < 0) {
 			if (errno == EINTR || errno == EAGAIN) {
-				/* If read fails, then wait a bit, then continue */
-				nanosleep(&ten_seconds, NULL);
+				/* If read fails, try again */
 				continue;
 			}
 			/* Sanity check -- this should never happen, either */
@@ -278,6 +276,7 @@ static void *inotify_daemon(void *data)
 			}
 		}
 		AST_LIST_TRAVERSE_SAFE_END
+		ast_cond_broadcast(&initialization);
 		AST_LIST_UNLOCK(&zonelist);
 	}
 	close(inotify_fd);
@@ -326,7 +325,7 @@ static void *notify_daemon(void *data)
 	struct timespec sixty_seconds = { 60, 0 };
 
 	ast_mutex_lock(&initialization_lock);
-	ast_cond_signal(&initialization);
+	ast_cond_broadcast(&initialization);
 	ast_mutex_unlock(&initialization_lock);
 
 	for (;/*ever*/;) {
@@ -347,12 +346,14 @@ static void *notify_daemon(void *data)
 			stat(name, &st);
 			lstat(name, &lst);
 			if (st.st_mtime > cur->mtime[0] || lst.st_mtime > cur->mtime[1]) {
+				ast_log(LOG_NOTICE, "Removing cached TZ entry '%s' because underlying file changed.\n", name);
 				AST_LIST_REMOVE_CURRENT(list);
 				ast_free(cur);
 				continue;
 			}
 		}
 		AST_LIST_TRAVERSE_SAFE_END
+		ast_cond_broadcast(&initialization);
 		AST_LIST_UNLOCK(&zonelist);
 	}
 	inotify_thread = AST_PTHREADT_NULL;
@@ -380,6 +381,16 @@ static void add_notify(struct state *sp, const char *path)
 	sp->mtime[1] = st.st_mtime;
 }
 #endif
+
+void ast_localtime_wakeup_monitor(void)
+{
+	if (inotify_thread != AST_PTHREADT_NULL) {
+		AST_LIST_LOCK(&zonelist);
+		pthread_kill(inotify_thread, SIGURG);
+		ast_cond_wait(&initialization, &(&zonelist)->lock);
+		AST_LIST_UNLOCK(&zonelist);
+	}
+}
 
 /*! \note
 ** Section 4.12.3 of X3.159-1989 requires that

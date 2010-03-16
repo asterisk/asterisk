@@ -78,4 +78,11 @@ int ast_strftime(char *buf, size_t len, const char *format, const struct ast_tm 
  */
 char *ast_strptime(const char *s, const char *format, struct ast_tm *tm);
 
+/*!\brief Wakeup localtime monitor thread
+ * For use in testing.  Normally, the failsafe monitor thread waits 60 seconds
+ * between checks to verify whether a timezone file has changed.  This routine
+ * forces the monitor thread to wakeup immediately and check the timezone files.
+ */
+void ast_localtime_wakeup_monitor(void);
+
 #endif /* _ASTERISK_LOCALTIME_H */

@@ -90,19 +90,26 @@ AST_TEST_DEFINE(test_timezone_watch)
 			int system_res;
 			snprintf(syscmd, sizeof(syscmd), "%s " TZDIR "/%s %s", type == 0 ? "cp" : "ln -sf", zones[i], tzfile);
 			if ((system_res = system(syscmd))) {
-				ast_log(LOG_WARNING, "system() returned non-zero: %d\n", system_res);
+				ast_log(LOG_WARNING, "system(%s) returned non-zero: %d\n", syscmd, system_res);
 			}
+			ast_localtime_wakeup_monitor();
 			ast_localtime(&tv, &atm[i], tzfile);
 			if (i != 0) {
 				if (atm[i].tm_hour == atm[i - 1].tm_hour) {
 					res = AST_TEST_FAIL;
-					ast_test_status_update(test, "Failed %s test\n", type == 0 ? "deletion" : "symlink");
+					ast_test_status_update(test, "Failed %s test: %d(%s) = %d(%s)\n", type == 0 ? "deletion" : "symlink", atm[i].tm_hour, zones[i], atm[i-1].tm_hour, zones[i-1]);
 				}
 			}
+
+			/* stat(2) only has resolution to 1 second - must wait, or the mtime is the same */
+			usleep(1100000);
 		}
 	}
 
 	snprintf(syscmd, sizeof(syscmd), "rm -rf %s", tmpdir);
+	if (system(syscmd)) {
+		ast_log(LOG_WARNING, "system(%s) returned non-zero.\n", syscmd);
+	}
 
 	/* Restore SIGCHLD handler */
 	ast_unreplace_sigchld();
