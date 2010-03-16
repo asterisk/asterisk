@@ -344,9 +344,9 @@ static int gosub_exec(struct ast_channel *chan, const char *data)
 {
 	struct ast_datastore *stack_store = ast_channel_datastore_find(chan, &stack_info, NULL);
 	AST_LIST_HEAD(, gosub_stack_frame) *oldlist;
-	struct gosub_stack_frame *newframe;
+	struct gosub_stack_frame *newframe, *lastframe;
 	char argname[15], *tmp = ast_strdupa(data), *label, *endparen;
-	int i;
+	int i, max_argc = 0;
 	AST_DECLARE_APP_ARGS(args2,
 		AST_APP_ARG(argval)[100];
 	);
@@ -374,6 +374,12 @@ static int gosub_exec(struct ast_channel *chan, const char *data)
 		stack_store->data = oldlist;
 		AST_LIST_HEAD_INIT(oldlist);
 		ast_channel_datastore_add(chan, stack_store);
+	} else {
+		oldlist = stack_store->data;
+	}
+
+	if ((lastframe = AST_LIST_FIRST(oldlist))) {
+		max_argc = lastframe->arguments;
 	}
 
 	/* Separate the arguments from the label */
@@ -389,8 +395,13 @@ static int gosub_exec(struct ast_channel *chan, const char *data)
 	} else
 		args2.argc = 0;
 
+	/* Mask out previous arguments in this invocation */
+	if (args2.argc > max_argc) {
+		max_argc = args2.argc;
+	}
+
 	/* Create the return address, but don't save it until we know that the Gosub destination exists */
-	newframe = gosub_allocate_frame(chan->context, chan->exten, chan->priority + 1, args2.argc);
+	newframe = gosub_allocate_frame(chan->context, chan->exten, chan->priority + 1, max_argc);
 
 	if (!newframe) {
 		return -1;
@@ -413,10 +424,10 @@ static int gosub_exec(struct ast_channel *chan, const char *data)
 	}
 
 	/* Now that we know for certain that we're going to a new location, set our arguments */
-	for (i = 0; i < args2.argc; i++) {
+	for (i = 0; i < max_argc; i++) {
 		snprintf(argname, sizeof(argname), "ARG%d", i + 1);
-		frame_set_var(chan, newframe, argname, args2.argval[i]);
-		ast_debug(1, "Setting '%s' to '%s'\n", argname, args2.argval[i]);
+		frame_set_var(chan, newframe, argname, i < args2.argc ? args2.argval[i] : "");
+		ast_debug(1, "Setting '%s' to '%s'\n", argname, i < args2.argc ? args2.argval[i] : "");
 	}
 	snprintf(argname, sizeof(argname), "%d", args2.argc);
 	frame_set_var(chan, newframe, "ARGC", argname);
