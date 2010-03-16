@@ -37,9 +37,9 @@ WAV49	= -DWAV49
 ######### ppro's, etc, as well as the AMD K6 and K7.  The compile will
 ######### probably require gcc. 
 
-ifeq (, $(findstring $(OSARCH) , Darwin SunOS ))
-  ifeq (, $(findstring $(PROC) , x86_64 amd64 ultrasparc sparc64 arm armv5b armeb hppa2.0 ppc powerpc ppc64 ia64 s390 bfin mipsel mips))
-    ifeq (, $(findstring $(shell uname -m) , ppc ppc64 alpha armv4l s390 ))
+ifeq (,$(findstring $(shell uname -s),Darwin SunOS))
+  ifeq (,$(findstring $(PROC),x86_64 amd64 ultrasparc sparc64 arm armv5b armeb hppa2.0 ppc powerpc ppc64 ia64 s390 bfin mipsel mips))
+    ifeq (,$(findstring $(shell uname -m),ppc ppc64 alpha armv4l s390))
       OPTIMIZE+=-march=$(PROC)
     endif
   endif
