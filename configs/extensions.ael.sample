@@ -27,11 +27,11 @@
 // NOTE! NOTE! NOTE!
 
 globals {
-	CONSOLE="Console/dsp"; 		// Console interface for demo
-	//CONSOLE=Zap/1
-	//CONSOLE=Phone/phone0
-	IAXINFO=guest;				// IAXtel username/password
-	//IAXINFO="myuser:mypass";
+	CONSOLE-AEL="Console/dsp"; 		// Console interface for demo
+	//CONSOLE-AEL=Zap/1;
+	//CONSOLE-AEL=Phone/phone0;
+	IAXINFO-AEL=guest;				// IAXtel username/password
+	//IAXINFO-AEL="myuser:mypass";
 	OUTBOUND-TRUNK="Zap/g2";		// Trunk interface
 	//
 	// Note the 'g2' in the OUTBOUND-TRUNK variable above. It specifies which group (defined
@@ -48,7 +48,7 @@ globals {
 	//    time (aka. descending rotary hunt group).
 	//
 	OUTBOUND-TRUNKMSD=1;					// MSD digits to strip (usually 1 or 0)
-	//TRUNK=IAX2/user:pass@provider
+	//OUTBOUND-TRUNK2=IAX2/user:pass@provider;
 };
 
 //
@@ -194,7 +194,7 @@ macro ael-dundi-e164(exten) {
 // up, please go to www.gnophone.com or www.iaxtel.com
 //
 context ael-iaxtel700 {
-	_91700XXXXXXX => Dial(IAX2/${IAXINFO}@iaxtel.com/${EXTEN:1}@iaxtel);
+	_91700XXXXXXX => Dial(IAX2/${IAXINFO-AEL}@iaxtel.com/${EXTEN:1}@iaxtel);
 };
 
 //
