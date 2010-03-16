@@ -64,6 +64,14 @@ AST_TEST_DEFINE(test_timezone_watch)
 			"Verifies that the caching engine properly destroys a timezone entry when its file is deleted.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
+#ifndef __linux__
+		/*!
+		 * \todo Fix this test for non-Linux
+		 *
+		 * https://reviewboard.asterisk.org/r/554/
+		 */
+		return AST_TEST_NOT_RUN;
+#endif
 		break;
 	}
 
