@@ -2616,7 +2616,7 @@ int ast_rtp_setqos(struct ast_rtp *rtp, int type_of_service, int class_of_servic
 	return ast_netsock_set_qos(rtp->s, type_of_service, class_of_service, desc);
 }
 
-void ast_rtp_update_source(struct ast_rtp *rtp)
+void ast_rtp_new_source(struct ast_rtp *rtp)
 {
 	if (rtp) {
 		rtp->set_marker_bit = 1;
