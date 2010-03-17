@@ -144,7 +144,7 @@ AST_TEST_DEFINE(test_gosub)
 			}
 
 			if ((exec_res = pbx_exec(chan, app, testplan[i].args)) && ((const char *) exec_res != testplan[i].expected_value)) {
-				ast_test_status_update(test, "Application '%s' exited abnormally (with code %d)\n", testplan[i].app, exec_res);
+				ast_test_status_update(test, "Application '%s' exited abnormally (with code %d)\n", testplan[i].app, (int) exec_res);
 				res = AST_TEST_FAIL;
 				break;
 			}
