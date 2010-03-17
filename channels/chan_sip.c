@@ -3864,7 +3864,7 @@ static int sip_answer(struct ast_channel *ast)
 		if (option_debug)
 			ast_log(LOG_DEBUG, "SIP answering channel: %s\n", ast->name);
 
-		ast_rtp_update_source(p->rtp);
+		ast_rtp_new_source(p->rtp);
 		res = transmit_response_with_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL);
 		ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
 	}
@@ -3899,7 +3899,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 				if ((ast->_state != AST_STATE_UP) &&
 				    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
 				    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
-					ast_rtp_update_source(p->rtp);
+					ast_rtp_new_source(p->rtp);
 					if (!global_prematuremediafilter) {
 						p->invitestate = INV_EARLY_MEDIA;
 						transmit_provisional_response(p, "183 Session Progress", &p->initreq, 1);
@@ -4147,11 +4147,11 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 		res = -1;
 		break;
 	case AST_CONTROL_HOLD:
-		ast_rtp_update_source(p->rtp);
+		ast_rtp_new_source(p->rtp);
 		ast_moh_start(ast, data, p->mohinterpret);
 		break;
 	case AST_CONTROL_UNHOLD:
-		ast_rtp_update_source(p->rtp);
+		ast_rtp_new_source(p->rtp);
 		ast_moh_stop(ast);
 		break;
 	case AST_CONTROL_VIDUPDATE:	/* Request a video frame update */
@@ -4162,7 +4162,7 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 			res = -1;
 		break;
 	case AST_CONTROL_SRCUPDATE:
-		ast_rtp_update_source(p->rtp);
+		ast_rtp_new_source(p->rtp);
 		break;
 	case AST_CONTROL_SRCCHANGE:
 		ast_rtp_change_source(p->rtp);
