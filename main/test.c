@@ -708,7 +708,7 @@ static char *test_cli_execute_registered(struct ast_cli_entry *e, int cmd, struc
 			ast_cli(a->fd, "Running all available tests matching category %s\n\n", a->argv[3]);
 			test_execute_multiple(NULL, a->argv[3], a);
 		} else if (a->argc == 6) { /* run only a single test matching the category and name */
-			ast_cli(a->fd, "Running all available tests matching category %s and name %s\n\n", a->argv[5], a->argv[3]);
+			ast_cli(a->fd, "Running all available tests matching category %s and name %s\n\n", a->argv[3], a->argv[5]);
 			test_execute_multiple(a->argv[5], a->argv[3], a);
 		} else {
 			return CLI_SHOWUSAGE;
