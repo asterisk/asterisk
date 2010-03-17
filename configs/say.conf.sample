@@ -169,3 +169,34 @@
     _date::. => date:AdBY:${SAY}
     _time::. => date:IMp:${SAY}
 
+[fr](date-base,digit-base)
+    _[n]um:0. => num:${SAY:1}
+    _[n]um:X => digits/${SAY}
+    _[n]um:1X => digits/${SAY}
+    _[n]um:[2-9]0 =>  digits/${SAY}
+    _[n]um:[2-6]1 => digits/${SAY:0:1}0, vm-and, digits/${SAY:1}
+    _[n]um:71 => digits/60, vm-and, num:1${SAY:1}
+    _[n]um:7X => digits/60, num:1${SAY:1}
+    _[n]um:9X => digits/80, num:1${SAY:1}
+    _[n]um:[2-9][1-9] =>  digits/${SAY:0:1}0, num:${SAY:1}
+    _[n]um:100 => digits/hundred
+    _[n]um:1XX => digits/hundred, num:${SAY:1}
+    _[n]um:[2-9]XX => num:${SAY:0:1}, digits/hundred, num:${SAY:1}
+    
+    _[n]um:1XXX => digits/thousand, num:${SAY:1}
+    _[n]um:[2-9]XXX => num:${SAY:0:1}, digits/thousand, num:${SAY:1}
+    _[n]um:XXXXX => num:${SAY:0:2}, digits/thousand, num:${SAY:2}
+    _[n]um:XXXXXX => num:${SAY:0:3}, digits/thousand, num:${SAY:3}
+    
+    _[n]um:1XXXXXX => num:${SAY:0:1}, digits/million, num:${SAY:1}
+    _[n]um:[2-9]XXXXXX => num:${SAY:0:1}, digits/million, num:${SAY:1}
+    _[n]um:XXXXXXXX => num:${SAY:0:2}, digits/million, num:${SAY:2}
+    _[n]um:XXXXXXXXX => num:${SAY:0:3}, digits/million, num:${SAY:3}
+    
+    _datetime::. => date:AdBY 'digits/at' H 'hours' M 'perc':${SAY}  
+    _date::. => date:AdBY:${SAY}
+    _time::. => date:H 'hours' M 'perc':${SAY}
+    
+    _pho[n]e:XXXX => num:${SAY:0:2}, num:${SAY:2:2}
+    _pho[n]e:0[1-9]XXXXXXXX => num:${SAY:0:1}, num:${SAY:1:1}, num:${SAY:2:2}, num:${SAY:4:2}, num:${SAY:6:2}, num:${SAY:8:2}
+    _pho[n]e:. => digit:${SAY}
