@@ -188,7 +188,7 @@ int ast_rtp_sendcng(struct ast_rtp *rtp, int level);
 int ast_rtp_setqos(struct ast_rtp *rtp, int tos, int cos, char *desc);
 
 /*! \brief Indicate that we need to set the marker bit */
-void ast_rtp_update_source(struct ast_rtp *rtp);
+void ast_rtp_new_source(struct ast_rtp *rtp);
 
 /*! \brief Indicate that we need to set the marker bit and change the ssrc */
 void ast_rtp_change_source(struct ast_rtp *rtp);

@@ -2401,7 +2401,7 @@ int ast_rtp_setqos(struct ast_rtp *rtp, int tos, int cos, char *desc)
 	return ast_netsock_set_qos(rtp->s, tos, cos, desc);
 }
 
-void ast_rtp_update_source(struct ast_rtp *rtp)
+void ast_rtp_new_source(struct ast_rtp *rtp)
 {
 	if (rtp) {
 		rtp->set_marker_bit = 1;
