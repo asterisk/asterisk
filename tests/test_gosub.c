@@ -38,16 +38,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/test.h"
 #include "asterisk/pbx.h"
 
-#if SIZEOF_INT == SIZEOF_CHAR_P
-#define	compat_int	int
-#elif SIZEOF_LONG == SIZEOF_CHAR_P
-#define	compat_int	long
-#elif SIZEOF_LONG_LONG == SIZEOF_CHAR_P
-#define	compat_int	long long
-#else
-#error "Cannot find an integer type the same size as a pointer"
-#endif
-
 AST_TEST_DEFINE(test_gosub)
 {
 	int res = AST_TEST_PASS, i;
@@ -135,7 +125,7 @@ AST_TEST_DEFINE(test_gosub)
 			}
 		} else {
 			/* Run application */
-			compat_int exec_res;
+			intptr_t exec_res;
 			struct ast_app *app = pbx_findapp(testplan[i].app);
 			if (!app) {
 				ast_test_status_update(test, "Could not find '%s' in application listing!\n", testplan[i].app);
