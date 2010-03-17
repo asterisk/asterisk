@@ -780,7 +780,10 @@ AST_C_DEFINE_CHECK([IP_MTU_DISCOVER], [IP_MTU_DISCOVER], [netinet/in.h])
 AC_CHECK_HEADER([libkern/OSAtomic.h],
                 [AC_DEFINE_UNQUOTED([HAVE_OSX_ATOMICS], 1, [Define to 1 if OSX atomic operations are supported.])])
 
-AC_CHECK_SIZEOF(int)
+AC_CHECK_SIZEOF([int])
+AC_CHECK_SIZEOF([long])
+AC_CHECK_SIZEOF([long long])
+AC_CHECK_SIZEOF([char *])
 
 # do the package library checks now
 
