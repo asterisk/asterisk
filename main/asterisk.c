@@ -2656,7 +2656,7 @@ static void ast_remotecontrol(char *data)
 		fds.fd = ast_consock;
 		fds.events = POLLIN;
 		fds.revents = 0;
-		while (ast_poll(&fds, 1, 500) > 0) {
+		while (ast_poll(&fds, 1, 60000) > 0) {
 			char buffer[512] = "", *curline = buffer, *nextline;
 			int not_written = 1;
 
