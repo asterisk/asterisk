@@ -261,6 +261,9 @@ static void *inotify_daemon(void *data)
 		} else if (res < 0) {
 			if (errno == EINTR || errno == EAGAIN) {
 				/* If read fails, try again */
+				AST_LIST_LOCK(&zonelist);
+				ast_cond_broadcast(&initialization);
+				AST_LIST_UNLOCK(&zonelist);
 				continue;
 			}
 			/* Sanity check -- this should never happen, either */
