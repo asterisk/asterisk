@@ -2395,11 +2395,17 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 		ast_debug(3, "JABBER: Kinky! how did that happen %i\n", pak->show);
 	}
 
+    if (found) {
 	manager_event(EVENT_FLAG_USER, "JabberStatus",
 			"Account: %s\r\nJID: %s\r\nResource: %s\r\nStatus: %d\r\nPriority: %d"
 			"\r\nDescription: %s\r\n",
 			client->name, pak->from->partial, found->resource, found->status,
 			found->priority, found->description);
+    } else {
+	manager_event(EVENT_FLAG_USER, "JabberStatus",
+			"Account: %s\r\nJID: %s\r\nStatus: %d\r\n",
+			client->name, pak->from->partial, pak->show ? pak->show:IKS_SHOW_UNAVAILABLE);
+    }
 }
 
 /*!
