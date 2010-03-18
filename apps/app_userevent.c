@@ -37,7 +37,7 @@ static char *synopsis = "Send an arbitrary event to the manager interface";
 static char *descrip = 
 "  UserEvent(eventname[,body]): Sends an arbitrary event to the manager\n"
 "interface, with an optional body representing additional arguments.  The\n"
-"body may be specified as a | delimeted list of headers. Each additional\n"
+"body may be specified as a comma (,) delimited list of headers. Each additional\n"
 "argument will be placed on a new line in the event. The format of the\n"
 "event will be:\n"
 "    Event: UserEvent\n"
