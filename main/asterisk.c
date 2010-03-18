@@ -2685,7 +2685,7 @@ static void ast_remotecontrol(char *data)
 				curline = nextline;
 			} while (!ast_strlen_zero(curline));
 
-			/* No non-verbose output in 500ms */
+			/* No non-verbose output in 60 seconds. */
 			if (not_written) {
 				break;
 			}
