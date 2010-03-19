@@ -257,6 +257,9 @@ static int __ao2_ref(void *user_data, const int delta)
 	int current_value;
 	int ret;
 
+	if (obj == NULL)
+		return -1;
+
 	/* if delta is 0, just return the refcount */
 	if (delta == 0)
 		return (obj->priv_data.ref_counter);
@@ -493,7 +496,7 @@ static struct bucket_list *__ao2_link(struct ao2_container *c, void *user_data)
 	struct bucket_list *p;
 	struct astobj2 *obj = INTERNAL_OBJ(user_data);
 	
-	if (!obj)
+	if (obj == NULL)
 		return NULL;
 
 	if (INTERNAL_OBJ(c) == NULL)
