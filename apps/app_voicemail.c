@@ -94,6 +94,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/mman.h>
 #include <time.h>
 #include <dirent.h>
+#if defined(__FreeBSD__)
+#include <sys/wait.h>
+#endif
 
 #include "asterisk/logger.h"
 #include "asterisk/lock.h"
