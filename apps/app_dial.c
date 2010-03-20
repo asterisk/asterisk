@@ -1274,12 +1274,12 @@ static void end_bridge_callback(void *data)
 
 	ast_channel_lock(chan);
 	if (chan->cdr->answer.tv_sec) {
-		snprintf(buf, sizeof(buf), "%ld", end - chan->cdr->answer.tv_sec);
+		snprintf(buf, sizeof(buf), "%ld", (long) end - chan->cdr->answer.tv_sec);
 		pbx_builtin_setvar_helper(chan, "ANSWEREDTIME", buf);
 	}
 
 	if (chan->cdr->start.tv_sec) {
-		snprintf(buf, sizeof(buf), "%ld", end - chan->cdr->start.tv_sec);
+		snprintf(buf, sizeof(buf), "%ld", (long) end - chan->cdr->start.tv_sec);
 		pbx_builtin_setvar_helper(chan, "DIALEDTIME", buf);
 	}
 	ast_channel_unlock(chan);

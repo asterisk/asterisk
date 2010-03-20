@@ -171,7 +171,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 			if (strcmp(cur->name, "start") == 0 || strcmp(cur->name, "calldate") == 0) {
 				if (strncmp(cur->type, "int", 3) == 0) {
 					LENGTHEN_BUF2(12);
-					lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "%ld", cdr->start.tv_sec);
+					lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "%ld", (long) cdr->start.tv_sec);
 				} else if (strncmp(cur->type, "float", 5) == 0) {
 					LENGTHEN_BUF2(30);
 					lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "%f", (double)cdr->start.tv_sec + (double)cdr->start.tv_usec / 1000000.0);
@@ -184,7 +184,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 			} else if (strcmp(cur->name, "answer") == 0) {
 				if (strncmp(cur->type, "int", 3) == 0) {
 					LENGTHEN_BUF2(12);
-					lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "%ld", cdr->answer.tv_sec);
+					lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "%ld", (long) cdr->answer.tv_sec);
 				} else if (strncmp(cur->type, "float", 5) == 0) {
 					LENGTHEN_BUF2(30);
 					lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "%f", (double)cdr->answer.tv_sec + (double)cdr->answer.tv_usec / 1000000.0);
@@ -197,7 +197,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 			} else if (strcmp(cur->name, "end") == 0) {
 				if (strncmp(cur->type, "int", 3) == 0) {
 					LENGTHEN_BUF2(12);
-					lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "%ld", cdr->end.tv_sec);
+					lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "%ld", (long) cdr->end.tv_sec);
 				} else if (strncmp(cur->type, "float", 5) == 0) {
 					LENGTHEN_BUF2(30);
 					lensql2 += snprintf(sql2 + lensql2, sizesql2 - lensql2, "%f", (double)cdr->end.tv_sec + (double)cdr->end.tv_usec / 1000000.0);

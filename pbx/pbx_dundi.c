@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__Darwin__) 
 #include <net/if_dl.h>
 #include <ifaddrs.h>
+#include <signal.h>
 #endif
 
 #include "asterisk/file.h"
