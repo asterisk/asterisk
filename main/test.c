@@ -848,7 +848,7 @@ static char *test_cli_generate_results(struct ast_cli_entry *e, int cmd, struct 
 			if (!(buf = ast_str_create(256))) {
 				return NULL;
 			}
-			ast_str_set(&buf, 0, "%s/asterisk_test_results-%ld.%s", ast_config_AST_LOG_DIR, time.tv_sec, type);
+			ast_str_set(&buf, 0, "%s/asterisk_test_results-%ld.%s", ast_config_AST_LOG_DIR, (long) time.tv_sec, type);
 
 			file = ast_str_buffer(buf);
 		}

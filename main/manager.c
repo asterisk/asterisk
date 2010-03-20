@@ -2159,7 +2159,7 @@ static int action_ping(struct mansession *s, const struct message *m)
 		"Ping: Pong\r\n"
 		"Timestamp: %ld.%06lu\r\n"
 		"\r\n",
-		now.tv_sec, (unsigned long) now.tv_usec);
+		(long) now.tv_sec, (unsigned long) now.tv_usec);
 	return 0;
 }
 

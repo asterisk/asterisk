@@ -33,6 +33,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <fcntl.h>
 #endif
 
+#include <signal.h>
 #include <sys/signal.h>
 
 #include "asterisk/compat.h"

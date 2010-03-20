@@ -166,7 +166,7 @@ static void pgsql_log(const struct ast_event *event, void *userdata)
 			if (strcmp(cur->name, "eventtime") == 0) {
 				if (strncmp(cur->type, "int", 3) == 0) {
 					LENGTHEN_BUF2(13);
-					ast_str_append(&sql2, 0, "%s%ld", SEP, record.event_time.tv_sec);
+					ast_str_append(&sql2, 0, "%s%ld", SEP, (long) record.event_time.tv_sec);
 				} else if (strncmp(cur->type, "float", 5) == 0) {
 					LENGTHEN_BUF2(31);
 					ast_str_append(&sql2, 0, "%s%f",
