@@ -525,7 +525,7 @@ static int listfilter(struct ast_channel *chan, const char *cmd, char *parse, ch
 
 	flen = strlen(args.fieldvalue);
 
-	ast_str_reset(result);
+	ast_str_reset(*result_ptr);
 	/* Enough space for any result */
 	if (len > -1) {
 		ast_str_make_space(result_ptr, len ? len : ast_str_strlen(orig_list) + 1);
