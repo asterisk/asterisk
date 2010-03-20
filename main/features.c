@@ -30,6 +30,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/_private.h"
 
 #include <pthread.h>
+#include <signal.h>
 #include <sys/time.h>
 #include <sys/signal.h>
 #include <netinet/in.h>
