@@ -33,6 +33,7 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <pthread.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -2726,7 +2727,7 @@ static int handle_parkedcalls(int fd, int argc, char *argv[])
 	for (cur = parkinglot; cur; cur = cur->next) {
 		ast_cli(fd, "%-10.10s %25s (%-15s %-12s %-4d) %6lds\n"
 			,cur->parkingexten, cur->chan->name, cur->context, cur->exten
-			,cur->priority, cur->start.tv_sec + (cur->parkingtime/1000) - time(NULL));
+			,cur->priority, (long) cur->start.tv_sec + (cur->parkingtime/1000) - time(NULL));
 
 		numparked++;
 	}

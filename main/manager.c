@@ -2589,7 +2589,7 @@ int manager_event(int category, const char *event, const char *fmt, ...)
 		now = ast_tvnow();
 		ast_dynamic_str_thread_append(&buf, 0, &manager_event_buf,
 				"Timestamp: %ld.%06lu\r\n",
-				 now.tv_sec, (unsigned long) now.tv_usec);
+				 (long) now.tv_sec, (unsigned long) now.tv_usec);
 	}
 
 	va_start(ap, fmt);
