@@ -22,6 +22,7 @@
 #
 
 # The Data Source Name, as specified by the Perl DBI module.
+# Typically, this will be along the lines of 'DBI:mysql:astdbname[:dbhostname]' or 'DBI:Pg:dbname=astdbname;hostname=dbhostname'
 dsn=somedsn
 
 # Connected database user
