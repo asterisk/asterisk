@@ -3603,6 +3603,8 @@ int main(int argc, char *argv[])
 	ast_xmldoc_load_documentation();
 #endif
 
+	ast_channels_init();
+
 	if ((moduleresult = load_modules(1))) {		/* Load modules, pre-load only */
 		printf("%s", term_quit());
 		exit(moduleresult == -2 ? 2 : 1);
@@ -3614,8 +3616,6 @@ int main(int argc, char *argv[])
 	}
 
 	ast_http_init();		/* Start the HTTP server, if needed */
-
-	ast_channels_init();
 
 	if (init_manager()) {
 		printf("%s", term_quit());
