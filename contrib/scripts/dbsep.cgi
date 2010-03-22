@@ -36,8 +36,8 @@ while (<CFG>) {
 	chomp;
 	next if (m/^[#;]/);
 	next if (m/^\s*$/);
-	my ($name,$value) = split '=';
-	$cfg{lc($name)} = $value;
+	my ($name,@value) = split '=';
+	$cfg{lc($name)} = join('=', @value);
 }
 close CFG;
 
