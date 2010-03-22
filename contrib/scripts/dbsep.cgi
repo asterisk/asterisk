@@ -99,7 +99,7 @@ if ($mode eq 'single') {
 		}
 		$get{$name}++;
 	}
-	$sql = "SELECT " . join(",", cgi_to_where_clause($cgi, \%cfg, \%get)) . " FROM $table WHERE " . join(" AND ", @get);
+	$sql = "UPDATE $table SET " . join(",", cgi_to_where_clause($cgi, \%cfg, \%get)) . " WHERE " . join(" AND ", @get);
 	$dbh = DBI->connect($cfg{dsn}, $cfg{dbuser}, $cfg{dbpass});
 	$affected = $dbh->do($sql);
 	$dbh->disconnect();
