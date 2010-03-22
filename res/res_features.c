@@ -1788,9 +1788,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			if (peer_cdr && !ast_strlen_zero(peer_cdr->userfield)) {
 				ast_copy_string(bridge_cdr->userfield, peer_cdr->userfield, sizeof(bridge_cdr->userfield));
 			}
-			if (peer_cdr && ast_strlen_zero(peer->accountcode)) {
-				ast_cdr_setaccount(peer, chan->accountcode);
-			}
+			ast_cdr_setaccount(peer, chan->accountcode);
 		} else {
 			/* better yet, in a xfer situation, find out why the chan cdr got zapped (pun unintentional) */
 			bridge_cdr = ast_cdr_alloc(); /* this should be really, really rare/impossible? */
