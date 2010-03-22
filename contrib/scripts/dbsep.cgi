@@ -239,7 +239,7 @@ sub cgi_to_where_clause {
 			push @param, "$name='$value'";
 		}
 	}
-	return join(" AND ", @param);
+	return @param;
 }
 
 sub throw_error {
