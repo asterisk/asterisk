@@ -794,7 +794,6 @@ struct callattempt {
 	char interface[256];
 	int stillgoing;
 	int metric;
-	int oldstatus;
 	time_t lastcall;
 	struct call_queue *lastqueue;
 	struct member *member;
@@ -4209,7 +4208,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 
 		tmp->stillgoing = -1;
 		tmp->member = cur;
-		tmp->oldstatus = cur->status;
 		tmp->lastcall = cur->lastcall;
 		tmp->lastqueue = cur->lastqueue;
 		tmp->update_connectedline = 1;
