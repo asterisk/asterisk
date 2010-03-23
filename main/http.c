@@ -413,7 +413,7 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 			char buf[256];
 			int len;
 			while ((len = read(fd, buf, sizeof(buf))) > 0) {
-				if (fwrite(buf, len, 1, ser->f) != len) {
+				if (fwrite(buf, len, 1, ser->f) != 1) {
 					ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
 				}
 			}
