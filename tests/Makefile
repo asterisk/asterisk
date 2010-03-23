@@ -12,7 +12,7 @@
 -include $(ASTTOPDIR)/menuselect.makeopts $(ASTTOPDIR)/menuselect.makedeps
 
 MODULE_PREFIX=test
-MENUSELECT_CATEGORY=TEST
+MENUSELECT_CATEGORY=TESTS
 MENUSELECT_DESCRIPTION=Test Modules
 
 all: _all
