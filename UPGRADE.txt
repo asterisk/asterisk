@@ -501,13 +501,6 @@ API:
   res_agi, you will need to add ast_ prefixes to the functions that you call
   from those modules.
 
-ABI:
-
-* Many locking-related functions have had their ABI changed.  This may cause
-  external modules (including those provided by Asterisk-addons) to fail to
-  load with 'symbol not found' errors.  These modules will need to be
-  recompiled against a more current version of Asterisk.
-
 Formats:
 
 * format_wav: The GAIN preprocessor definition has been changed from 2 to 0

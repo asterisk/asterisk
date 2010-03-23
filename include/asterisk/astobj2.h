@@ -185,11 +185,19 @@ int ao2_ref(void *o, int delta);
  * \param a A pointer to the object we want lock.
  * \return 0 on success, other values on error.
  */
-int __ao2_lock(void *a, const char *file, const char *func, int line, const char *var);
+#ifndef DEBUG_THREADS
+int ao2_lock(void *a);
+#else
 #define ao2_lock(a) __ao2_lock(a, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
+int __ao2_lock(void *a, const char *file, const char *func, int line, const char *var);
+#endif
 
-int __ao2_trylock(void *a, const char *file, const char *func, int line, const char *var);
+#ifndef DEBUG_THREADS
+int ao2_trylock(void *a);
+#else
 #define ao2_trylock(a) __ao2_trylock(a, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
+int __ao2_trylock(void *a, const char *file, const char *func, int line, const char *var);
+#endif
 
 /*!
  * Unlock an object.
@@ -197,8 +205,12 @@ int __ao2_trylock(void *a, const char *file, const char *func, int line, const c
  * \param a A pointer to the object we want unlock.
  * \return 0 on success, other values on error.
  */
-int __ao2_unlock(void *a, const char *file, const char *func, int line, const char *var);
+#ifndef DEBUG_THREADS
+int ao2_unlock(void *a);
+#else
 #define ao2_unlock(a) __ao2_unlock(a, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
+int __ao2_unlock(void *a, const char *file, const char *func, int line, const char *var);
+#endif
 
 /*!
  *

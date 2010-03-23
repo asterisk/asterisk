@@ -5064,14 +5064,14 @@ const char *channelreloadreason2txt(enum channelreloadreason reason)
 	}
 };
 
+#ifdef DEBUG_CHANNEL_LOCKS
 
 /*! \brief Unlock AST channel (and print debugging output) 
-\note You need to enable DEBUG_CHANNEL_LOCKS for the debugging output */
+\note You need to enable DEBUG_CHANNEL_LOCKS for this function
+*/
 int __ast_channel_unlock(struct ast_channel *chan, const char *filename, int lineno, const char *func)
 {
 	int res = 0;
-
-#ifdef DEBUG_CHANNEL_LOCKS
 	if (option_debug > 2) 
 		ast_log(LOG_DEBUG, "::::==== Unlocking AST channel %s\n", chan->name);
 	
@@ -5080,11 +5080,12 @@ int __ast_channel_unlock(struct ast_channel *chan, const char *filename, int lin
 			ast_log(LOG_DEBUG, "::::==== Unlocking non-existing channel \n");
 		return 0;
 	}
+#ifdef DEBUG_THREADS
+	res = __ast_pthread_mutex_unlock(filename, lineno, func, "(channel lock)", &chan->lock);
+#else
+	res = ast_mutex_unlock(&chan->lock);
 #endif
 
-	res = __ast_pthread_mutex_unlock(filename, lineno, func, "(channel lock)", &chan->lock);
-
-#ifdef DEBUG_CHANNEL_LOCKS
 	if (option_debug > 2) {
 #ifdef DEBUG_THREADS
 		int count = 0;
@@ -5097,32 +5098,30 @@ int __ast_channel_unlock(struct ast_channel *chan, const char *filename, int lin
 			ast_log(LOG_DEBUG, "::::==== Channel %s had no lock by this thread. Failed unlocking\n", chan->name);
 		}
 	}
-#endif
 	if (res == EPERM) {
 		/* We had no lock, so okay any way*/
-#ifdef DEBUG_CHANNEL_LOCKS
 		if (option_debug > 3)
 			ast_log(LOG_DEBUG, "::::==== Channel %s was not locked at all \n", chan->name);
-#endif
 		res = 0;
 	}
 	return res;
 }
 
 /*! \brief Lock AST channel (and print debugging output)
-\note You need to enable DEBUG_CHANNEL_LOCKS for the debugging output */
+\note You need to enable DEBUG_CHANNEL_LOCKS for this function */
 int __ast_channel_lock(struct ast_channel *chan, const char *filename, int lineno, const char *func)
 {
 	int res;
 
-#ifdef DEBUG_CHANNEL_LOCKS
 	if (option_debug > 3)
 		ast_log(LOG_DEBUG, "====:::: Locking AST channel %s\n", chan->name);
+
+#ifdef DEBUG_THREADS
+	res = __ast_pthread_mutex_lock(filename, lineno, func, "(channel lock)", &chan->lock);
+#else
+	res = ast_mutex_lock(&chan->lock);
 #endif
 
-	res = __ast_pthread_mutex_lock(filename, lineno, func, "(channel lock)", &chan->lock);
-
-#ifdef DEBUG_CHANNEL_LOCKS
 	if (option_debug > 3) {
 #ifdef DEBUG_THREADS
 		int count = 0;
@@ -5139,24 +5138,23 @@ int __ast_channel_lock(struct ast_channel *chan, const char *filename, int linen
 			ast_log(LOG_DEBUG, "::::==== Channel %s lock failed. No mutex.\n", chan->name);
 		}
 	}
-#endif
 	return res;
 }
 
 /*! \brief Lock AST channel (and print debugging output)
-\note You need to enable DEBUG_CHANNEL_LOCKS for the debugging output */
+\note	You need to enable DEBUG_CHANNEL_LOCKS for this function */
 int __ast_channel_trylock(struct ast_channel *chan, const char *filename, int lineno, const char *func)
 {
 	int res;
 
-#ifdef DEBUG_CHANNEL_LOCKS
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "====:::: Trying to lock AST channel %s\n", chan->name);
+#ifdef DEBUG_THREADS
+	res = __ast_pthread_mutex_trylock(filename, lineno, func, "(channel lock)", &chan->lock);
+#else
+	res = ast_mutex_trylock(&chan->lock);
 #endif
 
-	res = __ast_pthread_mutex_trylock(filename, lineno, func, "(channel lock)", &chan->lock);
-
-#ifdef DEBUG_CHANNEL_LOCKS
 	if (option_debug > 2) {
 #ifdef DEBUG_THREADS
 		int count = 0;
@@ -5176,9 +5174,10 @@ int __ast_channel_trylock(struct ast_channel *chan, const char *filename, int li
 		if (res == EINVAL)
 			ast_log(LOG_DEBUG, "::::==== Channel %s lock failed. No mutex.\n", chan->name);
 	}
-#endif
 	return res;
 }
+
+#endif
 
 /*
  * Wrappers for various ast_say_*() functions that call the full version
