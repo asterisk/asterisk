@@ -5158,14 +5158,17 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 		update_bridge_vars(c0, c1);
 
 		if (c0->tech->bridge &&
+			/* if < 1 ms remains use generic bridging for accurate timing */
+			(!config->timelimit || to > 1000 || to == 0) &&
 		    (c0->tech->bridge == c1->tech->bridge) &&
 		    !nativefailed && !c0->monitor && !c1->monitor &&
-		    !c0->audiohooks && !c1->audiohooks && 
+		    !c0->audiohooks && !c1->audiohooks &&
 		    !c0->masq && !c0->masqr && !c1->masq && !c1->masqr) {
+			int timeoutms = to - 1000 > 0 ? to - 1000 : to;
 			/* Looks like they share a bridge method and nothing else is in the way */
 			ast_set_flag(c0, AST_FLAG_NBRIDGE);
 			ast_set_flag(c1, AST_FLAG_NBRIDGE);
-			if ((res = c0->tech->bridge(c0, c1, config->flags, fo, rc, to)) == AST_BRIDGE_COMPLETE) {
+			if ((res = c0->tech->bridge(c0, c1, config->flags, fo, rc, timeoutms)) == AST_BRIDGE_COMPLETE) {
 				/* \todo  XXX here should check that cid_num is not NULL */
 				manager_event(EVENT_FLAG_CALL, "Unlink",
 					      "Channel1: %s\r\n"
