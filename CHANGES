@@ -426,6 +426,17 @@ Miscellaneous
  * chan_dahdi now supports reporting alarms over AMI either by channel or span via
    the reportalarms config option.
 
+CLI Changes
+-----------
+ * The 'core set debug' and 'core set verbose' commands, in previous versions, could
+   optionally accept a filename, to apply the setting only to the code generated from
+   that source file when Asterisk was built. However, there are some modules in Asterisk
+   that are composed of multiple source files, so this did not result in the behavior
+   that users expected. In this version, 'core set debug' and 'core set verbose'
+   can optionally accept *module* names instead (with or without the .so extension),
+   which applies the setting to the entire module specified, regardless of which source
+   files it was built from.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.1 to Asterisk 1.6.2  -------------
 ------------------------------------------------------------------------------

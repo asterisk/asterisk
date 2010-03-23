@@ -181,18 +181,18 @@ void ast_console_toggle_loglevel(int fd, int level, int state);
 #define NUMLOGLEVELS 6
 
 /*!
- * \brief Get the debug level for a file
+ * \brief Get the debug level for a module
  * \param file the filename
  * \return the debug level
  */
-unsigned int ast_debug_get_by_file(const char *file);
+unsigned int ast_debug_get_by_module(const char *module);
 
 /*!
- * \brief Get the debug level for a file
+ * \brief Get the verbose level for a module
  * \param file the filename
- * \return the debug level
+ * \return the verbose level
  */
-unsigned int ast_verbose_get_by_file(const char *file);
+unsigned int ast_verbose_get_by_module(const char *module);
 
 /*!
  * \brief Register a new logger level
@@ -231,11 +231,11 @@ void ast_logger_unregister_level(const char *name);
  *        to get logged
  */
 #define ast_debug(level, ...) do {       \
-	if (option_debug >= (level) || (ast_opt_dbg_file && ast_debug_get_by_file(__FILE__) >= (level)) ) \
+	if (option_debug >= (level) || (ast_opt_dbg_module && ast_debug_get_by_module(AST_MODULE) >= (level)) ) \
 		ast_log(AST_LOG_DEBUG, __VA_ARGS__); \
 } while (0)
 
-#define VERBOSITY_ATLEAST(level) (option_verbose >= (level) || (ast_opt_verb_file && ast_verbose_get_by_file(__FILE__) >= (level)))
+#define VERBOSITY_ATLEAST(level) (option_verbose >= (level) || (ast_opt_verb_module && ast_verbose_get_by_module(AST_MODULE) >= (level)))
 
 #define ast_verb(level, ...) do { \
 	if (VERBOSITY_ATLEAST((level)) ) { \

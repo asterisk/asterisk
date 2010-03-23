@@ -77,20 +77,20 @@ AST_MUTEX_DEFINE_STATIC(permsconfiglock);
 static AST_RWLIST_HEAD_STATIC(cli_perms, usergroup_cli_perm);
 
 /*!
- * \brief map a debug or verbose value to a filename
+ * \brief map a debug or verbose level to a module name
  */
-struct ast_debug_file {
+struct module_level {
 	unsigned int level;
-	AST_RWLIST_ENTRY(ast_debug_file) entry;
-	char filename[0];
+	AST_RWLIST_ENTRY(module_level) entry;
+	char module[0];
 };
 
-AST_RWLIST_HEAD(debug_file_list, ast_debug_file);
+AST_RWLIST_HEAD(module_level_list, module_level);
 
-/*! list of filenames and their debug settings */
-static struct debug_file_list debug_files;
-/*! list of filenames and their verbose settings */
-static struct debug_file_list verbose_files;
+/*! list of module names and their debug levels */
+static struct module_level_list debug_modules;
+/*! list of module names and their verbose levels */
+static struct module_level_list verbose_modules;
 
 AST_THREADSTORAGE(ast_cli_buf);
 
@@ -115,36 +115,36 @@ void ast_cli(int fd, const char *fmt, ...)
 	}
 }
 
-unsigned int ast_debug_get_by_file(const char *file) 
+unsigned int ast_debug_get_by_module(const char *module) 
 {
-	struct ast_debug_file *adf;
+	struct module_level *ml;
 	unsigned int res = 0;
 
-	AST_RWLIST_RDLOCK(&debug_files);
-	AST_LIST_TRAVERSE(&debug_files, adf, entry) {
-		if (!strncasecmp(adf->filename, file, strlen(adf->filename))) {
-			res = adf->level;
+	AST_RWLIST_RDLOCK(&debug_modules);
+	AST_LIST_TRAVERSE(&debug_modules, ml, entry) {
+		if (!strcasecmp(ml->module, module)) {
+			res = ml->level;
 			break;
 		}
 	}
-	AST_RWLIST_UNLOCK(&debug_files);
+	AST_RWLIST_UNLOCK(&debug_modules);
 
 	return res;
 }
 
-unsigned int ast_verbose_get_by_file(const char *file) 
+unsigned int ast_verbose_get_by_module(const char *module) 
 {
-	struct ast_debug_file *adf;
+	struct module_level *ml;
 	unsigned int res = 0;
 
-	AST_RWLIST_RDLOCK(&verbose_files);
-	AST_LIST_TRAVERSE(&verbose_files, adf, entry) {
-		if (!strncasecmp(adf->filename, file, strlen(file))) {
-			res = adf->level;
+	AST_RWLIST_RDLOCK(&verbose_modules);
+	AST_LIST_TRAVERSE(&verbose_modules, ml, entry) {
+		if (!strcasecmp(ml->module, module)) {
+			res = ml->level;
 			break;
 		}
 	}
-	AST_RWLIST_UNLOCK(&verbose_files);
+	AST_RWLIST_UNLOCK(&verbose_modules);
 
 	return res;
 }
@@ -305,17 +305,17 @@ static char *handle_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args
  * \brief Find the debug or verbose file setting 
  * \arg debug 1 for debug, 0 for verbose
  */
-static struct ast_debug_file *find_debug_file(const char *fn, unsigned int debug)
+static struct module_level *find_module_level(const char *module, unsigned int debug)
 {
-	struct ast_debug_file *df = NULL;
-	struct debug_file_list *dfl = debug ? &debug_files : &verbose_files;
+	struct module_level *ml;
+	struct module_level_list *mll = debug ? &debug_modules : &verbose_modules;
 
-	AST_LIST_TRAVERSE(dfl, df, entry) {
-		if (!strcasecmp(df->filename, fn))
-			break;
+	AST_LIST_TRAVERSE(mll, ml, entry) {
+		if (!strcasecmp(ml->module, module))
+			return ml;
 	}
 
-	return df;
+	return NULL;
 }
 
 static char *complete_number(const char *partial, unsigned int min, unsigned int max, int n)
@@ -369,23 +369,22 @@ static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	const char *argv3 = a->argv ? S_OR(a->argv[3], "") : "";
 	int *dst;
 	char *what;
-	struct debug_file_list *dfl;
-	struct ast_debug_file *adf;
-	const char *fn;
+	struct module_level_list *mll;
+	struct module_level *ml;
 
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "core set {debug|verbose}";
 		e->usage =
 #if !defined(LOW_MEMORY)
-			"Usage: core set {debug|verbose} [atleast] <level> [filename]\n"
+			"Usage: core set {debug|verbose} [atleast] <level> [module]\n"
 #else
 			"Usage: core set {debug|verbose} [atleast] <level>\n"
 #endif
 			"       core set {debug|verbose} off\n"
 #if !defined(LOW_MEMORY)
-			"       Sets level of debug or verbose messages to be displayed or \n"
-			"       sets a filename to display debug messages from.\n"
+			"       Sets level of debug or verbose messages to be displayed or\n"
+			"       sets a module name to display debug messages from.\n"
 #else
 			"       Sets level of debug or verbose messages to be displayed.\n"
 #endif
@@ -440,13 +439,14 @@ static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		unsigned int debug = (*what == 'C');
 		newlevel = 0;
 
-		dfl = debug ? &debug_files : &verbose_files;
+		mll = debug ? &debug_modules : &verbose_modules;
 
-		AST_RWLIST_WRLOCK(dfl);
-		while ((adf = AST_RWLIST_REMOVE_HEAD(dfl, entry)))
-			ast_free(adf);
-		ast_clear_flag(&ast_options, debug ? AST_OPT_FLAG_DEBUG_FILE : AST_OPT_FLAG_VERBOSE_FILE);
-		AST_RWLIST_UNLOCK(dfl);
+		AST_RWLIST_WRLOCK(mll);
+		while ((ml = AST_RWLIST_REMOVE_HEAD(mll, entry))) {
+			ast_free(ml);
+		}
+		ast_clear_flag(&ast_options, debug ? AST_OPT_FLAG_DEBUG_MODULE : AST_OPT_FLAG_VERBOSE_MODULE);
+		AST_RWLIST_UNLOCK(mll);
 
 		goto done;
 	}
@@ -458,43 +458,47 @@ static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		return CLI_SHOWUSAGE;
 	if (argc == e->args + atleast + 2) {
 		unsigned int debug = (*what == 'C');
-		dfl = debug ? &debug_files : &verbose_files;
+		char *mod = ast_strdupa(argv[e->args + atleast + 1]);
 
-		fn = argv[e->args + atleast + 1];
+		mll = debug ? &debug_modules : &verbose_modules;
 
-		AST_RWLIST_WRLOCK(dfl);
+		if ((strlen(mod) > 3) && !strcasecmp(mod + strlen(mod) - 3, ".so")) {
+			mod[strlen(mod) - 3] = '\0';
+		}
 
-		if ((adf = find_debug_file(fn, debug)) && !newlevel) {
-			AST_RWLIST_REMOVE(dfl, adf, entry);
-			if (AST_RWLIST_EMPTY(dfl))
-				ast_clear_flag(&ast_options, debug ? AST_OPT_FLAG_DEBUG_FILE : AST_OPT_FLAG_VERBOSE_FILE);
-			AST_RWLIST_UNLOCK(dfl);
-			ast_cli(fd, "%s was %d and has been set to 0 for '%s'\n", what, adf->level, fn);
-			ast_free(adf);
+		AST_RWLIST_WRLOCK(mll);
+
+		if ((ml = find_module_level(mod, debug)) && !newlevel) {
+			AST_RWLIST_REMOVE(mll, ml, entry);
+			if (AST_RWLIST_EMPTY(mll))
+				ast_clear_flag(&ast_options, debug ? AST_OPT_FLAG_DEBUG_MODULE : AST_OPT_FLAG_VERBOSE_MODULE);
+			AST_RWLIST_UNLOCK(mll);
+			ast_cli(fd, "%s was %d and has been set to 0 for '%s'\n", what, ml->level, mod);
+			ast_free(ml);
 			return CLI_SUCCESS;
 		}
 
-		if (adf) {
-			if ((atleast && newlevel < adf->level) || adf->level == newlevel) {
-				ast_cli(fd, "%s is %d for '%s'\n", what, adf->level, fn);
-				AST_RWLIST_UNLOCK(dfl);
+		if (ml) {
+			if ((atleast && newlevel < ml->level) || ml->level == newlevel) {
+				ast_cli(fd, "%s is %d for '%s'\n", what, ml->level, mod);
+				AST_RWLIST_UNLOCK(mll);
 				return CLI_SUCCESS;
 			}
-		} else if (!(adf = ast_calloc(1, sizeof(*adf) + strlen(fn) + 1))) {
-			AST_RWLIST_UNLOCK(dfl);
+		} else if (!(ml = ast_calloc(1, sizeof(*ml) + strlen(mod) + 1))) {
+			AST_RWLIST_UNLOCK(mll);
 			return CLI_FAILURE;
 		}
 
-		oldval = adf->level;
-		adf->level = newlevel;
-		strcpy(adf->filename, fn);
+		oldval = ml->level;
+		ml->level = newlevel;
+		strcpy(ml->module, mod);
 
-		ast_set_flag(&ast_options, debug ? AST_OPT_FLAG_DEBUG_FILE : AST_OPT_FLAG_VERBOSE_FILE);
+		ast_set_flag(&ast_options, debug ? AST_OPT_FLAG_DEBUG_MODULE : AST_OPT_FLAG_VERBOSE_MODULE);
 
-		AST_RWLIST_INSERT_TAIL(dfl, adf, entry);
-		AST_RWLIST_UNLOCK(dfl);
+		AST_RWLIST_INSERT_TAIL(mll, ml, entry);
+		AST_RWLIST_UNLOCK(mll);
 
-		ast_cli(fd, "%s was %d and has been set to %d for '%s'\n", what, oldval, adf->level, adf->filename);
+		ast_cli(fd, "%s was %d and has been set to %d for '%s'\n", what, oldval, ml->level, ml->module);
 
 		return CLI_SUCCESS;
 	}
