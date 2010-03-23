@@ -482,6 +482,13 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "  Module directory:            %s\n", ast_config_AST_MODULE_DIR);
 	ast_cli(a->fd, "  Spool directory:             %s\n", ast_config_AST_SPOOL_DIR);
 	ast_cli(a->fd, "  Log directory:               %s\n", ast_config_AST_LOG_DIR);
+	ast_cli(a->fd, "  Run/Sockets directory:       %s\n", ast_config_AST_RUN_DIR);
+	ast_cli(a->fd, "  PID file:                    %s\n", ast_config_AST_PID);
+	ast_cli(a->fd, "  VarLib directory:            %s\n", ast_config_AST_VAR_DIR);
+	ast_cli(a->fd, "  Data directory:              %s\n", ast_config_AST_DATA_DIR);
+	ast_cli(a->fd, "  ASTDB:                       %s\n", ast_config_AST_DB);
+	ast_cli(a->fd, "  IAX2 Keys directory:         %s\n", ast_config_AST_KEY_DIR);
+	ast_cli(a->fd, "  AGI Scripts directory:       %s\n", ast_config_AST_AGI_DIR);
 	ast_cli(a->fd, "\n\n");
 	return CLI_SUCCESS;
 }
