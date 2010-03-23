@@ -186,7 +186,7 @@ static void test_xml_entry(struct ast_test *test, FILE *f)
 			test->state == AST_TEST_PASS ? "/" : "");
 
 	if (test->state == AST_TEST_FAIL) {
-		fprintf(f, "\t\t<failure>%s</failure>\n",
+		fprintf(f, "\t\t<failure><![CDATA[\n%s\n\t\t]]></failure>\n",
 				S_OR(ast_str_buffer(test->status_str), "NA"));
 		fprintf(f, "\t</testcase>\n");
 	}
