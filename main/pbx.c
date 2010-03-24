@@ -8693,17 +8693,36 @@ void __ast_context_destroy(struct ast_context *list, struct ast_hashtab *context
 			if (tmp->root_table) { /* it is entirely possible that the context is EMPTY */
 				exten_iter = ast_hashtab_start_traversal(tmp->root_table);
 				while ((exten_item=ast_hashtab_next(exten_iter))) {
+					int end_traversal = 1;
 					prio_iter = ast_hashtab_start_traversal(exten_item->peer_table);
 					while ((prio_item=ast_hashtab_next(prio_iter))) {
+						char extension[AST_MAX_EXTENSION];
+						char cidmatch[AST_MAX_EXTENSION];
 						if (!prio_item->registrar || strcmp(prio_item->registrar, registrar) != 0) {
 							continue;
 						}
 						ast_verb(3, "Remove %s/%s/%d, registrar=%s; con=%s(%p); con->root=%p\n",
 								 tmp->name, prio_item->exten, prio_item->priority, registrar, con? con->name : "<nil>", con, con? con->root_table: NULL);
 						/* set matchcid to 1 to insure we get a direct match, and NULL registrar to make sure no wildcarding is done */
-						ast_context_remove_extension_callerid2(tmp, prio_item->exten, prio_item->priority, prio_item->cidmatch, 1, NULL, 1);
+						ast_copy_string(extension, prio_item->exten, sizeof(extension));
+						if (prio_item->cidmatch) {
+							ast_copy_string(cidmatch, prio_item->cidmatch, sizeof(cidmatch));
+						}
+						end_traversal &= ast_context_remove_extension_callerid2(tmp, extension, prio_item->priority, prio_item->cidmatch ? cidmatch : NULL, 1, NULL, 1);
 					}
-					ast_hashtab_end_traversal(prio_iter);
+					/* Explanation:
+					 * ast_context_remove_extension_callerid2 will destroy the extension that it comes across. This
+					 * destruction includes destroying the exten's peer_table, which we are currently traversing. If
+					 * ast_context_remove_extension_callerid2 ever should return '0' then this means we have destroyed
+					 * the hashtable which we are traversing, and thus calling ast_hashtab_end_traversal will result
+					 * in reading invalid memory. Thus, if we detect that we destroyed the hashtable, then we will simply
+					 * free the iterator
+					 */
+					if (end_traversal) {
+						ast_hashtab_end_traversal(prio_iter);
+					} else {
+						ast_free(prio_iter);
+					}
 				}
 				ast_hashtab_end_traversal(exten_iter);
 			}
