@@ -158,19 +158,21 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 		if (!ast_strlen_zero(fname_base)) {
 			int directory = strchr(fname_base, '/') ? 1 : 0;
 			const char *absolute = *fname_base == '/' ? "" : ast_config_AST_MONITOR_DIR;
+			const char *absolute_suffix = *fname_base == '/' ? "" : "/";
 			/* try creating the directory just in case it doesn't exist */
 			if (directory) {
 				char *name = strdup(fname_base);
-				snprintf(tmp, sizeof(tmp), "mkdir -p \"%s/%s\"", absolute, dirname(name));
+				snprintf(tmp, sizeof(tmp), "mkdir -p \"%s%s%s\"",
+							absolute, absolute_suffix, dirname(name));
 				free(name);
 				ast_safe_system(tmp);
 			}
-			snprintf(monitor->read_filename, FILENAME_MAX, "%s/%s-in",
-						absolute, fname_base);
-			snprintf(monitor->write_filename, FILENAME_MAX, "%s/%s-out",
-						absolute, fname_base);
-			snprintf(monitor->filename_base, FILENAME_MAX, "%s/%s",
-					 	absolute, fname_base);
+			snprintf(monitor->read_filename, FILENAME_MAX, "%s%s%s-in",
+						absolute, absolute_suffix, fname_base);
+			snprintf(monitor->write_filename, FILENAME_MAX, "%s%s%s-out",
+						absolute, absolute_suffix, fname_base);
+			snprintf(monitor->filename_base, FILENAME_MAX, "%s%s%s",
+					 	absolute, absolute_suffix, fname_base);
 		} else {
 			ast_mutex_lock(&monitorlock);
 			snprintf(monitor->read_filename, FILENAME_MAX, "%s/audio-in-%ld",
@@ -299,11 +301,9 @@ int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 			char tmp[1024];
 			char tmp2[1024];
 			const char *format = !strcasecmp(chan->monitor->format,"wav49") ? "WAV" : chan->monitor->format;
-			char *name = chan->monitor->filename_base;
-			int directory = strchr(name, '/') ? 1 : 0;
-			char *dir = directory ? "" : ast_config_AST_MONITOR_DIR;
+			char *fname_base = chan->monitor->filename_base;
 			const char *execute, *execute_args;
-			const char *absolute = *name == '/' ? "" : "/";
+			/* at this point, fname_base really is the full path */
 
 			/* Set the execute application */
 			execute = pbx_builtin_getvar_helper(chan, "MONITOR_EXEC");
@@ -321,9 +321,10 @@ int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 				execute_args = "";
 			}
 			
-			snprintf(tmp, sizeof(tmp), "%s \"%s%s%s-in.%s\" \"%s%s%s-out.%s\" \"%s%s%s.%s\" %s &", execute, dir, absolute, name, format, dir, absolute, name, format, dir, absolute, name, format,execute_args);
+			snprintf(tmp, sizeof(tmp), "%s \"%s-in.%s\" \"%s-out.%s\" \"%s.%s\" %s &",
+				execute, fname_base, format, fname_base, format, fname_base, format,execute_args);
 			if (delfiles) {
-				snprintf(tmp2,sizeof(tmp2), "( %s& rm -f \"%s%s%s-\"* ) &",tmp, dir, absolute, name); /* remove legs when done mixing */
+				snprintf(tmp2,sizeof(tmp2), "( %s& rm -f \"%s-\"* ) &",tmp, fname_base); /* remove legs when done mixing */
 				ast_copy_string(tmp, tmp2, sizeof(tmp));
 			}
 			ast_log(LOG_DEBUG,"monitor executing %s\n",tmp);
@@ -378,11 +379,20 @@ int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, i
 	if (chan->monitor) {
 		int directory = strchr(fname_base, '/') ? 1 : 0;
 		const char *absolute = *fname_base == '/' ? "" : ast_config_AST_MONITOR_DIR;
+		const char *absolute_suffix = *fname_base == '/' ? "" : "/";
 		char tmpstring[sizeof(chan->monitor->filename_base)] = "";
 		int i, fd[2] = { -1, -1 }, doexit = 0;
 
 		/* before continuing, see if we're trying to rename the file to itself... */
-		snprintf(tmpstring, sizeof(tmpstring), "%s/%s", absolute, fname_base);
+		snprintf(tmpstring, sizeof(tmpstring), "%s%s%s", absolute, absolute_suffix, fname_base);
+
+		/* try creating the directory just in case it doesn't exist */
+		if (directory) {
+			char *name = strdup(fname_base);
+			snprintf(tmp, sizeof(tmp), "mkdir -p \"%s%s%s\"", absolute, absolute_suffix, dirname(name));
+			free(name);
+			ast_safe_system(tmp);
+		}
 
 		/*!\note We cannot just compare filenames, due to symlinks, relative
 		 * paths, and other possible filesystem issues.  We could use
@@ -417,19 +427,12 @@ int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, i
 			}
 		}
 		unlink(tmpstring);
+		/* if previous monitor file existed in a subdirectory, the directory will not be removed */
 		unlink(chan->monitor->filename_base);
 
 		if (doexit) {
 			UNLOCK_IF_NEEDED(chan, need_lock);
 			return 0;
-		}
-
-		/* try creating the directory just in case it doesn't exist */
-		if (directory) {
-			char *name = strdup(fname_base);
-			snprintf(tmp, sizeof(tmp), "mkdir -p \"%s/%s\"", absolute, dirname(name));
-			free(name);
-			ast_safe_system(tmp);
 		}
 
 		ast_copy_string(chan->monitor->filename_base, tmpstring, sizeof(chan->monitor->filename_base));
