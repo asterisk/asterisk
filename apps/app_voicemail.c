@@ -624,6 +624,7 @@ struct ast_vm_user {
 	char attachfmt[20];              /*!< Attachment format */
 	unsigned int flags;              /*!< VM_ flags */	
 	int saydurationm;
+	int minsecs;                     /*!< Minimum number of seconds per message for this mailbox */
 	int maxmsg;                      /*!< Maximum number of msgs per folder for this mailbox */
 	int maxdeletedmsg;               /*!< Maximum number of deleted msgs saved for this mailbox */
 	int maxsecs;                     /*!< Maximum number of seconds per message for this mailbox */
@@ -967,18 +968,25 @@ static void populate_defaults(struct ast_vm_user *vmu)
 {
 	ast_copy_flags(vmu, (&globalflags), AST_FLAGS_ALL);	
 	vmu->passwordlocation = passwordlocation;
-	if (saydurationminfo)
+	if (saydurationminfo) {
 		vmu->saydurationm = saydurationminfo;
+	}
 	ast_copy_string(vmu->callback, callcontext, sizeof(vmu->callback));
 	ast_copy_string(vmu->dialout, dialcontext, sizeof(vmu->dialout));
 	ast_copy_string(vmu->exit, exitcontext, sizeof(vmu->exit));
 	ast_copy_string(vmu->zonetag, zonetag, sizeof(vmu->zonetag));
-	if (vmmaxsecs)
+	if (vmminsecs) {
+		vmu->minsecs = vmminsecs;
+	}
+	if (vmmaxsecs) {
 		vmu->maxsecs = vmmaxsecs;
-	if (maxmsg)
+	}
+	if (maxmsg) {
 		vmu->maxmsg = maxmsg;
-	if (maxdeletedmsg)
+	}
+	if (maxdeletedmsg) {
 		vmu->maxdeletedmsg = maxdeletedmsg;
+	}
 	vmu->volgain = volgain;
 	vmu->emailsubject = NULL;
 	vmu->emailbody = NULL;
@@ -1057,6 +1065,13 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 		ast_copy_string(vmu->dialout, value, sizeof(vmu->dialout));
 	} else if (!strcasecmp(var, "exitcontext")) {
 		ast_copy_string(vmu->exit, value, sizeof(vmu->exit));
+	} else if (!strcasecmp(var, "minsecs")) {
+		if (sscanf(value, "%30d", &x) == 1 && x >= 0) {
+			vmu->minsecs = x;
+		} else {
+			ast_log(LOG_WARNING, "Invalid min message length of %s. Using global value %d\n", value, vmminsecs);
+			vmu->minsecs = vmminsecs;
+		}
 	} else if (!strcasecmp(var, "maxmessage") || !strcasecmp(var, "maxsecs")) {
 		vmu->maxsecs = atoi(value);
 		if (vmu->maxsecs <= 0) {
@@ -1077,6 +1092,8 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 			ast_log(AST_LOG_WARNING, "Maximum number of messages per folder is %d. Cannot accept value maxmsg=%s\n", MAXMSGLIMIT, value);
 			vmu->maxmsg = MAXMSGLIMIT;
 		}
+	} else if (!strcasecmp(var, "nextaftercmd")) {
+		ast_set2_flag(vmu, ast_true(value), VM_SKIPAFTERCMD);
 	} else if (!strcasecmp(var, "backupdeleted")) {
 		if (sscanf(value, "%30d", &x) == 1)
 			vmu->maxdeletedmsg = x;
@@ -5683,10 +5700,9 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 
 		if (txt) {
 			fprintf(txt, "flag=%s\n", flag);
-			if (duration < vmminsecs) {
+			if (duration < vmu->minsecs) {
 				fclose(txt);
-				if (option_verbose > 2) 
-					ast_verbose( VERBOSE_PREFIX_3 "Recording was %d seconds long but needs to be at least %d - abandoning\n", duration, vmminsecs);
+				ast_verb(3, "Recording was %d seconds long but needs to be at least %d - abandoning\n", duration, vmu->minsecs);
 				ast_filedelete(tmptxtfile, NULL);
 				unlink(tmptxtfile);
 				if (ast_check_realtime("voicemail_data")) {
@@ -5802,7 +5818,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		} else if (res > 0)
 			res = 0;
 
-		if (duration < vmminsecs)
+		if (duration < vmu->minsecs)
 			/* XXX We should really give a prompt too short/option start again, with leave_vm_out called only after a timeout XXX */
 			pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
 		else
@@ -9837,7 +9853,7 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 						vms.oldmessages++;
 					cmd = ast_play_and_wait(chan, "vm-undeleted");
 				}
-				if (ast_test_flag((&globalflags), VM_SKIPAFTERCMD)) {
+				if (ast_test_flag(vmu, VM_SKIPAFTERCMD)) {
 					if (vms.curmsg < vms.lastmsg) {
 						vms.curmsg++;
 						cmd = play_message(chan, vmu, &vms);
@@ -10211,6 +10227,171 @@ static int append_mailbox(const char *context, const char *box, const char *data
 	queue_mwi_event(mailbox_full, urgent, new, old);
 
 	return 0;
+}
+
+AST_TEST_DEFINE(test_voicemail_vmuser)
+{
+	int res = 0;
+	struct ast_vm_user *vmu;
+	/* language parameter seems to only be used for display in manager action */
+	static const char options_string[] = "attach=yes|attachfmt=wav49|"
+		"serveremail=someguy@digium.com|tz=central|delete=yes|saycid=yes|"
+		"sendvoicemail=yes|review=yes|tempgreetwarn=yes|messagewrap=yes|operator=yes|"
+		"envelope=yes|moveheard=yes|sayduration=yes|saydurationm=5|forcename=yes|"
+		"forcegreetings=yes|callback=somecontext|dialout=somecontext2|"
+		"exitcontext=somecontext3|minsecs=10|maxsecs=100|nextaftercmd=yes|"
+		"backupdeleted=50|volgain=1.3|passwordlocation=spooldir";
+#ifdef IMAP_STORAGE
+	static const char option_string2[] = "imapuser=imapuser|imappassword=imappasswd|"
+		"imapfolder=INBOX|imapvmshareid=6000";
+#endif
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "vmuser";
+		info->category = "apps/app_voicemail/";
+		info->summary = "Vmuser unit test";
+		info->description =
+			"This tests passing all supported parameters to apply_options, the voicemail user config parser";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(vmu = ast_calloc(1, sizeof(*vmu)))) {
+		return AST_TEST_NOT_RUN;
+	}
+	ast_set_flag(vmu, VM_ALLOCED);
+
+	apply_options(vmu, options_string);
+
+	if (!ast_test_flag(vmu, VM_ATTACH)) {
+		ast_test_status_update(test, "Parse failure for attach option\n");
+		res = 1;
+	}
+	if (strcasecmp(vmu->attachfmt, "wav49")) {
+		ast_test_status_update(test, "Parse failure for attachftm option\n");
+		res = 1;
+	}
+	if (strcasecmp(vmu->serveremail, "someguy@digium.com")) {
+		ast_test_status_update(test, "Parse failure for serveremail option\n");
+		res = 1;
+	}
+	if (strcasecmp(vmu->zonetag, "central")) {
+		ast_test_status_update(test, "Parse failure for tz option\n");
+		res = 1;
+	}
+	if (!ast_test_flag(vmu, VM_DELETE)) {
+		ast_test_status_update(test, "Parse failure for delete option\n");
+		res = 1;
+	}
+	if (!ast_test_flag(vmu, VM_SAYCID)) {
+		ast_test_status_update(test, "Parse failure for saycid option\n");
+		res = 1;
+	}
+	if (!ast_test_flag(vmu, VM_SVMAIL)) {
+		ast_test_status_update(test, "Parse failure for sendvoicemail option\n");
+		res = 1;
+	}
+	if (!ast_test_flag(vmu, VM_REVIEW)) {
+		ast_test_status_update(test, "Parse failure for review option\n");
+		res = 1;
+	}
+	if (!ast_test_flag(vmu, VM_TEMPGREETWARN)) {
+		ast_test_status_update(test, "Parse failure for tempgreetwarm option\n");
+		res = 1;
+	}
+	if (!ast_test_flag(vmu, VM_MESSAGEWRAP)) {
+		ast_test_status_update(test, "Parse failure for messagewrap option\n");
+		res = 1;
+	}
+	if (!ast_test_flag(vmu, VM_OPERATOR)) {
+		ast_test_status_update(test, "Parse failure for operator option\n");
+		res = 1;
+	}
+	if (!ast_test_flag(vmu, VM_ENVELOPE)) {
+		ast_test_status_update(test, "Parse failure for envelope option\n");
+		res = 1;
+	}
+	if (!ast_test_flag(vmu, VM_MOVEHEARD)) {
+		ast_test_status_update(test, "Parse failure for moveheard option\n");
+		res = 1;
+	}
+	if (!ast_test_flag(vmu, VM_SAYDURATION)) {
+		ast_test_status_update(test, "Parse failure for sayduration option\n");
+		res = 1;
+	}
+	if (vmu->saydurationm != 5) {
+		ast_test_status_update(test, "Parse failure for saydurationm option\n");
+		res = 1;
+	}
+	if (!ast_test_flag(vmu, VM_FORCENAME)) {
+		ast_test_status_update(test, "Parse failure for forcename option\n");
+		res = 1;
+	}
+	if (!ast_test_flag(vmu, VM_FORCEGREET)) {
+		ast_test_status_update(test, "Parse failure for forcegreetings option\n");
+		res = 1;
+	}
+	if (strcasecmp(vmu->callback, "somecontext")) {
+		ast_test_status_update(test, "Parse failure for callbacks option\n");
+		res = 1;
+	}
+	if (strcasecmp(vmu->dialout, "somecontext2")) {
+		ast_test_status_update(test, "Parse failure for dialout option\n");
+		res = 1;
+	}
+	if (strcasecmp(vmu->exit, "somecontext3")) {
+		ast_test_status_update(test, "Parse failure for exitcontext option\n");
+		res = 1;
+	}
+	if (vmu->minsecs != 10) {
+		ast_test_status_update(test, "Parse failure for minsecs option\n");
+		res = 1;
+	}
+	if (vmu->maxsecs != 100) {
+		ast_test_status_update(test, "Parse failure for maxsecs option\n");
+		res = 1;
+	}
+	if (!ast_test_flag(vmu, VM_SKIPAFTERCMD)) {
+		ast_test_status_update(test, "Parse failure for nextaftercmd option\n");
+		res = 1;
+	}
+	if (vmu->maxdeletedmsg != 50) {
+		ast_test_status_update(test, "Parse failure for backupdeleted option\n");
+		res = 1;
+	}
+	if (vmu->volgain != 1.3) {
+		ast_test_status_update(test, "Parse failure for volgain option\n");
+		res = 1;
+	}
+	if (vmu->passwordlocation != OPT_PWLOC_SPOOLDIR) {
+		ast_test_status_update(test, "Parse failure for passwordlocation option\n");
+		res = 1;
+	}
+#ifdef IMAP_STORAGE
+	apply_options(vmu, option_string2);
+
+	if (strcasecmp(vmu->imapuser, "imapuser")) {
+		ast_test_status_update(test, "Parse failure for imapuser option\n");
+		res = 1;
+	}
+	if (strcasecmp(vmu->imappassword, "imappasswd")) {
+		ast_test_status_update(test, "Parse failure for imappasswd option\n");
+		res = 1;
+	}
+	if (strcasecmp(vmu->imapfolder, "INBOX")) {
+		ast_test_status_update(test, "Parse failure for imappasswd option\n");
+		res = 1;
+	}
+	if (strcasecmp(vmu->imapvmshareid, "6000")) {
+		ast_test_status_update(test, "Parse failure for imapvmshareid option\n");
+		res = 1;
+	}
+#endif
+
+	free_user(vmu);
+	return res ? AST_TEST_FAIL : AST_TEST_PASS;
 }
 
 static int vm_box_exists(struct ast_channel *chan, const char *data) 
@@ -11916,6 +12097,7 @@ static int unload_module(void)
 #ifdef TEST_FRAMEWORK
 	res |= AST_TEST_UNREGISTER(test_voicemail_vmsayname);
 	res |= AST_TEST_UNREGISTER(test_voicemail_msgcount);
+	res |= AST_TEST_UNREGISTER(test_voicemail_vmuser);
 #endif
 	ast_cli_unregister_multiple(cli_voicemail, ARRAY_LEN(cli_voicemail));
 	ast_uninstall_vm_functions();
@@ -11963,6 +12145,7 @@ static int load_module(void)
 #ifdef TEST_FRAMEWORK
 	res |= AST_TEST_REGISTER(test_voicemail_vmsayname);
 	res |= AST_TEST_REGISTER(test_voicemail_msgcount);
+	res |= AST_TEST_REGISTER(test_voicemail_vmuser);
 #endif
 
 	if (res)

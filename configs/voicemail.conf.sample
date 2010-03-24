@@ -270,7 +270,6 @@ sendvoicemail=yes ; Allow the user to compose and send a voicemail while inside
 			;     much gain to add to the message when sending a voicemail.
 			;     NOTE: sox must be installed for this option to work.
 ; nextaftercmd=yes	; Skips to the next message after hitting 7 or 9 to delete/save current message.
-			;     [global option only at this time]
 ; forcename=yes		; Forces a new user to record their name.  A new user is
 			;     determined by the password being the same as
 			;     the mailbox number.  The default is "no".

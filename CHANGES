@@ -121,6 +121,7 @@ Applications
  * Voicemail now supports per mailbox settings for folders when using IMAP storage.
    Previously the folder could only be set per context, but has now been extended 
    using the imapfolder option.
+ * Voicemail now supports per mailbox settings for nextaftercmd and minsecs.
  * Voicemail now allows the pager date format to be specified separately from the
    email date format.
  * New applications JabberJoin, JabberLeave, and JabberSendGroup have been added
