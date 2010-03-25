@@ -202,6 +202,8 @@ struct rtp_red {
 	long int prev_ts;
 };
 
+AST_LIST_HEAD_NOLOCK(frame_list, ast_frame);
+
 /* Forward declarations */
 static int ast_rtcp_write(const void *data);
 static void timeval2ntp(struct timeval tv, unsigned int *msw, unsigned int *lsw);
@@ -873,7 +875,7 @@ static double stddev_compute(double stddev, double sample, double normdev, doubl
 #undef SQUARE
 }
 
-static struct ast_frame *send_dtmf(struct ast_rtp *rtp, enum ast_frame_type type)
+static struct ast_frame *create_dtmf_frame(struct ast_rtp *rtp, enum ast_frame_type type)
 {
 	if (((ast_test_flag(rtp, FLAG_DTMF_COMPENSATE) && type == AST_FRAME_DTMF_END) ||
 	     (type == AST_FRAME_DTMF_BEGIN)) && ast_tvcmp(ast_tvnow(), rtp->dtmfmute) < 0) {
@@ -894,6 +896,7 @@ static struct ast_frame *send_dtmf(struct ast_rtp *rtp, enum ast_frame_type type
 	rtp->f.samples = 0;
 	rtp->f.mallocd = 0;
 	rtp->f.src = "RTP";
+	AST_LIST_NEXT(&rtp->f, frame_list) = NULL;
 	return &rtp->f;
 	
 }
@@ -990,11 +993,11 @@ static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *
 		rtp->resp = resp;
 		/* Why we should care on DTMF compensation at reception? */
 		if (!ast_test_flag(rtp, FLAG_DTMF_COMPENSATE)) {
-			f = send_dtmf(rtp, AST_FRAME_DTMF_BEGIN);
+			f = create_dtmf_frame(rtp, AST_FRAME_DTMF_BEGIN);
 			rtp->dtmfsamples = 0;
 		}
 	} else if ((rtp->resp == resp) && !power) {
-		f = send_dtmf(rtp, AST_FRAME_DTMF_END);
+		f = create_dtmf_frame(rtp, AST_FRAME_DTMF_END);
 		f->samples = rtp->dtmfsamples * (rtp_get_rate(f->subclass) / 1000);
 		rtp->resp = 0;
 	} else if (rtp->resp == resp)
@@ -1013,9 +1016,10 @@ static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *
  * \param len
  * \param seqno
  * \param timestamp
+ * \param frames
  * \returns
  */
-static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *data, int len, unsigned int seqno, unsigned int timestamp)
+static void process_rfc2833(struct ast_rtp *rtp, unsigned char *data, int len, unsigned int seqno, unsigned int timestamp, struct frame_list *frames)
 {
 	unsigned int event;
 	unsigned int event_end;
@@ -1050,16 +1054,17 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 	} else {
 		/* Not a supported event */
 		ast_log(LOG_DEBUG, "Ignoring RTP 2833 Event: %08x. Not a DTMF Digit.\n", event);
-		return &ast_null_frame;
+		return;
 	}
 
 	if (ast_test_flag(rtp, FLAG_DTMF_COMPENSATE)) {
 		if ((rtp->lastevent != timestamp) || (rtp->resp && rtp->resp != resp)) {
 			rtp->resp = resp;
 			rtp->dtmf_timeout = 0;
-			f = send_dtmf(rtp, AST_FRAME_DTMF_END);
+			f = ast_frdup(create_dtmf_frame(rtp, AST_FRAME_DTMF_END));
 			f->len = 0;
 			rtp->lastevent = timestamp;
+			AST_LIST_INSERT_TAIL(frames, f, frame_list);
 		}
 	} else {
 		/*  The duration parameter measures the complete
@@ -1074,24 +1079,34 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 			new_duration += 0xFFFF + 1;
 		new_duration = (new_duration & ~0xFFFF) | samples;
 
+		if (rtp->lastevent > seqno) {
+			/* Out of order frame. Processing this can cause us to
+			 * improperly duplicate incoming DTMF, so just drop
+			 * this.
+			 */
+			return;
+		}
+
 		if (event_end & 0x80) {
 			/* End event */
 			if ((rtp->lastevent != seqno) && rtp->resp) {
 				rtp->dtmf_duration = new_duration;
-				f = send_dtmf(rtp, AST_FRAME_DTMF_END);
+				f = ast_frdup(create_dtmf_frame(rtp, AST_FRAME_DTMF_END));
 				f->len = ast_tvdiff_ms(ast_samp2tv(rtp->dtmf_duration, rtp_get_rate(f->subclass)), ast_tv(0, 0));
 				rtp->resp = 0;
 				rtp->dtmf_duration = rtp->dtmf_timeout = 0;
+				AST_LIST_INSERT_TAIL(frames, f, frame_list);
 			}
 		} else {
 			/* Begin/continuation */
 
 			if (rtp->resp && rtp->resp != resp) {
 				/* Another digit already began. End it */
-				f = send_dtmf(rtp, AST_FRAME_DTMF_END);
+				f = ast_frdup(create_dtmf_frame(rtp, AST_FRAME_DTMF_END));
 				f->len = ast_tvdiff_ms(ast_samp2tv(rtp->dtmf_duration, rtp_get_rate(f->subclass)), ast_tv(0, 0));
 				rtp->resp = 0;
 				rtp->dtmf_duration = rtp->dtmf_timeout = 0;
+				AST_LIST_INSERT_TAIL(frames, f, frame_list);
 			}
 
 
@@ -1101,8 +1116,9 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 			} else {
 				/* New digit began */
 				rtp->resp = resp;
-				f = send_dtmf(rtp, AST_FRAME_DTMF_BEGIN);
+				f = ast_frdup(create_dtmf_frame(rtp, AST_FRAME_DTMF_BEGIN));
 				rtp->dtmf_duration = samples;
+				AST_LIST_INSERT_TAIL(frames, f, frame_list);
 			}
 
 			rtp->dtmf_timeout = timestamp + rtp->dtmf_duration + dtmftimeout;
@@ -1112,8 +1128,6 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 	}
 
 	rtp->dtmfsamples = samples;
-
-	return f;
 }
 
 /*!
@@ -1583,7 +1597,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	struct rtpPayloadType rtpPT;
 	struct ast_rtp *bridged = NULL;
 	int prev_seqno;
-	AST_LIST_HEAD_NOLOCK(, ast_frame) frames;
+	struct frame_list frames;
 	
 	/* If time is up, kill it */
 	if (rtp->sending_digit)
@@ -1782,7 +1796,11 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 				duration &= 0xFFFF;
 				ast_verbose("Got  RTP RFC2833 from   %s:%u (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u, mark %d, event %08x, end %d, duration %-5.5d) \n", ast_inet_ntoa(sock_in.sin_addr), ntohs(sock_in.sin_port), payloadtype, seqno, timestamp, res - hdrlen, (mark?1:0), event, ((event_end & 0x80)?1:0), duration);
 			}
-			f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno, timestamp);
+			/* process_rfc2833 may need to return multiple frames. We do this
+			 * by passing the pointer to the frame list to it so that the method
+			 * can append frames to the list as needed
+			 */
+			process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno, timestamp, &frames);
 		} else if (rtpPT.code == AST_RTP_CISCO_DTMF) {
 			/* It's really special -- process it the Cisco way */
 			if (rtp->lastevent <= seqno || (rtp->lastevent >= 65530 && seqno <= 6)) {
@@ -1797,6 +1815,11 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		}
 		if (f) {
 			AST_LIST_INSERT_TAIL(&frames, f, frame_list);
+		}
+		/* Even if no frame was returned by one of the above methods,
+		 * we may have a frame to return in our frame list
+		 */
+		if (!AST_LIST_EMPTY(&frames)) {
 			return AST_LIST_FIRST(&frames);
 		}
 		return &ast_null_frame;
@@ -1811,7 +1834,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 
 		if (rtp->resp) {
 			struct ast_frame *f;
-			f = send_dtmf(rtp, AST_FRAME_DTMF_END);
+			f = create_dtmf_frame(rtp, AST_FRAME_DTMF_END);
 			f->len = ast_tvdiff_ms(ast_samp2tv(rtp->dtmf_duration, rtp_get_rate(f->subclass)), ast_tv(0, 0));
 			rtp->resp = 0;
 			rtp->dtmf_timeout = rtp->dtmf_duration = 0;
