@@ -143,11 +143,28 @@ static void *__ao2_callback(struct ao2_container *c,
 					 char *tag, char *file, int line, const char *funcname);
 static void * __ao2_iterator_next(struct ao2_iterator *a, struct bucket_list **q);
 
-#ifndef DEBUG_THREADS
-int ao2_lock(void *user_data)
-#else
-int _ao2_lock(void *user_data, const char *file, const char *func, int line, const char *var)
+#ifdef DEBUG_THREADS
+/* Need to override the macros defined in astobj2.h */
+#undef ao2_lock
+#undef ao2_trylock
+#undef ao2_unlock
 #endif
+
+int ao2_lock(void *user_data)
+{
+	struct astobj2 *p = INTERNAL_OBJ(user_data);
+
+	if (p == NULL)
+		return -1;
+
+#ifdef AO2_DEBUG
+	ast_atomic_fetchadd_int(&ao2.total_locked, 1);
+#endif
+
+	return ast_mutex_lock(&p->priv_data.lock);
+}
+
+int _ao2_lock(void *user_data, const char *file, const char *func, int line, const char *var)
 {
 	struct astobj2 *p = INTERNAL_OBJ(user_data);
 
@@ -165,11 +182,21 @@ int _ao2_lock(void *user_data, const char *file, const char *func, int line, con
 #endif
 }
 
-#ifndef DEBUG_THREADS
 int ao2_unlock(void *user_data)
-#else
-int _ao2_unlock(void *user_data, const char *file, const char *func, int line, const char *var)
+{
+	struct astobj2 *p = INTERNAL_OBJ(user_data);
+
+	if (p == NULL)
+		return -1;
+
+#ifdef AO2_DEBUG
+	ast_atomic_fetchadd_int(&ao2.total_locked, -1);
 #endif
+
+	return ast_mutex_unlock(&p->priv_data.lock);
+}
+
+int _ao2_unlock(void *user_data, const char *file, const char *func, int line, const char *var)
 {
 	struct astobj2 *p = INTERNAL_OBJ(user_data);
 
@@ -187,11 +214,23 @@ int _ao2_unlock(void *user_data, const char *file, const char *func, int line, c
 #endif
 }
 
-#ifndef DEBUG_THREADS
 int ao2_trylock(void *user_data)
-#else
-int _ao2_trylock(void *user_data, const char *file, const char *func, int line, const char *var)
+{
+	struct astobj2 *p = INTERNAL_OBJ(user_data);
+	int ret;
+	
+	if (p == NULL)
+		return -1;
+	ret = ast_mutex_trylock(&p->priv_data.lock);
+
+#ifdef AO2_DEBUG
+	if (!ret)
+		ast_atomic_fetchadd_int(&ao2.total_locked, 1);
 #endif
+	return ret;
+}
+
+int _ao2_trylock(void *user_data, const char *file, const char *func, int line, const char *var)
 {
 	struct astobj2 *p = INTERNAL_OBJ(user_data);
 	int ret;
