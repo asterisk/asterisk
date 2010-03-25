@@ -20957,7 +20957,7 @@ static int acf_channel_read(struct ast_channel *chan, const char *funcname, char
 		ast_copy_string(buf, (p->t38.state == T38_DISABLED) ? "0" : "1", buflen);
 	} else if (!strcasecmp(args.param, "rtpdest")) {
 		struct sockaddr_in sin;
-		struct ast_rtp *stream;
+		struct ast_rtp *stream = NULL;
 
 		if (ast_strlen_zero(args.type))
 			args.type = "audio";
