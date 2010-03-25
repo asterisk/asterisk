@@ -533,9 +533,13 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;                                       ; send 400 byte T.38 FAX packets to it.
 ;
 ; FAX detection will cause the SIP channel to jump to the 'fax' extension (if it exists)
-; when a CNG tone is detected on an incoming call.
+; based one or more events being detected. The events that can be detected are an incoming
+; CNG tone or an incoming T.38 re-INVITE request.
 ;
-; faxdetect = yes              ; Default false
+; faxdetect = yes		; Default 'no', 'yes' enables both CNG and T.38 detection
+; faxdetect = cng		; Enables only CNG detection
+; faxdetect = t38		; Enables only T.38 detection
+; faxdetect = both		; Enables both CNG and T.38 detection (same as 'yes')
 ;
 ;----------------------------------------- OUTBOUND SIP REGISTRATIONS  ------------------------
 ; Asterisk can register as a SIP user agent to a SIP proxy (provider)

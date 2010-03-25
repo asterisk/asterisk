@@ -3052,7 +3052,7 @@ static void enable_dsp_detect(struct sip_pvt *p)
                 }
 	}
 
-	if (ast_test_flag(&p->flags[1], SIP_PAGE2_FAX_DETECT)) {
+	if (ast_test_flag(&p->flags[1], SIP_PAGE2_FAX_DETECT_CNG)) {
 		features |= DSP_FEATURE_FAX_DETECT;
 	}
 
@@ -4163,6 +4163,11 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	res = 0;
 	ast_set_flag(&p->flags[0], SIP_OUTGOING);
 
+	/* T.38 re-INVITE FAX detection should never be done for outgoing calls,
+	 * so ensure it is disabled.
+	 */
+	ast_clear_flag(&p->flags[1], SIP_PAGE2_FAX_DETECT_T38);
+
 	if (p->options->transfer) {
 		char buf[SIPBUFSIZE/2];
 
@@ -5199,22 +5204,24 @@ static int sip_transfer(struct ast_channel *ast, const char *dest)
 }
 
 /*! \brief Helper function which updates T.38 capability information and triggers a reinvite */
-static void interpret_t38_parameters(struct sip_pvt *p, const struct ast_control_t38_parameters *parameters)
+static int interpret_t38_parameters(struct sip_pvt *p, const struct ast_control_t38_parameters *parameters)
 {
+	int res = 0;
+
 	if (!ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT)) {
-		return;
+		return -1;
 	}
 	switch (parameters->request_response) {
 	case AST_T38_NEGOTIATED:
 	case AST_T38_REQUEST_NEGOTIATE:         /* Request T38 */
 		/* Negotiation can not take place without a valid max_ifp value. */
 		if (!parameters->max_ifp) {
-				change_t38_state(p, T38_DISABLED);
-				if (p->t38.state == T38_PEER_REINVITE) {
-					AST_SCHED_DEL_UNREF(sched, p->t38id, dialog_unref(p, "when you delete the t38id sched, you should dec the refcount for the stored dialog ptr"));
-					transmit_response_reliable(p, "488 Not acceptable here", &p->initreq);
-				}
-				break;
+			change_t38_state(p, T38_DISABLED);
+			if (p->t38.state == T38_PEER_REINVITE) {
+				AST_SCHED_DEL_UNREF(sched, p->t38id, dialog_unref(p, "when you delete the t38id sched, you should dec the refcount for the stored dialog ptr"));
+				transmit_response_reliable(p, "488 Not acceptable here", &p->initreq);
+			}
+			break;
 		} else if (p->t38.state == T38_PEER_REINVITE) {
 			AST_SCHED_DEL_UNREF(sched, p->t38id, dialog_unref(p, "when you delete the t38id sched, you should dec the refcount for the stored dialog ptr"));
 			p->t38.our_parms = *parameters;
@@ -5256,9 +5263,28 @@ static void interpret_t38_parameters(struct sip_pvt *p, const struct ast_control
 		} else if (p->t38.state == T38_ENABLED)
 			transmit_reinvite_with_sdp(p, FALSE, FALSE);
 		break;
-	default:
+	case AST_T38_REQUEST_PARMS: {		/* Application wants remote's parameters re-sent */
+		struct ast_control_t38_parameters parameters = p->t38.their_parms;
+
+		if (p->t38.state == T38_PEER_REINVITE) {
+			AST_SCHED_DEL(sched, p->t38id);
+			parameters.max_ifp = ast_udptl_get_far_max_ifp(p->udptl);
+			parameters.request_response = AST_T38_REQUEST_NEGOTIATE;
+			ast_queue_control_data(p->owner, AST_CONTROL_T38_PARAMETERS, &parameters, sizeof(parameters));
+			/* we need to return a positive value here, so that applications that
+			 * send this request can determine conclusively whether it was accepted or not...
+			 * older versions of chan_sip would just silently accept it and return zero.
+			 */
+			res = AST_T38_REQUEST_PARMS;
+		}
 		break;
 	}
+	default:
+		res = -1;
+		break;
+	}
+
+	return res;
 }
 
 /*! \brief Play indication to user
@@ -5348,9 +5374,10 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 	case AST_CONTROL_T38_PARAMETERS:
 		if (datalen != sizeof(struct ast_control_t38_parameters)) {
 			ast_log(LOG_ERROR, "Invalid datalen for AST_CONTROL_T38_PARAMETERS. Expected %d, got %d\n", (int) sizeof(struct ast_control_t38_parameters), (int) datalen);
+			res = -1;
 		} else {
 			const struct ast_control_t38_parameters *parameters = data;
-			interpret_t38_parameters(p, parameters);
+			res = interpret_t38_parameters(p, parameters);
 		}
 		break;
 	case AST_CONTROL_SRCUPDATE:
@@ -5838,20 +5865,20 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 	p->lastrtprx = time(NULL);
 
 	/* If we detect a CNG tone and fax detection is enabled then send us off to the fax extension */
-	if (faxdetected && ast_test_flag(&p->flags[1], SIP_PAGE2_FAX_DETECT)) {
+	if (faxdetected && ast_test_flag(&p->flags[1], SIP_PAGE2_FAX_DETECT_CNG)) {
 		ast_channel_lock(ast);
 		if (strcmp(ast->exten, "fax")) {
 			const char *target_context = S_OR(ast->macrocontext, ast->context);
 			ast_channel_unlock(ast);
 			if (ast_exists_extension(ast, target_context, "fax", 1, ast->cid.cid_num)) {
-				ast_verbose(VERBOSE_PREFIX_2 "Redirecting '%s' to fax extension\n", ast->name);
+				ast_verbose(VERBOSE_PREFIX_2 "Redirecting '%s' to fax extension due to CNG detection\n", ast->name);
 				pbx_builtin_setvar_helper(ast, "FAXEXTEN", ast->exten);
 				if (ast_async_goto(ast, target_context, "fax", 1)) {
 					ast_log(LOG_NOTICE, "Failed to async goto '%s' into fax of '%s'\n", ast->name, target_context);
 				}
 				fr = &ast_null_frame;
 			} else {
-				ast_log(LOG_NOTICE, "Fax detected but no fax extension\n");
+				ast_log(LOG_NOTICE, "FAX CNG detected but no fax extension\n");
                         }
 		} else {
 			ast_channel_unlock(ast);
@@ -7154,6 +7181,25 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			} else if ((t38action == SDP_T38_INITIATE) &&
 				   p->owner && p->lastinvite) {
 				change_t38_state(p, T38_PEER_REINVITE); /* T38 Offered in re-invite from remote party */
+				/* If fax detection is enabled then send us off to the fax extension */
+				if (ast_test_flag(&p->flags[1], SIP_PAGE2_FAX_DETECT_T38)) {
+					ast_channel_lock(p->owner);
+					if (strcmp(p->owner->exten, "fax")) {
+						const char *target_context = S_OR(p->owner->macrocontext, p->owner->context);
+						ast_channel_unlock(p->owner);
+						if (ast_exists_extension(p->owner, target_context, "fax", 1, p->owner->cid.cid_num)) {
+							ast_verbose(VERBOSE_PREFIX_2 "Redirecting '%s' to fax extension due to peer T.38 re-INVITE\n", p->owner->name);
+							pbx_builtin_setvar_helper(p->owner, "FAXEXTEN", p->owner->exten);
+							if (ast_async_goto(p->owner, target_context, "fax", 1)) {
+								ast_log(LOG_NOTICE, "Failed to async goto '%s' into fax of '%s'\n", p->owner->name, target_context);
+							}
+						} else {
+							ast_log(LOG_NOTICE, "T.38 re-INVITE detected but no fax extension\n");
+						}
+					} else {
+						ast_channel_unlock(p->owner);
+					}
+				}
 			}
 		} else {
 			ast_udptl_stop(p->udptl);
@@ -18825,15 +18871,24 @@ static int do_magic_pickup(struct ast_channel *channel, const char *extension, c
 	return 0;
 }
 
+/*! \brief Called to deny a T38 reinvite if the core does not respond to our request */
 static int sip_t38_abort(const void *data)
 {
 	struct sip_pvt *p = (struct sip_pvt *) data;
 
-	change_t38_state(p, T38_DISABLED);
-	transmit_response_reliable(p, "488 Not acceptable here", &p->initreq);
-	p->t38id = -1;
-	dialog_unref(p, "unref the dialog ptr from sip_t38_abort, because it held a dialog ptr");
-
+	sip_pvt_lock(p);
+	/* an application may have taken ownership of the T.38 negotiation on this
+	 * channel while we were waiting to grab the lock... if it did, the scheduler
+	 * id will have been reset to -1, which is our indication that we do *not*
+	 * want to abort the negotiation process
+	 */
+	if (p->t38id != -1) {
+		change_t38_state(p, T38_DISABLED);
+		transmit_response_reliable(p, "488 Not acceptable here", &p->initreq);
+		p->t38id = -1;
+		dialog_unref(p, "unref the dialog ptr from sip_t38_abort, because it held a dialog ptr");
+	}
+	sip_pvt_unlock(p);
 	return 0;
 }
 
@@ -22603,7 +22658,24 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_IGNORESDPVERSION);
 	} else if (!strcasecmp(v->name, "faxdetect")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_FAX_DETECT);
-		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_FAX_DETECT);
+		if (ast_true(v->value)) {
+			ast_set_flag(&flags[1], SIP_PAGE2_FAX_DETECT_BOTH);
+		} else if (ast_false(v->value)) {
+			ast_clear_flag(&flags[1], SIP_PAGE2_FAX_DETECT_BOTH);
+		} else {
+			char *buf = ast_strdupa(v->value);
+			char *word, *next = buf;
+
+			while ((word = strsep(&next, ","))) {
+				if (!strcasecmp(word, "cng")) {
+					ast_set_flag(&flags[1], SIP_PAGE2_FAX_DETECT_CNG);
+				} else if (!strcasecmp(word, "t38")) {
+					ast_set_flag(&flags[1], SIP_PAGE2_FAX_DETECT_T38);
+				} else {
+					ast_log(LOG_WARNING, "Unknown faxdetect mode '%s' on line %d.\n", word, v->lineno);
+				}
+			}
+		}
 	} else if (!strcasecmp(v->name, "rfc2833compensate")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_RFC2833_COMPENSATE);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_RFC2833_COMPENSATE);

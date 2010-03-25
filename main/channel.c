@@ -3715,9 +3715,10 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 		 * control frames, so we need to return failure, but there
 		 * is also no value in the log message below being emitted
 		 * since failure to handle these frames is not an 'error'
-		 * so just return right now.
-		 */
-		return -1;
+		 * so just return right now. in addition, we want to return
+		 * whatever value the channel driver returned, in case it
+		 * has some meaning.*/
+		return res;
 	case AST_CONTROL_RINGING:
 		ts = ast_get_indication_tone(chan->zone, "ring");
 		/* It is common practice for channel drivers to return -1 if trying

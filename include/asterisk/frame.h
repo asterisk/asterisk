@@ -332,7 +332,8 @@ enum ast_control_t38 {
 	AST_T38_REQUEST_TERMINATE,	/*!< Terminate T38 on a channel (fax to voice) */
 	AST_T38_NEGOTIATED,		/*!< T38 negotiated (fax mode) */
 	AST_T38_TERMINATED,		/*!< T38 terminated (back to voice) */
-	AST_T38_REFUSED			/*!< T38 refused for some reason (usually rejected by remote end) */
+	AST_T38_REFUSED,		/*!< T38 refused for some reason (usually rejected by remote end) */
+	AST_T38_REQUEST_PARMS,		/*!< request far end T.38 parameters for a channel in 'negotiating' state */
 };
 
 enum ast_control_t38_rate {

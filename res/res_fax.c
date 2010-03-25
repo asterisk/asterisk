@@ -654,6 +654,7 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 	struct ast_channel *c = chan;
 	unsigned int orig_write_format = 0, orig_read_format = 0;
 	unsigned int request_t38 = 0;
+	unsigned int send_audio = 1;
 
 	details->our_t38_parameters.version = 0;
 	details->our_t38_parameters.max_ifp = 400;
@@ -662,8 +663,57 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 
 	chancount = 1;
 
-	/* generate 3 seconds of CED if we are in receive mode */
-	if (details->caps & AST_FAX_TECH_RECEIVE) {
+	switch ((t38_state = ast_channel_get_t38_state(chan))) {
+	case T38_STATE_UNKNOWN:
+		if (details->caps & AST_FAX_TECH_SEND) {
+			if (details->option.allow_audio) {
+				details->caps |= AST_FAX_TECH_AUDIO;
+			} else {
+				/* we are going to send CNG to attempt to stimulate the receiver
+				 * into switching to T.38, since audio mode is not allowed
+				 */
+				send_cng = 0;
+			}
+		} else {
+			/* we *always* request a switch to T.38 if allowed; if audio is also
+			 * allowed, then we will allow the switch to happen later if needed
+			 */
+			if (details->option.allow_audio) {
+				details->caps |= AST_FAX_TECH_AUDIO;
+			}
+			request_t38 = 1;
+		}
+		details->caps |= AST_FAX_TECH_T38;
+		break;
+	case T38_STATE_UNAVAILABLE:
+		details->caps |= AST_FAX_TECH_AUDIO;
+		break;
+	case T38_STATE_NEGOTIATING: {
+		/* the other end already sent us a T.38 reinvite, so we need to prod the channel
+		 * driver into resending their parameters to us if it supports doing so... if
+		 * not, we can't proceed, because we can't create a proper reply without them.
+		 * if it does work, the channel driver will send an AST_CONTROL_T38_PARAMETERS
+		 * with a request of AST_T38_REQUEST_NEGOTIATE, which will be read by the function
+		 * that gets called after this one completes
+		 */
+		struct ast_control_t38_parameters parameters = { .request_response = AST_T38_REQUEST_PARMS, };
+		ast_log(LOG_NOTICE, "Channel is already in T.38 negotiation state; retrieving remote parameters.\n");
+		if (ast_indicate_data(chan, AST_CONTROL_T38_PARAMETERS, &parameters, sizeof(parameters)) != AST_T38_REQUEST_PARMS) {
+			ast_log(LOG_ERROR, "channel '%s' is in an unsupported T.38 negotiation state, cannot continue.\n", chan->name);
+			return -1;
+		}
+		details->caps |= AST_FAX_TECH_T38;
+		details->option.allow_audio = 0;
+		send_audio = 0;
+		break;
+	}
+	default:
+		ast_log(LOG_ERROR, "channel '%s' is in an unsupported T.38 negotiation state, cannot continue.\n", chan->name);
+		return -1;
+	}
+
+	/* generate 3 seconds of CED if we are in receive mode and not already negotiating T.38 */
+	if (send_audio && (details->caps & AST_FAX_TECH_RECEIVE)) {
 		ms = 3000;
 		if (ast_tonepair_start(chan, 2100, 0, ms, 0)) {
 			ast_log(LOG_ERROR, "error generating CED tone on %s\n", chan->name);
@@ -719,36 +769,6 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 		ast_tonepair_stop(chan);
 	}
 
-	switch ((t38_state = ast_channel_get_t38_state(chan))) {
-	case T38_STATE_UNKNOWN:
-		if (details->caps & AST_FAX_TECH_SEND) {
-			if (details->option.allow_audio) {
-				details->caps |= AST_FAX_TECH_AUDIO;
-			} else {
-				/* we are going to send CNG to attempt to stimulate the receiver
-				 * into switching to T.38, since audio mode is not allowed
-				 */
-				send_cng = 0;
-			}
-		} else {
-			/* we *always* request a switch to T.38 if allowed; if audio is also
-			 * allowed, then we will allow the switch to happen later if needed
-			 */
-			if (details->option.allow_audio) {
-				details->caps |= AST_FAX_TECH_AUDIO;
-			}
-			request_t38 = 1;
-		}
-		details->caps |= AST_FAX_TECH_T38;
-		break;
-	case T38_STATE_UNAVAILABLE:
-		details->caps |= AST_FAX_TECH_AUDIO;
-		break;
-	default:
-		ast_log(LOG_ERROR, "channel '%s' is in an unsupported T.38 negotiation state, cannot continue.\n", chan->name);
-		return -1;
-	}
-
 	if (request_t38) {
 		/* wait up to five seconds for negotiation to complete */
 		timeout = 5000;
@@ -772,19 +792,23 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 	if (request_t38 || !details->option.allow_audio) {
 		struct ast_silence_generator *silence_gen = NULL;
 
-		if (send_cng != -1) {
+		if (send_audio && (send_cng != -1)) {
 			silence_gen = ast_channel_start_silence_generator(chan);
 		}
 
 		while (timeout > 0) {
 			if (send_cng > 3000) {
-				ast_channel_stop_silence_generator(chan, silence_gen);
-				silence_gen = NULL;
-				ast_tonepair_start(chan, 1100, 0, 500, 0);
+				if (send_audio) {
+					ast_channel_stop_silence_generator(chan, silence_gen);
+					silence_gen = NULL;
+					ast_tonepair_start(chan, 1100, 0, 500, 0);
+				}
 				send_cng = 0;
 			} else if (!chan->generator && (send_cng != -1)) {
-				/* The CNG tone is done so restart silence generation. */
-				silence_gen = ast_channel_start_silence_generator(chan);
+				if (send_audio) {
+					/* The CNG tone is done so restart silence generation. */
+					silence_gen = ast_channel_start_silence_generator(chan);
+				}
 			}
 			/* this timeout *MUST* be 500ms, in order to keep the spacing
 			 * of CNG tones correct when this loop is sending them
@@ -828,6 +852,7 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 					t38_parameters.request_response = AST_T38_NEGOTIATED;
 					ast_indicate_data(chan, AST_CONTROL_T38_PARAMETERS, &t38_parameters, sizeof(t38_parameters));
 					stop = 0;
+					send_audio = 0;
 					break;
 				case AST_T38_NEGOTIATED:
 					ast_log(LOG_NOTICE, "Negotiated T.38 for %s on %s\n", (details->caps & AST_FAX_TECH_SEND) ? "send" : "receive", chan->name);
