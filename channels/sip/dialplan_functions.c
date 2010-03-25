@@ -28,6 +28,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/rtp_engine.h"
 #include "asterisk/pbx.h"
+#include "asterisk/acl.h"
 
 #include "include/sip.h"
 #include "include/globals.h"
@@ -76,18 +77,53 @@ int sip_acf_channel_read(struct ast_channel *chan, const char *funcname, char *p
 		ast_copy_string(buf, (p->t38.state == T38_DISABLED) ? "0" : "1", buflen);
 	} else if (!strcasecmp(args.param, "rtpdest")) {
 		struct sockaddr_in sin;
+		struct ast_rtp_instance *stream;
 
 		if (ast_strlen_zero(args.type))
 			args.type = "audio";
 
 		if (!strcasecmp(args.type, "audio"))
-			ast_rtp_instance_get_remote_address(p->rtp, &sin);
+			stream = p->rtp;
 		else if (!strcasecmp(args.type, "video"))
-			ast_rtp_instance_get_remote_address(p->vrtp, &sin);
+			stream = p->vrtp;
 		else if (!strcasecmp(args.type, "text"))
-			ast_rtp_instance_get_remote_address(p->trtp, &sin);
+			stream = p->trtp;
 		else
 			return -1;
+
+		if (!stream) {
+			return -1;
+		}
+
+		ast_rtp_instance_get_remote_address(stream, &sin);
+		snprintf(buf, buflen, "%s:%d", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+	} else if (!strcasecmp(args.param, "rtpsource")) {
+		struct sockaddr_in sin;
+		struct ast_rtp_instance *stream;
+
+		if (ast_strlen_zero(args.type))
+			args.type = "audio";
+
+		if (!strcasecmp(args.type, "audio"))
+			stream = p->rtp;
+		else if (!strcasecmp(args.type, "video"))
+			stream = p->vrtp;
+		else if (!strcasecmp(args.type, "text"))
+			stream = p->trtp;
+		else
+			return -1;
+
+		if (!stream) {
+			return -1;
+		}
+
+		ast_rtp_instance_get_local_address(stream, &sin);
+
+		if (!sin.sin_addr.s_addr) {
+			struct sockaddr_in dest_sin;
+			ast_rtp_instance_get_remote_address(stream, &dest_sin);
+			ast_ouraddrfor(&dest_sin.sin_addr, &sin.sin_addr);
+		}
 
 		snprintf(buf, buflen, "%s:%d", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 	} else if (!strcasecmp(args.param, "rtpqos")) {
