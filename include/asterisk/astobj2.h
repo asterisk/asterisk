@@ -192,11 +192,10 @@ int ao2_ref(void *o, int delta);
  * \param a A pointer to the object we want lock.
  * \return 0 on success, other values on error.
  */
-#ifndef DEBUG_THREADS
 int ao2_lock(void *a);
-#else
-#define ao2_lock(a) _ao2_lock(a, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
 int _ao2_lock(void *a, const char *file, const char *func, int line, const char *var);
+#ifdef DEBUG_THREADS
+#define ao2_lock(a) _ao2_lock(a, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
 #endif
 
 /*! \brief
@@ -205,11 +204,10 @@ int _ao2_lock(void *a, const char *file, const char *func, int line, const char 
  * \param a A pointer to the object we want unlock.
  * \return 0 on success, other values on error.
  */
-#ifndef DEBUG_THREADS
 int ao2_unlock(void *a);
-#else
-#define ao2_unlock(a) _ao2_unlock(a, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
 int _ao2_unlock(void *a, const char *file, const char *func, int line, const char *var);
+#ifdef DEBUG_THREADS
+#define ao2_unlock(a) _ao2_unlock(a, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
 #endif
 
 /*! \brief
@@ -218,11 +216,10 @@ int _ao2_unlock(void *a, const char *file, const char *func, int line, const cha
  * \param a A pointer to the object we want to lock.
  * \return 0 on success, other values on error.
  */
-#ifndef DEBUG_THREADS
 int ao2_trylock(void *a);
-#else
-#define ao2_trylock(a) _ao2_trylock(a, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
 int _ao2_trylock(void *a, const char *file, const char *func, int line, const char *var);
+#ifdef DEBUG_THREADS
+#define ao2_trylock(a) _ao2_trylock(a, __FILE__, __PRETTY_FUNCTION__, __LINE__, #a)
 #endif
 
 /*! 
