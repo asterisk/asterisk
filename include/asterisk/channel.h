@@ -713,7 +713,6 @@ struct ast_channel {
 	ast_group_t callgroup;				/*!< Call group for call pickups */
 	ast_group_t pickupgroup;			/*!< Pickup group - which calls groups can be picked up? */
 	AST_LIST_HEAD_NOLOCK(, ast_frame) readq;
-	AST_LIST_ENTRY(ast_channel) chan_list;		/*!< For easy linking */
 	struct ast_jb jb;				/*!< The jitterbuffer state */
 	struct timeval dtmf_tv;				/*!< The time that an in process digit began, or the last digit ended */
 	AST_LIST_HEAD_NOLOCK(datastores, ast_datastore) datastores; /*!< Data stores on the channel */
