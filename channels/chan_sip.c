@@ -19075,8 +19075,6 @@ static int acf_channel_read(struct ast_channel *chan, const char *funcname, char
 			stream = p->vrtp;
 		} else if (!strcasecmp(args.type, "text")) {
 			stream = p->trtp;
-		} else {
-			stream = NULL;
 		}
 
 		if (!stream) {
