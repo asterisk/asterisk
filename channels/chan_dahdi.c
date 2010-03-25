@@ -4304,13 +4304,12 @@ static void fill_rxgain(struct dahdi_gains *g, float gain, float drc, int law)
 	}
 }
 
-static int set_actual_txgain(int fd, int chan, float gain, float drc, int law)
+static int set_actual_txgain(int fd, float gain, float drc, int law)
 {
 	struct dahdi_gains g;
 	int res;
 
 	memset(&g, 0, sizeof(g));
-	g.chan = chan;
 	res = ioctl(fd, DAHDI_GETGAINS, &g);
 	if (res) {
 		ast_debug(1, "Failed to read gains: %s\n", strerror(errno));
@@ -4322,13 +4321,12 @@ static int set_actual_txgain(int fd, int chan, float gain, float drc, int law)
 	return ioctl(fd, DAHDI_SETGAINS, &g);
 }
 
-static int set_actual_rxgain(int fd, int chan, float gain, float drc, int law)
+static int set_actual_rxgain(int fd, float gain, float drc, int law)
 {
 	struct dahdi_gains g;
 	int res;
 
 	memset(&g, 0, sizeof(g));
-	g.chan = chan;
 	res = ioctl(fd, DAHDI_GETGAINS, &g);
 	if (res) {
 		ast_debug(1, "Failed to read gains: %s\n", strerror(errno));
@@ -4340,9 +4338,9 @@ static int set_actual_rxgain(int fd, int chan, float gain, float drc, int law)
 	return ioctl(fd, DAHDI_SETGAINS, &g);
 }
 
-static int set_actual_gain(int fd, int chan, float rxgain, float txgain, float rxdrc, float txdrc, int law)
+static int set_actual_gain(int fd, float rxgain, float txgain, float rxdrc, float txdrc, int law)
 {
-	return set_actual_txgain(fd, chan, txgain, txdrc, law) | set_actual_rxgain(fd, chan, rxgain, rxdrc, law);
+	return set_actual_txgain(fd, txgain, txdrc, law) | set_actual_rxgain(fd, rxgain, rxdrc, law);
 }
 
 static int bump_gains(struct dahdi_pvt *p)
@@ -4350,7 +4348,7 @@ static int bump_gains(struct dahdi_pvt *p)
 	int res;
 
 	/* Bump receive gain by value stored in cid_rxgain */
-	res = set_actual_gain(p->subs[SUB_REAL].dfd, 0, p->rxgain + p->cid_rxgain, p->txgain, p->rxdrc, p->txdrc, p->law);
+	res = set_actual_gain(p->subs[SUB_REAL].dfd, p->rxgain + p->cid_rxgain, p->txgain, p->rxdrc, p->txdrc, p->law);
 	if (res) {
 		ast_log(LOG_WARNING, "Unable to bump gain: %s\n", strerror(errno));
 		return -1;
@@ -4363,7 +4361,7 @@ static int restore_gains(struct dahdi_pvt *p)
 {
 	int res;
 
-	res = set_actual_gain(p->subs[SUB_REAL].dfd, 0, p->rxgain, p->txgain, p->rxdrc, p->txdrc, p->law);
+	res = set_actual_gain(p->subs[SUB_REAL].dfd, p->rxgain, p->txgain, p->rxdrc, p->txdrc, p->law);
 	if (res) {
 		ast_log(LOG_WARNING, "Unable to restore gains: %s\n", strerror(errno));
 		return -1;
@@ -4624,9 +4622,9 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 	p->outgoing = 1;
 
 	if (IS_DIGITAL(ast->transfercapability)){
-		set_actual_gain(p->subs[SUB_REAL].dfd, 0, 0, 0, p->rxdrc, p->txdrc, p->law);
+		set_actual_gain(p->subs[SUB_REAL].dfd, 0, 0, p->rxdrc, p->txdrc, p->law);
 	} else {
-		set_actual_gain(p->subs[SUB_REAL].dfd, 0, p->rxgain, p->txgain, p->rxdrc, p->txdrc, p->law);
+		set_actual_gain(p->subs[SUB_REAL].dfd, p->rxgain, p->txgain, p->rxdrc, p->txdrc, p->law);
 	}	
 
 #ifdef HAVE_PRI
@@ -5991,7 +5989,7 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 			return -1;
 		}
 		ast_debug(1, "Setting actual tx gain on %s to %f\n", chan->name, p->txgain + (float) *scp);
-		return set_actual_txgain(p->subs[idx].dfd, 0, p->txgain + (float) *scp, p->txdrc, p->law);
+		return set_actual_txgain(p->subs[idx].dfd, p->txgain + (float) *scp, p->txdrc, p->law);
 	case AST_OPTION_RXGAIN:
 		scp = (signed char *) data;
 		idx = dahdi_get_index(chan, p, 0);
@@ -6000,7 +5998,7 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 			return -1;
 		}
 		ast_debug(1, "Setting actual rx gain on %s to %f\n", chan->name, p->rxgain + (float) *scp);
-		return set_actual_rxgain(p->subs[idx].dfd, 0, p->rxgain + (float) *scp, p->rxdrc, p->law);
+		return set_actual_rxgain(p->subs[idx].dfd, p->rxgain + (float) *scp, p->rxdrc, p->law);
 	case AST_OPTION_TONE_VERIFY:
 		if (!p->dsp)
 			break;
@@ -8032,7 +8030,6 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 		struct dahdi_params ps;
 
 		memset(&ps, 0, sizeof(ps));
-		ps.channo = p->channel;
 		if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &ps) < 0) {
 			ast_mutex_unlock(&p->lock);
 			return NULL;
@@ -8639,7 +8636,6 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 		return NULL;
 	tmp->tech = &dahdi_tech;
 	memset(&ps, 0, sizeof(ps));
-	ps.channo = i->channel;
 	res = ioctl(i->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &ps);
 	if (res) {
 		ast_log(LOG_WARNING, "Unable to get parameters, assuming MULAW: %s\n", strerror(errno));
@@ -11695,7 +11691,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		tmp->rxdrc = conf->chan.rxdrc;
 		tmp->tonezone = conf->chan.tonezone;
 		if (tmp->subs[SUB_REAL].dfd > -1) {
-			set_actual_gain(tmp->subs[SUB_REAL].dfd, 0, tmp->rxgain, tmp->txgain, tmp->rxdrc, tmp->txdrc, tmp->law);
+			set_actual_gain(tmp->subs[SUB_REAL].dfd, tmp->rxgain, tmp->txgain, tmp->rxdrc, tmp->txdrc, tmp->law);
 			if (tmp->dsp)
 				ast_dsp_set_digitmode(tmp->dsp, DSP_DIGITMODE_DTMF | tmp->dtmfrelax);
 			update_conf(tmp);
@@ -14849,9 +14845,9 @@ static char *dahdi_set_swgain(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			break;
 
 		if (tx)
-			res = set_actual_txgain(tmp->subs[SUB_REAL].dfd, channel, gain, tmp->txdrc, tmp->law);
+			res = set_actual_txgain(tmp->subs[SUB_REAL].dfd, gain, tmp->txdrc, tmp->law);
 		else
-			res = set_actual_rxgain(tmp->subs[SUB_REAL].dfd, channel, gain, tmp->rxdrc, tmp->law);
+			res = set_actual_rxgain(tmp->subs[SUB_REAL].dfd, gain, tmp->rxdrc, tmp->law);
 
 		if (res) {
 			ast_cli(a->fd, "Unable to set the software gain for channel %d\n", channel);
