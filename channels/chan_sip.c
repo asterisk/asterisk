@@ -20957,19 +20957,26 @@ static int acf_channel_read(struct ast_channel *chan, const char *funcname, char
 		ast_copy_string(buf, (p->t38.state == T38_DISABLED) ? "0" : "1", buflen);
 	} else if (!strcasecmp(args.param, "rtpdest")) {
 		struct sockaddr_in sin;
+		struct ast_rtp *stream;
 
 		if (ast_strlen_zero(args.type))
 			args.type = "audio";
 
-		if (!strcasecmp(args.type, "audio"))
-			ast_rtp_get_peer(p->rtp, &sin);
-		else if (!strcasecmp(args.type, "video"))
-			ast_rtp_get_peer(p->vrtp, &sin);
-		else if (!strcasecmp(args.type, "text"))
-			ast_rtp_get_peer(p->trtp, &sin);
-		else
+		if (!strcasecmp(args.type, "audio")) {
+			stream = p->rtp;
+		} else if (!strcasecmp(args.type, "video")) {
+			stream = p->vrtp;
+		} else if (!strcasecmp(args.type, "text")) {
+			stream = p->trtp;
+		} else {
 			return -1;
+		}
 
+		if (!stream) {
+			return -1;
+		}
+
+		ast_rtp_get_peer(stream, &sin);
 		snprintf(buf, buflen, "%s:%d", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 	} else if (!strcasecmp(args.param, "rtpqos")) {
 		struct ast_rtp_quality qos;
