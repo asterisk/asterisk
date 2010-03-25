@@ -47,6 +47,5 @@ $(if $(filter format_mp3,$(EMBEDDED_MODS)),modules.link,format_mp3.so): mp3/comm
 chan_ooh323.o: _ASTCFLAGS+=$(H323CFLAGS)
 
 $(if $(filter chan_ooh323,$(EMBEDDED_MODS)),modules.link,chan_ooh323.so): _ASTCFLAGS+=$(H323CFLAGS)
-$(if $(filter chan_ooh323,$(EMBEDDED_MODS)),modules.link,chan_ooh323.so): _ASTLDFLAGS+=-lrt
 $(if $(filter chan_ooh323,$(EMBEDDED_MODS)),modules.link,chan_ooh323.so): $(addprefix ooh323c/src/,$(H323OBJS)) chan_ooh323.o ooh323cDriver.o
 $(addprefix ooh323c/src/,$(H323OBJS)) chan_ooh323.o ooh323cDriver.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,chan_ooh323)

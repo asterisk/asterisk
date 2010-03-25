@@ -1557,6 +1557,7 @@ int ooHandleH2250Message(OOH323CallData *call, Q931Message *q931Msg)
    DListNode *pNode = NULL;
    OOTimer *pTimer=NULL;
    int type = q931Msg->messageType;
+   struct timeval tv;
    struct timespec ts;
 
 /* checking of message validity for first/next messages of calls */
@@ -1600,8 +1601,9 @@ int ooHandleH2250Message(OOH323CallData *call, Q931Message *q931Msg)
 	       ast_mutex_lock(&call->Lock);
                ret = ooGkClientSendAdmissionRequest(gH323ep.gkClient, call, 
                                                     FALSE);
-                clock_gettime(CLOCK_REALTIME, &ts);
-                ts.tv_sec += 24;
+				tv = ast_tvnow();
+                ts.tv_sec = tv.tv_sec + 24;
+				ts.tv_nsec = tv.tv_usec * 1000;
                 ast_cond_timedwait(&call->gkWait, &call->Lock, &ts);
                 if (call->callState == OO_CALL_WAITING_ADMISSION)
 			call->callState = OO_CALL_CLEAR;

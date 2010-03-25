@@ -16,6 +16,7 @@
 
 #include <asterisk.h>
 #include <asterisk/lock.h>
+#include "asterisk/utils.h"
 #include <time.h>
 
 #include "ooq931.h"
@@ -2017,6 +2018,7 @@ int ooH323HandleCallFwdRequest(OOH323CallData *call)
    OOCTXT *pctxt;
    ooAliases *pNewAlias=NULL, *alias=NULL;
    struct timespec ts;
+   struct timeval tv;
    int i=0, irand=0, ret = OO_OK;
    /* Note: We keep same callToken, for new call which is going
       to replace an existing call, thus treating it as a single call.*/
@@ -2072,8 +2074,9 @@ int ooH323HandleCallFwdRequest(OOH323CallData *call)
       ret = ooGkClientSendAdmissionRequest(gH323ep.gkClient, fwdedCall, FALSE);
       fwdedCall->callState = OO_CALL_WAITING_ADMISSION;
       ast_mutex_lock(&fwdedCall->Lock);
-      clock_gettime(CLOCK_REALTIME, &ts);
-      ts.tv_sec += 24;
+	  tv = ast_tvnow();
+      ts.tv_sec += tv.tv_sec + 24;
+	  ts.tv_nsec = tv.tv_usec * 1000;
       ast_cond_timedwait(&fwdedCall->gkWait, &fwdedCall->Lock, &ts);
       if (fwdedCall->callState == OO_CALL_WAITING_ADMISSION) /* GK is not responding */
           fwdedCall->callState = OO_CALL_CLEAR;
@@ -2114,6 +2117,7 @@ int ooH323MakeCall(char *dest, char *callToken, ooCallOptions *opts)
    int ret=0, i=0, irand=0;
    char tmp[30]="\0";
    char *ip=NULL, *port = NULL;
+   struct timeval tv;
    struct timespec ts;
 
    if(!dest)
@@ -2195,8 +2199,9 @@ int ooH323MakeCall(char *dest, char *callToken, ooCallOptions *opts)
      call->callState = OO_CALL_WAITING_ADMISSION;
      ast_mutex_lock(&call->Lock);
      ret = ooGkClientSendAdmissionRequest(gH323ep.gkClient, call, FALSE);
-     clock_gettime(CLOCK_REALTIME, &ts);
-     ts.tv_sec += 24;
+	 tv = ast_tvnow();
+     ts.tv_sec = tv.tv_sec + 24;
+	 ts.tv_nsec = tv.tv_usec * 1000;
      ast_cond_timedwait(&call->gkWait, &call->Lock, &ts);
      if (call->callState == OO_CALL_WAITING_ADMISSION)
 		call->callState = OO_CALL_CLEAR;
