@@ -1781,7 +1781,7 @@ static int handle_speechcreate(struct ast_channel *chan, AGI *agi, int argc, cha
 static int handle_speechset(struct ast_channel *chan, AGI *agi, int argc, char **argv)
 {
 	/* Check for minimum arguments */
-        if (argc != 3)
+	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	
 	/* Check to make sure speech structure exists */
