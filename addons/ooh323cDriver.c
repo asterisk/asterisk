@@ -16,11 +16,11 @@
 
 #include "ooh323cDriver.h"
 
-#include <asterisk.h>
-#include <asterisk/lock.h>
+#include "asterisk.h"
+#include "asterisk/lock.h"
 
-#include <asterisk/pbx.h>
-#include <asterisk/logger.h>
+#include "asterisk/pbx.h"
+#include "asterisk/logger.h"
 
 #undef AST_BACKGROUND_STACKSIZE
 #define AST_BACKGROUND_STACKSIZE 768 * 1024

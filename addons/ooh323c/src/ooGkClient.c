@@ -20,8 +20,8 @@
  * This file contains functions to support RAS protocol. 
  *
  */
-#include <asterisk.h>
-#include <asterisk/lock.h>
+#include "asterisk.h"
+#include "asterisk/lock.h"
 
 #include "ooGkClient.h"
 #include "ootypes.h"

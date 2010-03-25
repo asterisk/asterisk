@@ -14,8 +14,8 @@
  *
  *****************************************************************************/
 
-#include <asterisk.h>
-#include <asterisk/lock.h>
+#include "asterisk.h"
+#include "asterisk/lock.h"
 
 #include "ooports.h"
 #include "ooh323ep.h"

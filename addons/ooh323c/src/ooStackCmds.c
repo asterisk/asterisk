@@ -13,8 +13,8 @@
  * maintain this copyright notice.
  *
  *****************************************************************************/
-#include <asterisk.h>
-#include <asterisk/lock.h>
+#include "asterisk.h"
+#include "asterisk/lock.h"
 
 #include "ooStackCmds.h"
 #include "ooh323ep.h"

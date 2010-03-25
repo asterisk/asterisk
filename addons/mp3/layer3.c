@@ -5,8 +5,8 @@
  * All rights reserved. See also 'README'
  */ 
 
-#include <asterisk.h>
-#include <asterisk/logger.h>
+#include "asterisk.h"
+#include "asterisk/logger.h"
 #include <stdlib.h>
 #include "mpg123.h"
 #include "mpglib.h"

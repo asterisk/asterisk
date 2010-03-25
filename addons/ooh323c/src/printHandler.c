@@ -17,8 +17,8 @@
    the fields of an encoded PER message to stdout in a structured output 
    format..
 */
-#include <asterisk.h>
-#include <asterisk/lock.h>
+#include "asterisk.h"
+#include "asterisk/lock.h"
 
 #include <stdlib.h>
 /* #ifdef HAVE_MALLOC_H

@@ -22,8 +22,8 @@
 #ifndef _OOASN1_H_
 #define _OOASN1_H_
 
-#include <asterisk.h>
-#include <asterisk/lock.h>
+#include "asterisk.h"
+#include "asterisk/lock.h"
 
 #include <limits.h>
 #include <stdio.h>

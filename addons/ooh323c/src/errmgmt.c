@@ -16,8 +16,8 @@
 
 /* Error management functions */
 
-#include <asterisk.h>
-#include <asterisk/lock.h>
+#include "asterisk.h"
+#include "asterisk/lock.h"
 #include <stdlib.h>
 #include "ooasn1.h"
 

@@ -14,8 +14,8 @@
  *
  *****************************************************************************/
 
-#include <asterisk.h>
-#include <asterisk/lock.h>
+#include "asterisk.h"
+#include "asterisk/lock.h"
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>

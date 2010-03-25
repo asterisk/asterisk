@@ -1,5 +1,5 @@
-#include <asterisk.h>
-#include <asterisk/logger.h>
+#include "asterisk.h"
+#include "asterisk/logger.h"
 
 #include <stdlib.h>
 #include <stdio.h>

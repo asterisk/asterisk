@@ -22,7 +22,7 @@
 #include "ooCalls.h"
 #include "ooCapability.h"
 #include "ooStackCmds.h"
-#include <asterisk/frame_defs.h>
+#include "asterisk/frame_defs.h"
 #define H323_DTMF_RFC2833          (1 << 0)
 #define H323_DTMF_Q931             (1 << 1)
 #define H323_DTMF_H245ALPHANUMERIC (1 << 2)

@@ -7,8 +7,8 @@
  * N->M down/up sampling. Not optimized for speed.
  */
 
-#include <asterisk.h>
-#include <asterisk/logger.h>
+#include "asterisk.h"
+#include "asterisk/logger.h"
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
