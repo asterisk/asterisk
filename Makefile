@@ -756,19 +756,51 @@ uninstall-all: _uninstall
 
 menuconfig: menuselect
 
+cmenuconfig: cmenuselect
+
 gmenuconfig: gmenuselect
 
-menuselect: menuselect/menuselect menuselect-tree menuselect.makeopts
-	-@menuselect/menuselect menuselect.makeopts && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
+nmenuconfig: nmenuselect
+
+menuselect: menuselect/cmenuselect menuselect/nmenuselect menuselect/gmenuselect
+	@if [ -x menuselect/nmenuselect ]; then \
+		$(MAKE) nmenuselect; \
+	elif [ -x menuselect/cmenuselect ]; then \
+		$(MAKE) cmenuselect; \
+	elif [ -x menuselect/gmenuselect ]; then \
+		$(MAKE) gmenuselect; \
+	else \
+		echo "No menuselect user interface found. Install ncurses,"; \
+		echo "newt or GTK libraries to build one and re-rerun"; \
+		echo "'make menuselect'."; \
+	fi
+
+cmenuselect: menuselect/cmenuselect menuselect-tree menuselect.makeopts
+	-@menuselect/cmenuselect menuselect.makeopts && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
 
 gmenuselect: menuselect/gmenuselect menuselect-tree menuselect.makeopts
 	-@menuselect/gmenuselect menuselect.makeopts && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
 
-menuselect/menuselect: makeopts menuselect/menuselect.c menuselect/menuselect_curses.c menuselect/menuselect_stub.c menuselect/menuselect.h menuselect/linkedlists.h makeopts
-	@CC="$(HOST_CC)" LD="" AR="" RANLIB="" CFLAGS="" $(MAKE) -C menuselect CONFIGURE_SILENT="--silent"
+nmenuselect: menuselect/nmenuselect menuselect-tree menuselect.makeopts
+	-@menuselect/nmenuselect menuselect.makeopts && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
 
-menuselect/gmenuselect: makeopts menuselect/menuselect.c menuselect/menuselect_gtk.c menuselect/menuselect_stub.c menuselect/menuselect.h menuselect/linkedlists.h makeopts
-	@CC="$(HOST_CC)" CXX="$(CXX)" LD="" AR="" RANLIB="" CFLAGS="" $(MAKE) -C menuselect _gmenuselect CONFIGURE_SILENT="--silent"
+# options for make in menuselect/
+MAKE_MENUSELECT=CC="$(HOST_CC)" CXX="$(CXX)" LD="" AR="" RANLIB="" CFLAGS="" $(MAKE) -C menuselect CONFIGURE_SILENT="--silent"
+
+menuselect/menuselect: menuselect/makeopts
+	+$(MAKE_MENUSELECT) menuselect
+
+menuselect/cmenuselect: menuselect/makeopts
+	+$(MAKE_MENUSELECT) cmenuselect
+
+menuselect/gmenuselect: menuselect/makeopts
+	+$(MAKE_MENUSELECT) gmenuselect
+
+menuselect/nmenuselect: menuselect/makeopts
+	+$(MAKE_MENUSELECT) nmenuselect
+
+menuselect/makeopts: makeopts
+	+$(MAKE_MENUSELECT) makeopts
 
 menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(dir)/*.c) $(wildcard $(dir)/*.cc)) build_tools/cflags.xml build_tools/cflags-devmode.xml sounds/sounds.xml build_tools/embed_modules.xml configure
 	@echo "Generating input for menuselect ..."
