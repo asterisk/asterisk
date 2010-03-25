@@ -34,6 +34,7 @@
 
 /*** MODULEINFO
 	<depend>asound</depend>
+	<depend>alsa</depend>
 	<depend>usb</depend>
 	<defaultenabled>no</defaultenabled>
  ***/
