@@ -22,6 +22,8 @@
 #ifndef _OOSOCKET_H_
 #define _OOSOCKET_H_
 
+#include "asterisk/poll-compat.h"
+
 #ifdef _WIN32_WCE
 #include <winsock.h>
 #elif defined(_WIN32) || defined(_WIN64)

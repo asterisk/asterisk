@@ -13,9 +13,14 @@
  * maintain this copyright notice.
  *
  *****************************************************************************/
-#include <asterisk.h>
-#include <asterisk/lock.h>
-#include <asterisk/network.h>
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+#include "asterisk/io.h"
+#include "asterisk/lock.h"
+#include "asterisk/utils.h"
+#include "asterisk/network.h"
 
 #include "ooSocket.h"
 #include "ootrace.h"
@@ -474,7 +479,7 @@ int ooSocketSelect(int nfds, fd_set *readfds, fd_set *writefds,
 
 int ooSocketPoll(struct pollfd *pfds, int nfds, int timeout)
 {
- return poll(pfds, nfds, timeout);
+ return ast_poll(pfds, nfds, timeout);
 }
 
 int ooPDRead(struct pollfd *pfds, int nfds, int fd)
@@ -498,25 +503,19 @@ int ooPDWrite(struct pollfd *pfds, int nfds, int fd)
 int ooGetLocalIPAddress(char * pIPAddrs)
 {
    int ret;
-   struct hostent phost;
-   struct hostent* reshost;
-   int h_errnop;
-   struct in_addr addr;
+   struct hostent *hp;
+   struct ast_hostent phost;
    char hostname[100];
-   char buf[2048];
 
    if(pIPAddrs == NULL)
       return -1; /* Need to find suitable return value */
    ret = gethostname(hostname, 100);
    if(ret == 0)
    {
-      if (!gethostbyname_r(hostname,
-         &phost, buf, sizeof(buf),
-         &reshost, &h_errnop)) {
-      if(reshost == NULL)
-         return -1; /* Need to define a return value if made part of rtsrc */
-      memcpy(&addr, &phost.h_addr_list[0], sizeof(struct in_addr));
-      strcpy(pIPAddrs, (ast_inet_ntoa(addr) == NULL) ? "127.0.0.1" : ast_inet_ntoa(addr));
+      if (!(hp = ast_gethostbyname(hostname, &phost))) {
+	  		struct in_addr i;
+			memcpy(&i, hp->h_addr, sizeof(i));
+			  strcpy(pIPAddrs, (ast_inet_ntoa(i) == NULL) ? "127.0.0.1" : ast_inet_ntoa(i));
       } else {
          return -1;
       }
@@ -645,7 +644,10 @@ int ooSocketGetInterfaceList(OOCTXT *pctxt, OOInterface **ifList)
       int flags;
       for (ifName = ifc.ifc_req; (void*)ifName < ifEndList; ifName++) {
          char *pName=NULL;
-         char addr[50], mask[50];
+         char addr[50];
+#ifdef ifr_netmask
+	char mask[50];
+#endif
          
          pIf = (struct OOInterface*)memAlloc(pctxt, sizeof(struct OOInterface));
          pName = (char*)memAlloc(pctxt, strlen(ifName->ifr_name)+1);
