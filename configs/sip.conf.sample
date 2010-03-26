@@ -157,6 +157,8 @@ tcpbindaddr=0.0.0.0             ; IP address for TCP server to bind to (0.0.0.0 
 ;tlsenable=no                   ; Enable server for incoming TLS (secure) connections (default is no)
 ;tlsbindaddr=0.0.0.0            ; IP address for TLS server to bind to (0.0.0.0) binds to all interfaces)
                                 ; Optionally add a port number, 192.168.1.1:5063 (default is port 5061)
+                                ; Remember that the IP address must match the common name (hostname) in the
+                                ; certificate, so you don't want to bind a TLS socket to multiple IP addresses.
                                 ; For details how to construct a certificate for SIP see 
                                 ; http://tools.ietf.org/html/draft-ietf-sip-domain-certs
 
