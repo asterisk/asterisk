@@ -168,7 +168,9 @@ gen_live_conf() {
 }
 
 command="$1"
-shift
+if [ $# -gt 0 ]; then
+  shift
+fi
 
 case "$command" in
 configure)
