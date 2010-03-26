@@ -115,6 +115,8 @@ tcpbindaddr=0.0.0.0             ; IP address for TCP server to bind to (0.0.0.0 
                                 ; Optionally add a port number, 192.168.1.1:5063 (default is port 5061)
                                 ; Remember that the IP address must match the common name (hostname) in the
                                 ; certificate, so you don't want to bind a TLS socket to multiple IP addresses.
+                                ; For details how to construct a certificate for SIP see 
+                                ; http://tools.ietf.org/html/draft-ietf-sip-domain-certs
 
 ;tlscertfile=asterisk.pem       ; Certificate file (*.pem only) to use for TLS connections 
                                 ; default is to look for "asterisk.pem" in current directory
