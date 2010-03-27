@@ -1383,10 +1383,10 @@ int ooSendAlerting(OOH323CallData *call)
    alerting->m.alertingAddressPresent = TRUE;
    if(call->ourAliases)
       ret = ooPopulateAliasList(pctxt, call->ourAliases, 
-                                       &alerting->alertingAddress);
+                                       &alerting->alertingAddress, 0);
    else
       ret = ooPopulateAliasList(pctxt, gH323ep.aliases,
-                                       &alerting->alertingAddress);
+                                       &alerting->alertingAddress, 0);
    if(OO_OK != ret)
    {
       OOTRACEERR1("Error:Failed to populate alias list in Alert message\n");
@@ -1889,10 +1889,10 @@ int ooAcceptCall(OOH323CallData *call)
    connect->m.connectedAddressPresent = TRUE;
    if(call->ourAliases)
       ret = ooPopulateAliasList(pctxt, call->ourAliases, 
-                                      &connect->connectedAddress);
+                                      &connect->connectedAddress, 0);
    else
       ret =  ooPopulateAliasList(pctxt, gH323ep.aliases, 
-                                        &connect->connectedAddress);
+                                        &connect->connectedAddress, 0);
    if(OO_OK != ret)
    {
       OOTRACEERR1("Error:Failed to populate alias list in Connect message\n");
@@ -2114,7 +2114,7 @@ int ooH323MakeCall(char *dest, char *callToken, ooCallOptions *opts)
 {
    OOCTXT *pctxt;
    OOH323CallData *call;
-   int ret=0, i=0, irand=0;
+   int ret=OO_OK, i=0, irand=0;
    char tmp[30]="\0";
    char *ip=NULL, *port = NULL;
    struct timeval tv;
@@ -2211,14 +2211,15 @@ int ooH323MakeCall(char *dest, char *callToken, ooCallOptions *opts)
 
    /* Send as H225 message to calling endpoint */
    ast_mutex_lock(&call->Lock);
-   if (call->callState < OO_CALL_CLEAR) 
+   if (call->callState < OO_CALL_CLEAR) {
     if ((ret = ooH323CallAdmitted (call)) != OO_OK) {
      ast_mutex_unlock(&call->Lock);
      return ret;
     }
+   } else ret = OO_FAILED;
    ast_mutex_unlock(&call->Lock);
 
-   return OO_OK;
+   return ret;
 }
 
 
@@ -2376,10 +2377,10 @@ int ooH323MakeCall_helper(OOH323CallData *call)
       setup->m.sourceAddressPresent = TRUE;
       if(call->ourAliases)
          ret = ooPopulateAliasList(pctxt, call->ourAliases, 
-                                                       &setup->sourceAddress);
+                                                       &setup->sourceAddress, 0);
       else if(gH323ep.aliases)
          ret =  ooPopulateAliasList(pctxt, gH323ep.aliases, 
-                                                       &setup->sourceAddress);
+                                                       &setup->sourceAddress, 0);
       if(OO_OK != ret)
       {
          OOTRACEERR1("Error:Failed to populate alias list in SETUP message\n");
@@ -2404,7 +2405,7 @@ int ooH323MakeCall_helper(OOH323CallData *call)
    {
       setup->m.destinationAddressPresent = TRUE;
       ret = ooPopulateAliasList(pctxt, call->remoteAliases, 
-                                                 &setup->destinationAddress);
+                                                 &setup->destinationAddress, 0);
       if(OO_OK != ret)
       {
          OOTRACEERR1("Error:Failed to populate destination alias list in SETUP"
@@ -2953,7 +2954,7 @@ int ooH323ForwardCall(char* callToken, char *dest)
    {    
       facility->m.alternativeAliasAddressPresent = TRUE;
       ret = ooPopulateAliasList(pctxt, call->pCallFwdData->aliases, 
-                                        &facility->alternativeAliasAddress);
+                                        &facility->alternativeAliasAddress, 0);
       if(ret != OO_OK)
       {
          OOTRACEERR3("Error:Failed to populate alternate aliases in "

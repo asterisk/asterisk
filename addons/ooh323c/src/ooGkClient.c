@@ -686,7 +686,7 @@ int ooGkClientSendGRQ(ooGkClient *pGkClient)
 
    pGkReq->m.endpointAliasPresent=TRUE;
    if(OO_OK != ooPopulateAliasList(&pGkClient->msgCtxt, gH323ep.aliases, 
-                                      &pGkReq->endpointAlias))
+                                      &pGkReq->endpointAlias, 0))
    {
       OOTRACEERR1("Error Failed to fill alias information for GRQ message\n");
       memReset(&pGkClient->msgCtxt);
@@ -1010,7 +1010,7 @@ int ooGkClientSendRRQ(ooGkClient *pGkClient, ASN1BOOL keepAlive)
 
    pRegReq->m.terminalAliasPresent=TRUE;
    if(OO_OK != ooPopulateAliasList(pctxt, gH323ep.aliases, 
-                                     &pRegReq->terminalAlias)) {
+                                     &pRegReq->terminalAlias, 0)) {
      OOTRACEERR1("Error filling alias for RRQ\n");
      memReset(pctxt); 
      pGkClient->state = GkClientFailed;
@@ -1457,7 +1457,7 @@ int ooGkClientSendURQ(ooGkClient *pGkClient, ooAliases *aliases)
    if(aliases)
    {
       pUnregReq->m.endpointAliasPresent = TRUE;
-      ooPopulateAliasList(pctxt, aliases, &pUnregReq->endpointAlias);
+      ooPopulateAliasList(pctxt, aliases, &pUnregReq->endpointAlias, 0);
    }
 
   
@@ -1716,7 +1716,7 @@ int ooGkClientSendAdmissionRequest
    {
       pAdmReq->m.destinationInfoPresent = 1;
       if(OO_OK != ooPopulateAliasList(&pGkClient->msgCtxt, destAliases,
-                                      &pAdmReq->destinationInfo))
+                      &pAdmReq->destinationInfo, T_H225AliasAddress_dialedDigits))
       {
          OOTRACEERR1("Error:Failed to populate destination aliases - "
                     "ARQ message\n");
@@ -1731,7 +1731,7 @@ int ooGkClientSendAdmissionRequest
    if(srcAliases)
    {
       iRet = ooPopulateAliasList(&pGkClient->msgCtxt, srcAliases,
-                                                          &pAdmReq->srcInfo);
+                              &pAdmReq->srcInfo, 0);
       if(OO_OK != iRet)
       {
          OOTRACEERR1("Error:Failed to populate source aliases -ARQ message\n");
@@ -2027,7 +2027,7 @@ int ooGkClientHandleAdmissionReject
                 "(%s, %s)\n", pAdmissionReject->rejectReason.t, call->callType,
                  call->callToken);
    
-   call->callState = OO_CALL_CLEAR;
+   call->callState = OO_CALL_CLEARED;
 
    switch(pAdmissionReject->rejectReason.t)
    {
@@ -2204,10 +2204,10 @@ int ooGkClientSendIRR
    if(srcAliases)
    {
       iRet = ooPopulateAliasList(&pGkClient->msgCtxt, srcAliases,
-                                                          &pIRR->endpointAlias);
+                             &pIRR->endpointAlias, T_H225AliasAddress_h323_ID);
       if(OO_OK != iRet)
       {
-         OOTRACEERR1("Error:Failed to populate source aliases -ARQ message\n");
+         OOTRACEERR1("Error:Failed to populate source aliases -IRR message\n");
          memReset(pctxt);
          pGkClient->state = GkClientFailed;
 	 ast_mutex_unlock(&pGkClient->Lock);

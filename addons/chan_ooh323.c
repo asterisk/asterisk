@@ -609,6 +609,10 @@ static struct ast_channel *ooh323_request(const char *type, format_t format,
 	if (dest) {
 		peer = find_peer(dest, port);
 	} else{
+		ast_mutex_lock(&iflock);
+		ast_mutex_unlock(&p->lock);
+		ooh323_destroy(p);
+		ast_mutex_unlock(&iflock);
 		ast_log(LOG_ERROR, "Destination format is not supported\n");
 		return NULL;
 	}
@@ -642,6 +646,15 @@ static struct ast_channel *ooh323_request(const char *type, format_t format,
 		ast_copy_string(p->accountcode, peer->accountcode, sizeof(p->accountcode));
 		p->amaflags = peer->amaflags;
 	} else {
+		if (gRasGkMode ==  RasNoGatekeeper) {
+			/* no gk and no peer */
+			ast_log(LOG_ERROR, "Call to undefined peer %s", dest);
+			ast_mutex_lock(&iflock);
+			ast_mutex_unlock(&p->lock);
+			ooh323_destroy(p);
+			ast_mutex_unlock(&iflock);
+			return NULL;
+		}
 		p->dtmfmode = gDTMFMode;
 		p->dtmfcodec = gDTMFCodec;
 		p->t38support = gT38Support;
@@ -672,23 +685,22 @@ static struct ast_channel *ooh323_request(const char *type, format_t format,
 		ast_mutex_lock(&iflock);
 		ooh323_destroy(p);
 		ast_mutex_unlock(&iflock);
-   } else {
-      ast_mutex_lock(&p->lock);
-      p->callToken = (char*)ast_malloc(AST_MAX_EXTENSION);
-      if(!p->callToken)
-      {
-       ast_mutex_unlock(&p->lock);
-       ast_mutex_lock(&iflock);
-       ooh323_destroy(p);
-       ast_mutex_unlock(&iflock);
-       ast_log(LOG_ERROR, "Failed to allocate memory for callToken\n");
-       return NULL;
-      }
+   	} else {
+      		ast_mutex_lock(&p->lock);
+      		p->callToken = (char*)ast_malloc(AST_MAX_EXTENSION);
+      		if(!p->callToken) {
+       			ast_mutex_unlock(&p->lock);
+       			ast_mutex_lock(&iflock);
+       			ooh323_destroy(p);
+       			ast_mutex_unlock(&iflock);
+       			ast_log(LOG_ERROR, "Failed to allocate memory for callToken\n");
+       			return NULL;
+      		}
 
-      ast_mutex_unlock(&p->lock);
-      ast_mutex_lock(&ooh323c_cmd_lock);
-      ooMakeCall(data, p->callToken, AST_MAX_EXTENSION, NULL);
-      ast_mutex_unlock(&ooh323c_cmd_lock);
+      		ast_mutex_unlock(&p->lock);
+      		ast_mutex_lock(&ooh323c_cmd_lock);
+      		ooMakeCall(data, p->callToken, AST_MAX_EXTENSION, NULL);
+      		ast_mutex_unlock(&ooh323c_cmd_lock);
 	}
 
 	restart_monitor();
@@ -955,17 +967,17 @@ static int ooh323_call(struct ast_channel *ast, char *dest, int timeout)
 	else
 		ast_copy_string(destination, dest, sizeof(destination));
 
-   destination[sizeof(destination)-1]='\0';
+	destination[sizeof(destination)-1]='\0';
 
-   opts.transfercap = ast->transfercapability;
+	opts.transfercap = ast->transfercapability;
 
-   for (i=0;i<480 && !isRunning(p->callToken);i++) usleep(12000);
+	for (i=0;i<480 && !isRunning(p->callToken);i++) usleep(12000);
 
-   if(OO_TESTFLAG(p->flags, H323_DISABLEGK)) {
-      res = ooRunCall(destination, p->callToken, AST_MAX_EXTENSION, &opts);
-   } else {
-      res = ooRunCall(destination, p->callToken, AST_MAX_EXTENSION, NULL);
-   }
+	if(OO_TESTFLAG(p->flags, H323_DISABLEGK)) {
+		res = ooRunCall(destination, p->callToken, AST_MAX_EXTENSION, &opts);
+	} else {
+		res = ooRunCall(destination, p->callToken, AST_MAX_EXTENSION, NULL);
+ 	}
 
 	ast_mutex_unlock(&p->lock);
 	if (res != OO_OK) {

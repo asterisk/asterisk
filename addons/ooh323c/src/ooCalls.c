@@ -217,6 +217,11 @@ int ooEndCall(OOH323CallData *call)
 
    if (call->callIdentifier.guid.numocts == 0) call->callState = OO_CALL_CLEARED;
 
+   if(!call->pH225Channel || call->pH225Channel->sock ==0)
+   {
+      call->callState = OO_CALL_CLEARED;
+   }
+
    if(call->callState == OO_CALL_CLEARED || call->callState == OO_CALL_CLEAR_RELEASESENT)
    {
       ooCleanCall(call); 
@@ -242,20 +247,14 @@ int ooEndCall(OOH323CallData *call)
    }
 
 
-   if(!call->pH225Channel || call->pH225Channel->sock ==0)
+   if(!OO_TESTFLAG(call->flags, OO_M_RELEASE_BUILT))   
    {
-      call->callState = OO_CALL_CLEARED;
-   }
-   else{
-      if(!OO_TESTFLAG(call->flags, OO_M_RELEASE_BUILT))   
-      {
-         if(call->callState == OO_CALL_CLEAR || 
-            call->callState == OO_CALL_CLEAR_RELEASERECVD)
-         {
-            ooSendReleaseComplete(call);
-            OO_SETFLAG(call->flags, OO_M_RELEASE_BUILT);
-         }
-      }
+     if(call->callState == OO_CALL_CLEAR || 
+        call->callState == OO_CALL_CLEAR_RELEASERECVD)
+     {
+        ooSendReleaseComplete(call);
+        OO_SETFLAG(call->flags, OO_M_RELEASE_BUILT);
+     }
    }
       
    return OO_OK;

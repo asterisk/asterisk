@@ -2219,7 +2219,7 @@ int ooPopulatePrefixList(OOCTXT *pctxt, OOAliases *pAliases,
    return OO_OK;
 }
 int ooPopulateAliasList(OOCTXT *pctxt, OOAliases *pAliases,
-                           H225_SeqOfH225AliasAddress *pAliasList )
+                           H225_SeqOfH225AliasAddress *pAliasList, int pAliasType)
 {
    H225AliasAddress *pAliasEntry=NULL;
    OOAliases * pAlias=NULL;
@@ -2243,23 +2243,27 @@ int ooPopulateAliasList(OOCTXT *pctxt, OOAliases *pAliases,
             OOTRACEERR1("ERROR:Memory - ooPopulateAliasList - pAliasEntry\n");
             return OO_FAILED;
          }
+
+	 if (pAliasType && pAlias->type != pAliasType) {
+		pAlias = pAlias->next;
+		continue;
+	 }
          switch(pAlias->type)
          {
-	 /* Don't populate DialedDigits as alias they populate as prefixes
             case T_H225AliasAddress_dialedDigits:
-            pAliasEntry->t = T_H225AliasAddress_dialedDigits;
-            pAliasEntry->u.dialedDigits = (ASN1IA5String)memAlloc(pctxt,
+             pAliasEntry->t = T_H225AliasAddress_dialedDigits;
+             pAliasEntry->u.dialedDigits = (ASN1IA5String)memAlloc(pctxt,
                                                      strlen(pAlias->value)+1);
-            if(!pAliasEntry->u.dialedDigits)
-            {
+             if(!pAliasEntry->u.dialedDigits)
+             {
                OOTRACEERR1("ERROR:Memory - ooPopulateAliasList - "
                            "dialedDigits\n");
                memFreePtr(pctxt, pAliasEntry);
                return OO_FAILED;
-            }
-            strcpy(*(char**)&pAliasEntry->u.dialedDigits, pAlias->value);
-            bValid = TRUE;
-            break; */
+             }
+             strcpy(*(char**)&pAliasEntry->u.dialedDigits, pAlias->value);
+             bValid = TRUE;
+            break;
          case T_H225AliasAddress_h323_ID:
             pAliasEntry->t = T_H225AliasAddress_h323_ID;
             pAliasEntry->u.h323_ID.nchars = strlen(pAlias->value);

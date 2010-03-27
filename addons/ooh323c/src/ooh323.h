@@ -136,7 +136,7 @@ EXTERN int ooPopulatePrefixList(OOCTXT *pctxt, OOAliases *pAliases,
  * @return           OO_OK, on success. OO_FAILED, otherwise. 
  */
 EXTERN int ooPopulateAliasList(OOCTXT *pctxt, OOAliases *pAliases,
-                               H225_SeqOfH225AliasAddress *pAliasList); 
+                               H225_SeqOfH225AliasAddress *pAliasList, int pAliasType); 
 
 /**
  * This function is used to search a particular alias in the alias list. The
