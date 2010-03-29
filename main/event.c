@@ -1382,7 +1382,6 @@ int ast_event_queue(struct ast_event *event)
 	if (ast_event_check_subscriber(host_event_type, AST_EVENT_IE_END)
 			== AST_EVENT_SUB_NONE) {
 		ast_event_destroy(event);
-		ast_log(LOG_NOTICE, "Event destroyed, no subscriber\n");
 		return 0;
 	}
 
