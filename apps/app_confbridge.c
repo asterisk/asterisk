@@ -463,6 +463,11 @@ static struct conference_bridge *join_conference_bridge(const char *name, struct
 		conference_bridge->markedusers++;
 	}
 
+	/* Set the device state for this conference */
+	if (conference_bridge->users == 1) {
+		ast_devstate_changed(AST_DEVICE_INUSE, "confbridge:%s", conference_bridge->name);
+	}
+
 	/* If the caller is a marked user or is waiting for a marked user to enter pass 'em off, otherwise pass them off to do regular joining stuff */
 	if (ast_test_flag(&conference_bridge_user->flags, OPTION_MARKEDUSER | OPTION_WAITMARKED)) {
 		post_join_marked(conference_bridge, conference_bridge_user);
@@ -533,6 +538,9 @@ static void  leave_conference_bridge(struct conference_bridge *conference_bridge
 			}
 		}
 	} else {
+		/* Set device state to "not in use" */
+		ast_devstate_changed(AST_DEVICE_NOT_INUSE, "confbridge:%s", conference_bridge->name);
+
 		ao2_unlink(conference_bridges, conference_bridge);
 	}
 
