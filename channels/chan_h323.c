@@ -3304,7 +3304,7 @@ static enum ast_module_load_result load_module(void)
 			ASTOBJ_CONTAINER_DESTROYALL(&aliasl, oh323_destroy_alias);
 			ASTOBJ_CONTAINER_DESTROY(&aliasl);
 
-			return AST_MODULE_LOAD_FAILURE;
+			return AST_MODULE_LOAD_DECLINE;
 		}
 		/* Possibly register with a GK */
 		if (!gatekeeper_disable) {
