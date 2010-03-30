@@ -4634,7 +4634,7 @@ static int load_module(void)
 	
 	if (!io || !sched) {
 		ast_log(LOG_ERROR, "Out of memory\n");
-		return -1;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if(set_config("dundi.conf",&sin))
@@ -4644,11 +4644,11 @@ static int load_module(void)
 	
 	if (netsocket < 0) {
 		ast_log(LOG_ERROR, "Unable to create network socket: %s\n", strerror(errno));
-		return -1;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	if (bind(netsocket,(struct sockaddr *)&sin, sizeof(sin))) {
 		ast_log(LOG_ERROR, "Unable to bind to %s port %d: %s\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), strerror(errno));
-		return -1;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (option_verbose > 1)
@@ -4661,7 +4661,7 @@ static int load_module(void)
 	if (res) {
 		ast_log(LOG_ERROR, "Unable to start network thread\n");
 		close(netsocket);
-		return -1;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (option_verbose > 1)
@@ -4672,7 +4672,7 @@ static int load_module(void)
 		ast_log(LOG_ERROR, "Unable to register DUNDi switch\n");
 	ast_custom_function_register(&dundi_function); 
 	
-	return res;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Distributed Universal Number Discovery (DUNDi)",
