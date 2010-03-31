@@ -12172,7 +12172,7 @@ static int get_pai(struct sip_pvt *p, struct sip_request *req)
 	char *cid_num = "";
 	char *cid_name = "";
 	int callingpres = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
-	char *start = NULL, *end = NULL;
+	char *start = NULL, *end = NULL, *uri = NULL;
 
 	ast_copy_string(pai, get_header(req, "P-Asserted-Identity"), sizeof(pai));
 
@@ -12193,12 +12193,17 @@ static int get_pai(struct sip_pvt *p, struct sip_request *req)
 
 	if (*start != '<')
 		return 0;
+	/* At this point, 'start' points to the URI in brackets.
+	 * We need a copy so that our comparison to the anonymous
+	 * URI is valid.
+	 */
+	uri = ast_strdupa(start);
 	*start++ = '\0';
 	end = strchr(start, '@');
 	if (!end)
 		return 0;
 	*end++ = '\0';
-	if (!strncasecmp(start, "anonymous@anonymous.invalid", 27)) {
+	if (!strncasecmp(uri, "anonymous@anonymous.invalid", 27)) {
 		callingpres = AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
 		/*XXX Assume no change in cid_num. Perhaps it should be
 		 * blanked?
