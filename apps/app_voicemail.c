@@ -210,7 +210,11 @@ static AST_LIST_HEAD_STATIC(vmstates, vmstate);
 
 #define BASELINELEN 72
 #define BASEMAXINLINE 256
-#define eol "\r\n"
+#ifdef IMAP_STORAGE
+#define ENDL "\r\n"
+#else
+#define ENDL "\n"
+#endif
 
 #define MAX_DATETIME_FORMAT	512
 #define MAX_NUM_CID_CONTEXTS 10
@@ -3315,14 +3319,16 @@ static int inchar(struct baseio *bio, FILE *fi)
 static int ochar(struct baseio *bio, int c, FILE *so)
 {
 	if (bio->linelength >= BASELINELEN) {
-		if (fputs(eol, so) == EOF)
+		if (fputs(ENDL, so) == EOF) {
 			return -1;
+		}
 
-		bio->linelength= 0;
+		bio->linelength = 0;
 	}
 
-	if (putc(((unsigned char)c), so) == EOF)
+	if (putc(((unsigned char)c), so) == EOF) {
 		return -1;
+	}
 
 	bio->linelength++;
 
@@ -3382,8 +3388,9 @@ static int base_encode(char *filename, FILE *so)
 
 	fclose(fi);
 	
-	if (fputs(eol, so) == EOF)
+	if (fputs(ENDL, so) == EOF) {
 		return 0;
+	}
 
 	return 1;
 }
@@ -3581,12 +3588,6 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	size_t len_passdata = 0, len_passdata2, tmplen;
 	char *greeting_attachment;
 
-#ifdef IMAP_STORAGE
-#define ENDL "\r\n"
-#else
-#define ENDL "\n"
-#endif
-
 	/* One alloca for multiple fields */
 	len_passdata2 = strlen(vmu->fullname);
 	if (emailsubject && (tmplen = strlen(emailsubject)) > len_passdata2) {
@@ -3754,7 +3755,22 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 			memset(passdata, 0, vmlen);
 			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, cidnum, cidname, dur, date, passdata, vmlen, category);
 			pbx_substitute_variables_helper(ast, emailbody, passdata, vmlen);
+#ifdef IMAP_STORAGE
+			{
+				/* Convert body to native line terminators for IMAP backend */
+				char *line = passdata, *next;
+				do {
+					/* Terminate line before outputting it to the file */
+					if ((next = strchr(line, '\n'))) {
+						*next++ = '\0';
+					}
+					fprintf(p, "%s" ENDL, line);
+					line = next;
+				} while (!ast_strlen_zero(line));
+			}
+#else
 			fprintf(p, "%s" ENDL, passdata);
+#endif
 			ast_channel_free(ast);
 		} else
 			ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
@@ -3852,7 +3868,6 @@ plain_message:
 			unlink(newtmp);
 		}
 	}
-#undef ENDL
 }
 
 static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, const char *fromfolder, char *cidnum, char *cidname, char *attach, char *format, int duration, int attach_user_voicemail, struct ast_channel *chan, const char *category)
