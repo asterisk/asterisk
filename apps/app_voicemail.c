@@ -435,7 +435,11 @@ static AST_LIST_HEAD_STATIC(vmstates, vmstate);
 
 #define BASELINELEN 72
 #define BASEMAXINLINE 256
-#define eol "\r\n"
+#ifdef IMAP_STORAGE
+#define ENDL "\r\n"
+#else
+#define ENDL "\n"
+#endif
 
 #define MAX_DATETIME_FORMAT	512
 #define MAX_NUM_CID_CONTEXTS 10
@@ -4021,14 +4025,16 @@ static int inchar(struct baseio *bio, FILE *fi)
 static int ochar(struct baseio *bio, int c, FILE *so)
 {
 	if (bio->linelength >= BASELINELEN) {
-		if (fputs(eol, so) == EOF)
+		if (fputs(ENDL, so) == EOF) {
 			return -1;
+		}
 
 		bio->linelength = 0;
 	}
 
-	if (putc(((unsigned char) c), so) == EOF)
+	if (putc(((unsigned char) c), so) == EOF) {
 		return -1;
+	}
 
 	bio->linelength++;
 
@@ -4097,8 +4103,9 @@ static int base_encode(char *filename, FILE *so)
 
 	fclose(fi);
 	
-	if (fputs(eol, so) == EOF)
+	if (fputs(ENDL, so) == EOF) {
 		return 0;
+	}
 
 	return 1;
 }
@@ -4310,11 +4317,6 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 		ast_free(str2);
 		return;
 	}
-#ifdef IMAP_STORAGE
-#define ENDL "\r\n"
-#else
-#define ENDL "\n"
-#endif
 
 	if (cidnum) {
 		strip_control_and_high(cidnum, enc_cidnum, sizeof(enc_cidnum));
@@ -4478,7 +4480,22 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 		if ((ast = ast_dummy_channel_alloc())) {
 			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, cidnum, cidname, dur, date, category, flag);
 			ast_str_substitute_variables(&str1, 0, ast, e_body);
+#ifdef IMAP_STORAGE
+				{
+					/* Convert body to native line terminators for IMAP backend */
+					char *line = passdata, *next;
+					do {
+						/* Terminate line before outputting it to the file */
+						if ((next = strchr(line, '\n'))) {
+							*next++ = '\0';
+						}
+						fprintf(p, "%s" ENDL, line);
+						line = next;
+					} while (!ast_strlen_zero(line));
+				}
+#else
 			fprintf(p, "%s" ENDL, ast_str_buffer(str1));
+#endif
 			ast = ast_channel_release(ast);
 		} else {
 			ast_log(AST_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
@@ -4776,7 +4793,6 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 	ast_free(str2);
 	return 0;
 }
-#undef ENDL
 
 /*!
  * \brief Gets the current date and time, as formatted string.
@@ -11958,23 +11974,24 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 
 	/* Make sure the original path was completely empty */
 	snprintf(syscmd, sizeof(syscmd), "rm -rf %s%s/%s", VM_SPOOL_DIR, testcontext, testmailbox);
-	if ((syserr = system(syscmd))) {
+	if ((syserr = ast_safe_system(syscmd))) {
 		ast_test_status_update(test, "Unable to clear test directory: %s\n",
-			syserr > 0 ? strerror(WEXITSTATUS(syserr)) : "unable to fork()");
-		return AST_TEST_NOT_RUN;
+			syserr > 0 ? strerror(syserr) : "unable to fork()");
+		return AST_TEST_FAIL;
 	}
 
 #ifdef IMAP_STORAGE
 	if (!(chan = ast_dummy_channel_alloc())) {
 		ast_test_status_update(test, "Unable to create dummy channel\n");
-		return AST_TEST_NOT_RUN;
+		return AST_TEST_FAIL;
 	}
 #endif
 
 	if (!(vmu = find_user(NULL, testcontext, testmailbox)) &&
 		!(vmu = find_or_create(testcontext, testmailbox))) {
 		ast_test_status_update(test, "Cannot create vmu structure\n");
-		return AST_TEST_NOT_RUN;
+		ast_unreplace_sigchld();
+		return AST_TEST_FAIL;
 	}
 
 	populate_defaults(vmu);
@@ -11989,10 +12006,11 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 		if (ast_fileexists(origweasels, "gsm", "en") > 0) {
 			snprintf(syscmd, sizeof(syscmd), "cp %s/sounds/en/%s.gsm %s/%s/%s/%s/msg0000.gsm", ast_config_AST_DATA_DIR, origweasels,
 				VM_SPOOL_DIR, testcontext, testmailbox, folders[i]);
-			if ((syserr = system(syscmd))) {
+			if ((syserr = ast_safe_system(syscmd))) {
 				ast_test_status_update(test, "Unable to create test voicemail: %s\n",
-					syserr > 0 ? strerror(WEXITSTATUS(syserr)) : "unable to fork()");
-				return AST_TEST_NOT_RUN;
+					syserr > 0 ? strerror(syserr) : "unable to fork()");
+				ast_unreplace_sigchld();
+				return AST_TEST_FAIL;
 			}
 		}
 
@@ -12070,14 +12088,116 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 
 	/* And remove test directory */
 	snprintf(syscmd, sizeof(syscmd), "rm -rf %s%s/%s", VM_SPOOL_DIR, testcontext, testmailbox);
-	if ((syserr = system(syscmd))) {
+	if ((syserr = ast_safe_system(syscmd))) {
 		ast_test_status_update(test, "Unable to clear test directory: %s\n",
-			syserr > 0 ? strerror(WEXITSTATUS(syserr)) : "unable to fork()");
+			syserr > 0 ? strerror(syserr) : "unable to fork()");
 	}
 
 	return res;
 }
+
+AST_TEST_DEFINE(test_voicemail_notify_endl)
+{
+	int res = AST_TEST_PASS;
+	char testcontext[] = "test";
+	char testmailbox[] = "00000000";
+	char from[] = "test@example.net", cidnum[] = "1234", cidname[] = "Mark Spencer", format[] = "gsm";
+	char attach[] = "/var/lib/asterisk/sounds/en/tt-weasels", attach2[] = "/var/lib/asterisk/sounds/en/tt-somethingwrong";
+	char buf[256] = ""; /* No line should actually be longer than 80 */
+	struct ast_channel *chan = NULL;
+	struct ast_vm_user *vmu, vmus;
+	FILE *file;
+	struct {
+		char *name;
+		enum { INT, FLAGVAL, STATIC, STRPTR } type;
+		void *location;
+		union {
+			int intval;
+			char *strval;
+		} u;
+	} test_items[] = {
+		{ "plain jane config", STATIC, vmus.password, .u.strval = "1234" }, /* No, this doesn't change this test any. */
+		{ "emailsubject", STRPTR, vmus.emailsubject, .u.strval = "Oogly boogly\xf8koogly with what appears to be UTF-8" },
+		{ "emailbody", STRPTR, vmus.emailbody, .u.strval = "This is a test\n\twith multiple\nlines\nwithin\n" },
+		{ "serveremail", STATIC, vmus.serveremail, .u.strval = "\"\xf8Something\xe8that\xd8seems to have UTF-8 chars\" <test@example.net>" },
+		{ "attachment flag", FLAGVAL, &vmus.flags, .u.intval = VM_ATTACH },
+		{ "attach2", STRPTR, attach2, .u.strval = "" },
+		{ "attach", STRPTR, attach, .u.strval = "" },
+	};
+	int which;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "test_voicemail_notify_endl";
+		info->category = "apps/app_voicemail/";
+		info->summary = "Test Voicemail notification end-of-line";
+		info->description =
+			"Verify that notification emails use a consistent end-of-line character";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(vmu = find_user(&vmus, testcontext, testmailbox)) &&
+		!(vmu = find_or_create(testcontext, testmailbox))) {
+		ast_test_status_update(test, "Cannot create vmu structure\n");
+		return AST_TEST_NOT_RUN;
+	}
+
+	if (vmu != &vmus && !(vmu = find_user(&vmus, testcontext, testmailbox))) {
+		ast_test_status_update(test, "Cannot find vmu structure?!!\n");
+		return AST_TEST_NOT_RUN;
+	}
+
+	populate_defaults(vmu);
+	ast_copy_string(vmu->email, "test2@example.net", sizeof(vmu->email));
+#ifdef IMAP_STORAGE
+	/* TODO When we set up the IMAP server test, we'll need to have credentials for the VMU structure added here */
 #endif
+
+	file = tmpfile();
+	for (which = 0; which < ARRAY_LEN(test_items); which++) {
+		/* Kill previous test, if any */
+		rewind(file);
+		if (ftruncate(fileno(file), 0)) {
+			ast_test_status_update(test, "Cannot truncate test output file: %s\n", strerror(errno));
+			res = AST_TEST_FAIL;
+			break;
+		}
+
+		/* Make each change, in order, to the test mailbox */
+		if (test_items[which].type == INT) {
+			*((int *) test_items[which].location) = test_items[which].u.intval;
+		} else if (test_items[which].type == FLAGVAL) {
+			if (ast_test_flag(vmu, test_items[which].u.intval)) {
+				ast_clear_flag(vmu, test_items[which].u.intval);
+			} else {
+				ast_set_flag(vmu, test_items[which].u.intval);
+			}
+		} else if (test_items[which].type == STATIC) {
+			strcpy(test_items[which].location, test_items[which].u.strval);
+		} else if (test_items[which].type == STRPTR) {
+			test_items[which].location = test_items[which].u.strval;
+		}
+
+		make_email_file(file, from, vmu, 0, testcontext, testmailbox, "INBOX", cidnum, cidname, attach, attach2, format, 999, 1, chan, NULL, 0, NULL);
+		rewind(file);
+		while (fgets(buf, sizeof(buf), file)) {
+			if (
+#ifdef IMAP_STORAGE
+			buf[strlen(buf) - 2] != '\r'
+#else
+			buf[strlen(buf) - 2] == '\r'
+#endif
+			|| buf[strlen(buf) - 1] != '\n') {
+				res = AST_TEST_FAIL;
+			}
+		}
+	}
+	fclose(file);
+	return res;
+}
+#endif /* defined(TEST_FRAMEWORK) */
 
 static int reload(void)
 {
@@ -12098,6 +12218,7 @@ static int unload_module(void)
 	res |= AST_TEST_UNREGISTER(test_voicemail_vmsayname);
 	res |= AST_TEST_UNREGISTER(test_voicemail_msgcount);
 	res |= AST_TEST_UNREGISTER(test_voicemail_vmuser);
+	res |= AST_TEST_UNREGISTER(test_voicemail_notify_endl);
 #endif
 	ast_cli_unregister_multiple(cli_voicemail, ARRAY_LEN(cli_voicemail));
 	ast_uninstall_vm_functions();
@@ -12146,6 +12267,7 @@ static int load_module(void)
 	res |= AST_TEST_REGISTER(test_voicemail_vmsayname);
 	res |= AST_TEST_REGISTER(test_voicemail_msgcount);
 	res |= AST_TEST_REGISTER(test_voicemail_vmuser);
+	res |= AST_TEST_REGISTER(test_voicemail_notify_endl);
 #endif
 
 	if (res)
