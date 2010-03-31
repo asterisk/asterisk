@@ -47,7 +47,8 @@ context=default                 ; Default context for incoming calls
 ;allowguest=no                  ; Allow or reject guest calls (default is yes)
 allowoverlap=no                 ; Disable overlap dialing support. (Default is yes)
 ;allowtransfer=no               ; Disable all transfers (unless enabled in peers or users)
-                                ; Default is enabled
+                                ; Default is enabled. The Dial() options 't' and 'T' are not
+                                ; related as to whether SIP transfers are allowed or not.
 ;realm=mydomain.tld             ; Realm for digest authentication
                                 ; defaults to "asterisk". If you set a system name in
                                 ; asterisk.conf, it defaults to that system name
