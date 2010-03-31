@@ -336,11 +336,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</option>
 				<option name="t">
 					<para>Allow the called party to transfer the calling party by sending the
-					DTMF sequence defined in <filename>features.conf</filename>.</para>
+					DTMF sequence defined in <filename>features.conf</filename>. This setting does not perform policy enforcement on
+					transfers initiated by other methods.</para>
 				</option>
 				<option name="T">
 					<para>Allow the calling party to transfer the called party by sending the
-					DTMF sequence defined in <filename>features.conf</filename>.</para>
+					DTMF sequence defined in <filename>features.conf</filename>. This setting does not perform policy enforcement on
+					transfers initiated by other methods.</para>
 				</option>
 				<option name="U" argsep="^">
 					<argument name="x" required="true">
