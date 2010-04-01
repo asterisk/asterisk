@@ -80,7 +80,7 @@
 #define AST_PTHREADT_NULL (pthread_t) -1
 #define AST_PTHREADT_STOP (pthread_t) -2
 
-#if defined(SOLARIS) || defined(BSD)
+#if (defined(SOLARIS) || defined(BSD)) && !defined(__Darwin__)
 #define AST_MUTEX_INIT_W_CONSTRUCTORS
 #endif /* SOLARIS || BSD */
 
@@ -355,10 +355,6 @@ static inline int __ast_pthread_mutex_destroy(const char *filename, int lineno, 
 	if ((res = pthread_mutex_destroy(&t->mutex)))
 		__ast_mutex_logger("%s line %d (%s): Error destroying mutex %s: %s\n",
 				   filename, lineno, func, mutex_name, strerror(res));
-#ifndef PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
-	else
-		t->mutex = PTHREAD_MUTEX_INIT_VALUE;
-#endif
 	ast_reentrancy_lock(t);
 	t->file[0] = filename;
 	t->lineno[0] = lineno;
