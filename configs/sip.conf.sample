@@ -540,7 +540,6 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; faxdetect = yes		; Default 'no', 'yes' enables both CNG and T.38 detection
 ; faxdetect = cng		; Enables only CNG detection
 ; faxdetect = t38		; Enables only T.38 detection
-; faxdetect = both		; Enables both CNG and T.38 detection (same as 'yes')
 ;
 ;----------------------------------------- OUTBOUND SIP REGISTRATIONS  ------------------------
 ; Asterisk can register as a SIP user agent to a SIP proxy (provider)
