@@ -3570,9 +3570,7 @@ done:
 
 int ast_internal_timing_enabled(struct ast_channel *chan)
 {
-	int ret = ast_opt_internal_timing && chan->timingfd > -1;
-	ast_debug(5, "Internal timing is %s (option_internal_timing=%d chan->timingfd=%d)\n", ret? "enabled": "disabled", ast_opt_internal_timing, chan->timingfd);
-	return ret;
+	return (ast_opt_internal_timing && chan->timingfd > -1);
 }
 
 struct ast_frame *ast_read(struct ast_channel *chan)
