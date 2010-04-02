@@ -3362,6 +3362,11 @@ bailoutandtrynormal:
 		/* Return the number of seconds the user was in the conf */
 		snprintf(meetmesecs, sizeof(meetmesecs), "%d", (int) (time(NULL) - user->jointime));
 		pbx_builtin_setvar_helper(chan, "MEETMESECS", meetmesecs);
+
+		/* Return the RealTime bookid for CDR linking */
+		if (rt_schedule) {
+			pbx_builtin_setvar_helper(chan, "MEETMEBOOKID", conf->bookid);
+		}
 	}
 	ast_free(user);
 	AST_LIST_UNLOCK(&confs);
@@ -3933,6 +3938,14 @@ static int conf_exec(struct ast_channel *chan, void *data)
 				} else {
 					/* No pin required */
 					allowretry = 0;
+
+					/* For RealTime conferences without a pin 
+					 * should still support loading options
+					 */
+					if (!ast_strlen_zero(cnf->useropts)) {
+						char *opts = ast_strdupa(cnf->useropts);
+						ast_app_parse_options(meetme_opts, &confflags, optargs, opts);
+					}
 
 					/* Run the conference */
 					res = conf_run(chan, cnf, confflags.flags, optargs);
