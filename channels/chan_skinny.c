@@ -1385,7 +1385,6 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 static int skinny_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int skinny_senddigit_begin(struct ast_channel *ast, char digit);
 static int skinny_senddigit_end(struct ast_channel *ast, char digit, unsigned int duration);
-static int handle_time_date_req_message(struct skinny_req *req, struct skinnysession *s);
 static void mwi_event_cb(const struct ast_event *event, void *userdata);
 static int skinny_reload(void);
 
@@ -2500,6 +2499,125 @@ static void transmit_cfwdstate(struct skinny_device *d, struct skinny_line *l)
 	transmit_response(d, req);
 }
 
+static void transmit_speeddialstatres(struct skinny_device *d, struct skinny_speeddial *sd)
+{
+	struct skinny_req *req;
+
+	if (!(req = req_alloc(sizeof(struct speed_dial_stat_res_message), SPEED_DIAL_STAT_RES_MESSAGE)))
+		return;
+
+	req->data.speeddialreq.speedDialNumber = htolel(sd->instance);
+	ast_copy_string(req->data.speeddial.speedDialDirNumber, sd->exten, sizeof(req->data.speeddial.speedDialDirNumber));
+	ast_copy_string(req->data.speeddial.speedDialDisplayName, sd->label, sizeof(req->data.speeddial.speedDialDisplayName));
+
+	transmit_response(d, req);
+}
+
+static void transmit_linestatres(struct skinny_device *d, struct skinny_line *l)
+{
+	struct skinny_req *req;
+
+	if (!(req = req_alloc(sizeof(struct line_stat_res_message), LINE_STAT_RES_MESSAGE)))
+		return;
+
+	req->data.linestat.lineNumber = letohl(l->instance);
+	memcpy(req->data.linestat.lineDirNumber, l->name, sizeof(req->data.linestat.lineDirNumber));
+	memcpy(req->data.linestat.lineDisplayName, l->label, sizeof(req->data.linestat.lineDisplayName));
+	transmit_response(d, req);
+}
+
+static void transmit_definetimedate(struct skinny_device *d)
+{
+	struct skinny_req *req;
+	struct timeval now = ast_tvnow();
+	struct ast_tm cmtime;
+
+	if (!(req = req_alloc(sizeof(struct definetimedate_message), DEFINETIMEDATE_MESSAGE)))
+		return;
+
+	ast_localtime(&now, &cmtime, NULL);
+	req->data.definetimedate.year = htolel(cmtime.tm_year+1900);
+	req->data.definetimedate.month = htolel(cmtime.tm_mon+1);
+	req->data.definetimedate.dayofweek = htolel(cmtime.tm_wday);
+	req->data.definetimedate.day = htolel(cmtime.tm_mday);
+	req->data.definetimedate.hour = htolel(cmtime.tm_hour);
+	req->data.definetimedate.minute = htolel(cmtime.tm_min);
+	req->data.definetimedate.seconds = htolel(cmtime.tm_sec);
+	req->data.definetimedate.milliseconds = htolel(cmtime.tm_usec / 1000);
+	req->data.definetimedate.timestamp = htolel(now.tv_sec);
+	transmit_response(d, req);
+}
+
+static void transmit_versionres(struct skinny_device *d)
+{
+	struct skinny_req *req;
+	if (!(req = req_alloc(sizeof(struct version_res_message), VERSION_RES_MESSAGE)))
+		return;
+
+	ast_copy_string(req->data.version.version, d->version_id, sizeof(req->data.version.version));
+	transmit_response(d, req);
+}
+
+static void transmit_serverres(struct skinny_device *d)
+{
+	struct skinny_req *req;
+	if (!(req = req_alloc(sizeof(struct server_res_message), SERVER_RES_MESSAGE)))
+		return;
+
+	memcpy(req->data.serverres.server[0].serverName, ourhost,
+			sizeof(req->data.serverres.server[0].serverName));
+	req->data.serverres.serverListenPort[0] = htolel(ourport);
+	req->data.serverres.serverIpAddr[0] = htolel(d->ourip.s_addr);
+	transmit_response(d, req);
+}
+
+static void transmit_softkeysetres(struct skinny_device *d)
+{
+	struct skinny_req *req;
+	int i;
+	int x;
+	int y;
+	const struct soft_key_definitions *softkeymode = soft_key_default_definitions;
+
+	if (!(req = req_alloc(sizeof(struct soft_key_set_res_message), SOFT_KEY_SET_RES_MESSAGE)))
+		return;
+
+	req->data.softkeysets.softKeySetOffset = htolel(0);
+	req->data.softkeysets.softKeySetCount = htolel(11);
+	req->data.softkeysets.totalSoftKeySetCount = htolel(11);
+	for (x = 0; x < sizeof(soft_key_default_definitions) / sizeof(struct soft_key_definitions); x++) {
+		const uint8_t *defaults = softkeymode->defaults;
+		/* XXX I wanted to get the size of the array dynamically, but that wasn't wanting to work.
+		   This will have to do for now. */
+		for (y = 0; y < softkeymode->count; y++) {
+			for (i = 0; i < (sizeof(soft_key_template_default) / sizeof(struct soft_key_template_definition)); i++) {
+				if (defaults[y] == i+1) {
+					req->data.softkeysets.softKeySetDefinition[softkeymode->mode].softKeyTemplateIndex[y] = (i+1);
+					req->data.softkeysets.softKeySetDefinition[softkeymode->mode].softKeyInfoIndex[y] = htoles(i+301);
+				        if (skinnydebug)	
+						ast_verbose("softKeySetDefinition : softKeyTemplateIndex: %d softKeyInfoIndex: %d\n", i+1, i+301);
+				}
+			}
+		}
+		softkeymode++;
+	}
+	transmit_response(d, req);
+}
+
+static void transmit_softkeytemplateres(struct skinny_device *d)
+{
+	struct skinny_req *req;
+	if (!(req = req_alloc(sizeof(struct soft_key_template_res_message), SOFT_KEY_TEMPLATE_RES_MESSAGE)))
+		return;
+
+	req->data.softkeytemplate.softKeyOffset = htolel(0);
+	req->data.softkeytemplate.softKeyCount = htolel(sizeof(soft_key_template_default) / sizeof(struct soft_key_template_definition));
+	req->data.softkeytemplate.totalSoftKeyCount = htolel(sizeof(soft_key_template_default) / sizeof(struct soft_key_template_definition));
+	memcpy(req->data.softkeytemplate.softKeyTemplateDefinition,
+		soft_key_template_default,
+		sizeof(soft_key_template_default));
+	transmit_response(d, req);
+}
 
 
 static int skinny_extensionstate_cb(char *context, char *exten, int state, void *data)
@@ -5153,7 +5271,7 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 	}
 
 	/* Not ideal, but let's send updated time at onhook and offhook, as it clears the display */
-	handle_time_date_req_message(NULL, d->session);
+	transmit_definetimedate(d);
 	
 	transmit_ringer_mode(d, SKINNY_RING_OFF);
 	l->hookstate = SKINNY_OFFHOOK;
@@ -5288,7 +5406,7 @@ static int handle_onhook_message(struct skinny_req *req, struct skinnysession *s
 				l->name, d->name, sub->callid);
 		}
 		/* Not ideal, but let's send updated time at onhook and offhook, as it clears the display */
-		handle_time_date_req_message(NULL, d->session);
+		transmit_definetimedate(d);
 	}
 	return 1;
 }
@@ -5326,91 +5444,6 @@ static int handle_capabilities_res_message(struct skinny_req *req, struct skinny
 		ast_mutex_unlock(&l->lock);
 	}
 
-	return 1;
-}
-
-static int handle_speed_dial_stat_req_message(struct skinny_req *req, struct skinnysession *s)
-{
-	struct skinny_device *d = s->device;
-	struct skinny_speeddial *sd;
-	int instance;
-
-	instance = letohl(req->data.speeddialreq.speedDialNumber);
-
-	sd = find_speeddial_by_instance(d, instance, 0);
-
-	if (!sd) {
-		return 0;
-	}
-
-	if (!(req = req_alloc(sizeof(struct speed_dial_stat_res_message), SPEED_DIAL_STAT_RES_MESSAGE)))
-		return -1;
-
-	req->data.speeddialreq.speedDialNumber = htolel(instance);
-	ast_copy_string(req->data.speeddial.speedDialDirNumber, sd->exten, sizeof(req->data.speeddial.speedDialDirNumber));
-	ast_copy_string(req->data.speeddial.speedDialDisplayName, sd->label, sizeof(req->data.speeddial.speedDialDisplayName));
-
-	transmit_response(d, req);
-	return 1;
-}
-
-static int handle_line_state_req_message(struct skinny_req *req, struct skinnysession *s)
-{
-	struct skinny_device *d = s->device;
-	struct skinny_line *l;
-	struct skinny_speeddial *sd = NULL;
-	int instance;
-
-	instance = letohl(req->data.line.lineNumber);
-
-	AST_LIST_LOCK(&devices);
-
-	l = find_line_by_instance(d, instance);
-
-	if (!l) {
-		sd = find_speeddial_by_instance(d, instance, 1);
-	}
-
-	if (!l && !sd) {
-		return 0;
-	}
-
-	AST_LIST_UNLOCK(&devices);
-
-	if (!(req = req_alloc(sizeof(struct line_stat_res_message), LINE_STAT_RES_MESSAGE)))
-		return -1;
-
-	req->data.linestat.lineNumber = letohl(instance);
-	if (!l) {
-		memcpy(req->data.linestat.lineDirNumber, sd->label, sizeof(req->data.linestat.lineDirNumber));
-		memcpy(req->data.linestat.lineDisplayName, sd->label, sizeof(req->data.linestat.lineDisplayName));
-	} else {
-		memcpy(req->data.linestat.lineDirNumber, l->name, sizeof(req->data.linestat.lineDirNumber));
-		memcpy(req->data.linestat.lineDisplayName, l->label, sizeof(req->data.linestat.lineDisplayName));
-	}
-	transmit_response(d, req);
-	return 1;
-}
-
-static int handle_time_date_req_message(struct skinny_req *req, struct skinnysession *s)
-{
-	struct timeval now = ast_tvnow();
-	struct ast_tm cmtime;
-
-	if (!(req = req_alloc(sizeof(struct definetimedate_message), DEFINETIMEDATE_MESSAGE)))
-		return -1;
-
-	ast_localtime(&now, &cmtime, NULL);
-	req->data.definetimedate.year = htolel(cmtime.tm_year+1900);
-	req->data.definetimedate.month = htolel(cmtime.tm_mon+1);
-	req->data.definetimedate.dayofweek = htolel(cmtime.tm_wday);
-	req->data.definetimedate.day = htolel(cmtime.tm_mday);
-	req->data.definetimedate.hour = htolel(cmtime.tm_hour);
-	req->data.definetimedate.minute = htolel(cmtime.tm_min);
-	req->data.definetimedate.seconds = htolel(cmtime.tm_sec);
-	req->data.definetimedate.milliseconds = htolel(cmtime.tm_usec / 1000);
-	req->data.definetimedate.timestamp = htolel(now.tv_sec);
-	transmit_response(s->device, req);
 	return 1;
 }
 
@@ -5562,40 +5595,6 @@ static int handle_button_template_req_message(struct skinny_req *req, struct ski
 	return 1;
 }
 
-static int handle_version_req_message(struct skinny_req *req, struct skinnysession *s)
-{
-	struct skinny_device *d = s->device;
-	if (!(req = req_alloc(sizeof(struct version_res_message), VERSION_RES_MESSAGE)))
-		return -1;
-
-	ast_copy_string(req->data.version.version, d->version_id, sizeof(req->data.version.version));
-	transmit_response(d, req);
-	return 1;
-}
-
-static int handle_server_request_message(struct skinny_req *req, struct skinnysession *s)
-{
-	struct skinny_device *d = s->device;
-	if (!(req = req_alloc(sizeof(struct server_res_message), SERVER_RES_MESSAGE)))
-		return -1;
-
-	memcpy(req->data.serverres.server[0].serverName, ourhost,
-			sizeof(req->data.serverres.server[0].serverName));
-	req->data.serverres.serverListenPort[0] = htolel(ourport);
-	req->data.serverres.serverIpAddr[0] = htolel(d->ourip.s_addr);
-	transmit_response(d, req);
-	return 1;
-}
-
-static int handle_alarm_message(struct skinny_req *req, struct skinnysession *s)
-{
-	/* no response necessary */
-	if (skinnydebug)
-		ast_verb(1, "Received Alarm Message: %s\n", req->data.alarm.displayMessage);
-
-	return 1;
-}
-
 static int handle_open_receive_channel_ack_message(struct skinny_req *req, struct skinnysession *s)
 {
 	struct skinny_device *d = s->device;
@@ -5702,41 +5701,6 @@ static int handle_enbloc_call_message(struct skinny_req *req, struct skinnysessi
 	return 1;
 }
 
-
-static int handle_soft_key_set_req_message(struct skinny_req *req, struct skinnysession *s)
-{
-	int i;
-	int x;
-	int y;
-	const struct soft_key_definitions *softkeymode = soft_key_default_definitions;
-	struct skinny_device *d = s->device;
-
-	if (!(req = req_alloc(sizeof(struct soft_key_set_res_message), SOFT_KEY_SET_RES_MESSAGE)))
-		return -1;
-
-	req->data.softkeysets.softKeySetOffset = htolel(0);
-	req->data.softkeysets.softKeySetCount = htolel(11);
-	req->data.softkeysets.totalSoftKeySetCount = htolel(11);
-	for (x = 0; x < sizeof(soft_key_default_definitions) / sizeof(struct soft_key_definitions); x++) {
-		const uint8_t *defaults = softkeymode->defaults;
-		/* XXX I wanted to get the size of the array dynamically, but that wasn't wanting to work.
-		   This will have to do for now. */
-		for (y = 0; y < softkeymode->count; y++) {
-			for (i = 0; i < (sizeof(soft_key_template_default) / sizeof(struct soft_key_template_definition)); i++) {
-				if (defaults[y] == i+1) {
-					req->data.softkeysets.softKeySetDefinition[softkeymode->mode].softKeyTemplateIndex[y] = (i+1);
-					req->data.softkeysets.softKeySetDefinition[softkeymode->mode].softKeyInfoIndex[y] = htoles(i+301);
-				        if (skinnydebug)	
-						ast_verbose("softKeySetDefinition : softKeyTemplateIndex: %d softKeyInfoIndex: %d\n", i+1, i+301);
-				}
-			}
-		}
-		softkeymode++;
-	}
-	transmit_response(d, req);
-	transmit_selectsoftkeys(d, 0, 0, KEYDEF_ONHOOK);
-	return 1;
-}
 
 static int handle_soft_key_event_message(struct skinny_req *req, struct skinnysession *s)
 {
@@ -6116,42 +6080,13 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 	return 1;
 }
 
-static int handle_unregister_message(struct skinny_req *req, struct skinnysession *s)
-{
-	return skinny_unregister(req, s);
-}
-
-static int handle_soft_key_template_req_message(struct skinny_req *req, struct skinnysession *s)
-{
-	if (!(req = req_alloc(sizeof(struct soft_key_template_res_message), SOFT_KEY_TEMPLATE_RES_MESSAGE)))
-		return -1;
-
-	req->data.softkeytemplate.softKeyOffset = htolel(0);
-	req->data.softkeytemplate.softKeyCount = htolel(sizeof(soft_key_template_default) / sizeof(struct soft_key_template_definition));
-	req->data.softkeytemplate.totalSoftKeyCount = htolel(sizeof(soft_key_template_default) / sizeof(struct soft_key_template_definition));
-	memcpy(req->data.softkeytemplate.softKeyTemplateDefinition,
-		soft_key_template_default,
-		sizeof(soft_key_template_default));
-	transmit_response(s->device, req);
-	return 1;
-}
-
-static int handle_headset_status_message(struct skinny_req *req, struct skinnysession *s)
-{
-	/* XXX umm...okay?  Why do I care? */
-	return 1;
-}
-
-static int handle_register_available_lines_message(struct skinny_req *req, struct skinnysession *s)
-{
-	/* XXX I have no clue what this is for, but my phone was sending it, so... */
-	return 1;
-}
-
 static int handle_message(struct skinny_req *req, struct skinnysession *s)
 {
 	int res = 0;
-
+	struct skinny_speeddial *sd;
+	struct skinny_line *l;
+	struct skinny_device *d = s->device;
+	
 	if ((!s->device) && (letohl(req->e) != REGISTER_MESSAGE && letohl(req->e) != ALARM_MESSAGE)) {
 		ast_log(LOG_WARNING, "Client sent message #%d without first registering.\n", req->e);
 		ast_free(req);
@@ -6243,19 +6178,22 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 	case SPEED_DIAL_STAT_REQ_MESSAGE:
 		if (skinnydebug)
 			ast_verb(1, "Received SpeedDialStatRequest\n");
-
-		res = handle_speed_dial_stat_req_message(req, s);
+		if ( (sd = find_speeddial_by_instance(s->device, letohl(req->data.speeddialreq.speedDialNumber), 0)) ) {
+			transmit_speeddialstatres(d, sd);
+		}
 		break;
 	case LINE_STATE_REQ_MESSAGE:
 		if (skinnydebug)
 			ast_verb(1, "Received LineStatRequest\n");
-		res = handle_line_state_req_message(req, s);
+		if ((l = find_line_by_instance(d, letohl(req->data.line.lineNumber)))) {
+			transmit_linestatres(d, l);
+		}
 		break;
 	case TIME_DATE_REQ_MESSAGE:
 		if (skinnydebug)
 			ast_verb(1, "Received Time/Date Request\n");
 
-		res = handle_time_date_req_message(req, s);
+		transmit_definetimedate(d);
 		break;
 	case BUTTON_TEMPLATE_REQ_MESSAGE:
 		if (skinnydebug)
@@ -6266,17 +6204,17 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 	case VERSION_REQ_MESSAGE:
 		if (skinnydebug)
 			ast_verb(1, "Version Request\n");
-
-		res = handle_version_req_message(req, s);
+		transmit_versionres(d);
 		break;
 	case SERVER_REQUEST_MESSAGE:
 		if (skinnydebug)
 			ast_verb(1, "Received Server Request\n");
-
-		res = handle_server_request_message(req, s);
+		transmit_serverres(d);
 		break;
 	case ALARM_MESSAGE:
-		res = handle_alarm_message(req, s);
+		/* no response necessary */
+		if (skinnydebug)
+			ast_verb(1, "Received Alarm Message: %s\n", req->data.alarm.displayMessage);
 		break;
 	case OPEN_RECEIVE_CHANNEL_ACK_MESSAGE:
 		if (skinnydebug)
@@ -6287,8 +6225,8 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 	case SOFT_KEY_SET_REQ_MESSAGE:
 		if (skinnydebug)
 			ast_verb(1, "Received SoftKeySetReq\n");
-
-		res = handle_soft_key_set_req_message(req, s);
+		transmit_softkeysetres(d);
+		transmit_selectsoftkeys(d, 0, 0, KEYDEF_ONHOOK);
 		break;
 	case SOFT_KEY_EVENT_MESSAGE:
 		res = handle_soft_key_event_message(req, s);
@@ -6297,19 +6235,18 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 		if (skinnydebug)
 			ast_verb(1, "Received Unregister Request\n");
 
-		res = handle_unregister_message(req, s);
+		res = skinny_unregister(req, s);
 		break;
 	case SOFT_KEY_TEMPLATE_REQ_MESSAGE:
 		if (skinnydebug)
 			ast_verb(1, "Received SoftKey Template Request\n");
-
-		res = handle_soft_key_template_req_message(req, s);
+		transmit_softkeytemplateres(d);
 		break;
 	case HEADSET_STATUS_MESSAGE:
-		res = handle_headset_status_message(req, s);
+		/* XXX umm...okay?  Why do I care? */
 		break;
 	case REGISTER_AVAILABLE_LINES_MESSAGE:
-		res = handle_register_available_lines_message(req, s);
+		/* XXX I have no clue what this is for, but my phone was sending it, so... */
 		break;
 	default:
 		if (skinnydebug)
