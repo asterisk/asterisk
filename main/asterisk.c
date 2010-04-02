@@ -3328,7 +3328,7 @@ int main(int argc, char *argv[])
 				close(fd);
 			}
 			ast_set_priority(0);
-			snprintf(ppid, sizeof(ppid), "%d", (int) getpid());
+			snprintf(ppid, sizeof(ppid), "%d", (int) ast_mainpid);
 
 			execlp("astcanary", "astcanary", canary_filename, ppid, (char *)NULL);
 
