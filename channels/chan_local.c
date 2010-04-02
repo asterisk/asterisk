@@ -246,7 +246,11 @@ static int local_answer(struct ast_channel *ast)
 	return res;
 }
 
-static void check_bridge(struct local_pvt *p, int isoutbound)
+/*!
+ * \internal
+ * \note This function assumes that we're only called from the "outbound" local channel side
+ */
+static void check_bridge(struct local_pvt *p)
 {
 	struct ast_channel_monitor *tmp;
 	if (ast_test_flag(p, LOCAL_ALREADY_MASQED) || ast_test_flag(p, LOCAL_NO_OPTIMIZATION) || !p->chan || !p->owner || (p->chan->_bridge != ast_bridged_channel(p->chan)))
@@ -257,7 +261,7 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 	   frames on the owner channel (because they would be transferred to the
 	   outbound channel during the masquerade)
 	*/
-	if (isoutbound && p->chan->_bridge /* Not ast_bridged_channel!  Only go one step! */ && AST_LIST_EMPTY(&p->owner->readq)) {
+	if (p->chan->_bridge /* Not ast_bridged_channel!  Only go one step! */ && AST_LIST_EMPTY(&p->owner->readq)) {
 		/* Masquerade bridged channel into owner */
 		/* Lock everything we need, one by one, and give up if
 		   we can't get everything.  Remember, we'll get another
@@ -291,26 +295,6 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 				ast_mutex_unlock(&(p->chan->_bridge)->lock);
 			}
 		}
-	/* We only allow masquerading in one 'direction'... it's important to preserve the state
-	   (group variables, etc.) that live on p->chan->_bridge (and were put there by the dialplan)
-	   when the local channels go away.
-	*/
-#if 0
-	} else if (!isoutbound && p->owner && p->owner->_bridge && p->chan && AST_LIST_EMPTY(&p->chan->readq)) {
-		/* Masquerade bridged channel into chan */
-		if (!ast_mutex_trylock(&(p->owner->_bridge)->lock)) {
-			if (!p->owner->_bridge->_softhangup) {
-				if (!ast_mutex_trylock(&p->chan->lock)) {
-					if (!p->chan->_softhangup) {
-						ast_channel_masquerade(p->chan, p->owner->_bridge);
-						ast_set_flag(p, LOCAL_ALREADY_MASQED);
-					}
-					ast_mutex_unlock(&p->chan->lock);
-				}
-			}
-			ast_mutex_unlock(&(p->owner->_bridge)->lock);
-		}
-#endif
 	}
 }
 
@@ -331,8 +315,8 @@ static int local_write(struct ast_channel *ast, struct ast_frame *f)
 	/* Just queue for delivery to the other side */
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
-	if (f && (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO))
-		check_bridge(p, isoutbound);
+	if (isoutbound && f && (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO))
+		check_bridge(p);
 	if (!ast_test_flag(p, LOCAL_ALREADY_MASQED))
 		res = local_queue_frame(p, isoutbound, f, ast, 1);
 	else {
