@@ -1,0 +1,7 @@
+{
+	global:
+		LINKER_SYMBOL_PREFIXast_*;
+		LINKER_SYMBOL_PREFIXcalendar_config;
+	local:
+		*;
+};

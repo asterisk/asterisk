@@ -1,0 +1,18 @@
+{
+	global:
+		LINKER_SYMBOL_PREFIX*ast_smdi_interface_find;
+		LINKER_SYMBOL_PREFIX*ast_smdi_interface_unref;
+		LINKER_SYMBOL_PREFIX*ast_smdi_md_message_destroy;
+		LINKER_SYMBOL_PREFIX*ast_smdi_md_message_pop;
+		LINKER_SYMBOL_PREFIX*ast_smdi_md_message_putback;
+		LINKER_SYMBOL_PREFIX*ast_smdi_md_message_wait;
+		LINKER_SYMBOL_PREFIX*ast_smdi_mwi_message_destroy;
+		LINKER_SYMBOL_PREFIX*ast_smdi_mwi_message_pop;
+		LINKER_SYMBOL_PREFIX*ast_smdi_mwi_message_putback;
+		LINKER_SYMBOL_PREFIX*ast_smdi_mwi_message_wait;
+		LINKER_SYMBOL_PREFIX*ast_smdi_mwi_message_wait_station;
+		LINKER_SYMBOL_PREFIX*ast_smdi_mwi_set;
+		LINKER_SYMBOL_PREFIX*ast_smdi_mwi_unset;
+	local:
+		*;
+};

@@ -1,0 +1,21 @@
+{
+	global:
+		LINKER_SYMBOL_PREFIXast_speech_change;
+		LINKER_SYMBOL_PREFIXast_speech_change_results_type;
+		LINKER_SYMBOL_PREFIXast_speech_change_state;
+		LINKER_SYMBOL_PREFIXast_speech_destroy;
+		LINKER_SYMBOL_PREFIXast_speech_dtmf;
+		LINKER_SYMBOL_PREFIXast_speech_grammar_activate;
+		LINKER_SYMBOL_PREFIXast_speech_grammar_deactivate;
+		LINKER_SYMBOL_PREFIXast_speech_grammar_load;
+		LINKER_SYMBOL_PREFIXast_speech_grammar_unload;
+		LINKER_SYMBOL_PREFIXast_speech_new;
+		LINKER_SYMBOL_PREFIXast_speech_register;
+		LINKER_SYMBOL_PREFIXast_speech_results_free;
+		LINKER_SYMBOL_PREFIXast_speech_results_get;
+		LINKER_SYMBOL_PREFIXast_speech_start;
+		LINKER_SYMBOL_PREFIXast_speech_unregister;
+		LINKER_SYMBOL_PREFIXast_speech_write;
+	local:
+		*;
+};

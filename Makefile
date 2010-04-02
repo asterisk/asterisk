@@ -175,6 +175,14 @@ HTTP_DOCSDIR=/var/www/html
 # Determine by a grep 'ScriptAlias' of your Apache httpd.conf file
 HTTP_CGIDIR=/var/www/cgi-bin
 
+# If your platform's linker expects a prefix on symbols generated from compiling C
+# source files, set LINKER_SYMBOL_PREFIX to that value. On some systems, exported symbols
+# from C source files are prefixed with '_', for example. If this value is not set
+# properly, the linker scripts that live in the '*.exports' files in various places
+# in this tree will unintentionally suppress symbols that should be visible
+# in the final binary objects.
+LINKER_SYMBOL_PREFIX=
+
 # Uncomment this to use the older DSP routines
 #_ASTCFLAGS+=-DOLD_DSP_ROUTINES
 

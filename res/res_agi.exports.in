@@ -1,0 +1,10 @@
+{
+	global:
+		LINKER_SYMBOL_PREFIX*ast_agi_register;
+		LINKER_SYMBOL_PREFIX*ast_agi_unregister;
+		LINKER_SYMBOL_PREFIX*ast_agi_register_multiple;
+		LINKER_SYMBOL_PREFIX*ast_agi_unregister_multiple;
+		LINKER_SYMBOL_PREFIX*ast_agi_send;
+	local:
+		*;
+};

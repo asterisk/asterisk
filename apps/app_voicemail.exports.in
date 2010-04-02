@@ -1,0 +1,20 @@
+{
+	global:
+		LINKER_SYMBOL_PREFIXmm_critical;
+		LINKER_SYMBOL_PREFIXmm_diskerror;
+		LINKER_SYMBOL_PREFIXmm_dlog;
+		LINKER_SYMBOL_PREFIXmm_exists;
+		LINKER_SYMBOL_PREFIXmm_expunged;
+		LINKER_SYMBOL_PREFIXmm_fatal;
+		LINKER_SYMBOL_PREFIXmm_flags;
+		LINKER_SYMBOL_PREFIXmm_list;
+		LINKER_SYMBOL_PREFIXmm_log;
+		LINKER_SYMBOL_PREFIXmm_login;
+		LINKER_SYMBOL_PREFIXmm_lsub;
+		LINKER_SYMBOL_PREFIXmm_nocritical;
+		LINKER_SYMBOL_PREFIXmm_notify;
+		LINKER_SYMBOL_PREFIXmm_searched;
+		LINKER_SYMBOL_PREFIXmm_status;
+	local:
+		*;
+};

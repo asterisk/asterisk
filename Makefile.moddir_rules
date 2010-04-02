@@ -129,6 +129,7 @@ uninstall::
 dist-clean::
 	rm -f .*.moduleinfo .moduleinfo
 	rm -f .*.makeopts .makeopts
+	rm -f *.exports
 
 .%.moduleinfo: %.c
 	@echo "<member name=\"$*\" displayname=\"$(shell $(GREP) -e AST_MODULE_INFO $< | head -n 1 | cut -d '"' -f 2)\" remove_on_change=\"$(SUBDIR)/$*.o $(SUBDIR)/$*.so\">" > $@

@@ -3,7 +3,7 @@
 # 
 # Makefile rules
 #
-# Copyright (C) 2006-2008, Digium, Inc.
+# Copyright (C) 2006-2010, Digium, Inc.
 #
 # Kevin P. Fleming <kpfleming@digium.com>
 #
@@ -117,10 +117,16 @@ endif
 	$(CMD_PREFIX) $(CXX) -o $@ -E $< $(MAKE_DEPS) $(CXX_CFLAGS)
 
 %.so: %.o
+ifeq ($(GNU_LD),1)
+	$(CMD_PREFIX) $(ASTTOPDIR)/build_tools/make_linker_version_script $* $(LINKER_SYMBOL_PREFIX)
+endif
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
 	$(CMD_PREFIX) $(CC) $(STATIC_BUILD) -o $@ $(CC_LDFLAGS_SO) $^ $(CC_LIBS)
 
 %.so: %.oo
+ifeq ($(GNU_LD),1)
+	$(CMD_PREFIX) $(ASTTOPDIR)/build_tools/make_linker_version_script $* $(LINKER_SYMBOL_PREFIX)
+endif
 	$(ECHO_PREFIX) echo "   [LDXX] $^ -> $@"
 	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(CXX_LDFLAGS_SO) $^ $(CXX_LIBS)
 

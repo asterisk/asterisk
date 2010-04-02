@@ -1,0 +1,11 @@
+{
+	global:
+		LINKER_SYMBOL_PREFIX*ast_monitor_change_fname;
+		LINKER_SYMBOL_PREFIX*ast_monitor_pause;
+		LINKER_SYMBOL_PREFIX*ast_monitor_setjoinfiles;
+		LINKER_SYMBOL_PREFIX*ast_monitor_start;
+		LINKER_SYMBOL_PREFIX*ast_monitor_stop;
+		LINKER_SYMBOL_PREFIX*ast_monitor_unpause;
+	local:
+		*;
+};

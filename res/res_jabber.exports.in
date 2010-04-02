@@ -1,0 +1,14 @@
+{
+	global:
+		LINKER_SYMBOL_PREFIXast_aji_create_chat;
+		LINKER_SYMBOL_PREFIXast_aji_disconnect;
+		LINKER_SYMBOL_PREFIXast_aji_get_client;
+		LINKER_SYMBOL_PREFIXast_aji_get_clients;
+		LINKER_SYMBOL_PREFIXast_aji_increment_mid;
+		LINKER_SYMBOL_PREFIXast_aji_invite_chat;
+		LINKER_SYMBOL_PREFIXast_aji_join_chat;
+		LINKER_SYMBOL_PREFIXast_aji_send;
+		LINKER_SYMBOL_PREFIXast_aji_send_chat;
+	local:
+		*;
+};
