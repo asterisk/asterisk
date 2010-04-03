@@ -835,7 +835,7 @@ static void do_forward(struct chanlist *o,
 		c->cid.cid_tns = in->cid.cid_tns;
 
 		if (ast_test_flag64(o, OPT_FORCECLID)) {
-			S_REPLACE(c->cid.cid_num, ast_strdupa(S_OR(in->macroexten, in->exten)));
+			S_REPLACE(c->cid.cid_num, ast_strdup(S_OR(in->macroexten, in->exten)));
 			S_REPLACE(c->cid.cid_name, NULL);
 			ast_string_field_set(c, accountcode, c->accountcode);
 		} else {
