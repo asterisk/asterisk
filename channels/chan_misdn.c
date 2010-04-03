@@ -6090,7 +6090,7 @@ static void misdn_update_connected_line(struct ast_channel *ast, struct misdn_bc
 static void misdn_copy_redirecting_from_ast(struct misdn_bchannel *bc, struct ast_channel *ast)
 {
 	ast_copy_string(bc->redirecting.from.name, S_OR(ast->redirecting.from.name, ""), sizeof(bc->redirecting.from.name));
-	ast_copy_string(bc->redirecting.from.number, S_OR(ast->cid.cid_rdnis, ""), sizeof(bc->redirecting.from.number));
+	ast_copy_string(bc->redirecting.from.number, S_OR(ast->redirecting.from.number, ""), sizeof(bc->redirecting.from.number));
 	bc->redirecting.from.presentation = ast_to_misdn_pres(ast->redirecting.from.number_presentation);
 	bc->redirecting.from.screening = ast_to_misdn_screen(ast->redirecting.from.number_presentation);
 	bc->redirecting.from.number_type = ast_to_misdn_ton(ast->redirecting.from.number_type);

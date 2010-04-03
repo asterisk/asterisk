@@ -4952,8 +4952,8 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		iax_ie_append_str(&ied, IAX_IE_LANGUAGE, c->language);
 	if (!ast_strlen_zero(c->cid.cid_dnid))
 		iax_ie_append_str(&ied, IAX_IE_DNID, c->cid.cid_dnid);
-	if (!ast_strlen_zero(c->cid.cid_rdnis))
-		iax_ie_append_str(&ied, IAX_IE_RDNIS, c->cid.cid_rdnis);
+	if (!ast_strlen_zero(c->redirecting.from.number))
+		iax_ie_append_str(&ied, IAX_IE_RDNIS, c->redirecting.from.number);
 
 	if (pds.context)
 		iax_ie_append_str(&ied, IAX_IE_CALLED_CONTEXT, pds.context);
@@ -5549,7 +5549,7 @@ static struct ast_channel *ast_iax2_new(int callno, int state, format_t capabili
 	else
 		tmp->cid.cid_ani = ast_strdup(i->cid_num);
 	tmp->cid.cid_dnid = ast_strdup(i->dnid);
-	tmp->cid.cid_rdnis = ast_strdup(i->rdnis);
+	tmp->redirecting.from.number = ast_strdup(i->rdnis);
 	tmp->cid.cid_pres = i->calling_pres;
 	tmp->cid.cid_ton = i->calling_ton;
 	tmp->cid.cid_tns = i->calling_tns;

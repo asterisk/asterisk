@@ -1464,9 +1464,7 @@ static void free_cid(struct ast_callerid *cid)
 		ast_free(cid->cid_name);	
 	if (cid->cid_ani)
 		ast_free(cid->cid_ani);
-	if (cid->cid_rdnis)
-		ast_free(cid->cid_rdnis);
-	cid->cid_dnid = cid->cid_num = cid->cid_name = cid->cid_ani = cid->cid_rdnis = NULL;
+	cid->cid_dnid = cid->cid_num = cid->cid_name = cid->cid_ani = NULL;
 	ast_party_subaddress_free(&cid->subaddress);
 	ast_party_subaddress_free(&cid->dialed_subaddress);
 }
@@ -6973,18 +6971,6 @@ void ast_channel_set_redirecting(struct ast_channel *chan, const struct ast_part
 	ast_channel_lock(chan);
 
 	ast_party_id_set(&chan->redirecting.from, &redirecting->from);
-	if (redirecting->from.number
-		&& redirecting->from.number != chan->redirecting.from.number) {
-		/*
-		 * Must move string to ast_channel.cid.cid_rdnis until it goes away.
-		 */
-		if (chan->cid.cid_rdnis) {
-			ast_free(chan->cid.cid_rdnis);
-		}
-		chan->cid.cid_rdnis = chan->redirecting.from.number;
-		chan->redirecting.from.number = NULL;
-	}
-
 	ast_party_id_set(&chan->redirecting.to, &redirecting->to);
 	chan->redirecting.reason = redirecting->reason;
 	chan->redirecting.count = redirecting->count;

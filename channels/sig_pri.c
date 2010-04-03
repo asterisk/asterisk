@@ -665,19 +665,14 @@ static void sig_pri_party_id_from_ast(struct pri_party_id *pri_id, const struct 
 static void sig_pri_redirecting_update(struct sig_pri_chan *pvt, struct ast_channel *ast)
 {
 	struct pri_party_redirecting pri_redirecting;
-	struct ast_party_redirecting ast_redirecting;
-
-	/* Gather asterisk redirecting data */
-	ast_redirecting = ast->redirecting;
-	ast_redirecting.from.number = ast->cid.cid_rdnis;
 
 /*! \todo XXX Original called data can be put in a channel data store that is inherited. */
 
 	memset(&pri_redirecting, 0, sizeof(pri_redirecting));
-	sig_pri_party_id_from_ast(&pri_redirecting.from, &ast_redirecting.from);
-	sig_pri_party_id_from_ast(&pri_redirecting.to, &ast_redirecting.to);
-	pri_redirecting.count = ast_redirecting.count;
-	pri_redirecting.reason = ast_to_pri_reason(ast_redirecting.reason);
+	sig_pri_party_id_from_ast(&pri_redirecting.from, &ast->redirecting.from);
+	sig_pri_party_id_from_ast(&pri_redirecting.to, &ast->redirecting.to);
+	pri_redirecting.count = ast->redirecting.count;
+	pri_redirecting.reason = ast_to_pri_reason(ast->redirecting.reason);
 
 	pri_redirecting_update(pvt->pri->pri, pvt->call, &pri_redirecting);
 }

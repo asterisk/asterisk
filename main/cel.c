@@ -440,7 +440,7 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 	tchan->cid.cid_name = ast_strdup(record.caller_id_name);
 	tchan->cid.cid_num = ast_strdup(record.caller_id_num);
 	tchan->cid.cid_ani = ast_strdup(record.caller_id_ani);
-	tchan->cid.cid_rdnis = ast_strdup(record.caller_id_rdnis);
+	tchan->redirecting.from.number = ast_strdup(record.caller_id_rdnis);
 	tchan->cid.cid_dnid = ast_strdup(record.caller_id_dnid);
 
 	ast_copy_string(tchan->exten, record.extension, sizeof(tchan->exten));
@@ -533,7 +533,7 @@ int ast_cel_report_event(struct ast_channel *chan, enum ast_cel_event_type event
 			AST_EVENT_IE_CEL_CIDNAME, AST_EVENT_IE_PLTYPE_STR, S_OR(chan->cid.cid_name, ""),
 			AST_EVENT_IE_CEL_CIDNUM, AST_EVENT_IE_PLTYPE_STR, S_OR(chan->cid.cid_num, ""),
 			AST_EVENT_IE_CEL_CIDANI, AST_EVENT_IE_PLTYPE_STR, S_OR(chan->cid.cid_ani, ""),
-			AST_EVENT_IE_CEL_CIDRDNIS, AST_EVENT_IE_PLTYPE_STR, S_OR(chan->cid.cid_rdnis, ""),
+			AST_EVENT_IE_CEL_CIDRDNIS, AST_EVENT_IE_PLTYPE_STR, S_OR(chan->redirecting.from.number, ""),
 			AST_EVENT_IE_CEL_CIDDNID, AST_EVENT_IE_PLTYPE_STR, S_OR(chan->cid.cid_dnid, ""),
 			AST_EVENT_IE_CEL_EXTEN, AST_EVENT_IE_PLTYPE_STR, chan->exten,
 			AST_EVENT_IE_CEL_CONTEXT, AST_EVENT_IE_PLTYPE_STR, chan->context,

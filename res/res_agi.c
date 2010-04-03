@@ -1633,7 +1633,7 @@ static void setup_env(struct ast_channel *chan, char *request, int fd, int enhan
 	ast_agi_send(fd, chan, "agi_callington: %d\n", chan->cid.cid_ton);
 	ast_agi_send(fd, chan, "agi_callingtns: %d\n", chan->cid.cid_tns);
 	ast_agi_send(fd, chan, "agi_dnid: %s\n", S_OR(chan->cid.cid_dnid, "unknown"));
-	ast_agi_send(fd, chan, "agi_rdnis: %s\n", S_OR(chan->cid.cid_rdnis, "unknown"));
+	ast_agi_send(fd, chan, "agi_rdnis: %s\n", S_OR(chan->redirecting.from.number, "unknown"));
 
 	/* Context information */
 	ast_agi_send(fd, chan, "agi_context: %s\n", chan->context);

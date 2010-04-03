@@ -615,8 +615,8 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 	if (c->connected.id.name)
 		ast_copy_string(pvt->options.cid_name, c->connected.id.name, sizeof(pvt->options.cid_name));
 
-	if (c->cid.cid_rdnis) {
-		ast_copy_string(pvt->options.cid_rdnis, c->cid.cid_rdnis, sizeof(pvt->options.cid_rdnis));
+	if (c->redirecting.from.number) {
+		ast_copy_string(pvt->options.cid_rdnis, c->redirecting.from.number, sizeof(pvt->options.cid_rdnis));
 	}
 
 	pvt->options.presentation = c->connected.id.number_presentation;
@@ -1078,7 +1078,7 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 		ch->cid.cid_ani = ast_strdup(cid_num);
 
 		if (pvt->cd.redirect_reason >= 0) {
-			ch->cid.cid_rdnis = ast_strdup(pvt->cd.redirect_number);
+			ch->redirecting.from.number = ast_strdup(pvt->cd.redirect_number);
 			pbx_builtin_setvar_helper(ch, "PRIREDIRECTREASON", redirectingreason2str(pvt->cd.redirect_reason));
 		}
 		ch->cid.cid_pres = pvt->cd.presentation;

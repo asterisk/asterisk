@@ -451,8 +451,8 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		}
 		break;
 	case ASTCHANCIDRDNIS:
-		if (chan->cid.cid_rdnis) {
-			strncpy(string_ret, chan->cid.cid_rdnis, sizeof(string_ret));
+		if (chan->redirecting.from.number) {
+			strncpy(string_ret, chan->redirecting.from.number, sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;

@@ -8741,7 +8741,7 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	if (!ast_strlen_zero(i->exten))
 		ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
 	if (!ast_strlen_zero(i->rdnis))
-		tmp->cid.cid_rdnis = ast_strdup(i->rdnis);
+		tmp->redirecting.from.number = ast_strdup(i->rdnis);
 	if (!ast_strlen_zero(i->dnid))
 		tmp->cid.cid_dnid = ast_strdup(i->dnid);
 

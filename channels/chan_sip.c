@@ -5568,7 +5568,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	 * generate an unnecessary NewCallerID event  */
 	tmp->cid.cid_ani = ast_strdup(i->cid_num);
 	if (!ast_strlen_zero(i->rdnis))
-		tmp->cid.cid_rdnis = ast_strdup(i->rdnis);
+		tmp->redirecting.from.number = ast_strdup(i->rdnis);
 	
 	if (!ast_strlen_zero(i->exten) && strcmp(i->exten, "s"))
 		tmp->cid.cid_dnid = ast_strdup(i->exten);
@@ -9654,7 +9654,7 @@ static void add_diversion_header(struct sip_request *req, struct sip_pvt *pvt)
 		return;
 	}
 
-	diverting_number = pvt->owner->cid.cid_rdnis;
+	diverting_number = pvt->owner->redirecting.from.number;
 	diverting_name = pvt->owner->redirecting.from.name;
 	reason = sip_reason_code_to_str(pvt->owner->redirecting.reason);
 

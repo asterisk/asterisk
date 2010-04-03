@@ -601,7 +601,8 @@ static int oss_call(struct ast_channel *c, char *dest, int timeout)
 
 	AST_NONSTANDARD_APP_ARGS(args, parse, '/');
 
-	ast_verbose(" << Call to device '%s' dnid '%s' rdnis '%s' on console from '%s' <%s> >>\n", dest, c->cid.cid_dnid, c->cid.cid_rdnis, c->cid.cid_name, c->cid.cid_num);
+	ast_verbose(" << Call to device '%s' dnid '%s' rdnis '%s' on console from '%s' <%s> >>\n",
+		dest, c->cid.cid_dnid, c->redirecting.from.number, c->cid.cid_name, c->cid.cid_num);
 	if (!ast_strlen_zero(args.flags) && strcasecmp(args.flags, "answer") == 0) {
 		f.subclass.integer = AST_CONTROL_ANSWER;
 		ast_queue_frame(c, &f);

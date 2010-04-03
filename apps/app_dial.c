@@ -691,12 +691,11 @@ static void handle_cause(int cause, struct cause_args *num)
 	}
 }
 
-/* free the buffer if allocated, and set the pointer to the second arg */
-#define S_REPLACE(s, new_val)		\
-	do {				\
-		if (s)			\
-			ast_free(s);	\
-		s = (new_val);		\
+/*! \brief free the buffer if allocated, and set the pointer to the second arg */
+#define S_REPLACE(s, new_val) \
+	do {                      \
+		ast_free(s);          \
+		s = (new_val);        \
 	} while (0)
 
 static int onedigit_goto(struct ast_channel *chan, const char *context, char exten, int pri)
@@ -773,8 +772,6 @@ static void do_forward(struct chanlist *o,
 	struct ast_channel *original = o->chan;
 	struct ast_channel *c = o->chan; /* the winner */
 	struct ast_channel *in = num->chan; /* the input channel */
-	struct ast_party_redirecting *apr = &o->chan->redirecting;
-	struct ast_party_connected_line *apc = &o->chan->connected;
 	char *stuff;
 	char *tech;
 	int cause;
@@ -825,12 +822,19 @@ static void do_forward(struct chanlist *o,
 			ast_rtp_instance_early_bridge_make_compatible(c, in);
 		}
 
-		ast_channel_set_redirecting(c, apr);
+		ast_channel_set_redirecting(c, &original->redirecting);
 		ast_channel_lock(c);
 		while (ast_channel_trylock(in)) {
 			CHANNEL_DEADLOCK_AVOIDANCE(c);
 		}
-		S_REPLACE(c->cid.cid_rdnis, ast_strdup(S_OR(original->cid.cid_rdnis, S_OR(in->macroexten, in->exten))));
+		if (ast_strlen_zero(c->redirecting.from.number)) {
+			/*
+			 * The call was not previously redirected so it is
+			 * now redirected from this number.
+			 */
+			S_REPLACE(c->redirecting.from.number,
+				ast_strdup(S_OR(in->macroexten, in->exten)));
+		}
 
 		c->cid.cid_tns = in->cid.cid_tns;
 
@@ -842,10 +846,9 @@ static void do_forward(struct chanlist *o,
 			ast_party_caller_copy(&c->cid, &in->cid);
 			ast_string_field_set(c, accountcode, in->accountcode);
 		}
-		ast_party_connected_line_copy(&c->connected, apc);
+		ast_party_connected_line_copy(&c->connected, &original->connected);
 
-		S_REPLACE(in->cid.cid_rdnis, ast_strdup(c->cid.cid_rdnis));
-		ast_channel_update_redirecting(in, apr);
+		ast_channel_update_redirecting(in, &c->redirecting);
 
 		ast_clear_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE);
 		if (ast_test_flag64(peerflags, OPT_CANCEL_TIMEOUT)) {
@@ -1913,7 +1916,6 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			ast_connected_line_copy_from_caller(&tc->connected, &chan->cid);
 		}
 
-		S_REPLACE(tc->cid.cid_rdnis, ast_strdup(chan->cid.cid_rdnis));
 		ast_party_redirecting_copy(&tc->redirecting, &chan->redirecting);
 
 		tc->cid.cid_tns = chan->cid.cid_tns;

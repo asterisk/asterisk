@@ -183,11 +183,7 @@ static int redirecting_read(struct ast_channel *chan, const char *cmd, char *dat
 	ast_channel_lock(chan);
 
 	if (!strncasecmp("from-", data, 5)) {
-		struct ast_party_id from_id;
-
-		from_id = chan->redirecting.from;
-		from_id.number = chan->cid.cid_rdnis;
-		switch (redirecting_id_read(buf, len, data + 5, &from_id)) {
+		switch (redirecting_id_read(buf, len, data + 5, &chan->redirecting.from)) {
 		case ID_FIELD_VALID:
 		case ID_FIELD_INVALID:
 			break;

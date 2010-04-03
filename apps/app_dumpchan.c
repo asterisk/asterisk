@@ -119,7 +119,7 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 			S_OR(c->cid.cid_num, "(N/A)"),
 			S_OR(c->cid.cid_name, "(N/A)"),
 			S_OR(c->cid.cid_dnid, "(N/A)"),
-			S_OR(c->cid.cid_rdnis, "(N/A)"),
+			S_OR(c->redirecting.from.number, "(N/A)"),
 			c->parkinglot,
 			c->language,
 			ast_state2str(c->_state),

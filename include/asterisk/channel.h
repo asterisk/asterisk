@@ -257,12 +257,6 @@ struct ast_callerid {
 	char *cid_ani;
 
 	/*!
-	 * \brief Malloc'd Redirecting Directory Number Information Service (RDNIS)
-	 * (Field will eventually move to struct ast_channel.redirecting.from.number)
-	 */
-	char *cid_rdnis;
-
-	/*!
 	 * \brief Callerid Q.931 encoded number presentation/screening fields
 	 * (Field will eventually move to struct ast_channel.caller.id.number_presentation)
 	 */
@@ -700,12 +694,7 @@ struct ast_channel {
 	 */
 	struct ast_party_connected_line connected;
 
-	/*!
-	 * \brief Redirecting/Diversion information
-	 * \note Until struct ast_channel.cid.cid_rdnis is replaced
-	 * with ast_channel.redirecting.from.number, the
-	 * ast_channel.redirecting.from.number field is not used.
-	 */
+	/*! \brief Redirecting/Diversion information */
 	struct ast_party_redirecting redirecting;
 
 	struct ast_frame dtmff;				/*!< DTMF frame */

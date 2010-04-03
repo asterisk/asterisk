@@ -574,21 +574,15 @@ start_over:
 	 * All these failure points just return -1. The individual strings will
 	 * be cleared when we destroy the channel.
 	 */
-	if (p->owner->cid.cid_rdnis) {
-		if (!(p->chan->cid.cid_rdnis = ast_strdup(p->owner->cid.cid_rdnis))) {
-			ast_mutex_unlock(&p->lock);
-			ast_channel_unlock(p->chan);
-			return -1;
-		}
-	}
 	ast_party_redirecting_copy(&p->chan->redirecting, &p->owner->redirecting);
 
-	if (p->owner->cid.cid_dnid) {
-		if (!(p->chan->cid.cid_dnid = ast_strdup(p->owner->cid.cid_dnid))) {
-			ast_mutex_unlock(&p->lock);
-			ast_channel_unlock(p->chan);
-			return -1;
-		}
+	ast_free(p->chan->cid.cid_dnid);
+	p->chan->cid.cid_dnid = ast_strdup(p->owner->cid.cid_dnid);
+	if (!p->chan->cid.cid_dnid && p->owner->cid.cid_dnid) {
+		/* Allocation failure */
+		ast_mutex_unlock(&p->lock);
+		ast_channel_unlock(p->chan);
+		return -1;
 	}
 	p->chan->cid.cid_tns = p->owner->cid.cid_tns;
 

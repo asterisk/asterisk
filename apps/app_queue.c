@@ -2835,9 +2835,6 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		tmp->update_connectedline = 0;
 	}
 
-	if (tmp->chan->cid.cid_rdnis)
-		ast_free(tmp->chan->cid.cid_rdnis);
-	tmp->chan->cid.cid_rdnis = ast_strdup(qe->chan->cid.cid_rdnis);
 	ast_party_redirecting_copy(&tmp->chan->redirecting, &qe->chan->redirecting);
 
 	tmp->chan->cid.cid_tns = qe->chan->cid.cid_tns;
@@ -3275,8 +3272,6 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 					winner = NULL;
 					continue;
 				} else if (!ast_strlen_zero(o->chan->call_forward)) {
-					struct ast_party_redirecting *apr = &o->chan->redirecting;
-					struct ast_party_connected_line *apc = &o->chan->connected;
 					struct ast_channel *original = o->chan;
 					char tmpchan[256];
 					char *stuff;
@@ -3312,22 +3307,23 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 
 						ast_string_field_set(o->chan, accountcode, in->accountcode);
 
-						ast_channel_set_redirecting(o->chan, apr);
-
-						if (o->chan->cid.cid_rdnis)
-							ast_free(o->chan->cid.cid_rdnis);
-						o->chan->cid.cid_rdnis = ast_strdup(S_OR(original->cid.cid_rdnis,S_OR(in->macroexten, in->exten)));
+						ast_channel_set_redirecting(o->chan, &original->redirecting);
+						if (ast_strlen_zero(o->chan->redirecting.from.number)) {
+							/*
+							 * The call was not previously redirected so it is
+							 * now redirected from this number.
+							 */
+							ast_free(o->chan->redirecting.from.number);
+							o->chan->redirecting.from.number =
+								ast_strdup(S_OR(in->macroexten, in->exten));
+						}
 
 						o->chan->cid.cid_tns = in->cid.cid_tns;
 
 						ast_party_caller_copy(&o->chan->cid, &in->cid);
-						ast_party_connected_line_copy(&o->chan->connected, apc);
+						ast_party_connected_line_copy(&o->chan->connected, &original->connected);
 
-						ast_channel_update_redirecting(in, apr);
-						if (in->cid.cid_rdnis) {
-							ast_free(in->cid.cid_rdnis);
-						}
-						in->cid.cid_rdnis = ast_strdup(o->chan->cid.cid_rdnis);
+						ast_channel_update_redirecting(in, &o->chan->redirecting);
 
 						update_connectedline = 1;
 
