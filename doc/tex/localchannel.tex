@@ -384,7 +384,7 @@ as expected.
 This following dialplan will not perform as expected.
 
 [services]
-exten => 2,1,Dial(SIP/PHONE_B,,L(60000:45000:15000))
+exten => 2,1,Dial(SIP/PHONE\_B,,L(60000:45000:15000))
 
 [internal]
 exten => 4,1,Dial(Local/2@services);
@@ -432,7 +432,7 @@ discuss the information associated with the channels:
   \item Asterisk accepts the INVITE and then starts processing dialplan logic in the [internal] context
   \item Our dialplan calls Dial(Local/2@services) -- notice no /n
   \item The Local channel then executes dialplan at extension 2 within the [services] context
-  \item Extension 2 within [services] then performs Dial() to PHONE_B with the line:  Dial(SIP/PHONE\_B,,L(60000:45000:15000))
+  \item Extension 2 within [services] then performs Dial() to PHONE\_B with the line:  Dial(SIP/PHONE\_B,,L(60000:45000:15000))
   \item SIP/PHONE\_B then answers the call
   \item Even though the L option was given when dialing the SIP device, the L information is stored in the channel that is doing the Dial() which is the Local channel, and not the endpoint SIP channel.
   \item The Local channel in the middle, containing the information for tracking the time allowance of the call, is then optimized out of the call path, losing all information about when to terminate the call.
