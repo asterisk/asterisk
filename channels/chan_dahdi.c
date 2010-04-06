@@ -3561,7 +3561,6 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 
 #ifdef PRI_2BCT
 	int triedtopribridge = 0;
-	q931_call *q931c0 = NULL, *q931c1 = NULL;
 #endif
 
 	/* For now, don't attempt to native bridge if either channel needs DTMF detection.
@@ -3777,13 +3776,15 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 		}
 
 #ifdef PRI_2BCT
-		q931c0 = p0->call;
-		q931c1 = p1->call;
-		if (p0->transfer && p1->transfer 
-		    && q931c0 && q931c1 
-		    && !triedtopribridge) {
-			pri_channel_bridge(q931c0, q931c1);
+		if (!triedtopribridge) {
 			triedtopribridge = 1;
+			if (p0->pri && p0->pri == p1->pri && p0->transfer && p1->transfer) {
+				ast_mutex_lock(&p0->pri->lock);
+				if (p0->call && p1->call) {
+					pri_channel_bridge(p0->call, p1->call);
+				}
+				ast_mutex_unlock(&p0->pri->lock);
+			}
 		}
 #endif
 
