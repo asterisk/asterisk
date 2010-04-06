@@ -17495,7 +17495,6 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 
 	owner = p->owner;
 	if (owner) {
-		char causevar[256], causeval[256];
 		const char *rp = NULL, *rh = NULL;
 
 		owner->hangupcause = 0;
@@ -17513,10 +17512,6 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 
 		if (!owner->hangupcause)
 			owner->hangupcause = hangup_sip2cause(resp);
-
-		snprintf(causevar, sizeof(causevar), "MASTER_CHANNEL(HASH(SIP_CAUSE,%s))", owner->name);
-		snprintf(causeval, sizeof(causeval), "SIP %s", REQ_OFFSET_TO_STR(req, rlPart2));
-		pbx_builtin_setvar_helper(owner, causevar, causeval);
 	}
 
 	if (p->socket.type == SIP_TRANSPORT_UDP) {
@@ -20922,10 +20917,26 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 				ast_log(LOG_DEBUG, "Ignoring out of order response %d (expecting %d)\n", seqno, p->ocseq);
 			return -1;
 		} else {
+			char causevar[256], causeval[256];
+
 			if ((respid == 200) || ((respid >= 300) && (respid <= 399))) {
 				extract_uri(p, req);
 			}
+
 			handle_response(p, respid, e + len, req, seqno);
+
+			if (p->owner) {
+				struct ast_channel *owner = p->owner;
+
+				snprintf(causevar, sizeof(causevar), "MASTER_CHANNEL(HASH(SIP_CAUSE,%s))", owner->name);
+				snprintf(causeval, sizeof(causeval), "SIP %s", REQ_OFFSET_TO_STR(req, rlPart2));
+
+				sip_pvt_unlock(p);
+				ast_channel_unlock(owner);
+				*nounlock = 1;
+				pbx_builtin_setvar_helper(owner, causevar, causeval);
+				sip_pvt_lock(p);
+			}
 		}
 		return 0;
 	}
