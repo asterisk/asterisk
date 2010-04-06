@@ -83,7 +83,7 @@
 #define AST_PTHREADT_NULL (pthread_t) -1
 #define AST_PTHREADT_STOP (pthread_t) -2
 
-#if (defined(SOLARIS) || defined(BSD)) && !defined(__Darwin__)
+#if (defined(SOLARIS) || defined(BSD))
 #define AST_MUTEX_INIT_W_CONSTRUCTORS
 #endif /* SOLARIS || BSD */
 
@@ -380,7 +380,7 @@ static inline int __ast_pthread_mutex_init(int tracking, const char *filename, i
 	int res;
 	pthread_mutexattr_t  attr;
 
-#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
+#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) && defined(CAN_COMPARE_MUTEX_TO_INIT_VALUE)
 
 	if ((t->mutex) != ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
 /*
@@ -417,7 +417,7 @@ static inline int __ast_pthread_mutex_destroy(const char *filename, int lineno, 
 	struct ast_lock_track *lt;
 	int canlog = strcmp(filename, "logger.c") & t->tracking;
 
-#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
+#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) && defined(CAN_COMPARE_MUTEX_TO_INIT_VALUE)
 	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
 		/* Don't try to uninitialize non initialized mutex
 		 * This may no effect on linux
@@ -485,7 +485,7 @@ static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, con
 	struct ast_bt *bt = NULL;
 #endif
 
-#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS)
+#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) && defined(CAN_COMPARE_MUTEX_TO_INIT_VALUE)
 	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
 		/* Don't warn abount uninitialized mutex.
 		 * Simple try to initialize it.
@@ -609,7 +609,7 @@ static inline int __ast_pthread_mutex_trylock(const char *filename, int lineno, 
 	struct ast_bt *bt = NULL;
 #endif
 
-#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS)
+#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) && defined(CAN_COMPARE_MUTEX_TO_INIT_VALUE)
 	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
 		/* Don't warn abount uninitialized mutex.
 		 * Simple try to initialize it.
@@ -671,7 +671,7 @@ static inline int __ast_pthread_mutex_unlock(const char *filename, int lineno, c
 	struct ast_bt *bt = NULL;
 #endif
 
-#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
+#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) && defined(CAN_COMPARE_MUTEX_TO_INIT_VALUE)
 	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
 		__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
 				   filename, lineno, func, mutex_name);
@@ -768,7 +768,7 @@ static inline int __ast_cond_wait(const char *filename, int lineno, const char *
 	struct ast_bt *bt = NULL;
 #endif
 
-#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
+#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) && defined(CAN_COMPARE_MUTEX_TO_INIT_VALUE)
 	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
 		__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
 				   filename, lineno, func, mutex_name);
@@ -866,7 +866,7 @@ static inline int __ast_cond_timedwait(const char *filename, int lineno, const c
 	struct ast_bt *bt = NULL;
 #endif
 
-#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
+#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) && defined(CAN_COMPARE_MUTEX_TO_INIT_VALUE)
 	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
 		__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
 				   filename, lineno, func, mutex_name);
@@ -1011,8 +1011,8 @@ static inline int __ast_rwlock_init(int tracking, const char *filename, int line
 	struct ast_lock_track *lt= &t->track;
 	pthread_rwlockattr_t attr;
 
-#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
-        int canlog = strcmp(filename, "logger.c") & t->tracking;
+#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) && defined(CAN_COMPARE_MUTEX_TO_INIT_VALUE)
+	int canlog = strcmp(filename, "logger.c") & t->tracking;
 
 	if (t->lock != ((pthread_rwlock_t) __AST_RWLOCK_INIT_VALUE)) {
 		__ast_mutex_logger("%s line %d (%s): Warning: rwlock '%s' is already initialized.\n",
@@ -1040,7 +1040,7 @@ static inline int __ast_rwlock_destroy(const char *filename, int lineno, const c
 	struct ast_lock_track *lt = &t->track;
 	int canlog = strcmp(filename, "logger.c") & t->tracking;
 
-#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
+#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) && defined(CAN_COMPARE_MUTEX_TO_INIT_VALUE)
 	if (t->lock == ((pthread_rwlock_t) __AST_RWLOCK_INIT_VALUE)) {
 		__ast_mutex_logger("%s line %d (%s): Warning: rwlock '%s' is uninitialized.\n",
 				   filename, lineno, func, rwlock_name);
@@ -1079,7 +1079,7 @@ static inline int _ast_rwlock_unlock(ast_rwlock_t *t, const char *name,
 	int lock_found = 0;
 
 
-#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
+#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) && defined(CAN_COMPARE_MUTEX_TO_INIT_VALUE)
 	if ((t->lock) == ((pthread_rwlock_t) __AST_RWLOCK_INIT_VALUE)) {
 		__ast_mutex_logger("%s line %d (%s): Warning: rwlock '%s' is uninitialized.\n",
 				   filename, line, func, name);
@@ -1152,7 +1152,7 @@ static inline int _ast_rwlock_rdlock(ast_rwlock_t *t, const char *name,
 	struct ast_bt *bt = NULL;
 #endif
 
-#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
+#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) && defined(CAN_COMPARE_MUTEX_TO_INIT_VALUE)
 	if ((t->lock) == ((pthread_rwlock_t) __AST_RWLOCK_INIT_VALUE)) {
 		 /* Don't warn abount uninitialized lock.
 		  * Simple try to initialize it.
@@ -1260,7 +1260,7 @@ static inline int _ast_rwlock_wrlock(ast_rwlock_t *t, const char *name,
 	struct ast_bt *bt = NULL;
 #endif
 
-#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
+#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) && defined(CAN_COMPARE_MUTEX_TO_INIT_VALUE)
 	if ((t->lock) == ((pthread_rwlock_t) __AST_RWLOCK_INIT_VALUE)) {
 		 /* Don't warn abount uninitialized lock.
 		  * Simple try to initialize it.
@@ -1370,7 +1370,7 @@ static inline int _ast_rwlock_timedrdlock(ast_rwlock_t *t, const char *name,
 	struct ast_bt *bt = NULL;
 #endif
 
-#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
+#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) && defined(CAN_COMPARE_MUTEX_TO_INIT_VALUE)
 	if ((t->lock) == ((pthread_rwlock_t) __AST_RWLOCK_INIT_VALUE)) {
 		 /* Don't warn abount uninitialized lock.
 		  * Simple try to initialize it.
@@ -1465,7 +1465,7 @@ static inline int _ast_rwlock_timedwrlock(ast_rwlock_t *t, const char *name,
 	struct ast_bt *bt = NULL;
 #endif
 
-#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
+#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) && defined(CAN_COMPARE_MUTEX_TO_INIT_VALUE)
 	if ((t->lock) == ((pthread_rwlock_t) __AST_RWLOCK_INIT_VALUE)) {
 		 /* Don't warn abount uninitialized lock.
 		  * Simple try to initialize it.
@@ -1555,7 +1555,7 @@ static inline int _ast_rwlock_tryrdlock(ast_rwlock_t *t, const char *name,
 #ifdef HAVE_BKTR
 	struct ast_bt *bt = NULL;
 #endif
-#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
+#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) && defined(CAN_COMPARE_MUTEX_TO_INIT_VALUE)
 	int canlog = strcmp(filename, "logger.c") & t->tracking;
 
 	if ((t->lock) == ((pthread_rwlock_t) __AST_RWLOCK_INIT_VALUE)) {
@@ -1613,7 +1613,7 @@ static inline int _ast_rwlock_trywrlock(ast_rwlock_t *t, const char *name,
 #ifdef HAVE_BKTR
 	struct ast_bt *bt = NULL;
 #endif
-#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
+#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) && defined(CAN_COMPARE_MUTEX_TO_INIT_VALUE)
 	int canlog = strcmp(filename, "logger.c") & t->tracking;
 
 	if ((t->lock) == ((pthread_rwlock_t) __AST_RWLOCK_INIT_VALUE)) {
