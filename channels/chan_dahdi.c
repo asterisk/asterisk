@@ -6666,25 +6666,31 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 		}
 
 #ifdef PRI_2BCT
-		switch (p0->sig) {
-		case SIG_PRI_LIB_HANDLE_CASES:
-			q931c0 = ((struct sig_pri_chan *) (p0->sig_pvt))->call;
-			break;
-		default:
-			q931c0 = NULL;
-			break;
-		}
-		switch (p1->sig) {
-		case SIG_PRI_LIB_HANDLE_CASES:
-			q931c1 = ((struct sig_pri_chan *) (p1->sig_pvt))->call;
-			break;
-		default:
-			q931c1 = NULL;
-			break;
-		}
-		if (q931c0 && q931c1 && p0->transfer && p1->transfer && !triedtopribridge) {
+		if (!triedtopribridge) {
 			triedtopribridge = 1;
-			pri_channel_bridge(q931c0, q931c1);
+			if (p0->pri && p0->pri == p1->pri && p0->transfer && p1->transfer) {
+				ast_mutex_lock(&p0->pri->lock);
+				switch (p0->sig) {
+				case SIG_PRI_LIB_HANDLE_CASES:
+					q931c0 = ((struct sig_pri_chan *) (p0->sig_pvt))->call;
+					break;
+				default:
+					q931c0 = NULL;
+					break;
+				}
+				switch (p1->sig) {
+				case SIG_PRI_LIB_HANDLE_CASES:
+					q931c1 = ((struct sig_pri_chan *) (p1->sig_pvt))->call;
+					break;
+				default:
+					q931c1 = NULL;
+					break;
+				}
+				if (q931c0 && q931c1) {
+					pri_channel_bridge(q931c0, q931c1);
+				}
+				ast_mutex_unlock(&p0->pri->lock);
+			}
 		}
 #endif
 
