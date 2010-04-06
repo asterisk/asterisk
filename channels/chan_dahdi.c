@@ -9004,12 +9004,18 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		ast_copy_string(tmp->mohsuggest, conf->chan.mohsuggest, sizeof(tmp->mohsuggest));
 		ast_copy_string(tmp->context, conf->chan.context, sizeof(tmp->context));
 		tmp->cid_ton = 0;
-		if ((tmp->sig != SIG_PRI) || (tmp->sig != SIG_SS7) || (tmp->sig != SIG_BRI) || (tmp->sig != SIG_BRI_PTMP)) {
-			ast_copy_string(tmp->cid_num, conf->chan.cid_num, sizeof(tmp->cid_num));
-			ast_copy_string(tmp->cid_name, conf->chan.cid_name, sizeof(tmp->cid_name));
-		} else {
+		switch (tmp->sig) {
+		case SIG_PRI:
+		case SIG_BRI:
+		case SIG_BRI_PTMP:
+		case SIG_SS7:
 			tmp->cid_num[0] = '\0';
 			tmp->cid_name[0] = '\0';
+			break;
+		default:
+			ast_copy_string(tmp->cid_num, conf->chan.cid_num, sizeof(tmp->cid_num));
+			ast_copy_string(tmp->cid_name, conf->chan.cid_name, sizeof(tmp->cid_name));
+			break;
 		}
 		ast_copy_string(tmp->mailbox, conf->chan.mailbox, sizeof(tmp->mailbox));
 		if (channel != CHAN_PSEUDO && !ast_strlen_zero(tmp->mailbox)) {
