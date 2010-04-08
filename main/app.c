@@ -36,6 +36,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/time.h>       /* for getrlimit(2) */
 #include <sys/resource.h>   /* for getrlimit(2) */
 #include <stdlib.h>         /* for closefrom(3) */
+#ifndef HAVE_CLOSEFROM
+#include <sys/types.h>
+#include <dirent.h>         /* for opendir(3)   */
+#endif
 #ifdef HAVE_CAP
 #include <sys/capability.h>
 #endif /* HAVE_CAP */
@@ -1984,20 +1988,37 @@ void ast_close_fds_above_n(int n)
 #ifdef HAVE_CLOSEFROM
 	closefrom(n + 1);
 #else
-	int x, null;
+	long x, null;
 	struct rlimit rl;
-	getrlimit(RLIMIT_NOFILE, &rl);
-	null = open("/dev/null", O_RDONLY);
-	for (x = n + 1; x < rl.rlim_cur; x++) {
-		if (x != null) {
-			/* Side effect of dup2 is that it closes any existing fd without error.
-			 * This prevents valgrind and other debugging tools from sending up
-			 * false error reports. */
-			while (dup2(null, x) < 0 && errno == EINTR);
-			close(x);
+	DIR *dir;
+	char path[16], *result;
+	struct dirent *entry;
+	snprintf(path, sizeof(path), "/proc/%d/fd", (int) getpid());
+	if ((dir = opendir(path))) {
+		while ((entry = readdir(dir))) {
+			/* Skip . and .. */
+			if (entry->d_name[0] == '.') {
+				continue;
+			}
+			if ((x = strtol(entry->d_name, &result, 10)) && x >= n) {
+				close(x);
+			}
 		}
+		closedir(dir);
+	} else {
+		getrlimit(RLIMIT_NOFILE, &rl);
+		null = open("/dev/null", O_RDONLY);
+		for (x = n + 1; x < rl.rlim_cur; x++) {
+			if (x != null) {
+				/* Side effect of dup2 is that it closes any existing fd without error.
+				 * This prevents valgrind and other debugging tools from sending up
+				 * false error reports. */
+				while (dup2(null, x) < 0 && errno == EINTR);
+				close(x);
+			}
+		}
+		close(null);
 	}
-	close(null);
 #endif
 }
 
