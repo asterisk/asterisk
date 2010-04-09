@@ -45,6 +45,15 @@
 int parse_uri(char *uri, const char *scheme, char **ret_name, char **pass, char **domain, char **port, char **transport);
 
 /*!
+ * \brief parses a URI in to all of its components and any trailing residue
+ *
+ * \retval 0 on success
+ * \retval -1 on error.
+ *
+ */
+int parse_uri_full(char *uri, const char *scheme, char **user, char **pass, char **host, char **port, struct uriparams *params, char **headers, char **residue);
+
+/*!
  * \brief  Get caller id name from SIP headers, copy into output buffer
  *
  * \retval input string pointer placed after display-name field if possible
@@ -75,6 +84,33 @@ int get_name_and_number(const char *hdr, char **name, char **number);
  * \endverbatim
  */
 char *get_in_brackets(char *tmp);
+
+/*! \brief Get text in brackets and any trailing residue
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ * \retval 1 no brackets so got all
+ */
+int get_in_brackets_full(char *tmp, char **out, char **residue);
+
+/*! \brief Parse the ABNF structure
+ * name-andor-addr = name-addr / addr-spec
+ * into its components and return any trailing message-header parameters
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int parse_name_andor_addr(char *uri, const char *scheme, char **name, char **user, char **pass, char **host, char **port, struct uriparams *params, char **headers, char **remander);
+
+/*! \brief Parse all contact header contacts
+ * \retval 0 success
+ * \retval -1 failure
+ * \retval 1 all contacts (star)
+ */
+
+int get_comma(char *parse, char **out);
+
+int parse_contact_header(char *contactheader, struct contactliststruct *contactlist);
 
 /*!
  * \brief register request parsing tests

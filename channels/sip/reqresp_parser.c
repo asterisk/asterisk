@@ -28,10 +28,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "include/reqresp_parser.h"
 
 /*! \brief * parses a URI in its components.*/
-int parse_uri(char *uri, const char *scheme, char **ret_name, char **pass, char **domain, char **port, char **transport)
+int parse_uri_full(char *uri, const char *scheme, char **user, char **pass, char **host, char **port, struct uriparams *params, char **headers, char **residue)
 {
-	char *name = NULL;
-	char *tmp; /* used as temporary place holder */
+	char *userinfo = NULL;
+	char *parameters = NULL;
+	char *endparams = NULL;
+	char *c = NULL;
 	int error = 0;
 
 	/* check for valid input */
@@ -39,16 +41,6 @@ int parse_uri(char *uri, const char *scheme, char **ret_name, char **pass, char 
 		return -1;
 	}
 
-	/* strip [?headers] from end of uri */
-	if ((tmp = strrchr(uri, '?'))) {
-		*tmp = '\0';
-	}
-
-	/* init field as required */
-	if (pass)
-		*pass = "";
-	if (port)
-		*port = "";
 	if (scheme) {
 		int l;
 		char *scheme2 = ast_strdupa(scheme);
@@ -65,55 +57,452 @@ int parse_uri(char *uri, const char *scheme, char **ret_name, char **pass, char 
 			error = -1;
 		}
 	}
-	if (transport) {
-		char *t, *type = "";
-		*transport = "";
-		if ((t = strstr(uri, "transport="))) {
-			strsep(&t, "=");
-			if ((type = strsep(&t, ";"))) {
-				*transport = type;
-			}
-		}
-	}
 
-	if (!domain) {
-		/* if we don't want to split around domain, keep everything as a name,
-		 * so we need to do nothing here, except remember why.
-		 */
+	if (!host) {
+		/* if we don't want to split around host, keep everything as a userinfo - cos thats how old parse_uri operated*/
+		userinfo = uri;
 	} else {
-		/* store the result in a temp. variable to avoid it being
-		 * overwritten if arguments point to the same place.
-		 */
-		char *c, *dom = "";
-
-		if ((c = strchr(uri, '@')) == NULL) {
-			/* domain-only URI, according to the SIP RFC. */
-			dom = uri;
-			name = "";
-		} else {
+		char *hostport;
+		if ((c = strchr(uri, '@'))) {
 			*c++ = '\0';
-			dom = c;
-			name = uri;
-		}
+			hostport = c;
+			userinfo = uri;
+			uri = hostport; /* userinfo can contain ? and ; chars so step forward before looking for params and headers */
+		} else {
+			/* domain-only URI, according to the SIP RFC. */
+			hostport = uri;
+			userinfo = "";
+			}
 
-		/* Remove parameters in domain and name */
-		dom = strsep(&dom, ";");
-		name = strsep(&name, ";");
-
-		if (port && (c = strchr(dom, ':'))) { /* Remove :port */
+		if (port && (c = strchr(hostport, ':'))) {	/* Remove :port */
 			*c++ = '\0';
 			*port = c;
+			uri = c;
+		} else if (port) {
+			*port = "";
 		}
-		if (pass && (c = strchr(name, ':'))) {	/* user:password */
-			*c++ = '\0';
-			*pass = c;
-		}
-		*domain = dom;
+
+		*host = hostport;
 	}
-	if (ret_name)	/* same as for domain, store the result only at the end */
-		*ret_name = name;
+
+	if (pass && (c = strchr(userinfo, ':'))) {	  /* user:password */
+		*c++ = '\0';
+		*pass = c;
+	} else if (pass) {
+		*pass = "";
+	}
+
+	if (user) {
+		*user = userinfo;
+	}
+
+	parameters = uri;
+	/* strip [?headers] from end of uri  - even if no header pointer exists*/
+	if ((c = strrchr(uri, '?'))) {
+			*c++ = '\0';
+		uri = c;
+		if (headers) {
+			*headers = c;
+		}
+		if ((c = strrchr(uri, ';'))) {
+			*c++ = '\0';
+		} else {
+			c = strrchr(uri, '\0');
+		}
+		uri = c; /* residue */
+
+
+	} else if (headers) {
+		*headers = "";
+	}
+
+	/* parse parameters */
+	endparams = strchr(parameters,'\0');
+	if ((c = strchr(parameters, ';'))) {
+			*c++ = '\0';
+		parameters = c;
+	} else {
+		parameters = endparams;
+		}
+
+	if (params) {
+		char *rem = parameters; /* unparsed or unrecognised remainder */
+		char *label;
+		char *value;
+		int lr = 0;
+
+		params->transport = "";
+		params->user = "";
+		params->method = "";
+		params->ttl = "";
+		params->maddr = "";
+		params->lr = 0;
+
+		rem = parameters;
+
+		while ((value = strchr(parameters, '=')) || (lr = !strncmp(parameters, "lr", 2))) {
+			/* The while condition will not continue evaluation to set lr if it matches "lr=" */
+			if (lr) {
+				value = parameters;
+			} else {
+				*value++ = '\0';
+			}
+			label = parameters;
+			if ((c = strchr(value, ';'))) {
+			*c++ = '\0';
+				parameters = c;
+			} else {
+				parameters = endparams;
+		}
+
+			if (!strcmp(label, "transport")) {
+				if (params) {params->transport=value;}
+				rem = parameters;
+			} else if (!strcmp(label, "user")) {
+				if (params) {params->user=value;}
+				rem = parameters;
+			} else if (!strcmp(label, "method")) {
+				if (params) {params->method=value;}
+				rem = parameters;
+			} else if (!strcmp(label, "ttl")) {
+				if (params) {params->ttl=value;}
+				rem = parameters;
+			} else if (!strcmp(label, "maddr")) {
+				if (params) {params->maddr=value;}
+				rem = parameters;
+			/* Treat "lr", "lr=yes", "lr=on", "lr=1", "lr=almostanything" as lr enabled and "", "lr=no", "lr=off", "lr=0", "lr=" and "lranything" as lr disabled */
+			} else if ((!strcmp(label, "lr") && strcmp(value, "no") && strcmp(value, "off") && strcmp(value, "0") && strcmp(value, "")) || ((lr) && strcmp(value, "lr"))) {
+				if (params) {params->lr=1;}
+				rem = parameters;
+			} else {
+				value--;
+				*value = '=';
+				if(c) {
+				c--;
+				*c = ';';
+	}
+			}
+		}
+		if (rem > uri) { /* no headers */
+			uri = rem;
+		}
+
+	}
+
+	if (residue) {
+		*residue = uri;
+	}
 
 	return error;
+}
+
+
+AST_TEST_DEFINE(sip_parse_uri_fully_test)
+{
+	int res = AST_TEST_PASS;
+	char uri[1024];
+	char *user, *pass, *host, *port, *headers, *residue;
+	struct uriparams params;
+
+	struct testdata {
+		char *desc;
+		char *uri;
+		char **userptr;
+		char **passptr;
+		char **hostptr;
+		char **portptr;
+		char **headersptr;
+		char **residueptr;
+		struct uriparams *paramsptr;
+		char *user;
+		char *pass;
+		char *host;
+		char *port;
+		char *headers;
+		char *residue;
+		struct uriparams params;
+		AST_LIST_ENTRY(testdata) list;
+	};
+
+
+	struct testdata *testdataptr;
+
+	static AST_LIST_HEAD_NOLOCK(testdataliststruct, testdata) testdatalist;
+
+	struct testdata td1 = {
+		.desc = "no headers",
+		.uri = "sip:user:secret@host:5060;param=discard;transport=tcp;param2=residue",
+		.userptr = &user,
+		.passptr = &pass,
+		.hostptr = &host,
+		.portptr = &port,
+		.headersptr = &headers,
+		.residueptr = &residue,
+		.paramsptr = &params,
+		.user = "user",
+		.pass = "secret",
+		.host = "host",
+		.port = "5060",
+		.headers = "",
+	    .residue = "param2=residue",
+		.params.transport = "tcp",
+		.params.lr = 0,
+		.params.user = ""
+	};
+
+	struct testdata td2 = {
+		.desc = "with headers",
+		.uri = "sip:user:secret@host:5060;param=discard;transport=tcp;param2=discard2?header=blah&header2=blah2;param3=residue",
+		.userptr = &user,
+		.passptr = &pass,
+		.hostptr = &host,
+		.portptr = &port,
+		.headersptr = &headers,
+		.residueptr = &residue,
+		.paramsptr = &params,
+		.user = "user",
+		.pass = "secret",
+		.host = "host",
+		.port = "5060",
+		.headers = "header=blah&header2=blah2",
+		.residue = "param3=residue",
+		.params.transport = "tcp",
+		.params.lr = 0,
+		.params.user = ""
+	};
+
+	struct testdata td3 = {
+		.desc = "difficult user",
+		.uri = "sip:-_.!~*'()&=+$,;?/:secret@host:5060;transport=tcp",
+		.userptr = &user,
+		.passptr = &pass,
+		.hostptr = &host,
+		.portptr = &port,
+		.headersptr = &headers,
+		.residueptr = &residue,
+		.paramsptr = &params,
+		.user = "-_.!~*'()&=+$,;?/",
+		.pass = "secret",
+		.host = "host",
+		.port = "5060",
+		.headers = "",
+		.residue = "",
+		.params.transport = "tcp",
+		.params.lr = 0,
+		.params.user = ""
+	};
+
+	struct testdata td4 = {
+		.desc = "difficult pass",
+		.uri = "sip:user:-_.!~*'()&=+$,@host:5060;transport=tcp",
+		.userptr = &user,
+		.passptr = &pass,
+		.hostptr = &host,
+		.portptr = &port,
+		.headersptr = &headers,
+		.residueptr = &residue,
+		.paramsptr = &params,
+		.user = "user",
+		.pass = "-_.!~*'()&=+$,",
+		.host = "host",
+		.port = "5060",
+		.headers = "",
+		.residue = "",
+		.params.transport = "tcp",
+		.params.lr = 0,
+		.params.user = ""
+	};
+
+	struct testdata td5 = {
+		.desc = "difficult host",
+		.uri = "sip:user:secret@1-1.a-1.:5060;transport=tcp",
+		.userptr = &user,
+		.passptr = &pass,
+		.hostptr = &host,
+		.portptr = &port,
+		.headersptr = &headers,
+		.residueptr = &residue,
+		.paramsptr = &params,
+		.user = "user",
+		.pass = "secret",
+		.host = "1-1.a-1.",
+		.port = "5060",
+		.headers = "",
+		.residue = "",
+		.params.transport = "tcp",
+		.params.lr = 0,
+		.params.user = ""
+	};
+
+	struct testdata td6 = {
+		.desc = "difficult params near transport",
+		.uri = "sip:user:secret@host:5060;-_.!~*'()[]/:&+$=-_.!~*'()[]/:&+$;transport=tcp",
+		.userptr = &user,
+		.passptr = &pass,
+		.hostptr = &host,
+		.portptr = &port,
+		.headersptr = &headers,
+		.residueptr = &residue,
+		.paramsptr = &params,
+		.user = "user",
+		.pass = "secret",
+		.host = "host",
+		.port = "5060",
+		.headers = "",
+		.residue = "",
+		.params.transport = "tcp",
+		.params.lr = 0,
+		.params.user = ""
+	};
+
+	struct testdata td7 = {
+		.desc = "difficult params near headers",
+		.uri = "sip:user:secret@host:5060;-_.!~*'()[]/:&+$=-_.!~*'()[]/:&+$?header=blah&header2=blah2;-_.!~*'()[]/:&+$=residue",
+		.userptr = &user,
+		.passptr = &pass,
+		.hostptr = &host,
+		.portptr = &port,
+		.headersptr = &headers,
+		.residueptr = &residue,
+		.paramsptr = &params,
+		.user = "user",
+		.pass = "secret",
+		.host = "host",
+		.port = "5060",
+		.headers = "header=blah&header2=blah2",
+		.residue = "-_.!~*'()[]/:&+$=residue",
+		.params.transport = "",
+		.params.lr = 0,
+		.params.user = ""
+	};
+
+	struct testdata td8 = {
+		.desc = "lr parameter",
+		.uri = "sip:user:secret@host:5060;param=discard;lr?header=blah",
+		.userptr = &user,
+		.passptr = &pass,
+		.hostptr = &host,
+		.portptr = &port,
+		.headersptr = &headers,
+		.residueptr = &residue,
+		.paramsptr = &params,
+		.user = "user",
+		.pass = "secret",
+		.host = "host",
+		.port = "5060",
+		.headers = "header=blah",
+		.residue = "",
+		.params.transport = "",
+		.params.lr = 1,
+		.params.user = ""
+	};
+
+	struct testdata td9 = {
+		.desc = "alternative lr parameter",
+		.uri = "sip:user:secret@host:5060;param=discard;lr=yes?header=blah",
+		.userptr = &user,
+		.passptr = &pass,
+		.hostptr = &host,
+		.portptr = &port,
+		.headersptr = &headers,
+		.residueptr = &residue,
+		.paramsptr = &params,
+		.user = "user",
+		.pass = "secret",
+		.host = "host",
+		.port = "5060",
+		.headers = "header=blah",
+		.residue = "",
+		.params.transport = "",
+		.params.lr = 1,
+		.params.user = ""
+	};
+
+	struct testdata td10 = {
+		.desc = "no lr parameter",
+		.uri = "sip:user:secret@host:5060;paramlr=lr;lr=no;lr=off;lr=0;lr=;=lr;lrextra;lrparam2=lr?header=blah",
+		.userptr = &user,
+		.passptr = &pass,
+		.hostptr = &host,
+		.portptr = &port,
+		.headersptr = &headers,
+		.residueptr = &residue,
+		.paramsptr = &params,
+		.user = "user",
+		.pass = "secret",
+		.host = "host",
+		.port = "5060",
+		.headers = "header=blah",
+		.residue = "",
+		.params.transport = "",
+		.params.lr = 0,
+		.params.user = ""
+	};
+
+
+	AST_LIST_HEAD_SET_NOLOCK(&testdatalist, &td1);
+	AST_LIST_INSERT_TAIL(&testdatalist, &td2, list);
+	AST_LIST_INSERT_TAIL(&testdatalist, &td3, list);
+	AST_LIST_INSERT_TAIL(&testdatalist, &td4, list);
+	AST_LIST_INSERT_TAIL(&testdatalist, &td5, list);
+	AST_LIST_INSERT_TAIL(&testdatalist, &td6, list);
+	AST_LIST_INSERT_TAIL(&testdatalist, &td7, list);
+	AST_LIST_INSERT_TAIL(&testdatalist, &td8, list);
+	AST_LIST_INSERT_TAIL(&testdatalist, &td9, list);
+	AST_LIST_INSERT_TAIL(&testdatalist, &td10, list);
+
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "sip_uri_full_parse_test";
+		info->category = "channels/chan_sip/";
+		info->summary = "tests sip full uri parsing";
+		info->description =
+			"Tests full parsing of various URIs "
+			"Verifies output matches expected behavior.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	AST_LIST_TRAVERSE(&testdatalist, testdataptr, list) {
+		user = pass = host = port = headers = residue = NULL;
+		params.transport = params.user = params.method = params.ttl = params.maddr = NULL;
+		params.lr = 0;
+
+		ast_copy_string(uri,testdataptr->uri,sizeof(uri));
+		if (parse_uri_full(uri, "sip:,sips:", testdataptr->userptr, testdataptr->passptr, testdataptr->hostptr, testdataptr->portptr, testdataptr->paramsptr, testdataptr->headersptr, testdataptr->residueptr) ||
+			((testdataptr->userptr) && strcmp(testdataptr->user, user)) ||
+			((testdataptr->passptr) && strcmp(testdataptr->pass, pass)) ||
+			((testdataptr->hostptr) && strcmp(testdataptr->host, host)) ||
+			((testdataptr->portptr) && strcmp(testdataptr->port, port)) ||
+			((testdataptr->headersptr) && strcmp(testdataptr->headers, headers)) ||
+			((testdataptr->residueptr) && strcmp(testdataptr->residue, residue)) ||
+			((testdataptr->paramsptr) && strcmp(testdataptr->params.transport,params.transport)) ||
+			((testdataptr->paramsptr) && (testdataptr->params.lr != params.lr)) ||
+			((testdataptr->paramsptr) && strcmp(testdataptr->params.user,params.user))
+		) {
+				ast_test_status_update(test, "Sub-Test: %s, failed.\n", testdataptr->desc);
+				res = AST_TEST_FAIL;
+		}
+	}
+
+
+	return res;
+}
+
+
+int parse_uri(char *uri, const char *scheme, char **user, char **pass, char **host, char **port, char **transport) {
+	int ret;
+	char *headers;
+	struct uriparams params;
+
+	headers = NULL;
+	ret = parse_uri_full(uri, scheme, user, pass, host, port, &params, &headers, NULL);
+	if (transport) {
+		*transport=params.transport;
+	}
+	return ret;
 }
 
 AST_TEST_DEFINE(sip_parse_uri_test)
@@ -535,44 +924,82 @@ AST_TEST_DEFINE(get_name_and_number_test)
 	return res;
 }
 
-char *get_in_brackets(char *tmp)
+int get_in_brackets_full(char *tmp,char **out,char **residue)
 {
 	const char *parse = tmp;
 	char *first_bracket;
+	char *second_bracket;
+
+	if (out) {
+		*out = "";
+	}
+	if (residue) {
+		*residue = "";
+	}
 
 
 	if (ast_strlen_zero(tmp)) {
-		return tmp;
+		return 1;
 	}
 
 	/*
 	 * Skip any quoted text until we find the part in brackets.
-	* On any error give up and return the full string.
+	* On any error give up and return -1
 	*/
 	while ( (first_bracket = strchr(parse, '<')) ) {
 		char *first_quote = strchr(parse, '"');
-
-		if (!first_quote || first_quote > first_bracket)
+		first_bracket++;
+		if (!first_quote || first_quote >= first_bracket) {
 			break; /* no need to look at quoted part */
+		}
 		/* the bracket is within quotes, so ignore it */
 		parse = find_closing_quote(first_quote + 1, NULL);
 		if (!*parse) {
 			ast_log(LOG_WARNING, "No closing quote found in '%s'\n", tmp);
-			break;
+			return  -1;
 		}
 		parse++;
 	}
+
+	/* If no first bracket then still look for a second bracket as some other parsing functions
+	may overwrite first bracket with NULL when terminating a token based display-name. As this
+	only affects token based display-names there is no danger of brackets being in quotes */
 	if (first_bracket) {
-		char *second_bracket = strchr(first_bracket + 1, '>');
-		if (second_bracket) {
-			*second_bracket = '\0';
-			tmp = first_bracket + 1;
+		parse = first_bracket;
 		} else {
-			ast_log(LOG_WARNING, "No closing bracket found in '%s'\n", tmp);
-		}
+		parse = tmp;
 	}
 
+	if ((second_bracket = strchr(parse, '>'))) {
+		*second_bracket++ = '\0';
+		if (out) {
+			*out = first_bracket;
+		}
+		if (residue) {
+			*residue = second_bracket;
+		}
+		return 0;
+	}
+
+	if ((first_bracket)) {
+			ast_log(LOG_WARNING, "No closing bracket found in '%s'\n", tmp);
+		return -1;
+		}
+
+	if (out) {
+		*out = tmp;
+	}
+	return 1;
+}
+
+char *get_in_brackets(char *tmp)
+{
+	char *out;
+	if((get_in_brackets_full(tmp, &out, NULL))) {
 	return tmp;
+	} else {
+		return out;
+}
 }
 
 AST_TEST_DEFINE(get_in_brackets_test)
@@ -645,12 +1072,442 @@ AST_TEST_DEFINE(get_in_brackets_test)
 	return res;
 }
 
+
+int parse_name_andor_addr(char *uri, const char *scheme, char **name, char **user, char **pass, char **host, char **port, struct uriparams *params, char **headers, char **residue)
+{
+	static char buf[1024];
+	char **residue2=residue;
+	int ret;
+	if (name) {
+		get_calleridname(uri,buf,sizeof(buf));
+		*name = buf;
+	}
+	ret = get_in_brackets_full(uri,&uri,residue);
+	if (ret == 0) { /* uri is in brackets so do not treat unknown trailing uri parameters as potential messageheader parameters */
+		*residue = *residue + 1; /* step over the first semicolon so as per parse uri residue */
+		residue2 = NULL;
+	}
+
+	return parse_uri_full(uri, scheme, user, pass, host, port, params, headers, residue2);
+}
+
+AST_TEST_DEFINE(parse_name_andor_addr_test)
+{
+	int res = AST_TEST_PASS;
+	char uri[1024];
+	char *name, *user, *pass, *host, *port, *headers, *residue;
+	struct uriparams params;
+
+	struct testdata {
+		char *desc;
+		char *uri;
+		char **nameptr;
+		char **userptr;
+		char **passptr;
+		char **hostptr;
+		char **portptr;
+		char **headersptr;
+		char **residueptr;
+		struct uriparams *paramsptr;
+		char *name;
+		char *user;
+		char *pass;
+		char *host;
+		char *port;
+		char *headers;
+		char *residue;
+		struct uriparams params;
+		AST_LIST_ENTRY(testdata) list;
+	};
+
+	struct testdata *testdataptr;
+
+	static AST_LIST_HEAD_NOLOCK(testdataliststruct, testdata) testdatalist;
+
+	struct testdata td1 = {
+		.desc = "quotes and brackets",
+		.uri = "\"name :@ \" <sip:user:secret@host:5060;param=discard;transport=tcp>;tag=tag",
+		.nameptr = &name,
+		.userptr = &user,
+		.passptr = &pass,
+		.hostptr = &host,
+		.portptr = &port,
+		.headersptr = &headers,
+		.residueptr = &residue,
+		.paramsptr = &params,
+		.name =  "name :@ ",
+		.user = "user",
+		.pass = "secret",
+		.host = "host",
+		.port = "5060",
+		.headers = "",
+		.residue = "tag=tag",
+		.params.transport = "tcp",
+		.params.lr = 0,
+		.params.user = ""
+	};
+
+	struct testdata td2 = {
+		.desc = "no quotes",
+		.uri = "givenname familyname <sip:user:secret@host:5060;param=discard;transport=tcp>;expires=3600",
+		.nameptr = &name,
+		.userptr = &user,
+		.passptr = &pass,
+		.hostptr = &host,
+		.portptr = &port,
+		.headersptr = &headers,
+		.residueptr = &residue,
+		.paramsptr = &params,
+		.name = "givenname familyname",
+		.user = "user",
+		.pass = "secret",
+		.host = "host",
+		.port = "5060",
+		.headers = "",
+		.residue = "expires=3600",
+		.params.transport = "tcp",
+		.params.lr = 0,
+		.params.user = ""
+	};
+
+	struct testdata td3 = {
+		.desc = "no brackets",
+		.uri = "sip:user:secret@host:5060;param=discard;transport=tcp;q=1",
+		.nameptr = &name,
+		.userptr = &user,
+		.passptr = &pass,
+		.hostptr = &host,
+		.portptr = &port,
+		.headersptr = &headers,
+		.residueptr = &residue,
+		.paramsptr = &params,
+		.name = "",
+		.user = "user",
+		.pass = "secret",
+		.host = "host",
+		.port = "5060",
+		.headers = "",
+		.residue = "q=1",
+		.params.transport = "tcp",
+		.params.lr = 0,
+		.params.user = ""
+	};
+
+	struct testdata td4 = {
+		.desc = "just host",
+		.uri = "sips:host",
+		.nameptr = &name,
+		.userptr = &user,
+		.passptr = &pass,
+		.hostptr = &host,
+		.portptr = &port,
+		.headersptr = &headers,
+		.residueptr = &residue,
+		.paramsptr = &params,
+		.name = "",
+		.user = "",
+		.pass = "",
+		.host = "host",
+		.port = "",
+		.headers = "",
+		.residue = "",
+		.params.transport = "",
+		.params.lr = 0,
+		.params.user = ""
+	};
+
+
+	AST_LIST_HEAD_SET_NOLOCK(&testdatalist, &td1);
+	AST_LIST_INSERT_TAIL(&testdatalist, &td2, list);
+	AST_LIST_INSERT_TAIL(&testdatalist, &td3, list);
+	AST_LIST_INSERT_TAIL(&testdatalist, &td4, list);
+
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "parse_name_andor_addr_test";
+		info->category = "channels/chan_sip/";
+		info->summary = "tests parsing of name_andor_addr abnf structure";
+		info->description =
+			"Tests parsing of abnf name-andor-addr = name-addr / addr-spec "
+			"Verifies output matches expected behavior.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	AST_LIST_TRAVERSE(&testdatalist, testdataptr, list) {
+		name = user = pass = host = port = headers = residue = NULL;
+		params.transport = params.user = params.method = params.ttl = params.maddr = NULL;
+		params.lr = 0;
+	ast_copy_string(uri,testdataptr->uri,sizeof(uri));
+		if (parse_name_andor_addr(uri, "sip:,sips:", testdataptr->nameptr, testdataptr->userptr, testdataptr->passptr, testdataptr->hostptr, testdataptr->portptr, testdataptr->paramsptr, testdataptr->headersptr, testdataptr->residueptr) ||
+			((testdataptr->nameptr) && strcmp(testdataptr->name, name)) ||
+			((testdataptr->userptr) && strcmp(testdataptr->user, user)) ||
+			((testdataptr->passptr) && strcmp(testdataptr->pass, pass)) ||
+			((testdataptr->hostptr) && strcmp(testdataptr->host, host)) ||
+			((testdataptr->portptr) && strcmp(testdataptr->port, port)) ||
+			((testdataptr->headersptr) && strcmp(testdataptr->headers, headers)) ||
+			((testdataptr->residueptr) && strcmp(testdataptr->residue, residue)) ||
+			((testdataptr->paramsptr) && strcmp(testdataptr->params.transport,params.transport)) ||
+			((testdataptr->paramsptr) && strcmp(testdataptr->params.user,params.user))
+		) {
+				ast_test_status_update(test, "Sub-Test: %s,failed.\n", testdataptr->desc);
+				res = AST_TEST_FAIL;
+		}
+	}
+
+
+	return res;
+}
+
+int get_comma(char *in, char **out) {
+	char *c;
+	char *parse = in;
+	if (out) {
+		*out = in;
+	}
+
+	/* Skip any quoted text */
+	while (*parse) {
+		if ((c = strchr(parse, '"'))) {
+			in = (char *)find_closing_quote((const char *)c + 1, NULL);
+			if (!*in) {
+				ast_log(LOG_WARNING, "No closing quote found in '%s'\n", c);
+				return -1;
+			} else {
+				break;
+			}
+		} else {
+			break;
+		}
+		parse++;
+	}
+	parse = in;
+
+	/* Skip any userinfo components of a uri as they may contain commas */
+	if ((c = strchr(parse,'@'))) {
+		parse = c+1;
+	}
+	if ((out) && (c = strchr(parse,','))) {
+		*c++ = '\0';
+		*out = c;
+		return 0;
+	}
+	return 1;
+}
+
+int parse_contact_header(char *contactheader, struct contactliststruct *contactlist) {
+	int res;
+	int last;
+	char *comma;
+	char *residue;
+	char *param;
+	char *value;
+	struct contact *contact=NULL;
+
+	if (*contactheader == '*') {
+		return 1;
+	}
+
+	contact = malloc(sizeof(*contact));
+
+	AST_LIST_HEAD_SET_NOLOCK(contactlist, contact);
+	while ((last = get_comma(contactheader,&comma)) != -1) {
+
+		res = parse_name_andor_addr(contactheader,"sip:,sips:",&contact->name,&contact->user,&contact->pass,&contact->host,&contact->port,&contact->params,&contact->headers,&residue);
+		if (res == -1) {
+			return res;
+		}
+
+		/* parse contact params */
+		contact->expires = contact->q = "";
+
+		while ((value = strchr(residue,'='))) {
+			*value++ = '\0';
+
+			param = residue;
+			if ((residue = strchr(value,';'))) {
+				*residue++ = '\0';
+			} else {
+				residue = "";
+			}
+
+			if (!strcmp(param,"expires")) {
+				contact->expires = value;
+			} else if (!strcmp(param,"q")) {
+				contact->q = value;
+			}
+		}
+
+		if(last) {
+			return 0;
+		}
+		contactheader = comma;
+
+		contact = malloc(sizeof(*contact));
+		AST_LIST_INSERT_TAIL(contactlist, contact, list);
+
+	}
+	return last;
+}
+
+AST_TEST_DEFINE(parse_contact_header_test)
+{
+	int res = AST_TEST_PASS;
+	char contactheader[1024];
+	int star;
+	struct contactliststruct contactlist;
+	struct contactliststruct *contactlistptr=&contactlist;
+
+	struct testdata {
+		char *desc;
+		char *contactheader;
+		int star;
+		struct contactliststruct *contactlist;
+
+		AST_LIST_ENTRY(testdata) list;
+	};
+
+	struct testdata *testdataptr;
+	struct contact *tdcontactptr;
+	struct contact *contactptr;
+
+	static AST_LIST_HEAD_NOLOCK(testdataliststruct, testdata) testdatalist;
+	struct contactliststruct contactlist1, contactlist2;
+
+	struct testdata td1 = {
+		.desc = "single contact",
+		.contactheader = "\"name :@;?&,\" <sip:user:secret@host:5082;param=discard;transport=tcp>;expires=3600",
+		.contactlist = &contactlist1,
+		.star = 0
+	};
+	struct contact contact11 = {
+		.name = "name :@;?&,",
+		.user = "user",
+		.pass = "secret",
+		.host = "host",
+		.port = "5082",
+		.params.transport = "tcp",
+		.params.ttl = "",
+		.params.lr = 0,
+		.headers = "",
+		.expires = "3600",
+		.q = ""
+	};
+
+	struct testdata td2 = {
+		.desc = "multiple contacts",
+		.contactheader = "sip:,user1,:,secret1,@host1;ttl=7;q=1;expires=3600,sips:host2",
+		.contactlist = &contactlist2,
+		.star = 0,
+	};
+	struct contact contact21 = {
+		.name = "",
+		.user = ",user1,",
+		.pass = ",secret1,",
+		.host = "host1",
+		.port = "",
+		.params.transport = "",
+		.params.ttl = "7",
+		.params.lr = 0,
+		.headers = "",
+		.expires = "3600",
+		.q = "1"
+	};
+	struct contact contact22 = {
+		.name = "",
+		.user = "",
+		.pass = "",
+		.host = "host2",
+		.port = "",
+		.params.transport = "",
+		.params.ttl = "",
+		.params.lr = 0,
+		.headers = "",
+		.expires = "",
+		.q = ""
+	};
+
+	struct testdata td3 = {
+		.desc = "star - all contacts",
+		.contactheader = "*",
+		.star = 1,
+		.contactlist = NULL
+	};
+
+	AST_LIST_HEAD_SET_NOLOCK(&testdatalist, &td1);
+	AST_LIST_INSERT_TAIL(&testdatalist, &td2, list);
+	AST_LIST_INSERT_TAIL(&testdatalist, &td3, list);
+
+	AST_LIST_HEAD_SET_NOLOCK(&contactlist1, &contact11);
+
+	AST_LIST_HEAD_SET_NOLOCK(&contactlist2, &contact21);
+	AST_LIST_INSERT_TAIL(&contactlist2, &contact22, list);
+
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "parse_contact_header_test";
+		info->category = "channels/chan_sip/";
+		info->summary = "tests parsing of sip contact header";
+		info->description =
+			"Tests parsing of a contact header including those with multiple contacts "
+			"Verifies output matches expected behavior.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	AST_LIST_TRAVERSE(&testdatalist, testdataptr, list) {
+		ast_copy_string(contactheader,testdataptr->contactheader,sizeof(contactheader));
+		star = parse_contact_header(contactheader,contactlistptr);
+		if (testdataptr->star) {
+			/* expecting star rather than list of contacts */
+			if (!star) {
+				ast_test_status_update(test, "Sub-Test: %s,failed.\n", testdataptr->desc);
+				res = AST_TEST_FAIL;
+				break;
+			}
+		} else {
+			contactptr = AST_LIST_FIRST(contactlistptr);
+			AST_LIST_TRAVERSE(testdataptr->contactlist, tdcontactptr, list) {
+				if (!contactptr ||
+					strcmp(tdcontactptr->name, contactptr->name) ||
+					strcmp(tdcontactptr->user, contactptr->user) ||
+					strcmp(tdcontactptr->pass, contactptr->pass) ||
+					strcmp(tdcontactptr->host, contactptr->host) ||
+					strcmp(tdcontactptr->port, contactptr->port) ||
+					strcmp(tdcontactptr->headers, contactptr->headers) ||
+					strcmp(tdcontactptr->expires, contactptr->expires) ||
+					strcmp(tdcontactptr->q, contactptr->q) ||
+					strcmp(tdcontactptr->params.transport, contactptr->params.transport) ||
+					strcmp(tdcontactptr->params.ttl, contactptr->params.ttl) ||
+					(tdcontactptr->params.lr != contactptr->params.lr)
+				) {
+					ast_test_status_update(test, "Sub-Test: %s,failed.\n", testdataptr->desc);
+					res = AST_TEST_FAIL;
+					break;
+				}
+
+			contactptr = AST_LIST_NEXT(contactptr,list);
+			}
+		}
+
+	}
+
+	return res;
+}
+
 void sip_request_parser_register_tests(void)
 {
 	AST_TEST_REGISTER(get_calleridname_test);
 	AST_TEST_REGISTER(sip_parse_uri_test);
 	AST_TEST_REGISTER(get_in_brackets_test);
 	AST_TEST_REGISTER(get_name_and_number_test);
+	AST_TEST_REGISTER(sip_parse_uri_fully_test);
+	AST_TEST_REGISTER(parse_name_andor_addr_test);
+	AST_TEST_REGISTER(parse_contact_header_test);
 }
 void sip_request_parser_unregister_tests(void)
 {
@@ -658,4 +1515,7 @@ void sip_request_parser_unregister_tests(void)
 	AST_TEST_UNREGISTER(get_calleridname_test);
 	AST_TEST_UNREGISTER(get_in_brackets_test);
 	AST_TEST_UNREGISTER(get_name_and_number_test);
+	AST_TEST_UNREGISTER(sip_parse_uri_fully_test);
+	AST_TEST_UNREGISTER(parse_name_andor_addr_test);
+	AST_TEST_UNREGISTER(parse_contact_header_test);
 }
