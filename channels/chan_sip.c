@@ -1260,7 +1260,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 static const struct sockaddr_in *sip_real_dst(const struct sip_pvt *p);
 static void build_via(struct sip_pvt *p);
 static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer);
-static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockaddr_in *sin, int newdialog);
+static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockaddr_in *sin, int newdialog, struct sockaddr_in *remote_address);
 static char *generate_random_string(char *buf, size_t size);
 static void build_callid_pvt(struct sip_pvt *pvt);
 static void build_callid_registry(struct sip_registry *reg, struct in_addr ourip, const char *fromdomain);
@@ -3998,7 +3998,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 /*! \brief create address structure from device name
  *      Or, if peer not found, find it in the global DNS
  *      returns TRUE (-1) on failure, FALSE on success */
-static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockaddr_in *sin, int newdialog)
+static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockaddr_in *sin, int newdialog, struct sockaddr_in *remote_address)
 {
 	struct hostent *hp;
 	struct ast_hostent ahp;
@@ -4026,7 +4026,9 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 			set_socket_transport(&dialog->socket, 0);
 		}
 		res = create_addr_from_peer(dialog, peer);
-		if (!ast_strlen_zero(port)) {
+		if (remote_address && remote_address->sin_addr.s_addr) {
+			dialog->sa = dialog->recv = *remote_address;
+		} else if (!ast_strlen_zero(port)) {
 			if ((portno = atoi(port))) {
 				dialog->sa.sin_port = dialog->recv.sin_port = htons(portno);
 			}
@@ -9859,7 +9861,7 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 	}
 	
 	/* Setup the destination of our subscription */
-	if (create_addr(mwi->call, mwi->hostname, &mwi->us, 0)) {
+	if (create_addr(mwi->call, mwi->hostname, &mwi->us, 0, NULL)) {
 		dialog_unlink_all(mwi->call, TRUE, TRUE);
 		mwi->call = dialog_unref(mwi->call, "unref dialog after unlink_all");
 		return 0;
@@ -10267,7 +10269,7 @@ static int manager_sipnotify(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	if (create_addr(p, channame, NULL, 0)) {
+	if (create_addr(p, channame, NULL, 0, NULL)) {
 		/* Maybe they're not registered, etc. */
 		dialog_unlink_all(p, TRUE, TRUE);
 		dialog_unref(p, "unref dialog inside for loop" );
@@ -10570,7 +10572,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			r->us.sin_port = htons(r->portno);
 
 		/* Find address to hostname */
-		if (create_addr(p, r->hostname, &r->us, 0)) {
+		if (create_addr(p, r->hostname, &r->us, 0, NULL)) {
 			/* we have what we hope is a temporary network error,
 			 * probably DNS.  We need to reschedule a registration try */
 			dialog_unlink_all(p, TRUE, TRUE);
@@ -15947,7 +15949,7 @@ static char *sip_cli_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 			return CLI_FAILURE;
 		}
 
-		if (create_addr(p, a->argv[i], NULL, 1)) {
+		if (create_addr(p, a->argv[i], NULL, 1, NULL)) {
 			/* Maybe they're not registered, etc. */
 			dialog_unlink_all(p, TRUE, TRUE);
 			dialog_unref(p, "unref dialog inside for loop" );
@@ -22330,12 +22332,19 @@ static struct ast_channel *sip_request_call(const char *type, format_t format, c
 	char tmp[256];
 	char *dest = data;
 	char *dnid;
- 	char *secret = NULL;
- 	char *md5secret = NULL;
- 	char *authname = NULL;
+	char *secret = NULL;
+	char *md5secret = NULL;
+	char *authname = NULL;
 	char *trans = NULL;
+	char *remote_address;
 	enum sip_transport transport = 0;
+	struct sockaddr_in remote_address_sin = { .sin_family = AF_INET };
 	format_t oldformat = format;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(peerorhost);
+		AST_APP_ARG(exten);
+		AST_APP_ARG(remote_address);
+	);
 
 	/* mask request with some set of allowed formats.
 	 * XXX this needs to be fixed.
@@ -22372,7 +22381,6 @@ static struct ast_channel *sip_request_call(const char *type, format_t format, c
 	/* Save the destination, the SIP dial string */
 	ast_copy_string(tmp, dest, sizeof(tmp));
 
-
 	/* Find DNID and take it away */
 	dnid = strchr(tmp, '!');
 	if (dnid != NULL) {
@@ -22380,11 +22388,14 @@ static struct ast_channel *sip_request_call(const char *type, format_t format, c
 		ast_string_field_set(p, todnid, dnid);
 	}
 
+	/* Divvy up the items separated by slashes */
+	AST_NONSTANDARD_APP_ARGS(args, tmp, '/');
+
 	/* Find at sign - @ */
-	host = strchr(tmp, '@');
+	host = strchr(args.peerorhost, '@');
 	if (host) {
 		*host++ = '\0';
-		ext = tmp;
+		ext = args.peerorhost;
 		secret = strchr(ext, ':');
 	}
 	if (secret) {
@@ -22415,10 +22426,37 @@ static struct ast_channel *sip_request_call(const char *type, format_t format, c
 	}
 
 	if (!host) {
-		ext = strchr(tmp, '/');
-		if (ext)
-			*ext++ = '\0';
-		host = tmp;
+		ext = args.exten;
+		host = args.peerorhost;
+		remote_address = args.remote_address;
+	} else {
+		remote_address = args.remote_address;
+		if (!ast_strlen_zero(args.exten)) {
+			ast_log(LOG_NOTICE, "Conflicting extension values given. Using '%s' and not '%s'\n", ext, args.exten);
+		}
+	}
+
+	if (!ast_strlen_zero(remote_address)) {
+		struct hostent *hp;
+		struct ast_hostent ahp;
+		char *port;
+		unsigned short port_num = transport & SIP_TRANSPORT_TLS ? STANDARD_TLS_PORT : STANDARD_SIP_PORT;
+
+		port = strchr(remote_address, ':');
+		if (port) {
+			*port++ = '\0';
+			if (sscanf(port, "%hu", &port_num) != 1) {
+				ast_log(LOG_WARNING, "Invalid port number provided in remote address. Using %hu\n", port_num);
+			}
+		}
+
+		hp = ast_gethostbyname(remote_address, &ahp);
+		if (!hp) {
+			ast_log(LOG_WARNING, "Unable to find IP address for host %s. We will not use this remote IP address\n", remote_address);
+		} else {
+			memcpy(&remote_address_sin.sin_addr, hp->h_addr, sizeof(remote_address_sin.sin_addr));
+			remote_address_sin.sin_port = htons(port_num);
+		}
 	}
 
 	set_socket_transport(&p->socket, transport);
@@ -22428,7 +22466,7 @@ static struct ast_channel *sip_request_call(const char *type, format_t format, c
 		ext = extension (user part of URI)
 		dnid = destination of the call (applies to the To: header)
 	*/
-	if (create_addr(p, host, NULL, 1)) {
+	if (create_addr(p, host, NULL, 1, &remote_address_sin)) {
 		*cause = AST_CAUSE_UNREGISTERED;
 		ast_debug(3, "Cant create SIP call - target device not registered\n");
 		dialog_unlink_all(p, TRUE, TRUE);

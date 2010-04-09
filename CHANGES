@@ -56,6 +56,9 @@ SIP Changes
  * Added 'use_q850_reason' configuration option for generating and parsing
    if available  Reason: Q.850;cause=<cause code> header. It is implemented
    in some gateways for better passing PRI/SS7 cause codes via SIP.
+ * When dialing SIP peers, a new component may be added to the end of the dialstring
+   to indicate that a specific remote IP address or host should be used when dialing
+   the particular peer. The dialstring format is SIP/peer/exten/host_or_IP.
 
 IAX2 Changes
 -----------
@@ -146,6 +149,10 @@ Applications
 
 Dialplan Functions
 ------------------
+ * SRVQUERY and SRVRESULT functions added. This can be used to query and iterate
+   over SRV records associated with a specific service. From the CLI, type
+   'core show function SRVQUERY' and 'core show function SRVRESULT' for more
+   details on how these may be used.
  * PITCH_SHIFT dialplan function added. This function can be used to modify the
    pitch of a channel's tx and rx audio streams.
  * Added new dialplan functions CONNECTEDLINE and REDIRECTING which permits

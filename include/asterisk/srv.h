@@ -61,4 +61,39 @@ void ast_srv_cleanup(struct srv_context **context);
 */
 extern int ast_get_srv(struct ast_channel *chan, char *host, int hostlen, int *port, const char *service);
 
+/*!
+ * \brief Get the number of records for a given SRV context
+ *
+ * \details
+ * This is meant to be used after calling ast_srv_lookup, so that
+ * one may retrieve the number of records returned during a specific
+ * SRV lookup.
+ *
+ * \param context The context returned by ast_srv_lookup
+ * \return Number of records in context
+ */
+unsigned int ast_srv_get_record_count(struct srv_context *context);
+
+/*!
+ * \brief Retrieve details from a specific SRV record
+ *
+ * \details
+ * After calling ast_srv_lookup, the srv_context will contain
+ * the data from several records. You can retrieve the data
+ * of a specific one by asking for a specific record number. The
+ * records are sorted based on priority and secondarily based on
+ * weight. See RFC 2782 for the exact sorting rules.
+ *
+ * \param context The context returned by ast_srv_lookup
+ * \param record_num The 1-indexed record number to retrieve
+ * \param[out] host The host portion of the record
+ * \param[out] port The port portion of the record
+ * \param[out] priority The priority portion of the record
+ * \param[out] weight The weight portion of the record
+ * \retval -1 Failed to retrieve information. Likely due to an out of
+ * range record_num
+ * \retval 0 Success
+ */
+int ast_srv_get_nth_record(struct srv_context *context, int record_num, const char **host,
+		unsigned short *port, unsigned short *priority, unsigned short *weight);
 #endif /* _ASTERISK_SRV_H */
