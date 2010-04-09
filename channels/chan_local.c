@@ -869,7 +869,7 @@ static struct ast_channel *local_request(const char *type, format_t format, cons
 			AST_LIST_UNLOCK(&locals);
 			p = local_pvt_destroy(p);
 		}
-		if (ast_channel_cc_params_init(chan, ast_channel_get_cc_config_params((struct ast_channel *)requestor))) {
+		if (ast_channel_cc_params_init(chan, requestor ? ast_channel_get_cc_config_params((struct ast_channel *)requestor) : NULL)) {
 			chan = ast_channel_release(chan);
 			p = local_pvt_destroy(p);
 		}
