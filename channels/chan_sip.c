@@ -1887,7 +1887,6 @@ static int find_sip_monitor_instance_by_suspension_entry(void *obj, void *arg, i
 
 static int sip_cc_monitor_request_cc(struct ast_cc_monitor *monitor, int *available_timer_id);
 static int sip_cc_monitor_suspend(struct ast_cc_monitor *monitor);
-static int sip_cc_monitor_status_response(struct ast_cc_monitor *monitor, enum ast_device_state devstate);
 static int sip_cc_monitor_unsuspend(struct ast_cc_monitor *monitor);
 static int sip_cc_monitor_cancel_available_timer(struct ast_cc_monitor *monitor, int *sched_id);
 static void sip_cc_monitor_destructor(void *private_data);
@@ -1896,7 +1895,6 @@ static struct ast_cc_monitor_callbacks sip_cc_monitor_callbacks = {
 	.type = "SIP",
 	.request_cc = sip_cc_monitor_request_cc,
 	.suspend = sip_cc_monitor_suspend,
-	.status_response = sip_cc_monitor_status_response,
 	.unsuspend = sip_cc_monitor_unsuspend,
 	.cancel_available_timer = sip_cc_monitor_cancel_available_timer,
 	.destructor = sip_cc_monitor_destructor,
@@ -2008,15 +2006,6 @@ static int sip_cc_monitor_suspend(struct ast_cc_monitor *monitor)
 	}
 	construct_pidf_body(CC_CLOSED, monitor_instance->suspension_entry->body, sizeof(monitor_instance->suspension_entry->body), monitor_instance->peername);
 	return transmit_publish(monitor_instance->suspension_entry, publish_type, monitor_instance->notify_uri);
-}
-
-static int sip_cc_monitor_status_response(struct ast_cc_monitor *monitor, enum ast_device_state devstate)
-{
-	/* This will never be called because the SIP monitor will never make a status request to
-	 * begin with
-	 */
-	ast_log(LOG_WARNING, "sip_cc_monitor_status_response called. Something dreadfully wrong must have happened.\n");
-	return 0;
 }
 
 static int sip_cc_monitor_unsuspend(struct ast_cc_monitor *monitor)

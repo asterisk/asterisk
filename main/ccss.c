@@ -965,7 +965,6 @@ static const struct ast_cc_agent_callbacks *find_agent_callbacks(struct ast_chan
 
 static int cc_generic_monitor_request_cc(struct ast_cc_monitor *monitor, int *available_timer_id);
 static int cc_generic_monitor_suspend(struct ast_cc_monitor *monitor);
-static int cc_generic_monitor_status_response(struct ast_cc_monitor *monitor, enum ast_device_state devstate);
 static int cc_generic_monitor_unsuspend(struct ast_cc_monitor *monitor);
 static int cc_generic_monitor_cancel_available_timer(struct ast_cc_monitor *monitor, int *sched_id);
 static void cc_generic_monitor_destructor(void *private_data);
@@ -974,7 +973,6 @@ static struct ast_cc_monitor_callbacks generic_monitor_cbs = {
 	.type = "generic",
 	.request_cc = cc_generic_monitor_request_cc,
 	.suspend = cc_generic_monitor_suspend,
-	.status_response = cc_generic_monitor_status_response,
 	.unsuspend = cc_generic_monitor_unsuspend,
 	.cancel_available_timer = cc_generic_monitor_cancel_available_timer,
 	.destructor = cc_generic_monitor_destructor,
@@ -1255,15 +1253,6 @@ static int cc_generic_monitor_suspend(struct ast_cc_monitor *monitor)
 		}
 	}
 	cc_unref(generic_list, "Done with generic list in suspend callback");
-	return 0;
-}
-
-static int cc_generic_monitor_status_response(struct ast_cc_monitor *monitor, enum ast_device_state devstate)
-{
-	/* The generic monitor will never issue a status request of the other side's agent.
-	 * If this somehow gets called, something really fishy is going on.
-	 */
-	ast_log(LOG_WARNING, "Why has a generic monitor's status_response callback been called? CoreID is %d\n", monitor->core_id);
 	return 0;
 }
 
