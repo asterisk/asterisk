@@ -37,7 +37,7 @@
 #ifndef _ASTERISK_DEVICESTATE_H
 #define _ASTERISK_DEVICESTATE_H
 
-#include "asterisk/channel.h"
+#include "asterisk/channelstate.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

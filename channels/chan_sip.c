@@ -266,6 +266,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "sip/include/config_parser.h"
 #include "sip/include/reqresp_parser.h"
 #include "sip/include/sip_utils.h"
+#include "asterisk/ccss.h"
+#include "asterisk/xml.h"
 #include "sip/include/dialog.h"
 #include "sip/include/dialplan_functions.h"
 
@@ -625,7 +627,7 @@ static const struct  cfsip_methods {
 	{ SIP_UPDATE,    NO_RTP, "UPDATE",   CAN_NOT_CREATE_DIALOG },
 	{ SIP_INFO,      NO_RTP, "INFO",     CAN_NOT_CREATE_DIALOG },
 	{ SIP_CANCEL,    NO_RTP, "CANCEL",   CAN_NOT_CREATE_DIALOG },
-	{ SIP_PUBLISH,   NO_RTP, "PUBLISH",  CAN_CREATE_DIALOG_UNSUPPORTED_METHOD },
+	{ SIP_PUBLISH,   NO_RTP, "PUBLISH",  CAN_CREATE_DIALOG },
 	{ SIP_PING,      NO_RTP, "PING",     CAN_CREATE_DIALOG_UNSUPPORTED_METHOD }
 };
 
@@ -784,6 +786,14 @@ static int global_max_se;                     /*!< Highest threshold for session
 static int global_dynamic_exclude_static = 0; /*!< Exclude static peers from contact registrations */
 /*@}*/
 
+/*!
+ * We use libxml2 in order to parse XML that may appear in the body of a SIP message. Currently,
+ * the only usage is for parsing PIDF bodies of incoming PUBLISH requests in the call-completion
+ * event package. This variable is set at module load time and may be checked at runtime to determine
+ * if XML parsing support was found.
+ */
+static int can_parse_xml;
+
 /*! \name Object counters @{
  *  \bug These counters are not handled in a thread-safe way ast_atomic_fetchadd_int()
  *  should be used to modify these values. */
@@ -850,6 +860,251 @@ static const int HASH_DIALOG_SIZE = 17;
 static const int HASH_PEER_SIZE = 563;	/*!< Size of peer hash table, prime number preferred! */
 static const int HASH_DIALOG_SIZE = 563;
 #endif
+
+static const struct {
+	enum ast_cc_service_type service;
+	const char *service_string;
+} sip_cc_service_map [] = {
+	[AST_CC_NONE] = { AST_CC_NONE, "" },
+	[AST_CC_CCBS] = { AST_CC_CCBS, "BS" },
+	[AST_CC_CCNR] = { AST_CC_CCNR, "NR" },
+	[AST_CC_CCNL] = { AST_CC_CCNL, "NL" },
+};
+
+static enum ast_cc_service_type service_string_to_service_type(const char * const service_string)
+{
+	enum ast_cc_service_type service;
+	for (service = AST_CC_CCBS; service <= AST_CC_CCNL; ++service) {
+		if (!strcasecmp(service_string, sip_cc_service_map[service].service_string)) {
+			return service;
+		}
+	}
+	return AST_CC_NONE;
+}
+
+static const struct {
+	enum sip_cc_notify_state state;
+	const char *state_string;
+} sip_cc_notify_state_map [] = {
+	[CC_QUEUED] = {CC_QUEUED, "cc-state: queued"},
+	[CC_READY] = {CC_READY, "cc-state: ready"},
+};
+
+AST_LIST_HEAD_STATIC(epa_static_data_list, epa_backend);
+
+static int sip_epa_register(const struct epa_static_data *static_data)
+{
+	struct epa_backend *backend = ast_calloc(1, sizeof(*backend));
+
+	if (!backend) {
+		return -1;
+	}
+
+	backend->static_data = static_data;
+
+	AST_LIST_LOCK(&epa_static_data_list);
+	AST_LIST_INSERT_TAIL(&epa_static_data_list, backend, next);
+	AST_LIST_UNLOCK(&epa_static_data_list);
+	return 0;
+}
+
+static void cc_handle_publish_error(struct sip_pvt *pvt, const int resp, struct sip_request *req, struct sip_epa_entry *epa_entry);
+
+static void cc_epa_destructor(void *data)
+{
+	struct sip_epa_entry *epa_entry = data;
+	struct cc_epa_entry *cc_entry = epa_entry->instance_data;
+	ast_free(cc_entry);
+}
+
+static const struct epa_static_data cc_epa_static_data  = {
+	.event = CALL_COMPLETION,
+	.name = "call-completion",
+	.handle_error = cc_handle_publish_error,
+	.destructor = cc_epa_destructor,
+};
+
+static const struct epa_static_data *find_static_data(const char * const event_package)
+{
+	const struct epa_backend *backend = NULL;
+
+	AST_LIST_LOCK(&epa_static_data_list);
+	AST_LIST_TRAVERSE(&epa_static_data_list, backend, next) {
+		if (!strcmp(backend->static_data->name, event_package)) {
+			break;
+		}
+	}
+	AST_LIST_UNLOCK(&epa_static_data_list);
+	return backend ? backend->static_data : NULL;
+}
+
+static struct sip_epa_entry *create_epa_entry (const char * const event_package, const char * const destination)
+{
+	struct sip_epa_entry *epa_entry;
+	const struct epa_static_data *static_data;
+
+	if (!(static_data = find_static_data(event_package))) {
+		return NULL;
+	}
+
+	if (!(epa_entry = ao2_t_alloc(sizeof(*epa_entry), static_data->destructor, "Allocate new EPA entry"))) {
+		return NULL;
+	}
+
+	epa_entry->static_data = static_data;
+	ast_copy_string(epa_entry->destination, destination, sizeof(epa_entry->destination));
+	return epa_entry;
+}
+
+/*!
+ * Used to create new entity IDs by ESCs.
+ */
+static int esc_etag_counter;
+static const int DEFAULT_PUBLISH_EXPIRES = 3600;
+
+#ifdef HAVE_LIBXML2
+static int cc_esc_publish_handler(struct sip_pvt *pvt, struct sip_request *req, struct event_state_compositor *esc, struct sip_esc_entry *esc_entry);
+
+static const struct sip_esc_publish_callbacks cc_esc_publish_callbacks = {
+	.initial_handler = cc_esc_publish_handler,
+	.modify_handler = cc_esc_publish_handler,
+};
+#endif
+
+/*!
+ * \brief The Event State Compositors
+ *
+ * An Event State Compositor is an entity which
+ * accepts PUBLISH requests and acts appropriately
+ * based on these requests.
+ *
+ * The actual event_state_compositor structure is simply
+ * an ao2_container of sip_esc_entrys. When an incoming
+ * PUBLISH is received, we can match the appropriate sip_esc_entry
+ * using the entity ID of the incoming PUBLISH.
+ */
+static struct event_state_compositor {
+	enum subscriptiontype event;
+	const char * name;
+	const struct sip_esc_publish_callbacks *callbacks;
+	struct ao2_container *compositor;
+} event_state_compositors [] = {
+#ifdef HAVE_LIBXML2
+	{CALL_COMPLETION, "call-completion", &cc_esc_publish_callbacks},
+#endif
+};
+
+static const int ESC_MAX_BUCKETS = 37;
+
+static void esc_entry_destructor(void *obj)
+{
+	struct sip_esc_entry *esc_entry = obj;
+	if (esc_entry->sched_id > -1) {
+		AST_SCHED_DEL(sched, esc_entry->sched_id);
+	}
+}
+
+static int esc_hash_fn(const void *obj, const int flags)
+{
+	const struct sip_esc_entry *entry = obj;
+	return ast_str_hash(entry->entity_tag);
+}
+
+static int esc_cmp_fn(void *obj, void *arg, int flags)
+{
+	struct sip_esc_entry *entry1 = obj;
+	struct sip_esc_entry *entry2 = arg;
+
+	return (!strcmp(entry1->entity_tag, entry2->entity_tag)) ? (CMP_MATCH | CMP_STOP) : 0;
+}
+
+static struct event_state_compositor *get_esc(const char * const event_package) {
+	int i;
+	for (i = 0; i < ARRAY_LEN(event_state_compositors); i++) {
+		if (!strcasecmp(event_package, event_state_compositors[i].name)) {
+			return &event_state_compositors[i];
+		}
+	}
+	return NULL;
+}
+
+static struct sip_esc_entry *get_esc_entry(const char * entity_tag, struct event_state_compositor *esc) {
+	struct sip_esc_entry *entry;
+	struct sip_esc_entry finder;
+
+	ast_copy_string(finder.entity_tag, entity_tag, sizeof(finder.entity_tag));
+
+	entry = ao2_find(esc->compositor, &finder, OBJ_POINTER);
+
+	return entry;
+}
+
+static int publish_expire(const void *data)
+{
+	struct sip_esc_entry *esc_entry = (struct sip_esc_entry *) data;
+	struct event_state_compositor *esc = get_esc(esc_entry->event);
+
+	ast_assert(esc != NULL);
+
+	ao2_unlink(esc->compositor, esc_entry);
+	ao2_ref(esc_entry, -1);
+	return 0;
+}
+
+static void create_new_sip_etag(struct sip_esc_entry *esc_entry, int is_linked)
+{
+	int new_etag = ast_atomic_fetchadd_int(&esc_etag_counter, +1);
+	struct event_state_compositor *esc = get_esc(esc_entry->event);
+
+	ast_assert(esc != NULL);
+	if (is_linked) {
+		ao2_unlink(esc->compositor, esc_entry);
+	}
+	snprintf(esc_entry->entity_tag, sizeof(esc_entry->entity_tag), "%d", new_etag);
+	ao2_link(esc->compositor, esc_entry);
+}
+
+static struct sip_esc_entry *create_esc_entry(struct event_state_compositor *esc, struct sip_request *req, const int expires)
+{
+	struct sip_esc_entry *esc_entry;
+	int expires_ms;
+
+	if (!(esc_entry = ao2_alloc(sizeof(*esc_entry), esc_entry_destructor))) {
+		return NULL;
+	}
+
+	esc_entry->event = esc->name;
+
+	expires_ms = expires * 1000;
+	/* Bump refcount for scheduler */
+	ao2_ref(esc_entry, +1);
+	esc_entry->sched_id = ast_sched_add(sched, expires_ms, publish_expire, esc_entry);
+
+	/* Note: This links the esc_entry into the ESC properly */
+	create_new_sip_etag(esc_entry, 0);
+
+	return esc_entry;
+}
+
+static int initialize_escs(void)
+{
+	int i, res = 0;
+	for (i = 0; i < ARRAY_LEN(event_state_compositors); i++) {
+		if (!((event_state_compositors[i].compositor) =
+					ao2_container_alloc(ESC_MAX_BUCKETS, esc_hash_fn, esc_cmp_fn))) {
+			res = -1;
+		}
+	}
+	return res;
+}
+
+static void destroy_escs(void)
+{
+	int i;
+	for (i = 0; i < ARRAY_LEN(event_state_compositors); i++) {
+		ao2_ref(event_state_compositors[i].compositor, -1);
+	}
+}
 
 /*! \brief
  * Here we implement the container for dialogs (sip_pvt), defining
@@ -1001,6 +1256,7 @@ static int sip_prepare_socket(struct sip_pvt *p);
 static int sipsock_read(int *id, int fd, short events, void *ignore);
 static int __sip_xmit(struct sip_pvt *p, struct ast_str *data, int len);
 static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, struct ast_str *data, int len, int fatal, int sipmethod);
+static void add_cc_call_info_to_response(struct sip_pvt *p, struct sip_request *resp);
 static int __transmit_response(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable);
 static int retrans_pkt(const void *data);
 static int transmit_response_using_temp(ast_string_field callid, struct sockaddr_in *sin, int useglobal_nat, const int intended_method, const struct sip_request *req, const char *msg);
@@ -1015,7 +1271,8 @@ static int transmit_response_with_allow(struct sip_pvt *p, const char *msg, cons
 static void transmit_fake_auth_response(struct sip_pvt *p, int sipmethod, struct sip_request *req, enum xmittype reliable);
 static int transmit_request(struct sip_pvt *p, int sipmethod, int inc, enum xmittype reliable, int newbranch);
 static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqno, enum xmittype reliable, int newbranch);
-static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init);
+static int transmit_publish(struct sip_epa_entry *epa_entry, enum sip_publish_type publish_type, const char * const explicit_uri);
+static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init, const char * const explicit_uri);
 static int transmit_reinvite_with_sdp(struct sip_pvt *p, int t38version, int oldsdp);
 static int transmit_info_with_digit(struct sip_pvt *p, const char digit, unsigned int duration);
 static int transmit_info_with_vidupdate(struct sip_pvt *p);
@@ -1023,6 +1280,7 @@ static int transmit_message_with_text(struct sip_pvt *p, const char *text);
 static int transmit_refer(struct sip_pvt *p, const char *dest);
 static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs, const char *vmexten);
 static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *message, int terminate);
+static int transmit_cc_notify(struct ast_cc_agent *agent, struct sip_pvt *subscription, enum sip_cc_notify_state state);
 static int transmit_register(struct sip_registry *r, int sipmethod, const char *auth, const char *authheader);
 static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, int seqno);
 static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, int seqno);
@@ -1236,7 +1494,7 @@ static int set_address_from_contact(struct sip_pvt *pvt);
 static void check_via(struct sip_pvt *p, struct sip_request *req);
 static int get_rpid(struct sip_pvt *p, struct sip_request *oreq);
 static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, char **number, int *reason);
-static int get_destination(struct sip_pvt *p, struct sip_request *oreq);
+static int get_destination(struct sip_pvt *p, struct sip_request *oreq, int *cc_recall_core_id);
 static int get_msg_text(char *buf, int len, struct sip_request *req, int addnewline);
 static int transmit_state_notify(struct sip_pvt *p, int state, int full, int timeout);
 static void update_connectedline(struct sip_pvt *p, const void *data, size_t datalen);
@@ -1253,7 +1511,7 @@ static void *sip_tcp_worker_fn(void *);
 static void initialize_initreq(struct sip_pvt *p, struct sip_request *req);
 static int init_req(struct sip_request *req, int sipmethod, const char *recip);
 static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, int seqno, int newbranch);
-static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod);
+static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, const char * const explicit_uri);
 static int init_resp(struct sip_request *resp, const char *msg);
 static inline int resp_needs_contact(const char *msg, enum sipmethod method);
 static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg, const struct sip_request *req);
@@ -1297,6 +1555,7 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *current, struct sip_request *req, int seqno, int *nounlock);
 
 /*------Response handling functions */
+static void handle_response_publish(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, int seqno);
 static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, int seqno);
 static void handle_response_notify(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, int seqno);
 static void handle_response_refer(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, int seqno);
@@ -1371,6 +1630,556 @@ const struct ast_channel_tech sip_tech = {
  * and is for use with channels using SIP INFO DTMF.
  */
 struct ast_channel_tech sip_tech_info;
+
+static int sip_cc_agent_init(struct ast_cc_agent *agent, struct ast_channel *chan);
+static int sip_cc_agent_start_offer_timer(struct ast_cc_agent *agent);
+static int sip_cc_agent_stop_offer_timer(struct ast_cc_agent *agent);
+static void sip_cc_agent_ack(struct ast_cc_agent *agent);
+static int sip_cc_agent_status_request(struct ast_cc_agent *agent);
+static int sip_cc_agent_start_monitoring(struct ast_cc_agent *agent);
+static int sip_cc_agent_recall(struct ast_cc_agent *agent);
+static void sip_cc_agent_destructor(struct ast_cc_agent *agent);
+
+static struct ast_cc_agent_callbacks sip_cc_agent_callbacks = {
+	.type = "SIP",
+	.init = sip_cc_agent_init,
+	.start_offer_timer = sip_cc_agent_start_offer_timer,
+	.stop_offer_timer = sip_cc_agent_stop_offer_timer,
+	.ack = sip_cc_agent_ack,
+	.status_request = sip_cc_agent_status_request,
+	.start_monitoring = sip_cc_agent_start_monitoring,
+	.callee_available = sip_cc_agent_recall,
+	.destructor = sip_cc_agent_destructor,
+};
+
+static int find_by_notify_uri_helper(void *obj, void *arg, int flags)
+{
+	struct ast_cc_agent *agent = obj;
+	struct sip_cc_agent_pvt *agent_pvt = agent->private_data;
+	const char *uri = arg;
+
+	return !strcmp(agent_pvt->notify_uri, uri) ? CMP_MATCH | CMP_STOP : 0;
+}
+
+static struct ast_cc_agent *find_sip_cc_agent_by_notify_uri(const char * const uri)
+{
+	struct ast_cc_agent *agent = ast_cc_agent_callback(0, find_by_notify_uri_helper, (char *)uri, "SIP");
+	return agent;
+}
+
+static int find_by_subscribe_uri_helper(void *obj, void *arg, int flags)
+{
+	struct ast_cc_agent *agent = obj;
+	struct sip_cc_agent_pvt *agent_pvt = agent->private_data;
+	const char *uri = arg;
+
+	return !strcmp(agent_pvt->subscribe_uri, uri) ? CMP_MATCH | CMP_STOP : 0;
+}
+
+static struct ast_cc_agent *find_sip_cc_agent_by_subscribe_uri(const char * const uri)
+{
+	struct ast_cc_agent *agent = ast_cc_agent_callback(0, find_by_subscribe_uri_helper, (char *)uri, "SIP");
+	return agent;
+}
+
+static int find_by_callid_helper(void *obj, void *arg, int flags)
+{
+	struct ast_cc_agent *agent = obj;
+	struct sip_cc_agent_pvt *agent_pvt = agent->private_data;
+	struct sip_pvt *call_pvt = arg;
+
+	return !strcmp(agent_pvt->original_callid, call_pvt->callid) ? CMP_MATCH | CMP_STOP : 0;
+}
+
+static struct ast_cc_agent *find_sip_cc_agent_by_original_callid(struct sip_pvt *pvt)
+{
+	struct ast_cc_agent *agent = ast_cc_agent_callback(0, find_by_callid_helper, pvt, "SIP");
+	return agent;
+}
+
+static int sip_cc_agent_init(struct ast_cc_agent *agent, struct ast_channel *chan)
+{
+	struct sip_cc_agent_pvt *agent_pvt = ast_calloc(1, sizeof(*agent_pvt));
+	struct sip_pvt *call_pvt = chan->tech_pvt;
+
+	if (!agent_pvt) {
+		return -1;
+	}
+
+	ast_assert(!strcmp(chan->tech->type, "SIP"));
+
+	ast_copy_string(agent_pvt->original_callid, call_pvt->callid, sizeof(agent_pvt->original_callid));
+	ast_copy_string(agent_pvt->original_exten, call_pvt->exten, sizeof(agent_pvt->original_exten));
+	agent_pvt->offer_timer_id = -1;
+	agent->private_data = agent_pvt;
+	sip_pvt_lock(call_pvt);
+	ast_set_flag(&call_pvt->flags[0], SIP_OFFER_CC);
+	sip_pvt_unlock(call_pvt);
+	return 0;
+}
+
+static int sip_offer_timer_expire(const void *data)
+{
+	struct ast_cc_agent *agent = (struct ast_cc_agent *) data;
+	struct sip_cc_agent_pvt *agent_pvt = agent->private_data;
+
+	agent_pvt->offer_timer_id = -1;
+
+	return ast_cc_failed(agent->core_id, "SIP agent %s's offer timer expired", agent->device_name);
+}
+
+static int sip_cc_agent_start_offer_timer(struct ast_cc_agent *agent)
+{
+	struct sip_cc_agent_pvt *agent_pvt = agent->private_data;
+	int when;
+
+	when = ast_get_cc_offer_timer(agent->cc_params) * 1000;
+	agent_pvt->offer_timer_id = ast_sched_add(sched, when, sip_offer_timer_expire, agent);
+	return 0;
+}
+
+static int sip_cc_agent_stop_offer_timer(struct ast_cc_agent *agent)
+{
+	struct sip_cc_agent_pvt *agent_pvt = agent->private_data;
+
+	AST_SCHED_DEL(sched, agent_pvt->offer_timer_id);
+	return 0;
+}
+
+static void sip_cc_agent_ack(struct ast_cc_agent *agent)
+{
+	struct sip_cc_agent_pvt *agent_pvt = agent->private_data;
+
+	sip_pvt_lock(agent_pvt->subscribe_pvt);
+	ast_set_flag(&agent_pvt->subscribe_pvt->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
+	transmit_response(agent_pvt->subscribe_pvt, "200 OK", &agent_pvt->subscribe_pvt->initreq);
+	transmit_cc_notify(agent, agent_pvt->subscribe_pvt, CC_QUEUED);
+	sip_pvt_unlock(agent_pvt->subscribe_pvt);
+	agent_pvt->is_available = TRUE;
+}
+
+static int sip_cc_agent_status_request(struct ast_cc_agent *agent)
+{
+	struct sip_cc_agent_pvt *agent_pvt = agent->private_data;
+	enum ast_device_state state = agent_pvt->is_available ? AST_DEVICE_NOT_INUSE : AST_DEVICE_INUSE;
+	return ast_cc_agent_status_response(agent->core_id, state);
+}
+
+static int sip_cc_agent_start_monitoring(struct ast_cc_agent *agent)
+{
+	/* To start monitoring just means to wait for an incoming PUBLISH
+	 * to tell us that the caller has become available again. No special
+	 * action is needed
+	 */
+	return 0;
+}
+
+static int sip_cc_agent_recall(struct ast_cc_agent *agent)
+{
+	struct sip_cc_agent_pvt *agent_pvt = agent->private_data;
+	/* If we have received a PUBLISH beforehand stating that the caller in question
+	 * is not available, we can save ourself a bit of effort here and just report
+	 * the caller as busy
+	 */
+	if (!agent_pvt->is_available) {
+		return ast_cc_agent_caller_busy(agent->core_id, "Caller %s is busy, reporting to the core",
+				agent->device_name);
+	}
+	/* Otherwise, we transmit a NOTIFY to the caller and await either
+	 * a PUBLISH or an INVITE
+	 */
+	sip_pvt_lock(agent_pvt->subscribe_pvt);
+	transmit_cc_notify(agent, agent_pvt->subscribe_pvt, CC_READY);
+	sip_pvt_unlock(agent_pvt->subscribe_pvt);
+	return 0;
+}
+
+static void sip_cc_agent_destructor(struct ast_cc_agent *agent)
+{
+	struct sip_cc_agent_pvt *agent_pvt = agent->private_data;
+
+	if (!agent_pvt) {
+		/* The agent constructor probably failed. */
+		return;
+	}
+
+	sip_cc_agent_stop_offer_timer(agent);
+	if (agent_pvt->subscribe_pvt) {
+		sip_pvt_lock(agent_pvt->subscribe_pvt);
+		if (!ast_test_flag(&agent_pvt->subscribe_pvt->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED)) {
+			/* If we haven't sent a 200 OK for the SUBSCRIBE dialog yet, then we need to send a response letting
+			 * the subscriber know something went wrong
+			 */
+			transmit_response(agent_pvt->subscribe_pvt, "500 Internal Server Error", &agent_pvt->subscribe_pvt->initreq);
+		}
+		sip_pvt_unlock(agent_pvt->subscribe_pvt);
+		agent_pvt->subscribe_pvt = dialog_unref(agent_pvt->subscribe_pvt, "SIP CC agent destructor: Remove ref to subscription");
+	}
+	ast_free(agent_pvt);
+}
+
+struct ao2_container *sip_monitor_instances;
+
+static int sip_monitor_instance_hash_fn(const void *obj, const int flags)
+{
+	const struct sip_monitor_instance *monitor_instance = obj;
+	return monitor_instance->core_id;
+}
+
+static int sip_monitor_instance_cmp_fn(void *obj, void *arg, int flags)
+{
+	struct sip_monitor_instance *monitor_instance1 = obj;
+	struct sip_monitor_instance *monitor_instance2 = arg;
+
+	return monitor_instance1->core_id == monitor_instance2->core_id ? CMP_MATCH | CMP_STOP : 0;
+}
+
+static void sip_monitor_instance_destructor(void *data)
+{
+	struct sip_monitor_instance *monitor_instance = data;
+	if (monitor_instance->subscription_pvt) {
+		sip_pvt_lock(monitor_instance->subscription_pvt);
+		monitor_instance->subscription_pvt->expiry = 0;
+		transmit_invite(monitor_instance->subscription_pvt, SIP_SUBSCRIBE, FALSE, 0, monitor_instance->subscribe_uri);
+		sip_pvt_unlock(monitor_instance->subscription_pvt);
+		dialog_unref(monitor_instance->subscription_pvt, "Unref monitor instance ref of subscription pvt");
+	}
+	if (monitor_instance->suspension_entry) {
+		monitor_instance->suspension_entry->body[0] = '\0';
+		transmit_publish(monitor_instance->suspension_entry, SIP_PUBLISH_REMOVE ,monitor_instance->notify_uri);
+		ao2_t_ref(monitor_instance->suspension_entry, -1, "Decrementing suspension entry refcount in sip_monitor_instance_destructor");
+	}
+	ast_string_field_free_memory(monitor_instance);
+}
+
+static struct sip_monitor_instance *sip_monitor_instance_init(int core_id, const char * const subscribe_uri, const char * const peername, const char * const device_name)
+{
+	struct sip_monitor_instance *monitor_instance = ao2_alloc(sizeof(*monitor_instance), sip_monitor_instance_destructor);
+
+	if (!monitor_instance) {
+		return NULL;
+	}
+
+	if (ast_string_field_init(monitor_instance, 256)) {
+		ao2_ref(monitor_instance, -1);
+		return NULL;
+	}
+
+	ast_string_field_set(monitor_instance, subscribe_uri, subscribe_uri);
+	ast_string_field_set(monitor_instance, peername, peername);
+	ast_string_field_set(monitor_instance, device_name, device_name);
+	monitor_instance->core_id = core_id;
+	ao2_link(sip_monitor_instances, monitor_instance);
+	return monitor_instance;
+}
+
+static int find_sip_monitor_instance_by_subscription_pvt(void *obj, void *arg, int flags)
+{
+	struct sip_monitor_instance *monitor_instance = obj;
+	return monitor_instance->subscription_pvt == arg ? CMP_MATCH | CMP_STOP : 0;
+}
+
+static int find_sip_monitor_instance_by_suspension_entry(void *obj, void *arg, int flags)
+{
+	struct sip_monitor_instance *monitor_instance = obj;
+	return monitor_instance->suspension_entry == arg ? CMP_MATCH | CMP_STOP : 0;
+}
+
+static int sip_cc_monitor_request_cc(struct ast_cc_monitor *monitor, int *available_timer_id);
+static int sip_cc_monitor_suspend(struct ast_cc_monitor *monitor);
+static int sip_cc_monitor_status_response(struct ast_cc_monitor *monitor, enum ast_device_state devstate);
+static int sip_cc_monitor_unsuspend(struct ast_cc_monitor *monitor);
+static int sip_cc_monitor_cancel_available_timer(struct ast_cc_monitor *monitor, int *sched_id);
+static void sip_cc_monitor_destructor(void *private_data);
+
+static struct ast_cc_monitor_callbacks sip_cc_monitor_callbacks = {
+	.type = "SIP",
+	.request_cc = sip_cc_monitor_request_cc,
+	.suspend = sip_cc_monitor_suspend,
+	.status_response = sip_cc_monitor_status_response,
+	.unsuspend = sip_cc_monitor_unsuspend,
+	.cancel_available_timer = sip_cc_monitor_cancel_available_timer,
+	.destructor = sip_cc_monitor_destructor,
+};
+
+static int sip_cc_monitor_request_cc(struct ast_cc_monitor *monitor, int *available_timer_id)
+{
+	struct sip_monitor_instance *monitor_instance = monitor->private_data;
+	enum ast_cc_service_type service = monitor->service_offered;
+	int when;
+
+	if (!monitor_instance) {
+		return -1;
+	}
+
+	if (!(monitor_instance->subscription_pvt = sip_alloc(NULL, NULL, 0, SIP_SUBSCRIBE, NULL))) {
+		return -1;
+	}
+
+	when = service == AST_CC_CCBS ? ast_get_ccbs_available_timer(monitor->interface->config_params) :
+		ast_get_ccnr_available_timer(monitor->interface->config_params);
+
+	sip_pvt_lock(monitor_instance->subscription_pvt);
+	create_addr(monitor_instance->subscription_pvt, monitor_instance->peername, 0, 1);
+	ast_sip_ouraddrfor(&monitor_instance->subscription_pvt->sa.sin_addr, &monitor_instance->subscription_pvt->ourip, monitor_instance->subscription_pvt);
+	monitor_instance->subscription_pvt->subscribed = CALL_COMPLETION;
+	monitor_instance->subscription_pvt->expiry = when;
+
+	transmit_invite(monitor_instance->subscription_pvt, SIP_SUBSCRIBE, FALSE, 2, monitor_instance->subscribe_uri);
+	sip_pvt_unlock(monitor_instance->subscription_pvt);
+
+	ao2_t_ref(monitor, +1, "Adding a ref to the monitor for the scheduler");
+	*available_timer_id = ast_sched_add(sched, when * 1000, ast_cc_available_timer_expire, monitor);
+	return 0;
+}
+
+static int construct_pidf_body(enum sip_cc_publish_state state, char *pidf_body, size_t size, const char *presentity)
+{
+	struct ast_str *body = ast_str_alloca(size);
+	char tuple_id[32];
+
+	generate_random_string(tuple_id, sizeof(tuple_id));
+
+	/* We'll make this a bare-bones pidf body. In state_notify_build_xml, the PIDF
+	 * body gets a lot more extra junk that isn't necessary, so we'll leave it out here.
+	 */
+	ast_str_append(&body, 0, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+	/* XXX The entity attribute is currently set to the peer name associated with the
+	 * dialog. This is because we currently only call this function for call-completion
+	 * PUBLISH bodies. In such cases, the entity is completely disregarded. For other
+	 * event packages, it may be crucial to have a proper URI as the presentity so this
+	 * should be revisited as support is expanded.
+	 */
+	ast_str_append(&body, 0, "<presence xmlns=\"urn:ietf:params:xml:ns:pidf\" entity=\"%s\">\n", presentity);
+	ast_str_append(&body, 0, "<tuple id=\"%s\">\n", tuple_id);
+	ast_str_append(&body, 0, "<status><basic>%s</basic></status>\n", state == CC_OPEN ? "open" : "closed");
+	ast_str_append(&body, 0, "</tuple>\n");
+	ast_str_append(&body, 0, "</presence>\n");
+	ast_copy_string(pidf_body, ast_str_buffer(body), size);
+	return 0;
+}
+
+static int sip_cc_monitor_suspend(struct ast_cc_monitor *monitor)
+{
+	struct sip_monitor_instance *monitor_instance = monitor->private_data;
+	enum sip_publish_type publish_type;
+	struct cc_epa_entry *cc_entry;
+
+	if (!monitor_instance) {
+		return -1;
+	}
+
+	if (!monitor_instance->suspension_entry) {
+		/* We haven't yet allocated the suspension entry, so let's give it a shot */
+		if (!(monitor_instance->suspension_entry = create_epa_entry("call-completion", monitor_instance->peername))) {
+			ast_log(LOG_WARNING, "Unable to allocate sip EPA entry for call-completion\n");
+			ao2_ref(monitor_instance, -1);
+			return -1;
+		}
+		if (!(cc_entry = ast_calloc(1, sizeof(*cc_entry)))) {
+			ast_log(LOG_WARNING, "Unable to allocate space for instance data of EPA entry for call-completion\n");
+			ao2_ref(monitor_instance, -1);
+			return -1;
+		}
+		cc_entry->core_id = monitor->core_id;
+		monitor_instance->suspension_entry->instance_data = cc_entry;
+		publish_type = SIP_PUBLISH_INITIAL;
+	} else {
+		publish_type = SIP_PUBLISH_MODIFY;
+		cc_entry = monitor_instance->suspension_entry->instance_data;
+	}
+
+	cc_entry->current_state = CC_CLOSED;
+
+	if (ast_strlen_zero(monitor_instance->notify_uri)) {
+		/* If we have no set notify_uri, then what this means is that we have
+		 * not received a NOTIFY from this destination stating that he is
+		 * currently available.
+		 *
+		 * This situation can arise when the core calls the suspend callbacks
+		 * of multiple destinations. If one of the other destinations aside
+		 * from this one notified Asterisk that he is available, then there
+		 * is no reason to take any suspension action on this device. Rather,
+		 * we should return now and if we receive a NOTIFY while monitoring
+		 * is still "suspended" then we can immediately respond with the
+		 * proper PUBLISH to let this endpoint know what is going on.
+		 */
+		return 0;
+	}
+	construct_pidf_body(CC_CLOSED, monitor_instance->suspension_entry->body, sizeof(monitor_instance->suspension_entry->body), monitor_instance->peername);
+	return transmit_publish(monitor_instance->suspension_entry, publish_type, monitor_instance->notify_uri);
+}
+
+static int sip_cc_monitor_status_response(struct ast_cc_monitor *monitor, enum ast_device_state devstate)
+{
+	/* This will never be called because the SIP monitor will never make a status request to
+	 * begin with
+	 */
+	ast_log(LOG_WARNING, "sip_cc_monitor_status_response called. Something dreadfully wrong must have happened.\n");
+	return 0;
+}
+
+static int sip_cc_monitor_unsuspend(struct ast_cc_monitor *monitor)
+{
+	struct sip_monitor_instance *monitor_instance = monitor->private_data;
+	struct cc_epa_entry *cc_entry;
+
+	if (!monitor_instance) {
+		return -1;
+	}
+
+	ast_assert(monitor_instance->suspension_entry != NULL);
+
+	cc_entry = monitor_instance->suspension_entry->instance_data;
+	cc_entry->current_state = CC_OPEN;
+	if (ast_strlen_zero(monitor_instance->notify_uri)) {
+		/* This means we are being asked to unsuspend a call leg we never
+		 * sent a PUBLISH on. As such, there is no reason to send another
+		 * PUBLISH at this point either. We can just return instead.
+		 */
+		return 0;
+	}
+	construct_pidf_body(CC_OPEN, monitor_instance->suspension_entry->body, sizeof(monitor_instance->suspension_entry->body), monitor_instance->peername);
+	return transmit_publish(monitor_instance->suspension_entry, SIP_PUBLISH_MODIFY, monitor_instance->notify_uri);
+}
+
+static int sip_cc_monitor_cancel_available_timer(struct ast_cc_monitor *monitor, int *sched_id)
+{
+	if (*sched_id != -1) {
+		AST_SCHED_DEL(sched, *sched_id);
+		ao2_t_ref(monitor, -1, "Removing scheduler's reference to the monitor");
+	}
+	return 0;
+}
+
+static void sip_cc_monitor_destructor(void *private_data)
+{
+	struct sip_monitor_instance *monitor_instance = private_data;
+	ao2_unlink(sip_monitor_instances, monitor_instance);
+	ast_module_unref(ast_module_info->self);
+}
+
+static int sip_get_cc_information(struct sip_request *req, char *subscribe_uri, size_t size, enum ast_cc_service_type *service)
+{
+	char *call_info = ast_strdupa(get_header(req, "Call-Info"));
+	char *uri;
+	char *purpose;
+	char *service_str;
+	static const char cc_purpose[] = "purpose=call-completion";
+	static const int cc_purpose_len = sizeof(cc_purpose) - 1;
+
+	if (ast_strlen_zero(call_info)) {
+		/* No Call-Info present. Definitely no CC offer */
+		return -1;
+	}
+
+	uri = strsep(&call_info, ";");
+
+	while ((purpose = strsep(&call_info, ";"))) {
+		if (!strncmp(purpose, cc_purpose, cc_purpose_len)) {
+			break;
+		}
+	}
+	if (!purpose) {
+		/* We didn't find the appropriate purpose= parameter. Oh well */
+		return -1;
+	}
+
+	/* Okay, call-completion has been offered. Let's figure out what type of service this is */
+	while ((service_str = strsep(&call_info, ";"))) {
+		if (!strncmp(service_str, "m=", 2)) {
+			break;
+		}
+	}
+	if (!service_str) {
+		/* So they didn't offer a particular service, We'll just go with CCBS since it really
+		 * doesn't matter anyway
+		 */
+		service_str = "BS";
+	} else {
+		/* We already determined that there is an "m=" so no need to check
+		 * the result of this strsep
+		 */
+		strsep(&service_str, "=");
+	}
+
+	if ((*service = service_string_to_service_type(service_str)) == AST_CC_NONE) {
+		/* Invalid service offered */
+		return -1;
+	}
+
+	ast_copy_string(subscribe_uri, get_in_brackets(uri), size);
+
+	return 0;
+}
+
+/*
+ * \brief Determine what, if any, CC has been offered and queue a CC frame if possible
+ *
+ * After taking care of some formalities to be sure that this call is eligible for CC,
+ * we first try to see if we can make use of native CC. We grab the information from
+ * the passed-in sip_request (which is always a response to an INVITE). If we can
+ * use native CC monitoring for the call, then so be it.
+ *
+ * If native cc monitoring is not possible or not supported, then we will instead attempt
+ * to use generic monitoring. Falling back to generic from a failed attempt at using native
+ * monitoring will only work if the monitor policy of the endpoint is "always"
+ *
+ * \param pvt The current dialog. Contains CC parameters for the endpoint
+ * \param req The response to the INVITE we want to inspect
+ * \param service The service to use if generic monitoring is to be used. For native
+ * monitoring, we get the service from the SIP response itself
+ */
+static void sip_handle_cc(struct sip_pvt *pvt, struct sip_request *req, enum ast_cc_service_type service)
+{
+	enum ast_cc_monitor_policies monitor_policy = ast_get_cc_monitor_policy(pvt->cc_params);
+	int core_id;
+	char interface_name[AST_CHANNEL_NAME];
+
+	if (monitor_policy == AST_CC_MONITOR_NEVER) {
+		/* Don't bother, just return */
+		return;
+	}
+
+	if ((core_id = ast_cc_get_current_core_id(pvt->owner)) == -1) {
+		/* For some reason, CC is invalid, so don't try it! */
+		return;
+	}
+
+	ast_channel_get_device_name(pvt->owner, interface_name, sizeof(interface_name));
+
+	if (monitor_policy == AST_CC_MONITOR_ALWAYS || monitor_policy == AST_CC_MONITOR_NATIVE) {
+		char subscribe_uri[SIPBUFSIZE];
+		char device_name[AST_CHANNEL_NAME];
+		enum ast_cc_service_type offered_service;
+		struct sip_monitor_instance *monitor_instance;
+		if (sip_get_cc_information(req, subscribe_uri, sizeof(subscribe_uri), &offered_service)) {
+			/* If CC isn't being offered to us, or for some reason the CC offer is
+			 * not formatted correctly, then it may still be possible to use generic
+			 * call completion since the monitor policy may be "always"
+			 */
+			goto generic;
+		}
+		ast_channel_get_device_name(pvt->owner, device_name, sizeof(device_name));
+		if (!(monitor_instance = sip_monitor_instance_init(core_id, subscribe_uri, pvt->peername, device_name))) {
+			/* Same deal. We can try using generic still */
+			goto generic;
+		}
+		/* We bump the refcount of chan_sip because once we queue this frame, the CC core
+		 * will have a reference to callbacks in this module. We decrement the module
+		 * refcount once the monitor destructor is called
+		 */
+		ast_module_ref(ast_module_info->self);
+		ast_queue_cc_frame(pvt->owner, "SIP", pvt->dialstring, offered_service, monitor_instance);
+		ao2_ref(monitor_instance, -1);
+		return;
+	}
+
+generic:
+	if (monitor_policy == AST_CC_MONITOR_GENERIC || monitor_policy == AST_CC_MONITOR_ALWAYS) {
+		ast_queue_cc_frame(pvt->owner, AST_CC_GENERIC_MONITOR_TYPE, interface_name, service, NULL);
+	}
+}
 
 /*! \brief Working TLS connection configuration */
 static struct ast_tls_config sip_tls_cfg;
@@ -2700,7 +3509,7 @@ static int __sip_autodestruct(const void *data)
 	struct sip_pvt *p = (struct sip_pvt *)data;
 
 	/* If this is a subscription, tell the phone that we got a timeout */
-	if (p->subscribed) {
+	if (p->subscribed && p->subscribed != MWI_NOTIFICATION && p->subscribed != CALL_COMPLETION) {
 		transmit_state_notify(p, AST_EXTENSION_DEACTIVATED, 1, TRUE);	/* Send last notification */
 		p->subscribed = NONE;
 		append_history(p, "Subscribestatus", "timeout");
@@ -3159,6 +3968,16 @@ static int sip_queryoption(struct ast_channel *chan, int option, void *data, int
 		*cp = p->dsp ? 1 : 0;
 		ast_debug(1, "Reporting digit detection %sabled on %s\n", *cp ? "en" : "dis", chan->name);
 		break;
+	case AST_OPTION_DEVICE_NAME:
+		if (p && p->outgoing_call) {
+			cp = (char *) data;
+			ast_copy_string(cp, p->dialstring, *datalen);
+			res = 0;
+		}
+		/* We purposely break with a return of -1 in the
+		 * implied else case here
+		 */
+		break;
 	default:
 		break;
 	}
@@ -3400,6 +4219,8 @@ static void sip_destroy_peer(struct sip_peer *peer)
 		ao2_ref(peer->socket.tcptls_session, -1);
 		peer->socket.tcptls_session = NULL;
 	}
+
+	ast_cc_config_params_destroy(peer->cc_params);
 
 	ast_string_field_free_memory(peer);
 }
@@ -3943,6 +4764,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	dialog->peerauth = peer->auth;
 	dialog->maxcallbitrate = peer->maxcallbitrate;
 	dialog->disallowed_methods = peer->disallowed_methods;
+	ast_cc_copy_config_params(dialog->cc_params, peer->cc_params);
 	if (ast_strlen_zero(dialog->tohost))
 		ast_string_field_set(dialog, tohost, ast_inet_ntoa(dialog->sa.sin_addr));
 	if (!ast_strlen_zero(peer->fromdomain)) {
@@ -4131,10 +4953,24 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	struct varshead *headp;
 	struct ast_var_t *current;
 	const char *referer = NULL;   /* SIP referrer */
+	int cc_core_id;
+	char uri[SIPBUFSIZE] = "";
 
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "sip_call called on %s, neither down nor reserved\n", ast->name);
 		return -1;
+	}
+
+	if (ast_cc_is_recall(ast, &cc_core_id, "SIP")) {
+		char device_name[AST_CHANNEL_NAME];
+		struct ast_cc_monitor *recall_monitor;
+		struct sip_monitor_instance *monitor_instance;
+		ast_channel_get_device_name(ast, device_name, sizeof(device_name));
+		if ((recall_monitor = ast_cc_get_monitor_by_recall_core_id(cc_core_id, device_name))) {
+			monitor_instance = recall_monitor->private_data;
+			ast_copy_string(uri, monitor_instance->notify_uri, sizeof(uri));
+			ao2_t_ref(recall_monitor, -1, "Got the URI we need so unreffing monitor");
+		}
 	}
 
 	/* Check whether there is vxml_url, distinctive ring variables */
@@ -4201,7 +5037,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		int xmitres;
 
 		sip_pvt_lock(p);
-		xmitres = transmit_invite(p, SIP_INVITE, 1, 2);
+		xmitres = transmit_invite(p, SIP_INVITE, 1, 2, uri);
 		sip_pvt_unlock(p);
 		if (xmitres == XMIT_ERROR)
 			return -1;
@@ -4370,6 +5206,13 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	}
 
 	ast_string_field_free_memory(p);
+
+	ast_cc_config_params_destroy(p->cc_params);
+
+	if (p->epa_entry) {
+		ao2_ref(p->epa_entry, -1);
+		p->epa_entry = NULL;
+	}
 
 	if (p->socket.tcptls_session) {
 		ao2_ref(p->socket.tcptls_session, -1);
@@ -5446,7 +6289,10 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		sip_pvt_lock(i);
 		return NULL;
 	}
+	ast_channel_lock(tmp);
 	sip_pvt_lock(i);
+	ast_channel_cc_params_init(tmp, i->cc_params);
+	ast_channel_unlock(tmp);
 
 	tmp->tech = ( ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_INFO || ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_SHORTINFO) ?  &sip_tech_info : &sip_tech;
 
@@ -5911,6 +6757,23 @@ static char *generate_random_string(char *buf, size_t size)
 	return buf;
 }
 
+static char *generate_uri(struct sip_pvt *pvt, char *buf, size_t size)
+{
+	struct ast_str *uri = ast_str_alloca(size);
+	int ourport = ntohs(pvt->ourip.sin_port);
+	ast_str_set(&uri, 0, "%s", pvt->socket.type == SIP_TRANSPORT_TLS ? "sips:" : "sip:");
+	/* Here would be a great place to generate a UUID, but for now we'll
+	 * use the handy random string generation function we already have
+	 */
+	ast_str_append(&uri, 0, "%s", generate_random_string(buf, size));
+	ast_str_append(&uri, 0, "@%s", ast_inet_ntoa(pvt->ourip.sin_addr));
+	if (!sip_standard_port(pvt->socket.type, ourport)) {
+		ast_str_append(&uri, 0, ":%d", ourport);
+	}
+	ast_copy_string(buf, ast_str_buffer(uri), size);
+	return buf;
+}
+
 /*! \brief Build SIP Call-ID value for a non-REGISTER transaction */
 static void build_callid_pvt(struct sip_pvt *pvt)
 {
@@ -5972,6 +6835,11 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *sin,
 
 	if (ast_string_field_init(p, 512)) {
 		ao2_t_ref(p, -1, "failed to string_field_init, drop p");
+		return NULL;
+	}
+
+	if (!(p->cc_params = ast_cc_config_params_init())) {
+		ao2_t_ref(p, -1, "Yuck, couldn't allocate cc_params struct. Get rid o' p");
 		return NULL;
 	}
 
@@ -8234,6 +9102,9 @@ static int __transmit_response(struct sip_pvt *p, const char *msg, const struct 
 		ast_clear_flag(&p->flags[1], SIP_PAGE2_CONNECTLINEUPDATE_PEND);
 		add_rpid(&resp, p);
 	}
+	if (ast_test_flag(&p->flags[0], SIP_OFFER_CC)) {
+		add_cc_call_info_to_response(p, &resp);
+	}
 
 	add_header_contentLength(&resp, 0);
 	/* If we are cancelling an incoming invite for some reason, add information
@@ -8267,6 +9138,19 @@ static int __transmit_response(struct sip_pvt *p, const char *msg, const struct 
 		}
 	}
 	return send_response(p, &resp, reliable, seqno);
+}
+
+static int transmit_response_with_sip_etag(struct sip_pvt *p, const char *msg, const struct sip_request *req, struct sip_esc_entry *esc_entry, int need_new_etag)
+{
+	struct sip_request resp;
+
+	if (need_new_etag) {
+		create_new_sip_etag(esc_entry, 1);
+	}
+	respprep(&resp, p, msg, req);
+	add_header(&resp, "SIP-ETag", esc_entry->entity_tag);
+
+	return send_response(p, &resp, 0, 0);
 }
 
 static int temp_pvt_init(void *data)
@@ -9305,6 +10189,38 @@ static void copy_request(struct sip_request *dst, const struct sip_request *src)
 	dst->data->used = src->data->used;
 }
 
+static void add_cc_call_info_to_response(struct sip_pvt *p, struct sip_request *resp)
+{
+	char uri[SIPBUFSIZE];
+	struct ast_str *header = ast_str_alloca(SIPBUFSIZE);
+	struct ast_cc_agent *agent = find_sip_cc_agent_by_original_callid(p);
+	struct sip_cc_agent_pvt *agent_pvt;
+
+	if (!agent) {
+		/* Um, what? How could the SIP_OFFER_CC flag be set but there not be an
+		 * agent? Oh well, we'll just warn and return without adding the header.
+		 */
+		ast_log(LOG_WARNING, "Can't find SIP CC agent for call '%s' even though OFFER_CC flag was set?\n", p->callid);
+		return;
+	}
+
+	agent_pvt = agent->private_data;
+
+	if (!ast_strlen_zero(agent_pvt->subscribe_uri)) {
+		ast_copy_string(uri, agent_pvt->subscribe_uri, sizeof(uri));
+	} else {
+		generate_uri(p, uri, sizeof(uri));
+		ast_copy_string(agent_pvt->subscribe_uri, uri, sizeof(agent_pvt->subscribe_uri));
+	}
+	/* XXX Hardcode "NR" as the m reason for now. This should perhaps be changed
+	 * to be more accurate. This parameter has no bearing on the actual operation
+	 * of the feature; it's just there for informational purposes.
+	 */
+	ast_str_set(&header, 0, "<%s>;purpose=call-completion;m=%s", uri, "NR");
+	add_header(resp, "Call-Info", ast_str_buffer(header));
+	ao2_ref(agent, -1);
+}
+
 /*! \brief Used for 200 OK and 183 early media
 	\return Will return XMIT_ERROR for network errors.
 */
@@ -9319,6 +10235,9 @@ static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, const 
 	respprep(&resp, p, msg, req);
 	if (rpid == TRUE) {
 		add_rpid(&resp, p);
+	}
+	if (ast_test_flag(&p->flags[0], SIP_OFFER_CC)) {
+		add_cc_call_info_to_response(p, &resp);
 	}
 	if (p->rtp) {
 		if (!p->autoframing && !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
@@ -9479,7 +10398,7 @@ static void build_contact(struct sip_pvt *p)
 }
 
 /*! \brief Initiate new SIP request to peer/user */
-static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod)
+static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, const char * const explicit_uri)
 {
 	struct ast_str *invite = ast_str_alloca(256);
 	char from[256];
@@ -9564,25 +10483,30 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	else
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, d, p->tag);
 
-	/* If we're calling a registered SIP peer, use the fullcontact to dial to the peer */
-	if (!ast_strlen_zero(p->fullcontact)) {
-		/* If we have full contact, trust it */
-		ast_str_append(&invite, 0, "%s", p->fullcontact);
+
+	if (!ast_strlen_zero(explicit_uri)) {
+		ast_str_set(&invite, 0, "%s", explicit_uri);
 	} else {
-		/* Otherwise, use the username while waiting for registration */
-		ast_str_append(&invite, 0, "sip:");
-		if (!ast_strlen_zero(p->username)) {
-			n = p->username;
-			if (sip_cfg.pedanticsipchecking) {
-				ast_uri_encode(n, tmp_n, sizeof(tmp_n), 0);
-				n = tmp_n;
+		/* If we're calling a registered SIP peer, use the fullcontact to dial to the peer */
+		if (!ast_strlen_zero(p->fullcontact)) {
+			/* If we have full contact, trust it */
+			ast_str_append(&invite, 0, "%s", p->fullcontact);
+		} else {
+			/* Otherwise, use the username while waiting for registration */
+			ast_str_append(&invite, 0, "sip:");
+			if (!ast_strlen_zero(p->username)) {
+				n = p->username;
+				if (sip_cfg.pedanticsipchecking) {
+					ast_uri_encode(n, tmp_n, sizeof(tmp_n), 0);
+					n = tmp_n;
+				}
+				ast_str_append(&invite, 0, "%s@", n);
 			}
-			ast_str_append(&invite, 0, "%s@", n);
+			ast_str_append(&invite, 0, "%s", p->tohost);
+			if (p->portinuri)
+				ast_str_append(&invite, 0, ":%d", ntohs(p->sa.sin_port));
+			ast_str_append(&invite, 0, "%s", urioptions);
 		}
-		ast_str_append(&invite, 0, "%s", p->tohost);
-		if (p->portinuri)
-			ast_str_append(&invite, 0, ":%d", ntohs(p->sa.sin_port));
-		ast_str_append(&invite, 0, "%s", urioptions);
 	}
 
 	/* If custom URI options have been provided, append them */
@@ -9674,6 +10598,39 @@ static void add_diversion_header(struct sip_request *req, struct sip_pvt *pvt)
 	add_header(req, "Diversion", header_text);
 }
 
+static int transmit_publish(struct sip_epa_entry *epa_entry, enum sip_publish_type publish_type, const char * const explicit_uri)
+{
+	struct sip_pvt *pvt;
+	int expires;
+
+	epa_entry->publish_type = publish_type;
+
+	if (!(pvt = sip_alloc(NULL, NULL, 0, SIP_PUBLISH, NULL))) {
+		return -1;
+	}
+
+	sip_pvt_lock(pvt);
+
+	if (create_addr(pvt, epa_entry->destination, NULL, TRUE)) {
+		dialog_unlink_all(pvt, TRUE, TRUE);
+		dialog_unref(pvt, "create_addr failed in transmit_publish. Unref dialog");
+	}
+	ast_sip_ouraddrfor(&pvt->sa.sin_addr, &pvt->ourip, pvt);
+	ast_set_flag(&pvt->flags[0], SIP_OUTGOING);
+	expires = (publish_type == SIP_PUBLISH_REMOVE) ? 0 : DEFAULT_PUBLISH_EXPIRES;
+	pvt->expiry = expires;
+
+	/* Bump refcount for sip_pvt's reference */
+	ao2_ref(epa_entry, +1);
+	pvt->epa_entry = epa_entry;
+
+	transmit_invite(pvt, SIP_PUBLISH, FALSE, 2, explicit_uri);
+	sip_pvt_unlock(pvt);
+	sip_scheddestroy(pvt, DEFAULT_TRANS_TIMEOUT);
+	dialog_unref(pvt, "Done with the sip_pvt allocated for transmitting PUBLISH");
+	return 0;
+}
+
 /*! \brief Build REFER/INVITE/OPTIONS/SUBSCRIBE message and transmit it
 	\param init 0 = Prepare request within dialog, 1= prepare request, new branch, 2= prepare new request and new dialog. do_proxy_auth calls this with init!=2
  \param p sip_pvt structure
@@ -9681,7 +10638,7 @@ static void add_diversion_header(struct sip_request *req, struct sip_pvt *pvt)
  \param sipmethod unknown
 
 */
-static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
+static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init, const char * const explicit_uri)
 {
 	struct sip_request req;
 	struct ast_variable *var;
@@ -9693,7 +10650,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 		build_via(p);
 	}
 	if (init > 1)
-		initreqprep(&req, p, sipmethod);
+		initreqprep(&req, p, sipmethod, explicit_uri);
 	else
 		/* If init=1, we should not generate a new branch. If it's 0, we need a new branch. */
 		reqprep(&req, p, sipmethod, 0, init ? 0 : 1);
@@ -9711,12 +10668,16 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 				add_header(&req, "Referred-By", buf);
 			}
 		}
-	} else if (sipmethod == SIP_SUBSCRIBE) { /* We only support sending MWI subscriptions right now */
+	} else if (sipmethod == SIP_SUBSCRIBE) {
 		char buf[SIPBUFSIZE];
-
-		add_header(&req, "Event", "message-summary");
-		add_header(&req, "Accept", "application/simple-message-summary");
-		snprintf(buf, sizeof(buf), "%d", mwi_expiry);
+		if (p->subscribed == MWI_NOTIFICATION) {
+			add_header(&req, "Event", "message-summary");
+			add_header(&req, "Accept", "application/simple-message-summary");
+		} else if (p->subscribed == CALL_COMPLETION) {
+			add_header(&req, "Event", "call-completion");
+			add_header(&req, "Accept", "application/call-completion");
+		}
+		snprintf(buf, sizeof(buf), "%d", p->expiry);
 		add_header(&req, "Expires", buf);
 	}
 
@@ -9805,13 +10766,33 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 		add_header_contentLength(&req, ast_str_strlen(p->notify->content));
 		if (ast_str_strlen(p->notify->content))
 			add_line(&req, ast_str_buffer(p->notify->content));
+	} else if (sipmethod == SIP_PUBLISH) {
+		char expires[SIPBUFSIZE];
+		switch (p->epa_entry->static_data->event) {
+		case CALL_COMPLETION:
+			snprintf(expires, sizeof(expires), "%d", p->expiry);
+			add_header(&req, "Event", "call-completion");
+			add_header(&req, "Expires", expires);
+			if (p->epa_entry->publish_type != SIP_PUBLISH_INITIAL) {
+				add_header(&req, "SIP-If-Match", p->epa_entry->entity_tag);
+			}
+			if (!ast_strlen_zero(p->epa_entry->body)) {
+				add_header(&req, "Content-Type", "application/pidf+xml");
+				add_header_contentLength(&req, strlen(p->epa_entry->body));
+				add_line(&req, p->epa_entry->body);
+			} else {
+				add_header_contentLength(&req, 0);
+			}
+		default:
+			break;
+		}
 	} else {
 		add_header_contentLength(&req, 0);
     }
 
 	if (!p->initreq.headers || init > 2)
 		initialize_initreq(p, &req);
-	if (sipmethod == SIP_INVITE) {
+	if (sipmethod == SIP_INVITE || sipmethod == SIP_SUBSCRIBE) {
 		p->lastinvite = p->ocseq;
 	}
 	return send_request(p, &req, init ? XMIT_CRITICAL : XMIT_RELIABLE, p->ocseq);
@@ -9845,7 +10826,7 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 
 	/* If we already have a subscription up simply send a resubscription */
 	if (mwi->call) {
-		transmit_invite(mwi->call, SIP_SUBSCRIBE, 0, 0);
+		transmit_invite(mwi->call, SIP_SUBSCRIBE, 0, 0, NULL);
 		return 0;
 	}
 	
@@ -9866,6 +10847,8 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 		mwi->call = dialog_unref(mwi->call, "unref dialog after unlink_all");
 		return 0;
 	}
+
+	mwi->call->expiry = mwi_expiry;
 	
 	if (!mwi->dnsmgr && mwi->portno) {
 		mwi->call->sa.sin_port = htons(mwi->portno);
@@ -9900,7 +10883,7 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 	mwi->call->mwi = ASTOBJ_REF(mwi);
 	
 	/* Actually send the packet */
-	transmit_invite(mwi->call, SIP_SUBSCRIBE, 0, 2);
+	transmit_invite(mwi->call, SIP_SUBSCRIBE, 0, 2, NULL);
 
 	return 0;
 }
@@ -10084,6 +11067,34 @@ static void state_notify_build_xml(int state, int full, const char *exten, const
 	}
 }
 
+static int transmit_cc_notify(struct ast_cc_agent *agent, struct sip_pvt *subscription, enum sip_cc_notify_state state)
+{
+	struct sip_request req;
+	struct sip_cc_agent_pvt *agent_pvt = agent->private_data;
+	char uri[SIPBUFSIZE];
+	char state_str[64];
+
+	if (state < CC_QUEUED || state > CC_READY) {
+		ast_log(LOG_WARNING, "Invalid state provided for transmit_cc_notify (%d)\n", state);
+		return -1;
+	}
+
+	reqprep(&req, subscription, SIP_NOTIFY, 0, TRUE);
+	snprintf(state_str, sizeof(state_str), "%s\r\n", sip_cc_notify_state_map[state].state_string);
+	add_header(&req, "Event", "call-completion");
+	add_header(&req, "Content-Type", "application/call-completion");
+	if (state == CC_READY) {
+		generate_uri(subscription, agent_pvt->notify_uri, sizeof(agent_pvt->notify_uri));
+		snprintf(uri, sizeof(uri) - 1, "cc-URI: %s\r\n", agent_pvt->notify_uri);
+	}
+	add_header_contentLength(&req, strlen(state_str) +
+			(state == CC_READY ? strlen(uri) : 0));
+	add_line(&req, state_str);
+	if (state == CC_READY) {
+		add_line(&req, uri);
+	}
+	return send_request(subscription, &req, XMIT_RELIABLE, subscription->ocseq);
+}
 
 /*! \brief Used in the SUBSCRIBE notification subsystem (RFC3265) */
 static int transmit_state_notify(struct sip_pvt *p, int state, int full, int timeout)
@@ -10183,7 +11194,7 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 	int ourport = ntohs(p->ourip.sin_port);
 	const char *exten = S_OR(vmexten, default_vmexten);
 
-	initreqprep(&req, p, SIP_NOTIFY);
+	initreqprep(&req, p, SIP_NOTIFY, NULL);
 	add_header(&req, "Event", "message-summary");
 	add_header(&req, "Content-Type", default_notifymime);
 	ast_str_append(&out, 0, "Messages-Waiting: %s\r\n", newmsgs ? "yes" : "no");
@@ -10297,7 +11308,7 @@ static int manager_sipnotify(struct mansession *s, const struct message *m)
 
 	dialog_ref(p, "bump the count of p, which transmit_sip_request will decrement.");
 	sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
-	transmit_invite(p, SIP_NOTIFY, 0, 2);
+	transmit_invite(p, SIP_NOTIFY, 0, 2, NULL);
 
 	astman_send_ack(s, m, "Notify Sent");
 	ast_variables_destroy(vars);
@@ -12438,13 +13449,13 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, c
 	the dialplan, so that the outbound call also is a sips: call or encrypted
 	IAX2 call. If that's not available, the call should FAIL.
 */
-static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
+static int get_destination(struct sip_pvt *p, struct sip_request *oreq, int *cc_recall_core_id)
 {
 	char tmp[256] = "", *uri, *domain, *dummy = NULL;
 	char tmpf[256] = "", *from = NULL;
 	struct sip_request *req;
 	char *decoded_uri;
-	
+
 	req = oreq;
 	if (!req)
 		req = &p->initreq;
@@ -12453,7 +13464,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	if (req->rlPart2)
 		ast_copy_string(tmp, REQ_OFFSET_TO_STR(req, rlPart2), sizeof(tmp));
 	
-	uri = get_in_brackets(tmp);
+	uri = ast_strdupa(get_in_brackets(tmp));
 
 	if (parse_uri(uri, "sip:,sips:", &uri, &dummy, &domain, &dummy, NULL)) {
 		ast_log(LOG_WARNING, "Not a SIP header (%s)?\n", uri);
@@ -12510,6 +13521,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 		char hint[AST_MAX_EXTENSION];
 		return (ast_get_hint(hint, sizeof(hint), NULL, 0, NULL, p->context, p->exten) ? 0 : -1);
 	} else {
+		struct ast_cc_agent *agent;
 		decoded_uri = ast_strdupa(uri);
 		ast_uri_decode(decoded_uri);
 		/* Check the dialplan for the username part of the request URI,
@@ -12521,6 +13533,22 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 		    !strcmp(decoded_uri, ast_pickup_ext())) {
 			if (!oreq)
 				ast_string_field_set(p, exten, decoded_uri);
+			return 0;
+		} else if ((agent = find_sip_cc_agent_by_notify_uri(tmp))) {
+			struct sip_cc_agent_pvt *agent_pvt = agent->private_data;
+			/* This is a CC recall. We can set p's extension to the exten from
+			 * the original INVITE
+			 */
+			ast_string_field_set(p, exten, agent_pvt->original_exten);
+			/* And we need to let the CC core know that the caller is attempting
+			 * his recall
+			 */
+			ast_cc_agent_recalling(agent->core_id, "SIP caller %s is attempting recall",
+					agent->device_name);
+			if (cc_recall_core_id) {
+				*cc_recall_core_id = agent->core_id;
+			}
+			ao2_ref(agent, -1);
 			return 0;
 		}
 	}
@@ -13033,6 +14061,7 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 	ast_string_field_set(p, engine, peer->engine);
 	p->disallowed_methods = peer->disallowed_methods;
 	set_pvt_allowed_methods(p, req);
+	ast_cc_copy_config_params(p->cc_params, peer->cc_params);
 	if (peer->callingpres)	/* Peer calling pres setting will override RPID */
 		p->callingpres = peer->callingpres;
 	if (peer->maxms && peer->lastms)
@@ -15981,7 +17010,7 @@ static char *sip_cli_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		ast_cli(a->fd, "Sending NOTIFY of type '%s' to '%s'\n", a->argv[2], a->argv[i]);
 		dialog_ref(p, "bump the count of p, which transmit_sip_request will decrement.");
 		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
-		transmit_invite(p, SIP_NOTIFY, 0, 2);
+		transmit_invite(p, SIP_NOTIFY, 0, 2, NULL);
 	}
 
 	return CLI_SUCCESS;
@@ -16061,7 +17090,7 @@ static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, enum sip_au
 	/* Now we have a reply digest */
 	p->options->auth = digest;
 	p->options->authheader = respheader;
-	return transmit_invite(p, sipmethod, sipmethod == SIP_INVITE, init);
+	return transmit_invite(p, sipmethod, sipmethod == SIP_INVITE, init, NULL);
 }
 
 /*! \brief  reply to authentication for outbound registrations
@@ -16698,6 +17727,106 @@ static void handle_response_update(struct sip_pvt *p, int resp, const char *rest
 	}
 }
 
+static void cc_handle_publish_error(struct sip_pvt *pvt, const int resp, struct sip_request *req, struct sip_epa_entry *epa_entry)
+{
+	struct cc_epa_entry *cc_entry = epa_entry->instance_data;
+	struct sip_monitor_instance *monitor_instance = ao2_callback(sip_monitor_instances, 0,
+			find_sip_monitor_instance_by_suspension_entry, epa_entry);
+	const char *min_expires;
+
+	if (!monitor_instance) {
+		ast_log(LOG_WARNING, "Can't find monitor_instance corresponding to epa_entry %p.\n", epa_entry);
+		return;
+	}
+
+	if (resp != 423) {
+		ast_cc_monitor_failed(cc_entry->core_id, monitor_instance->device_name,
+				"Received error response to our PUBLISH");
+		ao2_ref(monitor_instance, -1);
+		return;
+	}
+
+	/* Allrighty, the other end doesn't like our Expires value. They think it's
+	 * too small, so let's see if they've provided a more sensible value. If they
+	 * haven't, then we'll just double our Expires value and see if they like that
+	 * instead.
+	 *
+	 * XXX Ideally this logic could be placed into its own function so that SUBSCRIBE,
+	 * PUBLISH, and REGISTER could all benefit from the same shared code.
+	 */
+	min_expires = get_header(req, "Min-Expires");
+	if (ast_strlen_zero(min_expires)) {
+		pvt->expiry *= 2;
+		if (pvt->expiry < 0) {
+			/* You dork! You overflowed! */
+			ast_cc_monitor_failed(cc_entry->core_id, monitor_instance->device_name,
+					"PUBLISH expiry overflowed");
+			ao2_ref(monitor_instance, -1);
+			return;
+		}
+	} else if (sscanf(min_expires, "%d", &pvt->expiry) != 1) {
+		ast_cc_monitor_failed(cc_entry->core_id, monitor_instance->device_name,
+				"Min-Expires has non-numeric value");
+		ao2_ref(monitor_instance, -1);
+		return;
+	}
+	/* At this point, we have most certainly changed pvt->expiry, so try transmitting
+	 * again
+	 */
+	transmit_invite(pvt, SIP_PUBLISH, FALSE, 0, NULL);
+	ao2_ref(monitor_instance, -1);
+}
+
+static void handle_response_publish(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, int seqno)
+{
+	struct sip_epa_entry *epa_entry = p->epa_entry;
+	const char *etag = get_header(req, "Sip-ETag");
+
+	ast_assert(epa_entry != NULL);
+
+	if (resp == 401 || resp == 407) {
+		ast_string_field_set(p, theirtag, NULL);
+		if (p->options) {
+			p->options->auth_type = (resp == 401 ? WWW_AUTH : PROXY_AUTH);
+		}
+		if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, resp, SIP_PUBLISH, 0)) {
+			ast_log(LOG_NOTICE, "Failed to authenticate on PUBLISH to '%s'\n", get_header(&p->initreq, "From"));
+			pvt_set_needdestroy(p, "Failed to authenticate on PUBLISH");
+			sip_alreadygone(p);
+		}
+		return;
+	}
+
+	if (resp == 501 || resp == 405) {
+		mark_method_unallowed(&p->allowed_methods, SIP_PUBLISH);
+	}
+
+	if (resp == 200) {
+		p->authtries = 0;
+		/* If I've read section 6, item 6 of RFC 3903 correctly,
+		 * an ESC will only generate a new etag when it sends a 200 OK
+		 */
+		if (!ast_strlen_zero(etag)) {
+			ast_copy_string(epa_entry->entity_tag, etag, sizeof(epa_entry->entity_tag));
+		}
+		/* The nominal case. Everything went well. Everybody is happy.
+		 * Each EPA will have a specific action to take as a result of this
+		 * development, so ... callbacks!
+		 */
+		if (epa_entry->static_data->handle_ok) {
+			epa_entry->static_data->handle_ok(p, req, epa_entry);
+		}
+	} else {
+		/* Rather than try to make individual callbacks for each error
+		 * type, there is just a single error callback. The callback
+		 * can distinguish between error messages and do what it needs to
+		 */
+		if (epa_entry->static_data->handle_error) {
+			epa_entry->static_data->handle_error(p, resp, req, epa_entry);
+		}
+	}
+}
+
 /*! \brief Handle SIP response to INVITE dialogue */
 static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, int seqno)
 {
@@ -16769,6 +17898,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 				connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 				ast_channel_queue_connected_line_update(p->owner, &connected);
 			}
+			sip_handle_cc(p, req, AST_CC_CCNR);
 			ast_queue_control(p->owner, AST_CONTROL_RINGING);
 			if (p->owner->_state != AST_STATE_UP) {
 				ast_setstate(p->owner, AST_STATE_RINGING);
@@ -16794,6 +17924,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 			struct ast_party_redirecting redirecting = {{0,},};
 			change_redirecting_information(p, req, &redirecting, FALSE);
 			ast_channel_queue_redirecting_update(p->owner, &redirecting);
+			sip_handle_cc(p, req, AST_CC_CCNR);
 		}
 		check_pendings(p);
 		break;
@@ -16811,6 +17942,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 				connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 				ast_channel_queue_connected_line_update(p->owner, &connected);
 			}
+			sip_handle_cc(p, req, AST_CC_CCNR);
 		}
 		if (find_sdp(req)) {
 			if (p->invitestate != INV_CANCELLED)
@@ -17569,6 +18701,11 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 		   need to hang around for something more "definitive" */
 		if (resp != 100)
 			handle_response_peerpoke(p, resp, req);
+	} else if (sipmethod == SIP_PUBLISH) {
+		/* SIP PUBLISH transcends this morass of doodoo and instead
+		 * we just always call the response handler. Good gravy!
+		 */
+		handle_response_publish(p, resp, rest, req, seqno);
 	} else if (ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 		switch(resp) {
 		case 100:	/* 100 Trying */
@@ -17763,8 +18900,10 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 				case 486: /* Busy here */
 				case 600: /* Busy everywhere */
 				case 603: /* Decline */
-					if (p->owner)
+					if (p->owner) {
+						sip_handle_cc(p, req, AST_CC_CCBS);
 						ast_queue_control(p->owner, AST_CONTROL_BUSY);
+					}
 					break;
 				case 482: /*!
 					\note SIP is incapable of performing a hairpin call, which
@@ -18214,6 +19353,66 @@ static const char *gettag(const struct sip_request *req, const char *header, cha
 	return NULL;
 }
 
+static int handle_cc_notify(struct sip_pvt *pvt, struct sip_request *req)
+{
+	struct sip_monitor_instance *monitor_instance = ao2_callback(sip_monitor_instances, 0,
+			find_sip_monitor_instance_by_subscription_pvt, pvt);
+	const char *status = get_body(req, "cc-state", ':');
+	struct cc_epa_entry *cc_entry;
+	char *uri;
+
+	if (!monitor_instance) {
+		transmit_response(pvt, "400 Bad Request", req);
+		return -1;
+	}
+
+	if (ast_strlen_zero(status)) {
+		ao2_ref(monitor_instance, -1);
+		transmit_response(pvt, "400 Bad Request", req);
+		return -1;
+	}
+
+	if (!strcmp(status, "queued")) {
+		/* We've been told that we're queued. This is the endpoint's way of telling
+		 * us that it has accepted our CC request. We need to alert the core of this
+		 * development
+		 */
+		ast_cc_monitor_request_acked(monitor_instance->core_id, "SIP endpoint %s accepted request", monitor_instance->device_name);
+		transmit_response(pvt, "200 OK", req);
+		ao2_ref(monitor_instance, -1);
+		return 0;
+	}
+
+	/* It's open! Yay! */
+	uri = get_body(req, "cc-URI", ':');
+	if (ast_strlen_zero(uri)) {
+		uri = get_in_brackets((char *)get_header(req, "From"));
+	}
+
+	ast_string_field_set(monitor_instance, notify_uri, uri);
+	if (monitor_instance->suspension_entry) {
+		cc_entry = monitor_instance->suspension_entry->instance_data;
+		if (cc_entry->current_state == CC_CLOSED) {
+			/* If we've created a suspension entry and the current state is closed, then that means
+			 * we got a notice from the CC core earlier to suspend monitoring, but because this particular
+			 * call leg had not yet notified us that it was ready for recall, it meant that we
+			 * could not yet send a PUBLISH. Now, however, we can.
+			 */
+			construct_pidf_body(CC_CLOSED, monitor_instance->suspension_entry->body,
+					sizeof(monitor_instance->suspension_entry->body), monitor_instance->peername);
+			transmit_publish(monitor_instance->suspension_entry, SIP_PUBLISH_INITIAL, monitor_instance->notify_uri);
+		} else {
+			ast_cc_monitor_callee_available(monitor_instance->core_id, "SIP monitored callee has become available");
+		}
+	} else {
+		ast_cc_monitor_callee_available(monitor_instance->core_id, "SIP monitored callee has become available");
+	}
+	ao2_ref(monitor_instance, -1);
+	transmit_response(pvt, "200 OK", req);
+
+	return 0;
+}
+
 /*! \brief Handle incoming notifications */
 static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int seqno, const char *e)
 {
@@ -18376,6 +19575,8 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 		 /* Used by Sipura/Linksys for NAT pinhole,
 		  * just confirm that we recieved the packet. */
 		transmit_response(p, "200 OK", req);
+	} else if (!strcmp(event, "call-completion")) {
+		res = handle_cc_notify(p, req);
 	} else {
 		/* We don't understand this event. */
 		transmit_response(p, "489 Bad event", req);
@@ -18411,7 +19612,7 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req)
 		return 0;
 	}
 
-	res = get_destination(p, req);
+	res = get_destination(p, req, NULL);
 	build_contact(p);
 
 	if (ast_strlen_zero(p->context))
@@ -19271,6 +20472,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		/* This is a new invite */
 		/* Handle authentication if this is our first invite */
 		struct ast_party_redirecting redirecting = {{0,},};
+		int cc_recall_core_id = -1;
 		set_pvt_allowed_methods(p, req);
 		res = check_user(p, req, SIP_INVITE, e, XMIT_RELIABLE, sin);
 		if (res == AUTH_CHALLENGE_SENT) {
@@ -19338,7 +20540,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			res = 0;
 			goto request_invite_cleanup;
 		}
-		gotdest = get_destination(p, NULL);	/* Get destination right away */
+		gotdest = get_destination(p, NULL, &cc_recall_core_id);	/* Get destination right away */
 		change_redirecting_information(p, req, &redirecting, FALSE); /*Will return immediately if no Diversion header is present */
 		extract_uri(p, req);			/* Get the Contact URI */
 		build_contact(p);			/* Build our contact header */
@@ -19376,6 +20578,10 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			make_our_tag(p->tag, sizeof(p->tag));
 			/* First invitation - create the channel */
 			c = sip_new(p, AST_STATE_DOWN, S_OR(p->peername, NULL), NULL);
+			if (cc_recall_core_id != -1) {
+				ast_setup_cc_recall_datastore(c, cc_recall_core_id);
+				ast_cc_agent_set_interfaces_chanvar(c);
+			}
 			*recount = 1;
 
 			/* Save Record-Route for any later requests we make on this dialogue */
@@ -20454,6 +21660,496 @@ static int handle_request_message(struct sip_pvt *p, struct sip_request *req)
 	return 1;
 }
 
+static enum sip_publish_type determine_sip_publish_type(struct sip_request *req, const char * const event, const char * const etag, const char * const expires, int *expires_int)
+{
+	int etag_present = !ast_strlen_zero(etag);
+	int body_present = req->lines > 0;
+
+	ast_assert(expires_int != NULL);
+
+	if (ast_strlen_zero(expires)) {
+		/* Section 6, item 4, second bullet point of RFC 3903 says to
+		 * use a locally-configured default expiration if none is provided
+		 * in the request
+		 */
+		*expires_int = DEFAULT_PUBLISH_EXPIRES;
+	} else if (sscanf(expires, "%30d", expires_int) != 1) {
+		return SIP_PUBLISH_UNKNOWN;
+	}
+
+	if (*expires_int == 0) {
+		return SIP_PUBLISH_REMOVE;
+	} else if (!etag_present && body_present) {
+		return SIP_PUBLISH_INITIAL;
+	} else if (etag_present && !body_present) {
+		return SIP_PUBLISH_REFRESH;
+	} else if (etag_present && body_present) {
+		return SIP_PUBLISH_MODIFY;
+	}
+
+	return SIP_PUBLISH_UNKNOWN;
+}
+
+#ifdef HAVE_LIBXML2
+static void get_pidf_body(struct sip_request *req, char *pidf_body, size_t size)
+{
+	int i;
+	struct ast_str *str = ast_str_alloca(size);
+	for (i = 0; i < req->lines; ++i) {
+		ast_str_append(&str, 0, "%s", REQ_OFFSET_TO_STR(req, line[i]));
+	}
+	ast_copy_string(pidf_body, ast_str_buffer(str), size);
+}
+
+static int pidf_validate_tuple(struct ast_xml_node *tuple_node)
+{
+	const char *id;
+	int status_found = FALSE;
+	struct ast_xml_node *tuple_children;
+	struct ast_xml_node *tuple_children_iterator;
+	/* Tuples have to have an id attribute or they're invalid */
+	if (!(id = ast_xml_get_attribute(tuple_node, "id"))) {
+		ast_log(LOG_WARNING, "Tuple XML element has no attribute 'id'\n");
+		return FALSE;
+	}
+	/* We don't care what it actually is, just that it's there */
+	ast_xml_free_attr(id);
+	/* This is a tuple. It must have a status element */
+	if (!(tuple_children = ast_xml_node_get_children(tuple_node))) {
+		/* The tuple has no children. It sucks */
+		ast_log(LOG_WARNING, "Tuple XML element has no child elements\n");
+		return FALSE;
+	}
+	for (tuple_children_iterator = tuple_children; tuple_children_iterator;
+			tuple_children_iterator = ast_xml_node_get_next(tuple_children_iterator)) {
+		/* Similar to the wording used regarding tuples, the status element should appear
+		 * first. However, we will once again relax things and accept the status at any
+		 * position. We will enforce that only a single status element can be present.
+		 */
+		if (strcmp(ast_xml_node_get_name(tuple_children_iterator), "status")) {
+			/* Not the status, we don't care */
+			continue;
+		}
+		if (status_found == TRUE) {
+			/* THERE CAN BE ONLY ONE!!! */
+			ast_log(LOG_WARNING, "Multiple status elements found in tuple. Only one allowed\n");
+			return FALSE;
+		}
+		status_found = TRUE;
+	}
+	return status_found;
+}
+
+
+static int pidf_validate_presence(struct ast_xml_doc *doc)
+{
+	struct ast_xml_node *presence_node = ast_xml_get_root(doc);
+	struct ast_xml_node *child_nodes;
+	struct ast_xml_node *node_iterator;
+	struct ast_xml_ns *ns;
+	const char *entity;
+	const char *namespace;
+	const char presence_namespace[] = "urn:ietf:params:xml:ns:pidf";
+
+	if (!presence_node) {
+		ast_log(LOG_WARNING, "Unable to retrieve root node of the XML document\n");
+		return FALSE;
+	}
+	/* Okay, we managed to open the document! YAY! Now, let's start making sure it's all PIDF-ified
+	 * correctly.
+	 */
+	if (strcmp(ast_xml_node_get_name(presence_node), "presence")) {
+		ast_log(LOG_WARNING, "Root node of PIDF document is not 'presence'. Invalid\n");
+		return FALSE;
+	}
+
+	/* The presence element must have an entity attribute and an xmlns attribute. Furthermore
+	 * the xmlns attribute must be "urn:ietf:params:xml:ns:pidf"
+	 */
+	if (!(entity = ast_xml_get_attribute(presence_node, "entity"))) {
+		ast_log(LOG_WARNING, "Presence element of PIDF document has no 'entity' attribute\n");
+		return FALSE;
+	}
+	/* We're not interested in what the entity is, just that it exists */
+	ast_xml_free_attr(entity);
+
+	if (!(ns = ast_xml_find_namespace(doc, presence_node, NULL))) {
+		ast_log(LOG_WARNING, "Couldn't find default namespace...\n");
+		return FALSE;
+	}
+
+	namespace = ast_xml_get_ns_href(ns);
+	if (ast_strlen_zero(namespace) || strcmp(namespace, presence_namespace)) {
+		ast_log(LOG_WARNING, "PIDF document has invalid namespace value %s\n", namespace);
+		return FALSE;
+	}
+
+	if (!(child_nodes = ast_xml_node_get_children(presence_node))) {
+		ast_log(LOG_WARNING, "PIDF document has no elements as children of 'presence'. Invalid\n");
+		return FALSE;
+	}
+
+	/* Check for tuple elements. RFC 3863 says that PIDF documents can have any number of
+	 * tuples, including 0. The big thing here is that if there are tuple elements present,
+	 * they have to have a single status element within.
+	 *
+	 * The RFC is worded such that tuples should appear as the first elements as children of
+	 * the presence element. However, we'll be accepting of documents which may place other elements
+	 * before the tuple(s).
+	 */
+	for (node_iterator = child_nodes; node_iterator;
+			node_iterator = ast_xml_node_get_next(node_iterator)) {
+		if (strcmp(ast_xml_node_get_name(node_iterator), "tuple")) {
+			/* Not a tuple. We don't give a rat's hind quarters */
+			continue;
+		}
+		if (pidf_validate_tuple(node_iterator) == FALSE) {
+			ast_log(LOG_WARNING, "Unable to validate tuple\n");
+			return FALSE;
+		}
+	}
+
+	return TRUE;
+}
+
+/*!
+ * \brief Makes sure that body is properly formatted PIDF
+ *
+ * Specifically, we check that the document has a "presence" element
+ * at the root and that within that, there is at least one "tuple" element
+ * that contains a "status" element.
+ *
+ * XXX This function currently assumes a default namespace is used. Of course
+ * if you're not using a default namespace, you're probably a stupid jerk anyway.
+ *
+ * \param req The SIP request to check
+ * \param[out] pidf_doc The validated PIDF doc.
+ * \retval FALSE The XML was malformed or the basic PIDF structure was marred
+ * \retval TRUE The PIDF document is of a valid format
+ */
+static int sip_pidf_validate(struct sip_request *req, struct ast_xml_doc **pidf_doc)
+{
+	struct ast_xml_doc *doc;
+	int content_length;
+	const char *content_length_str = get_header(req, "Content-Length");
+	const char *content_type = get_header(req, "Content-Type");
+	char pidf_body[SIPBUFSIZE];
+	int res;
+
+	if (ast_strlen_zero(content_type) || strcmp(content_type, "application/pidf+xml")) {
+		ast_log(LOG_WARNING, "Content type is not PIDF\n");
+		return FALSE;
+	}
+
+	if (ast_strlen_zero(content_length_str)) {
+		ast_log(LOG_WARNING, "No content length. Can't determine bounds of PIDF document\n");
+		return FALSE;
+	}
+
+	if (sscanf(content_length_str, "%30d", &content_length) != 1) {
+		ast_log(LOG_WARNING, "Invalid content length provided\n");
+		return FALSE;
+	}
+
+	if (content_length > sizeof(pidf_body)) {
+		ast_log(LOG_WARNING, "Content length of PIDF document truncated to %d bytes\n", (int) sizeof(pidf_body));
+		content_length = sizeof(pidf_body);
+	}
+
+	get_pidf_body(req, pidf_body, content_length);
+
+	if (!(doc = ast_xml_read_memory(pidf_body, content_length))) {
+		ast_log(LOG_WARNING, "Unable to open XML PIDF document. Is it malformed?\n");
+		return FALSE;
+	}
+
+	res = pidf_validate_presence(doc);
+	if (res == TRUE) {
+		*pidf_doc = doc;
+	} else {
+		ast_xml_close(doc);
+	}
+	return res;
+}
+
+static int cc_esc_publish_handler(struct sip_pvt *pvt, struct sip_request *req, struct event_state_compositor *esc, struct sip_esc_entry *esc_entry)
+{
+	const char *uri = REQ_OFFSET_TO_STR(req, rlPart2);
+	struct ast_cc_agent *agent = find_sip_cc_agent_by_notify_uri(uri);
+	struct sip_cc_agent_pvt *agent_pvt;
+	struct ast_xml_doc *pidf_doc = NULL;
+	const char *basic_status = NULL;
+	struct ast_xml_node *presence_node;
+	struct ast_xml_node *presence_children;
+	struct ast_xml_node *tuple_node;
+	struct ast_xml_node *tuple_children;
+	struct ast_xml_node *status_node;
+	struct ast_xml_node *status_children;
+	struct ast_xml_node *basic_node;
+	int res = 0;
+
+	if (!agent) {
+		ast_log(LOG_WARNING, "Could not find agent using uri '%s'\n", uri);
+		transmit_response(pvt, "412 Conditional Request Failed", req);
+		return -1;
+	}
+
+	agent_pvt = agent->private_data;
+
+	if (sip_pidf_validate(req, &pidf_doc) == FALSE) {
+		res = -1;
+		goto cc_publish_cleanup;
+	}
+
+	/* It's important to note that the PIDF validation routine has no knowledge
+	 * of what we specifically want in this instance. A valid PIDF document could
+	 * have no tuples, or it could have tuples whose status element has no basic
+	 * element contained within. While not violating the PIDF spec, these are
+	 * insufficient for our needs in this situation
+	 */
+	presence_node = ast_xml_get_root(pidf_doc);
+	if (!(presence_children = ast_xml_node_get_children(presence_node))) {
+		ast_log(LOG_WARNING, "No tuples within presence element.\n");
+		res = -1;
+		goto cc_publish_cleanup;
+	}
+
+	if (!(tuple_node = ast_xml_find_element(presence_children, "tuple", NULL, NULL))) {
+		ast_log(LOG_NOTICE, "Couldn't find tuple node?\n");
+		res = -1;
+		goto cc_publish_cleanup;
+	}
+
+	/* We already made sure that the tuple has a status node when we validated the PIDF
+	 * document earlier. So there's no need to enclose this operation in an if statement.
+	 */
+	tuple_children = ast_xml_node_get_children(tuple_node);
+	status_node = ast_xml_find_element(tuple_children, "status", NULL, NULL);
+
+	if (!(status_children = ast_xml_node_get_children(status_node))) {
+		ast_log(LOG_WARNING, "No basic elements within status element.\n");
+		res = -1;
+		goto cc_publish_cleanup;
+	}
+
+	if (!(basic_node = ast_xml_find_element(status_children, "basic", NULL, NULL))) {
+		ast_log(LOG_WARNING, "Couldn't find basic node?\n");
+		res = -1;
+		goto cc_publish_cleanup;
+	}
+
+	basic_status = ast_xml_get_text(basic_node);
+
+	if (ast_strlen_zero(basic_status)) {
+		ast_log(LOG_NOTICE, "NOthing in basic node?\n");
+		res = -1;
+		goto cc_publish_cleanup;
+	}
+
+	if (!strcmp(basic_status, "open")) {
+		agent_pvt->is_available = TRUE;
+		ast_cc_agent_caller_available(agent->core_id, "Received PUBLISH stating SIP caller %s is available",
+				agent->device_name);
+	} else if (!strcmp(basic_status, "closed")) {
+		agent_pvt->is_available = FALSE;
+		ast_cc_agent_caller_busy(agent->core_id, "Received PUBLISH stating SIP caller %s is busy",
+				agent->device_name);
+	} else {
+		ast_log(LOG_NOTICE, "Invalid content in basic element: %s\n", basic_status);
+	}
+
+cc_publish_cleanup:
+	if (basic_status) {
+		ast_xml_free_text(basic_status);
+	}
+	if (pidf_doc) {
+		ast_xml_close(pidf_doc);
+	}
+	ao2_ref(agent, -1);
+	if (res) {
+		transmit_response(pvt, "400 Bad Request", req);
+	}
+	return res;
+}
+
+#endif /* HAVE_LIBXML2 */
+
+static int handle_sip_publish_initial(struct sip_pvt *p, struct sip_request *req, struct event_state_compositor *esc, const int expires)
+{
+	struct sip_esc_entry *esc_entry = create_esc_entry(esc, req, expires);
+	int res = 0;
+
+	if (!esc_entry) {
+		transmit_response(p, "503 Internal Server Failure", req);
+		return -1;
+	}
+
+	if (esc->callbacks->initial_handler) {
+		res = esc->callbacks->initial_handler(p, req, esc, esc_entry);
+	}
+
+	if (!res) {
+		transmit_response_with_sip_etag(p, "200 OK", req, esc_entry, 0);
+	}
+
+	ao2_ref(esc_entry, -1);
+	return res;
+}
+
+static int handle_sip_publish_refresh(struct sip_pvt *p, struct sip_request *req, struct event_state_compositor *esc, const char * const etag, const int expires)
+{
+	struct sip_esc_entry *esc_entry = get_esc_entry(etag, esc);
+	int expires_ms = expires * 1000;
+	int res = 0;
+
+	if (!esc_entry) {
+		transmit_response(p, "412 Conditional Request Failed", req);
+		return -1;
+	}
+
+	AST_SCHED_REPLACE_UNREF(esc_entry->sched_id, sched, expires_ms, publish_expire, esc_entry,
+			ao2_ref(_data, -1),
+			ao2_ref(esc_entry, -1),
+			ao2_ref(esc_entry, +1));
+
+	if (esc->callbacks->refresh_handler) {
+		res = esc->callbacks->refresh_handler(p, req, esc, esc_entry);
+	}
+
+	if (!res) {
+		transmit_response_with_sip_etag(p, "200 OK", req, esc_entry, 1);
+	}
+
+	ao2_ref(esc_entry, -1);
+	return res;
+}
+
+static int handle_sip_publish_modify(struct sip_pvt *p, struct sip_request *req, struct event_state_compositor *esc, const char * const etag, const int expires)
+{
+	struct sip_esc_entry *esc_entry = get_esc_entry(etag, esc);
+	int expires_ms = expires * 1000;
+	int res = 0;
+
+	if (!esc_entry) {
+		transmit_response(p, "412 Conditional Request Failed", req);
+		return -1;
+	}
+
+	AST_SCHED_REPLACE_UNREF(esc_entry->sched_id, sched, expires_ms, publish_expire, esc_entry,
+			ao2_ref(_data, -1),
+			ao2_ref(esc_entry, -1),
+			ao2_ref(esc_entry, +1));
+
+	if (esc->callbacks->modify_handler) {
+		res = esc->callbacks->modify_handler(p, req, esc, esc_entry);
+	}
+
+	if (!res) {
+		transmit_response_with_sip_etag(p, "200 OK", req, esc_entry, 1);
+	}
+
+	ao2_ref(esc_entry, -1);
+	return res;
+}
+
+static int handle_sip_publish_remove(struct sip_pvt *p, struct sip_request *req, struct event_state_compositor *esc, const char * const etag)
+{
+	struct sip_esc_entry *esc_entry = get_esc_entry(etag, esc);
+	int res = 0;
+
+	if (!esc_entry) {
+		transmit_response(p, "412 Conditional Request Failed", req);
+		return -1;
+	}
+
+	AST_SCHED_DEL(sched, esc_entry->sched_id);
+	/* Scheduler's ref of the esc_entry */
+	ao2_ref(esc_entry, -1);
+
+	if (esc->callbacks->remove_handler) {
+		res = esc->callbacks->remove_handler(p, req, esc, esc_entry);
+	}
+
+	if (!res) {
+		transmit_response_with_sip_etag(p, "200 OK", req, esc_entry, 1);
+	}
+
+	/* Ref from finding the esc_entry earlier in function */
+	ao2_unlink(esc->compositor, esc_entry);
+	ao2_ref(esc_entry, -1);
+	return res;
+}
+
+static int handle_request_publish(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, const int seqno, const char *uri)
+{
+	const char *etag = get_header(req, "SIP-If-Match");
+	const char *event = get_header(req, "Event");
+	struct event_state_compositor *esc;
+	enum sip_publish_type publish_type;
+	const char *expires_str = get_header(req, "Expires");
+	int expires_int;
+	int auth_result;
+	int handler_result = -1;
+
+	if (ast_strlen_zero(event)) {
+		transmit_response(p, "489 Bad Event", req);
+		return -1;
+	}
+
+	if (!(esc = get_esc(event))) {
+		transmit_response(p, "489 Bad Event", req);
+		return -1;
+	}
+
+	auth_result = check_user(p, req, SIP_PUBLISH, uri, XMIT_RELIABLE, sin);
+	if (auth_result == AUTH_CHALLENGE_SENT) {
+		p->lastinvite = seqno;
+		return 0;
+	} else if (auth_result < 0) {
+		if (auth_result == AUTH_FAKE_AUTH) {
+			ast_log(LOG_NOTICE, "Sending fake auth rejection for device %s\n", get_header(req, "From"));
+			transmit_fake_auth_response(p, SIP_INVITE, req, XMIT_RELIABLE);
+		} else {
+			ast_log(LOG_NOTICE, "Failed to authenticate device %s\n", get_header(req, "From"));
+			transmit_response_reliable(p, "403 Forbidden", req);
+		}
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+		ast_string_field_set(p, theirtag, NULL);
+		return 0;
+	} else if (auth_result == AUTH_SUCCESSFUL && p->lastinvite) {
+		/* We need to stop retransmitting the 401 */
+		__sip_ack(p, p->lastinvite, 1, 0);
+	}
+
+	publish_type = determine_sip_publish_type(req, event, etag, expires_str, &expires_int);
+
+	/* It is the responsibility of these handlers to formulate any response
+	 * sent for a PUBLISH
+	 */
+	switch (publish_type) {
+	case SIP_PUBLISH_UNKNOWN:
+		transmit_response(p, "400 Bad Request", req);
+		break;
+	case SIP_PUBLISH_INITIAL:
+		handler_result = handle_sip_publish_initial(p, req, esc, expires_int);
+		break;
+	case SIP_PUBLISH_REFRESH:
+		handler_result = handle_sip_publish_refresh(p, req, esc, etag, expires_int);
+		break;
+	case SIP_PUBLISH_MODIFY:
+		handler_result = handle_sip_publish_modify(p, req, esc, etag, expires_int);
+		break;
+	case SIP_PUBLISH_REMOVE:
+		handler_result = handle_sip_publish_remove(p, req, esc, etag);
+		break;
+	default:
+		transmit_response(p, "400 Impossible Condition", req);
+		break;
+	}
+
+	return handler_result;
+}
+
 static void add_peer_mwi_subs(struct sip_peer *peer)
 {
 	struct sip_mailbox *mailbox;
@@ -20464,6 +22160,63 @@ static void add_peer_mwi_subs(struct sip_peer *peer)
 			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, S_OR(mailbox->context, "default"),
 			AST_EVENT_IE_END);
 	}
+}
+
+static int handle_cc_subscribe(struct sip_pvt *p, struct sip_request *req)
+{
+	const char *uri = REQ_OFFSET_TO_STR(req, rlPart2);
+	char *param_separator;
+	struct ast_cc_agent *agent;
+	struct sip_cc_agent_pvt *agent_pvt;
+	const char *expires_str = get_header(req, "Expires");
+	int expires = -1; /* Just need it to be non-zero */
+
+	if (!ast_strlen_zero(expires_str)) {
+		sscanf(expires_str, "%d", &expires);
+	}
+
+	if ((param_separator = strchr(uri, ';'))) {
+		*param_separator = '\0';
+	}
+
+	if (!(agent = find_sip_cc_agent_by_subscribe_uri(uri))) {
+		if (!expires) {
+			/* Typically, if a 0 Expires reaches us and we can't find
+			 * the corresponding agent, it means that the CC transaction
+			 * has completed and so the calling side is just trying to
+			 * clean up its subscription. We'll just respond with a
+			 * 200 OK and be done with it
+			 */
+			transmit_response(p, "200 OK", req);
+			return 0;
+		}
+		ast_log(LOG_WARNING, "Invalid URI '%s' in CC subscribe\n", uri);
+		transmit_response(p, "404 Not Found", req);
+		return -1;
+	}
+
+	agent_pvt = agent->private_data;
+
+	if (!expires) {
+		/* We got sent a SUBSCRIBE and found an agent. This means that CC
+		 * is being canceled.
+		 */
+		ast_cc_failed(agent->core_id, "CC is being canceled by %s", agent->device_name);
+		transmit_response(p, "200 OK", req);
+		ao2_ref(agent, -1);
+		return 0;
+	}
+
+	agent_pvt->subscribe_pvt = dialog_ref(p, "SIP CC agent gains reference to subscription dialog");
+	ast_cc_agent_accept_request(agent->core_id, "SIP caller %s has requested CC via SUBSCRIBE",
+			agent->device_name);
+	p->subscribed = CALL_COMPLETION;
+
+	/* We don't send a response here. That is done in the agent's ack callback or in the
+	 * agent destructor, should a failure occur before we have responded
+	 */
+	ao2_ref(agent, -1);
+	return 0;
 }
 
 /*! \brief  Handle incoming SUBSCRIBE request */
@@ -20578,9 +22331,9 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		return 0;
 	}
 
-	if (strcmp(event, "message-summary")) {
+	if (strcmp(event, "message-summary") && strcmp(event, "call-completion")) {
 		/* Get destination right away */
-		gotdest = get_destination(p, NULL);
+		gotdest = get_destination(p, NULL, NULL);
 	}
 
 	/* Get full contact header - this needs to be used as a request URI in NOTIFY's */
@@ -20685,6 +22438,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			unref_peer(p->relatedpeer, "Unref previously stored relatedpeer ptr");
 		p->relatedpeer = ref_peer(authpeer, "setting dialog's relatedpeer pointer");	/* already refcounted...Link from pvt to peer UH- should this be dialog_ref()? */
 		/* Do not release authpeer here */
+	} else if (!strcmp(event, "call-completion")) {
+		handle_cc_subscribe(p, req);
 	} else { /* At this point, Asterisk does not understand the specified event */
 		transmit_response(p, "489 Bad Event", req);
 		ast_debug(2, "Received SIP subscribe for unknown event package: %s\n", event);
@@ -20695,7 +22450,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	}
 
 	/* Add subscription for extension state from the PBX core */
-	if (p->subscribed != MWI_NOTIFICATION && !resubscribe) {
+	if (p->subscribed != MWI_NOTIFICATION  && p->subscribed != CALL_COMPLETION && !resubscribe) {
 		if (p->stateid > -1) {
 			ast_extension_state_del(p->stateid, cb_extensionstate);
 			/* we need to dec the refcount, now that the extensionstate is removed */
@@ -20716,10 +22471,13 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			p->expiry = min_expiry;
 
 		if (sipdebug) {
-			if (p->subscribed == MWI_NOTIFICATION && p->relatedpeer)
+			if (p->subscribed == MWI_NOTIFICATION && p->relatedpeer) {
 				ast_debug(2, "Adding subscription for mailbox notification - peer %s\n", p->relatedpeer->name);
-			else
+			} else if (p->subscribed == CALL_COMPLETION) {
+				ast_debug(2, "Adding CC subscription for peer %s\n", p->username);
+			} else {
 				ast_debug(2, "Adding subscription for extension %s context %s for peer %s\n", p->exten, p->context, p->username);
+			}
 		}
 		if (p->autokillid > -1 && sip_cancel_destroy(p))	/* Remove subscription expiry for renewals */
 			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
@@ -20734,7 +22492,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				sip_send_mwi_to_peer(p->relatedpeer, NULL, 0);
 				ao2_unlock(p->relatedpeer);
 			}
-		} else {
+		} else if (p->subscribed != CALL_COMPLETION) {
 			struct sip_pvt *p_old;
 
 			if ((firststate = ast_extension_state(NULL, p->context, p->exten)) < 0) {
@@ -21005,7 +22763,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 		}
 	}
 
-	if (!e && (p->method == SIP_INVITE || p->method == SIP_SUBSCRIBE || p->method == SIP_REGISTER || p->method == SIP_NOTIFY)) {
+	if (!e && (p->method == SIP_INVITE || p->method == SIP_SUBSCRIBE || p->method == SIP_REGISTER || p->method == SIP_NOTIFY || p->method == SIP_PUBLISH)) {
 		transmit_response(p, "400 Bad request", req);
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		return -1;
@@ -21030,6 +22788,9 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 		break;
 	case SIP_MESSAGE:
 		res = handle_request_message(p, req);
+		break;
+	case SIP_PUBLISH:
+		res = handle_request_publish(p, req, sin, seqno, e);
 		break;
 	case SIP_SUBSCRIBE:
 		res = handle_request_subscribe(p, req, sin, seqno, e);
@@ -22001,7 +23762,7 @@ static void proc_422_rsp(struct sip_pvt *p, struct sip_request *rsp)
 		return;
 	}
 	p->stimer->st_interval = minse;
-	transmit_invite(p, SIP_INVITE, 1, 2);
+	transmit_invite(p, SIP_INVITE, 1, 2, NULL);
 }
 
 
@@ -22195,9 +23956,9 @@ static int sip_poke_peer(struct sip_peer *peer, int force)
 	ast_set_flag(&p->flags[0], SIP_OUTGOING);
 #ifdef VOCAL_DATA_HACK
 	ast_copy_string(p->username, "__VOCAL_DATA_SHOULD_READ_THE_SIP_SPEC__", sizeof(p->username));
-	xmitres = transmit_invite(p, SIP_INVITE, 0, 2); /* sinks the p refcount */
+	xmitres = transmit_invite(p, SIP_INVITE, 0, 2, NULL); /* sinks the p refcount */
 #else
-	xmitres = transmit_invite(p, SIP_OPTIONS, 0, 2); /* sinks the p refcount */
+	xmitres = transmit_invite(p, SIP_OPTIONS, 0, 2, NULL); /* sinks the p refcount */
 #endif
 	peer->ps = ast_tvnow();
 	if (xmitres == XMIT_ERROR) {
@@ -22336,6 +24097,7 @@ static struct ast_channel *sip_request_call(const char *type, format_t format, c
 	char *md5secret = NULL;
 	char *authname = NULL;
 	char *trans = NULL;
+	char dialstring[256];
 	char *remote_address;
 	enum sip_transport transport = 0;
 	struct sockaddr_in remote_address_sin = { .sin_family = AF_INET };
@@ -22368,6 +24130,9 @@ static struct ast_channel *sip_request_call(const char *type, format_t format, c
 	}
 
 	p->outgoing_call = TRUE;
+
+	snprintf(dialstring, sizeof(dialstring), "%s/%s", type, dest);
+	ast_string_field_set(p, dialstring, dialstring);
 
 	if (!(p->options = ast_calloc(1, sizeof(*p->options)))) {
 		dialog_unlink_all(p, TRUE, TRUE);
@@ -23059,6 +24824,11 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			return NULL;
 		}
 
+		if (!(peer->cc_params = ast_cc_config_params_init())) {
+			ao2_t_ref(peer, -1, "failed to allocate cc_params for peer");
+			return NULL;
+		}
+
 		if (realtime && !ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS)) {
 			ast_atomic_fetchadd_int(&rpeerobjs, 1);
 			ast_debug(3, "-REALTIME- peer built. Name: %s. Peer objects: %d\n", name, rpeerobjs);
@@ -23442,7 +25212,14 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			if (peer->busy_level < 0) {
 				peer->busy_level = 0;
 			}
+		} else if (ast_cc_is_config_param(v->name)) {
+			ast_cc_set_param(peer->cc_params, v->name, v->value);
 		}
+	}
+
+	if (!can_parse_xml && (ast_get_cc_agent_policy(peer->cc_params) == AST_CC_AGENT_NATIVE)) {
+		ast_log(LOG_WARNING, "Peer %s has a cc_agent_policy of 'native' but required libxml2 dependency is not installed. Changing policy to 'never'\n", peer->name);
+		ast_set_cc_agent_policy(peer->cc_params, AST_CC_AGENT_NEVER);
 	}
 
 	/* Note that Timer B is dependent upon T1 and MUST NOT be lower
@@ -24961,6 +26738,15 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 	return 0;
 }
 
+static int sip_is_xml_parsable(void)
+{
+#ifdef HAVE_LIBXML2
+	return TRUE;
+#else
+	return FALSE;
+#endif
+}
+
 /*! \brief Send a poke to all known peers */
 static void sip_poke_all_peers(void)
 {
@@ -25276,6 +27062,7 @@ static int load_module(void)
 
 	sip_reloadreason = CHANNEL_MODULE_LOAD;
 
+	can_parse_xml = sip_is_xml_parsable();
 	if(reload_config(sip_reloadreason))	/* Load the configuration from sip.conf */
 		return AST_MODULE_LOAD_DECLINE;
 
@@ -25323,6 +27110,24 @@ static int load_module(void)
 	sip_poke_all_peers();	
 	sip_send_all_registers();
 	sip_send_all_mwi_subscriptions();
+	initialize_escs();
+	if (sip_epa_register(&cc_epa_static_data)) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+	if (can_parse_xml) {
+		/* SIP CC agents require the ability to parse XML PIDF bodies
+		 * in incoming PUBLISH requests
+		 */
+		if (ast_cc_agent_register(&sip_cc_agent_callbacks)) {
+			return AST_MODULE_LOAD_DECLINE;
+		}
+	}
+	if (ast_cc_monitor_register(&sip_cc_monitor_callbacks)) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+	if (!(sip_monitor_instances = ao2_container_alloc(37, sip_monitor_instance_hash_fn, sip_monitor_instance_cmp_fn))) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
 
 	/* And start the monitor for the first time */
 	restart_monitor();
@@ -25433,6 +27238,7 @@ static int unload_module(void)
 
 	clear_realm_authentication(authl);
 
+	destroy_escs();
 
 	if (default_tls_cfg.certfile)
 		ast_free(default_tls_cfg.certfile);
@@ -25464,6 +27270,8 @@ static int unload_module(void)
 		ast_context_destroy(con, "SIP");
 	ast_unload_realtime("sipregs");
 	ast_unload_realtime("sippeers");
+	ast_cc_monitor_unregister(&sip_cc_monitor_callbacks);
+	ast_cc_agent_unregister(&sip_cc_agent_callbacks);
 
 	sip_unregister_tests();
 

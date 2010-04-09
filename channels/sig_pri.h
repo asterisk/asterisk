@@ -27,8 +27,44 @@
 
 #include "asterisk/channel.h"
 #include "asterisk/frame.h"
+#include "asterisk/ccss.h"
 #include <libpri.h>
 #include <dahdi/user.h>
+#if defined(PRI_SUBCMD_CC_AVAILABLE)
+/* BUGBUG the HAVE_PRI_CCSS line is to be removed when the CCSS branch is merged to trunk and the configure script is updated. */
+#define HAVE_PRI_CCSS 1
+#endif	/* defined(PRI_SUBCMD_CC_AVAILABLE) */
+
+#if defined(HAVE_PRI_CCSS)
+/*! PRI debug message flags when normal PRI debugging is turned on at the command line. */
+#define SIG_PRI_DEBUG_NORMAL	\
+	(PRI_DEBUG_APDU | PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q931_STATE | PRI_DEBUG_Q921_STATE \
+	| PRI_DEBUG_CC)
+
+/*! PRI debug message flags when intense PRI debugging is turned on at the command line. */
+#define SIG_PRI_DEBUG_INTENSE	\
+	(PRI_DEBUG_APDU | PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q931_STATE | PRI_DEBUG_Q921_STATE \
+	| PRI_DEBUG_CC | PRI_DEBUG_Q921_RAW | PRI_DEBUG_Q921_DUMP)
+
+#else
+
+/*! PRI debug message flags when normal PRI debugging is turned on at the command line. */
+#define SIG_PRI_DEBUG_NORMAL	\
+	(PRI_DEBUG_APDU | PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q931_STATE | PRI_DEBUG_Q921_STATE)
+
+/*! PRI debug message flags when intense PRI debugging is turned on at the command line. */
+#define SIG_PRI_DEBUG_INTENSE	\
+	(PRI_DEBUG_APDU | PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q931_STATE | PRI_DEBUG_Q921_STATE \
+	| PRI_DEBUG_Q921_RAW | PRI_DEBUG_Q921_DUMP)
+#endif	/* !defined(HAVE_PRI_CCSS) */
+
+#if 0
+/*! PRI debug message flags set on initial startup. */
+#define SIG_PRI_DEBUG_DEFAULT	SIG_PRI_DEBUG_NORMAL
+#else
+/*! PRI debug message flags set on initial startup. */
+#define SIG_PRI_DEBUG_DEFAULT	0
+#endif
 
 enum sig_pri_tone {
 	SIG_PRI_TONE_RINGTONE = 0,
@@ -78,6 +114,14 @@ struct sig_pri_callback {
 	void (* const set_rdnis)(void *pvt, const char *rdnis);
 	void (* const queue_control)(void *pvt, int subclass);
 	int (* const new_nobch_intf)(struct sig_pri_pri *pri);
+	const char *(* const get_orig_dialstring)(void *pvt);
+	void (* const make_cc_dialstring)(void *pvt, char *buf, size_t buf_size);
+	void (* const update_span_devstate)(struct sig_pri_pri *pri);
+
+	/*! Reference the parent module. */
+	void (*module_ref)(void);
+	/*! Unreference the parent module. */
+	void (*module_unref)(void);
 };
 
 #define NUM_DCHANS		4	/*!< No more than 4 d-channels */
@@ -194,6 +238,7 @@ struct sig_pri_chan {
 
 struct sig_pri_pri {
 	/* Should be set by user */
+	struct ast_cc_config_params *cc_params;			/*!< CC config parameters for each new call. */
 	int	pritimers[PRI_MAX_TIMERS];
 	int overlapdial;								/*!< In overlap dialing mode */
 	int qsigchannelmapping;                     	/*!< QSIG channel mapping type */
@@ -229,6 +274,11 @@ struct sig_pri_pri {
 	int switchtype;							/*!< Type of switch to emulate */
 	int nsf;								/*!< Network-Specific Facilities */
 	int trunkgroup;							/*!< What our trunkgroup is */
+#if defined(HAVE_PRI_CCSS)
+	int cc_ptmp_recall_mode;				/*!< CC PTMP recall mode. globalRecall(0), specificRecall(1) */
+	int cc_qsig_signaling_link_req;			/*!< CC Q.SIG signaling link retention (Party A) release(0), retain(1), do-not-care(2) */
+	int cc_qsig_signaling_link_rsp;			/*!< CC Q.SIG signaling link retention (Party B) release(0), retain(1) */
+#endif	/* defined(HAVE_PRI_CCSS) */
 
 	int dchanavail[NUM_DCHANS];				/*!< Whether each channel is available */
 	int debug;								/*!< set to true if to dump PRI event info (tested but never set) */
@@ -257,6 +307,37 @@ struct sig_pri_pri {
 	ast_mutex_t lock;							/*!< libpri access Mutex */
 	time_t lastreset;							/*!< time when unused channels were last reset */
 	struct sig_pri_callback *calls;
+	/*!
+	 * \brief Congestion device state of the span.
+	 * \details
+	 * AST_DEVICE_NOT_INUSE - Span does not have all B channels in use.
+	 * AST_DEVICE_BUSY - All B channels are in use.
+	 * AST_DEVICE_UNAVAILABLE - Span is in alarm.
+	 * \note
+	 * Device name:  DAHDI/I<span>/congestion
+	 */
+	int congestion_devstate;
+#if defined(THRESHOLD_DEVSTATE_PLACEHOLDER)
+	/*! \todo An ISDN span threshold device state could be useful in determining how often a span utilization goes over a configurable threshold. */
+	/*!
+	 * \brief User threshold device state of the span.
+	 * \details
+	 * AST_DEVICE_NOT_INUSE - There are no B channels in use.
+	 * AST_DEVICE_INUSE - The number of B channels in use is less than
+	 *    the configured threshold but not zero.
+	 * AST_DEVICE_BUSY - The number of B channels in use meets or exceeds
+	 *    the configured threshold.
+	 * AST_DEVICE_UNAVAILABLE - Span is in alarm.
+	 * \note
+	 * Device name:  DAHDI/I<span>/threshold
+	 */
+	int threshold_devstate;
+	/*!
+	 * \brief Number of B channels in use to consider the span in a busy state.
+	 * \note Setting the threshold to zero is interpreted as all B channels.
+	 */
+	int user_busy_threshold;
+#endif	/* defined(THRESHOLD_DEVSTATE_PLACEHOLDER) */
 };
 
 void sig_pri_extract_called_num_subaddr(struct sig_pri_chan *p, const char *rdest, char *called, size_t called_buff_size);
@@ -303,5 +384,26 @@ int pri_maintenance_bservice(struct pri *pri, struct sig_pri_chan *p, int change
 #endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */
 
 void sig_pri_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, struct sig_pri_chan *pchan);
+
+int sig_pri_cc_agent_init(struct ast_cc_agent *agent, struct sig_pri_chan *pvt_chan);
+int sig_pri_cc_agent_start_offer_timer(struct ast_cc_agent *agent);
+int sig_pri_cc_agent_stop_offer_timer(struct ast_cc_agent *agent);
+void sig_pri_cc_agent_req_ack(struct ast_cc_agent *agent);
+int sig_pri_cc_agent_status_req(struct ast_cc_agent *agent);
+int sig_pri_cc_agent_stop_ringing(struct ast_cc_agent *agent);
+int sig_pri_cc_agent_party_b_free(struct ast_cc_agent *agent);
+int sig_pri_cc_agent_start_monitoring(struct ast_cc_agent *agent);
+int sig_pri_cc_agent_callee_available(struct ast_cc_agent *agent);
+void sig_pri_cc_agent_destructor(struct ast_cc_agent *agent);
+
+int sig_pri_cc_monitor_req_cc(struct ast_cc_monitor *monitor, int *available_timer_id);
+int sig_pri_cc_monitor_suspend(struct ast_cc_monitor *monitor);
+int sig_pri_cc_monitor_unsuspend(struct ast_cc_monitor *monitor);
+int sig_pri_cc_monitor_status_rsp(struct ast_cc_monitor *monitor, enum ast_device_state devstate);
+int sig_pri_cc_monitor_cancel_available_timer(struct ast_cc_monitor *monitor, int *sched_id);
+void sig_pri_cc_monitor_destructor(void *monitor_pvt);
+
+int sig_pri_load(const char *cc_type_name);
+void sig_pri_unload(void);
 
 #endif /* _SIG_PRI_H */

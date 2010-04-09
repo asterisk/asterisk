@@ -2239,6 +2239,7 @@ int ast_hangup(struct ast_channel *chan)
 	}
 			
 	ast_channel_unlock(chan);
+	ast_cc_offer(chan);
 	ast_manager_event(chan, EVENT_FLAG_CALL, "Hangup",
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"
@@ -3611,6 +3612,7 @@ static int attribute_const is_visible_indication(enum ast_control_frame_type con
 	case AST_CONTROL_TRANSFER:
 	case AST_CONTROL_T38_PARAMETERS:
 	case _XXX_AST_CONTROL_T38:
+	case AST_CONTROL_CC:
 		break;
 
 	case AST_CONTROL_CONGESTION:
@@ -3754,6 +3756,7 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	case AST_CONTROL_TRANSFER:
 	case AST_CONTROL_CONNECTED_LINE:
 	case AST_CONTROL_REDIRECTING:
+	case AST_CONTROL_CC:
 		/* Nothing left to do for these. */
 		res = 0;
 		break;
@@ -4477,6 +4480,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, format_t format, co
 				case AST_CONTROL_SRCCHANGE:
 				case AST_CONTROL_CONNECTED_LINE:
 				case AST_CONTROL_REDIRECTING:
+				case AST_CONTROL_CC:
 				case -1:			/* Ignore -- just stopping indications */
 					break;
 
@@ -7442,6 +7446,107 @@ int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struc
 	}
 
 	return retval;
+}
+
+static void *channel_cc_params_copy(void *data)
+{
+	const struct ast_cc_config_params *src = data;
+	struct ast_cc_config_params *dest = ast_cc_config_params_init();
+	if (!dest) {
+		return NULL;
+	}
+	ast_cc_copy_config_params(dest, src);
+	return dest;
+}
+
+static void channel_cc_params_destroy(void *data)
+{
+	struct ast_cc_config_params *cc_params = data;
+	ast_cc_config_params_destroy(cc_params);
+}
+
+static const struct ast_datastore_info cc_channel_datastore_info = {
+	.type = "Call Completion",
+	.duplicate = channel_cc_params_copy,
+	.destroy = channel_cc_params_destroy,
+};
+
+int ast_channel_cc_params_init(struct ast_channel *chan,
+		const struct ast_cc_config_params *base_params)
+{
+	struct ast_cc_config_params *cc_params;
+	struct ast_datastore *cc_datastore;
+
+	if (!(cc_params = ast_cc_config_params_init())) {
+		return -1;
+	}
+
+	if (!(cc_datastore = ast_datastore_alloc(&cc_channel_datastore_info, NULL))) {
+		ast_cc_config_params_destroy(cc_params);
+		return -1;
+	}
+
+	if (base_params) {
+		ast_cc_copy_config_params(cc_params, base_params);
+	}
+	cc_datastore->data = cc_params;
+	ast_channel_datastore_add(chan, cc_datastore);
+	return 0;
+}
+
+struct ast_cc_config_params *ast_channel_get_cc_config_params(struct ast_channel *chan)
+{
+	struct ast_datastore *cc_datastore;
+
+	if (!(cc_datastore = ast_channel_datastore_find(chan, &cc_channel_datastore_info, NULL))) {
+		/* If we can't find the datastore, it almost definitely means that the channel type being
+		 * used has not had its driver modified to parse CC config parameters. The best action
+		 * to take here is to create the parameters on the spot with the defaults set.
+		 */
+		if (ast_channel_cc_params_init(chan, NULL)) {
+			return NULL;
+		}
+		if (!(cc_datastore = ast_channel_datastore_find(chan, &cc_channel_datastore_info, NULL))) {
+			/* Should be impossible */
+			return NULL;
+		}
+	}
+
+	ast_assert(cc_datastore->data != NULL);
+	return cc_datastore->data;
+}
+
+int ast_channel_get_device_name(struct ast_channel *chan, char *device_name, size_t name_buffer_length)
+{
+	int len = name_buffer_length;
+	char *dash;
+	if (!ast_channel_queryoption(chan, AST_OPTION_DEVICE_NAME, device_name, &len, 0)) {
+		return 0;
+	}
+
+	/* Dang. Do it the old-fashioned way */
+	ast_copy_string(device_name, chan->name, name_buffer_length);
+	if ((dash = strrchr(device_name, '-'))) {
+		*dash = '\0';
+	}
+
+	return 0;
+}
+
+int ast_channel_get_cc_agent_type(struct ast_channel *chan, char *agent_type, size_t size)
+{
+	int len = size;
+	char *slash;
+
+	if (!ast_channel_queryoption(chan, AST_OPTION_CC_AGENT_TYPE, agent_type, &len, 0)) {
+		return 0;
+	}
+
+	ast_copy_string(agent_type, chan->name, size);
+	if ((slash = strchr(agent_type, '/'))) {
+		*slash = '\0';
+	}
+	return 0;
 }
 
 /* DO NOT PUT ADDITIONAL FUNCTIONS BELOW THIS BOUNDARY

@@ -324,7 +324,8 @@ enum ast_control_frame_type {
 	AST_CONTROL_CONNECTED_LINE = 22,/*!< Indicate connected line has changed */
 	AST_CONTROL_REDIRECTING = 23,    /*!< Indicate redirecting id has changed */
 	AST_CONTROL_T38_PARAMETERS = 24, /*! T38 state change request/notification with parameters */
-	AST_CONTROL_SRCCHANGE = 25,  /*!< Media source has changed and requires a new RTP SSRC */
+	AST_CONTROL_CC = 25, /*!< Indication that Call completion service is possible */
+	AST_CONTROL_SRCCHANGE = 26,  /*!< Media source has changed and requires a new RTP SSRC */
 };
 
 enum ast_control_t38 {
@@ -432,6 +433,12 @@ enum ast_control_transfer {
 
 /*! Get or set the fax tone detection state of the channel */
 #define AST_OPTION_FAX_DETECT		15
+
+/*! Get the device name from the channel */
+#define AST_OPTION_DEVICE_NAME		16
+
+/*! Get the CC agent type from the channel */
+#define AST_OPTION_CC_AGENT_TYPE    17
 
 struct oprmode {
 	struct ast_channel *peer;

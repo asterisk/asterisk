@@ -545,6 +545,8 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 	int res;
 	struct ast_var_t *varptr = NULL, *new;
 	size_t len, namelen;
+	char *reduced_dest = ast_strdupa(dest);
+	char *slash;
 
 	if (!p)
 		return -1;
@@ -594,6 +596,8 @@ start_over:
 	ast_string_field_set(p->chan, musicclass, p->owner->musicclass);
 	ast_cdr_update(p->chan);
 
+	ast_channel_cc_params_init(p->chan, ast_channel_get_cc_config_params(p->owner));
+
 	if (!ast_exists_extension(NULL, p->chan->context, p->chan->exten, 1, p->owner->cid.cid_num)) {
 		ast_log(LOG_NOTICE, "No such extension/context %s@%s while calling Local channel\n", p->chan->exten, p->chan->context);
 		ast_mutex_unlock(&p->lock);
@@ -618,6 +622,14 @@ start_over:
 		}
 	}
 	ast_channel_datastore_inherit(p->owner, p->chan);
+	/* If the local channel has /n or /b on the end of it,
+	 * we need to lop that off for our argument to setting
+	 * up the CC_INTERFACES variable
+	 */
+	if ((slash = strrchr(reduced_dest, '/'))) {
+		*slash = '\0';
+	}
+	ast_set_cc_interfaces_chanvar(p->chan, reduced_dest);
 
 	/* Start switch on sub channel */
 	if (!(res = ast_pbx_start(p->chan)))
@@ -855,6 +867,10 @@ static struct ast_channel *local_request(const char *type, format_t format, cons
 			AST_LIST_LOCK(&locals);
 			AST_LIST_REMOVE(&locals, p, list);
 			AST_LIST_UNLOCK(&locals);
+			p = local_pvt_destroy(p);
+		}
+		if (ast_channel_cc_params_init(chan, ast_channel_get_cc_config_params((struct ast_channel *)requestor))) {
+			chan = ast_channel_release(chan);
 			p = local_pvt_destroy(p);
 		}
 	}

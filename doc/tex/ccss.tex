@@ -1,0 +1,414 @@
+\section{Introduction}
+
+	A new feature for Asterisk 1.8 is Call Completion Supplementary
+Services. This document aims to explain the system and how to use it.
+In addition, this document examines some potential troublesome points
+which administrators may come across during their deployment of the
+feature.
+
+\section{What is CCSS?}
+
+	Call Completion Supplementary Services (often abbreviated "CCSS" or
+simply "CC") allow for a caller to let Asterisk automatically alert him
+when a called party has become available, given that a previous call to
+that party failed for some reason. The two services offered are Call
+Completion on Busy Subscriber (CCBS) and Call Completion on No Response
+(CCNR).
+	To illustrate, let's say that Alice attempts to call Bob. Bob is
+currently on a phone call with Carol, though, so Alice hears a busy
+signal. In this situation, assuming that Asterisk has been configured
+to allow for such activity, Alice would be able to request CCBS. Once
+Bob has finished his phone call, Alice will be alerted. Alice can then
+attempt to call Bob again.
+
+\section{Glossary of Terms}
+
+	In this document, we will use some terms which may require
+clarification. Most of these terms are specific to Asterisk, and are by
+no means standard.
+
+\begin{itemize}
+\item CCBS: Call Completion on Busy Subscriber. When a call fails because the
+recipient's phone is busy, the caller will have the opportunity to
+request CCBS. When the recipient's phone is no longer busy, the caller
+will be alerted. The means by which the caller is alerted is dependent
+upon the type of agent used by the caller.
+
+\item CCNR: Call Completion on No Response. When a call fails because the
+recipient does not answer the phone, the caller will have the opportun-
+ity to request CCNR. When the recipient's phone becomes busy and then
+is no longer busy, the caller will be alerted. The means by which the
+caller is alerted is dependent upon the type of the agent used by the
+caller.
+
+\item Agent: The agent is the entity within Asterisk that communicates with
+and acts on behalf of the calling party.
+
+\item Monitor: The monitor is the entity within Asterisk that communicates
+with and monitors the status of the called party.
+
+\item Generic Agent: A generic agent is an agent that uses protocol-agnostic
+methods to communicate with the caller. Generic agents should only be
+used for phones, and never should be used for "trunks."
+
+\item Generic Monitor: A generic monitor is a monitor that uses protocol-
+agnostic methods to monitor the status of the called party. Like with
+generic agents, generic monitors should only be used for phones.
+
+\item Native Agent: The opposite of a generic agent. A native agent uses
+protocol-specific messages to communicate with the calling party.
+Native agents may be used for both phones and trunks, but it must be
+known ahead of time that the device with which Asterisk is communica-
+ting supports the necessary signaling.
+
+\item Native Monitor: The opposite of a generic monitor. A native monitor
+uses protocol-specific messages to subscribe to and receive notifica-
+tion of the status of the called party. Native monitors may be used
+for both phones and trunks, but it must be known ahead of time that
+the device with which Asterisk is communicating supports the
+necessary signaling.
+
+\item Offer: An offer of CC refers to the notification received by the caller
+that he may request CC.
+
+\item Request: When the caller decides that he would like to subscribe to CC,
+he will make a request for CC. Furthermore, the term may refer to any
+outstanding requests made by callers.
+
+\item Recall: When the caller attempts to call the recipient after being
+alerted that the recipient is available, this action is referred to
+as a "recall."
+\end{itemize}
+
+\section{The CC Process}
+
+\subsection{The Initial Call}
+
+	The only requirement for the use of CC is to configure an agent for
+the caller and a monitor for at least one recipient of the call.
+This is controlled using the cc\_agent\_policy for the caller and the
+cc\_monitor\_policy for the recipient. For more information about these
+configuration settings, see configs/samples/ccss.conf.sample. If the
+agent for the caller is set to something other than "never" and at
+least one recipient has his monitor set to something other than
+"never," then CC will be offered to the caller at the end of the
+call.
+
+	Once the initial call has been hung up, the configured
+cc\_offer\_timer for the caller will be started. If the caller wishes to
+request CC for the previous call, he must do so before the timer
+expires.
+
+\subsection{Requesting CC}
+
+	Requesting CC is done differently depending on the type of agent
+the caller is using.
+
+	With generic agents, the CallCompletionRequest application must be
+called in order to request CC. There are two different ways in which
+this may be called. It may either be called before the caller hangs up
+during the initial call, or the caller may hang up from the initial
+call and dial an extension which calls the CallCompletionRequest
+application. If the second method is used, then the caller will
+have until the cc\_offer\_timer expires to request CC.
+
+	With native agents, the method for requesting CC is dependent upon
+the technology being used, coupled with the make of equipment. It may
+be possible to request CC using a programmable key on a phone or by
+clicking a button on a console. If you are using equipment which can
+natively support CC but do not know the means by which to request it,
+then contact the equipment manufacturer for more information.
+
+\subsection{Cancelling CC}
+
+	CC may be canceled after it has been requested. The method by which
+this is accomplished differs based on the type of agent the calling
+party uses.
+
+	When using a generic agent, the dialplan application
+CallRequestCancel is used to cancel CC. When using a native monitor,
+the method by which CC is cancelled depends on the protocol used.
+Likely, this will be done using a button on a phone.
+
+	Keep in mind that if CC is cancelled, it cannot be un-cancelled.
+
+\subsection{Monitoring the Called Party}
+
+	Once the caller has requested CC, then Asterisk's job is to monitor
+the progress of the called parties. It is at this point that Asterisk
+allocates the necessary resources to monitor the called parties.
+
+	A generic monitor uses Asterisk's device state subsystem in order
+to determine when the called party has become available. For both CCBS
+and CCNR, Asterisk simply waits for the phone's state to change to
+a "not in use" state from a different state. Once this happens, then
+Asterisk will consider the called party to be available and will alert
+the caller.
+
+	A native monitor relies on the network to send a protocol-specific
+message when the called party has become available. When Asterisk
+receives such a message, it will consider the called party to be
+available and will alert the caller.
+
+	Note that since a single caller may dial multiple parties, a monitor
+is used for each called party. It is within reason that different called
+parties will use different types of monitors for the same CC request.
+
+\subsection{Alerting the Caller}
+
+	Once Asterisk has determined that the called party has become available
+the time comes for Asterisk to alert the caller that the called party has
+become available. The method by which this is done differs based on the
+type of agent in use.
+
+	If a generic agent is used, then Asterisk will originate a call to
+the calling party. Upon answering the call, if a callback macro has
+been configured, then that macro will be executed on the calling
+party's channel. After the macro has completed, an outbound call
+will be issued to the parties involved in the original call.
+
+	If a native agent is used, then Asterisk will send an appropriate
+notification message to the calling party to alert it that it may now
+attempt its recall. How this is presented to the caller is dependent
+upon the protocol and equipment that the caller is using. It is
+possible that the calling party's phone will ring and a recall will
+be triggered upon answering the phone, or it may be that the user
+has a specific button that he may press to initiate a recall.
+
+\subsection{If the Caller is unavailable}
+
+	When the called party has become available, it is possible that
+when Asterisk attempts to alert the calling party of the called party's
+availability, the calling party itself will have become unavailable.
+If this is the case, then Asterisk will suspend monitoring of the
+called party and will instead monitor the availability of the calling
+party. The monitoring procedure for the calling party is the same
+as is used in the section "Monitoring the Called Party." In other
+words, the method by which the calling party is monitored is dependent
+upon the type of agent used by the caller.
+
+	Once Asterisk has determined that the calling party has become
+available again, Asterisk will then move back to the process used
+in the section "Monitoring the Called Party."
+
+\subsection{The CC recall}
+
+	The calling party will make its recall to the same extension
+that was dialed. Asterisk will provide a channel variable,
+CC\_INTERFACES, to be used as an argument to the Dial application
+for CC recalls. It is strongly recommended that you use this
+channel variable during a CC recall. Listed are two reasons:
+
+\begin{itemize}
+\item The dialplan may be written in such a way that the dialed
+destintations are dynamically generated. With such a dialplan, it
+cannot be guaranteed that the same interfaces will be recalled.
+\item For calling destinations with native CC monitors, it may be
+necessary to dial a special string in order to notify the channel
+driver that the number being dialed is actually part of a CC recall.
+\end{itemize}
+
+	Note that even if your call gets routed through local channels,
+the CC\_INTERFACES variable will be populated with the appropriate
+values for that specific extension.
+	When the called parties are dialed, it is expected that a called
+party will answer, since Asterisk had previously determined that the
+party was available. However, it is possible that the called party
+may choose not to respond to the call, or he could have become busy
+again. In such a situation, the calling party must re-request CC if
+he wishes to still be alerted when the calling party has become
+available.
+
+\section{Miscellaneous Information and Tips}
+
+\begin{itemize}
+\item Be aware when using a generic agent that the max\_cc\_agents
+configuration parameter is ignored. The main driving reason for
+this is that the mechanism for cancelling CC when using a generic
+agent would become much more potentially confusing to execute. By
+limiting a calling party to having a single request, there is only
+ever a single request to be cancelled, making the process simple.
+
+\item Keep in mind that no matter what CC agent type is being used,
+a CC request can only be made for the latest call issued.
+
+\item If available timers are running on multiple called parties,
+it is possible that one of the timers may expire before the others
+do. If such a situation occurs, then the interface on which the
+timer expired will cease to be monitored. If, though, one of the
+other called parties becomes available before his available timer
+expires, the called party whose available timer had previously
+expired will still be included in the CC\_INTERFACES channel
+variable on the recall.
+
+\item It is strongly recommended that lots of thought is placed
+into the settings of the CC timers. Our general recommendation is
+that timers for phones should be set shorter than those for trunks.
+The reason for this is that it makes it less likely for a link in
+the middle of a network to cause CC to fail.
+
+\item CC can potentially be a memory hog if used irresponsibly. The
+following are recommendations to help curb the amount of resources
+required by the CC engine. First, limit the maximum number of
+CC requests in the system using the cc\_max\_requests option in
+ccss.conf. Second, set the cc\_offer\_timer low for your callers. Since
+it is likely that most calls will not result in a CC request, it is
+a good idea to set this value to something low so that information
+for calls does not stick around in memory for long. The final thing
+that can be done is to conditionally set the cc\_agent\_policy to
+"never" using the CALLCOMPLETION dialplan function. By doing this,
+no CC information will be kept around after the call completes.
+
+\item It is possible to request CCNR on answered calls. The reason
+for this is that it is impossible to know whether a call that is
+answered has actually been answered by a person or by something
+such as voicemail or some other IVR.
+
+\item Not all channel drivers have had the ability to set CC config
+parameters in their configuration files added yet. At the time of
+this writing (2009 Oct), only chan\_sip has had this ability added, with
+short-term plans to add this to chan\_dahdi as well. It is
+possible to set CC configuration parameters for other channel types,
+though. For these channel types, the setting of the parameters can
+only be accomplished using the CALLCOMPLETION dialplan function.
+
+\item It is documented in many places that generic agents and monitors
+can only be used for phones. In most cases, however, Asterisk has no
+way of distinguishing between a phone and a trunk itself. The result
+is that Asterisk will happily let you violate the advice given and
+allow you to set up a trunk with a generic monitor or agent. While this
+will not cause anything catastrophic to occur, the behavior will most
+definitely not be what you want.
+
+\item At the time of this writing (2009 Oct), Asterisk is the only
+known SIP stack to write an implementation of
+draft-ietf-bliss-call-completion-04. As a result, it is recommended
+that for your SIP phones, use a generic agent and monitor. For SIP
+trunks, you will only be able to use CC if the other end is
+terminated by another Asterisk server running version 1.8 or later.
+
+\item If the Dial application is called multiple times by a single
+extension, CC will only be offered to the caller for the parties called
+by the first instantiation of Dial.
+
+\item If a phone forwards a call, then CC may only be requested for
+the phone that executed the call forward. CC may not be requested
+for the phone to which the call was forwarded.
+
+\item CC is currently only supported by the Dial application. Queue,
+Followme, and Page do not support CC because it is not particularly
+useful for those applications.
+
+\item Generic CC relies heavily on accurate device state reporting. In
+particular, when using SIP phones it is vital to be sure that device
+state is updated properly when using them. In order to facilitate proper
+device state handling, be sure to set callcounter=yes for all peers and
+to set limitonpeers=yes in the general section of sip.conf
+
+\item When using SIP CC (i.e. native CC over SIP), it is important that
+your minexpiry and maxexpiry values allow for available timers to run
+as little or as long as they are configured. When an Asterisk server
+requests call completion over SIP, it sends a SUBSCRIBE message with
+an Expires header set to the number of seconds that the available
+timer should run. If the Asterisk server that receives this SUBSCRIBE
+has a maxexpiry set lower than what is in the received Expires header,
+then the available timer will only run for maxexpiry seconds.
+
+\item As with all Asterisk components, CC is not perfect. If you should
+find a bug or wish to enhance the feature, please open an issue on
+https://issues.asterisk.org. If writing an enhancement, please be sure
+to include a patch for the enhancement, or else the issue will be
+closed.
+
+\end{itemize}
+
+\section{Simple Example of generic call completion}
+
+The following is an incredibly bare-bones example sip.conf
+and dialplan to show basic usage of generic call completion.
+It is likely that if you have a more complex setup, you will
+need to make use of items like the CALLCOMPLETION dialplan
+function or the CC\_INTERFACES channel variable.
+
+First, let's establish a very simple sip.conf to use for this
+
+\begin{verbatim}
+[Mark]
+context=phone_calls
+cc_agent_policy=generic
+cc_monitor_policy=generic
+;We will accept defaults for the rest of the cc parameters
+;We also are not concerned with other SIP details for this
+;example
+
+[Richard]
+context=phone_calls
+cc_agent_policy=generic
+cc_monitor_policy=generic
+\end{verbatim}
+
+Now, let's write a simple dialplan
+
+\begin{verbatim}
+[phone_calls]
+
+exten => 1000,1,Dial(SIP/Mark,20)
+exten => 1000,n,Hangup
+
+exten => 2000,1,Dial(SIP/Richard,20)
+exten => 2000,n,Hangup
+
+exten => 30,1,CallCompletionRequest
+exten => 30,n,Hangup
+
+exten => 31,1,CallCompletionCancel
+exten => 31,n,Hangup
+\end{verbatim}
+
+\begin{itemize}
+\item Scenario 1:
+Mark picks up his phone and dials Richard by dialing 2000. Richard is
+currently on a call, so Mark hears a busy signal. Mark then hangs up,
+picks up the phone and dials 30 to call the CallCompletionRequest
+application. After some time, Richard finishes his call and hangs up.
+Mark is automatically called back by Asterisk. When Mark picks up his
+phone, Asterisk will dial extension 2000 for him.
+
+\item Scenario 2:
+Richard picks up his phone and dials Mark by dialing 1000. Mark has stepped
+away from his desk, and so he is unable to answer the phone within the
+20 second dial timeout. Richard hangs up, picks the phone back up and then
+dials 30 to request call completion. Mark gets back to his desk and dials
+somebody's number. When Mark finishes the call, Asterisk detects that Mark's
+phone has had some activity and has become available again and rings Richard's
+phone. Once Richard picks up, Asterisk automatically dials exteision 1000 for
+him.
+
+\item Scenario 3:
+Much like scenario 1, Mark calls Richard and Richard is busy. Mark hangs up,
+picks the phone back up and then dials 30 to request call completion. After
+a little while, Mark realizes he doesn't actually need to talk to Richard, so
+he dials 31 to cancel call completion. When Richard becomes free, Mark will
+not automatically be redialed by Asterisk.
+
+\item Scenario 4:
+Richard calls Mark, but Mark is busy. About thirty seconds later, Richard decides
+that he should perhaps request call completion. However, since Richard's phone
+has the default cc\_offer\_timer of 20 seconds, he has run out of time to
+request call completion. He instead must attempt to dial Mark again manually. If
+Mark is still busy, Richard can attempt to request call completion on this second
+call instead.
+
+\item Scenario 5:
+Mark calls Richard, and Richard is busy. Mark requests call completion. Richard
+does not finish his current call for another 2 hours (7200 seconds). Since Mark
+has the default ccbs\_available\_timer of 4800 seconds set, Mark will not be
+automatically recalled by Asterisk when Richard finishes his call.
+
+\item Scenario 6:
+Mark calls Richard, and Richard does not respond within the 20 second dial timeout.
+Mark requests call completion. Richard does not use his phone again for another
+4 hours (144000 seconds). Since Mark has the default ccnr\_available\_timer
+of 7200 seconds set, Mark will not be automatically recalled by Asterisk when
+Richard finishes his call.
+\end{itemize}

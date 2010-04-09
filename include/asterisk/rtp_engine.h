@@ -70,6 +70,7 @@ extern "C" {
 #endif
 
 #include "asterisk/astobj2.h"
+#include "asterisk/frame.h"
 
 /* Maximum number of payloads supported */
 #define AST_RTP_MAX_PT 256

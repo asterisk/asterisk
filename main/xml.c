@@ -23,6 +23,7 @@
 
 #include "asterisk.h"
 #include "asterisk/xml.h"
+#include "asterisk/logger.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
@@ -57,6 +58,25 @@ struct ast_xml_doc *ast_xml_open(char *filename)
 
 	doc = xmlReadFile(filename, NULL, XML_PARSE_RECOVER);
 	if (doc) {
+		/* process xinclude elements. */
+		if (xmlXIncludeProcess(doc) < 0) {
+			xmlFreeDoc(doc);
+			return NULL;
+		}
+	}
+
+	return (struct ast_xml_doc *) doc;
+}
+
+struct ast_xml_doc *ast_xml_read_memory(char *buffer, size_t size)
+{
+	xmlDoc *doc;
+
+	if (!buffer) {
+		return NULL;
+	}
+
+	if (!(doc = xmlParseMemory(buffer, (int) size))) {
 		/* process xinclude elements. */
 		if (xmlXIncludeProcess(doc) < 0) {
 			xmlFreeDoc(doc);
@@ -162,6 +182,16 @@ struct ast_xml_node *ast_xml_find_element(struct ast_xml_node *root_node, const 
 	}
 
 	return NULL;
+}
+
+struct ast_xml_ns *ast_xml_find_namespace(struct ast_xml_doc *doc, struct ast_xml_node *node, const char *ns_name) {
+	xmlNsPtr ns = xmlSearchNs((xmlDocPtr) doc, (xmlNodePtr) node, (xmlChar *) ns_name);
+	return (struct ast_xml_ns *) ns;
+}
+
+const char *ast_xml_get_ns_href(struct ast_xml_ns *ns)
+{
+	return (const char *) ((xmlNsPtr) ns)->href;
 }
 
 const char *ast_xml_get_text(struct ast_xml_node *node)

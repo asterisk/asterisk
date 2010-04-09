@@ -153,7 +153,7 @@
  *  \todo This string should be set dynamically. We only support REFER and SUBSCRIBE if we have
  *  allowsubscribe and allowrefer on in sip.conf.
  */
-#define ALLOWED_METHODS "INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, SUBSCRIBE, NOTIFY, INFO"
+#define ALLOWED_METHODS "INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, SUBSCRIBE, NOTIFY, INFO, PUBLISH"
 
 /*! \brief SIP Extensions we support
  *  \note This should be generated based on the previous array
@@ -239,6 +239,7 @@
 */
 /*@{*/
 #define SIP_OUTGOING        (1 << 0) /*!< D: Direction of the last transaction in this dialog */
+#define SIP_OFFER_CC        (1 << 1) /*!< D: Offer CC on subsequent responses */
 #define SIP_RINGING         (1 << 2) /*!< D: Have sent 180 ringing */
 #define SIP_PROGRESS_SENT   (1 << 3) /*!< D: Have sent 183 message progress */
 #define SIP_NEEDREINVITE    (1 << 4) /*!< D: Do we need to send another reinvite? */
@@ -415,7 +416,8 @@ enum subscriptiontype {
 	DIALOG_INFO_XML,
 	CPIM_PIDF_XML,
 	PIDF_XML,
-	MWI_NOTIFICATION
+	MWI_NOTIFICATION,
+	CALL_COMPLETION,
 };
 
 /*! \brief The number of media types in enum \ref media_type below. */
@@ -930,6 +932,7 @@ struct sip_pvt {
 		AST_STRING_FIELD(url);          /*!< URL to be sent with next message to peer */
 		AST_STRING_FIELD(parkinglot);   /*!< Parkinglot */
 		AST_STRING_FIELD(engine);       /*!< RTP engine to use */
+		AST_STRING_FIELD(dialstring);   /*!< The dialstring used to call this SIP endpoint */
 	);
 	char via[128];                          /*!< Via: header */
 	struct sip_socket socket;               /*!< The socket used for this dialog */
@@ -1066,6 +1069,8 @@ struct sip_pvt {
 	 * The large-scale changes would be a good idea for implementing during an SDP rewrite.
 	 */
 	struct offered_media offered_media[OFFERED_MEDIA_COUNT];
+	struct ast_cc_config_params *cc_params;
+	struct sip_epa_entry *epa_entry;
 };
 
 /*! \brief sip packet - raw format for outbound packets that are sent or scheduled for transmission
@@ -1197,6 +1202,7 @@ struct sip_peer {
 	/*XXX Seems like we suddenly have two flags with the same content. Why? To be continued... */
 	enum sip_peer_type type; /*!< Distinguish between "user" and "peer" types. This is used solely for CLI and manager commands */
 	unsigned int disallowed_methods;
+	struct ast_cc_config_params *cc_params;
 };
 
 /*!
@@ -1286,4 +1292,359 @@ struct sip_subscription_mwi {
 	struct ast_dnsmgr_entry *dnsmgr; /*!< DNS refresh manager for subscription */
 	struct sockaddr_in us;           /*!< Who the server thinks we are */
 };
+
+/*!
+ * SIP PUBLISH support!
+ * PUBLISH support was added to chan_sip due to its use in the call-completion
+ * event package. In order to suspend and unsuspend monitoring of a called party,
+ * a PUBLISH message must be sent. Rather than try to hack in PUBLISH transmission
+ * and reception solely for the purposes of handling call-completion-related messages,
+ * an effort has been made to create a generic framework for handling PUBLISH messages.
+ *
+ * There are two main components to the effort, the event publication agent (EPA) and
+ * the event state compositor (ESC). Both of these terms appear in RFC 3903, and the
+ * implementation in Asterisk conforms to the defintions there. An EPA is a UAC that
+ * transmits PUBLISH requests. An ESC is a UAS that receives PUBLISH requests and
+ * acts appropriately based on the content of those requests.
+ *
+ * ESC:
+ * The main structure in chan_sip is the event_state_compositor. There is an
+ * event_state_compositor structure for each event package supported (as of Nov 2009
+ * this is only the call-completion package). The structure contains data which is
+ * intrinsic to the event package itself, such as the name of the package and a set
+ * of callbacks for handling incoming PUBLISH requests. In addition, the
+ * event_state_compositor struct contains an ao2_container of sip_esc_entries.
+ *
+ * A sip_esc_entry corresponds to an entity which has sent a PUBLISH to Asterisk. We are
+ * able to match the incoming PUBLISH to a sip_esc_entry using the Sip-If-Match header
+ * of the message. Of course, if none is present, then a new sip_esc_entry will be created.
+ *
+ * Once it is determined what type of PUBLISH request has come in (from RFC 3903, it may
+ * be an initial, modify, refresh, or remove), then the event package-specific callbacks
+ * may be called. If your event package doesn't need to take any specific action for a
+ * specific PUBLISH type, it is perfectly safe to not define the callback at all. The callback
+ * only needs to take care of application-specific information. If there is a problem, it is
+ * up to the callback to take care of sending an appropriate 4xx or 5xx response code. In such
+ * a case, the callback should return -1. This will tell the function that called the handler
+ * that an appropriate error response has been sent. If the callback returns 0, however, then
+ * the caller of the callback will generate a new entity tag and send a 200 OK response.
+ *
+ * ESC entries are reference-counted, however as an implementor of a specific event package,
+ * this should be transparent, since the reference counts are handled by the general ESC
+ * framework.
+ *
+ * EPA:
+ * The event publication agent in chan_sip is structured quite a bit differently than the
+ * ESC. With an ESC, an appropriate entry has to be found based on the contents of an incoming
+ * PUBLISH message. With an EPA, the application interested in sending the PUBLISH can maintain
+ * a reference to the appropriate EPA entry instead. Similarly, when matching a PUBLISH response
+ * to an appropriate EPA entry, the sip_pvt can maintain a reference to the corresponding
+ * EPA entry. The result of this train of thought is that there is no compelling reason to
+ * maintain a container of these entries.
+ *
+ * Instead, there is only the sip_epa_entry structure. Every sip_epa_entry has an entity tag
+ * that it maintains so that subsequent PUBLISH requests will be identifiable by the ESC on
+ * the far end. In addition, there is a static_data field which contains information that is
+ * common to all sip_epa_entries for a specific event package. This static data includes the
+ * name of the event package and callbacks for handling specific responses for outgoing PUBLISHes.
+ * Also, there is a field for pointing to instance-specific data. This can include the current
+ * published state or other identifying information that is specific to an instance of an EPA
+ * entry of a particular event package.
+ *
+ * When an application wishes to send a PUBLISH request, it simply will call create_epa_entry,
+ * followed by transmit_publish in order to send the PUBLISH. That's all that is necessary.
+ * Like with ESC entries, sip_epa_entries are reference counted. Unlike ESC entries, though,
+ * sip_epa_entries reference counts have to be maintained to some degree by the application making
+ * use of the sip_epa_entry. The application will acquire a reference to the EPA entry when it
+ * calls create_epa_entry. When the application has finished using the EPA entry (which may not
+ * be until after several PUBLISH transactions have taken place) it must use ao2_ref to decrease
+ * the reference count by 1.
+ */
+
+/*!
+ * \brief The states that can be represented in a SIP call-completion PUBLISH
+ */
+enum sip_cc_publish_state {
+	/*! Closed, i.e. unavailable */
+	CC_CLOSED,
+	/*! Open, i.e. available */
+	CC_OPEN,
+};
+
+/*!
+ * \brief The states that can be represented in a SIP call-completion NOTIFY
+ */
+enum sip_cc_notify_state {
+	/*! Queued, i.e. unavailable */
+	CC_QUEUED,
+	/*! Ready, i.e. available */
+	CC_READY,
+};
+
+/*!
+ * \brief The types of PUBLISH messages defined in RFC 3903
+ */
+enum sip_publish_type {
+	/*!
+	 * \brief Unknown
+	 *
+	 * \details
+	 * This actually is not defined in RFC 3903. We use this as a constant
+	 * to indicate that an incoming PUBLISH does not fit into any of the
+	 * other categories and is thus invalid.
+	 */
+	SIP_PUBLISH_UNKNOWN,
+	/*!
+	 * \brief Initial
+	 *
+	 * \details
+	 * The first PUBLISH sent. This will contain a non-zero Expires header
+	 * as well as a body that indicates the current state of the endpoint
+	 * that has sent the message. The initial PUBLISH is the only type
+	 * of PUBLISH to not contain a Sip-If-Match header in it.
+	 */
+	SIP_PUBLISH_INITIAL,
+	/*!
+	 * \brief Refresh
+	 *
+	 * \details
+	 * Used to keep a published state from expiring. This will contain a
+	 * non-zero Expires header but no body since its purpose is not to
+	 * update state.
+	 */
+	SIP_PUBLISH_REFRESH,
+	/*!
+	 * \brief Modify
+	 *
+	 * \details
+	 * Used to change state from its previous value. This will contain
+	 * a body updating the published state. May or may not contain an
+	 * Expires header.
+	 */
+	SIP_PUBLISH_MODIFY,
+	/*!
+	 * \brief Remove
+	 * 
+	 * \details
+	 * Used to remove published state from an ESC. This will contain
+	 * an Expires header set to 0 and likely no body.
+	 */
+	SIP_PUBLISH_REMOVE,
+};
+
+/*!
+ * Data which is the same for all instances of an EPA for a
+ * particular event package
+ */
+struct epa_static_data {
+	/*! The event type */
+	enum subscriptiontype event;
+	/*!
+	 * The name of the event as it would
+	 * appear in a SIP message
+	 */
+	const char *name;
+	/*!
+	 * The callback called when a 200 OK is received on an outbound PUBLISH
+	 */
+	void (*handle_ok)(struct sip_pvt *, struct sip_request *, struct sip_epa_entry *);
+	/*!
+	 * The callback called when an error response is received on an outbound PUBLISH
+	 */
+	void (*handle_error)(struct sip_pvt *, const int resp, struct sip_request *, struct sip_epa_entry *);
+	/*!
+	 * Destructor to call to clean up instance data
+	 */
+	void (*destructor)(void *instance_data);
+};
+
+/*!
+ * \brief backend for an event publication agent
+ */
+struct epa_backend {
+	const struct epa_static_data *static_data;
+	AST_LIST_ENTRY(epa_backend) next;
+};
+
+struct sip_epa_entry {
+	/*!
+	 * When we are going to send a publish, we need to
+	 * know the type of PUBLISH to send.
+	 */
+	enum sip_publish_type publish_type;
+	/*!
+	 * When we send a PUBLISH, we have to be
+	 * sure to include the entity tag that we
+	 * received in the previous response.
+	 */
+	char entity_tag[SIPBUFSIZE];
+	/*!
+	 * The destination to which this EPA should send
+	 * PUBLISHes. This may be the name of a SIP peer
+	 * or a hostname.
+	 */
+	char destination[SIPBUFSIZE];
+	/*!
+	 * The body of the most recently-sent PUBLISH message.
+	 * This is useful for situations such as authentication,
+	 * in which we must send a message identical to the
+	 * one previously sent
+	 */
+	char body[SIPBUFSIZE];
+	/*!
+	 * Every event package has some constant data and
+	 * callbacks that all instances will share. This
+	 * data resides in this field.
+	 */
+	const struct epa_static_data *static_data;
+	/*!
+	 * In addition to the static data that all instances
+	 * of sip_epa_entry will have, each instance will
+	 * require its own instance-specific data.
+	 */
+	void *instance_data;
+};
+
+/*!
+ * \brief Instance data for a Call completion EPA entry
+ */
+struct cc_epa_entry {
+	/*!
+	 * The core ID of the CC transaction
+	 * for which this EPA entry belongs. This
+	 * essentially acts as a unique identifier
+	 * for the entry and is used in the hash
+	 * and comparison functions
+	 */
+	int core_id;
+	/*!
+	 * We keep the last known state of the
+	 * device in question handy in case
+	 * it needs to be known by a third party.
+	 * Also, in the case where for some reason
+	 * we get asked to transmit state that we
+	 * already sent, we can just ignore the
+	 * request.
+	 */
+	enum sip_cc_publish_state current_state;
+};
+
+struct event_state_compositor;
+
+/*!
+ * \brief common ESC items for all event types
+ *
+ * The entity_id field serves as a means by which
+ * A specific entry may be found.
+ */
+struct sip_esc_entry {
+	/*!
+	 * The name of the party who
+	 * sent us the PUBLISH. This will more
+	 * than likely correspond to a peer name.
+	 *
+	 * This field's utility isn't really that
+	 * great. It's mainly just a user-recognizable
+	 * handle that can be printed in debug messages.
+	 */
+	const char *device_name;
+	/*!
+	 * The event package for which this esc_entry
+	 * exists. Most of the time this isn't really
+	 * necessary since you'll have easy access to the
+	 * ESC which contains this entry. However, in
+	 * some circumstances, we won't have the ESC
+	 * available.
+	 */
+	const char *event;
+	/*!
+	 * The entity ID used when corresponding
+	 * with the EPA on the other side. As the
+	 * ESC, we generate an entity ID for each
+	 * received PUBLISH and store it in this
+	 * structure.
+	 */
+	char entity_tag[30];
+	/*!
+	 * The ID for the scheduler. We schedule
+	 * destruction of a sip_esc_entry when we
+	 * receive a PUBLISH. The destruction is
+	 * scheduled for the duration received in
+	 * the Expires header.
+	 */
+	int sched_id;
+	/*!
+	 * Each ESC entry will be for a specific
+	 * event type. Those entries will need to
+	 * carry data which is intrinsic to the
+	 * ESC entry but which is specific to
+	 * the event package
+	 */
+	void *event_specific_data;
+};
+
+typedef int (* const esc_publish_callback)(struct sip_pvt *, struct sip_request *, struct event_state_compositor *, struct sip_esc_entry *);
+
+/*!
+ * \brief Callbacks for SIP ESCs
+ *
+ * \details
+ * The names of the callbacks are self-explanatory. The
+ * corresponding handler is called whenever the specific
+ * type of PUBLISH is received.
+ */
+struct sip_esc_publish_callbacks {
+	const esc_publish_callback initial_handler;
+	const esc_publish_callback refresh_handler;
+	const esc_publish_callback modify_handler;
+	const esc_publish_callback remove_handler;
+};
+
+struct sip_cc_agent_pvt {
+	int offer_timer_id;
+	/* A copy of the original call's Call-ID.
+	 * We use this as a search key when attempting
+	 * to find a particular sip_pvt.
+	 */
+	char original_callid[SIPBUFSIZE];
+	/* A copy of the exten called originally.
+	 * We use this to set the proper extension
+	 * to dial during the recall since the incoming
+	 * request URI is one that was generated just
+	 * for the recall
+	 */
+	char original_exten[SIPBUFSIZE];
+	/* A reference to the dialog which we will
+	 * be sending a NOTIFY on when it comes time
+	 * to send one
+	 */
+	struct sip_pvt *subscribe_pvt;
+	/* When we send a NOTIFY, we include a URI
+	 * that should be used by the caller when he
+	 * wishes to send a PUBLISH or INVITE to us.
+	 * We store that URI here.
+	 */
+	char notify_uri[SIPBUFSIZE];
+	/* When we advertise call completion to a caller,
+	 * we provide a URI for the caller to use when
+	 * he sends us a SUBSCRIBE. We store it for matching
+	 * purposes when we receive the SUBSCRIBE from the
+	 * caller.
+	 */
+	char subscribe_uri[SIPBUFSIZE];
+	char is_available;
+};
+
+struct sip_monitor_instance {
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(subscribe_uri);
+		AST_STRING_FIELD(notify_uri);
+		AST_STRING_FIELD(peername);
+		AST_STRING_FIELD(device_name);
+	);
+	int core_id;
+	struct sip_pvt *subscription_pvt;
+	struct sip_epa_entry *suspension_entry;
+};
+
 #endif

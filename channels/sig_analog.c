@@ -169,6 +169,14 @@ static int analog_get_callerid(struct analog_pvt *p, char *name, char *number, e
 	return -1;
 }
 
+static const char *analog_get_orig_dialstring(struct analog_pvt *p)
+{
+	if (p->calls->get_orig_dialstring) {
+		return p->calls->get_orig_dialstring(p->chan_pvt);
+	}
+	return "";
+}
+
 static int analog_get_event(struct analog_pvt *p)
 {
 	if (p->calls->get_event) {
@@ -934,6 +942,24 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, char *rdest, int 
 		ast_setstate(ast, AST_STATE_RINGING);
 		index = analog_get_index(ast, p, 0);
 		if (index > -1) {
+			struct ast_cc_config_params *cc_params;
+
+			/* This is where the initial ringing frame is queued for an analog call.
+			 * As such, this is a great time to offer CCNR to the caller if it's available.
+			 */
+			cc_params = ast_channel_get_cc_config_params(p->subs[index].owner);
+			if (cc_params) {
+				switch (ast_get_cc_monitor_policy(cc_params)) {
+				case AST_CC_MONITOR_NEVER:
+					break;
+				case AST_CC_MONITOR_NATIVE:
+				case AST_CC_MONITOR_ALWAYS:
+				case AST_CC_MONITOR_GENERIC:
+					ast_queue_cc_frame(p->subs[index].owner, AST_CC_GENERIC_MONITOR_TYPE,
+						analog_get_orig_dialstring(p), AST_CC_CCNR, NULL);
+					break;
+				}
+			}
 			ast_queue_control(p->subs[index].owner, AST_CONTROL_RINGING);
 		}
 		break;

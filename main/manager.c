@@ -980,6 +980,7 @@ static const struct permalias {
 	{ EVENT_FLAG_DIALPLAN, "dialplan" },
 	{ EVENT_FLAG_ORIGINATE, "originate" },
 	{ EVENT_FLAG_AGI, "agi" },
+	{ EVENT_FLAG_CC, "cc" },
 	{ INT_MAX, "all" },
 	{ 0, "none" },
 };

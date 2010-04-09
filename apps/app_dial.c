@@ -62,6 +62,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/global_datastores.h"
 #include "asterisk/dsp.h"
 #include "asterisk/cel.h"
+#include "asterisk/ccss.h"
 #include "asterisk/indications.h"
 
 /*** DOCUMENTATION
@@ -810,6 +811,12 @@ static void do_forward(struct chanlist *o,
 				ast_channel_make_compatible(o->chan, in);
 			ast_channel_inherit_variables(in, o->chan);
 			ast_channel_datastore_inherit(in, o->chan);
+			/* When a call is forwarded, we don't want to track new interfaces
+			 * dialed for CC purposes. Setting the done flag will ensure that
+			 * any Dial operations that happen later won't record CC interfaces.
+			 */
+			ast_ignore_cc(o->chan);
+			ast_log(LOG_NOTICE, "Not accepting call completion offers from call-forward recipient %s\n", o->chan->name);
 		} else
 			ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
 	}
@@ -904,7 +911,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	struct chanlist *outgoing, int *to, struct ast_flags64 *peerflags,
 	char *opt_args[],
 	struct privacy_args *pa,
-	const struct cause_args *num_in, int *result, char *dtmf_progress)
+	const struct cause_args *num_in, int *result, char *dtmf_progress,
+	const int ignore_cc)
 {
 	struct cause_args num = *num_in;
 	int prestart = num.busy + num.congestion + num.nochan;
@@ -917,6 +925,10 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 #endif
 	struct ast_party_connected_line connected_caller;
 	struct ast_str *featurecode = ast_str_alloca(FEATURE_MAX_LEN + 1);
+	int cc_recall_core_id;
+	int is_cc_recall;
+	int cc_frame_received = 0;
+	int num_ringing = 0;
 
 	ast_party_connected_line_init(&connected_caller);
 	if (single) {
@@ -937,6 +949,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 			ast_party_connected_line_free(&connected_caller);
 		}
 	}
+
+	is_cc_recall = ast_cc_is_recall(in, &cc_recall_core_id, NULL);
 
 #ifdef HAVE_EPOLL
 	for (epollo = outgoing; epollo; epollo = epollo->next)
@@ -970,6 +984,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				ast_verb(3, "No one is available to answer at this time (%d:%d/%d/%d)\n", numlines, num.busy, num.congestion, num.nochan);
 			}
 			*to = 0;
+			if (is_cc_recall) {
+				ast_cc_failed(cc_recall_core_id, "Everyone is busy/congested for the recall. How sad");
+			}
 			return NULL;
 		}
 		winner = ast_waitfor_n(watchers, pos, to);
@@ -1014,6 +1031,15 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 			/* here, o->chan == c == winner */
 			if (!ast_strlen_zero(c->call_forward)) {
 				pa->sentringing = 0;
+				if (!ignore_cc && (f = ast_read(c))) {
+					if (f->frametype == AST_FRAME_CONTROL && f->subclass.integer == AST_CONTROL_CC) {
+						/* This channel is forwarding the call, and is capable of CC, so
+						 * be sure to add the new device interface to the list
+						 */
+						ast_handle_cc_control_frame(in, c, f->data.ptr);
+					}
+					ast_frfree(f);
+				}
 				do_forward(o, &num, peerflags, single, to);
 				continue;
 			}
@@ -1088,13 +1114,41 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					handle_cause(AST_CAUSE_CONGESTION, &num);
 					break;
 				case AST_CONTROL_RINGING:
-					ast_verb(3, "%s is ringing\n", c->name);
-					/* Setup early media if appropriate */
-					if (single && CAN_EARLY_BRIDGE(peerflags, in, c))
-						ast_channel_early_bridge(in, c);
-					if (!(pa->sentringing) && !ast_test_flag64(outgoing, OPT_MUSICBACK) && ast_strlen_zero(opt_args[OPT_ARG_RINGBACK])) {
-						ast_indicate(in, AST_CONTROL_RINGING);
-						pa->sentringing++;
+					/* This is a tricky area to get right when using a native
+					 * CC agent. The reason is that we do the best we can to send only a
+					 * single ringing notification to the caller.
+					 *
+					 * Call completion complicates the logic used here. CCNR is typically
+					 * offered during a ringing message. Let's say that party A calls
+					 * parties B, C, and D. B and C do not support CC requests, but D
+					 * does. If we were to receive a ringing notification from B before
+					 * the others, then we would end up sending a ringing message to
+					 * A with no CCNR offer present.
+					 *
+					 * The approach that we have taken is that if we receive a ringing
+					 * response from a party and no CCNR offer is present, we need to
+					 * wait. Specifically, we need to wait until either a) a called party
+					 * offers CCNR in its ringing response or b) all called parties have
+					 * responded in some way to our call and none offers CCNR.
+					 *
+					 * The drawback to this is that if one of the parties has a delayed
+					 * response or, god forbid, one just plain doesn't respond to our
+					 * outgoing call, then this will result in a significant delay between
+					 * when the caller places the call and hears ringback.
+					 *
+					 * Note also that if CC is disabled for this call, then it is perfectly
+					 * fine for ringing frames to get sent through.
+					 */
+					++num_ringing;
+					if (ignore_cc || cc_frame_received || num_ringing == numlines) {
+						ast_verb(3, "%s is ringing\n", c->name);
+						/* Setup early media if appropriate */
+						if (single && CAN_EARLY_BRIDGE(peerflags, in, c))
+							ast_channel_early_bridge(in, c);
+						if (!(pa->sentringing) && !ast_test_flag64(outgoing, OPT_MUSICBACK) && ast_strlen_zero(opt_args[OPT_ARG_RINGBACK])) {
+							ast_indicate(in, AST_CONTROL_RINGING);
+							pa->sentringing++;
+						}
 					}
 					break;
 				case AST_CONTROL_PROGRESS:
@@ -1163,6 +1217,12 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				case AST_CONTROL_FLASH:
 					/* Ignore going off hook and flash */
 					break;
+				case AST_CONTROL_CC:
+					if (!ignore_cc) {
+						ast_handle_cc_control_frame(in, c, f->data.ptr);
+						cc_frame_received = 1;
+					}
+					break;
 				case -1:
 					if (!ast_test_flag64(outgoing, OPT_RINGBACK | OPT_MUSICBACK)) {
 						ast_verb(3, "%s stopped sounds\n", c->name);
@@ -1212,6 +1272,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					}
 					ast_frfree(f);
 				}
+				if (is_cc_recall) {
+					ast_cc_completed(in, "CC completed, although the caller hung up (cancelled)");
+				}
 				return NULL;
 			}
 
@@ -1229,6 +1292,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						strcpy(pa->status, "CANCEL");
 						ast_frfree(f);
 						ast_channel_unlock(in);
+						if (is_cc_recall) {
+							ast_cc_completed(in, "CC completed, but the caller used DTMF to exit");
+						}
 						return NULL;
 					}
 					ast_channel_unlock(in);
@@ -1241,6 +1307,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					strcpy(pa->status, "CANCEL");
 					ast_cdr_noanswer(in->cdr);
 					ast_frfree(f);
+					if (is_cc_recall) {
+						ast_cc_completed(in, "CC completed, but the caller hung up with DTMF");
+					}
 					return NULL;
 				}
 			}
@@ -1283,6 +1352,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	}
 #endif
 
+	if (is_cc_recall) {
+		ast_cc_completed(in, "Recall completed!");
+	}
 	return peer;
 }
 
@@ -1656,6 +1728,8 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	char *opt_args[OPT_ARG_ARRAY_SIZE];
 	struct ast_datastore *datastore = NULL;
 	int fulldial = 0, num_dialed = 0;
+	int ignore_cc = 0;
+	char device_name[AST_CHANNEL_NAME];
 
 	/* Reset all DIAL variables back to blank, to prevent confusion (in case we don't reset all of them). */
 	pbx_builtin_setvar_helper(chan, "DIALSTATUS", "");
@@ -1683,6 +1757,10 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	if (ast_strlen_zero(args.peers)) {
 		ast_log(LOG_WARNING, "Dial requires an argument (technology/number)\n");
 		pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
+		goto done;
+	}
+
+	if (ast_cc_call_init(chan, &ignore_cc)) {
 		goto done;
 	}
 
@@ -1871,7 +1949,16 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			if (!rest) /* we are on the last destination */
 				chan->hangupcause = cause;
 			chanlist_free(tmp);
+			if (!ignore_cc && (cause == AST_CAUSE_BUSY || cause == AST_CAUSE_CONGESTION)) {
+				if (!ast_cc_callback(chan, tech, numsubst, ast_cc_busy_interface)) {
+					ast_cc_extension_monitor_add_dialstring(chan, interface, "");
+				}
+			}
 			continue;
+		}
+		ast_channel_get_device_name(tc, device_name, sizeof(device_name));
+		if (!ignore_cc) {
+			ast_cc_extension_monitor_add_dialstring(chan, interface, device_name);
 		}
 		pbx_builtin_setvar_helper(tc, "DIALEDPEERNUMBER", numsubst);
 
@@ -1965,6 +2052,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 				chan->hangupcause = tc->hangupcause;
 			}
 			ast_channel_unlock(chan);
+			ast_cc_call_failed(chan, tc, interface);
 			ast_hangup(tc);
 			tc = NULL;
 			chanlist_free(tmp);
@@ -2038,7 +2126,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		}
 	}
 
-	peer = wait_for_answer(chan, outgoing, &to, peerflags, opt_args, &pa, &num, &result, dtmf_progress);
+	peer = wait_for_answer(chan, outgoing, &to, peerflags, opt_args, &pa, &num, &result, dtmf_progress, ignore_cc);
 
 	/* The ast_channel_datastore_remove() function could fail here if the
 	 * datastore was moved to another channel during a masquerade. If this is
@@ -2513,6 +2601,7 @@ done:
 	if (config.start_sound) {
 		ast_free((char *)config.start_sound);
 	}
+	ast_ignore_cc(chan);
 	return res;
 }
 

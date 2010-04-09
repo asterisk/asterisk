@@ -85,10 +85,11 @@
 ;service_message_support=yes
 ; Enable service message support for channel. Must be set after switchtype.
 ;
-; PRI Reverse Charging Indication: Indicate to the called party that the
-; call will be reverse charged.  To enable, prefix the dialed number with one
-; of the following letters:
-; C - Reverse Charge Indication Requested
+; Dialing options for ISDN (i.e., Dial(DAHDI/g1/exten/options)):
+; R      Reverse Charge Indication
+;          Indicate to the called party that the call will be reverse charged.
+; K(n)   Keypad digits n
+;          Send out the specified digits as keypad digits.
 ;
 ; PRI Dialplan: The ISDN-level Type Of Number (TON) or numbering plan, used for
 ; the dialed number.  For most installations, leaving this as 'unknown' (the
@@ -236,8 +237,51 @@
 ;       May vary in other ISDN standards (Q.931 1993 : 90000 ms)
 ; T313: Wait for CONNECT acknowledge, CPE side only (default 3000 ms)
 ;
+; T-RESPONSE:   Maximum time to wait for a typical APDU response. (default 4000 ms)
+;               This is an implementation timer when the standard does not specify one.
+; T-ACTIVATE:   Request supervision timeout. (default 10000 ms)
+; T-RETENTION:  Maximum  time to wait for user A to activate call-completion. (default 30000 ms)
+;               Used by ETSI PTP, ETSI PTMP, and Q.SIG as the cc_offer_timer.
+; T-CCBS1:      T-STATUS timer equivalent for CC user A status. (default 4000 ms)
+; T-CCBS2:      Maximum  time the CCBS service will be active (default 45 min in ms)
+; T-CCBS3:      Maximum  time to wait for user A to respond to user B availability. (default 20000 ms)
+; T-CCBS5:      Network B CCBS supervision timeout. (default 60 min in ms)
+; T-CCBS6:      Network A CCBS supervision timeout. (default 60 min in ms)
+; T-CCNR2:      Maximum  time the CCNR service will be active (default 180 min in ms)
+; T-CCNR5:      Network B CCNR supervision timeout. (default 195 min in ms)
+; T-CCNR6:      Network A CCNR supervision timeout. (default 195 min in ms)
+; CC-T1:        Q.SIG CC request supervision timeout. (default 30000 ms)
+; CCBS-T2:      Q.SIG CCBS supervision timeout. (default 60 min in ms)
+; CCNR-T2:      Q.SIG CCNR supervision timeout. (default 195 min in ms)
+; CC-T3:        Q.SIG CC Maximum time to wait for user A to respond to user B availability. (default 30000 ms)
+;
 ;pritimer => t200,1000
 ;pritimer => t313,4000
+;
+; CC PTMP recall mode:
+; specific - Only the CC original party A can participate in the CC callback
+; global - Other compatible endpoints on the PTMP line can be party A in the CC callback
+;
+; cc_ptmp_recall_mode cannot be changed on a reload.
+;
+;cc_ptmp_recall_mode = specific
+;
+; CC Q.SIG Party A (requester) retain signaling link option
+; retain       Require that the signaling link be retained.
+; release      Request that the signaling link be released.
+; do_not_care  The responder is free to choose if the signaling link will be retained.
+;
+;cc_qsig_signaling_link_req = retain
+;
+; CC Q.SIG Party B (responder) retain signaling link option
+; retain       Prefer that the signaling link be retained.
+; release      Prefer that the signaling link be released.
+;
+;cc_qsig_signaling_link_rsp = retain
+;
+; See ccss.conf.sample for more options.  The timers described by ccss.conf.sample
+; are not used by ISDN for the native protocol since they are defined by the
+; standards and set by pritimer above.
 ;
 ; To enable transmission of facility-based ISDN supplementary services (such
 ; as caller name from CPE over facility), enable this option.
@@ -267,6 +311,10 @@
 ; fxo_ks:         FXO (Kewl Start)
 ; pri_cpe:        PRI signalling, CPE side
 ; pri_net:        PRI signalling, Network side
+; bri_cpe:        BRI PTP signalling, CPE side
+; bri_net:        BRI PTP signalling, Network side
+; bri_cpe_ptmp:   BRI PTMP signalling, CPE side
+; bri_net_ptmp:   BRI PTMP signalling, Network side
 ; sf:             SF (Inband Tone) Signalling
 ; sf_w:           SF Wink
 ; sf_featd:       SF Feature Group D (The fake, Adtran style, DTMF)

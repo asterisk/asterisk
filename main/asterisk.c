@@ -140,6 +140,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/buildinfo.h"
 #include "asterisk/xmldoc.h"
 #include "asterisk/poll-compat.h"
+#include "asterisk/ccss.h"
 #include "asterisk/test.h"
 
 #include "../defaults.h"
@@ -3680,6 +3681,11 @@ int main(int argc, char *argv[])
 	}
 
 	if (ast_enum_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
+	if (ast_cc_init()) {
 		printf("%s", term_quit());
 		exit(1);
 	}

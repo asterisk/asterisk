@@ -387,6 +387,13 @@ Calendaring for Asterisk
    iCalendar, CalDAV, and Exchange Server calendars are supported (Exchange support
    only tested on Exchange Server 2003 with no support for forms-based authentication).
 
+Call Completion Supplementary Services for Asterisk
+---------------------------------------------------
+ * Call completion support has been added for SIP, DAHDI/ISDN, and DAHDI/analog.
+   DAHDI/ISDN supports call completion for the following switch types:
+   EuroIsdn(ETSI) for PTP and PTMP modes, and Qsig.
+   See doc/CCSS_architecture.pdf and doc/tex/ccss.tex(asterisk.pdf) for details.
+
 Multicast RTP Support
 ---------------------
  * A new RTP engine and channel driver have been added which supports Multicast RTP.

@@ -82,6 +82,7 @@
 #define EVENT_FLAG_ORIGINATE	(1 << 12) /* Originate a call to an extension */
 #define EVENT_FLAG_AGI			(1 << 13) /* AGI events */
 #define EVENT_FLAG_HOOKRESPONSE		(1 << 14) /* Hook Response */
+#define EVENT_FLAG_CC			(1 << 15) /* Call Completion events */
 /*@} */
 
 /*! \brief Export manager structures */

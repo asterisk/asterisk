@@ -55,11 +55,32 @@
 /* define this to send PRI user-user information elements */
 #undef SUPPORT_USERUSER
 
-#if 0
-#define DEFAULT_PRI_DEBUG (PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q921_DUMP | PRI_DEBUG_Q921_RAW | PRI_DEBUG_Q921_STATE)
-#else
-#define DEFAULT_PRI_DEBUG 0
-#endif
+#if defined(HAVE_PRI_CCSS)
+struct sig_pri_cc_agent_prv {
+	/*! Asterisk span D channel control structure. */
+	struct sig_pri_pri *pri;
+	/*! CC id value to use with libpri. -1 if invalid. */
+	long cc_id;
+	/*! TRUE if CC has been requested and we are waiting for the response. */
+	unsigned char cc_request_response_pending;
+};
+
+struct sig_pri_cc_monitor_instance {
+	/*! \brief Asterisk span D channel control structure. */
+	struct sig_pri_pri *pri;
+	/*! CC id value to use with libpri. (-1 if already canceled). */
+	long cc_id;
+	/*! CC core id value. */
+	int core_id;
+	/*! Device name(Channel name less sequence number) */
+	char name[1];
+};
+
+/*! Upper level agent/monitor type name. */
+static const char *sig_pri_cc_type_name;
+/*! Container of sig_pri monitor instances. */
+static struct ao2_container *sig_pri_cc_monitors;
+#endif	/* defined(HAVE_PRI_CCSS) */
 
 static int pri_matchdigittimeout = 3000;
 
@@ -118,6 +139,45 @@ static void sig_pri_set_digital(struct sig_pri_chan *p, int flag)
 	p->digital = flag;
 	if (p->calls->set_digital)
 		p->calls->set_digital(p->chan_pvt, flag);
+}
+
+static const char *sig_pri_get_orig_dialstring(struct sig_pri_chan *p)
+{
+	if (p->calls->get_orig_dialstring) {
+		return p->calls->get_orig_dialstring(p->chan_pvt);
+	}
+	ast_log(LOG_ERROR, "get_orig_dialstring callback not defined\n");
+	return "";
+}
+
+#if defined(HAVE_PRI_CCSS)
+static void sig_pri_make_cc_dialstring(struct sig_pri_chan *p, char *buf, size_t buf_size)
+{
+	if (p->calls->make_cc_dialstring) {
+		p->calls->make_cc_dialstring(p->chan_pvt, buf, buf_size);
+	} else {
+		ast_log(LOG_ERROR, "make_cc_dialstring callback not defined\n");
+		buf[0] = '\0';
+	}
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+/*!
+ * \internal
+ * \brief Reevaluate the PRI span device state.
+ * \since 1.8
+ *
+ * \param pri Asterisk D channel control structure.
+ *
+ * \return Nothing
+ *
+ * \note Assumes the pri->lock is already obtained.
+ */
+static void sig_pri_span_devstate_changed(struct sig_pri_pri *pri)
+{
+	if (pri->calls->update_span_devstate) {
+		pri->calls->update_span_devstate(pri);
+	}
 }
 
 /*!
@@ -732,6 +792,12 @@ static struct ast_channel *sig_pri_new_ast_channel(struct sig_pri_chan *p, int s
 		c->transfercapability = transfercapability;
 		pbx_builtin_setvar_helper(c, "TRANSFERCAPABILITY", ast_transfercapability2str(transfercapability));
 		sig_pri_set_digital(p, 1);
+	}
+	if (p->pri && !pri_grab(p, p->pri)) {
+		sig_pri_span_devstate_changed(p->pri);
+		pri_rel(p->pri);
+	} else {
+		ast_log(LOG_WARNING, "Failed to grab PRI!\n");
 	}
 
 	return c;
@@ -1476,6 +1542,615 @@ static void sig_pri_lock_owner(struct sig_pri_pri *pri, int chanpos)
 	}
 }
 
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \internal
+ * \brief Compare the CC agent private data by libpri cc_id.
+ * \since 1.8
+ *
+ * \param obj pointer to the (user-defined part) of an object.
+ * \param arg callback argument from ao2_callback()
+ * \param flags flags from ao2_callback()
+ *
+ * \return values are a combination of enum _cb_results.
+ */
+static int sig_pri_cc_agent_cmp_cc_id(void *obj, void *arg, int flags)
+{
+	struct ast_cc_agent *agent_1 = obj;
+	struct sig_pri_cc_agent_prv *agent_prv_1 = agent_1->private_data;
+	struct sig_pri_cc_agent_prv *agent_prv_2 = arg;
+
+	return (agent_prv_1 && agent_prv_1->pri == agent_prv_2->pri
+		&& agent_prv_1->cc_id == agent_prv_2->cc_id) ? CMP_MATCH | CMP_STOP : 0;
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \internal
+ * \brief Find the CC agent by libpri cc_id.
+ * \since 1.8
+ *
+ * \param pri sig_pri PRI control structure.
+ * \param cc_id CC record ID to find.
+ *
+ * \note
+ * Since agents are refcounted, and this function returns
+ * a reference to the agent, it is imperative that you decrement
+ * the refcount of the agent once you have finished using it.
+ *
+ * \retval agent on success.
+ * \retval NULL not found.
+ */
+static struct ast_cc_agent *sig_pri_find_cc_agent_by_cc_id(struct sig_pri_pri *pri, long cc_id)
+{
+	struct sig_pri_cc_agent_prv finder = {
+		.pri = pri,
+		.cc_id = cc_id,
+	};
+
+	return ast_cc_agent_callback(0, sig_pri_cc_agent_cmp_cc_id, &finder,
+		sig_pri_cc_type_name);
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \internal
+ * \brief Compare the CC monitor instance by libpri cc_id.
+ * \since 1.8
+ *
+ * \param obj pointer to the (user-defined part) of an object.
+ * \param arg callback argument from ao2_callback()
+ * \param flags flags from ao2_callback()
+ *
+ * \return values are a combination of enum _cb_results.
+ */
+static int sig_pri_cc_monitor_cmp_cc_id(void *obj, void *arg, int flags)
+{
+	struct sig_pri_cc_monitor_instance *monitor_1 = obj;
+	struct sig_pri_cc_monitor_instance *monitor_2 = arg;
+
+	return (monitor_1->pri == monitor_2->pri
+		&& monitor_1->cc_id == monitor_2->cc_id) ? CMP_MATCH | CMP_STOP : 0;
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \internal
+ * \brief Find the CC monitor instance by libpri cc_id.
+ * \since 1.8
+ *
+ * \param pri sig_pri PRI control structure.
+ * \param cc_id CC record ID to find.
+ *
+ * \note
+ * Since monitor_instances are refcounted, and this function returns
+ * a reference to the instance, it is imperative that you decrement
+ * the refcount of the instance once you have finished using it.
+ *
+ * \retval monitor_instance on success.
+ * \retval NULL not found.
+ */
+static struct sig_pri_cc_monitor_instance *sig_pri_find_cc_monitor_by_cc_id(struct sig_pri_pri *pri, long cc_id)
+{
+	struct sig_pri_cc_monitor_instance finder = {
+		.pri = pri,
+		.cc_id = cc_id,
+	};
+
+	return ao2_callback(sig_pri_cc_monitors, 0, sig_pri_cc_monitor_cmp_cc_id, &finder);
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \internal
+ * \brief Destroy the given monitor instance.
+ * \since 1.8
+ *
+ * \param data Monitor instance to destroy.
+ *
+ * \return Nothing
+ */
+static void sig_pri_cc_monitor_instance_destroy(void *data)
+{
+	struct sig_pri_cc_monitor_instance *monitor_instance = data;
+
+	if (monitor_instance->cc_id != -1) {
+		ast_mutex_lock(&monitor_instance->pri->lock);
+		pri_cc_cancel(monitor_instance->pri->pri, monitor_instance->cc_id);
+		ast_mutex_unlock(&monitor_instance->pri->lock);
+	}
+	monitor_instance->pri->calls->module_unref();
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \internal
+ * \brief Construct a new monitor instance.
+ * \since 1.8
+ *
+ * \param core_id CC core ID.
+ * \param pri sig_pri PRI control structure.
+ * \param cc_id CC record ID.
+ * \param device_name Name of device (Asterisk channel name less sequence number).
+ *
+ * \note
+ * Since monitor_instances are refcounted, and this function returns
+ * a reference to the instance, it is imperative that you decrement
+ * the refcount of the instance once you have finished using it.
+ *
+ * \retval monitor_instance on success.
+ * \retval NULL on error.
+ */
+static struct sig_pri_cc_monitor_instance *sig_pri_cc_monitor_instance_init(int core_id, struct sig_pri_pri *pri, long cc_id, const char *device_name)
+{
+	struct sig_pri_cc_monitor_instance *monitor_instance;
+
+	if (!pri->calls->module_ref || !pri->calls->module_unref) {
+		return NULL;
+	}
+
+	monitor_instance = ao2_alloc(sizeof(*monitor_instance) + strlen(device_name),
+		sig_pri_cc_monitor_instance_destroy);
+	if (!monitor_instance) {
+		return NULL;
+	}
+
+	monitor_instance->cc_id = cc_id;
+	monitor_instance->pri = pri;
+	monitor_instance->core_id = core_id;
+	strcpy(monitor_instance->name, device_name);
+
+	pri->calls->module_ref();
+
+	ao2_link(sig_pri_cc_monitors, monitor_instance);
+	return monitor_instance;
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \internal
+ * \brief Announce to the CC core that protocol CC monitor is available for this call.
+ * \since 1.8
+ *
+ * \param pri sig_pri PRI control structure.
+ * \param chanpos Channel position in the span.
+ * \param cc_id CC record ID.
+ * \param service CCBS/CCNR indication.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
+ * \note Assumes the sig_pri_lock_owner(pri, chanpos) is already obtained.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int sig_pri_cc_available(struct sig_pri_pri *pri, int chanpos, long cc_id, enum ast_cc_service_type service)
+{
+	struct sig_pri_chan *pvt;
+	struct ast_cc_config_params *cc_params;
+	struct sig_pri_cc_monitor_instance *monitor;
+	enum ast_cc_monitor_policies monitor_policy;
+	int core_id;
+	int res;
+	char device_name[AST_CHANNEL_NAME];
+	char dialstring[AST_CHANNEL_NAME];
+
+	pvt = pri->pvts[chanpos];
+
+	core_id = ast_cc_get_current_core_id(pvt->owner);
+	if (core_id == -1) {
+		return -1;
+	}
+
+	cc_params = ast_channel_get_cc_config_params(pvt->owner);
+	if (!cc_params) {
+		return -1;
+	}
+
+	res = -1;
+	monitor_policy = ast_get_cc_monitor_policy(cc_params);
+	switch (monitor_policy) {
+	case AST_CC_MONITOR_NEVER:
+		/* CCSS is not enabled. */
+		break;
+	case AST_CC_MONITOR_NATIVE:
+	case AST_CC_MONITOR_ALWAYS:
+		/*
+		 * If it is AST_CC_MONITOR_ALWAYS and native fails we will attempt the fallback
+		 * later in the call to sig_pri_cc_generic_check().
+		 */
+		ast_channel_get_device_name(pvt->owner, device_name, sizeof(device_name));
+		sig_pri_make_cc_dialstring(pvt, dialstring, sizeof(dialstring));
+		monitor = sig_pri_cc_monitor_instance_init(core_id, pri, cc_id, device_name);
+		if (!monitor) {
+			break;
+		}
+		res = ast_queue_cc_frame(pvt->owner, sig_pri_cc_type_name, dialstring, service,
+			monitor);
+		if (res) {
+			monitor->cc_id = -1;
+			ao2_unlink(sig_pri_cc_monitors, monitor);
+			ao2_ref(monitor, -1);
+		}
+		break;
+	case AST_CC_MONITOR_GENERIC:
+		ast_queue_cc_frame(pvt->owner, AST_CC_GENERIC_MONITOR_TYPE,
+			sig_pri_get_orig_dialstring(pvt), service, NULL);
+		/* Say it failed to force caller to cancel native CC. */
+		break;
+	}
+	return res;
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+/*!
+ * \internal
+ * \brief Check if generic CC monitor is needed and request it.
+ * \since 1.8
+ *
+ * \param pri sig_pri PRI control structure.
+ * \param chanpos Channel position in the span.
+ * \param service CCBS/CCNR indication.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
+ *
+ * \return Nothing
+ */
+static void sig_pri_cc_generic_check(struct sig_pri_pri *pri, int chanpos, enum ast_cc_service_type service)
+{
+	struct ast_channel *owner;
+	struct ast_cc_config_params *cc_params;
+#if defined(HAVE_PRI_CCSS)
+	struct ast_cc_monitor *monitor;
+	char device_name[AST_CHANNEL_NAME];
+#endif	/* defined(HAVE_PRI_CCSS) */
+	enum ast_cc_monitor_policies monitor_policy;
+	int core_id;
+
+	if (!pri->pvts[chanpos]->outgoing) {
+		/* This is not an outgoing call so it cannot be CC monitor. */
+		return;
+	}
+
+	sig_pri_lock_owner(pri, chanpos);
+	owner = pri->pvts[chanpos]->owner;
+	if (!owner) {
+		return;
+	}
+	core_id = ast_cc_get_current_core_id(owner);
+	if (core_id == -1) {
+		/* No CC core setup */
+		goto done;
+	}
+
+	cc_params = ast_channel_get_cc_config_params(owner);
+	if (!cc_params) {
+		/* Could not get CC config parameters. */
+		goto done;
+	}
+
+#if defined(HAVE_PRI_CCSS)
+	ast_channel_get_device_name(owner, device_name, sizeof(device_name));
+	monitor = ast_cc_get_monitor_by_recall_core_id(core_id, device_name);
+	if (monitor) {
+		/* CC monitor is already present so no need for generic CC. */
+		ao2_ref(monitor, -1);
+		goto done;
+	}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+	monitor_policy = ast_get_cc_monitor_policy(cc_params);
+	switch (monitor_policy) {
+	case AST_CC_MONITOR_NEVER:
+		/* CCSS is not enabled. */
+		break;
+	case AST_CC_MONITOR_NATIVE:
+		if (pri->sig == SIG_BRI_PTMP && pri->nodetype == PRI_NETWORK) {
+			/* Request generic CC monitor. */
+			ast_queue_cc_frame(owner, AST_CC_GENERIC_MONITOR_TYPE,
+				sig_pri_get_orig_dialstring(pri->pvts[chanpos]), service, NULL);
+		}
+		break;
+	case AST_CC_MONITOR_ALWAYS:
+		if (pri->sig == SIG_BRI_PTMP && pri->nodetype != PRI_NETWORK) {
+			/*
+			 * Cannot monitor PTMP TE side since this is not defined.
+			 * We are playing the roll of a phone in this case and
+			 * a phone cannot monitor a party over the network without
+			 * protocol help.
+			 */
+			break;
+		}
+		/*
+		 * We are either falling back or this is a PTMP NT span.
+		 * Request generic CC monitor.
+		 */
+		ast_queue_cc_frame(owner, AST_CC_GENERIC_MONITOR_TYPE,
+			sig_pri_get_orig_dialstring(pri->pvts[chanpos]), service, NULL);
+		break;
+	case AST_CC_MONITOR_GENERIC:
+		if (pri->sig == SIG_BRI_PTMP && pri->nodetype == PRI_NETWORK) {
+			/* Request generic CC monitor. */
+			ast_queue_cc_frame(owner, AST_CC_GENERIC_MONITOR_TYPE,
+				sig_pri_get_orig_dialstring(pri->pvts[chanpos]), service, NULL);
+		}
+		break;
+	}
+
+done:
+	ast_channel_unlock(owner);
+}
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \internal
+ * \brief The CC link canceled the CC instance.
+ * \since 1.8
+ *
+ * \param pri sig_pri PRI control structure.
+ * \param cc_id CC record ID.
+ * \param is_agent TRUE if the cc_id is for an agent.
+ *
+ * \return Nothing
+ */
+static void sig_pri_cc_link_canceled(struct sig_pri_pri *pri, long cc_id, int is_agent)
+{
+	if (is_agent) {
+		struct ast_cc_agent *agent;
+
+		agent = sig_pri_find_cc_agent_by_cc_id(pri, cc_id);
+		if (!agent) {
+			return;
+		}
+		ast_cc_failed(agent->core_id, "%s agent got canceled by link",
+			sig_pri_cc_type_name);
+		ao2_ref(agent, -1);
+	} else {
+		struct sig_pri_cc_monitor_instance *monitor;
+
+		monitor = sig_pri_find_cc_monitor_by_cc_id(pri, cc_id);
+		if (!monitor) {
+			return;
+		}
+		monitor->cc_id = -1;
+		ast_cc_monitor_failed(monitor->core_id, monitor->name,
+			"%s monitor got canceled by link", sig_pri_cc_type_name);
+		ao2_ref(monitor, -1);
+	}
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+/*!
+ * \internal
+ * \brief TRUE if PRI event came in on a CIS call.
+ * \since 1.8
+ *
+ * \param channel PRI encoded span/channel
+ *
+ * \retval non-zero if CIS call.
+ */
+static int sig_pri_is_cis_call(int channel)
+{
+	return channel != -1 && (channel & PRI_CIS_CALL);
+}
+
+/*!
+ * \internal
+ * \brief Handle the CIS associated PRI subcommand events.
+ * \since 1.8
+ *
+ * \param pri sig_pri PRI control structure.
+ * \param event_id PRI event id
+ * \param subcmds Subcommands to process if any. (Could be NULL).
+ * \param call_rsp libpri opaque call structure to send any responses toward.
+ * Could be NULL either because it is not available or the call is for the
+ * dummy call reference.  However, this should not be NULL in the cases that
+ * need to use the pointer to send a response message back.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ *
+ * \return Nothing
+ */
+static void sig_pri_handle_cis_subcmds(struct sig_pri_pri *pri, int event_id,
+	const struct pri_subcommands *subcmds, q931_call *call_rsp)
+{
+	int index;
+#if defined(HAVE_PRI_CCSS)
+	struct ast_cc_agent *agent;
+	struct sig_pri_cc_agent_prv *agent_prv;
+	struct sig_pri_cc_monitor_instance *monitor;
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+	if (!subcmds) {
+		return;
+	}
+	for (index = 0; index < subcmds->counter_subcmd; ++index) {
+		const struct pri_subcommand *subcmd = &subcmds->subcmd[index];
+
+		switch (subcmd->cmd) {
+#if defined(STATUS_REQUEST_PLACE_HOLDER)
+		case PRI_SUBCMD_STATUS_REQ:
+		case PRI_SUBCMD_STATUS_REQ_RSP:
+			/* Ignore for now. */
+			break;
+#endif	/* defined(STATUS_REQUEST_PLACE_HOLDER) */
+#if defined(HAVE_PRI_CCSS)
+		case PRI_SUBCMD_CC_REQ:
+			agent = sig_pri_find_cc_agent_by_cc_id(pri, subcmd->u.cc_request.cc_id);
+			if (!agent) {
+				pri_cc_cancel(pri->pri, subcmd->u.cc_request.cc_id);
+				break;
+			}
+			if (!ast_cc_request_is_within_limits()) {
+				if (pri_cc_req_rsp(pri->pri, subcmd->u.cc_request.cc_id,
+					5/* queue_full */)) {
+					pri_cc_cancel(pri->pri, subcmd->u.cc_request.cc_id);
+				}
+				ast_cc_failed(agent->core_id, "%s agent system CC queue full",
+					sig_pri_cc_type_name);
+				ao2_ref(agent, -1);
+				break;
+			}
+			agent_prv = agent->private_data;
+			agent_prv->cc_request_response_pending = 1;
+			if (ast_cc_agent_accept_request(agent->core_id,
+				"%s caller accepted CC offer.", sig_pri_cc_type_name)) {
+				agent_prv->cc_request_response_pending = 0;
+				if (pri_cc_req_rsp(pri->pri, subcmd->u.cc_request.cc_id,
+					2/* short_term_denial */)) {
+					pri_cc_cancel(pri->pri, subcmd->u.cc_request.cc_id);
+				}
+				ast_cc_failed(agent->core_id, "%s agent CC core request accept failed",
+					sig_pri_cc_type_name);
+			}
+			ao2_ref(agent, -1);
+			break;
+#endif	/* defined(HAVE_PRI_CCSS) */
+#if defined(HAVE_PRI_CCSS)
+		case PRI_SUBCMD_CC_REQ_RSP:
+			monitor = sig_pri_find_cc_monitor_by_cc_id(pri,
+				subcmd->u.cc_request_rsp.cc_id);
+			if (!monitor) {
+				pri_cc_cancel(pri->pri, subcmd->u.cc_request_rsp.cc_id);
+				break;
+			}
+			switch (subcmd->u.cc_request_rsp.status) {
+			case 0:/* success */
+				ast_cc_monitor_request_acked(monitor->core_id,
+					"%s far end accepted CC request", sig_pri_cc_type_name);
+				break;
+			case 1:/* timeout */
+				ast_verb(2, "core_id:%d %s CC request timeout\n", monitor->core_id,
+					sig_pri_cc_type_name);
+				ast_cc_monitor_failed(monitor->core_id, monitor->name,
+					"%s CC request timeout", sig_pri_cc_type_name);
+				break;
+			case 2:/* error */
+				ast_verb(2, "core_id:%d %s CC request error: %s\n", monitor->core_id,
+					sig_pri_cc_type_name,
+					pri_facility_error2str(subcmd->u.cc_request_rsp.fail_code));
+				ast_cc_monitor_failed(monitor->core_id, monitor->name,
+					"%s CC request error", sig_pri_cc_type_name);
+				break;
+			case 3:/* reject */
+				ast_verb(2, "core_id:%d %s CC request reject: %s\n", monitor->core_id,
+					sig_pri_cc_type_name,
+					pri_facility_reject2str(subcmd->u.cc_request_rsp.fail_code));
+				ast_cc_monitor_failed(monitor->core_id, monitor->name,
+					"%s CC request reject", sig_pri_cc_type_name);
+				break;
+			default:
+				ast_verb(2, "core_id:%d %s CC request unknown status %d\n",
+					monitor->core_id, sig_pri_cc_type_name,
+					subcmd->u.cc_request_rsp.status);
+				ast_cc_monitor_failed(monitor->core_id, monitor->name,
+					"%s CC request unknown status", sig_pri_cc_type_name);
+				break;
+			}
+			ao2_ref(monitor, -1);
+			break;
+#endif	/* defined(HAVE_PRI_CCSS) */
+#if defined(HAVE_PRI_CCSS)
+		case PRI_SUBCMD_CC_REMOTE_USER_FREE:
+			monitor = sig_pri_find_cc_monitor_by_cc_id(pri,
+				subcmd->u.cc_remote_user_free.cc_id);
+			if (!monitor) {
+				pri_cc_cancel(pri->pri, subcmd->u.cc_remote_user_free.cc_id);
+				break;
+			}
+			ast_cc_monitor_callee_available(monitor->core_id,
+				"%s callee has become available", sig_pri_cc_type_name);
+			ao2_ref(monitor, -1);
+			break;
+#endif	/* defined(HAVE_PRI_CCSS) */
+#if defined(HAVE_PRI_CCSS)
+		case PRI_SUBCMD_CC_B_FREE:
+			monitor = sig_pri_find_cc_monitor_by_cc_id(pri,
+				subcmd->u.cc_b_free.cc_id);
+			if (!monitor) {
+				pri_cc_cancel(pri->pri, subcmd->u.cc_b_free.cc_id);
+				break;
+			}
+			ast_cc_monitor_party_b_free(monitor->core_id);
+			ao2_ref(monitor, -1);
+			break;
+#endif	/* defined(HAVE_PRI_CCSS) */
+#if defined(HAVE_PRI_CCSS)
+		case PRI_SUBCMD_CC_STATUS_REQ:
+			monitor = sig_pri_find_cc_monitor_by_cc_id(pri,
+				subcmd->u.cc_status_req.cc_id);
+			if (!monitor) {
+				pri_cc_cancel(pri->pri, subcmd->u.cc_status_req.cc_id);
+				break;
+			}
+			ast_cc_monitor_status_request(monitor->core_id);
+			ao2_ref(monitor, -1);
+			break;
+#endif	/* defined(HAVE_PRI_CCSS) */
+#if defined(HAVE_PRI_CCSS)
+		case PRI_SUBCMD_CC_STATUS_REQ_RSP:
+			agent = sig_pri_find_cc_agent_by_cc_id(pri, subcmd->u.cc_status_req_rsp.cc_id);
+			if (!agent) {
+				pri_cc_cancel(pri->pri, subcmd->u.cc_status_req_rsp.cc_id);
+				break;
+			}
+			ast_cc_agent_status_response(agent->core_id,
+				subcmd->u.cc_status_req_rsp.status ? AST_DEVICE_INUSE
+				: AST_DEVICE_NOT_INUSE);
+			ao2_ref(agent, -1);
+			break;
+#endif	/* defined(HAVE_PRI_CCSS) */
+#if defined(HAVE_PRI_CCSS)
+		case PRI_SUBCMD_CC_STATUS:
+			agent = sig_pri_find_cc_agent_by_cc_id(pri, subcmd->u.cc_status.cc_id);
+			if (!agent) {
+				pri_cc_cancel(pri->pri, subcmd->u.cc_status.cc_id);
+				break;
+			}
+			if (subcmd->u.cc_status.status) {
+				ast_cc_agent_caller_busy(agent->core_id, "%s agent caller is busy",
+					sig_pri_cc_type_name);
+			} else {
+				ast_cc_agent_caller_available(agent->core_id,
+					"%s agent caller is available", sig_pri_cc_type_name);
+			}
+			ao2_ref(agent, -1);
+			break;
+#endif	/* defined(HAVE_PRI_CCSS) */
+#if defined(HAVE_PRI_CCSS)
+		case PRI_SUBCMD_CC_CANCEL:
+			sig_pri_cc_link_canceled(pri, subcmd->u.cc_cancel.cc_id,
+				subcmd->u.cc_cancel.is_agent);
+			break;
+#endif	/* defined(HAVE_PRI_CCSS) */
+#if defined(HAVE_PRI_CCSS)
+		case PRI_SUBCMD_CC_STOP_ALERTING:
+			monitor = sig_pri_find_cc_monitor_by_cc_id(pri,
+				subcmd->u.cc_stop_alerting.cc_id);
+			if (!monitor) {
+				pri_cc_cancel(pri->pri, subcmd->u.cc_stop_alerting.cc_id);
+				break;
+			}
+			ast_cc_monitor_stop_ringing(monitor->core_id);
+			ao2_ref(monitor, -1);
+			break;
+#endif	/* defined(HAVE_PRI_CCSS) */
+		default:
+			ast_debug(2,
+				"Unknown CIS subcommand(%d) in %s event on span %d.\n",
+				subcmd->cmd, pri_event2str(event_id), pri->span);
+			break;
+		}
+	}
+}
+
 /*!
  * \internal
  * \brief Handle the call associated PRI subcommand events.
@@ -1647,6 +2322,63 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 			}
 			break;
 #endif	/* defined(HAVE_PRI_CALL_REROUTING) */
+#if defined(HAVE_PRI_CCSS)
+		case PRI_SUBCMD_CC_AVAILABLE:
+			sig_pri_lock_owner(pri, chanpos);
+			owner = pri->pvts[chanpos]->owner;
+			if (owner) {
+				enum ast_cc_service_type service;
+
+				switch (event_id) {
+				case PRI_EVENT_RINGING:
+					service = AST_CC_CCNR;
+					break;
+				case PRI_EVENT_HANGUP_REQ:
+					/* We will assume that the cause was busy/congestion. */
+					service = AST_CC_CCBS;
+					break;
+				default:
+					service = AST_CC_NONE;
+					break;
+				}
+				if (service == AST_CC_NONE
+					|| sig_pri_cc_available(pri, chanpos, subcmd->u.cc_available.cc_id,
+					service)) {
+					pri_cc_cancel(pri->pri, subcmd->u.cc_available.cc_id);
+				}
+				ast_channel_unlock(owner);
+			} else {
+				/* No asterisk channel. */
+				pri_cc_cancel(pri->pri, subcmd->u.cc_available.cc_id);
+			}
+			break;
+#endif	/* defined(HAVE_PRI_CCSS) */
+#if defined(HAVE_PRI_CCSS)
+		case PRI_SUBCMD_CC_CALL:
+			sig_pri_lock_owner(pri, chanpos);
+			owner = pri->pvts[chanpos]->owner;
+			if (owner) {
+				struct ast_cc_agent *agent;
+
+				agent = sig_pri_find_cc_agent_by_cc_id(pri, subcmd->u.cc_call.cc_id);
+				if (agent) {
+					ast_setup_cc_recall_datastore(owner, agent->core_id);
+					ast_cc_agent_set_interfaces_chanvar(owner);
+					ast_cc_agent_recalling(agent->core_id,
+						"%s caller is attempting recall", sig_pri_cc_type_name);
+					ao2_ref(agent, -1);
+				}
+
+				ast_channel_unlock(owner);
+			}
+			break;
+#endif	/* defined(HAVE_PRI_CCSS) */
+#if defined(HAVE_PRI_CCSS)
+		case PRI_SUBCMD_CC_CANCEL:
+			sig_pri_cc_link_canceled(pri, subcmd->u.cc_cancel.cc_id,
+				subcmd->u.cc_cancel.is_agent);
+			break;
+#endif	/* defined(HAVE_PRI_CCSS) */
 		default:
 			ast_debug(2,
 				"Unknown call subcommand(%d) in %s event on channel %d/%d on span %d.\n",
@@ -1793,6 +2525,7 @@ static int sig_pri_handle_hold(struct sig_pri_pri *pri, pri_event *ev)
 
 		f.subclass.integer = AST_CONTROL_HOLD;
 		ast_queue_frame(owner, &f);
+		sig_pri_span_devstate_changed(pri);
 		retval = 0;
 	}
 
@@ -1866,6 +2599,7 @@ static void sig_pri_handle_retrieve(struct sig_pri_pri *pri, pri_event *ev)
 		pri_queue_frame(pri->pvts[chanpos], &f, pri);
 	}
 	sig_pri_unlock_private(pri->pvts[chanpos]);
+	sig_pri_span_devstate_changed(pri);
 	pri_retrieve_ack(pri->pri, ev->retrieve.call,
 		PVT_TO_CHANNEL(pri->pvts[chanpos]));
 }
@@ -2094,10 +2828,12 @@ static void *pri_dchannel(void *vpri)
 				}
 				pri->resetting = 0;
 				/* Take the channels from inalarm condition */
-				for (i = 0; i < pri->numchans; i++)
+				for (i = 0; i < pri->numchans; i++) {
 					if (pri->pvts[i]) {
 						pri->pvts[i]->inalarm = 0;
 					}
+				}
+				sig_pri_span_devstate_changed(pri);
 				break;
 			case PRI_EVENT_DCHAN_DOWN:
 				pri_find_dchan(pri);
@@ -2128,6 +2864,7 @@ static void *pri_dchannel(void *vpri)
 							p->inalarm = 1;
 						}
 					}
+					sig_pri_span_devstate_changed(pri);
 				}
 				break;
 			case PRI_EVENT_RESTART:
@@ -2180,6 +2917,11 @@ static void *pri_dchannel(void *vpri)
 				}
 				break;
 			case PRI_EVENT_KEYPAD_DIGIT:
+				if (sig_pri_is_cis_call(e->digit.channel)) {
+					sig_pri_handle_cis_subcmds(pri, e->e, e->digit.subcmds,
+						e->digit.call);
+					break;
+				}
 				chanpos = pri_find_principle(pri, e->digit.channel, e->digit.call);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "KEYPAD_DIGITs received on unconfigured channel %d/%d span %d\n",
@@ -2210,6 +2952,11 @@ static void *pri_dchannel(void *vpri)
 				break;
 
 			case PRI_EVENT_INFO_RECEIVED:
+				if (sig_pri_is_cis_call(e->ring.channel)) {
+					sig_pri_handle_cis_subcmds(pri, e->e, e->ring.subcmds,
+						e->ring.call);
+					break;
+				}
 				chanpos = pri_find_principle(pri, e->ring.channel, e->ring.call);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "INFO received on unconfigured channel %d/%d span %d\n",
@@ -2262,6 +3009,8 @@ static void *pri_dchannel(void *vpri)
 							snprintf(db_answer, sizeof(db_answer), "%s:%u",
 								SRVST_TYPE_OOS, *why);
 							ast_db_put(db_chan_name, SRVST_DBKEY, db_answer);
+						} else {
+							sig_pri_span_devstate_changed(pri);
 						}
 						break;
 					case 2: /* out-of-service */
@@ -2271,6 +3020,7 @@ static void *pri_dchannel(void *vpri)
 						snprintf(db_answer, sizeof(db_answer), "%s:%u", SRVST_TYPE_OOS,
 							*why);
 						ast_db_put(db_chan_name, SRVST_DBKEY, db_answer);
+						sig_pri_span_devstate_changed(pri);
 						break;
 					default:
 						ast_log(LOG_ERROR, "Huh?  changestatus is: %d\n", e->service.changestatus);
@@ -2301,7 +3051,12 @@ static void *pri_dchannel(void *vpri)
 					pri_destroycall(pri->pri, e->ring.call);
 					break;
 				}
-				if (e->ring.channel == -1)
+				if (sig_pri_is_cis_call(e->ring.channel)) {
+					sig_pri_handle_cis_subcmds(pri, e->e, e->ring.subcmds,
+						e->ring.call);
+					break;
+				}
+				if (e->ring.channel == -1 || PRI_CHANNEL(e->ring.channel) == 0xFF)
 					chanpos = pri_find_empty_chan(pri, 1);
 				else
 					chanpos = pri_find_principle(pri, e->ring.channel, e->ring.call);
@@ -2644,6 +3399,11 @@ static void *pri_dchannel(void *vpri)
 				}
 				break;
 			case PRI_EVENT_RINGING:
+				if (sig_pri_is_cis_call(e->ringing.channel)) {
+					sig_pri_handle_cis_subcmds(pri, e->e, e->ringing.subcmds,
+						e->ringing.call);
+					break;
+				}
 				chanpos = pri_find_principle(pri, e->ringing.channel, e->ringing.call);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Ringing requested on unconfigured channel %d/%d span %d\n",
@@ -2658,6 +3418,7 @@ static void *pri_dchannel(void *vpri)
 
 						sig_pri_handle_subcmds(pri, chanpos, e->e, e->ringing.channel,
 							e->ringing.subcmds, e->ringing.call);
+						sig_pri_cc_generic_check(pri, chanpos, AST_CC_CCNR);
 						sig_pri_set_echocanceller(pri->pvts[chanpos], 1);
 						pri_queue_control(pri->pvts[chanpos], AST_CONTROL_RINGING, pri);
 						pri->pvts[chanpos]->alerting = 1;
@@ -2681,7 +3442,11 @@ static void *pri_dchannel(void *vpri)
 				}
 				break;
 			case PRI_EVENT_PROGRESS:
-				/* Get chan value if e->e is not PRI_EVNT_RINGING */
+				if (sig_pri_is_cis_call(e->proceeding.channel)) {
+					sig_pri_handle_cis_subcmds(pri, e->e, e->proceeding.subcmds,
+						e->proceeding.call);
+					break;
+				}
 				chanpos = pri_find_principle(pri, e->proceeding.channel, e->proceeding.call);
 				if (chanpos > -1) {
 					sig_pri_lock_private(pri->pvts[chanpos]);
@@ -2731,6 +3496,11 @@ static void *pri_dchannel(void *vpri)
 				}
 				break;
 			case PRI_EVENT_PROCEEDING:
+				if (sig_pri_is_cis_call(e->proceeding.channel)) {
+					sig_pri_handle_cis_subcmds(pri, e->e, e->proceeding.subcmds,
+						e->proceeding.call);
+					break;
+				}
 				chanpos = pri_find_principle(pri, e->proceeding.channel, e->proceeding.call);
 				if (chanpos > -1) {
 					sig_pri_lock_private(pri->pvts[chanpos]);
@@ -2760,6 +3530,17 @@ static void *pri_dchannel(void *vpri)
 				}
 				break;
 			case PRI_EVENT_FACILITY:
+				if (!e->facility.call || sig_pri_is_cis_call(e->facility.channel)) {
+					/* Event came in on the dummy channel or a CIS call. */
+#if defined(HAVE_PRI_CALL_REROUTING)
+					sig_pri_handle_cis_subcmds(pri, e->e, e->facility.subcmds,
+						e->facility.subcall);
+#else
+					sig_pri_handle_cis_subcmds(pri, e->e, e->facility.subcmds,
+						e->facility.call);
+#endif	/* !defined(HAVE_PRI_CALL_REROUTING) */
+					break;
+				}
 				chanpos = pri_find_principle(pri, e->facility.channel, e->facility.call);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Facility requested on unconfigured channel %d/%d span %d\n",
@@ -2783,6 +3564,11 @@ static void *pri_dchannel(void *vpri)
 				}
 				break;
 			case PRI_EVENT_ANSWER:
+				if (sig_pri_is_cis_call(e->answer.channel)) {
+					sig_pri_handle_cis_subcmds(pri, e->e, e->answer.subcmds,
+						e->answer.call);
+					break;
+				}
 				chanpos = pri_find_principle(pri, e->answer.channel, e->answer.call);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Answer on unconfigured channel %d/%d span %d\n",
@@ -2821,6 +3607,12 @@ static void *pri_dchannel(void *vpri)
 				}
 				break;
 			case PRI_EVENT_HANGUP:
+				if (sig_pri_is_cis_call(e->hangup.channel)) {
+					sig_pri_handle_cis_subcmds(pri, e->e, e->hangup.subcmds,
+						e->hangup.call);
+					pri_hangup(pri->pri, e->hangup.call, e->hangup.cause);
+					break;
+				}
 				chanpos = pri_find_principle(pri, e->hangup.channel, e->hangup.call);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Hangup requested on unconfigured channel %d/%d span %d\n",
@@ -2834,6 +3626,14 @@ static void *pri_dchannel(void *vpri)
 						if (!pri->pvts[chanpos]->alreadyhungup) {
 							/* we're calling here dahdi_hangup so once we get there we need to clear p->call after calling pri_hangup */
 							pri->pvts[chanpos]->alreadyhungup = 1;
+							switch (e->hangup.cause) {
+							case PRI_CAUSE_USER_BUSY:
+							case PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION:
+								sig_pri_cc_generic_check(pri, chanpos, AST_CC_CCBS);
+								break;
+							default:
+								break;
+							}
 							if (pri->pvts[chanpos]->owner) {
 								/* Queue a BUSY instead of a hangup if our cause is appropriate */
 								pri->pvts[chanpos]->owner->hangupcause = e->hangup.cause;
@@ -2900,6 +3700,12 @@ static void *pri_dchannel(void *vpri)
 				}
 				break;
 			case PRI_EVENT_HANGUP_REQ:
+				if (sig_pri_is_cis_call(e->hangup.channel)) {
+					sig_pri_handle_cis_subcmds(pri, e->e, e->hangup.subcmds,
+						e->hangup.call);
+					pri_hangup(pri->pri, e->hangup.call, e->hangup.cause);
+					break;
+				}
 				chanpos = pri_find_principle(pri, e->hangup.channel, e->hangup.call);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Hangup REQ requested on unconfigured channel %d/%d span %d\n",
@@ -2922,6 +3728,14 @@ static void *pri_dchannel(void *vpri)
 							sig_pri_lock_private(pri->pvts[chanpos]);
 						}
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
+						switch (e->hangup.cause) {
+						case PRI_CAUSE_USER_BUSY:
+						case PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION:
+							sig_pri_cc_generic_check(pri, chanpos, AST_CC_CCBS);
+							break;
+						default:
+							break;
+						}
 						if (pri->pvts[chanpos]->owner) {
 							pri->pvts[chanpos]->owner->hangupcause = e->hangup.cause;
 							switch (pri->pvts[chanpos]->owner->_state) {
@@ -2984,6 +3798,11 @@ static void *pri_dchannel(void *vpri)
 				}
 				break;
 			case PRI_EVENT_HANGUP_ACK:
+				if (sig_pri_is_cis_call(e->hangup.channel)) {
+					sig_pri_handle_cis_subcmds(pri, e->e, e->hangup.subcmds,
+						e->hangup.call);
+					break;
+				}
 				chanpos = pri_find_principle(pri, e->hangup.channel, e->hangup.call);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Hangup ACK requested on unconfigured channel number %d/%d span %d\n",
@@ -3067,6 +3886,11 @@ static void *pri_dchannel(void *vpri)
 				}
 				break;
 			case PRI_EVENT_SETUP_ACK:
+				if (sig_pri_is_cis_call(e->setup_ack.channel)) {
+					sig_pri_handle_cis_subcmds(pri, e->e, e->setup_ack.subcmds,
+						e->setup_ack.call);
+					break;
+				}
 				chanpos = pri_find_principle(pri, e->setup_ack.channel, e->setup_ack.call);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Received SETUP_ACKNOWLEDGE on unconfigured channel %d/%d span %d\n",
@@ -3090,6 +3914,15 @@ static void *pri_dchannel(void *vpri)
 				}
 				break;
 			case PRI_EVENT_NOTIFY:
+				if (sig_pri_is_cis_call(e->notify.channel)) {
+#if defined(HAVE_PRI_CALL_HOLD)
+					sig_pri_handle_cis_subcmds(pri, e->e, e->notify.subcmds,
+						e->notify.call);
+#else
+					sig_pri_handle_cis_subcmds(pri, e->e, e->notify.subcmds, NULL);
+#endif	/* !defined(HAVE_PRI_CALL_HOLD) */
+					break;
+				}
 #if defined(HAVE_PRI_CALL_HOLD)
 				chanpos = pri_find_principle(pri, e->notify.channel, e->notify.call);
 #else
@@ -3130,6 +3963,7 @@ static void *pri_dchannel(void *vpri)
 				break;
 #if defined(HAVE_PRI_CALL_HOLD)
 			case PRI_EVENT_HOLD:
+				/* We should not be getting any CIS calls with this message type. */
 				if (sig_pri_handle_hold(pri, e)) {
 					pri_hold_rej(pri->pri, e->hold.call,
 						PRI_CAUSE_RESOURCE_UNAVAIL_UNSPECIFIED);
@@ -3150,6 +3984,7 @@ static void *pri_dchannel(void *vpri)
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
 #if defined(HAVE_PRI_CALL_HOLD)
 			case PRI_EVENT_RETRIEVE:
+				/* We should not be getting any CIS calls with this message type. */
 				sig_pri_handle_retrieve(pri, e);
 				break;
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
@@ -3189,7 +4024,7 @@ void sig_pri_init_pri(struct sig_pri_pri *pri)
 
 int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 {
-	int res = 0;
+	int res;
 #ifdef SUPPORT_USERUSER
 	const char *useruser = pbx_builtin_getvar_helper(ast, "USERUSERINFO");
 #endif
@@ -3213,47 +4048,43 @@ int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 	p->exten[0] = '\0';
 	sig_pri_set_dialing(p, 0);
 
-	if (!p->call) {
-		res = 0;
-		goto exit;
-	}
-
 	/* Make sure we have a call (or REALLY have a call in the case of a PRI) */
 	if (!pri_grab(p, p->pri)) {
-		if (p->alreadyhungup) {
-			ast_log(LOG_DEBUG, "Already hungup...  Calling hangup once, and clearing call\n");
+		if (p->call) {
+			if (p->alreadyhungup) {
+				ast_log(LOG_DEBUG, "Already hungup...  Calling hangup once, and clearing call\n");
 
 #ifdef SUPPORT_USERUSER
-			pri_call_set_useruser(p->call, useruser);
+				pri_call_set_useruser(p->call, useruser);
 #endif
 
-			pri_hangup(p->pri->pri, p->call, -1);
-			p->call = NULL;
-		} else {
-			const char *cause = pbx_builtin_getvar_helper(ast,"PRI_CAUSE");
-			int icause = ast->hangupcause ? ast->hangupcause : -1;
-			ast_log(LOG_DEBUG, "Not yet hungup...  Calling hangup once with icause, and clearing call\n");
+				pri_hangup(p->pri->pri, p->call, -1);
+				p->call = NULL;
+			} else {
+				const char *cause = pbx_builtin_getvar_helper(ast,"PRI_CAUSE");
+				int icause = ast->hangupcause ? ast->hangupcause : -1;
+				ast_log(LOG_DEBUG, "Not yet hungup...  Calling hangup once with icause, and clearing call\n");
 
 #ifdef SUPPORT_USERUSER
-			pri_call_set_useruser(p->call, useruser);
+				pri_call_set_useruser(p->call, useruser);
 #endif
 
-			p->alreadyhungup = 1;
-			if (cause) {
-				if (atoi(cause))
-					icause = atoi(cause);
+				p->alreadyhungup = 1;
+				if (cause) {
+					if (atoi(cause))
+						icause = atoi(cause);
+				}
+				pri_hangup(p->pri->pri, p->call, icause);
 			}
-			pri_hangup(p->pri->pri, p->call, icause);
 		}
-		if (res < 0)
-			ast_log(LOG_WARNING, "pri_disconnect failed\n");
+		sig_pri_span_devstate_changed(p->pri);
 		pri_rel(p->pri);
+		res = 0;
 	} else {
 		ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->pri->span);
 		res = -1;
 	}
 
-exit:
 	ast->tech_pvt = NULL;
 	return res;
 }
@@ -3356,6 +4187,7 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 #ifdef SUPPORT_USERUSER
 	const char *useruser;
 #endif
+	int core_id;
 	int pridialplan;
 	int dp_strip;
 	int prilocaldialplan;
@@ -3672,7 +4504,41 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 		pri_sr_set_useruser(sr, useruser);
 #endif
 
-	if (pri_setup(p->pri->pri, p->call, sr)) {
+#if defined(HAVE_PRI_CCSS)
+	if (ast_cc_is_recall(ast, &core_id, sig_pri_cc_type_name)) {
+		struct ast_cc_monitor *monitor;
+		char device_name[AST_CHANNEL_NAME];
+
+		/* This is a CC recall call. */
+		ast_channel_get_device_name(ast, device_name, sizeof(device_name));
+		monitor = ast_cc_get_monitor_by_recall_core_id(core_id, device_name);
+		if (monitor) {
+			struct sig_pri_cc_monitor_instance *instance;
+
+			instance = monitor->private_data;
+
+			/* If this fails then we have monitor instance ambiguity. */
+			ast_assert(p->pri == instance->pri);
+
+			if (pri_cc_call(p->pri->pri, instance->cc_id, p->call, sr)) {
+				/* The CC recall call failed for some reason. */
+				ast_log(LOG_WARNING, "Unable to setup CC recall call to device %s\n",
+					device_name);
+				ao2_ref(monitor, -1);
+				pri_rel(p->pri);
+				pri_sr_free(sr);
+				return -1;
+			}
+			ao2_ref(monitor, -1);
+		} else {
+			core_id = -1;
+		}
+	} else
+#endif	/* defined(HAVE_PRI_CCSS) */
+	{
+		core_id = -1;
+	}
+	if (core_id == -1 && pri_setup(p->pri->pri, p->call, sr)) {
 		ast_log(LOG_WARNING, "Unable to setup call to %s (using %s)\n",
 			c + p->stripmsd + dp_strip, dialplan2str(p->pri->dialplan));
 		pri_rel(p->pri);
@@ -3935,12 +4801,6 @@ int sig_pri_start_pri(struct sig_pri_pri *pri)
 #ifdef HAVE_PRI_INBANDDISCONNECT
 		pri_set_inbanddisconnect(pri->dchans[i], pri->inbanddisconnect);
 #endif
-#if defined(HAVE_PRI_CALL_HOLD)
-		pri_hold_enable(pri->dchans[i], 1);
-#endif	/* defined(HAVE_PRI_CALL_HOLD) */
-#if defined(HAVE_PRI_CALL_REROUTING)
-		pri_reroute_enable(pri->dchans[i], 1);
-#endif	/* defined(HAVE_PRI_CALL_REROUTING) */
 		/* Enslave to master if appropriate */
 		if (i)
 			pri_enslave(pri->dchans[0], pri->dchans[i]);
@@ -3951,7 +4811,7 @@ int sig_pri_start_pri(struct sig_pri_pri *pri)
 			ast_log(LOG_ERROR, "Unable to create PRI structure\n");
 			return -1;
 		}
-		pri_set_debug(pri->dchans[i], DEFAULT_PRI_DEBUG);
+		pri_set_debug(pri->dchans[i], SIG_PRI_DEBUG_DEFAULT);
 		pri_set_nsf(pri->dchans[i], pri->nsf);
 #ifdef PRI_GETSET_TIMERS
 		for (x = 0; x < PRI_MAX_TIMERS; x++) {
@@ -3960,8 +4820,23 @@ int sig_pri_start_pri(struct sig_pri_pri *pri)
 		}
 #endif
 	}
+
 	/* Assume primary is the one we use */
 	pri->pri = pri->dchans[0];
+
+#if defined(HAVE_PRI_CALL_HOLD)
+	pri_hold_enable(pri->pri, 1);
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+#if defined(HAVE_PRI_CALL_REROUTING)
+	pri_reroute_enable(pri->pri, 1);
+#endif	/* defined(HAVE_PRI_CALL_REROUTING) */
+#if defined(HAVE_PRI_CCSS)
+	pri_cc_enable(pri->pri, 1);
+	pri_cc_recall_mode(pri->pri, pri->cc_ptmp_recall_mode);
+	pri_cc_retain_signaling_req(pri->pri, pri->cc_qsig_signaling_link_req);
+	pri_cc_retain_signaling_rsp(pri->pri, pri->cc_qsig_signaling_link_rsp);
+#endif	/* defined(HAVE_PRI_CCSS) */
+
 	pri->resetpos = -1;
 	if (ast_pthread_create_background(&pri->master, NULL, pri_dchannel, pri)) {
 		for (i = 0; i < NUM_DCHANS; i++) {
@@ -4158,6 +5033,603 @@ void sig_pri_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, str
 	if (pchan->owner == oldchan) {
 		pchan->owner = newchan;
 	}
+}
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \brief PRI CC agent initialization.
+ * \since 1.8
+ *
+ * \param agent CC core agent control.
+ * \param pvt_chan Original channel the agent will attempt to recall.
+ *
+ * \details
+ * This callback is called when the CC core is initialized.  Agents should allocate
+ * any private data necessary for the call and assign it to the private_data
+ * on the agent.  Additionally, if any ast_cc_agent_flags are pertinent to the
+ * specific agent type, they should be set in this function as well.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int sig_pri_cc_agent_init(struct ast_cc_agent *agent, struct sig_pri_chan *pvt_chan)
+{
+	struct sig_pri_cc_agent_prv *cc_pvt;
+
+	cc_pvt = ast_calloc(1, sizeof(*cc_pvt));
+	if (!cc_pvt) {
+		return -1;
+	}
+
+	ast_mutex_lock(&pvt_chan->pri->lock);
+	cc_pvt->pri = pvt_chan->pri;
+	cc_pvt->cc_id = pri_cc_available(pvt_chan->pri->pri, pvt_chan->call);
+	ast_mutex_unlock(&pvt_chan->pri->lock);
+	if (cc_pvt->cc_id == -1) {
+		ast_free(cc_pvt);
+		return -1;
+	}
+	agent->private_data = cc_pvt;
+	return 0;
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \brief Start the offer timer.
+ * \since 1.8
+ *
+ * \param agent CC core agent control.
+ *
+ * \details
+ * This is called by the core when the caller hangs up after
+ * a call for which CC may be requested. The agent should
+ * begin the timer as configured.
+ *
+ * The primary reason why this functionality is left to
+ * the specific agent implementations is due to the differing
+ * use of schedulers throughout the code. Some channel drivers
+ * may already have a scheduler context they wish to use, and
+ * amongst those, some may use the ast_sched API while others
+ * may use the ast_sched_thread API, which are incompatible.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int sig_pri_cc_agent_start_offer_timer(struct ast_cc_agent *agent)
+{
+	/* libpri maintains it's own offer timer in the form of T_RETENTION. */
+	return 0;
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \brief Stop the offer timer.
+ * \since 1.8
+ *
+ * \param agent CC core agent control.
+ *
+ * \details
+ * This callback is called by the CC core when the caller
+ * has requested CC.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int sig_pri_cc_agent_stop_offer_timer(struct ast_cc_agent *agent)
+{
+	/* libpri maintains it's own offer timer in the form of T_RETENTION. */
+	return 0;
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \brief Acknowledge CC request.
+ * \since 1.8
+ *
+ * \param agent CC core agent control.
+ *
+ * \details
+ * When the core receives knowledge that a called
+ * party has accepted a CC request, it will call
+ * this callback.
+ *
+ * The duty of this is to accept a CC request from
+ * the caller by acknowledging receipt of that request.
+ *
+ * \return Nothing
+ */
+void sig_pri_cc_agent_req_ack(struct ast_cc_agent *agent)
+{
+	struct sig_pri_cc_agent_prv *cc_pvt;
+	int res;
+
+	cc_pvt = agent->private_data;
+	ast_mutex_lock(&cc_pvt->pri->lock);
+	if (cc_pvt->cc_request_response_pending) {
+		cc_pvt->cc_request_response_pending = 0;
+		res = pri_cc_req_rsp(cc_pvt->pri->pri, cc_pvt->cc_id, 0/* success */);
+	} else {
+		res = 0;
+	}
+	ast_mutex_unlock(&cc_pvt->pri->lock);
+	if (res) {
+		ast_cc_failed(agent->core_id, "%s agent failed to send the CC request ack.",
+			sig_pri_cc_type_name);
+	}
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \brief Request the status of the agent's device.
+ * \since 1.8
+ *
+ * \param agent CC core agent control.
+ *
+ * \details
+ * Asynchronous request for the status of any caller
+ * which may be a valid caller for the CC transaction.
+ * Status responses should be made using the
+ * ast_cc_status_response function.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int sig_pri_cc_agent_status_req(struct ast_cc_agent *agent)
+{
+	struct sig_pri_cc_agent_prv *cc_pvt;
+
+	cc_pvt = agent->private_data;
+	ast_mutex_lock(&cc_pvt->pri->lock);
+	pri_cc_status_req(cc_pvt->pri->pri, cc_pvt->cc_id);
+	ast_mutex_unlock(&cc_pvt->pri->lock);
+	return 0;
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \brief Request for an agent's phone to stop ringing.
+ * \since 1.8
+ *
+ * \param agent CC core agent control.
+ *
+ * \details
+ * The usefulness of this is quite limited. The only specific
+ * known case for this is if Asterisk requests CC over an ISDN
+ * PTMP link as the TE side. If other phones are in the same
+ * recall group as the Asterisk server, and one of those phones
+ * picks up the recall notice, then Asterisk will receive a
+ * "stop ringing" notification from the NT side of the PTMP
+ * link. This indication needs to be passed to the phone
+ * on the other side of the Asterisk server which originally
+ * placed the call so that it will stop ringing. Since the
+ * phone may be of any type, it is necessary to have a callback
+ * that the core can know about.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int sig_pri_cc_agent_stop_ringing(struct ast_cc_agent *agent)
+{
+	struct sig_pri_cc_agent_prv *cc_pvt;
+
+	cc_pvt = agent->private_data;
+	ast_mutex_lock(&cc_pvt->pri->lock);
+	pri_cc_stop_alerting(cc_pvt->pri->pri, cc_pvt->cc_id);
+	ast_mutex_unlock(&cc_pvt->pri->lock);
+	return 0;
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \brief Let the caller know that the callee has become free
+ * but that the caller cannot attempt to call back because
+ * he is either busy or there is congestion on his line.
+ * \since 1.8
+ *
+ * \param agent CC core agent control.
+ *
+ * \details
+ * This is something that really only affects a scenario where
+ * a phone places a call over ISDN PTMP to Asterisk, who then
+ * connects over PTMP again to the ISDN network. For most agent
+ * types, there is no need to implement this callback at all
+ * because they don't really need to actually do anything in
+ * this situation. If you're having trouble understanding what
+ * the purpose of this callback is, then you can be safe simply
+ * not implementing it.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int sig_pri_cc_agent_party_b_free(struct ast_cc_agent *agent)
+{
+	struct sig_pri_cc_agent_prv *cc_pvt;
+
+	cc_pvt = agent->private_data;
+	ast_mutex_lock(&cc_pvt->pri->lock);
+	pri_cc_b_free(cc_pvt->pri->pri, cc_pvt->cc_id);
+	ast_mutex_unlock(&cc_pvt->pri->lock);
+	return 0;
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \brief Begin monitoring a busy device.
+ * \since 1.8
+ *
+ * \param agent CC core agent control.
+ *
+ * \details
+ * The core will call this callback if the callee becomes
+ * available but the caller has reported that he is busy.
+ * The agent should begin monitoring the caller's device.
+ * When the caller becomes available again, the agent should
+ * call ast_cc_agent_caller_available.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int sig_pri_cc_agent_start_monitoring(struct ast_cc_agent *agent)
+{
+	/* libpri already knows when and how it needs to monitor Party A. */
+	return 0;
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \brief Alert the caller that it is time to try recalling.
+ * \since 1.8
+ *
+ * \param agent CC core agent control.
+ *
+ * \details
+ * The core will call this function when it receives notice
+ * that a monitored party has become available.
+ *
+ * The agent's job is to send a message to the caller to
+ * notify it of such a change. If the agent is able to
+ * discern that the caller is currently unavailable, then
+ * the agent should react by calling the ast_cc_caller_unavailable
+ * function.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int sig_pri_cc_agent_callee_available(struct ast_cc_agent *agent)
+{
+	struct sig_pri_cc_agent_prv *cc_pvt;
+
+	cc_pvt = agent->private_data;
+	ast_mutex_lock(&cc_pvt->pri->lock);
+	pri_cc_remote_user_free(cc_pvt->pri->pri, cc_pvt->cc_id);
+	ast_mutex_unlock(&cc_pvt->pri->lock);
+	return 0;
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \brief Destroy private data on the agent.
+ * \since 1.8
+ *
+ * \param agent CC core agent control.
+ *
+ * \details
+ * The core will call this function upon completion
+ * or failure of CC.
+ *
+ * \note
+ * The agent private_data pointer may be NULL if the agent
+ * constructor failed.
+ *
+ * \return Nothing
+ */
+void sig_pri_cc_agent_destructor(struct ast_cc_agent *agent)
+{
+	struct sig_pri_cc_agent_prv *cc_pvt;
+	int res;
+
+	cc_pvt = agent->private_data;
+	if (!cc_pvt) {
+		/* The agent constructor probably failed. */
+		return;
+	}
+	ast_mutex_lock(&cc_pvt->pri->lock);
+	res = -1;
+	if (cc_pvt->cc_request_response_pending) {
+		res = pri_cc_req_rsp(cc_pvt->pri->pri, cc_pvt->cc_id, 2/* short_term_denial */);
+	}
+	if (res) {
+		pri_cc_cancel(cc_pvt->pri->pri, cc_pvt->cc_id);
+	}
+	ast_mutex_unlock(&cc_pvt->pri->lock);
+	ast_free(cc_pvt);
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \internal
+ * \brief Return the hash value of the given CC monitor instance object.
+ * \since 1.8
+ *
+ * \param obj pointer to the (user-defined part) of an object.
+ * \param flags flags from ao2_callback().  Ignored at the moment.
+ *
+ * \retval core_id
+ */
+static int sig_pri_cc_monitor_instance_hash_fn(const void *obj, const int flags)
+{
+	const struct sig_pri_cc_monitor_instance *monitor_instance = obj;
+
+	return monitor_instance->core_id;
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \internal
+ * \brief Compere the monitor instance core_id key value.
+ * \since 1.8
+ *
+ * \param obj pointer to the (user-defined part) of an object.
+ * \param arg callback argument from ao2_callback()
+ * \param flags flags from ao2_callback()
+ *
+ * \return values are a combination of enum _cb_results.
+ */
+static int sig_pri_cc_monitor_instance_cmp_fn(void *obj, void *arg, int flags)
+{
+	struct sig_pri_cc_monitor_instance *monitor_1 = obj;
+	struct sig_pri_cc_monitor_instance *monitor_2 = arg;
+
+	return monitor_1->core_id == monitor_2->core_id ? CMP_MATCH | CMP_STOP : 0;
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \brief Request CCSS.
+ * \since 1.8
+ *
+ * \param monitor CC core monitor control.
+ * \param available_timer_id Where to put the available timer scheduler id.
+ * Will never be NULL for a device monitor.
+ *
+ * \details
+ * Perform whatever steps are necessary in order to request CC.
+ * In addition, the monitor implementation is responsible for
+ * starting the available timer in this callback. The scheduler
+ * ID for the callback must be stored in the parent_link's child_avail_id
+ * field.
+ *
+ * \retval 0 on success
+ * \retval -1 on failure.
+ */
+int sig_pri_cc_monitor_req_cc(struct ast_cc_monitor *monitor, int *available_timer_id)
+{
+	struct sig_pri_cc_monitor_instance *instance;
+	int cc_mode;
+	int res;
+
+	switch (monitor->service_offered) {
+	case AST_CC_CCBS:
+		cc_mode = 0;/* CCBS */
+		break;
+	case AST_CC_CCNR:
+		cc_mode = 1;/* CCNR */
+		break;
+	default:
+		/* CC service not supported by ISDN. */
+		return -1;
+	}
+
+	instance = monitor->private_data;
+
+	/* libpri handles it's own available timer. */
+	ast_mutex_lock(&instance->pri->lock);
+	res = pri_cc_req(instance->pri->pri, instance->cc_id, cc_mode);
+	ast_mutex_unlock(&instance->pri->lock);
+
+	return res;
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \brief Suspend monitoring.
+ * \since 1.8
+ *
+ * \param monitor CC core monitor control.
+ *
+ * \details
+ * Implementers must perform the necessary steps to suspend
+ * monitoring.
+ *
+ * \retval 0 on success
+ * \retval -1 on failure.
+ */
+int sig_pri_cc_monitor_suspend(struct ast_cc_monitor *monitor)
+{
+	struct sig_pri_cc_monitor_instance *instance;
+
+	instance = monitor->private_data;
+	ast_mutex_lock(&instance->pri->lock);
+	pri_cc_status(instance->pri->pri, instance->cc_id, 1/* busy */);
+	ast_mutex_unlock(&instance->pri->lock);
+
+	return 0;
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \brief Unsuspend monitoring.
+ * \since 1.8
+ *
+ * \param monitor CC core monitor control.
+ *
+ * \details
+ * Perform the necessary steps to unsuspend monitoring.
+ *
+ * \retval 0 on success
+ * \retval -1 on failure.
+ */
+int sig_pri_cc_monitor_unsuspend(struct ast_cc_monitor *monitor)
+{
+	struct sig_pri_cc_monitor_instance *instance;
+
+	instance = monitor->private_data;
+	ast_mutex_lock(&instance->pri->lock);
+	pri_cc_status(instance->pri->pri, instance->cc_id, 0/* free */);
+	ast_mutex_unlock(&instance->pri->lock);
+
+	return 0;
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \brief Status response to an ast_cc_monitor_status_request().
+ * \since 1.8
+ *
+ * \param monitor CC core monitor control.
+ * \param devstate Current status of a Party A device.
+ *
+ * \details
+ * Alert a monitor as to the status of the agent for which
+ * the monitor had previously requested a status request.
+ *
+ * \note Zero or more responses may come as a result.
+ *
+ * \retval 0 on success
+ * \retval -1 on failure.
+ */
+int sig_pri_cc_monitor_status_rsp(struct ast_cc_monitor *monitor, enum ast_device_state devstate)
+{
+	struct sig_pri_cc_monitor_instance *instance;
+	int cc_status;
+
+	switch (devstate) {
+	case AST_DEVICE_UNKNOWN:
+	case AST_DEVICE_NOT_INUSE:
+		cc_status = 0;/* free */
+		break;
+	case AST_DEVICE_BUSY:
+	case AST_DEVICE_INUSE:
+		cc_status = 1;/* busy */
+		break;
+	default:
+		/* Don't know how to interpret this device state into free/busy status. */
+		return 0;
+	}
+	instance = monitor->private_data;
+	ast_mutex_lock(&instance->pri->lock);
+	pri_cc_status_req_rsp(instance->pri->pri, instance->cc_id, cc_status);
+	ast_mutex_unlock(&instance->pri->lock);
+
+	return 0;
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \brief Cancel the running available timer.
+ * \since 1.8
+ *
+ * \param monitor CC core monitor control.
+ * \param sched_id Available timer scheduler id to cancel.
+ * Will never be NULL for a device monitor.
+ *
+ * \details
+ * In most cases, this function will likely consist of just a
+ * call to AST_SCHED_DEL. It might have been possible to do this
+ * within the core, but unfortunately the mixture of sched_thread
+ * and sched usage in Asterisk prevents such usage.
+ *
+ * \retval 0 on success
+ * \retval -1 on failure.
+ */
+int sig_pri_cc_monitor_cancel_available_timer(struct ast_cc_monitor *monitor, int *sched_id)
+{
+	/*
+	 * libpri maintains it's own available timer as one of:
+	 * T_CCBS2/T_CCBS5/T_CCBS6/QSIG_CCBS_T2
+	 * T_CCNR2/T_CCNR5/T_CCNR6/QSIG_CCNR_T2
+	 */
+	return 0;
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+#if defined(HAVE_PRI_CCSS)
+/*!
+ * \brief Destroy PRI private data on the monitor.
+ * \since 1.8
+ *
+ * \param monitor_pvt CC device monitor private data pointer.
+ *
+ * \details
+ * Implementers of this callback are responsible for destroying
+ * all heap-allocated data in the monitor's private_data pointer, including
+ * the private_data itself.
+ */
+void sig_pri_cc_monitor_destructor(void *monitor_pvt)
+{
+	struct sig_pri_cc_monitor_instance *instance;
+
+	instance = monitor_pvt;
+	if (!instance) {
+		return;
+	}
+	ao2_unlink(sig_pri_cc_monitors, instance);
+	ao2_ref(instance, -1);
+}
+#endif	/* defined(HAVE_PRI_CCSS) */
+
+/*!
+ * \brief Load the sig_pri submodule.
+ * \since 1.8
+ *
+ * \param cc_type_name CC type name to use when looking up agent/monitor.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int sig_pri_load(const char *cc_type_name)
+{
+#if defined(HAVE_PRI_CCSS)
+	sig_pri_cc_type_name = cc_type_name;
+	sig_pri_cc_monitors = ao2_container_alloc(37, sig_pri_cc_monitor_instance_hash_fn,
+		sig_pri_cc_monitor_instance_cmp_fn);
+	if (!sig_pri_cc_monitors) {
+		return -1;
+	}
+#endif	/* defined(HAVE_PRI_CCSS) */
+	return 0;
+}
+
+/*!
+ * \brief Unload the sig_pri submodule.
+ * \since 1.8
+ *
+ * \return Nothing
+ */
+void sig_pri_unload(void)
+{
+#if defined(HAVE_PRI_CCSS)
+	if (sig_pri_cc_monitors) {
+		ao2_ref(sig_pri_cc_monitors, -1);
+		sig_pri_cc_monitors = NULL;
+	}
+#endif	/* defined(HAVE_PRI_CCSS) */
 }
 
 #endif /* HAVE_PRI */

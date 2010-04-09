@@ -45,6 +45,14 @@ int ast_xml_finish(void);
  */
 struct ast_xml_doc *ast_xml_open(char *filename);
 
+/*! \brief Open an XML document that resides in memory.
+ * \param buffer The address where the document is stored
+ * \size The number of bytes in the document
+ * \retval NULL on error.
+ * \retval The ast_xml_doc reference to the open document.
+ */
+struct ast_xml_doc *ast_xml_read_memory(char *buffer, size_t size);
+
 /*! \brief Close an already open document and free the used
  *        structure.
  *  \retval doc The document reference.
@@ -90,6 +98,8 @@ const char *ast_xml_get_attribute(struct ast_xml_node *node, const char *attrnam
  *  \retval The node on success.
  */
 struct ast_xml_node *ast_xml_find_element(struct ast_xml_node *root_node, const char *name, const char *attrname, const char *attrvalue);
+struct ast_xml_ns *ast_xml_find_namespace(struct ast_xml_doc *doc, struct ast_xml_node *node, const char *ns_name);
+const char *ast_xml_get_ns_href(struct ast_xml_ns *ns);
 
 /*! \brief Get an element content string.
  *  \param node Node from where to get the string.
