@@ -30,10 +30,6 @@
 #include "asterisk/ccss.h"
 #include <libpri.h>
 #include <dahdi/user.h>
-#if defined(PRI_SUBCMD_CC_AVAILABLE)
-/* BUGBUG the HAVE_PRI_CCSS line is to be removed when the CCSS branch is merged to trunk and the configure script is updated. */
-#define HAVE_PRI_CCSS 1
-#endif	/* defined(PRI_SUBCMD_CC_AVAILABLE) */
 
 #if defined(HAVE_PRI_CCSS)
 /*! PRI debug message flags when normal PRI debugging is turned on at the command line. */
