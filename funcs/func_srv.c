@@ -31,6 +31,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/srv.h"
 #include "asterisk/pbx.h"
 #include "asterisk/app.h"
+#include "asterisk/datastore.h"
+#include "asterisk/channel.h"
 
 /*** DOCUMENTATION
 	<function name="SRVQUERY" language="en_US">

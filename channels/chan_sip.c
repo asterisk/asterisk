@@ -1920,7 +1920,7 @@ static int sip_cc_monitor_request_cc(struct ast_cc_monitor *monitor, int *availa
 		ast_get_ccnr_available_timer(monitor->interface->config_params);
 
 	sip_pvt_lock(monitor_instance->subscription_pvt);
-	create_addr(monitor_instance->subscription_pvt, monitor_instance->peername, 0, 1);
+	create_addr(monitor_instance->subscription_pvt, monitor_instance->peername, 0, 1, NULL);
 	ast_sip_ouraddrfor(&monitor_instance->subscription_pvt->sa.sin_addr, &monitor_instance->subscription_pvt->ourip, monitor_instance->subscription_pvt);
 	monitor_instance->subscription_pvt->subscribed = CALL_COMPLETION;
 	monitor_instance->subscription_pvt->expiry = when;
@@ -10611,7 +10611,7 @@ static int transmit_publish(struct sip_epa_entry *epa_entry, enum sip_publish_ty
 
 	sip_pvt_lock(pvt);
 
-	if (create_addr(pvt, epa_entry->destination, NULL, TRUE)) {
+	if (create_addr(pvt, epa_entry->destination, NULL, TRUE, NULL)) {
 		dialog_unlink_all(pvt, TRUE, TRUE);
 		dialog_unref(pvt, "create_addr failed in transmit_publish. Unref dialog");
 	}
