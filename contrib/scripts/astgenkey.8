@@ -53,12 +53,11 @@
 .ta 8n 16n 24n 32n 40n 48n 56n 64n 72n  
 .TH ASTGENKEY 8 "May 14th, 2005" "Asterisk" "Linux Programmer's Manual"
 .SH NAME
-.B astgenkey
--- generates keys for for Asterisk IAX2 RSA authentication
+.B astgenkey \- generates keys for for Asterisk IAX2 RSA authentication
 .SH SYNOPSIS
 .PP 
 .B astgenkey
-[ -q ] [ -n ] [ \fIkeyname\fP ]
+[ \-q ] [ \-n ] [ \fIkeyname\fP ]
 
 .SH DESCRIPTION
 .B astgenkey 
@@ -66,7 +65,7 @@ This script generates an RSA private and public key pair in PEM format
 for use by Asterisk.  The private key should be kept a secret, as it can 
 be used to fake your system's identity.  Thus by default (without the 
 option 
-.I -n
+.I \-n
 ) the script will create a passphrase-encrypted copy of your secret key: 
 without entering the passphrase you won't be able to use it. 
 
@@ -99,12 +98,12 @@ show keys
 .RE
 
 .SH OPTIONS
-.B -q
+.B \-q
 .RS
 Run quietly.
 .RE
 
-.B -n
+.B \-n
 .RS
 Don't encrypt the private key.
 .RE
@@ -132,7 +131,7 @@ user "asterisk").
 .SH "SEE ALSO" 
 asterisk(8), genrsa(1), rsa(1), 
 
-http://www.voip-info.org/wiki-Asterisk+iax+rsa+auth
+http://www.voip\-info.org/wiki\-Asterisk+iax+rsa+auth
 
 .SH "AUTHOR" 
 This manual page was written by Tzafrir Cohen <tzafrir.cohen@xorcom.com> 
@@ -141,4 +140,4 @@ the terms of the GNU General Public License, Version 2 any
 later version published by the Free Software Foundation. 
 
 On Debian systems, the complete text of the GNU General Public 
-License can be found in /usr/share/common-licenses/GPL. 
+License can be found in /usr/share/common\-licenses/GPL\-2. 
