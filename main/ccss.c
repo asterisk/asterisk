@@ -990,6 +990,22 @@ struct generic_monitor_instance {
 struct generic_monitor_instance_list {
 	const char *device_name;
 	enum ast_device_state current_state;
+	/* If there are multiple instances monitoring the
+	 * same device and one should fail, we need to know
+	 * whether to signal that the device can be recalled.
+	 * The problem is that the device state is not enough
+	 * to check. If a caller has requested CCNR, then the
+	 * fact that the device is available does not indicate
+	 * that the device is ready to be recalled. Instead, as
+	 * soon as one instance of the monitor becomes available
+	 * for a recall, we mark the entire list as being fit
+	 * for recall. If a CCNR request comes in, then we will
+	 * have to mark the list as unfit for recall since this
+	 * is a clear indicator that the person at the monitored
+	 * device has gone away and is actuall not fit to be
+	 * recalled
+	 */
+	int fit_for_recall;
 	struct ast_event_sub *sub;
 	AST_LIST_HEAD_NOLOCK(, generic_monitor_instance) list;
 };
@@ -1112,6 +1128,7 @@ static int generic_monitor_devstate_tp_cb(void *data)
 		AST_LIST_TRAVERSE(&generic_list->list, generic_instance, next) {
 			if (!generic_instance->is_suspended && generic_instance->monitoring) {
 				generic_instance->monitoring = 0;
+				generic_list->fit_for_recall = 1;
 				ast_cc_monitor_callee_available(generic_instance->core_id, "Generic monitored party has become available");
 				break;
 			}
@@ -1208,6 +1225,12 @@ static int cc_generic_monitor_request_cc(struct ast_cc_monitor *monitor, int *av
 		cc_unref(monitor, "Failed to schedule available timer. (monitor)");
 		cc_unref(generic_list, "Failed to schedule available timer. (generic_list)");
 		return -1;
+	}
+	/* If the new instance was created as CCNR, then that means this device is not currently
+	 * fit for recall even if it previously was.
+	 */
+	if (service == AST_CC_CCNR || service == AST_CC_CCNL) {
+		generic_list->fit_for_recall = 0;
 	}
 	ast_cc_monitor_request_acked(monitor->core_id, "Generic monitor for %s subscribed to device state.",
 			monitor->interface->device_name);
@@ -1343,6 +1366,27 @@ static void cc_generic_monitor_destructor(void *private_data)
 		 * list from the container
 		 */
 		ao2_t_unlink(generic_monitors, generic_list, "Generic list is empty. Unlink it from the container");
+	} else {
+		/* There are still instances for this particular device. The situation
+		 * may be that we were attempting a CC recall and a failure occurred, perhaps
+		 * on the agent side. If a failure happens here and the device being monitored
+		 * is available, then we need to signal on the first unsuspended instance that
+		 * the device is available for recall.
+		 */
+
+		/* First things first. We don't even want to consider this action if
+		 * the device in question isn't available right now.
+		 */
+		if (generic_list->fit_for_recall && (generic_list->current_state == AST_DEVICE_NOT_INUSE ||
+				generic_list->current_state == AST_DEVICE_UNKNOWN)) {
+			AST_LIST_TRAVERSE(&generic_list->list, generic_instance, next) {
+				if (!generic_instance->is_suspended && generic_instance->monitoring) {
+					ast_cc_monitor_callee_available(generic_instance->core_id, "Signaling generic monitor "
+							"availability due to other instance's failure.");
+					break;
+				}
+			}
+		}
 	}
 	cc_unref(generic_list, "Done with generic list in generic monitor destructor");
 	ast_free((char *)gen_mon_pvt->device_name);
@@ -2848,8 +2892,6 @@ static int cc_complete(struct cc_core_instance *core_instance, struct cc_state_c
 
 static int cc_failed(struct cc_core_instance *core_instance, struct cc_state_change_args *args, enum cc_state previous_state)
 {
-	/* Something along the way failed, call agent and monitor destructor functions
-	 */
 	manager_event(EVENT_FLAG_CC, "CCFailure",
 		"CoreID: %d\r\n"
 		"Caller: %s\r\n"
