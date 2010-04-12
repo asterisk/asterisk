@@ -27,6 +27,7 @@
 
 /*** MODULEINFO
 	<depend>TEST_FRAMEWORK</depend>
+	<depend>func_curl</depend>
  ***/
 
 #include "asterisk.h"
