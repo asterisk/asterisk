@@ -22680,10 +22680,12 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 				snprintf(causevar, sizeof(causevar), "MASTER_CHANNEL(HASH(SIP_CAUSE,%s))", owner->name);
 				snprintf(causeval, sizeof(causeval), "SIP %s", REQ_OFFSET_TO_STR(req, rlPart2));
 
+				ast_channel_ref(owner);
 				sip_pvt_unlock(p);
 				ast_channel_unlock(owner);
 				*nounlock = 1;
 				pbx_builtin_setvar_helper(owner, causevar, causeval);
+				ast_channel_unref(owner);
 				sip_pvt_lock(p);
 			}
 		}
