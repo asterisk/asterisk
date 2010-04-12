@@ -12659,7 +12659,6 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 				/* Mark Urgent */
 				if ((flag && ast_strlen_zero(flag)) || (!ast_strlen_zero(flag) && strcmp(flag, "Urgent"))) {
 					ast_verbose(VERBOSE_PREFIX_3 "marking message as Urgent\n");
-					ast_debug(1000, "This message is too urgent!\n");
 					res = ast_play_and_wait(chan, "vm-marked-urgent");
 					strcpy(flag, "Urgent");
 				} else if (flag) {
